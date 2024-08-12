@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+
+# File
+Saved
+Intermediate
+DerivedDataCache
