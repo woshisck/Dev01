@@ -34,6 +34,30 @@
 			"Type": "RequiredResource"
 		},
 		{
+			"Path": "$(ProjectDir)/Plugins/Empty/Binaries/Win64/UnrealEditor-Empty.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/Empty/Binaries/Win64/UnrealEditor-Empty.pdb",
+			"Type": "SymbolFile"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/Empty/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/SaeruHikariGPBase/Binaries/Win64/UnrealEditor-SaeruHikariGPBase.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/SaeruHikariGPBase/Binaries/Win64/UnrealEditor-SaeruHikariGPBase.pdb",
+			"Type": "SymbolFile"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/SaeruHikariGPBase/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
 			"Path": "$(EngineDir)/Binaries/Win64/AgentInterface.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -1251,6 +1275,10 @@
 		},
 		{
 			"Path": "$(EngineDir)/Binaries/Win64/UnrealEditor-Renderer.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Binaries/Win64/UnrealEditor-RewindDebuggerInterface.dll",
 			"Type": "DynamicLibrary"
 		},
 		{
@@ -3250,6 +3278,14 @@
 			"Type": "RequiredResource"
 		},
 		{
+			"Path": "$(EngineDir)/Plugins/Runtime/GameplayStateTree/Binaries/Win64/UnrealEditor-GameplayStateTreeModule.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/GameplayStateTree/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
 			"Path": "$(EngineDir)/Plugins/Runtime/GeometryCache/Binaries/Win64/UnrealEditor-GeometryCache.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -3458,6 +3494,22 @@
 			"Type": "RequiredResource"
 		},
 		{
+			"Path": "$(EngineDir)/Plugins/Runtime/StateTree/Binaries/Win64/UnrealEditor-StateTreeEditorModule.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/StateTree/Binaries/Win64/UnrealEditor-StateTreeModule.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/StateTree/Binaries/Win64/UnrealEditor-StateTreeTestSuite.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/StateTree/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
 			"Path": "$(EngineDir)/Plugins/Runtime/Synthesis/Binaries/Win64/UnrealEditor-Synthesis.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -3597,6 +3649,14 @@
 	"RuntimeDependencies": [
 		{
 			"Path": "$(ProjectDir)/DevKit.uproject",
+			"Type": "UFS"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/Empty/Empty.uplugin",
+			"Type": "UFS"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/SaeruHikariGPBase/SaeruHikariGPBase.uplugin",
 			"Type": "UFS"
 		},
 		{
@@ -26520,6 +26580,10 @@
 			"Type": "UFS"
 		},
 		{
+			"Path": "$(EngineDir)/Plugins/Runtime/GameplayStateTree/GameplayStateTree.uplugin",
+			"Type": "UFS"
+		},
+		{
 			"Path": "$(EngineDir)/Plugins/Runtime/GeometryCache/GeometryCache.uplugin",
 			"Type": "UFS"
 		},
@@ -26577,6 +26641,10 @@
 		},
 		{
 			"Path": "$(EngineDir)/Plugins/Runtime/SoundFields/SoundFields.uplugin",
+			"Type": "UFS"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/StateTree/StateTree.uplugin",
 			"Type": "UFS"
 		},
 		{
@@ -26683,6 +26751,7 @@
 		"DumpGPUServices",
 		"EditorDebugTools",
 		"EditorScriptingUtilities",
+		"Empty",
 		"EngineAssetDefinitions",
 		"EnhancedInput",
 		"EnvironmentQueryEditor",
@@ -26693,6 +26762,7 @@
 		"FullBodyIK",
 		"GLTFExporter",
 		"GameplayCameras",
+		"GameplayStateTree",
 		"GameplayTagsEditor",
 		"GeometryCache",
 		"GeometryCollectionPlugin",
@@ -26764,12 +26834,14 @@
 		"ResonanceAudio",
 		"RiderSourceCodeAccess",
 		"RigVM",
+		"SaeruHikariGPBase",
 		"SequencerAnimTools",
 		"SequencerScripting",
 		"SignificanceManager",
 		"SkeletalReduction",
 		"SoundFields",
 		"SpeedTreeImporter",
+		"StateTree",
 		"StructUtils",
 		"StudioTelemetry",
 		"SubversionSourceControl",
