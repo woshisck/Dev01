@@ -17,24 +17,40 @@ UDevAssetManager* UDevAssetManager::GetDevAssetManager() {
 	}
 }
 
-FString UDevAssetManager::AsyncLoadMap(FSoftObjectPath Path, FOnPackageLoaded OnPackageLoaded) {
+void UDevAssetManager::AsyncLoadMap(FSoftObjectPath Path, FOnAsyncLoadFinished OnPackageLoaded) {
 	FString result;
 	result += FString::Printf(TEXT("StartLoad:\t%s\n"), *Path.ToString());
+	bIsLoaded = false;
 
 	CurrentLoadPackage = Path.ToString();
 	LoadPackageAsync(
 		CurrentLoadPackage,
-		FLoadPackageAsyncDelegate::CreateLambda([=](const FName& PackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
+		FLoadPackageAsyncDelegate::CreateLambda([=,this](const FName& PackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
 			{
 				if (Result == EAsyncLoadingResult::Succeeded)
 				{
-					//可执行通知进行地图切换，即openlevel
+					bIsLoaded = true;
+					UE_LOG(LogTemp, Warning, TEXT("Load Succeeded"));
 					OnPackageLoaded.ExecuteIfBound();
 				}
+				else if(Result == EAsyncLoadingResult::Failed){
+					UE_LOG(LogTemp, Warning, TEXT("Load Failed"));
+				}
+
 			}), 0, PKG_ContainsMap);
-	return result;
 }
 
-float UDevAssetManager::GetCurrentLoadProgress(int32& LoadedCount, int32& RequestedCount) const {
-	return GetAsyncLoadPercentage(*CurrentLoadPackage);
+
+float UDevAssetManager::GetLoadProgress() {
+	float FloatPercentage = GetAsyncLoadPercentage(*CurrentLoadPackage);
+	if (!bIsLoaded) {
+		FString ResutlStr = FString::Printf(TEXT("Percentage: %f"), FloatPercentage);
+		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, ResutlStr);
+		UE_LOG(LogTemp, Warning, TEXT("Percentage: %f"), FloatPercentage);
+	}
+	else {
+		FloatPercentage = 100;
+
+	}
+	return FloatPercentage;
 }

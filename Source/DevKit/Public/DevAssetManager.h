@@ -7,7 +7,7 @@
 #include "DevAssetManager.generated.h"
 
 
-DECLARE_DYNAMIC_DELEGATE(FOnPackageLoaded);
+DECLARE_DYNAMIC_DELEGATE(FOnAsyncLoadFinished);
 
 UCLASS()
 class DEVKIT_API UDevAssetManager : public UAssetManager
@@ -16,15 +16,21 @@ class DEVKIT_API UDevAssetManager : public UAssetManager
 	
 
 public:
+	bool bIsLoaded;
+	
 	FString CurrentLoadPackage;
 
 	UFUNCTION(BlueprintPure,BlueprintCallable, Category = "AssetLoader")
 	static UDevAssetManager* GetDevAssetManager();
 
+	//UFUNCTION(BlueprintCallable, CallInEditor)
+	//FString AsyncLoadMap(const FOnAsyncLoadFinished& OnAsyncLoadFinished);
+	UFUNCTION(BlueprintCallable)
+	void AsyncLoadMap(FSoftObjectPath Path, FOnAsyncLoadFinished OnAsyncLoadFinished);
+
+
 	UFUNCTION(BlueprintCallable, CallInEditor)
-	FString AsyncLoadMap(FSoftObjectPath Path, FOnPackageLoaded OnPackageLoaded);
-	
-	UFUNCTION(BlueprintCallable, CallInEditor)
-	float GetCurrentLoadProgress(int32& LoadedCount, int32& RequestedCount) const;
+	float GetLoadProgress();
+	//float GetCurrentLoadProgress(int32& LoadedCount, int32& RequestedCount) const;
 	
 };
