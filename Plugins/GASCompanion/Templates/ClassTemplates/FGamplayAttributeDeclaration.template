@@ -1,0 +1,4 @@
+    
+    UPROPERTY(BlueprintReadOnly, Category = "%ATTRIBUTE_CATEGORY%", ReplicatedUsing = OnRep_%ATTRIBUTE_NAME%)
+    FGameplayAttributeData %ATTRIBUTE_NAME% = %ATTRIBUTE_VALUE%;
+    ATTRIBUTE_ACCESSORS(%PREFIXED_CLASS_NAME%, %ATTRIBUTE_NAME%)    

@@ -1,0 +1,8 @@
+{
+	"BuildId": "33043543",
+	"Modules": 
+	{
+		"ComboGraph": "UnrealEditor-ComboGraph.dll",
+		"ComboGraphEditor": "UnrealEditor-ComboGraphEditor.dll"
+	}
+}

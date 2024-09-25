@@ -1,0 +1,3 @@
+
+    UFUNCTION()
+    virtual void OnRep_%ATTRIBUTE_NAME%(const FGameplayAttributeData& Old%ATTRIBUTE_NAME%);
