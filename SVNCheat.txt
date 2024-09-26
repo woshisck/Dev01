@@ -1,0 +1,2 @@
+添加目录下所有文件:
+svn add . --no-ignore --force
