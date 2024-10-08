@@ -6,6 +6,9 @@
 *.gch
 *.pch
 
+#compiled File
+*.pdb
+
 
 # Fortran module files
 *.mod
