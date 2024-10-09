@@ -114,7 +114,7 @@ public:
 protected:
 
 	/** The Combo Graph model this editor handles */
-	UComboGraph* ComboGraphBeingEdited;
+	TObjectPtr<UComboGraph> ComboGraphBeingEdited;
 
 	/** The Combo Editor Graph created part of this asset editor */
 	// TWeakObjectPtr<UEdGraph> ComboEditorGraph;

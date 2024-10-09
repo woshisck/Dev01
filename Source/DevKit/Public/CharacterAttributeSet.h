@@ -27,8 +27,10 @@ public:
 	FGameplayAttributeData Health = 100.0f;
 	ATTRIBUTE_ACCESSORS(UCharacterAttributeSet, Health);
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayAttributeData MaxHealth = 100.0f;
 	ATTRIBUTE_ACCESSORS(UCharacterAttributeSet, MaxHealth)
+
+
 
 };
