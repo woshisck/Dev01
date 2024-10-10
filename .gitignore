@@ -20,7 +20,8 @@
 *.app
 
 
-# File
+# File/Path
+Binary/Win64/*.pdb
 Saved
 Intermediate
 DerivedDataCache
