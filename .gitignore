@@ -21,7 +21,7 @@
 
 
 # File/Path
-Binary/Win64/*.pdb
+Binary\Win64\*.pdb
 Saved
 Intermediate
 DerivedDataCache
