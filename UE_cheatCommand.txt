@@ -1,2 +1,2 @@
-GAS:
-showdebug abilitysystem
+GAS: (during editor play)
+showdebug abilitysystem 
