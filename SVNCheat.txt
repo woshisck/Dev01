@@ -1,2 +1,12 @@
 添加目录下所有文件:
 svn add . --no-ignore --force
+
+SVN Config:
+
+cd /var/svn/svnrepos/conf
+
+
+sudo htpasswd /var/svn/svnrepos/conf/passwd [-UserName]
+
+ref:
+https://help.aliyun.com/zh/ecs/use-cases/deploying-and-using-svn
