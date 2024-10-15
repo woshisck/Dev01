@@ -12,8 +12,8 @@
 	{
 		"MajorVersion": 5,
 		"MinorVersion": 4,
-		"PatchVersion": 3,
-		"Changelist": 34507850,
+		"PatchVersion": 4,
+		"Changelist": 35576357,
 		"CompatibleChangelist": 33043543,
 		"IsLicenseeVersion": 0,
 		"IsPromotedBuild": 0,
@@ -3715,18 +3715,6 @@
 		},
 		{
 			"Path": "$(ProjectDir)/Plugins/ElectronicNodes/Binaries/Win64/UnrealEditor.modules",
-			"Type": "RequiredResource"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/Empty/Binaries/Win64/UnrealEditor-Empty.dll",
-			"Type": "DynamicLibrary"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/Empty/Binaries/Win64/UnrealEditor-Empty.pdb",
-			"Type": "SymbolFile"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/Empty/Binaries/Win64/UnrealEditor.modules",
 			"Type": "RequiredResource"
 		},
 		{
@@ -26836,10 +26824,6 @@
 			"Type": "UFS"
 		},
 		{
-			"Path": "$(ProjectDir)/Plugins/Empty/Empty.uplugin",
-			"Type": "UFS"
-		},
-		{
 			"Path": "$(ProjectDir)/Plugins/GASCompanion/GASCompanion.uplugin",
 			"Type": "UFS"
 		},
@@ -26911,7 +26895,6 @@
 		"EditorDebugTools",
 		"EditorScriptingUtilities",
 		"ElectronicNodes",
-		"Empty",
 		"EngineAssetDefinitions",
 		"EnhancedInput",
 		"EnvironmentQueryEditor",
