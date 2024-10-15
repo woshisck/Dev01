@@ -10,7 +10,16 @@
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
 				"Engine",
-				"GameplayAbilities"
+				"GameplayAbilities",
+				"CoreUObject"
+			]
+		},
+		{
+			"Name": "DevKitEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"CoreUObject"
 			]
 		}
 	],
@@ -21,6 +30,10 @@
 			"TargetAllowList": [
 				"Editor"
 			]
+		},
+		{
+			"Name": "ModularGameplay",
+			"Enabled": true
 		},
 		{
 			"Name": "StateTree",
@@ -35,18 +48,18 @@
 			"Enabled": true
 		},
 		{
-			"Name": "ComboGraph",
-			"Enabled": true,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/0211d0b7c514480c8e6ef338999d63c2"
-		},
-		{
 			"Name": "ElectronicNodes",
 			"Enabled": true,
 			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/5cb2a394d0c04e73891762be4cbd7216"
 		},
 		{
+			"Name": "ComboGraph",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/0211d0b7c514480c8e6ef338999d63c2"
+		},
+		{
 			"Name": "GASCompanion",
-			"Enabled": false,
+			"Enabled": true,
 			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/d83c6f34c3fb4b7092dde195c37c7413"
 		}
 	]

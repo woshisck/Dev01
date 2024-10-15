@@ -1,0 +1,17 @@
+/.git
+/.github
+/.svn
+/.vs
+/.vscode
+/Content
+/DerivedDataCache
+/Intermediate
+/Saved
+/Plugins/ComboGraph/Content
+/Plugins/ComboGraph/Intermediate
+/Plugins/ElectronicNodes/Intermediate
+/Plugins/Empty/Content
+/Plugins/Empty/Intermediate
+/Plugins/GASCompanion/Content
+/Plugins/GASCompanion/Intermediate
+/Plugins/GASCompanion/Templates
