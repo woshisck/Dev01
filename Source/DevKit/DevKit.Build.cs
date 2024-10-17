@@ -8,7 +8,20 @@ public class DevKit : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" });
+		PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"Core", 
+				"CoreUObject", 
+				"Engine", 
+				"InputCore",
+                "Niagara",
+                "ModularGameplay",
+                "ModularGameplayActors",
+                "DataRegistry",
+                "PhysicsCore",
+                "GameplayTags",
+                "GameplayTasks"
+            });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 
