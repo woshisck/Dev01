@@ -52,7 +52,7 @@ public:
 
 
 UCLASS(Blueprintable, BlueprintType, Const, Meta = (DisplayName = "Weapon Pickup Data", ShortTooltip = "Data asset used to configure a weapon pickup."))
-class DEVKIT_API ULyraWeaponPickupDefinition : public UYogPickupDefinition
+class DEVKIT_API UYogWeaponPickupDefinition : public UYogPickupDefinition
 {
 	GENERATED_BODY()
 

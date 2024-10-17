@@ -17,7 +17,6 @@ public class DevKit : ModuleRules
                 "Niagara",
                 "ModularGameplay",
                 "ModularGameplayActors",
-                "DataRegistry",
                 "PhysicsCore",
                 "GameplayTags",
                 "GameplayTasks"
