@@ -9,7 +9,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent))
 class DEVKIT_API UYogAnimInstance : public UAnimInstance
 {
 	GENERATED_BODY()

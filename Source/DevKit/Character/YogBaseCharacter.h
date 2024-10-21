@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ModularCharacter.h"
+
 #include "YogBaseCharacter.generated.h"
 
 /**
@@ -13,5 +14,6 @@ UCLASS()
 class DEVKIT_API AYogBaseCharacter : public AModularCharacter
 {
 	GENERATED_BODY()
-	
+public:
+	AYogBaseCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 };
