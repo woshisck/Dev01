@@ -2,6 +2,8 @@
 
 
 #include "YogSpringArmComponent.h"
+#include "../Character/YogBaseCharacter.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 void UYogSpringArmComponent::BeginPlay()
 {
@@ -20,7 +22,7 @@ void UYogSpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace, bool bDoLoc
 			const FRotator ArmRotStep = (DesiredRot - PreviousDesiredRot).GetNormalized() * (1.f / DeltaTime);
 			FRotator LerpTarget = PreviousDesiredRot;
 			float RemainingTime = DeltaTime;
-			while (RemainingTime > KINDA_SMALL_NUMBER)
+			while (RemainingTime > UE_KINDA_SMALL_NUMBER)
 			{
 				const float LerpAmount = FMath::Min(CameraLagMaxTimeStep, RemainingTime);
 				LerpTarget += ArmRotStep * LerpAmount;
@@ -36,16 +38,39 @@ void UYogSpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace, bool bDoLoc
 		}
 	}
 	PreviousDesiredRot = DesiredRot;
+	
+
+	ACharacter* Character = Cast<ACharacter>(GetOwner());
+	UCharacterMovementComponent* MovementComp = Character != nullptr ? Character->GetCharacterMovement() : nullptr;
+	if (MovementComp != nullptr)
+	{
+		OwnerVelocity = MovementComp->GetLastUpdateVelocity();
+	}
+
+	//if (bReverseLag)
+	//{
+	//	DesiredLoc = GetComponentLocation() + OwnerVelocity;
+	//}
+	//else {
+	//	DesiredLoc = ArmOrigin;
+	//}
+	//ArmOrigin = GetComponentLocation() + TargetOffset;
 
 	// Get the spring arm 'origin', the target we want to look at
 	FVector ArmOrigin = GetComponentLocation() + TargetOffset;
 	// We lag the target, not the actual camera position, so rotating the camera around does not have lag
 	FVector DesiredLoc = ArmOrigin;
+
+	
+	// We lag the target, not the actual camera position, so rotating the camera around does not have lag
+	
 	if (bDoLocationLag)
 	{
 		if (bUseCameraLagSubstepping && DeltaTime > CameraLagMaxTimeStep && CameraLagSpeed > 0.f)
 		{
-			const FVector ArmMovementStep = (DesiredLoc + PreviousDesiredLoc) * (1.f / DeltaTime);
+			const FVector ArmMovementStep = (DesiredLoc - PreviousDesiredLoc) * (1.f / DeltaTime);
+			UE_LOG(LogTemp, Log, TEXT("ArmMovementStep: %s"), *ArmMovementStep.ToString());
+
 			FVector LerpTarget = PreviousDesiredLoc;
 
 			float RemainingTime = DeltaTime;
