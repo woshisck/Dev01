@@ -17,6 +17,7 @@ void UYogSpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace, bool bDoLoc
 	// Apply 'lag' to rotation if desired
 	if (bDoRotationLag)
 	{
+		
 		if (bUseCameraLagSubstepping && DeltaTime > CameraLagMaxTimeStep && CameraRotationLagSpeed > 0.f)
 		{
 			const FRotator ArmRotStep = (DesiredRot - PreviousDesiredRot).GetNormalized() * (1.f / DeltaTime);
@@ -42,39 +43,31 @@ void UYogSpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace, bool bDoLoc
 
 	ACharacter* Character = Cast<ACharacter>(GetOwner());
 	UCharacterMovementComponent* MovementComp = Character != nullptr ? Character->GetCharacterMovement() : nullptr;
+	
 	if (MovementComp != nullptr)
 	{
 		OwnerVelocity = MovementComp->GetLastUpdateVelocity();
 	}
 
-	//if (bReverseLag)
-	//{
-	//	DesiredLoc = GetComponentLocation() + OwnerVelocity;
-	//}
-	//else {
-	//	DesiredLoc = ArmOrigin;
-	//}
-	//ArmOrigin = GetComponentLocation() + TargetOffset;
+
+
 
 	// Get the spring arm 'origin', the target we want to look at
 	FVector ArmOrigin = GetComponentLocation() + TargetOffset;
 	// We lag the target, not the actual camera position, so rotating the camera around does not have lag
+	//FVector DesiredLoc = ArmOrigin;
 	FVector DesiredLoc = ArmOrigin;
-
-	
-	// We lag the target, not the actual camera position, so rotating the camera around does not have lag
-	
 	if (bDoLocationLag)
 	{
 		if (bUseCameraLagSubstepping && DeltaTime > CameraLagMaxTimeStep && CameraLagSpeed > 0.f)
 		{
+			//UE_LOG(LogTemp, Warning, TEXT("Text, %d %f %s"), intVar, floatVar, *fstringVar)
+			
 			const FVector ArmMovementStep = (DesiredLoc - PreviousDesiredLoc) * (1.f / DeltaTime);
-			UE_LOG(LogTemp, Log, TEXT("ArmMovementStep: %s"), *ArmMovementStep.ToString());
-
 			FVector LerpTarget = PreviousDesiredLoc;
 
 			float RemainingTime = DeltaTime;
-			while (RemainingTime > KINDA_SMALL_NUMBER)
+			while (RemainingTime > UE_KINDA_SMALL_NUMBER)
 			{
 				const float LerpAmount = FMath::Min(CameraLagMaxTimeStep, RemainingTime);
 				LerpTarget += ArmMovementStep * LerpAmount;
@@ -86,7 +79,8 @@ void UYogSpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace, bool bDoLoc
 		}
 		else
 		{
-			DesiredLoc = FMath::VInterpTo(PreviousDesiredLoc, DesiredLoc, DeltaTime, CameraLagSpeed);
+
+			DesiredLoc = FMath::VInterpTo(PreviousDesiredLoc, DesiredLoc + OwnerVelocity, DeltaTime, CameraLagSpeed);
 		}
 
 		// Clamp distance if requested
@@ -115,8 +109,10 @@ void UYogSpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace, bool bDoLoc
 	}
 	
 	PreviousArmOrigin = ArmOrigin;
+	//add owner direction to add camera off set
+	/*UE_LOG(LogTemp, Log, TEXT("PreviousDesiredLoc: X=%f, Y=%f, Z=%f"), PreviousDesiredLoc.X, PreviousDesiredLoc.Y, PreviousDesiredLoc.Z);*/
 	PreviousDesiredLoc = DesiredLoc;
-
+	
 	// Now offset camera position back along our rotation
 	DesiredLoc -= DesiredRot.Vector() * TargetArmLength;
 	// Add socket offset in local space
