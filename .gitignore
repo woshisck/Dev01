@@ -8,8 +8,9 @@
 
 #compiled File
 *.pdb
-
-
+*.lib
+*.exe
+*.exp
 # Fortran module files
 *.mod
 *.smod
