@@ -19,12 +19,13 @@
 # Executables
 *.out
 *.app
-.sln
+*.sln
 
 # File/Path
 Binary\Win64\*.pdb
 Binary\Win64\*.exe
 Binary\Win64\*.exp
+Binary\Win64\*.lib
 Saved
 Intermediate
 DerivedDataCache
