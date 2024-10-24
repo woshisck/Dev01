@@ -1138,10 +1138,6 @@
 			"Type": "DynamicLibrary"
 		},
 		{
-			"Path": "$(EngineDir)/Binaries/Win64/UnrealEditor-PluginWarden.dll",
-			"Type": "DynamicLibrary"
-		},
-		{
 			"Path": "$(EngineDir)/Binaries/Win64/UnrealEditor-PortalMessages.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -3703,18 +3699,6 @@
 		},
 		{
 			"Path": "$(ProjectDir)/Plugins/ComboGraph/Binaries/Win64/UnrealEditor.modules",
-			"Type": "RequiredResource"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/ElectronicNodes/Binaries/Win64/UnrealEditor-ElectronicNodes.dll",
-			"Type": "DynamicLibrary"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/ElectronicNodes/Binaries/Win64/UnrealEditor-ElectronicNodes.pdb",
-			"Type": "SymbolFile"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/ElectronicNodes/Binaries/Win64/UnrealEditor.modules",
 			"Type": "RequiredResource"
 		},
 		{
@@ -26820,10 +26804,6 @@
 			"Type": "UFS"
 		},
 		{
-			"Path": "$(ProjectDir)/Plugins/ElectronicNodes/ElectronicNodes.uplugin",
-			"Type": "UFS"
-		},
-		{
 			"Path": "$(ProjectDir)/Plugins/GASCompanion/GASCompanion.uplugin",
 			"Type": "UFS"
 		},
@@ -26894,7 +26874,6 @@
 		"DumpGPUServices",
 		"EditorDebugTools",
 		"EditorScriptingUtilities",
-		"ElectronicNodes",
 		"EngineAssetDefinitions",
 		"EnhancedInput",
 		"EnvironmentQueryEditor",

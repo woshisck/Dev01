@@ -40,8 +40,8 @@ protected:
 
 public:	
 	// Called every frame
-	
 	virtual void Tick(float DeltaTime) override;
+	void OnConstruction(const FTransform& Transform) override;
 
 protected:
 
@@ -66,7 +66,6 @@ public:
 	TObjectPtr<UCapsuleComponent> CollisionVolume;
 
 
-
 	UPROPERTY(BlueprintReadOnly, Category = "WeaponPickup")
 	TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
@@ -85,6 +84,9 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent)
 	void AttemptPickUpWeapon(APawn* Pawn);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "WeaponPickup")
+	bool GiveWeapon(APawn* ReceivingPawn);
 
 
 	UFUNCTION()
