@@ -64,6 +64,7 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 
 void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
+	UE_LOG(LogTemp, Warning, TEXT("OnOverlapBegin Hppens"));
 	APawn* OverlappingPawn = Cast<APawn>(OtherActor);
 	if (OverlappingPawn != nullptr)
 	{
@@ -77,15 +78,18 @@ void AWeaponSpawner::CheckForExistingOverlaps()
 
 void AWeaponSpawner::AttemptPickUpWeapon_Implementation(APawn* Pawn)
 {
-	if (UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Pawn)) 
-	{
-		if (GiveWeapon(Pawn))
-		{
-			//Weapon picked up by pawn
-			SetWeaponPickupVisibility(false);
-			PlayPickupEffects();
-		}
-	}
+	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementation"));
+	GiveWeapon(Pawn);
+	//if (UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Pawn)) 
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("GetAbilitySystemComponent"));
+	//	if (GiveWeapon(Pawn))
+	//	{
+	//		//Weapon picked up by pawn
+	//		SetWeaponPickupVisibility(false);
+	//		PlayPickupEffects();
+	//	}
+	//}
 
 }
 
