@@ -21,7 +21,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Lag)
 	uint32 bReverseLag : 1;
 
-	FVector OwnerVelocity;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Lag)
+	uint32 bStayOffset : 1;
+
+
+	FVector OwnerDirect;
 
 	virtual void UpdateDesiredArmLocation(bool bDoTrace, bool bDoLocationLag, bool bDoRotationLag, float DeltaTime) override;
 };

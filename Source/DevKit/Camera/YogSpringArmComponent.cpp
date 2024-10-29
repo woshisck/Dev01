@@ -46,7 +46,7 @@ void UYogSpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace, bool bDoLoc
 	
 	if (MovementComp != nullptr)
 	{
-		OwnerVelocity = MovementComp->GetLastUpdateVelocity();
+		OwnerDirect = MovementComp->GetLastUpdateVelocity().GetSafeNormal2D();
 	}
 
 
@@ -78,9 +78,22 @@ void UYogSpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace, bool bDoLoc
 			}
 		}
 		else
-		{
+		{	
+			if (bStayOffset) {
 
-			DesiredLoc = FMath::VInterpTo(PreviousDesiredLoc, DesiredLoc + OwnerVelocity, DeltaTime, CameraLagSpeed);
+			}
+			else {
+				if (bReverseLag) {
+
+					//DesiredLoc = FMath::VInterpTo(PreviousDesiredLoc, DesiredLoc + OwnerVelocity, DeltaTime, CameraLagSpeed);
+					DesiredLoc = FMath::VInterpTo(PreviousDesiredLoc, DesiredLoc + OwnerDirect * CameraLagMaxDistance, DeltaTime, CameraLagSpeed);
+				}
+				else {
+					DesiredLoc = FMath::VInterpTo(PreviousDesiredLoc, DesiredLoc, DeltaTime, CameraLagSpeed);
+				}
+			}
+
+			
 		}
 
 		// Clamp distance if requested
