@@ -10,7 +10,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(Config = Game, Meta = (ShortTooltip = "Yog Character class basement"))
 class DEVKIT_API AYogBaseCharacter : public AModularCharacter
 {
 	GENERATED_BODY()
