@@ -47,8 +47,8 @@ void UInputBufferComponent::UpdateMoveBuffer(FVector2D move)
 	
 }
 
-FVector2D UInputBufferComponent::GetLastFrameInput(TArray<FVector2D> MoveBuffer)
+FVector2D UInputBufferComponent::GetLastFrameInput(TArray<FVector2D>& buffer)
 {
-	return MoveBuffer.Pop();
+	return buffer.Pop();
 }
 

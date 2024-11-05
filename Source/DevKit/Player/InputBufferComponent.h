@@ -29,7 +29,7 @@ public:
 	void UpdateMoveBuffer(FVector2D move);
 
 	UFUNCTION(BlueprintCallable, Category = "Buffer")
-	FVector2D GetLastFrameInput(TArray<FVector2D> MoveBuffer);
+	FVector2D GetLastFrameInput(TArray<FVector2D>& buffer);
 
 	UPROPERTY(BlueprintReadWrite, Category="Input buffer")
 	TArray<FVector2D> MoveBuffer;
