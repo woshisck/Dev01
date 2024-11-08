@@ -6,6 +6,7 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "YogAnimNotifyState.generated.h"
 
+class UYogGameplayAbility;
 /**
  * 
  */
@@ -21,4 +22,13 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "player buffer")
 	uint32 ActBufferUpdated : 1;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimNotify")
+	TArray<TSubclassOf<UYogGameplayAbility>> AllowedAbilities;
+
+	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration) override;
+	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
+	virtual FString GetNotifyName_Implementation() const override;
+
 };

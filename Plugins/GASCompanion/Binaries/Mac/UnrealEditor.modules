@@ -1,9 +1,0 @@
-{
-	"BuildId": "33043543",
-	"Modules": 
-	{
-		"GASCompanion": "UnrealEditor-GASCompanion.dylib",
-		"GASCompanionDeveloper": "UnrealEditor-GASCompanionDeveloper.dylib",
-		"GASCompanionEditor": "UnrealEditor-GASCompanionEditor.dylib"
-	}
-}
