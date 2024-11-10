@@ -38,3 +38,7 @@ DerivedDataCache
 .svn
 .vscode
 .exe
+/Content/BlinkAndDashVFX
+/Content/Katana_Animations
+/Content/ParagonMinions
+/Content/TopDown
