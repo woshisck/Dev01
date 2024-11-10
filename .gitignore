@@ -22,9 +22,9 @@
 *.sln
 
 # File/Path
-Content\Katana_Animations
-Content\ParagonMinions
-Content\BlinkAndDashVFX
+Content\Katana_Animations\*.uasset
+Content\ParagonMinions\*.uasset
+Content\BlinkAndDashVFX\*.uasset
 Binary\Win64\*.pdb
 Binary\Win64\*.exe
 Binary\Win64\*.exp
