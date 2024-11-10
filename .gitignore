@@ -22,6 +22,9 @@
 *.sln
 
 # File/Path
+Content\Katana_Animations
+Content\ParagonMinions
+Content\BlinkAndDashVFX
 Binary\Win64\*.pdb
 Binary\Win64\*.exe
 Binary\Win64\*.exp
