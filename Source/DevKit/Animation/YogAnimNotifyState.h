@@ -24,8 +24,8 @@ public:
 	uint32 ActBufferUpdated : 1;
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimNotify")
-	TArray<TSubclassOf<UYogGameplayAbility>> AllowedAbilities;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimNotify")
+	//TArray<TSubclassOf<UYogGameplayAbility>> AllowedAbilities;
 
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
