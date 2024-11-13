@@ -10,8 +10,9 @@ public class DevKit : ModuleRules
 	
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"Core", 
-				"CoreUObject", 
+				"Core",
+                "CoreOnline",
+                "CoreUObject", 
 				"Engine", 
 				"InputCore",
                 "Niagara",
@@ -19,10 +20,28 @@ public class DevKit : ModuleRules
                 "ModularGameplayActors",
                 "PhysicsCore",
                 "GameplayTags",
-                "GameplayTasks"
+                "GameplayTasks",
+                "DataRegistry",
+                "ReplicationGraph",
+                "GameFeatures",
+                "Hotfix",
+                "PropertyPath"
             });
 
-		PrivateDependencyModuleNames.AddRange(new string[] {  });
+		PrivateDependencyModuleNames.AddRange(new string[] {
+                "InputCore",
+                "Slate",
+                "SlateCore",
+                "RenderCore",
+                "DeveloperSettings",
+                "EnhancedInput",
+                "NetCore",
+                "RHI",
+                "Projects",
+                "Gauntlet",
+                "UMG",
+
+            });
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });

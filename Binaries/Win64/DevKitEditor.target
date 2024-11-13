@@ -2534,6 +2534,14 @@
 			"Type": "RequiredResource"
 		},
 		{
+			"Path": "$(EngineDir)/Plugins/Experimental/Gauntlet/Binaries/Win64/UnrealEditor-Gauntlet.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Experimental/Gauntlet/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
 			"Path": "$(EngineDir)/Plugins/Experimental/GeometryCollectionPlugin/Binaries/Win64/UnrealEditor-GeometryCollectionEditor.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -3046,6 +3054,18 @@
 			"Type": "RequiredResource"
 		},
 		{
+			"Path": "$(EngineDir)/Plugins/Online/OnlineFramework/Binaries/Win64/UnrealEditor-Hotfix.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Online/OnlineFramework/Binaries/Win64/UnrealEditor-PatchCheck.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Online/OnlineFramework/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
 			"Path": "$(EngineDir)/Plugins/Online/OnlineServices/Binaries/Win64/UnrealEditor-OnlineServicesCommon.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -3258,6 +3278,14 @@
 			"Type": "RequiredResource"
 		},
 		{
+			"Path": "$(EngineDir)/Plugins/Runtime/GameFeatures/Binaries/Win64/UnrealEditor-GameFeatures.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/GameFeatures/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
 			"Path": "$(EngineDir)/Plugins/Runtime/GameplayAbilities/Binaries/Win64/UnrealEditor-GameplayAbilities.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -3447,6 +3475,14 @@
 		},
 		{
 			"Path": "$(EngineDir)/Plugins/Runtime/PropertyAccess/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/ReplicationGraph/Binaries/Win64/UnrealEditor-ReplicationGraph.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/ReplicationGraph/Binaries/Win64/UnrealEditor.modules",
 			"Type": "RequiredResource"
 		},
 		{

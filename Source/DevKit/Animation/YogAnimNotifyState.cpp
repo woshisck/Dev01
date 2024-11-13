@@ -12,7 +12,7 @@ void UYogAnimNotifyState::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSeque
 {
 }
 
-FString UYogAnimNotifyState::GetNotifyName_Implementation() const
-{
-	return FString("AbilityQueueWindow");
-}
+//FString UYogAnimNotifyState::GetNotifyName_Implementation() const
+//{
+//	return FString("AbilityQueueWindow");
+//}

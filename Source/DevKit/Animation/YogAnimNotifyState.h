@@ -29,6 +29,6 @@ public:
 
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
-	virtual FString GetNotifyName_Implementation() const override;
+	//virtual FString GetNotifyName_Implementation() const override;
 
 };

@@ -49,7 +49,8 @@ public class DevKitEditor : ModuleRules
 				"DeveloperToolSettings",
 				"CollectionManager",
 				"SourceControl",
-				"Chaos"
+				"Chaos",
+				
 			}
         );
 

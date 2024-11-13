@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
+#include "../Equipment/YogEquipmentInstance.h"
 #include "WeaponInstance.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class DEVKIT_API UWeaponInstance : public UObject
+class DEVKIT_API UWeaponInstance : public UYogEquipmentInstance
 {
 	GENERATED_BODY()
 	

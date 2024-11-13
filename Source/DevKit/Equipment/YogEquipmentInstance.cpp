@@ -8,6 +8,7 @@
 
 
 UYogEquipmentInstance::UYogEquipmentInstance(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 }
 
@@ -57,6 +58,11 @@ void UYogEquipmentInstance::SpawnEquipmentActors(const TArray<FYogEquipmentActor
 
 void UYogEquipmentInstance::DestroyEquipmentActors()
 {
+	for (AActor* actor : SpawnedActors) {
+		if(actor) {
+			actor->Destroy();
+		}
+	}
 }
 
 void UYogEquipmentInstance::OnEquipped()
