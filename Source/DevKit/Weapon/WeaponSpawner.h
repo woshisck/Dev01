@@ -46,7 +46,7 @@ public:
 protected:
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Yog|WeaponPickup")
-	TObjectPtr<UYogWeaponPickupDefinition> WeaponDefinition;
+	TObjectPtr<UYogWeaponPickupDefinition> WeaponPickUpDefinition;
 
 	//The amount of time between weapon pickup and weapon spawning in seconds
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponPickup")

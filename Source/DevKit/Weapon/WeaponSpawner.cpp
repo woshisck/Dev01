@@ -54,11 +54,11 @@ void AWeaponSpawner::Tick(float DeltaTime)
 
 void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 {
-	if (WeaponDefinition != nullptr && WeaponDefinition->DisplayMesh != nullptr)
+	if (WeaponPickUpDefinition != nullptr && WeaponPickUpDefinition->DisplayMesh != nullptr)
 	{
-		WeaponMesh->SetStaticMesh(WeaponDefinition->DisplayMesh);
-		WeaponMesh->SetRelativeLocation(WeaponDefinition->WeaponMeshOffset);
-		WeaponMesh->SetRelativeScale3D(WeaponDefinition->WeaponMeshScale);
+		WeaponMesh->SetStaticMesh(WeaponPickUpDefinition->DisplayMesh);
+		WeaponMesh->SetRelativeLocation(WeaponPickUpDefinition->WeaponMeshOffset);
+		WeaponMesh->SetRelativeScale3D(WeaponPickUpDefinition->WeaponMeshScale);
 	}
 }
 

@@ -8,43 +8,74 @@
 #include <DevKit/Equipment/YogEquipmentInstance.h>
 #include "Net/UnrealNetwork.h"
 
+#include "InventoryItemInstance.h"
 
 #include "YogInventoryManagerComponent.generated.h"
 
 
 class UObject;
-struct FLyraInventoryList;
+struct FInventoryList;
 struct FNetDeltaSerializeInfo;
 
 USTRUCT(BlueprintType)
 struct FInventoryEntry : public FFastArraySerializerItem
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
+
+
+private:
+	friend FInventoryList;
+	friend UYogInventoryManagerComponent;
+
 
 	UPROPERTY()
-	int32 ExampleIntProperty;
+	TObjectPtr<UInventoryItemInstance> Instance = nullptr;
+
+	UPROPERTY()
+	int32 StackCount = 0;
+
+	UPROPERTY(NotReplicated)
+	int32 LastObservedCount = INDEX_NONE;
 };
 
 
 USTRUCT(BlueprintType)
-struct FInventoryArray : public FFastArraySerializer
+struct FInventoryList : public FFastArraySerializer
 {
-	GENERATED_USTRUCT_BODY()
-
+	GENERATED_BODY()
 
 	// Replicated list of items
-	UPROPERTY()
-	TArray<FInventoryEntry> Entries;
+
+public:
+	void PreReplicatedRemove(const TArrayView<int32> RemovedIndices, int32 FinalSize);
+	void PostReplicatedAdd(const TArrayView<int32> AddedIndices, int32 FinalSize);
+	void PostReplicatedChange(const TArrayView<int32> ChangedIndices, int32 FinalSize);
 
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
 	{
-		return FFastArraySerializer::FastArrayDeltaSerialize<FInventoryEntry, FInventoryArray>(Entries, DeltaParms, *this);
+		return FFastArraySerializer::FastArrayDeltaSerialize<FInventoryEntry, FInventoryList>(Entries, DeltaParms, *this);
 	}
+
+	UInventoryItemInstance* AddEntry(TSubclassOf<UInventoryItemDefinition> ItemClass, int32 StackCount);
+
+	void AddEntry(UInventoryItemInstance* Instance);
+
+	void RemoveEntry(UInventoryItemInstance* Instance);
+
+
+private:
+	friend UYogInventoryManagerComponent;
+
+	UPROPERTY()
+	TArray<FInventoryEntry> Entries;
+
+	UPROPERTY(NotReplicated)
+	TObjectPtr<UActorComponent> OwnerComponent;
 };
 
 
 template<>
-struct TStructOpsTypeTraits<FInventoryArray> : public TStructOpsTypeTraitsBase2<FInventoryArray>
+struct TStructOpsTypeTraits<FInventoryList> : public TStructOpsTypeTraitsBase2<FInventoryList>
 {
 	enum
 	{
