@@ -20,10 +20,10 @@ struct FYogAbilitySet_GameplayAbility
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TSubclassOf<UYogGameplayAbility> Ability = nullptr;
 
-	UPROPERTY(EditDefaultsOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	int32 AbilityLevel = 1;
 	
 };
@@ -34,7 +34,7 @@ struct FYogAbilitySet_GameplayEffect
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TSubclassOf<UGameplayEffect> GameplayEffect = nullptr;
 
 	UPROPERTY(EditDefaultsOnly)
@@ -48,7 +48,7 @@ struct FYogAbilitySet_AttributeSet
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TSubclassOf<UAttributeSet> AttributeSet;
 
 
@@ -76,14 +76,14 @@ public:
  protected:
 
 // 	// Gameplay abilities to grant when this ability set is granted.
- 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Abilities", meta=(TitleProperty=Ability))
+ 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Gameplay Abilities", meta=(TitleProperty=Ability))
  	TArray<FYogAbilitySet_GameplayAbility> GrantedGameplayAbilities;
 
 // 	// Gameplay effects to grant when this ability set is granted.
- 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay Effects", meta=(TitleProperty=GameplayEffect))
+ 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Gameplay Effects", meta=(TitleProperty=GameplayEffect))
  	TArray<FYogAbilitySet_GameplayEffect> GrantedGameplayEffects;
 
 // 	// Attribute sets to grant when this ability set is granted.
- 	UPROPERTY(EditDefaultsOnly, Category = "Attribute Sets", meta=(TitleProperty=AttributeSet))
+ 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attribute Sets", meta=(TitleProperty=AttributeSet))
  	TArray<FYogAbilitySet_AttributeSet> GrantedAttributes;
 };

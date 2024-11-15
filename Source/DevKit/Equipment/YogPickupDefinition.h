@@ -6,6 +6,8 @@
 #include "NiagaraSystem.h"
 #include "Engine/StaticMesh.h"
 #include "Sound/SoundBase.h"
+#include "YogEquipmentDefinition.h"
+
 
 #include "YogPickupDefinition.generated.h"
 
@@ -51,7 +53,7 @@ public:
 };
 
 
-UCLASS(Blueprintable, BlueprintType, Const, Meta = (DisplayName = "Weapon Pickup Data", ShortTooltip = "Data asset used to configure a weapon pickup."))
+UCLASS(Blueprintable, BlueprintType, Const)
 class DEVKIT_API UYogWeaponPickupDefinition : public UYogPickupDefinition
 {
 	GENERATED_BODY()
@@ -69,4 +71,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Amine")
 	TObjectPtr<UAnimMontage> PickupMontage;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Pickup|WeaponDefiniton")
+	TObjectPtr<UYogEquipmentDefinition> WeaponDefinition;
 };

@@ -36,7 +36,7 @@ class UYogEquipmentDefinition : public UObject
 	GENERATED_BODY()
 public:
 	UYogEquipmentDefinition(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+	
 	// Class to spawn
 	UPROPERTY(EditDefaultsOnly, Category=Equipment)
 	TSubclassOf<UYogEquipmentInstance> InstanceType;
