@@ -44,5 +44,5 @@ DerivedDataCache
 /Content/TopDown
 Binaries/Win64/UnrealEditor-DevKit.patch_0.exp
 Binaries/Win64/UnrealEditor-DevKit.patch_0.lib
-/Content/Art
+
 *.code-workspace
