@@ -4,6 +4,7 @@
 #include "BaseAttributeSet.h"
 #include "YogCombatSet.generated.h"
 
+
 UCLASS(BlueprintType)
 class DEVKIT_API UYogCombatSet : public UBaseAttributeSet
 {
@@ -13,24 +14,29 @@ public:
 	// Sets default values for this empty's properties
 	UYogCombatSet();
 
-
-
-
 	ATTRIBUTE_ACCESSORS(UYogCombatSet, BaseDMG);
-	ATTRIBUTE_ACCESSORS(UYogCombatSet, WeaponDMG)
-	ATTRIBUTE_ACCESSORS(UYogCombatSet, DMGAmplify)
-	ATTRIBUTE_ACCESSORS(UYogCombatSet, OwnerSpeed)
-	ATTRIBUTE_ACCESSORS(UYogCombatSet, DMGCorrect)
-	ATTRIBUTE_ACCESSORS(UYogCombatSet, DMGAbsorb)
-	ATTRIBUTE_ACCESSORS(UYogCombatSet, HitRate)
-	ATTRIBUTE_ACCESSORS(UYogCombatSet, Evade)
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, BaseHeal);
+
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, WeaponDMG);
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, DMGAmplify);
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, OwnerSpeed);
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, DMGCorrect);
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, DMGAbsorb);
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, HitRate);
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, Evade);
 
 
 private:
 
 	// The base amount of damage to apply in the damage execution.
-	UPROPERTY(BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BaseDamage, Category = "Combat", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData BaseDMG;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BaseHeal, Category = "Combat", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData BaseHeal;
+
+
+
 
 	// The base amount of healing to apply in the heal execution.
 	UPROPERTY(BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = true))
@@ -53,6 +59,13 @@ private:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData Evade;
+
+protected:
+	UFUNCTION()
+	void OnRep_BaseDamage(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_BaseHeal(const FGameplayAttributeData& OldValue);
 
 
 };

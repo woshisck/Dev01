@@ -17,8 +17,7 @@ public:
 	ATTRIBUTE_ACCESSORS(UYogHealthSet, Health);
 	ATTRIBUTE_ACCESSORS(UYogHealthSet, MaxHealth);
 	ATTRIBUTE_ACCESSORS(UYogHealthSet, Healing);
-	ATTRIBUTE_ACCESSORS(UYogHealthSet, Damage);
-
+	ATTRIBUTE_ACCESSORS(UYogHealthSet, FinalDamage);
 
 	// Delegate when health changes due to damage/healing, some information may be missing on the client
 	mutable FLyraAttributeEvent OnHealthChanged;
@@ -61,11 +60,12 @@ private:
 	FGameplayAttributeData MaxHealth;
 
 
+
+	// Incoming healing. This is mapped directly to +Health
 	UPROPERTY(BlueprintReadWrite, Category = "Health", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData Healing;
 
 	// Incoming damage. This is mapped directly to -Health
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health", Meta = (HideFromModifiers, AllowPrivateAccess = true))
-	FGameplayAttributeData Damage;
-
+	UPROPERTY(BlueprintReadWrite, Category = "Health", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData FinalDamage;
 };

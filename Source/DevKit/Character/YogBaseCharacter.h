@@ -18,6 +18,7 @@ public:
 	AYogBaseCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bIsDead;
 

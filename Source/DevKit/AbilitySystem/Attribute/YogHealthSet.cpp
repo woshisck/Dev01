@@ -25,7 +25,13 @@ void UYogHealthSet::OnRep_MaxHealth(const FGameplayAttributeData& OldValue)
 
 bool UYogHealthSet::PreGameplayEffectExecute(FGameplayEffectModCallbackData& Data)
 {
-	return false;
+	if (!Super::PreGameplayEffectExecute(Data))
+	{
+		return false;
+	}
+
+	// Handle modifying incoming normal damage
+
 }
 
 void UYogHealthSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
@@ -34,14 +40,38 @@ void UYogHealthSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackDa
 
 void UYogHealthSet::PreAttributeBaseChange(const FGameplayAttribute& Attribute, float& NewValue) const
 {
+	Super::PreAttributeBaseChange(Attribute, NewValue);
+
+	ClampAttribute(Attribute, NewValue);
 }
 
 void UYogHealthSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
 {
+	Super::PreAttributeChange(Attribute, NewValue);
+
+	ClampAttribute(Attribute, NewValue);
 }
 
 void UYogHealthSet::PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue)
 {
+	Super::PostAttributeChange(Attribute, OldValue, NewValue);
+
+	//if (Attribute == GetMaxHealthAttribute())
+	//{
+	//	// Make sure current health is not greater than the new max health.
+	//	if (GetHealth() > NewValue)
+	//	{
+	//		ULyraAbilitySystemComponent* LyraASC = GetLyraAbilitySystemComponent();
+	//		check(LyraASC);
+
+	//		LyraASC->ApplyModToAttribute(GetHealthAttribute(), EGameplayModOp::Override, NewValue);
+	//	}
+	//}
+
+	//if (bOutOfHealth && (GetHealth() > 0.0f))
+	//{
+	//	bOutOfHealth = false;
+	//}
 }
 
 void UYogHealthSet::ClampAttribute(const FGameplayAttribute& Attribute, float& NewValue) const
