@@ -14,7 +14,7 @@ public:
 	// Sets default values for this empty's properties
 	UYogCombatSet();
 
-	ATTRIBUTE_ACCESSORS(UYogCombatSet, BaseDMG);
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, BaseDamage);
 	ATTRIBUTE_ACCESSORS(UYogCombatSet, BaseHeal);
 
 	ATTRIBUTE_ACCESSORS(UYogCombatSet, WeaponDMG);
@@ -30,7 +30,7 @@ private:
 
 	// The base amount of damage to apply in the damage execution.
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BaseDamage, Category = "Combat", Meta = (AllowPrivateAccess = true))
-	FGameplayAttributeData BaseDMG;
+	FGameplayAttributeData BaseDamage;
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BaseHeal, Category = "Combat", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData BaseHeal;

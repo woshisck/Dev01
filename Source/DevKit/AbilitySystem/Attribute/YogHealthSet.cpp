@@ -29,7 +29,7 @@ bool UYogHealthSet::PreGameplayEffectExecute(FGameplayEffectModCallbackData& Dat
 	{
 		return false;
 	}
-
+	return false;
 	// Handle modifying incoming normal damage
 
 }

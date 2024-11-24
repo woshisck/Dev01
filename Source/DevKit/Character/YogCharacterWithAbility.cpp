@@ -17,6 +17,8 @@ AYogCharacterWithAbility::AYogCharacterWithAbility(const FObjectInitializer& Obj
 
 void AYogCharacterWithAbility::PostInitializeComponents()
 {
+	Super::PostInitializeComponents();
+
 }
 
 UYogAbilitySystemComponent* AYogCharacterWithAbility::GetASC() const
