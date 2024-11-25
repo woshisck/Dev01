@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "BaseAttributeSet.h"
+
 #include "YogCombatSet.generated.h"
 
 
@@ -14,11 +15,17 @@ public:
 	// Sets default values for this empty's properties
 	UYogCombatSet();
 
-	ATTRIBUTE_ACCESSORS(UYogCombatSet, BaseDamage);
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, baseDMG);
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, WeaponDMG);
+
 	ATTRIBUTE_ACCESSORS(UYogCombatSet, BaseHeal);
 
-	ATTRIBUTE_ACCESSORS(UYogCombatSet, WeaponDMG);
-	ATTRIBUTE_ACCESSORS(UYogCombatSet, DMGAmplify);
+
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, BuffATKAmplify);
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, BuffATK);
+
+
+
 	ATTRIBUTE_ACCESSORS(UYogCombatSet, OwnerSpeed);
 	ATTRIBUTE_ACCESSORS(UYogCombatSet, DMGCorrect);
 	ATTRIBUTE_ACCESSORS(UYogCombatSet, DMGAbsorb);
@@ -26,46 +33,67 @@ public:
 	ATTRIBUTE_ACCESSORS(UYogCombatSet, Evade);
 
 
-private:
-
 	// The base amount of damage to apply in the damage execution.
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BaseDamage, Category = "Combat", Meta = (AllowPrivateAccess = true))
-	FGameplayAttributeData BaseDamage;
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
+	FGameplayAttributeData baseDMG;
 
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BaseHeal, Category = "Combat", Meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	FGameplayAttributeData BaseHeal;
 
 
 
 
 	// The base amount of healing to apply in the heal execution.
-	UPROPERTY(BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	FGameplayAttributeData WeaponDMG;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = true))
-	FGameplayAttributeData DMGAmplify;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_OwnerSpeed, Category = "Combat")
 	FGameplayAttributeData OwnerSpeed;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_DMGCorrect, Category = "Combat")
 	FGameplayAttributeData DMGCorrect;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_DMGAbsorb, Category = "Combat")
 	FGameplayAttributeData DMGAbsorb;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_HitRate, Category = "Combat")
 	FGameplayAttributeData HitRate;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Evade, Category = "Combat")
 	FGameplayAttributeData Evade;
 
+
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BuffATKAmplify, Category = "Combat")
+	FGameplayAttributeData BuffATKAmplify;
+
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BuffATK, Category = "Combat")
+	FGameplayAttributeData BuffATK;
+
+
+
+
 protected:
-	UFUNCTION()
-	void OnRep_BaseDamage(const FGameplayAttributeData& OldValue);
+
 
 	UFUNCTION()
-	void OnRep_BaseHeal(const FGameplayAttributeData& OldValue);
+	virtual void OnRep_OwnerSpeed(const FGameplayAttributeData& OldValue);
+	UFUNCTION()
+	virtual void OnRep_DMGCorrect(const FGameplayAttributeData& OldValue);
+	UFUNCTION()
+	virtual void OnRep_DMGAbsorb(const FGameplayAttributeData& OldValue);
+	UFUNCTION()
+	virtual void OnRep_HitRate(const FGameplayAttributeData& OldValue);
+	UFUNCTION()
+	virtual void OnRep_Evade(const FGameplayAttributeData& OldValue);
 
+
+	UFUNCTION()
+	virtual void OnRep_BuffATKAmplify(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	virtual void OnRep_BuffATK(const FGameplayAttributeData& OldValue);
 
 };

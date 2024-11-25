@@ -11,7 +11,7 @@
 
 
 class AActor;
-class ULyraAbilitySystemComponent;
+class UYogAbilitySystemComponent;
 class UObject;
 class UWorld;
 struct FGameplayEffectSpec;
@@ -40,7 +40,7 @@ public:
 
 	UWorld* GetWorld() const override;
 
-
+	UYogAbilitySystemComponent* GetASC() const;
 
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)

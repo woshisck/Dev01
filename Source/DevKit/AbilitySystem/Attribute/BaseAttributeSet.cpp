@@ -3,6 +3,7 @@
 
 #include "BaseAttributeSet.h"
 #include "Net/UnrealNetwork.h"
+#include "../YogAbilitySystemComponent.h"
 
 
 UBaseAttributeSet::UBaseAttributeSet()
@@ -24,5 +25,10 @@ UWorld* UBaseAttributeSet::GetWorld() const
 	check(Outer);
 
 	return Outer->GetWorld();
+}
+
+UYogAbilitySystemComponent* UBaseAttributeSet::GetASC() const
+{
+	return Cast<UYogAbilitySystemComponent>(GetOwningAbilitySystemComponent());
 }
 
