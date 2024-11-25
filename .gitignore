@@ -49,13 +49,10 @@ Binaries/Win64/UnrealEditor-DevKit.patch_0.lib
 /Content/Art/ArtTestMap
 /Content/Art/EnvironmentAsset
 /Content/Art/Map
-/Content/Art/Map
 /Content/Art/Material
 /Content/Art/Prox_Box
 /Content/UltraVolumetrics
 *.sln
 /Content/Art/Map/GameLevel_L1
-/Content/Art/Map/GameLevel_L1
-/Content/Art
 /Content/Art
 /Content/Art/Map
