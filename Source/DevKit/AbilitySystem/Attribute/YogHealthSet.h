@@ -17,6 +17,7 @@ public:
 	ATTRIBUTE_ACCESSORS(UYogHealthSet, Health);
 	ATTRIBUTE_ACCESSORS(UYogHealthSet, MaxHealth);
 
+
 	// Delegate when health changes due to damage/healing, some information may be missing on the client
 	mutable FLyraAttributeEvent OnHealthChanged;
 
@@ -50,12 +51,11 @@ private:
 	float HealthBeforeAttributeChange;
 
 	// The current health attribute.  The health will be capped by the max health attribute.  Health is hidden from modifiers so only executions can modify it.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_Health, Category = "Lyra|Health", Meta = (HideFromModifiers, AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_Health, Category = "Health", Meta = (HideFromModifiers, AllowPrivateAccess = true))
 	FGameplayAttributeData Health;
 
 	// The current max health attribute.  Max health is an attribute since gameplay effects can modify it.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_MaxHealth, Category = "Lyra|Health", Meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_MaxHealth, Category = "Health", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData MaxHealth;
-
 
 };

@@ -31,7 +31,7 @@ public:
 	ATTRIBUTE_ACCESSORS(UYogCombatSet, DMGAbsorb);
 	ATTRIBUTE_ACCESSORS(UYogCombatSet, HitRate);
 	ATTRIBUTE_ACCESSORS(UYogCombatSet, Evade);
-
+	ATTRIBUTE_ACCESSORS(UYogCombatSet, DMGDealResult);
 
 	// The base amount of damage to apply in the damage execution.
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
@@ -46,6 +46,9 @@ public:
 	// The base amount of healing to apply in the heal execution.
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	FGameplayAttributeData WeaponDMG;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
+	FGameplayAttributeData 	DMGDealResult;
 
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_OwnerSpeed, Category = "Combat")
