@@ -7,6 +7,9 @@
 
 #include "YogBaseCharacter.generated.h"
 
+class UYogAbilitySystemComponent;
+class UYogHealthSet;
+class UYogCombatSet;
 /**
  * 
  */
@@ -24,4 +27,17 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bCanMove;
+
+
+	virtual UYogAbilitySystemComponent* GetASC() const;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "AblitySystemComp")
+	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
+
+	UPROPERTY()
+	TObjectPtr<const class UYogHealthSet> HealthSet;
+	// Combat attribute set used by this actor.
+	UPROPERTY()
+	TObjectPtr<const class UYogCombatSet> CombatSet;
+
 };

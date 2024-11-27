@@ -19,18 +19,6 @@ public:
 
 	virtual void PostInitializeComponents() override;
 
-	virtual UYogAbilitySystemComponent* GetASC() const;
-
-
-private:
-
-	UPROPERTY(VisibleAnywhere, Category = "ASC")
-	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
-
-	UPROPERTY()
-	TObjectPtr<const class UYogHealthSet> HealthSet;
-	// Combat attribute set used by this actor.
-	UPROPERTY()
-	TObjectPtr<const class UYogCombatSet> CombatSet;
+	
 
 };
