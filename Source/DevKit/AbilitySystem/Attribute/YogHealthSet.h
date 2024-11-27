@@ -18,14 +18,14 @@ public:
 	ATTRIBUTE_ACCESSORS(UYogHealthSet, MaxHealth);
 
 
-	// Delegate when health changes due to damage/healing, some information may be missing on the client
-	mutable FLyraAttributeEvent OnHealthChanged;
+	//// Delegate when health changes due to damage/healing, some information may be missing on the client
+	//mutable FLyraAttributeEvent OnHealthChanged;
 
-	// Delegate when max health changes
-	mutable FLyraAttributeEvent OnMaxHealthChanged;
+	//// Delegate when max health changes
+	//mutable FLyraAttributeEvent OnMaxHealthChanged;
 
-	// Delegate to broadcast when the health attribute reaches zero
-	mutable FLyraAttributeEvent OnOutOfHealth;
+	//// Delegate to broadcast when the health attribute reaches zero
+	//mutable FLyraAttributeEvent OnOutOfHealth;
 
 protected:
 

@@ -5,14 +5,15 @@
 
 
 UYogCombatSet::UYogCombatSet()
-	: baseDMG(0.0f)
-	, BaseHeal(0.0f)
-	, OwnerSpeed(600.0f)
-	, DMGCorrect(1.0f)
-	, DMGAbsorb(0.0f)
-	, HitRate(1.0f)
-	, Evade(0.0f)
 {
+	InitbaseDMG(0.0f);
+	InitBaseHeal(0.0f);
+	InitOwnerSpeed(600.0f);
+	InitDMGCorrect(1.0f);
+	InitDMGAbsorb(0.0f);
+	InitHitRate(1.0f);
+	InitEvade(0.0f);
+	
 }
 
 

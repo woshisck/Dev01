@@ -94,6 +94,8 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	EvaluationParameters.SourceTags = SourceTags;
 	EvaluationParameters.TargetTags = TargetTags;
 
+	//float WeaponDamage = FMath::Max<float>(Spec.GetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damge")), false, -1.0f), 0.0f);
+
 	float baseDMG = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().baseDMGDef, EvaluationParameters, baseDMG);
 
@@ -119,5 +121,5 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 	float DMGDone = ((baseDMG + WeaponDMG) * BuffATKAmplify + BuffATK) * DMGCorrect * DMGAbsorb;
 
-	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DMGDealResultProperty, EGameplayModOp::Additive, DMGDone));
+	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DMGDealResultProperty, EGameplayModOp::Additive, -DMGDone));
 }

@@ -3,11 +3,11 @@
 
 
 UYogHealthSet::UYogHealthSet()
-	: Health(100.0f)
-	, MaxHealth(100.0f)
 {
-	MaxHealthBeforeAttributeChange = 0.0f;
-	HealthBeforeAttributeChange = 0.0f;
+	InitHealth(100.0f);
+	InitMaxHealth(100.0f);
+	//MaxHealthBeforeAttributeChange = 0.0f;
+	//HealthBeforeAttributeChange = 0.0f;
 }
 void UYogHealthSet::OnRep_Health(const FGameplayAttributeData& OldValue)
 {
