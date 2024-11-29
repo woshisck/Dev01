@@ -30,6 +30,8 @@ struct FGameplayEffectSpec;
 struct FGameplayEventData;
 
 
+
+
 /**
  * 
  */
@@ -48,5 +50,9 @@ public:
 	/** Called when this ability is removed from the ability system component. */
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName = "OnAbilityRemoved")
 	void K2_OnAbilityRemoved();
+
+	/** Applies a gameplay effect container, by creating and then applying the spec */
+	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
+	virtual TArray<FActiveGameplayEffectHandle> ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel = -1);
 
 };

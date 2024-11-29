@@ -1,55 +1,45 @@
 #include "DamageExecution.h"
-#include "../AbilitySystem/Attribute/YogCombatSet.h"
-#include "../AbilitySystem/Attribute/YogHealthSet.h"
+
+#include <DevKit/AbilitySystem/Attribute/BaseAttributeSet.h>
 
 #include "GameplayEffectExecutionCalculation.h"
 
 struct FYogDamageStatics
 {
-	DECLARE_ATTRIBUTE_CAPTUREDEF(baseDMG);
+
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Health);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(MaxHealth);
+
+	DECLARE_ATTRIBUTE_CAPTUREDEF(BaseDMG);
 	DECLARE_ATTRIBUTE_CAPTUREDEF(WeaponDMG);
-	DECLARE_ATTRIBUTE_CAPTUREDEF(BuffATKAmplify);
 
-	DECLARE_ATTRIBUTE_CAPTUREDEF(BuffATK);
-	DECLARE_ATTRIBUTE_CAPTUREDEF(DMGCorrect);
-	DECLARE_ATTRIBUTE_CAPTUREDEF(DMGAbsorb);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(BuffAmplify);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(BuffingATK);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(OwnerSpeed);
 
-	DECLARE_ATTRIBUTE_CAPTUREDEF(DMGDealResult);
-	//FGameplayEffectAttributeCaptureDefinition baseDMG;
-	//FGameplayEffectAttributeCaptureDefinition WeaponDMG;
-	//FGameplayEffectAttributeCaptureDefinition BuffATKAmplify;
-	//FGameplayEffectAttributeCaptureDefinition BuffATK;
-	//FGameplayEffectAttributeCaptureDefinition DMGCorrect;
-	//FGameplayEffectAttributeCaptureDefinition DMGAbsorb;
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(DMGCorrect);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(DMGAbsorb);
+	//
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(HitRate);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(Evade);
 
-	//FGameplayEffectAttributeCaptureDefinition DMGDealResult;
+	DECLARE_ATTRIBUTE_CAPTUREDEF(DamageResult);
 
 	FYogDamageStatics()
 	{
-		//baseDMG = FGameplayEffectAttributeCaptureDefinition(UYogCombatSet::GetbaseDMGAttribute(), EGameplayEffectAttributeCaptureSource::Source, true);
-		//WeaponDMG = FGameplayEffectAttributeCaptureDefinition(UYogCombatSet::GetWeaponDMGAttribute(), EGameplayEffectAttributeCaptureSource::Source, true);
-		//BuffATKAmplify = FGameplayEffectAttributeCaptureDefinition(UYogCombatSet::GetBuffATKAmplifyAttribute(), EGameplayEffectAttributeCaptureSource::Source, true);
-		//BuffATK = FGameplayEffectAttributeCaptureDefinition(UYogCombatSet::GetBuffATKAttribute(), EGameplayEffectAttributeCaptureSource::Source, true);
-		//DMGCorrect = FGameplayEffectAttributeCaptureDefinition(UYogCombatSet::GetDMGCorrectAttribute(), EGameplayEffectAttributeCaptureSource::Source, true);
-		//DMGAbsorb = FGameplayEffectAttributeCaptureDefinition(UYogCombatSet::GetDMGAbsorbAttribute(), EGameplayEffectAttributeCaptureSource::Source, true);
-		//// Capture the Target's DefensePower attribute. Do not snapshot it, because we want to use the health value at the moment we apply the execution.
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UYogCombatSet, DefensePower, Target, false);
 
-		//// Capture the Source's AttackPower. We do want to snapshot this at the moment we create the GameplayEffectSpec that will execute the damage.
-		//// (imagine we fire a projectile: we create the GE Spec when the projectile is fired. When it hits the target, we want to use the AttackPower at the moment
-		//// the projectile was launched, not when it hits).
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UYogCombatSet, AttackPower, Source, true);
 
-		//// Also capture the source's raw Damage, which is normally passed in directly via the execution
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UYogCombatSet, baseDMG, Source, true);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UYogCombatSet, WeaponDMG, Source, true);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UYogCombatSet, BuffATKAmplify, Source, true);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, BaseDMG, Source, true);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, WeaponDMG, Source, true);
 
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UYogCombatSet, BuffATK, Source, true);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UYogCombatSet, DMGCorrect, Source, true);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UYogCombatSet, DMGAbsorb, Source, true);
+
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, BuffAmplify, Source, true);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, DamageResult, Source, true);
+
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, BuffingATK, Source, true);
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, DMGCorrect, Source, true);
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, DMGAbsorb, Source, true);
 		
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UYogCombatSet, DMGDealResult, Source, false);
 
 	}
 
@@ -64,28 +54,36 @@ static FYogDamageStatics& DamageStatics()
 
 UDamageExecution::UDamageExecution()
 {
-	RelevantAttributesToCapture.Add(DamageStatics().baseDMGDef);
+
+	RelevantAttributesToCapture.Add(DamageStatics().BaseDMGDef);
 	RelevantAttributesToCapture.Add(DamageStatics().WeaponDMGDef);
-	RelevantAttributesToCapture.Add(DamageStatics().BuffATKAmplifyDef);
-	RelevantAttributesToCapture.Add(DamageStatics().BuffATKDef);
-	RelevantAttributesToCapture.Add(DamageStatics().DMGCorrectDef);
-	RelevantAttributesToCapture.Add(DamageStatics().DMGAbsorbDef);
+	RelevantAttributesToCapture.Add(DamageStatics().BuffAmplifyDef);
+
+//	RelevantAttributesToCapture.Add(DamageStatics().BuffingATKDef);
+//	RelevantAttributesToCapture.Add(DamageStatics().DMGCorrectDef);
+//	RelevantAttributesToCapture.Add(DamageStatics().DMGAbsorbDef);
 }
 
 
 void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const 
 {
 	// --------------------------------------
-	//	Damage Done =  ((baseDMG + WeaponDMG) * BuffAmplify + BuffingATK) * DMGCorrect * DMGAbsorb
+	//	Damage Done =  ((BaseDMG + WeaponDMG) * BuffAmplify + BuffingATK) * DMGCorrect * DMGAbsorb
 	// --------------------------------------
 
 	UAbilitySystemComponent* TargetAbilitySystemComponent = ExecutionParams.GetTargetAbilitySystemComponent();
 	UAbilitySystemComponent* SourceAbilitySystemComponent = ExecutionParams.GetSourceAbilitySystemComponent();
 
+
+
+	////Get Avatar Actor
 	AActor* SourceActor = SourceAbilitySystemComponent ? SourceAbilitySystemComponent->GetAvatarActor_Direct() : nullptr;
 	AActor* TargetActor = TargetAbilitySystemComponent ? TargetAbilitySystemComponent->GetAvatarActor_Direct() : nullptr;
 
+	////Get GameplayEffect Instance
 	const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
+
+
 
 	const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
 	const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
@@ -96,30 +94,21 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 	//float WeaponDamage = FMath::Max<float>(Spec.GetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damge")), false, -1.0f), 0.0f);
 
-	float baseDMG = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().baseDMGDef, EvaluationParameters, baseDMG);
+	float BaseDMG = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().BaseDMGDef, EvaluationParameters, BaseDMG);
 
-	float WeaponDMG = 0.f;
+	float WeaponDMG = 50.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().WeaponDMGDef, EvaluationParameters, WeaponDMG);
+	//WeaponDMG = FMath::Max(0.f, WeaponDMG);
 
-	
 	float BuffATKAmplify = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().BuffATKAmplifyDef, EvaluationParameters, BuffATKAmplify);
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().BuffAmplifyDef, EvaluationParameters, BuffATKAmplify);
+
+	float DamageResult = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DamageResultDef, EvaluationParameters, DamageResult);
 
 
-	float BuffATK = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().BuffATKDef, EvaluationParameters, BuffATK);
-
-
-	float DMGCorrect = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DMGCorrectDef, EvaluationParameters, DMGCorrect);
-
-
-	float DMGAbsorb = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DMGAbsorbDef, EvaluationParameters, DMGAbsorb);
-
-
-	float DMGDone = ((baseDMG + WeaponDMG) * BuffATKAmplify + BuffATK) * DMGCorrect * DMGAbsorb;
-
-	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DMGDealResultProperty, EGameplayModOp::Additive, -DMGDone));
+	float DMGDone = (BaseDMG + WeaponDMG) * BuffATKAmplify;
+	//UE_LOG(LogTemp, Log, TEXT("stat print: %f, %f, %f, %f, %f, %f, %f"), BaseDMG,WeaponDMG,BuffATKAmplify,BuffATK,DMGCorrect,DMGAbsorb, DMGDone);
+	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamageResultProperty, EGameplayModOp::Additive, DMGDone));
 }

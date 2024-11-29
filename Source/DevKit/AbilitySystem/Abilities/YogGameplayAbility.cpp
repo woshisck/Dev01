@@ -6,7 +6,14 @@
 
 
 UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+	:Super(ObjectInitializer)
 {
 
+}
+
+
+
+TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
+{
+	return TArray<FActiveGameplayEffectHandle>();
 }
