@@ -27,7 +27,7 @@ struct FYogDamageStatics
 
 	FYogDamageStatics()
 	{
-
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Source, true);
 
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, BaseDMG, Source, true);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, WeaponDMG, Source, true);
@@ -54,7 +54,7 @@ static FYogDamageStatics& DamageStatics()
 
 UDamageExecution::UDamageExecution()
 {
-
+	RelevantAttributesToCapture.Add(DamageStatics().HealthDef);
 	RelevantAttributesToCapture.Add(DamageStatics().BaseDMGDef);
 	RelevantAttributesToCapture.Add(DamageStatics().WeaponDMGDef);
 	RelevantAttributesToCapture.Add(DamageStatics().BuffAmplifyDef);
@@ -109,6 +109,6 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 
 	float DMGDone = (BaseDMG + WeaponDMG) * BuffATKAmplify;
-	//UE_LOG(LogTemp, Log, TEXT("stat print: %f, %f, %f, %f, %f, %f, %f"), BaseDMG,WeaponDMG,BuffATKAmplify,BuffATK,DMGCorrect,DMGAbsorb, DMGDone);
-	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamageResultProperty, EGameplayModOp::Additive, DMGDone));
+	UE_LOG(LogTemp, Log, TEXT("stat print: %f, %f, %f, %f"), BaseDMG,WeaponDMG,BuffATKAmplify,DMGDone);
+	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().HealthProperty, EGameplayModOp::Additive, -DMGDone));
 }
