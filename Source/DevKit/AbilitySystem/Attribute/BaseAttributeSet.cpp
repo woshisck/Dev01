@@ -12,19 +12,12 @@
 
 
 UBaseAttributeSet::UBaseAttributeSet()
-	: Health(100.f)
-	, MaxHealth(100.f)
-	, BaseDMG(0.f)
-	, WeaponDMG(0.f)
-	, BuffAmplify(1.0f)
-	//, BuffingATK(0.0f)
-	//, OwnerSpeed(1.0f)
-	//, DMGCorrect(1.0f)
-	//, DMGAbsorb(0.0f)
-	//, HitRate(1.0f)
-	//, Evade(0.0f)
-	, DamageResult(0.0f)
 {
+	InitHealth(100.f);
+	InitMaxHealth(100.f);
+	InitBaseDMG(10.f);
+	InitWeaponDMG(0.f);
+	InitBuffAmplify(1.2f);
 }
 
 
@@ -38,11 +31,8 @@ void UBaseAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, BaseDMG, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, WeaponDMG, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, BuffAmplify, COND_None, REPNOTIFY_Always);
-//	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, BuffingATK, COND_None, REPNOTIFY_Always);
-//	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, OwnerSpeed, COND_None, REPNOTIFY_Always);
-//	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, DMGCorrect, COND_None, REPNOTIFY_Always);
-//	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, HitRate, COND_None, REPNOTIFY_Always);
-//	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, Evade, COND_None, REPNOTIFY_Always);
+
+
 }
 
 
@@ -86,7 +76,6 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	{
 		// If this was additive, store the raw delta value to be passed along later
 		DeltaValue = Data.EvaluatedData.Magnitude;
-		UE_LOG(LogTemp, Log, TEXT("Raw value: %f"), DeltaValue);
 	}
 
 	//Set Owner 
@@ -101,7 +90,7 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 		TargetCharacter = Cast<AYogBaseCharacter>(TargetActor);
 	}
 
-	if (Data.EvaluatedData.Attribute == GetDamageResultAttribute()) {
+	if (Data.EvaluatedData.Attribute == GetDamageAttribute()) {
 
 		AActor* SourceActor = nullptr;
 		AController* SourceController = nullptr;
@@ -145,8 +134,9 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 
 
 		// Store a local copy of the amount of damage done and clear the damage attribute
-		const float LocalDamageDone = GetDamageResult();
-		SetDamageResult(0.f);
+		const float LocalDamageDone = GetDamage();
+		UE_LOG(LogTemp, Log, TEXT("[LocalDamageDone] %f"), LocalDamageDone);
+		SetDamage(0.f);
 
 		if (LocalDamageDone > 0)
 		{
@@ -165,8 +155,8 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 		}
 
 
-		SetHealth(FMath::Clamp(GetHealth() - GetDamageResult(), MinimumHealth, GetMaxHealth()));
-		SetDamageResult(0.0f);
+		SetHealth(FMath::Clamp(GetHealth() - GetDamage(), MinimumHealth, GetMaxHealth()));
+		SetDamage(0.0f);
 	}
 	else if (Data.EvaluatedData.Attribute == GetHealthAttribute()) {
 		SetHealth(FMath::Clamp(GetHealth(), MinimumHealth, GetMaxHealth()));

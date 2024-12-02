@@ -21,3 +21,8 @@ void UYogAbilitySystemComponent::RemoveDynamicTagGameplayEffect(const FGameplayT
 void UYogAbilitySystemComponent::GetAbilityTargetData(const FGameplayAbilitySpecHandle AbilityHandle, FGameplayAbilityActivationInfo ActivationInfo, FGameplayAbilityTargetDataHandle& OutTargetDataHandle)
 {
 }
+
+void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage)
+{
+	ReceivedDamage.Broadcast(SourceASC, Damage);
+}

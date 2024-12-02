@@ -6,6 +6,7 @@
 
 #include "YogAbilitySystemComponent.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceivedDamageDelegate, UYogAbilitySystemComponent*, SourceASC, float, Damage);
 
 
 
@@ -28,5 +29,7 @@ public:
 	void GetAbilityTargetData(const FGameplayAbilitySpecHandle AbilityHandle, FGameplayAbilityActivationInfo ActivationInfo, FGameplayAbilityTargetDataHandle& OutTargetDataHandle);
 
 
+	FReceivedDamageDelegate ReceivedDamage;
+	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage);
 
 };

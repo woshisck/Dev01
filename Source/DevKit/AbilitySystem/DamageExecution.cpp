@@ -1,7 +1,7 @@
 #include "DamageExecution.h"
 
 #include <DevKit/AbilitySystem/Attribute/BaseAttributeSet.h>
-
+#include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 #include "GameplayEffectExecutionCalculation.h"
 
 struct FYogDamageStatics
@@ -14,6 +14,8 @@ struct FYogDamageStatics
 	DECLARE_ATTRIBUTE_CAPTUREDEF(WeaponDMG);
 
 	DECLARE_ATTRIBUTE_CAPTUREDEF(BuffAmplify);
+
+
 	//DECLARE_ATTRIBUTE_CAPTUREDEF(BuffingATK);
 	//DECLARE_ATTRIBUTE_CAPTUREDEF(OwnerSpeed);
 
@@ -23,18 +25,18 @@ struct FYogDamageStatics
 	//DECLARE_ATTRIBUTE_CAPTUREDEF(HitRate);
 	//DECLARE_ATTRIBUTE_CAPTUREDEF(Evade);
 
-	DECLARE_ATTRIBUTE_CAPTUREDEF(DamageResult);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Damage);
 
 	FYogDamageStatics()
 	{
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Source, true);
 
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, BaseDMG, Source, true);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, WeaponDMG, Source, true);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, BaseDMG, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, WeaponDMG, Source, false);
 
 
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, BuffAmplify, Source, true);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, DamageResult, Source, true);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, BuffAmplify, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Damage, Source, true);
 
 		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, BuffingATK, Source, true);
 		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, DMGCorrect, Source, true);
@@ -97,18 +99,27 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	float BaseDMG = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().BaseDMGDef, EvaluationParameters, BaseDMG);
 
-	float WeaponDMG = 50.f;
+	float WeaponDMG = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().WeaponDMGDef, EvaluationParameters, WeaponDMG);
-	//WeaponDMG = FMath::Max(0.f, WeaponDMG);
+	UE_LOG(LogTemp, Log, TEXT("WeaponDMG: %f"), WeaponDMG);
+	//float WeaponDMG = FMath::Max<float>(Spec.GetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage")), false, -1.0f), 0.0f);
+
 
 	float BuffATKAmplify = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().BuffAmplifyDef, EvaluationParameters, BuffATKAmplify);
 
-	float DamageResult = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DamageResultDef, EvaluationParameters, DamageResult);
+	float Damage = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DamageDef, EvaluationParameters, Damage);
 
 
 	float DMGDone = (BaseDMG + WeaponDMG) * BuffATKAmplify;
-	UE_LOG(LogTemp, Log, TEXT("stat print: %f, %f, %f, %f"), BaseDMG,WeaponDMG,BuffATKAmplify,DMGDone);
-	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().HealthProperty, EGameplayModOp::Additive, -DMGDone));
+	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamageProperty, EGameplayModOp::Additive, DMGDone));
+	UE_LOG(LogTemp, Log, TEXT("WeaponDMG: %f"), WeaponDMG);
+	//Broadcast damages to Target ASC
+	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(TargetAbilitySystemComponent);
+	if (TargetASC)
+	{
+		UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(SourceAbilitySystemComponent);
+		TargetASC->ReceiveDamage(SourceASC, DMGDone);
+	}
 }
