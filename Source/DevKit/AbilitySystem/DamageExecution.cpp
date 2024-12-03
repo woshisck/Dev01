@@ -61,9 +61,6 @@ UDamageExecution::UDamageExecution()
 	RelevantAttributesToCapture.Add(DamageStatics().WeaponDMGDef);
 	RelevantAttributesToCapture.Add(DamageStatics().BuffAmplifyDef);
 
-//	RelevantAttributesToCapture.Add(DamageStatics().BuffingATKDef);
-//	RelevantAttributesToCapture.Add(DamageStatics().DMGCorrectDef);
-//	RelevantAttributesToCapture.Add(DamageStatics().DMGAbsorbDef);
 }
 
 
@@ -94,7 +91,6 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	EvaluationParameters.SourceTags = SourceTags;
 	EvaluationParameters.TargetTags = TargetTags;
 
-	//float WeaponDamage = FMath::Max<float>(Spec.GetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damge")), false, -1.0f), 0.0f);
 
 	float BaseDMG = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().BaseDMGDef, EvaluationParameters, BaseDMG);

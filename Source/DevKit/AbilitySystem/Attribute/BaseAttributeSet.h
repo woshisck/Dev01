@@ -74,21 +74,21 @@ protected:
 
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_Health, Category = "Health")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Health")
 	FGameplayAttributeData Health;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_MaxHealth, Category = "Health")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxHealth, Category = "Health")
 	FGameplayAttributeData MaxHealth;
 
 
 
-	UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_BaseDMG, Category = "Combat")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BaseDMG, Category = "Combat")
 	FGameplayAttributeData BaseDMG;
 
-	UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_WeaponDMG, Category = "Combat")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_WeaponDMG, Category = "Combat")
 	FGameplayAttributeData WeaponDMG;
 
-	UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_BuffAmplify, Category = "Combat")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BuffAmplify, Category = "Combat")
 	FGameplayAttributeData BuffAmplify;
 
 

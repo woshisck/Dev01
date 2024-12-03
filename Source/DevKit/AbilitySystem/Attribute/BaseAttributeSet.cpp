@@ -16,7 +16,7 @@ UBaseAttributeSet::UBaseAttributeSet()
 	InitHealth(100.f);
 	InitMaxHealth(100.f);
 	InitBaseDMG(10.f);
-	InitWeaponDMG(0.f);
+	InitWeaponDMG(1.0f);
 	InitBuffAmplify(1.2f);
 }
 
@@ -71,14 +71,27 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	UAbilitySystemComponent* Source = Context.GetOriginalInstigatorAbilitySystemComponent();
 	const FGameplayTagContainer& SourceTags = *Data.EffectSpec.CapturedSourceTags.GetAggregatedTags();
 
-	float DeltaValue = 0;
-	if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Additive)
+	//Get the source actor
+	AActor* SourceActor = nullptr;
+	AController* SourceController = nullptr;
+	AYogBaseCharacter* SourceCharacter = nullptr;
+	
+	if (Source && Source->AbilityActorInfo.IsValid() && Source->AbilityActorInfo->AvatarActor.IsValid())
 	{
-		// If this was additive, store the raw delta value to be passed along later
-		DeltaValue = Data.EvaluatedData.Magnitude;
+		SourceActor = Source->AbilityActorInfo->AvatarActor.Get();
+		SourceController = Source->AbilityActorInfo->PlayerController.Get();
+
+		if (SourceController)
+		{
+			SourceCharacter = Cast<AYogBaseCharacter>(SourceController->GetPawn());
+		}
+		else
+		{
+			SourceCharacter = Cast<AYogBaseCharacter>(SourceActor);
+		}
 	}
 
-	//Set Owner 
+	//Get the target actor
 	AActor* TargetActor = nullptr;
 	AController* TargetController = nullptr;
 	AYogBaseCharacter* TargetCharacter = nullptr;
@@ -90,96 +103,24 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 		TargetCharacter = Cast<AYogBaseCharacter>(TargetActor);
 	}
 
-	if (Data.EvaluatedData.Attribute == GetDamageAttribute()) {
 
-		AActor* SourceActor = nullptr;
-		AController* SourceController = nullptr;
-		AYogBaseCharacter* SourceCharacter = nullptr;
-
-		if (Source && Source->AbilityActorInfo.IsValid() && Source->AbilityActorInfo->AvatarActor.IsValid())
-		{
-			SourceActor = Source->AbilityActorInfo->AvatarActor.Get();
-			SourceController = Source->AbilityActorInfo->PlayerController.Get();
-			if (SourceController == nullptr && SourceActor != nullptr)
-			{
-				if (APawn* Pawn = Cast<APawn>(SourceActor))
-				{
-					SourceController = Pawn->GetController();
-				}
-			}
-
-			// Use the controller to find the source pawn
-			if (SourceController)
-			{
-				SourceCharacter = Cast<AYogBaseCharacter>(SourceController->GetPawn());
-			}
-			else
-			{
-				SourceCharacter = Cast<AYogBaseCharacter>(SourceActor);
-			}
-
-			// Set the causer actor based on context if it's set
-			if (Context.GetEffectCauser())
-			{
-				SourceActor = Context.GetEffectCauser();
-			}
-		}
-
-		// Try to extract a hit result
-		FHitResult HitResult;
-		if (Context.GetHitResult())
-		{
-			HitResult = *Context.GetHitResult();
-		}
-
-
-		// Store a local copy of the amount of damage done and clear the damage attribute
-		const float LocalDamageDone = GetDamage();
-		UE_LOG(LogTemp, Log, TEXT("[LocalDamageDone] %f"), LocalDamageDone);
-		SetDamage(0.f);
-
-		if (LocalDamageDone > 0)
-		{
-			// Apply the health change and then clamp it
-			const float OldHealth = GetHealth();
-			SetHealth(FMath::Clamp(OldHealth - LocalDamageDone, 0.0f, GetMaxHealth()));
-
-			if (TargetCharacter)
-			{
-				// This is proper damage
-				TargetCharacter->HandleDamage(LocalDamageDone, HitResult, SourceTags, SourceCharacter, SourceActor);
-
-				// Call for all health changes
-				TargetCharacter->HandleHealthChanged(-LocalDamageDone, SourceTags);
-			}
-		}
-
-
-		SetHealth(FMath::Clamp(GetHealth() - GetDamage(), MinimumHealth, GetMaxHealth()));
-		SetDamage(0.0f);
+	float DeltaValue = 0;
+	if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Additive)
+	{
+		// If this was additive, store the raw delta value to be passed along later
+		DeltaValue = Data.EvaluatedData.Magnitude;
 	}
-	else if (Data.EvaluatedData.Attribute == GetHealthAttribute()) {
+
+	if (Data.EvaluatedData.Attribute == GetHealthAttribute()) {
 		SetHealth(FMath::Clamp(GetHealth(), MinimumHealth, GetMaxHealth()));
+	}
+
+	else if (Data.EvaluatedData.Attribute == GetWeaponDMGAttribute()) {
+		SetWeaponDMG(FMath::Clamp(GetWeaponDMG(), MinimumHealth, GetMaxHealth()));
 	}
 
 }
 
-//void UBaseAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-//{
-//	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-//
-//	DOREPLIFETIME(UBaseAttributeSet, Health);
-//	DOREPLIFETIME(UBaseAttributeSet, MaxHealth);
-//	DOREPLIFETIME(UBaseAttributeSet, BaseDMG);
-//	DOREPLIFETIME(UBaseAttributeSet, WeaponDMG);
-//	DOREPLIFETIME(UBaseAttributeSet, BuffAmplify);
-//	DOREPLIFETIME(UBaseAttributeSet, BuffingATK);
-//	DOREPLIFETIME(UBaseAttributeSet, OwnerSpeed);
-//	DOREPLIFETIME(UBaseAttributeSet, DMGCorrect);
-//	DOREPLIFETIME(UBaseAttributeSet, HitRate);
-//	DOREPLIFETIME(UBaseAttributeSet, Evade);
-//
-//}
 
 void UBaseAttributeSet::OnRep_Health(const FGameplayAttributeData& OldValue)
 {
@@ -205,35 +146,6 @@ void UBaseAttributeSet::OnRep_BuffAmplify(const FGameplayAttributeData& OldValue
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, BuffAmplify, OldValue);
 }
-
-//void UBaseAttributeSet::OnRep_BuffingATK(const FGameplayAttributeData& OldValue)
-//{
-//	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, BuffingATK, OldValue);
-//}
-//
-//void UBaseAttributeSet::OnRep_OwnerSpeed(const FGameplayAttributeData& OldValue)
-//{
-//	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, OwnerSpeed, OldValue);
-//}
-//
-//void UBaseAttributeSet::OnRep_DMGCorrect(const FGameplayAttributeData& OldValue)
-//{
-//	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, DMGCorrect, OldValue);
-//}
-//
-//void UBaseAttributeSet::OnRep_DMGAbsorb(const FGameplayAttributeData& OldValue)
-//{
-//	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, DMGAbsorb, OldValue);
-//}
-//
-//void UBaseAttributeSet::OnRep_HitRate(const FGameplayAttributeData& OldValue)
-//{
-//	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, HitRate, OldValue);
-//}
-//
-//void UBaseAttributeSet::OnRep_Evade(const FGameplayAttributeData& OldValue)
-//{
-//	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, Evade, OldValue);
 
 void UBaseAttributeSet::AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty)
 {

@@ -59,12 +59,12 @@ UAbilitySystemComponent* AYogBaseCharacter::GetAbilitySystemComponent() const
 
 float AYogBaseCharacter::GetHealth() const
 {
-	if (AttributeSet.IsValid())
+	if (AttributeSet)
 	{
 		return AttributeSet->GetHealth();
 	}
 
-	return 0.0f;
+	return .04f;
 }
 
 void AYogBaseCharacter::AddStartupGameplayAbilities()

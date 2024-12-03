@@ -44,8 +44,8 @@ public:
 
 
 
-	UPROPERTY()
-	TWeakObjectPtr<class UBaseAttributeSet> AttributeSet;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UBaseAttributeSet> AttributeSet;
 
 
 	//SKill
