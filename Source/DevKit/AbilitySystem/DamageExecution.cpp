@@ -110,7 +110,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 	float DMGDone = (BaseDMG + WeaponDMG) * BuffATKAmplify;
 	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamageProperty, EGameplayModOp::Additive, DMGDone));
-	UE_LOG(LogTemp, Log, TEXT("WeaponDMG: %f"), WeaponDMG);
+	
 	//Broadcast damages to Target ASC
 	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(TargetAbilitySystemComponent);
 	if (TargetASC)

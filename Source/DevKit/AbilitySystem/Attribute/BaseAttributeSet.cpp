@@ -103,21 +103,64 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 		TargetCharacter = Cast<AYogBaseCharacter>(TargetActor);
 	}
 
-
+	// data modification different set 
 	float DeltaValue = 0;
-	if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Additive)
+	if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Override)
 	{
 		// If this was additive, store the raw delta value to be passed along later
 		DeltaValue = Data.EvaluatedData.Magnitude;
+		if (Data.EvaluatedData.Attribute == GetWeaponDMGAttribute())
+		{
+			//effect by self
+			if (SourceController == TargetController)
+			{
+				UE_LOG(LogTemp, Log, TEXT("SELF BUFF"));
+				SetWeaponDMG(DeltaValue);
+			}
+		}
+
+	}
+	
+	else if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Additive)
+	{
+		// If this was additive, store the raw delta value to be passed along later
+		DeltaValue = Data.EvaluatedData.Magnitude;
+		if (Data.EvaluatedData.Attribute == GetDamageAttribute())
+		{
+			//effect by self
+
+			DeltaValue = Data.EvaluatedData.Magnitude;
+			if (SourceController != TargetController)
+			{
+				UE_LOG(LogTemp, Log, TEXT("DAMAGE CAST, Final DAMAGE: %f"), DeltaValue);
+
+				UE_LOG(LogTemp, Log, TEXT("DAMAGE CAST, TargetCharacter: %s, SourceCharacter: %s"), *TargetCharacter->GetName(), *SourceCharacter->GetName());
+				
+			}
+		}
+		else if (Data.EvaluatedData.Attribute == GetHealthAttribute()) {
+			SetHealth(FMath::Clamp(GetHealth(), MinimumHealth, GetMaxHealth()));
+		}
 	}
 
-	if (Data.EvaluatedData.Attribute == GetHealthAttribute()) {
-		SetHealth(FMath::Clamp(GetHealth(), MinimumHealth, GetMaxHealth()));
+	if (Data.EvaluatedData.Attribute == GetDamageAttribute())
+	{
+		//cache Damage to LocalDamageDone
+		const float LocalDamageDone = GetDamage();
+		SetDamage(0.f);
+		UE_LOG(LogTemp, Log, TEXT("LocalDamageDone: %f"), LocalDamageDone);
+
+		if (LocalDamageDone > 0.0f) {
+			if (TargetCharacter) {
+
+			}
+			const float NewHealth = GetHealth() - LocalDamageDone;
+			SetHealth(FMath::Clamp(NewHealth, 0.0f, GetMaxHealth()));
+		}
+
 	}
 
-	else if (Data.EvaluatedData.Attribute == GetWeaponDMGAttribute()) {
-		SetWeaponDMG(FMath::Clamp(GetWeaponDMG(), MinimumHealth, GetMaxHealth()));
-	}
+
 
 }
 
