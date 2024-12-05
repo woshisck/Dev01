@@ -5,6 +5,8 @@
 #include "YogCharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 
+#include "Kismet/KismetSystemLibrary.h"
+
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 
 AYogBaseCharacter::AYogBaseCharacter(const FObjectInitializer& ObjectInitializer)
@@ -21,6 +23,11 @@ AYogBaseCharacter::AYogBaseCharacter(const FObjectInitializer& ObjectInitializer
 
 	//HealthSet = CreateDefaultSubobject<UYogHealthSet>(TEXT("HealthSet"));
 	AttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("AttributeSet"));
+
+
+	//TODO: Dead Tag hardcode define
+	DeadTag = FGameplayTag::RequestGameplayTag(FName("Status.Dead"));
+	
 }
 
 
@@ -64,7 +71,17 @@ float AYogBaseCharacter::GetHealth() const
 		return AttributeSet->GetHealth();
 	}
 
-	return .04f;
+	return .4444f;
+}
+
+float AYogBaseCharacter::GetMaxHealth() const
+{
+	if (AttributeSet)
+	{
+		return AttributeSet->GetMaxHealth();
+	}
+
+	return .5555f;
 }
 
 void AYogBaseCharacter::AddStartupGameplayAbilities()
@@ -72,25 +89,27 @@ void AYogBaseCharacter::AddStartupGameplayAbilities()
 }
 
 
-void AYogBaseCharacter::HandleDamage(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags, AYogBaseCharacter* InstigatorPawn, AActor* DamageCauser)
-{
-	OnDamaged(DamageAmount, HitInfo, DamageTags, InstigatorPawn, DamageCauser);
-}
-
-void AYogBaseCharacter::HandleHealthChanged(float DeltaValue, const FGameplayTagContainer& EventTags)
-{
-	OnHealthChanged(DeltaValue, EventTags);
-}
-
-
-void AYogBaseCharacter::HandleMoveSpeedChanged(float DeltaValue, const FGameplayTagContainer& EventTags)
-{
-	
-}
-
 void AYogBaseCharacter::HealthChanged(const FOnAttributeChangeData& Data)
 {
+
+	//TODO: 
+	// UI Update 
+	// add condition to trigger death 
+
+
 	float Health = Data.NewValue;
+	float percent = Health / GetMaxHealth();
+
+
+	OnCharacterHealthUpdate.Broadcast(percent);
+	UE_LOG(LogTemp, Log, TEXT("Health Changed to: %f"), Health);
+	if (!IsAlive() && !AbilitySystemComponent->HasMatchingGameplayTag(DeadTag))
+	{
+		
+		Die();
+		
+	}
+
 }
 
 void AYogBaseCharacter::MaxHealthChanged(const FOnAttributeChangeData& Data)
@@ -112,4 +131,30 @@ void AYogBaseCharacter::WeaponDMGChanged(const FOnAttributeChangeData& Data)
 void AYogBaseCharacter::BuffAmplifyChanged(const FOnAttributeChangeData& Data)
 {
 	float BuffAmplify = Data.NewValue;
+}
+
+void AYogBaseCharacter::FinishDying()
+{
+	Destroy();
+}
+
+void AYogBaseCharacter::Die()
+{
+	UE_LOG(LogTemp, Log, TEXT("DEATH HAPPEN, DEAD CHARACTER: %s"), *UKismetSystemLibrary::GetDisplayName(this));
+	//GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetCharacterMovement()->GravityScale = 0;
+	GetCharacterMovement()->Velocity = FVector(0);
+
+	OnCharacterDied.Broadcast(this);
+	AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
+	if (DeathMontage)
+	{
+		PlayAnimMontage(DeathMontage);
+	}
+	else
+	{
+		FinishDying();
+	}
+
+
 }

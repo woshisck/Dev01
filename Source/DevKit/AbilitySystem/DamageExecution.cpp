@@ -67,7 +67,7 @@ UDamageExecution::UDamageExecution()
 void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const 
 {
 	// --------------------------------------
-	//	Damage Done =  ((BaseDMG + WeaponDMG) * BuffAmplify + BuffingATK) * DMGCorrect * DMGAbsorb
+	//	Damage Done =  ((BaseDMG + WeaponDMG) * BuffAmplify + BuffingATK) * DMGCorrect
 	// --------------------------------------
 
 	UAbilitySystemComponent* TargetAbilitySystemComponent = ExecutionParams.GetTargetAbilitySystemComponent();
@@ -97,7 +97,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 	float WeaponDMG = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().WeaponDMGDef, EvaluationParameters, WeaponDMG);
-	UE_LOG(LogTemp, Log, TEXT("WeaponDMG: %f"), WeaponDMG);
+
 	//float WeaponDMG = FMath::Max<float>(Spec.GetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage")), false, -1.0f), 0.0f);
 
 

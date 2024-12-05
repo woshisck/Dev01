@@ -18,6 +18,7 @@ UBaseAttributeSet::UBaseAttributeSet()
 	InitBaseDMG(10.f);
 	InitWeaponDMG(1.0f);
 	InitBuffAmplify(1.2f);
+	InitDMGAbsorb(0.2f);
 }
 
 
@@ -31,6 +32,7 @@ void UBaseAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, BaseDMG, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, WeaponDMG, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, BuffAmplify, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, DMGAbsorb, COND_None, REPNOTIFY_Always);
 
 
 }
@@ -144,24 +146,43 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	}
 
 	if (Data.EvaluatedData.Attribute == GetDamageAttribute())
-	{
-		//cache Damage to LocalDamageDone
-		const float LocalDamageDone = GetDamage();
-		SetDamage(0.f);
-		UE_LOG(LogTemp, Log, TEXT("LocalDamageDone: %f"), LocalDamageDone);
-
-		if (LocalDamageDone > 0.0f) {
-			if (TargetCharacter) {
-
-			}
-			const float NewHealth = GetHealth() - LocalDamageDone;
-			SetHealth(FMath::Clamp(NewHealth, 0.0f, GetMaxHealth()));
+	{	
+		FHitResult HitResult;
+		if (Context.GetHitResult())
+		{
+			HitResult = *Context.GetHitResult();
 		}
 
+		
+		const float LocalDamageDone = GetDamage();
+		SetDamage(0.f);
+
+
+		if (LocalDamageDone > 0.0f) 
+		{
+
+			bool WasAlive = true;
+			if (TargetCharacter)
+			{
+				WasAlive = TargetCharacter->IsAlive();
+			}
+
+
+			// --------------------------------------
+			// health = Damage (In DamageExecution) * (1 - DMGAbsorb)
+			// --------------------------------------
+
+			const float NewHealth = GetHealth() - LocalDamageDone * (1.0f - GetDMGAbsorb());
+			SetHealth(NewHealth);
+
+			const FHitResult* Hit = Data.EffectSpec.GetContext().GetHitResult();
+			if (Hit) {
+				UE_LOG(LogTemp, Log, TEXT("Hit effect cause here"));
+			}
+
+
+		}
 	}
-
-
-
 }
 
 
@@ -188,6 +209,11 @@ void UBaseAttributeSet::OnRep_WeaponDMG(const FGameplayAttributeData& OldValue)
 void UBaseAttributeSet::OnRep_BuffAmplify(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, BuffAmplify, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_DMGAbsorb(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, DMGAbsorb, OldValue);
 }
 
 void UBaseAttributeSet::AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty)

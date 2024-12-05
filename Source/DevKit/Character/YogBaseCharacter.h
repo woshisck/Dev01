@@ -9,6 +9,11 @@
 #include "YogBaseCharacter.generated.h"
 
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogBaseCharacter*, Character);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, const float, HealthPercent);
+
+
+
 class UYogAbilitySystemComponent;
 
 /**
@@ -31,22 +36,17 @@ public:
 	AYogBaseCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 
-
-	UFUNCTION(BlueprintCallable, Category = "GASDocumentation|GDCharacter")
-	virtual bool IsAlive() const;
-
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bIsDead;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bCanMove;
 
-
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UBaseAttributeSet> AttributeSet;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")
+	UAnimMontage* DeathMontage;
 
 	//SKill
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Abilities)
@@ -55,26 +55,27 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "AblitySystemComp")
 	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
 
-	UFUNCTION(BlueprintImplementableEvent)
-	void OnHealthChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
-
-	UFUNCTION(BlueprintImplementableEvent)
-	void OnDamaged(float DamageAmount, const FHitResult& HitInfo, const struct FGameplayTagContainer& DamageTags, AYogBaseCharacter* InstigatorCharacter, AActor* DamageCauser);
-
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	float GetHealth() const;
+
+
+	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
+	float GetMaxHealth() const;
 
 	/** Apply the startup gameplay abilities and effects */
 	void AddStartupGameplayAbilities();
 
 
-	// Called from RPGAttributeSet, these call BP events above
-	virtual void HandleDamage(float DamageAmount, const FHitResult& HitInfo, const struct FGameplayTagContainer& DamageTags, AYogBaseCharacter* InstigatorCharacter, AActor* DamageCauser);
-	virtual void HandleHealthChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
+protected:
 
-	virtual void HandleMoveSpeedChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
+	FGameplayTag DeadTag;
 
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FCharacterDiedDelegate OnCharacterDied;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FCharacterHealthUpdateDelegate OnCharacterHealthUpdate;
 
 	FDelegateHandle HealthChangedDelegateHandle;
 	FDelegateHandle MaxHealthChangedDelegateHandle;
@@ -90,6 +91,16 @@ public:
 	virtual void WeaponDMGChanged(const FOnAttributeChangeData& Data);
 	virtual void BuffAmplifyChanged(const FOnAttributeChangeData& Data);
 
+
+
+	UFUNCTION(BlueprintCallable, Category = "Feature")
+	virtual bool IsAlive() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Feature")
+	virtual void FinishDying();
+
+	UFUNCTION(BlueprintCallable, Category = "Feature")
+	virtual void Die();
 	// Friended to allow access to handle functions above
 	friend UBaseAttributeSet;
 };

@@ -25,7 +25,8 @@ public class DevKit : ModuleRules
                 "ReplicationGraph",
                 "GameFeatures",
                 "Hotfix",
-                "PropertyPath"
+                "PropertyPath",
+                "CommonUI"
             });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {

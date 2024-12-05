@@ -56,6 +56,8 @@ public:
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, WeaponDMG);
 
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, BuffAmplify);
+	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, DMGAbsorb);
+
 	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, BuffingATK);
 
 
@@ -63,7 +65,7 @@ public:
 
 
 	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, DMGCorrect);
-	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, DMGAbsorb);
+	
 	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, HitRate);
 	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Evade);
 
@@ -91,7 +93,8 @@ public:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BuffAmplify, Category = "Combat")
 	FGameplayAttributeData BuffAmplify;
 
-
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_DMGAbsorb, Category = "Combat")
+	FGameplayAttributeData DMGAbsorb;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	FGameplayAttributeData Damage;
@@ -112,6 +115,7 @@ public:
 	UFUNCTION()
 	void OnRep_BuffAmplify(const FGameplayAttributeData& OldValue);
 
-
+	UFUNCTION()
+	void OnRep_DMGAbsorb(const FGameplayAttributeData& OldValue);
 
 };
