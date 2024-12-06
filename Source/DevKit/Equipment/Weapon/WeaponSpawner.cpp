@@ -2,8 +2,7 @@
 
 
 #include "WeaponSpawner.h"
-#include "../Equipment/YogPickupDefinition.h"
-
+#include <DevKit/Item/YogPickupDefinition.h>
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -53,12 +52,13 @@ void AWeaponSpawner::Tick(float DeltaTime)
 }
 
 void AWeaponSpawner::OnConstruction(const FTransform& Transform)
-{
-	if (WeaponPickUpDefinition != nullptr && WeaponPickUpDefinition->DisplayMesh != nullptr)
+{	//TODO
+
+	if (WeaponDefinition != nullptr && WeaponDefinition->DisplayMesh != nullptr)
 	{
-		WeaponMesh->SetStaticMesh(WeaponPickUpDefinition->DisplayMesh);
-		WeaponMesh->SetRelativeLocation(WeaponPickUpDefinition->WeaponMeshOffset);
-		WeaponMesh->SetRelativeScale3D(WeaponPickUpDefinition->WeaponMeshScale);
+		WeaponMesh->SetStaticMesh(WeaponDefinition->DisplayMesh);
+		WeaponMesh->SetRelativeLocation(WeaponDefinition->WeaponMeshOffset);
+		WeaponMesh->SetRelativeScale3D(WeaponDefinition->WeaponMeshScale);
 	}
 }
 

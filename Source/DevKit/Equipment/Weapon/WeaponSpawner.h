@@ -4,7 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "../Equipment/YogPickupDefinition.h"
+#include <Devkit/Equipment/Weapon/WeaponDefinition.h>
+#include <Devkit/Item/YogPickupDefinition.h>
 
 
 #include "WeaponSpawner.generated.h"
@@ -21,7 +22,6 @@ struct FFrame;
 struct FGameplayTag;
 struct FHitResult;
 
-class UYogWeaponPickupDefinition;
 
 
 UCLASS(Blueprintable, BlueprintType)
@@ -46,19 +46,12 @@ public:
 protected:
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Yog|WeaponPickup")
-	TObjectPtr<UYogWeaponPickupDefinition> WeaponPickUpDefinition;
-
-	//The amount of time between weapon pickup and weapon spawning in seconds
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponPickup")
-	float CoolDownTime;
+	TObjectPtr<UWeaponDefinition> WeaponDefinition;
 
 	//Delay between when the weapon is made available and when we check for a pawn standing in the spawner. Used to give the bIsWeaponAvailable OnRep time to fire and play FX. 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponPickup")
 	float CheckExistingOverlapDelay;
 
-	//Used to drive weapon respawn time indicators 0-1
-	UPROPERTY(BlueprintReadOnly, Transient, Category = "WeaponPickup")
-	float CoolDownPercentage;
 
 public:
 
@@ -71,10 +64,6 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WeaponPickup")
 	float WeaponMeshRotationSpeed;
-
-	FTimerHandle CoolDownTimerHandle;
-
-	FTimerHandle CheckOverlapsDelayTimerHandle;
 
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);

@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../Equipment/YogEquipmentInstance.h"
+#include <Devkit/Equipment/YogEquipmentInstance.h>
+
 #include "WeaponInstance.generated.h"
 
 /**

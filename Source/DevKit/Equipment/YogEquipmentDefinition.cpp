@@ -1,4 +1,5 @@
-#include "YogEquipmentDefinition.h"
+#include <DevKit/Equipment/YogEquipmentDefinition.h>
+
 #include "YogEquipmentInstance.h"
 
 UYogEquipmentDefinition::UYogEquipmentDefinition(const FObjectInitializer& ObjectInitializer)
