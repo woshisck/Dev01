@@ -16,7 +16,7 @@ class TOPDOWNPHYSICSCAMERA_API ATopDownPhysicsCameraActor : public AActor
 public:
 	//Set default values
 	ATopDownPhysicsCameraActor();
-	UPROPERTY(BlueprintReadWrite, Category = Camera)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 		class UStaticMeshComponent* RootSceneComponent;
 
 	UPROPERTY()
@@ -72,7 +72,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Camera)
 		FRotator CameraRotator = { -60,0,0 }; //Y, Z, X because sure, why not UE4...
 
-
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Camera)
+		FRotator RootRotator = { 0,0,0 }; //Y, Z, X because sure, why not UE4...
 
 	/** Probe distance in all directions. */
 	UPROPERTY(EditDefaultsOnly, Category = Camera, meta = (EditCondition =

@@ -201,6 +201,7 @@ void ATopDownPhysicsCameraActor::ScreenArmSetup()
 	ScreenArm->bInheritYaw = false;
 	//ScreenArm->SetRelativeLocation(DownCollisionDistance, 0, 0);
 	ScreenArm->SetRelativeRotation(CameraRotator);
+	RootComponent->SetWorldRotation(RootRotator);
 }
 
 void ATopDownPhysicsCameraActor::DirectionalArmSetup()
