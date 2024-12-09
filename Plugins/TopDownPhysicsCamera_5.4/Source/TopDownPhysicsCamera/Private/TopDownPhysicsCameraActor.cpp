@@ -64,8 +64,8 @@ ATopDownPhysicsCameraActor::ATopDownPhysicsCameraActor()
 	DownArm->SetRelativeRotation(FRotator::MakeFromEuler(DownArmRelRotation));
 	//CameraComponent->SetRelativeRotation(FRotator::MakeFromEuler(CameraRelRotation));
 
-	RootSceneComponent->SetGenerateOverlapEvents(false);
-	RootSceneComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
+	//RootSceneComponent->SetGenerateOverlapEvents(false);
+	//RootSceneComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
 
 	ScreenArmSetup();
 	DirectionalArmSetup();

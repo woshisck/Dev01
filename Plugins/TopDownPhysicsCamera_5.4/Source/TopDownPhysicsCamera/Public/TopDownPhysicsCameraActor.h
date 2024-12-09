@@ -19,17 +19,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 		class UStaticMeshComponent* RootSceneComponent;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 		class USpringArmComponent* ScreenArm;
 
 	//Arms
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 		class USpringArmComponent* RightArm;
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 		class USpringArmComponent* LeftArm;
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 		class USpringArmComponent* UpArm;
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 		class USpringArmComponent* DownArm;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Camera)
@@ -56,7 +56,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = Camera)
 		bool bShowDebug = false;
 
-	/** False: Set each probes’ distances individually. True: set them all equally in one go. */
+	/** False: Set each probes?distances individually. True: set them all equally in one go. */
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = Camera)
 		bool bUseUniformCollisionDistance = true;
 
@@ -112,11 +112,11 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = Camera, meta = (EditCondition = "bDoCollisionTest"))
 		TEnumAsByte<ECollisionChannel> CameraCollisionProbeChannel = ECollisionChannel::ECC_Camera;
 
-	/** Enable if you want to give the camera lag or “inertia” when moving. */
+	/** Enable if you want to give the camera lag or “inertia?when moving. */
 	UPROPERTY(BlueprintReadWrite, Category = Camera, EditDefaultsOnly)
 		bool bEnablePlayerCameraLag = true;
 
-	/** Determines how quickly the camera will follow the player when moving around. Higher value -> “snappier” follow. */
+	/** Determines how quickly the camera will follow the player when moving around. Higher value -> “snappier?follow. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Camera)
 		float PlayerCameraLagSpeed = 0.f;
 
