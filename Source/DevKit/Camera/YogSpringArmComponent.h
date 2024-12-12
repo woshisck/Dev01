@@ -27,5 +27,8 @@ public:
 
 	FVector OwnerDirect;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Lag)
+	uint32 bfollowPlayer : 1;
+
 	virtual void UpdateDesiredArmLocation(bool bDoTrace, bool bDoLocationLag, bool bDoRotationLag, float DeltaTime) override;
 };

@@ -10,11 +10,15 @@ void UYogSpringArmComponent::BeginPlay()
 	Super::BeginPlay();
 }
 
-void UYogSpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace, bool bDoLocationLag, bool bDoRotationLag, float DeltaTime)
+
+//UpdateDesiredArmLocation(bDoCollisionTest, , , );
+void UYogSpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace /*bDoCollisionTest*/, bool bDoLocationLag /*bEnableCameraLag*/, bool bDoRotationLag /*bEnableCameraRotationLag*/, float DeltaTime /*DeltaTime*/)
 {
 	FRotator DesiredRot = GetTargetRotation();
 
 	// Apply 'lag' to rotation if desired
+	
+
 	if (bDoRotationLag)
 	{
 		
