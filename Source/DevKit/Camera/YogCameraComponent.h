@@ -22,6 +22,9 @@ public:
 	static UYogCameraComponent* FindCameraComponent(const AActor* Actor) { return (Actor ? Actor->FindComponentByClass<UYogCameraComponent>() : nullptr); }
 
 
+	UFUNCTION(BlueprintPure, Category = "Character Camera")\
+	static AActor* GetOwner();
+
 	virtual AActor* GetTargetActor() const { return GetOwner(); }
 
 
