@@ -21,11 +21,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Character Camera")
 	static UYogCameraComponent* FindCameraComponent(const AActor* Actor) { return (Actor ? Actor->FindComponentByClass<UYogCameraComponent>() : nullptr); }
 
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	UFUNCTION(BlueprintPure, Category = "Character Camera")\
-	static AActor* GetOwner();
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character Camera")
+	float CameraHeight;
 
-	virtual AActor* GetTargetActor() const { return GetOwner(); }
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character Camera")
+	float CameraLerpSpeed;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character Camera")
+	bool bFollowPlayer;
 
+	UFUNCTION(BlueprintPure, Category = "Character Camera")
+	FVector GetDesiredLocation();
+
+	void InitCamera();
+
+	void UpdatePosition();
+	FVector GetOffsetDirection();
 };
