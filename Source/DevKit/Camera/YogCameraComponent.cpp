@@ -15,50 +15,45 @@ UYogCameraComponent::UYogCameraComponent(const FObjectInitializer& ObjectInitial
 void UYogCameraComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	UpdatePosition();
+	//UpdatePosition();
 }
 
-FVector UYogCameraComponent::GetDesiredLocation()
+FVector UYogCameraComponent::GetDesiredLocation(FVector GroundLoc)
 {
-	AActor* Owner = this->GetOwner();
-	FVector OwnerLoc = Owner->GetActorLocation();
+	//AActor* Owner = this->GetOwner();
+	//FVector OwnerLoc = Owner->GetActorLocation();
 
 	FVector CameraFowardVector = this->GetForwardVector();
 	FVector RevertForwardVec = CameraFowardVector * -1.f;
 
-	FVector DesiredLoc = (CameraHeight / RevertForwardVec.Z) * RevertForwardVec + OwnerLoc;
+	FVector DesiredLoc = (CameraHeight / RevertForwardVec.Z) * RevertForwardVec + GroundLoc;
 
 	return DesiredLoc;
 }
 
 void UYogCameraComponent::InitCamera()
 {
-	AActor* Owner = this->GetOwner();
-	FVector OwnerLoc = Owner->GetActorLocation();
-
-	FVector CameraFowardVector = this->GetForwardVector();
-	FVector RevertForwardVec = CameraFowardVector * -1.f;
-
-	FVector AttachLoc = (CameraHeight / RevertForwardVec.Z) * RevertForwardVec + OwnerLoc;
 }
 
 void UYogCameraComponent::UpdatePosition()
 {	
-	FVector DesiredLoc = GetDesiredLocation();
-
-
-	this->SetWorldLocation(DesiredLoc);
-	FVector offset = GetOffsetDirection();
-	this->AddWorldOffset(offset);
+	//FVector DesiredLoc = GetDesiredLocation();
+	//this->SetWorldLocation(DesiredLoc);
+	
+	//FVector offset = GetOffsetDirection();
+	//this->AddWorldOffset(offset);
 }
 
 FVector UYogCameraComponent::GetOffsetDirection()
 {
-	AYogBaseCharacter* OwnerCharacter = Cast<AYogBaseCharacter>(this->GetOwner());
-	FVector CurrentVec = OwnerCharacter->GetVelocity();
-	FVector NormVec = CurrentVec.GetSafeNormal();
+	AYogBaseCharacter* Owner = Cast<AYogBaseCharacter>(this->GetOwner());
+	AController* Controller = Owner->GetController();
 
-	return NormVec * CameraLerpSpeed;
+
+
+	FVector OwnerLoc = Owner->GetActorLocation();
+
+	return FVector(0, 0, 0);
 }
 
 
