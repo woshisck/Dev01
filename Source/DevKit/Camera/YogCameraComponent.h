@@ -33,10 +33,10 @@ public:
 	bool bFollowPlayer;
 
 	UFUNCTION(BlueprintPure, Category = "Character Camera")
-	FVector GetDesiredLocation(FVector GroundLoc);
+	FVector GetDesiredLocation(const FVector& GroundLoc);
 
 	void InitCamera();
-
+ 
 	void UpdatePosition();
 	FVector GetOffsetDirection();
 };

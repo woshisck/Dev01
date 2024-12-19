@@ -18,7 +18,7 @@ void UYogCameraComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 	//UpdatePosition();
 }
 
-FVector UYogCameraComponent::GetDesiredLocation(FVector GroundLoc)
+FVector UYogCameraComponent::GetDesiredLocation(const FVector& GroundLoc)
 {
 	//AActor* Owner = this->GetOwner();
 	//FVector OwnerLoc = Owner->GetActorLocation();
