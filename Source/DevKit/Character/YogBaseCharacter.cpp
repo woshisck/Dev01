@@ -25,9 +25,17 @@ AYogBaseCharacter::AYogBaseCharacter(const FObjectInitializer& ObjectInitializer
 	AttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("AttributeSet"));
 
 
+
+
 	//TODO: Dead Tag hardcode define
 	DeadTag = FGameplayTag::RequestGameplayTag(FName("Status.Dead"));
 	
+
+	//MovementComponent setup
+	UYogCharacterMovementComponent* YogMoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
+
+
+
 }
 
 
@@ -86,6 +94,7 @@ float AYogBaseCharacter::GetMaxHealth() const
 
 void AYogBaseCharacter::AddStartupGameplayAbilities()
 {
+
 }
 
 
