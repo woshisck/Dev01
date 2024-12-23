@@ -3,3 +3,10 @@
 
 #include "YogGameMode.h"
 
+AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
+{
+}
+
+void AYogGameMode::OnExperienceLoaded(const UYogSchema* CurrentExperience)
+{
+}

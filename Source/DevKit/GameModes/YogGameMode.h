@@ -6,6 +6,8 @@
 #include "ModularGameMode.h"
 #include "YogGameMode.generated.h"
 
+
+class UYogSchema;
 /**
  * 
  */
@@ -14,4 +16,10 @@ class DEVKIT_API AYogGameMode : public AModularGameModeBase
 {
 	GENERATED_BODY()
 	
+
+public:
+	AYogGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	void OnExperienceLoaded(const UYogSchema* CurrentExperience);
+
 };
