@@ -6,7 +6,7 @@
 #include "Engine/DataAsset.h"
 
 
-#include "YogSchema.generated.h"
+#include "YogGameRule.generated.h"
 
 
 
@@ -17,11 +17,11 @@ class UGameFeatureAction;
  */
 
 UCLASS(BlueprintType, Const)
-class UYogSchema : public UPrimaryDataAsset
+class UYogGameRule : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 public:
-	UYogSchema();
+	UYogGameRule();
 
 
 	UPROPERTY(EditDefaultsOnly, Category = Gameplay)

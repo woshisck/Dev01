@@ -7,6 +7,6 @@ AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
 }
 
-void AYogGameMode::OnExperienceLoaded(const UYogSchema* CurrentExperience)
+void AYogGameMode::OnExperienceLoaded(const UYogGameRule* CurrentExperience)
 {
 }

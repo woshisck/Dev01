@@ -12,7 +12,7 @@ AYogWorldSettings::AYogWorldSettings(const FObjectInitializer& ObjectInitializer
 {
 }
 
-FPrimaryAssetId AYogWorldSettings::GetDefaultYogSchema() const
+FPrimaryAssetId AYogWorldSettings::GetDefaultGameRule() const
 {
 	FPrimaryAssetId Result;
 	//if (!DefaultGameplayExperience.IsNull())

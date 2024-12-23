@@ -1,9 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "YogSchema.h"
+#include "YogGameRule.h"
 
 
-UYogSchema::UYogSchema()
+UYogGameRule::UYogGameRule()
 {
 }
