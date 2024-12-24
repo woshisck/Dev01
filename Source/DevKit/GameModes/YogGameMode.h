@@ -20,6 +20,7 @@ class DEVKIT_API AYogGameMode : public AModularGameModeBase
 public:
 	AYogGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	void OnExperienceLoaded(const UYogGameRule* CurrentExperience);
 
+protected:
+	void OnGameRuleLoaded(const UYogGameRule* CurrentGameRule);
 };
