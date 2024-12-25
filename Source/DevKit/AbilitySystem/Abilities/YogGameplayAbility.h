@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
+#include "YogAbilityTypes.h"
+
 #include "YogGameplayAbility.generated.h"
 
 struct FGameplayAbilityActivationInfo;
@@ -29,7 +31,7 @@ struct FGameplayAbilityActorInfo;
 struct FGameplayEffectSpec;
 struct FGameplayEventData;
 
-
+struct FGameplayEventData;
 
 
 /**
@@ -50,6 +52,10 @@ public:
 	/** Called when this ability is removed from the ability system component. */
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName = "OnAbilityRemoved")
 	void K2_OnAbilityRemoved();
+
+	/** Applies a gameplay effect container spec that was previously created */
+	UFUNCTION(BlueprintCallable, Category = Ability)
+	virtual TArray<FActiveGameplayEffectHandle> ApplyEffectContainerSpec(const FYogGameplayEffectContainerSpec& ContainerSpec);
 
 	/** Applies a gameplay effect container, by creating and then applying the spec */
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))

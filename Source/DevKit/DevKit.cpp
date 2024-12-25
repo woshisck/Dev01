@@ -4,3 +4,6 @@
 #include "Modules/ModuleManager.h"
 
 IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, DevKit, "DevKit" );
+
+// Logging definition
+DEFINE_LOG_CATEGORY(LogYogger);

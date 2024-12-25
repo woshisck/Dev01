@@ -117,18 +117,18 @@ void UYogAbilityTask_PlayMontageAndWaitForEvent::Activate()
 	}
 
 	bool bPlayedMontage = false;
-	UYogAbilitySystemComponent* RPGAbilitySystemComponent = GetTargetASC();
+	UYogAbilitySystemComponent* YogAbilitySystemComponent = GetTargetASC();
 
-	if (RPGAbilitySystemComponent)
+	if (YogAbilitySystemComponent)
 	{
 		const FGameplayAbilityActorInfo* ActorInfo = Ability->GetCurrentActorInfo();
 		UAnimInstance* AnimInstance = ActorInfo->GetAnimInstance();
 		if (AnimInstance != nullptr)
 		{
 			// Bind to event callback
-			EventHandle = RPGAbilitySystemComponent->AddGameplayEventTagContainerDelegate(EventTags, FGameplayEventTagMulticastDelegate::FDelegate::CreateUObject(this, &UYogAbilityTask_PlayMontageAndWaitForEvent::OnGameplayEvent));
+			EventHandle = YogAbilitySystemComponent->AddGameplayEventTagContainerDelegate(EventTags, FGameplayEventTagMulticastDelegate::FDelegate::CreateUObject(this, &UYogAbilityTask_PlayMontageAndWaitForEvent::OnGameplayEvent));
 
-			if (RPGAbilitySystemComponent->PlayMontage(Ability, Ability->GetCurrentActivationInfo(), MontageToPlay, Rate, StartSection) > 0.f)
+			if (YogAbilitySystemComponent->PlayMontage(Ability, Ability->GetCurrentActivationInfo(), MontageToPlay, Rate, StartSection) > 0.f)
 			{
 				// Playing a montage could potentially fire off a callback into game code which could kill this ability! Early out if we are  pending kill.
 				if (ShouldBroadcastAbilityTaskDelegates() == false)
@@ -203,10 +203,10 @@ void UYogAbilityTask_PlayMontageAndWaitForEvent::OnDestroy(bool AbilityEnded)
 		}
 	}
 
-	UYogAbilitySystemComponent* RPGAbilitySystemComponent = GetTargetASC();
-	if (RPGAbilitySystemComponent)
+	UYogAbilitySystemComponent* YogAbilitySystemComponent = GetTargetASC();
+	if (YogAbilitySystemComponent)
 	{
-		RPGAbilitySystemComponent->RemoveGameplayEventTagContainerDelegate(EventTags, EventHandle);
+		YogAbilitySystemComponent->RemoveGameplayEventTagContainerDelegate(EventTags, EventHandle);
 	}
 
 	Super::OnDestroy(AbilityEnded);

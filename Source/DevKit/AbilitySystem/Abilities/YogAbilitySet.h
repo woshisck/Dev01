@@ -73,6 +73,16 @@ public:
 	// The returned handles can be used later to take away anything that was granted.
 	// void GiveToAbilitySystem(UGameAbilitySystemComponent* YogASC, FYogAbilitySet_GrantedHandles* OutGrantedHandles, UObject* SourceObject = nullptr) const;
 
+
+	//TODO: Defined in GameplayAbility, consider move to here in in future
+	//UFUNCTION(BlueprintCallable, Category = Ability)
+	//virtual TArray<FActiveGameplayEffectHandle> ApplyEffectContainerSpec(const FYogGameplayEffectContainerSpec& ContainerSpec);
+
+
+	//UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
+	//virtual TArray<FActiveGameplayEffectHandle> ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel = -1);
+
+
  protected:
 
 // 	// Gameplay abilities to grant when this ability set is granted.
