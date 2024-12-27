@@ -9,9 +9,13 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(Blueprintable, BlueprintType, Const)
 class DEVKIT_API UYogMapDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
-	
+public:
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Map Asset")
+	TObjectPtr<UWorld> Level;
+
 };
