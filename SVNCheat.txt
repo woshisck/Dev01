@@ -2,11 +2,37 @@
 svn add . --no-ignore --force
 
 SVN Config:
-
+IP: http://112.124.60.133/svn
 cd /var/svn/svnrepos/conf
 
+SVNPath: /var/svn/svnrepos
+
+password:
+/var/svn/svnrepos/conf/passwd
 
 sudo htpasswd /var/svn/svnrepos/conf/passwd [-UserName]
 
 ref:
 https://help.aliyun.com/zh/ecs/use-cases/deploying-and-using-svn
+
+
+
+subversion.conf:  /etc/httpd/conf.d/subversion.conf
+
+
+<Location /svn>
+DAV svn
+SVNPath /var/svn/svnrepos
+AuthType Basic
+AuthName "Authorization SVN"
+AuthzSVNAccessFile /var/svn/svnrepos/conf/authz
+AuthUserFile /var/svn/svnrepos/conf/passwd
+Require valid-user
+</Location>
+
+<Directory "/var/www/html/svnrepos">
+Require valid-user
+AuthType Basic
+AuthName "svn tools"
+AuthUserFile /var/svn/svnrepos/conf/passwd
+</Directory>
