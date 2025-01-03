@@ -26,7 +26,8 @@ public class DevKit : ModuleRules
                 "GameFeatures",
                 "Hotfix",
                 "PropertyPath",
-                "CommonUI"
+                "CommonUI",
+                "UnrealEd"
             });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
@@ -40,8 +41,7 @@ public class DevKit : ModuleRules
                 "RHI",
                 "Projects",
                 "Gauntlet",
-                "UMG",
-
+                "UMG"
             });
 
 		// Uncomment if you are using Slate UI

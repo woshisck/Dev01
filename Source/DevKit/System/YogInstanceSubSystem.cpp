@@ -3,3 +3,6 @@
 
 #include "YogInstanceSubSystem.h"
 
+UYogInstanceSubSystem::UYogInstanceSubSystem()
+{
+}

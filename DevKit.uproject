@@ -13,7 +13,8 @@
 				"GameplayAbilities",
 				"CoreUObject",
 				"ModularGameplayActors",
-				"ModularGameplay"
+				"ModularGameplay",
+				"GameFeatures"
 			]
 		},
 		{
@@ -84,6 +85,18 @@
 			"Name": "TopDownPhysicsCamera",
 			"Enabled": true,
 			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/0e5ce9b6cd7e4f41b797b4150b0cba55"
+		},
+		{
+			"Name": "AbilitySystemGameFeatureActions",
+			"Enabled": true
+		},
+		{
+			"Name": "FrozenProjectile",
+			"Enabled": true
+		},
+		{
+			"Name": "CountDownTime",
+			"Enabled": true
 		}
 	]
 }

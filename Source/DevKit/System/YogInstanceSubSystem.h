@@ -13,5 +13,6 @@ UCLASS()
 class DEVKIT_API UYogInstanceSubSystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
-	
+public:
+	UYogInstanceSubSystem();
 };
