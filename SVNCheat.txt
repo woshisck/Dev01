@@ -36,3 +36,34 @@ AuthType Basic
 AuthName "svn tools"
 AuthUserFile /var/svn/svnrepos/conf/passwd
 </Directory>
+
+http://112.124.60.133/svnrepos/index.php
+
+
+<html>
+    <head>
+        <title>SVN密码在线自主修改</title>
+        <style type="text/css">
+            body{
+                text-align:center
+            }
+            div div{
+                text-align:center;
+                padding: 2%;
+            }
+            .first_div {
+                margin:2% auto;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="first_div">
+            <h2>XXXXXXXX----SVN密码修改</h2>
+            <div>
+                <a href="http://112.124.60.133/svnrepos/index.php">sample</a>
+            </div>
+             
+        </div>
+    </body>
+</html>
+
