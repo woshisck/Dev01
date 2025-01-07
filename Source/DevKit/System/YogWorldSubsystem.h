@@ -18,6 +18,17 @@ public:
 	/** Constructor */
 	UYogWorldSubsystem();
 
+	UFUNCTION()
+	void InitLevel();
+
+
+
+	/** Called when world is ready to start gameplay before the game mode transitions to the correct state and call BeginPlay on all actors */
+	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+	UFUNCTION(BlueprintCallable, Category = "WorldLevel")
+	UWorld* GetCurrentWorld();
+
 	/** Map of items to item data */
 	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = SaveGame)
 	//TMap<FPrimaryAssetId, FRPGItemData> InventoryData;
