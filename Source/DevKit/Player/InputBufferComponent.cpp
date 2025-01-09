@@ -39,7 +39,7 @@ void UInputBufferComponent::UpdateMoveBuffer(FVector2D move)
 		MoveBuffer.Push(move);
 
 	}
-	else if (MoveBuffer.Num() > MAX_MOVE_BUFFER_SIZE) {
+	else if (MoveBuffer.Num() > MAX_BUFFER_SIZE) {
 		MoveBuffer.Empty();
 		MoveBuffer.Push(move);
 		
@@ -50,5 +50,13 @@ void UInputBufferComponent::UpdateMoveBuffer(FVector2D move)
 FVector2D UInputBufferComponent::GetLastFrameInput(TArray<FVector2D>& buffer)
 {
 	return buffer.Pop();
+}
+
+void UInputBufferComponent::ClearActWindowBuffer()
+{
+}
+
+void UInputBufferComponent::ClearMoveWindowBuffer()
+{
 }
 

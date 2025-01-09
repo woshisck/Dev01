@@ -2,11 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "..\..\AbilitySystem\Abilities\YogAbilitySet.h"
 
 #include "WeaponDefinition.generated.h"
 
-
+class UYogAbilitySet;
 
 UCLASS(Blueprintable, BlueprintType, Const)
 class DEVKIT_API UWeaponDefinition : public UDataAsset
@@ -29,6 +29,14 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
 	TObjectPtr<UStaticMesh> DisplayMesh;
+
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
+	TSubclassOf<UYogAbilitySet> GrantAbility;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
+	TObjectPtr<AActor> WeaponActor;
+
 	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Pickup|WeaponDefiniton")
 	//TObjectPtr<UYogEquipmentDefinition> WeaponDefinition;
 };

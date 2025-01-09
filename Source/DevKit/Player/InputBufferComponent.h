@@ -35,7 +35,14 @@ public:
 	TArray<FVector2D> MoveBuffer;
 		
 	UPROPERTY(BlueprintReadWrite, Category = "Input buffer")
-	int32 MAX_MOVE_BUFFER_SIZE = 20;
+	int32 MAX_BUFFER_SIZE = 20;
 
+
+	UFUNCTION(BlueprintCallable, Category = "Act Buff")
+	void ClearActWindowBuffer();
+
+
+	UFUNCTION(BlueprintCallable, Category = "Move Buff")
+	void ClearMoveWindowBuffer();
 	
 };

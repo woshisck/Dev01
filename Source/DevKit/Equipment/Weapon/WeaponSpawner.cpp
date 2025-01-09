@@ -26,6 +26,11 @@ AWeaponSpawner::AWeaponSpawner()
 	//WeaponMesh
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
 	WeaponMesh->SetupAttachment(RootComponent);
+	if (WeaponDefinition != nullptr)
+	{
+		WeaponMesh->SetStaticMesh(WeaponDefinition->DisplayMesh);
+
+	}
 
 	WeaponMeshRotationSpeed = 40.0f;
 }
@@ -52,8 +57,7 @@ void AWeaponSpawner::Tick(float DeltaTime)
 }
 
 void AWeaponSpawner::OnConstruction(const FTransform& Transform)
-{	//TODO
-
+{	
 	if (WeaponDefinition != nullptr && WeaponDefinition->DisplayMesh != nullptr)
 	{
 		WeaponMesh->SetStaticMesh(WeaponDefinition->DisplayMesh);

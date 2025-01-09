@@ -52,7 +52,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponPickup")
 	float CheckExistingOverlapDelay;
 
-
 public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponPickup")

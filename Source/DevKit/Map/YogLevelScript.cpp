@@ -2,15 +2,13 @@
 
 
 #include "YogLevelScript.h"
+#include <DevKit/Map/YogMapDefinition.h>
 
 void AYogLevelScript::PreInitializeComponents()
 {
+	UE_LOG(LogTemp, Warning, TEXT("Start pre initialize component"));
 }
 
-void AYogLevelScript::EnableInput(APlayerController* PlayerController)
-{
-}
-
-void AYogLevelScript::DisableInput(APlayerController* PlayerController)
+void AYogLevelScript::LevelSetup(UYogMapDefinition& MapDefine)
 {
 }

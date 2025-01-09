@@ -6,6 +6,8 @@
 #include "Engine/LevelScriptActor.h"
 #include "YogLevelScript.generated.h"
 
+class UYogMapDefinition;
+
 /**
  * 
  */
@@ -16,7 +18,10 @@ class DEVKIT_API AYogLevelScript : public ALevelScriptActor
 protected:
 
 	virtual void PreInitializeComponents() override;
+	void LevelSetup(UYogMapDefinition& MapDefine);
+	
 
-	virtual void EnableInput(class APlayerController* PlayerController) override;
-	virtual void DisableInput(class APlayerController* PlayerController) override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TObjectPtr<UYogMapDefinition> Mapdefinition;
 };

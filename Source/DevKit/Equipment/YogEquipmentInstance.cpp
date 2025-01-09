@@ -65,9 +65,9 @@ void UYogEquipmentInstance::DestroyEquipmentActors()
 	}
 }
 
-void UYogEquipmentInstance::OnEquipped()
+void UYogEquipmentInstance::OnEquipped(FTransform& SpawnLoc)
 {
-	K2_OnEquipped();
+	K2_OnEquipped(SpawnLoc);
 }
 
 void UYogEquipmentInstance::OnUnequipped()

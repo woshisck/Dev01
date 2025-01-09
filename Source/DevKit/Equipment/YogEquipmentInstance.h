@@ -42,13 +42,13 @@ public:
 	virtual void SpawnEquipmentActors(const TArray<FYogEquipmentActorToSpawn>& ActorsToSpawn);
 	virtual void DestroyEquipmentActors();
 
-	virtual void OnEquipped();
+	virtual void OnEquipped(FTransform& SpawnLoc);
 	virtual void OnUnequipped();
 
 
 protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnEquipped"))
-	void K2_OnEquipped();
+	void K2_OnEquipped(const FTransform& SpawnLoc);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnUnequipped"))
 	void K2_OnUnequipped();
