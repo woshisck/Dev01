@@ -66,10 +66,10 @@ void UWeaponInstance::DestroyEquipmentActors()
 
 void UWeaponInstance::OnEquipped()
 {
-	K2_OnEquipped();
+
 }
 
 void UWeaponInstance::OnUnequipped()
 {
-	K2_OnUnequipped();
+
 }

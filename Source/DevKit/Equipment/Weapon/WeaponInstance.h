@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include <Devkit/Equipment/YogEquipmentInstance.h>
 
 #include "WeaponInstance.generated.h"
 
@@ -13,7 +12,7 @@
 struct FWeaponActorToSpawn;
 
 
-UCLASS()
+UCLASS(Blueprintable, Const, Abstract)
 class DEVKIT_API UWeaponInstance : public UObject
 {
 	GENERATED_BODY()
@@ -44,14 +43,12 @@ public:
 	virtual void OnEquipped();
 	virtual void OnUnequipped();
 
-protected:
+//protected:
+	//UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnEquipped"))
+	//void K2_OnEquipped();
 
-
-	UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnEquipped"))
-	void K2_OnEquipped();
-
-	UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnUnequipped"))
-	void K2_OnUnequipped();
+	//UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnUnequipped"))
+	//void K2_OnUnequipped();
 
 private:
 	UPROPERTY()
