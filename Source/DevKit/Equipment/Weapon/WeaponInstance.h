@@ -12,7 +12,7 @@
 struct FWeaponActorToSpawn;
 
 
-UCLASS(Blueprintable, Const, Abstract)
+UCLASS(Blueprintable, Const, Abstract, BlueprintType)
 class DEVKIT_API UWeaponInstance : public UObject
 {
 	GENERATED_BODY()
