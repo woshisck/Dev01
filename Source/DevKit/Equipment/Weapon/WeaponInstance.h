@@ -12,7 +12,7 @@
 struct FWeaponActorToSpawn;
 
 
-UCLASS(Blueprintable, Const, Abstract, BlueprintType)
+UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UWeaponInstance : public UObject
 {
 	GENERATED_BODY()
@@ -37,24 +37,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = Equipment)
 	TArray<AActor*> GetSpawnedActors() const { return SpawnedActors; }
 
-	virtual void SpawnEquipmentActors(const TArray<FWeaponActorToSpawn>& ActorsToSpawn);
-	virtual void DestroyEquipmentActors();
+	void SpawnEquipmentActors(const TArray<FWeaponActorToSpawn>& ActorsToSpawn);
+	void DestroyEquipmentActors();
 
 	virtual void OnEquipped();
 	virtual void OnUnequipped();
 
-//protected:
-	//UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnEquipped"))
-	//void K2_OnEquipped();
 
-	//UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnUnequipped"))
-	//void K2_OnUnequipped();
-
-private:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, meta = (DeterminesOutputType = PawnType))
 	TObjectPtr<UObject> Instigator;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Equipment)
 	TArray<TObjectPtr<AActor>> SpawnedActors;
+
+	UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnEquipped"))
+	void K2_OnEquipped();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnUnequipped"))
+	void K2_OnUnequipped();
 
 };
