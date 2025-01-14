@@ -4,11 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include <Devkit/Equipment/Weapon/WeaponDefinition.h>
-#include <Devkit/Item/YogPickupDefinition.h>
+#include "YogPickupDefinition.h"
 
 
-#include "WeaponSpawner.generated.h"
+#include "PickupSpawner.generated.h"
 
 
 class APawn;
@@ -25,13 +24,13 @@ struct FHitResult;
 
 
 UCLASS(Blueprintable, BlueprintType)
-class DEVKIT_API AWeaponSpawner : public AActor
+class DEVKIT_API AItemSpawner : public AActor
 {
 	GENERATED_BODY()
 	
 public:	
 	// Sets default values for this actor's properties
-	AWeaponSpawner();
+	AItemSpawner();
 
 protected:
 	// Called when the game starts or when spawned
@@ -45,24 +44,30 @@ public:
 
 protected:
 
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Yog|ItemPickup")
-	TObjectPtr<UWeaponDefinition> WeaponDefinition;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Yog|Pickup")
+	TObjectPtr<UYogPickupDefinition> PickUpDefinition;
+
 
 	//Delay between when the weapon is made available and when we check for a pawn standing in the spawner. Used to give the bIsWeaponAvailable OnRep time to fire and play FX. 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup")
 	float CheckExistingOverlapDelay;
+
+	//Used to drive weapon respawn time indicators 0-1
+	UPROPERTY(BlueprintReadOnly, Transient, Category = "Pickup")
+	float CoolDownPercentage;
 
 public:
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Pickup")
+	float PickupMeshRotationSpeed;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup")
 	TObjectPtr<UCapsuleComponent> CollisionVolume;
 
 
-	UPROPERTY(BlueprintReadOnly, Category = "ItemPickup")
-	TObjectPtr<UStaticMeshComponent> WeaponMesh;
+	UPROPERTY(BlueprintReadOnly, Category = "Pickup")
+	TObjectPtr<UStaticMeshComponent> PickupMesh;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "ItemPickup")
-	float WeaponMeshRotationSpeed;
 
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);
@@ -73,19 +78,19 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	void AttemptPickUpWeapon(APawn* Pawn);
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "ItemPickup")
-	bool GiveWeapon(APawn* ReceivingPawn);
+	UFUNCTION(BlueprintImplementableEvent, Category = "Pickup")
+	bool GiveGameplayEffect(APawn* ReceivingPawn);
 
 
 	UFUNCTION()
 	void OnCoolDownTimerComplete();
 
-	void SetItemPickupVisibility(bool bShouldBeVisible);
+	void SetWeaponPickupVisibility(bool bShouldBeVisible);
 
-	UFUNCTION(BlueprintNativeEvent, Category = "ItemPickup")
+	UFUNCTION(BlueprintNativeEvent, Category = "Pickup")
 	void PlayPickupEffects();
 
-	UFUNCTION(BlueprintNativeEvent, Category = "ItemPickup")
+	UFUNCTION(BlueprintNativeEvent, Category = "Pickup")
 	void PlayRespawnEffects();
 
 };
