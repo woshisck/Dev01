@@ -37,7 +37,7 @@ class DEVKIT_API UItemDefinition : public UDataAsset
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup|Mesh")
-	UItemInstance* InstanceType;
+	TSubclassOf<UItemInstance> InstanceType;
 
 
 	////////////////////Visual representation of the pickup////////////////////

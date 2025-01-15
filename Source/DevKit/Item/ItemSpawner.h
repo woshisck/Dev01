@@ -9,6 +9,8 @@
 
 #include "ItemSpawner.generated.h"
 
+class UCapsuleComponent;
+class UStaticMeshComponent;
 
 
 UCLASS(Blueprintable, BlueprintType)
