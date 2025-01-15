@@ -4,9 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include <Devkit/Equipment/Weapon/WeaponDefinition.h>
-#include <Devkit/Item/YogPickupDefinition.h>
 
+#include "../Weapon/WeaponDefinition.h"
 
 #include "WeaponSpawner.generated.h"
 
@@ -67,25 +66,5 @@ public:
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);
 
-	//Check for pawns standing on pad when the weapon is spawned. 
-	void CheckForExistingOverlaps();
-
-	UFUNCTION(BlueprintNativeEvent)
-	void AttemptPickUpWeapon(APawn* Pawn);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "ItemPickup")
-	bool GiveWeapon(APawn* ReceivingPawn);
-
-
-	UFUNCTION()
-	void OnCoolDownTimerComplete();
-
-	void SetItemPickupVisibility(bool bShouldBeVisible);
-
-	UFUNCTION(BlueprintNativeEvent, Category = "ItemPickup")
-	void PlayPickupEffects();
-
-	UFUNCTION(BlueprintNativeEvent, Category = "ItemPickup")
-	void PlayRespawnEffects();
 
 };

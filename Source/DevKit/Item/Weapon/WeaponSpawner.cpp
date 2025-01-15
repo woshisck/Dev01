@@ -2,7 +2,7 @@
 
 
 #include "WeaponSpawner.h"
-#include <DevKit/Item/YogPickupDefinition.h>
+
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -72,43 +72,9 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 	APawn* OverlappingPawn = Cast<APawn>(OtherActor);
 	if (OverlappingPawn != nullptr)
 	{
-		AttemptPickUpWeapon(OverlappingPawn);
+		//AttemptPickUpWeapon(OverlappingPawn);
 	}
 }
 
-void AWeaponSpawner::CheckForExistingOverlaps()
-{
-}
 
-void AWeaponSpawner::AttemptPickUpWeapon_Implementation(APawn* Pawn)
-{
-	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementation"));
-	GiveWeapon(Pawn);
-	//if (UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Pawn)) 
-	//{
-	//	UE_LOG(LogTemp, Warning, TEXT("GetAbilitySystemComponent"));
-	//	if (GiveWeapon(Pawn))
-	//	{
-	//		//Weapon picked up by pawn
-	//		SetWeaponPickupVisibility(false);
-	//		PlayPickupEffects();
-	//	}
-	//}
 
-}
-
-void AWeaponSpawner::OnCoolDownTimerComplete()
-{
-}
-
-void AWeaponSpawner::SetWeaponPickupVisibility(bool bShouldBeVisible)
-{
-}
-
-void AWeaponSpawner::PlayPickupEffects_Implementation()
-{
-}
-
-void AWeaponSpawner::PlayRespawnEffects_Implementation()
-{
-}
