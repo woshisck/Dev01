@@ -67,9 +67,8 @@ void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 	APawn* OverlappingPawn = Cast<APawn>(OtherActor);
 	if (OverlappingPawn != nullptr)
 	{
-
-		
-		Cast<UItemInstance>(ItemDefinition->InstanceType)->EquipItem(OverlappingPawn);
+		UE_LOG(LogTemp, Warning, TEXT("ItemSpawner::OnOverlapBegin"));
+		//Cast<UItemInstance>(ItemDefinition->InstanceType)->EquipItem(OverlappingPawn);
 	}
 
 }

@@ -32,11 +32,15 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	void OnConstruction(const FTransform& Transform) override;
 
-protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item | ItemData")
-	UItemDefinition* ItemDefinition;
-
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item | ItemData")
+	TObjectPtr<UItemDefinition> ItemDefinition;
+
+	UPROPERTY(EditDefaultsOnly, Category = Equipment)
+	TObjectPtr<AActor> ActorsToSpawn;
+
+
+protected:
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);
 
 	UPROPERTY(BlueprintReadOnly, Category = "Item | ItemDisplay")

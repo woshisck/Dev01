@@ -29,6 +29,18 @@ enum class EItemType : uint8
 	Trinket			UMETA(DisplayName = "Trinket")
 };
 
+USTRUCT()
+struct FItemToSpawn
+{
+	GENERATED_BODY()
+
+	FItemToSpawn()
+	{}
+
+	UPROPERTY(EditAnywhere, Category = Equipment)
+	TSubclassOf<AActor> ItemActor;
+
+};
 
 UCLASS(Blueprintable, BlueprintType, Const)
 class DEVKIT_API UItemDefinition : public UDataAsset
@@ -39,6 +51,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup|Mesh")
 	TSubclassOf<UItemInstance> InstanceType;
 
+	// Actors to spawn on the pawn when this is equipped
+	UPROPERTY(EditDefaultsOnly, Category = "ItemDefine | ActorToSpawn")
+	TArray<FItemToSpawn> ItemToSpawn;
 
 	////////////////////Visual representation of the pickup////////////////////
 	//Particle FX to play when picked up
