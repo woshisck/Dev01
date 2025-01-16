@@ -13,7 +13,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogBaseChar
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, const float, HealthPercent);
 
 
-
+class UItemInstance;
 class UYogAbilitySystemComponent;
 
 /**
@@ -68,6 +68,8 @@ public:
 
 
 protected:
+
+
 
 	FGameplayTag DeadTag;
 

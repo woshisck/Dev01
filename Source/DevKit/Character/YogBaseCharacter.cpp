@@ -4,7 +4,7 @@
 #include "YogBaseCharacter.h"
 #include "YogCharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
-
+#include "../Item/ItemInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
