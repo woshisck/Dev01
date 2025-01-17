@@ -41,10 +41,12 @@ public:
 
 
 protected:
+	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);
 
 	UPROPERTY(BlueprintReadOnly, Category = "Item | ItemDisplay")
 	TObjectPtr<UCapsuleComponent> CollisionVolume;
+
 
 	UPROPERTY(BlueprintReadOnly, Category = "Item | ItemDisplay")
 	TObjectPtr<UStaticMeshComponent> ItemMesh;

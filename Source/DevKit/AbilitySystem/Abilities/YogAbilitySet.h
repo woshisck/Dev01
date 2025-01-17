@@ -50,8 +50,6 @@ struct FYogAbilitySet_AttributeSet
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TSubclassOf<UAttributeSet> AttributeSet;
-
-
 };
 
 
@@ -61,7 +59,7 @@ public:
  *	Non-mutable data asset used to grant gameplay abilities and gameplay effects.
  */
 UCLASS(BlueprintType, Const)
-class UYogAbilitySet : public UPrimaryDataAsset
+class UYogAbilitySet : public UDataAsset
 {
 	GENERATED_BODY()
 
@@ -85,15 +83,16 @@ public:
 
  protected:
 
-// 	// Gameplay abilities to grant when this ability set is granted.
+// Gameplay abilities to grant when this ability set is granted.
  	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Gameplay Abilities", meta=(TitleProperty=Ability))
  	TArray<FYogAbilitySet_GameplayAbility> GrantedGameplayAbilities;
 
-// 	// Gameplay effects to grant when this ability set is granted.
+// Gameplay effects to grant when this ability set is granted.
  	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Gameplay Effects", meta=(TitleProperty=GameplayEffect))
  	TArray<FYogAbilitySet_GameplayEffect> GrantedGameplayEffects;
 
-// 	// Attribute sets to grant when this ability set is granted.
+// Attribute sets to grant when this ability set is granted.
  	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attribute Sets", meta=(TitleProperty=AttributeSet))
  	TArray<FYogAbilitySet_AttributeSet> GrantedAttributes;
+
 };

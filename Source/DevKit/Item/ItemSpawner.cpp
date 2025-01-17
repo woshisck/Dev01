@@ -22,13 +22,8 @@ AItemSpawner::AItemSpawner()
 	CollisionVolume->InitCapsuleSize(80.f, 80.f);
 	CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &AItemSpawner::OnOverlapBegin);
 
-
-	if (ItemDefinition != nullptr)
-	{
-		ItemMesh->SetStaticMesh(ItemDefinition->DisplayMesh);
-		ItemMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
-		ItemMesh->SetupAttachment(RootComponent);
-	}
+	ItemMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
+	ItemMesh->SetupAttachment(RootComponent);
 
 }
 

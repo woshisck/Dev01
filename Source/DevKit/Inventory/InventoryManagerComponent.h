@@ -18,7 +18,26 @@ class DEVKIT_API UInventoryManagerComponent : public UActorComponent
 public:
 	UInventoryManagerComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-protected:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
+
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = Inventory)
+	bool CanAddItem();
+
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = Inventory)
+	void AddItemInstance(UItemInstance* ItemInstance);
+
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = Inventory)
+	void RemoveItemInstance(UItemInstance* ItemInstance);
+
+	UFUNCTION(BlueprintCallable, Category = Inventory, BlueprintPure = false)
+	TArray<UItemInstance*> GetAllItems() const;
+
+	UPROPERTY(EditAnywhere, Category = "Inventory")
+	int MaxCap;
+private:
+	UPROPERTY(EditAnywhere, Category = "Inventory")
 	TArray<UItemInstance*> InventoryList;
+
+
+
+
 };

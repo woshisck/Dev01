@@ -6,6 +6,7 @@
 #include "ModularCharacter.h"
 #include <DevKit/AbilitySystem/Attribute/BaseAttributeSet.h>
 #include "AbilitySystemInterface.h"
+
 #include "YogBaseCharacter.generated.h"
 
 
@@ -15,6 +16,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, cons
 
 class UItemInstance;
 class UYogAbilitySystemComponent;
+class UInventoryManagerComponent;
+
 
 /**
  * 
@@ -30,10 +33,13 @@ public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
-	//Interface  IAbilitySystemInterface
-	class UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 	AYogBaseCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	UYogAbilitySystemComponent* GetYogAbilitySystemComponent() const;
+	
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -56,6 +62,8 @@ public:
 	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
 
 
+
+
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	float GetHealth() const;
 
@@ -68,6 +76,9 @@ public:
 
 
 protected:
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	TObjectPtr<UInventoryManagerComponent> InventoryManagerComponent;
 
 
 

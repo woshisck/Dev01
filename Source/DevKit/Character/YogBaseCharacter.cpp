@@ -6,6 +6,8 @@
 #include "Components/CapsuleComponent.h"
 #include "../Item/ItemInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "../Inventory/InventoryManagerComponent.h"
+
 
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 
@@ -16,6 +18,7 @@ AYogBaseCharacter::AYogBaseCharacter(const FObjectInitializer& ObjectInitializer
 	PrimaryActorTick.bStartWithTickEnabled = true;
 
 	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<UYogAbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
+	InventoryManagerComponent = ObjectInitializer.CreateDefaultSubobject<UInventoryManagerComponent>(this, TEXT("InventoryComponent"));
 
 	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
 	check(CapsuleComp);
@@ -35,7 +38,12 @@ AYogBaseCharacter::AYogBaseCharacter(const FObjectInitializer& ObjectInitializer
 	UYogCharacterMovementComponent* YogMoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
 
 
+	
+}
 
+UYogAbilitySystemComponent* AYogBaseCharacter::GetYogAbilitySystemComponent() const
+{
+	return Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent());
 }
 
 
