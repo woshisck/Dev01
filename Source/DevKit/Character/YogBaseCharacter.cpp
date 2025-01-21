@@ -7,7 +7,7 @@
 #include "../Item/ItemInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "../Inventory/InventoryManagerComponent.h"
-
+#include "../AbilitySystem/Abilities/YogGameplayAbility.h"
 
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 
@@ -38,7 +38,7 @@ AYogBaseCharacter::AYogBaseCharacter(const FObjectInitializer& ObjectInitializer
 	UYogCharacterMovementComponent* YogMoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
 
 
-	
+	bAbilitiesInitialized = false;
 }
 
 UYogAbilitySystemComponent* AYogBaseCharacter::GetYogAbilitySystemComponent() const
@@ -78,6 +78,11 @@ UAbilitySystemComponent* AYogBaseCharacter::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
+int32 AYogBaseCharacter::GetCharacterLevel() const
+{
+	return CharacterLevel;
+}
+
 
 
 float AYogBaseCharacter::GetHealth() const
@@ -100,10 +105,40 @@ float AYogBaseCharacter::GetMaxHealth() const
 	return .5555f;
 }
 
-void AYogBaseCharacter::AddStartupGameplayAbilities()
+void AYogBaseCharacter::AddGameplayAbilities()
 {
+	check(AbilitySystemComponent);
+
+	if (GetLocalRole() == ROLE_Authority && !bAbilitiesInitialized)
+	{
+		for (TSubclassOf<UYogGameplayAbility>& StartupAbility : GameplayAbilities)
+		{
+			AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(StartupAbility, GetCharacterLevel(), INDEX_NONE, this));
+		}
+	}
+	bAbilitiesInitialized = false;
+}
+
+
+
+void AYogBaseCharacter::UpdatePassiveGameplayEffect()
+{
+	check(AbilitySystemComponent);
+	//Add passive gameplayeffect
+	for (TSubclassOf<UGameplayEffect>& GameplayEffect : PassiveGameplayEffects)
+	{
+		FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
+		EffectContext.AddSourceObject(this);
+
+		FGameplayEffectSpecHandle NewHandle = AbilitySystemComponent->MakeOutgoingSpec(GameplayEffect, GetCharacterLevel(), EffectContext);
+		if (NewHandle.IsValid())
+		{
+			FActiveGameplayEffectHandle ActiveGEHandle = AbilitySystemComponent->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), AbilitySystemComponent);
+		}
+	}
 
 }
+
 
 
 void AYogBaseCharacter::HealthChanged(const FOnAttributeChangeData& Data)
@@ -112,7 +147,6 @@ void AYogBaseCharacter::HealthChanged(const FOnAttributeChangeData& Data)
 	//TODO: 
 	// UI Update 
 	// add condition to trigger death 
-
 
 	float Health = Data.NewValue;
 	float percent = Health / GetMaxHealth();

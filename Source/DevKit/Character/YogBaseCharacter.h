@@ -17,7 +17,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, cons
 class UItemInstance;
 class UYogAbilitySystemComponent;
 class UInventoryManagerComponent;
-
+class UYogGameplayAbility;
 
 /**
  * 
@@ -42,6 +42,15 @@ public:
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 
+	UFUNCTION(BlueprintCallable)
+	virtual int32 GetCharacterLevel() const;
+	//int32 ARPGCharacterBase::GetCharacterLevel() const
+	//{
+	//	return CharacterLevel;
+	//}
+
+
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bIsDead;
 
@@ -54,7 +63,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")
 	UAnimMontage* DeathMontage;
 
-	//SKill
+	//Passive effect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Abilities)
 	TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
 
@@ -71,8 +80,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	float GetMaxHealth() const;
 
-	/** Apply the startup gameplay abilities and effects */
-	void AddStartupGameplayAbilities();
+	UFUNCTION(BlueprintCallable, Category = "Character|Abilities")
+	void AddGameplayAbilities();
+
+	UFUNCTION(BlueprintCallable, Category = "Character|Abilities")
+	void UpdatePassiveGameplayEffect();
 
 
 protected:
@@ -80,7 +92,17 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	TObjectPtr<UInventoryManagerComponent> InventoryManagerComponent;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character|Abilities")
+	TArray<TSubclassOf<UYogGameplayAbility>> GameplayAbilities;
 
+
+
+	UPROPERTY(EditAnywhere, Category = "Character|Abilities")
+	int32 CharacterLevel;
+
+
+	UPROPERTY()
+	int32 bAbilitiesInitialized;
 
 	FGameplayTag DeadTag;
 
