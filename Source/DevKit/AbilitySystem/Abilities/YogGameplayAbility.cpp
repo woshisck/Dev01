@@ -1,10 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "../../Character/YogBaseCharacter.h"
 #include "YogGameplayAbility.h"
 #include "YogTargetType.h"
-
+#include "../../Character/YogBaseCharacter.h"
 
 
 
@@ -21,6 +20,7 @@ TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FG
 	FYogGameplayEffectContainerSpec Spec = MakeEffectContainerSpec(ContainerTag, EventData, OverrideGameplayLevel);
 	return ApplyEffectContainerSpec(Spec);
 }
+
 
 
 
