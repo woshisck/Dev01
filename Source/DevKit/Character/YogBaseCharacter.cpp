@@ -105,18 +105,25 @@ float AYogBaseCharacter::GetMaxHealth() const
 	return .5555f;
 }
 
-void AYogBaseCharacter::AddGameplayAbilities()
+void AYogBaseCharacter::GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel)
 {
 	check(AbilitySystemComponent);
 
-	if (GetLocalRole() == ROLE_Authority && !bAbilitiesInitialized)
+	if (AbilitySystemComponent && AbilityToGrant)
 	{
-		for (TSubclassOf<UYogGameplayAbility>& StartupAbility : GameplayAbilities)
-		{
-			AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(StartupAbility, GetCharacterLevel(), INDEX_NONE, this));
-		}
+		FGameplayAbilitySpec AbilitySpec(AbilityToGrant, AbilityLevel);
+		AbilitySystemComponent->GiveAbility(AbilitySpec);
+		//AbilitySystemComponent->InitAbilityActorInfo(this, this);
 	}
-	bAbilitiesInitialized = false;
+
+	//if (GetLocalRole() == ROLE_Authority && !bAbilitiesInitialized)
+	//{
+	//	for (TSubclassOf<UYogGameplayAbility>& StartupAbility : GameplayAbilities)
+	//	{
+	//		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(StartupAbility, GetCharacterLevel(), INDEX_NONE, this));
+	//	}
+	//}
+	//bAbilitiesInitialized = false;
 }
 
 

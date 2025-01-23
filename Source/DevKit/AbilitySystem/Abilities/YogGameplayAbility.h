@@ -57,7 +57,7 @@ public:
 
 	/** Map of gameplay tags to gameplay effect containers */
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayEffects)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffects)
 	TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;
 
 	/** Make gameplay effect container spec to be applied later, using the passed in container */

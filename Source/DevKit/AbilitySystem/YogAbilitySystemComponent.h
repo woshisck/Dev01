@@ -31,5 +31,10 @@ public:
 
 	FReceivedDamageDelegate ReceivedDamage;
 	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage);
+	
+	
+	UFUNCTION(BlueprintCallable)
+	void LogAllGrantedAbilities();
+
 
 };

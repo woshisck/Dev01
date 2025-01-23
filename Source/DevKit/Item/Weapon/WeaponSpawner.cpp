@@ -11,10 +11,12 @@
 #include "NiagaraSystem.h"
 #include "TimerManager.h"
 #include "GameFramework/Pawn.h"
+#include <DevKit/Character/YogBaseCharacter.h>
 
 
 // Sets default values
-AWeaponSpawner::AWeaponSpawner()
+AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -68,12 +70,51 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 
 void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
-	UE_LOG(LogTemp, Warning, TEXT("OnOverlapBegin Hppens"));
-	APawn* OverlappingPawn = Cast<APawn>(OtherActor);
+	UE_LOG(LogTemp, Warning, TEXT("OnOverlapBegin Happens"));
+	AYogBaseCharacter* OverlappingPawn = Cast<AYogBaseCharacter>(OtherActor);
+
 	if (OverlappingPawn != nullptr)
 	{
-		//AttemptPickUpWeapon(OverlappingPawn);
+		GiveWeapon(OverlappingPawn);
 	}
+}
+
+
+void AWeaponSpawner::GiveWeapon_Implementation(AYogBaseCharacter* ReceivingChar)
+{
+
+	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, ReceivingChar: %s"), *ReceivingChar->GetName());
+
+	if (ReceivingChar->bWeaponEquiped == false)
+	{
+		//spawn && attach weapon
+		USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
+		for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
+		{
+			TSubclassOf<AActor> WeaponActorClass = WeaponActorInst.ActorToSpawn;
+			FName Socket = WeaponActorInst.AttachSocket;
+			FTransform Transform = WeaponActorInst.AttachTransform;
+
+			AActor* NewActor = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
+			NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+			NewActor->SetActorRelativeTransform(Transform);
+			NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
+
+		}
+		for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
+		{
+			for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
+			{
+				ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
+			}
+		}
+
+
+
+		ReceivingChar->bWeaponEquiped = true;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, YogBaseCharacter"));
 }
 
 

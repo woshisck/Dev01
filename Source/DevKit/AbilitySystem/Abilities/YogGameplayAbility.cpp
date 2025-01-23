@@ -63,6 +63,12 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 
 FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpec(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
 {
+	FYogGameplayEffectContainer* FoundContainer = EffectContainerMap.Find(ContainerTag);
+	if (FoundContainer)
+	{
+		return MakeEffectContainerSpecFromContainer(*FoundContainer, EventData, OverrideGameplayLevel);
+	}
+	
 	return FYogGameplayEffectContainerSpec();
 }
 

@@ -26,3 +26,11 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 {
 	ReceivedDamage.Broadcast(SourceASC, Damage);
 }
+
+void UYogAbilitySystemComponent::LogAllGrantedAbilities()
+{
+    const TArray<FGameplayAbilitySpec>& AbilitySpecs = this->GetActivatableAbilities();
+    int32 TotalAbilities = AbilitySpecs.Num();
+    UE_LOG(LogTemp, Warning, TEXT("Total number of granted abilities: %d"), TotalAbilities);
+    
+}

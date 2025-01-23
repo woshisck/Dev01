@@ -81,7 +81,7 @@ public:
 	//virtual TArray<FActiveGameplayEffectHandle> ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel = -1);
 
 
- protected:
+
 
 // Gameplay abilities to grant when this ability set is granted.
  	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Gameplay Abilities", meta=(TitleProperty=Ability))

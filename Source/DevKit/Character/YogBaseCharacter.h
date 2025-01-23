@@ -81,10 +81,16 @@ public:
 	float GetMaxHealth() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Abilities")
-	void AddGameplayAbilities();
+	void GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel);
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Abilities")
 	void UpdatePassiveGameplayEffect();
+
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 bWeaponEquiped = 0;
+
+
 
 
 protected:
@@ -99,7 +105,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Character|Abilities")
 	int32 CharacterLevel;
-
 
 	UPROPERTY()
 	int32 bAbilitiesInitialized;

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-
+#include "../../AbilitySystem/YogAbilitySystemComponent.h"
 #include "../Weapon/WeaponDefinition.h"
 
 #include "WeaponSpawner.generated.h"
@@ -12,11 +12,14 @@
 
 class APawn;
 class UCapsuleComponent;
-
+class AYogBaseCharacter;
 
 class UObject;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
+
+class UWeaponDefinition;
+
 struct FFrame;
 struct FGameplayTag;
 struct FHitResult;
@@ -30,7 +33,7 @@ class DEVKIT_API AWeaponSpawner : public AActor
 	
 public:	
 	// Sets default values for this actor's properties
-	AWeaponSpawner();
+	AWeaponSpawner(const FObjectInitializer& ObjectInitializer);
 
 protected:
 	// Called when the game starts or when spawned
@@ -52,6 +55,10 @@ protected:
 	float CheckExistingOverlapDelay;
 
 public:
+
+	UFUNCTION(BlueprintNativeEvent)
+	void GiveWeapon(AYogBaseCharacter* ReceivingChar);
+
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
 	TObjectPtr<UCapsuleComponent> CollisionVolume;
