@@ -28,7 +28,6 @@ class DEVKIT_API AYogBaseCharacter : public AModularCharacter, public IAbilitySy
 	GENERATED_BODY()
 
 
-
 public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -70,7 +69,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "AblitySystemComp")
 	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
 
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayTagContainer GPTagsContainer;
 
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
@@ -83,15 +83,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|Abilities")
 	void GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel);
 
-	UFUNCTION(BlueprintCallable, Category = "Character|Abilities")
-	void UpdatePassiveGameplayEffect();
 
 
 	UPROPERTY(BlueprintReadOnly)
 	int32 bWeaponEquiped = 0;
 
-
-
+	UFUNCTION(BlueprintCallable, Category = "Character|Debug")
+	void PrintAllGameplayTags(const FGameplayTagContainer& TagContainer);
 
 protected:
 

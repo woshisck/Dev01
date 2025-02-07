@@ -128,22 +128,20 @@ void AYogBaseCharacter::GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> Ab
 
 
 
-void AYogBaseCharacter::UpdatePassiveGameplayEffect()
-{
-	check(AbilitySystemComponent);
-	//Add passive gameplayeffect
-	for (TSubclassOf<UGameplayEffect>& GameplayEffect : PassiveGameplayEffects)
-	{
-		FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
-		EffectContext.AddSourceObject(this);
 
-		FGameplayEffectSpecHandle NewHandle = AbilitySystemComponent->MakeOutgoingSpec(GameplayEffect, GetCharacterLevel(), EffectContext);
-		if (NewHandle.IsValid())
-		{
-			FActiveGameplayEffectHandle ActiveGEHandle = AbilitySystemComponent->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), AbilitySystemComponent);
-		}
+void AYogBaseCharacter::PrintAllGameplayTags(const FGameplayTagContainer& TagContainer)
+{
+	
+	for (const FGameplayTag& Tag : TagContainer)
+	{
+		// Print each tag to the log
+		UE_LOG(LogTemp, Log, TEXT("Gameplay Tag: %s"), *Tag.ToString());
 	}
 
+	if (TagContainer.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No Gameplay Tags present in the container."));
+	}
 }
 
 

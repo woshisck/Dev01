@@ -23,6 +23,9 @@ public:
 	
 	FString CurrentLoadPackage;
 
+
+	virtual void StartInitialLoading() override;
+
 	UFUNCTION(BlueprintPure,BlueprintCallable, Category = "AssetLoader")
 	static UDevAssetManager* GetDevAssetManager();
 

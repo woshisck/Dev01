@@ -2,6 +2,8 @@
 
 
 #include "DevAssetManager.h"
+#include "AbilitySystemGlobals.h"
+
 
 UDevAssetManager::UDevAssetManager()
 {
@@ -80,4 +82,12 @@ void UDevAssetManager::AddLoadedAsset(const UObject* Asset)
 		FScopeLock LoadedAssetsLock(&LoadedAssetsCritical);
 		LoadedAssets.Add(Asset);
 	}
+}
+
+
+void UDevAssetManager::StartInitialLoading()
+{
+	Super::StartInitialLoading();
+
+	UAbilitySystemGlobals::Get().InitGlobalData();
 }
