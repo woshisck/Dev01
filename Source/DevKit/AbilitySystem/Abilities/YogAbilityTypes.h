@@ -2,11 +2,6 @@
 
 #pragma once
 
-// ----------------------------------------------------------------------------------------------------------------
-// This header is for Ability-specific structures and enums that are shared across a project
-// Every game will probably need a file like this to handle their extensions to the system
-// This file is a good place for subclasses of FGameplayEffectContext and FGameplayAbilityTargetData
-// ----------------------------------------------------------------------------------------------------------------
 
 #include "GameplayEffectTypes.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
