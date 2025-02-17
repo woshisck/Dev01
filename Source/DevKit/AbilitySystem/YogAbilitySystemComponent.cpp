@@ -1,5 +1,5 @@
 #include "YogAbilitySystemComponent.h"
-
+#include "../AbilitySystem/Abilities/YogGameplayAbility.h"
 // Sets default values
 UYogAbilitySystemComponent::UYogAbilitySystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -29,7 +29,16 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 
 void UYogAbilitySystemComponent::LogAllGrantedAbilities()
 {
-    const TArray<FGameplayAbilitySpec>& AbilitySpecs = this->GetActivatableAbilities();
+	TArray<FGameplayAbilitySpec>& AbilitySpecs = this->GetActivatableAbilities();
+
+	for (FGameplayAbilitySpec& Spec : AbilitySpecs)
+	{
+		if (UYogGameplayAbility* Ability = Cast<UYogGameplayAbility>(Spec.Ability))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("granted abilities is: %s"), *Ability->GetName());
+		}
+	}
+
     int32 TotalAbilities = AbilitySpecs.Num();
     UE_LOG(LogTemp, Warning, TEXT("Total number of granted abilities: %d"), TotalAbilities);
 
