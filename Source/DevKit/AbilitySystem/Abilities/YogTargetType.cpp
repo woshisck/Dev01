@@ -6,7 +6,6 @@
 
 void UYogTargetType::GetTargets_Implementation(AYogBaseCharacter* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const
 {
-	return;
 }
 
 void UYogTargetType_UseOwner::GetTargets_Implementation(AYogBaseCharacter* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const

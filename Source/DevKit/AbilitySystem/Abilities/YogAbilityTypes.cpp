@@ -18,12 +18,14 @@ void FYogGameplayEffectContainerSpec::AddTargets(const TArray<FHitResult>& HitRe
 {
 	for (const FHitResult& HitResult : HitResults)
 	{
+		//Hit result data 
 		FGameplayAbilityTargetData_SingleTargetHit* NewData = new FGameplayAbilityTargetData_SingleTargetHit(HitResult);
 		TargetData.Add(NewData);
 	}
 
 	if (TargetActors.Num() > 0)
 	{
+		//Actor result data
 		FGameplayAbilityTargetData_ActorArray* NewData = new FGameplayAbilityTargetData_ActorArray();
 		NewData->TargetActorArray.Append(TargetActors);
 		TargetData.Add(NewData);
