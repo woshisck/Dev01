@@ -6,6 +6,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Itemdefinition.h"
+#include "../Character/YogBaseCharacter.h"
 //#include "GameFramework/Pawn.h"
 //#include "NiagaraFunctionLibrary.h"
 //#include "NiagaraSystem.h"
@@ -59,10 +60,14 @@ void AItemSpawner::OnConstruction(const FTransform& Transform)
 
 void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
-	APawn* OverlappingPawn = Cast<APawn>(OtherActor);
-	if (OverlappingPawn != nullptr)
+	AYogBaseCharacter* OverlappingCharacter = Cast<AYogBaseCharacter>(OtherActor);
+	if (OverlappingCharacter != nullptr)
 	{
+
+
+
 		UE_LOG(LogTemp, Warning, TEXT("ItemSpawner::OnOverlapBegin"));
+		this->Destroy();
 		//Cast<UItemInstance>(ItemDefinition->InstanceType)->EquipItem(OverlappingPawn);
 	}
 
