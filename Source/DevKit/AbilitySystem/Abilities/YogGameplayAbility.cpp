@@ -22,9 +22,6 @@ TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FG
 }
 
 
-
-
-
 FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFromContainer(const FYogGameplayEffectContainer& Container, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
 {
 	// First figure out our actor info

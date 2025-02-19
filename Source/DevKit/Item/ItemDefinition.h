@@ -19,6 +19,8 @@ class UObject;
 class USoundBase;
 class UStaticMesh;
 class UGameplayEffect;
+class FYogGameplayEffectContainer;
+
 
 UENUM(BlueprintType)
 enum class EItemType : uint8
@@ -82,11 +84,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "ItemDefine | Type")
 	EItemType ItemType;
 
-
-
-	//Visual representation of the pickup
-	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pickup|Mesh")
-	//TObjectPtr<UItemDisplayData> DisplayData;
+	UPROPERTY(EditAnywhere, Category = "ItemDefine | GameplayEffect")
+	FYogGameplayEffectContainer GrantGameplayEffect;
 
 };
 
