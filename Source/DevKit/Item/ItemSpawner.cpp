@@ -7,6 +7,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Itemdefinition.h"
 #include "../Character/YogBaseCharacter.h"
+#include "../AbilitySystem/YogAbilitySystemComponent.h"
+
 //#include "GameFramework/Pawn.h"
 //#include "NiagaraFunctionLibrary.h"
 //#include "NiagaraSystem.h"
@@ -60,11 +62,34 @@ void AItemSpawner::OnConstruction(const FTransform& Transform)
 
 void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
+
+	
+	{
+
 	AYogBaseCharacter* OverlappingCharacter = Cast<AYogBaseCharacter>(OtherActor);
 	if (OverlappingCharacter != nullptr)
 	{
 
 
+		if (this->ItemDefinition->GrantEffectContainerMap.Num() > 0)
+		{
+			UYogAbilitySystemComponent* ASC = OverlappingCharacter->GetYogAbilitySystemComponent();
+
+			TArray<FGameplayAbilitySpec>& ActiviableAbilities = ASC->GetActivatableAbilities();
+
+			for (FGameplayAbilitySpec& GameplayAbilitySpec : ActiviableAbilities)
+			{
+				//TODO get gameplay ability and add gameplay effect to container
+
+
+			}
+			
+			for (TPair<FGameplayTag, FYogGameplayEffectContainer>& pair : this->ItemDefinition->GrantEffectContainerMap)
+			{
+				
+
+			}
+		}
 
 		UE_LOG(LogTemp, Warning, TEXT("ItemSpawner::OnOverlapBegin"));
 		this->Destroy();

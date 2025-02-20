@@ -18,6 +18,7 @@ class UItemInstance;
 class UYogAbilitySystemComponent;
 class UInventoryManagerComponent;
 class UYogGameplayAbility;
+class AItemSpawner;
 
 /**
  * 
@@ -96,6 +97,9 @@ public:
 
 protected:
 
+
+
+
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	TObjectPtr<UInventoryManagerComponent> InventoryManagerComponent;
 
@@ -132,6 +136,9 @@ protected:
 	virtual void WeaponDMGChanged(const FOnAttributeChangeData& Data);
 	virtual void BuffAmplifyChanged(const FOnAttributeChangeData& Data);
 
+
+	UFUNCTION(BlueprintCallable, Category = "Feature")
+	virtual bool PickupItem(AItemSpawner& item);
 
 
 	UFUNCTION(BlueprintCallable, Category = "Feature")

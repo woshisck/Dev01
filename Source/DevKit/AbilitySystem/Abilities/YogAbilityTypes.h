@@ -25,11 +25,11 @@ public:
 	FYogGameplayEffectContainer() {}
 
 	/** Sets the way that targeting happens */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = GameplayEffectContainer)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
 	TSubclassOf<UYogTargetType> TargetType;
 
 	/** List of gameplay effects to apply to the targets */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = GameplayEffectContainer)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
 	TArray<TSubclassOf<UGameplayEffect>> TargetGameplayEffectClasses;
 };
 
@@ -43,11 +43,11 @@ public:
 	FYogGameplayEffectContainerSpec() {}
 
 	/** Computed target data */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = GameplayEffectContainer)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
 	FGameplayAbilityTargetDataHandle TargetData;
 
 	/** List of gameplay effects to apply to the targets */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = GameplayEffectContainer)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
 	TArray<FGameplayEffectSpecHandle> TargetGameplayEffectSpecs;
 
 	/** Returns true if this has any valid effect specs */

@@ -189,6 +189,14 @@ void AYogBaseCharacter::BuffAmplifyChanged(const FOnAttributeChangeData& Data)
 	float BuffAmplify = Data.NewValue;
 }
 
+bool AYogBaseCharacter::PickupItem(AItemSpawner& item)
+{
+	UYogAbilitySystemComponent* ASC = GetYogAbilitySystemComponent();
+
+
+
+}
+
 void AYogBaseCharacter::FinishDying()
 {
 	Destroy();

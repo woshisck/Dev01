@@ -19,7 +19,7 @@ class UObject;
 class USoundBase;
 class UStaticMesh;
 class UGameplayEffect;
-class FYogGameplayEffectContainer;
+struct FYogGameplayEffectContainer;
 
 
 UENUM(BlueprintType)
@@ -85,7 +85,7 @@ public:
 	EItemType ItemType;
 
 	UPROPERTY(EditAnywhere, Category = "ItemDefine | GameplayEffect")
-	FYogGameplayEffectContainer GrantGameplayEffect;
+	TMap<FGameplayTag, FYogGameplayEffectContainer> GrantEffectContainerMap;
 
 };
 
