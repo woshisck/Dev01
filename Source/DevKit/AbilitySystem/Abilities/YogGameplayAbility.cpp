@@ -22,6 +22,17 @@ TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FG
 }
 
 
+void UYogGameplayAbility::IncrementInternalNum()
+{
+	internal_num++;
+
+}
+
+void UYogGameplayAbility::LogInternalNum(const int& num)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Internal NUM from Ablity: %s,  %d"), *this->GetName(), internal_num);
+}
+
 FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFromContainer(const FYogGameplayEffectContainer& Container, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
 {
 	// First figure out our actor info

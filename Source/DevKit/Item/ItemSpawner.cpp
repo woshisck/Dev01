@@ -63,9 +63,6 @@ void AItemSpawner::OnConstruction(const FTransform& Transform)
 void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
 
-	
-	{
-
 	AYogBaseCharacter* OverlappingCharacter = Cast<AYogBaseCharacter>(OtherActor);
 	if (OverlappingCharacter != nullptr)
 	{
@@ -79,21 +76,29 @@ void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 
 			for (FGameplayAbilitySpec& GameplayAbilitySpec : ActiviableAbilities)
 			{
-				//TODO get gameplay ability and add gameplay effect to container
+				
+				if (GameplayAbilitySpec.Ability)
+				{
+					UYogGameplayAbility* ability = Cast<UYogGameplayAbility>(GameplayAbilitySpec.Ability);
 
+					if (ability)
+					{
+						ability->IncrementInternalNum();
+					}
+				}
 
 			}
 			
-			for (TPair<FGameplayTag, FYogGameplayEffectContainer>& pair : this->ItemDefinition->GrantEffectContainerMap)
-			{
-				
+			//for (TPair<FGameplayTag, FYogGameplayEffectContainer>& pair : this->ItemDefinition->GrantEffectContainerMap)
+			//{
+			//	
 
-			}
+			//}
 		}
 
 		UE_LOG(LogTemp, Warning, TEXT("ItemSpawner::OnOverlapBegin"));
 		this->Destroy();
-		//Cast<UItemInstance>(ItemDefinition->InstanceType)->EquipItem(OverlappingPawn);
+
 	}
 
 }

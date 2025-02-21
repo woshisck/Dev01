@@ -34,7 +34,6 @@ class UWeaponDefinition : public UDataAsset
 	GENERATED_BODY()
 
 public:
-	UWeaponDefinition(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// Class to spawn
 	UPROPERTY(EditDefaultsOnly, Category = Equipment)

@@ -137,9 +137,6 @@ protected:
 	virtual void BuffAmplifyChanged(const FOnAttributeChangeData& Data);
 
 
-	UFUNCTION(BlueprintCallable, Category = "Feature")
-	virtual bool PickupItem(AItemSpawner& item);
-
 
 	UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual bool IsAlive() const;
