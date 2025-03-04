@@ -15,16 +15,11 @@ struct FGameplayAbilitySpecHandle;
 
 class AActor;
 class AController;
-//class ALyraCharacter;
-//class ALyraPlayerController;
-//class APlayerController;
+
 class FText;
-//class ILyraAbilitySourceInterface;
+
 class UAnimMontage;
-//class ULyraAbilityCost;
-//class ULyraAbilitySystemComponent;
-//class ULyraCameraMode;
-//class ULyraHeroComponent;
+
 class UObject;
 struct FFrame;
 struct FGameplayAbilityActorInfo;
