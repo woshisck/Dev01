@@ -75,12 +75,12 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 
 	if (OverlappingPawn != nullptr)
 	{
-		GiveWeapon(OverlappingPawn);
+		GrantWeapon(OverlappingPawn);
 	}
 }
 
 
-void AWeaponSpawner::GiveWeapon_Implementation(AYogBaseCharacter* ReceivingChar)
+void AWeaponSpawner::GrantWeapon_Implementation(AYogBaseCharacter* ReceivingChar)
 {
 
 	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, ReceivingChar: %s"), *ReceivingChar->GetName());
@@ -108,9 +108,6 @@ void AWeaponSpawner::GiveWeapon_Implementation(AYogBaseCharacter* ReceivingChar)
 				ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
 			}
 		}
-
-
-
 		ReceivingChar->bWeaponEquiped = true;
 	}
 

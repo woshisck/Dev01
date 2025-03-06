@@ -57,7 +57,7 @@ protected:
 public:
 
 	UFUNCTION(BlueprintNativeEvent)
-	void GiveWeapon(AYogBaseCharacter* ReceivingChar);
+	void GrantWeapon(AYogBaseCharacter* ReceivingChar);
 
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")

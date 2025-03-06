@@ -25,6 +25,7 @@ TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FG
 void UYogGameplayAbility::IncrementInternalNum()
 {
 	internal_num++;
+	LogInternalNum(internal_num);
 
 }
 
