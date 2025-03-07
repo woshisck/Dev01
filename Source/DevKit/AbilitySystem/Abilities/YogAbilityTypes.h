@@ -24,11 +24,11 @@ struct FYogGameplayEffectContainer
 public:
 	FYogGameplayEffectContainer() {}
 
-	/** Sets the way that targeting happens */
+	/** Sets the way that type of target */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
 	TSubclassOf<UYogTargetType> TargetType;
 
-	/** List of gameplay effects to apply to the targets */
+	/** List of GE apply to the targets */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
 	TArray<TSubclassOf<UGameplayEffect>> TargetGameplayEffectClasses;
 };

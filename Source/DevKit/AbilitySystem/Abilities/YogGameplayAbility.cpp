@@ -22,16 +22,10 @@ TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FG
 }
 
 
-void UYogGameplayAbility::IncrementInternalNum()
+void UYogGameplayAbility::LogEffectContainerMap()
 {
-	internal_num++;
-	LogInternalNum(internal_num);
+	UE_LOG(LogTemp, Warning, TEXT("EffectContainerMap length: %d"), EffectContainerMap.Num());
 
-}
-
-void UYogGameplayAbility::LogInternalNum(const int& num)
-{
-	UE_LOG(LogTemp, Warning, TEXT("Internal NUM from Ablity: %s,  %d"), *this->GetName(), internal_num);
 }
 
 FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFromContainer(const FYogGameplayEffectContainer& Container, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)

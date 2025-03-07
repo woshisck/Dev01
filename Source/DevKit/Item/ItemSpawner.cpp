@@ -64,51 +64,47 @@ void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 {
 
 	AYogBaseCharacter* OverlappingCharacter = Cast<AYogBaseCharacter>(OtherActor);
-	if (OverlappingCharacter != nullptr)
+	if (OverlappingCharacter != nullptr && this->ItemDefinition->GrantEffectContainerMap.Num() > 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ItemSpawner::OnOverlapBegin"));
-		if (this->ItemDefinition->GrantEffectContainerMap.Num() > 0)
-		{
+
+
+
 			//HasMatchingGameplayTag
-			UYogAbilitySystemComponent* ASC = OverlappingCharacter->GetYogAbilitySystemComponent();
-			TArray<FGameplayAbilitySpec>& ActiviableAbilities = ASC->GetActivatableAbilities();
+		UYogAbilitySystemComponent* ASC = OverlappingCharacter->GetYogAbilitySystemComponent();
+		TArray<FGameplayAbilitySpec>& ActiviableAbilities = ASC->GetActivatableAbilities();
 
 
-			for (TPair<FGameplayTag, FYogGameplayEffectContainer>& pair : this->ItemDefinition->GrantEffectContainerMap)
+		for (TPair<FGameplayTag, FYogGameplayEffectContainer>& pair : this->ItemDefinition->GrantEffectContainerMap)
+		{
+			FGameplayTag Key = pair.Key;
+			FYogGameplayEffectContainer Value = pair.Value;
+
+
+			for (FGameplayAbilitySpec& GameplayAbilitySpec : ActiviableAbilities)
 			{
-				FGameplayTag Key = pair.Key;
-				FYogGameplayEffectContainer Value = pair.Value;
 
-				for (FGameplayAbilitySpec& GameplayAbilitySpec : ActiviableAbilities)
+				if (GameplayAbilitySpec.Ability)
 				{
+					UYogGameplayAbility* ability = Cast<UYogGameplayAbility>(GameplayAbilitySpec.Ability);
 
-					if (GameplayAbilitySpec.Ability)
+					//TODO: check if ability is qualified with the tag
+					if (ability)
 					{
-						UYogGameplayAbility* ability = Cast<UYogGameplayAbility>(GameplayAbilitySpec.Ability);
+						ability->EffectContainerMap.Add(pair);
 
-						//TODO: check if ability is qualified with the tag
-						if (ability)
-						{
-							ability->EffectContainerMap.Add(pair);
-						}
 					}
 				}
-
-
 			}
-
-
-
-
-
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("PICKUP HAS NO FYogGameplayEffectContainer"));
 		}
 		this->Destroy();
-
 	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PICKUP HAS NO FYogGameplayEffectContainer"));
+	}
+
+
 }
 
 

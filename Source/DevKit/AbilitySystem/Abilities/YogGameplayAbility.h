@@ -51,7 +51,6 @@ public:
 
 
 	/** Map of gameplay tags to gameplay effect containers */
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffects)
 	TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;
 
@@ -77,13 +76,6 @@ public:
 
 public:
 
-	UPROPERTY()
-	int32 internal_num = 0;
-
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
-	void IncrementInternalNum();
-
-
-	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
-	void LogInternalNum(const int& num);
+	void LogEffectContainerMap();
 };
