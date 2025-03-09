@@ -109,6 +109,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 
 	float DMGDone = (BaseDMG + WeaponDMG) * BuffATKAmplify;
+	UE_LOG(LogTemp, Warning, TEXT("DMGDone is: %f"), DMGDone);
 	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamageProperty, EGameplayModOp::Additive, DMGDone));
 	
 	//Broadcast damages to Target ASC
