@@ -95,6 +95,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|Debug")
 	void PrintAllGameplayTags(const FGameplayTagContainer& TagContainer);
 
+public:
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FCharacterDiedDelegate OnCharacterDied;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FCharacterHealthUpdateDelegate OnCharacterHealthUpdate;
+
 protected:
 
 
@@ -116,11 +123,7 @@ protected:
 
 	FGameplayTag DeadTag;
 
-	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
-	FCharacterDiedDelegate OnCharacterDied;
 
-	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
-	FCharacterHealthUpdateDelegate OnCharacterHealthUpdate;
 
 	FDelegateHandle HealthChangedDelegateHandle;
 	FDelegateHandle MaxHealthChangedDelegateHandle;

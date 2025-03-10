@@ -149,10 +149,6 @@ void AYogBaseCharacter::PrintAllGameplayTags(const FGameplayTagContainer& TagCon
 void AYogBaseCharacter::HealthChanged(const FOnAttributeChangeData& Data)
 {
 
-	//TODO: 
-	// UI Update 
-	// add condition to trigger death 
-
 	float Health = Data.NewValue;
 	float percent = Health / GetMaxHealth();
 
@@ -192,13 +188,14 @@ void AYogBaseCharacter::BuffAmplifyChanged(const FOnAttributeChangeData& Data)
 
 void AYogBaseCharacter::FinishDying()
 {
+	//TODO: add death event and animation montage later
 	Destroy();
 }
 
 void AYogBaseCharacter::Die()
 {
 	UE_LOG(LogTemp, Log, TEXT("DEATH HAPPEN, DEAD CHARACTER: %s"), *UKismetSystemLibrary::GetDisplayName(this));
-	//GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
 	GetCharacterMovement()->GravityScale = 0;
 	GetCharacterMovement()->Velocity = FVector(0);
 

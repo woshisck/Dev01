@@ -48,7 +48,7 @@ struct FYogDamageStatics
 };
 
 
-static FYogDamageStatics& DamageStatics()
+static const FYogDamageStatics& DamageStatics()
 {
 	static FYogDamageStatics DmgStatics;
 	return DmgStatics;
@@ -69,6 +69,8 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	// --------------------------------------
 	//	Damage Done =  ((BaseDMG + WeaponDMG) * BuffAmplify + BuffingATK) * DMGCorrect
 	// --------------------------------------
+	UE_LOG(LogTemp, Warning, TEXT("Start Damage execution "));
+
 
 	UAbilitySystemComponent* TargetAbilitySystemComponent = ExecutionParams.GetTargetAbilitySystemComponent();
 	UAbilitySystemComponent* SourceAbilitySystemComponent = ExecutionParams.GetSourceAbilitySystemComponent();
@@ -95,6 +97,8 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	float BaseDMG = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().BaseDMGDef, EvaluationParameters, BaseDMG);
 
+
+
 	float WeaponDMG = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().WeaponDMGDef, EvaluationParameters, WeaponDMG);
 
@@ -110,6 +114,8 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 	float DMGDone = (BaseDMG + WeaponDMG) * BuffATKAmplify;
 	UE_LOG(LogTemp, Warning, TEXT("DMGDone is: %f"), DMGDone);
+
+
 	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamageProperty, EGameplayModOp::Additive, DMGDone));
 	
 	//Broadcast damages to Target ASC
