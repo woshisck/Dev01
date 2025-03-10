@@ -2,15 +2,19 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystemComponent.h"
-
+#include "Abilities/YogAbilityTypes.h"
+#include "Abilities/GameplayAbility.h"
 
 #include "YogAbilitySystemComponent.generated.h"
+
+
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceivedDamageDelegate, UYogAbilitySystemComponent*, SourceASC, float, Damage);
 
 
 class UYogGameplayAbility;
-
+//struct FGameplayTag;
+//struct FYogGameplayEffectContainer;
 
 UCLASS()
 class DEVKIT_API UYogAbilitySystemComponent : public UAbilitySystemComponent
@@ -42,5 +46,7 @@ public:
 	void GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities);
 	
 	
-
+	/** Map of gameplay tags to gameplay effect containers */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffects)
+	TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;
 };
