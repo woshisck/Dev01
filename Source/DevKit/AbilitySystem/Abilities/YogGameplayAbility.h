@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
 #include "YogAbilityTypes.h"
+#include "Engine/DataTable.h"
+
+
 
 #include "YogGameplayAbility.generated.h"
 
@@ -15,10 +18,10 @@ struct FGameplayAbilitySpecHandle;
 
 class AActor;
 class AController;
-
 class FText;
-
 class UAnimMontage;
+class UGameplayEffect;
+
 
 class UObject;
 struct FFrame;
@@ -28,6 +31,26 @@ struct FGameplayEventData;
 
 struct FGameplayEventData;
 
+
+USTRUCT(BlueprintType)
+struct FYogAbilityData : public FTableRowBase
+{
+    GENERATED_BODY()
+
+public:
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    //FString Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Damage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DMGAmplify;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float MontagePlayRate;
+
+};
 
 /**
  * 
@@ -50,9 +73,9 @@ public:
 
 
 
-	/** Map of gameplay tags to gameplay effect containers */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffects)
-	TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;
+	///** Map of gameplay tags to gameplay effect containers */
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Damage Effect)
+	//TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;
 
 	/** Make gameplay effect container spec to be applied later, using the passed in container */
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
@@ -71,11 +94,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	virtual TArray<FActiveGameplayEffectHandle> ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel = -1);
 
-
-
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+    TObjectPtr<UDataTable> YogAbilityDataTable;
 
 public:
 
+
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
-	void LogEffectContainerMap();
+	AYogBaseCharacter* GetOwnerCharacterInfo();
 };

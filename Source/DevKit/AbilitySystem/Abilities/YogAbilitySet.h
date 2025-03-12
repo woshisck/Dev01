@@ -72,7 +72,7 @@ public:
 	// void GiveToAbilitySystem(UGameAbilitySystemComponent* YogASC, FYogAbilitySet_GrantedHandles* OutGrantedHandles, UObject* SourceObject = nullptr) const;
 
 
-	//TODO: Defined in GameplayAbility, consider move to here in in future
+	//@TODO: Defined in GameplayAbility, consider move to here in in future
 	//UFUNCTION(BlueprintCallable, Category = Ability)
 	//virtual TArray<FActiveGameplayEffectHandle> ApplyEffectContainerSpec(const FYogGameplayEffectContainerSpec& ContainerSpec);
 

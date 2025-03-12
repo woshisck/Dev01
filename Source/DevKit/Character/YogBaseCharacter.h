@@ -37,7 +37,7 @@ public:
 	AYogBaseCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "Character")
-	UYogAbilitySystemComponent* GetYogAbilitySystemComponent() const;
+	UYogAbilitySystemComponent* GetASC() const;
 	
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 

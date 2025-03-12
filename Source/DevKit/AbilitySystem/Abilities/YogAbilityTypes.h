@@ -33,7 +33,7 @@ public:
 	TArray<TSubclassOf<UGameplayEffect>> TargetGameplayEffectClasses;
 };
 
-/** A "processed" version of RPGGameplayEffectContainer that can be passed around and eventually applied */
+/** instance version -- struct FYogGameplayEffectContainer  */
 USTRUCT(BlueprintType)
 struct FYogGameplayEffectContainerSpec
 {

@@ -13,8 +13,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceivedDamageDelegate, UYogAbilit
 
 
 class UYogGameplayAbility;
-//struct FGameplayTag;
-//struct FYogGameplayEffectContainer;
+struct FGameplayTag;
+struct FYogGameplayEffectContainer;
 
 UCLASS()
 class DEVKIT_API UYogAbilitySystemComponent : public UAbilitySystemComponent

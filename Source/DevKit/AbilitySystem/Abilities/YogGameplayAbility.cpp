@@ -4,13 +4,14 @@
 #include "YogGameplayAbility.h"
 #include "YogTargetType.h"
 #include "../../Character/YogBaseCharacter.h"
-
+#include "../YogAbilitySystemComponent.h"
 
 
 UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+
 }
 
 
@@ -22,9 +23,21 @@ TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FG
 }
 
 
-void UYogGameplayAbility::LogEffectContainerMap()
+AYogBaseCharacter* UYogGameplayAbility::GetOwnerCharacterInfo()
 {
-	UE_LOG(LogTemp, Warning, TEXT("EffectContainerMap length: %d"), EffectContainerMap.Num());
+	AYogBaseCharacter* OwningCharacter = NewObject<AYogBaseCharacter>(this, AYogBaseCharacter::StaticClass());
+	AActor* OwningActor = NewObject<AActor>(this, AActor::StaticClass());
+	OwningActor = GetOwningActorFromActorInfo();
+
+	if (OwningActor != NULL)
+	{
+		OwningCharacter = Cast<AYogBaseCharacter>(OwningActor);
+		return OwningCharacter;
+	}
+	else
+	{
+		return OwningCharacter;
+	}
 
 }
 
@@ -34,7 +47,7 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 	FYogGameplayEffectContainerSpec ReturnSpec;
 	AActor* OwningActor = GetOwningActorFromActorInfo();
 	AYogBaseCharacter* OwningCharacter = Cast<AYogBaseCharacter>(OwningActor);
-	UYogAbilitySystemComponent* OwningASC = OwningCharacter->GetYogAbilitySystemComponent();
+	UYogAbilitySystemComponent* OwningASC = OwningCharacter->GetASC();
 
 	if (OwningASC)
 	{
@@ -66,12 +79,16 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 
 FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpec(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
 {
-	FYogGameplayEffectContainer* FoundContainer = EffectContainerMap.Find(ContainerTag);
+	//@TODO Add YogAbilityDataTable TO Spec 
+	AYogBaseCharacter* OwningCharacter = GetOwnerCharacterInfo();
+	UYogAbilitySystemComponent* ASC = OwningCharacter->GetASC();
+
+
+	FYogGameplayEffectContainer* FoundContainer = ASC->EffectContainerMap.Find(ContainerTag);
 	if (FoundContainer)
 	{
 		return MakeEffectContainerSpecFromContainer(*FoundContainer, EventData, OverrideGameplayLevel);
 	}
-	
 	return FYogGameplayEffectContainerSpec();
 }
 

@@ -41,7 +41,7 @@ AYogBaseCharacter::AYogBaseCharacter(const FObjectInitializer& ObjectInitializer
 	bAbilitiesInitialized = false;
 }
 
-UYogAbilitySystemComponent* AYogBaseCharacter::GetYogAbilitySystemComponent() const
+UYogAbilitySystemComponent* AYogBaseCharacter::GetASC() const
 {
 	return Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent());
 }

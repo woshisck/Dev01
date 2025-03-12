@@ -66,45 +66,28 @@ void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 	AYogBaseCharacter* OverlappingCharacter = Cast<AYogBaseCharacter>(OtherActor);
 	if (OverlappingCharacter != nullptr && this->ItemDefinition->GrantEffectContainerMap.Num() > 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ItemSpawner::OnOverlapBegin"));
-
-
-
 			//HasMatchingGameplayTag
-		UYogAbilitySystemComponent* ASC = OverlappingCharacter->GetYogAbilitySystemComponent();
-		TArray<FGameplayAbilitySpec>& ActiviableAbilities = ASC->GetActivatableAbilities();
-
-
+		UYogAbilitySystemComponent* ASC = OverlappingCharacter->GetASC();
 		for (TPair<FGameplayTag, FYogGameplayEffectContainer>& pair : this->ItemDefinition->GrantEffectContainerMap)
 		{
 			FGameplayTag Key = pair.Key;
 			FYogGameplayEffectContainer Value = pair.Value;
-
-
-			for (FGameplayAbilitySpec& GameplayAbilitySpec : ActiviableAbilities)
+			if (ASC->EffectContainerMap.Contains(Key))
 			{
-
-				if (GameplayAbilitySpec.Ability)
-				{
-					UYogGameplayAbility* ability = Cast<UYogGameplayAbility>(GameplayAbilitySpec.Ability);
-
-					//TODO: check if ability is qualified with the tag
-					if (ability)
-					{
-						ability->EffectContainerMap.Add(pair);
-
-					}
-				}
+				//@TODO duplicate gameplay tag find 
+				UE_LOG(LogTemp, Warning, TEXT("DUPLICATRED FYogGameplayEffectContainer"));
+			}
+			else
+			{
+				ASC->EffectContainerMap.Add(pair);
+				this->Destroy();
 			}
 		}
-		this->Destroy();
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("PICKUP HAS NO FYogGameplayEffectContainer"));
+		UE_LOG(LogTemp, Warning, TEXT("PICKUP HAS NO FYogGameplayEffectContainer OR Overlap not happen"));
 	}
-
-
 }
 
 
