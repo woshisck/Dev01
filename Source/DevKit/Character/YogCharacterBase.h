@@ -7,10 +7,10 @@
 #include <DevKit/AbilitySystem/Attribute/BaseAttributeSet.h>
 #include "AbilitySystemInterface.h"
 
-#include "YogBaseCharacter.generated.h"
+#include "YogCharacterBase.generated.h"
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogBaseCharacter*, Character);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, const float, HealthPercent);
 
 
@@ -24,7 +24,7 @@ class AItemSpawner;
  * 
  */
 UCLASS()
-class DEVKIT_API AYogBaseCharacter : public AModularCharacter, public IAbilitySystemInterface
+class DEVKIT_API AYogCharacterBase : public AModularCharacter, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 
@@ -34,7 +34,7 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 
-	AYogBaseCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AYogCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	UYogAbilitySystemComponent* GetASC() const;

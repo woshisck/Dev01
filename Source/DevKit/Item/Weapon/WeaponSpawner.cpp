@@ -11,7 +11,7 @@
 #include "NiagaraSystem.h"
 #include "TimerManager.h"
 #include "GameFramework/Pawn.h"
-#include <DevKit/Character/YogBaseCharacter.h>
+#include <DevKit/Character/YogCharacterBase.h>
 
 
 // Sets default values
@@ -71,7 +71,7 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
 	UE_LOG(LogTemp, Warning, TEXT("OnOverlapBegin Happens"));
-	AYogBaseCharacter* OverlappingPawn = Cast<AYogBaseCharacter>(OtherActor);
+	AYogCharacterBase* OverlappingPawn = Cast<AYogCharacterBase>(OtherActor);
 
 	if (OverlappingPawn != nullptr)
 	{
@@ -80,7 +80,7 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 }
 
 
-void AWeaponSpawner::GrantWeapon_Implementation(AYogBaseCharacter* ReceivingChar)
+void AWeaponSpawner::GrantWeapon_Implementation(AYogCharacterBase* ReceivingChar)
 {
 
 	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, ReceivingChar: %s"), *ReceivingChar->GetName());
@@ -111,7 +111,7 @@ void AWeaponSpawner::GrantWeapon_Implementation(AYogBaseCharacter* ReceivingChar
 		ReceivingChar->bWeaponEquiped = true;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, YogBaseCharacter"));
+	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, YogCharacterBase"));
 }
 
 

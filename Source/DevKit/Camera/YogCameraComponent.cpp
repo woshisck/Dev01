@@ -3,7 +3,7 @@
 
 
 #include "YogCameraComponent.h"
-#include "../Character/YogBaseCharacter.h"
+#include "../Character/YogCharacterBase.h"
 
 UYogCameraComponent::UYogCameraComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -46,7 +46,7 @@ void UYogCameraComponent::UpdatePosition()
 
 FVector UYogCameraComponent::GetOffsetDirection()
 {
-	AYogBaseCharacter* Owner = Cast<AYogBaseCharacter>(this->GetOwner());
+	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(this->GetOwner());
 	AController* Controller = Owner->GetController();
 
 

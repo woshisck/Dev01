@@ -2,7 +2,7 @@
 
 
 #include "YogAnimInstance.h"
-#include "../Character/YogBaseCharacter.h"
+#include "../Character/YogCharacterBase.h"
 #include "../Character/YogCharacterMovementComponent.h"
 #include "AbilitySystemGlobals.h"
 
@@ -47,7 +47,7 @@ void UYogAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeUpdateAnimation(DeltaSeconds);
 
-	const AYogBaseCharacter* Character = Cast<AYogBaseCharacter>(GetOwningActor());
+	const AYogCharacterBase* Character = Cast<AYogCharacterBase>(GetOwningActor());
 	if (!Character)
 	{
 		return;

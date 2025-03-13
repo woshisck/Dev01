@@ -18,6 +18,9 @@ struct DEVKIT_API FYogPickupSlot
 {
 	GENERATED_BODY()
 
+	FYogPickupSlot() {
+
+	}
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Item)
 	FPrimaryAssetType ItemType;
 };
@@ -27,7 +30,8 @@ struct DEVKIT_API FYogPickupData
 {
 	GENERATED_BODY()
 
-
+	FYogPickupData()
+	{ }
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Item)
 	int32 ItemLevel;
 };

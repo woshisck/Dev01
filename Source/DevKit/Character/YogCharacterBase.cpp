@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "YogBaseCharacter.h"
+#include "YogCharacterBase.h"
 #include "YogCharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "../Item/ItemInstance.h"
@@ -11,7 +11,7 @@
 
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 
-AYogBaseCharacter::AYogBaseCharacter(const FObjectInitializer& ObjectInitializer)
+AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -41,51 +41,51 @@ AYogBaseCharacter::AYogBaseCharacter(const FObjectInitializer& ObjectInitializer
 	bAbilitiesInitialized = false;
 }
 
-UYogAbilitySystemComponent* AYogBaseCharacter::GetASC() const
+UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
 {
 	return Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent());
 }
 
 
 
-bool AYogBaseCharacter::IsAlive() const
+bool AYogCharacterBase::IsAlive() const
 {
 	return GetHealth() > 0.0f;
 }
 
-void AYogBaseCharacter::BeginPlay()
+void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
 	if (AbilitySystemComponent) {
 
-		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetHealthAttribute()).AddUObject(this, &AYogBaseCharacter::HealthChanged);
-		MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogBaseCharacter::MaxHealthChanged);
-		BaseDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBaseDMGAttribute()).AddUObject(this, &AYogBaseCharacter::BaseDMGChanged);
-		WeaponDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetWeaponDMGAttribute()).AddUObject(this, &AYogBaseCharacter::WeaponDMGChanged);
-		BuffAmplifyChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBuffAmplifyAttribute()).AddUObject(this, &AYogBaseCharacter::BuffAmplifyChanged);
+		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
+		MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
+		BaseDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBaseDMGAttribute()).AddUObject(this, &AYogCharacterBase::BaseDMGChanged);
+		WeaponDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetWeaponDMGAttribute()).AddUObject(this, &AYogCharacterBase::WeaponDMGChanged);
+		BuffAmplifyChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBuffAmplifyAttribute()).AddUObject(this, &AYogCharacterBase::BuffAmplifyChanged);
 	}
 }
 
-void AYogBaseCharacter::Tick(float DeltaSeconds)
+void AYogCharacterBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
 }
 
-UAbilitySystemComponent* AYogBaseCharacter::GetAbilitySystemComponent() const
+UAbilitySystemComponent* AYogCharacterBase::GetAbilitySystemComponent() const
 {
 	return AbilitySystemComponent;
 }
 
-int32 AYogBaseCharacter::GetCharacterLevel() const
+int32 AYogCharacterBase::GetCharacterLevel() const
 {
 	return CharacterLevel;
 }
 
 
 
-float AYogBaseCharacter::GetHealth() const
+float AYogCharacterBase::GetHealth() const
 {
 	if (AttributeSet)
 	{
@@ -95,7 +95,7 @@ float AYogBaseCharacter::GetHealth() const
 	return .4444f;
 }
 
-float AYogBaseCharacter::GetMaxHealth() const
+float AYogCharacterBase::GetMaxHealth() const
 {
 	if (AttributeSet)
 	{
@@ -105,7 +105,7 @@ float AYogBaseCharacter::GetMaxHealth() const
 	return .5555f;
 }
 
-void AYogBaseCharacter::GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel)
+void AYogCharacterBase::GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel)
 {
 	check(AbilitySystemComponent);
 
@@ -129,7 +129,7 @@ void AYogBaseCharacter::GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> Ab
 
 
 
-void AYogBaseCharacter::PrintAllGameplayTags(const FGameplayTagContainer& TagContainer)
+void AYogCharacterBase::PrintAllGameplayTags(const FGameplayTagContainer& TagContainer)
 {
 	
 	for (const FGameplayTag& Tag : TagContainer)
@@ -146,7 +146,7 @@ void AYogBaseCharacter::PrintAllGameplayTags(const FGameplayTagContainer& TagCon
 
 
 
-void AYogBaseCharacter::HealthChanged(const FOnAttributeChangeData& Data)
+void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 {
 
 	float Health = Data.NewValue;
@@ -164,35 +164,35 @@ void AYogBaseCharacter::HealthChanged(const FOnAttributeChangeData& Data)
 
 }
 
-void AYogBaseCharacter::MaxHealthChanged(const FOnAttributeChangeData& Data)
+void AYogCharacterBase::MaxHealthChanged(const FOnAttributeChangeData& Data)
 {
 	float MaxHealth = Data.NewValue;
 
 }
 
-void AYogBaseCharacter::BaseDMGChanged(const FOnAttributeChangeData& Data)
+void AYogCharacterBase::BaseDMGChanged(const FOnAttributeChangeData& Data)
 {
 	float BaseDMG = Data.NewValue;
 }
 
-void AYogBaseCharacter::WeaponDMGChanged(const FOnAttributeChangeData& Data)
+void AYogCharacterBase::WeaponDMGChanged(const FOnAttributeChangeData& Data)
 {
 	float WeaponDMG = Data.NewValue;
 }
 
-void AYogBaseCharacter::BuffAmplifyChanged(const FOnAttributeChangeData& Data)
+void AYogCharacterBase::BuffAmplifyChanged(const FOnAttributeChangeData& Data)
 {
 	float BuffAmplify = Data.NewValue;
 }
 
 
-void AYogBaseCharacter::FinishDying()
+void AYogCharacterBase::FinishDying()
 {
 	//TODO: add death event and animation montage later
 	Destroy();
 }
 
-void AYogBaseCharacter::Die()
+void AYogCharacterBase::Die()
 {
 	UE_LOG(LogTemp, Log, TEXT("DEATH HAPPEN, DEAD CHARACTER: %s"), *UKismetSystemLibrary::GetDisplayName(this));
 
@@ -213,7 +213,7 @@ void AYogBaseCharacter::Die()
 
 }
 
-void AYogBaseCharacter::GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities)
+void AYogCharacterBase::GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities)
 {
 	if (AbilitySystemComponent)
 	{

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "YogBaseCharacter.h"
+#include "YogCharacterBase.h"
 #include "../AbilitySystem/YogAbilitySystemComponent.h"
 
 #include "YogCharacterWithAbility.generated.h"
@@ -9,7 +9,7 @@
 
 
 UCLASS()
-class DEVKIT_API AYogCharacterWithAbility : public AYogBaseCharacter
+class DEVKIT_API AYogCharacterWithAbility : public AYogCharacterBase
 {
 	GENERATED_BODY()
 

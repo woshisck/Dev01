@@ -2,7 +2,7 @@
 
 
 #include "YogSpringArmComponent.h"
-#include "../Character/YogBaseCharacter.h"
+#include "../Character/YogCharacterBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 void UYogSpringArmComponent::BeginPlay()

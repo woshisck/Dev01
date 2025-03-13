@@ -12,7 +12,7 @@
 
 class APawn;
 class UCapsuleComponent;
-class AYogBaseCharacter;
+class AYogCharacterBase;
 
 class UObject;
 class UPrimitiveComponent;
@@ -57,7 +57,7 @@ protected:
 public:
 
 	UFUNCTION(BlueprintNativeEvent)
-	void GrantWeapon(AYogBaseCharacter* ReceivingChar);
+	void GrantWeapon(AYogCharacterBase* ReceivingChar);
 
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")

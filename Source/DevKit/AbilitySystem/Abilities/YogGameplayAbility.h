@@ -38,6 +38,10 @@ struct FYogAbilityData : public FTableRowBase
     GENERATED_BODY()
 
 public:
+	FYogAbilityData()
+		: Damage(0.0f), DMGAmplify(0.0f), MontagePlayRate(0.0f)
+	{
+	}
     //UPROPERTY(EditAnywhere, BlueprintReadWrite)
     //FString Name;
 
@@ -81,7 +85,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	virtual FYogGameplayEffectContainerSpec MakeEffectContainerSpecFromContainer(const FYogGameplayEffectContainer& Container, const FGameplayEventData& EventData, int32 OverrideGameplayLevel = -1);
 
-	/** Search for and make a gameplay effect container spec to be applied later, from the EffectContainerMap */
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	virtual FYogGameplayEffectContainerSpec MakeEffectContainerSpec(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel = -1);
 
@@ -99,7 +102,13 @@ public:
 
 public:
 
+	UFUNCTION(BlueprintCallable, Category = "Ability Data")
+	void GetAbilityTableData();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+    FName DataRowName;
+
 
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
-	AYogBaseCharacter* GetOwnerCharacterInfo();
+	AYogCharacterBase* GetOwnerCharacterInfo();
 };

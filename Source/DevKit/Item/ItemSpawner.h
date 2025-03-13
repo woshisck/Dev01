@@ -41,7 +41,7 @@ public:
 
 
 	UFUNCTION(BlueprintNativeEvent)
-	void GrantItem(AYogBaseCharacter* ReceivingChar);
+	void GrantItem(AYogCharacterBase* ReceivingChar);
 
 
 	UFUNCTION()

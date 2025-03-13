@@ -6,7 +6,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Itemdefinition.h"
-#include "../Character/YogBaseCharacter.h"
+#include "../Character/YogCharacterBase.h"
 #include "../AbilitySystem/YogAbilitySystemComponent.h"
 
 //#include "GameFramework/Pawn.h"
@@ -63,7 +63,7 @@ void AItemSpawner::OnConstruction(const FTransform& Transform)
 void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
 
-	AYogBaseCharacter* OverlappingCharacter = Cast<AYogBaseCharacter>(OtherActor);
+	AYogCharacterBase* OverlappingCharacter = Cast<AYogCharacterBase>(OtherActor);
 	if (OverlappingCharacter != nullptr && this->ItemDefinition->GrantEffectContainerMap.Num() > 0)
 	{
 			//HasMatchingGameplayTag
@@ -91,7 +91,7 @@ void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 }
 
 
-void AItemSpawner::GrantItem_Implementation(AYogBaseCharacter* ReceivingChar)
+void AItemSpawner::GrantItem_Implementation(AYogCharacterBase* ReceivingChar)
 {
 
 }

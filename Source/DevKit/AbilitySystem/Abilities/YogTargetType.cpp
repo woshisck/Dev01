@@ -2,18 +2,18 @@
 
 #include "YogTargetType.h"
 #include "YogGameplayAbility.h"
-#include <Devkit/Character/YogBaseCharacter.h>
+#include <Devkit/Character/YogCharacterBase.h>
 
-void UYogTargetType::GetTargets_Implementation(AYogBaseCharacter* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const
+void UYogTargetType::GetTargets_Implementation(AYogCharacterBase* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const
 {
 }
 
-void UYogTargetType_UseOwner::GetTargets_Implementation(AYogBaseCharacter* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const
+void UYogTargetType_UseOwner::GetTargets_Implementation(AYogCharacterBase* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const
 {
 	OutActors.Add(TargetingCharacter);
 }
 
-void UYogTargetType_UseEventData::GetTargets_Implementation(AYogBaseCharacter* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const
+void UYogTargetType_UseEventData::GetTargets_Implementation(AYogCharacterBase* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const
 {
 	const FHitResult* FoundHitResult = EventData.ContextHandle.GetHitResult();
 	if (FoundHitResult)

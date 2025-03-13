@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "YogSaveGame.h"
-#include "YogBaseGameInstance.h"
+#include "YogGameInstanceBase.h"
 
 void UYogSaveGame::Serialize(FArchive& Ar)
 {

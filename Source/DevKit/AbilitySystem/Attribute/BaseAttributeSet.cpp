@@ -4,7 +4,7 @@
 #include "BaseAttributeSet.h"
 #include "Net/UnrealNetwork.h"
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
-#include <DevKit/Character/YogBaseCharacter.h>
+#include <DevKit/Character/YogCharacterBase.h>
 #include "GameplayEffect.h"
 #include "GameplayEffectExtension.h"
 
@@ -76,7 +76,7 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	//Get the source actor
 	AActor* SourceActor = nullptr;
 	AController* SourceController = nullptr;
-	AYogBaseCharacter* SourceCharacter = nullptr;
+	AYogCharacterBase* SourceCharacter = nullptr;
 	
 	if (Source && Source->AbilityActorInfo.IsValid() && Source->AbilityActorInfo->AvatarActor.IsValid())
 	{
@@ -85,24 +85,24 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 
 		if (SourceController)
 		{
-			SourceCharacter = Cast<AYogBaseCharacter>(SourceController->GetPawn());
+			SourceCharacter = Cast<AYogCharacterBase>(SourceController->GetPawn());
 		}
 		else
 		{
-			SourceCharacter = Cast<AYogBaseCharacter>(SourceActor);
+			SourceCharacter = Cast<AYogCharacterBase>(SourceActor);
 		}
 	}
 
 	//Get the target actor
 	AActor* TargetActor = nullptr;
 	AController* TargetController = nullptr;
-	AYogBaseCharacter* TargetCharacter = nullptr;
+	AYogCharacterBase* TargetCharacter = nullptr;
 
 	if (Data.Target.AbilityActorInfo.IsValid() && Data.Target.AbilityActorInfo->AvatarActor.IsValid())
 	{
 		TargetActor = Data.Target.AbilityActorInfo->AvatarActor.Get();
 		TargetController = Data.Target.AbilityActorInfo->PlayerController.Get();
-		TargetCharacter = Cast<AYogBaseCharacter>(TargetActor);
+		TargetCharacter = Cast<AYogCharacterBase>(TargetActor);
 	}
 
 	// data modification different set 

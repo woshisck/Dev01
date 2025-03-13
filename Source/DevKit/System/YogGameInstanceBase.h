@@ -6,7 +6,7 @@
 #include "YogSaveGame.h"
 
 
-#include "YogBaseGameInstance.generated.h"
+#include "YogGameInstanceBase.generated.h"
 
 
 /**
@@ -15,13 +15,13 @@
  * Once you make a blueprint subclass of your native subclass you will want to set it to be the default in project settings
  */
 UCLASS()
-class DEVKIT_API UYogBaseGameInstance : public UGameInstance
+class DEVKIT_API UYogGameInstanceBase : public UGameInstance
 {
 	GENERATED_BODY()
 
 public:
 	// Constructor
-	UYogBaseGameInstance();
+	UYogGameInstanceBase();
 
 	/** List of inventory items to add to new players */
 	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Inventory)
@@ -59,8 +59,8 @@ public:
 	//bool IsValidItemSlot(FRPGItemSlot ItemSlot) const;
 
 	/** Returns the current save game, so it can be used to initialize state. Changes are not written until WriteSaveGame is called */
-	//UFUNCTION(BlueprintCallable, Category = Save)
-	//UYogSaveGame* GetCurrentSaveGame();
+	UFUNCTION(BlueprintCallable, Category = Save)
+	UYogSaveGame* GetCurrentSaveGame();
 
 	/** Sets rather save/load is enabled. If disabled it will always count as a new character */
 	UFUNCTION(BlueprintCallable, Category = Save)

@@ -3,7 +3,7 @@
 
 #include "YogGameplayAbility.h"
 #include "YogTargetType.h"
-#include "../../Character/YogBaseCharacter.h"
+#include "../../Character/YogCharacterBase.h"
 #include "../YogAbilitySystemComponent.h"
 
 
@@ -23,15 +23,26 @@ TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FG
 }
 
 
-AYogBaseCharacter* UYogGameplayAbility::GetOwnerCharacterInfo()
+void UYogGameplayAbility::GetAbilityTableData()
 {
-	AYogBaseCharacter* OwningCharacter = NewObject<AYogBaseCharacter>(this, AYogBaseCharacter::StaticClass());
+	static const FString ContextString(TEXT("Character Data Lookup"));
+	FYogAbilityData* AbilityData = YogAbilityDataTable->FindRow<FYogAbilityData>(FName(TEXT("AbilityDataStartUp")), ContextString, true);
+	if (AbilityData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Damage: %f, DMGAmplify: %f, MontagePlayRate: %f"), AbilityData->Damage, AbilityData->DMGAmplify, AbilityData->MontagePlayRate);
+	}
+
+}
+
+AYogCharacterBase* UYogGameplayAbility::GetOwnerCharacterInfo()
+{
+	AYogCharacterBase* OwningCharacter = NewObject<AYogCharacterBase>(this, AYogCharacterBase::StaticClass());
 	AActor* OwningActor = NewObject<AActor>(this, AActor::StaticClass());
 	OwningActor = GetOwningActorFromActorInfo();
 
 	if (OwningActor != NULL)
 	{
-		OwningCharacter = Cast<AYogBaseCharacter>(OwningActor);
+		OwningCharacter = Cast<AYogCharacterBase>(OwningActor);
 		return OwningCharacter;
 	}
 	else
@@ -46,7 +57,7 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 	// First figure out our actor info
 	FYogGameplayEffectContainerSpec ReturnSpec;
 	AActor* OwningActor = GetOwningActorFromActorInfo();
-	AYogBaseCharacter* OwningCharacter = Cast<AYogBaseCharacter>(OwningActor);
+	AYogCharacterBase* OwningCharacter = Cast<AYogCharacterBase>(OwningActor);
 	UYogAbilitySystemComponent* OwningASC = OwningCharacter->GetASC();
 
 	if (OwningASC)
@@ -80,7 +91,7 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpec(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
 {
 	//@TODO Add YogAbilityDataTable TO Spec 
-	AYogBaseCharacter* OwningCharacter = GetOwnerCharacterInfo();
+	AYogCharacterBase* OwningCharacter = GetOwnerCharacterInfo();
 	UYogAbilitySystemComponent* ASC = OwningCharacter->GetASC();
 
 
