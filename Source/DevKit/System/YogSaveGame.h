@@ -7,6 +7,9 @@
 #include "GameFramework/SaveGame.h"
 #include "YogSaveGame.generated.h"
 
+
+
+class AYogCharacterBase;
 /** List of versions, native code will handle fixups for any old versions */
 namespace EYogSaveGameVersion
 {
@@ -62,4 +65,6 @@ protected:
 
 	/** Overridden to allow version fixups */
 	virtual void Serialize(FArchive& Ar) override;
+
+	void SaveCharacterState(AYogCharacterBase* Character, UYogSaveGame* SaveGameInstance);
 };

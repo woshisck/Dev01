@@ -9,7 +9,7 @@
 
 #include "YogPlayerControllerBase.generated.h"
 
-
+class AYogCharacterBase;
 /**
  * 
  */
@@ -19,7 +19,13 @@ class DEVKIT_API AYogPlayerControllerBase : public AModularPlayerController
 	GENERATED_BODY()
 
 public:
+	AYogPlayerControllerBase(){}
+
 
 	UFUNCTION(BlueprintCallable, Category = "ASC")
 	UYogAbilitySystemComponent* GetYogAbilitySystemComponent() const;
+
+
+	UFUNCTION(BlueprintCallable, Category = "ASC")
+	void UpdateEnableRotationRate(FRotator RotationRate, bool isEnable);
 };

@@ -12,6 +12,7 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, const float, HealthPercent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterMoveableDelegate, const bool, Moveable);
 
 
 class UItemInstance;
@@ -49,7 +50,8 @@ public:
 	//	return CharacterLevel;
 	//}
 
-
+	UFUNCTION(BlueprintCallable)
+	void UpdateMoveable(const bool IsMoveAble);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bIsDead;
@@ -96,11 +98,15 @@ public:
 	void PrintAllGameplayTags(const FGameplayTagContainer& TagContainer);
 
 public:
+	//DELEGATE DEFINE
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FCharacterDiedDelegate OnCharacterDied;
 
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FCharacterHealthUpdateDelegate OnCharacterHealthUpdate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FCharacterMoveableDelegate OnCharacterCanMoveUpdate;
 
 protected:
 

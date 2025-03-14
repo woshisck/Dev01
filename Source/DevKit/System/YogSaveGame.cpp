@@ -23,3 +23,13 @@ void UYogSaveGame::Serialize(FArchive& Ar)
 		SavedDataVersion = EYogSaveGameVersion::LatestVersion;
 	}
 }
+
+void UYogSaveGame::SaveCharacterState(AYogCharacterBase* Character, UYogSaveGame* SaveGameInstance)
+{
+	if (Character && SaveGameInstance)
+	{
+
+	}
+
+	UGameplayStatics::SaveGameToSlot(SaveGameInstance, TEXT("AutoSave1"), 0);
+}

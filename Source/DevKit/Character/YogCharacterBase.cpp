@@ -83,6 +83,22 @@ int32 AYogCharacterBase::GetCharacterLevel() const
 	return CharacterLevel;
 }
 
+void AYogCharacterBase::UpdateMoveable(const bool IsMoveAble)
+{
+
+
+	this->bCanMove = IsMoveAble;
+	if (IsMoveAble)
+	{
+		this->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
+	}
+	else
+	{
+		this->GetCharacterMovement()->DisableMovement();
+	}
+	OnCharacterCanMoveUpdate.Broadcast(IsMoveAble);
+}
+
 
 
 float AYogCharacterBase::GetHealth() const
