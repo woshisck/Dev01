@@ -21,6 +21,7 @@ void AYogPlayerControllerBase::UpdateEnableRotationRate(FRotator RotationRate, b
 {
 	if (isEnable)
 	{
+		
 		AYogCharacterBase* OwnedCharacter =Cast<AYogCharacterBase>(this->GetPawn());
 		OwnedCharacter->GetCharacterMovement()->RotationRate = RotationRate;
 	}
