@@ -21,6 +21,30 @@ class UInventoryManagerComponent;
 class UYogGameplayAbility;
 class AItemSpawner;
 
+USTRUCT(BlueprintType)
+struct FYogCharacterData : public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+	FYogCharacterData()
+		: Speed(600.0f), Acceleration(600.0f), RotationSpeed(FRotator(0,0,360))
+	{
+	}
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//FString Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Speed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Acceleration;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FRotator RotationSpeed;
+
+};
+
 /**
  * 
  */
@@ -58,6 +82,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bCanMove;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bInstantRotate;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UBaseAttributeSet> AttributeSet;

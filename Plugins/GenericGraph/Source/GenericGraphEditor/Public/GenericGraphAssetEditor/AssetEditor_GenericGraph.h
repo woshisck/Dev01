@@ -118,7 +118,7 @@ protected:
 protected:
 	UGenericGraphEditorSettings* GenricGraphEditorSettings;
 
-	UGenericGraph* EditingGraph;
+	TObjectPtr<UGenericGraph> EditingGraph;
 
 	//Toolbar
 	TSharedPtr<class FAssetEditorToolbar_GenericGraph> ToolbarBuilder;

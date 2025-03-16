@@ -49,7 +49,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	class UEdGraph* EdGraph;
+	TObjectPtr<UEdGraph> EdGraph;
 
 	UPROPERTY(EditDefaultsOnly, Category = "GenericGraph_Editor")
 	bool bCanRenameNode;
