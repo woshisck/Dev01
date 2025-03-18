@@ -54,6 +54,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float MontagePlayRate;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AbilityPower;
 };
 
 /**
