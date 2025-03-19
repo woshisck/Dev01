@@ -113,4 +113,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	AYogCharacterBase* GetOwnerCharacterInfo();
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+	FString AbilityTableRowName;
+
 };

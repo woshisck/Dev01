@@ -16,4 +16,11 @@ class UYogBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
 public:
 	UFUNCTION(BlueprintPure, Category = Loading)
 	static bool IsInEditor();
+
+
+	UFUNCTION(BlueprintPure, Category = Loading)
+	static FName GetDTRow(FString AssetName, int32 rowNum);
+
+
 };
+

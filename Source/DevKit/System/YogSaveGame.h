@@ -28,6 +28,26 @@ namespace EYogSaveGameVersion
 	};
 }
 
+
+USTRUCT()
+struct FActorSaveData
+{
+	GENERATED_BODY()
+
+public:
+	/* Identifier for which Actor this belongs to */
+	UPROPERTY()
+	FName ActorName;
+
+	/* For movable Actors, keep location,rotation,scale. */
+	UPROPERTY()
+	FTransform Transform;
+
+	/* Contains all 'SaveGame' marked variables of the Actor */
+	UPROPERTY()
+	TArray<uint8> ByteData;
+};
+
 /** Object that is written to and read from the save game archive, with a data version */
 UCLASS(BlueprintType)
 class DEVKIT_API UYogSaveGame : public USaveGame
