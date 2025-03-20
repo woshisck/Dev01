@@ -2,13 +2,21 @@
 
 #include "YogSaveGame.h"
 #include "YogGameInstanceBase.h"
+#include "../Character/YogCharacterBase.h"
+
+
+UYogSaveGame::UYogSaveGame()
+{
+	SaveSlotName = TEXT("TestSaveSlot");
+	UserIndex = 0;
+}
 
 void UYogSaveGame::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if (Ar.IsLoading() && SavedDataVersion != EYogSaveGameVersion::LatestVersion)
-	{
+	//if (Ar.IsLoading())
+	//{
 		// if (SavedDataVersion < EYogSaveGameVersion::AddedItemData)
 		// {
 		// 	// Convert from list to item data map
@@ -20,16 +28,38 @@ void UYogSaveGame::Serialize(FArchive& Ar)
 		// 	InventoryItems_DEPRECATED.Empty();
 		// }
 		
-		SavedDataVersion = EYogSaveGameVersion::LatestVersion;
-	}
+
+	//
 }
 
-void UYogSaveGame::SaveCharacterState(AYogCharacterBase* Character, UYogSaveGame* SaveGameInstance)
+void UYogSaveGame::SaveCharacterData(AYogCharacterBase* Character, UYogSaveGame* SaveGameInstance)
 {
+
+	
 	if (Character && SaveGameInstance)
 	{
 
+
+		UYogGameInstanceBase* CurrentGameInstance = Cast<UYogGameInstanceBase>(GetWorld()->GetGameInstance<UGameInstance>());
+		
+		AYogCharacterBase* CurrentCharacter = CurrentGameInstance->GetPlayerCharacter();
+		SaveGameInstance->CharacterSaveData->CharacterBase = CurrentGameInstance->GetPlayerCharacter();
+		
+		TArray<AActor*> AttachedActors;
+		CurrentCharacter->GetAttachedActors(AttachedActors);
+		SaveGameInstance->CharacterSaveData->AttachActorArray = AttachedActors;
 	}
 
-	UGameplayStatics::SaveGameToSlot(SaveGameInstance, TEXT("AutoSave1"), 0);
+
+
+	UGameplayStatics::SaveGameToSlot(SaveGameInstance, TEXT("AutoSave0"), 0);
+}
+
+void UYogSaveGame::LoadCharacterData()
+{
+	if (UYogSaveGame* LoadedGame = Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromSlot(TEXT("AutoSave0"), 0)))
+	{
+		// The operation was successful, so LoadedGame now contains the data we saved earlier.
+		//UE_LOG(LogTemp, Warning, TEXT("LOADED: %s"), *LoadedGame->PlayerName);
+	}
 }

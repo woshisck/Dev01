@@ -9,6 +9,8 @@
 #include "YogGameInstanceBase.generated.h"
 
 
+class AYogCharacterBase;
+
 /**
  * Base class for GameInstance, should be blueprinted
  * Most games will need to make a game-specific subclass of GameInstance
@@ -22,6 +24,9 @@ class DEVKIT_API UYogGameInstanceBase : public UGameInstance
 public:
 	// Constructor
 	UYogGameInstanceBase();
+
+	UFUNCTION(BlueprintCallable, Category = Inventory)
+	AYogCharacterBase* GetPlayerCharacter();
 
 	/** List of inventory items to add to new players */
 	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Inventory)

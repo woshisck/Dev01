@@ -28,25 +28,29 @@ namespace EYogSaveGameVersion
 	};
 }
 
+class AYogCharacterBase;
 
-USTRUCT()
-struct FActorSaveData
+UCLASS()
+class UCharacterSaveData : public UObject
 {
 	GENERATED_BODY()
 
 public:
+	UCharacterSaveData() {};
+
+
 	/* Identifier for which Actor this belongs to */
 	UPROPERTY()
-	FName ActorName;
+	TObjectPtr<AYogCharacterBase> CharacterBase;
 
-	/* For movable Actors, keep location,rotation,scale. */
 	UPROPERTY()
-	FTransform Transform;
+	TArray<AActor*> AttachActorArray;
 
-	/* Contains all 'SaveGame' marked variables of the Actor */
-	UPROPERTY()
-	TArray<uint8> ByteData;
 };
+
+
+
+
 
 /** Object that is written to and read from the save game archive, with a data version */
 UCLASS(BlueprintType)
@@ -56,35 +60,31 @@ class DEVKIT_API UYogSaveGame : public USaveGame
 
 public:
 	/** Constructor */
-	UYogSaveGame()
-	{
-		// Set to current version, this will get overwritten during serialization when loading
-		SavedDataVersion = EYogSaveGameVersion::LatestVersion;
-	}
+	UYogSaveGame();
+	//{
+	//	// Set to current version, this will get overwritten during serialization when loading
+	//	SavedDataVersion = EYogSaveGameVersion::LatestVersion;
+	//}
 
-	/** Map of items to item data */
-	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = SaveGame)
-	//TMap<FPrimaryAssetId, FRPGItemData> InventoryData;
 
-	///** Map of slotted items */
-	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = SaveGame)
-	//TMap<FRPGItemSlot, FPrimaryAssetId> SlottedItems;
+	UPROPERTY(VisibleAnywhere, Category = Basic)
+	FString SaveSlotName;
 
-	/** User's unique id */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = SaveGame)
-	FString UserId;
+	UPROPERTY(VisibleAnywhere, Category = Basic)
+	uint32 UserIndex;
+
+	UPROPERTY(VisibleAnywhere, Category = Basic)
+	TObjectPtr<UCharacterSaveData> CharacterSaveData;
 
 protected:
-	/** Deprecated way of storing items, this is read in but not saved out */
-	UPROPERTY()
-	TArray<FPrimaryAssetId> InventoryItems_DEPRECATED;
-
-	/** What LatestVersion was when the archive was saved */
-	UPROPERTY()
-	int32 SavedDataVersion;
 
 	/** Overridden to allow version fixups */
 	virtual void Serialize(FArchive& Ar) override;
 
-	void SaveCharacterState(AYogCharacterBase* Character, UYogSaveGame* SaveGameInstance);
+
+	UFUNCTION(BlueprintCallable)
+	void SaveCharacterData(AYogCharacterBase* Character, UYogSaveGame* SaveGameInstance);
+
+	UFUNCTION(BlueprintCallable)
+	void LoadCharacterData();
 };

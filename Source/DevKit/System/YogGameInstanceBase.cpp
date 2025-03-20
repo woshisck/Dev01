@@ -1,12 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "YogGameInstanceBase.h"
+#include "../Character/YogCharacterBase.h"
+
+
 #include "Kismet/GameplayStatics.h"
 
 UYogGameInstanceBase::UYogGameInstanceBase()
 	: SaveSlot(TEXT("SaveGame"))
 	, SaveUserIndex(0)
 {}
+
+AYogCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
+{
+	AYogCharacterBase* YogCharacterBase = NewObject<AYogCharacterBase>();
+	UWorld* World = this->GetWorld();
+	if (World)
+	{
+		APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+		if (PlayerController)
+		{
+			return Cast<AYogCharacterBase>(PlayerController->GetPawn());
+		}
+	}
+
+
+	return YogCharacterBase;
+}
 
 void UYogGameInstanceBase::AddDefaultInventory(UYogSaveGame* SaveGame, bool bRemoveExtra)
 {
