@@ -11,15 +11,19 @@
 *.lib
 *.exe
 *.exp
+*.dll
+
 # Fortran module files
 *.mod
 *.smod
-
 
 # Executables
 *.out
 *.app
 *.sln
+
+#unreal file
+*.target
 
 # File/Path
 Content\Katana_Animations
