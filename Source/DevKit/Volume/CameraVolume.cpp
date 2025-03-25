@@ -9,4 +9,6 @@ ACameraVolume::ACameraVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	GetBrushComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Overlap);
+
+	this->bDisplayShadedVolume = true;
 }

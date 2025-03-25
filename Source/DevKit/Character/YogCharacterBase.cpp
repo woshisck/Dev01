@@ -28,8 +28,6 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	AttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("AttributeSet"));
 
 
-
-
 	//TODO: Dead Tag hardcode define
 	DeadTag = FGameplayTag::RequestGameplayTag(FName("Status.Dead"));
 	
@@ -39,6 +37,9 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 
 	bAbilitiesInitialized = false;
+	
+
+
 }
 
 UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
@@ -56,6 +57,37 @@ bool AYogCharacterBase::IsAlive() const
 void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+	
+
+	static const FString ContextString(TEXT("Character movement Data Lookup"));
+	FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
+	FTripleControlData* MovementData = this->CharacterMovementDataTable->FindRow<FTripleControlData>(FName(TEXT("TripleC_Lvl_1")), ContextString, true);
+	if (MovementData)
+	{
+	/*	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxWalkSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float GroundFriction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float BreakingDeceleration;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxAcceleration;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector RotationRate;
+	*/
+		UYogCharacterMovementComponent* MovementComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
+		MovementComp->MaxWalkSpeed = MovementData->MaxWalkSpeed;
+		MovementComp->GroundFriction = MovementData->GroundFriction;
+		MovementComp->MaxAcceleration = MovementData->MaxAcceleration;
+		MovementComp->RotationRate = MovementData->RotationRate;
+	}
+
+
 
 	if (AbilitySystemComponent) {
 
@@ -78,17 +110,11 @@ UAbilitySystemComponent* AYogCharacterBase::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
-int32 AYogCharacterBase::GetCharacterLevel() const
+
+void AYogCharacterBase::UpdateCharacterMovement(const bool IsMovable)
 {
-	return CharacterLevel;
-}
-
-void AYogCharacterBase::UpdateMoveable(const bool IsMoveAble)
-{
-
-
-	this->bCanMove = IsMoveAble;
-	if (IsMoveAble)
+	this->bMovable = IsMovable;
+	if (IsMovable)
 	{
 		this->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
 	}
@@ -96,7 +122,7 @@ void AYogCharacterBase::UpdateMoveable(const bool IsMoveAble)
 	{
 		this->GetCharacterMovement()->DisableMovement();
 	}
-	OnCharacterCanMoveUpdate.Broadcast(IsMoveAble);
+	OnCharacterCanMoveUpdate.Broadcast(IsMovable);
 }
 
 
@@ -158,6 +184,36 @@ void AYogCharacterBase::PrintAllGameplayTags(const FGameplayTagContainer& TagCon
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No Gameplay Tags present in the container."));
 	}
+}
+
+void AYogCharacterBase::DisableMovement()
+{
+	UYogCharacterMovementComponent* LyraMoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
+	LyraMoveComp->StopMovementImmediately();
+	LyraMoveComp->DisableMovement();
+
+
+	if (Controller)
+	{
+		Controller->SetIgnoreMoveInput(true);
+	}
+
+}
+
+void AYogCharacterBase::EnableMovement()
+{
+	UYogCharacterMovementComponent* LyraMoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
+
+}
+
+void AYogCharacterBase::DisableCollision()
+{
+
+}
+
+void AYogCharacterBase::EnableCollision()
+{
+
 }
 
 

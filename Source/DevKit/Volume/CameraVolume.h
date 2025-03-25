@@ -16,4 +16,5 @@ class DEVKIT_API ACameraVolume : public AVolume
 {
 	GENERATED_UCLASS_BODY()
 	//ACameraVolume(const FObjectInitializer& ObjectInitializer);
+
 };

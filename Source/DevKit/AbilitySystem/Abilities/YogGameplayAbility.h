@@ -31,7 +31,6 @@ struct FGameplayEventData;
 
 struct FGameplayEventData;
 
-
 USTRUCT(BlueprintType)
 struct FYogAbilityData : public FTableRowBase
 {
@@ -39,7 +38,7 @@ struct FYogAbilityData : public FTableRowBase
 
 public:
 	FYogAbilityData()
-		: Damage(0.0f), DMGAmplify(0.0f), MontagePlayRate(0.0f)
+		: Damage(0.0f), DMGAmplify(0.0f), MontagePlayRate(0.0f), AbilityPower(1.0f)
 	{
 	}
     //UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -57,6 +56,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float AbilityPower;
 };
+
 
 /**
  * 

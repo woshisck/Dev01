@@ -21,6 +21,7 @@ const FVector UpArmRelRotation = FVector(0, 0, 180);
 const FVector DownArmRelRotation = FVector(0, 0, 0);
 
 
+
 UCLASS()
 class DEVKIT_API AYogCameraActor : public AActor
 {

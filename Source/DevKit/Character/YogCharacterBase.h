@@ -22,28 +22,34 @@ class UYogGameplayAbility;
 class AItemSpawner;
 
 USTRUCT(BlueprintType)
-struct FYogCharacterData : public FTableRowBase
+struct FTripleControlData : public FTableRowBase
 {
 	GENERATED_BODY()
 
 public:
-	FYogCharacterData()
-		: Speed(600.0f), Acceleration(600.0f), RotationSpeed(FRotator(0,0,360))
+	FTripleControlData()
+		: MaxWalkSpeed(600.0f), GroundFriction(8.0f), BreakingDeceleration(2048.0f), MaxAcceleration(2048.0f), RotationRate(FRotator(0,0,360))
 	{
 	}
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//FString Name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Speed;
+	float MaxWalkSpeed;
+	 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float GroundFriction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Acceleration;
+	float BreakingDeceleration;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FRotator RotationSpeed;
+	float MaxAcceleration;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FRotator RotationRate;
 };
+
 
 /**
  * 
@@ -67,21 +73,10 @@ public:
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 
-	UFUNCTION(BlueprintCallable)
-	virtual int32 GetCharacterLevel() const;
-	//int32 ARPGCharacterBase::GetCharacterLevel() const
-	//{
-	//	return CharacterLevel;
-	//}
 
 	UFUNCTION(BlueprintCallable)
-	void UpdateMoveable(const bool IsMoveAble);
+	void UpdateCharacterMovement(const bool IsMovable);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bIsDead;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bCanMove;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bInstantRotate;
@@ -135,9 +130,31 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FCharacterMoveableDelegate OnCharacterCanMoveUpdate;
 
+	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
+	void DisableMovement();
+
+	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
+	void EnableMovement();
+
+	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
+	void DisableCollision();
+
+	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
+	void EnableCollision();
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+	TObjectPtr<UDataTable> CharacterMovementDataTable;
+
+
 protected:
 
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsDead;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bMovable;
 
 
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
@@ -147,9 +164,6 @@ protected:
 	TArray<TSubclassOf<UYogGameplayAbility>> GameplayAbilities;
 
 
-
-	UPROPERTY(EditAnywhere, Category = "Character|Abilities")
-	int32 CharacterLevel;
 
 	UPROPERTY()
 	int32 bAbilitiesInitialized;

@@ -43,6 +43,19 @@ float UYogCharacterMovementComponent::GetMaxSpeed() const
 	return Super::GetMaxSpeed();
 }
 
+const FYogGroundInfo& UYogCharacterMovementComponent::GetGroundInfo()
+{
+	
+	if (MovementMode == MOVE_Walking)
+	{
+		CachedGroundInfo.GroundHitResult = CurrentFloor.HitResult;
+		CachedGroundInfo.GroundDistance = 0.0f;
+	}
+	return CachedGroundInfo;
+
+	// TODO: insert return statement here
+}
+
 
 void UYogCharacterMovementComponent::InitializeComponent()
 {
