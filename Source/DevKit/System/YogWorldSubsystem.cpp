@@ -8,7 +8,7 @@ UYogWorldSubsystem::UYogWorldSubsystem()
 {
 }
 
-void UYogWorldSubsystem::InitLevel()
+void UYogWorldSubsystem::Init()
 {
 }
 
@@ -83,4 +83,8 @@ UWorld* UYogWorldSubsystem::GetCurrentWorld()
 //	worldName = world->GetFName();
 //	UE_LOG(LogTemp, Warning, TEXT("WORLD: %s"),*worldName.ToString());
 
+}
+
+void UYogWorldSubsystem::FillDungeonLevelList()
+{
 }

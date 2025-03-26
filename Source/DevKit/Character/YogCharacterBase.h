@@ -22,12 +22,12 @@ class UYogGameplayAbility;
 class AItemSpawner;
 
 USTRUCT(BlueprintType)
-struct FTripleControlData : public FTableRowBase
+struct FCharacterMovementData : public FTableRowBase
 {
 	GENERATED_BODY()
 
 public:
-	FTripleControlData()
+	FCharacterMovementData()
 		: MaxWalkSpeed(600.0f), GroundFriction(8.0f), BreakingDeceleration(2048.0f), MaxAcceleration(2048.0f), RotationRate(FRotator(0,0,360))
 	{
 	}
@@ -49,6 +49,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FRotator RotationRate;
 };
+
+
 
 
 /**
@@ -143,7 +145,7 @@ public:
 	void EnableCollision();
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Movement")
 	TObjectPtr<UDataTable> CharacterMovementDataTable;
 
 

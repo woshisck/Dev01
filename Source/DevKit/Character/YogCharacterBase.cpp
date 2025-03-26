@@ -57,36 +57,40 @@ bool AYogCharacterBase::IsAlive() const
 void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-	
 
-	static const FString ContextString(TEXT("Character movement Data Lookup"));
-	FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
-	FTripleControlData* MovementData = this->CharacterMovementDataTable->FindRow<FTripleControlData>(FName(TEXT("TripleC_Lvl_1")), ContextString, true);
-	if (MovementData)
+	check(CharacterMovementDataTable);
+	if (CharacterMovementDataTable)
 	{
-	/*	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxWalkSpeed;
+		static const FString ContextString(TEXT("Character movement Data Lookup"));
+		FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
+		FCharacterMovementData* MovementData = this->CharacterMovementDataTable->FindRow<FCharacterMovementData>(FName(TEXT("CharacterMoveLvl_1")), ContextString, true);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float GroundFriction;
+		if (MovementData)
+		{
+			/*
+			UPROPERTY(EditAnywhere, BlueprintReadWrite)
+			float MaxWalkSpeed;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BreakingDeceleration;
+			UPROPERTY(EditAnywhere, BlueprintReadWrite)
+			float GroundFriction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxAcceleration;
+			UPROPERTY(EditAnywhere, BlueprintReadWrite)
+			float BreakingDeceleration;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector RotationRate;
-	*/
-		UYogCharacterMovementComponent* MovementComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
-		MovementComp->MaxWalkSpeed = MovementData->MaxWalkSpeed;
-		MovementComp->GroundFriction = MovementData->GroundFriction;
-		MovementComp->MaxAcceleration = MovementData->MaxAcceleration;
-		MovementComp->RotationRate = MovementData->RotationRate;
+			UPROPERTY(EditAnywhere, BlueprintReadWrite)
+			float MaxAcceleration;
+
+			UPROPERTY(EditAnywhere, BlueprintReadWrite)
+			FVector RotationRate;
+			*/
+			UYogCharacterMovementComponent* MovementComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
+			MovementComp->MaxWalkSpeed = MovementData->MaxWalkSpeed;
+			MovementComp->GroundFriction = MovementData->GroundFriction;
+			MovementComp->MaxAcceleration = MovementData->MaxAcceleration;
+			MovementComp->RotationRate = MovementData->RotationRate;
+		}
+	
 	}
-
 
 
 	if (AbilitySystemComponent) {

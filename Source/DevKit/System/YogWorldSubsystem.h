@@ -4,7 +4,10 @@
 
 #include "../DevKit.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "Containers/Array.h"
 #include "Containers/List.h"
+
+
 #include "YogWorldSubsystem.generated.h"
 
 
@@ -19,7 +22,7 @@ public:
 	UYogWorldSubsystem();
 
 	UFUNCTION()
-	void InitLevel();
+	void Init();
 
 
 
@@ -29,7 +32,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "WorldLevel")
 	UWorld* GetCurrentWorld();
 
-	/** Map of items to item data */
+
+
+
+	///** Map of items to item data */
 	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = SaveGame)
 	//TMap<FPrimaryAssetId, FRPGItemData> InventoryData;
 
@@ -38,11 +44,12 @@ public:
 	//TMap<FRPGItemSlot, FPrimaryAssetId> SlottedItems;
 
 	/** User's unique id */
-	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = SaveGame)
-	//TLinkedList<UWorld*> ChapterList;
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Gamelevel)
+	TArray<UWorld*> DungeonLevels;
 
+	TLinkedList<UWorld*> DungeonLinkedList;
 
-	//UFUNCTION()
-	//void FillChapterList()
+	UFUNCTION(BlueprintCallable)
+	void FillDungeonLevelList();
 
 };
