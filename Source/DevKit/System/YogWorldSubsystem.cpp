@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "YogWorldSubsystem.h"
+#include <Engine/AssetManager.h>
+#include <DevKit/DevAssetManager.h>
 
 
 
 UYogWorldSubsystem::UYogWorldSubsystem()
 {
+	CurrentMapIndex = 0;
 }
 
 void UYogWorldSubsystem::Init()
@@ -16,7 +19,13 @@ void UYogWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	
 	UE_LOG(LogTemp, Warning,TEXT("YogSubsystem onWorldBeginPlay"));
+	ULevel* CurrentLevel;
+	
+
 	UWorld* world = GetCurrentWorld();
+
+	CurrentLevel = world->GetCurrentLevel();
+
 	if (world != nullptr)
 	{
 		FName worldName;
@@ -85,6 +94,56 @@ UWorld* UYogWorldSubsystem::GetCurrentWorld()
 
 }
 
-void UYogWorldSubsystem::FillDungeonLevelList()
+void UYogWorldSubsystem::HandleLoadFinished()
 {
+	UE_LOG(LogTemp, Log, TEXT("Load finished event triggered."));
+}
+
+
+
+void UYogWorldSubsystem::InitDungeonMap()
+{
+
+}
+
+void UYogWorldSubsystem::LoadNextDungeonMap(TSoftObjectPtr<UWorld>& Map)
+{
+	UDevAssetManager* AssetManager = Cast<UDevAssetManager>(UAssetManager::GetIfValid());
+
+	if (DungeonMaps.IsValidIndex(CurrentMapIndex))
+	{
+		UWorld* currentWorld = GetWorld();
+		TSoftObjectPtr<UWorld > CurrentMap = DungeonMaps[CurrentMapIndex];
+		UDevAssetManager::AsyncLoadAsset<UWorld>(TEXT("Texture2D'/Game/Path/To/Your/Texture.Texture'"), [](UWorld* LoadedMap)
+			{
+				if (LoadedMap)
+				{
+					// Do something with the loaded texture
+					UE_LOG(LogTemp, Log, TEXT("Texture Loaded Successfully!"));
+				}
+			});
+
+
+
+		//TArray<TSoftObjectPtr<UWorld>> DungeonMaps;
+		//AssetManager->FuncAsyncLoadAsset<UWorld>(Map, [](UWorld* LoadedTexture)
+		//{
+		//	
+		//});
+
+		CurrentMapIndex++;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No more maps to load or invalid index."));
+	}
+	//if (DungeonMaps.IsValidIndex(CurrentMapIndex))
+	//{
+	//	UGameplayStatics::OpenLevel(this, DungeonMaps[CurrentMapIndex]);
+	//	CurrentMapIndex++;  // Move to the next map in the list
+	//}
+	//else
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("No more maps to load or invalid index."));
+	//}
 }

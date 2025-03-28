@@ -1,11 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
-
+#include "YogCameraActor.h"
 //#include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
 
-#include "YogCameraActor.h"
 
 
 

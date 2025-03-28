@@ -24,7 +24,7 @@ UDevAssetManager* UDevAssetManager::GetDevAssetManager() {
 
 }
 
-void UDevAssetManager::AsyncLoadMap(FSoftObjectPath Path, FOnAsyncLoadFinished OnPackageLoaded) {
+void UDevAssetManager::FuncAsyncLoadAsset(FSoftObjectPath Path, FOnAsyncLoadFinished OnPackageLoaded) {
 	FString result;
 	result += FString::Printf(TEXT("StartLoad:\t%s\n"), *Path.ToString());
 	bIsLoaded = false;
@@ -91,3 +91,5 @@ void UDevAssetManager::StartInitialLoading()
 
 	UAbilitySystemGlobals::Get().InitGlobalData();
 }
+
+

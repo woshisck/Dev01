@@ -15,5 +15,7 @@ class DEVKIT_API UYogMapDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 public:
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
+	TArray<TSoftObjectPtr<UWorld>> MapBase;
 
 };

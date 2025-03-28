@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
 #include "DevAssetManager.generated.h"
 
@@ -38,10 +39,17 @@ public:
 	static TSubclassOf<AssetType> GetSubclass(const TSoftClassPtr<AssetType>& AssetPointer, bool bKeepInMemory = true);
 
 
+	template<typename AssetType>
+	static void AsyncLoadAsset(const FString& AssetPath, TFunction<void(AssetType*)> OnLoadComplete);
+
+
+	FOnAsyncLoadFinished OnLoadFinished;
+	FStreamableManager AssetLoader;
+
 	//UFUNCTION(BlueprintCallable, CallInEditor)
-	//FString AsyncLoadMap(const FOnAsyncLoadFinished& OnAsyncLoadFinished);
+	//FString FuncAsyncLoadAsset(const FOnAsyncLoadFinished& OnAsyncLoadFinished);
 	UFUNCTION(BlueprintCallable)
-	void AsyncLoadMap(FSoftObjectPath Path, FOnAsyncLoadFinished OnAsyncLoadFinished);
+	void FuncAsyncLoadAsset(FSoftObjectPath Path, FOnAsyncLoadFinished OnAsyncLoadFinished);
 
 
 	UFUNCTION(BlueprintCallable, CallInEditor)
@@ -122,4 +130,16 @@ TSubclassOf<AssetType> UDevAssetManager::GetSubclass(const TSoftClassPtr<AssetTy
 	return LoadedSubclass;
 }
 
-
+template<typename AssetType>
+void UDevAssetManager::AsyncLoadAsset(const FString& AssetPath, TFunction<void(AssetType*)> OnLoadComplete)
+{
+	FSoftObjectPath ReferencePath(AssetPath);
+	AssetLoader.RequestAsyncLoad(ReferencePath, FStreamableDelegate::CreateLambda([OnLoadComplete](UObject* LoadedAsset)
+		{
+			AssetType* Asset = Cast<AssetType>(LoadedAsset);
+			if (Asset)
+			{
+				OnLoadComplete(Asset);
+			}
+		}));
+}

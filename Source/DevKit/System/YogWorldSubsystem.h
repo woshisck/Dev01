@@ -32,8 +32,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "WorldLevel")
 	UWorld* GetCurrentWorld();
 
+	void HandleLoadFinished();
 
 
+
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DungeonLevel")
+	TArray<TSoftObjectPtr<UWorld>> DungeonMaps;
+
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DungeonLevel")
+	int32 CurrentMapIndex;
 
 	///** Map of items to item data */
 	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = SaveGame)
@@ -50,6 +59,10 @@ public:
 	TLinkedList<UWorld*> DungeonLinkedList;
 
 	UFUNCTION(BlueprintCallable)
-	void FillDungeonLevelList();
+	void InitDungeonMap();
+
+
+	UFUNCTION(BlueprintCallable)
+	void LoadNextDungeonMap(TSoftObjectPtr<UWorld>& Map);
 
 };
