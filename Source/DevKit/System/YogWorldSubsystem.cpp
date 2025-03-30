@@ -106,30 +106,22 @@ void UYogWorldSubsystem::InitDungeonMap()
 
 }
 
-void UYogWorldSubsystem::LoadNextDungeonMap(TSoftObjectPtr<UWorld>& Map)
+void UYogWorldSubsystem::LoadDungeonMap(TSoftObjectPtr<UWorld>& Map)
 {
-	UDevAssetManager* AssetManager = Cast<UDevAssetManager>(UAssetManager::GetIfValid());
+	UDevAssetManager* AssetManager = Cast<UDevAssetManager>(UAssetManager::GetIfInitialized());
+	FStreamableManager& StreamableManager = UDevAssetManager::GetStreamableManager();
+
 
 	if (DungeonMaps.IsValidIndex(CurrentMapIndex))
 	{
 		UWorld* currentWorld = GetWorld();
-		TSoftObjectPtr<UWorld > CurrentMap = DungeonMaps[CurrentMapIndex];
-		UDevAssetManager::AsyncLoadAsset<UWorld>(TEXT("Texture2D'/Game/Path/To/Your/Texture.Texture'"), [](UWorld* LoadedMap)
-			{
-				if (LoadedMap)
-				{
-					// Do something with the loaded texture
-					UE_LOG(LogTemp, Log, TEXT("Texture Loaded Successfully!"));
-				}
-			});
+		TSoftObjectPtr<UWorld > CurrentMapSoftPtr = DungeonMaps[CurrentMapIndex];
 
 
-
-		//TArray<TSoftObjectPtr<UWorld>> DungeonMaps;
-		//AssetManager->FuncAsyncLoadAsset<UWorld>(Map, [](UWorld* LoadedTexture)
-		//{
-		//	
-		//});
+		//TODO
+		//FStreamableDelegate Delegate = FStreamableDelegate::CreateUObject(this,);
+		//UDevAssetManager::GetStreamableManager().RequestAsyncLoad(CurrentMapSoftPtr, );
+			
 
 		CurrentMapIndex++;
 	}
@@ -137,13 +129,5 @@ void UYogWorldSubsystem::LoadNextDungeonMap(TSoftObjectPtr<UWorld>& Map)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No more maps to load or invalid index."));
 	}
-	//if (DungeonMaps.IsValidIndex(CurrentMapIndex))
-	//{
-	//	UGameplayStatics::OpenLevel(this, DungeonMaps[CurrentMapIndex]);
-	//	CurrentMapIndex++;  // Move to the next map in the list
-	//}
-	//else
-	//{
-	//	UE_LOG(LogTemp, Warning, TEXT("No more maps to load or invalid index."));
-	//}
+
 }

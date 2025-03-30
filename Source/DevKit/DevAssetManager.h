@@ -39,10 +39,6 @@ public:
 	static TSubclassOf<AssetType> GetSubclass(const TSoftClassPtr<AssetType>& AssetPointer, bool bKeepInMemory = true);
 
 
-	template<typename AssetType>
-	static void AsyncLoadAsset(const FString& AssetPath, TFunction<void(AssetType*)> OnLoadComplete);
-
-
 	FOnAsyncLoadFinished OnLoadFinished;
 	FStreamableManager AssetLoader;
 
@@ -128,18 +124,4 @@ TSubclassOf<AssetType> UDevAssetManager::GetSubclass(const TSoftClassPtr<AssetTy
 	}
 
 	return LoadedSubclass;
-}
-
-template<typename AssetType>
-void UDevAssetManager::AsyncLoadAsset(const FString& AssetPath, TFunction<void(AssetType*)> OnLoadComplete)
-{
-	FSoftObjectPath ReferencePath(AssetPath);
-	AssetLoader.RequestAsyncLoad(ReferencePath, FStreamableDelegate::CreateLambda([OnLoadComplete](UObject* LoadedAsset)
-		{
-			AssetType* Asset = Cast<AssetType>(LoadedAsset);
-			if (Asset)
-			{
-				OnLoadComplete(Asset);
-			}
-		}));
 }

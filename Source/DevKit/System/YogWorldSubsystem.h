@@ -63,6 +63,6 @@ protected:
 
 
 	UFUNCTION(BlueprintCallable)
-	void LoadNextDungeonMap(TSoftObjectPtr<UWorld>& Map);
+	void LoadDungeonMap(TSoftObjectPtr<UWorld>& Map);
 
 };
