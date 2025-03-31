@@ -51,7 +51,7 @@ public:
 };
 
 
-
+class AYogPlayerControllerBase;
 
 /**
  * 
@@ -78,6 +78,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateCharacterMovement(const bool IsMovable);
+
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

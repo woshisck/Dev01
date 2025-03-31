@@ -17,7 +17,7 @@ UYogAbilitySystemComponent* AYogPlayerControllerBase::GetYogAbilitySystemCompone
 
 }
 
-void AYogPlayerControllerBase::UpdateEnableRotationRate(FRotator RotationRate, bool isEnable)
+void AYogPlayerControllerBase::SetEnableRotationRate(FRotator RotationRate, bool isEnable)
 {
 	if (isEnable)
 	{

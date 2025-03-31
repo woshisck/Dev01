@@ -8,6 +8,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "../Inventory/InventoryManagerComponent.h"
 #include "../AbilitySystem/Abilities/YogGameplayAbility.h"
+#include <DevKit/Player/YogPlayerControllerBase.h>
 
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 
@@ -118,14 +119,16 @@ UAbilitySystemComponent* AYogCharacterBase::GetAbilitySystemComponent() const
 void AYogCharacterBase::UpdateCharacterMovement(const bool IsMovable)
 {
 	this->bMovable = IsMovable;
-	if (IsMovable)
-	{
-		this->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
-	}
-	else
-	{
-		this->GetCharacterMovement()->DisableMovement();
-	}
+	//TODO: can not disable movement component, will disable montage root motion as well
+	//if (IsMovable)
+	//{
+	//	this->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
+	//}
+	//else
+	//{
+	//	
+	//	this->GetCharacterMovement()->DisableMovement();
+	//}
 	OnCharacterCanMoveUpdate.Broadcast(IsMovable);
 }
 

@@ -131,3 +131,8 @@ void UYogWorldSubsystem::LoadDungeonMap(TSoftObjectPtr<UWorld>& Map)
 	}
 
 }
+
+void UYogWorldSubsystem::IncrementLevel()
+{
+	CurrentMapIndex++;
+}

@@ -65,4 +65,7 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void LoadDungeonMap(TSoftObjectPtr<UWorld>& Map);
 
+	UFUNCTION(BlueprintCallable)
+	void IncrementLevel();
+
 };

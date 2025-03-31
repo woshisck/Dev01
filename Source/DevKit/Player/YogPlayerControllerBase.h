@@ -27,5 +27,6 @@ public:
 
 
 	UFUNCTION(BlueprintCallable, Category = "ASC")
-	void UpdateEnableRotationRate(FRotator RotationRate, bool isEnable);
+	void SetEnableRotationRate(FRotator RotationRate, bool isEnable);
+
 };
