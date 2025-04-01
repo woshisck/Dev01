@@ -10,16 +10,33 @@
 #include "YogCharacterBase.generated.h"
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, const float, HealthPercent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterMoveableDelegate, const bool, Moveable);
 
+UENUM(BlueprintType)
+enum class EYogCharacterState : uint8
+{
+	Move UMETA(DisplayName = "Move"),
+	Idle UMETA(DisplayName = "Idle"),
+	AbilityCast UMETA(DisplayName = "AbilityCast")
+};
 
 class UItemInstance;
 class UYogAbilitySystemComponent;
 class UInventoryManagerComponent;
 class UYogGameplayAbility;
 class AItemSpawner;
+
+
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, const float, HealthPercent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterMoveableDelegate, const bool, Moveable);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterVelocityDelegate, const FVector, Velocity);
+
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FYogCharacterStateDelegate, const EYogCharacterState, State, const FVector, currentMove);
+
+
+
 
 USTRUCT(BlueprintType)
 struct FCharacterMovementData : public FTableRowBase
@@ -76,9 +93,17 @@ public:
 
 
 
+
+
+
 	UFUNCTION(BlueprintCallable)
 	void UpdateCharacterMovement(const bool IsMovable);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EYogCharacterState CurrentState;
+
+	UFUNCTION(BlueprintCallable)
+	void SetPlayerState(EYogCharacterState newState);
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -132,6 +157,14 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FCharacterMoveableDelegate OnCharacterCanMoveUpdate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Movement")
+	FCharacterVelocityDelegate OnCharacterVelocityUpdate;
+
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Movement")
+	FYogCharacterStateDelegate OnCharacterStateUpdate;
+
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
 	void DisableMovement();

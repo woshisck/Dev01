@@ -9,6 +9,8 @@
 
 #include "YogPlayerControllerBase.generated.h"
 
+
+
 class AYogCharacterBase;
 /**
  * 
@@ -21,6 +23,9 @@ class DEVKIT_API AYogPlayerControllerBase : public AModularPlayerController
 public:
 	AYogPlayerControllerBase(){}
 
+	virtual void OnPossess(APawn* InPawn) override;
+	virtual void OnUnPossess() override;
+
 
 	UFUNCTION(BlueprintCallable, Category = "ASC")
 	UYogAbilitySystemComponent* GetYogAbilitySystemComponent() const;
@@ -28,5 +33,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "ASC")
 	void SetEnableRotationRate(FRotator RotationRate, bool isEnable);
+
+
+
 
 };

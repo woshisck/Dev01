@@ -132,6 +132,35 @@ void AYogCharacterBase::UpdateCharacterMovement(const bool IsMovable)
 	OnCharacterCanMoveUpdate.Broadcast(IsMovable);
 }
 
+void AYogCharacterBase::SetPlayerState(EYogCharacterState newState)
+{
+	FVector MoveCache;
+	AYogPlayerControllerBase* controller = Cast<AYogPlayerControllerBase>(GetController());
+	switch (newState)
+	{
+		case EYogCharacterState::Move:
+		{
+			OnCharacterStateUpdate.Broadcast(CurrentState, MoveCache);
+			break;
+		case EYogCharacterState::Idle:
+
+			OnCharacterStateUpdate.Broadcast(CurrentState, MoveCache);
+			break;
+		case EYogCharacterState::AbilityCast:
+
+			OnCharacterStateUpdate.Broadcast(CurrentState, MoveCache);
+			break;
+		}
+	default:
+		MoveCache = FVector(0, 0, 0);
+		break;
+	}
+	//AYogPlayerControllerBase* Controller = Cast<AYogPlayerControllerBase>(GetController());
+
+	//CurrentState = newState;
+	//OnCharacterStateUpdate.Broadcast(CurrentState);
+}
+
 
 
 float AYogCharacterBase::GetHealth() const

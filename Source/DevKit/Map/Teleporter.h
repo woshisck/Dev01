@@ -15,8 +15,9 @@ class DEVKIT_API ATeleporter : public AActor
 	GENERATED_BODY()
 public:
 
-
 	ATeleporter();
+	
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
 	TArray<TSoftObjectPtr<UWorld>> MapBase;
 

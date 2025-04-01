@@ -6,7 +6,31 @@
 #include "../Character/YogCharacterBase.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
+#include <DevKit/Camera/YogCameraActor.h>
 
+
+
+
+void AYogPlayerControllerBase::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+	AYogCharacterBase* PossessedCharacter = Cast<AYogCharacterBase>(InPawn);
+
+	FVector Location = PossessedCharacter->GetActorLocation();
+	
+	FRotator Rotation = FRotator::ZeroRotator;
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	AYogCameraActor* CameraActor = GetWorld()->SpawnActor<AYogCameraActor>(AYogCameraActor::StaticClass(), Location, Rotation, SpawnParams);
+
+	FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, false);
+	CameraActor->AttachToActor(PossessedCharacter, AttachRules);
+}
+
+void AYogPlayerControllerBase::OnUnPossess()
+{
+	Super::OnUnPossess();
+}
 
 UYogAbilitySystemComponent* AYogPlayerControllerBase::GetYogAbilitySystemComponent() const
 {

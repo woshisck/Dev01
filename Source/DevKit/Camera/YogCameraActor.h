@@ -13,15 +13,23 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "ModularPawn.h"
-
-
+#include "../Character/YogCharacterBase.h"
 
 #include "YogCameraActor.generated.h"
+
+
+
+
+
 
 const FVector RightArmRelRotation = FVector(0, 0, 90);
 const FVector LeftArmRelRotation = FVector(0, 0, 270);
 const FVector UpArmRelRotation = FVector(0, 0, 180);
 const FVector DownArmRelRotation = FVector(0, 0, 0);
+
+class AYogPlayerControllerBase;
+class AYogCharacterBase;
+
 
 
 USTRUCT(BlueprintType)
@@ -31,7 +39,7 @@ struct FCameraMovementData : public FTableRowBase
 
 public:
 	FCameraMovementData()
-		: MaxSpeed(600.0f), Acceleration(1000.0f), Deceleration(10000.0f), TurningBoost(8.0f)
+		: MaxSpeed(600.0f), Acceleration(1000.0f), Deceleration(10000.0f), TurningBoost(8.0f), FocusAcc(2048.f)
 	{
 	}
 
@@ -47,9 +55,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float TurningBoost;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float FocusAcc;
+
 };
-
-
 
 
 UCLASS()
@@ -62,6 +71,8 @@ public:
 	AYogCameraActor();
 
 
+
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 	class UStaticMeshComponent* RootSceneComponent;
 
@@ -69,9 +80,30 @@ public:
 	class USpringArmComponent* ScreenArm;
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Movement")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	TObjectPtr<UDataTable> CameraMovementDataTable;
 
+
+
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxSpeedCache;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AccelerationCache;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DecelerationCache;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TurningBoostCache;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float FocusAccCache;
+
+
+	
 
 
 protected:
@@ -82,4 +114,11 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	UFUNCTION(BlueprintCallable)
+	void CameraMove(EYogCharacterState State);
+
+
+private:
+	TObjectPtr<AYogPlayerControllerBase> PlayerController;
+	TObjectPtr<AYogCharacterBase> PlayerCharacter;
 };

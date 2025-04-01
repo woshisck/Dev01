@@ -3,6 +3,7 @@
 #include "YogCameraActor.h"
 //#include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
+#include <ModularAIController.h>
 
 
 
@@ -11,7 +12,7 @@
 AYogCameraActor::AYogCameraActor()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 }
 
@@ -44,10 +45,18 @@ void AYogCameraActor::BeginPlay()
 
 			UFloatingPawnMovement* MovementComp = CastChecked<UFloatingPawnMovement>(this->GetMovementComponent());
 
-			MovementComp->MaxSpeed = MovementData->MaxSpeed;
-			MovementComp->Acceleration = MovementData->Acceleration;
-			MovementComp->Deceleration = MovementData->Deceleration;
-			MovementComp->TurningBoost = MovementData->TurningBoost;
+			this->MaxSpeedCache = MovementData->MaxSpeed;
+			this->AccelerationCache = MovementData->Acceleration;
+			this->DecelerationCache = MovementData->Deceleration;
+			this->TurningBoostCache = MovementData->TurningBoost;
+			this->FocusAccCache = MovementData->FocusAcc;
+
+			MovementComp->MaxSpeed = this->MaxSpeedCache;
+			MovementComp->Acceleration = this->AccelerationCache;
+			MovementComp->Deceleration = this->DecelerationCache;
+			MovementComp->TurningBoost = this->TurningBoostCache;
+
+
 		}
 
 	}
@@ -61,4 +70,37 @@ void AYogCameraActor::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 }
+
+void AYogCameraActor::CameraMove(EYogCharacterState State)
+{
+	//UFloatingPawnMovement* MovementComp = CastChecked<UFloatingPawnMovement>(this->GetMovementComponent());
+	//AAIController* Controller = Cast<AAIController>(this->GetController());
+
+	//if (Controller)
+	//{
+	//	switch (State)
+	//	{
+	//	case EYogCharacterState::Move:
+
+	//		break;
+	//	case EYogCharacterState::Idle:
+
+
+	//		break;
+	//	case EYogCharacterState::AbilityCast:
+
+
+	//		break;
+	//	default:
+	//		break;
+	//	}
+	//}
+	/*
+	TObjectPtr<AYogPlayerControllerBase> PlayerController;
+	TObjectPtr<AYogCharacterBase> PlayerCharacter;
+	*/
+
+
+}
+
 
