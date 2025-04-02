@@ -60,8 +60,8 @@ void AYogPlayerControllerBase::SpawnCameraPawn(AYogCharacterBase* TargetCharacte
 	//CameraActor->AttachToActor(TargetCharacter, AttachRules);
 
 	//:SetViewTargetWithBlend(AActor* NewViewTarget, float BlendTime, EViewTargetBlendFunction BlendFunc, float BlendExp, bool bLockOutgoing)
-	if (CameraActorPawn)
-	{
+	//if (CameraActorPawn)
+	//{
 		//TODO:: ADD custom camera controller
 		//AAIController* AIController = GetWorld()->SpawnActor<AAIController>(AAIController::StaticClass(), Location, Rotation, SpawnParams);
 
@@ -71,8 +71,8 @@ void AYogPlayerControllerBase::SpawnCameraPawn(AYogCharacterBase* TargetCharacte
 		//	AIController->Possess(CameraActorPawn);
 		//}
 
-		this->SetViewTargetWithBlend(CameraActorPawn, 0.0f, EViewTargetBlendFunction::VTBlend_Linear, 0.0f, false);
-	}
+	this->SetViewTargetWithBlend(CameraActorPawn, 0.0f, EViewTargetBlendFunction::VTBlend_Linear, 0.0f, false);
+	//}
 
 }
 

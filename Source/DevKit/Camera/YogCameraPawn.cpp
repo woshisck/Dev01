@@ -3,7 +3,6 @@
 #include "YogCameraPawn.h"
 //#include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
-#include "YogCameraController.h"
 #include <ModularAIController.h>
 
 
@@ -19,8 +18,7 @@ AYogCameraPawn::AYogCameraPawn(const FObjectInitializer& ObjectInitializer)
 
 	
 	FloatingMovementComponent = ObjectInitializer.CreateDefaultSubobject<UFloatingPawnMovement>(this, TEXT("PawnFloatingMovementComp"));
-	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-	AIControllerClass = AYogCameraController::StaticClass();
+	//AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
 }
 
