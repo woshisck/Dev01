@@ -10,7 +10,7 @@
 #include "YogPlayerControllerBase.generated.h"
 
 
-
+class AYogCameraPawn;
 class AYogCharacterBase;
 /**
  * 
@@ -34,7 +34,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ASC")
 	void SetEnableRotationRate(FRotator RotationRate, bool isEnable);
 
+	UFUNCTION(BlueprintCallable, Category = "ASC")
+	void SpawnCameraPawn(AYogCharacterBase* PossessedCharacter);
 
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Setting")
+	TSubclassOf<AYogCameraPawn> CameraPawnClass;
 
 };

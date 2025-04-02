@@ -1,26 +1,45 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "YogCameraActor.h"
+#include "YogCameraPawn.h"
 //#include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
+#include "YogCameraController.h"
 #include <ModularAIController.h>
 
 
 
 
 // Sets default values
-AYogCameraActor::AYogCameraActor()
+AYogCameraPawn::AYogCameraPawn(const FObjectInitializer& ObjectInitializer)
+	:Super(ObjectInitializer)
 {
+
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
+	
+	FloatingMovementComponent = ObjectInitializer.CreateDefaultSubobject<UFloatingPawnMovement>(this, TEXT("PawnFloatingMovementComp"));
+	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+	AIControllerClass = AYogCameraController::StaticClass();
+
+}
+
+void AYogCameraPawn::PostActorCreated()
+{
+	Super::PostActorCreated();
+	//TODO need check for spawning camera in controller
+	/*check(CameraMovementDataTable);*/
+
+}
+
+void AYogCameraPawn::SetCameraStates(EYogCameraStates NewMovementMode)
+{
 }
 
 // Called when the game starts or when spawned
-void AYogCameraActor::BeginPlay()
+void AYogCameraPawn::BeginPlay()
 {
 	Super::BeginPlay();
-	check(CameraMovementDataTable);
 	if (CameraMovementDataTable)
 	{
 		static const FString ContextString(TEXT("Camera movement Data Lookup"));
@@ -61,17 +80,16 @@ void AYogCameraActor::BeginPlay()
 
 	}
 
-
 }
 
 // Called every frame
-void AYogCameraActor::Tick(float DeltaTime)
+void AYogCameraPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
 }
 
-void AYogCameraActor::CameraMove(EYogCharacterState State)
+void AYogCameraPawn::CameraMove(EYogCharacterState State)
 {
 	//UFloatingPawnMovement* MovementComp = CastChecked<UFloatingPawnMovement>(this->GetMovementComponent());
 	//AAIController* Controller = Cast<AAIController>(this->GetController());

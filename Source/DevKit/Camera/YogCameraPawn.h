@@ -3,24 +3,31 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+
 
 #include "Camera/CameraComponent.h"
+
+
 #include "Components/ArrowComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+
 #include "Engine/World.h"
+
+#include "GameFramework/Actor.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "GameFramework/FloatingPawnMovement.h"
+
 #include "Kismet/GameplayStatics.h"
 #include "ModularPawn.h"
 #include "../Character/YogCharacterBase.h"
 
-#include "YogCameraActor.generated.h"
+#include "YogCameraPawn.generated.h"
 
 
 
-
-
+//D:\Epic Library\UE_5.4\Engine\Source\Runtime\Engine\Classes\GameFramework\FloatingPawnMovement.h
+//D:\Epic Library\UE_5.4\Engine\Source\Runtime\Engine\Classes\GameFramework\SpringArmComponent.h
 
 const FVector RightArmRelRotation = FVector(0, 0, 90);
 const FVector LeftArmRelRotation = FVector(0, 0, 270);
@@ -29,6 +36,14 @@ const FVector DownArmRelRotation = FVector(0, 0, 0);
 
 class AYogPlayerControllerBase;
 class AYogCharacterBase;
+class UFloatingPawnMovement;
+UENUM(BlueprintType)
+enum class EYogCameraStates : uint8
+{
+	FocusCharacter		UMETA(DisplayName = "FocusCharacter"),
+	FollowMove			UMETA(DisplayName = "FollowMove"),
+	Idle				UMETA(DisplayName = "Idle")
+};
 
 
 
@@ -62,15 +77,15 @@ public:
 
 
 UCLASS()
-class DEVKIT_API AYogCameraActor : public AModularPawn
+class DEVKIT_API AYogCameraPawn : public AModularPawn
 {
 	GENERATED_BODY()
 	
 public:	
 	// Sets default values for this actor's properties
-	AYogCameraActor();
+	AYogCameraPawn(const FObjectInitializer& ObjectInitializer);
 
-
+	virtual void PostActorCreated();
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
@@ -79,11 +94,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 	class USpringArmComponent* ScreenArm;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	TObjectPtr<UFloatingPawnMovement> FloatingMovementComponent;
+
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	TObjectPtr<UDataTable> CameraMovementDataTable;
 
-
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	EYogCameraStates CameraStatus;
 
 
 
@@ -103,7 +123,10 @@ public:
 	float FocusAccCache;
 
 
-	
+	//VOID UCharacterMovementComponent::SetMovementMode(EMovementMode NewMovementMode, uint8 NewCustomMode)
+	UFUNCTION(BlueprintCallable)
+	void SetCameraStates(EYogCameraStates NewMovementMode);
+
 
 
 protected:
