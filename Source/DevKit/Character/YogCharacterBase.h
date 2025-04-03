@@ -32,7 +32,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, cons
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterMoveableDelegate, const bool, Moveable);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterVelocityDelegate, const FVector, Velocity);
 
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FYogCharacterStateDelegate, const EYogCharacterState, State, const FVector, currentMove);
 
 
