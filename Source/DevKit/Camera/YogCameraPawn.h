@@ -37,6 +37,11 @@ const FVector DownArmRelRotation = FVector(0, 0, 0);
 class AYogPlayerControllerBase;
 class AYogCharacterBase;
 class UFloatingPawnMovement;
+
+
+
+
+
 UENUM(BlueprintType)
 enum class EYogCameraStates : uint8
 {
@@ -54,7 +59,7 @@ struct FCameraMovementData : public FTableRowBase
 
 public:
 	FCameraMovementData()
-		: MaxSpeed(600.0f), Acceleration(1000.0f), Deceleration(10000.0f), TurningBoost(8.0f), FocusAcc(2048.f)
+		: MaxSpeed(600.0f), Acceleration(1024.0f), Deceleration(100000.0f), TurningBoost(8.0f), FocusAcc(2048.f), DistFromCharacter(100.f)
 	{
 	}
 
@@ -72,6 +77,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float FocusAcc;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DistFromCharacter;
 
 };
 
@@ -96,6 +104,10 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	TObjectPtr<UFloatingPawnMovement> FloatingMovementComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<AYogCharacterBase> FocusCharacter;
+
 
 
 
@@ -122,10 +134,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float FocusAccCache;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DistFromCharacter;
+
 
 	//VOID UCharacterMovementComponent::SetMovementMode(EMovementMode NewMovementMode, uint8 NewCustomMode)
 	UFUNCTION(BlueprintCallable)
 	void SetCameraStates(EYogCameraStates NewMovementMode);
+
 
 
 
@@ -137,8 +153,10 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+
+
 	UFUNCTION(BlueprintCallable)
-	void CameraMove(EYogCharacterState State);
+	void OnCameraStatesChanged(EYogCameraStates PreviousMovementMode, EYogCameraStates NextMovementMode);
 
 
 private:

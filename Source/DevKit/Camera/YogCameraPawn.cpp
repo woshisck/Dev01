@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "YogCameraPawn.h"
 //#include "GameFramework/PawnMovementComponent.h"
@@ -14,25 +14,33 @@ AYogCameraPawn::AYogCameraPawn(const FObjectInitializer& ObjectInitializer)
 {
 
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	
 	FloatingMovementComponent = ObjectInitializer.CreateDefaultSubobject<UFloatingPawnMovement>(this, TEXT("PawnFloatingMovementComp"));
 	//AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-
+	CameraStatus = EYogCameraStates::Idle;
 }
 
 void AYogCameraPawn::PostActorCreated()
 {
 	Super::PostActorCreated();
-	//TODO need check for spawning camera in controller
-	/*check(CameraMovementDataTable);*/
+
+	//if (this->CameraStatus == EYogCameraStates::FocusCharacter)
+	//{	//get distance from player < attached dist
+	//	if (FocusCharacter)
+	//	{
+	//		FVector CurrentPlayerLoc = FocusCharacter->GetActorLocation();
+
+
+	//		//Move self to Focus Character
+
+
+	//	}
+	//}
 
 }
 
-void AYogCameraPawn::SetCameraStates(EYogCameraStates NewMovementMode)
-{
-}
 
 // Called when the game starts or when spawned
 void AYogCameraPawn::BeginPlay()
@@ -46,27 +54,16 @@ void AYogCameraPawn::BeginPlay()
 
 		if (MovementData)
 		{
-			/*
-			UPROPERTY(EditAnywhere, BlueprintReadWrite)
-			float MaxSpeed;
-
-			UPROPERTY(EditAnywhere, BlueprintReadWrite)
-			float Acceleration;
-
-			UPROPERTY(EditAnywhere, BlueprintReadWrite)
-			float Deceleration;
-
-			UPROPERTY(EditAnywhere, BlueprintReadWrite)
-			float TurningBoost;
-			*/
 
 			UFloatingPawnMovement* MovementComp = CastChecked<UFloatingPawnMovement>(this->GetMovementComponent());
 
+			
 			this->MaxSpeedCache = MovementData->MaxSpeed;
 			this->AccelerationCache = MovementData->Acceleration;
 			this->DecelerationCache = MovementData->Deceleration;
 			this->TurningBoostCache = MovementData->TurningBoost;
 			this->FocusAccCache = MovementData->FocusAcc;
+			this->DistFromCharacter = MovementData->DistFromCharacter;
 
 			MovementComp->MaxSpeed = this->MaxSpeedCache;
 			MovementComp->Acceleration = this->AccelerationCache;
@@ -84,38 +81,52 @@ void AYogCameraPawn::BeginPlay()
 void AYogCameraPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	
+	UE_LOG(LogTemp, Warning, TEXT("CameraStatus value: %d"), uint8(CameraStatus));
+	if (CameraStatus == EYogCameraStates::FocusCharacter)
+	{
+		ACharacter* TargetCharacter = UGameplayStatics::GetPlayerCharacter(this, 0);
+		FVector TargetLoc = TargetCharacter->GetActorLocation();
+
+
+		FVector Loc = FMath::VInterpTo(TargetLoc, this->GetActorLocation(), DeltaTime, 1.0f);
+		this->SetActorLocation(Loc);
+	}
+
+
+	//UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	//EYogCameraStates CameraStatus;
+
 
 }
 
-void AYogCameraPawn::CameraMove(EYogCharacterState State)
+void AYogCameraPawn::SetCameraStates(EYogCameraStates NewMovementMode)
 {
-	//UFloatingPawnMovement* MovementComp = CastChecked<UFloatingPawnMovement>(this->GetMovementComponent());
-	//AAIController* Controller = Cast<AAIController>(this->GetController());
-
-	//if (Controller)
-	//{
-	//	switch (State)
-	//	{
-	//	case EYogCharacterState::Move:
-
-	//		break;
-	//	case EYogCharacterState::Idle:
 
 
-	//		break;
-	//	case EYogCharacterState::AbilityCast:
+	//UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	//EYogCameraStates CameraStatus;
 
 
-	//		break;
-	//	default:
-	//		break;
-	//	}
-	//}
-	/*
-	TObjectPtr<AYogPlayerControllerBase> PlayerController;
-	TObjectPtr<AYogCharacterBase> PlayerCharacter;
-	*/
 
+	const EYogCameraStates PrevStatus = CameraStatus;
+	CameraStatus = NewMovementMode;
+
+
+	// Handle change in movement mode
+	OnCameraStatesChanged(PrevStatus, NewMovementMode);
+
+
+}
+
+
+
+void AYogCameraPawn::OnCameraStatesChanged(EYogCameraStates PreviousMovementMode, EYogCameraStates NextMovementMode)
+{
+	if (NextMovementMode == EYogCameraStates::FocusCharacter)
+	{
+
+	}
 
 }
 
