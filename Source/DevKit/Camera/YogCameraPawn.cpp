@@ -3,7 +3,7 @@
 #include "YogCameraPawn.h"
 //#include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
-#include <ModularAIController.h>
+#include <AIController.h>
 
 
 
@@ -42,6 +42,28 @@ void AYogCameraPawn::PostActorCreated()
 }
 
 
+void AYogCameraPawn::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	if (NewController)
+	{
+		// Cast to specific controller type if needed
+		APlayerController* PC = Cast<APlayerController>(NewController);
+		if (PC)
+		{
+			// Player controller specific logic
+			UE_LOG(LogTemp, Log, TEXT("Possessed by player controller!"));
+		}
+		else
+		{
+			// AI controller case
+			AAIController* AIC = Cast<AAIController>(NewController);
+			this->CameraController = AIC;
+		}
+	}
+
+}
+
 // Called when the game starts or when spawned
 void AYogCameraPawn::BeginPlay()
 {
@@ -70,7 +92,6 @@ void AYogCameraPawn::BeginPlay()
 			MovementComp->Deceleration = this->DecelerationCache;
 			MovementComp->TurningBoost = this->TurningBoostCache;
 
-
 		}
 
 	}
@@ -89,7 +110,7 @@ void AYogCameraPawn::Tick(float DeltaTime)
 		FVector TargetLoc = TargetCharacter->GetActorLocation();
 
 
-		FVector Loc = FMath::VInterpTo(TargetLoc, this->GetActorLocation(), DeltaTime, 1.0f);
+		FVector Loc = FMath::VInterpTo(TargetLoc, this->GetActorLocation(), DeltaTime, 0.1f);
 		this->SetActorLocation(Loc);
 	}
 

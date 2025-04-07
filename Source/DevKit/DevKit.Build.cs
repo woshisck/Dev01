@@ -27,7 +27,8 @@ public class DevKit : ModuleRules
                 "Hotfix",
                 "PropertyPath",
                 "CommonUI",
-                "UnrealEd"
+                "UnrealEd",
+                "AIModule"
             });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {

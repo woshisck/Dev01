@@ -22,6 +22,7 @@
 #include "ModularPawn.h"
 #include "../Character/YogCharacterBase.h"
 
+
 #include "YogCameraPawn.generated.h"
 
 
@@ -39,7 +40,7 @@ class AYogCharacterBase;
 class UFloatingPawnMovement;
 
 
-
+class AAIController;
 
 
 UENUM(BlueprintType)
@@ -95,12 +96,11 @@ public:
 
 	virtual void PostActorCreated();
 
+	virtual void PossessedBy(AController* NewController) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
 	class UStaticMeshComponent* RootSceneComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
-	class USpringArmComponent* ScreenArm;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	TObjectPtr<UFloatingPawnMovement> FloatingMovementComponent;
@@ -108,7 +108,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<AYogCharacterBase> FocusCharacter;
 
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<AAIController> CameraController;
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
@@ -149,6 +150,7 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -161,5 +163,4 @@ public:
 
 private:
 	TObjectPtr<AYogPlayerControllerBase> PlayerController;
-	TObjectPtr<AYogCharacterBase> PlayerCharacter;
 };
