@@ -14,7 +14,8 @@
 				"CoreUObject",
 				"ModularGameplayActors",
 				"ModularGameplay",
-				"GameFeatures"
+				"GameFeatures",
+				"AIModule"
 			]
 		},
 		{
