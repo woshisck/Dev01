@@ -102,6 +102,9 @@ void AYogCharacterBase::BeginPlay()
 		WeaponDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetWeaponDMGAttribute()).AddUObject(this, &AYogCharacterBase::WeaponDMGChanged);
 		BuffAmplifyChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBuffAmplifyAttribute()).AddUObject(this, &AYogCharacterBase::BuffAmplifyChanged);
 	}
+
+	this->CurrentState = EYogCharacterState::Idle;
+
 }
 
 void AYogCharacterBase::Tick(float DeltaSeconds)
@@ -130,35 +133,6 @@ void AYogCharacterBase::UpdateCharacterMovement(const bool IsMovable)
 	//	this->GetCharacterMovement()->DisableMovement();
 	//}
 	OnCharacterCanMoveUpdate.Broadcast(IsMovable);
-}
-
-void AYogCharacterBase::SetPlayerState(EYogCharacterState newState)
-{
-	FVector MoveCache;
-	AYogPlayerControllerBase* controller = Cast<AYogPlayerControllerBase>(GetController());
-	switch (newState)
-	{
-		case EYogCharacterState::Move:
-		{
-			OnCharacterStateUpdate.Broadcast(CurrentState, MoveCache);
-			break;
-		case EYogCharacterState::Idle:
-
-			OnCharacterStateUpdate.Broadcast(CurrentState, MoveCache);
-			break;
-		case EYogCharacterState::AbilityCast:
-
-			OnCharacterStateUpdate.Broadcast(CurrentState, MoveCache);
-			break;
-		}
-	default:
-		MoveCache = FVector(0, 0, 0);
-		break;
-	}
-	//AYogPlayerControllerBase* Controller = Cast<AYogPlayerControllerBase>(GetController());
-
-	//CurrentState = newState;
-	//OnCharacterStateUpdate.Broadcast(CurrentState);
 }
 
 
@@ -242,14 +216,14 @@ void AYogCharacterBase::EnableMovement()
 
 }
 
-void AYogCharacterBase::DisableCollision()
+
+void AYogCharacterBase::SetCharacterState(EYogCharacterState newState, FVector movementInput)
 {
+	//TODO:consider for the state switch
+	EYogCharacterState previousState = CurrentState;
 
-}
-
-void AYogCharacterBase::EnableCollision()
-{
-
+	CurrentState = newState;
+	OnCharacterStateUpdate.Broadcast(newState, movementInput);
 }
 
 

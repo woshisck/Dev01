@@ -7,6 +7,7 @@
 
 #include "GameFramework/CharacterMovementComponent.h"
 #include <DevKit/Camera/YogCameraPawn.h>
+#include <EnhancedInputSubsystems.h>
 
 
 
@@ -55,6 +56,8 @@ void AYogPlayerControllerBase::SpawnCameraPawn(AYogCharacterBase* TargetCharacte
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 	AYogCameraPawn* CameraActorPawn = GetWorld()->SpawnActor<AYogCameraPawn>(CameraPawnClass, Location, Rotation, SpawnParams);
+	this->CameraPawnActor = CameraActorPawn;
+	this->SetViewTargetWithBlend(CameraActorPawn, 0.0f, EViewTargetBlendFunction::VTBlend_Linear, 0.0f, false);
 
 	//FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, false);
 	//CameraActor->AttachToActor(TargetCharacter, AttachRules);
@@ -71,8 +74,55 @@ void AYogPlayerControllerBase::SpawnCameraPawn(AYogCharacterBase* TargetCharacte
 		//	AIController->Possess(CameraActorPawn);
 		//}
 
-	this->SetViewTargetWithBlend(CameraActorPawn, 0.0f, EViewTargetBlendFunction::VTBlend_Linear, 0.0f, false);
+
 	//}
 
+}
+
+void AYogPlayerControllerBase::SetPlayerState(EYogCharacterState newState)
+{
+	//FVector MoveCache;
+	//AYogPlayerControllerBase* controller = Cast<AYogPlayerControllerBase>(GetController());
+	//switch (newState)
+	//{
+	//case EYogCharacterState::Move:
+	//{
+	//	OnCharacterStateUpdate.Broadcast(CurrentState, MoveCache);
+	//	break;
+	//case EYogCharacterState::Idle:
+
+	//	OnCharacterStateUpdate.Broadcast(CurrentState, MoveCache);
+	//	break;
+	//case EYogCharacterState::AbilityCast:
+
+	//	OnCharacterStateUpdate.Broadcast(CurrentState, MoveCache);
+	//	break;
+	//}
+	//default:
+	//	MoveCache = FVector(0, 0, 0);
+	//	break;
+	//}
+}
+
+void AYogPlayerControllerBase::BeginPlay()
+{
+	Super::BeginPlay();
+
+
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(this->GetLocalPlayer()))
+	{
+		Subsystem->AddMappingContext(DefaultMappingContext, 0);
+	}
+	
+	
+	AYogCharacterBase* TargetCharacter = Cast<AYogCharacterBase>(UGameplayStatics::GetPlayerCharacter(this, 0));
+	SpawnCameraPawn(TargetCharacter);
+
+}
+
+AYogCharacterBase* AYogPlayerControllerBase::GetPossCharacter()
+{
+	AYogCharacterBase* MyCharacter = Cast<AYogCharacterBase>(GetPawn());
+	return MyCharacter;
 }
 

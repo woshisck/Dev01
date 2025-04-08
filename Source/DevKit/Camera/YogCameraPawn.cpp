@@ -85,7 +85,7 @@ void AYogCameraPawn::BeginPlay()
 			this->DecelerationCache = MovementData->Deceleration;
 			this->TurningBoostCache = MovementData->TurningBoost;
 			this->FocusAccCache = MovementData->FocusAcc;
-			this->DistFromCharacter = MovementData->DistFromCharacter;
+			this->DistFromCharacterCache = MovementData->DistFromCharacter;
 
 			MovementComp->MaxSpeed = this->MaxSpeedCache;
 			MovementComp->Acceleration = this->AccelerationCache;
@@ -96,6 +96,8 @@ void AYogCameraPawn::BeginPlay()
 
 	}
 
+
+
 }
 
 // Called every frame
@@ -103,6 +105,12 @@ void AYogCameraPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	
+
+	/*
+	* 	FocusCharacter		UMETA(DisplayName = "FocusCharacter"),
+		FollowMove			UMETA(DisplayName = "FollowMove"),
+		Idle				UMETA(DisplayName = "Idle")
+	*/
 	UE_LOG(LogTemp, Warning, TEXT("CameraStatus value: %d"), uint8(CameraStatus));
 	if (CameraStatus == EYogCameraStates::FocusCharacter)
 	{
@@ -110,8 +118,23 @@ void AYogCameraPawn::Tick(float DeltaTime)
 		FVector TargetLoc = TargetCharacter->GetActorLocation();
 
 
-		FVector Loc = FMath::VInterpTo(TargetLoc, this->GetActorLocation(), DeltaTime, 0.1f);
+		FVector Loc = FMath::VInterpTo(this->GetActorLocation(), TargetLoc, DeltaTime, FocusAccCache);
 		this->SetActorLocation(Loc);
+	}
+	if (CameraStatus == EYogCameraStates::FollowMove)
+	{
+		ACharacter* TargetCharacter = UGameplayStatics::GetPlayerCharacter(this, 0);
+		PlayerTargetLoc = TargetCharacter->GetActorLocation() + PlayerMovementInputCache * DistFromCharacterCache;
+
+		FVector Loc = FMath::VInterpTo(this->GetActorLocation(), PlayerTargetLoc, DeltaTime, FocusAccCache);
+		this->SetActorLocation(Loc);
+		UE_LOG(LogTemp, Warning, TEXT("PlayerTargetLoc value: %f, %f, %f"), PlayerTargetLoc.X, PlayerTargetLoc.Y, PlayerTargetLoc.Z);
+
+	
+	}
+	if (CameraStatus == EYogCameraStates::Idle)
+	{
+		//TODO:: camera idle tick ability NEED
 	}
 
 
@@ -142,9 +165,24 @@ void AYogCameraPawn::SetCameraStates(EYogCameraStates NewMovementMode)
 
 
 
+
+
 void AYogCameraPawn::OnCameraStatesChanged(EYogCameraStates PreviousMovementMode, EYogCameraStates NextMovementMode)
 {
 	if (NextMovementMode == EYogCameraStates::FocusCharacter)
+	{
+
+	}
+	else
+	{
+
+	}
+
+	if (NextMovementMode == EYogCameraStates::FollowMove)
+	{
+
+	}
+	else
 	{
 
 	}

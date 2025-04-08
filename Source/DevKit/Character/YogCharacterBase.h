@@ -14,9 +14,9 @@
 UENUM(BlueprintType)
 enum class EYogCharacterState : uint8
 {
-	Move UMETA(DisplayName = "Move"),
-	Idle UMETA(DisplayName = "Idle"),
-	AbilityCast UMETA(DisplayName = "AbilityCast")
+	Move				UMETA(DisplayName = "Move"),
+	Idle				UMETA(DisplayName = "Idle"),
+	AbilityCast			UMETA(DisplayName = "AbilityCast")
 };
 
 class UItemInstance;
@@ -32,10 +32,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, cons
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterMoveableDelegate, const bool, Moveable);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterVelocityDelegate, const FVector, Velocity);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FYogCharacterStateDelegate, const EYogCharacterState, State, const FVector, currentMove);
-
-
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCharacterStateDelegate, EYogCharacterState, State, const FVector, MovementInput);
 
 USTRUCT(BlueprintType)
 struct FCharacterMovementData : public FTableRowBase
@@ -91,18 +88,11 @@ public:
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 
-
-
-
-
 	UFUNCTION(BlueprintCallable)
 	void UpdateCharacterMovement(const bool IsMovable);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EYogCharacterState CurrentState;
-
-	UFUNCTION(BlueprintCallable)
-	void SetPlayerState(EYogCharacterState newState);
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -139,14 +129,12 @@ public:
 	void GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel);
 
 
-
 	UPROPERTY(BlueprintReadOnly)
 	int32 bWeaponEquiped = 0;
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Debug")
 	void PrintAllGameplayTags(const FGameplayTagContainer& TagContainer);
 
-public:
 	//DELEGATE DEFINE
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FCharacterDiedDelegate OnCharacterDied;
@@ -162,8 +150,7 @@ public:
 
 
 	UPROPERTY(BlueprintAssignable, Category = "Character|Movement")
-	FYogCharacterStateDelegate OnCharacterStateUpdate;
-
+	FCharacterStateDelegate OnCharacterStateUpdate;
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
 	void DisableMovement();
@@ -171,12 +158,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
 	void EnableMovement();
 
-	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
-	void DisableCollision();
-
-	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
-	void EnableCollision();
-
+	UFUNCTION(BlueprintCallable, Category = "Character|State")
+	void SetCharacterState(EYogCharacterState newState, FVector movementInput);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Movement")
 	TObjectPtr<UDataTable> CharacterMovementDataTable;
@@ -184,7 +167,7 @@ public:
 
 protected:
 
-
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bIsDead;
 
@@ -204,8 +187,6 @@ protected:
 	int32 bAbilitiesInitialized;
 
 	FGameplayTag DeadTag;
-
-
 
 	FDelegateHandle HealthChangedDelegateHandle;
 	FDelegateHandle MaxHealthChangedDelegateHandle;

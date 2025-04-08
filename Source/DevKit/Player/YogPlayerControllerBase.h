@@ -12,9 +12,11 @@
 
 class AYogCameraPawn;
 class AYogCharacterBase;
-/**
- * 
- */
+class UInputMappingContext;
+
+
+
+
 UCLASS()
 class DEVKIT_API AYogPlayerControllerBase : public AModularPlayerController
 {
@@ -25,6 +27,11 @@ public:
 
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
+	virtual void BeginPlay() override;
+
+	UFUNCTION(BlueprintCallable)
+	AYogCharacterBase* GetPossCharacter();
+
 
 
 	UFUNCTION(BlueprintCallable, Category = "ASC")
@@ -40,4 +47,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Setting")
 	TSubclassOf<AYogCameraPawn> CameraPawnClass;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputMappingContext> DefaultMappingContext;
+
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	void SetPlayerState(EYogCharacterState newState);
+
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Setting")
+	TObjectPtr<AYogCameraPawn> CameraPawnActor;
 };

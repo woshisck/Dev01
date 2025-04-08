@@ -136,15 +136,18 @@ public:
 	float FocusAccCache;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float DistFromCharacter;
+	float DistFromCharacterCache;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector PlayerMovementInputCache;
 
 
 	//VOID UCharacterMovementComponent::SetMovementMode(EMovementMode NewMovementMode, uint8 NewCustomMode)
 	UFUNCTION(BlueprintCallable)
 	void SetCameraStates(EYogCameraStates NewMovementMode);
 
-
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector PlayerTargetLoc;
 
 protected:
 	// Called when the game starts or when spawned
