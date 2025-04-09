@@ -84,6 +84,7 @@ void AYogCharacterBase::BeginPlay()
 			UPROPERTY(EditAnywhere, BlueprintReadWrite)
 			FVector RotationRate;
 			*/
+
 			UYogCharacterMovementComponent* MovementComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
 			MovementComp->MaxWalkSpeed = MovementData->MaxWalkSpeed;
 			MovementComp->GroundFriction = MovementData->GroundFriction;
@@ -219,11 +220,12 @@ void AYogCharacterBase::EnableMovement()
 
 void AYogCharacterBase::SetCharacterState(EYogCharacterState newState, FVector movementInput)
 {
-	//TODO:consider for the state switch
+	
 	EYogCharacterState previousState = CurrentState;
 
 	CurrentState = newState;
 	OnCharacterStateUpdate.Broadcast(newState, movementInput);
+
 }
 
 

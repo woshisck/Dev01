@@ -60,24 +60,27 @@ struct FCameraMovementData : public FTableRowBase
 
 public:
 	FCameraMovementData()
-		: MaxSpeed(600.0f), Acceleration(1024.0f), Deceleration(100000.0f), TurningBoost(8.0f), FocusAcc(2048.f), DistFromCharacter(100.f)
+		: FocusSpeed(0.5f), FollowSpeed(0.5f), DistFromCharacter(100.f)
 	{
 	}
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxSpeed;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float MaxSpeed;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float Acceleration;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float Deceleration;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float TurningBoost;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Acceleration;
+	float FocusSpeed;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Deceleration;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float TurningBoost;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float FocusAcc;
+	float FollowSpeed;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float DistFromCharacter;
@@ -118,28 +121,29 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	EYogCameraStates CameraStatus;
 
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float MaxSpeedCache;
 
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float AccelerationCache;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxSpeedCache;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float DecelerationCache;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float AccelerationCache;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float DecelerationCache;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float TurningBoostCache;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float TurningBoostCache;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float FocusAccCache;
+	float cache_followSpeed;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float DistFromCharacterCache;
+	float cache_focusSpeed;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector PlayerMovementInputCache;
+	float cache_distFromCharacter;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector cache_playerMovementInput;
 
 
 	//VOID UCharacterMovementComponent::SetMovementMode(EMovementMode NewMovementMode, uint8 NewCustomMode)
@@ -157,7 +161,6 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
 
 
 	UFUNCTION(BlueprintCallable)

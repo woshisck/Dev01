@@ -80,17 +80,20 @@ void AYogCameraPawn::BeginPlay()
 			UFloatingPawnMovement* MovementComp = CastChecked<UFloatingPawnMovement>(this->GetMovementComponent());
 
 			
-			this->MaxSpeedCache = MovementData->MaxSpeed;
-			this->AccelerationCache = MovementData->Acceleration;
-			this->DecelerationCache = MovementData->Deceleration;
-			this->TurningBoostCache = MovementData->TurningBoost;
-			this->FocusAccCache = MovementData->FocusAcc;
-			this->DistFromCharacterCache = MovementData->DistFromCharacter;
+			//this->MaxSpeedCache = MovementData->MaxSpeed;
+			//this->AccelerationCache = MovementData->Acceleration;
+			//this->DecelerationCache = MovementData->Deceleration;
+			//this->TurningBoostCache = MovementData->TurningBoost;
 
-			MovementComp->MaxSpeed = this->MaxSpeedCache;
-			MovementComp->Acceleration = this->AccelerationCache;
-			MovementComp->Deceleration = this->DecelerationCache;
-			MovementComp->TurningBoost = this->TurningBoostCache;
+
+			this->cache_followSpeed = MovementData->FollowSpeed;
+			this->cache_focusSpeed = MovementData->FocusSpeed;
+			this->cache_distFromCharacter = MovementData->DistFromCharacter;
+
+			//MovementComp->MaxSpeed = this->MaxSpeedCache;
+			//MovementComp->Acceleration = this->AccelerationCache;
+			//MovementComp->Deceleration = this->DecelerationCache;
+			//MovementComp->TurningBoost = this->TurningBoostCache;
 
 		}
 
@@ -107,30 +110,32 @@ void AYogCameraPawn::Tick(float DeltaTime)
 	
 
 	/*
-	* 	FocusCharacter		UMETA(DisplayName = "FocusCharacter"),
+	  	FocusCharacter		UMETA(DisplayName = "FocusCharacter"),
 		FollowMove			UMETA(DisplayName = "FollowMove"),
 		Idle				UMETA(DisplayName = "Idle")
-	*/
-	UE_LOG(LogTemp, Warning, TEXT("CameraStatus value: %d"), uint8(CameraStatus));
+	 */
+	
 	if (CameraStatus == EYogCameraStates::FocusCharacter)
 	{
 		ACharacter* TargetCharacter = UGameplayStatics::GetPlayerCharacter(this, 0);
 		FVector TargetLoc = TargetCharacter->GetActorLocation();
 
 
-		FVector Loc = FMath::VInterpTo(this->GetActorLocation(), TargetLoc, DeltaTime, FocusAccCache);
+		FVector Loc = FMath::VInterpTo(this->GetActorLocation(), TargetLoc, DeltaTime, cache_focusSpeed); 
 		this->SetActorLocation(Loc);
+		/*UE_LOG(LogTemp, Warning, TEXT("TargetLoc value: %f, %f, %f"), TargetLoc.X, TargetLoc.Y, TargetLoc.Z);*/
+
 	}
 	if (CameraStatus == EYogCameraStates::FollowMove)
 	{
 		ACharacter* TargetCharacter = UGameplayStatics::GetPlayerCharacter(this, 0);
-		PlayerTargetLoc = TargetCharacter->GetActorLocation() + PlayerMovementInputCache * DistFromCharacterCache;
+		PlayerTargetLoc = TargetCharacter->GetActorLocation() + cache_playerMovementInput * cache_distFromCharacter;
 
-		FVector Loc = FMath::VInterpTo(this->GetActorLocation(), PlayerTargetLoc, DeltaTime, FocusAccCache);
+		FVector Loc = FMath::VInterpTo(this->GetActorLocation(), PlayerTargetLoc, DeltaTime, cache_followSpeed);
 		this->SetActorLocation(Loc);
-		UE_LOG(LogTemp, Warning, TEXT("PlayerTargetLoc value: %f, %f, %f"), PlayerTargetLoc.X, PlayerTargetLoc.Y, PlayerTargetLoc.Z);
 
-	
+
+		
 	}
 	if (CameraStatus == EYogCameraStates::Idle)
 	{
