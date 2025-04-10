@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -104,7 +104,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")
 	UAnimMontage* DeathMontage;
 
-	//Passive effect
+	///////////////////////////////////////////　Passive effect　///////////////////////////////////////////
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Abilities)
 	TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
 
@@ -113,6 +114,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTagContainer GPTagsContainer;
+
+	////////////////////////////////////////////// Attribute //////////////////////////////////////////////
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	void GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities);
@@ -124,6 +127,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	float GetMaxHealth() const;
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Abilities")
 	void GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel);
