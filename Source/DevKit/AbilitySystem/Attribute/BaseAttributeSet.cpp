@@ -94,30 +94,30 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	}
 
 	//Get the target actor
-	AActor* TargetActor = nullptr;
-	AController* TargetController = nullptr;
-	AYogCharacterBase* TargetCharacter = nullptr;
+	AActor* targetActor = nullptr;
+	AController* targetController = nullptr;
+	AYogCharacterBase* targetCharacter = nullptr;
 
 	if (Data.Target.AbilityActorInfo.IsValid() && Data.Target.AbilityActorInfo->AvatarActor.IsValid())
 	{
-		TargetActor = Data.Target.AbilityActorInfo->AvatarActor.Get();
-		TargetController = Data.Target.AbilityActorInfo->PlayerController.Get();
-		TargetCharacter = Cast<AYogCharacterBase>(TargetActor);
+		targetActor = Data.Target.AbilityActorInfo->AvatarActor.Get();
+		targetController = Data.Target.AbilityActorInfo->PlayerController.Get();
+		targetCharacter = Cast<AYogCharacterBase>(targetActor);
 	}
 
 	// data modification different set 
-	float DeltaValue = 0;
+	float deltaValue = 0;
 	if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Override)
 	{
 		// If this was additive, store the raw delta value to be passed along later
-		DeltaValue = Data.EvaluatedData.Magnitude;
+		deltaValue = Data.EvaluatedData.Magnitude;
 		if (Data.EvaluatedData.Attribute == GetWeaponDMGAttribute())
 		{
 			//effect by self
-			if (SourceController == TargetController)
+			if (SourceController == targetController)
 			{
 				UE_LOG(LogTemp, Log, TEXT("SELF BUFF"));
-				SetWeaponDMG(DeltaValue);
+				SetWeaponDMG(deltaValue);
 			}
 		}
 
@@ -126,17 +126,17 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	else if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Additive)
 	{
 		// If this was additive, store the raw delta value to be passed along later
-		DeltaValue = Data.EvaluatedData.Magnitude;
+		deltaValue = Data.EvaluatedData.Magnitude;
 		if (Data.EvaluatedData.Attribute == GetDamageAttribute())
 		{
 			//effect by self
 
-			DeltaValue = Data.EvaluatedData.Magnitude;
-			if (SourceController != TargetController)
+			deltaValue = Data.EvaluatedData.Magnitude;
+			if (SourceController != targetController)
 			{
-				UE_LOG(LogTemp, Log, TEXT("DAMAGE CAST, Final DAMAGE: %f"), DeltaValue);
+				UE_LOG(LogTemp, Log, TEXT("DAMAGE CAST, Final DAMAGE: %f"), deltaValue);
 
-				UE_LOG(LogTemp, Log, TEXT("DAMAGE CAST, TargetCharacter: %s, SourceCharacter: %s"), *TargetCharacter->GetName(), *SourceCharacter->GetName());
+				UE_LOG(LogTemp, Log, TEXT("DAMAGE CAST, TargetCharacter: %s, SourceCharacter: %s"), *targetCharacter->GetName(), *SourceCharacter->GetName());
 				
 			}
 		}
@@ -162,9 +162,9 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 		{
 
 			bool WasAlive = true;
-			if (TargetCharacter)
+			if (targetCharacter)
 			{
-				WasAlive = TargetCharacter->IsAlive();
+				WasAlive = targetCharacter->IsAlive();
 			}
 
 

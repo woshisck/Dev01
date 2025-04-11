@@ -19,6 +19,6 @@ public:
 	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
-	TArray<TSoftObjectPtr<UWorld>> MapBase;
+	TArray<FName> Name_streamLevels;
 
 };

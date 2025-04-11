@@ -29,20 +29,16 @@ public:
 	/** Called when world is ready to start gameplay before the game mode transitions to the correct state and call BeginPlay on all actors */
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
-	UFUNCTION(BlueprintCallable, Category = "WorldLevel")
-	UWorld* GetCurrentWorld();
 
-	void HandleLoadFinished();
+	ULevelStreaming* FindLoadedLevel(const FName& LevelName);
 
-
+	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
+	void StartLoadingLevels(const TArray<FName>& LevelsToStream, float DelayBetweenLoads = 0.5f);
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DungeonLevel")
-	TArray<TSoftObjectPtr<UWorld>> DungeonMaps;
 
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DungeonLevel")
-	int32 CurrentMapIndex;
+	UPROPERTY()
+	TArray<ULevelStreaming*> LoadedLevels;
 
 	///** Map of items to item data */
 	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = SaveGame)
@@ -52,20 +48,25 @@ protected:
 	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = SaveGame)
 	//TMap<FRPGItemSlot, FPrimaryAssetId> SlottedItems;
 
-	/** User's unique id */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Gamelevel)
-	TArray<UWorld*> DungeonLevels;
-
-	TLinkedList<UWorld*> DungeonLinkedList;
-
-	UFUNCTION(BlueprintCallable)
-	void InitDungeonMap();
 
 
 	UFUNCTION(BlueprintCallable)
-	void LoadDungeonMap(TSoftObjectPtr<UWorld>& Map);
+	UWorld* GetCurrentWorld();
 
 	UFUNCTION(BlueprintCallable)
-	void IncrementLevel();
+	void UnloadAllStreamLevels();
 
+
+private:
+
+
+	TArray<FName> PendingLevels;
+
+	FTimerHandle LevelLoadTimerHandle;
+	float LoadDelay;
+
+	void LoadNextLevel();
+
+	UFUNCTION()
+	void OnLevelLoaded();
 };
