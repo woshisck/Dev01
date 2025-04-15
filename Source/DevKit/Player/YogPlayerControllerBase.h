@@ -32,6 +32,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	AYogCharacterBase* GetPossCharacter();
 
+	UFUNCTION(BlueprintCallable)
+	void ToggleInput(bool bEnable);
 
 
 	UFUNCTION(BlueprintCallable, Category = "ASC")

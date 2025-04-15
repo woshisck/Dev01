@@ -108,13 +108,12 @@ void AYogPlayerControllerBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-
+	
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(this->GetLocalPlayer()))
 	{
 		Subsystem->AddMappingContext(DefaultMappingContext, 0);
 	}
-	
-	
+
 	AYogCharacterBase* TargetCharacter = Cast<AYogCharacterBase>(UGameplayStatics::GetPlayerCharacter(this, 0));
 	SpawnCameraPawn(TargetCharacter);
 
@@ -124,5 +123,25 @@ AYogCharacterBase* AYogPlayerControllerBase::GetPossCharacter()
 {
 	AYogCharacterBase* MyCharacter = Cast<AYogCharacterBase>(GetPawn());
 	return MyCharacter;
+}
+
+void AYogPlayerControllerBase::ToggleInput(bool bEnable)
+{
+	if (bEnable)
+	{
+		// Enable input
+		EnableInput(this); // Re-enables input if disabled
+		SetIgnoreMoveInput(false);
+		SetIgnoreLookInput(false);
+	}
+	else
+	{
+		// Disable input
+		DisableInput(this); // Disables all input
+		// (Optional) Explicitly ignore move/look input
+		SetIgnoreMoveInput(true);
+		SetIgnoreLookInput(true);
+	}
+
 }
 

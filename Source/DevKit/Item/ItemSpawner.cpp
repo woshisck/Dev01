@@ -19,7 +19,7 @@
 
 AItemSpawner::AItemSpawner()
 {
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 	RootComponent = CollisionVolume = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CollisionVolume"));
 
 	CollisionVolume->InitCapsuleSize(80.f, 80.f);
