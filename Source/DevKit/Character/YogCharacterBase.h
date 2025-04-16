@@ -171,6 +171,12 @@ public:
 	TObjectPtr<UDataTable> CharacterMovementDataTable;
 
 
+
+	///** Map of gameplay tags to gameplay effect containers */
+	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Character|Buff")
+	//TMap<FGameplayTag, FYogGameplayEffectContainer> BufferMap;
+
+
 protected:
 
 	
