@@ -17,7 +17,7 @@ class UYogTargetType;
  * These containers are defined statically in blueprints or assets and then turn into Specs at runtime
  */
 USTRUCT(BlueprintType)
-struct FYogGameplayEffectContainer
+struct DEVKIT_API FYogGameplayEffectContainer
 {
 	GENERATED_BODY()
 
