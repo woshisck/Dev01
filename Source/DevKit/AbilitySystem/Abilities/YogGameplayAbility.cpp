@@ -62,7 +62,7 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 
 	if (OwningASC)
 	{
-		// If we have a target type, run the targeting logic. This is optional, targets can be added later
+		//@TODO might need change in the future for more specific information
 		if (Container.TargetType.Get())
 		{
 			TArray<FHitResult> HitResults;
