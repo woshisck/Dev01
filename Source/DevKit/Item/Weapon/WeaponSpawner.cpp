@@ -80,7 +80,7 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 }
 
 
-void AWeaponSpawner::GrantWeapon_Implementation(AYogCharacterBase* ReceivingChar)
+void AWeaponSpawner::GrantWeapon(AYogCharacterBase* ReceivingChar)
 {
 
 	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, ReceivingChar: %s"), *ReceivingChar->GetName());

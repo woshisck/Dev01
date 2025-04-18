@@ -56,7 +56,7 @@ protected:
 
 public:
 
-	UFUNCTION(BlueprintNativeEvent)
+	UFUNCTION(BlueprintCallable)
 	void GrantWeapon(AYogCharacterBase* ReceivingChar);
 
 
