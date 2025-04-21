@@ -53,6 +53,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
 	FVector WeaponMeshOffset;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
+	FRotator WeaponRotation;
+
 	//Sets the height of the display mesh above the Weapon spawner
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
 	FVector WeaponMeshScale = FVector(1.0f, 1.0f, 1.0f);
