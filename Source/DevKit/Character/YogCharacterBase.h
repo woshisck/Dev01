@@ -11,13 +11,17 @@
 
 
 
-UENUM(BlueprintType)
+UENUM()
 enum class EYogCharacterState : uint8
 {
-	Move				UMETA(DisplayName = "Move"),
-	Idle				UMETA(DisplayName = "Idle"),
-	AbilityCast			UMETA(DisplayName = "AbilityCast")
+	Move					UMETA(DisplayName = "Move"),
+	Idle					UMETA(DisplayName = "Idle"),
+	AbilityCast				UMETA(DisplayName = "AbilityCast"),
+	Hit						UMETA(DisplayName = "Hit")
+
 };
+
+
 
 class UItemInstance;
 class UYogAbilitySystemComponent;
