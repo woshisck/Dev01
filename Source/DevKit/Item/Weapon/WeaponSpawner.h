@@ -47,7 +47,7 @@ public:
 
 protected:
 
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Yog|ItemPickup")
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Yog|ItemPickup")
 	TObjectPtr<UWeaponDefinition> WeaponDefinition;
 
 	//Delay between when the weapon is made available and when we check for a pawn standing in the spawner. Used to give the bIsWeaponAvailable OnRep time to fire and play FX. 
@@ -56,9 +56,16 @@ protected:
 
 public:
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintImplementableEvent)
 	void GrantWeapon(AYogCharacterBase* ReceivingChar);
 
+
+
+	UFUNCTION(BlueprintCallable)
+	void SpawnAttachWeapon(AYogCharacterBase* ReceivingChar);
+
+	UFUNCTION(BlueprintCallable)
+	void GrantWeaponAbility(AYogCharacterBase* ReceivingChar);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
 	TObjectPtr<UCapsuleComponent> CollisionVolume;
@@ -71,7 +78,7 @@ public:
 	float WeaponMeshRotationSpeed;
 
 	UFUNCTION()
-	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);
+	virtual void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);
 
 
 };

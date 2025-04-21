@@ -8,6 +8,8 @@
 
 class UYogAbilitySet;
 class UWeaponInstance;
+class UYogAnimInstance;
+
 
 USTRUCT()
 struct FWeaponActorToSpawn
@@ -55,11 +57,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
 	FVector WeaponMeshScale = FVector(1.0f, 1.0f, 1.0f);
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Amine")
-	TObjectPtr<UAnimMontage> PickupMontage;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
 	TObjectPtr<UStaticMesh> DisplayMesh;
+
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Anime")
+	TSubclassOf<UYogAnimInstance> WeaponLayer;
+
+
 
 	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Pickup|WeaponDefiniton")
 	//TObjectPtr<UYogEquipmentDefinition> WeaponDefinition;

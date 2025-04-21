@@ -68,6 +68,68 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 	}
 }
 
+//void AWeaponSpawner::GrantWeapon(AYogCharacterBase* ReceivingChar)
+//{
+//
+//	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, ReceivingChar: %s"), *ReceivingChar->GetName());
+//
+//	if (ReceivingChar->bWeaponEquiped == false)
+//	{
+//		//spawn && attach weapon
+//		USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
+//		for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
+//		{
+//			TSubclassOf<AActor> WeaponActorClass = WeaponActorInst.ActorToSpawn;
+//			FName Socket = WeaponActorInst.AttachSocket;
+//			FTransform Transform = WeaponActorInst.AttachTransform;
+//
+//			AActor* NewActor = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
+//			NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+//			NewActor->SetActorRelativeTransform(Transform);
+//			NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
+//
+//		}
+//		for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
+//		{
+//			for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
+//			{
+//				ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
+//			}
+//		}
+//		ReceivingChar->bWeaponEquiped = true;
+//	}
+//
+//	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, YogCharacterBase"));
+//}
+
+void AWeaponSpawner::SpawnAttachWeapon(AYogCharacterBase* ReceivingChar)
+{
+	USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
+	for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
+	{
+		TSubclassOf<AActor> WeaponActorClass = WeaponActorInst.ActorToSpawn;
+		FName Socket = WeaponActorInst.AttachSocket;
+		FTransform Transform = WeaponActorInst.AttachTransform;
+
+		AActor* NewActor = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
+		NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+		NewActor->SetActorRelativeTransform(Transform);
+		NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
+
+	}
+}
+
+void AWeaponSpawner::GrantWeaponAbility(AYogCharacterBase* ReceivingChar)
+{
+	for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
+	{
+		for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
+		{
+			ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
+		}
+	}
+}
+
 void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
 	UE_LOG(LogTemp, Warning, TEXT("OnOverlapBegin Happens"));
@@ -77,41 +139,6 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 	{
 		GrantWeapon(OverlappingPawn);
 	}
-}
-
-
-void AWeaponSpawner::GrantWeapon(AYogCharacterBase* ReceivingChar)
-{
-
-	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, ReceivingChar: %s"), *ReceivingChar->GetName());
-
-	if (ReceivingChar->bWeaponEquiped == false)
-	{
-		//spawn && attach weapon
-		USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
-		for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
-		{
-			TSubclassOf<AActor> WeaponActorClass = WeaponActorInst.ActorToSpawn;
-			FName Socket = WeaponActorInst.AttachSocket;
-			FTransform Transform = WeaponActorInst.AttachTransform;
-
-			AActor* NewActor = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
-			NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-			NewActor->SetActorRelativeTransform(Transform);
-			NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
-
-		}
-		for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
-		{
-			for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
-			{
-				ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
-			}
-		}
-		ReceivingChar->bWeaponEquiped = true;
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, YogCharacterBase"));
 }
 
 
