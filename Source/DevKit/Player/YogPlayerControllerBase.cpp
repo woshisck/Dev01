@@ -50,14 +50,16 @@ void AYogPlayerControllerBase::SetEnableRotationRate(FRotator RotationRate, bool
 
 void AYogPlayerControllerBase::SpawnCameraPawn(AYogCharacterBase* TargetCharacter) {
 	//Get possessed character and spawn camera pawn attached on it
-
-	FVector Location = TargetCharacter->GetActorLocation();
-	FRotator Rotation = FRotator::ZeroRotator;
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-	AYogCameraPawn* CameraActorPawn = GetWorld()->SpawnActor<AYogCameraPawn>(CameraPawnClass, Location, Rotation, SpawnParams);
-	this->CameraPawnActor = CameraActorPawn;
-	this->SetViewTargetWithBlend(CameraActorPawn, 0.0f, EViewTargetBlendFunction::VTBlend_Linear, 0.0f, false);
+	if (IsValid(TargetCharacter))
+	{
+		FVector Location = TargetCharacter->GetActorLocation();
+		FRotator Rotation = FRotator::ZeroRotator;
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		AYogCameraPawn* CameraActorPawn = GetWorld()->SpawnActor<AYogCameraPawn>(CameraPawnClass, Location, Rotation, SpawnParams);
+		this->CameraPawnActor = CameraActorPawn;
+		this->SetViewTargetWithBlend(CameraActorPawn, 0.0f, EViewTargetBlendFunction::VTBlend_Linear, 0.0f, false);
+	}
 
 	//FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, false);
 	//CameraActor->AttachToActor(TargetCharacter, AttachRules);
