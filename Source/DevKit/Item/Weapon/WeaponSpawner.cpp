@@ -102,6 +102,31 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 //	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, YogCharacterBase"));
 //}
 
+void AWeaponSpawner::GiveWeaponToCharacter(AYogCharacterBase* ReceivingChar)
+{
+	USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
+	for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
+	{
+		TSubclassOf<AActor> WeaponActorClass = WeaponActorInst.ActorToSpawn;
+		FName Socket = WeaponActorInst.AttachSocket;
+		FTransform Transform = WeaponActorInst.AttachTransform;
+
+		AActor* NewActor = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
+		NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+		NewActor->SetActorRelativeTransform(Transform);
+		NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
+
+	}
+	for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
+	{
+		for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
+		{
+			ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
+		}
+	}
+
+}
+
 void AWeaponSpawner::SpawnAttachWeapon(AYogCharacterBase* ReceivingChar)
 {
 	USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();

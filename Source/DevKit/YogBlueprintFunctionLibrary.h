@@ -9,6 +9,8 @@
 /**
  * 
  */
+class AYogCharacterBase;
+
 UCLASS()
 class UYogBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
 {
@@ -21,6 +23,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = Loading)
 	static FName GetDTRow(FString AssetName, int32 rowNum);
 
+	UFUNCTION(BlueprintPure, Category = Weapon)
+	static bool GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition);
+
+	UFUNCTION(BlueprintPure, Category = Weapon)
+	static bool GiveEffectToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition);
 
 };
 
