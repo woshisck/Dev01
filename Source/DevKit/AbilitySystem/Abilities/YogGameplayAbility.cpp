@@ -90,7 +90,6 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 
 FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpec(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
 {
-	//@TODO Add YogAbilityDataTable TO Spec 
 	AYogCharacterBase* OwningCharacter = GetOwnerCharacterInfo();
 	UYogAbilitySystemComponent* ASC = OwningCharacter->GetASC();
 
