@@ -93,7 +93,7 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpec(FGa
 	AYogCharacterBase* OwningCharacter = GetOwnerCharacterInfo();
 	UYogAbilitySystemComponent* ASC = OwningCharacter->GetASC();
 
-
+	//iterate container map in player 
 	FYogGameplayEffectContainer* FoundContainer = ASC->EffectContainerMap.Find(ContainerTag);
 	if (FoundContainer)
 	{

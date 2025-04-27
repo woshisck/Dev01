@@ -171,8 +171,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|State")
 	void SetCharacterState(EYogCharacterState newState, FVector movementInput);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Movement")
-	TObjectPtr<UDataTable> CharacterMovementDataTable;
+
 
 
 
@@ -181,9 +180,7 @@ public:
 	//TMap<FGameplayTag, FYogGameplayEffectContainer> BufferMap;
 
 
-protected:
-
-	
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bIsDead;
 
