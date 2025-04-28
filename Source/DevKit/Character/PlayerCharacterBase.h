@@ -9,6 +9,15 @@
 /**
  * 
  */
+
+
+UENUM()
+enum class EPlayerBattleState : uint8
+{
+	OnGetHit		UMETA(DisplayName = "OnGetHit"),
+	OnHitFrame		UMETA(DisplayName = "OnHitFrame")
+};
+
 UCLASS()
 class DEVKIT_API APlayerCharacterBase : public AYogCharacterBase
 {
