@@ -16,7 +16,7 @@ UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitial
 
 
 
-TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
+TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel )
 {
 	FYogGameplayEffectContainerSpec Spec = MakeEffectContainerSpec(ContainerTag, EventData, OverrideGameplayLevel);
 	return ApplyEffectContainerSpec(Spec);
@@ -62,7 +62,7 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 
 	if (OwningASC)
 	{
-		//@TODO might need change in the future for more specific information
+		//@TODO Empty Hit result for now
 		if (Container.TargetType.Get())
 		{
 			TArray<FHitResult> HitResults;
@@ -88,6 +88,7 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 	return ReturnSpec;
 }
 
+
 FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpec(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
 {
 	AYogCharacterBase* OwningCharacter = GetOwnerCharacterInfo();
@@ -101,6 +102,9 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpec(FGa
 	}
 	return FYogGameplayEffectContainerSpec();
 }
+
+
+
 
 TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainerSpec(const FYogGameplayEffectContainerSpec& ContainerSpec)
 {
