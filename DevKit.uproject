@@ -75,10 +75,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "DidItHit",
-			"Enabled": true
-		},
-		{
 			"Name": "GameFeatures",
 			"Enabled": true
 		},
