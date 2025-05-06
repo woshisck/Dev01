@@ -42,7 +42,8 @@ public class DevKit : ModuleRules
                 "RHI",
                 "Projects",
                 "Gauntlet",
-                "UMG"
+                "UMG",
+                "AIModule"
             });
 
 		// Uncomment if you are using Slate UI
