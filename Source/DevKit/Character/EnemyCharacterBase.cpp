@@ -13,6 +13,9 @@ AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitial
 void AEnemyCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+
+
 }
 
 void AEnemyCharacterBase::Tick(float DeltaSeconds)

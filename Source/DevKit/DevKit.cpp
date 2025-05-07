@@ -6,4 +6,14 @@
 IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, DevKit, "DevKit" );
 
 // Logging definition
-DEFINE_LOG_CATEGORY(LogYogger);
+DEFINE_LOG_CATEGORY(LogGame);
+
+DEFINE_LOG_CATEGORY(LogGameInit);
+
+DEFINE_LOG_CATEGORY(LogGameAI);
+
+DEFINE_LOG_CATEGORY(LogLevelSystem);
+
+DEFINE_LOG_CATEGORY(LogCriticalErrors);
+
+

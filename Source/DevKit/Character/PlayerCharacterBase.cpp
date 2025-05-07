@@ -35,22 +35,6 @@ void APlayerCharacterBase::BeginPlay()
 
 		if (MovementData)
 		{
-			/*
-			UPROPERTY(EditAnywhere, BlueprintReadWrite)
-			float MaxWalkSpeed;
-
-			UPROPERTY(EditAnywhere, BlueprintReadWrite)
-			float GroundFriction;
-
-			UPROPERTY(EditAnywhere, BlueprintReadWrite)
-			float BreakingDeceleration;
-
-			UPROPERTY(EditAnywhere, BlueprintReadWrite)
-			float MaxAcceleration;
-
-			UPROPERTY(EditAnywhere, BlueprintReadWrite)
-			FVector RotationRate;
-			*/
 
 			UYogCharacterMovementComponent* MovementComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
 			MovementComp->MaxWalkSpeed = MovementData->MaxWalkSpeed;
@@ -62,14 +46,14 @@ void APlayerCharacterBase::BeginPlay()
 	}
 
 
-	if (AbilitySystemComponent) {
+	//if (AbilitySystemComponent) {
 
-		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
-		MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
-		BaseDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBaseDMGAttribute()).AddUObject(this, &AYogCharacterBase::BaseDMGChanged);
-		WeaponDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetWeaponDMGAttribute()).AddUObject(this, &AYogCharacterBase::WeaponDMGChanged);
-		BuffAmplifyChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBuffAmplifyAttribute()).AddUObject(this, &AYogCharacterBase::BuffAmplifyChanged);
-	}
+	//	HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
+	//	MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
+	//	BaseDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBaseDMGAttribute()).AddUObject(this, &AYogCharacterBase::BaseDMGChanged);
+	//	WeaponDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetWeaponDMGAttribute()).AddUObject(this, &AYogCharacterBase::WeaponDMGChanged);
+	//	BuffAmplifyChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBuffAmplifyAttribute()).AddUObject(this, &AYogCharacterBase::BuffAmplifyChanged);
+	//}
 
 	this->CurrentState = EYogCharacterState::Idle;
 }

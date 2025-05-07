@@ -10,5 +10,13 @@
 #include "YogTypes.h"
 
 
-
-DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(LogYogger, Log, All);
+//General Log
+DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(LogGame, Log, All);
+//Logging during game startup
+DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(LogGameInit, Log, All);
+//Logging for your AI system
+DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(LogGameAI, Log, All);
+//Logging for a that level system
+DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(LogLevelSystem, Log, All);
+//Logging for Critical Errors that must always be addressed
+DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(LogCriticalErrors, Log, All);
