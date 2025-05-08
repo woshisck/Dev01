@@ -3,20 +3,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Abilities/GameplayAbility.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
 #include "AsyncTaskGameplayAbilityEnd.generated.h"
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAsyncTaskGameplayAbilityEndedEv);
 
-
+class UYogGameplayAbility;
 struct FGameplayTagContainer;
 struct FGameplayTag;
 /**
  * 
  */
 UCLASS(BlueprintType, meta = (ExposedAsyncProxy = AsyncTask))
-class DEVKIT_API UAsyncTaskGameplayAbilityEnd : public UGameplayAbility
+class DEVKIT_API UAsyncTaskGameplayAbilityEnd : public UBlueprintAsyncActionBase
 {
 	GENERATED_BODY()
 
@@ -31,7 +32,6 @@ class DEVKIT_API UAsyncTaskGameplayAbilityEnd : public UGameplayAbility
 	//UFUNCTION(BlueprintCallable)
 	//void EndTask();
 
-	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled);
 
 
 protected:
@@ -40,6 +40,11 @@ protected:
 	FGameplayTagContainer TagsStillApplied;
 	TMap<FGameplayTag, FDelegateHandle> HandlesMap;
 
+	TObjectPtr<UYogGameplayAbility> AbilityListeningTo;
+
+	//UFUNCTION()
+	//virtual void OnCallback(const FGameplayTag CallbackTag, int32 NewCount);
+
 	UFUNCTION()
-	virtual void OnCallback(const FGameplayTag CallbackTag, int32 NewCount);
+	virtual void OnCallback();
 };

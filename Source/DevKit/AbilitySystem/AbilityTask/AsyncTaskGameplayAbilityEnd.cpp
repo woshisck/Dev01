@@ -2,50 +2,45 @@
 
 
 #include "AsyncTaskGameplayAbilityEnd.h"
+#include "../Abilities/YogGameplayAbility.h"
 #include <AbilitySystemComponent.h>
 
 UAsyncTaskGameplayAbilityEnd* UAsyncTaskGameplayAbilityEnd::ListenForGameplayAbilityEnd(UAbilitySystemComponent* abilitySystemComponent, TSubclassOf<UGameplayAbility> abilityClass)
 {
-	//if (!IsValid(abilitySystemComponent))
-	//{
+	if (!IsValid(abilitySystemComponent))
+	{
+		return nullptr;
+	}
+	auto abilitySpec = abilitySystemComponent->FindAbilitySpecFromClass(abilityClass);
+	if (abilitySpec == nullptr)
+	{
+	
+		return nullptr;
+	}
+	auto abilityInstance = abilitySpec->GetPrimaryInstance();
+	if (abilityInstance == nullptr)
+	{
+		return nullptr;
+	}
+	UYogGameplayAbility* abilityCrow = Cast<UYogGameplayAbility>(abilityInstance);
+	if (abilityCrow == nullptr)
+	{
+		//Print::Say("Couldn't create Task, Ability " + abilityClass->GetName() + " needs to inherit from UGameplayAbility_Crow");
+		return nullptr;
+	}
 
-	//	return nullptr;
-	//}
 
-	//auto abilitySpec = abilitySystemComponent->FindAbilitySpecFromClass(abilityClass);
-	//if (abilitySpec == nullptr)
-	//{
-	//
-	//	return nullptr;
-	//}
 
-	//auto abilityInstance = abilitySpec->GetPrimaryInstance();
-	//if (abilityInstance == nullptr)
-	//{
-	//	return nullptr;
-	//}
-
-	//UGameplayAbility_Crow* abilityCrow = Cast<UGameplayAbility_Crow>(abilityInstance);
-	//if (abilityCrow == nullptr)
-	//{
-	//	//Print::Say("Couldn't create Task, Ability " + abilityClass->GetName() + " needs to inherit from UGameplayAbility_Crow");
-	//	return nullptr;
-	//}
-
-	//UAsyncTaskGameplayAbilityEnd* r = NewObject<UAsyncTaskGameplayAbilityEnd>();
-	//abilityCrow->EventOn_AbilityEnded.AddDynamic(r, &UAsyncTaskGameplayAbilityEnded::OnCallback);
-	//r->AbilityListeningTo = abilityCrow;
-
-	//return r;
+	UAsyncTaskGameplayAbilityEnd* lv = NewObject<UAsyncTaskGameplayAbilityEnd>();
+	//TODO: Call event delegate handle
+	abilityCrow->EventOn_AbilityEnded.AddDynamic(lv, &UAsyncTaskGameplayAbilityEnd::OnCallback);
+	lv->AbilityListeningTo = abilityCrow;
+	return lv;
 }
 
-void UAsyncTaskGameplayAbilityEnd::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+
+
+void UAsyncTaskGameplayAbilityEnd::OnCallback()
 {
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
-
-}
-
-void UAsyncTaskGameplayAbilityEnd::OnCallback(const FGameplayTag CallbackTag, int32 NewCount)
-{
-
+	OnEnded.Broadcast();
 }

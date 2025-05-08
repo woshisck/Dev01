@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "LatentActions.h"
 #include "YogBlueprintFunctionLibrary.generated.h"
 
 /**
@@ -31,3 +32,7 @@ public:
 
 };
 
+class FLatentCountSeconds : public FPendingLatentAction
+{
+
+};

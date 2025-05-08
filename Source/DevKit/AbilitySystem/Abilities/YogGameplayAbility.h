@@ -58,9 +58,10 @@ public:
 };
 
 
-/**
- * 
- */
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbilityEndedSignature);
+
+
 UCLASS()
 class DEVKIT_API UYogGameplayAbility : public UGameplayAbility
 {
@@ -77,6 +78,9 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName = "OnAbilityRemoved")
 	void K2_OnAbilityRemoved();
 
+
+	UPROPERTY(BlueprintAssignable, Category = "Ability")
+	FAbilityEndedSignature EventOn_AbilityEnded;
 
 
 	///** Map of gameplay tags to gameplay effect containers */
@@ -117,5 +121,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
 	FString AbilityTableRowName;
+
+protected:
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled);
 
 };

@@ -33,6 +33,7 @@ public class DevKit : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
                 "InputCore",
+                "Engine",
                 "Slate",
                 "SlateCore",
                 "RenderCore",
