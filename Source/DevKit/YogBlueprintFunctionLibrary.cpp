@@ -69,6 +69,27 @@ bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextOb
 
 }
 
+bool UYogBlueprintFunctionLibrary::GiveAbilityToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UYogAbilitySet* AbilitySet)
+{
+	if (WorldContextObject)
+	{
+		UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+
+		//TArray<FYogAbilitySet_GameplayAbility> GrantedGameplayAbilities;
+
+		for (FYogAbilitySet_GameplayAbility GameAbilitySet : AbilitySet->GrantedGameplayAbilities)
+		{
+			ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
+		}
+		
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 bool UYogBlueprintFunctionLibrary::GiveEffectToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition)
 {
 	return false;
