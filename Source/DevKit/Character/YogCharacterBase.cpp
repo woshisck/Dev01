@@ -41,6 +41,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	
 
 
+
 }
 
 UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
@@ -59,8 +60,32 @@ void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	//AttributeDataTable
 
+	if (AttributeDataTable && AttributeSet)
+	{
+		static const FString ContextString(TEXT("Character movement Data Lookup"));
+		FName RowName(TEXT("Default_Attribute")); // Name of the row you want to access
+		FCharacterAttributeData* AttributeData = this->AttributeDataTable->FindRow<FCharacterAttributeData>(RowName, ContextString, true);
 
+		if (AttributeData)
+		{
+			//AttributeSet->InitAttribute(AttributeData);
+
+			AttributeSet->InitHealth(AttributeData->Health);
+			AttributeSet->InitMaxHealth(AttributeData->MaxHealth);
+			AttributeSet->InitBaseDMG(AttributeData->BaseDMG);
+			AttributeSet->InitBuffAmplify(AttributeData->BuffAmplify);
+			AttributeSet->InitDMGAbsorb(AttributeData->DMGAbsorb);
+
+			//UYogCharacterMovementComponent* MovementComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
+			//MovementComp->MaxWalkSpeed = AttributeData->MaxWalkSpeed;
+			//MovementComp->GroundFriction = AttributeData->GroundFriction;
+			//MovementComp->MaxAcceleration = AttributeData->MaxAcceleration;
+			//MovementComp->RotationRate = AttributeData->RotationRate;
+		}
+
+	}
 
 	if (AbilitySystemComponent) {
 
