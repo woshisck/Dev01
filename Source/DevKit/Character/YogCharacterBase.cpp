@@ -78,11 +78,7 @@ void AYogCharacterBase::BeginPlay()
 			AttributeSet->InitBuffAmplify(AttributeData->BuffAmplify);
 			AttributeSet->InitDMGAbsorb(AttributeData->DMGAbsorb);
 
-			//UYogCharacterMovementComponent* MovementComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
-			//MovementComp->MaxWalkSpeed = AttributeData->MaxWalkSpeed;
-			//MovementComp->GroundFriction = AttributeData->GroundFriction;
-			//MovementComp->MaxAcceleration = AttributeData->MaxAcceleration;
-			//MovementComp->RotationRate = AttributeData->RotationRate;
+
 		}
 
 	}
