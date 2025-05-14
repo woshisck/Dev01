@@ -35,6 +35,17 @@ void UInputBufferComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 
 void UInputBufferComponent::UpdateActionBuffer(EPlayerActionInput actionInput)
 {
+	if (ActionBuffer.Num() < MAX_BUFFER_SIZE)
+	{
+		ActionBuffer.Insert(actionInput, 0);
+		/*FVector2D cache_item = MovementBuffer[0];*/
+
+	}
+	else
+	{
+		ActionBuffer.Pop();
+		ActionBuffer.Insert(actionInput, 0);
+	}
 }
 
 void UInputBufferComponent::UpdateMoveBuffer(FVector2D move)
@@ -44,9 +55,14 @@ void UInputBufferComponent::UpdateMoveBuffer(FVector2D move)
 
 	if (MovementBuffer.Num() < MAX_BUFFER_SIZE)
 	{
-		MovementBuffer.Add(move);
+		MovementBuffer.Insert(move, 0);
 		/*FVector2D cache_item = MovementBuffer[0];*/
 
+	}
+	else
+	{
+		MovementBuffer.Pop();
+		MovementBuffer.Insert(move, 0);
 	}
 
 	//if (MovementBuffer.Top() != move) {
@@ -81,19 +97,30 @@ void UInputBufferComponent::ClearMovementBuffer()
 
 void UInputBufferComponent::DebugPrintAction()
 {
+	int count = 0;
+	FString results;
 	for (const EPlayerActionInput& Element : ActionBuffer)
 	{
-		FString result = UEnum::GetDisplayValueAsText(Element).ToString();
-		UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *result);
+		FString cache = "[" + FString::FromInt(count) + "]:" + UEnum::GetDisplayValueAsText(Element).ToString() + " ";
+		results += cache;
+		count++;
+		
 	}
+	UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *results);
 }
 
 void UInputBufferComponent::DebugPrintMovement()
 {
+	int count = 0;
+	FString results;
 	for (const FVector2D& Element : MovementBuffer)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *Element.ToString());
+		
+		FString cache = "[" + FString::FromInt(count) + "]:" + Element.ToString()+" ";
+		results += cache;
+		count++;
 	}
+	UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *results);
 }
 
 

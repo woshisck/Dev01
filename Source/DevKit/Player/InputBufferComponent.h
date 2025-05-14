@@ -58,7 +58,7 @@ public:
 
 
 	UPROPERTY(BlueprintReadOnly, Category = "Input buffer")
-	int32 MAX_BUFFER_SIZE = 20;
+	int32 MAX_BUFFER_SIZE = 10;
 
 	UFUNCTION(BlueprintCallable, Category = "Act Buff")
 	void ClearActionBuffer();

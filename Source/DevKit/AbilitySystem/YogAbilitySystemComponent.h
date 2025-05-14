@@ -4,7 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/YogAbilityTypes.h"
 #include "Abilities/GameplayAbility.h"
-
+#include "Abilities/YogGameplayAbility.h"
 #include "YogAbilitySystemComponent.generated.h"
 
 
@@ -45,7 +45,15 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities);
 	
-	
+	UFUNCTION(BlueprintCallable)
+	bool CheckCurrentActiveAbility();
+
+	UFUNCTION(BlueprintCallable)
+	UYogGameplayAbility* GetCurrentActiveAbility();
+
+	UPROPERTY()
+	FGameplayAbilitySpec cache_AbilitySpec;
+
 	/** Map of gameplay tags to gameplay effect containers */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffects)
 	TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;

@@ -66,3 +66,33 @@ void UYogAbilitySystemComponent::GetActiveAbilitiesWithTags(const FGameplayTagCo
 	}
 
 }
+
+bool UYogAbilitySystemComponent::CheckCurrentActiveAbility()
+{
+	for (const FGameplayAbilitySpec& AbilitySpec : this->GetActivatableAbilities())
+	{
+		if (AbilitySpec.IsActive())
+		{
+			cache_AbilitySpec = AbilitySpec;
+			return true;
+		}
+	}
+	return false;
+}
+
+UYogGameplayAbility* UYogAbilitySystemComponent::GetCurrentActiveAbility()
+{
+				// Get the ability instance
+	UYogGameplayAbility* AbilityInstance = Cast<UYogGameplayAbility>(cache_AbilitySpec.GetPrimaryInstance());
+
+	// Or get the CDO if no instance exists
+	UGameplayAbility* AbilityCDO = cache_AbilitySpec.Ability;
+
+	if (AbilityInstance)
+	{
+		// Work with the active ability instance
+		FString AbilityName = AbilityInstance->GetName();
+		UE_LOG(LogTemp, Log, TEXT("Active Ability: %s"), *AbilityName);
+	}
+	return AbilityInstance;
+}
