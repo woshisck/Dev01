@@ -8,7 +8,18 @@
 #include "InputBufferComponent.generated.h"
 
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+
+UENUM(BlueprintType)
+enum class EPlayerActionInput : uint8
+{
+	HeavyAttack,
+	LightAttack,
+	Dash,
+	Projectile
+};
+
+
+UCLASS(Blueprintable)
 class DEVKIT_API UInputBufferComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -29,20 +40,57 @@ public:
 	void UpdateMoveBuffer(FVector2D move);
 
 	UFUNCTION(BlueprintCallable, Category = "Buffer")
-	FVector2D GetLastFrameInput(TArray<FVector2D>& buffer);
+	void UpdateActionBuffer(EPlayerActionInput actionInput);
 
-	UPROPERTY(BlueprintReadWrite, Category="Input buffer")
-	TArray<FVector2D> MoveBuffer;
+	UFUNCTION(BlueprintCallable, Category = "Buffer")
+	FVector2D GetLastMoveInput(FVector2D Movement);
+
 		
-	UPROPERTY(BlueprintReadWrite, Category = "Input buffer")
+
+	//BUFFER ARRAY DEFINE
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	TArray<EPlayerActionInput> ActionBuffer;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Input buffer")
+	TArray<FVector2D> MovementBuffer;
+
+
+
+
+	UPROPERTY(BlueprintReadOnly, Category = "Input buffer")
 	int32 MAX_BUFFER_SIZE = 20;
 
-
 	UFUNCTION(BlueprintCallable, Category = "Act Buff")
-	void ClearActWindowBuffer();
+	void ClearActionBuffer();
 
 
 	UFUNCTION(BlueprintCallable, Category = "Move Buff")
-	void ClearMoveWindowBuffer();
+	void ClearMovementBuffer();
 	
+	UFUNCTION(BlueprintCallable)
+	void DebugPrintAction();
+
+	UFUNCTION(BlueprintCallable)
+	void DebugPrintMovement();
+
+	template<typename T>
+	void ClearBuffer(TArray<T> TargetArray)
+	{
+		return TargetArray.Empty();
+	}
+
+
+	template<typename T>
+	T GetLastItem(TArray<T> TargetArray)
+	{
+		return TargetArray.Pop();
+	}
+
+
+	template<typename T>
+	T GetFirstItem(TArray<T> TargetArray)
+	{
+		return TargetArray.Pop();
+	}
+
 };

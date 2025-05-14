@@ -3,14 +3,15 @@
 
 #include "InputBufferComponent.h"
 
+
 // Sets default values for this component's properties
 UInputBufferComponent::UInputBufferComponent()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 
-	// ...
+
 }
 
 
@@ -32,31 +33,72 @@ void UInputBufferComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 	// ...
 }
 
+void UInputBufferComponent::UpdateActionBuffer(EPlayerActionInput actionInput)
+{
+}
+
 void UInputBufferComponent::UpdateMoveBuffer(FVector2D move)
 {
-	if (MoveBuffer.Top() != move) {
-		//update buffer 
-		MoveBuffer.Push(move);
-
-	}
-	else if (MoveBuffer.Num() > MAX_BUFFER_SIZE) {
-		MoveBuffer.Empty();
-		MoveBuffer.Push(move);
-		
-	}
 	
+	
+
+	if (MovementBuffer.Num() < MAX_BUFFER_SIZE)
+	{
+		MovementBuffer.Add(move);
+		/*FVector2D cache_item = MovementBuffer[0];*/
+
+	}
+
+	//if (MovementBuffer.Top() != move) {
+	//	//update buffer 
+	//	MovementBuffer.Push(move);
+
+	//}
+	//else if (MovementBuffer.Num() > MOVE_BUFFER_SIZE) {
+	//	MovementBuffer.Empty();
+	//	MovementBuffer.Push(move);
+
+	//}
+
 }
 
-FVector2D UInputBufferComponent::GetLastFrameInput(TArray<FVector2D>& buffer)
+
+
+//FVector2D UInputBufferComponent::GetLastFrameInput(FVector2D Movement)
+//{
+//	return buffer.Pop();
+//}
+
+void UInputBufferComponent::ClearActionBuffer()
 {
-	return buffer.Pop();
+	ClearBuffer(ActionBuffer);
 }
 
-void UInputBufferComponent::ClearActWindowBuffer()
+void UInputBufferComponent::ClearMovementBuffer()
 {
+	ClearBuffer(MovementBuffer);
 }
 
-void UInputBufferComponent::ClearMoveWindowBuffer()
+void UInputBufferComponent::DebugPrintAction()
 {
+	for (const EPlayerActionInput& Element : ActionBuffer)
+	{
+		FString result = UEnum::GetDisplayValueAsText(Element).ToString();
+		UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *result);
+	}
+}
+
+void UInputBufferComponent::DebugPrintMovement()
+{
+	for (const FVector2D& Element : MovementBuffer)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *Element.ToString());
+	}
+}
+
+
+FVector2D UInputBufferComponent::GetLastMoveInput(FVector2D Movement)
+{
+	return GetLastItem(MovementBuffer);
 }
 
