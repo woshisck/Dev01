@@ -67,7 +67,7 @@ class DEVKIT_API UYogGameplayAbility : public UGameplayAbility
 {
 	GENERATED_BODY()
 public:
-	UYogGameplayAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UYogGameplayAbility();
 
 
 	/** Called when this ability is granted to the ability system component. */

@@ -7,12 +7,7 @@
 #include "../YogAbilitySystemComponent.h"
 
 
-UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitializer)
-	:Super(ObjectInitializer)
-{
-	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-
-}
+UYogGameplayAbility::UYogGameplayAbility(){}
 
 
 

@@ -8,7 +8,7 @@
 UYogAbilitySystemComponent::UYogAbilitySystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	//
+	
 }
 
 

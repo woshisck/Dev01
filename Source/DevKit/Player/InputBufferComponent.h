@@ -93,4 +93,22 @@ public:
 		return TargetArray.Pop();
 	}
 
+	template<typename T>
+	void UpdateBuffer(TArray<T> TargetArray, T element, int32 MAX_BUFFER_SIZE)
+	{
+		if (TargetArray.Num() < MAX_BUFFER_SIZE)
+		{
+			TargetArray.Insert(element, 0);
+			/*FVector2D cache_item = MovementBuffer[0];*/
+
+		}
+		else
+		{
+			TargetArray.Pop();
+			TargetArray.Insert(element, 0);
+		}
+
+	}
+
+
 };

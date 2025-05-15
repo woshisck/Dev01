@@ -35,46 +35,39 @@ void UInputBufferComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 
 void UInputBufferComponent::UpdateActionBuffer(EPlayerActionInput actionInput)
 {
-	if (ActionBuffer.Num() < MAX_BUFFER_SIZE)
-	{
-		ActionBuffer.Insert(actionInput, 0);
-		/*FVector2D cache_item = MovementBuffer[0];*/
+	UpdateBuffer(ActionBuffer, actionInput, MAX_BUFFER_SIZE);
 
-	}
-	else
-	{
-		ActionBuffer.Pop();
-		ActionBuffer.Insert(actionInput, 0);
-	}
+
+	//if (ActionBuffer.Num() < MAX_BUFFER_SIZE)
+	//{
+	//	ActionBuffer.Insert(actionInput, 0);
+	//	/*FVector2D cache_item = MovementBuffer[0];*/
+
+	//}
+	//else
+	//{
+	//	ActionBuffer.Pop();
+	//	ActionBuffer.Insert(actionInput, 0);
+	//}
 }
 
 void UInputBufferComponent::UpdateMoveBuffer(FVector2D move)
 {
+	UpdateBuffer(MovementBuffer, move, MAX_BUFFER_SIZE);
 	
-	
 
-	if (MovementBuffer.Num() < MAX_BUFFER_SIZE)
-	{
-		MovementBuffer.Insert(move, 0);
-		/*FVector2D cache_item = MovementBuffer[0];*/
-
-	}
-	else
-	{
-		MovementBuffer.Pop();
-		MovementBuffer.Insert(move, 0);
-	}
-
-	//if (MovementBuffer.Top() != move) {
-	//	//update buffer 
-	//	MovementBuffer.Push(move);
+	//if (MovementBuffer.Num() < MAX_BUFFER_SIZE)
+	//{
+	//	MovementBuffer.Insert(move, 0);
+	//	/*FVector2D cache_item = MovementBuffer[0];*/
 
 	//}
-	//else if (MovementBuffer.Num() > MOVE_BUFFER_SIZE) {
-	//	MovementBuffer.Empty();
-	//	MovementBuffer.Push(move);
-
+	//else
+	//{
+	//	MovementBuffer.Pop();
+	//	MovementBuffer.Insert(move, 0);
 	//}
+
 
 }
 
