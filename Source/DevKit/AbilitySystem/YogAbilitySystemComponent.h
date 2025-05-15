@@ -42,11 +42,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void LogAllGrantedAbilities();
 
-	UFUNCTION(BlueprintCallable)
-	void GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities);
-	
-	UFUNCTION(BlueprintCallable)
-	bool CheckCurrentActiveAbility();
+
 
 	UFUNCTION(BlueprintCallable)
 	UYogGameplayAbility* GetCurrentActiveAbility();

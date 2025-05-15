@@ -48,37 +48,7 @@ void UYogAbilitySystemComponent::LogAllGrantedAbilities()
 
 }
 
-void UYogAbilitySystemComponent::GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities)
-{
-	TArray<FGameplayAbilitySpec*> AbilitiesToActivate;
-	GetActivatableGameplayAbilitySpecsByAllMatchingTags(GameplayTagContainer, AbilitiesToActivate, false);
 
-	// Iterate the list of all ability specs
-	for (FGameplayAbilitySpec* Spec : AbilitiesToActivate)
-	{
-		// Iterate all instances on this ability spec
-		TArray<UGameplayAbility*> AbilityInstances = Spec->GetAbilityInstances();
-
-		for (UGameplayAbility* ActiveAbility : AbilityInstances)
-		{
-			ActiveAbilities.Add(Cast<UYogGameplayAbility>(ActiveAbility));
-		}
-	}
-
-}
-
-bool UYogAbilitySystemComponent::CheckCurrentActiveAbility()
-{
-	for (const FGameplayAbilitySpec& AbilitySpec : this->GetActivatableAbilities())
-	{
-		if (AbilitySpec.IsActive())
-		{
-			cache_AbilitySpec = AbilitySpec;
-			return true;
-		}
-	}
-	return false;
-}
 
 UYogGameplayAbility* UYogAbilitySystemComponent::GetCurrentActiveAbility()
 {

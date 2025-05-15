@@ -282,10 +282,3 @@ void AYogCharacterBase::Die()
 
 }
 
-void AYogCharacterBase::GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities)
-{
-	if (AbilitySystemComponent)
-	{
-		AbilitySystemComponent->GetActiveAbilitiesWithTags(AbilityTags, ActiveAbilities);
-	}
-}
