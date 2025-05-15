@@ -38,6 +38,11 @@ public:
 	FReceivedDamageDelegate ReceivedDamage;
 	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage);
 	
+	//UFUNCTION(BlueprintCallable)
+	//void GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities);
+
+	//UFUNCTION(BlueprintCallable)
+	//bool CheckCurrentActiveAbility();
 	
 	UFUNCTION(BlueprintCallable)
 	void LogAllGrantedAbilities();

@@ -126,9 +126,6 @@ public:
 
 	////////////////////////////////////////////// Attribute //////////////////////////////////////////////
 
-	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
-	void GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities);
-
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	float GetHealth() const;
