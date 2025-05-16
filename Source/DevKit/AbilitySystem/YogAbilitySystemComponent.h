@@ -16,7 +16,7 @@ class UYogGameplayAbility;
 struct FGameplayTag;
 struct FYogGameplayEffectContainer;
 
-UCLASS()
+UCLASS(Blueprintable)
 class DEVKIT_API UYogAbilitySystemComponent : public UAbilitySystemComponent
 {
 	GENERATED_BODY()
@@ -49,8 +49,8 @@ public:
 
 
 
-	UFUNCTION(BlueprintCallable)
-	UYogGameplayAbility* GetCurrentActiveAbility();
+	//UFUNCTION(BlueprintCallable)
+	//UYogGameplayAbility* GetCurrentActiveAbility();
 
 	UPROPERTY()
 	FGameplayAbilitySpec cache_AbilitySpec;
