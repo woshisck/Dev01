@@ -66,9 +66,7 @@ UDamageExecution::UDamageExecution()
 
 void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const 
 {
-	// --------------------------------------
-	//	Damage Done =  ((BaseDMG + WeaponDMG) * BuffAmplify + BuffingATK) * DMGCorrect
-	// --------------------------------------
+
 	UE_LOG(LogTemp, Warning, TEXT("Start Damage execution "));
 
 
@@ -111,7 +109,11 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	float Damage = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DamageDef, EvaluationParameters, Damage);
 
+	// --------------------------------------
+	//	Damage Done =  ((BaseDMG + WeaponDMG) * BuffAmplify + BuffingATK) * DMGCorrect
+	// --------------------------------------
 
+	//TODO:need to change in future
 	float DMGDone = (BaseDMG + WeaponDMG) * BuffATKAmplify;
 	UE_LOG(LogTemp, Warning, TEXT("DMGDone is: %f"), DMGDone);
 

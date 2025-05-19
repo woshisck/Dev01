@@ -121,7 +121,7 @@ void AYogPlayerControllerBase::BeginPlay()
 
 }
 
-AYogCharacterBase* AYogPlayerControllerBase::GetPossCharacter()
+AYogCharacterBase* AYogPlayerControllerBase::GetControlledCharacter()
 {
 	AYogCharacterBase* MyCharacter = Cast<AYogCharacterBase>(GetPawn());
 	return MyCharacter;
