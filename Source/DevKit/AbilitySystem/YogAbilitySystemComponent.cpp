@@ -31,70 +31,18 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	ReceivedDamage.Broadcast(SourceASC, Damage);
 }
 
-void UYogAbilitySystemComponent::LogAllGrantedAbilities()
+void UYogAbilitySystemComponent::DebugActivatableAbilities()
 {
+	TArray<FGameplayAbilitySpec> TargetArray = GetActivatableAbilities();
+	int count = 0;
+	FString results;
+	for (const FGameplayAbilitySpec& spec : TargetArray)
+	{
+		
+		UE_LOG(LogTemp, Display, TEXT("Current ability spec handle: %s"), *spec.Handle.ToString());
 
-
-	//TArray<FGameplayAbilitySpec>& AbilitySpecs = this->GetActivatableAbilities();
-
-	//for (FGameplayAbilitySpec& Spec : AbilitySpecs)
-	//{
-	//	if (UYogGameplayAbility* Ability = Cast<UYogGameplayAbility>(Spec.Ability))
-	//	{
-	//		UE_LOG(LogTemp, Warning, TEXT("granted abilities is: %s"), *Ability->GetName());
-	//	}
-	//}
-	
-    
-    UE_LOG(LogTemp, Warning, TEXT("Total number of granted abilities: %d"), ActivatableAbilities.Items.Num());
+	}
 
 }
 
-//void UYogAbilitySystemComponent::GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities)
-//{
-//	TArray<FGameplayAbilitySpec*> AbilitiesToActivate;
-//	GetActivatableGameplayAbilitySpecsByAllMatchingTags(GameplayTagContainer, AbilitiesToActivate, false);
-//
-//	// Iterate the list of all ability specs
-//	for (FGameplayAbilitySpec* Spec : AbilitiesToActivate)
-//	{
-//		// Iterate all instances on this ability spec
-//		TArray<UGameplayAbility*> AbilityInstances = Spec->GetAbilityInstances();
-//
-//		for (UGameplayAbility* ActiveAbility : AbilityInstances)
-//		{
-//			ActiveAbilities.Add(Cast<UYogGameplayAbility>(ActiveAbility));
-//		}
-//	}
-//
-//}
-//
-//bool UYogAbilitySystemComponent::CheckCurrentActiveAbility()
-//{
-//	for (const FGameplayAbilitySpec& AbilitySpec : this->GetActivatableAbilities())
-//	{
-//		if (AbilitySpec.IsActive())
-//		{
-//			cache_AbilitySpec = AbilitySpec;
-//			return true;
-//		}
-//	}
-//	return false;
-//}
 
-//UYogGameplayAbility* UYogAbilitySystemComponent::GetCurrentActiveAbility()
-//{
-//				// Get the ability instance
-//	UYogGameplayAbility* AbilityInstance = Cast<UYogGameplayAbility>(cache_AbilitySpec.GetPrimaryInstance());
-//
-//	// Or get the CDO if no instance exists
-//	UGameplayAbility* AbilityCDO = cache_AbilitySpec.Ability;
-//
-//	if (AbilityInstance)
-//	{
-//		// Work with the active ability instance
-//		FString AbilityName = AbilityInstance->GetName();
-//		UE_LOG(LogTemp, Log, TEXT("Active Ability: %s"), *AbilityName);
-//	}
-//	return AbilityInstance;
-//}

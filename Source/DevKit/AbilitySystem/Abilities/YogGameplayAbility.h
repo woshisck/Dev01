@@ -70,6 +70,8 @@ public:
 	UYogGameplayAbility();
 
 
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData);
+
 	/** Called when this ability is granted to the ability system component. */
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName = "OnAbilityAdded")
 	void K2_OnAbilityAdded();

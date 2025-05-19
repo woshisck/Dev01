@@ -8,7 +8,7 @@
 #include "AsyncTaskGameplayAbilityEnd.generated.h"
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAsyncTaskGameplayAbilityEndedEv);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAsyncTaskGameplayAbilityEnded);
 
 class UYogGameplayAbility;
 struct FGameplayTagContainer;
@@ -21,30 +21,37 @@ class DEVKIT_API UAsyncTaskGameplayAbilityEnd : public UBlueprintAsyncActionBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintAssignable)
-	FAsyncTaskGameplayAbilityEndedEv OnEnded;
+public:
+	UAsyncTaskGameplayAbilityEnd(const FObjectInitializer& ObjectInitializer);
 
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"))
-	static UAsyncTaskGameplayAbilityEnd* ListenForGameplayAbilityEnd(UAbilitySystemComponent* abilitySystemComponent, TSubclassOf<UGameplayAbility> abilityClass);
+	UPROPERTY(BlueprintAssignable)
+	FOnAsyncTaskGameplayAbilityEnded OnEnded;
+
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", WorldContext = "WorldContextObject"))
+	static UAsyncTaskGameplayAbilityEnd* ListenForGameplayAbilityEnd(UObject* InWorldContextObject, UAbilitySystemComponent* abilitySystemComponent, TSubclassOf<UYogGameplayAbility> abilityClass);
 
 	// You must call this function manually when you want the AsyncTask to end.
 	// For UMG Widgets, you would call it in the Widget's Destruct event.
 	//UFUNCTION(BlueprintCallable)
 	//void EndTask();
 
+	virtual void Activate() override;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	TObjectPtr<UAbilitySystemComponent> TargetASC;
 
-protected:
-
-	UAbilitySystemComponent* ASC;
-	FGameplayTagContainer TagsStillApplied;
-	TMap<FGameplayTag, FDelegateHandle> HandlesMap;
+	UPROPERTY(BlueprintReadWrite)
+	TSubclassOf<UYogGameplayAbility> AbilityClass;
 
 	TObjectPtr<UYogGameplayAbility> AbilityListeningTo;
+
 
 	//UFUNCTION()
 	//virtual void OnCallback(const FGameplayTag CallbackTag, int32 NewCount);
 
 	UFUNCTION()
-	virtual void OnCallback();
+	void OnCallback();
+
+
+	TWeakObjectPtr<UWorld> WorldPtr;
 };

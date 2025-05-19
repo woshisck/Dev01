@@ -5,9 +5,16 @@
 #include "YogTargetType.h"
 #include "../../Character/YogCharacterBase.h"
 #include "../YogAbilitySystemComponent.h"
-
+#include "../AbilityTask/AsyncTaskGameplayAbilityEnd.h"
 
 UYogGameplayAbility::UYogGameplayAbility(){}
+
+void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
+{
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+
+}
 
 
 
@@ -50,6 +57,8 @@ AYogCharacterBase* UYogGameplayAbility::GetOwnerCharacterInfo()
 void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+
+
 	EventOn_AbilityEnded.Broadcast();
 }
 

@@ -43,11 +43,10 @@ public:
 
 	//UFUNCTION(BlueprintCallable)
 	//bool CheckCurrentActiveAbility();
-	
+
+
 	UFUNCTION(BlueprintCallable)
-	void LogAllGrantedAbilities();
-
-
+	void DebugActivatableAbilities();
 
 	//UFUNCTION(BlueprintCallable)
 	//UYogGameplayAbility* GetCurrentActiveAbility();
