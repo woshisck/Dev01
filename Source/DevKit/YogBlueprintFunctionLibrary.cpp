@@ -89,6 +89,7 @@ bool UYogBlueprintFunctionLibrary::GiveAbilityToCharacter(UObject* WorldContextO
 		return false;
 	}
 }
+
 bool UYogBlueprintFunctionLibrary::GiveEffectToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition)
 {
 	return false;

@@ -1,2 +1,4 @@
 GAS: (during editor play)
 showdebug abilitysystem 
+
+https://nerivec.github.io/old-ue4-wiki/pages/logs-printing-messages-to-yourself-during-runtime.html#Setting_Up_Your_Own_Log_Category

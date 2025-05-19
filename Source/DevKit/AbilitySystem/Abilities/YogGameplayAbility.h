@@ -67,8 +67,10 @@ class DEVKIT_API UYogGameplayAbility : public UGameplayAbility
 {
 	GENERATED_BODY()
 public:
-	UYogGameplayAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UYogGameplayAbility();
 
+
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData);
 
 	/** Called when this ability is granted to the ability system component. */
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName = "OnAbilityAdded")

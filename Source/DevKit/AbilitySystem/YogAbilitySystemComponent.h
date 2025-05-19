@@ -4,7 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/YogAbilityTypes.h"
 #include "Abilities/GameplayAbility.h"
-
+#include "Abilities/YogGameplayAbility.h"
 #include "YogAbilitySystemComponent.generated.h"
 
 
@@ -16,7 +16,7 @@ class UYogGameplayAbility;
 struct FGameplayTag;
 struct FYogGameplayEffectContainer;
 
-UCLASS()
+UCLASS(Blueprintable)
 class DEVKIT_API UYogAbilitySystemComponent : public UAbilitySystemComponent
 {
 	GENERATED_BODY()
@@ -38,14 +38,22 @@ public:
 	FReceivedDamageDelegate ReceivedDamage;
 	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage);
 	
-	
-	UFUNCTION(BlueprintCallable)
-	void LogAllGrantedAbilities();
+	//UFUNCTION(BlueprintCallable)
+	//void GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities);
+
+	//UFUNCTION(BlueprintCallable)
+	//bool CheckCurrentActiveAbility();
+
 
 	UFUNCTION(BlueprintCallable)
-	void GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities);
-	
-	
+	void DebugActivatableAbilities();
+
+	//UFUNCTION(BlueprintCallable)
+	//UYogGameplayAbility* GetCurrentActiveAbility();
+
+	UPROPERTY()
+	FGameplayAbilitySpec cache_AbilitySpec;
+
 	/** Map of gameplay tags to gameplay effect containers */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffects)
 	TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;

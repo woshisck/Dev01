@@ -29,8 +29,8 @@ public:
 	virtual void OnUnPossess() override;
 	virtual void BeginPlay() override;
 
-	//UFUNCTION(BlueprintCallable)
-	//AYogCharacterBase* GetPossCharacter();
+	UFUNCTION(BlueprintCallable,Category = "Character")
+	AYogCharacterBase* GetControlledCharacter();
 
 	UFUNCTION(BlueprintCallable)
 	void ToggleInput(bool bEnable);
@@ -40,14 +40,11 @@ public:
 	UYogAbilitySystemComponent* GetYogAbilitySystemComponent() const;
 
 
-	UFUNCTION(BlueprintCallable, Category = "ASC")
+	UFUNCTION(BlueprintCallable, Category = "Character")
 	void SetEnableRotationRate(FRotator RotationRate, bool isEnable);
 
 	UFUNCTION(BlueprintCallable, Category = "ASC")
 	void SpawnCameraPawn(AYogCharacterBase* PossessedCharacter);
-
-	UFUNCTION(BlueprintCallable, Category = "ASC")
-	AYogCharacterBase* GetControlledCharacter();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Setting")
 	TSubclassOf<AYogCameraPawn> CameraPawnClass;
@@ -57,6 +54,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	void SetPlayerState(EYogCharacterState newState);
+
+
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Setting")

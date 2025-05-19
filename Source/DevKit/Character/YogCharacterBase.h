@@ -22,6 +22,37 @@ enum class EYogCharacterState : uint8
 };
 
 
+USTRUCT(BlueprintType)
+struct FCharacterAttributeData : public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+	FCharacterAttributeData()
+		: Health(100.f), MaxHealth(100.f), BaseDMG(10.f), BuffAmplify(1.2f), DMGAbsorb(0.2f)
+	{
+	}
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//FString Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Health;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxHealth;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float BaseDMG;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float BuffAmplify;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DMGAbsorb;
+};
+
+
+
 
 class UItemInstance;
 class UYogAbilitySystemComponent;
@@ -38,34 +69,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterVelocityDelegate, const FV
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCharacterStateDelegate, EYogCharacterState, State, const FVector, MovementInput);
 
-USTRUCT(BlueprintType)
-struct FCharacterMovementData : public FTableRowBase
-{
-	GENERATED_BODY()
 
-public:
-	FCharacterMovementData()
-		: MaxWalkSpeed(600.0f), GroundFriction(8.0f), BreakingDeceleration(2048.0f), MaxAcceleration(2048.0f), RotationRate(FRotator(0,0,360))
-	{
-	}
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//FString Name;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxWalkSpeed;
-	 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float GroundFriction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BreakingDeceleration;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxAcceleration;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FRotator RotationRate;
-};
 
 
 class AYogPlayerControllerBase;
@@ -121,9 +126,6 @@ public:
 
 	////////////////////////////////////////////// Attribute //////////////////////////////////////////////
 
-	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
-	void GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities);
-
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	float GetHealth() const;
@@ -174,7 +176,6 @@ public:
 
 
 
-
 	///** Map of gameplay tags to gameplay effect containers */
 	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Character|Buff")
 	//TMap<FGameplayTag, FYogGameplayEffectContainer> BufferMap;
@@ -200,6 +201,9 @@ public:
 	int32 bAbilitiesInitialized;
 
 	FGameplayTag DeadTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Attribute")
+	TObjectPtr<UDataTable> AttributeDataTable;
 
 	FDelegateHandle HealthChangedDelegateHandle;
 	FDelegateHandle MaxHealthChangedDelegateHandle;
