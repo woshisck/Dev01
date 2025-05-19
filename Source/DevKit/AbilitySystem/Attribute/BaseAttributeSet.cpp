@@ -13,12 +13,12 @@
 
 UBaseAttributeSet::UBaseAttributeSet()
 {
-	//InitHealth(100.f);
-	//InitMaxHealth(100.f);
-	//InitBaseDMG(10.f);
-	//InitWeaponDMG(1.0f);
-	//InitBuffAmplify(1.2f);
-	//InitDMGAbsorb(0.2f);
+	InitHealth(100.f);
+	InitMaxHealth(100.f);
+	InitBaseDMG(10.f);
+	InitWeaponDMG(1.0f);
+	InitBuffAmplify(1.2f);
+	InitDMGAbsorb(0.2f);
 }
 
 
@@ -36,8 +36,6 @@ void UBaseAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 
 
 }
-
-
 
 
 UWorld* UBaseAttributeSet::GetWorld() const

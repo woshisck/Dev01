@@ -8,7 +8,7 @@
 UYogAbilitySystemComponent::UYogAbilitySystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	
+	//
 }
 
 
@@ -31,18 +31,38 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	ReceivedDamage.Broadcast(SourceASC, Damage);
 }
 
-void UYogAbilitySystemComponent::DebugActivatableAbilities()
+void UYogAbilitySystemComponent::LogAllGrantedAbilities()
 {
-	TArray<FGameplayAbilitySpec> TargetArray = GetActivatableAbilities();
-	int count = 0;
-	FString results;
-	for (const FGameplayAbilitySpec& spec : TargetArray)
-	{
-		
-		UE_LOG(LogTemp, Display, TEXT("Current ability spec handle: %s"), *spec.Handle.ToString());
+	TArray<FGameplayAbilitySpec>& AbilitySpecs = this->GetActivatableAbilities();
 
+	for (FGameplayAbilitySpec& Spec : AbilitySpecs)
+	{
+		if (UYogGameplayAbility* Ability = Cast<UYogGameplayAbility>(Spec.Ability))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("granted abilities is: %s"), *Ability->GetName());
+		}
 	}
+
+    int32 TotalAbilities = AbilitySpecs.Num();
+    UE_LOG(LogTemp, Warning, TEXT("Total number of granted abilities: %d"), TotalAbilities);
 
 }
 
+void UYogAbilitySystemComponent::GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities)
+{
+	TArray<FGameplayAbilitySpec*> AbilitiesToActivate;
+	GetActivatableGameplayAbilitySpecsByAllMatchingTags(GameplayTagContainer, AbilitiesToActivate, false);
 
+	// Iterate the list of all ability specs
+	for (FGameplayAbilitySpec* Spec : AbilitiesToActivate)
+	{
+		// Iterate all instances on this ability spec
+		TArray<UGameplayAbility*> AbilityInstances = Spec->GetAbilityInstances();
+
+		for (UGameplayAbility* ActiveAbility : AbilityInstances)
+		{
+			ActiveAbilities.Add(Cast<UYogGameplayAbility>(ActiveAbility));
+		}
+	}
+
+}

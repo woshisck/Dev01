@@ -10,35 +10,6 @@
  * 
  */
 
-USTRUCT(BlueprintType)
-struct FCharacterMovementData : public FTableRowBase
-{
-	GENERATED_BODY()
-
-public:
-	FCharacterMovementData()
-		: MaxWalkSpeed(600.0f), GroundFriction(8.0f), BreakingDeceleration(2048.0f), MaxAcceleration(2048.0f), RotationRate(FRotator(0, 0, 360))
-	{
-	}
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//FString Name;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxWalkSpeed;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float GroundFriction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BreakingDeceleration;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxAcceleration;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FRotator RotationRate;
-};
-
 
 UENUM()
 enum class EPlayerBattleState : uint8

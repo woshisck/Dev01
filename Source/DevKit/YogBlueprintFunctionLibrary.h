@@ -17,7 +17,7 @@ class UYogBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 public:
-UFUNCTION(BlueprintPure, Category = Loading)
+	UFUNCTION(BlueprintPure, Category = Loading)
 	static bool IsInEditor();
 
 
@@ -26,11 +26,6 @@ UFUNCTION(BlueprintPure, Category = Loading)
 
 	UFUNCTION(BlueprintPure, Category = Weapon)
 	static bool GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition);
-
-
-	UFUNCTION(BlueprintPure, Category = Weapon)
-	static bool GiveAbilityToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UYogAbilitySet* AbilitySet);
-
 
 	UFUNCTION(BlueprintPure, Category = Weapon)
 	static bool GiveAbilityToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UYogAbilitySet* AbilitySet);

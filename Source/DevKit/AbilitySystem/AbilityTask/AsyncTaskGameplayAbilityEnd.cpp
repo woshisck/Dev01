@@ -5,51 +5,37 @@
 #include "../Abilities/YogGameplayAbility.h"
 #include <AbilitySystemComponent.h>
 
-UAsyncTaskGameplayAbilityEnd::UAsyncTaskGameplayAbilityEnd(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+UAsyncTaskGameplayAbilityEnd* UAsyncTaskGameplayAbilityEnd::ListenForGameplayAbilityEnd(UAbilitySystemComponent* abilitySystemComponent, TSubclassOf<UGameplayAbility> abilityClass)
 {
-
-}
-
-UAsyncTaskGameplayAbilityEnd* UAsyncTaskGameplayAbilityEnd::ListenForGameplayAbilityEnd(UObject* InWorldContextObject, UAbilitySystemComponent* abilitySystemComponent, TSubclassOf<UYogGameplayAbility> abilityClass)
-{
-	UAsyncTaskGameplayAbilityEnd* Action = nullptr;
-
-	if (UWorld* World = GEngine->GetWorldFromContextObject(InWorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	if (!IsValid(abilitySystemComponent))
 	{
-		Action = NewObject<UAsyncTaskGameplayAbilityEnd>();
-		Action->WorldPtr = World;
-		Action->RegisterWithGameInstance(World);
-		Action->TargetASC = abilitySystemComponent;
-		Action->AbilityClass = abilityClass;
-
-		//auto abilitySpec = abilitySystemComponent->FindAbilitySpecFromClass(abilityClass);
-		//auto abilityInstance = abilitySpec->GetPrimaryInstance();
-		//UYogGameplayAbility* abilityCrow = Cast<UYogGameplayAbility>(abilityInstance);
-		////TODO: Call event delegate handle
-		//Action->AbilityListeningTo = abilityCrow;
-
-		////abilityCrow->EventOn_AbilityEnded.AddDynamic(this, &UAsyncTaskGameplayAbilityEnd::OnCallback);
-		//abilityCrow->EventOn_AbilityEnded.AddDynamic(Action, &UAsyncTaskGameplayAbilityEnd::OnCallback);
-
-
-		return Action;
-
+		return nullptr;
 	}
-	return Action;
-
-}
-
-void UAsyncTaskGameplayAbilityEnd::Activate()
-{
-	auto abilitySpec = TargetASC->FindAbilitySpecFromClass(AbilityClass);
+	auto abilitySpec = abilitySystemComponent->FindAbilitySpecFromClass(abilityClass);
+	if (abilitySpec == nullptr)
+	{
+	
+		return nullptr;
+	}
 	auto abilityInstance = abilitySpec->GetPrimaryInstance();
+	if (abilityInstance == nullptr)
+	{
+		return nullptr;
+	}
 	UYogGameplayAbility* abilityCrow = Cast<UYogGameplayAbility>(abilityInstance);
-	//TODO: Call event delegate handle
-	this->AbilityListeningTo = abilityCrow;
+	if (abilityCrow == nullptr)
+	{
+		//Print::Say("Couldn't create Task, Ability " + abilityClass->GetName() + " needs to inherit from UGameplayAbility_Crow");
+		return nullptr;
+	}
 
-	//abilityCrow->EventOn_AbilityEnded.AddDynamic(this, &UAsyncTaskGameplayAbilityEnd::OnCallback);
-	abilityCrow->EventOn_AbilityEnded.AddDynamic(this, &UAsyncTaskGameplayAbilityEnd::OnCallback);
+
+
+	UAsyncTaskGameplayAbilityEnd* lv = NewObject<UAsyncTaskGameplayAbilityEnd>();
+	//TODO: Call event delegate handle
+	abilityCrow->EventOn_AbilityEnded.AddDynamic(lv, &UAsyncTaskGameplayAbilityEnd::OnCallback);
+	lv->AbilityListeningTo = abilityCrow;
+	return lv;
 }
 
 
@@ -57,7 +43,4 @@ void UAsyncTaskGameplayAbilityEnd::Activate()
 void UAsyncTaskGameplayAbilityEnd::OnCallback()
 {
 	OnEnded.Broadcast();
-	SetReadyToDestroy();
 }
-
-
