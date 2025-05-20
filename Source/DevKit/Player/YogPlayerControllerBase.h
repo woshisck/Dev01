@@ -59,6 +59,8 @@ public:
 	void SetPlayerState(EYogCharacterState newState);
 
 protected:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AYogCameraPawn> CameraPawnActor;
+
+
 };

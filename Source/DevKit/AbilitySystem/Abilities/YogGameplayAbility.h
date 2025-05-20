@@ -78,6 +78,8 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName = "OnAbilityRemoved")
 	void K2_OnAbilityRemoved();
 
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
 
 	UPROPERTY(BlueprintAssignable, Category = "Ability")
 	FAbilityEndedSignature EventOn_AbilityEnded;
@@ -109,6 +111,8 @@ public:
 public:
 
 	//TODO: SET bRetriggerInstancedAbility for RetriggerAbility in notify
+
+
 
 	UFUNCTION(BlueprintCallable, Category = "Setting")
 	void UpdateRetrigger(bool retriggerable);

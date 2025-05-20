@@ -52,4 +52,11 @@ public:
 	/** Map of gameplay tags to gameplay effect containers */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffects)
 	TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;
+
+
+	
+
+
+private:
+	TObjectPtr<UYogGameplayAbility> CurrentActiveAbility;
 };

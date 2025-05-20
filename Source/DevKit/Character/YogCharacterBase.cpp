@@ -236,7 +236,7 @@ void AYogCharacterBase::BuffAmplifyChanged(const FOnAttributeChangeData& Data)
 
 void AYogCharacterBase::FinishDying()
 {
-	//TODO: add death event and animation montage later
+	
 	Destroy();
 }
 

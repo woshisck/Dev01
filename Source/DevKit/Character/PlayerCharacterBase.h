@@ -30,6 +30,6 @@ public:
 
 	APlayerCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Movement")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
 	TObjectPtr<UDataTable> CharacterMovementDataTable;
 };

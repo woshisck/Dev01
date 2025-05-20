@@ -61,49 +61,13 @@ void AYogPlayerControllerBase::SpawnCameraPawn(AYogCharacterBase* TargetCharacte
 		this->SetViewTargetWithBlend(CameraActorPawn, 0.0f, EViewTargetBlendFunction::VTBlend_Linear, 0.0f, false);
 	}
 
-	//FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, false);
-	//CameraActor->AttachToActor(TargetCharacter, AttachRules);
 
-	//:SetViewTargetWithBlend(AActor* NewViewTarget, float BlendTime, EViewTargetBlendFunction BlendFunc, float BlendExp, bool bLockOutgoing)
-	//if (CameraActorPawn)
-	//{
-		//TODO:: ADD custom camera controller
-		//AAIController* AIController = GetWorld()->SpawnActor<AAIController>(AAIController::StaticClass(), Location, Rotation, SpawnParams);
-
-		//if (AIController)
-		//{
-		//	// Possess the Pawn with the newly created Controller
-		//	AIController->Possess(CameraActorPawn);
-		//}
-
-
-	//}
 
 }
 
 void AYogPlayerControllerBase::SetPlayerState(EYogCharacterState newState)
 {
-	//FVector MoveCache;
-	//AYogPlayerControllerBase* controller = Cast<AYogPlayerControllerBase>(GetController());
-	//switch (newState)
-	//{
-	//case EYogCharacterState::Move:
-	//{
-	//	OnCharacterStateUpdate.Broadcast(CurrentState, MoveCache);
-	//	break;
-	//case EYogCharacterState::Idle:
 
-	//	OnCharacterStateUpdate.Broadcast(CurrentState, MoveCache);
-	//	break;
-	//case EYogCharacterState::AbilityCast:
-
-	//	OnCharacterStateUpdate.Broadcast(CurrentState, MoveCache);
-	//	break;
-	//}
-	//default:
-	//	MoveCache = FVector(0, 0, 0);
-	//	break;
-	//}
 }
 
 void AYogPlayerControllerBase::BeginPlay()
