@@ -31,6 +31,23 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	ReceivedDamage.Broadcast(SourceASC, Damage);
 }
 
+UYogGameplayAbility* UYogAbilitySystemComponent::GetCurrentAbilityClass()
+{
+	UYogGameplayAbility* CurrentAbility = NewObject<UYogGameplayAbility>();
+	for (const FGameplayAbilitySpec& Spec : this->GetActivatableAbilities())
+	{
+		if (Spec.IsActive())
+		{
+			UGameplayAbility* ActiveAbility = Spec.GetPrimaryInstance();
+			CurrentAbility = Cast<UYogGameplayAbility>(ActiveAbility);
+			//return CurrentAbility;
+			// Do something with the ability
+		}
+	}
+
+	return CurrentAbility;
+}
+
 void UYogAbilitySystemComponent::LogAllGrantedAbilities()
 {
 	TArray<FGameplayAbilitySpec>& AbilitySpecs = this->GetActivatableAbilities();

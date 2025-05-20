@@ -31,11 +31,15 @@ UAsyncTaskGameplayAbilityEnd* UAsyncTaskGameplayAbilityEnd::ListenForGameplayAbi
 
 
 
-	UAsyncTaskGameplayAbilityEnd* lv = NewObject<UAsyncTaskGameplayAbilityEnd>();
+	UAsyncTaskGameplayAbilityEnd* Action = NewObject<UAsyncTaskGameplayAbilityEnd>();
 	//TODO: Call event delegate handle
-	abilityCrow->EventOn_AbilityEnded.AddDynamic(lv, &UAsyncTaskGameplayAbilityEnd::OnCallback);
-	lv->AbilityListeningTo = abilityCrow;
-	return lv;
+	abilityCrow->EventOn_AbilityEnded.AddDynamic(Action, &UAsyncTaskGameplayAbilityEnd::OnCallback);
+	Action->AbilityListeningTo = abilityCrow;
+	return Action;
+}
+
+void UAsyncTaskGameplayAbilityEnd::Activate()
+{
 }
 
 

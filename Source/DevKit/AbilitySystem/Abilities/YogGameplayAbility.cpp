@@ -23,6 +23,11 @@ TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FG
 }
 
 
+void UYogGameplayAbility::UpdateRetrigger(bool retriggerable)
+{
+	this->bRetriggerInstancedAbility = retriggerable;
+}
+
 void UYogGameplayAbility::GetAbilityTableData()
 {
 	static const FString ContextString(TEXT("Character Data Lookup"));

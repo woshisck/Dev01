@@ -32,13 +32,10 @@ class DEVKIT_API UAsyncTaskGameplayAbilityEnd : public UBlueprintAsyncActionBase
 	//UFUNCTION(BlueprintCallable)
 	//void EndTask();
 
-
+	virtual void Activate() override;
 
 protected:
 
-	UAbilitySystemComponent* ASC;
-	FGameplayTagContainer TagsStillApplied;
-	TMap<FGameplayTag, FDelegateHandle> HandlesMap;
 
 	TObjectPtr<UYogGameplayAbility> AbilityListeningTo;
 

@@ -108,6 +108,11 @@ public:
 
 public:
 
+	//TODO: SET bRetriggerInstancedAbility for RetriggerAbility in notify
+
+	UFUNCTION(BlueprintCallable, Category = "Setting")
+	void UpdateRetrigger(bool retriggerable);
+
 	UFUNCTION(BlueprintCallable, Category = "Ability Data")
 	void GetAbilityTableData();
 

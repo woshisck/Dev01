@@ -59,6 +59,6 @@ public:
 	void SetPlayerState(EYogCharacterState newState);
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Setting")
+	UPROPERTY()
 	TObjectPtr<AYogCameraPawn> CameraPawnActor;
 };
