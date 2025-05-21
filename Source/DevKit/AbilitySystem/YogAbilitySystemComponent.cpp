@@ -31,18 +31,26 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	ReceivedDamage.Broadcast(SourceASC, Damage);
 }
 
+void UYogAbilitySystemComponent::AddActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToBlock)
+{
+	this->AddLooseGameplayTags(TagsToBlock);
+	this->SetTagMapCount(Tag, 1);
+}
+
+void UYogAbilitySystemComponent::RemoveActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToUnblock)
+{
+	this->RemoveLooseGameplayTags(TagsToUnblock);
+	this->SetTagMapCount(Tag, 0);
+}
+
 UYogGameplayAbility* UYogAbilitySystemComponent::GetCurrentAbilityClass()
 {
+
 	UYogGameplayAbility* CurrentAbility = NewObject<UYogGameplayAbility>();
-	for (const FGameplayAbilitySpec& Spec : this->GetActivatableAbilities())
+	
+	if (this->GetAnimatingAbility())
 	{
-		if (Spec.IsActive())
-		{
-			UGameplayAbility* ActiveAbility = Spec.GetPrimaryInstance();
-			CurrentAbility = Cast<UYogGameplayAbility>(ActiveAbility);
-			//return CurrentAbility;
-			// Do something with the ability
-		}
+		CurrentAbility = Cast<UYogGameplayAbility>(this->GetAnimatingAbility());
 	}
 
 	return CurrentAbility;
@@ -82,4 +90,41 @@ void UYogAbilitySystemComponent::GetActiveAbilitiesWithTags(const FGameplayTagCo
 		}
 	}
 
+}
+
+void UYogAbilitySystemComponent::OnAbilityActivated(UYogGameplayAbility* ActivatedAbility)
+{
+	//CurrentActiveAbility = ActivatedAbility;
+}
+
+void UYogAbilitySystemComponent::OnAbilityEnded(const FAbilityEndedData& EndedData)
+{
+	//if (CurrentActiveAbility == EndedData.AbilityThatEnded)
+	//{
+	//	CurrentActiveAbility = nullptr;
+	//}
+}
+
+void UYogAbilitySystemComponent::SetAbilityRetriggerable(FGameplayAbilitySpecHandle Handle, bool bCanRetrigger)
+{
+	FGameplayAbilitySpec* Spec = this->FindAbilitySpecFromHandle(Handle);
+	if (Spec && Spec->Ability)
+	{
+		// For instanced abilities
+		if (UYogGameplayAbility* AbilityInstance = Cast<UYogGameplayAbility>(Spec->GetPrimaryInstance()))
+		{
+			AbilityInstance->UpdateRetrigger(bCanRetrigger);
+
+		}
+		// For non-instanced but might be relevant for some cases
+		else
+		{
+			UYogGameplayAbility* Ability = Cast<UYogGameplayAbility>(Spec->Ability);
+			Ability->UpdateRetrigger(bCanRetrigger);
+
+		}
+
+		// Mark the spec as dirty if needed
+		this->MarkAbilitySpecDirty(*Spec);
+	}
 }

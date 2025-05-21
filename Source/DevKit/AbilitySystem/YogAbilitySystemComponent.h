@@ -40,6 +40,12 @@ public:
 	
 
 	UFUNCTION(BlueprintCallable)
+	void AddActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToBlock);
+
+	UFUNCTION(BlueprintCallable)
+	void RemoveActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToUnblock);
+
+	UFUNCTION(BlueprintCallable)
 	UYogGameplayAbility* GetCurrentAbilityClass();
 
 	UFUNCTION(BlueprintCallable)
@@ -48,15 +54,26 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities);
 	
-	
+	UFUNCTION()
+	void OnAbilityActivated(UYogGameplayAbility* ActivatedAbility);
+
+	UFUNCTION()
+	void OnAbilityEnded(const FAbilityEndedData& EndedData);
+
 	/** Map of gameplay tags to gameplay effect containers */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffects)
 	TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;
 
-
+	UPROPERTY(BlueprintReadOnly)
+	TObjectPtr<UYogGameplayAbility> CurrentActiveAbility;
 	
 
+	UPROPERTY(BlueprintReadOnly)
+	FGameplayAbilitySpecHandle CurrentAbilitySpecHandle;
 
-private:
-	TObjectPtr<UYogGameplayAbility> CurrentActiveAbility;
+
+
+	UFUNCTION(BlueprintCallable)
+	void SetAbilityRetriggerable(FGameplayAbilitySpecHandle Handle, bool bCanRetrigger);
+
 };

@@ -45,7 +45,15 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
 {
-	return Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent());
+	UAbilitySystemComponent* comp = GetAbilitySystemComponent();
+	if (comp)
+	{
+		UYogAbilitySystemComponent* result = Cast<UYogAbilitySystemComponent>(comp);
+		return result;
+	}
+	return nullptr;
+	
+	
 }
 
 

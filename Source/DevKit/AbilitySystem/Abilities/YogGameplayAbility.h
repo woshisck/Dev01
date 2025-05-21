@@ -60,6 +60,7 @@ public:
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbilityEndedSignature);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbilityStartSignature);
 
 
 UCLASS()
@@ -78,11 +79,13 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName = "OnAbilityRemoved")
 	void K2_OnAbilityRemoved();
 
-	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 
-	UPROPERTY(BlueprintAssignable, Category = "Ability")
+	UPROPERTY(BlueprintAssignable)
 	FAbilityEndedSignature EventOn_AbilityEnded;
+
+	UPROPERTY(BlueprintAssignable)
+	FAbilityStartSignature EventOn_AbilityStart;
 
 
 	///** Map of gameplay tags to gameplay effect containers */
@@ -133,5 +136,7 @@ public:
 
 protected:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled);
+	
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 };
