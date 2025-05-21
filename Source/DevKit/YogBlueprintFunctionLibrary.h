@@ -34,6 +34,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = Weapon)
 	static bool GiveEffectToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition);
 
+	UFUNCTION(BlueprintPure, Category = "Animation|Montage")
+	static UAnimSequence* GetCurrentSlotAnimation(USkeletalMeshComponent* MeshComp, FName SlotName);
+
+
+	UFUNCTION(BlueprintPure, Category = "Animation|Montage")
+	static UAnimSequence* SetSequenceRootMotion(UAnimSequence* sequence, bool enableRoot);
+
 };
 
 class FLatentCountSeconds : public FPendingLatentAction

@@ -93,3 +93,39 @@ bool UYogBlueprintFunctionLibrary::GiveEffectToCharacter(UObject* WorldContextOb
 {
 	return false;
 }
+
+UAnimSequence* UYogBlueprintFunctionLibrary::GetCurrentSlotAnimation(USkeletalMeshComponent* MeshComp, FName SlotName)
+{
+	if (!MeshComp || !MeshComp->GetAnimInstance()) return nullptr;
+
+	UAnimInstance* AnimInstance = MeshComp->GetAnimInstance();
+	FAnimMontageInstance* MontageInstance = AnimInstance->GetActiveMontageInstance();
+
+	if (!MontageInstance || !MontageInstance->Montage) return nullptr;
+
+	// Get the current position in the montage
+	float CurrentPosition = MontageInstance->GetPosition();
+
+	// Find the slot track
+	const FSlotAnimationTrack* SlotTrack = MontageInstance->Montage->SlotAnimTracks.FindByPredicate(
+		[SlotName](const FSlotAnimationTrack& Track) { return Track.SlotName == SlotName; });
+
+	if (SlotTrack)
+	{
+		// Find which segment is currently playing
+		const FAnimSegment* CurrentSegment = SlotTrack->AnimTrack.GetSegmentAtTime(CurrentPosition);
+		if (CurrentSegment && CurrentSegment->GetAnimReference())
+		{
+			return Cast<UAnimSequence>(CurrentSegment->GetAnimReference());
+		}
+	}
+
+	return nullptr;
+}
+
+UAnimSequence* UYogBlueprintFunctionLibrary::SetSequenceRootMotion(UAnimSequence* sequence, bool enableRoot)
+{
+	sequence->bRootMotionSettingsCopiedFromMontage = false;
+	sequence->EnableRootMotionSettingFromMontage(enableRoot ,  ERootMotionRootLock::RefPose);
+	return sequence;
+}
