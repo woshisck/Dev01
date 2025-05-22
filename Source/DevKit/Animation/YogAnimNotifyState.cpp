@@ -17,6 +17,11 @@ void UYogAnimNotifyState::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSeque
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 }
 
+void UYogAnimNotifyState::Received_NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) const
+{
+	Super::Received_NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
+}
+
 
 
 //FString UYogAnimNotifyState::GetNotifyName_Implementation() const
