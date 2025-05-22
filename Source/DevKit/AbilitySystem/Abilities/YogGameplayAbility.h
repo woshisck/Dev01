@@ -134,6 +134,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
 	FString AbilityTableRowName;
 
+
+
 protected:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled);
 	

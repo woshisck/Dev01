@@ -136,6 +136,11 @@ void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 	ASC->CurrentAbilitySpecHandle = Handle;
 
+	//TODO: add loose gameplaytag for blocking ability
+	//if (!this->ActivationBlockedTags.IsEmpty())
+	//{		
+	//	ASC->AddLooseGameplayTags(this->ActivationBlockedTags);
+	//}
 }
 
 
@@ -144,5 +149,7 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 	EventOn_AbilityEnded.Broadcast();
 
-	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
+	//TODO: remove loose gameplaytag for blocking ability
+	//UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
+	//ASC->RemoveLooseGameplayTags(this->ActivationBlockedTags);
 }

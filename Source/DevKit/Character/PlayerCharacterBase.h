@@ -32,4 +32,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
 	TObjectPtr<UDataTable> CharacterMovementDataTable;
+
+
 };

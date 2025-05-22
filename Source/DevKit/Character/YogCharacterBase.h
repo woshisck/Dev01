@@ -172,8 +172,8 @@ public:
 	void SetCharacterState(EYogCharacterState newState, FVector movementInput);
 
 
-
-
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<AActor> Weapon;
 
 	///** Map of gameplay tags to gameplay effect containers */
 	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Character|Buff")

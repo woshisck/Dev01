@@ -83,10 +83,10 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 //			FName Socket = WeaponActorInst.AttachSocket;
 //			FTransform Transform = WeaponActorInst.AttachTransform;
 //
-//			AActor* NewActor = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
-//			NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-//			NewActor->SetActorRelativeTransform(Transform);
-//			NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
+//			AActor* WeaponSpawned = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
+//			WeaponSpawned->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+//			WeaponSpawned->SetActorRelativeTransform(Transform);
+//			WeaponSpawned->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
 //
 //		}
 //		for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
@@ -111,11 +111,11 @@ void AWeaponSpawner::GiveWeaponToCharacter(AYogCharacterBase* ReceivingChar)
 		FName Socket = WeaponActorInst.AttachSocket;
 		FTransform Transform = WeaponActorInst.AttachTransform;
 
-		AActor* NewActor = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
-		NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-		NewActor->SetActorRelativeTransform(Transform);
-		NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
-
+		AActor* WeaponSpawned = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
+		WeaponSpawned->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+		WeaponSpawned->SetActorRelativeTransform(Transform);
+		WeaponSpawned->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
+		ReceivingChar->Weapon = WeaponSpawned;
 	}
 	for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
 	{
