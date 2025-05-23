@@ -27,6 +27,12 @@ void UYogAnimNotifyState_Damage::Received_NotifyTick(USkeletalMeshComponent* Mes
 {
 	Super::Received_NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
 	AYogCharacterBase* Player = Cast<AYogCharacterBase>(MeshComp->GetOwner());
+	//TODO: check weapon stats, need to add weapon class
+	if (IsValid(Player->Weapon))
+	{
+
+	}
+
 	
 }
 
