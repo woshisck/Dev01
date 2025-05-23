@@ -7,7 +7,7 @@
 #include "WeaponDefinition.generated.h"
 
 class UYogAbilitySet;
-class UWeaponInstance;
+class AWeaponInstance;
 class UYogAnimInstance;
 
 
@@ -20,7 +20,7 @@ struct FWeaponActorToSpawn
 	{}
 
 	UPROPERTY(EditAnywhere, Category = Equipment)
-	TSubclassOf<AActor> ActorToSpawn;
+	TSubclassOf<AWeaponInstance> ActorToSpawn;
 
 	UPROPERTY(EditAnywhere, Category = Equipment)
 	FName AttachSocket;
@@ -38,8 +38,8 @@ class UWeaponDefinition : public UDataAsset
 public:
 
 	// Class to spawn
-	UPROPERTY(EditDefaultsOnly, Category = Equipment)
-	TSubclassOf<UWeaponInstance> InstanceType;
+	//UPROPERTY(EditDefaultsOnly, Category = Equipment)
+	//TSubclassOf<AWeaponInstance> InstanceType;
 
 	// Gameplay ability sets to grant when this is equipped
 	UPROPERTY(EditDefaultsOnly, Category = Equipment)

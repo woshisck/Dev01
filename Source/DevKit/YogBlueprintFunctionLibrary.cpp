@@ -4,6 +4,7 @@
 #include "YogBlueprintFunctionLibrary.h"
 #include "Character/YogCharacterBase.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "Item/Weapon/WeaponInstance.h"
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 
 UYogBlueprintFunctionLibrary::UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
@@ -42,7 +43,7 @@ bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextOb
 		
 		for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
 		{
-			TSubclassOf<AActor> WeaponActorClass = WeaponActorInst.ActorToSpawn;
+			TSubclassOf<AWeaponInstance> WeaponActorClass = WeaponActorInst.ActorToSpawn;
 			FName Socket = WeaponActorInst.AttachSocket;
 			FTransform Transform = WeaponActorInst.AttachTransform;
 

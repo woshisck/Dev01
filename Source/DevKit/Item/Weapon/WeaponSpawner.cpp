@@ -10,7 +10,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "TimerManager.h"
-#include "GameFramework/Pawn.h"
+#include "WeaponInstance.h"
 #include <DevKit/Character/YogCharacterBase.h>
 
 
@@ -107,7 +107,7 @@ void AWeaponSpawner::GiveWeaponToCharacter(AYogCharacterBase* ReceivingChar)
 	USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
 	for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
 	{
-		TSubclassOf<AActor> WeaponActorClass = WeaponActorInst.ActorToSpawn;
+		TSubclassOf<AWeaponInstance> WeaponActorClass = WeaponActorInst.ActorToSpawn;
 		FName Socket = WeaponActorInst.AttachSocket;
 		FTransform Transform = WeaponActorInst.AttachTransform;
 

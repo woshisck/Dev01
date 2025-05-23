@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "GameFramework/Actor.h"
 #include "WeaponInstance.generated.h"
 
 /**
@@ -13,47 +13,47 @@ struct FWeaponActorToSpawn;
 
 
 UCLASS(Blueprintable, BlueprintType)
-class DEVKIT_API UWeaponInstance : public UObject
+class DEVKIT_API AWeaponInstance : public AActor
 {
 	GENERATED_BODY()
 public:
-	UWeaponInstance(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AWeaponInstance();
 
-	//~UObject interface
-	virtual UWorld* GetWorld() const override final;
-	//~End of UObject interface
+	////~UObject interface
+	//virtual UWorld* GetWorld() const override final;
+	////~End of UObject interface
 
-	UFUNCTION(BlueprintPure, Category = Equipment)
-	UObject* GetInstigator() const { return Instigator; }
+	//UFUNCTION(BlueprintPure, Category = Equipment)
+	//UObject* GetInstigator() const { return Instigator; }
 
-	void SetInstigator(UObject* InInstigator) { Instigator = InInstigator; }
+	//void SetInstigator(UObject* InInstigator) { Instigator = InInstigator; }
 
-	UFUNCTION(BlueprintPure, Category = Equipment)
-	APawn* GetPawn() const;
+	//UFUNCTION(BlueprintPure, Category = Equipment)
+	//APawn* GetPawn() const;
 
-	UFUNCTION(BlueprintPure, Category = Equipment, meta = (DeterminesOutputType = PawnType))
-	APawn* GetTypedPawn(TSubclassOf<APawn> PawnType) const;
+	//UFUNCTION(BlueprintPure, Category = Equipment, meta = (DeterminesOutputType = PawnType))
+	//APawn* GetTypedPawn(TSubclassOf<APawn> PawnType) const;
 
-	UFUNCTION(BlueprintPure, Category = Equipment)
-	TArray<AActor*> GetSpawnedActors() const { return SpawnedActors; }
+	//UFUNCTION(BlueprintPure, Category = Equipment)
+	//TArray<AActor*> GetSpawnedActors() const { return SpawnedActors; }
 
-	void SpawnEquipmentActors(const TArray<FWeaponActorToSpawn>& ActorsToSpawn);
-	void DestroyEquipmentActors();
+	//void SpawnEquipmentActors(const TArray<FWeaponActorToSpawn>& ActorsToSpawn);
+	//void DestroyEquipmentActors();
 
-	virtual void OnEquipped();
-	virtual void OnUnequipped();
+	//virtual void OnEquipped();
+	//virtual void OnUnequipped();
 
 
-	UPROPERTY(BlueprintReadWrite, meta = (DeterminesOutputType = PawnType))
-	TObjectPtr<UObject> Instigator;
+	//UPROPERTY(BlueprintReadWrite, meta = (DeterminesOutputType = PawnType))
+	//TObjectPtr<UObject> Instigator;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Equipment)
-	TArray<TObjectPtr<AActor>> SpawnedActors;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Equipment)
+	//TArray<TObjectPtr<AActor>> SpawnedActors;
 
-	UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnEquipped"))
-	void K2_OnEquipped();
+	//UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnEquipped"))
+	//void K2_OnEquipped();
 
-	UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnUnequipped"))
-	void K2_OnUnequipped();
+	//UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnUnequipped"))
+	//void K2_OnUnequipped();
 
 };
