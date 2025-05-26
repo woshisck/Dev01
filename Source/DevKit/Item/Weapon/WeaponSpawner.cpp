@@ -12,6 +12,7 @@
 #include "TimerManager.h"
 #include "WeaponInstance.h"
 #include <DevKit/Character/YogCharacterBase.h>
+#include <DevKit/YogBlueprintFunctionLibrary.h>
 
 
 // Sets default values
@@ -102,30 +103,30 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 //	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, YogCharacterBase"));
 //}
 
-void AWeaponSpawner::GiveWeaponToCharacter(AYogCharacterBase* ReceivingChar)
-{
-	USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
-	for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
-	{
-		TSubclassOf<AWeaponInstance> WeaponActorClass = WeaponActorInst.ActorToSpawn;
-		FName Socket = WeaponActorInst.AttachSocket;
-		FTransform Transform = WeaponActorInst.AttachTransform;
-
-		AActor* WeaponSpawned = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
-		WeaponSpawned->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-		WeaponSpawned->SetActorRelativeTransform(Transform);
-		WeaponSpawned->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
-		ReceivingChar->Weapon = WeaponSpawned;
-	}
-	for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
-	{
-		for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
-		{
-			ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
-		}
-	}
-
-}
+//void AWeaponSpawner::GiveWeaponToCharacter(AYogCharacterBase* ReceivingChar)
+//{
+//	USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
+//	for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
+//	{
+//		TSubclassOf<AWeaponInstance> WeaponActorClass = WeaponActorInst.ActorToSpawn;
+//		FName Socket = WeaponActorInst.AttachSocket;
+//		FTransform Transform = WeaponActorInst.AttachTransform;
+//
+//		AActor* WeaponSpawned = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
+//		WeaponSpawned->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+//		WeaponSpawned->SetActorRelativeTransform(Transform);
+//		WeaponSpawned->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
+//		ReceivingChar->Weapon = WeaponSpawned;
+//	}
+//	for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
+//	{
+//		for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
+//		{
+//			ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
+//		}
+//	}
+//
+//}
 
 void AWeaponSpawner::SpawnAttachWeapon(AYogCharacterBase* ReceivingChar)
 {
@@ -162,7 +163,14 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 
 	if (OverlappingPawn != nullptr)
 	{
-		GrantWeapon(OverlappingPawn);
+
+		UWorld* world = GetWorld();
+		if (world)
+		{
+			UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(this, OverlappingPawn, WeaponDefinition);
+		}
+
+
 	}
 }
 

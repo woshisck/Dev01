@@ -10,7 +10,20 @@
  * 
  */
 struct FWeaponActorToSpawn;
+class USceneComponent;
 
+USTRUCT()
+struct FWeaponSocketLoc
+{
+public:
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	USceneComponent* DmgBox_Start;
+
+	UPROPERTY()
+	USceneComponent* DmgBox_End;
+};
 
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API AWeaponInstance : public AActor
@@ -19,6 +32,25 @@ class DEVKIT_API AWeaponInstance : public AActor
 public:
 	AWeaponInstance();
 
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+
+public:	
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TArray<AActor*> IgnoreActorList;
+
+	UPROPERTY()
+	TArray<FWeaponSocketLoc> Array_damageBox;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<USceneComponent> point_DamageStart;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<USceneComponent> point_DamageEnd;
 	////~UObject interface
 	//virtual UWorld* GetWorld() const override final;
 	////~End of UObject interface

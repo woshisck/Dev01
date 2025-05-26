@@ -28,7 +28,7 @@ class UYogAbilitySystemComponent;
 class UInventoryManagerComponent;
 class UYogGameplayAbility;
 class AItemSpawner;
-
+class AWeaponInstance;
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
@@ -172,8 +172,8 @@ public:
 	void SetCharacterState(EYogCharacterState newState, FVector movementInput);
 
 
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
-	TObjectPtr<AActor> Weapon;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<AWeaponInstance> Weapon;
 
 	///** Map of gameplay tags to gameplay effect containers */
 	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Character|Buff")

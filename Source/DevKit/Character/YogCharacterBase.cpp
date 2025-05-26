@@ -9,7 +9,7 @@
 #include "../Inventory/InventoryManagerComponent.h"
 #include "../AbilitySystem/Abilities/YogGameplayAbility.h"
 #include <DevKit/Player/YogPlayerControllerBase.h>
-
+#include <DevKit/Item/Weapon/WeaponInstance.h>
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 
 AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer)

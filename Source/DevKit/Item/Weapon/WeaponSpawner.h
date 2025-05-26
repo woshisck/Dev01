@@ -59,8 +59,8 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void GrantWeapon(AYogCharacterBase* ReceivingChar);
 
-	UFUNCTION(BlueprintCallable)
-	void GiveWeaponToCharacter(AYogCharacterBase* ReceivingChar);
+	//UFUNCTION(BlueprintCallable)
+	//void GiveWeaponToCharacter(AYogCharacterBase* ReceivingChar);
 
 
 	UFUNCTION(BlueprintCallable)

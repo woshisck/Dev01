@@ -6,7 +6,7 @@
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
-
+#include "Animation/YogAnimInstance.h"
 UYogBlueprintFunctionLibrary::UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -47,10 +47,18 @@ bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextOb
 			FName Socket = WeaponActorInst.AttachSocket;
 			FTransform Transform = WeaponActorInst.AttachTransform;
 
-			AActor* NewActor = World->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
+
+			AWeaponInstance* NewActor = World->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
+			//AWeaponInstance* NewActor = World->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
 			NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
 			NewActor->SetActorRelativeTransform(Transform);
 			NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
+			ReceivingChar->Weapon = NewActor;
+
+			//AActor* NewActor = World->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
+			//NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+			//NewActor->SetActorRelativeTransform(Transform);
+			//NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
 		}
 
 
@@ -61,6 +69,14 @@ bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextOb
 				ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
 			}
 		}
+		if (WeaponDefinition->WeaponLayer)
+		{
+			UAnimInstance* AnimInstance = ReceivingChar->GetMesh()->GetAnimInstance();
+			AnimInstance->LinkAnimClassLayers(TSubclassOf<UAnimInstance>(WeaponDefinition->WeaponLayer));
+		}
+		
+	/*	LinkAnimClassLayers(WeaponDefinition->WeaponLayer);*/
+
 		return true;
 	}
 	else
