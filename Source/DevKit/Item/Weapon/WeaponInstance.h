@@ -12,16 +12,16 @@
 struct FWeaponActorToSpawn;
 class USceneComponent;
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FWeaponSocketLoc
 {
 public:
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	USceneComponent* DmgBox_Start;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	USceneComponent* DmgBox_End;
 };
 
@@ -43,7 +43,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TArray<AActor*> IgnoreActorList;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	TArray<FWeaponSocketLoc> Array_damageBox;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

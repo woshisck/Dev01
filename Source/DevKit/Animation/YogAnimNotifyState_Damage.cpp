@@ -23,37 +23,9 @@ void UYogAnimNotifyState_Damage::NotifyBegin(USkeletalMeshComponent* MeshComp, U
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("NotifyBegin Character NOT AVALIABLE"));
+		UE_LOG(LogTemp, Warning, TEXT("NotifyBegin -> MeshComp Character NOT AVALIABLE"));
 
 	}
-
-
-	//if(!MeshComp)
-	//{
-	//	return;
-
-
-	//}
-	//else
-	//{
-	//	if (AYogCharacterBase* Character = Cast<AYogCharacterBase>(MeshComp->GetOwner()))
-	//	{
-	//		if (AWeaponInstance* cache_Weapon = Character->Weapon)
-	//		{
-	//			UE_LOG(LogTemp, Warning, TEXT("NotifyBegin cache_Weapon AVALIABLE"));
-	//		}
-	//		else 
-	//		{
-	//			UE_LOG(LogTemp, Warning, TEXT("NotifyBegin cache_Weapon NOT AVALIABLE"));
-	//		}
-	//		UE_LOG(LogTemp, Warning, TEXT("NotifyBegin Character AVALIABLE"));
-	//	}
-	//	else
-	//	{
-	//		UE_LOG(LogTemp, Warning, TEXT("NotifyBegin Character NOT AVALIABLE"));
-	//	}
-
-	//}
 
 }
 
@@ -71,7 +43,7 @@ void UYogAnimNotifyState_Damage::NotifyEnd(USkeletalMeshComponent* MeshComp, UAn
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("NotifyEnd NOT AVALIABLE"));
+		UE_LOG(LogTemp, Warning, TEXT("NotifyEnd -> MeshComp NOT AVALIABLE"));
 
 	}
 }
@@ -80,21 +52,8 @@ void UYogAnimNotifyState_Damage::Received_NotifyTick(USkeletalMeshComponent* Mes
 {
 	Super::Received_NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
 
-
-	
-
-	//AYogCharacterBase* Player = Cast<AYogCharacterBase>(MeshComp->GetOwner());
-	//AWeaponInstance* Weapon = Player->Weapon;
-
-
-
-	//AYogCharacterBase* Owner = Cast<AYogCharacterBase>(MeshComp->GetOwner());
-
-
-	//TODO: check weapon stats, need to add weapon class
-
-
-	
+	//TODO: called when received tick, NOT CALL WITH EVERY TICK
+		
 }
 
 void UYogAnimNotifyState_Damage::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference)
@@ -106,17 +65,24 @@ void UYogAnimNotifyState_Damage::NotifyTick(USkeletalMeshComponent* MeshComp, UA
 		if (AYogCharacterBase* Character = Cast<AYogCharacterBase>(MeshComp->GetOwner()))
 		{
 			AWeaponInstance* cache_Weapon = Character->Weapon;
-			FWeaponSocketLoc tempWeaponSL;
-			tempWeaponSL.DmgBox_End = cache_Weapon->point_DamageEnd;
-			tempWeaponSL.DmgBox_Start = cache_Weapon->point_DamageStart;
-			cache_Weapon->Array_damageBox.Insert(tempWeaponSL, 0);
+			FWeaponSocketLoc wpnSocket;
+			wpnSocket.DmgBox_End = cache_Weapon->point_DamageEnd;
+			wpnSocket.DmgBox_Start = cache_Weapon->point_DamageStart;
+			cache_Weapon->Array_damageBox.Insert(wpnSocket, 0);
 			UE_LOG(LogTemp, Warning, TEXT("Owner_weapon->Array_damageBox.Num(): %d"), cache_Weapon->Array_damageBox.Num());
-		}
+			//if (cache_Weapon->Array_damageBox.Num() > 1)
+			//{
+			//	FWeaponSocketLoc current_socket_loc = cache_Weapon->Array_damageBox[0];
+			//	FWeaponSocketLoc last_socket_loc = cache_Weapon->Array_damageBox[1];
 
+
+
+			//}
+		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Received_NotifyTick NOT AVALIABLE"));
+		UE_LOG(LogTemp, Warning, TEXT("NotifyTick -> MeshComp NOT AVALIABLE"));
 
 	}
 }
