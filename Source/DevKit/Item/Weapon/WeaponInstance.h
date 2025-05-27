@@ -51,6 +51,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<USceneComponent> point_DamageEnd;
+
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void CreateDamageBox();
 	////~UObject interface
 	//virtual UWorld* GetWorld() const override final;
 	////~End of UObject interface
