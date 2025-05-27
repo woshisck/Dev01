@@ -72,6 +72,9 @@ public:
 
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Damage);
 
+	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MotionResist);
+
+
 protected:
 	void AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty);
 
@@ -82,7 +85,6 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxHealth, Category = "Health")
 	FGameplayAttributeData MaxHealth;
-
 
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BaseDMG, Category = "Combat")
@@ -97,8 +99,12 @@ public:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_DMGAbsorb, Category = "Combat")
 	FGameplayAttributeData DMGAbsorb;
 
+
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	FGameplayAttributeData Damage;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MotionResist, Category = "Combat")
+	FGameplayAttributeData MotionResist;
 
 
 	UFUNCTION()
@@ -119,4 +125,7 @@ public:
 	UFUNCTION()
 	void OnRep_DMGAbsorb(const FGameplayAttributeData& OldValue);
 
+
+	UFUNCTION()
+	void OnRep_MotionResist(const FGameplayAttributeData& OldValue);
 };
