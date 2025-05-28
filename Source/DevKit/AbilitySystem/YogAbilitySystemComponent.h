@@ -35,6 +35,14 @@ public:
 	void GetAbilityTargetData(const FGameplayAbilitySpecHandle AbilityHandle, FGameplayAbilityActivationInfo ActivationInfo, FGameplayAbilityTargetDataHandle& OutTargetDataHandle);
 
 
+	//////////////////////////////////Gameplay Tag//////////////////////////////////
+	UFUNCTION(BlueprintCallable)
+	void RemoveGameplayTag(FGameplayTag Tag, int32 Count);
+
+	UFUNCTION(BlueprintCallable)
+	void AddGameplayTag(FGameplayTag Tag, int32 Count);
+	////////////////////////////////////////////////////////////////////////////////
+
 	FReceivedDamageDelegate ReceivedDamage;
 	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage);
 	
@@ -75,5 +83,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetAbilityRetriggerable(FGameplayAbilitySpecHandle Handle, bool bCanRetrigger);
+
+
 
 };

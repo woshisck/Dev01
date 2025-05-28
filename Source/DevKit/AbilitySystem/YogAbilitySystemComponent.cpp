@@ -26,6 +26,16 @@ void UYogAbilitySystemComponent::GetAbilityTargetData(const FGameplayAbilitySpec
 {
 }
 
+void UYogAbilitySystemComponent::RemoveGameplayTag(FGameplayTag Tag, int32 Count)
+{
+	this->RemoveLooseGameplayTag(Tag, Count);
+}
+
+void UYogAbilitySystemComponent::AddGameplayTag(FGameplayTag Tag, int32 Count)
+{
+	this->AddLooseGameplayTag(Tag, Count);
+}
+
 void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage)
 {
 	ReceivedDamage.Broadcast(SourceASC, Damage);
@@ -128,3 +138,5 @@ void UYogAbilitySystemComponent::SetAbilityRetriggerable(FGameplayAbilitySpecHan
 		this->MarkAbilitySpecDirty(*Spec);
 	}
 }
+
+
