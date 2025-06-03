@@ -124,6 +124,13 @@ FVector2D UInputBufferComponent::GetLastMoveInput(FVector2D Movement)
 
 EPlayerActionInput UInputBufferComponent::GetLastActionInput(FVector2D Movement)
 {
-	return ActionBuffer.Pop();
+	if (ActionBuffer.Num() > 0)
+	{
+		return ActionBuffer.Pop();
+	}
+	else
+	{
+		return EPlayerActionInput::None;
+	}
 }
 

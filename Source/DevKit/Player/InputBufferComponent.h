@@ -15,7 +15,8 @@ enum class EPlayerActionInput : uint8
 	HeavyAttack,
 	LightAttack,
 	Dash,
-	Projectile
+	Projectile,
+	None
 };
 
 
