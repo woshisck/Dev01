@@ -45,7 +45,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Buffer")
 	FVector2D GetLastMoveInput(FVector2D Movement);
 
-		
+	UFUNCTION(BlueprintCallable, Category = "Buffer")
+	EPlayerActionInput GetLastActionInput(FVector2D Movement);
 
 	//BUFFER ARRAY DEFINE
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
@@ -96,7 +97,7 @@ public:
 	template<typename T>
 	void UpdateBuffer(TArray<T> TargetArray, T element, int32 MAX_BUFFER_SIZE)
 	{
-		if (TargetArray.Num() < MAX_BUFFER_SIZE)
+		if (TargetArray.Num() <= MAX_BUFFER_SIZE)
 		{
 			TargetArray.Insert(element, 0);
 			/*FVector2D cache_item = MovementBuffer[0];*/
