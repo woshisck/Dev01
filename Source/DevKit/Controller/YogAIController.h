@@ -14,4 +14,6 @@ class DEVKIT_API AYogAIController : public AModularAIController
 {
 	GENERATED_BODY()
 	
+public:
+	AYogAIController(const FObjectInitializer& ObjectInitializer);
 };
