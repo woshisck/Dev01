@@ -5,11 +5,16 @@
 #include "../DevKit.h"
 
 #include "GameFramework/SaveGame.h"
+#include <DevKit/Character/PlayerCharacterBase.h>
+#include "../System/YogGameInstanceBase.h"
+#include "../Character/PlayerCharacterBase.h"
+#include "../Item/Weapon/WeaponInstance.h"
 #include "YogSaveGame.generated.h"
 
 
 
 class AYogCharacterBase;
+class UYogGameInstanceBase;
 /** List of versions, native code will handle fixups for any old versions */
 namespace EYogSaveGameVersion
 {
@@ -40,11 +45,11 @@ public:
 
 
 	/* Identifier for which Actor this belongs to */
-	UPROPERTY()
-	TObjectPtr<AYogCharacterBase> CharacterBase;
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	TObjectPtr<APlayerCharacterBase> Player;
 
-	UPROPERTY()
-	TArray<AActor*> AttachActorArray;
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	TArray<AWeaponInstance*> array_WeaponAttach;
 
 };
 
@@ -83,7 +88,40 @@ protected:
 
 
 	UFUNCTION(BlueprintCallable)
-	void SaveCharacterData(AYogCharacterBase* Character, UYogSaveGame* SaveGameInstance);
+	void SaveCharacterData(APlayerCharacterBase* Character, UYogSaveGame* SaveGameInstance)
+	{
+
+
+		if (Character && SaveGameInstance)
+		{
+
+
+			UYogGameInstanceBase* CurrentGameInstance = Cast<UYogGameInstanceBase>(GetWorld()->GetGameInstance<UGameInstance>());
+
+			APlayerCharacterBase* CurrentCharacter = CurrentGameInstance->GetPlayerCharacter();
+			SaveGameInstance->CharacterSaveData->Player = CurrentGameInstance->GetPlayerCharacter();
+
+
+
+
+
+			TArray<AActor*> AttachedActors;
+			CurrentCharacter->GetAttachedActors(AttachedActors);
+			for (AActor* actor : AttachedActors)
+			{
+				AWeaponInstance* weapon = Cast<AWeaponInstance>(actor);
+				if (weapon)
+				{
+					SaveGameInstance->CharacterSaveData->array_WeaponAttach.Add(Cast<AWeaponInstance>(actor));
+				}
+			}
+			//SaveGameInstance->CharacterSaveData->array_WeaponAttach = AttachedActors;
+		}
+
+
+
+		UGameplayStatics::SaveGameToSlot(SaveGameInstance, TEXT("AutoSave0"), 0);
+	}
 
 	UFUNCTION(BlueprintCallable)
 	void LoadCharacterData();

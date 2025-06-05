@@ -92,6 +92,7 @@ UAbilitySystemComponent* AYogCharacterBase::GetAbilitySystemComponent() const
 }
 
 
+
 void AYogCharacterBase::UpdateCharacterMovement(const bool IsMovable)
 {
 	this->bMovable = IsMovable;

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "YogGameInstanceBase.h"
-#include "../Character/YogCharacterBase.h"
-
+#include "../Character/PlayerCharacterBase.h"
+#include "../System/YogSaveGame.h"
 
 #include "Kismet/GameplayStatics.h"
 
@@ -11,16 +11,16 @@ UYogGameInstanceBase::UYogGameInstanceBase()
 	, SaveUserIndex(0)
 {}
 
-AYogCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
+APlayerCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
 {
-	AYogCharacterBase* YogCharacterBase = NewObject<AYogCharacterBase>();
+	APlayerCharacterBase* YogCharacterBase = NewObject<APlayerCharacterBase>();
 	UWorld* World = this->GetWorld();
 	if (World)
 	{
 		APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 		if (PlayerController)
 		{
-			return Cast<AYogCharacterBase>(PlayerController->GetPawn());
+			return Cast<APlayerCharacterBase>(PlayerController->GetPawn());
 		}
 	}
 
@@ -75,8 +75,8 @@ bool UYogGameInstanceBase::WriteSaveGame()
 			return true;
 		}
 		bCurrentlySaving = true;
-
-		UGameplayStatics::AsyncSaveGameToSlot(GetCurrentSaveGame(), SaveSlot, SaveUserIndex, FAsyncSaveGameToSlotDelegate::CreateUObject(this, &UYogGameInstanceBase::HandleAsyncSave));
+		USaveGame* currentSaveGame = Cast<USaveGame>(GetCurrentSaveGame());
+		UGameplayStatics::AsyncSaveGameToSlot(currentSaveGame, SaveSlot, SaveUserIndex, FAsyncSaveGameToSlotDelegate::CreateUObject(this, &UYogGameInstanceBase::HandleAsyncSave));
 		return true;
 	}
 	else 

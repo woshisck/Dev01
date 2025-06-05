@@ -1,16 +1,15 @@
-
 #pragma once
 
 #include "../DevKit.h"
 #include "Engine/GameInstance.h"
-#include "YogSaveGame.h"
+
 
 
 #include "YogGameInstanceBase.generated.h"
 
 
 class AYogCharacterBase;
-
+class UYogSaveGame;
 /**
  * Base class for GameInstance, should be blueprinted
  * Most games will need to make a game-specific subclass of GameInstance
@@ -26,7 +25,7 @@ public:
 	UYogGameInstanceBase();
 
 	UFUNCTION(BlueprintCallable, Category = Inventory)
-	AYogCharacterBase* GetPlayerCharacter();
+	APlayerCharacterBase* GetPlayerCharacter();
 
 	/** List of inventory items to add to new players */
 	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Inventory)

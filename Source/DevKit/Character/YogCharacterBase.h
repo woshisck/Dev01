@@ -93,7 +93,6 @@ public:
 
 
 
-
 	UFUNCTION(BlueprintCallable)
 	void UpdateCharacterMovement(const bool IsMovable);
 
