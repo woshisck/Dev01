@@ -32,6 +32,33 @@ struct FGameplayEventData;
 struct FGameplayEventData;
 
 USTRUCT(BlueprintType)
+struct FHitBoxData : public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+	FHitBoxData()
+		: Location_End(FVector(0,0,0)), Location_Start(FVector(0, 0, 0)), HasTriggered(false)
+	{
+	}
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//FString Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Location_End;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Location_Start; 
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool HasTriggered;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int Index;
+};
+
+
+USTRUCT(BlueprintType)
 struct FYogAbilityData : public FTableRowBase
 {
     GENERATED_BODY()
@@ -111,11 +138,16 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
     TObjectPtr<UDataTable> YogAbilityDataTable;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+	int Triggered_Index;
+
+
 public:
 
 	//TODO: SET bRetriggerInstancedAbility for RetriggerAbility in notify
 
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+	TArray<FHitBoxData> array_Hitbox;
 
 	UFUNCTION(BlueprintCallable, Category = "Setting")
 	void UpdateRetrigger(bool retriggerable);
@@ -129,6 +161,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	AYogCharacterBase* GetOwnerCharacterInfo();
+
+	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
+	void UpdateArrayHitBox(int index, bool hasTriggered);
+
+	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
+	void ResetArrayHitBox();
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")

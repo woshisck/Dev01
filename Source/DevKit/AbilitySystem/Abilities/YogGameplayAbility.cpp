@@ -58,6 +58,23 @@ AYogCharacterBase* UYogGameplayAbility::GetOwnerCharacterInfo()
 
 }
 
+void UYogGameplayAbility::UpdateArrayHitBox(int index, bool hasTriggered)
+{
+	if (index <= array_Hitbox.Num())
+	{
+		array_Hitbox[index].HasTriggered = hasTriggered;
+	}
+}
+
+void UYogGameplayAbility::ResetArrayHitBox()
+{
+	for (FHitBoxData hitbox_data : array_Hitbox)
+	{
+		hitbox_data.HasTriggered = false;
+	}
+	Triggered_Index = 0;
+}
+
 
 
 
@@ -148,7 +165,7 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 	EventOn_AbilityEnded.Broadcast();
-
+	ResetArrayHitBox();
 	//TODO: remove loose gameplaytag for blocking ability
 	//UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 	//ASC->RemoveLooseGameplayTags(this->ActivationBlockedTags);

@@ -41,6 +41,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation|Montage")
 	static UAnimSequence* SetSequenceRootMotion(UAnimSequence* sequence, bool enableRoot);
 
+
 };
 
 class FLatentCountSeconds : public FPendingLatentAction

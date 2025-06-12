@@ -146,3 +146,4 @@ UAnimSequence* UYogBlueprintFunctionLibrary::SetSequenceRootMotion(UAnimSequence
 	sequence->EnableRootMotionSettingFromMontage(enableRoot ,  ERootMotionRootLock::RefPose);
 	return sequence;
 }
+
