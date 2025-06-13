@@ -23,7 +23,8 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
-				"CoreUObject"
+				"CoreUObject",
+				"Blutility"
 			]
 		}
 	],
@@ -57,16 +58,6 @@
 			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/5cb2a394d0c04e73891762be4cbd7216"
 		},
 		{
-			"Name": "ComboGraph",
-			"Enabled": false,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/0211d0b7c514480c8e6ef338999d63c2"
-		},
-		{
-			"Name": "GASCompanion",
-			"Enabled": false,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/d83c6f34c3fb4b7092dde195c37c7413"
-		},
-		{
 			"Name": "Empty",
 			"Enabled": false
 		},
@@ -77,11 +68,6 @@
 		{
 			"Name": "GameFeatures",
 			"Enabled": true
-		},
-		{
-			"Name": "TopDownPhysicsCamera",
-			"Enabled": true,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/0e5ce9b6cd7e4f41b797b4150b0cba55"
 		},
 		{
 			"Name": "AbilitySystemGameFeatureActions",
@@ -122,11 +108,6 @@
 		{
 			"Name": "DidItHit",
 			"Enabled": true
-		},
-		{
-			"Name": "MissNoHit",
-			"Enabled": false,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/2986eaeb54174df8b21a5168d28daa4b"
 		},
 		{
 			"Name": "GeometryScripting",

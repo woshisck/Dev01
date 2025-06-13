@@ -48,7 +48,7 @@ public:
 	FVector Location_End;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector Location_Start; 
+	FVector Location_Start;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool HasTriggered;
@@ -135,6 +135,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	virtual TArray<FActiveGameplayEffectHandle> ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel = -1);
 
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
     TObjectPtr<UDataTable> YogAbilityDataTable;
 
@@ -164,6 +165,16 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	void UpdateArrayHitBox(int index, bool hasTriggered);
+
+
+	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
+	FHitBoxData GetHixboxDataByIndex(int index);
+
+	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
+	void SetHixboxDataByIndex(int index, FVector location_end, FVector location_start);
+
+
+
 
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	void ResetArrayHitBox();

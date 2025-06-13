@@ -66,6 +66,27 @@ void UYogGameplayAbility::UpdateArrayHitBox(int index, bool hasTriggered)
 	}
 }
 
+FHitBoxData UYogGameplayAbility::GetHixboxDataByIndex(int index)
+{
+	FHitBoxData result;
+	if (index < array_Hitbox.Num())
+	{
+		result = array_Hitbox[index];
+		return result;
+	}
+	return result;
+}
+
+void UYogGameplayAbility::SetHixboxDataByIndex(int index, FVector location_end, FVector location_start)
+{
+	if (index < array_Hitbox.Num())
+	{
+		array_Hitbox[index].Location_End = location_end;
+		array_Hitbox[index].Location_Start = location_start;
+	}
+}
+
+
 void UYogGameplayAbility::ResetArrayHitBox()
 {
 	for (FHitBoxData hitbox_data : array_Hitbox)
