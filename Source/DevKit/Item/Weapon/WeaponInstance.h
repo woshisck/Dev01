@@ -18,11 +18,12 @@ struct FWeaponSocketLoc
 public:
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	USceneComponent* DmgBox_Start;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	USceneComponent* DmgBox_End;
+	USceneComponent* DmgBox_Start = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	USceneComponent* DmgBox_End = nullptr;
 };
 
 UCLASS(Blueprintable, BlueprintType)

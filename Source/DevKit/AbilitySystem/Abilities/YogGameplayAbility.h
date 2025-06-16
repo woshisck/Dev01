@@ -147,7 +147,7 @@ public:
 
 	//TODO: SET bRetriggerInstancedAbility for RetriggerAbility in notify
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DamageBox")
 	TArray<FHitBoxData> array_Hitbox;
 
 	UFUNCTION(BlueprintCallable, Category = "Setting")
@@ -167,17 +167,15 @@ public:
 	void UpdateArrayHitBox(int index, bool hasTriggered);
 
 
-	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
+	UFUNCTION(BlueprintCallable, Category = "Ability Data")
 	FHitBoxData GetHixboxDataByIndex(int index);
 
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	void SetHixboxDataByIndex(int index, FVector location_end, FVector location_start);
 
 
-
-
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
-	void ResetArrayHitBox();
+	void ResetArrayHitBox(bool hasTriggered);
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")

@@ -11,7 +11,7 @@ UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitial
 	:Super(ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-
+	//NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 }
 
 
@@ -62,7 +62,7 @@ void UYogGameplayAbility::UpdateArrayHitBox(int index, bool hasTriggered)
 {
 	if (index <= array_Hitbox.Num())
 	{
-		array_Hitbox[index].HasTriggered = hasTriggered;
+		this->array_Hitbox[index].HasTriggered = hasTriggered;
 	}
 }
 
@@ -87,13 +87,19 @@ void UYogGameplayAbility::SetHixboxDataByIndex(int index, FVector location_end, 
 }
 
 
-void UYogGameplayAbility::ResetArrayHitBox()
+void UYogGameplayAbility::ResetArrayHitBox(bool hasTriggered)
 {
-	for (FHitBoxData hitbox_data : array_Hitbox)
+
+	for (int i = 0; i < this->array_Hitbox.Num(); i++)
 	{
-		hitbox_data.HasTriggered = false;
+		this->array_Hitbox[i].HasTriggered = hasTriggered;
+
 	}
+
 	Triggered_Index = 0;
+
+	UE_LOG(LogTemp, Warning, TEXT("Reset Finished"));
+	
 }
 
 
@@ -186,7 +192,8 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 	EventOn_AbilityEnded.Broadcast();
-	ResetArrayHitBox();
+	ResetArrayHitBox(false);
+
 	//TODO: remove loose gameplaytag for blocking ability
 	//UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 	//ASC->RemoveLooseGameplayTags(this->ActivationBlockedTags);
