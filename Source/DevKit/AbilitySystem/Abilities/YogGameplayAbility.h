@@ -38,11 +38,13 @@ struct FHitBoxData : public FTableRowBase
 
 public:
 	FHitBoxData()
-		: Location_End(FVector(0,0,0)), Location_Start(FVector(0, 0, 0)), HasTriggered(false)
+		: normVector(FVector(0, 0, 1)), Location_End(FVector(0,0,0)), Location_Start(FVector(0, 0, 0)), HasTriggered(false)
 	{
 	}
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//FString Name;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector normVector;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVector Location_End;
