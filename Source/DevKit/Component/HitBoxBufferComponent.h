@@ -6,7 +6,35 @@
 #include "Components/ActorComponent.h"
 #include "HitBoxBufferComponent.generated.h"
 
-struct FHitBoxData;
+
+USTRUCT(BlueprintType)
+struct FHitBoxData : public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+	FHitBoxData()
+		: normalVector(FVector(0, 0, 1)), Location_End(FVector(0, 0, 0)), Location_Start(FVector(0, 0, 0)), HasTriggered(false)
+	{
+	}
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//FString Name;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector normalVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Location_End;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Location_Start;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool HasTriggered;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int Index;
+};
+
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class DEVKIT_API UHitBoxBufferComponent : public UActorComponent
@@ -29,10 +57,10 @@ public:
 	TArray<FHitBoxData> array_HitboxBuffer;
 
 	UFUNCTION(BlueprintCallable, Category = "Buffer")
-	void FlushHitBoxArray();
+	void Clear();
 
 	UFUNCTION(BlueprintCallable, Category = "Buffer")
-	void SyncHitBoxArray(TArray<FHitBoxData> gaArray);
+	void Initialize(TArray<FHitBoxData> gaArray);
 
 	UFUNCTION(BlueprintCallable, Category = "Buffer")
 	void UpdateTrigger(int index, bool trigger);

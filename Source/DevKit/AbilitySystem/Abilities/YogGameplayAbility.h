@@ -6,6 +6,7 @@
 #include "Abilities/GameplayAbility.h"
 #include "YogAbilityTypes.h"
 #include "Engine/DataTable.h"
+#include "../../Component/HitBoxBufferComponent.h"
 
 
 
@@ -14,7 +15,7 @@
 struct FGameplayAbilityActivationInfo;
 struct FGameplayAbilitySpec;
 struct FGameplayAbilitySpecHandle;
-
+struct FHitBoxData;
 
 class AActor;
 class AController;
@@ -31,33 +32,7 @@ struct FGameplayEventData;
 
 struct FGameplayEventData;
 
-USTRUCT(BlueprintType)
-struct FHitBoxData : public FTableRowBase
-{
-	GENERATED_BODY()
 
-public:
-	FHitBoxData()
-		: normVector(FVector(0, 0, 1)), Location_End(FVector(0,0,0)), Location_Start(FVector(0, 0, 0)), HasTriggered(false)
-	{
-	}
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//FString Name;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector normVector;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector Location_End;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector Location_Start;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool HasTriggered;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int Index;
-};
 
 
 USTRUCT(BlueprintType)
@@ -164,20 +139,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	AYogCharacterBase* GetOwnerCharacterInfo();
-
-	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
-	void UpdateArrayHitBox(int index, bool hasTriggered);
-
-
-	UFUNCTION(BlueprintCallable, Category = "Ability Data")
-	FHitBoxData GetHixboxDataByIndex(int index);
-
-	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
-	void SetHixboxDataByIndex(int index, FVector location_end, FVector location_start);
-
-
-	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
-	void ResetArrayHitBox(bool hasTriggered);
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")

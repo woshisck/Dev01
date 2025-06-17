@@ -5,7 +5,7 @@
 #include "YogTargetType.h"
 #include "../../Character/YogCharacterBase.h"
 #include "../YogAbilitySystemComponent.h"
-
+#include "../../Component/HitBoxBufferComponent.h"
 
 UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer)
@@ -58,49 +58,6 @@ AYogCharacterBase* UYogGameplayAbility::GetOwnerCharacterInfo()
 
 }
 
-void UYogGameplayAbility::UpdateArrayHitBox(int index, bool hasTriggered)
-{
-	if (index <= array_Hitbox.Num())
-	{
-		this->array_Hitbox[index].HasTriggered = hasTriggered;
-	}
-}
-
-FHitBoxData UYogGameplayAbility::GetHixboxDataByIndex(int index)
-{
-	FHitBoxData result;
-	if (index < array_Hitbox.Num())
-	{
-		result = array_Hitbox[index];
-		return result;
-	}
-	return result;
-}
-
-void UYogGameplayAbility::SetHixboxDataByIndex(int index, FVector location_end, FVector location_start)
-{
-	if (index < array_Hitbox.Num())
-	{
-		array_Hitbox[index].Location_End = location_end;
-		array_Hitbox[index].Location_Start = location_start;
-	}
-}
-
-
-void UYogGameplayAbility::ResetArrayHitBox(bool hasTriggered)
-{
-
-	for (int i = 0; i < this->array_Hitbox.Num(); i++)
-	{
-		this->array_Hitbox[i].HasTriggered = hasTriggered;
-
-	}
-
-	Triggered_Index = 0;
-
-	UE_LOG(LogTemp, Warning, TEXT("Reset Finished"));
-	
-}
 
 
 
@@ -192,9 +149,12 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 	EventOn_AbilityEnded.Broadcast();
-	ResetArrayHitBox(false);
+
 
 	//TODO: remove loose gameplaytag for blocking ability
 	//UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
+	AYogCharacterBase* player = Cast<AYogCharacterBase>(this->GetAvatarActorFromActorInfo());
+	player->HitboxbuffComponent->Clear();
+	
 	//ASC->RemoveLooseGameplayTags(this->ActivationBlockedTags);
 }

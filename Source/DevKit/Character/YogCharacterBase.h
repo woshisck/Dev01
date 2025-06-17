@@ -26,6 +26,7 @@ enum class EYogCharacterState : uint8
 class UItemInstance;
 class UYogAbilitySystemComponent;
 class UInventoryManagerComponent;
+class UHitBoxBufferComponent;
 class UYogGameplayAbility;
 class AItemSpawner;
 class AWeaponInstance;
@@ -191,6 +192,10 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	TObjectPtr<UInventoryManagerComponent> InventoryManagerComponent;
+
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	TObjectPtr<UHitBoxBufferComponent> HitboxbuffComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character|Abilities")
 	TArray<TSubclassOf<UYogGameplayAbility>> GameplayAbilities;

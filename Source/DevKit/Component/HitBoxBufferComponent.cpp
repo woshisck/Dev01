@@ -8,7 +8,7 @@ UHitBoxBufferComponent::UHitBoxBufferComponent()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 
 	// ...
 }
@@ -32,15 +32,22 @@ void UHitBoxBufferComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	// ...
 }
 
-void UHitBoxBufferComponent::FlushHitBoxArray()
+void UHitBoxBufferComponent::Clear()
 {
+	array_HitboxBuffer.Empty();
 }
 
-void UHitBoxBufferComponent::SyncHitBoxArray(TArray<FHitBoxData> gaArray)
+void UHitBoxBufferComponent::Initialize(TArray<FHitBoxData> array_GA)
 {
+	Clear();
+	array_HitboxBuffer.Append(array_GA);
 }
 
 void UHitBoxBufferComponent::UpdateTrigger(int index, bool trigger)
 {
+	if (index < array_HitboxBuffer.Num())
+	{
+		array_HitboxBuffer[index].HasTriggered = trigger;
+	}
 }
 
