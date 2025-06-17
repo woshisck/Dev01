@@ -49,6 +49,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Buffer")
 	EPlayerActionInput GetLastActionInput(FVector2D Movement);
 
+
 	//BUFFER ARRAY DEFINE
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	TArray<EPlayerActionInput> ActionBuffer;
@@ -56,7 +57,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Input buffer")
 	TArray<FVector2D> MovementBuffer;
 
-
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Input buffer")
+	bool TurnBack = false;
 
 
 	UPROPERTY(BlueprintReadOnly, Category = "Input buffer")

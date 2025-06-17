@@ -14,7 +14,7 @@ struct FHitBoxData : public FTableRowBase
 
 public:
 	FHitBoxData()
-		: normalVector(FVector(0, 0, 1)), Location_End(FVector(0, 0, 0)), Location_Start(FVector(0, 0, 0)), HasTriggered(false)
+		: normalVector(FVector(0, 0, 1)), Location_End(FVector(0, 0, 0)), Location_Start(FVector(0, 0, 0)), HasTriggered(false), Index(0)
 	{
 	}
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
