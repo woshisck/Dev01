@@ -66,7 +66,7 @@ void UInputBufferComponent::UpdateMoveBuffer(FVector2D move)
 		MovementBuffer.Insert(move, 0);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("this->MovementBuffer: %d"), this->MovementBuffer.Num());
+	//UE_LOG(LogTemp, Warning, TEXT("this->MovementBuffer: %d"), this->MovementBuffer.Num());
 }
 
 
@@ -97,7 +97,7 @@ void UInputBufferComponent::DebugPrintAction()
 		count++;
 		
 	}
-	UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *results);
+	//UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *results);
 }
 
 void UInputBufferComponent::DebugPrintMovement()
@@ -112,7 +112,7 @@ void UInputBufferComponent::DebugPrintMovement()
 		results += cache;
 		count++;
 	}
-	UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *results);
+	//UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *results);
 }
 
 
