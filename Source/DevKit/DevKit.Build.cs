@@ -29,6 +29,7 @@ public class DevKit : ModuleRules
                 "CommonUI",
                 "UnrealEd",
                 "AIModule"
+
             });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
