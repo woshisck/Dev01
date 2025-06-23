@@ -41,6 +41,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation|Montage")
 	static UAnimSequence* SetSequenceRootMotion(UAnimSequence* sequence, bool enableRoot);
 
+	UFUNCTION(BlueprintPure, Category = "YogCharacterBase")
+	static EYogCharacterState GetCharacterState(AYogCharacterBase* character);
+
 
 };
 

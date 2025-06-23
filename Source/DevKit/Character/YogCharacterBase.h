@@ -11,13 +11,13 @@
 
 
 
-UENUM()
+UENUM(BlueprintType)
 enum class EYogCharacterState : uint8
 {
 	Move					UMETA(DisplayName = "Move"),
 	Idle					UMETA(DisplayName = "Idle"),
 	AbilityCast				UMETA(DisplayName = "AbilityCast"),
-	Hit						UMETA(DisplayName = "Hit")
+	Hurt					UMETA(DisplayName = "Hurt")
 
 };
 

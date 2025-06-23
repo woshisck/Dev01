@@ -147,3 +147,15 @@ UAnimSequence* UYogBlueprintFunctionLibrary::SetSequenceRootMotion(UAnimSequence
 	return sequence;
 }
 
+EYogCharacterState UYogBlueprintFunctionLibrary::GetCharacterState(AYogCharacterBase* character)
+{
+
+	if (character)
+	{
+		return character->CurrentState;
+	}
+	else
+	{
+		return EYogCharacterState::Idle;
+	}
+}
