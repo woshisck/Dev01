@@ -63,36 +63,31 @@ void UYogAnimNotifyState_Damage::NotifyTick(USkeletalMeshComponent* MeshComp, UA
 {
 	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
 
-	if (MeshComp)
-	{
-		if (AYogCharacterBase* Character = Cast<AYogCharacterBase>(MeshComp->GetOwner()))
-		{
-			AWeaponInstance* cache_Weapon = Character->Weapon;
-			FWeaponSocketLoc wpnSocket;
-			wpnSocket.DmgBox_End = cache_Weapon->point_DamageEnd;
-			wpnSocket.DmgBox_Start = cache_Weapon->point_DamageStart;
-			cache_Weapon->Array_damageBox.Insert(wpnSocket, 0);
-			UE_LOG(LogTemp, Warning, TEXT("Owner_weapon->Array_damageBox.Num(): %d"), cache_Weapon->Array_damageBox.Num());
-			
-			if (cache_Weapon->Array_damageBox.Num() > 0)
-			{
-				cache_Weapon->CreateDamageBox();
+	//if (MeshComp)
+	//{
+	//	if (AYogCharacterBase* Character = Cast<AYogCharacterBase>(MeshComp->GetOwner()))
+	//	{
+	//		AWeaponInstance* cache_Weapon = Character->Weapon;
+	//		FWeaponSocketLoc wpnSocket;
+	//		wpnSocket.DmgBox_End = cache_Weapon->point_DamageEnd;
+	//		wpnSocket.DmgBox_Start = cache_Weapon->point_DamageStart;
+	//		cache_Weapon->Array_damageBox.Insert(wpnSocket, 0);
+	//		UE_LOG(LogTemp, Warning, TEXT("Owner_weapon->Array_damageBox.Num(): %d"), cache_Weapon->Array_damageBox.Num());
+	//		
+	//		if (cache_Weapon->Array_damageBox.Num() > 0)
+	//		{
+	//			//cache_Weapon->CreateDamageBox();
+	//			FWeaponSocketLoc current_socket_loc = cache_Weapon->Array_damageBox[0];
+	//			//FWeaponSocketLoc last_socket_loc = cache_Weapon->Array_damageBox[1];
+	//			//FVector current_midpoint = current_socket_loc.DmgBox_Start->GetComponentLocation() + ((current_socket_loc.DmgBox_End->GetComponentLocation() - current_socket_loc.DmgBox_Start->GetComponentLocation()) / 2);
+	//		}
+	//	}
+	//}
+	//else
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("NotifyTick -> MeshComp NOT AVALIABLE"));
 
-				FWeaponSocketLoc current_socket_loc = cache_Weapon->Array_damageBox[0];
-				//FWeaponSocketLoc last_socket_loc = cache_Weapon->Array_damageBox[1];
-
-				//FVector current_midpoint = current_socket_loc.DmgBox_Start->GetComponentLocation() + ((current_socket_loc.DmgBox_End->GetComponentLocation() - current_socket_loc.DmgBox_Start->GetComponentLocation()) / 2);
-
-			}
-
-
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("NotifyTick -> MeshComp NOT AVALIABLE"));
-
-	}
+	//}
 }
 
 

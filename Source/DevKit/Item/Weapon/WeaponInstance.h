@@ -61,7 +61,7 @@ public:
 	void AddIgnoreActor(AActor* actor);
 
 	UFUNCTION(BlueprintImplementableEvent)
-	void CreateDamageBox();
+	void CreateDamageDamageEffect(AActor* WeaponOwner, AActor* TargetActor);
 	////~UObject interface
 	//virtual UWorld* GetWorld() const override final;
 	////~End of UObject interface

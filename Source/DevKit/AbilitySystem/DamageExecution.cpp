@@ -67,7 +67,7 @@ UDamageExecution::UDamageExecution()
 void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const 
 {
 
-	UE_LOG(LogTemp, Warning, TEXT("Start Damage execution "));
+	//UE_LOG(LogTemp, Warning, TEXT("Start Damage execution "));
 
 
 	UAbilitySystemComponent* TargetAbilitySystemComponent = ExecutionParams.GetTargetAbilitySystemComponent();
@@ -115,7 +115,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 	//TODO:need to change in future
 	float DMGDone = (BaseDMG + WeaponDMG) * BuffATKAmplify;
-	UE_LOG(LogTemp, Warning, TEXT("DMGDone is: %f"), DMGDone);
+	//UE_LOG(LogTemp, Warning, TEXT("DMGDone is: %f"), DMGDone);
 
 
 	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamageProperty, EGameplayModOp::Additive, DMGDone));
