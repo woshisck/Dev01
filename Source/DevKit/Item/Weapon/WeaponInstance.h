@@ -53,6 +53,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<USceneComponent> point_DamageEnd;
 
+	UFUNCTION(BlueprintCallable)
+	void ClearArray();
+
+
+	UFUNCTION(BlueprintCallable)
+	void AddIgnoreActor(AActor* actor);
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void CreateDamageBox();

@@ -53,6 +53,17 @@ void AWeaponInstance::Tick(float DeltaTime)
 
 }
 
+void AWeaponInstance::ClearArray()
+{
+	IgnoreActorList.Empty();
+}
+
+void AWeaponInstance::AddIgnoreActor(AActor* actor)
+{
+	IgnoreActorList.AddUnique(actor);
+
+}
+
 
 
 
