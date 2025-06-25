@@ -11,6 +11,31 @@
 #include "YogWorldSubsystem.generated.h"
 
 
+USTRUCT(BlueprintType)
+struct FSublevelTreeNode
+{
+	GENERATED_BODY()
+
+	// Name/identifier of the sublevel
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FName SublevelName;
+
+	// Reference to the streaming level (optional)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSoftObjectPtr<UWorld> SublevelReference;
+
+	// Child nodes
+	//UPROPERTY()
+	TLinkedList<FSublevelTreeNode*> Children;
+
+	// Stats/data you want to track
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float LoadTime = 0.0f;
+
+
+	// Add more stats as needed
+};
+
 /** Object that is written to and read from the save game archive, with a data version */
 UCLASS()
 class UYogWorldSubsystem : public UWorldSubsystem
@@ -33,6 +58,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void StartLoadingLevels(const TArray<FName>& LevelsToStream, float DelayBetweenLoads = 0.5f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sublevel Tree")
+	FSublevelTreeNode RootNode;
+
 
 protected:
 
