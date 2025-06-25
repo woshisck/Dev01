@@ -7,18 +7,23 @@
 
 
 UYogWorldSubsystem::UYogWorldSubsystem()
+	:UWorldSubsystem()
 {
 
 }
 
-void UYogWorldSubsystem::Init()
+void UYogWorldSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	Super::Initialize(Collection);
+	UE_LOG(DevKitLevelSystem, Display, TEXT("INIT YogWorldSubsystem"));
 }
+
+
 
 void UYogWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	
-	UE_LOG(LogTemp, Warning,TEXT("YogSubsystem onWorldBeginPlay"));
+	UE_LOG(DevKitLevelSystem, Display,TEXT("YogSubsystem onWorldBeginPlay"));
 	ULevel* CurrentLevel;
 	
 
@@ -31,7 +36,7 @@ void UYogWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		FName worldName;
 		worldName = world->GetFName();
 		
-		UE_LOG(LogTemp, Warning, TEXT("WORLD: %s"), *worldName.ToString());
+		UE_LOG(DevKitLevelSystem, Display, TEXT("WORLD: %s"), *worldName.ToString());
 	}
 
 }
@@ -73,7 +78,7 @@ void UYogWorldSubsystem::LoadNextLevel()
 {
 	if (PendingLevels.Num() == 0)
 	{
-		UE_LOG(LogTemp, Display, TEXT("All levels loaded!"));
+		UE_LOG(DevKitLevelSystem, Display, TEXT("All levels loaded!"));
 		return;
 	}
 

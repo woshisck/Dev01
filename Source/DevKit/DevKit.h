@@ -11,12 +11,12 @@
 
 
 //General Log
-DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(LogGame, Log, All);
+DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(DevKitGame, Log, All);
 //Logging during game startup
-DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(LogGameInit, Log, All);
+DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(DevKitInit, Log, All);
 //Logging for your AI system
-DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(LogGameAI, Log, All);
+DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(DevKitAI, Log, All);
 //Logging for a that level system
-DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(LogLevelSystem, Log, All);
+DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(DevKitLevelSystem, Log, All);
 //Logging for Critical Errors that must always be addressed
-DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(LogCriticalErrors, Log, All);
+DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(DevKitCriticalErrors, Log, All);

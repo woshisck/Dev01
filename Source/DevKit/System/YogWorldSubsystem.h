@@ -21,8 +21,7 @@ public:
 	/** Constructor */
 	UYogWorldSubsystem();
 
-	UFUNCTION()
-	void Init();
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 
 
