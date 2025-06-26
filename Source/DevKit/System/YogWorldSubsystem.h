@@ -7,15 +7,16 @@
 #include "Containers/Array.h"
 #include "Containers/List.h"
 
-
 #include "YogWorldSubsystem.generated.h"
 
-
-USTRUCT(BlueprintType)
-struct FSublevelTreeNode
+UCLASS()
+class USublevelTreeNode : public UObject
 {
 	GENERATED_BODY()
 
+	USublevelTreeNode() { };
+
+public:
 	// Name/identifier of the sublevel
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FName SublevelName;
@@ -26,15 +27,13 @@ struct FSublevelTreeNode
 
 	// Child nodes
 	//UPROPERTY()
-	TLinkedList<FSublevelTreeNode*> Children;
+	TArray<USublevelTreeNode*> ChildrenNode;
 
-	// Stats/data you want to track
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//float LoadTime = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int Depth;
 
-
-	// Add more stats as needed
 };
+
 
 /** Object that is written to and read from the save game archive, with a data version */
 UCLASS()
@@ -60,8 +59,24 @@ public:
 	void StartLoadingLevels(const TArray<FName>& LevelsToStream, float DelayBetweenLoads = 0.5f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sublevel Tree")
-	FSublevelTreeNode RootNode;
+	TObjectPtr<USublevelTreeNode> RootNode;
 
+	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
+	void InitializeTree(const FName& RootSublevelName);
+
+
+	// Add a child node
+	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
+	bool AddChildNode(const FName& ParentName, USublevelTreeNode* NewNode);
+
+	UFUNCTION()
+	USublevelTreeNode* FindNodeByName(USublevelTreeNode* CurrentNode, const FName& SearchName);
+
+	UFUNCTION()
+	void UpdateNodeStats(const FName& NodeName, float NewLoadTime, float NewMemoryUsage);
+
+	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
+	void GenerateLevelTree();
 
 protected:
 
@@ -87,6 +102,8 @@ protected:
 
 private:
 
+	//Change 
+	//static ConstructorHelpers::FObjectFinder<UClass> DefaultReticleClass(TEXT("Class'/Game/Characters/Global/Reticles/BP_Reticle_AbilityTargeting.BP_Reticle_AbilityTargeting_C'"));
 
 	TArray<FName> PendingLevels;
 

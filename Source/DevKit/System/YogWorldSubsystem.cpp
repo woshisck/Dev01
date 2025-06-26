@@ -162,3 +162,59 @@ void UYogWorldSubsystem::StartLoadingLevels(const TArray<FName>& LevelsToStream,
 	// Start loading first level immediately
 	LoadNextLevel();
 }
+
+void UYogWorldSubsystem::InitializeTree(const FName& RootSublevelName)
+{
+	RootNode->SublevelName = RootSublevelName;
+	RootNode->Children.Empty();
+	GenerateLevelTree();
+}
+
+bool UYogWorldSubsystem::AddChildNode(const FName& ParentName, USublevelTreeNode* NewNode)
+{
+	USublevelTreeNode* Parent = FindNodeByName(RootNode, ParentName);
+	if (Parent)
+	{
+		Parent->Children.Add(NewNode);
+		return true;
+	}
+	return false;
+}
+
+USublevelTreeNode* UYogWorldSubsystem::FindNodeByName(USublevelTreeNode* CurrentNode, const FName& SearchName)
+{
+	USublevelTreeNode* obj = NewObject<USublevelTreeNode>();
+
+	if (CurrentNode->SublevelName == SearchName)
+	{
+		return CurrentNode;
+	}
+
+	for (USublevelTreeNode* Child : CurrentNode->Children)
+	{
+		USublevelTreeNode* FoundNode = FindNodeByName(Child, SearchName);
+		if (FoundNode)
+		{
+			return FoundNode;
+		}
+	}
+
+	return nullptr;
+
+}
+
+void UYogWorldSubsystem::UpdateNodeStats(const FName& NodeName, float NewLoadTime, float NewMemoryUsage)
+{
+	USublevelTreeNode* Node = FindNodeByName(RootNode, NodeName);
+	if (Node)
+	{
+
+	}
+}
+
+void UYogWorldSubsystem::GenerateLevelTree()
+{
+	USublevelTreeNode* ForestNode;
+	ForestNode->SublevelName = "Forest";
+	SublevelTreeManager->AddChildNode("PersistentLevel", ForestNode);
+}
