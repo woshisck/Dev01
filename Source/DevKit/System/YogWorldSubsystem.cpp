@@ -166,8 +166,8 @@ void UYogWorldSubsystem::StartLoadingLevels(const TArray<FName>& LevelsToStream,
 void UYogWorldSubsystem::InitializeTree(const FName& RootSublevelName)
 {
 	RootNode->SublevelName = RootSublevelName;
-	RootNode->Children.Empty();
-	GenerateLevelTree();
+	RootNode->ChildrenNode.Empty();
+	GenerateNewLevelTree();
 }
 
 bool UYogWorldSubsystem::AddChildNode(const FName& ParentName, USublevelTreeNode* NewNode)
@@ -175,7 +175,7 @@ bool UYogWorldSubsystem::AddChildNode(const FName& ParentName, USublevelTreeNode
 	USublevelTreeNode* Parent = FindNodeByName(RootNode, ParentName);
 	if (Parent)
 	{
-		Parent->Children.Add(NewNode);
+		Parent->ChildrenNode.Add(NewNode);
 		return true;
 	}
 	return false;
@@ -190,7 +190,7 @@ USublevelTreeNode* UYogWorldSubsystem::FindNodeByName(USublevelTreeNode* Current
 		return CurrentNode;
 	}
 
-	for (USublevelTreeNode* Child : CurrentNode->Children)
+	for (USublevelTreeNode* Child : CurrentNode->ChildrenNode)
 	{
 		USublevelTreeNode* FoundNode = FindNodeByName(Child, SearchName);
 		if (FoundNode)
@@ -212,9 +212,25 @@ void UYogWorldSubsystem::UpdateNodeStats(const FName& NodeName, float NewLoadTim
 	}
 }
 
-void UYogWorldSubsystem::GenerateLevelTree()
+void UYogWorldSubsystem::GenerateNewLevelTree()
 {
-	USublevelTreeNode* ForestNode;
-	ForestNode->SublevelName = "Forest";
-	SublevelTreeManager->AddChildNode("PersistentLevel", ForestNode);
+	RootNode = NewObject<USublevelTreeNode>(this);
+	RootNode->Depth = 0;
+
+	//USublevelTreeNode* ForestNode;
+	//ForestNode->SublevelName = "Forest";
+	//SublevelTreeManager->AddChildNode("PersistentLevel", ForestNode);
 }
+
+void UYogWorldSubsystem::OpenLevelAsPersistentAtRuntime(UObject* WorldContextObject, const FString& LevelName)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World) return;
+
+	// This will replace the current persistent level
+	UGameplayStatics::OpenLevel(World, FName(*LevelName), true);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+

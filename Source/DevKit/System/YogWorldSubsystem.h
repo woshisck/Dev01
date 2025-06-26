@@ -14,7 +14,7 @@ class USublevelTreeNode : public UObject
 {
 	GENERATED_BODY()
 
-	USublevelTreeNode() { };
+	USublevelTreeNode() { Depth = 0; };
 
 public:
 	// Name/identifier of the sublevel
@@ -28,6 +28,8 @@ public:
 	// Child nodes
 	//UPROPERTY()
 	TArray<USublevelTreeNode*> ChildrenNode;
+
+	TArray<USublevelTreeNode*> ParentNode;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int Depth;
@@ -64,7 +66,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
 	void InitializeTree(const FName& RootSublevelName);
 
-
 	// Add a child node
 	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
 	bool AddChildNode(const FName& ParentName, USublevelTreeNode* NewNode);
@@ -76,7 +77,10 @@ public:
 	void UpdateNodeStats(const FName& NodeName, float NewLoadTime, float NewMemoryUsage);
 
 	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
-	void GenerateLevelTree();
+	void GenerateNewLevelTree();
+
+	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
+	void OpenLevelAsPersistentAtRuntime(UObject* WorldContextObject, const FString& LevelName);
 
 protected:
 
