@@ -28,16 +28,18 @@ void UYogWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	
 
 	UWorld* world = GetCurrentWorld();
-
-	CurrentLevel = world->GetCurrentLevel();
-
-	if (world != nullptr)
+	if (world)
 	{
+		CurrentLevel = world->GetCurrentLevel();
+
+
 		FName worldName;
 		worldName = world->GetFName();
-		
+
 		UE_LOG(DevKitLevelSystem, Display, TEXT("WORLD: %s"), *worldName.ToString());
+
 	}
+
 
 }
 
@@ -72,6 +74,18 @@ void UYogWorldSubsystem::UnloadAllStreamLevels()
 		}
 	}
 	LoadedLevels.Empty(); // Clear the array
+}
+
+void UYogWorldSubsystem::LoadStreamLevel(ULevelStreaming* StreamingLevel)
+{
+	if (StreamingLevel)
+	{
+		StreamingLevel->SetShouldBeLoaded(true);
+		StreamingLevel->SetShouldBeVisible(true);
+
+		//StreamingLevel->bShouldBlockOnLoad = true; // Block until loaded
+		//StreamingLevel->RequestLevel();
+	}
 }
 
 void UYogWorldSubsystem::LoadNextLevel()
@@ -118,7 +132,7 @@ void UYogWorldSubsystem::OnLevelLoaded()
 	if (LastLoaded)
 	{
 		LoadedLevels.Add(LastLoaded);
-		UE_LOG(LogTemp, Display, TEXT("Successfully loaded: %s"),
+		UE_LOG(DevKitLevelSystem, Display, TEXT("Successfully loaded: %s"),
 			*LastLoaded->GetWorldAssetPackageFName().ToString());
 	}
 
@@ -229,6 +243,49 @@ void UYogWorldSubsystem::OpenLevelAsPersistentAtRuntime(UObject* WorldContextObj
 
 	// This will replace the current persistent level
 	UGameplayStatics::OpenLevel(World, FName(*LevelName), true);
+}
+
+void UYogWorldSubsystem::GetAllSubLevel(UObject* WorldContextObject)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (World)
+	{
+		// Get all streaming sublevels attached to the persistent level
+		const TArray<ULevelStreaming*>& StreamingLevels = World->GetStreamingLevels();
+
+		for (ULevelStreaming* StreamingLevel : StreamingLevels)
+		{
+			if (StreamingLevel)
+			{
+				FLatentActionInfo LatentInfo;
+				/*UGameplayStatics::LoadStreamLevel(WorldContextObject, *LevelPackageName, true, true, LatentInfo);*/
+				StreamingLevel->bShouldBlockOnLoad = true;
+				StreamingLevel->SetShouldBeLoaded(true);
+				StreamingLevel->SetShouldBeVisible(true);
+
+				// This is the full package name of the level asset
+				FString LevelPackageName = StreamingLevel->GetWorldAssetPackageName();
+
+
+
+
+				UE_LOG(LogTemp, Log, TEXT("Sublevel package name: %s"), *LevelPackageName);
+
+				// Check if level is loaded
+				ULevel* LoadedLevel = StreamingLevel->GetLoadedLevel();
+				if (LoadedLevel)
+				{
+					UE_LOG(LogTemp, Log, TEXT("Sublevel is loaded."));
+					// You can access level content here
+				}
+				else
+				{
+					UE_LOG(LogTemp, Log, TEXT("Sublevel is NOT loaded."));
+				}
+			}
+		}
+	}
+
 }
 
 
