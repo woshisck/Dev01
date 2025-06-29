@@ -179,6 +179,10 @@ void UYogWorldSubsystem::StartLoadingLevels(const TArray<FName>& LevelsToStream,
 
 void UYogWorldSubsystem::InitializeTree(const FName& RootSublevelName)
 {
+	static ConstructorHelpers::FObjectFinder<UClass> DefaultRootNodeMap(TEXT("Class'/Game/Maps/Dungeon/RootNode.RootNode'"));
+	static ConstructorHelpers::FObjectFinder<UClass> DefaultEndNodeMap(TEXT("Class'/Game/Maps/Dungeon/EndNode.EndNode'"));
+
+
 	RootNode->SublevelName = RootSublevelName;
 	RootNode->ChildrenNode.Empty();
 	InitMapTree();

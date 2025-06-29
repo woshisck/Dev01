@@ -115,8 +115,8 @@ private:
 
 	//Change 
 	//static ConstructorHelpers::FObjectFinder<UClass> DefaultReticleClass(TEXT("Class'/Game/Characters/Global/Reticles/BP_Reticle_AbilityTargeting.BP_Reticle_AbilityTargeting_C'"));
-	FString  RootNode = TEXT("Class'/Game/Maps/Dungeon/RootNode.RootNode'");
-	FString  EndNode = TEXT("Class'/Game/Maps/Dungeon/EndNode.EndNode'");
+	FString  path_RootNode = TEXT("Class'/Game/Maps/Dungeon/RootNode.RootNode'");
+	FString  path_EndNode = TEXT("Class'/Game/Maps/Dungeon/EndNode.EndNode'");
 
 	TArray<FName> PendingLevels;
 
