@@ -181,7 +181,7 @@ void UYogWorldSubsystem::InitializeTree(const FName& RootSublevelName)
 {
 	RootNode->SublevelName = RootSublevelName;
 	RootNode->ChildrenNode.Empty();
-	GenerateNewLevelTree();
+	InitMapTree();
 }
 
 bool UYogWorldSubsystem::AddChildNode(const FName& ParentName, USublevelTreeNode* NewNode)
@@ -226,11 +226,11 @@ void UYogWorldSubsystem::UpdateNodeStats(const FName& NodeName, float NewLoadTim
 	}
 }
 
-void UYogWorldSubsystem::GenerateNewLevelTree()
+void UYogWorldSubsystem::InitMapTree()
 {
 	RootNode = NewObject<USublevelTreeNode>(this);
 	RootNode->Depth = 0;
-
+	RootNode->SublevelName = "RootNode";
 	//USublevelTreeNode* ForestNode;
 	//ForestNode->SublevelName = "Forest";
 	//SublevelTreeManager->AddChildNode("PersistentLevel", ForestNode);

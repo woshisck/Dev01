@@ -77,7 +77,7 @@ public:
 	void UpdateNodeStats(const FName& NodeName, float NewLoadTime, float NewMemoryUsage);
 
 	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
-	void GenerateNewLevelTree();
+	void InitMapTree();
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void OpenLevelAsPersistentAtRuntime(UObject* WorldContextObject, const FString& LevelName);
@@ -115,6 +115,8 @@ private:
 
 	//Change 
 	//static ConstructorHelpers::FObjectFinder<UClass> DefaultReticleClass(TEXT("Class'/Game/Characters/Global/Reticles/BP_Reticle_AbilityTargeting.BP_Reticle_AbilityTargeting_C'"));
+	FString  RootNode = TEXT("Class'/Game/Maps/Dungeon/RootNode.RootNode'");
+	FString  EndNode = TEXT("Class'/Game/Maps/Dungeon/EndNode.EndNode'");
 
 	TArray<FName> PendingLevels;
 
