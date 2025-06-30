@@ -9,30 +9,50 @@
 
 #include "YogWorldSubsystem.generated.h"
 
-UCLASS()
-class USublevelTreeNode : public UObject
+
+UENUM(BlueprintType)
+enum class ESublevelType : uint8
+{
+	Combat,
+	Event,
+	Shop,
+	Rest,
+	Boss
+};
+
+USTRUCT(BlueprintType)
+struct FSublevelTreeNode
 {
 	GENERATED_BODY()
 
-	USublevelTreeNode() { Depth = 0; };
+	FSublevelTreeNode() = default;
+
+	FSublevelTreeNode(FName InPackageName, const FString& InDisplayName) 
+		:LevelPackageName(InPackageName){};
 
 public:
-	// Name/identifier of the sublevel
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FName SublevelName;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	ESublevelType NodeType;
+
+
+	// Name/identifier of the sublevel
+	UPROPERTY()
+	FName LevelPackageName;
+	 
 	// Reference to the streaming level (optional)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSoftObjectPtr<UWorld> SublevelReference;
 
 	// Child nodes
 	//UPROPERTY()
-	TArray<USublevelTreeNode*> ChildrenNode;
+	TArray<FSublevelTreeNode> ChildrenNode;
 
-	TArray<USublevelTreeNode*> ParentNode;
+	TArray<FSublevelTreeNode> ParentNode;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int Depth;
+	UPROPERTY(Transient)
+	ULevelStreaming* StreamingLevel = nullptr;
+
 
 };
 
@@ -59,25 +79,19 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void StartLoadingLevels(const TArray<FName>& LevelsToStream, float DelayBetweenLoads = 0.5f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sublevel Tree")
-	TObjectPtr<USublevelTreeNode> RootNode;
+	
+	UPROPERTY()
+	FSublevelTreeNode map_RootNode;
+	
 
 	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
 	void InitializeTree(const FName& RootSublevelName);
 
-	// Add a child node
-	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
-	bool AddChildNode(const FName& ParentName, USublevelTreeNode* NewNode);
 
-	UFUNCTION()
-	USublevelTreeNode* FindNodeByName(USublevelTreeNode* CurrentNode, const FName& SearchName);
 
-	UFUNCTION()
-	void UpdateNodeStats(const FName& NodeName, float NewLoadTime, float NewMemoryUsage);
+	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
+	void PrintLevelTree();
 
-	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
-	void InitMapTree();
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void OpenLevelAsPersistentAtRuntime(UObject* WorldContextObject, const FString& LevelName);
@@ -86,7 +100,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void GetAllSubLevel(UObject* WorldContextObject);
 
+	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
+	void BuildSampleTree();
+
+
 protected:
+
+	void PrintLevelTree_Internal(const FSublevelTreeNode& Node, int32 Depth = 0);
 
 	UPROPERTY()
 	TArray<ULevelStreaming*> LoadedLevels;
@@ -115,9 +135,6 @@ private:
 
 	//Change 
 	//static ConstructorHelpers::FObjectFinder<UClass> DefaultReticleClass(TEXT("Class'/Game/Characters/Global/Reticles/BP_Reticle_AbilityTargeting.BP_Reticle_AbilityTargeting_C'"));
-	FString  path_RootNode = TEXT("Class'/Game/Maps/Dungeon/RootNode.RootNode'");
-	FString  path_EndNode = TEXT("Class'/Game/Maps/Dungeon/EndNode.EndNode'");
-
 	TArray<FName> PendingLevels;
 
 	FTimerHandle LevelLoadTimerHandle;
@@ -128,3 +145,8 @@ private:
 	UFUNCTION()
 	void OnLevelLoaded();
 };
+
+
+
+//static ConstructorHelpers::FObjectFinder<UClass> DefaultRootNodeMap(TEXT("Class'/Game/Maps/Dungeon/RootNode.RootNode'"));
+//static ConstructorHelpers::FObjectFinder<UClass> DefaultEndNodeMap(TEXT("Class'/Game/Maps/Dungeon/EndNode.EndNode'"));

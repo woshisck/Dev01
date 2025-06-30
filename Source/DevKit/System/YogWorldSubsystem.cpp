@@ -179,66 +179,18 @@ void UYogWorldSubsystem::StartLoadingLevels(const TArray<FName>& LevelsToStream,
 
 void UYogWorldSubsystem::InitializeTree(const FName& RootSublevelName)
 {
-	static ConstructorHelpers::FObjectFinder<UClass> DefaultRootNodeMap(TEXT("Class'/Game/Maps/Dungeon/RootNode.RootNode'"));
-	static ConstructorHelpers::FObjectFinder<UClass> DefaultEndNodeMap(TEXT("Class'/Game/Maps/Dungeon/EndNode.EndNode'"));
 
 
-	RootNode->SublevelName = RootSublevelName;
-	RootNode->ChildrenNode.Empty();
-	InitMapTree();
+
 }
 
-bool UYogWorldSubsystem::AddChildNode(const FName& ParentName, USublevelTreeNode* NewNode)
+
+
+void UYogWorldSubsystem::PrintLevelTree()
 {
-	USublevelTreeNode* Parent = FindNodeByName(RootNode, ParentName);
-	if (Parent)
-	{
-		Parent->ChildrenNode.Add(NewNode);
-		return true;
-	}
-	return false;
+	PrintLevelTree_Internal(map_RootNode, 0);
 }
 
-USublevelTreeNode* UYogWorldSubsystem::FindNodeByName(USublevelTreeNode* CurrentNode, const FName& SearchName)
-{
-	USublevelTreeNode* obj = NewObject<USublevelTreeNode>();
-
-	if (CurrentNode->SublevelName == SearchName)
-	{
-		return CurrentNode;
-	}
-
-	for (USublevelTreeNode* Child : CurrentNode->ChildrenNode)
-	{
-		USublevelTreeNode* FoundNode = FindNodeByName(Child, SearchName);
-		if (FoundNode)
-		{
-			return FoundNode;
-		}
-	}
-
-	return nullptr;
-
-}
-
-void UYogWorldSubsystem::UpdateNodeStats(const FName& NodeName, float NewLoadTime, float NewMemoryUsage)
-{
-	USublevelTreeNode* Node = FindNodeByName(RootNode, NodeName);
-	if (Node)
-	{
-
-	}
-}
-
-void UYogWorldSubsystem::InitMapTree()
-{
-	RootNode = NewObject<USublevelTreeNode>(this);
-	RootNode->Depth = 0;
-	RootNode->SublevelName = "RootNode";
-	//USublevelTreeNode* ForestNode;
-	//ForestNode->SublevelName = "Forest";
-	//SublevelTreeManager->AddChildNode("PersistentLevel", ForestNode);
-}
 
 void UYogWorldSubsystem::OpenLevelAsPersistentAtRuntime(UObject* WorldContextObject, const FString& LevelName)
 {
@@ -290,6 +242,34 @@ void UYogWorldSubsystem::GetAllSubLevel(UObject* WorldContextObject)
 		}
 	}
 
+}
+
+void UYogWorldSubsystem::BuildSampleTree()
+{
+	FSublevelTreeNode RootNode(FName(TEXT("LevelRootPackage")), FString("Root Level"));
+
+	// Add children
+	FSublevelTreeNode RoomA(FName(TEXT("LevelPackageA")), FString("Room A"));
+	FSublevelTreeNode RoomB(FName(TEXT("LevelPackageB")), FString("Room B"));
+
+	// Sub-children
+	RoomA.ChildrenNode.Add(FSublevelTreeNode(FName(TEXT("LevelPackageA1")), FString("Room A - SubArea 1")));
+
+	RootNode.ChildrenNode.Add(RoomA);
+	RootNode.ChildrenNode.Add(RoomB);
+
+	map_RootNode = RootNode;
+}
+
+void UYogWorldSubsystem::PrintLevelTree_Internal(const FSublevelTreeNode& Node, int32 Depth)
+{
+	FString Indent = FString::ChrN(Depth * 2, ' ');
+	UE_LOG(DevKitLevelSystem, Display, TEXT("%sNode: %s, Package: %s"), *Indent, *Node.DisplayName.ToString(), *Node.LevelPackageName.ToString());
+
+	for (const FSublevelTreeNode& ChildNode : Node.ChildrenNode)
+	{
+		PrintLevelTree_Internal(ChildNode, Depth + 1);
+	}
 }
 
 
