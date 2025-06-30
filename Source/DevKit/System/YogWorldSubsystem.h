@@ -39,6 +39,9 @@ public:
 	// Name/identifier of the sublevel
 	UPROPERTY()
 	FName LevelPackageName;
+
+	UPROPERTY()
+	FName DisplayName;
 	 
 	// Reference to the streaming level (optional)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -53,6 +56,14 @@ public:
 	UPROPERTY(Transient)
 	ULevelStreaming* StreamingLevel = nullptr;
 
+	void ClearChildrenNode()
+	{
+		for (FSublevelTreeNode Child : ChildrenNode)
+		{
+			Child.ClearChildrenNode();
+		}
+		ChildrenNode.Empty();
+	}
 
 };
 
@@ -103,6 +114,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void BuildSampleTree();
 
+	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
+	void ClearTree();
 
 protected:
 

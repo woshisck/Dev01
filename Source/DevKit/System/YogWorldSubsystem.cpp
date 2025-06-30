@@ -261,15 +261,37 @@ void UYogWorldSubsystem::BuildSampleTree()
 	map_RootNode = RootNode;
 }
 
+void UYogWorldSubsystem::ClearTree()
+{
+}
+
 void UYogWorldSubsystem::PrintLevelTree_Internal(const FSublevelTreeNode& Node, int32 Depth)
 {
-	FString Indent = FString::ChrN(Depth * 2, ' ');
-	UE_LOG(DevKitLevelSystem, Display, TEXT("%sNode: %s, Package: %s"), *Indent, *Node.DisplayName.ToString(), *Node.LevelPackageName.ToString());
-
-	for (const FSublevelTreeNode& ChildNode : Node.ChildrenNode)
+	FString Indent;
+	for (int32 i = 0; i < Depth; ++i)
 	{
-		PrintLevelTree_Internal(ChildNode, Depth + 1);
+		Indent += TEXT("|  ");
 	}
+
+	UE_LOG(DevKitLevelSystem, Display, TEXT("%s|-- %s"), *Indent, *Node.DisplayName.ToString());
+
+	for (int32 i = 0; i < Node.ChildrenNode.Num(); ++i)
+	{
+		const bool bIsLast = (i == Node.ChildrenNode.Num() - 1);
+		FString NewIndent = Indent + (bIsLast ? TEXT("   ") : TEXT("|  "));
+
+
+		PrintLevelTree_Internal(Node.ChildrenNode[i], Depth + 1);
+	}
+
+
+	//FString Indent = FString::ChrN(Depth * 2, ' ');
+	//UE_LOG(DevKitLevelSystem, Display, TEXT("%sNode: %s, Package: %s"), *Indent, *Node.DisplayName.ToString(), *Node.LevelPackageName.ToString());
+
+	//for (const FSublevelTreeNode& ChildNode : Node.ChildrenNode)
+	//{
+	//	PrintLevelTree_Internal(ChildNode, Depth + 1);
+	//}
 }
 
 
