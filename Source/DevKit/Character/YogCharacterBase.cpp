@@ -247,8 +247,8 @@ void AYogCharacterBase::BuffAmplifyChanged(const FOnAttributeChangeData& Data)
 
 void AYogCharacterBase::FinishDying()
 {
-	
-	Destroy();
+
+	//Destroy();
 }
 
 void AYogCharacterBase::Die()
@@ -260,6 +260,13 @@ void AYogCharacterBase::Die()
 
 	OnCharacterDied.Broadcast(this);
 	AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
+
+	if (APlayerController* PC = Cast<APlayerController>(this->GetController()))
+	{
+		DisableInput(PC);
+	}
+
+
 	if (DeathMontage)
 	{
 		PlayAnimMontage(DeathMontage);
