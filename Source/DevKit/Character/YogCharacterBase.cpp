@@ -247,7 +247,7 @@ void AYogCharacterBase::BuffAmplifyChanged(const FOnAttributeChangeData& Data)
 
 void AYogCharacterBase::FinishDying()
 {
-
+	UE_LOG(LogTemp, Display, TEXT("Character FinishDying"));
 	//Destroy();
 }
 
@@ -274,7 +274,7 @@ void AYogCharacterBase::Die()
 	else
 	{
 		FinishDying();
-	}
+	} 
 
 
 }

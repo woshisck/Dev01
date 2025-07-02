@@ -9,7 +9,7 @@
 UYogWorldSubsystem::UYogWorldSubsystem()
 	:UWorldSubsystem()
 {
-
+	MapSoftPtr = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode")));
 }
 
 void UYogWorldSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -177,9 +177,40 @@ void UYogWorldSubsystem::StartLoadingLevels(const TArray<FName>& LevelsToStream,
 	LoadNextLevel();
 }
 
-void UYogWorldSubsystem::InitializeTree(const FName& RootSublevelName)
+void UYogWorldSubsystem::InitializeMatrix()
 {
+	int x = 16;
+	int y = 16;
 
+
+	FLevel2DRow default2DRow = FLevel2DRow();
+
+
+	FLevel2DNode default2DNode = FLevel2DNode();
+	default2DNode.LevelMap = MapSoftPtr;
+		
+	for (int i = 0; i < x; i++)
+	{
+		default2DRow.Add(default2DNode);
+	}
+
+	for (int i = 0; i < x; i++)
+	{
+		LevelMatrix.Add(default2DRow);
+	}
+
+		//TODO: for loop add
+		//LevelMatrix.ADD(FLevel2DRow)
+		//FLevel2DRow.add(FLevel2DNode)
+		
+
+
+
+		//for (int i = 0; i < y; i++)
+		//{
+
+		//	LevelMatrix.add()
+		//}
 
 
 }
@@ -188,7 +219,7 @@ void UYogWorldSubsystem::InitializeTree(const FName& RootSublevelName)
 
 void UYogWorldSubsystem::PrintLevelTree()
 {
-	PrintLevelTree_Internal(map_RootNode, 0);
+	PrintLevelTree_Internal();
 }
 
 
@@ -244,47 +275,21 @@ void UYogWorldSubsystem::GetAllSubLevel(UObject* WorldContextObject)
 
 }
 
-void UYogWorldSubsystem::BuildSampleTree()
-{
-	FSublevelTreeNode RootNode(FName(TEXT("LevelRootPackage")), FString("Root Level"));
 
-	// Add children
-	FSublevelTreeNode RoomA(FName(TEXT("LevelPackageA")), FString("Room A"));
-	FSublevelTreeNode RoomB(FName(TEXT("LevelPackageB")), FString("Room B"));
-
-	// Sub-children
-	RoomA.ChildrenNode.Add(FSublevelTreeNode(FName(TEXT("LevelPackageA1")), FString("Room A - SubArea 1")));
-
-	RootNode.ChildrenNode.Add(RoomA);
-	RootNode.ChildrenNode.Add(RoomB);
-
-	map_RootNode = RootNode;
-}
-
-void UYogWorldSubsystem::ClearTree()
+void UYogWorldSubsystem::ClearLevelMatrix()
 {
 }
 
-void UYogWorldSubsystem::PrintLevelTree_Internal(const FSublevelTreeNode& Node, int32 Depth)
+void UYogWorldSubsystem::PrintLevelTree_Internal()
 {
-	FString Indent;
-	for (int32 i = 0; i < Depth; ++i)
+	for (FLevel2DRow& row : LevelMatrix)
 	{
-		Indent += TEXT("|  ");
+		for (FLevel2DNode& node : row.rows_levelNode)
+		{
+			UE_LOG(DevKitLevelSystem, Display, TEXT("node lEVEL name : %s"), *node.LevelPackageName.ToString());
+		}
 	}
-
-	UE_LOG(DevKitLevelSystem, Display, TEXT("%s|-- %s"), *Indent, *Node.DisplayName.ToString());
-
-	for (int32 i = 0; i < Node.ChildrenNode.Num(); ++i)
-	{
-		const bool bIsLast = (i == Node.ChildrenNode.Num() - 1);
-		FString NewIndent = Indent + (bIsLast ? TEXT("   ") : TEXT("|  "));
-
-
-		PrintLevelTree_Internal(Node.ChildrenNode[i], Depth + 1);
-	}
-
-
+	
 	//FString Indent = FString::ChrN(Depth * 2, ' ');
 	//UE_LOG(DevKitLevelSystem, Display, TEXT("%sNode: %s, Package: %s"), *Indent, *Node.DisplayName.ToString(), *Node.LevelPackageName.ToString());
 
@@ -293,7 +298,3 @@ void UYogWorldSubsystem::PrintLevelTree_Internal(const FSublevelTreeNode& Node, 
 	//	PrintLevelTree_Internal(ChildNode, Depth + 1);
 	//}
 }
-
-
-//////////////////////////////////////////////////////////////////////////////////////
-

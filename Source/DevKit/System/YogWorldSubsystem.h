@@ -13,24 +13,19 @@
 UENUM(BlueprintType)
 enum class ESublevelType : uint8
 {
+
 	Combat,
 	Event,
 	Shop,
 	Rest,
 	Boss
 };
-
 USTRUCT(BlueprintType)
-struct FSublevelTreeNode
+struct FLevel2DNode
 {
 	GENERATED_BODY()
-
-	FSublevelTreeNode() = default;
-
-	FSublevelTreeNode(FName InPackageName, const FString& InDisplayName) 
-		:LevelPackageName(InPackageName){};
-
 public:
+	FLevel2DNode() { LevelPackageName = "DefaultNode"; };
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	ESublevelType NodeType;
@@ -40,30 +35,48 @@ public:
 	UPROPERTY()
 	FName LevelPackageName;
 
-	UPROPERTY()
-	FName DisplayName;
-	 
 	// Reference to the streaming level (optional)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSoftObjectPtr<UWorld> SublevelReference;
+	TSoftObjectPtr<UWorld> LevelMap;
+	
+	TArray<FVector2D> pos_EnterNode;
 
-	// Child nodes
-	//UPROPERTY()
-	TArray<FSublevelTreeNode> ChildrenNode;
+	TArray<FVector2D> pos_LeaveNode;
 
-	TArray<FSublevelTreeNode> ParentNode;
+};
 
-	UPROPERTY(Transient)
-	ULevelStreaming* StreamingLevel = nullptr;
+USTRUCT(BlueprintType)
+struct FLevel2DRow
+{
+	GENERATED_BODY()
 
-	void ClearChildrenNode()
+public:
+	
+	TArray<FLevel2DNode> rows_levelNode;
+
+	FLevel2DRow() = default;
+
+
+	FLevel2DNode operator [] (int32 i)
 	{
-		for (FSublevelTreeNode Child : ChildrenNode)
-		{
-			Child.ClearChildrenNode();
-		}
-		ChildrenNode.Empty();
+		return rows_levelNode[i];
 	}
+
+	void Add(FLevel2DNode level2Dnode)
+	{
+		rows_levelNode.Add(level2Dnode);
+	}
+
+
+
+	//void ClearChildrenNode()
+	//{
+	//	for (FLevel2DArray Child : ChildrenNode)
+	//	{
+	//		Child.ClearChildrenNode();
+	//	}
+	//	ChildrenNode.Empty();
+	//}
 
 };
 
@@ -81,6 +94,10 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Streaming")
+	TArray<FLevel2DRow> LevelMatrix;
+
+
 
 	/** Called when world is ready to start gameplay before the game mode transitions to the correct state and call BeginPlay on all actors */
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
@@ -92,11 +109,11 @@ public:
 	void StartLoadingLevels(const TArray<FName>& LevelsToStream, float DelayBetweenLoads = 0.5f);
 	
 	UPROPERTY()
-	FSublevelTreeNode map_RootNode;
+	FLevel2DRow map_RootNode;
 	
 
 	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
-	void InitializeTree(const FName& RootSublevelName);
+	void InitializeMatrix();
 
 
 
@@ -111,16 +128,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void GetAllSubLevel(UObject* WorldContextObject);
 
-	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
-	void BuildSampleTree();
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
-	void ClearTree();
+	void ClearLevelMatrix();
 
 protected:
 
-	void PrintLevelTree_Internal(const FSublevelTreeNode& Node, int32 Depth = 0);
-
+	void PrintLevelTree_Internal();
+	
 	UPROPERTY()
 	TArray<ULevelStreaming*> LoadedLevels;
 
@@ -157,6 +172,10 @@ private:
 
 	UFUNCTION()
 	void OnLevelLoaded();
+
+
+	UPROPERTY()
+	TSoftObjectPtr<UWorld> MapSoftPtr;
 };
 
 
