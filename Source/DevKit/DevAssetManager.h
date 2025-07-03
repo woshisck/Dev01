@@ -43,9 +43,9 @@ public:
 	FStreamableManager AssetLoader;
 
 	//UFUNCTION(BlueprintCallable, CallInEditor)
-	//FString FuncAsyncLoadAsset(const FOnAsyncLoadFinished& OnAsyncLoadFinished);
+	//FString AsyncLoadAsset(const FOnAsyncLoadFinished& OnAsyncLoadFinished);
 	UFUNCTION(BlueprintCallable)
-	void FuncAsyncLoadAsset(FSoftObjectPath Path, FOnAsyncLoadFinished OnAsyncLoadFinished);
+	void AsyncLoadAsset(FSoftObjectPath Path, FOnAsyncLoadFinished OnAsyncLoadFinished);
 
 
 	UFUNCTION(BlueprintCallable, CallInEditor)

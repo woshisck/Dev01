@@ -37,7 +37,7 @@ public:
 
 	// Reference to the streaming level (optional)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSoftObjectPtr<UWorld> LevelMap;
+	FSoftObjectPath LevelMapSoftPath;
 	
 	TArray<FVector2D> pos_EnterNode;
 
@@ -69,15 +69,6 @@ public:
 
 
 
-	//void ClearChildrenNode()
-	//{
-	//	for (FLevel2DArray Child : ChildrenNode)
-	//	{
-	//		Child.ClearChildrenNode();
-	//	}
-	//	ChildrenNode.Empty();
-	//}
-
 };
 
 
@@ -92,6 +83,12 @@ public:
 	UYogWorldSubsystem();
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
+	void Shuffle(TArray<int32>& array);
+
+
+	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
+	TArray<int32> GenerateRandomIntegers(int count, int rangeMax, int rangeMin);
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Streaming")
@@ -108,17 +105,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void StartLoadingLevels(const TArray<FName>& LevelsToStream, float DelayBetweenLoads = 0.5f);
 	
-	UPROPERTY()
-	FLevel2DRow map_RootNode;
-	
 
 	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
 	void InitializeMatrix();
 
-
+	UFUNCTION()
+	void MakeConnections();
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void PrintLevelTree();
+
+
 
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
@@ -175,7 +172,7 @@ private:
 
 
 	UPROPERTY()
-	TSoftObjectPtr<UWorld> MapSoftPtr;
+	FSoftObjectPath defaultMapSoftPath;
 };
 
 

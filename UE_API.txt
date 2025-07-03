@@ -1,0 +1,922 @@
+//C++暴露给蓝图可编辑
+UCLASS(Blueprintable)
+ 
+//创建FString
+FString::Printf(TEXT("aa bb"));
+ 
+蓝图调用变量
+UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+ 
+限制条件范围
+meta = (ClampMin=0.1,ClampMax = 100)
+ 
+蓝图识别组件
+UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "XXX")
+ 
+返回物理材质
+EPhysicalSurface SurfaceType = UPhysicalMaterial::DetermineSurfaceType(Hit.PhysMaterial.Get());
+ 
+开放给编辑器时的类型，而不是某一个引用
+TSubClassOf<UObject>
+ 
+软引用
+TSoftObjectPtr<UObject>
+TSoftClassPtr <UObject>
+ 
+蓝图调用函数
+UFUNCTION(BlueprintCallable, Category = "XXX")
+ 
+强制GC
+GEngine->ForceGarbageCollection(true);
+ 
+设置子Actor
+HandObject->SetChildActorClass(ASlAiHandObject::StaticClass());
+ 
+继承父类
+Super::Xxx();  
+ 
+物体投射阴影
+void UPrimitiveComponent::SetCastShadow(bool NewCastShadow)
+ 
+获取组件
+GetComponentByClass(UXXXComponent::StaticClass());
+ 
+输入参数为UWorld（const UObject* WorldContextObject）时
+UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+    if (World == nullptr)
+        return nullptr;
+ 
+调整Tick间隔为1秒
+PrimaryActorTick.TickInterval = 1.0f;
+ 
+循环输出ForEachLoop   FStringaa 
+for(FString xx : FStringaa){}
+ 
+设置鼠标点击输入模式（controlelr）
+FInputModeGameOnly InputMode;
+InputMode.SetConsumeCaptureMouseDown(true);
+SetInputMode(InputMode);
+ 
+碰撞体物理旋转锁定
+BoxCollision->GetBodyInstance()->bLockZRotation = true;
+ 
+本地化
+NSLOCTEXT("namespace", "key", "value")
+ 
+播放音效
+UGameplayStatics::SpawnSoundAttached(soundcue,RootComponent);
+ 
+向量长度
+Fvector.size();
+ 
+查找子widget
+widgettree->FindName
+ 
+Widget的初始化函数
+public:
+    virtual bool Initialize() override;
+protected:
+    Widget的tick函数
+    virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+    virtual void NativePreConstruct()override;
+    virtual void NativeConstruct()override;
+UPROPERTY(Meta = (BindWidget)) (绑定UMG中名字叫MyBtn的按钮)
+UButton* MyBtn;
+ 
+例：void BeginDestroy() override;
+void AmyActor::BeginDestroy()
+{
+Super::BeginDestroy();
+UE_LOG(LogTemp, Warning, TEXT("Game exit!"));
+}
+ 
+C++调用蓝图函数
+首先创建C++为基类，蓝图继承后创建一个函数Test
+#include "OutputDevice.h"
+FString cmd = FString::Printf(TEXT("BB CD"));
+ 
+//BB函数名，CD参数
+FOutputDeviceDebug device;
+CallFunctionByNameWithArguments(*cmd, device, NULL, true);
+ 
+蓝图重载C++函数(可以在C++中其他位置调用一个目前没有任何功能的函数（事件），而该函数的具体实现交给蓝图实现)
+UFUNCTION(BlueprintImplementableEvent)       
+void OnTest(); 
+ 
+在蓝图中Add Event，找到对应的函数名，创建后即可实现具体逻辑
+然后也可以在自己的C++代码中调用该方法
+void MyActor::OnPressed()
+{
+OnTest();
+}
+ 
+蓝图添加默认的C++实现（C++在调用了SomeFunction()的地方先调用SomeFunction_Implementation的实现，但如果在蓝图中定义了SomeFunction事件（即使后面不连接任何内容），则会忽略C++中SomeFunction_Implementation中的实现，只采用蓝图中的实现）
+UFUNCTION(BlueprintNativeEvent, Category = "SomeCategory")
+ void SomeFunction();
+void AMyActor::SomeFunction_Implementation() 
+{ 
+UE_LOG(LogTemp, Warning, TEXT("Implenetaion in C++")); 
+}
+loadstreamlevel的百分比调用
+GetAsyncLoadPercentage(PackageName)
+ 
+获取控制器
+UGameplayStatics::GetPlayerController(GWorld, 0)；(->GetWorld())
+ 
+获取默认蓝图类
+HUDClass = AXXXHUD::StaticClass();
+ 
+获取项目名字
+FApp::GetProjectName();
+ 
+判断Actor是蓝图还是C++
+Actor->GetClass.IsNative();
+ 
+按键
+GetWorld()->GetFirstPlayerController()->WasInputKeyJustPressed(Key)
+GetWorld()->GetFirstPlayerController()->WasInputKeyJustReleased(Key) 
+ 
+确保内容存在，否则中断代码
+ensure(XX)
+ 
+鼠标在屏幕中的位置
+#include "Engine/GameEngine.h"
+#include "Engine/Engine.h"
+ 
+FVector2D MousePosition;
+GEngine->GameViewport->GetMousePosition(MousePosition);
+MousePosition=MousePosition/DPIScale;
+ 
+判断当前游戏运行模式
+GetWorld()->WorldType
+ 
+失焦后声音还能播放
+GConfig->GetFloat(TEXT("Audio"), TEXT("UnfocusedVolumeMultiplier"), UnfocusedVolumeMultiplier, GEngineIni);
+或者在DefaultEngine.ini中添加
+[Audio]
+UnfocusedVolumeMultiplier=1.0
+ 
+加载地图
+UGameplayStatics::OpenLevel(GetWorld(), *mapName);
+ 
+获取角色位置和方向
+GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(PawnLocation,PawnRotation);//面朝的方向
+ 
+当前帧
+#include "Engine/World.h"
+ 
+GetWorld()->DeltaTimeSeconds
+ 
+当前旋转量
+this->GetActorForwardVector().Rotation()
+ 
+单位向量
+PawnRotation.Vector();
+PawnVector.GetSafeNormal();
+ 
+获取速度
+auto ForwardSpeed = FVector::DotProduct(MoveVelocityNormal, AIForwardNormal);
+ 
+运行命令行
+GetWorld()->GetFirstPlayerController()->ConsoleCommand("quit");
+打印
+GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, FString::Printf(TEXT("%s"),*FString));
+#include "Misc/OutputDevice.h"
+GLog->Logf(TEXT("%s"), *Filepath);
+FMessageLog("MyLog").Warning(FText::FromString(TEXT("这是一条新的信息")));
+ 
+限制函数
+FMath::Clamp<float>(A1 + A2, 0.0, 1.0);
+ 
+设置位置
+SetActorLocation(FVector(0.0f, 0.0f, 250.0f));
+ 
+打开EXE
+FString pathrul = FPaths::RootDir() + url;
+FPlatformProcess::ExecProcess(*QQ, nullptr, nullptr, nullptr, nullptr);
+FPlatformProcess::CreateProc(*url, nullptr, true, false, false, nullptr, -1, nullptr, nullptr);
+ 
+添加到控制台函数
+#include <windows.h>
+#include <iostream>
+ 
+UFUNCTION(Exec, Category = "AActor")
+ShellExecute(NULL, NULL, (*pathrul), NULL, NULL, SW_SHOWDEFAULT);
+ 
+覆盖Actor控制台函数
+virtual bool ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor) override;
+ 
+bool UMyGameInstance::ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor)
+{
+    bool Res = Super::ProcessConsoleExec(Cmd, Ar, Executor);
+    if (!Res)
+    {
+        //获取场景对象方法一: 
+        for (TActorIterator<AMyCharacter> It(GetWorld()); It; ++It)
+        {
+            Res = It->ProcessConsoleExec(Cmd, Ar, Executor);
+        }
+        //获取场景对象方法二:
+        /*TArray<AActor*> ActArray;
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMyCharacter::StaticClass(), ActArray);
+        for(AActor* Act : ActArray) Act->ProcessConsoleExec(Cmd, Ar, Executor);*/
+    }
+    return Res;
+}
+ 
+判断exe是那个端
+ENetMode netMode = GetNetMode();
+switch(netMode)
+{
+case NM_Standalone :
+ 
+print 单独端, 单机游戏
+NM_DedicatedServer 专用服务器
+NM_ListenServer 监听服务器
+NM_Client 客户端
+NM_MAX
+}
+ 
+MD5加密
+FMD5::HashAnsiString(TEXT("someStuff"));
+ 
+加载完地图回调
+void UMyGameInstance::Init()
+{
+	Super::Init();
+	//FCoreUObjectDelegates::PreLoadMap.AddUObject(this, &UMyGameInstance::BeginLoadingScreen);
+	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UMyGameInstance::EndLoadingScreen);
+}
+void UMyGameInstance::EndLoadingScreen(UWorld* InLoadedWorld)
+{
+	UE_LOG(LogTemp, Warning, TEXT("END23131312"));
+}
+ 
+hashi加密
+FString HashStringWithSHA1(const FString &InString)
+{
+FSHAHash StringHash;
+FSHA1::HashBuffer(TCHAR_TO_ANSI(*InString), InString.Len(), StringHash.Hash);
+return StringHash.ToString();
+}
+ 
+传一个Object蓝图
+UPROPERTY(BlueprintReadWrite,EditAnywhere,Category = "XX")
+TSubclassOf<class SkillHelperObject>SkillBlueprintHelperObject;
+ 
+路径
+FString Str2 = FString::Printf(TEXT("Texture2D'/Game/pan/Frame_%05d.Frame_%05d'"),textName)
+ 
+结构体
+USTRUCT(Blueprintable)
+struct MyStruct
+{
+GENERATED_USTRUCT_BODY()
+//GENERATED_BODY()
+public:
+UPROPERTY(BlueprintReadWrite,EditAnywhere,Category = "XX")
+int intCode;
+UPROPERTY(BlueprintReadWrite,EditAnywhere,Category = "XX")
+TMap<int, FString> Parameters;
+};
+ 
+创建结构体
+FMyStruct* MyStruct = new FMyStruct();
+查找场景中的Actor
+AActor * AMyActor::FindActor(FString Actorname)
+{
+AActor* mActor = NULL;
+if (GetWorld())
+{
+for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+{
+AActor* xActor = *It;
+if (xActor->GetName() == Actorname)
+{
+GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Get it"));
+mActor = xActor;
+break;
+}
+}
+if (!mActor)
+{
+GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("No Get it"));
+}
+return  mActor;
+}
+else
+{
+GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("NO getworld"));
+return nullptr;
+}
+}
+ 
+查找场景中的Actor2
+#include "Kismet/GameplayStatics.h"
+ 
+TArray<AActor*> PlayerStarts;
+UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), PlayerStarts);
+if (PlayerStarts.Num() > 0)
+    {
+        APlayerStart* playerStart= Cast<APlayerStart>(PlayerStarts[0]);
+    }
+ 
+设置暂停
+SetPause(true);
+ 
+绑定按键（PS：需要在Pawn或Character里）
+void AMyActor::SetupPlayerInputComponent(class UInputComponent* InputComponent)
+{
+InputComponent->BindKey(EKeys::Z, IE_Released, this, &AMyActor::OpenURL);
+InputComponent->BindAction("Grow", IE_Released, this, &AMyActor::OpenURL);//.bExecuteWhenPaused = true;在暂停是依旧能运行
+InputComponent->BindAxis("back", this, &AMyActor::OpenURL);
+}
+ 
+返回多个值，引用
+void AMyActor::MoreReturn(FString& A, bool& B)
+{
+}
+ 
+Udata->AddToRoot();//防止GC回收
+Udata->RegisterWithGameInstance((UObject*)WorldContextObject);//防止GC回收
+ 
+蓝图显示中文枚举类（VS文件-高级保存选项UTF-8格式）
+UENUM(BlueprintType)
+enum class EenumChinese :uint8 
+{
+E_EN UMETA(DisplayName = "英文"),  
+E_CH UMETA(DisplayName = "中文"),  
+};
+UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "enumChinese")
+EenumChinese enumChinese;
+ 
+双选项枚举类
+UENUM(BlueprintType)
+enum class EMyEnum : uint8
+{
+BranchA,
+BranchB,
+};
+UFUNCTION(BlueprintCallable, Category = "My|MyActor", Meta = (ExpandEnumAsExecs = "Branches"))
+void BranchFun(int32 Input, EMyEnum& Branches);
+void AMyActor::BranchFun(int32 Input, EMyEnum& Branches)
+{
+if (Input == 1)
+{
+Branches = EMyEnum::BranchA;
+}
+else
+{
+Branches = EMyEnum::BranchB;
+}
+}
+ 
+循环迭代
+for (TArray<USoundCue*>::TIterator It(MenuAudioResource.Find(FString("Sound"))->CreateIterator()); It; ++It)
+        {
+            (*It)->VolumeMultiplier = SoundVolume;
+        }
+ 
+迭代controller
+for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; It++){AXXPlayerController* PC = Cast<AXXPlayerController>(It->Get());}
+LOG
+UE_LOG(LogTemp, Warning, TEXT("Info= %s"), *t_str[i]);
+DEFINE_LOG_CATEGORY(LogMySlate);
+UE_LOG(LogMySlate, Warning, TEXT("Found UObject named"));
+ 
+蓝图打印
+#include"MessageLog.h"
+ 
+FMessageLog("DebugLog_FMessageLog").Warning(FText::FromString(MyString));
+生成类
+TestObjectActor = GWorld->SpawnActor<AActor >(TestBlueprint);
+UWorld* const World = GetWorld();
+AActor* GridCube = World->SpawnActor<AActor>(GridCubeClass2, FVector(0.0f, 90.0f, 50.0f), FRotator(0.0f, 0.0f, 0.0f));
+读取Texture2D
+UTexture2D* texture22 = Cast<UTexture2D>(StaticLoadObject(UTexture2D::StaticClass(), NULL, *(Path)));
+获得名字
+ 
+Actor->GetName() == TEXT("FloatActor_1")
+ 
+获取相机
+ 
+GetWorld()->GetFirstPlayerController()->PlayerCameraManager
+ 
+强制转换
+PTGameInstance = Cast<UPTGameInstance>(World->GetGameInstance());
+ 
+设置碰撞类型
+SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+ 
+设置碰撞属性
+ 
+SetCollisionProfileName(FName("NoCollision"));
+ 
+设置碰撞属性
+MeshFirst->SetCollisionObjectType(ECC_Pawn);
+MeshFirst->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+MeshFirst->SetCollisionResponseToAllChannels(ECR_Ignore);
+构造函数添加组件
+ 
+RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Center"));
+ 
+动态创建UObject
+UMyObject*NewObj=NewObject<UMyObject>();
+ 
+动态创建Object
+ 
+FMyObject*NewObj= new FMyObject();
+ 
+查找类
+ 
+UClass* ActorRef = FindObject<UClass>(ANY_PACKAGE,*FString("AActor"));
+ 
+找蓝图Actor
+ 
+UClass* aa = LoadClass<UUserWidget>( NULL, TEXT( "Blueprint'/Game/UMG/MainMenu.MainMenu_C'" ) );    (蓝图动态资源加载)  
+static ConstructorHelpers::FObjectFinder<UBlueprint> assetObject(TEXT("/Game/Maps/test.test_C")); (蓝图构造函数资源加载)
+if (assetObject.Succeeded())
+{
+TestBlueprint = (UClass*)assetObject.Object->GeneratedClass;
+}
+找材质(UObject构造函数资源加载)
+static ConstructorHelpers::FObjectFinder<UMaterial> MaterialAsset(TEXT("/Game/Maps/MAT.MAT"));
+if (MaterialAsset.Succeeded())
+{
+Material = (UMaterial*)MaterialAsset.Object;
+}
+ 
+(UObject动态资源加载)
+ 
+LoadObject<>();
+ 
+创建动态材质
+UMaterialInstanceDynamic* MiniMapMatDynamic = UMaterialInstanceDynamic::Create(MiniMapMatInst, nullptr);
+ 
+绑定材质属性
+  MiniMapMatDynamic->SetTextureParameterValue(FName("MiniMapTex"), MiniMapRender);
+ 
+组件附加
+ 
+SphereComp->SetupAttachment(MeshComp);
+ 
+等待销毁时从控制器移除角色控制
+ 
+DetachFromControllerPendingDestroy();
+ 
+设置角色生命周期
+ 
+SetLifeSpan(10.0f);
+ 
+获取音乐设备
+AudioDevice = GEngine->GetMainAudioDevice();
+ 
+推送混音器到设备
+AudioDevice->PushSoundMixModifier(SlAiSoundMix);
+ 
+使用混音器来设置
+AudioDevice->SetSoundMixClassOverride(SlAiSoundMix, SlAiMusicClass, MusicVolume, 1.f, 0.2f, false);
+ 
+编辑器改变UPROPERTY参数时调用的函数
+ 
+#if WITH_EDITOR
+    virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+ 
+#if WITH_EDITOR
+void AMyCharacter::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+    Super::PostEditChangeProperty(PropertyChangedEvent);
+    if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AMyCharacter, Mynum))
+    {
+        Mynum2+= 10;
+    }
+}
+#endif
+ 
+屏幕大小
+ 
+GetWorld()->GetFirstPlayerController()->GetViewportSize(ViewportSizeX,ViewportSizeY);
+重力
+SetEnableGravity(false);
+ 
+随机数
+ 
+FRandomStream Stream;
+ 
+//产生新的随机种子
+Stream.GenerateNewSeed();
+ 
+int RandIndex = Stream.RandRange(0, ResourcePath.Num() - 1);
+ 
+删除AIController
+ 
+DetachFromControllerPendingDestroy();
+ 
+进入观察者模式
+ 
+StartSpectatingOnly();
+ 
+复制资源
+ 
+UBehaviorTree* myBehaviorTree = DuplicateObject<UObject>(object,NULL)
+ 
+退出游戏
+ 
+UKismetSystemLibrary::QuitGame(this, nullptr, EQuitPreference::Quit);
+ 
+GEngine->Exec(GWorld, *FString("Exit"));
+ 
+获取游戏时间
+ 
+double MyTime = FPlatformTime::Seconds;
+ 
+获取时间
+ 
+FDateTime::Now().ToString();
+链接URL
+FString TheURL = "xxxxxxxx";
+FPlatformProcess::LaunchURL(*TheURL, nullptr, nullptr);
+ 
+创建UI   "Media", "MediaAssets"
+ if (nullptr == MainMenuWidget)    
+{        
+UClass* aa = LoadClass<UUserWidget>( NULL, TEXT( "Blueprint'/Game/UMG/MainMenu.MainMenu_C'" ) );        
+MainMenuWidget = CreateWidget<UUserWidget>( GetWorld()->GetFirstPlayerController(), aa );    
+}    
+MainMenuWidget->AddToViewport(); 
+//http://blog.csdn.net/zilisen/article/details/77645500
+ 
+OR：
+ 
+UPROPERTY(EditAnywhere, Category = "AA")
+        TSubclassOf<class UMyHUDWidget> HUDWidgetClass;
+ 
+UMyHUDWidget* HUDWidget = CreateWidget<UMyHUDWidget>(GetWorld(), HUDWidgetClass);
+ 
+子弹函数
+ 
+#include "Kismet/GameplayStatics.h"
+ 
+UGameplayStatics::SuggestProjectileVelocity(
+this,
+FireVector,
+StartLocation,
+EndLocation,
+Speed,
+false,
+0,
+0,
+ESuggestProjVelocityTraceOption::DoNotTrace
+ 
+);
+ 
+绘制射线
+ 
+#include "DrawDebugHelpers.h"
+ 
+DrawDebugLine(
+GetWorld(),
+StartLocation1,
+EndLocation1,
+FColor(255, 0, 0),
+false,
+0.0f,
+0.0f,
+10.0f
+ 
+);
+ 
+FCollisionQueryParams QueryParameter = FCollisionQueryParams("", false, GetOwner());
+FHitResult HitResult;
+GetWorld()->LineTraceSingleByChannel(
+HitResult,
+StartLocation2,
+EndLocation2,
+FCollisionObjectQueryParams(ECollisionChannel::ECC_PhysicsBody),
+QueryParameter
+)
+ 
+游戏运行中开启作弊等命令
+ 
+static int32 DebugWeaponDrawing = 0;
+FAutoConsoleVariableRef CVARDebugWeaponDrawing(
+    TEXT("COOP.DebugWeapons"), 
+    DebugWeaponDrawing, 
+    TEXT("Draw Debug Lines for Weapons"), 
+    ECVF_Cheat);
+ 
+if(DebugWeaponDrawing >0){...}
+ 
+计时器
+ 
+#include "TimerManager.h"
+ 
+FTimerHandle CountdownTimerHandle;
+GetWorldTimerManager().SetTimer(CountdownTimerHandle, this, &AMytestActor::AdvanceTimer, 1.0f, true);
+ 
+FTimerDelegate timeDele ;//  定义调用的委托
+ 
+timeDele.BindRaw(this,&xxx:ffff); //绑定函数到委托
+GWorld->GetTimerManager().UnPauseTimer(mTimer); //唤醒   GetWorld()
+float elapsed = GWorld->GetTimerManager().GetTimerElapsed(mTimer); //已逝时间
+float elapsed = GWorld->GetTimerManager().GetTimerRemaining(mTimer); //剩余时间
+bool isActive = GWorld->GetTimerManager().IsTimerActive(mTimer); //激活
+bool isPaused = GWorld->GetTimerManager().IsTimerPaused(mTimer); //暂停
+bool isExist = GWorld->GetTimerManager().TimerExists(mTimer); //存在
+ 
+GetWorldTimerManager().ClearTimer(CountdownTimerHandle);//停止计时器
+ 
+伤害
+ 
+#include<Engine/World.h>
+ 
+UGameplayStatics::ApplyRadialDamage(
+this,
+ActorDamage,
+GetActorLocation(),
+Radius,
+UDamageType::StaticClass(),
+TArray<AActor*>()//友军
+)
+ 
+获取IP地址
+需要在build.cs添加Sockets模块
+#include "SocketSubsystem.h"
+#include "IPAddress.h"
+FString IpAddr("NONE");
+  bool canBind = false;
+  TSharedRef<FInternetAddr> LocalIp = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, canBind);
+  if (LocalIp->IsValid())
+  {
+IpAddr = LocalIp->ToString(false); //（如果想附加端口就写 ture）
+}
+return IpAddr;
+添加标签
+MyActor.Tags.AddUnique(TEXT("MyTag"));  
+销毁物体
+MyActor->Destroy();
+MyActor->SetLifeSpan(1);//延迟1S
+截图
+FString UMyBlueprintFunctionLibrary::TakeScreenShoot(FString picName, bool bUnique /*= true*/)
+{
+FString inStr;
+FString Filename;
+FScreenshotRequest::RequestScreenshot(picName + ".png", false, bUnique);
+FString ResultStr = FScreenshotRequest::GetFilename();
+ResultStr = FPaths::GetBaseFilename(ResultStr, true);
+return ResultStr + ".png";
+ 
+}
+ 
+void UMyBlueprintFunctionLibrary::Screenshot(const FString InFilename, bool bInShowUI)
+{
+FScreenshotRequest SR = FScreenshotRequest();
+FString savelocation = FPaths::ConvertRelativePathToFull(FPaths::GameDir());
+FString filename = savelocation + FString(TEXT("/Saved/Screenshotss/")) + InFilename + FString(TEXT(".png"));
+SR.RequestScreenshot(filename, bInShowUI, false);
+}
+ 
+写入配置文件，有GEditorIni,GEditorProjectIni,GCompatIni,GlightmassIni,GScalabilityIni,GHardwareIni,GInputIni,GGameIni,GGameUserSettingsIni等(查找CoreGlobals.h)
+写的数据会写到 YourGame\Saved\Config\Windows\Game.ini 中
+    const FString WriteSection = "MyCustomSection";
+    //String
+    GConfig->SetString(
+        *WriteSection,
+        TEXT("key1"),
+        TEXT("Hello world"),
+        GGameIni
+    );
+    GConfig->Flush(false, GGameIni);
+读取配置
+if (!GConfig) return 0;
+float ValueReceived ;
+GConfig->GetFloat(
+TEXT("MyCustomSection"),
+TEXT("key1"),
+ValueReceived,
+GGameIni
+);
+return ValueReceived;
+ 
+服务器：
+ 
+判断是否在服务端运行
+ 
+GetWorld()->IsServer()
+ 
+网络更新频率
+ 
+NetUpdateFrequency = 66.0f;
+ 
+MinNetUpdateFrequency = 33.0f;
+ 
+枚举字节化
+ 
+TEnumAsByte<Eenum> AA;
+ 
+让矢量服务器传输不用那么精确
+ 
+FVector_NetQuantize   vectorr；
+ 
+复制变量到服务器
+ 
+UPROPERTY(Replicated)
+ 
+在服务器上运行函数
+ 
+UFUNCTION(Server, Reliable, WithValidation)//NetMulticast
+ 
+void Server();
+ 
+void XXX::ServerFire_Implementation(){}
+ 
+bool XXX::ServerFire_Validate(){return true;}//完整性检查才用到
+ 
+判断是否在服务器上运行（Actor是否主机）
+ 
+Role == ROLE_Authority
+ 
+判断是否在客户端上运行
+ 
+Role < ROLE_Authority
+ 
+服务器变量改了通知客户端调用函数
+ 
+UPROPERTY(ReplicatedUsing=OnRep_GuardState)
+ 
+UFUNCTION()
+    void OnRep_GuardState();
+ 
+             规则：所有的客户端  #include "Net/UnrealNetwork.h"
+void XXX::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+ 
+    DOREPLIFETIME(XXX（AActor）, 变量);
+ 
+//DOREPLIFETIME_CONDITION(XXX（AActor）, 变量,COND_SkipOwner);
+}
+ 
+Slate：
+ 
+创建slate
+ 
+TSharedPtr<class SSlAiMenuHUDWidget> MenuHUDWidget;
+ 
+ASlAiMenuHUD::ASlAiMenuHUD()
+{
+    if (GEngine && GEngine->GameViewport) {
+        SAssignNew(MenuHUDWidget, SSlAiMenuHUDWidget);
+ 
+        GEngine->GameViewport->AddViewportWidgetContent(SNew(SWeakWidget).PossiblyNullContent(MenuHUDWidget.ToSharedRef()));
+ 
+    }
+}
+ 
+播放动画
+ 
+MenuAnimation = FCurveSequence();
+MenuCurve = MenuAnimation.AddCurve(StartDelay, AnimDuration, ECurveEaseFunction::QuadInOut);
+ 
+MenuAnimation.Play(this->AsShared());
+ 
+把图片导入ImageSlot
+ 
+SOverlay::FOverlaySlot* ImageSlot;
+ 
+.Expose(ImageSlot)
+ 
+点击事件
+ 
+.OnClicked(this, &XXX::OnClick)
+ 
+添加嵌套UMG控件到Slate控件里
+ 
+ChildSlot[umgWidget->TakeWidget()];
+ 
+添加slate到游戏窗口
+ 
+GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull)->GetGameViewport()->AddViewportWidgetContent(slateWidget);
+ 
+内嵌到Slate控件内
+ 
+slateWidget->AddWidget(umgWidget);
+ 
+设置锚点
+ 
+.Anchors(FAnchors(0.f))
+ 
+创建按钮
+ 
++ SOverlay::Slot()
+ 
+[
+ 
+SNew(SButton)
+ 
+]
+ 
+布局
+ 
+.HAlign(HAlign_Left)
+.VAlign(VAlign_Top)
+ 
+创建外部调用Slate
+ 
+TSharedPtr<SCheckBox> ZhCheckBox;//.h
+ 
+SAssignNew(ZhCheckBox,SCheckBox)
+ 
+获取TWeakPtr实例
+ 
+TWeakPtr< Sxxx>  xxx;
+ 
+xxx.pin();
+ 
+转换为共享指针
+ 
+TShareRef<Faa> aaRef = MakeShareable(new Faa);
+ 
+TSharePtr<Faa> aaPtr = aaRef ;
+ 
+转换为共享引用
+ 
+TSharePtr<Faa> aaPtr= MakeShareable(new Faa);
+ 
+TShareRef<Faa> aaRef = aaPtr.ToSharedRef();
+ 
+获取声音资源文件
+ 
+FSlateSound.GetResourceObject()
+ 
+FGeometry里面保存了Widget位置大小等属性
+ 
+在鼠标事件中获取鼠标相对widget的位置
+ 
+MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+ 
+获取DPI
+ 
+UWidgetLayoutLibrary::GetViewportScale(GEngine->GameViewport);
+ 
+获取Widget之间的相对位置
+ 
+FVector2D StartPos = WidgetA.AbsoluteToLocal(WidgetB->GetCachedGeometry().AbsolutePosition);
+ 
+获取资源
+ 
+FSlateApplication::Get().
+ 
+AI行为树：
+ 
+黑板:
+ 
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Enum.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Vector.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Float.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
+ 
+void UEnemyBlackboard::PostLoad()
+{
+    Super::PostLoad();
+ 
+    //目的地
+    FBlackboardEntry Destination;
+    Destination.EntryName = FName("Destination");
+    UBlackboardKeyType_Vector* DestinationKeyType = NewObject<UBlackboardKeyType_Vector>();
+    Destination.KeyType = DestinationKeyType;
+ 
+    //敌人状态
+    FBlackboardEntry EnemyState;
+    EnemyState.EntryName = FName("EnemyState");
+    UBlackboardKeyType_Enum* EnemyStateKeyType = NewObject<UBlackboardKeyType_Enum>();
+    EnemyStateKeyType->EnumType = FindObject<UEnum>(ANY_PACKAGE, *FString("EEnemyAIState"), true);
+    EnemyStateKeyType->EnumName = FString("EEnemyAIState");
+    EnemyState.KeyType = EnemyStateKeyType;
+ 
+}
+ 
+UBTDecorator:
+ 
+//对应的就是蓝图节点的PerformConditionCheck
+        virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;
+ 
+使用导航系统获取随机点
+    UNavigationSystem::K2_GetRandomReachablePointInRadius(SEController, ChaseOrigin, DesLoc, ChaseRadius);
+ 
+重写task执行函数
+ 
+virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+ 
+ 
+ 
+保存文件4.24（编辑器）
+ 
+UDataTable* saveTble;
+        TArray<UPackage*> PackagesToSave;
+        PackagesToSave.Add(saveTble->GetOutermost());
+        UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, false);
+        UE_LOG(LogTemp, Warning, TEXT("Save %s SUCCESS!"), *saveTble->GetName());
+ 

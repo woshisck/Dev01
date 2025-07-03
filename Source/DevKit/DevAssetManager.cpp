@@ -24,7 +24,7 @@ UDevAssetManager* UDevAssetManager::GetDevAssetManager() {
 
 }
 
-void UDevAssetManager::FuncAsyncLoadAsset(FSoftObjectPath Path, FOnAsyncLoadFinished OnPackageLoaded) {
+void UDevAssetManager::AsyncLoadAsset(FSoftObjectPath Path, FOnAsyncLoadFinished OnPackageLoaded) {
 	FString result;
 	result += FString::Printf(TEXT("StartLoad:\t%s\n"), *Path.ToString());
 	bIsLoaded = false;

@@ -3,13 +3,12 @@
 #include "YogWorldSubsystem.h"
 #include <Engine/AssetManager.h>
 #include <DevKit/DevAssetManager.h>
-
+#include "Math/UnrealMathUtility.h"
 
 
 UYogWorldSubsystem::UYogWorldSubsystem()
 	:UWorldSubsystem()
 {
-	MapSoftPtr = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode")));
 }
 
 void UYogWorldSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -18,6 +17,39 @@ void UYogWorldSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	UE_LOG(DevKitLevelSystem, Display, TEXT("INIT YogWorldSubsystem"));
 }
 
+
+void UYogWorldSubsystem::Shuffle(TArray<int32>& array)
+{
+	if (array.Num() > 0)
+	{
+		int32 LastIndex = array.Num() - 1;
+		for (int32 i = 0; i <= LastIndex; ++i)
+		{
+			int32 Index = FMath::RandRange(i, LastIndex);
+			if (i != Index)
+			{
+				array.Swap(i, Index);
+			}
+		}
+	}
+}
+
+
+TArray<int32> UYogWorldSubsystem::GenerateRandomIntegers(int count, int rangeMax, int rangeMin)
+{
+	TArray<int32> RandomInts;
+	for (int32 i = rangeMin; i < rangeMax; i++) 
+	{
+		RandomInts.Add(i);
+	}
+
+	Shuffle(RandomInts);
+	for (int32 integer : RandomInts)
+	{
+		UE_LOG(DevKitLevelSystem, Display, TEXT("integer : %i"), integer);
+	}
+	return RandomInts;
+}
 
 
 void UYogWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -179,15 +211,15 @@ void UYogWorldSubsystem::StartLoadingLevels(const TArray<FName>& LevelsToStream,
 
 void UYogWorldSubsystem::InitializeMatrix()
 {
-	int x = 16;
-	int y = 16;
-
+	int x = 5;
+	int y = 5;
+	defaultMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode"));
 
 	FLevel2DRow default2DRow = FLevel2DRow();
 
 
 	FLevel2DNode default2DNode = FLevel2DNode();
-	default2DNode.LevelMap = MapSoftPtr;
+	default2DNode.LevelMapSoftPath = defaultMapSoftPath;
 		
 	for (int i = 0; i < x; i++)
 	{
@@ -198,6 +230,21 @@ void UYogWorldSubsystem::InitializeMatrix()
 	{
 		LevelMatrix.Add(default2DRow);
 	}
+
+
+
+	//MakeConnections();
+	
+	//int count = 0;
+	//for (const FLevel2DRow row_element: LevelMatrix)
+	//{
+	//	for (const FLevel2DNode node : row_element.rows_levelNode)
+	//	{
+	//		UE_LOG(DevKitLevelSystem, Display, TEXT("node LevelMapSoftPath: %d"), *node.LevelMapSoftPath.ToString());
+	//	}
+	//}
+
+
 
 		//TODO: for loop add
 		//LevelMatrix.ADD(FLevel2DRow)
@@ -212,6 +259,11 @@ void UYogWorldSubsystem::InitializeMatrix()
 		//	LevelMatrix.add()
 		//}
 
+
+}
+
+void UYogWorldSubsystem::MakeConnections()
+{
 
 }
 
@@ -278,6 +330,7 @@ void UYogWorldSubsystem::GetAllSubLevel(UObject* WorldContextObject)
 
 void UYogWorldSubsystem::ClearLevelMatrix()
 {
+	LevelMatrix.Empty();
 }
 
 void UYogWorldSubsystem::PrintLevelTree_Internal()
