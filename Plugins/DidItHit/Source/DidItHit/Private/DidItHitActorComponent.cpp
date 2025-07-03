@@ -2,7 +2,7 @@
 
 
 /*All the time you're saying to yourself,
-'I could do that, but I won't,' —
+'I could do that, but I won't,' ?
 which is just another way of saying that you can't.*/
 
 #include "DidItHitActorComponent.h"
@@ -642,7 +642,7 @@ https://docs.unrealengine.com/4.26/en-US/API/Runtime/Engine/Kismet/UKismetSystem
 /*You can know the name of a bird in all the languages of the world,
 but when you're finished,
 you'll know absolutely nothing whatever about the bird...
-So let's look at the bird and see what it's doing —
+So let's look at the bird and see what it's doing ?
 that's what counts.
 I learned very early the difference between knowing the name of something and knowing something.
 */
