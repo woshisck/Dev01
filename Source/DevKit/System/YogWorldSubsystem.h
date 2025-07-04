@@ -25,7 +25,11 @@ struct FLevel2DNode
 {
 	GENERATED_BODY()
 public:
-	FLevel2DNode() { LevelPackageName = "DefaultNode"; };
+	FLevel2DNode()
+	{ 
+		LevelPackageName = "DefaultNode"; 
+		LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode"));
+	};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	ESublevelType NodeType;
@@ -51,11 +55,22 @@ struct FLevel2DRow
 	GENERATED_BODY()
 
 public:
-	
+
+
+	FLevel2DRow() {};
+
+	FLevel2DRow(int32 x)
+		:row_length(x)
+	{
+		FLevel2DNode node = FLevel2DNode();
+		rows_levelNode.Init(node, row_length);
+	};
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FLevel2DNode> rows_levelNode;
 
-	FLevel2DRow() = default;
-
+	int32 row_length;
 
 	FLevel2DNode operator [] (int32 i)
 	{
@@ -88,7 +103,7 @@ public:
 
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
-	TArray<int32> GenerateRandomIntegers(int count, int rangeMax, int rangeMin);
+	TArray<int32> GenerateRandomIntegers( int rangeMax, int rangeMin);
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Streaming")
@@ -107,7 +122,7 @@ public:
 	
 
 	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
-	void InitializeMatrix();
+	void InitializeMatrix(int x);
 
 	UFUNCTION()
 	void MakeConnections();
@@ -131,7 +146,6 @@ public:
 
 protected:
 
-	void PrintLevelTree_Internal();
 	
 	UPROPERTY()
 	TArray<ULevelStreaming*> LoadedLevels;

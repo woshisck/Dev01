@@ -35,7 +35,7 @@ void UYogWorldSubsystem::Shuffle(TArray<int32>& array)
 }
 
 
-TArray<int32> UYogWorldSubsystem::GenerateRandomIntegers(int count, int rangeMax, int rangeMin)
+TArray<int32> UYogWorldSubsystem::GenerateRandomIntegers(int rangeMax, int rangeMin)
 {
 	TArray<int32> RandomInts;
 	for (int32 i = rangeMin; i < rangeMax; i++) 
@@ -209,56 +209,27 @@ void UYogWorldSubsystem::StartLoadingLevels(const TArray<FName>& LevelsToStream,
 	LoadNextLevel();
 }
 
-void UYogWorldSubsystem::InitializeMatrix()
+void UYogWorldSubsystem::InitializeMatrix(int x)
 {
-	int x = 5;
-	int y = 5;
-	defaultMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode"));
-
-	FLevel2DRow default2DRow = FLevel2DRow();
-
-
-	FLevel2DNode default2DNode = FLevel2DNode();
-	default2DNode.LevelMapSoftPath = defaultMapSoftPath;
 		
 	for (int i = 0; i < x; i++)
 	{
-		default2DRow.Add(default2DNode);
-	}
-
-	for (int i = 0; i < x; i++)
-	{
+		FLevel2DRow default2DRow = FLevel2DRow(x);
 		LevelMatrix.Add(default2DRow);
 	}
 
+	for (FLevel2DRow row : LevelMatrix)
+	{
+		TArray<int32> array_RNG_Results = GenerateRandomIntegers(x, 0);
+		int32 RandomNumber = FMath::RandRange(1, 3);
 
-
-	//MakeConnections();
-	
-	//int count = 0;
-	//for (const FLevel2DRow row_element: LevelMatrix)
-	//{
-	//	for (const FLevel2DNode node : row_element.rows_levelNode)
-	//	{
-	//		UE_LOG(DevKitLevelSystem, Display, TEXT("node LevelMapSoftPath: %d"), *node.LevelMapSoftPath.ToString());
-	//	}
-	//}
-
-
-
-		//TODO: for loop add
-		//LevelMatrix.ADD(FLevel2DRow)
-		//FLevel2DRow.add(FLevel2DNode)
+		//random set map
 		
-
-
-
-		//for (int i = 0; i < y; i++)
+		//for (int i = 0; i < RandomNumber; i++)
 		//{
-
-		//	LevelMatrix.add()
+		//	row[i].LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/SavageGarden.SavageGarden"));
 		//}
-
+	}
 
 }
 
@@ -271,7 +242,7 @@ void UYogWorldSubsystem::MakeConnections()
 
 void UYogWorldSubsystem::PrintLevelTree()
 {
-	PrintLevelTree_Internal();
+
 }
 
 
@@ -331,23 +302,4 @@ void UYogWorldSubsystem::GetAllSubLevel(UObject* WorldContextObject)
 void UYogWorldSubsystem::ClearLevelMatrix()
 {
 	LevelMatrix.Empty();
-}
-
-void UYogWorldSubsystem::PrintLevelTree_Internal()
-{
-	for (FLevel2DRow& row : LevelMatrix)
-	{
-		for (FLevel2DNode& node : row.rows_levelNode)
-		{
-			UE_LOG(DevKitLevelSystem, Display, TEXT("node lEVEL name : %s"), *node.LevelPackageName.ToString());
-		}
-	}
-	
-	//FString Indent = FString::ChrN(Depth * 2, ' ');
-	//UE_LOG(DevKitLevelSystem, Display, TEXT("%sNode: %s, Package: %s"), *Indent, *Node.DisplayName.ToString(), *Node.LevelPackageName.ToString());
-
-	//for (const FSublevelTreeNode& ChildNode : Node.ChildrenNode)
-	//{
-	//	PrintLevelTree_Internal(ChildNode, Depth + 1);
-	//}
 }

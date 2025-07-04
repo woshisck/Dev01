@@ -27,15 +27,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 
 void FDevKitEditorModule::OnMapOpened(const FString& Filename, bool bAsTemplate)
 {
-	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
-	if (!EditorWorld) return;
-
-	// Spawn your actor in the editor world or modify existing actors here
-
-	// Example: Spawn actor at origin
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Name = FName(TEXT("MyAutoSpawnedActor"));
-	EditorWorld->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+	//UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+	//if (!EditorWorld) return;
+	//// Spawn your actor in the editor world or modify existing actors here
+	//// Example: Spawn actor at origin
+	//FActorSpawnParameters SpawnParams;
+	//SpawnParams.Name = FName(TEXT("MyAutoSpawnedActor"));
+	//EditorWorld->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 }
 
 
