@@ -13,7 +13,7 @@
 UENUM(BlueprintType)
 enum class ESublevelType : uint8
 {
-
+	Default,
 	Combat,
 	Event,
 	Shop,
@@ -29,6 +29,9 @@ public:
 	{ 
 		LevelPackageName = "DefaultNode"; 
 		LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode"));
+
+		NodeType = ESublevelType::Default;
+
 	};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -39,6 +42,7 @@ public:
 	UPROPERTY()
 	FName LevelPackageName;
 
+
 	// Reference to the streaming level (optional)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FSoftObjectPath LevelMapSoftPath;
@@ -46,6 +50,12 @@ public:
 	TArray<FVector2D> pos_EnterNode;
 
 	TArray<FVector2D> pos_LeaveNode;
+
+
+	void setNodeType(ESublevelType type)
+	{
+		this->NodeType = type;
+	}
 
 };
 
@@ -72,7 +82,9 @@ public:
 
 	int32 row_length;
 
-	FLevel2DNode operator [] (int32 i)
+
+
+	FLevel2DNode& operator [] (int32 i)
 	{
 		return rows_levelNode[i];
 	}
@@ -142,7 +154,7 @@ public:
 
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
-	void ClearLevelMatrix();
+	void ClearMatrix();
 
 protected:
 

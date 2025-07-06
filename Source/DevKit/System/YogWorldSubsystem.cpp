@@ -211,24 +211,27 @@ void UYogWorldSubsystem::StartLoadingLevels(const TArray<FName>& LevelsToStream,
 
 void UYogWorldSubsystem::InitializeMatrix(int x)
 {
-		
+	ClearMatrix();
 	for (int i = 0; i < x; i++)
 	{
 		FLevel2DRow default2DRow = FLevel2DRow(x);
 		LevelMatrix.Add(default2DRow);
 	}
 
-	for (FLevel2DRow row : LevelMatrix)
+	for (FLevel2DRow& row : LevelMatrix)
 	{
 		TArray<int32> array_RNG_Results = GenerateRandomIntegers(x, 0);
 		int32 RandomNumber = FMath::RandRange(1, 3);
+		row[0].LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/SavageGarden.SavageGarden"));
+		row[0].setNodeType(ESublevelType::Boss);
+
 
 		//random set map
 		
-		//for (int i = 0; i < RandomNumber; i++)
-		//{
-		//	row[i].LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/SavageGarden.SavageGarden"));
-		//}
+		for (int i = 0; i < RandomNumber; i++)
+		{
+
+		}
 	}
 
 }
@@ -299,7 +302,7 @@ void UYogWorldSubsystem::GetAllSubLevel(UObject* WorldContextObject)
 }
 
 
-void UYogWorldSubsystem::ClearLevelMatrix()
+void UYogWorldSubsystem::ClearMatrix()
 {
 	LevelMatrix.Empty();
 }
