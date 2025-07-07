@@ -222,15 +222,13 @@ void UYogWorldSubsystem::InitializeMatrix(int x)
 	{
 		TArray<int32> array_RNG_Results = GenerateRandomIntegers(x, 0);
 		int32 RandomNumber = FMath::RandRange(1, 3);
-		row[0].LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/SavageGarden.SavageGarden"));
-		row[0].setNodeType(ESublevelType::Boss);
 
 
 		//random set map
-		
 		for (int i = 0; i < RandomNumber; i++)
 		{
-
+			row[0].LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/SavageGarden.SavageGarden"));
+			row[0].setNodeType(ESublevelType::Boss);
 		}
 	}
 

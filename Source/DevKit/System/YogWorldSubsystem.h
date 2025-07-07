@@ -47,9 +47,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FSoftObjectPath LevelMapSoftPath;
 	
-	TArray<FVector2D> pos_EnterNode;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FVector2D> pos_Enter;
 
-	TArray<FVector2D> pos_LeaveNode;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FVector2D> pos_Leave;
 
 
 	void setNodeType(ESublevelType type)
