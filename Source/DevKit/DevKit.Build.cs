@@ -28,7 +28,8 @@ public class DevKit : ModuleRules
                 "PropertyPath",
                 "CommonUI",
                 "UnrealEd",
-                "AIModule"
+                "AIModule",
+                "AnimGraphRuntime"
 
             });
 
@@ -45,7 +46,8 @@ public class DevKit : ModuleRules
                 "Projects",
                 "Gauntlet",
                 "UMG",
-                "AIModule"
+                "AIModule",
+                "AnimGraphRuntime"
             });
 
 		// Uncomment if you are using Slate UI
