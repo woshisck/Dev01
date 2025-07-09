@@ -6,6 +6,8 @@
 #include "ModularPlayerController.h"
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 
+#include "EnhancedInputComponent.h"
+#include "InputAction.h"
 
 #include "YogPlayerControllerBase.generated.h"
 
@@ -32,6 +34,36 @@ public:
 	//UFUNCTION(BlueprintCallable)
 	//AYogCharacterBase* GetPossCharacter();
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Setting")
+	TSubclassOf<AYogCameraPawn> CameraPawnClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputMappingContext> DefaultMappingContext;
+
+	/////////////////////////////////////////// INPUT ACTION ///////////////////////////////////////////
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> action_LightAttack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> action_HeavyAttack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> action_Move;
+
+	/////////////////////////////////////////// INPUT ACTION ///////////////////////////////////////////
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnMoveTriggered(const FInputActionValue& Value);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnHeavyAttackTriggered(const FInputActionValue& Value);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnLightAttackTriggered(const FInputActionValue& Value);
+
+	/////////////////////////////////////////// INPUT ACTION ///////////////////////////////////////////
+
 	UFUNCTION(BlueprintCallable)
 	void ToggleInput(bool bEnable);
 
@@ -48,12 +80,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "ASC")
 	AYogCharacterBase* GetControlledCharacter();
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Setting")
-	TSubclassOf<AYogCameraPawn> CameraPawnClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-	TObjectPtr<UInputMappingContext> DefaultMappingContext;
 
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	void SetPlayerState(EYogCharacterState newState);

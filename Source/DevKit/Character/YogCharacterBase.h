@@ -14,8 +14,8 @@
 UENUM(BlueprintType)
 enum class EYogCharacterState : uint8
 {
-	Move					UMETA(DisplayName = "Move"),
 	Idle					UMETA(DisplayName = "Idle"),
+	Move					UMETA(DisplayName = "Move"),
 	AbilityCast				UMETA(DisplayName = "AbilityCast"),
 	Hurt					UMETA(DisplayName = "Hurt")
 
@@ -97,7 +97,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void UpdateCharacterMovement(const bool IsMovable);
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	EYogCharacterState CurrentState;
 
 

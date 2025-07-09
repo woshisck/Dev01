@@ -33,5 +33,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
 	TObjectPtr<UDataTable> CharacterMovementDataTable;
 
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle Data")
+	float EnemyCloseDist;
 };
