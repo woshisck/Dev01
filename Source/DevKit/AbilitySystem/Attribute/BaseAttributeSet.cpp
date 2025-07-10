@@ -13,12 +13,7 @@
 
 UBaseAttributeSet::UBaseAttributeSet()
 {
-	InitHealth(100.f);
-	InitMaxHealth(100.f);
-	InitBaseDMG(10.f);
-	InitWeaponDMG(1.0f);
-	InitBuffAmplify(1.2f);
-	InitDMGAbsorb(0.2f);
+
 }
 
 
@@ -33,8 +28,7 @@ void UBaseAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, WeaponDMG, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, BuffAmplify, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, DMGAbsorb, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, MotionResist, COND_None, REPNOTIFY_Always);
-
+	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, ActResist, COND_None, REPNOTIFY_Always);
 
 }
 
@@ -217,10 +211,22 @@ void UBaseAttributeSet::OnRep_DMGAbsorb(const FGameplayAttributeData& OldValue)
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, DMGAbsorb, OldValue);
 }
 
-void UBaseAttributeSet::OnRep_MotionResist(const FGameplayAttributeData& OldValue)
+void UBaseAttributeSet::OnRep_ActResist(const FGameplayAttributeData& OldValue)
 {
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, MotionResist, OldValue);
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, ActResist, OldValue);
 }
+
+void UBaseAttributeSet::InitAttribute()
+{
+	InitHealth(100.f);
+	InitMaxHealth(100.f);
+	InitBaseDMG(10.f);
+	InitWeaponDMG(1.0f);
+	InitBuffAmplify(1.2f);
+	InitDMGAbsorb(0.2f);
+	InitActResist(0.0f);
+}
+
 
 void UBaseAttributeSet::AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty)
 {

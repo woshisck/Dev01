@@ -69,9 +69,6 @@ void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-
-
-
 	if (AbilitySystemComponent) {
 
 		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
@@ -80,6 +77,30 @@ void AYogCharacterBase::BeginPlay()
 		WeaponDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetWeaponDMGAttribute()).AddUObject(this, &AYogCharacterBase::WeaponDMGChanged);
 		BuffAmplifyChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBuffAmplifyAttribute()).AddUObject(this, &AYogCharacterBase::BuffAmplifyChanged);
 	}
+	
+	if (FYogAttributeTable)
+	{
+		static const FString ContextString(TEXT("Character movement Data Lookup"));
+		FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
+
+		FYogAttributeData* AttributeData = this->FYogAttributeTable->FindRow<FYogAttributeData>(FName(TEXT("Default_Attribute")), ContextString, true);
+
+		if (AttributeData)
+		{
+
+			AttributeSet->InitHealth(AttributeData->Health);
+			AttributeSet->InitMaxHealth(AttributeData->MaxHealth);
+			AttributeSet->InitBaseDMG(AttributeData->BaseDMG);
+			AttributeSet->InitWeaponDMG(AttributeData->WeaponDMG);
+			AttributeSet->InitBuffAmplify(AttributeData->BuffAmplify);
+			AttributeSet->InitDMGAbsorb(AttributeData->DMGAbsorb);
+			AttributeSet->InitActResist(AttributeData->ActResist);
+
+		}
+		
+
+	}
+
 }
 
 void AYogCharacterBase::Tick(float DeltaSeconds)

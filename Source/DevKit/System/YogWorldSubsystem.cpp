@@ -44,10 +44,10 @@ TArray<int32> UYogWorldSubsystem::GenerateRandomIntegers(int rangeMax, int range
 	}
 
 	Shuffle(RandomInts);
-	for (int32 integer : RandomInts)
-	{
-		UE_LOG(DevKitLevelSystem, Display, TEXT("integer : %i"), integer);
-	}
+	//for (int32 integer : RandomInts)
+	//{
+	//	UE_LOG(DevKitLevelSystem, Display, TEXT("integer : %i"), integer);
+	//}
 	return RandomInts;
 }
 

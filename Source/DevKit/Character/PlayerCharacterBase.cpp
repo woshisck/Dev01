@@ -32,6 +32,7 @@ void APlayerCharacterBase::BeginPlay()
 	{
 		static const FString ContextString(TEXT("Character movement Data Lookup"));
 		FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
+
 		FCharacterMovementData* MovementData = this->CharacterMovementDataTable->FindRow<FCharacterMovementData>(FName(TEXT("CharacterMoveLvl_1")), ContextString, true);
 
 		if (MovementData)
@@ -45,6 +46,8 @@ void APlayerCharacterBase::BeginPlay()
 		}
 
 	}
+
+
 
 
 	//if (AbilitySystemComponent) {

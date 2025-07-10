@@ -68,6 +68,46 @@ public:
 	FRotator RotationRate;
 };
 
+USTRUCT(BlueprintType)
+struct FYogAttributeData : public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+	FYogAttributeData()
+		: Health(600.0f), MaxHealth(8.0f), BaseDMG(2048.0f), WeaponDMG(2048.0f), BuffAmplify(1.2f), DMGAbsorb(0.2f), ActResist(0.0f)
+	{
+	}
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//FString Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Health;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxHealth;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float BaseDMG;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float WeaponDMG;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float BuffAmplify;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DMGAbsorb;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float ActResist;
+
+
+
+};
+
+
+
 
 class AYogPlayerControllerBase;
 
@@ -103,9 +143,15 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bInstantRotate;
+	////////////////////////////////////////// Attribute //////////////////////////////////////////
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
+	TObjectPtr<UDataTable> FYogAttributeTable;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UBaseAttributeSet> AttributeSet;
+	////////////////////////////////////////// Attribute //////////////////////////////////////////
+
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")
 	UAnimMontage* DeathMontage;
