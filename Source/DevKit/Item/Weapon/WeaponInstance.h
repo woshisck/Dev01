@@ -4,13 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "NiagaraSystem.h"
 #include "WeaponInstance.generated.h"
+
 
 /**
  * 
  */
 struct FWeaponActorToSpawn;
 class USceneComponent;
+class UYogGameplayAbility;
+
 
 USTRUCT(BlueprintType)
 struct FWeaponSocketLoc
@@ -25,6 +29,43 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	USceneComponent* DmgBox_End = nullptr;
 };
+
+USTRUCT(BlueprintType)
+struct FWeaponAttributeData : public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+	FWeaponAttributeData()
+		: AttackPower(600.0f), AttackSpeed(8.0f), AttackRange(2048.0f), CrticalRate(2048.0f), CriticalDamage(1.2f)
+	{
+	}
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//FString Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AttackPower;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AttackSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AttackRange;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UNiagaraSystem> PickedUpEffect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float CrticalRate;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float CriticalDamage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<UYogGameplayAbility*> Actions;
+
+};
+
 
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API AWeaponInstance : public AActor
@@ -55,6 +96,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void ClearArray();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
+	TObjectPtr<UDataTable> WeaponAttributeTable;
 
 
 	UFUNCTION(BlueprintCallable)
