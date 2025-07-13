@@ -19,7 +19,7 @@ public:
 
 	/** Called to determine targets to apply gameplay effects to */
 	UFUNCTION(BlueprintNativeEvent)
-	void GetTargets(AYogCharacterBase* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const;
+	void GetTargets(int HitboxIndex, AYogCharacterBase* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const;
 };
 
 /** Trivial target type that uses the owner */
@@ -33,7 +33,7 @@ public:
 	UYogTargetType_UseOwner() {}
 
 	/** Uses the passed in event data */
-	virtual void GetTargets_Implementation(AYogCharacterBase* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const override;
+	virtual void GetTargets_Implementation(int HitboxIndex, AYogCharacterBase* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const override;
 };
 
 /** Trivial target type that pulls the target out of the event data */
@@ -47,5 +47,5 @@ public:
 	UYogTargetType_UseEventData() {}
 
 	/** Uses the passed in event data */
-	virtual void GetTargets_Implementation(AYogCharacterBase* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const override;
+	virtual void GetTargets_Implementation(int HitboxIndex, AYogCharacterBase* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const override;
 };

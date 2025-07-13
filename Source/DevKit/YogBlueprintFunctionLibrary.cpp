@@ -7,6 +7,7 @@
 #include "Item/Weapon/WeaponInstance.h"
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 #include "Animation/YogAnimInstance.h"
+#include "GameFramework/CharacterMovementComponent.h"
 UYogBlueprintFunctionLibrary::UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -158,4 +159,19 @@ EYogCharacterState UYogBlueprintFunctionLibrary::GetCharacterState(AYogCharacter
 	{
 		return EYogCharacterState::Idle;
 	}
+}
+
+bool UYogBlueprintFunctionLibrary::LaunchCharacterWithDist(AYogCharacterBase* character, FVector Direction, float Distance, bool bHorizontalOnly, bool bVerticalOnl)
+{
+	if (character)
+	{
+		float Speed = FMath::Sqrt(2.f * character->GetCharacterMovement()->GetGravityZ() * Distance);
+		character->GetCharacterMovement()->Launch(Direction * Speed);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+
 }

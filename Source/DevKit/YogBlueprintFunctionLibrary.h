@@ -44,6 +44,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "YogCharacterBase")
 	static EYogCharacterState GetCharacterState(AYogCharacterBase* character);
 
+	UFUNCTION(BlueprintPure, Category = "YogCharacterBase")
+	static bool LaunchCharacterWithDist(AYogCharacterBase* character, FVector Direction, float Distance, bool bHorizontalOnly, bool bVerticalOnl);
+
 
 };
 

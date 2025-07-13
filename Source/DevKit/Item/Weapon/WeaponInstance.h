@@ -106,6 +106,28 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void CreateDamageDamageEffect(AActor* WeaponOwner, AActor* TargetActor);
+
+	UPROPERTY()
+	float AttackPower;
+
+	UPROPERTY()
+	float AttackSpeed;
+
+	UPROPERTY()
+	float AttackRange;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraSystem> PickedUpEffect;
+
+	UPROPERTY()
+	float CrticalRate;
+
+	UPROPERTY()
+	float CriticalDamage;
+
+	UPROPERTY()
+	TArray<UYogGameplayAbility*> Actions;
+
 	////~UObject interface
 	//virtual UWorld* GetWorld() const override final;
 	////~End of UObject interface
