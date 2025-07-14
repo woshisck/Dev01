@@ -80,8 +80,8 @@ void AYogCharacterBase::BeginPlay()
 	
 	if (FYogAttributeTable)
 	{
-		static const FString ContextString(TEXT("Character movement Data Lookup"));
-		FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
+		static const FString ContextString(TEXT("Character attribute Data Lookup"));
+		//FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
 
 		FYogAttributeData* AttributeData = this->FYogAttributeTable->FindRow<FYogAttributeData>(FName(TEXT("Default_Attribute")), ContextString, true);
 

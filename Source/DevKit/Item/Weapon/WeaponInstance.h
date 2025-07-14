@@ -14,7 +14,7 @@
 struct FWeaponActorToSpawn;
 class USceneComponent;
 class UYogGameplayAbility;
-
+class UGameplayEffect;
 
 USTRUCT(BlueprintType)
 struct FWeaponSocketLoc
@@ -127,6 +127,10 @@ public:
 
 	UPROPERTY()
 	TArray<UYogGameplayAbility*> Actions;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<TSubclassOf<UGameplayEffect>> WeaponHitEffect;
 
 	////~UObject interface
 	//virtual UWorld* GetWorld() const override final;

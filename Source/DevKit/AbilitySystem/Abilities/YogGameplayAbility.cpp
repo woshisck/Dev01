@@ -78,13 +78,12 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 			//@CAUTION GetTargets set HitResults and TargetActors from BP 
 			TArray<FHitResult> HitResults;
 			TArray<AActor*> TargetActors;
-			int HitboxIndex = 0;
 
 
 			const UYogTargetType* TargetTypeCDO = Container.TargetType.GetDefaultObject();
 			AActor* AvatarActor = GetAvatarActorFromActorInfo();
 			
-			TargetTypeCDO->GetTargets(HitboxIndex, OwningCharacter, AvatarActor, EventData, HitResults, TargetActors);
+			TargetTypeCDO->GetTargets(OwningCharacter, AvatarActor, EventData, HitResults, TargetActors);
 			ReturnSpec.AddTargets(HitResults, TargetActors);
 		}
 

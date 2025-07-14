@@ -69,7 +69,7 @@ public:
 	void OnAbilityEnded(const FAbilityEndedData& EndedData);
 
 	/** Map of gameplay tags to gameplay effect containers */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffects)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Buffer")
 	TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;
 
 	UPROPERTY(BlueprintReadOnly)

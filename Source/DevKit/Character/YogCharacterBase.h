@@ -75,7 +75,7 @@ struct FYogAttributeData : public FTableRowBase
 
 public:
 	FYogAttributeData()
-		: Health(600.0f), MaxHealth(8.0f), BaseDMG(2048.0f), WeaponDMG(2048.0f), BuffAmplify(1.2f), DMGAbsorb(0.2f), ActResist(0.0f)
+		: Health(1234.f), MaxHealth(1234.f), BaseDMG(1234.f), WeaponDMG(1234.f), BuffAmplify(1234.f), DMGAbsorb(1234.f), ActResist(1234.f)
 	{
 	}
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)

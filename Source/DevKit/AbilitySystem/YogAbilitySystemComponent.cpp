@@ -28,8 +28,10 @@ void UYogAbilitySystemComponent::GetAbilityTargetData(const FGameplayAbilitySpec
 
 void UYogAbilitySystemComponent::RemoveGameplayTag(FGameplayTag Tag, int32 Count)
 {
+	
 	this->RemoveLooseGameplayTag(Tag, Count);
 }
+
 
 void UYogAbilitySystemComponent::AddGameplayTag(FGameplayTag Tag, int32 Count)
 {
