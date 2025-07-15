@@ -123,7 +123,9 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	//Broadcast damages to Target ASC
 	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(TargetAbilitySystemComponent);
 	if (TargetASC)
-	{
+	{	
+		UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), DMGDone);
+
 		UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(SourceAbilitySystemComponent);
 		TargetASC->ReceiveDamage(SourceASC, DMGDone);
 	}

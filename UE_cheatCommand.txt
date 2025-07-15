@@ -2,3 +2,38 @@ GAS: (during editor play)
 showdebug abilitysystem 
 
 https://nerivec.github.io/old-ue4-wiki/pages/logs-printing-messages-to-yourself-during-runtime.html#Setting_Up_Your_Own_Log_Category
+
+
+BP_WPN_PLA_GS_DarkTemplarIsaacGreatSword  --> weapon visual
+
+WPN_PLA_GS_DarkTemplarIsaacGreatSword --> weapon data
+
+
+
+
+UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "WeaponStatsInfo"), Category = "Weapon|Stats")
+FDataTableRowHandle StatsRow;
+
+
+etc.
+FWeaponStatsInfo* pWeaponStats = StatsRow.GetRow<FWeaponStatsInfo>(TEXT("UWeaponsData::ExecuteOnEquipBehaviour"));
+
+
+const FWeaponStatsInfo* weaponStats = StatsRow.GetRow<FWeaponStatsInfo>(TEXT("UWeaponsData::GetMass"));
+// Weapon implementation of mass calculation
+virtual float GetMass() const override;
+
+float UWeaponsData::GetMass() const
+{
+	float finalMass = Super::GetMass();
+	const FWeaponStatsInfo* weaponStats = StatsRow.GetRow<FWeaponStatsInfo>(TEXT("UWeaponsData::GetMass"));
+	if(weaponStats)
+	{
+		finalMass = weaponStats->Weight;
+	}
+	return finalMass;
+}
+
+
+
+FWeaponStatsInfo* pWeaponStats = StatsRow.GetRow<FWeaponStatsInfo>(TEXT("UWeaponsData::GetStatsRequirements"));
