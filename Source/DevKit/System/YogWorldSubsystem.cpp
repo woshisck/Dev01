@@ -263,35 +263,35 @@ void UYogWorldSubsystem::OpenLevelAsPersistentAtRuntime(UObject* WorldContextObj
 	UGameplayStatics::OpenLevel(World, FName(*LevelName), true);
 }
 
-void UYogWorldSubsystem::RandomShuffle(uint32 RandomSeed)
+void UYogWorldSubsystem::RandomShuffle(int RandomSeed)
 {
 	if (RandomSeed != 0)
 	{
 		FRandomStream LevelStream;
 		LevelStream.Initialize(RandomSeed);
 
-		TArray<int32> array_RNG_Results = GenerateRandomIntegers(x, 0);
-		int32 RandomNumber = FMath::RandRange(1, 3);
+		//TArray<int32> array_RNG_Results = GenerateRandomIntegers(x, 0);
+		int32 RandomNumber = LevelStream.RandRange(1, 3);
 
 
 		//random set map
-		for (int i = 0; i < RandomNumber; i++)
-		{
-			row[0].LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/SavageGarden.SavageGarden"));
-			row[0].setNodeType(ESublevelType::Boss);
-		}
+		//for (int i = 0; i < RandomNumber; i++)
+		//{
+		//	row[0].LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/SavageGarden.SavageGarden"));
+		//	row[0].setNodeType(ESublevelType::Boss);
+		//}
 
 
-		for (int32 i = 0; i < NumberOfRooms; i++)
-		{
-			float RoomSize = LevelStream.FRandRange(MinRoomSize, MaxRoomSize);
-			FVector RoomLocation = FVector(
-				LevelStream.FRandRange(-LevelBounds, LevelBounds),
-				LevelStream.FRandRange(-LevelBounds, LevelBounds),
-				0
-			);
-			SpawnRoom(RoomLocation, RoomSize);
-		}
+		//for (int32 i = 0; i < NumberOfRooms; i++)
+		//{
+		//	float RoomSize = LevelStream.FRandRange(MinRoomSize, MaxRoomSize);
+		//	FVector RoomLocation = FVector(
+		//		LevelStream.FRandRange(-LevelBounds, LevelBounds),
+		//		LevelStream.FRandRange(-LevelBounds, LevelBounds),
+		//		0
+		//	);
+		//	SpawnRoom(RoomLocation, RoomSize);
+		//}
 
 	}
 	else

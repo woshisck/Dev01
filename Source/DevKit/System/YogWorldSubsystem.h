@@ -141,7 +141,7 @@ public:
 
 
 	UFUNCTION(BlueprintCallable, Category = "Level Create")
-	void RandomShuffle(uint32 RandomSeed);
+	void RandomShuffle(int RandomSeed);
 
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
