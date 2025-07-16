@@ -80,8 +80,10 @@ void AYogPlayerControllerBase::BeginPlay()
 		Subsystem->AddMappingContext(DefaultMappingContext, 0);
 	}
 
-	AYogCharacterBase* TargetCharacter = Cast<AYogCharacterBase>(UGameplayStatics::GetPlayerCharacter(this, 0));
-	SpawnCameraPawn(TargetCharacter);
+
+
+	//AYogCharacterBase* TargetCharacter = Cast<AYogCharacterBase>(UGameplayStatics::GetPlayerCharacter(this, 0));
+	//SpawnCameraPawn(TargetCharacter);
 
 }
 

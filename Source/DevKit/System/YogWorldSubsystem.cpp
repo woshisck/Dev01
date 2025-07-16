@@ -52,6 +52,13 @@ TArray<int32> UYogWorldSubsystem::GenerateRandomIntegers(int rangeMax, int range
 }
 
 
+
+TArray<FLevel2DRow>& UYogWorldSubsystem::GetLevelMatrix()
+{
+	// TODO: insert return statement here
+	return LevelMatrix;
+}
+
 void UYogWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	

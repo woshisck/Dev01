@@ -105,7 +105,11 @@ public:
 	void AddIgnoreActor(AActor* actor);
 
 	UFUNCTION(BlueprintImplementableEvent)
-	void CreateDamageDamageEffect(AActor* WeaponOwner, AActor* TargetActor);
+	void CreateDamageEffect(AActor* WeaponOwner, AActor* TargetActor);
+
+	UFUNCTION()
+	void Initialize();
+
 
 	UPROPERTY()
 	float AttackPower;
@@ -131,6 +135,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<TSubclassOf<UGameplayEffect>> WeaponHitEffect;
+
+
+
 
 	////~UObject interface
 	//virtual UWorld* GetWorld() const override final;
@@ -168,5 +175,8 @@ public:
 
 	//UFUNCTION(BlueprintImplementableEvent, Category = Equipment, meta = (DisplayName = "OnUnequipped"))
 	//void K2_OnUnequipped();
+
+
+
 
 };

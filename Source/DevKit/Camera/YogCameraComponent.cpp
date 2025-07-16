@@ -9,26 +9,20 @@ UYogCameraComponent::UYogCameraComponent(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.TickGroup = TG_PostPhysics;
+	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 }
 
 void UYogCameraComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+
 	//UpdatePosition();
 }
 
 FVector UYogCameraComponent::GetDesiredLocation(const FVector& GroundLoc)
 {
-	//AActor* Owner = this->GetOwner();
-	//FVector OwnerLoc = Owner->GetActorLocation();
-
-	FVector CameraFowardVector = this->GetForwardVector();
-	FVector RevertForwardVec = CameraFowardVector * -1.f;
-
-	FVector DesiredLoc = (CameraHeight / RevertForwardVec.Z) * RevertForwardVec + GroundLoc;
-
-	return DesiredLoc;
+	return FVector(0, 0, 0);
 }
 
 void UYogCameraComponent::InitCamera()
@@ -46,12 +40,6 @@ void UYogCameraComponent::UpdatePosition()
 
 FVector UYogCameraComponent::GetOffsetDirection()
 {
-	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(this->GetOwner());
-	AController* Controller = Owner->GetController();
-
-
-
-	FVector OwnerLoc = Owner->GetActorLocation();
 
 	return FVector(0, 0, 0);
 }

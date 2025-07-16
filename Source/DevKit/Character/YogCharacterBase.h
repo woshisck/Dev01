@@ -145,8 +145,12 @@ public:
 	bool bInstantRotate;
 	////////////////////////////////////////// Attribute //////////////////////////////////////////
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
-	TObjectPtr<UDataTable> FYogAttributeTable;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "FYogAttributeData"), Category = "DT")
+	TObjectPtr<UDataTable> DT_Attribute;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,meta = (RowType = "FYogAttributeData"), Category = "DT")
+	FDataTableRowHandle AttributeRow;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UBaseAttributeSet> AttributeSet;

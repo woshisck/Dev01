@@ -85,6 +85,12 @@ void AWeaponInstance::AddIgnoreActor(AActor* actor)
 
 }
 
+void AWeaponInstance::Initialize()
+{
+	Array_damageBox.Empty();
+	IgnoreActorList.Empty();
+}
+
 
 
 

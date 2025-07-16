@@ -125,6 +125,10 @@ public:
 
 
 
+	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
+	TArray<FLevel2DRow>& GetLevelMatrix();
+
+
 	/** Called when world is ready to start gameplay before the game mode transitions to the correct state and call BeginPlay on all actors */
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 

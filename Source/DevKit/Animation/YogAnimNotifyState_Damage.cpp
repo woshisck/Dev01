@@ -16,9 +16,9 @@ void UYogAnimNotifyState_Damage::NotifyBegin(USkeletalMeshComponent* MeshComp, U
 	{
 		if (AYogCharacterBase* Character = Cast<AYogCharacterBase>(MeshComp->GetOwner()))
 		{
-			AWeaponInstance* cache_Weapon = Character->Weapon;
-			cache_Weapon->Array_damageBox.Empty();
-			cache_Weapon->IgnoreActorList.Empty();
+			AWeaponInstance* pWeaponInst = Character->Weapon;
+			pWeaponInst->Array_damageBox.Empty();
+			pWeaponInst->IgnoreActorList.Empty();
 			//IgnoreActorList
 		}
 
@@ -67,18 +67,18 @@ void UYogAnimNotifyState_Damage::NotifyTick(USkeletalMeshComponent* MeshComp, UA
 	//{
 	//	if (AYogCharacterBase* Character = Cast<AYogCharacterBase>(MeshComp->GetOwner()))
 	//	{
-	//		AWeaponInstance* cache_Weapon = Character->Weapon;
+	//		AWeaponInstance* pWeaponInst = Character->Weapon;
 	//		FWeaponSocketLoc wpnSocket;
-	//		wpnSocket.DmgBox_End = cache_Weapon->point_DamageEnd;
-	//		wpnSocket.DmgBox_Start = cache_Weapon->point_DamageStart;
-	//		cache_Weapon->Array_damageBox.Insert(wpnSocket, 0);
-	//		UE_LOG(LogTemp, Warning, TEXT("Owner_weapon->Array_damageBox.Num(): %d"), cache_Weapon->Array_damageBox.Num());
+	//		wpnSocket.DmgBox_End = pWeaponInst->point_DamageEnd;
+	//		wpnSocket.DmgBox_Start = pWeaponInst->point_DamageStart;
+	//		pWeaponInst->Array_damageBox.Insert(wpnSocket, 0);
+	//		UE_LOG(LogTemp, Warning, TEXT("Owner_weapon->Array_damageBox.Num(): %d"), pWeaponInst->Array_damageBox.Num());
 	//		
-	//		if (cache_Weapon->Array_damageBox.Num() > 0)
+	//		if (pWeaponInst->Array_damageBox.Num() > 0)
 	//		{
-	//			//cache_Weapon->CreateDamageBox();
-	//			FWeaponSocketLoc current_socket_loc = cache_Weapon->Array_damageBox[0];
-	//			//FWeaponSocketLoc last_socket_loc = cache_Weapon->Array_damageBox[1];
+	//			//pWeaponInst->CreateDamageBox();
+	//			FWeaponSocketLoc current_socket_loc = pWeaponInst->Array_damageBox[0];
+	//			//FWeaponSocketLoc last_socket_loc = pWeaponInst->Array_damageBox[1];
 	//			//FVector current_midpoint = current_socket_loc.DmgBox_Start->GetComponentLocation() + ((current_socket_loc.DmgBox_End->GetComponentLocation() - current_socket_loc.DmgBox_Start->GetComponentLocation()) / 2);
 	//		}
 	//	}

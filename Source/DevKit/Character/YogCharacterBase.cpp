@@ -78,28 +78,46 @@ void AYogCharacterBase::BeginPlay()
 		BuffAmplifyChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBuffAmplifyAttribute()).AddUObject(this, &AYogCharacterBase::BuffAmplifyChanged);
 	}
 	
-	if (FYogAttributeTable)
+	if (DT_Attribute)
 	{
-		static const FString ContextString(TEXT("Character attribute Data Lookup"));
-		//FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
-
-		FYogAttributeData* AttributeData = this->FYogAttributeTable->FindRow<FYogAttributeData>(FName(TEXT("Default_Attribute")), ContextString, true);
-
-		if (AttributeData)
-		{
-
-			AttributeSet->InitHealth(AttributeData->Health);
-			AttributeSet->InitMaxHealth(AttributeData->MaxHealth);
-			AttributeSet->InitBaseDMG(AttributeData->BaseDMG);
-			AttributeSet->InitWeaponDMG(AttributeData->WeaponDMG);
-			AttributeSet->InitBuffAmplify(AttributeData->BuffAmplify);
-			AttributeSet->InitDMGAbsorb(AttributeData->DMGAbsorb);
-			AttributeSet->InitActResist(AttributeData->ActResist);
-
-		}
+		FYogAttributeData* pYogAttributeData = DT_Attribute->FindRow<FYogAttributeData>(TEXT("Default_Attribute"), TEXT(""));
 		
-
+		if (pYogAttributeData != nullptr)
+		{
+			AttributeSet->InitHealth(pYogAttributeData->Health);
+			AttributeSet->InitMaxHealth(pYogAttributeData->MaxHealth);
+			AttributeSet->InitBaseDMG(pYogAttributeData->BaseDMG);
+			AttributeSet->InitWeaponDMG(pYogAttributeData->WeaponDMG);
+			AttributeSet->InitBuffAmplify(pYogAttributeData->BuffAmplify);
+			AttributeSet->InitDMGAbsorb(pYogAttributeData->DMGAbsorb);
+			AttributeSet->InitActResist(pYogAttributeData->ActResist);
+		}
 	}
+
+
+
+	//if (YogAttributeInfo)
+	//{
+	//	static const FString ContextString(TEXT("Character attribute Data Lookup"));
+	//	//FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
+
+	//	FYogAttributeData* AttributeData = this->YogAttributeInfo->FindRow<FYogAttributeData>(FName(TEXT("Default_Attribute")), ContextString, true);
+
+	//	if (AttributeData)
+	//	{
+
+	//		AttributeSet->InitHealth(AttributeData->Health);
+	//		AttributeSet->InitMaxHealth(AttributeData->MaxHealth);
+	//		AttributeSet->InitBaseDMG(AttributeData->BaseDMG);
+	//		AttributeSet->InitWeaponDMG(AttributeData->WeaponDMG);
+	//		AttributeSet->InitBuffAmplify(AttributeData->BuffAmplify);
+	//		AttributeSet->InitDMGAbsorb(AttributeData->DMGAbsorb);
+	//		AttributeSet->InitActResist(AttributeData->ActResist);
+
+	//	}
+	//	
+
+	//}
 
 }
 

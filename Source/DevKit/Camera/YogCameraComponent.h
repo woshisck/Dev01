@@ -10,7 +10,7 @@
  * 
  */
 UCLASS()
-class DEVKIT_API UYogCameraComponent : public UCameraComponent
+class DEVKIT_API UYogCameraComponent : public UActorComponent
 {
 	GENERATED_BODY()
 public:
