@@ -120,20 +120,8 @@ public:
 	TArray<int32> GenerateRandomIntegers( int rangeMax, int rangeMin);
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Streaming")
-	TArray<FLevel2DRow> LevelMatrix;
-
-
-
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	TArray<FLevel2DRow>& GetLevelMatrix();
-
-
-	/** Called when world is ready to start gameplay before the game mode transitions to the correct state and call BeginPlay on all actors */
-	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
-
-
-	ULevelStreaming* FindLoadedLevel(const FName& LevelName);
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void StartLoadingLevels(const TArray<FName>& LevelsToStream, float DelayBetweenLoads = 0.5f);
@@ -148,11 +136,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void PrintLevelTree();
 
-
-
-
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void OpenLevelAsPersistentAtRuntime(UObject* WorldContextObject, const FString& LevelName);
+
+
+	UFUNCTION(BlueprintCallable, Category = "Level Create")
+	void RandomShuffle(uint32 RandomSeed);
 
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
@@ -162,9 +151,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void ClearMatrix();
 
+	/** Called when world is ready to start gameplay before the game mode transitions to the correct state and call BeginPlay on all actors */
+	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+
+	ULevelStreaming* FindLoadedLevel(const FName& LevelName);
+
+
 protected:
 
-	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Streaming")
+	TArray<FLevel2DRow> LevelMatrix;
+
+
 	UPROPERTY()
 	TArray<ULevelStreaming*> LoadedLevels;
 
