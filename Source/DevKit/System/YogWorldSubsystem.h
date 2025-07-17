@@ -173,8 +173,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
 	void InitializeMatrix(int x);
 
-	UFUNCTION(BlueprintCallable, Category = "Level Create")
-	void RandomShuffle(int RandomSeed, int max_range);
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void ClearMatrix();

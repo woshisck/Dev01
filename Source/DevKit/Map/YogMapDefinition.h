@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "../System/YogWorldSubsystem.h"
 #include "YogMapDefinition.generated.h"
 
 /**
@@ -16,6 +17,6 @@ class DEVKIT_API UYogMapDefinition : public UPrimaryDataAsset
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
-	TArray<TSoftObjectPtr<UWorld>> MapBase;
+	TArray<FLevel2DRow> LevelDefinition;
 
 };
