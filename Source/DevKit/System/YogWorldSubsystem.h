@@ -20,6 +20,48 @@ enum class ESublevelType : uint8
 	Rest,
 	Boss
 };
+
+USTRUCT(BlueprintType)
+struct FLevelTreeNode
+{
+	GENERATED_BODY()
+
+
+public:
+	FString LevelName;
+	TArray<TSharedPtr<FLevelTreeNode>> Children;
+	ESublevelType NodeType;
+
+	UPROPERTY()
+	FName LevelPackageName;
+
+
+	// Reference to the streaming level (optional)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FSoftObjectPath LevelMapSoftPath;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FVector2D> pos_Enter;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FVector2D> pos_Leave;
+
+	FLevelTreeNode()
+	{
+		LevelPackageName = "DefaultNode";
+		LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode"));
+
+		NodeType = ESublevelType::Default;
+
+	}
+
+	void AddChild(TSharedPtr<FLevelTreeNode> Child)
+	{
+		Children.Add(Child);
+	}
+};
+
+///////////////////////////////////////////// 2D Matrix Level /////////////////////////////////////////////
 USTRUCT(BlueprintType)
 struct FLevel2DNode
 {
@@ -96,10 +138,13 @@ public:
 		rows_levelNode.Add(level2Dnode);
 	}
 
-
+	int Num()
+	{
+		return rows_levelNode.Num();
+	}
 
 };
-
+///////////////////////////////////////////// 2D Matrix Level /////////////////////////////////////////////
 
 /** Object that is written to and read from the save game archive, with a data version */
 UCLASS()
@@ -113,43 +158,46 @@ public:
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
-	void Shuffle(TArray<int32>& array);
 
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	TArray<int32> GenerateRandomIntegers( int rangeMax, int rangeMin);
 
-
-	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
-	TArray<FLevel2DRow>& GetLevelMatrix();
-
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void StartLoadingLevels(const TArray<FName>& LevelsToStream, float DelayBetweenLoads = 0.5f);
 	
+	////////////////////////////////////////////////// Level Matrix //////////////////////////////////////////////////
+	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
+	TArray<FLevel2DRow>& GetLevelMatrix();
 
 	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
 	void InitializeMatrix(int x);
 
-	UFUNCTION()
-	void MakeConnections();
+	UFUNCTION(BlueprintCallable, Category = "Level Create")
+	void RandomShuffle(int RandomSeed, int max_range);
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
-	void PrintLevelTree();
+	void ClearMatrix();
+
+	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
+	void SetupMatrixElement(int x, int y, ESublevelType Type, FSoftObjectPath soft_object_path);
+
+	void Shuffle(TArray<int32>& array);
+
+	UFUNCTION()
+	bool checkRange(int index);
+	////////////////////////////////////////////////// Level Matrix //////////////////////////////////////////////////
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void OpenLevelAsPersistentAtRuntime(UObject* WorldContextObject, const FString& LevelName);
 
 
-	UFUNCTION(BlueprintCallable, Category = "Level Create")
-	void RandomShuffle(int RandomSeed);
 
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void GetAllSubLevel(UObject* WorldContextObject);
 
 
-	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
-	void ClearMatrix();
 
 	/** Called when world is ready to start gameplay before the game mode transitions to the correct state and call BeginPlay on all actors */
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
