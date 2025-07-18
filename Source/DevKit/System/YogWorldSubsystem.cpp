@@ -220,28 +220,25 @@ TArray<FLevel2DRow>& UYogWorldSubsystem::GetLevelMatrix()
 	// TODO: insert return statement here
 }
 
-void UYogWorldSubsystem::InitializeMatrix(int x)
+void UYogWorldSubsystem::InitializeMatrix(int x, int y)
 {
 	ClearMatrix();
-	for (int i = 0; i < x; i++)
+	for (int i = 0; i < y; i++)
 	{
-		FLevel2DRow default2DRow = FLevel2DRow(x);
+		FLevel2DRow default2DRow = FLevel2DRow(x, i);
 		LevelMatrix.Add(default2DRow);
 	}
-
-	for (FLevel2DRow& row : LevelMatrix)
-	{
-		TArray<int32> array_RNG_Results = GenerateRandomIntegers(x, 0);
-		int32 RandomNumber = FMath::RandRange(1, 3);
-
-
-		//random set map
-		//for (int i = 0; i < RandomNumber; i++)
-		//{
-		//	row[0].LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/SavageGarden.SavageGarden"));
-		//	row[0].setNodeType(ESublevelType::Boss);
-		//}
-	}
+	//for (FLevel2DRow& row : LevelMatrix)
+	//{
+	//	TArray<int32> array_RNG_Results = GenerateRandomIntegers(x, 0);
+	//	int32 RandomNumber = FMath::RandRange(1, 3);
+	//	//random set map
+	//	//for (int i = 0; i < RandomNumber; i++)
+	//	//{
+	//	//	row[0].LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/SavageGarden.SavageGarden"));
+	//	//	row[0].setNodeType(ESublevelType::Boss);
+	//	//}
+	//}
 
 }
 

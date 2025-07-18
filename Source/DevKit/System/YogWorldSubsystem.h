@@ -79,6 +79,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	ESublevelType NodeType;
 
+	UPROPERTY(BlueprintReadOnly)
+	int x;
+
+
+	UPROPERTY(BlueprintReadOnly)
+	int y;
+
 
 	// Name/identifier of the sublevel
 	UPROPERTY()
@@ -113,11 +120,18 @@ public:
 
 	FLevel2DRow() {};
 
-	FLevel2DRow(int32 x)
+	FLevel2DRow(int32 x, int32 y)
 		:row_length(x)
 	{
-		FLevel2DNode node = FLevel2DNode();
-		rows_levelNode.Init(node, row_length);
+		
+		for (int i = 0; i < x; i++)
+		{
+			FLevel2DNode node = FLevel2DNode();
+			node.x = i;
+			node.y = y;
+			rows_levelNode.Add(node);
+		}
+		//rows_levelNode.Init(node, row_length);
 	};
 
 
@@ -171,7 +185,7 @@ public:
 	TArray<FLevel2DRow>& GetLevelMatrix();
 
 	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
-	void InitializeMatrix(int x);
+	void InitializeMatrix(int x, int y);
 
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")

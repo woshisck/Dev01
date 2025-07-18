@@ -8,15 +8,68 @@
 #include "YogMapDefinition.generated.h"
 
 /**
+* 
  * 
  */
+
+USTRUCT(BlueprintType)
+struct FNextMapNode
+{
+	GENERATED_BODY()
+public:
+	FNextMapNode()
+	{
+		LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode"));
+
+		NodeType = ESublevelType::Default;
+
+	};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	ESublevelType NodeType;
+
+
+
+	// Reference to the streaming level (optional)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FSoftObjectPath LevelMapSoftPath;
+
+
+	void setNodeType(ESublevelType type)
+	{
+		this->NodeType = type;
+	}
+
+};
+
+USTRUCT(BlueprintType)
+struct FLeavePortal {
+	
+	GENERATED_BODY()
+public:
+
+	FLeavePortal() {};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
+	int GateIndex;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
+	TArray<FNextMapNode> NextLevels;
+
+
+
+};
+
 UCLASS(Blueprintable, BlueprintType, Const)
 class DEVKIT_API UYogMapDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 public:
 
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
+	//TArray<FLevel2DRow> LevelDefinition;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
-	TArray<FLevel2DRow> LevelDefinition;
+	TArray<FLeavePortal> NextLevel;
 
 };
