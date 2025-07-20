@@ -4,6 +4,7 @@
 #include <Engine/AssetManager.h>
 #include <DevKit/DevAssetManager.h>
 #include "Math/UnrealMathUtility.h"
+#include "../Map/YogLevelScript.h"
 
 
 UYogWorldSubsystem::UYogWorldSubsystem()
@@ -123,6 +124,17 @@ void UYogWorldSubsystem::LoadStreamLevel(ULevelStreaming* StreamingLevel)
 		//StreamingLevel->bShouldBlockOnLoad = true; // Block until loaded
 		//StreamingLevel->RequestLevel();
 	}
+}
+
+AYogLevelScript* UYogWorldSubsystem::GetCurrentLevelScript()
+{
+	AYogLevelScript* levelScript;
+	levelScript = Cast<AYogLevelScript>(GetWorld()->GetLevelScriptActor());
+	if (levelScript)
+	{
+		return levelScript;
+	}
+	return levelScript;
 }
 
 void UYogWorldSubsystem::LoadNextLevel()

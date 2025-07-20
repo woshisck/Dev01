@@ -81,9 +81,9 @@ void AYogPlayerControllerBase::BeginPlay()
 	}
 
 
-
+	
 	//AYogCharacterBase* TargetCharacter = Cast<AYogCharacterBase>(UGameplayStatics::GetPlayerCharacter(this, 0));
-	//SpawnCameraPawn(TargetCharacter);
+	SpawnCameraPawn(this->GetControlledCharacter());
 
 }
 

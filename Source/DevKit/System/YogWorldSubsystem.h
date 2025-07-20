@@ -61,6 +61,7 @@ public:
 	}
 };
 
+
 ///////////////////////////////////////////// 2D Matrix Level /////////////////////////////////////////////
 USTRUCT(BlueprintType)
 struct FLevel2DNode
@@ -161,6 +162,9 @@ public:
 ///////////////////////////////////////////// 2D Matrix Level /////////////////////////////////////////////
 
 /** Object that is written to and read from the save game archive, with a data version */
+
+class AYogLevelScript;
+
 UCLASS()
 class UYogWorldSubsystem : public UWorldSubsystem
 {
@@ -245,6 +249,9 @@ protected:
 
 	UFUNCTION(BlueprintCallable)
 	void LoadStreamLevel(ULevelStreaming* StreamingLevel);
+
+	UFUNCTION(BlueprintCallable)
+	AYogLevelScript* GetCurrentLevelScript();
 
 
 private:

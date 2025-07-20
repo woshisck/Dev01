@@ -19,7 +19,7 @@ struct FNextMapNode
 public:
 	FNextMapNode()
 	{
-		LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode"));
+		//LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode"));
 
 		NodeType = ESublevelType::Default;
 
@@ -32,7 +32,7 @@ public:
 
 	// Reference to the streaming level (optional)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FSoftObjectPath LevelMapSoftPath;
+	TSoftObjectPtr<UWorld> LevelMapSoftPtr;
 
 
 	void setNodeType(ESublevelType type)
@@ -43,12 +43,12 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct FLeavePortal {
+struct FPortalEntry {
 	
 	GENERATED_BODY()
 public:
 
-	FLeavePortal() {};
+	FPortalEntry() {};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
 	int GateIndex;
@@ -70,6 +70,6 @@ public:
 	//TArray<FLevel2DRow> LevelDefinition;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
-	TArray<FLeavePortal> NextLevel;
+	TArray<FPortalEntry> LevelPortals;
 
 };
