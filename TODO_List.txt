@@ -1,6 +1,7 @@
 1. range attack (PROJECTILE)        -->> 5
-2. Level matrix setup               -->> 5
+2. Level matrix setup               -->> 5 *
 3. passive ability(Game)            -->> 1
 4. S/L system                       -->> 2
-5. UNIT ATTRIBUTE                   -->> 3
+5. UNIT ATTRIBUTE Table             -->> 3
 6. Buff Pickup                      -->> 4
+7. Camera BLock                     -->> 3
