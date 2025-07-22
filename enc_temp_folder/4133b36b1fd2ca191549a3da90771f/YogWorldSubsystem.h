@@ -81,11 +81,11 @@ public:
 	ESublevelType NodeType;
 
 	UPROPERTY(BlueprintReadOnly)
-	int x = 0;
+	int x;
 
 
 	UPROPERTY(BlueprintReadOnly)
-	int y = 0;
+	int y;
 
 
 	// Name/identifier of the sublevel

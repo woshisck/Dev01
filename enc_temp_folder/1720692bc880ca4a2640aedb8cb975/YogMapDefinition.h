@@ -51,7 +51,7 @@ public:
 	FPortalEntry() {};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
-	int GateIndex = 0;
+	int GateIndex;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
 	TArray<FNextMapNode> NextLevels;

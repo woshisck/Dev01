@@ -6,6 +6,8 @@
 #include "Engine/LevelScriptActor.h"
 #include "YogLevelScript.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FLevelStart);
+
 class UYogMapDefinition;
 
 /**
@@ -24,4 +26,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<UYogMapDefinition> Mapdefinition;
+
+	UPROPERTY(BlueprintAssignable)
+	FLevelStart LevelStart;
+
+	void OnLevelLoaded(UWorld* LoadedWorld);
+
 };
