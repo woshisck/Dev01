@@ -13,5 +13,12 @@ UCLASS()
 class DEVKIT_API UPassive_YogAbility : public UYogGameplayAbility
 {
 	GENERATED_BODY()
-	
+
+public:
+
+
+	UPassive_YogAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	void OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+
 };
