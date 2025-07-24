@@ -13,6 +13,8 @@
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 #include "../Component/HitBoxBufferComponent.h"
 
+#include "../AbilitySystem/Abilities/Passive_YogAbility.h"
+
 AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
@@ -317,6 +319,7 @@ void AYogCharacterBase::Die()
 
 
 }
+
 
 void AYogCharacterBase::GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities)
 {

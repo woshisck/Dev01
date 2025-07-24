@@ -160,6 +160,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")
 	UAnimMontage* DeathMontage;
 
+
+
 	///////////////////////////////////////////　Passive effect　///////////////////////////////////////////
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Abilities)
@@ -184,7 +186,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	float GetMaxHealth() const;
 
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Abilities")
