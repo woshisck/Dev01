@@ -10,6 +10,8 @@
  * 
  */
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FItemInteractStartDelegate, APlayerCharacterBase*, Character);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FItemInteractEndDelegate, APlayerCharacterBase*, Character);
 
 UENUM()
 enum class EPlayerBattleState : uint8
@@ -29,6 +31,14 @@ public:
 
 
 	APlayerCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FItemInteractStartDelegate OnItemInterActionStart;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FItemInteractEndDelegate OnItemInterActionEnd;
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
 	TObjectPtr<UDataTable> CharacterMovementDataTable;

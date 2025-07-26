@@ -6,7 +6,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Itemdefinition.h"
-#include "../Character/YogCharacterBase.h"
+#include "../Character/PlayerCharacterBase.h"
 #include "../AbilitySystem/YogAbilitySystemComponent.h"
 
 //#include "GameFramework/Pawn.h"
@@ -20,10 +20,20 @@
 AItemSpawner::AItemSpawner()
 {
 	PrimaryActorTick.bCanEverTick = false;
-	RootComponent = CollisionVolume = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CollisionVolume"));
 
-	CollisionVolume->InitCapsuleSize(80.f, 80.f);
-	CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &AItemSpawner::OnOverlapBegin);
+
+
+	RootComponent = PlayerInteractVolume = CreateDefaultSubobject<UCapsuleComponent>(TEXT("Player_Interact_Volume"));
+
+	PlayerInteractVolume->InitCapsuleSize(100.f, 100.f);
+	PlayerInteractVolume->OnComponentBeginOverlap.AddDynamic(this, &AItemSpawner::OnOverlapBegin);
+	PlayerInteractVolume->OnComponentEndOverlap.AddDynamic(this, &AItemSpawner::OnOverlapEnd);
+
+
+	BlockVolume = CreateDefaultSubobject<UCapsuleComponent>(TEXT("BlockVolume"));
+	BlockVolume->InitCapsuleSize(60.f, 60.f);
+	BlockVolume->SetupAttachment(RootComponent);
+
 
 	ItemMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
 	ItemMesh->SetupAttachment(RootComponent);
@@ -62,32 +72,61 @@ void AItemSpawner::OnConstruction(const FTransform& Transform)
 
 void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
+	
 
-	AYogCharacterBase* OverlappingCharacter = Cast<AYogCharacterBase>(OtherActor);
-	if (OverlappingCharacter != nullptr && this->ItemDefinition->GrantEffectContainerMap.Num() > 0)
+
+	APlayerCharacterBase* OverlappingCharacter = Cast<APlayerCharacterBase>(OtherActor);
+
+	if (OverlappingCharacter != nullptr)
 	{
-			//HasMatchingGameplayTag
-		UYogAbilitySystemComponent* ASC = OverlappingCharacter->GetASC();
-		for (TPair<FGameplayTag, FYogGameplayEffectContainer>& pair : this->ItemDefinition->GrantEffectContainerMap)
-		{
-			FGameplayTag Key = pair.Key;
-			FYogGameplayEffectContainer Value = pair.Value;
-			if (ASC->EffectContainerMap.Contains(Key))
-			{
-				//@TODO duplicate gameplay tag find 
-				UE_LOG(LogTemp, Warning, TEXT("DUPLICATRED FYogGameplayEffectContainer"));
-			}
-			else
-			{
-				ASC->EffectContainerMap.Add(pair);
-				this->Destroy();
-			}
-		}
+		OverlappingCharacter->OnItemInterActionStart.Broadcast(OverlappingCharacter);
+
+		//UE_LOG(LogTemp, Warning, TEXT("OverlappingCharacter: %s OnOverlapBegin"), *OverlappingCharacter->GetName());
+		//
+	
 	}
-	else
+
+
+
+	//if (OverlappingCharacter != nullptr && this->ItemDefinition->GrantEffectContainerMap.Num() > 0)
+	//{
+	//		//HasMatchingGameplayTag
+	//	UYogAbilitySystemComponent* ASC = OverlappingCharacter->GetASC();
+	//	for (TPair<FGameplayTag, FYogGameplayEffectContainer>& pair : this->ItemDefinition->GrantEffectContainerMap)
+	//	{
+	//		FGameplayTag Key = pair.Key;
+	//		FYogGameplayEffectContainer Value = pair.Value;
+	//		if (ASC->EffectContainerMap.Contains(Key))
+	//		{
+	//			//@TODO duplicate gameplay tag find 
+	//			UE_LOG(LogTemp, Warning, TEXT("DUPLICATRED FYogGameplayEffectContainer"));
+	//		}
+	//		else
+	//		{
+	//			ASC->EffectContainerMap.Add(pair);
+	//			this->Destroy();
+	//		}
+	//	}
+	//}
+	//else
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("PICKUP HAS NO FYogGameplayEffectContainer OR Overlap not happen"));
+	//}
+}
+
+void AItemSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	APlayerCharacterBase* OverlappingCharacter = Cast<APlayerCharacterBase>(OtherActor);
+
+	if (OverlappingCharacter != nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("PICKUP HAS NO FYogGameplayEffectContainer OR Overlap not happen"));
+		OverlappingCharacter->OnItemInterActionEnd.Broadcast(OverlappingCharacter);
+
+		//UE_LOG(LogTemp, Warning, TEXT("OverlappingCharacter: %s OnOverlapBegin"), *OverlappingCharacter->GetName());
+		//
+
 	}
+
 }
 
 

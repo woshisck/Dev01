@@ -47,11 +47,19 @@ public:
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);
 
-	UPROPERTY(BlueprintReadOnly, Category = "Item | ItemDisplay")
-	TObjectPtr<UCapsuleComponent> CollisionVolume;
+	UFUNCTION()
+	void OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	//OnComponentEndOverlap.Broadcast(this, OtherActor, OtherComp, OtherOverlap.GetBodyIndex());
 
 
-	UPROPERTY(BlueprintReadOnly, Category = "Item | ItemDisplay")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Item | InterAct")
+	TObjectPtr<UCapsuleComponent> PlayerInteractVolume;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Item | ItemDisplay")
+	TObjectPtr<UCapsuleComponent> BlockVolume;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Item | ItemDisplay")
 	TObjectPtr<UStaticMeshComponent> ItemMesh;
 
 };
