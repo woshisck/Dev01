@@ -153,12 +153,11 @@ void AYogCameraPawn::SetCameraStates(EYogCameraStates NewMovementMode)
 {
 
 
-	//UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	//EYogCameraStates CameraStatus;
 
 
 
-	const EYogCameraStates PrevStatus = CameraStatus;
+
+	PrevStatus = CameraStatus;
 	CameraStatus = NewMovementMode;
 
 

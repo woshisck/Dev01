@@ -45,4 +45,16 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle Data")
 	float EnemyCloseDist;
+
+
+	UFUNCTION(BlueprintCallable)
+	void SetOwnCamera(AYogCameraPawn* cameraActor);
+
+	UFUNCTION(BlueprintCallable)
+	AYogCameraPawn* GetOwnCamera();
+
+protected:
+
+	UPROPERTY(BlueprintReadOnly)
+	TObjectPtr<AYogCameraPawn> CameraPawnActor;
 };

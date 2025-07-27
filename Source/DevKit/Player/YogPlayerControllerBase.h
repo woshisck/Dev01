@@ -76,17 +76,12 @@ public:
 	void SetEnableRotationRate(FRotator RotationRate, bool isEnable);
 
 	UFUNCTION(BlueprintCallable, Category = "ASC")
-	void SpawnCameraPawn(AYogCharacterBase* PossessedCharacter);
+	void SpawnCameraPawn(APlayerCharacterBase* PossessedCharacter);
 
 	UFUNCTION(BlueprintCallable, Category = "ASC")
 	AYogCharacterBase* GetControlledCharacter();
 
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	void SetPlayerState(EYogCharacterState newState);
-
-protected:
-	UPROPERTY(BlueprintReadOnly)
-	TObjectPtr<AYogCameraPawn> CameraPawnActor;
-
 
 };

@@ -12,7 +12,7 @@
 #include "../Inventory/InventoryManagerComponent.h"
 #include "../AbilitySystem/Abilities/YogGameplayAbility.h"
 #include <DevKit/Player/YogPlayerControllerBase.h>
-
+#include "../Camera/YogCameraPawn.h"
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 
 
@@ -21,6 +21,18 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	EnemyCloseDist = 100.0f;
+}
+
+void APlayerCharacterBase::SetOwnCamera(AYogCameraPawn* cameraActor)
+{
+
+	CameraPawnActor = cameraActor;
+}
+
+AYogCameraPawn* APlayerCharacterBase::GetOwnCamera()
+{
+
+	return CameraPawnActor;
 }
 
 

@@ -121,6 +121,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	EYogCameraStates CameraStatus;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	EYogCameraStates PrevStatus;
+
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//float MaxSpeedCache;
 
