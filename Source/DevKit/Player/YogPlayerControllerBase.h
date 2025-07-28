@@ -62,6 +62,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnLightAttackTriggered(const FInputActionValue& Value);
 
+
+	UFUNCTION(BlueprintCallable)
+	void OnInteractTriggered();
+
 	/////////////////////////////////////////// INPUT ACTION ///////////////////////////////////////////
 
 	UFUNCTION(BlueprintCallable)

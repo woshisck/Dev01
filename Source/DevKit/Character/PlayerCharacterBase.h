@@ -10,8 +10,11 @@
  * 
  */
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FItemInteractStartDelegate, APlayerCharacterBase*, Character);
+
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FItemInteractEndDelegate, APlayerCharacterBase*, Character);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FItemInteractStartDelegate, APlayerCharacterBase*, Character, AActor*, actor);
+
 
 UENUM()
 enum class EPlayerBattleState : uint8
@@ -53,8 +56,24 @@ public:
 	UFUNCTION(BlueprintCallable)
 	AYogCameraPawn* GetOwnCamera();
 
+	UFUNCTION(BlueprintCallable)
+	void SetPrepareItem(AActor* actor);
+
+	UFUNCTION(BlueprintCallable)
+	void DropPrepareItem();
+
+	UFUNCTION(BlueprintCallable)
+	AActor* GetPrepareItem();
+
+public:
+	UPROPERTY()
+	TObjectPtr<AActor> temp_Item_prepare;
+
 protected:
 
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AYogCameraPawn> CameraPawnActor;
+
+
+
 };

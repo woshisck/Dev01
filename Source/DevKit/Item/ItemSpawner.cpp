@@ -79,7 +79,9 @@ void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 
 	if (OverlappingCharacter != nullptr)
 	{
-		OverlappingCharacter->OnItemInterActionStart.Broadcast(OverlappingCharacter);
+		OverlappingCharacter->OnItemInterActionStart.Broadcast(OverlappingCharacter, this);
+
+		
 
 		//UE_LOG(LogTemp, Warning, TEXT("OverlappingCharacter: %s OnOverlapBegin"), *OverlappingCharacter->GetName());
 		//

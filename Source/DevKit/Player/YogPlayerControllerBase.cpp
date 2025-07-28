@@ -9,6 +9,7 @@
 #include <DevKit/Camera/YogCameraPawn.h>
 #include "../Character/PlayerCharacterBase.h"
 #include <EnhancedInputSubsystems.h>
+#include "../Item/ItemSpawner.h"
 
 
 
@@ -94,6 +95,18 @@ AYogCharacterBase* AYogPlayerControllerBase::GetControlledCharacter()
 {
 	AYogCharacterBase* MyCharacter = Cast<AYogCharacterBase>(GetPawn());
 	return MyCharacter;
+}
+
+void AYogPlayerControllerBase::OnInteractTriggered()
+{
+	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn());
+
+	if (player->GetPrepareItem() != nullptr)
+	{
+		AItemSpawner* target_item = Cast<AItemSpawner>(player->GetPrepareItem());
+		target_item->GrantItem(player);
+	}
+
 }
 
 void AYogPlayerControllerBase::ToggleInput(bool bEnable)

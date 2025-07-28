@@ -21,6 +21,8 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	EnemyCloseDist = 100.0f;
+
+
 }
 
 void APlayerCharacterBase::SetOwnCamera(AYogCameraPawn* cameraActor)
@@ -34,6 +36,23 @@ AYogCameraPawn* APlayerCharacterBase::GetOwnCamera()
 
 	return CameraPawnActor;
 }
+
+void APlayerCharacterBase::SetPrepareItem(AActor* actor)
+{
+	temp_Item_prepare = actor;
+	UE_LOG(LogTemp, Warning, TEXT("temp_Item_prepare set: %s"), *temp_Item_prepare->GetName());
+}
+
+void APlayerCharacterBase::DropPrepareItem()
+{
+	temp_Item_prepare = nullptr;
+}
+
+AActor* APlayerCharacterBase::GetPrepareItem()
+{
+	return temp_Item_prepare;
+}
+
 
 
 void APlayerCharacterBase::BeginPlay()
@@ -72,6 +91,7 @@ void APlayerCharacterBase::BeginPlay()
 	//}
 
 	this->CurrentState = EYogCharacterState::Idle;
+
 }
 
 void APlayerCharacterBase::Tick(float DeltaSeconds)
