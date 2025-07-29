@@ -16,7 +16,7 @@ class UYogGameplayAbility;
 struct FGameplayTag;
 struct FYogGameplayEffectContainer;
 
-UCLASS()
+UCLASS(BlueprintType)
 class DEVKIT_API UYogAbilitySystemComponent : public UAbilitySystemComponent
 {
 	GENERATED_BODY()

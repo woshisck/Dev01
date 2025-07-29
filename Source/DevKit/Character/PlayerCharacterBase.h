@@ -9,7 +9,7 @@
 /**
  * 
  */
-
+class AAuraBase;
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FItemInteractEndDelegate, APlayerCharacterBase*, Character);
@@ -65,9 +65,17 @@ public:
 	UFUNCTION(BlueprintCallable)
 	AActor* GetPrepareItem();
 
+	UFUNCTION(BlueprintCallable)
+	void SpawnAura();
+
+
 public:
 	UPROPERTY()
 	TObjectPtr<AActor> temp_Item_prepare;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aura")
+	TSubclassOf<AAuraBase> Aura;
 
 protected:
 
