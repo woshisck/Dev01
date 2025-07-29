@@ -8,6 +8,7 @@
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 #include "Animation/YogAnimInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include <DevKit/Buff/Aura/AuraBase.h>
 UYogBlueprintFunctionLibrary::UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -173,5 +174,31 @@ bool UYogBlueprintFunctionLibrary::LaunchCharacterWithDist(AYogCharacterBase* ch
 	{
 		return false;
 	}
+
+}
+
+bool UYogBlueprintFunctionLibrary::SpawnAura(UObject* WorldContextObject, AYogCharacterBase* character, AAuraBase* aura)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (World)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = character; // Set owner if needed
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		AAuraBase* aura = World->SpawnActorDeferred<AAuraBase>(AAuraBase::StaticClass(), FTransform::Identity, character);
+
+		aura->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+
+		aura->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+		aura->AttachToActor(character, FAttachmentTransformRules::KeepRelativeTransform);
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+
 
 }

@@ -53,34 +53,6 @@ AActor* APlayerCharacterBase::GetPrepareItem()
 	return temp_Item_prepare;
 }
 
-void APlayerCharacterBase::SpawnAura()
-{
-
-	//UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-
-	//USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
-
-	//TSubclassOf<AWeaponInstance> WeaponActorClass = WeaponActorInst.ActorToSpawn;
-	//FName Socket = WeaponActorInst.AttachSocket;
-	//FTransform Transform = WeaponActorInst.AttachTransform;
-
-	//FVector Location = TargetCharacter->GetActorLocation();
-	//FRotator Rotation = FRotator::ZeroRotator;
-	//FActorSpawnParameters SpawnParams;
-	//SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-	//AYogCameraPawn* CameraActorPawn = GetWorld()->SpawnActor<AYogCameraPawn>(CameraPawnClass, Location, Rotation, SpawnParams);
-
-
-	AAuraBase* aura = GetWorld()->SpawnActorDeferred<AAuraBase>(Aura, FTransform::Identity, this);
-	//AWeaponInstance* NewActor = World->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
-	aura->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-	//aura->SetActorRelativeTransform(Transform);
-	aura->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
-	//ReceivingChar->Weapon = NewActor;
-
-
-}
-
 
 
 void APlayerCharacterBase::BeginPlay()
@@ -119,7 +91,6 @@ void APlayerCharacterBase::BeginPlay()
 	//}
 
 	this->CurrentState = EYogCharacterState::Idle;
-
 }
 
 void APlayerCharacterBase::Tick(float DeltaSeconds)

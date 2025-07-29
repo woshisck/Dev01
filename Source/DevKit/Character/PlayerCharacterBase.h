@@ -65,9 +65,6 @@ public:
 	UFUNCTION(BlueprintCallable)
 	AActor* GetPrepareItem();
 
-	UFUNCTION(BlueprintCallable)
-	void SpawnAura();
-
 
 public:
 	UPROPERTY()
