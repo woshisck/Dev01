@@ -12,6 +12,7 @@
  */
 class AYogCharacterBase;
 class AAuraBase;
+class UAuraDefinition;
 UCLASS()
 class UYogBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
 {
@@ -48,7 +49,7 @@ public:
 	static bool LaunchCharacterWithDist(AYogCharacterBase* character, FVector Direction, float Distance, bool bHorizontalOnly, bool bVerticalOnl);
 
 	UFUNCTION(BlueprintPure, Category = "YogCharacterBase")
-	static bool SpawnAura(UObject* WorldContextObject, AYogCharacterBase* character, AAuraBase* aura);
+	static bool SpawnAura(UObject* WorldContextObject, AYogCharacterBase* character, UAuraDefinition* auraDefinition);
 
 
 };

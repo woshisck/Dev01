@@ -31,7 +31,7 @@ struct FWeaponActorToSpawn
 
 
 UCLASS(Blueprintable, BlueprintType, Const)
-class UWeaponDefinition : public UDataAsset
+class UWeaponDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 

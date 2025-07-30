@@ -9,6 +9,7 @@
 #include "Animation/YogAnimInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include <DevKit/Buff/Aura/AuraBase.h>
+#include <DevKit/Buff/Aura/AuraDefinition.h>
 UYogBlueprintFunctionLibrary::UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -37,11 +38,6 @@ bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextOb
 
 		USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
 		
-		//FGameplayTag RunningTag = FGameplayTag::RequestGameplayTag(FName("State.Running"));
-		//if (ReceivingChar->GetASC()->HasMatchingGameplayTag(FName("State.Running")))
-		//{
-
-		//}
 		
 		for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
 		{
@@ -57,10 +53,6 @@ bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextOb
 			NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
 			ReceivingChar->Weapon = NewActor;
 
-			//AActor* NewActor = World->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
-			//NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-			//NewActor->SetActorRelativeTransform(Transform);
-			//NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
 		}
 
 
@@ -77,8 +69,6 @@ bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextOb
 			AnimInstance->LinkAnimClassLayers(TSubclassOf<UAnimInstance>(WeaponDefinition->WeaponLayer));
 		}
 		
-	/*	LinkAnimClassLayers(WeaponDefinition->WeaponLayer);*/
-
 		return true;
 	}
 	else
@@ -177,28 +167,35 @@ bool UYogBlueprintFunctionLibrary::LaunchCharacterWithDist(AYogCharacterBase* ch
 
 }
 
-bool UYogBlueprintFunctionLibrary::SpawnAura(UObject* WorldContextObject, AYogCharacterBase* character, AAuraBase* aura)
+
+bool UYogBlueprintFunctionLibrary::SpawnAura(UObject* WorldContextObject, AYogCharacterBase* character, UAuraDefinition* auraDefinition)
 {
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	if (World)
+	if (WorldContextObject)
 	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = character; // Set owner if needed
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
-		AAuraBase* aura = World->SpawnActorDeferred<AAuraBase>(AAuraBase::StaticClass(), FTransform::Identity, character);
+		TSubclassOf<AAuraBase> AuraSpawnClass = auraDefinition->AuraClass;
 
-		aura->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+		//FActorSpawnParameters SpawnParams;
+		//SpawnParams.Owner = character; // Set owner if needed
+		//SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-		aura->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-		aura->AttachToActor(character, FAttachmentTransformRules::KeepRelativeTransform);
+
+		AAuraBase* newAura = World->SpawnActorDeferred<AAuraBase>(AuraSpawnClass, FTransform::Identity, character);
+
+
+		newAura->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+		newAura->AttachToActor(character, FAttachmentTransformRules::KeepRelativeTransform);
 
 		return true;
+	
 	}
 	else
 	{
 		return false;
 	}
+
+
 
 
 }
