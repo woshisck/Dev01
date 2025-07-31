@@ -15,7 +15,8 @@
 				"ModularGameplayActors",
 				"ModularGameplay",
 				"GameFeatures",
-				"AIModule"
+				"AIModule",
+				"UMG"
 			]
 		},
 		{

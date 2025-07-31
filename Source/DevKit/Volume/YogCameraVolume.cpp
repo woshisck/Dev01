@@ -10,12 +10,12 @@
 AYogCameraVolume::AYogCameraVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	GetBrushComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	GetBrushComponent()->SetCollisionObjectType(ECC_WorldStatic);
-	GetBrushComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
-	GetBrushComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	GetBrushComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap);
-	GetBrushComponent()->SetGenerateOverlapEvents(true);
+	//GetBrushComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	//GetBrushComponent()->SetCollisionObjectType(ECC_WorldStatic);
+	//GetBrushComponent()->SetCollisionResponseToAllChannels(ECR_Block);
+	//GetBrushComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	//GetBrushComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap);
+	//GetBrushComponent()->SetGenerateOverlapEvents(true);
 	this->bDisplayShadedVolume = true;
 	// Optional: Make the volume visible in game
 	GetBrushComponent()->SetHiddenInGame(false);
@@ -36,13 +36,16 @@ void AYogCameraVolume::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActo
 	UE_LOG(LogTemp, Warning, TEXT("OverlappedActor: %s"), *OverlappedActor->GetName());
 	UE_LOG(LogTemp, Warning, TEXT("OtherActor: %s"), *OtherActor->GetName());
 
-	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(OtherActor);
-	//AYogCameraPawn* Camera = Cast<AYogPlayerControllerBase>(player->GetController())
-	AYogCameraPawn* Camera = player->GetOwnCamera();
-	if (Camera)
-	{
-		Camera->SetCameraStates(EYogCameraStates::Idle);
-	}
+
+
+	//APlayerCharacterBase* player = Cast<APlayerCharacterBase>(OtherActor);
+	////AYogCameraPawn* Camera = Cast<AYogPlayerControllerBase>(player->GetController())
+	//AYogCameraPawn* Camera = player->GetOwnCamera();
+	//if (Camera)
+	//{
+	//	Camera->SetVolumeOverlapLoc(Camera->GetActorLocation());
+	//	//Camera->SetCameraStates(EYogCameraStates::Idle);
+	//}
 
 }
 

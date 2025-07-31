@@ -108,19 +108,14 @@ void AYogCameraPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	
+	//Define character possessed
+	ACharacter* TargetCharacter = UGameplayStatics::GetPlayerCharacter(this, 0);
+	FVector TargetLoc = TargetCharacter->GetActorLocation();
+	FVector SelfLoc = this->GetActorLocation();
 
-	/*
-	  	FocusCharacter		UMETA(DisplayName = "FocusCharacter"),
-		FollowMove			UMETA(DisplayName = "FollowMove"),
-		Idle				UMETA(DisplayName = "Idle")
-	 */
 	
 	if (CameraStatus == EYogCameraStates::FocusCharacter)
 	{
-		ACharacter* TargetCharacter = UGameplayStatics::GetPlayerCharacter(this, 0);
-		FVector TargetLoc = TargetCharacter->GetActorLocation();
-
-
 		FVector Loc = FMath::VInterpTo(this->GetActorLocation(), TargetLoc, DeltaTime, cache_focusSpeed); 
 		this->SetActorLocation(Loc);
 		/*UE_LOG(LogTemp, Warning, TEXT("TargetLoc value: %f, %f, %f"), TargetLoc.X, TargetLoc.Y, TargetLoc.Z);*/
@@ -128,7 +123,6 @@ void AYogCameraPawn::Tick(float DeltaTime)
 	}
 	if (CameraStatus == EYogCameraStates::FollowMove)
 	{
-		ACharacter* TargetCharacter = UGameplayStatics::GetPlayerCharacter(this, 0);
 		PlayerTargetLoc = TargetCharacter->GetActorLocation() + cache_playerMovementInput * cache_distFromCharacter;
 
 		FVector Loc = FMath::VInterpTo(this->GetActorLocation(), PlayerTargetLoc, DeltaTime, cache_followSpeed);
@@ -141,7 +135,28 @@ void AYogCameraPawn::Tick(float DeltaTime)
 	{
 		//TODO:: camera idle tick ability NEED
 	}
+	if (CameraStatus == EYogCameraStates::BlockVolume)
+	{
+		switch (CurrentRaltedPosition)
+		{
+		case ECameraRelatedPosition::OnTarget_Top:
+			
+			break;
+		case ECameraRelatedPosition::OnTarget_Down:
 
+			break;
+		case ECameraRelatedPosition::OnTarget_Left:
+			
+			break;
+		case ECameraRelatedPosition::OnTarget_Right:
+
+			break;
+		default:
+			//TODO:: camera idle BLOCK ability NEED
+			break;
+		}
+
+	}
 
 	//UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	//EYogCameraStates CameraStatus;
@@ -149,13 +164,13 @@ void AYogCameraPawn::Tick(float DeltaTime)
 
 }
 
+void AYogCameraPawn::SetVolumeOverlapLoc(FVector loc)
+{
+	this->VolumeOverlapLoc = loc;
+}
+
 void AYogCameraPawn::SetCameraStates(EYogCameraStates NewMovementMode)
 {
-
-
-
-
-
 
 	PrevStatus = CameraStatus;
 	CameraStatus = NewMovementMode;
@@ -163,7 +178,6 @@ void AYogCameraPawn::SetCameraStates(EYogCameraStates NewMovementMode)
 
 	// Handle change in movement mode
 	OnCameraStatesChanged(PrevStatus, NewMovementMode);
-
 
 }
 

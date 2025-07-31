@@ -32,7 +32,7 @@ public class DevKitEditor : ModuleRules
 				"GameplayAbilities",
 				"GameplayAbilitiesEditor",
 				"StudioTelemetry",
-				"DevKit",
+				"DevKit"
             }
         );
 

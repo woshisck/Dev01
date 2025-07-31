@@ -43,12 +43,24 @@ class UFloatingPawnMovement;
 class AAIController;
 
 
+UENUM()
+enum class ECameraRelatedPosition : uint8
+{
+	OnTarget_Top			UMETA(DisplayName = "Top"),
+	OnTarget_Down			UMETA(DisplayName = "Down"),
+	OnTarget_Right			UMETA(DisplayName = "Right"),
+	OnTarget_Left			UMETA(DisplayName = "Left")
+};
+
+
 UENUM(BlueprintType)
 enum class EYogCameraStates : uint8
 {
 	FocusCharacter		UMETA(DisplayName = "FocusCharacter"),
 	FollowMove			UMETA(DisplayName = "FollowMove"),
+	BlockVolume			UMETA(DisplayName = "BlockVolume"),
 	Idle				UMETA(DisplayName = "Idle")
+
 };
 
 
@@ -123,6 +135,17 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	EYogCameraStates PrevStatus;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	ECameraRelatedPosition CurrentRaltedPosition;
+
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	FVector VolumeOverlapLoc;
+
+	UFUNCTION()
+	void SetVolumeOverlapLoc(FVector loc);
+
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//float MaxSpeedCache;

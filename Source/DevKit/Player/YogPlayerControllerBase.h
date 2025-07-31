@@ -17,7 +17,7 @@ class AYogCharacterBase;
 class UInputMappingContext;
 
 
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPlayerHasInput, const FVector, Velocity);
 
 UCLASS()
 class DEVKIT_API AYogPlayerControllerBase : public AModularPlayerController
@@ -67,6 +67,11 @@ public:
 	void OnInteractTriggered();
 
 	/////////////////////////////////////////// INPUT ACTION ///////////////////////////////////////////
+
+	UPROPERTY(BlueprintCallable, BlueprintAssignable, Category = "Character|Movement")
+	FPlayerHasInput OnPlayerHasInput;
+
+
 
 	UFUNCTION(BlueprintCallable)
 	void ToggleInput(bool bEnable);
