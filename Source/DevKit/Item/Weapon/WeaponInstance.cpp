@@ -21,26 +21,25 @@ AWeaponInstance::AWeaponInstance()
 	point_DamageStart->SetupAttachment(RootComponent);
 	point_DamageEnd->SetupAttachment(RootComponent);
 
-	if (WeaponAttributeTable)
-	{
-		static const FString ContextString(TEXT("Character movement Data Lookup"));
-		FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
+	//if (WeaponAttributeTable)
+	//{
+	//	static const FString ContextString(TEXT("Character movement Data Lookup"));
+	//	FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
+	//	FWeaponAttributeData* AttributeData = this->WeaponAttributeTable->FindRow<FWeaponAttributeData>(FName(TEXT("defaultAttribute")), ContextString, true);
 
-		FWeaponAttributeData* AttributeData = this->WeaponAttributeTable->FindRow<FWeaponAttributeData>(FName(TEXT("defaultAttribute")), ContextString, true);
-
-		if (AttributeData)
-		{
-			AttributeData->AttackPower = this->AttackPower;
-			AttributeData->AttackSpeed = this->AttackSpeed;
-			AttributeData->AttackRange = this->AttackRange;
-			AttributeData->PickedUpEffect = this->PickedUpEffect;
-			AttributeData->CrticalRate = this->CrticalRate;
-			AttributeData->CriticalDamage = this->CriticalDamage;
-			AttributeData->Actions = this->Actions;
-		}
+	//	if (AttributeData)
+	//	{
+	//		AttributeData->AttackPower = this->AttackPower;
+	//		AttributeData->AttackSpeed = this->AttackSpeed;
+	//		AttributeData->AttackRange = this->AttackRange;
+	//		AttributeData->PickedUpEffect = this->PickedUpEffect;
+	//		AttributeData->CrticalRate = this->CrticalRate;
+	//		AttributeData->CriticalDamage = this->CriticalDamage;
+	//		AttributeData->Actions = this->Actions;
+	//	}
 
 
-	}
+	//}
 
 	//if (Mesh)
 	//{

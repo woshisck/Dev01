@@ -27,3 +27,14 @@ void AYogLevelScript::OnLevelLoaded(UWorld* LoadedWorld)
 	LevelStart.Broadcast();
 	/*LevelSetup(this->Mapdefinition);*/
 }
+
+void AYogLevelScript::BeginPlay()
+{
+	Super::BeginPlay();
+	// Array to store found actors
+	TArray<AActor*> FoundActors;
+
+	// Get all actors of a specific class, for example AMyActorClass
+	//UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), FoundActors);
+
+}

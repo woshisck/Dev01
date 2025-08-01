@@ -32,4 +32,6 @@ protected:
 
 	void OnLevelLoaded(UWorld* LoadedWorld);
 
+	virtual void BeginPlay();
+
 };

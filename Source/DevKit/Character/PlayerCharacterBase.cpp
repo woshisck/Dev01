@@ -59,30 +59,25 @@ void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (CharacterMovementDataTable)
-	{
-		static const FString ContextString(TEXT("Character movement Data Lookup"));
-		FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
-
-		FCharacterMovementData* MovementData = this->CharacterMovementDataTable->FindRow<FCharacterMovementData>(FName(TEXT("CharacterMoveLvl_1")), ContextString, true);
-
-		if (MovementData)
-		{
-
-			UYogCharacterMovementComponent* MovementComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
-			MovementComp->MaxWalkSpeed = MovementData->MaxWalkSpeed;
-			MovementComp->GroundFriction = MovementData->GroundFriction;
-			MovementComp->MaxAcceleration = MovementData->MaxAcceleration;
-			MovementComp->RotationRate = MovementData->RotationRate;
-		}
-
-	}
+	//if (CharacterMovementDataTable)
+	//{
+	//	static const FString ContextString(TEXT("Character movement Data Lookup"));
+	//	FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
+	//	FCharacterMovementData* MovementData = this->CharacterMovementDataTable->FindRow<FCharacterMovementData>(FName(TEXT("CharacterMoveLvl_1")), ContextString, true);
+	//	if (MovementData)
+	//	{
+	//		UYogCharacterMovementComponent* MovementComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
+	//		MovementComp->MaxWalkSpeed = MovementData->MaxWalkSpeed;
+	//		MovementComp->GroundFriction = MovementData->GroundFriction;
+	//		MovementComp->MaxAcceleration = MovementData->MaxAcceleration;
+	//		MovementComp->RotationRate = MovementData->RotationRate;
+	//	}
+	//}
 
 
 
 
 	//if (AbilitySystemComponent) {
-
 	//	HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
 	//	MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
 	//	BaseDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBaseDMGAttribute()).AddUObject(this, &AYogCharacterBase::BaseDMGChanged);

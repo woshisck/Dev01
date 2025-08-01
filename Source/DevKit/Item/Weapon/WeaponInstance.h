@@ -30,41 +30,6 @@ public:
 	USceneComponent* DmgBox_End = nullptr;
 };
 
-USTRUCT(BlueprintType)
-struct FWeaponAttributeData : public FTableRowBase
-{
-	GENERATED_BODY()
-
-public:
-	FWeaponAttributeData()
-		: AttackPower(600.0f), AttackSpeed(8.0f), AttackRange(2048.0f), CrticalRate(2048.0f), CriticalDamage(1.2f)
-	{
-	}
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//FString Name;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float AttackPower;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float AttackSpeed;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float AttackRange;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UNiagaraSystem> PickedUpEffect;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float CrticalRate;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float CriticalDamage;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<UYogGameplayAbility*> Actions;
-
-};
 
 
 UCLASS(Blueprintable, BlueprintType)

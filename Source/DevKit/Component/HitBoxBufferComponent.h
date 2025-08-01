@@ -35,7 +35,6 @@ public:
 	int Index;
 };
 
-
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class DEVKIT_API UHitBoxBufferComponent : public UActorComponent
 {

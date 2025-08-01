@@ -11,6 +11,9 @@
 
 
 
+class AYogPlayerControllerBase;
+
+
 UENUM(BlueprintType)
 enum class EYogCharacterState : uint8
 {
@@ -39,34 +42,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterVelocityDelegate, const FV
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCharacterStateDelegate, EYogCharacterState, State, const FVector, MovementInput);
 
-USTRUCT(BlueprintType)
-struct FCharacterMovementData : public FTableRowBase
-{
-	GENERATED_BODY()
 
-public:
-	FCharacterMovementData()
-		: MaxWalkSpeed(600.0f), GroundFriction(8.0f), BreakingDeceleration(2048.0f), MaxAcceleration(2048.0f), RotationRate(FRotator(0,0,360))
-	{
-	}
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//FString Name;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxWalkSpeed;
-	 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float GroundFriction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BreakingDeceleration;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxAcceleration;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FRotator RotationRate;
-};
 
 USTRUCT(BlueprintType)
 struct FYogAttributeData : public FTableRowBase
@@ -107,9 +83,6 @@ public:
 };
 
 
-
-
-class AYogPlayerControllerBase;
 
 /**
  * 

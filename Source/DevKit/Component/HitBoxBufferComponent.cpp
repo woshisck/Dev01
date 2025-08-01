@@ -47,7 +47,7 @@ void UHitBoxBufferComponent::UpdateTrigger(int index, bool trigger)
 {
 	if (index < array_HitboxBuffer.Num())
 	{
-		array_HitboxBuffer[index].HasTriggered = trigger;
+		this->array_HitboxBuffer[index].HasTriggered = trigger;
 	}
 }
 

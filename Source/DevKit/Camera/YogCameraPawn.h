@@ -65,40 +65,6 @@ enum class EYogCameraStates : uint8
 
 
 
-USTRUCT(BlueprintType)
-struct FCameraMovementData : public FTableRowBase
-{
-	GENERATED_BODY()
-
-public:
-	FCameraMovementData()
-		: FocusSpeed(0.5f), FollowSpeed(0.5f), DistFromCharacter(100.f)
-	{
-	}
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//float MaxSpeed;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//float Acceleration;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//float Deceleration;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//float TurningBoost;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float FocusSpeed;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float FollowSpeed;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float DistFromCharacter;
-
-};
-
 
 UCLASS()
 class DEVKIT_API AYogCameraPawn : public AModularPawn
@@ -117,7 +83,7 @@ public:
 	class UStaticMeshComponent* RootSceneComponent;
 
 
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	TObjectPtr<UFloatingPawnMovement> FloatingMovementComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -129,6 +95,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	TObjectPtr<UDataTable> CameraMovementDataTable;
+
+
+
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	EYogCameraStates CameraStatus;
@@ -192,6 +161,13 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void OnCameraStatesChanged(EYogCameraStates PreviousMovementMode, EYogCameraStates NextMovementMode);
 
+
+	UFUNCTION()
+	void InitDataTable(UDataTable* camera_DT);
+
+
+	UFUNCTION()
+	void UpdateCameraLoc(float DeltaTime);
 
 private:
 	TObjectPtr<AYogPlayerControllerBase> PlayerController;
