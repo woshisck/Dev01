@@ -3,8 +3,17 @@
 
 #include "PlayerData.h"
 
-UPlayerData::UPlayerData()
-{
-	
-}
 
+const FCameraMovementData& UPlayerData::GetCameraMove() const
+{
+	if (!CameraDataRow.IsNull())
+	{
+		FCameraMovementData* cameraData = CameraDataRow.GetRow<FCameraMovementData>(__func__);
+		if (cameraData)
+		{
+			return *cameraData;
+		}
+	}
+
+	return DefaultMovement;
+}

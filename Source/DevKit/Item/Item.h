@@ -4,18 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Portal.generated.h"
+#include "Item.generated.h"
 
 
-struct FNextMapNode;
+
 UCLASS()
-class DEVKIT_API APortal : public AActor
+class DEVKIT_API AItem : public AActor
 {
 	GENERATED_BODY()
 	
 public:	
 	// Sets default values for this actor's properties
-	APortal();
+	AItem();
 
 protected:
 	// Called when the game starts or when spawned
@@ -25,10 +25,5 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int Index;
-
-	UPROPERTY(BlueprintReadOnly)
-	TArray<FNextMapNode> NextLevels;
 
 };

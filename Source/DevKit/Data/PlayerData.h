@@ -20,18 +20,24 @@ struct FCameraMovementData : public FTableRowBase
 
 public:
 	FCameraMovementData()
-		: FocusSpeed(0.5f), FollowSpeed(0.5f), DistFromCharacter(100.f)
+		: MaxWalkSpeed(0.5f), GroundFriction(0.5f), BreakingDeceleration(100.f), MaxAcceleration(0.1f)
 	{
 	}
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxWalkSpeed = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float FocusSpeed;
+	float GroundFriction = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float FollowSpeed;
+	float BreakingDeceleration = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float DistFromCharacter;
+	float MaxAcceleration = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FRotator RotationRate = FRotator(0, 0, 0);
+
 
 };
 
@@ -43,7 +49,12 @@ class DEVKIT_API UPlayerData : public UCharacterData
 	GENERATED_BODY()
 	
 public:
-	UPlayerData();
+	UFUNCTION(BlueprintPure)
+	const FCameraMovementData& GetCameraMove() const;
 
+	UPROPERTY(EditDefaultsOnly, meta = (RowType = "MovementData"))
+	FDataTableRowHandle CameraDataRow;
+
+	inline static const FCameraMovementData DefaultMovement;
 
 };
