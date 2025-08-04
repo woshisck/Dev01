@@ -7,8 +7,16 @@ public class DevKit : ModuleRules
 	public DevKit(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-	
-		PublicDependencyModuleNames.AddRange(
+
+
+        PublicIncludePaths.AddRange(
+        new string[] {
+            "DevKit",
+            "DevKitEditor"
+        }
+        );
+
+        PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
                 "CoreOnline",
@@ -29,7 +37,9 @@ public class DevKit : ModuleRules
                 "CommonUI",
                 "UnrealEd",
                 "AIModule",
-                "AnimGraphRuntime"
+                "AnimGraphRuntime",
+                "DevKit",
+                "DevKitEditor"
 
             });
 

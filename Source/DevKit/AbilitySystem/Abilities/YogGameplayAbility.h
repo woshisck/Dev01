@@ -7,9 +7,9 @@
 #include "YogAbilityTypes.h"
 #include "Engine/DataTable.h"
 #include "../../Component/HitBoxBufferComponent.h"
+//#include <DevKit/Data/AbilityData.h>
 
-
-
+#include "Data/AbilityData.h"
 #include "YogGameplayAbility.generated.h"
 
 struct FGameplayAbilityActivationInfo;
@@ -30,36 +30,9 @@ struct FGameplayAbilityActorInfo;
 struct FGameplayEffectSpec;
 struct FGameplayEventData;
 
-struct FGameplayEventData;
 
 
 
-
-USTRUCT(BlueprintType)
-struct FYogAbilityData : public FTableRowBase
-{
-    GENERATED_BODY()
-
-public:
-	FYogAbilityData()
-		: Damage(0.0f), DMGAmplify(0.0f), MontagePlayRate(0.0f), AbilityPower(1.0f)
-	{
-	}
-    //UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    //FString Name;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Damage;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float DMGAmplify;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float MontagePlayRate;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float AbilityPower;
-};
 
 
 

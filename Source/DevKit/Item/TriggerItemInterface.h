@@ -28,6 +28,6 @@ class DEVKIT_API ITriggerItemInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	virtual void ITriggerItemStart(APlayerCharacterBase* Character, AItem* actor);
-	virtual void ITriggerItemEnd(APlayerCharacterBase* Character, AItem* actor);
+	virtual void ITriggerItemStart();
+	virtual void ITriggerItemEnd();
 };

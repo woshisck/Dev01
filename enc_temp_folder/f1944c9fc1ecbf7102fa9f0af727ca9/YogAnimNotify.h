@@ -16,7 +16,7 @@ class DEVKIT_API UYogAnimNotify : public UAnimNotify
 
 public:
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	int LastIndex;
+	UPROPERTY()
+	int LastIndex = 0;
 	
 };

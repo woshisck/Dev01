@@ -6,7 +6,7 @@
 #include "ModularCharacter.h"
 #include <DevKit/AbilitySystem/Attribute/BaseAttributeSet.h>
 #include "AbilitySystemInterface.h"
-
+#include "../Data/CharacterData.h"
 #include "YogCharacterBase.generated.h"
 
 
@@ -44,43 +44,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCharacterStateDelegate, EYogCharac
 
 
 
-USTRUCT(BlueprintType)
-struct FYogAttributeData : public FTableRowBase
-{
-	GENERATED_BODY()
 
-public:
-	FYogAttributeData()
-		: Health(1234.f), MaxHealth(1234.f), BaseDMG(1234.f), WeaponDMG(1234.f), BuffAmplify(1234.f), DMGAbsorb(1234.f), ActResist(1234.f)
-	{
-	}
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//FString Name;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Health;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxHealth;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BaseDMG;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float WeaponDMG;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BuffAmplify;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float DMGAbsorb;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float ActResist;
-
-
-
-};
 
 
 

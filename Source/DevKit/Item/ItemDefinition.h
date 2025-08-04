@@ -45,7 +45,7 @@ struct FItemToSpawn
 };
 
 UCLASS(Blueprintable, BlueprintType, Const)
-class DEVKIT_API UItemDefinition : public UDataAsset
+class DEVKIT_API UItemDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 

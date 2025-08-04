@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "ItemDefinition.h"
-
+#include "TriggerItemInterface.h"
 
 #include "ItemSpawner.generated.h"
 
