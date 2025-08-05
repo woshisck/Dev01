@@ -9,7 +9,8 @@ public class DevKitEditorTarget : TargetRules
 	{
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V5;
+        IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
-		ExtraModuleNames.AddRange( new string[] { "DevKit" } );
+        ExtraModuleNames.AddRange( new string[] { "DevKit" } );
 	}
 }
