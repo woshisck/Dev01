@@ -58,7 +58,7 @@ public:
 	static FVector2D PerpendicularAntiClockWise(FVector2D vector);
 
 	UFUNCTION(BlueprintPure, Category = "Math")
-	static bool TargetLocIsInTriangle2D(FVector targetLoc, FVector pointA, FVector pointB, FVector pointC);
+	static bool TargetLocIsInTriangle(FVector targetLoc, FVector pointA, FVector pointB, FVector pointC);
 
 
 

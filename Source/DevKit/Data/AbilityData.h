@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-
+#include "Data/WeaponData.h"
 #include "AbilityData.generated.h"
 
 
@@ -50,6 +50,11 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, meta = (RowType = "MovementData"))
 	FDataTableRowHandle AbilityDataRow;
+
+
+	UPROPERTY(EditDefaultsOnly, Category = "DamageBox")
+	TArray<FHitBoxData> array_HitboxBuffer;
+
 
 	inline static const FYogAbilityData DefaultAbilityData;
 

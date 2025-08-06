@@ -3,3 +3,10 @@
 
 #include "YogAnimNotify.h"
 
+void UYogAnimNotify::CreateDmgTriangle()
+{
+}
+
+void UYogAnimNotify::CreateDetectBox()
+{
+}

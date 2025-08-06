@@ -54,10 +54,10 @@ void AYogCameraVolume::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(OtherActor);
 	//AYogCameraPawn* Camera = Cast<AYogPlayerControllerBase>(player->GetController())
 
-	AYogCameraPawn* Camera = player->GetOwnCamera();
-	if (Camera)
-	{
-		Camera->SetCameraStates(Camera->PrevStatus);
-	}
+	//AYogCameraPawn* Camera = player->GetOwnCamera();
+	//if (Camera)
+	//{
+	//	Camera->SetCameraStates(Camera->PrevStatus);
+	//}
 
 }

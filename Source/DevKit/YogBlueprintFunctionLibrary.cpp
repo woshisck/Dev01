@@ -210,7 +210,7 @@ FVector2D UYogBlueprintFunctionLibrary::PerpendicularAntiClockWise(FVector2D vec
 	return FVector2D(-vector.Y, -vector.X);
 }
 
-bool UYogBlueprintFunctionLibrary::TargetLocIsInTriangle2D(FVector targetLoc, FVector pointA, FVector pointB, FVector pointC)
+bool UYogBlueprintFunctionLibrary::TargetLocIsInTriangle(FVector targetLoc, FVector pointA, FVector pointB, FVector pointC)
 {
 	FVector Normal = FVector(0, 0, -1);
 
@@ -221,11 +221,6 @@ bool UYogBlueprintFunctionLibrary::TargetLocIsInTriangle2D(FVector targetLoc, FV
 	FVector vec_Bp = targetLoc - pointB;
 	FVector vec_Cp = targetLoc - pointC;
 	FVector vec_Ap = targetLoc - pointA;
-
-	//FVector::DotProduct(FVector::CrossProduct(vec_BA, vec_Bp))
-	//FVector::DotProduct(FVector::CrossProduct(vec_CB, vec_Cp))
-	//FVector::DotProduct(FVector::CrossProduct(vec_AC, vec_Ap))
-
 
 
 	UE_LOG(LogTemp, Warning, TEXT("FVector::CrossProduct(vec_BA, vec_Bp): %f, %f, %f"), FVector::CrossProduct(vec_BA, vec_Bp).X, FVector::CrossProduct(vec_BA, vec_Bp).Y, FVector::CrossProduct(vec_BA, vec_Bp).Z);

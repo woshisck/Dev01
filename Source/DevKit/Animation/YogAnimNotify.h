@@ -17,6 +17,12 @@ class DEVKIT_API UYogAnimNotify : public UAnimNotify
 public:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	int LastIndex;
+	int Index;
+
+	UFUNCTION(BlueprintCallable)
+	void CreateDmgTriangle();
 	
+	UFUNCTION(BlueprintCallable)
+	void CreateDetectBox();
+
 };
