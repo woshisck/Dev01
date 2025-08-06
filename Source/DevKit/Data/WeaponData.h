@@ -36,6 +36,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int Index;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int Frame;
+
 };
 
 

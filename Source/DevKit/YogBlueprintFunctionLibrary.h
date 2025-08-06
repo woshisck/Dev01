@@ -51,6 +51,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "YogCharacterBase")
 	static bool SpawnAura(UObject* WorldContextObject, AYogCharacterBase* character, UAuraDefinition* auraDefinition);
 
+	UFUNCTION(BlueprintPure, Category = "Math")
+	static FVector2D PerpendicularClockWise(FVector2D vector);
+
+	UFUNCTION(BlueprintPure, Category = "Math")
+	static FVector2D PerpendicularAntiClockWise(FVector2D vector);
+
+	UFUNCTION(BlueprintPure, Category = "Math")
+	static bool TargetLocIsInTriangle2D(FVector targetLoc, FVector pointA, FVector pointB, FVector pointC);
+
+
 
 };
 
