@@ -10,3 +10,8 @@ void UYogAnimNotify::CreateDmgTriangle()
 void UYogAnimNotify::CreateDetectBox()
 {
 }
+
+void UYogAnimNotify::SetOrderIndex(int index)
+{
+	Order_Index = index;
+}

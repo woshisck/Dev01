@@ -79,11 +79,11 @@ public:
 	const FYogAbilityData& GetAbilityData() const;
 
 
-	UPROPERTY(EditDefaultsOnly, meta = (RowType = "YogAbilityData"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "YogAbilityData"))
 	FDataTableRowHandle AbilityDataRow;
 
 
-	UPROPERTY(EditDefaultsOnly, meta = (RowType = "HitBoxData"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
 	TArray<FHitBoxData> array_Hitbox;
 
 

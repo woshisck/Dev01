@@ -16,13 +16,18 @@ class DEVKIT_API UYogAnimNotify : public UAnimNotify
 
 public:
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	int Index;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Index", meta = (ExposeOnSpawn = "true", OverrideNativeName = "Index"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int Order_Index;
+
 
 	UFUNCTION(BlueprintCallable)
 	void CreateDmgTriangle();
 	
 	UFUNCTION(BlueprintCallable)
 	void CreateDetectBox();
+
+	UFUNCTION(BlueprintCallable)
+	void SetOrderIndex(int index);
 
 };

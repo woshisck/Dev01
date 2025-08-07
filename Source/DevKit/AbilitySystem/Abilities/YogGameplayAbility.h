@@ -80,12 +80,12 @@ public:
 	virtual TArray<FActiveGameplayEffectHandle> ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel = -1);
 
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
-    TObjectPtr<UDataTable> YogAbilityDataTable;
+    //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+    //TObjectPtr<UDataTable> YogAbilityDataTable;
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
-	int Triggered_Index;
-
+	TObjectPtr<UAbilityData> AbilityData;
 
 public:
 
@@ -100,20 +100,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Ability Data")
 	void GetAbilityTableData();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
-    FName DataRowName;
-
-
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	AYogCharacterBase* GetOwnerCharacterInfo();
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
-	FString AbilityTableRowName;
 
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
-	TObjectPtr<const UAbilityData> AbilityData;
 
 
 
