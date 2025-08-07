@@ -10,37 +10,7 @@
 
 class UYogGameplayAbility;
 
-USTRUCT(BlueprintType)
-struct FHitBoxData : public FTableRowBase
-{
-	GENERATED_BODY()
 
-public:
-	FHitBoxData()
-		: normalVector(FVector(0, 0, 1)), Location_End(FVector(0, 0, 0)), Location_Start(FVector(0, 0, 0)), HasTriggered(false), Index(0)
-	{
-	}
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//FString Name;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector normalVector;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector Location_End;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector Location_Start;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool HasTriggered;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int Index;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int Frame;
-
-};
 
 
 USTRUCT(BlueprintType)

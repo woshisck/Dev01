@@ -38,6 +38,36 @@ public:
 };
 
 
+
+USTRUCT(BlueprintType)
+struct FHitBoxData : public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+	FHitBoxData()
+		: Point(FVector(0,0,0)), HasTriggered(false), Index(0), FrameAt(0)
+	{
+	}
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Point;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//FVector Location_Start;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	bool HasTriggered;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int Index;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int FrameAt;
+};
+
+
 UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UAbilityData : public UPrimaryDataAsset
 {
@@ -48,14 +78,16 @@ public:
 	UFUNCTION(BlueprintPure)
 	const FYogAbilityData& GetAbilityData() const;
 
-	UPROPERTY(EditDefaultsOnly, meta = (RowType = "MovementData"))
+
+	UPROPERTY(EditDefaultsOnly, meta = (RowType = "YogAbilityData"))
 	FDataTableRowHandle AbilityDataRow;
 
 
-	UPROPERTY(EditDefaultsOnly, Category = "DamageBox")
-	TArray<FHitBoxData> array_HitboxBuffer;
+	UPROPERTY(EditDefaultsOnly, meta = (RowType = "HitBoxData"))
+	TArray<FHitBoxData> array_Hitbox;
 
 
 	inline static const FYogAbilityData DefaultAbilityData;
+
 
 };

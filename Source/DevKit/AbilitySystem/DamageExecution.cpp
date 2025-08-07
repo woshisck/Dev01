@@ -111,6 +111,8 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 	// --------------------------------------
 	//	Damage Done =  ((BaseDMG + WeaponDMG) * BuffAmplify + BuffingATK) * DMGCorrect
+	// BuffingATK = Self DMG + Weapon DMG 
+	// 
 	// --------------------------------------
 
 	//TODO:need to change in future

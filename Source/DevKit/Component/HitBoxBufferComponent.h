@@ -27,17 +27,17 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DamageBox")
-	TArray<FHitBoxData> array_HitboxBuffer;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DamageBox")
+	//TArray<FHitBoxData> array_HitboxBuffer;
 
-	UFUNCTION(BlueprintCallable, Category = "Buffer")
-	void Clear();
+	//UFUNCTION(BlueprintCallable, Category = "Buffer")
+	//void Clear();
 
-	UFUNCTION(BlueprintCallable, Category = "Buffer")
-	void Initialize(TArray<FHitBoxData> gaArray);
+	//UFUNCTION(BlueprintCallable, Category = "Buffer")
+	//void Initialize(TArray<FHitBoxData> gaArray);
 
-	UFUNCTION(BlueprintCallable, Category = "Buffer")
-	void UpdateTrigger(int index, bool trigger);
+	//UFUNCTION(BlueprintCallable, Category = "Buffer")
+	//void UpdateTrigger(int index, bool trigger);
 
 
 };

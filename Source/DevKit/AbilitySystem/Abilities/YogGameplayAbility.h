@@ -9,31 +9,25 @@
 #include "../../Component/HitBoxBufferComponent.h"
 //#include <DevKit/Data/AbilityData.h>
 
-#include "Data/AbilityData.h"
+
 #include "YogGameplayAbility.generated.h"
 
 struct FGameplayAbilityActivationInfo;
 struct FGameplayAbilitySpec;
 struct FGameplayAbilitySpecHandle;
-struct FHitBoxData;
+
 
 class AActor;
 class AController;
 class FText;
 class UAnimMontage;
 class UGameplayEffect;
+class UAbilityData;
 
-
-class UObject;
 struct FFrame;
 struct FGameplayAbilityActorInfo;
 struct FGameplayEffectSpec;
 struct FGameplayEventData;
-
-
-
-
-
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbilityEndedSignature);
@@ -97,8 +91,8 @@ public:
 
 	//TODO: SET bRetriggerInstancedAbility for RetriggerAbility in notify
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DamageBox")
-	TArray<FHitBoxData> array_Hitbox;
+	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DamageBox")
+	//TArray<FHitBoxData> array_Hitbox;
 
 	UFUNCTION(BlueprintCallable, Category = "Setting")
 	void UpdateRetrigger(bool retriggerable);
@@ -116,6 +110,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
 	FString AbilityTableRowName;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+	TObjectPtr<const UAbilityData> AbilityData;
 
 
 

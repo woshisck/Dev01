@@ -6,6 +6,7 @@
 #include "../../Character/YogCharacterBase.h"
 #include "../YogAbilitySystemComponent.h"
 #include "../../Component/HitBoxBufferComponent.h"
+#include "Data/AbilityData.h"
 
 UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer)
@@ -31,12 +32,12 @@ void UYogGameplayAbility::UpdateRetrigger(bool retriggerable)
 
 void UYogGameplayAbility::GetAbilityTableData()
 {
-	static const FString ContextString(TEXT("Character Data Lookup"));
-	FYogAbilityData* AbilityData = YogAbilityDataTable->FindRow<FYogAbilityData>(FName(TEXT("AbilityDataStartUp")), ContextString, true);
-	if (AbilityData)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Damage: %f, DMGAmplify: %f, MontagePlayRate: %f"), AbilityData->Damage, AbilityData->DMGAmplify, AbilityData->MontagePlayRate);
-	}
+	//static const FString ContextString(TEXT("Character Data Lookup"));
+	//FYogAbilityData* AbilityData = YogAbilityDataTable->FindRow<FYogAbilityData>(FName(TEXT("AbilityDataStartUp")), ContextString, true);
+	//if (AbilityData)
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("Damage: %f, DMGAmplify: %f, MontagePlayRate: %f"), AbilityData->Damage, AbilityData->DMGAmplify, AbilityData->MontagePlayRate);
+	//}
 
 }
 
@@ -158,7 +159,7 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 	//TODO: remove loose gameplaytag for blocking ability
 	//UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 	AYogCharacterBase* player = Cast<AYogCharacterBase>(this->GetAvatarActorFromActorInfo());
-	player->HitboxbuffComponent->Clear();
+	/*player->HitboxbuffComponent->Clear();*/
 	
 	//ASC->RemoveLooseGameplayTags(this->ActivationBlockedTags);
 }

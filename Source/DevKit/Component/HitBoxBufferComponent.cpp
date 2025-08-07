@@ -32,22 +32,22 @@ void UHitBoxBufferComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	// ...
 }
 
-void UHitBoxBufferComponent::Clear()
-{
-	array_HitboxBuffer.Empty();
-}
-
-void UHitBoxBufferComponent::Initialize(TArray<FHitBoxData> array_GA)
-{
-	Clear();
-	array_HitboxBuffer.Append(array_GA);
-}
-
-void UHitBoxBufferComponent::UpdateTrigger(int index, bool trigger)
-{
-	if (index < array_HitboxBuffer.Num())
-	{
-		this->array_HitboxBuffer[index].HasTriggered = trigger;
-	}
-}
+//void UHitBoxBufferComponent::Clear()
+//{
+//	array_HitboxBuffer.Empty();
+//}
+//
+//void UHitBoxBufferComponent::Initialize(TArray<FHitBoxData> array_GA)
+//{
+//	Clear();
+//	array_HitboxBuffer.Append(array_GA);
+//}
+//
+//void UHitBoxBufferComponent::UpdateTrigger(int index, bool trigger)
+//{
+//	//if (index < array_HitboxBuffer.Num())
+//	//{
+//	//	this->array_HitboxBuffer[index].HasTriggered = trigger;
+//	//}
+//}
 

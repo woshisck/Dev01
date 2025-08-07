@@ -26,8 +26,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MaxHealth;
 
+	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BaseDMG;
+	float BaseDMG; 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float WeaponDMG;
@@ -51,6 +53,7 @@ struct FMovementData : public FTableRowBase
 public:
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//FString Name;
+	FMovementData() {};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MaxWalkSpeed = 0;
