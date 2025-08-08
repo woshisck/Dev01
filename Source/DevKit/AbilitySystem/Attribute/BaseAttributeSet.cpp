@@ -13,7 +13,14 @@
 
 UBaseAttributeSet::UBaseAttributeSet()
 {
-
+	InitHealth(100.f);
+	InitMaxHealth(100.f);
+	InitBaseDMG(10.f);
+	InitWeaponDMG(1.0f);
+	InitBuffAmplify(1.2f);
+	InitDMGAbsorb(0.2f);
+	InitActResist(0.0f);
+	InitAtkDist(1.0f);
 }
 
 
@@ -29,6 +36,7 @@ void UBaseAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, BuffAmplify, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, DMGAbsorb, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, ActResist, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, AtkDist, COND_None, REPNOTIFY_Always);
 
 }
 
@@ -216,6 +224,11 @@ void UBaseAttributeSet::OnRep_ActResist(const FGameplayAttributeData& OldValue)
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, ActResist, OldValue);
 }
 
+void UBaseAttributeSet::OnRep_AtkDist(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, AtkDist, OldValue);
+}
+
 void UBaseAttributeSet::InitAttribute()
 {
 	InitHealth(100.f);
@@ -225,6 +238,7 @@ void UBaseAttributeSet::InitAttribute()
 	InitBuffAmplify(1.2f);
 	InitDMGAbsorb(0.2f);
 	InitActResist(0.0f);
+	InitAtkDist(1.0f);
 }
 
 

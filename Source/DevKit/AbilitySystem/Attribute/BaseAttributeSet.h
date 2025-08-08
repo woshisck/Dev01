@@ -61,6 +61,7 @@ public:
 
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActResist);
 
+	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, AtkDist);
 	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, BuffingATK);
 
 
@@ -99,9 +100,11 @@ public:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_DMGAbsorb, Category = "Combat")
 	FGameplayAttributeData DMGAbsorb;
 
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_DMGAbsorb, Category = "Combat")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ActResist, Category = "Combat")
 	FGameplayAttributeData ActResist;
 
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_AtkDist, Category = "Combat")
+	FGameplayAttributeData AtkDist;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	FGameplayAttributeData Damage;
@@ -129,6 +132,10 @@ public:
 	UFUNCTION()
 	void OnRep_ActResist(const FGameplayAttributeData& OldValue);
 
+	UFUNCTION()
+	void OnRep_AtkDist(const FGameplayAttributeData& OldValue);
+
+	
 
 	UFUNCTION()
 	void InitAttribute();
