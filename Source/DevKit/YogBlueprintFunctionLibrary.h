@@ -13,6 +13,30 @@
 class AYogCharacterBase;
 class AAuraBase;
 class UAuraDefinition;
+
+USTRUCT(BlueprintType)
+struct FYogTriangle
+{
+	GENERATED_BODY()
+	FYogTriangle()
+		:PointA(FVector(0, 0, 0)), PointB(FVector(0, 0, 0)), PointC(FVector(0, 0, 0))
+	{
+	}
+	FYogTriangle(FVector a, FVector b, FVector c)
+		:PointA(a), PointB(b), PointC(c)
+	{
+	}
+
+	// What kind of actor to spawn
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector PointA;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector PointB;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector PointC;
+
+};
+
 UCLASS()
 class UYogBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
 {
@@ -61,6 +85,23 @@ public:
 	static bool TargetLocIsInTriangle(FVector targetLoc, FVector pointA, FVector pointB, FVector pointC);
 
 
+	UFUNCTION(BlueprintCallable, Category = "Math")
+	static bool DrawDebugTriangle(UObject* WorldContextObject, FVector pointA, FVector pointB, FVector pointC);
+
+	UFUNCTION(BlueprintCallable, Category = "Math")
+	static float DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FVector pointA, FVector pointB, FVector pointC);
+
+	UFUNCTION(BlueprintCallable, Category = "Math")
+	static FVector FunctionFromPoint(UObject* WorldContextObject,FVector pointA, FVector pointB);
+
+	UFUNCTION(BlueprintCallable, Category = "Math")
+	static float DistFromPointToLine(UObject* WorldContextObject, FVector pointA, FVector Coef);
+
+	UFUNCTION(BlueprintCallable, Category = "Math")
+	static TArray<FYogTriangle> MakeTriangleArray(UObject* WorldContextObject, TArray<FVector> point_array, FVector Playerloc);
+
+	UFUNCTION(BlueprintCallable, Category = "Math")
+	static bool DrawTriangle(UObject* WorldContextObject, FYogTriangle triangle, FVector playerLoc);
 
 };
 
