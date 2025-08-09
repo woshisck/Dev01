@@ -89,7 +89,7 @@ public:
 	static bool DrawDebugTriangle(UObject* WorldContextObject, FVector pointA, FVector pointB, FVector pointC);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
-	static float DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FVector pointA, FVector pointB, FVector pointC);
+	static float DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FYogTriangle triangle);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
 	static FVector FunctionFromPoint(UObject* WorldContextObject,FVector pointA, FVector pointB);
@@ -101,7 +101,7 @@ public:
 	static TArray<FYogTriangle> MakeTriangleArray(UObject* WorldContextObject, TArray<FVector> point_array, FVector Playerloc);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
-	static bool DrawTriangle(UObject* WorldContextObject, FYogTriangle triangle, FVector playerLoc);
+	static bool DrawTriangle(UObject* WorldContextObject, FYogTriangle triangle);
 
 };
 

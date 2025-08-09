@@ -305,7 +305,7 @@ TArray<FYogTriangle> UYogBlueprintFunctionLibrary::MakeTriangleArray(UObject* Wo
 	return result;
 }
 
-bool UYogBlueprintFunctionLibrary::DrawTriangle(UObject* WorldContextObject, FYogTriangle triangle, FVector playerLoc)
+bool UYogBlueprintFunctionLibrary::DrawTriangle(UObject* WorldContextObject, FYogTriangle triangle)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (World)
@@ -324,9 +324,12 @@ bool UYogBlueprintFunctionLibrary::DrawTriangle(UObject* WorldContextObject, FYo
 }
 
 
-float UYogBlueprintFunctionLibrary::DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FVector pointA, FVector pointB, FVector pointC)
+float UYogBlueprintFunctionLibrary::DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FYogTriangle triangle)
 {
-
+	// FVector pointA, FVector pointB, FVector pointC
+	FVector pointA = triangle.PointA;
+	FVector pointB = triangle.PointB;
+	FVector pointC = triangle.PointC;
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (World)
 	{
