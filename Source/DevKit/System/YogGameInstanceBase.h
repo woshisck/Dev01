@@ -15,6 +15,12 @@ class UYogSaveGame;
  * Most games will need to make a game-specific subclass of GameInstance
  * Once you make a blueprint subclass of your native subclass you will want to set it to be the default in project settings
  */
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FStartNewGame);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOpenSaveFile);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FStartSaveFile);
+
+
 UCLASS()
 class DEVKIT_API UYogGameInstanceBase : public UGameInstance
 {
@@ -24,16 +30,17 @@ public:
 	// Constructor
 	UYogGameInstanceBase();
 
+	UPROPERTY(BlueprintAssignable, Category = "File system")
+	FStartNewGame OnStartNewGame;
+
+	UPROPERTY(BlueprintAssignable, Category = "File system")
+	FOpenSaveFile OnOpenSaveFile;
+	
+	UPROPERTY(BlueprintAssignable, Category = "File system")
+	FStartSaveFile OnStartSaveFile;
+
 	UFUNCTION(BlueprintCallable, Category = Inventory)
 	APlayerCharacterBase* GetPlayerCharacter();
-
-	/** List of inventory items to add to new players */
-	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Inventory)
-	//TMap<FPrimaryAssetId, FRPGItemData> DefaultInventory;
-
-	///** Number of slots for each type of item */
-	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Inventory)
-	//TMap<FPrimaryAssetType, int32> ItemSlotsPerType;
 
 	/** The slot name used for saving */
 	UPROPERTY(BlueprintReadWrite, Category = Save)

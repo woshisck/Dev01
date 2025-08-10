@@ -123,6 +123,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	float GetMaxHealth() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
+	float GetAtkDist() const;
+
 
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Abilities")

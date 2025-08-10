@@ -174,6 +174,15 @@ float AYogCharacterBase::GetMaxHealth() const
 	return .5555f;
 }
 
+float AYogCharacterBase::GetAtkDist() const
+{
+	if (AttributeSet)
+	{
+		return AttributeSet->GetAtkDist();
+	}
+	return .6666f;
+}
+
 void AYogCharacterBase::GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel)
 {
 	check(AbilitySystemComponent);
