@@ -28,8 +28,16 @@ void UYogAbilitySystemComponent::GetAbilityTargetData(const FGameplayAbilitySpec
 
 void UYogAbilitySystemComponent::RemoveGameplayTag(FGameplayTag Tag, int32 Count)
 {
-	
-	this->RemoveLooseGameplayTag(Tag, Count);
+	int stack = this->GetTagCount(Tag);
+
+	if (stack <= 1)
+	{
+		this->RemoveLooseGameplayTag(Tag, 1);
+	}
+	else
+	{
+		this->SetLooseGameplayTagCount(Tag, stack - Count);
+	}
 }
 
 
@@ -37,6 +45,7 @@ void UYogAbilitySystemComponent::AddGameplayTag(FGameplayTag Tag, int32 Count)
 {
 	this->AddLooseGameplayTag(Tag, Count);
 }
+
 
 void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage)
 {

@@ -41,6 +41,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void AddGameplayTag(FGameplayTag Tag, int32 Count);
+
 	////////////////////////////////////////////////////////////////////////////////
 
 	FReceivedDamageDelegate ReceivedDamage;
