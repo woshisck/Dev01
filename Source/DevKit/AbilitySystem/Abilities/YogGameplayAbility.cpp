@@ -7,6 +7,7 @@
 #include "../YogAbilitySystemComponent.h"
 #include "../../Component/HitBoxBufferComponent.h"
 #include "Data/AbilityData.h"
+#include "AbilitySystemComponent.h"
 
 UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer)
@@ -57,6 +58,35 @@ AYogCharacterBase* UYogGameplayAbility::GetOwnerCharacterInfo()
 		return OwningCharacter;
 	}
 
+}
+
+int UYogGameplayAbility::GetCurrentGameplayEffect(FGameplayTag EffectTag)
+{
+	int StackCount = 0;
+	// Define the GameplayTag you want to check for active Gameplay Effects
+	//FGameplayTag EffectTag = FGameplayTag::RequestGameplayTag(FName("Your.GameplayEffect.Tag"));
+
+	// Prepare a container to hold the active effects
+	TArray<FActiveGameplayEffectHandle> ActiveEffectHandles;
+
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	AYogCharacterBase* player = Cast<AYogCharacterBase>(AvatarActor);
+	UYogAbilitySystemComponent* asc = player->GetASC();
+
+	// Get active effects that have this tag
+	TArray<FActiveGameplayEffectHandle> GameplayEffectHandles = asc->GetActiveEffectsWithAllTags(FGameplayTagContainer(EffectTag));
+
+	for (const FActiveGameplayEffectHandle& Handle : GameplayEffectHandles)
+	{
+		if (const FActiveGameplayEffect* ActiveEffect = asc->GetActiveGameplayEffect(Handle))
+		{
+			// You can access effect properties like Spec and StackCount here
+			StackCount = ActiveEffect->Spec.GetStackCount();
+
+			// Do something with the active effect
+		}
+	}
+	return StackCount;
 }
 
 

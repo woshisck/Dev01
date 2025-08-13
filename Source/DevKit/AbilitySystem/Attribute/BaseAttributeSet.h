@@ -62,6 +62,10 @@ public:
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActResist);
 
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, AtkDist);
+
+
+	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, DashCount);
+
 	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, BuffingATK);
 
 
@@ -106,6 +110,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_AtkDist, Category = "Combat")
 	FGameplayAttributeData AtkDist;
 
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_AtkDist, Category = "Combat")
+	FGameplayAttributeData DashCount;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	FGameplayAttributeData Damage;
 
@@ -134,6 +141,9 @@ public:
 
 	UFUNCTION()
 	void OnRep_AtkDist(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_DashCount(const FGameplayAttributeData& OldValue);
 
 	
 

@@ -1,0 +1,26 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0.3",
+	"FriendlyName": "TopDownPhysicsCamera",
+	"Description": "TopDown Physics based camera.",
+	"Category": "Camera",
+	"CreatedBy": "Project Zero",
+	"CreatedByURL": "",
+	"DocsURL": "https://drive.google.com/file/d/1sJ-gDpscmqh1sjpgHuIk3vZGsBt3aUx-/view?usp=sharing",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/0e5ce9b6cd7e4f41b797b4150b0cba55",
+	"SupportURL": "",
+	"EngineVersion": "5.4.0",
+	"CanContainContent": true,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "TopDownPhysicsCamera",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"PlatformAllowList": [
+				"Win64"
+			]
+		}
+	]
+}
