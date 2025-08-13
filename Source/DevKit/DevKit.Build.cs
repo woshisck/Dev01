@@ -38,8 +38,6 @@ public class DevKit : ModuleRules
                 "UnrealEd",
                 "AIModule",
                 "AnimGraphRuntime",
-                "DevKit",
-                "DevKitEditor"
 
             });
 

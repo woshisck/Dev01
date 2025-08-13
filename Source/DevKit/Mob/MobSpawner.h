@@ -26,5 +26,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SpawnMob();
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UDataAsset> SpawnObjDefinition;
+
 
 };
