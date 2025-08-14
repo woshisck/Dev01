@@ -5,9 +5,9 @@
 
 const FWeaponAttributeData& UWeaponData::GetWeaponData() const
 {
-	if (!MoveDataRow.IsNull())
+	if (!WeaponAttributeRow.IsNull())
 	{
-		FWeaponAttributeData* wpnData = MoveDataRow.GetRow<FWeaponAttributeData>(__func__);
+		FWeaponAttributeData* wpnData = WeaponAttributeRow.GetRow<FWeaponAttributeData>(__func__);
 		if (wpnData)
 		{
 			return *wpnData;

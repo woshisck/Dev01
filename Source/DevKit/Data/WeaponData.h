@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include <NiagaraSystem.h>
+#include "AbilityData.h"
 #include "WeaponData.generated.h"
 
 
@@ -45,11 +46,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<UAnimInstance*> WeaponAnimLayer;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UDataTable> Actions;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "YogAbilityData"))
+	//FDataTableRowHandle ActionData;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//TArray<UYogGameplayAbility*> Actions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RequiredAssetDataTags = "RowStructure=YogAbilityData"))
+	TObjectPtr<UDataTable> ActionData;
+
+
+
 };
 
 UCLASS(BlueprintType, Blueprintable)
@@ -63,9 +68,7 @@ public:
 	const FWeaponAttributeData& GetWeaponData() const;
 
 	UPROPERTY(EditDefaultsOnly, meta = (RowType = "WeaponAttributeData"))
-	FDataTableRowHandle MoveDataRow;
-
-
+	FDataTableRowHandle WeaponAttributeRow;
 
 
 	inline static const FWeaponAttributeData DefaultWPNData;

@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "Data/WeaponData.h"
 #include "AbilityData.generated.h"
 
 
@@ -41,6 +40,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float FreezeFrameTime = 0.15;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UAnimMontage> Montage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UYogGameplayAbility> Ability;
 
 };
 
