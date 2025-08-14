@@ -19,15 +19,10 @@ struct FWeaponAttributeData : public FTableRowBase
 	GENERATED_BODY()
 
 public:
-	FWeaponAttributeData()
-		: AttackPower(0), AttackSpeed(0), AttackRange(0), CrticalRate(0), CriticalDamage(0)
-	{
-	};
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString Name;
+	FWeaponAttributeData() {};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float AttackPower = 0;
+	float WeaponAtk = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float AttackSpeed = 1;
@@ -39,14 +34,22 @@ public:
 	TObjectPtr<UNiagaraSystem> PickedUpEffect;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float CrticalRate = 1;
+	float CrticalRate = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float CriticalDamage = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<UYogGameplayAbility*> Actions;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TArray<UYogGameplayAbility*> Actions;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<UAnimInstance*> WeaponAnimLayer;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UDataTable> Actions;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TArray<UYogGameplayAbility*> Actions;
 };
 
 UCLASS(BlueprintType, Blueprintable)
@@ -59,8 +62,11 @@ public:
 	UFUNCTION(BlueprintPure)
 	const FWeaponAttributeData& GetWeaponData() const;
 
-	UPROPERTY(EditDefaultsOnly, meta = (RowType = "MovementData"))
+	UPROPERTY(EditDefaultsOnly, meta = (RowType = "WeaponAttributeData"))
 	FDataTableRowHandle MoveDataRow;
+
+
+
 
 	inline static const FWeaponAttributeData DefaultWPNData;
 

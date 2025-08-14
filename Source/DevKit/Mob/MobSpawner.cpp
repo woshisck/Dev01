@@ -27,6 +27,58 @@ void AMobSpawner::Tick(float DeltaTime)
 
 void AMobSpawner::SpawnMob()
 {
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TSubclassOf<AEnemyCharacterBase> EnemyType;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TObjectPtr<UBehaviorTree> Behaviour;
+
+
+	TSubclassOf<AEnemyCharacterBase> enemy_class = SpawnEnemy->EnemyType;
+
+	FVector SpawnLocation = FVector(0.0f, 0.0f, 0.0f);
+	FRotator SpawnRotation = FRotator::ZeroRotator;
+	FTransform SpawnTransform(SpawnRotation, SpawnLocation);
+
+	AEnemyCharacterBase* target_spawner = GetWorld()->SpawnActorDeferred<AEnemyCharacterBase>(enemy_class, FTransform::Identity);
+	if (target_spawner)
+	{
+		target_spawner->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+	}
+
+
+
+
+	//target_spawner->SetActorRelativeTransform(this->GetActorTransform());
+
+
+
+	//if (ReceivingChar->bWeaponEquiped == false)
+	//{
+	//	//spawn && attach weapon
+	//	USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
+	//	for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
+	//	{
+	//		TSubclassOf<AActor> WeaponActorClass = WeaponActorInst.ActorToSpawn;
+	//		FName Socket = WeaponActorInst.AttachSocket;
+	//		FTransform Transform = WeaponActorInst.AttachTransform;
+
+	//		AActor* WeaponSpawned = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
+	//		WeaponSpawned->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+	//		WeaponSpawned->SetActorRelativeTransform(Transform);
+	//		WeaponSpawned->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
+
+	//	}
+	//	for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
+	//	{
+	//		for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
+	//		{
+	//			ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
+	//		}
+	//	}
+	//	ReceivingChar->bWeaponEquiped = true;
+	//}
+
 
 }
 

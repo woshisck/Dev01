@@ -26,8 +26,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MaxHealth;
 
-	
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float BaseDMG; 
 

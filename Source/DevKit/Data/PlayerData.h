@@ -4,12 +4,67 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "CharacterData.h"
 #include "PlayerData.generated.h"
 
 /**
  * 
  */
+
+USTRUCT(BlueprintType)
+struct FPlayerStatData : public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+	FPlayerStatData(){}
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Attack = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AtkPower = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MiscNum = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SkillCD = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MAX_PassiveGA = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MAX_OffensiveGA = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxHealth = 30;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float OutRoundLifeTime = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MoveSpeed = 6;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Dash = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DashCD = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DashDist = 4;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Dodge = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float ActResilience = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Resist = 0;
+
+};
 
 
 
@@ -37,14 +92,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FRotator RotationRate = FRotator(0, 0, 0);
-
-
 };
 
 
-
 UCLASS(BlueprintType, Blueprintable)
-class DEVKIT_API UPlayerData : public UCharacterData
+class DEVKIT_API UPlayerData : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 	
@@ -52,9 +104,18 @@ public:
 	UFUNCTION(BlueprintPure)
 	const FCameraMovementData& GetCameraMove() const;
 
-	UPROPERTY(EditDefaultsOnly, meta = (RowType = "MovementData"))
+	UFUNCTION(BlueprintPure)
+	const FPlayerStatData& GetPlayerState() const;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "CameraMovementData"))
 	FDataTableRowHandle CameraDataRow;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "PlayerStatData"))
+	FDataTableRowHandle PlayerDataRow;
+
+
+
 	inline static const FCameraMovementData DefaultMovement;
+	inline static const FPlayerStatData DefaultPlayerState;
 
 };

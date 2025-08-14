@@ -17,24 +17,31 @@ struct FYogAbilityData : public FTableRowBase
     GENERATED_BODY()
 
 public:
-	FYogAbilityData()
-		: Damage(0.0f), DMGAmplify(0.0f), MontagePlayRate(0.0f), AbilityPower(1.0f)
-	{
-	}
+	FYogAbilityData(){}
     //UPROPERTY(EditAnywhere, BlueprintReadWrite)
     //FString Name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Damage;
+	float Damage = 20;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float DMGAmplify;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float MontagePlayRate;
+	float AtkRange = 400;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float AbilityPower;
+	float ActResilience = 20;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float ActDmgReduce = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float ActRotateSpeed = 360;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float JumpFrameTime = 0.15;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float FreezeFrameTime = 0.15;
+
 };
 
 
@@ -85,6 +92,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
 	TArray<FHitBoxData> array_Hitbox;
+
 
 
 	inline static const FYogAbilityData DefaultAbilityData;

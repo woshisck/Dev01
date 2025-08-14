@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Data/EnemyData.h"
 #include "MobSpawner.generated.h"
+
+
 
 UCLASS()
 class DEVKIT_API AMobSpawner : public AActor
@@ -27,7 +30,7 @@ public:
 	void SpawnMob();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UDataAsset> SpawnObjDefinition;
+	TObjectPtr<UEnemyData> SpawnEnemy;
 
 
 };

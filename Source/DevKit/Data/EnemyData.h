@@ -4,14 +4,59 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "../Character/EnemyCharacterBase.h"
+#include "BehaviorTree/BehaviorTree.h"
 #include "EnemyData.generated.h"
 
 /**
  * 
  */
+//USTRUCT(BlueprintType)
+//struct FEnemyCharacterData : public FTableRowBase
+//{
+//	GENERATED_BODY()
+//
+//public:
+//	FEnemyCharacterData()
+//		: AttackPower(0), AttackSpeed(0), AttackRange(0), CrticalRate(0), CriticalDamage(0)
+//	{
+//	};
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	FString Name;
+//
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	float AttackPower = 0;
+//
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	float AttackSpeed = 1;
+//
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	float AttackRange = 1;
+//
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	float CrticalRate = 1;
+//
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	float CriticalDamage = 1;
+//
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	TArray<UYogGameplayAbility*> Actions;
+//
+//};
+
+
 UCLASS()
 class DEVKIT_API UEnemyData : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 	
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<AEnemyCharacterBase> EnemyType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UBehaviorTree> Behaviour;
+
+
+
 };

@@ -32,9 +32,7 @@ public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
-
 	APlayerCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
 
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FItemInteractStartDelegate OnItemInterActionStart;
@@ -48,7 +46,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle Data")
 	float EnemyCloseDist;
-
 
 	UFUNCTION(BlueprintCallable)
 	void SetOwnCamera(AYogCameraPawn* cameraActor);
