@@ -13,6 +13,43 @@
 
 UBaseAttributeSet::UBaseAttributeSet()
 {	
+
+	////////////////////////////////////////////////// Player Attribute ////////////////////////////////////////////////
+	InitAttack(0);
+	InitAttackPower(1);
+	InitMiscNum(1);
+	InitSkillCD(1);
+	InitMAX_PassiveGA(1);
+	InitMAX_OffensiveGA(1);
+	InitMaxHealth(30);
+	InitOutRoundLifeTime(0);
+	InitMoveSpeed(6);
+	InitDash(1);
+	InitDashCD(1);
+	InitDashDist(4);
+	InitDodge(0);
+	InitResilience(0);
+	InitResist(0);
+
+	////////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
+	InitActDamage(20);
+	InitActRange(400);
+	InitActResilience(20);
+	InitActDmgReduce(0);
+	InitActRotateSpeed(360);
+	InitJumpFrameTime(0.15);
+	InitFreezeFrameTime(0.15);
+
+
+	////////////////////////////////////////////////// Weapon Attribute ////////////////////////////////////////////////
+	InitWeaponAtk(0);
+	InitWeaponAttackSpeed(1);
+	InitWeaponRange(1);
+	InitCrticalRate(0);
+	InitCriticalDamage(1);
+
+
+
 }
 
 
@@ -23,13 +60,6 @@ void UBaseAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, Health, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, MaxHealth, COND_None, REPNOTIFY_Always);
 
-	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, BaseDMG, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, WeaponDMG, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, BuffAmplify, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, DMGAbsorb, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, ActResist, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, AtkDist, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, DashCount, COND_None, REPNOTIFY_Always);
 }
 
 
@@ -60,124 +90,6 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 {
 	Super::PostGameplayEffectExecute(Data);
 
-
-	//HARDCODE
-	float MinimumHealth = 0.0f;
-
-	FGameplayEffectContextHandle Context = Data.EffectSpec.GetContext();
-	UAbilitySystemComponent* Source = Context.GetOriginalInstigatorAbilitySystemComponent();
-	const FGameplayTagContainer& SourceTags = *Data.EffectSpec.CapturedSourceTags.GetAggregatedTags();
-
-	//Get the source actor
-	AActor* SourceActor = nullptr;
-	AController* SourceController = nullptr;
-	AYogCharacterBase* SourceCharacter = nullptr;
-	
-	if (Source && Source->AbilityActorInfo.IsValid() && Source->AbilityActorInfo->AvatarActor.IsValid())
-	{
-		SourceActor = Source->AbilityActorInfo->AvatarActor.Get();
-		SourceController = Source->AbilityActorInfo->PlayerController.Get();
-
-		if (SourceController)
-		{
-			SourceCharacter = Cast<AYogCharacterBase>(SourceController->GetPawn());
-		}
-		else
-		{
-			SourceCharacter = Cast<AYogCharacterBase>(SourceActor);
-		}
-	}
-
-	//Get the target actor
-	AActor* targetActor = nullptr;
-	AController* targetController = nullptr;
-	AYogCharacterBase* targetCharacter = nullptr;
-
-	if (Data.Target.AbilityActorInfo.IsValid() && Data.Target.AbilityActorInfo->AvatarActor.IsValid())
-	{
-		targetActor = Data.Target.AbilityActorInfo->AvatarActor.Get();
-		targetController = Data.Target.AbilityActorInfo->PlayerController.Get();
-		targetCharacter = Cast<AYogCharacterBase>(targetActor);
-	}
-
-	// data modification different set 
-	float deltaValue = 0;
-	if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Override)
-	{
-		// If this was additive, store the raw delta value to be passed along later
-		deltaValue = Data.EvaluatedData.Magnitude;
-		if (Data.EvaluatedData.Attribute == GetWeaponDMGAttribute())
-		{
-			//effect by self
-			if (SourceController == targetController)
-			{
-				UE_LOG(LogTemp, Log, TEXT("SELF BUFF"));
-				SetWeaponDMG(deltaValue);
-			}
-		}
-
-	}
-	
-	else if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Additive)
-	{
-		// If this was additive, store the raw delta value to be passed along later
-		deltaValue = Data.EvaluatedData.Magnitude;
-		if (Data.EvaluatedData.Attribute == GetDamageAttribute())
-		{
-			//effect by self
-
-			deltaValue = Data.EvaluatedData.Magnitude;
-			if (SourceController != targetController)
-			{
-				UE_LOG(LogTemp, Log, TEXT("DAMAGE CAST, Final DAMAGE: %f"), deltaValue);
-
-				UE_LOG(LogTemp, Log, TEXT("DAMAGE CAST, TargetCharacter: %s, SourceCharacter: %s"), *targetCharacter->GetName(), *SourceCharacter->GetName());
-				
-			}
-		}
-		else if (Data.EvaluatedData.Attribute == GetHealthAttribute()) {
-			SetHealth(FMath::Clamp(GetHealth(), MinimumHealth, GetMaxHealth()));
-		}
-	}
-
-	if (Data.EvaluatedData.Attribute == GetDamageAttribute())
-	{	
-		FHitResult HitResult;
-		if (Context.GetHitResult())
-		{
-			HitResult = *Context.GetHitResult();
-		}
-
-		
-		const float LocalDamageDone = GetDamage();
-		SetDamage(0.f);
-
-
-		if (LocalDamageDone > 0.0f) 
-		{
-
-			bool WasAlive = true;
-			if (targetCharacter)
-			{
-				WasAlive = targetCharacter->IsAlive();
-			}
-
-
-			// --------------------------------------
-			// health = Damage (In DamageExecution) * (1 - DMGAbsorb)
-			// --------------------------------------
-
-			const float NewHealth = GetHealth() - LocalDamageDone * (1.0f - GetDMGAbsorb());
-			SetHealth(NewHealth);
-
-			const FHitResult* Hit = Data.EffectSpec.GetContext().GetHitResult();
-			if (Hit) {
-				UE_LOG(LogTemp, Log, TEXT("Hit effect cause here"));
-			}
-
-
-		}
-	}
 }
 
 
@@ -191,52 +103,13 @@ void UBaseAttributeSet::OnRep_MaxHealth(const FGameplayAttributeData& OldValue)
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, MaxHealth, OldValue);
 }
 
-void UBaseAttributeSet::OnRep_BaseDMG(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, BaseDMG, OldValue);
-}
 
-void UBaseAttributeSet::OnRep_WeaponDMG(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, WeaponDMG, OldValue);
-}
-
-void UBaseAttributeSet::OnRep_BuffAmplify(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, BuffAmplify, OldValue);
-}
-
-void UBaseAttributeSet::OnRep_DMGAbsorb(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, DMGAbsorb, OldValue);
-}
-
-void UBaseAttributeSet::OnRep_ActResist(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, ActResist, OldValue);
-}
-
-void UBaseAttributeSet::OnRep_AtkDist(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, AtkDist, OldValue);
-}
-
-void UBaseAttributeSet::OnRep_DashCount(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, DashCount, OldValue);
-}
 
 void UBaseAttributeSet::InitAttribute()
 {
 	InitHealth(100.f);
 	InitMaxHealth(100.f);
-	InitBaseDMG(10.f);
-	InitWeaponDMG(1.0f);
-	InitBuffAmplify(1.2f);
-	InitDMGAbsorb(0.2f);
-	InitActResist(0.0f);
-	InitAtkDist(1.0f);
-	InitDashCount(2.0f);
+
 }
 
 

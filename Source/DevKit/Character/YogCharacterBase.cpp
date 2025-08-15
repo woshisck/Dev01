@@ -71,30 +71,30 @@ void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (AbilitySystemComponent) {
+	//if (AbilitySystemComponent) {
 
-		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
-		MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
-		BaseDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBaseDMGAttribute()).AddUObject(this, &AYogCharacterBase::BaseDMGChanged);
-		WeaponDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetWeaponDMGAttribute()).AddUObject(this, &AYogCharacterBase::WeaponDMGChanged);
-		BuffAmplifyChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBuffAmplifyAttribute()).AddUObject(this, &AYogCharacterBase::BuffAmplifyChanged);
-	}
-	
-	if (DT_Attribute)
-	{
-		FYogAttributeData* pYogAttributeData = DT_Attribute->FindRow<FYogAttributeData>(TEXT("Default_Attribute"), TEXT(""));
-		
-		if (pYogAttributeData != nullptr)
-		{
-			AttributeSet->InitHealth(pYogAttributeData->Health);
-			AttributeSet->InitMaxHealth(pYogAttributeData->MaxHealth);
-			AttributeSet->InitBaseDMG(pYogAttributeData->BaseDMG);
-			AttributeSet->InitWeaponDMG(pYogAttributeData->WeaponDMG);
-			AttributeSet->InitBuffAmplify(pYogAttributeData->BuffAmplify);
-			AttributeSet->InitDMGAbsorb(pYogAttributeData->DMGAbsorb);
-			AttributeSet->InitActResist(pYogAttributeData->ActResist);
-		}
-	}
+	//	HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
+	//	MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
+	//	BaseDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBaseDMGAttribute()).AddUObject(this, &AYogCharacterBase::BaseDMGChanged);
+	//	WeaponDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetWeaponDMGAttribute()).AddUObject(this, &AYogCharacterBase::WeaponDMGChanged);
+	//	BuffAmplifyChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBuffAmplifyAttribute()).AddUObject(this, &AYogCharacterBase::BuffAmplifyChanged);
+	//}
+	//
+	//if (DT_Attribute)
+	//{
+	//	FYogAttributeData* pYogAttributeData = DT_Attribute->FindRow<FYogAttributeData>(TEXT("Default_Attribute"), TEXT(""));
+	//	
+	//	if (pYogAttributeData != nullptr)
+	//	{
+	//		AttributeSet->InitHealth(pYogAttributeData->Health);
+	//		AttributeSet->InitMaxHealth(pYogAttributeData->MaxHealth);
+	//		AttributeSet->InitBaseDMG(pYogAttributeData->BaseDMG);
+	//		AttributeSet->InitWeaponDMG(pYogAttributeData->WeaponDMG);
+	//		AttributeSet->InitBuffAmplify(pYogAttributeData->BuffAmplify);
+	//		AttributeSet->InitDMGAbsorb(pYogAttributeData->DMGAbsorb);
+	//		AttributeSet->InitActResist(pYogAttributeData->ActResist);
+	//	}
+	//}
 
 
 
@@ -176,10 +176,10 @@ float AYogCharacterBase::GetMaxHealth() const
 
 float AYogCharacterBase::GetAtkDist() const
 {
-	if (AttributeSet)
-	{
-		return AttributeSet->GetAtkDist();
-	}
+	//if (AttributeSet)
+	//{
+	//	return AttributeSet->GetAtkDist();
+	//}
 	return .6666f;
 }
 

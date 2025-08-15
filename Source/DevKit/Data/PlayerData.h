@@ -59,7 +59,7 @@ public:
 	float Dodge = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float ActResilience = 0;
+	float Resilience = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Resist = 0;

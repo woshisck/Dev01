@@ -172,6 +172,8 @@ void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 	ASC->CurrentAbilitySpecHandle = Handle;
 
+	
+
 	//TODO: add loose gameplaytag for blocking ability
 	//if (!this->ActivationBlockedTags.IsEmpty())
 	//{		

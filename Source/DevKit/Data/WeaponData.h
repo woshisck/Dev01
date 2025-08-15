@@ -26,13 +26,10 @@ public:
 	float WeaponAtk = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float AttackSpeed = 1;
+	float WeaponAttackSpeed = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float AttackRange = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UNiagaraSystem> PickedUpEffect;
+	float WeaponRange = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float CrticalRate = 0;
@@ -42,18 +39,6 @@ public:
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TArray<UYogGameplayAbility*> Actions;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<UAnimInstance*> WeaponAnimLayer;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "YogAbilityData"))
-	//FDataTableRowHandle ActionData;
-
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RequiredAssetDataTags = "RowStructure=YogAbilityData"))
-	TObjectPtr<UDataTable> ActionData;
-
-
 
 };
 
@@ -67,9 +52,18 @@ public:
 	UFUNCTION(BlueprintPure)
 	const FWeaponAttributeData& GetWeaponData() const;
 
-	UPROPERTY(EditDefaultsOnly, meta = (RowType = "WeaponAttributeData"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "WeaponAttributeData"))
 	FDataTableRowHandle WeaponAttributeRow;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<TObjectPtr<UAbilityData>> Action;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<TSubclassOf<UAnimInstance>> WeaponAmineLayer;
+
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TArray<TObjectPtr<UAnimMontage>> IncludedMontage;
 
 	inline static const FWeaponAttributeData DefaultWPNData;
 
