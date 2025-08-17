@@ -30,45 +30,19 @@ FName UYogBlueprintFunctionLibrary::GetDTRow(FString AssetName, int32 rowNum)
 	return FName(result);
 }
 
-bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition)
+bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData)
 {
 	if (WorldContextObject)
 	{
 		UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
 		USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
-		
-		
-		for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
-		{
-			TSubclassOf<AWeaponInstance> WeaponActorClass = WeaponActorInst.ActorToSpawn;
-			FName Socket = WeaponActorInst.AttachSocket;
-			FTransform Transform = WeaponActorInst.AttachTransform;
+	
+		WeaponDefinition->SetupWeaponToCharacter(World, AttachTarget, ReceivingChar);
 
 
-			AWeaponInstance* NewActor = World->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
-			//AWeaponInstance* NewActor = World->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
-			NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-			NewActor->SetActorRelativeTransform(Transform);
-			NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
-			ReceivingChar->Weapon = NewActor;
+		WeaponData->SetupWeaponAttributeToOwner(ReceivingChar);
 
-		}
-
-
-		for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
-		{
-			for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
-			{
-				ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
-			}
-		}
-		if (WeaponDefinition->WeaponLayer)
-		{
-			UAnimInstance* AnimInstance = ReceivingChar->GetMesh()->GetAnimInstance();
-			AnimInstance->LinkAnimClassLayers(TSubclassOf<UAnimInstance>(WeaponDefinition->WeaponLayer));
-		}
-		
 		return true;
 	}
 	else

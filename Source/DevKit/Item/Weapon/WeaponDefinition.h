@@ -42,11 +42,11 @@ public:
 	//TSubclassOf<AWeaponInstance> InstanceType;
 
 	// Gameplay ability sets to grant when this is equipped
-	UPROPERTY(EditDefaultsOnly, Category = Equipment)
+	UPROPERTY(EditDefaultsOnly, Category = "Equipment")
 	TArray<TObjectPtr<const UYogAbilitySet>> AbilitySetsToGrant;
 
 	// Actors to spawn on the pawn when this is equipped
-	UPROPERTY(EditDefaultsOnly, Category = Equipment)
+	UPROPERTY(EditDefaultsOnly, Category = "Equipment")
 	TArray<FWeaponActorToSpawn> ActorsToSpawn;
 
 	//Sets the height of the display mesh above the Weapon spawner
@@ -67,6 +67,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Anime")
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
+
+	UFUNCTION()
+	void SetupWeaponToCharacter(UWorld* World, USkeletalMeshComponent* AttachTarget, AYogCharacterBase* ReceivingChar);
 
 
 

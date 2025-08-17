@@ -50,7 +50,7 @@ public:
 	static FName GetDTRow(FString AssetName, int32 rowNum);
 
 	UFUNCTION(BlueprintPure, Category = Weapon)
-	static bool GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition);
+	static bool GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData);
 
 	UFUNCTION(BlueprintPure, Category = Weapon)
 	static bool GiveAbilityToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UYogAbilitySet* AbilitySet);

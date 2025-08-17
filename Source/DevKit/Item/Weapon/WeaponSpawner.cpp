@@ -164,12 +164,11 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 	if (OverlappingPawn != nullptr)
 	{
 
-		UWorld* world = GetWorld();
-		if (world)
-		{
-			UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(this, OverlappingPawn, WeaponDefinition);
-		}
-
+		//UWorld* world = GetWorld();
+		//if (world)
+		//{
+		//	UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(this, OverlappingPawn, WeaponDefinition);
+		//}
 
 	}
 }

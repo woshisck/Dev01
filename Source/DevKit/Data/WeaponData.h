@@ -10,7 +10,7 @@
 
 
 class UYogGameplayAbility;
-
+class AYogCharacterBase;
 
 
 
@@ -52,6 +52,12 @@ public:
 	UFUNCTION(BlueprintPure)
 	const FWeaponAttributeData& GetWeaponData() const;
 
+	UFUNCTION(BlueprintCallable)
+	void SetupWeaponAttributeToOwner(AYogCharacterBase* Owner);
+
+	UFUNCTION(BlueprintCallable)
+	void GrantAbilityToOwner(AYogCharacterBase* Owner);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "WeaponAttributeData"))
 	FDataTableRowHandle WeaponAttributeRow;
 
@@ -66,5 +72,7 @@ public:
 	//TArray<TObjectPtr<UAnimMontage>> IncludedMontage;
 
 	inline static const FWeaponAttributeData DefaultWPNData;
+
+
 
 };

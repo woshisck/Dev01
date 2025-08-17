@@ -107,7 +107,37 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GameplayEffect")
 	int GetCurrentGameplayEffect(FGameplayTag EffectTag);
 
+	UFUNCTION()
+	void SetupAbilityStat(const FYogAbilityData& data);
 
+
+public:
+	UPROPERTY()
+	float ActDamage = 20;
+
+	UPROPERTY()
+	float ActRange = 400;
+
+	UPROPERTY()
+	float ActResilience = 20;
+
+	UPROPERTY()
+	float ActDmgReduce = 0;
+
+	UPROPERTY()
+	float ActRotateSpeed = 360;
+
+	UPROPERTY()
+	float JumpFrameTime = 0.15;
+
+	UPROPERTY()
+	float FreezeFrameTime = 0.15;
+
+	UPROPERTY()
+	TObjectPtr<UAnimMontage> Montage;
+
+	UPROPERTY()
+	TArray<FHitBoxData> hitbox;
 
 protected:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled);

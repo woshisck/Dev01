@@ -69,7 +69,8 @@ public:
 	
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
-
+	UFUNCTION(BlueprintCallable)
+	void SetWeaponAttribute(const FWeaponAttributeData& weaponData);
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateCharacterMovement(const bool IsMovable);

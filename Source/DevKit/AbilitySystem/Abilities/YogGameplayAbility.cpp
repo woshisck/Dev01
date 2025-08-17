@@ -89,6 +89,10 @@ int UYogGameplayAbility::GetCurrentGameplayEffect(FGameplayTag EffectTag)
 	return StackCount;
 }
 
+void UYogGameplayAbility::SetupAbilityStat(const FYogAbilityData& data)
+{
+}
+
 
 
 
