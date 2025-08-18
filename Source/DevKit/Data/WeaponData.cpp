@@ -4,6 +4,9 @@
 #include "WeaponData.h"
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Data/AbilityData.h"
+
 const FWeaponAttributeData& UWeaponData::GetWeaponData() const
 {
 	if (!WeaponAttributeRow.IsNull())
@@ -19,60 +22,23 @@ const FWeaponAttributeData& UWeaponData::GetWeaponData() const
 	// TODO: insert return statement here
 }
 
-void UWeaponData::SetupWeaponAttributeToOwner(AYogCharacterBase* Owner)
-{
-	const FWeaponAttributeData& wpnData = this->GetWeaponData();
-	Owner->SetWeaponAttribute(wpnData);
-}
 
 void UWeaponData::GrantAbilityToOwner(AYogCharacterBase* Owner)
 {
 	//	TArray<TObjectPtr<UAbilityData>> Action;
 	UYogAbilitySystemComponent* asc = Owner->GetASC();
 
-	for (const UAbilityData* ability_data : Action)
+	for (const UAbilityData* ability_action : Action)
 	{
-		//	TArray<FYogAbilityData> Abilities;
-		for (const FYogAbilityData& yog_ability_data : ability_data->Abilities)
+		//TSubclassOf<UYogGameplayAbility> ability;
+
+		//ability_action->ability
+		for (const TSubclassOf<UYogGameplayAbility> ability_class : ability_action->abilities)
 		{
-			UYogGameplayAbility* ability = NewObject<UYogGameplayAbility>(this, yog_ability_data.Ability);
-			if (ability)
-			{
-				//yog_ability_data.ActDamage
-				//	yog_ability_data.ActRange
-				//	yog_ability_data.ActResilience
-				//	yog_ability_data.ActDmgReduce
-				//	yog_ability_data.ActRotateSpeed
-				//	yog_ability_data.JumpFrameTime
-				//	yog_ability_data.FreezeFrameTime
-
-				ability->SetupAbilityStat(yog_ability_data);
-				FGameplayAbilitySpec abilitySpec(ability, 0);
-
-
-			}
-
-			//TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel)
-			//FGameplayAbilitySpec AbilitySpec(AbilityToGrant, AbilityLevel);
-
-
-			//FGameplayAbilitySpec AbilitySpec(AbilityToGrant, AbilityLevel);
-			//AbilitySystemComponent->GiveAbility(AbilitySpec);
-
-			//asc->GiveAbility()
-			//Owner->GrantGameplayAbility(ability_data.Ability, 0);
-
-
-			//for (const UYogAbilitySet* YogAbilitiesSet : AbilitySetsToGrant)
-			//{
-			//	for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
-			//	{
-			//		ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
-			//	}
-			//}
-
-
+			FGameplayAbilitySpec abilitySpec(ability_class, 0);
+			asc->GiveAbility(abilitySpec);
 		}
+
 	}
 
 }

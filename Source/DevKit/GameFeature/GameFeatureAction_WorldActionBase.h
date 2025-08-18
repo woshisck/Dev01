@@ -32,7 +32,7 @@ public:
 private:
 	void HandleGameInstanceStart(UGameInstance* GameInstance, FGameFeatureStateChangeContext ChangeContext);
 
-	/** Override with the action-specific logic */
+	/** Override with the ActionRow-specific logic */
 	virtual void AddToWorld(const FWorldContext& WorldContext, const FGameFeatureStateChangeContext& ChangeContext) PURE_VIRTUAL(UGameFeatureAction_WorldActionBase::AddToWorld,);
 
 private:

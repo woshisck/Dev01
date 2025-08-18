@@ -134,14 +134,7 @@ UAbilitySystemComponent* AYogCharacterBase::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
-void AYogCharacterBase::SetWeaponAttribute(const FWeaponAttributeData& weaponData)
-{
-	AttributeSet->SetWeaponAtk(weaponData.WeaponAtk);
-	AttributeSet->SetWeaponAttackSpeed(weaponData.WeaponAttackSpeed);
-	AttributeSet->SetWeaponRange(weaponData.WeaponRange);
-	AttributeSet->SetCrticalRate(weaponData.CrticalRate);
-	AttributeSet->SetCriticalDamage(weaponData.CriticalDamage);
-}
+
 
 
 

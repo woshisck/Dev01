@@ -52,8 +52,6 @@ public:
 	UFUNCTION(BlueprintPure)
 	const FWeaponAttributeData& GetWeaponData() const;
 
-	UFUNCTION(BlueprintCallable)
-	void SetupWeaponAttributeToOwner(AYogCharacterBase* Owner);
 
 	UFUNCTION(BlueprintCallable)
 	void GrantAbilityToOwner(AYogCharacterBase* Owner);

@@ -50,7 +50,7 @@ void FGenericGraphDragConnection::HoverTargetChanged()
 			// The Graph object in which the pins reside.
 			UEdGraph* GraphObj = StartingPinObj->GetOwningNode()->GetGraph();
 
-			// Determine what the schema thinks about the wiring action
+			// Determine what the schema thinks about the wiring ActionRow
 			const FPinConnectionResponse Response = GraphObj->GetSchema()->CanCreateConnection(StartingPinObj, TargetPinObj);
 
 			if (Response.Response == ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)

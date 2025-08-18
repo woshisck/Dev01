@@ -39,12 +39,12 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct FYogAbilityData : public FTableRowBase
+struct FActionData : public FTableRowBase
 {
     GENERATED_BODY()
 
 public:
-	FYogAbilityData(){}
+	FActionData(){}
     //UPROPERTY(EditAnywhere, BlueprintReadWrite)
     //FString Name;
 
@@ -72,8 +72,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UAnimMontage> Montage;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<UYogGameplayAbility> Ability;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TSubclassOf<UYogGameplayAbility> Ability;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
 	TArray<FHitBoxData> hitbox;
@@ -86,17 +86,22 @@ public:
 
 
 USTRUCT(BlueprintType)
-struct FActionData : public FTableRowBase
+struct FAbilityType
 {
 	GENERATED_BODY()
 
 public:
-	FActionData(){};
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
-	FDataTableRowHandle hitbox;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
+	FDataTableRowHandle ActionRow;
 
+	
+	const FActionData& GetAction() const;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<UYogGameplayAbility> ability;
+
+	inline static const FActionData DefaultActionData;
 };
 
 
@@ -107,7 +112,5 @@ class DEVKIT_API UAbilityData : public UPrimaryDataAsset
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FYogAbilityData> Abilities;
-
-
+	TArray<TSubclassOf<UYogGameplayAbility>> abilities;
 };

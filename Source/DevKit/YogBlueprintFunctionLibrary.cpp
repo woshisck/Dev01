@@ -40,8 +40,9 @@ bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextOb
 	
 		WeaponDefinition->SetupWeaponToCharacter(World, AttachTarget, ReceivingChar);
 
+		WeaponData->GrantAbilityToOwner(ReceivingChar);
 
-		WeaponData->SetupWeaponAttributeToOwner(ReceivingChar);
+
 
 		return true;
 	}

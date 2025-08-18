@@ -76,7 +76,9 @@ class DEVKIT_API UBaseAttributeSet : public UAttributeSet{
 
 
 public:
-		
+
+
+
 	UBaseAttributeSet();
 
 	UWorld* GetWorld() const override;
@@ -225,6 +227,16 @@ public:
     FGameplayAttributeData Damage;
 
 
+
+    float INIT_ActDamage = 20;
+    float INIT_ActRange = 400;
+    float INIT_ActResilience = 20;
+    float INIT_ActDmgReduce = 0;
+    float INIT_ActRotateSpeed = 360;
+    float INIT_JumpFrameTime = 0.15;
+    float INIT_FreezeFrameTime = 0.15;
+
+
 	UFUNCTION()
 	void OnRep_Health(const FGameplayAttributeData& OldValue);
 
@@ -234,6 +246,11 @@ public:
 
 	UFUNCTION()
 	void InitAttribute();
+
+    UFUNCTION()
+    void ResetAbilityAttribute();
+
+
 
 
 };

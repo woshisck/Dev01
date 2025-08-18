@@ -84,8 +84,8 @@ public:
     //TObjectPtr<UDataTable> YogAbilityDataTable;
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
-	TObjectPtr<UAbilityData> AbilityData;
+	UPROPERTY()
+	FAbilityType AbilityTypeData;
 
 public:
 
@@ -93,6 +93,9 @@ public:
 
 	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DamageBox")
 	//TArray<FHitBoxData> array_Hitbox;
+
+	UPROPERTY()
+	FActionData AbilityActData;
 
 	UFUNCTION(BlueprintCallable, Category = "Setting")
 	void UpdateRetrigger(bool retriggerable);
@@ -108,7 +111,8 @@ public:
 	int GetCurrentGameplayEffect(FGameplayTag EffectTag);
 
 	UFUNCTION()
-	void SetupAbilityStat(const FYogAbilityData& data);
+	void SetupAbilityStat(const FActionData& data);
+
 
 
 public:
@@ -133,11 +137,22 @@ public:
 	UPROPERTY()
 	float FreezeFrameTime = 0.15;
 
-	UPROPERTY()
-	TObjectPtr<UAnimMontage> Montage;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UAnimMontage> MontageToPlay;
 
 	UPROPERTY()
 	TArray<FHitBoxData> hitbox;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
+	FDataTableRowHandle ActionRow;
+
+	UFUNCTION(BlueprintCallable)
+	FActionData GetRowData();
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TSubclassOf<UYogGameplayAbility> Ability;
+
 
 protected:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled);

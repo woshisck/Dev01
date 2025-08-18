@@ -32,13 +32,26 @@ UBaseAttributeSet::UBaseAttributeSet()
 	InitResist(0);
 
 	////////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
-	InitActDamage(20);
-	InitActRange(400);
-	InitActResilience(20);
-	InitActDmgReduce(0);
-	InitActRotateSpeed(360);
-	InitJumpFrameTime(0.15);
-	InitFreezeFrameTime(0.15);
+	//HARD CODE INIT VALUE;
+
+	//float ActDamage = 20;
+	//float ActRange = 400;
+	//float ActResilience = 20;
+	//float ActDmgReduce = 0;
+	//float ActRotateSpeed = 360;
+	//float JumpFrameTime = 0.15;
+	//float FreezeFrameTime = 0.15;
+	
+	
+	InitActDamage(INIT_ActDamage);
+	InitActRange(INIT_ActRange);
+	InitActResilience(INIT_ActResilience);
+	InitActDmgReduce(INIT_ActDmgReduce);
+	InitActRotateSpeed(INIT_ActRotateSpeed);
+	InitJumpFrameTime(INIT_JumpFrameTime);
+	InitFreezeFrameTime(INIT_FreezeFrameTime);
+
+
 
 
 	////////////////////////////////////////////////// Weapon Attribute ////////////////////////////////////////////////
@@ -47,6 +60,8 @@ UBaseAttributeSet::UBaseAttributeSet()
 	InitWeaponRange(1);
 	InitCrticalRate(0);
 	InitCriticalDamage(1);
+
+
 
 
 
@@ -109,6 +124,41 @@ void UBaseAttributeSet::InitAttribute()
 {
 	InitHealth(100.f);
 	InitMaxHealth(100.f);
+
+}
+
+void UBaseAttributeSet::ResetAbilityAttribute()
+{
+	//float INIT_ActDamage = 20;
+	//float INIT_ActRange = 400;
+	//float INIT_ActResilience = 20;
+	//float INIT_ActDmgReduce = 0;
+	//float INIT_ActRotateSpeed = 360;
+	//float INIT_JumpFrameTime = 0.15;
+	//float INIT_FreezeFrameTime = 0.15;
+
+
+	ActDamage.SetBaseValue(INIT_ActDamage);
+	ActDamage.SetCurrentValue(INIT_ActDamage);
+
+	ActRange.SetBaseValue(INIT_ActRange);
+	ActRange.SetCurrentValue(INIT_ActRange);
+
+	ActResilience.SetBaseValue(INIT_ActResilience);
+	ActResilience.SetCurrentValue(INIT_ActResilience);
+
+	ActDmgReduce.SetBaseValue(INIT_ActDmgReduce);
+	ActDmgReduce.SetCurrentValue(INIT_ActDmgReduce);
+
+	ActRotateSpeed.SetBaseValue(INIT_ActRotateSpeed);
+	ActRotateSpeed.SetCurrentValue(INIT_ActRotateSpeed);
+
+	JumpFrameTime.SetBaseValue(INIT_JumpFrameTime);
+	JumpFrameTime.SetCurrentValue(INIT_JumpFrameTime);
+
+	FreezeFrameTime.SetBaseValue(INIT_FreezeFrameTime);
+	FreezeFrameTime.SetCurrentValue(INIT_FreezeFrameTime);
+
 
 }
 

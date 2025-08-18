@@ -33,7 +33,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogLoadingScreen, Log, All);
 DEFINE_LOG_CATEGORY(LogLoadingScreen);
 
 //@TODO: Why can GetLocalPlayers() have nullptr entries?  Can it really?
-//@TODO: Test with PIE mode set to simulate and decide how much (if any) loading screen action should occur
+//@TODO: Test with PIE mode set to simulate and decide how much (if any) loading screen ActionRow should occur
 //@TODO: Allow other things implementing ILoadingProcessInterface besides GameState/PlayerController (and owned components) to register as interested parties
 //@TODO: ChangeMusicSettings (either here or using the LoadingScreenVisibilityChanged delegate)
 //@TODO: Studio analytics (FireEvent_PIEFinishedLoading / tracking PIE startup time for regressions, either here or using the LoadingScreenVisibilityChanged delegate)
