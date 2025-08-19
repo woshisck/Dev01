@@ -43,13 +43,13 @@ UBaseAttributeSet::UBaseAttributeSet()
 	//float FreezeFrameTime = 0.15;
 	
 	
-	InitActDamage(INIT_ActDamage);
-	InitActRange(INIT_ActRange);
-	InitActResilience(INIT_ActResilience);
-	InitActDmgReduce(INIT_ActDmgReduce);
-	InitActRotateSpeed(INIT_ActRotateSpeed);
-	InitJumpFrameTime(INIT_JumpFrameTime);
-	InitFreezeFrameTime(INIT_FreezeFrameTime);
+	InitActDamage(0);
+	InitActRange(0);
+	InitActResilience(0);
+	InitActDmgReduce(0);
+	InitActRotateSpeed(0);
+	InitJumpFrameTime(0);
+	InitFreezeFrameTime(0);
 
 
 

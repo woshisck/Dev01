@@ -95,8 +95,6 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	//float BaseDMG = 0.f;
 	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().BaseDMGDef, EvaluationParameters, BaseDMG);
 
-
-
 	//float WeaponDMG = 0.f;
 	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().WeaponDMGDef, EvaluationParameters, WeaponDMG);
 
@@ -109,11 +107,11 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	//float Damage = 0.f;
 	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DamageDef, EvaluationParameters, Damage);
 
-	//// --------------------------------------
-	////	Damage Done =  ((BaseDMG + WeaponDMG) * BuffAmplify + BuffingATK) * DMGCorrect
-	//// BuffingATK = Self DMG + Weapon DMG 
-	//// 
-	//// --------------------------------------
+	 //--------------------------------------
+	 //Damage Done =  ((BaseDMG + WeaponDMG) * BuffAmplify + BuffingATK) * DMGCorrect
+	 //BuffingATK = Self DMG + Weapon DMG 
+	 //
+	 //--------------------------------------
 
 	////TODO:need to change in future
 	//float DMGDone = (BaseDMG + WeaponDMG) * BuffATKAmplify;
