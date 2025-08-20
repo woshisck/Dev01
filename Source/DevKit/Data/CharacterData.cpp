@@ -3,7 +3,7 @@
 
 #include "CharacterData.h"
 
-const FMovementData& UCharacterData::GetMovement() const
+const FMovementData& UCharacterData::GetMovementData() const
 {
 	if (!MoveDataRow.IsNull())
 	{
@@ -14,6 +14,19 @@ const FMovementData& UCharacterData::GetMovement() const
 		}
 	}
 
-	return DefaultMovement;
+	return DefaultMovementData;
 	// TODO: insert return statement here
+}
+
+const FCharacterData& UCharacterData::GetCharacterData() const
+{
+	if (!CharacterDataRow.IsNull())
+	{
+		FCharacterData* character_data = CharacterDataRow.GetRow<FCharacterData>(__func__);
+		if (character_data)
+		{
+			return *character_data;
+		}
+	}
+	return DefaultCharacterData;
 }

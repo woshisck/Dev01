@@ -8,12 +8,12 @@
 
 
 USTRUCT(BlueprintType)
-struct FYogAttributeData : public FTableRowBase
+struct FCharacterData : public FTableRowBase
 {
 	GENERATED_BODY()
 
 public:
-	FYogAttributeData(){};
+	FCharacterData(){};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Attack = 0;
@@ -102,10 +102,19 @@ class DEVKIT_API UCharacterData : public UPrimaryDataAsset
 
 	//Get the item price info
 	UFUNCTION(BlueprintPure)
-	const FMovementData& GetMovement() const;
+	const FMovementData& GetMovementData() const;
+
+	//Get the item price info
+	UFUNCTION(BlueprintPure)
+	const FCharacterData& GetCharacterData() const;
 
 	UPROPERTY(EditDefaultsOnly, meta = (RowType = "MovementData"))
 	FDataTableRowHandle MoveDataRow;
 
-	inline static const FMovementData DefaultMovement;
+	UPROPERTY(EditDefaultsOnly, meta = (RowType = "CharacterData"))
+	FDataTableRowHandle CharacterDataRow;
+
+	inline static const FMovementData DefaultMovementData;
+
+	inline static const FCharacterData DefaultCharacterData;
 };

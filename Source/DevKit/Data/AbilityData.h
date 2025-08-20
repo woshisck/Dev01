@@ -95,7 +95,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
 	FDataTableRowHandle ActionRow;
 
-	
+	UFUNCTION(BlueprintCallable)
 	const FActionData& GetAction() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
