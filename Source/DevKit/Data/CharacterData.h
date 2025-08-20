@@ -13,33 +13,58 @@ struct FYogAttributeData : public FTableRowBase
 	GENERATED_BODY()
 
 public:
-	FYogAttributeData()
-		: Health(1234.f), MaxHealth(1234.f), BaseDMG(1234.f), WeaponDMG(1234.f), BuffAmplify(1234.f), DMGAbsorb(1234.f), ActResist(1234.f)
-	{
-	}
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//FString Name;
+	FYogAttributeData(){};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Health;
+	float Attack = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxHealth;
+	float AttackPower = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BaseDMG; 
+	float MiscNum = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float WeaponDMG;
+	float SkillCD = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BuffAmplify;
+	float MAX_PassiveGA = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float DMGAbsorb;
+	float MAX_OffensiveGA = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float ActResist;
+	float MaxHealth = 30;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float OutRoundLifeTime = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MoveSpeed = 6;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Dash = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DashCD = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DashDist = 4;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Dodge = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Resilience = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Resist = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Shield = 0;
+
+
+
 
 };
 

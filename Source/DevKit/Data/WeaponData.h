@@ -26,7 +26,7 @@ public:
 	float WeaponAtk = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float WeaponAttackSpeed = 1;
+	float WeaponAtkSpeed = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float WeaponRange = 1;

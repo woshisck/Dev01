@@ -30,6 +30,7 @@ UBaseAttributeSet::UBaseAttributeSet()
 	InitDodge(0);
 	InitResilience(0);
 	InitResist(0);
+	InitShield(0);
 
 	////////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
 	//HARD CODE INIT VALUE;
@@ -56,7 +57,7 @@ UBaseAttributeSet::UBaseAttributeSet()
 
 	////////////////////////////////////////////////// Weapon Attribute ////////////////////////////////////////////////
 	InitWeaponAtk(0);
-	InitWeaponAttackSpeed(1);
+	InitWeaponAtkSpeed(1);
 	InitWeaponRange(1);
 	InitCrticalRate(0);
 	InitCriticalDamage(1);

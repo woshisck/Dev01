@@ -45,6 +45,7 @@ GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 //float Dodge = 0;
 //float Resilience = 0;
 //float Resist = 0;
+//float Shield = 0;
 
 
 ////////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
@@ -57,13 +58,9 @@ GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 //float FreezeFrameTime = 0.15;
 
 
-
-
-
-
 ////////////////////////////////////////////////// Weapon Attribute ////////////////////////////////////////////////
 //float WeaponAtk = 0;
-//float WeaponAttackSpeed = 1;
+//float WeaponAtkSpeed = 1;
 //float WeaponRange = 1;
 //float CrticalRate = 0;
 //float CriticalDamage = 1;
@@ -117,6 +114,7 @@ public:
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Dodge);
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resilience);
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resist);
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Shield);
 
 
 	//////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
@@ -131,7 +129,7 @@ public:
 
 	//////////////////////////////////////////////// Weapon Attribute ////////////////////////////////////////////////
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, WeaponAtk);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, WeaponAttackSpeed);
+	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, WeaponAtkSpeed);
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, WeaponRange);
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, CrticalRate);
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, CriticalDamage);
@@ -191,6 +189,8 @@ public:
     FGameplayAttributeData Resilience;
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData Resist;
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    FGameplayAttributeData Shield;
 
     //////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
@@ -212,7 +212,7 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Weapon")
     FGameplayAttributeData WeaponAtk;
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Weapon")
-    FGameplayAttributeData WeaponAttackSpeed;
+    FGameplayAttributeData WeaponAtkSpeed;
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Weapon")
     FGameplayAttributeData WeaponRange;
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Weapon")

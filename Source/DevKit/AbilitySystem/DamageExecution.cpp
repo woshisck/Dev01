@@ -130,3 +130,41 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	//	TargetASC->ReceiveDamage(SourceASC, DMGDone);
 	//}
 }
+
+
+//AttackPower* (Attack + WeaponAtk + ActDamage)* ActDmgReduce* (if Crit CritcalDamage)
+//
+//if (shield > 0)
+//{
+//	if (crit)
+//	{
+//		damage = AttackPower * (Attack + WeaponAtk + ActDamage) * CritcalDamage
+//	}
+//	else
+//	{
+//		damage = (AttackPower * (Attack + WeaponAtk + ActDamage) * 1)
+//	}
+//}
+//else
+//{
+//	if (crit)
+//	{
+//		damage = AttackPower * (Attack + WeaponAtk + ActDamage) * CritcalDamage
+//	}
+//	else
+//	{
+//		damage = (AttackPower * (Attack + WeaponAtk + ActDamage) * 1 + Flat_DAMAGE) * dmg_reduce - afterDmg_reduce
+//
+//
+//			damage = ((AttackPower * (Attack + WeaponAtk + ActDamage) * 1) * dmg_reduce) +
+//	}
+//}
+//
+//
+//if (!immuteResilience_value)
+//{
+//	if (self.act_resilience < enemy.resilience)
+//	{
+//		cause damage_montage
+//	}
+//}
