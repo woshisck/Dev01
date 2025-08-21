@@ -32,7 +32,7 @@ public:
 	float WeaponRange = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float CrticalRate = 0;
+	float CriticalRate = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float CriticalDamage = 1;

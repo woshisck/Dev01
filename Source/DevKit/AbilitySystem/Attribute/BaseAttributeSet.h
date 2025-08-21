@@ -131,7 +131,7 @@ public:
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, WeaponAtk);
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, WeaponAtkSpeed);
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, WeaponRange);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, CrticalRate);
+	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, CriticalRate);
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, CriticalDamage);
 
 
@@ -216,7 +216,7 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Weapon")
     FGameplayAttributeData WeaponRange;
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Weapon")
-    FGameplayAttributeData CrticalRate;  // Possibly a typo in "CriticalRate"?
+    FGameplayAttributeData CriticalRate;  // Possibly a typo in "CriticalRate"?
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Weapon")
     FGameplayAttributeData CriticalDamage;
 

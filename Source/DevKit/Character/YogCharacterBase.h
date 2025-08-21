@@ -44,10 +44,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCharacterStateDelegate, EYogCharac
 
 
 
-
-
-
-
 /**
  * 
  */
@@ -82,12 +78,12 @@ public:
 	////////////////////////////////////////// Attribute //////////////////////////////////////////
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "FYogAttributeData"), Category = "DT")
-	TObjectPtr<UDataTable> DT_Attribute;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "FYogAttributeData"), Category = "DT")
+	//TObjectPtr<UDataTable> DT_Attribute;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,meta = (RowType = "FYogAttributeData"), Category = "DT")
-	FDataTableRowHandle AttributeRow;
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UCharacterData>  CharacterData;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UBaseAttributeSet> AttributeSet;
 	////////////////////////////////////////// Attribute //////////////////////////////////////////
@@ -99,6 +95,8 @@ public:
 
 
 	///////////////////////////////////////////　Passive effect　///////////////////////////////////////////
+
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Abilities)
 	TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;

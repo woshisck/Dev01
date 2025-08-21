@@ -89,7 +89,7 @@ public:
 	TObjectPtr<UNiagaraSystem> PickedUpEffect;
 
 	UPROPERTY()
-	float CrticalRate;
+	float CriticalRate;
 
 	UPROPERTY()
 	float CriticalDamage;

@@ -18,11 +18,11 @@ const FMovementData& UCharacterData::GetMovementData() const
 	// TODO: insert return statement here
 }
 
-const FCharacterData& UCharacterData::GetCharacterData() const
+const FYogCharacterData& UCharacterData::GetCharacterData() const
 {
 	if (!CharacterDataRow.IsNull())
 	{
-		FCharacterData* character_data = CharacterDataRow.GetRow<FCharacterData>(__func__);
+		FYogCharacterData* character_data = CharacterDataRow.GetRow<FYogCharacterData>(__func__);
 		if (character_data)
 		{
 			return *character_data;

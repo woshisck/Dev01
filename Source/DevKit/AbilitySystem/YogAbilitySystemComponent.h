@@ -44,7 +44,10 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////
 
+
+	UPROPERTY(BlueprintAssignable, Category = "DamageTaken")
 	FReceivedDamageDelegate ReceivedDamage;
+
 	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage);
 	
 

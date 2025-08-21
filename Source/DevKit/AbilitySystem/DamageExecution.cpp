@@ -7,41 +7,41 @@
 struct FYogDamageStatics
 {
 
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(Health);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(MaxHealth);
-
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(BaseDMG);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(WeaponDMG);
-
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(BuffAmplify);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(AttackPower);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Attack);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(WeaponAtk);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(ActDamage);
 
 
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(BuffingATK);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(OwnerSpeed);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(ActDmgReduce);
 
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(DMGCorrect);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(DMGAbsorb);
-	//
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(HitRate);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(Evade);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Shield);
+
+
+	DECLARE_ATTRIBUTE_CAPTUREDEF(CriticalRate);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(CriticalDamage);
+
 
 	DECLARE_ATTRIBUTE_CAPTUREDEF(Damage);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Health);
 
 	FYogDamageStatics()
 	{
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Source, true);
 
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, BaseDMG, Source, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, WeaponDMG, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, AttackPower, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Attack, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, WeaponAtk, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ActDamage, Source, false);
+
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ActDmgReduce, Target, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Shield, Target, false);
+
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, CriticalRate, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, CriticalDamage, Source, false);
 
 
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, BuffAmplify, Source, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Damage, Source, true);
-
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, BuffingATK, Source, true);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, DMGCorrect, Source, true);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, DMGAbsorb, Source, true);
-		
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Target, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Damage, Source, false);
 
 	}
 
@@ -56,19 +56,25 @@ static const FYogDamageStatics& DamageStatics()
 
 UDamageExecution::UDamageExecution()
 {
-	//RelevantAttributesToCapture.Add(DamageStatics().HealthDef);
-	//RelevantAttributesToCapture.Add(DamageStatics().BaseDMGDef);
-	//RelevantAttributesToCapture.Add(DamageStatics().WeaponDMGDef);
-	//RelevantAttributesToCapture.Add(DamageStatics().BuffAmplifyDef);
+	RelevantAttributesToCapture.Add(DamageStatics().AttackPowerDef);
+	RelevantAttributesToCapture.Add(DamageStatics().AttackDef);
+	RelevantAttributesToCapture.Add(DamageStatics().WeaponAtkDef);
+	RelevantAttributesToCapture.Add(DamageStatics().ActDamageDef);
 
+	RelevantAttributesToCapture.Add(DamageStatics().ActDmgReduceDef);
+	RelevantAttributesToCapture.Add(DamageStatics().ShieldDef);
+
+	RelevantAttributesToCapture.Add(DamageStatics().CriticalRateDef);
+	RelevantAttributesToCapture.Add(DamageStatics().CriticalDamageDef);
+
+
+	RelevantAttributesToCapture.Add(DamageStatics().HealthDef);
+	RelevantAttributesToCapture.Add(DamageStatics().DamageDef);
 }
 
 
 void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const 
 {
-
-	//UE_LOG(LogTemp, Warning, TEXT("Start Damage execution "));
-
 
 	UAbilitySystemComponent* TargetAbilitySystemComponent = ExecutionParams.GetTargetAbilitySystemComponent();
 	UAbilitySystemComponent* SourceAbilitySystemComponent = ExecutionParams.GetSourceAbilitySystemComponent();
@@ -83,55 +89,86 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
 
 
+	//get both tags container
+	const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
+	const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
 
-	//const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
-	//const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
-
-	//FAggregatorEvaluateParameters EvaluationParameters;
-	//EvaluationParameters.SourceTags = SourceTags;
-	//EvaluationParameters.TargetTags = TargetTags;
-
-
-	//float BaseDMG = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().BaseDMGDef, EvaluationParameters, BaseDMG);
-
-	//float WeaponDMG = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().WeaponDMGDef, EvaluationParameters, WeaponDMG);
-
-	////float WeaponDMG = FMath::Max<float>(Spec.GetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage")), false, -1.0f), 0.0f);
+	FAggregatorEvaluateParameters EvaluationParameters;
+	EvaluationParameters.SourceTags = SourceTags;
+	EvaluationParameters.TargetTags = TargetTags;
 
 
-	//float BuffATKAmplify = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().BuffAmplifyDef, EvaluationParameters, BuffATKAmplify);
 
-	//float Damage = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DamageDef, EvaluationParameters, Damage);
+	////////////////////////////////////////////////// Source Attack //////////////////////////////////////////////////
 
-	 //--------------------------------------
-	 //Damage Done =  ((BaseDMG + WeaponDMG) * BuffAmplify + BuffingATK) * DMGCorrect
-	 //BuffingATK = Self DMG + Weapon DMG 
-	 //
-	 //--------------------------------------
-
-	////TODO:need to change in future
-	//float DMGDone = (BaseDMG + WeaponDMG) * BuffATKAmplify;
-	////UE_LOG(LogTemp, Warning, TEXT("DMGDone is: %f"), DMGDone);
+	float AttackPower = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, AttackPower);
+	float Attack = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef, EvaluationParameters, Attack);
+	float WeaponAtk = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().WeaponAtkDef, EvaluationParameters, WeaponAtk);
+	float ActDamage = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ActDamageDef, EvaluationParameters, ActDamage);
 
 
-	//OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamageProperty, EGameplayModOp::Additive, DMGDone));
-	//
-	////Broadcast damages to Target ASC
-	//UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(TargetAbilitySystemComponent);
-	//if (TargetASC)
-	//{	
-	//	UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), DMGDone);
+	////////////////////////////////////////////////// Target Reduce //////////////////////////////////////////////////
 
-	//	UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(SourceAbilitySystemComponent);
-	//	TargetASC->ReceiveDamage(SourceASC, DMGDone);
-	//}
+	float ActDmgReduce = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ActDmgReduceDef, EvaluationParameters, ActDmgReduce);
+	float Shield = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ShieldDef, EvaluationParameters, Shield);
+
+	////////////////////////////////////////////////// Critical //////////////////////////////////////////////////
+
+	float CriticalRate = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().CriticalRateDef, EvaluationParameters, CriticalRate);
+	float CriticalDamage = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().CriticalDamageDef, EvaluationParameters, CriticalDamage);
+
+
+	float DamageDone = 0.f;
+	float Crit_Value = FMath::FRand();
+
+	if (Shield < 0.f)
+	{	//Crit_Value <= CriticalRate IS Critical Hit
+		if (Crit_Value <= CriticalRate)
+		{
+			DamageDone = AttackPower * (Attack + WeaponAtk + ActDamage) * CriticalDamage;
+		}
+		else
+		{
+			DamageDone = AttackPower * (Attack + WeaponAtk + ActDamage) * 1;
+		}
+	}
+	else
+	{
+		if (Crit_Value <= CriticalRate)
+		{
+			DamageDone = AttackPower * (Attack + WeaponAtk + ActDamage) * CriticalDamage;
+		}
+		else
+		{
+			DamageDone = AttackPower * (Attack + WeaponAtk + ActDamage) * 1;
+		}
+	}
+	//DamageDone = -1 * DamageDone;
+	
+	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamageProperty, EGameplayModOp::Additive, DamageDone));
+	//Broadcast damages to Target ASC
+	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(TargetAbilitySystemComponent);
+	if (TargetASC)
+	{	
+		UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), DamageDone);
+		UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(SourceAbilitySystemComponent);
+		TargetASC->ReceiveDamage(SourceASC, DamageDone);
+	}
 }
 
 
+
+
+
+////////////////////////////////////////////////// Damage Persudo Code //////////////////////////////////////////////////
 //AttackPower* (Attack + WeaponAtk + ActDamage)* ActDmgReduce* (if Crit CritcalDamage)
 //
 //if (shield > 0)
@@ -168,3 +205,4 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 //		cause damage_montage
 //	}
 //}
+////////////////////////////////////////////////// Damage Persudo Code //////////////////////////////////////////////////
