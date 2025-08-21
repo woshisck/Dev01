@@ -129,6 +129,28 @@ void AYogCharacterBase::Tick(float DeltaSeconds)
 
 }
 
+void AYogCharacterBase::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	if (CharacterData)
+	{
+
+		//UFUNCTION(BlueprintPure)
+		//const FMovementData& GetMovementData() const;
+
+		////Get the item price info
+		//UFUNCTION(BlueprintPure)
+		//const FYogCharacterData& GetCharacterData() const;
+
+		const FMovementData& moveData = CharacterData->GetMovementData();
+		const FYogCharacterData& characterData = CharacterData->GetCharacterData();
+
+		AttributeSet->InitCharacterData(characterData);
+
+	}
+}
+
 UAbilitySystemComponent* AYogCharacterBase::GetAbilitySystemComponent() const
 {
 	return AbilitySystemComponent;

@@ -250,7 +250,12 @@ public:
     UFUNCTION()
     void ResetAbilityAttribute();
 
+    UFUNCTION()
+    void InitCharacterData(const FYogCharacterData& data);
 
+
+    //const FMovementData& moveData = CharacterData->GetMovementData();
+    //const FYogCharacterData& characterData = CharacterData->GetCharacterData();
 
 
 };

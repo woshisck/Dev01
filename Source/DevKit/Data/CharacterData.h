@@ -99,19 +99,18 @@ class DEVKIT_API UCharacterData : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 	
+public:
 
-	//Get the item price info
-	UFUNCTION(BlueprintPure)
+	UFUNCTION(BlueprintCallable)
 	const FMovementData& GetMovementData() const;
 
-	//Get the item price info
-	UFUNCTION(BlueprintPure)
+	UFUNCTION(BlueprintCallable)
 	const FYogCharacterData& GetCharacterData() const;
 
 	UPROPERTY(EditDefaultsOnly, meta = (RowType = "MovementData"))
 	FDataTableRowHandle MoveDataRow;
 
-	UPROPERTY(EditDefaultsOnly, meta = (RowType = "CharacterData"))
+	UPROPERTY(EditDefaultsOnly, meta = (RowType = "YogCharacterData"))
 	FDataTableRowHandle CharacterDataRow;
 
 	inline static const FMovementData DefaultMovementData;

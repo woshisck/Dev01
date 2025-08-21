@@ -22,3 +22,4 @@ void AEnemyCharacterBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 }
+

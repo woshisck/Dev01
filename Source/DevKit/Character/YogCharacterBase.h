@@ -56,7 +56,7 @@ class DEVKIT_API AYogCharacterBase : public AModularCharacter, public IAbilitySy
 public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
-
+	virtual void PostInitializeComponents() override;
 
 	AYogCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 

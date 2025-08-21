@@ -250,6 +250,62 @@ void UBaseAttributeSet::ResetAbilityAttribute()
 
 }
 
+void UBaseAttributeSet::InitCharacterData(const FYogCharacterData& data)
+{
+	Attack.SetBaseValue(data.Attack);
+	Attack.SetCurrentValue(data.Attack);
+
+	AttackPower.SetBaseValue(data.AttackPower);
+	AttackPower.SetCurrentValue(data.AttackPower);
+
+	MiscNum.SetBaseValue(data.MiscNum);
+	MiscNum.SetCurrentValue(data.MiscNum);
+
+	SkillCD.SetBaseValue(data.SkillCD);
+	SkillCD.SetCurrentValue(data.SkillCD);
+
+	MAX_PassiveGA.SetBaseValue(data.MAX_PassiveGA);
+	MAX_PassiveGA.SetCurrentValue(data.MAX_PassiveGA);
+
+	MAX_OffensiveGA.SetBaseValue(data.MAX_OffensiveGA);
+	MAX_OffensiveGA.SetCurrentValue(data.MAX_OffensiveGA);
+
+	//TODO: Set Health = Max Health
+	Health.SetBaseValue(data.MaxHealth);
+	Health.SetCurrentValue(data.MaxHealth);
+
+	MaxHealth.SetBaseValue(data.MaxHealth);
+	MaxHealth.SetCurrentValue(data.MaxHealth);
+
+	OutRoundLifeTime.SetBaseValue(data.OutRoundLifeTime);
+	OutRoundLifeTime.SetCurrentValue(data.OutRoundLifeTime);
+
+	MoveSpeed.SetBaseValue(data.MoveSpeed);
+	MoveSpeed.SetCurrentValue(data.MoveSpeed);
+
+	Dash.SetBaseValue(data.Dash);
+	Dash.SetCurrentValue(data.Dash);
+
+	DashCD.SetBaseValue(data.DashCD);
+	DashCD.SetCurrentValue(data.DashCD);
+
+	DashDist.SetBaseValue(data.DashDist);
+	DashDist.SetCurrentValue(data.DashDist);
+
+	Dodge.SetBaseValue(data.Dodge);
+	Dodge.SetCurrentValue(data.Dodge);
+
+	Resilience.SetBaseValue(data.Resilience);
+	Resilience.SetCurrentValue(data.Resilience);
+
+	Resist.SetBaseValue(data.Resist);
+	Resist.SetCurrentValue(data.Resist);
+
+	Shield.SetBaseValue(data.Shield);
+	Shield.SetCurrentValue(data.Shield);
+	
+}
+
 
 void UBaseAttributeSet::AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty)
 {
