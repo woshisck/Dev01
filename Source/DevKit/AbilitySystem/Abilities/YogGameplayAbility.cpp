@@ -112,13 +112,13 @@ void UYogGameplayAbility::SetupAbilityStat(const FActionData& data)
 	//AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	//AYogCharacterBase* player = Cast<AYogCharacterBase>(AvatarActor);
 	////UYogAbilitySystemComponent* asc = player->GetASC();
-	//player->AttributeSet->SetActDamage(data.ActDamage);
-	//player->AttributeSet->SetActDamage(data.ActRange);
-	//player->AttributeSet->SetActResilience(data.ActResilience);
-	//player->AttributeSet->SetActDmgReduce(data.ActDmgReduce);
-	//player->AttributeSet->SetActRotateSpeed(data.ActRotateSpeed);
-	//player->AttributeSet->SetJumpFrameTime(data.JumpFrameTime);
-	//player->AttributeSet->SetFreezeFrameTime(data.FreezeFrameTime);
+	//player->BaseAttributeSet->SetActDamage(data.ActDamage);
+	//player->BaseAttributeSet->SetActDamage(data.ActRange);
+	//player->BaseAttributeSet->SetActResilience(data.ActResilience);
+	//player->BaseAttributeSet->SetActDmgReduce(data.ActDmgReduce);
+	//player->BaseAttributeSet->SetActRotateSpeed(data.ActRotateSpeed);
+	//player->BaseAttributeSet->SetJumpFrameTime(data.JumpFrameTime);
+	//player->BaseAttributeSet->SetFreezeFrameTime(data.FreezeFrameTime);
 
 }
 
@@ -257,13 +257,13 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 	ASC->CurrentAbilitySpecHandle = Handle;
 
-	player->AttributeSet->ResetAbilityAttribute();
-	//player->AttributeSet->SetActDamage(AbilityActData.ActDamage);
-	//player->AttributeSet->SetActDamage(AbilityActData.ActRange);
-	//player->AttributeSet->SetActResilience(AbilityActData.ActResilience);
-	//player->AttributeSet->SetActDmgReduce(AbilityActData.ActDmgReduce);
-	//player->AttributeSet->SetActRotateSpeed(AbilityActData.ActRotateSpeed);
-	//player->AttributeSet->SetJumpFrameTime(AbilityActData.JumpFrameTime);
-	//player->AttributeSet->SetFreezeFrameTime(AbilityActData.FreezeFrameTime);
+	player->BaseAttributeSet->ResetAbilityAttribute();
+	//player->BaseAttributeSet->SetActDamage(AbilityActData.ActDamage);
+	//player->BaseAttributeSet->SetActDamage(AbilityActData.ActRange);
+	//player->BaseAttributeSet->SetActResilience(AbilityActData.ActResilience);
+	//player->BaseAttributeSet->SetActDmgReduce(AbilityActData.ActDmgReduce);
+	//player->BaseAttributeSet->SetActRotateSpeed(AbilityActData.ActRotateSpeed);
+	//player->BaseAttributeSet->SetJumpFrameTime(AbilityActData.JumpFrameTime);
+	//player->BaseAttributeSet->SetFreezeFrameTime(AbilityActData.FreezeFrameTime);
 
 }

@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "AttributeSet.h"
 #include "AbilitySystemComponent.h"
+#include "AttributeSetMacro.h"
 #include "BaseAttributeSet.generated.h"
 
 
@@ -14,17 +15,6 @@ class AActor;
 class UYogAbilitySystemComponent;
 class UObject;
 class UWorld;
-struct FGameplayEffectSpec;
-
-
-
-#define ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
-GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
-GAMEPLAYATTRIBUTE_VALUE_GETTER(PropertyName) \
-GAMEPLAYATTRIBUTE_VALUE_SETTER(PropertyName) \
-GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
-
-
 
 
 
@@ -58,13 +48,6 @@ GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 //float FreezeFrameTime = 0.15;
 
 
-////////////////////////////////////////////////// Weapon Attribute ////////////////////////////////////////////////
-//float WeaponAtk = 0;
-//float WeaponAtkSpeed = 1;
-//float WeaponRange = 1;
-//float CrticalRate = 0;
-//float CriticalDamage = 1;
-
 
 
 UCLASS()
@@ -92,54 +75,29 @@ public:
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Attack);
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, AttackPower);
 
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MiscNum);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, SkillCD);
-
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MAX_PassiveGA);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MAX_OffensiveGA);
-
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Health);
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MaxHealth);
 
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, OutRoundLifeTime);
-
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MoveSpeed);
-
-
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Dash);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, DashCD);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, DashDist);
-
 
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Dodge);
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resilience);
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resist);
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Shield);
 
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Sanity);
+
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, CriticalRate);
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, CriticalDamage);
 
 	//////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActDamage);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActRange);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActResilience);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActDmgReduce);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActRotateSpeed);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, JumpFrameTime);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, FreezeFrameTime);
-
-
-	//////////////////////////////////////////////// Weapon Attribute ////////////////////////////////////////////////
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, WeaponAtk);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, WeaponAtkSpeed);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, WeaponRange);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, CriticalRate);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, CriticalDamage);
-
-
-
-	//////////////////////////////////////////////// Damager Attribute ////////////////////////////////////////////////
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Damage);
-
-
+	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActDamage);
+	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActRange);
+	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActResilience);
+	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActDmgReduce);
+	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActRotateSpeed);
+	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, JumpFrameTime);
+	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, FreezeFrameTime);
 
 
 protected:
@@ -155,15 +113,15 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData AttackPower;
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData MiscNum;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData SkillCD;
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    //FGameplayAttributeData MiscNum;
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    //FGameplayAttributeData SkillCD;
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData MAX_PassiveGA;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData MAX_OffensiveGA;
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    //FGameplayAttributeData MAX_PassiveGA;
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    //FGameplayAttributeData MAX_OffensiveGA;
 
     UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Health")
     FGameplayAttributeData Health;
@@ -176,12 +134,6 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData MoveSpeed;
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData Dash;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData DashCD;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData DashDist;
 
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData Dodge;
@@ -191,50 +143,32 @@ public:
     FGameplayAttributeData Resist;
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData Shield;
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    FGameplayAttributeData Sanity;
 
-    //////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    FGameplayAttributeData ActDamage;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    FGameplayAttributeData ActRange;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    FGameplayAttributeData ActResilience;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    FGameplayAttributeData ActDmgReduce;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    FGameplayAttributeData ActRotateSpeed;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    FGameplayAttributeData JumpFrameTime;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    FGameplayAttributeData FreezeFrameTime;
-
-    //////////////////////////////////////////////// Weapon Attribute ////////////////////////////////////////////////
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Weapon")
-    FGameplayAttributeData WeaponAtk;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Weapon")
-    FGameplayAttributeData WeaponAtkSpeed;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Weapon")
-    FGameplayAttributeData WeaponRange;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Weapon")
-    FGameplayAttributeData CriticalRate;  // Possibly a typo in "CriticalRate"?
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Weapon")
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    FGameplayAttributeData CriticalRate;
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData CriticalDamage;
 
 
+    //////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
+    //FGameplayAttributeData ActDamage;
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
+    //FGameplayAttributeData ActRange;
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
+    //FGameplayAttributeData ActResilience;
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
+    //FGameplayAttributeData ActDmgReduce;
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
+    //FGameplayAttributeData ActRotateSpeed;
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
+    //FGameplayAttributeData JumpFrameTime;
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
+    //FGameplayAttributeData FreezeFrameTime;
 
-    //////////////////////////////////////////////// Damager Attribute ////////////////////////////////////////////////
-    UPROPERTY(BlueprintReadWrite, Category = "Damage")
-    FGameplayAttributeData Damage;
 
-
-
-    float INIT_ActDamage = 20;
-    float INIT_ActRange = 400;
-    float INIT_ActResilience = 20;
-    float INIT_ActDmgReduce = 0;
-    float INIT_ActRotateSpeed = 360;
-    float INIT_JumpFrameTime = 0.15;
-    float INIT_FreezeFrameTime = 0.15;
 
 
 	UFUNCTION()

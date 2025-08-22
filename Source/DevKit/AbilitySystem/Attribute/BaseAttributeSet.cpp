@@ -17,52 +17,42 @@ UBaseAttributeSet::UBaseAttributeSet()
 	////////////////////////////////////////////////// Player Attribute ////////////////////////////////////////////////
 	InitAttack(0);
 	InitAttackPower(1);
-	InitMiscNum(1);
-	InitSkillCD(1);
-	InitMAX_PassiveGA(1);
-	InitMAX_OffensiveGA(1);
+
 	InitMaxHealth(30);
-	InitOutRoundLifeTime(0);
+
 	InitMoveSpeed(6);
-	InitDash(1);
-	InitDashCD(1);
-	InitDashDist(4);
+	//InitMiscNum(1);
+	//InitSkillCD(1);
+	//InitMAX_PassiveGA(1);
+	//InitMAX_OffensiveGA(1);
+	//InitOutRoundLifeTime(0);
+	//InitDash(1);
+	//InitDashCD(1);
+	//InitDashDist(4);
 	InitDodge(0);
 	InitResilience(0);
 	InitResist(0);
 	InitShield(0);
-
+	InitCriticalRate(0);
+	InitCriticalDamage(1);
 	////////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
 	//HARD CODE INIT VALUE;
-
-	//float ActDamage = 20;
-	//float ActRange = 400;
-	//float ActResilience = 20;
-	//float ActDmgReduce = 0;
-	//float ActRotateSpeed = 360;
-	//float JumpFrameTime = 0.15;
-	//float FreezeFrameTime = 0.15;
-	
-	
-	InitActDamage(0);
-	InitActRange(0);
-	InitActResilience(0);
-	InitActDmgReduce(0);
-	InitActRotateSpeed(0);
-	InitJumpFrameTime(0);
-	InitFreezeFrameTime(0);
+	// 
+	//InitActDamage(0);
+	//InitActRange(0);
+	//InitActResilience(0);
+	//InitActDmgReduce(0);
+	//InitActRotateSpeed(0);
+	//InitJumpFrameTime(0);
+	//InitFreezeFrameTime(0);
 
 
 
 
 	////////////////////////////////////////////////// Weapon Attribute ////////////////////////////////////////////////
-	InitWeaponAtk(0);
-	InitWeaponAtkSpeed(1);
-	InitWeaponRange(1);
-	InitCriticalRate(0);
-	InitCriticalDamage(1);
-
-
+	//InitWeaponAtk(0);
+	//InitWeaponAtkSpeed(1);
+	//InitWeaponRange(1);
 
 
 
@@ -106,92 +96,93 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 {
 	Super::PostGameplayEffectExecute(Data);
 
-	FGameplayEffectContextHandle Context = Data.EffectSpec.GetContext();
-	UAbilitySystemComponent* Source = Context.GetOriginalInstigatorAbilitySystemComponent();
-	const FGameplayTagContainer& SourceTags = *Data.EffectSpec.CapturedSourceTags.GetAggregatedTags();
+	//FGameplayEffectContextHandle Context = Data.EffectSpec.GetContext();
+	//UAbilitySystemComponent* Source = Context.GetOriginalInstigatorAbilitySystemComponent();
+	//const FGameplayTagContainer& SourceTags = *Data.EffectSpec.CapturedSourceTags.GetAggregatedTags();
 
-	// Compute the delta between old and new, if it is available
-	float DeltaValue = 0;
-	if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Additive)
-	{
-		// If this was additive, store the raw delta value to be passed along later
-		DeltaValue = Data.EvaluatedData.Magnitude;
-	}
+	//// Compute the delta between old and new, if it is available
+	//float DeltaValue = 0;
+	//if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Additive)
+	//{
+	//	// If this was additive, store the raw delta value to be passed along later
+	//	DeltaValue = Data.EvaluatedData.Magnitude;
+	//}
 
-	// Get the Target actor, which should be our owner
-	AActor* TargetActor = nullptr;
-	AController* TargetController = nullptr;
-	AYogCharacterBase* TargetCharacter = nullptr;
-	if (Data.Target.AbilityActorInfo.IsValid() && Data.Target.AbilityActorInfo->AvatarActor.IsValid())
-	{
-		TargetActor = Data.Target.AbilityActorInfo->AvatarActor.Get();
-		TargetController = Data.Target.AbilityActorInfo->PlayerController.Get();
-		TargetCharacter = Cast<AYogCharacterBase>(TargetActor);
-	}
-
-
-
-	if (Data.EvaluatedData.Attribute == GetDamageAttribute())
-	{
-		AActor* SourceActor = nullptr;
-		AController* SourceController = nullptr;
-		AYogCharacterBase* SourceCharacter = nullptr;
-
-		if (Source && Source->AbilityActorInfo.IsValid() && Source->AbilityActorInfo->AvatarActor.IsValid())
-		{
-			SourceActor = Source->AbilityActorInfo->AvatarActor.Get();
-			SourceController = Source->AbilityActorInfo->PlayerController.Get();
-			if (SourceController == nullptr && SourceActor != nullptr)
-			{
-				if (APawn* Pawn = Cast<APawn>(SourceActor))
-				{
-					SourceController = Pawn->GetController();
-				}
-			}
-
-			// Use the controller to find the source pawn
-			if (SourceController)
-			{
-				SourceCharacter = Cast<AYogCharacterBase>(SourceController->GetPawn());
-			}
-			else
-			{
-				SourceCharacter = Cast<AYogCharacterBase>(SourceActor);
-			}
-
-			// Set the causer actor based on context if it's set
-			if (Context.GetEffectCauser())
-			{
-				SourceActor = Context.GetEffectCauser();
-			}
-		}
-
-		const float LocalDamageDone = GetDamage();
-		SetDamage(0.f);
-
-		if (LocalDamageDone > 0)
-		{
-			// Apply the health change and then clamp it
-			const float OldHealth = GetHealth();
-			SetHealth(FMath::Clamp(OldHealth - LocalDamageDone, 0.0f, GetMaxHealth()));
-
-			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
-
-			if (ASC)
-			{
-
-				//UYogAbilitySystemComponent* SourceASC, float Damage
+	//// Get the Target actor, which should be our owner
+	//AActor* TargetActor = nullptr;
+	//AController* TargetController = nullptr;
+	//AYogCharacterBase* TargetCharacter = nullptr;
+	//if (Data.Target.AbilityActorInfo.IsValid() && Data.Target.AbilityActorInfo->AvatarActor.IsValid())
+	//{
+	//	TargetActor = Data.Target.AbilityActorInfo->AvatarActor.Get();
+	//	TargetController = Data.Target.AbilityActorInfo->PlayerController.Get();
+	//	TargetCharacter = Cast<AYogCharacterBase>(TargetActor);
+	//}
 
 
-				ASC->ReceiveDamage(ASC, GetDamage());
-				float percent = GetHealth() / GetMaxHealth();
-				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
-				// This is proper damage
 
-			}
-		}
+	//if (Data.EvaluatedData.Attribute == GetDamageAttribute())
+	//{
+	//	AActor* SourceActor = nullptr;
+	//	AController* SourceController = nullptr;
+	//	AYogCharacterBase* SourceCharacter = nullptr;
 
-	}
+	//	if (Source && Source->AbilityActorInfo.IsValid() && Source->AbilityActorInfo->AvatarActor.IsValid())
+	//	{
+	//		SourceActor = Source->AbilityActorInfo->AvatarActor.Get();
+	//		SourceController = Source->AbilityActorInfo->PlayerController.Get();
+	//		if (SourceController == nullptr && SourceActor != nullptr)
+	//		{
+	//			if (APawn* Pawn = Cast<APawn>(SourceActor))
+	//			{
+	//				SourceController = Pawn->GetController();
+	//			}
+	//		}
+
+	//		// Use the controller to find the source pawn
+	//		if (SourceController)
+	//		{
+	//			SourceCharacter = Cast<AYogCharacterBase>(SourceController->GetPawn());
+	//		}
+	//		else
+	//		{
+	//			SourceCharacter = Cast<AYogCharacterBase>(SourceActor);
+	//		}
+
+	//		// Set the causer actor based on context if it's set
+	//		if (Context.GetEffectCauser())
+	//		{
+	//			SourceActor = Context.GetEffectCauser();
+	//		}
+	//	}
+	//	// IF HOLY DMAGE \
+	//	const float LocalDamageDone = GetDamage(); + HOLY DAMAGE;
+	//	const float LocalDamageDone = GetDamage();
+	//	SetDamage(0.f);
+
+	//	if (LocalDamageDone > 0)
+	//	{
+	//		// Apply the health change and then clamp it
+	//		const float OldHealth = GetHealth();
+	//		SetHealth(FMath::Clamp(OldHealth - LocalDamageDone, 0.0f, GetMaxHealth()));
+
+	//		UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
+
+	//		if (ASC)
+	//		{
+
+	//			//UYogAbilitySystemComponent* SourceASC, float Damage
+
+
+	//			ASC->ReceiveDamage(ASC, GetDamage());
+	//			float percent = GetHealth() / GetMaxHealth();
+	//			TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
+	//			// This is proper damage
+
+	//		}
+	//	}
+
+	//}
 
 }
 
@@ -226,83 +217,83 @@ void UBaseAttributeSet::ResetAbilityAttribute()
 	//float INIT_FreezeFrameTime = 0.15;
 
 
-	ActDamage.SetBaseValue(INIT_ActDamage);
-	ActDamage.SetCurrentValue(INIT_ActDamage);
+	// ActDamage.SetBaseValue(INIT_ActDamage);
+	// ActDamage.SetCurrentValue(INIT_ActDamage);
 
-	ActRange.SetBaseValue(INIT_ActRange);
-	ActRange.SetCurrentValue(INIT_ActRange);
+	// ActRange.SetBaseValue(INIT_ActRange);
+	// ActRange.SetCurrentValue(INIT_ActRange);
 
-	ActResilience.SetBaseValue(INIT_ActResilience);
-	ActResilience.SetCurrentValue(INIT_ActResilience);
+	// ActResilience.SetBaseValue(INIT_ActResilience);
+	// ActResilience.SetCurrentValue(INIT_ActResilience);
 
-	ActDmgReduce.SetBaseValue(INIT_ActDmgReduce);
-	ActDmgReduce.SetCurrentValue(INIT_ActDmgReduce);
+	// ActDmgReduce.SetBaseValue(INIT_ActDmgReduce);
+	// ActDmgReduce.SetCurrentValue(INIT_ActDmgReduce);
 
-	ActRotateSpeed.SetBaseValue(INIT_ActRotateSpeed);
-	ActRotateSpeed.SetCurrentValue(INIT_ActRotateSpeed);
+	// ActRotateSpeed.SetBaseValue(INIT_ActRotateSpeed);
+	// ActRotateSpeed.SetCurrentValue(INIT_ActRotateSpeed);
 
-	JumpFrameTime.SetBaseValue(INIT_JumpFrameTime);
-	JumpFrameTime.SetCurrentValue(INIT_JumpFrameTime);
+	// JumpFrameTime.SetBaseValue(INIT_JumpFrameTime);
+	// JumpFrameTime.SetCurrentValue(INIT_JumpFrameTime);
 
-	FreezeFrameTime.SetBaseValue(INIT_FreezeFrameTime);
-	FreezeFrameTime.SetCurrentValue(INIT_FreezeFrameTime);
+	// FreezeFrameTime.SetBaseValue(INIT_FreezeFrameTime);
+	// FreezeFrameTime.SetCurrentValue(INIT_FreezeFrameTime);
 
 
 }
 
 void UBaseAttributeSet::InitCharacterData(const FYogCharacterData& data)
 {
-	Attack.SetBaseValue(data.Attack);
-	Attack.SetCurrentValue(data.Attack);
+	//Attack.SetBaseValue(data.Attack);
+	//Attack.SetCurrentValue(data.Attack);
 
-	AttackPower.SetBaseValue(data.AttackPower);
-	AttackPower.SetCurrentValue(data.AttackPower);
+	//AttackPower.SetBaseValue(data.AttackPower);
+	//AttackPower.SetCurrentValue(data.AttackPower);
 
-	MiscNum.SetBaseValue(data.MiscNum);
-	MiscNum.SetCurrentValue(data.MiscNum);
+	//MiscNum.SetBaseValue(data.MiscNum);
+	//MiscNum.SetCurrentValue(data.MiscNum);
 
-	SkillCD.SetBaseValue(data.SkillCD);
-	SkillCD.SetCurrentValue(data.SkillCD);
+	//SkillCD.SetBaseValue(data.SkillCD);
+	//SkillCD.SetCurrentValue(data.SkillCD);
 
-	MAX_PassiveGA.SetBaseValue(data.MAX_PassiveGA);
-	MAX_PassiveGA.SetCurrentValue(data.MAX_PassiveGA);
+	//MAX_PassiveGA.SetBaseValue(data.MAX_PassiveGA);
+	//MAX_PassiveGA.SetCurrentValue(data.MAX_PassiveGA);
 
-	MAX_OffensiveGA.SetBaseValue(data.MAX_OffensiveGA);
-	MAX_OffensiveGA.SetCurrentValue(data.MAX_OffensiveGA);
+	//MAX_OffensiveGA.SetBaseValue(data.MAX_OffensiveGA);
+	//MAX_OffensiveGA.SetCurrentValue(data.MAX_OffensiveGA);
 
-	//TODO: Set Health = Max Health
-	Health.SetBaseValue(data.MaxHealth);
-	Health.SetCurrentValue(data.MaxHealth);
+	////TODO: Set Health = Max Health
+	//Health.SetBaseValue(data.MaxHealth);
+	//Health.SetCurrentValue(data.MaxHealth);
 
-	MaxHealth.SetBaseValue(data.MaxHealth);
-	MaxHealth.SetCurrentValue(data.MaxHealth);
+	//MaxHealth.SetBaseValue(data.MaxHealth);
+	//MaxHealth.SetCurrentValue(data.MaxHealth);
 
-	OutRoundLifeTime.SetBaseValue(data.OutRoundLifeTime);
-	OutRoundLifeTime.SetCurrentValue(data.OutRoundLifeTime);
+	//OutRoundLifeTime.SetBaseValue(data.OutRoundLifeTime);
+	//OutRoundLifeTime.SetCurrentValue(data.OutRoundLifeTime);
 
-	MoveSpeed.SetBaseValue(data.MoveSpeed);
-	MoveSpeed.SetCurrentValue(data.MoveSpeed);
+	//MoveSpeed.SetBaseValue(data.MoveSpeed);
+	//MoveSpeed.SetCurrentValue(data.MoveSpeed);
 
-	Dash.SetBaseValue(data.Dash);
-	Dash.SetCurrentValue(data.Dash);
+	//Dash.SetBaseValue(data.Dash);
+	//Dash.SetCurrentValue(data.Dash);
 
-	DashCD.SetBaseValue(data.DashCD);
-	DashCD.SetCurrentValue(data.DashCD);
+	//DashCD.SetBaseValue(data.DashCD);
+	//DashCD.SetCurrentValue(data.DashCD);
 
-	DashDist.SetBaseValue(data.DashDist);
-	DashDist.SetCurrentValue(data.DashDist);
+	//DashDist.SetBaseValue(data.DashDist);
+	//DashDist.SetCurrentValue(data.DashDist);
 
-	Dodge.SetBaseValue(data.Dodge);
-	Dodge.SetCurrentValue(data.Dodge);
+	//Dodge.SetBaseValue(data.Dodge);
+	//Dodge.SetCurrentValue(data.Dodge);
 
-	Resilience.SetBaseValue(data.Resilience);
-	Resilience.SetCurrentValue(data.Resilience);
+	//Resilience.SetBaseValue(data.Resilience);
+	//Resilience.SetCurrentValue(data.Resilience);
 
-	Resist.SetBaseValue(data.Resist);
-	Resist.SetCurrentValue(data.Resist);
+	//Resist.SetBaseValue(data.Resist);
+	//Resist.SetCurrentValue(data.Resist);
 
-	Shield.SetBaseValue(data.Shield);
-	Shield.SetCurrentValue(data.Shield);
+	//Shield.SetBaseValue(data.Shield);
+	//Shield.SetCurrentValue(data.Shield);
 	
 }
 

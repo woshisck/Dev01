@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "ModularCharacter.h"
-#include <DevKit/AbilitySystem/Attribute/BaseAttributeSet.h>
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
+#include "AbilitySystem/Attribute/DamageAttributeSet.h"
+
 #include "AbilitySystemInterface.h"
 #include "../Data/CharacterData.h"
 #include "YogCharacterBase.generated.h"
@@ -85,15 +87,13 @@ public:
 	TObjectPtr<UCharacterData>  CharacterData;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UBaseAttributeSet> AttributeSet;
+	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;
+
 	////////////////////////////////////////// Attribute //////////////////////////////////////////
-
-
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")
 	UAnimMontage* DeathMontage;
-
-
-
+	
 	///////////////////////////////////////////　Passive effect　///////////////////////////////////////////
 
 
@@ -197,28 +197,23 @@ public:
 
 	FDelegateHandle HealthChangedDelegateHandle;
 	FDelegateHandle MaxHealthChangedDelegateHandle;
-	FDelegateHandle BaseDMGChangedDelegateHandle;
-	FDelegateHandle WeaponDMGChangedDelegateHandle;
-	FDelegateHandle BuffAmplifyChangedDelegateHandle;
-
 
 	//Attribute change delegate
 	virtual void HealthChanged(const FOnAttributeChangeData& Data);
 	virtual void MaxHealthChanged(const FOnAttributeChangeData& Data);
-	virtual void BaseDMGChanged(const FOnAttributeChangeData& Data);
-	virtual void WeaponDMGChanged(const FOnAttributeChangeData& Data);
-	virtual void BuffAmplifyChanged(const FOnAttributeChangeData& Data);
 
 
 
-	UFUNCTION(BlueprintCallable, Category = "Feature")
+	//UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual bool IsAlive() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Feature")
+	//UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void FinishDying();
 
-	UFUNCTION(BlueprintCallable, Category = "Feature")
+	//UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void Die();
 	// Friended to allow access to handle functions above
 	friend UBaseAttributeSet;
+	friend UDamageAttributeSet;
+
 };

@@ -30,7 +30,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	CapsuleComp->InitCapsuleSize(40.0f, 90.0f);
 
 	//HealthSet = CreateDefaultSubobject<UYogHealthSet>(TEXT("HealthSet"));
-	AttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("AttributeSet"));
+	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 
 
 	//TODO: Dead Tag hardcode define
@@ -71,30 +71,7 @@ void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//if (AbilitySystemComponent) {
 
-	//	HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
-	//	MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
-	//	BaseDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBaseDMGAttribute()).AddUObject(this, &AYogCharacterBase::BaseDMGChanged);
-	//	WeaponDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetWeaponDMGAttribute()).AddUObject(this, &AYogCharacterBase::WeaponDMGChanged);
-	//	BuffAmplifyChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetBuffAmplifyAttribute()).AddUObject(this, &AYogCharacterBase::BuffAmplifyChanged);
-	//}
-	//
-	//if (DT_Attribute)
-	//{
-	//	FYogAttributeData* pYogAttributeData = DT_Attribute->FindRow<FYogAttributeData>(TEXT("Default_Attribute"), TEXT(""));
-	//	
-	//	if (pYogAttributeData != nullptr)
-	//	{
-	//		AttributeSet->InitHealth(pYogAttributeData->Health);
-	//		AttributeSet->InitMaxHealth(pYogAttributeData->MaxHealth);
-	//		AttributeSet->InitBaseDMG(pYogAttributeData->BaseDMG);
-	//		AttributeSet->InitWeaponDMG(pYogAttributeData->WeaponDMG);
-	//		AttributeSet->InitBuffAmplify(pYogAttributeData->BuffAmplify);
-	//		AttributeSet->InitDMGAbsorb(pYogAttributeData->DMGAbsorb);
-	//		AttributeSet->InitActResist(pYogAttributeData->ActResist);
-	//	}
-	//}
 
 
 
@@ -108,13 +85,13 @@ void AYogCharacterBase::BeginPlay()
 	//	if (AttributeData)
 	//	{
 
-	//		AttributeSet->InitHealth(AttributeData->Health);
-	//		AttributeSet->InitMaxHealth(AttributeData->MaxHealth);
-	//		AttributeSet->InitBaseDMG(AttributeData->BaseDMG);
-	//		AttributeSet->InitWeaponDMG(AttributeData->WeaponDMG);
-	//		AttributeSet->InitBuffAmplify(AttributeData->BuffAmplify);
-	//		AttributeSet->InitDMGAbsorb(AttributeData->DMGAbsorb);
-	//		AttributeSet->InitActResist(AttributeData->ActResist);
+	//		BaseAttributeSet->InitHealth(AttributeData->Health);
+	//		BaseAttributeSet->InitMaxHealth(AttributeData->MaxHealth);
+	//		BaseAttributeSet->InitBaseDMG(AttributeData->BaseDMG);
+	//		BaseAttributeSet->InitWeaponDMG(AttributeData->WeaponDMG);
+	//		BaseAttributeSet->InitBuffAmplify(AttributeData->BuffAmplify);
+	//		BaseAttributeSet->InitDMGAbsorb(AttributeData->DMGAbsorb);
+	//		BaseAttributeSet->InitActResist(AttributeData->ActResist);
 
 	//	}
 	//	
@@ -136,19 +113,20 @@ void AYogCharacterBase::PostInitializeComponents()
 	if (CharacterData)
 	{
 
-		//UFUNCTION(BlueprintPure)
-		//const FMovementData& GetMovementData() const;
-
-		////Get the item price info
-		//UFUNCTION(BlueprintPure)
-		//const FYogCharacterData& GetCharacterData() const;
-
 		const FMovementData& moveData = CharacterData->GetMovementData();
 		const FYogCharacterData& characterData = CharacterData->GetCharacterData();
 
-		AttributeSet->InitCharacterData(characterData);
+		BaseAttributeSet->InitCharacterData(characterData);
 
 	}
+
+	if (AbilitySystemComponent) 
+	{
+
+		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
+		MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
+	}
+
 }
 
 UAbilitySystemComponent* AYogCharacterBase::GetAbilitySystemComponent() const
@@ -180,9 +158,9 @@ void AYogCharacterBase::UpdateCharacterMovement(const bool IsMovable)
 
 float AYogCharacterBase::GetHealth() const
 {
-	if (AttributeSet)
+	if (BaseAttributeSet)
 	{
-		return AttributeSet->GetHealth();
+		return BaseAttributeSet->GetHealth();
 	}
 
 	return .4444f;
@@ -190,9 +168,9 @@ float AYogCharacterBase::GetHealth() const
 
 float AYogCharacterBase::GetMaxHealth() const
 {
-	if (AttributeSet)
+	if (BaseAttributeSet)
 	{
-		return AttributeSet->GetMaxHealth();
+		return BaseAttributeSet->GetMaxHealth();
 	}
 
 	return .5555f;
@@ -200,9 +178,9 @@ float AYogCharacterBase::GetMaxHealth() const
 
 float AYogCharacterBase::GetAtkDist() const
 {
-	//if (AttributeSet)
+	//if (BaseAttributeSet)
 	//{
-	//	return AttributeSet->GetAtkDist();
+	//	return BaseAttributeSet->GetAtkDist();
 	//}
 	return .6666f;
 }
@@ -305,20 +283,6 @@ void AYogCharacterBase::MaxHealthChanged(const FOnAttributeChangeData& Data)
 
 }
 
-void AYogCharacterBase::BaseDMGChanged(const FOnAttributeChangeData& Data)
-{
-	float BaseDMG = Data.NewValue;
-}
-
-void AYogCharacterBase::WeaponDMGChanged(const FOnAttributeChangeData& Data)
-{
-	float WeaponDMG = Data.NewValue;
-}
-
-void AYogCharacterBase::BuffAmplifyChanged(const FOnAttributeChangeData& Data)
-{
-	float BuffAmplify = Data.NewValue;
-}
 
 
 void AYogCharacterBase::FinishDying()
@@ -331,27 +295,28 @@ void AYogCharacterBase::Die()
 {
 	UE_LOG(LogTemp, Log, TEXT("DEATH HAPPEN, DEAD CHARACTER: %s"), *UKismetSystemLibrary::GetDisplayName(this));
 
-	GetCharacterMovement()->GravityScale = 0;
-	GetCharacterMovement()->Velocity = FVector(0);
+	//GetCharacterMovement()->GravityScale = 0;
+	//GetCharacterMovement()->Velocity = FVector(0);
 
 	OnCharacterDied.Broadcast(this);
-	AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
-
-	if (APlayerController* PC = Cast<APlayerController>(this->GetController()))
-	{
-		DisableInput(PC);
-	}
 
 
-	if (DeathMontage)
-	{
-		PlayAnimMontage(DeathMontage);
-	}
-	else
-	{
-		FinishDying();
-	} 
+	//AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
 
+	//if (APlayerController* PC = Cast<APlayerController>(this->GetController()))
+	//{
+	//	DisableInput(PC);
+	//}
+
+
+	//if (DeathMontage)
+	//{
+	//	PlayAnimMontage(DeathMontage);
+	//}
+	//else
+	//{
+	//	FinishDying();
+	//} 
 
 }
 

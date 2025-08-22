@@ -21,7 +21,7 @@ AAuraBase::AAuraBase(const FObjectInitializer& ObjectInitializer)
 	//CapsuleComp->InitCapsuleSize(40.0f, 90.0f);
 
 	//HealthSet = CreateDefaultSubobject<UYogHealthSet>(TEXT("HealthSet"));
-	//AttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("AttributeSet"));
+	//BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 
 
 

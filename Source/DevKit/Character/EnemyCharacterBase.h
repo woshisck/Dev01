@@ -21,4 +21,7 @@ public:
 
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Feature")
+	virtual void Die() override;
 };

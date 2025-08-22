@@ -63,6 +63,9 @@ public:
 	AActor* GetPrepareItem();
 
 
+	UFUNCTION(BlueprintCallable, Category = "Feature")
+	virtual void Die() override;
+
 public:
 	UPROPERTY()
 	TObjectPtr<AActor> temp_Item_prepare;
