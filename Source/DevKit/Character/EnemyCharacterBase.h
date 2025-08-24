@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "YogCharacterBase.h"
-
+#include "AbilitySystem/Attribute/EnemyAttributeSet.h"
 #include "EnemyCharacterBase.generated.h"
 
 
@@ -24,4 +24,11 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void Die() override;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
+
+
+
+	friend UEnemyAttributeSet;
 };

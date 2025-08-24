@@ -26,28 +26,13 @@ public:
 	float AtkPower = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MiscNum = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float SkillCD = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MAX_PassiveGA = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MAX_OffensiveGA = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MaxHealth = 30;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float OutRoundLifeTime = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MoveSpeed = 6;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Dash = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float DashCD = 1;
@@ -74,10 +59,7 @@ struct FCameraMovementData : public FTableRowBase
 	GENERATED_BODY()
 
 public:
-	FCameraMovementData()
-		: MaxWalkSpeed(0.5f), GroundFriction(0.5f), BreakingDeceleration(100.f), MaxAcceleration(0.1f)
-	{
-	}
+	FCameraMovementData(){}
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MaxWalkSpeed = 0;
 
@@ -112,7 +94,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "PlayerStatData"))
 	FDataTableRowHandle PlayerDataRow;
-
 
 
 	inline static const FCameraMovementData DefaultMovement;

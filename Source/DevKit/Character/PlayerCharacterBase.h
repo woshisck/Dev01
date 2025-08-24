@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "YogCharacterBase.h"
+#include "AbilitySystem/Attribute/PlayerAttributeSet.h"
+#include "AbilitySystem/Attribute/WeaponAttributeSet.h"
 #include "PlayerCharacterBase.generated.h"
 
 /**
@@ -67,12 +69,23 @@ public:
 	virtual void Die() override;
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UWeaponAttributeSet> WeaponAttributeSet;
+
+
 	UPROPERTY()
 	TObjectPtr<AActor> temp_Item_prepare;
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aura")
 	TSubclassOf<AAuraBase> Aura;
+
+
+	friend UPlayerAttributeSet;
+
 
 protected:
 

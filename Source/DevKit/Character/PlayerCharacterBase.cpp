@@ -2,9 +2,6 @@
 
 
 #include "PlayerCharacterBase.h"
-
-
-
 #include "YogCharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "../Item/ItemInstance.h"
@@ -23,6 +20,8 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	EnemyCloseDist = 100.0f;
 
 
+	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
+	WeaponAttributeSet = CreateDefaultSubobject<UWeaponAttributeSet>(TEXT("WeaponAttributeSet"));
 }
 
 void APlayerCharacterBase::SetOwnCamera(AYogCameraPawn* cameraActor)
@@ -65,31 +64,6 @@ void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//if (CharacterMovementDataTable)
-	//{
-	//	static const FString ContextString(TEXT("Character movement Data Lookup"));
-	//	FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
-	//	FCharacterMovementData* MovementData = this->CharacterMovementDataTable->FindRow<FCharacterMovementData>(FName(TEXT("CharacterMoveLvl_1")), ContextString, true);
-	//	if (MovementData)
-	//	{
-	//		UYogCharacterMovementComponent* MovementComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
-	//		MovementComp->MaxWalkSpeed = MovementData->MaxWalkSpeed;
-	//		MovementComp->GroundFriction = MovementData->GroundFriction;
-	//		MovementComp->MaxAcceleration = MovementData->MaxAcceleration;
-	//		MovementComp->RotationRate = MovementData->RotationRate;
-	//	}
-	//}
-
-
-
-
-	//if (AbilitySystemComponent) {
-	//	HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
-	//	MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
-	//	BaseDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetBaseDMGAttribute()).AddUObject(this, &AYogCharacterBase::BaseDMGChanged);
-	//	WeaponDMGChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetWeaponDMGAttribute()).AddUObject(this, &AYogCharacterBase::WeaponDMGChanged);
-	//	BuffAmplifyChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetBuffAmplifyAttribute()).AddUObject(this, &AYogCharacterBase::BuffAmplifyChanged);
-	//}
 
 	this->CurrentState = EYogCharacterState::Idle;
 }

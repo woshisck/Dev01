@@ -89,6 +89,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
+
+
 	////////////////////////////////////////// Attribute //////////////////////////////////////////
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")

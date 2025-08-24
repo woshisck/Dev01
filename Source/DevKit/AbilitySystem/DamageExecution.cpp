@@ -7,41 +7,30 @@
 struct FYogDamageStatics
 {
 
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(AttackPower);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(Attack);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(WeaponAtk);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(ActDamage);
-
-
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(ActDmgReduce);
-
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(Shield);
-
-
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(CriticalRate);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(CriticalDamage);
-
-
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(Damage);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(Health);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(AttackPower);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Attack);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(WeaponAtk);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(ActDamage);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(ActDmgReduce);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Shield);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(CriticalRate);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(CriticalDamage);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Damage);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Health);
 
 	FYogDamageStatics()
 	{
 
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, AttackPower, Source, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Attack, Source, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, WeaponAtk, Source, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ActDamage, Source, false);
-
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ActDmgReduce, Target, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Shield, Target, false);
-
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, CriticalRate, Source, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, CriticalDamage, Source, false);
-
-
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Target, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Damage, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, AttackPower, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Attack, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, WeaponAtk, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ActDamage, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ActDmgReduce, Target, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Shield, Target, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, CriticalRate, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, CriticalDamage, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Target, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Damage, Source, false);
 
 	}
 
@@ -76,37 +65,37 @@ UDamageExecution::UDamageExecution()
 void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const 
 {
 
-	//UAbilitySystemComponent* TargetAbilitySystemComponent = ExecutionParams.GetTargetAbilitySystemComponent();
-	//UAbilitySystemComponent* SourceAbilitySystemComponent = ExecutionParams.GetSourceAbilitySystemComponent();
+	UAbilitySystemComponent* TargetAbilitySystemComponent = ExecutionParams.GetTargetAbilitySystemComponent();
+	UAbilitySystemComponent* SourceAbilitySystemComponent = ExecutionParams.GetSourceAbilitySystemComponent();
 
 
 
-	//////Get Avatar Actor
-	//AActor* SourceActor = SourceAbilitySystemComponent ? SourceAbilitySystemComponent->GetAvatarActor_Direct() : nullptr;
-	//AActor* TargetActor = TargetAbilitySystemComponent ? TargetAbilitySystemComponent->GetAvatarActor_Direct() : nullptr;
+	//Get Avatar Actor
+	AActor* SourceActor = SourceAbilitySystemComponent ? SourceAbilitySystemComponent->GetAvatarActor_Direct() : nullptr;
+	AActor* TargetActor = TargetAbilitySystemComponent ? TargetAbilitySystemComponent->GetAvatarActor_Direct() : nullptr;
 
-	//////Get GameplayEffect Instance
-	//const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
+	//Get GameplayEffect Instance
+	const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
 
 
-	////get both tags container
-	//const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
-	//const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
-	//FAggregatorEvaluateParameters EvaluationParameters;
-	//EvaluationParameters.SourceTags = SourceTags;
-	//EvaluationParameters.TargetTags = TargetTags;
+	//get both tags container
+	const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
+	const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
+	FAggregatorEvaluateParameters EvaluationParameters;
+	EvaluationParameters.SourceTags = SourceTags;
+	EvaluationParameters.TargetTags = TargetTags;
 	
 
-	//////////////////////////////////////////////////// Source Attack //////////////////////////////////////////////////
-	//float AttackPower = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, AttackPower);
-	//float Attack = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef, EvaluationParameters, Attack);
-	//float WeaponAtk = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().WeaponAtkDef, EvaluationParameters, WeaponAtk);
-	//float ActDamage = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ActDamageDef, EvaluationParameters, ActDamage);
-	//////////////////////////////////////////////////// Target Reduce //////////////////////////////////////////////////
+	////////////////////////////////////////////////// Source Attack //////////////////////////////////////////////////
+	float AttackPower = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, AttackPower);
+	float Attack = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef, EvaluationParameters, Attack);
+	float WeaponAtk = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().WeaponAtkDef, EvaluationParameters, WeaponAtk);
+	float ActDamage = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ActDamageDef, EvaluationParameters, ActDamage);
+	////////////////////////////////////////////////// Target Reduce //////////////////////////////////////////////////
 
 
 	//float ActDmgReduce = 0.f;

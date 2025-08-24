@@ -31,6 +31,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 	//HealthSet = CreateDefaultSubobject<UYogHealthSet>(TEXT("HealthSet"));
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
+	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
 
 
 	//TODO: Dead Tag hardcode define
