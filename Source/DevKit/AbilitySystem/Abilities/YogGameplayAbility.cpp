@@ -198,7 +198,6 @@ FActionData UYogGameplayAbility::GetRowData()
 	{
 		FActionData* actionData = ActionRow.GetRow<FActionData>(__func__);
 		return *actionData;
-		//SetupAbilityStat(*actionData);
 
 	}
 	return Result;

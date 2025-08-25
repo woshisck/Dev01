@@ -110,9 +110,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GameplayEffect")
 	int GetCurrentGameplayEffect(FGameplayTag EffectTag);
 
-	UFUNCTION()
-	void SetupAbilityStat(const FActionData& data);
-
 
 
 public:
