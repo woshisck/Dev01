@@ -8,12 +8,12 @@
 
 
 USTRUCT(BlueprintType)
-struct FYogCharacterData : public FTableRowBase
+struct FYogBaseData : public FTableRowBase
 {
 	GENERATED_BODY()
 
 public:
-	FYogCharacterData(){};
+	FYogBaseData(){};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Attack = 0;
@@ -22,34 +22,16 @@ public:
 	float AttackPower = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MiscNum = 1;
+	float MaxHealth = 100;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float SkillCD = 1;
+	float Shield = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MAX_PassiveGA = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MAX_OffensiveGA = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxHealth = 30;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float OutRoundLifeTime = 0;
+	float Sanity = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MoveSpeed = 6;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Dash = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float DashCD = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float DashDist = 4;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Dodge = 0;
@@ -61,8 +43,14 @@ public:
 	float Resist = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Shield = 0;
+	float DmgTaken = 1;
+	
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Crit_Rate = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Crit_Damage = 1;
 
 
 
@@ -105,15 +93,15 @@ public:
 	const FMovementData& GetMovementData() const;
 
 	UFUNCTION(BlueprintCallable)
-	const FYogCharacterData& GetCharacterData() const;
+	const FYogBaseData& GetCharacterData() const;
 
 	UPROPERTY(EditDefaultsOnly, meta = (RowType = "MovementData"))
 	FDataTableRowHandle MoveDataRow;
 
-	UPROPERTY(EditDefaultsOnly, meta = (RowType = "YogCharacterData"))
+	UPROPERTY(EditDefaultsOnly, meta = (RowType = "YogBaseData"))
 	FDataTableRowHandle CharacterDataRow;
 
 	inline static const FMovementData DefaultMovementData;
 
-	inline static const FYogCharacterData DefaultCharacterData;
+	inline static const FYogBaseData DefaultCharacterData;
 };

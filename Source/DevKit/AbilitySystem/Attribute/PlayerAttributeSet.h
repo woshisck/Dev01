@@ -41,13 +41,6 @@ public:
 	UPlayerAttributeSet();
 
 
-
-
-
-
-
-
-
 	//ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, OutRoundLifeTime);
     //ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, MiscNum);
 
@@ -70,7 +63,6 @@ public:
     FGameplayAttributeData DashCD;
     ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, DashCD);
 
-
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData DashDist;
     ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, DashDist);
@@ -80,7 +72,7 @@ public:
     //FGameplayAttributeData OutRoundLifeTime;
 
     //const FMovementData& moveData = CharacterData->GetMovementData();
-    //const FYogCharacterData& characterData = CharacterData->GetCharacterData();
+    //const FYogBaseData& characterData = CharacterData->GetCharacterData();
 
 
 };

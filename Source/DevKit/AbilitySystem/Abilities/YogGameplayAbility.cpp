@@ -93,34 +93,6 @@ int UYogGameplayAbility::GetCurrentGameplayEffect(FGameplayTag EffectTag)
 	return StackCount;
 }
 
-void UYogGameplayAbility::SetupAbilityStat(const FActionData& data)
-{
-
-	AbilityActData = data;
-	ActDamage = data.ActDamage;
-	ActRange = data.ActRange;
-	ActResilience = data.ActResilience;
-	ActDmgReduce = data.ActDmgReduce;
-	ActRotateSpeed = data.ActRotateSpeed;
-	JumpFrameTime = data.JumpFrameTime;
-	FreezeFrameTime = data.FreezeFrameTime;
-
-	MontageToPlay = data.Montage;
-
-	hitbox = data.hitbox;
-
-	//AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	//AYogCharacterBase* player = Cast<AYogCharacterBase>(AvatarActor);
-	////UYogAbilitySystemComponent* asc = player->GetASC();
-	//player->BaseAttributeSet->SetActDamage(data.ActDamage);
-	//player->BaseAttributeSet->SetActDamage(data.ActRange);
-	//player->BaseAttributeSet->SetActResilience(data.ActResilience);
-	//player->BaseAttributeSet->SetActDmgReduce(data.ActDmgReduce);
-	//player->BaseAttributeSet->SetActRotateSpeed(data.ActRotateSpeed);
-	//player->BaseAttributeSet->SetJumpFrameTime(data.JumpFrameTime);
-	//player->BaseAttributeSet->SetFreezeFrameTime(data.FreezeFrameTime);
-
-}
 
 
 
@@ -208,14 +180,6 @@ void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	AYogCharacterBase* player = Cast<AYogCharacterBase>(AvatarActor);
 
-	if (!ActionRow.IsNull())
-	{
-		FActionData* actionData = ActionRow.GetRow<FActionData>(__func__);
-		SetupAbilityStat(*actionData);
-
-	}
-
-
 	//UYogAbilitySystemComponent* asc = player->GetASC();
 
 	//TODO: add loose gameplaytag for blocking ability
@@ -257,13 +221,5 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 	ASC->CurrentAbilitySpecHandle = Handle;
 
-	player->BaseAttributeSet->ResetAbilityAttribute();
-	//player->BaseAttributeSet->SetActDamage(AbilityActData.ActDamage);
-	//player->BaseAttributeSet->SetActDamage(AbilityActData.ActRange);
-	//player->BaseAttributeSet->SetActResilience(AbilityActData.ActResilience);
-	//player->BaseAttributeSet->SetActDmgReduce(AbilityActData.ActDmgReduce);
-	//player->BaseAttributeSet->SetActRotateSpeed(AbilityActData.ActRotateSpeed);
-	//player->BaseAttributeSet->SetJumpFrameTime(AbilityActData.JumpFrameTime);
-	//player->BaseAttributeSet->SetFreezeFrameTime(AbilityActData.FreezeFrameTime);
 
 }

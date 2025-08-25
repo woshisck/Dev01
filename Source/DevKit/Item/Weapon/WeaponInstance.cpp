@@ -34,7 +34,7 @@ AWeaponInstance::AWeaponInstance()
 	//		AttributeData->AttackRange = this->AttackRange;
 	//		AttributeData->PickedUpEffect = this->PickedUpEffect;
 	//		AttributeData->CrticalRate = this->CrticalRate;
-	//		AttributeData->CriticalDamage = this->CriticalDamage;
+	//		AttributeData->Crit_Damage = this->Crit_Damage;
 	//		AttributeData->Actions = this->Actions;
 	//	}
 

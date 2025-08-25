@@ -24,6 +24,17 @@ public:
 	UEnemyAttributeSet();
 
 public:
+	UPROPERTY(BlueprintReadWrite, Category = "Enemy")
+	FGameplayAttributeData DetectPlayer_Hear;
+	ATTRIBUTE_ACCESSORS(UEnemyAttributeSet, DetectPlayer_Hear);
+
+	UPROPERTY(BlueprintReadWrite, Category = "Enemy")
+	FGameplayAttributeData DetectPlayer_Visual;
+	ATTRIBUTE_ACCESSORS(UEnemyAttributeSet, DetectPlayer_Visual);
+
+	UPROPERTY(BlueprintReadWrite, Category = "Enemy")
+	FGameplayAttributeData AttackRange;
+	ATTRIBUTE_ACCESSORS(UEnemyAttributeSet, AttackRange);
 
     UPROPERTY(BlueprintReadWrite, Category = "Enemy")
     FGameplayAttributeData DropExp;

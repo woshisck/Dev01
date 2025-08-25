@@ -6,6 +6,7 @@
 #include "ModularCharacter.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Attribute/DamageAttributeSet.h"
+#include "AbilitySystem/Attribute/WeaponAttributeSet.h"
 
 #include "AbilitySystemInterface.h"
 #include "../Data/CharacterData.h"
@@ -77,30 +78,23 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bInstantRotate;
-	////////////////////////////////////////// Attribute //////////////////////////////////////////
 
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "FYogAttributeData"), Category = "DT")
-	//TObjectPtr<UDataTable> DT_Attribute;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UCharacterData>  CharacterData;
-	
+
+	////////////////////////////////////////// Attribute Set //////////////////////////////////////////
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
 
-
-	////////////////////////////////////////// Attribute //////////////////////////////////////////
-	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")
-	UAnimMontage* DeathMontage;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UWeaponAttributeSet> WeaponAttributeSet;
 	
 	///////////////////////////////////////////　Passive effect　///////////////////////////////////////////
-
-
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Abilities)
 	TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
@@ -111,7 +105,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTagContainer GPTagsContainer;
 
-	////////////////////////////////////////////// Attribute //////////////////////////////////////////////
+	////////////////////////////////////////// Get/Set Func　//////////////////////////////////////////
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	void GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities);
@@ -127,11 +121,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	float GetAtkDist() const;
 
-
-
 	UFUNCTION(BlueprintCallable, Category = "Character|Abilities")
 	void GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel);
 
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")
+	UAnimMontage* DeathMontage;
 
 	UPROPERTY(BlueprintReadOnly)
 	int32 bWeaponEquiped = 0;

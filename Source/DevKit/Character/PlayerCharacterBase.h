@@ -42,10 +42,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FItemInteractEndDelegate OnItemInterActionEnd;
 
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
-	TObjectPtr<UDataTable> CharacterMovementDataTable;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle Data")
 	float EnemyCloseDist;
 
@@ -72,8 +68,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UWeaponAttributeSet> WeaponAttributeSet;
 
 
 	UPROPERTY()

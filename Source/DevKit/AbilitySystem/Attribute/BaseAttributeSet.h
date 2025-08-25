@@ -61,43 +61,13 @@ public:
 
 	UBaseAttributeSet();
 
-	UWorld* GetWorld() const override;
-
 	UYogAbilitySystemComponent* GetASC() const;
 
 
+    virtual void PreAttributeBaseChange(const FGameplayAttribute& attribute, float& newValue) const override;
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
 	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-
-	//////////////////////////////////////////////// Player Attribute ////////////////////////////////////////////////
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Attack);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, AttackPower);
-
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Health);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MaxHealth);
-
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MoveSpeed);
-
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Dodge);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resilience);
-	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resist);
-    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Shield);
-
-    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Sanity);
-
-    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, CriticalRate);
-    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, CriticalDamage);
-
-	//////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
-	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActDamage);
-	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActRange);
-	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActResilience);
-	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActDmgReduce);
-	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ActRotateSpeed);
-	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, JumpFrameTime);
-	//ATTRIBUTE_ACCESSORS(UBaseAttributeSet, FreezeFrameTime);
 
 
 protected:
@@ -110,65 +80,65 @@ public:
     ////////////////////////////////////////////////// Player Attribute ////////////////////////////////////////////////
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData Attack;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Attack);
+
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData AttackPower;
-
-    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    //FGameplayAttributeData MiscNum;
-    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    //FGameplayAttributeData SkillCD;
-
-    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    //FGameplayAttributeData MAX_PassiveGA;
-    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    //FGameplayAttributeData MAX_OffensiveGA;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, AttackPower);
 
     UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Health")
     FGameplayAttributeData Health;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Health);
+
     UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxHealth, Category = "Health")
     FGameplayAttributeData MaxHealth;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MaxHealth);
 
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData OutRoundLifeTime;
+    FGameplayAttributeData Shield;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Shield);
+
+
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    FGameplayAttributeData Sanity;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Sanity);
 
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData MoveSpeed;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MoveSpeed);
 
 
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData Dodge;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Dodge);
+
+
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData Resilience;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resilience);
+    
+
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData Resist;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData Shield;
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData Sanity;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resist);
 
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData CriticalRate;
+    FGameplayAttributeData DmgTaken;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, DmgTaken);
+
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData CriticalDamage;
+    FGameplayAttributeData Crit_Rate;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Crit_Rate);
 
 
-    //////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
-    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    //FGameplayAttributeData ActDamage;
-    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    //FGameplayAttributeData ActRange;
-    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    //FGameplayAttributeData ActResilience;
-    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    //FGameplayAttributeData ActDmgReduce;
-    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    //FGameplayAttributeData ActRotateSpeed;
-    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    //FGameplayAttributeData JumpFrameTime;
-    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Ability")
-    //FGameplayAttributeData FreezeFrameTime;
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    FGameplayAttributeData Crit_Damage;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Crit_Damage);
 
 
+
+    UFUNCTION()
+    void Init(UCharacterData* data);
 
 
 	UFUNCTION()
@@ -178,18 +148,8 @@ public:
 	void OnRep_MaxHealth(const FGameplayAttributeData& OldValue);
 
 
-	UFUNCTION()
-	void InitAttribute();
-
-    UFUNCTION()
-    void ResetAbilityAttribute();
-
-    UFUNCTION()
-    void InitCharacterData(const FYogCharacterData& data);
-
-
     //const FMovementData& moveData = CharacterData->GetMovementData();
-    //const FYogCharacterData& characterData = CharacterData->GetCharacterData();
+    //const FYogBaseData& characterData = CharacterData->GetCharacterData();
 
 
 };

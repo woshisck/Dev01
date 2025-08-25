@@ -18,7 +18,7 @@
 //
 //public:
 //	FEnemyCharacterData()
-//		: AttackPower(0), AttackSpeed(0), AttackRange(0), CrticalRate(0), CriticalDamage(0)
+//		: AttackPower(0), AttackSpeed(0), AttackRange(0), CrticalRate(0), Crit_Damage(0)
 //	{
 //	};
 //	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -37,7 +37,7 @@
 //	float CrticalRate = 1;
 //
 //	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-//	float CriticalDamage = 1;
+//	float Crit_Damage = 1;
 //
 //	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 //	TArray<UYogGameplayAbility*> Actions;

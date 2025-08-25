@@ -13,7 +13,10 @@
 
 UWeaponAttributeSet::UWeaponAttributeSet()
 {	
+    InitWeaponAtk(0);
+    InitWeaponAtkPower(0);
+    InitWeaponAtkRange(0);
+    InitWeapon_CritRate(0);
+    InitWeapon_CritDmg(1);
 
 }
-
-

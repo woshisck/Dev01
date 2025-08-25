@@ -32,7 +32,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	//HealthSet = CreateDefaultSubobject<UYogHealthSet>(TEXT("HealthSet"));
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
-
+	WeaponAttributeSet = CreateDefaultSubobject<UWeaponAttributeSet>(TEXT("WeaponAttributeSet"));
 
 	//TODO: Dead Tag hardcode define
 	DeadTag = FGameplayTag::RequestGameplayTag(FName("Status.Dead"));
@@ -71,34 +71,6 @@ bool AYogCharacterBase::IsAlive() const
 void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-
-
-
-
-
-	//if (YogAttributeInfo)
-	//{
-	//	static const FString ContextString(TEXT("Character attribute Data Lookup"));
-	//	//FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
-
-	//	FYogAttributeData* AttributeData = this->YogAttributeInfo->FindRow<FYogAttributeData>(FName(TEXT("Default_Attribute")), ContextString, true);
-
-	//	if (AttributeData)
-	//	{
-
-	//		BaseAttributeSet->InitHealth(AttributeData->Health);
-	//		BaseAttributeSet->InitMaxHealth(AttributeData->MaxHealth);
-	//		BaseAttributeSet->InitBaseDMG(AttributeData->BaseDMG);
-	//		BaseAttributeSet->InitWeaponDMG(AttributeData->WeaponDMG);
-	//		BaseAttributeSet->InitBuffAmplify(AttributeData->BuffAmplify);
-	//		BaseAttributeSet->InitDMGAbsorb(AttributeData->DMGAbsorb);
-	//		BaseAttributeSet->InitActResist(AttributeData->ActResist);
-
-	//	}
-	//	
-
-	//}
-
 }
 
 void AYogCharacterBase::Tick(float DeltaSeconds)
@@ -113,12 +85,10 @@ void AYogCharacterBase::PostInitializeComponents()
 
 	if (CharacterData)
 	{
-
 		const FMovementData& moveData = CharacterData->GetMovementData();
-		const FYogCharacterData& characterData = CharacterData->GetCharacterData();
+		const FYogBaseData& characterData = CharacterData->GetCharacterData();
 
-		BaseAttributeSet->InitCharacterData(characterData);
-
+		BaseAttributeSet->Init(CharacterData);
 	}
 
 	if (AbilitySystemComponent) 

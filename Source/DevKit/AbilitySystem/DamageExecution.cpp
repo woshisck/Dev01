@@ -7,30 +7,30 @@
 struct FYogDamageStatics
 {
 
-	DECLARE_ATTRIBUTE_CAPTUREDEF(AttackPower);
-	DECLARE_ATTRIBUTE_CAPTUREDEF(Attack);
-	DECLARE_ATTRIBUTE_CAPTUREDEF(WeaponAtk);
-	DECLARE_ATTRIBUTE_CAPTUREDEF(ActDamage);
-	DECLARE_ATTRIBUTE_CAPTUREDEF(ActDmgReduce);
-	DECLARE_ATTRIBUTE_CAPTUREDEF(Shield);
-	DECLARE_ATTRIBUTE_CAPTUREDEF(CriticalRate);
-	DECLARE_ATTRIBUTE_CAPTUREDEF(CriticalDamage);
-	DECLARE_ATTRIBUTE_CAPTUREDEF(Damage);
-	DECLARE_ATTRIBUTE_CAPTUREDEF(Health);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(AttackPower);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(Attack);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(WeaponAtk);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(ActDamage);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(ActDmgReduce);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(Shield);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(Crit_Rate);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(Crit_Damage);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(Damage);
+	//DECLARE_ATTRIBUTE_CAPTUREDEF(Health);
 
 	FYogDamageStatics()
 	{
 
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, AttackPower, Source, false);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Attack, Source, false);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, WeaponAtk, Source, false);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ActDamage, Source, false);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ActDmgReduce, Target, false);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Shield, Target, false);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, CriticalRate, Source, false);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, CriticalDamage, Source, false);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Target, false);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Damage, Source, false);
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, AttackPower, Source, false);
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Attack, Source, false);
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, WeaponAtk, Source, false);
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ActDamage, Source, false);
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ActDmgReduce, Target, false);
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Shield, Target, false);
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Crit_Rate, Source, false);
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Crit_Damage, Source, false);
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Target, false);
+		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Damage, Source, false);
 
 	}
 
@@ -87,14 +87,14 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	
 
 	////////////////////////////////////////////////// Source Attack //////////////////////////////////////////////////
-	float AttackPower = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, AttackPower);
-	float Attack = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef, EvaluationParameters, Attack);
-	float WeaponAtk = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().WeaponAtkDef, EvaluationParameters, WeaponAtk);
-	float ActDamage = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ActDamageDef, EvaluationParameters, ActDamage);
+	//float AttackPower = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, AttackPower);
+	//float Attack = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef, EvaluationParameters, Attack);
+	//float WeaponAtk = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().WeaponAtkDef, EvaluationParameters, WeaponAtk);
+	//float ActDamage = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ActDamageDef, EvaluationParameters, ActDamage);
 	////////////////////////////////////////////////// Target Reduce //////////////////////////////////////////////////
 
 
@@ -105,17 +105,17 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 
 	//////////////////////////////////////////////////// Critical //////////////////////////////////////////////////
-	//float CriticalRate = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().CriticalRateDef, EvaluationParameters, CriticalRate);
-	//float CriticalDamage = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().CriticalDamageDef, EvaluationParameters, CriticalDamage);
+	//float Crit_Rate = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().CriticalRateDef, EvaluationParameters, Crit_Rate);
+	//float Crit_Damage = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().CriticalDamageDef, EvaluationParameters, Crit_Damage);
 	//float DamageDone = 0.f;
 	//float Crit_Value = FMath::FRand();
 	//if (Shield < 0.f)
-	//{	//Crit_Value <= CriticalRate IS Critical Hit
-	//	if (Crit_Value <= CriticalRate)
+	//{	//Crit_Value <= Crit_Rate IS Critical Hit
+	//	if (Crit_Value <= Crit_Rate)
 	//	{
-	//		DamageDone = AttackPower * (Attack + WeaponAtk + ActDamage) * CriticalDamage;
+	//		DamageDone = AttackPower * (Attack + WeaponAtk + ActDamage) * Crit_Damage;
 	//	}
 	//	else
 	//	{
@@ -124,9 +124,9 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	//}
 	//else
 	//{
-	//	if (Crit_Value <= CriticalRate)
+	//	if (Crit_Value <= Crit_Rate)
 	//	{
-	//		DamageDone = AttackPower * (Attack + WeaponAtk + ActDamage) * CriticalDamage;
+	//		DamageDone = AttackPower * (Attack + WeaponAtk + ActDamage) * Crit_Damage;
 	//	}
 	//	else
 	//	{

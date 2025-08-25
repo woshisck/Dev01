@@ -15,7 +15,7 @@
 struct FGameplayAbilityActivationInfo;
 struct FGameplayAbilitySpec;
 struct FGameplayAbilitySpecHandle;
-
+struct FActionData;
 
 class AActor;
 class AController;
@@ -94,7 +94,7 @@ public:
 	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DamageBox")
 	//TArray<FHitBoxData> array_Hitbox;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	FActionData AbilityActData;
 
 	UFUNCTION(BlueprintCallable, Category = "Setting")
@@ -116,33 +116,6 @@ public:
 
 
 public:
-	UPROPERTY()
-	float ActDamage = 20;
-
-	UPROPERTY()
-	float ActRange = 400;
-
-	UPROPERTY()
-	float ActResilience = 20;
-
-	UPROPERTY()
-	float ActDmgReduce = 0;
-
-	UPROPERTY()
-	float ActRotateSpeed = 360;
-
-	UPROPERTY()
-	float JumpFrameTime = 0.15;
-
-	UPROPERTY()
-	float FreezeFrameTime = 0.15;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TObjectPtr<UAnimMontage> MontageToPlay;
-
-	UPROPERTY()
-	TArray<FHitBoxData> hitbox;
-
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
 	FDataTableRowHandle ActionRow;

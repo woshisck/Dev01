@@ -26,16 +26,16 @@ public:
 	float WeaponAtk = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float WeaponAtkSpeed = 1;
+	float WeaponAtkPower = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float WeaponRange = 1;
+	float WeaponAtkRange = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float CriticalRate = 0;
+	float Weapon_CritRate = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float CriticalDamage = 1;
+	float Weapon_CritDmg = 1;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TArray<UYogGameplayAbility*> Actions;

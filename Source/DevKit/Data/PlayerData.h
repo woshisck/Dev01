@@ -4,11 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "CharacterData.h"
 #include "PlayerData.generated.h"
 
 /**
  * 
  */
+
 
 USTRUCT(BlueprintType)
 struct FPlayerStatData : public FTableRowBase
@@ -78,7 +80,7 @@ public:
 
 
 UCLASS(BlueprintType, Blueprintable)
-class DEVKIT_API UPlayerData : public UPrimaryDataAsset
+class DEVKIT_API UPlayerData : public UCharacterData
 {
 	GENERATED_BODY()
 	

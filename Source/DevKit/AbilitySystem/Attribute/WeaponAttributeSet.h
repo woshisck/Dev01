@@ -16,7 +16,7 @@ class UYogAbilitySystemComponent;
 class UObject;
 class UWorld;
 struct FGameplayEffectSpec;
-
+class UWeaponData;
 
 
 
@@ -45,18 +45,28 @@ public:
     FGameplayAttributeData WeaponAtk;
     ATTRIBUTE_ACCESSORS(UWeaponAttributeSet, WeaponAtk);
 
+    UPROPERTY(BlueprintReadWrite, Category = "Weapon|Player")
+    FGameplayAttributeData WeaponAtkPower;
+    ATTRIBUTE_ACCESSORS(UWeaponAttributeSet, WeaponAtkPower);
+
+
 
     UPROPERTY(BlueprintReadWrite, Category = "Weapon|Player")
-    FGameplayAttributeData WeaponAtkSpeed;
-    ATTRIBUTE_ACCESSORS(UWeaponAttributeSet, WeaponAtkSpeed);
+    FGameplayAttributeData WeaponAtkRange;
+    ATTRIBUTE_ACCESSORS(UWeaponAttributeSet, WeaponAtkRange);
 
 
     UPROPERTY(BlueprintReadWrite, Category = "Weapon|Player")
-    FGameplayAttributeData WeaponRange;
-    ATTRIBUTE_ACCESSORS(UWeaponAttributeSet, WeaponRange);
+    FGameplayAttributeData Weapon_CritRate;
+    ATTRIBUTE_ACCESSORS(UWeaponAttributeSet, Weapon_CritRate);
+
+    UPROPERTY(BlueprintReadWrite, Category = "Weapon|Player")
+    FGameplayAttributeData Weapon_CritDmg;
+    ATTRIBUTE_ACCESSORS(UWeaponAttributeSet, Weapon_CritDmg);
+
 
     //const FMovementData& moveData = CharacterData->GetMovementData();
-    //const FYogCharacterData& characterData = CharacterData->GetCharacterData();
+    //const FYogBaseData& characterData = CharacterData->GetCharacterData();
 
 
 };
