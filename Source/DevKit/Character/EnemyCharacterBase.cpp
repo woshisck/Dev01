@@ -3,11 +3,13 @@
 
 #include "EnemyCharacterBase.h"
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
+#include "AbilitySystem/Attribute/EnemyAttributeSet.h"
 #include "YogCharacterMovementComponent.h"
 
 AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
+	EnemyAttributeSet = CreateDefaultSubobject<UEnemyAttributeSet>(TEXT("EnemyAttributeSet"));
 }
 
 void AEnemyCharacterBase::BeginPlay()

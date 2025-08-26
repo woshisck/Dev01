@@ -28,10 +28,16 @@ public:
 	float Shield = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AttackSpeed = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AttackRange = 150;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Sanity = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MoveSpeed = 6;
+	float MoveSpeed = 600;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Dodge = 0;
@@ -99,7 +105,7 @@ public:
 	FDataTableRowHandle MoveDataRow;
 
 	UPROPERTY(EditDefaultsOnly, meta = (RowType = "YogBaseData"))
-	FDataTableRowHandle CharacterDataRow;
+	FDataTableRowHandle YogBaseDataRow;
 
 	inline static const FMovementData DefaultMovementData;
 

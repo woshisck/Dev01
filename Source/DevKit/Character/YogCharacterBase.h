@@ -6,7 +6,7 @@
 #include "ModularCharacter.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Attribute/DamageAttributeSet.h"
-#include "AbilitySystem/Attribute/WeaponAttributeSet.h"
+#include "AbilitySystem/Attribute/AdditionAttributeSet.h"
 
 #include "AbilitySystemInterface.h"
 #include "../Data/CharacterData.h"
@@ -89,11 +89,11 @@ public:
 	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
+	TObjectPtr<UAdditionAttributeSet> AdditionAttributeSet;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UWeaponAttributeSet> WeaponAttributeSet;
-	
+	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
+
 	///////////////////////////////////////////　Passive effect　///////////////////////////////////////////
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Abilities)
@@ -101,9 +101,6 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "AblitySystemComp")
 	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FGameplayTagContainer GPTagsContainer;
 
 	////////////////////////////////////////// Get/Set Func　//////////////////////////////////////////
 
@@ -210,9 +207,10 @@ public:
 	virtual void FinishDying();
 
 	//UFUNCTION(BlueprintCallable, Category = "Feature")
+	
 	virtual void Die();
 	// Friended to allow access to handle functions above
 	friend UBaseAttributeSet;
 	friend UDamageAttributeSet;
-
+	friend UAdditionAttributeSet;
 };

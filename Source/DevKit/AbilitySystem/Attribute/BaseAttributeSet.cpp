@@ -161,6 +161,8 @@ void UBaseAttributeSet::Init(UCharacterData* data)
 	SetAttackPower(YogBaseData.AttackPower);
 	SetMaxHealth(YogBaseData.MaxHealth);
 	SetShield(YogBaseData.Shield);
+	SetAttackSpeed(YogBaseData.AttackSpeed);
+	SetAttackRange(YogBaseData.AttackRange);
 	SetSanity(YogBaseData.Sanity);
 	SetMoveSpeed(YogBaseData.MoveSpeed);
 	SetDodge(YogBaseData.Dodge);

@@ -98,6 +98,13 @@ public:
     FGameplayAttributeData Shield;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Shield);
 
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    FGameplayAttributeData AttackSpeed;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, AttackSpeed);
+
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    FGameplayAttributeData AttackRange;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, AttackRange);
 
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData Sanity;

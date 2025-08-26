@@ -29,10 +29,11 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	check(CapsuleComp);
 	CapsuleComp->InitCapsuleSize(40.0f, 90.0f);
 
-	//HealthSet = CreateDefaultSubobject<UYogHealthSet>(TEXT("HealthSet"));
+
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
-	WeaponAttributeSet = CreateDefaultSubobject<UWeaponAttributeSet>(TEXT("WeaponAttributeSet"));
+	AdditionAttributeSet = CreateDefaultSubobject<UAdditionAttributeSet>(TEXT("AdditionAttributeSet"));
+
 
 	//TODO: Dead Tag hardcode define
 	DeadTag = FGameplayTag::RequestGameplayTag(FName("Status.Dead"));
@@ -44,8 +45,6 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 	bAbilitiesInitialized = false;
 	
-
-
 }
 
 UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const

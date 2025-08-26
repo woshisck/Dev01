@@ -30,7 +30,7 @@ GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 
 
 UCLASS()
-class DEVKIT_API UPlayerAttributeSet : public UBaseAttributeSet{
+class DEVKIT_API UPlayerAttributeSet : public UAttributeSet{
 	GENERATED_BODY()
 
 
@@ -50,18 +50,18 @@ public:
     FGameplayAttributeData SkillCD;
     ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, SkillCD);
     
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData MAX_PassiveGA;
-    ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, MAX_PassiveGA);
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    //FGameplayAttributeData MAX_PassiveGA;
+    //ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, MAX_PassiveGA);
 
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData MAX_OffensiveGA;
-    ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, MAX_OffensiveGA);
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    //FGameplayAttributeData MAX_OffensiveGA;
+    //ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, MAX_OffensiveGA);
     
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData DashCD;
-    ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, DashCD);
+    //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    //FGameplayAttributeData DashCD;
+    //ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, DashCD);
 
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData DashDist;

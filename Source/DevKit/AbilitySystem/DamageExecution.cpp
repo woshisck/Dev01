@@ -1,36 +1,80 @@
 #include "DamageExecution.h"
 
-#include <DevKit/AbilitySystem/Attribute/BaseAttributeSet.h>
+#include "DevKit/AbilitySystem/Attribute/BaseAttributeSet.h"
+#include "DevKit/AbilitySystem/Attribute/AdditionAttributeSet.h"
+
+#include "DevKit/AbilitySystem/Attribute/DamageAttributeSet.h"
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 #include "GameplayEffectExecutionCalculation.h"
+#include <Data/AbilityData.h>
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 
 struct FYogDamageStatics
 {
 
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(AttackPower);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(Attack);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(WeaponAtk);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(ActDamage);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(ActDmgReduce);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(Shield);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(Crit_Rate);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(Crit_Damage);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(Damage);
-	//DECLARE_ATTRIBUTE_CAPTUREDEF(Health);
+	
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Attack);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(AttackPower);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Sanity);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Resilience);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Resist);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Shield);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Dodge);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(DmgTaken);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Crit_Rate);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Crit_Damage);
+
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Add_Attack);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Add_AttackPower);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Add_Sanity);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Add_Resilience);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Add_Resist);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Add_Shield);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Add_Dodge);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Add_DmgTaken);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Add_Crit_Rate);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Add_Crit_Damage);
+
+
+	DECLARE_ATTRIBUTE_CAPTUREDEF(DamagePhysical);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(DamageMagic);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(DamagePure);
+
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Health);
 
 	FYogDamageStatics()
 	{
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Attack, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, AttackPower, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Sanity, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Resilience, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Resist, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Shield, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Dodge, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, DmgTaken, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Crit_Rate, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Crit_Damage, Source, false);
 
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, AttackPower, Source, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Attack, Source, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, WeaponAtk, Source, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ActDamage, Source, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ActDmgReduce, Target, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Shield, Target, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Crit_Rate, Source, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Crit_Damage, Source, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Target, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Damage, Source, false);
+
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Attack, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_AttackPower, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Sanity, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Resilience, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Resist, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Shield, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Dodge, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_DmgTaken, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Crit_Rate, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Crit_Damage, Source, false);
+
+
+		//Current health and damage
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Target, false);
+
+
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UDamageAttributeSet, DamagePhysical, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UDamageAttributeSet, DamageMagic, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UDamageAttributeSet, DamagePure, Source, false);
 
 	}
 
@@ -65,10 +109,18 @@ UDamageExecution::UDamageExecution()
 void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const 
 {
 
-	UAbilitySystemComponent* TargetAbilitySystemComponent = ExecutionParams.GetTargetAbilitySystemComponent();
-	UAbilitySystemComponent* SourceAbilitySystemComponent = ExecutionParams.GetSourceAbilitySystemComponent();
+
+	UYogAbilitySystemComponent* TargetAbilitySystemComponent = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
+	UYogAbilitySystemComponent* SourceAbilitySystemComponent = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetSourceAbilitySystemComponent());
+
+	
+	UYogGameplayAbility* target_CurrentAbilityClass = TargetAbilitySystemComponent->GetCurrentAbilityClass();
+	UYogGameplayAbility* source_CurrentAbilityClass = SourceAbilitySystemComponent->GetCurrentAbilityClass();
 
 
+
+	FActionData target_ActionData = target_CurrentAbilityClass->GetRowData();
+	FActionData source_ActionData = source_CurrentAbilityClass->GetRowData();
 
 	//Get Avatar Actor
 	AActor* SourceActor = SourceAbilitySystemComponent ? SourceAbilitySystemComponent->GetAvatarActor_Direct() : nullptr;
@@ -108,7 +160,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	//float Crit_Rate = 0.f;
 	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().CriticalRateDef, EvaluationParameters, Crit_Rate);
 	//float Crit_Damage = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().CriticalDamageDef, EvaluationParameters, Crit_Damage);
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().CriticalDamageDef, EvaluationParameters, Crit_Damage); * buff_crit_damage
 	//float DamageDone = 0.f;
 	//float Crit_Value = FMath::FRand();
 	//if (Shield < 0.f)
@@ -151,7 +203,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 
 ////////////////////////////////////////////////// Damage Persudo Code //////////////////////////////////////////////////
-//AttackPower* (Attack + WeaponAtk + ActDamage)* ActDmgReduce* (if Crit CritcalDamage)
+//attack * attackPower + weaponAtk * weaponAtkPower + ActionAtk
 //
 //if (shield > 0)
 
@@ -179,6 +231,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 //			damage = ((AttackPower * (Attack + WeaponAtk + ActDamage) * 1) * dmg_reduce) +
 //	}
 //}
+//
 //
 //
 //if (!immuteResilience_value)

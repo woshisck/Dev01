@@ -20,9 +20,9 @@ const FMovementData& UCharacterData::GetMovementData() const
 
 const FYogBaseData& UCharacterData::GetCharacterData() const
 {
-	if (!CharacterDataRow.IsNull())
+	if (!YogBaseDataRow.IsNull())
 	{
-		FYogBaseData* character_data = CharacterDataRow.GetRow<FYogBaseData>(__func__);
+		FYogBaseData* character_data = YogBaseDataRow.GetRow<FYogBaseData>(__func__);
 		if (character_data)
 		{
 			return *character_data;

@@ -13,7 +13,7 @@
 
 
 UCLASS()
-class DEVKIT_API UEnemyAttributeSet : public UBaseAttributeSet{
+class DEVKIT_API UEnemyAttributeSet : public UAttributeSet{
 	GENERATED_BODY()
 
 
@@ -25,16 +25,12 @@ public:
 
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "Enemy")
-	FGameplayAttributeData DetectPlayer_Hear;
-	ATTRIBUTE_ACCESSORS(UEnemyAttributeSet, DetectPlayer_Hear);
+	FGameplayAttributeData DetectPlayer_Sound;
+	ATTRIBUTE_ACCESSORS(UEnemyAttributeSet, DetectPlayer_Sound);
 
 	UPROPERTY(BlueprintReadWrite, Category = "Enemy")
 	FGameplayAttributeData DetectPlayer_Visual;
 	ATTRIBUTE_ACCESSORS(UEnemyAttributeSet, DetectPlayer_Visual);
-
-	UPROPERTY(BlueprintReadWrite, Category = "Enemy")
-	FGameplayAttributeData AttackRange;
-	ATTRIBUTE_ACCESSORS(UEnemyAttributeSet, AttackRange);
 
     UPROPERTY(BlueprintReadWrite, Category = "Enemy")
     FGameplayAttributeData DropExp;

@@ -62,9 +62,6 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void ClearArray();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DT")
-	TObjectPtr<UDataTable> WeaponAttributeTable;
-
 
 	UFUNCTION(BlueprintCallable)
 	void AddIgnoreActor(AActor* actor);

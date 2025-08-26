@@ -21,42 +21,6 @@ AWeaponInstance::AWeaponInstance()
 	point_DamageStart->SetupAttachment(RootComponent);
 	point_DamageEnd->SetupAttachment(RootComponent);
 
-	//if (WeaponAttributeTable)
-	//{
-	//	static const FString ContextString(TEXT("Character movement Data Lookup"));
-	//	FName RowName(TEXT("TripleC_Lvl_1")); // Name of the row you want to access
-	//	FWeaponAttributeData* AttributeData = this->WeaponAttributeTable->FindRow<FWeaponAttributeData>(FName(TEXT("defaultAttribute")), ContextString, true);
-
-	//	if (AttributeData)
-	//	{
-	//		AttributeData->AttackPower = this->AttackPower;
-	//		AttributeData->AttackSpeed = this->AttackSpeed;
-	//		AttributeData->AttackRange = this->AttackRange;
-	//		AttributeData->PickedUpEffect = this->PickedUpEffect;
-	//		AttributeData->CrticalRate = this->CrticalRate;
-	//		AttributeData->Crit_Damage = this->Crit_Damage;
-	//		AttributeData->Actions = this->Actions;
-	//	}
-
-
-	//}
-
-	//if (Mesh)
-	//{
-	//	Mesh->AlwaysLoadOnClient = true;
-	//	Mesh->AlwaysLoadOnServer = true;
-	//	Mesh->bOwnerNoSee = false;
-	//	Mesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPose;
-	//	Mesh->bCastDynamicShadow = true;
-	//	Mesh->bAffectDynamicIndirectLighting = true;
-	//	Mesh->PrimaryComponentTick.TickGroup = TG_PrePhysics;
-	//	Mesh->SetupAttachment(CapsuleComponent);
-	//	static FName MeshCollisionProfileName(TEXT("CharacterMesh"));
-	//	Mesh->SetCollisionProfileName(MeshCollisionProfileName);
-	//	Mesh->SetGenerateOverlapEvents(false);
-	//	Mesh->SetCanEverAffectNavigation(false);
-	//}
-
 }
 
 // Called when the game starts or when spawned

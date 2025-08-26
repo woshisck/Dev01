@@ -42,9 +42,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FItemInteractEndDelegate OnItemInterActionEnd;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle Data")
-	float EnemyCloseDist;
-
 	UFUNCTION(BlueprintCallable)
 	void SetOwnCamera(AYogCameraPawn* cameraActor);
 
