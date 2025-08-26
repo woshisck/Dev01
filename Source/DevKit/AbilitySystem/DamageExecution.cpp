@@ -51,7 +51,9 @@ struct FYogDamageStatics
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Resist, Source, false);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Shield, Source, false);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Dodge, Source, false);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, DmgTaken, Source, false);
+
+		//Target DamageTaken
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, DmgTaken, Target, false);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Crit_Rate, Source, false);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Crit_Damage, Source, false);
 
@@ -63,15 +65,18 @@ struct FYogDamageStatics
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Resist, Source, false);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Shield, Source, false);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Dodge, Source, false);
-		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_DmgTaken, Source, false);
+		
+		//Target Add_DamageTaken
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_DmgTaken, Target, false);
+
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Crit_Rate, Source, false);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Crit_Damage, Source, false);
 
 
-		//Current health and damage
+		//Current target health 
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Target, false);
 
-
+		//Current source damage
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UDamageAttributeSet, DamagePhysical, Source, false);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UDamageAttributeSet, DamageMagic, Source, false);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UDamageAttributeSet, DamagePure, Source, false);
@@ -89,10 +94,30 @@ static const FYogDamageStatics& DamageStatics()
 
 UDamageExecution::UDamageExecution()
 {
-	//RelevantAttributesToCapture.Add(DamageStatics().AttackPowerDef);
-	//RelevantAttributesToCapture.Add(DamageStatics().AttackDef);
-	//RelevantAttributesToCapture.Add(DamageStatics().WeaponAtkDef);
-	//RelevantAttributesToCapture.Add(DamageStatics().ActDamageDef);
+	RelevantAttributesToCapture.Add(DamageStatics().AttackDef);
+	RelevantAttributesToCapture.Add(DamageStatics().AttackPowerDef);
+	RelevantAttributesToCapture.Add(DamageStatics().SanityDef);
+	RelevantAttributesToCapture.Add(DamageStatics().ResilienceDef);
+	RelevantAttributesToCapture.Add(DamageStatics().ResistDef);
+	RelevantAttributesToCapture.Add(DamageStatics().ShieldDef);
+	RelevantAttributesToCapture.Add(DamageStatics().DodgeDef);
+	RelevantAttributesToCapture.Add(DamageStatics().DmgTakenDef);
+	RelevantAttributesToCapture.Add(DamageStatics().Crit_RateDef);
+	RelevantAttributesToCapture.Add(DamageStatics().Crit_DamageDef);
+	RelevantAttributesToCapture.Add(DamageStatics().Add_AttackDef);
+	RelevantAttributesToCapture.Add(DamageStatics().Add_AttackPowerDef);
+	RelevantAttributesToCapture.Add(DamageStatics().Add_SanityDef);
+	RelevantAttributesToCapture.Add(DamageStatics().Add_ResilienceDef);
+	RelevantAttributesToCapture.Add(DamageStatics().Add_ResistDef);
+	RelevantAttributesToCapture.Add(DamageStatics().Add_ShieldDef);
+	RelevantAttributesToCapture.Add(DamageStatics().Add_DodgeDef);
+	RelevantAttributesToCapture.Add(DamageStatics().Add_DmgTakenDef);
+	RelevantAttributesToCapture.Add(DamageStatics().Add_Crit_RateDef);
+	RelevantAttributesToCapture.Add(DamageStatics().Add_Crit_DamageDef);
+	RelevantAttributesToCapture.Add(DamageStatics().HealthDef);
+	RelevantAttributesToCapture.Add(DamageStatics().DamagePhysicalDef);
+	RelevantAttributesToCapture.Add(DamageStatics().DamageMagicDef);
+	RelevantAttributesToCapture.Add(DamageStatics().DamagePureDef);
 
 	//RelevantAttributesToCapture.Add(DamageStatics().ActDmgReduceDef);
 	//RelevantAttributesToCapture.Add(DamageStatics().ShieldDef);
@@ -108,6 +133,11 @@ UDamageExecution::UDamageExecution()
 
 void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const 
 {
+	SCOPED_NAMED_EVENT(UDamageExecution__Execute_Implementation, FColor::Red);
+	QUICK_SCOPE_CYCLE_COUNTER(UDamageExecution_Execute_Implementation);
+
+
+	FGameplayEffectSpec* spec = ExecutionParams.GetOwningSpecForPreExecuteMod();
 
 
 	UYogAbilitySystemComponent* TargetAbilitySystemComponent = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
@@ -138,107 +168,86 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	EvaluationParameters.TargetTags = TargetTags;
 	
 
-	////////////////////////////////////////////////// Source Attack //////////////////////////////////////////////////
-	//float AttackPower = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, AttackPower);
-	//float Attack = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef, EvaluationParameters, Attack);
-	//float WeaponAtk = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().WeaponAtkDef, EvaluationParameters, WeaponAtk);
-	//float ActDamage = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ActDamageDef, EvaluationParameters, ActDamage);
-	////////////////////////////////////////////////// Target Reduce //////////////////////////////////////////////////
+//Crit_Rate + Add_Crit_Rate = Final_Crit_rate
+//Crit_Damage + Add_Crit_Damage = Crit_Damage
+//(Attack + Add_Attack) * (AttackPower + Add_AttackPower) * (DmgTaken + Add_DmgTaken)
+
+	////////////////////////////////////////////////// Source //////////////////////////////////////////////////
+
+	float Attack = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef, EvaluationParameters, Attack);
+	float Add_Attack = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Add_AttackDef, EvaluationParameters, Add_Attack);
+
+	float AttackPower = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, AttackPower);
+	float Add_AttackPower = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Add_AttackPowerDef, EvaluationParameters, Add_AttackPower);
+
+	float Crit_Rate = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_RateDef, EvaluationParameters, Crit_Rate);
+	float Add_Crit_Rate = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Add_Crit_RateDef, EvaluationParameters, Add_Crit_Rate);
+
+	float Crit_Damage = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_DamageDef, EvaluationParameters, Crit_Damage);
+	float Add_Crit_Damage = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Add_Crit_DamageDef, EvaluationParameters, Add_Crit_Damage);
 
 
-	//float ActDmgReduce = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ActDmgReduceDef, EvaluationParameters, ActDmgReduce);
-	//float Shield = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ShieldDef, EvaluationParameters, Shield);
 
 
-	//////////////////////////////////////////////////// Critical //////////////////////////////////////////////////
-	//float Crit_Rate = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().CriticalRateDef, EvaluationParameters, Crit_Rate);
-	//float Crit_Damage = 0.f;
-	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().CriticalDamageDef, EvaluationParameters, Crit_Damage); * buff_crit_damage
-	//float DamageDone = 0.f;
-	//float Crit_Value = FMath::FRand();
-	//if (Shield < 0.f)
-	//{	//Crit_Value <= Crit_Rate IS Critical Hit
-	//	if (Crit_Value <= Crit_Rate)
-	//	{
-	//		DamageDone = AttackPower * (Attack + WeaponAtk + ActDamage) * Crit_Damage;
-	//	}
-	//	else
-	//	{
-	//		DamageDone = AttackPower * (Attack + WeaponAtk + ActDamage) * 1;
-	//	}
-	//}
-	//else
-	//{
-	//	if (Crit_Value <= Crit_Rate)
-	//	{
-	//		DamageDone = AttackPower * (Attack + WeaponAtk + ActDamage) * Crit_Damage;
-	//	}
-	//	else
-	//	{
-	//		DamageDone = AttackPower * (Attack + WeaponAtk + ActDamage) * 1;
-	//	}
-	//}
-	////DamageDone = -1 * DamageDone;
-	//
-	//OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamageProperty, EGameplayModOp::Additive, DamageDone));
-	////Broadcast damages to Target ASC
-	//UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(TargetAbilitySystemComponent);
-	//if (TargetASC)
-	//{	
-	//	UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), DamageDone);
-	//	UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(SourceAbilitySystemComponent);
-	//	TargetASC->ReceiveDamage(SourceASC, DamageDone);
-	//}
+	////////////////////////////////////////////////// Target //////////////////////////////////////////////////
+	float DmgTaken = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DmgTakenDef, EvaluationParameters, DmgTaken);
+	float Add_DmgTaken = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Add_DmgTakenDef, EvaluationParameters, Add_DmgTaken);
+
+
+	float Dodge = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DodgeDef, EvaluationParameters, Dodge);
+	float Add_Dodge = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Add_DodgeDef, EvaluationParameters, Add_Dodge);
+
+	float Shield = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ShieldDef, EvaluationParameters, Shield);
+
+
+
+	float DamageDone = 0.f;
+	float RandomFloatValue = FMath::FRand();
+
+	if (Shield < 0.f)
+	{	//Crit_Value <= Crit_Rate IS Critical Hit
+		if (RandomFloatValue <= Crit_Rate)
+		{
+			DamageDone = (AttackPower + Add_AttackPower) * (Attack + Add_Attack) * (Crit_Damage + Add_Crit_Damage) * (DmgTaken + Add_DmgTaken);
+		}
+		else
+		{
+			DamageDone = (AttackPower + Add_AttackPower) * (Attack + Add_Attack) * (DmgTaken + Add_DmgTaken);
+		}
+	}
+	else
+	{
+		if (RandomFloatValue <= Crit_Rate)
+		{
+			DamageDone = (AttackPower + Add_AttackPower) * (Attack + Add_Attack) * (Crit_Damage + Add_Crit_Damage) * (DmgTaken + Add_DmgTaken);
+		}
+		else
+		{
+			DamageDone = (AttackPower + Add_AttackPower) * (Attack + Add_Attack) * (DmgTaken + Add_DmgTaken);
+		}
+	}
+	
+	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Additive, DamageDone));
+	//Broadcast damages to Target ASC
+	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(TargetAbilitySystemComponent);
+	if (TargetASC)
+	{	
+		UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), DamageDone);
+		UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(SourceAbilitySystemComponent);
+		TargetASC->ReceiveDamage(SourceASC, DamageDone);
+	}
 }
 
-
-
-
-
-////////////////////////////////////////////////// Damage Persudo Code //////////////////////////////////////////////////
-//attack * attackPower + weaponAtk * weaponAtkPower + ActionAtk
-//
-//if (shield > 0)
-
-//{
-//	if (crit)
-//	{
-//		damage = AttackPower * (Attack + WeaponAtk + ActDamage) * CritcalDamage
-//	}
-//	else
-//	{
-//		damage = (AttackPower * (Attack + WeaponAtk + ActDamage) * 1)
-//	}
-//}
-//else
-//{
-//	if (crit)
-//	{
-//		damage = AttackPower * (Attack + WeaponAtk + ActDamage) * CritcalDamage
-//	}
-//	else
-//	{
-//		damage = (AttackPower * (Attack + WeaponAtk + ActDamage) * 1 + Flat_DAMAGE) * dmg_reduce - afterDmg_reduce
-//
-//
-//			damage = ((AttackPower * (Attack + WeaponAtk + ActDamage) * 1) * dmg_reduce) +
-//	}
-//}
-//
-//
-//
-//if (!immuteResilience_value)
-//{
-//	if (self.act_resilience < enemy.resilience)
-//	{
-//		cause damage_montage
-//	}
-//}
-////////////////////////////////////////////////// Damage Persudo Code //////////////////////////////////////////////////

@@ -1,7 +1,22 @@
-1. range attack (PROJECTILE)        -->> 5
-2. Level matrix setup               -->> 5 *
-3. passive ability(Game)            -->> 1
-4. S/L system                       -->> 2
-5. UNIT ATTRIBUTE Table             -->> 3
-6. Buff Pickup                      -->> 4
-7. Camera BLock                     -->> 3
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Attack, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, AttackPower, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Sanity, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Resilience, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Resist, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Shield, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Dodge, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, DmgTaken, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Crit_Rate, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Crit_Damage, Source, false);
+
+
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Attack, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_AttackPower, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Sanity, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Resilience, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Resist, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Shield, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Dodge, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_DmgTaken, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Crit_Rate, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UAdditionAttributeSet, Add_Crit_Damage, Source, false);
