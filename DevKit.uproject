@@ -63,10 +63,6 @@
 			"Enabled": false
 		},
 		{
-			"Name": "CommonUI",
-			"Enabled": true
-		},
-		{
 			"Name": "GameFeatures",
 			"Enabled": true
 		},
@@ -138,6 +134,10 @@
 		{
 			"Name": "ActorPalette",
 			"Enabled": true
+		},
+		{
+			"Name": "CommonLoadingScreen",
+			"Enabled": false
 		}
 	]
 }

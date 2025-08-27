@@ -188,9 +188,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	TArray<FLevel2DRow>& GetLevelMatrix();
 
+
 	UFUNCTION(BlueprintCallable, Category = "Sublevel Tree")
 	void InitializeMatrix(int x, int y);
-
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void ClearMatrix();
