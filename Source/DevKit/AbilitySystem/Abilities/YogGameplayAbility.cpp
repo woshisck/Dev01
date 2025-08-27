@@ -180,6 +180,8 @@ void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	AYogCharacterBase* player = Cast<AYogCharacterBase>(AvatarActor);
 
+	player->UpdateCharacterState(EYogCharacterState::OnAction, FVector(0,0,0));
+
 	//UYogAbilitySystemComponent* asc = player->GetASC();
 
 	//TODO: add loose gameplaytag for blocking ability
@@ -220,5 +222,6 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 	ASC->CurrentAbilitySpecHandle = Handle;
 
+	player->UpdateCharacterState(EYogCharacterState::Idle, FVector(0, 0, 0));
 
 }

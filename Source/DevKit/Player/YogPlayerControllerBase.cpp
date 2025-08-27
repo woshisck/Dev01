@@ -59,11 +59,10 @@ void AYogPlayerControllerBase::SpawnCameraPawn(APlayerCharacterBase* TargetChara
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 		AYogCameraPawn* CameraActorPawn = GetWorld()->SpawnActor<AYogCameraPawn>(CameraPawnClass, Location, Rotation, SpawnParams);
-
+		CameraActorPawn->SetOwner(TargetCharacter);
 		TargetCharacter->SetOwnCamera(CameraActorPawn);
 		this->SetViewTargetWithBlend(CameraActorPawn, 0.0f, EViewTargetBlendFunction::VTBlend_Linear, 0.0f, false);
 	}
-
 
 
 }
@@ -87,7 +86,7 @@ void AYogPlayerControllerBase::BeginPlay()
 	
 	//AYogCharacterBase* TargetCharacter = Cast<AYogCharacterBase>(UGameplayStatics::GetPlayerCharacter(this, 0));
 	
-	//SpawnCameraPawn(Cast<APlayerCharacterBase>(this->GetControlledCharacter()));
+	SpawnCameraPawn(Cast<APlayerCharacterBase>(this->GetControlledCharacter()));
 
 }
 

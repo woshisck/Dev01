@@ -4,10 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "YogMapDefinition.h"
 #include "Portal.generated.h"
 
 
-struct FNextMapNode;
+
 UCLASS()
 class DEVKIT_API APortal : public AActor
 {
@@ -16,6 +17,12 @@ class DEVKIT_API APortal : public AActor
 public:	
 	// Sets default values for this actor's properties
 	APortal();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void EnablePortal();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void DisablePortal();
 
 protected:
 	// Called when the game starts or when spawned

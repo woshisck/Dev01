@@ -12,6 +12,7 @@
 #include <DevKit/Item/Weapon/WeaponInstance.h>
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 #include "../Component/HitBoxBufferComponent.h"
+#include "System/YogGameInstanceBase.h"
 
 #include "../AbilitySystem/Abilities/Passive_YogAbility.h"
 
@@ -35,16 +36,11 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	AdditionAttributeSet = CreateDefaultSubobject<UAdditionAttributeSet>(TEXT("AdditionAttributeSet"));
 
 
-	//TODO: Dead Tag hardcode define
-	DeadTag = FGameplayTag::RequestGameplayTag(FName("Status.Dead"));
-	
-
 	//MovementComponent setup
 	UYogCharacterMovementComponent* YogMoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
 
-
-	bAbilitiesInitialized = false;
-	
+	CurrentState = EYogCharacterState::Idle;
+	PreviousState = EYogCharacterState::Idle;
 }
 
 UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
@@ -217,10 +213,10 @@ void AYogCharacterBase::EnableMovement()
 }
 
 
-void AYogCharacterBase::SetCharacterState(EYogCharacterState newState, FVector movementInput)
+void AYogCharacterBase::UpdateCharacterState(EYogCharacterState newState, FVector movementInput)
 {
-	
-	EYogCharacterState previousState = CurrentState;
+	//check if previous state 
+	PreviousState = CurrentState;
 
 	CurrentState = newState;
 	OnCharacterStateUpdate.Broadcast(newState, movementInput);
@@ -238,7 +234,7 @@ void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 
 	OnCharacterHealthUpdate.Broadcast(percent);
 	UE_LOG(LogTemp, Log, TEXT("Health Changed to: %f"), Health);
-	if (!IsAlive() && !AbilitySystemComponent->HasMatchingGameplayTag(DeadTag))
+	if (!IsAlive())
 	{
 		
 		Die();
@@ -267,6 +263,12 @@ void AYogCharacterBase::Die()
 
 	//GetCharacterMovement()->GravityScale = 0;
 	//GetCharacterMovement()->Velocity = FVector(0);
+
+
+	UYogGameInstanceBase* YogGameInstance = Cast<UYogGameInstanceBase>(GetGameInstance());
+	YogGameInstance->MapStateCount.MonsterSlayCount++;
+
+	UE_LOG(LogTemp, Log, TEXT("Current Monster Slay Count: %i"), YogGameInstance->MapStateCount.MonsterSlayCount);
 
 	OnCharacterDied.Broadcast(this);
 

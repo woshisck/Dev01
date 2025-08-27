@@ -13,17 +13,21 @@
  */
 class AAuraBase;
 
+UENUM()
+enum class EPlayerState : uint8
+{
+	OnMove			UMETA(DisplayName = "OnMove"),
+	OnAction		UMETA(DisplayName = "OnAction")
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPlayerStateDelegate, EPlayerState, State);
+
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FItemInteractEndDelegate, APlayerCharacterBase*, Character);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FItemInteractStartDelegate, APlayerCharacterBase*, Character, AActor*, actor);
 
 
-UENUM()
-enum class EPlayerBattleState : uint8
-{
-	OnGetHit		UMETA(DisplayName = "OnGetHit"),
-	OnHitFrame		UMETA(DisplayName = "OnHitFrame")
-};
+
 
 UCLASS()
 class DEVKIT_API APlayerCharacterBase : public AYogCharacterBase
@@ -41,6 +45,14 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FItemInteractEndDelegate OnItemInterActionEnd;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FPlayerStateDelegate OnPlayerStateUpdate;
+
+
+	UPROPERTY(BlueprintAssignable, Category = "State")
+	FPlayerStateDelegate OnFPlayerStateDeleg;
+
 
 	UFUNCTION(BlueprintCallable)
 	void SetOwnCamera(AYogCameraPawn* cameraActor);

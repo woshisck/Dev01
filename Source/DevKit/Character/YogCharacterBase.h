@@ -22,9 +22,9 @@ enum class EYogCharacterState : uint8
 {
 	Idle					UMETA(DisplayName = "Idle"),
 	Move					UMETA(DisplayName = "Move"),
-	AbilityCast				UMETA(DisplayName = "AbilityCast"),
-	Hurt					UMETA(DisplayName = "Hurt")
-
+	OnAction				UMETA(DisplayName = "AbilityCast"),
+	DamageTaken				UMETA(DisplayName = "DamageTaken"),
+	Stun					UMETA(DisplayName = "Stun")
 };
 
 
@@ -72,12 +72,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void UpdateCharacterMovement(const bool IsMovable);
 
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	EYogCharacterState CurrentState;
 
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bInstantRotate;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	EYogCharacterState PreviousState;
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -145,7 +145,7 @@ public:
 	FCharacterVelocityDelegate OnCharacterVelocityUpdate;
 
 
-	UPROPERTY(BlueprintAssignable, Category = "Character|Movement")
+	UPROPERTY(BlueprintAssignable, Category = "Character|State")
 	FCharacterStateDelegate OnCharacterStateUpdate;
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
@@ -155,7 +155,7 @@ public:
 	void EnableMovement();
 
 	UFUNCTION(BlueprintCallable, Category = "Character|State")
-	void SetCharacterState(EYogCharacterState newState, FVector movementInput);
+	void UpdateCharacterState(EYogCharacterState newState, FVector movementInput);
 
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
@@ -184,12 +184,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character|Abilities")
 	TArray<TSubclassOf<UYogGameplayAbility>> GameplayAbilities;
 
-
-
-	UPROPERTY()
-	int32 bAbilitiesInitialized;
-
-	FGameplayTag DeadTag;
 
 	FDelegateHandle HealthChangedDelegateHandle;
 	FDelegateHandle MaxHealthChangedDelegateHandle;

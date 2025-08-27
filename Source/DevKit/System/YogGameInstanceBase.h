@@ -20,6 +20,30 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FStartNewGame);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOpenSaveFile);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FStartSaveFile);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FEnterLevel);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFinishLevel);
+
+
+
+USTRUCT(BlueprintType)
+struct FLevelStateCount
+{
+	GENERATED_BODY()
+
+public:
+	FLevelStateCount(){}
+
+	UPROPERTY(BlueprintReadOnly)
+	int MonsterSlayCount;
+
+	UPROPERTY(BlueprintReadOnly)
+	int TotalMonsterSpawn;
+
+	void Reset()
+	{
+		MonsterSlayCount = 0;
+	};
+};
 
 UCLASS()
 class DEVKIT_API UYogGameInstanceBase : public UGameInstance
@@ -30,11 +54,24 @@ public:
 	// Constructor
 	UYogGameInstanceBase();
 
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Map state")
+	FLevelStateCount MapStateCount;
+
+
 	UPROPERTY(BlueprintAssignable, Category = "File system")
 	FStartNewGame OnStartNewGame;
 
 	UPROPERTY(BlueprintAssignable, Category = "File system")
 	FOpenSaveFile OnOpenSaveFile;
+
+	UPROPERTY(BlueprintAssignable, Category = "Level system")
+	FEnterLevel OnEnterLevel;
+
+	UPROPERTY(BlueprintAssignable, Category = "Level system")
+	FFinishLevel OnFinishLevel;
+
+
 	
 	UPROPERTY(BlueprintAssignable, Category = "File system")
 	FStartSaveFile OnStartSaveFile;
@@ -98,6 +135,7 @@ public:
 	void ResetSaveGame();
 
 protected:
+
 	/** The current save game object */
 	UPROPERTY()
 	UYogSaveGame* CurrentSaveGame;
