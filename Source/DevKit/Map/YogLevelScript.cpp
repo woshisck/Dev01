@@ -7,6 +7,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "Engine/AssetManager.h"
+#include "DevAssetManager.h"
 
 void AYogLevelScript::PreInitializeComponents()
 {
@@ -53,8 +55,17 @@ void AYogLevelScript::BeginPlay()
 			//for(const int& portal_index : this->Mapdefinition.levelportals)
 			//int portal_index = this->Mapdefinition->LevelPortals
 		}
-		
+	}
 
+	for (const auto& level_portal_data : Mapdefinition->LevelPortals)
+	{
+		for (const auto& next_level_data : level_portal_data.NextLevels)
+		{
+			UDevAssetManager* AssetManager = UDevAssetManager::GetDevAssetManager();
+			FSoftObjectPath path = next_level_data.LevelMapSoftPtr.ToSoftObjectPath();
+
+			AssetManager->AsyncLoadAsset(path, AssetManager->OnLoadFinished);
+		}
 	}
 
 }

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "CharacterData.generated.h"
 
 
@@ -57,9 +58,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Crit_Damage = 1;
-
-
-
 };
 
 USTRUCT(BlueprintType)
@@ -106,6 +104,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, meta = (RowType = "YogBaseData"))
 	FDataTableRowHandle YogBaseDataRow;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TArray<TSubclassOf<UYogGameplayAbility>> BaseAbilities;
 
 	inline static const FMovementData DefaultMovementData;
 

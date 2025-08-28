@@ -177,7 +177,6 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 
-
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	TArray<int32> GenerateRandomIntegers( int rangeMax, int rangeMin);
 
