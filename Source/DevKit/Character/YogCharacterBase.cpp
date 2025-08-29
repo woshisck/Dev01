@@ -100,6 +100,31 @@ UAbilitySystemComponent* AYogCharacterBase::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
+FVector AYogCharacterBase::GetGroundSlope(float length)
+{
+	FVector result = FVector();
+	FVector GroundVec = FVector(0,0,-1);
+
+	FHitResult HitResult;
+	FVector Start = GetActorLocation();
+	FVector End = GetActorLocation() + GroundVec * length;
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(this);
+
+	bool isHit = GetWorld()->LineTraceSingleByChannel(
+		HitResult,
+		Start,
+		End,
+		ECC_Visibility, // Collision channel
+		TraceParams);
+	if (isHit)
+	{
+		result = FVector::CrossProduct(HitResult.ImpactNormal, GetActorRightVector());
+	}
+
+	return result;
+}
+
 
 
 

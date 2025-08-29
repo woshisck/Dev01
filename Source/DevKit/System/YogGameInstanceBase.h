@@ -71,8 +71,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Level system")
 	FFinishLevel OnFinishLevel;
 
-
-	
 	UPROPERTY(BlueprintAssignable, Category = "File system")
 	FStartSaveFile OnStartSaveFile;
 
@@ -86,6 +84,10 @@ public:
 	/** The platform-specific user index */
 	UPROPERTY(BlueprintReadWrite, Category = Save)
 	int32 SaveUserIndex;
+
+	UPROPERTY(BlueprintReadWrite, Category = Save)
+	TObjectPtr<UYogSaveGame> PersistentSaveData;
+
 
 	/** Delegate called when the save game has been loaded/reset */
 	//UPROPERTY(BlueprintAssignable, Category = Inventory)
@@ -105,6 +107,9 @@ public:
 	/** Returns true if this is a valid inventory slot */
 	//UFUNCTION(BlueprintCallable, Category = Inventory)
 	//bool IsValidItemSlot(FRPGItemSlot ItemSlot) const;
+
+
+	virtual void Init() override;
 
 	/** Returns the current save game, so it can be used to initialize state. Changes are not written until WriteSaveGame is called */
 	UFUNCTION(BlueprintCallable, Category = Save)
@@ -133,6 +138,12 @@ public:
 	/** Resets the current save game to it's default. This will erase player data! This won't save to disk until the next WriteSaveGame */
 	UFUNCTION(BlueprintCallable, Category = Save)
 	void ResetSaveGame();
+
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	void SavePersistentData();
+
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	void LoadPersistentData();
 
 protected:
 

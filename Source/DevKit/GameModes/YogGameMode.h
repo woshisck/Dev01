@@ -6,7 +6,7 @@
 #include "ModularGameMode.h"
 #include "YogGameMode.generated.h"
 
-
+class AYogPlayerControllerBase;
 class UYogGameRule;
 /**
  * 
@@ -20,6 +20,14 @@ class DEVKIT_API AYogGameMode : public AModularGameModeBase
 public:
 	AYogGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	virtual void RestartPlayer(AController* NewPlayer) override;
+	virtual void StartPlay() override;
+
+	UFUNCTION(BlueprintCallable, Category = "Player")
+	void SpawnPlayerManually(AYogPlayerControllerBase* PlayerController, const FVector& Location, const FRotator& Rotation);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
+	bool bAutoSpawnPlayer = false;
 
 protected:
 	void OnGameRuleLoaded(const UYogGameRule* CurrentGameRule);

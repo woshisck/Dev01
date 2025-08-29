@@ -57,20 +57,11 @@ class DEVKIT_API AYogCharacterBase : public AModularCharacter, public IAbilitySy
 
 
 public:
-	virtual void BeginPlay() override;
-	virtual void Tick(float DeltaSeconds) override;
-	virtual void PostInitializeComponents() override;
+	void BeginPlay() override;
+	void Tick(float DeltaSeconds) override;
+	void PostInitializeComponents() override;
 
 	AYogCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	UFUNCTION(BlueprintCallable, Category = "Character")
-	UYogAbilitySystemComponent* GetASC() const;
-	
-	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
-
-
-	UFUNCTION(BlueprintCallable)
-	void UpdateCharacterMovement(const bool IsMovable);
 
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
@@ -122,6 +113,8 @@ public:
 	void GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel);
 
 
+
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")
 	UAnimMontage* DeathMontage;
 
@@ -148,6 +141,25 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Character|State")
 	FCharacterStateDelegate OnCharacterStateUpdate;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<AWeaponInstance> Weapon;
+
+	///** Map of gameplay tags to gameplay effect containers */
+	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Character|Buff")
+	//TMap<FGameplayTag, FYogGameplayEffectContainer> BufferMap;
+
+
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	UYogAbilitySystemComponent* GetASC() const;
+
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	UFUNCTION(BlueprintCallable)
+	FVector GetGroundSlope(float length);
+
+	UFUNCTION(BlueprintCallable)
+	void UpdateCharacterMovement(const bool IsMovable);
+
 	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
 	void DisableMovement();
 
@@ -156,14 +168,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Character|State")
 	void UpdateCharacterState(EYogCharacterState newState, FVector movementInput);
-
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
-	TObjectPtr<AWeaponInstance> Weapon;
-
-	///** Map of gameplay tags to gameplay effect containers */
-	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Character|Buff")
-	//TMap<FGameplayTag, FYogGameplayEffectContainer> BufferMap;
 
 
 public:

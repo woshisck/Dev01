@@ -41,3 +41,15 @@ void UYogSaveGame::LoadCharacterData()
 		//UE_LOG(LogTemp, Warning, TEXT("LOADED: %s"), *LoadedGame->PlayerName);
 	}
 }
+
+UYogSaveGame* UYogSaveGame::CreateNewSaveData(const FString& slot_name, uint32 user_index)
+{
+	UYogSaveGame* NewSaveData = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
+	if (NewSaveData)
+	{
+		NewSaveData->SaveSlotName = slot_name;
+		NewSaveData->UserIndex = user_index;
+	}
+	return NewSaveData;
+}
+

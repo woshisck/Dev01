@@ -39,6 +39,11 @@ void UYogGameInstanceBase::AddDefaultInventory(UYogSaveGame* SaveGame, bool bRem
 //	return false;
 //}
 
+void UYogGameInstanceBase::Init()
+{
+	Super::Init();
+}
+
 UYogSaveGame* UYogGameInstanceBase::GetCurrentSaveGame()
 {
 	return CurrentSaveGame;
@@ -88,6 +93,35 @@ bool UYogGameInstanceBase::WriteSaveGame()
 void UYogGameInstanceBase::ResetSaveGame()
 {
 
+}
+
+void UYogGameInstanceBase::SavePersistentData()
+{
+	if (PersistentSaveData)
+	{
+
+		UPROPERTY(VisibleAnywhere, Category = Basic)
+		PersistentSaveData->CharacterSaveData->Player = GetPlayerCharacter();
+
+
+		UGameplayStatics::SaveGameToSlot(PersistentSaveData, TEXT("PersistentSave"), 0);
+	}
+	else
+	{
+		UE_LOG(DevKitCriticalErrors, Display, TEXT("not found PersistentSaveData"));
+	}
+}
+
+void UYogGameInstanceBase::LoadPersistentData()
+{
+	if (UGameplayStatics::DoesSaveGameExist(TEXT("PersistentSave"), 0))
+	{
+		PersistentSaveData = Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromSlot(TEXT("PersistentSave"), 0));
+	}
+	else
+	{
+		PersistentSaveData = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
+	}
 }
 
 void UYogGameInstanceBase::HandleAsyncSave(const FString& SlotName, const int32 UserIndex, bool bSuccess)

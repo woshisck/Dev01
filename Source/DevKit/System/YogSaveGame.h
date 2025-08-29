@@ -72,14 +72,15 @@ public:
 	//}
 
 
-	UPROPERTY(VisibleAnywhere, Category = Basic)
+	UPROPERTY(VisibleAnywhere, Category = "SaveGame")
 	FString SaveSlotName;
 
-	UPROPERTY(VisibleAnywhere, Category = Basic)
+	UPROPERTY(VisibleAnywhere)
 	uint32 UserIndex;
 
 	UPROPERTY(VisibleAnywhere, Category = Basic)
 	TObjectPtr<UCharacterSaveData> CharacterSaveData;
+
 
 protected:
 
@@ -125,4 +126,9 @@ protected:
 
 	UFUNCTION(BlueprintCallable)
 	void LoadCharacterData();
+
+
+	// Create new save data
+	UYogSaveGame* CreateNewSaveData(const FString& slot_name, uint32 user_index);
+
 };
