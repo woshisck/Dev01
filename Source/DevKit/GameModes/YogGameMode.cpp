@@ -31,38 +31,41 @@ void AYogGameMode::StartPlay()
 	// or leave it disabled for complete manual control
 }
 
-void AYogGameMode::SpawnPlayerManually(AYogPlayerControllerBase* PlayerController, const FVector& Location, const FRotator& Rotation)
+void AYogGameMode::SpawnPlayerAtPlayerStart(AYogPlayerControllerBase* PlayerController, const FString& IncomingName)
 {
-	if (!PlayerController) return;
+	//YogSpawnPoint_0
 
-	// Destroy existing pawn
-	if (APawn* ExistingPawn = PlayerController->GetPawn())
+	AActor* PlayerStarter = FindPlayerStart(PlayerController, TEXT("YogSpawnPoint_0"));
+	if (PlayerStarter)
 	{
-		ExistingPawn->Destroy();
-	}
-
-	UWorld* World = GetWorld();
-	if (!World) return;
-
-	// Spawn player character at specified location
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-	if (DefaultPawnClass)
-	{
-		APlayerCharacterBase* NewCharacter = World->SpawnActor<APlayerCharacterBase>(
-			DefaultPawnClass,
-			Location,
-			Rotation,
-			SpawnParams
-		);
-
-		if (NewCharacter)
+		if (PlayerController)
 		{
-			PlayerController->Possess(Cast<APawn>(NewCharacter));
-			UE_LOG(LogTemp, Log, TEXT("Player spawned manually at specified location"));
+			if (APawn* ExistingPawn = PlayerController->GetPawn())
+			{
+				ExistingPawn->Destroy();
+			}
+
+			UWorld* World = GetWorld();
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+			APlayerCharacterBase* NewCharacter = World->SpawnActor<APlayerCharacterBase>
+			(
+				DefaultPawnClass,
+				PlayerStarter->GetActorLocation(),
+				PlayerStarter->GetActorRotation(),
+				SpawnParams
+			);
+
+			if (NewCharacter)
+			{
+				PlayerController->Possess(Cast<APawn>(NewCharacter));
+				UE_LOG(LogTemp, Log, TEXT("Player spawned manually at specified location"));
+			}
+
 		}
 	}
+
 }
 
 void AYogGameMode::OnGameRuleLoaded(const UYogGameRule* CurrentGameRule)
