@@ -117,6 +117,16 @@ void UYogGameInstanceBase::LoadPersistentData()
 	if (UGameplayStatics::DoesSaveGameExist(TEXT("PersistentSave"), 0))
 	{
 		PersistentSaveData = Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromSlot(TEXT("PersistentSave"), 0));
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Name = FName(TEXT("MyAutoSpawnedActor"));
+
+		AActor* actorPlayer = GetWorld()->SpawnActor<AActor>(APlayerCharacterBase::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+		
+		actorPlayer = Cast<APlayerCharacterBase>(actorPlayer);
+
+		actorPlayer = PersistentSaveData->CharacterSaveData->Player;
+		
 	}
 	else
 	{
