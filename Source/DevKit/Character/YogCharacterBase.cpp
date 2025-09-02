@@ -4,17 +4,17 @@
 #include "YogCharacterBase.h"
 #include "YogCharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "../Item/ItemInstance.h"
+#include "DevKit/Item/ItemInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "../Inventory/InventoryManagerComponent.h"
-#include "../AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "DevKit/Inventory/InventoryManagerComponent.h"
+#include "DevKit/AbilitySystem/Abilities/YogGameplayAbility.h"
 #include <DevKit/Player/YogPlayerControllerBase.h>
 #include <DevKit/Item/Weapon/WeaponInstance.h>
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
-#include "../Component/HitBoxBufferComponent.h"
+#include "DevKit/Component/HitBoxBufferComponent.h"
 #include "System/YogGameInstanceBase.h"
 
-#include "../AbilitySystem/Abilities/Passive_YogAbility.h"
+#include "DevKit/AbilitySystem/Abilities/Passive_YogAbility.h"
 
 AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))

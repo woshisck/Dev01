@@ -2,7 +2,7 @@
 
 #include "YogGameInstanceBase.h"
 #include "../Character/PlayerCharacterBase.h"
-#include "../System/YogSaveGame.h"
+#include "DevKit/SaveGame/YogSaveGame.h"
 
 #include "Kismet/GameplayStatics.h"
 

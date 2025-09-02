@@ -1,15 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "YogSaveGame.h"
-#include "YogGameInstanceBase.h"
+#include "System/YogGameInstanceBase.h"
 
-#include "../Character/YogCharacterBase.h"
+#include "Character/YogCharacterBase.h"
 
 
 UYogSaveGame::UYogSaveGame()
 {
-	SaveSlotName = TEXT("TestSaveSlot");
-	UserIndex = 0;
+}
+
+void UYogSaveGame::Initialize(FString InSlotName)
+{
+	SlotName = InSlotName;
+
+	// Reset all data in case this slot has already be used before.
+	GameState.Empty();
+	PlayerState.Empty();
+	PlayerCharacter.Empty();
+	PlayerController.Empty();
+	WorldObjects.Empty();
+
+	FTransform NewPlayerTransform;
+	PlayerTransform = NewPlayerTransform;
 }
 
 void UYogSaveGame::Serialize(FArchive& Ar)
@@ -28,8 +41,6 @@ void UYogSaveGame::Serialize(FArchive& Ar)
 
 		// 	InventoryItems_DEPRECATED.Empty();
 		// }
-		
-
 	//
 }
 
@@ -42,14 +53,4 @@ void UYogSaveGame::LoadCharacterData()
 	}
 }
 
-UYogSaveGame* UYogSaveGame::CreateNewSaveData(const FString& slot_name, uint32 user_index)
-{
-	UYogSaveGame* NewSaveData = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
-	if (NewSaveData)
-	{
-		NewSaveData->SaveSlotName = slot_name;
-		NewSaveData->UserIndex = user_index;
-	}
-	return NewSaveData;
-}
 

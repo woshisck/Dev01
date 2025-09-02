@@ -1,5 +1,5 @@
 #include "YogAbilitySystemComponent.h"
-#include "../AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 
 
 

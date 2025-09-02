@@ -3,9 +3,9 @@
 
 #include "YogGameplayAbility.h"
 #include "YogTargetType.h"
-#include "../../Character/YogCharacterBase.h"
+#include "DevKit/Character/YogCharacterBase.h"
 #include "../YogAbilitySystemComponent.h"
-#include "../../Component/HitBoxBufferComponent.h"
+#include "DevKit/Component/HitBoxBufferComponent.h"
 #include "Data/AbilityData.h"
 #include "AbilitySystemComponent.h"
 

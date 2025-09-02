@@ -24,7 +24,7 @@ public:
 	virtual void StartPlay() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Player")
-	void SpawnPlayerAtPlayerStart(AYogPlayerControllerBase* PlayerController, const FString& IncomingName);
+	void SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
 	bool bAutoSpawnPlayer = false;

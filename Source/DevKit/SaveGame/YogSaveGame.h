@@ -54,6 +54,48 @@ public:
 };
 
 
+USTRUCT()
+struct FObjectRecord
+{
+	GENERATED_BODY()
+
+public:
+	FObjectRecord()
+	{
+		Class = nullptr;
+		Outer = nullptr;
+		OuterId = 0;
+		Self = nullptr;
+		bIsStaticWorldActor = false;
+	}
+
+	UPROPERTY()
+	UClass* Class;
+
+	UPROPERTY()
+	UObject* Outer;
+
+	UPROPERTY()
+	int32 OuterId;
+
+	UPROPERTY()
+	UObject* Self;
+
+	UPROPERTY()
+	FString Name;
+
+	UPROPERTY()
+	FTransform Transform;
+
+	UPROPERTY()
+	bool bIsStaticWorldActor;
+
+	UPROPERTY()
+	TArray<uint8> Data;
+};
+
+//TODO: SAMPLE FROM https://medium.com/@chrhaase_71293/an-unreal-engine-saving-loading-system-part-1-of-2-62244e55e4b2
+
 
 
 
@@ -71,9 +113,37 @@ public:
 	//	SavedDataVersion = EYogSaveGameVersion::LatestVersion;
 	//}
 
+	//The reason why it set as TArray<uint8> is because the data will be serialize to uint8?
+	//reference: https://medium.com/@chrhaase_71293/an-unreal-engine-saving-loading-system-part-1-of-2-62244e55e4b2
+	UPROPERTY()
+	FString SlotName;
 
-	UPROPERTY(VisibleAnywhere, Category = "SaveGame")
-	FString SaveSlotName;
+	UPROPERTY()
+	TArray<uint8> GameState;
+
+	UPROPERTY()
+	TArray<uint8> PlayerState;
+
+	UPROPERTY()
+	FTransform PlayerTransform;
+
+	UPROPERTY()
+	TArray<uint8> PlayerCharacter;
+
+
+	UPROPERTY()
+	TArray<uint8> PlayerController;
+
+	UPROPERTY()
+	FRotator ControlRotation;
+
+	UPROPERTY()
+	TArray<FObjectRecord> WorldObjects;
+
+	UPROPERTY()
+	TArray<FString> UniqueCollectiblesCollected;
+
+
 
 	UPROPERTY(VisibleAnywhere)
 	uint32 UserIndex;
@@ -81,8 +151,11 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = Basic)
 	TObjectPtr<UCharacterSaveData> CharacterSaveData;
 
+	void Initialize(FString InSlotName);
+
 
 protected:
+
 
 	/** Overridden to allow version fixups */
 	virtual void Serialize(FArchive& Ar) override;

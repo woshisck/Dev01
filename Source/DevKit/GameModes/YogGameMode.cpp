@@ -31,21 +31,26 @@ void AYogGameMode::StartPlay()
 	// or leave it disabled for complete manual control
 }
 
-void AYogGameMode::SpawnPlayerAtPlayerStart(AYogPlayerControllerBase* PlayerController, const FString& IncomingName)
+void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName)
 {
 	//YogSpawnPoint_0
+	UWorld* World = GetWorld();
+
+	//TODO: NEED TO CHANGE IN THE FUTURE DEV
+	APlayerController* PlayerController = World->GetFirstPlayerController();
+
 
 	AActor* PlayerStarter = FindPlayerStart(PlayerController, TEXT("YogSpawnPoint_0"));
 	if (PlayerStarter)
 	{
 		if (PlayerController)
 		{
-			if (APawn* ExistingPawn = PlayerController->GetPawn())
-			{
-				ExistingPawn->Destroy();
-			}
+			//if (APawn* ExistingPawn = PlayerController->GetPawn())
+			//{
+			//	ExistingPawn->Destroy();
+			//}
 
-			UWorld* World = GetWorld();
+
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
@@ -56,9 +61,11 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(AYogPlayerControllerBase* PlayerCont
 				PlayerStarter->GetActorRotation(),
 				SpawnParams
 			);
+			NewCharacter = player;
 
 			if (NewCharacter)
 			{
+				
 				PlayerController->Possess(Cast<APawn>(NewCharacter));
 				UE_LOG(LogTemp, Log, TEXT("Player spawned manually at specified location"));
 			}
