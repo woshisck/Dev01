@@ -32,23 +32,7 @@ public:
 
 class AYogCharacterBase;
 class UYogGameInstanceBase;
-/** List of versions, native code will handle fixups for any old versions */
-namespace EYogSaveGameVersion
-{
-	enum type
-	{
-		// Initial version
-		Initial,
-		// Added Inventory
-		AddedStatsData,
-		// Added ItemData to store count/level
-		AddedAbilityData,
 
-		// -----<new versions must be added before this line>-------------------------------------------------
-		VersionPlusOne,
-		LatestVersion = VersionPlusOne - 1
-	};
-}
 
 class AYogCharacterBase;
 
@@ -85,13 +69,6 @@ public:
 	///////////////////////////////////////// Basic /////////////////////////////////////////
 
 
-
-
-	//{
-	//	// Set to current version, this will get overwritten during serialization when loading
-	//	SavedDataVersion = EYogSaveGameVersion::LatestVersion;
-	//}
-
 	//The reason why it set as TArray<uint8> is because the data will be serialize to uint8?
 	//reference: https://medium.com/@chrhaase_71293/an-unreal-engine-saving-loading-system-part-1-of-2-62244e55e4b2
 
@@ -100,12 +77,6 @@ public:
 
 	UPROPERTY()
 	FString LevelName;
-
-	UPROPERTY()
-	TArray<uint8> GameState;
-
-	UPROPERTY()
-	TArray<uint8> PlayerState;
 
 	UPROPERTY()
 	FTransform PlayerTransform;
@@ -161,47 +132,6 @@ public:
 	TObjectPtr<UCharacterSaveData> CharacterSaveData;
 
 	void Initialize(FString InSlotName);
-
-
-protected:
-
-
-	/** Overridden to allow version fixups */
-	virtual void Serialize(FArchive& Ar) override;
-
-
-	UFUNCTION(BlueprintCallable)
-	void SaveCurrentState(APlayerCharacterBase* Character, UYogSaveGame* SaveGameInstance)
-	{
-
-
-		if (Character && SaveGameInstance)
-		{
-
-
-			UYogGameInstanceBase* CurrentGameInstance = Cast<UYogGameInstanceBase>(GetWorld()->GetGameInstance<UGameInstance>());
-
-			APlayerCharacterBase* CurrentCharacter = CurrentGameInstance->GetPlayerCharacter();
-			SaveGameInstance->CharacterSaveData->Player = CurrentGameInstance->GetPlayerCharacter();
-
-			TArray<AActor*> AttachedActors;
-			CurrentCharacter->GetAttachedActors(AttachedActors);
-			for (AActor* actor : AttachedActors)
-			{
-				AWeaponInstance* weapon = Cast<AWeaponInstance>(actor);
-				if (weapon)
-				{
-					SaveGameInstance->CharacterSaveData->array_WeaponAttach.Add(Cast<AWeaponInstance>(actor));
-				}
-			}
-			//SaveGameInstance->CharacterSaveData->array_WeaponAttach = AttachedActors;
-		}
-
-		UGameplayStatics::SaveGameToSlot(SaveGameInstance, TEXT("AutoSave0"), 0);
-	}
-
-	UFUNCTION(BlueprintCallable)
-	void LoadCharacterData();
 
 
 };

@@ -7,6 +7,17 @@
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameStateBase.h"
 
+UYogSaveSubsystem::UYogSaveSubsystem()
+{
+	if (!CurrentSaveGame)
+	{
+		CurrentSaveGame = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
+		CurrentSaveGame->Initialize(SlotName);
+		UGameplayStatics::SaveGameToSlot(CurrentSaveGame, CurrentSaveGame->SlotName, DefaultUserIndex_SOLID);
+	}
+
+}
+
 void UYogSaveSubsystem::SerializeObject(UObject* Object, TArray<uint8>& OutResult)
 {
 	if (!Object)
@@ -44,8 +55,13 @@ void UYogSaveSubsystem::LoadGame()
 
 }
 
+void UYogSaveSubsystem::SaveGame()
+{
+}
+
 void UYogSaveSubsystem::CreateNewSaveGame()
 {
+
 	// Create a new save game instance.
 	CurrentSaveGame = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
 	if (!CurrentSaveGame)

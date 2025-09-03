@@ -15,9 +15,9 @@ void UYogSaveGame::Initialize(FString InSlotName)
 	SlotName = InSlotName;
 
 	// Reset all data in case this slot has already be used before.
-	GameState.Empty();
-	PlayerState.Empty();
-	PlayerCharacter.Empty();
+	//GameState.Empty();
+	//PlayerState.Empty();
+	//PlayerCharacter.Empty();
 	PlayerController.Empty();
 	//WorldObjects.Empty();
 
@@ -25,32 +25,13 @@ void UYogSaveGame::Initialize(FString InSlotName)
 	PlayerTransform = NewPlayerTransform;
 }
 
-void UYogSaveGame::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-
-	//if (Ar.IsLoading())
-	//{
-		// if (SavedDataVersion < EYogSaveGameVersion::AddedItemData)
-		// {
-		// 	// Convert from list to item data map
-		// 	for (const FPrimaryAssetId& ItemId : InventoryItems_DEPRECATED)
-		// 	{
-		// 		InventoryData.Add(ItemId, FRPGItemData(1, 1));
-		// 	}
-
-		// 	InventoryItems_DEPRECATED.Empty();
-		// }
-	//
-}
-
-void UYogSaveGame::LoadCharacterData()
-{
-	if (UYogSaveGame* LoadedGame = Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromSlot(TEXT("AutoSave0"), 0)))
-	{
-		// The operation was successful, so LoadedGame now contains the data we saved earlier.
-		//UE_LOG(LogTemp, Warning, TEXT("LOADED: %s"), *LoadedGame->PlayerName);
-	}
-}
+//void UYogSaveGame::LoadCharacterData()
+//{
+//	if (UYogSaveGame* LoadedGame = Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromSlot(TEXT("AutoSave0"), 0)))
+//	{
+//		// The operation was successful, so LoadedGame now contains the data we saved earlier.
+//		//UE_LOG(LogTemp, Warning, TEXT("LOADED: %s"), *LoadedGame->PlayerName);
+//	}
+//}
 
 

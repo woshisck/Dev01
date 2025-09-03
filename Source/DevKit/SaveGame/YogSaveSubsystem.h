@@ -18,6 +18,7 @@ class DEVKIT_API UYogSaveSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 public:
+	UYogSaveSubsystem();
 	void SerializeObject(UObject* Object, TArray<uint8>& OutResult);
 	void DeserializeObject(const TArray<uint8>& Data, UObject* Object);
 
@@ -26,7 +27,11 @@ public:
 	void LoadGame();
 	
 	UFUNCTION(BlueprintCallable, Category = "My Game|Save Game")
+	void SaveGame();
+
+	UFUNCTION(BlueprintCallable, Category = "My Game|Save Game")
 	void CreateNewSaveGame();
+
 
 	UFUNCTION(BlueprintCallable, Category = "My Game|Save Game")
 	void SaveCurrentSlot();
@@ -37,7 +42,7 @@ public:
 	uint8 DefaultUserIndex_SOLID = 0;
 
 	UPROPERTY()
-	FString SlotName = TEXT("Yogger");
+	FString SlotName = TEXT("Yoggor");
 private:
 	UPROPERTY()
 	TObjectPtr<UYogSaveGame> CurrentSaveGame;
