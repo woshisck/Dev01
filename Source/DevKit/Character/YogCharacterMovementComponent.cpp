@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "YogCharacterMovementComponent.h"
+#include "Character/YogCharacterMovementComponent.h"
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"

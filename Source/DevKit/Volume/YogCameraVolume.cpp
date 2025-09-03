@@ -5,7 +5,7 @@
 #include "Components/BrushComponent.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "../Camera/YogCameraPawn.h"
-#include "../Character/PlayerCharacterBase.h"
+#include "Player/PlayerCharacterBase.h"
 
 AYogCameraVolume::AYogCameraVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

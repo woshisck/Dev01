@@ -7,7 +7,7 @@
 
 #include "GameFramework/CharacterMovementComponent.h"
 #include <DevKit/Camera/YogCameraPawn.h>
-#include "../Character/PlayerCharacterBase.h"
+#include "Player/PlayerCharacterBase.h"
 #include <EnhancedInputSubsystems.h>
 #include "../Item/ItemSpawner.h"
 

@@ -33,7 +33,18 @@ void UYogSaveSubsystem::DeserializeObject(const TArray<uint8>& Data, UObject* Ob
 	Object->Serialize(Archive);
 }
 
-void UYogSaveSubsystem::CreateNewSaveGame(FString SlotName)
+void UYogSaveSubsystem::LoadGame()
+{
+	if (!UGameplayStatics::DoesSaveGameExist(SlotName, DefaultUserIndex_SOLID))
+	{
+		return;
+	}
+
+	CurrentSaveGame = Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, DefaultUserIndex_SOLID));
+
+}
+
+void UYogSaveSubsystem::CreateNewSaveGame()
 {
 	// Create a new save game instance.
 	CurrentSaveGame = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
@@ -44,7 +55,9 @@ void UYogSaveSubsystem::CreateNewSaveGame(FString SlotName)
 
 	// Initialize the new instance.
 	CurrentSaveGame->Initialize(SlotName);
-	SaveCurrentSlot();
+
+	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, CurrentSaveGame->SlotName, DefaultUserIndex_SOLID);
+	//SaveCurrentSlot();
 }
 
 void UYogSaveSubsystem::SaveCurrentSlot()
@@ -56,7 +69,7 @@ void UYogSaveSubsystem::SaveCurrentSlot()
 
 	PopulateCurrentSlot();
 
-	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, CurrentSaveGame->SlotName, DefaultUserIndex);
+	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, CurrentSaveGame->SlotName, DefaultUserIndex_SOLID);
 
 }
 
@@ -72,25 +85,28 @@ void UYogSaveSubsystem::PopulateFromCurrentSlot()
 		return;
 	}
 
-	AGameStateBase* GS = UGameplayStatics::GetGameState(GetWorld());
-	if (GS)
-	{
-		SerializeObject(GS, CurrentSaveGame->GameState);
-	}
-
-	APlayerState* PS = UGameplayStatics::GetPlayerState(GetWorld(), 0);
-	if (PS)
-	{
-		SerializeObject(PS, CurrentSaveGame->PlayerState);
-	}
-
 	// Player controller.
 	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 	if (PC)
 	{
 		SerializeObject(Cast<UObject>(PC), CurrentSaveGame->PlayerController);
-		CurrentSaveGame->ControlRotation = PC->GetControlRotation();
 	}
+
+
+	TArray<AActor*> WorldObjects;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), WorldObjects);
+
+	//for (AActor* Actor : WorldObjects)
+	//{
+	//	FObjectRecord ObjectRecord;
+	//	ObjectRecord.Name = Actor->GetName();
+	//	ObjectRecord.bIsStaticWorldActor = true;
+
+	//	SerializeObject(Actor, ObjectRecord.Data);
+
+	//	CurrentSaveGame->WorldObjects.Add(ObjectRecord);
+	//}
+
 }
 
 //serialize/de-serialize example:

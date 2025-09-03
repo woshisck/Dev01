@@ -3,7 +3,8 @@
 
 #include "YogGameMode.h"
 #include "Player/YogPlayerControllerBase.h"
-#include "Character/PlayerCharacterBase.h"
+#include "Player/PlayerCharacterBase.h"
+#include <Kismet/GameplayStatics.h>
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
@@ -35,6 +36,7 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 {
 	//YogSpawnPoint_0
 	UWorld* World = GetWorld();
+	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 
 	//TODO: NEED TO CHANGE IN THE FUTURE DEV
 	APlayerController* PlayerController = World->GetFirstPlayerController();

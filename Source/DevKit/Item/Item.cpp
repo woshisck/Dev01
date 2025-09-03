@@ -8,7 +8,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Itemdefinition.h"
-#include "../Character/PlayerCharacterBase.h"
+#include "Player/PlayerCharacterBase.h"
 #include "../AbilitySystem/YogAbilitySystemComponent.h"
 #include "ItemDefinition.h"
 

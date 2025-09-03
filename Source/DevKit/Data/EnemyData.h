@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "../Character/EnemyCharacterBase.h"
+#include "Enemy/EnemyCharacterBase.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "EnemyData.generated.h"
 

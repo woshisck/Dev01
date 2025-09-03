@@ -1,10 +1,10 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "EnemyCharacterBase.h"
+#include "Enemy/EnemyCharacterBase.h"
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
-#include "YogCharacterMovementComponent.h"
+#include "Character/YogCharacterMovementComponent.h"
 
 AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))

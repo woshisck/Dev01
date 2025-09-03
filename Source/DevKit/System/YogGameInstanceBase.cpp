@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "YogGameInstanceBase.h"
-#include "../Character/PlayerCharacterBase.h"
+#include "Player/PlayerCharacterBase.h"
 #include "DevKit/SaveGame/YogSaveGame.h"
 
 #include "Kismet/GameplayStatics.h"

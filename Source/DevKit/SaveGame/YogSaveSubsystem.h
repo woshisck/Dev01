@@ -8,9 +8,11 @@
 
 
 class UYogSaveGame;
-/**
- * 
- */
+
+
+/// <summary>
+/// TODO: ONLY ONE SLOT AVALIABLE FOR NOW, FOR GAME DESIGN MECHANICS ;)
+/// </summary>
 UCLASS()
 class DEVKIT_API UYogSaveSubsystem : public UGameInstanceSubsystem
 {
@@ -21,13 +23,21 @@ public:
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "My Game|Save Game")
-	void CreateNewSaveGame(FString SlotName);
+	void LoadGame();
+	
+	UFUNCTION(BlueprintCallable, Category = "My Game|Save Game")
+	void CreateNewSaveGame();
 
 	UFUNCTION(BlueprintCallable, Category = "My Game|Save Game")
 	void SaveCurrentSlot();
 
+
+
 	UPROPERTY()
-	uint8 DefaultUserIndex = 0;
+	uint8 DefaultUserIndex_SOLID = 0;
+
+	UPROPERTY()
+	FString SlotName = TEXT("Yogger");
 private:
 	UPROPERTY()
 	TObjectPtr<UYogSaveGame> CurrentSaveGame;

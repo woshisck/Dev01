@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "../Character/PlayerCharacterBase.h"
+#include "Player/PlayerCharacterBase.h"
 #include "../Item/Item.h"
 #include "TriggerItemInterface.generated.h"
 

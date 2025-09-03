@@ -19,7 +19,7 @@ void UYogSaveGame::Initialize(FString InSlotName)
 	PlayerState.Empty();
 	PlayerCharacter.Empty();
 	PlayerController.Empty();
-	WorldObjects.Empty();
+	//WorldObjects.Empty();
 
 	FTransform NewPlayerTransform;
 	PlayerTransform = NewPlayerTransform;

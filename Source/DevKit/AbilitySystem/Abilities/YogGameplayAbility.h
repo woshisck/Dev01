@@ -114,7 +114,7 @@ public:
 
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, meta = (RowType = "ActionData"))
 	FDataTableRowHandle ActionRow;
 
 	UFUNCTION(BlueprintCallable)

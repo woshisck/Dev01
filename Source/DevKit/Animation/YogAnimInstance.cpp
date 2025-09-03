@@ -3,7 +3,7 @@
 
 #include "YogAnimInstance.h"
 #include "../Character/YogCharacterBase.h"
-#include "../Character/YogCharacterMovementComponent.h"
+#include "Character/YogCharacterMovementComponent.h"
 #include "AbilitySystemGlobals.h"
 
 #if WITH_EDITOR

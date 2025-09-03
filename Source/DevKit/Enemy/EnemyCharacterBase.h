@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "YogCharacterBase.h"
+#include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
 #include "EnemyCharacterBase.generated.h"
 
