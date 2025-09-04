@@ -40,6 +40,19 @@ public:
 
 	APlayerCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	UFUNCTION(BlueprintCallable)
+	void SetOwnCamera(AYogCameraPawn* cameraActor);
+
+	UFUNCTION(BlueprintCallable)
+	AYogCameraPawn* GetOwnCamera();
+
+	UFUNCTION(BlueprintCallable, Category = "Feature")
+	virtual void Die() override;
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
+
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FItemInteractStartDelegate OnItemInterActionStart;
 
@@ -52,31 +65,6 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "State")
 	FPlayerStateDelegate OnFPlayerStateDeleg;
-
-
-	UFUNCTION(BlueprintCallable)
-	void SetOwnCamera(AYogCameraPawn* cameraActor);
-
-	UFUNCTION(BlueprintCallable)
-	AYogCameraPawn* GetOwnCamera();
-
-	UFUNCTION(BlueprintCallable)
-	void SetPrepareItem(AActor* actor);
-
-	UFUNCTION(BlueprintCallable)
-	void DropPrepareItem();
-
-	UFUNCTION(BlueprintCallable)
-	AActor* GetPrepareItem();
-
-
-	UFUNCTION(BlueprintCallable, Category = "Feature")
-	virtual void Die() override;
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
-
 
 
 	UPROPERTY()

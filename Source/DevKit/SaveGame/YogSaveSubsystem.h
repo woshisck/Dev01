@@ -42,7 +42,7 @@ public:
 	uint8 DefaultUserIndex_SOLID = 0;
 
 	UPROPERTY()
-	FString SlotName = TEXT("Yoggor");
+	FString SlotName = TEXT("YoggorSave");
 private:
 	UPROPERTY()
 	TObjectPtr<UYogSaveGame> CurrentSaveGame;

@@ -100,11 +100,6 @@ void AYogPlayerControllerBase::OnInteractTriggered()
 {
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn());
 
-	if (player->GetPrepareItem() != nullptr)
-	{
-		AItemSpawner* target_item = Cast<AItemSpawner>(player->GetPrepareItem());
-		target_item->GrantItem(player);
-	}
 
 }
 

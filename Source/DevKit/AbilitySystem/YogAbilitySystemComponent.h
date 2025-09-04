@@ -26,9 +26,11 @@ public:
 	UYogAbilitySystemComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// Uses a gameplay effect to add the specified dynamic granted tag.
+	UFUNCTION(BlueprintCallable)
 	void AddDynamicTagGameplayEffect(const FGameplayTag& Tag);
 
 	// Removes all active instances of the gameplay effect that was used to add the specified dynamic granted tag.
+	UFUNCTION(BlueprintCallable)
 	void RemoveDynamicTagGameplayEffect(const FGameplayTag& Tag);
 
 	/** Gets the ability target data associated with the given ability handle and activation info */

@@ -9,12 +9,7 @@
 
 UYogSaveSubsystem::UYogSaveSubsystem()
 {
-	if (!CurrentSaveGame)
-	{
-		CurrentSaveGame = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
-		CurrentSaveGame->Initialize(SlotName);
-		UGameplayStatics::SaveGameToSlot(CurrentSaveGame, CurrentSaveGame->SlotName, DefaultUserIndex_SOLID);
-	}
+	CurrentSaveGame->Initialize(SlotName);
 
 }
 
@@ -53,10 +48,20 @@ void UYogSaveSubsystem::LoadGame()
 
 	CurrentSaveGame = Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, DefaultUserIndex_SOLID));
 
+	// Player
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	if (Player)
+	{
+		DeserializeObject(CurrentSaveGame->PlayerCharacter, Player);
+	}
+
+
+
 }
 
 void UYogSaveSubsystem::SaveGame()
 {
+	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, CurrentSaveGame->SlotName, DefaultUserIndex_SOLID);
 }
 
 void UYogSaveSubsystem::CreateNewSaveGame()
@@ -91,6 +96,12 @@ void UYogSaveSubsystem::SaveCurrentSlot()
 
 void UYogSaveSubsystem::PopulateCurrentSlot()
 {
+	// Player
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	if (Player)
+	{
+		SerializeObject(Player, CurrentSaveGame->PlayerCharacter);
+	}
 
 }
 
@@ -105,28 +116,22 @@ void UYogSaveSubsystem::PopulateFromCurrentSlot()
 	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 	if (PC)
 	{
-		SerializeObject(Cast<UObject>(PC), CurrentSaveGame->PlayerController);
+		
+		//SerializeObject(Cast<UObject>(PC), CurrentSaveGame->PlayerController);
 	}
 
 
 	TArray<AActor*> WorldObjects;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), WorldObjects);
 
-	//for (AActor* Actor : WorldObjects)
-	//{
-	//	FObjectRecord ObjectRecord;
-	//	ObjectRecord.Name = Actor->GetName();
-	//	ObjectRecord.bIsStaticWorldActor = true;
-
-	//	SerializeObject(Actor, ObjectRecord.Data);
-
-	//	CurrentSaveGame->WorldObjects.Add(ObjectRecord);
-	//}
-
 }
 
 //serialize/de-serialize example:
-//
+//TArray<unit8> Data;
+//AGameStateBase* GS = UGameplayStatics::GetGameState(GetWorld());
+//SerializeObject(GS, Data);
+// 
+// 
 //TArray<unit8> Data; // Imagine this actually has data...
 //AGameStateBase* GS = UGameplayStatics::GetGameState(GetWorld());
 //DeserializeObject(Data, GS);

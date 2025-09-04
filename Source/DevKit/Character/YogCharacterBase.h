@@ -76,24 +76,53 @@ public:
 
 	////////////////////////////////////////// Attribute Set //////////////////////////////////////////
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite)
 	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, SaveGame,  BlueprintReadWrite)
 	TObjectPtr<UAdditionAttributeSet> AdditionAttributeSet;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite)
 	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
 
 	///////////////////////////////////////////　Passive effect　///////////////////////////////////////////
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Abilities)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = Abilities)
 	TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "AblitySystemComp")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, SaveGame, Category = "AblitySystemComp")
 	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
 
 	////////////////////////////////////////// Get/Set Func　//////////////////////////////////////////
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")
+	UAnimMontage* DeathMontage;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 bWeaponEquiped = 0;
+
+	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<AWeaponInstance> Weapon;
+
+	//DELEGATE DEFINE
+	UPROPERTY(BlueprintAssignable, SaveGame, Category = "Character|Attributes")
+	FCharacterDiedDelegate OnCharacterDied;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FCharacterHealthUpdateDelegate OnCharacterHealthUpdate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FCharacterMoveableDelegate OnCharacterCanMoveUpdate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Movement")
+	FCharacterVelocityDelegate OnCharacterVelocityUpdate;
+
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|State")
+	FCharacterStateDelegate OnCharacterStateUpdate;
+
+
+
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	void GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities);
@@ -113,36 +142,10 @@ public:
 	void GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel);
 
 
-
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")
-	UAnimMontage* DeathMontage;
-
-	UPROPERTY(BlueprintReadOnly)
-	int32 bWeaponEquiped = 0;
-
 	UFUNCTION(BlueprintCallable, Category = "Character|Debug")
 	void PrintAllGameplayTags(const FGameplayTagContainer& TagContainer);
 
-	//DELEGATE DEFINE
-	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
-	FCharacterDiedDelegate OnCharacterDied;
 
-	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
-	FCharacterHealthUpdateDelegate OnCharacterHealthUpdate;
-
-	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
-	FCharacterMoveableDelegate OnCharacterCanMoveUpdate;
-
-	UPROPERTY(BlueprintAssignable, Category = "Character|Movement")
-	FCharacterVelocityDelegate OnCharacterVelocityUpdate;
-
-
-	UPROPERTY(BlueprintAssignable, Category = "Character|State")
-	FCharacterStateDelegate OnCharacterStateUpdate;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
-	TObjectPtr<AWeaponInstance> Weapon;
 
 	///** Map of gameplay tags to gameplay effect containers */
 	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Character|Buff")

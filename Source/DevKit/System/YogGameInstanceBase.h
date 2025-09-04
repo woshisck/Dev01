@@ -135,15 +135,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Save)
 	bool WriteSaveGame();
 
-	/** Resets the current save game to it's default. This will erase player data! This won't save to disk until the next WriteSaveGame */
-	UFUNCTION(BlueprintCallable, Category = Save)
-	void ResetSaveGame();
-
-	UFUNCTION(BlueprintCallable, Category = "SaveGame")
-	void SavePersistentData();
-
-	UFUNCTION(BlueprintCallable, Category = "SaveGame")
-	void LoadPersistentData();
 
 protected:
 
