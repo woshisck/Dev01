@@ -13,6 +13,7 @@
 class AYogCharacterBase;
 class AAuraBase;
 class UAuraDefinition;
+class UYogWorldSubsystem;
 
 USTRUCT(BlueprintType)
 struct FYogTriangle
@@ -104,6 +105,42 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
 	static bool DrawTriangle(UObject* WorldContextObject, FYogTriangle triangle);
+
+	template<typename T>
+
+	static T* GetSubsystem(const UObject* WorldContextObject)
+	{
+		if (!WorldContextObject)
+		{
+			return nullptr;
+		}
+
+		UWorld* World = WorldContextObject->GetWorld();
+		if (World)
+		{
+			return nullptr;
+		}
+
+		// Try different subsystem types
+		if (T::StaticClass()->IsChildOf<UGameInstanceSubsystem>())
+		{
+			if (UGameInstance* GameInstance = World->GetGameInstance())
+			{
+				return GameInstance->GetSubsystem<T>();
+			}
+		}
+		else if (T::StaticClass()->IsChildOf<UWorldSubsystem>())
+		{
+			return World->GetSubsystem<T>();
+		}
+		else if (T::StaticClass()->IsChildOf<ULocalPlayerSubsystem>())
+		{
+			// Need a player context for this
+			return nullptr;
+		}
+
+		return nullptr;
+	}
 
 };
 

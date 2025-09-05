@@ -206,8 +206,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void OpenLevelAsPersistentAtRuntime(UObject* WorldContextObject, const FString& LevelName);
 
-
-
+	UFUNCTION(BlueprintCallable)
+	UWorld* GetCurrentWorld();
 
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void GetAllSubLevel(UObject* WorldContextObject);
@@ -240,8 +240,6 @@ protected:
 
 
 
-	UFUNCTION(BlueprintCallable)
-	UWorld* GetCurrentWorld();
 
 	UFUNCTION(BlueprintCallable)
 	void UnloadAllStreamLevels();

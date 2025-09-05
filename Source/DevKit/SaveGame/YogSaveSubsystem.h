@@ -10,33 +10,40 @@
 class UYogSaveGame;
 
 
+
 /// <summary>
-/// TODO: ONLY ONE SLOT AVALIABLE FOR NOW, FOR GAME DESIGN MECHANICS ;)
+/// TODO: ONLY ONE SLOT AVALIABLE FOR NOW
 /// </summary>
+
+
 UCLASS()
 class DEVKIT_API UYogSaveSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 public:
 	UYogSaveSubsystem();
-	void SerializeObject(UObject* Object, TArray<uint8>& OutResult);
-	void DeserializeObject(const TArray<uint8>& Data, UObject* Object);
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "My Game|Save Game")
-	void LoadGame();
-	
-	UFUNCTION(BlueprintCallable, Category = "My Game|Save Game")
-	void SaveGame();
+
 
 	UFUNCTION(BlueprintCallable, Category = "My Game|Save Game")
 	void CreateNewSaveGame();
 
+	UFUNCTION(BlueprintCallable)
+	void UObjectArraySaver(UPARAM(ref) TArray<UObject*>& SaveObjects);
 
-	UFUNCTION(BlueprintCallable, Category = "My Game|Save Game")
-	void SaveCurrentSlot();
+	UFUNCTION(BlueprintCallable)
+	void UObjectSaver(UObject* SaveObject);
+
+	UFUNCTION(BlueprintCallable)
+	void CurrentLevelSaver(UWorld* level);
 
 
+	UFUNCTION(BlueprintCallable)
+	void SaveData(UObject* Object, TArray<uint8>& Data);
+
+	UFUNCTION(BlueprintCallable)
+	void LoadData(UObject* Object, UPARAM(ref) TArray<uint8>& Data);
 
 	UPROPERTY()
 	uint8 DefaultUserIndex_SOLID = 0;
@@ -47,8 +54,4 @@ private:
 	UPROPERTY()
 	TObjectPtr<UYogSaveGame> CurrentSaveGame;
 
-	//save current state 
-	void PopulateCurrentSlot();
-
-	void PopulateFromCurrentSlot();
 };

@@ -10,6 +10,20 @@ UYogSaveGame::UYogSaveGame()
 {
 }
 
+
+UWorld* UYogSaveGame::LoadSavedLevel() const
+{
+    // If soft ptr is not loaded, try to load from saved path
+    if (!SavedLevelPath.IsEmpty())
+    {
+        TSoftObjectPtr<UWorld> LevelPtr = TSoftObjectPtr<UWorld>(FSoftObjectPath(SavedLevelPath));
+        return LevelPtr.LoadSynchronous();
+    }
+
+    return nullptr;
+
+}
+
 void UYogSaveGame::Initialize(FString InSlotName)
 {
 	SlotName = InSlotName;

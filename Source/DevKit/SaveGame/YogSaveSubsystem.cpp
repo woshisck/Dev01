@@ -2,6 +2,7 @@
 
 
 #include "YogSaveSubsystem.h"
+#include "System/YogWorldSubsystem.h"
 #include "YogSaveGame.h"
 #include "YogSaveGameArchive.h"
 #include "GameFramework/PlayerState.h"
@@ -13,56 +14,7 @@ UYogSaveSubsystem::UYogSaveSubsystem()
 
 }
 
-void UYogSaveSubsystem::SerializeObject(UObject* Object, TArray<uint8>& OutResult)
-{
-	if (!Object)
-	{
-		return;
-	}
 
-	FMemoryWriter MemoryWriter = FMemoryWriter(OutResult, true);
-	FYogSaveGameArchive Archive = FYogSaveGameArchive(MemoryWriter);
-
-	Object->Serialize(Archive);
-}
-
-void UYogSaveSubsystem::DeserializeObject(const TArray<uint8>& Data, UObject* Object)
-{
-	if (!Object)
-	{
-		return;
-	}
-
-	FMemoryReader MemoryReader(Data, true);
-	FYogSaveGameArchive Archive(MemoryReader);
-
-	Object->Serialize(Archive);
-}
-
-void UYogSaveSubsystem::LoadGame()
-{
-	if (!UGameplayStatics::DoesSaveGameExist(SlotName, DefaultUserIndex_SOLID))
-	{
-		return;
-	}
-
-	CurrentSaveGame = Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, DefaultUserIndex_SOLID));
-
-	// Player
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-	if (Player)
-	{
-		DeserializeObject(CurrentSaveGame->PlayerCharacter, Player);
-	}
-
-
-
-}
-
-void UYogSaveSubsystem::SaveGame()
-{
-	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, CurrentSaveGame->SlotName, DefaultUserIndex_SOLID);
-}
 
 void UYogSaveSubsystem::CreateNewSaveGame()
 {
@@ -81,57 +33,106 @@ void UYogSaveSubsystem::CreateNewSaveGame()
 	//SaveCurrentSlot();
 }
 
-void UYogSaveSubsystem::SaveCurrentSlot()
+void UYogSaveSubsystem::UObjectArraySaver(UPARAM(ref) TArray<UObject*>& SaveObjects)
 {
-	if (!CurrentSaveGame)
+	for (UObject* SaveObject : SaveObjects)
+	{
+		UObjectSaver(SaveObject);
+	}
+}
+
+void UYogSaveSubsystem::UObjectSaver(UObject* SaveObject)
+{
+}
+
+void UYogSaveSubsystem::CurrentLevelSaver(UWorld* level)
+{
+	if (level)
+	{
+		UYogWorldSubsystem* worldsubsystem = this->GetWorld()->GetSubsystem<UYogWorldSubsystem>();
+		UWorld* current_world = worldsubsystem->GetCurrentWorld();
+		CurrentSaveGame->CurrentLevel.AssetPath = current_world->GetPathName();
+		SaveData(current_world, CurrentSaveGame->CurrentLevel.ByteData);
+	}
+	else
+	{
+		return;
+	}
+}
+
+void UYogSaveSubsystem::SaveData(UObject* Object, TArray<uint8>& Data)
+{
+	if (Object == nullptr)
 	{
 		return;
 	}
 
-	PopulateCurrentSlot();
+	FMemoryWriter MemoryWriter = FMemoryWriter(Data, true);
+	FYogSaveGameArchive Archive = FYogSaveGameArchive(MemoryWriter);
 
-	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, CurrentSaveGame->SlotName, DefaultUserIndex_SOLID);
-
+	Object->Serialize(Archive);
 }
 
-void UYogSaveSubsystem::PopulateCurrentSlot()
-{
-	// Player
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-	if (Player)
-	{
-		SerializeObject(Player, CurrentSaveGame->PlayerCharacter);
-	}
 
-}
-
-void UYogSaveSubsystem::PopulateFromCurrentSlot()
+void UYogSaveSubsystem::LoadData(UObject* Object, UPARAM(ref)TArray<uint8>& Data)
 {
-	if (!CurrentSaveGame)
+
+	if (!Object)
 	{
 		return;
 	}
+	FMemoryReader MemoryReader(Data, true);
 
-	// Player controller.
-	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-	if (PC)
-	{
-		
-		//SerializeObject(Cast<UObject>(PC), CurrentSaveGame->PlayerController);
-	}
-
-
-	TArray<AActor*> WorldObjects;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), WorldObjects);
-
+	FYogSaveGameArchive Ar(MemoryReader);
+	Object->Serialize(Ar);
 }
 
-//serialize/de-serialize example:
-//TArray<unit8> Data;
-//AGameStateBase* GS = UGameplayStatics::GetGameState(GetWorld());
-//SerializeObject(GS, Data);
-// 
-// 
-//TArray<unit8> Data; // Imagine this actually has data...
-//AGameStateBase* GS = UGameplayStatics::GetGameState(GetWorld());
-//DeserializeObject(Data, GS);
+
+//void UYogSaveSubsystem::PopulateCurrentSlot()
+//{
+//	// Player
+//	UYogWorldSubsystem* worldsubsystem = this->GetWorld()->GetSubsystem<UYogWorldSubsystem>();
+//	UWorld* current_world = worldsubsystem->GetCurrentWorld();
+//	if (current_world)
+//	{
+//		SerializeObject(current_world, CurrentSaveGame->CurrentLevel.ByteData);
+//
+//
+//		//FString level_name = current_world->GetPathName();
+//		//CurrentSaveGame->CurrentLevel.
+//
+//		//FLevelRecord level_detail = CurrentSaveGame->GenerateLevelRecord(current_world);
+//		
+//		//SerializeObject(level_detail, CurrentSaveGame->LevelPathName);
+//
+//	}
+//
+//
+//	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+//	if (Player)
+//	{
+//		SerializeObject(Player, CurrentSaveGame->PlayerCharacter);
+//	}
+//
+//} 
+
+//void UYogSaveSubsystem::PopulateFromCurrentSlot()
+//{
+//	if (!CurrentSaveGame)
+//	{
+//		return;
+//	}
+//
+//	// Player controller.
+//	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+//	if (PC)
+//	{
+//		
+//		//SerializeObject(Cast<UObject>(PC), CurrentSaveGame->PlayerController);
+//	}
+//
+//
+//	TArray<AActor*> WorldObjects;
+//	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), WorldObjects);
+//
+//}
