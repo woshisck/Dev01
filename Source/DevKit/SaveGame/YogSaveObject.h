@@ -1,5 +1,4 @@
-// Copyright (C), HEXWORKS by CIGames, 2020-2022.
-// Authors: Jose David Tuero, jdtuero@cigames.com
+
 
 #pragma once
 

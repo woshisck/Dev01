@@ -8,6 +8,16 @@
 
 UYogSaveGame::UYogSaveGame()
 {
+
+
+    SlotName = TEXT("Player");;
+
+    SavedLevelPath = TEXT("Player");;
+
+    LevelName = TEXT("Player");;
+
+
+
 }
 
 
@@ -28,15 +38,13 @@ void UYogSaveGame::Initialize(FString InSlotName)
 {
 	SlotName = InSlotName;
 
-	// Reset all data in case this slot has already be used before.
-	//GameState.Empty();
-	//PlayerState.Empty();
+
+
+
 	//PlayerCharacter.Empty();
-	//PlayerController.Empty();
+
 	//WorldObjects.Empty();
 
-	FTransform NewPlayerTransform;
-	PlayerTransform = NewPlayerTransform;
 }
 
 //void UYogSaveGame::LoadCharacterData()

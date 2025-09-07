@@ -18,5 +18,7 @@ DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(DevKitInit, Log, All);
 DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(DevKitAI, Log, All);
 //Logging for a that level system
 DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(DevKitLevelSystem, Log, All);
+//UE_LOG(DevKitLevelSystem, Display, TEXT("INIT YogWorldSubsystem"));
+
 //Logging for Critical Errors that must always be addressed
 DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(DevKitCriticalErrors, Log, All);

@@ -26,17 +26,16 @@ public:
 public:
 
 
-	UFUNCTION(BlueprintCallable, Category = "My Game|Save Game")
-	void CreateNewSaveGame();
-
 	UFUNCTION(BlueprintCallable)
 	void UObjectArraySaver(UPARAM(ref) TArray<UObject*>& SaveObjects);
 
-	UFUNCTION(BlueprintCallable)
-	void UObjectSaver(UObject* SaveObject);
 
 	UFUNCTION(BlueprintCallable)
-	void CurrentLevelSaver(UWorld* level);
+	void AutoSave();
+
+	UFUNCTION(BlueprintCallable)
+	void AutoLoad();
+
 
 
 	UFUNCTION(BlueprintCallable)

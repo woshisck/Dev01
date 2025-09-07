@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 
 #include "YogSaveSubsystem.h"
 #include "System/YogWorldSubsystem.h"
@@ -10,55 +8,92 @@
 
 UYogSaveSubsystem::UYogSaveSubsystem()
 {
-	CurrentSaveGame->Initialize(SlotName);
+	
 
 }
 
 
 
-void UYogSaveSubsystem::CreateNewSaveGame()
-{
-
-	// Create a new save game instance.
-	CurrentSaveGame = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
-	if (!CurrentSaveGame)
-	{
-		return;
-	}
-
-	// Initialize the new instance.
-	CurrentSaveGame->Initialize(SlotName);
-
-	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, CurrentSaveGame->SlotName, DefaultUserIndex_SOLID);
-	//SaveCurrentSlot();
-}
 
 void UYogSaveSubsystem::UObjectArraySaver(UPARAM(ref) TArray<UObject*>& SaveObjects)
 {
-	for (UObject* SaveObject : SaveObjects)
+	//for (UObject* SaveObject : SaveObjects)
+	//{
+	//	SaveData(SaveObject, CurrentSaveGame->WorldObjects);
+	//}
+}
+
+void UYogSaveSubsystem::AutoSave()
+{
+	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	if (player)
 	{
-		UObjectSaver(SaveObject);
+		CurrentSaveGame->PlayerTransform = player->GetActorTransform();
+		SaveData(player, CurrentSaveGame->PlayerCharacter);
+	}
+
+	UYogWorldSubsystem* worldsubsystem = this->GetWorld()->GetSubsystem<UYogWorldSubsystem>();
+	UWorld* current_world = worldsubsystem->GetCurrentWorld();
+	CurrentSaveGame->LevelName = current_world->GetPathName();
+
+	//SaveData(current_world, CurrentSaveGame->CurrentLevel.ByteData);
+
+
+	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SlotName, DefaultUserIndex_SOLID);
+
+	UE_LOG(DevKitGame, Display, TEXT("Yogger autosave SaveGame"));
+
+	//bool UGameplayStatics::DoesSaveGameExist(const FString& SlotName, const int32 UserIndex)
+	//if (!UGameplayStatics::DoesSaveGameExist(SlotName, DefaultUserIndex_SOLID))
+	//{
+	//	/*CurrentSaveGame->Initialize(SlotName);*/
+	//	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, CurrentSaveGame->SlotName, DefaultUserIndex_SOLID);
+	//	UE_LOG(DevKitGame, Display, TEXT("INIT SaveGame"));
+	//}
+	//else
+	//{
+	//	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	//	if (player)
+	//	{
+	//		CurrentSaveGame->PlayerTransform = player->GetActorTransform();
+	//		SaveData(player, CurrentSaveGame->PlayerCharacter);
+	//	}
+	//	UYogWorldSubsystem* worldsubsystem = this->GetWorld()->GetSubsystem<UYogWorldSubsystem>();
+	//	UWorld* current_world = worldsubsystem->GetCurrentWorld();
+	//	CurrentSaveGame->LevelName = current_world->GetPathName();
+	//	
+	//	//SaveData(current_world, CurrentSaveGame->CurrentLevel.ByteData);
+	//	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SlotName, DefaultUserIndex_SOLID);
+
+	//	UE_LOG(DevKitGame, Display, TEXT("Yogger autosave SaveGame"));
+	//}
+
+
+
+}
+
+void UYogSaveSubsystem::AutoLoad()
+{
+
+	UYogSaveGame* current_save = Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, DefaultUserIndex_SOLID));
+	if (current_save)
+	{
+		FString level_name;
+		level_name = current_save->LevelName;
+		//(const UObject * WorldContextObject, FName LevelName, bool bAbsolute, FString Options)
+		UGameplayStatics::OpenLevel(GetWorld(), FName(*level_name));
+		APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+		LoadData(player, current_save->PlayerCharacter);
+		//APlayerCharacterBase* player = current_save->
+		player->SetActorTransform(current_save->PlayerTransform);
+		
+		UE_LOG(DevKitGame, Display, TEXT("Yogger autoload game"));
 	}
 }
 
-void UYogSaveSubsystem::UObjectSaver(UObject* SaveObject)
-{
-}
 
-void UYogSaveSubsystem::CurrentLevelSaver(UWorld* level)
-{
-	if (level)
-	{
-		UYogWorldSubsystem* worldsubsystem = this->GetWorld()->GetSubsystem<UYogWorldSubsystem>();
-		UWorld* current_world = worldsubsystem->GetCurrentWorld();
-		CurrentSaveGame->CurrentLevel.AssetPath = current_world->GetPathName();
-		SaveData(current_world, CurrentSaveGame->CurrentLevel.ByteData);
-	}
-	else
-	{
-		return;
-	}
-}
+
+
 
 void UYogSaveSubsystem::SaveData(UObject* Object, TArray<uint8>& Data)
 {

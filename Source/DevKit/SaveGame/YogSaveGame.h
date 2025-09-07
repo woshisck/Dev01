@@ -86,16 +86,16 @@ public:
 	UYogSaveGame();
 
 	UPROPERTY()
-	FString SlotName;
+	FString SlotName = "";
 
 	UPROPERTY()
-	FString SavedLevelPath;
+	FString SavedLevelPath = "";
 
 	UPROPERTY()
-	FString LevelName;
+	FString LevelName = "";
 
 	UPROPERTY()
-	FTransform PlayerTransform;
+	FTransform PlayerTransform(FVector(0.0f, 0.0f, 0.0f));
 
 	UPROPERTY()
 	TArray<uint8> PlayerCharacter;
@@ -103,8 +103,6 @@ public:
 	UPROPERTY()
 	TArray<FObjectRecord> WorldObjects;
 
-	UPROPERTY()
-	FLevelRecord CurrentLevel;
 
 
 	UFUNCTION()
