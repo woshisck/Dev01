@@ -7,10 +7,7 @@
 //https://www.tomlooman.com/unreal-engine-cpp-save-system/
 //https://unrealcommunity.wiki/savegame-pointers-and-structs-8wlg0qms
 
-//first Need to create fundemantion stuff -> subsystem, custom serializer and custom save game class, I have the last one?
-// 
-// 
-//
+
 
 //new struct for serializer
 struct FYogSaveGameArchive : public FObjectAndNameAsStringProxyArchive

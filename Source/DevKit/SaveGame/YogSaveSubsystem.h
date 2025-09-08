@@ -7,12 +7,15 @@
 #include "YogSaveSubsystem.generated.h"
 
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSaveGameSignature, class UYogSaveGame*, SaveObject);
+
+
 class UYogSaveGame;
 
 
 
 /// <summary>
-/// TODO: ONLY ONE SLOT AVALIABLE FOR NOW
+/// TODO: ONLY ONE SLOT 
 /// </summary>
 
 
@@ -20,37 +23,35 @@ UCLASS()
 class DEVKIT_API UYogSaveSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
+
+
 public:
-	UYogSaveSubsystem();
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "General")
+	FString SaveSlotName = "SaveGame_01";
 
-public:
+	UPROPERTY(Transient)
+	TObjectPtr<UYogSaveGame> CurrentSaveGame;
 
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	void WriteSaveGame();
 
-	UFUNCTION(BlueprintCallable)
-	void UObjectArraySaver(UPARAM(ref) TArray<UObject*>& SaveObjects);
+	/* Load from disk, optional slot name */
+	void LoadSaveGame(FString InSlotName = "");
 
+	UPROPERTY(BlueprintAssignable)
+	FOnSaveGameSignature OnSaveGameLoaded;
 
-	UFUNCTION(BlueprintCallable)
-	void AutoSave();
+	UPROPERTY(BlueprintAssignable)
+	FOnSaveGameSignature OnSaveGameWritten;
 
-	UFUNCTION(BlueprintCallable)
-	void AutoLoad();
-
-
-
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION()
 	void SaveData(UObject* Object, TArray<uint8>& Data);
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION()
 	void LoadData(UObject* Object, UPARAM(ref) TArray<uint8>& Data);
 
-	UPROPERTY()
-	uint8 DefaultUserIndex_SOLID = 0;
+	/* Initialize Subsystem, good moment to load in SaveGameSettings variables */
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
-	UPROPERTY()
-	FString SlotName = TEXT("YoggorSave");
-private:
-	UPROPERTY()
-	TObjectPtr<UYogSaveGame> CurrentSaveGame;
 
 };

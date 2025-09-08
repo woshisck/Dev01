@@ -6,12 +6,14 @@
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "AbilitySystem/Attribute/WeaponAttributeSet.h"
+
 #include "PlayerCharacterBase.generated.h"
 
 /**
  * 
  */
 class AAuraBase;
+class UYogSaveGame;
 
 UENUM()
 enum class EPlayerState : uint8
@@ -48,6 +50,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void Die() override;
+
+	UFUNCTION(BlueprintNativeEvent)
+	void SavePlayer(UYogSaveGame* SaveObject);
+
+	UFUNCTION(BlueprintNativeEvent)
+	void LoadPlayer(UYogSaveGame* SaveObject);
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

@@ -16,62 +16,66 @@ class UYogGameplayEffect;
 
 class AYogCharacterBase;
 
+
 USTRUCT()
-struct FLevelRecord
+struct FActorSaveData
 {
 	GENERATED_BODY()
 
 public:
-	FLevelRecord(){}
-
+	/* Identifier for which Actor this belongs to */
 	UPROPERTY()
-	FString AssetPath;
+	FName ActorName;
 
-	UPROPERTY()
-	int32 OuterId;
-
-	UPROPERTY()
-	FString Name;
-
-	UPROPERTY()
-	TArray<uint8> ByteData;
-};
-
-
-USTRUCT()
-struct FObjectRecord
-{
-	GENERATED_BODY()
-
-public:
-	FObjectRecord()
-	{
-		Class = nullptr;
-		Outer = nullptr;
-		OuterId = 0;
-		Self = nullptr;
-	}
-
-	UPROPERTY()
-	UClass* Class;
-
-	UPROPERTY()
-	UObject* Outer;
-
-	UPROPERTY()
-	int32 OuterId;
-
-	UPROPERTY()
-	UObject* Self;
-
-	UPROPERTY()
-	FString Name;
-
+	/* For movable Actors, keep location,rotation,scale. */
 	UPROPERTY()
 	FTransform Transform;
 
+	/* Contains all 'SaveGame' marked variables of the Actor */
 	UPROPERTY()
-	TArray<uint8> Data;
+	TArray<uint8> ByteData;
+
+};
+
+USTRUCT()
+struct FPlayerSaveData
+{
+	GENERATED_BODY()
+
+public:
+
+	FPlayerSaveData()
+	{
+		Credits = 0;
+		PersonalRecordTime = 0.0f;
+		Location = FVector::ZeroVector;
+		Rotation = FRotator::ZeroRotator;
+		bResumeAtTransform = true;
+	}
+
+	/* Player Id defined by the online sub system (such as Steam) converted to FString for simplicity  */
+	UPROPERTY()
+	FString PlayerID;
+
+	UPROPERTY()
+	int32 Credits;
+
+	/* Longest survival time */
+	UPROPERTY()
+	float PersonalRecordTime;
+
+	/* Location if player was alive during save */
+	UPROPERTY()
+	FVector Location;
+
+	/* Orientation if player was alive during save */
+	UPROPERTY()
+	FRotator Rotation;
+
+	/* We don't always want to restore location, and may just resume player at specific respawn point in world. */
+	UPROPERTY()
+	bool bResumeAtTransform;
+
 };
 
 
@@ -83,34 +87,13 @@ class DEVKIT_API UYogSaveGame : public USaveGame
 
 public:
 
-	UYogSaveGame();
-
 	UPROPERTY()
-	FString SlotName = "";
+	TArray<FPlayerSaveData> SavedPlayers;
 
+	/* Actors stored from a level (currently does not support a specific level and just assumes the demo map) */
 	UPROPERTY()
-	FString SavedLevelPath = "";
+	TMap<FName, FActorSaveData> SavedActorMap;
 
-	UPROPERTY()
-	FString LevelName = "";
-
-	UPROPERTY()
-	FTransform PlayerTransform(FVector(0.0f, 0.0f, 0.0f));
-
-	UPROPERTY()
-	TArray<uint8> PlayerCharacter;
-
-	UPROPERTY()
-	TArray<FObjectRecord> WorldObjects;
-
-
-
-	UFUNCTION()
-	UWorld* LoadSavedLevel() const;
-
-	// Load the saved level reference
-
-public:
-	void Initialize(FString InSlotName);
+	FPlayerSaveData* GetPlayerData(APlayerState* PlayerState);
 
 };
