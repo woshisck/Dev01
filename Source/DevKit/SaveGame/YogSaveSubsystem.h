@@ -45,6 +45,9 @@ public:
 	FOnSaveGameSignature OnSaveGameWritten;
 
 	UFUNCTION()
+	UYogSaveGame* GetCurrentSave();
+
+	UFUNCTION()
 	void SaveData(UObject* Object, TArray<uint8>& Data);
 
 	UFUNCTION()

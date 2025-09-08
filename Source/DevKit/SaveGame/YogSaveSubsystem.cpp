@@ -9,6 +9,11 @@
 
 
 
+UYogSaveGame* UYogSaveSubsystem::GetCurrentSave()
+{
+	return CurrentSaveGame;
+}
+
 void UYogSaveSubsystem::SaveData(UObject* Object, TArray<uint8>& Data)
 {
 	if (Object == nullptr)
@@ -61,8 +66,8 @@ void UYogSaveSubsystem::WriteSaveGame()
 	//CHECK FOR PLAYER STAT, NOT FOR IDE 
 	AGameStateBase* GS = GetWorld()->GetGameState();
 	check(GS);
-	APlayerCharacterBase* PC = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-
+	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	player->SavePlayer(CurrentSaveGame);
 	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, 0);
 
 	OnSaveGameWritten.Broadcast(CurrentSaveGame);
