@@ -44,8 +44,12 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnSaveGameSignature OnSaveGameWritten;
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	UYogSaveGame* GetCurrentSave();
+
+	UFUNCTION()
+	UYogSaveGame* CreateSaveGameInst();
+
 
 	UFUNCTION()
 	void SaveData(UObject* Object, TArray<uint8>& Data);

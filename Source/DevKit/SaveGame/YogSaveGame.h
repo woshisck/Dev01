@@ -76,6 +76,9 @@ public:
 	UPROPERTY()
 	bool bResumeAtTransform;
 
+	UPROPERTY()
+	TArray<uint8> ByteData;
+
 };
 
 
@@ -89,7 +92,9 @@ public:
 
 	UPROPERTY()
 	TArray<FPlayerSaveData> SavedPlayers;
-
+	
+	UPROPERTY()
+	FName LevelName;
 	/* Actors stored from a level (currently does not support a specific level and just assumes the demo map) */
 	UPROPERTY()
 	TMap<FName, FActorSaveData> SavedActorMap;

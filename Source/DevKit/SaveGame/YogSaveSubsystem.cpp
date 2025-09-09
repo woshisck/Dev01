@@ -11,7 +11,23 @@
 
 UYogSaveGame* UYogSaveSubsystem::GetCurrentSave()
 {
-	return CurrentSaveGame;
+	if (CurrentSaveGame)
+	{
+		return CurrentSaveGame;
+	}
+	else
+	{
+		UYogSaveGame* SaveGameInstance = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
+		CurrentSaveGame = SaveGameInstance;
+		return SaveGameInstance;
+	}
+
+}
+
+UYogSaveGame* UYogSaveSubsystem::CreateSaveGameInst()
+{
+	UYogSaveGame* SaveGameInstance = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
+	return SaveGameInstance;
 }
 
 void UYogSaveSubsystem::SaveData(UObject* Object, TArray<uint8>& Data)
@@ -51,8 +67,11 @@ void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-
-
+	if (!CurrentSaveGame)
+	{
+		UYogSaveGame* SaveGameInstance = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
+		CurrentSaveGame = SaveGameInstance;
+	}
 }
 
 
@@ -68,7 +87,15 @@ void UYogSaveSubsystem::WriteSaveGame()
 	check(GS);
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 	player->SavePlayer(CurrentSaveGame);
+
+	//CurrentSaveGame->LevelName = 
+	UYogWorldSubsystem* worldsubsystem = GetWorld()->GetGameInstance()->GetSubsystem<UYogWorldSubsystem>();
+	UWorld* current_world = worldsubsystem->GetCurrentWorld();
+
+	CurrentSaveGame->LevelName = current_world->GetFName();
+
 	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, 0);
+	UE_LOG(DevKitGame, Log, TEXT("FINISH WRITE SAVE GAME"));
 
 	OnSaveGameWritten.Broadcast(CurrentSaveGame);
 }
@@ -76,5 +103,5 @@ void UYogSaveSubsystem::WriteSaveGame()
 /* Load from disk, optional slot name */
 void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 {
-
+	//UGameplayStatics::OpenLevel(GetWorld(), FName(*LevelName), true);
 }
