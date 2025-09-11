@@ -14,5 +14,8 @@ class DEVKIT_API UYogInstanceSubSystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 public:
-	UYogInstanceSubSystem();
+	// Begin USubsystem
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+
 };

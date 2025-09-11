@@ -7,10 +7,6 @@
 #include "../Map/YogLevelScript.h"
 
 
-UYogWorldSubsystem::UYogWorldSubsystem()
-	:UWorldSubsystem()
-{
-}
 
 void UYogWorldSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {

@@ -88,8 +88,11 @@ void UYogSaveSubsystem::WriteSaveGame()
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 	player->SavePlayer(CurrentSaveGame);
 
-	//CurrentSaveGame->LevelName = 
-	UYogWorldSubsystem* worldsubsystem = GetWorld()->GetGameInstance()->GetSubsystem<UYogWorldSubsystem>();
+	//The Reason blow two way is not working is because UYogWorldSubsystem IS NOT A GameSubsystem it throws asset type error 
+	//UYogWorldSubsystem* worldsubsystem = UGameInstance::GetSubsystem<UYogWorldSubsystem>(GetGameInstance());
+	//UYogWorldSubsystem* worldsubsystem = GEngine->GetEngineSubsystem<UYogWorldSubsystem>();
+	UYogWorldSubsystem* worldsubsystem = GetWorld()->GetSubsystem<UYogWorldSubsystem>();
+
 	UWorld* current_world = worldsubsystem->GetCurrentWorld();
 
 	CurrentSaveGame->LevelName = current_world->GetFName();
@@ -103,5 +106,10 @@ void UYogSaveSubsystem::WriteSaveGame()
 /* Load from disk, optional slot name */
 void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 {
+	if (CurrentSaveGame)
+	{
+		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->LevelName.ToString());
+	}
+
 	//UGameplayStatics::OpenLevel(GetWorld(), FName(*LevelName), true);
 }

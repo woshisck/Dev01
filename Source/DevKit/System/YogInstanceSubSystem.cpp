@@ -3,6 +3,13 @@
 
 #include "YogInstanceSubSystem.h"
 
-UYogInstanceSubSystem::UYogInstanceSubSystem()
+
+void UYogInstanceSubSystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	Super::Initialize(Collection);
+}
+
+void UYogInstanceSubSystem::Deinitialize()
+{
+	Super::Deinitialize();
 }

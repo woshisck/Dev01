@@ -36,6 +36,7 @@ public:
 	void WriteSaveGame();
 
 	/* Load from disk, optional slot name */
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
 	void LoadSaveGame(FString InSlotName = "");
 
 	UPROPERTY(BlueprintAssignable)

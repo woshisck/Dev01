@@ -171,9 +171,6 @@ class UYogWorldSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public:
-	/** Constructor */
-	UYogWorldSubsystem();
-
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 
