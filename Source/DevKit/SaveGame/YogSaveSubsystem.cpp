@@ -109,7 +109,9 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 	if (CurrentSaveGame)
 	{
 		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->LevelName.ToString());
+
+		UGameplayStatics::OpenLevel(GetWorld(), CurrentSaveGame->LevelName, true);
 	}
 
-	//UGameplayStatics::OpenLevel(GetWorld(), FName(*LevelName), true);
+
 }
