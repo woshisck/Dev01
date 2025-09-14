@@ -5,6 +5,8 @@
 #include "Player/YogPlayerControllerBase.h"
 #include "Player/PlayerCharacterBase.h"
 #include <Kismet/GameplayStatics.h>
+#include "SaveGame/YogSaveSubsystem.h"
+#include "SaveGame/YogSaveGame.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
@@ -27,9 +29,18 @@ void AYogGameMode::RestartPlayer(AController* NewPlayer)
 void AYogGameMode::StartPlay()
 {
 	Super::StartPlay();
+	//TODO: this function calls after openLevel : 
+	//[get player + get transform -> spawn player -> poccess ->] in game mode
+	
+	UWorld* World = GetWorld();
+	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 
-	// You can manually trigger spawning here if needed
-	// or leave it disabled for complete manual control
+	UYogSaveSubsystem* save_subsystem = UGameInstance::GetSubsystem<UYogSaveSubsystem>(GetGameInstance());
+	if (save_subsystem->CurrentSaveGame)
+	{
+		//NEXT MOVE : save_subsystem->CurrentSaveGame->
+		//APlayerCharacterBase* currentSave_player = Cast<APlayerCharacterBase>(save_subsystem->LoadData());
+	}
 }
 
 void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName)
@@ -75,6 +86,10 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 		}
 	}
 
+}
+
+void AYogGameMode::SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation)
+{
 }
 
 void AYogGameMode::OnGameRuleLoaded(const UYogGameRule* CurrentGameRule)

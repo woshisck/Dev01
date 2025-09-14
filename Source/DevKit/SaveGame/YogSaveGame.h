@@ -81,6 +81,51 @@ public:
 
 };
 
+USTRUCT()
+struct FYogPlayerData
+{
+	GENERATED_BODY()
+
+public:
+
+	FYogPlayerData()
+	{
+
+	}
+
+	/* Location if player was alive during save */
+	UPROPERTY()
+	FVector Location;
+
+	/* Orientation if player was alive during save */
+	UPROPERTY()
+	FRotator Rotation;
+
+	UPROPERTY()
+	TArray<uint8> CharacterByteData;
+
+};
+
+USTRUCT()
+struct FYogMapData
+{
+	GENERATED_BODY()
+
+public:
+
+	FYogMapData()
+	{
+
+	}
+
+	/* Location if player was alive during save */
+	UPROPERTY()
+	FName LevelName;
+
+	UPROPERTY()
+	TArray<uint8> MapByteData;
+
+};
 
 /** Object that is written to and read from the save game archive, with a data version */
 UCLASS(BlueprintType)
@@ -91,8 +136,21 @@ class DEVKIT_API UYogSaveGame : public USaveGame
 public:
 
 	UPROPERTY()
+	FYogPlayerData YogSavePlayers;
+
+	UPROPERTY()
+	FYogMapData YogSaveMap;
+
+	UPROPERTY()
 	TArray<FPlayerSaveData> SavedPlayers;
-	
+
+
+	UPROPERTY()
+	TArray<uint8> PlayerCharacter;
+
+
+
+
 	UPROPERTY()
 	FName LevelName;
 	/* Actors stored from a level (currently does not support a specific level and just assumes the demo map) */

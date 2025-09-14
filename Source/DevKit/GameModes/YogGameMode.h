@@ -26,6 +26,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Player")
 	void SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName);
 
+	UFUNCTION(BlueprintCallable, Category = "Player")
+	void SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation);
+
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
 	bool bAutoSpawnPlayer = false;
 

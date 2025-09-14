@@ -85,17 +85,22 @@ void UYogSaveSubsystem::WriteSaveGame()
 	//CHECK FOR PLAYER STAT, NOT FOR IDE 
 	AGameStateBase* GS = GetWorld()->GetGameState();
 	check(GS);
+
+
+	//PLAYER SAVE 
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-	player->SavePlayer(CurrentSaveGame);
+	if (player)
+	{
+		SaveData(player, CurrentSaveGame->PlayerCharacter);
+		SaveData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
+	}
 
-	//The Reason blow two way is not working is because UYogWorldSubsystem IS NOT A GameSubsystem it throws asset type error 
-	//UYogWorldSubsystem* worldsubsystem = UGameInstance::GetSubsystem<UYogWorldSubsystem>(GetGameInstance());
-	//UYogWorldSubsystem* worldsubsystem = GEngine->GetEngineSubsystem<UYogWorldSubsystem>();
+	//WORLD SAVE
 	UYogWorldSubsystem* worldsubsystem = GetWorld()->GetSubsystem<UYogWorldSubsystem>();
-
 	UWorld* current_world = worldsubsystem->GetCurrentWorld();
-
 	CurrentSaveGame->LevelName = current_world->GetFName();
+	CurrentSaveGame->YogSaveMap.LevelName = current_world->GetFName();
+
 
 	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, 0);
 	UE_LOG(DevKitGame, Log, TEXT("FINISH WRITE SAVE GAME"));
@@ -108,10 +113,18 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 {
 	if (CurrentSaveGame)
 	{
-		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->LevelName.ToString());
+		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->YogSaveMap.LevelName.ToString());
+
+		APlayerCharacterBase* player = NewObject<APlayerCharacterBase>();
+		
+		//LoadData(player, CurrentSaveGame->PlayerCharacter);
+
+		LoadData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
+
+		UE_LOG(DevKitGame, Log, TEXT("player name : %s"), *player->GetName());
 
 		UGameplayStatics::OpenLevel(GetWorld(), CurrentSaveGame->LevelName, true);
+
 	}
-
-
+	//open level ->
 }
