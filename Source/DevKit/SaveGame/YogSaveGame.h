@@ -48,8 +48,8 @@ public:
 	{
 		Credits = 0;
 		PersonalRecordTime = 0.0f;
-		Location = FVector::ZeroVector;
-		Rotation = FRotator::ZeroRotator;
+		PlayerLocation = FVector::ZeroVector;
+		PlayerRotation = FRotator::ZeroRotator;
 		bResumeAtTransform = true;
 	}
 
@@ -66,11 +66,11 @@ public:
 
 	/* Location if player was alive during save */
 	UPROPERTY()
-	FVector Location;
+	FVector PlayerLocation;
 
 	/* Orientation if player was alive during save */
 	UPROPERTY()
-	FRotator Rotation;
+	FRotator PlayerRotation;
 
 	/* We don't always want to restore location, and may just resume player at specific respawn point in world. */
 	UPROPERTY()
@@ -95,11 +95,11 @@ public:
 
 	/* Location if player was alive during save */
 	UPROPERTY()
-	FVector Location;
+	FVector PlayerLocation;
 
 	/* Orientation if player was alive during save */
 	UPROPERTY()
-	FRotator Rotation;
+	FRotator PlayerRotation;
 
 	UPROPERTY()
 	TArray<uint8> CharacterByteData;

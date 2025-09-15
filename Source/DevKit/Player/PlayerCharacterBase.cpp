@@ -44,24 +44,7 @@ void APlayerCharacterBase::Die()
 
 void APlayerCharacterBase::SavePlayer_Implementation(UYogSaveGame* SaveObject)
 {
-	if (SaveObject)
-	{
-		// Gather all relevant data for player
-		FPlayerSaveData SaveData;
-		//SaveData.Credits = Credits;
-		//SaveData.PersonalRecordTime = PersonalRecordTime;
-		//// Stored as FString for simplicity (original Steam ID is uint64)
-		//SaveData.PlayerID = GetUniqueId().ToString();
 
-		// May not be alive while we save
-
-		SaveData.Location = this->GetActorLocation();
-		SaveData.Rotation = this->GetActorRotation();
-		SaveData.bResumeAtTransform = true;
-
-
-		SaveObject->SavedPlayers.Add(SaveData);
-	}
 }
 
 void APlayerCharacterBase::LoadPlayer_Implementation(UYogSaveGame* SaveObject)

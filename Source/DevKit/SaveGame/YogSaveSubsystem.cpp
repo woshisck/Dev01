@@ -5,7 +5,7 @@
 #include "YogSaveGameArchive.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameStateBase.h"
-
+#include "GameModes/YogGameMode.h"
 
 
 
@@ -93,6 +93,8 @@ void UYogSaveSubsystem::WriteSaveGame()
 	{
 		SaveData(player, CurrentSaveGame->PlayerCharacter);
 		SaveData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
+		CurrentSaveGame->YogSavePlayers.PlayerLocation = player->GetActorLocation();
+		CurrentSaveGame->YogSavePlayers.PlayerRotation = player->GetActorRotation();
 	}
 
 	//WORLD SAVE
@@ -121,10 +123,19 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 
 		LoadData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
 
-		UE_LOG(DevKitGame, Log, TEXT("player name : %s"), *player->GetName());
-
 		UGameplayStatics::OpenLevel(GetWorld(), CurrentSaveGame->LevelName, true);
 
+		AYogGameMode* CurrentGameMode = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+
+		if (CurrentGameMode)
+		{
+			//CurrentGameMode->SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation)
+			CurrentGameMode->SpawnAndPoccessAvatar(player, CurrentSaveGame->YogSavePlayers.PlayerLocation, CurrentSaveGame->YogSavePlayers.PlayerRotation);
+
+		}
+
+
+		UE_LOG(DevKitGame, Log, TEXT("player name : %s"), *player->GetName());
 	}
 	//open level ->
 }
