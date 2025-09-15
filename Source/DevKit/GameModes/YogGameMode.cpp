@@ -90,6 +90,7 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 
 void AYogGameMode::SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation)
 {
+
 }
 
 void AYogGameMode::OnGameRuleLoaded(const UYogGameRule* CurrentGameRule)
