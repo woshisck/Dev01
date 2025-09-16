@@ -10,6 +10,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include <DevKit/Buff/Aura/AuraBase.h>
 #include <DevKit/Buff/Aura/AuraDefinition.h>
+#include "System/YogGameInstanceBase.h"
+
 UYogBlueprintFunctionLibrary::UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -296,6 +298,13 @@ bool UYogBlueprintFunctionLibrary::DrawTriangle(UObject* WorldContextObject, FYo
 	{
 		return false;
 	}
+}
+
+UYogGameInstanceBase* UYogBlueprintFunctionLibrary::GetYogGameInstance(UObject* WorldContextObject)
+{
+
+	return  Cast<UYogGameInstanceBase>(WorldContextObject->GetWorld()->GetGameInstance());
+
 }
 
 

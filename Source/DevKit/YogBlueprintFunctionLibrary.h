@@ -14,6 +14,7 @@ class AYogCharacterBase;
 class AAuraBase;
 class UAuraDefinition;
 class UYogWorldSubsystem;
+class UYogGameInstanceBase;
 
 USTRUCT(BlueprintType)
 struct FYogTriangle
@@ -105,6 +106,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
 	static bool DrawTriangle(UObject* WorldContextObject, FYogTriangle triangle);
+
+	UFUNCTION(BlueprintCallable, Category = "System")
+	static UYogGameInstanceBase* GetYogGameInstance(UObject* WorldContextObject);
+
 
 	template<typename T>
 

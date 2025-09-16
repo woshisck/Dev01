@@ -88,11 +88,6 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 
 }
 
-void AYogGameMode::SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation)
-{
-
-}
-
 void AYogGameMode::OnGameRuleLoaded(const UYogGameRule* CurrentGameRule)
 {
 	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
@@ -106,4 +101,30 @@ void AYogGameMode::OnGameRuleLoaded(const UYogGameRule* CurrentGameRule)
 			}
 		}
 	}
+}
+
+void AYogGameMode::SpawnPlayerFromSaveData(UYogSaveGame* savedata)
+{
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	APlayerCharacterBase* NewCharacter = GetWorld()->SpawnActor<APlayerCharacterBase>(
+		APlayerCharacterBase::StaticClass(),
+		savedata->YogSavePlayers.PlayerLocation,
+		savedata->YogSavePlayers.PlayerRotation,
+		SpawnParams
+	);
+	
+
+	//UYogSaveSubsystem* save_subsystem = GetSubsystem<UYogSaveSubsystem>();
+	
+	//save_subsystem->LoadData(NewCharacter, savedata->YogSavePlayers.CharacterByteData);
+
+
+
+	//if (PlayerController)
+	//{
+	//	PlayerController->Possess(NewCharacter);
+	//}
 }

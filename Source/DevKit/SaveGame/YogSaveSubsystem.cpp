@@ -117,7 +117,7 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 	{
 		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->YogSaveMap.LevelName.ToString());
 
-		APlayerCharacterBase* player = NewObject<APlayerCharacterBase>();
+		APlayerCharacterBase* player = NewObject<APlayerCharacterBase>(this, APlayerCharacterBase::StaticClass());
 		
 		//LoadData(player, CurrentSaveGame->PlayerCharacter);
 
@@ -130,7 +130,7 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 		if (CurrentGameMode)
 		{
 			//CurrentGameMode->SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation)
-			CurrentGameMode->SpawnAndPoccessAvatar(player, CurrentSaveGame->YogSavePlayers.PlayerLocation, CurrentSaveGame->YogSavePlayers.PlayerRotation);
+			//CurrentGameMode->SpawnAndPoccessAvatar(player, CurrentSaveGame->YogSavePlayers.PlayerLocation, CurrentSaveGame->YogSavePlayers.PlayerRotation);
 
 		}
 
