@@ -29,6 +29,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Player")
 	void SpawnPlayerFromSaveData(UYogSaveGame* savedata);
 
+	UFUNCTION(BlueprintCallable, Category = "Player")
+	void SpawnAndPossessDefaultCharacter(APlayerController* PlayerController, const FTransform& SpawnTransform);
+
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
 	bool bAutoSpawnPlayer = false;
 

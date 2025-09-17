@@ -92,16 +92,19 @@ void UYogSaveSubsystem::WriteSaveGame()
 	if (player)
 	{
 		SaveData(player, CurrentSaveGame->PlayerCharacter);
-		SaveData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
-		CurrentSaveGame->YogSavePlayers.PlayerLocation = player->GetActorLocation();
-		CurrentSaveGame->YogSavePlayers.PlayerRotation = player->GetActorRotation();
+		//SaveData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
+		CurrentSaveGame->current_Location = player->GetActorLocation();
+		CurrentSaveGame->current_Rotation = player->GetActorRotation();
+
+		//CurrentSaveGame->YogSavePlayers.PlayerLocation = player->GetActorLocation();
+		//CurrentSaveGame->YogSavePlayers.PlayerRotation = player->GetActorRotation();
 	}
 
 	//WORLD SAVE
 	UYogWorldSubsystem* worldsubsystem = GetWorld()->GetSubsystem<UYogWorldSubsystem>();
 	UWorld* current_world = worldsubsystem->GetCurrentWorld();
+	//CurrentSaveGame->LevelName = current_world->GetFName();
 	CurrentSaveGame->LevelName = current_world->GetFName();
-	CurrentSaveGame->YogSaveMap.LevelName = current_world->GetFName();
 
 
 	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, 0);
@@ -117,25 +120,22 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 	{
 		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->YogSaveMap.LevelName.ToString());
 
-		APlayerCharacterBase* player = NewObject<APlayerCharacterBase>(this, APlayerCharacterBase::StaticClass());
-		
-		//LoadData(player, CurrentSaveGame->PlayerCharacter);
+		//APlayerCharacterBase* player = NewObject<APlayerCharacterBase>(this, APlayerCharacterBase::StaticClass());
+		//
+		////LoadData(player, CurrentSaveGame->PlayerCharacter);
 
-		LoadData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
+		//LoadData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
 
 		UGameplayStatics::OpenLevel(GetWorld(), CurrentSaveGame->LevelName, true);
 
-		AYogGameMode* CurrentGameMode = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
-
-		if (CurrentGameMode)
-		{
-			//CurrentGameMode->SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation)
-			//CurrentGameMode->SpawnAndPoccessAvatar(player, CurrentSaveGame->YogSavePlayers.PlayerLocation, CurrentSaveGame->YogSavePlayers.PlayerRotation);
-
-		}
-
-
-		UE_LOG(DevKitGame, Log, TEXT("player name : %s"), *player->GetName());
+		//AYogGameMode* CurrentGameMode = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+		//if (CurrentGameMode)
+		//{
+		//	CurrentGameMode->SpawnPlayerFromSaveData(CurrentSaveGame);
+		//	//CurrentGameMode->SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation)
+		//	//CurrentGameMode->SpawnAndPoccessAvatar(player, CurrentSaveGame->YogSavePlayers.PlayerLocation, CurrentSaveGame->YogSavePlayers.PlayerRotation);
+		//}
+		//UE_LOG(DevKitGame, Log, TEXT("player name : %s"), *player->GetName());
 	}
 	//open level ->
 }

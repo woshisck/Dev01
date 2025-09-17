@@ -137,7 +137,6 @@ public:
 
 	UPROPERTY()
 	FYogPlayerData YogSavePlayers;
-
 	UPROPERTY()
 	FYogMapData YogSaveMap;
 
@@ -145,11 +144,16 @@ public:
 	TArray<FPlayerSaveData> SavedPlayers;
 
 
+	//TEMP FILE
 	UPROPERTY()
 	TArray<uint8> PlayerCharacter;
 
+	UPROPERTY()
+	FVector current_Location;
 
-
+	/* Orientation if player was alive during save */
+	UPROPERTY()
+	FRotator current_Rotation;
 
 	UPROPERTY()
 	FName LevelName;

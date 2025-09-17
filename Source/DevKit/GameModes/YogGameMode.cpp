@@ -19,6 +19,14 @@ void AYogGameMode::RestartPlayer(AController* NewPlayer)
 	{
 		// Do nothing - prevent auto spawning
 		UE_LOG(LogTemp, Warning, TEXT("Auto player spawning disabled"));
+
+		//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
+		//UYogSaveSubsystem* SaveSubsystem = GameInstancePtr->GetSubsystem<UYogSaveSubsystem>();
+		//if (SaveSubsystem->CurrentSaveGame)
+		//{
+		//	SpawnPlayerFromSaveData(SaveSubsystem->CurrentSaveGame);
+		//}
+
 		return;
 	}
 
@@ -111,20 +119,36 @@ void AYogGameMode::SpawnPlayerFromSaveData(UYogSaveGame* savedata)
 
 	APlayerCharacterBase* NewCharacter = GetWorld()->SpawnActor<APlayerCharacterBase>(
 		APlayerCharacterBase::StaticClass(),
-		savedata->YogSavePlayers.PlayerLocation,
-		savedata->YogSavePlayers.PlayerRotation,
+		savedata->current_Location,
+		savedata->current_Rotation,
 		SpawnParams
 	);
 	
+	UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
 
-	//UYogSaveSubsystem* save_subsystem = GetSubsystem<UYogSaveSubsystem>();
+	if (GameInstancePtr)
+	{
+		UYogSaveSubsystem* SaveSubsystem = GameInstancePtr->GetSubsystem<UYogSaveSubsystem>();
+		SaveSubsystem->LoadData(NewCharacter, savedata->PlayerCharacter);
 	
+		//APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+		//PlayerController->Possess(Cast<APawn>(NewCharacter));
+
+	}
+
+
+	//UYogSaveSubsystem* save_subsystem = GEngine->GetWorld()->GetSubsystem<UYogSaveSubsystem>();
+	//
 	//save_subsystem->LoadData(NewCharacter, savedata->YogSavePlayers.CharacterByteData);
-
-
 
 	//if (PlayerController)
 	//{
 	//	PlayerController->Possess(NewCharacter);
 	//}
+}
+
+void AYogGameMode::SpawnAndPossessDefaultCharacter(APlayerController* PlayerController, const FTransform& SpawnTransform)
+{
+
+
 }
