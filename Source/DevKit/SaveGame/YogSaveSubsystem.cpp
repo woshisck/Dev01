@@ -30,7 +30,7 @@ UYogSaveGame* UYogSaveSubsystem::CreateSaveGameInst()
 	return SaveGameInstance;
 }
 
-void UYogSaveSubsystem::SaveData(UObject* Object, TArray<uint8>& Data)
+void UYogSaveSubsystem::SaveData(UObject* Object, UPARAM(ref)TArray<uint8>& Data)
 {
 	if (Object == nullptr)
 	{

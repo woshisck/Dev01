@@ -53,7 +53,7 @@ public:
 
 
 	UFUNCTION()
-	void SaveData(UObject* Object, TArray<uint8>& Data);
+	void SaveData(UObject* Object, UPARAM(ref) TArray<uint8>& Data);
 
 	UFUNCTION()
 	void LoadData(UObject* Object, UPARAM(ref) TArray<uint8>& Data);
