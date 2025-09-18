@@ -8,6 +8,7 @@
 
 class AYogPlayerControllerBase;
 class UYogGameRule;
+class UYogSaveGame;
 /**
  * 
  */
@@ -22,15 +23,13 @@ public:
 
 	virtual void RestartPlayer(AController* NewPlayer) override;
 	virtual void StartPlay() override;
+	virtual void PostLogin(APlayerController* NewPlayer) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Player")
 	void SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName);
 
-	UFUNCTION(BlueprintCallable, Category = "Player")
-	void SpawnPlayerFromSaveData(UYogSaveGame* savedata);
-
-	UFUNCTION(BlueprintCallable, Category = "Player")
-	void SpawnAndPossessDefaultCharacter(APlayerController* PlayerController, const FTransform& SpawnTransform);
+	UFUNCTION(BlueprintCallable)
+	void SpawnAndPossessCharacter(APlayerController* PlayerController, UYogSaveGame* LoadedData);
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")

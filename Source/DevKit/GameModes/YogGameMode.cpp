@@ -51,6 +51,12 @@ void AYogGameMode::StartPlay()
 	}
 }
 
+void AYogGameMode::PostLogin(APlayerController* NewPlayer)
+{
+	Super::PostLogin(NewPlayer);
+
+}
+
 void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName)
 {
 	//YogSpawnPoint_0
@@ -96,6 +102,47 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 
 }
 
+void AYogGameMode::SpawnAndPossessCharacter(APlayerController* PlayerController, UYogSaveGame* LoadedData)
+{
+	if (!PlayerController || !LoadedData) return;
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	// Clear existing pawn if needed
+	if (APawn* ExistingPawn = PlayerController->GetPawn())
+	{
+		ExistingPawn->Destroy();
+	}
+
+	// Spawn parameters
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	// Spawn character at saved location
+	TSubclassOf<APlayerCharacterBase> player_class;
+	APlayerCharacterBase* SpawnedCharacter = GetWorld()->SpawnActorDeferred<APlayerCharacterBase>(player_class, FTransform::Identity);
+
+	//APlayerCharacterBase* SpawnedCharacter = World->SpawnActorDeferred<APlayerCharacterBase>(
+	//	YourCharacterClass, // Your character class reference
+	//	LoadedData->PlayerLocation,
+	//	LoadedData->PlayerRotation,
+	//	SpawnParams
+	//);
+
+	//setup Savedata, reference:
+	if (SpawnedCharacter)
+	{
+		// Apply loaded data to character
+		//SpawnedCharacter->SetHealth(LoadedData->Health);
+		//SpawnedCharacter->SetScore(LoadedData->Score);
+
+		// Possess the character
+		PlayerController->Possess(SpawnedCharacter);
+	}
+}
+
+
 void AYogGameMode::OnGameRuleLoaded(const UYogGameRule* CurrentGameRule)
 {
 	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
@@ -111,44 +158,3 @@ void AYogGameMode::OnGameRuleLoaded(const UYogGameRule* CurrentGameRule)
 	}
 }
 
-void AYogGameMode::SpawnPlayerFromSaveData(UYogSaveGame* savedata)
-{
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-	APlayerCharacterBase* NewCharacter = GetWorld()->SpawnActor<APlayerCharacterBase>(
-		APlayerCharacterBase::StaticClass(),
-		savedata->current_Location,
-		savedata->current_Rotation,
-		SpawnParams
-	);
-	
-	UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
-
-	if (GameInstancePtr)
-	{
-		UYogSaveSubsystem* SaveSubsystem = GameInstancePtr->GetSubsystem<UYogSaveSubsystem>();
-		SaveSubsystem->LoadData(NewCharacter, savedata->PlayerCharacter);
-	
-		//APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
-		//PlayerController->Possess(Cast<APawn>(NewCharacter));
-
-	}
-
-
-	//UYogSaveSubsystem* save_subsystem = GEngine->GetWorld()->GetSubsystem<UYogSaveSubsystem>();
-	//
-	//save_subsystem->LoadData(NewCharacter, savedata->YogSavePlayers.CharacterByteData);
-
-	//if (PlayerController)
-	//{
-	//	PlayerController->Possess(NewCharacter);
-	//}
-}
-
-void AYogGameMode::SpawnAndPossessDefaultCharacter(APlayerController* PlayerController, const FTransform& SpawnTransform)
-{
-
-
-}

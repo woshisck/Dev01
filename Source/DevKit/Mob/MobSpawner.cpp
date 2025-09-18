@@ -34,11 +34,13 @@ void AMobSpawner::SpawnMob()
 	//TObjectPtr<UBehaviorTree> Behaviour;
 
 
-	TSubclassOf<AEnemyCharacterBase> enemy_class = SpawnEnemy->EnemyType;
+
 
 	FVector SpawnLocation = FVector(0.0f, 0.0f, 0.0f);
 	FRotator SpawnRotation = FRotator::ZeroRotator;
 	FTransform SpawnTransform(SpawnRotation, SpawnLocation);
+	TSubclassOf<AEnemyCharacterBase> enemy_class = SpawnEnemy->EnemyType;
+
 
 	AEnemyCharacterBase* target_spawner = GetWorld()->SpawnActorDeferred<AEnemyCharacterBase>(enemy_class, FTransform::Identity);
 	if (target_spawner)

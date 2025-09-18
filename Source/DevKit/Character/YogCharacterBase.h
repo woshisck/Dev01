@@ -74,6 +74,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UCharacterData>  CharacterData;
 
+
 	////////////////////////////////////////// Attribute Set //////////////////////////////////////////
 
 	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite)
@@ -101,7 +102,7 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	int32 bWeaponEquiped = 0;
 
-	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadOnly, Category = "Weapon")
+	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadWrite, Category = "Weapon")
 	TObjectPtr<AWeaponInstance> Weapon;
 
 	//DELEGATE DEFINE
