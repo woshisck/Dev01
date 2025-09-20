@@ -51,11 +51,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void Die() override;
 
-	UFUNCTION(BlueprintNativeEvent)
-	void SavePlayer(UYogSaveGame* SaveObject);
-
-	UFUNCTION(BlueprintNativeEvent)
-	void LoadPlayer(UYogSaveGame* SaveObject);
+	UPROPERTY()
+	TSubclassOf<APlayerCharacterBase> PlayerBlueprintClass;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

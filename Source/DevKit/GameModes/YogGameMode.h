@@ -29,7 +29,7 @@ public:
 	void SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName);
 
 	UFUNCTION(BlueprintCallable)
-	void SpawnAndPossessCharacter(APlayerController* PlayerController, UYogSaveGame* LoadedData);
+	void SpawnAndPossessCharacter(APlayerController* PlayerController /*UYogSaveGame* LoadedData*/);
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")

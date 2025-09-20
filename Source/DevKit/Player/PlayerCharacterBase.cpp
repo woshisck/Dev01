@@ -13,11 +13,28 @@
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 #include "../Buff/Aura/AuraBase.h"
 #include "DevKit/SaveGame/YogSaveGame.h"
+#include "UObject/ConstructorHelpers.h"
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 	: Super(ObjectInitializer)
 {
+
+	UObject* loadObj = StaticLoadObject(UBlueprint::StaticClass(), NULL, TEXT("Blueprint'/Game/Code/Characters/B_PlayerBase.B_PlayerBase_C'"));
+	if (loadObj != nullptr)
+	{
+		PlayerBlueprintClass = loadObj->GetClass();
+		//UBlueprint* ubp = Cast<UBlueprint>(loadObj);
+		//AActor* spawnActor = GetWorld()->SpawnActor<AActor>(ubp->GeneratedClass);
+		//UE_LOG(LogClass, Log, TEXT("Success"));
+	}
+
+
+	//static ConstructorHelpers::FClassFinder<APlayerCharacterBase> BlueprintFinder(TEXT("Blueprint'/Game/Code/Characters/B_PlayerBase.B_PlayerBase_C'"));
+	//if (BlueprintFinder.Class)
+	//{
+	//	PlayerBlueprintClass = BlueprintFinder.Class;
+	//}
 
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 
@@ -42,29 +59,7 @@ void APlayerCharacterBase::Die()
 
 }
 
-void APlayerCharacterBase::SavePlayer_Implementation(UYogSaveGame* SaveObject)
-{
 
-}
-
-void APlayerCharacterBase::LoadPlayer_Implementation(UYogSaveGame* SaveObject)
-{
-	//if (SaveObject)
-	//{
-	//	FPlayerSaveData* FoundData = SaveObject->GetPlayerData(this);
-	//	if (FoundData)
-	//	{
-	//		// Makes sure we trigger credits changed event
-	//		AddCredits(FoundData->Credits);
-
-	//		PersonalRecordTime = FoundData->PersonalRecordTime;
-	//	}
-	//	else
-	//	{
-	//		UE_LOGFMT(LogGame, Warning, "Could not find SaveGame data for player id: {playerid}.", GetPlayerId());
-	//	}
-	//}
-}
 
 
 

@@ -102,9 +102,9 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 
 }
 
-void AYogGameMode::SpawnAndPossessCharacter(APlayerController* PlayerController, UYogSaveGame* LoadedData)
+void AYogGameMode::SpawnAndPossessCharacter(APlayerController* PlayerController /*UYogSaveGame* LoadedData*/)
 {
-	if (!PlayerController || !LoadedData) return;
+	//if (!PlayerController || !LoadedData) return;
 
 	UWorld* World = GetWorld();
 	if (!World) return;
