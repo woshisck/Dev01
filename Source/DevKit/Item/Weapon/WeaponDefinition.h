@@ -2,13 +2,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "..\..\AbilitySystem\Abilities\YogAbilitySet.h"
+//#include "..\..\AbilitySystem\Abilities\YogAbilitySet.h"
 
+#include "DevKit/AbilitySystem/Abilities/YogAbilitySet.h"
+#include "DevKit/Animation/YogAnimInstance.h"
 #include "WeaponDefinition.generated.h"
 
 class UYogAbilitySet;
 class AWeaponInstance;
-class UYogAnimInstance;
+//class UYogAnimInstance;
 
 
 USTRUCT()

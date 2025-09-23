@@ -20,14 +20,14 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 
-	UObject* loadObj = StaticLoadObject(UBlueprint::StaticClass(), NULL, TEXT("Blueprint'/Game/Code/Characters/B_PlayerBase.B_PlayerBase_C'"));
-	if (loadObj != nullptr)
-	{
-		PlayerBlueprintClass = loadObj->GetClass();
-		//UBlueprint* ubp = Cast<UBlueprint>(loadObj);
-		//AActor* spawnActor = GetWorld()->SpawnActor<AActor>(ubp->GeneratedClass);
-		//UE_LOG(LogClass, Log, TEXT("Success"));
-	}
+	//UObject* loadObj = StaticLoadObject(UBlueprint::StaticClass(), NULL, TEXT("Blueprint'/Game/Code/Characters/B_PlayerBase.B_PlayerBase_C'"));
+	//if (loadObj != nullptr)
+	//{
+	//	PlayerBlueprintClass = loadObj->GetClass();
+	//	//UBlueprint* ubp = Cast<UBlueprint>(loadObj);
+	//	//AActor* spawnActor = GetWorld()->SpawnActor<AActor>(ubp->GeneratedClass);
+	//	//UE_LOG(LogClass, Log, TEXT("Success"));
+	//}
 
 
 	//static ConstructorHelpers::FClassFinder<APlayerCharacterBase> BlueprintFinder(TEXT("Blueprint'/Game/Code/Characters/B_PlayerBase.B_PlayerBase_C'"));

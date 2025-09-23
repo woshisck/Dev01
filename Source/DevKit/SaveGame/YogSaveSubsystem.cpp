@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameModes/YogGameMode.h"
+#include "DevKit/DevAssetManager.h"
 
 
 
@@ -128,14 +129,21 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 
 		UGameplayStatics::OpenLevel(GetWorld(), CurrentSaveGame->LevelName, true);
 
-		//AYogGameMode* CurrentGameMode = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
-		//if (CurrentGameMode)
+		UDevAssetManager* devAssetManager = UDevAssetManager::GetDevAssetManager();
+
+		//if (devAssetManager->YogPlayerClass)
 		//{
-		//	CurrentGameMode->SpawnPlayerFromSaveData(CurrentSaveGame);
-		//	//CurrentGameMode->SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation)
-		//	//CurrentGameMode->SpawnAndPoccessAvatar(player, CurrentSaveGame->YogSavePlayers.PlayerLocation, CurrentSaveGame->YogSavePlayers.PlayerRotation);
+		//	//spawn player character at location;
+		//	AYogGameMode* CurrentGameMode = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+		//	if (CurrentGameMode)
+		//	{
+		//		CurrentGameMode->SpawnPlayerFromSaveData(CurrentSaveGame);
+		//		//CurrentGameMode->SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation)
+		//		//CurrentGameMode->SpawnAndPoccessAvatar(player, CurrentSaveGame->YogSavePlayers.PlayerLocation, CurrentSaveGame->YogSavePlayers.PlayerRotation);
+		//	}
+		//	UE_LOG(DevKitGame, Log, TEXT("player name : %s"), *player->GetName());
 		//}
-		//UE_LOG(DevKitGame, Log, TEXT("player name : %s"), *player->GetName());
+
 	}
 	//open level ->
 }

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
+#include "Player/PlayerCharacterBase.h"
 #include "DevAssetManager.generated.h"
 
 
@@ -24,6 +25,9 @@ public:
 	
 	FString CurrentLoadPackage;
 
+
+	UPROPERTY()
+	TSubclassOf<APlayerCharacterBase> YogPlayerBlueprintClass;
 
 	virtual void StartInitialLoading() override;
 
@@ -72,6 +76,9 @@ private:
 	TSet<TObjectPtr<const UObject>> LoadedAssets;
 
 	FCriticalSection LoadedAssetsCritical;
+
+
+
 };
 
 template<typename AssetType>

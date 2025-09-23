@@ -14,11 +14,6 @@ class UYogSaveGame;
 
 
 
-/// <summary>
-/// TODO: ONLY ONE SLOT 
-/// </summary>
-
-
 UCLASS()
 class DEVKIT_API UYogSaveSubsystem : public UGameInstanceSubsystem
 {
@@ -26,11 +21,15 @@ class DEVKIT_API UYogSaveSubsystem : public UGameInstanceSubsystem
 
 
 public:
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "General")
 	FString SaveSlotName = "SaveGame_01";
 
 	UPROPERTY(Transient)
 	TObjectPtr<UYogSaveGame> CurrentSaveGame;
+
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
 
 	UFUNCTION(BlueprintCallable, Category = "SaveGame")
 	void WriteSaveGame();
@@ -45,6 +44,7 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnSaveGameSignature OnSaveGameWritten;
 
+
 	UFUNCTION(BlueprintCallable)
 	UYogSaveGame* GetCurrentSave();
 
@@ -58,8 +58,15 @@ public:
 	UFUNCTION()
 	void LoadData(UObject* Object, UPARAM(ref) TArray<uint8>& Data);
 
-	/* Initialize Subsystem, good moment to load in SaveGameSettings variables */
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-
 
 };
+
+
+//UObject* loadObj = StaticLoadObject(UBlueprint::StaticClass(), NULL, TEXT("Blueprint'/Game/Code/Characters/B_PlayerBase.B_PlayerBase_C'"));
+//if (loadObj != nullptr)
+//{
+//	PlayerBlueprintClass = loadObj->GetClass();
+//	//UBlueprint* ubp = Cast<UBlueprint>(loadObj);
+//	//AActor* spawnActor = GetWorld()->SpawnActor<AActor>(ubp->GeneratedClass);
+//	//UE_LOG(LogClass, Log, TEXT("Success"));
+//}

@@ -90,6 +90,15 @@ void UDevAssetManager::StartInitialLoading()
 	Super::StartInitialLoading();
 
 	UAbilitySystemGlobals::Get().InitGlobalData();
+
+	UObject* loadObj = StaticLoadObject(UBlueprint::StaticClass(), NULL, TEXT("Blueprint'/Game/Code/Characters/B_PlayerBase.B_PlayerBase_C'"));
+	if (loadObj != nullptr)
+	{
+		YogPlayerBlueprintClass = loadObj->GetClass();
+		//UBlueprint* ubp = Cast<UBlueprint>(loadObj);
+		//AActor* spawnActor = GetWorld()->SpawnActor<AActor>(ubp->GeneratedClass);
+		//UE_LOG(LogClass, Log, TEXT("Success"));
+	}
 }
 
 
