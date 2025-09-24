@@ -51,10 +51,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void Die() override;
 
+public:
+
 	UPROPERTY()
 	TSubclassOf<APlayerCharacterBase> PlayerBlueprintClass;
 
-public:
+
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
 

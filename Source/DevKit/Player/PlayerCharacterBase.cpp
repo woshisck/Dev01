@@ -20,6 +20,13 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 
+	static ConstructorHelpers::FClassFinder<APlayerCharacterBase> BlueprintFinder(TEXT("/Game/Code/Characters/B_PlayerBase"));
+	if (BlueprintFinder.Succeeded())
+	{
+		PlayerBlueprintClass = BlueprintFinder.Class;
+	}
+
+
 	//UObject* loadObj = StaticLoadObject(UBlueprint::StaticClass(), NULL, TEXT("Blueprint'/Game/Code/Characters/B_PlayerBase.B_PlayerBase_C'"));
 	//if (loadObj != nullptr)
 	//{
@@ -58,6 +65,8 @@ void APlayerCharacterBase::Die()
 	Super::Die();
 
 }
+
+
 
 
 
