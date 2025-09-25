@@ -64,6 +64,47 @@ void UYogSaveSubsystem::LoadData(UObject* Object, UPARAM(ref)TArray<uint8>& Data
 
 }
 
+void UYogSaveSubsystem::SaveTransformData(FVector& saveGame_loc, FVector& target_loc, FRotator& saveGame_rotate, FRotator& target_rot)
+{
+	saveGame_loc = target_loc;
+	saveGame_rotate = target_rot;
+}
+
+void UYogSaveSubsystem::SaveLevelData(UYogSaveGame* SaveGame)
+{
+}
+
+void UYogSaveSubsystem::LoadLevelData(UYogSaveGame* SaveGame)
+{
+	UWorld* World = GEngine->GetWorldContextFromGameViewport(GEngine->GameViewport)->World();
+	if (World)
+	{
+		// Load the level if it's different from current
+
+		//FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+		//if (CurrentLevelName != SaveGame->LevelName)
+		//{
+		//	UGameplayStatics::OpenLevel(World, FName(*SaveGame->LevelName));
+		//	// Wait for level load complete before spawning actors
+		//	return;
+		//}
+
+	}
+	else
+	{
+		return;
+	}
+
+}
+
+void UYogSaveSubsystem::SavePlayerData(UYogSaveGame* SaveGame)
+{
+}
+
+void UYogSaveSubsystem::LoadPlayerData(UYogSaveGame* SaveGame)
+{
+}
+
 void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -94,8 +135,10 @@ void UYogSaveSubsystem::WriteSaveGame()
 	{
 		SaveData(player, CurrentSaveGame->PlayerCharacter);
 		//SaveData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
-		CurrentSaveGame->current_Location = player->GetActorLocation();
-		CurrentSaveGame->current_Rotation = player->GetActorRotation();
+		FVector target_loc = player->GetActorLocation();
+		FRotator target_rot = player->GetActorRotation();
+
+		SaveTransformData(CurrentSaveGame->current_Location, target_loc, CurrentSaveGame->current_Rotation, target_rot);
 
 		//CurrentSaveGame->YogSavePlayers.PlayerLocation = player->GetActorLocation();
 		//CurrentSaveGame->YogSavePlayers.PlayerRotation = player->GetActorRotation();
@@ -119,7 +162,11 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 {
 	if (CurrentSaveGame)
 	{
-		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->YogSaveMap.LevelName.ToString());
+
+
+		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->current_Location.ToString());
+
+		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->current_Rotation.ToString());
 
 		//APlayerCharacterBase* player = NewObject<APlayerCharacterBase>(this, APlayerCharacterBase::StaticClass());
 		//
@@ -127,10 +174,18 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 
 		//LoadData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
 
-		UGameplayStatics::OpenLevel(GetWorld(), CurrentSaveGame->LevelName, true);
+		//TODO: OpenLevel
+
+		//UGameplayStatics::OpenLevel(GetWorld(), CurrentSaveGame->LevelName, true);
 
 		UDevAssetManager* devAssetManager = UDevAssetManager::GetDevAssetManager();
-		
+		APlayerController* PC = GEngine->GetFirstLocalPlayerController(GEngine->GameViewport->GetWorld());
+
+		if (PC->GetPawn())
+		{
+			
+		}
+
 		//APlayerCharacterBase* T_player = GetWorld()->SpawnActorDeferred<APlayerCharacterBase>(devAssetManager->PlayerBlueprintClass, FTransform::Identity);
 
 

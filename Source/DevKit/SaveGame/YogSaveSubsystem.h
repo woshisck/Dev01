@@ -59,6 +59,15 @@ public:
 	void LoadData(UObject* Object, UPARAM(ref) TArray<uint8>& Data);
 
 
+	void SaveTransformData(FVector& saveGame_loc, FVector& target_loc, FRotator& saveGame_rotate, FRotator& target_rot);
+
+
+private:
+	void SaveLevelData(UYogSaveGame* SaveGame);
+	void LoadLevelData(UYogSaveGame* SaveGame);
+	void SavePlayerData(UYogSaveGame* SaveGame);
+	void LoadPlayerData(UYogSaveGame* SaveGame);
+
 };
 
 

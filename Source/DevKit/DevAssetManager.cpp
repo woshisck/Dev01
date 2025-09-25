@@ -8,9 +8,9 @@
 UDevAssetManager::UDevAssetManager()
 {
 
-
-
 }
+
+
 
 UDevAssetManager* UDevAssetManager::GetDevAssetManager() {
 	
@@ -26,6 +26,8 @@ UDevAssetManager* UDevAssetManager::GetDevAssetManager() {
 	return NewObject<UDevAssetManager>();
 
 }
+
+
 
 void UDevAssetManager::AsyncLoadAsset(FSoftObjectPath Path, FOnAsyncLoadFinished OnPackageLoaded) {
 	FString result;
