@@ -26,9 +26,6 @@ public:
 	FString CurrentLoadPackage;
 
 
-	UPROPERTY()
-	TSubclassOf<APlayerCharacterBase> YogPlayerBlueprintClass;
-
 	virtual void StartInitialLoading() override;
 
 	UFUNCTION(BlueprintPure,BlueprintCallable, Category = "AssetLoader")

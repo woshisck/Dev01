@@ -20,28 +20,6 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 
-	static ConstructorHelpers::FClassFinder<APlayerCharacterBase> BlueprintFinder(TEXT("/Game/Code/Characters/B_PlayerBase"));
-	if (BlueprintFinder.Succeeded())
-	{
-		PlayerBlueprintClass = BlueprintFinder.Class;
-	}
-
-
-	//UObject* loadObj = StaticLoadObject(UBlueprint::StaticClass(), NULL, TEXT("Blueprint'/Game/Code/Characters/B_PlayerBase.B_PlayerBase_C'"));
-	//if (loadObj != nullptr)
-	//{
-	//	PlayerBlueprintClass = loadObj->GetClass();
-	//	//UBlueprint* ubp = Cast<UBlueprint>(loadObj);
-	//	//AActor* spawnActor = GetWorld()->SpawnActor<AActor>(ubp->GeneratedClass);
-	//	//UE_LOG(LogClass, Log, TEXT("Success"));
-	//}
-
-
-	//static ConstructorHelpers::FClassFinder<APlayerCharacterBase> BlueprintFinder(TEXT("Blueprint'/Game/Code/Characters/B_PlayerBase.B_PlayerBase_C'"));
-	//if (BlueprintFinder.Class)
-	//{
-	//	PlayerBlueprintClass = BlueprintFinder.Class;
-	//}
 
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 

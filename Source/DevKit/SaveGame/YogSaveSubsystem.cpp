@@ -129,9 +129,9 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 
 		UGameplayStatics::OpenLevel(GetWorld(), CurrentSaveGame->LevelName, true);
 
-		//UDevAssetManager* devAssetManager = UDevAssetManager::GetDevAssetManager();
-
-		APlayerCharacterBase* T_player = GetWorld()->SpawnActorDeferred<APlayerCharacterBase>(T_player->PlayerBlueprintClass, FTransform::Identity);
+		UDevAssetManager* devAssetManager = UDevAssetManager::GetDevAssetManager();
+		
+		//APlayerCharacterBase* T_player = GetWorld()->SpawnActorDeferred<APlayerCharacterBase>(devAssetManager->PlayerBlueprintClass, FTransform::Identity);
 
 
 		//if (devAssetManager->YogPlayerClass)
