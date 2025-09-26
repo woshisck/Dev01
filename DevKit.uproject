@@ -111,14 +111,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "PythonFoundationPackages",
-			"Enabled": true
-		},
-		{
-			"Name": "PythonAutomationTest",
-			"Enabled": true
-		},
-		{
 			"Name": "AnimationLocomotionLibrary",
 			"Enabled": true
 		},

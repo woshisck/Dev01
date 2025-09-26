@@ -61,13 +61,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
 
-	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	UPROPERTY(BlueprintAssignable, Category = "Character")
 	FItemInteractStartDelegate OnItemInterActionStart;
 
-	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	UPROPERTY(BlueprintAssignable, Category = "Character")
 	FItemInteractEndDelegate OnItemInterActionEnd;
 
-	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	UPROPERTY(BlueprintAssignable, Category = "Character")
 	FPlayerStateDelegate OnPlayerStateUpdate;
 
 

@@ -6,7 +6,7 @@
 #include "Components/CapsuleComponent.h"
 #include "DevKit/Item/ItemInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "DevKit/Inventory/InventoryManagerComponent.h"
+
 #include "DevKit/AbilitySystem/Abilities/YogGameplayAbility.h"
 #include <DevKit/Player/YogPlayerControllerBase.h>
 #include <DevKit/Item/Weapon/WeaponInstance.h>
@@ -23,7 +23,6 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	PrimaryActorTick.bStartWithTickEnabled = true;
 
 	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<UYogAbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
-	//InventoryManagerComponent = ObjectInitializer.CreateDefaultSubobject<UInventoryManagerComponent>(this, TEXT("InventoryComponent"));
 	HitboxbuffComponent = ObjectInitializer.CreateDefaultSubobject<UHitBoxBufferComponent>(this, TEXT("HitBoxBufferComponent"));
 	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
 

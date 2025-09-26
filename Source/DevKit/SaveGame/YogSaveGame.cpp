@@ -28,9 +28,9 @@ FPlayerSaveData* UYogSaveGame::GetPlayerData(APlayerState* PlayerState)
 	{
 		//UE_LOG(DevKitGame, Log, "During PIE we cannot use PlayerID to retrieve Saved Player data. Using first entry in array if available.");
 
-		if (SavedPlayers.IsValidIndex(0))
+		if (SavedCharacter.IsValidIndex(0))
 		{
-			return &SavedPlayers[0];
+			return &SavedCharacter[0];
 		}
 
 		// No saved player data available
@@ -41,5 +41,5 @@ FPlayerSaveData* UYogSaveGame::GetPlayerData(APlayerState* PlayerState)
 	// Keep in mind that GetUniqueId() returns the online id, where GetUniqueID() is a function from UObject (very confusing...)
 	FString PlayerID = PlayerState->GetUniqueId().ToString();
 	// Iterate the array and match by PlayerID (eg. unique ID provided by Steam)
-	return SavedPlayers.FindByPredicate([&](const FPlayerSaveData& Data) { return Data.PlayerID == PlayerID; });
+	return SavedCharacter.FindByPredicate([&](const FPlayerSaveData& Data) { return Data.PlayerID == PlayerID; });
 }

@@ -121,7 +121,7 @@ void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UYogSaveSubsystem::WriteSaveGame()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(WriteSaveGame);
-	CurrentSaveGame->SavedPlayers.Empty();
+	CurrentSaveGame->SavedCharacter.Empty();
 	CurrentSaveGame->SavedActorMap.Empty();
 	
 	//CHECK FOR PLAYER STAT, NOT FOR IDE 
@@ -133,7 +133,7 @@ void UYogSaveSubsystem::WriteSaveGame()
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 	if (player)
 	{
-		SaveData(player, CurrentSaveGame->PlayerCharacter);
+		
 		//SaveData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
 		FVector target_loc = player->GetActorLocation();
 		FRotator target_rot = player->GetActorRotation();
@@ -151,7 +151,19 @@ void UYogSaveSubsystem::WriteSaveGame()
 	CurrentSaveGame->LevelName = current_world->GetFName();
 
 
-	UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, 0);
+	if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
+	{
+		UGameplayStatics::DeleteGameInSlot(SaveSlotName, 0);
+
+		
+		UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, 0);
+	}
+	else
+	{
+		UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, 0);
+	}
+
+
 	UE_LOG(DevKitGame, Log, TEXT("FINISH WRITE SAVE GAME"));
 
 	OnSaveGameWritten.Broadcast(CurrentSaveGame);
@@ -175,9 +187,7 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 			UE_LOG(DevKitGame, Log, TEXT("player_pawn is : %s"), *player_pawn->GetName());
 			player_pawn->SetActorLocation(CurrentSaveGame->current_Location);
 			player_pawn->SetActorRotation(CurrentSaveGame->current_Rotation);
-
-			LoadData(player_pawn, CurrentSaveGame->PlayerCharacter);
-
+			
 		}
 		//APlayerCharacterBase* player = NewObject<APlayerCharacterBase>(this, APlayerCharacterBase::StaticClass());
 		//

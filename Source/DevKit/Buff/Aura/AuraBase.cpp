@@ -13,7 +13,6 @@ AAuraBase::AAuraBase(const FObjectInitializer& ObjectInitializer)
 
 
 	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<UYogAbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
-	//InventoryManagerComponent = ObjectInitializer.CreateDefaultSubobject<UInventoryManagerComponent>(this, TEXT("InventoryComponent"));
 	//HitboxbuffComponent = ObjectInitializer.CreateDefaultSubobject<UHitBoxBufferComponent>(this, TEXT("HitBoxBufferComponent"));
 	//UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
 

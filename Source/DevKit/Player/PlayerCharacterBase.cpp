@@ -6,7 +6,6 @@
 #include "Components/CapsuleComponent.h"
 #include "../Item/ItemInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "../Inventory/InventoryManagerComponent.h"
 #include "../AbilitySystem/Abilities/YogGameplayAbility.h"
 #include <DevKit/Player/YogPlayerControllerBase.h>
 #include "../Camera/YogCameraPawn.h"
