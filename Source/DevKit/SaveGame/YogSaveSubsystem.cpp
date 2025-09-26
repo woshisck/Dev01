@@ -165,21 +165,32 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 
 
 		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->current_Location.ToString());
-
 		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->current_Rotation.ToString());
 
+		APlayerController* PC = GEngine->GetFirstLocalPlayerController(GEngine->GameViewport->GetWorld());
+
+		APlayerCharacterBase* player_pawn = Cast<APlayerCharacterBase>(PC->GetPawn());
+		if (player_pawn)
+		{
+			UE_LOG(DevKitGame, Log, TEXT("player_pawn is : %s"), *player_pawn->GetName());
+			player_pawn->SetActorLocation(CurrentSaveGame->current_Location);
+			player_pawn->SetActorRotation(CurrentSaveGame->current_Rotation);
+
+			LoadData(player_pawn, CurrentSaveGame->PlayerCharacter);
+
+		}
 		//APlayerCharacterBase* player = NewObject<APlayerCharacterBase>(this, APlayerCharacterBase::StaticClass());
 		//
 		////LoadData(player, CurrentSaveGame->PlayerCharacter);
 
-		//LoadData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
+		
 
 		//TODO: OpenLevel
 
 		//UGameplayStatics::OpenLevel(GetWorld(), CurrentSaveGame->LevelName, true);
 
 		UDevAssetManager* devAssetManager = UDevAssetManager::GetDevAssetManager();
-		APlayerController* PC = GEngine->GetFirstLocalPlayerController(GEngine->GameViewport->GetWorld());
+		
 
 		if (PC->GetPawn())
 		{
