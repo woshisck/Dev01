@@ -10,6 +10,7 @@
 
 #include "AbilitySystemInterface.h"
 #include "../Data/CharacterData.h"
+#include "DevKit/Component/AttributeStatComponent.h"
 #include "YogCharacterBase.generated.h"
 
 
@@ -35,7 +36,7 @@ class UHitBoxBufferComponent;
 class UYogGameplayAbility;
 class AItemSpawner;
 class AWeaponInstance;
-class UAttributeStatComponent;
+
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, const float, HealthPercent);

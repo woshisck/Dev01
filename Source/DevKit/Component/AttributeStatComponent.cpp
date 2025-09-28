@@ -84,6 +84,17 @@ void UAttributeStatComponent::DivideAttribute(FGameplayAttribute attribute, floa
 	}
 }
 
+void UAttributeStatComponent::OverrideAttribute(FGameplayAttribute attribute, float value_override) const
+{
+	if (value_override)
+	{
+		UAbilitySystemComponent* abilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
+		check(abilitySystemComponent);
+
+		abilitySystemComponent->SetNumericAttributeBase(attribute, value_override);
+	}
+}
+
 float UAttributeStatComponent::GetStat_Attack() const
 {
 	return GetAttribute(UBaseAttributeSet::GetAttackAttribute());
@@ -116,40 +127,40 @@ float UAttributeStatComponent::GetStat_AttackRange() const
 
 float UAttributeStatComponent::GetStat_Sanity() const
 {
-	return 0.0f;
+	return GetAttribute(UBaseAttributeSet::GetSanityAttribute());
 }
 
 float UAttributeStatComponent::GetStat_MoveSpeed() const
 {
-	return 0.0f;
+	return GetAttribute(UBaseAttributeSet::GetMoveSpeedAttribute());
 }
 
 float UAttributeStatComponent::GetStat_Dodge() const
 {
-	return 0.0f;
+	return GetAttribute(UBaseAttributeSet::GetDodgeAttribute());
 }
 
 float UAttributeStatComponent::GetStat_Resilience() const
 {
-	return 0.0f;
+	return GetAttribute(UBaseAttributeSet::GetResilienceAttribute());
 }
 
 float UAttributeStatComponent::GetStat_Resist() const
 {
-	return 0.0f;
+	return GetAttribute(UBaseAttributeSet::GetResistAttribute());
 }
 
 float UAttributeStatComponent::GetStat_DmgTaken() const
 {
-	return 0.0f;
+	return GetAttribute(UBaseAttributeSet::GetDmgTakenAttribute());
 }
 
 float UAttributeStatComponent::GetStat_Crit_Rate() const
 {
-	return 0.0f;
+	return GetAttribute(UBaseAttributeSet::GetCrit_RateAttribute());
 }
 
 float UAttributeStatComponent::GetStat_Crit_Damage() const
 {
-	return 0.0f;
+	return GetAttribute(UBaseAttributeSet::GetCrit_DamageAttribute());
 }

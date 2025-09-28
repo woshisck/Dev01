@@ -35,11 +35,15 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AddAttribute(FGameplayAttribute attribute, float value_add) const;
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	void MultiplyAttribute(FGameplayAttribute attribute, float value_multiply) const;
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	void DivideAttribute(FGameplayAttribute attribute, float value_divide) const;
+
+	UFUNCTION(BlueprintCallable)
+	void OverrideAttribute(FGameplayAttribute attribute, float value_override) const;
+
 
 	//////////////////////////////////////////////////////////////////////
 	UFUNCTION(BlueprintPure)

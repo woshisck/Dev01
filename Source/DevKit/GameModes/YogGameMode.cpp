@@ -106,7 +106,9 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 void AYogGameMode::UpdateMonsterKillCount(int count)
 {
 	this->MonsterKillCount += count;
-	if (this->MonsterKillCount > 4)
+	UE_LOG(LogTemp, Log, TEXT("MonsterKillCount: %d"), this->MonsterKillCount);
+	//TODO: HARD CODE
+	if (this->MonsterKillCount >= 10)
 	{
 		OnFinishLevel.Broadcast();
 		UE_LOG(LogTemp, Log, TEXT("OnFinishLevel.Broadcast() Calling;"));
