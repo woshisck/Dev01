@@ -9,9 +9,9 @@
 class AYogPlayerControllerBase;
 class UYogGameRule;
 class UYogSaveGame;
-/**
- * 
- */
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
+
 UCLASS()
 class DEVKIT_API AYogGameMode : public AModularGameModeBase
 {
@@ -28,12 +28,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Player")
 	void SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName);
 
-	UFUNCTION(BlueprintCallable)
-	void SpawnAndPossessCharacter(APlayerController* PlayerController /*UYogSaveGame* LoadedData*/);
-
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
 	bool bAutoSpawnPlayer = false;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnFinishLevel OnFinishLevel;
+
+	UFUNCTION(BlueprintCallable, Category = "KillCount")
+	void UpdateMonsterKillCount(int count);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KillCount")
+	int MonsterKillCount;
 
 protected:
 	void OnGameRuleLoaded(const UYogGameRule* CurrentGameRule);

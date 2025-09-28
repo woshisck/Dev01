@@ -102,46 +102,16 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 
 }
 
-void AYogGameMode::SpawnAndPossessCharacter(APlayerController* PlayerController /*UYogSaveGame* LoadedData*/)
+
+void AYogGameMode::UpdateMonsterKillCount(int count)
 {
-	//if (!PlayerController || !LoadedData) return;
-
-	UWorld* World = GetWorld();
-	if (!World) return;
-
-	// Clear existing pawn if needed
-	if (APawn* ExistingPawn = PlayerController->GetPawn())
+	this->MonsterKillCount += count;
+	if (this->MonsterKillCount > 4)
 	{
-		ExistingPawn->Destroy();
-	}
-
-	// Spawn parameters
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-	// Spawn character at saved location
-	TSubclassOf<APlayerCharacterBase> player_class;
-	APlayerCharacterBase* SpawnedCharacter = GetWorld()->SpawnActorDeferred<APlayerCharacterBase>(player_class, FTransform::Identity);
-
-	//APlayerCharacterBase* SpawnedCharacter = World->SpawnActorDeferred<APlayerCharacterBase>(
-	//	YourCharacterClass, // Your character class reference
-	//	LoadedData->PlayerLocation,
-	//	LoadedData->PlayerRotation,
-	//	SpawnParams
-	//);
-
-	//setup Savedata, reference:
-	if (SpawnedCharacter)
-	{
-		// Apply loaded data to character
-		//SpawnedCharacter->SetHealth(LoadedData->Health);
-		//SpawnedCharacter->SetScore(LoadedData->Score);
-
-		// Possess the character
-		PlayerController->Possess(SpawnedCharacter);
+		OnFinishLevel.Broadcast();
+		UE_LOG(LogTemp, Log, TEXT("OnFinishLevel.Broadcast() Calling;"));
 	}
 }
-
 
 void AYogGameMode::OnGameRuleLoaded(const UYogGameRule* CurrentGameRule)
 {

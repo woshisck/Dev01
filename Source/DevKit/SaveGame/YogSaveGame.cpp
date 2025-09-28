@@ -18,7 +18,7 @@
 //	}
 //}
 
-FPlayerSaveData* UYogSaveGame::GetPlayerData(APlayerState* PlayerState)
+FCharacterSaveData* UYogSaveGame::GetPlayerData(APlayerState* PlayerState)
 {
 	check(PlayerState);
 
@@ -41,5 +41,5 @@ FPlayerSaveData* UYogSaveGame::GetPlayerData(APlayerState* PlayerState)
 	// Keep in mind that GetUniqueId() returns the online id, where GetUniqueID() is a function from UObject (very confusing...)
 	FString PlayerID = PlayerState->GetUniqueId().ToString();
 	// Iterate the array and match by PlayerID (eg. unique ID provided by Steam)
-	return SavedCharacter.FindByPredicate([&](const FPlayerSaveData& Data) { return Data.PlayerID == PlayerID; });
+	return SavedCharacter.FindByPredicate([&](const FCharacterSaveData& Data) { return Data.PlayerID == PlayerID; });
 }

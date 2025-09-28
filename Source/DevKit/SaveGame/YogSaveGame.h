@@ -85,22 +85,6 @@ public:
 	UPROPERTY()
 	float Crit_Damage;
 
-
-
-
-
-	/* Identifier for which Actor this belongs to */
-	UPROPERTY()
-	FName ActorName;
-
-	/* For movable Actors, keep location,rotation,scale. */
-	UPROPERTY()
-	FTransform Transform;
-
-	/* Contains all 'SaveGame' marked variables of the Actor */
-	UPROPERTY()
-	TArray<uint8> ByteData;
-
 };
 
 
@@ -129,13 +113,13 @@ public:
 
 
 USTRUCT()
-struct FPlayerSaveData
+struct FCharacterSaveData
 {
 	GENERATED_BODY()
 
 public:
 
-	FPlayerSaveData()
+	FCharacterSaveData()
 	{
 		Credits = 0;
 		PersonalRecordTime = 0.0f;
@@ -167,7 +151,8 @@ public:
 	UPROPERTY()
 	bool bResumeAtTransform;
 
-
+	UPROPERTY()
+	FAttributeSaveData CharacterAttributeSaveData;
 
 
 	UPROPERTY()
@@ -237,7 +222,7 @@ public:
 
 	//ACTOR WITH GAS SYSTEM ATTACHED
 	UPROPERTY()
-	TArray<FPlayerSaveData> SavedCharacter;
+	TArray<FCharacterSaveData> SavedCharacter;
 
 
 	UPROPERTY()
@@ -256,6 +241,6 @@ public:
 	UPROPERTY()
 	TMap<FName, FYogActorSaveData> SavedActorMap;
 
-	FPlayerSaveData* GetPlayerData(APlayerState* PlayerState);
+	FCharacterSaveData* GetPlayerData(APlayerState* PlayerState);
 
 };

@@ -35,7 +35,7 @@ class UHitBoxBufferComponent;
 class UYogGameplayAbility;
 class AItemSpawner;
 class AWeaponInstance;
-
+class UAttributeStatComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, const float, HealthPercent);
@@ -72,6 +72,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UCharacterData>  CharacterData;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)
+	TObjectPtr<UAttributeStatComponent> AttributeStatsComponent;
 
 
 	////////////////////////////////////////// Attribute Set //////////////////////////////////////////
@@ -110,6 +113,7 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FCharacterHealthUpdateDelegate OnCharacterHealthUpdate;
+
 
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FCharacterMoveableDelegate OnCharacterCanMoveUpdate;

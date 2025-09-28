@@ -9,6 +9,7 @@
 #include "Engine/Engine.h"
 #include "Engine/AssetManager.h"
 #include "DevAssetManager.h"
+#include "DevKit/GameModes/YogGameMode.h"
 
 void AYogLevelScript::PreInitializeComponents()
 {
@@ -68,4 +69,6 @@ void AYogLevelScript::BeginPlay()
 		}
 	}
 
+	AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this));
+	GM->MonsterKillCount = 0;
 }
