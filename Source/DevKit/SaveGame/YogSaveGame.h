@@ -152,13 +152,29 @@ public:
 	bool bResumeAtTransform;
 
 	UPROPERTY()
-	FAttributeSaveData CharacterAttributeSaveData;
+	FAttributeSaveData AttributeSaveData;
+
 
 
 	UPROPERTY()
 	TArray<uint8> ByteData;
 
 };
+
+USTRUCT(BlueprintType)
+struct FWeaponSaveData
+{
+	GENERATED_BODY()
+
+	// Identifier to find the actor in the world or know its class to spawn
+	UPROPERTY()
+	FString ActorName;
+
+	// The class to spawn when loading
+	UPROPERTY()
+	UClass* ActorClass;
+};
+
 
 USTRUCT()
 struct FYogPlayerData
@@ -179,6 +195,9 @@ public:
 	/* Orientation if player was alive during save */
 	UPROPERTY()
 	FRotator PlayerRotation;
+
+	UPROPERTY()
+	TArray<FWeaponSaveData> AttachedWeaponData;
 
 	UPROPERTY()
 	TArray<uint8> CharacterByteData;

@@ -21,6 +21,12 @@ class DEVKIT_API UYogSaveSubsystem : public UGameInstanceSubsystem
 
 
 public:
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	void SavePlayer();
+
+	UFUNCTION()
+	void SaveAttachedWeapon();
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "General")
 	FString SaveSlotName = "SaveGame_01";

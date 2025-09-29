@@ -105,6 +105,40 @@ void UYogSaveSubsystem::LoadPlayerData(UYogSaveGame* SaveGame)
 {
 }
 
+void UYogSaveSubsystem::SavePlayer()
+{
+}
+
+void UYogSaveSubsystem::SaveAttachedWeapon()
+{
+	//PLAYER SAVE 
+	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	if (player)
+	{
+		TArray<AActor*> attachedActors;
+		player->GetAttachedActors(attachedActors,true, true);
+
+		for (AActor* attached_actor : attachedActors)
+		{
+			FWeaponSaveData WeaponData;
+			WeaponData.ActorName = attached_actor->GetName();
+			WeaponData.ActorClass = attached_actor->GetClass();
+			CurrentSaveGame->YogSavePlayers.AttachedWeaponData.Add(WeaponData);
+		}
+
+
+		//SaveData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
+		FVector target_loc = player->GetActorLocation();
+		FRotator target_rot = player->GetActorRotation();
+
+		SaveTransformData(CurrentSaveGame->current_Location, target_loc, CurrentSaveGame->current_Rotation, target_rot);
+
+		//CurrentSaveGame->YogSavePlayers.PlayerLocation = player->GetActorLocation();
+		//CurrentSaveGame->YogSavePlayers.PlayerRotation = player->GetActorRotation();
+	}
+
+}
+
 void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -140,8 +174,6 @@ void UYogSaveSubsystem::WriteSaveGame()
 
 		SaveTransformData(CurrentSaveGame->current_Location, target_loc, CurrentSaveGame->current_Rotation, target_rot);
 
-		//CurrentSaveGame->YogSavePlayers.PlayerLocation = player->GetActorLocation();
-		//CurrentSaveGame->YogSavePlayers.PlayerRotation = player->GetActorRotation();
 	}
 
 	//WORLD SAVE
