@@ -17,6 +17,12 @@ UCLASS()
 class DEVKIT_API AYogLevelScript : public ALevelScriptActor
 {
 	GENERATED_BODY()
+
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int MonsterKillCountTarget;
+
 protected:
 
 	virtual void PreInitializeComponents() override;

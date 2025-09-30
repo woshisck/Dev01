@@ -44,8 +44,6 @@ bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextOb
 
 		WeaponData->GrantAbilityToOwner(ReceivingChar);
 
-
-
 		return true;
 	}
 	else

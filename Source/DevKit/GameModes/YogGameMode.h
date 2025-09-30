@@ -41,6 +41,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KillCount")
 	int MonsterKillCount;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "KillCount")
+	int TargetMonsterKill;
+
+
 protected:
 	void OnGameRuleLoaded(const UYogGameRule* CurrentGameRule);
 };

@@ -8,7 +8,7 @@
 #include "AbilityData.h"
 #include "WeaponData.generated.h"
 
-
+class AWeaponInstance;
 class UYogGameplayAbility;
 class AYogCharacterBase;
 
@@ -36,6 +36,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Weapon_CritDmg = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<AWeaponInstance> WeaponInstance;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TArray<UYogGameplayAbility*> Actions;

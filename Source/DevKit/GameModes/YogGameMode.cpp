@@ -7,6 +7,7 @@
 #include <Kismet/GameplayStatics.h>
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
+#include "DevKit/Map/YogLevelScript.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
@@ -41,7 +42,30 @@ void AYogGameMode::StartPlay()
 	//[get player + get transform -> spawn player -> poccess ->] in game mode
 	
 	UWorld* World = GetWorld();
+
+	if (World)
+	{
+		ULevel* CurrentLevel = World->GetCurrentLevel();
+		if (CurrentLevel)
+		{
+			AYogLevelScript* LevelScriptActor = Cast<AYogLevelScript>(CurrentLevel->GetLevelScriptActor());
+			if (LevelScriptActor)
+			{
+				TargetMonsterKill = LevelScriptActor->MonsterKillCountTarget;
+
+				// Success! You can now use the LevelScriptActor.
+				UE_LOG(LogTemp, Warning, TEXT("Found LevelScriptActor: %s"), *LevelScriptActor->GetName());
+			}
+		}
+	}
+
+
+	
+	
 	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+
+
+
 
 	UYogSaveSubsystem* save_subsystem = UGameInstance::GetSubsystem<UYogSaveSubsystem>(GetGameInstance());
 	if (save_subsystem->CurrentSaveGame)
@@ -108,7 +132,7 @@ void AYogGameMode::UpdateMonsterKillCount(int count)
 	this->MonsterKillCount += count;
 	UE_LOG(LogTemp, Log, TEXT("MonsterKillCount: %d"), this->MonsterKillCount);
 	//TODO: HARD CODE
-	if (this->MonsterKillCount >= 10)
+	if (this->MonsterKillCount >= TargetMonsterKill)
 	{
 		OnFinishLevel.Broadcast();
 		UE_LOG(LogTemp, Log, TEXT("OnFinishLevel.Broadcast() Calling;"));
