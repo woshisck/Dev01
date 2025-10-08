@@ -147,7 +147,7 @@ void AWeaponSpawner::SpawnAttachWeapon(AYogCharacterBase* ReceivingChar)
 
 void AWeaponSpawner::GrantWeaponAbility(AYogCharacterBase* ReceivingChar)
 {
-	for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
+	for (UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
 	{
 		for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
 		{

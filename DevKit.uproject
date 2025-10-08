@@ -119,22 +119,12 @@
 			"Enabled": true
 		},
 		{
-			"Name": "MeleeTrace",
-			"Enabled": false,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/42b0bb860bcd4995b70d40f152a6e9b9"
-		},
-		{
 			"Name": "ActorPalette",
 			"Enabled": true
 		},
 		{
 			"Name": "CommonLoadingScreen",
 			"Enabled": false
-		},
-		{
-			"Name": "TopDownPhysicsCamera",
-			"Enabled": true,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/0e5ce9b6cd7e4f41b797b4150b0cba55"
 		}
 	]
 }

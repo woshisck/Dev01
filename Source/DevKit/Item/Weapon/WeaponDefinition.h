@@ -45,7 +45,7 @@ public:
 
 	// Gameplay ability sets to grant when this is equipped
 	UPROPERTY(EditDefaultsOnly, Category = "Equipment")
-	TArray<TObjectPtr<const UYogAbilitySet>> AbilitySetsToGrant;
+	TArray<TObjectPtr<UYogAbilitySet>> AbilitySetsToGrant;
 
 	// Actors to spawn on the pawn when this is equipped
 	UPROPERTY(EditDefaultsOnly, Category = "Equipment")

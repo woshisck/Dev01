@@ -177,16 +177,10 @@ struct FWeaponSaveData
 
 
 USTRUCT()
-struct FYogPlayerData
+struct DEVKIT_API FYogPlayerStateSave
 {
 	GENERATED_BODY()
-
 public:
-
-	FYogPlayerData()
-	{
-
-	}
 
 	/* Location if player was alive during save */
 	UPROPERTY()
@@ -201,6 +195,9 @@ public:
 
 	UPROPERTY()
 	TArray<uint8> CharacterByteData;
+
+	UPROPERTY()
+	TArray<TSubclassOf<UGameplayAbility>> SavedAbilities;
 
 };
 
@@ -234,7 +231,7 @@ class DEVKIT_API UYogSaveGame : public USaveGame
 public:
 
 	UPROPERTY()
-	FYogPlayerData YogSavePlayers;
+	FYogPlayerStateSave YogSavePlayers;
 	UPROPERTY()
 	FYogMapData YogSaveMap;
 

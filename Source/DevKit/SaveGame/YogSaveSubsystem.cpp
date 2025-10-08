@@ -172,6 +172,9 @@ void UYogSaveSubsystem::WriteSaveGame()
 		FVector target_loc = player->GetActorLocation();
 		FRotator target_rot = player->GetActorRotation();
 
+		//TODO: SAVE CURRENT ABILITIES
+		//CurrentSaveGame->YogSavePlayers.SavedAbilities = player->GetAbilitySystemComponent()->GetAllAbilities();
+
 		SaveTransformData(CurrentSaveGame->current_Location, target_loc, CurrentSaveGame->current_Rotation, target_rot);
 
 	}

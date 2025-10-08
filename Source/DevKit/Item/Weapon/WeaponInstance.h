@@ -92,8 +92,7 @@ public:
 	float CriticalDamage;
 
 	UPROPERTY()
-	TArray<UYogGameplayAbility*> Actions;
-
+	TArray<TSubclassOf<UYogGameplayAbility>> WeaponMoves;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<TSubclassOf<UGameplayEffect>> WeaponHitEffect;
