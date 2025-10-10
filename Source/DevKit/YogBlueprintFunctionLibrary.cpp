@@ -22,6 +22,7 @@ bool UYogBlueprintFunctionLibrary::IsInEditor()
 	return GIsEditor;
 }
 
+
 FName UYogBlueprintFunctionLibrary::GetDTRow(FString AssetName, int32 rowNum)
 {
 	FString result;

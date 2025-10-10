@@ -14,9 +14,10 @@ void UWeaponDefinition::SetupWeaponToCharacter(UWorld* World, USkeletalMeshCompo
 
 		AWeaponInstance* NewActor = World->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
 		//AWeaponInstance* NewActor = World->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
-		NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+		
 		NewActor->SetActorRelativeTransform(Transform);
 		NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
+		NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
 		ReceivingChar->Weapon = NewActor;
 
 	}

@@ -7,6 +7,7 @@
 #include "../System/YogGameInstanceBase.h"
 #include "Player/PlayerCharacterBase.h"
 #include "../Item/Weapon/WeaponInstance.h"
+#include "DevKit/AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "YogSaveGame.generated.h"
 
 
@@ -18,7 +19,7 @@ class AYogCharacterBase;
 
 
 USTRUCT()
-struct FAttributeSaveData
+struct DEVKIT_API FAttributeSaveData
 {
 	GENERATED_BODY()
 
@@ -90,7 +91,7 @@ public:
 
 
 USTRUCT()
-struct FYogActorSaveData
+struct DEVKIT_API FYogActorSaveData
 {
 	GENERATED_BODY()
 
@@ -113,7 +114,7 @@ public:
 
 
 USTRUCT()
-struct FCharacterSaveData
+struct DEVKIT_API FCharacterSaveData
 {
 	GENERATED_BODY()
 
@@ -161,8 +162,22 @@ public:
 
 };
 
-USTRUCT(BlueprintType)
-struct FWeaponSaveData
+USTRUCT()
+struct DEVKIT_API FYogAbilitySaveData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	uint8 Level;
+
+
+	UPROPERTY()
+	TSubclassOf<UYogGameplayAbility> AbilityClass;
+};
+
+
+USTRUCT()
+struct DEVKIT_API FWeaponSaveData
 {
 	GENERATED_BODY()
 
@@ -172,7 +187,7 @@ struct FWeaponSaveData
 
 	// The class to spawn when loading
 	UPROPERTY()
-	UClass* ActorClass;
+	TArray<FYogAbilitySaveData> ActorAbilities;
 };
 
 
@@ -191,14 +206,35 @@ public:
 	FRotator PlayerRotation;
 
 	UPROPERTY()
-	TArray<FWeaponSaveData> AttachedWeaponData;
+	FAttributeSaveData PlayerAttributeData;
+
+	UPROPERTY()
+	TArray<FYogAbilitySaveData> YogAbilityDataArray;
+
+	UPROPERTY()
+	TArray<uint8> WeaponActorByteData;
 
 	UPROPERTY()
 	TArray<uint8> CharacterByteData;
 
-	UPROPERTY()
-	TArray<TSubclassOf<UGameplayAbility>> SavedAbilities;
+	void SetupAttribute(UBaseAttributeSet& playerAttribute)
+	{
+		PlayerAttributeData.Attack = playerAttribute.GetAttack();
+		PlayerAttributeData.AttackPower = playerAttribute.GetAttackPower();
+		PlayerAttributeData.Health = playerAttribute.GetHealth();
+		PlayerAttributeData.MaxHealth = playerAttribute.GetMaxHealth();
+		PlayerAttributeData.AttackSpeed = playerAttribute.GetAttackSpeed();
+		PlayerAttributeData.AttackRange = playerAttribute.GetAttackRange();
+		PlayerAttributeData.Sanity = playerAttribute.GetSanity();
+		PlayerAttributeData.MoveSpeed = playerAttribute.GetMoveSpeed();
+		PlayerAttributeData.Dodge = playerAttribute.GetDodge();
+		PlayerAttributeData.Resilience = playerAttribute.GetResilience();
+		PlayerAttributeData.Resist = playerAttribute.GetResist();
+		PlayerAttributeData.DmgTaken = playerAttribute.GetDmgTaken();
+		PlayerAttributeData.Crit_Rate = playerAttribute.GetCrit_Rate();
+		PlayerAttributeData.Crit_Damage = playerAttribute.GetCrit_Damage();
 
+	}
 };
 
 USTRUCT()
@@ -231,7 +267,9 @@ class DEVKIT_API UYogSaveGame : public USaveGame
 public:
 
 	UPROPERTY()
-	FYogPlayerStateSave YogSavePlayers;
+	FYogPlayerStateSave PlayerStateData;
+
+
 	UPROPERTY()
 	FYogMapData YogSaveMap;
 

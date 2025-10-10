@@ -7,7 +7,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameModes/YogGameMode.h"
 #include "DevKit/DevAssetManager.h"
-
+#include "DevKit/AbilitySystem/YogAbilitySystemComponent.h"
 
 
 UYogSaveGame* UYogSaveSubsystem::GetCurrentSave()
@@ -70,9 +70,6 @@ void UYogSaveSubsystem::SaveTransformData(FVector& saveGame_loc, FVector& target
 	saveGame_rotate = target_rot;
 }
 
-void UYogSaveSubsystem::SaveLevelData(UYogSaveGame* SaveGame)
-{
-}
 
 void UYogSaveSubsystem::LoadLevelData(UYogSaveGame* SaveGame)
 {
@@ -97,34 +94,81 @@ void UYogSaveSubsystem::LoadLevelData(UYogSaveGame* SaveGame)
 
 }
 
-void UYogSaveSubsystem::SavePlayerData(UYogSaveGame* SaveGame)
+
+void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 {
+
+	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	
+	SaveGame->PlayerStateData.SetupAttribute(*player->BaseAttributeSet);
+	SaveGame->PlayerStateData.PlayerLocation = player->GetActorLocation();
+	SaveGame->PlayerStateData.PlayerRotation = player->GetActorRotation();
+
+	UYogAbilitySystemComponent* ASC = player->GetASC();
+
+	TArray<FYogAbilitySaveData> container = ASC->GetAllGrantedAbilities();
+
+	for (FYogAbilitySaveData& abilitydata : container)
+	{
+		SaveGame->PlayerStateData.YogAbilityDataArray.Add(abilitydata);
+	}
+
+
+	//Weapon find & serialize 
+	TArray<AActor*> attachedActors;
+	player->GetAttachedActors(attachedActors, true, true);
+	for (AActor* attachActor : attachedActors)
+	{
+		if (Cast<AWeaponInstance>(attachActor))
+		{
+			//SaveGame->PlayerStateData.WeaponData.
+			
+			SaveData(attachActor, CurrentSaveGame->PlayerStateData.WeaponActorByteData);
+		}
+	}
 }
 
-void UYogSaveSubsystem::LoadPlayerData(UYogSaveGame* SaveGame)
+void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 {
-}
+	
+	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+	if (PC)
+	{
+		APawn* pawn = PC->GetPawn();
+		if (pawn)
+		{
 
-void UYogSaveSubsystem::SavePlayer()
-{
+			pawn->SetActorLocation(CurrentSaveGame->PlayerStateData.PlayerLocation);
+			pawn->SetActorRotation(CurrentSaveGame->PlayerStateData.PlayerRotation);	
+			
+
+			AWeaponInstance* weaponActor = GetWorld()->SpawnActorDeferred<AWeaponInstance>(AWeaponInstance::StaticClass(), pawn->GetTransform());
+
+			LoadData(weaponActor, CurrentSaveGame->PlayerStateData.WeaponActorByteData);
+			
+			FName socket = FName(TEXT("WeaponAttachSocket"));
+			weaponActor->AttachToComponent(Cast<APlayerCharacterBase>(pawn)->GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, socket);
+		
+		}
+	}
+//APlayerCharacterBase* player = NewObject<APlayerCharacterBase>(this, APlayerCharacterBase::StaticClass());
+//
+////LoadData(player, CurrentSaveGame->PlayerCharacter);
+
+
 }
 
 void UYogSaveSubsystem::SaveAttachedWeapon()
 {
 	//PLAYER SAVE 
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+
 	if (player)
 	{
 		TArray<AActor*> attachedActors;
 		player->GetAttachedActors(attachedActors,true, true);
 
-		for (AActor* attached_actor : attachedActors)
-		{
-			FWeaponSaveData WeaponData;
-			WeaponData.ActorName = attached_actor->GetName();
-			WeaponData.ActorClass = attached_actor->GetClass();
-			CurrentSaveGame->YogSavePlayers.AttachedWeaponData.Add(WeaponData);
-		}
+
 
 
 		//SaveData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
@@ -261,3 +305,4 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 	}
 	//open level ->
 }
+

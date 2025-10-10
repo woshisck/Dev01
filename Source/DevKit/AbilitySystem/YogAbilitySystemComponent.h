@@ -15,6 +15,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceivedDamageDelegate, UYogAbilit
 class UYogGameplayAbility;
 struct FGameplayTag;
 struct FYogGameplayEffectContainer;
+struct FWeaponSaveData;
 
 UCLASS(BlueprintType)
 class DEVKIT_API UYogAbilitySystemComponent : public UAbilitySystemComponent
@@ -64,6 +65,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void LogAllGrantedAbilities();
+
+	UFUNCTION()
+	TArray<FYogAbilitySaveData> GetAllGrantedAbilities();
 
 	UFUNCTION(BlueprintCallable)
 	void GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities);

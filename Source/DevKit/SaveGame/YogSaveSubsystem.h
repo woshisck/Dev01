@@ -22,7 +22,11 @@ class DEVKIT_API UYogSaveSubsystem : public UGameInstanceSubsystem
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "SaveGame")
-	void SavePlayer();
+	void SavePlayer(UYogSaveGame* SaveGame);
+
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	void LoadPlayer(UYogSaveGame* SaveGame);
+
 
 	UFUNCTION()
 	void SaveAttachedWeapon();
@@ -31,7 +35,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "General")
 	FString SaveSlotName = "SaveGame_01";
 
-	UPROPERTY(Transient)
+	UPROPERTY()
 	TObjectPtr<UYogSaveGame> CurrentSaveGame;
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -69,10 +73,8 @@ public:
 
 
 private:
-	void SaveLevelData(UYogSaveGame* SaveGame);
+
 	void LoadLevelData(UYogSaveGame* SaveGame);
-	void SavePlayerData(UYogSaveGame* SaveGame);
-	void LoadPlayerData(UYogSaveGame* SaveGame);
 
 };
 

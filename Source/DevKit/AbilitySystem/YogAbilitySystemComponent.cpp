@@ -1,6 +1,7 @@
 #include "YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 
+#include "DevKit/SaveGame/YogSaveGame.h"
 
 
 
@@ -104,6 +105,31 @@ void UYogAbilitySystemComponent::LogAllGrantedAbilities()
     int32 TotalAbilities = AbilitySpecs.Num();
     UE_LOG(LogTemp, Warning, TEXT("Total number of granted abilities: %d"), TotalAbilities);
 
+}
+
+TArray<FYogAbilitySaveData> UYogAbilitySystemComponent::GetAllGrantedAbilities()
+{
+	TArray<FYogAbilitySaveData> array_result;
+
+
+	TArray<FGameplayAbilitySpec>& AbilitySpecs = this->GetActivatableAbilities();
+
+	for (FGameplayAbilitySpec& Spec : AbilitySpecs)
+	{
+		if (UYogGameplayAbility* Ability = Cast<UYogGameplayAbility>(Spec.Ability))
+		{
+			FYogAbilitySaveData YogAbilitySaveData;
+
+			YogAbilitySaveData.Level = Spec.Level;
+			YogAbilitySaveData.AbilityClass = Ability->StaticClass();
+			
+			array_result.Add(YogAbilitySaveData);
+
+			//UE_LOG(LogTemp, Warning, TEXT("granted abilities is: %s"), *Ability->GetName());
+		}
+	}
+
+	return array_result;
 }
 
 void UYogAbilitySystemComponent::GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities)
