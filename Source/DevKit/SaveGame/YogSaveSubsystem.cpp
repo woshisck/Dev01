@@ -10,6 +10,50 @@
 #include "DevKit/AbilitySystem/YogAbilitySystemComponent.h"
 
 
+void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	if (!CurrentSaveGame)
+	{
+		UYogSaveGame* SaveGameInstance = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
+		CurrentSaveGame = SaveGameInstance;
+	}
+
+	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UYogSaveSubsystem::OnLevelLoaded);
+
+	if (UWorld* World = GetWorld())
+	{
+		AYogGameMode* GameMode = Cast<AYogGameMode>(World->GetAuthGameMode());
+		if (GameMode)
+		{
+			// Bind the subsystem's function to the GameMode's event.
+			GameMode->OnFinishLevelEvent().AddUObject(this, &UYogSaveSubsystem::WriteSaveGame);
+		}
+	}
+
+}
+
+void UYogSaveSubsystem::OnLevelLoaded(UWorld* LoadedWorld)
+{
+	//if (LoadedWorld && LoadedWorld->IsGameWorld())
+	//{
+	//	//TODO::
+	//	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+	//	if (PC)
+	//	{
+	//		APlayerCharacterBase* pawn = Cast<APlayerCharacterBase>(PC->GetPawn());
+	//		if (pawn)
+	//		{
+
+	//			pawn->SetActorLocation(CurrentSaveGame->PlayerStateData.PlayerLocation);
+	//			pawn->SetActorRotation(CurrentSaveGame->PlayerStateData.PlayerRotation);
+	//		}
+	//	}
+
+	//}
+}
+
 UYogSaveGame* UYogSaveSubsystem::GetCurrentSave()
 {
 	if (CurrentSaveGame)
@@ -134,7 +178,7 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 	if (PC)
 	{
-		APawn* pawn = PC->GetPawn();
+		APlayerCharacterBase* pawn = Cast<APlayerCharacterBase>(PC->GetPawn());
 		if (pawn)
 		{
 
@@ -146,7 +190,7 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 
 			LoadData(weaponActor, CurrentSaveGame->PlayerStateData.WeaponActorByteData);
 			
-			FName socket = FName(TEXT("WeaponAttachSocket"));
+			FName socket = FName(TEXT("WeaponSocket_R"));
 			weaponActor->AttachToComponent(Cast<APlayerCharacterBase>(pawn)->GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, socket);
 		
 		}
@@ -158,41 +202,19 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 
 }
 
-void UYogSaveSubsystem::SaveAttachedWeapon()
+void UYogSaveSubsystem::LoadMap(UYogSaveGame* SaveGame)
 {
-	//PLAYER SAVE 
-	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	//serialize Map object if necessary
+}
 
-	if (player)
-	{
-		TArray<AActor*> attachedActors;
-		player->GetAttachedActors(attachedActors,true, true);
-
-
-
-
-		//SaveData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
-		FVector target_loc = player->GetActorLocation();
-		FRotator target_rot = player->GetActorRotation();
-
-		SaveTransformData(CurrentSaveGame->current_Location, target_loc, CurrentSaveGame->current_Rotation, target_rot);
-
-		//CurrentSaveGame->YogSavePlayers.PlayerLocation = player->GetActorLocation();
-		//CurrentSaveGame->YogSavePlayers.PlayerRotation = player->GetActorRotation();
-	}
+void UYogSaveSubsystem::SaveMap(UYogSaveGame* SaveGame)
+{
+	SaveGame->MapStateData.LevelName = FName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
 
 }
 
-void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
-{
-	Super::Initialize(Collection);
 
-	if (!CurrentSaveGame)
-	{
-		UYogSaveGame* SaveGameInstance = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
-		CurrentSaveGame = SaveGameInstance;
-	}
-}
+
 
 
 
@@ -205,23 +227,10 @@ void UYogSaveSubsystem::WriteSaveGame()
 	//CHECK FOR PLAYER STAT, NOT FOR IDE 
 	AGameStateBase* GS = GetWorld()->GetGameState();
 	check(GS);
+	SavePlayer(CurrentSaveGame);
 
+	SaveMap(CurrentSaveGame);
 
-	//PLAYER SAVE 
-	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-	if (player)
-	{
-		
-		//SaveData(player, CurrentSaveGame->YogSavePlayers.CharacterByteData);
-		FVector target_loc = player->GetActorLocation();
-		FRotator target_rot = player->GetActorRotation();
-
-		//TODO: SAVE CURRENT ABILITIES
-		//CurrentSaveGame->YogSavePlayers.SavedAbilities = player->GetAbilitySystemComponent()->GetAllAbilities();
-
-		SaveTransformData(CurrentSaveGame->current_Location, target_loc, CurrentSaveGame->current_Rotation, target_rot);
-
-	}
 
 	//WORLD SAVE
 	UYogWorldSubsystem* worldsubsystem = GetWorld()->GetSubsystem<UYogWorldSubsystem>();
@@ -233,8 +242,6 @@ void UYogSaveSubsystem::WriteSaveGame()
 	if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
 	{
 		UGameplayStatics::DeleteGameInSlot(SaveSlotName, 0);
-
-		
 		UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, 0);
 	}
 	else
@@ -244,7 +251,6 @@ void UYogSaveSubsystem::WriteSaveGame()
 
 
 	UE_LOG(DevKitGame, Log, TEXT("FINISH WRITE SAVE GAME"));
-
 	OnSaveGameWritten.Broadcast(CurrentSaveGame);
 }
 
@@ -253,38 +259,14 @@ void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
 {
 	if (CurrentSaveGame)
 	{
+		//load saved map
 
+		UGameplayStatics::OpenLevel(GetWorld(), FName(CurrentSaveGame->MapStateData.LevelName));
 
-		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->current_Location.ToString());
-		UE_LOG(DevKitGame, Log, TEXT("CurrentSaveGame->LevelName: %s"), *CurrentSaveGame->current_Rotation.ToString());
+		LoadPlayer(CurrentSaveGame);
 
-		APlayerController* PC = GEngine->GetFirstLocalPlayerController(GEngine->GameViewport->GetWorld());
-
-		APlayerCharacterBase* player_pawn = Cast<APlayerCharacterBase>(PC->GetPawn());
-		if (player_pawn)
-		{
-			UE_LOG(DevKitGame, Log, TEXT("player_pawn is : %s"), *player_pawn->GetName());
-			player_pawn->SetActorLocation(CurrentSaveGame->current_Location);
-			player_pawn->SetActorRotation(CurrentSaveGame->current_Rotation);
-			
-		}
-		//APlayerCharacterBase* player = NewObject<APlayerCharacterBase>(this, APlayerCharacterBase::StaticClass());
-		//
-		////LoadData(player, CurrentSaveGame->PlayerCharacter);
-
+		//UDevAssetManager* devAssetManager = UDevAssetManager::GetDevAssetManager();
 		
-
-		//TODO: OpenLevel
-
-		//UGameplayStatics::OpenLevel(GetWorld(), CurrentSaveGame->LevelName, true);
-
-		UDevAssetManager* devAssetManager = UDevAssetManager::GetDevAssetManager();
-		
-
-		if (PC->GetPawn())
-		{
-			
-		}
 
 		//APlayerCharacterBase* T_player = GetWorld()->SpawnActorDeferred<APlayerCharacterBase>(devAssetManager->PlayerBlueprintClass, FTransform::Identity);
 

@@ -10,6 +10,7 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSaveGameSignature, class UYogSaveGame*, SaveObject);
 
 
+
 class UYogSaveGame;
 
 
@@ -27,9 +28,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SaveGame")
 	void LoadPlayer(UYogSaveGame* SaveGame);
 
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	void LoadMap(UYogSaveGame* SaveGame);
 
-	UFUNCTION()
-	void SaveAttachedWeapon();
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	void SaveMap(UYogSaveGame* SaveGame);
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "General")
@@ -54,6 +57,8 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnSaveGameSignature OnSaveGameWritten;
 
+	UFUNCTION()
+	void OnLevelLoaded(UWorld* LoadedWorld);
 
 	UFUNCTION(BlueprintCallable)
 	UYogSaveGame* GetCurrentSave();

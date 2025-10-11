@@ -35,6 +35,15 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnFinishLevel OnFinishLevel;
 
+	DECLARE_EVENT(AYogGameMode, FFinishLevelEvent)
+
+	FFinishLevelEvent FinishLevelEvent;
+
+	FFinishLevelEvent& OnFinishLevelEvent()
+	{
+		return FinishLevelEvent;
+	}
+
 	UFUNCTION(BlueprintCallable, Category = "KillCount")
 	void UpdateMonsterKillCount(int count);
 

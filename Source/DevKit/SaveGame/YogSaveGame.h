@@ -238,16 +238,11 @@ public:
 };
 
 USTRUCT()
-struct FYogMapData
+struct FYogMapStateData
 {
 	GENERATED_BODY()
 
 public:
-
-	FYogMapData()
-	{
-
-	}
 
 	/* Location if player was alive during save */
 	UPROPERTY()
@@ -271,7 +266,7 @@ public:
 
 
 	UPROPERTY()
-	FYogMapData YogSaveMap;
+	FYogMapStateData MapStateData;
 
 
 	//ACTOR WITH GAS SYSTEM ATTACHED
@@ -282,12 +277,6 @@ public:
 	UPROPERTY()
 	TArray<FYogActorSaveData> SavedActors;
 
-	UPROPERTY()
-	FVector current_Location;
-
-	/* Orientation if player was alive during save */
-	UPROPERTY()
-	FRotator current_Rotation;
 
 	UPROPERTY()
 	FName LevelName;

@@ -9,6 +9,7 @@
 
 
 
+
 UCLASS()
 class DEVKIT_API APortal : public AActor
 {

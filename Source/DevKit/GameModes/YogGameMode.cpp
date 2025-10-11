@@ -12,6 +12,7 @@
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
 	bAutoSpawnPlayer = false;
+
 }
 
 void AYogGameMode::RestartPlayer(AController* NewPlayer)
@@ -55,12 +56,29 @@ void AYogGameMode::StartPlay()
 
 				// Success! You can now use the LevelScriptActor.
 				UE_LOG(LogTemp, Warning, TEXT("Found LevelScriptActor: %s"), *LevelScriptActor->GetName());
+
+				UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
+				UYogSaveSubsystem* SaveSubsystem = GameInstancePtr->GetSubsystem<UYogSaveSubsystem>();
+				this->OnFinishLevelEvent().AddUObject(SaveSubsystem, &UYogSaveSubsystem::WriteSaveGame);
 			}
 		}
 	}
 
+	//if (UWorld* World = GetWorld())
+	//{
+	//	AYogGameMode* GameMode = Cast<AYogGameMode>(World->GetAuthGameMode());
+	//	if (GameMode)
+	//	{
+	//		// Bind the subsystem's function to the GameMode's event.
+	//		GameMode->OnFinishLevelEvent().AddUObject(this, &UYogSaveSubsystem::WriteSaveGame);
+	//	}
+	//}
 
-	
+
+
+	//SaveSubsystem->WriteSaveGame().AddUObject(this, &AYogGameMode::OnFinishLevel);
+
+
 	
 	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 
@@ -135,6 +153,7 @@ void AYogGameMode::UpdateMonsterKillCount(int count)
 	if (this->MonsterKillCount >= TargetMonsterKill)
 	{
 		OnFinishLevel.Broadcast();
+		FinishLevelEvent.Broadcast();
 		UE_LOG(LogTemp, Log, TEXT("OnFinishLevel.Broadcast() Calling;"));
 	}
 }
