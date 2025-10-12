@@ -22,7 +22,6 @@ class AController;
 class FText;
 class UAnimMontage;
 class UGameplayEffect;
-class UAbilityData;
 
 struct FFrame;
 struct FGameplayAbilityActorInfo;

@@ -27,7 +27,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION(BlueprintCallable)
-	void SpawnMob();
+	void SpawnMob(FTransform transform);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UEnemyData> SpawnEnemy;

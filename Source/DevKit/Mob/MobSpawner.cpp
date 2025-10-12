@@ -25,7 +25,7 @@ void AMobSpawner::Tick(float DeltaTime)
 
 }
 
-void AMobSpawner::SpawnMob()
+void AMobSpawner::SpawnMob(FTransform transform)
 {
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TSubclassOf<AEnemyCharacterBase> EnemyType;
@@ -42,7 +42,8 @@ void AMobSpawner::SpawnMob()
 	TSubclassOf<AEnemyCharacterBase> enemy_class = SpawnEnemy->EnemyType;
 
 
-	AEnemyCharacterBase* target_spawner = GetWorld()->SpawnActorDeferred<AEnemyCharacterBase>(enemy_class, FTransform::Identity);
+	AEnemyCharacterBase* target_spawner = GetWorld()->SpawnActorDeferred<AEnemyCharacterBase>(enemy_class, transform);
+	//ADD SPAWNER COE
 	if (target_spawner)
 	{
 		target_spawner->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);

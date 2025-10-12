@@ -33,10 +33,10 @@ FName UYogBlueprintFunctionLibrary::GetDTRow(FString AssetName, int32 rowNum)
 	return FName(result);
 }
 
-bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData)
+void UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData)
 {
-	if (WorldContextObject)
-	{
+	check(WorldContextObject && ReceivingChar && WeaponDefinition && WeaponData);
+
 		UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
 		USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
@@ -44,13 +44,6 @@ bool UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextOb
 		WeaponDefinition->SetupWeaponToCharacter(World, AttachTarget, ReceivingChar);
 
 		WeaponData->GrantAbilityToOwner(ReceivingChar);
-
-		return true;
-	}
-	else
-	{
-		return false;
-	}
 
 }
 

@@ -51,8 +51,8 @@ public:
 	static FName GetDTRow(FString AssetName, int32 rowNum);
 
 	////////////////////////////////////////////////// Weapon Ability //////////////////////////////////////////////////
-	UFUNCTION(BlueprintPure, Category = Weapon)
-	static bool GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData);
+	UFUNCTION(BlueprintCallable, Category = Weapon)
+	static void GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData);
 
 	UFUNCTION(BlueprintPure, Category = Weapon)
 	static bool EquipWeapon(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, AWeaponInstance* weaponInst);
