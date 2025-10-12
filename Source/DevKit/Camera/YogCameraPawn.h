@@ -87,16 +87,11 @@ public:
 	TObjectPtr<UFloatingPawnMovement> FloatingMovementComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<AYogCharacterBase> FocusCharacter;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<AAIController> CameraController;
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	TObjectPtr<UDataTable> CameraMovementDataTable;
-
-
 
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
