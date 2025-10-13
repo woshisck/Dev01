@@ -32,5 +32,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UEnemyData> SpawnEnemy;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int spawn_count;
 
 };

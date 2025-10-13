@@ -77,7 +77,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)
 	TObjectPtr<UAttributeStatComponent> AttributeStatsComponent;
 
-
 	////////////////////////////////////////// Attribute Set //////////////////////////////////////////
 
 	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite)

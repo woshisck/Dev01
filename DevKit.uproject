@@ -124,7 +124,7 @@
 		},
 		{
 			"Name": "CommonLoadingScreen",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "TopDownPhysicsCamera",

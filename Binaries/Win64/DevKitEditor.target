@@ -4586,6 +4586,18 @@
 			"Type": "RequiredResource"
 		},
 		{
+			"Path": "$(EngineDir)/Plugins/Experimental/ActorPalette/Binaries/Win64/UnrealEditor-ActorPalette.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Experimental/ActorPalette/Binaries/Win64/UnrealEditor-ActorPalette.pdb",
+			"Type": "SymbolFile"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Experimental/ActorPalette/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
 			"Path": "$(EngineDir)/Plugins/Experimental/AutomationUtils/Binaries/Win64/UnrealEditor-AutomationUtils.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -6086,14 +6098,6 @@
 			"Type": "SymbolFile"
 		},
 		{
-			"Path": "$(EngineDir)/Plugins/Runtime/CommonUI/Binaries/Win64/UnrealEditor-CommonUIEditor.dll",
-			"Type": "DynamicLibrary"
-		},
-		{
-			"Path": "$(EngineDir)/Plugins/Runtime/CommonUI/Binaries/Win64/UnrealEditor-CommonUIEditor.pdb",
-			"Type": "SymbolFile"
-		},
-		{
 			"Path": "$(EngineDir)/Plugins/Runtime/CommonUI/Binaries/Win64/UnrealEditor.modules",
 			"Type": "RequiredResource"
 		},
@@ -7006,18 +7010,6 @@
 			"Type": "RequiredResource"
 		},
 		{
-			"Path": "$(EngineDir)/Plugins/Tests/FunctionalTestingEditor/Binaries/Win64/UnrealEditor-FunctionalTestingEditor.dll",
-			"Type": "DynamicLibrary"
-		},
-		{
-			"Path": "$(EngineDir)/Plugins/Tests/FunctionalTestingEditor/Binaries/Win64/UnrealEditor-FunctionalTestingEditor.pdb",
-			"Type": "SymbolFile"
-		},
-		{
-			"Path": "$(EngineDir)/Plugins/Tests/FunctionalTestingEditor/Binaries/Win64/UnrealEditor.modules",
-			"Type": "RequiredResource"
-		},
-		{
 			"Path": "$(EngineDir)/Plugins/Tests/InterchangeTests/Binaries/Win64/UnrealEditor-InterchangeTestEditor.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -7035,18 +7027,6 @@
 		},
 		{
 			"Path": "$(EngineDir)/Plugins/Tests/InterchangeTests/Binaries/Win64/UnrealEditor.modules",
-			"Type": "RequiredResource"
-		},
-		{
-			"Path": "$(EngineDir)/Plugins/Tests/PythonAutomationTest/Binaries/Win64/UnrealEditor-PythonAutomationTest.dll",
-			"Type": "DynamicLibrary"
-		},
-		{
-			"Path": "$(EngineDir)/Plugins/Tests/PythonAutomationTest/Binaries/Win64/UnrealEditor-PythonAutomationTest.pdb",
-			"Type": "SymbolFile"
-		},
-		{
-			"Path": "$(EngineDir)/Plugins/Tests/PythonAutomationTest/Binaries/Win64/UnrealEditor.modules",
 			"Type": "RequiredResource"
 		},
 		{
@@ -7190,6 +7170,26 @@
 			"Type": "RequiredResource"
 		},
 		{
+			"Path": "$(ProjectDir)/Plugins/CommonLoadingScreen/Binaries/Win64/UnrealEditor-CommonLoadingScreen.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/CommonLoadingScreen/Binaries/Win64/UnrealEditor-CommonLoadingScreen.pdb",
+			"Type": "SymbolFile"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/CommonLoadingScreen/Binaries/Win64/UnrealEditor-CommonStartupLoadingScreen.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/CommonLoadingScreen/Binaries/Win64/UnrealEditor-CommonStartupLoadingScreen.pdb",
+			"Type": "SymbolFile"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/CommonLoadingScreen/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
 			"Path": "$(ProjectDir)/Plugins/DidItHit/Binaries/Win64/UnrealEditor-DidItHit.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -7255,6 +7255,18 @@
 		},
 		{
 			"Path": "$(ProjectDir)/Plugins/ModularGameplayActors/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/TopDownPhysicsCamera_5.4/Binaries/Win64/UnrealEditor-TopDownPhysicsCamera.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/TopDownPhysicsCamera_5.4/Binaries/Win64/UnrealEditor-TopDownPhysicsCamera.pdb",
+			"Type": "SymbolFile"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/TopDownPhysicsCamera_5.4/Binaries/Win64/UnrealEditor.modules",
 			"Type": "RequiredResource"
 		}
 	],
@@ -29928,6 +29940,10 @@
 			"Type": "UFS"
 		},
 		{
+			"Path": "$(EngineDir)/Plugins/Experimental/ActorPalette/ActorPalette.uplugin",
+			"Type": "UFS"
+		},
+		{
 			"Path": "$(EngineDir)/Plugins/Experimental/AutomationUtils/AutomationUtils.uplugin",
 			"Type": "UFS"
 		},
@@ -30017,10 +30033,6 @@
 		},
 		{
 			"Path": "$(EngineDir)/Plugins/Experimental/PlatformCrypto/PlatformCrypto.uplugin",
-			"Type": "UFS"
-		},
-		{
-			"Path": "$(EngineDir)/Plugins/Experimental/PythonFoundationPackages/PythonFoundationPackages.uplugin",
 			"Type": "UFS"
 		},
 		{
@@ -30224,10 +30236,6 @@
 			"Type": "UFS"
 		},
 		{
-			"Path": "$(EngineDir)/Plugins/Runtime/CommonUI/CommonUI.uplugin",
-			"Type": "UFS"
-		},
-		{
 			"Path": "$(EngineDir)/Plugins/Runtime/CustomMeshComponent/CustomMeshComponent.uplugin",
 			"Type": "UFS"
 		},
@@ -30380,15 +30388,7 @@
 			"Type": "UFS"
 		},
 		{
-			"Path": "$(EngineDir)/Plugins/Tests/FunctionalTestingEditor/FunctionalTestingEditor.uplugin",
-			"Type": "UFS"
-		},
-		{
 			"Path": "$(EngineDir)/Plugins/Tests/InterchangeTests/InterchangeTests.uplugin",
-			"Type": "UFS"
-		},
-		{
-			"Path": "$(EngineDir)/Plugins/Tests/PythonAutomationTest/PythonAutomationTest.uplugin",
 			"Type": "UFS"
 		},
 		{
@@ -30412,6 +30412,10 @@
 			"Type": "UFS"
 		},
 		{
+			"Path": "$(ProjectDir)/Plugins/CommonLoadingScreen/CommonLoadingScreen.uplugin",
+			"Type": "UFS"
+		},
+		{
 			"Path": "$(ProjectDir)/Plugins/DidItHit/DidItHit.uplugin",
 			"Type": "UFS"
 		},
@@ -30430,6 +30434,10 @@
 		{
 			"Path": "$(ProjectDir)/Plugins/ModularGameplayActors/ModularGameplayActors.uplugin",
 			"Type": "UFS"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/TopDownPhysicsCamera_5.4/TopDownPhysicsCamera.uplugin",
+			"Type": "UFS"
 		}
 	],
 	"BuildPlugins": [
@@ -30437,6 +30445,7 @@
 		"AISupport",
 		"AbilitySystemGameFeatureActions",
 		"ActorLayerUtilities",
+		"ActorPalette",
 		"ActorSequence",
 		"AlembicImporter",
 		"AndroidDeviceProfileSelector",
@@ -30480,7 +30489,7 @@
 		"ChunkDownloader",
 		"CmdLinkServer",
 		"CodeLiteSourceCodeAccess",
-		"CommonUI",
+		"CommonLoadingScreen",
 		"ContentBrowserAssetDataSource",
 		"ContentBrowserClassDataSource",
 		"ContentBrowserFileDataSource",
@@ -30510,7 +30519,6 @@
 		"FastBuildController",
 		"Fracture",
 		"FullBodyIK",
-		"FunctionalTestingEditor",
 		"GLTFExporter",
 		"GameFeatures",
 		"GameplayAbilities",
@@ -30593,8 +30601,6 @@
 		"PropertyAccessNode",
 		"PropertyBindingUtils",
 		"ProxyLODPlugin",
-		"PythonAutomationTest",
-		"PythonFoundationPackages",
 		"PythonScriptPlugin",
 		"RenderDocPlugin",
 		"RenderGraphInsights",
@@ -30619,6 +30625,7 @@
 		"TemplateSequence",
 		"TextureFormatOodle",
 		"ToolPresets",
+		"TopDownPhysicsCamera",
 		"TraceDataFilters",
 		"TraceUtilities",
 		"UObjectPlugin",
