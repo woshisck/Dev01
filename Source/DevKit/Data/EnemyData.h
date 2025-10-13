@@ -55,7 +55,7 @@ public:
 	TSubclassOf<AEnemyCharacterBase> EnemyType;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UBehaviorTree> Behaviour;
+	TObjectPtr<UBehaviorTree> EnemyBT;
 
 
 

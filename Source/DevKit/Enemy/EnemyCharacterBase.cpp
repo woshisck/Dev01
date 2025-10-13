@@ -5,6 +5,7 @@
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
 #include "Character/YogCharacterMovementComponent.h"
+#include "DevKit/Controller/YogAIController.h"
 
 AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -29,5 +30,10 @@ void AEnemyCharacterBase::Die()
 {
 	Super::Die();
 
+}
+
+void AEnemyCharacterBase::SetupAI(UBehaviorTree* bt, UBlackboardData* bb)
+{
+	AYogAIController* PC = Cast<AYogAIController>(GetController());
 }
 

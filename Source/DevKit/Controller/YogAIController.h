@@ -16,4 +16,6 @@ class DEVKIT_API AYogAIController : public AModularAIController
 	
 public:
 	AYogAIController(const FObjectInitializer& ObjectInitializer);
+
+	virtual void OnPossess(APawn* InPawn) override;
 };

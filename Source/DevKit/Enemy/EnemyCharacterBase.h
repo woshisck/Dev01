@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
+#include "BehaviorTree/BlackboardData.h"
+#include "BehaviorTree/BehaviorTree.h"
 #include "EnemyCharacterBase.generated.h"
 
 
@@ -29,6 +31,8 @@ public:
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
 
 
+	UFUNCTION()
+	void SetupAI(UBehaviorTree* bt, UBlackboardData* bb);
 
 	friend UEnemyAttributeSet;
 };

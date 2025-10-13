@@ -39,10 +39,13 @@ void AMobSpawner::SpawnMob(FTransform transform)
 	FVector SpawnLocation = FVector(0.0f, 0.0f, 0.0f);
 	FRotator SpawnRotation = FRotator::ZeroRotator;
 	FTransform SpawnTransform(SpawnRotation, SpawnLocation);
-	TSubclassOf<AEnemyCharacterBase> enemy_class = SpawnEnemy->EnemyType;
+	//TSubclassOf<AEnemyCharacterBase> enemy_class = SpawnEnemy->EnemyType;
+
+	//SpawnEnemy->EnemyBT behaviour tree
 
 
-	AEnemyCharacterBase* target_spawner = GetWorld()->SpawnActorDeferred<AEnemyCharacterBase>(enemy_class, transform);
+	AEnemyCharacterBase* target_spawner = GetWorld()->SpawnActorDeferred<AEnemyCharacterBase>(SpawnEnemy->EnemyType, transform);
+
 	//ADD SPAWNER COE
 	if (target_spawner)
 	{
