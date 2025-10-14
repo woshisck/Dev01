@@ -27,10 +27,13 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION(BlueprintCallable)
-	void SpawnMob(FTransform transform);
+	AEnemyCharacterBase* SpawnMob(FTransform transform);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UEnemyData> SpawnEnemy;
+
+	UFUNCTION()
+	void SetupSpawnMobAI(AEnemyCharacterBase* character);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int spawn_count;

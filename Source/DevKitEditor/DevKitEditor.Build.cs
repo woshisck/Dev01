@@ -32,7 +32,8 @@ public class DevKitEditor : ModuleRules
 				"GameplayAbilities",
 				"GameplayAbilitiesEditor",
 				"StudioTelemetry",
-				"DevKit"
+				"DevKit",
+                "AIModule" // Add this line
             }
         );
 
@@ -50,6 +51,7 @@ public class DevKitEditor : ModuleRules
 				"CollectionManager",
 				"SourceControl",
 				"Chaos",
+                "AIModule" // Add this line
 				
 			}
         );

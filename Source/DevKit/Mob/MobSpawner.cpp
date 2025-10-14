@@ -2,6 +2,7 @@
 
 
 #include "MobSpawner.h"
+#include "DevKit/Controller/YogAIController.h"
 
 // Sets default values
 AMobSpawner::AMobSpawner()
@@ -25,7 +26,7 @@ void AMobSpawner::Tick(float DeltaTime)
 
 }
 
-void AMobSpawner::SpawnMob(FTransform transform)
+AEnemyCharacterBase* AMobSpawner::SpawnMob(FTransform transform)
 {
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TSubclassOf<AEnemyCharacterBase> EnemyType;
@@ -33,24 +34,23 @@ void AMobSpawner::SpawnMob(FTransform transform)
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TObjectPtr<UBehaviorTree> Behaviour;
 
-
-
-
-	FVector SpawnLocation = FVector(0.0f, 0.0f, 0.0f);
-	FRotator SpawnRotation = FRotator::ZeroRotator;
-	FTransform SpawnTransform(SpawnRotation, SpawnLocation);
 	//TSubclassOf<AEnemyCharacterBase> enemy_class = SpawnEnemy->EnemyType;
 
 	//SpawnEnemy->EnemyBT behaviour tree
 
 
-	AEnemyCharacterBase* target_spawner = GetWorld()->SpawnActorDeferred<AEnemyCharacterBase>(SpawnEnemy->EnemyType, transform);
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-	//ADD SPAWNER COE
-	if (target_spawner)
-	{
-		target_spawner->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-	}
+
+	AEnemyCharacterBase* spawned_mob = GetWorld()->SpawnActor<AEnemyCharacterBase>
+		(
+			SpawnEnemy->EnemyType,
+			transform,
+			SpawnParams
+		);
+
+	return spawned_mob;
 
 
 
@@ -85,6 +85,19 @@ void AMobSpawner::SpawnMob(FTransform transform)
 	//	ReceivingChar->bWeaponEquiped = true;
 	//}
 
+
+}
+
+void AMobSpawner::SetupSpawnMobAI(AEnemyCharacterBase* character)
+{
+	AYogAIController* controller = Cast<AYogAIController>(character->GetController());
+	if (controller)
+	{
+
+		
+		controller->InitializeAI(SpawnEnemy->EnemyBT);
+	}
+	
 
 }
 

@@ -34,8 +34,5 @@ void AEnemyCharacterBase::Die()
 
 void AEnemyCharacterBase::SetupAI(UBehaviorTree* bt, UBlackboardData* bb)
 {
-	AYogAIController* controller = Cast<AYogAIController>(GetController());
-
-	controller
 }
 

@@ -3,18 +3,15 @@
 
 #include "YogAIController.h"
 
-
-#include "BehaviorTree/BlackboardComponent.h"
-#include "BehaviorTree/BehaviorTreeComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Navigation/CrowdFollowingComponent.h"
 #include "DevKit/Enemy/EnemyCharacterBase.h"
 
 
-AYogAIController::AYogAIController(const FObjectInitializer& ObjectInitializer)
-	:Super(ObjectInitializer.SetDefaultSubobjectClass<UCrowdFollowingComponent>(TEXT("PathFollowingComponent")))
+AYogAIController::AYogAIController()
 {
-
+    BehaviorTreeComponent = CreateDefaultSubobject<UBehaviorTreeComponent>(TEXT("BehaviorTreeComponent"));
+    BlackboardComponent = CreateDefaultSubobject<UBlackboardComponent>(TEXT("BlackboardComponent"));
 }
 
 void AYogAIController::OnPossess(APawn* InPawn)
@@ -22,9 +19,10 @@ void AYogAIController::OnPossess(APawn* InPawn)
 	Super::OnPossess(InPawn);
 
     // Get a reference to the possessed Character
-    AEnemyCharacterBase* AICharacter = Cast<AEnemyCharacterBase>(InPawn);
 
-    check(AICharacter)
+    //AEnemyCharacterBase* AICharacter = Cast<AEnemyCharacterBase>(InPawn);
+
+    //check(AICharacter)
     
 
     //TODO: AI BB BT
@@ -40,4 +38,18 @@ void AYogAIController::OnPossess(APawn* InPawn)
     //    // Start the Behavior Tree
     //    BehaviorTreeComponent->StartTree(*(AICharacter->BehaviorTree));
     //}
+}
+
+void AYogAIController::InitializeAI(UBehaviorTree* BehaviourTree)
+{
+    UBlackboardData* BBAsset = BehaviourTree->BlackboardAsset;
+
+    if (BBAsset && BlackboardComponent->InitializeBlackboard(*BBAsset))
+    {
+        // Optionally, set an initial value for a Blackboard key here.
+        // For example, to set the initial 'TargetActor', you could do:
+        // BlackboardComponent->SetValueAsObject(TargetActorKeyName, SomeActorObject);
+        // Start the Behavior Tree
+        BehaviorTreeComponent->StartTree(*BehaviourTree);
+    }
 }
