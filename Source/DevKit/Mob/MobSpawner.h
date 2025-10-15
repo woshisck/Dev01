@@ -32,7 +32,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UEnemyData> SpawnEnemy;
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	void SetupSpawnMobAI(AEnemyCharacterBase* character);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
