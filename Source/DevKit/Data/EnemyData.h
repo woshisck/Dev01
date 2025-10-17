@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "Enemy/EnemyCharacterBase.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "EnemyData.generated.h"
 
@@ -51,11 +50,13 @@ class DEVKIT_API UEnemyData : public UPrimaryDataAsset
 	GENERATED_BODY()
 	
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<AEnemyCharacterBase> EnemyType;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UBehaviorTree> EnemyBT;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
+	TArray<FDataTableRowHandle> ActionRows;
+
 
 
 

@@ -11,6 +11,15 @@ AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
 	EnemyAttributeSet = CreateDefaultSubobject<UEnemyAttributeSet>(TEXT("EnemyAttributeSet"));
+	
+	static ConstructorHelpers::FClassFinder<AActor> BlueprintClassFinder(TEXT("/Game/Code/Weapon/GA_WeaponAtk.GA_WeaponAtk_C"));
+
+	if (BlueprintClassFinder.Succeeded())
+	{
+		Ability_Class = BlueprintClassFinder.Class;
+	}
+
+
 }
 
 void AEnemyCharacterBase::BeginPlay()
@@ -34,5 +43,24 @@ void AEnemyCharacterBase::Die()
 
 void AEnemyCharacterBase::SetupAI(UBehaviorTree* bt, UBlackboardData* bb)
 {
+}
+
+void AEnemyCharacterBase::AssignAbilities()
+{
+	for (auto& action_row : EnemyData->ActionRows)
+	{
+
+		if (!action_row.IsNull())
+		{
+			FActionData* actionData = action_row.GetRow<FActionData>(__func__);
+			
+			UYogAbilitySystemComponent* ASC = this->GetASC();
+			check(Ability_Class)
+			FGameplayAbilitySpec abilitySpec(Ability_Class, 0);
+			ASC->GiveAbility(abilitySpec);
+
+		}
+
+	}
 }
 

@@ -7,6 +7,8 @@
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/BehaviorTree.h"
+
+#include "DevKit/Data/EnemyData.h"
 #include "EnemyCharacterBase.generated.h"
 
 
@@ -30,9 +32,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
 
-
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	void SetupAI(UBehaviorTree* bt, UBlackboardData* bb);
+
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UEnemyData> EnemyData;
+
+
+	UFUNCTION(BlueprintCallable)
+	void AssignAbilities();
+
+	UPROPERTY(EditDefaultsOnly, Category = "MyCategory")
+	TSubclassOf<UYogGameplayAbility> Ability_Class; // Or a more specific base class
+
 
 	friend UEnemyAttributeSet;
 };

@@ -26,14 +26,7 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UFUNCTION(BlueprintCallable)
-	AEnemyCharacterBase* SpawnMob(FTransform transform);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UEnemyData> SpawnEnemy;
-
-	UFUNCTION(BlueprintCallable)
-	void SetupSpawnMobAI(AEnemyCharacterBase* character);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int spawn_count;
