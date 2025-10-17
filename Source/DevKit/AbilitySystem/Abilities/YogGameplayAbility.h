@@ -93,8 +93,8 @@ public:
 	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DamageBox")
 	//TArray<FHitBoxData> array_Hitbox;
 
-	UPROPERTY(BlueprintReadOnly)
-	FActionData AbilityActData;
+	//UPROPERTY(BlueprintReadOnly)
+	//FActionData AbilityActData;
 
 	UFUNCTION(BlueprintCallable, Category = "Setting")
 	void UpdateRetrigger(bool retriggerable);
