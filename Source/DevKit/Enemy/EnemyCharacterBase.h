@@ -44,7 +44,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AssignAbilities();
 
-	UPROPERTY(EditDefaultsOnly, Category = "MyCategory")
+	UPROPERTY(EditAnywhere, Category = "ability class")
 	TSubclassOf<UYogGameplayAbility> Ability_Class; // Or a more specific base class
 
 

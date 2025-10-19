@@ -12,12 +12,22 @@ AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitial
 {
 	EnemyAttributeSet = CreateDefaultSubobject<UEnemyAttributeSet>(TEXT("EnemyAttributeSet"));
 	
-	static ConstructorHelpers::FClassFinder<AActor> BlueprintClassFinder(TEXT("/Game/Code/Weapon/GA_WeaponAtk.GA_WeaponAtk_C"));
+	//UClass
+	static ConstructorHelpers::FObjectFinderOptional<UClass> Ability_Blueprint(TEXT("/Game/Code/Weapon/GA_WeaponAtk"));
 
-	if (BlueprintClassFinder.Succeeded())
+	if (Ability_Blueprint.Succeeded())
 	{
-		Ability_Class = BlueprintClassFinder.Class;
+
+		Ability_Class = Ability_Blueprint.Get();
 	}
+
+
+	//static ConstructorHelpers::FClassFinder<AActor> BlueprintClassFinder(TEXT("/Game/Code/Weapon/GA_WeaponAtk.GA_WeaponAtk_C"));
+
+	//if (BlueprintClassFinder.Succeeded())
+	//{
+	//	Ability_Class = BlueprintClassFinder.Class;
+	//}
 
 
 }
