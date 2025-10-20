@@ -40,16 +40,15 @@ void AYogAIController::OnPossess(APawn* InPawn)
     //}
 }
 
-void AYogAIController::InitializeAI(UBehaviorTree* BehaviourTree)
+void AYogAIController::InitializeDefaultAI()
 {
-    UBlackboardData* BBAsset = BehaviourTree->BlackboardAsset;
-
+    UBlackboardData* BBAsset = Default_BehaviourTree->BlackboardAsset;
     if (BBAsset && BlackboardComponent->InitializeBlackboard(*BBAsset))
     {
         // Optionally, set an initial value for a Blackboard key here.
         // For example, to set the initial 'TargetActor', you could do:
         // BlackboardComponent->SetValueAsObject(TargetActorKeyName, SomeActorObject);
         // Start the Behavior Tree
-        BehaviorTreeComponent->StartTree(*BehaviourTree);
+        BehaviorTreeComponent->StartTree(*Default_BehaviourTree);
     }
 }

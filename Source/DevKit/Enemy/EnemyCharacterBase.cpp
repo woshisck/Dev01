@@ -13,13 +13,11 @@ AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitial
 	EnemyAttributeSet = CreateDefaultSubobject<UEnemyAttributeSet>(TEXT("EnemyAttributeSet"));
 	
 	//UClass
-	static ConstructorHelpers::FObjectFinderOptional<UClass> Ability_Blueprint(TEXT("/Game/Code/Weapon/GA_WeaponAtk"));
-
-	if (Ability_Blueprint.Succeeded())
-	{
-
-		Ability_Class = Ability_Blueprint.Get();
-	}
+	//static ConstructorHelpers::FObjectFinderOptional<UClass> Ability_Blueprint(TEXT("/Game/Code/Weapon/GA_WeaponAtk"));
+	//if (Ability_Blueprint.Succeeded())
+	//{
+	//	Ability_Class = Ability_Blueprint.Get();
+	//}
 
 
 	//static ConstructorHelpers::FClassFinder<AActor> BlueprintClassFinder(TEXT("/Game/Code/Weapon/GA_WeaponAtk.GA_WeaponAtk_C"));

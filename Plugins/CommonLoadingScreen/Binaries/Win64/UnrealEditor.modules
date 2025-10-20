@@ -3,6 +3,6 @@
 	"Modules": 
 	{
 		"CommonLoadingScreen": "UnrealEditor-CommonLoadingScreen.dll",
-		"CommonStartupLoadingScreen": "UnrealEditor-CommonStartupLoadingScreen.dll"
+		"CommonStartupLoadingScreen": "UnrealEditor-CommonStartupLoadingScreen-6671.dll"
 	}
 }

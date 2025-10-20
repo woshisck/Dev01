@@ -57,7 +57,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
 	TArray<FDataTableRowHandle> ActionRows;
 
-
+	
 
 
 };
