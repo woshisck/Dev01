@@ -75,12 +75,14 @@ public:
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TSubclassOf<UYogGameplayAbility> Ability;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<UYogGameplayAbility> Ability_Template;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
 	TArray<FHitBoxData> hitbox;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
 	//FDataTableRowHandle hitbox;
-
 
 
 
