@@ -6,6 +6,7 @@
 #include "Engine/DataAsset.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "DevKit/AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "DevKit/Data/CharacterData.h"
 #include "EnemyData.generated.h"
 
 
@@ -25,7 +26,7 @@ public:
 
 
 UCLASS()
-class DEVKIT_API UEnemyData : public UPrimaryDataAsset
+class DEVKIT_API UEnemyData : public UCharacterData
 {
 	GENERATED_BODY()
 	

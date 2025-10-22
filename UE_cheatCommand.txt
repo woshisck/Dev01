@@ -9,6 +9,48 @@ BP_WPN_PLA_GS_DarkTemplarIsaacGreatSword  --> weapon visual
 WPN_PLA_GS_DarkTemplarIsaacGreatSword --> weapon data
 
 
+///////////////////////////////////////////////////Data Structure///////////////////////////////////////////////////
+UCharacterData:
+	UPROPERTY(EditDefaultsOnly, meta = (RowType = "MovementData"))
+	FDataTableRowHandle MoveDataRow;
+
+	UPROPERTY(EditDefaultsOnly, meta = (RowType = "YogBaseData"))
+
+	FDataTableRowHandle YogBaseDataRow;
+
+
+    UPlayerData:        UFUNCTION(BlueprintPure)
+        const FCameraMovementData& GetCameraMove() const;
+
+        UFUNCTION(BlueprintPure)
+        const FPlayerStatData& GetPlayerState() const;
+
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "CameraMovementData"))
+        FDataTableRowHandle CameraDataRow;
+
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "PlayerStatData"))
+        FDataTableRowHandle PlayerDataRow;
+
+
+    UEnemyData:
+        UPROPERTY(EditAnywhere, BlueprintReadWrite)
+        TObjectPtr<UBehaviorTree> EnemyBT;
+
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
+        TArray<FDataTableRowHandle> ActionRows;
+
+
+
+///////////////////////////////////////////////////Key Function///////////////////////////////////////////////////
+PlayerCharacter:
+
+Attribut INIT:
+AYogCharacterBase::PostInitializeComponents()
+
+
+
+
+
 
 
 UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "WeaponStatsInfo"), Category = "Weapon|Stats")

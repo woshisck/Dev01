@@ -199,11 +199,11 @@ public:
 
 	/* Location if player was alive during save */
 	UPROPERTY()
-	FVector PlayerLocation;
+	FVector PlayerLocation = FVector(0,0,0);
 
 	/* Orientation if player was alive during save */
 	UPROPERTY()
-	FRotator PlayerRotation;
+	FRotator PlayerRotation = FRotator(0,0,0);
 
 	UPROPERTY()
 	FAttributeSaveData PlayerAttributeData;

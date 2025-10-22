@@ -105,8 +105,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, meta = (RowType = "YogBaseData"))
 	FDataTableRowHandle YogBaseDataRow;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	TArray<TSubclassOf<UYogGameplayAbility>> BaseAbilities;
 
 	inline static const FMovementData DefaultMovementData;
 

@@ -34,10 +34,10 @@ public:
 	FLevelStateCount(){}
 
 	UPROPERTY(BlueprintReadOnly)
-	int MonsterSlayCount;
+	int MonsterSlayCount = 0;
 
 	UPROPERTY(BlueprintReadOnly)
-	int TotalMonsterSpawn;
+	int TotalMonsterSpawn = 0;
 
 	void Reset()
 	{

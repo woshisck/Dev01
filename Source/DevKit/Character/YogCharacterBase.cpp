@@ -86,6 +86,8 @@ void AYogCharacterBase::PostInitializeComponents()
 		const FMovementData& moveData = CharacterData->GetMovementData();
 		const FYogBaseData& characterData = CharacterData->GetCharacterData();
 
+
+
 		BaseAttributeSet->Init(CharacterData);
 	}
 
