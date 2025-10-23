@@ -117,7 +117,7 @@ public:
 	FDataTableRowHandle ActionRow;
 
 	UFUNCTION(BlueprintCallable)
-	FActionData GetRowData(FDataTableRowHandle& action_row);
+	FActionData GetRowData(FDataTableRowHandle action_row);
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TSubclassOf<UYogGameplayAbility> Ability;

@@ -15,11 +15,11 @@ UCharacterData:
 	FDataTableRowHandle MoveDataRow;
 
 	UPROPERTY(EditDefaultsOnly, meta = (RowType = "YogBaseData"))
-
 	FDataTableRowHandle YogBaseDataRow;
 
 
-    UPlayerData:        UFUNCTION(BlueprintPure)
+    UPlayerData:
+        UFUNCTION(BlueprintPure)
         const FCameraMovementData& GetCameraMove() const;
 
         UFUNCTION(BlueprintPure)
@@ -37,6 +37,27 @@ UCharacterData:
         TObjectPtr<UBehaviorTree> EnemyBT;
 
         UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
+        TArray<FDataTableRowHandle> ActionRows;
+
+
+UFUNCTION(BlueprintCallable)
+const FYogBaseAttributeData& GetBaseAttributeData() const;
+
+UPROPERTY(EditAnywhere, meta = (RowType = "YogBaseAttributeData"))
+FDataTableRowHandle YogBaseAttributeDataRow;
+
+const FYogBaseAttributeData& UCharacterData::GetBaseAttributeData() const
+{
+	if (!YogBaseAttributeDataRow.IsNull())
+	{
+		FYogBaseAttributeData* character_data = YogBaseAttributeDataRow.GetRow<FYogBaseAttributeData>(__func__);
+		if (character_data)
+		{
+			return *character_data;
+		}
+	}
+	return DefaultCharacterData;
+}
         TArray<FDataTableRowHandle> ActionRows;
 
 

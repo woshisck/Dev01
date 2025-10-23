@@ -193,7 +193,7 @@ void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 
 
 //TODO: NEED TO CHANGE FUNCTION NAME FOR FURTHER DIFFERENT 
-FActionData UYogGameplayAbility::GetRowData(FDataTableRowHandle& action_row)
+FActionData UYogGameplayAbility::GetRowData(FDataTableRowHandle action_row)
 {
 	FActionData Result;
 	if (!action_row.IsNull())
