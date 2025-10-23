@@ -51,6 +51,96 @@ void AEnemyCharacterBase::Die()
 
 }
 
+void AEnemyCharacterBase::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	if (CharacterData)
+	{
+		const FMovementData& moveData = CharacterData->GetMovementData();
+		const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
+
+
+
+		BaseAttributeSet->Init(CharacterData);
+	}
+
+	if (AbilitySystemComponent)
+	{
+
+		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
+		MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
+	}
+
+
+
+	if (EnemyData)
+	{
+		//TObjectPtr<UBehaviorTree> EnemyBT;
+		//TArray<FDataTableRowHandle> ActionRows;
+		UBehaviorTree* behaviour_tree = EnemyData->EnemyBT;
+
+		AAIController* controller = Cast<AAIController>(this->GetController());
+		if (controller)
+		{
+			controller->RunBehaviorTree(behaviour_tree);
+		}
+
+		for (FDataTableRowHandle& data_row : EnemyData->ActionRows)
+		{
+			if (!data_row.IsNull())
+			{
+				FActionData* action_data = data_row.GetRow<FActionData>(__func__);
+				if (action_data)
+				{
+					
+
+					//assign action ability
+
+					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+					//float ActDamage = 20;
+
+					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+					//float ActRange = 400;
+
+					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+					//float ActResilience = 20;
+
+					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+					//float ActDmgReduce = 0;
+
+					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+					//float ActRotateSpeed = 360;
+
+					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+					//float JumpFrameTime = 0.15;
+
+					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+					//float FreezeFrameTime = 0.15;
+
+					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+					//TObjectPtr<UAnimMontage> Montage;
+
+					////UPROPERTY(EditAnywhere, BlueprintReadWrite)
+					////TSubclassOf<UYogGameplayAbility> Ability;
+
+					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+					//TSubclassOf<UYogGameplayAbility> Ability_Template;
+
+					//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
+					//TArray<FHitBoxData> hitbox;
+
+				}
+			}
+		}
+
+
+
+
+	}
+
+}
+
 void AEnemyCharacterBase::SetupAI(UBehaviorTree* bt, UBlackboardData* bb)
 {
 }

@@ -9,12 +9,12 @@
 
 
 USTRUCT(BlueprintType)
-struct FYogBaseData : public FTableRowBase
+struct FYogBaseAttributeData : public FTableRowBase
 {
 	GENERATED_BODY()
 
 public:
-	FYogBaseData(){};
+	FYogBaseAttributeData(){};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Attack = 0;
@@ -97,16 +97,16 @@ public:
 	const FMovementData& GetMovementData() const;
 
 	UFUNCTION(BlueprintCallable)
-	const FYogBaseData& GetCharacterData() const;
+	const FYogBaseAttributeData& GetBaseAttributeData() const;
 
-	UPROPERTY(EditDefaultsOnly, meta = (RowType = "MovementData"))
-	FDataTableRowHandle MoveDataRow;
+	UPROPERTY(EditAnywhere, meta = (RowType = "MovementData"))
+	FDataTableRowHandle MovementDataRow;
 
-	UPROPERTY(EditDefaultsOnly, meta = (RowType = "YogBaseData"))
-	FDataTableRowHandle YogBaseDataRow;
+	UPROPERTY(EditAnywhere, meta = (RowType = "YogBaseAttributeData"))
+	FDataTableRowHandle YogBaseAttributeDataRow;
 
 
 	inline static const FMovementData DefaultMovementData;
 
-	inline static const FYogBaseData DefaultCharacterData;
+	inline static const FYogBaseAttributeData DefaultCharacterData;
 };

@@ -29,6 +29,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void Die() override;
 	
+	void PostInitializeComponents() override;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
 

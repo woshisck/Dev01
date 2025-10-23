@@ -149,8 +149,8 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 
 
-	FActionData target_ActionData = target_CurrentAbilityClass->GetRowData();
-	FActionData source_ActionData = source_CurrentAbilityClass->GetRowData();
+	FActionData target_ActionData = target_CurrentAbilityClass->GetRowData(target_CurrentAbilityClass->ActionRow);
+	FActionData source_ActionData = source_CurrentAbilityClass->GetRowData(source_CurrentAbilityClass->ActionRow);
 
 	//Get Avatar Actor
 	AActor* SourceActor = SourceAbilitySystemComponent ? SourceAbilitySystemComponent->GetAvatarActor_Direct() : nullptr;

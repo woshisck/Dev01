@@ -3,3 +3,8 @@
 
 #include "AbilitySystem/Abilities/GeneralMeleeAttack.h"
 
+UGeneralMeleeAttack::UGeneralMeleeAttack(const FObjectInitializer& ObjectInitializer)
+	:Super(ObjectInitializer)
+{
+	//AYogCharacterBase* character =  this->GetOwnerCharacterInfo();
+}

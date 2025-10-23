@@ -25,6 +25,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void InitializeDefaultAI();
 
+
+
 	// The component that will run the Behavior Tree
 	UPROPERTY(VisibleDefaultsOnly, Category = "AI")
 	UBehaviorTreeComponent* BehaviorTreeComponent;

@@ -66,7 +66,7 @@ public:
 
 
     //const FMovementData& moveData = CharacterData->GetMovementData();
-    //const FYogBaseData& characterData = CharacterData->GetCharacterData();
+    //const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
 
 
 };

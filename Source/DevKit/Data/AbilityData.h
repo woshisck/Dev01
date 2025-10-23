@@ -38,7 +38,7 @@ public:
 	int FrameAt;
 };
 
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FActionData : public FTableRowBase
 {
     GENERATED_BODY()
@@ -84,6 +84,10 @@ public:
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
 	//FDataTableRowHandle hitbox;
 
+	void SetupActionDataToAbility(UYogGameplayAbility* ability)
+	{
+
+	}
 
 
 };

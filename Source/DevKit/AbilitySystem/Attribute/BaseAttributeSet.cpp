@@ -155,7 +155,7 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 
 void UBaseAttributeSet::Init(UCharacterData* data)
 {
-	const FYogBaseData& YogBaseData = data->GetCharacterData();
+	const FYogBaseAttributeData& YogBaseData = data->GetBaseAttributeData();
 
 	SetAttack(YogBaseData.Attack);
 	SetAttackPower(YogBaseData.AttackPower);

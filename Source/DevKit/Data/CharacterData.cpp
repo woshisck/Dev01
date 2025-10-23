@@ -5,9 +5,9 @@
 
 const FMovementData& UCharacterData::GetMovementData() const
 {
-	if (!MoveDataRow.IsNull())
+	if (!MovementDataRow.IsNull())
 	{
-		FMovementData* itemPrice = MoveDataRow.GetRow<FMovementData>(__func__);
+		FMovementData* itemPrice = MovementDataRow.GetRow<FMovementData>(__func__);
 		if (itemPrice)
 		{
 			return *itemPrice;
@@ -18,11 +18,11 @@ const FMovementData& UCharacterData::GetMovementData() const
 	// TODO: insert return statement here
 }
 
-const FYogBaseData& UCharacterData::GetCharacterData() const
+const FYogBaseAttributeData& UCharacterData::GetBaseAttributeData() const
 {
-	if (!YogBaseDataRow.IsNull())
+	if (!YogBaseAttributeDataRow.IsNull())
 	{
-		FYogBaseData* character_data = YogBaseDataRow.GetRow<FYogBaseData>(__func__);
+		FYogBaseAttributeData* character_data = YogBaseAttributeDataRow.GetRow<FYogBaseAttributeData>(__func__);
 		if (character_data)
 		{
 			return *character_data;
