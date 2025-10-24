@@ -112,31 +112,31 @@ public:
 	int GetCurrentGameplayEffect(FGameplayTag EffectTag);
 
 public:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	float ActDamage;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	float ActRange;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	float ActResilience;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	float ActDmgReduce;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	float ActRotateSpeed;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	float JumpFrameTime;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	float FreezeFrameTime;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<UAnimMontage> Montage;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	TArray<FHitBoxData> hitbox;
 
 
