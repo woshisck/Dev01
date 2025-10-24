@@ -122,22 +122,19 @@ void AEnemyCharacterBase::InitEnemyData(UEnemyData* enemy_data)
 			FActionData* actionData = action_row.GetRow<FActionData>(__func__);
 
 
-
-
-			//ensure(actionData);
-			//UYogAbilitySystemComponent* ASC = this->GetASC();
-			//check(Ability_Class)
-			//FGameplayAbilitySpec abilitySpec(Ability_Class,0);
-
-			//FGameplayAbilitySpecHandle ability_handle = ASC->GiveAbility(abilitySpec);
-			//
-			//if (ability_handle.IsValid())
-			//{
-			//	if (UYogGameplayAbility* GrantedAbility = Cast<UYogGameplayAbility>(ASC->FindAbilitySpecFromHandle(ability_handle)->Ability))
-			//	{
-			//		GrantedAbility->SetupActionData(*actionData);
-			//	}
-			//}
+			ensure(actionData);
+			UYogAbilitySystemComponent* ASC = this->GetASC();
+			check(Ability_Class)
+			FGameplayAbilitySpec abilitySpec(Ability_Class,0);
+			FGameplayAbilitySpecHandle ability_handle = ASC->GiveAbility(abilitySpec);
+			
+			if (ability_handle.IsValid())
+			{
+				if (UYogGameplayAbility* GrantedAbility = Cast<UYogGameplayAbility>(ASC->FindAbilitySpecFromHandle(ability_handle)->Ability))
+				{
+					GrantedAbility->SetupActionData(*actionData);
+				}
+			}
 
 			//if (abilitySpec.Ability && abilitySpec.Ability->GetInstancingPolicy() == EGameplayAbilityInstancingPolicy::InstancedPerActor)
 			//{
