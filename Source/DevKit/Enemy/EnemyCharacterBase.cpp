@@ -12,17 +12,17 @@ AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitial
 {
 	EnemyAttributeSet = CreateDefaultSubobject<UEnemyAttributeSet>(TEXT("EnemyAttributeSet"));
 	
-	//UClass
-	static ConstructorHelpers::FClassFinder<AActor> Ability_Blueprint_Class(TEXT("Blueprint'/Game/Code/Weapon/GA_MobAbility'"));
+
+	static ConstructorHelpers::FClassFinder<UYogGameplayAbility> Ability_Blueprint_Class(TEXT("Blueprint'/Game/Code/Weapon/GA_MobAbility'"));
 	if (Ability_Blueprint_Class.Succeeded())
 	{
 		UClass* MyActorClass = Ability_Blueprint_Class.Class.Get();
-
 		Ability_Class = Ability_Blueprint_Class.Class.Get();
+		UE_LOG(LogTemp, Warning, TEXT("class name:%s"), *Ability_Class->GetName());
 	}
-	 //Script / Engine.Blueprint'/Game/Code/Weapon/GA_MobAbility.GA_MobAbility'
+	 
 
-
+	//Script / Engine.Blueprint'/Game/Code/Weapon/GA_MobAbility.GA_MobAbility'
 	//static ConstructorHelpers::FClassFinder<AActor> BlueprintClassFinder(TEXT("/Game/Code/Weapon/GA_WeaponAtk.GA_WeaponAtk_C"));
 	//if (BlueprintClassFinder.Succeeded())
 	//{
@@ -36,6 +36,10 @@ void AEnemyCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (EnemyData) 
+	{
+		InitEnemyData(EnemyData);
+	}
 
 
 }
@@ -76,8 +80,7 @@ void AEnemyCharacterBase::PostInitializeComponents()
 
 	if (EnemyData)
 	{
-		//TObjectPtr<UBehaviorTree> EnemyBT;
-		//TArray<FDataTableRowHandle> ActionRows;
+
 		UBehaviorTree* behaviour_tree = EnemyData->EnemyBT;
 
 		AAIController* controller = Cast<AAIController>(this->GetController());
@@ -93,42 +96,6 @@ void AEnemyCharacterBase::PostInitializeComponents()
 				FActionData* action_data = data_row.GetRow<FActionData>(__func__);
 				if (action_data)
 				{
-					
-
-					//assign action ability
-
-					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-					//float ActDamage = 20;
-
-					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-					//float ActRange = 400;
-
-					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-					//float ActResilience = 20;
-
-					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-					//float ActDmgReduce = 0;
-
-					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-					//float ActRotateSpeed = 360;
-
-					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-					//float JumpFrameTime = 0.15;
-
-					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-					//float FreezeFrameTime = 0.15;
-
-					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-					//TObjectPtr<UAnimMontage> Montage;
-
-					////UPROPERTY(EditAnywhere, BlueprintReadWrite)
-					////TSubclassOf<UYogGameplayAbility> Ability;
-
-					//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-					//TSubclassOf<UYogGameplayAbility> Ability_Template;
-
-					//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
-					//TArray<FHitBoxData> hitbox;
 
 				}
 			}
@@ -145,22 +112,67 @@ void AEnemyCharacterBase::SetupAI(UBehaviorTree* bt, UBlackboardData* bb)
 {
 }
 
-void AEnemyCharacterBase::AssignAbilities()
+void AEnemyCharacterBase::InitEnemyData(UEnemyData* enemy_data)
 {
-	for (auto& action_row : EnemyData->ActionRows)
+	for (auto action_row : enemy_data->ActionRows)
 	{
 
 		if (!action_row.IsNull())
 		{
 			FActionData* actionData = action_row.GetRow<FActionData>(__func__);
-			
-			UYogAbilitySystemComponent* ASC = this->GetASC();
-			check(Ability_Class)
-			FGameplayAbilitySpec abilitySpec(Ability_Class, 0);
-			ASC->GiveAbility(abilitySpec);
+
+
+
+
+			//ensure(actionData);
+			//UYogAbilitySystemComponent* ASC = this->GetASC();
+			//check(Ability_Class)
+			//FGameplayAbilitySpec abilitySpec(Ability_Class,0);
+
+			//FGameplayAbilitySpecHandle ability_handle = ASC->GiveAbility(abilitySpec);
+			//
+			//if (ability_handle.IsValid())
+			//{
+			//	if (UYogGameplayAbility* GrantedAbility = Cast<UYogGameplayAbility>(ASC->FindAbilitySpecFromHandle(ability_handle)->Ability))
+			//	{
+			//		GrantedAbility->SetupActionData(*actionData);
+			//	}
+			//}
+
+			//if (abilitySpec.Ability && abilitySpec.Ability->GetInstancingPolicy() == EGameplayAbilityInstancingPolicy::InstancedPerActor)
+			//{
+			//	UYogGameplayAbility* AbilityInstance = Cast<UYogGameplayAbility>(abilitySpec.GetPrimaryInstance());
+			//	ensure(AbilityInstance);
+			//	//if (ensureMsgf(AbilityInstance, TEXT("NOT Fount correct abilityInstance from EnemyData")))
+			//	AbilityInstance->SetupActionData(*actionData);
+			//}
+
 
 		}
 
 	}
 }
 
+UPROPERTY()
+float ActDamage = 20;
+
+UPROPERTY()
+float ActRange = 400;
+
+UPROPERTY()
+float ActResilience = 20;
+
+UPROPERTY()
+float ActDmgReduce = 0;
+
+UPROPERTY()
+float ActRotateSpeed = 360;
+
+UPROPERTY()
+float JumpFrameTime = 0.15;
+
+UPROPERTY()
+float FreezeFrameTime = 0.15;
+
+UPROPERTY()
+TObjectPtr<UAnimMontage> Montage;

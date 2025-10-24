@@ -64,6 +64,20 @@ AYogCharacterBase* UYogGameplayAbility::GetOwnerCharacterInfo()
 
 }
 
+void UYogGameplayAbility::SetupActionData(FActionData action_data)
+{
+
+	this->ActDamage = action_data.ActDamage;
+	this->ActRange = action_data.ActRange;
+	this->ActResilience = action_data.ActResilience;
+	this->ActRotateSpeed = action_data.ActRotateSpeed;
+	this->JumpFrameTime = action_data.JumpFrameTime;
+	this->FreezeFrameTime = action_data.FreezeFrameTime;
+	this->Montage = action_data.Montage;
+	this->hitbox = action_data.hitbox;
+
+}
+
 int UYogGameplayAbility::GetCurrentGameplayEffect(FGameplayTag EffectTag)
 {
 	int StackCount = 0;

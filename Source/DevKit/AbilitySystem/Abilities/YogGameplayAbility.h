@@ -105,9 +105,39 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	AYogCharacterBase* GetOwnerCharacterInfo();
 
+	UFUNCTION(BlueprintCallable)
+	void SetupActionData(FActionData action_data);
 
 	UFUNCTION(BlueprintCallable, Category = "GameplayEffect")
 	int GetCurrentGameplayEffect(FGameplayTag EffectTag);
+
+public:
+	UPROPERTY()
+	float ActDamage;
+
+	UPROPERTY()
+	float ActRange;
+
+	UPROPERTY()
+	float ActResilience;
+
+	UPROPERTY()
+	float ActDmgReduce;
+
+	UPROPERTY()
+	float ActRotateSpeed;
+
+	UPROPERTY()
+	float JumpFrameTime;
+
+	UPROPERTY()
+	float FreezeFrameTime;
+
+	UPROPERTY()
+	TObjectPtr<UAnimMontage> Montage;
+
+	UPROPERTY()
+	TArray<FHitBoxData> hitbox;
 
 
 

@@ -84,11 +84,6 @@ public:
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
 	//FDataTableRowHandle hitbox;
 
-	void SetupActionDataToAbility(UYogGameplayAbility* ability)
-	{
-
-	}
-
 
 };
 

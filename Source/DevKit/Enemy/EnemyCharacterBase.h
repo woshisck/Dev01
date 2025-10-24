@@ -9,6 +9,7 @@
 #include "BehaviorTree/BehaviorTree.h"
 
 #include "DevKit/Data/EnemyData.h"
+#include "AbilitySystem/Abilities/GeneralMeleeAttack.h"
 #include "EnemyCharacterBase.generated.h"
 
 
@@ -44,9 +45,9 @@ public:
 
 
 	UFUNCTION(BlueprintCallable)
-	void AssignAbilities();
+	void InitEnemyData(UEnemyData* enemy_data);
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY()
 	TSubclassOf<UYogGameplayAbility> Ability_Class; // Or a more specific base class
 
 
