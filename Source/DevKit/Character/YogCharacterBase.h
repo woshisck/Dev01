@@ -72,7 +72,7 @@ public:
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UCharacterData>  CharacterData;
+	TObjectPtr<TSubclassOf<UCharacterData>>  CharacterData;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)
 	TObjectPtr<UAttributeStatComponent> AttributeStatsComponent;

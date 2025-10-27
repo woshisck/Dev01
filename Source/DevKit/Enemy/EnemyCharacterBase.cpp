@@ -101,9 +101,6 @@ void AEnemyCharacterBase::PostInitializeComponents()
 			}
 		}
 
-
-
-
 	}
 
 }

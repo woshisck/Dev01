@@ -37,8 +37,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Weapon_CritDmg = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<AWeaponInstance> WeaponInstance;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TObjectPtr<AWeaponInstance> WeaponInstance;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TArray<UYogGameplayAbility*> Actions;
