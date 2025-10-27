@@ -114,15 +114,15 @@ void AEnemyCharacterBase::SetupAI(UBehaviorTree* bt, UBlackboardData* bb)
 
 void AEnemyCharacterBase::InitEnemyData(UEnemyData* enemy_data)
 {
-	for (auto action_row : enemy_data->ActionRows)
+	for (FDataTableRowHandle& action_row : enemy_data->ActionRows)
 	{
 
 		if (!action_row.IsNull())
 		{
 			FActionData* actionData = action_row.GetRow<FActionData>(__func__);
-
-
 			ensure(actionData);
+			
+			
 			UYogAbilitySystemComponent* ASC = this->GetASC();
 			check(Ability_Class)
 			FGameplayAbilitySpec abilitySpec(Ability_Class,0);

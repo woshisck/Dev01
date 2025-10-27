@@ -106,7 +106,7 @@ public:
 	AYogCharacterBase* GetOwnerCharacterInfo();
 
 	UFUNCTION(BlueprintCallable)
-	void SetupActionData(FActionData action_data);
+	void SetupActionData(FActionData& action_data);
 
 	UFUNCTION(BlueprintCallable, Category = "GameplayEffect")
 	int GetCurrentGameplayEffect(FGameplayTag EffectTag);

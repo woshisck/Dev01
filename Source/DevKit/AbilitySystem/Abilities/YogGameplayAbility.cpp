@@ -64,7 +64,7 @@ AYogCharacterBase* UYogGameplayAbility::GetOwnerCharacterInfo()
 
 }
 
-void UYogGameplayAbility::SetupActionData(FActionData action_data)
+void UYogGameplayAbility::SetupActionData(FActionData& action_data)
 {
 
 	this->ActDamage = action_data.ActDamage;
