@@ -72,18 +72,7 @@ void AEnemyCharacterBase::PostInitializeComponents()
 		{
 			controller->RunBehaviorTree(behaviour_tree);
 		}
-		for (FDataTableRowHandle& data_row : enemyData->ActionRows)
-		{
-			if (!data_row.IsNull())
-			{
-				FActionData* action_data = data_row.GetRow<FActionData>(__func__);
-				if (action_data)
-				{
-				}
-			}
-		}
 	}
-
 }
 
 void AEnemyCharacterBase::SetupAI(UBehaviorTree* bt, UBlackboardData* bb)
