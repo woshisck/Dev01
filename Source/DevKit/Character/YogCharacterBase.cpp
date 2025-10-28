@@ -85,15 +85,10 @@ void AYogCharacterBase::PostInitializeComponents()
 	{
 		const FMovementData& moveData = CharacterData->GetMovementData();
 		const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
-
-
-
 		BaseAttributeSet->Init(CharacterData);
 	}
-
 	if (AbilitySystemComponent) 
 	{
-
 		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
 		MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
 	}

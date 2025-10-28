@@ -40,8 +40,8 @@ public:
 
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UEnemyData> EnemyData;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TObjectPtr<UEnemyData> EnemyData;
 
 
 	UFUNCTION(BlueprintCallable)

@@ -5,6 +5,7 @@
 #include <DevKit/AbilitySystem/YogAbilitySystemComponent.h>
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
 #include "Character/YogCharacterMovementComponent.h"
+#include "DevKit/Data/EnemyData.h"
 #include "DevKit/Controller/YogAIController.h"
 
 AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitializer)
@@ -36,9 +37,11 @@ void AEnemyCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (EnemyData) 
+	UEnemyData* enemyData = Cast<UEnemyData>(CharacterData);
+
+	if (enemyData)
 	{
-		InitEnemyData(EnemyData);
+		InitEnemyData(enemyData);
 	}
 
 
@@ -59,48 +62,26 @@ void AEnemyCharacterBase::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	if (CharacterData)
+	UEnemyData* enemyData = Cast<UEnemyData>(CharacterData);
+	
+	if (enemyData)
 	{
-		const FMovementData& moveData = CharacterData->GetMovementData();
-		const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
-
-
-
-		BaseAttributeSet->Init(CharacterData);
-	}
-
-	if (AbilitySystemComponent)
-	{
-
-		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
-		MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
-	}
-
-
-
-	if (EnemyData)
-	{
-
-		UBehaviorTree* behaviour_tree = EnemyData->EnemyBT;
-
+		UBehaviorTree* behaviour_tree = enemyData->EnemyBT;
 		AAIController* controller = Cast<AAIController>(this->GetController());
 		if (controller)
 		{
 			controller->RunBehaviorTree(behaviour_tree);
 		}
-
-		for (FDataTableRowHandle& data_row : EnemyData->ActionRows)
+		for (FDataTableRowHandle& data_row : enemyData->ActionRows)
 		{
 			if (!data_row.IsNull())
 			{
 				FActionData* action_data = data_row.GetRow<FActionData>(__func__);
 				if (action_data)
 				{
-
 				}
 			}
 		}
-
 	}
 
 }

@@ -71,8 +71,8 @@ public:
 	EYogCharacterState PreviousState;
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<TSubclassOf<UCharacterData>>  CharacterData;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bAllowEditInChildClass"))
+	TObjectPtr<UCharacterData> CharacterData;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)
 	TObjectPtr<UAttributeStatComponent> AttributeStatsComponent;
