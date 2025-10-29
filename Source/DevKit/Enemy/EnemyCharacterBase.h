@@ -47,8 +47,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void InitEnemyData(UEnemyData* enemy_data);
 
-	UPROPERTY()
-	TSubclassOf<UYogGameplayAbility> Ability_Class; // Or a more specific base class
+	//UPROPERTY()
+	//TSubclassOf<UYogGameplayAbility> Ability_Class; 
 
 
 	friend UEnemyAttributeSet;

@@ -16,6 +16,8 @@ struct FGameplayAbilityActivationInfo;
 struct FGameplayAbilitySpec;
 struct FGameplayAbilitySpecHandle;
 struct FActionData;
+struct FHitBoxData;
+
 
 class AActor;
 class AController;

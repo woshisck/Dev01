@@ -14,13 +14,13 @@ AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitial
 	EnemyAttributeSet = CreateDefaultSubobject<UEnemyAttributeSet>(TEXT("EnemyAttributeSet"));
 	
 
-	static ConstructorHelpers::FClassFinder<UYogGameplayAbility> Ability_Blueprint_Class(TEXT("Blueprint'/Game/Code/Weapon/GA_MobAbility'"));
-	if (Ability_Blueprint_Class.Succeeded())
-	{
-		UClass* MyActorClass = Ability_Blueprint_Class.Class.Get();
-		Ability_Class = Ability_Blueprint_Class.Class.Get();
-		UE_LOG(LogTemp, Warning, TEXT("class name:%s"), *Ability_Class->GetName());
-	}
+	//static ConstructorHelpers::FClassFinder<UYogGameplayAbility> Ability_Blueprint_Class(TEXT("Blueprint'/Game/Code/Weapon/GA_MobAbility'"));
+	//if (Ability_Blueprint_Class.Succeeded())
+	//{
+	//	UClass* MyActorClass = Ability_Blueprint_Class.Class.Get();
+	//	Ability_Class = Ability_Blueprint_Class.Class.Get();
+	//	UE_LOG(LogTemp, Warning, TEXT("class name:%s"), *Ability_Class->GetName());
+	//}
 	 
 
 	//Script / Engine.Blueprint'/Game/Code/Weapon/GA_MobAbility.GA_MobAbility'
@@ -87,12 +87,12 @@ void AEnemyCharacterBase::InitEnemyData(UEnemyData* enemy_data)
 		if (!action_row.IsNull())
 		{
 			FActionData* actionData = action_row.GetRow<FActionData>(__func__);
-			ensure(actionData);
-			
+			ensure(actionData && actionData->Ability_Template);
+			//check(Ability_Class)
 			
 			UYogAbilitySystemComponent* ASC = this->GetASC();
-			check(Ability_Class)
-			FGameplayAbilitySpec abilitySpec(Ability_Class,0);
+			
+			FGameplayAbilitySpec abilitySpec(actionData->Ability_Template,0);
 			FGameplayAbilitySpecHandle ability_handle = ASC->GiveAbility(abilitySpec);
 			
 			if (ability_handle.IsValid())

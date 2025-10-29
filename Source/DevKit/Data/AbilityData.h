@@ -16,29 +16,30 @@ struct FHitBoxData : public FTableRowBase
 	GENERATED_BODY()
 
 public:
-	FHitBoxData()
-		: Point(FVector(0, 0, 0)), HasTriggered(false), Index(0), FrameAt(0)
-	{
-	}
+	//FHitBoxData()
+	//	: Point(FVector(0, 0, 0)), HasTriggered(false), Index(0), FrameAt(0)
+	//{
+	//}
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	FVector Point;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//FVector Location_Start;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	bool HasTriggered;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	int Index;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	int FrameAt;
+
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FActionData : public FTableRowBase
 {
     GENERATED_BODY()
@@ -78,7 +79,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<UYogGameplayAbility> Ability_Template;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FHitBoxData> hitbox;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))

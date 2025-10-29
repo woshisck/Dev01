@@ -67,15 +67,24 @@ AYogCharacterBase* UYogGameplayAbility::GetOwnerCharacterInfo()
 void UYogGameplayAbility::SetupActionData(FActionData& action_data)
 {
 
-	this->ActDamage = action_data.ActDamage;
-	this->ActRange = action_data.ActRange;
-	this->ActResilience = action_data.ActResilience;
-	this->ActRotateSpeed = action_data.ActRotateSpeed;
-	this->JumpFrameTime = action_data.JumpFrameTime;
-	this->FreezeFrameTime = action_data.FreezeFrameTime;
-	this->Montage = action_data.Montage;
-	this->hitbox = action_data.hitbox;
+	ActDamage = action_data.ActDamage;
+	ActRange = action_data.ActRange;
+	ActResilience = action_data.ActResilience;
+	ActRotateSpeed = action_data.ActRotateSpeed;
+	JumpFrameTime = action_data.JumpFrameTime;
+	FreezeFrameTime = action_data.FreezeFrameTime;
+	Montage = action_data.Montage;
+	//for (auto& point : action_data.hitbox)
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("Point Vector: %s"), *point.Point.ToString());
+	//}
 
+	hitbox.SetNumUninitialized(action_data.hitbox.Num());
+	FMemory::Memcpy(hitbox.GetData(), action_data.hitbox.GetData(), action_data.hitbox.Num() * sizeof(FHitBoxData));
+	for (auto& point : hitbox)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("this->box Point Vector: %s"), *point.Point.ToString());
+	}
 }
 
 int UYogGameplayAbility::GetCurrentGameplayEffect(FGameplayTag EffectTag)
@@ -196,6 +205,10 @@ void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 
 	player->UpdateCharacterState(EYogCharacterState::OnAction, FVector(0,0,0));
 
+	for (auto& point : hitbox)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("this->box Point Vector: %s"), *point.Point.ToString());
+	}
 	//UYogAbilitySystemComponent* asc = player->GetASC();
 
 	//TODO: add loose gameplaytag for blocking ability
