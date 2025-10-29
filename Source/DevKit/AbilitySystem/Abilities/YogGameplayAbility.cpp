@@ -74,17 +74,24 @@ void UYogGameplayAbility::SetupActionData(FActionData& action_data)
 	JumpFrameTime = action_data.JumpFrameTime;
 	FreezeFrameTime = action_data.FreezeFrameTime;
 	Montage = action_data.Montage;
-	//for (auto& point : action_data.hitbox)
-	//{
-	//	UE_LOG(LogTemp, Warning, TEXT("Point Vector: %s"), *point.Point.ToString());
-	//}
-
-	hitbox.SetNumUninitialized(action_data.hitbox.Num());
-	FMemory::Memcpy(hitbox.GetData(), action_data.hitbox.GetData(), action_data.hitbox.Num() * sizeof(FHitBoxData));
-	for (auto& point : hitbox)
+	for (const FHitBoxData& point : action_data.hitbox)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("this->box Point Vector: %s"), *point.Point.ToString());
+		//FHitBoxData  temp_hitbox;
+		//temp_hitbox.Point = point.Point;
+		//temp_hitbox.FrameAt = point.FrameAt;
+		//temp_hitbox.HasTriggered = point.HasTriggered;
+		//temp_hitbox.Index = point.Index;
+		array_hitbox_vector.Add(point.Point);
+		hitbox.Add(point);
+		//UE_LOG(LogTemp, Warning, TEXT("Point Vector: %s"), *point.Point.ToString());
 	}
+
+	//hitbox.SetNumUninitialized(action_data.hitbox.Num());
+	//FMemory::Memcpy(hitbox.GetData(), action_data.hitbox.GetData(), action_data.hitbox.Num() * sizeof(FHitBoxData));
+	//for (auto& point : hitbox)
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("this->box Point Vector: %s"), *point.Point.ToString());
+	//}
 }
 
 int UYogGameplayAbility::GetCurrentGameplayEffect(FGameplayTag EffectTag)
@@ -204,6 +211,13 @@ void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	AYogCharacterBase* player = Cast<AYogCharacterBase>(AvatarActor);
 
 	player->UpdateCharacterState(EYogCharacterState::OnAction, FVector(0,0,0));
+
+	for (FVector& point : array_hitbox_vector)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("hitbox_point_array: %s"), *point.ToString());
+	}
+
+	
 
 	for (auto& point : hitbox)
 	{

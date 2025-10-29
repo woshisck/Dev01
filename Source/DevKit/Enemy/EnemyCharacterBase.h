@@ -38,6 +38,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetupAI(UBehaviorTree* bt, UBlackboardData* bb);
 
+	UPROPERTY(BlueprintReadOnly)
+	TArray<FHitBoxData> hitbox_array;
+
 
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)

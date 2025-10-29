@@ -50,6 +50,10 @@ void AEnemyCharacterBase::BeginPlay()
 void AEnemyCharacterBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+
+
+
 }
 
 void AEnemyCharacterBase::Die()
@@ -99,7 +103,30 @@ void AEnemyCharacterBase::InitEnemyData(UEnemyData* enemy_data)
 			{
 				if (UYogGameplayAbility* GrantedAbility = Cast<UYogGameplayAbility>(ASC->FindAbilitySpecFromHandle(ability_handle)->Ability))
 				{
-					GrantedAbility->SetupActionData(*actionData);
+					//GrantedAbility->SetupActionData(*actionData);
+
+					GrantedAbility->ActDamage = actionData->ActDamage;
+					GrantedAbility->ActRange = actionData->ActRange;
+					GrantedAbility->ActResilience = actionData->ActResilience;
+					GrantedAbility->ActRotateSpeed = actionData->ActRotateSpeed;
+					GrantedAbility->JumpFrameTime = actionData->JumpFrameTime;
+					GrantedAbility->FreezeFrameTime = actionData->FreezeFrameTime;
+					GrantedAbility->Montage = actionData->Montage;
+
+					GrantedAbility->hitbox.SetNumUninitialized(actionData->hitbox.Num());
+					FMemory::Memcpy(GrantedAbility->hitbox.GetData(), actionData->hitbox.GetData(), actionData->hitbox.Num() * sizeof(FHitBoxData));
+
+					//for (const FHitBoxData& point : actionData->hitbox)
+					//{
+					//	//FHitBoxData  temp_hitbox;
+					//	//temp_hitbox.Point = point.Point;
+					//	//temp_hitbox.FrameAt = point.FrameAt;
+					//	//temp_hitbox.HasTriggered = point.HasTriggered;
+					//	//temp_hitbox.Index = point.Index;
+					//	GrantedAbility->array_hitbox_vector.Add(point.Point);
+					//	GrantedAbility->hitbox.Add(point);
+					//	//UE_LOG(LogTemp, Warning, TEXT("Point Vector: %s"), *point.Point.ToString());
+					//}
 				}
 			}
 
@@ -116,27 +143,3 @@ void AEnemyCharacterBase::InitEnemyData(UEnemyData* enemy_data)
 
 	}
 }
-
-UPROPERTY()
-float ActDamage = 20;
-
-UPROPERTY()
-float ActRange = 400;
-
-UPROPERTY()
-float ActResilience = 20;
-
-UPROPERTY()
-float ActDmgReduce = 0;
-
-UPROPERTY()
-float ActRotateSpeed = 360;
-
-UPROPERTY()
-float JumpFrameTime = 0.15;
-
-UPROPERTY()
-float FreezeFrameTime = 0.15;
-
-UPROPERTY()
-TObjectPtr<UAnimMontage> Montage;

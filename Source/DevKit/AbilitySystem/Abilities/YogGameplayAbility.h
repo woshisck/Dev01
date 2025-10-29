@@ -141,6 +141,9 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FHitBoxData> hitbox;
 
+	UPROPERTY(BlueprintReadOnly)
+	TArray<FVector> array_hitbox_vector;
+
 
 
 public:
