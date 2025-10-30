@@ -22,14 +22,21 @@ public:
 	//}
 
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	FVector Point;
+	UPROPERTY(BlueprintReadOnly)
+	FVector Point = FVector(Radius * cos(Degree), Radius * sin(Degree), 0.0);
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//FVector Location_Start;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	bool HasTriggered;
+
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	float Degree;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	float Radius;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	int Index;

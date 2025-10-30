@@ -99,47 +99,27 @@ void AEnemyCharacterBase::InitEnemyData(UEnemyData* enemy_data)
 			FGameplayAbilitySpec abilitySpec(actionData->Ability_Template,0);
 			FGameplayAbilitySpecHandle ability_handle = ASC->GiveAbility(abilitySpec);
 			
-			if (ability_handle.IsValid())
+			if (!ability_handle.IsValid())
 			{
-				if (UYogGameplayAbility* GrantedAbility = Cast<UYogGameplayAbility>(ASC->FindAbilitySpecFromHandle(ability_handle)->Ability))
-				{
-					//GrantedAbility->SetupActionData(*actionData);
-
-					GrantedAbility->ActDamage = actionData->ActDamage;
-					GrantedAbility->ActRange = actionData->ActRange;
-					GrantedAbility->ActResilience = actionData->ActResilience;
-					GrantedAbility->ActRotateSpeed = actionData->ActRotateSpeed;
-					GrantedAbility->JumpFrameTime = actionData->JumpFrameTime;
-					GrantedAbility->FreezeFrameTime = actionData->FreezeFrameTime;
-					GrantedAbility->Montage = actionData->Montage;
-
-					GrantedAbility->hitbox.SetNumUninitialized(actionData->hitbox.Num());
-					FMemory::Memcpy(GrantedAbility->hitbox.GetData(), actionData->hitbox.GetData(), actionData->hitbox.Num() * sizeof(FHitBoxData));
-
-					//for (const FHitBoxData& point : actionData->hitbox)
-					//{
-					//	//FHitBoxData  temp_hitbox;
-					//	//temp_hitbox.Point = point.Point;
-					//	//temp_hitbox.FrameAt = point.FrameAt;
-					//	//temp_hitbox.HasTriggered = point.HasTriggered;
-					//	//temp_hitbox.Index = point.Index;
-					//	GrantedAbility->array_hitbox_vector.Add(point.Point);
-					//	GrantedAbility->hitbox.Add(point);
-					//	//UE_LOG(LogTemp, Warning, TEXT("Point Vector: %s"), *point.Point.ToString());
-					//}
-				}
+				return;
 			}
 
-			//if (abilitySpec.Ability && abilitySpec.Ability->GetInstancingPolicy() == EGameplayAbilityInstancingPolicy::InstancedPerActor)
-			//{
-			//	UYogGameplayAbility* AbilityInstance = Cast<UYogGameplayAbility>(abilitySpec.GetPrimaryInstance());
-			//	ensure(AbilityInstance);
-			//	//if (ensureMsgf(AbilityInstance, TEXT("NOT Fount correct abilityInstance from EnemyData")))
-			//	AbilityInstance->SetupActionData(*actionData);
-			//}
+			if (UYogGameplayAbility* GrantedAbility = Cast<UYogGameplayAbility>(ASC->FindAbilitySpecFromHandle(ability_handle)->Ability))
+			{
+				//GrantedAbility->SetupActionData(*actionData);
 
+				GrantedAbility->ActDamage = actionData->ActDamage;
+				GrantedAbility->ActRange = actionData->ActRange;
+				GrantedAbility->ActResilience = actionData->ActResilience;
+				GrantedAbility->ActRotateSpeed = actionData->ActRotateSpeed;
+				GrantedAbility->JumpFrameTime = actionData->JumpFrameTime;
+				GrantedAbility->FreezeFrameTime = actionData->FreezeFrameTime;
+				GrantedAbility->Montage = actionData->Montage;
 
+				GrantedAbility->hitbox.SetNumUninitialized(actionData->hitbox.Num());
+				FMemory::Memcpy(GrantedAbility->hitbox.GetData(), actionData->hitbox.GetData(), actionData->hitbox.Num() * sizeof(FHitBoxData));
+
+			}
 		}
-
 	}
 }

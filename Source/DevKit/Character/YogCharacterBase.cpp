@@ -6,7 +6,6 @@
 #include "Components/CapsuleComponent.h"
 #include "DevKit/Item/ItemInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
-
 #include "DevKit/AbilitySystem/Abilities/YogGameplayAbility.h"
 #include <DevKit/Player/YogPlayerControllerBase.h>
 #include <DevKit/Item/Weapon/WeaponInstance.h>
@@ -233,7 +232,7 @@ void AYogCharacterBase::DisableMovement()
 
 void AYogCharacterBase::EnableMovement()
 {
-	UYogCharacterMovementComponent* LyraMoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
+	UYogCharacterMovementComponent* MoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
 
 }
 
@@ -241,10 +240,12 @@ void AYogCharacterBase::EnableMovement()
 void AYogCharacterBase::UpdateCharacterState(EYogCharacterState newState, FVector movementInput)
 {
 	//check if previous state 
+	EYogCharacterState state_before;
+	state_before = PreviousState;
 	PreviousState = CurrentState;
 
 	CurrentState = newState;
-	OnCharacterStateUpdate.Broadcast(newState, movementInput);
+	OnCharacterStateUpdate.Broadcast(state_before, newState);
 
 }
 
