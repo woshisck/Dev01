@@ -19,7 +19,7 @@ AYogCameraPawn::AYogCameraPawn(const FObjectInitializer& ObjectInitializer)
 	
 	FloatingMovementComponent = ObjectInitializer.CreateDefaultSubobject<UFloatingPawnMovement>(this, TEXT("PawnFloatingMovementComp"));
 	//AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-	CameraStatus = EYogCameraStates::Idle;
+	CameraStatus = EYogCameraStates::FocusCharacter;
 }
 
 void AYogCameraPawn::PostActorCreated()
@@ -75,7 +75,7 @@ void AYogCameraPawn::BeginPlay()
 void AYogCameraPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	
+	UpdateCameraLoc(DeltaTime);
 
 }
 

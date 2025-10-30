@@ -38,28 +38,20 @@ void AEnemyCharacterBase::BeginPlay()
 	Super::BeginPlay();
 
 	UEnemyData* enemyData = Cast<UEnemyData>(CharacterData);
-
 	if (enemyData)
 	{
 		InitEnemyData(enemyData);
 	}
-
-
 }
 
 void AEnemyCharacterBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
-
-
-
 }
 
 void AEnemyCharacterBase::Die()
 {
 	Super::Die();
-
 }
 
 void AEnemyCharacterBase::PostInitializeComponents()
