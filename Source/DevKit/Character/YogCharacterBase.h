@@ -98,8 +98,11 @@ public:
 
 	////////////////////////////////////////// Get/Set Func　//////////////////////////////////////////
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GASDocumentation|Animation")
-	UAnimMontage* DeathMontage;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GAS Attribute|Animation")
+	TObjectPtr<UAnimMontage> DeathMontage;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GAS Attribute|Animation")
+	TObjectPtr<UAnimMontage> HurtMontage;
 
 	UPROPERTY(BlueprintReadOnly)
 	int32 bWeaponEquiped = 0;
