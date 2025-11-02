@@ -65,6 +65,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<TObjectPtr<UAbilityData>> Action;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
+	TArray<FDataTableRowHandle> ActionRows;
+
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<TSubclassOf<UAnimInstance>> WeaponAmineLayer;
 

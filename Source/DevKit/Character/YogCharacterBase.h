@@ -82,8 +82,8 @@ public:
 	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite)
 	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;
 
-	UPROPERTY(EditAnywhere, SaveGame,  BlueprintReadWrite)
-	TObjectPtr<UAdditionAttributeSet> AdditionAttributeSet;
+	//UPROPERTY(EditAnywhere, SaveGame,  BlueprintReadWrite)
+	//TObjectPtr<UAdditionAttributeSet> AdditionAttributeSet;
 
 	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite)
 	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
@@ -215,5 +215,5 @@ public:
 	// Friended to allow access to handle functions above
 	friend UBaseAttributeSet;
 	friend UDamageAttributeSet;
-	friend UAdditionAttributeSet;
+	//friend UAdditionAttributeSet;
 };

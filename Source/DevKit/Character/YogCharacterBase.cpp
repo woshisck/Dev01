@@ -33,7 +33,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
-	AdditionAttributeSet = CreateDefaultSubobject<UAdditionAttributeSet>(TEXT("AdditionAttributeSet"));
+	//AdditionAttributeSet = CreateDefaultSubobject<UAdditionAttributeSet>(TEXT("AdditionAttributeSet"));
 
 
 

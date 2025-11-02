@@ -27,10 +27,12 @@ protected:
 
 
 public:
-	UFUNCTION()
-	float GetAttribute(FGameplayAttribute attribute) const;
+
 
 	//////////////////////////////////////////////////////////////////////
+
+	UFUNCTION(BlueprintCallable)
+	float GetAttribute(FGameplayAttribute attribute) const;
 
 	UFUNCTION(BlueprintCallable)
 	void AddAttribute(FGameplayAttribute attribute, float value_add) const;
