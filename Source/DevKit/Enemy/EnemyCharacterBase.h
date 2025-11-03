@@ -9,7 +9,6 @@
 #include "BehaviorTree/BehaviorTree.h"
 
 #include "DevKit/Data/EnemyData.h"
-#include "AbilitySystem/Abilities/GeneralMeleeAttack.h"
 #include "EnemyCharacterBase.generated.h"
 
 

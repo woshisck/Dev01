@@ -1,6 +1,8 @@
 #include "YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
-
+#include "DevKit/AbilitySystem/Abilities/WeaponAbility.h"
+#include "DevKit/AbilitySystem/Abilities/PassiveAbility.h"
+#include "DevKit/AbilitySystem/Abilities/GeneralAbility.h"
 #include "DevKit/SaveGame/YogSaveGame.h"
 
 
@@ -37,6 +39,80 @@ void UYogAbilitySystemComponent::RemoveDynamicTagGameplayEffect(const FGameplayT
 
 void UYogAbilitySystemComponent::GetAbilityTargetData(const FGameplayAbilitySpecHandle AbilityHandle, FGameplayAbilityActivationInfo ActivationInfo, FGameplayAbilityTargetDataHandle& OutTargetDataHandle)
 {
+}
+
+FGameplayAbilitySpecHandle UYogAbilitySystemComponent::GrantAbility(TSubclassOf<UYogGameplayAbility> ability_class)
+{
+	FGameplayAbilitySpecHandle StoredAbilityHandle;
+
+	FGameplayAbilitySpec AbilitySpec(ability_class, 1, 0); // Specify ability class, level, input ID
+	StoredAbilityHandle = this->GiveAbility(AbilitySpec); // Store the handle!
+	if (StoredAbilityHandle.IsValid())
+	{
+		if (ability_class == UWeaponAbility::StaticClass())
+		{
+			WeaponAbilities.Add(AbilitySpec);
+		}
+		if (ability_class == UPassiveAbility::StaticClass())
+		{
+			PassiveAbilities.Add(AbilitySpec);
+		}
+		if (ability_class == UGeneralAbility::StaticClass())
+		{
+			GeneralAbilities.Add(AbilitySpec);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("The AbilitySpecHandle is invalid."));
+	}
+	return StoredAbilityHandle;
+
+}
+
+void UYogAbilitySystemComponent::RemoveAbility(TSubclassOf<UYogGameplayAbility> ability_class)
+{
+
+	if (ability_class == UWeaponAbility::StaticClass())
+	{
+		for (int32 i = WeaponAbilities.Num() - 1; i >= 0; --i)
+		{
+			FGameplayAbilitySpec& ability_spec = WeaponAbilities[i];
+			if (ability_spec.Ability && ability_spec.Ability->GetClass() == ability_class)
+			{
+				ClearAbility(ability_spec.Handle);
+				WeaponAbilities.RemoveAt(i);
+			}
+		}
+
+	}
+
+	if (ability_class == UPassiveAbility::StaticClass())
+	{
+		for (int32 i = PassiveAbilities.Num() - 1; i >= 0; --i)
+		{
+			FGameplayAbilitySpec& ability_spec = PassiveAbilities[i];
+			if (ability_spec.Ability && ability_spec.Ability->GetClass() == ability_class)
+			{
+				ClearAbility(ability_spec.Handle);
+				PassiveAbilities.RemoveAt(i);
+			}
+		}
+	}
+
+	if (ability_class == UGeneralAbility::StaticClass())
+	{
+		for (int32 i = GeneralAbilities.Num() - 1; i >= 0; --i)
+		{
+			FGameplayAbilitySpec& ability_spec = GeneralAbilities[i];
+			if (ability_spec.Ability && ability_spec.Ability->GetClass() == ability_class)
+			{
+				ClearAbility(ability_spec.Handle);
+				GeneralAbilities.RemoveAt(i);
+			}
+		}
+	}
+
 }
 
 void UYogAbilitySystemComponent::RemoveGameplayTag(FGameplayTag Tag, int32 Count)

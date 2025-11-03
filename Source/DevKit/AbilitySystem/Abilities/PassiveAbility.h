@@ -4,23 +4,25 @@
 
 #include "CoreMinimal.h"
 #include "YogGameplayAbility.h"
-#include "Passive_YogAbility.generated.h"
+#include "PassiveAbility.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class DEVKIT_API UPassive_YogAbility : public UYogGameplayAbility
+class DEVKIT_API UPassiveAbility : public UYogGameplayAbility
 {
 	GENERATED_BODY()
 
 public:
 
 
-	UPassive_YogAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UPassiveAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	//virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+
+
 };

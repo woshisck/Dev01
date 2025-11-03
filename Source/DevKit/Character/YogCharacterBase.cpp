@@ -13,7 +13,6 @@
 #include "DevKit/Component/HitBoxBufferComponent.h"
 #include "System/YogGameInstanceBase.h"
 
-#include "DevKit/AbilitySystem/Abilities/Passive_YogAbility.h"
 
 AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))

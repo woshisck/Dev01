@@ -23,6 +23,18 @@ class DEVKIT_API UYogAbilitySystemComponent : public UAbilitySystemComponent
 	GENERATED_BODY()
 
 public:
+
+	UPROPERTY(BlueprintReadOnly)
+	TArray<FGameplayAbilitySpec> WeaponAbilities;
+
+	UPROPERTY(BlueprintReadOnly)
+	TArray<FGameplayAbilitySpec> GeneralAbilities;
+
+	UPROPERTY(BlueprintReadOnly)
+	TArray<FGameplayAbilitySpec> PassiveAbilities;
+
+
+
 	// Sets default values for this empty's properties
 	UYogAbilitySystemComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
@@ -36,6 +48,14 @@ public:
 
 	/** Gets the ability target data associated with the given ability handle and activation info */
 	void GetAbilityTargetData(const FGameplayAbilitySpecHandle AbilityHandle, FGameplayAbilityActivationInfo ActivationInfo, FGameplayAbilityTargetDataHandle& OutTargetDataHandle);
+
+
+	UFUNCTION(BlueprintCallable)
+	FGameplayAbilitySpecHandle GrantAbility(TSubclassOf<UYogGameplayAbility> ability_class);
+
+
+	UFUNCTION(BlueprintCallable)
+	void RemoveAbility(TSubclassOf<UYogGameplayAbility> ability_class);
 
 
 	//////////////////////////////////Gameplay Tag//////////////////////////////////

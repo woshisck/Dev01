@@ -6,11 +6,30 @@
 #include "Engine/DataAsset.h"
 #include <NiagaraSystem.h>
 #include "AbilityData.h"
+#include "DevKit/Animation/YogAnimInstance.h"
 #include "WeaponData.generated.h"
-
+//D :\Fab\Meta\VTSH_LASE_Dev\VTSH_ShaderLib_Test\VTSH_ShaderDev_Test\Source\DevKit\Animation\YogAnimInstance.cpp
 class AWeaponInstance;
 class UYogGameplayAbility;
 class AYogCharacterBase;
+class UYogAnimInstance;
+
+USTRUCT()
+struct FWeaponHoldData
+{
+	GENERATED_BODY()
+
+
+	UPROPERTY(EditAnywhere, Category = Equipment)
+	TSubclassOf<AWeaponInstance> ActorToSpawn;
+
+	UPROPERTY(EditAnywhere, Category = Equipment)
+	FName AttachSocket;
+
+	UPROPERTY(EditAnywhere, Category = Equipment)
+	FTransform AttachTransform;
+};
+
 
 
 
@@ -75,6 +94,34 @@ public:
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TArray<TObjectPtr<UAnimMontage>> IncludedMontage;
+
+
+	// Actors to spawn on the pawn when this is equipped
+	UPROPERTY(EditDefaultsOnly, Category = "Equipment")
+	TArray<FWeaponHoldData> ActorsToSpawn;
+
+	//Sets the height of the display mesh above the Weapon spawner
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
+	FVector WeaponMeshOffset;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
+	FRotator WeaponRotation;
+
+	//Sets the height of the display mesh above the Weapon spawner
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
+	FVector WeaponMeshScale = FVector(1.0f, 1.0f, 1.0f);
+
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
+	TObjectPtr<UStaticMesh> DisplayMesh;
+
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Anime")
+	TSubclassOf<UYogAnimInstance> WeaponLayer;
+
+	UFUNCTION()
+	void GiveWeapon(UWorld* World, USkeletalMeshComponent* AttachTarget, AYogCharacterBase* ReceivingChar);
+
 
 	inline static const FWeaponAttributeData DefaultWPNData;
 

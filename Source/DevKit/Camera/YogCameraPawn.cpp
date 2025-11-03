@@ -157,8 +157,9 @@ void AYogCameraPawn::InitDataTable(UDataTable* camera_DT)
 
 void AYogCameraPawn::UpdateCameraLoc(float DeltaTime)
 {
-	ACharacter* TargetCharacter = UGameplayStatics::GetPlayerCharacter(this, 0);
-	FVector TargetLoc = TargetCharacter->GetActorLocation();
+	AActor* owner = GetOwner();
+	ensure(owner);
+	FVector TargetLoc = owner->GetActorLocation();
 	FVector SelfLoc = this->GetActorLocation();
 
 
@@ -170,7 +171,7 @@ void AYogCameraPawn::UpdateCameraLoc(float DeltaTime)
 	}
 	if (CameraStatus == EYogCameraStates::FollowMove)
 	{
-		PlayerTargetLoc = TargetCharacter->GetActorLocation() + cache_playerMovementInput * cache_distFromCharacter;
+		PlayerTargetLoc = owner->GetActorLocation() + cache_playerMovementInput * cache_distFromCharacter;
 		FVector Loc = FMath::VInterpTo(this->GetActorLocation(), PlayerTargetLoc, DeltaTime, cache_followSpeed);
 		this->SetActorLocation(Loc);
 	
