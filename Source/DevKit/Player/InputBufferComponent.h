@@ -50,7 +50,8 @@ public:
 	EPlayerActionInput GetLastActionInput(FVector2D Movement);
 
 
-	//BUFFER ARRAY DEFINE
+
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	TArray<EPlayerActionInput> ActionBuffer;
 

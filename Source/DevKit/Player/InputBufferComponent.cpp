@@ -97,7 +97,7 @@ void UInputBufferComponent::DebugPrintAction()
 		count++;
 		
 	}
-	//UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *results);
+	UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *results);
 }
 
 void UInputBufferComponent::DebugPrintMovement()
@@ -112,7 +112,7 @@ void UInputBufferComponent::DebugPrintMovement()
 		results += cache;
 		count++;
 	}
-	//UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *results);
+	UE_LOG(LogTemp, Warning, TEXT("Array element: %s"), *results);
 }
 
 
