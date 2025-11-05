@@ -1,0 +1,32 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "GASAttachEditor",
+	"Description": "Used to view role assignment properties in the AbilitySystem",
+	"Category": "Gameplay",
+	"CreatedBy": "Monocluar",
+	"CreatedByURL": "",
+	"DocsURL": "https://docs.google.com/document/d/1c6VZuOIZi2U1Lph2zUM-kvgujyt9UZ6S1-8nPG_zTYA/edit?usp=sharing",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/faabce60b69a4f38ac1242953ab97b14",
+	"SupportURL": "",
+	"EnabledByDefault": true,
+	"CanContainContent": false,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "GASAttachEditor",
+			"Type": "DeveloperTool",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"GameplayAbilities"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "GameplayAbilities",
+			"Enabled": true
+		}
+	]
+}

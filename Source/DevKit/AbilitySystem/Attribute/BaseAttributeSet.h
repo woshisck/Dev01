@@ -19,35 +19,6 @@ class UWorld;
 
 
 
-////////////////////////////////////////////////// Player Attribute ////////////////////////////////////////////////
-//float Attack = 0;
-//float AttackPower = 1;
-//float MiscNum = 1;
-//float SkillCD = 1;
-//float MAX_PassiveGA = 1;
-//float MAX_OffensiveGA = 1;
-//float MaxHealth = 30;
-//float OutRoundLifeTime = 0;
-//float MoveSpeed = 6;
-//float Dash = 1;
-//float DashCD = 1;
-//float DashDist = 4;
-//float Dodge = 0;
-//float Resilience = 0;
-//float Resist = 0;
-//float Shield = 0;
-
-
-////////////////////////////////////////////////// Ability Attribute ////////////////////////////////////////////////
-//float ActDamage = 20;
-//float AbilityRange = 400;
-//float AbilityResilience = 20;
-//float AbilityDmgReduce = 0;
-//float ActRotateSpeed = 360;
-//float JumpFrameTime = 0.15;
-//float FreezeFrameTime = 0.15;
-
-
 
 
 UCLASS()
@@ -78,11 +49,11 @@ public:
 
 
     ////////////////////////////////////////////////// Player Attribute ////////////////////////////////////////////////
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Attack, Category = "Attributes|Player")
     FGameplayAttributeData Attack;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Attack);
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_AttackPower, Category = "Attributes|Player")
     FGameplayAttributeData AttackPower;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, AttackPower);
 
@@ -94,51 +65,51 @@ public:
     FGameplayAttributeData MaxHealth;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MaxHealth);
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Shield, Category = "Attributes|Player")
     FGameplayAttributeData Shield;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Shield);
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_AttackSpeed, Category = "Attributes|Player")
     FGameplayAttributeData AttackSpeed;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, AttackSpeed);
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_AttackRange, Category = "Attributes|Player")
     FGameplayAttributeData AttackRange;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, AttackRange);
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
     FGameplayAttributeData Sanity;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Sanity);
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
     FGameplayAttributeData MoveSpeed;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MoveSpeed);
 
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
     FGameplayAttributeData Dodge;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Dodge);
 
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
     FGameplayAttributeData Resilience;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resilience);
     
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
     FGameplayAttributeData Resist;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resist);
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
     FGameplayAttributeData DmgTaken;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, DmgTaken);
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
     FGameplayAttributeData Crit_Rate;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Crit_Rate);
 
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
     FGameplayAttributeData Crit_Damage;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Crit_Damage);
 
@@ -155,6 +126,50 @@ public:
 	void OnRep_MaxHealth(const FGameplayAttributeData& OldValue);
 
 
+    UFUNCTION()
+    void OnRep_Attack(const FGameplayAttributeData& OldValue);
+
+
+    UFUNCTION()
+    void OnRep_AttackPower(const FGameplayAttributeData& OldValue);
+
+
+    UFUNCTION()
+    void OnRep_Shield(const FGameplayAttributeData& OldValue);
+
+
+    UFUNCTION()
+    void OnRep_AttackSpeed(const FGameplayAttributeData& OldValue);
+
+
+    UFUNCTION()
+    void OnRep_Sanity(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_MoveSpeed(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_Dodge(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_Resilience(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_Resist(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_DmgTaken(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_Crit_Rate(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_Crit_Damage(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_AttackRange(const FGameplayAttributeData& OldValue);
+
+    
     //const FMovementData& moveData = CharacterData->GetMovementData();
     //const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
 

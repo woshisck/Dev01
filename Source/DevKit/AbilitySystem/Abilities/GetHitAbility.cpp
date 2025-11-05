@@ -3,6 +3,7 @@
 
 #include "GetHitAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
+#include "DevKit/Player/PlayerCharacterBase.h"
 #include "AbilitySystemComponent.h"
 
 UGetHitAbility::UGetHitAbility(const FObjectInitializer& ObjectInitializer)
@@ -21,9 +22,33 @@ void UGetHitAbility::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, con
 
 }
 
+void UGetHitAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
+{
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+
+	if (Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
+	{
+		APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
+		Player->UpdateCharacterState(EYogCharacterState::OnHurt, FVector(0,0,0));
+		
+	}
+
+
+
+}
+
 void UGetHitAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+
+
+	if (Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
+	{
+		APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
+		Player->UpdateCharacterState(EYogCharacterState::Idle, FVector(0, 0, 0));
+
+	}
 
 
 	// UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();

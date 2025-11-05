@@ -184,6 +184,71 @@ void UBaseAttributeSet::OnRep_MaxHealth(const FGameplayAttributeData& OldValue)
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, MaxHealth, OldValue);
 }
 
+void UBaseAttributeSet::OnRep_Attack(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, Attack, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_AttackPower(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, AttackPower, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_Shield(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, Shield, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_AttackSpeed(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, AttackSpeed, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_Sanity(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, Sanity, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_MoveSpeed(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, MoveSpeed, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_Dodge(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, Dodge, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_Resilience(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, Resilience, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_Resist(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, Resist, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_DmgTaken(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, DmgTaken, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_Crit_Rate(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, Crit_Rate, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_Crit_Damage(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, Crit_Damage, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_AttackRange(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, AttackRange, OldValue);
+}
+
 void UBaseAttributeSet::AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty)
 {
 	UAbilitySystemComponent* AbilityComp = GetOwningAbilitySystemComponent();
