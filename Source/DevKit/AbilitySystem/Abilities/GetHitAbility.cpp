@@ -30,12 +30,8 @@ void UGetHitAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 	if (Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
 	{
 		APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
-		Player->UpdateCharacterState(EYogCharacterState::OnHurt, FVector(0,0,0));
-		
+		Player->UpdateCharacterState(EYogCharacterState::OnHurt, FVector(0,0,0));		
 	}
-
-
-
 }
 
 void UGetHitAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
