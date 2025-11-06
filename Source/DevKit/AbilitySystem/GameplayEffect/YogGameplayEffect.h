@@ -16,6 +16,8 @@ class DEVKIT_API UYogGameplayEffect : public UGameplayEffect
 	
 public:
 
+	UYogGameplayEffect();
+
 	UFUNCTION(BlueprintCallable)
 	void CreateOwnEffectContext(AActor* TargetActor);
 

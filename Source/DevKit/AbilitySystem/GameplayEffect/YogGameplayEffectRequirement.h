@@ -17,7 +17,8 @@ class DEVKIT_API UYogGameplayEffectRequirement : public UGameplayEffectCustomApp
 
 public:
 
-	UPROPERTY(VisibleAnywhere)
-	FGameplayEffectAttributeCaptureDefinition CapturedAttribute;
-	
+    virtual bool CanApplyGameplayEffect_Implementation(const UGameplayEffect* GameplayEffect, const FGameplayEffectSpec& Spec, UAbilitySystemComponent* ASC) const override;
+
+
+
 };
