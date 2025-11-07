@@ -81,8 +81,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "WeaponAttributeData"))
 	FDataTableRowHandle WeaponAttributeRow;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<TObjectPtr<UAbilityData>> Action;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TArray<TObjectPtr<UAbilityData>> Action;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
 	TArray<FDataTableRowHandle> ActionRows;

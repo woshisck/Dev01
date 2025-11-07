@@ -37,13 +37,16 @@ void UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextOb
 {
 	check(WorldContextObject && ReceivingChar && WeaponDefinition && WeaponData);
 
-		UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	UE_LOG(LogTemp, Warning, TEXT("GiveWeaponToCharacter IS DEPRECATED, NOT USED ANYMORE!!"));
 
-		USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
+
+		//UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+
+		//USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
 	
-		WeaponDefinition->SetupWeaponToCharacter(World, AttachTarget, ReceivingChar);
+		//WeaponDefinition->SetupWeaponToCharacter(World, AttachTarget, ReceivingChar);
 
-		WeaponData->GrantAbilityToOwner(ReceivingChar);
+		//WeaponData->GrantAbilityToOwner(ReceivingChar);
 
 }
 

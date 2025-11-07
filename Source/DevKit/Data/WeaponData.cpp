@@ -31,22 +31,20 @@ void UWeaponData::GrantAbilityToOwner(AYogCharacterBase* Owner)
 
 
 	/*TArray<TObjectPtr<UAbilityData>> Action;*/
-	UYogAbilitySystemComponent* asc = Owner->GetASC();
-	if (Action.Num() > 0)
-	{
-		for (const UAbilityData* ability_action : Action)
-		{
-			//TSubclassOf<UYogGameplayAbility> ability;
-
-			//ability_action->ability
-			for (const TSubclassOf<UYogGameplayAbility> ability_class : ability_action->abilities)
-			{
-				FGameplayAbilitySpec abilitySpec(ability_class, 0);
-				asc->GiveAbility(abilitySpec);
-			}
-
-		}
-	}
+	//UYogAbilitySystemComponent* asc = Owner->GetASC();
+	//if (Action.Num() > 0)
+	//{
+	//	for (const UAbilityData* ability_action : Action)
+	//	{
+	//		//TSubclassOf<UYogGameplayAbility> ability;
+	//		//ability_action->ability
+	//		for (const TSubclassOf<UYogGameplayAbility> ability_class : ability_action->abilities)
+	//		{
+	//			FGameplayAbilitySpec abilitySpec(ability_class, 0);
+	//			asc->GiveAbility(abilitySpec);
+	//		}
+	//	}
+	//}
 
 
 }

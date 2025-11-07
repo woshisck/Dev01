@@ -212,17 +212,21 @@ void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 
 	player->UpdateCharacterState(EYogCharacterState::OnAction, FVector(0,0,0));
 
-	for (FVector& point : array_hitbox_vector)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("hitbox_point_array: %s"), *point.ToString());
-	}
+	//for (FVector& point : array_hitbox_vector)
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("hitbox_point_array: %s"), *point.ToString());
+	//}
 
-	
+	//for (auto& point : hitbox)
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("this->box Point Vector: %s"), *point.Point.ToString());
+	//}
 
-	for (auto& point : hitbox)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("this->box Point Vector: %s"), *point.Point.ToString());
-	}
+	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackAttribute(), ActDamage);
+	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackRangeAttribute(), ActRange);
+	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetResilienceAttribute(), ActResilience);
+	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetDmgTakenAttribute(), ActDmgReduce);
+
 	//UYogAbilitySystemComponent* asc = player->GetASC();
 
 	//TODO: add loose gameplaytag for blocking ability
@@ -264,5 +268,12 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 	ASC->CurrentAbilitySpecHandle = Handle;
 
 	player->UpdateCharacterState(EYogCharacterState::Idle, FVector(0, 0, 0));
+
+
+	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackAttribute(), -ActDamage);
+	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackRangeAttribute(), -ActRange);
+	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetResilienceAttribute(), -ActResilience);
+	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetDmgTakenAttribute(), -ActDmgReduce);
+
 
 }

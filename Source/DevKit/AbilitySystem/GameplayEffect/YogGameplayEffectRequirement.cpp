@@ -5,13 +5,16 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "GameplayEffect.h"
 #include "DevKit/AbilitySystem/YogAbilitySystemComponent.h"
+#include "DevKit/Character/YogCharacterBase.h"
 #include "AbilitySystemComponent.h"
 
 bool UYogGameplayEffectRequirement::CanApplyGameplayEffect_Implementation(const UGameplayEffect* GameplayEffect, const FGameplayEffectSpec& Spec, UAbilitySystemComponent* ASC) const
 {
     // The source is the owner of the effect spec. We can get the source actor from the spec.
-    AActor* SourceActor = Spec.GetEffectContext().GetInstigator();
-    AActor* TargetActor = ASC->GetAvatarActor();
+    AYogCharacterBase* SourceActor = Cast<AYogCharacterBase>(Spec.GetEffectContext().GetInstigator());
+    AYogCharacterBase* TargetActor = Cast<AYogCharacterBase>(ASC->GetAvatarActor());
+
+
 
     // If we have both source and target actors, we can check variables on them.
     if (SourceActor && TargetActor)
@@ -39,21 +42,41 @@ bool UYogGameplayEffectRequirement::CanApplyGameplayEffect_Implementation(const 
 
         // Example: Check if source has a tag "CanApply" and target does not have "Blocked"
         UAbilitySystemComponent* SourceASC = Spec.GetContext().GetInstigatorAbilitySystemComponent();
+
+
+        float target_resiliecne = TargetActor->AttributeStatsComponent->GetAttribute(TargetActor->BaseAttributeSet->GetResilienceAttribute());
+
+        float source_resiliecne = SourceActor->AttributeStatsComponent->GetAttribute(SourceActor->BaseAttributeSet->GetResilienceAttribute());
+        
+
         if (SourceASC && ASC)
         {
             /*UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(SourceASC);*/
-            UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(ASC);
-            
-            float target_resiliecne = TargetASC->GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
+            //UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(ASC);
+            //
+            //float target_resiliecne = TargetASC->GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
 
-            float source_act_resiliecne = TargetASC->GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
-            UE_LOG(LogTemp, Warning, TEXT("target_resiliecne: %f, source_act_resiliecne: %f"), target_resiliecne, source_act_resiliecne);
+            //float source_resiliecne = TargetASC->GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
+           
+            
+            UE_LOG(LogTemp, Warning, TEXT("target_resiliecne: %f, source_resiliecne: %f"), target_resiliecne, source_resiliecne);
+            if (source_resiliecne > target_resiliecne)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+            
             // Check for tags on source and target
             //if (SourceASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.CanApply")) &&
             //    !ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.Blocked")))
             //{
             //    return true;
             //}
+            
+        
         }
 
 
