@@ -2,9 +2,9 @@
 
 
 #include "AbilitySystem/GameplayEffect/YogGameplayEffectRequirement.h"
-
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "GameplayEffect.h"
-
+#include "DevKit/AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemComponent.h"
 
 bool UYogGameplayEffectRequirement::CanApplyGameplayEffect_Implementation(const UGameplayEffect* GameplayEffect, const FGameplayEffectSpec& Spec, UAbilitySystemComponent* ASC) const
@@ -41,14 +41,40 @@ bool UYogGameplayEffectRequirement::CanApplyGameplayEffect_Implementation(const 
         UAbilitySystemComponent* SourceASC = Spec.GetContext().GetInstigatorAbilitySystemComponent();
         if (SourceASC && ASC)
         {
+            /*UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(SourceASC);*/
+            UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(ASC);
+            
+            float target_resiliecne = TargetASC->GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
+
+            float source_act_resiliecne = TargetASC->GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
+            UE_LOG(LogTemp, Warning, TEXT("target_resiliecne: %f, source_act_resiliecne: %f"), target_resiliecne, source_act_resiliecne);
             // Check for tags on source and target
-            if (SourceASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.CanApply")) &&
-                !ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.Blocked")))
-            {
-                return true;
-            }
+            //if (SourceASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.CanApply")) &&
+            //    !ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.Blocked")))
+            //{
+            //    return true;
+            //}
         }
+
+
+
     }
+
+            // For example, check if the source has a certain attribute value and the target has another.
+            //UAbilitySystemComponent* SourceASC = Spec.GetContext().GetInstigatorAbilitySystemComponent();
+            //if (SourceASC && TargetASC)
+            //{
+            //    // Assuming you have an attribute set with a 'Health' attribute, you can get the current value.
+            //    float SourceHealth = SourceASC->GetNumericAttribute(UMyAttributeSet::GetHealthAttribute());
+            //    float TargetHealth = TargetASC->GetNumericAttribute(UMyAttributeSet::GetHealthAttribute());
+
+            //    // Example condition: source health must be above 50 and target health below 75.
+            //    if (SourceHealth > 50.0f && TargetHealth < 75.0f)
+            //    {
+            //        return true;
+            //    }
+            //}
+
 
     return false;
 }
