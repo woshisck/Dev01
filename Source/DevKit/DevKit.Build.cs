@@ -35,7 +35,6 @@ public class DevKit : ModuleRules
                 "Hotfix",
                 "PropertyPath",
                 "CommonUI",
-                "UnrealEd",
                 "AIModule",
                 "AnimGraphRuntime",
 

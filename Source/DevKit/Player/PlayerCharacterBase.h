@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
-#include "AbilitySystem/Attribute/WeaponAttributeSet.h"
+
 
 #include "PlayerCharacterBase.generated.h"
 

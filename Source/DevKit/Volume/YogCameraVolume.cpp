@@ -16,7 +16,7 @@ AYogCameraVolume::AYogCameraVolume(const FObjectInitializer& ObjectInitializer)
 	//GetBrushComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	//GetBrushComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap);
 	//GetBrushComponent()->SetGenerateOverlapEvents(true);
-	this->bDisplayShadedVolume = true;
+	//this->bDisplayShadedVolume = true;
 	// Optional: Make the volume visible in game
 	GetBrushComponent()->SetHiddenInGame(false);
 

@@ -5,7 +5,6 @@
 #include "GameFramework/WorldSettings.h"
 #include "YogWorldSettings.generated.h"
 
-class UYogGameRule;
 
 /**
  * The default world settings object, used primarily to set the default gameplay experience to use when playing on this map
@@ -20,14 +19,6 @@ public:
 	AYogWorldSettings(const FObjectInitializer& ObjectInitializer);
 
 
-public:
-	// Returns the default experience to use when a server opens this map if it is not overridden by the user-facing experience
-	FPrimaryAssetId GetDefaultGameRule() const;
-
-protected:
-	// The default experience to use when a server opens this map if it is not overridden by the user-facing experience
-	UPROPERTY(EditDefaultsOnly, Category=GameMode)
-	TSoftClassPtr<UYogGameRule> DefaultGameRule;
 
 public:
 

@@ -81,13 +81,13 @@ UWorld* UYogWorldSubsystem::GetCurrentWorld()
 {
 	UWorld* world = nullptr;
 	FName worldName;
-#if WITH_EDITOR
-	world = GEditor->GetEditorWorldContext().World();
-	return world;
-#else
+//#if WITH_EDITOR
+//	world = GEditor->GetEditorWorldContext().World();
+//	return world;
+//#else
 	world = GEngine->GetCurrentPlayWorld();
 	return world;
-#endif
+//#endif
 
 }
 

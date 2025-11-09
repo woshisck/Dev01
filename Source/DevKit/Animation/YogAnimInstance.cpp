@@ -6,10 +6,6 @@
 #include "Character/YogCharacterMovementComponent.h"
 #include "AbilitySystemGlobals.h"
 
-#if WITH_EDITOR
-#include "Misc/DataValidation.h"
-#endif
-
 UYogAnimInstance::UYogAnimInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -23,12 +19,6 @@ void UYogAnimInstance::InitializeWithAbilitySystem(UAbilitySystemComponent* ASC)
 
 }
 
-EDataValidationResult UYogAnimInstance::IsDataValid(class FDataValidationContext& Context) const
-{
-	Super::IsDataValid(Context);
-	GameplayTagPropertyMap.IsDataValid(this, Context);
-	return ((Context.GetNumErrors() > 0) ? EDataValidationResult::Invalid : EDataValidationResult::Valid);
-}
 
 void UYogAnimInstance::NativeInitializeAnimation()
 {

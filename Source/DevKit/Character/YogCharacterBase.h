@@ -6,7 +6,7 @@
 #include "ModularCharacter.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Attribute/DamageAttributeSet.h"
-#include "AbilitySystem/Attribute/AdditionAttributeSet.h"
+
 
 #include "AbilitySystemInterface.h"
 #include "../Data/CharacterData.h"
