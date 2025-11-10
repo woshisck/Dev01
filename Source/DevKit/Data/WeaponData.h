@@ -56,6 +56,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Weapon_CritDmg = 1;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DashDistance = 1;
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TObjectPtr<AWeaponInstance> WeaponInstance;
 
@@ -118,6 +120,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Anime")
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Anime")
+	TSubclassOf<UYogAnimInstance> DashMontage;
+
 
 	UFUNCTION()
 	void GiveWeapon(UWorld* World, USkeletalMeshComponent* AttachTarget, AYogCharacterBase* ReceivingChar);

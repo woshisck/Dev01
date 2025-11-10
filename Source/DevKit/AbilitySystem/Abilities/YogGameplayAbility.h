@@ -95,14 +95,14 @@ public:
 	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DamageBox")
 	//TArray<FHitBoxData> array_Hitbox;
 
-	//UPROPERTY(BlueprintReadOnly)
-	//FActionData AbilityActData;
+	UPROPERTY(BlueprintReadOnly)
+	FActionData AbilityActData;
 
 	UFUNCTION(BlueprintCallable, Category = "Setting")
 	void UpdateRetrigger(bool retriggerable);
 
 	UFUNCTION(BlueprintCallable, Category = "Ability Data")
-	void GetAbilityTableData();
+	FActionData GetActionData();
 
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	AYogCharacterBase* GetOwnerCharacterInfo();
@@ -147,9 +147,6 @@ public:
 
 
 public:
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, meta = (RowType = "ActionData"))
-	FDataTableRowHandle ActionRow;
 
 	UFUNCTION(BlueprintCallable)
 	FActionData GetRowData(FDataTableRowHandle action_row);

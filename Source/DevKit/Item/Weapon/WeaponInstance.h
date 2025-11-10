@@ -72,24 +72,9 @@ public:
 	UFUNCTION()
 	void Initialize();
 
-
-	UPROPERTY()
-	float AttackPower;
-
-	UPROPERTY()
-	float AttackSpeed;
-
-	UPROPERTY()
-	float AttackRange;
-
 	UPROPERTY()
 	TObjectPtr<UNiagaraSystem> PickedUpEffect;
 
-	UPROPERTY()
-	float CriticalRate;
-
-	UPROPERTY()
-	float CriticalDamage;
 
 	UPROPERTY()
 	TArray<TSubclassOf<UYogGameplayAbility>> WeaponMoves;

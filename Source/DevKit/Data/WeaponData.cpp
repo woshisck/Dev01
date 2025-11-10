@@ -74,40 +74,43 @@ void UWeaponData::GiveWeapon(UWorld* World, USkeletalMeshComponent* AttachTarget
 		AnimInstance->LinkAnimClassLayers(TSubclassOf<UAnimInstance>(WeaponLayer));
 	}
 
-	for (FDataTableRowHandle& action_row : ActionRows)
+	for (FDataTableRowHandle action_row : ActionRows)
 	{
 
 		if (!action_row.IsNull())
 		{
+
 			FActionData* actionData = action_row.GetRow<FActionData>(__func__);
 			ensure(actionData && actionData->Ability_Template);
-
-
 
 			UYogAbilitySystemComponent* ASC = ReceivingChar->GetASC();
 
 			FGameplayAbilitySpec abilitySpec(actionData->Ability_Template, 0);
 			FGameplayAbilitySpecHandle ability_handle = ASC->GrantAbility(actionData->Ability_Template);
 
-			if (!ability_handle.IsValid())
-			{
-				return;
-			}
+			//if (!ability_handle.IsValid())
+			//{
+			//	return;
+			//}
 
 			if (UYogGameplayAbility* GrantedAbility = Cast<UYogGameplayAbility>(ASC->FindAbilitySpecFromHandle(ability_handle)->Ability))
 			{
+				GrantedAbility->AbilityActData = *actionData;
 				//GrantedAbility->SetupActionData(*actionData);
 
-				GrantedAbility->ActDamage = actionData->ActDamage;
-				GrantedAbility->ActRange = actionData->ActRange;
-				GrantedAbility->ActResilience = actionData->ActResilience;
-				GrantedAbility->ActRotateSpeed = actionData->ActRotateSpeed;
-				GrantedAbility->JumpFrameTime = actionData->JumpFrameTime;
-				GrantedAbility->FreezeFrameTime = actionData->FreezeFrameTime;
-				GrantedAbility->Montage = actionData->Montage;
+				//GrantedAbility->ActDamage = actionData->ActDamage;
+				//GrantedAbility->ActRange = actionData->ActRange;
+				//GrantedAbility->ActResilience = actionData->ActResilience;
+				//GrantedAbility->ActRotateSpeed = actionData->ActRotateSpeed;
+				//GrantedAbility->JumpFrameTime = actionData->JumpFrameTime;
+				//GrantedAbility->FreezeFrameTime = actionData->FreezeFrameTime;
+				//GrantedAbility->Montage = actionData->Montage;
+				//GrantedAbility->hitbox = actionData->hitbox;
+				
+				//GrantedAbility->hitbox.SetNumUninitialized(actionData->hitbox.Num());
+				////TODO: CHANGE TO POINTER
 
-				GrantedAbility->hitbox.SetNumUninitialized(actionData->hitbox.Num());
-				FMemory::Memcpy(GrantedAbility->hitbox.GetData(), actionData->hitbox.GetData(), actionData->hitbox.Num() * sizeof(FHitBoxData));
+				//FMemory::Memcpy(GrantedAbility->hitbox.GetData(), actionData->hitbox.GetData(), actionData->hitbox.Num() * sizeof(FHitBoxData));
 
 			}
 		}

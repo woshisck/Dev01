@@ -35,8 +35,9 @@ void UYogGameplayAbility::UpdateRetrigger(bool retriggerable)
 
 }
 
-void UYogGameplayAbility::GetAbilityTableData()
+FActionData UYogGameplayAbility::GetActionData()
 {
+	return AbilityActData;
 	//static const FString ContextString(TEXT("Character Data Lookup"));
 	//FActionData* AbilityData = YogAbilityDataTable->FindRow<FActionData>(FName(TEXT("AbilityDataStartUp")), ContextString, true);
 	//if (AbilityData)

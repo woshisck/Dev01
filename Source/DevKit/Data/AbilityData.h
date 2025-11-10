@@ -92,7 +92,6 @@ public:
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
 	//FDataTableRowHandle hitbox;
 
-
 };
 
 
