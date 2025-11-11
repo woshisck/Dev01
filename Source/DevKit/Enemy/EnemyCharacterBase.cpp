@@ -37,11 +37,7 @@ void AEnemyCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UEnemyData* enemyData = Cast<UEnemyData>(CharacterData);
-	if (enemyData)
-	{
-		InitEnemyData(enemyData);
-	}
+
 }
 
 void AEnemyCharacterBase::Tick(float DeltaSeconds)
@@ -59,16 +55,20 @@ void AEnemyCharacterBase::PostInitializeComponents()
 	Super::PostInitializeComponents();
 
 	UEnemyData* enemyData = Cast<UEnemyData>(CharacterData);
-	
 	if (enemyData)
 	{
-		UBehaviorTree* behaviour_tree = enemyData->EnemyBT;
-		AAIController* controller = Cast<AAIController>(this->GetController());
-		if (controller)
-		{
-			controller->RunBehaviorTree(behaviour_tree);
-		}
+		InitEnemyData(enemyData);
 	}
+
+	//if (enemyData)
+	//{
+	//	UBehaviorTree* behaviour_tree = enemyData->EnemyBT;
+	//	AAIController* controller = Cast<AAIController>(this->GetController());
+	//	if (controller)
+	//	{
+	//		controller->RunBehaviorTree(behaviour_tree);
+	//	}
+	//}
 }
 
 void AEnemyCharacterBase::SetupAI(UBehaviorTree* bt, UBlackboardData* bb)

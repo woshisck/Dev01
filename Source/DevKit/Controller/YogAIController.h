@@ -22,20 +22,14 @@ public:
 
 	virtual void OnPossess(APawn* InPawn) override;
 
-	UFUNCTION(BlueprintCallable)
-	void InitializeDefaultAI();
-
-
 
 	// The component that will run the Behavior Tree
-	UPROPERTY(VisibleDefaultsOnly, Category = "AI")
+	UPROPERTY(BlueprintReadWrite, Category = "AI")
 	UBehaviorTreeComponent* BehaviorTreeComponent;
 
 	// The component that holds the Blackboard data
-	UPROPERTY(VisibleDefaultsOnly, Category = "AI")
+	UPROPERTY(BlueprintReadWrite, Category = "AI")
 	UBlackboardComponent* BlackboardComponent;
 
-	UPROPERTY(EditAnywhere, Category = "AI")
-	TObjectPtr<UBehaviorTree> Default_BehaviourTree;
 
 };

@@ -10,20 +10,32 @@
 
 AYogAIController::AYogAIController()
 {
-    BehaviorTreeComponent = CreateDefaultSubobject<UBehaviorTreeComponent>(TEXT("BehaviorTreeComponent"));
-    BlackboardComponent = CreateDefaultSubobject<UBlackboardComponent>(TEXT("BlackboardComponent"));
+    BehaviorTreeComponent = CreateDefaultSubobject<UBehaviorTreeComponent>(TEXT("YogBT"));
+    BlackboardComponent = CreateDefaultSubobject<UBlackboardComponent>(TEXT("YogBB"));
 }
 
 void AYogAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
+
+
     // Get a reference to the possessed Character
 
-    //AEnemyCharacterBase* AICharacter = Cast<AEnemyCharacterBase>(InPawn);
+    AEnemyCharacterBase* AICharacter = Cast<AEnemyCharacterBase>(InPawn);
 
-    //check(AICharacter)
-    
+    ensure(AICharacter && AICharacter->CharacterData);
+    UEnemyData* enemy_data = Cast<UEnemyData>(AICharacter->CharacterData);
+
+    if (IsValid(enemy_data->EnemyBT))
+    {
+        //// Initialize the Blackboard using the Blackboard asset from the Behavior Tree
+        //// This also creates the BlackboardComponent if it doesn't exist
+        //UseBlackboard(BehaviorTree->BlackboardAsset, BlackboardComponent);
+
+        // Start running the Behavior Tree
+        RunBehaviorTree(enemy_data->EnemyBT);
+    }
 
     //TODO: AI BB BT
     //if (AICharacter && AICharacter->BehaviorTree)
@@ -40,15 +52,3 @@ void AYogAIController::OnPossess(APawn* InPawn)
     //}
 }
 
-void AYogAIController::InitializeDefaultAI()
-{
-    UBlackboardData* BBAsset = Default_BehaviourTree->BlackboardAsset;
-    if (BBAsset && BlackboardComponent->InitializeBlackboard(*BBAsset))
-    {
-        // Optionally, set an initial value for a Blackboard key here.
-        // For example, to set the initial 'TargetActor', you could do:
-        // BlackboardComponent->SetValueAsObject(TargetActorKeyName, SomeActorObject);
-        // Start the Behavior Tree
-        BehaviorTreeComponent->StartTree(*Default_BehaviourTree);
-    }
-}
