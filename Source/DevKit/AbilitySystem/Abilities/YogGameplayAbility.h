@@ -6,8 +6,7 @@
 #include "Abilities/GameplayAbility.h"
 #include "YogAbilityTypes.h"
 #include "Engine/DataTable.h"
-#include "../../Component/HitBoxBufferComponent.h"
-//#include <DevKit/Data/AbilityData.h>
+#include <DevKit/Data/AbilityData.h>
 
 
 #include "YogGameplayAbility.generated.h"

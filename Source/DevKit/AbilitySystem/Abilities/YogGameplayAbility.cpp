@@ -5,7 +5,6 @@
 #include "YogTargetType.h"
 #include "DevKit/Character/YogCharacterBase.h"
 #include "../YogAbilitySystemComponent.h"
-#include "DevKit/Component/HitBoxBufferComponent.h"
 #include "Data/AbilityData.h"
 #include "AbilitySystemComponent.h"
 

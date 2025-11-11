@@ -44,11 +44,6 @@ void APlayerCharacterBase::Die()
 }
 
 
-
-
-
-
-
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();

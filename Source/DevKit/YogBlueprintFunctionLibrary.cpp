@@ -11,6 +11,7 @@
 #include <DevKit/Buff/Aura/AuraBase.h>
 #include <DevKit/Buff/Aura/AuraDefinition.h>
 #include "System/YogGameInstanceBase.h"
+#include "DevKit/Data/WeaponData.h"
 
 UYogBlueprintFunctionLibrary::UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
