@@ -7,19 +7,19 @@
 
 #include "Components/ActorComponent.h"
 //#include "DevKit/Buff/BuffElement.h"
-#include "EffectBufferComponent.generated.h"
+#include "GameEffectComponent.generated.h"
 
 
 class UYogGameplayEffect;
 class UBuffElement;
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class DEVKIT_API UEffectBufferComponent : public UActorComponent
+class DEVKIT_API UGameEffectComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:	
 	// Sets default values for this component's properties
-	UEffectBufferComponent();
+	UGameEffectComponent();
 
 	UFUNCTION(BlueprintCallable)
 	TSubclassOf<UBuffElement> GetItemAt(int index);

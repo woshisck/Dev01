@@ -1,12 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "EffectBufferComponent.h"
+#include "GameEffectComponent.h"
 #include "DevKit/Buff/BuffElement.h"
 #include "DevKit/AbilitySystem/GameplayEffect/YogGameplayEffect.h"
 
 // Sets default values for this component's properties
-UEffectBufferComponent::UEffectBufferComponent()
+UGameEffectComponent::UGameEffectComponent()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
@@ -17,7 +17,7 @@ UEffectBufferComponent::UEffectBufferComponent()
 
 
 // Called when the game starts
-void UEffectBufferComponent::BeginPlay()
+void UGameEffectComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -25,12 +25,12 @@ void UEffectBufferComponent::BeginPlay()
 	
 }
 
-TSubclassOf<UBuffElement> UEffectBufferComponent::GetItemAt(int index)
+TSubclassOf<UBuffElement> UGameEffectComponent::GetItemAt(int index)
 {
 	return BuffArray[index];
 }
 
-void UEffectBufferComponent::MoveToNextItem()
+void UGameEffectComponent::MoveToNextItem()
 {
 
 	if (CurrentIndex == BuffArray.Num())
@@ -43,7 +43,7 @@ void UEffectBufferComponent::MoveToNextItem()
 	}
 }
 
-bool UEffectBufferComponent::RemoveItemByIndex(int index)
+bool UGameEffectComponent::RemoveItemByIndex(int index)
 {
 	if (BuffArray.IsValidIndex(index))
 	{
@@ -64,7 +64,7 @@ bool UEffectBufferComponent::RemoveItemByIndex(int index)
 	return false;
 }
 
-bool UEffectBufferComponent::RemoveItem(TSubclassOf<UBuffElement> BuffToRemove)
+bool UGameEffectComponent::RemoveItem(TSubclassOf<UBuffElement> BuffToRemove)
 {
 	if (BuffToRemove)
 	{
@@ -74,7 +74,7 @@ bool UEffectBufferComponent::RemoveItem(TSubclassOf<UBuffElement> BuffToRemove)
 	return false;
 }
 
-bool UEffectBufferComponent::AddItem(TSubclassOf<UBuffElement> buff)
+bool UGameEffectComponent::AddItem(TSubclassOf<UBuffElement> buff)
 {
 
 	BuffArray.Add(buff);
@@ -82,13 +82,13 @@ bool UEffectBufferComponent::AddItem(TSubclassOf<UBuffElement> buff)
 
 }
 
-void UEffectBufferComponent::ClearAll()
+void UGameEffectComponent::ClearAll()
 {
 	BuffArray.Empty();
 	CurrentIndex = 0;
 }
 
-int UEffectBufferComponent::GetBuffCount()
+int UGameEffectComponent::GetBuffCount()
 {
 	return BuffArray.Num();
 }
