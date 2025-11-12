@@ -7,7 +7,6 @@
 #include "YogGameMode.generated.h"
 
 class AYogPlayerControllerBase;
-class UYogGameRule;
 class UYogSaveGame;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
@@ -54,6 +53,4 @@ public:
 	int TargetMonsterKill;
 
 
-protected:
-	void OnGameRuleLoaded(const UYogGameRule* CurrentGameRule);
 };

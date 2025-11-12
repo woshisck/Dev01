@@ -47,15 +47,15 @@ public:
 	UFUNCTION(BlueprintCallable)
 	int GetBuffCount();
 
+	UPROPERTY(BlueprintReadOnly)
+	TArray<TSubclassOf<UBuffElement>> BuffArray;
 
 
-protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
 	//TODO: Change to the specific game effect for player
-	UPROPERTY()
-	TArray<TSubclassOf<UBuffElement>> BuffArray;
+
 
 
 
