@@ -6,7 +6,7 @@
 #include "UObject/NoExportTypes.h"
 #include "DevKit/AbilitySystem/GameplayEffect/YogGameplayEffect.h"
 
-#include "BuffElement.generated.h"
+#include "PlayEffectDefinition.generated.h"
 
 
 
@@ -14,14 +14,14 @@
  * 
  */
 
-UCLASS(Blueprintable, BlueprintType)
-class DEVKIT_API UBuffElement : public UObject
+UCLASS(Blueprintable)
+class DEVKIT_API UPlayEffectDefinition : public UObject
 {
 	GENERATED_BODY()
 
 public:
 
-	UBuffElement();
+	UPlayEffectDefinition();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UTexture2D> Image;
