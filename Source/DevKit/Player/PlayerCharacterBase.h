@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
-#include "DevKit/Buff/BuffElement.h"
 
 #include "PlayerCharacterBase.generated.h"
 
@@ -80,8 +79,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aura")
 	TSubclassOf<AAuraBase> Aura;
 
-	UPROPERTY()
-	TArray<UBuffElement*> BuffArray;
 
 	UPROPERTY()
 	int CurrentIndex;

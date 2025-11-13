@@ -2,7 +2,7 @@
 
 
 #include "GameEffectComponent.h"
-#include "DevKit/Buff/BuffElement.h"
+
 #include "DevKit/AbilitySystem/GameplayEffect/YogGameplayEffect.h"
 
 // Sets default values for this component's properties
@@ -25,7 +25,7 @@ void UGameEffectComponent::BeginPlay()
 	
 }
 
-TSubclassOf<UBuffElement> UGameEffectComponent::GetItemAt(int index)
+TSubclassOf<UPlayEffectDefinition> UGameEffectComponent::GetItemAt(int index)
 {
 	return BuffArray[index];
 }
@@ -64,7 +64,7 @@ bool UGameEffectComponent::RemoveItemByIndex(int index)
 	return false;
 }
 
-bool UGameEffectComponent::RemoveItem(TSubclassOf<UBuffElement> BuffToRemove)
+bool UGameEffectComponent::RemoveItem(TSubclassOf<UPlayEffectDefinition> BuffToRemove)
 {
 	if (BuffToRemove)
 	{
@@ -74,7 +74,7 @@ bool UGameEffectComponent::RemoveItem(TSubclassOf<UBuffElement> BuffToRemove)
 	return false;
 }
 
-bool UGameEffectComponent::AddItem(TSubclassOf<UBuffElement> buff)
+bool UGameEffectComponent::AddItem(TSubclassOf<UPlayEffectDefinition> buff)
 {
 
 	BuffArray.Add(buff);

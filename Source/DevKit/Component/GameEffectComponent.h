@@ -6,12 +6,12 @@
 
 
 #include "Components/ActorComponent.h"
-//#include "DevKit/Buff/BuffElement.h"
+#include "DevKit/Buff/PlayEffectDefinition.h"
 #include "GameEffectComponent.generated.h"
 
 
 class UYogGameplayEffect;
-class UBuffElement;
+class UPlayEffectDefinition;
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class DEVKIT_API UGameEffectComponent : public UActorComponent
 {
@@ -22,7 +22,7 @@ public:
 	UGameEffectComponent();
 
 	UFUNCTION(BlueprintCallable)
-	TSubclassOf<UBuffElement> GetItemAt(int index);
+	TSubclassOf<UPlayEffectDefinition> GetItemAt(int index);
 
 	UPROPERTY(BlueprintReadOnly)
 	int CurrentIndex = 0;
@@ -36,10 +36,10 @@ public:
 
 
 	UFUNCTION(BlueprintCallable)
-	bool RemoveItem(TSubclassOf<UBuffElement> BuffToRemove);
+	bool RemoveItem(TSubclassOf<UPlayEffectDefinition> BuffToRemove);
 
 	UFUNCTION(BlueprintCallable)
-	bool AddItem(TSubclassOf<UBuffElement> buff);
+	bool AddItem(TSubclassOf<UPlayEffectDefinition> buff);
 
 	UFUNCTION(BlueprintCallable)
 	void ClearAll();
@@ -47,9 +47,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	int GetBuffCount();
 
-	UPROPERTY(BlueprintReadOnly)
-	TArray<TSubclassOf<UBuffElement>> BuffArray;
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bAllowEditInChildClass"))
+	//TArray<TObjectPtr<UBuffDefinition>> BuffArray;
+	TArray<TSubclassOf<UPlayEffectDefinition>> BuffArray;
+	
 
 	// Called when the game starts
 	virtual void BeginPlay() override;

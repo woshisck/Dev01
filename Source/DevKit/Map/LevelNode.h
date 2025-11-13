@@ -11,7 +11,7 @@
  */
 UCLASS()
 class DEVKIT_API ULevelNode : public UObject
-{
+{ 
 	GENERATED_BODY()
 	
 };
