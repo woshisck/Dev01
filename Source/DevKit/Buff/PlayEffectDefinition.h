@@ -13,6 +13,26 @@
 /**
  * 
  */
+USTRUCT(Blueprintable)
+struct FYogPlayEffect
+{
+	GENERATED_BODY()
+
+	FYogPlayEffect() {};
+
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UTexture2D> Image;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<UYogGameplayEffect> GameplayEffect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int level;
+};
+
+
 
 UCLASS(Blueprintable)
 class DEVKIT_API UPlayEffectDefinition : public UObject
