@@ -22,20 +22,20 @@ void AYogAIController::OnPossess(APawn* InPawn)
 
     // Get a reference to the possessed Character
 
-    AEnemyCharacterBase* AICharacter = Cast<AEnemyCharacterBase>(InPawn);
+    //AEnemyCharacterBase* AICharacter = Cast<AEnemyCharacterBase>(InPawn);
 
-    ensure(AICharacter && AICharacter->CharacterData);
-    UEnemyData* enemy_data = Cast<UEnemyData>(AICharacter->CharacterData);
+    //ensure(AICharacter && AICharacter->CharacterData);
+    //UEnemyData* enemy_data = Cast<UEnemyData>(AICharacter->CharacterData);
 
-    if (IsValid(enemy_data->EnemyBT))
-    {
-        //// Initialize the Blackboard using the Blackboard asset from the Behavior Tree
-        //// This also creates the BlackboardComponent if it doesn't exist
-        //UseBlackboard(BehaviorTree->BlackboardAsset, BlackboardComponent);
+    //if (IsValid(enemy_data->EnemyBT))
+    //{
+    //    //// Initialize the Blackboard using the Blackboard asset from the Behavior Tree
+    //    //// This also creates the BlackboardComponent if it doesn't exist
+    //    //UseBlackboard(BehaviorTree->BlackboardAsset, BlackboardComponent);
 
-        // Start running the Behavior Tree
-        RunBehaviorTree(enemy_data->EnemyBT);
-    }
+    //    // Start running the Behavior Tree
+    //    RunBehaviorTree(enemy_data->EnemyBT);
+    //}
 
     //TODO: AI BB BT
     //if (AICharacter && AICharacter->BehaviorTree)
