@@ -93,9 +93,30 @@ void UWeaponData::GiveWeapon(UWorld* World, USkeletalMeshComponent* AttachTarget
 			//	return;
 			//}
 
-			if (UYogGameplayAbility* GrantedAbility = Cast<UYogGameplayAbility>(ASC->FindAbilitySpecFromHandle(ability_handle)->Ability))
+			//FIND OUT THE INSTANCE ABILITY SPEC 
+			FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(ability_handle);
+			if (Spec && Spec->GetPrimaryInstance())
 			{
-				GrantedAbility->AbilityActData = *actionData;
+				UYogGameplayAbility* GrantedAbility = Cast<UYogGameplayAbility>(Spec->GetPrimaryInstance());
+				if (GrantedAbility)
+				{
+					GrantedAbility->AbilityActData = *actionData;
+					//GrantedAbility->SetupActionData(*actionData);
+
+					GrantedAbility->ActDamage = actionData->ActDamage;
+					GrantedAbility->ActRange = actionData->ActRange;
+					GrantedAbility->ActResilience = actionData->ActResilience;
+					GrantedAbility->ActRotateSpeed = actionData->ActRotateSpeed;
+					GrantedAbility->JumpFrameTime = actionData->JumpFrameTime;
+					GrantedAbility->FreezeFrameTime = actionData->FreezeFrameTime;
+					GrantedAbility->Montage = actionData->Montage;
+					GrantedAbility->hitbox = actionData->hitbox;
+				}
+
+			}
+			//if (UYogGameplayAbility* GrantedAbility = Cast<UYogGameplayAbility>(ASC->FindAbilitySpecFromHandle(ability_handle)->Ability))
+			//{
+			//	GrantedAbility->AbilityActData = *actionData;
 				//GrantedAbility->SetupActionData(*actionData);
 
 				//GrantedAbility->ActDamage = actionData->ActDamage;
@@ -112,7 +133,7 @@ void UWeaponData::GiveWeapon(UWorld* World, USkeletalMeshComponent* AttachTarget
 
 				//FMemory::Memcpy(GrantedAbility->hitbox.GetData(), actionData->hitbox.GetData(), actionData->hitbox.Num() * sizeof(FHitBoxData));
 
-			}
+			//}
 		}
 	}
 }
