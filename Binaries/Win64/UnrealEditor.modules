@@ -2,7 +2,7 @@
 	"BuildId": "33043543",
 	"Modules": 
 	{
-		"DevKit": "UnrealEditor-DevKit-4234.dll",
-		"DevKitEditor": "UnrealEditor-DevKitEditor-9749.dll"
+		"DevKit": "UnrealEditor-DevKit.dll",
+		"DevKitEditor": "UnrealEditor-DevKitEditor.dll"
 	}
 }
