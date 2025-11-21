@@ -103,10 +103,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "DidItHit",
-			"Enabled": true
-		},
-		{
 			"Name": "GeometryScripting",
 			"Enabled": true
 		},
@@ -121,11 +117,6 @@
 		{
 			"Name": "ActorPalette",
 			"Enabled": true
-		},
-		{
-			"Name": "TopDownPhysicsCamera",
-			"Enabled": true,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/0e5ce9b6cd7e4f41b797b4150b0cba55"
 		},
 		{
 			"Name": "MotionWarping",
