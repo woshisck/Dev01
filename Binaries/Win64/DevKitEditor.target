@@ -7202,18 +7202,6 @@
 			"Type": "RequiredResource"
 		},
 		{
-			"Path": "$(ProjectDir)/Plugins/DidItHit/Binaries/Win64/UnrealEditor-DidItHit.dll",
-			"Type": "DynamicLibrary"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/DidItHit/Binaries/Win64/UnrealEditor-DidItHit.pdb",
-			"Type": "SymbolFile"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/DidItHit/Binaries/Win64/UnrealEditor.modules",
-			"Type": "RequiredResource"
-		},
-		{
 			"Path": "$(ProjectDir)/Plugins/ElectronicNodes/Binaries/Win64/UnrealEditor-ElectronicNodes.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -7238,26 +7226,6 @@
 			"Type": "RequiredResource"
 		},
 		{
-			"Path": "$(ProjectDir)/Plugins/GenericGraph-master/Binaries/Win64/UnrealEditor-GenericGraphEditor.dll",
-			"Type": "DynamicLibrary"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/GenericGraph-master/Binaries/Win64/UnrealEditor-GenericGraphEditor.pdb",
-			"Type": "SymbolFile"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/GenericGraph-master/Binaries/Win64/UnrealEditor-GenericGraphRuntime.dll",
-			"Type": "DynamicLibrary"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/GenericGraph-master/Binaries/Win64/UnrealEditor-GenericGraphRuntime.pdb",
-			"Type": "SymbolFile"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/GenericGraph-master/Binaries/Win64/UnrealEditor.modules",
-			"Type": "RequiredResource"
-		},
-		{
 			"Path": "$(ProjectDir)/Plugins/ModularGameplayActors/Binaries/Win64/UnrealEditor-ModularGameplayActors.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -7267,18 +7235,6 @@
 		},
 		{
 			"Path": "$(ProjectDir)/Plugins/ModularGameplayActors/Binaries/Win64/UnrealEditor.modules",
-			"Type": "RequiredResource"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/TopDownPhysicsCamera_5.4/Binaries/Win64/UnrealEditor-TopDownPhysicsCamera.dll",
-			"Type": "DynamicLibrary"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/TopDownPhysicsCamera_5.4/Binaries/Win64/UnrealEditor-TopDownPhysicsCamera.pdb",
-			"Type": "SymbolFile"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/TopDownPhysicsCamera_5.4/Binaries/Win64/UnrealEditor.modules",
 			"Type": "RequiredResource"
 		}
 	],
@@ -30432,10 +30388,6 @@
 			"Type": "UFS"
 		},
 		{
-			"Path": "$(ProjectDir)/Plugins/DidItHit/DidItHit.uplugin",
-			"Type": "UFS"
-		},
-		{
 			"Path": "$(ProjectDir)/Plugins/ElectronicNodes/ElectronicNodes.uplugin",
 			"Type": "UFS"
 		},
@@ -30444,7 +30396,7 @@
 			"Type": "UFS"
 		},
 		{
-			"Path": "$(ProjectDir)/Plugins/GenericGraph-master/GenericGraph.uplugin",
+			"Path": "$(ProjectDir)/Plugins/Market/Market.uplugin",
 			"Type": "UFS"
 		},
 		{
@@ -30452,7 +30404,11 @@
 			"Type": "UFS"
 		},
 		{
-			"Path": "$(ProjectDir)/Plugins/TopDownPhysicsCamera_5.4/TopDownPhysicsCamera.uplugin",
+			"Path": "$(ProjectDir)/Plugins/YogAnimSource/YogAnimSource.uplugin",
+			"Type": "UFS"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/YogArt/YogArt.uplugin",
 			"Type": "UFS"
 		}
 	],
@@ -30520,7 +30476,6 @@
 		"DataValidation",
 		"Dataflow",
 		"DatasmithContent",
-		"DidItHit",
 		"DumpGPUServices",
 		"EOSShared",
 		"EditorDebugTools",
@@ -30544,7 +30499,6 @@
 		"GameplayGraph",
 		"GameplayStateTree",
 		"GameplayTagsEditor",
-		"GenericGraph",
 		"GeometryCache",
 		"GeometryCollectionPlugin",
 		"GeometryFlow",
@@ -30569,6 +30523,7 @@
 		"LocalizableMessage",
 		"LocationServicesBPLibrary",
 		"MacGraphicsSwitching",
+		"Market",
 		"MassAI",
 		"MassEntity",
 		"MassGameplay",
@@ -30642,7 +30597,6 @@
 		"TemplateSequence",
 		"TextureFormatOodle",
 		"ToolPresets",
-		"TopDownPhysicsCamera",
 		"TraceDataFilters",
 		"TraceUtilities",
 		"UObjectPlugin",
@@ -30664,6 +30618,8 @@
 		"XCodeSourceCodeAccess",
 		"XGEController",
 		"XInputDevice",
+		"YogAnimSource",
+		"YogArt",
 		"ZoneGraph",
 		"ZoneGraphAnnotations"
 	],
