@@ -4,10 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "GameplayEffect.h"
 #include "AbilityData.generated.h"
 
 
 class UYogGameplayAbility;
+
+
+
 
 
 USTRUCT(BlueprintType)
@@ -47,7 +51,7 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct FActionData : public FTableRowBase
+struct FActionData
 {
     GENERATED_BODY()
 
@@ -80,8 +84,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UAnimMontage> Montage;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//TSubclassOf<UYogGameplayAbility> Ability;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UGameplayEffect> UniqueEffect;
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<UYogGameplayAbility> Ability_Template;
@@ -89,8 +94,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FHitBoxData> hitbox;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "HitBoxData"))
-	//FDataTableRowHandle hitbox;
 
 };
 
@@ -122,5 +125,6 @@ class DEVKIT_API UAbilityData : public UPrimaryDataAsset
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<TSubclassOf<UYogGameplayAbility>> abilities;
+	TMap<FGameplayTag, FActionData> AbilityMap;
+
 };

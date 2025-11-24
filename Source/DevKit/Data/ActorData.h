@@ -4,14 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
 #include "ActorData.generated.h"
 
-/**
- * 
- */
+
+
 UCLASS()
 class DEVKIT_API UActorData : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 	
 };
+
+
+
+
