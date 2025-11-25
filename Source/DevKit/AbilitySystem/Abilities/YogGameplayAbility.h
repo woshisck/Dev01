@@ -84,8 +84,8 @@ public:
     //TObjectPtr<UDataTable> YogAbilityDataTable;
 
 
-	UPROPERTY()
-	FAbilityType AbilityTypeData;
+	//UPROPERTY()
+	//FAbilityType AbilityTypeData;
 
 public:
 

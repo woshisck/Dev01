@@ -104,8 +104,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GAS Attribute|Animation")
 	TObjectPtr<UAnimMontage> HurtMontage;
 
-	UPROPERTY(BlueprintReadOnly)
-	int32 bWeaponEquiped = 0;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "AblitySystemComp")
+	TObjectPtr<UAbilityData> AbilityData;
+
 
 	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadWrite, Category = "Weapon")
 	TObjectPtr<AWeaponInstance> Weapon;

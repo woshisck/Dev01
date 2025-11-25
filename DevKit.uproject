@@ -121,6 +121,10 @@
 		{
 			"Name": "MotionWarping",
 			"Enabled": true
+		},
+		{
+			"Name": "YogTopDownCore",
+			"Enabled": true
 		}
 	]
 }

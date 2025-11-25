@@ -11,11 +11,23 @@
 class UYogGameplayAbility;
 
 
+USTRUCT(BlueprintType)
+struct FUniqueEffect 
+{
+	GENERATED_BODY()
 
+public:
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	int level;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	TSubclassOf<UGameplayEffect> GameplayEffect;
+};
 
 
 USTRUCT(BlueprintType)
-struct FHitBoxData : public FTableRowBase
+struct FHitBoxData 
 {
 	GENERATED_BODY()
 
@@ -85,7 +97,7 @@ public:
 	TObjectPtr<UAnimMontage> Montage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UGameplayEffect> UniqueEffect;
+	TArray<FUniqueEffect> UniqueEffects;
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
