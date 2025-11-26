@@ -9,10 +9,6 @@
 #include "LevelData.generated.h"
 
 
-class UYogGameplayAbility;
-class AYogCharacterBase;
-
-
 
 UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API ULevelData : public UPrimaryDataAsset

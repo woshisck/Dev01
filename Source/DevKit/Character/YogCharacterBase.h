@@ -104,12 +104,12 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GAS Attribute|Animation")
 	TObjectPtr<UAnimMontage> HurtMontage;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadWrite, Category = "Character|Ability")
 	TObjectPtr<UAbilityData> AbilityData;
 
 
-	UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadWrite, Category = "Weapon")
-	TObjectPtr<AWeaponInstance> Weapon;
+	//UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadWrite, Category = "Weapon")
+	//TObjectPtr<AWeaponInstance> Weapon;
 
 	//DELEGATE DEFINE
 	UPROPERTY(BlueprintAssignable, SaveGame, Category = "Character|Attributes")
