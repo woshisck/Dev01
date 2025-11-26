@@ -34,23 +34,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
 
-	UFUNCTION(BlueprintCallable)
-	void SetupAI(UBehaviorTree* bt, UBlackboardData* bb);
-
-	UPROPERTY(BlueprintReadOnly)
-	TArray<FHitBoxData> hitbox_array;
-
-
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//TObjectPtr<UEnemyData> EnemyData;
-
-
-	UFUNCTION(BlueprintCallable)
-	void InitEnemyData(UEnemyData* enemy_data);
-
-	//UPROPERTY()
-	//TSubclassOf<UYogGameplayAbility> Ability_Class; 
 
 
 	friend UEnemyAttributeSet;

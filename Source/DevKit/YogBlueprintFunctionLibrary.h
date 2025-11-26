@@ -58,8 +58,8 @@ public:
 	static void EquipWeapon(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponData* WeaponData);
 
 
-	UFUNCTION(BlueprintPure, Category = Weapon)
-	static bool GiveAbilityToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UYogAbilitySet* AbilitySet);
+	UFUNCTION(BlueprintCallable, Category = Weapon)
+	static void GiveAbilityToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UAbilityData* AbilityData);
 
 
 	UFUNCTION(BlueprintPure, Category = Weapon)

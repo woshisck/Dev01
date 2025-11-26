@@ -34,41 +34,39 @@ void AYogLevelScript::OnLevelLoaded(UWorld* LoadedWorld)
 void AYogLevelScript::BeginPlay()
 {
 	Super::BeginPlay();
-	// Array to store found actors
-	TArray<AActor*> FoundActors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), FoundActors);
-	if (FoundActors.Num() > 0)
-	{
-		for (AActor* portalActor : FoundActors)
-		{
-			APortal* portal = Cast<APortal>(portalActor);
-			for (const FPortalEntry& level_portal : this->Mapdefinition->LevelPortals)
-			{
-				
-				int gate_index = level_portal.GateIndex;
-				
-				if (gate_index == portal->Index)
-				{
-					portal->NextLevels = level_portal.NextLevels;
-				}
+	//TODO: Make it Deprecated for future Setting
 
-			}
-			//for(const int& portal_index : this->Mapdefinition.levelportals)
-			//int portal_index = this->Mapdefinition->LevelPortals
-		}
-	}
 
-	for (const auto& level_portal_data : Mapdefinition->LevelPortals)
-	{
-		for (const auto& next_level_data : level_portal_data.NextLevels)
-		{
-			UDevAssetManager* AssetManager = UDevAssetManager::GetDevAssetManager();
-			FSoftObjectPath path = next_level_data.LevelMapSoftPtr.ToSoftObjectPath();
-
-			AssetManager->AsyncLoadAsset(path, AssetManager->OnLoadFinished);
-		}
-	}
-
-	AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this));
-	GM->MonsterKillCount = 0;
+	//TArray<AActor*> FoundActors;
+	//UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), FoundActors);
+	//if (FoundActors.Num() > 0)
+	//{
+	//	for (AActor* portalActor : FoundActors)
+	//	{
+	//		APortal* portal = Cast<APortal>(portalActor);
+	//		for (const FPortalEntry& level_portal : Mapdefinition->LevelPortals)
+	//		{
+	//			
+	//			int gate_index = level_portal.GateIndex;
+	//			
+	//			if (gate_index == portal->Index)
+	//			{
+	//				portal->NextLevels = level_portal.NextLevels;
+	//			}
+	//		}
+	//		//for(const int& portal_index : this->Mapdefinition.levelportals)
+	//		//int portal_index = this->Mapdefinition->LevelPortals
+	//	}
+	//}
+	//for (const auto& level_portal_data : Mapdefinition->LevelPortals)
+	//{
+	//	for (const auto& next_level_data : level_portal_data.NextLevels)
+	//	{
+	//		UDevAssetManager* AssetManager = UDevAssetManager::GetDevAssetManager();
+	//		FSoftObjectPath path = next_level_data.LevelMapSoftPtr.ToSoftObjectPath();
+	//		AssetManager->AsyncLoadAsset(path, AssetManager->OnLoadFinished);
+	//	}
+	//}
+	//AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this));
+	//GM->MonsterKillCount = 0;
 }

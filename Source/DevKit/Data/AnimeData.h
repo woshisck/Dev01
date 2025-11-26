@@ -20,8 +20,8 @@ class DEVKIT_API UAnimeData : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	////UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation", meta = (Categories = "Animation"))
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//TMap<FGameplayTag, FMontageProperty> MontagesList;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation", meta = (Categories = "Animation"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FTransform> Socket_Transform;
 
 };

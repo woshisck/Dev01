@@ -147,6 +147,38 @@ void UYogAbilitySystemComponent::AddActivationBlockedTags(const FGameplayTag& Ta
 	this->SetTagMapCount(Tag, 1);
 }
 
+
+
+bool UYogAbilitySystemComponent::TryActivateRandomAbilitiesByTag(const FGameplayTagContainer& GameplayTagContainer, bool bAllowRemoteActivation)
+{
+	TArray<FGameplayAbilitySpec*> AbilitiesToActivatePtrs;
+	GetActivatableGameplayAbilitySpecsByAllMatchingTags(GameplayTagContainer, AbilitiesToActivatePtrs);
+	if (AbilitiesToActivatePtrs.Num() < 1)
+	{
+		return false;
+	}
+
+	// Convert from pointers (which can be reallocated, since they point to internal data) to copies of that data
+	TArray<FGameplayAbilitySpec> AbilitiesToActivate;
+	AbilitiesToActivate.Reserve(AbilitiesToActivatePtrs.Num());
+	Algo::Transform(AbilitiesToActivatePtrs, AbilitiesToActivate, [](FGameplayAbilitySpec* SpecPtr) { return *SpecPtr; });
+
+	bool bSuccess = false;
+
+	int32 RandomIndex = FMath::RandRange(0, AbilitiesToActivate.Num() - 1);
+
+
+	bSuccess |= TryActivateAbility(AbilitiesToActivate[RandomIndex].Handle, bAllowRemoteActivation);
+	return bSuccess;
+	//AbilitiesToActivate.Random
+	//for (const FGameplayAbilitySpec& GameplayAbilitySpec : AbilitiesToActivate)
+	//{
+	//	ensure(IsValid(GameplayAbilitySpec.Ability));
+	//	bSuccess |= TryActivateAbility(GameplayAbilitySpec.Handle, bAllowRemoteActivation);
+	//}
+
+}
+
 void UYogAbilitySystemComponent::RemoveActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToUnblock)
 {
 	this->RemoveLooseGameplayTags(TagsToUnblock);

@@ -54,64 +54,6 @@ void AEnemyCharacterBase::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	UEnemyData* enemyData = Cast<UEnemyData>(CharacterData);
-	if (enemyData)
-	{
-		InitEnemyData(enemyData);
-	}
-
-	//if (enemyData)
-	//{
-	//	UBehaviorTree* behaviour_tree = enemyData->EnemyBT;
-	//	AAIController* controller = Cast<AAIController>(this->GetController());
-	//	if (controller)
-	//	{
-	//		controller->RunBehaviorTree(behaviour_tree);
-	//	}
-	//}
 }
 
-void AEnemyCharacterBase::SetupAI(UBehaviorTree* bt, UBlackboardData* bb)
-{
-}
 
-void AEnemyCharacterBase::InitEnemyData(UEnemyData* enemy_data)
-{
-	for (FDataTableRowHandle& action_row : enemy_data->ActionRows)
-	{
-
-		if (!action_row.IsNull())
-		{
-			FActionData* actionData = action_row.GetRow<FActionData>(__func__);
-			ensure(actionData && actionData->Ability_Template);
-			//check(Ability_Class)
-			
-			UYogAbilitySystemComponent* ASC = this->GetASC();
-			
-			FGameplayAbilitySpec abilitySpec(actionData->Ability_Template,0);
-			FGameplayAbilitySpecHandle ability_handle = ASC->GiveAbility(abilitySpec);
-			
-			if (!ability_handle.IsValid())
-			{
-				return;
-			}
-
-			if (UYogGameplayAbility* GrantedAbility = Cast<UYogGameplayAbility>(ASC->FindAbilitySpecFromHandle(ability_handle)->Ability))
-			{
-				//GrantedAbility->SetupActionData(*actionData);
-
-				GrantedAbility->ActDamage = actionData->ActDamage;
-				GrantedAbility->ActRange = actionData->ActRange;
-				GrantedAbility->ActResilience = actionData->ActResilience;
-				GrantedAbility->ActRotateSpeed = actionData->ActRotateSpeed;
-				GrantedAbility->JumpFrameTime = actionData->JumpFrameTime;
-				GrantedAbility->FreezeFrameTime = actionData->FreezeFrameTime;
-				GrantedAbility->Montage = actionData->Montage;
-
-				GrantedAbility->hitbox.SetNumUninitialized(actionData->hitbox.Num());
-				FMemory::Memcpy(GrantedAbility->hitbox.GetData(), actionData->hitbox.GetData(), actionData->hitbox.Num() * sizeof(FHitBoxData));
-
-			}
-		}
-	}
-}

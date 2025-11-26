@@ -20,7 +20,7 @@ class UStaticMeshComponent;
 
 class UWeaponDefinition;
 
-struct FFrame;
+
 struct FGameplayTag;
 struct FHitResult;
 

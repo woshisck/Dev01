@@ -104,7 +104,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GAS Attribute|Animation")
 	TObjectPtr<UAnimMontage> HurtMontage;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "AblitySystemComp")
+	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<UAbilityData> AbilityData;
 
 

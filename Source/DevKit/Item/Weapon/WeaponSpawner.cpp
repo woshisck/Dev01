@@ -163,6 +163,7 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 
 	if (OverlappingPawn != nullptr)
 	{
+		GrantWeapon(OverlappingPawn);
 
 		//UWorld* world = GetWorld();
 		//if (world)

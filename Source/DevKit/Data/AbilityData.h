@@ -99,9 +99,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FUniqueEffect> UniqueEffects;
 
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<UYogGameplayAbility> Ability_Template;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TSubclassOf<UYogGameplayAbility> Ability_Template;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FHitBoxData> hitbox;

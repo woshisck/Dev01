@@ -10,36 +10,57 @@ public class DevKitEditor : ModuleRules
 
 		PublicIncludePaths.AddRange(
 			new string[] {
-				"DevKitEditor"
-			}
+				"DevKitEditor",
+                "PropertyEditor"
+            }
 		);
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-			}
+                "DevKit"
+                //"AssetRegistry",
+                //"AssetTools",
+                //"ContentBrowser",
+                //"AnimGraph",
+                //"AdvancedPreviewScene",
+                //"SlateCore",
+                //"SequencerWidgets",
+                //"SlateNullRenderer",
+                //"EditorWidgets",
+                //"NiagaraEditor",
+
+            }
 		);
 
 		PublicDependencyModuleNames.AddRange(
             new string[] {
+                "DevKit",
                 "Core",
                 "CoreUObject",
+				"TimeManagement",
                 "Engine",
                 "EditorFramework",
+                "AnimGraph",
+                "Engine",
+                "BlueprintGraph",
                 "UnrealEd",
 				"PhysicsCore",
 				"GameplayTagsEditor",
 				"GameplayTasksEditor",
 				"GameplayAbilities",
-				"GameplayAbilitiesEditor",
-				"StudioTelemetry",
-				"DevKit",
-                "AIModule" // Add this line
+				"GameplayAbilitiesEditor"
+				//"StudioTelemetry"
+
+
             }
         );
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {
-				"InputCore",
+                "Core",
+                "CoreUObject",
+                "TimeManagement",
+                "InputCore",
 				"Slate",
 				"SlateCore",
 				"ToolMenus",

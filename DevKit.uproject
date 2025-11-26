@@ -25,7 +25,8 @@
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
 				"CoreUObject",
-				"Blutility"
+				"Blutility",
+				"AnimationBlueprintLibrary"
 			]
 		}
 	],

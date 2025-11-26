@@ -46,6 +46,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void RemoveDynamicTagGameplayEffect(const FGameplayTag& Tag);
 
+
+
+
 	/** Gets the ability target data associated with the given ability handle and activation info */
 	void GetAbilityTargetData(const FGameplayAbilitySpecHandle AbilityHandle, FGameplayAbilityActivationInfo ActivationInfo, FGameplayAbilityTargetDataHandle& OutTargetDataHandle);
 
@@ -76,6 +79,14 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void AddActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToBlock);
+
+
+
+
+	UFUNCTION(BlueprintCallable, Category = "Abilities")
+	bool TryActivateRandomAbilitiesByTag(const FGameplayTagContainer& GameplayTagContainer, bool bAllowRemoteActivation = true);
+
+
 
 	UFUNCTION(BlueprintCallable)
 	void RemoveActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToUnblock);
