@@ -50,6 +50,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = Loading)
 	static FName GetDTRow(FString AssetName, int32 rowNum);
 
+	UFUNCTION(BlueprintCallable, Category = "GAS")
+	static void PrintGameplayTagContainer(FGameplayTagContainer gameplaytag_container);
+
 	////////////////////////////////////////////////// Weapon Ability //////////////////////////////////////////////////
 	UFUNCTION(BlueprintCallable, Category = Weapon)
 	static void GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData);

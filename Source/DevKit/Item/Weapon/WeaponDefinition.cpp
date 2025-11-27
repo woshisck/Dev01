@@ -3,7 +3,7 @@
 #include "Character/YogCharacterBase.h"
 
 
-void UWeaponDefinition::SetupWeaponToCharacter(UWorld* World, USkeletalMeshComponent* AttachTarget, AYogCharacterBase* ReceivingChar)
+void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, AYogCharacterBase* ReceivingChar)
 {
 	for (FWeaponActorToSpawn& WeaponActorInst : ActorsToSpawn)
 	{
@@ -12,13 +12,13 @@ void UWeaponDefinition::SetupWeaponToCharacter(UWorld* World, USkeletalMeshCompo
 		FTransform Transform = WeaponActorInst.AttachTransform;
 
 
-		AWeaponInstance* NewActor = World->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
+		AWeaponInstance* NewActor = ReceivingChar->GetWorld()->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
 		//AWeaponInstance* NewActor = World->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
 		
 		NewActor->SetActorRelativeTransform(Transform);
 		NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
 		NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-
+		ReceivingChar->AbilityData = AbilityData;
 	}
 
 	//TODO: DEPRECATED : for loop grant ability

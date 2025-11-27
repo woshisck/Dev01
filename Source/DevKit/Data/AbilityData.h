@@ -11,6 +11,36 @@
 class UYogGameplayAbility;
 
 
+USTRUCT(Blueprintable)
+struct FYogTagContainerWrapper
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayTagContainer TagContainer;
+
+	// Equality operator
+	bool operator==(const FYogTagContainerWrapper& Other) const
+	{
+		// This uses the FGameplayTagContainer's own == operator, which checks for exact matching tags.
+		return TagContainer == Other.TagContainer;
+	}
+
+	// Hash function
+	friend uint32 GetTypeHash(const FYogTagContainerWrapper& Wrapper)
+	{
+		// A simple but potentially inefficient hash: combine hashes of all individual tags.
+		uint32 Hash = 0;
+		for (const FGameplayTag& Tag : Wrapper.TagContainer)
+		{
+			Hash = HashCombine(Hash, GetTypeHash(Tag));
+		}
+		return Hash;
+	}
+};
+
+
+
 USTRUCT(BlueprintType)
 struct FUniqueEffect 
 {
@@ -135,7 +165,21 @@ class DEVKIT_API UAbilityData : public UPrimaryDataAsset
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TMap<FGameplayTag, FActionData> AbilityMap;
+	UPROPERTY(EditDefaultsOnly)
+	TMap<FYogTagContainerWrapper, FActionData> AbilityMap;
+
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
+	FActionData GetAbility(const FYogTagContainerWrapper& Key) const
+	{
+		return AbilityMap.FindRef(Key);
+	}
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
+	bool HasAbility(const FYogTagContainerWrapper& Key) const
+	{
+		return AbilityMap.Contains(Key);
+	}
+
 
 };

@@ -277,3 +277,63 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 
 
 }
+
+
+FGameplayTagContainer& UYogGameplayAbility::GetAbilityTags()
+{
+	return this->AbilityTags;
+}
+
+FGameplayTagContainer& UYogGameplayAbility::GetCancelAbilitiesWithTag()
+{
+	// TODO: insert return statement here
+	return this->CancelAbilitiesWithTag;
+}
+
+FGameplayTagContainer& UYogGameplayAbility::GetBlockAbilitiesWithTag()
+{
+	// TODO: insert return statement here
+	return this->BlockAbilitiesWithTag;
+}
+
+FGameplayTagContainer& UYogGameplayAbility::GetActivationOwnedTags()
+{
+	// TODO: insert return statement here
+	return this->ActivationOwnedTags;
+}
+
+FGameplayTagContainer& UYogGameplayAbility::GetActivationRequiredTags()
+{
+	// TODO: insert return statement here
+	return this->ActivationRequiredTags;
+}
+
+FGameplayTagContainer& UYogGameplayAbility::GetActivationBlockedTags()
+{
+	// TODO: insert return statement here
+	return this->ActivationBlockedTags;
+}
+
+FGameplayTagContainer& UYogGameplayAbility::GetSourceRequiredTags()
+{
+	// TODO: insert return statement here
+	return this->SourceRequiredTags;
+}
+
+FGameplayTagContainer& UYogGameplayAbility::GetSourceBlockedTags()
+{
+	// TODO: insert return statement here
+	return this->SourceBlockedTags;
+}
+
+FGameplayTagContainer& UYogGameplayAbility::GetTargetRequiredTags()
+{
+	// TODO: insert return statement here
+	return this->TargetRequiredTags;
+}
+
+FGameplayTagContainer& UYogGameplayAbility::GetTargetBlockedTags()
+{
+	// TODO: insert return statement here
+	return TargetBlockedTags;
+}

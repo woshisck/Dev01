@@ -5,6 +5,7 @@
 //#include "..\..\AbilitySystem\Abilities\YogAbilitySet.h"
 
 #include "DevKit/AbilitySystem/Abilities/YogAbilitySet.h"
+#include "DevKit/Data/AbilityData.h"
 #include "DevKit/Animation/YogAnimInstance.h"
 #include "WeaponDefinition.generated.h"
 
@@ -44,8 +45,15 @@ public:
 	//TSubclassOf<AWeaponInstance> InstanceType;
 
 	// Gameplay ability sets to grant when this is equipped
-	UPROPERTY(EditDefaultsOnly, Category = "Equipment")
-	TArray<TObjectPtr<UYogAbilitySet>> AbilitySetsToGrant;
+	//UPROPERTY(EditDefaultsOnly, Category = "Equipment")
+	//TArray<TObjectPtr<UYogAbilitySet>> AbilitySetsToGrant;
+
+
+
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment")
+	TObjectPtr<UAbilityData> AbilityData;
+
 
 	// Actors to spawn on the pawn when this is equipped
 	UPROPERTY(EditDefaultsOnly, Category = "Equipment")
@@ -70,8 +78,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Anime")
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
 
-	UFUNCTION()
-	void SetupWeaponToCharacter(UWorld* World, USkeletalMeshComponent* AttachTarget, AYogCharacterBase* ReceivingChar);
+	UFUNCTION(BlueprintCallable)
+	void SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, AYogCharacterBase* ReceivingChar);
 
 
 

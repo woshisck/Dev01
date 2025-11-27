@@ -147,13 +147,13 @@ void AWeaponSpawner::SpawnAttachWeapon(AYogCharacterBase* ReceivingChar)
 
 void AWeaponSpawner::GrantWeaponAbility(AYogCharacterBase* ReceivingChar)
 {
-	for (UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
-	{
-		for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
-		{
-			ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
-		}
-	}
+	//for (UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
+	//{
+	//	for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
+	//	{
+	//		ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
+	//	}
+	//}
 }
 
 void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)

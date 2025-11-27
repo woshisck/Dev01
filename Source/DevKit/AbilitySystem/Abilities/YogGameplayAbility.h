@@ -88,6 +88,27 @@ public:
 	//FAbilityType AbilityTypeData;
 
 public:
+	UFUNCTION(BlueprintCallable)
+	FGameplayTagContainer& GetAbilityTags();
+
+	UFUNCTION(BlueprintCallable)
+	FGameplayTagContainer& GetCancelAbilitiesWithTag();
+	UFUNCTION(BlueprintCallable)
+	FGameplayTagContainer& GetBlockAbilitiesWithTag();
+	UFUNCTION(BlueprintCallable)
+	FGameplayTagContainer& GetActivationOwnedTags();
+	UFUNCTION(BlueprintCallable)
+	FGameplayTagContainer& GetActivationRequiredTags();
+	UFUNCTION(BlueprintCallable)
+	FGameplayTagContainer& GetActivationBlockedTags();
+	UFUNCTION(BlueprintCallable)
+	FGameplayTagContainer& GetSourceRequiredTags();
+	UFUNCTION(BlueprintCallable)
+	FGameplayTagContainer& GetSourceBlockedTags();
+	UFUNCTION(BlueprintCallable)
+	FGameplayTagContainer& GetTargetRequiredTags();
+	UFUNCTION(BlueprintCallable)
+	FGameplayTagContainer& GetTargetBlockedTags();
 
 	//TODO: SET bRetriggerInstancedAbility for RetriggerAbility in notify
 

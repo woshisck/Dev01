@@ -47,7 +47,7 @@ public:
 
 protected:
 
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Yog|ItemPickup")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Yog|ItemPickup")
 	TObjectPtr<UWeaponDefinition> WeaponDefinition;
 
 	//Delay between when the weapon is made available and when we check for a pawn standing in the spawner. Used to give the bIsWeaponAvailable OnRep time to fire and play FX. 

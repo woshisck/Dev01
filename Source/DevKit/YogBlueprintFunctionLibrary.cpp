@@ -34,6 +34,11 @@ FName UYogBlueprintFunctionLibrary::GetDTRow(FString AssetName, int32 rowNum)
 	return FName(result);
 }
 
+void UYogBlueprintFunctionLibrary::PrintGameplayTagContainer(FGameplayTagContainer gameplaytag_container)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Yog TagContainer Contents: %s"), *gameplaytag_container.ToString());
+}
+
 void UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData)
 {
 	check(WorldContextObject && ReceivingChar && WeaponDefinition && WeaponData);
