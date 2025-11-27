@@ -98,13 +98,13 @@ public:
 
 	////////////////////////////////////////// Get/Set Func　//////////////////////////////////////////
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GAS Attribute|Animation")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Animation")
 	TObjectPtr<UAnimMontage> DeathMontage;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GAS Attribute|Animation")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Animation")
 	TObjectPtr<UAnimMontage> HurtMontage;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Character|Ability")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Ability")
 	TObjectPtr<UAbilityData> AbilityData;
 
 
