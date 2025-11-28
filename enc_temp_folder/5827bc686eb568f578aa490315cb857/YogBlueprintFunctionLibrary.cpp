@@ -341,7 +341,6 @@ UYogGameInstanceBase* UYogBlueprintFunctionLibrary::GetYogGameInstance(UObject* 
 
 float UYogBlueprintFunctionLibrary::DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FYogTriangle triangle)
 {
-	//DONT FORGET TO INCLUDE CAPSULE COMPONENT RADIUS FOR CHECK
 	// FVector pointA, FVector pointB, FVector pointC
 	FVector pointA = triangle.PointA;
 	FVector pointB = triangle.PointB;
