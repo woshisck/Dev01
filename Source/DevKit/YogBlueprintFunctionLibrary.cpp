@@ -250,6 +250,37 @@ bool UYogBlueprintFunctionLibrary::TargetLocIsInTriangle(FVector targetLoc, FVec
 
 }
 
+void UYogBlueprintFunctionLibrary::DrawDebugSector(UWorld* World, FVector Center, FVector Direction, float Radius, float AngleWidth, int32 Segments, FColor Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
+{
+	if (!World) return;
+
+	FVector StartVertex = Center;
+	FVector EndVertex;
+
+	// Calculate the half-angle for symmetry around the direction vector
+	float HalfAngle = FMath::DegreesToRadians(AngleWidth) / 2.0f;
+	FVector DirNormal = Direction.GetSafeNormal(); // Ensure direction is a unit vector
+
+	// Calculate the start direction by rotating the base direction
+	FVector StartDir = DirNormal.RotateAngleAxis(-AngleWidth / 2.0f, FVector::UpVector); // Assumes rotation around Z
+
+	// Draw the first radial line
+	EndVertex = Center + StartDir * Radius;
+	DrawDebugLine(World, StartVertex, EndVertex, Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
+
+	// Draw the arc using a debug circle segment
+	// Note: DrawDebugCircle draws a full circle. We control the visible portion by drawing only specific segments.
+
+	//FORCEINLINE void DrawDebugCircle(  uint8 DepthPriority = 0, float Thickness = 0.f, FVector YAxis = FVector(0.f, 1.f, 0.f), FVector ZAxis = FVector(0.f, 0.f, 1.f), bool bDrawAxis = true)
+
+	DrawDebugCircle(World,Center,Radius,Segments, Color,bPersistentLines,LifeTime, DepthPriority,Thickness, FVector::ForwardVector, FVector::UpVector, false, StartDir.ToOrientationRotator().Yaw);
+
+	// Calculate the end direction and draw the second radial line
+	FVector EndDir = DirNormal.RotateAngleAxis(AngleWidth / 2.0f, FVector::UpVector);
+	EndVertex = Center + EndDir * Radius;
+	DrawDebugLine(World, StartVertex, EndVertex, Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
+}
+
 bool UYogBlueprintFunctionLibrary::DrawDebugTriangle(UObject* WorldContextObject, FVector pointA, FVector pointB, FVector pointC)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);

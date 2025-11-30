@@ -93,6 +93,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Math")
 	static bool TargetLocIsInTriangle(FVector targetLoc, FVector pointA, FVector pointB, FVector pointC);
 
+	////////////////////////////////////////////////// Debug //////////////////////////////////////////////////
+	UFUNCTION(BlueprintCallable, Category = "Math")
+	void DrawDebugSector(UWorld* World,FVector Center,FVector Direction,float Radius,float AngleWidth,int32 Segments,FColor Color,bool bPersistentLines,float LifeTime, uint8 DepthPriority,float Thickness);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
 	static bool DrawDebugTriangle(UObject* WorldContextObject, FVector pointA, FVector pointB, FVector pointC);
