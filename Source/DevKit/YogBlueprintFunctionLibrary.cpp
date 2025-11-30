@@ -252,33 +252,46 @@ bool UYogBlueprintFunctionLibrary::TargetLocIsInTriangle(FVector targetLoc, FVec
 
 void UYogBlueprintFunctionLibrary::DrawDebugSector(UWorld* World, FVector Center, FVector Direction, float Radius, float AngleWidth, int32 Segments, FColor Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
 {
-	if (!World) return;
+	if (!World || Segments <= 0) return;
 
-	FVector StartVertex = Center;
-	FVector EndVertex;
+	// Normalize the direction vector
+	FVector DirNormal = Direction.GetSafeNormal();
 
-	// Calculate the half-angle for symmetry around the direction vector
+	// Calculate start and end angles (in radians)
 	float HalfAngle = FMath::DegreesToRadians(AngleWidth) / 2.0f;
-	FVector DirNormal = Direction.GetSafeNormal(); // Ensure direction is a unit vector
 
-	// Calculate the start direction by rotating the base direction
-	FVector StartDir = DirNormal.RotateAngleAxis(-AngleWidth / 2.0f, FVector::UpVector); // Assumes rotation around Z
+	// Create transformation matrix
+	// Z-axis is the forward direction, Y-axis is "up" for the circle
+	FVector ZAxis = DirNormal;
+	FVector YAxis = FVector::UpVector;
+	FVector XAxis = FVector::CrossProduct(YAxis, ZAxis).GetSafeNormal();
 
-	// Draw the first radial line
-	EndVertex = Center + StartDir * Radius;
-	DrawDebugLine(World, StartVertex, EndVertex, Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
+	// Re-orthogonalize Y axis
+	YAxis = FVector::CrossProduct(ZAxis, XAxis).GetSafeNormal();
 
-	// Draw the arc using a debug circle segment
-	// Note: DrawDebugCircle draws a full circle. We control the visible portion by drawing only specific segments.
+	FMatrix TransformMatrix = FMatrix(XAxis, YAxis, ZAxis, FVector::ZeroVector);
+	TransformMatrix = TransformMatrix.RemoveTranslation();
 
-	//FORCEINLINE void DrawDebugCircle(  uint8 DepthPriority = 0, float Thickness = 0.f, FVector YAxis = FVector(0.f, 1.f, 0.f), FVector ZAxis = FVector(0.f, 0.f, 1.f), bool bDrawAxis = true)
+	// Draw the arc using DrawDebugCircle with matrix
+	DrawDebugCircle(
+		World,
+		TransformMatrix,
+		Radius,
+		Segments,
+		Color,
+		bPersistentLines,
+		LifeTime,
+		DepthPriority,
+		Thickness,
+		false  // bDrawAxis - set to false to hide the coordinate axes
+	);
 
-	DrawDebugCircle(World,Center,Radius,Segments, Color,bPersistentLines,LifeTime, DepthPriority,Thickness, FVector::ForwardVector, FVector::UpVector, false, StartDir.ToOrientationRotator().Yaw);
-
-	// Calculate the end direction and draw the second radial line
+	// Draw the two radial lines
+	FVector StartDir = DirNormal.RotateAngleAxis(-AngleWidth / 2.0f, FVector::UpVector);
 	FVector EndDir = DirNormal.RotateAngleAxis(AngleWidth / 2.0f, FVector::UpVector);
-	EndVertex = Center + EndDir * Radius;
-	DrawDebugLine(World, StartVertex, EndVertex, Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
+
+	DrawDebugLine(World, Center, Center + StartDir * Radius, Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
+	DrawDebugLine(World, Center, Center + EndDir * Radius, Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
 }
 
 bool UYogBlueprintFunctionLibrary::DrawDebugTriangle(UObject* WorldContextObject, FVector pointA, FVector pointB, FVector pointC)
