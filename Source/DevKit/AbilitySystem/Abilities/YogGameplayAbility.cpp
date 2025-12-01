@@ -279,6 +279,15 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 }
 
 
+
+FGameplayTag UYogGameplayAbility::GetFirstTagFromContainer(const FGameplayTagContainer& Container)
+{
+	if (Container.IsEmpty()) return FGameplayTag::EmptyTag;
+
+	// Get the first tag (order may not be guaranteed)
+	return *Container.CreateConstIterator();
+}
+
 FGameplayTagContainer& UYogGameplayAbility::GetAbilityTags()
 {
 	return this->AbilityTags;

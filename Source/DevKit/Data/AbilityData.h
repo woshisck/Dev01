@@ -140,23 +140,34 @@ public:
 
 
 
+//USTRUCT(BlueprintType)
+//struct FAbilityType
+//{
+//	GENERATED_BODY()
+//
+//public:
+//
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
+//	FDataTableRowHandle ActionRow;
+//
+//	const FActionData& GetAction() const;
+//
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	TSubclassOf<UYogGameplayAbility> ability;
+//
+//	inline static const FActionData DefaultActionData;
+//};
+
+
 USTRUCT(BlueprintType)
-struct FAbilityType
+struct DEVKIT_API FCharacterAnimationsConfig : public FTableRowBase
 {
 	GENERATED_BODY()
 
-public:
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
-	FDataTableRowHandle ActionRow;
-
-	const FActionData& GetAction() const;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<UYogGameplayAbility> ability;
-
-	inline static const FActionData DefaultActionData;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation", meta = (Categories = "Animation"))
+	TMap<FGameplayTag, UAnimMontage*> MontagesList;
 };
+
 
 
 UCLASS(BlueprintType, Blueprintable)
@@ -165,18 +176,19 @@ class DEVKIT_API UAbilityData : public UPrimaryDataAsset
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditDefaultsOnly)
-	TMap<FYogTagContainerWrapper, FActionData> AbilityMap;
+	UPROPERTY(EditAnywhere, meta = (ForceInlineRow))
+	TMap<FGameplayTag, FActionData> AbilityMap;
+	//TMap<FYogTagContainerWrapper, FActionData> AbilityMap;
 
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
-	FActionData GetAbility(const FYogTagContainerWrapper& Key) const
+	FActionData GetAbility(const FGameplayTag& Key) const
 	{
 		return AbilityMap.FindRef(Key);
 	}
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
-	bool HasAbility(const FYogTagContainerWrapper& Key) const
+	bool HasAbility(const FGameplayTag& Key) const
 	{
 		return AbilityMap.Contains(Key);
 	}

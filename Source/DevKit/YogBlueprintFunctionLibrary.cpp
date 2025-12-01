@@ -250,9 +250,13 @@ bool UYogBlueprintFunctionLibrary::TargetLocIsInTriangle(FVector targetLoc, FVec
 
 }
 
-void UYogBlueprintFunctionLibrary::DrawDebugSector(UWorld* World, FVector Center, FVector Direction, float Radius, float AngleWidth, int32 Segments, FColor Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
+//void DrawDebugSector(UObject* WorldContextObject,const FVector& Center,const FVector& Direction,float Radius,float AngleDegrees,int32 Segments,FColor Color,bool Persistent,float LifeTime,uint8 DepthPriority)
+
+void UYogBlueprintFunctionLibrary::DrawDebugSector(UObject* WorldContextObject, FVector Center, FVector Direction, float Radius, float AngleWidth, int32 Segments, FColor Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
 {
-	if (!World || Segments <= 0) return;
+
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+
 
 	// Normalize the direction vector
 	FVector DirNormal = Direction.GetSafeNormal();
@@ -269,7 +273,7 @@ void UYogBlueprintFunctionLibrary::DrawDebugSector(UWorld* World, FVector Center
 	// Re-orthogonalize Y axis
 	YAxis = FVector::CrossProduct(ZAxis, XAxis).GetSafeNormal();
 
-	FMatrix TransformMatrix = FMatrix(XAxis, YAxis, ZAxis, FVector::ZeroVector);
+	FMatrix TransformMatrix = FMatrix(XAxis, ZAxis, YAxis, FVector::ZeroVector);
 	TransformMatrix = TransformMatrix.RemoveTranslation();
 
 	// Draw the arc using DrawDebugCircle with matrix

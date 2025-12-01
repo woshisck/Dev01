@@ -2,12 +2,20 @@
 
 
 #include "Portal.h"
+#include "DevKit/Player/PlayerCharacterBase.h"
 
-// Sets default values
-APortal::APortal()
+
+APortal::APortal(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
+
+	RootComponent = CollisionVolume = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionVolume"));
+	//CollisionVolume->InitCapsuleSize(80.f, 80.f);
+
+	CollisionVolume->InitBoxExtent(FVector(10,10,10));
+	
+	CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &APortal::OnOverlapBegin);
 
 
 }
@@ -24,4 +32,22 @@ void APortal::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+}
+
+void APortal::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Entry Portal OnOverlapBegin Happens"));
+	APlayerCharacterBase* OverlappingPawn = Cast<APlayerCharacterBase>(OtherActor);
+
+	if (OverlappingPawn != nullptr)
+	{
+		EnterPortal(OverlappingPawn);
+
+		//UWorld* world = GetWorld();
+		//if (world)
+		//{
+		//	UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(this, OverlappingPawn, WeaponDefinition);
+		//}
+
+	}
 }

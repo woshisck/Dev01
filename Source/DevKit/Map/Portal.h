@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "YogMapDefinition.h"
+//#include "DevKit/Player/PlayerCharacterBase.h"
 #include "Portal.generated.h"
 
-
-
+class APlayerCharacterBase;
 
 UCLASS()
 class DEVKIT_API APortal : public AActor
@@ -17,7 +17,8 @@ class DEVKIT_API APortal : public AActor
 	
 public:	
 	// Sets default values for this actor's properties
-	APortal();
+	// Sets default values for this actor's properties
+	APortal(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void EnablePortal();
@@ -30,13 +31,25 @@ protected:
 	virtual void BeginPlay() override;
 
 public:	
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void EnterPortal(APlayerCharacterBase* ReceivingChar);
+
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int Index;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
+	TObjectPtr<UBoxComponent> CollisionVolume;
+
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FNextMapNode> NextLevels;
+
+
+	UFUNCTION()
+	virtual void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);
+
 
 };

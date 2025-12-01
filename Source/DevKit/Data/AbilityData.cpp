@@ -3,15 +3,15 @@
 
 #include "AbilityData.h"
 
-const FActionData& FAbilityType::GetAction() const
-{
-	if (!ActionRow.IsNull())
-	{
-		FActionData* actionData = ActionRow.GetRow<FActionData>(__func__);
-		if (actionData)
-		{
-			return *actionData;
-		}
-	}
-	return DefaultActionData;
-}
+//const FActionData& FAbilityType::GetAction() const
+//{
+//	if (!ActionRow.IsNull())
+//	{
+//		FActionData* actionData = ActionRow.GetRow<FActionData>(__func__);
+//		if (actionData)
+//		{
+//			return *actionData;
+//		}
+//	}
+//	return DefaultActionData;
+//}

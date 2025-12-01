@@ -89,8 +89,10 @@ public:
 
 public:
 	UFUNCTION(BlueprintCallable)
+	FGameplayTag GetFirstTagFromContainer(const FGameplayTagContainer& Container);
+	
+	UFUNCTION(BlueprintCallable)
 	FGameplayTagContainer& GetAbilityTags();
-
 	UFUNCTION(BlueprintCallable)
 	FGameplayTagContainer& GetCancelAbilitiesWithTag();
 	UFUNCTION(BlueprintCallable)
