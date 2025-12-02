@@ -2,15 +2,38 @@
 
 
 #include "CardComponent.h"
+#include "GameplayEffect.h"
 
 // Sets default values for this component's properties
 UCardComponent::UCardComponent()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 
 	// ...
+}
+
+void UCardComponent::Additem()
+{
+}
+
+void UCardComponent::RemoveItem()
+{
+}
+
+void UCardComponent::InitDeck()
+{
+}
+
+void UCardComponent::Pop()
+{
+	Event_OnCardPopSignature.Broadcast();
+}
+
+void UCardComponent::Shuffle()
+{
+	Event_OnCardShuffleSignature.Broadcast();
 }
 
 
@@ -22,13 +45,3 @@ void UCardComponent::BeginPlay()
 	// ...
 	
 }
-
-
-// Called every frame
-void UCardComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	// ...
-}
-

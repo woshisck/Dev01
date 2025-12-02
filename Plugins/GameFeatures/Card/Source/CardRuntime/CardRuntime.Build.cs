@@ -26,6 +26,12 @@ public class CardRuntime : ModuleRules
 			new string[]
 			{
 				"Core",
+                "CoreUObject", 
+				"Engine", 
+				"InputCore", 
+				"GameplayAbilities",
+                "GameplayTags",
+                "GameplayTasks"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
