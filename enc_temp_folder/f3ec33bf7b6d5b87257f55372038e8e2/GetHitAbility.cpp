@@ -46,10 +46,10 @@ void UGetHitAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 
 
-	if (Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo()))
+	if (Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
 	{
-		AYogCharacterBase* character = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo());
-		character->UpdateCharacterState(EYogCharacterState::Idle, FVector(0, 0, 0));
+		APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
+		Player->UpdateCharacterState(EYogCharacterState::Idle, FVector(0, 0, 0));
 
 	}
 

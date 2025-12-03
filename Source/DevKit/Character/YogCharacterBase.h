@@ -23,8 +23,8 @@ enum class EYogCharacterState : uint8
 {
 	Idle					UMETA(DisplayName = "Idle"),
 	Move					UMETA(DisplayName = "Move"),
-	OnAction				UMETA(DisplayName = "AbilityCast"),
-	OnHurt				UMETA(DisplayName = "OnHurt"),
+	OnAction				UMETA(DisplayName = "OnAction"),
+	OnHurt					UMETA(DisplayName = "OnHurt"),
 	Stun					UMETA(DisplayName = "Stun")
 };
 

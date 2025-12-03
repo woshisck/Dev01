@@ -45,7 +45,7 @@ struct CARDRUNTIME_API FCardPropertyConfig : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	CardEffectTarget Target;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FName DisplayName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -59,10 +59,7 @@ class CARDRUNTIME_API UCardData : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-
-	
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property")
-	TArray<FCardPropertyConfig> CardProperties;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TArray<TObjectPtr<UYogGameplayEffect>> CardEffects;
 	
 };
