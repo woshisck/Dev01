@@ -7214,6 +7214,18 @@
 			"Type": "RequiredResource"
 		},
 		{
+			"Path": "$(ProjectDir)/Plugins/GameFeatures/Card/Binaries/Win64/UnrealEditor-CardRuntime.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/GameFeatures/Card/Binaries/Win64/UnrealEditor-CardRuntime.pdb",
+			"Type": "SymbolFile"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/GameFeatures/Card/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
 			"Path": "$(ProjectDir)/Plugins/GameFeatures/CountDownTime/Binaries/Win64/UnrealEditor-CountDownTimeRuntime.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -7223,6 +7235,18 @@
 		},
 		{
 			"Path": "$(ProjectDir)/Plugins/GameFeatures/CountDownTime/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/GameFeatures/YogTopDownCore/Binaries/Win64/UnrealEditor-YogTopDownCoreRuntime.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/GameFeatures/YogTopDownCore/Binaries/Win64/UnrealEditor-YogTopDownCoreRuntime.pdb",
+			"Type": "SymbolFile"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/GameFeatures/YogTopDownCore/Binaries/Win64/UnrealEditor.modules",
 			"Type": "RequiredResource"
 		},
 		{
@@ -30392,7 +30416,19 @@
 			"Type": "UFS"
 		},
 		{
+			"Path": "$(ProjectDir)/Plugins/GameFeatures/Card/Card.uplugin",
+			"Type": "UFS"
+		},
+		{
 			"Path": "$(ProjectDir)/Plugins/GameFeatures/CountDownTime/CountDownTime.uplugin",
+			"Type": "UFS"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/GameFeatures/YogTopDownCore/YogTopDownCore.uplugin",
+			"Type": "UFS"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/MarketArt/MarketArt.uplugin",
 			"Type": "UFS"
 		},
 		{
@@ -30449,6 +30485,7 @@
 		"CLionSourceCodeAccess",
 		"CableComponent",
 		"CameraShakePreviewer",
+		"Card",
 		"ChangelistReview",
 		"ChaosCaching",
 		"ChaosCloth",
@@ -30524,6 +30561,7 @@
 		"LocationServicesBPLibrary",
 		"MacGraphicsSwitching",
 		"Market",
+		"MarketArt",
 		"MassAI",
 		"MassEntity",
 		"MassGameplay",
@@ -30620,6 +30658,7 @@
 		"XInputDevice",
 		"YogAnimSource",
 		"YogArt",
+		"YogTopDownCore",
 		"ZoneGraph",
 		"ZoneGraphAnnotations"
 	],

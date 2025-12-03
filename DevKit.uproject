@@ -124,10 +124,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "YogTopDownCore",
-			"Enabled": true
-		},
-		{
 			"Name": "Card",
 			"Enabled": true
 		}
