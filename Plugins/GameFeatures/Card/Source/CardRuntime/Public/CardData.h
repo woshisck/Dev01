@@ -123,5 +123,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property")
 	TArray<FCardProperty> CardProperties;
+
+    UFUNCTION()
+    FCardProperty GetCardPropertyWithRareRandom(int target_rare);
 	
 };

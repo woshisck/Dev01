@@ -67,6 +67,19 @@ void UCardComponent::FillPool(UCardData* card_data_pool)
 
 }
 
+void UCardComponent::FillPoolWithRareDistribution(UCardData* card_data_pool)
+{
+	
+	for (int i = 0; i < CardPoolSize; i++)
+	{
+		int Rare = FMath::RandRange(1, 5);
+		FCardProperty card_pick = card_data_pool->GetCardPropertyWithRareRandom(Rare);
+		CardPool.Add(card_pick);
+		//card_data_pool->CardProperties
+	}
+
+}
+
 void UCardComponent::MoveCardAtIndex(UPARAM(ref)TArray<FCardProperty>& Source, UPARAM(ref)TArray<FCardProperty>& Dest, int32 index)
 {
 	if (Source.IsValidIndex(index))
@@ -94,7 +107,7 @@ void UCardComponent::PrintDeck()
 	{
 		
 		FString cardInfo = cardproperty.CardPropertyToString(cardproperty);
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *cardInfo);
+		UE_LOG(LogTemp, Warning, TEXT("%s at index "), *cardInfo);
 	}
 }
 

@@ -64,6 +64,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void FillPool(UCardData* card_data_pool);
 
+	UFUNCTION(BlueprintCallable)
+	void FillPoolWithRareDistribution(UCardData* card_data_pool);
 
 	UFUNCTION(BlueprintCallable)
 	void MoveCardAtIndex(UPARAM(ref) TArray<FCardProperty>& Source, UPARAM(ref) TArray<FCardProperty>& Dest, int32 index);
