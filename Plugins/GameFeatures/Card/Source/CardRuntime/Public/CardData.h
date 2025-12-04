@@ -23,18 +23,33 @@ struct CARDRUNTIME_API FCardEffect
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<UGameplayEffect> CardGamplayEffect;
+	TSubclassOf<UGameplayEffect> CardGameplayEffect;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UCurveTable> PowerCurve;
+
+    FString ToString(bool bDetailed = false) const
+    {
+        FString GameplayEffectName = CardGameplayEffect ?
+            CardGameplayEffect->GetName() : TEXT("None");
+        FString CurveTableName = PowerCurve ?
+            PowerCurve->GetName() : TEXT("None");
+
+        return FString::Printf(
+            TEXT("FCardEffect(GE: %s, Curve: %s)"),
+            *GameplayEffectName,
+            *CurveTableName);
+    }
 };
 
 
 USTRUCT(BlueprintType)
-struct CARDRUNTIME_API FCardPropertyConfig : public FTableRowBase
+struct CARDRUNTIME_API FCardProperty
 {
 	GENERATED_BODY()
 
+public:
+	FCardProperty() {}
 	// Transform in pivot space (*not* texture space)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UTexture2D> CardTexture;
@@ -50,6 +65,50 @@ struct CARDRUNTIME_API FCardPropertyConfig : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int Rare;
+
+    FString CardPropertyToString(const FCardProperty& CardProp)
+    {
+        FString Output;
+
+        // Start with header
+        Output += TEXT("Card Property:\n");
+
+        // Texture
+        if (CardProp.CardTexture)
+        {
+            Output += FString::Printf(TEXT("  Texture: %s  "),
+                *CardProp.CardTexture->GetName());
+        }
+        else
+        {
+            Output += TEXT("  Texture: None  ");
+        }
+
+        // Display name
+        Output += FString::Printf(TEXT("  Name: %s  "),
+            *CardProp.DisplayName.ToString());
+
+        // Rarity
+        Output += FString::Printf(TEXT("  Rarity: %d  "), CardProp.Rare);
+
+        // Target
+        Output += FString::Printf(TEXT("  Target: %s  "),
+            *UEnum::GetDisplayValueAsText(CardProp.Target).ToString());
+
+        // Effects
+        Output += FString::Printf(TEXT("  Effects (%d):  "),
+            CardProp.CardEffect.Num());
+
+        for (int32 i = 0; i < CardProp.CardEffect.Num(); i++)
+        {
+            Output += FString::Printf(TEXT("    [%d] %s  "),
+                i,
+                *CardProp.CardEffect[i].ToString());
+        }
+
+        return Output;
+    }
+
 };
 
 
@@ -63,6 +122,6 @@ public:
 	
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property")
-	TArray<FCardPropertyConfig> CardProperties;
+	TArray<FCardProperty> CardProperties;
 	
 };

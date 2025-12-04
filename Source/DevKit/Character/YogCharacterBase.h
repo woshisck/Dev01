@@ -25,7 +25,8 @@ enum class EYogCharacterState : uint8
 	Move					UMETA(DisplayName = "Move"),
 	OnAction				UMETA(DisplayName = "OnAction"),
 	OnHurt					UMETA(DisplayName = "OnHurt"),
-	Stun					UMETA(DisplayName = "Stun")
+	Stun					UMETA(DisplayName = "Stun"),
+	None					UMETA(DisplayName = "None")
 };
 
 
@@ -63,12 +64,6 @@ public:
 
 	AYogCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	EYogCharacterState CurrentState;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	EYogCharacterState PreviousState;
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bAllowEditInChildClass"))
@@ -130,7 +125,8 @@ public:
 	FCharacterStateDelegate OnCharacterStateUpdate;
 
 
-
+	UFUNCTION(BlueprintCallable)
+	EYogCharacterState GetCurrentState();
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	void GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities);
@@ -217,4 +213,11 @@ public:
 	friend UBaseAttributeSet;
 	friend UDamageAttributeSet;
 	//friend UAdditionAttributeSet;
+
+private:
+	UPROPERTY(VisibleAnywhere)
+	EYogCharacterState CurrentState;
+
+	UPROPERTY(VisibleAnywhere)
+	EYogCharacterState PreviousState;
 };

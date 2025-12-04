@@ -40,8 +40,6 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	//MovementComponent setup
 	UYogCharacterMovementComponent* YogMoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
 
-	CurrentState = EYogCharacterState::Idle;
-	PreviousState = EYogCharacterState::Idle;
 }
 
 UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
@@ -67,6 +65,9 @@ bool AYogCharacterBase::IsAlive() const
 void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	CurrentState = EYogCharacterState::Idle;
+	PreviousState = EYogCharacterState::Idle;
 }
 
 void AYogCharacterBase::Tick(float DeltaSeconds)
@@ -317,6 +318,11 @@ void AYogCharacterBase::Die()
 
 }
 
+
+EYogCharacterState AYogCharacterBase::GetCurrentState()
+{
+	return this->CurrentState;
+}
 
 void AYogCharacterBase::GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities)
 {

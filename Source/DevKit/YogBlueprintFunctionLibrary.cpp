@@ -152,11 +152,11 @@ EYogCharacterState UYogBlueprintFunctionLibrary::GetCharacterState(AYogCharacter
 
 	if (character)
 	{
-		return character->CurrentState;
+		return character->GetCurrentState();
 	}
 	else
 	{
-		return EYogCharacterState::Idle;
+		return EYogCharacterState::None;
 	}
 }
 

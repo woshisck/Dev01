@@ -48,8 +48,6 @@ void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-
-	this->CurrentState = EYogCharacterState::Idle;
 }
 
 void APlayerCharacterBase::Tick(float DeltaSeconds)
