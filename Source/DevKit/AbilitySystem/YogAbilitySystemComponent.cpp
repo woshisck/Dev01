@@ -272,6 +272,58 @@ void UYogAbilitySystemComponent::OnAbilityEnded(const FAbilityEndedData& EndedDa
 	//}
 }
 
+void UYogAbilitySystemComponent::AddEffectToContainer(FGameplayTag gameplayTag, TSubclassOf<UGameplayEffect> GameplayEffect, int effect_level)
+{
+	FYogGameplayEffectContainer* FoundContainer = EffectContainerMap.Find(gameplayTag);
+	if (FoundContainer)
+	{
+
+		for (FYogEffectPorperty& yogEffectProperty : FoundContainer->EffectClasses)
+		{
+			if (GameplayEffect.Get() == yogEffectProperty.GameplayEffect.Get())
+			{
+				yogEffectProperty.EffectLevel = yogEffectProperty.EffectLevel + effect_level;
+			}
+			return;
+		}
+		FYogEffectPorperty effectProperty;
+		effectProperty.GameplayEffect = GameplayEffect;
+		effectProperty.EffectLevel = effect_level;
+		FoundContainer->EffectClasses.Add(effectProperty);
+	}
+}
+
+void UYogAbilitySystemComponent::RemoveEffectFromContainer(FGameplayTag gameplayTag, TSubclassOf<UGameplayEffect> GameplayEffect, int effect_level)
+{
+	FYogGameplayEffectContainer* FoundContainer = EffectContainerMap.Find(gameplayTag);
+	if (FoundContainer)
+	{
+
+		for (int32 i = FoundContainer->EffectClasses.Num() - 1; i >= 0; --i)
+		{
+			FYogEffectPorperty& yogEffectProperty = FoundContainer->EffectClasses[i];
+
+			if (GameplayEffect.Get() == yogEffectProperty.GameplayEffect.Get())
+			{
+				if (yogEffectProperty.EffectLevel > effect_level)
+				{
+					// Reduce the level
+					yogEffectProperty.EffectLevel -= effect_level;
+				}
+				else
+				{
+					// Remove the entire element
+					FoundContainer->EffectClasses.RemoveAt(i);
+				}
+
+				// If you want to stop after processing the first matching effect, add:
+				// return;
+				// If you want to process ALL matching effects, continue the loop
+			}
+		}
+	}
+}
+
 void UYogAbilitySystemComponent::SetAbilityRetriggerable(FGameplayAbilitySpecHandle Handle, bool bCanRetrigger)
 {
 	FGameplayAbilitySpec* Spec = this->FindAbilitySpecFromHandle(Handle);

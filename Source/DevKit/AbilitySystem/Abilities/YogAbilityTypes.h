@@ -16,6 +16,20 @@ class UYogTargetType;
  * Struct defining a list of gameplay effects, a tag, and targeting info
  * These containers are defined statically in blueprints or assets and then turn into Specs at runtime
  */
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FYogEffectPorperty
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
+	TSubclassOf<UGameplayEffect> GameplayEffect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
+	int EffectLevel;
+};
+
+
 USTRUCT(BlueprintType)
 struct DEVKIT_API FYogGameplayEffectContainer
 {
@@ -30,7 +44,7 @@ public:
 
 	/** List of GE apply to the targets */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
-	TArray<TSubclassOf<UGameplayEffect>> TargetGameplayEffectClasses;
+	TArray<FYogEffectPorperty> EffectClasses;
 };
 
 /** instance version -- struct FYogGameplayEffectContainer  */

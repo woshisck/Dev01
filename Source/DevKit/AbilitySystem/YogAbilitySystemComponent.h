@@ -12,6 +12,8 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceivedDamageDelegate, UYogAbilitySystemComponent*, SourceASC, float, Damage);
 
 
+
+
 class UYogGameplayAbility;
 struct FGameplayTag;
 struct FYogGameplayEffectContainer;
@@ -110,8 +112,27 @@ public:
 	void OnAbilityEnded(const FAbilityEndedData& EndedData);
 
 	/** Map of gameplay tags to gameplay effect containers */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Buffer")
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Buffer", meta = (ForceInlineRow))
 	TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;
+
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
+	//TSubclassOf<UGameplayEffect> GameplayEffect;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
+	//int EffectLevel;
+
+	UFUNCTION(BlueprintCallable)
+	void AddEffectToContainer(FGameplayTag gameplayTag, TSubclassOf<UGameplayEffect> GameplayEffect, int effect_level);
+
+	UFUNCTION(BlueprintCallable)
+	void RemoveEffectFromContainer(FGameplayTag gameplayTag, TSubclassOf<UGameplayEffect> GameplayEffect, int effect_level);
+
+	//Test For Future for dumping 
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Buffer")
+	//TArray<FYogEffectPorperty> YogEffects;
+
 
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<UYogGameplayAbility> CurrentActiveAbility;

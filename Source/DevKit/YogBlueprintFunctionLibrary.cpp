@@ -39,6 +39,8 @@ void UYogBlueprintFunctionLibrary::PrintGameplayTagContainer(FGameplayTagContain
 	UE_LOG(LogTemp, Warning, TEXT("Yog TagContainer Contents: %s"), *gameplaytag_container.ToString());
 }
 
+
+
 void UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData)
 {
 	check(WorldContextObject && ReceivingChar && WeaponDefinition && WeaponData);

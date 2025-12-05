@@ -53,6 +53,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GAS")
 	static void PrintGameplayTagContainer(FGameplayTagContainer gameplaytag_container);
 
+
 	////////////////////////////////////////////////// Weapon Ability //////////////////////////////////////////////////
 	UFUNCTION(BlueprintCallable, Category = Weapon)
 	static void GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData);

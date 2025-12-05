@@ -35,6 +35,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void EnterPortal(APlayerCharacterBase* ReceivingChar);
 
+
+	UFUNCTION(BlueprintCallable)
+	void YogOpenLevel(FName level_name);
+
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -44,7 +48,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
 	TObjectPtr<UBoxComponent> CollisionVolume;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GateMap")
 	TArray<FNextMapNode> NextLevels;
 
 

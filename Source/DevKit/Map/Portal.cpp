@@ -27,6 +27,24 @@ void APortal::BeginPlay()
 	
 }
 
+//void UGameplayStatics::OpenLevelBySoftObjectPtr(const UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, bool bAbsolute, FString Options)
+//{
+//	const FName LevelName = FName(*FPackageName::ObjectPathToPackageName(Level.ToString()));
+//	UGameplayStatics::OpenLevel(WorldContextObject, LevelName, bAbsolute, Options);
+//}
+
+
+
+void APortal::YogOpenLevel(FName level_name)
+{
+	UGameplayStatics::OpenLevel(
+		GetWorld(),
+		level_name,
+		true,
+		"?game=/Game/Code/Core/B_GameMode.B_GameMode_C"
+	);
+}
+
 // Called every frame
 void APortal::Tick(float DeltaTime)
 {

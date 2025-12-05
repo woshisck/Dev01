@@ -156,13 +156,14 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 		// If we don't have an override level, use the default on the ability itself
 		if (OverrideGameplayLevel == INDEX_NONE)
 		{
-			OverrideGameplayLevel = OverrideGameplayLevel = this->GetAbilityLevel(); //OwningASC->GetDefaultAbilityLevel();
+			OverrideGameplayLevel = this->GetAbilityLevel(); //OwningASC->GetDefaultAbilityLevel();
 		}
 
 		// Build GameplayEffectSpecs for each applied effect
-		for (const TSubclassOf<UGameplayEffect>& EffectClass : Container.TargetGameplayEffectClasses)
+		//for (const TSubclassOf<UGameplayEffect>& EffectClass : Container.EffectClasses)
+		for (const FYogEffectPorperty& YogEffectProperty : Container.EffectClasses)
 		{
-			ReturnSpec.TargetGameplayEffectSpecs.Add(MakeOutgoingGameplayEffectSpec(EffectClass, OverrideGameplayLevel));
+			ReturnSpec.TargetGameplayEffectSpecs.Add(MakeOutgoingGameplayEffectSpec(YogEffectProperty.GameplayEffect, YogEffectProperty.EffectLevel));
 		}
 	}
 	return ReturnSpec;

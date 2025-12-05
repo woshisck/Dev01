@@ -72,10 +72,6 @@ public:
 	FPlayerStateDelegate OnFPlayerStateDeleg;
 
 
-	UPROPERTY()
-	TObjectPtr<AActor> temp_Item_prepare;
-
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aura")
 	TSubclassOf<AAuraBase> Aura;
 

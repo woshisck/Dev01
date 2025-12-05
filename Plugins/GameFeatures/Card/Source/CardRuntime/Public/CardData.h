@@ -61,7 +61,7 @@ public:
 	CardEffectTarget Target;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow))
-	FName DisplayName;
+    FGameplayTag DisplayName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int Rare;
