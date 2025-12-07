@@ -252,52 +252,39 @@ bool UYogBlueprintFunctionLibrary::TargetLocIsInTriangle(FVector targetLoc, FVec
 
 }
 
-//void DrawDebugSector(UObject* WorldContextObject,const FVector& Center,const FVector& Direction,float Radius,float AngleDegrees,int32 Segments,FColor Color,bool Persistent,float LifeTime,uint8 DepthPriority)
 
-void UYogBlueprintFunctionLibrary::DrawDebugSector(UObject* WorldContextObject, FVector Center, FVector Direction, float Radius, float AngleWidth, int32 Segments, FColor Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
+void UYogBlueprintFunctionLibrary::DrawDebugAnnulusSector(UObject* WorldContextObject, FVector Center, float InnerRadius, float OuterRadius, float StartAngleDeg, float EndAngleDeg, FColor Color)
 {
 
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
 
-	// Normalize the direction vector
-	FVector DirNormal = Direction.GetSafeNormal();
+	const int32 NumSegments = 36;
+	float StartAngle = FMath::DegreesToRadians(StartAngleDeg);
+	float EndAngle = FMath::DegreesToRadians(EndAngleDeg);
 
-	// Calculate start and end angles (in radians)
-	float HalfAngle = FMath::DegreesToRadians(AngleWidth) / 2.0f;
+	// Helper to draw an arc
+	auto DrawArc = [&](float Radius) {
+		FVector LastVertex = Center + FVector(FMath::Cos(StartAngle), FMath::Sin(StartAngle), 0) * Radius;
+		for (int32 i = 1; i <= NumSegments; i++) {
+			float Angle = StartAngle + (EndAngle - StartAngle) * i / NumSegments;
+			FVector ThisVertex = Center + FVector(FMath::Cos(Angle), FMath::Sin(Angle), 0) * Radius;
+			DrawDebugLine(World, LastVertex, ThisVertex, Color, false, -1.0f, 0, 2.0f);
+			LastVertex = ThisVertex;
+		}
+		};
 
-	// Create transformation matrix
-	// Z-axis is the forward direction, Y-axis is "up" for the circle
-	FVector ZAxis = DirNormal;
-	FVector YAxis = FVector::UpVector;
-	FVector XAxis = FVector::CrossProduct(YAxis, ZAxis).GetSafeNormal();
+	DrawArc(InnerRadius);
+	DrawArc(OuterRadius);
 
-	// Re-orthogonalize Y axis
-	YAxis = FVector::CrossProduct(ZAxis, XAxis).GetSafeNormal();
+	// Draw the two radial lines connecting the arcs
+	FVector InnerStart = Center + FVector(FMath::Cos(StartAngle), FMath::Sin(StartAngle), 0) * InnerRadius;
+	FVector OuterStart = Center + FVector(FMath::Cos(StartAngle), FMath::Sin(StartAngle), 0) * OuterRadius;
+	FVector InnerEnd = Center + FVector(FMath::Cos(EndAngle), FMath::Sin(EndAngle), 0) * InnerRadius;
+	FVector OuterEnd = Center + FVector(FMath::Cos(EndAngle), FMath::Sin(EndAngle), 0) * OuterRadius;
 
-	FMatrix TransformMatrix = FMatrix(XAxis, ZAxis, YAxis, FVector::ZeroVector);
-	TransformMatrix = TransformMatrix.RemoveTranslation();
-
-	// Draw the arc using DrawDebugCircle with matrix
-	DrawDebugCircle(
-		World,
-		TransformMatrix,
-		Radius,
-		Segments,
-		Color,
-		bPersistentLines,
-		LifeTime,
-		DepthPriority,
-		Thickness,
-		false  // bDrawAxis - set to false to hide the coordinate axes
-	);
-
-	// Draw the two radial lines
-	FVector StartDir = DirNormal.RotateAngleAxis(-AngleWidth / 2.0f, FVector::UpVector);
-	FVector EndDir = DirNormal.RotateAngleAxis(AngleWidth / 2.0f, FVector::UpVector);
-
-	DrawDebugLine(World, Center, Center + StartDir * Radius, Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
-	DrawDebugLine(World, Center, Center + EndDir * Radius, Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
+	DrawDebugLine(World, InnerStart, OuterStart, Color, false, -1.0f, 0, 2.0f);
+	DrawDebugLine(World, InnerEnd, OuterEnd, Color, false, -1.0f, 0, 2.0f);
 }
 
 bool UYogBlueprintFunctionLibrary::DrawDebugTriangle(UObject* WorldContextObject, FVector pointA, FVector pointB, FVector pointC)

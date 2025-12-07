@@ -96,7 +96,7 @@ public:
 
 	////////////////////////////////////////////////// Debug //////////////////////////////////////////////////
 	UFUNCTION(BlueprintCallable, Category = "Math")
-	static void DrawDebugSector(UObject* WorldContextObject,FVector Center,FVector Direction,float Radius,float AngleWidth,int32 Segments,FColor Color,bool bPersistentLines,float LifeTime, uint8 DepthPriority,float Thickness);
+	static void DrawDebugAnnulusSector(UObject* WorldContextObject, FVector Center, float InnerRadius, float OuterRadius, float StartAngleDeg, float EndAngleDeg, FColor Color);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
 	static bool DrawDebugTriangle(UObject* WorldContextObject, FVector pointA, FVector pointB, FVector pointC);

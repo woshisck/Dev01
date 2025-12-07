@@ -283,8 +283,9 @@ void UYogAbilitySystemComponent::AddEffectToContainer(FGameplayTag gameplayTag, 
 			if (GameplayEffect.Get() == yogEffectProperty.GameplayEffect.Get())
 			{
 				yogEffectProperty.EffectLevel = yogEffectProperty.EffectLevel + effect_level;
+				return;
 			}
-			return;
+
 		}
 		FYogEffectPorperty effectProperty;
 		effectProperty.GameplayEffect = GameplayEffect;

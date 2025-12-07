@@ -50,6 +50,9 @@ public:
 
 
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (ForceInlineRow))
+	TMap<FGameplayTag, TObjectPtr<UAnimMontage>> MontageUsage;
+
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment")
 	TObjectPtr<UAbilityData> AbilityData;
