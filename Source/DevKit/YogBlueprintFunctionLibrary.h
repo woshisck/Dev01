@@ -17,14 +17,14 @@ class UYogWorldSubsystem;
 class UYogGameInstanceBase;
 
 USTRUCT(BlueprintType)
-struct FYogTriangle
+struct FDebugTriangle
 {
 	GENERATED_BODY()
-	FYogTriangle()
+	FDebugTriangle()
 		:PointA(FVector(0, 0, 0)), PointB(FVector(0, 0, 0)), PointC(FVector(0, 0, 0))
 	{
 	}
-	FYogTriangle(FVector a, FVector b, FVector c)
+	FDebugTriangle(FVector a, FVector b, FVector c)
 		:PointA(a), PointB(b), PointC(c)
 	{
 	}
@@ -102,7 +102,7 @@ public:
 	static bool DrawDebugTriangle(UObject* WorldContextObject, FVector pointA, FVector pointB, FVector pointC);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
-	static float DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FYogTriangle triangle);
+	static float DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FDebugTriangle triangle);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
 	static FVector FunctionFromPoint(UObject* WorldContextObject,FVector pointA, FVector pointB);
@@ -111,10 +111,10 @@ public:
 	static float DistFromPointToLine(UObject* WorldContextObject, FVector pointA, FVector Coef);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
-	static TArray<FYogTriangle> MakeTriangleArray(UObject* WorldContextObject, TArray<FVector> point_array, FVector Playerloc);
+	static TArray<FDebugTriangle> MakeTriangleArray(UObject* WorldContextObject, TArray<FVector> point_array, FVector Playerloc);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
-	static bool DrawTriangle(UObject* WorldContextObject, FYogTriangle triangle);
+	static bool DrawTriangle(UObject* WorldContextObject, FDebugTriangle triangle);
 
 	UFUNCTION(BlueprintCallable, Category = "System")
 	static UYogGameInstanceBase* GetYogGameInstance(UObject* WorldContextObject);

@@ -11,6 +11,102 @@
 class UYogGameplayAbility;
 
 
+
+UENUM(BlueprintType)
+enum class EHitBoxType : uint8
+{
+	Annulus,
+	Triangle,
+	Square,
+	Circle
+};
+
+USTRUCT(Blueprintable)
+struct FHitboxAnnulus
+{
+	GENERATED_BODY()
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float inner_radius = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float outer_radius = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float degree = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float offset_degree = 0;
+
+};
+
+USTRUCT(Blueprintable)
+struct FHitboxTriangle
+{
+	GENERATED_BODY()
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Degree = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Radius = 0;
+};
+
+
+USTRUCT(Blueprintable)
+struct FHitboxSquare
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Width = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Length = 0;
+};
+
+
+USTRUCT(Blueprintable)
+struct FHitboxCircle
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Radius = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Offset = FVector(0,0,0);
+};
+
+USTRUCT(Blueprintable)
+struct FYogHitboxType
+{
+	GENERATED_BODY()
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EHitBoxType hitboxType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Annulus", EditConditionHides))
+	FHitboxAnnulus AnnulusHitbox;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Circle", EditConditionHides))
+	TArray<FHitboxCircle> HitboxCircles;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Square", EditConditionHides))
+	TArray<FHitboxSquare> HitboxSquares;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Triangle", EditConditionHides))
+	TArray<FHitboxTriangle> HitboxTriangles;
+
+
+
+};
+
+
+
 USTRUCT(Blueprintable)
 struct FYogTagContainerWrapper
 {
@@ -69,26 +165,33 @@ public:
 
 
 	UPROPERTY(BlueprintReadOnly)
-	FVector Point = FVector(Radius * cos(Degree), Radius * sin(Degree), 0.0);
+	//FVector Point = FVector(Radius * cos(Degree), Radius * sin(Degree), 0.0);
+	FVector Point = FVector(0,0,0);
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//FVector Location_Start;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	bool HasTriggered;
+
+	/*
+	* 	Annulus,
+		Triangle,
+		Square,
+		Circle
+	*/
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Annulus"))
+	float inner_radius = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Annulus"))
+	float outer_radius = 0;
 
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	float Degree;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Triangle"))
+	float Degree = 0;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	float Radius;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Triangle"))
+	float Radius = 0;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	int Index;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	int FrameAt;
 
 };
 
@@ -132,9 +235,27 @@ public:
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TSubclassOf<UYogGameplayAbility> Ability_Template;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FHitBoxData> hitbox;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox")
+	TArray<FYogHitboxType> hitboxTypes;
+
+
+
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Annulus", EditConditionHides))
+	//FHitboxAnnulus AnnulusHitbox;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Circle", EditConditionHides))
+	//TArray<FHitboxCircle> HitboxCircles;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = ( EditCondition = "hitboxType == EHitBoxType::Square", EditConditionHides))
+	//TArray<FHitboxSquare> HitboxSquares;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Triangle", EditConditionHides))
+	//TArray<FHitboxTriangle> HitboxTriangles;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TArray<FHitBoxData> hitbox;
 
 };
 

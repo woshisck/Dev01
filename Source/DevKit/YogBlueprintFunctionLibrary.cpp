@@ -269,7 +269,7 @@ void UYogBlueprintFunctionLibrary::DrawDebugAnnulusSector(UObject* WorldContextO
 		for (int32 i = 1; i <= NumSegments; i++) {
 			float Angle = StartAngle + (EndAngle - StartAngle) * i / NumSegments;
 			FVector ThisVertex = Center + FVector(FMath::Cos(Angle), FMath::Sin(Angle), 0) * Radius;
-			DrawDebugLine(World, LastVertex, ThisVertex, Color, false, -1.0f, 0, 2.0f);
+			DrawDebugLine(World, LastVertex, ThisVertex, Color, true, 99.9f, 0, 4.0f);
 			LastVertex = ThisVertex;
 		}
 		};
@@ -283,8 +283,9 @@ void UYogBlueprintFunctionLibrary::DrawDebugAnnulusSector(UObject* WorldContextO
 	FVector InnerEnd = Center + FVector(FMath::Cos(EndAngle), FMath::Sin(EndAngle), 0) * InnerRadius;
 	FVector OuterEnd = Center + FVector(FMath::Cos(EndAngle), FMath::Sin(EndAngle), 0) * OuterRadius;
 
-	DrawDebugLine(World, InnerStart, OuterStart, Color, false, -1.0f, 0, 2.0f);
-	DrawDebugLine(World, InnerEnd, OuterEnd, Color, false, -1.0f, 0, 2.0f);
+
+	DrawDebugLine(World, InnerStart, OuterStart, Color, true, 99.9f, 0, 4.0f);
+	DrawDebugLine(World, InnerEnd, OuterEnd, Color, true, 99.9f, 0, 4.0f);
 }
 
 bool UYogBlueprintFunctionLibrary::DrawDebugTriangle(UObject* WorldContextObject, FVector pointA, FVector pointB, FVector pointC)
@@ -333,16 +334,16 @@ float UYogBlueprintFunctionLibrary::DistFromPointToLine(UObject* WorldContextObj
 	return Distance;
 }
 
-TArray<FYogTriangle> UYogBlueprintFunctionLibrary::MakeTriangleArray(UObject* WorldContextObject, TArray<FVector> point_array, FVector Playerloc)
+TArray<FDebugTriangle> UYogBlueprintFunctionLibrary::MakeTriangleArray(UObject* WorldContextObject, TArray<FVector> point_array, FVector Playerloc)
 {
-	TArray<FYogTriangle> result;
+	TArray<FDebugTriangle> result;
 	for (int i = 0; i < point_array.Num(); i++)
 	{
 		if (i > 0)
 		{
 			FVector current_Point = point_array[i];
 			FVector last_Point = point_array[i - 1];
-			FYogTriangle triangle = FYogTriangle(last_Point, current_Point, Playerloc);
+			FDebugTriangle triangle = FDebugTriangle(last_Point, current_Point, Playerloc);
 			result.Add(triangle);
 		}
 	}
@@ -350,7 +351,7 @@ TArray<FYogTriangle> UYogBlueprintFunctionLibrary::MakeTriangleArray(UObject* Wo
 	return result;
 }
 
-bool UYogBlueprintFunctionLibrary::DrawTriangle(UObject* WorldContextObject, FYogTriangle triangle)
+bool UYogBlueprintFunctionLibrary::DrawTriangle(UObject* WorldContextObject, FDebugTriangle triangle)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (World)
@@ -376,7 +377,7 @@ UYogGameInstanceBase* UYogBlueprintFunctionLibrary::GetYogGameInstance(UObject* 
 }
 
 
-float UYogBlueprintFunctionLibrary::DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FYogTriangle triangle)
+float UYogBlueprintFunctionLibrary::DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FDebugTriangle triangle)
 {
 	//DONT FORGET TO INCLUDE CAPSULE COMPONENT RADIUS FOR CHECK
 	// FVector pointA, FVector pointB, FVector pointC

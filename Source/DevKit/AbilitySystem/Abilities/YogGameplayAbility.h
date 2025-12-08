@@ -161,7 +161,26 @@ public:
 	TObjectPtr<UAnimMontage> Montage;
 
 	UPROPERTY(BlueprintReadOnly)
-	TArray<FHitBoxData> hitbox;
+	TArray<FYogHitboxType> hitboxTypes;
+
+	
+
+	//UPROPERTY(BlueprintReadOnly)
+	//TArray<FHitBoxData> hitbox;
+
+	//UPROPERTY(BlueprintReadOnly)
+	//FHitboxAnnulus AnnulusHitbox;
+
+	//UPROPERTY(BlueprintReadOnly)
+	//TArray<FHitboxCircle> HitboxCircles;
+
+	//UPROPERTY(BlueprintReadOnly)
+	//TArray<FHitboxSquare> HitboxSquares;
+
+	//UPROPERTY(BlueprintReadOnly)
+	//TArray<FHitboxTriangle> HitboxTriangles;
+
+
 
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FVector> array_hitbox_vector;
