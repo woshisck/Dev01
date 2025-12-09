@@ -25,6 +25,9 @@ struct CARDRUNTIME_API FCardEffect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<UGameplayEffect> CardGameplayEffect;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int level;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UCurveTable> PowerCurve;
 

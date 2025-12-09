@@ -11,6 +11,13 @@
 class UYogGameplayAbility;
 
 
+UENUM(BlueprintType)
+enum class EYogEffectTarget : uint8
+{
+	ToSelf,
+	ToTarget
+};
+
 
 UENUM(BlueprintType)
 enum class EHitBoxType : uint8
@@ -143,11 +150,19 @@ struct FUniqueEffect
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EYogEffectTarget Target;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayTag TriggerTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int level;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UCurveTable> PowerCurve;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<UGameplayEffect> GameplayEffect;
 };
 

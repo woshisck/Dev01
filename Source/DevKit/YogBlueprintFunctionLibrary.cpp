@@ -305,7 +305,7 @@ bool UYogBlueprintFunctionLibrary::DrawDebugTriangle(UObject* WorldContextObject
 }
 
 
-FVector UYogBlueprintFunctionLibrary::FunctionFromPoint(UObject* WorldContextObject, FVector pointA, FVector pointB)
+FVector UYogBlueprintFunctionLibrary::DistFromPointToPoint(UObject* WorldContextObject, FVector pointA, FVector pointB)
 {
 	int x1 = pointA.X;
 	int y1 = pointA.Y;
@@ -334,16 +334,16 @@ float UYogBlueprintFunctionLibrary::DistFromPointToLine(UObject* WorldContextObj
 	return Distance;
 }
 
-TArray<FDebugTriangle> UYogBlueprintFunctionLibrary::MakeTriangleArray(UObject* WorldContextObject, TArray<FVector> point_array, FVector Playerloc)
+TArray<FYogCollisionTriangle> UYogBlueprintFunctionLibrary::MakeTriangleArray(UObject* WorldContextObject, TArray<FVector> point_array, FVector Playerloc)
 {
-	TArray<FDebugTriangle> result;
+	TArray<FYogCollisionTriangle> result;
 	for (int i = 0; i < point_array.Num(); i++)
 	{
 		if (i > 0)
 		{
 			FVector current_Point = point_array[i];
 			FVector last_Point = point_array[i - 1];
-			FDebugTriangle triangle = FDebugTriangle(last_Point, current_Point, Playerloc);
+			FYogCollisionTriangle triangle = FYogCollisionTriangle(last_Point, current_Point, Playerloc);
 			result.Add(triangle);
 		}
 	}
@@ -351,7 +351,7 @@ TArray<FDebugTriangle> UYogBlueprintFunctionLibrary::MakeTriangleArray(UObject* 
 	return result;
 }
 
-bool UYogBlueprintFunctionLibrary::DrawTriangle(UObject* WorldContextObject, FDebugTriangle triangle)
+bool UYogBlueprintFunctionLibrary::DrawTriangle(UObject* WorldContextObject, FYogCollisionTriangle triangle)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (World)
@@ -377,7 +377,7 @@ UYogGameInstanceBase* UYogBlueprintFunctionLibrary::GetYogGameInstance(UObject* 
 }
 
 
-float UYogBlueprintFunctionLibrary::DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FDebugTriangle triangle)
+float UYogBlueprintFunctionLibrary::DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FYogCollisionTriangle triangle)
 {
 	//DONT FORGET TO INCLUDE CAPSULE COMPONENT RADIUS FOR CHECK
 	// FVector pointA, FVector pointB, FVector pointC
@@ -448,6 +448,16 @@ float UYogBlueprintFunctionLibrary::DistFromPointToTriangle(UObject* WorldContex
 	{
 		return BIG_NUMBER;
 	}
+}
+
+float UYogBlueprintFunctionLibrary::DistFromPointToAnnulus(UObject* WorldContextObject, FVector target_point, FYogCollisionAnnulus annulus)
+{
+	return 0.0f;
+}
+
+float UYogBlueprintFunctionLibrary::DistFromPointToSquare(UObject* WorldContextObject, FVector target_point, FYogCollisionSquare square)
+{
+	return 0.0f;
 }
 
 

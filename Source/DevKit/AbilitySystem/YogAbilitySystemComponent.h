@@ -4,6 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/YogAbilityTypes.h"
 #include "Abilities/GameplayAbility.h"
+#include "DevKit/Data/AbilityData.h"
 
 #include "YogAbilitySystemComponent.generated.h"
 
@@ -18,6 +19,30 @@ class UYogGameplayAbility;
 struct FGameplayTag;
 struct FYogGameplayEffectContainer;
 struct FWeaponSaveData;
+
+
+
+USTRUCT(BlueprintType,Blueprintable)
+struct DEVKIT_API FYogContainerEffect 
+{
+	GENERATED_BODY()
+
+	// TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayTag TriggerTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<UGameplayEffect> GameplayEffect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EYogEffectTarget target;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int effect_level;
+
+};
+
 
 UCLASS(BlueprintType)
 class DEVKIT_API UYogAbilitySystemComponent : public UAbilitySystemComponent

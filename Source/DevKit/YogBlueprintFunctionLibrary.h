@@ -16,15 +16,84 @@ class UAuraDefinition;
 class UYogWorldSubsystem;
 class UYogGameInstanceBase;
 
+
 USTRUCT(BlueprintType)
-struct FDebugTriangle
+struct FYogCollisionAnnulus
 {
 	GENERATED_BODY()
-	FDebugTriangle()
+	FYogCollisionAnnulus()
+		:inner_radius(0), outer_radius(0), degree(0), offset_degree(0)
+	{
+	}
+	FYogCollisionAnnulus(float a, float b, float c, float d)
+		:inner_radius(a), outer_radius(b), degree(c), offset_degree(d)
+	{
+	}
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float inner_radius = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float outer_radius = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float degree = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float offset_degree = 0;
+
+};
+
+USTRUCT(BlueprintType)
+struct FYogCollisionCircle
+{
+	GENERATED_BODY()
+	FYogCollisionCircle()
+		:Radius(0), Offset(FVector(0, 0, 0))
+	{
+	}
+	FYogCollisionCircle(float a, FVector b)
+		:Radius(a), Offset(b)
+	{
+	}
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Radius = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Offset = FVector(0, 0, 0);
+
+};
+
+USTRUCT(BlueprintType)
+struct FYogCollisionSquare
+{
+	GENERATED_BODY()
+	FYogCollisionSquare()
+		:Width(0), Length(0)
+	{
+	}
+	FYogCollisionSquare(float a, float b)
+		:Width(a), Length(b)
+	{
+	}
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Width = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Length = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FYogCollisionTriangle
+{
+	GENERATED_BODY()
+	FYogCollisionTriangle()
 		:PointA(FVector(0, 0, 0)), PointB(FVector(0, 0, 0)), PointC(FVector(0, 0, 0))
 	{
 	}
-	FDebugTriangle(FVector a, FVector b, FVector c)
+	FYogCollisionTriangle(FVector a, FVector b, FVector c)
 		:PointA(a), PointB(b), PointC(c)
 	{
 	}
@@ -101,20 +170,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Math")
 	static bool DrawDebugTriangle(UObject* WorldContextObject, FVector pointA, FVector pointB, FVector pointC);
 
+
+	////////////////////////////////////////////////// Collision //////////////////////////////////////////////////
 	UFUNCTION(BlueprintCallable, Category = "Math")
-	static float DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FDebugTriangle triangle);
+	static float DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FYogCollisionTriangle triangle);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
-	static FVector FunctionFromPoint(UObject* WorldContextObject,FVector pointA, FVector pointB);
+	static float DistFromPointToAnnulus(UObject* WorldContextObject, FVector target_point, FYogCollisionAnnulus annulus);
+
+	UFUNCTION(BlueprintCallable, Category = "Math")
+	static float DistFromPointToSquare(UObject* WorldContextObject, FVector target_point, FYogCollisionSquare square);
+
+
+	UFUNCTION(BlueprintCallable, Category = "Math")
+	static FVector DistFromPointToPoint(UObject* WorldContextObject,FVector pointA, FVector pointB);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
 	static float DistFromPointToLine(UObject* WorldContextObject, FVector pointA, FVector Coef);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
-	static TArray<FDebugTriangle> MakeTriangleArray(UObject* WorldContextObject, TArray<FVector> point_array, FVector Playerloc);
+	static TArray<FYogCollisionTriangle> MakeTriangleArray(UObject* WorldContextObject, TArray<FVector> point_array, FVector Playerloc);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")
-	static bool DrawTriangle(UObject* WorldContextObject, FDebugTriangle triangle);
+	static bool DrawTriangle(UObject* WorldContextObject, FYogCollisionTriangle triangle);
 
 	UFUNCTION(BlueprintCallable, Category = "System")
 	static UYogGameInstanceBase* GetYogGameInstance(UObject* WorldContextObject);
