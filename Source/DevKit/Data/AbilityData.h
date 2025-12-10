@@ -37,8 +37,8 @@ struct FHitboxAnnulus
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float inner_radius = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float outer_radius = 0;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float outer_radius = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float degree = 0;
@@ -57,8 +57,8 @@ struct FHitboxTriangle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Degree = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Radius = 0;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float Radius = 0;
 };
 
 
@@ -70,8 +70,8 @@ struct FHitboxSquare
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Width = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Length = 0;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float Length = 0;
 };
 
 
@@ -80,8 +80,8 @@ struct FHitboxCircle
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Radius = 0;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float Radius = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVector Offset = FVector(0,0,0);

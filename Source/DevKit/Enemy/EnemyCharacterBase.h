@@ -31,7 +31,7 @@ public:
 	
 	void PostInitializeComponents() override;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
 
 

@@ -21,14 +21,10 @@ USTRUCT(BlueprintType)
 struct FYogCollisionAnnulus
 {
 	GENERATED_BODY()
-	FYogCollisionAnnulus()
-		:inner_radius(0), outer_radius(0), degree(0), offset_degree(0)
-	{
-	}
-	FYogCollisionAnnulus(float a, float b, float c, float d)
-		:inner_radius(a), outer_radius(b), degree(c), offset_degree(d)
-	{
-	}
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Center = FVector(0,0,0);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float inner_radius = 0;
@@ -37,10 +33,11 @@ struct FYogCollisionAnnulus
 	float outer_radius = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float degree = 0;
+	float start_angle_degree = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float offset_degree = 0;
+	float end_angle_degree = 0;
+
 
 };
 

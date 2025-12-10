@@ -66,7 +66,7 @@ public:
 
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bAllowEditInChildClass"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute", meta = (EditCondition = "bAllowEditInChildClass"))
 	TObjectPtr<UCharacterData> CharacterData;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)
@@ -74,13 +74,10 @@ public:
 
 	////////////////////////////////////////// Attribute Set //////////////////////////////////////////
 
-	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite)
+	UPROPERTY(SaveGame, BlueprintReadWrite)
 	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;
 
-	//UPROPERTY(EditAnywhere, SaveGame,  BlueprintReadWrite)
-	//TObjectPtr<UAdditionAttributeSet> AdditionAttributeSet;
-
-	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite)
+	UPROPERTY(SaveGame, BlueprintReadWrite)
 	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
 
 	///////////////////////////////////////////　Passive effect　///////////////////////////////////////////
@@ -215,9 +212,9 @@ public:
 	//friend UAdditionAttributeSet;
 
 private:
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY()
 	EYogCharacterState CurrentState;
 
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY()
 	EYogCharacterState PreviousState;
 };

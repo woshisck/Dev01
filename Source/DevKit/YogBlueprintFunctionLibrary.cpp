@@ -452,9 +452,88 @@ float UYogBlueprintFunctionLibrary::DistFromPointToTriangle(UObject* WorldContex
 
 float UYogBlueprintFunctionLibrary::DistFromPointToAnnulus(UObject* WorldContextObject, FVector target_point, FYogCollisionAnnulus annulus)
 {
-	return 0.0f;
-}
+	// Calculate 2D vector from center to target point
+	FVector2D CenterToPoint = FVector2D(target_point - annulus.Center);
+	float DistanceFromCenter = CenterToPoint.Size();
 
+	// Calculate angle in degrees (0-360)
+	float PointAngle = FMath::RadiansToDegrees(FMath::Atan2(CenterToPoint.Y, CenterToPoint.X));
+	PointAngle = FMath::Fmod(PointAngle + 360.0f, 360.0f);
+
+	// Normalize angles
+	float StartAngle = FMath::Fmod(annulus.start_angle_degree + 360.0f, 360.0f);
+	float EndAngle = FMath::Fmod(annulus.end_angle_degree + 360.0f, 360.0f);
+
+	// Helper function to calculate minimal angular distance
+	auto GetMinAngularDistance = [](float Angle1, float Angle2) -> float
+		{
+			float Diff = FMath::Abs(Angle1 - Angle2);
+			return FMath::Min(Diff, 360.0f - Diff);
+		};
+
+	// Check if in angular sector
+	bool bInAngularSector = false;
+	if (StartAngle <= EndAngle)
+	{
+		bInAngularSector = (PointAngle >= StartAngle && PointAngle <= EndAngle);
+	}
+	else
+	{
+		bInAngularSector = (PointAngle >= StartAngle || PointAngle <= EndAngle);
+	}
+
+	if (bInAngularSector)
+	{
+		// Within angular sector, check radial distance
+		if (DistanceFromCenter < annulus.inner_radius)
+		{
+			return annulus.inner_radius - DistanceFromCenter;
+		}
+		else if (DistanceFromCenter > annulus.outer_radius)
+		{
+			return DistanceFromCenter - annulus.outer_radius;
+		}
+		else
+		{
+			return 0.0f; // Inside annulus
+		}
+	}
+	else
+	{
+		// Outside angular sector - find closest point on annulus
+		// Calculate distances to sector edges
+		float DistToStart = GetMinAngularDistance(PointAngle, StartAngle);
+		float DistToEnd = GetMinAngularDistance(PointAngle, EndAngle);
+		float MinAngularDist = FMath::Min(DistToStart, DistToEnd);
+
+		// Find the closest radial distance
+		float RadialDist = 0.0f;
+		if (DistanceFromCenter < annulus.inner_radius)
+		{
+			RadialDist = annulus.inner_radius - DistanceFromCenter;
+		}
+		else if (DistanceFromCenter > annulus.outer_radius)
+		{
+			RadialDist = DistanceFromCenter - annulus.outer_radius;
+		}
+		else
+		{
+			// Between inner and outer radius but wrong angle
+			// Closest point is at same radius but at sector edge
+			RadialDist = 0.0f;
+		}
+
+		// For points outside angular sector, the closest point is either:
+		// 1. On the radial edge (if radial distance > 0)
+		// 2. On the angular edge (if between radii)
+		// We take the minimum of these possibilities
+
+		// Distance to angular edge at current radius
+		float AngularEdgeDist = DistanceFromCenter * FMath::Tan(FMath::DegreesToRadians(MinAngularDist * 0.5f)) * 2.0f;
+
+		return FMath::Sqrt(FMath::Square(RadialDist) + FMath::Square(AngularEdgeDist));
+	}
+}
 float UYogBlueprintFunctionLibrary::DistFromPointToSquare(UObject* WorldContextObject, FVector target_point, FYogCollisionSquare square)
 {
 	return 0.0f;
