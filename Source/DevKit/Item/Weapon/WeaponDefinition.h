@@ -50,11 +50,7 @@ public:
 
 
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (ForceInlineRow))
-	TMap<FGameplayTag, TObjectPtr<UAnimMontage>> MontageUsage;
-
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability")
 	TObjectPtr<UAbilityData> AbilityData;
 
 
@@ -85,7 +81,4 @@ public:
 	void SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, AYogCharacterBase* ReceivingChar);
 
 
-
-	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Pickup|WeaponDefiniton")
-	//TObjectPtr<UYogEquipmentDefinition> WeaponDefinition;
 };

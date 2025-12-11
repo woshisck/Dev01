@@ -117,14 +117,14 @@ public:
 	//UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DamageBox")
 	//TArray<FHitBoxData> array_Hitbox;
 
-	UPROPERTY(BlueprintReadOnly)
-	FActionData AbilityActData;
+	//UPROPERTY(BlueprintReadOnly)
+	//FActionData AbilityActData;
 
 	UFUNCTION(BlueprintCallable, Category = "Setting")
 	void UpdateRetrigger(bool retriggerable);
 
-	UFUNCTION(BlueprintCallable, Category = "Ability Data")
-	FActionData GetActionData();
+	//UFUNCTION(BlueprintCallable, Category = "Ability Data")
+	//FActionData GetActionData();
 
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	AYogCharacterBase* GetOwnerCharacterInfo();
@@ -135,7 +135,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GameplayEffect")
 	int GetCurrentGameplayEffect(FGameplayTag EffectTag);
 
+
+
 public:
+
+
 	UPROPERTY(BlueprintReadOnly)
 	float ActDamage;
 
@@ -184,6 +188,9 @@ public:
 
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FVector> array_hitbox_vector;
+
+
+
 
 
 

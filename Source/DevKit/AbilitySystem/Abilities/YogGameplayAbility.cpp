@@ -34,17 +34,17 @@ void UYogGameplayAbility::UpdateRetrigger(bool retriggerable)
 
 }
 
-FActionData UYogGameplayAbility::GetActionData()
-{
-	return AbilityActData;
-	//static const FString ContextString(TEXT("Character Data Lookup"));
-	//FActionData* AbilityData = YogAbilityDataTable->FindRow<FActionData>(FName(TEXT("AbilityDataStartUp")), ContextString, true);
-	//if (AbilityData)
-	//{
-	//	UE_LOG(LogTemp, Warning, TEXT("Damage: %f, DMGAmplify: %f, MontagePlayRate: %f"), AbilityData->Damage, AbilityData->DMGAmplify, AbilityData->MontagePlayRate);
-	//}
-
-}
+//FActionData UYogGameplayAbility::GetActionData()
+//{
+//	return AbilityActData;
+//	//static const FString ContextString(TEXT("Character Data Lookup"));
+//	//FActionData* AbilityData = YogAbilityDataTable->FindRow<FActionData>(FName(TEXT("AbilityDataStartUp")), ContextString, true);
+//	//if (AbilityData)
+//	//{
+//	//	UE_LOG(LogTemp, Warning, TEXT("Damage: %f, DMGAmplify: %f, MontagePlayRate: %f"), AbilityData->Damage, AbilityData->DMGAmplify, AbilityData->MontagePlayRate);
+//	//}
+//
+//}
 
 AYogCharacterBase* UYogGameplayAbility::GetOwnerCharacterInfo()
 {
@@ -139,6 +139,7 @@ int UYogGameplayAbility::GetCurrentGameplayEffect(FGameplayTag EffectTag)
 
 
 
+
 FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFromContainer(const FYogGameplayEffectContainer& Container, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
 {
 	// First figure out our actor info
@@ -222,7 +223,7 @@ void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	AYogCharacterBase* player = Cast<AYogCharacterBase>(AvatarActor);
 
-	player->UpdateCharacterState(EYogCharacterState::OnAction, FVector(0,0,0));
+	//player->UpdateCharacterState(EYogCharacterState::OnAction, FVector(0,0,0));
 
 	//for (FVector& point : array_hitbox_vector)
 	//{

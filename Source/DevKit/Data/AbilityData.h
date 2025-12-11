@@ -211,6 +211,35 @@ public:
 };
 
 USTRUCT(BlueprintType)
+struct FPassiveActionData
+{
+	GENERATED_BODY()
+
+public:
+	FPassiveActionData() {}
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UAnimMontage> Montage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FUniqueEffect> UniqueEffects;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TSubclassOf<UYogGameplayAbility> Ability_Template;
+
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox")
+	//TArray<FYogHitboxType> hitboxTypes;
+
+
+
+
+};
+
+
+
+USTRUCT(BlueprintType)
 struct FActionData
 {
     GENERATED_BODY()
@@ -312,8 +341,11 @@ class DEVKIT_API UAbilityData : public UPrimaryDataAsset
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, meta = (ForceInlineRow))
+	UPROPERTY(EditAnywhere, meta = (ForceInlineRow), Category = "Action|Move")
 	TMap<FGameplayTag, FActionData> AbilityMap;
+
+	UPROPERTY(EditAnywhere, meta = (ForceInlineRow), Category = "Action|General")
+	TMap<FGameplayTag, FPassiveActionData> PassiveMap;
 	//TMap<FYogTagContainerWrapper, FActionData> AbilityMap;
 
 
@@ -329,5 +361,17 @@ public:
 		return AbilityMap.Contains(Key);
 	}
 
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
+	FPassiveActionData GetPassiveAbility(const FGameplayTag& Key) const
+	{
+		return PassiveMap.FindRef(Key);
+	}
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
+	bool HasPassiveAbility(const FGameplayTag& Key) const
+	{
+		return PassiveMap.Contains(Key);
+	}
 
 };

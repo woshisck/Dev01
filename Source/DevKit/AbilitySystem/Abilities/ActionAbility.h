@@ -17,9 +17,17 @@ class DEVKIT_API UActionAbility : public UYogGameplayAbility
 public:
 	UActionAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
 	virtual void OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	//virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
+
+	UPROPERTY()
+	FActionData ActionData_cache;
+
+	UFUNCTION(BlueprintCallable, Category = "Ability Data")
+	FActionData& GetActionDataCache();
 };

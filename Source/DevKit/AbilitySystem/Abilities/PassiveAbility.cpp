@@ -3,13 +3,33 @@
 
 #include "PassiveAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
-#include "AbilitySystemComponent.h"
+#include "DevKit/AbilitySystem/YogAbilitySystemComponent.h"
+#include "DevKit/Character/YogCharacterBase.h"
 
 UPassiveAbility::UPassiveAbility(const FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	//NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
+}
+
+void UPassiveAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
+{
+
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
+	ASC->CurrentAbilitySpecHandle = Handle;
+
+
+	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
+	FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
+	if (Owner->AbilityData)
+	{
+		PassiveData_cache = Owner->AbilityData->GetPassiveAbility(ability_tag);
+	}
+
+	Owner->UpdateCharacterState(EYogCharacterState::OnAction, FVector(0, 0, 0));
 }
 
 void UPassiveAbility::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
