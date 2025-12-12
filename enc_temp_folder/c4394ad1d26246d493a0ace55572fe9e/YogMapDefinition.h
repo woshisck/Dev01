@@ -12,16 +12,6 @@
  * 
  */
 
-UENUM(BlueprintType)
-enum class EEnemySpawnRule : uint8
-{
-	OneByOne	UMETA(DisplayName = "OneByOne"),
-	AllInOnce	UMETA(DisplayName = "AllInOnce"),
-	Default		UMETA(DisplayName = "Default")
-};
-
-
-
 USTRUCT(BlueprintType)
 struct FNextMapNode
 {
@@ -76,15 +66,10 @@ class DEVKIT_API UYogMapDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level|Mob")
-	EEnemySpawnRule EnemySpawnRule;
-
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level|Mob")
-	int	DifficultPoint;
-
-
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
-	//TArray<FPortalEntry> LevelPortals;
+	//TArray<FLevel2DRow> LevelDefinition;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
+	TArray<FPortalEntry> LevelPortals;
 
 };

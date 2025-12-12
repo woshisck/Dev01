@@ -15,6 +15,33 @@ UCardComponent::UCardComponent()
 	// ...
 }
 
+FCardProperty UCardComponent::GetWeightedRandomCard(const TArray<FCardProperty>& card_properties)
+{
+	// Calculate total weight (sum of all Rare values)
+	int32 TotalWeight = 0;
+	for (const FCardProperty& Card : card_properties)
+	{
+		TotalWeight += Card.Rare;
+	}
+
+	// Pick a random number in [1, TotalWeight]
+	int32 RandomWeight = FMath::RandRange(1, TotalWeight);
+
+	// Walk through the list until we find the card
+	int32 AccumulatedWeight = 0;
+	for (const FCardProperty& Card : card_properties)
+	{
+		AccumulatedWeight += Card.Rare;
+		if (RandomWeight <= AccumulatedWeight)
+		{
+			return Card;
+		}
+	}
+
+	// Fallback (should never hit if weights are valid)
+	return card_properties.Last();
+}
+
 void UCardComponent::Additem()
 {
 }
@@ -57,11 +84,21 @@ void UCardComponent::Shuffle(UPARAM(ref) TArray<FCardProperty>& cards)
 
 void UCardComponent::FillPool(UCardData* card_data_pool)
 {
+	if (!card_data_pool || card_data_pool->CardProperties.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Invalid CardDataPool in FillPool"));
+		return;
+	}
+
+	CardPool.Empty();
+
+
+
 	for (int i = 0; i < CardPoolSize; i++)
 	{
-		FCardProperty cardPorpertyConfig = card_data_pool->CardProperties[FMath::RandRange(0, card_data_pool->CardProperties.Num() - 1)];
+		FCardProperty SelectedCard = GetWeightedRandomCard(card_data_pool->CardProperties);
 
-		CardPool.Add(cardPorpertyConfig);
+		CardPool.Add(SelectedCard);
 	}
 	//UE_LOG(LogTemp, Warning, TEXT(""));
 

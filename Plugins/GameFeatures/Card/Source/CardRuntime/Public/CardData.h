@@ -7,9 +7,18 @@
 #include "GameplayEffect.h"
 #include "CardData.generated.h"
 
-/**
- * 
- */
+
+
+UENUM(BlueprintType)
+enum class ERarity : uint8
+{
+    Common     UMETA(DisplayName = "Common"),
+    Uncommon   UMETA(DisplayName = "Uncommon"),
+    Rare       UMETA(DisplayName = "Rare"),
+    Epic       UMETA(DisplayName = "Epic"),
+    Legendary  UMETA(DisplayName = "Legendary")
+};
+
 UENUM(Blueprintable)
 enum class CardEffectTarget : uint8
 {
@@ -67,7 +76,7 @@ public:
     FGameplayTag DisplayName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int Rare;
+	int Rare = 1;
 
     FString CardPropertyToString(const FCardProperty& CardProp)
     {

@@ -45,6 +45,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int DeckSize;
 
+	UFUNCTION(BlueprintCallable)
+	FCardProperty GetWeightedRandomCard(const TArray<FCardProperty>& card_properties);
 
 	UFUNCTION(BlueprintCallable)
 	void Additem();
