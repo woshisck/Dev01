@@ -99,11 +99,14 @@ public:
 	UFUNCTION(BlueprintCallable)
 	const FYogBaseAttributeData& GetBaseAttributeData() const;
 
-	UPROPERTY(EditAnywhere, meta = (RowType = "MovementData"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "MovementData"))
 	FDataTableRowHandle MovementDataRow;
 
-	UPROPERTY(EditAnywhere, meta = (RowType = "YogBaseAttributeData"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "YogBaseAttributeData"))
 	FDataTableRowHandle YogBaseAttributeDataRow;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow))
+	TMap<FGameplayTag, TSubclassOf<UAnimInstance>> CharacterLayers;
 
 
 	inline static const FMovementData DefaultMovementData;

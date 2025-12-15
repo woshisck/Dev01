@@ -35,8 +35,8 @@ public:
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TObjectPtr<UBehaviorTree> EnemyBT;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
-	TArray<FDataTableRowHandle> ActionRows;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
+	//TArray<FDataTableRowHandle> ActionRows;
 
 	
 
