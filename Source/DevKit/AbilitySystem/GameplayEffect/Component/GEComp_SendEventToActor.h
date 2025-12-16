@@ -30,4 +30,7 @@ class DEVKIT_API UGEComp_SendEventToActor : public UGameplayEffectComponent
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
+protected:
+	UPROPERTY(EditDefaultsOnly, Category = GrantAbilities)
+	FGameplayTag Trigger_EventTag;
 };

@@ -65,16 +65,16 @@ void UGEComp_SendEventToActor::OnGameplayEffectApplied(FActiveGameplayEffectsCon
 
 
     //ASAP!! : 12-16-2025
-    FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Damage"));
+    //FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Damage"));
     FGameplayEventData EventData;
-    EventData.EventTag = EventTag;
+    EventData.EventTag = Trigger_EventTag;
     EventData.EventMagnitude = 4.4444f;
     EventData.Instigator = Instigator;
     EventData.Target = DirectTarget;
 
     UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
         DirectTarget,
-        EventTag,
+        Trigger_EventTag,
         EventData
     );
 
