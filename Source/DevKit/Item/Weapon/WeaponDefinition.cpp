@@ -1,9 +1,9 @@
 #include "WeaponDefinition.h"
 #include "WeaponInstance.h"
-#include "Character/YogCharacterBase.h"
+#include "Player/PlayerCharacterBase.h"
 
 
-void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, AYogCharacterBase* ReceivingChar)
+void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar)
 {
 	for (FWeaponActorToSpawn& WeaponActorInst : ActorsToSpawn)
 	{

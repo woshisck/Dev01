@@ -7,10 +7,12 @@
 #include "DevKit/AbilitySystem/Abilities/YogAbilitySet.h"
 #include "DevKit/Data/AbilityData.h"
 #include "DevKit/Animation/YogAnimInstance.h"
+
 #include "WeaponDefinition.generated.h"
 
 class UYogAbilitySet;
 class AWeaponInstance;
+class APlayerCharacterBase;
 //class UYogAnimInstance;
 
 
@@ -78,7 +80,7 @@ public:
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
 
 	UFUNCTION(BlueprintCallable)
-	void SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, AYogCharacterBase* ReceivingChar);
+	void SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar);
 
 
 };

@@ -44,6 +44,8 @@ FCardProperty UCardComponent::GetWeightedRandomCard(const TArray<FCardProperty>&
 
 void UCardComponent::Additem()
 {
+	FCardProperty card_property;
+	Event_OnCardAddSignature.Broadcast(card_property);
 }
 
 void UCardComponent::RemoveItem()
@@ -101,7 +103,7 @@ void UCardComponent::FillPool(UCardData* card_data_pool)
 		CardPool.Add(SelectedCard);
 	}
 	//UE_LOG(LogTemp, Warning, TEXT(""));
-
+	Event_OnCardFillPoolSignature.Broadcast(CardPool.Num());
 }
 
 void UCardComponent::FillPoolWithRareDistribution(UCardData* card_data_pool)

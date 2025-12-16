@@ -11,6 +11,11 @@ class UGameplayEffect;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FCardPopSignature);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCardShuffleSignature);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCardAddSignature, FCardProperty, cardProperty);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCardFillPoolSignature, int, CardNum);
+
+//DECLARE_DYNAMIC_DELEGATE_OneParam(FStringParamCallback, const FString&, Value);
+
 
 
 UCLASS(Blueprintable, BlueprintType, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -29,6 +34,11 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnCardShuffleSignature Event_OnCardShuffleSignature;
 
+	UPROPERTY(BlueprintAssignable)
+	FOnCardAddSignature Event_OnCardAddSignature;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnCardFillPoolSignature Event_OnCardFillPoolSignature;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FCardProperty> CardPresent;

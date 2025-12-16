@@ -90,7 +90,7 @@ public:
 
 	////////////////////////////////////////// Get/Set Func　//////////////////////////////////////////
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Ability")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute")
 	TObjectPtr<UAbilityData> AbilityData;
 
 

@@ -13,6 +13,7 @@
 class APawn;
 class UCapsuleComponent;
 class AYogCharacterBase;
+class APlayerCharacterBase;
 
 class UObject;
 class UPrimitiveComponent;
@@ -57,7 +58,7 @@ protected:
 public:
 
 	UFUNCTION(BlueprintImplementableEvent)
-	void GrantWeapon(AYogCharacterBase* ReceivingChar);
+	void GrantWeapon(APlayerCharacterBase* ReceivingChar);
 
 	//UFUNCTION(BlueprintCallable)
 	//void GiveWeaponToCharacter(AYogCharacterBase* ReceivingChar);
@@ -67,7 +68,7 @@ public:
 	void SpawnAttachWeapon(AYogCharacterBase* ReceivingChar);
 
 	UFUNCTION(BlueprintCallable)
-	void GrantWeaponAbility(AYogCharacterBase* ReceivingChar);
+	void GrantWeaponAbility(APlayerCharacterBase* ReceivingChar);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
 	TObjectPtr<UCapsuleComponent> CollisionVolume;

@@ -11,7 +11,8 @@
 #include "NiagaraSystem.h"
 #include "TimerManager.h"
 #include "WeaponInstance.h"
-#include <DevKit/Character/YogCharacterBase.h>
+#include "DevKit/Character/YogCharacterBase.h"
+#include "Player/PlayerCharacterBase.h"
 #include <DevKit/YogBlueprintFunctionLibrary.h>
 
 
@@ -145,7 +146,7 @@ void AWeaponSpawner::SpawnAttachWeapon(AYogCharacterBase* ReceivingChar)
 	}
 }
 
-void AWeaponSpawner::GrantWeaponAbility(AYogCharacterBase* ReceivingChar)
+void AWeaponSpawner::GrantWeaponAbility(APlayerCharacterBase* ReceivingChar)
 {
 	//for (UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
 	//{
@@ -159,7 +160,7 @@ void AWeaponSpawner::GrantWeaponAbility(AYogCharacterBase* ReceivingChar)
 void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
 	UE_LOG(LogTemp, Warning, TEXT("OnOverlapBegin Happens"));
-	AYogCharacterBase* OverlappingPawn = Cast<AYogCharacterBase>(OtherActor);
+	APlayerCharacterBase* OverlappingPawn = Cast<APlayerCharacterBase>(OtherActor);
 
 	if (OverlappingPawn != nullptr)
 	{
