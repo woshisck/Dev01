@@ -4,33 +4,33 @@
 
 #include "CoreMinimal.h"
 #include "GameplayEffectComponent.h"
+#include "GameplayEffectComponents/AbilitiesGameplayEffectComponent.h"
+#include "GameplayEffect.h"
+#include "Abilities/GameplayAbilityTypes.h"
 #include "GEComp_SendEventToActor.generated.h"
 
 /**
  * 
  */
-UCLASS(Blueprintable, BlueprintType)
-class DEVKIT_API UGEComp_SendEventToActor : public UGameplayEffectComponent
+UCLASS(DisplayName = "Send Event To Target Actor")
+class DEVKIT_API UGEComp_SendEventToActor : public UAbilitiesGameplayEffectComponent
 {
 	GENERATED_BODY()
-	
+public:
+
 	UGEComp_SendEventToActor();
 
-	/** Register for the appropriate events when we're applied */
-	virtual bool OnActiveGameplayEffectAdded(FActiveGameplayEffectsContainer& ActiveGEContainer, FActiveGameplayEffect& ActiveGE) const override;
+
+public:
+	// Override the protected function
+	virtual void OnInhibitionChanged(FActiveGameplayEffectHandle ActiveGEHandle, bool bIsInhibited) const override;
 
 
-	virtual void OnGameplayEffectApplied(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const override;
+public:
 
-	/** Adds an entry for granting Gameplay Abilities */
-	void SendEventDataToActor();
-
-#if WITH_EDITOR
-	/** Warn on misconfigured Gameplay Effect */
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
-#endif
-
-protected:
-	UPROPERTY(EditDefaultsOnly, Category = GrantAbilities)
+	UPROPERTY(EditDefaultsOnly, Category = EventData)
 	FGameplayTag Trigger_EventTag;
+;
+
+
 };

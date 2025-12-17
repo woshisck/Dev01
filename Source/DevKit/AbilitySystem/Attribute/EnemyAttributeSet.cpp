@@ -14,7 +14,7 @@
 UEnemyAttributeSet::UEnemyAttributeSet()
 {	
 	InitDropExp(0);
-
+	InitKnockBackDist(0);
 }
 
 

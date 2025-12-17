@@ -63,9 +63,11 @@ public:
     //FGameplayAttributeData DashCD;
     //ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, DashCD);
 
-    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
-    FGameplayAttributeData DashDist;
-    ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, DashDist);
+    //UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
+    //FGameplayAttributeData DashDist;
+    //ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, DashDist);
+
+
 
 
     //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")

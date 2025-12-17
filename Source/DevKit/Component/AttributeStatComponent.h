@@ -90,6 +90,12 @@ public:
 	UFUNCTION(BlueprintPure)
 	float GetStat_Crit_Damage() const;
 
+	//////////////////////////////////////// ENEMY ////////////////////////////////////////
+	UFUNCTION(BlueprintPure)
+	float GetStat_KnockBackDist() const;
+
+
+
 public:
 	// Delegates
 	UPROPERTY(BlueprintAssignable, Category = "Stat Change")

@@ -164,3 +164,8 @@ float UAttributeStatComponent::GetStat_Crit_Damage() const
 {
 	return GetAttribute(UBaseAttributeSet::GetCrit_DamageAttribute());
 }
+
+float UAttributeStatComponent::GetStat_KnockBackDist() const
+{
+	return GetAttribute(UEnemyAttributeSet::GetKnockBackDistAttribute());
+}

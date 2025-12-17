@@ -39,5 +39,8 @@ public:
 
 
 
+
+
+
 	friend UEnemyAttributeSet;
 };

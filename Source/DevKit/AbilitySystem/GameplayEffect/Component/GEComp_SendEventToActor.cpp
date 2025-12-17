@@ -10,85 +10,93 @@
 #include "AbilitySystemComponent.h"
 
 
-
 UGEComp_SendEventToActor::UGEComp_SendEventToActor()
 {
 }
 
-bool UGEComp_SendEventToActor::OnActiveGameplayEffectAdded(FActiveGameplayEffectsContainer& ActiveGEContainer, FActiveGameplayEffect& ActiveGE) const
+void UGEComp_SendEventToActor::OnInhibitionChanged(FActiveGameplayEffectHandle ActiveGEHandle, bool bIsInhibited) const
 {
-	if (ActiveGEContainer.IsNetAuthority())
-	{
+    Super::OnInhibitionChanged(ActiveGEHandle, bIsInhibited);
 
-        //UGameplayEffect* source_gameplayeffect = GetOwner();
-
-        //source_gameplayeffect->
-
-
-        //FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Damage"));
-        //FGameplayEventData EventData;
-        //EventData.EventTag = EventTag;
-        //EventData.EventMagnitude = 4.4444f;
-        //EventData.Instigator = GetInstigatorActor();
-        //EventData.Target = TargetActor;
-
-        //// Send the event
-        //UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
-        //    TargetActor,
-        //    EventTag,
-        //    EventData
-        //);
-
-
-		//UAbilitySystemBlueprintLibrary::SendGameplayEventToActor();
-        return true;
-	}
-
-	return false;
-}
-
-void UGEComp_SendEventToActor::OnGameplayEffectApplied(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const
-{
-    UE_LOG(LogTemp, Log, TEXT("Effect %s applied at level %f"),*GetNameSafe(GESpec.Def),GESpec.GetLevel());
-
-
-    AActor* Instigator = GESpec.GetContext().GetInstigator();
-    AActor* EffectCauser = GESpec.GetContext().GetEffectCauser();
-    AActor* OriginalInstigator = nullptr;
-    if (const FGameplayEffectContext* Context = GESpec.GetContext().Get())
+    // Get the Ability System Component
+    UAbilitySystemComponent* ASC = ActiveGEHandle.GetOwningAbilitySystemComponent();
+    if (!ASC)
     {
-        OriginalInstigator = Context->GetOriginalInstigator();
+        return;
     }
 
-    // Target: From the container that's receiving the effect
-    AActor* DirectTarget = ActiveGEContainer.Owner ? ActiveGEContainer.Owner->GetAvatarActor() : nullptr;
+    // Get the active gameplay effect
+    const FActiveGameplayEffect* ActiveGE = ASC->GetActiveGameplayEffect(ActiveGEHandle);
+    if (!ActiveGE)
+    {
+        return;
+    }
 
+    // Get source (instigator) and target actors
+    AActor* SourceActor = nullptr;
+    AActor* TargetActor = nullptr;
 
-    //ASAP!! : 12-16-2025
-    //FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Damage"));
+    // Get source actor from the effect context
+    FGameplayEffectContextHandle ContextHandle = ActiveGE->Spec.GetContext();
+    if (ContextHandle.IsValid())
+    {
+        SourceActor = ContextHandle.GetInstigator();
+    }
+
+    // Get target actor from the ASC owner
+    TargetActor = ASC->GetOwner();
+
+    // Make sure we have valid actors
+    if (!TargetActor)
+    {
+        return;
+    }
+
+    // Create and setup gameplay event data
     FGameplayEventData EventData;
-    EventData.EventTag = Trigger_EventTag;
-    EventData.EventMagnitude = 4.4444f;
-    EventData.Instigator = Instigator;
-    EventData.Target = DirectTarget;
 
+    // Set basic event info
+    EventData.Instigator = SourceActor;
+    EventData.Target = TargetActor;
+    EventData.OptionalObject = GetOwner(); // The GameplayEffect
+    EventData.EventTag = Trigger_EventTag;
     UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
-        DirectTarget,
-        Trigger_EventTag,
+        TargetActor,
+        EventData.EventTag,
         EventData
     );
 
-    UE_LOG(LogTemp, Log, TEXT("Instigator:  %s"), *Instigator->GetName());
-    UE_LOG(LogTemp, Log, TEXT("DirectTarget:  %s"), *DirectTarget->GetName());
-
 }
 
 
-void UGEComp_SendEventToActor::SendEventDataToActor()
-{
-}
 
-EDataValidationResult UGEComp_SendEventToActor::IsDataValid(FDataValidationContext& Context) const
-{
-	return EDataValidationResult();
-}
+
+
+
+//AActor* Instigator = local_GeSpec.GetContext().GetInstigator();
+//AActor* EffectCauser = local_GeSpec.GetContext().GetEffectCauser();
+//AActor* OriginalInstigator = nullptr;
+
+//if (const FGameplayEffectContext* Context = local_GeSpec.GetContext().Get())
+//{
+//    OriginalInstigator = Context->GetOriginalInstigator();
+//}
+//AActor* DirectTarget = ActiveGEContainer.Owner ? ActiveGEContainer.Owner->GetAvatarActor() : nullptr;
+
+////FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Damage"));
+//FGameplayEventData EventData;
+//EventData.EventTag = Trigger_EventTag;
+//EventData.EventMagnitude = 4.4444f;
+//EventData.Instigator = Instigator;
+//EventData.Target = DirectTarget;
+
+//UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+//    DirectTarget,
+//    Trigger_EventTag,
+//    EventData
+//);
+
+//UE_LOG(LogTemp, Log, TEXT("Instigator:  %s"), *Instigator->GetName());
+//UE_LOG(LogTemp, Log, TEXT("DirectTarget:  %s"), *DirectTarget->GetName());
+
+//return true;

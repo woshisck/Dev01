@@ -19,11 +19,11 @@ class DEVKIT_API UEnemyAttributeSet : public UAttributeSet{
 
 public:
 
-
-
 	UEnemyAttributeSet();
 
 public:
+
+
 	UPROPERTY(BlueprintReadWrite, Category = "Enemy")
 	FGameplayAttributeData DetectPlayer_Sound;
 	ATTRIBUTE_ACCESSORS(UEnemyAttributeSet, DetectPlayer_Sound);
@@ -35,5 +35,12 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Enemy")
     FGameplayAttributeData DropExp;
 	ATTRIBUTE_ACCESSORS(UEnemyAttributeSet, DropExp);
+
+
+	UPROPERTY(BlueprintReadWrite, Category = "Enemy")
+	FGameplayAttributeData KnockBackDist;
+	ATTRIBUTE_ACCESSORS(UEnemyAttributeSet, KnockBackDist);
+
+
 
 };
