@@ -12,8 +12,34 @@
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
 	bAutoSpawnPlayer = false;
-
+	DefaultPawnClass = nullptr;
 }
+
+
+void AYogGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
+{
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+	if (GI && GI->PersistentSaveData)
+	{
+		FActorSpawnParameters Params;
+		Params.Owner = NewPlayer;
+
+		APlayerCharacterBase* LoadedChar = GetWorld()->SpawnActor<APlayerCharacterBase>(
+			GI->PersistentSaveData->SavedCharacterClass,
+			GI->PersistentSaveData->SavedLocation,
+			GI->PersistentSaveData->SavedRotation,
+			Params
+		);
+
+		NewPlayer->Possess(LoadedChar);
+	}
+	else
+	{
+		Super::HandleStartingNewPlayer_Implementation(NewPlayer); // fallback
+	}
+}
+
+
 
 void AYogGameMode::RestartPlayer(AController* NewPlayer)
 {
@@ -143,6 +169,8 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 	}
 
 }
+
+
 
 
 void AYogGameMode::UpdateMonsterKillCount(int count)

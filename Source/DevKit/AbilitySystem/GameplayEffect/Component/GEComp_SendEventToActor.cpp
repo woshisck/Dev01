@@ -13,7 +13,10 @@
 UGEComp_SendEventToActor::UGEComp_SendEventToActor()
 {
 }
-
+/*
+* This Function call the send event data to player AFTER gain ability in parent class (after super) to trigger the passive ability
+* NB. The passive ability need to set the trigger tag and MUST DELETE Activate Ability Blueprint Node, this is protential bug 
+*/
 void UGEComp_SendEventToActor::OnInhibitionChanged(FActiveGameplayEffectHandle ActiveGEHandle, bool bIsInhibited) const
 {
     Super::OnInhibitionChanged(ActiveGEHandle, bIsInhibited);

@@ -13,7 +13,7 @@ UYogGameInstanceBase::UYogGameInstanceBase()
 
 APlayerCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
 {
-	APlayerCharacterBase* YogCharacterBase = NewObject<APlayerCharacterBase>();
+	APlayerCharacterBase* PlayerCharacterBase = NewObject<APlayerCharacterBase>();
 	UWorld* World = this->GetWorld();
 	if (World)
 	{
@@ -24,24 +24,30 @@ APlayerCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
 		}
 	}
 
-
-	return YogCharacterBase;
+	return PlayerCharacterBase;
 }
 
-void UYogGameInstanceBase::AddDefaultInventory(UYogSaveGame* SaveGame, bool bRemoveExtra)
-{
 
-}
 
-//bool UYogGameInstanceBase::IsValidItemSlot(FRPGItemSlot ItemSlot) const
-//{
-//
-//	return false;
-//}
 
 void UYogGameInstanceBase::Init()
 {
 	Super::Init();
+}
+
+void UYogGameInstanceBase::SaveGame()
+{
+	if (!PersistentSaveData)
+	{
+		PersistentSaveData = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
+	}
+	APlayerCharacterBase* CurrentCharacter = GetPlayerCharacter();
+
+	PersistentSaveData->SavedLocation = CurrentCharacter->GetActorLocation();
+	PersistentSaveData->SavedRotation = CurrentCharacter->GetActorRotation();
+	PersistentSaveData->SavedCharacterClass = CurrentCharacter->GetClass();
+
+	UGameplayStatics::SaveGameToSlot(PersistentSaveData, "Slot1", 0);
 }
 
 UYogSaveGame* UYogGameInstanceBase::GetCurrentSaveGame()

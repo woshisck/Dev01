@@ -24,6 +24,9 @@ public:
 	virtual void StartPlay() override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
+	//UFUNCTION(BlueprintNativeEvent, Category = Game)
+	//virtual void HandleStartingNewPlayer(APlayerController* NewPlayer) override;
+
 	UFUNCTION(BlueprintCallable, Category = "Player")
 	void SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName);
 
@@ -52,5 +55,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "KillCount")
 	int TargetMonsterKill;
 
+protected:
+	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 
 };

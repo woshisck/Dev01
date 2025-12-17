@@ -54,10 +54,11 @@ public:
 	// Constructor
 	UYogGameInstanceBase();
 
+	virtual void Init() override;
+
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Map state")
 	FLevelStateCount MapStateCount;
-
 
 	UPROPERTY(BlueprintAssignable, Category = "File system")
 	FStartNewGame OnStartNewGame;
@@ -96,20 +97,9 @@ public:
 	/** Native delegate for save game load/reset */
 	FOnSaveGameLoadedNative OnSaveGameLoadedNative;
 
-	/**
-	 * Adds the default inventory to the inventory array
-	 * @param InventoryArray Inventory to modify
-	 * @param RemoveExtra If true, remove anything other than default inventory
-	 */
-	UFUNCTION(BlueprintCallable, Category = Inventory)
-	void AddDefaultInventory(UYogSaveGame* SaveGame, bool bRemoveExtra = false);
 
-	/** Returns true if this is a valid inventory slot */
-	//UFUNCTION(BlueprintCallable, Category = Inventory)
-	//bool IsValidItemSlot(FRPGItemSlot ItemSlot) const;
-
-
-	virtual void Init() override;
+	UFUNCTION(BlueprintCallable, Category = Save)
+	void SaveGame();
 
 	/** Returns the current save game, so it can be used to initialize state. Changes are not written until WriteSaveGame is called */
 	UFUNCTION(BlueprintCallable, Category = Save)

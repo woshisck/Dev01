@@ -260,6 +260,16 @@ class DEVKIT_API UYogSaveGame : public USaveGame
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(BlueprintReadWrite)
+	FVector SavedLocation;
+
+	UPROPERTY(BlueprintReadWrite)
+	FRotator SavedRotation;
+
+	UPROPERTY(BlueprintReadWrite)
+	TSubclassOf<class APlayerCharacterBase> SavedCharacterClass;
+
+
 
 	UPROPERTY()
 	FYogPlayerStateSave PlayerStateData;
