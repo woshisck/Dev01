@@ -216,38 +216,23 @@ TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainerSpe
 void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-	EventOn_AbilityStart.Broadcast();
 
-	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
-	ASC->CurrentAbilitySpecHandle = Handle;
 
-	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	AYogCharacterBase* player = Cast<AYogCharacterBase>(AvatarActor);
+	//UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
+	//ASC->CurrentAbilitySpecHandle = Handle;
 
-	//player->UpdateCharacterState(EYogCharacterState::OnAction, FVector(0,0,0));
+	//AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	//AYogCharacterBase* player = Cast<AYogCharacterBase>(AvatarActor);
 
-	//for (FVector& point : array_hitbox_vector)
-	//{
-	//	UE_LOG(LogTemp, Warning, TEXT("hitbox_point_array: %s"), *point.ToString());
-	//}
 
-	//for (auto& point : hitbox)
-	//{
-	//	UE_LOG(LogTemp, Warning, TEXT("this->box Point Vector: %s"), *point.Point.ToString());
-	//}
 
-	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackAttribute(), ActDamage);
-	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackRangeAttribute(), ActRange);
-	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetResilienceAttribute(), ActResilience);
-	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetDmgTakenAttribute(), ActDmgReduce);
+	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackAttribute(), ActDamage);
+	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackRangeAttribute(), ActRange);
+	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetResilienceAttribute(), ActResilience);
+	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetDmgTakenAttribute(), ActDmgReduce);
 
-	//UYogAbilitySystemComponent* asc = player->GetASC();
 
-	//TODO: add loose gameplaytag for blocking ability
-	//if (!this->ActivationBlockedTags.IsEmpty())
-	//{		
-	//	ASC->AddLooseGameplayTags(this->ActivationBlockedTags);
-	//}
+	//EventOn_AbilityStart.Broadcast();
 }
 
 
@@ -267,29 +252,23 @@ FActionData UYogGameplayAbility::GetRowData(FDataTableRowHandle action_row)
 void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
-	EventOn_AbilityEnded.Broadcast();
 
 
-	//TODO: remove loose gameplaytag for blocking ability
+	//AYogCharacterBase* player = Cast<AYogCharacterBase>(this->GetAvatarActorFromActorInfo());
+
+
 	//UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
-	AYogCharacterBase* player = Cast<AYogCharacterBase>(this->GetAvatarActorFromActorInfo());
-	/*player->HitboxbuffComponent->Clear();*/
-	
-	//ASC->RemoveLooseGameplayTags(this->ActivationBlockedTags);
+	//ASC->CurrentAbilitySpecHandle = Handle;
+
+	//player->UpdateCharacterState(EYogCharacterState::Idle, FVector(0, 0, 0));
 
 
-	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
-	ASC->CurrentAbilitySpecHandle = Handle;
+	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackAttribute(), -ActDamage);
+	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackRangeAttribute(), -ActRange);
+	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetResilienceAttribute(), -ActResilience);
+	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetDmgTakenAttribute(), -ActDmgReduce);
 
-	player->UpdateCharacterState(EYogCharacterState::Idle, FVector(0, 0, 0));
-
-
-	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackAttribute(), -ActDamage);
-	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackRangeAttribute(), -ActRange);
-	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetResilienceAttribute(), -ActResilience);
-	player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetDmgTakenAttribute(), -ActDmgReduce);
-
-
+	//EventOn_AbilityEnded.Broadcast();
 }
 
 
