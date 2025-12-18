@@ -145,7 +145,7 @@ struct FYogTagContainerWrapper
 
 
 USTRUCT(BlueprintType)
-struct FUniqueEffect 
+struct FYogApplyEffect 
 {
 	GENERATED_BODY()
 
@@ -160,10 +160,30 @@ public:
 	int level;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UCurveTable> PowerCurve;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<UGameplayEffect> GameplayEffect;
+
+	// Add equality operator to define "sameness"
+	bool operator==(const FYogApplyEffect& Other) const
+	{
+		return Target == Other.Target &&
+			TriggerTag == Other.TriggerTag &&
+			GameplayEffect == Other.GameplayEffect;
+	}
+
+	// Also need != operator
+	bool operator!=(const FYogApplyEffect& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	// For TMap key, add GetTypeHash
+	friend uint32 GetTypeHash(const FYogApplyEffect& Effect)
+	{
+		uint32 Hash = GetTypeHash(Effect.Target);
+		Hash = HashCombine(Hash, GetTypeHash(Effect.TriggerTag));
+		Hash = HashCombine(Hash, GetTypeHash(Effect.GameplayEffect));
+		return Hash;
+	}
 };
 
 
@@ -223,7 +243,7 @@ public:
 	TObjectPtr<UAnimMontage> Montage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FUniqueEffect> UniqueEffects;
+	TArray<FYogApplyEffect> UniqueEffects;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TSubclassOf<UYogGameplayAbility> Ability_Template;
@@ -274,7 +294,7 @@ public:
 	TObjectPtr<UAnimMontage> Montage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FUniqueEffect> UniqueEffects;
+	TArray<FYogApplyEffect> UniqueEffects;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TSubclassOf<UYogGameplayAbility> Ability_Template;

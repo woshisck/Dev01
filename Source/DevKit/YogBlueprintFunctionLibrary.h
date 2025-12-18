@@ -194,6 +194,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "System")
 	static UYogGameInstanceBase* GetYogGameInstance(UObject* WorldContextObject);
 
+	UFUNCTION(BlueprintCallable, Category = "Effect")
+	static TArray<FYogApplyEffect> MergeApplyEffects(const TArray<FYogApplyEffect>& SourceArray);
 
 	template<typename T>
 

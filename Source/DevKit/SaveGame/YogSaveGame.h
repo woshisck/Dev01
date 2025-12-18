@@ -17,6 +17,13 @@ class UYogGameplayEffect;
 
 class AYogCharacterBase;
 
+USTRUCT()
+struct DEVKIT_API FGameAbilitySystemSaveData
+{
+	GENERATED_BODY()
+
+
+};
 
 USTRUCT()
 struct DEVKIT_API FAttributeSaveData
@@ -185,9 +192,6 @@ struct DEVKIT_API FWeaponSaveData
 	UPROPERTY()
 	FString ActorName;
 
-	// The class to spawn when loading
-	UPROPERTY()
-	TArray<FYogAbilitySaveData> ActorAbilities;
 };
 
 
@@ -197,22 +201,15 @@ struct DEVKIT_API FYogPlayerStateSave
 	GENERATED_BODY()
 public:
 
-	/* Location if player was alive during save */
-	UPROPERTY()
-	FVector PlayerLocation = FVector(0,0,0);
-
-	/* Orientation if player was alive during save */
-	UPROPERTY()
-	FRotator PlayerRotation = FRotator(0,0,0);
-
 	UPROPERTY()
 	FAttributeSaveData PlayerAttributeData;
 
 	UPROPERTY()
-	TArray<FYogAbilitySaveData> YogAbilityDataArray;
+	TArray<uint8> WeaponActorByteData;
 
 	UPROPERTY()
-	TArray<uint8> WeaponActorByteData;
+	TArray<uint8> ASC_Data;
+	
 
 	UPROPERTY()
 	TArray<uint8> CharacterByteData;
@@ -260,11 +257,6 @@ class DEVKIT_API UYogSaveGame : public USaveGame
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(BlueprintReadWrite)
-	FVector SavedLocation;
-
-	UPROPERTY(BlueprintReadWrite)
-	FRotator SavedRotation;
 
 	UPROPERTY(BlueprintReadWrite)
 	TSubclassOf<class APlayerCharacterBase> SavedCharacterClass;

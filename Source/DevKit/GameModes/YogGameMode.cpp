@@ -26,8 +26,6 @@ void AYogGameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 
 		APlayerCharacterBase* LoadedChar = GetWorld()->SpawnActor<APlayerCharacterBase>(
 			GI->PersistentSaveData->SavedCharacterClass,
-			GI->PersistentSaveData->SavedLocation,
-			GI->PersistentSaveData->SavedRotation,
 			Params
 		);
 

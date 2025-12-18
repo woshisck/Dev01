@@ -376,6 +376,29 @@ UYogGameInstanceBase* UYogBlueprintFunctionLibrary::GetYogGameInstance(UObject* 
 
 }
 
+TArray<FYogApplyEffect> UYogBlueprintFunctionLibrary::MergeApplyEffects(const TArray<FYogApplyEffect>& SourceArray)
+{
+	TMap<FYogApplyEffect, int32> LevelAccumulator;
+
+	// First pass: accumulate levels
+	for (const FYogApplyEffect& Effect : SourceArray)
+	{
+		// Add or update the accumulated level
+		LevelAccumulator.FindOrAdd(Effect) += Effect.level;
+	}
+
+	// Second pass: create result array with accumulated levels
+	TArray<FYogApplyEffect> Result;
+	for (const auto& Pair : LevelAccumulator)
+	{
+		FYogApplyEffect MergedEffect = Pair.Key; // Copy the base effect
+		MergedEffect.level = Pair.Value; // Set the accumulated level
+		Result.Add(MergedEffect);
+	}
+
+	return Result;
+}
+
 
 float UYogBlueprintFunctionLibrary::DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FYogCollisionTriangle triangle)
 {

@@ -71,8 +71,21 @@ void UCardComponent::InitDeck()
 	//}
 }
 
-void UCardComponent::Pop()
+FCardProperty UCardComponent::PopAtFirst()
 {
+	if (CardPool.Num() > 0)
+	{
+		FCardProperty item = CardPool[0];
+		CardPool.RemoveAt(0);
+		return item;
+	}
+	else
+	{
+		FillPool(CardData);
+		FCardProperty item = CardPool[0];
+		CardPool.RemoveAt(0);
+		return item;
+	}
 	Event_OnCardPopSignature.Broadcast();
 }
 
@@ -86,21 +99,18 @@ void UCardComponent::Shuffle(UPARAM(ref) TArray<FCardProperty>& cards)
 
 void UCardComponent::FillPool(UCardData* card_data_pool)
 {
-	if (!card_data_pool || card_data_pool->CardProperties.Num() == 0)
+	CardPool.Empty();
+	if (!card_data_pool || !CardData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid CardDataPool in FillPool"));
 		return;
 	}
-
-	CardPool.Empty();
-
-
-
-	for (int i = 0; i < CardPoolSize; i++)
+	else
 	{
-		FCardProperty SelectedCard = GetWeightedRandomCard(card_data_pool->CardProperties);
-
-		CardPool.Add(SelectedCard);
+		for (int i = 0; i < CardPoolSize; i++)
+		{
+			FCardProperty SelectedCard = GetWeightedRandomCard(CardData->CardProperties);
+			CardPool.Add(SelectedCard);
+		}
 	}
 	//UE_LOG(LogTemp, Warning, TEXT(""));
 	Event_OnCardFillPoolSignature.Broadcast(CardPool.Num());
@@ -130,24 +140,10 @@ void UCardComponent::MoveCardAtIndex(UPARAM(ref)TArray<FCardProperty>& Source, U
 
 void UCardComponent::PrintCardPool()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Pool property:"));
-	for (FCardProperty& cardproperty : CardPool)
-	{
-
-		FString cardInfo = cardproperty.CardPropertyToString(cardproperty);
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *cardInfo);
-	}
 }
 
 void UCardComponent::PrintDeck()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Deck property:"));
-	for (FCardProperty& cardproperty : CardDeck)
-	{
-		
-		FString cardInfo = cardproperty.CardPropertyToString(cardproperty);
-		UE_LOG(LogTemp, Warning, TEXT("%s at index "), *cardInfo);
-	}
 }
 
 /*

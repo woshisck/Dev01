@@ -68,6 +68,7 @@ void UGEComp_SendEventToActor::OnInhibitionChanged(FActiveGameplayEffectHandle A
         EventData.EventTag,
         EventData
     );
+    UE_LOG(LogTemp, Warning, TEXT("Sent event data"));
 
 }
 

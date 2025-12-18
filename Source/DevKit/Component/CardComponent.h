@@ -2,9 +2,10 @@
 
 #pragma once
 
+
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "CardData.h"
+#include "DevKit/Card/CardData.h"
 #include "CardComponent.generated.h"
 
 class UGameplayEffect;
@@ -19,7 +20,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCardFillPoolSignature, int, CardN
 
 
 UCLASS(Blueprintable, BlueprintType, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class CARDRUNTIME_API UCardComponent : public UActorComponent
+class DEVKIT_API UCardComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
@@ -55,6 +56,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int DeckSize;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UCardData> CardData;
+
 	UFUNCTION(BlueprintCallable)
 	FCardProperty GetWeightedRandomCard(const TArray<FCardProperty>& card_properties);
 
@@ -68,7 +72,7 @@ public:
 	void InitDeck();
 
 	UFUNCTION(BlueprintCallable)
-	void Pop();
+	FCardProperty PopAtFirst();
 
 	UFUNCTION(BlueprintCallable)
 	void Shuffle(UPARAM(ref) TArray<FCardProperty>& cards);

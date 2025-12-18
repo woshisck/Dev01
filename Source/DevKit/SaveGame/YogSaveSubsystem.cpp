@@ -145,17 +145,10 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 	
 	SaveGame->PlayerStateData.SetupAttribute(*player->BaseAttributeSet);
-	SaveGame->PlayerStateData.PlayerLocation = player->GetActorLocation();
-	SaveGame->PlayerStateData.PlayerRotation = player->GetActorRotation();
 
 	UYogAbilitySystemComponent* ASC = player->GetASC();
 
 	TArray<FYogAbilitySaveData> container = ASC->GetAllGrantedAbilities();
-
-	for (FYogAbilitySaveData& abilitydata : container)
-	{
-		SaveGame->PlayerStateData.YogAbilityDataArray.Add(abilitydata);
-	}
 
 
 	//Weapon find & serialize 
@@ -181,11 +174,6 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		APlayerCharacterBase* pawn = Cast<APlayerCharacterBase>(PC->GetPawn());
 		if (pawn)
 		{
-
-			pawn->SetActorLocation(CurrentSaveGame->PlayerStateData.PlayerLocation);
-			pawn->SetActorRotation(CurrentSaveGame->PlayerStateData.PlayerRotation);	
-			
-
 			AWeaponInstance* weaponActor = GetWorld()->SpawnActorDeferred<AWeaponInstance>(AWeaponInstance::StaticClass(), pawn->GetTransform());
 
 			LoadData(weaponActor, CurrentSaveGame->PlayerStateData.WeaponActorByteData);

@@ -122,10 +122,6 @@
 		{
 			"Name": "MotionWarping",
 			"Enabled": true
-		},
-		{
-			"Name": "Card",
-			"Enabled": true
 		}
 	]
 }

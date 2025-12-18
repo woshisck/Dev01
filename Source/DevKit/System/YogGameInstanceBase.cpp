@@ -42,9 +42,6 @@ void UYogGameInstanceBase::SaveGame()
 		PersistentSaveData = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
 	}
 	APlayerCharacterBase* CurrentCharacter = GetPlayerCharacter();
-
-	PersistentSaveData->SavedLocation = CurrentCharacter->GetActorLocation();
-	PersistentSaveData->SavedRotation = CurrentCharacter->GetActorRotation();
 	PersistentSaveData->SavedCharacterClass = CurrentCharacter->GetClass();
 
 	UGameplayStatics::SaveGameToSlot(PersistentSaveData, "Slot1", 0);
