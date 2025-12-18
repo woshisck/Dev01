@@ -23,6 +23,7 @@ UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitial
 
 TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel )
 {
+	UE_LOG(LogTemp, Warning, TEXT("ApplyEffectContainer"));
 	FYogGameplayEffectContainerSpec Spec = MakeEffectContainerSpec(ContainerTag, EventData, OverrideGameplayLevel);
 	return ApplyEffectContainerSpec(Spec);
 }
