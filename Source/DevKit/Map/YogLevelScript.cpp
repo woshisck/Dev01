@@ -34,6 +34,17 @@ void AYogLevelScript::OnLevelLoaded(UWorld* LoadedWorld)
 void AYogLevelScript::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (Mapdefinition)
+	{
+		switch (Mapdefinition->EnemySpawnRule)
+		{
+		case EEnemySpawnRule::OneByOne:
+			
+		default:
+			break;
+		}
+	}
 	//TODO: Make it Deprecated for future Setting
 
 

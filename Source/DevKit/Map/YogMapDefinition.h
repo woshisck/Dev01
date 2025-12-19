@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "../System/YogWorldSubsystem.h"
+#include "DevKit/Enemy/EnemyCharacterBase.h"
 #include "YogMapDefinition.generated.h"
 
 /**
@@ -17,6 +18,7 @@ enum class EEnemySpawnRule : uint8
 {
 	OneByOne	UMETA(DisplayName = "OneByOne"),
 	AllInOnce	UMETA(DisplayName = "AllInOnce"),
+	Wave		UMETA(DisplayName = "Wave"),
 	Default		UMETA(DisplayName = "Default")
 };
 
@@ -66,8 +68,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
 	TArray<FNextMapNode> NextLevels;
 
-
-
 };
 
 UCLASS(Blueprintable, BlueprintType, Const)
@@ -78,6 +78,29 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level|Mob")
 	EEnemySpawnRule EnemySpawnRule;
+
+
+	//OneByOne	UMETA(DisplayName = "OneByOne"),
+	//AllInOnce	UMETA(DisplayName = "AllInOnce"),
+	//Wave		UMETA(DisplayName = "Wave"),
+	//Default		UMETA(DisplayName = "Default")
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::OneByOne"))
+	int SpawnDelay;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::Wave"))
+	int WaveCount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::Wave"))
+	int NumPerWave;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::AllInOnce"))
+	int NumCount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<AEnemyCharacterBase> MobSpawn;
+
+
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level|Mob")

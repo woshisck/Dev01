@@ -65,46 +65,6 @@ AYogCharacterBase* UYogGameplayAbility::GetOwnerCharacterInfo()
 
 }
 
-void UYogGameplayAbility::SetupActionData(FActionData& action_data)
-{
-
-	ActDamage = action_data.ActDamage;
-	ActRange = action_data.ActRange;
-	ActResilience = action_data.ActResilience;
-	ActRotateSpeed = action_data.ActRotateSpeed;
-	JumpFrameTime = action_data.JumpFrameTime;
-	FreezeFrameTime = action_data.FreezeFrameTime;
-	Montage = action_data.Montage;
-
-	hitboxTypes = action_data.hitboxTypes;
-
-
-	//switch (action_data.hitboxType)
-	//{
-	//case EHitBoxType::Circle:
-	//	HitboxCircles = action_data.HitboxCircles;
-	//	break;
-	//case EHitBoxType::Annulus:
-	//	AnnulusHitbox = action_data.AnnulusHitbox;
-	//	break;
-	//case EHitBoxType::Square:
-	//	HitboxSquares = action_data.HitboxSquares;
-	//	break;
-	//case EHitBoxType::Triangle:
-	//	HitboxTriangles = action_data.HitboxTriangles;
-	//	break;
-
-	//default:
-	//	break;
-	//}
-
-	//hitbox.SetNumUninitialized(action_data.hitbox.Num());
-	//FMemory::Memcpy(hitbox.GetData(), action_data.hitbox.GetData(), action_data.hitbox.Num() * sizeof(FHitBoxData));
-	//for (auto& point : hitbox)
-	//{
-	//	UE_LOG(LogTemp, Warning, TEXT("this->box Point Vector: %s"), *point.Point.ToString());
-	//}
-}
 
 int UYogGameplayAbility::GetCurrentGameplayEffect(FGameplayTag EffectTag)
 {
@@ -232,7 +192,7 @@ void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetDmgTakenAttribute(), ActDmgReduce);
 
 
-	//EventOn_AbilityStart.Broadcast();
+	EventOn_AbilityStart.Broadcast();
 }
 
 

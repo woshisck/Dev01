@@ -20,7 +20,7 @@ class DEVKIT_API AYogLevelScript : public ALevelScriptActor
 
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	int MonsterKillCountTarget;
 
 protected:
@@ -28,9 +28,9 @@ protected:
 	virtual void PreInitializeComponents() override;
 	void LevelSetup(UYogMapDefinition& MapDefine);
 	
+	 
 
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UYogMapDefinition> Mapdefinition;
 
 	UPROPERTY(BlueprintAssignable)

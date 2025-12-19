@@ -129,8 +129,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	AYogCharacterBase* GetOwnerCharacterInfo();
 
-	UFUNCTION(BlueprintCallable)
-	void SetupActionData(FActionData& action_data);
 
 	UFUNCTION(BlueprintCallable, Category = "GameplayEffect")
 	int GetCurrentGameplayEffect(FGameplayTag EffectTag);

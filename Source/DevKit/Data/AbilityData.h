@@ -361,10 +361,10 @@ class DEVKIT_API UAbilityData : public UPrimaryDataAsset
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, meta = (ForceInlineRow), Category = "Action|Move")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow), Category = "Action|Move")
 	TMap<FGameplayTag, FActionData> AbilityMap;
 
-	UPROPERTY(EditAnywhere, meta = (ForceInlineRow), Category = "Action|General")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow), Category = "Action|General")
 	TMap<FGameplayTag, FPassiveActionData> PassiveMap;
 	//TMap<FYogTagContainerWrapper, FActionData> AbilityMap;
 
