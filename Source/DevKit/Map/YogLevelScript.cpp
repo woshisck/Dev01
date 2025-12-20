@@ -37,12 +37,27 @@ void AYogLevelScript::BeginPlay()
 
 	if (Mapdefinition)
 	{
+
 		switch (Mapdefinition->EnemySpawnRule)
 		{
-		case EEnemySpawnRule::OneByOne:
-			
-		default:
-			break;
+			case EEnemySpawnRule::OneByOne:
+			{
+				break;
+			}
+			case EEnemySpawnRule::AllInOnce:
+			{
+				break;
+			}
+
+			case EEnemySpawnRule::Wave:
+			{
+				break;
+			}
+
+			default:
+			{
+				break;
+			}
 		}
 	}
 	//TODO: Make it Deprecated for future Setting
