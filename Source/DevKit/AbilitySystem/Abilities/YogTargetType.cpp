@@ -2,6 +2,7 @@
 
 #include "YogTargetType.h"
 #include "YogGameplayAbility.h"
+
 #include <Devkit/Character/YogCharacterBase.h>
 
 void UYogTargetType::GetTargets_Implementation(AYogCharacterBase* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData, TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const

@@ -11,6 +11,8 @@
 #include "DevAssetManager.h"
 #include "DevKit/GameModes/YogGameMode.h"
 
+#include "DevKit/Mob/MobSpawner.h"
+
 void AYogLevelScript::PreInitializeComponents()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Start pre initialize component"));
@@ -37,10 +39,20 @@ void AYogLevelScript::BeginPlay()
 
 	if (Mapdefinition)
 	{
+		TArray<AActor*> Spawners;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), Spawners);
+
+
 		switch (Mapdefinition->EnemySpawnRule)
 		{
 		case EEnemySpawnRule::OneByOne:
-			
+			break;
+		case EEnemySpawnRule::AllInOnce:
+			break;
+		case EEnemySpawnRule::Wave:
+			break;
+		case EEnemySpawnRule::Default:
+			break;
 		default:
 			break;
 		}

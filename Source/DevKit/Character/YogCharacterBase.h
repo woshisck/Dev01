@@ -66,7 +66,7 @@ public:
 
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute", meta = (EditCondition = "bAllowEditInChildClass"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute")
 	TObjectPtr<UCharacterData> CharacterData;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)

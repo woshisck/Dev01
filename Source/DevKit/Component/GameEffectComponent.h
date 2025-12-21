@@ -47,7 +47,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	int GetBuffCount();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bAllowEditInChildClass"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TArray<TObjectPtr<UBuffDefinition>> BuffArray;
 	TArray<TSubclassOf<UPlayEffectDefinition>> BuffArray;
 	

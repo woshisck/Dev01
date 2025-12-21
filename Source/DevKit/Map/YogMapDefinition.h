@@ -85,6 +85,9 @@ public:
 	//Wave		UMETA(DisplayName = "Wave"),
 	//Default		UMETA(DisplayName = "Default")
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::OneByOne || EnemySpawnRule == EEnemySpawnRule::AllInOnce"))
+	int TotalCount;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::OneByOne"))
 	int SpawnDelay;
 
