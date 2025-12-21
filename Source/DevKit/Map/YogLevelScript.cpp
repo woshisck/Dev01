@@ -56,6 +56,7 @@ void AYogLevelScript::BeginPlay()
 		default:
 			break;
 		}
+
 	}
 	//TODO: Make it Deprecated for future Setting
 
