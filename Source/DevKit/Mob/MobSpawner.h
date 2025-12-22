@@ -7,7 +7,7 @@
 #include "Data/EnemyData.h"
 #include "MobSpawner.generated.h"
 
-
+class AEnemyCharacterBase;
 
 UCLASS()
 class DEVKIT_API AMobSpawner : public AActor
@@ -25,5 +25,9 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	UFUNCTION(BlueprintCallable)
+	void SpawnMob(TSubclassOf<AEnemyCharacterBase> mob_spawn);
+
 
 };

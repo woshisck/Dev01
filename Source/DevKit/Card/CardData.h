@@ -42,12 +42,6 @@ public:
 	TArray<FYogApplyEffect> CardEffect;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    EYogEffectTarget Target;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow))
-    FGameplayTag DisplayName;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int Rare = 1;
 
 };

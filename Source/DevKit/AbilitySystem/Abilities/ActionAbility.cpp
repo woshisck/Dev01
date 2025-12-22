@@ -18,11 +18,11 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 
 
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
-	FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
-	FActionData* action_data = Owner->AbilityData->AbilityMap.Find(ability_tag);
+	//FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
+	//FActionData* action_data = Owner->AbilityData->AbilityMap.Find(ability_tag);
 
-	//DANGER
-	action_data_CACHE = *action_data;
+	////DANGER
+	//action_data_CACHE = *action_data;
 
 	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackAttribute(), ActDamage);
 	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackRangeAttribute(), ActRange);

@@ -39,23 +39,43 @@ void AYogLevelScript::BeginPlay()
 
 	if (Mapdefinition)
 	{
-		TArray<AActor*> Spawners;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), Spawners);
 
 
-		switch (Mapdefinition->EnemySpawnRule)
-		{
-		case EEnemySpawnRule::OneByOne:
-			break;
-		case EEnemySpawnRule::AllInOnce:
-			break;
-		case EEnemySpawnRule::Wave:
-			break;
-		case EEnemySpawnRule::Default:
-			break;
-		default:
-			break;
-		}
+		//TArray<AActor*> OutActors;
+		//TArray<AMobSpawner*> MobSpawners;
+		//UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), OutActors);
+
+
+		//if (OutActors.Num() <= 0)
+		//{
+		//	return;
+		//}
+
+		//for (AActor* a : OutActors)
+		//{
+		//	MobSpawners.Add(Cast<AMobSpawner>(a));
+		//}
+
+
+		//switch (Mapdefinition->EnemySpawnRule)
+		//{
+		//case EEnemySpawnRule::OneByOne:
+		//	for (int i = 0; i < Mapdefinition->TotalCount; i++)
+		//	{
+		//		int32 RandomIndex = FMath::RandHelper(MobSpawners.Num());
+		//		AMobSpawner* Spawner = MobSpawners[RandomIndex];
+		//		Spawner->SpawnMob();
+		//	}
+		//	break;
+		//case EEnemySpawnRule::AllInOnce:
+		//	break;
+		//case EEnemySpawnRule::Wave:
+		//	break;
+		//case EEnemySpawnRule::Default:
+		//	break;
+		//default:
+		//	break;
+		//}
 
 	}
 	//TODO: Make it Deprecated for future Setting

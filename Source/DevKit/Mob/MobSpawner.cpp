@@ -3,6 +3,8 @@
 
 #include "MobSpawner.h"
 #include "DevKit/Controller/YogAIController.h"
+#include "DevKit/Enemy/EnemyCharacterBase.h"
+
 
 // Sets default values
 AMobSpawner::AMobSpawner()
@@ -24,4 +26,8 @@ void AMobSpawner::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+}
+
+void AMobSpawner::SpawnMob(TSubclassOf<AEnemyCharacterBase> mob_spawn)
+{
 }

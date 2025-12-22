@@ -27,8 +27,6 @@ struct DEVKIT_API FYogContainerEffect
 {
 	GENERATED_BODY()
 
-	// TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTag TriggerTag;
 

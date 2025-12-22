@@ -77,6 +77,7 @@ FCardProperty UCardComponent::PopAtFirst()
 	{
 		FCardProperty item = CardPool[0];
 		CardPool.RemoveAt(0);
+		Event_OnCardPopSignature.Broadcast();
 		return item;
 	}
 	else
@@ -84,9 +85,10 @@ FCardProperty UCardComponent::PopAtFirst()
 		FillPool(CardData);
 		FCardProperty item = CardPool[0];
 		CardPool.RemoveAt(0);
+		Event_OnCardPopSignature.Broadcast();
 		return item;
 	}
-	Event_OnCardPopSignature.Broadcast();
+
 }
 
 void UCardComponent::Shuffle(UPARAM(ref) TArray<FCardProperty>& cards)

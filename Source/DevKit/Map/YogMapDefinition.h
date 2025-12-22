@@ -89,7 +89,7 @@ public:
 	int TotalCount;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::OneByOne"))
-	int SpawnDelay;
+	float SpawnDelay;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::Wave"))
 	int WaveCount;
