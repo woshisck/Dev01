@@ -175,7 +175,7 @@ struct DEVKIT_API FYogAbilitySaveData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	uint8 Level;
+	uint8 Level = 0;
 
 
 	UPROPERTY()

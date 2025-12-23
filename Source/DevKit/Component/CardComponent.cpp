@@ -73,6 +73,7 @@ void UCardComponent::InitDeck()
 
 FCardProperty UCardComponent::PopAtFirst()
 {
+
 	if (CardPool.Num() > 0)
 	{
 		FCardProperty item = CardPool[0];
