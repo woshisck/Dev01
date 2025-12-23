@@ -22,21 +22,21 @@ void UPassiveAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	ASC->CurrentAbilitySpecHandle = Handle;
 
 
-	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
-	FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
-	if (Owner->AbilityData)
-	{
-		PassiveData_cache = Owner->AbilityData->GetPassiveAbility(ability_tag);
-	}
+	//AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
+	//FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
+	//if (Owner->AbilityData)
+	//{
+	//	PassiveData_cache = Owner->AbilityData->GetPassiveAbility(ability_tag);
+	//}
 
-	Owner->UpdateCharacterState(EYogCharacterState::OnAction, FVector(0, 0, 0));
+	//Owner->UpdateCharacterState(EYogCharacterState::OnAction, FVector(0, 0, 0));
 }
 
 void UPassiveAbility::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
 {
 	Super::OnAvatarSet(ActorInfo, Spec);
 
-	ActorInfo->AbilitySystemComponent->TryActivateAbility(Spec.Handle, false);
+	//ActorInfo->AbilitySystemComponent->TryActivateAbility(Spec.Handle, false);
 
 
 }
