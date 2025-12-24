@@ -119,6 +119,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GAS")
 	static void PrintGameplayTagContainer(FGameplayTagContainer gameplaytag_container);
 
+	UFUNCTION(BlueprintCallable, Category = "YogMath")
+	static TArray<int> RandomSplitInteger(int Total, int NumberParts);
+
 
 	////////////////////////////////////////////////// Weapon Ability //////////////////////////////////////////////////
 	UFUNCTION(BlueprintCallable, Category = Weapon)

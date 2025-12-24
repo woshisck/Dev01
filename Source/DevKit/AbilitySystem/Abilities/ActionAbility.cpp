@@ -18,16 +18,29 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 
 
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
-	//FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
-	//FActionData* action_data = Owner->AbilityData->AbilityMap.Find(ability_tag);
+	FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
+	FActionData* action_data = Owner->AbilityData->AbilityMap.Find(ability_tag);
+	if (action_data)
+	{
+		cache_action_data->ActDamage = action_data->ActDamage;
+		cache_action_data->ActRange = action_data->ActRange;
+		cache_action_data->ActResilience = action_data->ActResilience;
+		cache_action_data->ActDmgReduce = action_data->ActDmgReduce;
 
-	////DANGER
-	//action_data_CACHE = *action_data;
+		////DANGER
+		//action_data_CACHE = *action_data;
 
-	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackAttribute(), ActDamage);
-	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackRangeAttribute(), ActRange);
-	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetResilienceAttribute(), ActResilience);
-	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetDmgTakenAttribute(), ActDmgReduce);
+		Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackAttribute(), action_data->ActDamage);
+		Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackRangeAttribute(), action_data->ActRange);
+		Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetResilienceAttribute(), action_data->ActResilience);
+		Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetDmgTakenAttribute(), action_data->ActDmgReduce);
+
+	}
+	else
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+	}
+
 
 
 
@@ -63,10 +76,16 @@ void UActionAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
+	//FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
+	//FActionData* action_data = Owner->AbilityData->AbilityMap.Find(ability_tag);
+	if (cache_action_data.IsValid())
+	{
+		Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackAttribute(), -cache_action_data->ActDamage);
+		Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackRangeAttribute(), -cache_action_data->ActRange);
+		Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetResilienceAttribute(), -cache_action_data->ActResilience);
+		Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetDmgTakenAttribute(), -cache_action_data->ActDmgReduce);
 
-	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackAttribute(), -ActDamage);
-	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackRangeAttribute(), -ActRange);
-	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetResilienceAttribute(), -ActResilience);
-	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetDmgTakenAttribute(), -ActDmgReduce);
+	}
+
 }
 

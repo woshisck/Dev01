@@ -39,6 +39,47 @@ void UYogBlueprintFunctionLibrary::PrintGameplayTagContainer(FGameplayTagContain
 	UE_LOG(LogTemp, Warning, TEXT("Yog TagContainer Contents: %s"), *gameplaytag_container.ToString());
 }
 
+TArray<int> UYogBlueprintFunctionLibrary::RandomSplitInteger(int Total, int NumberParts)
+{
+	TArray<int32> Result;
+
+	// 1. VALIDATE INPUTS FIRST
+	if (NumberParts <= 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("RandomSplitInteger: NumberParts must be positive (got %d)"), NumberParts);
+		return Result;
+	}
+
+	if (Total <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RandomSplitInteger: Total must be positive (got %d)"), Total);
+		// Return array of zeros
+		for (int32 i = 0; i < NumberParts; i++)
+		{
+			Result.Add(0);
+		}
+		return Result;
+	}
+
+	// 2. INITIALIZE the Result array FIRST!
+	Result.Init(0, NumberParts);  // Initialize all to zero
+
+	// 3. Create random stream
+	FRandomStream RandomStream;
+	RandomStream.GenerateNewSeed();
+
+	// 4. Distribute the total
+	for (int32 i = 0; i < Total; i++)
+	{
+		// SAFE: Use RandRange for integer range
+		int32 RandomIndex = RandomStream.RandRange(0, NumberParts - 1);
+		Result[RandomIndex]++;
+	}
+
+	return Result;
+
+}
+
 
 
 void UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData)

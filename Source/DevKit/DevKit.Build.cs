@@ -41,6 +41,7 @@ public class DevKit : ModuleRules
             });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
+                "Core",
                 "InputCore",
                 "Engine",
                 "Slate",
