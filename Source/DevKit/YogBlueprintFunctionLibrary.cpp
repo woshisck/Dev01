@@ -12,14 +12,19 @@
 #include <DevKit/Buff/Aura/AuraDefinition.h>
 #include "System/YogGameInstanceBase.h"
 #include "DevKit/Data/WeaponData.h"
+#include "NavigationSystem.h"
+#include "NavFilters/NavigationQueryFilter.h"
 
-UYogBlueprintFunctionLibrary::UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
+
+//UYogBlueprintFunctionLibrary::UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
+//	: Super(ObjectInitializer)
+//{
+//}
+
 
 bool UYogBlueprintFunctionLibrary::IsInEditor()
 {
+
 	return GIsEditor;
 }
 

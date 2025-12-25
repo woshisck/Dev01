@@ -61,6 +61,7 @@ void UGetHitAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
 	// }
 }
 
+
 //void UGetHitAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 //{
 //	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))

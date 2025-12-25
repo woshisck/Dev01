@@ -108,8 +108,14 @@ struct FYogCollisionTriangle
 UCLASS()
 class UYogBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 public:
+
+	UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
+		: Super(ObjectInitializer)
+	{
+	}
+
 	UFUNCTION(BlueprintPure, Category = Loading)
 	static bool IsInEditor();
 	
