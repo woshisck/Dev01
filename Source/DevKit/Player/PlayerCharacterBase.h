@@ -11,7 +11,7 @@
 /**
  * 
  */
-class AAuraBase;
+//class AAuraBase;
 class UYogSaveGame;
 
 UENUM()
@@ -72,8 +72,8 @@ public:
 	FPlayerStateDelegate OnFPlayerStateDeleg;
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aura")
-	TSubclassOf<AAuraBase> Aura;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aura")
+	//TSubclassOf<AAuraBase> Aura;
 
 
 	UPROPERTY()
