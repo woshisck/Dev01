@@ -228,7 +228,7 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetResilienceAttribute(), -ActResilience);
 	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetDmgTakenAttribute(), -ActDmgReduce);
 
-	//EventOn_AbilityEnded.Broadcast();
+	EventOn_AbilityEnded.Broadcast();
 }
 
 
