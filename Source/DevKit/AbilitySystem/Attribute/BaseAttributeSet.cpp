@@ -56,15 +56,17 @@ void UBaseAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, 
 	{
 		AdjustAttributeForMaxChange(Health, MaxHealth, NewValue, GetHealthAttribute());
 	}
+
+
 }
 
 void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
 
-	//FGameplayEffectContextHandle Context = Data.EffectSpec.GetContext();
-	//UAbilitySystemComponent* Source = Context.GetOriginalInstigatorAbilitySystemComponent();
-	//const FGameplayTagContainer& SourceTags = *Data.EffectSpec.CapturedSourceTags.GetAggregatedTags();
+	FGameplayEffectContextHandle Context = Data.EffectSpec.GetContext();
+	UAbilitySystemComponent* Source = Context.GetOriginalInstigatorAbilitySystemComponent();
+	const FGameplayTagContainer& SourceTags = *Data.EffectSpec.CapturedSourceTags.GetAggregatedTags();
 
 	//// Compute the delta between old and new, if it is available
 	// DeltaValue = 0;
@@ -74,16 +76,16 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	//	DeltaValue = Data.EvaluatedData.Magnitude;
 	//}
 
-	//// Get the Target actor, which should be our owner
-	//AActor* TargetActor = nullptr;
-	//AController* TargetController = nullptr;
-	//AYogCharacterBase* TargetCharacter = nullptr;
-	//if (Data.Target.AbilityActorInfo.IsValid() && Data.Target.AbilityActorInfo->AvatarActor.IsValid())
-	//{
-	//	TargetActor = Data.Target.AbilityActorInfo->AvatarActor.Get();
-	//	TargetController = Data.Target.AbilityActorInfo->PlayerController.Get();
-	//	TargetCharacter = Cast<AYogCharacterBase>(TargetActor);
-	//}
+	// Get the Target actor, which should be our owner
+	AActor* TargetActor = nullptr;
+	AController* TargetController = nullptr;
+	AYogCharacterBase* TargetCharacter = nullptr;
+	if (Data.Target.AbilityActorInfo.IsValid() && Data.Target.AbilityActorInfo->AvatarActor.IsValid())
+	{
+		TargetActor = Data.Target.AbilityActorInfo->AvatarActor.Get();
+		TargetController = Data.Target.AbilityActorInfo->PlayerController.Get();
+		TargetCharacter = Cast<AYogCharacterBase>(TargetActor);
+	}
 
 
 
@@ -114,13 +116,14 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	//		{
 	//			SourceCharacter = Cast<AYogCharacterBase>(SourceActor);
 	//		}
-
 	//		// Set the causer actor based on context if it's set
 	//		if (Context.GetEffectCauser())
 	//		{
 	//			SourceActor = Context.GetEffectCauser();
 	//		}
 	//	}
+
+
 	//	// IF HOLY DMAGE \
 	//	const  LocalDamageDone = GetDamage(); + HOLY DAMAGE;
 	//	const  LocalDamageDone = GetDamage();
@@ -131,24 +134,23 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	//		// Apply the health change and then clamp it
 	//		const  OldHealth = GetHealth();
 	//		SetHealth(FMath::Clamp(OldHealth - LocalDamageDone, 0.0f, GetMaxHealth()));
-
 	//		UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
-
 	//		if (ASC)
 	//		{
-
 	//			//UYogAbilitySystemComponent* SourceASC,  Damage
-
-
 	//			ASC->ReceiveDamage(ASC, GetDamage());
 	//			 percent = GetHealth() / GetMaxHealth();
 	//			TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
 	//			// This is proper damage
-
 	//		}
 	//	}
-
 	//}
+
+}
+
+void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue)
+{
+	Super::PostAttributeChange(Attribute, OldValue, NewValue);
 
 }
 
@@ -261,4 +263,9 @@ void UBaseAttributeSet::AdjustAttributeForMaxChange(FGameplayAttributeData& Affe
 
 		AbilityComp->ApplyModToAttributeUnsafe(AffectedAttributeProperty, EGameplayModOp::Additive, NewDelta);
 	}
+}
+
+FGameplayCueParameters UBaseAttributeSet::MakeCueParams(const FGameplayEffectCustomExecutionParameters& ExecutionParams, float DamageAmount, bool bWasCritical) const
+{
+	return FGameplayCueParameters();
 }

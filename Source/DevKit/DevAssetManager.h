@@ -21,8 +21,6 @@ public:
 
 	UDevAssetManager();
 
-
-
 	bool bIsLoaded;
 	
 	FString CurrentLoadPackage;
@@ -32,7 +30,6 @@ public:
 
 	UFUNCTION(BlueprintPure,BlueprintCallable, Category = "AssetLoader")
 	static UDevAssetManager* GetDevAssetManager();
-
 
 
 	// Returns the asset referenced by a TSoftObjectPtr.  This will synchronously load the asset if it's not already loaded.

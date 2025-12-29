@@ -8,6 +8,8 @@
 #include "AttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "AttributeSetMacro.h"
+#include "GameplayCueManager.h"
+#include "GameplayEffectExecutionCalculation.h"
 #include "BaseAttributeSet.generated.h"
 
 
@@ -37,12 +39,21 @@ public:
 
     virtual void PreAttributeBaseChange(const FGameplayAttribute& attribute, float& newValue) const override;
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
-	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	
+    virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
+    virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) override;
+
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+
+
 
 
 protected:
 	void AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty);
+
+    // Helper to create cue parameters
+    FGameplayCueParameters MakeCueParams(const FGameplayEffectCustomExecutionParameters& ExecutionParams, float DamageAmount,bool bWasCritical = false) const;
 
 public:
 
