@@ -6,12 +6,20 @@
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
 #include "Player/PlayerCharacterBase.h"
+
+
+
 #include "DevAssetManager.generated.h"
+
 
 
 DECLARE_DYNAMIC_DELEGATE(FOnAsyncLoadFinished);
 
-UCLASS()
+class UYogGameData;
+class UPrimaryDataAsset;
+
+
+UCLASS(Config = Game)
 class DEVKIT_API UDevAssetManager : public UAssetManager
 {
 	GENERATED_BODY()
@@ -26,10 +34,10 @@ public:
 	FString CurrentLoadPackage;
 
 
-	virtual void StartInitialLoading() override;
-
 	UFUNCTION(BlueprintPure,BlueprintCallable, Category = "AssetLoader")
 	static UDevAssetManager* GetDevAssetManager();
+
+	const UYogGameData& GetGameData();
 
 
 	// Returns the asset referenced by a TSoftObjectPtr.  This will synchronously load the asset if it's not already loaded.
@@ -59,8 +67,38 @@ public:
 	static void DumpLoadedAssets();
 
 protected:
+	template <typename GameDataClass>
+	const GameDataClass& GetOrLoadTypedGameData(const TSoftObjectPtr<GameDataClass>& DataPath)
+	{
+		if (TObjectPtr<UPrimaryDataAsset> const * pResult = GameDataMap.Find(GameDataClass::StaticClass()))
+		{
+			return *CastChecked<GameDataClass>(*pResult);
+		}
+
+		// Does a blocking load if needed
+		return *CastChecked<const GameDataClass>(LoadGameDataOfClass(GameDataClass::StaticClass(), DataPath, GameDataClass::StaticClass()->GetFName()));
+	}
+
+	static UObject* SynchronousLoadAsset(const FSoftObjectPath& AssetPath);
+	static bool ShouldLogAssetLoads();
+
 	// Thread safe way of adding a loaded asset to keep in memory.
 	void AddLoadedAsset(const UObject* Asset);
+
+	//~UAssetManager interface
+	virtual void StartInitialLoading() override;
+#if WITH_EDITOR
+	virtual void PreBeginPIE(bool bStartSimulate) override;
+#endif
+	//~End of UAssetManager interface
+
+	UPrimaryDataAsset* LoadGameDataOfClass(TSubclassOf<UPrimaryDataAsset> DataClass, const TSoftObjectPtr<UPrimaryDataAsset>& DataClassPath, FPrimaryAssetType PrimaryAssetType);
+
+
+protected:
+	// Global game data asset to use.
+	UPROPERTY(Config)
+	TSoftObjectPtr<UYogGameData> YogGameDataPath;
 
 	// Loaded version of the game data
 	UPROPERTY(Transient)

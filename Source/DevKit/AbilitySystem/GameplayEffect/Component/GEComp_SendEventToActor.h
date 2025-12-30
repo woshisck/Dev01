@@ -30,7 +30,5 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = EventData)
 	FGameplayTag Trigger_EventTag;
-;
-
 
 };

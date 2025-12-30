@@ -4,6 +4,8 @@
 #include "DevKit/AbilitySystem/Abilities/PassiveAbility.h"
 #include "DevKit/AbilitySystem/Abilities/GeneralAbility.h"
 #include "DevKit/SaveGame/YogSaveGame.h"
+#include "DevKit/Data/YogGameData.h"
+#include "DevKit/DevAssetManager.h"
 
 
 
@@ -19,12 +21,30 @@ UYogAbilitySystemComponent::UYogAbilitySystemComponent(const FObjectInitializer&
 
 void UYogAbilitySystemComponent::AddDynamicTagGameplayEffect(const FGameplayTag& Tag)
 {
+	const TSubclassOf<UGameplayEffect> DynamicTagGE = UDevAssetManager::GetSubclass(UYogGameData::Get().DynamicTagGameplayEffect);
+	if (!DynamicTagGE)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AddDynamicTagGameplayEffect: Unable to find DynamicTagGameplayEffect [%s]."), *UYogGameData::Get().DynamicTagGameplayEffect.GetAssetName());
+		return;
+	}
 
+	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(DynamicTagGE, 1.0f, MakeEffectContext());
+	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
+
+	if (!Spec)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AddDynamicTagGameplayEffect: Unable to make outgoing spec for [%s]."), *GetNameSafe(DynamicTagGE));
+		return;
+	}
+
+	Spec->DynamicGrantedTags.AddTag(Tag);
+
+	ApplyGameplayEffectSpecToSelf(*Spec);
 }
 
 void UYogAbilitySystemComponent::RemoveDynamicTagGameplayEffect(const FGameplayTag& Tag)
 {
-	//const TSubclassOf<UGameplayEffect> DynamicTagGE = ULyraAssetManager::GetSubclass(ULyraGameData::Get().DynamicTagGameplayEffect);
+	//const TSubclassOf<UGameplayEffect> DynamicTagGE = UDevAssetManager::GetSubclass(ULyraGameData::Get().DynamicTagGameplayEffect);
 	//if (!DynamicTagGE)
 	//{
 	//	UE_LOG(LogLyraAbilitySystem, Warning, TEXT("RemoveDynamicTagGameplayEffect: Unable to find gameplay effect [%s]."), *ULyraGameData::Get().DynamicTagGameplayEffect.GetAssetName());
