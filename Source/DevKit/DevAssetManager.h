@@ -162,7 +162,7 @@ TSubclassOf<AssetType> UDevAssetManager::GetSubclass(const TSoftClassPtr<AssetTy
 		if (LoadedSubclass && bKeepInMemory)
 		{
 			// Added to loaded asset list.
-			Get().AddLoadedAsset(Cast<UObject>(LoadedSubclass));
+			GetDevAssetManager()->AddLoadedAsset(Cast<UObject>(LoadedSubclass));
 		}
 	}
 
