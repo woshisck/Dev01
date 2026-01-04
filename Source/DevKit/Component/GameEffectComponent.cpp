@@ -4,6 +4,7 @@
 #include "GameEffectComponent.h"
 
 #include "DevKit/AbilitySystem/GameplayEffect/YogGameplayEffect.h"
+#include "DevKit/Character/YogCharacterBase.h"
 
 // Sets default values for this component's properties
 UGameEffectComponent::UGameEffectComponent()
@@ -25,72 +26,37 @@ void UGameEffectComponent::BeginPlay()
 	
 }
 
-TSubclassOf<UPlayEffectDefinition> UGameEffectComponent::GetItemAt(int index)
+void UGameEffectComponent::HealthCheck()
 {
-	return BuffArray[index];
+	AYogCharacterBase* owner = Cast<AYogCharacterBase>(GetOwner());
+	if (owner)
+	{
+		UAttributeStatComponent* attribute_comp = Cast<UAttributeStatComponent>(owner->GetComponentByClass(UAttributeStatComponent::StaticClass()));
+
+	}
 }
 
-void UGameEffectComponent::MoveToNextItem()
+void UGameEffectComponent::AttackCheck()
 {
 
-	if (CurrentIndex == BuffArray.Num())
+}
+
+void UGameEffectComponent::MoveSpeedCheck()
+{
+
+}
+
+UAttributeStatComponent* UGameEffectComponent::GetOwnerAttributeStateComp()
+{
+	AYogCharacterBase* owner = Cast<AYogCharacterBase>(GetOwner());
+	if (owner)
 	{
-		CurrentIndex = 0;
+		UAttributeStatComponent* attribute_comp = Cast<UAttributeStatComponent>(owner->GetComponentByClass(UAttributeStatComponent::StaticClass()));
+		return attribute_comp;
 	}
 	else
 	{
-		CurrentIndex++;
+		return nullptr;
 	}
-}
-
-bool UGameEffectComponent::RemoveItemByIndex(int index)
-{
-	if (BuffArray.IsValidIndex(index))
-	{
-		BuffArray.RemoveAt(index);
-
-		// Adjust current index if needed
-		if (CurrentIndex >= BuffArray.Num() && BuffArray.Num() > 0)
-		{
-			CurrentIndex = BuffArray.Num() - 1;
-		}
-		else if (BuffArray.Num() == 0)
-		{
-			CurrentIndex = 0;
-		}
-
-		return true;
-	}
-	return false;
-}
-
-bool UGameEffectComponent::RemoveItem(TSubclassOf<UPlayEffectDefinition> BuffToRemove)
-{
-	if (BuffToRemove)
-	{
-		int32 RemovedCount = BuffArray.Remove(BuffToRemove);
-		return RemovedCount > 0;
-	}
-	return false;
-}
-
-bool UGameEffectComponent::AddItem(TSubclassOf<UPlayEffectDefinition> buff)
-{
-
-	BuffArray.Add(buff);
-	return true;
 
 }
-
-void UGameEffectComponent::ClearAll()
-{
-	BuffArray.Empty();
-	CurrentIndex = 0;
-}
-
-int UGameEffectComponent::GetBuffCount()
-{
-	return BuffArray.Num();
-}
-
-

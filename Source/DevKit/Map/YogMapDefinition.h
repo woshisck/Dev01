@@ -23,6 +23,24 @@ enum class EEnemySpawnRule : uint8
 };
 
 
+USTRUCT(BlueprintType)
+struct FMapFeature
+{
+	GENERATED_BODY()
+public:
+	FMapFeature()
+	{
+	};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<UYogGameplayAbility> GainAbility;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<UGameplayEffectComponent> TriggerCondition;
+
+};
+
+
 
 USTRUCT(BlueprintType)
 struct FNextMapNode
