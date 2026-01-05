@@ -76,7 +76,7 @@ void AYogGameMode::StartPlay()
 			AYogLevelScript* LevelScriptActor = Cast<AYogLevelScript>(CurrentLevel->GetLevelScriptActor());
 			if (LevelScriptActor)
 			{
-				TargetMonsterKill = LevelScriptActor->MonsterKillCountTarget;
+				RemainKillCount = LevelScriptActor->MonsterKillCountTarget;
 
 				// Success! You can now use the LevelScriptActor.
 				UE_LOG(LogTemp, Warning, TEXT("Found LevelScriptActor: %s"), *LevelScriptActor->GetName());
@@ -171,12 +171,12 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 
 
 
-void AYogGameMode::UpdateMonsterKillCount(int count)
+void AYogGameMode::UpdateFinishLevel(int count)
 {
 	this->MonsterKillCount += count;
 	UE_LOG(LogTemp, Log, TEXT("MonsterKillCount: %d"), this->MonsterKillCount);
 	//TODO: HARD CODE
-	if (this->MonsterKillCount >= TargetMonsterKill)
+	if (this->MonsterKillCount >= RemainKillCount)
 	{
 		OnFinishLevel.Broadcast();
 		FinishLevelEvent.Broadcast();

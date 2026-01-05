@@ -11,6 +11,7 @@ class UYogSaveGame;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
 
+
 UCLASS()
 class DEVKIT_API AYogGameMode : public AModularGameModeBase
 {
@@ -47,13 +48,13 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "KillCount")
-	void UpdateMonsterKillCount(int count);
+	void UpdateFinishLevel(int count);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KillCount")
 	int MonsterKillCount;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "KillCount")
-	int TargetMonsterKill;
+	int RemainKillCount;
 
 protected:
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
