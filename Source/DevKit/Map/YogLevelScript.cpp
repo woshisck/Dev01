@@ -10,6 +10,7 @@
 #include "Engine/AssetManager.h"
 #include "DevAssetManager.h"
 #include "DevKit/GameModes/YogGameMode.h"
+#include "DevKit/AbilitySystem/YogAbilitySystemComponent.h"
 
 #include "DevKit/Mob/MobSpawner.h"
 
@@ -22,9 +23,39 @@ void AYogLevelScript::PreInitializeComponents()
 	
 }
 
-void AYogLevelScript::LevelSetup(UYogMapDefinition& MapDefine)
+void AYogLevelScript::LevelSetup()
 {
-	
+	if (!Mapdefinition)
+	{
+		return;
+	}
+
+	TArray<AActor*> OutActors;
+	TArray<AEnemyCharacterBase*> Enemies;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyCharacterBase::StaticClass(), OutActors);
+
+	if (OutActors.Num() <= 0)
+	{
+		return;
+	}
+
+	for (AActor* a : OutActors)
+	{
+		Enemies.Add(Cast<AEnemyCharacterBase>(a));
+	}
+
+	for (const FMapFeature feature : Mapdefinition->MapFeatures)
+	{
+
+		for (AEnemyCharacterBase* enemy : Enemies)
+		{
+
+			/*FGameplayAbilitySpecHandle K2_GiveAbility(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level = 0, int32 InputID = -1);*/
+			enemy->GetASC()->K2_GiveAbility(feature.GainPassiveAbility, feature.level, -1);
+				
+		}
+
+	}
 }
 
 void AYogLevelScript::OnLevelLoaded(UWorld* LoadedWorld)

@@ -26,7 +26,9 @@ public:
 protected:
 
 	virtual void PreInitializeComponents() override;
-	void LevelSetup(UYogMapDefinition& MapDefine);
+
+	UFUNCTION(BlueprintCallable)
+	void LevelSetup();
 	
 	 
 

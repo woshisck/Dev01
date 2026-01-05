@@ -6,12 +6,15 @@
 #include "Engine/DataAsset.h"
 #include "../System/YogWorldSubsystem.h"
 #include "DevKit/Enemy/EnemyCharacterBase.h"
+
 #include "YogMapDefinition.generated.h"
 
 /**
 * 
  * 
  */
+class UGameEffectComponent;
+
 
 UENUM(BlueprintType)
 enum class EEnemySpawnRule : uint8
@@ -23,7 +26,7 @@ enum class EEnemySpawnRule : uint8
 };
 
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType,Blueprintable)
 struct FMapFeature
 {
 	GENERATED_BODY()
@@ -33,11 +36,13 @@ public:
 	};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<UYogGameplayAbility> GainAbility;
+	TSubclassOf<UYogGameplayAbility> GainPassiveAbility;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<UGameplayEffectComponent> TriggerCondition;
+	int32 level;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FText feature_string;
 };
 
 
@@ -102,6 +107,11 @@ public:
 	//AllInOnce	UMETA(DisplayName = "AllInOnce"),
 	//Wave		UMETA(DisplayName = "Wave"),
 	//Default		UMETA(DisplayName = "Default")
+
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level|Mob")
+	TArray<FMapFeature> MapFeatures;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::OneByOne || EnemySpawnRule == EEnemySpawnRule::AllInOnce"))
 	int TotalCount;
