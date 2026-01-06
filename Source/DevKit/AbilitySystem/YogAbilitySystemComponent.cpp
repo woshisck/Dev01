@@ -2,7 +2,7 @@
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "DevKit/AbilitySystem/Abilities/WeaponAbility.h"
 #include "DevKit/AbilitySystem/Abilities/PassiveAbility.h"
-#include "DevKit/AbilitySystem/Abilities/GeneralAbility.h"
+
 #include "DevKit/SaveGame/YogSaveGame.h"
 #include "DevKit/Data/YogGameData.h"
 #include "DevKit/DevAssetManager.h"
@@ -77,10 +77,6 @@ FGameplayAbilitySpecHandle UYogAbilitySystemComponent::GrantAbility(TSubclassOf<
 		{
 			PassiveAbilities.Add(AbilitySpec);
 		}
-		if (ability_class == UGeneralAbility::StaticClass())
-		{
-			GeneralAbilities.Add(AbilitySpec);
-		}
 	}
 	else
 	{
@@ -116,19 +112,6 @@ void UYogAbilitySystemComponent::RemoveAbility(TSubclassOf<UYogGameplayAbility> 
 			{
 				ClearAbility(ability_spec.Handle);
 				PassiveAbilities.RemoveAt(i);
-			}
-		}
-	}
-
-	if (ability_class == UGeneralAbility::StaticClass())
-	{
-		for (int32 i = GeneralAbilities.Num() - 1; i >= 0; --i)
-		{
-			FGameplayAbilitySpec& ability_spec = GeneralAbilities[i];
-			if (ability_spec.Ability && ability_spec.Ability->GetClass() == ability_class)
-			{
-				ClearAbility(ability_spec.Handle);
-				GeneralAbilities.RemoveAt(i);
 			}
 		}
 	}

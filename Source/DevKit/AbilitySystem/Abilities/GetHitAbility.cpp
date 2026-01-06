@@ -30,7 +30,7 @@ void UGetHitAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 	AYogCharacterBase* Player = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo());
 	if (Player)
 	{
-		Player->UpdateCharacterState(EYogCharacterState::OnHurt, FVector(0, 0, 0));
+		Player->UpdateCharacterState(EYogCharacterState::OnHurt);
 	}
 
 
@@ -49,7 +49,7 @@ void UGetHitAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
 	if (Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo()))
 	{
 		AYogCharacterBase* character = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo());
-		character->UpdateCharacterState(EYogCharacterState::Idle, FVector(0, 0, 0));
+		character->UpdateCharacterState(EYogCharacterState::Idle);
 
 	}
 

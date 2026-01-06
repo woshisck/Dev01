@@ -204,7 +204,7 @@ EYogCharacterState UYogBlueprintFunctionLibrary::GetCharacterState(AYogCharacter
 	}
 	else
 	{
-		return EYogCharacterState::None;
+		return EYogCharacterState::Idle;
 	}
 }
 

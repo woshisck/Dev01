@@ -58,6 +58,7 @@ void UGEComp_SendEventToActor::OnInhibitionChanged(FActiveGameplayEffectHandle A
     // Create and setup gameplay event data
     FGameplayEventData EventData;
 
+
     // Set basic event info
     EventData.Instigator = SourceActor;
     EventData.Target = TargetActor;

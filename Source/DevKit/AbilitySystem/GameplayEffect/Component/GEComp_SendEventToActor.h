@@ -12,7 +12,7 @@
 /**
  * 
  */
-UCLASS(DisplayName = "Send Event To Target Actor")
+UCLASS(DisplayName = "Trigger GA from Event And Remove")
 class DEVKIT_API UGEComp_SendEventToActor : public UAbilitiesGameplayEffectComponent
 {
 	GENERATED_BODY()

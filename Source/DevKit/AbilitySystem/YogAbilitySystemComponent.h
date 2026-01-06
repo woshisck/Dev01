@@ -49,6 +49,8 @@ class DEVKIT_API UYogAbilitySystemComponent : public UAbilitySystemComponent
 
 public:
 
+
+	//ASAP: NEED TO MODIFIER
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FGameplayAbilitySpec> WeaponAbilities;
 

@@ -42,6 +42,20 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 }
 
+int32 AYogCharacterBase::GetStatePriority(EYogCharacterState State)
+{
+	switch (State) {
+	case EYogCharacterState::Dead: return 120;
+	case EYogCharacterState::Stun: return 100;
+	case EYogCharacterState::OnHurt:  return 80;
+	case EYogCharacterState::OnAction: return 60;
+	case EYogCharacterState::Move: return 40;
+	case EYogCharacterState::Idle: return 20;
+	default: return 0;
+	}
+
+}
+
 UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
 {
 	UAbilitySystemComponent* comp = GetAbilitySystemComponent();
@@ -237,7 +251,7 @@ void AYogCharacterBase::EnableMovement()
 }
 
 
-void AYogCharacterBase::UpdateCharacterState(EYogCharacterState newState, FVector movementInput)
+void AYogCharacterBase::UpdateCharacterState(EYogCharacterState newState)
 {
 	//check if previous state 
 	EYogCharacterState state_before;

@@ -26,7 +26,7 @@ enum class EYogCharacterState : uint8
 	OnAction				UMETA(DisplayName = "OnAction"),
 	OnHurt					UMETA(DisplayName = "OnHurt"),
 	Stun					UMETA(DisplayName = "Stun"),
-	None					UMETA(DisplayName = "None")
+	Dead					UMETA(DisplayName = "Dead")
 };
 
 
@@ -63,6 +63,9 @@ public:
 	void PostInitializeComponents() override;
 
 	AYogCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	UFUNCTION(BlueprintCallable)
+	int32 GetStatePriority(EYogCharacterState State);
 
 
 
@@ -164,8 +167,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
 	void EnableMovement();
 
-	UFUNCTION(BlueprintCallable, Category = "Character|State")
-	void UpdateCharacterState(EYogCharacterState newState, FVector movementInput);
+	void UpdateCharacterState(EYogCharacterState newState);
 
 
 public:

@@ -16,7 +16,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FYogPlayMontageAndWaitForEventDeleg
  * This is a good task to look at as an example when creating game-specific tasks
  * It is expected that each game will have a set of game-specific tasks to do what they want
  */
-UCLASS()
+UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UYogAbilityTask_PlayMontageAndWaitForEvent : public UAbilityTask
 {
 	GENERATED_BODY()
