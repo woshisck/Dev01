@@ -29,7 +29,7 @@ void UPassiveAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	//	PassiveData_cache = Owner->AbilityData->GetPassiveAbility(ability_tag);
 	//}
 
-	//Owner->UpdateCharacterState(EYogCharacterState::OnAction, FVector(0, 0, 0));
+	//Owner->UpdateCharacterState(EYogCharacterState::Action, FVector(0, 0, 0));
 }
 
 void UPassiveAbility::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)

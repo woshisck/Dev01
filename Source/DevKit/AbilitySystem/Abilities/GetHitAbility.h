@@ -10,7 +10,7 @@
  * 
  */
 UCLASS()
-class DEVKIT_API UGetHitAbility : public UPassiveAbility
+class DEVKIT_API UGetHitAbility : public UYogGameplayAbility
 {
 	GENERATED_BODY()
 

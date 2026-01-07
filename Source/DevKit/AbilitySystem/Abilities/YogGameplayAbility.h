@@ -79,6 +79,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	virtual TArray<FActiveGameplayEffectHandle> ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel = -1);
 
+	FGameplayEffectSpecHandle AddGameplayCueParametersToSpec(const FGameplayEffectSpecHandle& OriginalSpec, const FGameplayCueParameters& CueParameters);
+
+
 
     //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
     //TObjectPtr<UDataTable> YogAbilityDataTable;

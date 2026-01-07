@@ -18,7 +18,7 @@ UENUM()
 enum class EPlayerState : uint8
 {
 	OnMove			UMETA(DisplayName = "OnMove"),
-	OnAction		UMETA(DisplayName = "OnAction")
+	OnAction		UMETA(DisplayName = "Action")
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPlayerStateDelegate, EPlayerState, State);

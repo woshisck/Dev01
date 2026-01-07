@@ -47,8 +47,8 @@ int32 AYogCharacterBase::GetStatePriority(EYogCharacterState State)
 	switch (State) {
 	case EYogCharacterState::Dead: return 120;
 	case EYogCharacterState::Stun: return 100;
-	case EYogCharacterState::OnHurt:  return 80;
-	case EYogCharacterState::OnAction: return 60;
+	case EYogCharacterState::GetHit:  return 80;
+	case EYogCharacterState::Action: return 60;
 	case EYogCharacterState::Move: return 40;
 	case EYogCharacterState::Idle: return 20;
 	default: return 0;
@@ -254,12 +254,22 @@ void AYogCharacterBase::EnableMovement()
 void AYogCharacterBase::UpdateCharacterState(EYogCharacterState newState)
 {
 	//check if previous state 
-	EYogCharacterState state_before;
-	state_before = PreviousState;
-	PreviousState = CurrentState;
+	int32 previous_state_priority = GetStatePriority(PreviousState);
+	int32 update_state_priority = GetStatePriority(newState);
 
-	CurrentState = newState;
-	OnCharacterStateUpdate.Broadcast(state_before, newState);
+	if (previous_state_priority > update_state_priority)
+	{
+		return;
+	}
+	else
+	{
+		EYogCharacterState state_before;
+		state_before = PreviousState;
+		PreviousState = CurrentState;
+
+		CurrentState = newState;
+		OnCharacterStateUpdate.Broadcast(state_before, newState);
+	}
 
 }
 

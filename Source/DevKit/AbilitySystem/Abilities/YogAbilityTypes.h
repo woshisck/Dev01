@@ -17,6 +17,55 @@ class UYogTargetType;
  * These containers are defined statically in blueprints or assets and then turn into Specs at runtime
  */
 
+USTRUCT()
+struct DEVKIT_API FYogGameplayEffectContext : public FGameplayEffectContext
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+
+	virtual FGameplayAbilityTargetDataHandle GetTargetData()
+	{
+		return TargetData;
+	}
+
+	virtual void AddTargetData(const FGameplayAbilityTargetDataHandle& TargetDataHandle)
+	{
+		TargetData.Append(TargetDataHandle);
+	}
+
+	/**
+	* Functions that subclasses of FGameplayEffectContext need to override
+	*/
+
+	virtual UScriptStruct* GetScriptStruct() const override
+	{
+		return FYogGameplayEffectContext::StaticStruct();
+	}
+
+	virtual FYogGameplayEffectContext* Duplicate() const override
+	{
+		FYogGameplayEffectContext* NewContext = new FYogGameplayEffectContext();
+		*NewContext = *this;
+		NewContext->AddActors(Actors);
+		if (GetHitResult())
+		{
+			// Does a deep copy of the hit result
+			NewContext->AddHitResult(*GetHitResult(), true);
+		}
+		// Shallow copy of TargetData, is this okay?
+		NewContext->TargetData.Append(TargetData);
+		return NewContext;
+	}
+
+	virtual bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess) override;
+
+protected:
+	FGameplayAbilityTargetDataHandle TargetData;
+};
+
+
+
 USTRUCT(BlueprintType)
 struct DEVKIT_API FYogEffectPorperty
 {
@@ -47,7 +96,7 @@ public:
 	TArray<FYogEffectPorperty> EffectClasses;
 };
 
-/** instance version -- struct FYogGameplayEffectContainer  */
+/* instance version -- struct FYogGameplayEffectContainer */
 USTRUCT(BlueprintType)
 struct FYogGameplayEffectContainerSpec
 {
@@ -72,4 +121,16 @@ public:
 
 	/** Adds new targets to target data */
 	void AddTargets(const TArray<FHitResult>& HitResults, const TArray<AActor*>& TargetActors);
+};
+
+
+
+template<>
+struct TStructOpsTypeTraits<FYogGameplayEffectContext> : public TStructOpsTypeTraitsBase2<FYogGameplayEffectContext>
+{
+	enum
+	{
+		WithNetSerializer = true,
+		WithCopy = true		// Necessary so that TSharedPtr<FHitResult> Data is copied around
+	};
 };

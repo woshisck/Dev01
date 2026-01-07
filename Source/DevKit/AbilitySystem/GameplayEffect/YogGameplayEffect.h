@@ -9,6 +9,9 @@
 /**
  * 
  */
+
+
+
 UCLASS()
 class DEVKIT_API UYogGameplayEffect : public UGameplayEffect
 {

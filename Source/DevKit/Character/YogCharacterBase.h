@@ -23,8 +23,8 @@ enum class EYogCharacterState : uint8
 {
 	Idle					UMETA(DisplayName = "Idle"),
 	Move					UMETA(DisplayName = "Move"),
-	OnAction				UMETA(DisplayName = "OnAction"),
-	OnHurt					UMETA(DisplayName = "OnHurt"),
+	Action				UMETA(DisplayName = "Action"),
+	GetHit					UMETA(DisplayName = "GetHit"),
 	Stun					UMETA(DisplayName = "Stun"),
 	Dead					UMETA(DisplayName = "Dead")
 };
@@ -167,6 +167,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
 	void EnableMovement();
 
+	UFUNCTION(BlueprintCallable, Category = "Character|State")
 	void UpdateCharacterState(EYogCharacterState newState);
 
 

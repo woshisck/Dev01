@@ -30,14 +30,14 @@ void UGetHitAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 	AYogCharacterBase* Player = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo());
 	if (Player)
 	{
-		Player->UpdateCharacterState(EYogCharacterState::OnHurt);
+		Player->UpdateCharacterState(EYogCharacterState::GetHit);
 	}
 
 
 	//if (Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
 	//{
 	//	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
-	//	Player->UpdateCharacterState(EYogCharacterState::OnHurt, FVector(0,0,0));		
+	//	Player->UpdateCharacterState(EYogCharacterState::GetHit, FVector(0,0,0));		
 	//}
 }
 

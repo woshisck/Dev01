@@ -13,10 +13,6 @@ UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitial
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	//NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
-	
-
-
-
 }
 
 
@@ -25,7 +21,39 @@ TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FG
 {
 	UE_LOG(LogTemp, Warning, TEXT("ApplyEffectContainer"));
 	FYogGameplayEffectContainerSpec Spec = MakeEffectContainerSpec(ContainerTag, EventData, OverrideGameplayLevel);
+
+
+
 	return ApplyEffectContainerSpec(Spec);
+}
+
+FGameplayEffectSpecHandle UYogGameplayAbility::AddGameplayCueParametersToSpec(const FGameplayEffectSpecHandle& OriginalSpec, const FGameplayCueParameters& CueParameters)
+{
+	if (!OriginalSpec.IsValid() || !OriginalSpec.Data.IsValid())
+	{
+		return OriginalSpec;
+	}
+
+	// Create a copy of the spec
+	FGameplayEffectSpec* NewSpec = new FGameplayEffectSpec(*OriginalSpec.Data.Get());
+	FGameplayEffectSpecHandle NewSpecHandle = FGameplayEffectSpecHandle(NewSpec);
+
+	// Get the context and modify it
+	FGameplayEffectContextHandle ContextHandle = NewSpec->GetContext();
+
+	// Transfer CueParameters to the context
+	if (CueParameters.EffectContext.IsValid())
+	{
+		ContextHandle = CueParameters.EffectContext;
+	}
+	else
+	{
+	}
+
+	// Set the modified context back
+	NewSpec->SetContext(ContextHandle);
+
+	return NewSpecHandle;
 }
 
 
@@ -103,7 +131,7 @@ int UYogGameplayAbility::GetCurrentGameplayEffect(FGameplayTag EffectTag)
 
 FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFromContainer(const FYogGameplayEffectContainer& Container, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
 {
-	// First figure out our actor info
+	//TargetType collect data from world
 	FYogGameplayEffectContainerSpec ReturnSpec;
 	AActor* OwningActor = GetOwningActorFromActorInfo();
 	AYogCharacterBase* OwningCharacter = Cast<AYogCharacterBase>(OwningActor);
@@ -136,7 +164,28 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 		//for (const TSubclassOf<UGameplayEffect>& EffectClass : Container.EffectClasses)
 		for (const FYogEffectPorperty& YogEffectProperty : Container.EffectClasses)
 		{
-			ReturnSpec.TargetGameplayEffectSpecs.Add(MakeOutgoingGameplayEffectSpec(YogEffectProperty.GameplayEffect, YogEffectProperty.EffectLevel));
+
+			FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(YogEffectProperty.GameplayEffect, YogEffectProperty.EffectLevel);
+
+			if (SpecHandle.IsValid() && SpecHandle.Data.IsValid())
+			{
+				FGameplayEffectContextHandle ContextHandle = SpecHandle.Data->GetContext();
+
+
+				// OR: Create a modified context and set it back
+				// FGameplayEffectContextHandle ContextHandle = SpecHandle.Data->GetContext();
+
+				// Set context parameters
+				ContextHandle.AddSourceObject(GetAvatarActorFromActorInfo());
+				ContextHandle.AddInstigator(GetAvatarActorFromActorInfo(), GetAvatarActorFromActorInfo()->GetInstigatorController());
+				ContextHandle.SetAbility(this);
+				SpecHandle.Data->SetContext(ContextHandle);
+			}
+
+
+			ReturnSpec.TargetGameplayEffectSpecs.Add(SpecHandle);
+
+			
 		}
 	}
 	return ReturnSpec;
@@ -146,10 +195,14 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpec(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
 {
 	AYogCharacterBase* OwningCharacter = GetOwnerCharacterInfo();
+
+	//TODO: Find the gameplayeffect stack (card+ unique feature)
 	UYogAbilitySystemComponent* ASC = OwningCharacter->GetASC();
 
-	//iterate container map in player 
+	//Find the Container var in PLASYEBASE(Avatar), and find if tag exist in the buff
 	FYogGameplayEffectContainer* FoundContainer = ASC->EffectContainerMap.Find(ContainerTag);
+
+
 	if (FoundContainer)
 	{
 		return MakeEffectContainerSpecFromContainer(*FoundContainer, EventData, OverrideGameplayLevel);
@@ -167,6 +220,13 @@ TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainerSpe
 	// Iterate list of effect specs and apply them to their target data
 	for (const FGameplayEffectSpecHandle& SpecHandle : ContainerSpec.TargetGameplayEffectSpecs)
 	{
+		FGameplayCueParameters CueParameters;
+
+		FGameplayEffectSpecHandle ModifiedSpecHandle = AddGameplayCueParametersToSpec(
+			SpecHandle,
+			CueParameters
+		);
+
 		AllEffects.Append(K2_ApplyGameplayEffectSpecToTarget(SpecHandle, ContainerSpec.TargetData));
 	}
 	return AllEffects;
@@ -176,21 +236,6 @@ TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainerSpe
 void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
-
-	//UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
-	//ASC->CurrentAbilitySpecHandle = Handle;
-
-	//AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	//AYogCharacterBase* player = Cast<AYogCharacterBase>(AvatarActor);
-
-
-
-	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackAttribute(), ActDamage);
-	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackRangeAttribute(), ActRange);
-	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetResilienceAttribute(), ActResilience);
-	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetDmgTakenAttribute(), ActDmgReduce);
-
 
 	EventOn_AbilityStart.Broadcast();
 }
@@ -212,21 +257,6 @@ FActionData UYogGameplayAbility::GetRowData(FDataTableRowHandle action_row)
 void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
-
-
-	//AYogCharacterBase* player = Cast<AYogCharacterBase>(this->GetAvatarActorFromActorInfo());
-
-
-	//UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
-	//ASC->CurrentAbilitySpecHandle = Handle;
-
-	//player->UpdateCharacterState(EYogCharacterState::Idle, FVector(0, 0, 0));
-
-
-	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackAttribute(), -ActDamage);
-	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetAttackRangeAttribute(), -ActRange);
-	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetResilienceAttribute(), -ActResilience);
-	//player->AttributeStatsComponent->AddAttribute(player->BaseAttributeSet->GetDmgTakenAttribute(), -ActDmgReduce);
 
 	EventOn_AbilityEnded.Broadcast();
 }
