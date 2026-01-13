@@ -188,7 +188,7 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 {
 
 
-
+	//Weapon
 	for (const TSubclassOf<AWeaponInstance> weapon_class : SaveGame->WeaponData.WeaponMeshData.weaponInstanceClasses)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("SaveGame->WeaponData.array_WeaponMeshData.Length: %s"), *weapon_class->GetName());
