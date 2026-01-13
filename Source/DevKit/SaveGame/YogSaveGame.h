@@ -133,10 +133,7 @@ struct FWeaponMeshData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FName AttachSocket;
-
 };
-
-
 
 USTRUCT(BlueprintType)
 struct FWeaponSaveData
@@ -145,7 +142,7 @@ struct FWeaponSaveData
 
 	// Identifier to find the actor in the world or know its class to spawn
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FWeaponMeshData> WeaponInstanceClasses;
+	FWeaponMeshData WeaponMeshData;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
@@ -209,9 +206,17 @@ struct DEVKIT_API FYogAbilitySaveData
 	UPROPERTY()
 	uint8 Level = 0;
 
-
 	UPROPERTY()
 	TSubclassOf<UYogGameplayAbility> AbilityClass;
+};
+
+USTRUCT()
+struct DEVKIT_API FAbilitySystemComponentData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FYogAbilitySaveData> OwnedAbilities;
 };
 
 
@@ -228,8 +233,8 @@ public:
 	TArray<uint8> WeaponActorByteData;
 
 	UPROPERTY()
-	TArray<uint8> ASC_Data;
-	
+	FAbilitySystemComponentData ASC_Data;
+
 
 	UPROPERTY()
 	TArray<uint8> CharacterByteData;
@@ -270,7 +275,7 @@ public:
 
 };
 
-/** Object that is written to and read from the save game archive, with a data version */
+
 UCLASS(BlueprintType)
 class DEVKIT_API UYogSaveGame : public USaveGame
 {
@@ -281,7 +286,8 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	TSubclassOf<class APlayerCharacterBase> SavedCharacterClass;
 
-
+	UPROPERTY()
+	FWeaponSaveData WeaponData;
 
 	UPROPERTY()
 	FYogPlayerStateSave PlayerStateData;

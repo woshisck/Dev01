@@ -40,4 +40,7 @@ class DEVKIT_API AWeaponInstance : public AActor
 public:
 	AWeaponInstance();
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FName AttachSocket;
+
 };

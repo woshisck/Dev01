@@ -18,6 +18,8 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		NewActor->SetActorRelativeTransform(Transform);
 		NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
 		NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+		NewActor->AttachSocket = Socket;
+
 		ReceivingChar->AbilityData = AbilityData;
 	}
 

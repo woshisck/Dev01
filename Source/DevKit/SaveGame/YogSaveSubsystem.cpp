@@ -161,38 +161,57 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 	//Weapon find & serialize 
 	TArray<AActor*> attachedActors;
 	player->GetAttachedActors(attachedActors, true, true);
+
+	//TODO: INIT SAVE DATA
+	
 	for (AActor* attachActor : attachedActors)
 	{
 		if (Cast<AWeaponInstance>(attachActor))
 		{
 			//SaveGame->PlayerStateData.WeaponData.
-			
-			SaveData(attachActor, CurrentSaveGame->PlayerStateData.WeaponActorByteData);
+			//SaveGame->WeaponData.WeaponInstanceClasses.Add(attachActor->GetClass());
+
+			FWeaponMeshData weapon_data;
+
+			weapon_data.weaponInstanceClasses.Add(attachActor->GetClass());
+			weapon_data.AttachSocket = Cast<AWeaponInstance>(attachActor)->AttachSocket;
+		
+			SaveGame->WeaponData.WeaponMeshData = weapon_data;
+
+
+			UE_LOG(LogTemp, Warning, TEXT("SaveGame->WeaponData.array_WeaponMeshData.Length: %d"), SaveGame->WeaponData.WeaponMeshData.weaponInstanceClasses.Num());
 		}
 	}
 }
 
 void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 {
-	
-	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-	if (PC)
+
+
+
+	for (const TSubclassOf<AWeaponInstance> weapon_class : SaveGame->WeaponData.WeaponMeshData.weaponInstanceClasses)
 	{
-		APlayerCharacterBase* pawn = Cast<APlayerCharacterBase>(PC->GetPawn());
-		if (pawn)
-		{
-			//AWeaponInstance* weaponActor = GetWorld()->SpawnActorDeferred<AWeaponInstance>(AWeaponInstance::StaticClass(), pawn->GetTransform());
-			AWeaponInstance* weaponActor = nullptr;
-			LoadData(weaponActor, CurrentSaveGame->PlayerStateData.WeaponActorByteData);
-			//UE_LOG(LogTemp, Warning, TEXT("weaponActor: %s"), *weaponActor->ToString());
-			FName socket = FName(TEXT("WeaponSocket_R"));
-			weaponActor->AttachToComponent(Cast<APlayerCharacterBase>(pawn)->GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, socket);
+		UE_LOG(LogTemp, Warning, TEXT("SaveGame->WeaponData.array_WeaponMeshData.Length: %s"), *weapon_class->GetName());
 		
-		}
 	}
-//APlayerCharacterBase* player = NewObject<APlayerCharacterBase>(this, APlayerCharacterBase::StaticClass());
-//
-////LoadData(player, CurrentSaveGame->PlayerCharacter);
+	
+	/*TODO: FIX THE SAVE GAME PLAYER*/
+	//APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+	//if (PC)
+	//{
+	//	APlayerCharacterBase* pawn = Cast<APlayerCharacterBase>(PC->GetPawn());
+	//	if (pawn)
+	//	{
+	//		//AWeaponInstance* weaponActor = GetWorld()->SpawnActorDeferred<AWeaponInstance>(AWeaponInstance::StaticClass(), pawn->GetTransform());
+	//		AWeaponInstance* weaponActor = nullptr;
+	//		LoadData(weaponActor, SaveGame->PlayerStateData.WeaponActorByteData);
+	//		//UE_LOG(LogTemp, Warning, TEXT("weaponActor: %s"), *weaponActor->ToString());
+	//		FName socket = FName(TEXT("WeaponSocket_R"));
+	//		weaponActor->AttachToComponent(Cast<APlayerCharacterBase>(pawn)->GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, socket);
+	//	
+	//	}
+	//}
+
 
 
 }
