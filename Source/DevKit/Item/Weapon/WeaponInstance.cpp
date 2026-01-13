@@ -2,7 +2,7 @@
 
 
 #include "WeaponInstance.h"
-
+#include "DevKit/SaveGame/YogSaveGame.h"
 
 // Sets default values
 AWeaponInstance::AWeaponInstance()
@@ -13,9 +13,4 @@ AWeaponInstance::AWeaponInstance()
 	USceneComponent* root = CreateOptionalDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(root);
 
-
-
 }
-
-
-

@@ -52,10 +52,7 @@ public:
 
 public:
 
-	UPROPERTY()
-	TSubclassOf<APlayerCharacterBase> PlayerBlueprintClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
 
 	UPROPERTY(BlueprintAssignable, Category = "Character")
@@ -70,14 +67,6 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "State")
 	FPlayerStateDelegate OnFPlayerStateDeleg;
-
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aura")
-	//TSubclassOf<AAuraBase> Aura;
-
-
-	UPROPERTY()
-	int CurrentIndex;
 
 
 	friend UPlayerAttributeSet;

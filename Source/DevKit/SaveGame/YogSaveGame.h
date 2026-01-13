@@ -7,7 +7,9 @@
 #include "../System/YogGameInstanceBase.h"
 #include "Player/PlayerCharacterBase.h"
 #include "../Item/Weapon/WeaponInstance.h"
+#include "DevKit/Animation/YogAnimInstance.h"
 #include "DevKit/AbilitySystem/Attribute/BaseAttributeSet.h"
+#include "DevKit/Item/Weapon/WeaponInstance.h"
 #include "YogSaveGame.generated.h"
 
 
@@ -24,6 +26,8 @@ struct DEVKIT_API FGameAbilitySystemSaveData
 
 
 };
+
+
 
 USTRUCT()
 struct DEVKIT_API FAttributeSaveData
@@ -118,6 +122,34 @@ public:
 };
 
 
+USTRUCT(BlueprintType)
+struct FWeaponMeshData
+{
+	GENERATED_BODY()
+
+	// Identifier to find the actor in the world or know its class to spawn
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<TSubclassOf<AWeaponInstance>> weaponInstanceClasses;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FName AttachSocket;
+
+};
+
+
+
+USTRUCT(BlueprintType)
+struct FWeaponSaveData
+{
+	GENERATED_BODY()
+
+	// Identifier to find the actor in the world or know its class to spawn
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FWeaponMeshData> WeaponInstanceClasses;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<UYogAnimInstance> WeaponLayer;
+};
 
 
 USTRUCT()
@@ -180,18 +212,6 @@ struct DEVKIT_API FYogAbilitySaveData
 
 	UPROPERTY()
 	TSubclassOf<UYogGameplayAbility> AbilityClass;
-};
-
-
-USTRUCT()
-struct DEVKIT_API FWeaponSaveData
-{
-	GENERATED_BODY()
-
-	// Identifier to find the actor in the world or know its class to spawn
-	UPROPERTY()
-	FString ActorName;
-
 };
 
 

@@ -227,15 +227,6 @@ protected:
 	UPROPERTY()
 	TArray<ULevelStreaming*> LoadedLevels;
 
-	///** Map of items to item data */
-	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = SaveGame)
-	//TMap<FPrimaryAssetId, FRPGItemData> InventoryData;
-
-	///** Map of slotted items */
-	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = SaveGame)
-	//TMap<FRPGItemSlot, FPrimaryAssetId> SlottedItems;
-
-
 
 
 	UFUNCTION(BlueprintCallable)

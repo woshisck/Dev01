@@ -12,9 +12,12 @@
  * 
  */
 struct FWeaponActorToSpawn;
+
+class UYogAnimInstance;
 class USceneComponent;
 class UYogGameplayAbility;
 class UGameplayEffect;
+
 
 USTRUCT(BlueprintType)
 struct FWeaponSocketLoc
@@ -29,8 +32,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	USceneComponent* DmgBox_End = nullptr;
 };
-
-
 
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API AWeaponInstance : public AActor

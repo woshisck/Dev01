@@ -7,6 +7,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameModes/YogGameMode.h"
 #include "DevKit/DevAssetManager.h"
+
 #include "DevKit/AbilitySystem/YogAbilitySystemComponent.h"
 
 
@@ -142,12 +143,18 @@ void UYogSaveSubsystem::LoadLevelData(UYogSaveGame* SaveGame)
 void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 {
 
-	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+
+	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));	
 	
+
+
+	//Get current Attribute
 	SaveGame->PlayerStateData.SetupAttribute(*player->BaseAttributeSet);
+	
 
+
+	//Abilities save to savegame
 	UYogAbilitySystemComponent* ASC = player->GetASC();
-
 	TArray<FYogAbilitySaveData> container = ASC->GetAllGrantedAbilities();
 
 
@@ -174,10 +181,10 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		APlayerCharacterBase* pawn = Cast<APlayerCharacterBase>(PC->GetPawn());
 		if (pawn)
 		{
-			AWeaponInstance* weaponActor = GetWorld()->SpawnActorDeferred<AWeaponInstance>(AWeaponInstance::StaticClass(), pawn->GetTransform());
-
+			//AWeaponInstance* weaponActor = GetWorld()->SpawnActorDeferred<AWeaponInstance>(AWeaponInstance::StaticClass(), pawn->GetTransform());
+			AWeaponInstance* weaponActor = nullptr;
 			LoadData(weaponActor, CurrentSaveGame->PlayerStateData.WeaponActorByteData);
-			
+			//UE_LOG(LogTemp, Warning, TEXT("weaponActor: %s"), *weaponActor->ToString());
 			FName socket = FName(TEXT("WeaponSocket_R"));
 			weaponActor->AttachToComponent(Cast<APlayerCharacterBase>(pawn)->GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, socket);
 		
