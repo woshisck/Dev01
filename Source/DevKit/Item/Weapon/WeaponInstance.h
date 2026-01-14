@@ -40,7 +40,15 @@ class DEVKIT_API AWeaponInstance : public AActor
 public:
 	AWeaponInstance();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	FName AttachSocket;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	FTransform Relative_Transform;
+
+
+
+	UFUNCTION(BlueprintCallable)
+	void EquipWeaponToCharacter(APlayerCharacterBase* ReceivingChar);
 
 };

@@ -14,3 +14,15 @@ AWeaponInstance::AWeaponInstance()
 	SetRootComponent(root);
 
 }
+
+void AWeaponInstance::EquipWeaponToCharacter(APlayerCharacterBase* ReceivingChar)
+{
+	//TSubclassOf<AWeaponInstance> WeaponActorClass = WeaponActorInst.ActorToSpawn;
+	//FName Socket = WeaponActorInst.AttachSocket;
+	//FTransform Transform = WeaponActorInst.AttachTransform;
+
+
+	this->SetActorRelativeTransform(Relative_Transform);
+	this->AttachToComponent(ReceivingChar->GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, AttachSocket);
+	
+}

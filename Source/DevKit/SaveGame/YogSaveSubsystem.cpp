@@ -1,4 +1,3 @@
-
 #include "YogSaveSubsystem.h"
 #include "System/YogWorldSubsystem.h"
 #include "YogSaveGame.h"
@@ -88,9 +87,9 @@ void UYogSaveSubsystem::SaveData(UObject* Object, UPARAM(ref)TArray<uint8>& Data
 		FYogSaveGameArchive MyArchive = FYogSaveGameArchive(MemoryWriter);
 
 		Object->Serialize(MyArchive);
+
+		UE_LOG(LogTemp, Log, TEXT("Serialize Actor finish: %s, size: %d"),*Object->GetName(), Data.Num());
 	}
-
-
 }
 
 void UYogSaveSubsystem::LoadData(UObject* Object, UPARAM(ref)TArray<uint8>& Data)
@@ -142,58 +141,151 @@ void UYogSaveSubsystem::LoadLevelData(UYogSaveGame* SaveGame)
 
 void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 {
-
+	//TODO: INIT SAVE DATA, NEED TO CHANGE IN FUTURE
+	SaveGame->WeaponInstanceItems.Empty();
+	SaveGame->PlayerStateData.Abilities.Empty();
 
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));	
 	
 
 
-	//Get current Attribute
+	//Save current Attribute
 	SaveGame->PlayerStateData.SetupAttribute(*player->BaseAttributeSet);
 	
-
-
 	//Abilities save to savegame
 	UYogAbilitySystemComponent* ASC = player->GetASC();
-	TArray<FYogAbilitySaveData> container = ASC->GetAllGrantedAbilities();
+
+	
+	TArray<FAbilitySaveData> PlayerAbilities = ASC->GetAllGrantedAbilities();
+	for (const FAbilitySaveData& ability_save_data : PlayerAbilities)
+	{
+		SaveGame->PlayerStateData.Abilities.Add(ability_save_data);
+	}
 
 
-	//Weapon find & serialize 
+	//filter the Actor with weaponInstance
 	TArray<AActor*> attachedActors;
 	player->GetAttachedActors(attachedActors, true, true);
 
-	//TODO: INIT SAVE DATA
-	
-	for (AActor* attachActor : attachedActors)
+	TArray<AWeaponInstance*> weaponInstance_array;
+
+	for (AActor* actor : attachedActors)
 	{
-		if (Cast<AWeaponInstance>(attachActor))
-		{
-			//SaveGame->PlayerStateData.WeaponData.
-			//SaveGame->WeaponData.WeaponInstanceClasses.Add(attachActor->GetClass());
-
-			FWeaponMeshData weapon_data;
-
-			weapon_data.weaponInstanceClasses.Add(attachActor->GetClass());
-			weapon_data.AttachSocket = Cast<AWeaponInstance>(attachActor)->AttachSocket;
-		
-			SaveGame->WeaponData.WeaponMeshData = weapon_data;
-
-
-			UE_LOG(LogTemp, Warning, TEXT("SaveGame->WeaponData.array_WeaponMeshData.Length: %d"), SaveGame->WeaponData.WeaponMeshData.weaponInstanceClasses.Num());
-		}
+		weaponInstance_array.Add(Cast<AWeaponInstance>(actor));
 	}
+
+	for (AWeaponInstance* weaponInstance : weaponInstance_array)
+	{
+		FWeaponInstanceData weaponInstanceData;
+
+		weaponInstanceData.ActorClassPath = weaponInstance->GetClass()->GetPathName();
+		weaponInstanceData.AttachSocket = weaponInstance->AttachSocket;
+		weaponInstanceData.Transform = weaponInstance->Relative_Transform;
+		
+		SaveData(weaponInstance, weaponInstanceData.ByteData);
+		SaveGame->WeaponInstanceItems.Add(weaponInstanceData);
+		UE_LOG(LogTemp, Warning, TEXT("Save Weapon Data Success!"));
+	}
+
+
+	//for (AActor* attachActor : attachedActors)
+	//{
+	//	if (Cast<AWeaponInstance>(attachActor))
+	//	{
+	//		//SaveGame->PlayerStateData.WeaponData.
+	//		//SaveGame->WeaponData.WeaponInstanceClasses.Add(attachActor->GetClass());
+	//		FWeaponMeshData weapon_data;
+	//		weapon_data.weaponInstanceClasses.Add(attachActor->GetClass());
+	//		weapon_data.AttachSocket = Cast<AWeaponInstance>(attachActor)->AttachSocket;
+	//		SaveGame->WeaponData.WeaponMeshData = weapon_data;
+	//		UE_LOG(LogTemp, Warning, TEXT("SaveGame->WeaponData.array_WeaponMeshData.Length: %d"), SaveGame->WeaponData.WeaponMeshData.weaponInstanceClasses.Num());
+	//		AWeaponInstance* weaponActor;
+	//	}
+	//}
 }
 
 void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 {
-
-
-	//Weapon
-	for (const TSubclassOf<AWeaponInstance> weapon_class : SaveGame->WeaponData.WeaponMeshData.weaponInstanceClasses)
+	//Player load
+	UWorld* World = GetWorld();
+	if (!World)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("SaveGame->WeaponData.array_WeaponMeshData.Length: %s"), *weapon_class->GetName());
-		
+		return;
 	}
+	// get index 0 as local client controller
+	APlayerController* LocalPlayerController = UGameplayStatics::GetPlayerController(World, 0);
+	if (!LocalPlayerController)
+	{
+		return;
+	}
+
+	//APawn* LocalPlayerPawn = LocalPlayerController->GetPawn();
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(LocalPlayerController->GetPawn());
+	if (!Cast<APlayerCharacterBase>(Player))
+	{
+		return;
+		//work as local player pawn
+	}
+
+
+
+
+	//Weapon Actor load
+	for (FWeaponInstanceData& weaponInstance : SaveGame->WeaponInstanceItems)
+	{
+		UClass* ActorClass = StaticLoadClass(AActor::StaticClass(), nullptr, *weaponInstance.ActorClassPath);
+
+		if (!ActorClass)
+		{
+			UE_LOG(LogTemp, Error, TEXT("can not load weapon actor: %s"), *weaponInstance.ActorClassPath);
+			return;
+		}
+
+		//Generate Actor
+		FActorSpawnParameters SpawnParams;
+		//SpawnParams.Name = FName(*weaponInstance.ActorName);
+		SpawnParams.Name = FName("Loaded Weapon Actor");
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+
+		AActor* WeaponActor = GetWorld()->SpawnActor<AActor>(ActorClass, weaponInstance.Transform, SpawnParams);
+		
+
+		if (!WeaponActor)
+		{
+			UE_LOG(LogTemp, Error, TEXT("generaete Actor failed: %s"), *weaponInstance.ActorClassPath);
+			return;
+		}
+
+		LoadData(WeaponActor, weaponInstance.ByteData);
+
+		UE_LOG(LogTemp, Warning, TEXT("Load Actor success! : %s (Class: %s)"),*WeaponActor->GetName(), *weaponInstance.ActorClassPath);
+		UE_LOG(LogTemp, Warning, TEXT("AttachSocket : %s (Class: %s)"), *WeaponActor->GetName(), *weaponInstance.AttachSocket.ToString());
+
+
+		Cast<AWeaponInstance>(WeaponActor)->EquipWeaponToCharacter(Player);
+
+		//DEPRECATED CODE
+		//AWeaponInstance * weaponActor = NewObject<AWeaponInstance>(this);
+		//LoadData(weaponActor, weaponInstance.ByteData);
+		//UE_LOG(LogTemp, Warning, TEXT("weaponActor class: %s"), *weaponActor->GetClass()->GetName());
+
+
+		//UE_LOG(LogTemp, Warning, TEXT("weaponActor class: %s, socket: %s"), *weaponActor->GetClass()->GetName(), *weaponActor->AttachSocket.ToString());
+
+	}
+
+
+
+
+	//for (const TSubclassOf<AWeaponInstance> weapon_class : SaveGame->WeaponData.WeaponMeshData.weaponInstanceClasses)
+	//{
+	//	
+	//	
+	//	//UE_LOG(LogTemp, Warning, TEXT("SaveGame->WeaponData.array_WeaponMeshData.Length: %s"), *weapon_class->GetName());
+	//	UE_LOG(LogTemp, Warning, TEXT("SaveGame->WeaponData.array_WeaponMeshData.Length: %s"), *weapon_class->GetName());
+	//	//SetupWeaponToCharacter
+	//}
 	
 	/*TODO: FIX THE SAVE GAME PLAYER*/
 	//APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
@@ -211,8 +303,6 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 	//	
 	//	}
 	//}
-
-
 
 }
 

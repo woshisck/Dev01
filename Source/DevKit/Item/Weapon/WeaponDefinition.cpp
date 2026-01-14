@@ -15,10 +15,15 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		AWeaponInstance* NewActor = ReceivingChar->GetWorld()->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
 		//AWeaponInstance* NewActor = World->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
 		
-		NewActor->SetActorRelativeTransform(Transform);
-		NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
-		NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
 		NewActor->AttachSocket = Socket;
+		NewActor->Relative_Transform = Transform;
+
+		NewActor->EquipWeaponToCharacter(ReceivingChar);
+
+		//NewActor->SetActorRelativeTransform(Transform);
+		//NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
+		NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+		
 
 		ReceivingChar->AbilityData = AbilityData;
 	}

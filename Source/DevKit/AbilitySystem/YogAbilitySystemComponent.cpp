@@ -218,9 +218,9 @@ void UYogAbilitySystemComponent::LogAllGrantedAbilities()
 
 }
 
-TArray<FYogAbilitySaveData> UYogAbilitySystemComponent::GetAllGrantedAbilities()
+TArray<FAbilitySaveData> UYogAbilitySystemComponent::GetAllGrantedAbilities()
 {
-	TArray<FYogAbilitySaveData> array_result;
+	TArray<FAbilitySaveData> array_result;
 
 
 	TArray<FGameplayAbilitySpec>& AbilitySpecs = this->GetActivatableAbilities();
@@ -229,7 +229,7 @@ TArray<FYogAbilitySaveData> UYogAbilitySystemComponent::GetAllGrantedAbilities()
 	{
 		if (UYogGameplayAbility* Ability = Cast<UYogGameplayAbility>(Spec.Ability))
 		{
-			FYogAbilitySaveData YogAbilitySaveData;
+			FAbilitySaveData YogAbilitySaveData;
 
 			YogAbilitySaveData.Level = Spec.Level;
 			YogAbilitySaveData.AbilityClass = Ability->StaticClass();

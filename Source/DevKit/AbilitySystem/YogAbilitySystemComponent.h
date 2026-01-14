@@ -125,7 +125,7 @@ public:
 	void LogAllGrantedAbilities();
 
 	UFUNCTION()
-	TArray<FYogAbilitySaveData> GetAllGrantedAbilities();
+	TArray<FAbilitySaveData> GetAllGrantedAbilities();
 
 	UFUNCTION(BlueprintCallable)
 	void GetActiveAbilitiesWithTags(const FGameplayTagContainer& GameplayTagContainer, TArray<UYogGameplayAbility*>& ActiveAbilities);

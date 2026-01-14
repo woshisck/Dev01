@@ -121,6 +121,35 @@ public:
 
 };
 
+//TEST ONLY, SAVE FOR DELETE --START
+
+USTRUCT(BlueprintType)
+struct FWeaponInstanceData
+{
+
+	GENERATED_BODY()
+
+public:
+	// Identifier to find the actor in the world or know its class to spawn
+	UPROPERTY()
+	FString ActorClassPath; 
+	
+	UPROPERTY()
+	FTransform Transform;
+
+	UPROPERTY()
+	FName AttachSocket;
+
+	/* Contains all 'SaveGame' marked variables of the Actor */
+	UPROPERTY()
+	TArray<uint8> ByteData;
+
+};
+
+//TEST ONLY, SAVE FOR DELETE --END
+
+
+
 
 USTRUCT(BlueprintType)
 struct FWeaponMeshData
@@ -199,7 +228,7 @@ public:
 };
 
 USTRUCT()
-struct DEVKIT_API FYogAbilitySaveData
+struct DEVKIT_API FAbilitySaveData
 {
 	GENERATED_BODY()
 
@@ -211,17 +240,7 @@ struct DEVKIT_API FYogAbilitySaveData
 };
 
 USTRUCT()
-struct DEVKIT_API FAbilitySystemComponentData
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	TArray<FYogAbilitySaveData> OwnedAbilities;
-};
-
-
-USTRUCT()
-struct DEVKIT_API FYogPlayerStateSave
+struct DEVKIT_API FPlayerGASData
 {
 	GENERATED_BODY()
 public:
@@ -229,12 +248,16 @@ public:
 	UPROPERTY()
 	FAttributeSaveData PlayerAttributeData;
 
-	UPROPERTY()
-	TArray<uint8> WeaponActorByteData;
+
 
 	UPROPERTY()
-	FAbilitySystemComponentData ASC_Data;
+	TArray<uint8> ASC_Data;
 
+	//UPROPERTY()
+	//FAbilitySystemComponentData ASC_Data;
+
+	UPROPERTY()
+	TArray<FAbilitySaveData> Abilities;
 
 	UPROPERTY()
 	TArray<uint8> CharacterByteData;
@@ -290,7 +313,10 @@ public:
 	FWeaponSaveData WeaponData;
 
 	UPROPERTY()
-	FYogPlayerStateSave PlayerStateData;
+	FPlayerGASData PlayerStateData;
+
+	UPROPERTY()
+	TArray<FWeaponInstanceData> WeaponInstanceItems;
 
 
 	UPROPERTY()
