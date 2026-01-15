@@ -63,30 +63,50 @@ void AYogGameMode::RestartPlayer(AController* NewPlayer)
 void AYogGameMode::StartPlay()
 {
 	Super::StartPlay();
+
+	UWorld* World = GetWorld();
+
+	if (!World)
+	{
+		return;
+	}
+
+	ULevel* CurrentLevel = World->GetCurrentLevel();
+	if (!CurrentLevel)
+	{
+		return;
+	}
+
+	UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
+	UYogSaveSubsystem* SaveSubsystem = GameInstancePtr->GetSubsystem<UYogSaveSubsystem>();
+
+	if (SaveSubsystem->CurrentSaveGame)
+	{
+		SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
+	}
+	else
+	{
+		// spawn default player char
+	}
+
 	//TODO: this function calls after openLevel : 
 	//[get player + get transform -> spawn player -> poccess ->] in game mode
 	
-	UWorld* World = GetWorld();
 
-	if (World)
+
+
+	AYogLevelScript* LevelScriptActor = Cast<AYogLevelScript>(CurrentLevel->GetLevelScriptActor());
+	if (LevelScriptActor)
 	{
-		ULevel* CurrentLevel = World->GetCurrentLevel();
-		if (CurrentLevel)
-		{
-			AYogLevelScript* LevelScriptActor = Cast<AYogLevelScript>(CurrentLevel->GetLevelScriptActor());
-			if (LevelScriptActor)
-			{
-				RemainKillCount = LevelScriptActor->MonsterKillCountTarget;
+		RemainKillCount = LevelScriptActor->MonsterKillCountTarget;
 
-				// Success! You can now use the LevelScriptActor.
-				UE_LOG(LogTemp, Warning, TEXT("Found LevelScriptActor: %s"), *LevelScriptActor->GetName());
+		// Success! You can now use the LevelScriptActor.
+		UE_LOG(LogTemp, Warning, TEXT("Found LevelScriptActor: %s"), *LevelScriptActor->GetName());
 
-				UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
-				UYogSaveSubsystem* SaveSubsystem = GameInstancePtr->GetSubsystem<UYogSaveSubsystem>();
-				this->OnFinishLevelEvent().AddUObject(SaveSubsystem, &UYogSaveSubsystem::WriteSaveGame);
-			}
-		}
+		this->OnFinishLevelEvent().AddUObject(SaveSubsystem, &UYogSaveSubsystem::WriteSaveGame);
 	}
+
+
 
 	//if (UWorld* World = GetWorld())
 	//{

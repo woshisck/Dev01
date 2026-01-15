@@ -48,8 +48,7 @@ public:
 	void WriteSaveGame();
 
 	/* Load from disk, optional slot name */
-	UFUNCTION(BlueprintCallable, Category = "SaveGame")
-	void LoadSaveGame(FString InSlotName = "");
+	void LoadSaveGame(UYogSaveGame* SaveGame);
 
 	UPROPERTY(BlueprintAssignable)
 	FOnSaveGameSignature OnSaveGameLoaded;

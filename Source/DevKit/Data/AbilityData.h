@@ -150,8 +150,8 @@ struct FYogApplyEffect
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EYogEffectTarget Target;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//EYogEffectTarget Target;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTag TriggerTag;
@@ -165,9 +165,9 @@ public:
 	// Add equality operator to define "sameness"
 	bool operator==(const FYogApplyEffect& Other) const
 	{
-		return Target == Other.Target &&
-			TriggerTag == Other.TriggerTag &&
-			GameplayEffect == Other.GameplayEffect;
+		//return Target == Other.Target && TriggerTag == Other.TriggerTag && GameplayEffect == Other.GameplayEffect;
+
+		return TriggerTag == Other.TriggerTag && GameplayEffect == Other.GameplayEffect;
 	}
 
 	// Also need != operator
@@ -177,13 +177,21 @@ public:
 	}
 
 	// For TMap key, add GetTypeHash
+	//friend uint32 GetTypeHash(const FYogApplyEffect& Effect)
+	//{
+	//	//uint32 Hash = GetTypeHash(Effect.Target);
+	//	uint32 Hash = HashCombine(Hash, GetTypeHash(Effect.TriggerTag));
+	//	Hash = HashCombine(Hash, GetTypeHash(Effect.GameplayEffect));
+	//	return Hash;
+	//}
 	friend uint32 GetTypeHash(const FYogApplyEffect& Effect)
 	{
-		uint32 Hash = GetTypeHash(Effect.Target);
-		Hash = HashCombine(Hash, GetTypeHash(Effect.TriggerTag));
-		Hash = HashCombine(Hash, GetTypeHash(Effect.GameplayEffect));
+		uint32 Hash = GetTypeHash(Effect.GameplayEffect);
+		Hash = HashCombine(Hash, GetTypeHash(Effect.level));
 		return Hash;
 	}
+
+
 };
 
 
@@ -306,42 +314,11 @@ public:
 
 
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Annulus", EditConditionHides))
-	//FHitboxAnnulus AnnulusHitbox;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Circle", EditConditionHides))
-	//TArray<FHitboxCircle> HitboxCircles;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = ( EditCondition = "hitboxType == EHitBoxType::Square", EditConditionHides))
-	//TArray<FHitboxSquare> HitboxSquares;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Triangle", EditConditionHides))
-	//TArray<FHitboxTriangle> HitboxTriangles;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//TArray<FHitBoxData> hitbox;
 
 };
 
 
-
-//USTRUCT(BlueprintType)
-//struct FAbilityType
-//{
-//	GENERATED_BODY()
-//
-//public:
-//
-//	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
-//	FDataTableRowHandle ActionRow;
-//
-//	const FActionData& GetAction() const;
-//
-//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-//	TSubclassOf<UYogGameplayAbility> ability;
-//
-//	inline static const FActionData DefaultActionData;
-//};
 
 
 USTRUCT(BlueprintType)

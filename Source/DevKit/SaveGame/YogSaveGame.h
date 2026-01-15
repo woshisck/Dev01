@@ -249,10 +249,6 @@ public:
 	FAttributeSaveData PlayerAttributeData;
 
 
-
-	UPROPERTY()
-	TArray<uint8> ASC_Data;
-
 	//UPROPERTY()
 	//FAbilitySystemComponentData ASC_Data;
 

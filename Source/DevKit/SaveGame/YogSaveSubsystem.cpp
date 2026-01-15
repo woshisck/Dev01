@@ -146,15 +146,12 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 	SaveGame->PlayerStateData.Abilities.Empty();
 
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));	
-	
-
 
 	//Save current Attribute
 	SaveGame->PlayerStateData.SetupAttribute(*player->BaseAttributeSet);
 	
 	//Abilities save to savegame
 	UYogAbilitySystemComponent* ASC = player->GetASC();
-
 	
 	TArray<FAbilitySaveData> PlayerAbilities = ASC->GetAllGrantedAbilities();
 	for (const FAbilitySaveData& ability_save_data : PlayerAbilities)
@@ -162,12 +159,17 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 		SaveGame->PlayerStateData.Abilities.Add(ability_save_data);
 	}
 
+	SaveData(player, SaveGame->PlayerStateData.CharacterByteData);
+
+
+
 
 	//filter the Actor with weaponInstance
 	TArray<AActor*> attachedActors;
 	player->GetAttachedActors(attachedActors, true, true);
 
 	TArray<AWeaponInstance*> weaponInstance_array;
+
 
 	for (AActor* actor : attachedActors)
 	{
@@ -224,11 +226,22 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 	if (!Cast<APlayerCharacterBase>(Player))
 	{
 		return;
-		//work as local player pawn
+
+	}
+
+
+	//LOAD START HERE
+
+
+	for (const FAbilitySaveData& ability_data : SaveGame->PlayerStateData.Abilities)
+	{
+		Player->GetASC()->K2_GiveAbility(ability_data.AbilityClass, ability_data.Level);
 	}
 
 
 
+
+	LoadData(Player, SaveGame->PlayerStateData.CharacterByteData);
 
 	//Weapon Actor load
 	for (FWeaponInstanceData& weaponInstance : SaveGame->WeaponInstanceItems)
@@ -264,6 +277,8 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 
 
 		Cast<AWeaponInstance>(WeaponActor)->EquipWeaponToCharacter(Player);
+
+
 
 		//DEPRECATED CODE
 		//AWeaponInstance * weaponActor = NewObject<AWeaponInstance>(this);
@@ -331,8 +346,8 @@ void UYogSaveSubsystem::WriteSaveGame()
 	//CHECK FOR PLAYER STAT, NOT FOR IDE 
 	AGameStateBase* GS = GetWorld()->GetGameState();
 	check(GS);
-	SavePlayer(CurrentSaveGame);
 
+	SavePlayer(CurrentSaveGame);
 	SaveMap(CurrentSaveGame);
 
 
@@ -354,18 +369,20 @@ void UYogSaveSubsystem::WriteSaveGame()
 	}
 
 
-	UE_LOG(DevKitGame, Log, TEXT("FINISH WRITE SAVE GAME"));
+	UE_LOG(DevKitGame, Log, TEXT("WRITE SAVE GAME SUCCESS! "));
 	OnSaveGameWritten.Broadcast(CurrentSaveGame);
 }
 
 /* Load from disk, optional slot name */
-void UYogSaveSubsystem::LoadSaveGame(FString InSlotName)
+void UYogSaveSubsystem::LoadSaveGame(UYogSaveGame* SaveGame)
 {
 	if (CurrentSaveGame)
 	{
 		//load saved map
 
-		UGameplayStatics::OpenLevel(GetWorld(), FName(CurrentSaveGame->MapStateData.LevelName));
+		//UGameplayStatics::OpenLevel(GetWorld(), FName(CurrentSaveGame->MapStateData.LevelName));
+
+
 
 		LoadPlayer(CurrentSaveGame);
 
