@@ -239,6 +239,19 @@ struct DEVKIT_API FAbilitySaveData
 	TSubclassOf<UYogGameplayAbility> AbilityClass;
 };
 
+
+USTRUCT()
+struct DEVKIT_API FPlayerGameTagData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	uint8 count = 0;
+
+	UPROPERTY()
+	FGameplayTag gameplayTag;
+};
+
 USTRUCT()
 struct DEVKIT_API FPlayerGASData
 {
@@ -247,6 +260,9 @@ public:
 
 	UPROPERTY()
 	FAttributeSaveData PlayerAttributeData;
+
+	UPROPERTY()
+	TArray<FPlayerGameTagData> PlayerTags;
 
 
 	//UPROPERTY()

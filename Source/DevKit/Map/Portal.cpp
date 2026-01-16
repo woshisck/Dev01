@@ -3,18 +3,33 @@
 
 #include "Portal.h"
 #include "DevKit/Player/PlayerCharacterBase.h"
+#include "Components/BillboardComponent.h"
+
+
 
 
 APortal::APortal(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	RootComponent = CollisionVolume = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionVolume"));
-	//CollisionVolume->InitCapsuleSize(80.f, 80.f);
 
-	CollisionVolume->InitBoxExtent(FVector(10,10,10));
+	// Create the Billboard component
+	//BillBoard = CreateDefaultSubobject<UBillboardComponent>(TEXT("Root_BillBoard"));
+	//RootComponent = BillBoard;
+
+	BillBoard = CreateDefaultSubobject<UBillboardComponent>(TEXT("Root_BillBoard"));
+	RootComponent = BillBoard;  // Now this works!
+
+
+	//RootComponent = CollisionVolume = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionVolume"));
 	
+	
+	//CollisionVolume->InitCapsuleSize(80.f, 80.f);
+	CollisionVolume = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionVolume"));
+	CollisionVolume->InitBoxExtent(FVector(10,10,10));
+	CollisionVolume->SetupAttachment(RootComponent);
 	CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &APortal::OnOverlapBegin);
 
 

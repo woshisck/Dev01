@@ -6,9 +6,11 @@
 #include "GameFramework/Actor.h"
 #include "YogMapDefinition.h"
 //#include "DevKit/Player/PlayerCharacterBase.h"
+
 #include "Portal.generated.h"
 
 class APlayerCharacterBase;
+class UBillboardComponent;
 
 UCLASS()
 class DEVKIT_API APortal : public AActor
@@ -16,8 +18,7 @@ class DEVKIT_API APortal : public AActor
 	GENERATED_BODY()
 	
 public:	
-	// Sets default values for this actor's properties
-	// Sets default values for this actor's properties
+
 	APortal(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintImplementableEvent)
@@ -46,7 +47,10 @@ public:
 	int Index;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
-	TObjectPtr<UBoxComponent> CollisionVolume;
+	TObjectPtr<class UBoxComponent> CollisionVolume;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
+	TObjectPtr<class UBillboardComponent> BillBoard;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GateMap")
 	TArray<FNextMapNode> NextLevels;
