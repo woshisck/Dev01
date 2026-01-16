@@ -24,6 +24,8 @@ public:
 	virtual void RestartPlayer(AController* NewPlayer) override;
 	virtual void StartPlay() override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
+	virtual bool HasMatchStarted() const;
+
 
 	//UFUNCTION(BlueprintNativeEvent, Category = Game)
 	//virtual void HandleStartingNewPlayer(APlayerController* NewPlayer) override;

@@ -35,6 +35,16 @@ public:
 	void SaveMap(UYogSaveGame* SaveGame);
 
 
+	UFUNCTION(BlueprintCallable)
+	FAbilitySaveData ConvertAbilitySpecToSaveData(const FGameplayAbilitySpec& Spec);
+
+	UFUNCTION(BlueprintCallable)
+	static FGameplayAbilitySpecHandle ConvertSaveDataToAbilitySpec(UYogAbilitySystemComponent* ASC, const FAbilitySaveData& SaveData);
+
+	UFUNCTION(BlueprintCallable)
+	void GiveAbilitiesFromSaveData(UYogAbilitySystemComponent* ASC, const TArray<FAbilitySaveData>& AbilitiesData);
+
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "General")
 	FString SaveSlotName = "SaveGame_01";
 
@@ -48,6 +58,8 @@ public:
 	void WriteSaveGame();
 
 	/* Load from disk, optional slot name */
+
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
 	void LoadSaveGame(UYogSaveGame* SaveGame);
 
 	UPROPERTY(BlueprintAssignable)
@@ -65,15 +77,11 @@ public:
 	UFUNCTION()
 	UYogSaveGame* CreateSaveGameInst();
 
-
 	UFUNCTION()
 	void SaveData(UObject* Object, UPARAM(ref) TArray<uint8>& Data);
 
 	UFUNCTION()
 	void LoadData(UObject* Object, UPARAM(ref) TArray<uint8>& Data);
-
-
-	void SaveTransformData(FVector& saveGame_loc, FVector& target_loc, FRotator& saveGame_rotate, FRotator& target_rot);
 
 
 private:

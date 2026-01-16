@@ -17,9 +17,10 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		
 		NewActor->AttachSocket = Socket;
 		NewActor->Relative_Transform = Transform;
+		NewActor->WeaponLayer = WeaponLayer;
 
 		NewActor->EquipWeaponToCharacter(ReceivingChar);
-
+		
 		//NewActor->SetActorRelativeTransform(Transform);
 		//NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
 		NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
@@ -37,9 +38,9 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	//	}
 	//}
 
-	if (WeaponLayer)
-	{
-		UAnimInstance* AnimInstance = ReceivingChar->GetMesh()->GetAnimInstance();
-		AnimInstance->LinkAnimClassLayers(TSubclassOf<UAnimInstance>(WeaponLayer));
-	}
+	//if (WeaponLayer)
+	//{
+	//	UAnimInstance* AnimInstance = ReceivingChar->GetMesh()->GetAnimInstance();
+	//	AnimInstance->LinkAnimClassLayers(TSubclassOf<UAnimInstance>(WeaponLayer));
+	//}
 }

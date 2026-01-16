@@ -8,6 +8,7 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
 #include "DevKit/Map/YogLevelScript.h"
+#include "DevKit/System/YogGameInstanceBase.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
@@ -45,19 +46,14 @@ void AYogGameMode::RestartPlayer(AController* NewPlayer)
 	{
 		// Do nothing - prevent auto spawning
 		UE_LOG(LogTemp, Warning, TEXT("Auto player spawning disabled"));
-
-		//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
-		//UYogSaveSubsystem* SaveSubsystem = GameInstancePtr->GetSubsystem<UYogSaveSubsystem>();
-		//if (SaveSubsystem->CurrentSaveGame)
-		//{
-		//	SpawnPlayerFromSaveData(SaveSubsystem->CurrentSaveGame);
-		//}
-
 		return;
 	}
 
 	// Fall back to default behavior if enabled
 	Super::RestartPlayer(NewPlayer);
+
+
+
 }
 
 void AYogGameMode::StartPlay()
@@ -77,17 +73,19 @@ void AYogGameMode::StartPlay()
 		return;
 	}
 
-	UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
-	UYogSaveSubsystem* SaveSubsystem = GameInstancePtr->GetSubsystem<UYogSaveSubsystem>();
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
 
-	if (SaveSubsystem->CurrentSaveGame)
-	{
-		SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
-	}
-	else
-	{
-		// spawn default player char
-	}
+	UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
+	UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
+
+	//if (SaveSubsystem->CurrentSaveGame)
+	//{
+	//	SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
+	//}
+	//else
+	//{
+	//	// spawn default player char
+	//}
 
 	//TODO: this function calls after openLevel : 
 	//[get player + get transform -> spawn player -> poccess ->] in game mode
@@ -100,7 +98,6 @@ void AYogGameMode::StartPlay()
 	{
 		RemainKillCount = LevelScriptActor->MonsterKillCountTarget;
 
-		// Success! You can now use the LevelScriptActor.
 		UE_LOG(LogTemp, Warning, TEXT("Found LevelScriptActor: %s"), *LevelScriptActor->GetName());
 
 		this->OnFinishLevelEvent().AddUObject(SaveSubsystem, &UYogSaveSubsystem::WriteSaveGame);
@@ -140,6 +137,28 @@ void AYogGameMode::StartPlay()
 void AYogGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
+
+}
+
+bool AYogGameMode::HasMatchStarted() const
+{
+	Super::HasMatchStarted();
+
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+
+	UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
+	UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
+	
+	if (SaveSubsystem->CurrentSaveGame)
+	{
+		SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
+	}
+	else
+	{
+		// spawn default player char
+	}
+
+	return true;
 
 }
 

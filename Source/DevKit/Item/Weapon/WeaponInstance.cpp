@@ -25,4 +25,10 @@ void AWeaponInstance::EquipWeaponToCharacter(APlayerCharacterBase* ReceivingChar
 	this->SetActorRelativeTransform(Relative_Transform);
 	this->AttachToComponent(ReceivingChar->GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, AttachSocket);
 	
+	if (WeaponLayer)
+	{
+		UAnimInstance* AnimInstance = ReceivingChar->GetMesh()->GetAnimInstance();
+		AnimInstance->LinkAnimClassLayers(WeaponLayer);
+	}
+
 }

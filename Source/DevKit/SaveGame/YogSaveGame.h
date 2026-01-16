@@ -175,6 +175,7 @@ struct FWeaponSaveData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
+
 };
 
 
@@ -227,13 +228,19 @@ public:
 
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct DEVKIT_API FAbilitySaveData
 {
 	GENERATED_BODY()
 
 	UPROPERTY()
-	uint8 Level = 0;
+	int32 Level = 0;
+
+	UPROPERTY()
+	int32 InputID = -1;
+
+	UPROPERTY()
+	FSoftClassPath AbilityClassPath;
 
 	UPROPERTY()
 	TSubclassOf<UYogGameplayAbility> AbilityClass;
@@ -263,7 +270,6 @@ public:
 
 	UPROPERTY()
 	TArray<FPlayerGameTagData> PlayerTags;
-
 
 	//UPROPERTY()
 	//FAbilitySystemComponentData ASC_Data;

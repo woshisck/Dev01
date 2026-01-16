@@ -124,7 +124,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void LogAllGrantedAbilities();
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	TArray<FAbilitySaveData> GetAllGrantedAbilities();
 
 	UFUNCTION(BlueprintCallable)

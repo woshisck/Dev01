@@ -10,14 +10,24 @@
 #include "Player/PlayerCharacterBase.h"
 #include <EnhancedInputSubsystems.h>
 #include "../Item/ItemSpawner.h"
-
-
+#include "DevKit/SaveGame/YogSaveSubSystem.h"
+#include "DevKit/System/YogGameInstanceBase.h"
 
 
 void AYogPlayerControllerBase::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
+
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+
+	UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
+	UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
+
+	if (SaveSubsystem->CurrentSaveGame)
+	{
+		SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
+	}
 
 }
 

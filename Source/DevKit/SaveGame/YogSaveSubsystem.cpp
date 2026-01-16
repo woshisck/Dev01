@@ -36,22 +36,7 @@ void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UYogSaveSubsystem::OnLevelLoaded(UWorld* LoadedWorld)
 {
-	//if (LoadedWorld && LoadedWorld->IsGameWorld())
-	//{
-	//	//TODO::
-	//	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-	//	if (PC)
-	//	{
-	//		APlayerCharacterBase* pawn = Cast<APlayerCharacterBase>(PC->GetPawn());
-	//		if (pawn)
-	//		{
 
-	//			pawn->SetActorLocation(CurrentSaveGame->PlayerStateData.PlayerLocation);
-	//			pawn->SetActorRotation(CurrentSaveGame->PlayerStateData.PlayerRotation);
-	//		}
-	//	}
-
-	//}
 }
 
 UYogSaveGame* UYogSaveSubsystem::GetCurrentSave()
@@ -108,11 +93,6 @@ void UYogSaveSubsystem::LoadData(UObject* Object, UPARAM(ref)TArray<uint8>& Data
 
 }
 
-void UYogSaveSubsystem::SaveTransformData(FVector& saveGame_loc, FVector& target_loc, FRotator& saveGame_rotate, FRotator& target_rot)
-{
-	saveGame_loc = target_loc;
-	saveGame_rotate = target_rot;
-}
 
 
 void UYogSaveSubsystem::LoadLevelData(UYogSaveGame* SaveGame)
@@ -150,14 +130,32 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 	//Save current Attribute
 	SaveGame->PlayerStateData.SetupAttribute(*player->BaseAttributeSet);
 	
-	//Abilities save to savegame
+
+	//Save Ability
 	UYogAbilitySystemComponent* ASC = player->GetASC();
-	
 	TArray<FAbilitySaveData> PlayerAbilities = ASC->GetAllGrantedAbilities();
-	for (const FAbilitySaveData& ability_save_data : PlayerAbilities)
+	
+	// Get all ability specs
+	const TArray<FGameplayAbilitySpec>& AbilitySpecs = ASC->GetActivatableAbilities();
+	for (const FGameplayAbilitySpec& Spec : AbilitySpecs)
 	{
-		SaveGame->PlayerStateData.Abilities.Add(ability_save_data);
+		// Skip if ability is invalid
+		if (!Spec.Ability) continue;
+
+		// Convert to save data
+		FAbilitySaveData SaveData = ConvertAbilitySpecToSaveData(Spec);
+		SaveGame->PlayerStateData.Abilities.Add(SaveData);
 	}
+
+
+	//for (const FAbilitySaveData& ability_save_data : PlayerAbilities)
+	//{
+	//	SaveGame->PlayerStateData.Abilities.Add(ability_save_data);
+
+	//}
+
+	UE_LOG(LogTemp, Warning, TEXT("SaveGame->PlayerStateData.Abilities Length: %d"), SaveGame->PlayerStateData.Abilities.Num());
+
 
 	SaveData(player, SaveGame->PlayerStateData.CharacterByteData);
 
@@ -190,20 +188,6 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 	}
 
 
-	//for (AActor* attachActor : attachedActors)
-	//{
-	//	if (Cast<AWeaponInstance>(attachActor))
-	//	{
-	//		//SaveGame->PlayerStateData.WeaponData.
-	//		//SaveGame->WeaponData.WeaponInstanceClasses.Add(attachActor->GetClass());
-	//		FWeaponMeshData weapon_data;
-	//		weapon_data.weaponInstanceClasses.Add(attachActor->GetClass());
-	//		weapon_data.AttachSocket = Cast<AWeaponInstance>(attachActor)->AttachSocket;
-	//		SaveGame->WeaponData.WeaponMeshData = weapon_data;
-	//		UE_LOG(LogTemp, Warning, TEXT("SaveGame->WeaponData.array_WeaponMeshData.Length: %d"), SaveGame->WeaponData.WeaponMeshData.weaponInstanceClasses.Num());
-	//		AWeaponInstance* weaponActor;
-	//	}
-	//}
 }
 
 void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
@@ -228,20 +212,23 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		return;
 
 	}
-
-
-	//LOAD START HERE
-
-
-	for (const FAbilitySaveData& ability_data : SaveGame->PlayerStateData.Abilities)
+	//ABILITY:
+	//for (const FAbilitySaveData& ability_data : SaveGame->PlayerStateData.Abilities)
+	//{
+	//	FGameplayAbilitySpec temp_gameplaySepc;
+	//	Player->GetASC()->GiveAbility(temp_gameplaySepc);
+	//	GiveAbilitiesFromSaveData(Player->GetASC(), SaveGame->PlayerStateData.Abilities);
+	//	//Player->GetASC()->K2_GiveAbility(ability_data.AbilityClass, ability_data.Level);
+	//}
+	if (!Player->GetASC())
 	{
-		Player->GetASC()->K2_GiveAbility(ability_data.AbilityClass, ability_data.Level);
+		return;
 	}
 
-
-
-
 	LoadData(Player, SaveGame->PlayerStateData.CharacterByteData);
+
+
+	GiveAbilitiesFromSaveData(Player->GetASC(), SaveGame->PlayerStateData.Abilities);
 
 	//Weapon Actor load
 	for (FWeaponInstanceData& weaponInstance : SaveGame->WeaponInstanceItems)
@@ -275,49 +262,8 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		UE_LOG(LogTemp, Warning, TEXT("Load Actor success! : %s (Class: %s)"),*WeaponActor->GetName(), *weaponInstance.ActorClassPath);
 		UE_LOG(LogTemp, Warning, TEXT("AttachSocket : %s (Class: %s)"), *WeaponActor->GetName(), *weaponInstance.AttachSocket.ToString());
 
-
 		Cast<AWeaponInstance>(WeaponActor)->EquipWeaponToCharacter(Player);
-
-
-
-		//DEPRECATED CODE
-		//AWeaponInstance * weaponActor = NewObject<AWeaponInstance>(this);
-		//LoadData(weaponActor, weaponInstance.ByteData);
-		//UE_LOG(LogTemp, Warning, TEXT("weaponActor class: %s"), *weaponActor->GetClass()->GetName());
-
-
-		//UE_LOG(LogTemp, Warning, TEXT("weaponActor class: %s, socket: %s"), *weaponActor->GetClass()->GetName(), *weaponActor->AttachSocket.ToString());
-
 	}
-
-
-
-
-	//for (const TSubclassOf<AWeaponInstance> weapon_class : SaveGame->WeaponData.WeaponMeshData.weaponInstanceClasses)
-	//{
-	//	
-	//	
-	//	//UE_LOG(LogTemp, Warning, TEXT("SaveGame->WeaponData.array_WeaponMeshData.Length: %s"), *weapon_class->GetName());
-	//	UE_LOG(LogTemp, Warning, TEXT("SaveGame->WeaponData.array_WeaponMeshData.Length: %s"), *weapon_class->GetName());
-	//	//SetupWeaponToCharacter
-	//}
-	
-	/*TODO: FIX THE SAVE GAME PLAYER*/
-	//APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-	//if (PC)
-	//{
-	//	APlayerCharacterBase* pawn = Cast<APlayerCharacterBase>(PC->GetPawn());
-	//	if (pawn)
-	//	{
-	//		//AWeaponInstance* weaponActor = GetWorld()->SpawnActorDeferred<AWeaponInstance>(AWeaponInstance::StaticClass(), pawn->GetTransform());
-	//		AWeaponInstance* weaponActor = nullptr;
-	//		LoadData(weaponActor, SaveGame->PlayerStateData.WeaponActorByteData);
-	//		//UE_LOG(LogTemp, Warning, TEXT("weaponActor: %s"), *weaponActor->ToString());
-	//		FName socket = FName(TEXT("WeaponSocket_R"));
-	//		weaponActor->AttachToComponent(Cast<APlayerCharacterBase>(pawn)->GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, socket);
-	//	
-	//	}
-	//}
 
 }
 
@@ -329,6 +275,81 @@ void UYogSaveSubsystem::LoadMap(UYogSaveGame* SaveGame)
 void UYogSaveSubsystem::SaveMap(UYogSaveGame* SaveGame)
 {
 	SaveGame->MapStateData.LevelName = FName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
+
+}
+
+FAbilitySaveData UYogSaveSubsystem::ConvertAbilitySpecToSaveData(const FGameplayAbilitySpec& Spec)
+{
+	FAbilitySaveData SaveData;
+
+	if (Spec.Ability)
+	{
+		SaveData.AbilityClassPath = Spec.Ability->GetClass()->GetPathName();
+		SaveData.AbilityClass = Spec.Ability->GetClass();
+	}
+
+	SaveData.Level = Spec.Level;
+	SaveData.InputID = Spec.InputID;
+	//SaveData.ActiveCount = Spec.ActiveCount;
+	//SaveData.bIsActive = Spec.IsActive();
+	//SaveData.AbilityTags = Spec.Ability->AbilityTags;
+	//SaveData.DynamicAbilityTags = Spec.DynamicAbilityTags;
+
+	//if (Spec.SourceObject)
+	//{
+	//	SaveData.SourceObjectPath = Spec.SourceObject->GetPathName();
+	//}
+
+	return SaveData;
+
+}
+
+FGameplayAbilitySpecHandle UYogSaveSubsystem::ConvertSaveDataToAbilitySpec(UYogAbilitySystemComponent* ASC, const FAbilitySaveData& SaveData)
+{
+	// Load the ability class
+	UClass* AbilityClass = SaveData.AbilityClassPath.TryLoadClass<UYogGameplayAbility>();
+	if (!AbilityClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to load ability class: %s"), *SaveData.AbilityClassPath.ToString());
+		return FGameplayAbilitySpecHandle();
+	}
+
+	// Create ability spec
+	FGameplayAbilitySpec Spec(AbilityClass, SaveData.Level, SaveData.InputID);
+
+	// Restore tags
+	//Spec.Ability->AbilityTags = SaveData.AbilityTags;
+	//Spec.DynamicAbilityTags = SaveData.DynamicAbilityTags;
+
+	// Give ability to ASC
+	return ASC->GiveAbility(Spec);
+}
+
+void UYogSaveSubsystem::GiveAbilitiesFromSaveData(UYogAbilitySystemComponent* ASC, const TArray<FAbilitySaveData>& AbilitiesData)
+{
+
+	for (const FAbilitySaveData& SaveData : AbilitiesData)
+	{
+		// Give ability to ASC
+		FGameplayAbilitySpecHandle Handle = ConvertSaveDataToAbilitySpec(ASC, SaveData);
+
+		if (Handle.IsValid())
+		{
+			UE_LOG(DevKitGame, Log, TEXT("FGameplayAbilitySpecHandle Handle is Valid "));
+			// Try to restore active state if needed
+			//if (SaveData.bIsActive && SaveData.ActiveCount > 0)
+			//{
+			//	// Note: You might need custom logic here based on your game
+			//	// Some abilities might auto-activate, others might not
+			//	FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(Handle);
+			//	if (Spec && Spec->Ability)
+			//	{
+			//		// Try to activate if it makes sense for your game
+			//		// ASC->TryActivateAbility(Handle);
+			//	}
+			//}
+		}
+	}
 
 }
 
@@ -376,22 +397,10 @@ void UYogSaveSubsystem::WriteSaveGame()
 /* Load from disk, optional slot name */
 void UYogSaveSubsystem::LoadSaveGame(UYogSaveGame* SaveGame)
 {
-	if (CurrentSaveGame)
-	{
-		//load saved map
-
 		//UGameplayStatics::OpenLevel(GetWorld(), FName(CurrentSaveGame->MapStateData.LevelName));
-
-
-
-		LoadPlayer(CurrentSaveGame);
-
+		LoadPlayer(SaveGame);
 		//UDevAssetManager* devAssetManager = UDevAssetManager::GetDevAssetManager();
-		
-
 		//APlayerCharacterBase* T_player = GetWorld()->SpawnActorDeferred<APlayerCharacterBase>(devAssetManager->PlayerBlueprintClass, FTransform::Identity);
-
-
 		//if (devAssetManager->YogPlayerClass)
 		//{
 		//	//spawn player character at location;
@@ -404,8 +413,6 @@ void UYogSaveSubsystem::LoadSaveGame(UYogSaveGame* SaveGame)
 		//	}
 		//	UE_LOG(DevKitGame, Log, TEXT("player name : %s"), *player->GetName());
 		//}
-
-	}
 	//open level ->
 }
 

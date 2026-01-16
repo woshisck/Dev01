@@ -58,15 +58,14 @@ int32 AYogCharacterBase::GetStatePriority(EYogCharacterState State)
 
 UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
 {
-	UAbilitySystemComponent* comp = GetAbilitySystemComponent();
-	if (comp)
-	{
-		UYogAbilitySystemComponent* result = Cast<UYogAbilitySystemComponent>(comp);
-		return result;
-	}
-	return nullptr;
-	
-	
+	return Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent());
+	//UAbilitySystemComponent* comp = GetAbilitySystemComponent();
+	//if (comp)
+	//{
+	//	UYogAbilitySystemComponent* result = Cast<UYogAbilitySystemComponent>(comp);
+	//	return result;
+	//}
+	//return nullptr;
 }
 
 

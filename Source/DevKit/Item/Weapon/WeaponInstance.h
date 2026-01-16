@@ -40,12 +40,14 @@ class DEVKIT_API AWeaponInstance : public AActor
 public:
 	AWeaponInstance();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	UPROPERTY(BlueprintReadWrite, SaveGame)
 	FName AttachSocket;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	UPROPERTY(BlueprintReadWrite, SaveGame)
 	FTransform Relative_Transform;
 
+	UPROPERTY(BlueprintReadWrite, SaveGame)
+	TSubclassOf<UYogAnimInstance> WeaponLayer;
 
 
 	UFUNCTION(BlueprintCallable)

@@ -33,8 +33,8 @@ protected:
 
 public:	
 
-	UFUNCTION(BlueprintImplementableEvent)
-	void EnterPortal(APlayerCharacterBase* ReceivingChar);
+	UFUNCTION(BlueprintNativeEvent)
+	void EnterPortal(APlayerCharacterBase* ReceivingChar, UYogSaveSubsystem* save_subsystem);
 
 
 	UFUNCTION(BlueprintCallable)

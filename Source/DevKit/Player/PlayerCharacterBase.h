@@ -64,7 +64,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Character")
 	FPlayerStateDelegate OnPlayerStateUpdate;
 
-
 	UPROPERTY(BlueprintAssignable, Category = "State")
 	FPlayerStateDelegate OnFPlayerStateDeleg;
 

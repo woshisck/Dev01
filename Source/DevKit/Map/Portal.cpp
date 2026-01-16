@@ -4,8 +4,9 @@
 #include "Portal.h"
 #include "DevKit/Player/PlayerCharacterBase.h"
 #include "Components/BillboardComponent.h"
-
-
+#include "DevKit/SaveGame/YogSaveSubsystem.h"
+#include "DevKit/System/YogGameInstanceBase.h"
+#include "Engine/GameInstance.h"
 
 
 APortal::APortal(const FObjectInitializer& ObjectInitializer)
@@ -72,9 +73,13 @@ void APortal::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* O
 	UE_LOG(LogTemp, Warning, TEXT("Entry Portal OnOverlapBegin Happens"));
 	APlayerCharacterBase* OverlappingPawn = Cast<APlayerCharacterBase>(OtherActor);
 
+	UWorld* world = this->GetWorld();
+	UGameInstance* GI = this->GetWorld()->GetGameInstance();
+	UYogSaveSubsystem* save_subsystem = UGameInstance::GetSubsystem<UYogSaveSubsystem>(GI);
+
 	if (OverlappingPawn != nullptr)
 	{
-		EnterPortal(OverlappingPawn);
+		EnterPortal(OverlappingPawn, save_subsystem);
 
 		//UWorld* world = GetWorld();
 		//if (world)
@@ -83,4 +88,16 @@ void APortal::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* O
 		//}
 
 	}
+}
+
+
+
+void APortal::EnterPortal_Implementation(APlayerCharacterBase* ReceivingChar, UYogSaveSubsystem* save_subsystem)
+{
+	if (!save_subsystem)
+	{
+		return;
+	}
+	save_subsystem->WriteSaveGame();
+
 }
