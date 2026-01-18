@@ -13,6 +13,8 @@
 #include "DevKit/Component/HitBoxBufferComponent.h"
 #include "System/YogGameInstanceBase.h"
 
+#include "DevKit/SaveGame/YogSaveSubSystem.h"
+#include "DevKit/System/YogGameInstanceBase.h"
 
 AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -81,6 +83,16 @@ void AYogCharacterBase::BeginPlay()
 
 	CurrentState = EYogCharacterState::Idle;
 	PreviousState = EYogCharacterState::Idle;
+
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+
+	UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
+	UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
+
+	if (SaveSubsystem->CurrentSaveGame)
+	{
+		SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
+	}
 }
 
 void AYogCharacterBase::Tick(float DeltaSeconds)

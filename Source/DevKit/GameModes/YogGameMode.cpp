@@ -144,19 +144,31 @@ bool AYogGameMode::HasMatchStarted() const
 {
 	Super::HasMatchStarted();
 
-	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+	//UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
 
-	UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
-	UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
-	
-	if (SaveSubsystem->CurrentSaveGame)
-	{
-		SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
-	}
-	else
-	{
-		// spawn default player char
-	}
+	//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
+	//UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
+	//
+	//if (SaveSubsystem->CurrentSaveGame)
+	//{
+	//	SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
+	//}
+	//else
+	//{
+	//	// spawn default player char	//UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+
+	//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
+	//UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
+	//
+	//if (SaveSubsystem->CurrentSaveGame)
+	//{
+	//	SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
+	//}
+	//else
+	//{
+	//	// spawn default player char
+	//}
+	//}
 
 	return true;
 

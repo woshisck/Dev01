@@ -225,9 +225,9 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		return;
 	}
 
-	LoadData(Player, SaveGame->PlayerStateData.CharacterByteData);
+	//LoadData(Player, SaveGame->PlayerStateData.CharacterByteData);
 
-
+	//ASAP
 	GiveAbilitiesFromSaveData(Player->GetASC(), SaveGame->PlayerStateData.Abilities);
 
 	//Weapon Actor load
