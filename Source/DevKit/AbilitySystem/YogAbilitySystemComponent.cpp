@@ -19,6 +19,12 @@ UYogAbilitySystemComponent::UYogAbilitySystemComponent(const FObjectInitializer&
 
 
 
+void UYogAbilitySystemComponent::ApplyAbilityData(UAbilityData* abilityData)
+{
+
+
+}
+
 void UYogAbilitySystemComponent::AddDynamicTagGameplayEffect(const FGameplayTag& Tag)
 {
 	const TSubclassOf<UGameplayEffect> DynamicTagGE = UDevAssetManager::GetSubclass(UYogGameData::Get().DynamicTagGameplayEffect);
@@ -61,64 +67,55 @@ void UYogAbilitySystemComponent::GetAbilityTargetData(const FGameplayAbilitySpec
 {
 }
 
-FGameplayAbilitySpecHandle UYogAbilitySystemComponent::GrantAbility(TSubclassOf<UYogGameplayAbility> ability_class)
+
+
+void UYogAbilitySystemComponent::GetOwnedGameplayTag()
 {
-	FGameplayAbilitySpecHandle StoredAbilityHandle;
+	FGameplayTagContainer player_owned_tags;
+	this->GetOwnedGameplayTags(player_owned_tags);
 
-	FGameplayAbilitySpec AbilitySpec(ability_class, 1, 0); // Specify ability class, level, input ID
-	StoredAbilityHandle = this->GiveAbility(AbilitySpec); // Store the handle!
-	if (StoredAbilityHandle.IsValid())
-	{
-		if (ability_class == UWeaponAbility::StaticClass())
-		{
-			WeaponAbilities.Add(AbilitySpec);
-		}
-		if (ability_class == UPassiveAbility::StaticClass())
-		{
-			PassiveAbilities.Add(AbilitySpec);
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("The AbilitySpecHandle is invalid."));
-	}
-	return StoredAbilityHandle;
+	int32 TagCount = player_owned_tags.Num();
 
+	UE_LOG(LogTemp, Log, TEXT("Player has %d owned tags:"), TagCount);
+
+	for (const FGameplayTag& Tag : player_owned_tags)
+	{
+		UE_LOG(LogTemp, Log, TEXT("  - %s"), *Tag.ToString());
+	}
 }
 
-void UYogAbilitySystemComponent::RemoveAbility(TSubclassOf<UYogGameplayAbility> ability_class)
+TMap<FGameplayTag, int32> UYogAbilitySystemComponent::GetPlayerOwnedTagsWithCounts()
 {
 
-	if (ability_class == UWeaponAbility::StaticClass())
-	{
-		for (int32 i = WeaponAbilities.Num() - 1; i >= 0; --i)
-		{
-			FGameplayAbilitySpec& ability_spec = WeaponAbilities[i];
-			if (ability_spec.Ability && ability_spec.Ability->GetClass() == ability_class)
-			{
-				ClearAbility(ability_spec.Handle);
-				WeaponAbilities.RemoveAt(i);
-			}
-		}
+	TMap<FGameplayTag, int32> TagCounts;
 
-	}
+	FGameplayTagContainer OwnedTags;
+	this->GetOwnedGameplayTags(OwnedTags);
 
-	if (ability_class == UPassiveAbility::StaticClass())
+	// Get stack count for each tag
+	for (const FGameplayTag& Tag : OwnedTags)
 	{
-		for (int32 i = PassiveAbilities.Num() - 1; i >= 0; --i)
+		int32 StackCount = this->GetGameplayTagCount(Tag);
+		if (StackCount > 0)
 		{
-			FGameplayAbilitySpec& ability_spec = PassiveAbilities[i];
-			if (ability_spec.Ability && ability_spec.Ability->GetClass() == ability_class)
-			{
-				ClearAbility(ability_spec.Handle);
-				PassiveAbilities.RemoveAt(i);
-			}
+			TagCounts.Add(Tag, StackCount);
 		}
 	}
 
+	return TagCounts;
 }
 
-void UYogAbilitySystemComponent::RemoveGameplayTag(FGameplayTag Tag, int32 Count)
+void UYogAbilitySystemComponent::PrintPlayerOwnedTagsWithCounts(TMap<FGameplayTag, int32> TagCounts)
+{
+	for (const auto& Pair : TagCounts)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Tag: %s, Count: %d"),
+			*Pair.Key.ToString(),
+			Pair.Value);
+	}
+}
+
+void UYogAbilitySystemComponent::RemoveGameplayTagWithCount(FGameplayTag Tag, int32 Count)
 {
 	int stack = this->GetTagCount(Tag);
 
@@ -133,7 +130,7 @@ void UYogAbilitySystemComponent::RemoveGameplayTag(FGameplayTag Tag, int32 Count
 }
 
 
-void UYogAbilitySystemComponent::AddGameplayTag(FGameplayTag Tag, int32 Count)
+void UYogAbilitySystemComponent::AddGameplayTagWithCount(FGameplayTag Tag, int32 Count)
 {
 	this->AddLooseGameplayTag(Tag, Count);
 }

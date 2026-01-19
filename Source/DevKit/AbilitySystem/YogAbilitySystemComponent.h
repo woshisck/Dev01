@@ -50,20 +50,21 @@ class DEVKIT_API UYogAbilitySystemComponent : public UAbilitySystemComponent
 public:
 
 
-	//ASAP: NEED TO MODIFIER
-	UPROPERTY(BlueprintReadOnly)
-	TArray<FGameplayAbilitySpec> WeaponAbilities;
-
-	UPROPERTY(BlueprintReadOnly)
-	TArray<FGameplayAbilitySpec> GeneralAbilities;
-
-	UPROPERTY(BlueprintReadOnly)
-	TArray<FGameplayAbilitySpec> PassiveAbilities;
-
-
 
 	// Sets default values for this empty's properties
 	UYogAbilitySystemComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+
+	UPROPERTY(BlueprintReadWrite)
+	TMap<FGameplayTag, FActionData> AbilityMap;
+
+	UPROPERTY(BlueprintReadWrite)
+	TMap<FGameplayTag, FPassiveActionData> PassiveMap;
+
+
+	UFUNCTION(BlueprintCallable)
+	void ApplyAbilityData(UAbilityData* abilityData);
+
 
 	// Uses a gameplay effect to add the specified dynamic granted tag.
 	UFUNCTION(BlueprintCallable)
@@ -80,20 +81,24 @@ public:
 	void GetAbilityTargetData(const FGameplayAbilitySpecHandle AbilityHandle, FGameplayAbilityActivationInfo ActivationInfo, FGameplayAbilityTargetDataHandle& OutTargetDataHandle);
 
 
-	UFUNCTION(BlueprintCallable)
-	FGameplayAbilitySpecHandle GrantAbility(TSubclassOf<UYogGameplayAbility> ability_class);
-
-
-	UFUNCTION(BlueprintCallable)
-	void RemoveAbility(TSubclassOf<UYogGameplayAbility> ability_class);
-
 
 	//////////////////////////////////Gameplay Tag//////////////////////////////////
 	UFUNCTION(BlueprintCallable)
-	void RemoveGameplayTag(FGameplayTag Tag, int32 Count);
+	void GetOwnedGameplayTag();
 
 	UFUNCTION(BlueprintCallable)
-	void AddGameplayTag(FGameplayTag Tag, int32 Count);
+	TMap<FGameplayTag, int32> GetPlayerOwnedTagsWithCounts();
+
+	UFUNCTION(BlueprintCallable)
+	void PrintPlayerOwnedTagsWithCounts(TMap<FGameplayTag, int32> TagCounts);
+
+	UFUNCTION(BlueprintCallable)
+	void RemoveGameplayTagWithCount(FGameplayTag Tag, int32 Count);
+
+	UFUNCTION(BlueprintCallable)
+	void AddGameplayTagWithCount(FGameplayTag Tag, int32 Count);
+
+
 
 	////////////////////////////////////////////////////////////////////////////////
 

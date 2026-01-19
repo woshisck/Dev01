@@ -19,14 +19,6 @@ class UYogGameplayEffect;
 
 class AYogCharacterBase;
 
-USTRUCT()
-struct DEVKIT_API FGameAbilitySystemSaveData
-{
-	GENERATED_BODY()
-
-
-};
-
 
 
 USTRUCT()
@@ -100,27 +92,6 @@ public:
 };
 
 
-
-USTRUCT()
-struct DEVKIT_API FYogActorSaveData
-{
-	GENERATED_BODY()
-
-public:
-	/* Identifier for which Actor this belongs to */
-	UPROPERTY()
-	FName ActorName;
-
-	/* For movable Actors, keep location,rotation,scale. */
-	UPROPERTY()
-	FTransform Transform;
-
-	/* Contains all 'SaveGame' marked variables of the Actor */
-	UPROPERTY()
-	TArray<uint8> ByteData;
-
-};
-
 //TEST ONLY, SAVE FOR DELETE --START
 
 USTRUCT(BlueprintType)
@@ -162,20 +133,6 @@ struct FWeaponMeshData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FName AttachSocket;
-};
-
-USTRUCT(BlueprintType)
-struct FWeaponSaveData
-{
-	GENERATED_BODY()
-
-	// Identifier to find the actor in the world or know its class to spawn
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FWeaponMeshData WeaponMeshData;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<UYogAnimInstance> WeaponLayer;
-
 };
 
 
@@ -220,8 +177,6 @@ public:
 
 	UPROPERTY()
 	FAttributeSaveData AttributeSaveData;
-
-
 
 	UPROPERTY()
 	TArray<uint8> ByteData;
@@ -269,13 +224,18 @@ public:
 	FAttributeSaveData PlayerAttributeData;
 
 	UPROPERTY()
-	TArray<FPlayerGameTagData> PlayerTags;
+	TMap<FGameplayTag, int32> PlayerOwnedTags;
+
 
 	//UPROPERTY()
 	//FAbilitySystemComponentData ASC_Data;
 
 	UPROPERTY()
 	TArray<FAbilitySaveData> Abilities;
+
+
+	UPROPERTY()
+	UAbilityData* WeaponAbilities;
 
 	UPROPERTY()
 	TArray<uint8> CharacterByteData;
@@ -328,33 +288,19 @@ public:
 	TSubclassOf<class APlayerCharacterBase> SavedCharacterClass;
 
 	UPROPERTY()
-	FWeaponSaveData WeaponData;
-
-	UPROPERTY()
 	FPlayerGASData PlayerStateData;
 
 	UPROPERTY()
 	TArray<FWeaponInstanceData> WeaponInstanceItems;
 
-
 	UPROPERTY()
 	FYogMapStateData MapStateData;
-
 
 	//ACTOR WITH GAS SYSTEM ATTACHED
 	UPROPERTY()
 	TArray<FCharacterSaveData> SavedCharacter;
 
-
-	UPROPERTY()
-	TArray<FYogActorSaveData> SavedActors;
-
-
-	UPROPERTY()
-	FName LevelName;
 	/* Actors stored from a level (currently does not support a specific level and just assumes the demo map) */
-	UPROPERTY()
-	TMap<FName, FYogActorSaveData> SavedActorMap;
 
 	FCharacterSaveData* GetPlayerData(APlayerState* PlayerState);
 

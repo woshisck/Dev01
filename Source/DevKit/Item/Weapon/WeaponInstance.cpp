@@ -15,6 +15,11 @@ AWeaponInstance::AWeaponInstance()
 
 }
 
+void AWeaponInstance::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
 void AWeaponInstance::EquipWeaponToCharacter(APlayerCharacterBase* ReceivingChar)
 {
 	//TSubclassOf<AWeaponInstance> WeaponActorClass = WeaponActorInst.ActorToSpawn;

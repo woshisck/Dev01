@@ -55,7 +55,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability")
 	TObjectPtr<UAbilityData> AbilityData;
 
-
 	// Actors to spawn on the pawn when this is equipped
 	UPROPERTY(EditDefaultsOnly, Category = "Equipment")
 	TArray<FWeaponActorToSpawn> ActorsToSpawn;

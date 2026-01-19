@@ -85,17 +85,18 @@ public:
 
 	///////////////////////////////////////////　Passive effect　///////////////////////////////////////////
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = Abilities)
-	TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = Abilities)
+	//TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, SaveGame, Category = "AblitySystemComp")
 	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
 
-	////////////////////////////////////////// Get/Set Func　//////////////////////////////////////////
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Attribute")
 	TObjectPtr<UAbilityData> AbilityData;
 
+	//TMap<FYogTagContainerWrapper, FActionData> AbilityMap;
+
+	//////////////////////////////////////////////////////////////////////////////////////////////
 
 	//UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadWrite, Category = "Weapon")
 	//TObjectPtr<AWeaponInstance> Weapon;

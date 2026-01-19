@@ -129,33 +129,37 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 
 	//Save current Attribute
 	SaveGame->PlayerStateData.SetupAttribute(*player->BaseAttributeSet);
-	
 
-	//Save Ability
-	UYogAbilitySystemComponent* ASC = player->GetASC();
-	TArray<FAbilitySaveData> PlayerAbilities = ASC->GetAllGrantedAbilities();
+	SaveGame->PlayerStateData.WeaponAbilities = player->AbilityData;
+
 	
-	// Get all ability specs
-	const TArray<FGameplayAbilitySpec>& AbilitySpecs = ASC->GetActivatableAbilities();
-	for (const FGameplayAbilitySpec& Spec : AbilitySpecs)
+	TMap<FGameplayTag, int32> container = player->GetASC()->GetPlayerOwnedTagsWithCounts();
+
+	for (const auto& Pair : container)
 	{
-		// Skip if ability is invalid
-		if (!Spec.Ability) continue;
-
-		// Convert to save data
-		FAbilitySaveData SaveData = ConvertAbilitySpecToSaveData(Spec);
-		SaveGame->PlayerStateData.Abilities.Add(SaveData);
+		SaveGame->PlayerStateData.PlayerOwnedTags.Add(Pair.Key, Pair.Value);
 	}
+
+
+	//UYogAbilitySystemComponent* ASC = player->GetASC();
+	//TArray<FAbilitySaveData> PlayerAbilities = ASC->GetAllGrantedAbilities();
+	//
+	//// Get all ability specs
+	//const TArray<FGameplayAbilitySpec>& AbilitySpecs = ASC->GetActivatableAbilities();
+	//for (const FGameplayAbilitySpec& Spec : AbilitySpecs)
+	//{
+	//	// Skip if ability is invalid
+	//	if (!Spec.Ability) continue;
+	//	// Convert to save data
+	//	FAbilitySaveData SaveData = ConvertAbilitySpecToSaveData(Spec);
+	//	SaveGame->PlayerStateData.Abilities.Add(SaveData);
+	//}
 
 
 	//for (const FAbilitySaveData& ability_save_data : PlayerAbilities)
 	//{
 	//	SaveGame->PlayerStateData.Abilities.Add(ability_save_data);
-
 	//}
-
-	UE_LOG(LogTemp, Warning, TEXT("SaveGame->PlayerStateData.Abilities Length: %d"), SaveGame->PlayerStateData.Abilities.Num());
-
 
 	SaveData(player, SaveGame->PlayerStateData.CharacterByteData);
 
@@ -212,14 +216,7 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		return;
 
 	}
-	//ABILITY:
-	//for (const FAbilitySaveData& ability_data : SaveGame->PlayerStateData.Abilities)
-	//{
-	//	FGameplayAbilitySpec temp_gameplaySepc;
-	//	Player->GetASC()->GiveAbility(temp_gameplaySepc);
-	//	GiveAbilitiesFromSaveData(Player->GetASC(), SaveGame->PlayerStateData.Abilities);
-	//	//Player->GetASC()->K2_GiveAbility(ability_data.AbilityClass, ability_data.Level);
-	//}
+
 	if (!Player->GetASC())
 	{
 		return;
@@ -263,7 +260,20 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		UE_LOG(LogTemp, Warning, TEXT("AttachSocket : %s (Class: %s)"), *WeaponActor->GetName(), *weaponInstance.AttachSocket.ToString());
 
 		Cast<AWeaponInstance>(WeaponActor)->EquipWeaponToCharacter(Player);
+
 	}
+	Player->AbilityData = SaveGame->PlayerStateData.WeaponAbilities;
+
+	
+
+	for (const auto& Pair : SaveGame->PlayerStateData.PlayerOwnedTags)
+	{
+		Player->GetASC()->AddGameplayTagWithCount(Pair.Key, Pair.Value);
+		//SaveGame->PlayerStateData.PlayerOwnedTags.Add(Pair.Key, Pair.Value);
+	}
+
+
+
 
 }
 
@@ -362,7 +372,6 @@ void UYogSaveSubsystem::WriteSaveGame()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(WriteSaveGame);
 	CurrentSaveGame->SavedCharacter.Empty();
-	CurrentSaveGame->SavedActorMap.Empty();
 	
 	//CHECK FOR PLAYER STAT, NOT FOR IDE 
 	AGameStateBase* GS = GetWorld()->GetGameState();
@@ -397,22 +406,26 @@ void UYogSaveSubsystem::WriteSaveGame()
 /* Load from disk, optional slot name */
 void UYogSaveSubsystem::LoadSaveGame(UYogSaveGame* SaveGame)
 {
-		//UGameplayStatics::OpenLevel(GetWorld(), FName(CurrentSaveGame->MapStateData.LevelName));
-		LoadPlayer(SaveGame);
-		//UDevAssetManager* devAssetManager = UDevAssetManager::GetDevAssetManager();
-		//APlayerCharacterBase* T_player = GetWorld()->SpawnActorDeferred<APlayerCharacterBase>(devAssetManager->PlayerBlueprintClass, FTransform::Identity);
-		//if (devAssetManager->YogPlayerClass)
-		//{
-		//	//spawn player character at location;
-		//	AYogGameMode* CurrentGameMode = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
-		//	if (CurrentGameMode)
-		//	{
-		//		CurrentGameMode->SpawnPlayerFromSaveData(CurrentSaveGame);
-		//		//CurrentGameMode->SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation)
-		//		//CurrentGameMode->SpawnAndPoccessAvatar(player, CurrentSaveGame->YogSavePlayers.PlayerLocation, CurrentSaveGame->YogSavePlayers.PlayerRotation);
-		//	}
-		//	UE_LOG(DevKitGame, Log, TEXT("player name : %s"), *player->GetName());
-		//}
+	//UGameplayStatics::OpenLevel(GetWorld(), FName(CurrentSaveGame->MapStateData.LevelName));
+		
+	
+	LoadPlayer(SaveGame);
+
+
+	//UDevAssetManager* devAssetManager = UDevAssetManager::GetDevAssetManager();
+	//APlayerCharacterBase* T_player = GetWorld()->SpawnActorDeferred<APlayerCharacterBase>(devAssetManager->PlayerBlueprintClass, FTransform::Identity);
+	//if (devAssetManager->YogPlayerClass)
+	//{
+	//	//spawn player character at location;
+	//	AYogGameMode* CurrentGameMode = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+	//	if (CurrentGameMode)
+	//	{
+	//		CurrentGameMode->SpawnPlayerFromSaveData(CurrentSaveGame);
+	//		//CurrentGameMode->SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation)
+	//		//CurrentGameMode->SpawnAndPoccessAvatar(player, CurrentSaveGame->YogSavePlayers.PlayerLocation, CurrentSaveGame->YogSavePlayers.PlayerRotation);
+	//	}
+	//	UE_LOG(DevKitGame, Log, TEXT("player name : %s"), *player->GetName());
+	//}
 	//open level ->
 }
 

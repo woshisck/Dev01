@@ -311,11 +311,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox")
 	TArray<FYogHitboxType> hitboxTypes;
 
-
-
-
-
-
 };
 
 

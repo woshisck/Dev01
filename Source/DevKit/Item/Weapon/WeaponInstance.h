@@ -17,6 +17,7 @@ class UYogAnimInstance;
 class USceneComponent;
 class UYogGameplayAbility;
 class UGameplayEffect;
+class UAbilityData;
 
 
 USTRUCT(BlueprintType)
@@ -40,6 +41,8 @@ class DEVKIT_API AWeaponInstance : public AActor
 public:
 	AWeaponInstance();
 
+	virtual void BeginPlay()override;
+
 	UPROPERTY(BlueprintReadWrite, SaveGame)
 	FName AttachSocket;
 
@@ -48,6 +51,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, SaveGame)
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
+
+	UPROPERTY()
+	TObjectPtr<UAbilityData> WeaponAbilities;
 
 
 	UFUNCTION(BlueprintCallable)

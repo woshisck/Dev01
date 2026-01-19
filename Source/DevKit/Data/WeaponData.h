@@ -111,10 +111,6 @@ public:
 	TArray<TSubclassOf<UAnimInstance>> WeaponAmineLayer;
 
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//TArray<TObjectPtr<UAnimMontage>> IncludedMontage;
-
-
 	// Actors to spawn on the pawn when this is equipped
 	UPROPERTY(EditDefaultsOnly, Category = "Equipment")
 	TArray<FWeaponHoldData> ActorsToSpawn;
