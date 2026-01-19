@@ -52,7 +52,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, SaveGame)
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
 
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	TObjectPtr<UAbilityData> WeaponAbilities;
 
 

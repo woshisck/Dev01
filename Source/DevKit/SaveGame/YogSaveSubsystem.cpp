@@ -188,6 +188,8 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 		
 		SaveData(weaponInstance, weaponInstanceData.ByteData);
 		SaveGame->WeaponInstanceItems.Add(weaponInstanceData);
+		//SaveData(weaponInstance, weaponInstanceData.ByteData);
+
 		UE_LOG(LogTemp, Warning, TEXT("Save Weapon Data Success!"));
 	}
 
@@ -224,7 +226,6 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 
 	//LoadData(Player, SaveGame->PlayerStateData.CharacterByteData);
 
-	//ASAP
 	GiveAbilitiesFromSaveData(Player->GetASC(), SaveGame->PlayerStateData.Abilities);
 
 	//Weapon Actor load
@@ -265,7 +266,7 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 	Player->AbilityData = SaveGame->PlayerStateData.WeaponAbilities;
 
 	
-
+	//Gameplay Tag
 	for (const auto& Pair : SaveGame->PlayerStateData.PlayerOwnedTags)
 	{
 		Player->GetASC()->AddGameplayTagWithCount(Pair.Key, Pair.Value);
@@ -285,7 +286,6 @@ void UYogSaveSubsystem::LoadMap(UYogSaveGame* SaveGame)
 void UYogSaveSubsystem::SaveMap(UYogSaveGame* SaveGame)
 {
 	SaveGame->MapStateData.LevelName = FName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
-
 }
 
 FAbilitySaveData UYogSaveSubsystem::ConvertAbilitySpecToSaveData(const FGameplayAbilitySpec& Spec)
@@ -385,7 +385,7 @@ void UYogSaveSubsystem::WriteSaveGame()
 	UYogWorldSubsystem* worldsubsystem = GetWorld()->GetSubsystem<UYogWorldSubsystem>();
 	UWorld* current_world = worldsubsystem->GetCurrentWorld();
 	//CurrentSaveGame->LevelName = current_world->GetFName();
-	CurrentSaveGame->LevelName = current_world->GetFName();
+	//CurrentSaveGame->LevelName = current_world->GetFName();
 
 
 	if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
