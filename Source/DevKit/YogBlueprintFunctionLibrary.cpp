@@ -14,6 +14,7 @@
 #include "DevKit/Data/WeaponData.h"
 #include "NavigationSystem.h"
 #include "NavFilters/NavigationQueryFilter.h"
+#include "Engine/OverlapResult.h"
 
 
 //UYogBlueprintFunctionLibrary::UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
@@ -83,6 +84,67 @@ TArray<int> UYogBlueprintFunctionLibrary::RandomSplitInteger(int Total, int Numb
 
 	return Result;
 
+}
+
+TArray<AActor*> UYogBlueprintFunctionLibrary::GetAllActorsFromRange(UObject* WorldContextObject, AActor* OriginActor, float Range, bool parallel, TSubclassOf<AActor> ActorClass)
+{
+	TArray<AActor*> Result;
+	TArray<FOverlapResult> Overlaps;
+
+	// Create collision shape (sphere)
+	FCollisionShape Sphere = FCollisionShape::MakeSphere(Range);
+
+	// Perform overlap check
+	bool bHit = OriginActor->GetWorld()->OverlapMultiByChannel(
+		Overlaps,
+		OriginActor->GetActorLocation(),
+		FQuat::Identity,
+		ECC_WorldDynamic, // Use appropriate collision channel
+		Sphere
+	);
+
+	// Filter by class
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		AActor* Actor = Overlap.GetActor();
+		if (Actor && Actor->IsA(ActorClass))
+		{
+			Result.Add(Actor);
+		}
+	}
+
+	return Result;
+
+	return TArray<AActor*>();
+}
+
+/*parallel is for many actors select at the same time */
+TArray<AActor*> UYogBlueprintFunctionLibrary::ASync_GetAllActorsFromRange(UObject* WorldContextObject, const FVector& Center, float Radius, TSubclassOf<AActor> ActorClass)
+{
+	TArray<AActor*> AllActors;
+	UGameplayStatics::GetAllActorsOfClass(WorldContextObject, ActorClass, AllActors);
+
+	TQueue<AActor*> ThreadSafeQueue;
+	const float RadiusSquared = Radius * Radius;
+
+	ParallelFor(AllActors.Num(), [&](int32 Index)
+		{
+			AActor* Actor = AllActors[Index];
+			if (Actor && FVector::DistSquared(Center, Actor->GetActorLocation()) <= RadiusSquared)
+			{
+				ThreadSafeQueue.Enqueue(Actor);
+			}
+		});
+
+	// Convert queue to array
+	TArray<AActor*> FilteredActors;
+	AActor* Actor = nullptr;
+	while (ThreadSafeQueue.Dequeue(Actor))
+	{
+		FilteredActors.Add(Actor);
+	}
+
+	return FilteredActors;
 }
 
 

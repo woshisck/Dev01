@@ -128,6 +128,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "YogMath")
 	static TArray<int> RandomSplitInteger(int Total, int NumberParts);
 
+	UFUNCTION(BlueprintCallable)
+	static TArray<AActor*> GetAllActorsFromRange(UObject* WorldContextObject, AActor* OriginActor, float Range, bool parallel, TSubclassOf<AActor> ActorClass);
+
+	UFUNCTION(BlueprintCallable)
+	static TArray<AActor*> ASync_GetAllActorsFromRange(UObject* WorldContextObject, const FVector& Center, float Radius, TSubclassOf<AActor> ActorClass);
+
+
+
 
 	////////////////////////////////////////////////// Weapon Ability //////////////////////////////////////////////////
 	UFUNCTION(BlueprintCallable, Category = Weapon)
