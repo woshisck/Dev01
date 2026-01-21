@@ -15,6 +15,19 @@ UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitial
 	//NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 }
 
+void UYogGameplayAbility::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	Super::OnGiveAbility(ActorInfo, Spec);
+
+	K2_OnAbilityAdded();
+}
+
+void UYogGameplayAbility::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	K2_OnAbilityRemoved();
+	Super::OnRemoveAbility(ActorInfo, Spec);
+}
+
 
 
 TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel )
@@ -54,6 +67,41 @@ FGameplayEffectSpecHandle UYogGameplayAbility::AddGameplayCueParametersToSpec(co
 	NewSpec->SetContext(ContextHandle);
 
 	return NewSpecHandle;
+}
+
+float UYogGameplayAbility::GetRemainingCooldownTime() const
+{
+	// Check if the ability is active and has a valid actor info
+	if (const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo())
+	{
+		if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
+		{
+			// Use the built-in GetCooldownTimeRemaining method
+			return GetCooldownTimeRemaining();
+		}
+	}
+
+	return 0.0f;
+}
+
+FString UYogGameplayAbility::GetRemainingCooldownTimeString() const
+{
+	float RemainingTime = GetRemainingCooldownTime();
+
+	if (RemainingTime <= 0.0f)
+	{
+		return FString(TEXT("Ready"));
+	}
+
+	int32 Minutes = FMath::FloorToInt(RemainingTime / 60.0f);
+	int32 Seconds = FMath::FloorToInt(FMath::Fmod(RemainingTime, 60.0f));
+
+	return FString::Printf(TEXT("%02d:%02d"), Minutes, Seconds);
+}
+
+bool UYogGameplayAbility::IsOnCooldown() const
+{
+	return GetRemainingCooldownTime() > 0.0f;
 }
 
 

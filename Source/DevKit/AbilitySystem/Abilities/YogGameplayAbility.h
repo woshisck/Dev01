@@ -41,6 +41,10 @@ class DEVKIT_API UYogGameplayAbility : public UGameplayAbility
 public:
 	UYogGameplayAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+
+
 
 	/** Called when this ability is granted to the ability system component. */
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName = "OnAbilityAdded")
@@ -81,6 +85,15 @@ public:
 
 	FGameplayEffectSpecHandle AddGameplayCueParametersToSpec(const FGameplayEffectSpecHandle& OriginalSpec, const FGameplayCueParameters& CueParameters);
 
+
+	// Get the remaining cooldown time for this ability
+	float GetRemainingCooldownTime() const;
+
+	// Optional: Get formatted time string (MM:SS)
+	FString GetRemainingCooldownTimeString() const;
+
+	// Optional: Check if ability is on cooldown
+	bool IsOnCooldown() const;
 
 
     //UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
