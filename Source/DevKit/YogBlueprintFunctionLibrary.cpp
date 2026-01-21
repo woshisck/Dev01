@@ -114,8 +114,6 @@ TArray<AActor*> UYogBlueprintFunctionLibrary::GetAllActorsFromRange(UObject* Wor
 	}
 
 	return Result;
-
-	return TArray<AActor*>();
 }
 
 /*parallel is for many actors select at the same time */

@@ -183,7 +183,7 @@ public:
 
 };
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, Blueprintable)
 struct DEVKIT_API FAbilitySaveData
 {
 	GENERATED_BODY()
