@@ -24,8 +24,28 @@ void UYogGameplayAbility::OnGiveAbility(const FGameplayAbilityActorInfo* ActorIn
 
 void UYogGameplayAbility::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
 {
-	K2_OnAbilityRemoved();
+	//if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
+	//{
+	//	// Remove delegate
+	//	this->OnCooldownChange.Remove(CooldownChangeDelegateHandle);
+	//}
+
+	// Clear timer if using polling approach
+
 	Super::OnRemoveAbility(ActorInfo, Spec);
+	K2_OnAbilityRemoved();
+
+
+}
+
+void UYogGameplayAbility::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	Super::OnAvatarSet(ActorInfo, Spec);
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!ASC) return;
+
+
 }
 
 
@@ -287,6 +307,16 @@ void UYogGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 
 	EventOn_AbilityStart.Broadcast();
 }
+
+void UYogGameplayAbility::OnCooldownEffectAdded(UAbilitySystemComponent* TargetASC, const FGameplayEffectSpec& SpecApplied, FActiveGameplayEffectHandle ActiveHandle)
+{
+}
+
+void UYogGameplayAbility::OnCooldownEffectRemoved(const FActiveGameplayEffect& EffectRemoved)
+{
+}
+
+
 
 
 //TODO: NEED TO CHANGE FUNCTION NAME FOR FURTHER DIFFERENT 

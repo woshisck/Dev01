@@ -43,7 +43,7 @@ public:
 
 	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
-
+	virtual void OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 
 
 	/** Called when this ability is granted to the ability system component. */
@@ -221,5 +221,13 @@ protected:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled);
 	
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
+	FDelegateHandle CooldownEffectAddedHandle;
+	FDelegateHandle CooldownEffectRemovedHandle;
+	FGameplayTag CooldownTag; // The tag your cooldown GE grants
+	FGameplayTag FinishedTag; // The custom tag to add when done
+
+	void OnCooldownEffectAdded(UAbilitySystemComponent* TargetASC, const FGameplayEffectSpec& SpecApplied, FActiveGameplayEffectHandle ActiveHandle);
+	void OnCooldownEffectRemoved(const FActiveGameplayEffect& EffectRemoved);
 
 };
