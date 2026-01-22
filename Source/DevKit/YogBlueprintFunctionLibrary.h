@@ -134,6 +134,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	static TArray<AActor*> ASync_GetAllActorsFromRange(UObject* WorldContextObject, const FVector& Center, float Radius, TSubclassOf<AActor> ActorClass);
 
+	UFUNCTION(BlueprintCallable)
+	static void FindAllCharacters(UObject* WorldContextObject, TArray<AYogCharacterBase*>& OutEnemies);
 
 
 

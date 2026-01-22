@@ -137,6 +137,21 @@ TArray<AActor*> UYogBlueprintFunctionLibrary::ASync_GetAllActorsFromRange(UObjec
 	return FilteredActors;
 }
 
+void UYogBlueprintFunctionLibrary::FindAllCharacters(UObject* WorldContextObject, TArray<AYogCharacterBase*>& OutEnemies)
+{
+	OutEnemies.Empty();
+
+	if (!WorldContextObject) return;
+
+
+	for (TActorIterator<AYogCharacterBase> It(WorldContextObject->GetWorld()); It; ++It)
+	{
+		AYogCharacterBase* PotentialEnemy = *It;
+
+		OutEnemies.Add(PotentialEnemy);
+	}
+}
+
 
 
 void UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData)
