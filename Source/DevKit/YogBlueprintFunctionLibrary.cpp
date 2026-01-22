@@ -16,6 +16,7 @@
 #include "NavFilters/NavigationQueryFilter.h"
 #include "Engine/OverlapResult.h"
 
+#include "EngineUtils.h"
 
 //UYogBlueprintFunctionLibrary::UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 //	: Super(ObjectInitializer)
@@ -86,36 +87,25 @@ TArray<int> UYogBlueprintFunctionLibrary::RandomSplitInteger(int Total, int Numb
 
 }
 
-TArray<AActor*> UYogBlueprintFunctionLibrary::GetAllActorsFromRange(UObject* WorldContextObject, AActor* OriginActor, float Range, bool parallel, TSubclassOf<AActor> ActorClass)
+TArray<AYogCharacterBase*> UYogBlueprintFunctionLibrary::GetAllActorsFromRange(UObject* WorldContextObject, FVector SphereCenter, float SphereRadius, TSubclassOf<AYogCharacterBase> EnemyClass)
 {
-	TArray<AActor*> Result;
-	TArray<FOverlapResult> Overlaps;
 
-	// Create collision shape (sphere)
-	FCollisionShape Sphere = FCollisionShape::MakeSphere(Range);
+	TArray<AYogCharacterBase*> FoundEnemiesInRange;
 
-	// Perform overlap check
-	bool bHit = OriginActor->GetWorld()->OverlapMultiByChannel(
-		Overlaps,
-		OriginActor->GetActorLocation(),
-		FQuat::Identity,
-		ECC_WorldDynamic, // Use appropriate collision channel
-		Sphere
-	);
-
-	// Filter by class
-	for (const FOverlapResult& Overlap : Overlaps)
+	if (WorldContextObject)
 	{
-		AActor* Actor = Overlap.GetActor();
-		if (Actor && Actor->IsA(ActorClass))
+		//for (TActorIterator<AYogCharacterBase> It(WorldContextObject->GetWorld()); It; ++It)
+		//for (TActorIterator<AYogCharacterBase> It(WorldContextObject, EnemyClass); It; ++It)
+		for (TActorIterator<AYogCharacterBase> It(WorldContextObject->GetWorld()); It; ++It)
 		{
-			Result.Add(Actor);
+			AYogCharacterBase* Enemy = *It;
+			if (Enemy && FVector::Dist(SphereCenter, Enemy->GetActorLocation()) <= SphereRadius)
+			{
+				FoundEnemiesInRange.Add(Enemy);
+			}
 		}
 	}
-
-	return Result;
-
-	return TArray<AActor*>();
+	return FoundEnemiesInRange;
 }
 
 /*parallel is for many actors select at the same time */

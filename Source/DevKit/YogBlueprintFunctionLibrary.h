@@ -129,7 +129,7 @@ public:
 	static TArray<int> RandomSplitInteger(int Total, int NumberParts);
 
 	UFUNCTION(BlueprintCallable)
-	static TArray<AActor*> GetAllActorsFromRange(UObject* WorldContextObject, AActor* OriginActor, float Range, bool parallel, TSubclassOf<AActor> ActorClass);
+	static TArray<AYogCharacterBase*> GetAllActorsFromRange(UObject* WorldContextObject, FVector SphereCenter, float SphereRadius, TSubclassOf<AYogCharacterBase> EnemyClass);
 
 	UFUNCTION(BlueprintCallable)
 	static TArray<AActor*> ASync_GetAllActorsFromRange(UObject* WorldContextObject, const FVector& Center, float Radius, TSubclassOf<AActor> ActorClass);
