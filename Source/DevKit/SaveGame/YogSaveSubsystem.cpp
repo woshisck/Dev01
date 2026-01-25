@@ -188,7 +188,7 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 		
 		SaveData(weaponInstance, weaponInstanceData.ByteData);
 		SaveGame->WeaponInstanceItems.Add(weaponInstanceData);
-		//SaveData(weaponInstance, weaponInstanceData.ByteData);
+		
 
 		UE_LOG(LogTemp, Warning, TEXT("Save Weapon Data Success!"));
 	}

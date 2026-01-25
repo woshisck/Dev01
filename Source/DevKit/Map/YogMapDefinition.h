@@ -114,7 +114,7 @@ public:
 	TArray<FMapFeature> MapFeatures;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::OneByOne || EnemySpawnRule == EEnemySpawnRule::AllInOnce"))
-	int TotalCount;
+	int TotalCount = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::OneByOne"))
 	float SpawnDelay;
@@ -127,6 +127,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::AllInOnce"))
 	int NumCount;
+
+	UPROPERTY(BlueprintReadOnly)
+	int CurrentMob;
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<AEnemyCharacterBase> MobSpawn;

@@ -117,10 +117,6 @@ public:
 
 };
 
-//TEST ONLY, SAVE FOR DELETE --END
-
-
-
 
 USTRUCT(BlueprintType)
 struct FWeaponMeshData
