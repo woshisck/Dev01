@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -11,13 +11,14 @@
 /**
  * 
  */
-struct FWeaponActorToSpawn;
+struct FWeaponSpawnData;
 
 class UYogAnimInstance;
 class USceneComponent;
 class UYogGameplayAbility;
 class UGameplayEffect;
 class UAbilityData;
+
 
 
 USTRUCT(BlueprintType)
@@ -43,11 +44,13 @@ public:
 
 	virtual void BeginPlay()override;
 
+	virtual void PostActorCreated()override;
+
 	UPROPERTY(BlueprintReadWrite, SaveGame)
 	FName AttachSocket;
 
 	UPROPERTY(BlueprintReadWrite, SaveGame)
-	FTransform Relative_Transform;
+	FTransform AttachTransform;
 
 	UPROPERTY(BlueprintReadWrite, SaveGame)
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
@@ -55,6 +58,8 @@ public:
 	UPROPERTY(SaveGame)
 	TObjectPtr<UAbilityData> WeaponAbilities;
 
+	UFUNCTION(BlueprintCallable)
+	void InitializeWeapon();
 
 	UFUNCTION(BlueprintCallable)
 	void EquipWeaponToCharacter(APlayerCharacterBase* ReceivingChar);

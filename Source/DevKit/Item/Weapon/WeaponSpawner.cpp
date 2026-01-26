@@ -70,92 +70,8 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 	}
 }
 
-//void AWeaponSpawner::GrantWeapon(AYogCharacterBase* ReceivingChar)
-//{
-//
-//	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, ReceivingChar: %s"), *ReceivingChar->GetName());
-//
-//	if (ReceivingChar->bWeaponEquiped == false)
-//	{
-//		//spawn && attach weapon
-//		USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
-//		for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
-//		{
-//			TSubclassOf<AActor> WeaponActorClass = WeaponActorInst.ActorToSpawn;
-//			FName Socket = WeaponActorInst.AttachSocket;
-//			FTransform Transform = WeaponActorInst.AttachTransform;
-//
-//			AActor* WeaponSpawned = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
-//			WeaponSpawned->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-//			WeaponSpawned->SetActorRelativeTransform(Transform);
-//			WeaponSpawned->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
-//
-//		}
-//		for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
-//		{
-//			for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
-//			{
-//				ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
-//			}
-//		}
-//		ReceivingChar->bWeaponEquiped = true;
-//	}
-//
-//	UE_LOG(LogTemp, Warning, TEXT("AttemptPickUpWeapon_Implementaion running, YogCharacterBase"));
-//}
 
-//void AWeaponSpawner::GiveWeaponToCharacter(AYogCharacterBase* ReceivingChar)
-//{
-//	USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
-//	for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
-//	{
-//		TSubclassOf<AWeaponInstance> WeaponActorClass = WeaponActorInst.ActorToSpawn;
-//		FName Socket = WeaponActorInst.AttachSocket;
-//		FTransform Transform = WeaponActorInst.AttachTransform;
-//
-//		AActor* WeaponSpawned = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
-//		WeaponSpawned->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-//		WeaponSpawned->SetActorRelativeTransform(Transform);
-//		WeaponSpawned->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
-//		ReceivingChar->Weapon = WeaponSpawned;
-//	}
-//	for (const UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
-//	{
-//		for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
-//		{
-//			ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
-//		}
-//	}
-//
-//}
 
-void AWeaponSpawner::SpawnAttachWeapon(AYogCharacterBase* ReceivingChar)
-{
-	USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
-	for (FWeaponActorToSpawn& WeaponActorInst : WeaponDefinition->ActorsToSpawn)
-	{
-		TSubclassOf<AActor> WeaponActorClass = WeaponActorInst.ActorToSpawn;
-		FName Socket = WeaponActorInst.AttachSocket;
-		FTransform Transform = WeaponActorInst.AttachTransform;
-
-		AActor* NewActor = GetWorld()->SpawnActorDeferred<AActor>(WeaponActorClass, FTransform::Identity, ReceivingChar);
-		NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
-		NewActor->SetActorRelativeTransform(Transform);
-		NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
-
-	}
-}
-
-void AWeaponSpawner::GrantWeaponAbility(APlayerCharacterBase* ReceivingChar)
-{
-	//for (UYogAbilitySet* YogAbilitiesSet : WeaponDefinition->AbilitySetsToGrant)
-	//{
-	//	for (FYogAbilitySet_GameplayAbility GameAbilitySet : YogAbilitiesSet->GrantedGameplayAbilities)
-	//	{
-	//		ReceivingChar->GrantGameplayAbility(GameAbilitySet.Ability, GameAbilitySet.AbilityLevel);
-	//	}
-	//}
-}
 
 void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
@@ -164,7 +80,52 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 
 	if (OverlappingPawn != nullptr)
 	{
-		GrantWeapon(OverlappingPawn);
+		for (const FWeaponSpawnData& weapon_spawn_data : WeaponDefinition->ActorsToSpawn)
+		{
+			FWeaponSpawnData SpawnData;
+			SpawnData.ActorToSpawn = weapon_spawn_data.ActorToSpawn;
+			SpawnData.AttachSocket = weapon_spawn_data.AttachSocket;
+			SpawnData.AttachTransform = weapon_spawn_data.AttachTransform;
+			SpawnData.WeaponLayer = weapon_spawn_data.WeaponLayer;
+			SpawnData.bShouldSaveToGame = true;
+
+			TArray<AWeaponInstance*> weapon_list = SpawnWeaponDeferred(OverlappingPawn->GetWorld(), OverlappingPawn->GetActorTransform(), SpawnData);
+		}
+
+
+		//for (const FWeaponSpawnData& weapon_spawn_data : WeaponDefinition->ActorsToSpawn)
+		//{
+		//	FWeaponSpawnData SpawnData;
+		//	SpawnData.ActorToSpawn = weapon_spawn_data.ActorToSpawn;
+		//	SpawnData.AttachSocket = weapon_spawn_data.AttachSocket;
+		//	SpawnData.AttachTransform = weapon_spawn_data.AttachTransform;
+		//	SpawnData.WeaponLayer = weapon_spawn_data.WeaponLayer;
+		//	SpawnData.bShouldSaveToGame = true;
+
+		//	AWeaponInstance* WeaponActor = GetWorld()->SpawnActorDeferred<AWeaponInstance>(
+		//		weapon_spawn_data.ActorToSpawn,
+		//		weapon_spawn_data.AttachTransform,
+		//		this,  // Owner
+		//		nullptr,                // Instigator
+		//		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+
+		//	if (WeaponActor)
+		//	{
+		//		ApplySpawnDataToWeapon(WeaponActor, SpawnData);
+		//	}
+
+
+		//	WeaponActor->FinishSpawning();
+
+		//	UYogBlueprintFunctionLibrary::EquipWeapon(OverlappingPawn->GetWorld(), OverlappingPawn, WeaponActor);
+
+		//	FGameplayTag Tag;
+		//	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
+		//	Tag = Manager.RequestGameplayTag(FName("PlayerState.HasWeapon"));
+		//	OverlappingPawn->GetASC()->AddGameplayTagWithCount(Tag, 1);
+		//}
+
+		//GrantWeapon(OverlappingPawn);
 
 		//UWorld* world = GetWorld();
 		//if (world)
@@ -173,6 +134,35 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 		//}
 
 	}
+}
+
+TArray<AWeaponInstance*> AWeaponSpawner::SpawnWeaponDeferred(UWorld* World, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)
+{
+	TArray<AWeaponInstance*> result;
+	for (const FWeaponSpawnData& weapon_spawn_data : WeaponDefinition->ActorsToSpawn)
+	{
+		AWeaponInstance* WeaponActor = GetWorld()->SpawnActorDeferred<AWeaponInstance>(
+			weapon_spawn_data.ActorToSpawn,
+			SpawnTransform,
+			this,  // Owner
+			nullptr,                // Instigator
+			ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+		if (WeaponActor)
+		{
+			ApplySpawnDataToWeapon(WeaponActor, SpawnData);
+		}
+
+		WeaponActor->FinishSpawning(SpawnTransform);
+		result.Add(WeaponActor);
+	}
+	return result;
+}
+
+void AWeaponSpawner::ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data)
+{
+	Weapon->AttachSocket = Data.AttachSocket;
+	Weapon->AttachTransform = Data.AttachTransform;
+	Weapon->WeaponLayer = Data.WeaponLayer;
 }
 
 

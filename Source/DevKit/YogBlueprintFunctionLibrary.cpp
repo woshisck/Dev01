@@ -171,16 +171,14 @@ void UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextOb
 
 }
 
-void UYogBlueprintFunctionLibrary::EquipWeapon(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponData* WeaponData)
+void UYogBlueprintFunctionLibrary::EquipWeapon(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, AWeaponInstance* WeaponInstance)
 {
 	
-	ensure(WorldContextObject && ReceivingChar && WeaponData);
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
-
-	WeaponData->GiveWeapon(World, AttachTarget, ReceivingChar);
-
-
+	ensure(WorldContextObject && ReceivingChar && WeaponInstance);
+	//bool AActor::AttachToActor(AActor * ParentActor, const FAttachmentTransformRules & AttachmentRules, FName SocketName)
+	WeaponInstance->AttachToActor(ReceivingChar, FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponInstance->AttachSocket);
+	ReceivingChar->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(WeaponInstance->WeaponLayer);
+	//WeaponInstance->GiveWeapon(World, AttachTarget, ReceivingChar);
 }
 
 void UYogBlueprintFunctionLibrary::GiveAbilityToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UAbilityData* AbilityData)

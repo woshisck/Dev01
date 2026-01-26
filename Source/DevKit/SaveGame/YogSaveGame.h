@@ -111,6 +111,9 @@ public:
 	UPROPERTY()
 	FName AttachSocket;
 
+	UPROPERTY()
+	TSubclassOf<UYogAnimInstance> WeaponLayer;
+
 	/* Contains all 'SaveGame' marked variables of the Actor */
 	UPROPERTY()
 	TArray<uint8> ByteData;

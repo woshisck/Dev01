@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "../../AbilitySystem/YogAbilitySystemComponent.h"
-#include "../Weapon/WeaponDefinition.h"
+#include "DevKit/Item/Weapon/WeaponDefinition.h"
 
 #include "WeaponSpawner.generated.h"
 
@@ -24,6 +24,7 @@ class UWeaponDefinition;
 
 struct FGameplayTag;
 struct FHitResult;
+
 
 
 
@@ -46,29 +47,16 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	void OnConstruction(const FTransform& Transform) override;
 
-protected:
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Yog|ItemPickup")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Definition")
 	TObjectPtr<UWeaponDefinition> WeaponDefinition;
 
 	//Delay between when the weapon is made available and when we check for a pawn standing in the spawner. Used to give the bIsWeaponAvailable OnRep time to fire and play FX. 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Definition")
 	float CheckExistingOverlapDelay;
-
-public:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void GrantWeapon(APlayerCharacterBase* ReceivingChar);
 
-	//UFUNCTION(BlueprintCallable)
-	//void GiveWeaponToCharacter(AYogCharacterBase* ReceivingChar);
-
-
-	UFUNCTION(BlueprintCallable)
-	void SpawnAttachWeapon(AYogCharacterBase* ReceivingChar);
-
-	UFUNCTION(BlueprintCallable)
-	void GrantWeaponAbility(APlayerCharacterBase* ReceivingChar);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
 	TObjectPtr<UCapsuleComponent> CollisionVolume;
@@ -83,5 +71,11 @@ public:
 	UFUNCTION()
 	virtual void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);
 
+	UFUNCTION()
+	TArray<AWeaponInstance*>SpawnWeaponDeferred(UWorld* World, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData);
 
+private:
+
+	// Helper function to apply spawn data to weapon
+	void ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data);
 };

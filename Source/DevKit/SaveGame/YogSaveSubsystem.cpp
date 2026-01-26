@@ -6,7 +6,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameModes/YogGameMode.h"
 #include "DevKit/DevAssetManager.h"
-
+#include "DevKit/YogBlueprintFunctionLibrary.h"
 #include "DevKit/AbilitySystem/YogAbilitySystemComponent.h"
 
 
@@ -184,8 +184,10 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 
 		weaponInstanceData.ActorClassPath = weaponInstance->GetClass()->GetPathName();
 		weaponInstanceData.AttachSocket = weaponInstance->AttachSocket;
-		weaponInstanceData.Transform = weaponInstance->Relative_Transform;
-		
+		weaponInstanceData.Transform = weaponInstance->AttachTransform;
+		weaponInstanceData.WeaponLayer = weaponInstance->WeaponLayer;
+
+
 		SaveData(weaponInstance, weaponInstanceData.ByteData);
 		SaveGame->WeaponInstanceItems.Add(weaponInstanceData);
 		
@@ -246,7 +248,7 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 
-		AActor* WeaponActor = GetWorld()->SpawnActor<AActor>(ActorClass, weaponInstance.Transform, SpawnParams);
+		AWeaponInstance* WeaponActor = Cast<AWeaponInstance>(GetWorld()->SpawnActor<AActor>(ActorClass, weaponInstance.Transform, SpawnParams));
 		
 
 		if (!WeaponActor)
@@ -256,11 +258,18 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		}
 
 		LoadData(WeaponActor, weaponInstance.ByteData);
+		WeaponActor->WeaponLayer = weaponInstance.WeaponLayer;
+		
 
 		UE_LOG(LogTemp, Warning, TEXT("Load Actor success! : %s (Class: %s)"),*WeaponActor->GetName(), *weaponInstance.ActorClassPath);
 		UE_LOG(LogTemp, Warning, TEXT("AttachSocket : %s (Class: %s)"), *WeaponActor->GetName(), *weaponInstance.AttachSocket.ToString());
+		
 
-		Cast<AWeaponInstance>(WeaponActor)->EquipWeaponToCharacter(Player);
+		UYogBlueprintFunctionLibrary::EquipWeapon(Player->GetWorld(), Player, WeaponActor);
+
+
+		//WeaponActor->EquipWeaponToCharacter(Player);
+		//Cast<AWeaponInstance>(WeaponActor)->EquipWeaponToCharacter(Player);
 
 	}
 	Player->AbilityData = SaveGame->PlayerStateData.WeaponAbilities;

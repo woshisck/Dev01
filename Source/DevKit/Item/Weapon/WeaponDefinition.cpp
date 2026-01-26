@@ -6,7 +6,7 @@
 void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar)
 {
 	//ASAP: TODO: save the param to weapon actor(WeaponInstance)?
-	for (FWeaponActorToSpawn& WeaponActorInst : ActorsToSpawn)
+	for (FWeaponSpawnData& WeaponActorInst : ActorsToSpawn)
 	{
 		TSubclassOf<AWeaponInstance> WeaponActorClass = WeaponActorInst.ActorToSpawn;
 		FName Socket = WeaponActorInst.AttachSocket;
@@ -20,14 +20,14 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		//AWeaponInstance* NewActor = World->SpawnActorDeferred<AWeaponInstance>(WeaponActorClass, FTransform::Identity, ReceivingChar);
 		
 		NewActor->AttachSocket = Socket;
-		NewActor->Relative_Transform = Transform;
+		NewActor->AttachTransform = Transform;
 		NewActor->WeaponLayer = WeaponLayer;
 
 		NewActor->EquipWeaponToCharacter(ReceivingChar);
 		
 		//NewActor->SetActorRelativeTransform(Transform);
 		//NewActor->AttachToComponent(AttachTarget, FAttachmentTransformRules::KeepRelativeTransform, Socket);
-		NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
+		//NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
 		
 
 		ReceivingChar->AbilityData = AbilityData;

@@ -2,6 +2,7 @@
 
 
 #include "WeaponInstance.h"
+#include "WeaponSpawner.h"
 #include "DevKit/SaveGame/YogSaveGame.h"
 
 // Sets default values
@@ -20,6 +21,28 @@ void AWeaponInstance::BeginPlay()
 	Super::BeginPlay();
 }
 
+void AWeaponInstance::PostActorCreated()
+{
+	Super::PostActorCreated();
+
+	
+}
+
+
+void AWeaponInstance::InitializeWeapon()
+{
+	AActor* owner = this->GetOwner();
+	if (Cast<AWeaponSpawner>(owner))
+	{
+		//AttachSocket = 
+		//AttachTransform
+		//WeaponLayer
+		//WeaponAbilities
+	}
+
+
+}
+
 void AWeaponInstance::EquipWeaponToCharacter(APlayerCharacterBase* ReceivingChar)
 {
 	//TSubclassOf<AWeaponInstance> WeaponActorClass = WeaponActorInst.ActorToSpawn;
@@ -27,13 +50,12 @@ void AWeaponInstance::EquipWeaponToCharacter(APlayerCharacterBase* ReceivingChar
 	//FTransform Transform = WeaponActorInst.AttachTransform;
 
 
-	this->SetActorRelativeTransform(Relative_Transform);
+	this->SetActorRelativeTransform(AttachTransform);
 	this->AttachToComponent(ReceivingChar->GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, AttachSocket);
 	
 	if (WeaponLayer)
 	{
-		UAnimInstance* AnimInstance = ReceivingChar->GetMesh()->GetAnimInstance();
-		AnimInstance->LinkAnimClassLayers(WeaponLayer);
+		ReceivingChar->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(this->WeaponLayer);
 	}
 
 }

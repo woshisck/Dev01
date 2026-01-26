@@ -16,12 +16,13 @@ class APlayerCharacterBase;
 //class UYogAnimInstance;
 
 
-USTRUCT()
-struct FWeaponActorToSpawn
+
+USTRUCT(BlueprintType)
+struct FWeaponSpawnData
 {
 	GENERATED_BODY()
 
-	FWeaponActorToSpawn()
+	FWeaponSpawnData()
 	{}
 
 	UPROPERTY(EditAnywhere, Category = Equipment)
@@ -32,7 +33,16 @@ struct FWeaponActorToSpawn
 
 	UPROPERTY(EditAnywhere, Category = Equipment)
 	FTransform AttachTransform;
+
+	UPROPERTY(EditAnywhere, Category = Equipment)
+	TSubclassOf<UYogAnimInstance> WeaponLayer;
+
+	// Optional: Save game data for persistence
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bShouldSaveToGame = false;
 };
+
+
 
 
 UCLASS(Blueprintable, BlueprintType, Const)
@@ -49,15 +59,14 @@ public:
 	// Gameplay ability sets to grant when this is equipped
 	//UPROPERTY(EditDefaultsOnly, Category = "Equipment")
 	//TArray<TObjectPtr<UYogAbilitySet>> AbilitySetsToGrant;
-
-
+	UWeaponDefinition(){};
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability")
 	TObjectPtr<UAbilityData> AbilityData;
 
 	// Actors to spawn on the pawn when this is equipped
 	UPROPERTY(EditDefaultsOnly, Category = "Equipment")
-	TArray<FWeaponActorToSpawn> ActorsToSpawn;
+	TArray<FWeaponSpawnData> ActorsToSpawn;
 
 	//Sets the height of the display mesh above the Weapon spawner
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Mesh")
@@ -81,5 +90,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar);
 
+
+private:
+	void ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data);
 
 };

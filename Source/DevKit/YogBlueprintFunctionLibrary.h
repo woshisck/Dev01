@@ -144,7 +144,7 @@ public:
 	static void GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData);
 
 	UFUNCTION(BlueprintCallable, Category = Weapon)
-	static void EquipWeapon(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponData* WeaponData);
+	static void EquipWeapon(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, AWeaponInstance* WeaponInstance);
 
 
 	UFUNCTION(BlueprintCallable, Category = Weapon)
