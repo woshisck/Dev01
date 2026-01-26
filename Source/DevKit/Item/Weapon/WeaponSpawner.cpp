@@ -85,7 +85,6 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 		return;
 	}
 
-
 	if (OverlappingPawn != nullptr)
 	{
 		for (const FWeaponSpawnData& weapon_spawn_data : WeaponDefinition->ActorsToSpawn)
@@ -103,48 +102,6 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 			OverlappingPawn->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
 		
 		}
-
-
-		//for (const FWeaponSpawnData& weapon_spawn_data : WeaponDefinition->ActorsToSpawn)
-		//{
-		//	FWeaponSpawnData SpawnData;
-		//	SpawnData.ActorToSpawn = weapon_spawn_data.ActorToSpawn;
-		//	SpawnData.AttachSocket = weapon_spawn_data.AttachSocket;
-		//	SpawnData.AttachTransform = weapon_spawn_data.AttachTransform;
-		//	SpawnData.WeaponLayer = weapon_spawn_data.WeaponLayer;
-		//	SpawnData.bShouldSaveToGame = true;
-
-		//	AWeaponInstance* WeaponActor = GetWorld()->SpawnActorDeferred<AWeaponInstance>(
-		//		weapon_spawn_data.ActorToSpawn,
-		//		weapon_spawn_data.AttachTransform,
-		//		this,  // Owner
-		//		nullptr,                // Instigator
-		//		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
-
-		//	if (WeaponActor)
-		//	{
-		//		ApplySpawnDataToWeapon(WeaponActor, SpawnData);
-		//	}
-
-
-		//	WeaponActor->FinishSpawning();
-
-		//	UYogBlueprintFunctionLibrary::EquipWeapon(OverlappingPawn->GetWorld(), OverlappingPawn, WeaponActor);
-
-		//	FGameplayTag Tag;
-		//	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
-		//	Tag = Manager.RequestGameplayTag(FName("PlayerState.HasWeapon"));
-		//	OverlappingPawn->GetASC()->AddGameplayTagWithCount(Tag, 1);
-		//}
-
-		//GrantWeapon(OverlappingPawn);
-
-		//UWorld* world = GetWorld();
-		//if (world)
-		//{
-		//	UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(this, OverlappingPawn, WeaponDefinition);
-		//}
-
 	}
 
 	OverlappingPawn->GetASC()->AddLooseGameplayTag(Tag);
