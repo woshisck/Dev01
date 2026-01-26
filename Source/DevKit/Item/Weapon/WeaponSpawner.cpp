@@ -77,6 +77,14 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 {
 	UE_LOG(LogTemp, Warning, TEXT("OnOverlapBegin Happens"));
 	APlayerCharacterBase* OverlappingPawn = Cast<APlayerCharacterBase>(OtherActor);
+	
+	FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName("PlayerState.HasWeapon"));
+
+	if (OverlappingPawn->GetASC()->HasMatchingGameplayTag(Tag))
+	{
+		return;
+	}
+
 
 	if (OverlappingPawn != nullptr)
 	{
@@ -89,7 +97,11 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 			SpawnData.WeaponLayer = weapon_spawn_data.WeaponLayer;
 			SpawnData.bShouldSaveToGame = true;
 
-			TArray<AWeaponInstance*> weapon_list = SpawnWeaponDeferred(OverlappingPawn->GetWorld(), OverlappingPawn->GetActorTransform(), SpawnData);
+			AWeaponInstance* WeaponActor = SpawnWeaponDeferred(OverlappingPawn->GetWorld(), OverlappingPawn->GetActorTransform(), SpawnData);
+			WeaponActor->AttachToComponent(OverlappingPawn->GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponActor->AttachSocket);
+			
+			OverlappingPawn->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
+		
 		}
 
 
@@ -134,28 +146,27 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 		//}
 
 	}
+
+	OverlappingPawn->GetASC()->AddLooseGameplayTag(Tag);
 }
 
-TArray<AWeaponInstance*> AWeaponSpawner::SpawnWeaponDeferred(UWorld* World, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)
+AWeaponInstance* AWeaponSpawner::SpawnWeaponDeferred(UWorld* World, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)
 {
-	TArray<AWeaponInstance*> result;
-	for (const FWeaponSpawnData& weapon_spawn_data : WeaponDefinition->ActorsToSpawn)
-	{
-		AWeaponInstance* WeaponActor = GetWorld()->SpawnActorDeferred<AWeaponInstance>(
-			weapon_spawn_data.ActorToSpawn,
-			SpawnTransform,
-			this,  // Owner
-			nullptr,                // Instigator
-			ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
-		if (WeaponActor)
-		{
-			ApplySpawnDataToWeapon(WeaponActor, SpawnData);
-		}
 
-		WeaponActor->FinishSpawning(SpawnTransform);
-		result.Add(WeaponActor);
+	AWeaponInstance* WeaponActor = GetWorld()->SpawnActorDeferred<AWeaponInstance>(
+		SpawnData.ActorToSpawn,
+		SpawnTransform,
+		this,  // Owner
+		nullptr,                // Instigator
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+	if (WeaponActor)
+	{
+		ApplySpawnDataToWeapon(WeaponActor, SpawnData);
 	}
-	return result;
+
+	WeaponActor->FinishSpawning(SpawnTransform);
+		
+	return WeaponActor;
 }
 
 void AWeaponSpawner::ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data)
