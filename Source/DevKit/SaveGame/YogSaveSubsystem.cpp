@@ -7,7 +7,10 @@
 #include "GameModes/YogGameMode.h"
 #include "DevKit/DevAssetManager.h"
 #include "DevKit/YogBlueprintFunctionLibrary.h"
+#include "DevKit/Item/Weapon/WeaponDefinition.h"
 #include "DevKit/AbilitySystem/YogAbilitySystemComponent.h"
+
+#include "Components/SkeletalMeshComponent.h"
 
 
 void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -185,8 +188,13 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 		weaponInstanceData.ActorClassPath = weaponInstance->GetClass()->GetPathName();
 		weaponInstanceData.AttachSocket = weaponInstance->AttachSocket;
 		weaponInstanceData.Transform = weaponInstance->AttachTransform;
-		weaponInstanceData.WeaponLayer = weaponInstance->WeaponLayer;
 
+		UAnimInstance* AnimInstance = player->GetMesh()->GetAnimInstance();
+		weaponInstanceData.WeaponLayer = weaponInstance->WeaponLayer->GetClass();
+
+		UBlueprint* blueprint = UBlueprint::GetBlueprintFromClass(weaponInstance->WeaponLayer);
+
+		weaponInstanceData.WeaponLayerClassPath = blueprint->GetPathName();
 
 		SaveData(weaponInstance, weaponInstanceData.ByteData);
 		SaveGame->WeaponInstanceItems.Add(weaponInstanceData);
@@ -233,13 +241,16 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 	//Weapon Actor load
 	for (FWeaponInstanceData& weaponInstance : SaveGame->WeaponInstanceItems)
 	{
-		UClass* ActorClass = StaticLoadClass(AActor::StaticClass(), nullptr, *weaponInstance.ActorClassPath);
+		UClass* WeaponClass = StaticLoadClass(AActor::StaticClass(), nullptr, *weaponInstance.ActorClassPath);
 
-		if (!ActorClass)
+		if (!WeaponClass)
 		{
 			UE_LOG(LogTemp, Error, TEXT("can not load weapon actor: %s"), *weaponInstance.ActorClassPath);
 			return;
 		}
+
+
+
 
 		//Generate Actor
 		FActorSpawnParameters SpawnParams;
@@ -248,7 +259,9 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 
-		AWeaponInstance* WeaponActor = Cast<AWeaponInstance>(GetWorld()->SpawnActor<AActor>(ActorClass, weaponInstance.Transform, SpawnParams));
+		//ASAP::Change this part to Blueprintlibrary
+
+		AWeaponInstance* WeaponActor = Cast<AWeaponInstance>(GetWorld()->SpawnActor<AActor>(WeaponClass, weaponInstance.Transform, SpawnParams));
 		
 
 		if (!WeaponActor)
@@ -257,15 +270,47 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 			return;
 		}
 
+		UBlueprint* WeaponLayerBlueprint = LoadObject<UBlueprint>(nullptr, *weaponInstance.WeaponLayerClassPath);
+		UClass* LayerClass = WeaponLayerBlueprint->GeneratedClass;
+
+	
+		if (!LayerClass)
+		{
+			UE_LOG(LogTemp, Error, TEXT("can not load LayerClass: %s"), *weaponInstance.ActorClassPath);
+			return;
+		}
+
+		if (LayerClass && Player->GetMesh())
+		{
+			if (UAnimInstance* AnimInstance = Player->GetMesh()->GetAnimInstance())
+			{
+				// Link the new layer
+				AnimInstance->LinkAnimClassLayers(LayerClass);
+
+			}
+		}
+
 		LoadData(WeaponActor, weaponInstance.ByteData);
-		WeaponActor->WeaponLayer = weaponInstance.WeaponLayer;
+
+
+		//WeaponActor->WeaponLayer = weaponInstance.WeaponLayer;
 		
 
 		UE_LOG(LogTemp, Warning, TEXT("Load Actor success! : %s (Class: %s)"),*WeaponActor->GetName(), *weaponInstance.ActorClassPath);
 		UE_LOG(LogTemp, Warning, TEXT("AttachSocket : %s (Class: %s)"), *WeaponActor->GetName(), *weaponInstance.AttachSocket.ToString());
 		
 
-		UYogBlueprintFunctionLibrary::EquipWeapon(Player->GetWorld(), Player, WeaponActor);
+		//UYogBlueprintFunctionLibrary::EquipWeapon(Player->GetWorld(), Player, WeaponActor);
+
+		FWeaponSpawnData SpawnData;
+		SpawnData.ActorToSpawn = WeaponClass;
+		SpawnData.AttachSocket = weaponInstance.AttachSocket;
+		SpawnData.AttachTransform = weaponInstance.Transform;
+		SpawnData.WeaponLayer = weaponInstance.WeaponLayer;
+		SpawnData.bShouldSaveToGame = true;
+
+
+		UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
 
 
 		//WeaponActor->EquipWeaponToCharacter(Player);

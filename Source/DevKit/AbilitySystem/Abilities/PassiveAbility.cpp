@@ -19,14 +19,12 @@ void UPassiveAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
-	ASC->CurrentAbilitySpecHandle = Handle;
-
 
 	//AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
 	//FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
-	//if (Owner->AbilityData)
+	//if (Owner->WeaponAbilityData)
 	//{
-	//	PassiveData_cache = Owner->AbilityData->GetPassiveAbility(ability_tag);
+	//	PassiveData_cache = Owner->WeaponAbilityData->GetPassiveAbility(ability_tag);
 	//}
 
 	//Owner->UpdateCharacterState(EYogCharacterState::Action, FVector(0, 0, 0));

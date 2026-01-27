@@ -13,7 +13,7 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
-	ASC->CurrentAbilitySpecHandle = Handle;
+
 
 
 
@@ -27,8 +27,6 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 		cache_action_data->ActResilience = action_data->ActResilience;
 		cache_action_data->ActDmgReduce = action_data->ActDmgReduce;
 
-		////DANGER
-		//action_data_CACHE = *action_data;
 
 		Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackAttribute(), action_data->ActDamage);
 		Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackRangeAttribute(), action_data->ActRange);
@@ -48,8 +46,7 @@ void UActionAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
-	//FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
-	//FActionData* action_data = Owner->AbilityData->AbilityMap.Find(ability_tag);
+
 	if (cache_action_data.IsValid())
 	{
 		Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackAttribute(), -cache_action_data->ActDamage);

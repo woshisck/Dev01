@@ -47,3 +47,8 @@ void UYogAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	//const FLyraCharacterGroundInfo& GroundInfo = CharMoveComp->GetGroundInfo();
 	//GroundDistance = GroundInfo.GroundDistance;
 }
+
+void UYogAnimInstance::DebugAnimationLayers()
+{
+
+}

@@ -39,4 +39,8 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Character State Data")
 	float GroundDistance = -1.0f;
 
+
+	UFUNCTION()
+	void DebugAnimationLayers();
+
 };

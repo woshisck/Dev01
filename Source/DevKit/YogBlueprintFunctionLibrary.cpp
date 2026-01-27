@@ -152,34 +152,45 @@ void UYogBlueprintFunctionLibrary::FindAllCharacters(UObject* WorldContextObject
 	}
 }
 
-
-
-void UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData)
+void UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(AYogCharacterBase* character, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)
 {
-	check(WorldContextObject && ReceivingChar && WeaponDefinition && WeaponData);
 
-	UE_LOG(LogTemp, Warning, TEXT("GiveWeaponToCharacter IS DEPRECATED, NOT USED ANYMORE!!"));
+	FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName("PlayerState.HasWeapon"));
+
+	if (character->GetASC()->HasMatchingGameplayTag(Tag))
+	{
+		return;
+	}
+
+	AWeaponInstance* WeaponActor = character->GetWorld()->SpawnActorDeferred<AWeaponInstance>(
+		SpawnData.ActorToSpawn,
+		SpawnTransform,
+		character,  // Owner
+		nullptr,                // Instigator
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+	if (WeaponActor)
+	{
+		ApplySpawnDataToWeapon(WeaponActor, SpawnData);
+	}
+
+	WeaponActor->AttachToComponent(character->GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponActor->AttachSocket);
+	WeaponActor->FinishSpawning(SpawnTransform);
 
 
-		//UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-
-		//USkeletalMeshComponent* AttachTarget = ReceivingChar->GetMesh();
-	
-		//WeaponDefinition->SetupWeaponToCharacter(World, AttachTarget, ReceivingChar);
-
-		//WeaponData->GrantAbilityToOwner(ReceivingChar);
+	//character->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
+	//character->GetMesh()->GetAnimInstance()->InitializeAnimation();
+	character->GetASC()->AddLooseGameplayTag(Tag);
 
 }
 
-void UYogBlueprintFunctionLibrary::EquipWeapon(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, AWeaponInstance* WeaponInstance)
+void UYogBlueprintFunctionLibrary::ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data)
 {
-	
-	ensure(WorldContextObject && ReceivingChar && WeaponInstance);
-	//bool AActor::AttachToActor(AActor * ParentActor, const FAttachmentTransformRules & AttachmentRules, FName SocketName)
-	WeaponInstance->AttachToActor(ReceivingChar, FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponInstance->AttachSocket);
-	ReceivingChar->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(WeaponInstance->WeaponLayer);
-	//WeaponInstance->GiveWeapon(World, AttachTarget, ReceivingChar);
+	Weapon->AttachSocket = Data.AttachSocket;
+	Weapon->AttachTransform = Data.AttachTransform;
+	Weapon->WeaponLayer = Data.WeaponLayer;
 }
+
+
 
 void UYogBlueprintFunctionLibrary::GiveAbilityToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UAbilityData* AbilityData)
 {

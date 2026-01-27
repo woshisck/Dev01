@@ -94,17 +94,21 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 			SpawnData.AttachSocket = weapon_spawn_data.AttachSocket;
 			SpawnData.AttachTransform = weapon_spawn_data.AttachTransform;
 			SpawnData.WeaponLayer = weapon_spawn_data.WeaponLayer;
+			SpawnData.WeaponAbilities = weapon_spawn_data.WeaponAbilities;
 			SpawnData.bShouldSaveToGame = true;
 
-			AWeaponInstance* WeaponActor = SpawnWeaponDeferred(OverlappingPawn->GetWorld(), OverlappingPawn->GetActorTransform(), SpawnData);
-			WeaponActor->AttachToComponent(OverlappingPawn->GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponActor->AttachSocket);
-			
+			UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(OverlappingPawn, OverlappingPawn->GetTransform(), SpawnData);
+
+			//AYogCharacterBase* character, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData
+			// 
+			//AWeaponInstance* WeaponActor = SpawnWeaponDeferred(OverlappingPawn->GetWorld(), OverlappingPawn->GetActorTransform(), SpawnData);
+			//WeaponActor->AttachToComponent(OverlappingPawn->GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponActor->AttachSocket);
 			OverlappingPawn->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
-		
+			OverlappingPawn->AbilityData = WeaponDefinition->WeaponAbilityData;
 		}
 	}
-
-	OverlappingPawn->GetASC()->AddLooseGameplayTag(Tag);
+	UE_LOG(LogTemp, Display, TEXT("ADD GAMEPLAY TAG "));
+	OverlappingPawn->GetASC()->AddGameplayTagWithCount(Tag, 1);
 }
 
 AWeaponInstance* AWeaponSpawner::SpawnWeaponDeferred(UWorld* World, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)
@@ -131,6 +135,7 @@ void AWeaponSpawner::ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeap
 	Weapon->AttachSocket = Data.AttachSocket;
 	Weapon->AttachTransform = Data.AttachTransform;
 	Weapon->WeaponLayer = Data.WeaponLayer;
+	Weapon->WeaponAbilities = Data.WeaponAbilities;
 }
 
 

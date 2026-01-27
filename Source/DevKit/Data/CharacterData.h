@@ -108,6 +108,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow))
 	TMap<FGameplayTag, TSubclassOf<UAnimInstance>> CharacterLayers;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ForceInlineRow))
+	TArray<TSubclassOf<UAnimInstance>> DefaultAnimeLayers;
+
 
 	inline static const FMovementData DefaultMovementData;
 

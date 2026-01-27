@@ -37,6 +37,9 @@ struct FWeaponSpawnData
 	UPROPERTY(EditAnywhere, Category = Equipment)
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
 
+	UPROPERTY(SaveGame)
+	TObjectPtr<UAbilityData> WeaponAbilities;
+
 	// Optional: Save game data for persistence
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bShouldSaveToGame = false;
@@ -62,7 +65,7 @@ public:
 	UWeaponDefinition(){};
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability")
-	TObjectPtr<UAbilityData> AbilityData;
+	TObjectPtr<UAbilityData> WeaponAbilityData;
 
 	// Actors to spawn on the pawn when this is equipped
 	UPROPERTY(EditDefaultsOnly, Category = "Equipment")

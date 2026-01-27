@@ -114,6 +114,15 @@ public:
 	UPROPERTY()
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
 
+
+
+	UPROPERTY()
+	TSoftClassPtr<UAnimInstance> SavedAnimBlueprintSoftClass;
+
+	UPROPERTY()
+	FString WeaponLayerClassPath;
+
+
 	/* Contains all 'SaveGame' marked variables of the Actor */
 	UPROPERTY()
 	TArray<uint8> ByteData;

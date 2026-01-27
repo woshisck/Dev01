@@ -168,8 +168,8 @@ public:
 	TObjectPtr<UYogGameplayAbility> CurrentActiveAbility;
 	
 
-	UPROPERTY(BlueprintReadOnly)
-	FGameplayAbilitySpecHandle CurrentAbilitySpecHandle;
+	//UPROPERTY(BlueprintReadOnly)
+	//FGameplayAbilitySpecHandle CurrentAbilitySpecHandle;
 
 
 

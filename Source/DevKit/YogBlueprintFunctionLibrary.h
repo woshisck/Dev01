@@ -138,14 +138,14 @@ public:
 	static void FindAllCharacters(UObject* WorldContextObject, TArray<AYogCharacterBase*>& OutEnemies);
 
 
+	UFUNCTION(BlueprintCallable)
+	static void SpawnWeaponOnCharacter(AYogCharacterBase* character, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData);
+
+
+	UFUNCTION()
+	static void ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data);
 
 	////////////////////////////////////////////////// Weapon Ability //////////////////////////////////////////////////
-	UFUNCTION(BlueprintCallable, Category = Weapon)
-	static void GiveWeaponToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition, UWeaponData* WeaponData);
-
-	UFUNCTION(BlueprintCallable, Category = Weapon)
-	static void EquipWeapon(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, AWeaponInstance* WeaponInstance);
-
 
 	UFUNCTION(BlueprintCallable, Category = Weapon)
 	static void GiveAbilityToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UAbilityData* AbilityData);

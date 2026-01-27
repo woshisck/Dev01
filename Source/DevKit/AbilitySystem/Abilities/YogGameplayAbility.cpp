@@ -131,17 +131,7 @@ void UYogGameplayAbility::UpdateRetrigger(bool retriggerable)
 
 }
 
-//FActionData UYogGameplayAbility::GetActionData()
-//{
-//	return AbilityActData;
-//	//static const FString ContextString(TEXT("Character Data Lookup"));
-//	//FActionData* AbilityData = YogAbilityDataTable->FindRow<FActionData>(FName(TEXT("AbilityDataStartUp")), ContextString, true);
-//	//if (AbilityData)
-//	//{
-//	//	UE_LOG(LogTemp, Warning, TEXT("Damage: %f, DMGAmplify: %f, MontagePlayRate: %f"), AbilityData->Damage, AbilityData->DMGAmplify, AbilityData->MontagePlayRate);
-//	//}
-//
-//}
+
 
 AYogCharacterBase* UYogGameplayAbility::GetOwnerCharacterInfo()
 {

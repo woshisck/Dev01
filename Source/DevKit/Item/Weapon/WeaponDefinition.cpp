@@ -30,7 +30,7 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		//NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
 		
 
-		ReceivingChar->AbilityData = AbilityData;
+		ReceivingChar->AbilityData = WeaponAbilityData;
 	}
 
 	//TODO: DEPRECATED : for loop grant ability
