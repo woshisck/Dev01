@@ -255,7 +255,9 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		//Generate Actor
 		FActorSpawnParameters SpawnParams;
 		//SpawnParams.Name = FName(*weaponInstance.ActorName);
-		SpawnParams.Name = FName("Loaded Weapon Actor");
+		//SpawnParams.Name = FName("Loaded Weapon Actor");
+		SpawnParams.Owner = Player;
+
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 

@@ -35,7 +35,14 @@ APlayerCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
 void UYogGameInstanceBase::Init()
 {
 	Super::Init();
+	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UYogGameInstanceBase::OnPostLoadMap);
 
+}
+
+void UYogGameInstanceBase::Shutdown()
+{
+	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
+	Super::Shutdown();
 }
 
 void UYogGameInstanceBase::OpenMapAndLoadSave(const TSoftObjectPtr<UWorld> Level)
@@ -45,7 +52,6 @@ void UYogGameInstanceBase::OpenMapAndLoadSave(const TSoftObjectPtr<UWorld> Level
 	bShouldLoadSaveAfterMap = true;
 
 	// Bind the delegate to know when the map is loaded
-	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UYogGameInstanceBase::OnPostLoadMap);
 
 	// Open the map
 	//void UGameplayStatics::OpenLevelBySoftObjectPtr(const UObject * WorldContextObject, const TSoftObjectPtr<UWorld> Level, bool bAbsolute, FString Options)
@@ -57,7 +63,7 @@ void UYogGameInstanceBase::OnPostLoadMap(UWorld* World)
 {
 	
 	// If we are supposed to load a save after the map, do it
-	if (bShouldLoadSaveAfterMap)
+	if (bShouldLoadSaveAfterMap && World)
 	{
 		// Load the save game from the pending slot
 		// Assuming you have a function to load the save game and apply it to the world

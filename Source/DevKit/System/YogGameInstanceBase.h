@@ -55,6 +55,7 @@ public:
 	UYogGameInstanceBase();
 
 	virtual void Init() override;
+	virtual void Shutdown() override;
 
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Map state")
