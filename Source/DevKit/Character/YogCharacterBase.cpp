@@ -36,11 +36,13 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
 	//AdditionAttributeSet = CreateDefaultSubobject<UAdditionAttributeSet>(TEXT("AdditionAttributeSet"));
 
-
-
-
 	//MovementComponent setup
 	UYogCharacterMovementComponent* YogMoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
+
+	CurrentState = EYogCharacterState::Idle;
+	PreviousState = EYogCharacterState::Idle;
+
+	CurrentWeaponState = EWeaponState::Unequipped;
 
 }
 
@@ -81,8 +83,6 @@ void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	CurrentState = EYogCharacterState::Idle;
-	PreviousState = EYogCharacterState::Idle;
 
 	//UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
 
@@ -104,18 +104,27 @@ void AYogCharacterBase::Tick(float DeltaSeconds)
 void AYogCharacterBase::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
-
-	if (CharacterData)
+	
+	//TODO: need add if statement for save/load character data
+	if (CharacterData && GetASC())
 	{
 		const FMovementData& moveData = CharacterData->GetMovementData();
 		const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
 		BaseAttributeSet->Init(CharacterData);
+
+		HealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
+		MaxHealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
+
+		for (TSubclassOf<UYogGameplayAbility> default_ability : CharacterData->DefaultAbilitiesTemplate)
+		{
+			FGameplayAbilitySpecHandle spec_handle = GetASC()->K2_GiveAbility(default_ability, 0, -1);
+		}
+		for (TSubclassOf<UYogGameplayAbility> move_ability : CharacterData->DefaultMoveAbilitiesTemplate)
+		{
+			FGameplayAbilitySpecHandle spec_handle = GetASC()->K2_GiveAbility(move_ability, 0, -1);
+		}
 	}
-	if (AbilitySystemComponent) 
-	{
-		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
-		MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
-	}
+
 
 }
 
@@ -354,9 +363,43 @@ void AYogCharacterBase::Die()
 }
 
 
+void AYogCharacterBase::InitCharacterData()
+{
+	if (CharacterData && AbilitySystemComponent)
+	{
+		const FMovementData& moveData = CharacterData->GetMovementData();
+		const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
+		BaseAttributeSet->Init(CharacterData);
+
+		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
+		MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
+
+		for (TSubclassOf<UYogGameplayAbility> default_ability : CharacterData->DefaultAbilitiesTemplate)
+		{
+			FGameplayAbilitySpecHandle spec_handle = AbilitySystemComponent->K2_GiveAbility(default_ability, 0, -1);
+		}
+		for (TSubclassOf<UYogGameplayAbility> move_ability : CharacterData->DefaultMoveAbilitiesTemplate)
+		{
+			FGameplayAbilitySpecHandle spec_handle = AbilitySystemComponent->K2_GiveAbility(move_ability, 0, -1);
+		}
+	
+		for (TSubclassOf<UAnimInstance> animelayer_class : CharacterData->DefaultAnimeLayers)
+		{
+			this->GetMesh()->LinkAnimClassLayers(animelayer_class);
+		}
+	}
+
+
+}
+
 EYogCharacterState AYogCharacterBase::GetCurrentState()
 {
 	return this->CurrentState;
+}
+
+EWeaponState AYogCharacterBase::GetWeaponState()
+{
+	return this->CurrentWeaponState;
 }
 
 void AYogCharacterBase::GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities)

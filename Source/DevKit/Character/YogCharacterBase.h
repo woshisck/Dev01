@@ -29,6 +29,17 @@ enum class EYogCharacterState : uint8
 	Dead					UMETA(DisplayName = "Dead")
 };
 
+UENUM(BlueprintType)
+enum class EWeaponState : uint8
+{
+	Unequipped		UMETA(DisplayName = "Unequipped"), 
+	Equipping		UMETA(DisplayName = "Equipping"), 
+	Equipped		UMETA(DisplayName = "Equipped"), 
+	Firing			UMETA(DisplayName = "Firing"), 
+	Reloading		UMETA(DisplayName = "Reloading")
+};
+
+
 
 
 class UItemInstance;
@@ -46,6 +57,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterVelocityDelegate, const FV
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCharacterStateDelegate, EYogCharacterState, StateBefore, EYogCharacterState, StateAfter);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FWeaponStateDelegate, EWeaponState, StateBefore, EWeaponState, StateAfter);
 
 
 /**
@@ -69,8 +81,11 @@ public:
 
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UCharacterData> CharacterData;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Data")
+	TObjectPtr<UAbilityData> AbilityData;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)
 	TObjectPtr<UAttributeStatComponent> AttributeStatsComponent;
@@ -91,8 +106,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, SaveGame, Category = "AblitySystemComp")
 	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Attribute")
-	TObjectPtr<UAbilityData> AbilityData;
+
 
 	//TMap<FYogTagContainerWrapper, FActionData> AbilityMap;
 
@@ -119,9 +133,20 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Character|State")
 	FCharacterStateDelegate OnCharacterStateUpdate;
 
+	UPROPERTY(BlueprintAssignable, Category = "Character|Weapon")
+	FWeaponStateDelegate OnWeaponStateUpdate;
+
+
+	UFUNCTION(BlueprintCallable)
+	void InitCharacterData();
+
 
 	UFUNCTION(BlueprintCallable)
 	EYogCharacterState GetCurrentState();
+
+	UFUNCTION(BlueprintCallable)
+	EWeaponState GetWeaponState();
+
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
 	void GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities);
@@ -210,9 +235,12 @@ public:
 	//friend UAdditionAttributeSet;
 
 private:
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	EYogCharacterState CurrentState;
 
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	EYogCharacterState PreviousState;
+
+	UPROPERTY(SaveGame)
+	EWeaponState CurrentWeaponState;
 };

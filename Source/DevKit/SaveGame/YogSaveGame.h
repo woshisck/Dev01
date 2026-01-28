@@ -191,10 +191,14 @@ public:
 
 };
 
+//Save for ability ? use in future
 USTRUCT(BlueprintType)
 struct DEVKIT_API FAbilitySaveData
 {
 	GENERATED_BODY()
+
+	UPROPERTY()
+	TSubclassOf<UYogGameplayAbility> AbilityClass;
 
 	UPROPERTY()
 	int32 Level = 0;
@@ -204,9 +208,6 @@ struct DEVKIT_API FAbilitySaveData
 
 	UPROPERTY()
 	FSoftClassPath AbilityClassPath;
-
-	UPROPERTY()
-	TSubclassOf<UYogGameplayAbility> AbilityClass;
 };
 
 

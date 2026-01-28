@@ -259,7 +259,7 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 
-		//ASAP::Change this part to Blueprintlibrary
+		//ASAP:: Throw ERROR BECAUSE LOAD GAME IN GI
 
 		AWeaponInstance* WeaponActor = Cast<AWeaponInstance>(GetWorld()->SpawnActor<AActor>(WeaponClass, weaponInstance.Transform, SpawnParams));
 		

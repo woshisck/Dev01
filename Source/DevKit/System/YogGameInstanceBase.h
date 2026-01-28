@@ -98,6 +98,14 @@ public:
 	FOnSaveGameLoadedNative OnSaveGameLoadedNative;
 
 
+	// Function to open a map and then load a save game from a slot
+	UFUNCTION(BlueprintCallable, Category = "Save System")
+	void OpenMapAndLoadSave(const TSoftObjectPtr<UWorld> Level);
+
+	// Function to be called when the map has been loaded, to load the save game
+	void OnPostLoadMap(UWorld* World);
+
+
 	UFUNCTION(BlueprintCallable, Category = Save)
 	void SaveGame();
 
@@ -125,6 +133,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Save)
 	bool WriteSaveGame();
 
+private:
+	// The save slot to load after the map is opened
+	FString PendingSaveSlot;
+
+	// Flag to indicate we want to load a save after the map is opened
+	bool bShouldLoadSaveAfterMap;
 
 protected:
 

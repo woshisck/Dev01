@@ -3,13 +3,15 @@
 #include "YogGameInstanceBase.h"
 #include "Player/PlayerCharacterBase.h"
 #include "DevKit/SaveGame/YogSaveGame.h"
-
+#include "DevKit/SaveGame/YogSaveSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 
 UYogGameInstanceBase::UYogGameInstanceBase()
 	: SaveSlot(TEXT("SaveGame"))
 	, SaveUserIndex(0)
-{}
+{
+	bShouldLoadSaveAfterMap = false;
+}
 
 APlayerCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
 {
@@ -33,6 +35,54 @@ APlayerCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
 void UYogGameInstanceBase::Init()
 {
 	Super::Init();
+
+}
+
+void UYogGameInstanceBase::OpenMapAndLoadSave(const TSoftObjectPtr<UWorld> Level)
+{
+	// Set the pending save slot and flag
+	PendingSaveSlot = SaveSlot;
+	bShouldLoadSaveAfterMap = true;
+
+	// Bind the delegate to know when the map is loaded
+	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UYogGameInstanceBase::OnPostLoadMap);
+
+	// Open the map
+	//void UGameplayStatics::OpenLevelBySoftObjectPtr(const UObject * WorldContextObject, const TSoftObjectPtr<UWorld> Level, bool bAbsolute, FString Options)
+
+	UGameplayStatics::OpenLevelBySoftObjectPtr(this, Level, true);
+}
+
+void UYogGameInstanceBase::OnPostLoadMap(UWorld* World)
+{
+	
+	// If we are supposed to load a save after the map, do it
+	if (bShouldLoadSaveAfterMap)
+	{
+		// Load the save game from the pending slot
+		// Assuming you have a function to load the save game and apply it to the world
+		
+		//LoadSaveGame(PendingSaveSlot);
+		//UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+
+		//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
+
+
+		UYogSaveSubsystem* SaveSubsystem = this->GetSubsystem<UYogSaveSubsystem>();
+
+		if (SaveSubsystem->CurrentSaveGame)
+		{
+			SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
+		}
+
+
+
+		// Reset the flag
+		bShouldLoadSaveAfterMap = false;
+	}
+
+	// Unbind the delegate to avoid multiple bindings
+	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 }
 
 void UYogGameInstanceBase::SaveGame()
