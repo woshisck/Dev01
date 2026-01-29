@@ -23,7 +23,20 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FStartSaveFile);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FEnterLevel);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFinishLevel);
 
-DECLARE_DELEGATE(FMyStepDelegate);
+
+
+USTRUCT()
+struct FSequenceStep
+{
+	GENERATED_BODY()
+
+	/** Delegate to call for this step */
+	FTimerDelegate Delegate;
+
+	/** Delay before calling this step (seconds) */
+	float Interval = 0.0f;
+};
+
 
 USTRUCT(BlueprintType)
 struct FLevelStateCount
@@ -84,28 +97,22 @@ public:
 	FString SaveSlot;
 
 	/////////////////////////////////// AI STUFF //////////////////////////////////////
-	FTimerHandle MyTimerHandle;
+	/** Add a step: bind a member function or lambda */
+	void AddStep(const FTimerDelegate& InDelegate, float Interval);
 
-	TArray<FMyStepDelegate> FunctionArray; 
-	int32 CurrentIndex = 0;
-
-	FTimerHandle StepTimerHandle;
-	float Interval = 2.0f;
-
-
-
-
+	/** Start sequence from beginning */
 	void StartSequence();
-	void CallNextFunction();
-	void ForceNextFunction();
 
+	/** Force move to next step immediately */
+	void ForceNext();
 
-	void StepOne(); 
-	void StepTwo(); 
-	void StepThree();
+	void PlayCurrentStep();
+	void AdvanceToNextStep();
 
+	TArray<FSequenceStep> Steps;
+	int32 CurrentIndex = 0;
+	FTimerHandle StepTimerHandle;
 
-	//{ CurrentIndex = 0; CallNextFunction(); }
 
 	///////////////////////////////////////////////////////////////////////////////////
 

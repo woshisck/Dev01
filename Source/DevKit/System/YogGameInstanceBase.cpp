@@ -36,57 +36,65 @@ APlayerCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
 	return PlayerCharacterBase;
 }
 
-
 ////////////// AI //////////////
-void UYogGameInstanceBase::CallNextFunction()
+void UYogGameInstanceBase::AddStep(const FTimerDelegate& InDelegate, float Interval)
 {
-	if (CurrentIndex >= FunctionArray.Num())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Sequence finished"));
-		return;
-	}
-
-	// Execute the current function
-	FunctionArray[CurrentIndex].ExecuteIfBound();
-
-	// Schedule next step after interval
-	GetWorld()->GetTimerManager().SetTimer(
-		StepTimerHandle,
-		this,
-		&UYogGameInstanceBase::ForceNextFunction,
-		Interval,
-		false
-	);
+	FSequenceStep Step;
+	Step.Delegate = InDelegate;
+	Step.Interval = Interval;
+	Steps.Add(MoveTemp(Step));
 }
 
 void UYogGameInstanceBase::StartSequence()
 {
+	if (Steps.Num() == 0) return;
 	CurrentIndex = 0;
-	CallNextFunction();
+	PlayCurrentStep();
 }
 
-void UYogGameInstanceBase::ForceNextFunction()
+void UYogGameInstanceBase::ForceNext()
 {
+	// Immediately cancel current wait and advance
 	GetWorld()->GetTimerManager().ClearTimer(StepTimerHandle);
-
-	// Advance index
-	CurrentIndex++;
-
-	// Call next
-	CallNextFunction();
+	AdvanceToNextStep();
 }
 
-void UYogGameInstanceBase::StepOne()
+void UYogGameInstanceBase::PlayCurrentStep()
 {
+	if (!GetWorld() || !Steps.IsValidIndex(CurrentIndex)) return;
+
+	// Schedule the timer to call the internal callback after the step's interval
+	float Delay = Steps[CurrentIndex].Interval;
+	GetWorld()->GetTimerManager().SetTimer(StepTimerHandle, this, &UYogGameInstanceBase::AdvanceToNextStep, Delay, false);
+
 }
 
-void UYogGameInstanceBase::StepTwo()
+void UYogGameInstanceBase::AdvanceToNextStep()
 {
+	if (!Steps.IsValidIndex(CurrentIndex)) return;
+
+	// Execute the bound delegate for this step
+	Steps[CurrentIndex].Delegate.ExecuteIfBound();
+
+	// Move to next
+	++CurrentIndex;
+	if (Steps.IsValidIndex(CurrentIndex))
+	{
+		PlayCurrentStep();
+	}
+	else
+	{
+		// Sequence finished; optionally loop or clear
+		GetWorld()->GetTimerManager().ClearTimer(StepTimerHandle);
+	}
 }
 
-void UYogGameInstanceBase::StepThree()
-{
-}
+
+////////////// AI //////////////
+
+
+
+
 
 
 
