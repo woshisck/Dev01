@@ -18,15 +18,15 @@ void AYogPlayerControllerBase::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
-	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+	//UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
 
-	UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
-	UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
+	//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
+	//UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
 
-	if (SaveSubsystem->CurrentSaveGame)
-	{
-		SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
-	}
+	//if (SaveSubsystem->CurrentSaveGame)
+	//{
+	//	SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
+	//}
 
 }
 

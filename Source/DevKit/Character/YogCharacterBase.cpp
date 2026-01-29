@@ -336,9 +336,10 @@ void AYogCharacterBase::Die()
 
 
 	UYogGameInstanceBase* YogGameInstance = Cast<UYogGameInstanceBase>(GetGameInstance());
-	YogGameInstance->MapStateCount.MonsterSlayCount++;
-
-	UE_LOG(LogTemp, Log, TEXT("Current Monster Slay Count: %i"), YogGameInstance->MapStateCount.MonsterSlayCount);
+	
+	//ASAP
+	//YogGameInstance->MapStateCount.MonsterSlayCount++;
+	//UE_LOG(LogTemp, Log, TEXT("Current Monster Slay Count: %i"), YogGameInstance->MapStateCount.MonsterSlayCount);
 
 	OnCharacterDied.Broadcast(this);
 

@@ -249,12 +249,9 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 			return;
 		}
 
-
-
-
 		//Generate Actor
 		FActorSpawnParameters SpawnParams;
-		//SpawnParams.Name = FName(*weaponInstance.ActorName);
+		//SpawnParams.Name = FName(*weaponInstance.ActorName); 
 		//SpawnParams.Name = FName("Loaded Weapon Actor");
 		SpawnParams.Owner = Player;
 
@@ -262,9 +259,41 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 
 
 		//ASAP:: Throw ERROR BECAUSE LOAD GAME IN GI
+		//UE_LOG(LogTemp, Warning, TEXT("WeaponActor, WITH SaveGame->WeaponInstanceItems:, %d"), SaveGame->WeaponInstanceItems.Num());
+		//AWeaponInstance* WeaponActor = Cast<AWeaponInstance>(GetWorld()->SpawnActor<AActor>(WeaponClass, weaponInstance.Transform, SpawnParams));
+		//
 
-		AWeaponInstance* WeaponActor = Cast<AWeaponInstance>(GetWorld()->SpawnActor<AActor>(WeaponClass, weaponInstance.Transform, SpawnParams));
-		
+		FWeaponSpawnData SpawnData;
+		//check animelayer and set
+		UBlueprint* WeaponLayerBlueprint = LoadObject<UBlueprint>(nullptr, *weaponInstance.WeaponLayerClassPath);
+		UClass* LayerClass = WeaponLayerBlueprint->GeneratedClass;	
+		if (!LayerClass)
+		{
+			UE_LOG(LogTemp, Error, TEXT("can not load LayerClass: %s"), *weaponInstance.ActorClassPath);
+			return;
+		}
+		if (LayerClass && Player->GetMesh())
+		{
+			//if (UAnimInstance* AnimInstance = Player->GetMesh()->GetAnimInstance())
+			//{
+			//	// Link the new layer
+			//	AnimInstance->LinkAnimClassLayers(LayerClass);
+			//}
+
+			SpawnData.WeaponLayer = LayerClass;
+		}
+
+		SpawnData.ActorToSpawn = WeaponClass;
+		SpawnData.AttachSocket = weaponInstance.AttachSocket;
+		SpawnData.AttachTransform = weaponInstance.Transform;
+		//SpawnData.WeaponLayer = weaponInstance.WeaponLayer;
+		SpawnData.bShouldSaveToGame = true;
+
+
+		AWeaponInstance* WeaponActor = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
+
+
+		LoadData(WeaponActor, weaponInstance.ByteData);
 
 		if (!WeaponActor)
 		{
@@ -272,52 +301,8 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 			return;
 		}
 
-		UBlueprint* WeaponLayerBlueprint = LoadObject<UBlueprint>(nullptr, *weaponInstance.WeaponLayerClassPath);
-		UClass* LayerClass = WeaponLayerBlueprint->GeneratedClass;
-
-	
-		if (!LayerClass)
-		{
-			UE_LOG(LogTemp, Error, TEXT("can not load LayerClass: %s"), *weaponInstance.ActorClassPath);
-			return;
-		}
-
-		if (LayerClass && Player->GetMesh())
-		{
-			if (UAnimInstance* AnimInstance = Player->GetMesh()->GetAnimInstance())
-			{
-				// Link the new layer
-				AnimInstance->LinkAnimClassLayers(LayerClass);
-
-			}
-		}
-
-		LoadData(WeaponActor, weaponInstance.ByteData);
-
-
-		//WeaponActor->WeaponLayer = weaponInstance.WeaponLayer;
-		
-
-		UE_LOG(LogTemp, Warning, TEXT("Load Actor success! : %s (Class: %s)"),*WeaponActor->GetName(), *weaponInstance.ActorClassPath);
-		UE_LOG(LogTemp, Warning, TEXT("AttachSocket : %s (Class: %s)"), *WeaponActor->GetName(), *weaponInstance.AttachSocket.ToString());
-		
-
-		//UYogBlueprintFunctionLibrary::EquipWeapon(Player->GetWorld(), Player, WeaponActor);
-
-		FWeaponSpawnData SpawnData;
-		SpawnData.ActorToSpawn = WeaponClass;
-		SpawnData.AttachSocket = weaponInstance.AttachSocket;
-		SpawnData.AttachTransform = weaponInstance.Transform;
-		SpawnData.WeaponLayer = weaponInstance.WeaponLayer;
-		SpawnData.bShouldSaveToGame = true;
-
-
-		UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
-
-
-		//WeaponActor->EquipWeaponToCharacter(Player);
-		//Cast<AWeaponInstance>(WeaponActor)->EquipWeaponToCharacter(Player);
-
+		//UE_LOG(LogTemp, Warning, TEXT("Load Actor success! : %s (Class: %s)"), *WeaponActor->GetName(), *weaponInstance.ActorClassPath);
+		//UE_LOG(LogTemp, Warning, TEXT("AttachSocket : %s (Class: %s)"), *WeaponActor->GetName(), *weaponInstance.AttachSocket.ToString());
 	}
 	Player->AbilityData = SaveGame->PlayerStateData.WeaponAbilities;
 

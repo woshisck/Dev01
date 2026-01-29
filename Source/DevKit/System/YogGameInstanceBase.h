@@ -23,7 +23,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FStartSaveFile);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FEnterLevel);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFinishLevel);
 
-
+DECLARE_DELEGATE(FMyStepDelegate);
 
 USTRUCT(BlueprintType)
 struct FLevelStateCount
@@ -58,8 +58,8 @@ public:
 	virtual void Shutdown() override;
 
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Map state")
-	FLevelStateCount MapStateCount;
+	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Map state")
+	//FLevelStateCount MapStateCount;
 
 	UPROPERTY(BlueprintAssignable, Category = "File system")
 	FStartNewGame OnStartNewGame;
@@ -83,12 +83,50 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = Save)
 	FString SaveSlot;
 
+	/////////////////////////////////// AI STUFF //////////////////////////////////////
+	FTimerHandle MyTimerHandle;
+
+	TArray<FMyStepDelegate> FunctionArray; 
+	int32 CurrentIndex = 0;
+
+	FTimerHandle StepTimerHandle;
+	float Interval = 2.0f;
+
+
+
+
+	void StartSequence();
+	void CallNextFunction();
+	void ForceNextFunction();
+
+
+	void StepOne(); 
+	void StepTwo(); 
+	void StepThree();
+
+
+	//{ CurrentIndex = 0; CallNextFunction(); }
+
+	///////////////////////////////////////////////////////////////////////////////////
+
 	/** The platform-specific user index */
 	UPROPERTY(BlueprintReadWrite, Category = Save)
 	int32 SaveUserIndex;
 
 	UPROPERTY(BlueprintReadWrite, Category = Save)
 	TObjectPtr<UYogSaveGame> PersistentSaveData;
+
+	UPROPERTY()
+	int32 CurrentMapScore = 0;
+
+	UPROPERTY()
+	int32 CurrentMapKills = 0;
+
+	UPROPERTY()
+	int32 TargetMapKills = 0;
+
+	UFUNCTION(BlueprintCallable)
+	void AddCurrentMapKill(int32 adder);
 
 
 	/** Delegate called when the save game has been loaded/reset */
@@ -134,6 +172,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Save)
 	bool WriteSaveGame();
 
+
+	/** Writes the current save game object to disk. The save to disk happens in a background thread*/
+	UFUNCTION(BlueprintCallable)
+	void SpawnMobInMap();
+
+
 private:
 	// The save slot to load after the map is opened
 	FString PendingSaveSlot;
@@ -161,4 +205,23 @@ protected:
 
 	/** Called when the async save happens */
 	virtual void HandleAsyncSave(const FString& SlotName, const int32 UserIndex, bool bSuccess);
+
+
+
+	UPROPERTY()
+	int WaveCount;
+	
+	UPROPERTY()
+	int MaxWaveCount;
+
+
+	UPROPERTY()
+	int SpawnCount;
+	
+	UPROPERTY()
+	float IntervalTime;
+
+	UPROPERTY()
+	float StageDelay;
+
 };

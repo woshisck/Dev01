@@ -152,21 +152,21 @@ void UYogBlueprintFunctionLibrary::FindAllCharacters(UObject* WorldContextObject
 	}
 }
 
-void UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(AYogCharacterBase* character, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)
+AWeaponInstance* UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(AYogCharacterBase* character, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)
 {
 
-	FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName("PlayerState.HasWeapon"));
+	//if (character->GetASC()->HasMatchingGameplayTag(Tag))
+	//{
+	//	return;
+	//}
 
-	if (character->GetASC()->HasMatchingGameplayTag(Tag))
-	{
-		return;
-	}
+	FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName("PlayerState.HasWeapon"));
 
 	AWeaponInstance* WeaponActor = character->GetWorld()->SpawnActorDeferred<AWeaponInstance>(
 		SpawnData.ActorToSpawn,
 		SpawnTransform,
 		character,  // Owner
-		nullptr,                // Instigator
+		nullptr,    // Instigator
 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
 	if (WeaponActor)
 	{
@@ -177,9 +177,10 @@ void UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(AYogCharacterBase* cha
 	WeaponActor->FinishSpawning(SpawnTransform);
 
 
-	//character->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
-	//character->GetMesh()->GetAnimInstance()->InitializeAnimation();
+	character->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
 	character->GetASC()->AddLooseGameplayTag(Tag);
+
+	return WeaponActor;
 
 }
 

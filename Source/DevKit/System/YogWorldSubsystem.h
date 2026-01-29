@@ -209,6 +209,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Streaming")
 	void GetAllSubLevel(UObject* WorldContextObject);
 
+	UFUNCTION(BlueprintCallable)
+	AYogLevelScript* GetCurrentLevelScript();
 
 
 	/** Called when world is ready to start gameplay before the game mode transitions to the correct state and call BeginPlay on all actors */
@@ -235,8 +237,7 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void LoadStreamLevel(ULevelStreaming* StreamingLevel);
 
-	UFUNCTION(BlueprintCallable)
-	AYogLevelScript* GetCurrentLevelScript();
+
 
 
 private:

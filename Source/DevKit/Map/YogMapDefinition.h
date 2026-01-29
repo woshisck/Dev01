@@ -113,17 +113,28 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level|Mob")
 	TArray<FMapFeature> MapFeatures;
 
+
+	//////////////////////////  WAVE SPAWN MOB CONFIG  //////////////////////////
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::Wave"))
+	int WaveCount;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	int SpawnCount;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::Wave || EnemySpawnRule == EEnemySpawnRule::OneByOne"))
+	float IntervalTime;
+
+
+
+	//////////////////////////  WAVE SPAWN MOB CONFIG  //////////////////////////
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::OneByOne || EnemySpawnRule == EEnemySpawnRule::AllInOnce"))
-	int TotalCount = 1;
+	int TargetMapKills = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::OneByOne"))
 	float SpawnDelay;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::Wave"))
-	int WaveCount;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::Wave"))
-	int NumPerWave;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::AllInOnce"))
 	int NumCount;

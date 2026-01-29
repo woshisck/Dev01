@@ -6,6 +6,13 @@
 #include "DevKit/SaveGame/YogSaveSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 
+#include "DevKit/System/YogWorldSubsystem.h"
+
+#include "DevKit/Map/YogLevelScript.h"
+
+#include "DevKit/Map/YogMapDefinition.h"
+
+
 UYogGameInstanceBase::UYogGameInstanceBase()
 	: SaveSlot(TEXT("SaveGame"))
 	, SaveUserIndex(0)
@@ -30,11 +37,87 @@ APlayerCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
 }
 
 
+////////////// AI //////////////
+void UYogGameInstanceBase::CallNextFunction()
+{
+	if (CurrentIndex >= FunctionArray.Num())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Sequence finished"));
+		return;
+	}
+
+	// Execute the current function
+	FunctionArray[CurrentIndex].ExecuteIfBound();
+
+	// Schedule next step after interval
+	GetWorld()->GetTimerManager().SetTimer(
+		StepTimerHandle,
+		this,
+		&UYogGameInstanceBase::ForceNextFunction,
+		Interval,
+		false
+	);
+}
+
+void UYogGameInstanceBase::StartSequence()
+{
+	CurrentIndex = 0;
+	CallNextFunction();
+}
+
+void UYogGameInstanceBase::ForceNextFunction()
+{
+	GetWorld()->GetTimerManager().ClearTimer(StepTimerHandle);
+
+	// Advance index
+	CurrentIndex++;
+
+	// Call next
+	CallNextFunction();
+}
+
+void UYogGameInstanceBase::StepOne()
+{
+}
+
+void UYogGameInstanceBase::StepTwo()
+{
+}
+
+void UYogGameInstanceBase::StepThree()
+{
+}
+
+
+
+/* ASAP: SAMPLE USE -- */
+
+//void AMyActor::BeginPlay()
+//{
+//	Super::BeginPlay();
+//
+//	// Fill function array
+//	FunctionArray.Add(FMyStepDelegate::CreateUObject(this, &AMyActor::StepOne));
+//	FunctionArray.Add(FMyStepDelegate::CreateUObject(this, &AMyActor::StepTwo));
+//	FunctionArray.Add(FMyStepDelegate::CreateUObject(this, &AMyActor::StepThree));
+//
+//	StartSequence();
+//}
+//
+//void AMyActor::StepOne() { UE_LOG(LogTemp, Warning, TEXT("Step One")); }
+//void AMyActor::StepTwo() { UE_LOG(LogTemp, Warning, TEXT("Step Two")); }
+//void AMyActor::StepThree() { UE_LOG(LogTemp, Warning, TEXT("Step Three")); }
+
+
+
+
 
 
 void UYogGameInstanceBase::Init()
 {
 	Super::Init();
+	UE_LOG(LogTemp, Warning, TEXT("UYogGameInstanceBase::Init()"));
+
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UYogGameInstanceBase::OnPostLoadMap);
 
 }
@@ -43,6 +126,17 @@ void UYogGameInstanceBase::Shutdown()
 {
 	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 	Super::Shutdown();
+}
+
+void UYogGameInstanceBase::AddCurrentMapKill(int32 adder)
+{
+
+	CurrentMapKills += adder;
+
+	if (CurrentMapKills >= TargetMapKills)
+	{
+		OnFinishLevel.Broadcast();
+	}
 }
 
 void UYogGameInstanceBase::OpenMapAndLoadSave(const TSoftObjectPtr<UWorld> Level)
@@ -55,7 +149,7 @@ void UYogGameInstanceBase::OpenMapAndLoadSave(const TSoftObjectPtr<UWorld> Level
 
 	// Open the map
 	//void UGameplayStatics::OpenLevelBySoftObjectPtr(const UObject * WorldContextObject, const TSoftObjectPtr<UWorld> Level, bool bAbsolute, FString Options)
-
+	UE_LOG(LogTemp, Warning, TEXT("UYogGameInstanceBase::OpenMapAndLoadSave"));
 	UGameplayStatics::OpenLevelBySoftObjectPtr(this, Level, true);
 }
 
@@ -65,14 +159,8 @@ void UYogGameInstanceBase::OnPostLoadMap(UWorld* World)
 	// If we are supposed to load a save after the map, do it
 	if (bShouldLoadSaveAfterMap && World)
 	{
-		// Load the save game from the pending slot
-		// Assuming you have a function to load the save game and apply it to the world
-		
-		//LoadSaveGame(PendingSaveSlot);
-		//UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
 
-		//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
-
+		UE_LOG(LogTemp, Warning, TEXT("UYogGameInstanceBase::OnPostLoadMap"));
 
 		UYogSaveSubsystem* SaveSubsystem = this->GetSubsystem<UYogSaveSubsystem>();
 
@@ -81,10 +169,27 @@ void UYogGameInstanceBase::OnPostLoadMap(UWorld* World)
 			SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
 		}
 
+		//Load map quest
+		UYogWorldSubsystem* WorldSubsystem = GetWorld()->GetSubsystem<UYogWorldSubsystem>();
+		
+		AYogLevelScript* CurrentLevelScript = WorldSubsystem->GetCurrentLevelScript();
 
+		if (CurrentLevelScript)
+		{
+			this->TargetMapKills = CurrentLevelScript->GetDefinition()->TargetMapKills;
+			this->WaveCount = CurrentLevelScript->GetDefinition()->WaveCount;
+			this->SpawnCount = CurrentLevelScript->GetDefinition()->SpawnCount;
+			this->IntervalTime = CurrentLevelScript->GetDefinition()->IntervalTime;
 
+			
+			//COPY VAlUE TO Instance`
+		}
 		// Reset the flag
 		bShouldLoadSaveAfterMap = false;
+
+		//SpawnMob from Map
+		StartSequence();
+
 	}
 
 	// Unbind the delegate to avoid multiple bindings
@@ -147,6 +252,13 @@ bool UYogGameInstanceBase::WriteSaveGame()
 	{
 		return false;
 	}
+}
+
+void UYogGameInstanceBase::SpawnMobInMap()
+{
+
+	UE_LOG(LogTemp, Warning, TEXT("UYogGameInstanceBase::SpawnMobInMap()"));
+
 }
 
 

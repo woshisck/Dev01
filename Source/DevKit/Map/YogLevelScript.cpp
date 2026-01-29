@@ -58,6 +58,11 @@ void AYogLevelScript::LevelSetup()
 	}
 }
 
+UYogMapDefinition* AYogLevelScript::GetDefinition()
+{
+	return Mapdefinition;
+}
+
 void AYogLevelScript::OnLevelLoaded(UWorld* LoadedWorld)
 {
 	LevelStart.Broadcast();
@@ -91,7 +96,7 @@ void AYogLevelScript::BeginPlay()
 		//switch (Mapdefinition->EnemySpawnRule)
 		//{
 		//case EEnemySpawnRule::OneByOne:
-		//	for (int i = 0; i < Mapdefinition->TotalCount; i++)
+		//	for (int i = 0; i < Mapdefinition->TargetMapKills; i++)
 		//	{
 		//		int32 RandomIndex = FMath::RandHelper(MobSpawners.Num());
 		//		AMobSpawner* Spawner = MobSpawners[RandomIndex];

@@ -23,6 +23,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	int MonsterKillCountTarget;
 
+	UFUNCTION(BlueprintCallable)
+	UYogMapDefinition* GetDefinition();
+
 protected:
 
 	virtual void PreInitializeComponents() override;
@@ -30,7 +33,7 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void LevelSetup();
 	
-	 
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UYogMapDefinition> Mapdefinition;

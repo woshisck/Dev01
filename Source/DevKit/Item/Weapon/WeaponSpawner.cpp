@@ -97,13 +97,16 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 			SpawnData.WeaponAbilities = weapon_spawn_data.WeaponAbilities;
 			SpawnData.bShouldSaveToGame = true;
 
-			UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(OverlappingPawn, OverlappingPawn->GetTransform(), SpawnData);
+			AWeaponInstance* WeaponActor = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(OverlappingPawn, OverlappingPawn->GetTransform(), SpawnData);
 
 			//AYogCharacterBase* character, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData
 			// 
 			//AWeaponInstance* WeaponActor = SpawnWeaponDeferred(OverlappingPawn->GetWorld(), OverlappingPawn->GetActorTransform(), SpawnData);
 			//WeaponActor->AttachToComponent(OverlappingPawn->GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponActor->AttachSocket);
-			OverlappingPawn->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
+			
+			
+			//OverlappingPawn->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
+			
 			OverlappingPawn->AbilityData = WeaponDefinition->WeaponAbilityData;
 		}
 	}

@@ -59,7 +59,7 @@ public:
 
 	/* Load from disk, optional slot name */
 
-	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	UFUNCTION()
 	void LoadSaveGame(UYogSaveGame* SaveGame);
 
 	UPROPERTY(BlueprintAssignable)
