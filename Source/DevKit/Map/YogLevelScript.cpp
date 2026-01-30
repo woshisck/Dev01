@@ -11,8 +11,9 @@
 #include "DevAssetManager.h"
 #include "DevKit/GameModes/YogGameMode.h"
 #include "DevKit/AbilitySystem/YogAbilitySystemComponent.h"
-
 #include "DevKit/Mob/MobSpawner.h"
+
+#include "Kismet/GameplayStatics.h"
 
 void AYogLevelScript::PreInitializeComponents()
 {

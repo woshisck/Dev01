@@ -27,7 +27,19 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION(BlueprintCallable)
-	void SpawnMob(TSubclassOf<AEnemyCharacterBase> mob_spawn);
+	AEnemyCharacterBase* SpawnMob();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool SingleSpawn = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
+	float SpawnRadius = 1000.f;
+
+	FVector GetRandomReachablePoint();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<TSubclassOf<AEnemyCharacterBase>> EnemySpawnClassis;
+
 
 
 };

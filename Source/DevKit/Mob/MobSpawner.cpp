@@ -4,7 +4,8 @@
 #include "MobSpawner.h"
 #include "DevKit/Controller/YogAIController.h"
 #include "DevKit/Enemy/EnemyCharacterBase.h"
-
+#include "NavigationSystem.h"
+#include "Kismet/KismetMathLibrary.h"
 
 // Sets default values
 AMobSpawner::AMobSpawner()
@@ -28,6 +29,57 @@ void AMobSpawner::Tick(float DeltaTime)
 
 }
 
-void AMobSpawner::SpawnMob(TSubclassOf<AEnemyCharacterBase> mob_spawn)
+AEnemyCharacterBase* AMobSpawner::SpawnMob()
 {
+    UWorld* World = GetWorld();
+    if (!World) return nullptr;
+
+    if (EnemySpawnClassis.Num() <= 0)
+    {
+        return nullptr;
+    }
+    TSubclassOf<AEnemyCharacterBase> RandomClass;
+    if (SingleSpawn == false)
+    {
+        int32 RandomIndex = FMath::RandRange(0, EnemySpawnClassis.Num() - 1);
+        RandomClass = EnemySpawnClassis[RandomIndex];
+    }
+    else
+    {
+        RandomClass = EnemySpawnClassis[0];
+    }
+
+
+
+    FVector Location = GetRandomReachablePoint();
+    if (Location != FVector::ZeroVector)
+    {
+        FActorSpawnParameters Params;
+        Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+        AEnemyCharacterBase* Spawned_Enemy = World->SpawnActor<AEnemyCharacterBase>(RandomClass, Location, FRotator::ZeroRotator, Params);
+        return Spawned_Enemy;
+    }
+    else
+    {
+        return nullptr;
+    }
+}
+
+FVector AMobSpawner::GetRandomReachablePoint()
+{
+    UWorld* World = GetWorld();
+    if (!World) return FVector::ZeroVector;
+
+    //UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+    UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+    if (!NavSys) return FVector::ZeroVector;
+    // Pick random point in circle
+    FVector Origin = GetActorLocation();
+    FVector RandomPoint = UKismetMathLibrary::RandomUnitVector() * FMath::FRandRange(0.f, SpawnRadius);
+    FVector TestLocation = Origin + RandomPoint;
+    FNavLocation NavLocation;
+    bool bFound = NavSys->ProjectPointToNavigation(TestLocation, NavLocation);
+    return bFound ? NavLocation.Location : FVector::ZeroVector;
+
 }

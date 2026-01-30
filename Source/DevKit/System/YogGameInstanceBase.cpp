@@ -43,6 +43,8 @@ void UYogGameInstanceBase::AddStep(const FTimerDelegate& InDelegate, float Inter
 	Step.Delegate = InDelegate;
 	Step.Interval = Interval;
 	Steps.Add(MoveTemp(Step));
+
+
 }
 
 void UYogGameInstanceBase::StartSequence()
@@ -62,6 +64,9 @@ void UYogGameInstanceBase::ForceNext()
 void UYogGameInstanceBase::PlayCurrentStep()
 {
 	if (!GetWorld() || !Steps.IsValidIndex(CurrentIndex)) return;
+
+	UE_LOG(LogTemp, Warning, TEXT("PlayCurrentStep"));
+
 
 	// Schedule the timer to call the internal callback after the step's interval
 	float Delay = Steps[CurrentIndex].Interval;
@@ -195,8 +200,14 @@ void UYogGameInstanceBase::OnPostLoadMap(UWorld* World)
 		// Reset the flag
 		bShouldLoadSaveAfterMap = false;
 
-		//SpawnMob from Map
-		StartSequence();
+		//for (int i = 0; i < 4; i++)
+		//{
+		//	FTimerDelegate time_delegate;
+
+		//	AddStep(time_delegate, 3.0);
+		//}
+		////SpawnMob from Map
+		//StartSequence();
 
 	}
 

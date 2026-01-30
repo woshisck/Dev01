@@ -9,11 +9,18 @@
 #include "SaveGame/YogSaveGame.h"
 #include "DevKit/Map/YogLevelScript.h"
 #include "DevKit/System/YogGameInstanceBase.h"
+#include "DevKit/Enemy/EnemyCharacterBase.h"
+#include "DevKit/Mob/MobSpawner.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
 	bAutoSpawnPlayer = false;
 	DefaultPawnClass = nullptr;
+
+	//CurrentWaveIndex = 0;
+	//SpawnedInWave = 0;
+	//ActiveMobCount = 0;
+
 }
 
 
@@ -52,7 +59,7 @@ void AYogGameMode::RestartPlayer(AController* NewPlayer)
 	// Fall back to default behavior if enabled
 	Super::RestartPlayer(NewPlayer);
 
-
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
 
 }
 
@@ -221,6 +228,16 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 
 
 
+///////////////////////////////  AI  ////////////////////////////////
+void AYogGameMode::SpawnMob()
+{
+	UE_LOG(LogTemp, Warning, TEXT("SpawnMob called at %f"), GetWorld()->GetTimeSeconds());
+
+}
+
+///////////////////////////////  AI  ////////////////////////////////
+
+
 
 void AYogGameMode::UpdateFinishLevel(int count)
 {
@@ -235,4 +252,19 @@ void AYogGameMode::UpdateFinishLevel(int count)
 	}
 }
 
+void AYogGameMode::BeginPlay()
+{
+	Super::BeginPlay();
 
+	// Start repeating timer
+	GetWorldTimerManager().SetTimer(
+		SpawnTimerHandle,
+		this,
+		&AYogGameMode::SpawnMob,
+		SpawnInterval,
+		true,   // looping
+		2.0f    // initial delay before first call
+	);
+
+	//StartSpawnPattern();
+}

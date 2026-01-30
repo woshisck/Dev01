@@ -8,8 +8,33 @@
 
 class AYogPlayerControllerBase;
 class UYogSaveGame;
-
+class AEnemyCharacterBase;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
+
+
+USTRUCT(BlueprintType)
+struct FSpawnWave
+{
+	GENERATED_BODY()
+
+public:
+	// Number of mobs to spawn in this wave
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 Count = 1;
+
+	// Interval between each spawn in this wave (seconds)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Interval = 1.0f;
+
+	// Optional delay before starting this wave
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float StartDelay = 0.0f;
+
+	// Mob class to spawn
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<AActor> MobClass = nullptr;
+};
+
 
 
 UCLASS()
@@ -21,6 +46,7 @@ class DEVKIT_API AYogGameMode : public AModularGameModeBase
 public:
 	AYogGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	virtual void BeginPlay()override;
 	virtual void RestartPlayer(AController* NewPlayer) override;
 	virtual void StartPlay() override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
@@ -34,6 +60,19 @@ public:
 	void SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName);
 
 
+	///////////////////////////////  AI  ////////////////////////////////
+	// Timer handle for repeated calls
+	FTimerHandle SpawnTimerHandle;
+
+	// Interval between calls (seconds)
+	UPROPERTY(EditAnywhere, Category = "Spawning")
+	float SpawnInterval = 5.0f;
+
+	// Function to call repeatedly
+	void SpawnMob();
+
+
+	///////////////////////////////  AI  ////////////////////////////////
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
 	bool bAutoSpawnPlayer = false;
 
