@@ -11,16 +11,25 @@ class UYogSaveGame;
 class AEnemyCharacterBase;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMapClean);
+
+
+DECLARE_DELEGATE(FCleanAllMobInMap);
+DECLARE_DELEGATE(FSpawnMobStart);
+DECLARE_DELEGATE(FSpawnMobFinish);
 
 USTRUCT(BlueprintType)
-struct FSpawnWave
+struct FSpawnConfig
 {
 	GENERATED_BODY()
 
 public:
 	// Number of mobs to spawn in this wave
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 Count = 1;
+	int32 MaxCall = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float FirstDelay = 2.0;
 
 	// Interval between each spawn in this wave (seconds)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -50,7 +59,7 @@ public:
 	virtual void RestartPlayer(AController* NewPlayer) override;
 	virtual void StartPlay() override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
-	virtual bool HasMatchStarted() const;
+
 
 
 	//UFUNCTION(BlueprintNativeEvent, Category = Game)
@@ -64,13 +73,19 @@ public:
 	// Timer handle for repeated calls
 	FTimerHandle SpawnTimerHandle;
 
-	// Interval between calls (seconds)
-	UPROPERTY(EditAnywhere, Category = "Spawning")
-	float SpawnInterval = 5.0f;
+	UPROPERTY(BlueprintAssignable) 
+	FOnMapClean OnMapClean;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
+	FSpawnConfig SpawnConfig;
+
 
 	// Function to call repeatedly
 	void SpawnMob();
 
+	void OnMobDestroyed(AActor* DestroyedActor);
+	
+	void StartNextSpawnCycle();
 
 	///////////////////////////////  AI  ////////////////////////////////
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
@@ -99,5 +114,7 @@ public:
 
 protected:
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
-
+	
+	UPROPERTY()
+	int32 Current_CallCount;
 };

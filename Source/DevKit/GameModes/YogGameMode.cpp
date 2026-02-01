@@ -147,40 +147,6 @@ void AYogGameMode::PostLogin(APlayerController* NewPlayer)
 
 }
 
-bool AYogGameMode::HasMatchStarted() const
-{
-	Super::HasMatchStarted();
-
-	//UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
-
-	//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
-	//UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
-	//
-	//if (SaveSubsystem->CurrentSaveGame)
-	//{
-	//	SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
-	//}
-	//else
-	//{
-	//	// spawn default player char	//UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
-
-	//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
-	//UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
-	//
-	//if (SaveSubsystem->CurrentSaveGame)
-	//{
-	//	SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
-	//}
-	//else
-	//{
-	//	// spawn default player char
-	//}
-	//}
-
-	return true;
-
-}
-
 void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName)
 {
 	//YogSpawnPoint_0
@@ -231,8 +197,43 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 ///////////////////////////////  AI  ////////////////////////////////
 void AYogGameMode::SpawnMob()
 {
+	//Spawn Algo:
 	UE_LOG(LogTemp, Warning, TEXT("SpawnMob called at %f"), GetWorld()->GetTimeSeconds());
 
+	TArray<AActor*> OutActors;
+	TArray<AMobSpawner*> Spawners;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), OutActors);
+
+
+	Current_CallCount++; 
+	if (Current_CallCount >= SpawnConfig.MaxCall)
+	{ 
+		GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);
+	}
+
+}
+
+void AYogGameMode::OnMobDestroyed(AActor* DestroyedActor)
+{
+
+	TArray<AActor*> OutActors;
+	TArray<AEnemyCharacterBase*> Enemies;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyCharacterBase::StaticClass(), OutActors);
+
+	if (OutActors.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Map is clean!"));
+		// Fire delegate 
+		OnMapClean.Broadcast();
+		// Start next wave 
+		StartNextSpawnCycle();
+	}
+}
+
+void AYogGameMode::StartNextSpawnCycle()
+{
+	Current_CallCount = 0; 
+	GetWorld()->GetTimerManager().SetTimer(SpawnTimerHandle, this, &AYogGameMode::SpawnMob, SpawnConfig.Interval, true, SpawnConfig.FirstDelay);
 }
 
 ///////////////////////////////  AI  ////////////////////////////////
@@ -256,15 +257,7 @@ void AYogGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Start repeating timer
-	GetWorldTimerManager().SetTimer(
-		SpawnTimerHandle,
-		this,
-		&AYogGameMode::SpawnMob,
-		SpawnInterval,
-		true,   // looping
-		2.0f    // initial delay before first call
-	);
 
-	//StartSpawnPattern();
+	GetWorld()->GetTimerManager().SetTimer(SpawnTimerHandle, this, &AYogGameMode::SpawnMob, SpawnConfig.Interval, true,SpawnConfig.FirstDelay);
+
 }
