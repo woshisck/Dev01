@@ -18,7 +18,8 @@ class DEVKIT_API UDamageExecution : public UGameplayEffectExecutionCalculation
 public:
 	UDamageExecution();
 
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float percent;
 protected:
 	virtual void Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const override;
 

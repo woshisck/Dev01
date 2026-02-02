@@ -47,6 +47,61 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 		TargetCharacter = Cast<AYogCharacterBase>(TargetActor);
 	}
 
+	if (Data.EvaluatedData.Attribute == GetDamagePureAttribute())
+	{
+		AActor* SourceActor = nullptr;
+		AController* SourceController = nullptr;
+		AYogCharacterBase* SourceCharacter = nullptr;
+
+		if (Source && Source->AbilityActorInfo.IsValid() && Source->AbilityActorInfo->AvatarActor.IsValid())
+		{
+			SourceActor = Source->AbilityActorInfo->AvatarActor.Get();
+			SourceController = Source->AbilityActorInfo->PlayerController.Get();
+			if (SourceController == nullptr && SourceActor != nullptr)
+			{
+				if (APawn* Pawn = Cast<APawn>(SourceActor))
+				{
+					SourceController = Pawn->GetController();
+				}
+			}
+
+			// Use the controller to find the source pawn
+			if (SourceController)
+			{
+				SourceCharacter = Cast<AYogCharacterBase>(SourceController->GetPawn());
+			}
+			else
+			{
+				SourceCharacter = Cast<AYogCharacterBase>(SourceActor);
+			}
+
+			// Set the causer actor based on context if it's set
+			if (Context.GetEffectCauser())
+			{
+				SourceActor = Context.GetEffectCauser();
+			}
+		}
+
+		//Physical Damage deal in health
+		const float LocalDamageDone = GetDamagePhysical();
+		SetDamagePhysical(0.f);
+		if (LocalDamageDone > 0)
+		{
+			// Apply the health change and then clamp it
+			const float OldHealth = TargetCharacter->BaseAttributeSet->GetHealth();
+			TargetCharacter->BaseAttributeSet->SetHealth(FMath::Clamp(OldHealth - LocalDamageDone, 0.0f, TargetCharacter->BaseAttributeSet->GetMaxHealth()));
+			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
+			if (ASC)
+			{
+				//UYogAbilitySystemComponent* SourceASC, float Damage
+				ASC->ReceiveDamage(ASC, GetDamagePhysical());
+				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
+				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
+				// This is proper damage
+			}
+		}
+	}
+
 
 
 	if (Data.EvaluatedData.Attribute == GetDamagePhysicalAttribute())
@@ -84,6 +139,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			}
 		}
 
+		//Physical Damage deal in health
 		const float LocalDamageDone = GetDamagePhysical();
 		SetDamagePhysical(0.f);
 		if (LocalDamageDone > 0)
@@ -101,7 +157,6 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				// This is proper damage
 			}
 		}
-
 	}
 }
 
