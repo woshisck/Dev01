@@ -79,13 +79,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
 	FSpawnConfig SpawnConfig;
 
+	UFUNCTION(BlueprintCallable)
+	void StartSpawnTimer();
 
 	// Function to call repeatedly
 	void SpawnMob();
 
-	void OnMobDestroyed(AActor* DestroyedActor);
-	
-	void StartNextSpawnCycle();
+	void TriggerImmediateSpawn();
+	void SomeEventThatTriggersImmediateSpawn();
 
 	///////////////////////////////  AI  ////////////////////////////////
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")

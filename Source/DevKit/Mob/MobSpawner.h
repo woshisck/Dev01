@@ -27,7 +27,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION(BlueprintCallable)
-	AEnemyCharacterBase* SpawnMob();
+	AEnemyCharacterBase* SpawnMob(TSubclassOf<AActor> spawn_actor_class);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool SingleSpawn = false;

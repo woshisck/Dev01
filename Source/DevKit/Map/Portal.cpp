@@ -70,7 +70,7 @@ void APortal::Tick(float DeltaTime)
 
 void APortal::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Entry Portal OnOverlapBegin Happens"));
+	UE_LOG(LogTemp, Warning, TEXT("APortal::OnOverlapBegin"));
 	APlayerCharacterBase* OverlappingPawn = Cast<APlayerCharacterBase>(OtherActor);
 
 	UWorld* world = this->GetWorld();

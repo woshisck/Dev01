@@ -193,8 +193,22 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 }
 
 
+//TArray<AActor*> OutActors
+//TArray<AMobSpawner*> Spawners;
+//UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), OutActors);
+
+
+
+
+
 
 ///////////////////////////////  AI  ////////////////////////////////
+void AYogGameMode::StartSpawnTimer()
+{
+	GetWorld()->GetTimerManager().SetTimer(SpawnTimerHandle, this, &AYogGameMode::SpawnMob, SpawnConfig.Interval, true, SpawnConfig.FirstDelay);
+
+}
+
 void AYogGameMode::SpawnMob()
 {
 	//Spawn Algo:
@@ -203,6 +217,32 @@ void AYogGameMode::SpawnMob()
 	TArray<AActor*> OutActors;
 	TArray<AMobSpawner*> Spawners;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), OutActors);
+
+	if (OutActors.Num() <= 0)
+	{
+		return;
+	}
+
+	for (AActor* a : OutActors)
+	{
+		Spawners.Add(Cast<AMobSpawner>(a));
+	}
+
+	//const int32 TotalMobToSpawn = 15; 
+
+
+	//for (int32 i = 0; i < TotalMobToSpawn; i++)
+	for (int32 i = 0; i < SpawnConfig.MaxCall; i++)
+	{
+		int32 RandomIndex = FMath::RandRange(0, Spawners.Num() - 1);
+		AMobSpawner* ChosenSpawner = Spawners[RandomIndex];
+
+		if (ChosenSpawner)
+		{
+			ChosenSpawner->SpawnMob(SpawnConfig.MobClass); // Assuming AMobSpawner has SpawnMob()
+			UE_LOG(LogTemp, Warning, TEXT("Mob %d spawned at spawner %d"), i + 1, RandomIndex);
+		}
+	}
 
 
 	Current_CallCount++; 
@@ -213,33 +253,44 @@ void AYogGameMode::SpawnMob()
 
 }
 
-void AYogGameMode::OnMobDestroyed(AActor* DestroyedActor)
+
+void AYogGameMode::TriggerImmediateSpawn()
 {
+	// Clear the current timer
+	GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);
 
-	TArray<AActor*> OutActors;
-	TArray<AEnemyCharacterBase*> Enemies;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyCharacterBase::StaticClass(), OutActors);
+	// Calculate how much time has passed since the last spawn
+	float TimeSinceLastSpawn = GetWorld()->GetTimerManager().GetTimerElapsed(SpawnTimerHandle);
+	float TimeRemaining = SpawnConfig.Interval - TimeSinceLastSpawn;
 
-	if (OutActors.Num() == 0)
+	// Call spawn immediately
+	SpawnMob();
+
+	// Restart the timer with the remaining time
+	if (Current_CallCount < SpawnConfig.MaxCall)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Map is clean!"));
-		// Fire delegate 
-		OnMapClean.Broadcast();
-		// Start next wave 
-		StartNextSpawnCycle();
+		GetWorld()->GetTimerManager().SetTimer(
+			SpawnTimerHandle,
+			this,
+			&AYogGameMode::SpawnMob,
+			SpawnConfig.Interval,
+			true,
+			FMath::Max(TimeRemaining, 0.1f) // Ensure there's at least a small delay
+		);
 	}
 }
 
-void AYogGameMode::StartNextSpawnCycle()
-{
-	Current_CallCount = 0; 
-	GetWorld()->GetTimerManager().SetTimer(SpawnTimerHandle, this, &AYogGameMode::SpawnMob, SpawnConfig.Interval, true, SpawnConfig.FirstDelay);
-}
 
 ///////////////////////////////  AI  ////////////////////////////////
 
 
+void AYogGameMode::SomeEventThatTriggersImmediateSpawn()
+{
+	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &AYogGameMode::TriggerImmediateSpawn);
 
+}
+
+ 
 void AYogGameMode::UpdateFinishLevel(int count)
 {
 	this->MonsterKillCount += count;
@@ -258,6 +309,5 @@ void AYogGameMode::BeginPlay()
 	Super::BeginPlay();
 
 
-	GetWorld()->GetTimerManager().SetTimer(SpawnTimerHandle, this, &AYogGameMode::SpawnMob, SpawnConfig.Interval, true,SpawnConfig.FirstDelay);
 
 }

@@ -75,9 +75,13 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 
 void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
-	UE_LOG(LogTemp, Warning, TEXT("OnOverlapBegin Happens"));
+	UE_LOG(LogTemp, Warning, TEXT(" AWeaponSpawner::OnOverlapBegin"));
 	APlayerCharacterBase* OverlappingPawn = Cast<APlayerCharacterBase>(OtherActor);
-	
+	if (!OverlappingPawn)
+	{
+		return;
+	}
+
 	FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName("PlayerState.HasWeapon"));
 
 	if (OverlappingPawn->GetASC()->HasMatchingGameplayTag(Tag))

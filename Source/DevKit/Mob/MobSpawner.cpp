@@ -29,25 +29,25 @@ void AMobSpawner::Tick(float DeltaTime)
 
 }
 
-AEnemyCharacterBase* AMobSpawner::SpawnMob()
+AEnemyCharacterBase* AMobSpawner::SpawnMob(TSubclassOf<AActor> spawn_actor_class)
 {
     UWorld* World = GetWorld();
     if (!World) return nullptr;
 
-    if (EnemySpawnClassis.Num() <= 0)
-    {
-        return nullptr;
-    }
-    TSubclassOf<AEnemyCharacterBase> RandomClass;
-    if (SingleSpawn == false)
-    {
-        int32 RandomIndex = FMath::RandRange(0, EnemySpawnClassis.Num() - 1);
-        RandomClass = EnemySpawnClassis[RandomIndex];
-    }
-    else
-    {
-        RandomClass = EnemySpawnClassis[0];
-    }
+    //if (EnemySpawnClassis.Num() <= 0)
+    //{
+    //    return nullptr;
+    //}
+    //TSubclassOf<AEnemyCharacterBase> RandomClass;
+    //if (SingleSpawn == false)
+    //{
+    //    int32 RandomIndex = FMath::RandRange(0, EnemySpawnClassis.Num() - 1);
+    //    RandomClass = EnemySpawnClassis[RandomIndex];
+    //}
+    //else
+    //{
+    //    RandomClass = EnemySpawnClassis[0];
+    //}
 
 
 
@@ -57,7 +57,7 @@ AEnemyCharacterBase* AMobSpawner::SpawnMob()
         FActorSpawnParameters Params;
         Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-        AEnemyCharacterBase* Spawned_Enemy = World->SpawnActor<AEnemyCharacterBase>(RandomClass, Location, FRotator::ZeroRotator, Params);
+        AEnemyCharacterBase* Spawned_Enemy = World->SpawnActor<AEnemyCharacterBase>(spawn_actor_class, Location, FRotator::ZeroRotator, Params);
         return Spawned_Enemy;
     }
     else
