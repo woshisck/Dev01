@@ -97,14 +97,14 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 void UActionAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 
-    // 移除所有关联的Gameplay Effects
+    // remove related Gameplay Effects
     if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
     {
-        for (const FActiveGameplayEffectHandle& Handle : ActiveEffectHandles)
+        for (const FActiveGameplayEffectHandle& effect_Handle : ActiveEffectHandles)
         {
-            if (Handle.IsValid())
+            if (effect_Handle.IsValid())
             {
-                ActorInfo->AbilitySystemComponent->RemoveActiveGameplayEffect(Handle);
+                ActorInfo->AbilitySystemComponent->RemoveActiveGameplayEffect(effect_Handle);
             }
         }
     }

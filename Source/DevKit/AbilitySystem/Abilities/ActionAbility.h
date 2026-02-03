@@ -25,6 +25,6 @@ public:
 
 	TSharedPtr<FActionData> cache_action_data;
 
-
+	UPROPERTY()
 	TArray<FActiveGameplayEffectHandle> ActiveEffectHandles;
 };
