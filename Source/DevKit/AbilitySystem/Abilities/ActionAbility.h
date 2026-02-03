@@ -23,8 +23,8 @@ public:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 
-	TSharedPtr<FActionData> cache_action_data = MakeShared<FActionData>();
+	TSharedPtr<FActionData> cache_action_data;
 
 
-
+	TArray<FActiveGameplayEffectHandle> ActiveEffectHandles;
 };

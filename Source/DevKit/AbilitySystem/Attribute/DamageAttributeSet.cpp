@@ -82,9 +82,9 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			}
 		}
 
-		//Physical Damage deal in health
-		const float LocalDamageDone = GetDamagePhysical();
-		SetDamagePhysical(0.f);
+		//Pure Damage deal in health
+		const float LocalDamageDone = GetDamagePure();
+		SetDamagePure(0.f);
 		if (LocalDamageDone > 0)
 		{
 			// Apply the health change and then clamp it
@@ -93,11 +93,10 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
 			if (ASC)
 			{
-				//UYogAbilitySystemComponent* SourceASC, float Damage
-				ASC->ReceiveDamage(ASC, GetDamagePhysical());
+				ASC->ReceiveDamage(ASC, GetDamagePure());
 				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
-				// This is proper damage
+			
 			}
 		}
 	}

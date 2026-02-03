@@ -18,6 +18,9 @@ class DEVKIT_API UHealthPercentExecution : public UDamageExecution
 public:
 	UHealthPercentExecution();
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxHealthPercent;
+
 
 protected:
 	virtual void Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const override;

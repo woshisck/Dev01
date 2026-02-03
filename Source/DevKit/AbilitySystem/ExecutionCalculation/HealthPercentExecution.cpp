@@ -25,9 +25,11 @@ struct FYogHealthStatics
 	}
 };
 
-static const FYogHealthStatics& HealthStatics()
+
+
+static const FYogDamageStatics& MaxHealthStatics()
 {
-	static FYogHealthStatics HealthStatics;
+	static FYogDamageStatics HealthStatics;
 	return HealthStatics;
 }
 
@@ -36,8 +38,11 @@ static const FYogHealthStatics& HealthStatics()
 UHealthPercentExecution::UHealthPercentExecution()
 {
 	
-	RelevantAttributesToCapture.Add(HealthStatics().HealthDef);
-	RelevantAttributesToCapture.Add(HealthStatics().MaxHealthDef);
+
+
+	RelevantAttributesToCapture.Add(MaxHealthStatics().HealthDef);
+	RelevantAttributesToCapture.Add(MaxHealthStatics().MaxHealthDef);
+	
 	//RelevantAttributesToCapture.Add(DamageStatics().AttackPowerDef);
 	//RelevantAttributesToCapture.Add(DamageStatics().SanityDef);
 	//RelevantAttributesToCapture.Add(DamageStatics().ResilienceDef);
@@ -48,9 +53,10 @@ UHealthPercentExecution::UHealthPercentExecution()
 	//RelevantAttributesToCapture.Add(DamageStatics().Crit_RateDef);
 	//RelevantAttributesToCapture.Add(DamageStatics().Crit_DamageDef);
 	//RelevantAttributesToCapture.Add(DamageStatics().HealthDef);
-	//RelevantAttributesToCapture.Add(DamageStatics().DamagePhysicalDef);
-	//RelevantAttributesToCapture.Add(DamageStatics().DamageMagicDef);
-	//RelevantAttributesToCapture.Add(DamageStatics().DamagePureDef);
+
+	RelevantAttributesToCapture.Add(MaxHealthStatics().DamagePhysicalDef);
+	RelevantAttributesToCapture.Add(MaxHealthStatics().DamageMagicDef);
+	RelevantAttributesToCapture.Add(MaxHealthStatics().DamagePureDef);
 
 }
 
@@ -90,6 +96,26 @@ void UHealthPercentExecution::Execute_Implementation(const FGameplayEffectCustom
 	EvaluationParameters.SourceTags = SourceTags;
 	EvaluationParameters.TargetTags = TargetTags;
 	
+
+	float MaxHealth = 0.f;
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(MaxHealthStatics().MaxHealthDef, EvaluationParameters, MaxHealth);
+
+
+	float DamageDone = 0.f;
+	DamageDone = MaxHealth * MaxHealthPercent;
+
+
+
+	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(MaxHealthStatics().DamagePureProperty, EGameplayModOp::Additive, DamageDone));
+	//Broadcast damages to Target ASC
+	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(TargetAbilitySystemComponent);
+	if (TargetASC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Health percent DamagePure deal total: %f"), DamageDone);
+		UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(SourceAbilitySystemComponent);
+		TargetASC->ReceiveDamage(SourceASC, DamageDone);
+	}
+
 
 	
 	//OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Additive, DamageDone));
