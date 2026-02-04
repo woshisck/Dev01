@@ -25,8 +25,7 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
     if (action_data)
     {
         // create Dynamic GameplayEffect
-        UGameplayEffect* ActionEffect = NewObject<UGameplayEffect>(GetTransientPackage(),
-            FName(TEXT("ActionEffect")));
+        UGameplayEffect* ActionEffect = NewObject<UGameplayEffect>(GetTransientPackage(),FName(TEXT("ActionEffect")));
         ActionEffect->DurationPolicy = EGameplayEffectDurationType::HasDuration;
         ActionEffect->DurationMagnitude = FScalableFloat(0.0f); // forever longer
 
