@@ -16,7 +16,8 @@
 				"ModularGameplay",
 				"GameFeatures",
 				"AIModule",
-				"UMG"
+				"UMG",
+				"DataRegistry"
 			]
 		},
 		{
