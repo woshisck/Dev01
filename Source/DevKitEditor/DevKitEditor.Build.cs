@@ -10,8 +10,7 @@ public class DevKitEditor : ModuleRules
 
 		PublicIncludePaths.AddRange(
 			new string[] {
-				"DevKitEditor",
-                "PropertyEditor"
+				"DevKitEditor"
             }
 		);
 

@@ -2,7 +2,7 @@
 
 
 #include "GA_BakeUtility.h"
-#include "../DevKit/AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include <EditorUtilityLibrary.h>
 
 

@@ -1,0 +1,159 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Engine/DataAsset.h"
+#include "System/YogWorldSubsystem.h"
+#include "Enemy/EnemyCharacterBase.h"
+
+#include "YogMapDefinition.generated.h"
+
+/**
+* 
+ * 
+ */
+class UGameEffectComponent;
+
+
+UENUM(BlueprintType)
+enum class EEnemySpawnRule : uint8
+{
+	OneByOne	UMETA(DisplayName = "OneByOne"),
+	AllInOnce	UMETA(DisplayName = "AllInOnce"),
+	Wave		UMETA(DisplayName = "Wave"),
+	Default		UMETA(DisplayName = "Default")
+};
+
+
+USTRUCT(BlueprintType,Blueprintable)
+struct FMapFeature
+{
+	GENERATED_BODY()
+public:
+	FMapFeature()
+	{
+	};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<UYogGameplayAbility> GainPassiveAbility;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 level;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FText feature_string;
+};
+
+
+
+USTRUCT(BlueprintType)
+struct FNextMapNode
+{
+	GENERATED_BODY()
+public:
+	FNextMapNode()
+	{
+		//LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode"));
+
+		NodeType = ESublevelType::Default;
+
+	};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	ESublevelType NodeType;
+
+
+
+	// Reference to the streaming level (optional)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSoftObjectPtr<UWorld> LevelMapSoftPtr;
+
+
+	void setNodeType(ESublevelType type)
+	{
+		this->NodeType = type;
+	}
+
+};
+
+USTRUCT(BlueprintType)
+struct FPortalEntry {
+	
+	GENERATED_BODY()
+public:
+
+	FPortalEntry() {};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
+	int GateIndex = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
+	TArray<FNextMapNode> NextLevels;
+
+};
+
+UCLASS(Blueprintable, BlueprintType, Const)
+class DEVKIT_API UYogMapDefinition : public UPrimaryDataAsset
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level|Mob")
+	EEnemySpawnRule EnemySpawnRule;
+
+
+	//OneByOne	UMETA(DisplayName = "OneByOne"),
+	//AllInOnce	UMETA(DisplayName = "AllInOnce"),
+	//Wave		UMETA(DisplayName = "Wave"),
+	//Default		UMETA(DisplayName = "Default")
+
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level|Mob")
+	TArray<FMapFeature> MapFeatures;
+
+
+	//////////////////////////  WAVE SPAWN MOB CONFIG  //////////////////////////
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::Wave"))
+	int WaveCount;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	int SpawnCount;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::Wave || EnemySpawnRule == EEnemySpawnRule::OneByOne"))
+	float IntervalTime;
+
+
+
+	//////////////////////////  WAVE SPAWN MOB CONFIG  //////////////////////////
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::OneByOne || EnemySpawnRule == EEnemySpawnRule::AllInOnce"))
+	int TargetMapKills = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::OneByOne"))
+	float SpawnDelay;
+
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "EnemySpawnRule == EEnemySpawnRule::AllInOnce"))
+	int NumCount;
+
+	UPROPERTY(BlueprintReadOnly)
+	int CurrentMob;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<AEnemyCharacterBase> MobSpawn;
+
+
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level|Mob")
+	int	DifficultPoint;
+
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level reference")
+	//TArray<FPortalEntry> LevelPortals;
+
+};

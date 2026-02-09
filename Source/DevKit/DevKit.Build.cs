@@ -1,18 +1,23 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class DevKit : ModuleRules
 {
 	public DevKit(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+        PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+        string enginePath = Path.GetFullPath(Target.RelativeEnginePath);
+
+
+        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 
         PublicIncludePaths.AddRange(
         new string[] {
-            "DevKit",
-            "DevKitEditor"
+            //"DevKit",
+            //"DevKitEditor"
         }
         );
 
