@@ -3,6 +3,8 @@
 
 #include "AbilitySystem/AbilityTask/AsyncTaskGameplayAbilityEnd.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+
+#include "GameplayTagContainer.h"
 #include <AbilitySystemComponent.h>
 
 UAsyncTaskGameplayAbilityEnd* UAsyncTaskGameplayAbilityEnd::ListenForGameplayAbilityEnd(UAbilitySystemComponent* abilitySystemComponent, TSubclassOf<UGameplayAbility> abilityClass)
