@@ -95,14 +95,15 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	////////////////////////////////////////////////// Target //////////////////////////////////////////////////
 	float DmgTaken = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DmgTakenDef, EvaluationParameters, DmgTaken);
-
+	DmgTaken = FMath::Max(DmgTaken, 0);
 
 	float Dodge = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DodgeDef, EvaluationParameters, Dodge);
+	Dodge = FMath::Max(Dodge, 0);
 
 	float Shield = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ShieldDef, EvaluationParameters, Shield);
-
+	Shield = FMath::Max(Shield, 0);
 
 
 	float DamageDone = 0.f;

@@ -21,45 +21,45 @@ enum class ESublevelType : uint8
 	Boss
 };
 
-USTRUCT(BlueprintType)
-struct FLevelTreeNode
-{
-	GENERATED_BODY()
-
-
-public:
-	FString LevelName;
-	TArray<TSharedPtr<FLevelTreeNode>> Children;
-	ESublevelType NodeType;
-
-	UPROPERTY()
-	FName LevelPackageName;
-
-
-	// Reference to the streaming level (optional)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FSoftObjectPath LevelMapSoftPath;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FVector2D> pos_Enter;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FVector2D> pos_Leave;
-
-	FLevelTreeNode()
-	{
-		LevelPackageName = "DefaultNode";
-		LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode"));
-
-		NodeType = ESublevelType::Default;
-
-	}
-
-	void AddChild(TSharedPtr<FLevelTreeNode> Child)
-	{
-		Children.Add(Child);
-	}
-};
+//USTRUCT(BlueprintType)
+//struct FLevelTreeNode
+//{
+//	GENERATED_BODY()
+//
+//
+//public:
+//	FString LevelName;
+//	TArray<TSharedPtr<FLevelTreeNode>> Children;
+//	ESublevelType NodeType;
+//
+//	UPROPERTY()
+//	FName LevelPackageName;
+//
+//
+//	// Reference to the streaming level (optional)
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	FSoftObjectPath LevelMapSoftPath;
+//
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	TArray<FVector2D> pos_Enter;
+//
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	TArray<FVector2D> pos_Leave;
+//
+//	FLevelTreeNode()
+//	{
+//		LevelPackageName = "DefaultNode";
+//		LevelMapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/Dungeon/RootNode.RootNode"));
+//
+//		NodeType = ESublevelType::Default;
+//
+//	}
+//
+//	void AddChild(TSharedPtr<FLevelTreeNode> Child)
+//	{
+//		Children.Add(Child);
+//	}
+//};
 
 
 ///////////////////////////////////////////// 2D Matrix Level /////////////////////////////////////////////
