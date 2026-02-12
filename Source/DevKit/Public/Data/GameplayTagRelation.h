@@ -18,6 +18,7 @@ public:
 	FGameTagRelationConfig() {}
 
 
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	int32 Priority;
 
@@ -37,8 +38,10 @@ class DEVKIT_API UGameplayTagRelation : public UPrimaryDataAsset
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow), Category = "Action|General")
-	TMap<FGameplayTag, FGameTagRelationConfig> TagRelations;
+	TMap<FGameplayTag, FGameTagRelationConfig> GameTagRelations;
 
+
+	static const UGameplayTagRelation& Get();
 
 	//TMap<FYogTagContainerWrapper, FActionData> AbilityMap;
 };

@@ -27,25 +27,25 @@ void UYogAbilitySystemComponent::ApplyAbilityData(UAbilityData* abilityData)
 
 void UYogAbilitySystemComponent::AddDynamicTagGameplayEffect(const FGameplayTag& Tag)
 {
-	const TSubclassOf<UGameplayEffect> DynamicTagGE = UDevAssetManager::GetSubclass(UYogGameData::Get().DynamicTagGameplayEffect);
-	if (!DynamicTagGE)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("AddDynamicTagGameplayEffect: Unable to find DynamicTagGameplayEffect [%s]."), *UYogGameData::Get().DynamicTagGameplayEffect.GetAssetName());
-		return;
-	}
+	//const TSubclassOf<UGameplayEffect> DynamicTagGE = UDevAssetManager::GetSubclass(UYogGameData::Get().DynamicTagGameplayEffect);
+	//if (!DynamicTagGE)
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("AddDynamicTagGameplayEffect: Unable to find DynamicTagGameplayEffect [%s]."), *UYogGameData::Get().DynamicTagGameplayEffect.GetAssetName());
+	//	return;
+	//}
 
-	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(DynamicTagGE, 1.0f, MakeEffectContext());
-	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
+	//const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(DynamicTagGE, 1.0f, MakeEffectContext());
+	//FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
 
-	if (!Spec)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("AddDynamicTagGameplayEffect: Unable to make outgoing spec for [%s]."), *GetNameSafe(DynamicTagGE));
-		return;
-	}
+	//if (!Spec)
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("AddDynamicTagGameplayEffect: Unable to make outgoing spec for [%s]."), *GetNameSafe(DynamicTagGE));
+	//	return;
+	//}
 
-	Spec->DynamicGrantedTags.AddTag(Tag);
+	//Spec->DynamicGrantedTags.AddTag(Tag);
 
-	ApplyGameplayEffectSpecToSelf(*Spec);
+	//ApplyGameplayEffectSpecToSelf(*Spec);
 }
 
 void UYogAbilitySystemComponent::RemoveDynamicTagGameplayEffect(const FGameplayTag& Tag)

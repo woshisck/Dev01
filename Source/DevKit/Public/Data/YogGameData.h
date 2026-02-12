@@ -18,7 +18,7 @@ public:
 
 	UYogGameData();
 	//ULyraGameData
-	static const UYogGameData& Get();
+	//static const UYogGameData& Get();
 	
 public:
 

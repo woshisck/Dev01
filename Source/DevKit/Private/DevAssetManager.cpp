@@ -3,7 +3,7 @@
 
 #include "DevAssetManager.h"
 #include "AbilitySystemGlobals.h"
-#include "Data/YogGameData.h"
+#include "Data/GameplayTagRelation.h"
 
 UDevAssetManager::UDevAssetManager()
 {
@@ -27,9 +27,9 @@ UDevAssetManager* UDevAssetManager::GetDevAssetManager() {
 
 }
 
-const UYogGameData& UDevAssetManager::GetGameData()
+const UGameplayTagRelation& UDevAssetManager::GetGameData()
 {
-	return GetOrLoadTypedGameData<UYogGameData>(YogGameDataPath);
+	return GetOrLoadTypedGameData<UGameplayTagRelation>(GameplayTagRelation);
 }
 
 void UDevAssetManager::AsyncLoadAsset(FSoftObjectPath Path, FOnAsyncLoadFinished OnPackageLoaded) {
@@ -206,7 +206,7 @@ void UDevAssetManager::PreBeginPIE(bool bStartSimulate)
 		const bool bAllowInPIE = true;
 		SlowTask.MakeDialog(bShowCancelButton, bAllowInPIE);
 
-		const UYogGameData& LocalGameDataCommon = GetGameData();
+		const UGameplayTagRelation& LocalGameDataCommon = GetGameData();
 
 		// Intentionally after GetGameData to avoid counting GameData time in this timer
 		SCOPE_LOG_TIME_IN_SECONDS(TEXT("PreBeginPIE asset preloading complete"), nullptr);

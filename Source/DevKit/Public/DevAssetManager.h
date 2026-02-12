@@ -15,7 +15,8 @@
 
 DECLARE_DYNAMIC_DELEGATE(FOnAsyncLoadFinished);
 
-class UYogGameData;
+
+class UGameplayTagRelation;
 class UPrimaryDataAsset;
 
 
@@ -37,8 +38,9 @@ public:
 	UFUNCTION(BlueprintPure,BlueprintCallable, Category = "AssetLoader")
 	static UDevAssetManager* GetDevAssetManager();
 
-	const UYogGameData& GetGameData();
+	const UGameplayTagRelation& GetGameData();
 
+	//	TSoftObjectPtr<UGameplayTagRelation> GameplayTagRelation;
 
 	// Returns the asset referenced by a TSoftObjectPtr.  This will synchronously load the asset if it's not already loaded.
 	template<typename AssetType>
@@ -98,7 +100,9 @@ protected:
 protected:
 	// Global game data asset to use.
 	UPROPERTY(Config)
-	TSoftObjectPtr<UYogGameData> YogGameDataPath;
+	TSoftObjectPtr<UGameplayTagRelation> GameplayTagRelation;
+
+
 
 	// Loaded version of the game data
 	UPROPERTY(Transient)

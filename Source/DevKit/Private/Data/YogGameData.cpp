@@ -5,7 +5,7 @@ UYogGameData::UYogGameData()
 {
 }
 
-const UYogGameData& UYogGameData::UYogGameData::Get()
-{
-	return  UDevAssetManager::GetDevAssetManager()->GetGameData();
-}
+//const UYogGameData& UYogGameData::UYogGameData::Get()
+//{
+//	return  UDevAssetManager::GetDevAssetManager()->GetGameData();
+//}
