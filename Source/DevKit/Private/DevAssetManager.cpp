@@ -12,22 +12,22 @@ UDevAssetManager::UDevAssetManager()
 
 
 
-UDevAssetManager* UDevAssetManager::GetDevAssetManager() {
+UDevAssetManager& UDevAssetManager::Get() {
 	
 	check(GEngine);
 
 	if (UDevAssetManager* Singleton = Cast<UDevAssetManager>(GEngine->AssetManager))
 	{
-		return Singleton;
+		return *Singleton;
 	}
 
 	UE_LOG(LogTemp, Fatal, TEXT("Invalid AssetManagerClassName in DefaultEngine.ini.  It must be set to LyraAssetManager!"));
 
-	return NewObject<UDevAssetManager>();
+	return *NewObject<UDevAssetManager>();
 
 }
 
-const UGameplayTagRelation& UDevAssetManager::GetGameData()
+const UGameplayTagRelation& UDevAssetManager::GetGameplayTagRelation()
 {
 	return GetOrLoadTypedGameData<UGameplayTagRelation>(GameplayTagRelation);
 }
@@ -74,12 +74,12 @@ void UDevAssetManager::DumpLoadedAssets()
 {
 	UE_LOG(LogTemp, Log, TEXT("========== Start Dumping Loaded Assets =========="));
 
-	for (const UObject* LoadedAsset : GetDevAssetManager()->LoadedAssets)
+	for (const UObject* LoadedAsset : Get().LoadedAssets)
 	{
 		UE_LOG(LogTemp, Log, TEXT("  %s"), *GetNameSafe(LoadedAsset));
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("... %d assets in loaded pool"), GetDevAssetManager()->LoadedAssets.Num());
+	UE_LOG(LogTemp, Log, TEXT("... %d assets in loaded pool"), Get().LoadedAssets.Num());
 	UE_LOG(LogTemp, Log, TEXT("========== Finish Dumping Loaded Assets =========="));
 }
 
@@ -206,7 +206,7 @@ void UDevAssetManager::PreBeginPIE(bool bStartSimulate)
 		const bool bAllowInPIE = true;
 		SlowTask.MakeDialog(bShowCancelButton, bAllowInPIE);
 
-		const UGameplayTagRelation& LocalGameDataCommon = GetGameData();
+		const UGameplayTagRelation& LocalGameDataCommon = GetGameplayTagRelation();
 
 		// Intentionally after GetGameData to avoid counting GameData time in this timer
 		SCOPE_LOG_TIME_IN_SECONDS(TEXT("PreBeginPIE asset preloading complete"), nullptr);

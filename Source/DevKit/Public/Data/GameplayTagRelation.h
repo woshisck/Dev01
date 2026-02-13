@@ -23,22 +23,29 @@ public:
 	int32 Priority;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	TArray<FGameplayTag> ExclusiveTags;
+	FGameplayTagContainer  OverwriteListTags;
+
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	FGameplayTagContainer  BlackListTags;
 
 
 };
 
 
 
-UCLASS()
+UCLASS(BlueprintType, Const, Meta = (DisplayName = "game tag relation Data", ShortTooltip = "game tag relation in global "))
 class DEVKIT_API UGameplayTagRelation : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 	
 
 public:
+
+	UGameplayTagRelation();
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow), Category = "Action|General")
-	TMap<FGameplayTag, FGameTagRelationConfig> GameTagRelations;
+	TMap<FGameplayTag, FGameTagRelationConfig> GameTagRelationRow;
 
 
 	static const UGameplayTagRelation& Get();

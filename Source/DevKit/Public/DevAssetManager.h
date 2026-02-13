@@ -35,10 +35,12 @@ public:
 	FString CurrentLoadPackage;
 
 
-	UFUNCTION(BlueprintPure,BlueprintCallable, Category = "AssetLoader")
-	static UDevAssetManager* GetDevAssetManager();
+	static UDevAssetManager& Get();
 
-	const UGameplayTagRelation& GetGameData();
+	//UFUNCTION(BlueprintPure, BlueprintCallable, Category = "AssetLoader")
+	//static UDevAssetManager& Get();
+
+	const UGameplayTagRelation & GetGameplayTagRelation();
 
 	//	TSoftObjectPtr<UGameplayTagRelation> GameplayTagRelation;
 
@@ -166,7 +168,7 @@ TSubclassOf<AssetType> UDevAssetManager::GetSubclass(const TSoftClassPtr<AssetTy
 		if (LoadedSubclass && bKeepInMemory)
 		{
 			// Added to loaded asset list.
-			GetDevAssetManager()->AddLoadedAsset(Cast<UObject>(LoadedSubclass));
+			Get().AddLoadedAsset(Cast<UObject>(LoadedSubclass));
 		}
 	}
 

@@ -36,13 +36,6 @@ public:
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//ESublevelType NodeType;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int x = 0;
-
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int y = 0;
-
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool IsSelected;

@@ -453,7 +453,7 @@ void UYogSaveSubsystem::LoadSaveGame(UYogSaveGame* SaveGame)
 	LoadPlayer(SaveGame);
 
 
-	//UDevAssetManager* devAssetManager = UDevAssetManager::GetDevAssetManager();
+	//UDevAssetManager* devAssetManager = UDevAssetManager::Get();
 	//APlayerCharacterBase* T_player = GetWorld()->SpawnActorDeferred<APlayerCharacterBase>(devAssetManager->PlayerBlueprintClass, FTransform::Identity);
 	//if (devAssetManager->YogPlayerClass)
 	//{

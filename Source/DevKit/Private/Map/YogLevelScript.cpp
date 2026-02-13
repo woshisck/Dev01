@@ -143,7 +143,7 @@ void AYogLevelScript::BeginPlay()
 	//{
 	//	for (const auto& next_level_data : level_portal_data.NextLevels)
 	//	{
-	//		UDevAssetManager* AssetManager = UDevAssetManager::GetDevAssetManager();
+	//		UDevAssetManager* AssetManager = UDevAssetManager::Get();
 	//		FSoftObjectPath path = next_level_data.LevelMapSoftPtr.ToSoftObjectPath();
 	//		AssetManager->AsyncLoadAsset(path, AssetManager->OnLoadFinished);
 	//	}

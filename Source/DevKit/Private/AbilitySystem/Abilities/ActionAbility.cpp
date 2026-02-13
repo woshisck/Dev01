@@ -19,6 +19,12 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
 	FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
+
+    if (!Owner->AbilityData)
+    {
+        return;
+    }
+
 	FActionData* action_data = Owner->AbilityData->AbilityMap.Find(ability_tag);
 	//cache_action_data = action_data;
 	

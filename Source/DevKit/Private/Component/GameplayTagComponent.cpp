@@ -2,13 +2,19 @@
 
 
 #include "Component/GameplayTagComponent.h"
+#include "GameplayEffect.h"
+
+#include "Data/GameplayTagRelation.h"
+#include "DevAssetManager.h"
+#include "DevAssetManager.h"
+
 
 // Sets default values for this component's properties
 UGameplayTagComponent::UGameplayTagComponent()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 
 	// ...
 }
@@ -19,16 +25,44 @@ void UGameplayTagComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// ...
-	
 }
 
-
-// Called every frame
-void UGameplayTagComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UGameplayTagComponent::TryAddGameplayTag(FGameplayTag tag)
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	const FGameTagRelationConfig* tagConfig = UGameplayTagRelation::Get().GameTagRelationRow.Find(tag);
+	
+	//tagConfig->Priority
 
-	// ...
+	//const int32& Priority = UGameplayTagRelation::Get()
+
+
+	//const FGameTagRelationConfig* const_game_tag_relation = FindTagRelationInData(tag);	
 }
+
+void UGameplayTagComponent::TryRemoveGameplayTag(FGameplayTag tag)
+{
+	//const FGameTagRelationConfig* const_game_tag_relation = FindTagRelationInData(tag);
+	//AYogCharacterBase* owner = Cast<AYogCharacterBase>(GetOwner());
+
+	//if (owner)
+	//{
+	//	UYogAbilitySystemComponent* asc = owner->GetASC();
+	//}
+}
+
+bool UGameplayTagComponent::HasTag(FGameplayTag tag)
+{
+	return false;
+}
+
+
+//const FGameTagRelationConfig* UGameplayTagComponent::FindTagRelationInData(FGameplayTag tag)
+//{
+//	UDevAssetManager* DevAssetManager = UDevAssetManager::Get();
+//	const UGameplayTagRelation& GameTagRelation = DevAssetManager->GetGameplayTagRelation();
+//	const FGameTagRelationConfig* const_game_tag_relation = GameTagRelation.GameTagRelationRow.Find(tag);
+//	return const_game_tag_relation;
+//}
+
+
 
