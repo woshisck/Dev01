@@ -107,66 +107,70 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	////////////////////////////////////////////////// Source //////////////////////////////////////////////////
 
 
+	float SourceAttackPower = 0.0f;
+	float SourceAttack = 0.0f;
+	float TargetDmgTaken = 0.0f;
 
 
-	float Attack = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef, EvaluationParameters, Attack);
 
-	float AttackPower = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, AttackPower);
+	//float Attack = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef, EvaluationParameters, Attack);
 
-	float Crit_Rate = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_RateDef, EvaluationParameters, Crit_Rate);
+	//float AttackPower = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, AttackPower);
 
-	float Crit_Damage = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_DamageDef, EvaluationParameters, Crit_Damage);
+	//float Crit_Rate = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_RateDef, EvaluationParameters, Crit_Rate);
+
+	//float Crit_Damage = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_DamageDef, EvaluationParameters, Crit_Damage);
 
 
 
 
 	////////////////////////////////////////////////// Target //////////////////////////////////////////////////
-	float DmgTaken = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DmgTakenDef, EvaluationParameters, DmgTaken);
-	DmgTaken = FMath::Max(DmgTaken, 0);
+	//float DmgTaken = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DmgTakenDef, EvaluationParameters, DmgTaken);
+	//DmgTaken = FMath::Max(DmgTaken, 0);
 
-	float Dodge = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DodgeDef, EvaluationParameters, Dodge);
-	Dodge = FMath::Max(Dodge, 0);
+	//float Dodge = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DodgeDef, EvaluationParameters, Dodge);
+	//Dodge = FMath::Max(Dodge, 0);
 
-	float Shield = 0.f;
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ShieldDef, EvaluationParameters, Shield);
-	Shield = FMath::Max(Shield, 0);
+	//float Shield = 0.f;
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().ShieldDef, EvaluationParameters, Shield);
+	//Shield = FMath::Max(Shield, 0);
 
 
 	float DamageDone = 0.f;
 	float RandomFloatValue = FMath::FRand();
 
-	if (Shield < 0.f)
-	{	//Crit_Value <= Crit_Rate IS Critical Hit
-		if (RandomFloatValue <= Crit_Rate)
-		{
-			DamageDone = (AttackPower ) * (Attack ) * (Crit_Damage ) * (DmgTaken );
-			
-		}
-		else
-		{
-			DamageDone = (AttackPower ) * (Attack ) * (DmgTaken );
-			
-		}
-	}
-	else
-	{
-		if (RandomFloatValue <= Crit_Rate)
-		{
-			DamageDone = (AttackPower ) * (Attack ) * (Crit_Damage ) * (DmgTaken );
-			
-		}
-		else
-		{
-			DamageDone = (AttackPower ) * (Attack ) * (DmgTaken );
-			
-		}
-	}
+	//if (Shield < 0.f)
+	//{	//Crit_Value <= Crit_Rate IS Critical Hit
+	//	if (RandomFloatValue <= Crit_Rate)
+	//	{
+	//		DamageDone = (AttackPower ) * (Attack ) * (Crit_Damage ) * (DmgTaken );
+	//		
+	//	}
+	//	else
+	//	{
+	//		DamageDone = (AttackPower ) * (Attack ) * (DmgTaken );
+	//		
+	//	}
+	//}
+	//else
+	//{
+	//	if (RandomFloatValue <= Crit_Rate)
+	//	{
+	//		DamageDone = (AttackPower ) * (Attack ) * (Crit_Damage ) * (DmgTaken );
+	//		
+	//	}
+	//	else
+	//	{
+	//		DamageDone = (AttackPower ) * (Attack ) * (DmgTaken );
+	//		
+	//	}
+	//}
 	
 	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Additive, DamageDone));
 	//Broadcast damages to Target ASC
