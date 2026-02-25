@@ -20,7 +20,7 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
 	FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
 
-    if (!Owner->AbilityData)
+    if (!Owner->AbilityData && ability_tag.IsValid())
     {
         return;
     }
@@ -77,25 +77,6 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
     {
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
     }
-
-
-
-	//if (action_data)
-	//{
-	//
-	//	cache_action_data = MakeShared<FActionData>(*action_data);
-
-	//	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackAttribute(), action_data->ActDamage);
-	//	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackRangeAttribute(), action_data->ActRange);
-	//	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetResilienceAttribute(), action_data->ActResilience);
-	//	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetDmgTakenAttribute(), action_data->ActDmgReduce);
-
-	//}
-	//else
-	//{
-	//	EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-	//}
-
 }
 
 
@@ -116,16 +97,6 @@ void UActionAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
 
     ActiveEffectHandles.Empty();
     cache_action_data = nullptr;
-
-	//AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
-	//if (cache_action_data.IsValid())
-	//{
-	//	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackAttribute(), -cache_action_data->ActDamage);
-	//	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetAttackRangeAttribute(), -cache_action_data->ActRange);
-	//	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetResilienceAttribute(), -cache_action_data->ActResilience);
-	//	Owner->AttributeStatsComponent->AddAttribute(Owner->BaseAttributeSet->GetDmgTakenAttribute(), -cache_action_data->ActDmgReduce);
-	//	cache_action_data = nullptr;
-	//}
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 

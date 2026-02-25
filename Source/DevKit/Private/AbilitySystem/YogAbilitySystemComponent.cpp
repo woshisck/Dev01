@@ -57,10 +57,10 @@ void UYogAbilitySystemComponent::RemoveDynamicTagGameplayEffect(const FGameplayT
 	//	return;
 	//}
 
-	FGameplayEffectQuery Query = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(FGameplayTagContainer(Tag));
+	//FGameplayEffectQuery Query = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(FGameplayTagContainer(Tag));
 	//Query.EffectDefinition = DynamicTagGE;
 
-	RemoveActiveEffects(Query);
+	//RemoveActiveEffects(Query);
 }
 
 void UYogAbilitySystemComponent::GetAbilityTargetData(const FGameplayAbilitySpecHandle AbilityHandle, FGameplayAbilityActivationInfo ActivationInfo, FGameplayAbilityTargetDataHandle& OutTargetDataHandle)

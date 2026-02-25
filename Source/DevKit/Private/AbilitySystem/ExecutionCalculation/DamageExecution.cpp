@@ -12,6 +12,34 @@ static const FYogDamageStatics& DamageStatics()
 
 UDamageExecution::UDamageExecution()
 {
+	//---------------------------------------------------------
+	//	DamageDone = AttackPower * Attack * DmgTaken(target)
+	//---------------------------------------------------------
+	
+
+
+	// Capture the source's AttackPower attribute
+	RelevantAttributesToCapture.Add(FGameplayEffectAttributeCaptureDefinition(
+		UBaseAttributeSet::GetAttackPowerAttribute(),
+		EGameplayEffectAttributeCaptureSource::Source,
+		false /* bSnapshot */
+	));
+
+	// Capture the source's Attack attribute
+	RelevantAttributesToCapture.Add(FGameplayEffectAttributeCaptureDefinition(
+		UBaseAttributeSet::GetAttackAttribute(),
+		EGameplayEffectAttributeCaptureSource::Source,
+		false
+	));
+
+	// Capture the target's DmgTaken attribute
+	RelevantAttributesToCapture.Add(FGameplayEffectAttributeCaptureDefinition(
+		UBaseAttributeSet::GetDmgTakenAttribute(),
+		EGameplayEffectAttributeCaptureSource::Target,
+		false
+	));
+
+
 	RelevantAttributesToCapture.Add(DamageStatics().AttackDef);
 	RelevantAttributesToCapture.Add(DamageStatics().AttackPowerDef);
 	RelevantAttributesToCapture.Add(DamageStatics().SanityDef);
@@ -43,39 +71,43 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	FGameplayEffectSpec* spec = ExecutionParams.GetOwningSpecForPreExecuteMod();
 
 
-	UYogAbilitySystemComponent* TargetAbilitySystemComponent = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
-	UYogAbilitySystemComponent* SourceAbilitySystemComponent = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetSourceAbilitySystemComponent());
+	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
+	UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetSourceAbilitySystemComponent());
 
-	
-	UYogGameplayAbility* target_CurrentAbilityClass = TargetAbilitySystemComponent->GetCurrentAbilityClass();
-	UYogGameplayAbility* source_CurrentAbilityClass = SourceAbilitySystemComponent->GetCurrentAbilityClass();
-
-
-	//FActionData target_ActionData = target_CurrentAbilityClass->GetRowData(target_CurrentAbilityClass->ActionRow);
-	//FActionData source_ActionData = source_CurrentAbilityClass->GetRowData(source_CurrentAbilityClass->ActionRow);
-
+	if (!SourceASC || !TargetASC)
+	{
+		return;
+	}
 
 	//Get Avatar Actor
-	AActor* SourceActor = SourceAbilitySystemComponent ? SourceAbilitySystemComponent->GetAvatarActor_Direct() : nullptr;
-	AActor* TargetActor = TargetAbilitySystemComponent ? TargetAbilitySystemComponent->GetAvatarActor_Direct() : nullptr;
+	AActor* SourceActor = SourceASC ? SourceASC->GetAvatarActor_Direct() : nullptr;
+	AActor* TargetActor = TargetASC ? TargetASC->GetAvatarActor_Direct() : nullptr;
+
+	//Get Current GameplayAbility
+	//UYogGameplayAbility* target_CurrentAbilityClass = TargetASC->GetCurrentAbilityClass();
+	//UYogGameplayAbility* source_CurrentAbilityClass = SourceASC->GetCurrentAbilityClass();
+
 
 	//Get GameplayEffect Instance
-	const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
+	//const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
 
 
 	//get both tags container
-	const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
-	const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
-	FAggregatorEvaluateParameters EvaluationParameters;
-	EvaluationParameters.SourceTags = SourceTags;
-	EvaluationParameters.TargetTags = TargetTags;
+	//const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
+	//const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
+	//FAggregatorEvaluateParameters EvaluationParameters;
+	//EvaluationParameters.SourceTags = SourceTags;
+	//EvaluationParameters.TargetTags = TargetTags;
 	
 
-//Crit_Rate +  = Final_Crit_rate
-//Crit_Damage +  = Crit_Damage
-//(Attack + ) * (AttackPower + ) * (DmgTaken + Add_DmgTaken)
+	//Crit_Rate +  = Final_Crit_rate
+	//Crit_Damage +  = Crit_Damage
+	//(Attack + ) * (AttackPower + ) * (DmgTaken + Add_DmgTaken)
 
 	////////////////////////////////////////////////// Source //////////////////////////////////////////////////
+
+
+
 
 	float Attack = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef, EvaluationParameters, Attack);
@@ -138,11 +170,11 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	
 	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Additive, DamageDone));
 	//Broadcast damages to Target ASC
-	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(TargetAbilitySystemComponent);
+	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(TargetASC);
 	if (TargetASC)
 	{	
 		UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), DamageDone);
-		UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(SourceAbilitySystemComponent);
+		UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(SourceASC);
 		TargetASC->ReceiveDamage(SourceASC, DamageDone);
 	}
 }

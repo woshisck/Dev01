@@ -40,7 +40,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool IsSelected;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int x;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int y;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<UYogGameplayEffect> Gameplayeffect;

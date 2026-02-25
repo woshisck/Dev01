@@ -155,12 +155,6 @@ void UYogBlueprintFunctionLibrary::FindAllCharacters(UObject* WorldContextObject
 AWeaponInstance* UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(AYogCharacterBase* character, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)
 {
 
-	//if (character->GetASC()->HasMatchingGameplayTag(Tag))
-	//{
-	//	return;
-	//}
-
-	FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName("PlayerState.HasWeapon"));
 
 	AWeaponInstance* WeaponActor = character->GetWorld()->SpawnActorDeferred<AWeaponInstance>(
 		SpawnData.ActorToSpawn,
@@ -178,7 +172,7 @@ AWeaponInstance* UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(AYogCharac
 
 
 	character->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
-	character->GetASC()->AddLooseGameplayTag(Tag);
+
 
 	return WeaponActor;
 

@@ -82,12 +82,12 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 		return;
 	}
 
-	FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName("PlayerState.HasWeapon"));
+	//FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName("PlayerState.HasWeapon"));
 
-	if (OverlappingPawn->GetASC()->HasMatchingGameplayTag(Tag))
-	{
-		return;
-	}
+	//if (OverlappingPawn->GetASC()->HasMatchingGameplayTag(Tag))
+	//{
+	//	return;
+	//}
 
 	if (OverlappingPawn != nullptr)
 	{
@@ -115,7 +115,7 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 		}
 	}
 	UE_LOG(LogTemp, Display, TEXT("ADD GAMEPLAY TAG "));
-	OverlappingPawn->GetASC()->AddGameplayTagWithCount(Tag, 1);
+	//OverlappingPawn->GetASC()->AddGameplayTagWithCount(Tag, 1);
 }
 
 AWeaponInstance* AWeaponSpawner::SpawnWeaponDeferred(UWorld* World, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)
