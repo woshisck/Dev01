@@ -20,6 +20,15 @@ class UGameplayEffect;
 //DECLARE_DYNAMIC_DELEGATE_OneParam(FStringParamCallback, const FString&, Value);
 
 USTRUCT(BlueprintType)
+struct FKSNodeContext
+{
+	GENERATED_BODY()
+
+	FKSNodeContext() {};
+};
+
+
+USTRUCT(BlueprintType)
 struct FKingStairNode
 {
 	GENERATED_BODY()
@@ -133,10 +142,10 @@ public:
 	UKingStairComponent();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KingStairGrid")
-	int GridRow = 3;
+	int GridRow = 4;
 		
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KingStairGrid")
-	int GridCol = 3;
+	int GridCol = 4;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KingStairGrid")
 	TArray<FKingStairRow> KingStairGrid;

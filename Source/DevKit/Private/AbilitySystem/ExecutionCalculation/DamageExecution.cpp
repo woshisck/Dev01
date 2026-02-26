@@ -1,6 +1,6 @@
 #include "AbilitySystem/ExecutionCalculation/DamageExecution.h"
 
-
+#include "GameplayEffectAggregator.h"
 
 
 
@@ -89,15 +89,17 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 
 	//Get GameplayEffect Instance
-	//const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
+	const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
 
 
 	//get both tags container
-	//const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
-	//const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
-	//FAggregatorEvaluateParameters EvaluationParameters;
-	//EvaluationParameters.SourceTags = SourceTags;
-	//EvaluationParameters.TargetTags = TargetTags;
+	FAggregatorEvaluateParameters EvalParams;
+
+	const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
+	const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
+
+	EvalParams.SourceTags = SourceTags;
+	EvalParams.TargetTags = TargetTags;
 	
 
 	//Crit_Rate +  = Final_Crit_rate
@@ -111,6 +113,33 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	float SourceAttack = 0.0f;
 	float TargetDmgTaken = 0.0f;
 
+
+	// Attempt to capture the attributes
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+		FGameplayEffectAttributeCaptureDefinition(UBaseAttributeSet::GetAttackPowerAttribute(), 
+		EGameplayEffectAttributeCaptureSource::Source, false),
+		EvalParams,
+		SourceAttackPower);
+
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+		FGameplayEffectAttributeCaptureDefinition(UBaseAttributeSet::GetAttackAttribute(), 
+		EGameplayEffectAttributeCaptureSource::Source, false),
+		EvalParams,
+		SourceAttack);
+
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+		FGameplayEffectAttributeCaptureDefinition(UBaseAttributeSet::GetDmgTakenAttribute(), 
+		EGameplayEffectAttributeCaptureSource::Target, false),
+		EvalParams,
+		TargetDmgTaken);
+
+
+	// Optional: clamp values to avoid negative damage
+	SourceAttackPower = FMath::Max(0.0f, SourceAttackPower);
+	SourceAttack = FMath::Max(0.0f, SourceAttack);
+	TargetDmgTaken = FMath::Max(0.0f, TargetDmgTaken);
+
+	float FinalDamage = SourceAttackPower * SourceAttack * TargetDmgTaken;
 
 
 	//float Attack = 0.f;
@@ -142,8 +171,8 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	//Shield = FMath::Max(Shield, 0);
 
 
-	float DamageDone = 0.f;
-	float RandomFloatValue = FMath::FRand();
+	//float DamageDone = 0.f;
+	//float RandomFloatValue = FMath::FRand();
 
 	//if (Shield < 0.f)
 	//{	//Crit_Value <= Crit_Rate IS Critical Hit
@@ -172,14 +201,12 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	//	}
 	//}
 	
-	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Additive, DamageDone));
+	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Additive, FinalDamage));
 	//Broadcast damages to Target ASC
-	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(TargetASC);
 	if (TargetASC)
 	{	
-		UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), DamageDone);
-		UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(SourceASC);
-		TargetASC->ReceiveDamage(SourceASC, DamageDone);
+		UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), FinalDamage);
+		TargetASC->ReceiveDamage(SourceASC, FinalDamage);
 	}
 }
 

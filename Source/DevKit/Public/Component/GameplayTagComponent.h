@@ -11,7 +11,7 @@ struct FGameplayTag;
 
 
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class DEVKIT_API UGameplayTagComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -27,9 +27,6 @@ protected:
 
 public:
 
-	//------------------------------------------------
-	//	Function
-	//------------------------------------------------
 	UFUNCTION(BlueprintCallable)
 	void TryAddGameplayTag(FGameplayTag tag);
 	

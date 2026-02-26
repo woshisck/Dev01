@@ -1,6 +1,5 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
-#include "AbilitySystem/Abilities/WeaponAbility.h"
 #include "AbilitySystem/Abilities/PassiveAbility.h"
 
 #include "SaveGame/YogSaveGame.h"
