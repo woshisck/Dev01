@@ -55,6 +55,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, cons
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterMoveableDelegate, const bool, Moveable);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterVelocityDelegate, const FVector, Velocity);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHeatUpdateDelegate, const float, HeatPercent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMaxHeatUpdateDelegate, const float, MaxHeatValue);
+
+
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCharacterStateDelegate, EYogCharacterState, StateBefore, EYogCharacterState, StateAfter);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FWeaponStateDelegate, EWeaponState, StateBefore, EWeaponState, StateAfter);
@@ -122,6 +127,11 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FCharacterHealthUpdateDelegate OnCharacterHealthUpdate;
 
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FHeatUpdateDelegate OnHeatUpdate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FMaxHeatUpdateDelegate OnMaxHeatUpdate;
 
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FCharacterMoveableDelegate OnCharacterCanMoveUpdate;
@@ -214,9 +224,14 @@ public:
 	FDelegateHandle HealthChangedDelegateHandle;
 	FDelegateHandle MaxHealthChangedDelegateHandle;
 
+	FDelegateHandle HeatChangedDelegateHandle;
+	FDelegateHandle MaxHeatChangedDelegateHandle;
 	//Attribute change delegate
 	virtual void HealthChanged(const FOnAttributeChangeData& Data);
 	virtual void MaxHealthChanged(const FOnAttributeChangeData& Data);
+
+	virtual void HeatChanged(const FOnAttributeChangeData& Data);
+	virtual void MaxHeatChanged(const FOnAttributeChangeData& Data);
 
 
 

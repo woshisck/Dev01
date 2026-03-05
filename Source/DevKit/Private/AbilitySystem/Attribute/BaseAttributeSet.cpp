@@ -26,6 +26,8 @@ void UBaseAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, Health, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, MaxHealth, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, Heat, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, MaxHeat, COND_None, REPNOTIFY_Always);
+
 
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, Shield, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, Sanity, COND_None, REPNOTIFY_Always);
@@ -58,6 +60,10 @@ void UBaseAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, 
 		AdjustAttributeForMaxChange(Health, MaxHealth, NewValue, GetHealthAttribute());
 	}
 
+	if (Attribute == GetHeatAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxHeat());
+	}
 
 }
 
@@ -88,6 +94,12 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 		TargetCharacter = Cast<AYogCharacterBase>(TargetActor);
 	}
 
+	if (Data.EvaluatedData.Attribute == GetHeatAttribute())
+	{
+		float HeatValue = GetHeat();
+		HeatValue = FMath::Clamp(HeatValue, 0.0f, GetMaxHeat());
+		SetHeat(HeatValue);
+	}
 
 
 	//if (Data.EvaluatedData.Attribute == GetDamageAttribute())
@@ -255,6 +267,11 @@ void UBaseAttributeSet::OnRep_AttackRange(const FGameplayAttributeData& OldValue
 void UBaseAttributeSet::OnRep_Heat(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, Heat, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_MaxHeat(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, MaxHeat, OldValue);
 }
 
 void UBaseAttributeSet::AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty)

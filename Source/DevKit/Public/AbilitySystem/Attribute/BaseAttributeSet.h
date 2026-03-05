@@ -84,6 +84,10 @@ public:
     FGameplayAttributeData Heat;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Heat);
 
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_MaxHeat, Category = "Attributes|Player")
+    FGameplayAttributeData MaxHeat;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MaxHeat);
+
 
     UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_AttackSpeed, Category = "Attributes|Player")
     FGameplayAttributeData AttackSpeed;
@@ -188,8 +192,10 @@ public:
     UFUNCTION()
     void OnRep_Heat(const FGameplayAttributeData& OldValue);
 
-    
+    UFUNCTION()
+    void OnRep_MaxHeat(const FGameplayAttributeData& OldValue);
 
+    
     //const FMovementData& moveData = CharacterData->GetMovementData();
     //const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
 
