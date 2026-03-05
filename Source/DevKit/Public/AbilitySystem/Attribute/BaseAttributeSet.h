@@ -80,6 +80,11 @@ public:
     FGameplayAttributeData Shield;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Shield);
 
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Heat, Category = "Attributes|Player")
+    FGameplayAttributeData Heat;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Heat);
+
+
     UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_AttackSpeed, Category = "Attributes|Player")
     FGameplayAttributeData AttackSpeed;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, AttackSpeed);
@@ -180,7 +185,11 @@ public:
     UFUNCTION()
     void OnRep_AttackRange(const FGameplayAttributeData& OldValue);
 
+    UFUNCTION()
+    void OnRep_Heat(const FGameplayAttributeData& OldValue);
+
     
+
     //const FMovementData& moveData = CharacterData->GetMovementData();
     //const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
 
