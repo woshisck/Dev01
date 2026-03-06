@@ -8,9 +8,13 @@
 
 #include "YogAbilitySystemComponent.generated.h"
 
+class UYogAbilitySystemComponent;
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceivedDamageDelegate, UYogAbilitySystemComponent*, SourceASC, float, Damage);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceiveHitResultDelegate, class UYogAbilitySystemComponent*, SourceASC, bool, HitResult);
+
 
 
 
@@ -105,6 +109,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "DamageTaken")
 	FReceivedDamageDelegate ReceivedDamage;
+
+	UPROPERTY(BlueprintAssignable)
+	FReceiveHitResultDelegate ReceiveHitResult;
 
 	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage);
 	

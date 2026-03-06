@@ -75,6 +75,7 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	UAbilitySystemComponent* Source = Context.GetOriginalInstigatorAbilitySystemComponent();
 	const FGameplayTagContainer& SourceTags = *Data.EffectSpec.CapturedSourceTags.GetAggregatedTags();
 
+
 	//// Compute the delta between old and new, if it is available
 	// DeltaValue = 0;
 	//if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Type::Additive)
@@ -82,6 +83,7 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	//	// If this was additive, store the raw delta value to be passed along later
 	//	DeltaValue = Data.EvaluatedData.Magnitude;
 	//}
+
 
 	// Get the Target actor, which should be our owner
 	AActor* TargetActor = nullptr;
