@@ -44,19 +44,19 @@ void AYogLevelScript::LevelSetup()
 	{
 		Enemies.Add(Cast<AEnemyCharacterBase>(a));
 	}
+	//need to redefine map feature
+	//for (const FMapFeature feature : Mapdefinition->MapFeatures)
+	//{
 
-	for (const FMapFeature feature : Mapdefinition->MapFeatures)
-	{
+	//	for (AEnemyCharacterBase* enemy : Enemies)
+	//	{
 
-		for (AEnemyCharacterBase* enemy : Enemies)
-		{
+	//		/*FGameplayAbilitySpecHandle K2_GiveAbility(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level = 0, int32 InputID = -1);*/
+	//		enemy->GetASC()->K2_GiveAbility(feature.GainPassiveAbility, feature.level, -1);
+	//			
+	//	}
 
-			/*FGameplayAbilitySpecHandle K2_GiveAbility(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level = 0, int32 InputID = -1);*/
-			enemy->GetASC()->K2_GiveAbility(feature.GainPassiveAbility, feature.level, -1);
-				
-		}
-
-	}
+	//}
 }
 
 UYogMapDefinition* AYogLevelScript::GetDefinition()
