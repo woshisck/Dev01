@@ -1,13 +1,13 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Player/YogPlayerControllerBase.h"
+#include "Character/YogPlayerControllerBase.h"
 #include <AbilitySystemGlobals.h>
 #include "Character/YogCharacterBase.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/YogCameraPawn.h"
-#include "Player/PlayerCharacterBase.h"
+#include "Character/PlayerCharacterBase.h"
 #include <EnhancedInputSubsystems.h>
 #include "Item/ItemSpawner.h"
 #include "SaveGame/YogSaveSubsystem.h"

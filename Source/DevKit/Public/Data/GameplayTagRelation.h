@@ -18,9 +18,8 @@ public:
 	FGameTagRelationConfig() {}
 
 
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	int32 Priority;
+	int32 Priority = 0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FGameplayTagContainer  OverwriteListTags;

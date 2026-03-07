@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
-#include "Player/PlayerCharacterBase.h"
+#include "Character/PlayerCharacterBase.h"
 
 
 

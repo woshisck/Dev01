@@ -26,24 +26,7 @@ struct FWeaponSaveData;
 
 
 
-USTRUCT(BlueprintType,Blueprintable)
-struct DEVKIT_API FYogContainerEffect 
-{
-	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FGameplayTag TriggerTag;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<UGameplayEffect> GameplayEffect;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EYogEffectTarget target;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int effect_level;
-
-};
 
 
 UCLASS(BlueprintType)

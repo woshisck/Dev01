@@ -5,7 +5,7 @@
 #include "DevKit.h"
 #include "GameFramework/SaveGame.h"
 #include "System/YogGameInstanceBase.h"
-#include "Player/PlayerCharacterBase.h"
+#include "Character/PlayerCharacterBase.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "Animation/YogAnimInstance.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"

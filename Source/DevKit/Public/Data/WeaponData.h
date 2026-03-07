@@ -14,22 +14,6 @@ class UYogGameplayAbility;
 class AYogCharacterBase;
 class UYogAnimInstance;
 
-USTRUCT()
-struct FWPN_DamageStateData
-{
-	GENERATED_BODY()
-
-	bool bTriggered;
-
-	UPROPERTY(EditAnywhere, Category = Equipment)
-	FVector RelativeLocation;
-
-	UPROPERTY(EditAnywhere, Category = Equipment)
-	FQuat RelativeRotation;
-
-};
-
-
 
 USTRUCT()
 struct FWeaponHoldData

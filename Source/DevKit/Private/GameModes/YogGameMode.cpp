@@ -2,14 +2,14 @@
 
 
 #include "GameModes/YogGameMode.h"
-#include "Player/YogPlayerControllerBase.h"
-#include "Player/PlayerCharacterBase.h"
+#include "Character/YogPlayerControllerBase.h"
+#include "Character/PlayerCharacterBase.h"
 #include <Kismet/GameplayStatics.h>
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
 #include "Map/YogLevelScript.h"
 #include "System/YogGameInstanceBase.h"
-#include "Enemy/EnemyCharacterBase.h"
+#include "Character/EnemyCharacterBase.h"
 #include "Mob/MobSpawner.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)

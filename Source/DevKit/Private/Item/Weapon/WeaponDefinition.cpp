@@ -1,6 +1,6 @@
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInstance.h"
-#include "Player/PlayerCharacterBase.h"
+#include "Character/PlayerCharacterBase.h"
 
 
 void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar)

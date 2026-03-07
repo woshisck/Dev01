@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Enemy/EnemyCharacterBase.h"
+#include "Character/EnemyCharacterBase.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
 #include "Character/YogCharacterMovementComponent.h"

@@ -5,7 +5,7 @@
 
 #include "Kismet/GameplayStatics.h"
 #include "Navigation/CrowdFollowingComponent.h"
-#include "Enemy/EnemyCharacterBase.h"
+#include "Character/EnemyCharacterBase.h"
 
 
 AYogAIController::AYogAIController()

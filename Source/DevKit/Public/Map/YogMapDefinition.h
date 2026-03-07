@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "System/YogWorldSubsystem.h"
-#include "Enemy/EnemyCharacterBase.h"
+#include "Character/EnemyCharacterBase.h"
 
 #include "YogMapDefinition.generated.h"
 
@@ -23,26 +23,6 @@ enum class EEnemySpawnRule : uint8
 	AllInOnce	UMETA(DisplayName = "AllInOnce"),
 	Wave		UMETA(DisplayName = "Wave"),
 	Default		UMETA(DisplayName = "Default")
-};
-
-
-USTRUCT(BlueprintType,Blueprintable)
-struct FMapFeature
-{
-	GENERATED_BODY()
-public:
-	FMapFeature()
-	{
-	};
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<UYogGameplayAbility> GainPassiveAbility;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 level;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText feature_string;
 };
 
 
@@ -108,10 +88,6 @@ public:
 	//Wave		UMETA(DisplayName = "Wave"),
 	//Default		UMETA(DisplayName = "Default")
 
-
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level|Mob")
-	TArray<FMapFeature> MapFeatures;
 
 
 	//////////////////////////  WAVE SPAWN MOB CONFIG  //////////////////////////

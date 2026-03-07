@@ -3,7 +3,7 @@
 
 #include "Mob/MobSpawner.h"
 #include "Controller/YogAIController.h"
-#include "Enemy/EnemyCharacterBase.h"
+#include "Character/EnemyCharacterBase.h"
 #include "NavigationSystem.h"
 #include "Kismet/KismetMathLibrary.h"
 

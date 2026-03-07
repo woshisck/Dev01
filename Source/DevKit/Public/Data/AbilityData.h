@@ -94,7 +94,7 @@ struct FYogHitboxType
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EHitBoxType hitboxType;
+	EHitBoxType hitboxType = EHitBoxType::Annulus;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "hitboxType == EHitBoxType::Annulus", EditConditionHides))
 	FHitboxAnnulus AnnulusHitbox;
@@ -157,7 +157,7 @@ public:
 	FGameplayTag TriggerTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int level;
+	int level = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<UGameplayEffect> GameplayEffect;

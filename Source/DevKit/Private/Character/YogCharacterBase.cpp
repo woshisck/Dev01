@@ -7,7 +7,7 @@
 #include "Item/ItemInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
-#include "Player/YogPlayerControllerBase.h"
+#include "Character/YogPlayerControllerBase.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Component/HitBoxBufferComponent.h"

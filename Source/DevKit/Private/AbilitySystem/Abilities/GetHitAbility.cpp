@@ -3,7 +3,7 @@
 
 #include "AbilitySystem/Abilities/GetHitAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
-#include "Player/PlayerCharacterBase.h"
+#include "Character/PlayerCharacterBase.h"
 #include "AbilitySystemComponent.h"
 
 UGetHitAbility::UGetHitAbility(const FObjectInitializer& ObjectInitializer)

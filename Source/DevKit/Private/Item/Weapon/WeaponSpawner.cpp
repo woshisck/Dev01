@@ -12,7 +12,7 @@
 #include "TimerManager.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "Character/YogCharacterBase.h"
-#include "Player/PlayerCharacterBase.h"
+#include "Character/PlayerCharacterBase.h"
 #include "YogBlueprintFunctionLibrary.h"
 
 

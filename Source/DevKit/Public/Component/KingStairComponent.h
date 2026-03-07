@@ -47,19 +47,19 @@ public:
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool IsSelected;
+	bool IsSelected = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int x;
+	int x = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int y;
+	int y = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<UYogGameplayEffect> Gameplayeffect;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 Level;
+	int32 Level = 0;
 
 
 	void setNodeEffect(TSubclassOf<UYogGameplayEffect> gameplayeffect, int32 level)
@@ -120,17 +120,6 @@ public:
 
 };
 
-USTRUCT(BlueprintType)
-struct FSelectedNode
-{
-	GENERATED_BODY()
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int x;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int y;
-};
-
 
 UCLASS(Blueprintable, BlueprintType, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class DEVKIT_API UKingStairComponent : public UActorComponent
@@ -149,9 +138,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="KingStairGrid")
 	TArray<FKingStairRow> KingStairGrid;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TArray<FSelectedNode> SelectedNode;
 
 	UFUNCTION(BlueprintCallable)
 	void SetNodeEffect(int x, int y, TSubclassOf<UYogGameplayEffect> gameplayeffect, int32 level);
