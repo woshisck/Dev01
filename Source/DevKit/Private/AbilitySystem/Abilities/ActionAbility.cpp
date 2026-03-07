@@ -7,12 +7,20 @@
 
 UActionAbility::UActionAbility(const FObjectInitializer& ObjectInitializer)
 {
+    InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+    bRetriggerInstancedAbility = true;
+    NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
 
 void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
+    if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+    {
+        return;
+    }
+    
+    UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 
 
 
@@ -75,7 +83,8 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
     }
     else
     {
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
+        //EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
     }
 }
 

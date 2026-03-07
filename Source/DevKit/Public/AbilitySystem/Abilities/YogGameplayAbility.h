@@ -150,56 +150,6 @@ public:
 	int GetCurrentGameplayEffect(FGameplayTag EffectTag);
 
 
-
-public:
-
-
-	UPROPERTY(BlueprintReadOnly)
-	float ActDamage;
-
-	UPROPERTY(BlueprintReadOnly)
-	float ActRange;
-
-	UPROPERTY(BlueprintReadOnly)
-	float ActResilience;
-
-	UPROPERTY(BlueprintReadOnly)
-	float ActDmgReduce;
-
-	UPROPERTY(BlueprintReadOnly)
-	float ActRotateSpeed;
-
-	UPROPERTY(BlueprintReadOnly)
-	float JumpFrameTime;
-
-	UPROPERTY(BlueprintReadOnly)
-	float FreezeFrameTime;
-
-	UPROPERTY(BlueprintReadOnly)
-	TObjectPtr<UAnimMontage> Montage;
-
-	UPROPERTY(BlueprintReadOnly)
-	TArray<FYogHitboxType> hitboxTypes;
-
-	
-
-	//UPROPERTY(BlueprintReadOnly)
-	//TArray<FHitBoxData> hitbox;
-
-	//UPROPERTY(BlueprintReadOnly)
-	//FHitboxAnnulus AnnulusHitbox;
-
-	//UPROPERTY(BlueprintReadOnly)
-	//TArray<FHitboxCircle> HitboxCircles;
-
-	//UPROPERTY(BlueprintReadOnly)
-	//TArray<FHitboxSquare> HitboxSquares;
-
-	//UPROPERTY(BlueprintReadOnly)
-	//TArray<FHitboxTriangle> HitboxTriangles;
-
-
-
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FVector> array_hitbox_vector;
 
