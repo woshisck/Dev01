@@ -22,9 +22,6 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
     
     UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 
-
-
-
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
 	FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
 

@@ -64,42 +64,82 @@ UDamageExecution::UDamageExecution()
 
 void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const 
 {
-	SCOPED_NAMED_EVENT(UDamageExecution__Execute_Implementation, FColor::Red);
-	QUICK_SCOPE_CYCLE_COUNTER(UDamageExecution_Execute_Implementation);
+	//SCOPED_NAMED_EVENT(UDamageExecution__Execute_Implementation, FColor::Red);
+	//QUICK_SCOPE_CYCLE_COUNTER(UDamageExecution_Execute_Implementation);
 
 
-	FGameplayEffectSpec* spec = ExecutionParams.GetOwningSpecForPreExecuteMod();
+	FGameplayEffectAttributeCaptureDefinition AttackPowerDef;
 
+	FGameplayEffectAttributeCaptureDefinition DmgTakenDef;
 
-	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
-	UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetSourceAbilitySystemComponent());
-
-	if (!SourceASC || !TargetASC)
+	for (const FGameplayEffectAttributeCaptureDefinition& CaptureDef : RelevantAttributesToCapture)
 	{
-		return;
+		if (CaptureDef.AttributeToCapture.GetName() == "AttackPower")
+		{
+			AttackPowerDef = CaptureDef;
+		}
+
+		if (CaptureDef.AttributeToCapture.GetName() == "DmgTaken")
+		{
+			DmgTakenDef = CaptureDef;
+		}
 	}
 
-	//Get Avatar Actor
-	AActor* SourceActor = SourceASC ? SourceASC->GetAvatarActor_Direct() : nullptr;
-	AActor* TargetActor = TargetASC ? TargetASC->GetAvatarActor_Direct() : nullptr;
-
-	//Get Current GameplayAbility
-	//UYogGameplayAbility* target_CurrentAbilityClass = TargetASC->GetCurrentAbilityClass();
-	//UYogGameplayAbility* source_CurrentAbilityClass = SourceASC->GetCurrentAbilityClass();
+	FAggregatorEvaluateParameters EvaluationParameters;
 
 
-	//Get GameplayEffect Instance
-	const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
+	const FGameplayEffectSpec& EffectSpec = ExecutionParams.GetOwningSpec();
+	EvaluationParameters.SourceTags = EffectSpec.CapturedSourceTags.GetAggregatedTags();
+	EvaluationParameters.TargetTags = EffectSpec.CapturedTargetTags.GetAggregatedTags();
+
+	float SourceAttackPower = 0.f;
+
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+		AttackPowerDef,
+		EvaluationParameters,
+		SourceAttackPower
+	);
+
+	UE_LOG(LogTemp, Warning, TEXT("Source Attack Power: %f"), SourceAttackPower);
 
 
-	//get both tags container
-	FAggregatorEvaluateParameters EvalParams;
+	//const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
+	//const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
 
-	const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
-	const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
 
-	EvalParams.SourceTags = SourceTags;
-	EvalParams.TargetTags = TargetTags;
+
+	//FGameplayEffectSpec* spec = ExecutionParams.GetOwningSpecForPreExecuteMod();
+
+
+	//UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
+	//UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetSourceAbilitySystemComponent());
+
+	//if (!SourceASC || !TargetASC)
+	//{
+	//	return;
+	//}
+
+	////Get Avatar Actor
+	//AActor* SourceActor = SourceASC ? SourceASC->GetAvatarActor_Direct() : nullptr;
+	//AActor* TargetActor = TargetASC ? TargetASC->GetAvatarActor_Direct() : nullptr;
+
+	////Get Current GameplayAbility
+	////UYogGameplayAbility* target_CurrentAbilityClass = TargetASC->GetCurrentAbilityClass();
+	////UYogGameplayAbility* source_CurrentAbilityClass = SourceASC->GetCurrentAbilityClass();
+
+
+	////Get GameplayEffect Instance
+	//const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
+
+
+	////get both tags container
+	//FAggregatorEvaluateParameters EvalParams;
+
+	//const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
+	//const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
+
+	//EvalParams.SourceTags = SourceTags;
+	//EvalParams.TargetTags = TargetTags;
 	
 
 	//Crit_Rate +  = Final_Crit_rate
@@ -109,37 +149,37 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	////////////////////////////////////////////////// Source //////////////////////////////////////////////////
 
 
-	float SourceAttackPower = 0.0f;
-	float SourceAttack = 0.0f;
-	float TargetDmgTaken = 0.0f;
+	//float SourceAttackPower = 0.0f;
+	//float SourceAttack = 0.0f;
+	//float TargetDmgTaken = 0.0f;
 
 
-	// Attempt to capture the attributes
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
-		FGameplayEffectAttributeCaptureDefinition(UBaseAttributeSet::GetAttackPowerAttribute(), 
-		EGameplayEffectAttributeCaptureSource::Source, false),
-		EvalParams,
-		SourceAttackPower);
+	//// Attempt to capture the attributes
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+	//	FGameplayEffectAttributeCaptureDefinition(UBaseAttributeSet::GetAttackPowerAttribute(), 
+	//	EGameplayEffectAttributeCaptureSource::Source, false),
+	//	EvalParams,
+	//	SourceAttackPower);
 
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
-		FGameplayEffectAttributeCaptureDefinition(UBaseAttributeSet::GetAttackAttribute(), 
-		EGameplayEffectAttributeCaptureSource::Source, false),
-		EvalParams,
-		SourceAttack);
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+	//	FGameplayEffectAttributeCaptureDefinition(UBaseAttributeSet::GetAttackAttribute(), 
+	//	EGameplayEffectAttributeCaptureSource::Source, false),
+	//	EvalParams,
+	//	SourceAttack);
 
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
-		FGameplayEffectAttributeCaptureDefinition(UBaseAttributeSet::GetDmgTakenAttribute(), 
-		EGameplayEffectAttributeCaptureSource::Target, false),
-		EvalParams,
-		TargetDmgTaken);
+	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+	//	FGameplayEffectAttributeCaptureDefinition(UBaseAttributeSet::GetDmgTakenAttribute(), 
+	//	EGameplayEffectAttributeCaptureSource::Target, false),
+	//	EvalParams,
+	//	TargetDmgTaken);
 
 
-	// Optional: clamp values to avoid negative damage
-	SourceAttackPower = FMath::Max(0.0f, SourceAttackPower);
-	SourceAttack = FMath::Max(0.0f, SourceAttack);
-	TargetDmgTaken = FMath::Max(0.0f, TargetDmgTaken);
+	//// Optional: clamp values to avoid negative damage
+	//SourceAttackPower = FMath::Max(0.0f, SourceAttackPower);
+	//SourceAttack = FMath::Max(0.0f, SourceAttack);
+	//TargetDmgTaken = FMath::Max(0.0f, TargetDmgTaken);
 
-	float FinalDamage = SourceAttackPower * SourceAttack * TargetDmgTaken;
+	//float FinalDamage = SourceAttackPower * SourceAttack * TargetDmgTaken;
 
 
 	//float Attack = 0.f;
@@ -153,8 +193,6 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 	//float Crit_Damage = 0.f;
 	//ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_DamageDef, EvaluationParameters, Crit_Damage);
-
-
 
 
 	////////////////////////////////////////////////// Target //////////////////////////////////////////////////
@@ -201,12 +239,13 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	//	}
 	//}
 	
-	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Additive, FinalDamage));
-	//Broadcast damages to Target ASC
-	if (TargetASC)
-	{	
-		UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), FinalDamage);
-		TargetASC->ReceiveDamage(SourceASC, FinalDamage);
-	}
+
+	//OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Additive, FinalDamage));
+	////Broadcast damages to Target ASC
+	//if (TargetASC)
+	//{	
+	//	UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), FinalDamage);
+	//	TargetASC->ReceiveDamage(SourceASC, FinalDamage);
+	//}
 }
 
