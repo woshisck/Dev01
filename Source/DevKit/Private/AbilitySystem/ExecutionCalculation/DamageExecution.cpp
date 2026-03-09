@@ -18,26 +18,26 @@ UDamageExecution::UDamageExecution()
 	
 
 
-	// Capture the source's AttackPower attribute
-	RelevantAttributesToCapture.Add(FGameplayEffectAttributeCaptureDefinition(
-		UBaseAttributeSet::GetAttackPowerAttribute(),
-		EGameplayEffectAttributeCaptureSource::Source,
-		false /* bSnapshot */
-	));
+	//// Capture the source's AttackPower attribute
+	//RelevantAttributesToCapture.Add(FGameplayEffectAttributeCaptureDefinition(
+	//	UBaseAttributeSet::GetAttackPowerAttribute(),
+	//	EGameplayEffectAttributeCaptureSource::Source,
+	//	false /* bSnapshot */
+	//));
 
-	// Capture the source's Attack attribute
-	RelevantAttributesToCapture.Add(FGameplayEffectAttributeCaptureDefinition(
-		UBaseAttributeSet::GetAttackAttribute(),
-		EGameplayEffectAttributeCaptureSource::Source,
-		false
-	));
+	//// Capture the source's Attack attribute
+	//RelevantAttributesToCapture.Add(FGameplayEffectAttributeCaptureDefinition(
+	//	UBaseAttributeSet::GetAttackAttribute(),
+	//	EGameplayEffectAttributeCaptureSource::Source,
+	//	false
+	//));
 
-	// Capture the target's DmgTaken attribute
-	RelevantAttributesToCapture.Add(FGameplayEffectAttributeCaptureDefinition(
-		UBaseAttributeSet::GetDmgTakenAttribute(),
-		EGameplayEffectAttributeCaptureSource::Target,
-		false
-	));
+	//// Capture the target's DmgTaken attribute
+	//RelevantAttributesToCapture.Add(FGameplayEffectAttributeCaptureDefinition(
+	//	UBaseAttributeSet::GetDmgTakenAttribute(),
+	//	EGameplayEffectAttributeCaptureSource::Target,
+	//	false
+	//));
 
 
 	RelevantAttributesToCapture.Add(DamageStatics().AttackDef);
@@ -51,8 +51,8 @@ UDamageExecution::UDamageExecution()
 	RelevantAttributesToCapture.Add(DamageStatics().Crit_RateDef);
 	RelevantAttributesToCapture.Add(DamageStatics().Crit_DamageDef);
 
-	RelevantAttributesToCapture.Add(DamageStatics().HealthDef);
-	RelevantAttributesToCapture.Add(DamageStatics().MaxHealthDef);
+	//RelevantAttributesToCapture.Add(DamageStatics().HealthDef);
+	//RelevantAttributesToCapture.Add(DamageStatics().MaxHealthDef);
 
 	RelevantAttributesToCapture.Add(DamageStatics().DamagePhysicalDef);
 	RelevantAttributesToCapture.Add(DamageStatics().DamageMagicDef);
@@ -69,7 +69,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 
 	FGameplayEffectAttributeCaptureDefinition AttackPowerDef;
-
+	FGameplayEffectAttributeCaptureDefinition AttackDef;
 	FGameplayEffectAttributeCaptureDefinition DmgTakenDef;
 
 	for (const FGameplayEffectAttributeCaptureDefinition& CaptureDef : RelevantAttributesToCapture)
@@ -77,6 +77,11 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 		if (CaptureDef.AttributeToCapture.GetName() == "AttackPower")
 		{
 			AttackPowerDef = CaptureDef;
+		}
+
+		if (CaptureDef.AttributeToCapture.GetName() == "Attack")
+		{
+			AttackDef = CaptureDef;
 		}
 
 		if (CaptureDef.AttributeToCapture.GetName() == "DmgTaken")
@@ -93,6 +98,9 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	EvaluationParameters.TargetTags = EffectSpec.CapturedTargetTags.GetAggregatedTags();
 
 	float SourceAttackPower = 0.f;
+	float SourceAttack = 0.f;
+	float TargetDmgTaken = 0.f;
+
 
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
 		AttackPowerDef,
@@ -100,7 +108,31 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 		SourceAttackPower
 	);
 
-	UE_LOG(LogTemp, Warning, TEXT("Source Attack Power: %f"), SourceAttackPower);
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+		AttackPowerDef,
+		EvaluationParameters,
+		SourceAttack
+	);
+
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+		DmgTakenDef,
+		EvaluationParameters,
+		TargetDmgTaken
+	);
+
+
+	float FinalDamage = SourceAttackPower * SourceAttack * TargetDmgTaken;
+
+	UE_LOG(LogTemp, Warning, TEXT("Source Attack Power: %f"), SourceAttackPower);	
+	UE_LOG(LogTemp, Warning, TEXT("Target Damage Taken: %f"), TargetDmgTaken);
+
+	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Override, FinalDamage));
+	//Broadcast damages to Target ASC
+	//if (TargetASC)
+	//{	
+	//	UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), FinalDamage);
+	//	TargetASC->ReceiveDamage(SourceASC, FinalDamage);
+	//}
 
 
 	//const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
