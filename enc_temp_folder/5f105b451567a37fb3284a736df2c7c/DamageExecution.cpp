@@ -12,7 +12,9 @@ static const FYogDamageStatics& DamageStatics()
 
 UDamageExecution::UDamageExecution()
 {
-
+	//---------------------------------------------------------
+	//	DamageDone = AttackPower * Attack * DmgTaken(target)
+	//---------------------------------------------------------
 	
 
 
@@ -65,9 +67,6 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	//SCOPED_NAMED_EVENT(UDamageExecution__Execute_Implementation, FColor::Red);
 	//QUICK_SCOPE_CYCLE_COUNTER(UDamageExecution_Execute_Implementation);
 
-		//---------------------------------------------------------
-	//	DamageDone = AttackPower * Attack * DmgTaken(target)
-	//---------------------------------------------------------
 
 	FGameplayEffectAttributeCaptureDefinition AttackPowerDef;
 	FGameplayEffectAttributeCaptureDefinition AttackDef;

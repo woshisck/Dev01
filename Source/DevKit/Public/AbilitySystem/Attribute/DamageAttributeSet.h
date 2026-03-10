@@ -43,6 +43,7 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Weapon|Player")
     FGameplayAttributeData DamagePure;
 
+
     virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 };
 
