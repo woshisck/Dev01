@@ -110,7 +110,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	);
 
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
-		AttackPowerDef,
+		AttackDef,
 		EvaluationParameters,
 		SourceAttack
 	);
@@ -125,8 +125,9 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	float FinalDamage = SourceAttackPower * SourceAttack * TargetDmgTaken;
 
 	UE_LOG(LogTemp, Warning, TEXT("Source Attack Power: %f"), SourceAttackPower);	
+	UE_LOG(LogTemp, Warning, TEXT("Source Attack : %f"), SourceAttack);
 	UE_LOG(LogTemp, Warning, TEXT("Target Damage Taken: %f"), TargetDmgTaken);
-
+	UE_LOG(LogTemp, Warning, TEXT("Final Damage: %f"), FinalDamage);
 	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Override, FinalDamage));
 	
 	
