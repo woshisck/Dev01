@@ -105,12 +105,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "YogBaseAttributeData"))
 	FDataTableRowHandle YogBaseAttributeDataRow;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "Abilities"))
-	TArray<TSubclassOf<UYogGameplayAbility>> DefaultAbilitiesTemplate;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "Abilities"))
-	TArray<TSubclassOf<UYogGameplayAbility>> DefaultMoveAbilitiesTemplate;
-
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimeLayer")

@@ -35,12 +35,5 @@ public:
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
 
 
-
-
-
-
-
-
-
 	friend UEnemyAttributeSet;
 };

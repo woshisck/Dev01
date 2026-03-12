@@ -115,14 +115,6 @@ void AYogCharacterBase::PostInitializeComponents()
 		HealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
 		MaxHealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
 
-		for (TSubclassOf<UYogGameplayAbility> default_ability : CharacterData->DefaultAbilitiesTemplate)
-		{
-			FGameplayAbilitySpecHandle spec_handle = GetASC()->K2_GiveAbility(default_ability, 0, -1);
-		}
-		for (TSubclassOf<UYogGameplayAbility> move_ability : CharacterData->DefaultMoveAbilitiesTemplate)
-		{
-			FGameplayAbilitySpecHandle spec_handle = GetASC()->K2_GiveAbility(move_ability, 0, -1);
-		}
 	}
 
 
@@ -391,14 +383,6 @@ void AYogCharacterBase::InitCharacterData()
 		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
 		MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
 
-		for (TSubclassOf<UYogGameplayAbility> default_ability : CharacterData->DefaultAbilitiesTemplate)
-		{
-			FGameplayAbilitySpecHandle spec_handle = AbilitySystemComponent->K2_GiveAbility(default_ability, 0, -1);
-		}
-		for (TSubclassOf<UYogGameplayAbility> move_ability : CharacterData->DefaultMoveAbilitiesTemplate)
-		{
-			FGameplayAbilitySpecHandle spec_handle = AbilitySystemComponent->K2_GiveAbility(move_ability, 0, -1);
-		}
 	
 		for (TSubclassOf<UAnimInstance> animelayer_class : CharacterData->DefaultAnimeLayers)
 		{

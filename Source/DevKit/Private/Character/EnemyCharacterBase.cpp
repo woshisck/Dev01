@@ -7,6 +7,7 @@
 #include "Character/YogCharacterMovementComponent.h"
 #include "Data/EnemyData.h"
 #include "Controller/YogAIController.h"
+#include "Data/GASTemplate.h"
 
 AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -36,7 +37,19 @@ AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitial
 void AEnemyCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+	if(GasTemplate !=nullptr)
+	{
+		for (TSubclassOf<UYogGameplayAbility> ablity_class : GasTemplate->PassiveMap)
+		{
+			//TODO: confirm about the inputID
+			GetASC()->K2_GiveAbility(ablity_class, 0, 0);
+		}
 
+		for (TSubclassOf<UYogGameplayAbility> ablity_class : GasTemplate->AbilityMap)
+		{
+			GetASC()->K2_GiveAbility(ablity_class, 0, 0);
+		}
+	}
 
 }
 

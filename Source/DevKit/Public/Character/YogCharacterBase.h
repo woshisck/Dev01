@@ -16,7 +16,7 @@
 
 
 class AYogPlayerControllerBase;
-
+class UGASTemplate;
 
 UENUM(BlueprintType)
 enum class EYogCharacterState : uint8
@@ -85,12 +85,17 @@ public:
 	int32 GetStatePriority(EYogCharacterState State);
 
 
-
+	//--------------------------------------------
+	//	Data table for all character
+	//--------------------------------------------
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UCharacterData> CharacterData;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Data")
 	TObjectPtr<UAbilityData> AbilityData;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	TObjectPtr<UGASTemplate> GasTemplate;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)
 	TObjectPtr<UAttributeStatComponent> AttributeStatsComponent;

@@ -13,6 +13,7 @@
 #include "Buff/Aura/AuraBase.h"
 #include "SaveGame/YogSaveGame.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Data/GASTemplate.h"
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -47,6 +48,21 @@ void APlayerCharacterBase::Die()
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (GasTemplate != nullptr)
+	{
+		for (TSubclassOf<UYogGameplayAbility> ablity_class : GasTemplate->PassiveMap)
+		{
+			//TODO: confirm about the inputID
+			GetASC()->K2_GiveAbility(ablity_class, 0, 0);
+		}
+
+		for (TSubclassOf<UYogGameplayAbility> ablity_class : GasTemplate->AbilityMap)
+		{
+			GetASC()->K2_GiveAbility(ablity_class, 0, 0);
+		}
+	}
+
 
 }
 

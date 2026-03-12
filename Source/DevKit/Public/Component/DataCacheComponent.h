@@ -12,7 +12,7 @@ struct FAnimationUseCache
 {
 	GENERATED_BODY()
 
-    TMap<FGameplayTag, UAnimeMontage*> AnimationMapCache;
+    TMap<FGameplayTag, UAnimMontage*> AnimationMapCache;
 
 };
 
