@@ -10,6 +10,15 @@
  * 
  */
 
+UENUM(BlueprintType)
+enum class EGameEffectedOnActor : uint8
+{
+	OnTarget				UMETA(DisplayName = "OnTarget"),
+	OnSelf					UMETA(DisplayName = "OnSelf")
+
+};
+
+
 
 
 UCLASS()
@@ -25,7 +34,7 @@ public:
 	void CreateOwnEffectContext(AActor* TargetActor);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float conditionStateCheck;
+	EGameEffectedOnActor EffectType = EGameEffectedOnActor::OnTarget;
 
 
 protected:

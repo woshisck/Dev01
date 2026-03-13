@@ -10,6 +10,7 @@
  * 
  */
 class UYogGameplayAbility;
+class UYogGameplayEffect;
 
 UCLASS()
 class DEVKIT_API UGASTemplate : public UPrimaryDataAsset
@@ -24,6 +25,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow), Category = "Abiltiy|Passive")
 	TArray<TSubclassOf<UYogGameplayAbility>> PassiveMap;
-	//TMap<FYogTagContainerWrapper, FActionData> AbilityMap;
 
+	//TMap<FYogTagContainerWrapper, FActionData> AbilityMap;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow), Category = "Effect|Passive")
+	TArray<TSubclassOf<UYogGameplayEffect>> PassiveEffect;
 };

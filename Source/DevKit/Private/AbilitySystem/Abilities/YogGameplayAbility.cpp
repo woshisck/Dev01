@@ -183,10 +183,6 @@ int UYogGameplayAbility::GetCurrentGameplayEffect(FGameplayTag EffectTag)
 
 
 
-
-
-
-
 FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFromContainer(const FYogGameplayEffectContainer& Container, const FGameplayEventData& EventData, int32 OverrideGameplayLevel)
 {
 	//TargetType collect data from world
@@ -222,7 +218,7 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 		//for (const TSubclassOf<UGameplayEffect>& EffectClass : Container.EffectClasses)
 		for (const FYogEffectPorperty& YogEffectProperty : Container.EffectClasses)
 		{
-
+			
 			FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(YogEffectProperty.GameplayEffect, YogEffectProperty.EffectLevel);
 
 			if (SpecHandle.IsValid() && SpecHandle.Data.IsValid())
@@ -240,10 +236,9 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 				SpecHandle.Data->SetContext(ContextHandle);
 			}
 
-
 			ReturnSpec.TargetGameplayEffectSpecs.Add(SpecHandle);
 
-			
+
 		}
 	}
 	return ReturnSpec;
@@ -273,21 +268,44 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpec(FGa
 
 TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainerSpec(const FYogGameplayEffectContainerSpec& ContainerSpec)
 {
-	TArray<FActiveGameplayEffectHandle> AllEffects;
+	TArray<FActiveGameplayEffectHandle> TargetEffects;
 
 	// Iterate list of effect specs and apply them to their target data
 	for (const FGameplayEffectSpecHandle& SpecHandle : ContainerSpec.TargetGameplayEffectSpecs)
 	{
-		FGameplayCueParameters CueParameters;
+		if (SpecHandle.IsValid() && SpecHandle.Data.IsValid())
+		{
+			FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
+			const UGameplayEffect* EffectDef = Spec->Def;
 
-		FGameplayEffectSpecHandle ModifiedSpecHandle = AddGameplayCueParametersToSpec(
-			SpecHandle,
-			CueParameters
-		);
+			const UYogGameplayEffect* MyEffect = Cast<UYogGameplayEffect>(EffectDef);
+			
+			FGameplayCueParameters CueParameters;
 
-		AllEffects.Append(K2_ApplyGameplayEffectSpecToTarget(SpecHandle, ContainerSpec.TargetData));
+			FGameplayEffectSpecHandle ModifiedSpecHandle = AddGameplayCueParametersToSpec(
+				SpecHandle,
+				CueParameters
+			);
+
+			if (MyEffect->EffectType == EGameEffectedOnActor::OnSelf)
+			{
+				TargetEffects.Add(K2_ApplyGameplayEffectSpecToOwner(SpecHandle));
+			}
+			else if(MyEffect->EffectType == EGameEffectedOnActor::OnTarget)
+			{
+				TargetEffects.Append(K2_ApplyGameplayEffectSpecToTarget(SpecHandle, ContainerSpec.TargetData));
+			}
+
+		}
+
+		//TODO: ADD IF STATE FOR filter the gameplayeffect for apply for source and apply for target?
+		//FActiveGameplayEffectHandle UGameplayAbility::K2_ApplyGameplayEffectSpecToOwner(const FGameplayEffectSpecHandle EffectSpecHandle)
+		
+		//TargetEffects.Add(K2_ApplyGameplayEffectSpecToOwner(SpecHandle));
+		//
+		//TargetEffects.Append(K2_ApplyGameplayEffectSpecToTarget(SpecHandle, ContainerSpec.TargetData));
 	}
-	return AllEffects;
+	return TargetEffects;
 }
 
 

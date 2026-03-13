@@ -15,6 +15,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Data/GASTemplate.h"
 
+
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 	: Super(ObjectInitializer)
@@ -61,6 +62,15 @@ void APlayerCharacterBase::BeginPlay()
 		{
 			GetASC()->K2_GiveAbility(ablity_class, 0, 0);
 		}
+
+		for (TSubclassOf<UYogGameplayEffect> effect_class : GasTemplate->PassiveEffect)
+		{
+			FGameplayEffectContextHandle Context;
+
+			FGameplayEffectSpecHandle SpecHandle = GetASC()->MakeOutgoingSpec(effect_class, 0, Context);
+			GetASC()->BP_ApplyGameplayEffectSpecToSelf(/*const FGameplayEffectSpecHandle & */SpecHandle);
+		}
+
 	}
 
 

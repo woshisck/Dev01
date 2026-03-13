@@ -5,7 +5,9 @@
 
 #include "GameplayEffectTypes.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
+#include "AbilitySystem\GameplayEffect\YogGameplayEffect.h"
 #include "YogAbilityTypes.generated.h"
+
 
 class UYogAbilitySystemComponent;
 class UGameplayEffect;
@@ -76,6 +78,9 @@ struct DEVKIT_API FYogEffectPorperty
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
 	int EffectLevel;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
+	EGameEffectedOnActor EffectType = EGameEffectedOnActor::OnTarget;
 };
 
 
@@ -95,6 +100,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
 	TArray<FYogEffectPorperty> EffectClasses;
 };
+
+USTRUCT(BlueprintType)
+struct FYogGameplayEffectSpecHandle
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
+	FGameplayEffectSpecHandle GameplayEffectSpecHandle;
+
+
+
+};
+
 
 /* instance version -- struct FYogGameplayEffectContainer */
 USTRUCT(BlueprintType)

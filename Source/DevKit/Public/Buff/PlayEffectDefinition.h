@@ -29,7 +29,7 @@ public:
 	TSubclassOf<UYogGameplayEffect> GameplayEffect;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int level;
+	int level = 0;
 };
 
 
