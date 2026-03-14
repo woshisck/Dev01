@@ -310,22 +310,6 @@ void AYogCharacterBase::MaxHealthChanged(const FOnAttributeChangeData& Data)
 
 }
 
-void AYogCharacterBase::HeatChanged(const FOnAttributeChangeData& Data)
-{
-
-	float Health = Data.NewValue;
-	float percent = Health / BaseAttributeSet->GetMaxHeat();
-
-
-	OnHeatUpdate.Broadcast(percent);
-
-}
-
-void AYogCharacterBase::MaxHeatChanged(const FOnAttributeChangeData& Data)
-{
-}
-
-
 
 
 

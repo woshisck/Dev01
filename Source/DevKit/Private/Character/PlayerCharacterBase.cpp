@@ -45,6 +45,23 @@ void APlayerCharacterBase::Die()
 
 }
 
+void APlayerCharacterBase::HeatChanged(const FOnAttributeChangeData& Data)
+{
+
+	float Health = Data.NewValue;
+	float percent = Health / BaseAttributeSet->GetMaxHeat();
+
+
+	OnHeatUpdate.Broadcast(percent);
+
+}
+
+void APlayerCharacterBase::MaxHeatChanged(const FOnAttributeChangeData& Data)
+{
+	float MaxHeat = Data.NewValue;
+	OnMaxHeatUpdate.Broadcast(MaxHeat);
+}
+
 
 void APlayerCharacterBase::BeginPlay()
 {

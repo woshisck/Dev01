@@ -28,7 +28,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FItemInteractEndDelegate, APlayerCha
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FItemInteractStartDelegate, APlayerCharacterBase*, Character, AActor*, actor);
 
 
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHeatUpdateDelegate, const float, HeatPercent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMaxHeatUpdateDelegate, const float, MaxHeatValue);
 
 UCLASS()
 class DEVKIT_API APlayerCharacterBase : public AYogCharacterBase
@@ -49,6 +50,20 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void Die() override;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FHeatUpdateDelegate OnHeatUpdate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FMaxHeatUpdateDelegate OnMaxHeatUpdate;
+
+	FDelegateHandle HeatChangedDelegateHandle;
+	FDelegateHandle MaxHeatChangedDelegateHandle;
+
+	virtual void HeatChanged(const FOnAttributeChangeData& Data);
+	virtual void MaxHeatChanged(const FOnAttributeChangeData& Data);
+
+
 
 public:
 
