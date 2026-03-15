@@ -7,9 +7,9 @@
 
 UActionAbility::UActionAbility(const FObjectInitializer& ObjectInitializer)
 {
-    InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-    bRetriggerInstancedAbility = true;
-    NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+    //InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+    //bRetriggerInstancedAbility = true;
+    //NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
 
 void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -37,8 +37,8 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
     {
         // create Dynamic GameplayEffect
         UGameplayEffect* ActionEffect = NewObject<UGameplayEffect>(GetTransientPackage(),FName(TEXT("ActionEffect")));
-        ActionEffect->DurationPolicy = EGameplayEffectDurationType::HasDuration;
-        ActionEffect->DurationMagnitude = FScalableFloat(0.0f); // forever longer
+        ActionEffect->DurationPolicy = EGameplayEffectDurationType::Instant;
+        //ActionEffect->DurationMagnitude = FScalableFloat(0.0f); // forever longer
 
         // modifier
         FGameplayModifierInfo ModifierInfo;
@@ -71,6 +71,7 @@ void UActionAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
         FActiveGameplayEffectHandle ActiveEffectHandle =
             ActorInfo->AbilitySystemComponent->ApplyGameplayEffectToSelf(
                 ActionEffect, 1.0f, EffectContext);
+        UE_LOG(LogTemp, Warning, TEXT("ApplyGameplayEffectToSelf"));
 
         // SAVE ActiveEffectHandle FOR LATER REMOVE
         ActiveEffectHandles.Add(ActiveEffectHandle);
