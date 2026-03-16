@@ -115,7 +115,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	//DEPRECATED, DONT USE THIS
-	UClass* GetCurrentAbilityClass();
+	UYogGameplayAbility* GetCurrentAbilityInstance();
 
 	UFUNCTION(BlueprintCallable)
 	void LogAllGrantedAbilities();

@@ -184,19 +184,19 @@ void UYogAbilitySystemComponent::RemoveActivationBlockedTags(const FGameplayTag&
 	this->SetTagMapCount(Tag, 0);
 }
 
-UClass* UYogAbilitySystemComponent::GetCurrentAbilityClass()
+UYogGameplayAbility* UYogAbilitySystemComponent::GetCurrentAbilityInstance()
 {
 
 	for (const FGameplayAbilitySpec& Spec : this->GetActivatableAbilities())
 	{
 		if (Spec.IsActive())
 		{
-			UClass* AbilityClass = Spec.Ability.GetClass();  
-			FString BlueprintName = AbilityClass->GetName();
-			FString BlueprintPath = AbilityClass->GetPathName();
-			UE_LOG(LogTemp, Log, TEXT("Active Ability Blueprint Class: %s (Path: %s)"), *BlueprintName, *BlueprintPath);
-			
-			return AbilityClass;
+			UGameplayAbility* AbilityInstance = Spec.GetPrimaryInstance();
+			if (AbilityInstance)
+			{
+				// Cast to your custom ability class
+				return Cast<UYogGameplayAbility>(AbilityInstance);
+			}
 		}
 	}
 	return nullptr;
