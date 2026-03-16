@@ -72,8 +72,8 @@ void UHealthPercentExecution::Execute_Implementation(const FGameplayEffectCustom
 	UYogAbilitySystemComponent* SourceAbilitySystemComponent = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetSourceAbilitySystemComponent());
 
 	
-	UYogGameplayAbility* target_CurrentAbilityClass = TargetAbilitySystemComponent->GetCurrentAbilityClass();
-	UYogGameplayAbility* source_CurrentAbilityClass = SourceAbilitySystemComponent->GetCurrentAbilityClass();
+	//UYogGameplayAbility* target_CurrentAbilityClass = TargetAbilitySystemComponent->GetCurrentAbilityClass();
+	//UYogGameplayAbility* source_CurrentAbilityClass = SourceAbilitySystemComponent->GetCurrentAbilityClass();
 
 
 	//FActionData target_ActionData = target_CurrentAbilityClass->GetRowData(target_CurrentAbilityClass->ActionRow);

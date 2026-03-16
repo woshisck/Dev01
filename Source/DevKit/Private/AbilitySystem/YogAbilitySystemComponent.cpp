@@ -1,4 +1,4 @@
-#include "AbilitySystem/YogAbilitySystemComponent.h"
+﻿#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Abilities/PassiveAbility.h"
 
@@ -184,17 +184,32 @@ void UYogAbilitySystemComponent::RemoveActivationBlockedTags(const FGameplayTag&
 	this->SetTagMapCount(Tag, 0);
 }
 
-UYogGameplayAbility* UYogAbilitySystemComponent::GetCurrentAbilityClass()
+UClass* UYogAbilitySystemComponent::GetCurrentAbilityClass()
 {
 
-	UYogGameplayAbility* CurrentAbility = NewObject<UYogGameplayAbility>();
-	
-	if (this->GetAnimatingAbility())
+	for (const FGameplayAbilitySpec& Spec : this->GetActivatableAbilities())
 	{
-		CurrentAbility = Cast<UYogGameplayAbility>(this->GetAnimatingAbility());
+		if (Spec.IsActive())
+		{
+			UClass* AbilityClass = Spec.Ability.GetClass();  
+			FString BlueprintName = AbilityClass->GetName();
+			FString BlueprintPath = AbilityClass->GetPathName();
+			UE_LOG(LogTemp, Log, TEXT("Active Ability Blueprint Class: %s (Path: %s)"), *BlueprintName, *BlueprintPath);
+			
+			return AbilityClass;
+		}
 	}
+	return nullptr;
 
-	return CurrentAbility;
+
+	//UYogGameplayAbility* CurrentAbility = NewObject<UYogGameplayAbility>();
+	//
+	//if (this->GetAnimatingAbility())
+	//{
+	//	CurrentAbility = Cast<UYogGameplayAbility>(this->GetAnimatingAbility());
+	//}
+
+	//return CurrentAbility;
 }
 
 void UYogAbilitySystemComponent::LogAllGrantedAbilities()

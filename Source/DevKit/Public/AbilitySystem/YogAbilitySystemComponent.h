@@ -114,7 +114,8 @@ public:
 	void RemoveActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToUnblock);
 
 	UFUNCTION(BlueprintCallable)
-	UYogGameplayAbility* GetCurrentAbilityClass();
+	//DEPRECATED, DONT USE THIS
+	UClass* GetCurrentAbilityClass();
 
 	UFUNCTION(BlueprintCallable)
 	void LogAllGrantedAbilities();

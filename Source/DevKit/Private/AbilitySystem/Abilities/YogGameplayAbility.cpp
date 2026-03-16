@@ -52,7 +52,17 @@ void UYogGameplayAbility::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo
 
 TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel )
 {
-	UE_LOG(LogTemp, Warning, TEXT("ApplyEffectContainer"));
+	UE_LOG(LogTemp, Warning, TEXT("ApplyEffectContainer with ContainerTag: %s"), *ContainerTag.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("=== FGameplayEventData Details ==="));
+
+	UE_LOG(LogTemp, Warning, TEXT("EventTag: %s"), *EventData.EventTag.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("Instigator: %s"), *GetNameSafe(EventData.Instigator));
+	UE_LOG(LogTemp, Warning, TEXT("Target: %s"), *GetNameSafe(EventData.Target));
+	UE_LOG(LogTemp, Warning, TEXT("EventMagnitude: %f"), EventData.EventMagnitude);
+	UE_LOG(LogTemp, Warning, TEXT("OptionalObject: %s"), *GetNameSafe(EventData.OptionalObject));
+	UE_LOG(LogTemp, Warning, TEXT("OptionalObject2: %s"), *GetNameSafe(EventData.OptionalObject2));
+
+
 	FYogGameplayEffectContainerSpec Spec = MakeEffectContainerSpec(ContainerTag, EventData, OverrideGameplayLevel);
 
 
