@@ -7,7 +7,7 @@
 
 UActionAbility::UActionAbility(const FObjectInitializer& ObjectInitializer)
 {
-    //InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+    InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
     //bRetriggerInstancedAbility = true;
     //NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
