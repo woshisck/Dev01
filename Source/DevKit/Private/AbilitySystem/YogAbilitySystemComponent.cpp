@@ -186,30 +186,40 @@ void UYogAbilitySystemComponent::RemoveActivationBlockedTags(const FGameplayTag&
 
 UYogGameplayAbility* UYogAbilitySystemComponent::GetCurrentAbilityInstance()
 {
-
-	for (const FGameplayAbilitySpec& Spec : this->GetActivatableAbilities())
+	// Iterate through all activatable abilities
+	for (const FGameplayAbilitySpec& Spec : GetActivatableAbilities())
 	{
-		if (Spec.IsActive())
+		// Each spec can have multiple instances if instanced per execution
+		for (UGameplayAbility* AbilityInstance : Spec.GetAbilityInstances())
 		{
-			UGameplayAbility* AbilityInstance = Spec.GetPrimaryInstance();
-			if (AbilityInstance)
+			if (AbilityInstance && AbilityInstance->IsActive())
 			{
-				// Cast to your custom ability class
-				return Cast<UYogGameplayAbility>(AbilityInstance);
+				// Cast to your custom ability type
+				if (UYogGameplayAbility* YogAbility = Cast<UYogGameplayAbility>(AbilityInstance))
+				{
+					return YogAbility;
+				}
 			}
 		}
 	}
-	return nullptr;
+
+	return nullptr; // No active ability found
 
 
-	//UYogGameplayAbility* CurrentAbility = NewObject<UYogGameplayAbility>();
-	//
-	//if (this->GetAnimatingAbility())
+	//for (const FGameplayAbilitySpec& Spec : this->GetActivatableAbilities())
 	//{
-	//	CurrentAbility = Cast<UYogGameplayAbility>(this->GetAnimatingAbility());
+	//	if (Spec.IsActive())
+	//	{
+	//		UGameplayAbility* AbilityInstance = Spec.GetPrimaryInstance();
+	//		if (AbilityInstance)
+	//		{
+	//			// Cast to your custom ability class
+	//			return Cast<UYogGameplayAbility>(AbilityInstance);
+	//		}
+	//	}
 	//}
+	//return nullptr;
 
-	//return CurrentAbility;
 }
 
 void UYogAbilitySystemComponent::LogAllGrantedAbilities()

@@ -46,14 +46,14 @@ void UYogTask_PlayMontageAbility::OnMontageBlendingOut(UAnimMontage* Montage, bo
 	{
 		if (ShouldBroadcastAbilityTaskDelegates())
 		{
-			OnInterrupted.Broadcast(FGameplayTag(), FGameplayEventData());
+			OnInterrupted.Broadcast();
 		}
 	}
 	else
 	{
 		if (ShouldBroadcastAbilityTaskDelegates())
 		{
-			OnBlendOut.Broadcast(FGameplayTag(), FGameplayEventData());
+			OnBlendOut.Broadcast();
 		}
 	}
 }
@@ -67,7 +67,7 @@ void UYogTask_PlayMontageAbility::OnAbilityCancelled()
 		// Let the BP handle the interrupt as well
 		if (ShouldBroadcastAbilityTaskDelegates())
 		{
-			OnCancelled.Broadcast(FGameplayTag(), FGameplayEventData());
+			OnCancelled.Broadcast();
 		}
 	}
 }
@@ -78,7 +78,7 @@ void UYogTask_PlayMontageAbility::OnMontageEnded(UAnimMontage* Montage, bool bIn
 	{
 		if (ShouldBroadcastAbilityTaskDelegates())
 		{
-			OnCompleted.Broadcast(FGameplayTag(), FGameplayEventData());
+			OnCompleted.Broadcast();
 		}
 	}
 
@@ -92,7 +92,7 @@ void UYogTask_PlayMontageAbility::OnGameplayEvent(FGameplayTag EventTag, const F
 		FGameplayEventData TempData = *Payload;
 		TempData.EventTag = EventTag;
 
-		EventReceived.Broadcast(EventTag, TempData);
+		OnEventReceived.Broadcast(EventTag, TempData);
 	}
 }
 
@@ -172,7 +172,7 @@ void UYogTask_PlayMontageAbility::Activate()
 		ABILITY_LOG(Warning, TEXT("UYogTask_PlayMontageAbility called in Ability %s failed to play montage %s; Task Instance Name %s."), *Ability->GetName(), *GetNameSafe(MontageToPlay), *InstanceName.ToString());
 		if (ShouldBroadcastAbilityTaskDelegates())
 		{
-			OnCancelled.Broadcast(FGameplayTag(), FGameplayEventData());
+			OnCancelled.Broadcast();
 		}
 	}
 

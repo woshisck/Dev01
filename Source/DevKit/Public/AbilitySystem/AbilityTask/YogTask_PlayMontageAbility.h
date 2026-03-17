@@ -7,9 +7,11 @@
 #include "YogTask_PlayMontageAbility.generated.h"
 
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPlayMontageSimpleDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPlayMontageAbilityDelegate, FGameplayTag, EventTag, const FGameplayEventData&, EventData);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPlayMontageAbilityDelegate, FGameplayTag, EventTag, FGameplayEventData, EventData);
 
+class UYogAbilitySystemComponent;
 
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UYogTask_PlayMontageAbility : public UAbilityTask
@@ -26,23 +28,23 @@ public:
 
 	/** The montage completely finished playing */
 	UPROPERTY(BlueprintAssignable)
-	FPlayMontageAbilityDelegate OnCompleted;
+	FPlayMontageSimpleDelegate OnCompleted;
 
 	/** The montage started blending out */
 	UPROPERTY(BlueprintAssignable)
-	FPlayMontageAbilityDelegate OnBlendOut;
+	FPlayMontageSimpleDelegate OnBlendOut;
 
 	/** The montage was interrupted */
 	UPROPERTY(BlueprintAssignable)
-	FPlayMontageAbilityDelegate OnInterrupted;
+	FPlayMontageSimpleDelegate OnInterrupted;
 
 	/** The ability task was explicitly cancelled by another ability */
 	UPROPERTY(BlueprintAssignable)
-	FPlayMontageAbilityDelegate OnCancelled;
+	FPlayMontageSimpleDelegate OnCancelled;
 
 	/** One of the triggering gameplay events happened */
 	UPROPERTY(BlueprintAssignable)
-	FPlayMontageAbilityDelegate EventReceived;
+	FPlayMontageAbilityDelegate OnEventReceived;
 
 	UFUNCTION(BlueprintCallable, Category = "Ability|Tasks", meta = (HidePin = "OwningAbility", HidePin = "OwningAbility", DefaultToSelf = "OwningAbility",DisplayName = "Play Montage Ability Task", BlueprintInternalUseOnly = "TRUE"))
 	static UYogTask_PlayMontageAbility* YogPlayMontageAbility(
@@ -80,10 +82,13 @@ private:
 	UPROPERTY()
 	bool bStopWhenAbilityEnds;
 
-	/** Checks if the ability is playing a montage and stops that montage, returns true if a montage was stopped, false if not. */
+
+	UFUNCTION()
 	bool StopPlayingMontage();
 
+	
 	/** Returns our ability system component */
+	UFUNCTION()
 	UYogAbilitySystemComponent* GetTargetASC();
 
 	void OnMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);

@@ -188,23 +188,23 @@ public:
 
 
 	////////////////////////////////////////////////// Collision //////////////////////////////////////////////////
-	UFUNCTION(BlueprintCallable, Category = "Math")
+	UFUNCTION(BlueprintPure, Category = "Math")
 	static float DistFromPointToTriangle(UObject* WorldContextObject, FVector target_point, FYogCollisionTriangle triangle);
 
-	UFUNCTION(BlueprintCallable, Category = "Math")
+	UFUNCTION(BlueprintPure, Category = "Math")
 	static float DistFromPointToAnnulus(UObject* WorldContextObject, FVector target_point, FYogCollisionAnnulus annulus);
 
-	UFUNCTION(BlueprintCallable, Category = "Math")
+	UFUNCTION(BlueprintPure, Category = "Math")
 	static float DistFromPointToSquare(UObject* WorldContextObject, FVector target_point, FYogCollisionSquare square);
 
 
-	UFUNCTION(BlueprintCallable, Category = "Math")
+	UFUNCTION(BlueprintPure, Category = "Math")
 	static FVector DistFromPointToPoint(UObject* WorldContextObject,FVector pointA, FVector pointB);
 
-	UFUNCTION(BlueprintCallable, Category = "Math")
+	UFUNCTION(BlueprintPure, Category = "Math")
 	static float DistFromPointToLine(UObject* WorldContextObject, FVector pointA, FVector Coef);
 
-	UFUNCTION(BlueprintCallable, Category = "Math")
+	UFUNCTION(BlueprintPure, Category = "Math")
 	static TArray<FYogCollisionTriangle> MakeTriangleArray(UObject* WorldContextObject, TArray<FVector> point_array, FVector Playerloc);
 
 	UFUNCTION(BlueprintCallable, Category = "Math")

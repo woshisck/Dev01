@@ -7,7 +7,7 @@
 
 UActionAbility::UActionAbility(const FObjectInitializer& ObjectInitializer)
 {
-    InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+    //InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
     //bRetriggerInstancedAbility = true;
     //NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
@@ -103,7 +103,7 @@ void UActionAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
     }
 
     ActiveEffectHandles.Empty();
-    cache_action_data = nullptr;
+    //cache_action_data = nullptr;
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 

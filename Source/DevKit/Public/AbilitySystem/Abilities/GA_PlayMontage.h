@@ -4,26 +4,41 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
-#include "Templates/SharedPointer.h" 
-#include "AttackAbility.generated.h"
+#include "GA_PlayMontage.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class DEVKIT_API UAttackAbility : public UYogGameplayAbility
+class DEVKIT_API UGA_PlayMontage : public UYogGameplayAbility
 {
 	GENERATED_BODY()
 	
 public:
-	UAttackAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UGA_PlayMontage(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 
-	TSharedPtr<FActionData> cache_action_data;
+    UFUNCTION()
+    void OnMontageCompleted();
+
+    UFUNCTION()
+    void OnMontageBlendOut();
+
+    UFUNCTION()
+    void OnMontageInterrupted();
+
+    UFUNCTION()
+    void OnMontageCancelled();
+
+    UFUNCTION()
+    void OnEventReceived(FGameplayTag EventTag, const FGameplayEventData& EventData);
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+    TSubclassOf<UYogGameplayEffect> DynamicEffectClass;
 
 	UPROPERTY()
 	TArray<FActiveGameplayEffectHandle> ActiveEffectHandles;
