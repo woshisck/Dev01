@@ -72,8 +72,6 @@ void AItemSpawner::OnConstruction(const FTransform& Transform)
 
 void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
-	
-
 
 	APlayerCharacterBase* OverlappingCharacter = Cast<APlayerCharacterBase>(OtherActor);
 
@@ -83,7 +81,7 @@ void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 
 		
 
-		//UE_LOG(LogTemp, Warning, TEXT("OverlappingCharacter: %s OnOverlapBegin"), *OverlappingCharacter->GetName());
+		UE_LOG(LogTemp, Warning, TEXT("OverlappingCharacter: %s OnOverlapBegin"), *OverlappingCharacter->GetName());
 		//
 	
 	}
@@ -124,7 +122,7 @@ void AItemSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor
 	{
 		OverlappingCharacter->OnItemInterActionEnd.Broadcast(OverlappingCharacter);
 
-		//UE_LOG(LogTemp, Warning, TEXT("OverlappingCharacter: %s OnOverlapBegin"), *OverlappingCharacter->GetName());
+		UE_LOG(LogTemp, Warning, TEXT("OverlappingCharacter: %s OnOverlapBegin"), *OverlappingCharacter->GetName());
 		//
 
 	}
@@ -134,5 +132,5 @@ void AItemSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor
 
 void AItemSpawner::GrantItem_Implementation(AYogCharacterBase* ReceivingChar)
 {
-
+	UE_LOG(LogTemp, Warning, TEXT("GrantItem_Implementation"));
 }
