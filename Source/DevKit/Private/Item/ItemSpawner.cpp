@@ -57,17 +57,17 @@ void AItemSpawner::OnConstruction(const FTransform& Transform)
 {	
 
 
-	if (ItemDefinition != nullptr && ItemDefinition->DisplayMesh != nullptr)
-	{	//Visual stat
-		ItemMesh->SetStaticMesh(ItemDefinition->DisplayMesh);
-		ItemMesh->SetRelativeLocation(ItemDefinition->ItemMeshOffset);
-		ItemMesh->SetRelativeScale3D(ItemDefinition->ItemMeshScale);
-		
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("NO FOUND ITEM DEFINITION!, name: %s"), *GetNameSafe(this));
-	}
+	//if (ItemDefinition != nullptr && ItemDefinition->DisplayMesh != nullptr)
+	//{	//Visual stat
+	//	ItemMesh->SetStaticMesh(ItemDefinition->DisplayMesh);
+	//	ItemMesh->SetRelativeLocation(ItemDefinition->ItemMeshOffset);
+	//	ItemMesh->SetRelativeScale3D(ItemDefinition->ItemMeshScale);
+	//	
+	//}
+	//else
+	//{
+	//	UE_LOG(LogTemp, Warning, TEXT("NO FOUND ITEM DEFINITION!, name: %s"), *GetNameSafe(this));
+	//}
 }
 
 void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
@@ -123,7 +123,7 @@ void AItemSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor
 		OverlappingCharacter->OnItemInterActionEnd.Broadcast(OverlappingCharacter);
 
 		UE_LOG(LogTemp, Warning, TEXT("OverlappingCharacter: %s OnOverlapBegin"), *OverlappingCharacter->GetName());
-		//
+
 
 	}
 

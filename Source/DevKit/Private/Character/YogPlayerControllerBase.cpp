@@ -105,11 +105,11 @@ AYogCharacterBase* AYogPlayerControllerBase::GetControlledCharacter()
 	return MyCharacter;
 }
 
-void AYogPlayerControllerBase::OnInteractTriggered()
+void AYogPlayerControllerBase::OnInteractTriggered(const AItemSpawner* item)
 {
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn());
 
-
+	UE_LOG(LogTemp, Warning, TEXT("item"));
 }
 
 void AYogPlayerControllerBase::ToggleInput(bool bEnable)

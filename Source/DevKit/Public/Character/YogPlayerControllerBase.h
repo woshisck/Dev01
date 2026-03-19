@@ -64,7 +64,7 @@ public:
 
 
 	UFUNCTION(BlueprintCallable)
-	void OnInteractTriggered();
+	void OnInteractTriggered(const AItemSpawner* item);
 
 	/////////////////////////////////////////// INPUT ACTION ///////////////////////////////////////////
 

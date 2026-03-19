@@ -51,6 +51,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void Die() override;
 
+	UFUNCTION(BlueprintCallable, Category = "Item")
+	void ItemInteract(const AItemSpawner* item);
+
+
+
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FHeatUpdateDelegate OnHeatUpdate;
 

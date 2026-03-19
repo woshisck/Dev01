@@ -14,6 +14,7 @@
 #include "SaveGame/YogSaveGame.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Data/GASTemplate.h"
+#include "Item/ItemSpawner.h"
 
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
@@ -43,6 +44,23 @@ void APlayerCharacterBase::Die()
 {
 	Super::Die();
 
+}
+
+void APlayerCharacterBase::ItemInteract(const AItemSpawner* item)
+{
+
+	TArray<AActor*> actor_overlap_list;
+	TSubclassOf<AItemSpawner> class_filter;
+	this->GetCapsuleComponent()->GetOverlappingActors(actor_overlap_list, AItemSpawner::StaticClass());
+	for (AActor* Actor : actor_overlap_list)
+	{
+		if (Actor)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Overlapping Actor: %s"), *Actor->GetName());
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("item"));
 }
 
 void APlayerCharacterBase::HeatChanged(const FOnAttributeChangeData& Data)
