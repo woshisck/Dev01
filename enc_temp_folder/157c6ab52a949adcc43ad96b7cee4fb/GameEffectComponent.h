@@ -12,8 +12,6 @@
 
 class UYogGameplayEffect;
 class UPlayEffectDefinition;
-
-
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class DEVKIT_API UGameEffectComponent : public UActorComponent
 {
@@ -25,11 +23,6 @@ public:
 
 	// Called when the game starts
 	virtual void BeginPlay() override;
-
-	UPROPERTY()
-	TMap<FGameplayTag, UYogGameplayEffect> GameEffectMap;
-
-
 
 
 	UFUNCTION()
@@ -47,5 +40,5 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	UAttributeStatComponent* GetOwnerAttributeStateComp();
-
+		
 };

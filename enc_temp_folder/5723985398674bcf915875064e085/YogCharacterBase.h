@@ -99,10 +99,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)
 	TObjectPtr<UAttributeStatComponent> AttributeStatsComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)
-	TObjectPtr<UGameEffectComponent> GameEffectComponent;
-
-
+	////////////////////////////////////////// Attribute Set //////////////////////////////////////////
 
 	UPROPERTY(SaveGame, BlueprintReadWrite)
 	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;
@@ -110,7 +107,7 @@ public:
 	UPROPERTY(SaveGame, BlueprintReadWrite)
 	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
 
-
+	///////////////////////////////////////////　Passive effect　///////////////////////////////////////////
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = Abilities)
 	//TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
@@ -118,6 +115,14 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, SaveGame, Category = "AblitySystemComp")
 	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
 
+
+
+	//TMap<FYogTagContainerWrapper, FActionData> AbilityMap;
+
+	//////////////////////////////////////////////////////////////////////////////////////////////
+
+	//UPROPERTY(VisibleAnywhere, SaveGame, BlueprintReadWrite, Category = "Weapon")
+	//TObjectPtr<AWeaponInstance> Weapon;
 
 	//DELEGATE DEFINE
 	UPROPERTY(BlueprintAssignable, SaveGame, Category = "Character|Attributes")

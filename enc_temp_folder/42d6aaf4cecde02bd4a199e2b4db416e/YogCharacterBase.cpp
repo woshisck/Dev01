@@ -15,7 +15,6 @@
 
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
-#include "Component/GameEffectComponent.h"
 
 AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -26,8 +25,6 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<UYogAbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
 	HitboxbuffComponent = ObjectInitializer.CreateDefaultSubobject<UHitBoxBufferComponent>(this, TEXT("HitBoxBufferComponent"));
 	AttributeStatsComponent = ObjectInitializer.CreateDefaultSubobject<UAttributeStatComponent>(this, TEXT("AttributeStatComp"));
-	GameEffectComponent = ObjectInitializer.CreateDefaultSubobject<UGameEffectComponent>(this, TEXT("GameEffectComp"));
-
 
 	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
 
