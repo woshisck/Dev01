@@ -26,6 +26,9 @@ public:
 	float MaxHealth = 100;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxHeat = 100;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Shield = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

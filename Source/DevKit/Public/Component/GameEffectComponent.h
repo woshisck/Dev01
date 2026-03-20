@@ -27,7 +27,7 @@ public:
 	virtual void BeginPlay() override;
 
 	UPROPERTY()
-	TMap<FGameplayTag, UYogGameplayEffect> GameEffectMap;
+	TMap<FGameplayTag, UYogGameplayEffect*> GameEffectMap;
 
 
 

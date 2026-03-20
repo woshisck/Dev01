@@ -17,7 +17,7 @@
 
 class AYogPlayerControllerBase;
 class UGASTemplate;
-
+class UGameEffectComponent;
 UENUM(BlueprintType)
 enum class EYogCharacterState : uint8
 {
