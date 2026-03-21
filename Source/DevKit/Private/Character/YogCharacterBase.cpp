@@ -87,6 +87,17 @@ void AYogCharacterBase::BeginPlay()
 	Super::BeginPlay();
 
 
+	if (CharacterData && GetASC())
+	{
+		const FMovementData& moveData = CharacterData->GetMovementData();
+		const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
+		BaseAttributeSet->Init(CharacterData);
+
+		HealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
+		MaxHealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
+
+	}
+
 	//UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
 
 	//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
@@ -108,17 +119,10 @@ void AYogCharacterBase::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 	
-	//TODO: need add if statement for save/load character data
-	if (CharacterData && GetASC())
-	{
-		const FMovementData& moveData = CharacterData->GetMovementData();
-		const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
-		BaseAttributeSet->Init(CharacterData);
+	//-------------------------------
+	//	only setup the component 
+	//-------------------------------
 
-		HealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
-		MaxHealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
-
-	}
 
 
 }

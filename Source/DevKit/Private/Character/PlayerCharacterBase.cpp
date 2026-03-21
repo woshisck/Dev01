@@ -98,12 +98,25 @@ void APlayerCharacterBase::BeginPlay()
 			GetASC()->K2_GiveAbility(ablity_class, 0, 0);
 		}
 
-		for (TSubclassOf<UYogGameplayEffect> effect_class : GasTemplate->PassiveEffect)
+		for (const TSubclassOf<UYogGameplayEffect> effect_class : GasTemplate->PassiveEffect)
 		{
-			FGameplayEffectContextHandle Context;
+			UYogAbilitySystemComponent* asc = this->GetASC();
 
-			FGameplayEffectSpecHandle SpecHandle = GetASC()->MakeOutgoingSpec(effect_class, 0, Context);
-			GetASC()->BP_ApplyGameplayEffectSpecToSelf(/*const FGameplayEffectSpecHandle & */SpecHandle);
+
+			FGameplayEffectContextHandle Context = asc->MakeEffectContext();
+			Context.AddSourceObject(this);
+			FGameplayEffectSpecHandle SpecHandle = asc->MakeOutgoingSpec(effect_class, 1.f, Context);
+			if (SpecHandle.IsValid())
+			{
+				asc->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+			}
+
+
+
+			//FGameplayEffectContextHandle Context;
+
+			//FGameplayEffectSpecHandle SpecHandle = GetASC()->MakeOutgoingSpec(effect_class, 0, Context);
+			//GetASC()->BP_ApplyGameplayEffectSpecToSelf(/*const FGameplayEffectSpecHandle & */SpecHandle);
 		}
 
 	}
