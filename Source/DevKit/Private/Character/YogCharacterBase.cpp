@@ -49,6 +49,8 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 }
 
+
+
 int32 AYogCharacterBase::GetStatePriority(EYogCharacterState State)
 {
 	switch (State) {
@@ -129,6 +131,21 @@ void AYogCharacterBase::PostInitializeComponents()
 
 
 
+}
+
+void AYogCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+}
+
+void AYogCharacterBase::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+}
+
+void AYogCharacterBase::UnPossessed()
+{
+	Super::UnPossessed();
 }
 
 UAbilitySystemComponent* AYogCharacterBase::GetAbilitySystemComponent() const

@@ -23,7 +23,7 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 {
 
 
-//	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
+	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 
 }
 
@@ -103,18 +103,17 @@ void APlayerCharacterBase::BeginPlay()
 		for (const TSubclassOf<UYogGameplayEffect> effect_class : GasTemplate->PassiveEffect)
 		{
 
+			//TODO: fix bug when the ower is null
 
-
-			UYogAbilitySystemComponent* asc = this->GetASC();
-
-			FGameplayEffectContextHandle Context = asc->MakeEffectContext();
-			FGameplayEffectSpecHandle SpecHandle = asc->MakeOutgoingSpec(effect_class, 0, Context);
-			
-			if (SpecHandle.IsValid())
-			{
-				FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
-				asc->ApplyGameplayEffectSpecToSelf(*Spec);
-			}
+			//UYogAbilitySystemComponent* asc = this->GetASC();
+			//FGameplayEffectContextHandle Context = asc->MakeEffectContext();
+			//FGameplayEffectSpecHandle SpecHandle = asc->MakeOutgoingSpec(effect_class, 0, Context);
+			//
+			//if (SpecHandle.IsValid())
+			//{
+			//	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
+			//	asc->ApplyGameplayEffectSpecToSelf(*Spec);
+			//}
 		
 		}
 

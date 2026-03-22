@@ -74,11 +74,18 @@ class DEVKIT_API AYogCharacterBase : public AModularCharacter, public IAbilitySy
 
 
 public:
-	void BeginPlay() override;
-	void Tick(float DeltaSeconds) override;
-	void PostInitializeComponents() override;
-
 	AYogCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+
+	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
+	virtual void PostInitializeComponents() override;
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void UnPossessed() override;
+
+
 
 	UFUNCTION(BlueprintCallable)
 	int32 GetStatePriority(EYogCharacterState State);
