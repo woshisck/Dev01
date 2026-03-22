@@ -86,7 +86,6 @@ void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-
 	if (CharacterData && GetASC())
 	{
 		const FMovementData& moveData = CharacterData->GetMovementData();
@@ -122,6 +121,11 @@ void AYogCharacterBase::PostInitializeComponents()
 	//-------------------------------
 	//	only setup the component 
 	//-------------------------------
+
+
+	//check(GetASC());
+	//GetASC()->InitAbilityActorInfo(this, this);
+
 
 
 

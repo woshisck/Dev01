@@ -23,7 +23,7 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 {
 
 
-	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
+//	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 
 }
 
@@ -85,10 +85,12 @@ void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	//GetASC()->InitAbilityActorInfo(this, this);
+
 	if (GasTemplate != nullptr)
 	{
 		for (TSubclassOf<UYogGameplayAbility> ablity_class : GasTemplate->PassiveMap)
-		{
+		{    
 			//TODO: confirm about the inputID
 			GetASC()->K2_GiveAbility(ablity_class, 0, 0);
 		}
@@ -100,23 +102,20 @@ void APlayerCharacterBase::BeginPlay()
 
 		for (const TSubclassOf<UYogGameplayEffect> effect_class : GasTemplate->PassiveEffect)
 		{
+
+
+
 			UYogAbilitySystemComponent* asc = this->GetASC();
 
-
 			FGameplayEffectContextHandle Context = asc->MakeEffectContext();
-			Context.AddSourceObject(this);
-			FGameplayEffectSpecHandle SpecHandle = asc->MakeOutgoingSpec(effect_class, 1.f, Context);
+			FGameplayEffectSpecHandle SpecHandle = asc->MakeOutgoingSpec(effect_class, 0, Context);
+			
 			if (SpecHandle.IsValid())
 			{
-				asc->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+				FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
+				asc->ApplyGameplayEffectSpecToSelf(*Spec);
 			}
-
-
-
-			//FGameplayEffectContextHandle Context;
-
-			//FGameplayEffectSpecHandle SpecHandle = GetASC()->MakeOutgoingSpec(effect_class, 0, Context);
-			//GetASC()->BP_ApplyGameplayEffectSpecToSelf(/*const FGameplayEffectSpecHandle & */SpecHandle);
+		
 		}
 
 	}
