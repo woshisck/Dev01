@@ -23,10 +23,16 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
 
-	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<UYogAbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
-	HitboxbuffComponent = ObjectInitializer.CreateDefaultSubobject<UHitBoxBufferComponent>(this, TEXT("HitBoxBufferComponent"));
-	AttributeStatsComponent = ObjectInitializer.CreateDefaultSubobject<UAttributeStatComponent>(this, TEXT("AttributeStatComp"));
-	GameEffectComponent = ObjectInitializer.CreateDefaultSubobject<UGameEffectComponent>(this, TEXT("GameEffectComp"));
+	AbilitySystemComponent = CreateDefaultSubobject<UYogAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	HitboxbuffComponent = CreateDefaultSubobject<UHitBoxBufferComponent>(TEXT("HitBoxBufferComponent"));
+	AttributeStatsComponent = CreateDefaultSubobject<UAttributeStatComponent>(TEXT("AttributeStatComponent"));
+	GameEffectComponent = CreateDefaultSubobject<UGameEffectComponent>(TEXT("GameEffectComponent"));
+
+
+
+	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
+	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
+	//AdditionAttributeSet = CreateDefaultSubobject<UAdditionAttributeSet>(TEXT("AdditionAttributeSet"));
 
 
 	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
@@ -34,10 +40,6 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	check(CapsuleComp);
 	CapsuleComp->InitCapsuleSize(40.0f, 90.0f);
 
-
-	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
-	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
-	//AdditionAttributeSet = CreateDefaultSubobject<UAdditionAttributeSet>(TEXT("AdditionAttributeSet"));
 
 	//MovementComponent setup
 	UYogCharacterMovementComponent* YogMoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
@@ -47,6 +49,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 	CurrentWeaponState = EWeaponState::Unequipped;
 
+	check(AbilitySystemComponent);
 }
 
 
@@ -88,17 +91,6 @@ void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (CharacterData && GetASC())
-	{
-		const FMovementData& moveData = CharacterData->GetMovementData();
-		const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
-		BaseAttributeSet->Init(CharacterData);
-
-		HealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
-		MaxHealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
-
-	}
-
 	//UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
 
 	//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
@@ -124,13 +116,6 @@ void AYogCharacterBase::PostInitializeComponents()
 	//	only setup the component 
 	//-------------------------------
 
-
-	//check(GetASC());
-	//GetASC()->InitAbilityActorInfo(this, this);
-
-
-
-
 }
 
 void AYogCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -141,11 +126,36 @@ void AYogCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 void AYogCharacterBase::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
+
+
+
+
+	//const FMovementData& moveData = CharacterData->GetMovementData();
+	//const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
+	//BaseAttributeSet->Init(CharacterData);
+
+	//HealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
+	//MaxHealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
+
+
+
+
 }
 
 void AYogCharacterBase::UnPossessed()
 {
 	Super::UnPossessed();
+}
+
+void AYogCharacterBase::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	}
+
 }
 
 UAbilitySystemComponent* AYogCharacterBase::GetAbilitySystemComponent() const
@@ -237,7 +247,7 @@ void AYogCharacterBase::GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> Ab
 	{
 		FGameplayAbilitySpec AbilitySpec(AbilityToGrant, AbilityLevel);
 		AbilitySystemComponent->GiveAbility(AbilitySpec);
-		//AbilitySystemComponent->InitAbilityActorInfo(this, this);
+
 	}
 
 

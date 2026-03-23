@@ -9,7 +9,7 @@
 
 
 #include "AbilitySystemInterface.h"
-#include "../Data/CharacterData.h"
+#include "Data/CharacterData.h"
 #include "Component/AttributeStatComponent.h"
 #include "YogCharacterBase.generated.h"
 
@@ -48,7 +48,7 @@ class UHitBoxBufferComponent;
 class UYogGameplayAbility;
 class AItemSpawner;
 class AWeaponInstance;
-
+class UCharacterData;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, const float, HealthPercent);
@@ -84,11 +84,24 @@ public:
 	virtual void PostInitializeComponents() override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void UnPossessed() override;
-
+	virtual void OnRep_PlayerState() override;
 
 
 	UFUNCTION(BlueprintCallable)
 	int32 GetStatePriority(EYogCharacterState State);
+
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AblitySystemComp")
+	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
+
+	UPROPERTY()
+	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;
+
+	UPROPERTY()
+	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
+
+	UFUNCTION()
+	void InitCharacterData();
 
 
 	//--------------------------------------------
@@ -97,37 +110,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UCharacterData> CharacterData;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Data")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UAbilityData> AbilityData;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UGASTemplate> GasTemplate;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UAttributeStatComponent> AttributeStatsComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UGameEffectComponent> GameEffectComponent;
 
 
 
-	UPROPERTY(SaveGame, BlueprintReadWrite)
-	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;
 
-	UPROPERTY(SaveGame, BlueprintReadWrite)
-	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
-
-
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = Abilities)
-	//TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, SaveGame, Category = "AblitySystemComp")
-	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
 
 
 	//DELEGATE DEFINE
-	UPROPERTY(BlueprintAssignable, SaveGame, Category = "Character|Attributes")
+	UPROPERTY(BlueprintAssignable,Category = "Character|Attributes")
 	FCharacterDiedDelegate OnCharacterDied;
 
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
@@ -145,8 +146,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Character|State")
 	FCharacterStateDelegate OnCharacterStateUpdate;
 
-	UFUNCTION(BlueprintCallable)
-	void InitCharacterData();
 
 
 	UFUNCTION(BlueprintCallable)
@@ -245,12 +244,12 @@ public:
 	//friend UAdditionAttributeSet;
 
 private:
-	UPROPERTY(SaveGame)
+	UPROPERTY()
 	EYogCharacterState CurrentState;
 
-	UPROPERTY(SaveGame)
+	UPROPERTY()
 	EYogCharacterState PreviousState;
 
-	UPROPERTY(SaveGame)
+	UPROPERTY()
 	EWeaponState CurrentWeaponState;
 };

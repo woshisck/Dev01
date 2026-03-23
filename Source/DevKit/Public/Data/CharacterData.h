@@ -110,8 +110,8 @@ public:
 
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimeLayer")
-	TMap<FGameplayTag, TSubclassOf<UAnimInstance>> CharacterLayers;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimeLayer")
+	//TMap<FGameplayTag, TSubclassOf<UAnimInstance>> CharacterLayers;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AnimeLayer")
 	TArray<TSubclassOf<UAnimInstance>> DefaultAnimeLayers;

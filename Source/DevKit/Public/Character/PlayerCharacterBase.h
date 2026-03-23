@@ -35,6 +35,8 @@ class DEVKIT_API APlayerCharacterBase : public AYogCharacterBase
 public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void OnRep_PlayerState() override;
+
 
 	APlayerCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 

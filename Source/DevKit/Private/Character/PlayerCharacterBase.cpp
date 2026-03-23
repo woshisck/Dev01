@@ -84,47 +84,48 @@ void APlayerCharacterBase::MaxHeatChanged(const FOnAttributeChangeData& Data)
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+	check(AttributeStatsComponent);
+	check(AbilitySystemComponent);
+
 
 	//GetASC()->InitAbilityActorInfo(this, this);
-
-	if (GasTemplate != nullptr)
-	{
-		for (TSubclassOf<UYogGameplayAbility> ablity_class : GasTemplate->PassiveMap)
-		{    
-			//TODO: confirm about the inputID
-			GetASC()->K2_GiveAbility(ablity_class, 0, 0);
-		}
-
-		for (TSubclassOf<UYogGameplayAbility> ablity_class : GasTemplate->AbilityMap)
-		{
-			GetASC()->K2_GiveAbility(ablity_class, 0, 0);
-		}
-
-		for (const TSubclassOf<UYogGameplayEffect> effect_class : GasTemplate->PassiveEffect)
-		{
-
-			//TODO: fix bug when the ower is null
-
-			//UYogAbilitySystemComponent* asc = this->GetASC();
-			//FGameplayEffectContextHandle Context = asc->MakeEffectContext();
-			//FGameplayEffectSpecHandle SpecHandle = asc->MakeOutgoingSpec(effect_class, 0, Context);
-			//
-			//if (SpecHandle.IsValid())
-			//{
-			//	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
-			//	asc->ApplyGameplayEffectSpecToSelf(*Spec);
-			//}
-		
-		}
-
-	}
-
-
+	//if (GasTemplate != nullptr)
+	//{
+	//	for (TSubclassOf<UYogGameplayAbility> ablity_class : GasTemplate->PassiveMap)
+	//	{
+	//		//TODO: confirm about the inputID
+	//		GetASC()->K2_GiveAbility(ablity_class, 0, 0);
+	//	}
+	//	for (TSubclassOf<UYogGameplayAbility> ablity_class : GasTemplate->AbilityMap)
+	//	{
+	//		GetASC()->K2_GiveAbility(ablity_class, 0, 0);
+	//	}
+	//	for (const TSubclassOf<UYogGameplayEffect> effect_class : GasTemplate->PassiveEffect)
+	//	{
+	//		//TODO: fix bug when the ower is null
+	//		//UYogAbilitySystemComponent* asc = this->GetASC();
+	//		//FGameplayEffectContextHandle Context = asc->MakeEffectContext();
+	//		//FGameplayEffectSpecHandle SpecHandle = asc->MakeOutgoingSpec(effect_class, 0, Context);
+	//		//
+	//		//if (SpecHandle.IsValid())
+	//		//{
+	//		//	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
+	//		//	asc->ApplyGameplayEffectSpecToSelf(*Spec);
+	//		//}
+	//	}
+	//}
 }
 
 void APlayerCharacterBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+}
+
+void APlayerCharacterBase::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
 
 }
 

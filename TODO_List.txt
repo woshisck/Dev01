@@ -1,5 +1,7 @@
-YOG:
-1.Create subclass of yoggameplay ->WeaponAtK, generalMove, Passive move
-2.switch  montage post attack to enable move
-3.movement and attack buffer for instance direct input
-4. get hurt montage 
+check:
+CharacterConfigComponent.h
+void ALOTF2Character::InitializeComponentsWithStats(const UCharacterData* pCharacterData) const
+{
+	const FCharacterStatsInfo* statsData = pCharacterData->GetStatsData();
+	InitializeComponentsWithStats(statsData);
+}

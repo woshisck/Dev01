@@ -25,10 +25,22 @@ public:
 	// Sets default values for this component's properties
 	UDataCacheComponent();
 
+	// UCharacterData* GetCharacterData() const;
+	// void SetCharacterData(UCharacterData* NewCharacterData);
+	// // Load character definition from row configured in this component
+	// const UCharacterData* InitializeCharacterData();
+
+
+
 protected:
+
+
 	// Called when the game starts
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type endPlayReason) override;
 
+
+	// UPROPERTY(SaveGame, EditDefaultsOnly, BlueprintReadOnly, Category = "Anathema | CharacterData")
+	// TObjectPtr<UCharacterData> CharacterData;
 
 };
