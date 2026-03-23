@@ -16,6 +16,7 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "Component/GameEffectComponent.h"
+#include "Component/DataCacheComponent.h"
 
 AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -33,7 +34,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
 	//AdditionAttributeSet = CreateDefaultSubobject<UAdditionAttributeSet>(TEXT("AdditionAttributeSet"));
-
+	DataCacheComponent = CreateDefaultSubobject<UDataCacheComponent>(TEXT("CharacterConfigComponent"));
 
 	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
 
@@ -115,7 +116,13 @@ void AYogCharacterBase::PostInitializeComponents()
 	//-------------------------------
 	//	only setup the component 
 	//-------------------------------
-
+	// Character data init needs to happen on both client and server
+	const UCharacterData* pCharacterData = DataCacheComponent->GetCharacterData();
+	// In case data is not set up we initialize it now ( for instance spawning player )
+	if (pCharacterData == nullptr)
+	{
+		pCharacterData = DataCacheComponent->InitializeCharacterData();
+	}
 }
 
 void AYogCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

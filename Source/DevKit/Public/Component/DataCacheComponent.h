@@ -7,6 +7,8 @@
 #include "DataCacheComponent.generated.h"
 
 
+class UCharacterData;
+
 USTRUCT(BlueprintType)
 struct FAnimationUseCache
 {
@@ -28,7 +30,9 @@ public:
 	// UCharacterData* GetCharacterData() const;
 	// void SetCharacterData(UCharacterData* NewCharacterData);
 	// // Load character definition from row configured in this component
-	// const UCharacterData* InitializeCharacterData();
+	UCharacterData* GetCharacterData() const;
+	void SetCharacterData(UCharacterData* NewCharacterData);
+	const UCharacterData* InitializeCharacterData();
 
 
 
@@ -39,6 +43,11 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type endPlayReason) override;
 
+	UPROPERTY(SaveGame, EditDefaultsOnly, BlueprintReadOnly, Category = "Character | CharacterData")
+	TObjectPtr<UCharacterData> CharacterData;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character | CharacterData")
+	TSoftClassPtr<UCharacterData> CharacterDataClass;
 
 	// UPROPERTY(SaveGame, EditDefaultsOnly, BlueprintReadOnly, Category = "Anathema | CharacterData")
 	// TObjectPtr<UCharacterData> CharacterData;

@@ -18,6 +18,7 @@
 class AYogPlayerControllerBase;
 class UGASTemplate;
 class UGameEffectComponent;
+class UDataCacheComponent;
 UENUM(BlueprintType)
 enum class EYogCharacterState : uint8
 {
@@ -91,8 +92,11 @@ public:
 	int32 GetStatePriority(EYogCharacterState State);
 
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AblitySystemComp")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AblitySystemComp")
 	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TObjectPtr<UDataCacheComponent> DataCacheComponent;
 
 	UPROPERTY()
 	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;

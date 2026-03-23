@@ -4,11 +4,47 @@
 
 UDataCacheComponent::UDataCacheComponent()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
-
 	// ...
+}
+
+UCharacterData* UDataCacheComponent::GetCharacterData() const
+{
+	return CharacterData;
+}
+
+void UDataCacheComponent::SetCharacterData(UCharacterData* NewCharacterData)
+{
+	CharacterData = NewCharacterData;
+
+	// Initialize Character data initial config if valid
+	// #HEXTODO Maybe move this to initialization of AIData and call it at some point
+	// 
+	// 
+	//if (CharacterData && CharacterData->IsAICharacter())
+	//{
+	//	ConfigVars = CharacterData->GetAIData()->ConfigVars;
+	//}
+}
+
+const UCharacterData* UDataCacheComponent::InitializeCharacterData()
+{
+	// Load the character data instance from the asset class
+	if (!CharacterDataClass.IsNull())
+	{
+		UClass* pCharacterDataClass = CharacterDataClass.LoadSynchronous();
+		ensureAlwaysMsgf(pCharacterDataClass, TEXT("Broken soft reference %s"), *CharacterDataClass.ToString());
+		if (pCharacterDataClass)
+		{
+			UCharacterData* pLoadedCharacterData = pCharacterDataClass->GetDefaultObject<UCharacterData>();
+			SetCharacterData(pLoadedCharacterData);
+		}
+	}
+
+	// Return our current character data
+	UCharacterData* pCharacterData = GetCharacterData();
+	ensureMsgf(pCharacterData, TEXT("Character Data is null after calling InitializeCharacterData for actor %s"), *GetOwner()->GetName());
+	return pCharacterData;
 }
 
 
