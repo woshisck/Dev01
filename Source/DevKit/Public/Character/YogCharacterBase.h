@@ -18,7 +18,7 @@
 class AYogPlayerControllerBase;
 class UGASTemplate;
 class UGameEffectComponent;
-class UDataCacheComponent;
+class UCharacterDataComponent;
 UENUM(BlueprintType)
 enum class EYogCharacterState : uint8
 {
@@ -96,7 +96,7 @@ public:
 	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TObjectPtr<UDataCacheComponent> DataCacheComponent;
+	TObjectPtr<UCharacterDataComponent> CharacterDataComponent;
 
 	UPROPERTY()
 	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;

@@ -4,7 +4,7 @@
 #include "Components/ActorComponent.h"
 
 #include "GameplayEffectTypes.h"
-#include "DataCacheComponent.generated.h"
+#include "CharacterDataComponent.generated.h"
 
 
 class UCharacterData;
@@ -19,13 +19,13 @@ struct FAnimationUseCache
 };
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class DEVKIT_API UDataCacheComponent : public UActorComponent
+class DEVKIT_API UCharacterDataComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 	// Sets default values for this component's properties
-	UDataCacheComponent();
+	UCharacterDataComponent();
 
 	// UCharacterData* GetCharacterData() const;
 	// void SetCharacterData(UCharacterData* NewCharacterData);
