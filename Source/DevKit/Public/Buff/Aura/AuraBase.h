@@ -25,8 +25,4 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "AblitySystemComp")
-	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
 };

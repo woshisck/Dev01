@@ -40,28 +40,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
 
-	/////////////////////////////////////////// INPUT ACTION ///////////////////////////////////////////
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-	TObjectPtr<UInputAction> action_LightAttack;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-	TObjectPtr<UInputAction> action_HeavyAttack;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-	TObjectPtr<UInputAction> action_Move;
-
-	/////////////////////////////////////////// INPUT ACTION ///////////////////////////////////////////
-
-	UFUNCTION(BlueprintImplementableEvent)
-	void OnMoveTriggered(const FInputActionValue& Value);
-
-	UFUNCTION(BlueprintImplementableEvent)
-	void OnHeavyAttackTriggered(const FInputActionValue& Value);
-
-	UFUNCTION(BlueprintImplementableEvent)
-	void OnLightAttackTriggered(const FInputActionValue& Value);
-
 
 	UFUNCTION(BlueprintCallable)
 	void OnInteractTriggered(const AItemSpawner* item);
@@ -85,7 +63,7 @@ public:
 	void SetEnableRotationRate(FRotator RotationRate, bool isEnable);
 
 	UFUNCTION(BlueprintCallable, Category = "ASC")
-	void SpawnCameraPawn(APlayerCharacterBase* PossessedCharacter);
+	void SpawnCameraPawn(AYogCharacterBase* PossessedCharacter);
 
 	UFUNCTION(BlueprintCallable, Category = "ASC")
 	AYogCharacterBase* GetControlledCharacter();

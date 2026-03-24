@@ -33,11 +33,11 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
-	//AdditionAttributeSet = CreateDefaultSubobject<UAdditionAttributeSet>(TEXT("AdditionAttributeSet"));
-	DataCacheComponent = CreateDefaultSubobject<UDataCacheComponent>(TEXT("CharacterConfigComponent"));
+
+	DataCacheComponent = CreateDefaultSubobject<UDataCacheComponent>(TEXT("DataCacheComponent"));
+
 
 	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
-
 	check(CapsuleComp);
 	CapsuleComp->InitCapsuleSize(40.0f, 90.0f);
 
@@ -50,7 +50,9 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 	CurrentWeaponState = EWeaponState::Unequipped;
 
-	check(AbilitySystemComponent);
+	UE_LOG(LogTemp, Log, TEXT("Constructor: AbilitySystemComponent = %p"), AbilitySystemComponent.Get());
+
+
 }
 
 
@@ -85,22 +87,13 @@ UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
 
 bool AYogCharacterBase::IsAlive() const
 {
-	return GetHealth() > 0.0f;
+	return true;
 }
 
 void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-
-	//UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
-
-	//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
-	//UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
-
-	//if (SaveSubsystem->CurrentSaveGame)
-	//{
-	//	SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
-	//}
+	UE_LOG(LogTemp, Log, TEXT("BeginPlay: AbilitySystemComponent = %p"), AbilitySystemComponent.Get());
 }
 
 void AYogCharacterBase::Tick(float DeltaSeconds)
@@ -116,13 +109,17 @@ void AYogCharacterBase::PostInitializeComponents()
 	//-------------------------------
 	//	only setup the component 
 	//-------------------------------
-	// Character data init needs to happen on both client and server
-	const UCharacterData* pCharacterData = DataCacheComponent->GetCharacterData();
-	// In case data is not set up we initialize it now ( for instance spawning player )
-	if (pCharacterData == nullptr)
-	{
-		pCharacterData = DataCacheComponent->InitializeCharacterData();
-	}
+
+	UE_LOG(LogTemp, Log, TEXT("PostInit: AbilitySystemComponent = %p"), AbilitySystemComponent.Get());
+
+	//const UCharacterData* pCharacterData = DataCacheComponent->GetCharacterData();
+	//// In case data is not set up we initialize it now ( for instance spawning player )
+	//if (pCharacterData == nullptr)
+	//{
+	//	pCharacterData = DataCacheComponent->InitializeCharacterData();
+	//}
+
+
 }
 
 void AYogCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -163,6 +160,13 @@ void AYogCharacterBase::OnRep_PlayerState()
 		AbilitySystemComponent->InitAbilityActorInfo(this, this);
 	}
 
+}
+
+void AYogCharacterBase::OnRep_Controller()
+{
+	Super::OnRep_Controller();
+
+	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 }
 
 UAbilitySystemComponent* AYogCharacterBase::GetAbilitySystemComponent() const
@@ -216,36 +220,6 @@ void AYogCharacterBase::UpdateCharacterMovement(const bool IsMovable)
 }
 
 
-
-float AYogCharacterBase::GetHealth() const
-{
-	if (BaseAttributeSet)
-	{
-		return BaseAttributeSet->GetHealth();
-	}
-
-	return .4444f;
-}
-
-float AYogCharacterBase::GetMaxHealth() const
-{
-	if (BaseAttributeSet)
-	{
-		return BaseAttributeSet->GetMaxHealth();
-	}
-
-	return .5555f;
-}
-
-float AYogCharacterBase::GetAtkDist() const
-{
-	//if (BaseAttributeSet)
-	//{
-	//	return BaseAttributeSet->GetAtkDist();
-	//}
-	return .6666f;
-}
-
 void AYogCharacterBase::GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel)
 {
 	check(AbilitySystemComponent);
@@ -257,16 +231,6 @@ void AYogCharacterBase::GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> Ab
 
 	}
 
-
-
-	//if (GetLocalRole() == ROLE_Authority && !bAbilitiesInitialized)
-	//{
-	//	for (TSubclassOf<UYogGameplayAbility>& StartupAbility : GameplayAbilities)
-	//	{
-	//		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(StartupAbility, GetCharacterLevel(), INDEX_NONE, this));
-	//	}
-	//}
-	//bAbilitiesInitialized = false;
 }
 
 
@@ -336,7 +300,7 @@ void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 {
 
 	float Health = Data.NewValue;
-	float percent = Health / GetMaxHealth();
+	float percent = Health / AttributeStatsComponent->GetStat_MaxHealth();
 
 
 	OnCharacterHealthUpdate.Broadcast(percent);
@@ -379,24 +343,6 @@ void AYogCharacterBase::Die()
 	//UE_LOG(LogTemp, Log, TEXT("Current Monster Slay Count: %i"), YogGameInstance->MapStateCount.MonsterSlayCount);
 
 	OnCharacterDied.Broadcast(this);
-
-
-	//AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
-
-	//if (APlayerController* PC = Cast<APlayerController>(this->GetController()))
-	//{
-	//	DisableInput(PC);
-	//}
-
-
-	//if (DeathMontage)
-	//{
-	//	PlayAnimMontage(DeathMontage);
-	//}
-	//else
-	//{
-	//	FinishDying();
-	//} 
 
 }
 

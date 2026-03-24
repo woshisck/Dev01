@@ -84,9 +84,6 @@ void APlayerCharacterBase::MaxHeatChanged(const FOnAttributeChangeData& Data)
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-	//check(AttributeStatsComponent);
-	//check(AbilitySystemComponent);
-
 
 	//GetASC()->InitAbilityActorInfo(this, this);
 	//if (GasTemplate != nullptr)

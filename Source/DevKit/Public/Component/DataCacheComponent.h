@@ -43,7 +43,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type endPlayReason) override;
 
-	UPROPERTY(SaveGame, EditDefaultsOnly, BlueprintReadOnly, Category = "Character | CharacterData")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character | CharacterData")
 	TObjectPtr<UCharacterData> CharacterData;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character | CharacterData")

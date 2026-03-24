@@ -29,22 +29,24 @@ void UDataCacheComponent::SetCharacterData(UCharacterData* NewCharacterData)
 
 const UCharacterData* UDataCacheComponent::InitializeCharacterData()
 {
+	return CharacterData;
 	// Load the character data instance from the asset class
-	if (!CharacterDataClass.IsNull())
-	{
-		UClass* pCharacterDataClass = CharacterDataClass.LoadSynchronous();
-		ensureAlwaysMsgf(pCharacterDataClass, TEXT("Broken soft reference %s"), *CharacterDataClass.ToString());
-		if (pCharacterDataClass)
-		{
-			UCharacterData* pLoadedCharacterData = pCharacterDataClass->GetDefaultObject<UCharacterData>();
-			SetCharacterData(pLoadedCharacterData);
-		}
-	}
 
-	// Return our current character data
-	UCharacterData* pCharacterData = GetCharacterData();
-	ensureMsgf(pCharacterData, TEXT("Character Data is null after calling InitializeCharacterData for actor %s"), *GetOwner()->GetName());
-	return pCharacterData;
+	//if (!CharacterDataClass.IsNull())
+	//{
+	//	UClass* pCharacterDataClass = CharacterDataClass.LoadSynchronous();
+	//	ensureAlwaysMsgf(pCharacterDataClass, TEXT("Broken soft reference %s"), *CharacterDataClass.ToString());
+	//	if (pCharacterDataClass)
+	//	{
+	//		UCharacterData* pLoadedCharacterData = pCharacterDataClass->GetDefaultObject<UCharacterData>();
+	//		SetCharacterData(pLoadedCharacterData);
+	//	}
+	//}
+
+	//// Return our current character data
+	//UCharacterData* pCharacterData = GetCharacterData();
+	//ensureMsgf(pCharacterData, TEXT("Character Data is null after calling InitializeCharacterData for actor %s"), *GetOwner()->GetName());
+	//return pCharacterData;
 }
 
 

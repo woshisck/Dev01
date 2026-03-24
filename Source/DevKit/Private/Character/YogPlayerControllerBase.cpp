@@ -8,6 +8,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/YogCameraPawn.h"
 #include "Character/PlayerCharacterBase.h"
+
+#include "Character/YogCharacterBase.h"
 #include <EnhancedInputSubsystems.h>
 #include "Item/ItemSpawner.h"
 #include "SaveGame/YogSaveSubsystem.h"
@@ -59,7 +61,7 @@ void AYogPlayerControllerBase::SetEnableRotationRate(FRotator RotationRate, bool
 }
 
 
-void AYogPlayerControllerBase::SpawnCameraPawn(APlayerCharacterBase* TargetCharacter) {
+void AYogPlayerControllerBase::SpawnCameraPawn(AYogCharacterBase* TargetCharacter) {
 	//Get possessed character and spawn camera pawn attached on it
 	if (IsValid(TargetCharacter))
 	{
@@ -69,7 +71,7 @@ void AYogPlayerControllerBase::SpawnCameraPawn(APlayerCharacterBase* TargetChara
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 		AYogCameraPawn* CameraActorPawn = GetWorld()->SpawnActor<AYogCameraPawn>(CameraPawnClass, Location, Rotation, SpawnParams);
 		CameraActorPawn->SetOwner(TargetCharacter);
-		TargetCharacter->SetOwnCamera(CameraActorPawn);
+		//TargetCharacter->SetOwnCamera(CameraActorPawn);
 		this->SetViewTargetWithBlend(CameraActorPawn, 0.0f, EViewTargetBlendFunction::VTBlend_Linear, 0.0f, false);
 	}
 
@@ -95,7 +97,9 @@ void AYogPlayerControllerBase::BeginPlay()
 	
 	//AYogCharacterBase* TargetCharacter = Cast<AYogCharacterBase>(UGameplayStatics::GetPlayerCharacter(this, 0));
 	
-	SpawnCameraPawn(Cast<APlayerCharacterBase>(this->GetControlledCharacter()));
+	//TODO: Swap to camera manager in future, but NOT YET
+
+	//SpawnCameraPawn(Cast<AYogCharacterBase>(this->GetControlledCharacter()));
 
 }
 

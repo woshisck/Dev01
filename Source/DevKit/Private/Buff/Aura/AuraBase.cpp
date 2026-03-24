@@ -7,19 +7,7 @@
 AAuraBase::AAuraBase(const FObjectInitializer& ObjectInitializer)
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-
-
-
-	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<UYogAbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
-	//HitboxbuffComponent = ObjectInitializer.CreateDefaultSubobject<UHitBoxBufferComponent>(this, TEXT("HitBoxBufferComponent"));
-	//UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
-
-	//check(CapsuleComp);
-	//CapsuleComp->InitCapsuleSize(40.0f, 90.0f);
-
-	//HealthSet = CreateDefaultSubobject<UYogHealthSet>(TEXT("HealthSet"));
-	//BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
+	PrimaryActorTick.bCanEverTick = false;
 
 
 

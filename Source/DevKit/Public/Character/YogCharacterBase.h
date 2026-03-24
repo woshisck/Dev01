@@ -86,13 +86,13 @@ public:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void UnPossessed() override;
 	virtual void OnRep_PlayerState() override;
-
+	virtual void OnRep_Controller() override;
 
 	UFUNCTION(BlueprintCallable)
 	int32 GetStatePriority(EYogCharacterState State);
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AblitySystemComp")
+	UPROPERTY(BlueprintReadOnly, Category = "AblitySystemComp")
 	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
@@ -163,15 +163,6 @@ public:
 	void GetActiveAbilitiesWithTags(FGameplayTagContainer AbilityTags, TArray<UYogGameplayAbility*>& ActiveAbilities);
 
 
-	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
-	float GetHealth() const;
-
-
-	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
-	float GetMaxHealth() const;
-
-	UFUNCTION(BlueprintCallable, Category = "Character|Attributes")
-	float GetAtkDist() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Abilities")
 	void GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> AbilityToGrant, int32 AbilityLevel);
