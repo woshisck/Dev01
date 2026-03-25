@@ -30,6 +30,8 @@ public:
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
 	virtual void BeginPlay() override;
+	virtual void SetupInputComponent() override;
+
 
 	//UFUNCTION(BlueprintCallable)
 	//AYogCharacterBase* GetPossCharacter();
@@ -37,8 +39,26 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Setting")
 	TSubclassOf<AYogCameraPawn> CameraPawnClass;
 
+
+	void LightAtack(const FInputActionValue& Value);
+	void HeavyAtack(const FInputActionValue& Value);
+	void Dash(const FInputActionValue& Value);
+	void Move(const FInputActionValue& Value);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_MoveAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_LightAttack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_HeavyAttack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_Dash;
 
 
 	UFUNCTION(BlueprintCallable)
@@ -71,4 +91,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	void SetPlayerState(EYogCharacterState newState);
 
+private:
+	// Enhanced input handle to move forward
+	uint32 MoveInputHandle = INDEX_NONE;
+
+	// Enhanced input handle to move forward
+	uint32 LightAttackInputHandle = INDEX_NONE;
+
+	// Enhanced input handle to move forward
+	uint32 HeavyAttackInputHandle = INDEX_NONE;
+
+	// Enhanced input handle to move forward
+	uint32 DashInputHandle = INDEX_NONE;
 };
