@@ -133,7 +133,7 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 	//Save current Attribute
 	SaveGame->PlayerStateData.SetupAttribute(*player->BaseAttributeSet);
 
-	SaveGame->PlayerStateData.WeaponAbilities = player->AbilityData;
+	SaveGame->PlayerStateData.WeaponAbilities = player->CharacterData->AbilityData;
 
 	
 	TMap<FGameplayTag, int32> container = player->GetASC()->GetPlayerOwnedTagsWithCounts();
@@ -304,7 +304,7 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 		//UE_LOG(LogTemp, Warning, TEXT("Load Actor success! : %s (Class: %s)"), *WeaponActor->GetName(), *weaponInstance.ActorClassPath);
 		//UE_LOG(LogTemp, Warning, TEXT("AttachSocket : %s (Class: %s)"), *WeaponActor->GetName(), *weaponInstance.AttachSocket.ToString());
 	}
-	Player->AbilityData = SaveGame->PlayerStateData.WeaponAbilities;
+	Player->CharacterData->AbilityData = SaveGame->PlayerStateData.WeaponAbilities;
 
 	
 	//Gameplay Tag

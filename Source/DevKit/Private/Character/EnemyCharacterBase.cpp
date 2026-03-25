@@ -37,15 +37,15 @@ AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitial
 void AEnemyCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-	if(GasTemplate !=nullptr)
+	if(CharacterData->GasTemplate !=nullptr)
 	{
-		for (TSubclassOf<UYogGameplayAbility> ablity_class : GasTemplate->PassiveMap)
+		for (TSubclassOf<UYogGameplayAbility> ablity_class : CharacterData->GasTemplate->PassiveMap)
 		{
 			//TODO: confirm about the inputID
 			GetASC()->K2_GiveAbility(ablity_class, 0, 0);
 		}
 
-		for (TSubclassOf<UYogGameplayAbility> ablity_class : GasTemplate->AbilityMap)
+		for (TSubclassOf<UYogGameplayAbility> ablity_class : CharacterData->GasTemplate->AbilityMap)
 		{
 			GetASC()->K2_GiveAbility(ablity_class, 0, 0);
 		}

@@ -189,11 +189,11 @@ void UYogBlueprintFunctionLibrary::ApplySpawnDataToWeapon(AWeaponInstance* Weapo
 
 void UYogBlueprintFunctionLibrary::GiveAbilityToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UAbilityData* AbilityData)
 {
-	if (WorldContextObject)
-	{
-		//UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-		ReceivingChar->AbilityData = AbilityData;		
-	}
+	//if (WorldContextObject)
+	//{
+	//	//UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	//	ReceivingChar->CharacterData->AbilityData = AbilityData;
+	//}
 
 }
 bool UYogBlueprintFunctionLibrary::GiveEffectToCharacter(UObject* WorldContextObject, AYogCharacterBase* ReceivingChar, UWeaponDefinition* WeaponDefinition)

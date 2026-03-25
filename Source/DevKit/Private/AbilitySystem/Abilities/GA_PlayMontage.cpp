@@ -27,13 +27,13 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
 	FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
 
-   if (!Owner->AbilityData && ability_tag.IsValid())
+   if (!Owner->CharacterData->AbilityData && ability_tag.IsValid())
    {
 
        return;
    }
 
-	FActionData* action_data = Owner->AbilityData->AbilityMap.Find(ability_tag);
+	FActionData* action_data = Owner->CharacterData->AbilityData->AbilityMap.Find(ability_tag);
     
 
 

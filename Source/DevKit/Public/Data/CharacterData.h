@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "Data/AbilityData.h"
+#include "Data/GasTemplate.h"
 #include "CharacterData.generated.h"
 
 
@@ -102,12 +104,18 @@ public:
 	UFUNCTION(BlueprintCallable)
 	const FYogBaseAttributeData& GetBaseAttributeData() const;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "MovementData"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (RowType = "MovementData"))
 	FDataTableRowHandle MovementDataRow;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "YogBaseAttributeData"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (RowType = "YogBaseAttributeData"))
 	FDataTableRowHandle YogBaseAttributeDataRow;
 
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data")
+	TObjectPtr<UAbilityData> AbilityData;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data")
+	TObjectPtr<UGASTemplate> GasTemplate;
 
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimeLayer")

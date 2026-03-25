@@ -111,7 +111,7 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 			
 			//OverlappingPawn->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
 			
-			OverlappingPawn->AbilityData = WeaponDefinition->WeaponAbilityData;
+			OverlappingPawn->CharacterData->AbilityData = WeaponDefinition->WeaponAbilityData;
 		}
 	}
 	UE_LOG(LogTemp, Display, TEXT("ADD GAMEPLAY TAG "));

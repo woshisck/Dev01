@@ -114,11 +114,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TObjectPtr<UCharacterData> CharacterData;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	TObjectPtr<UAbilityData> AbilityData;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	//TObjectPtr<UAbilityData> AbilityData;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	TObjectPtr<UGASTemplate> GasTemplate;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	//TObjectPtr<UGASTemplate> GasTemplate;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UAttributeStatComponent> AttributeStatsComponent;
