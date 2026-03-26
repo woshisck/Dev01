@@ -17,6 +17,8 @@
 #include "System/YogGameInstanceBase.h"
 #include "Component/GameEffectComponent.h"
 #include "Component/CharacterDataComponent.h"
+#include "Component/BufferComponent.h"
+
 
 AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -28,7 +30,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	HitboxbuffComponent = CreateDefaultSubobject<UHitBoxBufferComponent>(TEXT("HitBoxBufferComponent"));
 	AttributeStatsComponent = CreateDefaultSubobject<UAttributeStatComponent>(TEXT("AttributeStatComponent"));
 	GameEffectComponent = CreateDefaultSubobject<UGameEffectComponent>(TEXT("GameEffectComponent"));
-
+	InputBufferComponent = CreateDefaultSubobject<UBufferComponent>(TEXT("InputBufferComponent"));
 
 
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
@@ -138,8 +140,8 @@ void AYogCharacterBase::PossessedBy(AController* NewController)
 	//const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
 	//BaseAttributeSet->Init(CharacterData);
 
-	//HealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
-	//MaxHealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
+	HealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
+	MaxHealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
 
 
 
@@ -167,6 +169,11 @@ void AYogCharacterBase::OnRep_Controller()
 	Super::OnRep_Controller();
 
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+}
+
+UBufferComponent* AYogCharacterBase::GetInputBufferComponent()
+{
+	return InputBufferComponent;
 }
 
 UAbilitySystemComponent* AYogCharacterBase::GetAbilitySystemComponent() const

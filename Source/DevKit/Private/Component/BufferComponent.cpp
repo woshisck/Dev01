@@ -14,6 +14,26 @@ UBufferComponent::UBufferComponent()
 	// ...
 }
 
+void UBufferComponent::RecordLightAttack()
+{
+	InputHistory.Add(TEXT("LightAttack"));
+}
+
+void UBufferComponent::RecordHeavyAttack()
+{
+	InputHistory.Add(TEXT("HeavyAttack"));
+}
+
+void UBufferComponent::RecordDash()
+{
+	InputHistory.Add(TEXT("Dash"));
+}
+
+void UBufferComponent::RecordMove(const FVector2D& Direction)
+{
+	InputHistory.Add(FString::Printf(TEXT("Move: X=%f, Y=%f"), Direction.X, Direction.Y));
+}
+
 
 // Called when the game starts
 void UBufferComponent::BeginPlay()

@@ -16,6 +16,8 @@
 #include "System/YogGameInstanceBase.h"
 #include "Kismet/KismetMathLibrary.h"
 
+#include "Component/BufferComponent.h"
+
 
 
 void AYogPlayerControllerBase::OnPossess(APawn* InPawn)
@@ -149,16 +151,28 @@ void AYogPlayerControllerBase::OnInteractTriggered(const AItemSpawner* item)
 
 void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 {
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		player->GetInputBufferComponent()->RecordLightAttack();
+	}
 	UE_LOG(LogTemp, Log, TEXT("LightAtack"));
 }
 void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 {
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		player->GetInputBufferComponent()->RecordHeavyAttack();
+	}
 	UE_LOG(LogTemp, Log, TEXT("HeavyAtack"));
 }
 
 
 void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 {
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		player->GetInputBufferComponent()->RecordHeavyAttack();
+	}
 	UE_LOG(LogTemp, Log, TEXT("Dash"));
 }
 
@@ -191,6 +205,10 @@ void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 		}
 	}
 
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		player->GetInputBufferComponent()->RecordHeavyAttack();
+	}
 
 	//const FRotator playerTowards = UKismetMathLibrary::Conv_VectorToRotator(FVector(Rotated, 0));
 
@@ -199,7 +217,6 @@ void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 	////FRotator UKismetMathLibrary::Conv_VectorToRotator(FVector InVec)
 	//if (APawn* ControlledPawn = GetPawn())
 	//{
-
 	//	
 	//	//void AController::SetControlRotation(const FRotator & NewRotation)
 	//	// Add movement input (forward/right)

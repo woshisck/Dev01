@@ -19,6 +19,8 @@ class AYogPlayerControllerBase;
 class UGASTemplate;
 class UGameEffectComponent;
 class UCharacterDataComponent;
+class UBufferComponent;
+
 UENUM(BlueprintType)
 enum class EYogCharacterState : uint8
 {
@@ -87,6 +89,9 @@ public:
 	virtual void UnPossessed() override;
 	virtual void OnRep_PlayerState() override;
 	virtual void OnRep_Controller() override;
+
+	UFUNCTION()
+	UBufferComponent* GetInputBufferComponent();
 
 	UFUNCTION(BlueprintCallable)
 	int32 GetStatePriority(EYogCharacterState State);
@@ -208,6 +213,10 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	TObjectPtr<UHitBoxBufferComponent> HitboxbuffComponent;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	TObjectPtr<UBufferComponent> InputBufferComponent;
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character|Abilities")
 	TArray<TSubclassOf<UYogGameplayAbility>> GameplayAbilities;

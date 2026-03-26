@@ -54,20 +54,6 @@ public:
 
 
 
-	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
-	FHeatUpdateDelegate OnHeatUpdate;
-
-	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
-	FMaxHeatUpdateDelegate OnMaxHeatUpdate;
-
-	FDelegateHandle HeatChangedDelegateHandle;
-	FDelegateHandle MaxHeatChangedDelegateHandle;
-
-	virtual void HeatChanged(const FOnAttributeChangeData& Data);
-	virtual void MaxHeatChanged(const FOnAttributeChangeData& Data);
-
-
-
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)

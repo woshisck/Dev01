@@ -18,9 +18,16 @@ public:
 	// Sets default values for this component's properties
 	UBufferComponent();
 
+	void RecordLightAttack();
+	void RecordHeavyAttack();
+	void RecordDash();
+	void RecordMove(const FVector2D& Direction);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int CurrentIndex;
+
+	// Called every frame
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 protected:
 	// Called when the game starts
@@ -36,12 +43,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<UYogGameplayEffect*> BufferArray;
 
-
-
-
-public:	
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
-		
+private:
+	TArray<FString> InputHistory;
 };
