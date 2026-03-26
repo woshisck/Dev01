@@ -9,6 +9,16 @@
 
 class UYogGameplayEffect;
 
+UENUM(BlueprintType)
+enum class InputCommand : uint8
+{
+	LightAttack,
+	HeavyAttack,
+	Dash
+};
+
+
+
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class DEVKIT_API UBufferComponent : public UActorComponent
 {
@@ -44,5 +54,5 @@ protected:
 	TArray<UYogGameplayEffect*> BufferArray;
 
 private:
-	TArray<FString> InputHistory;
+	TArray<FString> InputCommandHistory;
 };

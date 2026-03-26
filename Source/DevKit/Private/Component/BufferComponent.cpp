@@ -16,22 +16,22 @@ UBufferComponent::UBufferComponent()
 
 void UBufferComponent::RecordLightAttack()
 {
-	InputHistory.Add(TEXT("LightAttack"));
+	InputCommandHistory.Add(TEXT("LightAttack"));
 }
 
 void UBufferComponent::RecordHeavyAttack()
 {
-	InputHistory.Add(TEXT("HeavyAttack"));
+	InputCommandHistory.Add(TEXT("HeavyAttack"));
 }
 
 void UBufferComponent::RecordDash()
 {
-	InputHistory.Add(TEXT("Dash"));
+	InputCommandHistory.Add(TEXT("Dash"));
 }
 
 void UBufferComponent::RecordMove(const FVector2D& Direction)
 {
-	InputHistory.Add(FString::Printf(TEXT("Move: X=%f, Y=%f"), Direction.X, Direction.Y));
+	InputCommandHistory.Add(FString::Printf(TEXT("Move: X=%f, Y=%f"), Direction.X, Direction.Y));
 }
 
 
