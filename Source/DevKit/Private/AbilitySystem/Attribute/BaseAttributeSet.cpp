@@ -172,23 +172,23 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 
 void UBaseAttributeSet::Init(UCharacterData* data)
 {
-	const FYogBaseAttributeData& YogBaseData = data->GetBaseAttributeData();
+	const FYogBaseAttributeData* YogBaseData = data->GetBaseAttributeData();
 
-	SetAttack(YogBaseData.Attack);
-	SetAttackPower(YogBaseData.AttackPower);
-	SetMaxHealth(YogBaseData.MaxHealth);
-	SetMaxHeat(YogBaseData.MaxHeat);
-	SetShield(YogBaseData.Shield);
-	SetAttackSpeed(YogBaseData.AttackSpeed);
-	SetAttackRange(YogBaseData.AttackRange);
-	SetSanity(YogBaseData.Sanity);
-	SetMoveSpeed(YogBaseData.MoveSpeed);
-	SetDodge(YogBaseData.Dodge);
-	SetResilience(YogBaseData.Resilience);
-	SetResist(YogBaseData.Resist);
-	SetDmgTaken(YogBaseData.DmgTaken);
-	SetCrit_Rate(YogBaseData.Crit_Rate);
-	SetCrit_Damage(YogBaseData.Crit_Damage);
+	SetAttack(YogBaseData->Attack);
+	SetAttackPower(YogBaseData->AttackPower);
+	SetMaxHealth(YogBaseData->MaxHealth);
+	SetMaxHeat(YogBaseData->MaxHeat);
+	SetShield(YogBaseData->Shield);
+	SetAttackSpeed(YogBaseData->AttackSpeed);
+	SetAttackRange(YogBaseData->AttackRange);
+	SetSanity(YogBaseData->Sanity);
+	SetMoveSpeed(YogBaseData->MoveSpeed);
+	SetDodge(YogBaseData->Dodge);
+	SetResilience(YogBaseData->Resilience);
+	SetResist(YogBaseData->Resist);
+	SetDmgTaken(YogBaseData->DmgTaken);
+	SetCrit_Rate(YogBaseData->Crit_Rate);
+	SetCrit_Damage(YogBaseData->Crit_Damage);
 
 }
 

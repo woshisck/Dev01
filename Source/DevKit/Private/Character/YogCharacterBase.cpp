@@ -18,6 +18,7 @@
 #include "Component/GameEffectComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/BufferComponent.h"
+#include "Data/CharacterData.h"
 
 
 AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer)
@@ -27,16 +28,14 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	PrimaryActorTick.bStartWithTickEnabled = true;
 
 	AbilitySystemComponent = CreateDefaultSubobject<UYogAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
-	HitboxbuffComponent = CreateDefaultSubobject<UHitBoxBufferComponent>(TEXT("HitBoxBufferComponent"));
 	AttributeStatsComponent = CreateDefaultSubobject<UAttributeStatComponent>(TEXT("AttributeStatComponent"));
 	GameEffectComponent = CreateDefaultSubobject<UGameEffectComponent>(TEXT("GameEffectComponent"));
 	InputBufferComponent = CreateDefaultSubobject<UBufferComponent>(TEXT("InputBufferComponent"));
+	CharacterDataComponent = CreateDefaultSubobject<UCharacterDataComponent>(TEXT("CharacterDataComponent"));
 
 
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
-
-	CharacterDataComponent = CreateDefaultSubobject<UCharacterDataComponent>(TEXT("CharacterDataComponent"));
 
 
 	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
@@ -95,7 +94,13 @@ bool AYogCharacterBase::IsAlive() const
 void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-	UE_LOG(LogTemp, Log, TEXT("BeginPlay: AbilitySystemComponent = %p"), AbilitySystemComponent.Get());
+	
+	UCharacterData* pCharacterData = CharacterDataComponent->GetCharacterData();
+	if (pCharacterData != nullptr)
+	{
+		InitializeComponentsWithStats(pCharacterData);
+	}
+
 }
 
 void AYogCharacterBase::Tick(float DeltaSeconds)
@@ -113,7 +118,9 @@ void AYogCharacterBase::PostInitializeComponents()
 	//-------------------------------
 
 	UE_LOG(LogTemp, Log, TEXT("PostInit: AbilitySystemComponent = %p"), AbilitySystemComponent.Get());
-
+	
+	check(AbilitySystemComponent);
+	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 	//const UCharacterData* pCharacterData = DataCacheComponent->GetCharacterData();
 	//// In case data is not set up we initialize it now ( for instance spawning player )
 	//if (pCharacterData == nullptr)
@@ -326,9 +333,6 @@ void AYogCharacterBase::MaxHealthChanged(const FOnAttributeChangeData& Data)
 
 }
 
-
-
-
 void AYogCharacterBase::FinishDying()
 {
 	UE_LOG(LogTemp, Display, TEXT("Character FinishDying"));
@@ -339,41 +343,100 @@ void AYogCharacterBase::Die()
 {
 	UE_LOG(LogTemp, Log, TEXT("DEATH HAPPEN, DEAD CHARACTER: %s"), *UKismetSystemLibrary::GetDisplayName(this));
 
-	//GetCharacterMovement()->GravityScale = 0;
-	//GetCharacterMovement()->Velocity = FVector(0);
-
 
 	UYogGameInstanceBase* YogGameInstance = Cast<UYogGameInstanceBase>(GetGameInstance());
-	
-	//ASAP
-	//YogGameInstance->MapStateCount.MonsterSlayCount++;
-	//UE_LOG(LogTemp, Log, TEXT("Current Monster Slay Count: %i"), YogGameInstance->MapStateCount.MonsterSlayCount);
-
 	OnCharacterDied.Broadcast(this);
 
 }
 
-
-void AYogCharacterBase::InitCharacterData()
+void AYogCharacterBase::InitializeComponentsWithStats(UCharacterData* characterData)
 {
-	if (CharacterData && AbilitySystemComponent)
+	//-------------------------------------
+	//	movementData
+	//	AttributeData
+	//	AbilityData
+	//	GasTemplate
+	//	DefaultAnimeLayer
+	//-------------------------------------
+
+	const FMovementData* movementData = characterData->GetMovementData();
+	if (movementData != nullptr)
 	{
-		const FMovementData& moveData = CharacterData->GetMovementData();
-		const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
-		BaseAttributeSet->Init(CharacterData);
-
-		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
-		MaxHealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
-
-	
-		for (TSubclassOf<UAnimInstance> animelayer_class : CharacterData->DefaultAnimeLayers)
-		{
-			this->GetMesh()->LinkAnimClassLayers(animelayer_class);
-		}
+		InitializeMovement(movementData);
 	}
 
+	const FYogBaseAttributeData* attributeData = characterData->GetBaseAttributeData();
+	if (attributeData != nullptr)
+	{
+		InitializeStats(attributeData);
+	}
+
+	if (characterData->GetGASTemplate() != nullptr)
+	{
+		for (const TSubclassOf<UYogGameplayAbility> abilityTemp : characterData->GetGASTemplate()->AbilityMap)
+		{
+			GrantGameplayAbility(abilityTemp, 1);
+			UE_LOG(LogTemp, Log, TEXT("Grant ability from GAS Template: %s"), *abilityTemp->GetName());
+			//UE_LOG(LogTemp, Log, TEXT("AbilitySystemComponent: %p"), AbilitySystemComponent.Get());
+			//if (AbilitySystemComponent)
+			//{
+			//	UE_LOG(LogTemp, Log, TEXT("ApplyGASFromTemplate: %s"), *characterData->GetGASTemplate()->GetName());
+			//	AbilitySystemComponent->ApplyGASFromTemplate(characterData->GetGASTemplate());
+			//}
+			//else
+			//{
+			//	UE_LOG(LogTemp, Warning, TEXT("AbilitySystemComponent is null when applying GAS Template"));
+			//}
+		}
+	}
+}
+
+void AYogCharacterBase::InitializeMovement(const FMovementData* movementData) const
+{
+	if (movementData)
+	{
+		//check(GetCharacterMovement() != nullptr)
+		UYogCharacterMovementComponent* MoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
+		MoveComp->MaxWalkSpeed = movementData->MaxWalkSpeed;
+		MoveComp->MaxWalkSpeedCrouched = movementData->GroundFriction;
+		MoveComp->BrakingDecelerationWalking = movementData->BreakingDeceleration;
+		MoveComp->MaxAcceleration = movementData->MaxAcceleration;
+		MoveComp->RotationRate = movementData->RotationRate;
+	}
+}
+
+void AYogCharacterBase::InitializeStats(const FYogBaseAttributeData* attributeData) const
+{
+	if (attributeData != nullptr)
+	{
+		check(AttributeStatsComponent != nullptr)
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetAttackAttribute(), attributeData->Attack);
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetAttackPowerAttribute(), attributeData->AttackPower);
+
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetMaxHealthAttribute(), attributeData->MaxHealth);
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetMaxHeatAttribute(), attributeData->MaxHeat);
+
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetShieldAttribute(), attributeData->Shield);
+
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetAttackSpeedAttribute(), attributeData->AttackSpeed);
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetAttackRangeAttribute(), attributeData->AttackRange);
+
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetSanityAttribute(), attributeData->Sanity);
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetMoveSpeedAttribute(), attributeData->MoveSpeed);
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetDodgeAttribute(), attributeData->Dodge);
+
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetResilienceAttribute(), attributeData->Resilience);
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetResistAttribute(), attributeData->Resist);
+
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetDmgTakenAttribute(), attributeData->DmgTaken);
+
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetCrit_RateAttribute(), attributeData->Crit_Rate);
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetCrit_DamageAttribute(), attributeData->Crit_Damage);
+
+	}
 
 }
+
 
 EYogCharacterState AYogCharacterBase::GetCurrentState()
 {

@@ -16,22 +16,26 @@ UBufferComponent::UBufferComponent()
 
 void UBufferComponent::RecordLightAttack()
 {
-	InputCommandHistory.Add(TEXT("LightAttack"));
+	PushCommand(FInputCommand(EInputCommandType::LightAttack));
+
 }
 
 void UBufferComponent::RecordHeavyAttack()
 {
-	InputCommandHistory.Add(TEXT("HeavyAttack"));
+	PushCommand(FInputCommand(EInputCommandType::HeavyAttack));
 }
 
 void UBufferComponent::RecordDash()
 {
-	InputCommandHistory.Add(TEXT("Dash"));
+	PushCommand(FInputCommand(EInputCommandType::Dash));
+
 }
 
 void UBufferComponent::RecordMove(const FVector2D& Direction)
 {
-	InputCommandHistory.Add(FString::Printf(TEXT("Move: X=%f, Y=%f"), Direction.X, Direction.Y));
+
+	PushCommand(FInputCommand(EInputCommandType::Move, Direction));
+
 }
 
 
@@ -62,6 +66,17 @@ void UBufferComponent::MoveToNextItem()
 	}
 }
 
+void UBufferComponent::PushCommand(const FInputCommand& Command)
+{
+	// If we already have 20 elements, remove the oldest one (index 0)
+	if (InputCommandHistory.Num() >= 20)
+	{
+		InputCommandHistory.RemoveAt(0);
+	}
+
+	// Add the new command at the end
+	InputCommandHistory.Add(Command);
+}
 
 // Called every frame
 void UBufferComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -69,5 +84,22 @@ void UBufferComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	// ...
+}
+
+FString UBufferComponent::CommandToString(const FInputCommand& Command)
+{
+	switch (Command.CommandType)
+	{
+	case EInputCommandType::LightAttack:
+		return TEXT("LightAttack");
+	case EInputCommandType::HeavyAttack:
+		return TEXT("HeavyAttack");
+	case EInputCommandType::Dash:
+		return TEXT("Dash");
+	case EInputCommandType::Move:
+		return FString::Printf(TEXT("Move: X=%f, Y=%f"), Command.MoveDirection.X, Command.MoveDirection.Y);
+	default:
+		return TEXT("Unknown");
+	}
 }
 

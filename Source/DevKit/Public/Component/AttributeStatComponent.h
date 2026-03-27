@@ -19,6 +19,7 @@ public:
 	// Sets default values for this component's properties
 	UAttributeStatComponent();
 
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -27,9 +28,6 @@ protected:
 
 
 public:
-
-
-	//////////////////////////////////////////////////////////////////////
 
 	UFUNCTION(BlueprintCallable)
 	float GetAttribute(FGameplayAttribute attribute) const;
@@ -46,6 +44,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void OverrideAttribute(FGameplayAttribute attribute, float value_override) const;
 
+	
 
 	//////////////////////////////////////////////////////////////////////
 	UFUNCTION(BlueprintPure)

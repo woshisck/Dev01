@@ -14,7 +14,7 @@
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "YogBlueprintFunctionLibrary.h"
-
+#include "Component/CharacterDataComponent.h"
 
 // Sets default values
 AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
@@ -111,7 +111,7 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 			
 			//OverlappingPawn->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
 			
-			OverlappingPawn->CharacterData->AbilityData = WeaponDefinition->WeaponAbilityData;
+			OverlappingPawn->GetCharacterDataComponent()->GetCharacterData()->AbilityData = WeaponDefinition->WeaponAbilityData;
 		}
 	}
 	UE_LOG(LogTemp, Display, TEXT("ADD GAMEPLAY TAG "));

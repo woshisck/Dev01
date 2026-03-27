@@ -90,6 +90,17 @@ public:
 	virtual void OnRep_PlayerState() override;
 	virtual void OnRep_Controller() override;
 
+	UAttributeStatComponent* GetAttributeStatsComponent() const;
+	UGameEffectComponent* GetGameEffectComponent() const;
+	UBufferComponent* GetInputBufferComponent() const;
+	UCharacterDataComponent* GetCharacterDataComponent() const;
+
+
+
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	UYogAbilitySystemComponent* GetASC() const;
+
+
 	UFUNCTION()
 	UBufferComponent* GetInputBufferComponent();
 
@@ -109,15 +120,9 @@ public:
 	UPROPERTY()
 	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
 
-	UFUNCTION()
-	void InitCharacterData();
-
-
 	//--------------------------------------------
 	//	Data table for all character
 	//--------------------------------------------
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	TObjectPtr<UCharacterData> CharacterData;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	//TObjectPtr<UAbilityData> AbilityData;
@@ -183,8 +188,6 @@ public:
 	//TMap<FGameplayTag, FYogGameplayEffectContainer> BufferMap;
 
 
-	UFUNCTION(BlueprintCallable, Category = "Character")
-	UYogAbilitySystemComponent* GetASC() const;
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
@@ -211,10 +214,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bMovable;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
-	TObjectPtr<UHitBoxBufferComponent> HitboxbuffComponent;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<UBufferComponent> InputBufferComponent;
 
 
@@ -256,4 +257,32 @@ private:
 
 	UPROPERTY()
 	EWeaponState CurrentWeaponState;
+
+	void InitializeComponentsWithStats(UCharacterData* characterData);
+	
+	void InitializeStats(const FYogBaseAttributeData* attributeData) const;
+
+	void InitializeMovement(const FMovementData* movementData) const;
 };
+
+
+
+FORCEINLINE UAttributeStatComponent* AYogCharacterBase:: GetAttributeStatsComponent() const
+{
+	return AttributeStatsComponent;
+}
+
+FORCEINLINE UGameEffectComponent* AYogCharacterBase::GetGameEffectComponent() const
+{
+	return GameEffectComponent;
+}
+
+FORCEINLINE UBufferComponent* AYogCharacterBase::GetInputBufferComponent() const
+{
+	return InputBufferComponent;
+}
+
+FORCEINLINE UCharacterDataComponent* AYogCharacterBase::GetCharacterDataComponent() const
+{
+	return CharacterDataComponent;
+}

@@ -149,6 +149,10 @@ void AYogPlayerControllerBase::OnInteractTriggered(const AItemSpawner* item)
 	UE_LOG(LogTemp, Warning, TEXT("item"));
 }
 
+//--------------------------------------------
+// Controller Input
+//--------------------------------------------
+
 void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 {
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))

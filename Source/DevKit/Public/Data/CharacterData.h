@@ -56,7 +56,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float DmgTaken = 1;
-	
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Crit_Rate = 0;
@@ -98,11 +97,7 @@ class DEVKIT_API UCharacterData : public UPrimaryDataAsset
 	
 public:
 
-	UFUNCTION(BlueprintCallable)
-	const FMovementData& GetMovementData() const;
 
-	UFUNCTION(BlueprintCallable)
-	const FYogBaseAttributeData& GetBaseAttributeData() const;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (RowType = "MovementData"))
 	FDataTableRowHandle MovementDataRow;
@@ -110,20 +105,25 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (RowType = "YogBaseAttributeData"))
 	FDataTableRowHandle YogBaseAttributeDataRow;
 
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data")
 	TObjectPtr<UAbilityData> AbilityData;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data")
 	TObjectPtr<UGASTemplate> GasTemplate;
 
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimeLayer")
-	//TMap<FGameplayTag, TSubclassOf<UAnimInstance>> CharacterLayers;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AnimeLayer")
 	TArray<TSubclassOf<UAnimInstance>> DefaultAnimeLayers;
 
+
+	const FMovementData* GetMovementData() const;
+
+	const FYogBaseAttributeData* GetBaseAttributeData() const;
+
+	const UAbilityData* GetAbilityData() const;
+
+	const UGASTemplate* GetGASTemplate() const;
+
+	const TArray<TSubclassOf<UAnimInstance>> GetDefaultAnimeLayers() const;
 
 	inline static const FMovementData DefaultMovementData;
 

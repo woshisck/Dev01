@@ -1,7 +1,7 @@
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "Character/PlayerCharacterBase.h"
-
+#include "Component/CharacterDataComponent.h"
 
 void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar)
 {
@@ -30,7 +30,7 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		//NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
 		
 
-		ReceivingChar->CharacterData->AbilityData = WeaponAbilityData;
+		ReceivingChar->GetCharacterDataComponent()->GetCharacterData()->AbilityData = WeaponAbilityData;
 	}
 
 	//TODO: DEPRECATED : for loop grant ability

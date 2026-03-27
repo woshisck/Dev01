@@ -5,6 +5,8 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/AbilityTask/YogTask_PlayMontageAbility.h"
 #include "Character/YogCharacterBase.h"
+//#include "Data/CharacterData.h"
+#include "Component/CharacterDataComponent.h"
 
 UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
 {
@@ -15,28 +17,20 @@ UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
 
 void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
-	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-   if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
-   {
+    Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+    if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+    {
 
-       return;
-   }
+        return;
+    }
    
-   UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
+    UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 
-	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
-	FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
+    AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
+    FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
 
-   if (!Owner->CharacterData->AbilityData && ability_tag.IsValid())
-   {
-
-       return;
-   }
-
-	FActionData* action_data = Owner->CharacterData->AbilityData->AbilityMap.Find(ability_tag);
+    FActionData* action_data = Owner->GetCharacterDataComponent()->GetCharacterData()->AbilityData->AbilityMap.Find(ability_tag);
     
-
-
     UAnimMontage* MontageToPlay = action_data ? action_data->Montage : nullptr;
     if(MontageToPlay)
     {

@@ -4,6 +4,7 @@
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
+#include "Data/CharacterData.h"
 
 
 UAttributeStatComponent::UAttributeStatComponent()

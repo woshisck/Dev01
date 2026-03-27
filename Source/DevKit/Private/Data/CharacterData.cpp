@@ -3,30 +3,60 @@
 
 #include "Data/CharacterData.h"
 
-const FMovementData& UCharacterData::GetMovementData() const
+const FMovementData* UCharacterData::GetMovementData() const
 {
+	const FMovementData* pMovementCharacterData = nullptr;
 	if (!MovementDataRow.IsNull())
 	{
-		FMovementData* itemPrice = MovementDataRow.GetRow<FMovementData>(__func__);
-		if (itemPrice)
-		{
-			return *itemPrice;
-		}
+		pMovementCharacterData = MovementDataRow.GetRow<FMovementData>(TEXT("UCharacterData::GetMovementData"));
 	}
 
-	return DefaultMovementData;
-	// TODO: insert return statement here
+	return pMovementCharacterData;
+
 }
 
-const FYogBaseAttributeData& UCharacterData::GetBaseAttributeData() const
+const FYogBaseAttributeData* UCharacterData::GetBaseAttributeData() const
 {
+	const FYogBaseAttributeData* pCharacterStatsData = nullptr;
 	if (!YogBaseAttributeDataRow.IsNull())
 	{
-		FYogBaseAttributeData* character_data = YogBaseAttributeDataRow.GetRow<FYogBaseAttributeData>(__func__);
-		if (character_data)
-		{
-			return *character_data;
-		}
+		pCharacterStatsData = YogBaseAttributeDataRow.GetRow<FYogBaseAttributeData>(TEXT("UCharacterData::GetBaseAttributeData"));
 	}
-	return DefaultCharacterData;
+
+	return pCharacterStatsData;
+
+}
+
+
+const UAbilityData* UCharacterData::GetAbilityData() const
+{
+	const UAbilityData* pAbilityData = nullptr;
+	if (!AbilityData.IsNull())
+	{
+		pAbilityData = AbilityData;
+	}
+
+	return pAbilityData;
+}
+
+const UGASTemplate* UCharacterData::GetGASTemplate() const
+{
+	const UGASTemplate* pGASTemplate = nullptr;
+	if (!GasTemplate.IsNull())
+	{
+		pGASTemplate = GasTemplate;
+	}
+
+	return pGASTemplate;
+}
+
+const TArray<TSubclassOf<UAnimInstance>> UCharacterData::GetDefaultAnimeLayers() const
+{
+	const TArray<TSubclassOf<UAnimInstance>> result_array;
+	if (DefaultAnimeLayers.Num() > 0)
+	{
+		return DefaultAnimeLayers;
+	}
+	
+	return result_array;
 }
