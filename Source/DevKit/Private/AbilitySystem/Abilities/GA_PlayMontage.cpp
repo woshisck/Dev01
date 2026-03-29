@@ -65,7 +65,6 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
             
             PlayMontageTask->ReadyForActivation();
             //PlayMontageTask->OnEventReceived.AddDynamic(this, &UGA_PlayMontage::OnEventReceived);
-
         }   
     }
     else
@@ -128,7 +127,7 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 
-    // remove related Gameplay Effects
+    // remove related Gameplay Effects and gameplaytags(hardcode)
     if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
     {
         for (const FActiveGameplayEffectHandle& effect_Handle : ActiveEffectHandles)
@@ -140,6 +139,7 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
         }
     }
     //ActiveEffectHandles.Empty();
+    GetAbilitySystemComponentFromActorInfo()->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")));
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 
@@ -147,16 +147,19 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 
 void UGA_PlayMontage::OnMontageCompleted()
 {
+
     EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageBlendOut()
 {
+
     EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageInterrupted()
 {
+
     EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 

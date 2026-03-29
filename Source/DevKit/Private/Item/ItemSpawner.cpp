@@ -81,7 +81,7 @@ void AItemSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 
 		
 
-		UE_LOG(LogTemp, Warning, TEXT("OverlappingCharacter: %s OnOverlapBegin"), *OverlappingCharacter->GetName());
+		UE_LOG(LogTemp, Warning, TEXT("AItemSpawner::OnOverlapBegin %s OnOverlapBegin"), *OverlappingCharacter->GetName());
 		//
 	
 	}
@@ -122,7 +122,7 @@ void AItemSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor
 	{
 		OverlappingCharacter->OnItemInterActionEnd.Broadcast(OverlappingCharacter);
 
-		UE_LOG(LogTemp, Warning, TEXT("OverlappingCharacter: %s OnOverlapBegin"), *OverlappingCharacter->GetName());
+		UE_LOG(LogTemp, Warning, TEXT("AItemSpawner::OnOverlapEnd %s OnOverlapBegin"), *OverlappingCharacter->GetName());
 
 
 	}

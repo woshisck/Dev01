@@ -146,7 +146,7 @@ void AYogPlayerControllerBase::OnInteractTriggered(const AItemSpawner* item)
 {
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn());
 
-	UE_LOG(LogTemp, Warning, TEXT("item"));
+	UE_LOG(LogTemp, Warning, TEXT("OnInteractTriggered::item is triggered"));
 }
 
 //--------------------------------------------
@@ -164,7 +164,7 @@ void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 
 		player->GetInputBufferComponent()->RecordLightAttack();
 	}
-	UE_LOG(LogTemp, Log, TEXT("LightAtack"));
+	//UE_LOG(LogTemp, Log, TEXT("LightAtack"));
 }
 void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 {
@@ -176,7 +176,7 @@ void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 
 		player->GetInputBufferComponent()->RecordHeavyAttack();
 	}
-	UE_LOG(LogTemp, Log, TEXT("HeavyAtack"));
+	//UE_LOG(LogTemp, Log, TEXT("HeavyAtack"));
 }
 
 
@@ -191,7 +191,7 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 
 		player->GetInputBufferComponent()->RecordHeavyAttack();
 	}
-	UE_LOG(LogTemp, Log, TEXT("Dash"));
+	//UE_LOG(LogTemp, Log, TEXT("Dash"));
 }
 
 void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
@@ -241,7 +241,7 @@ void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 	//	ControlledPawn->AddMovementInput(ControlledPawn->GetActorForwardVector(), Rotated.X);
 	//	ControlledPawn->AddMovementInput(ControlledPawn->GetActorRightVector(), Rotated.Y);
 	//}
-	UE_LOG(LogTemp, Log, TEXT("Move"));
+	//UE_LOG(LogTemp, Log, TEXT("Move"));
 }
 
 

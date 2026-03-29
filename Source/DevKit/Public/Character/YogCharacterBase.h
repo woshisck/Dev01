@@ -52,6 +52,7 @@ class UYogGameplayAbility;
 class AItemSpawner;
 class AWeaponInstance;
 class UCharacterData;
+class UPropInteractComponnet;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, const float, HealthPercent);
@@ -90,6 +91,27 @@ public:
 	virtual void OnRep_PlayerState() override;
 	virtual void OnRep_Controller() override;
 
+	//---------------------------------------
+	//	Components
+	//---------------------------------------
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AblitySystemComp")
+	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TObjectPtr<UCharacterDataComponent> CharacterDataComponent;
+
+	UPROPERTY()
+	TObjectPtr<UPropInteractComponnet> PropInteractComponent;
+
+	UPROPERTY()
+	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;
+
+	UPROPERTY()
+	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
+
+
+
 	UAttributeStatComponent* GetAttributeStatsComponent() const;
 	UGameEffectComponent* GetGameEffectComponent() const;
 	UBufferComponent* GetInputBufferComponent() const;
@@ -107,18 +129,6 @@ public:
 	UFUNCTION(BlueprintCallable)
 	int32 GetStatePriority(EYogCharacterState State);
 
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AblitySystemComp")
-	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TObjectPtr<UCharacterDataComponent> CharacterDataComponent;
-
-	UPROPERTY()
-	TObjectPtr<UBaseAttributeSet> BaseAttributeSet;
-
-	UPROPERTY()
-	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
 
 	//--------------------------------------------
 	//	Data table for all character
