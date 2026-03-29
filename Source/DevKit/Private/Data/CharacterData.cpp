@@ -31,7 +31,7 @@ const FYogBaseAttributeData* UCharacterData::GetBaseAttributeData() const
 const UAbilityData* UCharacterData::GetAbilityData() const
 {
 	const UAbilityData* pAbilityData = nullptr;
-	if (!AbilityData.IsNull())
+	if (AbilityData)
 	{
 		pAbilityData = AbilityData;
 	}
@@ -42,7 +42,7 @@ const UAbilityData* UCharacterData::GetAbilityData() const
 const UGASTemplate* UCharacterData::GetGASTemplate() const
 {
 	const UGASTemplate* pGASTemplate = nullptr;
-	if (!GasTemplate.IsNull())
+	if (GasTemplate)
 	{
 		pGASTemplate = GasTemplate;
 	}

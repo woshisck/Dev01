@@ -157,6 +157,11 @@ void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 {
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.LightAtk")));
+		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+
+
 		player->GetInputBufferComponent()->RecordLightAttack();
 	}
 	UE_LOG(LogTemp, Log, TEXT("LightAtack"));
@@ -165,6 +170,10 @@ void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 {
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.HeavyAtk")));
+		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+
 		player->GetInputBufferComponent()->RecordHeavyAttack();
 	}
 	UE_LOG(LogTemp, Log, TEXT("HeavyAtack"));
@@ -175,6 +184,11 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 {
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
+		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+
+
 		player->GetInputBufferComponent()->RecordHeavyAttack();
 	}
 	UE_LOG(LogTemp, Log, TEXT("Dash"));

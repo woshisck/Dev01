@@ -28,14 +28,11 @@ void UBufferComponent::RecordHeavyAttack()
 void UBufferComponent::RecordDash()
 {
 	PushCommand(FInputCommand(EInputCommandType::Dash));
-
 }
 
 void UBufferComponent::RecordMove(const FVector2D& Direction)
 {
-
 	PushCommand(FInputCommand(EInputCommandType::Move, Direction));
-
 }
 
 

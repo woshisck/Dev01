@@ -108,7 +108,7 @@ public:
 	int32 GetStatePriority(EYogCharacterState State);
 
 
-	UPROPERTY(BlueprintReadOnly, Category = "AblitySystemComp")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AblitySystemComp")
 	TObjectPtr<UYogAbilitySystemComponent> AbilitySystemComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)

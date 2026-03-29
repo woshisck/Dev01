@@ -377,18 +377,9 @@ void AYogCharacterBase::InitializeComponentsWithStats(UCharacterData* characterD
 		{
 			GrantGameplayAbility(abilityTemp, 1);
 			UE_LOG(LogTemp, Log, TEXT("Grant ability from GAS Template: %s"), *abilityTemp->GetName());
-			//UE_LOG(LogTemp, Log, TEXT("AbilitySystemComponent: %p"), AbilitySystemComponent.Get());
-			//if (AbilitySystemComponent)
-			//{
-			//	UE_LOG(LogTemp, Log, TEXT("ApplyGASFromTemplate: %s"), *characterData->GetGASTemplate()->GetName());
-			//	AbilitySystemComponent->ApplyGASFromTemplate(characterData->GetGASTemplate());
-			//}
-			//else
-			//{
-			//	UE_LOG(LogTemp, Warning, TEXT("AbilitySystemComponent is null when applying GAS Template"));
-			//}
 		}
 	}
+
 }
 
 void AYogCharacterBase::InitializeMovement(const FMovementData* movementData) const
