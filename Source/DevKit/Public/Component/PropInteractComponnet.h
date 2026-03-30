@@ -6,6 +6,9 @@
 #include "Components/ActorComponent.h"
 #include "PropInteractComponnet.generated.h"
 
+class AItemSpawner;
+class UWidgetComponent;
+class UUserWidget;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class DEVKIT_API UPropInteractComponnet : public UActorComponent
@@ -15,6 +18,23 @@ class DEVKIT_API UPropInteractComponnet : public UActorComponent
 public:	
 	// Sets default values for this component's properties
 	UPropInteractComponnet();
+
+    UFUNCTION()
+    void OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+    UFUNCTION()
+    void OnOverlapEnd(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	// In YourCharacter.h
+	UPROPERTY()
+	TObjectPtr<UWidgetComponent> InteractIconWidget;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UUserWidget> InteractIconWidgetClass;
+
+
+public:
+    void Interact();
 
 protected:
 	// Called when the game starts

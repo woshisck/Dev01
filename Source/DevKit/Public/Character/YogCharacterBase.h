@@ -101,7 +101,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<UCharacterDataComponent> CharacterDataComponent;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<UPropInteractComponnet> PropInteractComponent;
 
 	UPROPERTY()
