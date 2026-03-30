@@ -20,6 +20,7 @@
 #include "Component/BufferComponent.h"
 #include "Component/PropInteractComponnet.h"
 #include "Data/CharacterData.h"
+#include "Components/WidgetComponent.h"
 
 
 
@@ -35,6 +36,8 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	InputBufferComponent = CreateDefaultSubobject<UBufferComponent>(TEXT("InputBufferComponent"));
 	CharacterDataComponent = CreateDefaultSubobject<UCharacterDataComponent>(TEXT("CharacterDataComponent"));
 	PropInteractComponent = CreateDefaultSubobject<UPropInteractComponnet>(TEXT("PropInteractComponent"));
+
+	WidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("UIWidgetComponent"));
 
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));

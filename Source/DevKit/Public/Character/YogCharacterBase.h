@@ -53,6 +53,7 @@ class AItemSpawner;
 class AWeaponInstance;
 class UCharacterData;
 class UPropInteractComponnet;
+class UWidgetComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterHealthUpdateDelegate, const float, HealthPercent);
@@ -109,6 +110,9 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UWidgetComponent> WidgetComponent;
 
 
 
