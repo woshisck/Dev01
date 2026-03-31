@@ -42,6 +42,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
 
+	WidgetComponent->SetupAttachment(GetRootComponent());
 
 	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
 	check(CapsuleComp);

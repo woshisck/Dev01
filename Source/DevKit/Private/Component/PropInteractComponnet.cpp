@@ -20,12 +20,6 @@ UPropInteractComponnet::UPropInteractComponnet()
 
 void UPropInteractComponnet::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (APlayerCharacterBase* Character = Cast<APlayerCharacterBase>(GetOwner()))
-	{
-		InteractIconWidget->SetVisibility(true);
-	}
-
-
 
 	if (OtherActor && OtherActor != GetOwner())
 	{
@@ -37,13 +31,6 @@ void UPropInteractComponnet::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 
 void UPropInteractComponnet::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	if (APlayerCharacterBase* Character = Cast<APlayerCharacterBase>(GetOwner()))
-	{
-
-		
-		InteractIconWidget->SetVisibility(false);
-		
-	}
 
 	if (OtherActor && OtherActor != GetOwner())
 	{
@@ -74,16 +61,7 @@ void UPropInteractComponnet::BeginPlay()
 
 		}
 
-		if (!InteractIconWidget)
-		{
-			InteractIconWidget = NewObject<UWidgetComponent>(GetOwner());
-			InteractIconWidget->RegisterComponent();
-			InteractIconWidget->AttachToComponent(GetOwner()->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-			InteractIconWidget->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
-			InteractIconWidget->SetWidgetSpace(EWidgetSpace::Screen);
-			InteractIconWidget->SetVisibility(false);
-			InteractIconWidget->SetWidgetClass(InteractIconWidgetClass);
-		}
+
 	}
 
 	// ...

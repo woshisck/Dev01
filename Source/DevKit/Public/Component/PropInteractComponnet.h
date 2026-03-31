@@ -25,12 +25,6 @@ public:
     UFUNCTION()
     void OnOverlapEnd(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
-	// In YourCharacter.h
-	UPROPERTY()
-	TObjectPtr<UWidgetComponent> InteractIconWidget;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
-	TSubclassOf<UUserWidget> InteractIconWidgetClass;
 
 
 public:
