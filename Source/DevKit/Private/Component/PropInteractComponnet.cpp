@@ -23,18 +23,51 @@ void UPropInteractComponnet::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 
 	if (OtherActor && OtherActor != GetOwner())
 	{
-
+		if (OtherActor->IsA(AItemSpawner::StaticClass()) && GetOwner()->IsA(APlayerCharacterBase::StaticClass()))
+		{
+			AYogCharacterBase* PlayerOwner = Cast<AYogCharacterBase>(GetOwner());
+			PlayerOwner->GetWidgetcomponent()->SetVisibility(true);
+	
+		}
 		UE_LOG(LogTemp, Log, TEXT("Overlapped with: %s"), *OtherActor->GetName());
 		// You can store reference to item here
 	}
 }
+
+//JUNKYARD
+//APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+//if (PlayerController && InventoryWidgetClass)
+//{
+//	UUserWidget* HUDWidget = CreateWidget<UUserWidget>(GetWorld(), InventoryWidgetClass);
+
+//	if (HUDWidget)
+//	{
+//		HUDWidget->AddToViewport();
+
+//		// Show mouse cursor
+//		PlayerController->bShowMouseCursor = true;
+
+//		// Set input mode to UI only (disables movement)
+//		FInputModeUIOnly InputMode;
+//		InputMode.SetWidgetToFocus(HUDWidget->TakeWidget());
+//		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+//		PlayerController->SetInputMode(InputMode);
+//	}
+//}
 
 void UPropInteractComponnet::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
 
 	if (OtherActor && OtherActor != GetOwner())
 	{
-		UE_LOG(LogTemp, Log, TEXT("Stopped overlapping with: %s"), *OtherActor->GetName());
+		if (OtherActor->IsA(AItemSpawner::StaticClass()) && GetOwner()->IsA(APlayerCharacterBase::StaticClass()))
+		{
+			AYogCharacterBase* PlayerOwner = Cast<AYogCharacterBase>(GetOwner());
+			PlayerOwner->GetWidgetcomponent()->SetVisibility(false);
+
+		}
+		UE_LOG(LogTemp, Log, TEXT("Overlapped with: %s"), *OtherActor->GetName());
+		// You can store reference to item here
 	}
 }
 
@@ -60,8 +93,17 @@ void UPropInteractComponnet::BeginPlay()
 			// Position above the head
 
 		}
+		if (UWidgetComponent* widgetComp = Owner->FindComponentByClass<UWidgetComponent>())
+		{
+			widgetComp->SetWidgetClass(InventoryWidgetClass);
+		}
 
 
+		AYogCharacterBase* PlayerOwner = Cast<AYogCharacterBase>(GetOwner());
+		PlayerOwner->GetWidgetcomponent()->SetWidgetClass(InventoryWidgetClass);
+		PlayerOwner->GetWidgetcomponent()->SetWidgetSpace(EWidgetSpace::Screen);
+		PlayerOwner->GetWidgetcomponent()->SetDrawAtDesiredSize(true);
+		PlayerOwner->GetWidgetcomponent()->SetVisibility(false);
 	}
 
 	// ...

@@ -122,6 +122,7 @@ public:
 	UCharacterDataComponent* GetCharacterDataComponent() const;
 
 
+	UWidgetComponent* GetWidgetcomponent();
 
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	UYogAbilitySystemComponent* GetASC() const;

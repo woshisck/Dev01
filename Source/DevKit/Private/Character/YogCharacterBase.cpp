@@ -78,6 +78,11 @@ int32 AYogCharacterBase::GetStatePriority(EYogCharacterState State)
 
 }
 
+UWidgetComponent* AYogCharacterBase::GetWidgetcomponent()
+{
+	return WidgetComponent;
+}
+
 UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
 {
 	return Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent());
@@ -118,23 +123,11 @@ void AYogCharacterBase::Tick(float DeltaSeconds)
 void AYogCharacterBase::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
-	
-	//-------------------------------
-	//	only setup the component 
-	//-------------------------------
 
 	UE_LOG(LogTemp, Log, TEXT("PostInit: AbilitySystemComponent = %p"), AbilitySystemComponent.Get());
 	
 	check(AbilitySystemComponent);
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
-	//const UCharacterData* pCharacterData = DataCacheComponent->GetCharacterData();
-	//// In case data is not set up we initialize it now ( for instance spawning player )
-	//if (pCharacterData == nullptr)
-	//{
-	//	pCharacterData = DataCacheComponent->InitializeCharacterData();
-	//}
-
-
 }
 
 void AYogCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -147,17 +140,12 @@ void AYogCharacterBase::PossessedBy(AController* NewController)
 	Super::PossessedBy(NewController);
 
 
-
-
 	//const FMovementData& moveData = CharacterData->GetMovementData();
 	//const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
 	//BaseAttributeSet->Init(CharacterData);
 
 	HealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
 	MaxHealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
-
-
-
 
 }
 
@@ -360,7 +348,6 @@ void AYogCharacterBase::InitializeComponentsWithStats(UCharacterData* characterD
 	//-------------------------------------
 	//	movementData
 	//	AttributeData
-	//	AbilityData
 	//	GasTemplate
 	//	DefaultAnimeLayer
 	//-------------------------------------
@@ -384,6 +371,12 @@ void AYogCharacterBase::InitializeComponentsWithStats(UCharacterData* characterD
 			GrantGameplayAbility(abilityTemp, 1);
 			UE_LOG(LogTemp, Log, TEXT("Grant ability from GAS Template: %s"), *abilityTemp->GetName());
 		}
+	}
+
+	for (const TSubclassOf<UAnimInstance> animLayer: characterData->GetDefaultAnimeLayers())
+	{
+		GetMesh()->GetAnimInstance()->LinkAnimClassLayers(animLayer);
+		UE_LOG(LogTemp, Log, TEXT("Grant ability from GAS Template: %s"), *animLayer->GetName());
 	}
 
 }

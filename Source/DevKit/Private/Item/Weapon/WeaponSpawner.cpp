@@ -82,38 +82,22 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 		return;
 	}
 
-	//FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName("PlayerState.HasWeapon"));
 
-	//if (OverlappingPawn->GetASC()->HasMatchingGameplayTag(Tag))
-	//{
-	//	return;
-	//}
 
-	if (OverlappingPawn != nullptr)
+	for (const FWeaponSpawnData& weapon_spawn_data : WeaponDefinition->ActorsToSpawn)
 	{
-		for (const FWeaponSpawnData& weapon_spawn_data : WeaponDefinition->ActorsToSpawn)
-		{
-			FWeaponSpawnData SpawnData;
-			SpawnData.ActorToSpawn = weapon_spawn_data.ActorToSpawn;
-			SpawnData.AttachSocket = weapon_spawn_data.AttachSocket;
-			SpawnData.AttachTransform = weapon_spawn_data.AttachTransform;
-			SpawnData.WeaponLayer = weapon_spawn_data.WeaponLayer;
-			SpawnData.WeaponAbilities = weapon_spawn_data.WeaponAbilities;
-			SpawnData.bShouldSaveToGame = true;
+		FWeaponSpawnData SpawnData;
+		SpawnData.ActorToSpawn = weapon_spawn_data.ActorToSpawn;
+		SpawnData.AttachSocket = weapon_spawn_data.AttachSocket;
+		SpawnData.AttachTransform = weapon_spawn_data.AttachTransform;
+		SpawnData.WeaponLayer = weapon_spawn_data.WeaponLayer;
+		SpawnData.WeaponAbilities = weapon_spawn_data.WeaponAbilities;
+		SpawnData.bShouldSaveToGame = true;
 
-			AWeaponInstance* WeaponActor = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(OverlappingPawn, OverlappingPawn->GetTransform(), SpawnData);
-
-			//AYogCharacterBase* character, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData
-			// 
-			//AWeaponInstance* WeaponActor = SpawnWeaponDeferred(OverlappingPawn->GetWorld(), OverlappingPawn->GetActorTransform(), SpawnData);
-			//WeaponActor->AttachToComponent(OverlappingPawn->GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponActor->AttachSocket);
-			
-			
-			//OverlappingPawn->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
-			
-			OverlappingPawn->GetCharacterDataComponent()->GetCharacterData()->AbilityData = WeaponDefinition->WeaponAbilityData;
-		}
+		AWeaponInstance* WeaponActor = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(OverlappingPawn, OverlappingPawn->GetTransform(), SpawnData);		
+		OverlappingPawn->GetCharacterDataComponent()->GetCharacterData()->AbilityData = WeaponDefinition->WeaponAbilityData;
 	}
+
 	UE_LOG(LogTemp, Display, TEXT("ADD GAMEPLAY TAG "));
 	//OverlappingPawn->GetASC()->AddGameplayTagWithCount(Tag, 1);
 }
