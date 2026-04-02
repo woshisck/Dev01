@@ -44,6 +44,7 @@ public:
 	void HeavyAtack(const FInputActionValue& Value);
 	void Dash(const FInputActionValue& Value);
 	void Move(const FInputActionValue& Value);
+	void Interact(const FInputActionValue& Value);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
@@ -59,6 +60,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_Dash;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_Interact;
 
 
 	UFUNCTION(BlueprintCallable)
@@ -103,4 +107,7 @@ private:
 
 	// Enhanced input handle to move forward
 	uint32 DashInputHandle = INDEX_NONE;
+
+	// Enhanced input handle to move forward
+	uint32 InteractInputHandle = INDEX_NONE;
 };

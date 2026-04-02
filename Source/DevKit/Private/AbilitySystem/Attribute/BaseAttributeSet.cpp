@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
@@ -7,7 +7,8 @@
 #include "Character/YogCharacterBase.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectExtension.h"
-
+#include "Character/PlayerCharacterBase.h"
+#include "Component/BackpackGridComponent.h"
 
 
 
@@ -167,8 +168,22 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 {
 	Super::PostAttributeChange(Attribute, OldValue, NewValue);
 
-}
+	if (Attribute == GetHeatAttribute())
+	{
 
+		//float MaxHeat = GetMaxHeat();
+		if (GetMaxHeat() > 0.f)
+		{
+			float HeatPercent = FMath::Clamp(NewValue / GetMaxHeat(), 0.f, 1.f);
+
+			// 通知背包组件更新热度等级
+			if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor()))
+			{
+				Player->GetBackpackGridComponent()->OnHeatPercentChanged(HeatPercent);
+			}
+		}
+	}
+}
 
 void UBaseAttributeSet::Init(UCharacterData* data)
 {

@@ -74,7 +74,7 @@ struct DEVKIT_API FYogEffectPorperty
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
-	TSubclassOf<UGameplayEffect> GameplayEffect;
+	TSubclassOf<UYogGameplayEffect> GameplayEffect;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
 	int EffectLevel;

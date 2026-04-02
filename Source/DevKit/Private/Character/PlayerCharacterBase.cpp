@@ -15,16 +15,14 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Data/GASTemplate.h"
 #include "Item/ItemSpawner.h"
-
+#include "Component/BackpackGridComponent.h"
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 	: Super(ObjectInitializer)
 {
-
-
+	BackpackGridComponent = CreateDefaultSubobject<UBackpackGridComponent>(TEXT("BackpackGridComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
-
 }
 
 void APlayerCharacterBase::SetOwnCamera(AYogCameraPawn* cameraActor)
@@ -60,6 +58,31 @@ void APlayerCharacterBase::ItemInteract(const AItemSpawner* item)
 		}
 	}
 	UE_LOG(LogTemp, Warning, TEXT("item"));
+}
+
+void APlayerCharacterBase::NotifyActorBeginOverlap(AActor* OtherActor)
+{
+	Super::NotifyActorBeginOverlap(OtherActor);
+
+	if (AItemSpawner* Spawner = Cast<AItemSpawner>(OtherActor))
+	{
+		OverlappingSpawner = Spawner;
+	}
+}
+
+void APlayerCharacterBase::NotifyActorEndOverlap(AActor* OtherActor)
+{
+	Super::NotifyActorEndOverlap(OtherActor);
+
+	if (OtherActor == OverlappingSpawner)
+	{
+		OverlappingSpawner = nullptr;
+	}
+}
+
+UBackpackGridComponent* APlayerCharacterBase::GetBackpackGridComponent()
+{
+	return BackpackGridComponent;
 }
 
 void APlayerCharacterBase::BeginPlay()
