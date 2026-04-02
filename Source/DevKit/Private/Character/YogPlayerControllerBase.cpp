@@ -132,6 +132,12 @@ void AYogPlayerControllerBase::SetupInputComponent()
 			const FEnhancedInputActionEventBinding& dashBinding = EnhancedInputComp->BindAction(Input_Dash, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::Dash);
 			DashInputHandle = dashBinding.GetHandle();
 		}
+		if (Input_Interact)
+		{
+			const FEnhancedInputActionEventBinding& interactBinding = EnhancedInputComp->BindAction(Input_Interact, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::Interact);
+			InteractInputHandle = interactBinding.GetHandle();
+		}
+
 	}
 
 }
@@ -242,6 +248,19 @@ void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 	//	ControlledPawn->AddMovementInput(ControlledPawn->GetActorRightVector(), Rotated.Y);
 	//}
 	//UE_LOG(LogTemp, Log, TEXT("Move"));
+}
+
+void AYogPlayerControllerBase::Interact(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Log, TEXT("Interact"));
+	
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		if (player->OverlappingSpawner)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Player is overlapping with spawner: %s"), *player->OverlappingSpawner->GetName());
+		}
+	}
 }
 
 

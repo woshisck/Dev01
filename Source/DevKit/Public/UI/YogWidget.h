@@ -14,4 +14,8 @@ class DEVKIT_API UYogWidget : public UUserWidget
 {
 	GENERATED_BODY()
 	
+public:
+	UFUNCTION(BlueprintCallable)
+	void CloseWidget();
+
 };

@@ -13,7 +13,7 @@
  */
 //class AAuraBase;
 class UYogSaveGame;
-
+class UBackpackGridComponent;
 UENUM()
 enum class EPlayerState : uint8
 {
@@ -54,9 +54,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Item")
 	void ItemInteract(const AItemSpawner* item);
 
-
+	virtual void NotifyActorBeginOverlap(AActor* OtherActor) override;
+	virtual void NotifyActorEndOverlap(AActor* OtherActor) override;
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	TObjectPtr<UBackpackGridComponent> BackpackGridComponent;
+
+	
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
@@ -73,6 +78,11 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "State")
 	FPlayerStateDelegate OnFPlayerStateDeleg;
 
+	UPROPERTY()
+	TObjectPtr<AItemSpawner> OverlappingSpawner;
+
+	UFUNCTION()
+	UBackpackGridComponent* GetBackpackGridComponent();
 
 	friend UPlayerAttributeSet;
 
