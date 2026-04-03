@@ -43,6 +43,8 @@ public class DevKit : ModuleRules
                 "NavigationSystem",
                 "AIModule",
                 "AnimGraphRuntime",
+                "GameplayAbilities",
+                "Flow",
 
             });
 

@@ -1,5 +1,7 @@
 #include "Component/BackpackGridComponent.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "BuffFlow/BuffFlowComponent.h"
 
 // =========================================================
 // FActivationZoneConfig
@@ -287,29 +289,52 @@ bool UBackpackGridComponent::IsRuneInActivationZone(const FPlacedRune& Placed) c
 
 void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 {
-	if (Placed.bIsActivated || !Placed.Rune.ActivationEffect)
+	if (Placed.bIsActivated)
 		return;
 
-	UAbilitySystemComponent* ASC = CachedASC.Get();
+	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(CachedASC.Get());
 	if (!ASC)
 		return;
 
-	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
-	FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(
-		Placed.Rune.ActivationEffect,
-		Placed.Rune.Level,
-		Context
-	);
+	bool bActivated = false;
 
-	if (Spec.IsValid())
+	// 1) 数值效果：从 DA 的 AttributeModifiers 动态构建 GE
+	if (Placed.Rune.AttributeModifiers.Num() > 0)
 	{
-		Placed.ActiveEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-		Placed.bIsActivated = Placed.ActiveEffectHandle.IsValid();
+		Placed.ActiveEffectHandle = ASC->ApplyRuneModifiers(Placed.Rune.AttributeModifiers);
+		bActivated |= Placed.ActiveEffectHandle.IsValid();
+	}
 
-		if (Placed.bIsActivated)
+	// 2) 行为效果：使用预制的 BehaviorEffect GE（击退、毒池等）
+	if (Placed.Rune.BehaviorEffect)
+	{
+		FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+		FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(
+			Placed.Rune.BehaviorEffect,
+			Placed.Rune.Level,
+			Context
+		);
+		if (Spec.IsValid())
 		{
-			OnRuneActivationChanged.Broadcast(Placed.Rune.RuneGuid, true);
+			Placed.BehaviorEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+			bActivated |= Placed.BehaviorEffectHandle.IsValid();
 		}
+	}
+
+	// 3) BuffFlow 可视化逻辑
+	if (Placed.Rune.BuffFlowAsset)
+	{
+		if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
+		{
+			BFC->StartBuffFlow(Placed.Rune.BuffFlowAsset, Placed.Rune.RuneGuid, GetOwner());
+			bActivated = true;
+		}
+	}
+
+	Placed.bIsActivated = bActivated;
+	if (bActivated)
+	{
+		OnRuneActivationChanged.Broadcast(Placed.Rune.RuneGuid, true);
 	}
 }
 
@@ -319,12 +344,31 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 		return;
 
 	UAbilitySystemComponent* ASC = CachedASC.Get();
-	if (ASC && Placed.ActiveEffectHandle.IsValid())
+	if (ASC)
 	{
-		ASC->RemoveActiveGameplayEffect(Placed.ActiveEffectHandle);
+		// 移除数值 GE
+		if (Placed.ActiveEffectHandle.IsValid())
+		{
+			ASC->RemoveActiveGameplayEffect(Placed.ActiveEffectHandle);
+		}
+		// 移除行为 GE
+		if (Placed.BehaviorEffectHandle.IsValid())
+		{
+			ASC->RemoveActiveGameplayEffect(Placed.BehaviorEffectHandle);
+		}
+	}
+
+	// 停止 BuffFlow
+	if (Placed.Rune.BuffFlowAsset)
+	{
+		if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
+		{
+			BFC->StopBuffFlow(Placed.Rune.RuneGuid);
+		}
 	}
 
 	Placed.ActiveEffectHandle = FActiveGameplayEffectHandle();
+	Placed.BehaviorEffectHandle = FActiveGameplayEffectHandle();
 	Placed.bIsActivated = false;
 	OnRuneActivationChanged.Broadcast(Placed.Rune.RuneGuid, false);
 }

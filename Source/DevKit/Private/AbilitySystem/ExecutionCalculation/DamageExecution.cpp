@@ -1,5 +1,5 @@
 #include "AbilitySystem/ExecutionCalculation/DamageExecution.h"
-
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "GameplayEffectAggregator.h"
 
 
@@ -129,14 +129,14 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	UE_LOG(LogTemp, Warning, TEXT("Target Damage Taken: %f"), TargetDmgTaken);
 	UE_LOG(LogTemp, Warning, TEXT("Final Damage: %f"), FinalDamage);
 	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Override, FinalDamage));
-	
-	
-	//Broadcast damages to Target ASC
-	//if (TargetASC)
-	//{	
-	//	UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), FinalDamage);
-	//	TargetASC->ReceiveDamage(SourceASC, FinalDamage);
-	//}
+
+	// Broadcast damages to Target ASC（触发 ReceivedDamage / DealtDamage 委托，供被动符文监听）
+	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
+	UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetSourceAbilitySystemComponent());
+	if (TargetASC)
+	{
+		TargetASC->ReceiveDamage(SourceASC, FinalDamage);
+	}
 
 
 	//const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();

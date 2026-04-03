@@ -6,6 +6,7 @@
 #include "Abilities/GameplayAbility.h"
 #include "Data/AbilityData.h"
 
+#include "Data/RuneDataAsset.h"
 #include "YogAbilitySystemComponent.generated.h"
 
 class UYogAbilitySystemComponent;
@@ -14,6 +15,8 @@ class UYogAbilitySystemComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceivedDamageDelegate, UYogAbilitySystemComponent*, SourceASC, float, Damage);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceiveHitResultDelegate, class UYogAbilitySystemComponent*, SourceASC, bool, HitResult);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDealtDamageDelegate, UYogAbilitySystemComponent*, TargetASC, float, Damage);
 
 
 
@@ -96,6 +99,9 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FReceiveHitResultDelegate ReceiveHitResult;
 
+	UPROPERTY(BlueprintAssignable, Category = "DamageDealt")
+	FDealtDamageDelegate DealtDamage;
+
 	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage);
 	
 
@@ -168,5 +174,14 @@ public:
 	void SetAbilityRetriggerable(FGameplayAbilitySpecHandle Handle, bool bCanRetrigger);
 
 
+	// ─── 符文动态 GE ──────────────────────────────────────
+	// 从 DA 配置的 AttributeModifiers 动态构建 GE 并 Apply
+	// 返回 Handle，用于后续移除
+	UFUNCTION(BlueprintCallable, Category = "Rune")
+	FActiveGameplayEffectHandle ApplyRuneModifiers(const TArray<FRuneAttributeModifier>& Modifiers);
+
+	// 移除之前 Apply 的符文 GE
+	UFUNCTION(BlueprintCallable, Category = "Rune")
+	void RemoveRuneModifiers(FActiveGameplayEffectHandle Handle);
 
 };

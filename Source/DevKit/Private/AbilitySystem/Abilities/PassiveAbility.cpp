@@ -35,8 +35,6 @@ void UPassiveAbility::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, co
 	Super::OnAvatarSet(ActorInfo, Spec);
 
 	//ActorInfo->AbilitySystemComponent->TryActivateAbility(Spec.Handle, false);
-
-
 }
 
 void UPassiveAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)

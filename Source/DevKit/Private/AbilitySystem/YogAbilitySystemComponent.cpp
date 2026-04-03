@@ -1,6 +1,7 @@
 ﻿#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Abilities/PassiveAbility.h"
+#include "GameplayEffect.h"
 
 #include "SaveGame/YogSaveGame.h"
 #include "Data/YogGameData.h"
@@ -138,6 +139,7 @@ void UYogAbilitySystemComponent::AddGameplayTagWithCount(FGameplayTag Tag, int32
 void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage)
 {
 	ReceivedDamage.Broadcast(SourceASC, Damage);
+	if (SourceASC) SourceASC->DealtDamage.Broadcast(this, Damage);
 }
 
 void UYogAbilitySystemComponent::AddActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToBlock)
@@ -374,4 +376,44 @@ void UYogAbilitySystemComponent::SetAbilityRetriggerable(FGameplayAbilitySpecHan
 }
 
 
+FActiveGameplayEffectHandle UYogAbilitySystemComponent::ApplyRuneModifiers(const TArray<FRuneAttributeModifier>& Modifiers)
+{
+	if (Modifiers.IsEmpty())
+	{
+		return FActiveGameplayEffectHandle();
+	}
 
+	// 运行时创建一个临时 GE 对象
+	UGameplayEffect* DynamicGE = NewObject<UGameplayEffect>(GetTransientPackage(), FName(TEXT("RuneDynamicGE")));
+	DynamicGE->DurationPolicy = EGameplayEffectDurationType::Infinite;
+
+	// 从 DA 配置的数据构建 Modifiers
+	for (const FRuneAttributeModifier& Mod : Modifiers)
+	{
+		if (!Mod.Attribute.IsValid())
+		{
+			continue;
+		}
+
+		FGameplayModifierInfo ModInfo;
+		ModInfo.Attribute = Mod.Attribute;
+		ModInfo.ModifierOp = Mod.ModOp;
+		ModInfo.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(Mod.Value));
+		DynamicGE->Modifiers.Add(ModInfo);
+	}
+
+	// Apply 并返回 Handle（用于后续移除）
+	FGameplayEffectContextHandle Context = MakeEffectContext();
+	Context.AddSourceObject(this);
+
+	FGameplayEffectSpec Spec(DynamicGE, Context, 1.f);
+	return ApplyGameplayEffectSpecToSelf(Spec);
+}
+
+void UYogAbilitySystemComponent::RemoveRuneModifiers(FActiveGameplayEffectHandle Handle)
+{
+	if (Handle.IsValid())
+	{
+		RemoveActiveGameplayEffect(Handle);
+	}
+}

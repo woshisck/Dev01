@@ -123,5 +123,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<UYogGameplayAbility> PassiveAbilityClass;
 
-
+	/**
+	 * 运行时从 Definition 数据动态构建一个临时 GE 对象
+	 * 供 BuffFlow 的 AddBuff 节点和其他运行时系统使用
+	 */
+	UGameplayEffect* CreateTransientGE(UObject* Outer) const;
 };
