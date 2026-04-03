@@ -74,6 +74,10 @@ public:
 	UPROPERTY()
 	TMap<FName, TObjectPtr<UNiagaraComponent>> ActiveNiagaraEffects;
 
+	/** 由 BFNode_OnKill 写入，BFNode_SpawnActorAtLocation 读取 */
+	UPROPERTY()
+	FVector LastKillLocation = FVector::ZeroVector;
+
 private:
 	UPROPERTY()
 	TWeakObjectPtr<UYogAbilitySystemComponent> CachedASC;

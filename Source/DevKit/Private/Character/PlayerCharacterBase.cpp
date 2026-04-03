@@ -92,6 +92,28 @@ void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 	PendingRunes.Add(Rune);
 }
 
+void APlayerCharacterBase::InitDashChargeSystem()
+{
+	DashChargeCount = MaxDashChargeCount;
+	GetWorldTimerManager().SetTimer(DashChargeRegenTimer, [this]()
+	{
+		if (DashChargeCount < MaxDashChargeCount)
+		{
+			DashChargeCount++;
+		}
+		if (DashChargeCount >= MaxDashChargeCount)
+		{
+			GetWorldTimerManager().ClearTimer(DashChargeRegenTimer);
+		}
+	}, DashChargeRegenInterval, true);
+}
+
+void APlayerCharacterBase::ShutdownDashChargeSystem()
+{
+	DashChargeCount = 0;
+	GetWorldTimerManager().ClearTimer(DashChargeRegenTimer);
+}
+
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();

@@ -48,9 +48,8 @@ UDamageExecution::UDamageExecution()
 	RelevantAttributesToCapture.Add(DamageStatics().DmgTakenDef);
 	RelevantAttributesToCapture.Add(DamageStatics().Crit_RateDef);
 	RelevantAttributesToCapture.Add(DamageStatics().Crit_DamageDef);
-
-	//RelevantAttributesToCapture.Add(DamageStatics().HealthDef);
-	//RelevantAttributesToCapture.Add(DamageStatics().MaxHealthDef);
+	RelevantAttributesToCapture.Add(DamageStatics().HealthDef);
+	RelevantAttributesToCapture.Add(DamageStatics().MaxHealthDef);
 
 	RelevantAttributesToCapture.Add(DamageStatics().DamagePhysicalDef);
 	RelevantAttributesToCapture.Add(DamageStatics().DamageMagicDef);
@@ -60,82 +59,81 @@ UDamageExecution::UDamageExecution()
 }
 
 
-void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const 
+void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
 {
-	//SCOPED_NAMED_EVENT(UDamageExecution__Execute_Implementation, FColor::Red);
-	//QUICK_SCOPE_CYCLE_COUNTER(UDamageExecution_Execute_Implementation);
-
-		//---------------------------------------------------------
+	//---------------------------------------------------------
 	//	DamageDone = AttackPower * Attack * DmgTaken(target)
 	//---------------------------------------------------------
 
-	FGameplayEffectAttributeCaptureDefinition AttackPowerDef;
-	FGameplayEffectAttributeCaptureDefinition AttackDef;
-	FGameplayEffectAttributeCaptureDefinition DmgTakenDef;
-
-	for (const FGameplayEffectAttributeCaptureDefinition& CaptureDef : RelevantAttributesToCapture)
-	{
-		if (CaptureDef.AttributeToCapture.GetName() == "AttackPower")
-		{
-			AttackPowerDef = CaptureDef;
-		}
-
-		if (CaptureDef.AttributeToCapture.GetName() == "Attack")
-		{
-			AttackDef = CaptureDef;
-		}
-
-		if (CaptureDef.AttributeToCapture.GetName() == "DmgTaken")
-		{
-			DmgTakenDef = CaptureDef;
-		}
-	}
-
 	FAggregatorEvaluateParameters EvaluationParameters;
-
-
 	const FGameplayEffectSpec& EffectSpec = ExecutionParams.GetOwningSpec();
 	EvaluationParameters.SourceTags = EffectSpec.CapturedSourceTags.GetAggregatedTags();
 	EvaluationParameters.TargetTags = EffectSpec.CapturedTargetTags.GetAggregatedTags();
 
-	float SourceAttackPower = 0.f;
-	float SourceAttack = 0.f;
-	float TargetDmgTaken = 0.f;
+	const FGameplayTagContainer* SourceTags = EvaluationParameters.SourceTags;
 
+	// ── 基础属性捕获 ────────────────────────────────────────────────
+	float SourceAttackPower = 0.f, SourceAttack = 0.f, TargetDmgTaken = 0.f;
+	float SourceCritRate = 0.f, SourceCritDamage = 0.f;
+	float TargetHealth = 0.f, TargetMaxHealth = 0.f;
 
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
-		AttackPowerDef,
-		EvaluationParameters,
-		SourceAttackPower
-	);
-
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
-		AttackDef,
-		EvaluationParameters,
-		SourceAttack
-	);
-
-	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
-		DmgTakenDef,
-		EvaluationParameters,
-		TargetDmgTaken
-	);
-
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, SourceAttackPower);
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef,      EvaluationParameters, SourceAttack);
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DmgTakenDef,    EvaluationParameters, TargetDmgTaken);
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_RateDef,   EvaluationParameters, SourceCritRate);
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_DamageDef, EvaluationParameters, SourceCritDamage);
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().HealthDef,      EvaluationParameters, TargetHealth);
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().MaxHealthDef,   EvaluationParameters, TargetMaxHealth);
 
 	float FinalDamage = SourceAttackPower * SourceAttack * TargetDmgTaken;
 
-	UE_LOG(LogTemp, Warning, TEXT("Source Attack Power: %f"), SourceAttackPower);	
-	UE_LOG(LogTemp, Warning, TEXT("Source Attack : %f"), SourceAttack);
-	UE_LOG(LogTemp, Warning, TEXT("Target Damage Taken: %f"), TargetDmgTaken);
-	UE_LOG(LogTemp, Warning, TEXT("Final Damage: %f"), FinalDamage);
-	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Override, FinalDamage));
-
-	// Broadcast damages to Target ASC（触发 ReceivedDamage / DealtDamage 委托，供被动符文监听）
+	// ── ASC 引用 ──────────────────────────────────────────────────────
 	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
 	UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetSourceAbilitySystemComponent());
+
+	// ── 暴击计算 ──────────────────────────────────────────────────────
+	// 奋力一击：Source 同时拥有 Action.Combo.LastHit.* 和 Rune.FenLiYiJi.Active → 强制暴击
+	static const FGameplayTag ComboLastHitParent = FGameplayTag::RequestGameplayTag("Action.Combo.LastHit");
+	static const FGameplayTag FenLiYiJiTag       = FGameplayTag::RequestGameplayTag("Rune.FenLiYiJi.Active");
+	bool bForceCrit = SourceTags && SourceTags->HasTag(ComboLastHitParent) && SourceTags->HasTag(FenLiYiJiTag);
+	bool bIsCrit    = bForceCrit || (FMath::FRand() < SourceCritRate);
+	if (bIsCrit)
+	{
+		FinalDamage *= (1.f + SourceCritDamage);
+		UE_LOG(LogTemp, Log, TEXT("DamageExecution: CRIT! FinalDamage=%f"), FinalDamage);
+	}
+
+	// ── 突袭：对满血目标双倍伤害 ─────────────────────────────────────
+	static const FGameplayTag TuXiTag = FGameplayTag::RequestGameplayTag("Rune.TuXi.Active");
+	if (SourceTags && SourceTags->HasTag(TuXiTag) && TargetMaxHealth > 0.f && TargetHealth >= TargetMaxHealth - 1.f)
+	{
+		FinalDamage *= 2.f;
+		UE_LOG(LogTemp, Log, TEXT("DamageExecution: TuXi double damage! FinalDamage=%f"), FinalDamage);
+	}
+
+	// ── 双重打击：下一次攻击双倍伤害 ─────────────────────────────────
+	static const FGameplayTag DoubleHitTag = FGameplayTag::RequestGameplayTag("State.DoubleHit");
+	if (SourceTags && SourceTags->HasTag(DoubleHitTag) && SourceASC)
+	{
+		FinalDamage *= 2.f;
+		SourceASC->RemoveGameplayTagWithCount(DoubleHitTag, 1);
+		UE_LOG(LogTemp, Log, TEXT("DamageExecution: DoubleHit consumed! FinalDamage=%f"), FinalDamage);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("AttackPower=%f Attack=%f DmgTaken=%f FinalDamage=%f IsCrit=%d"),
+		SourceAttackPower, SourceAttack, TargetDmgTaken, FinalDamage, (int)bIsCrit);
+
+	// ── 应用伤害 ──────────────────────────────────────────────────────
+	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Override, FinalDamage));
+
+	// ── 广播委托（供 BuffFlow 节点监听）──────────────────────────────
 	if (TargetASC)
 	{
 		TargetASC->ReceiveDamage(SourceASC, FinalDamage);
+	}
+	if (bIsCrit && SourceASC)
+	{
+		SourceASC->OnCritHit.Broadcast(TargetASC, FinalDamage);
 	}
 
 
@@ -279,9 +277,8 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	//OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Additive, FinalDamage));
 	////Broadcast damages to Target ASC
 	//if (TargetASC)
-	//{	
+	//{
 	//	UE_LOG(LogTemp, Warning, TEXT("Damage deal total: %f"), FinalDamage);
 	//	TargetASC->ReceiveDamage(SourceASC, FinalDamage);
 	//}
 }
-

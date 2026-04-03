@@ -6,6 +6,7 @@
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "Data/RuneDataAsset.h"
+#include "GameplayEffectTypes.h"
 
 #include "PlayerCharacterBase.generated.h"
 
@@ -96,6 +97,26 @@ public:
 	// 待放置符文列表（整理阶段从此处拖放到格子）
 	UPROPERTY(BlueprintReadOnly, Category = "Backpack")
 	TArray<FRuneInstance> PendingRunes;
+
+	// ─── 风行者冲刺充能 ───────────────────────────────────────────
+	UPROPERTY(BlueprintReadOnly, Category = "Dash")
+	int32 DashChargeCount = 0;
+
+	int32 MaxDashChargeCount = 2;
+	float DashChargeRegenInterval = 3.0f;
+	FTimerHandle DashChargeRegenTimer;
+
+	/** 激活风行者符文时调用：充满2格充能并启动回复计时器 */
+	UFUNCTION(BlueprintCallable, Category = "Dash")
+	void InitDashChargeSystem();
+
+	/** 卸下风行者符文时调用：清空充能并停止计时器 */
+	UFUNCTION(BlueprintCallable, Category = "Dash")
+	void ShutdownDashChargeSystem();
+
+	// ─── 战斗渴望 / 全能 动态 GE 句柄 ────────────────────────────
+	FActiveGameplayEffectHandle ZhanDouKewangEffectHandle;
+	FActiveGameplayEffectHandle QuanNengEffectHandle;
 
 	friend UPlayerAttributeSet;
 
