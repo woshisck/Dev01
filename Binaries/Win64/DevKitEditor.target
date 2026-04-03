@@ -4122,6 +4122,18 @@
 			"Type": "RequiredResource"
 		},
 		{
+			"Path": "$(EngineDir)/Plugins/Editor/AssetSearch/Binaries/Win64/UnrealEditor-AssetSearch.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Editor/AssetSearch/Binaries/Win64/UnrealEditor-AssetSearch.pdb",
+			"Type": "SymbolFile"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Editor/AssetSearch/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
 			"Path": "$(EngineDir)/Plugins/Editor/BlueprintHeaderView/Binaries/Win64/UnrealEditor-BlueprintHeaderView.dll",
 			"Type": "DynamicLibrary"
 		},
@@ -6110,6 +6122,14 @@
 			"Type": "SymbolFile"
 		},
 		{
+			"Path": "$(EngineDir)/Plugins/Runtime/CommonUI/Binaries/Win64/UnrealEditor-CommonUIEditor.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/CommonUI/Binaries/Win64/UnrealEditor-CommonUIEditor.pdb",
+			"Type": "SymbolFile"
+		},
+		{
 			"Path": "$(EngineDir)/Plugins/Runtime/CommonUI/Binaries/Win64/UnrealEditor.modules",
 			"Type": "RequiredResource"
 		},
@@ -6143,6 +6163,18 @@
 		},
 		{
 			"Path": "$(EngineDir)/Plugins/Runtime/DataRegistry/Binaries/Win64/UnrealEditor.modules",
+			"Type": "RequiredResource"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/Database/SQLiteCore/Binaries/Win64/UnrealEditor-SQLiteCore.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/Database/SQLiteCore/Binaries/Win64/UnrealEditor-SQLiteCore.pdb",
+			"Type": "SymbolFile"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/Database/SQLiteCore/Binaries/Win64/UnrealEditor.modules",
 			"Type": "RequiredResource"
 		},
 		{
@@ -7214,15 +7246,31 @@
 			"Type": "RequiredResource"
 		},
 		{
-			"Path": "$(ProjectDir)/Plugins/GameFeatures/Card/Binaries/Win64/UnrealEditor-CardRuntime.dll",
+			"Path": "$(ProjectDir)/Plugins/FlowGraph-2.1-5.6/Binaries/Win64/UnrealEditor-Flow.dll",
 			"Type": "DynamicLibrary"
 		},
 		{
-			"Path": "$(ProjectDir)/Plugins/GameFeatures/Card/Binaries/Win64/UnrealEditor-CardRuntime.pdb",
+			"Path": "$(ProjectDir)/Plugins/FlowGraph-2.1-5.6/Binaries/Win64/UnrealEditor-Flow.pdb",
 			"Type": "SymbolFile"
 		},
 		{
-			"Path": "$(ProjectDir)/Plugins/GameFeatures/Card/Binaries/Win64/UnrealEditor.modules",
+			"Path": "$(ProjectDir)/Plugins/FlowGraph-2.1-5.6/Binaries/Win64/UnrealEditor-FlowDebugger.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/FlowGraph-2.1-5.6/Binaries/Win64/UnrealEditor-FlowDebugger.pdb",
+			"Type": "SymbolFile"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/FlowGraph-2.1-5.6/Binaries/Win64/UnrealEditor-FlowEditor.dll",
+			"Type": "DynamicLibrary"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/FlowGraph-2.1-5.6/Binaries/Win64/UnrealEditor-FlowEditor.pdb",
+			"Type": "SymbolFile"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/FlowGraph-2.1-5.6/Binaries/Win64/UnrealEditor.modules",
 			"Type": "RequiredResource"
 		},
 		{
@@ -7235,18 +7283,6 @@
 		},
 		{
 			"Path": "$(ProjectDir)/Plugins/GameFeatures/CountDownTime/Binaries/Win64/UnrealEditor.modules",
-			"Type": "RequiredResource"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/GameFeatures/YogTopDownCore/Binaries/Win64/UnrealEditor-YogTopDownCoreRuntime.dll",
-			"Type": "DynamicLibrary"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/GameFeatures/YogTopDownCore/Binaries/Win64/UnrealEditor-YogTopDownCoreRuntime.pdb",
-			"Type": "SymbolFile"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/GameFeatures/YogTopDownCore/Binaries/Win64/UnrealEditor.modules",
 			"Type": "RequiredResource"
 		},
 		{
@@ -29804,6 +29840,10 @@
 			"Type": "UFS"
 		},
 		{
+			"Path": "$(EngineDir)/Plugins/Editor/AssetSearch/AssetSearch.uplugin",
+			"Type": "UFS"
+		},
+		{
 			"Path": "$(EngineDir)/Plugins/Editor/BlueprintHeaderView/BlueprintHeaderView.uplugin",
 			"Type": "UFS"
 		},
@@ -30232,11 +30272,19 @@
 			"Type": "UFS"
 		},
 		{
+			"Path": "$(EngineDir)/Plugins/Runtime/CommonUI/CommonUI.uplugin",
+			"Type": "UFS"
+		},
+		{
 			"Path": "$(EngineDir)/Plugins/Runtime/CustomMeshComponent/CustomMeshComponent.uplugin",
 			"Type": "UFS"
 		},
 		{
 			"Path": "$(EngineDir)/Plugins/Runtime/DataRegistry/DataRegistry.uplugin",
+			"Type": "UFS"
+		},
+		{
+			"Path": "$(EngineDir)/Plugins/Runtime/Database/SQLiteCore/SQLiteCore.uplugin",
 			"Type": "UFS"
 		},
 		{
@@ -30416,19 +30464,11 @@
 			"Type": "UFS"
 		},
 		{
-			"Path": "$(ProjectDir)/Plugins/GameFeatures/Card/Card.uplugin",
+			"Path": "$(ProjectDir)/Plugins/FlowGraph-2.1-5.6/Flow.uplugin",
 			"Type": "UFS"
 		},
 		{
 			"Path": "$(ProjectDir)/Plugins/GameFeatures/CountDownTime/CountDownTime.uplugin",
-			"Type": "UFS"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/GameFeatures/YogTopDownCore/YogTopDownCore.uplugin",
-			"Type": "UFS"
-		},
-		{
-			"Path": "$(ProjectDir)/Plugins/MarketArt/MarketArt.uplugin",
 			"Type": "UFS"
 		},
 		{
@@ -30445,6 +30485,14 @@
 		},
 		{
 			"Path": "$(ProjectDir)/Plugins/YogArt/YogArt.uplugin",
+			"Type": "UFS"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/YogFrontLib/YogFrontLib.uplugin",
+			"Type": "UFS"
+		},
+		{
+			"Path": "$(ProjectDir)/Plugins/YogSFX/YogSFX.uplugin",
 			"Type": "UFS"
 		}
 	],
@@ -30471,6 +30519,7 @@
 		"ArchVisCharacter",
 		"AssetManagerEditor",
 		"AssetReferenceRestrictions",
+		"AssetSearch",
 		"AssetTags",
 		"AudioCapture",
 		"AudioSynesthesia",
@@ -30485,7 +30534,6 @@
 		"CLionSourceCodeAccess",
 		"CableComponent",
 		"CameraShakePreviewer",
-		"Card",
 		"ChangelistReview",
 		"ChaosCaching",
 		"ChaosCloth",
@@ -30499,6 +30547,7 @@
 		"CmdLinkServer",
 		"CodeLiteSourceCodeAccess",
 		"CommonLoadingScreen",
+		"CommonUI",
 		"ContentBrowserAssetDataSource",
 		"ContentBrowserClassDataSource",
 		"ContentBrowserFileDataSource",
@@ -30525,6 +30574,7 @@
 		"Fab",
 		"FacialAnimation",
 		"FastBuildController",
+		"Flow",
 		"Fracture",
 		"FullBodyIK",
 		"GLTFExporter",
@@ -30561,7 +30611,6 @@
 		"LocationServicesBPLibrary",
 		"MacGraphicsSwitching",
 		"Market",
-		"MarketArt",
 		"MassAI",
 		"MassEntity",
 		"MassGameplay",
@@ -30617,6 +30666,7 @@
 		"ResonanceAudio",
 		"RiderSourceCodeAccess",
 		"RigVM",
+		"SQLiteCore",
 		"SequencerAnimTools",
 		"SequencerScripting",
 		"SignificanceManager",
@@ -30658,7 +30708,8 @@
 		"XInputDevice",
 		"YogAnimSource",
 		"YogArt",
-		"YogTopDownCore",
+		"YogFrontLib",
+		"YogSFX",
 		"ZoneGraph",
 		"ZoneGraphAnnotations"
 	],
