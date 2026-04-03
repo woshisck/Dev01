@@ -568,6 +568,12 @@ void AYogGameMode::TriggerNextWave()
 	UE_LOG(LogTemp, Log, TEXT("TriggerNextWave: 开始第 %d 波，共 %d 只敌人"),
 		CurrentWaveIndex + 1, Wave.EnemiesToSpawn.Num());
 
+	// 如果这是最后一波，刷怪完成后就标记所有波次已结束
+	if (CurrentWaveIndex == WavePlans.Num() - 1)
+	{
+		bAllWavesSpawned = true;
+	}
+
 	if (Wave.SpawnMode == ESpawnMode::Wave)
 	{
 		// 所有敌人同时刷出
