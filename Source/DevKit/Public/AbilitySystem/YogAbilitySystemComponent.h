@@ -18,6 +18,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceiveHitResultDelegate, class UY
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDealtDamageDelegate, UYogAbilitySystemComponent*, TargetASC, float, Damage);
 
+/** 造成暴击时在 Source ASC 广播 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCritHitDelegate, UYogAbilitySystemComponent*, TargetASC, float, Damage);
+
+/** 冲刺成功时在 Owner ASC 广播 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FDashExecutedDelegate);
+
+/** 击杀目标时在 Source ASC 广播，携带目标 Actor 和死亡位置 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FKilledTargetDelegate, AActor*, Target, FVector, DeathLocation);
+
 
 
 
@@ -101,6 +110,15 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "DamageDealt")
 	FDealtDamageDelegate DealtDamage;
+
+	UPROPERTY(BlueprintAssignable, Category = "Combat")
+	FCritHitDelegate OnCritHit;
+
+	UPROPERTY(BlueprintAssignable, Category = "Combat")
+	FDashExecutedDelegate OnDashExecuted;
+
+	UPROPERTY(BlueprintAssignable, Category = "Combat")
+	FKilledTargetDelegate OnKilledTarget;
 
 	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage);
 	

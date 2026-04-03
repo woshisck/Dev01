@@ -228,7 +228,10 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 			// 通知背包组件更新热度等级
 			if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor()))
 			{
-				Player->GetBackpackGridComponent()->OnHeatPercentChanged(HeatPercent);
+				if (UBackpackGridComponent* BGC = Player->GetBackpackGridComponent())
+				{
+					BGC->OnHeatPercentChanged(HeatPercent);
+				}
 			}
 		}
 	}

@@ -76,8 +76,11 @@ FVector AMobSpawner::GetRandomReachablePoint()
     if (!NavSys) return FVector::ZeroVector;
     // Pick random point in circle
     FVector Origin = GetActorLocation();
-    FVector RandomPoint = UKismetMathLibrary::RandomUnitVector() * FMath::FRandRange(0.f, SpawnRadius);
-    FVector TestLocation = Origin + RandomPoint;
+    // 只在 XY 平面随机，避免测试点落入地下导致 NavMesh 投影失败
+    float Angle = FMath::FRandRange(0.f, 2.f * PI);
+    float Dist  = FMath::FRandRange(0.f, SpawnRadius);
+    FVector RandomPoint = FVector(FMath::Cos(Angle) * Dist, FMath::Sin(Angle) * Dist, 0.f);
+    FVector TestLocation = FVector(Origin.X + RandomPoint.X, Origin.Y + RandomPoint.Y, Origin.Z);
     FNavLocation NavLocation;
     bool bFound = NavSys->ProjectPointToNavigation(TestLocation, NavLocation);
     return bFound ? NavLocation.Location : FVector::ZeroVector;

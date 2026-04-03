@@ -190,12 +190,29 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 {
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
+		// 风行者：有充能且有充能符文 Tag → 消耗充能并绕过冷却
+		static const FGameplayTag FengXingZheTag = FGameplayTag::RequestGameplayTag("Rune.FengXingZhe.Active");
+		bool bHasChargeRune = player->GetASC()->HasMatchingGameplayTag(FengXingZheTag);
+		if (bHasChargeRune)
+		{
+			if (player->DashChargeCount <= 0) return;
+			player->DashChargeCount--;
+			// 移除现有冲刺冷却，让能力立即可用
+			FGameplayTagContainer CooldownTags;
+			CooldownTags.AddTag(FGameplayTag::RequestGameplayTag("GE.DashCoolDown"));
+			player->GetASC()->RemoveActiveEffectsWithTags(CooldownTags);
+		}
+
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
-		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
-
+		bool bActivated = player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
 
 		player->GetInputBufferComponent()->RecordHeavyAttack();
+
+		if (bActivated)
+		{
+			player->GetASC()->OnDashExecuted.Broadcast();
+		}
 	}
 	//UE_LOG(LogTemp, Log, TEXT("Dash"));
 }

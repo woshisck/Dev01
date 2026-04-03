@@ -80,6 +80,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, SourceAttackPower);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef,      EvaluationParameters, SourceAttack);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DmgTakenDef,    EvaluationParameters, TargetDmgTaken);
+	TargetDmgTaken = FMath::Max(TargetDmgTaken, 1.f); // capture 失败时默认 1，防止全场 0 伤害
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_RateDef,   EvaluationParameters, SourceCritRate);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_DamageDef, EvaluationParameters, SourceCritDamage);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().HealthDef,      EvaluationParameters, TargetHealth);

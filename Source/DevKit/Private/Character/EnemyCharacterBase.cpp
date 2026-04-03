@@ -8,6 +8,7 @@
 #include "Data/EnemyData.h"
 #include "Controller/YogAIController.h"
 #include "Data/GASTemplate.h"
+#include "GameModes/YogGameMode.h"
 
 AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -37,6 +38,12 @@ AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitial
 void AEnemyCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 注册死亡判断：不依赖 PossessedBy 的时序，BeginPlay 里直接绑定
+	if (AttributeStatsComponent)
+	{
+		AttributeStatsComponent->OnHealthChange.AddDynamic(this, &AEnemyCharacterBase::OnHealthChangedForDeath);
+	}
 }
 
 void AEnemyCharacterBase::Tick(float DeltaSeconds)
@@ -44,9 +51,35 @@ void AEnemyCharacterBase::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 }
 
+bool AEnemyCharacterBase::IsAlive() const
+{
+	if (!AttributeStatsComponent) return true;
+	return AttributeStatsComponent->GetStat_Health() > 0.f;
+}
+
+void AEnemyCharacterBase::OnHealthChangedForDeath(float NewHealth)
+{
+	if (NewHealth <= 0.f && !bIsDead)
+	{
+		Die();
+	}
+}
+
 void AEnemyCharacterBase::Die()
 {
+	if (bIsDead) return;
+	bIsDead = true;
+
 	Super::Die();
+
+	// 通知 GameMode 击杀计数，触发波次/关卡完成检查
+	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		GM->UpdateFinishLevel(1);
+	}
+
+	// 2 秒后销毁（给死亡动画留时间）
+	SetLifeSpan(2.0f);
 }
 
 void AEnemyCharacterBase::PostInitializeComponents()

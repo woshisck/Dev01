@@ -2,13 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameplayEffectExecutionCalculation.h"
-
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
-
-
 #include "AbilitySystem/Attribute/DamageAttributeSet.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
-#include "GameplayEffectExecutionCalculation.h"
 #include "Data/AbilityData.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "DamageExecution.generated.h"
@@ -59,9 +55,9 @@ struct FYogDamageStatics
 
 
 
-		//Current target health 
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Target, false);
-		//DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, MaxHealth, Target, false);
+		//Current target health
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Target, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, MaxHealth, Target, false);
 		//Current source damage
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UDamageAttributeSet, DamagePhysical, Source, false);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UDamageAttributeSet, DamageMagic, Source, false);

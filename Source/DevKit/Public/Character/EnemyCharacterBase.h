@@ -28,8 +28,14 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void Die() override;
-	
+
+	virtual bool IsAlive() const override;
+
 	void PostInitializeComponents() override;
+
+protected:
+	UFUNCTION()
+	void OnHealthChangedForDeath(float NewHealth);
 	
 	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
