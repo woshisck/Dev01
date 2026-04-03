@@ -2,11 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "FlowComponent.h"
+#include "BuffFlow/BuffFlowTypes.h"
 #include "BuffFlowComponent.generated.h"
 
 class UYogAbilitySystemComponent;
 class AYogCharacterBase;
 class UFlowAsset;
+class UNiagaraComponent;
+
+/** Buff Flow 启动/停止事件：携带 RuneGuid 供监听节点过滤 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuffFlowEvent, FGuid, RuneGuid);
 
 /**
  * 挂在角色上的 BuffFlow 管理组件
@@ -35,6 +40,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BuffFlow")
 	void StopAllBuffFlows();
 
+	// ─── Buff 事件委托 ─────────────────────────────────────
+
+	/** 有新 BuffFlow 启动时广播 */
+	UPROPERTY(BlueprintAssignable, Category = "BuffFlow")
+	FOnBuffFlowEvent OnBuffFlowStarted;
+
+	/** 有 BuffFlow 停止时广播 */
+	UPROPERTY(BlueprintAssignable, Category = "BuffFlow")
+	FOnBuffFlowEvent OnBuffFlowStopped;
+
 	// ─── 供节点快速访问 ─────────────────────────────────────
 
 	UFUNCTION(BlueprintPure, Category = "BuffFlow")
@@ -49,6 +64,15 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+public:
+	/** 最近一次伤害事件的上下文（由 OnDamageDealt / OnDamageReceived 写入，供后续节点读取） */
+	UPROPERTY()
+	FBFEventContext LastEventContext;
+
+	/** 由 PlayNiagara 节点写入，DestroyNiagara 节点读取，key = 策划自定义名称 */
+	UPROPERTY()
+	TMap<FName, TObjectPtr<UNiagaraComponent>> ActiveNiagaraEffects;
 
 private:
 	UPROPERTY()

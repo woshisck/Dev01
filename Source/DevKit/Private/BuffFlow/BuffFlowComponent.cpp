@@ -48,6 +48,7 @@ void UBuffFlowComponent::StartBuffFlow(UFlowAsset* FlowAsset, FGuid RuneGuid, AA
 	// 记录活跃实例（用于后续停止）
 	ActiveRuneFlows.Add(RuneGuid, FlowAsset);
 
+	OnBuffFlowStarted.Broadcast(RuneGuid);
 	UE_LOG(LogTemp, Log, TEXT("BuffFlow started for rune %s"), *RuneGuid.ToString());
 }
 
@@ -67,6 +68,7 @@ void UBuffFlowComponent::StopBuffFlow(FGuid RuneGuid)
 	}
 
 	ActiveRuneFlows.Remove(RuneGuid);
+	OnBuffFlowStopped.Broadcast(RuneGuid);
 	UE_LOG(LogTemp, Log, TEXT("BuffFlow stopped for rune %s"), *RuneGuid.ToString());
 }
 

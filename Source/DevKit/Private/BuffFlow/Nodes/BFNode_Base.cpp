@@ -60,6 +60,10 @@ AActor* UBFNode_Base::ResolveTarget(EBFTargetSelector Selector) const
 		return BFC->GetBuffOwner();
 	case EBFTargetSelector::BuffGiver:
 		return BFC->GetBuffGiver();
+	case EBFTargetSelector::LastDamageTarget:
+		return BFC->LastEventContext.DamageReceiver.Get();
+	case EBFTargetSelector::DamageCauser:
+		return BFC->LastEventContext.DamageCauser.Get();
 	default:
 		return BFC->GetBuffOwner();
 	}
