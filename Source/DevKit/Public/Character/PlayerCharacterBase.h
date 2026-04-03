@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
+#include "Data/RuneDataAsset.h"
 
 #include "PlayerCharacterBase.generated.h"
 
@@ -81,8 +82,16 @@ public:
 	UPROPERTY()
 	TObjectPtr<AItemSpawner> OverlappingSpawner;
 
-	UFUNCTION()
+	UFUNCTION(BlueprintPure, Category = "Backpack")
 	UBackpackGridComponent* GetBackpackGridComponent();
+
+	// 将符文加入待放置列表（由 GameMode 的 SelectLoot 调用）
+	UFUNCTION(BlueprintCallable, Category = "Backpack")
+	void AddRuneToInventory(const FRuneInstance& Rune);
+
+	// 待放置符文列表（整理阶段从此处拖放到格子）
+	UPROPERTY(BlueprintReadOnly, Category = "Backpack")
+	TArray<FRuneInstance> PendingRunes;
 
 	friend UPlayerAttributeSet;
 

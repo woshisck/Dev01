@@ -85,9 +85,20 @@ UBackpackGridComponent* APlayerCharacterBase::GetBackpackGridComponent()
 	return BackpackGridComponent;
 }
 
+void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
+{
+	PendingRunes.Add(Rune);
+}
+
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 将 BackpackGridComponent 与 ASC 关联，使符文激活时可施加 GE
+	if (BackpackGridComponent && GetAbilitySystemComponent())
+	{
+		BackpackGridComponent->InitWithASC(GetAbilitySystemComponent());
+	}
 
 	//GetASC()->InitAbilityActorInfo(this, this);
 	//if (GasTemplate != nullptr)
