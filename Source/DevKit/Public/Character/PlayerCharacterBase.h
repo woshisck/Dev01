@@ -15,6 +15,7 @@
 //class AAuraBase;
 class UYogSaveGame;
 class UBackpackGridComponent;
+class UBuffFlowComponent;
 UENUM()
 enum class EPlayerState : uint8
 {
@@ -61,6 +62,9 @@ public:
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	TObjectPtr<UBackpackGridComponent> BackpackGridComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BuffFlow")
+	TObjectPtr<UBuffFlowComponent> BuffFlowComponent;
 
 	
 
