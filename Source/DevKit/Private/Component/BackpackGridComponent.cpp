@@ -56,6 +56,61 @@ void UBackpackGridComponent::BeginPlay()
 	{
 		ActivationZoneConfig = FActivationZoneConfig::MakeDefault();
 	}
+
+	// Debug: 自动放置测试符文（延迟一帧，确保 ASC 已初始化）
+	if (DebugTestRunes.Num() > 0)
+	{
+		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UBackpackGridComponent::DebugPlaceTestRunes);
+	}
+}
+
+void UBackpackGridComponent::DebugPlaceTestRunes()
+{
+	for (int32 i = 0; i < DebugTestRunes.Num(); i++)
+	{
+		if (!DebugTestRunes[i])
+			continue;
+
+		FRuneInstance Instance = DebugTestRunes[i]->CreateInstance();
+
+		// 优先使用手动指定的位置，否则自动寻位
+		if (DebugTestPositions.IsValidIndex(i))
+		{
+			FIntPoint Pivot = DebugTestPositions[i];
+			if (TryPlaceRune(Instance, Pivot))
+			{
+				UE_LOG(LogTemp, Log, TEXT("DebugPlaceTestRunes: [%s] placed at (%d,%d)"),
+					*Instance.RuneName.ToString(), Pivot.X, Pivot.Y);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("DebugPlaceTestRunes: [%s] FAILED at (%d,%d) - collision or out of bounds"),
+					*Instance.RuneName.ToString(), Pivot.X, Pivot.Y);
+			}
+		}
+		else
+		{
+			// 自动寻位：逐格尝试
+			bool bPlaced = false;
+			for (int32 Y = 0; Y < GridHeight && !bPlaced; Y++)
+			{
+				for (int32 X = 0; X < GridWidth && !bPlaced; X++)
+				{
+					if (TryPlaceRune(Instance, FIntPoint(X, Y)))
+					{
+						UE_LOG(LogTemp, Log, TEXT("DebugPlaceTestRunes: [%s] auto-placed at (%d,%d)"),
+							*Instance.RuneName.ToString(), X, Y);
+						bPlaced = true;
+					}
+				}
+			}
+			if (!bPlaced)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("DebugPlaceTestRunes: [%s] FAILED - no space"),
+					*Instance.RuneName.ToString());
+			}
+		}
+	}
 }
 
 // =========================================================

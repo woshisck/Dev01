@@ -2,6 +2,7 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
+#include "System/YogInstanceSubSystem.h"
 #include "Data/EffectRegistry.h"
 #include "Data/YogBuffDefinition.h"
 #include "GameplayEffect.h"
@@ -17,9 +18,17 @@ UBFNode_AddEffect::UBFNode_AddEffect(const FObjectInitializer& ObjectInitializer
 
 void UBFNode_AddEffect::ExecuteInput(const FName& PinName)
 {
-	// 1. 查找 Registry
-	if (!Registry || !EffectTag.IsValid())
+	if (!EffectTag.IsValid())
 	{
+		TriggerOutput(TEXT("Failed"), true);
+		return;
+	}
+
+	UYogInstanceSubSystem* Subsystem = UYogInstanceSubSystem::Get(this);
+	UEffectRegistry* Registry = Subsystem ? Subsystem->GetEffectRegistry() : nullptr;
+	if (!Registry)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BFNode_AddEffect: EffectRegistry not configured in Project Settings → Yog"));
 		TriggerOutput(TEXT("Failed"), true);
 		return;
 	}

@@ -152,6 +152,22 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Backpack")
     void SetActivationZoneConfig(const FActivationZoneConfig& Config);
 
+    // =========================================================
+    // Debug / Test
+    // =========================================================
+
+    /** 测试用：拖入 DA_Rune 资产 + 指定 Pivot 位置，BeginPlay 自动放置 */
+    UPROPERTY(EditAnywhere, Category = "Backpack|Debug")
+    TArray<TObjectPtr<URuneDataAsset>> DebugTestRunes;
+
+    /** 每个测试符文的放置 Pivot（与 DebugTestRunes 一一对应，未填则自动寻位） */
+    UPROPERTY(EditAnywhere, Category = "Backpack|Debug")
+    TArray<FIntPoint> DebugTestPositions;
+
+    /** 手动触发：放置 DebugTestRunes 到网格（可绑按键调用） */
+    UFUNCTION(BlueprintCallable, Category = "Backpack|Debug")
+    void DebugPlaceTestRunes();
+
 protected:
     virtual void BeginPlay() override;
 
