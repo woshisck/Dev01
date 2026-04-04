@@ -13,6 +13,8 @@
 
 #include "YogBuffDefinition.generated.h"
 
+class UFlowAsset;
+
 
 USTRUCT(Blueprintable, BlueprintType)
 struct FYogBuffDefinitionRow : public FTableRowBase
@@ -122,6 +124,22 @@ public:
 	// ----------------------------------------------------------------------
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<UYogGameplayAbility> PassiveAbilityClass;
+
+	// ----------------------------------------------------------------------
+	//	BuffFlow 扩展字段
+	// ----------------------------------------------------------------------
+
+	/** 标识该 Buff 的 Tag（用于 EffectRegistry 查找，也可用于移除时精确定位） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "BuffFlow")
+	FGameplayTag BuffTag;
+
+	/** 施加到目标 ASC 的 Tag（GE 激活期间持有，GE 移除时自动撤销） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "BuffFlow")
+	FGameplayTagContainer GrantedTagsToTarget;
+
+	/** 关联的 BuffFlow Asset（符文激活时自动启动，符文卸下时自动停止） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "BuffFlow")
+	TObjectPtr<UFlowAsset> BuffFlowAsset;
 
 	/**
 	 * 运行时从 Definition 数据动态构建一个临时 GE 对象

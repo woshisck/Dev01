@@ -44,6 +44,18 @@ UGameplayEffect* UYogBuffDefinition::CreateTransientGE(UObject* Outer) const
 	GE->bSuppressStackingCues = bSuppressStackingCues;
 	GE->GameplayCues = GameplayCues;
 
+	// Tags granted to target while GE is active
+	if (GrantedTagsToTarget.Num() > 0)
+	{
+		GE->InheritableOwnedTagsContainer.Added.AppendTags(GrantedTagsToTarget);
+	}
+
+	// BuffTag 加到 GE 自身 Asset Tags，便于通过 RemoveActiveEffectsWithTags 精确移除
+	if (BuffTag.IsValid())
+	{
+		GE->InheritableGameplayEffectTags.Added.AddTag(BuffTag);
+	}
+
 	return GE;
 }
 
