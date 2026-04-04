@@ -6,7 +6,7 @@
 #include "BuffFlow/BuffFlowTypes.h"
 #include "BFNode_RemoveTag.generated.h"
 
-UCLASS(NotBlueprintable, meta = (DisplayName = "移除标签", Category = "BuffFlow|标签"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Remove Tag", Category = "BuffFlow|Tag"))
 class DEVKIT_API UBFNode_RemoveTag : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

@@ -8,7 +8,7 @@
  * 延时节点：当任意 BuffFlow 停止时触发（监听 BuffFlowComponent::OnBuffFlowStopped）
  * 可用于 Buff 结束时的清理效果
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "当Buff移除时", Category = "BuffFlow|触发器"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "On Buff Removed", Category = "BuffFlow|Trigger"))
 class DEVKIT_API UBFNode_OnBuffRemoved : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

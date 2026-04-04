@@ -8,7 +8,7 @@
  * 即时节点：在指定位置生成 Actor
  * 默认使用 BFC->LastKillLocation（由 BFNode_OnKill 写入）
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "在位置生成Actor", Category = "BuffFlow|动作"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Spawn Actor At Location", Category = "BuffFlow|Spawn"))
 class DEVKIT_API UBFNode_SpawnActorAtLocation : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

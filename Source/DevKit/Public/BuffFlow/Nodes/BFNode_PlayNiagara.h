@@ -11,7 +11,7 @@ class UNiagaraSystem;
  * 瞬时节点：在目标上播放 Niagara 特效，并存入 BuffFlowComponent::ActiveNiagaraEffects
  * 供 DestroyNiagara 节点后续销毁
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "播放特效", Category = "BuffFlow|特效"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Play Niagara", Category = "BuffFlow|Visual"))
 class DEVKIT_API UBFNode_PlayNiagara : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

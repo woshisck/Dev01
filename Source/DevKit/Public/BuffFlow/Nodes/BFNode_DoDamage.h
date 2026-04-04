@@ -10,7 +10,7 @@
  * 瞬时节点：主动对目标施加伤害（通过 GE 施加到目标 ASC）
  * 等同于 ApplyEffect 但语义更直白，专门用于造成伤害
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "造成伤害", Category = "BuffFlow|效果"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Do Damage", Category = "BuffFlow|Effect"))
 class DEVKIT_API UBFNode_DoDamage : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

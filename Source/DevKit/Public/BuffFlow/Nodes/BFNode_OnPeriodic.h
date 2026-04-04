@@ -12,7 +12,7 @@
  *
  * 适用场景：流血移动扣血检测、持续燃烧伤害等需要轮询的效果
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "周期触发", Category = "BuffFlow|触发器"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "On Periodic", Category = "BuffFlow|Trigger"))
 class DEVKIT_API UBFNode_OnPeriodic : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

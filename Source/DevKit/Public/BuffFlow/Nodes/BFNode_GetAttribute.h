@@ -6,7 +6,7 @@
 #include "BuffFlow/BuffFlowTypes.h"
 #include "BFNode_GetAttribute.generated.h"
 
-UCLASS(NotBlueprintable, meta = (DisplayName = "获取属性值", Category = "BuffFlow|属性"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Get Attribute", Category = "BuffFlow|Condition"))
 class DEVKIT_API UBFNode_GetAttribute : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

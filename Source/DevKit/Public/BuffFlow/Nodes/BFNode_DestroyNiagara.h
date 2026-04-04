@@ -7,7 +7,7 @@
 /**
  * 瞬时节点：销毁指定名称的 Niagara 特效（从 BuffFlowComponent::ActiveNiagaraEffects 中查找并停用）
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "销毁特效", Category = "BuffFlow|特效"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Destroy Niagara", Category = "BuffFlow|Visual"))
 class DEVKIT_API UBFNode_DestroyNiagara : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

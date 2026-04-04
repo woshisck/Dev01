@@ -13,7 +13,7 @@ class UYogBuffDefinition;
  * 2. 如果 BuffDefinition 配置了 BuffFlowAsset，在目标 BuffFlowComponent 上停止对应 Flow
  *    （注：停止所有同 FlowAsset 的实例，因为 BFNode_AddRune 使用的 Guid 未持久化）
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "移除符文效果", Category = "BuffFlow|增益"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Remove Rune Effect", Category = "BuffFlow|Effect"))
 class DEVKIT_API UBFNode_RemoveRune : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

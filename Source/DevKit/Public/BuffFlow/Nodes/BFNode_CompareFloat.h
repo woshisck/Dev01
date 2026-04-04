@@ -15,7 +15,7 @@ enum class EBFCompareOp : uint8
 	NotEqual         UMETA(DisplayName = "!="),
 };
 
-UCLASS(NotBlueprintable, meta = (DisplayName = "浮点比较", Category = "BuffFlow|逻辑"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Compare Float", Category = "BuffFlow|Condition"))
 class DEVKIT_API UBFNode_CompareFloat : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

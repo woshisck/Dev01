@@ -11,7 +11,7 @@ class UAnimMontage;
  * 瞬时节点：在目标角色上播放蒙太奇动画
  * 仅支持 ACharacter，非角色类型会直接跳转 Out
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "播放蒙太奇", Category = "BuffFlow|动画"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Play Montage", Category = "BuffFlow|Visual"))
 class DEVKIT_API UBFNode_PlayMontage : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

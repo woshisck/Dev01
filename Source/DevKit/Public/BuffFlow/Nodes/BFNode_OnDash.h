@@ -10,7 +10,7 @@ class UYogAbilitySystemComponent;
  * 延时节点：当 BuffOwner 执行冲刺时触发
  * 绑定 ASC->OnDashExecuted 委托
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "当冲刺时", Category = "BuffFlow|触发器"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "On Dash", Category = "BuffFlow|Trigger"))
 class DEVKIT_API UBFNode_OnDash : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

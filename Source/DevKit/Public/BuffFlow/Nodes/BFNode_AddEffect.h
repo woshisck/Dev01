@@ -16,7 +16,7 @@ class UEffectRegistry;
  * Out    — 成功施加
  * Failed — Tag 未在 Registry 中注册，或目标无 ASC
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "添加效果(Tag)", Category = "BuffFlow|增益"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Add Effect (Tag)", Category = "BuffFlow|Effect"))
 class DEVKIT_API UBFNode_AddEffect : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

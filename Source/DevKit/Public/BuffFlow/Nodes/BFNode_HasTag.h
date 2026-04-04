@@ -6,7 +6,7 @@
 #include "BuffFlow/BuffFlowTypes.h"
 #include "BFNode_HasTag.generated.h"
 
-UCLASS(NotBlueprintable, meta = (DisplayName = "检查标签", Category = "BuffFlow|标签"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Has Tag", Category = "BuffFlow|Tag"))
 class DEVKIT_API UBFNode_HasTag : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

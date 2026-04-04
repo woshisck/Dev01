@@ -8,7 +8,7 @@
  * 延时节点：当任意 BuffFlow 启动时触发（监听 BuffFlowComponent::OnBuffFlowStarted）
  * 可用于连锁 Buff 效果
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "当Buff添加时", Category = "BuffFlow|触发器"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "On Buff Added", Category = "BuffFlow|Trigger"))
 class DEVKIT_API UBFNode_OnBuffAdded : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

@@ -10,7 +10,7 @@ class UYogAbilitySystemComponent;
  * 延时节点：当 BuffOwner 对别人造成伤害时触发
  * 绑定 ASC 的 DealtDamage 委托，每次命中都触发输出
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "当造成伤害时", Category = "BuffFlow|触发器"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "On Damage Dealt", Category = "BuffFlow|Trigger"))
 class DEVKIT_API UBFNode_OnDamageDealt : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

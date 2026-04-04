@@ -15,7 +15,7 @@ class UYogBuffDefinition;
  * Out    — 成功
  * Failed — 目标无效或无 ASC
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "添加符文效果", Category = "BuffFlow|增益"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Add Rune Effect", Category = "BuffFlow|Effect"))
 class DEVKIT_API UBFNode_AddRune : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

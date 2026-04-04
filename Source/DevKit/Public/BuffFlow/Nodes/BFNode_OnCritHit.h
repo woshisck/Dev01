@@ -10,7 +10,7 @@ class UYogAbilitySystemComponent;
  * 延时节点：当 BuffOwner 触发暴击时激活
  * 绑定 ASC->OnCritHit 委托
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "当触发暴击时", Category = "BuffFlow|触发器"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "On Crit Hit", Category = "BuffFlow|Trigger"))
 class DEVKIT_API UBFNode_OnCritHit : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
