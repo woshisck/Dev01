@@ -4,6 +4,9 @@
 UBFNode_FinishBuff::UBFNode_FinishBuff(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Effect");
+#endif
 	OutputPins = {};
 }
 

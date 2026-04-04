@@ -7,6 +7,9 @@
 UBFNode_RemoveRune::UBFNode_RemoveRune(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Effect");
+#endif
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 

@@ -5,6 +5,9 @@
 UBFNode_OnPeriodic::UBFNode_OnPeriodic(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Trigger");
+#endif
 	InputPins  = { FFlowPin(TEXT("In")), FFlowPin(TEXT("Stop")) };
 	OutputPins = { FFlowPin(TEXT("Tick")) };
 }

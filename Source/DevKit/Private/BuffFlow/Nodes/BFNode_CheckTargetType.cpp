@@ -5,6 +5,9 @@
 UBFNode_CheckTargetType::UBFNode_CheckTargetType(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Condition");
+#endif
 	OutputPins = {
 		FFlowPin(TEXT("对敌人")),
 		FFlowPin(TEXT("对自己"))

@@ -5,6 +5,9 @@
 UBFNode_DestroyNiagara::UBFNode_DestroyNiagara(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Visual");
+#endif
 	InputPins = { FFlowPin(TEXT("In")) };
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }

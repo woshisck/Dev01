@@ -6,6 +6,9 @@
 UBFNode_OnDamageReceived::UBFNode_OnDamageReceived(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Trigger");
+#endif
 	InputPins = { FFlowPin(TEXT("In")), FFlowPin(TEXT("Stop")) };
 	OutputPins = { FFlowPin(TEXT("OnDamage")) };
 }

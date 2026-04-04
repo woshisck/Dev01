@@ -5,6 +5,9 @@
 UBFNode_PlayMontage::UBFNode_PlayMontage(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Visual");
+#endif
 	InputPins = { FFlowPin(TEXT("In")) };
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }

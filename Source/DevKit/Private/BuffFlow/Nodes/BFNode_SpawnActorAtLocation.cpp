@@ -4,6 +4,9 @@
 UBFNode_SpawnActorAtLocation::UBFNode_SpawnActorAtLocation(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Spawn");
+#endif
 	InputPins  = { FFlowPin(TEXT("In")) };
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }

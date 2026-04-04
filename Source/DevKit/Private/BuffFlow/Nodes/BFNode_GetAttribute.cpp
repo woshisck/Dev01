@@ -4,6 +4,9 @@
 UBFNode_GetAttribute::UBFNode_GetAttribute(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Condition");
+#endif
 }
 
 void UBFNode_GetAttribute::ExecuteInput(const FName& PinName)

@@ -6,6 +6,9 @@
 UBFNode_ApplyEffect::UBFNode_ApplyEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Effect");
+#endif
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 

@@ -3,6 +3,9 @@
 UBFNode_CompareFloat::UBFNode_CompareFloat(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Condition");
+#endif
 	OutputPins = { FFlowPin(TEXT("True")), FFlowPin(TEXT("False")) };
 }
 

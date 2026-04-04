@@ -4,6 +4,9 @@
 UBFNode_OnBuffAdded::UBFNode_OnBuffAdded(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Trigger");
+#endif
 	InputPins = { FFlowPin(TEXT("In")), FFlowPin(TEXT("Stop")) };
 	OutputPins = { FFlowPin(TEXT("OnAdded")) };
 }

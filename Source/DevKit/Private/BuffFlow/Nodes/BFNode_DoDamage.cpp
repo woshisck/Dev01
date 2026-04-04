@@ -7,6 +7,9 @@
 UBFNode_DoDamage::UBFNode_DoDamage(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Effect");
+#endif
 	InputPins = { FFlowPin(TEXT("In")) };
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }

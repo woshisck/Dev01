@@ -4,6 +4,9 @@
 UBFNode_RemoveTag::UBFNode_RemoveTag(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Tag");
+#endif
 }
 
 void UBFNode_RemoveTag::ExecuteInput(const FName& PinName)

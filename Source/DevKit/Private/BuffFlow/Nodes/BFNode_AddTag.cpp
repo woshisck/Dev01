@@ -4,6 +4,9 @@
 UBFNode_AddTag::UBFNode_AddTag(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Tag");
+#endif
 }
 
 void UBFNode_AddTag::ExecuteInput(const FName& PinName)

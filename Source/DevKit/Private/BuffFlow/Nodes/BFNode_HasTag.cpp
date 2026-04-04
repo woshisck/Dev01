@@ -4,6 +4,9 @@
 UBFNode_HasTag::UBFNode_HasTag(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Tag");
+#endif
 	OutputPins = { FFlowPin(TEXT("Yes")), FFlowPin(TEXT("No")) };
 }
 

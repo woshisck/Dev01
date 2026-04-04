@@ -5,6 +5,9 @@
 UBFNode_OnKill::UBFNode_OnKill(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
+	Category = TEXT("BuffFlow|Trigger");
+#endif
 	InputPins  = { FFlowPin(TEXT("In")), FFlowPin(TEXT("Stop")) };
 	OutputPins = { FFlowPin(TEXT("OnKill")) };
 }
