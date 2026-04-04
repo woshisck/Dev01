@@ -1,6 +1,7 @@
 #include "BuffFlow/Nodes/BFNode_AddEffect.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Character/YogCharacterBase.h"
 #include "Data/EffectRegistry.h"
 #include "Data/YogBuffDefinition.h"
 #include "GameplayEffect.h"

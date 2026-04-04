@@ -1,6 +1,7 @@
 #include "BuffFlow/Nodes/BFNode_AddRune.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Character/YogCharacterBase.h"
 #include "Data/YogBuffDefinition.h"
 #include "GameplayEffect.h"
 

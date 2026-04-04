@@ -193,9 +193,7 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 		UAnimInstance* AnimInstance = player->GetMesh()->GetAnimInstance();
 		weaponInstanceData.WeaponLayer = weaponInstance->WeaponLayer->GetClass();
 
-		UBlueprint* blueprint = UBlueprint::GetBlueprintFromClass(weaponInstance->WeaponLayer);
-
-		weaponInstanceData.WeaponLayerClassPath = blueprint->GetPathName();
+		weaponInstanceData.WeaponLayerClassPath = weaponInstance->WeaponLayer->GetClass()->GetPathName();
 
 		SaveData(weaponInstance, weaponInstanceData.ByteData);
 		SaveGame->WeaponInstanceItems.Add(weaponInstanceData);
