@@ -369,11 +369,11 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 	}
 
 	// 3. BuffFlow 可视化逻辑
-	if (Placed.Rune.Flow.BuffFlowAsset)
+	if (Placed.Rune.Flow.FlowAsset)
 	{
 		if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
 		{
-			BFC->StartBuffFlow(Placed.Rune.Flow.BuffFlowAsset, Placed.Rune.RuneGuid, GetOwner());
+			BFC->StartBuffFlow(Placed.Rune.Flow.FlowAsset, Placed.Rune.RuneGuid, GetOwner());
 			bActivated = true;
 		}
 	}
@@ -399,7 +399,7 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 	}
 
 	// 停止 BuffFlow
-	if (Placed.Rune.Flow.BuffFlowAsset)
+	if (Placed.Rune.Flow.FlowAsset)
 	{
 		if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
 		{

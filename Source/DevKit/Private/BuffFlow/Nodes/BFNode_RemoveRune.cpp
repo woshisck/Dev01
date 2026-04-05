@@ -28,16 +28,16 @@ void UBFNode_RemoveRune::ExecuteInput(const FName& PinName)
 		ASC = TargetActor->FindComponentByClass<UAbilitySystemComponent>();
 	}
 
-	// 1. 通过 BuffTag 移除所有匹配 GE
-	if (ASC && RuneAsset->RuneTemplate.RuneConfig.BuffTag.IsValid())
+	// 1. 通过 RuneTag 移除所有匹配 GE
+	if (ASC && RuneAsset->RuneTemplate.RuneConfig.RuneTag.IsValid())
 	{
 		FGameplayTagContainer RemoveTags;
-		RemoveTags.AddTag(RuneAsset->RuneTemplate.RuneConfig.BuffTag);
+		RemoveTags.AddTag(RuneAsset->RuneTemplate.RuneConfig.RuneTag);
 		ASC->RemoveActiveEffectsWithTags(RemoveTags);
 	}
 
 	// 2. 停止关联的 BuffFlow（与 AddRune 使用相同的确定性 Guid）
-	if (RuneAsset->RuneTemplate.Flow.BuffFlowAsset && TargetActor)
+	if (RuneAsset->RuneTemplate.Flow.FlowAsset && TargetActor)
 	{
 		if (UBuffFlowComponent* TargetBFC = TargetActor->FindComponentByClass<UBuffFlowComponent>())
 		{

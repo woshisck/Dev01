@@ -11,7 +11,7 @@ class URuneDataAsset;
 /**
  * 添加符文效果节点
  * 1. 将 RuneDataAsset 转为 GE 施加到目标 ASC
- * 2. 如果 RuneDataAsset 配置了 BuffFlowAsset，同时在目标 BuffFlowComponent 上启动 Flow
+ * 2. 如果 RuneDataAsset 配置了 FlowAsset，同时在目标 BuffFlowComponent 上启动 Flow
  *
  * Out    — 成功（CachedRuneAsset 数据引脚可供后续节点读取）
  * Failed — 目标无效或无 ASC

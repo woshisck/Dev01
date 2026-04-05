@@ -19,7 +19,7 @@ void UBFNode_GetRuneInfo::ExecuteInput(const FName& PinName)
 	Level         = FFlowDataPinOutputProperty_Float(1.f);
 	TimeRemaining = FFlowDataPinOutputProperty_Float(-1.f);
 
-	if (!BuffTag.IsValid())
+	if (!RuneTag.IsValid())
 	{
 		TriggerOutput(TEXT("NotFound"), true);
 		return;
@@ -40,7 +40,7 @@ void UBFNode_GetRuneInfo::ExecuteInput(const FName& PinName)
 	}
 
 	FGameplayTagContainer TagContainer;
-	TagContainer.AddTag(BuffTag);
+	TagContainer.AddTag(RuneTag);
 
 	TArray<FActiveGameplayEffectHandle> Handles = ASC->GetActiveEffectsWithAllTags(TagContainer);
 	if (Handles.Num() == 0)

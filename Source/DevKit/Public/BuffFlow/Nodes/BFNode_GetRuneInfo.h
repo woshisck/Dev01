@@ -8,7 +8,7 @@
 #include "BFNode_GetRuneInfo.generated.h"
 
 /**
- * 查询目标 ASC 上匹配 BuffTag 的符文（GE）的运行时状态，
+ * 查询目标 ASC 上匹配 RuneTag 的符文（GE）的运行时状态，
  * 输出数据引脚供 CompareFloat 等节点直接连线使用。
  *
  * 执行输出引脚：
@@ -22,7 +22,7 @@
  *   TimeRemaining — 剩余持续时间（秒），-1 = 永久
  *
  * 典型用法（狂暴：超过 5 层触发额外效果）：
- *   GetRuneInfo(Target=Self, BuffTag=Buff.Berserk)
+ *   GetRuneInfo(Target=Self, RuneTag=Buff.Berserk)
  *     ├─ Found → CompareFloat(StackCount >= 5) → True → AddEffect(+10% ATK)
  *     └─ NotFound → [skip]
  */
@@ -35,9 +35,9 @@ class DEVKIT_API UBFNode_GetRuneInfo : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "BuffFlow")
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
-	/** DA 中 RuneConfig.BuffTag 填写的 Tag */
+	/** DA 中 RuneConfig.RuneTag 填写的 Tag */
 	UPROPERTY(EditAnywhere, Category = "BuffFlow")
-	FGameplayTag BuffTag;
+	FGameplayTag RuneTag;
 
 	// ---- 数据输出引脚 ----
 

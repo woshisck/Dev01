@@ -41,64 +41,89 @@ UGameplayEffect* URuneDataAsset::CreateTransientGE(UObject* Outer) const
 		FName(*FString::Printf(TEXT("RuneGE_%s"), *RuneTemplate.RuneName.ToString()))
 	);
 
-	// --- Duration（BuffDuration: 0=瞬发, <0=永久, >0=有时限）---
-	if (RC.BuffDuration == 0.f)
+	// --- Duration Type ---
+	switch (RC.DurationType)
 	{
+	case ERuneDurationType::Instant:
 		GE->DurationPolicy = EGameplayEffectDurationType::Instant;
-	}
-	else if (RC.BuffDuration < 0.f)
-	{
+		break;
+	case ERuneDurationType::Infinite:
 		GE->DurationPolicy = EGameplayEffectDurationType::Infinite;
-	}
-	else
-	{
+		break;
+	case ERuneDurationType::Duration:
 		GE->DurationPolicy = EGameplayEffectDurationType::HasDuration;
-		GE->DurationMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(RC.BuffDuration));
+		GE->DurationMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(RC.Duration));
+		break;
 	}
 
-	// --- Stacking ---
-	const int32 ActualMaxStack = FMath::Max(1, RC.MaxStack);
-
-	switch (RC.StackType)
+	// --- Period（>0 时周期触发，适用于 DoT / HoT）---
+	if (RC.Period > 0.f)
 	{
-	case ERuneStackType::None:
+		GE->Period = FScalableFloat(RC.Period);
+	}
+
+	// --- UniqueType → GAS StackingType 基础 ---
+	switch (RC.UniqueType)
+	{
+	case ERuneUniqueType::NonUnique:
+		// 非唯一：每次施加都是独立 GE 实例，StackType 不生效
 		GE->StackingType = EGameplayEffectStackingType::None;
 		break;
 
-	case ERuneStackType::Refresh:
-		// 刷新：不叠加层数（StackLimitCount=1），到期时间刷新
-		GE->StackingType               = EGameplayEffectStackingType::AggregateByTarget;
-		GE->StackLimitCount            = 1;
-		GE->StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
-		GE->StackPeriodResetPolicy     = EGameplayEffectStackingPeriodPolicy::NeverReset;
+	case ERuneUniqueType::Unique:
+		GE->StackingType = EGameplayEffectStackingType::AggregateByTarget;
 		break;
 
-	case ERuneStackType::Stack:
-		// 叠加：增加层数（至 MaxStack），刷新持续时间
-		GE->StackingType               = EGameplayEffectStackingType::AggregateByTarget;
-		GE->StackLimitCount            = ActualMaxStack;
-		GE->StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
-		GE->StackPeriodResetPolicy     = EGameplayEffectStackingPeriodPolicy::NeverReset;
+	case ERuneUniqueType::BySource:
+		GE->StackingType = EGameplayEffectStackingType::AggregateBySource;
 		break;
 	}
 
-	// --- StackReduceType（到期减层方式）---
-	if (RC.StackType != ERuneStackType::None)
+	// --- StackType（唯一/源唯一 时进一步配置堆叠行为）---
+	if (RC.UniqueType != ERuneUniqueType::NonUnique)
 	{
-		switch (RC.StackReduceType)
+		switch (RC.StackType)
 		{
-		case ERuneStackReduceType::All:
-			GE->StackExpirationPolicy = EGameplayEffectStackingExpirationPolicy::ClearEntireStack;
+		case ERuneStackType::Refresh:
+			// 刷新：不叠加层数，到期时间刷新
+			GE->StackLimitCount            = 1;
+			GE->StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
+			GE->StackPeriodResetPolicy     = EGameplayEffectStackingPeriodPolicy::NeverReset;
 			break;
-		case ERuneStackReduceType::One:
-			GE->StackExpirationPolicy = EGameplayEffectStackingExpirationPolicy::RemoveSingleStackAndRefreshDuration;
+
+		case ERuneStackType::Stack:
+			// 叠加：增加层数（至 MaxStack），刷新持续时间
+			GE->StackLimitCount            = FMath::Max(1, RC.MaxStack);
+			GE->StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
+			GE->StackPeriodResetPolicy     = EGameplayEffectStackingPeriodPolicy::NeverReset;
 			break;
+
+		case ERuneStackType::None:
+			// 禁止：不叠加，不刷新时间
+			GE->StackLimitCount            = 1;
+			GE->StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::NeverRefresh;
+			GE->StackPeriodResetPolicy     = EGameplayEffectStackingPeriodPolicy::NeverReset;
+			break;
+		}
+
+		// --- StackReduceType（到期减层方式，禁止堆叠时无意义）---
+		if (RC.StackType != ERuneStackType::None)
+		{
+			switch (RC.StackReduceType)
+			{
+			case ERuneStackReduceType::All:
+				GE->StackExpirationPolicy = EGameplayEffectStackingExpirationPolicy::ClearEntireStack;
+				break;
+			case ERuneStackReduceType::One:
+				GE->StackExpirationPolicy = EGameplayEffectStackingExpirationPolicy::RemoveSingleStackAndRefreshDuration;
+				break;
+			}
 		}
 	}
 
-	// --- BuffTag（Asset Tag，供 GetRuneInfo 节点按 Tag 查询）---
-	if (RC.BuffTag.IsValid())
-		GE->InheritableGameplayEffectTags.Added.AddTag(RC.BuffTag);
+	// --- RuneTag（GE 资产标签，供 GetRuneInfo / RemoveRune 按 Tag 查询）---
+	if (RC.RuneTag.IsValid())
+		GE->InheritableGameplayEffectTags.Added.AddTag(RC.RuneTag);
 
 	// --- Effects Fragments（属性修改 / Tag / Cue 等）---
 	for (const URuneEffectFragment* Fragment : RC.Effects)

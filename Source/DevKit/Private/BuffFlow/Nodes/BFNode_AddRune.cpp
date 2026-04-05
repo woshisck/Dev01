@@ -51,7 +51,7 @@ void UBFNode_AddRune::ExecuteInput(const FName& PinName)
 	CachedRuneAsset = FFlowDataPinOutputProperty_Object(RuneAsset);
 
 	// 2. 如果 RuneAsset 配置了 FlowAsset，在目标 BuffFlowComponent 上启动 Flow
-	if (RuneAsset->RuneTemplate.Flow.BuffFlowAsset)
+	if (RuneAsset->RuneTemplate.Flow.FlowAsset)
 	{
 		if (UBuffFlowComponent* TargetBFC = TargetActor->FindComponentByClass<UBuffFlowComponent>())
 		{
@@ -59,7 +59,7 @@ void UBFNode_AddRune::ExecuteInput(const FName& PinName)
 			const uint32 Hash = GetTypeHash(RuneAsset->GetPathName());
 			FGuid RuneGuid(Hash, 0, 0, 0);
 			AActor* Giver = GetBuffOwner();
-			TargetBFC->StartBuffFlow(RuneAsset->RuneTemplate.Flow.BuffFlowAsset, RuneGuid, Giver);
+			TargetBFC->StartBuffFlow(RuneAsset->RuneTemplate.Flow.FlowAsset, RuneGuid, Giver);
 		}
 	}
 
