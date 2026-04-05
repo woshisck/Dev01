@@ -6,7 +6,6 @@
 #include "Data/RuneDataAsset.h"
 #include "GameplayEffect.h"
 #include "AbilitySystemComponent.h"
-#include "Data/RuneDataAsset.h"
 #include "BackpackGridComponent.generated.h"
 
 UENUM(BlueprintType)

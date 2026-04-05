@@ -17,9 +17,9 @@ class URuneDataAsset;
 //  辅助枚举
 // ============================================================
 
-/** 符文显示类型（增益/减益/无） */
+/** 符文类型（增益/减益/无，用于 UI 分类显示） */
 UENUM(BlueprintType)
-enum class ERuneBuffType : uint8
+enum class ERuneType : uint8
 {
     None    UMETA(DisplayName = "无"),
     Buff    UMETA(DisplayName = "增益"),
@@ -116,7 +116,7 @@ struct DEVKIT_API FRuneConfig
 
     /** 增益 / 减益 / 无（仅作展示分类，不影响 GE 构建） */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    ERuneBuffType RuneType = ERuneBuffType::Buff;
+    ERuneType RuneType = ERuneType::Buff;
 
     // ---- 持续时间 ----
 
