@@ -30,7 +30,7 @@ class DEVKIT_API UBFNode_GrantGA : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 要授予的 GA 类（继承自 YogGameplayAbility / GameplayAbility） */
+	/** 要授予的 GA 类（应继承自 RuneGameplayAbility） */
 	UPROPERTY(EditAnywhere, Category = "BuffFlow")
 	TSubclassOf<UGameplayAbility> AbilityClass;
 
