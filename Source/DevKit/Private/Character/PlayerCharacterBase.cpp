@@ -17,7 +17,6 @@
 #include "Item/ItemSpawner.h"
 #include "Component/BackpackGridComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
-#include "AbilitySystem/Attribute/RuneAttributeSet.h"
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -25,7 +24,6 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 {
 	BackpackGridComponent = CreateDefaultSubobject<UBackpackGridComponent>(TEXT("BackpackGridComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
-	RuneAttributeSet = CreateDefaultSubobject<URuneAttributeSet>(TEXT("RuneAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
 }
 

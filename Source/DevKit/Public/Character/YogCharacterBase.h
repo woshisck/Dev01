@@ -6,6 +6,7 @@
 #include "ModularCharacter.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Attribute/DamageAttributeSet.h"
+#include "AbilitySystem/Attribute/RuneAttributeSet.h"
 
 
 #include "AbilitySystemInterface.h"
@@ -110,6 +111,9 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UDamageAttributeSet> DamageAttributeSet;
+
+	UPROPERTY()
+	TObjectPtr<URuneAttributeSet> RuneAttributeSet;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UWidgetComponent> WidgetComponent;
@@ -260,6 +264,7 @@ public:
 	virtual void Die();
 	// Friended to allow access to handle functions above
 	friend UBaseAttributeSet;
+	friend URuneAttributeSet;
 	friend UDamageAttributeSet;
 	//friend UAdditionAttributeSet;
 

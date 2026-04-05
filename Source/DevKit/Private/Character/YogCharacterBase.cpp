@@ -2,6 +2,7 @@
 
 
 #include "Character/YogCharacterBase.h"
+#include "AbilitySystem/Attribute/RuneAttributeSet.h"
 #include "Character/YogCharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Item/ItemInstance.h"
@@ -41,6 +42,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
+	RuneAttributeSet = CreateDefaultSubobject<URuneAttributeSet>(TEXT("RuneAttributeSet"));
 
 	WidgetComponent->SetupAttachment(GetRootComponent());
 
