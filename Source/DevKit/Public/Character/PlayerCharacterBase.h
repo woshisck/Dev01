@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
+#include "AbilitySystem/Attribute/RuneAttributeSet.h"
 #include "Data/RuneDataAsset.h"
 #include "GameplayEffectTypes.h"
 
@@ -72,6 +73,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
 
+	UPROPERTY()
+	TObjectPtr<URuneAttributeSet> RuneAttributeSet;
+
 	UPROPERTY(BlueprintAssignable, Category = "Character")
 	FItemInteractStartDelegate OnItemInterActionStart;
 
@@ -119,6 +123,7 @@ public:
 	FActiveGameplayEffectHandle QuanNengEffectHandle;
 
 	friend UPlayerAttributeSet;
+	friend URuneAttributeSet;
 
 
 protected:
