@@ -9,7 +9,6 @@
 #include "GameplayEffectExtension.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/BackpackGridComponent.h"
-#include "AbilitySystem/GameplayEffect/RuneStatEffect.h"
 
 
 
@@ -120,38 +119,6 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 			}
 		}
 
-		// ── 战斗渴望：血量越低攻速越高（每损失10% MaxHP → +10% AttackSpeed）
-		if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(TargetActor))
-		{
-			UYogAbilitySystemComponent* OwnerASC = Player->GetASC();
-			if (OwnerASC && OwnerASC->HasMatchingGameplayTag(
-				FGameplayTag::RequestGameplayTag(TEXT("Rune.ZhanDouKewang.Active"))))
-			{
-				float MaxHP = GetMaxHealth();
-				if (MaxHP > 0.f)
-				{
-					float HealthLostPct = (MaxHP - GetHealth()) / MaxHP;
-					float Bonus = FMath::FloorToInt(HealthLostPct * 10.f) * 0.1f;
-
-					if (Player->ZhanDouKewangEffectHandle.IsValid())
-					{
-						OwnerASC->RemoveActiveGameplayEffect(Player->ZhanDouKewangEffectHandle);
-					}
-
-					FGameplayEffectContextHandle EffCtx = OwnerASC->MakeEffectContext();
-					FGameplayEffectSpecHandle SpecHandle = OwnerASC->MakeOutgoingSpec(
-						UGE_Buff_ZhanDouKewang::StaticClass(), 1.f, EffCtx);
-					if (SpecHandle.IsValid())
-					{
-						SpecHandle.Data->SetSetByCallerMagnitude(
-							FGameplayTag::RequestGameplayTag(TEXT("Data.ZhanDouKewang.AttackSpeedBonus")),
-							Bonus);
-						Player->ZhanDouKewangEffectHandle =
-							OwnerASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-					}
-				}
-			}
-		}
 	}
 
 	//if (Data.EvaluatedData.Attribute == GetDamageAttribute())
@@ -236,37 +203,6 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 		}
 	}
 
-	// ── 全能：移速越高暴击率越高（移速超过600的部分换算为暴击率）
-	if (Attribute == GetMoveSpeedAttribute())
-	{
-		if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor()))
-		{
-			UYogAbilitySystemComponent* OwnerASC = Player->GetASC();
-			if (OwnerASC && OwnerASC->HasMatchingGameplayTag(
-				FGameplayTag::RequestGameplayTag(TEXT("Rune.QuanNeng.Active"))))
-			{
-				// CritBonus = max(0, (speed - 600) / 600) * 0.2
-				float Bonus = FMath::Max(0.f, (NewValue - 600.f) / 600.f) * 0.2f;
-
-				if (Player->QuanNengEffectHandle.IsValid())
-				{
-					OwnerASC->RemoveActiveGameplayEffect(Player->QuanNengEffectHandle);
-				}
-
-				FGameplayEffectContextHandle EffCtx = OwnerASC->MakeEffectContext();
-				FGameplayEffectSpecHandle SpecHandle = OwnerASC->MakeOutgoingSpec(
-					UGE_Buff_QuanNeng::StaticClass(), 1.f, EffCtx);
-				if (SpecHandle.IsValid())
-				{
-					SpecHandle.Data->SetSetByCallerMagnitude(
-						FGameplayTag::RequestGameplayTag(TEXT("Data.QuanNeng.CritRateBonus")),
-						Bonus);
-					Player->QuanNengEffectHandle =
-						OwnerASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-				}
-			}
-		}
-	}
 }
 
 void UBaseAttributeSet::Init(UCharacterData* data)

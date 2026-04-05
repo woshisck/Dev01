@@ -114,10 +114,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Dash")
 	void ShutdownDashChargeSystem();
 
-	// ─── 战斗渴望 / 全能 动态 GE 句柄 ────────────────────────────
-	FActiveGameplayEffectHandle ZhanDouKewangEffectHandle;
-	FActiveGameplayEffectHandle QuanNengEffectHandle;
-
 	friend UPlayerAttributeSet;
 
 
