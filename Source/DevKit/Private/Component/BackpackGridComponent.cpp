@@ -2,7 +2,6 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
-#include "Data/RuneEffectFragment.h"
 
 // =========================================================
 // FActivationZoneConfig
@@ -355,7 +354,8 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 	bool bActivated = false;
 	URuneDataAsset* SourceDA = Placed.Rune.SourceDA.Get();
 
-	// 1. 构建 GE（RuneConfig 外壳 + Effects 中的 GE 类 Fragment）并施加
+	// 构建 GE（RuneConfig + Effects 中的 GE 类 Fragment）并施加
+	// GA 的授予由 FA 层 BFNode_GrantGA 节点负责，不在此处处理
 	if (SourceDA)
 	{
 		UGameplayEffect* TransientGE = SourceDA->CreateTransientGE(GetTransientPackage());
@@ -365,19 +365,6 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 			FGameplayEffectSpec Spec(TransientGE, Context, static_cast<float>(Placed.Rune.Level));
 			Placed.ActiveEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(Spec);
 			bActivated |= Placed.ActiveEffectHandle.IsValid();
-		}
-
-		// 2. 激活 非GE 类 Fragment（如 TriggerGA）
-		Placed.GrantedAbilityHandles.Empty();
-		for (URuneEffectFragment* Fragment : SourceDA->RuneTemplate.RuneConfig.Effects)
-		{
-			if (!Fragment) continue;
-			FGameplayAbilitySpecHandle Handle = Fragment->OnActivate(ASC, SourceDA);
-			if (Handle.IsValid())
-			{
-				Placed.GrantedAbilityHandles.Add(Handle);
-				bActivated = true;
-			}
 		}
 	}
 
@@ -406,30 +393,9 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 	UAbilitySystemComponent* ASC = CachedASC.Get();
 	if (ASC)
 	{
-		// 移除 GE
+		// 移除 GE（GA 的撤销由 BFNode_GrantGA 在 FA 停止时的 Cleanup() 中自动处理）
 		if (Placed.ActiveEffectHandle.IsValid())
 			ASC->RemoveActiveGameplayEffect(Placed.ActiveEffectHandle);
-
-		// 让各 Fragment 撤销自身（TriggerGA 清除 Ability）
-		URuneDataAsset* SourceDA = Placed.Rune.SourceDA.Get();
-		if (SourceDA)
-		{
-			int32 HandleIdx = 0;
-			for (URuneEffectFragment* Fragment : SourceDA->RuneTemplate.RuneConfig.Effects)
-			{
-				if (!Fragment) continue;
-				// 找到这个 Fragment 对应的 Handle（只有 OnActivate 返回有效 Handle 的 Fragment 会有对应 Handle）
-				// 简单判断：如果 HandleIdx 在范围内则传入，否则传空 Handle
-				const FGameplayAbilitySpecHandle& Handle = Placed.GrantedAbilityHandles.IsValidIndex(HandleIdx)
-					? Placed.GrantedAbilityHandles[HandleIdx]
-					: FGameplayAbilitySpecHandle();
-				if (Handle.IsValid())
-				{
-					Fragment->OnDeactivate(ASC, Handle);
-					++HandleIdx;
-				}
-			}
-		}
 	}
 
 	// 停止 BuffFlow
@@ -442,7 +408,6 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 	}
 
 	Placed.ActiveEffectHandle = FActiveGameplayEffectHandle();
-	Placed.GrantedAbilityHandles.Empty();
 	Placed.bIsActivated = false;
 	OnRuneActivationChanged.Broadcast(Placed.Rune.RuneGuid, false);
 }

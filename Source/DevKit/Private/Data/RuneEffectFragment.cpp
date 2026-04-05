@@ -1,6 +1,4 @@
 #include "Data/RuneEffectFragment.h"
-#include "Data/RuneDataAsset.h"
-#include "AbilitySystemComponent.h"
 
 // ============================================================
 //  URuneEffect_AttributeModifier
@@ -29,27 +27,6 @@ void URuneEffect_AddTags::ApplyToGE(UGameplayEffect* GE) const
         return;
 
     GE->InheritableOwnedTagsContainer.Added.AppendTags(Tags);
-}
-
-
-// ============================================================
-//  URuneEffect_TriggerGA
-// ============================================================
-
-FGameplayAbilitySpecHandle URuneEffect_TriggerGA::OnActivate(UAbilitySystemComponent* ASC, URuneDataAsset* SourceDA) const
-{
-    if (!ASC || !AbilityClass)
-        return FGameplayAbilitySpecHandle();
-
-    FGameplayAbilitySpec AbilitySpec(AbilityClass, 1);
-    AbilitySpec.SourceObject = SourceDA;
-    return ASC->GiveAbility(AbilitySpec);
-}
-
-void URuneEffect_TriggerGA::OnDeactivate(UAbilitySystemComponent* ASC, const FGameplayAbilitySpecHandle& Handle) const
-{
-    if (ASC && Handle.IsValid())
-        ASC->ClearAbility(Handle);
 }
 
 

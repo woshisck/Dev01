@@ -1,8 +1,8 @@
-#include "BuffFlow/Nodes/BFNode_GetGEInfo.h"
+#include "BuffFlow/Nodes/BFNode_GetRuneInfo.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 
-UBFNode_GetGEInfo::UBFNode_GetGEInfo(const FObjectInitializer& ObjectInitializer)
+UBFNode_GetRuneInfo::UBFNode_GetRuneInfo(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITOR
@@ -11,7 +11,7 @@ UBFNode_GetGEInfo::UBFNode_GetGEInfo(const FObjectInitializer& ObjectInitializer
 	OutputPins = { FFlowPin(TEXT("Found")), FFlowPin(TEXT("NotFound")) };
 }
 
-void UBFNode_GetGEInfo::ExecuteInput(const FName& PinName)
+void UBFNode_GetRuneInfo::ExecuteInput(const FName& PinName)
 {
 	// 默认：未找到
 	bIsActive     = FFlowDataPinOutputProperty_Bool(false);
@@ -39,7 +39,6 @@ void UBFNode_GetGEInfo::ExecuteInput(const FName& PinName)
 		return;
 	}
 
-	// 用 BuffTag 查找活跃 GE（同一 Tag 通常只有一个活跃 GE，取第一个）
 	FGameplayTagContainer TagContainer;
 	TagContainer.AddTag(BuffTag);
 
@@ -62,7 +61,6 @@ void UBFNode_GetGEInfo::ExecuteInput(const FName& PinName)
 	StackCount = FFlowDataPinOutputProperty_Int32(ASC->GetCurrentStackCount(Handle));
 	Level      = FFlowDataPinOutputProperty_Float(ActiveGE->Spec.GetLevel());
 
-	// 剩余时间：永久 GE 的 Duration 为 UGameplayEffect::INFINITE_DURATION（-1）
 	const float Duration = ActiveGE->GetDuration();
 	if (Duration < 0.f)
 	{

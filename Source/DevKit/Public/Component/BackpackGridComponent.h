@@ -46,8 +46,7 @@ struct DEVKIT_API FPlacedRune
     UPROPERTY(BlueprintReadOnly) FRuneInstance Rune;
     UPROPERTY(BlueprintReadOnly) FIntPoint Pivot;
     UPROPERTY(BlueprintReadOnly) bool bIsActivated = false;
-    FActiveGameplayEffectHandle         ActiveEffectHandle;      // GE Handle
-    TArray<FGameplayAbilitySpecHandle>  GrantedAbilityHandles;   // 各 TriggerGA Fragment 授予的 Handle
+    FActiveGameplayEffectHandle ActiveEffectHandle; // GE Handle，移除时使用
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRunePlaced, const FRuneInstance&, Rune);

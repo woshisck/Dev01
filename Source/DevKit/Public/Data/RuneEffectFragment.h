@@ -4,21 +4,19 @@
 #include "AttributeSet.h"
 #include "GameplayEffect.h"
 #include "GameplayTagContainer.h"
-#include "GameplayAbilitySpec.h"
 #include "RuneEffectFragment.generated.h"
-
-class UAbilitySystemComponent;
-class URuneDataAsset;
 
 // ============================================================
 //  URuneEffectFragment — 符文效果原子基类
 //
-//  在 DA_Rune 的 Effects 数组中添加子类实例，
-//  即可以无代码方式组合出任意效果。
+//  在 DA_Rune 的 RuneConfig.Effects 数组中添加子类实例，
+//  即可无代码地组合出任意 GE 效果。
 //
-//  子类分两种：
-//    GE 类  — 覆盖 ApplyToGE()，向 GE 注入 Modifier / Tag / Cue
-//    非GE 类 — 覆盖 OnActivate() / OnDeactivate()，在装备/卸下时执行
+//  所有子类均为 GE 类 Fragment，覆盖 ApplyToGE()，
+//  向运行时构建的 TransientGE 注入 Modifier / Tag / Cue 等。
+//
+//  GA 的授予/撤销由 FA 层的 BFNode_GrantGA 节点负责，
+//  不在 DA 层配置。
 // ============================================================
 
 UCLASS(Abstract, EditInlineNew, BlueprintType, DefaultToInstanced, CollapseCategories,
@@ -28,20 +26,8 @@ class DEVKIT_API URuneEffectFragment : public UObject
     GENERATED_BODY()
 
 public:
-    /** GE 类 Fragment：向 TransientGE 注入 Modifier / Tag / Cue 等 */
+    /** 向 TransientGE 注入 Modifier / Tag / Cue 等 */
     virtual void ApplyToGE(UGameplayEffect* GE) const {}
-
-    /**
-     * 非GE 类 Fragment：符文装备时调用
-     * @return 若授予了 GA，返回其 Handle；否则返回无效 Handle
-     */
-    virtual FGameplayAbilitySpecHandle OnActivate(UAbilitySystemComponent* ASC, URuneDataAsset* SourceDA) const
-    {
-        return FGameplayAbilitySpecHandle();
-    }
-
-    /** 非GE 类 Fragment：符文卸下时调用（与 OnActivate 返回的 Handle 配对） */
-    virtual void OnDeactivate(UAbilitySystemComponent* ASC, const FGameplayAbilitySpecHandle& Handle) const {}
 };
 
 
@@ -88,36 +74,6 @@ public:
     FGameplayTagContainer Tags;
 
     virtual void ApplyToGE(UGameplayEffect* GE) const override;
-};
-
-
-// ============================================================
-//  URuneEffect_TriggerGA — 装备时授予被动 GA，卸下时撤销
-//  示例：击退 GA、护盾 GA
-//  GA 通过 SourceObject（URuneDataAsset*）读取 Params 字典获取参数
-// ============================================================
-
-UCLASS(DisplayName = "Trigger Gameplay Ability")
-class DEVKIT_API URuneEffect_TriggerGA : public URuneEffectFragment
-{
-    GENERATED_BODY()
-
-public:
-    /** 要授予的 GA 类 */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
-    TSubclassOf<UGameplayAbility> AbilityClass;
-
-    /**
-     * 传给 GA 的参数字典
-     * GA 在 OnAbilityAdded 里读取：
-     *   Get Current Source Object → Cast To RuneDataAsset → Values → Params
-     *   （实际上是这里的 Params，通过 SourceDA 暴露给 GA）
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
-    TMap<FName, float> Params;
-
-    virtual FGameplayAbilitySpecHandle OnActivate(UAbilitySystemComponent* ASC, URuneDataAsset* SourceDA) const override;
-    virtual void OnDeactivate(UAbilitySystemComponent* ASC, const FGameplayAbilitySpecHandle& Handle) const override;
 };
 
 
