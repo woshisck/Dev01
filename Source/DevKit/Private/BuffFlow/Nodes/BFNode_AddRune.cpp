@@ -35,7 +35,7 @@ void UBFNode_AddRune::ExecuteInput(const FName& PinName)
 		return;
 	}
 
-	// 1. 施加 GE
+	// 1. 施加 GE（RuneConfig 外壳 + Effects 中的 GE 类 Fragment）
 	UGameplayEffect* TransientGE = RuneAsset->CreateTransientGE(GetTransientPackage());
 	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
 	FGameplayEffectSpec Spec(TransientGE, Context, static_cast<float>(Level));
@@ -46,6 +46,9 @@ void UBFNode_AddRune::ExecuteInput(const FName& PinName)
 		TriggerOutput(TEXT("Failed"), true);
 		return;
 	}
+
+	// 缓存 RuneAsset 到数据输出引脚，供后续节点读取
+	CachedRuneAsset = FFlowDataPinOutputProperty_Object(RuneAsset);
 
 	// 2. 如果 RuneAsset 配置了 FlowAsset，在目标 BuffFlowComponent 上启动 Flow
 	if (RuneAsset->RuneTemplate.Flow.BuffFlowAsset)

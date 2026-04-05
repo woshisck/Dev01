@@ -192,12 +192,6 @@ public:
 	void SetAbilityRetriggerable(FGameplayAbilitySpecHandle Handle, bool bCanRetrigger);
 
 
-	// ─── 符文动态 GE ──────────────────────────────────────
-	// 从 DA 配置的 AttributeModifiers 动态构建 GE 并 Apply
-	// 返回 Handle，用于后续移除
-	UFUNCTION(BlueprintCallable, Category = "Rune")
-	FActiveGameplayEffectHandle ApplyRuneModifiers(const TArray<FRuneAttributeModifier>& Modifiers);
-
 	// 移除之前 Apply 的符文 GE
 	UFUNCTION(BlueprintCallable, Category = "Rune")
 	void RemoveRuneModifiers(FActiveGameplayEffectHandle Handle);

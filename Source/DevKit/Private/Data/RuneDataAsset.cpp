@@ -1,6 +1,4 @@
 #include "Data/RuneDataAsset.h"
-#include "AbilitySystemComponent.h"
-#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 
 FRuneShape FRuneShape::Rotate90() const
 {
@@ -34,99 +32,80 @@ FRuneInstance URuneDataAsset::CreateInstance() const
 	return Instance;
 }
 
-// ------------------------------------------------------------
-
-static float GetAttrValue(UAbilitySystemComponent* ASC, const FGameplayAttribute& Attr)
+UGameplayEffect* URuneDataAsset::CreateTransientGE(UObject* Outer) const
 {
-	if (!ASC || !Attr.IsValid()) return 0.f;
-	bool bFound = false;
-	const float Val = ASC->GetGameplayAttributeValue(Attr, bFound);
-	return bFound ? Val : 0.f;
-}
+	const FRuneConfig& RC = RuneTemplate.RuneConfig;
 
-UGameplayEffect* FRuneInstance::CreateTransientGE(UObject* Outer, UAbilitySystemComponent* ASC) const
-{
 	UGameplayEffect* GE = NewObject<UGameplayEffect>(
 		Outer ? Outer : GetTransientPackage(),
-		FName(*FString::Printf(TEXT("RuneGE_%s"), *RuneName.ToString()))
+		FName(*FString::Printf(TEXT("RuneGE_%s"), *RuneTemplate.RuneName.ToString()))
 	);
 
-	const FRuneBuffConfig& BC = BuffConfig;
-	const FRuneValues& V = Values;
-
-	// --- Duration ---
-	GE->DurationPolicy = BC.DurationPolicy;
-	if (BC.DurationPolicy == EGameplayEffectDurationType::HasDuration)
-		GE->DurationMagnitude = BC.DurationMagnitude;
-	if (BC.DurationPolicy != EGameplayEffectDurationType::Instant)
+	// --- Duration（BuffDuration: 0=瞬发, <0=永久, >0=有时限）---
+	if (RC.BuffDuration == 0.f)
 	{
-		GE->Period = BC.Period;
-		GE->bExecutePeriodicEffectOnApplication = BC.bExecutePeriodicEffectOnApplication;
-		GE->PeriodicInhibitionPolicy = BC.PeriodicInhibitionPolicy;
+		GE->DurationPolicy = EGameplayEffectDurationType::Instant;
 	}
-
-	// --- Modifiers ---
-
-	// 1. 简化修改器
-	for (const FRuneAttributeModifier& AM : V.AttributeModifiers)
+	else if (RC.BuffDuration < 0.f)
 	{
-		if (!AM.Attribute.IsValid()) continue;
-		FGameplayModifierInfo ModInfo;
-		ModInfo.Attribute  = AM.Attribute;
-		ModInfo.ModifierOp = AM.ModOp;
-		ModInfo.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(AM.Value));
-		GE->Modifiers.Add(ModInfo);
+		GE->DurationPolicy = EGameplayEffectDurationType::Infinite;
 	}
-
-	// 2. 高级修改器
-	GE->Modifiers.Append(V.Modifiers);
-
-	// 3. CalcSpec 公式（快照当前 ASC 属性值）
-	for (const FRuneCalcSpec& Spec : V.CalcSpecs)
+	else
 	{
-		if (!Spec.OutputAttribute.IsValid() || !Spec.AttributeA.IsValid()) continue;
-
-		const float A = GetAttrValue(ASC, Spec.AttributeA);
-		const float B = (Spec.Operation != ERuneCalcOp::UseA) ? GetAttrValue(ASC, Spec.AttributeB) : 0.f;
-
-		float Raw = 0.f;
-		switch (Spec.Operation)
-		{
-		case ERuneCalcOp::UseA:      Raw = A;      break;
-		case ERuneCalcOp::A_Minus_B: Raw = A - B;  break;
-		case ERuneCalcOp::A_Plus_B:  Raw = A + B;  break;
-		case ERuneCalcOp::A_Times_B: Raw = A * B;  break;
-		}
-
-		FGameplayModifierInfo CalcMod;
-		CalcMod.Attribute  = Spec.OutputAttribute;
-		CalcMod.ModifierOp = Spec.ModOp;
-		CalcMod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(Raw * Spec.Coefficient + Spec.Addend));
-		GE->Modifiers.Add(CalcMod);
+		GE->DurationPolicy = EGameplayEffectDurationType::HasDuration;
+		GE->DurationMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(RC.BuffDuration));
 	}
-
-	// --- Executions ---
-	GE->Executions = V.Executions;
 
 	// --- Stacking ---
-	GE->StackingType                = BC.StackingType;
-	GE->StackLimitCount             = BC.StackLimitCount;
-	GE->StackDurationRefreshPolicy  = BC.StackDurationRefreshPolicy;
-	GE->StackPeriodResetPolicy      = BC.StackPeriodResetPolicy;
-	GE->StackExpirationPolicy       = BC.StackExpirationPolicy;
-	GE->OverflowEffects             = BC.OverflowEffects;
-	GE->bDenyOverflowApplication    = BC.bDenyOverflowApplication;
-	GE->bClearStackOnOverflow       = BC.bClearStackOnOverflow;
+	const int32 ActualMaxStack = FMath::Max(1, RC.MaxStack);
 
-	// --- Cues ---
-	GE->bRequireModifierSuccessToTriggerCues = V.GameplayCues.Num() > 0 ? false : false;
-	GE->GameplayCues = V.GameplayCues;
+	switch (RC.StackType)
+	{
+	case ERuneStackType::None:
+		GE->StackingType = EGameplayEffectStackingType::None;
+		break;
 
-	// --- Tags ---
-	if (BC.GrantedTagsToTarget.Num() > 0)
-		GE->InheritableOwnedTagsContainer.Added.AppendTags(BC.GrantedTagsToTarget);
-	if (BC.BuffTag.IsValid())
-		GE->InheritableGameplayEffectTags.Added.AddTag(BC.BuffTag);
+	case ERuneStackType::Refresh:
+		// 刷新：不叠加层数（StackLimitCount=1），到期时间刷新
+		GE->StackingType               = EGameplayEffectStackingType::AggregateByTarget;
+		GE->StackLimitCount            = 1;
+		GE->StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
+		GE->StackPeriodResetPolicy     = EGameplayEffectStackingPeriodPolicy::NeverReset;
+		break;
+
+	case ERuneStackType::Stack:
+		// 叠加：增加层数（至 MaxStack），刷新持续时间
+		GE->StackingType               = EGameplayEffectStackingType::AggregateByTarget;
+		GE->StackLimitCount            = ActualMaxStack;
+		GE->StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
+		GE->StackPeriodResetPolicy     = EGameplayEffectStackingPeriodPolicy::NeverReset;
+		break;
+	}
+
+	// --- StackReduceType（到期减层方式）---
+	if (RC.StackType != ERuneStackType::None)
+	{
+		switch (RC.StackReduceType)
+		{
+		case ERuneStackReduceType::All:
+			GE->StackExpirationPolicy = EGameplayEffectStackingExpirationPolicy::ClearEntireStack;
+			break;
+		case ERuneStackReduceType::One:
+			GE->StackExpirationPolicy = EGameplayEffectStackingExpirationPolicy::RemoveSingleStackAndRefreshDuration;
+			break;
+		}
+	}
+
+	// --- BuffTag（Asset Tag，供 EffectRegistry 查找）---
+	if (RC.BuffTag.IsValid())
+		GE->InheritableGameplayEffectTags.Added.AddTag(RC.BuffTag);
+
+	// --- Effects Fragments（属性修改 / Tag / Cue 等）---
+	for (const URuneEffectFragment* Fragment : RC.Effects)
+	{
+		if (Fragment)
+			Fragment->ApplyToGE(GE);
+	}
 
 	return GE;
 }

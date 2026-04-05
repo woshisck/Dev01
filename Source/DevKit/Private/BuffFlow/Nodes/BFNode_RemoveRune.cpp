@@ -29,10 +29,10 @@ void UBFNode_RemoveRune::ExecuteInput(const FName& PinName)
 	}
 
 	// 1. 通过 BuffTag 移除所有匹配 GE
-	if (ASC && RuneAsset->RuneTemplate.BuffConfig.BuffTag.IsValid())
+	if (ASC && RuneAsset->RuneTemplate.RuneConfig.BuffTag.IsValid())
 	{
 		FGameplayTagContainer RemoveTags;
-		RemoveTags.AddTag(RuneAsset->RuneTemplate.BuffConfig.BuffTag);
+		RemoveTags.AddTag(RuneAsset->RuneTemplate.RuneConfig.BuffTag);
 		ASC->RemoveActiveEffectsWithTags(RemoveTags);
 	}
 

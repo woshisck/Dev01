@@ -2,14 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "AttributeSet.h"
 #include "GameplayEffect.h"
 #include "GameplayTagContainer.h"
 #include "CharacterData.h"
+#include "Data/RuneEffectFragment.h"
 #include "RuneDataAsset.generated.h"
 
 class UFlowAsset;
-class UYogGameplayAbility;
 class UAbilitySystemComponent;
 class URuneDataAsset;
 
@@ -18,6 +17,7 @@ class URuneDataAsset;
 //  辅助枚举
 // ============================================================
 
+/** Buff 显示类型 */
 UENUM(BlueprintType)
 enum class ERuneBuffType : uint8
 {
@@ -26,69 +26,30 @@ enum class ERuneBuffType : uint8
     Debuff  UMETA(DisplayName = "减益"),
 };
 
+/**
+ * 堆叠类型
+ *   刷新 — 不增加叠加层，重置持续时间（等效于 MaxStack=1 + RefreshOnSuccessfulApplication）
+ *   叠加 — 增加叠加层，重置持续时间（StackLimitCount = MaxStack）
+ *   禁止 — 不可堆叠，不刷新时间
+ */
 UENUM(BlueprintType)
-enum class ERuneCalcOp : uint8
+enum class ERuneStackType : uint8
 {
-    UseA        UMETA(DisplayName = "仅 A"),
-    A_Minus_B   UMETA(DisplayName = "A - B"),
-    A_Plus_B    UMETA(DisplayName = "A + B"),
-    A_Times_B   UMETA(DisplayName = "A × B"),
+    Refresh UMETA(DisplayName = "刷新"),
+    Stack   UMETA(DisplayName = "叠加"),
+    None    UMETA(DisplayName = "禁止"),
 };
 
-
-// ============================================================
-//  FRuneAttributeModifier — 简化属性修改器（固定数值）
-// ============================================================
-
-USTRUCT(BlueprintType)
-struct DEVKIT_API FRuneAttributeModifier
+/**
+ * 减层方式（时间到期时）
+ *   全部 — 一次性移除所有层
+ *   逐一 — 每次只移除一层（并刷新剩余层的持续时间）
+ */
+UENUM(BlueprintType)
+enum class ERuneStackReduceType : uint8
 {
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FGameplayAttribute Attribute;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TEnumAsByte<EGameplayModOp::Type> ModOp = EGameplayModOp::Additive;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float Value = 0.f;
-};
-
-
-// ============================================================
-//  FRuneCalcSpec — 属性联动公式
-// ============================================================
-
-USTRUCT(BlueprintType)
-struct DEVKIT_API FRuneCalcSpec
-{
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FGameplayAttribute AttributeA;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "Operation != ERuneCalcOp::UseA", EditConditionHides))
-    FGameplayAttribute AttributeB;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    ERuneCalcOp Operation = ERuneCalcOp::UseA;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float Coefficient = 1.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float Addend = 0.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    EGameplayEffectAttributeCaptureSource CaptureSource = EGameplayEffectAttributeCaptureSource::Target;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FGameplayAttribute OutputAttribute;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TEnumAsByte<EGameplayModOp::Type> ModOp = EGameplayModOp::Additive;
+    All UMETA(DisplayName = "全部"),
+    One UMETA(DisplayName = "逐一"),
 };
 
 
@@ -110,144 +71,84 @@ struct DEVKIT_API FRuneShape
 
 
 // ============================================================
-//  FRuneBuffConfig — Buff 行为配置（Duration / Stacking / Tags）
-//  在 DA 里显示为可折叠的 "Buff Config" Section
+//  FRuneConfig — 符文核心配置
+//
+//  对应策划表字段：
+//    BuffID / BuffTag / BuffDuration / MaxStack / StackType / StackReduceType
+//  以及原子效果数组（Effects），统一在此配置
 // ============================================================
 
 USTRUCT(BlueprintType)
-struct DEVKIT_API FRuneBuffConfig
+struct DEVKIT_API FRuneConfig
 {
     GENERATED_BODY()
 
-    /** 标识此 Buff 的 Tag（用于 EffectRegistry 查找 / 精确移除） */
+    // ---- 标识 ----
+
+    /** 数值 ID，供策划表引用 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 BuffID = 0;
+
+    /**
+     * Buff GP Tag
+     * 其他 Buff/Flow 通过此 Tag 查找或移除本 Buff
+     */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FGameplayTag BuffTag;
 
-    /** GE 激活期间授予目标的 Tag，移除时自动撤销 */
+    // ---- 持续时间 ----
+
+    /**
+     * 持续时间（秒）
+     *   0  = 瞬发（立即触发一次，不留存）
+     *  -1  = 永久（Infinite，需手动移除）
+     *  >0  = 有时限
+     */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FGameplayTagContainer GrantedTagsToTarget;
+    float BuffDuration = -1.f;
 
-    // --- Duration ---
+    // ---- 堆叠 ----
 
-    /** 瞬发(Instant) / 有时限(HasDuration) / 永久(Infinite) */
+    /**
+     * 最大堆叠层数（0 和 1 都视为 1 层）
+     * 仅 StackType = 叠加 时生效
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite,
+        meta = (EditCondition = "StackType == ERuneStackType::Stack", EditConditionHides, ClampMin = "1"))
+    int32 MaxStack = 1;
+
+    /** 堆叠类型：刷新 / 叠加 / 禁止 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    EGameplayEffectDurationType DurationPolicy = EGameplayEffectDurationType::Infinite;
+    ERuneStackType StackType = ERuneStackType::None;
 
-    /** Duration（秒），仅 HasDuration 时生效 */
-    UPROPERTY(EditAnywhere,
-        meta = (EditCondition = "DurationPolicy == EGameplayEffectDurationType::HasDuration", EditConditionHides))
-    FGameplayEffectModifierMagnitude DurationMagnitude;
-
-    /** Period（秒）：大于 0 时为周期效果（持续掉血等），0 = 不周期 */
+    /**
+     * 减层方式（StackType != 禁止 且有持续时间时生效）
+     *   全部 — 到期一次性全部移除
+     *   逐一 — 到期每次移除一层
+     */
     UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "DurationPolicy != EGameplayEffectDurationType::Instant", EditConditionHides))
-    FScalableFloat Period;
+        meta = (EditCondition = "StackType != ERuneStackType::None", EditConditionHides))
+    ERuneStackReduceType StackReduceType = ERuneStackReduceType::All;
 
-    /** 施加瞬间是否立即触发一次周期效果 */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "DurationPolicy != EGameplayEffectDurationType::Instant", EditConditionHides))
-    bool bExecutePeriodicEffectOnApplication = false;
+    // ---- 效果（原子功能）----
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "DurationPolicy != EGameplayEffectDurationType::Instant", EditConditionHides))
-    EGameplayEffectPeriodInhibitionRemovedPolicy PeriodicInhibitionPolicy =
-        EGameplayEffectPeriodInhibitionRemovedPolicy::NeverReset;
-
-    // --- Stacking ---
-
-    /** None / AggregateByTarget（按目标叠加）/ AggregateBySource（按来源唯一） */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    EGameplayEffectStackingType StackingType = EGameplayEffectStackingType::None;
-
-    /** Max Stack（最大堆叠层数） */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "StackingType != EGameplayEffectStackingType::None", EditConditionHides))
-    int32 StackLimitCount = 1;
-
-    /** 叠加时如何处理计时（刷新 / 不刷新） */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "StackingType != EGameplayEffectStackingType::None", EditConditionHides))
-    EGameplayEffectStackingDurationPolicy StackDurationRefreshPolicy =
-        EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "StackingType != EGameplayEffectStackingType::None", EditConditionHides))
-    EGameplayEffectStackingPeriodPolicy StackPeriodResetPolicy =
-        EGameplayEffectStackingPeriodPolicy::NeverReset;
-
-    /** 到期移除方式：全部(ClearEntireStack) / 逐一(RemoveSingleStackAndRefreshDuration) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "StackingType != EGameplayEffectStackingType::None", EditConditionHides))
-    EGameplayEffectStackingExpirationPolicy StackExpirationPolicy =
-        EGameplayEffectStackingExpirationPolicy::ClearEntireStack;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "StackingType != EGameplayEffectStackingType::None", EditConditionHides))
-    TArray<TSubclassOf<UGameplayEffect>> OverflowEffects;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "StackingType != EGameplayEffectStackingType::None", EditConditionHides))
-    bool bDenyOverflowApplication = false;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "StackingType != EGameplayEffectStackingType::None && bDenyOverflowApplication", EditConditionHides))
-    bool bClearStackOnOverflow = false;
+    /**
+     * 效果列表
+     * 点击 + 选择效果类型：
+     *   Add Attribute Modifier   — 属性修改（Attack +20 / AttSpeed ×1.1）
+     *   Add Gameplay Tags        — 激活期间授予 Tag
+     *   Trigger Gameplay Ability — 装备时授予被动 GA（携带 Params 字典）
+     *   Gameplay Cue             — 音效/特效（高级）
+     *   Advanced Modifier        — 直接配置 FGameplayModifierInfo（高级）
+     *   Execution Calculation    — GAS ExecutionCalculation（高级）
+     */
+    UPROPERTY(EditAnywhere, Instanced)
+    TArray<TObjectPtr<URuneEffectFragment>> Effects;
 };
 
 
 // ============================================================
-//  FRuneValues — 数值配置（属性修改 / 公式 / GA 参数）
-//  在 DA 里显示为可折叠的 "Values" Section
-// ============================================================
-
-USTRUCT(BlueprintType)
-struct DEVKIT_API FRuneValues
-{
-    GENERATED_BODY()
-
-    /**
-     * 简化属性修改器（Attack +20 这类固定数值）
-     * 选属性、填数值，无需写代码
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TArray<FRuneAttributeModifier> AttributeModifiers;
-
-    /**
-     * 属性联动公式（多属性计算 → 另一属性）
-     * 示例：(MaxHealth - Health) × 0.01 → AttackSpeed Additive
-     * GE 施加时快照；如需实时更新，配合 Buff Config 里的 Period 使用
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TArray<FRuneCalcSpec> CalcSpecs;
-
-    /**
-     * GA 参数字典（向 PassiveAbilityClass 传递数值）
-     * Key = 参数名（如 "KnockbackStrength"），Value = 数值
-     * GA 读取：GetCurrentAbilitySpec().SourceObject → Cast<URuneDataAsset> → RuneTemplate.Values.Params
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TMap<FName, float> Params;
-
-    /**
-     * 高级修改器（AttributeBasedFloat / SetByCaller）
-     * 不熟悉 GAS 保持空即可
-     */
-    UPROPERTY(EditAnywhere)
-    TArray<FGameplayModifierInfo> Modifiers;
-
-    /** ExecutionCalculation（高级，通常保持空） */
-    UPROPERTY(EditAnywhere)
-    TArray<FGameplayEffectExecutionDefinition> Executions;
-
-    /** GameplayCue（音效/特效，通常在蓝图侧处理） */
-    UPROPERTY(EditAnywhere)
-    TArray<FGameplayEffectCue> GameplayCues;
-};
-
-
-// ============================================================
-//  FRuneFlowConfig — 逻辑实现（BuffFlow / 被动 GA）
-//  在 DA 里显示为可折叠的 "Flow" Section
+//  FRuneFlowConfig — 逻辑层（BuffFlow 可视化逻辑资产）
 // ============================================================
 
 USTRUCT(BlueprintType)
@@ -256,29 +157,23 @@ struct DEVKIT_API FRuneFlowConfig
     GENERATED_BODY()
 
     /**
-     * BuffFlow 可视化逻辑资产
-     * 符文激活时自动启动，符文卸下时自动停止
+     * BuffFlow 可视化逻辑资产（FA）
+     * 符文激活时自动启动，卸下时自动停止
+     * FA 负责：判定时机、触发 GA/粒子/音效等
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TObjectPtr<UFlowAsset> BuffFlowAsset;
-
-    /**
-     * 被动能力类（符文激活时授予）
-     * GA 通过 GetCurrentAbilitySpec().SourceObject → Cast<URuneDataAsset> 读取 Values.Params
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TSubclassOf<UYogGameplayAbility> PassiveAbilityClass;
 };
 
 
 // ============================================================
-//  FRuneInstance
-//  编辑器里 DA 的视觉结构：
-//    Rune Name / Rune Icon / Rune Description / Buff Type  ← 展示信息（顶层平铺）
-//    Shape                                                 ← 背包形状（顶层平铺）
-//    ▼ Buff Config   Duration / Period / Stacking / Tags
-//    ▼ Values        属性修改 / 公式 / GA参数
-//    ▼ Flow          BuffFlow / PassiveGA
+//  FRuneInstance — 运行时符文实例
+//
+//  DA 编辑器视觉结构：
+//    Rune Name / Icon / Description / Buff Type  ← 展示信息
+//    Shape                                        ← 背包格子形状
+//    ▼ Rune Config   ID / Tag / Duration / Stack / Effects[]
+//    ▼ Flow          BuffFlowAsset
 // ============================================================
 
 USTRUCT(BlueprintType)
@@ -286,7 +181,7 @@ struct DEVKIT_API FRuneInstance
 {
     GENERATED_BODY()
 
-    // ---- 展示信息（顶层平铺，一眼可见） ----
+    // ---- 展示信息（顶层平铺）----
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FName RuneName;
@@ -297,7 +192,7 @@ struct DEVKIT_API FRuneInstance
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FText RuneDescription;
 
-    /** 增益 / 减益 / 无，供 UI 显示颜色 */
+    /** 增益 / 减益 / 无 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     ERuneBuffType BuffType = ERuneBuffType::Buff;
 
@@ -306,17 +201,13 @@ struct DEVKIT_API FRuneInstance
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FRuneShape Shape;
 
-    // ---- 分组 Section（子结构体 → 编辑器里自动折叠展示） ----
+    // ---- 核心配置（Duration / Stack / Effects）----
 
-    /** Buff 行为配置：Duration / Period / Stacking / Tags */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FRuneBuffConfig BuffConfig;
+    FRuneConfig RuneConfig;
 
-    /** 数值配置：属性修改 / 公式联动 / GA 参数 */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FRuneValues Values;
+    // ---- 逻辑层（FA）----
 
-    /** 逻辑实现：BuffFlow / 被动 GA */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FRuneFlowConfig Flow;
 
@@ -328,13 +219,8 @@ struct DEVKIT_API FRuneInstance
     UPROPERTY(BlueprintReadWrite)
     FGuid RuneGuid;
 
-    /** CreateInstance() 时自动设置，供 GA 通过 SourceObject 读取 DA 配置 */
     UPROPERTY(BlueprintReadOnly)
     TObjectPtr<URuneDataAsset> SourceDA;
-
-    // ---- 运行时方法 ----
-
-    UGameplayEffect* CreateTransientGE(UObject* Outer, UAbilitySystemComponent* ASC = nullptr) const;
 };
 
 
@@ -346,6 +232,7 @@ UCLASS(BlueprintType)
 class DEVKIT_API URuneDataAsset : public UPrimaryDataAsset
 {
     GENERATED_BODY()
+
 public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rune")
     FRuneInstance RuneTemplate;
@@ -353,8 +240,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Rune")
     FRuneInstance CreateInstance() const;
 
-    UGameplayEffect* CreateTransientGE(UObject* Outer, UAbilitySystemComponent* ASC = nullptr) const
-    {
-        return RuneTemplate.CreateTransientGE(Outer, ASC);
-    }
+    /** 根据 RuneConfig（Duration/Stack/Effects）构建 TransientGE */
+    UGameplayEffect* CreateTransientGE(UObject* Outer) const;
 };

@@ -133,6 +133,16 @@ public:
     FGameplayAttributeData Crit_Damage;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Crit_Damage);
 
+    /**
+     * 击退力（Knockback Force）
+     * 角色施加给被打击目标的击退冲量幅度。
+     * GA 读取此值并 * 方向向量 施加 LaunchCharacter。
+     * 可被符文 GE（AttributeModifier Fragment）增减。
+     */
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_KnockbackForce, Category = "Attributes|Combat")
+    FGameplayAttributeData KnockbackForce;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, KnockbackForce);
+
 
 
     UFUNCTION()
@@ -188,6 +198,9 @@ public:
 
     UFUNCTION()
     void OnRep_AttackRange(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_KnockbackForce(const FGameplayAttributeData& OldValue);
 
     UFUNCTION()
     void OnRep_Heat(const FGameplayAttributeData& OldValue);

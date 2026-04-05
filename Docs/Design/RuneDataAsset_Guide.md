@@ -1,18 +1,21 @@
 # RuneDataAsset 使用指南
 
 > 更新日期：2026-04-05  
-> 对象：策划 + 程序
+> 对象：策划 + 程序  
+> 详细的 BuffFlow FA 节点说明见 [BuffFlow_Guide.md](BuffFlow_Guide.md)
 
 ---
 
 ## 一、概念说明
 
-**DA_Rune（RuneDataAsset）是游戏中"符文 / Buff / 卡牌"的统一数据源。**  
-三者在本系统里是同一个概念：一张 DA 资产描述了一个效果的全部信息——它的外观、行为规则、数值、逻辑。
+**DA_Rune（RuneDataAsset）是游戏中"符文 / Buff / 卡牌"的数据层。**
 
-- 策划创建 DA，填写参数
-- 程序通过 `BackpackGridComponent` 或 `BFNode_AddRune` 使用它
-- 运行时由系统自动构建 GE、启动 Flow、授予 GA，无需策划操心底层细节
+DA 只负责：
+- 展示信息（名称/图标/描述）
+- GE 行为规则（Duration/Stack）
+- 数值效果（Effects[]：属性修改 / Tag / 被动GA）
+- 背包格子形状
+- 指向哪个 FA（逻辑由 FA 负责，DA 不写逻辑）
 
 ---
 
@@ -20,200 +23,169 @@
 
 ```
 DA_Rune_XXX
-  ├── Rune Name / Icon / Description / Buff Type   ← 展示信息
+  ├── Rune Name / Icon / Description / Buff Type   ← 展示信息（顶层平铺）
   ├── Shape                                         ← 背包格子形状
-  ├── ▼ Buff Config    Duration / Period / Stacking / Tags
-  ├── ▼ Values         属性修改 / 公式联动 / GA参数
-  └── ▼ Flow           BuffFlow / 被动GA
+  ├── ▼ Rune Config                                 ← GE 行为 + 效果列表
+  │     ├── Buff ID           (数值 ID，策划表引用)
+  │     ├── Buff Tag          (GameplayTag，唯一标识此 Buff)
+  │     ├── Buff Duration     (0=瞬发, -1=永久, >0=秒数)
+  │     ├── Stack Type        (None/Refresh/Stack)
+  │     ├── Max Stack         (仅 Stack 模式，最大层数)
+  │     ├── Stack Reduce Type (All=全部移除 / One=逐层移除)
+  │     └── Effects[]         ← 效果片段，点击 + 添加
+  └── ▼ Flow
+        └── Buff Flow Asset   ← FA 资产（符文激活时启动，卸下时停止）
 ```
 
 ---
 
-## 三、各字段详解
+## 三、展示信息
 
-### 展示信息（顶层）
-
-| 字段 | 说明 |
-|---|---|
-| `Rune Name` | 符文名称（FName） |
-| `Rune Icon` | 图标贴图，背包 UI 显示 |
-| `Rune Description` | 描述文本，Tooltip 显示 |
-| `Buff Type` | **增益 / 减益 / 无**，供 UI 显示颜色/图标方向 |
-| `Shape` | 背包格子占用形状，Cells 填相对于锚点的格子偏移列表 |
-
----
-
-### Buff Config（Buff 行为配置）
-
-| 字段 | 说明 | 示例 |
+| 字段 | 类型 | 说明 |
 |---|---|---|
-| `Buff Tag` | 标识该 Buff 的 GameplayTag，用于 EffectRegistry 查找和精确移除 | `Buff.Poison` |
-| `Granted Tags to Target` | GE 激活期间授予目标的 Tag，GE 移除时自动撤销 | `Rune.TuXi.Active` |
-| `Duration Policy` | 瞬发(Instant) / 有时限(HasDuration) / 永久(Infinite) | |
-| `Duration Magnitude` | 持续时间（秒），仅 HasDuration 时显示 | `5.0` |
-| `Period` | 周期时长（秒），>0 时变为周期效果（如每秒掉血） | `1.0` |
-| `Execute Periodic Effect on Application` | 施加瞬间是否立即触发一次周期效果 | 通常关闭 |
-| `Stacking Type` | **None** = 不叠加 / **AggregateByTarget** = 按目标叠加 / **AggregateBySource** = 同来源唯一 | |
-| `Stack Limit Count` | 最大堆叠层数 | `5` |
-| `Stack Duration Refresh Policy` | 叠加时是否刷新计时：RefreshOnSuccessfulApplication（刷新）/ NeverRefresh | |
-| `Stack Expiration Policy` | 到期移除方式：**ClearEntireStack**（全部移除）/ **RemoveSingleStackAndRefreshDuration**（逐层移除） | |
+| `Rune Name` | FName | 符文名称 |
+| `Rune Icon` | Texture2D | 背包 UI 图标 |
+| `Rune Description` | FText | Tooltip 描述 |
+| `Buff Type` | Enum | **增益 / 减益 / 无**，供 UI 显示颜色/图标方向 |
+| `Shape` | FRuneShape | 背包格子形状，Cells 填相对于锚点的格子偏移列表 |
 
-**常用配置组合：**
+---
+
+## 四、Rune Config 详解
+
+### Duration（持续时间）
+
+| BuffDuration 值 | GE 类型 | 说明 |
+|---|---|---|
+| `0` | Instant | 瞬发，立即触发一次，不留存 |
+| `-1` | Infinite | 永久，需手动移除（装备类符文） |
+| `> 0` | HasDuration | 持续指定秒数后自动移除 |
+
+### Stack Type（堆叠方式）
+
+| 值 | 含义 |
+|---|---|
+| `None` | 不叠加，不刷新时间（同时只能有一个） |
+| `Refresh` | 不增加层数，但每次施加时重置计时 |
+| `Stack` | 每次施加 +1 层（至 MaxStack），刷新计时 |
+
+### Stack Reduce Type（到期减层）
+
+仅在 `Stack Type != None` 且 `Duration > 0` 时有意义。
+
+| 值 | 含义 |
+|---|---|
+| `All` | 时间到期时一次性移除所有层数 |
+| `One` | 时间到期时只移除 1 层并刷新剩余层的计时 |
+
+### 常用配置组合
 
 ```
-叠加 Buff（振奋：每次命中+1攻击，最多5层，不刷新，到期逐层）：
-  Duration Policy = HasDuration, 3.0s
-  Stacking Type   = AggregateByTarget
-  Stack Limit     = 5
-  Duration Refresh= NeverRefresh
-  Expiration      = RemoveSingleStackAndRefreshDuration
+永久被动（装备时持续）：
+  Duration = -1（永久）, Stack = None
 
-持续掉血（周期 DoT）：
-  Duration Policy = HasDuration, 5.0s
-  Period          = 1.0s          ← 每秒触发
-  Execute on App  = false         ← 不在施加瞬间触发
-  Values.Attribute Modifiers: Health -20 Additive
+叠加 Buff（狂暴：每次命中+1层，最多10层，逐层消退）：
+  Duration = 5.0s
+  Stack Type = Stack, Max Stack = 10
+  Stack Reduce Type = One
 
-永久被动（装备时持续生效）：
-  Duration Policy = Infinite
-  （其余默认）
+刷新 Buff（护盾：再次触发重置计时）：
+  Duration = 3.0s
+  Stack Type = Refresh
+
+一次性 Buff（爆发：施加即生效）：
+  Duration = 0（Instant）
 ```
 
 ---
 
-### Values（数值配置）
+## 五、Effects[] 效果片段
 
-#### Attribute Modifiers — 简化属性修改器
+点击 `+` 选择类型，同一 DA 可叠加多个：
 
-最常用的方式。在编辑器里选择属性、操作类型、填数值，无需写代码。
+### Add Attribute Modifier（属性修改）
+
+最常用。直接在编辑器里选属性、操作符、填数值。
 
 | 子字段 | 说明 |
 |---|---|
-| `Attribute` | 要修改的属性（下拉选择） |
+| `Attribute` | 要修改的属性（下拉选择，来自各 AttributeSet） |
 | `Mod Op` | Additive（加）/ Multiplicative（乘）/ Override（覆盖） |
 | `Value` | 数值 |
 
 **示例：**
 ```
-Attack +20      → Attribute=Attack,    ModOp=Additive,       Value=20
-攻速 ×1.1倍    → Attribute=AttSpeed,  ModOp=Multiplicative,  Value=0.1
-固定攻速=2.0   → Attribute=AttSpeed,  ModOp=Override,        Value=2.0
+Attack +20         → Attribute=Attack,        ModOp=Additive,        Value=20
+攻速 ×1.1         → Attribute=AttackSpeed,   ModOp=Multiplicative,  Value=0.1
+击退力 +600        → Attribute=KnockbackForce, ModOp=Additive,       Value=600
 ```
+
+### Add Gameplay Tags（授予 Tag）
+
+GE 激活期间给目标授予 GameplayTag，GE 移除时自动撤销。
+
+```
+GrantedTags: State.Berserk.Active
+→ 其他 GA/GE 可通过 Has Tag(State.Berserk.Active) 判断当前状态
+```
+
+### Trigger Gameplay Ability（被动 GA）
+
+符文装备时授予一个被动 GA，卸下时自动清除。
+
+配置：选择 `AbilityClass`
+
+**GA 读取数值的正确方式：**
+- GA 执行时从 AttributeSet 读取属性值，而非从 DA 读 Params
+- 例：`GA_Knockback` 读 `KnockbackForce` 属性并施加冲量
+
+### Advanced Modifier / Gameplay Cue / Execution Calculation
+
+高级用法，不熟悉 GAS 的策划保持空，联系程序配置。
 
 ---
 
-#### Calc Specs — 属性联动公式
-
-当效果值依赖于另一个属性时使用。公式：  
-**`result = Op(AttributeA, AttributeB) × Coefficient + Addend`**  
-**`OutputAttribute ModOp= result`**
-
-| 子字段 | 说明 |
-|---|---|
-| `Attribute A` | 第一个属性（必填） |
-| `Attribute B` | 第二个属性（运算非 UseA 时填） |
-| `Operation` | UseA / A-B / A+B / A×B |
-| `Coefficient` | 结果乘以此系数（默认 1.0） |
-| `Addend` | 结果加上此常量（默认 0） |
-| `Output Attribute` | 写入哪个属性 |
-| `Mod Op` | Additive / Multiplicative / Override |
-
-**示例：损失血量 → 攻速加成**
-```
-Attribute A    = MaxHealth
-Attribute B    = Health
-Operation      = A - B           ← LostHP = MaxHealth - Health
-Coefficient    = 0.01
-Output Attr    = AttackSpeed
-Mod Op         = Additive
-→ AttackSpeed += (MaxHealth - Health) × 0.01
-```
-
-> **注意**：数值在 GE 施加时快照。如需实时跟随属性变化，在 Buff Config 里设置 Period（如 0.5s），使 GE 定期重新施加，每次重新计算。
-
----
-
-#### Params — GA 参数字典
-
-当符文需要授予一个被动 GA（如击退 GA）时，通过此字典向 GA 传递数值参数，避免为每种强度创建多个 GA 蓝图。
-
-**DA 填写：**
-```
-Params:
-  KnockbackStrength → 800.0
-  KnockbackZBoost   → 300.0
-```
-
-**GA 蓝图读取（在 OnAvatarSet 或 OnGiveAbility 里）：**
-```
-Get Current Ability Spec
-  → Source Object
-  → Cast To RuneDataAsset
-  → Rune Template → Values → Params
-  → Find "KnockbackStrength"  → Set KnockbackStrength
-  → Find "KnockbackZBoost"    → Set KnockbackZBoost
-```
-
----
-
-#### Modifiers（高级）
-
-直接配置 GAS 的 `FGameplayModifierInfo`，支持 AttributeBasedFloat（线性属性引用）和 SetByCaller（运行时传值）。
-
-不熟悉 GAS 的策划保持空即可，用 Attribute Modifiers 或 Calc Specs 替代。
-
----
-
-### Flow（逻辑实现）
+## 六、Flow（逻辑层）
 
 | 字段 | 说明 |
 |---|---|
-| `Buff Flow Asset` | 可视化逻辑资产（FlowAsset）。符文激活时自动启动，卸下时自动停止 |
-| `Passive Ability Class` | 符文激活时授予宿主的被动 GA 类。GA 通过 `SourceObject` 读取 `Values.Params` |
+| `Buff Flow Asset` | FA 资产（FlowAsset）。符文激活时自动启动，卸下时自动停止 |
+
+FA 里的逻辑**不读取 DA 的配置字段**。  
+FA 通过 `Get GE Info` 节点查询 ASC 上 GE 的运行时状态（层数、剩余时间等）。
+
+详见 [BuffFlow_Guide.md](BuffFlow_Guide.md)。
 
 ---
 
-## 四、常见符文配置速查
+## 七、常见符文配置速查
 
-| 效果类型 | 配置方式 |
+| 效果类型 | 配置位置 |
 |---|---|
-| 纯数值加成（Attack +20） | Values → Attribute Modifiers |
-| 基于属性的加成（损失血量→攻速） | Values → Calc Specs |
-| 持续掉血（DoT） | Buff Config（Period=1s, Duration=5s）+ Values → AttributeModifiers（Health -X） |
-| 叠加 Buff（振奋） | Buff Config（Stacking=AggregateByTarget, StackLimit=5, NeverRefresh） |
-| 授予 Tag（行为激活标记） | Buff Config → Granted Tags to Target |
-| 带参数的 GA（击退） | Flow → Passive Ability Class + Values → Params |
+| 纯数值加成（Attack +20） | Effects → Add Attribute Modifier |
+| 击退力增强 | Effects → Add Attribute Modifier（KnockbackForce） |
+| 装备时授予 GA（如击退GA） | Effects → Trigger Gameplay Ability |
+| 激活期间标记状态 | Effects → Add Gameplay Tags |
+| 叠加 Buff（振奋） | RuneConfig（Stack, MaxStack=5, One） |
 | 可视化条件逻辑 | Flow → Buff Flow Asset |
+| 持续特效（随层数变化） | Flow → Buff Flow Asset（FA 里用 GetGEInfo + PlayNiagara） |
 
 ---
 
-## 五、系统架构变更记录（2026-04-05）
+## 八、变更记录（2026-04-05）
 
-### 删除
-- `UYogBuffDefinition` 类（`.h` + `.cpp`）已删除
+### 主要重构
+- `FRuneBuffConfig` → `FRuneConfig`（Duration 改为 float，Stack 改为简化枚举）
+- `FRuneValues`（FRuneAttributeModifier + FRuneCalcSpec + Params）→ 全部迁移到 `Effects[]`
+- `FRuneFlowConfig.PassiveAbilityClass` → 迁移到 `Effects → Trigger GA Fragment`
+- `URuneDataAsset.Effects[]`（顶层）→ 移入 `RuneConfig.Effects[]`
 
-### 合并
-`UYogBuffDefinition` 的所有功能合并进 `FRuneInstance`，DA_Rune 成为唯一的效果数据源：
+### 新增
+- `KnockbackForce` 属性（BaseAttributeSet）：攻击方施加的击退冲量
+- `EnemyAttributeSet.KnockBackDist` 已存在：敌方对击退的承受幅度（保留）
 
-| 之前 | 现在 |
-|---|---|
-| DA_Rune 的 `BehaviorEffect`（C++ GE 类引用） | 改为在 DA 里直接配置 Buff Config + Values |
-| `UYogBuffDefinition.BuffFlowAsset` | → `FRuneInstance.Flow.BuffFlowAsset` |
-| `UYogBuffDefinition.BuffTag` | → `FRuneInstance.BuffConfig.BuffTag` |
-| `BackpackGridComponent` 分别 Apply 两个 GE | → 统一调 `CreateTransientGE()` 一次完成 |
-
-### `EffectRegistry` 变更
-`TMap<FGameplayTag, UYogBuffDefinition*>` → `TMap<FGameplayTag, URuneDataAsset*>`
-
-已有的 `DA_EffectRegistry` 资产需要重新填写映射（旧的 BuffDefinition 引用失效）。
-
-### `BFNode_AddRune` / `BFNode_RemoveRune` 变更
-节点属性 `BuffDefinition`（UYogBuffDefinition*）改名为 `RuneAsset`（URuneDataAsset*）。
-
-**Flow Graph 中已放置的此类节点需要重新选择 RuneAsset 引用。**
-
-### 新增能力
-- `FRuneCalcSpec`：多属性联动公式（A op B → 另一属性）
-- `FRuneInstance.Values.Params`：DA 向被动 GA 传递数值参数
-- `FRuneInstance.BuffType`：增益/减益/无，供 UI 读取
-- `FPlacedRune.GrantedAbilityHandle`：被动 GA 完整的激活/卸下生命周期
+### 策划迁移清单
+- [ ] 所有 DA_Rune：`BuffConfig → RuneConfig`，Duration 改 float
+- [ ] 所有 DA_Rune：`Values → Attribute Modifiers` 迁入 `Effects[]`
+- [ ] 所有 DA_Rune：`Flow → Passive Ability Class` 迁入 `Effects → Trigger GA`
+- [ ] Flow Graph 中的 `CompareFloat` 节点：A/B 重新连线（类型已变为数据引脚）
