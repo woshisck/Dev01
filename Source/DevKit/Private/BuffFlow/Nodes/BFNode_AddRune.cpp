@@ -2,7 +2,7 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
-#include "Data/YogBuffDefinition.h"
+#include "Data/RuneDataAsset.h"
 #include "GameplayEffect.h"
 
 UBFNode_AddRune::UBFNode_AddRune(const FObjectInitializer& ObjectInitializer)
@@ -16,7 +16,7 @@ UBFNode_AddRune::UBFNode_AddRune(const FObjectInitializer& ObjectInitializer)
 
 void UBFNode_AddRune::ExecuteInput(const FName& PinName)
 {
-	if (!BuffDefinition)
+	if (!RuneAsset)
 	{
 		TriggerOutput(TEXT("Failed"), true);
 		return;
@@ -36,7 +36,7 @@ void UBFNode_AddRune::ExecuteInput(const FName& PinName)
 	}
 
 	// 1. 施加 GE
-	UGameplayEffect* TransientGE = BuffDefinition->CreateTransientGE(GetTransientPackage());
+	UGameplayEffect* TransientGE = RuneAsset->CreateTransientGE(GetTransientPackage());
 	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
 	FGameplayEffectSpec Spec(TransientGE, Context, static_cast<float>(Level));
 	FActiveGameplayEffectHandle Handle = ASC->ApplyGameplayEffectSpecToSelf(Spec);
@@ -47,16 +47,16 @@ void UBFNode_AddRune::ExecuteInput(const FName& PinName)
 		return;
 	}
 
-	// 2. 如果 BuffDefinition 配置了 FlowAsset，在目标 BuffFlowComponent 上启动 Flow
-	if (BuffDefinition->BuffFlowAsset)
+	// 2. 如果 RuneAsset 配置了 FlowAsset，在目标 BuffFlowComponent 上启动 Flow
+	if (RuneAsset->RuneTemplate.Flow.BuffFlowAsset)
 	{
 		if (UBuffFlowComponent* TargetBFC = TargetActor->FindComponentByClass<UBuffFlowComponent>())
 		{
 			// 使用 DA 路径哈希生成确定性 Guid，使 RemoveRune 能精确停止对应 Flow
-			const uint32 Hash = GetTypeHash(BuffDefinition->GetPathName());
+			const uint32 Hash = GetTypeHash(RuneAsset->GetPathName());
 			FGuid RuneGuid(Hash, 0, 0, 0);
 			AActor* Giver = GetBuffOwner();
-			TargetBFC->StartBuffFlow(BuffDefinition->BuffFlowAsset, RuneGuid, Giver);
+			TargetBFC->StartBuffFlow(RuneAsset->RuneTemplate.Flow.BuffFlowAsset, RuneGuid, Giver);
 		}
 	}
 

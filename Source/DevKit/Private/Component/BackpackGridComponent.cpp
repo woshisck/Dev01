@@ -353,35 +353,32 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 
 	bool bActivated = false;
 
-	// 1) 数值效果：从 DA 的 AttributeModifiers 动态构建 GE
-	if (Placed.Rune.AttributeModifiers.Num() > 0)
+	// 1. 从 FRuneInstance 数据动态构建并施加 GE
+	//    将 ASC 传入以支持 CalcSpecs 的属性快照计算
+	UGameplayEffect* TransientGE = Placed.Rune.CreateTransientGE(GetTransientPackage(), ASC);
+	if (TransientGE)
 	{
-		Placed.ActiveEffectHandle = ASC->ApplyRuneModifiers(Placed.Rune.AttributeModifiers);
+		FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+		FGameplayEffectSpec Spec(TransientGE, Context, static_cast<float>(Placed.Rune.Level));
+		Placed.ActiveEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(Spec);
 		bActivated |= Placed.ActiveEffectHandle.IsValid();
 	}
 
-	// 2) 行为效果：使用预制的 BehaviorEffect GE（击退、毒池等）
-	if (Placed.Rune.BehaviorEffect)
+	// 2. 授予被动能力（如击退 GA 等），将 SourceDA 设为 SourceObject 供 GA 读取 Values.Params
+	if (Placed.Rune.Flow.PassiveAbilityClass)
 	{
-		FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
-		FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(
-			Placed.Rune.BehaviorEffect,
-			Placed.Rune.Level,
-			Context
-		);
-		if (Spec.IsValid())
-		{
-			Placed.BehaviorEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-			bActivated |= Placed.BehaviorEffectHandle.IsValid();
-		}
+		FGameplayAbilitySpec AbilitySpec(Placed.Rune.Flow.PassiveAbilityClass, Placed.Rune.Level);
+		AbilitySpec.SourceObject = Placed.Rune.SourceDA.Get();
+		Placed.GrantedAbilityHandle = ASC->GiveAbility(AbilitySpec);
+		bActivated |= Placed.GrantedAbilityHandle.IsValid();
 	}
 
 	// 3) BuffFlow 可视化逻辑
-	if (Placed.Rune.BuffFlowAsset)
+	if (Placed.Rune.Flow.BuffFlowAsset)
 	{
 		if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
 		{
-			BFC->StartBuffFlow(Placed.Rune.BuffFlowAsset, Placed.Rune.RuneGuid, GetOwner());
+			BFC->StartBuffFlow(Placed.Rune.Flow.BuffFlowAsset, Placed.Rune.RuneGuid, GetOwner());
 			bActivated = true;
 		}
 	}
@@ -401,20 +398,18 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 	UAbilitySystemComponent* ASC = CachedASC.Get();
 	if (ASC)
 	{
-		// 移除数值 GE
 		if (Placed.ActiveEffectHandle.IsValid())
 		{
 			ASC->RemoveActiveGameplayEffect(Placed.ActiveEffectHandle);
 		}
-		// 移除行为 GE
-		if (Placed.BehaviorEffectHandle.IsValid())
+		if (Placed.GrantedAbilityHandle.IsValid())
 		{
-			ASC->RemoveActiveGameplayEffect(Placed.BehaviorEffectHandle);
+			ASC->ClearAbility(Placed.GrantedAbilityHandle);
 		}
 	}
 
 	// 停止 BuffFlow
-	if (Placed.Rune.BuffFlowAsset)
+	if (Placed.Rune.Flow.BuffFlowAsset)
 	{
 		if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
 		{
@@ -423,7 +418,7 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 	}
 
 	Placed.ActiveEffectHandle = FActiveGameplayEffectHandle();
-	Placed.BehaviorEffectHandle = FActiveGameplayEffectHandle();
+	Placed.GrantedAbilityHandle = FGameplayAbilitySpecHandle();
 	Placed.bIsActivated = false;
 	OnRuneActivationChanged.Broadcast(Placed.Rune.RuneGuid, false);
 }

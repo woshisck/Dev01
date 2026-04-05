@@ -5,22 +5,21 @@
 #include "BuffFlow/BuffFlowTypes.h"
 #include "BFNode_RemoveRune.generated.h"
 
-class UYogBuffDefinition;
+class URuneDataAsset;
 
 /**
  * 移除符文效果节点
- * 1. 移除目标 ASC 上所有带有 BuffDefinition.BuffTag 的 GE
- * 2. 如果 BuffDefinition 配置了 BuffFlowAsset，在目标 BuffFlowComponent 上停止对应 Flow
- *    （注：停止所有同 FlowAsset 的实例，因为 BFNode_AddRune 使用的 Guid 未持久化）
+ * 1. 移除目标 ASC 上所有带有 RuneAsset.RuneTemplate.BuffTag 的 GE
+ * 2. 如果 RuneAsset 配置了 BuffFlowAsset，在目标 BuffFlowComponent 上停止对应 Flow
  */
 UCLASS(NotBlueprintable, meta = (DisplayName = "Remove Rune Effect", Category = "BuffFlow|Effect"))
 class DEVKIT_API UBFNode_RemoveRune : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 要移除的符文效果定义 */
+	/** 要移除的符文效果定义（DA_Rune_xxx） */
 	UPROPERTY(EditAnywhere, Category = "BuffFlow")
-	TObjectPtr<UYogBuffDefinition> BuffDefinition;
+	TObjectPtr<URuneDataAsset> RuneAsset;
 
 	/** 目标选择 */
 	UPROPERTY(EditAnywhere, Category = "BuffFlow")

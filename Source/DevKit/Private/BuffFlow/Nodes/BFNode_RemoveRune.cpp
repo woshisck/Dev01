@@ -1,7 +1,7 @@
 #include "BuffFlow/Nodes/BFNode_RemoveRune.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
-#include "Data/YogBuffDefinition.h"
+#include "Data/RuneDataAsset.h"
 #include "AbilitySystemComponent.h"
 
 UBFNode_RemoveRune::UBFNode_RemoveRune(const FObjectInitializer& ObjectInitializer)
@@ -15,7 +15,7 @@ UBFNode_RemoveRune::UBFNode_RemoveRune(const FObjectInitializer& ObjectInitializ
 
 void UBFNode_RemoveRune::ExecuteInput(const FName& PinName)
 {
-	if (!BuffDefinition)
+	if (!RuneAsset)
 	{
 		TriggerOutput(TEXT("Out"), true);
 		return;
@@ -29,19 +29,19 @@ void UBFNode_RemoveRune::ExecuteInput(const FName& PinName)
 	}
 
 	// 1. 通过 BuffTag 移除所有匹配 GE
-	if (ASC && BuffDefinition->BuffTag.IsValid())
+	if (ASC && RuneAsset->RuneTemplate.BuffConfig.BuffTag.IsValid())
 	{
 		FGameplayTagContainer RemoveTags;
-		RemoveTags.AddTag(BuffDefinition->BuffTag);
+		RemoveTags.AddTag(RuneAsset->RuneTemplate.BuffConfig.BuffTag);
 		ASC->RemoveActiveEffectsWithTags(RemoveTags);
 	}
 
 	// 2. 停止关联的 BuffFlow（与 AddRune 使用相同的确定性 Guid）
-	if (BuffDefinition->BuffFlowAsset && TargetActor)
+	if (RuneAsset->RuneTemplate.Flow.BuffFlowAsset && TargetActor)
 	{
 		if (UBuffFlowComponent* TargetBFC = TargetActor->FindComponentByClass<UBuffFlowComponent>())
 		{
-			const uint32 Hash = GetTypeHash(BuffDefinition->GetPathName());
+			const uint32 Hash = GetTypeHash(RuneAsset->GetPathName());
 			FGuid RuneGuid(Hash, 0, 0, 0);
 			TargetBFC->StopBuffFlow(RuneGuid);
 		}

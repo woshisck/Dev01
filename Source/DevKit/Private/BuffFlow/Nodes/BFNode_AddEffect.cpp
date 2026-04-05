@@ -4,7 +4,7 @@
 #include "Character/YogCharacterBase.h"
 #include "System/YogInstanceSubSystem.h"
 #include "Data/EffectRegistry.h"
-#include "Data/YogBuffDefinition.h"
+#include "Data/RuneDataAsset.h"
 #include "GameplayEffect.h"
 
 UBFNode_AddEffect::UBFNode_AddEffect(const FObjectInitializer& ObjectInitializer)
@@ -33,8 +33,8 @@ void UBFNode_AddEffect::ExecuteInput(const FName& PinName)
 		return;
 	}
 
-	UYogBuffDefinition* BuffDef = Registry->FindEffect(EffectTag);
-	if (!BuffDef)
+	URuneDataAsset* RuneAsset = Registry->FindEffect(EffectTag);
+	if (!RuneAsset)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("BFNode_AddEffect: Tag [%s] not found in EffectRegistry"), *EffectTag.ToString());
 		TriggerOutput(TEXT("Failed"), true);
@@ -56,7 +56,7 @@ void UBFNode_AddEffect::ExecuteInput(const FName& PinName)
 	}
 
 	// 3. 施加 GE
-	UGameplayEffect* TransientGE = BuffDef->CreateTransientGE(GetTransientPackage());
+	UGameplayEffect* TransientGE = RuneAsset->CreateTransientGE(GetTransientPackage());
 	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
 	FGameplayEffectSpec Spec(TransientGE, Context, static_cast<float>(Level));
 	FActiveGameplayEffectHandle Handle = ASC->ApplyGameplayEffectSpecToSelf(Spec);
@@ -67,15 +67,15 @@ void UBFNode_AddEffect::ExecuteInput(const FName& PinName)
 		return;
 	}
 
-	// 4. 如果 BuffDef 配置了 FlowAsset，启动目标 BFC 上的 Flow
-	if (BuffDef->BuffFlowAsset)
+	// 4. 如果 RuneAsset 配置了 FlowAsset，启动目标 BFC 上的 Flow
+	if (RuneAsset->RuneTemplate.Flow.BuffFlowAsset)
 	{
 		if (UBuffFlowComponent* TargetBFC = TargetActor->FindComponentByClass<UBuffFlowComponent>())
 		{
-			const uint32 Hash = GetTypeHash(BuffDef->GetPathName());
+			const uint32 Hash = GetTypeHash(RuneAsset->GetPathName());
 			FGuid RuneGuid(Hash, 0, 0, 0);
 			AActor* Giver = GetBuffOwner();
-			TargetBFC->StartBuffFlow(BuffDef->BuffFlowAsset, RuneGuid, Giver);
+			TargetBFC->StartBuffFlow(RuneAsset->RuneTemplate.Flow.BuffFlowAsset, RuneGuid, Giver);
 		}
 	}
 
