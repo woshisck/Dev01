@@ -19,10 +19,12 @@ DA（Data Asset）= 数据层        FA（Flow Asset）= 逻辑层
 · 符文展示信息（名称/图标）    · 什么时候触发
 · GE 行为规则（Duration/Stack） · 触发条件判断（层数/属性）
 · Effects[]（属性修改/Tag）      · 授予 GA（GrantGA 节点）
-· 背包格子形状                  · 触发后的特效/音效
+· 背包格子形状                  · 触发后的特效/音效/即时效果
 ─────────────────────────────   ─────────────────────────────
           策划填表配置                    策划用节点搭建
 ```
+
+**FA 不引用 DA。** FA 通过 `GetRuneInfo` 查询 ASC 上 GE 的运行时状态，而不是读 DA 的字段，也不应在 FA 里再次 apply 本符文的 GE。
 
 **GAS 数值流向：**
 ```
@@ -88,21 +90,30 @@ DA_Rune_XXX
 
 ## 三、FA 结构（FlowAsset）
 
-FA 是纯逻辑图，不引用 DA 配置字段。它只做三件事：
+FA 是纯逻辑图，**不引用 DA**。它只做三件事：
 1. **监听事件**（事件节点 → 触发输入）
 2. **查询状态**（条件节点 → 数据引脚）
 3. **执行动作**（效果节点 → 输出）
 
-FA 通过 `Get Rune Info` 查询 ASC 上 GE 的运行时状态，而不是直接读 DA 的字段。
+FA 通过 `Get Rune Info` 查询 ASC 上 GE 的运行时状态，不应在 FA 里再次 apply 本符文自己的 GE（会形成 DA→FA→DA 循环）。
+
+**FA 能做什么、不能做什么：**
+
+| ✅ FA 应该做 | ❌ FA 不应该做 |
+|---|---|
+| 监听事件（OnDamageDealt 等） | 引用本符文的 DA |
+| 用 GetRuneInfo 查询 GE 状态 | 在 FA 里 apply 本符文的 GE |
+| 用 ApplyEffect 施加独立 GE 类 | 读取 DA 的配置字段 |
+| GrantGA 授予被动 GA | — |
+| 播放粒子/音效 | — |
 
 ```
 DA_Rune_Berserk ─── Flow ──→ FA_Berserk
                               │
                               ├─ [OnDamageDealt]
-                              ├─ [AddRune](DA_Berserk)          ← 叠加 GE
                               ├─ [GetRuneInfo](Rune.Berserk)    ← 查询层数
                               ├─ [CompareFloat](StackCount >= 5)
-                              └─ [ApplyEffect](+10% ATK)        ← 超阈值触发
+                              └─ [ApplyEffect](GE_BonusATK)     ← 超阈值触发即时效果
 ```
 
 ---
@@ -199,10 +210,9 @@ GetRuneInfo.StackCount ──→ CompareFloat.A
 
 执行输出引脚：`Found` / `NotFound`
 
-**用法示例（狂暴 — 超过 5 层时触发额外效果）：**
+**用法示例（狂暴 — 激活时持续加攻速，命中 5 次后触发额外效果）：**
 ```
 [OnDamageDealt]
-  → [AddRune](DA_Berserk)
   → [GetRuneInfo](RuneTag=Rune.Berserk, Target=BuffOwner)
        ├─ Found
        │    → [CompareFloat](StackCount >= 5)
@@ -210,6 +220,9 @@ GetRuneInfo.StackCount ──→ CompareFloat.A
        │         └─ False → [结束]
        └─ NotFound → [结束]
 ```
+
+> 注：GE 的叠加由 BackpackGrid 激活时施加（stack=1），后续叠层机制见"符文模型"说明。
+> FA 里 **不引用 DA**，只通过 `GetRuneInfo` 读取运行时状态。
 
 ---
 
@@ -329,38 +342,38 @@ GA_Knockback 需配置 AbilityTrigger（`Event.Combat.Knockback`），
 
 ## 五、完整使用案例
 
-### 案例 1：狂暴（叠加层数 → 超过阈值触发额外效果）
+### 案例 1：狂暴（装备时持续加攻速，命中触发额外爆发）
+
+**设计思路：**
+狂暴符文装备时 GE 永久生效，持续提升攻速。FA 只做事件监听 + 条件判断，不负责叠加 GE。若需要"命中计数"达到阈值的逻辑，用一个单独的即时 GE 来记录计数，或直接在 FA 里做简单的命中触发。
 
 **DA_Rune_Berserk 配置：**
 ```
-Rune Type:        增益
-Duration Type:    有时限
-Duration:         5s
-Period:           0
-Unique Type:      唯一
-Stack Type:       叠加
-Max Stack:        10
-Stack Reduce Type: 逐一
-Rune Tag:         Rune.Berserk
+Rune Type:     增益
+Duration Type: 永久
+Unique Type:   唯一
+Stack Type:    刷新
+Rune Tag:      Rune.Berserk
 
 Effects:
   [0] Add Attribute Modifier
       Attribute = AttackSpeed
       ModOp     = Additive
-      Value     = 0.05   (每层 +5% 攻速)
+      Value     = 0.15   (装备时持续 +15% 攻速)
 ```
 
-**FA_Berserk 逻辑：**
+**FA_Berserk 逻辑（命中时触发额外爆发伤害）：**
 ```
 [OnDamageDealt]
-  → [AddRune](DA_Berserk, Target=Target)
   → [GetRuneInfo](RuneTag=Rune.Berserk, Target=BuffOwner)
-       └─ Found
-            → [CompareFloat](StackCount >= 5)
-                 ├─ True → [AddTag](State.Berserk.MaxStacks)
-                 │          → [ApplyEffect](GE_BonusATK10Pct, Instant)
-                 └─ False → [结束]
+       ├─ Found → [ApplyEffect](GE_BerserkBurst, Instant, Target=Target)
+       └─ NotFound → [结束]
 ```
+
+> FA 只查询"符文是否在身上"，确认后直接触发效果。
+> 不在 FA 里引用 DA，不在 FA 里 apply 本符文的 GE。
+
+**若需要"命中 N 次才触发"：** 改用 `GE_BerserkStack`（独立 GE 类，StackType=叠加，MaxStack=5），FA 用 `ApplyEffect(GE_BerserkStack)` 叠层，再用 `GetRuneInfo(RuneTag=Rune.BerserkStack)` 查层数。此时 FA 引用的是 **GE 类**而非 DA，分离原则不受破坏。
 
 ---
 
