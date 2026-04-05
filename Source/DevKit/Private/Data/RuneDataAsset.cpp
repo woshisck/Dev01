@@ -96,7 +96,7 @@ UGameplayEffect* URuneDataAsset::CreateTransientGE(UObject* Outer) const
 		}
 	}
 
-	// --- BuffTag（Asset Tag，供 EffectRegistry 查找）---
+	// --- BuffTag（Asset Tag，供 GetRuneInfo 节点按 Tag 查询）---
 	if (RC.BuffTag.IsValid())
 		GE->InheritableGameplayEffectTags.Added.AddTag(RC.BuffTag);
 

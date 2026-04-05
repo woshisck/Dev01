@@ -4,8 +4,6 @@
 #include "Engine/DeveloperSettings.h"
 #include "YogSettings.generated.h"
 
-class UEffectRegistry;
-
 /**
  * Project Settings → Game → Yog
  */
@@ -15,9 +13,5 @@ class DEVKIT_API UYogSettings : public UDeveloperSettings
 	GENERATED_BODY()
 
 public:
-	/** Global EffectRegistry DataAsset (Tag → BuffDefinition lookup) */
-	UPROPERTY(Config, EditAnywhere, Category = "Effect")
-	TSoftObjectPtr<UEffectRegistry> DefaultEffectRegistry;
-
 	static const UYogSettings* Get() { return GetDefault<UYogSettings>(); }
 };
