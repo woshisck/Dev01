@@ -16,15 +16,17 @@
 ```
 DA（Data Asset）= 数据层        FA（Flow Asset）= 逻辑层
 ─────────────────────────────   ─────────────────────────────
-· 符文展示信息（名称/图标）    · 什么时候触发
-· GE 行为规则（Duration/Stack） · 触发条件判断（层数/属性）
-· Effects[]（属性修改/Tag）      · 授予 GA（GrantGA 节点）
-· 背包格子形状                  · 触发后的特效/音效/即时效果
+· 符文展示信息（名称/图标）    · GE 何时施加（Start / 事件触发）
+· GE 行为规则（Duration/Stack） · GE 生命周期（ApplyRuneGE 节点）
+· Effects[]（属性修改/Tag）      · GA 授予（GrantGA 节点）
+· 背包格子形状                  · 条件判断 / 特效 / 音效
 ─────────────────────────────   ─────────────────────────────
           策划填表配置                    策划用节点搭建
 ```
 
-**FA 不引用 DA。** FA 通过 `GetRuneInfo` 查询 ASC 上 GE 的运行时状态，而不是读 DA 的字段，也不应在 FA 里再次 apply 本符文的 GE。
+**GE 生命周期归 FA 管。**  
+BackpackGrid 只负责启停 FA，不直接 apply / remove GE。  
+FA 内的 `ApplyRuneGE` 节点负责在正确时机施加 GE，FA 停止时自动移除（含叠层）。
 
 **GAS 数值流向：**
 ```
@@ -249,22 +251,53 @@ GetRuneInfo.StackCount ──→ CompareFloat.A
 
 ### 效果类节点
 
-#### `Add Rune Effect`
-根据 RuneDataAsset 施加 GE 到目标，并可选择启动关联 FA。
+#### `Apply Rune GE`  ⭐
+将符文 DA 的 RuneConfig 构建为 GE 并施加到目标，**FA 停止时自动移除**。
+
+这是 FA 管理 GE 生命周期的核心节点。BackpackGrid 只负责启停 FA，GE 的 apply/remove 完全由此节点负责。
 
 | 配置项 | 说明 |
 |---|---|
-| `RuneAsset` | DA_Rune 资产 |
+| `RuneAsset` | 符文 DA（提供 RuneConfig + Effects 以构建 GE） |
+| `Target` | 施加目标（通常为 BuffOwner） |
+| `Level` | GE 等级 |
+
+执行输出引脚：`Out` / `Failed`
+
+**根据触发时机选择前置节点：**
+
+```
+激活立即生效（永久被动类）：
+  [Start] → [ApplyRuneGE](DA_Rune_Knockback)
+
+命中时触发/叠层：
+  [OnDamageDealt] → [ApplyRuneGE](DA_Rune_Berserk)
+  ← GAS 按 DA 的 StackType 自动处理叠层，无需额外逻辑
+
+条件触发：
+  [OnKill] → [ApplyRuneGE](DA_Rune_Rage)
+```
+
+**Cleanup 说明：**  
+节点内部通过 `RuneTag` 调用 `RemoveActiveEffectsWithTags()`，确保叠层全部清除（不只是移除一层）。
+
+---
+
+#### `Add Rune Effect`
+在 FA **外部**（其他 FA 里）施加另一个符文的 GE 并启动其关联 FA。适用于一个符文触发另一个符文的场景。
+
+| 配置项 | 说明 |
+|---|---|
+| `RuneAsset` | 目标符文 DA（必须是另一个 DA，不能引用本 FA 所属的 DA） |
 | `Level` | GE 等级 |
 | `Target` | 施加目标 |
 
-数据输出引脚：`CachedRuneAsset`（Object）  
 执行输出引脚：`Out` / `Failed`
 
 ---
 
 #### `Remove Rune Effect`
-移除目标上与 RuneAsset 关联的 GE 和 FA（通过 `RuneTag` 匹配）。
+移除目标上与 RuneAsset 关联的 GE（通过 `RuneTag` 匹配）并停止其 FA。
 
 配置项：`RuneAsset`, `Target` | 输出引脚：`Out`
 

@@ -1,6 +1,5 @@
 #include "Component/BackpackGridComponent.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
 
 // =========================================================
@@ -347,42 +346,19 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 	if (Placed.bIsActivated)
 		return;
 
-	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(CachedASC.Get());
-	if (!ASC)
+	// GE 由 FA 内的 BFNode_ApplyRuneGE 节点负责施加（可在 Start/事件触发时执行）
+	// GA 由 FA 内的 BFNode_GrantGA 节点负责授予
+	// BackpackGrid 只负责启动 FA
+	if (!Placed.Rune.Flow.FlowAsset)
 		return;
 
-	bool bActivated = false;
-	URuneDataAsset* SourceDA = Placed.Rune.SourceDA.Get();
+	UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();
+	if (!BFC)
+		return;
 
-	// 构建 GE（RuneConfig + Effects 中的 GE 类 Fragment）并施加
-	// GA 的授予由 FA 层 BFNode_GrantGA 节点负责，不在此处处理
-	if (SourceDA)
-	{
-		UGameplayEffect* TransientGE = SourceDA->CreateTransientGE(GetTransientPackage());
-		if (TransientGE)
-		{
-			FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
-			FGameplayEffectSpec Spec(TransientGE, Context, static_cast<float>(Placed.Rune.Level));
-			Placed.ActiveEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(Spec);
-			bActivated |= Placed.ActiveEffectHandle.IsValid();
-		}
-	}
-
-	// 3. BuffFlow 可视化逻辑
-	if (Placed.Rune.Flow.FlowAsset)
-	{
-		if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
-		{
-			BFC->StartBuffFlow(Placed.Rune.Flow.FlowAsset, Placed.Rune.RuneGuid, GetOwner());
-			bActivated = true;
-		}
-	}
-
-	Placed.bIsActivated = bActivated;
-	if (bActivated)
-	{
-		OnRuneActivationChanged.Broadcast(Placed.Rune.RuneGuid, true);
-	}
+	BFC->StartBuffFlow(Placed.Rune.Flow.FlowAsset, Placed.Rune.RuneGuid, GetOwner());
+	Placed.bIsActivated = true;
+	OnRuneActivationChanged.Broadcast(Placed.Rune.RuneGuid, true);
 }
 
 void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
@@ -390,15 +366,9 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 	if (!Placed.bIsActivated)
 		return;
 
-	UAbilitySystemComponent* ASC = CachedASC.Get();
-	if (ASC)
-	{
-		// 移除 GE（GA 的撤销由 BFNode_GrantGA 在 FA 停止时的 Cleanup() 中自动处理）
-		if (Placed.ActiveEffectHandle.IsValid())
-			ASC->RemoveActiveGameplayEffect(Placed.ActiveEffectHandle);
-	}
-
-	// 停止 BuffFlow
+	// FA 停止时，BFNode_ApplyRuneGE.Cleanup() 自动移除 GE
+	//              BFNode_GrantGA.Cleanup()     自动撤销 GA
+	// BackpackGrid 只负责停止 FA
 	if (Placed.Rune.Flow.FlowAsset)
 	{
 		if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
@@ -407,7 +377,6 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 		}
 	}
 
-	Placed.ActiveEffectHandle = FActiveGameplayEffectHandle();
 	Placed.bIsActivated = false;
 	OnRuneActivationChanged.Broadcast(Placed.Rune.RuneGuid, false);
 }

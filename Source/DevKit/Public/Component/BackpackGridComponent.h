@@ -45,7 +45,7 @@ struct DEVKIT_API FPlacedRune
     UPROPERTY(BlueprintReadOnly) FRuneInstance Rune;
     UPROPERTY(BlueprintReadOnly) FIntPoint Pivot;
     UPROPERTY(BlueprintReadOnly) bool bIsActivated = false;
-    FActiveGameplayEffectHandle ActiveEffectHandle; // GE Handle，移除时使用
+    // GE 生命周期由 FA 内的 BFNode_ApplyRuneGE 节点管理，BackpackGrid 不持有 handle
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRunePlaced, const FRuneInstance&, Rune);
