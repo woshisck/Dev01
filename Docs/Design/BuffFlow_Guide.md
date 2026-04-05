@@ -84,7 +84,7 @@ DA_Rune_XXX
 | AttackSpeed | BaseAttributeSet | 攻击速度 |
 | MoveSpeed | BaseAttributeSet | 移动速度 |
 | Crit_Rate / Crit_Damage | BaseAttributeSet | 暴击率/倍率 |
-| **KnockbackForce** | **BaseAttributeSet** | **攻击方施加的击退冲量** |
+| **KnockbackForce** | **RuneAttributeSet** | **攻击方施加的击退冲量** |
 | KnockBackDist | EnemyAttributeSet | 敌方对击退的承受幅度 |
 | DamagePhysical/Magic/Pure | DamageAttributeSet | 本次伤害值（瞬态） |
 
@@ -540,4 +540,4 @@ A：两者用途不同：
 | 节点重命名 | `Get GE Info` / `BFNode_GetGEInfo` | `Get Rune Info` / `BFNode_GetRuneInfo` |
 | 删除节点 | `Send Gameplay Event` | 由 `Grant GA` + AbilityTrigger 取代 |
 | 删除系统 | `EffectRegistry`（Tag→DA 注册表） | 直接在 FA 用 `AddRune` 节点引用 DA |
-| 新增属性 | — | `KnockbackForce`（BaseAttributeSet）|
+| 新增属性 | — | `KnockbackForce`（RuneAttributeSet）|
