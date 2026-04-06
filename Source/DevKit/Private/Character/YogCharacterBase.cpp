@@ -18,6 +18,7 @@
 #include "System/YogGameInstanceBase.h"
 #include "Component/GameEffectComponent.h"
 #include "Component/CharacterDataComponent.h"
+#include "GameplayEffect.h"
 #include "Component/BufferComponent.h"
 #include "Component/PropInteractComponnet.h"
 #include "Data/CharacterData.h"
@@ -372,6 +373,21 @@ void AYogCharacterBase::InitializeComponentsWithStats(UCharacterData* characterD
 		{
 			GrantGameplayAbility(abilityTemp, 1);
 			UE_LOG(LogTemp, Log, TEXT("Grant ability from GAS Template: %s"), *abilityTemp->GetName());
+		}
+
+		// 应用 GasTemplate 里的 Passive GE（如热度衰减）
+		for (const TSubclassOf<UGameplayEffect> PassiveGE : characterData->GetGASTemplate()->PassiveEffect)
+		{
+			if (PassiveGE)
+			{
+				FGameplayEffectContextHandle Context = AbilitySystemComponent->MakeEffectContext();
+				FGameplayEffectSpecHandle Spec = AbilitySystemComponent->MakeOutgoingSpec(PassiveGE, 1, Context);
+				if (Spec.IsValid())
+				{
+					AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+					UE_LOG(LogTemp, Log, TEXT("Applied Passive GE from GAS Template: %s"), *PassiveGE->GetName());
+				}
+			}
 		}
 	}
 

@@ -37,6 +37,13 @@ void UBFNode_OnDamageDealt::ExecuteInput(const FName& PinName)
 
 void UBFNode_OnDamageDealt::HandleDamageDealt(UYogAbilitySystemComponent* TargetASC, float Damage)
 {
+	if (bOncePerSwing)
+	{
+		if (GFrameCounter == LastTriggeredFrame)
+			return;
+		LastTriggeredFrame = GFrameCounter;
+	}
+
 	CachedDamage = Damage;
 
 	// 填充事件上下文：自己是攻击者，TargetASC 是被击者

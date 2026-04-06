@@ -113,11 +113,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	// ── 应用伤害 ──────────────────────────────────────────────────────
 	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Override, FinalDamage));
 
-	// ── 广播委托（供 BuffFlow 节点监听）──────────────────────────────
-	if (TargetASC)
-	{
-		TargetASC->ReceiveDamage(SourceASC, FinalDamage);
-	}
+	// ReceiveDamage 由 DamageAttributeSet.PostGameplayEffectExecute 在 DamagePhysical 落地时调用，此处不重复广播
 	if (bIsCrit && SourceASC)
 	{
 		SourceASC->OnCritHit.Broadcast(TargetASC, FinalDamage);

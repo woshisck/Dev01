@@ -39,7 +39,7 @@ public:
 
     virtual void PreAttributeBaseChange(const FGameplayAttribute& attribute, float& newValue) const override;
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
-	
+	virtual bool PreGameplayEffectExecute(FGameplayEffectModCallbackData& Data) override;
     virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
     virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) override;
 
@@ -51,6 +51,9 @@ public:
 
 protected:
 	void AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty);
+
+	/** GE 执行前缓存的热度值，用于阶段软上限判断 */
+	float CachedPreEffectHeat = 0.f;
 
     // Helper to create cue parameters
     FGameplayCueParameters MakeCueParams(const FGameplayEffectCustomExecutionParameters& ExecutionParams, float DamageAmount,bool bWasCritical = false) const;

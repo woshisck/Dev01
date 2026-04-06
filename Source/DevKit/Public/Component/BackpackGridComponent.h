@@ -9,11 +9,12 @@
 #include "BackpackGridComponent.generated.h"
 
 UENUM(BlueprintType)
-enum class EHeatTier : uint8 
-{ 
-    Tier1=0, 
-    Tier2=1, 
-    Tier3=2 
+enum class EHeatTier : uint8
+{
+    Tier1        = 0,  // 0–99
+    Tier2        = 1,  // 100–199
+    Tier3        = 2,  // 200–299
+    Transcendence = 3, // 300+，激活区同 Tier3
 };
 
 // Source/DevKit/Public/Component/BackpackGridComponent.h
@@ -45,10 +46,14 @@ struct DEVKIT_API FPlacedRune
     UPROPERTY(BlueprintReadOnly) FRuneInstance Rune;
     UPROPERTY(BlueprintReadOnly) FIntPoint Pivot;
     UPROPERTY(BlueprintReadOnly) bool bIsActivated = false;
+    // 永久符文：跳过激活区检查，始终保持激活
+    UPROPERTY(BlueprintReadOnly) bool bIsPermanent = false;
     // GE 生命周期由 FA 内的 BFNode_ApplyRuneGE 节点管理，BackpackGrid 不持有 handle
 };
 
+DECLARE_MULTICAST_DELEGATE(FBGCPhaseEvent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRunePlaced, const FRuneInstance&, Rune);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRuneRemoved, FGuid, RuneGuid);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHeatTierChanged, EHeatTier, NewTier);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRuneActivationChanged, FGuid, RuneGuid, bool, bActivated);
@@ -96,6 +101,11 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Backpack|Events")
     FOnRuneActivationChanged OnRuneActivationChanged;
 
+    // C++专用委托（非动态，FA 的 BFNode 绑定用）
+    FBGCPhaseEvent OnPhaseUpReady;    // 热度达到上限 + LastHit → 满足升阶条件
+    FBGCPhaseEvent OnHeatReachedZero; // 热度从 >0 跌落到 0（边沿，Phase>0 时）
+    FBGCPhaseEvent OnHeatAboveZero;   // 热度从 0 回升到 >0（边沿）
+
     // =========================================================
     // 公开接口
     // =========================================================
@@ -123,9 +133,22 @@ public:
     UFUNCTION(BlueprintPure, Category = "Backpack")
     bool IsLocked() const { return bIsLocked; }
 
-    // 由 AttributeSet 的 PostAttributeChange 调用，传入热度百分比 (0~1)
+    // 由 AttributeSet 的 PostAttributeChange 调用，传入热度绝对值
     UFUNCTION(BlueprintCallable, Category = "Backpack")
-    void OnHeatPercentChanged(float HeatPercent);
+    void OnHeatValueChanged(float HeatValue);
+
+    // 阶段升级（由 BFNode_IncrementPhase 调用）
+    void IncrementPhase();
+
+    // 阶段降级（由 BFNode_DecrementPhase 调用）
+    void DecrementPhase();
+
+    // 关卡结束时将热度重置到当前阶段起点（升华归 200，其余取阶段起点）
+    UFUNCTION(BlueprintCallable, Category = "Backpack")
+    void ResetHeatToPhaseFloor();
+
+    UFUNCTION(BlueprintPure, Category = "Backpack")
+    int32 GetCurrentPhase() const { return CurrentPhase; }
 
     UFUNCTION(BlueprintPure, Category = "Backpack")
     EHeatTier GetCurrentHeatTier() const { return CurrentTier; }
@@ -149,6 +172,14 @@ public:
     // 装备武器时调用，注入激活区配置（未调用时使用默认矩形配置）
     UFUNCTION(BlueprintCallable, Category = "Backpack")
     void SetActivationZoneConfig(const FActivationZoneConfig& Config);
+
+    // =========================================================
+    // 永久符文（生产用，BeginPlay 自动放置）
+    // =========================================================
+
+    /** 永久符文列表（如 FA_Rune_HeatPhase），BeginPlay 时自动寻位放置，不受 Debug 控制 */
+    UPROPERTY(EditAnywhere, Category = "Backpack|Permanent")
+    TArray<TObjectPtr<URuneDataAsset>> PermanentRunes;
 
     // =========================================================
     // Debug / Test
@@ -178,8 +209,14 @@ private:
     // 所有已放置符文
     TArray<FPlacedRune> PlacedRunes;
 
-    // 当前热度等级
+    // 当前热度等级（由 Phase 驱动）
     EHeatTier CurrentTier = EHeatTier::Tier1;
+
+    // 当前阶段（0=Phase1, 1=Phase2, 2=Phase3, 3=升华），最大3
+    int32 CurrentPhase = 0;
+
+    // 上次 OnHeatValueChanged 的热度值，用于边沿检测（避免重复广播）
+    float PreviousHeatValue = 1.f; // 初始设为 >0，防止游戏开始时误触发
 
     // 是否锁定（战斗阶段 = true）
     bool bIsLocked = false;

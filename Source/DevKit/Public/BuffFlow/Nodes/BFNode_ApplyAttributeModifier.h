@@ -72,6 +72,20 @@ class DEVKIT_API UBFNode_ApplyAttributeModifier : public UBFNode_Base
     UPROPERTY(EditAnywhere, Category = "BuffFlow")
     EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
+    /** 动态 Asset Tags（添加到 GE Spec，用于触发特殊逻辑，如 Action.Combo.LastHit 升阶） */
+    UPROPERTY(EditAnywhere, Category = "BuffFlow",
+        meta = (DisplayName = "Dynamic Asset Tags"))
+    FGameplayTagContainer DynamicAssetTags;
+
+    /**
+     * 透传 Owner 标签：运行时检测 BuffOwner 身上是否有这些 Tag，
+     * 若有则自动添加到 GE Spec 的 DynamicAssetTags。
+     * 典型用途：配置 Action.Combo.LastHit，无需额外分支节点。
+     */
+    UPROPERTY(EditAnywhere, Category = "BuffFlow",
+        meta = (DisplayName = "Pass Through Owner Tags"))
+    FGameplayTagContainer PassThroughOwnerTags;
+
     // ── 堆叠控制 ──
 
     /**

@@ -1,5 +1,7 @@
 #include "Component/BackpackGridComponent.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "BuffFlow/BuffFlowComponent.h"
 
 // =========================================================
@@ -27,7 +29,10 @@ FActivationZoneConfig FActivationZoneConfig::MakeDefault()
 		for (int32 X = 1; X <= 4; X++)
 			Tier3Shape.Cells.Add(FIntPoint(X, Y));
 
-	Config.ZoneShapes = { Tier1Shape, Tier2Shape, Tier3Shape };
+	// Transcendence：激活区同 Tier3（4×4）
+	FRuneShape TranscendenceShape = Tier3Shape;
+
+	Config.ZoneShapes = { Tier1Shape, Tier2Shape, Tier3Shape, TranscendenceShape };
 	return Config;
 }
 
@@ -56,8 +61,8 @@ void UBackpackGridComponent::BeginPlay()
 		ActivationZoneConfig = FActivationZoneConfig::MakeDefault();
 	}
 
-	// Debug: 自动放置测试符文（延迟一帧，确保 ASC 已初始化）
-	if (DebugTestRunes.Num() > 0)
+	// 自动放置符文（延迟一帧，确保 ASC 已初始化）
+	if (PermanentRunes.Num() > 0 || DebugTestRunes.Num() > 0)
 	{
 		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UBackpackGridComponent::DebugPlaceTestRunes);
 	}
@@ -65,6 +70,41 @@ void UBackpackGridComponent::BeginPlay()
 
 void UBackpackGridComponent::DebugPlaceTestRunes()
 {
+	// 永久符文：自动寻位放置，并标记 bIsPermanent（始终激活，跳过区域检查）
+	for (URuneDataAsset* DA : PermanentRunes)
+	{
+		if (!DA) continue;
+		FRuneInstance Instance = DA->CreateInstance();
+		bool bPlaced = false;
+		for (int32 Y = 0; Y < GridHeight && !bPlaced; Y++)
+		{
+			for (int32 X = 0; X < GridWidth && !bPlaced; X++)
+			{
+				if (TryPlaceRune(Instance, FIntPoint(X, Y)))
+				{
+					// 标记为永久（TryPlaceRune 内部 RefreshAllActivations 时 bIsPermanent 还是 false，
+					// 需要标记后再触发一次激活）
+					for (int32 i = PlacedRunes.Num() - 1; i >= 0; i--)
+					{
+						if (PlacedRunes[i].Rune.RuneGuid == Instance.RuneGuid)
+						{
+							PlacedRunes[i].bIsPermanent = true;
+							ActivateRune(PlacedRunes[i]); // 直接激活，跳过区域检查
+							break;
+						}
+					}
+					bPlaced = true;
+				}
+			}
+		}
+		if (!bPlaced)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("PermanentRune [%s] FAILED - no space"),
+				*Instance.RuneName.ToString());
+		}
+	}
+
+	// Debug 符文：可选指定位置
 	for (int32 i = 0; i < DebugTestRunes.Num(); i++)
 	{
 		if (!DebugTestRunes[i])
@@ -252,25 +292,71 @@ void UBackpackGridComponent::SetLocked(bool bLocked)
 	bIsLocked = bLocked;
 }
 
-void UBackpackGridComponent::OnHeatPercentChanged(float HeatPercent)
+void UBackpackGridComponent::OnHeatValueChanged(float HeatValue)
 {
-	if (ActivationZoneConfig.HeatTierThresholds.Num() < 2)
+	// 边沿触发 + Phase>0 保护：
+	// 只在热度从 >0 跌落到 <=0、且当前已有阶段时广播，避免：
+	//   1. 游戏开始 Phase=0 时启动无意义的计时器
+	//   2. Timer 被反复启动（"Timer already active"）
+	if (HeatValue <= 0.f && PreviousHeatValue > 0.f && CurrentPhase > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Heat→0 edge (Phase=%d) → OnHeatReachedZero"), CurrentPhase);
+		OnHeatReachedZero.Broadcast();
+	}
+	else if (HeatValue > 0.f && PreviousHeatValue <= 0.f)
+	{
+		OnHeatAboveZero.Broadcast();
+	}
+	PreviousHeatValue = HeatValue;
+}
+
+void UBackpackGridComponent::IncrementPhase()
+{
+	static constexpr int32 MaxPhase = 3;
+	if (CurrentPhase >= MaxPhase)
 		return;
 
-	EHeatTier NewTier;
-	if (HeatPercent >= ActivationZoneConfig.HeatTierThresholds[1])
-		NewTier = EHeatTier::Tier3;
-	else if (HeatPercent >= ActivationZoneConfig.HeatTierThresholds[0])
-		NewTier = EHeatTier::Tier2;
-	else
-		NewTier = EHeatTier::Tier1;
-
+	CurrentPhase++;
+	EHeatTier NewTier = static_cast<EHeatTier>(FMath::Clamp(CurrentPhase, 0, 3));
 	if (NewTier != CurrentTier)
 	{
 		CurrentTier = NewTier;
 		OnHeatTierChanged.Broadcast(CurrentTier);
 		RefreshAllActivations();
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Phase UP → %d"), CurrentPhase);
+}
+
+void UBackpackGridComponent::DecrementPhase()
+{
+	if (CurrentPhase <= 0)
+		return;
+
+	CurrentPhase--;
+	EHeatTier NewTier = static_cast<EHeatTier>(FMath::Clamp(CurrentPhase, 0, 3));
+	if (NewTier != CurrentTier)
+	{
+		CurrentTier = NewTier;
+		OnHeatTierChanged.Broadcast(CurrentTier);
+		RefreshAllActivations();
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Phase DOWN → %d"), CurrentPhase);
+}
+
+void UBackpackGridComponent::ResetHeatToPhaseFloor()
+{
+	UAbilitySystemComponent* ASC =
+		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+	if (!ASC)
+		return;
+
+	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), 0.f);
+	CurrentPhase = 0;
+	CurrentTier  = EHeatTier::Tier1;
+	OnHeatTierChanged.Broadcast(CurrentTier);
+	RefreshAllActivations();
 }
 
 TArray<FIntPoint> UBackpackGridComponent::GetActivationZoneCells() const
@@ -394,7 +480,8 @@ void UBackpackGridComponent::RefreshAllActivations()
 {
 	for (FPlacedRune& Placed : PlacedRunes)
 	{
-		const bool bShouldActivate = IsRuneInActivationZone(Placed);
+		// 永久符文跳过激活区检查，始终激活
+		const bool bShouldActivate = Placed.bIsPermanent || IsRuneInActivationZone(Placed);
 
 		if (bShouldActivate && !Placed.bIsActivated)
 			ActivateRune(Placed);

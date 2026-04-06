@@ -53,5 +53,6 @@ void UBFNode_ApplyEffect::ExecuteInput(const FName& PinName)
 	}
 
 	TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-	TriggerOutput(TEXT("Out"), true);
+	// bFinish=false：保持节点活跃，允许事件多次触发（如每次命中都刷新 GE_HeatBuff）
+	TriggerOutput(TEXT("Out"), false);
 }

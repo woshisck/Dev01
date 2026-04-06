@@ -1,5 +1,6 @@
 #include "BuffFlow/Nodes/BFNode_ApplyAttributeModifier.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Types/FlowDataPinResults.h"
 
 UBFNode_ApplyAttributeModifier::UBFNode_ApplyAttributeModifier(const FObjectInitializer& ObjectInitializer)
@@ -36,8 +37,6 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] Applying to ASC on %s (ASC=%p), Attr=%s, Value=%f"),
-		*TargetActor->GetName(), (void*)ASC, *Attribute.GetName(), Value.Value);
 
 	// Value：优先读取连入的数据引脚，无连线则使用节点上的固定值
 	float ResolvedValue = Value.Value;
@@ -98,11 +97,24 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 
 	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
 	FGameplayEffectSpec Spec(GE, Context, 1.f);
+	if (DynamicAssetTags.IsValid())
+		Spec.DynamicAssetTags.AppendTags(DynamicAssetTags);
+
+	// PassThroughOwnerTags：把 BuffOwner 身上已有的指定 Tag 透传到 Spec
+	if (!PassThroughOwnerTags.IsEmpty())
+	{
+		if (UYogAbilitySystemComponent* OwnerASC = GetOwnerASC())
+		{
+			for (const FGameplayTag& Tag : PassThroughOwnerTags)
+			{
+				if (OwnerASC->HasMatchingGameplayTag(Tag))
+					Spec.DynamicAssetTags.AddTag(Tag);
+			}
+		}
+	}
+
 	FActiveGameplayEffectHandle Handle = ASC->ApplyGameplayEffectSpecToSelf(Spec);
 
-	float PostApplyValue = ASC->GetNumericAttribute(Attribute);
-	UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] Post-apply: %s = %f, HandleValid=%d"),
-		*Attribute.GetName(), PostApplyValue, Handle.IsValid());
 
 	// Instant GE 应用后 handle 即失效，属正常现象；非瞬发 GE handle 无效视为失败
 	if (DurationType != ERuneDurationType::Instant && !Handle.IsValid())

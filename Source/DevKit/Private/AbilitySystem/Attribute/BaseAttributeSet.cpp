@@ -69,6 +69,31 @@ void UBaseAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, 
 
 }
 
+bool UBaseAttributeSet::PreGameplayEffectExecute(FGameplayEffectModCallbackData& Data)
+{
+	if (!Super::PreGameplayEffectExecute(Data))
+		return false;
+
+	if (Data.EvaluatedData.Attribute == GetHeatAttribute())
+	{
+		CachedPreEffectHeat = GetHeat();
+
+		// 热度减少时，若持有 Buff.Heat.Active 则阻断（抑制热度衰减）
+		// GE 侧的 Ongoing Tag Requirements 在 UE5.4 周期性 GE 上不可靠，改用 C++ 保证
+		if (Data.EvaluatedData.Magnitude < 0.f)
+		{
+			static const FGameplayTag HeatActiveTag =
+				FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Active"), false);
+			if (HeatActiveTag.IsValid() &&
+				GetOwningAbilitySystemComponent()->HasMatchingGameplayTag(HeatActiveTag))
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
@@ -100,9 +125,43 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 
 	if (Data.EvaluatedData.Attribute == GetHeatAttribute())
 	{
-		float HeatValue = GetHeat();
-		HeatValue = FMath::Clamp(HeatValue, 0.0f, GetMaxHeat());
-		SetHeat(HeatValue);
+		float NewHeat = GetHeat();
+
+		// 先判断升阶条件：热度在本次 GE 施加【之前】就已满，且本次是 LastHit
+		// 若热度不足就先自然堆叠到上限，等下一次 LastHit 再升阶
+		const bool bWasAlreadyFull = (CachedPreEffectHeat >= GetMaxHeat());
+
+		if (NewHeat >= GetMaxHeat())
+		{
+			static const FGameplayTag CanPhaseUpTag =
+				FGameplayTag::RequestGameplayTag(TEXT("Action.Heat.CanPhaseUp"), false);
+
+			const bool bCanPhaseUp = CanPhaseUpTag.IsValid() &&
+				((Data.EffectSpec.Def && Data.EffectSpec.Def->GetAssetTags().HasTag(CanPhaseUpTag)) ||
+				 Data.EffectSpec.DynamicAssetTags.HasTag(CanPhaseUpTag));
+
+			if (bCanPhaseUp && bWasAlreadyFull)
+			{
+				// 热度已满 + LastHit → 升阶
+				if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor()))
+				{
+					if (UBackpackGridComponent* BGC = Player->GetBackpackGridComponent())
+					{
+						BGC->OnPhaseUpReady.Broadcast();
+					}
+				}
+				SetHeat(0.f);
+			}
+			else
+			{
+				// 热度不足（LastHit 打过来但还没满）或普通攻击：卡在上限
+				SetHeat(GetMaxHeat());
+			}
+		}
+		else
+		{
+			SetHeat(FMath::Clamp(NewHeat, 0.f, GetMaxHeat()));
+		}
 	}
 
 	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
@@ -187,17 +246,12 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 
 	if (Attribute == GetHeatAttribute())
 	{
-		if (GetMaxHeat() > 0.f)
+		// 通知背包组件更新热度等级（传绝对值）
+		if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor()))
 		{
-			float HeatPercent = FMath::Clamp(NewValue / GetMaxHeat(), 0.f, 1.f);
-
-			// 通知背包组件更新热度等级
-			if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor()))
+			if (UBackpackGridComponent* BGC = Player->GetBackpackGridComponent())
 			{
-				if (UBackpackGridComponent* BGC = Player->GetBackpackGridComponent())
-				{
-					BGC->OnHeatPercentChanged(HeatPercent);
-				}
+				BGC->OnHeatValueChanged(NewValue);
 			}
 		}
 	}

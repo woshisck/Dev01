@@ -8,6 +8,7 @@
 
 
 class UCharacterData;
+class UAbilityData;
 
 USTRUCT(BlueprintType)
 struct FAnimationUseCache
@@ -48,6 +49,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character | CharacterData")
 	TSoftClassPtr<UCharacterData> CharacterDataClass;
+
+	/** BeginPlay 时缓存原始 AbilityData，EndPlay 时还原，防止武器拾取后 PIE 间数据污染 */
+	UPROPERTY()
+	TObjectPtr<UAbilityData> OriginalAbilityData;
 
 	// UPROPERTY(SaveGame, EditDefaultsOnly, BlueprintReadOnly, Category = "Anathema | CharacterData")
 	// TObjectPtr<UCharacterData> CharacterData;
