@@ -34,7 +34,7 @@
  *                  DurationType = HasDuration
  *                  Duration     = 3.0s
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "Apply Attribute Modifier", Category = "BuffFlow|Effect"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Apply Gameplay Effect", Category = "BuffFlow|Effect"))
 class DEVKIT_API UBFNode_ApplyAttributeModifier : public UBFNode_Base
 {
     GENERATED_UCLASS_BODY()
@@ -72,6 +72,52 @@ class DEVKIT_API UBFNode_ApplyAttributeModifier : public UBFNode_Base
     UPROPERTY(EditAnywhere, Category = "BuffFlow")
     EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
+    // ── 堆叠控制 ──
+
+    /**
+     * 堆叠模式
+     *   None      — 每次命中独立一个 GE，不去重
+     *   Unique    — 同目标唯一一个实例，重复命中刷新持续时间
+     *   Stackable — 同目标共享实例，可叠加层数（配合 Max Stacks）
+     */
+    UPROPERTY(EditAnywhere, Category = "BuffFlow|Stacking",
+        meta = (DisplayName = "Stack Mode"))
+    EBFGEStackMode StackMode = EBFGEStackMode::None;
+
+    /**
+     * 最大堆叠层数（仅 Stackable 时生效）
+     * 0 = 不限层数
+     */
+    UPROPERTY(EditAnywhere, Category = "BuffFlow|Stacking",
+        meta = (DisplayName = "Max Stacks",
+                EditCondition = "StackMode == EBFGEStackMode::Stackable",
+                EditConditionHides, ClampMin = "0"))
+    int32 StackLimitCount = 3;
+
+    /**
+     * 重复命中时是否重置持续时间（Unique / Stackable + Duration 时有效）
+     * RefreshOnSuccessfulApplication = 每次命中刷新整体倒计时
+     * NeverRefresh                   = 保持首次应用的剩余时间
+     */
+    UPROPERTY(EditAnywhere, Category = "BuffFlow|Stacking",
+        meta = (DisplayName = "Duration Refresh",
+                EditCondition = "StackMode != EBFGEStackMode::None",
+                EditConditionHides))
+    EGameplayEffectStackingDurationPolicy StackDurationRefreshPolicy =
+        EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
+
+    /**
+     * 层数到期时的处理策略（Stackable 时有效）
+     * ClearEntireStack                    = 一次清空所有层
+     * RemoveSingleStackAndRefreshDuration = 每次只减一层，剩余层重置时间
+     */
+    UPROPERTY(EditAnywhere, Category = "BuffFlow|Stacking",
+        meta = (DisplayName = "Expiration Policy",
+                EditCondition = "StackMode == EBFGEStackMode::Stackable",
+                EditConditionHides))
+    EGameplayEffectStackingExpirationPolicy StackExpirationPolicy =
+        EGameplayEffectStackingExpirationPolicy::ClearEntireStack;
+
 protected:
     virtual void ExecuteInput(const FName& PinName) override;
 
@@ -81,4 +127,8 @@ protected:
 private:
     FActiveGameplayEffectHandle GrantedHandle;
     TWeakObjectPtr<UAbilitySystemComponent> GrantedASC;
+
+    /** 缓存同一个 GE 对象供复用——GAS 堆叠规则依赖相同的 Def 指针 */
+    UPROPERTY()
+    TObjectPtr<UGameplayEffect> CachedGE;
 };

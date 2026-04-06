@@ -15,6 +15,7 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 {
 	if (!Attribute.IsValid())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] FAILED: Attribute is invalid"));
 		TriggerOutput(TEXT("Failed"), true);
 		return;
 	}
@@ -22,6 +23,7 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 	AActor* TargetActor = ResolveTarget(Target);
 	if (!TargetActor)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] FAILED: ResolveTarget returned null (Target=%d)"), (int32)Target);
 		TriggerOutput(TEXT("Failed"), true);
 		return;
 	}
@@ -29,9 +31,13 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 	UAbilitySystemComponent* ASC = TargetActor->FindComponentByClass<UAbilitySystemComponent>();
 	if (!ASC)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] FAILED: No ASC found on %s"), *TargetActor->GetName());
 		TriggerOutput(TEXT("Failed"), true);
 		return;
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] Applying to ASC on %s (ASC=%p), Attr=%s, Value=%f"),
+		*TargetActor->GetName(), (void*)ASC, *Attribute.GetName(), Value.Value);
 
 	// Value：优先读取连入的数据引脚，无连线则使用节点上的固定值
 	float ResolvedValue = Value.Value;
@@ -42,32 +48,61 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 		ResolvedValue = PinResult.Value;
 	}
 
-	// 构建 TransientGE（单条属性修改，无需 DA 或 GE 资产）
-	UGameplayEffect* GE = NewObject<UGameplayEffect>(GetTransientPackage(), NAME_None, RF_Transient);
+	// 复用同一个 GE 对象（GAS 堆叠规则依赖相同的 Def 指针，每次 NewObject 会导致堆叠失效）
+	if (!CachedGE)
+	{
+		CachedGE = NewObject<UGameplayEffect>(GetTransientPackage(), NAME_None, RF_Transient);
+	}
 
+	// 每次都更新配置（支持数据引脚动态值）
 	switch (DurationType)
 	{
 	case ERuneDurationType::Instant:
-		GE->DurationPolicy = EGameplayEffectDurationType::Instant;
+		CachedGE->DurationPolicy = EGameplayEffectDurationType::Instant;
 		break;
 	case ERuneDurationType::Infinite:
-		GE->DurationPolicy = EGameplayEffectDurationType::Infinite;
+		CachedGE->DurationPolicy = EGameplayEffectDurationType::Infinite;
 		break;
 	case ERuneDurationType::Duration:
-		GE->DurationPolicy = EGameplayEffectDurationType::HasDuration;
-		GE->DurationMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(Duration));
+		CachedGE->DurationPolicy = EGameplayEffectDurationType::HasDuration;
+		CachedGE->DurationMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(Duration));
 		break;
 	}
 
+	switch (StackMode)
+	{
+	case EBFGEStackMode::None:
+		CachedGE->StackingType    = EGameplayEffectStackingType::None;
+		CachedGE->StackLimitCount = 0;
+		break;
+	case EBFGEStackMode::Unique:
+		CachedGE->StackingType    = EGameplayEffectStackingType::AggregateByTarget;
+		CachedGE->StackLimitCount = 1;
+		break;
+	case EBFGEStackMode::Stackable:
+		CachedGE->StackingType    = EGameplayEffectStackingType::AggregateByTarget;
+		CachedGE->StackLimitCount = StackLimitCount;
+		break;
+	}
+	CachedGE->StackDurationRefreshPolicy = StackDurationRefreshPolicy;
+	CachedGE->StackExpirationPolicy      = StackExpirationPolicy;
+
+	CachedGE->Modifiers.Reset();
 	FGameplayModifierInfo ModInfo;
-	ModInfo.Attribute       = Attribute;
-	ModInfo.ModifierOp      = ModOp;
+	ModInfo.Attribute         = Attribute;
+	ModInfo.ModifierOp        = ModOp;
 	ModInfo.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(ResolvedValue));
-	GE->Modifiers.Add(ModInfo);
+	CachedGE->Modifiers.Add(ModInfo);
+
+	UGameplayEffect* GE = CachedGE;
 
 	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
 	FGameplayEffectSpec Spec(GE, Context, 1.f);
 	FActiveGameplayEffectHandle Handle = ASC->ApplyGameplayEffectSpecToSelf(Spec);
+
+	float PostApplyValue = ASC->GetNumericAttribute(Attribute);
+	UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] Post-apply: %s = %f, HandleValid=%d"),
+		*Attribute.GetName(), PostApplyValue, Handle.IsValid());
 
 	// Instant GE 应用后 handle 即失效，属正常现象；非瞬发 GE handle 无效视为失败
 	if (DurationType != ERuneDurationType::Instant && !Handle.IsValid())
@@ -83,7 +118,8 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 		GrantedASC    = ASC;
 	}
 
-	TriggerOutput(TEXT("Out"), true);
+	// bFinish=false：让节点保持活跃，Cleanup() 在 StopBuffFlow 时才调用（届时移除 GE）
+	TriggerOutput(TEXT("Out"), false);
 }
 
 void UBFNode_ApplyAttributeModifier::Cleanup()
@@ -95,6 +131,7 @@ void UBFNode_ApplyAttributeModifier::Cleanup()
 
 	GrantedHandle = FActiveGameplayEffectHandle();
 	GrantedASC.Reset();
+	CachedGE = nullptr;
 
 	Super::Cleanup();
 }

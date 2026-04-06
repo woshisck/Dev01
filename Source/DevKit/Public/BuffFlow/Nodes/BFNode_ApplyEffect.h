@@ -10,7 +10,7 @@
  * 实现效果节点：向指定目标施加一个 GameplayEffect
  * Target 默认为"上次伤害目标"，适合配合伤害触发器使用
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "Apply Effect", Category = "BuffFlow|Effect"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Apply Gameplay Effect Class", Category = "BuffFlow|Effect"))
 class DEVKIT_API UBFNode_ApplyEffect : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

@@ -93,10 +93,10 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
 			if (ASC)
 			{
-				ASC->ReceiveDamage(ASC, GetDamagePure());
+				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
+				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone);
 				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
-			
 			}
 		}
 	}
@@ -149,11 +149,10 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
 			if (ASC)
 			{
-				//UYogAbilitySystemComponent* SourceASC, float Damage
-				ASC->ReceiveDamage(ASC, GetDamagePhysical());
+				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
+				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone);
 				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
-				// This is proper damage
 			}
 		}
 	}

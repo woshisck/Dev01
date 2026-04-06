@@ -93,34 +93,20 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetSourceAbilitySystemComponent());
 
 	// ── 暴击计算 ──────────────────────────────────────────────────────
-	// 奋力一击：Source 同时拥有 Action.Combo.LastHit.* 和 Rune.FenLiYiJi.Active → 强制暴击
-	static const FGameplayTag ComboLastHitParent = FGameplayTag::RequestGameplayTag("Action.Combo.LastHit");
-	static const FGameplayTag FenLiYiJiTag       = FGameplayTag::RequestGameplayTag("Rune.FenLiYiJi.Active");
-	bool bForceCrit = SourceTags && SourceTags->HasTag(ComboLastHitParent) && SourceTags->HasTag(FenLiYiJiTag);
-	bool bIsCrit    = bForceCrit || (FMath::FRand() < SourceCritRate);
+	bool bIsCrit = FMath::FRand() < SourceCritRate;
 	if (bIsCrit)
 	{
 		FinalDamage *= (1.f + SourceCritDamage);
 		UE_LOG(LogTemp, Log, TEXT("DamageExecution: CRIT! FinalDamage=%f"), FinalDamage);
 	}
 
-	// ── 突袭：对满血目标双倍伤害 ─────────────────────────────────────
-	static const FGameplayTag TuXiTag = FGameplayTag::RequestGameplayTag("Rune.TuXi.Active");
-	if (SourceTags && SourceTags->HasTag(TuXiTag) && TargetMaxHealth > 0.f && TargetHealth >= TargetMaxHealth - 1.f)
+	// 诊断：对比聚合器捕获值 vs ASC 直接读值
+	if (SourceASC)
 	{
-		FinalDamage *= 2.f;
-		UE_LOG(LogTemp, Log, TEXT("DamageExecution: TuXi double damage! FinalDamage=%f"), FinalDamage);
+		float DirectAttack = SourceASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+		UE_LOG(LogTemp, Warning, TEXT("[DMG] Captured Attack=%f | Direct GetNumericAttribute Attack=%f | SourceASC=%p"),
+			SourceAttack, DirectAttack, (void*)SourceASC);
 	}
-
-	// ── 双重打击：下一次攻击双倍伤害 ─────────────────────────────────
-	static const FGameplayTag DoubleHitTag = FGameplayTag::RequestGameplayTag("State.DoubleHit");
-	if (SourceTags && SourceTags->HasTag(DoubleHitTag) && SourceASC)
-	{
-		FinalDamage *= 2.f;
-		SourceASC->RemoveGameplayTagWithCount(DoubleHitTag, 1);
-		UE_LOG(LogTemp, Log, TEXT("DamageExecution: DoubleHit consumed! FinalDamage=%f"), FinalDamage);
-	}
-
 	UE_LOG(LogTemp, Warning, TEXT("AttackPower=%f Attack=%f DmgTaken=%f FinalDamage=%f IsCrit=%d"),
 		SourceAttackPower, SourceAttack, TargetDmgTaken, FinalDamage, (int)bIsCrit);
 

@@ -9,6 +9,7 @@
 #include "GameplayEffectExtension.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/BackpackGridComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 
 
@@ -186,8 +187,6 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 
 	if (Attribute == GetHeatAttribute())
 	{
-
-		//float MaxHeat = GetMaxHeat();
 		if (GetMaxHeat() > 0.f)
 		{
 			float HeatPercent = FMath::Clamp(NewValue / GetMaxHeat(), 0.f, 1.f);
@@ -199,6 +198,18 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 				{
 					BGC->OnHeatPercentChanged(HeatPercent);
 				}
+			}
+		}
+	}
+
+	// MoveSpeed 属性变化时同步到角色移动组件
+	if (Attribute == GetMoveSpeedAttribute())
+	{
+		if (ACharacter* OwnerChar = Cast<ACharacter>(GetOwningActor()))
+		{
+			if (UCharacterMovementComponent* MoveComp = OwnerChar->GetCharacterMovement())
+			{
+				MoveComp->MaxWalkSpeed = NewValue;
 			}
 		}
 	}

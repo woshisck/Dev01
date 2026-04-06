@@ -5,6 +5,20 @@
 #include "BuffFlowTypes.generated.h"
 
 /**
+ * GE 堆叠模式
+ *   None      — 每次命中独立创建一个 GE 实例（无去重）
+ *   Unique    — 同目标只保留一个实例，重复命中刷新持续时间
+ *   Stackable — 同目标共享一个实例，可叠加多层（配合 Max Stacks 使用）
+ */
+UENUM(BlueprintType)
+enum class EBFGEStackMode : uint8
+{
+	None      UMETA(DisplayName = "None"),
+	Unique    UMETA(DisplayName = "Unique"),
+	Stackable UMETA(DisplayName = "Stackable"),
+};
+
+/**
  * 目标选择器 —— BuffFlow 节点中选择作用目标
  */
 UENUM(BlueprintType)

@@ -346,16 +346,25 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 	if (Placed.bIsActivated)
 		return;
 
+	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] ActivateRune: %s"), *Placed.Rune.RuneName.ToString());
+
 	// GE 由 FA 内的 BFNode_ApplyRuneGE 节点负责施加（可在 Start/事件触发时执行）
 	// GA 由 FA 内的 BFNode_GrantGA 节点负责授予
 	// BackpackGrid 只负责启动 FA
 	if (!Placed.Rune.Flow.FlowAsset)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune FAILED: FlowAsset is null on %s"), *Placed.Rune.RuneName.ToString());
 		return;
+	}
 
 	UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();
 	if (!BFC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune FAILED: BuffFlowComponent not found on %s"), *GetOwner()->GetName());
 		return;
+	}
 
+	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] StartBuffFlow -> Rune: %s"), *Placed.Rune.RuneName.ToString());
 	BFC->StartBuffFlow(Placed.Rune.Flow.FlowAsset, Placed.Rune.RuneGuid, GetOwner());
 	Placed.bIsActivated = true;
 	OnRuneActivationChanged.Broadcast(Placed.Rune.RuneGuid, true);

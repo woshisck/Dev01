@@ -63,7 +63,11 @@ void UBFNode_DoDamage::ExecuteInput(const FName& PinName)
 	}
 
 	// 将伤害值注入 SetByCaller（GE 需配置对应的 Magnitude Data Tag）
-	Spec.Data->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(TEXT("Data.Damage")), -DamageValue);
+	static const FGameplayTag DataDamageTag = FGameplayTag::RequestGameplayTag(TEXT("Data.Damage"), false);
+	if (DataDamageTag.IsValid())
+	{
+		Spec.Data->SetSetByCallerMagnitude(DataDamageTag, -DamageValue);
+	}
 
 	TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
 	TriggerOutput(TEXT("Out"), true);
