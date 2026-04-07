@@ -234,6 +234,11 @@ protected:
 	// 本关激活的敌人 Buff（进关时选好，新怪刷出时施加）
 	TArray<TSubclassOf<UGameplayEffect>> ActiveRoomBuffs;
 
+	// 当前关卡的房间配置和难度配置（StartLevelSpawning 时缓存，整理阶段使用）
+	UPROPERTY()
+	TObjectPtr<URoomDataAsset> ActiveRoomData;
+	FDifficultyConfig ActiveDifficultyConfig;
+
 	UPROPERTY()
 	int32 Current_CallCount;
 };
