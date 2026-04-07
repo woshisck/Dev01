@@ -1,0 +1,45 @@
+2026-04-08 01:15:57 [INFO] ==================================================
+2026-04-08 01:15:57 [INFO] SyncBridge v1.0.0 启动
+2026-04-08 01:15:57 [INFO]   Git:  X:\Project\Dev01
+2026-04-08 01:15:57 [INFO]   P4:   X:\Project\YogProject\Dev01
+2026-04-08 01:15:57 [INFO]   间隔: 10 分钟
+2026-04-08 01:15:57 [INFO]   冲突: Git 为主
+2026-04-08 01:15:57 [INFO] ==================================================
+2026-04-08 01:15:57 [INFO] ==================================================
+2026-04-08 01:15:57 [INFO] 首次运行，正在初始化同步基线...
+2026-04-08 01:15:57 [INFO] 基线已设定: Git=89e19579, P4=CL#0
+2026-04-08 01:15:57 [INFO] 下一次轮询开始检测新变更。
+2026-04-08 01:15:57 [INFO] ==================================================
+2026-04-08 01:15:57 [INFO] ── 检查 Git → P4 ──
+2026-04-08 01:15:59 [INFO] Git: 检测到远端更新 → aa987dda
+2026-04-08 01:16:00 [INFO] git pull 完成: 3 个文件变更
+2026-04-08 01:16:00 [INFO] Git 变更文件: Source/DevKit/Private/BuffFlow/Nodes/BFNode_ApplyEffect.cpp, Source/DevKit/Public/BuffFlow/BuffFlowTypes.h, Source/DevKit/Public/BuffFlow/Nodes/BFNode_ApplyEffect.h
+2026-04-08 01:16:00 [INFO] 开始 UE5 编译...
+2026-04-08 01:16:00 [INFO]   目标: DevKitEditor | Win64 | Development
+2026-04-08 01:16:28 [INFO] UE5 编译成功
+2026-04-08 01:16:28 [ERROR] 同步异常: [WinError 32] 另一个程序正在使用此文件，进程无法访问。
+Traceback (most recent call last):
+  File "X:\Project\Dev01\Tools\SyncBridge\sync_bridge.py", line 501, in run_once
+    self._flow_git_to_p4()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "X:\Project\Dev01\Tools\SyncBridge\sync_bridge.py", line 455, in _flow_git_to_p4
+    self._sync_files(
+    ~~~~~~~~~~~~~~~~^
+        self.config["git"]["repo_path"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.config["p4"]["workspace_path"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        changed,
+        ^^^^^^^^
+    )
+    ^
+  File "X:\Project\Dev01\Tools\SyncBridge\sync_bridge.py", line 414, in _sync_files
+    shutil.copy2(s, d)
+    ~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\shutil.py", line 453, in copy2
+    _winapi.CopyFile2(src_, dst_, flags)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。
+2026-04-08 01:16:28 [INFO] 等待 10 分钟...
+
+2026-04-08 01:17:52 [INFO] 用户中断，退出
