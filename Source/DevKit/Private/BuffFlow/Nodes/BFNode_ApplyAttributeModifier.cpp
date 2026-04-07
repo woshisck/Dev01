@@ -111,7 +111,6 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 					Spec.AddDynamicAssetTag(Tag);
 			}
 		}
-		}
 	}
 
 	FActiveGameplayEffectHandle Handle = ASC->ApplyGameplayEffectSpecToSelf(Spec);
