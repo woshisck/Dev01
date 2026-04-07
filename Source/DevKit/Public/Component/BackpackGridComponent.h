@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/RuneDataAsset.h"
-#include "GameplayEffect.h"
 #include "AbilitySystemComponent.h"
 #include "BackpackGridComponent.generated.h"
 
@@ -44,11 +43,10 @@ struct DEVKIT_API FPlacedRune
 {
     GENERATED_BODY()
     UPROPERTY(BlueprintReadOnly) FRuneInstance Rune;
-    UPROPERTY(BlueprintReadOnly) FIntPoint Pivot;
+    UPROPERTY(BlueprintReadOnly) FIntPoint Pivot = FIntPoint::ZeroValue;
     UPROPERTY(BlueprintReadOnly) bool bIsActivated = false;
     // 永久符文：跳过激活区检查，始终保持激活
     UPROPERTY(BlueprintReadOnly) bool bIsPermanent = false;
-    // GE 生命周期由 FA 内的 BFNode_ApplyRuneGE 节点管理，BackpackGrid 不持有 handle
 };
 
 DECLARE_MULTICAST_DELEGATE(FBGCPhaseEvent);

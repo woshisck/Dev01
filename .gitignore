@@ -1,6 +1,12 @@
 # Prerequisites
 *.d
 
+# Claude Code local settings
+.claude/
+
+# UE Binaries
+Binaries/
+
 
 # Precompiled Headers
 *.gch

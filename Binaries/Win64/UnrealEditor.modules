@@ -1,8 +1,0 @@
-{
-	"BuildId": "33043543",
-	"Modules": 
-	{
-		"DevKit": "UnrealEditor-DevKit.dll",
-		"DevKitEditor": "UnrealEditor-DevKitEditor.dll"
-	}
-}

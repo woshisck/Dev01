@@ -18,8 +18,21 @@ void UBFNode_AddTag::ExecuteInput(const FName& PinName)
 		if (ASC && Tag.IsValid())
 		{
 			ASC->AddGameplayTagWithCount(Tag, Count);
+			TotalCountAdded += Count;
+			StoredASC = ASC;
 		}
 	}
 
 	TriggerOutput(TEXT("Out"), true);
+}
+
+void UBFNode_AddTag::Cleanup()
+{
+	if (StoredASC.IsValid() && Tag.IsValid() && TotalCountAdded > 0)
+	{
+		StoredASC->RemoveGameplayTagWithCount(Tag, TotalCountAdded);
+	}
+	TotalCountAdded = 0;
+	StoredASC.Reset();
+	Super::Cleanup();
 }

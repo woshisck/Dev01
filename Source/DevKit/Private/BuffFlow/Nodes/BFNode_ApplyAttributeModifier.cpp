@@ -98,7 +98,7 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
 	FGameplayEffectSpec Spec(GE, Context, 1.f);
 	if (DynamicAssetTags.IsValid())
-		Spec.DynamicAssetTags.AppendTags(DynamicAssetTags);
+		Spec.AppendDynamicAssetTags(DynamicAssetTags);
 
 	// PassThroughOwnerTags：把 BuffOwner 身上已有的指定 Tag 透传到 Spec
 	if (!PassThroughOwnerTags.IsEmpty())
@@ -108,8 +108,9 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 			for (const FGameplayTag& Tag : PassThroughOwnerTags)
 			{
 				if (OwnerASC->HasMatchingGameplayTag(Tag))
-					Spec.DynamicAssetTags.AddTag(Tag);
+					Spec.AddDynamicAssetTag(Tag);
 			}
+		}
 		}
 	}
 

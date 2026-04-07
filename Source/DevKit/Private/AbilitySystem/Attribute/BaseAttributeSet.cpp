@@ -78,12 +78,12 @@ bool UBaseAttributeSet::PreGameplayEffectExecute(FGameplayEffectModCallbackData&
 	{
 		CachedPreEffectHeat = GetHeat();
 
-		// 热度减少时，若持有 Buff.Heat.Active 则阻断（抑制热度衰减）
+		// 热度减少时，若持有 Buff.Status.Heat.Active 则阻断（战斗状态保热）
 		// GE 侧的 Ongoing Tag Requirements 在 UE5.4 周期性 GE 上不可靠，改用 C++ 保证
 		if (Data.EvaluatedData.Magnitude < 0.f)
 		{
 			static const FGameplayTag HeatActiveTag =
-				FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Active"), false);
+				FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Active"), false);
 			if (HeatActiveTag.IsValid() &&
 				GetOwningAbilitySystemComponent()->HasMatchingGameplayTag(HeatActiveTag))
 			{
@@ -136,16 +136,18 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 			static const FGameplayTag CanPhaseUpTag =
 				FGameplayTag::RequestGameplayTag(TEXT("Action.Heat.CanPhaseUp"), false);
 
-			const bool bCanPhaseUp = CanPhaseUpTag.IsValid() &&
-				((Data.EffectSpec.Def && Data.EffectSpec.Def->GetAssetTags().HasTag(CanPhaseUpTag)) ||
-				 Data.EffectSpec.DynamicAssetTags.HasTag(CanPhaseUpTag));
+			const bool bHasTagInAsset   = Data.EffectSpec.Def && Data.EffectSpec.Def->GetAssetTags().HasTag(CanPhaseUpTag);
+			const bool bHasTagInDynamic = Data.EffectSpec.GetDynamicAssetTags().HasTag(CanPhaseUpTag);
+			const bool bCanPhaseUp      = CanPhaseUpTag.IsValid() && (bHasTagInAsset || bHasTagInDynamic);
 
 			if (bCanPhaseUp && bWasAlreadyFull)
 			{
 				// 热度已满 + LastHit → 升阶
-				if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor()))
+				APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor());
+				if (Player)
 				{
-					if (UBackpackGridComponent* BGC = Player->GetBackpackGridComponent())
+					UBackpackGridComponent* BGC = Player->GetBackpackGridComponent();
+					if (BGC)
 					{
 						BGC->OnPhaseUpReady.Broadcast();
 					}

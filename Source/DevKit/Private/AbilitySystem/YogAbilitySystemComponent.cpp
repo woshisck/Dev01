@@ -139,7 +139,14 @@ void UYogAbilitySystemComponent::AddGameplayTagWithCount(FGameplayTag Tag, int32
 void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage)
 {
 	ReceivedDamage.Broadcast(SourceASC, Damage);
-	if (SourceASC) SourceASC->DealtDamage.Broadcast(this, Damage);
+
+	// 广播前检查 TargetASC (this) 及其 Avatar 是否仍然有效
+	// 同帧内多次命中已死亡角色（DoT/AoE）会导致 TargetASC pending kill，
+	// Blueprint 侧的 GA_Passive_knockback 访问 pending kill 对象会报错
+	if (SourceASC && IsValid(this) && IsValid(GetAvatarActor()))
+	{
+		SourceASC->DealtDamage.Broadcast(this, Damage);
+	}
 }
 
 void UYogAbilitySystemComponent::AddActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToBlock)

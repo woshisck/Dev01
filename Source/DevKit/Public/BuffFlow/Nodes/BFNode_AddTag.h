@@ -6,6 +6,8 @@
 #include "BuffFlow/BuffFlowTypes.h"
 #include "BFNode_AddTag.generated.h"
 
+class UYogAbilitySystemComponent;
+
 UCLASS(NotBlueprintable, meta = (DisplayName = "Add Tag", Category = "BuffFlow|Tag"))
 class DEVKIT_API UBFNode_AddTag : public UBFNode_Base
 {
@@ -22,4 +24,12 @@ class DEVKIT_API UBFNode_AddTag : public UBFNode_Base
 
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;
+
+	/** FA 停止时自动移除此节点添加的所有 Tag（累计层数） */
+	virtual void Cleanup() override;
+
+private:
+	/** 累计已添加的层数（触发型节点可能多次执行） */
+	int32 TotalCountAdded = 0;
+	TWeakObjectPtr<UYogAbilitySystemComponent> StoredASC;
 };

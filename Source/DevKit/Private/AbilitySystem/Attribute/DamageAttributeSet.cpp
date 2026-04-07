@@ -97,6 +97,12 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone);
 				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
+
+				// 击杀广播
+				if (TargetCharacter->BaseAttributeSet->GetHealth() <= 0.f && SourceYogASC)
+				{
+					SourceYogASC->OnKilledTarget.Broadcast(TargetCharacter, TargetCharacter->GetActorLocation());
+				}
 			}
 		}
 	}
@@ -153,6 +159,12 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone);
 				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
+
+				// 击杀广播
+				if (TargetCharacter->BaseAttributeSet->GetHealth() <= 0.f && SourceYogASC)
+				{
+					SourceYogASC->OnKilledTarget.Broadcast(TargetCharacter, TargetCharacter->GetActorLocation());
+				}
 			}
 		}
 	}

@@ -63,3 +63,15 @@ struct FBFEventContext
 		EventTag = FGameplayTag::EmptyTag;
 	}
 };
+
+/**
+ * 数学运算类型 —— 供 BFNode_MathFloat / BFNode_MathInt 使用
+ */
+UENUM(BlueprintType)
+enum class EBFMathOp : uint8
+{
+	Add      UMETA(DisplayName = "+"),
+	Subtract UMETA(DisplayName = "-"),
+	Multiply UMETA(DisplayName = "×"),
+	Divide   UMETA(DisplayName = "÷"),
+};
