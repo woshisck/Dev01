@@ -1,5 +1,6 @@
 #include "BuffFlow/Nodes/BFNode_GrantGA.h"
 #include "AbilitySystemComponent.h"
+#include "Types/FlowDataPinResults.h"
 
 UBFNode_GrantGA::UBFNode_GrantGA(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -8,39 +9,47 @@ UBFNode_GrantGA::UBFNode_GrantGA(const FObjectInitializer& ObjectInitializer)
 	Category = TEXT("BuffFlow|Effect");
 #endif
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
+	AbilityLevel = FFlowDataPinInputProperty_Int32(1);
 }
 
 void UBFNode_GrantGA::ExecuteInput(const FName& PinName)
 {
-	if (!AbilityClass)
+	auto FailOut = [this]()
 	{
+		bGAGranted = FFlowDataPinOutputProperty_Bool(false);
+		GALevel    = FFlowDataPinOutputProperty_Int32(0);
 		TriggerOutput(TEXT("Failed"), true);
-		return;
-	}
+	};
+
+	if (!AbilityClass)     { FailOut(); return; }
 
 	AActor* TargetActor = ResolveTarget(Target);
-	if (!TargetActor)
-	{
-		TriggerOutput(TEXT("Failed"), true);
-		return;
-	}
+	if (!TargetActor)      { FailOut(); return; }
 
 	UAbilitySystemComponent* ASC = TargetActor->FindComponentByClass<UAbilitySystemComponent>();
 	if (!ASC)
 	{
-		TriggerOutput(TEXT("Failed"), true);
+		FailOut();
 		return;
 	}
 
-	FGameplayAbilitySpec Spec(AbilityClass, AbilityLevel);
+	// 优先从连接的数据引脚读取 AbilityLevel，无连接则使用节点上填写的值
+	FFlowDataPinResult_Int LevelResult = TryResolveDataPinAsInt(GET_MEMBER_NAME_CHECKED(UBFNode_GrantGA, AbilityLevel));
+	const int32 ResolvedLevel = (LevelResult.Result == EFlowDataPinResolveResult::Success) ? static_cast<int32>(LevelResult.Value) : AbilityLevel.Value;
+
+	FGameplayAbilitySpec Spec(AbilityClass, ResolvedLevel);
 	GrantedHandle = ASC->GiveAbility(Spec);
 
 	if (!GrantedHandle.IsValid())
 	{
+		bGAGranted = FFlowDataPinOutputProperty_Bool(false);
+		GALevel    = FFlowDataPinOutputProperty_Int32(0);
 		TriggerOutput(TEXT("Failed"), true);
 		return;
 	}
 
+	bGAGranted = FFlowDataPinOutputProperty_Bool(true);
+	GALevel    = FFlowDataPinOutputProperty_Int32(ResolvedLevel);
 	GrantedASC = ASC;
 	TriggerOutput(TEXT("Out"), true);
 }

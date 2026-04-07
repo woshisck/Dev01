@@ -2,14 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "GameplayEffect.h"
 #include "GameplayTagContainer.h"
 #include "CharacterData.h"
-#include "Data/RuneEffectFragment.h"
 #include "RuneDataAsset.generated.h"
 
 class UFlowAsset;
-class UAbilitySystemComponent;
 class URuneDataAsset;
 
 
@@ -99,12 +96,10 @@ struct DEVKIT_API FRuneShape
 
 
 // ============================================================
-//  FRuneConfig — 符文核心配置
+//  FRuneConfig — 符文标识配置（纯元数据）
 //
-//  对应策划表字段（严格按图）：
-//    Type / Duration Type / Duration / Period
-//    Unique Type / Max Stack / Stack Type / Stack Reduce Type
-//    RuneID / RuneTag / Effects[]
+//  GE / GA 逻辑完全由 FA 层节点（BFNode_ApplyEffect / BFNode_GrantGA 等）负责。
+//  GE 状态查询通过 BFNode_ApplyEffect 的输出数据引脚获取，无需 Tag 反查。
 // ============================================================
 
 USTRUCT(BlueprintType)
@@ -112,99 +107,13 @@ struct DEVKIT_API FRuneConfig
 {
     GENERATED_BODY()
 
-    // ---- 类型 ----
-
-    /** 增益 / 减益 / 无（仅作展示分类，不影响 GE 构建） */
+    /** 增益 / 减益 / 无（UI 分类显示用） */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     ERuneType RuneType = ERuneType::Buff;
-
-    // ---- 持续时间 ----
-
-    /** 持续时间类型：瞬发 / 永久 / 有时限 */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    ERuneDurationType DurationType = ERuneDurationType::Infinite;
-
-    /**
-     * 持续时间（秒），仅 DurationType = 有时限 时生效
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "DurationType == ERuneDurationType::Duration", EditConditionHides, ClampMin = "0.01"))
-    float Duration = 5.f;
-
-    /**
-     * 周期触发间隔（秒）
-     * > 0 时 GE 每隔此时间触发一次 Effect（适用于 DoT、持续恢复等）
-     * 0 表示不触发周期效果
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0"))
-    float Period = 0.f;
-
-    // ---- 唯一性与堆叠 ----
-
-    /**
-     * 唯一性类型
-     * 决定同名 GE 被多次施加时如何聚合：
-     *   唯一   — 目标上只保留一个实例（配合 StackType 使用）
-     *   源唯一 — 每个施加者独立一个实例
-     *   非唯一 — 每次施加都是独立 GE，StackType 不生效
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    ERuneUniqueType UniqueType = ERuneUniqueType::Unique;
-
-    /**
-     * 最大堆叠层数（0 和 1 都视为 1 层）
-     * 仅 UniqueType != 非唯一 且 StackType = 叠加 时生效
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "UniqueType != ERuneUniqueType::NonUnique && StackType == ERuneStackType::Stack",
-                EditConditionHides, ClampMin = "1"))
-    int32 MaxStack = 1;
-
-    /** 堆叠类型：刷新 / 叠加 / 禁止（UniqueType != 非唯一 时生效） */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "UniqueType != ERuneUniqueType::NonUnique", EditConditionHides))
-    ERuneStackType StackType = ERuneStackType::Refresh;
-
-    /**
-     * 减层方式（StackType != 禁止 且有持续时间时生效）
-     *   全部 — 到期一次性全部移除
-     *   逐一 — 到期每次移除一层
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite,
-        meta = (EditCondition = "UniqueType != ERuneUniqueType::NonUnique && StackType != ERuneStackType::None",
-                EditConditionHides))
-    ERuneStackReduceType StackReduceType = ERuneStackReduceType::All;
-
-    // ---- 标识 ----
 
     /** 数值 ID，供策划表引用 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 RuneID = 0;
-
-    /**
-     * 符文 GP Tag（GE 的资产标签）
-     * 用于 GetRuneInfo 按 Tag 查询此 GE，以及 RemoveRune 按 Tag 移除
-     *
-     * 注意：此 Tag 是 GE 自身的身份标识，与 AddTags Fragment 中的
-     * 状态 Tag（授予目标角色的 Tag）完全不同，两者可同时存在
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FGameplayTag RuneTag;
-
-    // ---- 效果（原子功能）----
-
-    /**
-     * 效果列表（点击 + 选择类型）：
-     *   Add Attribute Modifier   — 属性修改（Attack +20 / AttSpeed ×1.1）
-     *   Add Gameplay Tags        — 激活期间向目标授予状态 Tag（如 Status.Poisoned）
-     *   Gameplay Cue             — 音效/特效（高级）
-     *   Advanced Modifier        — 直接配置 FGameplayModifierInfo（高级）
-     *   Execution Calculation    — GAS ExecutionCalculation（高级）
-     *
-     * GA 的授予/撤销由 FA 层的 GrantGA 节点负责，不在此处配置
-     */
-    UPROPERTY(EditAnywhere, Instanced)
-    TArray<TObjectPtr<URuneEffectFragment>> Effects;
 };
 
 
@@ -235,7 +144,7 @@ struct DEVKIT_API FRuneFlowConfig
 //    Shape                           ← 背包格子形状
 //    ▼ Rune Config  Type / DurationType / Duration / Period /
 //                   UniqueType / MaxStack / StackType / StackReduceType /
-//                   RuneID / RuneTag / Effects[]
+//                   RuneID
 //    ▼ Flow         FlowAsset
 // ============================================================
 
@@ -298,7 +207,4 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Rune")
     FRuneInstance CreateInstance() const;
-
-    /** 根据 RuneConfig 构建 TransientGE */
-    UGameplayEffect* CreateTransientGE(UObject* Outer) const;
 };

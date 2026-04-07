@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayAbilitySpec.h"
+#include "Types/FlowDataPinProperties.h"
 #include "BuffFlow/Nodes/BFNode_Base.h"
 #include "BuffFlow/BuffFlowTypes.h"
 #include "BFNode_GrantGA.generated.h"
@@ -17,13 +18,9 @@
  * Out    — GA 授予成功，继续执行后续节点
  * Failed — 目标无效或无 ASC
  *
- * 典型用法（击退符文 FA）：
- *   [Start] → [GrantGA](GA_Knockback, Target=BuffOwner)
- *               └─ Out → [OnDamageDealt] → [PlayNiagara] ...
- *
- *   GA_Knockback 需在 Class Defaults 中配置：
- *     Ability Triggers → Tag = Event.Combat.Knockback, Source = GameplayEvent
- *   然后由攻击 GA 或 [BFNode_SendGameplayEvent] 触发。
+ * 输出数据引脚（授予时写入）：
+ *   bGAGranted — 是否成功授予
+ *   GALevel    — 授予时的等级
  */
 UCLASS(NotBlueprintable, meta = (DisplayName = "Grant GA", Category = "BuffFlow|Effect"))
 class DEVKIT_API UBFNode_GrantGA : public UBFNode_Base
@@ -38,9 +35,22 @@ class DEVKIT_API UBFNode_GrantGA : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "BuffFlow")
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
-	/** GA 等级 */
+	/**
+	 * GA 等级（数据引脚）
+	 * 可直接填写固定值，也可连接上游数据引脚动态驱动。
+	 */
 	UPROPERTY(EditAnywhere, Category = "BuffFlow")
-	int32 AbilityLevel = 1;
+	FFlowDataPinInputProperty_Int32 AbilityLevel;
+
+	// ─── 输出数据引脚（授予时写入） ───────────────────────────────────
+
+	/** 是否成功授予 GA */
+	UPROPERTY(EditAnywhere, Category = "Output|GAInfo")
+	FFlowDataPinOutputProperty_Bool bGAGranted;
+
+	/** 授予时的 GA 等级 */
+	UPROPERTY(EditAnywhere, Category = "Output|GAInfo")
+	FFlowDataPinOutputProperty_Int32 GALevel;
 
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;

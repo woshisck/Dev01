@@ -1,6 +1,7 @@
 #include "Component/BackpackGridComponent.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "GameplayTagsManager.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "BuffFlow/BuffFlowComponent.h"
 
@@ -316,7 +317,28 @@ void UBackpackGridComponent::IncrementPhase()
 	if (CurrentPhase >= MaxPhase)
 		return;
 
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+
+	// 移除旧阶段 Tag
+	if (ASC && CurrentPhase > 0)
+	{
+		FGameplayTag OldTag = FGameplayTag::RequestGameplayTag(
+			FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), CurrentPhase)), false);
+		if (OldTag.IsValid())
+			ASC->RemoveLooseGameplayTag(OldTag);
+	}
+
 	CurrentPhase++;
+
+	// 授予新阶段 Tag
+	if (ASC)
+	{
+		FGameplayTag NewTag = FGameplayTag::RequestGameplayTag(
+			FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), CurrentPhase)), false);
+		if (NewTag.IsValid())
+			ASC->AddLooseGameplayTag(NewTag);
+	}
+
 	EHeatTier NewTier = static_cast<EHeatTier>(FMath::Clamp(CurrentPhase, 0, 3));
 	if (NewTier != CurrentTier)
 	{
@@ -333,7 +355,28 @@ void UBackpackGridComponent::DecrementPhase()
 	if (CurrentPhase <= 0)
 		return;
 
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+
+	// 移除当前阶段 Tag
+	if (ASC)
+	{
+		FGameplayTag OldTag = FGameplayTag::RequestGameplayTag(
+			FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), CurrentPhase)), false);
+		if (OldTag.IsValid())
+			ASC->RemoveLooseGameplayTag(OldTag);
+	}
+
 	CurrentPhase--;
+
+	// 授予新阶段 Tag（Phase 0 无 Tag）
+	if (ASC && CurrentPhase > 0)
+	{
+		FGameplayTag NewTag = FGameplayTag::RequestGameplayTag(
+			FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), CurrentPhase)), false);
+		if (NewTag.IsValid())
+			ASC->AddLooseGameplayTag(NewTag);
+	}
+
 	EHeatTier NewTier = static_cast<EHeatTier>(FMath::Clamp(CurrentPhase, 0, 3));
 	if (NewTier != CurrentTier)
 	{
@@ -434,24 +477,24 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 
 	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] ActivateRune: %s"), *Placed.Rune.RuneName.ToString());
 
-	// GE 由 FA 内的 BFNode_ApplyRuneGE 节点负责施加（可在 Start/事件触发时执行）
-	// GA 由 FA 内的 BFNode_GrantGA 节点负责授予
-	// BackpackGrid 只负责启动 FA
-	if (!Placed.Rune.Flow.FlowAsset)
+	if (Placed.Rune.Flow.FlowAsset)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune FAILED: FlowAsset is null on %s"), *Placed.Rune.RuneName.ToString());
+		// FA 路径：启动 BuffFlow，由 FA 节点负责施加 GE/GA
+		UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();
+		if (!BFC)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune FAILED: BuffFlowComponent not found on %s"), *GetOwner()->GetName());
+			return;
+		}
+		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] StartBuffFlow -> Rune: %s"), *Placed.Rune.RuneName.ToString());
+		BFC->StartBuffFlow(Placed.Rune.Flow.FlowAsset, Placed.Rune.RuneGuid, GetOwner());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune SKIP: no FA on Rune %s"), *Placed.Rune.RuneName.ToString());
 		return;
 	}
 
-	UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();
-	if (!BFC)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune FAILED: BuffFlowComponent not found on %s"), *GetOwner()->GetName());
-		return;
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] StartBuffFlow -> Rune: %s"), *Placed.Rune.RuneName.ToString());
-	BFC->StartBuffFlow(Placed.Rune.Flow.FlowAsset, Placed.Rune.RuneGuid, GetOwner());
 	Placed.bIsActivated = true;
 	OnRuneActivationChanged.Broadcast(Placed.Rune.RuneGuid, true);
 }
@@ -461,11 +504,9 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 	if (!Placed.bIsActivated)
 		return;
 
-	// FA 停止时，BFNode_ApplyRuneGE.Cleanup() 自动移除 GE
-	//              BFNode_GrantGA.Cleanup()     自动撤销 GA
-	// BackpackGrid 只负责停止 FA
 	if (Placed.Rune.Flow.FlowAsset)
 	{
+		// FA 停止 → BFNode 的 Cleanup() 自动移除 GE/GA
 		if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
 		{
 			BFC->StopBuffFlow(Placed.Rune.RuneGuid);
