@@ -1,0 +1,231 @@
+═══════════════════════════════════════════════════════
+  SyncBridge 部署指南
+  Git ↔ P4 双向同步 + UE5 自动编译
+═══════════════════════════════════════════════════════
+
+
+▌目标机器需求
+──────────────────────────────────────
+  - Windows 10/11
+  - Git 已安装并可用（能 git pull/push）
+  - P4 命令行已安装并可用（能 p4 sync/submit）
+  - UE5 引擎（如果启用自动编译）
+  - Python 3.8+（或使用打包好的 .exe）
+
+
+▌方式一：有 Python 环境（推荐）
+──────────────────────────────────────
+
+  1. 安装 Python 3.8+
+     下载: https://www.python.org/downloads/
+     !! 安装时务必勾选 "Add Python to PATH" !!
+
+  2. 复制以下文件到目标机器任意目录:
+     - sync_bridge.py
+     - config.example.json
+     - 启动同步.bat
+
+  3. 配置:
+     复制 config.example.json → config.json
+     编辑 config.json（见下方【配置说明】）
+
+  4. 运行:
+     双击 启动同步.bat
+
+
+▌方式二：无 Python 环境（打包 .exe）
+──────────────────────────────────────
+
+  在有 Python 的电脑上（比如你的开发机）:
+
+  1. 双击 打包为exe.bat
+  2. 等待打包完成（约 1-2 分钟）
+  3. 在 dist 文件夹找到 SyncBridge.exe
+
+  在目标机器上:
+
+  1. 新建一个文件夹（如 D:\SyncBridge\）
+  2. 复制 SyncBridge.exe 到该文件夹
+  3. 复制 config.example.json → config.json 到该文件夹
+  4. 编辑 config.json
+  5. 双击 SyncBridge.exe 运行
+
+
+▌配置说明 (config.json)
+──────────────────────────────────────
+
+  【Git 配置】
+  git.repo_path      GitHub 仓库在本机的克隆路径
+                     例: "D:\\GitRepo\\Dev01"
+  git.branch         监听的分支名
+                     例: "main"
+  git.remote         远端名称（一般不用改）
+                     例: "origin"
+
+  【P4 配置】
+  p4.port            P4 服务器地址和端口
+                     例: "ssl:192.168.1.100:1666"
+                     例: "your-server.com:1666"
+  p4.user            P4 用户名
+  p4.password        P4 密码（可留空，提前 p4 login 即可）
+  p4.workspace       P4 Workspace 名称（p4 client 里的名字）
+  p4.workspace_path  P4 Workspace 在本机的根路径
+                     例: "D:\\P4Workspace\\Dev01"
+  p4.depot_path      P4 仓库路径（用于检测变更）
+                     例: "//depot/Dev01/..."
+  p4.charset         字符集（中文环境填 "utf8"）
+
+  【UE5 编译配置】
+  ue5.enabled         是否启用自动编译 (true/false)
+  ue5.engine_path     UE5 引擎安装目录
+                     例: "D:\\UE\\UE_5.4"
+  ue5.project_file    .uproject 文件名
+                     例: "DevKit.uproject"
+  ue5.target          编译目标（一般是 项目名+Editor）
+                     例: "DevKitEditor"
+  ue5.platform        平台 (Win64)
+  ue5.configuration   配置 (Development)
+  ue5.dotnet_version  引擎自带 .NET 版本
+                     例: "6.0.302"
+  ue5.compile_triggers  触发编译的文件后缀
+                     例: [".cpp", ".h", ".cs"]
+
+  【同步设置】
+  poll_interval_minutes  轮询间隔（分钟）
+                        建议 5~30 分钟，根据需要调整
+  log_file              日志文件名
+  log_level             日志级别 (DEBUG/INFO/WARNING/ERROR)
+  ignore_patterns       不同步的目录/文件
+
+  【示例: 不需要 UE5 编译的配置】
+  将 "ue5.enabled" 设为 false 即可跳过编译步骤
+
+
+▌设置开机自启动
+──────────────────────────────────────
+
+  方法 A：启动文件夹（简单）
+
+  1. 按 Win+R，输入 shell:startup，回车
+  2. 右键 → 新建 → 快捷方式
+  3. 目标填写:
+     - Python 方式: python "D:\SyncBridge\sync_bridge.py"
+     - exe 方式:    "D:\SyncBridge\SyncBridge.exe"
+  4. 起始位置填: D:\SyncBridge\
+
+  方法 B：任务计划程序（推荐，支持唤醒睡眠）
+
+  1. 按 Win+R，输入 taskschd.msc，回车
+  2. 右侧点击 "创建基本任务"
+  3. 填写:
+     - 名称: SyncBridge
+     - 触发器: 当计算机启动时
+     - 操作: 启动程序
+       · 程序或脚本: python.exe 的完整路径
+         (或 SyncBridge.exe 的完整路径)
+       · 添加参数: sync_bridge.py
+         (exe 方式留空)
+       · 起始于: 脚本/exe 所在文件夹路径
+  4. 完成后，右键刚创建的任务 → 属性:
+     · 常规标签:
+       - 勾选 "不管用户是否登录都要运行"
+       - 勾选 "使用最高权限运行"
+     · 条件标签:
+       - 勾选 "唤醒计算机运行此任务"  ← 重要！
+     · 设置标签:
+       - 勾选 "如果任务失败，按以下频率重新启动"
+       - 设置每 5 分钟，最多 3 次
+
+
+▌关于睡眠 vs 休眠
+──────────────────────────────────────
+
+  !! 重要 !!
+
+  睡眠 (Sleep)
+    → 任务计划程序可以唤醒电脑执行任务  ✓
+    → 耗电极少，唤醒快
+
+  休眠 (Hibernate)
+    → 无法被任务计划程序唤醒             ✗
+    → 完全断电，无法自动执行
+
+  关机 (Shutdown)
+    → 无法执行                           ✗
+
+  建议: 将电脑电源设置为 "睡眠" 而非 "休眠"
+  设置路径: 设置 → 系统 → 电源和睡眠 → 选择 "睡眠"
+
+  如果必须用休眠，可以:
+  - 设置定时任务唤醒 (BIOS 中的 Wake on Timer)
+  - 或用 Wake-on-LAN (需要网卡支持)
+
+
+▌同步逻辑说明
+──────────────────────────────────────
+
+  每个轮询周期执行两个方向的检查:
+
+  Git → P4:
+  1. git fetch 检查 GitHub 是否有新提交
+  2. 有新提交 → git pull 拉取变更
+  3. 如果变更包含 .cpp/.h 等源码 → 自动编译 UE5
+  4. 将变更文件复制到 P4 工作区
+  5. p4 reconcile + submit 提交到 P4
+
+  P4 → Git:
+  1. p4 changes 检查 P4 是否有新提交
+  2. 有新提交 → p4 sync 同步工作区
+  3. 将变更文件复制到 Git 目录
+  4. git add + commit + push 推送到 GitHub
+
+  冲突策略: Git 为主
+  - 当同一文件在两边都有修改时，Git 的版本覆盖 P4
+
+  反循环保护:
+  - 同步产生的提交会标记 [SyncBridge]
+  - 检测到这个标记时自动跳过，避免无限循环
+
+
+▌日志和排错
+──────────────────────────────────────
+
+  日志文件: sync_bridge.log（与脚本同目录）
+
+  常见问题:
+
+  Q: p4 submit 失败
+  A: 1. 检查 p4 login 是否过期 → 手动执行 p4 login
+     2. 检查 P4 用户权限
+     3. 检查 depot_path 是否正确
+
+  Q: git push 失败
+  A: 1. 检查 SSH key 或 HTTPS 凭据
+     2. 检查分支保护规则
+
+  Q: UE5 编译失败
+  A: 1. 确认 UE 编辑器已关闭（DLL 被锁时无法编译）
+     2. 检查 engine_path 和 dotnet_version 是否正确
+     3. 查看日志中的编译错误输出
+
+  Q: 运行时提示 "另一个同步进程正在运行"
+  A: 检查是否有多个实例在跑。如果确认没有，
+     删除脚本目录下的 .sync_lock 文件。
+
+
+▌命令行用法
+──────────────────────────────────────
+
+  持续运行（默认）:
+    python sync_bridge.py
+
+  只执行一次:
+    python sync_bridge.py --once
+
+  使用自定义配置文件:
+    python sync_bridge.py -c my_config.json
+
+  exe 版本同理:
+    SyncBridge.exe
+    SyncBridge.exe --once
+    SyncBridge.exe -c my_config.json
