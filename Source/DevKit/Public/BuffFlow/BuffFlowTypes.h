@@ -75,3 +75,17 @@ enum class EBFMathOp : uint8
 	Multiply UMETA(DisplayName = "×"),
 	Divide   UMETA(DisplayName = "÷"),
 };
+
+/**
+ * GE 移除模式 —— 供 BFNode_ApplyEffect 的 Remove 引脚使用
+ *   AllStacks   — 移除所有堆叠层（整个 GE 消失）
+ *   OneStack    — 只移除 1 层
+ *   CustomCount — 移除指定层数（由 StacksToRemove 数据引脚填入）
+ */
+UENUM(BlueprintType)
+enum class EBFRemoveMode : uint8
+{
+	AllStacks   UMETA(DisplayName = "All Stacks"),
+	OneStack    UMETA(DisplayName = "One Stack"),
+	CustomCount UMETA(DisplayName = "Custom Count"),
+};

@@ -26,7 +26,13 @@
  *   GETimeRemaining — 剩余时间（秒），Infinite GE 返回 -1
  *
  * 注意：输出引脚反映施加瞬间的状态，不随时间动态更新。
- * 如需查询当前实时状态（例如 tick 期间持续读取层数），请使用 GetRuneInfo 节点。
+ *
+ * Remove 引脚：
+ *   触发后按 RemoveMode 移除 GE 堆叠层数：
+ *   AllStacks   — 移除所有层（整个 GE 消失）
+ *   OneStack    — 移除 1 层
+ *   CustomCount — 移除 StacksToRemove 数据引脚指定的层数
+ *   移除完成后触发 Removed 输出引脚。
  */
 UCLASS(NotBlueprintable, meta = (DisplayName = "Apply Gameplay Effect Class", Category = "BuffFlow|Effect"))
 class DEVKIT_API UBFNode_ApplyEffect : public UBFNode_Base
@@ -73,8 +79,18 @@ class DEVKIT_API UBFNode_ApplyEffect : public UBFNode_Base
 		EditCondition = "SetByCallerTag3.IsValid()", EditConditionHides))
 	FFlowDataPinInputProperty_Float SetByCallerValue3;
 
+	// ─── Remove 配置 ─────────────────────────────────────────────────
+
+	/** Remove 引脚触发时的移除模式 */
+	UPROPERTY(EditAnywhere, Category = "Remove")
+	EBFRemoveMode RemoveMode = EBFRemoveMode::AllStacks;
+
+	/** CustomCount 模式下移除的层数（数据引脚可连线覆盖） */
+	UPROPERTY(EditAnywhere, Category = "Remove", meta = (
+		EditCondition = "RemoveMode == EBFRemoveMode::CustomCount", EditConditionHides))
+	FFlowDataPinInputProperty_Int32 StacksToRemove;
+
 	// ─── 输出数据引脚（施加时写入） ───────────────────────────────────
-	// 后续节点可直接连线读取，无需 GetSelfRuneInfo + RuneEffectTag。
 
 	/** 是否成功施加（Instant GE 也会返回 true） */
 	UPROPERTY(EditAnywhere, Category = "Output|GEInfo")

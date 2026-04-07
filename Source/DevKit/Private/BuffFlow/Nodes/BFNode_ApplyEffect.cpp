@@ -10,8 +10,10 @@ UBFNode_ApplyEffect::UBFNode_ApplyEffect(const FObjectInitializer& ObjectInitial
 #if WITH_EDITOR
 	Category = TEXT("BuffFlow|Effect");
 #endif
-	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
+	InputPins  = { FFlowPin(TEXT("In")), FFlowPin(TEXT("Remove")) };
+	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")), FFlowPin(TEXT("Removed")) };
 	Level = FFlowDataPinInputProperty_Float(1.f);
+	StacksToRemove = FFlowDataPinInputProperty_Int32(1);
 }
 
 void UBFNode_ApplyEffect::Cleanup()
@@ -27,6 +29,37 @@ void UBFNode_ApplyEffect::Cleanup()
 
 void UBFNode_ApplyEffect::ExecuteInput(const FName& PinName)
 {
+	// ── Remove 引脚处理 ───────────────────────────────────────────────
+	if (PinName == TEXT("Remove"))
+	{
+		if (GrantedASC.IsValid() && GrantedHandle.IsValid())
+		{
+			int32 Count = -1; // -1 = 全部移除
+			if (RemoveMode == EBFRemoveMode::OneStack)
+			{
+				Count = 1;
+			}
+			else if (RemoveMode == EBFRemoveMode::CustomCount)
+			{
+				FFlowDataPinResult_Int Res = TryResolveDataPinAsInt(GET_MEMBER_NAME_CHECKED(UBFNode_ApplyEffect, StacksToRemove));
+				Count = (Res.Result == EFlowDataPinResolveResult::Success) ? static_cast<int32>(Res.Value) : StacksToRemove.Value;
+				Count = FMath::Max(Count, 1);
+			}
+
+			GrantedASC->RemoveActiveGameplayEffect(GrantedHandle, Count);
+
+			// AllStacks 或移除后层数归零时重置 handle
+			if (Count == -1 || GrantedASC->GetCurrentStackCount(GrantedHandle) <= 0)
+			{
+				GrantedHandle = FActiveGameplayEffectHandle();
+				GrantedASC.Reset();
+			}
+		}
+		TriggerOutput(TEXT("Removed"), true);
+		return;
+	}
+
+	// ── In 引脚处理（施加 GE）────────────────────────────────────────
 	if (!Effect)
 	{
 		TriggerOutput(TEXT("Failed"), true);

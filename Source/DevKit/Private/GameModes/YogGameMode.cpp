@@ -349,13 +349,24 @@ void AYogGameMode::EnterArrangementPhase()
 	CurrentPhase = ELevelPhase::Arrangement;
 	OnPhaseChanged.Broadcast(CurrentPhase);
 
-	// 解锁玩家背包
-	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
-		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
+		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+
+	if (Player)
 	{
+		// 解锁背包
 		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
 		{
 			Backpack->SetLocked(false);
+		}
+
+		// 发放金币（新系统：按当前难度配置随机范围）
+		if (CampaignData && ActiveDifficultyConfig.GoldMax > 0)
+		{
+			const int32 GoldReward = FMath::RandRange(
+				ActiveDifficultyConfig.GoldMin, ActiveDifficultyConfig.GoldMax);
+			Player->AddGold(GoldReward);
+			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 发放金币 %d"), GoldReward);
 		}
 	}
 
@@ -444,6 +455,10 @@ void AYogGameMode::StartLevelSpawning()
 		case EDifficultyTier::Elite:  Config = &Entry.RoomData->HighConfig;   break;
 		default: Config = &Entry.RoomData->LowConfig; break;
 	}
+
+	// 缓存当前房间数据和难度配置（整理阶段发放战利品/金币时使用）
+	ActiveRoomData = Entry.RoomData;
+	ActiveDifficultyConfig = *Config;
 
 	// 选取本关 Buff（进关时确定，新怪刷出时施加）
 	ActiveRoomBuffs = SelectRoomBuffs(*Entry.RoomData, *Config);
@@ -750,7 +765,18 @@ void AYogGameMode::GenerateLootOptions()
 {
 	CurrentLootOptions.Empty();
 
-	if (!LevelSequenceData || LevelSequenceData->LootPool.IsEmpty())
+	// 优先使用新系统（CampaignData + RoomDataAsset.LootPool）
+	const TArray<TObjectPtr<URuneDataAsset>>* SourcePool = nullptr;
+	if (CampaignData && ActiveRoomData && !ActiveRoomData->LootPool.IsEmpty())
+	{
+		SourcePool = &ActiveRoomData->LootPool;
+	}
+	else if (LevelSequenceData && !LevelSequenceData->LootPool.IsEmpty())
+	{
+		SourcePool = &LevelSequenceData->LootPool;
+	}
+
+	if (!SourcePool)
 	{
 		OnLootGenerated.Broadcast(CurrentLootOptions);
 		return;
@@ -758,10 +784,9 @@ void AYogGameMode::GenerateLootOptions()
 
 	// 复制掉落池并 Fisher-Yates 洗牌
 	TArray<URuneDataAsset*> Pool;
-	for (TObjectPtr<URuneDataAsset> Asset : LevelSequenceData->LootPool)
+	for (const TObjectPtr<URuneDataAsset>& Asset : *SourcePool)
 	{
-		if (Asset)
-			Pool.Add(Asset);
+		if (Asset) Pool.Add(Asset);
 	}
 
 	for (int32 i = Pool.Num() - 1; i > 0; i--)
@@ -774,10 +799,11 @@ void AYogGameMode::GenerateLootOptions()
 	for (int32 i = 0; i < OptionsCount; i++)
 	{
 		FLootOption Option;
-		Option.LootType = ELootType::Rune;
+		Option.LootType  = ELootType::Rune;
 		Option.RuneAsset = Pool[i];
 		CurrentLootOptions.Add(Option);
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("GenerateLootOptions: 生成 %d 个符文选项"), CurrentLootOptions.Num());
 	OnLootGenerated.Broadcast(CurrentLootOptions);
 }

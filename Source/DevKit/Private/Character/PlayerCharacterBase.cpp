@@ -92,6 +92,12 @@ void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 	PendingRunes.Add(Rune);
 }
 
+void APlayerCharacterBase::AddGold(int32 Amount)
+{
+	Gold = FMath::Max(0, Gold + Amount);
+	OnGoldChanged.Broadcast(Gold);
+}
+
 void APlayerCharacterBase::InitDashChargeSystem()
 {
 	DashChargeCount = MaxDashChargeCount;
