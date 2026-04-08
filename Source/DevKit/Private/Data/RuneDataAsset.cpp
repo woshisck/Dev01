@@ -26,7 +26,7 @@ FRuneShape FRuneShape::Rotate90() const
 
 FRuneInstance URuneDataAsset::CreateInstance() const
 {
-	FRuneInstance Instance = RuneTemplate;
+	FRuneInstance Instance = RuneInfo;
 	Instance.RuneGuid = FGuid::NewGuid();
 	Instance.SourceDA = const_cast<URuneDataAsset*>(this);
 	return Instance;

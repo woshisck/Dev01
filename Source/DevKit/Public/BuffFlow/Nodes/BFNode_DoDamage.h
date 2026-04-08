@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Types/FlowDataPinProperties.h"
 #include "BuffFlow/Nodes/BFNode_Base.h"
 #include "BuffFlow/BuffFlowTypes.h"
 #include "GameplayEffect.h"
@@ -19,13 +20,19 @@ class DEVKIT_API UBFNode_DoDamage : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "DoDamage")
 	EBFTargetSelector TargetSelector = EBFTargetSelector::LastDamageTarget;
 
-	/** 固定伤害值（若 > 0 则使用，否则使用 LastEventContext.DamageAmount * DamageMultiplier） */
-	UPROPERTY(EditAnywhere, Category = "DoDamage", meta = (ClampMin = "0.0"))
-	float FlatDamage = 0.f;
+	/**
+	 * 固定伤害值（> 0 时使用，否则用 LastDamageAmount × DamageMultiplier）
+	 * 支持数据引脚连线（如 Math Float 计算结果 → FlatDamage）
+	 */
+	UPROPERTY(EditAnywhere, Category = "DoDamage")
+	FFlowDataPinInputProperty_Float FlatDamage;
 
-	/** 对上次伤害量的倍率（FlatDamage == 0 时生效） */
-	UPROPERTY(EditAnywhere, Category = "DoDamage", meta = (ClampMin = "0.0"))
-	float DamageMultiplier = 1.f;
+	/**
+	 * 对上次伤害量的倍率（FlatDamage == 0 时生效，默认 1.0）
+	 * 支持数据引脚连线
+	 */
+	UPROPERTY(EditAnywhere, Category = "DoDamage")
+	FFlowDataPinInputProperty_Float DamageMultiplier;
 
 	/** 要施加的 GE（伤害 GE，需配置 Modifiers 扣减 Health） */
 	UPROPERTY(EditAnywhere, Category = "DoDamage")

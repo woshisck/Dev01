@@ -9,11 +9,25 @@ UBFNode_ApplyAttributeModifier::UBFNode_ApplyAttributeModifier(const FObjectInit
 #if WITH_EDITOR
 	Category = TEXT("BuffFlow|Effect");
 #endif
+	InputPins  = { FFlowPin(TEXT("In")), FFlowPin(TEXT("Remove")) };
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
 void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 {
+	// Remove 引脚：主动移除当前持有的 GE（一次性 Buff 消耗用）
+	if (PinName == TEXT("Remove"))
+	{
+		if (GrantedASC.IsValid() && GrantedHandle.IsValid())
+		{
+			GrantedASC->RemoveActiveGameplayEffect(GrantedHandle);
+			GrantedHandle = FActiveGameplayEffectHandle();
+			GrantedASC.Reset();
+		}
+		TriggerOutput(TEXT("Out"), false);
+		return;
+	}
+
 	if (!Attribute.IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] FAILED: Attribute is invalid"));
@@ -66,6 +80,18 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 		CachedGE->DurationPolicy = EGameplayEffectDurationType::HasDuration;
 		CachedGE->DurationMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(Duration));
 		break;
+	}
+
+	// Period 支持：> 0 时让 GAS 每隔 N 秒执行一次 Modifier
+	// 典型用途：每秒 +1 热度（Period=1.0, DurationType=Infinite）
+	if (Period > 0.f && DurationType != ERuneDurationType::Instant)
+	{
+		CachedGE->Period = FScalableFloat(Period);
+		CachedGE->bExecutePeriodicEffectOnApplication = bFireImmediately;
+	}
+	else
+	{
+		CachedGE->Period = FScalableFloat(0.f);
 	}
 
 	switch (StackMode)

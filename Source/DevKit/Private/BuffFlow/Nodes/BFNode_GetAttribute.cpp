@@ -11,7 +11,7 @@ UBFNode_GetAttribute::UBFNode_GetAttribute(const FObjectInitializer& ObjectIniti
 
 void UBFNode_GetAttribute::ExecuteInput(const FName& PinName)
 {
-	CachedValue = 0.f;
+	CachedValue.Value = 0.f;
 
 	AActor* TargetActor = ResolveTarget(Target);
 	if (TargetActor)
@@ -19,8 +19,7 @@ void UBFNode_GetAttribute::ExecuteInput(const FName& PinName)
 		UAbilitySystemComponent* ASC = TargetActor->FindComponentByClass<UAbilitySystemComponent>();
 		if (ASC && Attribute.IsValid())
 		{
-			bool bFound = false;
-			CachedValue = ASC->GetNumericAttribute(Attribute);
+			CachedValue.Value = ASC->GetNumericAttribute(Attribute);
 		}
 	}
 

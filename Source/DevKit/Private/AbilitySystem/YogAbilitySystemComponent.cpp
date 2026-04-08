@@ -19,6 +19,71 @@ UYogAbilitySystemComponent::UYogAbilitySystemComponent(const FObjectInitializer&
 
 
 
+// =========================================================
+// 状态冲突系统
+// =========================================================
+
+void UYogAbilitySystemComponent::InitConflictTable()
+{
+	ConflictMap.Reset();
+	if (!ConflictTable)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[StateConflict] ConflictTable is null on %s, system disabled."), *GetNameSafe(GetOwner()));
+		return;
+	}
+
+	for (const FStateConflictRule& Rule : ConflictTable->Rules)
+	{
+		if (!Rule.ActiveTag.IsValid())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[StateConflict] Rule with invalid ActiveTag found in %s, skipped."), *GetNameSafe(ConflictTable));
+			continue;
+		}
+		ConflictMap.Add(Rule.ActiveTag, Rule);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[StateConflict] Initialized %d rules on %s."), ConflictMap.Num(), *GetNameSafe(GetOwner()));
+}
+
+void UYogAbilitySystemComponent::SetConflictTable(UStateConflictDataAsset* NewTable)
+{
+	ConflictTable = NewTable;
+	InitConflictTable();
+}
+
+void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagExists)
+{
+	Super::OnTagUpdated(Tag, TagExists);
+
+	// 防递归：BlockAbilitiesWithTags 内部也会触发 OnTagUpdated
+	if (bProcessingConflict)
+		return;
+
+	const FStateConflictRule* Rule = ConflictMap.Find(Tag);
+	if (!Rule)
+		return;
+
+	TGuardValue<bool> Guard(bProcessingConflict, true);
+
+	if (TagExists)
+	{
+		// Tag 加上 → Block + Cancel
+		if (!Rule->BlockTags.IsEmpty())
+			BlockAbilitiesWithTags(Rule->BlockTags);
+
+		if (!Rule->CancelTags.IsEmpty())
+			CancelAbilities(&Rule->CancelTags);
+	}
+	else
+	{
+		// Tag 移除 → 解除 Block
+		if (!Rule->BlockTags.IsEmpty())
+			UnBlockAbilitiesWithTags(Rule->BlockTags);
+	}
+}
+
+// =========================================================
+
 void UYogAbilitySystemComponent::ApplyAbilityData(UAbilityData* abilityData)
 {
 

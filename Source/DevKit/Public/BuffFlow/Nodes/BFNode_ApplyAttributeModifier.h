@@ -68,6 +68,29 @@ class DEVKIT_API UBFNode_ApplyAttributeModifier : public UBFNode_Base
                 EditConditionHides, ClampMin = "0.01"))
     float Duration = 1.0f;
 
+    /**
+     * 周期触发间隔（秒）。
+     *   0   = 不启用，Modifier 持续生效（普通 GE 行为）
+     *   > 0 = 每隔 N 秒执行一次 Modifier（GAS Period 功能）
+     *
+     * 仅在 DurationType = Infinite 或 HasDuration 时有意义。
+     * 典型用途：每秒 +1 热度（Period=1.0，DurationType=Infinite）。
+     */
+    UPROPERTY(EditAnywhere, Category = "BuffFlow",
+        meta = (EditCondition = "DurationType != ERuneDurationType::Instant",
+                EditConditionHides, ClampMin = "0.0",
+                DisplayName = "Period (0=Off)"))
+    float Period = 0.f;
+
+    /**
+     * 首次施加时立即触发一次 Period Modifier（Period > 0 时有效）。
+     * false = 等待第一个间隔才触发；true = 施加时立刻执行一次
+     */
+    UPROPERTY(EditAnywhere, Category = "BuffFlow",
+        meta = (EditCondition = "Period > 0.0", EditConditionHides,
+                DisplayName = "Fire Immediately"))
+    bool bFireImmediately = false;
+
     /** 施加目标 */
     UPROPERTY(EditAnywhere, Category = "BuffFlow")
     EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
