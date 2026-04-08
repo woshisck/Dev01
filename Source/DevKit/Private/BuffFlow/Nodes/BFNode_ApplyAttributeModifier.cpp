@@ -9,11 +9,25 @@ UBFNode_ApplyAttributeModifier::UBFNode_ApplyAttributeModifier(const FObjectInit
 #if WITH_EDITOR
 	Category = TEXT("BuffFlow|Effect");
 #endif
+	InputPins  = { FFlowPin(TEXT("In")), FFlowPin(TEXT("Remove")) };
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
 void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 {
+	// Remove 引脚：主动移除当前持有的 GE（一次性 Buff 消耗用）
+	if (PinName == TEXT("Remove"))
+	{
+		if (GrantedASC.IsValid() && GrantedHandle.IsValid())
+		{
+			GrantedASC->RemoveActiveGameplayEffect(GrantedHandle);
+			GrantedHandle = FActiveGameplayEffectHandle();
+			GrantedASC.Reset();
+		}
+		TriggerOutput(TEXT("Out"), false);
+		return;
+	}
+
 	if (!Attribute.IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] FAILED: Attribute is invalid"));
