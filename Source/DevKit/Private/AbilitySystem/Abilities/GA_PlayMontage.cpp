@@ -33,6 +33,9 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
     const FActionData* action_data = Owner->GetCharacterDataComponent()->GetCharacterData()->AbilityData->AbilityMap.Find(ability_tag);
     
     UAnimMontage* MontageToPlay = action_data ? action_data->Montage : nullptr;
+	// 记录激活时刻，连击缓存只接受此时间之后的输入
+	AbilityActivationTime = GetWorld()->GetTimeSeconds();
+
 	// 注册 CanCombo tag 监听，AnimNotifyState 加上 tag 时自动检查输入缓存
 	CanComboTagHandle = ASC->RegisterGameplayTagEvent(
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")),
@@ -203,8 +206,8 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	if (!Buffer)
 		return;
 
-	// 检查是否有预输入的轻攻击（0.3 秒窗口）
-	if (Buffer->HasBufferedInput(EInputCommandType::LightAttack, 0.3f))
+	// 只接受本次能力激活之后的预输入，避免触发当前能力的那次按键被误判为连击
+	if (Buffer->HasBufferedInputSince(EInputCommandType::LightAttack, AbilityActivationTime))
 	{
 		Buffer->ConsumeBufferedInput(EInputCommandType::LightAttack);
 		FGameplayTagContainer TagContainer;
@@ -213,8 +216,7 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 		return;
 	}
 
-	// 检查是否有预输入的重攻击
-	if (Buffer->HasBufferedInput(EInputCommandType::HeavyAttack, 0.3f))
+	if (Buffer->HasBufferedInputSince(EInputCommandType::HeavyAttack, AbilityActivationTime))
 	{
 		Buffer->ConsumeBufferedInput(EInputCommandType::HeavyAttack);
 		FGameplayTagContainer TagContainer;

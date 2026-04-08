@@ -48,4 +48,7 @@ private:
 	void OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount);
 
 	FDelegateHandle CanComboTagHandle;
+
+	// ActivateAbility 时记录的世界时间，OnCanComboTagChanged 只接受此时间之后的输入
+	float AbilityActivationTime = 0.0f;
 };

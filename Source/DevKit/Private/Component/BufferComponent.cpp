@@ -48,6 +48,19 @@ bool UBufferComponent::HasBufferedInput(EInputCommandType Type, float TimeWindow
 	return false;
 }
 
+bool UBufferComponent::HasBufferedInputSince(EInputCommandType Type, float SinceTime) const
+{
+	for (int32 i = InputCommandHistory.Num() - 1; i >= 0; --i)
+	{
+		const FInputCommand& Cmd = InputCommandHistory[i];
+		if (Cmd.CommandType == Type && Cmd.Timestamp > SinceTime)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 bool UBufferComponent::ConsumeBufferedInput(EInputCommandType Type)
 {
 	const float Now = GetWorld()->GetTimeSeconds();

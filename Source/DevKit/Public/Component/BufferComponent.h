@@ -84,12 +84,21 @@ public:
 
 	/**
 	 * 在时间窗口内是否存在指定类型的缓存输入。
-	 * 典型用途：连击 CanCombo 窗口内检查是否有预输入的攻击。
 	 * @param Type      要检查的输入类型
 	 * @param TimeWindow 向前追溯的秒数（默认 0.3s）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "InputBuffer")
 	bool HasBufferedInput(EInputCommandType Type, float TimeWindow = 0.3f) const;
+
+	/**
+	 * 是否存在在 SinceTime 之后记录的指定类型输入。
+	 * 典型用途：CanCombo 窗口检查时，只接受本次能力激活之后的预输入，
+	 * 避免触发当前能力的那次按键被误当成连击预输入。
+	 * @param Type      要检查的输入类型
+	 * @param SinceTime 只接受 Timestamp > SinceTime 的输入（传入能力激活时刻）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "InputBuffer")
+	bool HasBufferedInputSince(EInputCommandType Type, float SinceTime) const;
 
 	/**
 	 * 消耗（移除）最近一次匹配的缓存输入。
