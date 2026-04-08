@@ -83,6 +83,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Level system")
 	FEnterLevel OnEnterLevel;
 
+	// 关卡切换时存储下一关楼层编号（OpenLevel 后 GameMode 重建时读取）
+	UPROPERTY(BlueprintReadWrite, Category = "Campaign")
+	int32 PendingNextFloor = 1;
+
 	UPROPERTY(BlueprintAssignable, Category = "Level system")
 	FFinishLevel OnFinishLevel;
 
@@ -212,6 +216,7 @@ protected:
 
 	/** Called when the async save happens */
 	virtual void HandleAsyncSave(const FString& SlotName, const int32 UserIndex, bool bSuccess);
+
 
 
 

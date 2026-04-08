@@ -30,18 +30,22 @@ struct FInputCommand
 	UPROPERTY()
 	FVector2D MoveDirection;
 
+	// World time when this command was recorded (GetWorld()->GetTimeSeconds())
+	UPROPERTY()
+	float Timestamp = 0.0f;
+
 	FInputCommand()
-		: CommandType(EInputCommandType::LightAttack), MoveDirection(FVector2D::ZeroVector)
+		: CommandType(EInputCommandType::LightAttack), MoveDirection(FVector2D::ZeroVector), Timestamp(0.0f)
 	{
 	}
 
-	FInputCommand(EInputCommandType InType)
-		: CommandType(InType), MoveDirection(FVector2D::ZeroVector)
+	FInputCommand(EInputCommandType InType, float InTimestamp = 0.0f)
+		: CommandType(InType), MoveDirection(FVector2D::ZeroVector), Timestamp(InTimestamp)
 	{
 	}
 
-	FInputCommand(EInputCommandType InType, const FVector2D& InDirection)
-		: CommandType(InType), MoveDirection(InDirection)
+	FInputCommand(EInputCommandType InType, const FVector2D& InDirection, float InTimestamp = 0.0f)
+		: CommandType(InType), MoveDirection(InDirection), Timestamp(InTimestamp)
 	{
 	}
 
@@ -77,6 +81,27 @@ public:
 	void RecordHeavyAttack();
 	void RecordDash();
 	void RecordMove(const FVector2D& Direction);
+
+	/**
+	 * 在时间窗口内是否存在指定类型的缓存输入。
+	 * 典型用途：连击 CanCombo 窗口内检查是否有预输入的攻击。
+	 * @param Type      要检查的输入类型
+	 * @param TimeWindow 向前追溯的秒数（默认 0.3s）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "InputBuffer")
+	bool HasBufferedInput(EInputCommandType Type, float TimeWindow = 0.3f) const;
+
+	/**
+	 * 消耗（移除）最近一次匹配的缓存输入。
+	 * 典型用途：连击触发时调用，防止同一次输入触发两次。
+	 * @return 是否成功消耗（缓存中存在该输入则为 true）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "InputBuffer")
+	bool ConsumeBufferedInput(EInputCommandType Type);
+
+	/** 清空所有缓存输入（整理阶段开始时调用，避免残留输入） */
+	UFUNCTION(BlueprintCallable, Category = "InputBuffer")
+	void ClearBuffer();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int CurrentIndex;

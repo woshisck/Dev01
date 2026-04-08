@@ -14,6 +14,7 @@
 #include "System/YogGameInstanceBase.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Mob/MobSpawner.h"
+#include "AbilitySystemComponent.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
@@ -409,10 +410,29 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 		}
 	}
 
-	// 加载下一关
-	if (LevelSequenceData && !LevelSequenceData->NextLevelName.IsNone())
+	// 加载下一关：优先读 CampaignData（新系统），回退 LevelSequenceData（旧系统）
+	FName NextLevelName;
+	if (CampaignData && CampaignData->FloorTable.IsValidIndex(CurrentFloor))
 	{
-		UGameplayStatics::OpenLevel(GetWorld(), LevelSequenceData->NextLevelName);
+		NextLevelName = CampaignData->FloorTable[CurrentFloor].LevelName;
+	}
+	else if (LevelSequenceData && !LevelSequenceData->NextLevelName.IsNone())
+	{
+		NextLevelName = LevelSequenceData->NextLevelName;
+	}
+
+	if (!NextLevelName.IsNone())
+	{
+		// 存储下一关楼层编号到 GameInstance，供新 GameMode 的 StartLevelSpawning 读取
+		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+		{
+			GI->PendingNextFloor = CurrentFloor + 1;
+		}
+		UGameplayStatics::OpenLevel(GetWorld(), NextLevelName);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ConfirmArrangementAndTransition: 没有找到下一关的 LevelName，请检查 CampaignData.FloorTable[%d].LevelName"), CurrentFloor);
 	}
 }
 
@@ -426,6 +446,15 @@ void AYogGameMode::StartLevelSpawning()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: CampaignData 未配置，跳过新刷怪系统"));
 		return;
+	}
+
+	// 从 GameInstance 读取上一关存储的楼层推进（切关后 GameMode 重建，CurrentFloor 默认为 1）
+	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	{
+		if (GI->PendingNextFloor > 1)
+		{
+			CurrentFloor = GI->PendingNextFloor;
+		}
 	}
 
 	// FloorTable 下标从 0 开始，CurrentFloor 从 1 开始
@@ -728,8 +757,24 @@ void AYogGameMode::SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClas
 		OutActors[FMath::RandRange(0, OutActors.Num() - 1)]);
 	if (Spawner)
 	{
-		Spawner->SpawnMob(EnemyClass);
-		// TODO: 对刚刷出的敌人施加 ActiveRoomBuffs（需要 MobSpawner 返回刷出的 Actor 引用）
+		AEnemyCharacterBase* SpawnedEnemy = Spawner->SpawnMob(EnemyClass);
+		if (SpawnedEnemy && ActiveRoomBuffs.Num() > 0)
+		{
+			UAbilitySystemComponent* EnemyASC = SpawnedEnemy->GetAbilitySystemComponent();
+			if (EnemyASC)
+			{
+				for (TSubclassOf<UGameplayEffect> GEClass : ActiveRoomBuffs)
+				{
+					if (!GEClass) continue;
+					FGameplayEffectContextHandle Context = EnemyASC->MakeEffectContext();
+					FGameplayEffectSpecHandle Spec = EnemyASC->MakeOutgoingSpec(GEClass, 1.0f, Context);
+					if (Spec.IsValid())
+					{
+						EnemyASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+					}
+				}
+			}
+		}
 	}
 }
 

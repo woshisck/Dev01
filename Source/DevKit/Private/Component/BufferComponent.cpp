@@ -16,23 +16,57 @@ UBufferComponent::UBufferComponent()
 
 void UBufferComponent::RecordLightAttack()
 {
-	PushCommand(FInputCommand(EInputCommandType::LightAttack));
-
+	PushCommand(FInputCommand(EInputCommandType::LightAttack, GetWorld()->GetTimeSeconds()));
 }
 
 void UBufferComponent::RecordHeavyAttack()
 {
-	PushCommand(FInputCommand(EInputCommandType::HeavyAttack));
+	PushCommand(FInputCommand(EInputCommandType::HeavyAttack, GetWorld()->GetTimeSeconds()));
 }
 
 void UBufferComponent::RecordDash()
 {
-	PushCommand(FInputCommand(EInputCommandType::Dash));
+	PushCommand(FInputCommand(EInputCommandType::Dash, GetWorld()->GetTimeSeconds()));
 }
 
 void UBufferComponent::RecordMove(const FVector2D& Direction)
 {
-	PushCommand(FInputCommand(EInputCommandType::Move, Direction));
+	PushCommand(FInputCommand(EInputCommandType::Move, Direction, GetWorld()->GetTimeSeconds()));
+}
+
+bool UBufferComponent::HasBufferedInput(EInputCommandType Type, float TimeWindow) const
+{
+	const float Now = GetWorld()->GetTimeSeconds();
+	for (int32 i = InputCommandHistory.Num() - 1; i >= 0; --i)
+	{
+		const FInputCommand& Cmd = InputCommandHistory[i];
+		if (Cmd.CommandType == Type && (Now - Cmd.Timestamp) <= TimeWindow)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UBufferComponent::ConsumeBufferedInput(EInputCommandType Type)
+{
+	const float Now = GetWorld()->GetTimeSeconds();
+	for (int32 i = InputCommandHistory.Num() - 1; i >= 0; --i)
+	{
+		FInputCommand& Cmd = InputCommandHistory[i];
+		if (Cmd.CommandType == Type)
+		{
+			// 标记为极旧时间戳使其在时间窗口外，等效"消耗"
+			Cmd.Timestamp = -9999.0f;
+			return true;
+		}
+	}
+	return false;
+}
+
+void UBufferComponent::ClearBuffer()
+{
+	InputCommandHistory.Empty();
 }
 
 

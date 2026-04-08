@@ -7,15 +7,6 @@
 #include "AbilitySystemComponent.h"
 #include "BackpackGridComponent.generated.h"
 
-UENUM(BlueprintType)
-enum class EHeatTier : uint8
-{
-    Tier1        = 0,  // 0–99
-    Tier2        = 1,  // 100–199
-    Tier3        = 2,  // 200–299
-    Transcendence = 3, // 300+，激活区同 Tier3
-};
-
 // Source/DevKit/Public/Component/BackpackGridComponent.h
 
 USTRUCT(BlueprintType)
@@ -53,7 +44,6 @@ DECLARE_MULTICAST_DELEGATE(FBGCPhaseEvent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRunePlaced, const FRuneInstance&, Rune);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRuneRemoved, FGuid, RuneGuid);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHeatTierChanged, EHeatTier, NewTier);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRuneActivationChanged, FGuid, RuneGuid, bool, bActivated);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -92,9 +82,6 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category = "Backpack|Events")
     FOnRuneRemoved OnRuneRemoved;
-
-    UPROPERTY(BlueprintAssignable, Category = "Backpack|Events")
-    FOnHeatTierChanged OnHeatTierChanged;
 
     UPROPERTY(BlueprintAssignable, Category = "Backpack|Events")
     FOnRuneActivationChanged OnRuneActivationChanged;
@@ -147,9 +134,6 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Backpack")
     int32 GetCurrentPhase() const { return CurrentPhase; }
-
-    UFUNCTION(BlueprintPure, Category = "Backpack")
-    EHeatTier GetCurrentHeatTier() const { return CurrentTier; }
 
     // 返回所有已放置符文（UI用）
     UFUNCTION(BlueprintPure, Category = "Backpack")
@@ -206,9 +190,6 @@ private:
 
     // 所有已放置符文
     TArray<FPlacedRune> PlacedRunes;
-
-    // 当前热度等级（由 Phase 驱动）
-    EHeatTier CurrentTier = EHeatTier::Tier1;
 
     // 当前阶段（0=Phase1, 1=Phase2, 2=Phase3, 3=升华），最大3
     int32 CurrentPhase = 0;

@@ -13,6 +13,7 @@ import subprocess
 import json
 import os
 import sys
+import stat
 import shutil
 import time
 import logging
@@ -420,11 +421,15 @@ class SyncBridge:
             d = dst / f
             if s.exists():
                 d.parent.mkdir(parents=True, exist_ok=True)
+                # P4 文件默认只读，复制前先解除只读属性
+                if d.exists():
+                    d.chmod(stat.S_IWRITE | stat.S_IREAD)
                 shutil.copy2(s, d)
                 copied += 1
             else:
                 # 源文件不存在 = 被删除了
                 if d.exists():
+                    d.chmod(stat.S_IWRITE | stat.S_IREAD)
                     d.unlink()
                     deleted += 1
 

@@ -339,21 +339,27 @@ void UBackpackGridComponent::IncrementPhase()
 			ASC->AddLooseGameplayTag(NewTag);
 	}
 
-	EHeatTier NewTier = static_cast<EHeatTier>(FMath::Clamp(CurrentPhase, 0, 3));
-	if (NewTier != CurrentTier)
-	{
-		CurrentTier = NewTier;
-		OnHeatTierChanged.Broadcast(CurrentTier);
-		RefreshAllActivations();
-	}
+	RefreshAllActivations();
 
-	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Phase UP → %d"), CurrentPhase);
+	// 输出激活区格子，方便调试
+	{
+		TSet<FIntPoint> Zone = ComputeActivationZone();
+		FString ZoneStr;
+		for (const FIntPoint& C : Zone)
+			ZoneStr += FString::Printf(TEXT("(%d,%d) "), C.X, C.Y);
+		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Phase UP → %d | ActivationZone [%d cells]: %s"),
+			CurrentPhase, Zone.Num(), *ZoneStr);
+	}
 }
 
 void UBackpackGridComponent::DecrementPhase()
 {
+	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] DecrementPhase called (CurrentPhase=%d)"), CurrentPhase);
 	if (CurrentPhase <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] DecrementPhase SKIPPED: already at Phase 0"));
 		return;
+	}
 
 	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
 
@@ -377,15 +383,17 @@ void UBackpackGridComponent::DecrementPhase()
 			ASC->AddLooseGameplayTag(NewTag);
 	}
 
-	EHeatTier NewTier = static_cast<EHeatTier>(FMath::Clamp(CurrentPhase, 0, 3));
-	if (NewTier != CurrentTier)
-	{
-		CurrentTier = NewTier;
-		OnHeatTierChanged.Broadcast(CurrentTier);
-		RefreshAllActivations();
-	}
+	RefreshAllActivations();
 
-	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Phase DOWN → %d"), CurrentPhase);
+	// 输出激活区格子，方便调试
+	{
+		TSet<FIntPoint> Zone = ComputeActivationZone();
+		FString ZoneStr;
+		for (const FIntPoint& C : Zone)
+			ZoneStr += FString::Printf(TEXT("(%d,%d) "), C.X, C.Y);
+		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Phase DOWN → %d | ActivationZone [%d cells]: %s"),
+			CurrentPhase, Zone.Num(), *ZoneStr);
+	}
 }
 
 void UBackpackGridComponent::ResetHeatToPhaseFloor()
@@ -397,8 +405,6 @@ void UBackpackGridComponent::ResetHeatToPhaseFloor()
 
 	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), 0.f);
 	CurrentPhase = 0;
-	CurrentTier  = EHeatTier::Tier1;
-	OnHeatTierChanged.Broadcast(CurrentTier);
 	RefreshAllActivations();
 }
 
@@ -431,7 +437,7 @@ void UBackpackGridComponent::SetActivationZoneConfig(const FActivationZoneConfig
 
 TSet<FIntPoint> UBackpackGridComponent::ComputeActivationZone() const
 {
-	const int32 TierIndex = static_cast<int32>(CurrentTier);
+	const int32 TierIndex = CurrentPhase;
 	TSet<FIntPoint> ZoneSet;
 
 	if (!ActivationZoneConfig.ZoneShapes.IsValidIndex(TierIndex))
