@@ -2,6 +2,7 @@
 
 #include "Animation/ANS_AutoTarget.h"
 #include "Character/EnemyCharacterBase.h"
+#include "Character/PlayerCharacterBase.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -63,7 +64,16 @@ AActor* UANS_AutoTarget::FindBestTarget(ACharacter* Character) const
 		return nullptr;
 
 	const FVector Origin = Character->GetActorLocation();
-	const FVector Forward = Character->GetActorForwardVector();
+
+	// 优先用玩家摇杆/移动输入的意图方向；无输入时退回角色朝向
+	// 手柄模式下：攻击时玩家按的方向即为索敌锥角基准
+	FVector SearchDir = Character->GetActorForwardVector();
+	if (const APlayerCharacterBase* PlayerChar = Cast<APlayerCharacterBase>(Character))
+	{
+		if (!PlayerChar->LastInputDirection.IsNearlyZero())
+			SearchDir = PlayerChar->LastInputDirection;
+	}
+
 	const float CosHalfAngle = FMath::Cos(FMath::DegreesToRadians(SearchHalfAngleDeg));
 
 	// 球形范围内的所有 Pawn
@@ -84,10 +94,10 @@ AActor* UANS_AutoTarget::FindBestTarget(ACharacter* Character) const
 		if (DistSq > SearchRadius * SearchRadius)
 			continue;
 
-		// 锥角过滤
+		// 锥角过滤（以摇杆意图方向为基准，而非角色朝向）
 		if (SearchHalfAngleDeg < 180.f)
 		{
-			const float Dot = FVector::DotProduct(Forward, ToTarget.GetSafeNormal());
+			const float Dot = FVector::DotProduct(SearchDir, ToTarget.GetSafeNormal());
 			if (Dot < CosHalfAngle)
 				continue;
 		}
