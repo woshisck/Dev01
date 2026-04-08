@@ -236,6 +236,12 @@ void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		player->GetInputBufferComponent()->RecordMove(Input);
+
+		// 记录最后一次非零输入方向，供冲刺朝向使用
+		if (!MoveDir.IsNearlyZero())
+		{
+			player->LastInputDirection = MoveDir.GetSafeNormal();
+		}
 	}
 
 	//const FRotator playerTowards = UKismetMathLibrary::Conv_VectorToRotator(FVector(Rotated, 0));
