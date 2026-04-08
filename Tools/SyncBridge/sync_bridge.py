@@ -305,6 +305,10 @@ class SyncBridge:
         ws_path = Path(cfg["workspace_path"])
 
         ok, out = self._p4("sync", timeout=600)
+        if not ok:
+            self.log.error(f"p4 sync 失败: {(out or '').strip()[:300]}")
+            return []
+
         out_text = (out or "").strip()
 
         # "up-to-date" 或无输出表示无变更
@@ -391,6 +395,20 @@ class SyncBridge:
 
         self._p4_update_cl_state()
         self.log.info("p4 submit 完成")
+
+        # 提交后将文件恢复为只读（P4 标准状态：未 checkout 的文件应为只读）
+        restored = 0
+        for f in files:
+            fpath = Path(ws) / f.replace("/", os.sep)
+            if fpath.exists():
+                try:
+                    fpath.chmod(stat.S_IREAD)
+                    restored += 1
+                except Exception:
+                    pass
+        if restored:
+            self.log.info(f"已将 {restored} 个文件恢复为只读")
+
         return True
 
     # ── UE5 编译 ───────────────────────────────────────────────
