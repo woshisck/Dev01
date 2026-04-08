@@ -311,6 +311,34 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox")
 	TArray<FYogHitboxType> hitboxTypes;
 
+	// ─── 动作时序配置（填帧数，运行时自动归一化）────────────────────────
+	// 先填 TotalFrames，其余字段单位与蒙太奇帧率一致（通常 30fps）
+
+	/** 蒙太奇总帧数（用于将下方帧数转换为归一化时间） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing", meta = (ClampMin = "1"))
+	int32 TotalFrames = 30;
+
+	/** 连击输入窗口 开始帧（AnimNotifyState CanCombo 替代） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing")
+	int32 ComboOpenFrame = 18;
+
+	/** 连击输入窗口 结束帧 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing")
+	int32 ComboCloseFrame = 27;
+
+	/** 后摇移动取消 开始帧（此帧后有移动输入则快速混出） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing")
+	int32 EarlyExitFrame = 22;
+
+	/** 移动取消时的混出时间（秒），0 = 立即切换 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing", meta = (ClampMin = "0.0", ClampMax = "0.5"))
+	float EarlyExitBlendTime = 0.1f;
+
+	// 内联辅助：帧数 → 归一化时间（供 GA_PlayMontage 使用，不暴露给 BP）
+	float FrameToNormalized(int32 Frame) const
+	{
+		return TotalFrames > 0 ? FMath::Clamp((float)Frame / TotalFrames, 0.f, 1.f) : 0.f;
+	}
 };
 
 
