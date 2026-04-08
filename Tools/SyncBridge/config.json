@@ -26,7 +26,7 @@
         "compile_triggers": [".cpp", ".h", ".cs", ".Build.cs"]
     },
 
-    "poll_interval_minutes": 10,
+    "poll_interval_minutes": 30,
     "log_file": "sync_bridge.log",
     "log_level": "INFO",
 
@@ -44,6 +44,8 @@
         "Content/FantasticGoth_MeshingGun",
         "Content/Effect",
         "Content/SFX",
+
+        "Tools",
         "Content/Runtime"
 
     ]
