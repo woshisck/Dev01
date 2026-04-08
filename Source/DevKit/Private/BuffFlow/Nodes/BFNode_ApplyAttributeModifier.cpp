@@ -68,6 +68,18 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 		break;
 	}
 
+	// Period 支持：> 0 时让 GAS 每隔 N 秒执行一次 Modifier
+	// 典型用途：每秒 +1 热度（Period=1.0, DurationType=Infinite）
+	if (Period > 0.f && DurationType != ERuneDurationType::Instant)
+	{
+		CachedGE->Period = FScalableFloat(Period);
+		CachedGE->bExecutePeriodicEffectOnApplication = bFireImmediately;
+	}
+	else
+	{
+		CachedGE->Period = FScalableFloat(0.f);
+	}
+
 	switch (StackMode)
 	{
 	case EBFGEStackMode::None:

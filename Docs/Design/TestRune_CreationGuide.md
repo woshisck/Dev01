@@ -1,443 +1,420 @@
-# 测试符文制作指南
+# 测试符文制作指南 v2
 
-> 本文档记录 6 个测试符文的完整制作步骤。  
-> Tag 命名规范遵循 [`Buff_Tag_Spec.md`](Buff_Tag_Spec.md)。  
-> 制作过程中请在文档内直接标注反馈（`[反馈]` 开头），以便后续根据实际习惯优化工作流。
+> 版本：v2（2026-04-08）更新重点：全面采用 `BFNode_ApplyAttributeModifier` 零资产方案，大幅减少 Blueprint GE 资产数量。
+> Tag 规范：[Buff_Tag_Spec.md](Buff_Tag_Spec.md) · 系统指南：[BuffFlow_SystemGuide.md](BuffFlow_SystemGuide.md)
+
+---
+
+## 资产策略总览
+
+| 符文 | Blueprint GE | Blueprint GA | 说明 |
+|------|-------------|-------------|------|
+| 1001 攻击强化 | ❌ 不需要 | ❌ 不需要 | ApplyAttributeModifier 直接处理 |
+| 1002 热度提升 | ⚠️ 1个（HeatTick，需 Inhibit 功能） | ❌ 不需要 | Period GE + GrantTag |
+| 1003 速度叠加 | ❌ 不需要 | ❌ 不需要 | ApplyAttributeModifier Stackable |
+| 1004 击退 | ✅ 1个（KnockbackStagger，需 SetByCaller） | ✅ 1个（物理冲量） | GE+GA 不可避免 |
+| 1005 流血 | ❌ 不需要 | ✅ 1个（速度扣血逻辑） | GrantTag 替代 GE_Bleeding |
+| 1006 额外伤害 | ❌ 不需要 | ❌ 不需要 | AddTag 守卫 + DoDamage |
+
+**v2 变化：** 从 6 个 Blueprint GE 减少到 **2 个**（HeatTick、KnockbackStagger）。
 
 ---
 
 ## 前置：GameplayTag 创建
 
-**路径：** Edit → Project Settings → Gameplay Tags → 点 + 逐条添加
+**路径：** Edit → Project Settings → Gameplay Tags
 
-Tag 按照 `Buff_Tag_Spec.md` 的四层职责模型划分，**每层只做一件事**：
+> ★ = Buff_Tag_Spec.md 中已有；☆ = 本次新增
 
-| 层 | 前缀 | 职责 | 贴在哪里 |
+| Tag | 层 | 状态 | 用途 |
 |---|---|---|---|
-| 身份层 | `Buff.Rune.*` | 这个符文**是什么**（类型/稀有度） | DA 的 IdentityTags |
-| 行为层 | `Buff.Effect.*` | 这个 GE **做了什么** | GE 的 Asset Tags |
-| 触发层 | `Buff.Trigger.*` | 这个效果**在何时生效** | GA 的 Asset Tags |
-| 状态层 | `Buff.Status.*` | 角色**现在的运行时状态** | GE 的 Granted Tags → 授予目标 ASC |
-| 参数层 | `Buff.Data.*` | **SetByCaller 的键名**，FA 运行时向 GE 传值 | GE Modifier 的 SetByCaller 槽 + BFNode_ApplyEffect 的 SetByCallerTag 槽 |
-
-> **参数层说明：**  
-> `Buff.Data.*` 不挂在任何角色身上，也不描述状态或效果。它是 FA（BFNode_ApplyEffect）和 GE 之间的**数据通道**：  
-> - GE Modifier 的 Magnitude Type 选 `SetByCaller`，填入 `Buff.Data.AttributeMod` 等 Tag  
-> - FA 的 `BFNode_ApplyEffect` 节点在 SetByCallerTag 槽填同一个 Tag，Value 槽填实际数值  
-> - 这样同一个 GE 资产就能被不同符文或阶段以不同数值复用
-
-### 本次需要创建的 Tag
-
-> ★ = Buff_Tag_Spec.md 中已有；☆ = 本次新增（需补充到 Spec）
-
-#### 行为层 `Buff.Effect.*`（贴在 GE 的 Asset Tags，同时填入 DA.RuneConfig.RuneEffectTag）
-
-| Tag | 状态 | 用于哪个符文 | 说明 |
-|---|---|---|---|
-| `Buff.Effect.Attribute.MoveSpeed` | ★ 已有 | 符文 3 移速堆叠、符文 4 击退硬直 | 修改移动速度属性的 GE |
-| `Buff.Effect.Attribute.Attack` | ☆ 新增 | 符文 1 攻击提升 | 修改攻击力属性的 GE |
-| `Buff.Effect.Attribute.Heat` | ☆ 新增 | 符文 2 热度提升 | 修改热度属性的 GE |
-| `Buff.Effect.Bleed` | ☆ 新增 | 符文 5 流血 | 流血效果 GE 的身份标识 |
-
-> **DevComment（新增 Tag 时填写）：**  
-> `Buff.Effect.Attribute.Attack`：`【Effect-Attr】修改攻击力属性（对应 GAS AttributeSet.Attack）`  
-> `Buff.Effect.Attribute.Heat`：`【Effect-Attr】修改热度属性（对应 GAS AttributeSet.Heat）`  
-> `Buff.Effect.Bleed`：`【Effect】流血效果 GE，配合 Buff.Status.Bleeding 状态使用`
-
-#### 状态层 `Buff.Status.*`（GE 通过 Granted Tags 授予目标，GE 移除时自动消失）
-
-| Tag | 状态 | 用于哪个符文 | 说明 |
-|---|---|---|---|
-| `Buff.Status.Knockback` | ☆ 新增 | 符文 4 击退 | 瞬时信号：加给目标 → GA_Knockback 激活 → 执行冲量 → 移除 |
-| `Buff.Status.Bleeding` | ☆ 新增 | 符文 5 流血 | 持续状态：GE_Bleeding 存在期间目标持有，GA_Bleed 以此为激活条件 |
-| `Buff.Status.ExtraDamageApplied` | ☆ 新增 | 符文 6 额外扣血 | 防递归守卫：同帧内有此 Tag 则跳过额外伤害逻辑 |
-
-> **DevComment（新增 Tag 时填写）：**  
-> `Buff.Status.Knockback`：`【Status】击退触发信号，由 FA AddTag 节点写入，GA_Knockback 消费后立即移除`  
-> `Buff.Status.Bleeding`：`【Status】流血状态，由 GE_Bleeding 通过 Granted Tags 授予，GE 移除时自动消失`  
-> `Buff.Status.ExtraDamageApplied`：`【Status】额外伤害递归防护守卫，同帧有此 Tag 则跳过，由 FA 手动管理`
-
-#### 参数层 `Buff.Data.*`（SetByCaller 键名，GE Modifier + FA 节点配对使用）
-
-| Tag | 状态 | 用于哪个符文 | 说明 |
-|---|---|---|---|
-| `Buff.Data.AttributeMod` | ★ 已有 | 符文 4 击退硬直 | 属性修改量，GE Modifier SetByCaller 键 + FA 节点运行时填值 |
-
-#### 身份层 `Buff.Rune.*`（贴在 DA，当前为规范预留，DA 暂无 IdentityTags 字段）
-
-| Tag | 状态 | 用于哪个符文 |
-|---|---|---|
-| `Buff.Rune.Type.Attack` | ★ 已有 | 符文 1 攻击提升、符文 4 击退、符文 5 流血、符文 6 额外扣血 |
-| `Buff.Rune.Type.Utility` | ★ 已有 | 符文 2 热度提升、符文 3 移速堆叠 |
-| `Buff.Rune.Rarity.Common` | ★ 已有 | 全部 6 个测试符文 |
-
-> **注：** 当前 `RuneDataAsset` 暂无 `IdentityTags` 字段，`Buff.Rune.*` Tag 填写暂时跳过，待 DA 结构扩展后补充。
+| `Buff.Effect.Attribute.Attack` | 行为层 | ☆ 新增 | GAS Debugger 查询用，贴在 DA.RuneEffectTag |
+| `Buff.Effect.Attribute.Heat` | 行为层 | ☆ 新增 | 同上 |
+| `Buff.Effect.Attribute.MoveSpeed` | 行为层 | ★ 已有 | 同上 |
+| `Buff.Effect.Bleed` | 行为层 | ☆ 新增 | GE_HeatTick Asset Tag |
+| `Buff.Status.HeatInhibit` | 状态层 | ☆ 新增 | 受伤后暂停热度的 Inhibit 守卫 Tag |
+| `Buff.Status.Bleeding` | 状态层 | ☆ 新增 | 流血状态，GA_Bleed 以此为激活条件 |
+| `Buff.Status.ExtraDamageApplied` | 状态层 | ☆ 新增 | 递归守卫 Tag（符文6） |
+| `Buff.Data.AttributeMod` | 参数层 | ★ 已有 | GE_KnockbackStagger SetByCaller 键 |
 
 ---
 
-## 符文 1：永久攻击提升
+## 符文 1：攻击强化（1001）⚡ 零资产
 
-**效果：** 符文在激活区内时，攻击力永久 +10。离开激活区立即失效。  
-**触发方式：** 被动常驻（`Buff.Trigger.Passive`）
+**设计：** 被动。激活期间永久 +10 攻击力。
 
-### 1-1 创建 GE：`GE_Rune_AttackUp`
+**需要创建：** FA + DA（无需 GE）
 
-路径：Content Browser 右键 → Gameplay → Gameplay Effect Blueprint
+### 1-1 FA：`FA_Rune_AttackUp`
 
-| 配置项 | 值 | 意义 |
-|---|---|---|
-| Duration Policy | **Infinite** | 永久生效，不自动到期 |
-| Stacking Type | **Aggregate By Target** | 同一目标只保留一个实例，防止重复叠加 |
-| Stack Limit Count | `1` | 最多 1 层 |
-| Stack Duration Refresh | **Refresh On Successful Application** | 重复施加时刷新（Infinite 下无实际影响） |
-| **Modifiers** → 添加一条 | Attribute = `Attack`，Op = **Additive**，Magnitude = `10` | 攻击力 +10 |
-| **Components** → 添加 `Asset Tags Gameplay Effect Component` | Tag：`Buff.Effect.Attribute.Attack` | **行为层**：标识这个 GE 修改了攻击属性，同时供 GetSelfRuneInfo 节点查询 |
-
-### 1-2 创建 FA：`FA_Rune_AttackUp`
-
-路径：Content Browser 右键 → Flow Asset
-
-Graph 连接：
 ```
-[Start] ──→ [Apply Gameplay Effect Class]
-                Effect   = GE_Rune_AttackUp
-                Level    = 1.0
-                Target   = Buff拥有者
+[Start] ──→ [Apply Gameplay Effect]           ← BFNode_ApplyAttributeModifier
+                Attribute    = AttackDamage（或项目实际属性名）
+                ModOp        = Additive
+                Value        = 10.0
+                DurationType = Infinite
+                Period       = 0（不启用）
+                Target       = Buff拥有者
 ```
 
-> **意义：** FA 启动时立即施加 Infinite GE。FA 停止时（符文离开激活区），`ApplyEffect` 节点的 `Cleanup()` 自动移除 GE，攻击力恢复原值。
+**Cleanup 行为：** FA 停止时节点自动移除 GE，攻击力恢复。
 
-### 1-3 创建 DA：`DA_Rune_AttackUp`
+### 1-2 DA：`DA_Rune_AttackUp`
 
-路径：Content Browser 右键 → Miscellaneous → Data Asset → `RuneDataAsset`
-
-| 字段 | 值 | 说明 |
-|---|---|---|
-| Rune Name | `AttackUp` | |
-| Rune Icon | （选图标） | |
-| Rune Description | 永久提升攻击力 | |
-| Shape.Cells | `(0,0)` | 1 格符文 |
-| RuneConfig.RuneType | `Buff` | |
-| RuneConfig.RuneID | `1001` | |
-| RuneConfig.RuneEffectTag | `Buff.Effect.Attribute.Attack` | 必须与 GE 的 Asset Tag 一致，GetSelfRuneInfo 依赖此 Tag 查询 GE |
-| Flow.FlowAsset | `FA_Rune_AttackUp` | |
-
----
-
-## 符文 2：永久热度提升
-
-**效果：** 符文在激活区内时，热度属性 +50。  
-**触发方式：** 被动常驻（`Buff.Trigger.Passive`）  
-**注：** 热度增加会推动升阶判定，属预期行为。后续若需禁止升阶，可在 `BFNode_OnPhaseUpReady` 加 `Buff.Status.*` 检查。
-
-### 2-1 创建 GE：`GE_Rune_HeatUp`
-
-| 配置项 | 值 |
+| 字段 | 值 |
 |---|---|
-| Duration Policy | **Infinite** |
-| Stacking | Aggregate By Target，Limit=1，Refresh |
-| **Modifiers** | Attribute = `Heat`，Op = **Additive**，Magnitude = `50` |
-| Asset Tags Component | Tag = `Buff.Effect.Attribute.Heat` |
+| RuneName | `AttackUp` |
+| Shape.Cells | `(0,0)` |
+| RuneConfig.RuneID | `1001` |
+| RuneConfig.RuneType | `Buff` |
+| Flow.FlowAsset | `FA_Rune_AttackUp` |
 
-### 2-2 创建 FA：`FA_Rune_HeatUp`
+### 1-3 测试要点
+
+- GAS Debugger → 属性面板：激活后 AttackDamage 增加 10
+- 拖出激活区：AttackDamage 恢复原值
+- 多次装卸：数值不累积
+
+---
+
+## 符文 2：热度提升（1002）⚠️ 需要 1 个 Blueprint GE
+
+**设计：** 被动。每秒 +1 热度。受到伤害后暂停 5 秒，伤害结束后恢复。
+
+**需要创建：** GE_HeatTick（Blueprint，需 OngoingTagRequirements）+ FA + DA
+
+> **为什么这个符文需要 Blueprint GE？**
+> `BFNode_ApplyAttributeModifier` 的 Period 字段只设置 GE 的 Period，但无法配置 `OngoingTagRequirements.IgnoreTags`。
+> 受伤暂停功能依赖 GAS 的 Inhibit 机制（自动暂停/恢复），必须用 Blueprint GE 配置这个字段。
+
+### 2-1 GE：`GE_HeatTick`
+
+| 配置项 | 值 | 说明 |
+|---|---|---|
+| Duration Policy | **Infinite** | 永久运行 |
+| Period | `1.0` | 每秒触发一次 Modifier |
+| Execute Period Effect On Application | `false` | 施加时不立即触发，等第一个 Period |
+| **Modifiers** | Attribute=Heat, Op=Additive, Magnitude=1 | 每次 Period 触发时 +1 热度 |
+| Stacking | AggregateByTarget, Limit=1 | 同目标只保留一个实例 |
+| **Ongoing Tag Requirements** → **Ignore Tags** | `Buff.Status.HeatInhibit` | ⭐ 目标有此 Tag 时自动暂停 Period 执行 |
+| Asset Tags | `Buff.Effect.Attribute.Heat` | 行为层标识 |
+
+> `OngoingTagRequirements.IgnoreTags`：GE 在目标身上激活期间，如果目标有 HeatInhibit Tag，GAS 自动暂停 Period 执行（GE 不移除，只是"睡眠"）。Tag 消失后自动恢复。
+
+### 2-2 FA：`FA_Rune_HeatUp`
 
 ```
-[Start] ──→ [Apply Gameplay Effect Class]
-                Effect = GE_Rune_HeatUp
+[Start] ──→ [Apply Gameplay Effect Class]     ← BFNode_ApplyEffect
+                Effect = GE_HeatTick
                 Level  = 1.0
                 Target = Buff拥有者
+                ↓ Out（保持活跃，Cleanup 时移除 GE）
+
+[OnDamageReceived] ──→ [Grant Tag (Timed)]    ← BFNode_GrantTag
+                            Tag      = Buff.Status.HeatInhibit
+                            Duration = 5.0
+                            Target   = Buff拥有者
+                            ↓ Out → （继续监听下次受伤）
+                            ↓ Expired → （5秒到期，热度自动恢复）
 ```
 
-### 2-3 创建 DA：`DA_Rune_HeatUp`
+**生命周期：**
+- 受伤 → GrantTag 授予 HeatInhibit 5s → GAS 检测到 IgnoreTags 命中 → GE_HeatTick Period 暂停
+- 5s 后 GrantTag 到期自动移除 HeatInhibit → GAS 恢复 GE_HeatTick Period
+- 再次受伤 → 重置 5s 计时（GrantTag 的 In 引脚再触发会刷新计时器）
+- FA 停止 → BFNode_ApplyEffect Cleanup 移除 GE_HeatTick；BFNode_GrantTag Cleanup 移除 HeatInhibit
+
+### 2-3 DA：`DA_Rune_HeatUp`
 
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1002` |
-| RuneConfig.RuneEffectTag | `Buff.Effect.Attribute.Heat` |
+| RuneConfig.RuneType | `Buff` |
 | Flow.FlowAsset | `FA_Rune_HeatUp` |
+
+### 2-4 测试要点
+
+- 激活后每秒 Heat +1（GAS Debugger 观察 Heat 属性）
+- 受伤后 5 秒内 Heat 停止增长
+- 5 秒后 Heat 恢复每秒增长
+- 连续受伤时计时器刷新（再次受伤重置 5 秒）
+- 拖出激活区：GE 移除，Tag 清理
 
 ---
 
-## 符文 3：攻击获得移速堆叠
+## 符文 3：速度叠加（1003）⚡ 零资产
 
-**效果：** 每次攻击命中敌人后，自身获得移速 +30，持续 3 秒，最多叠 5 层（+150），逐层衰减。  
-**触发方式：** 命中触发（`Buff.Trigger.OnHit`）
+**设计：** 命中敌人后自身获得移速 +30，持续 3 秒，最多叠 5 层（+150）。每次命中刷新计时，逐层衰减。
 
-### 3-1 创建 GE：`GE_Rune_SpeedStack`
+**需要创建：** FA + DA（无需 GE）
 
-| 配置项 | 值 | 意义 |
-|---|---|---|
-| Duration Policy | **Has Duration**，Duration = `3.0` | 每层持续 3 秒 |
-| Stacking Type | **Aggregate By Target** | 同目标共享一个 GE 实例，支持叠层 |
-| Stack Limit Count | `5` | 最多 5 层 |
-| Stack Duration Refresh | **Refresh On Successful Application** | 每次命中刷新整体计时 |
-| Stack Expiration Policy | **Remove Single Stack And Refresh Duration** | 到期只减一层，剩余层重置计时 |
-| **Modifiers** | Attribute = `MoveSpeed`，Op = **Additive**，Magnitude = `30` | 每层 +30 移速 |
-| Asset Tags Component | Tag = `Buff.Effect.Attribute.MoveSpeed` | **行为层**（Spec 已有此 Tag） |
-
-### 3-2 创建 FA：`FA_Rune_SpeedStack`
+### 3-1 FA：`FA_Rune_SpeedStack`
 
 ```
-[OnDamageDealt] ──→ [Apply Gameplay Effect Class]
-                        Effect = GE_Rune_SpeedStack
-                        Level  = 1.0
-                        Target = Buff拥有者        ← 移速给自己，不是给敌人
+[Start] ──→ [OnDamageDealt] ──→ [Apply Gameplay Effect]  ← BFNode_ApplyAttributeModifier
+                                     Attribute    = MoveSpeed（或项目实际属性名）
+                                     ModOp        = Additive
+                                     Value        = 30.0
+                                     DurationType = HasDuration
+                                     Duration     = 3.0
+                                     Period       = 0（不启用）
+                                     Target       = Buff拥有者
+                                     StackMode    = Stackable
+                                     StackLimit   = 5
+                                     Duration Refresh = Refresh On Successful Application
+                                     Expiration Policy = Remove Single Stack And Refresh Duration
 ```
 
-> **意义：** `OnDamageDealt` 每次对外造成伤害时触发，对自身叠加一层移速 GE。GAS 堆叠机制自动管理层数和倒计时。
+**堆叠行为说明：**
+- `Stackable + Limit=5`：最多叠 5 层，每层 +30 MoveSpeed
+- `Refresh On Successful Application`：每次命中刷新所有层的计时
+- `Remove Single Stack And Refresh Duration`：到期时只减一层，剩余层重置计时（逐层衰减）
 
-### 3-3 创建 DA：`DA_Rune_SpeedStack`
+**Cleanup 行为：** FA 停止时自动移除整个 Stackable GE（所有层同时移除）。
+
+### 3-2 DA：`DA_Rune_SpeedStack`
 
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1003` |
-| RuneConfig.RuneEffectTag | `Buff.Effect.Attribute.MoveSpeed` |
+| RuneConfig.RuneType | `Buff` |
 | Flow.FlowAsset | `FA_Rune_SpeedStack` |
+
+### 3-3 测试要点
+
+- 命中后 MoveSpeed +30
+- 连续命中：最多 +150（5层），计时刷新
+- 停止攻击：3秒后开始逐层掉落（每层 3 秒）
+- 拖出激活区：全部层立即移除
 
 ---
 
-## 符文 4：击退（含 SetByCaller 示例）
+## 符文 4：击退（1004）✅ 需要 GE + GA
 
-**效果：** 每次命中敌人，对其施加一次物理击退，同时减少目标 300 点移速持续 1 秒（击退硬直）。  
-**触发方式：** 命中触发（`Buff.Trigger.OnHit`）  
-**机制：**  
-1. FA 施加 `GE_KnockbackStagger`（含 SetByCaller 移速减少量）→ GAS 写入目标属性  
-2. FA 给目标写入 `Buff.Status.Knockback` 信号 Tag → 敌人 GA_Knockback 激活 → 施加冲量 → 移除 Tag
+**设计：** 命中敌人后：① 对其施加移速 -300 硬直 1 秒；② 施加物理击退冲量。
 
-> **前提：** `GA_Knockback` 需要预先授予所有敌人角色。
+**需要创建：** GE_KnockbackStagger（Blueprint，SetByCaller）+ GA_Knockback（Blueprint）+ FA + DA
 
-> **SetByCaller 要点：**  
-> GE 的 Modifier Magnitude 选 `SetByCaller` 并填入 Tag `Buff.Data.AttributeMod`，具体数值留空。  
-> FA 节点（BFNode_ApplyEffect）的 `SetByCallerTag1 = Buff.Data.AttributeMod`，`Value1 = -300.0`。  
-> 这样硬直强度可以在不修改 GE 资产的前提下，直接在 FA 节点上调整。
+> **为什么需要 Blueprint GE？** 移速减少量由 FA 运行时传入（SetByCaller），GE 内部不写死数值，方便阶段调整。
+> **为什么需要 Blueprint GA？** 物理冲量（LaunchCharacter）是 AbilityTask 类操作，不适合用 FA 节点。
 
-### 4-1 创建 GE：`GE_KnockbackStagger`
+### 4-1 GE：`GE_KnockbackStagger`
 
-| 配置项 | 值 | 意义 |
+| 配置项 | 值 | 说明 |
 |---|---|---|
-| Duration Policy | **Has Duration**，Duration = `1.0` | 硬直效果持续 1 秒后自动解除 |
-| Stacking Type | **Aggregate By Target**，Limit=1，Refresh | 命中刷新倒计时，不会叠层 |
-| **Modifiers** → 添加一条 | Attribute = `MoveSpeed`，Op = **Additive**，Magnitude Type = **Set By Caller**，Tag = `Buff.Data.AttributeMod` | 移速减少量由 FA 运行时传入（填负值即为减速） |
-| Asset Tags Component | Tag = `Buff.Effect.Attribute.MoveSpeed` | **行为层**：标识这个 GE 修改了移速 |
+| Duration Policy | **Has Duration**，Duration = 1.0 | 硬直 1 秒自动解除 |
+| Stacking | AggregateByTarget, Limit=1, Refresh | 命中刷新，不叠层 |
+| **Modifiers** | Attribute=MoveSpeed, Op=Additive, **Magnitude Type=SetByCaller**, Tag=`Buff.Data.AttributeMod` | 数值由 FA 运行时传入 |
+| Asset Tags | `Buff.Effect.Attribute.MoveSpeed` | 行为层标识 |
 
-> **GE 侧只定义"我需要一个数值"（SetByCaller Tag），FA 侧负责"我传入多少"（-300）。**  
-> 后续若想在二阶段把硬直从 -300 改为 -500，只需改 FA 节点的 Value，不需要改 GE 资产。
+> GE 只声明"我需要一个数值"，FA 节点负责传入具体值（-300）。
 
-### 4-2 创建 GA：`GA_Knockback`（蓝图 Gameplay Ability）
+### 4-2 GA：`GA_Knockback`
 
-路径：Content Browser 右键 → Gameplay → Gameplay Ability Blueprint
+**授予方式：** 在敌人角色 BP 的 BeginPlay → GiveAbility(GA_Knockback)
 
-| 配置字段 | 值 | 意义 |
-|---|---|---|
-| Activation Owned Tags | `Buff.Status.Knockback` | **状态层**：角色 ASC 有此 Tag 时自动激活 |
+| 配置字段 | 值 |
+|---|---|
+| Ability Tags | `Ability.Knockback`（自定义） |
+| Activation Owned Tags | `Buff.Status.Knockback` |
 
 **ActivateAbility 蓝图逻辑：**
-
 ```
 ActivateAbility
-  → 获取 Owner Actor（GetOwningActorFromActorInfo）
-  → Cast to Character
-  → 计算方向（攻击者 → 目标，或固定向外）
-  → LaunchCharacter(方向 * 力度, true, true)
-        力度建议：600～1200（可调）
-  → Remove Gameplay Tag From Actor Owner
-        Tag = Buff.Status.Knockback，Count = 1
+  → GetOwningActorFromActorInfo → Cast to Character → TargetChar
+  → 获取攻击方向（或固定向外方向）
+  → LaunchCharacter(TargetChar, 方向 × 800, OverrideXY=true, OverrideZ=true)
+  → Remove Gameplay Tag From Actor Owner (Buff.Status.Knockback, Count=1)
   → End Ability
 ```
 
-### 4-3 创建 FA：`FA_Rune_Knockback`
+### 4-3 FA：`FA_Rune_Knockback`
 
 ```
-[OnDamageDealt]
-    ↓
-[Apply Gameplay Effect Class]          ← BFNode_ApplyEffect
-    Effect             = GE_KnockbackStagger
-    Level              = 1.0
-    Target             = 上次伤害目标
-    SetByCallerTag1    = Buff.Data.AttributeMod    ← 参数层：SetByCaller 键
-    SetByCallerValue1  = -300.0                    ← 运行时传入：移速 -300
-    ↓ Out
-[Add Tag]                              ← BFNode_AddTag
-    Tag    = Buff.Status.Knockback     ← 状态层：信号 Tag，触发 GA_Knockback
-    Count  = 1
-    Target = 上次伤害目标
+[Start] ──→ [OnDamageDealt]
+                ↓
+            [Apply Gameplay Effect Class]       ← BFNode_ApplyEffect
+                Effect            = GE_KnockbackStagger
+                Level             = 1.0
+                Target            = 上次伤害目标
+                SetByCallerTag1   = Buff.Data.AttributeMod
+                SetByCallerValue1 = -300.0          ← 移速 -300，填负值
+                ↓ Out
+            [Add Tag]                           ← BFNode_AddTag
+                Tag    = Buff.Status.Knockback
+                Count  = 1
+                Target = 上次伤害目标
 ```
 
-> **节点顺序说明：**  
-> 先施加 GE（移速减少 → 目标开始硬直），再写入信号 Tag（GA_Knockback 激活施加冲量）。  
-> **Cleanup 行为：**  
-> - `ApplyEffect` 节点 Cleanup：移除 GE_KnockbackStagger（硬直 GE 到期也会自动移除，Cleanup 只是双重保险）  
-> - `AddTag` 节点 Cleanup：移除目标身上残留的 Buff.Status.Knockback，防止符文卸下后孤儿状态
+**节点顺序：** 先施加 GE（硬直），再写 Tag（触发 GA 冲量）。
+**Cleanup：** ApplyEffect 移除 GE；AddTag 移除残留的 Knockback Tag。
 
-### 4-4 创建 DA：`DA_Rune_Knockback`
+### 4-4 DA：`DA_Rune_Knockback`
 
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1004` |
-| RuneConfig.RuneEffectTag | `Buff.Effect.Attribute.MoveSpeed` | 
+| RuneConfig.RuneType | `Buff` |
 | Flow.FlowAsset | `FA_Rune_Knockback` |
 
-> `RuneTag` 填 `Buff.Effect.Attribute.MoveSpeed` 是因为 GE_KnockbackStagger 用了此 Tag 作为 Asset Tag，保持一致。
+### 4-5 测试要点
 
-### 4-5 授予敌人 GA（在敌人角色 BP）
-
-```
-BeginPlay → AbilitySystemComponent → GiveAbility(GA_Knockback, Level=1)
-```
+- 命中后敌人移速降低，持续 1 秒
+- 同时被弹飞（GA_Knockback 激活）
+- GAS Debugger：目标 MoveSpeed 减少了 300
+- 调整 SetByCallerValue1 测试不同力度
 
 ---
 
-## 符文 5：流血（位移扣血）
+## 符文 5：流血（1005）⚡ 无需 Blueprint GE
 
-**效果：** 命中敌人后，敌人进入流血状态。流血期间，移动速度越快扣血越多。  
-**触发方式：** 命中触发（`Buff.Trigger.OnHit`）  
-**扣血公式：** `每秒扣血 = 移动速度 / 200`
+**设计：** 命中敌人施加流血状态（10 秒），流血期间移动速度越快扣血越多（每秒扣血 = 速度/200）。
 
-| 示例速度 | 每秒扣血 |
-|---|---|
-| 200（慢走） | 1 HP/s |
-| 400（正常移动） | 2 HP/s |
-| 600（冲刺） | 3 HP/s |
+**需要创建：** GA_Bleed（Blueprint）+ FA + DA（GE_Bleeding 由 GrantTag 替代）
 
-> **前提：** `GA_Bleed` 需要预先授予所有敌人角色。
+> **v2 变化：** 旧版需要 Blueprint GE_Bleeding 通过 Target Tags 授予 `Buff.Status.Bleeding`。新版改用 `BFNode_GrantTag` 直接授予 Tag，省去一个 GE 资产。
 
-### 5-1 创建 GE：`GE_Bleeding`
+### 5-1 GA：`GA_Bleed`
 
-| 配置项 | 值 | 意义 |
-|---|---|---|
-| Duration Policy | **Infinite** | 持续直到被移除 |
-| Stacking | Aggregate By Target，Limit=1，Refresh | 同目标只保留一个流血实例 |
-| **Asset Tags Component** | `Buff.Effect.Bleed` | **行为层**：标识这是流血效果 GE |
-| **Target Tags Component** | `Buff.Status.Bleeding` | **状态层**：GE 存在时目标 ASC 持有此状态 Tag；GE 移除后自动消失 |
-
-> **Asset Tags 与 Target Tags 的区别：**  
-> - **Asset Tags** = GE 自己的身份标签（供查询/移除用，不影响目标）  
-> - **Target Tags** = GE 授予目标角色的状态标签（出现在目标 ASC 上，GE 失效后自动撤销）
-
-### 5-2 创建 GA：`GA_Bleed`（蓝图 Gameplay Ability）
+**授予方式：** 在敌人角色 BP 的 BeginPlay → GiveAbility(GA_Bleed)
 
 | 配置字段 | 值 |
 |---|---|
 | Activation Owned Tags | `Buff.Status.Bleeding` |
 
 **ActivateAbility 蓝图逻辑：**
-
 ```
 ActivateAbility
-  → Loop（每 0.1 秒一次）：
-      Wait Game Time (0.1s)
-      → GetVelocity().Size()   → Speed
-      → DamageAmount = Speed / 200.0 * 0.1
-      → 如果 DamageAmount > 0.05：
-          ApplyDamage(Owner, DamageAmount)
-      → HasTag(Owner, Buff.Status.Bleeding)
-          → True  → 继续 Loop
-          → False → End Ability
+  → Loop:
+      WaitGameplayTag: Remove → Buff.Status.Bleeding（检测 Tag 消失时退出）
+      WaitDelay: 0.2s
+      → GetOwnerVelocity().Size() → Speed
+      → DamagePerTick = Speed / 200.0 × 0.2   （每 0.2s 的伤害份额）
+      → if DamagePerTick > 0.01:
+            ApplyDamage(OwnerActor, DamagePerTick)
+  ← Loop 结束（Tag 消失触发）
+  → EndAbility
 ```
 
-### 5-3 创建 FA：`FA_Rune_Bleed`
+> 每 0.2 秒检测一次，等价于 "每秒 Speed/200 点伤害"，帧率无关。
+
+### 5-2 FA：`FA_Rune_Bleed`
 
 ```
-[OnDamageDealt] ──→ [Apply Gameplay Effect Class]
-                        Effect = GE_Bleeding
-                        Level  = 1.0
-                        Target = 上次伤害目标
+[Start] ──→ [OnDamageDealt] ──→ [Grant Tag (Timed)]  ← BFNode_GrantTag
+                                     Tag      = Buff.Status.Bleeding
+                                     Duration = 10.0
+                                     Target   = 上次伤害目标
+                                     ↓ Out → （继续监听下次命中，刷新流血计时）
+                                     ↓ Expired → （10秒到期，Tag 自动移除，GA_Bleed 退出）
 ```
 
-> **生命周期：**  
-> 命中 → GE_Bleeding 施加给目标 → Target Tags 授予 `Buff.Status.Bleeding` → GA_Bleed 激活  
-> 符文离开激活区 → FA 停止 → ApplyEffect Cleanup 移除 GE_Bleeding → Tag 消失 → GA_Bleed 自动终止
+**生命周期：**
+- 命中 → GrantTag 授予 `Buff.Status.Bleeding` 10s → GA_Bleed 因 ActivationOwnedTags 激活
+- 再次命中 → GrantTag 的 `In` 再触发 → 计时器刷新为 10 秒（重置倒计时）
+- 10s 未命中 → Tag 到期自动移除 → GA_Bleed 检测到 Tag 消失 → 自动退出
+- FA 停止 → GrantTag Cleanup 立即移除 Tag → GA_Bleed 退出
 
-### 5-4 创建 DA：`DA_Rune_Bleed`
+### 5-3 DA：`DA_Rune_Bleed`
 
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1005` |
-| RuneConfig.RuneEffectTag | `Buff.Effect.Bleed` |
+| RuneConfig.RuneType | `Buff` |
 | Flow.FlowAsset | `FA_Rune_Bleed` |
 
-### 5-5 授予敌人 GA（在敌人角色 BP）
+### 5-4 测试要点
 
-```
-BeginPlay → AbilitySystemComponent → GiveAbility(GA_Bleed, Level=1)
-```
+- 命中后 GAS Debugger：目标 ASC 出现 `Buff.Status.Bleeding` Tag
+- 移动中目标持续掉血（移速越高掉血越快）
+- 静止目标：不扣血（速度为 0）
+- 10 秒未命中：Tag 消失，GA_Bleed 停止
+- 连续命中：计时器刷新，流血延续
 
 ---
 
-## 符文 6：敌人掉血时额外扣血
+## 符文 6：额外伤害（1006）⚡ 零资产
 
-**效果：** 每次对敌人造成伤害时，额外附带 1 点伤害。  
-**触发方式：** 命中触发（`Buff.Trigger.OnHit`）  
-**注意：** 需要确认 `BFNode_DoDamage` 是否会再次触发 `OnDamageDealt`（存在递归风险）。
+**设计：** 每次造成伤害时，额外附带 1 点伤害（防止递归触发自身）。
 
-### 6-1 创建 FA：`FA_Rune_ExtraDamage`
+**需要创建：** FA + DA（无需 GE/GA）
 
-**基础版（先测试是否有递归问题）：**
+### 6-1 FA：`FA_Rune_ExtraDamage`
+
+**基础版（先验证是否有递归问题）：**
 ```
-[OnDamageDealt] ──→ [DoDamage]
-                        Target = 上次伤害目标
-                        Damage = 1.0
-```
-
-**安全版（带 `Buff.Status.ExtraDamageApplied` 守卫）：**
-```
-[OnDamageDealt] ──→ [Has Tag]
-                        Tag    = Buff.Status.ExtraDamageApplied   ← 状态层：守卫 Tag
-                        Target = Buff拥有者
-                     ↓ False（没有守卫 Tag，才执行）
-                    [Add Tag]
-                        Tag    = Buff.Status.ExtraDamageApplied
-                        Count  = 1
-                        Target = Buff拥有者
-                     ↓
-                    [DoDamage]
-                        Target = 上次伤害目标
-                        Damage = 1.0
-                     ↓
-                    [Remove Tag]
-                        Tag    = Buff.Status.ExtraDamageApplied
-                        Count  = 1
-                        Target = Buff拥有者
+[Start] → [OnDamageDealt] → [DoDamage]
+                                Target = 上次伤害目标
+                                Damage = 1.0
 ```
 
-> **守卫逻辑：** 第一次触发时无守卫 Tag → 加 Tag → 执行额外伤害 → 若额外伤害再次触发 OnDamageDealt → 检测到 Tag 已有 → 直接跳过 → 额外伤害完成后移除 Tag。
+**安全版（带递归守卫，推荐）：**
+```
+[Start] → [OnDamageDealt]
+               ↓
+           [Has Tag]                        ← BFNode_HasTag
+               Tag    = Buff.Status.ExtraDamageApplied
+               Target = Buff拥有者
+               ↓ False（无守卫 Tag，正常执行）
+           [Add Tag]                        ← BFNode_AddTag
+               Tag    = Buff.Status.ExtraDamageApplied
+               Count  = 1
+               Target = Buff拥有者
+               ↓
+           [DoDamage]                       ← BFNode_DoDamage
+               Target = 上次伤害目标
+               Damage = 1.0
+               ↓
+           [Remove Tag]                     ← BFNode_RemoveTag
+               Tag    = Buff.Status.ExtraDamageApplied
+               Target = Buff拥有者
+           （True 分支 → 直接跳过，无操作）
+```
 
-### 6-2 创建 DA：`DA_Rune_ExtraDamage`
+**守卫逻辑：**
+1. 第一次触发：无守卫 Tag → 加 Tag → 执行额外伤害
+2. 额外伤害再次触发 OnDamageDealt → 检测到守卫 Tag 已存在 → 走 True 分支跳过
+3. 额外伤害完成 → 移除守卫 Tag → 恢复正常检测
+
+### 6-2 DA：`DA_Rune_ExtraDamage`
 
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1006` |
-| RuneConfig.RuneEffectTag | （留空，此符文无 GE 身份 Tag） |
+| RuneConfig.RuneType | `Buff` |
 | Flow.FlowAsset | `FA_Rune_ExtraDamage` |
+
+### 6-3 测试要点
+
+- 命中后伤害数字额外多 1（需游戏有伤害数字显示）
+- GAS Debugger 无异常（无无限循环）
+- 建议先用基础版，如发现递归改用安全版
 
 ---
 
-## 资产目录建议
+## 资产目录结构
 
 ```
 Content/Game/Runes/
 ├── AttackUp/
 │   ├── DA_Rune_AttackUp
-│   ├── FA_Rune_AttackUp
-│   └── GE_Rune_AttackUp
+│   └── FA_Rune_AttackUp
 ├── HeatUp/
 │   ├── DA_Rune_HeatUp
 │   ├── FA_Rune_HeatUp
-│   └── GE_Rune_HeatUp
+│   └── GE_HeatTick                 ← 仅此符文需要 Blueprint GE
 ├── SpeedStack/
 │   ├── DA_Rune_SpeedStack
-│   ├── FA_Rune_SpeedStack
-│   └── GE_Rune_SpeedStack
+│   └── FA_Rune_SpeedStack
 ├── Knockback/
 │   ├── DA_Rune_Knockback
 │   ├── FA_Rune_Knockback
-│   ├── GE_KnockbackStagger
-│   └── GA_Knockback
+│   ├── GE_KnockbackStagger         ← SetByCaller，必须用 Blueprint GE
+│   └── GA_Knockback                ← 物理冲量，必须用 Blueprint GA
 ├── Bleed/
 │   ├── DA_Rune_Bleed
 │   ├── FA_Rune_Bleed
-│   ├── GE_Bleeding
-│   └── GA_Bleed
+│   └── GA_Bleed                    ← 速度扣血逻辑，必须用 Blueprint GA
 └── ExtraDamage/
     ├── DA_Rune_ExtraDamage
     └── FA_Rune_ExtraDamage
@@ -447,43 +424,37 @@ Content/Game/Runes/
 
 ## 依赖总览
 
-| 符文 | DA | FA | GE | GA | 需预授予敌人 |
-|---|---|---|---|---|---|
-| 攻击提升 | ✓ | ✓ | ✓ | — | — |
-| 热度提升 | ✓ | ✓ | ✓ | — | — |
-| 移速堆叠 | ✓ | ✓ | ✓ | — | — |
-| 击退 | ✓ | ✓ | ✓（SetByCaller） | ✓ | ✓ 所有敌人 |
-| 流血 | ✓ | ✓ | ✓ | ✓ | ✓ 所有敌人 |
-| 额外扣血 | ✓ | ✓ | — | — | — |
+| 符文 | DA | FA | Blueprint GE | Blueprint GA | 备注 |
+|------|----|----|-------------|-------------|------|
+| 攻击强化 | ✓ | ✓ | — | — | 全零资产 |
+| 热度提升 | ✓ | ✓ | ✓ GE_HeatTick | — | 仅因需要 Inhibit |
+| 速度叠加 | ✓ | ✓ | — | — | 全零资产 |
+| 击退 | ✓ | ✓ | ✓ GE_KnockbackStagger | ✓ GA_Knockback | GE 因 SetByCaller，GA 因物理 |
+| 流血 | ✓ | ✓ | — | ✓ GA_Bleed | GE 由 GrantTag 替代 |
+| 额外伤害 | ✓ | ✓ | — | — | 全零资产 |
 
 ---
 
-## Tag 汇总（需添加到 Buff_Tag_Spec.md 的新增项）
+## 制作顺序建议
 
-> 制作前请确认这些 Tag 已添加到项目中（Project Settings → Gameplay Tags）
-
-| Tag | 层 | 状态 | 填写位置 |
-|---|---|---|---|
-| `Buff.Effect.Attribute.Attack` | 行为层 | ☆ 新增 | GE Asset Tags + DA.RuneConfig.RuneEffectTag |
-| `Buff.Effect.Attribute.Heat` | 行为层 | ☆ 新增 | GE Asset Tags + DA.RuneConfig.RuneEffectTag |
-| `Buff.Effect.Attribute.MoveSpeed` | 行为层 | ★ 已有 | GE Asset Tags + DA.RuneConfig.RuneEffectTag |
-| `Buff.Effect.Bleed` | 行为层 | ☆ 新增 | GE Asset Tags + DA.RuneConfig.RuneEffectTag |
-| `Buff.Status.Knockback` | 状态层 | ☆ 新增 | AddTag 目标 → GA Activation Owned Tags |
-| `Buff.Status.Bleeding` | 状态层 | ☆ 新增 | GE Target Tags → GA Activation Owned Tags |
-| `Buff.Status.ExtraDamageApplied` | 状态层 | ☆ 新增 | FA 手动 Add/Remove Tag（守卫用） |
-| `Buff.Data.AttributeMod` | 参数层 | ★ 已有 | GE Modifier SetByCaller Tag + FA BFNode_ApplyEffect SetByCallerTag 槽 |
+1. **符文 1（攻击强化）** → 最简单，验证 ApplyAttributeModifier 基础路径
+2. **符文 3（速度叠加）** → 验证 Stackable + Duration 模式
+3. **符文 6（额外伤害）** → 验证递归守卫模式
+4. **符文 5（流血）** → 验证 GrantTag + GA 激活链
+5. **符文 2（热度提升）** → 验证 Period + OngoingTagRequirements Inhibit
+6. **符文 4（击退）** → 最复杂，SetByCaller + GA 物理冲量
 
 ---
 
 ## 制作反馈区
 
-> 制作过程中遇到的问题、调整、或需要修改的步骤，请在下方记录：
+> 遇到的问题、调整、实际属性名等，在下方记录：
 
 ```
-[反馈] 符文1 - 攻击属性名不是 Attack，实际是 ...
-[反馈] 符文3 - GE 堆叠配置中 ...
-[反馈] 符文4 - GA_Knockback 激活方式改为 ...
-[反馈] 符文4 - SetByCaller 数值 -300 效果偏弱/强，调整为 ...
-[反馈] Tag   - Buff.Effect.Attribute.Attack 与现有某 Tag 重复，改为 ...
+[反馈] 符文1 - 实际属性名是 ___ 而不是 AttackDamage
+[反馈] 符文2 - OngoingTagRequirements 配置位置在 GE Details 的 ___
+[反馈] 符文3 - StackMode 在节点的哪个分类下 ___
+[反馈] 符文4 - GA_Knockback 激活方式改为 ___
+[反馈] 符文5 - GA_Bleed 退出逻辑改为 ___
 ...
 ```

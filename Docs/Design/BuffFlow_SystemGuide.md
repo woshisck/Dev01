@@ -1,4 +1,4 @@
-# BuffFlow 系统指南 v2
+# BuffFlow 系统指南 v3
 
 > 项目：星骸降临
 > 版本：Sprint 4.15（2026-04-08）
@@ -22,13 +22,15 @@ GAS / GE / GA = 效果层
   └── 属性计算、Tag授予、Cue、能力激活
 
 数据 = 配置层
-  └── RuneDataAsset / Blueprint GE / Blueprint GA
+  └── RuneDataAsset / Blueprint GE（仅复杂场景）/ Blueprint GA（仅复杂场景）
 ```
 
 **核心设计原则：**
 - 符文的**所有行为逻辑**在 FA 里可视化，不散落在蓝图或 C++ 里
 - GAS 负责"效果执行"，FA 负责"何时/对谁/以什么顺序执行"
-- C++ BFNode 提供 GAS 集成的原子操作，FlowGraph 内置节点提供控制流能力
+- **能用 BFNode_ApplyAttributeModifier 的，不创建 Blueprint GE 资产**
+- Blueprint GE 仅在需要 ExecutionCalculation / Cue / SetByCaller 时才创建
+- Blueprint GA 仅在需要 AbilityTask / 网络同步 / 物理冲量时才创建
 
 ---
 
@@ -88,13 +90,9 @@ Phase 2 → 中心 4×4    Phase 3 → 全格
 | `LastKillLocation` | OnKill | SpawnActorAtLocation |
 | `ActiveNiagaraEffects` | PlayNiagara | DestroyNiagara |
 
-> **注意：** FlowGraph 没有内置的 VarContainer。节点间的数据通过**引脚连线**传递，或存储在 **BFNode 自身的成员变量**中（如 GrantedHandle、CachedGE）。BFC 的共享字段用于跨节点传递事件上下文。
-
 ---
 
 ## 三、FlowGraph 内置节点（免费获得，直接可用）
-
-这些是 FlowGraph 插件自带的节点，无需任何 C++ 开发。
 
 ### 3.1 控制流
 
@@ -109,14 +107,14 @@ Phase 2 → 中心 4×4    Phase 3 → 全格
 
 | 节点 | 功能 | 符文用途示例 |
 |------|------|------------|
-| `FlowNode_Timer` | Step（周期）+ Completed（结束）双输出，`CompletionTime` 可连数据引脚 | 通用倒计时，比 BFNode_PhaseDecayTimer 更灵活 |
+| `FlowNode_Timer` | Step（周期）+ Completed（结束）双输出 | 通用倒计时（与 BFNode_Delay 二选一） |
 | `FlowNode_Counter` | 计数到 Goal 后触发输出，含存档支持 | "击杀 5 次后触发爆发效果" |
 
 ### 3.3 数据定义
 
 | 节点 | 功能 | 符文用途示例 |
 |------|------|------------|
-| `FlowNode_DefineProperties` | 定义字面量数据引脚输出 | 将一个固定数值/Tag 输出给下游节点 |
+| `FlowNode_DefineProperties` | 定义多个命名数据引脚输出（通用字面量） | 一次性输出多个不同类型的常量 |
 | `FlowNode_Log` | 打印调试信息到 Log/屏幕 | 开发期快速排查 FA 执行路径 |
 
 ### 3.4 图结构
@@ -128,15 +126,7 @@ Phase 2 → 中心 4×4    Phase 3 → 全格
 | `FlowNode_CustomOutput` | 子图的自定义出口 | 触发父图继续执行 |
 | `FlowNode_Reroute` | 连线重定向（纯视觉整理） | 复杂图的线路组织 |
 
-### 3.5 Actor 通知
-
-| 节点 | 功能 |
-|------|------|
-| `FlowNode_NotifyActor` | 向带有指定 IdentityTag 的 FlowComponent 发通知 |
-| `FlowNode_OnNotifyFromActor` | 等待特定 Actor 发来通知后继续 |
-| `FlowNode_OnActorRegistered/Unregistered` | 监听 Actor 的 FlowComponent 注册/注销 |
-
-### 3.6 Branch + AddOn 谓词系统
+### 3.5 Branch + AddOn 谓词系统
 
 `FlowNode_Branch` 本身不含条件——条件逻辑来自**AddOn 子节点**：
 
@@ -145,8 +135,6 @@ Phase 2 → 中心 4×4    Phase 3 → 全格
 | `FlowNodeAddOn_PredicateAND` | 所有子谓词都为真 |
 | `FlowNodeAddOn_PredicateOR` | 任一子谓词为真 |
 | `FlowNodeAddOn_PredicateNOT` | 取反 |
-
-> 可嵌套组合，适合复杂的多条件判断。目前我们用 `BFNode_HasTag` + `BFNode_CompareFloat` 的链式结构实现条件，Branch+AddOn 是另一种更结构化的方式。
 
 ---
 
@@ -184,7 +172,9 @@ Phase 2 → 中心 4×4    Phase 3 → 全格
 
 ### 4.3 效果节点
 
-#### BFNode_ApplyAttributeModifier（核心节点，无需 GE 资产）
+#### BFNode_ApplyAttributeModifier（核心节点，零资产）
+
+无需任何 Blueprint GE 资产——直接在节点上填写，运行时动态构建 GE。
 
 | 字段 | 说明 |
 |------|------|
@@ -193,11 +183,18 @@ Phase 2 → 中心 4×4    Phase 3 → 全格
 | Value | 数值（可连数据引脚覆盖） |
 | DurationType | Instant / Infinite / HasDuration |
 | Duration | 持续秒数（HasDuration 时） |
+| **Period (0=Off)** | **> 0 时每隔 N 秒执行一次 Modifier（每秒+1热度用此字段）** |
+| **Fire Immediately** | **Period > 0 时，是否在施加瞬间立即执行一次** |
 | Target | 目标选择器 |
 | StackMode | None / Unique / Stackable |
 | StackLimitCount | 最大堆叠层数（Stackable） |
 | DynamicAssetTags | 附加到 GE Spec 的 Tag |
 | PassThroughOwnerTags | 将 Owner 当前 Tag 透传入 GE Spec |
+
+**Period 使用说明：**
+- `Period = 0`：普通持续 GE，Modifier 施加后一直生效
+- `Period = 1.0, DurationType = Infinite`：每秒执行一次 Modifier（"每秒+N热度"的正确方案）
+- GAS 的 `OngoingTagRequirements.IgnoreTags` 可配合 Blueprint GE 实现自动 Inhibit；Period GE 本身用此节点不需要 Blueprint GE
 
 #### BFNode_ApplyEffect（需要 Blueprint GE 时用）
 
@@ -206,14 +203,26 @@ Phase 2 → 中心 4×4    Phase 3 → 全格
 - 输出数据引脚：`bGEApplied, GEStackCount, GELevel, GETimeRemaining`
 - 最多 3 个 SetByCaller 槽位（Tag + Value）
 
-> 如果 Blueprint GE 内含 ExecutionCalculation，Apply 时自动执行。无需额外节点。
+> 使用场景：GE 内含 ExecutionCalculation、GameplayCue，或需要 SetByCaller 传入运行时参数时。
+
+#### BFNode_ApplyExecution（直接引用 C++ ExecCalc 类，零资产）
+
+无需 Blueprint GE 资产——运行时动态构建含 ExecutionCalculation 的 Instant GE。
+
+| 字段 | 说明 |
+|------|------|
+| ExecCalcClass | C++ ExecutionCalculation 子类（下拉选择） |
+| Target | 目标选择器 |
+| SetByCallerTag1/2/3 | SetByCaller 槽，向 ExecCalc 传入运行时浮点参数 |
+
+**使用方式：** 告诉程序"我需要什么计算逻辑" → 程序写 C++ ExecCalc 类 → 在节点下拉里选择 → 通过 SetByCaller 槽传参。无需创建任何 GE 资产。
 
 #### 其他效果节点
 
 | 节点 | 功能 | Cleanup 行为 |
 |------|------|------------|
 | `BFNode_GrantGA` | 授予 GA；输出 `bGAGranted, GALevel` | 自动撤销 GA |
-| `BFNode_AddTag` | 添加 Loose Tag | 自动移除 Tag |
+| `BFNode_AddTag` | 永久添加 Loose Tag（FA 停止时 Cleanup 移除） | 自动移除 Tag |
 | `BFNode_RemoveTag` | 移除 Tag | — |
 | `BFNode_DoDamage` | 造成伤害（Flat 或 LastAmount×倍率） | — |
 | `BFNode_PlayNiagara` | 播放粒子特效（EffectName 标识） | 自动销毁 |
@@ -224,7 +233,30 @@ Phase 2 → 中心 4×4    Phase 3 → 全格
 
 ---
 
-### 4.4 计算节点
+### 4.4 Tag 节点（新增）
+
+#### BFNode_GrantTag（带 Duration 的临时 Tag 授予）
+
+与 `BFNode_AddTag` 的区别：支持 **Duration 自动过期**，适合临时状态（如受伤后 5 秒 HeatInhibit）。
+
+| 字段 | 说明 |
+|------|------|
+| Tag | 要授予的 GameplayTag |
+| Duration | 0 = 不自动过期（只在 FA 停止时移除）；> 0 = N 秒后自动移除 |
+| Target | 目标选择器 |
+
+**输入 Pin：** `In`（授予）/ `Remove`（手动提前移除）
+**输出 Pin：** `Out`（授予成功）/ `Expired`（到期自动移除）/ `Removed`（手动移除）/ `Failed`
+
+**Cleanup 行为：** FA 停止时无论是否到期，都自动移除 Tag（含清理计时器）。
+
+**vs BFNode_AddTag 选择：**
+- 永久驻留直到 FA 停止 → `BFNode_AddTag`
+- 有明确存在时间（如 HeatInhibit 5s）→ `BFNode_GrantTag`
+
+---
+
+### 4.5 计算节点
 
 | 节点 | 功能 |
 |------|------|
@@ -233,7 +265,38 @@ Phase 2 → 中心 4×4    Phase 3 → 全格
 
 ---
 
-### 4.5 热度系统节点
+### 4.6 工具节点（新增）
+
+#### BFNode_Delay（等待 N 秒）
+
+| 字段 | 说明 |
+|------|------|
+| Duration | 等待时间（秒），支持数据引脚连线动态传入 |
+
+**输入 Pin：** `In`（启动计时）/ `Cancel`（提前取消）
+**输出 Pin：** `Completed`（计时结束）/ `Cancelled`（取消时触发）
+
+**Cleanup 行为：** FA 停止时自动清理计时器（不会触发 Completed）。
+
+---
+
+#### BFNode_LiteralFloat / LiteralInt / LiteralBool（字面量）
+
+**纯数据节点，无执行引脚。** 等价于 Blueprint 的 "Make Literal Float/Int/Bool"。
+
+- 放在 FA 图里，不需要接入执行流
+- 将 Value 输出数据引脚连到下游节点的对应输入引脚
+- 在 Details 面板里填写固定值
+
+**典型用途：**
+```
+[LiteralFloat: Value=5.0] ──(数据引脚)──→ [ApplyAttributeModifier].Value
+[LiteralFloat: Value=1.0] ──(数据引脚)──→ [BFNode_Delay].Duration
+```
+
+---
+
+### 4.7 热度系统节点
 
 | 节点 | 功能 |
 |------|------|
@@ -245,55 +308,60 @@ Phase 2 → 中心 4×4    Phase 3 → 全格
 
 ## 五、数据引脚完整类型
 
-FlowGraph 支持 16 种数据引脚类型，我们目前使用了其中 3 种：
+FlowGraph 支持 16 种数据引脚类型，当前使用情况：
 
-| 类型 | 我们使用情况 | 潜在用途 |
-|------|------------|---------|
-| Bool | ✅ 使用（bGEApplied 等输出） | 条件标志 |
-| Int | ✅ 使用（StackCount 等） | 计数器值 |
-| Float | ✅ 使用（Value, Level 等） | 数值计算 |
-| **GameplayTag** | ❌ 未使用 | 动态 Tag 参数传入节点 |
-| **GameplayTagContainer** | ❌ 未使用 | 批量 Tag 操作 |
-| **Object** | ❌ 未使用 | Actor 引用在节点间传递 |
-| **Class** | ❌ 未使用 | 动态指定 GE Class / GA Class |
+| 类型 | 使用情况 | 典型场景 |
+|------|---------|---------|
+| Bool | ✅ 使用 | bGEApplied, bGAGranted 等输出 |
+| Int | ✅ 使用 | StackCount, StacksToRemove 等 |
+| Float | ✅ 使用 | Value, Level, Duration 等 |
+| **GameplayTag** | ❌ 未使用 | 动态 Tag 参数传入节点（P1 计划） |
+| **Class** | ❌ 未使用 | 动态指定 GE/GA Class（P1 计划） |
+| **Object** | ❌ 未使用 | Actor 引用传递 |
 | **Vector** | ❌ 未使用 | 生成位置、击退方向 |
 | Name | ❌ 未使用 | 动态 EffectName 参数 |
-| String | ❌ 未使用 | 调试信息 |
-| Enum | ❌ 未使用 | 动态枚举选择 |
-| Transform | ❌ 未使用 | 生成位置+旋转 |
-
-**最有价值的待开放类型：**
-- `GameplayTag` 引脚 → 让 HasTag、ApplyEffect 的 Tag 参数可以从上游动态传入
-- `Class` 引脚 → 让 ApplyEffect 的 GE Class 可以从上游动态传入
-- `Object` 引脚 → Actor 引用在节点链中传递
 
 ---
 
 ## 六、GAS 功能 FA 化全览
 
-| GAS 功能 | 能否 FA 化 | FA 实现方式 | 说明 |
-|---------|-----------|------------|------|
-| 属性修改（Modifier） | ✅ 完全 | `BFNode_ApplyAttributeModifier` | 无需 Blueprint GE |
-| Tag 授予 | ✅ 完全 | `BFNode_AddTag` | Cleanup 自动移除 |
-| Tag 检查 | ✅ 完全 | `BFNode_HasTag` | |
-| SetByCaller | ✅ 完全 | `BFNode_ApplyEffect` 槽位 | 运行时动态值 |
-| ExecutionCalculation | ✅ 通过 GE | `BFNode_ApplyEffect` 引用含 Exec 的 GE | 计算逻辑仍在 C++/BP |
-| Gameplay Cue（触发） | ✅ 可封装 | 待做：`BFNode_PlayGameplayCue` | Cue 的表现 BP 仍需存在 |
-| GA 授予/撤销 | ✅ 完全 | `BFNode_GrantGA` | Cleanup 自动撤销 |
-| GA 激活 | ✅ 可封装 | 待做：`BFNode_ActivateAbilityByTag` | |
-| Gameplay Event | ✅ 可封装 | 待做：`BFNode_SendGameplayEvent` | |
-| **Immunity（免疫）** | ✅ FA 等价 | `BFNode_HasTag(Shielded) → 跳过伤害 GE` | FA 方案更可见，但不是 GAS 层面的拦截 |
-| **Conditional Effects** | ✅ FA 等价 | `BFNode_HasTag(Wet) → ApplyEffect(Electro)` | FA 逻辑等价，且更灵活可见 |
-| AbilityTask（复杂） | ❌ 不适合 | 保留 Blueprint GA | 命中判定、蒙太奇回调等 |
-| 网络同步能力 | ❌ 不适合 | 保留 Blueprint GA + Replication | |
+| GAS 功能 | 能否 FA 化 | FA 实现方式 |
+|---------|-----------|------------|
+| 属性修改（Modifier） | ✅ 零资产 | `BFNode_ApplyAttributeModifier` |
+| 属性修改（Periodic） | ✅ 零资产 | `BFNode_ApplyAttributeModifier` Period 字段 |
+| Tag 授予（永久） | ✅ 完全 | `BFNode_AddTag`，Cleanup 自动移除 |
+| Tag 授予（临时） | ✅ 完全 | `BFNode_GrantTag`，Duration 自动过期 |
+| Tag 检查 | ✅ 完全 | `BFNode_HasTag` |
+| SetByCaller | ✅ 完全 | `BFNode_ApplyEffect` 槽位 |
+| ExecutionCalculation | ✅ 零资产 | `BFNode_ApplyExecution`（直接引用 C++ 类） |
+| ExecutionCalculation（via GE） | ✅ 通过 GE | `BFNode_ApplyEffect` 引用含 Exec 的 Blueprint GE |
+| GA 授予/撤销 | ✅ 完全 | `BFNode_GrantGA`，Cleanup 自动撤销 |
+| Gameplay Cue | ⏳ 待做 | `BFNode_PlayGameplayCue`（P1） |
+| GA 激活 | ⏳ 待做 | `BFNode_ActivateAbilityByTag`（P2） |
+| Gameplay Event | ⏳ 待做 | `BFNode_SendGameplayEvent`（P2） |
+| **Immunity（免疫）** | ✅ FA 等价 | `HasTag(Shielded) → 跳过伤害 GE` |
+| **Conditional Effects** | ✅ FA 等价 | `HasTag(Wet) → ApplyEffect(Electro)` |
+| AbilityTask（复杂） | ❌ 不适合 | 保留 Blueprint GA |
+| 网络同步 Replication | ❌ 不适合 | 保留 Blueprint GA + Replication |
 
 ---
 
-## 七、SubGraph 模式（可复用效果库）
+## 七、EBFTargetSelector 目标选择器
+
+| 枚举值 | 含义 | 典型用途 |
+|--------|------|---------|
+| `BuffOwner` | 符文拥有者（玩家自身） | **被动常驻符文必须用这个** |
+| `BuffGiver` | 符文施加者（通常同上） | 特殊情况 |
+| `LastDamageTarget` | 上次伤害目标（被击者） | 给敌人施加 Debuff |
+| `DamageCauser` | 伤害来源（攻击者） | 反弹效果 |
+
+> ⚠️ 被动常驻符文（无伤害事件触发）**必须用 `BuffOwner`**，用 `LastDamageTarget` 会因没有目标而 Failed。
+
+---
+
+## 八、SubGraph 模式（可复用效果库）
 
 `FlowNode_SubGraph` 可以引用另一个 FA，通过 `CustomInput/Output` 传入参数。
-
-**适用场景：** 多个符文共享相同的逻辑片段
 
 ```
 创建 FA_Util_PhaseBonus（子图）：
@@ -309,19 +377,6 @@ FlowGraph 支持 16 种数据引脚类型，我们目前使用了其中 3 种：
 
 ---
 
-## 八、EBFTargetSelector 目标选择器
-
-| 枚举值 | 含义 | 典型用途 |
-|--------|------|---------|
-| `BuffOwner` | 符文拥有者（玩家自身） | 被动加攻击力、加速 |
-| `BuffGiver` | 符文施加者（通常同上） | 特殊情况 |
-| `LastDamageTarget` | 上次伤害目标（被击者） | 给敌人施加 Debuff |
-| `DamageCauser` | 伤害来源（攻击者） | 反弹效果 |
-
-> ⚠️ 被动常驻符文（无伤害事件触发）**必须用 `BuffOwner`**，用 `LastDamageTarget` 会因没有目标而 Failed。
-
----
-
 ## 九、符文开发标准流程
 
 ### Step 1：明确设计
@@ -332,20 +387,38 @@ FlowGraph 支持 16 种数据引脚类型，我们目前使用了其中 3 种：
 | 效果目标？ | BuffOwner（自己）/ LastDamageTarget（敌人） |
 | 持续多久？ | Instant / Infinite / HasDuration |
 | 需要堆叠？ | None / Unique / Stackable |
-| 需要 Blueprint GE？ | 有 Cue / ExecutionCalculation / SetByCaller 时才需要 |
-| 需要 Blueprint GA？ | 有 AbilityTask / 网络同步时才需要 |
+| 需要 Period？ | 每秒 +N 类效果 → 是；普通持续效果 → 否 |
+| 需要 Blueprint GE？ | 只有 Cue / 复杂 SetByCaller / 旧版 ExecutionCalculation 时才需要 |
+| 需要 Blueprint GA？ | AbilityTask / 网络同步 / 物理冲量时才需要 |
 
-### Step 2：创建 FA
+### Step 2：选择正确节点
 
-路径：`Content/BuffFlow/FlowAssets/` · 命名：`FA_Rune_<功能名>`
+```
+效果是属性修改？
+  ├─ 简单数值（+N攻击、+N速度）→ BFNode_ApplyAttributeModifier（零资产）
+  ├─ 每秒 +N 类型            → BFNode_ApplyAttributeModifier + Period 字段
+  ├─ 需要复杂计算公式         → BFNode_ApplyExecution（程序写 C++ ExecCalc）
+  └─ 需要 Cue / SetByCaller  → BFNode_ApplyEffect + Blueprint GE
 
-### Step 3：创建 DA
+效果是 Tag 状态？
+  ├─ 永久到 FA 停止           → BFNode_AddTag
+  └─ 有明确时限（如 5s 抑制）→ BFNode_GrantTag + Duration
 
-路径：`Content/BuffFlow/RuneData/` · 命名：`DA_Rune_<功能名>`
+效果需要能力执行？
+  └─ BFNode_GrantGA + Blueprint GA（AbilityTask 逻辑写在 GA 里）
+```
+
+### Step 3：创建 FA
+
+路径：`Content/Game/Runes/<符文名>/` · 命名：`FA_Rune_<功能名>`
+
+### Step 4：创建 DA
+
+路径：`Content/Game/Runes/<符文名>/` · 命名：`DA_Rune_<功能名>`
 
 必填：RuneName, RuneID, RuneType, Shape.Cells, Flow.FlowAsset
 
-### Step 4：测试
+### Step 5：测试
 
 1. 将 DA 拖入背包激活区
 2. GAS Debugger 验证属性变化和 Tag 状态
@@ -355,7 +428,7 @@ FlowGraph 支持 16 种数据引脚类型，我们目前使用了其中 3 种：
 
 ## 十、设计模式
 
-### 模式 A：被动属性加成
+### 模式 A：被动属性加成（零资产）
 ```
 [Start] → [ApplyAttributeModifier: Attack+10, Infinite, BuffOwner]
 ```
@@ -367,48 +440,53 @@ FlowGraph 支持 16 种数据引脚类型，我们目前使用了其中 3 种：
                          False → [ApplyAttributeModifier: +10]
 ```
 
-### 模式 C：堆叠型（击中叠加）
+### 模式 C：堆叠型（击中叠加，零资产）
 ```
-[Start] → [OnDamageDealt] → [ApplyAttributeModifier: Speed+5, 3s, Stackable, Max=5]
-```
-
-### 模式 D：一次性攻击加成
-```
-[Start] → [OnKill] → [ApplyEffect: GE_AttackBoost]
-[OnDamageDealt] → [ApplyEffect.Remove]
+[Start] → [OnDamageDealt] → [ApplyAttributeModifier: Speed+5, 3s, Stackable, Max=5, BuffOwner]
 ```
 
-### 模式 E：周期性效果（每秒 +N，使用 Blueprint GE）
+### 模式 D：周期性效果（每秒 +N，零资产）
 ```
-GE_HeatTick: Infinite, Period=1.0, Modifier: Heat+1
-[Start] → [ApplyEffect: GE_HeatTick]
+[Start] → [ApplyAttributeModifier: Heat+1, Infinite, Period=1.0, BuffOwner]
 ```
+> 使用 Period 字段，让 GAS 每秒自动执行一次 Modifier，不需要 Blueprint GE。
 
-### 模式 F：受伤暂停（OngoingTagRequirements 自动 Inhibit）
+### 模式 E：受伤暂停（Period GE + GrantTag 自动 Inhibit）
 ```
-GE_HeatTick.OngoingTagRequirements.IgnoreTags = Buff.Status.HeatInhibit
-GE_HeatInhibit: HasDuration=5s, GrantTag: Buff.Status.HeatInhibit
+GE_HeatTick（Blueprint GE）:
+  Infinite, Period=1.0, Modifier: Heat+1
+  OngoingTagRequirements.IgnoreTags = Buff.Status.HeatInhibit
 
 [Start] → [ApplyEffect: GE_HeatTick]
-[OnDamageReceived] → [ApplyEffect: GE_HeatInhibit]
+[OnDamageReceived] → [GrantTag: Buff.Status.HeatInhibit, Duration=5s, BuffOwner]
+                          Expired → （Tag 自动移除，热度恢复积累）
 ```
+> GrantTag 到期时 GAS 自动恢复 GE_HeatTick 的 Period 执行。
+
+### 模式 F：受伤暂停（纯 FA，无 Blueprint GE）
+```
+[Start] → [ApplyAttributeModifier: Heat+1, Infinite, Period=1.0, BuffOwner]
+           （此节点的 GE handle 存储在节点内）
+[OnDamageReceived] → [GrantTag: Buff.Status.HeatInhibit, Duration=5s, BuffOwner]
+```
+> 注意：纯 FA 方案中 GrantTag 只是标记，不能直接 Inhibit Period GE（Period GE 需要 OngoingTagRequirements 才能响应）。如需真正暂停计时，使用模式 E（Blueprint GE）。
 
 ### 模式 G：递归守卫（防止效果触发自身）
 ```
 [OnDamageDealt]
-  → [HasTag: Buff.Status.ExtraDamageApplied, DamageCauser]
+  → [HasTag: Buff.Status.ExtraDamageApplied, BuffOwner]
         False → [AddTag: ExtraDamageApplied] → [DoDamage: ×0.5] → [RemoveTag: ExtraDamageApplied]
         True  → （跳过）
 ```
 
-### 模式 H：计数型（N次触发后爆发）⭐ 新
+### 模式 H：计数型（N次触发后爆发）
 ```
 [Start] → [OnKill]
                → [FlowNode_Counter: Goal=5]
                       Goal reached → [ApplyAttributeModifier: Attack+100, 10s]
 ```
 
-### 模式 I：随机效果⭐ 新
+### 模式 I：随机效果
 ```
 [Start] → [OnKill]
                → [FlowNode_ExecutionMultiGate: Random=true]
@@ -417,14 +495,13 @@ GE_HeatInhibit: HasDuration=5s, GrantTag: Buff.Status.HeatInhibit
                       Output2 → [ApplyAttributeModifier: CritRate+0.1]
 ```
 
-### 模式 J：多条件同步⭐ 新
+### 模式 J：多条件同步
 ```
-[OnKill]   ─→ [FlowNode_LogicalAND]
-[OnCritHit] ─→                    ─→ [ApplyAttributeModifier: 大额加成]
-（两个事件都发生才触发）
+[OnKill]    ─→ [FlowNode_LogicalAND]
+[OnCritHit] ─→                      ─→ [ApplyAttributeModifier: 大额加成]
 ```
 
-### 模式 K：SubGraph 复用⭐ 新
+### 模式 K：SubGraph 复用
 ```
 FA_Util_PhaseBonus:
   [In] → [HasTag: Phase.2] → True: +20 / False: +10 → [Done]
@@ -432,6 +509,19 @@ FA_Util_PhaseBonus:
 符文 FA：
   [OnKill] → [SubGraph: FA_Util_PhaseBonus] → Done → [下一步]
   [OnHit]  → [SubGraph: FA_Util_PhaseBonus] → Done → [下一步]
+```
+
+### 模式 L：延迟效果（新增）
+```
+[OnKill] → [Delay: Duration=2s]
+                Completed → [ApplyAttributeModifier: Attack+50, 5s]
+```
+
+### 模式 M：字面量驱动数据引脚（新增）
+```
+[LiteralFloat: 5.0] ──(数据)──→ [ApplyAttributeModifier].Value
+[LiteralFloat: 1.0] ──(数据)──→ [Delay].Duration
+（LiteralFloat 不需要接入执行流，只连数据引脚）
 ```
 
 ---
@@ -454,9 +544,11 @@ FA_Util_PhaseBonus:
 | 被动符文没效果 | Target=LastDamageTarget，被动无伤害目标 | 改为 BuffOwner |
 | GE 没有效果 | Attribute 填错或 AttributeSet 未注册 | GAS Debugger 查属性 |
 | FA 停后 GE 未移除 | bFinish=true 节点提前退出 | 确认 TriggerOutput 的 bFinish=false |
-| 堆叠 GE 不叠加 | CachedGE 未复用（每次 NewObject） | 使用 CachedGE 保持 Def 指针一致 |
+| Period 不执行 | DurationType = Instant | 改为 Infinite 或 HasDuration |
+| GrantTag 未自动移除 | Duration=0 时不启动计时器 | Duration > 0 才有自动过期；FA 停止时 Cleanup 兜底 |
+| Delay 计时器不触发 | GetWorld() 返回 null | 确认节点在有效 World 中执行 |
+| ApplyExecution Failed | ExecCalcClass 未设置 | 在节点 Details 面板选择 C++ ExecCalc 类 |
 | PassThroughOwnerTags 无效 | .cpp 仅有前向声明 | 补 `#include YogAbilitySystemComponent.h` |
-| Counter 重复计数 | Counter 无自动重置 | Counter 触发后重置或重新激活 |
 
 ---
 
@@ -466,20 +558,17 @@ FA_Util_PhaseBonus:
 
 | 模块 | 状态 |
 |------|------|
-| BFNode 基础框架（34个节点） | ✅ |
-| BFNode_ApplyEffect 输出引脚 + Remove 引脚 | ✅ |
+| BFNode 基础框架（40个节点） | ✅ |
+| BFNode_ApplyAttributeModifier（含 Period/StackMode） | ✅ |
+| BFNode_ApplyEffect（含 Remove 引脚 + SetByCaller） | ✅ |
+| BFNode_ApplyExecution（零资产 ExecutionCalculation） | ✅ |
+| BFNode_GrantTag（Duration 自动过期） | ✅ |
+| BFNode_Delay（可取消计时器） | ✅ |
+| BFNode_LiteralFloat/Int/Bool（字面量数据节点） | ✅ |
 | BFNode_GrantGA 输出引脚 | ✅ |
 | 热度升降阶系统 | ✅ |
 | RuneDataAsset 精简结构 | ✅ |
 | Tag 规范文档 | ✅ |
-
-### 近期待开发（P0 — 符文 2 需要）
-
-| 任务 | 说明 |
-|------|------|
-| `BFNode_ApplyAttributeModifier` 加 Period/RatePerSecond | 每秒 +N 热度 |
-| `BFNode_GrantTag` | 临时授予 Tag，Cleanup 自动移除（替代 GE_HeatInhibit） |
-| `BFNode_Delay` | 等待 N 秒后继续（配合定时逻辑） |
 
 ### P1 — 框架扩展
 
@@ -504,16 +593,16 @@ FA_Util_PhaseBonus:
 | 升阶特效/音效 | BFNode_PlayGameplayCue 完成后接入 |
 | 热度 UI | 当前阶段显示、激活区视觉反馈 |
 
-### 待测试符文
+### 测试符文进度
 
 | 符文 | 触发 | 效果 | 关键技术 | 状态 |
 |------|------|------|---------|------|
-| 攻击强化（1001） | Passive | Attack+10, Infinite | BFNode_ApplyAttributeModifier | ✅ 已测试 |
-| 热度提升（1002） | Passive | 每秒+1 Heat，受伤暂停5s | Period + GrantTag + OngoingTagReq | 待开发 |
-| 速度叠加（1003） | OnHit | MoveSpeed+5 叠加，3s | Stackable GE | 待测试 |
-| 击退（1004） | OnHit | 击退+硬直 | SetByCaller | 待测试 |
-| 流血（1005） | OnHit | 流血 GE → 触发 GA | ApplyEffect + GrantGA | 待测试 |
-| 额外伤害（1006） | OnDamageDealt | 附加 50% 伤害，递归守卫 | AddTag 守卫模式 | 待测试 |
+| 攻击强化（1001） | Passive | Attack+10, Infinite | ApplyAttributeModifier | ✅ 已测试 |
+| 热度提升（1002） | Passive | 每秒+1 Heat，受伤暂停5s | Period + GrantTag | ⬜ 待测试 |
+| 速度叠加（1003） | OnHit | Speed+30 叠加，3s，Max5 | ApplyAttributeModifier Stackable | ⬜ 待测试 |
+| 击退（1004） | OnHit | 移速-300 硬直+冲量 | ApplyEffect SetByCaller + GA | ⬜ 待测试 |
+| 流血（1005） | OnHit | GrantTag 流血 + GA 速度扣血 | GrantTag + GrantGA | ⬜ 待测试 |
+| 额外伤害（1006） | OnDamageDealt | 额外 1 伤害，递归守卫 | AddTag 守卫模式 | ⬜ 待测试 |
 
 ---
 
@@ -524,11 +613,10 @@ FA_Util_PhaseBonus:
 - `Source/DevKit/Private/BuffFlow/Nodes/` — 所有 BFNode 实现
 
 ### FA 资产
-- `Content/BuffFlow/FlowAssets/FA_Rune_HeatPhase` — 热度升降阶（永久）
-- `Content/BuffFlow/FlowAssets/FA_Rune_HeatOnHit` — 命中加热
-- `Content/BuffFlow/FlowAssets/FA_Rune_AttackUp` — 攻击强化（测试）
+- `Content/Game/Runes/HeatPhase/FA_Rune_HeatPhase` — 热度升降阶（永久）
+- `Content/Game/Runes/AttackUp/FA_Rune_AttackUp` — 攻击强化（已测试）
 
 ### 关联文档
 - `Docs/Design/Buff_Tag_Spec.md` — Tag 命名规范
 - `Docs/Design/HeatSystem_Design.md` — 热度系统详细设计
-- `Docs/Design/LevelSystem_ProgrammerDoc.md` — 关卡系统接入点
+- `Docs/Design/BuffFlow_ArchitectureAndPlan.md` — 架构决策与开发计划

@@ -325,21 +325,30 @@ class SyncBridge:
         ws = cfg["workspace_path"]
 
         # 逐文件 reconcile（更安全，不会误提交无关文件）
+        reconcile_errors = []
         for f in files:
             fpath = str(Path(ws) / f.replace("/", os.sep))
-            self._p4(f'reconcile "{fpath}"')
+            ok, out = self._p4(f'reconcile "{fpath}"')
+            if not ok and "no file(s) to reconcile" not in (out or "").lower():
+                reconcile_errors.append(f"  {f}: {out.strip()[:200]}")
+            elif ok and (out or "").strip():
+                self.log.info(f"P4 reconcile: {out.strip()}")
+
+        if reconcile_errors:
+            self.log.warning(f"P4 reconcile 部分文件失败:\n" + "\n".join(reconcile_errors))
 
         # 检查是否有文件被打开
         ok, opened = self._p4("opened")
+        self.log.info(f"P4 opened 状态: {(opened or '').strip()[:500]}")
         opened_text = (opened or "").strip().lower()
         if not opened_text or "not opened" in opened_text or "file(s) not opened" in opened_text:
             self.log.info("P4: 无变更需要提交")
             return True
 
         msg = f"{SYNC_MARKER} {desc}"
-        ok, _ = self._p4(f'submit -d "{msg}"', timeout=300)
+        ok, out = self._p4(f'submit -d "{msg}"', timeout=300)
         if not ok:
-            self.log.error("p4 submit 失败！")
+            self.log.error(f"p4 submit 失败！错误信息:\n{(out or '').strip()}")
             return False
 
         # 更新 CL 状态

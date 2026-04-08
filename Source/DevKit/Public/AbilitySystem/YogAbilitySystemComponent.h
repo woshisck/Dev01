@@ -5,8 +5,8 @@
 #include "Abilities/YogAbilityTypes.h"
 #include "Abilities/GameplayAbility.h"
 #include "Data/AbilityData.h"
-
 #include "Data/RuneDataAsset.h"
+#include "Data/StateConflictDataAsset.h"
 #include "YogAbilitySystemComponent.generated.h"
 
 class UYogAbilitySystemComponent;
@@ -81,6 +81,42 @@ public:
 
 
 
+	// =========================================================
+	// 状态冲突系统
+	// =========================================================
+
+	/**
+	 * 状态冲突规则表（DataAsset）
+	 * 推荐在角色蓝图 CDO 上统一赋值（EditDefaultsOnly），
+	 * 或在 GameInstance / GameData 中持有一份全局引用后调用 InitConflictTable()。
+	 * 不赋值时系统静默跳过，不会崩溃。
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "StateConflict")
+	TObjectPtr<UStateConflictDataAsset> ConflictTable;
+
+	/**
+	 * 手动触发冲突表初始化（可在 InitAbilityActorInfo 之后或 BeginPlay 中调用）。
+	 * 内部会自动构建 O(1) 查找用的 ConflictMap。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "StateConflict")
+	void InitConflictTable();
+
+	/** 运行时替换冲突表并重新初始化（热更新用） */
+	UFUNCTION(BlueprintCallable, Category = "StateConflict")
+	void SetConflictTable(UStateConflictDataAsset* NewTable);
+
+protected:
+	// OnTagUpdated override：tag 变化时自动查表执行 block / cancel
+	virtual void OnTagUpdated(const FGameplayTag& Tag, bool TagExists) override;
+
+private:
+	// 预处理后的查找表（ActiveTag → Rule），由 InitConflictTable() 构建
+	TMap<FGameplayTag, FStateConflictRule> ConflictMap;
+
+	// 防止 OnTagUpdated 递归（BlockAbilitiesWithTags 内部也会触发 tag 变化）
+	bool bProcessingConflict = false;
+
+public:
 	//////////////////////////////////Gameplay Tag//////////////////////////////////
 	UFUNCTION(BlueprintCallable)
 	void GetOwnedGameplayTag();
