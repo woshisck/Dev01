@@ -12,7 +12,7 @@
         "workspace": "your_workspace_name",
         "workspace_path": "D:\\P4Workspace\\Dev01",
         "depot_path": "//depot/Dev01/...",
-        "charset": "utf8"
+        "charset": ""
     },
 
     "ue5": {
@@ -23,7 +23,8 @@
         "platform": "Win64",
         "configuration": "Development",
         "dotnet_version": "6.0.302",
-        "compile_triggers": [".cpp", ".h", ".cs", ".Build.cs"]
+        "compile_triggers": [".cpp", ".h", ".cs", ".Build.cs"],
+        "compile_output_dirs": ["Binaries"]
     },
 
     "poll_interval_minutes": 10,

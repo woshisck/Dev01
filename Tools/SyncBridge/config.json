@@ -12,7 +12,7 @@
         "workspace": "gongzhengang_DESKTOP-DVTIRD2_4924",
         "workspace_path": "X:\\Project\\YogProject\\Dev01",
         "depot_path": "//Dev01/main/...",
-        "charset": "utf8"
+        "charset": ""
     },
 
     "ue5": {
@@ -23,7 +23,8 @@
         "platform": "Win64",
         "configuration": "Development",
         "dotnet_version": "6.0.302",
-        "compile_triggers": [".cpp", ".h", ".cs", ".Build.cs"]
+        "compile_triggers": [".cpp", ".h", ".cs", ".Build.cs"],
+        "compile_output_dirs": ["Binaries"]
     },
 
     "poll_interval_minutes": 30,
@@ -47,6 +48,5 @@
 
         "Tools",
         "Content/Runtime"
-
     ]
 }
