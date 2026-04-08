@@ -96,16 +96,31 @@ struct DEVKIT_API FRuneShape
 
 
 // ============================================================
-//  FRuneConfig — 符文标识配置（纯元数据）
+//  FRuneConfig — 符文完整配置（展示信息 + 分类元数据）
 //
 //  GE / GA 逻辑完全由 FA 层节点（BFNode_ApplyEffect / BFNode_GrantGA 等）负责。
-//  GE 状态查询通过 BFNode_ApplyEffect 的输出数据引脚获取，无需 Tag 反查。
 // ============================================================
 
 USTRUCT(BlueprintType)
 struct DEVKIT_API FRuneConfig
 {
     GENERATED_BODY()
+
+    // ── 展示信息 ──────────────────────────────────────────────
+
+    /** 符文名称 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName RuneName;
+
+    /** 符文图标 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TObjectPtr<UTexture2D> RuneIcon;
+
+    /** 符文描述文本 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FText RuneDescription;
+
+    // ── 分类元数据 ────────────────────────────────────────────
 
     /** 增益 / 减益 / 无（UI 分类显示用） */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -140,12 +155,9 @@ struct DEVKIT_API FRuneFlowConfig
 //  FRuneInstance — 运行时符文实例
 //
 //  DA 编辑器视觉结构：
-//    Rune Name / Icon / Description  ← 展示信息
-//    Shape                           ← 背包格子形状
-//    ▼ Rune Config  Type / DurationType / Duration / Period /
-//                   UniqueType / MaxStack / StackType / StackReduceType /
-//                   RuneID
-//    ▼ Flow         FlowAsset
+//    ▼ Rune Config   Name / Icon / Description / Type / RuneID
+//    Shape           ← 背包格子形状
+//    ▼ Flow          FlowAsset
 // ============================================================
 
 USTRUCT(BlueprintType)
@@ -153,26 +165,15 @@ struct DEVKIT_API FRuneInstance
 {
     GENERATED_BODY()
 
-    // ---- 展示信息（顶层平铺）----
+    // ---- 展示 + 分类配置（合并到 RuneConfig）----
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FName RuneName;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TObjectPtr<UTexture2D> RuneIcon;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FText RuneDescription;
+    FRuneConfig RuneConfig;
 
     // ---- 背包形状 ----
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FRuneShape Shape;
-
-    // ---- 核心配置（Type / Duration / Stack / Effects）----
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FRuneConfig RuneConfig;
 
     // ---- 逻辑层（FA）----
 
@@ -203,7 +204,7 @@ class DEVKIT_API URuneDataAsset : public UPrimaryDataAsset
 
 public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rune")
-    FRuneInstance RuneTemplate;
+    FRuneInstance RuneInfo;
 
     UFUNCTION(BlueprintCallable, Category = "Rune")
     FRuneInstance CreateInstance() const;

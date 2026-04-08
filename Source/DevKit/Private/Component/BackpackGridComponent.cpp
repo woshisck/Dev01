@@ -101,7 +101,7 @@ void UBackpackGridComponent::DebugPlaceTestRunes()
 		if (!bPlaced)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("PermanentRune [%s] FAILED - no space"),
-				*Instance.RuneName.ToString());
+				*Instance.RuneConfig.RuneName.ToString());
 		}
 	}
 
@@ -120,12 +120,12 @@ void UBackpackGridComponent::DebugPlaceTestRunes()
 			if (TryPlaceRune(Instance, Pivot))
 			{
 				UE_LOG(LogTemp, Log, TEXT("DebugPlaceTestRunes: [%s] placed at (%d,%d)"),
-					*Instance.RuneName.ToString(), Pivot.X, Pivot.Y);
+					*Instance.RuneConfig.RuneName.ToString(), Pivot.X, Pivot.Y);
 			}
 			else
 			{
 				UE_LOG(LogTemp, Warning, TEXT("DebugPlaceTestRunes: [%s] FAILED at (%d,%d) - collision or out of bounds"),
-					*Instance.RuneName.ToString(), Pivot.X, Pivot.Y);
+					*Instance.RuneConfig.RuneName.ToString(), Pivot.X, Pivot.Y);
 			}
 		}
 		else
@@ -139,7 +139,7 @@ void UBackpackGridComponent::DebugPlaceTestRunes()
 					if (TryPlaceRune(Instance, FIntPoint(X, Y)))
 					{
 						UE_LOG(LogTemp, Log, TEXT("DebugPlaceTestRunes: [%s] auto-placed at (%d,%d)"),
-							*Instance.RuneName.ToString(), X, Y);
+							*Instance.RuneConfig.RuneName.ToString(), X, Y);
 						bPlaced = true;
 					}
 				}
@@ -147,7 +147,7 @@ void UBackpackGridComponent::DebugPlaceTestRunes()
 			if (!bPlaced)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("DebugPlaceTestRunes: [%s] FAILED - no space"),
-					*Instance.RuneName.ToString());
+					*Instance.RuneConfig.RuneName.ToString());
 			}
 		}
 	}
@@ -475,7 +475,7 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 	if (Placed.bIsActivated)
 		return;
 
-	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] ActivateRune: %s"), *Placed.Rune.RuneName.ToString());
+	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] ActivateRune: %s"), *Placed.Rune.RuneConfig.RuneName.ToString());
 
 	if (Placed.Rune.Flow.FlowAsset)
 	{
@@ -486,12 +486,12 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 			UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune FAILED: BuffFlowComponent not found on %s"), *GetOwner()->GetName());
 			return;
 		}
-		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] StartBuffFlow -> Rune: %s"), *Placed.Rune.RuneName.ToString());
+		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] StartBuffFlow -> Rune: %s"), *Placed.Rune.RuneConfig.RuneName.ToString());
 		BFC->StartBuffFlow(Placed.Rune.Flow.FlowAsset, Placed.Rune.RuneGuid, GetOwner());
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune SKIP: no FA on Rune %s"), *Placed.Rune.RuneName.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune SKIP: no FA on Rune %s"), *Placed.Rune.RuneConfig.RuneName.ToString());
 		return;
 	}
 
