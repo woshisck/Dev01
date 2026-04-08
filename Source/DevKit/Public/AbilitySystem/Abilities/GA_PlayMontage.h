@@ -42,4 +42,10 @@ public:
 
 	UPROPERTY()
 	TArray<FActiveGameplayEffectHandle> ActiveEffectHandles;
+
+private:
+	// CanCombo tag 变化时的回调，检查输入缓存并触发连击
+	void OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount);
+
+	FDelegateHandle CanComboTagHandle;
 };

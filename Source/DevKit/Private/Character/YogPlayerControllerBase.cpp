@@ -194,7 +194,7 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
 		bool bActivated = player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
 
-		player->GetInputBufferComponent()->RecordHeavyAttack();
+		player->GetInputBufferComponent()->RecordDash();
 
 		if (bActivated)
 		{
@@ -235,7 +235,7 @@ void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
-		player->GetInputBufferComponent()->RecordHeavyAttack();
+		player->GetInputBufferComponent()->RecordMove(Input);
 	}
 
 	//const FRotator playerTowards = UKismetMathLibrary::Conv_VectorToRotator(FVector(Rotated, 0));

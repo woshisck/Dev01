@@ -7,6 +7,7 @@
 #include "Character/YogCharacterBase.h"
 //#include "Data/CharacterData.h"
 #include "Component/CharacterDataComponent.h"
+#include "Component/BufferComponent.h"
 
 UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
 {
@@ -32,6 +33,12 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
     const FActionData* action_data = Owner->GetCharacterDataComponent()->GetCharacterData()->AbilityData->AbilityMap.Find(ability_tag);
     
     UAnimMontage* MontageToPlay = action_data ? action_data->Montage : nullptr;
+	// 注册 CanCombo tag 监听，AnimNotifyState 加上 tag 时自动检查输入缓存
+	CanComboTagHandle = ASC->RegisterGameplayTagEvent(
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")),
+		EGameplayTagEventType::NewOrRemoved
+	).AddUObject(this, &UGA_PlayMontage::OnCanComboTagChanged);
+
     if(MontageToPlay)
     {
 
@@ -139,7 +146,16 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
         }
     }
     //ActiveEffectHandles.Empty();
-    GetAbilitySystemComponentFromActorInfo()->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")));
+	// 注销 CanCombo tag 监听
+	if (UAbilitySystemComponent* ASCLocal = GetAbilitySystemComponentFromActorInfo())
+	{
+		ASCLocal->UnregisterGameplayTagEvent(
+			CanComboTagHandle,
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")),
+			EGameplayTagEventType::NewOrRemoved
+		);
+		ASCLocal->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")));
+	}
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 
@@ -171,6 +187,43 @@ void UGA_PlayMontage::OnMontageCancelled()
 void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEventData& EventData)
 {
     ApplyEffectContainer(EventTag, EventData, -1);
+}
+
+void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	// 只处理 tag 被加上的时机（NewCount > 0）
+	if (NewCount <= 0)
+		return;
+
+	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo());
+	if (!Owner)
+		return;
+
+	UBufferComponent* Buffer = Owner->GetInputBufferComponent();
+	if (!Buffer)
+		return;
+
+	// 检查是否有预输入的轻攻击（0.3 秒窗口）
+	if (Buffer->HasBufferedInput(EInputCommandType::LightAttack, 0.3f))
+	{
+		Buffer->ConsumeBufferedInput(EInputCommandType::LightAttack);
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.LightAtk")));
+		Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		return;
+	}
+
+	// 检查是否有预输入的重攻击
+	if (Buffer->HasBufferedInput(EInputCommandType::HeavyAttack, 0.3f))
+	{
+		Buffer->ConsumeBufferedInput(EInputCommandType::HeavyAttack);
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.HeavyAtk")));
+		Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		return;
+	}
+
+	// 没有预输入 → CanCombo tag 保持，等待玩家在窗口内手动按键
 }
 
 
