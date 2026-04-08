@@ -34,7 +34,7 @@
  *                  DurationType = HasDuration
  *                  Duration     = 3.0s
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "Apply Gameplay Effect", Category = "BuffFlow|Effect"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Apply Attribute Modifier", Category = "BuffFlow|Effect"))
 class DEVKIT_API UBFNode_ApplyAttributeModifier : public UBFNode_Base
 {
     GENERATED_UCLASS_BODY()
