@@ -19,12 +19,12 @@ if errorlevel 1 (
 
 :: 安装 PyInstaller
 echo [1/2] 安装 PyInstaller...
-pip install pyinstaller -q
+python -m pip install pyinstaller -q
 echo.
 
-:: 打包
+:: 打包（用 python -m 调用，避免 PATH 问题）
 echo [2/2] 正在打包（可能需要 1-2 分钟）...
-pyinstaller --onefile --name SyncBridge --clean "%~dp0sync_bridge.py"
+python -m PyInstaller --onefile --name SyncBridge --clean "%~dp0sync_bridge.py"
 echo.
 
 if exist "%~dp0dist\SyncBridge.exe" (
