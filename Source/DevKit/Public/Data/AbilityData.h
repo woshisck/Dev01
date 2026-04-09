@@ -253,6 +253,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FYogApplyEffect> UniqueEffects;
 
+	/**
+	 * 死亡消解特效的 GameplayCue Tag（留空则不触发消解）
+	 * 无论是否有死亡蒙太奇，都在死亡动画（或 2s 等待）结束后触发
+	 * 在对应的 GameplayCue BP 里配置 Niagara/材质消解/音效等效果
+	 * ⚠️ GC 内的粒子需要在世界坐标生成（非附加模式），否则 Actor 销毁后粒子也会消失
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dissolve")
+	FGameplayTag DissolveGameplayCueTag;
+
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TSubclassOf<UYogGameplayAbility> Ability_Template;
 

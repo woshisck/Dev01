@@ -329,31 +329,41 @@ void UYogAbilitySystemComponent::AddActivationBlockedTags(const FGameplayTag& Ta
 bool UYogAbilitySystemComponent::TryActivateRandomAbilitiesByTag(const FGameplayTagContainer& GameplayTagContainer, bool bAllowRemoteActivation)
 {
 	TArray<FGameplayAbilitySpec*> AbilitiesToActivatePtrs;
-	GetActivatableGameplayAbilitySpecsByAllMatchingTags(GameplayTagContainer, AbilitiesToActivatePtrs);
+
+	if (GameplayTagContainer.Num() > 1)
+	{
+		// 多 Tag 模式：OR 语义，把每个 Tag 视为独立候选，分别查找匹配 GA，汇总去重后随机激活一个
+		// 用法：填 {Enemy.Melee.LAtk1, Enemy.Melee.LAtk2, Enemy.Melee.LAtk3}
+		//      → 从这三种攻击里随机选一种
+		for (const FGameplayTag& Tag : GameplayTagContainer)
+		{
+			TArray<FGameplayAbilitySpec*> PerTagPtrs;
+			GetActivatableGameplayAbilitySpecsByAllMatchingTags(FGameplayTagContainer(Tag), PerTagPtrs);
+			for (FGameplayAbilitySpec* Spec : PerTagPtrs)
+			{
+				AbilitiesToActivatePtrs.AddUnique(Spec);
+			}
+		}
+	}
+	else
+	{
+		// 单 Tag 模式（原有行为）：支持父 Tag 匹配所有子级 GA
+		// 用法：填 {Enemy.Melee} → 从所有 Enemy.Melee.* GA 里随机选一个
+		GetActivatableGameplayAbilitySpecsByAllMatchingTags(GameplayTagContainer, AbilitiesToActivatePtrs);
+	}
+
 	if (AbilitiesToActivatePtrs.Num() < 1)
 	{
 		return false;
 	}
 
-	// Convert from pointers (which can be reallocated, since they point to internal data) to copies of that data
+	// Convert from pointers (which can be reallocated) to copies
 	TArray<FGameplayAbilitySpec> AbilitiesToActivate;
 	AbilitiesToActivate.Reserve(AbilitiesToActivatePtrs.Num());
 	Algo::Transform(AbilitiesToActivatePtrs, AbilitiesToActivate, [](FGameplayAbilitySpec* SpecPtr) { return *SpecPtr; });
 
-	bool bSuccess = false;
-
-	int32 RandomIndex = FMath::RandRange(0, AbilitiesToActivate.Num() - 1);
-
-
-	bSuccess |= TryActivateAbility(AbilitiesToActivate[RandomIndex].Handle, bAllowRemoteActivation);
-	return bSuccess;
-	//AbilitiesToActivate.Random
-	//for (const FGameplayAbilitySpec& GameplayAbilitySpec : AbilitiesToActivate)
-	//{
-	//	ensure(IsValid(GameplayAbilitySpec.Ability));
-	//	bSuccess |= TryActivateAbility(GameplayAbilitySpec.Handle, bAllowRemoteActivation);
-	//}
-
+	const int32 RandomIndex = FMath::RandRange(0, AbilitiesToActivate.Num() - 1);
+	return TryActivateAbility(AbilitiesToActivate[RandomIndex].Handle, bAllowRemoteActivation);
 }
 
 void UYogAbilitySystemComponent::RemoveActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToUnblock)

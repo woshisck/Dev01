@@ -16,11 +16,13 @@ class UAbilityTask_PlayMontageAndWait;
  *           不需要任何手动操作。
  *
  * 动画来源：CharacterData → AbilityData → PassiveMap["Action.Dead"].Montage
- * 动画结束后自动调用 FinishDying()。
  *
- * AbilityTriggers 配置（编辑器里填）：
- *   Trigger Tag    = Action.Dead
- *   Trigger Source = GameplayEvent
+ * 时序：
+ *   有蒙太奇 → 播放蒙太奇 → 蒙太奇结束 → 等 2s → 触发消解 GC → Destroy
+ *   无蒙太奇 →                              等 2s → 触发消解 GC → Destroy
+ *
+ * 消解特效配置：AbilityData → PassiveMap["Action.Dead"].DissolveGameplayCueTag
+ *   填写 GameplayCue Tag，在对应 GC BP 里配 Niagara/材质消解等效果（世界坐标生成）
  */
 UCLASS()
 class DEVKIT_API UGA_Dead : public UYogGameplayAbility
@@ -47,6 +49,12 @@ private:
     UPROPERTY()
     TObjectPtr<UAbilityTask_PlayMontageAndWait> MontageTask;
 
+    // 蒙太奇结束或无蒙太奇后的延迟计时器（2 秒），用于播放消解特效窗口
+    FTimerHandle DeathDelayTimer;
+
+    // 从 AbilityData 缓存的消解 GC Tag
+    FGameplayTag CachedDissolveTag;
+
     UFUNCTION()
     void OnDeathMontageCompleted();
 
@@ -55,4 +63,11 @@ private:
 
     UFUNCTION()
     void OnDeathMontageCancelled();
+
+    // 蒙太奇结束后开始 2s 等待
+    void StartDeathDelay();
+
+    // 2s 等待结束 → 触发消解 GC → FinishDying → EndAbility
+    UFUNCTION()
+    void OnDeathDelayExpired();
 };

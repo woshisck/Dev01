@@ -2,6 +2,7 @@
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayTagsManager.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
@@ -11,14 +12,8 @@
 UGA_Dead::UGA_Dead(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
-    // GA 身份标签，同时作为 AbilityData.PassiveMap 的 lookup key
-    // 编辑器里 AbilityTags 填 Action.Dead，PassiveMap 也用同一个 Tag 作 key
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.Dead")));
-
-    // 死亡期间挂载 Buff.Status.Dead，StateConflict 系统据此取消全部其他 GA
     ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
-
-    // 死亡只有一个实例，不允许重复激活
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 }
 
@@ -37,79 +32,106 @@ void UGA_Dead::ActivateAbility(
         return;
     }
 
-    // ---- 主动取消当前所有非死亡 GA ----
-    // StateConflict 会处理大部分情况，这里作为兜底保证
-    // 传入 this 排除自身被取消
     ActorInfo->AbilitySystemComponent->CancelAllAbilities(this);
 
-    // ---- 获取死亡蒙太奇 ----
-    // 用自身 AbilityTags 的第一个 Tag 作为 PassiveMap 的 lookup key
-    FGameplayTag LookupTag = AbilityTags.IsEmpty() ? FGameplayTag() : AbilityTags.GetByIndex(0);
-
+    // ---- 读取 AbilityData：蒙太奇 + 消解 GC Tag ----
+    const FGameplayTag LookupTag = AbilityTags.IsEmpty() ? FGameplayTag() : AbilityTags.GetByIndex(0);
     UAnimMontage* DeathMontage = nullptr;
+    CachedDissolveTag = FGameplayTag();
 
     UCharacterData* CharData = Character->CharacterDataComponent->GetCharacterData();
     if (CharData && LookupTag.IsValid())
     {
-        const UAbilityData* AbilityData = CharData->GetAbilityData();
-        if (AbilityData)
+        if (const UAbilityData* AbilityData = CharData->GetAbilityData())
         {
             FPassiveActionData DeadData = AbilityData->GetPassiveAbility(LookupTag);
-            DeathMontage = DeadData.Montage;
+            DeathMontage       = DeadData.Montage;
+            CachedDissolveTag  = DeadData.DissolveGameplayCueTag;
         }
     }
 
-    if (!DeathMontage)
+    if (DeathMontage)
     {
-        // 未配置死亡蒙太奇——打印日志帮助排查，然后依赖 EnemyCharacterBase::SetLifeSpan 延迟销毁
-        UE_LOG(LogTemp, Warning, TEXT("GA_Dead [%s]: 未找到死亡蒙太奇（LookupTag=%s），跳过播放"),
+        // ---- 有蒙太奇：播放，结束后进入 2s 延迟 ----
+        MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+            this, NAME_None, DeathMontage, 1.0f,
+            NAME_None,
+            false);  // bStopWhenAbilityEnds=false，EndAbility 不中断蒙太奇
+
+        MontageTask->OnCompleted.AddDynamic(this, &UGA_Dead::OnDeathMontageCompleted);
+        MontageTask->OnBlendOut.AddDynamic(this,  &UGA_Dead::OnDeathMontageBlendOut);
+        MontageTask->OnCancelled.AddDynamic(this, &UGA_Dead::OnDeathMontageCancelled);
+        MontageTask->ReadyForActivation();
+    }
+    else
+    {
+        // ---- 无蒙太奇：直接进入 2s 延迟 ----
+        UE_LOG(LogTemp, Warning, TEXT("GA_Dead [%s]: 未找到死亡蒙太奇（LookupTag=%s），直接等待 2s"),
             *GetNameSafe(Character), *LookupTag.ToString());
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+        StartDeathDelay();
+    }
+}
+
+// 蒙太奇正常完成 → 开始 2s 延迟
+void UGA_Dead::OnDeathMontageCompleted()
+{
+    StartDeathDelay();
+}
+
+// 蒙太奇 BlendOut（视为完成）→ 开始 2s 延迟
+void UGA_Dead::OnDeathMontageBlendOut()
+{
+    StartDeathDelay();
+}
+
+// 蒙太奇被取消（异常路径）→ 跳过延迟，立即销毁
+void UGA_Dead::OnDeathMontageCancelled()
+{
+    OnDeathDelayExpired();
+}
+
+void UGA_Dead::StartDeathDelay()
+{
+    // OnBlendOut 和 OnCompleted 都会回调此函数，只启动一次
+    UWorld* World = GetWorld();
+    if (!World || DeathDelayTimer.IsValid()) return;
+
+    World->GetTimerManager().SetTimer(
+        DeathDelayTimer,
+        this,
+        &UGA_Dead::OnDeathDelayExpired,
+        2.0f,
+        false);
+}
+
+void UGA_Dead::OnDeathDelayExpired()
+{
+    if (!CurrentActorInfo || !CurrentActorInfo->AvatarActor.IsValid())
+    {
+        EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
         return;
     }
 
-    // ---- 播放死亡蒙太奇 ----
-    MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-        this, NAME_None, DeathMontage, 1.0f,
-        NAME_None,   // StartSection
-        false);      // bStopWhenAbilityEnds = false，避免 EndAbility 时中断蒙太奇
+    AActor* Avatar = CurrentActorInfo->AvatarActor.Get();
 
-    MontageTask->OnCompleted.AddDynamic(this, &UGA_Dead::OnDeathMontageCompleted);
-    MontageTask->OnBlendOut.AddDynamic(this,  &UGA_Dead::OnDeathMontageBlendOut);
-    MontageTask->OnCancelled.AddDynamic(this, &UGA_Dead::OnDeathMontageCancelled);
-    MontageTask->ReadyForActivation();
-}
-
-void UGA_Dead::OnDeathMontageCompleted()
-{
-    AYogCharacterBase* Character = Cast<AYogCharacterBase>(CurrentActorInfo->AvatarActor.Get());
-    if (Character)
+    // ---- 触发消解 GameplayCue（在世界坐标生成，不附加到角色，Actor 销毁后继续播放）----
+    if (CachedDissolveTag.IsValid())
     {
-        Character->FinishDying();
+        FGameplayCueParameters CueParams;
+        CueParams.Location       = Avatar->GetActorLocation();
+        CueParams.Normal         = Avatar->GetActorForwardVector();
+        CueParams.SourceObject   = Avatar;
+
+        CurrentActorInfo->AbilitySystemComponent->ExecuteGameplayCue(CachedDissolveTag, CueParams);
     }
+
+    // ---- 销毁角色 ----
+    if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(Avatar))
+    {
+        Char->FinishDying();
+    }
+
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
-}
-
-void UGA_Dead::OnDeathMontageBlendOut()
-{
-    // BlendOut 时视为播放完成，调用 FinishDying
-    AYogCharacterBase* Character = Cast<AYogCharacterBase>(CurrentActorInfo->AvatarActor.Get());
-    if (Character)
-    {
-        Character->FinishDying();
-    }
-    EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
-}
-
-void UGA_Dead::OnDeathMontageCancelled()
-{
-    // 被取消时也需要确保 FinishDying 被调用
-    AYogCharacterBase* Character = Cast<AYogCharacterBase>(CurrentActorInfo->AvatarActor.Get());
-    if (Character)
-    {
-        Character->FinishDying();
-    }
-    EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 
 void UGA_Dead::EndAbility(
@@ -124,5 +146,11 @@ void UGA_Dead::EndAbility(
         MontageTask->EndTask();
         MontageTask = nullptr;
     }
+
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(DeathDelayTimer);
+    }
+
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
