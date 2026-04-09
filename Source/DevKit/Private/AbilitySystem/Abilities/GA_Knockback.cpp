@@ -1,9 +1,14 @@
 #include "AbilitySystem/Abilities/GA_Knockback.h"
 
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayTagsManager.h"
+#include "Character/YogCharacterBase.h"
+#include "Component/CharacterDataComponent.h"
+#include "Data/CharacterData.h"
+#include "Data/AbilityData.h"
 
 UGA_Knockback::UGA_Knockback(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -75,6 +80,38 @@ void UGA_Knockback::ActivateAbility(
     KnockbackTask->OnTimedOut.AddDynamic(this, &UGA_Knockback::OnKnockbackFinished);
     KnockbackTask->OnTimedOutAndDestinationReached.AddDynamic(this, &UGA_Knockback::OnKnockbackFinished);
     KnockbackTask->ReadyForActivation();
+
+    // ---- 播放受击动画（与击退物理同步，不等待动画结束）----
+    // 击退方向是 TargetChar 被推离的方向，取反即指向攻击者
+    // Dot > 0：攻击者在正面 → Front；< 0：攻击者在背面 → Back
+    const float HitDot = FVector::DotProduct(
+        TargetChar->GetActorForwardVector(), (-KnockbackDir).GetSafeNormal());
+    const FGameplayTag HitTag = (HitDot >= 0.f)
+        ? FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Front"))
+        : FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Back"));
+
+    UAnimMontage* HitMontage = nullptr;
+    if (AYogCharacterBase* YogChar = Cast<AYogCharacterBase>(TargetChar))
+    {
+        UCharacterData* CharData = YogChar->CharacterDataComponent->GetCharacterData();
+        if (CharData)
+        {
+            const UAbilityData* AbilityData = CharData->GetAbilityData();
+            if (AbilityData)
+            {
+                HitMontage = AbilityData->GetPassiveAbility(HitTag).Montage;
+            }
+        }
+    }
+
+    if (HitMontage)
+    {
+        MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+            this, NAME_None, HitMontage, 1.0f,
+            NAME_None,
+            true); // bStopWhenAbilityEnds=true，击退结束时自动中断动画
+        MontageTask->ReadyForActivation();
+    }
 }
 
 void UGA_Knockback::OnKnockbackFinished()
@@ -92,6 +129,12 @@ void UGA_Knockback::EndAbility(
     bool bReplicateEndAbility,
     bool bWasCancelled)
 {
+    if (MontageTask)
+    {
+        MontageTask->EndTask();
+        MontageTask = nullptr;
+    }
+
     if (KnockbackTask)
     {
         KnockbackTask->EndTask();

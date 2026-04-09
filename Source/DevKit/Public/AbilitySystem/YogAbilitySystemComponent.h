@@ -113,6 +113,12 @@ private:
 	// 预处理后的查找表（ActiveTag → Rule），由 InitConflictTable() 构建
 	TMap<FGameplayTag, FStateConflictRule> ConflictMap;
 
+	// 阻断分类表（BlockCategory → 触发该阻断的 State Tags），从 DA 复制
+	TMap<FGameplayTag, FGameplayTagContainer> BlockCategoryMap;
+
+	// 反向索引（StateTag → 所属阻断分类列表），OnTagUpdated O(1) 查找
+	TMap<FGameplayTag, TArray<FGameplayTag>> StateToBlockCategories;
+
 	// 防止 OnTagUpdated 递归（BlockAbilitiesWithTags 内部也会触发 tag 变化）
 	bool bProcessingConflict = false;
 

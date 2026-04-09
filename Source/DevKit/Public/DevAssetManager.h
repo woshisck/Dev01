@@ -18,6 +18,7 @@ DECLARE_DYNAMIC_DELEGATE(FOnAsyncLoadFinished);
 
 class UGameplayTagRelation;
 class UPrimaryDataAsset;
+class UStateConflictDataAsset;
 
 
 UCLASS(Config = Game)
@@ -40,7 +41,10 @@ public:
 	//UFUNCTION(BlueprintPure, BlueprintCallable, Category = "AssetLoader")
 	//static UDevAssetManager& Get();
 
-	const UGameplayTagRelation & GetGameplayTagRelation();
+	const UGameplayTagRelation& GetGameplayTagRelation();
+
+	/** 全局状态冲突 & 移动阻断配置表（路径在 DefaultGame.ini 中设置） */
+	UStateConflictDataAsset* GetStateConflictData();
 
 	//	TSoftObjectPtr<UGameplayTagRelation> GameplayTagRelation;
 
@@ -103,6 +107,10 @@ protected:
 	// Global game data asset to use.
 	UPROPERTY(Config)
 	TSoftObjectPtr<UGameplayTagRelation> GameplayTagRelation;
+
+	/** 全局状态冲突 & 移动阻断配置（DefaultGame.ini 中配置路径） */
+	UPROPERTY(Config)
+	TSoftObjectPtr<UStateConflictDataAsset> StateConflictData;
 
 
 

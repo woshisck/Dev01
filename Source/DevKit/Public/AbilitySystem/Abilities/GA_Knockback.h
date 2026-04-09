@@ -5,6 +5,7 @@
 #include "GA_Knockback.generated.h"
 
 class UAbilityTask_ApplyRootMotionMoveToForce;
+class UAbilityTask_PlayMontageAndWait;
 
 /**
  * 击退 GA
@@ -52,4 +53,8 @@ private:
 
     UPROPERTY()
     TObjectPtr<UAbilityTask_ApplyRootMotionMoveToForce> KnockbackTask;
+
+    // 与击退同步播放的受击动画任务（不等待其结束，KnockbackTask 负责结束 GA）
+    UPROPERTY()
+    TObjectPtr<UAbilityTask_PlayMontageAndWait> MontageTask;
 };
