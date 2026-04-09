@@ -45,14 +45,14 @@ void UGA_Dead::ActivateAbility(
         if (const UAbilityData* AbilityData = CharData->GetAbilityData())
         {
             FPassiveActionData DeadData = AbilityData->GetPassiveAbility(LookupTag);
-            DeathMontage       = DeadData.Montage;
-            CachedDissolveTag  = DeadData.DissolveGameplayCueTag;
+            DeathMontage      = DeadData.Montage;
+            CachedDissolveTag = DeadData.DissolveGameplayCueTag;
         }
     }
 
     if (DeathMontage)
     {
-        // ---- 有蒙太奇：播放，结束后进入 2s 延迟 ----
+        // ---- 有蒙太奇：播放，结束后进入销毁流程 ----
         MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
             this, NAME_None, DeathMontage, 1.0f,
             NAME_None,
@@ -65,20 +65,20 @@ void UGA_Dead::ActivateAbility(
     }
     else
     {
-        // ---- 无蒙太奇：直接进入 2s 延迟 ----
-        UE_LOG(LogTemp, Warning, TEXT("GA_Dead [%s]: 未找到死亡蒙太奇（LookupTag=%s），直接等待 2s"),
+        // ---- 无蒙太奇：直接进入销毁流程 ----
+        UE_LOG(LogTemp, Warning, TEXT("GA_Dead [%s]: 未找到死亡蒙太奇（LookupTag=%s），直接进入销毁流程"),
             *GetNameSafe(Character), *LookupTag.ToString());
         StartDeathDelay();
     }
 }
 
-// 蒙太奇正常完成 → 开始 2s 延迟
+// 蒙太奇正常完成 → 开始销毁流程
 void UGA_Dead::OnDeathMontageCompleted()
 {
     StartDeathDelay();
 }
 
-// 蒙太奇 BlendOut（视为完成）→ 开始 2s 延迟
+// 蒙太奇 BlendOut（视为完成）→ 开始销毁流程
 void UGA_Dead::OnDeathMontageBlendOut()
 {
     StartDeathDelay();
@@ -95,6 +95,24 @@ void UGA_Dead::StartDeathDelay()
     // OnBlendOut 和 OnCompleted 都会回调此函数，只启动一次
     UWorld* World = GetWorld();
     if (!World || DeathDelayTimer.IsValid()) return;
+
+    if (!CachedDissolveTag.IsValid())
+    {
+        // 无消解效果 → 直接销毁，不等待
+        OnDeathDelayExpired();
+        return;
+    }
+
+    // ---- 有消解效果：立即触发 GC（此时角色仍存活，消解在活体角色上播放），等 2s 后销毁 ----
+    if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
+    {
+        AActor* Avatar = CurrentActorInfo->AvatarActor.Get();
+        FGameplayCueParameters CueParams;
+        CueParams.Location     = Avatar->GetActorLocation();
+        CueParams.Normal       = Avatar->GetActorForwardVector();
+        CueParams.SourceObject = Avatar;
+        CurrentActorInfo->AbilitySystemComponent->ExecuteGameplayCue(CachedDissolveTag, CueParams);
+    }
 
     World->GetTimerManager().SetTimer(
         DeathDelayTimer,
@@ -113,17 +131,6 @@ void UGA_Dead::OnDeathDelayExpired()
     }
 
     AActor* Avatar = CurrentActorInfo->AvatarActor.Get();
-
-    // ---- 触发消解 GameplayCue（在世界坐标生成，不附加到角色，Actor 销毁后继续播放）----
-    if (CachedDissolveTag.IsValid())
-    {
-        FGameplayCueParameters CueParams;
-        CueParams.Location       = Avatar->GetActorLocation();
-        CueParams.Normal         = Avatar->GetActorForwardVector();
-        CueParams.SourceObject   = Avatar;
-
-        CurrentActorInfo->AbilitySystemComponent->ExecuteGameplayCue(CachedDissolveTag, CueParams);
-    }
 
     // ---- 销毁角色 ----
     if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(Avatar))
