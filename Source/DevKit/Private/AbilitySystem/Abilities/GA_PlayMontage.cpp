@@ -209,7 +209,9 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	// 只接受本次能力激活之后的预输入，避免触发当前能力的那次按键被误判为连击
 	if (Buffer->HasBufferedInputSince(EInputCommandType::LightAttack, AbilityActivationTime))
 	{
-		Buffer->ConsumeBufferedInput(EInputCommandType::LightAttack);
+		// ClearBuffer：触发连击后清空全部缓存，防止堆积按键依次自动连发
+		// 下一段 combo 的 CanCombo 窗口将只响应在那段动作期间的新输入
+		Buffer->ClearBuffer();
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.LightAtk")));
 		Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
@@ -218,7 +220,7 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 
 	if (Buffer->HasBufferedInputSince(EInputCommandType::HeavyAttack, AbilityActivationTime))
 	{
-		Buffer->ConsumeBufferedInput(EInputCommandType::HeavyAttack);
+		Buffer->ClearBuffer();
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.HeavyAtk")));
 		Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
