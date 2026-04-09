@@ -2,6 +2,7 @@
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Abilities/PassiveAbility.h"
 #include "GameplayEffect.h"
+#include "AbilitySystemBlueprintLibrary.h"
 
 #include "SaveGame/YogSaveGame.h"
 #include "Data/YogGameData.h"
@@ -211,6 +212,17 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	if (SourceASC && IsValid(this) && IsValid(GetAvatarActor()))
 	{
 		SourceASC->DealtDamage.Broadcast(this, Damage);
+	}
+
+	// 自动触发受击 GA（GA_GetHit 通过 Trigger: GameplayEvent 监听此 Tag）
+	// HitReactEventTag 在角色蓝图 CDO 上配置，留空则跳过
+	if (HitReactEventTag.IsValid() && IsValid(GetAvatarActor()))
+	{
+		FGameplayEventData EventData;
+		EventData.Instigator = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
+		EventData.EventMagnitude = Damage;
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+			GetAvatarActor(), HitReactEventTag, EventData);
 	}
 }
 

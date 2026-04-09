@@ -12,6 +12,12 @@
 
 
 UPlayerAttributeSet::UPlayerAttributeSet()
-{	
+{
+    MaxDashCharge        = 1.0f;
+    DashCooldownDuration = 3.0f;
+}
 
+void UPlayerAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
+{
+    Super::PreAttributeChange(Attribute, NewValue);
 }

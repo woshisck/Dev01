@@ -138,6 +138,13 @@ public:
 	////////////////////////////////////////////////////////////////////////////////
 
 
+	/**
+	 * 受击时自动发送的 GameplayEvent Tag（供 GA_GetHit 通过 Trigger 监听）
+	 * 在角色蓝图 CDO 上设置，留空则不发送事件（可用于无受击反应的对象）
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitReact")
+	FGameplayTag HitReactEventTag;
+
 	UPROPERTY(BlueprintAssignable, Category = "DamageTaken")
 	FReceivedDamageDelegate ReceivedDamage;
 

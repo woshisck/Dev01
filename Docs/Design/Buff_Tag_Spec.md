@@ -64,6 +64,8 @@ Buff.*
 | `Buff.Effect.Attribute.MaxHP` | 叶子 | 最大生命值上限 |
 | `Buff.Effect.Attribute.CritRate` | 叶子 | 暴击概率 |
 | `Buff.Effect.Attribute.CritDamage` | 叶子 | 暴击伤害倍率 |
+| `Buff.Effect.Attribute.MaxCharge` | 叶子 | 技能最大充能格数（对应 Max{SkillName}Charge 属性） |
+| `Buff.Effect.Attribute.CooldownDuration` | 叶子 | 技能 CD 间隔（对应 {SkillName}CooldownDuration 属性，Multiplicative 缩短） |
 | `Buff.Effect.Summon` | 叶子 | 在场景中生成持续对象（实体/投射物/区域） |
 
 ### 触发层 `Buff.Trigger.*`

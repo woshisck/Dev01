@@ -49,7 +49,22 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     FGameplayAttributeData SkillCD;
     ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, SkillCD);
-    
+
+    // ── 冲刺充能系统 ──────────────────────────────────────────────
+    // 当前格数由 USkillChargeComponent 管理，此处只存符文可修改的配置属性。
+
+    /** 最大可储存充能格数（符文可 Additive +1） */
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Dash")
+    FGameplayAttributeData MaxDashCharge;
+    ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, MaxDashCharge);
+
+    /** 每格充能回复间隔（秒），符文可 Multiplicative ×1.25 */
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Dash")
+    FGameplayAttributeData DashCooldownDuration;
+    ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, DashCooldownDuration);
+
+    virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
+
     //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")
     //FGameplayAttributeData MAX_PassiveGA;
     //ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, MAX_PassiveGA);

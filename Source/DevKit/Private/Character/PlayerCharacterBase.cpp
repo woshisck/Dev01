@@ -17,6 +17,8 @@
 #include "Item/ItemSpawner.h"
 #include "Component/BackpackGridComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
+#include "Component/SkillChargeComponent.h"
+#include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -25,6 +27,7 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	BackpackGridComponent = CreateDefaultSubobject<UBackpackGridComponent>(TEXT("BackpackGridComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
+	SkillChargeComponent = CreateDefaultSubobject<USkillChargeComponent>(TEXT("SkillChargeComponent"));
 }
 
 void APlayerCharacterBase::SetOwnCamera(AYogCameraPawn* cameraActor)
@@ -98,27 +101,6 @@ void APlayerCharacterBase::AddGold(int32 Amount)
 	OnGoldChanged.Broadcast(Gold);
 }
 
-void APlayerCharacterBase::InitDashChargeSystem()
-{
-	DashChargeCount = MaxDashChargeCount;
-	GetWorldTimerManager().SetTimer(DashChargeRegenTimer, [this]()
-	{
-		if (DashChargeCount < MaxDashChargeCount)
-		{
-			DashChargeCount++;
-		}
-		if (DashChargeCount >= MaxDashChargeCount)
-		{
-			GetWorldTimerManager().ClearTimer(DashChargeRegenTimer);
-		}
-	}, DashChargeRegenInterval, true);
-}
-
-void APlayerCharacterBase::ShutdownDashChargeSystem()
-{
-	DashChargeCount = 0;
-	GetWorldTimerManager().ClearTimer(DashChargeRegenTimer);
-}
 
 void APlayerCharacterBase::BeginPlay()
 {
@@ -128,6 +110,21 @@ void APlayerCharacterBase::BeginPlay()
 	if (BackpackGridComponent && GetAbilitySystemComponent())
 	{
 		BackpackGridComponent->InitWithASC(GetAbilitySystemComponent());
+	}
+
+	// 初始化技能充能系统
+	if (SkillChargeComponent && GetAbilitySystemComponent() && PlayerAttributeSet)
+	{
+		SkillChargeComponent->InitWithASC(GetAbilitySystemComponent());
+
+		// 注册冲刺充能（MaxDashCharge / DashCooldownDuration 均为 GAS 属性，符文可修改）
+		// 注册键与 GA.AbilityTags 保持一致：PlayerState.AbilityCast.Dash
+		SkillChargeComponent->RegisterSkill(
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash")),
+			UPlayerAttributeSet::GetMaxDashChargeAttribute(),
+			UPlayerAttributeSet::GetDashCooldownDurationAttribute()
+		);
+		// 新技能在此处继续 RegisterSkill 即可，无需额外 C++ 改动
 	}
 
 	//GetASC()->InitAbilityActorInfo(this, this);
