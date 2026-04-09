@@ -148,6 +148,7 @@ void AYogCharacterBase::PostInitializeComponents()
 	
 	check(AbilitySystemComponent);
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	AbilitySystemComponent->InitConflictTable();
 }
 
 void AYogCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

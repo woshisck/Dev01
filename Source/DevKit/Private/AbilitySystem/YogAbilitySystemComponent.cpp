@@ -64,6 +64,7 @@ void UYogAbilitySystemComponent::InitConflictTable()
 		for (const FGameplayTag& StateTag : Pair.Value)
 		{
 			StateToBlockCategories.FindOrAdd(StateTag).Add(Pair.Key);
+			UE_LOG(LogTemp, Log, TEXT("[StateConflict] Map built: %s -> %s"), *StateTag.ToString(), *Pair.Key.ToString());
 		}
 	}
 
@@ -81,11 +82,16 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 {
 	Super::OnTagUpdated(Tag, TagExists);
 
+	UE_LOG(LogTemp, Log, TEXT("[OnTagUpdated] Tag=%s Exists=%d Owner=%s"),
+		*Tag.ToString(), (int32)TagExists, *GetNameSafe(GetOwner()));
+
 	// =========================================================
 	// 阻断分类：Tag 出现/消失时按 BlockCategoryMap 执行对应阻断
 	// =========================================================
 	if (const TArray<FGameplayTag>* Categories = StateToBlockCategories.Find(Tag))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[StateConflict] Tag=%s matched %d block categories on %s"),
+			*Tag.ToString(), Categories->Num(), *GetNameSafe(GetOwner()));
 		static const FGameplayTag MovementCategory = FGameplayTag::RequestGameplayTag(TEXT("Block.Movement"));
 		static const FGameplayTag AICategory       = FGameplayTag::RequestGameplayTag(TEXT("Block.AI"));
 
@@ -119,12 +125,16 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 		// ---- Block.AI ----
 		if (Categories->Contains(AICategory))
 		{
-			if (AAIController* AI = Owner ? Cast<AAIController>(Owner->GetController()) : nullptr)
+			AAIController* AI = Owner ? Cast<AAIController>(Owner->GetController()) : nullptr;
+			UE_LOG(LogTemp, Warning, TEXT("[Block.AI] Tag=%s Exists=%d Owner=%s AI=%s"),
+				*Tag.ToString(), (int32)TagExists, *GetNameSafe(Owner), *GetNameSafe(AI));
+			if (AI)
 			{
 				if (UBrainComponent* Brain = AI->GetBrainComponent())
 				{
 					if (TagExists)
 					{
+						UE_LOG(LogTemp, Warning, TEXT("[Block.AI] -> PauseLogic on %s"), *GetNameSafe(Owner));
 						Brain->PauseLogic(Tag.ToString());
 					}
 					else

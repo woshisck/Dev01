@@ -11,7 +11,7 @@
 
 UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
 {
-    //InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+    InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
     //bRetriggerInstancedAbility = true;
     //NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
@@ -36,7 +36,15 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	// 记录激活时刻，连击缓存只接受此时间之后的输入
 	AbilityActivationTime = GetWorld()->GetTimeSeconds();
 
-	// 注册 CanCombo tag 监听，AnimNotifyState 加上 tag 时自动检查输入缓存
+	// 注册 CanCombo tag 监听前先注销旧 handle，防止重入时产生孤儿监听器
+	if (CanComboTagHandle.IsValid())
+	{
+		ASC->UnregisterGameplayTagEvent(
+			CanComboTagHandle,
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")),
+			EGameplayTagEventType::NewOrRemoved
+		);
+	}
 	CanComboTagHandle = ASC->RegisterGameplayTagEvent(
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")),
 		EGameplayTagEventType::NewOrRemoved
