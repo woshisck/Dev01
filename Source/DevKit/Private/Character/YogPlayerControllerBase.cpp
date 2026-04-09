@@ -190,6 +190,14 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 {
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
+		// 冲刺前先将角色朝向对齐最后一次移动输入方向
+		// 放在 TryActivateAbilitiesByTag 之前，确保 GA 激活时朝向已经正确
+		if (!player->LastInputDirection.IsNearlyZero())
+		{
+			const FRotator DashFacing(0.f, player->LastInputDirection.Rotation().Yaw, 0.f);
+			player->SetActorRotation(DashFacing);
+		}
+
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
 		bool bActivated = player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);

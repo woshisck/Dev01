@@ -143,6 +143,10 @@ public:
 	//	Data table for all character
 	//--------------------------------------------
 
+	// 基础通用技能集路径（代码固定，无需编辑器配置）
+	// 对应 Content 资产：Content/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial
+	static constexpr const TCHAR* BaseAbilitySetPath = TEXT("/Game/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial");
+
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	//TObjectPtr<UAbilityData> AbilityData;
 

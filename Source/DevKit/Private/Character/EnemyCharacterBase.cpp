@@ -78,8 +78,9 @@ void AEnemyCharacterBase::Die()
 		GM->UpdateFinishLevel(1);
 	}
 
-	// 2 秒后销毁（给死亡动画留时间）
-	SetLifeSpan(2.0f);
+	// 绝对兜底：正常死亡销毁由 GA_Dead 处理（有蒙太奇→动画结束销毁；无蒙太奇→2秒后销毁）
+	// 此处仅在 GA_Dead 完全未激活（配置遗漏）时作为最后保险，设置为足够长的时间
+	SetLifeSpan(30.0f);
 }
 
 void AEnemyCharacterBase::PostInitializeComponents()

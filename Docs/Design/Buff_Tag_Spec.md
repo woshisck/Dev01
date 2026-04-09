@@ -64,6 +64,8 @@ Buff.*
 | `Buff.Effect.Attribute.MaxHP` | 叶子 | 最大生命值上限 |
 | `Buff.Effect.Attribute.CritRate` | 叶子 | 暴击概率 |
 | `Buff.Effect.Attribute.CritDamage` | 叶子 | 暴击伤害倍率 |
+| `Buff.Effect.Attribute.MaxCharge` | 叶子 | 技能最大充能格数（对应 Max{SkillName}Charge 属性） |
+| `Buff.Effect.Attribute.CooldownDuration` | 叶子 | 技能 CD 间隔（对应 {SkillName}CooldownDuration 属性，Multiplicative 缩短） |
 | `Buff.Effect.Summon` | 叶子 | 在场景中生成持续对象（实体/投射物/区域） |
 
 ### 触发层 `Buff.Trigger.*`
@@ -89,6 +91,9 @@ Buff.*
 | `Buff.Status.Heat.Phase.2` | 叶子 | 第二阶段：效果增强，部分符文解锁附加行为 |
 | `Buff.Status.Heat.Phase.3` | 叶子 | 第三阶段：满阶，符文效果最大化 |
 | `Buff.Status.Shielded` | 叶子 | 当前有护盾层 |
+| `Buff.Status.HitReact` | 叶子 | 受击硬直状态，GA_HitReaction ActivationOwnedTags 挂载，驱动移动阻断与技能冲突 |
+| `Buff.Status.Dead` | 叶子 | 死亡状态，GA_Dead ActivationOwnedTags 挂载，阻断所有 GA + 停止移动 |
+| `Buff.Status.Knockback` | 叶子 | 击退硬直状态，GA_Knockback ActivationOwnedTags 挂载，驱动移动阻断 |
 | `Buff.Status.CC` | 父节点 ⚠️预留 | 控制类状态父节点，当前无控制机制 |
 | `Buff.Status.CC.Stun` | 叶子 ⚠️预留 | 眩晕，无法行动 |
 | `Buff.Status.CC.Frozen` | 叶子 ⚠️预留 | 冰冻，受额外元素伤害 |

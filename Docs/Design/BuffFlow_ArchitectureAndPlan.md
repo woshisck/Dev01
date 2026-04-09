@@ -688,6 +688,7 @@ AActor* BPResolveTarget(EBFTargetSelector Selector) const;
 |------|------|
 | [BuffFlow_SystemGuide.md](BuffFlow_SystemGuide.md) | 完整系统使用手册（节点参考 + 开发流程） |
 | [Buff_Tag_Spec.md](Buff_Tag_Spec.md) | Tag 命名规范与四层职责模型 |
+| [SkillCharge_Guide.md](SkillCharge_Guide.md) | 技能充能/CD 系统使用指南（Tag + 属性命名 + FA 写法） |
 | [HeatSystem_Design.md](HeatSystem_Design.md) | 热度系统详细设计 |
 | [LevelSystem_ProgrammerDoc.md](LevelSystem_ProgrammerDoc.md) | 关卡系统接入点 |
 

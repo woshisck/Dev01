@@ -2,9 +2,14 @@
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Abilities/PassiveAbility.h"
 #include "GameplayEffect.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "Character/YogCharacterBase.h"
+#include "AIController.h"
+#include "BrainComponent.h"
 
 #include "SaveGame/YogSaveGame.h"
 #include "Data/YogGameData.h"
+#include "Data/StateConflictDataAsset.h"
 #include "DevAssetManager.h"
 
 
@@ -26,12 +31,22 @@ UYogAbilitySystemComponent::UYogAbilitySystemComponent(const FObjectInitializer&
 void UYogAbilitySystemComponent::InitConflictTable()
 {
 	ConflictMap.Reset();
+	BlockCategoryMap.Reset();
+	StateToBlockCategories.Reset();
+
+	// 若蓝图未手动赋值，自动从 DevAssetManager 全局配置加载
+	if (!ConflictTable)
+	{
+		ConflictTable = UDevAssetManager::Get().GetStateConflictData();
+	}
+
 	if (!ConflictTable)
 	{
 		UE_LOG(LogTemp, Verbose, TEXT("[StateConflict] ConflictTable is null on %s, system disabled."), *GetNameSafe(GetOwner()));
 		return;
 	}
 
+	// 构建冲突规则查找表
 	for (const FStateConflictRule& Rule : ConflictTable->Rules)
 	{
 		if (!Rule.ActiveTag.IsValid())
@@ -42,7 +57,18 @@ void UYogAbilitySystemComponent::InitConflictTable()
 		ConflictMap.Add(Rule.ActiveTag, Rule);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[StateConflict] Initialized %d rules on %s."), ConflictMap.Num(), *GetNameSafe(GetOwner()));
+	// 构建阻断分类表 & 反向索引（StateTag → 所属分类列表）
+	for (const auto& Pair : ConflictTable->BlockCategoryMap)
+	{
+		BlockCategoryMap.Add(Pair.Key, Pair.Value);
+		for (const FGameplayTag& StateTag : Pair.Value)
+		{
+			StateToBlockCategories.FindOrAdd(StateTag).Add(Pair.Key);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[StateConflict] Initialized %d rules, %d block categories on %s."),
+		ConflictMap.Num(), BlockCategoryMap.Num(), *GetNameSafe(GetOwner()));
 }
 
 void UYogAbilitySystemComponent::SetConflictTable(UStateConflictDataAsset* NewTable)
@@ -55,7 +81,74 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 {
 	Super::OnTagUpdated(Tag, TagExists);
 
-	// 防递归：BlockAbilitiesWithTags 内部也会触发 OnTagUpdated
+	// =========================================================
+	// 阻断分类：Tag 出现/消失时按 BlockCategoryMap 执行对应阻断
+	// =========================================================
+	if (const TArray<FGameplayTag>* Categories = StateToBlockCategories.Find(Tag))
+	{
+		static const FGameplayTag MovementCategory = FGameplayTag::RequestGameplayTag(TEXT("Block.Movement"));
+		static const FGameplayTag AICategory       = FGameplayTag::RequestGameplayTag(TEXT("Block.AI"));
+
+		AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetOwner());
+
+		// ---- Block.Movement ----
+		if (Owner && Categories->Contains(MovementCategory))
+		{
+			if (TagExists)
+			{
+				Owner->DisableMovement();
+				if (AAIController* AI = Cast<AAIController>(Owner->GetController()))
+					AI->StopMovement();
+			}
+			else
+			{
+				// 检查该分类下是否还有其他阻断 Tag 仍然激活
+				bool bStillBlocked = false;
+				if (const FGameplayTagContainer* BlockTags = BlockCategoryMap.Find(MovementCategory))
+				{
+					for (const FGameplayTag& BlockTag : *BlockTags)
+					{
+						if (HasMatchingGameplayTag(BlockTag)) { bStillBlocked = true; break; }
+					}
+				}
+				if (!bStillBlocked && Owner->IsAlive())
+					Owner->EnableMovement();
+			}
+		}
+
+		// ---- Block.AI ----
+		if (Categories->Contains(AICategory))
+		{
+			if (AAIController* AI = Owner ? Cast<AAIController>(Owner->GetController()) : nullptr)
+			{
+				if (UBrainComponent* Brain = AI->GetBrainComponent())
+				{
+					if (TagExists)
+					{
+						Brain->PauseLogic(Tag.ToString());
+					}
+					else
+					{
+						// 检查该分类下是否还有其他 AI 阻断 Tag 仍然激活
+						bool bStillBlocked = false;
+						if (const FGameplayTagContainer* BlockTags = BlockCategoryMap.Find(AICategory))
+						{
+							for (const FGameplayTag& BlockTag : *BlockTags)
+							{
+								if (HasMatchingGameplayTag(BlockTag)) { bStillBlocked = true; break; }
+							}
+						}
+						if (!bStillBlocked)
+							Brain->ResumeLogic(Tag.ToString());
+					}
+				}
+			}
+		}
+	}
+
+	// =========================================================
+	// 状态冲突：防递归，BlockAbilitiesWithTags 内部也会触发 OnTagUpdated
+	// =========================================================
 	if (bProcessingConflict)
 		return;
 
@@ -212,6 +305,17 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	{
 		SourceASC->DealtDamage.Broadcast(this, Damage);
 	}
+
+	// 自动触发受击 GA（GA_GetHit 通过 Trigger: GameplayEvent 监听此 Tag）
+	// HitReactEventTag 在角色蓝图 CDO 上配置，留空则跳过
+	if (HitReactEventTag.IsValid() && IsValid(GetAvatarActor()))
+	{
+		FGameplayEventData EventData;
+		EventData.Instigator = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
+		EventData.EventMagnitude = Damage;
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+			GetAvatarActor(), HitReactEventTag, EventData);
+	}
 }
 
 void UYogAbilitySystemComponent::AddActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToBlock)
@@ -225,31 +329,41 @@ void UYogAbilitySystemComponent::AddActivationBlockedTags(const FGameplayTag& Ta
 bool UYogAbilitySystemComponent::TryActivateRandomAbilitiesByTag(const FGameplayTagContainer& GameplayTagContainer, bool bAllowRemoteActivation)
 {
 	TArray<FGameplayAbilitySpec*> AbilitiesToActivatePtrs;
-	GetActivatableGameplayAbilitySpecsByAllMatchingTags(GameplayTagContainer, AbilitiesToActivatePtrs);
+
+	if (GameplayTagContainer.Num() > 1)
+	{
+		// 多 Tag 模式：OR 语义，把每个 Tag 视为独立候选，分别查找匹配 GA，汇总去重后随机激活一个
+		// 用法：填 {Enemy.Melee.LAtk1, Enemy.Melee.LAtk2, Enemy.Melee.LAtk3}
+		//      → 从这三种攻击里随机选一种
+		for (const FGameplayTag& Tag : GameplayTagContainer)
+		{
+			TArray<FGameplayAbilitySpec*> PerTagPtrs;
+			GetActivatableGameplayAbilitySpecsByAllMatchingTags(FGameplayTagContainer(Tag), PerTagPtrs);
+			for (FGameplayAbilitySpec* Spec : PerTagPtrs)
+			{
+				AbilitiesToActivatePtrs.AddUnique(Spec);
+			}
+		}
+	}
+	else
+	{
+		// 单 Tag 模式（原有行为）：支持父 Tag 匹配所有子级 GA
+		// 用法：填 {Enemy.Melee} → 从所有 Enemy.Melee.* GA 里随机选一个
+		GetActivatableGameplayAbilitySpecsByAllMatchingTags(GameplayTagContainer, AbilitiesToActivatePtrs);
+	}
+
 	if (AbilitiesToActivatePtrs.Num() < 1)
 	{
 		return false;
 	}
 
-	// Convert from pointers (which can be reallocated, since they point to internal data) to copies of that data
+	// Convert from pointers (which can be reallocated) to copies
 	TArray<FGameplayAbilitySpec> AbilitiesToActivate;
 	AbilitiesToActivate.Reserve(AbilitiesToActivatePtrs.Num());
 	Algo::Transform(AbilitiesToActivatePtrs, AbilitiesToActivate, [](FGameplayAbilitySpec* SpecPtr) { return *SpecPtr; });
 
-	bool bSuccess = false;
-
-	int32 RandomIndex = FMath::RandRange(0, AbilitiesToActivate.Num() - 1);
-
-
-	bSuccess |= TryActivateAbility(AbilitiesToActivate[RandomIndex].Handle, bAllowRemoteActivation);
-	return bSuccess;
-	//AbilitiesToActivate.Random
-	//for (const FGameplayAbilitySpec& GameplayAbilitySpec : AbilitiesToActivate)
-	//{
-	//	ensure(IsValid(GameplayAbilitySpec.Ability));
-	//	bSuccess |= TryActivateAbility(GameplayAbilitySpec.Handle, bAllowRemoteActivation);
-	//}
-
+	const int32 RandomIndex = FMath::RandRange(0, AbilitiesToActivate.Num() - 1);
+	return TryActivateAbility(AbilitiesToActivate[RandomIndex].Handle, bAllowRemoteActivation);
 }
 
 void UYogAbilitySystemComponent::RemoveActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToUnblock)

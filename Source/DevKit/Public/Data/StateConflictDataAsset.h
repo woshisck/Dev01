@@ -43,4 +43,17 @@ class DEVKIT_API UStateConflictDataAsset : public UDataAsset
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StateConflict")
 	TArray<FStateConflictRule> Rules;
+
+	/**
+	 * 阻断分类表（策划在此统一配置，无需逐个角色蓝图赋值）
+	 * Key   = 阻断类别 Tag，当前支持：
+	 *           Block.Movement — 停止角色移动组件 + AI StopMovement
+	 *           Block.AI       — 暂停行为树逻辑（PauseLogic）
+	 * Value = 触发该阻断的状态 Tag 列表
+	 * 示例：
+	 *   Block.Movement → [Buff.Status.HitReact, Buff.Status.Dead, Buff.Status.Knockback]
+	 *   Block.AI       → [Buff.Status.HitReact, Buff.Status.Dead, Buff.Status.Knockback]
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BlockConfig", meta = (ForceInlineRow))
+	TMap<FGameplayTag, FGameplayTagContainer> BlockCategoryMap;
 };

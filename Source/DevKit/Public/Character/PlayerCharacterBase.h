@@ -6,7 +6,6 @@
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "Data/RuneDataAsset.h"
-#include "GameplayEffectTypes.h"
 
 #include "PlayerCharacterBase.generated.h"
 
@@ -17,6 +16,7 @@
 class UYogSaveGame;
 class UBackpackGridComponent;
 class UBuffFlowComponent;
+class USkillChargeComponent;
 UENUM()
 enum class EPlayerState : uint8
 {
@@ -68,6 +68,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BuffFlow")
 	TObjectPtr<UBuffFlowComponent> BuffFlowComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SkillCharge")
+	TObjectPtr<USkillChargeComponent> SkillChargeComponent;
+
 	
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
@@ -117,24 +120,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Input")
 	FVector LastInputDirection = FVector::ForwardVector;
 
-	// ─── 风行者冲刺充能 ───────────────────────────────────────────
-	UPROPERTY(BlueprintReadOnly, Category = "Dash")
-	int32 DashChargeCount = 0;
-
-	int32 MaxDashChargeCount = 2;
-	float DashChargeRegenInterval = 3.0f;
-	FTimerHandle DashChargeRegenTimer;
-
-	/** 激活风行者符文时调用：充满2格充能并启动回复计时器 */
-	UFUNCTION(BlueprintCallable, Category = "Dash")
-	void InitDashChargeSystem();
-
-	/** 卸下风行者符文时调用：清空充能并停止计时器 */
-	UFUNCTION(BlueprintCallable, Category = "Dash")
-	void ShutdownDashChargeSystem();
-
 	friend UPlayerAttributeSet;
-
 
 protected:
 

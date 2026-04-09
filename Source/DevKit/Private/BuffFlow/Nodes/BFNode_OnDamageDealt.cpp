@@ -22,6 +22,8 @@ void UBFNode_OnDamageDealt::ExecuteInput(const FName& PinName)
 		if (ASC)
 		{
 			BoundASC = ASC;
+			// RemoveDynamic first: 防止 DealtDamage 广播期间 Flow 重入导致重复绑定（触发 Invocation List ensure）
+			ASC->DealtDamage.RemoveDynamic(this, &UBFNode_OnDamageDealt::HandleDamageDealt);
 			ASC->DealtDamage.AddDynamic(this, &UBFNode_OnDamageDealt::HandleDamageDealt);
 		}
 	}

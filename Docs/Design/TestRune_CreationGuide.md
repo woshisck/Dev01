@@ -1,22 +1,23 @@
-# 测试符文制作指南 v2
+# 测试符文制作指南 v3
 
-> 版本：v2（2026-04-08）更新重点：全面采用 `BFNode_ApplyAttributeModifier` 零资产方案，大幅减少 Blueprint GE 资产数量。
+> 版本：v3（2026-04-09）更新重点：击退拆分为两个独立符文（1004 击退 + 1007 击退减速），引入符文联动模式（GameplayEvent 跨符文通信）；GA_Knockback 改为 C++ 实现，使用 RootMotionMoveToForce 精确控距。
 > Tag 规范：[Buff_Tag_Spec.md](Buff_Tag_Spec.md) · 系统指南：[BuffFlow_SystemGuide.md](BuffFlow_SystemGuide.md)
 
 ---
 
 ## 资产策略总览
 
-| 符文 | Blueprint GE | Blueprint GA | 说明 |
-|------|-------------|-------------|------|
+| 符文 | Blueprint GE | C++/Blueprint GA | 说明 |
+|------|-------------|-----------------|------|
 | 1001 攻击强化 | ❌ 不需要 | ❌ 不需要 | ApplyAttributeModifier 直接处理 |
 | 1002 热度提升 | ⚠️ 1个（HeatTick，需 Inhibit 功能） | ❌ 不需要 | Period GE + GrantTag |
 | 1003 速度叠加 | ❌ 不需要 | ❌ 不需要 | ApplyAttributeModifier Stackable |
-| 1004 击退 | ✅ 1个（KnockbackStagger，需 SetByCaller） | ✅ 1个（物理冲量） | GE+GA 不可避免 |
+| 1004 击退 | ❌ 不需要 | ✅ 1个（C++ GA_Knockback，精确控距） | 纯位移，无减速；可单独使用 |
+| 1007 击退减速 | ❌ 不需要 | ❌ 不需要 | 监听 1004 的击退事件，联动施加减速 |
 | 1005 流血 | ❌ 不需要 | ✅ 1个（速度扣血逻辑） | GrantTag 替代 GE_Bleeding |
 | 1006 额外伤害 | ❌ 不需要 | ❌ 不需要 | AddTag 守卫 + DoDamage |
 
-**v2 变化：** 从 6 个 Blueprint GE 减少到 **2 个**（HeatTick、KnockbackStagger）。
+**v3 变化：** Blueprint GE 从 2 个减少到 **1 个**（仅 HeatTick）；击退改用 C++ GA + RootMotion，减速改为零资产联动符文。
 
 ---
 
@@ -35,7 +36,9 @@
 | `Buff.Status.HeatInhibit` | 状态层 | ☆ 新增 | 受伤后暂停热度的 Inhibit 守卫 Tag |
 | `Buff.Status.Bleeding` | 状态层 | ☆ 新增 | 流血状态，GA_Bleed 以此为激活条件 |
 | `Buff.Status.ExtraDamageApplied` | 状态层 | ☆ 新增 | 递归守卫 Tag（符文6） |
-| `Buff.Data.AttributeMod` | 参数层 | ★ 已有 | GE_KnockbackStagger SetByCaller 键 |
+| `Buff.Status.Knockback` | 状态层 | ☆ 新增 | GA_Knockback 激活期间自动授予，结束时移除 |
+| `Ability.Knockback` | 触发层 | ☆ 新增 | FA 向目标发送此 Event，激活 GA_Knockback |
+| `Event.Rune.KnockbackApplied` | 触发层 | ☆ 新增 | GA_Knockback 完成后向玩家 ASC 广播，供联动符文监听 |
 
 ---
 
@@ -189,80 +192,174 @@
 
 ---
 
-## 符文 4：击退（1004）✅ 需要 GE + GA
+## 符文 4：击退（1004）✅ 需要 C++ GA
 
-**设计：** 命中敌人后：① 对其施加移速 -300 硬直 1 秒；② 施加物理击退冲量。
+**设计：** 命中敌人后，将其沿击退方向位移固定距离（默认 500cm）。  
+**纯位移效果，不含减速。** 若需要击退后减速，搭配符文 1007（击退减速）使用。
 
-**需要创建：** GE_KnockbackStagger（Blueprint，SetByCaller）+ GA_Knockback（Blueprint）+ FA + DA
+**需要创建：** GA_Knockback（C++ 已实现）的 Blueprint 子类 + FA + DA
 
-> **为什么需要 Blueprint GE？** 移速减少量由 FA 运行时传入（SetByCaller），GE 内部不写死数值，方便阶段调整。
-> **为什么需要 Blueprint GA？** 物理冲量（LaunchCharacter）是 AbilityTask 类操作，不适合用 FA 节点。
+---
 
-### 4-1 GE：`GE_KnockbackStagger`
+### 符文使用说明
 
-| 配置项 | 值 | 说明 |
+> **独立使用：** 仅装备 1004，命中敌人后触发纯位移击退。  
+> **联动使用：** 同时装备 1004 + 1007，击退完成后自动触发减速效果。  
+> 联动不需要任何额外配置——只要两个符文都放在背包激活区，1007 会自动监听 1004 发出的事件。
+
+**工作流程（联动时）：**
+```
+FA_Rune_Knockback（1004）
+  OnDamageDealt → 向目标发送 GameplayEvent(Ability.Knockback)
+                        ↓
+              GA_Knockback（C++）在目标上激活
+                        ↓
+              执行 RootMotionMoveToForce（精确位移 KnockbackDistance cm）
+                        ↓
+              向玩家 ASC 广播 Event.Rune.KnockbackApplied（携带目标引用）
+                        ↓
+FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300，持续 1 秒
+```
+
+---
+
+### 4-1 GA：`GA_Knockback`（C++ 类，已实现）
+
+**C++ 源码：** `Source/DevKit/Public/AbilitySystem/Abilities/GA_Knockback.h`
+
+**需要在编辑器创建 Blueprint 子类** 用于配置数值：
+
+> Content Browser → 右键 → Blueprint Class → 父类选 `GA_Knockback`  
+> 命名为 `BGA_Knockback`（B 前缀表示 Blueprint）
+
+| 配置字段 | 值 | 说明 |
 |---|---|---|
-| Duration Policy | **Has Duration**，Duration = 1.0 | 硬直 1 秒自动解除 |
-| Stacking | AggregateByTarget, Limit=1, Refresh | 命中刷新，不叠层 |
-| **Modifiers** | Attribute=MoveSpeed, Op=Additive, **Magnitude Type=SetByCaller**, Tag=`Buff.Data.AttributeMod` | 数值由 FA 运行时传入 |
-| Asset Tags | `Buff.Effect.Attribute.MoveSpeed` | 行为层标识 |
+| Ability Tags | （不设置） | 击退可作用于玩家/敌人，无明确命名空间归属；无代码通过身份 Tag 查询此 GA |
+| Activation Owned Tags | `Buff.Status.Knockback` | 击退期间自动挂到目标 ASC，结束自动移除 |
+| **KnockbackDistance** | `500.0` | 击退距离（cm），直接填单位，策划可调 |
+| **KnockbackDuration** | `0.3` | 位移持续时间（秒），越短击退越"爆" |
+| bZeroVelocityOnFinish | `true` | 击退结束时清零速度，防止敌人继续滑行 |
 
-> GE 只声明"我需要一个数值"，FA 节点负责传入具体值（-300）。
+**授予方式：** 在敌人角色 BP 的 BeginPlay → `GiveAbility(BGA_Knockback)`
 
-### 4-2 GA：`GA_Knockback`
+**触发方式：** FA 通过 `BFNode_SendGameplayEvent` 发送 `Ability.Knockback` 事件至目标，  
+GA 的 `AbilityTriggers` 配置监听此 Event 自动激活（无需手动调用）。
 
-**授予方式：** 在敌人角色 BP 的 BeginPlay → GiveAbility(GA_Knockback)
+> **GA 内部流程（C++ 已实现，无需修改）：**
+> 1. 从 `TriggerEventData.Instigator` 获取攻击者位置，计算击退方向
+> 2. 执行 `AbilityTask_ApplyRootMotionMoveToForce`，精确移动至目标点
+> 3. 位移完成后，向攻击者 ASC 广播 `Event.Rune.KnockbackApplied`（携带被击退目标引用）
+> 4. 结束 GA，自动移除 `Buff.Status.Knockback`
 
-| 配置字段 | 值 |
+**GA_Knockback AbilityTriggers 配置（编辑器里填）：**
+
+| 字段 | 值 |
 |---|---|
-| Ability Tags | `Ability.Knockback`（自定义） |
-| Activation Owned Tags | `Buff.Status.Knockback` |
+| Trigger Tag | `Ability.Knockback` |
+| Trigger Source | `GameplayEvent` |
 
-**ActivateAbility 蓝图逻辑：**
-```
-ActivateAbility
-  → GetOwningActorFromActorInfo → Cast to Character → TargetChar
-  → 获取攻击方向（或固定向外方向）
-  → LaunchCharacter(TargetChar, 方向 × 800, OverrideXY=true, OverrideZ=true)
-  → Remove Gameplay Tag From Actor Owner (Buff.Status.Knockback, Count=1)
-  → End Ability
-```
+---
 
-### 4-3 FA：`FA_Rune_Knockback`
+### 4-2 FA：`FA_Rune_Knockback`
 
 ```
 [Start] ──→ [OnDamageDealt]
                 ↓
-            [Apply Gameplay Effect Class]       ← BFNode_ApplyEffect
-                Effect            = GE_KnockbackStagger
-                Level             = 1.0
-                Target            = 上次伤害目标
-                SetByCallerTag1   = Buff.Data.AttributeMod
-                SetByCallerValue1 = -300.0          ← 移速 -300，填负值
+            [BFNode_SendGameplayEvent]
+                EventTag   = Ability.Knockback      ← 触发目标上的 GA_Knockback
+                Target     = 上次伤害目标（被击退对象）
+                Instigator = 玩家 Actor             ← GA 用此计算方向
                 ↓ Out
-            [Add Tag]                           ← BFNode_AddTag
-                Tag    = Buff.Status.Knockback
-                Count  = 1
-                Target = 上次伤害目标
+            （回到 OnDamageDealt 继续监听）
 ```
 
-**节点顺序：** 先施加 GE（硬直），再写 Tag（触发 GA 冲量）。
-**Cleanup：** ApplyEffect 移除 GE；AddTag 移除残留的 Knockback Tag。
+**Cleanup：** SendGameplayEvent 无持久资源，FA 停止时无需额外清理。
 
-### 4-4 DA：`DA_Rune_Knockback`
+---
+
+### 4-3 DA：`DA_Rune_Knockback`
 
 | 字段 | 值 |
 |---|---|
+| RuneName | `Knockback` |
 | RuneConfig.RuneID | `1004` |
 | RuneConfig.RuneType | `Buff` |
 | Flow.FlowAsset | `FA_Rune_Knockback` |
 
-### 4-5 测试要点
+---
 
-- 命中后敌人移速降低，持续 1 秒
-- 同时被弹飞（GA_Knockback 激活）
+### 4-4 测试要点
+
+- 命中后敌人被位移约 500cm（5 米）
+- 击退期间 GAS Debugger：目标 ASC 上有 `Buff.Status.Knockback` Tag
+- 击退结束后 Tag 自动消失
+- 调整 `BGA_Knockback` 的 `KnockbackDistance` 测试不同距离
+- Output Log 中 `Event.Rune.KnockbackApplied` 被发送（可加临时 log 验证）
+
+---
+
+## 符文 7：击退减速（1007）⚡ 零资产 · 依赖符文 1004
+
+**设计：** 监听击退事件，每次击退完成后对被击退目标施加移速 -300，持续 1 秒。  
+**必须与符文 1004 同时装备**，单独装备无效果。
+
+**需要创建：** FA + DA（零资产，BFNode_ApplyAttributeModifier 直接处理）
+
+> **这是符文联动模式的标准范例。**  
+> 联动机制：符文 A 执行效果 → 广播 GameplayEvent → 符文 B 的 FA 监听事件 → 执行附加效果。  
+> 两个符文完全解耦，击退符文不知道减速符文存在，减速符文只负责监听信号。
+
+---
+
+### 7-1 FA：`FA_Rune_KnockbackStagger`
+
+```
+[Start]
+  ↓
+[BFNode_WaitGameplayEvent]                      ← 持续监听，不阻塞
+    EventTag = Event.Rune.KnockbackApplied      ← 击退完成时由 GA_Knockback 广播
+    ↓ Out（收到事件时触发）
+[BFNode_ApplyAttributeModifier]
+    Target       = EventData.Target             ← 事件携带的被击退目标
+    Attribute    = MoveSpeed
+    ModOp        = Additive
+    Value        = -300.0                       ← 移速 -300（填负值）
+    DurationType = HasDuration
+    Duration     = 1.0                          ← 1 秒后自动解除
+    ↓ Out
+（回到 WaitGameplayEvent，等待下次击退）
+```
+
+**EventData.Target 说明：**  
+GA_Knockback 完成时广播的 `FGameplayEventData.Target` 即被击退的敌人 Actor，  
+BFNode_WaitGameplayEvent 收到后可直接作为 ApplyAttributeModifier 的 Target 引脚。
+
+**Cleanup：** ApplyAttributeModifier 自动移除其创建的 GE；WaitGameplayEvent 停止监听。
+
+---
+
+### 7-2 DA：`DA_Rune_KnockbackStagger`
+
+| 字段 | 值 |
+|---|---|
+| RuneName | `KnockbackStagger` |
+| RuneConfig.RuneID | `1007` |
+| RuneConfig.RuneType | `Buff` |
+| Flow.FlowAsset | `FA_Rune_KnockbackStagger` |
+
+---
+
+### 7-3 测试要点
+
+**单独装备 1007（无 1004）：**
+- 无任何效果（正确，无事件源）
+
+**同时装备 1004 + 1007：**
+- 命中后敌人先被击退位移
+- 击退完成瞬间敌人移速降低 300，持续 1 秒
 - GAS Debugger：目标 MoveSpeed 减少了 300
-- 调整 SetByCallerValue1 测试不同力度
+- 1 秒后移速恢复正常
+- 连续命中：每次击退都触发一次减速（计时刷新）
 
 ---
 
@@ -402,19 +499,21 @@ Content/Game/Runes/
 ├── HeatUp/
 │   ├── DA_Rune_HeatUp
 │   ├── FA_Rune_HeatUp
-│   └── GE_HeatTick                 ← 仅此符文需要 Blueprint GE
+│   └── GE_HeatTick                     ← 唯一需要的 Blueprint GE
 ├── SpeedStack/
 │   ├── DA_Rune_SpeedStack
 │   └── FA_Rune_SpeedStack
 ├── Knockback/
-│   ├── DA_Rune_Knockback
+│   ├── DA_Rune_Knockback               ← 符文 1004
 │   ├── FA_Rune_Knockback
-│   ├── GE_KnockbackStagger         ← SetByCaller，必须用 Blueprint GE
-│   └── GA_Knockback                ← 物理冲量，必须用 Blueprint GA
+│   └── BGA_Knockback                   ← GA_Knockback(C++) 的 Blueprint 子类，配置数值用
+├── KnockbackStagger/
+│   ├── DA_Rune_KnockbackStagger        ← 符文 1007，联动符文
+│   └── FA_Rune_KnockbackStagger
 ├── Bleed/
 │   ├── DA_Rune_Bleed
 │   ├── FA_Rune_Bleed
-│   └── GA_Bleed                    ← 速度扣血逻辑，必须用 Blueprint GA
+│   └── GA_Bleed                        ← 速度扣血逻辑，必须用 Blueprint GA
 └── ExtraDamage/
     ├── DA_Rune_ExtraDamage
     └── FA_Rune_ExtraDamage
@@ -424,25 +523,27 @@ Content/Game/Runes/
 
 ## 依赖总览
 
-| 符文 | DA | FA | Blueprint GE | Blueprint GA | 备注 |
-|------|----|----|-------------|-------------|------|
-| 攻击强化 | ✓ | ✓ | — | — | 全零资产 |
-| 热度提升 | ✓ | ✓ | ✓ GE_HeatTick | — | 仅因需要 Inhibit |
-| 速度叠加 | ✓ | ✓ | — | — | 全零资产 |
-| 击退 | ✓ | ✓ | ✓ GE_KnockbackStagger | ✓ GA_Knockback | GE 因 SetByCaller，GA 因物理 |
-| 流血 | ✓ | ✓ | — | ✓ GA_Bleed | GE 由 GrantTag 替代 |
-| 额外伤害 | ✓ | ✓ | — | — | 全零资产 |
+| 符文 | DA | FA | Blueprint GE | C++/BP GA | 依赖 | 备注 |
+|------|----|----|-------------|-----------|------|------|
+| 1001 攻击强化 | ✓ | ✓ | — | — | — | 全零资产 |
+| 1002 热度提升 | ✓ | ✓ | ✓ GE_HeatTick | — | — | 仅因需要 Inhibit |
+| 1003 速度叠加 | ✓ | ✓ | — | — | — | 全零资产 |
+| 1004 击退 | ✓ | ✓ | — | ✓ BGA_Knockback（C++子类） | — | 可独立使用 |
+| 1007 击退减速 | ✓ | ✓ | — | — | **必须装备 1004** | 联动模式范例 |
+| 1005 流血 | ✓ | ✓ | — | ✓ GA_Bleed | — | GE 由 GrantTag 替代 |
+| 1006 额外伤害 | ✓ | ✓ | — | — | — | 全零资产 |
 
 ---
 
 ## 制作顺序建议
 
-1. **符文 1（攻击强化）** → 最简单，验证 ApplyAttributeModifier 基础路径
-2. **符文 3（速度叠加）** → 验证 Stackable + Duration 模式
-3. **符文 6（额外伤害）** → 验证递归守卫模式
-4. **符文 5（流血）** → 验证 GrantTag + GA 激活链
-5. **符文 2（热度提升）** → 验证 Period + OngoingTagRequirements Inhibit
-6. **符文 4（击退）** → 最复杂，SetByCaller + GA 物理冲量
+1. **符文 1001（攻击强化）** → 最简单，验证 ApplyAttributeModifier 基础路径
+2. **符文 1003（速度叠加）** → 验证 Stackable + Duration 模式
+3. **符文 1006（额外伤害）** → 验证递归守卫模式
+4. **符文 1005（流血）** → 验证 GrantTag + GA 激活链
+5. **符文 1002（热度提升）** → 验证 Period + OngoingTagRequirements Inhibit
+6. **符文 1004（击退）** → 验证 GameplayEvent 触发 GA + RootMotion 精确控距
+7. **符文 1007（击退减速）** → 验证符文联动模式（WaitGameplayEvent 跨符文通信）
 
 ---
 

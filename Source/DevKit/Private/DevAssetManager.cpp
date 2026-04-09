@@ -4,6 +4,7 @@
 #include "DevAssetManager.h"
 #include "AbilitySystemGlobals.h"
 #include "Data/GameplayTagRelation.h"
+#include "Data/StateConflictDataAsset.h"
 
 UDevAssetManager::UDevAssetManager()
 {
@@ -30,6 +31,11 @@ UDevAssetManager& UDevAssetManager::Get() {
 const UGameplayTagRelation& UDevAssetManager::GetGameplayTagRelation()
 {
 	return GetOrLoadTypedGameData<UGameplayTagRelation>(GameplayTagRelation);
+}
+
+UStateConflictDataAsset* UDevAssetManager::GetStateConflictData()
+{
+	return GetAsset<UStateConflictDataAsset>(StateConflictData);
 }
 
 void UDevAssetManager::AsyncLoadAsset(FSoftObjectPath Path, FOnAsyncLoadFinished OnPackageLoaded) {

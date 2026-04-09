@@ -22,7 +22,9 @@
 #include "Component/BufferComponent.h"
 #include "Component/PropInteractComponnet.h"
 #include "Data/CharacterData.h"
+#include "Data/GasTemplate.h"
 #include "Components/WidgetComponent.h"
+#include "GameplayTagsManager.h"
 
 
 
@@ -102,13 +104,28 @@ UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
 
 bool AYogCharacterBase::IsAlive() const
 {
-	return true;
+	return AttributeStatsComponent && AttributeStatsComponent->GetStat_Health() > 0.f;
 }
 
 void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	// ── 基础通用技能（路径固定，无需编辑器配置）────────────────────────────
+	// 资产路径：Content/Core/Data/DA_Base_AbilitySet（GASTemplate DataAsset）
+	// 填写内容：GA_Knockback / GA_HitReaction / GA_Dead 等所有角色共享的响应型 GA
+	if (UGASTemplate* BaseSet = LoadObject<UGASTemplate>(nullptr, BaseAbilitySetPath))
+	{
+		for (const TSubclassOf<UYogGameplayAbility>& AbilityClass : BaseSet->AbilityMap)
+		{
+			if (AbilityClass)
+			{
+				GrantGameplayAbility(AbilityClass, 1);
+			}
+		}
+	}
+
+	// ── 角色个性化数据（属性 / 技能 / 动画层，各角色 CharacterData 单独配置）──
 	UCharacterData* pCharacterData = CharacterDataComponent->GetCharacterData();
 	if (pCharacterData != nullptr)
 	{
@@ -279,7 +296,12 @@ void AYogCharacterBase::DisableMovement()
 void AYogCharacterBase::EnableMovement()
 {
 	UYogCharacterMovementComponent* MoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
+	MoveComp->SetMovementMode(EMovementMode::MOVE_Walking);
 
+	if (Controller)
+	{
+		Controller->ResetIgnoreMoveInput();
+	}
 }
 
 
@@ -309,18 +331,25 @@ void AYogCharacterBase::UpdateCharacterState(EYogCharacterState newState)
 
 void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 {
-
 	float Health = Data.NewValue;
 	float percent = Health / AttributeStatsComponent->GetStat_MaxHealth();
 
-
 	OnCharacterHealthUpdate.Broadcast(percent);
 	UE_LOG(LogTemp, Log, TEXT("Health Changed to: %f"), Health);
-	if (!IsAlive())
+
+	// 血量减少且角色存活 → 自动触发受击动画
+	// 注：此处无法可靠拿到攻击者引用，受击方向默认走 Front；
+	// 若 FA 层需要精确前/后方向，可改由 FA 直接 SendGameplayEvent 并传入 Instigator
+	if (Data.NewValue < Data.OldValue && IsAlive() && AbilitySystemComponent)
 	{
-		
+		FGameplayEventData HitEventData;
+		AbilitySystemComponent->HandleGameplayEvent(
+			FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact")), &HitEventData);
+	}
+
+	if (!IsAlive() && !bIsDead)
+	{
 		Die();
-		
 	}
 }
 
@@ -333,17 +362,26 @@ void AYogCharacterBase::MaxHealthChanged(const FOnAttributeChangeData& Data)
 void AYogCharacterBase::FinishDying()
 {
 	UE_LOG(LogTemp, Display, TEXT("Character FinishDying"));
-	//Destroy();
+	// 死亡动画播完后广播，确保监听者（敌人 BP / GameMode 等）在动画结束后再执行销毁逻辑
+	OnCharacterDied.Broadcast(this);
+	Destroy();
 }
 
 void AYogCharacterBase::Die()
 {
 	UE_LOG(LogTemp, Log, TEXT("DEATH HAPPEN, DEAD CHARACTER: %s"), *UKismetSystemLibrary::GetDisplayName(this));
 
+	bIsDead = true;
 
-	UYogGameInstanceBase* YogGameInstance = Cast<UYogGameInstanceBase>(GetGameInstance());
-	OnCharacterDied.Broadcast(this);
-
+	// 发送 Action.Dead 事件 → 触发 GA_Dead 播放死亡动画，动画结束后 GA 调用 FinishDying()
+	if (AbilitySystemComponent)
+	{
+		FGameplayEventData EventData;
+		EventData.Instigator = this;
+		AbilitySystemComponent->HandleGameplayEvent(
+			FGameplayTag::RequestGameplayTag(TEXT("Action.Dead")), &EventData);
+	}
+	// OnCharacterDied 已移至 FinishDying()，避免在动画播放前触发销毁逻辑
 }
 
 void AYogCharacterBase::InitializeComponentsWithStats(UCharacterData* characterData)
