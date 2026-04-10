@@ -25,12 +25,32 @@ class DEVKIT_API UAN_EnemyComboSection : public UAnimNotify
     GENERATED_BODY()
 
 public:
-    // 跳转到的下一个蒙太奇节名称，留空则不跳节
+    /** 跳转到的下一个蒙太奇节名称，留空则不跳节 */
     UPROPERTY(EditAnywhere, Category = "Combo")
     FName NextSection;
+
+    /**
+     * 跳节延迟时间（秒）。
+     * 0 = 立即跳节（原行为）。
+     * >0 = Notify 触发后等待此时间再跳节，期间当前节继续播放，默认 0.2。
+     * 适用于循环节结构：在循环节尾部放 Notify，延迟给当前节留出"混出"时间。
+     */
+    UPROPERTY(EditAnywhere, Category = "Combo", meta = (ClampMin = "0.0"))
+    float BlendOutTime = 0.2f;
+
+    /**
+     * 是否要求本节命中目标才跳节。
+     * false（默认）= 无论命中与否都跳节。
+     * true = 仅当 AN_MeleeDamage 的命中检测在本节内至少打到一个目标时才跳节。
+     */
+    UPROPERTY(EditAnywhere, Category = "Combo")
+    bool bRequireHit = false;
 
     virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
         const FAnimNotifyEventReference& EventReference) override;
 
     virtual FString GetNotifyName_Implementation() const override;
+
+private:
+    void DoSectionJump(TWeakObjectPtr<UAnimInstance> WeakAnimInst, FName SectionName) const;
 };

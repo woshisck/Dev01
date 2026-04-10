@@ -81,6 +81,12 @@ void UGA_MeleeAttack::ActivateAbility(
 		}
 	}
 
+	// 重置命中标志（为本次攻击的第一节做准备）
+	if (AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo()))
+	{
+		Owner->bComboHitConnected = false;
+	}
+
 	// 蒙太奇从已读取的 ActionData 取
 	UAnimMontage* Montage = ActionData.Montage;
 
@@ -124,6 +130,12 @@ void UGA_MeleeAttack::EndAbility(
 	bool bWasCancelled)
 {
 	UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+
+	// 安全清理：技能结束时清空未消费的附加 Effect（蒙太奇被打断未触发 OnEventReceived 时保护用）
+	if (AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo()))
+	{
+		Owner->PendingAdditionalHitEffects.Empty();
+	}
 
 	// 移除攻击前摇 GE
 	if (StatBeforeATKHandle.IsValid())
@@ -180,8 +192,44 @@ void UGA_MeleeAttack::OnMontageCancelled(FGameplayTag EventTag, FGameplayEventDa
 void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData EventData)
 {
 	UE_LOG(LogTemp, Warning, TEXT("[GA_MeleeAttack] OnEventReceived: %s on %s"), *EventTag.ToString(), *GetName());
+
 	// 把当前 GA 自身塞入 OptionalObject，供 TargetType 精确拿到 ActionData
 	EventData.OptionalObject = this;
-	// 命中检测 + 施加伤害：固定走角色的 DefaultMeleeDamageEffect + DefaultMeleeTargetType
-	ApplyEffectContainer(EventTag, EventData);
+
+	// 拆分为两步以复用 ContainerSpec（目标数据 + 附加 Effect 需要同一批目标）
+	FYogGameplayEffectContainerSpec ContainerSpec = MakeEffectContainerSpec(EventTag, EventData, -1);
+	TArray<FActiveGameplayEffectHandle> Handles = ApplyEffectContainerSpec(ContainerSpec);
+
+	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo());
+
+	// 若有 GE 命中目标，标记本节已命中（供 AN_EnemyComboSection::bRequireHit 使用）
+	if (Handles.Num() > 0 && Owner)
+	{
+		Owner->bComboHitConnected = true;
+	}
+
+	// 应用来自 AN_MeleeDamage::AdditionalTargetEffects 的附加 Effect（复用同批目标）
+	if (Owner && Owner->PendingAdditionalHitEffects.Num() > 0 && Handles.Num() > 0)
+	{
+		UAbilitySystemComponent* SelfASC = GetAbilitySystemComponentFromActorInfo();
+		if (SelfASC)
+		{
+			for (TSubclassOf<UGameplayEffect> EffClass : Owner->PendingAdditionalHitEffects)
+			{
+				if (!EffClass) continue;
+				FGameplayEffectSpecHandle Spec = MakeOutgoingGameplayEffectSpec(EffClass, GetAbilityLevel());
+				if (Spec.IsValid())
+				{
+					// 应用到与主伤害 GE 相同的目标集合
+					K2_ApplyGameplayEffectSpecToTarget(Spec, ContainerSpec.TargetData);
+				}
+			}
+		}
+	}
+
+	// 消费附加 Effect 暂存（无论是否命中都清空，防止残留到下一次 Notify）
+	if (Owner)
+	{
+		Owner->PendingAdditionalHitEffects.Empty();
+	}
 }

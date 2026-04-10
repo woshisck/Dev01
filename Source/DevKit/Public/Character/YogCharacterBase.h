@@ -250,6 +250,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bMovable;
 
+	// 当前连击节是否命中了目标（GA_MeleeAttack::OnEventReceived 设置，AN_EnemyComboSection 读取后重置）
+	bool bComboHitConnected = false;
+
+	// AN_MeleeDamage notify 存入的附加命中 Effect，GA_MeleeAttack::OnEventReceived 应用到目标后清空
+	TArray<TSubclassOf<UGameplayEffect>> PendingAdditionalHitEffects;
+
 
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<UBufferComponent> InputBufferComponent;
