@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/DataAsset.h"
 #include "Data/RuneDataAsset.h"
 #include "LevelFlowTypes.generated.h"
 
@@ -42,26 +41,3 @@ struct DEVKIT_API FLootOption
 	TObjectPtr<URuneDataAsset> RuneAsset = nullptr;
 };
 
-/**
- * 关卡序列数据资产
- * 在编辑器中为每一关创建一个实例，配置下一关场景名和掉落池。
- * 命名规范：DA_LevelSequence_<LevelName>，例如 DA_LevelSequence_Run01
- */
-UCLASS(BlueprintType)
-class DEVKIT_API ULevelSequenceDataAsset : public UPrimaryDataAsset
-{
-	GENERATED_BODY()
-
-public:
-	// 下一关场景名（FName 对应 UE 中的关卡资产名）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
-	FName NextLevelName;
-
-	// 本关击杀目标（覆盖 LevelScript 中的 MonsterKillCountTarget）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
-	int32 KillTarget = 10;
-
-	// 掉落池（从中随机选 3 个显示给玩家）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
-	TArray<TObjectPtr<URuneDataAsset>> LootPool;
-};

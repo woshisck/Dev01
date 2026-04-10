@@ -162,3 +162,26 @@ struct DEVKIT_API FDifficultyEntry
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
     FDifficultyConfig Config;
 };
+
+// =========================================================
+// 传送门目标配置（供 RoomDataAsset 和 CampaignDataAsset 共用）
+// =========================================================
+
+/**
+ * FPortalDestConfig — 单个传送门的目标关卡配置
+ * PortalIndex 与场景中 APortal.Index 一致
+ */
+USTRUCT(BlueprintType)
+struct DEVKIT_API FPortalDestConfig
+{
+    GENERATED_BODY()
+
+    // 匹配场景中 APortal.Index
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
+    int32 PortalIndex = 0;
+
+    // 目标关卡随机池（类型无关，同一张地图可承载任意房间类型）
+    // 填关卡资产名（与 Content Browser 中名称一致）
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
+    TArray<FName> NextLevelPool;
+};

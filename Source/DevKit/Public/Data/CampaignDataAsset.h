@@ -10,25 +10,6 @@
 class URoomDataAsset;
 
 /**
- * FPortalDestConfig — 单个传送门的目标关卡配置
- * 每个传送门（APortal）对应一条，PortalIndex 与场景中 APortal.Index 一致
- */
-USTRUCT(BlueprintType)
-struct DEVKIT_API FPortalDestConfig
-{
-    GENERATED_BODY()
-
-    // 匹配场景中 APortal.Index
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
-    int32 PortalIndex = 0;
-
-    // 目标关卡随机池，关卡结束时从中随机选一个（类型无关，房间类型由骰子决定）
-    // 填关卡资产名（与 Content Browser 中的名称一致）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
-    TArray<FName> NextLevelPool;
-};
-
-/**
  * FFloorConfig — 局内序列中，单关的宏观配置
  *
  * 不直接指定 DA_Room，而是配置难度曲线和各房间类型的概率权重。
@@ -73,10 +54,7 @@ struct DEVKIT_API FFloorConfig
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
     float EpicWeight = 0.1f;
-
-    // 此关各传送门的目标地图池（Index 对应场景中 APortal.Index，地图类型无关）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
-    TArray<FPortalDestConfig> PortalDestinations;
+    // 传送门目标配置已移至 RoomDataAsset.PortalDestinations
 };
 
 /**
@@ -117,4 +95,10 @@ public:
     // 事件房（选择、交换、特殊机制）
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomPools")
     TArray<TObjectPtr<URoomDataAsset>> EventRoomPool;
+
+    // ---- 第一关默认使用的 DA_Room ----
+    // 未填写时，StartLevelSpawning 自动按 FloorTable[0] 的概率骰子选取
+    // 主城传送门直接进入当前编辑器关卡，DA_Room 由此字段决定
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Campaign")
+    TObjectPtr<URoomDataAsset> DefaultStartingRoom;
 };

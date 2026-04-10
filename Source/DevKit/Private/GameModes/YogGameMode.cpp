@@ -15,7 +15,8 @@
 #include "Mob/MobSpawner.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
-#include "Data/BuffDataAsset.h"
+#include "Data/RuneDataAsset.h"
+#include "BuffFlow/BuffFlowComponent.h"
 #include "Map/Portal.h"
 #include "Map/RewardPickup.h"
 
@@ -349,12 +350,8 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 		}
 	}
 
-	// 加载下一关：回退到旧系统 LevelSequenceData（新系统由 Portal 触发 TransitionToLevel）
+	// 旧系统入口：LevelSequenceData 已废弃，由 Portal 触发 TransitionToLevel
 	FName NextLevelName;
-	if (LevelSequenceData && !LevelSequenceData->NextLevelName.IsNone())
-	{
-		NextLevelName = LevelSequenceData->NextLevelName;
-	}
 
 	if (!NextLevelName.IsNone())
 	{
@@ -441,9 +438,18 @@ void AYogGameMode::StartLevelSpawning()
 	}
 	else
 	{
-		ActiveRoomData = RollRoomForFloor(Config);
-		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 第一关/无 PendingRoomData，骰子选取 RoomData = %s"),
-			ActiveRoomData ? *ActiveRoomData->GetName() : TEXT("null"));
+		// 第一关：优先使用 DefaultStartingRoom（策划手动指定）；未填则骰子选取
+		if (CurrentFloor == 1 && CampaignData->DefaultStartingRoom)
+		{
+			ActiveRoomData = CampaignData->DefaultStartingRoom;
+			UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 使用 DefaultStartingRoom = %s"), *ActiveRoomData->GetName());
+		}
+		else
+		{
+			ActiveRoomData = RollRoomForFloor(Config);
+			UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 骰子选取 RoomData = %s"),
+				ActiveRoomData ? *ActiveRoomData->GetName() : TEXT("null"));
+		}
 	}
 
 	if (!ActiveRoomData)
@@ -751,33 +757,29 @@ void AYogGameMode::SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClas
 		AEnemyCharacterBase* SpawnedEnemy = Spawner->SpawnMob(EnemyClass);
 		if (SpawnedEnemy && ActiveRoomBuffs.Num() > 0)
 		{
-			UAbilitySystemComponent* EnemyASC = SpawnedEnemy->GetAbilitySystemComponent();
-			if (EnemyASC)
+			// 在敌人的 BuffFlowComponent 上直接激活关卡符文（永久激活，无需背包）
+			UBuffFlowComponent* BFC = SpawnedEnemy->BuffFlowComponent;
+			if (BFC)
 			{
-				for (UBuffDataAsset* Buff : ActiveRoomBuffs)
+				for (URuneDataAsset* RuneDA : ActiveRoomBuffs)
 				{
-					if (!Buff || !Buff->BuffEffect) continue;
-					FGameplayEffectContextHandle Context = EnemyASC->MakeEffectContext();
-					FGameplayEffectSpecHandle Spec = EnemyASC->MakeOutgoingSpec(Buff->BuffEffect, 1.0f, Context);
-					if (Spec.IsValid())
-					{
-						EnemyASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-					}
+					if (!RuneDA || !RuneDA->RuneInfo.Flow.FlowAsset) continue;
+					BFC->StartBuffFlow(RuneDA->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), SpawnedEnemy);
 				}
 			}
 		}
 	}
 }
 
-TArray<UBuffDataAsset*> AYogGameMode::SelectRoomBuffs(
+TArray<URuneDataAsset*> AYogGameMode::SelectRoomBuffs(
 	const URoomDataAsset& Room, const FDifficultyConfig& Config)
 {
-	TArray<UBuffDataAsset*> Selected;
+	TArray<URuneDataAsset*> Selected;
 	if (Room.BuffPool.IsEmpty() || Config.BuffCount <= 0)
 		return Selected;
 
-	// 复制池子并洗牌
-	TArray<TObjectPtr<UBuffDataAsset>> Pool = Room.BuffPool;
+	// 复制池子并洗牌（Fisher-Yates）
+	TArray<TObjectPtr<URuneDataAsset>> Pool = Room.BuffPool;
 	for (int32 i = Pool.Num() - 1; i > 0; i--)
 	{
 		int32 j = FMath::RandRange(0, i);
@@ -807,11 +809,6 @@ void AYogGameMode::GenerateLootOptions()
 	{
 		SourcePool = &ActiveRoomData->LootPool;
 	}
-	else if (LevelSequenceData && !LevelSequenceData->LootPool.IsEmpty())
-	{
-		SourcePool = &LevelSequenceData->LootPool;
-	}
-
 	if (!SourcePool)
 	{
 		OnLootGenerated.Broadcast(CurrentLootOptions);
@@ -937,16 +934,12 @@ URoomDataAsset* AYogGameMode::RollRoomForFloor(const FFloorConfig& Config)
 
 void AYogGameMode::ActivatePortals()
 {
-	if (!CampaignData) return;
+	if (!CampaignData || !ActiveRoomData) return;
 
-	// 当前关的 FloorConfig（含 PortalDestinations）
-	const int32 CurrIdx = CurrentFloor - 1;
-	if (!CampaignData->FloorTable.IsValidIndex(CurrIdx)) return;
-	const FFloorConfig& CurrConfig = CampaignData->FloorTable[CurrIdx];
-
-	if (CurrConfig.PortalDestinations.IsEmpty())
+	// 传送门目标配置现在存在 ActiveRoomData（当前关卡的 DA_Room）里
+	if (ActiveRoomData->PortalDestinations.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ActivatePortals: 当前关卡没有配置 PortalDestinations"));
+		UE_LOG(LogTemp, Warning, TEXT("ActivatePortals: 当前 RoomData [%s] 没有配置 PortalDestinations"), *ActiveRoomData->GetName());
 		return;
 	}
 
@@ -968,7 +961,7 @@ void AYogGameMode::ActivatePortals()
 	}
 
 	// Fisher-Yates 洗牌 PortalDestinations，保证第一个必开
-	TArray<FPortalDestConfig> Configs = CurrConfig.PortalDestinations;
+	TArray<FPortalDestConfig> Configs = ActiveRoomData->PortalDestinations;
 	for (int32 i = Configs.Num() - 1; i > 0; i--)
 	{
 		int32 j = FMath::RandRange(0, i);

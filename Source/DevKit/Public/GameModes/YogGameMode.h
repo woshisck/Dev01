@@ -7,7 +7,6 @@
 #include "GameModes/LevelFlowTypes.h"
 #include "GameModes/SpawnTypes.h"
 #include "Data/CampaignDataAsset.h"
-#include "Data/BuffDataAsset.h"
 #include "Data/RoomDataAsset.h"
 #include "YogGameMode.generated.h"
 
@@ -129,10 +128,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow")
 	ELevelPhase CurrentPhase = ELevelPhase::Combat;
 
-	// 关卡序列配置（在关卡 BP 或 GameMode BP 中指定）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow")
-	TObjectPtr<ULevelSequenceDataAsset> LevelSequenceData;
-
 	// 当前生成的战利品选项（供 UI 读取）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow")
 	TArray<FLootOption> CurrentLootOptions;
@@ -237,8 +232,8 @@ protected:
 	// 从随机 MobSpawner 刷出指定类型的敌人
 	void SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClass);
 
-	// 从 BuffPool 按难度数量随机选取 Buff
-	TArray<UBuffDataAsset*> SelectRoomBuffs(
+	// 从 BuffPool 按难度数量随机选取关卡符文（RuneDA）
+	TArray<URuneDataAsset*> SelectRoomBuffs(
 		const URoomDataAsset& Room, const FDifficultyConfig& Config);
 
 	// ---- 刷怪运行时状态 ----
@@ -253,8 +248,8 @@ protected:
 	TArray<TSubclassOf<AEnemyCharacterBase>> OneByOneSpawnQueue;
 	int32 OneByOneSpawnIndex = 0;
 
-	// 本关激活的敌人 Buff（进关时选好，新怪刷出时施加）
-	TArray<UBuffDataAsset*> ActiveRoomBuffs;
+	// 本关激活的关卡符文（进关时骰子选好，新怪刷出时在其 BuffFlowComponent 上激活）
+	TArray<URuneDataAsset*> ActiveRoomBuffs;
 
 	// 当前关卡的房间配置和难度配置（StartLevelSpawning 时缓存，整理阶段使用）
 	UPROPERTY()

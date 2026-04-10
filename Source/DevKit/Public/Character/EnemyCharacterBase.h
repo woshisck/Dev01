@@ -11,9 +11,10 @@
 #include "Data/EnemyData.h"
 #include "EnemyCharacterBase.generated.h"
 
+class UBuffFlowComponent;
 
 /**
- * 
+ *
  */
 UCLASS()
 class DEVKIT_API AEnemyCharacterBase : public AYogCharacterBase
@@ -22,6 +23,10 @@ class DEVKIT_API AEnemyCharacterBase : public AYogCharacterBase
 public:
 
 	AEnemyCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	// 关卡 Buff（RuneDA FlowAsset）直接在此组件上激活，无需背包
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BuffFlow")
+	TObjectPtr<UBuffFlowComponent> BuffFlowComponent;
 
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;

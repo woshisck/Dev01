@@ -6,7 +6,6 @@
 #include "Engine/DataAsset.h"
 #include "GameModes/SpawnTypes.h"
 #include "Data/RuneDataAsset.h"
-#include "Data/BuffDataAsset.h"
 #include "RoomDataAsset.generated.h"
 
 /**
@@ -16,7 +15,7 @@
  * 例：DA_Room_Prison_Normal、DA_Room_Prison_Elite
  *
  * 每个 UE 关卡场景对应一个（或多个）RoomDataAsset。
- * GameMode 根据 CampaignDataAsset 的 FloorTable 决定使用哪套配置和哪个难度。
+ * DA_Campaign 通过骰子从类型池中选取，StartLevelSpawning 从 GI 读取并使用此资产。
  */
 UCLASS(BlueprintType)
 class DEVKIT_API URoomDataAsset : public UPrimaryDataAsset
@@ -46,14 +45,14 @@ public:
     TArray<FEnemyEntry> EnemyPool;
 
     // =========================================================
-    // 关卡 Buff 池（给所有敌人的词条）
+    // 关卡符文池（给所有敌人的词条 Buff）
     // =========================================================
 
-    // 进入关卡时从此池随机选取 N 个施加给所有敌人
+    // 进入关卡时从此池随机选取 N 个 RuneDA 施加给所有刷出的敌人
     // N 由当前难度的 FDifficultyConfig.BuffCount 决定
-    // 每个条目是一个 DA_Buff_* 资产（含名称/描述/GE）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Buff")
-    TArray<TObjectPtr<UBuffDataAsset>> BuffPool;
+    // 激活方式：直接在敌人的 BuffFlowComponent 上启动 FlowAsset（无需背包）
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomBuffs")
+    TArray<TObjectPtr<URuneDataAsset>> BuffPool;
 
     // =========================================================
     // 玩家战利品池（符文三选一）
@@ -63,6 +62,15 @@ public:
     // 至少填 3 个；若少于 3 个，有几个显示几个
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
     TArray<TObjectPtr<URuneDataAsset>> LootPool;
+
+    // =========================================================
+    // 传送门目标配置
+    // =========================================================
+
+    // 关卡结算时各传送门可去往的关卡池（Index 对应场景中 APortal.Index）
+    // 地图名与房间类型无关，房间类型由骰子从 CampaignDA 的类型池中选取
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portals")
+    TArray<FPortalDestConfig> PortalDestinations;
 
     // =========================================================
     // 难度配置（按需填，不强制三档全填）
