@@ -6,7 +6,7 @@
 #include "Engine/DataAsset.h"
 #include "GameModes/SpawnTypes.h"
 #include "Data/RuneDataAsset.h"
-#include "GameplayEffect.h"
+#include "Data/BuffDataAsset.h"
 #include "RoomDataAsset.generated.h"
 
 /**
@@ -49,10 +49,11 @@ public:
     // 关卡 Buff 池（给所有敌人的词条）
     // =========================================================
 
-    // 进入关卡时从此池随机选取 N 个 GE 施加给所有敌人
+    // 进入关卡时从此池随机选取 N 个施加给所有敌人
     // N 由当前难度的 FDifficultyConfig.BuffCount 决定
+    // 每个条目是一个 DA_Buff_* 资产（含名称/描述/GE）
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Buff")
-    TArray<TSubclassOf<UGameplayEffect>> BuffPool;
+    TArray<TObjectPtr<UBuffDataAsset>> BuffPool;
 
     // =========================================================
     // 玩家战利品池（符文三选一）
@@ -64,19 +65,12 @@ public:
     TArray<TObjectPtr<URuneDataAsset>> LootPool;
 
     // =========================================================
-    // 三套难度配置（低 / 中 / 高）
+    // 难度配置（按需填，不强制三档全填）
     // =========================================================
 
-    // 低难度：通常出现在局内前期关卡
-    // 建议：2-3 波，每波 15 分以内，触发条件全死，Wave 刷怪
+    // 此房间支持的难度档位，CampaignData 填写的 Difficulty 必须在此列表中
+    // 若 CampaignData 请求的难度不在列表中，自动降级到列表中最低的一档
+    // 示例：只填 Low → 此房间永远是低难度；填 Low+High → 跳过 Medium
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
-    FDifficultyConfig LowConfig;
-
-    // 中难度：局内中期关卡
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
-    FDifficultyConfig MediumConfig;
-
-    // 高难度：局内后期及精英关复用此套参数
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
-    FDifficultyConfig HighConfig;
+    TArray<FDifficultyEntry> DifficultyConfigs;
 };

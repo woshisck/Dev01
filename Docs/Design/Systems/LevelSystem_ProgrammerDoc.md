@@ -1,6 +1,7 @@
 # 关卡系统 — 程序技术文档
 
-> 最后更新：2026-04-08
+> 最后更新：2026-04-10（更新数据结构、整理阶段、传送门/切关接入）  
+> 配套文档：[跨关状态持久化](CrossLevelState_Technical.md)、[传送门系统设计](Portal_Design.md)
 
 ---
 
@@ -31,11 +32,15 @@
 | `RoomName` | `FName` | 房间标识，调试用 |
 | `bIsEliteRoom` | `bool` | 精英关标记，控制 `bEliteOnly` 怪物的出现 |
 | `EnemyPool` | `TArray<FEnemyEntry>` | 敌人池，含难度分和精英标记 |
-| `BuffPool` | `TArray<TSubclassOf<UGameplayEffect>>` | 进关时随机选 N 个施加给所有怪 |
+| `BuffPool` | `TArray<TObjectPtr<UBuffDataAsset>>` | 进关时随机选 N 个 Buff DA 施加给所有怪（旧 GE 直引用已移除）|
 | `LootPool` | `TArray<TObjectPtr<URuneDataAsset>>` | 符文掉落池，关卡结束三选一 |
-| `LowConfig` | `FDifficultyConfig` | 低难度配置 |
-| `MediumConfig` | `FDifficultyConfig` | 中难度配置 |
-| `HighConfig` | `FDifficultyConfig` | 高难度配置（Elite 也复用此套）|
+| `DifficultyConfigs` | `TArray<FDifficultyEntry>` | 难度配置数组，按需填写档位（替代原 LowConfig/MediumConfig/HighConfig）|
+
+`FDifficultyEntry`：
+```cpp
+Tier   EDifficultyTier   // Low / Medium / High / Elite
+Config FDifficultyConfig // 该档位的完整配置
+```
 
 ### FDifficultyConfig（`Source/DevKit/Public/GameModes/SpawnTypes.h`）
 
@@ -61,7 +66,8 @@
 | `FloorNumber` | `int32` | 序号，仅策划参考 |
 | `RoomData` | `URoomDataAsset*` | 指向对应房间配置 |
 | `Difficulty` | `EDifficultyTier` | Low / Medium / High / Elite |
-| `LevelName` | `FName` | UE 关卡资产名（预留，当前切关未使用）|
+| `LevelName` | `FName` | UE 关卡资产名（旧系统回退兼容，新系统由传送门决定）|
+| `PortalDestinations` | `TArray<FPortalDestConfig>` | 本关各传送门目标配置（Index → NextLevelPool）|
 
 ---
 
@@ -109,13 +115,33 @@ EnterArrangementPhase()
   ├─ CurrentPhase → Arrangement
   ├─ OnPhaseChanged.Broadcast()
   ├─ BackpackGridComponent.SetLocked(false)
-  ├─ AddGold(RandRange(GoldMin, GoldMax))   ← 新增
-  └─ GenerateLootOptions()
-       ├─ 优先读 ActiveRoomData.LootPool（CampaignData 新系统）
-       ├─ 回退读 LevelSequenceData.LootPool（旧系统兼容）
-       ├─ Fisher-Yates 洗牌
-       └─ OnLootGenerated.Broadcast(前3个)
+  ├─ AddGold(RandRange(GoldMin, GoldMax))
+  ├─ SpawnActor<ARewardPickup>(RewardPickupClass, LastEnemyKillLocation)
+  │    └─ 玩家靠近时：GM->GenerateLootOptions() → OnLootGenerated.Broadcast
+  └─ ActivatePortals()
+       ├─ 读 FloorTable[CurrentFloor-1].PortalDestinations
+       ├─ GetAllActorsOfClass(APortal) → 建 Index→APortal* 映射
+       ├─ Fisher-Yates 洗牌 PortalDestinations
+       └─ 第一个必开，后续 50% 随机 → Portal->Open(随机 NextLevel)
 ```
+
+⚠️ `GenerateLootOptions` 不再在 `EnterArrangementPhase` 直接调用，而是由玩家接触 `ARewardPickup` 触发。
+
+### 3.5 切关流程（TransitionToLevel）
+
+由 `APortal::EnterPortal_Implementation` 调用：
+
+```
+TransitionToLevel(FName NextLevel)
+  ├─ CurrentPhase → Transitioning
+  ├─ OnPhaseChanged.Broadcast()
+  ├─ Backpack->SetLocked(true)
+  ├─ 构建 FRunState（HP / Gold / Phase / 非永久符文）→ GI->PendingRunState
+  ├─ GI->PendingNextFloor = CurrentFloor + 1
+  └─ OpenLevel(NextLevel)
+```
+
+详细数据流参见 [跨关状态持久化技术文档](CrossLevelState_Technical.md)。
 
 ---
 
@@ -170,7 +196,17 @@ URuneDataAsset* RuneAsset;  // LootType == Rune 时有效
 
 ## 七、已知 TODO
 
-- `SpawnEnemyFromPool`：怪物刷出后施加 `ActiveRoomBuffs`（需 MobSpawner 返回 Actor 引用）
-- `ConfirmArrangementAndTransition`：应切换为读 `CampaignData->FloorTable[CurrentFloor].LevelName`
-- `Gold`：目前无消耗逻辑（商店/购买等），后续按需扩展
-- `ELootType`：预留 Gold 掉落类型，暂未启用
+| 任务 | 优先级 | 状态 |
+|------|--------|------|
+| 刷怪时将 HealthMultiplier/DamageMultiplier 施加到敌人属性 | 高 | ⚠️ 未实现 |
+| 符文三选一蓝图 UI（绑定 OnLootGenerated）| 高 | ⚠️ 未实现 |
+| 金币 HUD（绑定 OnGoldChanged）| 中 | ⚠️ 未实现 |
+| 传送门随机约束配置（MinOpenPortals / MaxOpenPortals）| 中 | ⚠️ 未实现 |
+| 随机关卡生成系统（取代手动 FloorTable）| 远期 | ⏳ 规划中 |
+| 商店关卡类型 | 远期 | ⏳ 规划中 |
+| `ELootType`：预留 Gold 掉落类型 | 低 | ⏳ 规划中 |
+
+**已完成 TODO（本次会话）**：
+- ✅ `SpawnEnemyFromPool`：BuffDataAsset 施加已实现
+- ✅ 切关入口：TransitionToLevel（由 Portal 触发）
+- ✅ 跨关状态持久化：FRunState 完整实现

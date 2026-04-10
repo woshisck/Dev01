@@ -7,11 +7,14 @@
 #include "GameModes/LevelFlowTypes.h"
 #include "GameModes/SpawnTypes.h"
 #include "Data/CampaignDataAsset.h"
+#include "Data/BuffDataAsset.h"
 #include "YogGameMode.generated.h"
 
 class AYogPlayerControllerBase;
 class UYogSaveGame;
 class AEnemyCharacterBase;
+class APortal;
+class ARewardPickup;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMapClean);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, ELevelPhase, NewPhase);
@@ -133,6 +136,13 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow")
 	TArray<FLootOption> CurrentLootOptions;
 
+	// 最后一个被击杀敌人的位置（用于生成奖励拾取物）
+	FVector LastEnemyKillLocation = FVector::ZeroVector;
+
+	// 关卡结算奖励拾取物的 Actor 类（在 GameMode BP 中指定 ARewardPickup）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow")
+	TSubclassOf<AActor> RewardPickupClass;
+
 	// 阶段变化事件
 	UPROPERTY(BlueprintAssignable, Category = "LevelFlow|Events")
 	FOnPhaseChanged OnPhaseChanged;
@@ -149,9 +159,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void SelectLoot(int32 LootIndex);
 
-	// 整理完成，锁背包并加载下一关
+	// 整理完成，锁背包并加载下一关（旧系统保留，新系统由 Portal 触发 TransitionToLevel）
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void ConfirmArrangementAndTransition();
+
+	// Portal 触发切关：保存跑局状态后 OpenLevel（由 APortal::EnterPortal 调用）
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
+	void TransitionToLevel(FName NextLevel);
+
+	// 从 LootPool 中随机生成战利品选项并广播（由 ARewardPickup 触发）
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
+	void GenerateLootOptions();
 
 	// =========================================================
 	// 新刷怪系统（难度分预算波次）
@@ -172,8 +190,8 @@ public:
 protected:
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 
-	// 从 LootPool 中随机抽取最多 3 个选项
-	void GenerateLootOptions();
+	// ---- 传送门激活 ----
+	void ActivatePortals();
 
 	// ---- 刷怪算法 ----
 
@@ -216,7 +234,7 @@ protected:
 	void SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClass);
 
 	// 从 BuffPool 按难度数量随机选取 Buff
-	TArray<TSubclassOf<UGameplayEffect>> SelectRoomBuffs(
+	TArray<UBuffDataAsset*> SelectRoomBuffs(
 		const URoomDataAsset& Room, const FDifficultyConfig& Config);
 
 	// ---- 刷怪运行时状态 ----
@@ -232,7 +250,7 @@ protected:
 	int32 OneByOneSpawnIndex = 0;
 
 	// 本关激活的敌人 Buff（进关时选好，新怪刷出时施加）
-	TArray<TSubclassOf<UGameplayEffect>> ActiveRoomBuffs;
+	TArray<UBuffDataAsset*> ActiveRoomBuffs;
 
 	// 当前关卡的房间配置和难度配置（StartLevelSpawning 时缓存，整理阶段使用）
 	UPROPERTY()

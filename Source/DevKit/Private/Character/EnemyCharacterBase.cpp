@@ -79,6 +79,7 @@ void AEnemyCharacterBase::Die()
 	// 通知 GameMode 击杀计数，触发波次/关卡完成检查
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
 	{
+		GM->LastEnemyKillLocation = GetActorLocation();
 		GM->UpdateFinishLevel(1);
 	}
 

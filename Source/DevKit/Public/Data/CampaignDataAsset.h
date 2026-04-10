@@ -9,6 +9,25 @@
 #include "CampaignDataAsset.generated.h"
 
 /**
+ * FPortalDestConfig — 单个传送门的目标关卡配置
+ * 每个传送门（APortal）对应一条，PortalIndex 与场景中 APortal.Index 一致
+ */
+USTRUCT(BlueprintType)
+struct DEVKIT_API FPortalDestConfig
+{
+    GENERATED_BODY()
+
+    // 匹配场景中 APortal.Index
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
+    int32 PortalIndex = 0;
+
+    // 目标关卡随机池，关卡结束时从中随机选一个
+    // 填关卡资产名（与 Content Browser 中的名称一致）
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
+    TArray<FName> NextLevelPool;
+};
+
+/**
  * FFloorEntry — 局内序列中，单关的配置
  */
 USTRUCT(BlueprintType)
@@ -24,14 +43,17 @@ struct DEVKIT_API FFloorEntry
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor")
     TObjectPtr<URoomDataAsset> RoomData;
 
-    // 此关的难度等级（系统据此选 Low/Medium/High/Elite Config）
+    // 此关的难度等级（系统据此选对应的 DifficultyEntry）
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor")
     EDifficultyTier Difficulty = EDifficultyTier::Low;
 
-    // 对应的 UE 关卡场景名（ConfirmArrangementAndTransition 时用于 OpenLevel）
-    // 必须与 Content Browser 中的关卡资产名完全一致
+    // 此关对应的 UE 地图名（仅用于旧系统回退，新系统由传送门目标决定）
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor")
     FName LevelName;
+
+    // 此关各传送门的目标池配置（Index 对应场景中 APortal.Index）
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
+    TArray<FPortalDestConfig> PortalDestinations;
 };
 
 /**

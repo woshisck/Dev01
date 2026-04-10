@@ -1,63 +1,66 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Map/YogMapDefinition.h"
-
-
 #include "Portal.generated.h"
 
 class APlayerCharacterBase;
 class UBillboardComponent;
+class UBoxComponent;
+class UYogSaveSubsystem;
 
 UCLASS()
 class DEVKIT_API APortal : public AActor
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 
 	APortal(const FObjectInitializer& ObjectInitializer);
 
+	// 视觉效果由 BP 实现（雾效开关）
 	UFUNCTION(BlueprintImplementableEvent)
 	void EnablePortal();
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void DisablePortal();
 
+	// GameMode 在关卡结束时调用，分配目标关卡并开启门
+	UFUNCTION(BlueprintCallable)
+	void Open(FName InSelectedLevel);
+
+	// 直接通过名字切换关卡（保留旧接口，BP 可调）
+	UFUNCTION(BlueprintCallable)
+	void YogOpenLevel(FName LevelName);
+
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
+public:
 
 	UFUNCTION(BlueprintNativeEvent)
-	void EnterPortal(APlayerCharacterBase* ReceivingChar, UYogSaveSubsystem* save_subsystem);
-
-
-	UFUNCTION(BlueprintCallable)
-	void YogOpenLevel(FName level_name);
-
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int Index;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
-	TObjectPtr<class UBoxComponent> CollisionVolume;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
-	TObjectPtr<class UBillboardComponent> BillBoard;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GateMap")
-	TArray<FNextMapNode> NextLevels;
-
+	void EnterPortal(APlayerCharacterBase* ReceivingChar, UYogSaveSubsystem* SaveSubsystem);
 
 	UFUNCTION()
-	virtual void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);
+	virtual void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
+		bool bFromSweep, const FHitResult& SweepHitResult);
 
+	// 场景中唯一标识（与 CampaignData.PortalDestinations[i].PortalIndex 对应）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal")
+	int32 Index = 0;
 
+	// GameMode 写入的目标关卡名（关卡结束时由随机池选定）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")
+	FName SelectedLevel;
+
+	// 是否已开启（BeginPlay 时为 false，GameMode 调 Open() 后变 true）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")
+	bool bIsOpen = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TObjectPtr<UBoxComponent> CollisionVolume;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	TObjectPtr<UBillboardComponent> BillBoard;
 };

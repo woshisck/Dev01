@@ -1,103 +1,71 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "Map/Portal.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Components/BillboardComponent.h"
+#include "Components/BoxComponent.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "Engine/GameInstance.h"
-
+#include "GameModes/YogGameMode.h"
+#include "Kismet/GameplayStatics.h"
 
 APortal::APortal(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-
-	// Create the Billboard component
-	//BillBoard = CreateDefaultSubobject<UBillboardComponent>(TEXT("Root_BillBoard"));
-	//RootComponent = BillBoard;
-
 	BillBoard = CreateDefaultSubobject<UBillboardComponent>(TEXT("Root_BillBoard"));
-	RootComponent = BillBoard;  // Now this works!
+	RootComponent = BillBoard;
 
-
-	//RootComponent = CollisionVolume = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionVolume"));
-	
-	
-	//CollisionVolume->InitCapsuleSize(80.f, 80.f);
 	CollisionVolume = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionVolume"));
-	CollisionVolume->InitBoxExtent(FVector(10,10,10));
+	CollisionVolume->InitBoxExtent(FVector(80, 80, 120));
 	CollisionVolume->SetupAttachment(RootComponent);
 	CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &APortal::OnOverlapBegin);
-
-
 }
 
-// Called when the game starts or when spawned
 void APortal::BeginPlay()
 {
 	Super::BeginPlay();
-	
+	// 关卡开始时门是关闭的
+	DisablePortal();
 }
 
-//void UGameplayStatics::OpenLevelBySoftObjectPtr(const UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, bool bAbsolute, FString Options)
-//{
-//	const FName LevelName = FName(*FPackageName::ObjectPathToPackageName(Level.ToString()));
-//	UGameplayStatics::OpenLevel(WorldContextObject, LevelName, bAbsolute, Options);
-//}
-
-
-
-void APortal::YogOpenLevel(FName level_name)
+void APortal::Open(FName InSelectedLevel)
 {
-	UGameplayStatics::OpenLevel(
-		GetWorld(),
-		level_name,
-		true,
-		"?game=/Game/Code/Core/B_GameMode.B_GameMode_C"
-	);
+	SelectedLevel = InSelectedLevel;
+	bIsOpen = true;
+	EnablePortal();
 }
 
-// Called every frame
-void APortal::Tick(float DeltaTime)
+void APortal::YogOpenLevel(FName LevelName)
 {
-	Super::Tick(DeltaTime);
-
+	UGameplayStatics::OpenLevel(GetWorld(), LevelName, true);
 }
 
-void APortal::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
+void APortal::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
+	bool bFromSweep, const FHitResult& SweepHitResult)
 {
-	UE_LOG(LogTemp, Warning, TEXT("APortal::OnOverlapBegin"));
+	if (!bIsOpen) return;
+
 	APlayerCharacterBase* OverlappingPawn = Cast<APlayerCharacterBase>(OtherActor);
+	if (!OverlappingPawn) return;
 
-	UWorld* world = this->GetWorld();
-	UGameInstance* GI = this->GetWorld()->GetGameInstance();
-	UYogSaveSubsystem* save_subsystem = UGameInstance::GetSubsystem<UYogSaveSubsystem>(GI);
-
-	if (OverlappingPawn != nullptr)
-	{
-		EnterPortal(OverlappingPawn, save_subsystem);
-
-		//UWorld* world = GetWorld();
-		//if (world)
-		//{
-		//	UYogBlueprintFunctionLibrary::GiveWeaponToCharacter(this, OverlappingPawn, WeaponDefinition);
-		//}
-
-	}
+	UYogSaveSubsystem* SaveSubsystem = UGameInstance::GetSubsystem<UYogSaveSubsystem>(GetGameInstance());
+	EnterPortal(OverlappingPawn, SaveSubsystem);
 }
 
-
-
-void APortal::EnterPortal_Implementation(APlayerCharacterBase* ReceivingChar, UYogSaveSubsystem* save_subsystem)
+void APortal::EnterPortal_Implementation(APlayerCharacterBase* ReceivingChar, UYogSaveSubsystem* SaveSubsystem)
 {
-	if (!save_subsystem)
-	{
-		return;
-	}
-	save_subsystem->WriteSaveGame();
+	if (!bIsOpen || SelectedLevel.IsNone()) return;
 
+	if (SaveSubsystem)
+	{
+		SaveSubsystem->WriteSaveGame();
+	}
+
+	// 通知 GameMode 保存跑局状态后切关
+	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		GM->TransitionToLevel(SelectedLevel);
+	}
 }

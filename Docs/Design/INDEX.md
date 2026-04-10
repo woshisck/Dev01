@@ -1,7 +1,7 @@
 # 设计文档索引
 
 > 项目：星骸降临 Dev01  
-> 更新：2026-04-10（新增主循环设计文档 + 开发任务报告）  
+> 更新：2026-04-10（新增传送门系统 / 跨关状态 / BuffPool 文档，更新关卡系统文档）  
 > 新增文档必须在此更新，参见 [DocWritingGuide.md](DocWritingGuide.md)
 
 ---
@@ -50,6 +50,8 @@
 | [敌人连击蒙太奇配置](FeatureConfig/EnemyCombo_ConfigGuide.md) | 多段连击蒙太奇结构 + AN_EnemyComboSection 配置 | 策划 |
 | [死亡消解特效配置](FeatureConfig/DeathDissolve_ConfigGuide.md) | GA_Dead + GameplayCue 消解粒子配置 | 策划 |
 | [测试符文创建指南](FeatureConfig/TestRune_CreationGuide.md) | 快速创建可测试符文的完整流程 | 策划 |
+| [传送门配置指南](FeatureConfig/Portal_ConfigGuide.md) | 编辑器配置 APortal Index / PortalDestinations / RewardPickupClass | 策划 |
+| [关卡 Buff 池配置指南](FeatureConfig/BuffPool_ConfigGuide.md) | 创建 BuffDataAsset + 在 DA_Room 中配置 BuffPool | 策划 |
 
 ---
 
@@ -62,8 +64,10 @@
 | [攻击伤害系统 — 技术文档](Systems/AttackDamage_Technical.md) | 架构图、核心函数、CDO 问题、改造方案（移 GA / C++ TargetType） | 程序 |
 | [热度系统设计](Systems/HeatSystem_Design.md) | 热度阶段机制、衰减规则、符文联动 | 策划 + 程序 |
 | [充能系统指南](Systems/SkillCharge_Guide.md) | SkillChargeComponent 配置和使用 | 策划 + 程序 |
-| [关卡系统配置指南](Systems/LevelSystem_ConfigGuide.md) | 关卡/波次配置 | 策划 |
-| [关卡系统技术文档](Systems/LevelSystem_ProgrammerDoc.md) | 关卡系统程序实现 | 程序 |
+| [关卡系统配置指南](Systems/LevelSystem_ConfigGuide.md) | 关卡/波次配置（含 DifficultyEntry 数组 / Buff Pool / 传送门目标）| 策划 |
+| [关卡系统技术文档](Systems/LevelSystem_ProgrammerDoc.md) | 关卡系统程序实现（含切关流程 / ActivatePortals）| 程序 |
+| [传送门与关卡奖励系统设计](Systems/Portal_Design.md) | 传送门多分支切关 + 奖励拾取物设计原理 | 策划 + 程序 |
+| [跨关状态持久化技术文档](Systems/CrossLevelState_Technical.md) | FRunState 数据流、存储/恢复流程、调试方法 | 程序 |
 
 ---
 
@@ -75,6 +79,7 @@
 | [当前进展 2026-04-10](WorkReports/CurrentProgress_20260410.md) | 项目阶段概述、已完成 / 未完成功能速览、本周目标 |
 | [开发路线图 2026-04-10](WorkReports/DevRoadmap_20260410.md) | 详细任务规划（P0-P3）、各任务步骤、里程碑时间线 |
 | [主循环开发状态 2026-04-10](WorkReports/MainLoop_WorkReport_20260410.md) | 主循环实现进度、已确认设计决策、设计遗漏分析 |
+| [主循环工作报告 2026-04-10（第二版）](WorkReports/MainLoop_WorkReport_20260410b.md) | 传送门/跨关状态完成记录、架构变更、下阶段计划 |
 | [热度系统工作报告 2026-04-06](WorkReports/HeatSystem_WorkReport_20260406.md) | 热度系统实现阶段总结 |
 
 ---
@@ -101,6 +106,8 @@
 - GA 里怎么填 Tag → [GA Tag 字段使用指南](Tags/GA_TagFields_Guide.md)
 - 配置状态冲突规则 → [状态冲突规则表](StateConflict/StateConflict_TagBlock.md)
 - 设计新符文 → [BuffFlow 符文工作流](BuffFlow/BuffFlow_RuneWorkflow.md)
+- 配置传送门 → [传送门配置指南](FeatureConfig/Portal_ConfigGuide.md)
+- 配置关卡 Buff → [关卡 Buff 池配置指南](FeatureConfig/BuffPool_ConfigGuide.md)
 
 **程序：我想……**
 - 了解主循环开发任务优先级 → [主循环工作报告](WorkReports/MainLoop_WorkReport_20260410.md)

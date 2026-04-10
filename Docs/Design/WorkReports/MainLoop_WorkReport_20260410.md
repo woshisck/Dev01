@@ -48,11 +48,13 @@
 
 | 数据 | 继承方式 |
 |---|---|
-| 当前楼层编号 | `GI->PendingNextFloor`（已实现）|
-| 玩家符文背包 | ⚠️ 未实现，需在 ConfirmArrangementAndTransition 前写入 GI |
-| 当前 HP | ⚠️ 未实现，需写入 GI，新关卡加载后恢复 |
-| 金币 | ⚠️ 未实现，需写入 GI |
+| 当前楼层编号 | `GI->PendingNextFloor`（✅ 已实现）|
+| 玩家符文背包 | ✅ 已实现（FRunState.PlacedRunes 存 GI，新关卡 Possess 后 TryPlaceRune 恢复）|
+| 当前 HP | ✅ 已实现（FRunState.CurrentHP 存 GI，新关卡 SetNumericAttributeBase 恢复）|
+| 金币 | ✅ 已实现（FRunState.CurrentGold 存 GI，新关卡 AddGold 恢复）|
 | 局外成长资源 | 写入 SaveGame（永久持久化）|
+
+> 状态更新于 2026-04-10 第二次会话，详见 [跨关状态持久化技术文档](../Systems/CrossLevelState_Technical.md)
 
 ### 2.3 HP 回复机制
 

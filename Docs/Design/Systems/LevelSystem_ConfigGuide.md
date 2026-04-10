@@ -1,7 +1,8 @@
 # 关卡系统配置使用指南
 
 > 面向：策划 / 关卡设计  
-> 最后更新：2026-04-08
+> 配套文档：[传送门配置指南](../FeatureConfig/Portal_ConfigGuide.md)、[关卡 Buff 池配置指南](../FeatureConfig/BuffPool_ConfigGuide.md)  
+> 最后更新：2026-04-10（更新难度配置结构、Buff Pool 类型、传送门目标配置）
 
 ---
 
@@ -47,34 +48,40 @@ DA_Room_Forest_Normal     森林场景普通关
 
 ### 1.3 配置敌人池（Enemy Pool）
 
-点击 **Enemy Pool** 右侧的 **+** 添加条目，每条代表一种可能刷出的敌人。
+⚠️ **结构更新（2026-04-10）**：敌人的 Class / 难度分 / 精英标记已统一移入 **`UEnemyData` 数据资产**，Enemy Pool 中的每条条目只需选对应的 DA_EnemyData_XXX。
 
-每条条目的字段：
+**配置流程**：
+1. 先创建 `DA_EnemyData_XXX`（EnemyData 数据资产），填写以下字段：
 
 | 字段 | 说明 | 建议值 |
 |------|------|--------|
-| **Enemy Class** | 选择敌人蓝图类 | 从下拉列表中选 |
-| **Difficulty Score** | 这只怪"值多少分"，系统会按分预算来决定刷多少只 | 普通小怪：**2-4**，精英怪：**6-10** |
+| **Enemy Class** | 对应的敌人蓝图类 | 从下拉列表中选 |
+| **Difficulty Score** | 这只怪"值多少分"，系统按分预算决定刷多少只 | 普通小怪：**2-4**，精英怪：**6-10** |
 | **Elite Only** | 勾上后，只有精英关（Is Elite Room=true）才刷出这只怪 | 精英专属怪勾，普通怪不勾 |
-| **Elite Variant Class** | 高难度下用来替换的怪物蓝图（可以不填，不填则加霸体效果） | 可选 |
+
+2. 在 DA_Room 的 **Enemy Pool** 中点 **+**，将 `DA_EnemyData_XXX` 拖入 EnemyData 槽位
 
 **实际例子：**
 
-| Enemy Class | Difficulty Score | Elite Only |
-|-------------|-----------------|-----------|
-| BP_Enemy_Soldier | 3 | 不勾 |
-| BP_Enemy_Archer | 2 | 不勾 |
-| BP_Enemy_EliteKnight | 8 | **勾上** |
+| EnemyData 资产 | Enemy Class | Difficulty Score | Elite Only |
+|----------------|-------------|-----------------|-----------|
+| DA_Enemy_Soldier | BP_Enemy_Soldier | 3 | 不勾 |
+| DA_Enemy_Archer | BP_Enemy_Archer | 2 | 不勾 |
+| DA_Enemy_EliteKnight | BP_Enemy_EliteKnight | 8 | **勾上** |
 
 ---
 
-### 1.4 配置关卡Buff池（Buff Pool）
+### 1.4 配置关卡 Buff 池（Buff Pool）
 
-进入关卡时，系统会从这里随机选 N 个 GE（Gameplay Effect）施加给所有怪，让它们更难打。
+⚠️ **结构更新（2026-04-10）**：Buff Pool 现在填 `DA_Buff_XXX`（BuffDataAsset 数据资产），不再直接填 GE 类。
 
-点 **Buff Pool** 右侧的 **+** 添加 GE 类。
+进入关卡时，系统会从 Buff Pool 中随机选 N 个 Buff 施加给所有怪。
 
-> **提示：** 具体选几个由下方难度配置的 **Buff Count** 字段决定。填 0 就是不用关卡Buff。
+点 **Buff Pool** 右侧的 **+**，将 `DA_Buff_XXX` 资产拖入槽位。
+
+> **如何创建 DA_Buff？** 参见 [关卡 Buff 池配置指南](../FeatureConfig/BuffPool_ConfigGuide.md)
+
+> **提示：** 具体选几个由下方难度配置的 **Buff Count** 字段决定。填 0 就是不用关卡 Buff。
 
 ---
 
@@ -88,11 +95,17 @@ DA_Room_Forest_Normal     森林场景普通关
 
 ---
 
-### 1.6 配置三套难度（最重要的部分）
+### 1.6 配置难度档位（DifficultyConfigs）
 
-每个 DA_Room 内有三套独立的难度配置：**Low Config / Medium Config / High Config**
+⚠️ **结构更新（2026-04-10）**：原先的三个固定字段（Low Config / Medium Config / High Config）已改为 **`DifficultyConfigs` 数组**，可以按需填写任意档位，不需要的难度档可以不填。
 
-展开任意一套，填写以下字段：
+在 **DifficultyConfigs** 数组中，点 **+** 添加条目，每条包含：
+- **Tier**：难度等级（Low / Medium / High / Elite）
+- **Config**：该难度档的详细配置
+
+> 这样做的好处：你可以只填 Low 和 High，中间的 Medium 不填。如果某关卡的 Difficulty 选了 Medium 但 DA_Room 里没有 Medium 档，系统会自动降级到数组里第一个档位（通常是 Low）。
+
+展开 Config，填写以下字段：
 
 #### 波次数量
 
@@ -172,32 +185,25 @@ DA_Room_Forest_Normal     森林场景普通关
 **Loot Pool（4条）：**
 - DA_Rune_FireBall、DA_Rune_Shield、DA_Rune_SpeedUp、DA_Rune_LifeSteal
 
-**Low Config：**
+**DifficultyConfigs（数组形式）：**
+
+第一条 Tier=Low，Config：
 - Wave Count: 2~2（固定2波）
 - Wave Budgets: `[12, 15]`
 - Allowed Triggers: `All Enemies Dead`（费用0）
 - Allowed Spawn Modes: `Wave`（费用1）
-- Health Multiplier: `1.0`
-- Buff Count: `0`
+- Health Multiplier: `1.0`，Buff Count: `0`
 - Gold Min: `8`，Gold Max: `15`
 
-**Medium Config：**
-- Wave Count: 2~3
-- Wave Budgets: `[15, 20, 15]`
-- Allowed Triggers: `All Enemies Dead`、`Percent Killed 50`
-- Allowed Spawn Modes: `Wave`、`One By One`（Interval=3秒）
-- Health Multiplier: `1.2`
-- Buff Count: `1`
-- Gold Min: `15`，Gold Max: `25`
-
-**High Config：**
+第二条 Tier=High，Config：
 - Wave Count: 3~3
 - Wave Budgets: `[18, 22, 25]`
 - Allowed Triggers: `All Enemies Dead`、`Percent Killed 50`、`Percent Killed 20`
 - Allowed Spawn Modes: `Wave`、`One By One`（Interval=2秒）
-- Health Multiplier: `1.5`
-- Buff Count: `2`
+- Health Multiplier: `1.5`，Buff Count: `2`
 - Gold Min: `25`，Gold Max: `40`
+
+（Medium 可不填，若关卡指定 Medium 则自动降级到 Low）
 
 ---
 
@@ -222,7 +228,21 @@ DA_Room_Forest_Normal     森林场景普通关
 | **Floor Number** | 填第几关（1、2、3…），只是参考标注，不影响运行 |
 | **Room Data** | 选择这关对应的 `DA_Room_xxx` |
 | **Difficulty** | 选 `Low` / `Medium` / `High` / `Elite` |
-| **Level Name** | 填 UE 关卡资产名（预留字段，当前未启用）|
+| **Level Name** | 填 UE 关卡资产名（预留字段，关卡切换以传送门目标为准）|
+| **Portal Destinations** | 填写本关各传送门的目标关卡配置（见下方说明）|
+
+#### Portal Destinations（传送门目标配置）
+
+这是关卡结束后玩家能通过哪些门去往哪里的配置。
+
+点 **Portal Destinations** 右侧的 **+**，每条对应场景中一扇门：
+
+| 子字段 | 说明 |
+|--------|------|
+| **Portal Index** | 对应场景中 APortal Actor 的 Index 值 |
+| **Next Level Pool** | 目标关卡名数组，关卡结束时随机选一个 |
+
+> **详细配置步骤** 参见 [传送门配置指南](../FeatureConfig/Portal_ConfigGuide.md)
 
 **Difficulty 选项说明：**
 - `Low` — 使用 DA_Room 的 Low Config

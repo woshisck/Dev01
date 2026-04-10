@@ -6,11 +6,6 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 
-#include "System/YogWorldSubsystem.h"
-
-#include "Map/YogLevelScript.h"
-
-#include "Map/YogMapDefinition.h"
 
 
 UYogGameInstanceBase::UYogGameInstanceBase()
@@ -182,32 +177,8 @@ void UYogGameInstanceBase::OnPostLoadMap(UWorld* World)
 			SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
 		}
 
-		//Load map quest
-		UYogWorldSubsystem* WorldSubsystem = GetWorld()->GetSubsystem<UYogWorldSubsystem>();
-		
-		AYogLevelScript* CurrentLevelScript = WorldSubsystem->GetCurrentLevelScript();
-
-		if (CurrentLevelScript)
-		{
-			this->TargetMapKills = CurrentLevelScript->GetDefinition()->TargetMapKills;
-			this->WaveCount = CurrentLevelScript->GetDefinition()->WaveCount;
-			this->SpawnCount = CurrentLevelScript->GetDefinition()->SpawnCount;
-			this->IntervalTime = CurrentLevelScript->GetDefinition()->IntervalTime;
-
-			
-			//COPY VAlUE TO Instance`
-		}
 		// Reset the flag
 		bShouldLoadSaveAfterMap = false;
-
-		//for (int i = 0; i < 4; i++)
-		//{
-		//	FTimerDelegate time_delegate;
-
-		//	AddStep(time_delegate, 3.0);
-		//}
-		////SpawnMob from Map
-		//StartSequence();
 
 	}
 

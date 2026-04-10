@@ -3,10 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Data/EnemyData.h"
 #include "SpawnTypes.generated.h"
-
-class AEnemyCharacterBase;
-class UGameplayEffect;
 
 // =========================================================
 // 难度等级
@@ -83,7 +81,7 @@ struct DEVKIT_API FSpawnModeOption
 };
 
 // =========================================================
-// 敌人池条目
+// 敌人池条目（DifficultyScore / bEliteOnly / EnemyClass 均定义在 UEnemyData 内）
 // =========================================================
 
 USTRUCT(BlueprintType)
@@ -91,22 +89,9 @@ struct DEVKIT_API FEnemyEntry
 {
     GENERATED_BODY()
 
-    // 敌人 Actor 类
+    // 引用敌人数据资产（含难度分、是否精英专属、Actor 类）
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
-    TSubclassOf<AEnemyCharacterBase> EnemyClass;
-
-    // 该敌人在难度分系统中的费用
-    // 建议：普通怪 2-4 分，精英怪 6-10 分
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
-    int32 DifficultyScore = 3;
-
-    // 是否为精英专属（仅精英关才能刷出）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
-    bool bEliteOnly = false;
-
-    // 高难度版本（高难度关卡下替换此类；若未配置则附加霸体GE）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
-    TSubclassOf<AEnemyCharacterBase> EliteVariantClass;
+    TObjectPtr<UEnemyData> EnemyData;
 };
 
 // =========================================================
@@ -158,4 +143,22 @@ struct DEVKIT_API FDifficultyConfig
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
     int32 GoldMax = 20;
+};
+
+// =========================================================
+// 难度等级条目（RoomDataAsset 按需填入，无需三档全填）
+// =========================================================
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FDifficultyEntry
+{
+    GENERATED_BODY()
+
+    // 此条目对应的难度等级
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
+    EDifficultyTier Tier = EDifficultyTier::Low;
+
+    // 对应难度的完整配置
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
+    FDifficultyConfig Config;
 };

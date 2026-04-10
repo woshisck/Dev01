@@ -9,6 +9,7 @@
 #include "Data/CharacterData.h"
 #include "EnemyData.generated.h"
 
+class AEnemyCharacterBase;
 
 
 USTRUCT(BlueprintType)
@@ -29,16 +30,19 @@ UCLASS()
 class DEVKIT_API UEnemyData : public UCharacterData
 {
 	GENERATED_BODY()
-	
+
 public:
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//TObjectPtr<UBehaviorTree> EnemyBT;
+	// 对应的敌人 Actor 类（刷怪系统用此类生成敌人）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
+	TSubclassOf<AEnemyCharacterBase> EnemyClass;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (RowType = "ActionData"))
-	//TArray<FDataTableRowHandle> ActionRows;
+	// 难度预算消耗（普通怪建议 2-4，精英怪建议 6-10）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
+	int32 DifficultyScore = 3;
 
-	
-
+	// 是否为精英专属（仅精英关可刷出）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
+	bool bEliteOnly = false;
 
 };

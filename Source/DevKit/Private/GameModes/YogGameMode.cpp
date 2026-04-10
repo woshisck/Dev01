@@ -10,12 +10,14 @@
 #include <Kismet/GameplayStatics.h>
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
-#include "Map/YogLevelScript.h"
 #include "System/YogGameInstanceBase.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Mob/MobSpawner.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
+#include "Data/BuffDataAsset.h"
+#include "Map/Portal.h"
+#include "Map/RewardPickup.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
@@ -75,83 +77,9 @@ void AYogGameMode::StartPlay()
 {
 	Super::StartPlay();
 
-	UWorld* World = GetWorld();
-
-	if (!World)
-	{
-		return;
-	}
-
-	ULevel* CurrentLevel = World->GetCurrentLevel();
-	if (!CurrentLevel)
-	{
-		return;
-	}
-
-	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
-
-	UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());
-	UYogSaveSubsystem* SaveSubsystem = GI->GetSubsystem<UYogSaveSubsystem>();
-
-	//if (SaveSubsystem->CurrentSaveGame)
-	//{
-	//	SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
-	//}
-	//else
-	//{
-	//	// spawn default player char
-	//}
-
-	//TODO: this function calls after openLevel : 
-	//[get player + get transform -> spawn player -> poccess ->] in game mode
-	
-
-
-
-	AYogLevelScript* LevelScriptActor = Cast<AYogLevelScript>(CurrentLevel->GetLevelScriptActor());
-	if (LevelScriptActor)
-	{
-		RemainKillCount = LevelScriptActor->MonsterKillCountTarget;
-
-		UE_LOG(LogTemp, Warning, TEXT("Found LevelScriptActor: %s"), *LevelScriptActor->GetName());
-
-		this->OnFinishLevelEvent().AddUObject(SaveSubsystem, &UYogSaveSubsystem::WriteSaveGame);
-	}
-
-	// 新刷怪系统：若配置了 CampaignData，自动启动波次刷怪
 	if (CampaignData)
 	{
 		StartLevelSpawning();
-	}
-
-
-
-	//if (UWorld* World = GetWorld())
-	//{
-	//	AYogGameMode* GameMode = Cast<AYogGameMode>(World->GetAuthGameMode());
-	//	if (GameMode)
-	//	{
-	//		// Bind the subsystem's function to the GameMode's event.
-	//		GameMode->OnFinishLevelEvent().AddUObject(this, &UYogSaveSubsystem::WriteSaveGame);
-	//	}
-	//}
-
-
-
-	//SaveSubsystem->WriteSaveGame().AddUObject(this, &AYogGameMode::OnFinishLevel);
-
-
-	
-	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-
-
-
-
-	UYogSaveSubsystem* save_subsystem = UGameInstance::GetSubsystem<UYogSaveSubsystem>(GetGameInstance());
-	if (save_subsystem->CurrentSaveGame)
-	{
-		//NEXT MOVE : save_subsystem->CurrentSaveGame->
-		//APlayerCharacterBase* currentSave_player = Cast<APlayerCharacterBase>(save_subsystem->LoadData());
 	}
 }
 
@@ -375,8 +303,15 @@ void AYogGameMode::EnterArrangementPhase()
 		}
 	}
 
-	// 生成战利品选项
-	GenerateLootOptions();
+	// 在最后击杀位置生成奖励拾取物（玩家走近后触发战利品选择界面）
+	if (RewardPickupClass && !LastEnemyKillLocation.IsZero())
+	{
+		GetWorld()->SpawnActor<AActor>(RewardPickupClass, LastEnemyKillLocation, FRotator::ZeroRotator);
+		UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 生成 RewardPickup @ %s"), *LastEnemyKillLocation.ToString());
+	}
+
+	// 开启传送门
+	ActivatePortals();
 }
 
 void AYogGameMode::SelectLoot(int32 LootIndex)
@@ -509,14 +444,26 @@ void AYogGameMode::StartLevelSpawning()
 	bCurrentRoomIsElite = Entry.RoomData->bIsEliteRoom;
 
 	// 根据难度等级选取对应的配置
+	// 按请求难度查表，找不到则降级到列表中第一档（最低难度）
 	const FDifficultyConfig* Config = nullptr;
-	switch (Entry.Difficulty)
+	for (const FDifficultyEntry& DE : Entry.RoomData->DifficultyConfigs)
 	{
-		case EDifficultyTier::Low:    Config = &Entry.RoomData->LowConfig;    break;
-		case EDifficultyTier::Medium: Config = &Entry.RoomData->MediumConfig; break;
-		case EDifficultyTier::High:   Config = &Entry.RoomData->HighConfig;   break;
-		case EDifficultyTier::Elite:  Config = &Entry.RoomData->HighConfig;   break;
-		default: Config = &Entry.RoomData->LowConfig; break;
+		if (DE.Tier == Entry.Difficulty)
+		{
+			Config = &DE.Config;
+			break;
+		}
+	}
+	if (!Config && Entry.RoomData->DifficultyConfigs.Num() > 0)
+	{
+		Config = &Entry.RoomData->DifficultyConfigs[0].Config;
+		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: 难度 %d 无匹配配置，降级到第一档"),
+			(int32)Entry.Difficulty);
+	}
+	if (!Config)
+	{
+		UE_LOG(LogTemp, Error, TEXT("StartLevelSpawning: RoomData 没有任何难度配置，跳过"));
+		return;
 	}
 
 	// 缓存当前房间数据和难度配置（整理阶段发放战利品/金币时使用）
@@ -604,18 +551,18 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(
 		TArray<FEnemyEntry> Candidates;
 		for (const FEnemyEntry& E : Room->EnemyPool)
 		{
-			if (!E.EnemyClass) continue;
-			if (E.bEliteOnly && !bCurrentRoomIsElite) continue;
+			if (!E.EnemyData || !E.EnemyData->EnemyClass) continue;
+			if (E.EnemyData->bEliteOnly && !bCurrentRoomIsElite) continue;
 			// 第一只不过滤预算（允许超出），后续必须在预算内
-			if (!bFirstEnemy && E.DifficultyScore > RemainingBudget) continue;
+			if (!bFirstEnemy && E.EnemyData->DifficultyScore > RemainingBudget) continue;
 			Candidates.Add(E);
 		}
 
 		if (Candidates.IsEmpty()) break;
 
 		const FEnemyEntry& Chosen = Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
-		Plan.EnemiesToSpawn.Add(Chosen.EnemyClass);
-		RemainingBudget -= Chosen.DifficultyScore;
+		Plan.EnemiesToSpawn.Add(Chosen.EnemyData->EnemyClass);
+		RemainingBudget -= Chosen.EnemyData->DifficultyScore;
 		bFirstEnemy      = false;
 
 		if (RemainingBudget <= 0) break;
@@ -797,11 +744,11 @@ void AYogGameMode::SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClas
 			UAbilitySystemComponent* EnemyASC = SpawnedEnemy->GetAbilitySystemComponent();
 			if (EnemyASC)
 			{
-				for (TSubclassOf<UGameplayEffect> GEClass : ActiveRoomBuffs)
+				for (UBuffDataAsset* Buff : ActiveRoomBuffs)
 				{
-					if (!GEClass) continue;
+					if (!Buff || !Buff->BuffEffect) continue;
 					FGameplayEffectContextHandle Context = EnemyASC->MakeEffectContext();
-					FGameplayEffectSpecHandle Spec = EnemyASC->MakeOutgoingSpec(GEClass, 1.0f, Context);
+					FGameplayEffectSpecHandle Spec = EnemyASC->MakeOutgoingSpec(Buff->BuffEffect, 1.0f, Context);
 					if (Spec.IsValid())
 					{
 						EnemyASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
@@ -812,15 +759,15 @@ void AYogGameMode::SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClas
 	}
 }
 
-TArray<TSubclassOf<UGameplayEffect>> AYogGameMode::SelectRoomBuffs(
+TArray<UBuffDataAsset*> AYogGameMode::SelectRoomBuffs(
 	const URoomDataAsset& Room, const FDifficultyConfig& Config)
 {
-	TArray<TSubclassOf<UGameplayEffect>> Selected;
+	TArray<UBuffDataAsset*> Selected;
 	if (Room.BuffPool.IsEmpty() || Config.BuffCount <= 0)
 		return Selected;
 
 	// 复制池子并洗牌
-	TArray<TSubclassOf<UGameplayEffect>> Pool = Room.BuffPool;
+	TArray<TObjectPtr<UBuffDataAsset>> Pool = Room.BuffPool;
 	for (int32 i = Pool.Num() - 1; i > 0; i--)
 	{
 		int32 j = FMath::RandRange(0, i);
@@ -885,4 +832,116 @@ void AYogGameMode::GenerateLootOptions()
 
 	UE_LOG(LogTemp, Log, TEXT("GenerateLootOptions: 生成 %d 个符文选项"), CurrentLootOptions.Num());
 	OnLootGenerated.Broadcast(CurrentLootOptions);
+}
+
+void AYogGameMode::TransitionToLevel(FName NextLevel)
+{
+	if (NextLevel.IsNone()) return;
+
+	CurrentPhase = ELevelPhase::Transitioning;
+	OnPhaseChanged.Broadcast(CurrentPhase);
+
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
+		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+
+	if (Player)
+	{
+		// 锁背包
+		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
+		{
+			Backpack->SetLocked(true);
+		}
+
+		// 保存跑局状态到 GI
+		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+		{
+			GI->PendingNextFloor = CurrentFloor + 1;
+
+			FRunState NewState;
+			NewState.bIsValid    = true;
+			NewState.CurrentGold = Player->GetGold();
+
+			if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
+			{
+				NewState.CurrentHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
+			}
+
+			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
+			{
+				NewState.CurrentPhase = Backpack->GetCurrentPhase();
+				for (const FPlacedRune& PR : Backpack->GetAllPlacedRunes())
+				{
+					if (!PR.bIsPermanent)
+					{
+						NewState.PlacedRunes.Add(PR);
+					}
+				}
+			}
+
+			GI->PendingRunState = NewState;
+			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Gold=%d Phase=%d Runes=%d"),
+				NewState.CurrentHP, NewState.CurrentGold, NewState.CurrentPhase, NewState.PlacedRunes.Num());
+		}
+	}
+
+	UGameplayStatics::OpenLevel(GetWorld(), NextLevel);
+}
+
+void AYogGameMode::ActivatePortals()
+{
+	if (!CampaignData) return;
+
+	const int32 TableIndex = CurrentFloor - 1;
+	if (!CampaignData->FloorTable.IsValidIndex(TableIndex)) return;
+
+	const FFloorEntry& Entry = CampaignData->FloorTable[TableIndex];
+	if (Entry.PortalDestinations.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ActivatePortals: 当前关卡没有配置 PortalDestinations"));
+		return;
+	}
+
+	// 收集场景中所有 APortal，建立 Index → APortal* 映射
+	TArray<AActor*> PortalActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), PortalActors);
+
+	TMap<int32, APortal*> PortalMap;
+	for (AActor* Actor : PortalActors)
+	{
+		if (APortal* Portal = Cast<APortal>(Actor))
+		{
+			PortalMap.Add(Portal->Index, Portal);
+		}
+	}
+
+	// Fisher-Yates 洗牌，保证至少第一个门必须开启
+	TArray<FPortalDestConfig> Configs = Entry.PortalDestinations;
+	for (int32 i = Configs.Num() - 1; i > 0; i--)
+	{
+		int32 j = FMath::RandRange(0, i);
+		Configs.Swap(i, j);
+	}
+
+	bool bAtLeastOneOpened = false;
+	for (const FPortalDestConfig& Config : Configs)
+	{
+		if (Config.NextLevelPool.IsEmpty()) continue;
+
+		APortal** Found = PortalMap.Find(Config.PortalIndex);
+		if (!Found || !(*Found)) continue;
+
+		// 洗牌后第一个必开；后续 50% 概率
+		const bool bShouldOpen = !bAtLeastOneOpened || FMath::RandBool();
+		if (bShouldOpen)
+		{
+			const FName NextLevel = Config.NextLevelPool[FMath::RandRange(0, Config.NextLevelPool.Num() - 1)];
+			(*Found)->Open(NextLevel);
+			bAtLeastOneOpened = true;
+			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 开启 → %s"), Config.PortalIndex, *NextLevel.ToString());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 随机未开启"), Config.PortalIndex);
+		}
+	}
 }
