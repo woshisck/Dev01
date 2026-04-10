@@ -456,7 +456,11 @@ void AYogCharacterBase::InitializeStats(const FYogBaseAttributeData* attributeDa
 {
 	if (attributeData != nullptr)
 	{
-		if (!ensure(AttributeStatsComponent != nullptr)) return;
+		if (!AttributeStatsComponent)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[InitializeStats] AttributeStatsComponent is NULL on %s — Blueprint needs recompile after C++ changes."), *GetName());
+			return;
+		}
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetAttackAttribute(), attributeData->Attack);
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetAttackPowerAttribute(), attributeData->AttackPower);
 
