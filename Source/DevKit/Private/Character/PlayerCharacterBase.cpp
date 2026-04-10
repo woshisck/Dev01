@@ -19,6 +19,9 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/SkillChargeComponent.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
+#include "AbilitySystem/Abilities/YogTargetType_Melee.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
+#include "System/YogGameInstanceBase.h"
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -28,6 +31,9 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
 	SkillChargeComponent = CreateDefaultSubobject<USkillChargeComponent>(TEXT("SkillChargeComponent"));
+
+	// 近战默认命中框：C++ 实现，无需在每个角色蓝图 Class Defaults 中单独配置
+	DefaultMeleeTargetType = UYogTargetType_Player::StaticClass();
 }
 
 void APlayerCharacterBase::SetOwnCamera(AYogCameraPawn* cameraActor)
@@ -47,6 +53,54 @@ void APlayerCharacterBase::Die()
 {
 	Super::Die();
 
+	// 死亡时清空跑局状态，下一局从默认值开始
+	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	{
+		GI->ClearRunState();
+	}
+}
+
+void APlayerCharacterBase::RestoreRunStateFromGI()
+{
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+	if (!GI || !GI->PendingRunState.bIsValid)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE skipped — no valid state (bIsValid=%d)"),
+			GI ? (int32)GI->PendingRunState.bIsValid : -1);
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE — HP=%.1f Gold=%d Phase=%d Runes=%d"),
+		GI->PendingRunState.CurrentHP, GI->PendingRunState.CurrentGold,
+		GI->PendingRunState.CurrentPhase, GI->PendingRunState.PlacedRunes.Num());
+
+	const FRunState& State = GI->PendingRunState;
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+
+	// 恢复 HP
+	if (ASC && State.CurrentHP > 0.f)
+	{
+		ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute(), State.CurrentHP);
+	}
+
+	// 恢复金币
+	Gold = FMath::Max(0, State.CurrentGold);
+	OnGoldChanged.Broadcast(Gold);
+
+	// 恢复符文（仅非永久符文；永久符文由 BackpackGridComponent::BeginPlay 自动放置）
+	if (BackpackGridComponent)
+	{
+		for (const FPlacedRune& PR : State.PlacedRunes)
+		{
+			if (!PR.bIsPermanent)
+			{
+				BackpackGridComponent->TryPlaceRune(PR.Rune, PR.Pivot);
+			}
+		}
+
+		// 恢复热度阶段
+		BackpackGridComponent->RestorePhase(State.CurrentPhase);
+	}
 }
 
 void APlayerCharacterBase::ItemInteract(const AItemSpawner* item)

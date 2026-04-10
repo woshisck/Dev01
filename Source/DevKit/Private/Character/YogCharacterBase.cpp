@@ -456,7 +456,7 @@ void AYogCharacterBase::InitializeStats(const FYogBaseAttributeData* attributeDa
 {
 	if (attributeData != nullptr)
 	{
-		check(AttributeStatsComponent != nullptr)
+		if (!ensure(AttributeStatsComponent != nullptr)) return;
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetAttackAttribute(), attributeData->Attack);
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetAttackPowerAttribute(), attributeData->AttackPower);
 

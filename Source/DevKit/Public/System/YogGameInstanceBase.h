@@ -2,14 +2,40 @@
 
 #include "DevKit.h"
 #include "Engine/GameInstance.h"
-
-
+#include "Component/BackpackGridComponent.h"
 
 #include "YogGameInstanceBase.generated.h"
 
 
 class AYogCharacterBase;
 class UYogSaveGame;
+
+// =========================================================
+// 局内跑局状态快照（切关时写入，新关卡加载后恢复）
+// =========================================================
+USTRUCT()
+struct FRunState
+{
+	GENERATED_BODY()
+
+	// true = 有有效存档；false = 新局开始，不恢复
+	UPROPERTY()
+	bool bIsValid = false;
+
+	UPROPERTY()
+	float CurrentHP = 0.f;
+
+	UPROPERTY()
+	int32 CurrentGold = 0;
+
+	// BackpackGridComponent 的热度阶段（0-3）
+	UPROPERTY()
+	int32 CurrentPhase = 0;
+
+	// 非永久符文（永久符文由 BGC::BeginPlay 重新放置，无需保存）
+	UPROPERTY()
+	TArray<FPlacedRune> PlacedRunes;
+};
 /**
  * Base class for GameInstance, should be blueprinted
  * Most games will need to make a game-specific subclass of GameInstance
@@ -86,6 +112,13 @@ public:
 	// 关卡切换时存储下一关楼层编号（OpenLevel 后 GameMode 重建时读取）
 	UPROPERTY(BlueprintReadWrite, Category = "Campaign")
 	int32 PendingNextFloor = 1;
+
+	// 局内跑局状态快照（切关前写入，新关卡 BeginPlay 后恢复）
+	UPROPERTY()
+	FRunState PendingRunState;
+
+	// 清空跑局状态（玩家死亡时调用，使下一局从默认值开始）
+	void ClearRunState();
 
 	UPROPERTY(BlueprintAssignable, Category = "Level system")
 	FFinishLevel OnFinishLevel;

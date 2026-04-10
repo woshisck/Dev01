@@ -4,6 +4,7 @@
 #include "Character/EnemyCharacterBase.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
+#include "AbilitySystem/Abilities/YogTargetType_Melee.h"
 #include "Character/YogCharacterMovementComponent.h"
 #include "Data/EnemyData.h"
 #include "Controller/YogAIController.h"
@@ -14,6 +15,9 @@ AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
 	EnemyAttributeSet = CreateDefaultSubobject<UEnemyAttributeSet>(TEXT("EnemyAttributeSet"));
+
+	// 近战默认命中框：C++ 实现，无需在每个角色蓝图 Class Defaults 中单独配置
+	DefaultMeleeTargetType = UYogTargetType_Enemy::StaticClass();
 	
 
 	//static ConstructorHelpers::FClassFinder<UYogGameplayAbility> Ability_Blueprint_Class(TEXT("Blueprint'/Game/Code/Weapon/GA_MobAbility'"));

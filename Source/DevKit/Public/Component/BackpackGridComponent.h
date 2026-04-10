@@ -135,6 +135,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Backpack")
     int32 GetCurrentPhase() const { return CurrentPhase; }
 
+    // 切关后恢复热度阶段（跳过升降阶逻辑，直接写入）
+    void RestorePhase(int32 Phase);
+
     // 返回所有已放置符文（UI用）
     UFUNCTION(BlueprintPure, Category = "Backpack")
     const TArray<FPlacedRune>& GetAllPlacedRunes() const { return PlacedRunes; }

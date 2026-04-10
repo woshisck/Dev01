@@ -15,6 +15,7 @@
 #include "Character/EnemyCharacterBase.h"
 #include "Mob/MobSpawner.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
@@ -42,6 +43,9 @@ void AYogGameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 		);
 
 		NewPlayer->Possess(LoadedChar);
+
+		// Possess 完成后 ASC 已初始化，可以安全恢复跑局状态
+		LoadedChar->RestoreRunStateFromGI();
 	}
 	else
 	{
@@ -423,10 +427,40 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 
 	if (!NextLevelName.IsNone())
 	{
-		// 存储下一关楼层编号到 GameInstance，供新 GameMode 的 StartLevelSpawning 读取
 		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
 		{
 			GI->PendingNextFloor = CurrentFloor + 1;
+
+			// 切关前将玩家状态写入 GI，供新关卡恢复
+			if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
+				UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
+			{
+				FRunState NewState;
+				NewState.bIsValid = true;
+				NewState.CurrentGold = Player->GetGold();
+
+				if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
+				{
+					NewState.CurrentHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
+				}
+
+				if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
+				{
+					NewState.CurrentPhase = Backpack->GetCurrentPhase();
+					// 只保存非永久符文（永久符文由 BeginPlay 自动重放）
+					for (const FPlacedRune& PR : Backpack->GetAllPlacedRunes())
+					{
+						if (!PR.bIsPermanent)
+						{
+							NewState.PlacedRunes.Add(PR);
+						}
+					}
+				}
+
+				GI->PendingRunState = NewState;
+				UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE — HP=%.1f Gold=%d Phase=%d Runes=%d"),
+					NewState.CurrentHP, NewState.CurrentGold, NewState.CurrentPhase, NewState.PlacedRunes.Num());
+			}
 		}
 		UGameplayStatics::OpenLevel(GetWorld(), NextLevelName);
 	}

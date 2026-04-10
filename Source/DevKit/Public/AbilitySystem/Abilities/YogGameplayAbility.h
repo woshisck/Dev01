@@ -63,10 +63,6 @@ public:
 	FAbilityStartSignature EventOn_AbilityStart;
 
 
-	///** Map of gameplay tags to gameplay effect containers */
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Damage Effect)
-	//TMap<FGameplayTag, FYogGameplayEffectContainer> EffectContainerMap;
-
 	/** Make gameplay effect container spec to be applied later, using the passed in container */
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
 	virtual FYogGameplayEffectContainerSpec MakeEffectContainerSpecFromContainer(const FYogGameplayEffectContainer& Container, const FGameplayEventData& EventData, int32 OverrideGameplayLevel = -1);
@@ -162,6 +158,16 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	FActionData GetRowData(FDataTableRowHandle action_row);
+
+	/**
+	 * 返回当前技能对应的 FActionData（命中框 + 攻击范围等）。
+	 * C++ 基类返回默认值（ActRange=400，无命中框 → 全向球形检测）。
+	 * Blueprint GA 子类实现此事件：调用 GetRowData(action_row) 后 Return 即可。
+	 * UYogTargetType_Enemy / UYogTargetType_Player 通过此接口获取命中框参数。
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Combat")
+	FActionData GetAbilityActionData() const;
+	virtual FActionData GetAbilityActionData_Implementation() const;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//TSubclassOf<UYogGameplayAbility> Ability;

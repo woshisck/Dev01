@@ -115,6 +115,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Currency")
 	int32 GetGold() const { return Gold; }
 
+	// 切关后从 GameInstance.PendingRunState 恢复 HP / 金币 / 符文 / 热度阶段
+	void RestoreRunStateFromGI();
+
 	// ─── 最后输入方向（冲刺朝向使用）────────────────────────────────
 	// 由 Controller.Move() 在每次非零输入时更新，世界空间单位向量
 	UPROPERTY(BlueprintReadOnly, Category = "Input")

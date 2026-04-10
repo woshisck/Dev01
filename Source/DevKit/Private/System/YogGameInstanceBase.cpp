@@ -280,6 +280,12 @@ void UYogGameInstanceBase::SpawnMobInMap()
 
 }
 
+void UYogGameInstanceBase::ClearRunState()
+{
+	PendingRunState = FRunState(); // 重置为默认值，bIsValid = false
+	UE_LOG(LogTemp, Log, TEXT("ClearRunState: 跑局状态已清空"));
+}
+
 
 
 

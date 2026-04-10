@@ -408,6 +408,12 @@ void UBackpackGridComponent::ResetHeatToPhaseFloor()
 	RefreshAllActivations();
 }
 
+void UBackpackGridComponent::RestorePhase(int32 Phase)
+{
+	CurrentPhase = FMath::Clamp(Phase, 0, 3);
+	RefreshAllActivations();
+}
+
 TArray<FIntPoint> UBackpackGridComponent::GetActivationZoneCells() const
 {
 	return ComputeActivationZone().Array();

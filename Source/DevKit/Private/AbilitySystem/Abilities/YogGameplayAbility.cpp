@@ -47,17 +47,6 @@ void UYogGameplayAbility::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo
 
 TArray<FActiveGameplayEffectHandle> UYogGameplayAbility::ApplyEffectContainer(FGameplayTag ContainerTag, const FGameplayEventData& EventData, int32 OverrideGameplayLevel )
 {
-	UE_LOG(LogTemp, Warning, TEXT("ApplyEffectContainer with ContainerTag: %s"), *ContainerTag.ToString());
-	UE_LOG(LogTemp, Warning, TEXT("=== FGameplayEventData Details ==="));
-
-	UE_LOG(LogTemp, Warning, TEXT("EventTag: %s"), *EventData.EventTag.ToString());
-	UE_LOG(LogTemp, Warning, TEXT("Instigator: %s"), *GetNameSafe(EventData.Instigator));
-	UE_LOG(LogTemp, Warning, TEXT("Target: %s"), *GetNameSafe(EventData.Target));
-	UE_LOG(LogTemp, Warning, TEXT("EventMagnitude: %f"), EventData.EventMagnitude);
-	UE_LOG(LogTemp, Warning, TEXT("OptionalObject: %s"), *GetNameSafe(EventData.OptionalObject));
-	UE_LOG(LogTemp, Warning, TEXT("OptionalObject2: %s"), *GetNameSafe(EventData.OptionalObject2));
-
-
 	FYogGameplayEffectContainerSpec Spec = MakeEffectContainerSpec(ContainerTag, EventData, OverrideGameplayLevel);
 
 
@@ -254,17 +243,20 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpec(FGa
 {
 	AYogCharacterBase* OwningCharacter = GetOwnerCharacterInfo();
 
-	//TODO: Find the gameplayeffect stack (card+ unique feature)
-	UYogAbilitySystemComponent* ASC = OwningCharacter->GetASC();
-
-	//Find the Container var in PLASYEBASE(Avatar), and find if tag exist in the buff
-	FYogGameplayEffectContainer* FoundContainer = ASC->EffectContainerMap.Find(ContainerTag);
-
-
-	if (FoundContainer)
+	// 使用角色基类的默认近战配置（DefaultMeleeTargetType + DefaultMeleeDamageEffect）
+	if (OwningCharacter && OwningCharacter->DefaultMeleeDamageEffect)
 	{
-		return MakeEffectContainerSpecFromContainer(*FoundContainer, EventData, OverrideGameplayLevel);
+		FYogGameplayEffectContainer DefaultContainer;
+		DefaultContainer.TargetType = OwningCharacter->DefaultMeleeTargetType;
+
+		FYogEffectPorperty EffectProp;
+		EffectProp.GameplayEffect = OwningCharacter->DefaultMeleeDamageEffect;
+		EffectProp.EffectLevel    = 1;
+		DefaultContainer.EffectClasses.Add(EffectProp);
+
+		return MakeEffectContainerSpecFromContainer(DefaultContainer, EventData, OverrideGameplayLevel);
 	}
+
 	return FYogGameplayEffectContainerSpec();
 }
 
@@ -333,6 +325,11 @@ void UYogGameplayAbility::OnCooldownEffectRemoved(const FActiveGameplayEffect& E
 
 
 //TODO: NEED TO CHANGE FUNCTION NAME FOR FURTHER DIFFERENT 
+FActionData UYogGameplayAbility::GetAbilityActionData_Implementation() const
+{
+	return FActionData();
+}
+
 FActionData UYogGameplayAbility::GetRowData(FDataTableRowHandle action_row)
 {
 	FActionData Result;

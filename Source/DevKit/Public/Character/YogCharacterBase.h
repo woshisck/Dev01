@@ -7,7 +7,8 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Attribute/DamageAttributeSet.h"
 #include "AbilitySystem/Attribute/RuneAttributeSet.h"
-
+#include "AbilitySystem/Abilities/YogTargetType.h"
+#include "AbilitySystem/GameplayEffect/YogGameplayEffect.h"
 
 #include "AbilitySystemInterface.h"
 #include "Data/CharacterData.h"
@@ -146,6 +147,18 @@ public:
 	// 基础通用技能集路径（代码固定，无需编辑器配置）
 	// 对应 Content 资产：Content/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial
 	static constexpr const TCHAR* BaseAbilitySetPath = TEXT("/Game/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial");
+
+	//---------------------------------------
+	//	近战伤害默认配置（子类在蓝图 Class Defaults 中填写，无需每个 EffectContainerMap 重复配置）
+	//---------------------------------------
+
+	/** 近战攻击默认使用的 TargetType（决定打击范围和目标筛选）。子类 Blueprint 填写对应 B_TT_Enemy / B_TT_Player。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat|Melee")
+	TSubclassOf<UYogTargetType> DefaultMeleeTargetType;
+
+	/** 近战攻击默认施加的 GameplayEffect（通常为 GE_WeaponHitDamage）。子类 Blueprint 填写。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat|Melee")
+	TSubclassOf<UYogGameplayEffect> DefaultMeleeDamageEffect;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	//TObjectPtr<UAbilityData> AbilityData;

@@ -1,7 +1,7 @@
 # 设计文档索引
 
 > 项目：星骸降临 Dev01  
-> 更新：2026-04-10  
+> 更新：2026-04-10（新增主循环设计文档 + 开发任务报告）  
 > 新增文档必须在此更新，参见 [DocWritingGuide.md](DocWritingGuide.md)
 
 ---
@@ -45,6 +45,7 @@
 
 | 文档 | 内容 | 适用人群 |
 |---|---|---|
+| [攻击伤害配置指南](FeatureConfig/AttackDamage_ConfigGuide.md) | 配置 EffectContainerMap 使攻击造成伤害，含多段连击示例 | 策划 |
 | [行为树攻击任务配置](FeatureConfig/BT_AttackTask_ConfigGuide.md) | `BTTask_ActivateAbilityByTag` 用法、随机攻击、距离判断 | 策划 |
 | [敌人连击蒙太奇配置](FeatureConfig/EnemyCombo_ConfigGuide.md) | 多段连击蒙太奇结构 + AN_EnemyComboSection 配置 | 策划 |
 | [死亡消解特效配置](FeatureConfig/DeathDissolve_ConfigGuide.md) | GA_Dead + GameplayCue 消解粒子配置 | 策划 |
@@ -56,6 +57,9 @@
 
 | 文档 | 内容 | 适用人群 |
 |---|---|---|
+| [游戏主循环设计](Systems/MainLoop_Design.md) | 核心循环流程、房间类型、奖励系统、章节结构、局外成长 | 策划 + 程序 |
+| [攻击伤害系统 — 设计说明](Systems/AttackDamage_Design.md) | 攻击判定流程、伤害容器设计原理、与其他系统关系 | 策划 |
+| [攻击伤害系统 — 技术文档](Systems/AttackDamage_Technical.md) | 架构图、核心函数、CDO 问题、改造方案（移 GA / C++ TargetType） | 程序 |
 | [热度系统设计](Systems/HeatSystem_Design.md) | 热度阶段机制、衰减规则、符文联动 | 策划 + 程序 |
 | [充能系统指南](Systems/SkillCharge_Guide.md) | SkillChargeComponent 配置和使用 | 策划 + 程序 |
 | [关卡系统配置指南](Systems/LevelSystem_ConfigGuide.md) | 关卡/波次配置 | 策划 |
@@ -67,6 +71,10 @@
 
 | 文档 | 内容 |
 |---|---|
+| [近战攻击 C++ 迁移 2026-04-10](WorkReports/MeleeAttack_CppMigration_20260410.md) | GA_MeleeAttack / TargetType_Melee / 连击链 / 命中框调试迁移到 C++ 的完整记录 |
+| [当前进展 2026-04-10](WorkReports/CurrentProgress_20260410.md) | 项目阶段概述、已完成 / 未完成功能速览、本周目标 |
+| [开发路线图 2026-04-10](WorkReports/DevRoadmap_20260410.md) | 详细任务规划（P0-P3）、各任务步骤、里程碑时间线 |
+| [主循环开发状态 2026-04-10](WorkReports/MainLoop_WorkReport_20260410.md) | 主循环实现进度、已确认设计决策、设计遗漏分析 |
 | [热度系统工作报告 2026-04-06](WorkReports/HeatSystem_WorkReport_20260406.md) | 热度系统实现阶段总结 |
 
 ---
@@ -82,7 +90,11 @@
 ## 快速定位
 
 **策划：我想……**
-- 配置敌人攻击 → [行为树攻击任务配置](FeatureConfig/BT_AttackTask_ConfigGuide.md)
+- 了解游戏整体循环设计 → [游戏主循环设计](Systems/MainLoop_Design.md)
+- 查看当前开发进度和优先级 → [主循环工作报告](WorkReports/MainLoop_WorkReport_20260410.md)
+- 配置攻击造成伤害 → [攻击伤害配置指南](FeatureConfig/AttackDamage_ConfigGuide.md)
+- 攻击伤害的设计原理 → [攻击伤害系统设计说明](Systems/AttackDamage_Design.md)
+- 配置敌人攻击行为 → [行为树攻击任务配置](FeatureConfig/BT_AttackTask_ConfigGuide.md)
 - 配置死亡消解 → [死亡消解特效配置](FeatureConfig/DeathDissolve_ConfigGuide.md)
 - 配置多段连击 → [敌人连击蒙太奇配置](FeatureConfig/EnemyCombo_ConfigGuide.md)
 - 不知道用什么 Tag → [Tag 情景使用指南](Tags/Tag_SituationalGuide.md)
@@ -91,6 +103,8 @@
 - 设计新符文 → [BuffFlow 符文工作流](BuffFlow/BuffFlow_RuneWorkflow.md)
 
 **程序：我想……**
+- 了解主循环开发任务优先级 → [主循环工作报告](WorkReports/MainLoop_WorkReport_20260410.md)
+- 了解攻击伤害架构及改造方案 → [攻击伤害系统技术文档](Systems/AttackDamage_Technical.md)
 - 了解 Tag 架构 → [GameplayTag 总体设计指南](Tags/GameplayTag_MasterGuide.md)
 - 了解 StateConflict 实现 → [状态冲突系统技术文档](StateConflict/StateConflict_Technical.md)
 - 接入 BuffFlow → [BuffFlow 程序接入指南](BuffFlow/BuffFlow_ProgrammerGuide.md)
