@@ -7,6 +7,7 @@
 #include "Engine/GameInstance.h"
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
+#include "Data/RoomDataAsset.h"
 
 APortal::APortal(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -29,9 +30,10 @@ void APortal::BeginPlay()
 	DisablePortal();
 }
 
-void APortal::Open(FName InSelectedLevel)
+void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom)
 {
 	SelectedLevel = InSelectedLevel;
+	SelectedRoom  = InSelectedRoom;
 	bIsOpen = true;
 	EnablePortal();
 }
@@ -63,9 +65,9 @@ void APortal::EnterPortal_Implementation(APlayerCharacterBase* ReceivingChar, UY
 		SaveSubsystem->WriteSaveGame();
 	}
 
-	// 通知 GameMode 保存跑局状态后切关
+	// 通知 GameMode 保存跑局状态（含本门选定的房间配置）后切关
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
 	{
-		GM->TransitionToLevel(SelectedLevel);
+		GM->TransitionToLevel(SelectedLevel, SelectedRoom);
 	}
 }

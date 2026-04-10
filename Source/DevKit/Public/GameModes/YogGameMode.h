@@ -8,6 +8,7 @@
 #include "GameModes/SpawnTypes.h"
 #include "Data/CampaignDataAsset.h"
 #include "Data/BuffDataAsset.h"
+#include "Data/RoomDataAsset.h"
 #include "YogGameMode.generated.h"
 
 class AYogPlayerControllerBase;
@@ -163,9 +164,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void ConfirmArrangementAndTransition();
 
-	// Portal 触发切关：保存跑局状态后 OpenLevel（由 APortal::EnterPortal 调用）
+	// Portal 触发切关：保存跑局状态（含选定房间）后 OpenLevel（由 APortal::EnterPortal 调用）
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
-	void TransitionToLevel(FName NextLevel);
+	void TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom = nullptr);
 
 	// 从 LootPool 中随机生成战利品选项并广播（由 ARewardPickup 触发）
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
@@ -192,6 +193,9 @@ protected:
 
 	// ---- 传送门激活 ----
 	void ActivatePortals();
+
+	// 根据 FFloorConfig 的概率权重，从 CampaignData 的类型池中随机选取一个 DA_Room
+	URoomDataAsset* RollRoomForFloor(const FFloorConfig& Config);
 
 	// ---- 刷怪算法 ----
 

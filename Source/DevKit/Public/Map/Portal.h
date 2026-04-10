@@ -8,6 +8,7 @@ class APlayerCharacterBase;
 class UBillboardComponent;
 class UBoxComponent;
 class UYogSaveSubsystem;
+class URoomDataAsset;
 
 UCLASS()
 class DEVKIT_API APortal : public AActor
@@ -25,9 +26,9 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void DisablePortal();
 
-	// GameMode 在关卡结束时调用，分配目标关卡并开启门
+	// GameMode 在关卡结束时调用，分配目标关卡和房间配置并开启门
 	UFUNCTION(BlueprintCallable)
-	void Open(FName InSelectedLevel);
+	void Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom);
 
 	// 直接通过名字切换关卡（保留旧接口，BP 可调）
 	UFUNCTION(BlueprintCallable)
@@ -53,6 +54,10 @@ public:
 	// GameMode 写入的目标关卡名（关卡结束时由随机池选定）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")
 	FName SelectedLevel;
+
+	// GameMode 写入的下一关房间配置（骰子决定类型后从类型池中选定）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")
+	TObjectPtr<URoomDataAsset> SelectedRoom;
 
 	// 是否已开启（BeginPlay 时为 false，GameMode 调 Open() 后变 true）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")

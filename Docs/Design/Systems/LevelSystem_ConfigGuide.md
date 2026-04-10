@@ -2,7 +2,7 @@
 
 > 面向：策划 / 关卡设计  
 > 配套文档：[传送门配置指南](../FeatureConfig/Portal_ConfigGuide.md)、[关卡 Buff 池配置指南](../FeatureConfig/BuffPool_ConfigGuide.md)  
-> 最后更新：2026-04-10（更新难度配置结构、Buff Pool 类型、传送门目标配置）
+> 最后更新：2026-04-10（更新 FloorTable 结构：FFloorEntry→FFloorConfig，移除直接 RoomData 引用，改为四类型 RoomPool + 骰子系统）
 
 ---
 
@@ -217,50 +217,69 @@ DA_Room_Forest_Normal     森林场景普通关
 
 ---
 
-### 2.2 填写 Floor Table（关卡序列）
+### 2.2 填写 Floor Table（关卡序列 — 宏观配置）
+
+> ⚠️ **新架构说明（2026-04-10）**：Floor Table 现在填的是宏观配置，**不再直接指定 DA_Room**。
+> 具体使用哪个 DA_Room，由关卡结束时对每个传送门独立骰子决定，从下方四个类型池中选取。
 
 打开资产，在 **Floor Table** 里按游玩顺序添加每一关。
 
-点 **+** 添加条目，每条代表一关：
+点 **+** 添加条目，每条 `FFloorConfig` 代表一关的宏观参数：
 
 | 字段 | 说明 |
 |------|------|
 | **Floor Number** | 填第几关（1、2、3…），只是参考标注，不影响运行 |
-| **Room Data** | 选择这关对应的 `DA_Room_xxx` |
-| **Difficulty** | 选 `Low` / `Medium` / `High` / `Elite` |
-| **Level Name** | 填 UE 关卡资产名（预留字段，关卡切换以传送门目标为准）|
-| **Portal Destinations** | 填写本关各传送门的目标关卡配置（见下方说明）|
+| **Difficulty** | 选 `Low` / `Medium` / `High` / `Elite`，决定使用哪套 DifficultyConfig |
+| **bForce Elite** | 勾上后本关强制为精英房，覆盖 EliteChance |
+| **Elite Chance** | 精英房概率（0.0~1.0），例如 0.2 = 20% 概率 |
+| **Shop Chance** | 商店房概率（0.0~1.0）|
+| **Event Chance** | 事件房概率（0.0~1.0）|
+| **Common/Rare/Epic Weight** | 符文奖励稀有度相对权重（相加无需为 1）|
+| **Portal Destinations** | 填写本关各传送门的目标地图池（见下方说明）|
 
-#### Portal Destinations（传送门目标配置）
+> **注意：** EliteChance + ShopChance + EventChance 之和超过 1.0 是允许的，超出部分会使普通房变为 0，但不会报错。建议总概率控制在 0.5 以下，留足普通房空间。
 
-这是关卡结束后玩家能通过哪些门去往哪里的配置。
+#### Portal Destinations（传送门目标地图池）
+
+这是关卡结束后玩家能通过哪些门去往哪里的配置。**地图名与房间类型无关**，同一张地图可以承载任意房间类型。
 
 点 **Portal Destinations** 右侧的 **+**，每条对应场景中一扇门：
 
 | 子字段 | 说明 |
 |--------|------|
 | **Portal Index** | 对应场景中 APortal Actor 的 Index 值 |
-| **Next Level Pool** | 目标关卡名数组，关卡结束时随机选一个 |
+| **Next Level Pool** | 目标关卡名数组，关卡结束时随机选一个（类型无关）|
 
 > **详细配置步骤** 参见 [传送门配置指南](../FeatureConfig/Portal_ConfigGuide.md)
 
-**Difficulty 选项说明：**
-- `Low` — 使用 DA_Room 的 Low Config
-- `Medium` — 使用 Medium Config
-- `High` — 使用 High Config
-- `Elite` — 也使用 High Config，但会额外允许精英专属怪出现（前提是 DA_Room 的 Is Elite Room=true）
-
 **示例序列（12关一局）：**
 
-| Floor | Room Data | Difficulty |
-|-------|-----------|-----------|
-| 1 | DA_Room_Prison_Normal | Low |
-| 2 | DA_Room_Prison_Normal | Low |
-| 3 | DA_Room_Forest_Normal | Medium |
-| 4 | DA_Room_Prison_Elite | Elite |
-| 5 | DA_Room_Forest_Normal | Medium |
-| 6 | DA_Room_Cave_Normal | High |
-| ... | ... | ... |
+| Floor | Difficulty | EliteChance | ShopChance | EventChance |
+|-------|-----------|-------------|------------|-------------|
+| 1 | Low | 0 | 0 | 0 |
+| 2 | Low | 0 | 0 | 0 |
+| 3 | Medium | 0.2 | 0.1 | 0.1 |
+| 4 | Medium | 0 | 0 | 0 | bForceElite=true |
+| 5 | Medium | 0.2 | 0.15 | 0.1 |
+| 6 | High | 0.3 | 0.15 | 0.1 |
+| ... | ... | ... | ... | ... |
+
+---
+
+### 2.3 填写四个房间类型池
+
+在 DA_Campaign 底部，找到 **Room Pools** 分类，填写四类 DA_Room：
+
+| 字段 | 说明 |
+|------|------|
+| **Normal Room Pool** | 普通战斗房 DA_Room 列表（最常见，必填）|
+| **Elite Room Pool** | 精英战斗房 DA_Room 列表（EliteChance > 0 时需要填）|
+| **Shop Room Pool** | 商店房 DA_Room 列表（ShopChance > 0 时需要填）|
+| **Event Room Pool** | 事件房 DA_Room 列表（EventChance > 0 时需要填）|
+
+系统会按骰子结果从对应池中**随机抽一个** DA_Room 给该传送门的分支使用。若某个类型池为空，系统自动降级到 Normal Pool。
+
+**建议：** 每个池子至少放 2-3 个不同的 DA_Room，以保证同一关卡多次游玩时有变化感。
 
 ---
 

@@ -3,6 +3,7 @@
 #include "DevKit.h"
 #include "Engine/GameInstance.h"
 #include "Component/BackpackGridComponent.h"
+#include "Data/RoomDataAsset.h"
 
 #include "YogGameInstanceBase.generated.h"
 
@@ -116,6 +117,10 @@ public:
 	// 局内跑局状态快照（切关前写入，新关卡 BeginPlay 后恢复）
 	UPROPERTY()
 	FRunState PendingRunState;
+
+	// 下一关要使用的房间配置（ActivatePortals 由传送门写入，StartLevelSpawning 读取）
+	UPROPERTY()
+	TObjectPtr<URoomDataAsset> PendingRoomData;
 
 	// 清空跑局状态（玩家死亡时调用，使下一局从默认值开始）
 	void ClearRunState();

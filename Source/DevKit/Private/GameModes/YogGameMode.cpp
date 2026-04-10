@@ -349,13 +349,9 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 		}
 	}
 
-	// 加载下一关：优先读 CampaignData（新系统），回退 LevelSequenceData（旧系统）
+	// 加载下一关：回退到旧系统 LevelSequenceData（新系统由 Portal 触发 TransitionToLevel）
 	FName NextLevelName;
-	if (CampaignData && CampaignData->FloorTable.IsValidIndex(CurrentFloor))
-	{
-		NextLevelName = CampaignData->FloorTable[CurrentFloor].LevelName;
-	}
-	else if (LevelSequenceData && !LevelSequenceData->NextLevelName.IsNone())
+	if (LevelSequenceData && !LevelSequenceData->NextLevelName.IsNone())
 	{
 		NextLevelName = LevelSequenceData->NextLevelName;
 	}
@@ -418,12 +414,10 @@ void AYogGameMode::StartLevelSpawning()
 	}
 
 	// 从 GameInstance 读取上一关存储的楼层推进（切关后 GameMode 重建，CurrentFloor 默认为 1）
-	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+	if (GI && GI->PendingNextFloor > 1)
 	{
-		if (GI->PendingNextFloor > 1)
-		{
-			CurrentFloor = GI->PendingNextFloor;
-		}
+		CurrentFloor = GI->PendingNextFloor;
 	}
 
 	// FloorTable 下标从 0 开始，CurrentFloor 从 1 开始
@@ -434,47 +428,63 @@ void AYogGameMode::StartLevelSpawning()
 		return;
 	}
 
-	const FFloorEntry& Entry = CampaignData->FloorTable[TableIndex];
-	if (!Entry.RoomData)
+	const FFloorConfig& Config = CampaignData->FloorTable[TableIndex];
+
+	// ---- 确定本关使用的 DA_Room ----
+	// 优先读取 GI 中由传送门写入的 PendingRoomData（切关传递）
+	// 若为空（第一关或测试场景），直接按本关 FloorConfig 骰子选取
+	if (GI && GI->PendingRoomData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: 第 %d 关的 RoomData 为空"), CurrentFloor);
+		ActiveRoomData = GI->PendingRoomData;
+		GI->PendingRoomData = nullptr; // 清除，避免复用
+		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 使用 Portal 传递的 RoomData = %s"), *ActiveRoomData->GetName());
+	}
+	else
+	{
+		ActiveRoomData = RollRoomForFloor(Config);
+		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 第一关/无 PendingRoomData，骰子选取 RoomData = %s"),
+			ActiveRoomData ? *ActiveRoomData->GetName() : TEXT("null"));
+	}
+
+	if (!ActiveRoomData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: 第 %d 关无法获取 RoomData，检查 CampaignData 的 RoomPool 是否为空"), CurrentFloor);
 		return;
 	}
 
-	bCurrentRoomIsElite = Entry.RoomData->bIsEliteRoom;
+	bCurrentRoomIsElite = ActiveRoomData->bIsEliteRoom;
 
-	// 根据难度等级选取对应的配置
+	// 根据难度等级选取对应的 DifficultyConfig
 	// 按请求难度查表，找不到则降级到列表中第一档（最低难度）
-	const FDifficultyConfig* Config = nullptr;
-	for (const FDifficultyEntry& DE : Entry.RoomData->DifficultyConfigs)
+	const FDifficultyConfig* DiffConfig = nullptr;
+	for (const FDifficultyEntry& DE : ActiveRoomData->DifficultyConfigs)
 	{
-		if (DE.Tier == Entry.Difficulty)
+		if (DE.Tier == Config.Difficulty)
 		{
-			Config = &DE.Config;
+			DiffConfig = &DE.Config;
 			break;
 		}
 	}
-	if (!Config && Entry.RoomData->DifficultyConfigs.Num() > 0)
+	if (!DiffConfig && ActiveRoomData->DifficultyConfigs.Num() > 0)
 	{
-		Config = &Entry.RoomData->DifficultyConfigs[0].Config;
+		DiffConfig = &ActiveRoomData->DifficultyConfigs[0].Config;
 		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: 难度 %d 无匹配配置，降级到第一档"),
-			(int32)Entry.Difficulty);
+			(int32)Config.Difficulty);
 	}
-	if (!Config)
+	if (!DiffConfig)
 	{
 		UE_LOG(LogTemp, Error, TEXT("StartLevelSpawning: RoomData 没有任何难度配置，跳过"));
 		return;
 	}
 
-	// 缓存当前房间数据和难度配置（整理阶段发放战利品/金币时使用）
-	ActiveRoomData = Entry.RoomData;
-	ActiveDifficultyConfig = *Config;
+	// 缓存难度配置（整理阶段发放战利品/金币时使用）
+	ActiveDifficultyConfig = *DiffConfig;
 
 	// 选取本关 Buff（进关时确定，新怪刷出时施加）
-	ActiveRoomBuffs = SelectRoomBuffs(*Entry.RoomData, *Config);
+	ActiveRoomBuffs = SelectRoomBuffs(*ActiveRoomData, *DiffConfig);
 
 	// 生成波次计划
-	GenerateWavePlans(*Config, Entry.RoomData);
+	GenerateWavePlans(*DiffConfig, ActiveRoomData);
 
 	// 重置运行时状态
 	CurrentWaveIndex  = -1;
@@ -834,7 +844,7 @@ void AYogGameMode::GenerateLootOptions()
 	OnLootGenerated.Broadcast(CurrentLootOptions);
 }
 
-void AYogGameMode::TransitionToLevel(FName NextLevel)
+void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 {
 	if (NextLevel.IsNone()) return;
 
@@ -844,19 +854,22 @@ void AYogGameMode::TransitionToLevel(FName NextLevel)
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
 		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 
-	if (Player)
+	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
 	{
-		// 锁背包
-		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-		{
-			Backpack->SetLocked(true);
-		}
+		GI->PendingNextFloor = CurrentFloor + 1;
 
-		// 保存跑局状态到 GI
-		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
-		{
-			GI->PendingNextFloor = CurrentFloor + 1;
+		// 写入下一关的房间配置（由传送门的骰子结果决定）
+		GI->PendingRoomData = NextRoom;
 
+		if (Player)
+		{
+			// 锁背包
+			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
+			{
+				Backpack->SetLocked(true);
+			}
+
+			// 保存跑局状态
 			FRunState NewState;
 			NewState.bIsValid    = true;
 			NewState.CurrentGold = Player->GetGold();
@@ -879,27 +892,69 @@ void AYogGameMode::TransitionToLevel(FName NextLevel)
 			}
 
 			GI->PendingRunState = NewState;
-			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Gold=%d Phase=%d Runes=%d"),
-				NewState.CurrentHP, NewState.CurrentGold, NewState.CurrentPhase, NewState.PlacedRunes.Num());
+			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Gold=%d Phase=%d Runes=%d Room=%s"),
+				NewState.CurrentHP, NewState.CurrentGold, NewState.CurrentPhase, NewState.PlacedRunes.Num(),
+				NextRoom ? *NextRoom->GetName() : TEXT("null"));
 		}
 	}
 
 	UGameplayStatics::OpenLevel(GetWorld(), NextLevel);
 }
 
+URoomDataAsset* AYogGameMode::RollRoomForFloor(const FFloorConfig& Config)
+{
+	if (!CampaignData) return nullptr;
+
+	// 强制精英关：直接从精英池选
+	if (Config.bForceElite)
+	{
+		if (CampaignData->EliteRoomPool.Num() > 0)
+			return CampaignData->EliteRoomPool[FMath::RandRange(0, CampaignData->EliteRoomPool.Num() - 1)];
+	}
+
+	// 按概率阈值决定房间类型（相加后超出1.0的概率自动折算为Normal）
+	const float Roll = FMath::FRand();
+	TArray<TObjectPtr<URoomDataAsset>>* Pool = nullptr;
+
+	if (Roll < Config.EliteChance)
+		Pool = &CampaignData->EliteRoomPool;
+	else if (Roll < Config.EliteChance + Config.ShopChance)
+		Pool = &CampaignData->ShopRoomPool;
+	else if (Roll < Config.EliteChance + Config.ShopChance + Config.EventChance)
+		Pool = &CampaignData->EventRoomPool;
+	else
+		Pool = &CampaignData->NormalRoomPool;
+
+	// 若选中的类型池为空，降级到 Normal 池
+	if (!Pool || Pool->Num() == 0)
+		Pool = &CampaignData->NormalRoomPool;
+
+	if (Pool && Pool->Num() > 0)
+		return (*Pool)[FMath::RandRange(0, Pool->Num() - 1)];
+
+	return nullptr;
+}
+
 void AYogGameMode::ActivatePortals()
 {
 	if (!CampaignData) return;
 
-	const int32 TableIndex = CurrentFloor - 1;
-	if (!CampaignData->FloorTable.IsValidIndex(TableIndex)) return;
+	// 当前关的 FloorConfig（含 PortalDestinations）
+	const int32 CurrIdx = CurrentFloor - 1;
+	if (!CampaignData->FloorTable.IsValidIndex(CurrIdx)) return;
+	const FFloorConfig& CurrConfig = CampaignData->FloorTable[CurrIdx];
 
-	const FFloorEntry& Entry = CampaignData->FloorTable[TableIndex];
-	if (Entry.PortalDestinations.IsEmpty())
+	if (CurrConfig.PortalDestinations.IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ActivatePortals: 当前关卡没有配置 PortalDestinations"));
 		return;
 	}
+
+	// 下一关的 FloorConfig（用于骰子房间类型）
+	const int32 NextIdx = CurrentFloor; // 0-based，CurrentFloor 是 1-based 下一关的 0-based 下标
+	const FFloorConfig* NextConfig = CampaignData->FloorTable.IsValidIndex(NextIdx)
+		? &CampaignData->FloorTable[NextIdx]
+		: nullptr;
 
 	// 收集场景中所有 APortal，建立 Index → APortal* 映射
 	TArray<AActor*> PortalActors;
@@ -909,13 +964,11 @@ void AYogGameMode::ActivatePortals()
 	for (AActor* Actor : PortalActors)
 	{
 		if (APortal* Portal = Cast<APortal>(Actor))
-		{
 			PortalMap.Add(Portal->Index, Portal);
-		}
 	}
 
-	// Fisher-Yates 洗牌，保证至少第一个门必须开启
-	TArray<FPortalDestConfig> Configs = Entry.PortalDestinations;
+	// Fisher-Yates 洗牌 PortalDestinations，保证第一个必开
+	TArray<FPortalDestConfig> Configs = CurrConfig.PortalDestinations;
 	for (int32 i = Configs.Num() - 1; i > 0; i--)
 	{
 		int32 j = FMath::RandRange(0, i);
@@ -923,25 +976,32 @@ void AYogGameMode::ActivatePortals()
 	}
 
 	bool bAtLeastOneOpened = false;
-	for (const FPortalDestConfig& Config : Configs)
+	for (const FPortalDestConfig& Cfg : Configs)
 	{
-		if (Config.NextLevelPool.IsEmpty()) continue;
+		if (Cfg.NextLevelPool.IsEmpty()) continue;
 
-		APortal** Found = PortalMap.Find(Config.PortalIndex);
+		APortal** Found = PortalMap.Find(Cfg.PortalIndex);
 		if (!Found || !(*Found)) continue;
 
 		// 洗牌后第一个必开；后续 50% 概率
 		const bool bShouldOpen = !bAtLeastOneOpened || FMath::RandBool();
-		if (bShouldOpen)
+		if (!bShouldOpen)
 		{
-			const FName NextLevel = Config.NextLevelPool[FMath::RandRange(0, Config.NextLevelPool.Num() - 1)];
-			(*Found)->Open(NextLevel);
-			bAtLeastOneOpened = true;
-			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 开启 → %s"), Config.PortalIndex, *NextLevel.ToString());
+			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 随机未开启"), Cfg.PortalIndex);
+			continue;
 		}
-		else
-		{
-			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 随机未开启"), Config.PortalIndex);
-		}
+
+		// 每个传送门独立骰子决定下一关的房间类型
+		URoomDataAsset* ChosenRoom = NextConfig ? RollRoomForFloor(*NextConfig) : nullptr;
+
+		// 从该门的关卡池随机选一张地图（类型无关）
+		const FName ChosenLevel = Cfg.NextLevelPool[FMath::RandRange(0, Cfg.NextLevelPool.Num() - 1)];
+
+		(*Found)->Open(ChosenLevel, ChosenRoom);
+		bAtLeastOneOpened = true;
+
+		UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 开启 → 关卡=%s 房间=%s"),
+			Cfg.PortalIndex, *ChosenLevel.ToString(),
+			ChosenRoom ? *ChosenRoom->GetName() : TEXT("null"));
 	}
 }

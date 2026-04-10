@@ -1,7 +1,7 @@
 # 设计文档索引
 
 > 项目：星骸降临 Dev01  
-> 更新：2026-04-10（新增传送门系统 / 跨关状态 / BuffPool 文档，更新关卡系统文档）  
+> 更新：2026-04-10（新增传送门系统 / 跨关状态 / BuffPool 文档；FloorTable 重构为随机房间骰子系统）  
 > 新增文档必须在此更新，参见 [DocWritingGuide.md](DocWritingGuide.md)
 
 ---
