@@ -245,7 +245,6 @@ protected:
 	int32             CurrentWaveIndex    = -1;
 	int32             TotalAliveEnemies   = 0;
 	bool              bAllWavesSpawned    = false;
-	bool              bCurrentRoomIsElite = false;
 
 	FTimerHandle WaveTriggerTimer;
 	FTimerHandle OneByOneTimer;

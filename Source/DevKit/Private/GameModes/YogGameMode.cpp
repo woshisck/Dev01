@@ -460,8 +460,6 @@ void AYogGameMode::StartLevelSpawning()
 		return;
 	}
 
-	static const FGameplayTag EliteTag = FGameplayTag::RequestGameplayTag(FName("Room.Type.Elite"));
-	bCurrentRoomIsElite = ActiveRoomData->RoomTypeTag == EliteTag;
 
 	// 根据难度等级选取对应的 DifficultyConfig
 	// 按请求难度查表，找不到则降级到列表中第一档（最低难度）
@@ -571,7 +569,6 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(
 		for (const FEnemyEntry& E : Room->EnemyPool)
 		{
 			if (!E.EnemyData || !E.EnemyData->EnemyClass) continue;
-			if (E.EnemyData->bEliteOnly && !bCurrentRoomIsElite) continue;
 			// 第一只不过滤预算（允许超出），后续必须在预算内
 			if (!bFirstEnemy && E.EnemyData->DifficultyScore > RemainingBudget) continue;
 			Candidates.Add(E);
@@ -922,13 +919,19 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 {
 	static const FGameplayTag NormalTag = FGameplayTag::RequestGameplayTag(FName("Room.Type.Normal"));
 
+	// 层级过滤：Campaign 设置了 LayerTag 时，只选包含该 Tag 的房间
+	const FGameplayTag& LayerTag = CampaignData ? CampaignData->LayerTag : FGameplayTag::EmptyTag;
+
 	auto PickByTag = [&](const TArray<TObjectPtr<URoomDataAsset>>& Pool) -> URoomDataAsset*
 	{
 		TArray<URoomDataAsset*> Candidates;
 		for (const TObjectPtr<URoomDataAsset>& Room : Pool)
 		{
-			if (Room && Room->RoomTypeTag == RequiredTag)
-				Candidates.Add(Room);
+			if (!Room) continue;
+			if (!Room->RoomTags.HasTag(RequiredTag)) continue;
+			// LayerTag 有效时，房间必须也包含该层级 Tag
+			if (LayerTag.IsValid() && !Room->RoomTags.HasTag(LayerTag)) continue;
+			Candidates.Add(Room);
 		}
 		return Candidates.IsEmpty()
 			? nullptr
@@ -944,18 +947,20 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 
 	if (!CampaignData) return nullptr;
 
-	// 2. Campaign 全局 RoomPool（同类型）
+	// 2. Campaign 全局 RoomPool（同类型 + 同层级）
 	if (URoomDataAsset* Found = PickByTag(CampaignData->RoomPool))
 		return Found;
 
-	// 3. 退化为 Normal（Shop/Event 不存在时不强制出现）
+	// 3. 退化为 Normal（Shop/Event 无对应房间时不强制出现）
 	if (RequiredTag != NormalTag)
 	{
 		TArray<URoomDataAsset*> Fallback;
 		for (const TObjectPtr<URoomDataAsset>& Room : CampaignData->RoomPool)
 		{
-			if (Room && Room->RoomTypeTag == NormalTag)
-				Fallback.Add(Room);
+			if (!Room) continue;
+			if (!Room->RoomTags.HasTag(NormalTag)) continue;
+			if (LayerTag.IsValid() && !Room->RoomTags.HasTag(LayerTag)) continue;
+			Fallback.Add(Room);
 		}
 		if (!Fallback.IsEmpty())
 			return Fallback[FMath::RandRange(0, Fallback.Num() - 1)];

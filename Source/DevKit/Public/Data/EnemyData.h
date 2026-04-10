@@ -41,8 +41,4 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
 	int32 DifficultyScore = 3;
 
-	// 是否为精英专属（仅精英关可刷出）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
-	bool bEliteOnly = false;
-
 };

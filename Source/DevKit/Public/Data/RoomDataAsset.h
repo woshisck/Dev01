@@ -60,10 +60,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
     FName RoomName;
 
-    // 房间类型标签（Room.Type.Normal / Room.Type.Elite / Room.Type.Shop / Room.Type.Event）
-    // 决定此 DA_Room 属于哪种关卡类型，系统按 FloorConfig 概率骰子匹配
+    // 房间标签集（同时包含类型 + 层级，两个维度）
+    // 类型示例：Room.Type.Normal / Room.Type.Elite / Room.Type.Shop / Room.Type.Event
+    // 层级示例：Room.Layer.L1 / Room.Layer.L2 / Room.Layer.L3
+    // SelectRoomByTag 同时匹配类型 Tag 和 Campaign 的 LayerTag
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
-    FGameplayTag RoomTypeTag;
+    FGameplayTagContainer RoomTags;
 
     // =========================================================
     // 敌人池

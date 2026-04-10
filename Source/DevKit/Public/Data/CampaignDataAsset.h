@@ -75,7 +75,13 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Campaign")
     TArray<FFloorConfig> FloorTable;
 
-    // ---- 全局 DA_Room 池（各房间自带 RoomTypeTag 标明类型）----
+    // 此 Campaign 对应的大关卡层级（Room.Layer.L1 / L2 / L3 ...）
+    // SelectRoomByTag 过滤时，只选包含此 LayerTag 的 DA_Room
+    // 若不填，层级过滤跳过（调试/单关测试时可留空）
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Campaign")
+    FGameplayTag LayerTag;
+
+    // ---- 全局 DA_Room 池（各房间自带 RoomTags 标明类型+层级）----
     // 关卡结算时，系统先查各传送门的专属 RoomPool，找不到对应类型才从此全局池回退
     // 策划在此填写所有可用的 DA_Room 资产（Normal / Elite / Shop / Event 均放在一起）
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomPool")
