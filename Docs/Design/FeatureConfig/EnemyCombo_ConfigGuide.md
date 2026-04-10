@@ -55,6 +55,24 @@ Section 的顺序在 Timeline 上会显示为：
 
 最后一段不放 Notify，蒙太奇播完后自然触发 `OnCompleted`，GA 结束，BT Task 返回 Succeeded。
 
+### Notify 参数说明
+
+| 参数 | 默认值 | 说明 |
+|---|---|---|
+| `NextSection` | 空 | 跳转目标 Section 名称。填写后触发时立即跳节；留空则不跳 |
+| `BlendOutTime` | `0.2` | 连招结束时的混出时间（秒）。**仅在 NextSection 为空时生效** |
+| `bRequireHit` | `false` | 开启后仅在本段命中目标时才继续连招，未命中则停止连击链 |
+
+> ⭐ **优先级规则**：`NextSection` 优先于 `BlendOutTime`。若同时填写了 `NextSection` 和 `BlendOutTime > 0`，以 `NextSection` 为准（跳节继续连击），`BlendOutTime` 只在 `NextSection` 为空时触发平滑结束。
+
+### 连击结束行为速查
+
+| NextSection | BlendOutTime | 行为 |
+|---|---|---|
+| 填写（如 `Atk2`）| 任意值 | 跳转到 `Atk2`，忽略 `BlendOutTime` |
+| 空 | `> 0`（如 `0.2`）| 平滑混出蒙太奇，GA 收到 `OnBlendOut` |
+| 空 | `0` | 蒙太奇自然播完，GA 收到 `OnCompleted` |
+
 ---
 
 ## 完整配置流程示例
@@ -96,9 +114,11 @@ Atk3:  [─────打击判定帧──]  （蒙太奇结束）
 
 | 情况 | 行为 |
 |---|---|
-| `NextSection` 留空 | Notify 不执行任何操作，安全降级，蒙太奇在当前段结束后停止 |
+| `NextSection` 留空 | 触发时不跳节；若 `BlendOutTime > 0` 则平滑结束，否则等蒙太奇自然结束 |
+| `NextSection` 和 `BlendOutTime` 同时填写 | 以 `NextSection` 为准，`BlendOutTime` 被忽略 |
 | Notify 时间点太晚（超过 Section 末尾） | 会超出段范围，建议放在距段末尾 2~3 帧内 |
 | GA 被外部打断（受击/死亡等 State Conflict） | 蒙太奇中断，GA 结束，连击自然停止，无需额外处理 |
+| `bRequireHit` 开启但本段未命中 | Notify 提前返回，不跳节不结束，蒙太奇继续播到当前 Section 自然结束 |
 | 想要让 AI 决策是否继续连击 | 参见《行为树攻击任务配置指南》中的 Selector 模式 |
 
 ---

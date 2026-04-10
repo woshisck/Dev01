@@ -446,7 +446,9 @@ void AYogGameMode::StartLevelSpawning()
 		}
 		else
 		{
-			ActiveRoomData = RollRoomForFloor(Config);
+			// 按 FloorConfig 概率骰出类型 Tag，再从全局 RoomPool 中选取
+			const FGameplayTag RequiredType = RollRoomTypeForFloor(Config);
+			ActiveRoomData = SelectRoomByTag(nullptr, RequiredType);
 			UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 骰子选取 RoomData = %s"),
 				ActiveRoomData ? *ActiveRoomData->GetName() : TEXT("null"));
 		}
@@ -458,7 +460,8 @@ void AYogGameMode::StartLevelSpawning()
 		return;
 	}
 
-	bCurrentRoomIsElite = ActiveRoomData->bIsEliteRoom;
+	static const FGameplayTag EliteTag = FGameplayTag::RequestGameplayTag(FName("Room.Type.Elite"));
+	bCurrentRoomIsElite = ActiveRoomData->RoomTypeTag == EliteTag;
 
 	// 根据难度等级选取对应的 DifficultyConfig
 	// 按请求难度查表，找不到则降级到列表中第一档（最低难度）
@@ -898,36 +901,65 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 	UGameplayStatics::OpenLevel(GetWorld(), NextLevel);
 }
 
-URoomDataAsset* AYogGameMode::RollRoomForFloor(const FFloorConfig& Config)
+FGameplayTag AYogGameMode::RollRoomTypeForFloor(const FFloorConfig& Config)
 {
-	if (!CampaignData) return nullptr;
+	static const FGameplayTag EliteTag  = FGameplayTag::RequestGameplayTag(FName("Room.Type.Elite"));
+	static const FGameplayTag ShopTag   = FGameplayTag::RequestGameplayTag(FName("Room.Type.Shop"));
+	static const FGameplayTag EventTag  = FGameplayTag::RequestGameplayTag(FName("Room.Type.Event"));
+	static const FGameplayTag NormalTag = FGameplayTag::RequestGameplayTag(FName("Room.Type.Normal"));
 
-	// 强制精英关：直接从精英池选
-	if (Config.bForceElite)
+	if (Config.bForceElite) return EliteTag;
+
+	const float Roll = FMath::FRand();
+	if (Roll < Config.EliteChance)                                              return EliteTag;
+	if (Roll < Config.EliteChance + Config.ShopChance)                         return ShopTag;
+	if (Roll < Config.EliteChance + Config.ShopChance + Config.EventChance)    return EventTag;
+	return NormalTag;
+}
+
+URoomDataAsset* AYogGameMode::SelectRoomByTag(
+	const FPortalDestConfig* PortalDest, FGameplayTag RequiredTag)
+{
+	static const FGameplayTag NormalTag = FGameplayTag::RequestGameplayTag(FName("Room.Type.Normal"));
+
+	auto PickByTag = [&](const TArray<TObjectPtr<URoomDataAsset>>& Pool) -> URoomDataAsset*
 	{
-		if (CampaignData->EliteRoomPool.Num() > 0)
-			return CampaignData->EliteRoomPool[FMath::RandRange(0, CampaignData->EliteRoomPool.Num() - 1)];
+		TArray<URoomDataAsset*> Candidates;
+		for (const TObjectPtr<URoomDataAsset>& Room : Pool)
+		{
+			if (Room && Room->RoomTypeTag == RequiredTag)
+				Candidates.Add(Room);
+		}
+		return Candidates.IsEmpty()
+			? nullptr
+			: Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
+	};
+
+	// 1. 传送门专属 RoomPool
+	if (PortalDest && !PortalDest->RoomPool.IsEmpty())
+	{
+		if (URoomDataAsset* Found = PickByTag(PortalDest->RoomPool))
+			return Found;
 	}
 
-	// 按概率阈值决定房间类型（相加后超出1.0的概率自动折算为Normal）
-	const float Roll = FMath::FRand();
-	TArray<TObjectPtr<URoomDataAsset>>* Pool = nullptr;
+	if (!CampaignData) return nullptr;
 
-	if (Roll < Config.EliteChance)
-		Pool = &CampaignData->EliteRoomPool;
-	else if (Roll < Config.EliteChance + Config.ShopChance)
-		Pool = &CampaignData->ShopRoomPool;
-	else if (Roll < Config.EliteChance + Config.ShopChance + Config.EventChance)
-		Pool = &CampaignData->EventRoomPool;
-	else
-		Pool = &CampaignData->NormalRoomPool;
+	// 2. Campaign 全局 RoomPool（同类型）
+	if (URoomDataAsset* Found = PickByTag(CampaignData->RoomPool))
+		return Found;
 
-	// 若选中的类型池为空，降级到 Normal 池
-	if (!Pool || Pool->Num() == 0)
-		Pool = &CampaignData->NormalRoomPool;
-
-	if (Pool && Pool->Num() > 0)
-		return (*Pool)[FMath::RandRange(0, Pool->Num() - 1)];
+	// 3. 退化为 Normal（Shop/Event 不存在时不强制出现）
+	if (RequiredTag != NormalTag)
+	{
+		TArray<URoomDataAsset*> Fallback;
+		for (const TObjectPtr<URoomDataAsset>& Room : CampaignData->RoomPool)
+		{
+			if (Room && Room->RoomTypeTag == NormalTag)
+				Fallback.Add(Room);
+		}
+		if (!Fallback.IsEmpty())
+			return Fallback[FMath::RandRange(0, Fallback.Num() - 1)];
+	}
 
 	return nullptr;
 }
@@ -943,11 +975,19 @@ void AYogGameMode::ActivatePortals()
 		return;
 	}
 
-	// 下一关的 FloorConfig（用于骰子房间类型）
-	const int32 NextIdx = CurrentFloor; // 0-based，CurrentFloor 是 1-based 下一关的 0-based 下标
+	// 下一关的 FloorConfig（所有门共享同一次类型骰子）
+	const int32 NextIdx = CurrentFloor; // CurrentFloor 是 1-based，NextIdx 是下一关的 0-based 下标
 	const FFloorConfig* NextConfig = CampaignData->FloorTable.IsValidIndex(NextIdx)
 		? &CampaignData->FloorTable[NextIdx]
 		: nullptr;
+
+	// 骰一次类型：所有门的目标房间类型相同（保证下一关体验一致）
+	static const FGameplayTag NormalTag = FGameplayTag::RequestGameplayTag(FName("Room.Type.Normal"));
+	const FGameplayTag RequiredRoomType = NextConfig
+		? RollRoomTypeForFloor(*NextConfig)
+		: NormalTag;
+
+	UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 下一关类型 = %s"), *RequiredRoomType.ToString());
 
 	// 收集场景中所有 APortal，建立 Index → APortal* 映射
 	TArray<AActor*> PortalActors;
@@ -984,10 +1024,10 @@ void AYogGameMode::ActivatePortals()
 			continue;
 		}
 
-		// 每个传送门独立骰子决定下一关的房间类型
-		URoomDataAsset* ChosenRoom = NextConfig ? RollRoomForFloor(*NextConfig) : nullptr;
+		// 先查此门专属 RoomPool，再查 Campaign 全局，最后退化为 Normal
+		URoomDataAsset* ChosenRoom = SelectRoomByTag(&Cfg, RequiredRoomType);
 
-		// 从该门的关卡池随机选一张地图（类型无关）
+		// 从该门的关卡池随机选一张地图
 		const FName ChosenLevel = Cfg.NextLevelPool[FMath::RandRange(0, Cfg.NextLevelPool.Num() - 1)];
 
 		(*Found)->Open(ChosenLevel, ChosenRoom);

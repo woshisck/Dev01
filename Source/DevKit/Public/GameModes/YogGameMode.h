@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ModularGameMode.h"
+#include "GameplayTagContainer.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "GameModes/SpawnTypes.h"
 #include "Data/CampaignDataAsset.h"
@@ -189,8 +190,11 @@ protected:
 	// ---- 传送门激活 ----
 	void ActivatePortals();
 
-	// 根据 FFloorConfig 的概率权重，从 CampaignData 的类型池中随机选取一个 DA_Room
-	URoomDataAsset* RollRoomForFloor(const FFloorConfig& Config);
+	// 根据 FFloorConfig 的概率权重骰出此关的房间类型 Tag（Room.Type.Normal/Elite/Shop/Event）
+	FGameplayTag RollRoomTypeForFloor(const FFloorConfig& Config);
+
+	// 按类型 Tag 选取 DA_Room：先查传送门专属 RoomPool，再查 Campaign 全局 RoomPool，最后退化为 Normal
+	URoomDataAsset* SelectRoomByTag(const FPortalDestConfig* PortalDest, FGameplayTag RequiredTag);
 
 	// ---- 刷怪算法 ----
 

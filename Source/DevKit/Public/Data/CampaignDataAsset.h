@@ -13,7 +13,7 @@ class URoomDataAsset;
  * FFloorConfig — 局内序列中，单关的宏观配置
  *
  * 不直接指定 DA_Room，而是配置难度曲线和各房间类型的概率权重。
- * 具体 DA_Room 在关卡结束时由骰子从 CampaignDataAsset 的类型池中随机选取。
+ * 具体 DA_Room 在关卡结算时由系统按类型 Tag 从传送门 RoomPool / 全局 RoomPool 中选取。
  */
 USTRUCT(BlueprintType)
 struct DEVKIT_API FFloorConfig
@@ -54,7 +54,6 @@ struct DEVKIT_API FFloorConfig
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
     float EpicWeight = 0.1f;
-    // 传送门目标配置已移至 RoomDataAsset.PortalDestinations
 };
 
 /**
@@ -62,8 +61,8 @@ struct DEVKIT_API FFloorConfig
  *
  * 命名规范：DA_Campaign_<名称>，例：DA_Campaign_MainRun
  *
- * 关卡序列通过 FloorTable 定义难度曲线；
- * 具体使用哪个 DA_Room 由运行时骰子从下方四个房间类型池中随机选取。
+ * 关卡序列通过 FloorTable 定义难度曲线和房间类型概率；
+ * 具体 DA_Room 由系统在关卡结算时按 RoomTypeTag 从各传送门专属池或全局 RoomPool 中选取。
  */
 UCLASS(BlueprintType)
 class DEVKIT_API UCampaignDataAsset : public UPrimaryDataAsset
@@ -73,32 +72,17 @@ class DEVKIT_API UCampaignDataAsset : public UPrimaryDataAsset
 public:
 
     // 关卡序列表（按游玩顺序从上到下填写，数量 = 局内总关数）
-    // 每关只填宏观配置（难度等级 + 房间类型概率），不直接指定 DA_Room
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Campaign")
     TArray<FFloorConfig> FloorTable;
 
-    // ---- 按房间类型划分的 DA_Room 池 ----
-    // 关卡结束时，ActivatePortals 为每个传送门独立从对应池中随机抽取 DA_Room
-
-    // 普通战斗房（最常见，通用战斗配置）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomPools")
-    TArray<TObjectPtr<URoomDataAsset>> NormalRoomPool;
-
-    // 精英战斗房（强敌，更好奖励）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomPools")
-    TArray<TObjectPtr<URoomDataAsset>> EliteRoomPool;
-
-    // 商店房（金币消耗，符文购买）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomPools")
-    TArray<TObjectPtr<URoomDataAsset>> ShopRoomPool;
-
-    // 事件房（选择、交换、特殊机制）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomPools")
-    TArray<TObjectPtr<URoomDataAsset>> EventRoomPool;
+    // ---- 全局 DA_Room 池（各房间自带 RoomTypeTag 标明类型）----
+    // 关卡结算时，系统先查各传送门的专属 RoomPool，找不到对应类型才从此全局池回退
+    // 策划在此填写所有可用的 DA_Room 资产（Normal / Elite / Shop / Event 均放在一起）
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomPool")
+    TArray<TObjectPtr<URoomDataAsset>> RoomPool;
 
     // ---- 第一关默认使用的 DA_Room ----
-    // 未填写时，StartLevelSpawning 自动按 FloorTable[0] 的概率骰子选取
-    // 主城传送门直接进入当前编辑器关卡，DA_Room 由此字段决定
+    // 未填写时，StartLevelSpawning 按 FloorTable[0] 的概率从全局 RoomPool 中骰子选取
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Campaign")
     TObjectPtr<URoomDataAsset> DefaultStartingRoom;
 };

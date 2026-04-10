@@ -22,34 +22,34 @@ void UAN_EnemyComboSection::Notify(USkeletalMeshComponent* MeshComp, UAnimSequen
         if (!bHit) return;
     }
 
-    // ── 混出 / 跳节 ───────────────────────────────────────────
-    if (BlendOutTime > 0.0f)
+    // ── 跳节 / 混出 ───────────────────────────────────────────
+    // 优先判断 NextSection：填了就跳节（连招链），跳节本身是即时的
+    if (!NextSection.IsNone())
     {
-        // 立即开始平滑混出当前蒙太奇，不跳节。
-        // GA 收到 OnBlendOut → EndAbility → BT Task 返回 Succeeded → BT 决定下一段攻击。
-        // 等同于玩家 ANS_PostAtkWindow 里的 Montage_StopWithBlendOut 逻辑。
-        // NextSection 在此分支下无效（留空即可）。
+        AnimInst->Montage_JumpToSection(NextSection);
+    }
+    else if (BlendOutTime > 0.0f)
+    {
+        // NextSection 为空 + BlendOutTime>0：平滑结束连招
+        // GA 收到 OnBlendOut → EndAbility → BT Task 返回 Succeeded → BT 决定下一段攻击
         AnimInst->Montage_Stop(BlendOutTime);
     }
-    else
-    {
-        // BlendOutTime=0：立即跳节（原始行为）
-        if (!NextSection.IsNone())
-        {
-            AnimInst->Montage_JumpToSection(NextSection);
-        }
-    }
+    // 两者均为空/零：蒙太奇自然播完结束
 }
 
 FString UAN_EnemyComboSection::GetNotifyName_Implementation() const
 {
-    if (BlendOutTime > 0.0f)
+    if (!NextSection.IsNone() && BlendOutTime > 0.0f)
     {
-        return FString::Printf(TEXT("ComboSection→BlendOut(%.2f)"), BlendOutTime);
+        return FString::Printf(TEXT("ComboSection→%s(BlendOut%.2f)"), *NextSection.ToString(), BlendOutTime);
     }
     if (!NextSection.IsNone())
     {
         return FString::Printf(TEXT("ComboSection→%s"), *NextSection.ToString());
+    }
+    if (BlendOutTime > 0.0f)
+    {
+        return FString::Printf(TEXT("ComboSection→End(%.2f)"), BlendOutTime);
     }
     return TEXT("ComboSection");
 }
