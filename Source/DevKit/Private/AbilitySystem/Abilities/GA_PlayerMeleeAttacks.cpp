@@ -41,7 +41,6 @@ static const FName TAG_HC4(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"));
 
 // Dash attack
 static const FName TAG_DA       (TEXT("PlayerState.AbilityCast.DashAtk"));
-static const FName TAG_Dead     (TEXT("Buff.Status.Dead"));
 static const FName TAG_HitReact (TEXT("Buff.Status.HitReact"));
 static const FName TAG_Knockback(TEXT("Buff.Status.Knockback"));
 
