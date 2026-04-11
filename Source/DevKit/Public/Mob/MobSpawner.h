@@ -29,11 +29,23 @@ public:
 	UFUNCTION(BlueprintCallable)
 	AEnemyCharacterBase* SpawnMob(TSubclassOf<AActor> spawn_actor_class);
 
+	/**
+	 * 敌人生成后立即调用（在 BP 子类中重写以播放出生特效/动画）
+	 * @param SpawnedEnemy   刚刚生成的敌人 Actor
+	 * @param SpawnLocation  生成位置（NavMesh 对齐后，可直接在此播放 Niagara）
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Spawning")
+	void OnEnemySpawned(AEnemyCharacterBase* SpawnedEnemy, FVector SpawnLocation);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool SingleSpawn = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
 	float SpawnRadius = 1000.f;
+
+	// 生成时在 NavMesh 表面 Z 基础上额外抬高多少（补偿角色 Capsule 半高，防止生成到地下）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
+	float SpawnZOffset = 96.f;
 
 	FVector GetRandomReachablePoint();
 

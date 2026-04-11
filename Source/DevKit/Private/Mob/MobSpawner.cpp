@@ -58,6 +58,13 @@ AEnemyCharacterBase* AMobSpawner::SpawnMob(TSubclassOf<AActor> spawn_actor_class
         Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
         AEnemyCharacterBase* Spawned_Enemy = World->SpawnActor<AEnemyCharacterBase>(spawn_actor_class, Location, FRotator::ZeroRotator, Params);
+
+        // 通知蓝图子类播放出生特效（在此位置放 Niagara / 出场动画）
+        if (Spawned_Enemy)
+        {
+            OnEnemySpawned(Spawned_Enemy, Location);
+        }
+
         return Spawned_Enemy;
     }
     else
@@ -83,6 +90,6 @@ FVector AMobSpawner::GetRandomReachablePoint()
     FVector TestLocation = FVector(Origin.X + RandomPoint.X, Origin.Y + RandomPoint.Y, Origin.Z);
     FNavLocation NavLocation;
     bool bFound = NavSys->ProjectPointToNavigation(TestLocation, NavLocation);
-    return bFound ? NavLocation.Location : FVector::ZeroVector;
+    return bFound ? NavLocation.Location + FVector(0.f, 0.f, SpawnZOffset) : FVector::ZeroVector;
 
 }

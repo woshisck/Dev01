@@ -7,19 +7,6 @@
 #include "SpawnTypes.generated.h"
 
 // =========================================================
-// 难度等级
-// =========================================================
-
-UENUM(BlueprintType)
-enum class EDifficultyTier : uint8
-{
-    Low     UMETA(DisplayName = "低难度"),
-    Medium  UMETA(DisplayName = "中难度"),
-    High    UMETA(DisplayName = "高难度"),
-    Elite   UMETA(DisplayName = "精英关"),
-};
-
-// =========================================================
 // 下一波触发条件（消耗难度分预算）
 // =========================================================
 
@@ -32,8 +19,9 @@ enum class ESpawnTriggerType : uint8
     PercentKilled_50    UMETA(DisplayName = "死亡50%"),
     // 本波 20% 敌人死亡后触发（压力最大）—— 消耗 3 分
     PercentKilled_20    UMETA(DisplayName = "死亡20%"),
-    // 本波开始 5 秒后触发 —— 消耗 2 分
-    TimeInterval_5s     UMETA(DisplayName = "5秒后触发"),
+    // 计时触发（间隔由 FSpawnTriggerOption.TriggerInterval 配置）—— 消耗 2 分
+    // 保底：场内无敌人时立即触发，不等计时结束
+    TimeInterval        UMETA(DisplayName = "计时触发"),
 };
 
 USTRUCT(BlueprintType)
@@ -47,6 +35,11 @@ struct DEVKIT_API FSpawnTriggerOption
     // 使用此触发条件所消耗的难度分
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn")
     int32 DifficultyScore = 0;
+
+    // 计时触发的间隔（秒），仅 TimeInterval 类型有效
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn",
+        meta = (EditCondition = "TriggerType == ESpawnTriggerType::TimeInterval", ClampMin = "0.5"))
+    float TriggerInterval = 3.0f;
 };
 
 // =========================================================
@@ -56,8 +49,8 @@ struct DEVKIT_API FSpawnTriggerOption
 UENUM(BlueprintType)
 enum class ESpawnMode : uint8
 {
-    // 所有敌人同时刷出 —— 消耗 1 分
-    Wave        UMETA(DisplayName = "波次同时刷出"),
+    // 所有敌人随机错开刷出 —— 消耗 1 分
+    Wave        UMETA(DisplayName = "波次错开刷出"),
     // 按固定时间间隔逐只刷出 —— 消耗 1 分
     OneByOne    UMETA(DisplayName = "逐个刷入"),
 };
@@ -81,7 +74,7 @@ struct DEVKIT_API FSpawnModeOption
 };
 
 // =========================================================
-// 敌人池条目（DifficultyScore / bEliteOnly / EnemyClass 均定义在 UEnemyData 内）
+// 敌人池条目
 // =========================================================
 
 USTRUCT(BlueprintType)
@@ -92,10 +85,16 @@ struct DEVKIT_API FEnemyEntry
     // 引用敌人数据资产（含难度分、是否精英专属、Actor 类）
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
     TObjectPtr<UEnemyData> EnemyData;
+
+    // 该类型敌人在本关卡内最多出现多少只（跨所有波次累计）
+    // -1 = 不限制
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy",
+        meta = (ClampMin = "-1"))
+    int32 MaxCountPerLevel = -1;
 };
 
 // =========================================================
-// 难度等级配置（低/中/高三套，各自独立）
+// 难度配置（现移至 DA_Campaign 的 FFloorConfig 内）
 // =========================================================
 
 USTRUCT(BlueprintType)
@@ -103,22 +102,21 @@ struct DEVKIT_API FDifficultyConfig
 {
     GENERATED_BODY()
 
-    // ---- 波次数量 ----
-    // 随机值域 [WaveCountMin, WaveCountMax]，策划可写相同值固定波次数
+    // ---- 波次数量（随机值域）----
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waves")
     int32 WaveCountMin = 2;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waves")
     int32 WaveCountMax = 3;
 
-    // 每波的难度分预算，数组长度对应最大波数
-    // 若实际波数超出数组长度，循环使用最后一个值
-    // 例：[15, 20, 15] → 第1波15分，第2波20分，第3波15分
+    // ---- 单波难度分预算（每波独立随机）----
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waves")
-    TArray<int32> WaveBudgets = { 15, 20, 15 };
+    int32 WaveBudgetMin = 15;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waves")
+    int32 WaveBudgetMax = 25;
 
     // ---- 可用触发条件池 ----
-    // 策划填入此难度档允许出现的触发条件，系统从中随机抽取
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn")
     TArray<FSpawnTriggerOption> AllowedTriggers;
 
@@ -133,9 +131,9 @@ struct DEVKIT_API FDifficultyConfig
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
     float DamageMultiplier = 1.0f;
 
-    // ---- 关卡 Buff 数量（从 BuffPool 随机选取的数量）----
+    // ---- 关卡 Buff 数量（从 RoomDA.BuffPool 随机选取的数量）----
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Buff")
-    int32 BuffCount = 2;
+    int32 BuffCount = 1;
 
     // ---- 金币奖励范围 ----
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
@@ -143,24 +141,20 @@ struct DEVKIT_API FDifficultyConfig
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
     int32 GoldMax = 20;
-};
 
-// =========================================================
-// 难度等级条目（RoomDataAsset 按需填入，无需三档全填）
-// =========================================================
+    // ---- 关卡总敌人上限（跨所有波次累计，-1 = 不限制）----
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Waves",
+        meta = (ClampMin = "-1"))
+    int32 MaxTotalEnemies = -1;
 
-USTRUCT(BlueprintType)
-struct DEVKIT_API FDifficultyEntry
-{
-    GENERATED_BODY()
+    // ---- 刷敌时间错开（每只之间的随机延迟上限，秒）----
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn",
+        meta = (ClampMin = "0.0"))
+    float SpawnStaggerMin = 0.0f;
 
-    // 此条目对应的难度等级
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
-    EDifficultyTier Tier = EDifficultyTier::Low;
-
-    // 对应难度的完整配置
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
-    FDifficultyConfig Config;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn",
+        meta = (ClampMin = "0.0"))
+    float SpawnStaggerMax = 0.5f;
 };
 
 // FPortalDestConfig 已移至 RoomDataAsset.h（需引用 URoomDataAsset* 自身）

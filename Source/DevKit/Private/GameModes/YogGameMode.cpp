@@ -461,60 +461,52 @@ void AYogGameMode::StartLevelSpawning()
 	}
 
 
-	// 根据难度等级选取对应的 DifficultyConfig
-	// 按请求难度查表，找不到则降级到列表中第一档（最低难度）
-	const FDifficultyConfig* DiffConfig = nullptr;
-	for (const FDifficultyEntry& DE : ActiveRoomData->DifficultyConfigs)
-	{
-		if (DE.Tier == Config.Difficulty)
-		{
-			DiffConfig = &DE.Config;
-			break;
-		}
-	}
-	if (!DiffConfig && ActiveRoomData->DifficultyConfigs.Num() > 0)
-	{
-		DiffConfig = &ActiveRoomData->DifficultyConfigs[0].Config;
-		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: 难度 %d 无匹配配置，降级到第一档"),
-			(int32)Config.Difficulty);
-	}
-	if (!DiffConfig)
-	{
-		UE_LOG(LogTemp, Error, TEXT("StartLevelSpawning: RoomData 没有任何难度配置，跳过"));
-		return;
-	}
+	// 难度配置直接来自 FloorConfig（DA_Campaign 按关卡序号给出预算和波次等）
+	const FDifficultyConfig& DiffConfig = Config.DifficultyConfig;
 
 	// 缓存难度配置（整理阶段发放战利品/金币时使用）
-	ActiveDifficultyConfig = *DiffConfig;
+	ActiveDifficultyConfig = DiffConfig;
 
 	// 选取本关 Buff（进关时确定，新怪刷出时施加）
-	ActiveRoomBuffs = SelectRoomBuffs(*ActiveRoomData, *DiffConfig);
+	ActiveRoomBuffs = SelectRoomBuffs(*ActiveRoomData, DiffConfig);
 
 	// 生成波次计划
-	GenerateWavePlans(*DiffConfig, ActiveRoomData);
+	GenerateWavePlans(DiffConfig, ActiveRoomData);
 
 	// 重置运行时状态
 	CurrentWaveIndex  = -1;
 	TotalAliveEnemies = 0;
 	bAllWavesSpawned  = false;
 
-	// 启动第一波
-	TriggerNextWave();
+	// 延迟后启动第一波（给特效/动画和 AI 初始化预留时间）
+	if (InitialSpawnDelay > 0.f)
+	{
+		GetWorld()->GetTimerManager().SetTimer(
+			InitialSpawnDelayTimer,
+			this,
+			&AYogGameMode::TriggerNextWave,
+			InitialSpawnDelay,
+			false
+		);
+	}
+	else
+	{
+		TriggerNextWave();
+	}
 }
 
 void AYogGameMode::GenerateWavePlans(const FDifficultyConfig& Config, URoomDataAsset* Room)
 {
 	WavePlans.Empty();
+	LevelTypeSpawnCounts.Empty();
+	TotalLevelPlannedEnemies = 0;
 
 	const int32 WaveCount = FMath::RandRange(Config.WaveCountMin, Config.WaveCountMax);
 	UE_LOG(LogTemp, Log, TEXT("GenerateWavePlans: 本关共 %d 波"), WaveCount);
 
 	for (int32 i = 0; i < WaveCount; i++)
 	{
-		const int32 Budget = Config.WaveBudgets.IsValidIndex(i)
-			? Config.WaveBudgets[i]
-			: Config.WaveBudgets.Last();
-
+		const int32 Budget = FMath::RandRange(Config.WaveBudgetMin, Config.WaveBudgetMax);
 		WavePlans.Add(BuildWavePlan(Budget, Config, Room));
 	}
 }
@@ -537,8 +529,9 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(
 		if (Candidates.Num() > 0)
 		{
 			const FSpawnTriggerOption& Chosen = Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
-			Plan.TriggerType  = Chosen.TriggerType;
-			RemainingBudget  -= Chosen.DifficultyScore;
+			Plan.TriggerType         = Chosen.TriggerType;
+			Plan.WaveTriggerInterval = Chosen.TriggerInterval;
+			RemainingBudget         -= Chosen.DifficultyScore;
 		}
 		// 若无法负担任何触发条件，保持默认 AllEnemiesDead（0分）
 	}
@@ -561,16 +554,26 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(
 		}
 	}
 
-	// ---- Step 3: 用剩余预算填充敌人（允许超出预算，保证至少 1 只）----
+	// ---- Step 3: 用剩余预算填充敌人，遵守类型上限和关卡总上限 ----
 	bool bFirstEnemy = true;
 	while (true)
 	{
+		// 总敌人上限检查
+		if (Config.MaxTotalEnemies >= 0 && TotalLevelPlannedEnemies >= Config.MaxTotalEnemies)
+			break;
+
 		TArray<FEnemyEntry> Candidates;
 		for (const FEnemyEntry& E : Room->EnemyPool)
 		{
 			if (!E.EnemyData || !E.EnemyData->EnemyClass) continue;
 			// 第一只不过滤预算（允许超出），后续必须在预算内
 			if (!bFirstEnemy && E.EnemyData->DifficultyScore > RemainingBudget) continue;
+			// 类型上限检查
+			if (E.MaxCountPerLevel >= 0)
+			{
+				const int32* ExistingCount = LevelTypeSpawnCounts.Find(E.EnemyData->EnemyClass);
+				if (ExistingCount && *ExistingCount >= E.MaxCountPerLevel) continue;
+			}
 			Candidates.Add(E);
 		}
 
@@ -581,17 +584,59 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(
 		RemainingBudget -= Chosen.EnemyData->DifficultyScore;
 		bFirstEnemy      = false;
 
+		// 更新跨波次计数
+		LevelTypeSpawnCounts.FindOrAdd(Chosen.EnemyData->EnemyClass)++;
+		TotalLevelPlannedEnemies++;
+
 		if (RemainingBudget <= 0) break;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("BuildWavePlan: 触发=%d 方式=%d 敌人数=%d"),
-		(int32)Plan.TriggerType, (int32)Plan.SpawnMode, Plan.EnemiesToSpawn.Num());
+	// ---- Step 4: 剩余预算无法正常填充时，构建按需补刷池 ----
+	// 条件：预算剩余 > 0 且 Step 3 因上限退出
+	if (RemainingBudget > 0)
+	{
+		// 收集所有分数 <= 剩余预算的敌人类型作为补刷候选（不受类型上限限制）
+		for (const FEnemyEntry& E : Room->EnemyPool)
+		{
+			if (!E.EnemyData || !E.EnemyData->EnemyClass) continue;
+			if (E.EnemyData->DifficultyScore <= RemainingBudget)
+				Plan.DemandEnemyPool.AddUnique(E.EnemyData->EnemyClass);
+		}
+
+		if (!Plan.DemandEnemyPool.IsEmpty())
+		{
+			// 用平均分估算补刷次数（至少 1 次，向下取整）
+			int32 AvgScore = 0;
+			for (const TSubclassOf<AEnemyCharacterBase>& EC : Plan.DemandEnemyPool)
+			{
+				for (const FEnemyEntry& E : Room->EnemyPool)
+				{
+					if (E.EnemyData && E.EnemyData->EnemyClass == EC)
+					{
+						AvgScore += E.EnemyData->DifficultyScore;
+						break;
+					}
+				}
+			}
+			AvgScore = FMath::Max(1, AvgScore / Plan.DemandEnemyPool.Num());
+			Plan.DemandCount = FMath::Max(1, RemainingBudget / AvgScore);
+			UE_LOG(LogTemp, Log, TEXT("BuildWavePlan: 剩余预算 %d → 按需补刷 %d 只"),
+				RemainingBudget, Plan.DemandCount);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("BuildWavePlan: 触发=%d 方式=%d 敌人数=%d 补刷=%d"),
+		(int32)Plan.TriggerType, (int32)Plan.SpawnMode,
+		Plan.EnemiesToSpawn.Num(), Plan.DemandCount);
 
 	return Plan;
 }
 
 void AYogGameMode::TriggerNextWave()
 {
+	// 切换波次时清除上一波可能残留的补刷定时器
+	GetWorld()->GetTimerManager().ClearTimer(DemandSpawnTimer);
+
 	CurrentWaveIndex++;
 
 	if (!WavePlans.IsValidIndex(CurrentWaveIndex))
@@ -615,30 +660,24 @@ void AYogGameMode::TriggerNextWave()
 		bAllWavesSpawned = true;
 	}
 
-	if (Wave.SpawnMode == ESpawnMode::Wave)
-	{
-		// 所有敌人同时刷出
-		for (TSubclassOf<AEnemyCharacterBase> EnemyClass : Wave.EnemiesToSpawn)
-		{
-			SpawnEnemyFromPool(EnemyClass);
-			Wave.TotalSpawnedInWave++;
-			TotalAliveEnemies++;
-		}
-		SetupWaveTrigger(Wave);
-	}
-	else // OneByOne
-	{
-		OneByOneSpawnQueue = Wave.EnemiesToSpawn;
-		OneByOneSpawnIndex = 0;
-		GetWorld()->GetTimerManager().SetTimer(
-			OneByOneTimer,
-			this,
-			&AYogGameMode::SpawnNextOneByOne,
-			Wave.OneByOneInterval,
-			true,
-			0.5f // 第一只在 0.5 秒后刷出
-		);
-	}
+	// Wave 和 OneByOne 都走队列，区别在于每只之间的延迟：
+	// Wave     → SpawnStaggerMin ~ SpawnStaggerMax 的随机错开
+	// OneByOne → OneByOneInterval（固定间隔）
+	bWaveStaggerMode = (Wave.SpawnMode == ESpawnMode::Wave);
+	OneByOneSpawnQueue = Wave.EnemiesToSpawn;
+	OneByOneSpawnIndex = 0;
+
+	const float FirstDelay = FMath::FRandRange(
+		ActiveDifficultyConfig.SpawnStaggerMin,
+		ActiveDifficultyConfig.SpawnStaggerMax);
+
+	GetWorld()->GetTimerManager().SetTimer(
+		OneByOneTimer,
+		this,
+		&AYogGameMode::SpawnNextOneByOne,
+		FirstDelay,
+		false // 非重复，SpawnNextOneByOne 内部重新调度
+	);
 }
 
 void AYogGameMode::SpawnNextOneByOne()
@@ -648,22 +687,32 @@ void AYogGameMode::SpawnNextOneByOne()
 
 	if (!OneByOneSpawnQueue.IsValidIndex(OneByOneSpawnIndex))
 	{
-		// 本波全部刷出，停止定时器并设置触发条件
-		GetWorld()->GetTimerManager().ClearTimer(OneByOneTimer);
+		// 本波全部刷出，设置触发条件
 		SetupWaveTrigger(Wave);
 		return;
 	}
 
-	SpawnEnemyFromPool(OneByOneSpawnQueue[OneByOneSpawnIndex]);
-	Wave.TotalSpawnedInWave++;
-	TotalAliveEnemies++;
+	if (SpawnEnemyFromPool(OneByOneSpawnQueue[OneByOneSpawnIndex]))
+	{
+		Wave.TotalSpawnedInWave++;
+		TotalAliveEnemies++;
+	}
 	OneByOneSpawnIndex++;
 
 	if (OneByOneSpawnIndex >= OneByOneSpawnQueue.Num())
 	{
-		GetWorld()->GetTimerManager().ClearTimer(OneByOneTimer);
+		// 队列已空，设置触发条件，不再重新调度
 		SetupWaveTrigger(Wave);
+		return;
 	}
+
+	// 计算下一只的延迟：Wave 模式随机错开，OneByOne 固定间隔
+	const float NextDelay = bWaveStaggerMode
+		? FMath::FRandRange(ActiveDifficultyConfig.SpawnStaggerMin, ActiveDifficultyConfig.SpawnStaggerMax)
+		: Wave.OneByOneInterval;
+
+	GetWorld()->GetTimerManager().SetTimer(
+		OneByOneTimer, this, &AYogGameMode::SpawnNextOneByOne, NextDelay, false);
 }
 
 void AYogGameMode::SetupWaveTrigger(const FWavePlan& Wave)
@@ -678,9 +727,9 @@ void AYogGameMode::SetupWaveTrigger(const FWavePlan& Wave)
 			// 由 CheckWaveTrigger 在 UpdateFinishLevel 中处理
 			break;
 
-		case ESpawnTriggerType::TimeInterval_5s:
+		case ESpawnTriggerType::TimeInterval:
 			GetWorld()->GetTimerManager().SetTimer(
-				WaveTriggerTimer, this, &AYogGameMode::OnWaveTriggerFired, 5.0f, false);
+				WaveTriggerTimer, this, &AYogGameMode::OnWaveTriggerFired, Wave.WaveTriggerInterval, false);
 			break;
 
 		case ESpawnTriggerType::PercentKilled_50:
@@ -701,57 +750,140 @@ void AYogGameMode::CheckWaveTrigger()
 	if (!WavePlans.IsValidIndex(CurrentWaveIndex)) return;
 	if (CurrentWaveIndex >= WavePlans.Num() - 1) return; // 最后一波，不触发下一波
 
-	const FWavePlan& Wave = WavePlans[CurrentWaveIndex];
+	FWavePlan& Wave = WavePlans[CurrentWaveIndex];
 	if (Wave.TotalSpawnedInWave == 0) return; // 本波还没开始刷怪
 
+	// ---- 百分比/时间触发：不受补刷影响，直接判断 ----
 	switch (Wave.TriggerType)
 	{
-		case ESpawnTriggerType::AllEnemiesDead:
-			if (TotalAliveEnemies <= 0)
-				TriggerNextWave();
-			break;
-
 		case ESpawnTriggerType::PercentKilled_50:
 			if (Wave.TotalKilledInWave >= FMath::CeilToInt(Wave.TotalSpawnedInWave * 0.5f))
+			{
+				GetWorld()->GetTimerManager().ClearTimer(DemandSpawnTimer);
+				Wave.DemandCount = 0; // 触发下一波，取消剩余补刷
 				TriggerNextWave();
-			break;
+			}
+			return;
 
 		case ESpawnTriggerType::PercentKilled_20:
 			if (Wave.TotalKilledInWave >= FMath::CeilToInt(Wave.TotalSpawnedInWave * 0.2f))
+			{
+				GetWorld()->GetTimerManager().ClearTimer(DemandSpawnTimer);
+				Wave.DemandCount = 0;
 				TriggerNextWave();
-			break;
+			}
+			return;
 
-		case ESpawnTriggerType::TimeInterval_5s:
-			// 由定时器处理，无需在这里判断
-			break;
+		case ESpawnTriggerType::TimeInterval:
+			// 保底：场内已无敌人时不等计时，立即触发下一波
+			if (TotalAliveEnemies <= 0)
+			{
+				GetWorld()->GetTimerManager().ClearTimer(WaveTriggerTimer);
+				TriggerNextWave();
+			}
+			return;
+
+		default: break;
 	}
+
+	// ---- AllEnemiesDead 触发：结合按需补刷逻辑 ----
+	if (TotalAliveEnemies <= 0)
+	{
+		if (Wave.DemandCount > 0 && !Wave.DemandEnemyPool.IsEmpty())
+		{
+			// 还有补刷配额，延迟刷出一只替补（1-3s 随机）
+			const float Delay = FMath::FRandRange(
+				ActiveDifficultyConfig.SpawnStaggerMin,
+				ActiveDifficultyConfig.SpawnStaggerMax);
+			GetWorld()->GetTimerManager().SetTimer(
+				DemandSpawnTimer, this, &AYogGameMode::CheckDemandSpawn, Delay, false);
+		}
+		else
+		{
+			// 无补刷，触发下一波
+			TriggerNextWave();
+		}
+	}
+}
+
+void AYogGameMode::CheckDemandSpawn()
+{
+	if (!WavePlans.IsValidIndex(CurrentWaveIndex)) return;
+	FWavePlan& Wave = WavePlans[CurrentWaveIndex];
+
+	if (Wave.DemandCount <= 0 || Wave.DemandEnemyPool.IsEmpty()) return;
+
+	// 随机选一个补刷类型
+	const TSubclassOf<AEnemyCharacterBase> DemandClass =
+		Wave.DemandEnemyPool[FMath::RandRange(0, Wave.DemandEnemyPool.Num() - 1)];
+
+	Wave.DemandCount--;
+
+	if (SpawnEnemyFromPool(DemandClass))
+	{
+		Wave.TotalSpawnedInWave++;
+		TotalAliveEnemies++;
+		UE_LOG(LogTemp, Log, TEXT("CheckDemandSpawn: 补刷 %s，剩余补刷次数=%d"),
+			*DemandClass->GetName(), Wave.DemandCount);
+	}
+	// 若刷出失败（没有 Spawner），DemandCount 已减，避免死循环
 }
 
 void AYogGameMode::CheckLevelComplete()
 {
-	if (bAllWavesSpawned && TotalAliveEnemies <= 0)
+	if (!bAllWavesSpawned || TotalAliveEnemies > 0) return;
+
+	// 最后一波可能有按需补刷剩余，先补刷，待全部死亡后再结算
+	if (WavePlans.IsValidIndex(CurrentWaveIndex))
 	{
-		UE_LOG(LogTemp, Log, TEXT("CheckLevelComplete: 关卡完成！进入整理阶段"));
-		OnFinishLevel.Broadcast();
-		FinishLevelEvent.Broadcast();
-		EnterArrangementPhase();
+		FWavePlan& Wave = WavePlans[CurrentWaveIndex];
+		if (Wave.DemandCount > 0 && !Wave.DemandEnemyPool.IsEmpty())
+		{
+			const float Delay = FMath::FRandRange(
+				ActiveDifficultyConfig.SpawnStaggerMin,
+				ActiveDifficultyConfig.SpawnStaggerMax);
+			GetWorld()->GetTimerManager().SetTimer(
+				DemandSpawnTimer, this, &AYogGameMode::CheckDemandSpawn, Delay, false);
+			return;
+		}
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("CheckLevelComplete: 关卡完成！进入整理阶段"));
+	OnFinishLevel.Broadcast();
+	FinishLevelEvent.Broadcast();
+	EnterArrangementPhase();
 }
 
-void AYogGameMode::SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClass)
+bool AYogGameMode::SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClass)
 {
-	if (!EnemyClass) return;
+	if (!EnemyClass) return false;
 
 	TArray<AActor*> OutActors;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), OutActors);
 	if (OutActors.IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("SpawnEnemyFromPool: 场景中没有 MobSpawner！"));
-		return;
+		return false;
 	}
 
-	AMobSpawner* Spawner = Cast<AMobSpawner>(
-		OutActors[FMath::RandRange(0, OutActors.Num() - 1)]);
+	// 只选包含该敌人 Class 的 Spawner（Spawner 的 EnemySpawnClassis 作为白名单）
+	TArray<AMobSpawner*> ValidSpawners;
+	for (AActor* Actor : OutActors)
+	{
+		if (AMobSpawner* S = Cast<AMobSpawner>(Actor))
+		{
+			if (S->EnemySpawnClassis.Contains(EnemyClass))
+				ValidSpawners.Add(S);
+		}
+	}
+
+	if (ValidSpawners.IsEmpty())
+	{
+		UE_LOG(LogTemp, Log, TEXT("SpawnEnemyFromPool: 没有 Spawner 支持 %s，跳过"), *EnemyClass->GetName());
+		return false;
+	}
+
+	AMobSpawner* Spawner = ValidSpawners[FMath::RandRange(0, ValidSpawners.Num() - 1)];
 	if (Spawner)
 	{
 		AEnemyCharacterBase* SpawnedEnemy = Spawner->SpawnMob(EnemyClass);
@@ -768,7 +900,9 @@ void AYogGameMode::SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClas
 				}
 			}
 		}
+		return SpawnedEnemy != nullptr;
 	}
+	return false;
 }
 
 TArray<URuneDataAsset*> AYogGameMode::SelectRoomBuffs(

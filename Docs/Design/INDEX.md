@@ -1,7 +1,7 @@
 # 设计文档索引
 
 > 项目：星骸降临 Dev01  
-> 更新：2026-04-10（新增传送门系统 / 跨关状态 / BuffPool 文档；FloorTable 重构为随机房间骰子系统）  
+> 更新：2026-04-11（难度配置迁移至 DA_Campaign；波次预算随机化；MobSpawner 白名单/类型上限/补刷/错开刷新；计时触发可配置）  
 > 新增文档必须在此更新，参见 [DocWritingGuide.md](DocWritingGuide.md)
 
 ---
@@ -65,8 +65,8 @@
 | [攻击伤害系统 — 技术文档](Systems/AttackDamage_Technical.md) | 架构图、核心函数、CDO 问题、改造方案（移 GA / C++ TargetType） | 程序 |
 | [热度系统设计](Systems/HeatSystem_Design.md) | 热度阶段机制、衰减规则、符文联动 | 策划 + 程序 |
 | [充能系统指南](Systems/SkillCharge_Guide.md) | SkillChargeComponent 配置和使用 | 策划 + 程序 |
-| [关卡系统配置指南](Systems/LevelSystem_ConfigGuide.md) | 关卡/波次配置（含 DifficultyEntry 数组 / Buff Pool / 传送门目标）| 策划 |
-| [关卡系统技术文档](Systems/LevelSystem_ProgrammerDoc.md) | 关卡系统程序实现（含切关流程 / ActivatePortals）| 程序 |
+| [关卡系统配置指南](Systems/LevelSystem_ConfigGuide.md) | DA_Room / DA_Campaign 配置（敌人池 / 难度 / MobSpawner 白名单 / 传送门）| 策划 |
+| [关卡系统技术文档](Systems/LevelSystem_ProgrammerDoc.md) | 波次生成算法 / 补刷 / 错开刷新 / 切关流程 / Timer 汇总 | 程序 |
 | [传送门与关卡奖励系统设计](Systems/Portal_Design.md) | 传送门多分支切关 + 奖励拾取物设计原理 | 策划 + 程序 |
 | [跨关状态持久化技术文档](Systems/CrossLevelState_Technical.md) | FRunState 数据流、存储/恢复流程、调试方法 | 程序 |
 
@@ -81,6 +81,7 @@
 | [开发路线图 2026-04-10](WorkReports/DevRoadmap_20260410.md) | 详细任务规划（P0-P3）、各任务步骤、里程碑时间线 |
 | [主循环开发状态 2026-04-10](WorkReports/MainLoop_WorkReport_20260410.md) | 主循环实现进度、已确认设计决策、设计遗漏分析 |
 | [主循环工作报告 2026-04-10（第二版）](WorkReports/MainLoop_WorkReport_20260410b.md) | 传送门/跨关状态完成记录、架构变更、下阶段计划 |
+| [刷怪系统迭代 2026-04-11](WorkReports/SpawnSystem_WorkReport_20260411.md) | MobSpawner 白名单 / 类型上限 / 补刷 / 错开 / 计时触发 / 难度迁移 |
 | [热度系统工作报告 2026-04-06](WorkReports/HeatSystem_WorkReport_20260406.md) | 热度系统实现阶段总结 |
 
 ---

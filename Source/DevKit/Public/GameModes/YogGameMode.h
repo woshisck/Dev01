@@ -140,6 +140,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow")
 	TSubclassOf<AActor> RewardPickupClass;
 
+	// 进关后延迟多少秒再开始刷怪（给特效/动画和 AI 初始化预留时间）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow", meta = (ClampMin = "0.0"))
+	float InitialSpawnDelay = 1.5f;
+
 	// 阶段变化事件
 	UPROPERTY(BlueprintAssignable, Category = "LevelFlow|Events")
 	FOnPhaseChanged OnPhaseChanged;
@@ -207,6 +211,14 @@ protected:
 		TArray<TSubclassOf<AEnemyCharacterBase>> EnemiesToSpawn;
 		int32 TotalSpawnedInWave = 0;
 		int32 TotalKilledInWave  = 0;
+
+		// 按需补刷池（预算剩余但类型上限已达时，每死一只补刷一只）
+		TArray<TSubclassOf<AEnemyCharacterBase>> DemandEnemyPool;
+		// 剩余可按需补刷的次数（0 = 无补刷）
+		int32 DemandCount = 0;
+
+		// TimeInterval 触发时使用的间隔（秒），由 BuildWavePlan 从所选触发条件中读取
+		float WaveTriggerInterval = 3.0f;
 	};
 
 	// 根据难度配置生成所有波次计划
@@ -234,7 +246,7 @@ protected:
 	void CheckLevelComplete();
 
 	// 从随机 MobSpawner 刷出指定类型的敌人
-	void SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClass);
+	bool SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClass);
 
 	// 从 BuffPool 按难度数量随机选取关卡符文（RuneDA）
 	TArray<URuneDataAsset*> SelectRoomBuffs(
@@ -248,8 +260,20 @@ protected:
 
 	FTimerHandle WaveTriggerTimer;
 	FTimerHandle OneByOneTimer;
+	FTimerHandle InitialSpawnDelayTimer;
+	FTimerHandle DemandSpawnTimer;
 	TArray<TSubclassOf<AEnemyCharacterBase>> OneByOneSpawnQueue;
 	int32 OneByOneSpawnIndex = 0;
+
+	// Wave 模式下使用随机错开间隔（而非 OneByOne 的固定间隔）
+	bool bWaveStaggerMode = false;
+
+	// 关卡内各类型已计划刷出数量（BuildWavePlan 时累计，跨波次）
+	TMap<TSubclassOf<AEnemyCharacterBase>, int32> LevelTypeSpawnCounts;
+	int32 TotalLevelPlannedEnemies = 0;
+
+	// 按需补刷：每当有敌人死亡且当前波次 DemandCount > 0 时，延迟补刷一只
+	void CheckDemandSpawn();
 
 	// 本关激活的关卡符文（进关时骰子选好，新怪刷出时在其 BuffFlowComponent 上激活）
 	TArray<URuneDataAsset*> ActiveRoomBuffs;

@@ -24,9 +24,10 @@ struct DEVKIT_API FFloorConfig
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor")
     int32 FloorNumber = 1;
 
-    // 此关的难度等级，决定 DA_Room 中使用哪套 DifficultyConfig
+    // ---- 此关的刷怪难度配置（波数、预算、触发条件等）----
+    // 难度分预算决定本关刷出的敌人总量，波次数量在 [WaveCountMin, WaveCountMax] 间随机
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor")
-    EDifficultyTier Difficulty = EDifficultyTier::Low;
+    FDifficultyConfig DifficultyConfig;
 
     // ---- 房间类型概率 ----
     // 强制精英关（覆盖 EliteChance，必出精英）

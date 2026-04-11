@@ -102,10 +102,4 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portals")
     TArray<FPortalDestConfig> PortalDestinations;
 
-    // =========================================================
-    // 难度配置（按需填，不强制三档全填）
-    // =========================================================
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
-    TArray<FDifficultyEntry> DifficultyConfigs;
 };
