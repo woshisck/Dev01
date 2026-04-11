@@ -26,6 +26,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void DisablePortal();
 
+	// 关卡开始时由 GameMode 确定该门永不开启：隐藏门效果，显示静态装饰，无碰撞
+	UFUNCTION(BlueprintImplementableEvent)
+	void NeverOpen();
+
 	// GameMode 在关卡结束时调用，分配目标关卡和房间配置并开启门
 	UFUNCTION(BlueprintCallable)
 	void Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom);
@@ -62,6 +66,10 @@ public:
 	// 是否已开启（BeginPlay 时为 false，GameMode 调 Open() 后变 true）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")
 	bool bIsOpen = false;
+
+	// 关卡开始时确定永不开启（未登记在 PortalDestinations 中）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")
+	bool bWillNeverOpen = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TObjectPtr<UBoxComponent> CollisionVolume;

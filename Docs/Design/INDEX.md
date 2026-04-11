@@ -1,7 +1,7 @@
 # 设计文档索引
 
 > 项目：星骸降临 Dev01  
-> 更新：2026-04-11（难度配置迁移至 DA_Campaign；波次预算随机化；MobSpawner 白名单/类型上限/补刷/错开刷新；计时触发可配置）  
+> 更新：2026-04-11（新增：传送门 NeverOpen / 按 E 拾取 / 死亡碰撞 / 系统细化工作报告 / 进展路线图更新 / 玩家调研 / 商业计划分析）  
 > 新增文档必须在此更新，参见 [DocWritingGuide.md](DocWritingGuide.md)
 
 ---
@@ -50,7 +50,7 @@
 | [敌人连击蒙太奇配置](FeatureConfig/EnemyCombo_ConfigGuide.md) | 多段连击蒙太奇结构 + AN_EnemyComboSection 配置 | 策划 |
 | [死亡消解特效配置](FeatureConfig/DeathDissolve_ConfigGuide.md) | GA_Dead + GameplayCue 消解粒子配置 | 策划 |
 | [测试符文创建指南](FeatureConfig/TestRune_CreationGuide.md) | 快速创建可测试符文的完整流程 | 策划 |
-| [传送门配置指南](FeatureConfig/Portal_ConfigGuide.md) | 编辑器配置 APortal Index / PortalDestinations / RewardPickupClass | 策划 |
+| [传送门配置指南](FeatureConfig/Portal_ConfigGuide.md) | 编辑器配置 APortal Index / PortalDestinations / RewardPickupClass / NeverOpen BP 实现 | 策划 |
 | [关卡 Buff 池配置指南](FeatureConfig/BuffPool_ConfigGuide.md) | 创建 BuffDataAsset + 在 DA_Room 中配置 BuffPool | 策划 |
 | [敌人朝向修正配置指南](FeatureConfig/EnemyRotation_ConfigGuide.md) | BTT_RotateCorrect 配置（Interp Speed）+ 转身动画方案设计 | 策划 + 程序 |
 
@@ -67,8 +67,9 @@
 | [充能系统指南](Systems/SkillCharge_Guide.md) | SkillChargeComponent 配置和使用 | 策划 + 程序 |
 | [关卡系统配置指南](Systems/LevelSystem_ConfigGuide.md) | DA_Room / DA_Campaign 配置（敌人池 / 难度 / MobSpawner 白名单 / 传送门）| 策划 |
 | [关卡系统技术文档](Systems/LevelSystem_ProgrammerDoc.md) | 波次生成算法 / 补刷 / 错开刷新 / 切关流程 / Timer 汇总 | 程序 |
-| [传送门与关卡奖励系统设计](Systems/Portal_Design.md) | 传送门多分支切关 + 奖励拾取物设计原理 | 策划 + 程序 |
+| [传送门与关卡奖励系统设计](Systems/Portal_Design.md) | 传送门多分支切关 + 奖励拾取物设计原理（含 NeverOpen + 按 E 拾取）| 策划 + 程序 |
 | [跨关状态持久化技术文档](Systems/CrossLevelState_Technical.md) | FRunState 数据流、存储/恢复流程、调试方法 | 程序 |
+| [目标用户与玩家声音调研](Systems/PlayerResearch_Design.md) | 核心用户画像 / 玩家诉求 / 竞品分析 / 设计建议 / 市场估算 | 策划 |
 
 ---
 
@@ -82,6 +83,10 @@
 | [主循环开发状态 2026-04-10](WorkReports/MainLoop_WorkReport_20260410.md) | 主循环实现进度、已确认设计决策、设计遗漏分析 |
 | [主循环工作报告 2026-04-10（第二版）](WorkReports/MainLoop_WorkReport_20260410b.md) | 传送门/跨关状态完成记录、架构变更、下阶段计划 |
 | [刷怪系统迭代 2026-04-11](WorkReports/SpawnSystem_WorkReport_20260411.md) | MobSpawner 白名单 / 类型上限 / 补刷 / 错开 / 计时触发 / 难度迁移 |
+| [系统细化与交互优化 2026-04-11](WorkReports/SystemPolish_WorkReport_20260411.md) | 传送门 NeverOpen / 按 E 拾取 / 死亡碰撞清除 / 敌人朝向修复 |
+| [当前进展 2026-04-11](WorkReports/CurrentProgress_20260411.md) | 项目阶段概述、已完成 / 未完成功能速览、本周目标（最新）|
+| [开发路线图 2026-04-11](WorkReports/DevRoadmap_20260411.md) | 详细任务规划（P0-P3）、各任务步骤、里程碑时间线（最新）|
+| [商业计划书分析 2026-04-11](WorkReports/BPAnalysis_20260411.md) | 差异化分析 / 问题查漏 / 改进建议 / 吸引力评估 |
 | [热度系统工作报告 2026-04-06](WorkReports/HeatSystem_WorkReport_20260406.md) | 热度系统实现阶段总结 |
 
 ---
@@ -98,7 +103,8 @@
 
 **策划：我想……**
 - 了解游戏整体循环设计 → [游戏主循环设计](Systems/MainLoop_Design.md)
-- 查看当前开发进度和优先级 → [主循环工作报告](WorkReports/MainLoop_WorkReport_20260410.md)
+- 了解目标用户和玩家诉求 → [目标用户与玩家声音调研](Systems/PlayerResearch_Design.md)
+- 查看当前开发进度和优先级 → [当前进展 2026-04-11](WorkReports/CurrentProgress_20260411.md)
 - 配置攻击造成伤害 → [攻击伤害配置指南](FeatureConfig/AttackDamage_ConfigGuide.md)
 - 攻击伤害的设计原理 → [攻击伤害系统设计说明](Systems/AttackDamage_Design.md)
 - 配置敌人攻击行为 → [行为树攻击任务配置](FeatureConfig/BT_AttackTask_ConfigGuide.md)
@@ -109,11 +115,11 @@
 - GA 里怎么填 Tag → [GA Tag 字段使用指南](Tags/GA_TagFields_Guide.md)
 - 配置状态冲突规则 → [状态冲突规则表](StateConflict/StateConflict_TagBlock.md)
 - 设计新符文 → [BuffFlow 符文工作流](BuffFlow/BuffFlow_RuneWorkflow.md)
-- 配置传送门 → [传送门配置指南](FeatureConfig/Portal_ConfigGuide.md)
+- 配置传送门（含 NeverOpen 和按 E 拾取）→ [传送门配置指南](FeatureConfig/Portal_ConfigGuide.md)
 - 配置关卡 Buff → [关卡 Buff 池配置指南](FeatureConfig/BuffPool_ConfigGuide.md)
 
 **程序：我想……**
-- 了解主循环开发任务优先级 → [主循环工作报告](WorkReports/MainLoop_WorkReport_20260410.md)
+- 了解开发任务优先级 → [开发路线图 2026-04-11](WorkReports/DevRoadmap_20260411.md)
 - 了解攻击伤害架构及改造方案 → [攻击伤害系统技术文档](Systems/AttackDamage_Technical.md)
 - 了解 Tag 架构 → [GameplayTag 总体设计指南](Tags/GameplayTag_MasterGuide.md)
 - 了解 StateConflict 实现 → [状态冲突系统技术文档](StateConflict/StateConflict_Technical.md)

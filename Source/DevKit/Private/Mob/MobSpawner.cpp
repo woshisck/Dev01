@@ -59,9 +59,15 @@ AEnemyCharacterBase* AMobSpawner::SpawnMob(TSubclassOf<AActor> spawn_actor_class
 
         AEnemyCharacterBase* Spawned_Enemy = World->SpawnActor<AEnemyCharacterBase>(spawn_actor_class, Location, FRotator::ZeroRotator, Params);
 
-        // 通知蓝图子类播放出生特效（在此位置放 Niagara / 出场动画）
         if (Spawned_Enemy)
         {
+            // AutoPossessAI 可能为 PlacedInWorld，运行时刷怪需手动触发 AIController 绑定
+            if (!Spawned_Enemy->GetController())
+            {
+                Spawned_Enemy->SpawnDefaultController();
+            }
+
+            // 通知蓝图子类播放出生特效（在此位置放 Niagara / 出场动画）
             OnEnemySpawned(Spawned_Enemy, Location);
         }
 

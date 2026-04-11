@@ -35,9 +35,18 @@ void UAttributeStatComponent::EndPlay(const EEndPlayReason::Type endPlayReason)
 
 float UAttributeStatComponent::GetAttribute(FGameplayAttribute attribute) const
 {
-	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
-
-	check(ASC);
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AttributeStatComponent::GetAttribute] GetOwner() is null or invalid"));
+		return 0.f;
+	}
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
+	if (!ASC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AttributeStatComponent::GetAttribute] No ASC found on %s"), *Owner->GetName());
+		return 0.f;
+	}
 	return ASC->GetNumericAttributeBase(attribute);
 }
 

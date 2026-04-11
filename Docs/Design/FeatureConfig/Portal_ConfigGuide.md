@@ -3,7 +3,7 @@
 > 适用范围：关卡切换 / 传送门放置 / 目标关卡配置  
 > 适用人群：策划  
 > 配套文档：[传送门系统设计](../Systems/Portal_Design.md)  
-> 最后更新：2026-04-10
+> 最后更新：2026-04-11（新增：NeverOpen 永不开启门配置 + 奖励拾取物按 E 交互说明）
 
 ---
 
@@ -74,15 +74,46 @@ FloorTable[0]（第 1 关）
 
 ---
 
+## 永不开启门（NeverOpen）的蓝图配置
+
+场景中放置的传送门，如果没有在 `PortalDestinations` 中登记，关卡开始时系统会自动调用 `NeverOpen()` 事件。
+
+**在 BP_Portal 中实现该事件（必做）：**
+
+1. 打开 `BP_Portal`，在事件图表中搜索 `Event Never Open`
+2. 连接以下节点：
+   - `SetCollisionEnabled`（CollisionVolume，NoCollision）→ 关闭碰撞，防止玩家误进
+   - `SetVisibility`（门的粒子/雾效组件，false）→ 隐藏门效果
+   - `SetVisibility`（静态封堵网格 StaticDecoration，true）→ 可选：显示砖墙/封堵装饰
+
+> ⚠️ 如果未实现该事件，永不开启的门外观上和关闭门相同（调用过 `DisablePortal`），但碰撞仍存在，玩家会被挡住。
+
+---
+
+## 奖励拾取物使用说明（按 E 拾取）
+
+关卡结算后生成的 `ARewardPickup`（奖励拾取物）不会自动触发，玩家需要**走近后按 E 键**才能触发符文选择界面。
+
+| 步骤 | 行为 |
+|---|---|
+| 玩家进入碰撞范围 | 系统自动登记（可在此时显示"按 E 拾取"提示，UI 待实现）|
+| 玩家按 E 键 | 触发 `TryPickup()`，弹出符文三选一界面，拾取物消失 |
+| 玩家离开范围（未按 E）| 登记清除，再次进入才能重新拾取 |
+
+> 类比：《以撒》的道具台面，靠近显示说明，确认才吃。
+
+---
+
 ## 注意事项
 
 | 情况 | 结果 |
 |---|---|
-| Portal.Index 与 PortalDestinations 中无匹配 | 该门永远不开，玩家无法通过 |
+| Portal.Index 与 PortalDestinations 中无匹配 | 该门被标记 NeverOpen，视觉降为纯装饰 |
 | NextLevelPool 为空 | 该配置不参与随机开门逻辑 |
 | 所有门的 NextLevelPool 均为空 | 关卡结束后没有任何门可进 ⚠️ |
 | 关卡中没有 APortal Actor | ActivatePortals 找不到门，不报错，但无出路 |
 | RewardPickupClass 为空 | 无拾取物生成，战利品选择界面无法弹出 |
+| BP_Portal 未实现 Event Never Open | 永不开启的门碰撞仍存在，视觉不变，无明显区分 |
 
 ---
 

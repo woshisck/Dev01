@@ -35,15 +35,29 @@ AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 void AYogGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
 {
 	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
-	if (GI && GI->PersistentSaveData)
+	if (GI && GI->PersistentSaveData && GI->PersistentSaveData->SavedCharacterClass)
 	{
+		// 使用 PlayerStart 作为出生位置，避免在 (0,0,0) 发生碰撞
+		AActor* StartSpot = FindPlayerStart(NewPlayer);
+		const FVector  SpawnLoc = StartSpot ? StartSpot->GetActorLocation() : FVector::ZeroVector;
+		const FRotator SpawnRot = StartSpot ? StartSpot->GetActorRotation() : FRotator::ZeroRotator;
+
 		FActorSpawnParameters Params;
 		Params.Owner = NewPlayer;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
 		APlayerCharacterBase* LoadedChar = GetWorld()->SpawnActor<APlayerCharacterBase>(
 			GI->PersistentSaveData->SavedCharacterClass,
+			SpawnLoc, SpawnRot,
 			Params
 		);
+
+		if (!LoadedChar)
+		{
+			UE_LOG(LogTemp, Error, TEXT("HandleStartingNewPlayer: SpawnActor failed, falling back to default"));
+			Super::HandleStartingNewPlayer_Implementation(NewPlayer);
+			return;
+		}
 
 		NewPlayer->Possess(LoadedChar);
 
@@ -304,11 +318,23 @@ void AYogGameMode::EnterArrangementPhase()
 		}
 	}
 
-	// 在最后击杀位置生成奖励拾取物（玩家走近后触发战利品选择界面）
-	if (RewardPickupClass && !LastEnemyKillLocation.IsZero())
+	// 在最后击杀位置生成奖励拾取物（若无敌人被击杀则退而在玩家位置生成）
+	if (RewardPickupClass)
 	{
-		GetWorld()->SpawnActor<AActor>(RewardPickupClass, LastEnemyKillLocation, FRotator::ZeroRotator);
-		UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 生成 RewardPickup @ %s"), *LastEnemyKillLocation.ToString());
+		FVector SpawnLoc = LastEnemyKillLocation;
+		if (SpawnLoc.IsZero())
+		{
+			if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+			{
+				if (APawn* P = PC->GetPawn())
+					SpawnLoc = P->GetActorLocation();
+			}
+		}
+		if (!SpawnLoc.IsZero())
+		{
+			GetWorld()->SpawnActor<AActor>(RewardPickupClass, SpawnLoc, FRotator::ZeroRotator);
+			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 生成 RewardPickup @ %s"), *SpawnLoc.ToString());
+		}
 	}
 
 	// 开启传送门
@@ -421,7 +447,8 @@ void AYogGameMode::StartLevelSpawning()
 	const int32 TableIndex = CurrentFloor - 1;
 	if (!CampaignData->FloorTable.IsValidIndex(TableIndex))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: FloorTable 没有第 %d 关的配置"), CurrentFloor);
+		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: FloorTable 没有第 %d 关的配置，降级为场景预放置敌人统计"), CurrentFloor);
+		FallbackToPreplacedEnemies();
 		return;
 	}
 
@@ -456,7 +483,8 @@ void AYogGameMode::StartLevelSpawning()
 
 	if (!ActiveRoomData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: 第 %d 关无法获取 RoomData，检查 CampaignData 的 RoomPool 是否为空"), CurrentFloor);
+		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: 第 %d 关无法获取 RoomData，降级为场景预放置敌人统计"), CurrentFloor);
+		FallbackToPreplacedEnemies();
 		return;
 	}
 
@@ -477,6 +505,35 @@ void AYogGameMode::StartLevelSpawning()
 	CurrentWaveIndex  = -1;
 	TotalAliveEnemies = 0;
 	bAllWavesSpawned  = false;
+
+	// ---- 标记本关永不开启的传送门 ----
+	// PortalDestinations 中未登记的门：关卡开始时即确定不会开启，调用 NeverOpen() 显示静态装饰
+	{
+		TArray<AActor*> AllPortalActors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), AllPortalActors);
+		for (AActor* PortalActor : AllPortalActors)
+		{
+			APortal* Portal = Cast<APortal>(PortalActor);
+			if (!Portal) continue;
+
+			bool bCanOpen = false;
+			for (const FPortalDestConfig& Dest : ActiveRoomData->PortalDestinations)
+			{
+				if (Dest.PortalIndex == Portal->Index)
+				{
+					bCanOpen = true;
+					break;
+				}
+			}
+
+			if (!bCanOpen)
+			{
+				Portal->bWillNeverOpen = true;
+				Portal->NeverOpen();
+				UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: Portal[%d] 永不开启 → NeverOpen"), Portal->Index);
+			}
+		}
+	}
 
 	// 延迟后启动第一波（给特效/动画和 AI 初始化预留时间）
 	if (InitialSpawnDelay > 0.f)
@@ -654,12 +711,6 @@ void AYogGameMode::TriggerNextWave()
 	UE_LOG(LogTemp, Log, TEXT("TriggerNextWave: 开始第 %d 波，共 %d 只敌人"),
 		CurrentWaveIndex + 1, Wave.EnemiesToSpawn.Num());
 
-	// 如果这是最后一波，刷怪完成后就标记所有波次已结束
-	if (CurrentWaveIndex == WavePlans.Num() - 1)
-	{
-		bAllWavesSpawned = true;
-	}
-
 	// Wave 和 OneByOne 都走队列，区别在于每只之间的延迟：
 	// Wave     → SpawnStaggerMin ~ SpawnStaggerMax 的随机错开
 	// OneByOne → OneByOneInterval（固定间隔）
@@ -717,9 +768,13 @@ void AYogGameMode::SpawnNextOneByOne()
 
 void AYogGameMode::SetupWaveTrigger(const FWavePlan& Wave)
 {
-	// 最后一波不需要触发条件（等待 CheckLevelComplete）
+	// 最后一波：所有敌人已生成完毕，此时才标记并检查完成
 	if (CurrentWaveIndex >= WavePlans.Num() - 1)
+	{
+		bAllWavesSpawned = true;
+		CheckLevelComplete();
 		return;
+	}
 
 	switch (Wave.TriggerType)
 	{
@@ -827,6 +882,37 @@ void AYogGameMode::CheckDemandSpawn()
 			*DemandClass->GetName(), Wave.DemandCount);
 	}
 	// 若刷出失败（没有 Spawner），DemandCount 已减，避免死循环
+}
+
+void AYogGameMode::FallbackToPreplacedEnemies()
+{
+	// 波次系统未能初始化时（FloorTable 缺配置 / RoomData 为空），
+	// 扫描场景中已存在的 AEnemyCharacterBase，将其存活数作为 TotalAliveEnemies，
+	// 并标记 bAllWavesSpawned = true，使 CheckLevelComplete 能正常结算。
+	TArray<AActor*> FoundEnemies;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyCharacterBase::StaticClass(), FoundEnemies);
+
+	int32 AliveCount = 0;
+	for (AActor* Actor : FoundEnemies)
+	{
+		if (AEnemyCharacterBase* Enemy = Cast<AEnemyCharacterBase>(Actor))
+		{
+			if (!Enemy->bIsDead)
+				AliveCount++;
+		}
+	}
+
+	TotalAliveEnemies = AliveCount;
+	bAllWavesSpawned  = true;
+	CurrentPhase      = ELevelPhase::Combat; // 确保结算阶段检查通过
+
+	UE_LOG(LogTemp, Warning, TEXT("[FallbackToPreplacedEnemies] 场景预放置敌人 %d 只，bAllWavesSpawned=true"), AliveCount);
+
+	// 若场景里根本没有敌人，直接进入整理阶段
+	if (AliveCount == 0)
+	{
+		EnterArrangementPhase();
+	}
 }
 
 void AYogGameMode::CheckLevelComplete()
@@ -1022,10 +1108,24 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 				}
 			}
 
+			// 保存当前武器
+			NewState.EquippedWeaponDef = Player->EquippedWeaponDef;
+
+			// 保存整理阶段选出但尚未放入格子的符文
+			NewState.PendingRunes = Player->PendingRunes;
+
 			GI->PendingRunState = NewState;
-			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Gold=%d Phase=%d Runes=%d Room=%s"),
+			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Gold=%d Phase=%d Runes=%d Weapon=%s Room=%s"),
 				NewState.CurrentHP, NewState.CurrentGold, NewState.CurrentPhase, NewState.PlacedRunes.Num(),
+				NewState.EquippedWeaponDef ? *NewState.EquippedWeaponDef->GetName() : TEXT("none"),
 				NextRoom ? *NextRoom->GetName() : TEXT("null"));
+
+			// 保存角色类，供下一关 HandleStartingNewPlayer_Implementation 重建玩家
+			if (!GI->PersistentSaveData)
+			{
+				GI->PersistentSaveData = NewObject<UYogSaveGame>(GI);
+			}
+			GI->PersistentSaveData->SavedCharacterClass = Player->GetClass();
 		}
 	}
 
@@ -1100,6 +1200,22 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 			return Fallback[FMath::RandRange(0, Fallback.Num() - 1)];
 	}
 
+	// 4. 最终兜底：传送门专属池有房间但类型全不匹配时，无视类型随机取一个
+	//    （避免因骰到 Elite 而导致整个门无法开启）
+	if (PortalDest && !PortalDest->RoomPool.IsEmpty())
+	{
+		TArray<URoomDataAsset*> AnyInPool;
+		for (const TObjectPtr<URoomDataAsset>& Room : PortalDest->RoomPool)
+		{
+			if (Room) AnyInPool.Add(Room);
+		}
+		if (!AnyInPool.IsEmpty())
+		{
+			UE_LOG(LogTemp, Log, TEXT("SelectRoomByTag: 类型 [%s] 无精确匹配，使用门专属池兜底"), *RequiredTag.ToString());
+			return AnyInPool[FMath::RandRange(0, AnyInPool.Num() - 1)];
+		}
+	}
+
 	return nullptr;
 }
 
@@ -1150,10 +1266,26 @@ void AYogGameMode::ActivatePortals()
 	bool bAtLeastOneOpened = false;
 	for (const FPortalDestConfig& Cfg : Configs)
 	{
-		if (Cfg.NextLevelPool.IsEmpty()) continue;
-
 		APortal** Found = PortalMap.Find(Cfg.PortalIndex);
 		if (!Found || !(*Found)) continue;
+
+		// 先查此门专属 RoomPool，再查 Campaign 全局，最后退化为 Normal
+		URoomDataAsset* ChosenRoom = SelectRoomByTag(&Cfg, RequiredRoomType);
+
+		if (!ChosenRoom)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ActivatePortals: 门[%d] 找不到可用 DA_Room，跳过"), Cfg.PortalIndex);
+			continue;
+		}
+
+		// RoomName 即关卡文件名，直接使用
+		const FName LevelName = ChosenRoom->RoomName;
+		if (LevelName.IsNone())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ActivatePortals: 门[%d] DA_Room [%s] 的 RoomName 为空，跳过"),
+				Cfg.PortalIndex, *ChosenRoom->GetName());
+			continue;
+		}
 
 		// 洗牌后第一个必开；后续 50% 概率
 		const bool bShouldOpen = !bAtLeastOneOpened || FMath::RandBool();
@@ -1163,17 +1295,10 @@ void AYogGameMode::ActivatePortals()
 			continue;
 		}
 
-		// 先查此门专属 RoomPool，再查 Campaign 全局，最后退化为 Normal
-		URoomDataAsset* ChosenRoom = SelectRoomByTag(&Cfg, RequiredRoomType);
-
-		// 从该门的关卡池随机选一张地图
-		const FName ChosenLevel = Cfg.NextLevelPool[FMath::RandRange(0, Cfg.NextLevelPool.Num() - 1)];
-
-		(*Found)->Open(ChosenLevel, ChosenRoom);
+		(*Found)->Open(LevelName, ChosenRoom);
 		bAtLeastOneOpened = true;
 
 		UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 开启 → 关卡=%s 房间=%s"),
-			Cfg.PortalIndex, *ChosenLevel.ToString(),
-			ChosenRoom ? *ChosenRoom->GetName() : TEXT("null"));
+			Cfg.PortalIndex, *LevelName.ToString(), *ChosenRoom->GetName());
 	}
 }

@@ -12,6 +12,7 @@
 #include "Character/YogCharacterBase.h"
 #include <EnhancedInputSubsystems.h>
 #include "Item/ItemSpawner.h"
+#include "Map/RewardPickup.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -271,12 +272,18 @@ void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 void AYogPlayerControllerBase::Interact(const FInputActionValue& Value)
 {
 	UE_LOG(LogTemp, Log, TEXT("Interact"));
-	
+
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		if (player->OverlappingSpawner)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Player is overlapping with spawner: %s"), *player->OverlappingSpawner->GetName());
+		}
+
+		// 范围内有奖励拾取物 → 按 E 触发拾取
+		if (player->PendingPickup)
+		{
+			player->PendingPickup->TryPickup(player);
 		}
 	}
 }

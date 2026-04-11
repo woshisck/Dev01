@@ -41,6 +41,8 @@ static const FName TAG_HC4(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"));
 
 // Dash attack
 static const FName TAG_DA       (TEXT("PlayerState.AbilityCast.DashAtk"));
+// NOTE: TAG_Dead 已在 GA_EnemyMeleeAttacks.cpp 定义，此处不重复定义
+//       避免 UE5 adaptive non-unity 批次编译时产生 C2374 重定义错误
 static const FName TAG_HitReact (TEXT("Buff.Status.HitReact"));
 static const FName TAG_Knockback(TEXT("Buff.Status.Knockback"));
 
@@ -172,7 +174,7 @@ UGA_Player_DashAtk::UGA_Player_DashAtk()
 	AbilityTags.AddTag(GT(TAG_DA));
 	ActivationOwnedTags.AddTag(GT(TAG_DA));
 
-	ActivationBlockedTags.AddTag(GT(TAG_Dead));
+	ActivationBlockedTags.AddTag(GT(FName(TEXT("Buff.Status.Dead"))));
 	ActivationBlockedTags.AddTag(GT(TAG_HitReact));
 	ActivationBlockedTags.AddTag(GT(TAG_Knockback));
 }

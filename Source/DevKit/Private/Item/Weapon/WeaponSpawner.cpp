@@ -94,9 +94,12 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 		SpawnData.WeaponAbilities = weapon_spawn_data.WeaponAbilities;
 		SpawnData.bShouldSaveToGame = true;
 
-		AWeaponInstance* WeaponActor = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(OverlappingPawn, OverlappingPawn->GetTransform(), SpawnData);		
+		AWeaponInstance* WeaponActor = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(OverlappingPawn, OverlappingPawn->GetTransform(), SpawnData);
 		OverlappingPawn->GetCharacterDataComponent()->GetCharacterData()->AbilityData = WeaponDefinition->WeaponAbilityData;
 	}
+
+	// 记录已装备的武器 DA，供切关时写入 FRunState
+	OverlappingPawn->EquippedWeaponDef = WeaponDefinition;
 
 	UE_LOG(LogTemp, Display, TEXT("ADD GAMEPLAY TAG "));
 	//OverlappingPawn->GetASC()->AddGameplayTagWithCount(Tag, 1);
