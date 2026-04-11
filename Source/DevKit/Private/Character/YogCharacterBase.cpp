@@ -144,8 +144,14 @@ void AYogCharacterBase::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
+	// 蓝图序列化可能导致 UPROPERTY 指针为 null，组件本身仍在 actor 上，自动修复
+	if (!AttributeStatsComponent)
+	{
+		AttributeStatsComponent = FindComponentByClass<UAttributeStatComponent>();
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("PostInit: AbilitySystemComponent = %p"), AbilitySystemComponent.Get());
-	
+
 	check(AbilitySystemComponent);
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 	AbilitySystemComponent->InitConflictTable();
@@ -332,8 +338,14 @@ void AYogCharacterBase::UpdateCharacterState(EYogCharacterState newState)
 
 void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 {
+	if (!IsValid(AttributeStatsComponent))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HealthChanged] AttributeStatsComponent is invalid on %s"), *GetName());
+		return;
+	}
 	float Health = Data.NewValue;
-	float percent = Health / AttributeStatsComponent->GetStat_MaxHealth();
+	float MaxHealth = AttributeStatsComponent->GetStat_MaxHealth();
+	float percent = (MaxHealth > 0.f) ? (Health / MaxHealth) : 0.f;
 
 	OnCharacterHealthUpdate.Broadcast(percent);
 	UE_LOG(LogTemp, Log, TEXT("Health Changed to: %f"), Health);
@@ -373,6 +385,12 @@ void AYogCharacterBase::Die()
 	UE_LOG(LogTemp, Log, TEXT("DEATH HAPPEN, DEAD CHARACTER: %s"), *UKismetSystemLibrary::GetDisplayName(this));
 
 	bIsDead = true;
+
+	// 死亡时立即关闭胶囊碰撞，防止尸体阻挡玩家移动和敌人寻路
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 
 	// 发送 Action.Dead 事件 → 触发 GA_Dead 播放死亡动画，动画结束后 GA 调用 FinishDying()
 	if (AbilitySystemComponent)

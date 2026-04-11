@@ -12,6 +12,7 @@ ARewardPickup::ARewardPickup()
 	CollisionVolume->InitBoxExtent(FVector(80, 80, 80));
 	RootComponent = CollisionVolume;
 	CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &ARewardPickup::OnOverlapBegin);
+	CollisionVolume->OnComponentEndOverlap.AddDynamic(this, &ARewardPickup::OnOverlapEnd);
 }
 
 void ARewardPickup::BeginPlay()
@@ -24,9 +25,34 @@ void ARewardPickup::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAc
 	bool bFromSweep, const FHitResult& SweepHitResult)
 {
 	if (bPickedUp) return;
-	if (!Cast<APlayerCharacterBase>(OtherActor)) return;
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
+	if (!Player) return;
 
+	// 进入范围时登记，等待玩家主动按 E 拾取
+	Player->PendingPickup = this;
+	UE_LOG(LogTemp, Log, TEXT("RewardPickup: 玩家进入拾取范围，按 E 键拾取"));
+}
+
+void ARewardPickup::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
+	if (!Player) return;
+
+	// 离开范围时清除登记
+	if (Player->PendingPickup == this)
+	{
+		Player->PendingPickup = nullptr;
+		UE_LOG(LogTemp, Log, TEXT("RewardPickup: 玩家离开拾取范围"));
+	}
+}
+
+void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
+{
+	if (bPickedUp || !Player) return;
 	bPickedUp = true;
+
+	Player->PendingPickup = nullptr;
 
 	// 通知 GameMode 生成战利品选项并广播给 UI
 	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this)))
@@ -34,6 +60,5 @@ void ARewardPickup::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAc
 		GM->GenerateLootOptions();
 	}
 
-	// 拾取后销毁自身
 	Destroy();
 }

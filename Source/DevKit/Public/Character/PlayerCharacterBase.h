@@ -13,10 +13,12 @@
  * 
  */
 //class AAuraBase;
+class ARewardPickup;
 class UYogSaveGame;
 class UBackpackGridComponent;
 class UBuffFlowComponent;
 class USkillChargeComponent;
+class UWeaponDefinition;
 UENUM()
 enum class EPlayerState : uint8
 {
@@ -91,6 +93,10 @@ public:
 	UPROPERTY()
 	TObjectPtr<AItemSpawner> OverlappingSpawner;
 
+	// 当前在拾取范围内的 RewardPickup（按 E 键时触发拾取）
+	UPROPERTY()
+	TObjectPtr<ARewardPickup> PendingPickup;
+
 	UFUNCTION(BlueprintPure, Category = "Backpack")
 	UBackpackGridComponent* GetBackpackGridComponent();
 
@@ -117,6 +123,13 @@ public:
 
 	// 切关后从 GameInstance.PendingRunState 恢复 HP / 金币 / 符文 / 热度阶段
 	void RestoreRunStateFromGI();
+
+	// BeginPlay 末尾重新 Link 武器动画层（GAS 授能可能覆盖切关时已 Link 的层）
+	void RelinkWeaponAnimLayer();
+
+	// 当前装备的武器定义（切关时写入 RunState，由 RestoreRunStateFromGI 重新装备）
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<UWeaponDefinition> EquippedWeaponDef;
 
 	// ─── 最后输入方向（冲刺朝向使用）────────────────────────────────
 	// 由 Controller.Move() 在每次非零输入时更新，世界空间单位向量
