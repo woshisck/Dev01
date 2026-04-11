@@ -77,7 +77,7 @@ struct DEVKIT_API FYogEffectPorperty
 	TSubclassOf<UYogGameplayEffect> GameplayEffect;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
-	int EffectLevel;
+	int EffectLevel = 1;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayEffectContainer)
 	//EGameEffectedOnActor EffectType = EGameEffectedOnActor::OnTarget;

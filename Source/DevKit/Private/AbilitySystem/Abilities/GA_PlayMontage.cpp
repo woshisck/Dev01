@@ -36,6 +36,9 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	// 记录激活时刻，连击缓存只接受此时间之后的输入
 	AbilityActivationTime = GetWorld()->GetTimeSeconds();
 
+	// 每次攻击激活时先清除上一招残留的 CanCombo tag
+	ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")));
+
 	// 注册 CanCombo tag 监听前先注销旧 handle，防止重入时产生孤儿监听器
 	if (CanComboTagHandle.IsValid())
 	{

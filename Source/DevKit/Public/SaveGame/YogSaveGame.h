@@ -244,7 +244,7 @@ public:
 
 
 	UPROPERTY()
-	UAbilityData* WeaponAbilities;
+	UAbilityData* WeaponAbilities = nullptr;
 
 	UPROPERTY()
 	TArray<uint8> CharacterByteData;
