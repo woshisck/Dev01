@@ -245,6 +245,9 @@ protected:
 	// 检查关卡是否完成（所有波次结束 + 场内清空）
 	void CheckLevelComplete();
 
+	// 波次系统未能初始化时，降级统计场景内预放置敌人数量
+	void FallbackToPreplacedEnemies();
+
 	// 从随机 MobSpawner 刷出指定类型的敌人
 	bool SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClass);
 

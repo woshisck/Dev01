@@ -33,9 +33,14 @@
 
 玩家靠近 ARewardPickup
   └─ OnOverlapBegin()
-       └─ GM->GenerateLootOptions()
-            └─ OnLootGenerated 广播（3 个符文选项）→ UI 弹出
-       └─ Destroy()（拾取物销毁）
+       └─ Player->PendingPickup = this（登记引用，等待主动交互）
+
+玩家按 E 键（IA_Interact）
+  └─ YogPlayerControllerBase::Interact()
+       └─ Player->PendingPickup->TryPickup(Player)
+            ├─ GM->GenerateLootOptions()
+            │    └─ OnLootGenerated 广播（3 个符文选项）→ UI 弹出
+            └─ Destroy()（拾取物销毁）
 
 玩家选择符文
   └─ GM->SelectLoot(Index)
@@ -69,6 +74,7 @@
 |---|---|---|
 | `Index` | `int32` | 场景内唯一标识（与 CampaignData 中的 PortalIndex 对应）|
 | `bIsOpen` | `bool` | 是否已开启（BeginPlay 时为 false）|
+| `bWillNeverOpen` | `bool` | 关卡开始时确定永不开启（未登记在 PortalDestinations）；由 GameMode 设置 |
 | `SelectedLevel` | `FName` | GameMode 分配的目标关卡名（类型无关）|
 | `SelectedRoom` | `URoomDataAsset*` | GameMode 分配的目标房间配置（骰子决定类型）|
 
@@ -180,8 +186,21 @@ ChosenLevel = Portal.NextLevelPool 中随机选一个（类型无关）
 |---|---|---|
 | `DisablePortal` | BeginPlay（关卡开始）| 显示封闭状态（雾效、暗色）|
 | `EnablePortal` | `Open()` 被调用时 | 消散封闭效果，显示可进入状态 |
+| `NeverOpen` | `StartLevelSpawning()` 期间，由 GameMode 调用 | 隐藏门效果，切换为纯装饰状态，禁用碰撞 |
 
-两个方法均为 `BlueprintImplementableEvent`，C++ 侧不做任何视觉操作。
+三个方法均为 `BlueprintImplementableEvent`，C++ 侧不做任何视觉操作。
+
+### 5.1 NeverOpen 门的 BP 实现建议
+
+```
+Event Never Open
+  ├─ SetCollisionEnabled(CollisionVolume, NoCollision)
+  ├─ HideDeactivate / SetVisibility(DoorFX, false)
+  └─ SetVisibility(StaticDecoMesh, true)（可选：显示静态封堵装饰）
+```
+
+> ⚠️ 注意：`DisablePortal`（关卡开始）和 `NeverOpen`（GameMode 初始化后）均会被调用。  
+> `NeverOpen` 调用时机比 `DisablePortal` 稍晚，确保最终状态正确即可，两者之间不会有可见闪烁。
 
 ---
 
@@ -189,7 +208,7 @@ ChosenLevel = Portal.NextLevelPool 中随机选一个（类型无关）
 
 | 情况 | 行为 |
 |---|---|
-| `Portal.Index` 与 `PortalDestinations` 中无匹配项 | 该门永远不会被开启 |
+| `Portal.Index` 与 `PortalDestinations` 中无匹配项 | 该门被标记 `bWillNeverOpen=true`，调用 `NeverOpen()`，显示为纯装饰 |
 | `NextLevelPool` 为空 | 该门不参与随机开启 |
 | `RewardPickupClass` 未在 GameMode 中配置 | 不生成拾取物，玩家无法触发战利品界面 |
 | `LastEnemyKillLocation` 为 ZeroVector | RewardPickup 生成在世界原点（通常意味着没有敌人被击杀）|

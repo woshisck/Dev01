@@ -49,18 +49,24 @@ void UBackpackGridComponent::EditorCenterOnGrid()
 {
 }
 
-void UBackpackGridComponent::BeginPlay()
+void UBackpackGridComponent::EnsureGridInitialized()
 {
-	Super::BeginPlay();
-
-	// 初始化占用图，所有格子填 -1（空）
-	GridOccupancy.Init(-1, GridWidth * GridHeight);
-
-	// 若未手动配置激活区，使用默认矩形配置
+	if (GridOccupancy.IsEmpty())
+	{
+		GridOccupancy.Init(-1, GridWidth * GridHeight);
+	}
 	if (ActivationZoneConfig.ZoneShapes.IsEmpty())
 	{
 		ActivationZoneConfig = FActivationZoneConfig::MakeDefault();
 	}
+}
+
+void UBackpackGridComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// 若已被提前初始化（切关恢复路径在 BeginPlay 前调用了 TryPlaceRune），跳过重置
+	EnsureGridInitialized();
 
 	// 自动放置符文（延迟一帧，确保 ASC 已初始化）
 	if (PermanentRunes.Num() > 0 || DebugTestRunes.Num() > 0)
@@ -161,6 +167,9 @@ bool UBackpackGridComponent::TryPlaceRune(const FRuneInstance& Rune, FIntPoint P
 {
 	if (bIsLocked)
 		return false;
+
+	// 懒初始化：BeginPlay 前（如切关恢复）调用时，主动初始化网格
+	EnsureGridInitialized();
 
 	if (!CanPlaceRune(Rune, Pivot))
 		return false;
@@ -274,6 +283,10 @@ bool UBackpackGridComponent::MoveRune(FGuid RuneGuid, FIntPoint NewPivot)
 
 bool UBackpackGridComponent::CanPlaceRune(const FRuneInstance& Rune, FIntPoint Pivot) const
 {
+	// 网格未初始化时（BeginPlay 尚未执行）拒绝查询，由 TryPlaceRune 的 EnsureGridInitialized 保证初始化
+	if (GridOccupancy.IsEmpty())
+		return false;
+
 	const TArray<FIntPoint> Cells = GetRuneCells(Rune, Pivot);
 	if (Cells.IsEmpty())
 		return false;

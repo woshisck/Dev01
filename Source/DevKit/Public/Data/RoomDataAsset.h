@@ -27,12 +27,9 @@ struct DEVKIT_API FPortalDestConfig
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
     int32 PortalIndex = 0;
 
-    // 目标关卡随机池（填 UE 关卡资产名）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
-    TArray<FName> NextLevelPool;
-
-    // 此门专属的 DA_Room 候选池（按 RoomTypeTag 过滤后使用）
+    // 此门专属的 DA_Room 候选池（按 RoomTypeTag 过滤后随机选取）
     // 若此池中找不到所需类型，系统自动回退到 DA_Campaign 的全局 RoomPool
+    // 选中的 DA_Room 的 LevelName 决定实际加载哪张地图
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
     TArray<TObjectPtr<URoomDataAsset>> RoomPool;
 };

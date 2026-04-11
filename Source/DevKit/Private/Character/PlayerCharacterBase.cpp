@@ -22,6 +22,7 @@
 #include "AbilitySystem/Abilities/YogTargetType_Melee.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "System/YogGameInstanceBase.h"
+#include "Item/Weapon/WeaponDefinition.h"
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -98,8 +99,19 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 			}
 		}
 
-		// 恢复热度阶段
+		// 恢复热度阶段，并将热度重置到该阶段起点（避免热度值从 0 / 默认值开始）
 		BackpackGridComponent->RestorePhase(State.CurrentPhase);
+		BackpackGridComponent->ResetHeatToPhaseFloor();
+	}
+
+	// 恢复整理阶段已选但尚未放置的符文
+	PendingRunes = State.PendingRunes;
+
+	// 恢复武器装备
+	if (State.EquippedWeaponDef)
+	{
+		State.EquippedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
+		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE Weapon — %s"), *State.EquippedWeaponDef->GetName());
 	}
 }
 
@@ -181,6 +193,10 @@ void APlayerCharacterBase::BeginPlay()
 		// 新技能在此处继续 RegisterSkill 即可，无需额外 C++ 改动
 	}
 
+	// GAS Template 授能（在 Super::BeginPlay 中完成）可能覆盖切关前 Link 的武器动画层；
+	// 在此重新 Link，确保武器层优先级高于默认层
+	RelinkWeaponAnimLayer();
+
 	//GetASC()->InitAbilityActorInfo(this, this);
 	//if (GasTemplate != nullptr)
 	//{
@@ -213,6 +229,21 @@ void APlayerCharacterBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+}
+
+void APlayerCharacterBase::RelinkWeaponAnimLayer()
+{
+	if (!EquippedWeaponDef) return;
+	USkeletalMeshComponent* SkelMesh = GetMesh();
+	if (!SkelMesh || !SkelMesh->GetAnimInstance()) return;
+
+	for (const FWeaponSpawnData& SpawnData : EquippedWeaponDef->ActorsToSpawn)
+	{
+		if (SpawnData.WeaponLayer)
+		{
+			SkelMesh->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
+		}
+	}
 }
 
 void APlayerCharacterBase::OnRep_PlayerState()

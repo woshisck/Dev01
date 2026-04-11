@@ -36,8 +36,17 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	// 记录激活时刻，连击缓存只接受此时间之后的输入
 	AbilityActivationTime = GetWorld()->GetTimeSeconds();
 
-	// 每次攻击激活时先清除上一招残留的 CanCombo tag
-	ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")));
+	// 每次攻击激活时先强制清零上一招残留的 CanCombo tag
+	// 用 SetLooseGameplayTagCount(0) 而非 RemoveLooseGameplayTag(1)，
+	// 原因：AnimNotifyState 可能多次 Add（count>1），单次 Remove 不足以清干净
+	{
+		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+		const int32 CurrentCount = ASC->GetTagCount(CanComboTag);
+		if (CurrentCount > 0)
+		{
+			ASC->SetLooseGameplayTagCount(CanComboTag, 0);
+		}
+	}
 
 	// 注册 CanCombo tag 监听前先注销旧 handle，防止重入时产生孤儿监听器
 	if (CanComboTagHandle.IsValid())
@@ -168,7 +177,11 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")),
 			EGameplayTagEventType::NewOrRemoved
 		);
-		ASCLocal->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")));
+		const FGameplayTag CanComboTag2 = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+		if (ASCLocal->GetTagCount(CanComboTag2) > 0)
+		{
+			ASCLocal->SetLooseGameplayTagCount(CanComboTag2, 0);
+		}
 	}
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -217,15 +230,21 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	if (!Buffer)
 		return;
 
+	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
+	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+
 	// 只接受本次能力激活之后的预输入，避免触发当前能力的那次按键被误判为连击
 	if (Buffer->HasBufferedInputSince(EInputCommandType::LightAttack, AbilityActivationTime))
 	{
-		// ClearBuffer：触发连击后清空全部缓存，防止堆积按键依次自动连发
-		// 下一段 combo 的 CanCombo 窗口将只响应在那段动作期间的新输入
 		Buffer->ClearBuffer();
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.LightAtk")));
-		Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		const bool bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		// 没有下一段连招（已是最后一招），立刻清除 CanCombo
+		if (!bActivated && ASC)
+		{
+			ASC->SetLooseGameplayTagCount(CanComboTag, 0);
+		}
 		return;
 	}
 
@@ -234,11 +253,34 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 		Buffer->ClearBuffer();
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.HeavyAtk")));
-		Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		const bool bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		if (!bActivated && ASC)
+		{
+			ASC->SetLooseGameplayTagCount(CanComboTag, 0);
+		}
 		return;
 	}
 
-	// 没有预输入 → CanCombo tag 保持，等待玩家在窗口内手动按键
+	// 没有预输入 → 先确认是否有可激活的下一段连招
+	// 若没有（当前已是最后一招），立刻清除 CanCombo，防止前一招 AnimNotifyState 延迟触发导致残留
+	{
+		TArray<FGameplayAbilitySpec*> NextLightSpecs;
+		TArray<FGameplayAbilitySpec*> NextHeavySpecs;
+		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(
+			FGameplayTagContainer(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk"))),
+			NextLightSpecs);
+		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(
+			FGameplayTagContainer(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk"))),
+			NextHeavySpecs);
+
+		if (NextLightSpecs.IsEmpty() && NextHeavySpecs.IsEmpty())
+		{
+			// 没有任何可接续的连招 → 清除 CanCombo
+			ASC->SetLooseGameplayTagCount(CanComboTag, 0);
+			return;
+		}
+	}
+	// → 有可接续的连招，CanCombo tag 保持，等待玩家在窗口内手动按键
 }
 
 

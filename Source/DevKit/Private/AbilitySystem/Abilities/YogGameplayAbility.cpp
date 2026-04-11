@@ -183,6 +183,11 @@ FYogGameplayEffectContainerSpec UYogGameplayAbility::MakeEffectContainerSpecFrom
 	FYogGameplayEffectContainerSpec ReturnSpec;
 	AActor* OwningActor = GetOwningActorFromActorInfo();
 	AYogCharacterBase* OwningCharacter = Cast<AYogCharacterBase>(OwningActor);
+	if (!OwningCharacter)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[MakeEffectContainerSpecFromContainer] OwningCharacter is null for ability %s"), *GetName());
+		return ReturnSpec;
+	}
 	UYogAbilitySystemComponent* OwningASC = OwningCharacter->GetASC();
 
 	if (OwningASC)

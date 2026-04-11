@@ -186,6 +186,8 @@ protected:
     virtual void BeginPlay() override;
 
 private:
+    // 懒初始化：确保 GridOccupancy 已分配（BeginPlay 前调用 TryPlaceRune 时触发）
+    void EnsureGridInitialized();
 
     // 占用图：GridWidth×GridHeight 的平铺数组
     // 值 = PlacedRunes 数组的下标，-1 = 空

@@ -4,6 +4,7 @@
 #include "Engine/GameInstance.h"
 #include "Component/BackpackGridComponent.h"
 #include "Data/RoomDataAsset.h"
+#include "Item/Weapon/WeaponDefinition.h"
 
 #include "YogGameInstanceBase.generated.h"
 
@@ -36,6 +37,14 @@ struct FRunState
 	// 非永久符文（永久符文由 BGC::BeginPlay 重新放置，无需保存）
 	UPROPERTY()
 	TArray<FPlacedRune> PlacedRunes;
+
+	// 切关前装备的武器 DA（新关卡恢复时重新装备）
+	UPROPERTY()
+	TObjectPtr<UWeaponDefinition> EquippedWeaponDef;
+
+	// 整理阶段已选但尚未放入格子的符文（新关卡恢复后放回 PendingRunes）
+	UPROPERTY()
+	TArray<FRuneInstance> PendingRunes;
 };
 /**
  * Base class for GameInstance, should be blueprinted

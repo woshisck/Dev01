@@ -2,6 +2,7 @@
 #include "Item/Weapon/WeaponInstance.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
+#include "Engine/AssetManager.h"
 
 void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar)
 {
@@ -21,7 +22,7 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		
 		NewActor->AttachSocket = Socket;
 		NewActor->AttachTransform = Transform;
-		NewActor->WeaponLayer = WeaponLayer;
+		NewActor->WeaponLayer = WeaponActorInst.WeaponLayer;
 
 		NewActor->EquipWeaponToCharacter(ReceivingChar);
 		
@@ -32,6 +33,9 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 
 		ReceivingChar->GetCharacterDataComponent()->GetCharacterData()->AbilityData = WeaponAbilityData;
 	}
+
+	// 记录当前装备的武器 DA，供切关时写入 RunState
+	ReceivingChar->EquippedWeaponDef = this;
 
 	//TODO: DEPRECATED : for loop grant ability
 	//for (const UYogAbilitySet* YogAbilitiesSet : AbilitySetsToGrant)
