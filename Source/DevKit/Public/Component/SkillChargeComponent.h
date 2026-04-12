@@ -87,6 +87,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SkillCharge")
 	int32 GetMaxCharge(FGameplayTag SkillTag) const;
 
+	/** CD 回复剩余时间（距下一格回复完成的秒数），0=已满充能 */
+	UFUNCTION(BlueprintPure, Category = "SkillCharge")
+	float GetCDRemaining(FGameplayTag SkillTag) const;
+
 	/** 充能变化时广播（供 UI 刷新） */
 	UPROPERTY(BlueprintAssignable, Category = "SkillCharge")
 	FOnChargeChanged OnChargeChanged;

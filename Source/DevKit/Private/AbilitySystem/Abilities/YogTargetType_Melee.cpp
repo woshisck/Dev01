@@ -4,6 +4,7 @@
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Animation/AN_MeleeDamage.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
@@ -40,10 +41,16 @@ static void DrawHitboxDebug(UWorld* World, const FVector& Loc, float Yaw,
 		if (HB.hitboxType == EHitBoxType::Annulus)
 		{
 			// 弧形扇区
-			const float InnerR   = HB.AnnulusHitbox.inner_radius;
-			const float HalfDeg  = HB.AnnulusHitbox.degree * 0.5f;
-			const float StartDeg = Yaw + HB.AnnulusHitbox.offset_degree - HalfDeg;
-			const float EndDeg   = Yaw + HB.AnnulusHitbox.offset_degree + HalfDeg;
+			const FHitboxAnnulus& Ann = HB.AnnulusHitbox;
+			const float InnerR  = Ann.inner_radius;
+			const float HalfDeg = Ann.degree * 0.5f;
+			const float StartDeg = Yaw - HalfDeg;
+			const float EndDeg   = Yaw + HalfDeg;
+
+			// 计算调试线框的圆心（与 IsInAnnulus 保持一致）
+			const float EffectiveOffset = Ann.bAutoOffset ? -InnerR : Ann.OffsetCore;
+			const float YawRad = FMath::DegreesToRadians(Yaw);
+			const FVector CenterLoc = Loc + FVector(FMath::Cos(YawRad), FMath::Sin(YawRad), 0.f) * EffectiveOffset;
 
 			constexpr int32 Seg = 24;
 			FVector PrevOuter = FVector::ZeroVector;
@@ -53,8 +60,8 @@ static void DrawHitboxDebug(UWorld* World, const FVector& Loc, float Yaw,
 			{
 				float Deg = FMath::Lerp(StartDeg, EndDeg, (float)i / Seg);
 				float Rad = FMath::DegreesToRadians(Deg);
-				FVector Outer = Loc + FVector(FMath::Cos(Rad) * OuterR,  FMath::Sin(Rad) * OuterR,  0);
-				FVector Inner = Loc + FVector(FMath::Cos(Rad) * InnerR,  FMath::Sin(Rad) * InnerR,  0);
+				FVector Outer = CenterLoc + FVector(FMath::Cos(Rad) * OuterR, FMath::Sin(Rad) * OuterR, 0);
+				FVector Inner = CenterLoc + FVector(FMath::Cos(Rad) * InnerR, FMath::Sin(Rad) * InnerR, 0);
 				if (i > 0)
 				{
 					DrawDebugLine(World, PrevOuter, Outer, Color, false, Duration);
@@ -63,13 +70,13 @@ static void DrawHitboxDebug(UWorld* World, const FVector& Loc, float Yaw,
 				PrevOuter = Outer; PrevInner = Inner;
 			}
 
-			// 两条侧边
+			// 两条侧边（内圆 → 外弧；若无内圆则从圆心出发）
 			auto RadEdge = [&](float Deg, float R) {
 				float Rad = FMath::DegreesToRadians(Deg);
-				return Loc + FVector(FMath::Cos(Rad) * R, FMath::Sin(Rad) * R, 0);
+				return CenterLoc + FVector(FMath::Cos(Rad) * R, FMath::Sin(Rad) * R, 0);
 			};
-			DrawDebugLine(World, InnerR > 0 ? RadEdge(StartDeg, InnerR) : Loc, RadEdge(StartDeg, OuterR), Color, false, Duration);
-			DrawDebugLine(World, InnerR > 0 ? RadEdge(EndDeg,   InnerR) : Loc, RadEdge(EndDeg,   OuterR), Color, false, Duration);
+			DrawDebugLine(World, InnerR > 0 ? RadEdge(StartDeg, InnerR) : CenterLoc, RadEdge(StartDeg, OuterR), Color, false, Duration);
+			DrawDebugLine(World, InnerR > 0 ? RadEdge(EndDeg,   InnerR) : CenterLoc, RadEdge(EndDeg,   OuterR), Color, false, Duration);
 		}
 		else if (HB.hitboxType == EHitBoxType::Triangle)
 		{
@@ -99,30 +106,30 @@ static void DrawHitboxDebug(UWorld* World, const FVector& Loc, float Yaw,
 
 FActionData UYogTargetType_MeleeBase::GetActionData(AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData) const
 {
-	// 优先从 OptionalObject 拿：OnEventReceived 已把 this(GA) 塞进去
-	if (const UGA_MeleeAttack* MeleeGA = Cast<UGA_MeleeAttack>(EventData.OptionalObject))
+	// 优先从 OptionalObject 拿：AN_MeleeDamage::Notify 已将自身设置为 OptionalObject
+	if (const UAN_MeleeDamage* DmgNotify = Cast<UAN_MeleeDamage>(EventData.OptionalObject))
 	{
-		FActionData Data = MeleeGA->GetAbilityActionData();
-		UE_LOG(LogTemp, Warning, TEXT("[TargetType] ActionData(from OptObj): ActRange=%.1f, hitboxTypes=%d"),
+		FActionData Data = DmgNotify->BuildActionData();
+		UE_LOG(LogTemp, Warning, TEXT("[TargetType] ActionData(from Notify): ActRange=%.1f, hitboxTypes=%d"),
 			Data.ActRange, Data.hitboxTypes.Num());
 		return Data;
 	}
 
-	// 回退：从 ASC 当前激活技能读取
+	// 回退（旧路径兼容）：从 GA 读取
+	if (const UGA_MeleeAttack* MeleeGA = Cast<UGA_MeleeAttack>(EventData.OptionalObject))
+	{
+		return MeleeGA->GetAbilityActionData();
+	}
+
+	// 最终回退：从 ASC 当前激活技能读取
 	if (!TargetingCharacter) return FActionData();
 	UYogAbilitySystemComponent* ASC = TargetingCharacter->GetASC();
 	if (!ASC) return FActionData();
 
 	UYogGameplayAbility* CurrentAbility = ASC->GetCurrentAbilityInstance();
-	UE_LOG(LogTemp, Warning, TEXT("[TargetType] GetActionData(fallback): CurrentAbility=%s"),
-		CurrentAbility ? *CurrentAbility->GetName() : TEXT("NULL"));
-
 	if (CurrentAbility)
 	{
-		FActionData Data = CurrentAbility->GetAbilityActionData();
-		UE_LOG(LogTemp, Warning, TEXT("[TargetType] ActionData(fallback): ActRange=%.1f, hitboxTypes=%d"),
-			Data.ActRange, Data.hitboxTypes.Num());
-		return Data;
+		return CurrentAbility->GetAbilityActionData();
 	}
 
 	return FActionData();
@@ -168,16 +175,22 @@ bool UYogTargetType_MeleeBase::IsInAnnulus(
 	const FHitboxAnnulus& Annulus, float OuterRadius,
 	const FVector& TargetLoc) const
 {
-	const float Dist2D = FVector::Dist2D(CharLoc, TargetLoc);
+	// 计算圆心位置：自动模式后移 inner_radius，手动模式用 OffsetCore（正=前，负=后）
+	const float EffectiveOffset = Annulus.bAutoOffset ? -Annulus.inner_radius : Annulus.OffsetCore;
+	const float YawRad = FMath::DegreesToRadians(CharYaw);
+	const FVector CharForward(FMath::Cos(YawRad), FMath::Sin(YawRad), 0.f);
+	const FVector CenterLoc = CharLoc + CharForward * EffectiveOffset;
+
+	// 距离判断（基于偏移后的圆心）
+	const float Dist2D = FVector::Dist2D(CenterLoc, TargetLoc);
 	if (Dist2D < Annulus.inner_radius || Dist2D > OuterRadius)
 		return false;
 
-	// CharLoc → TargetLoc 的世界方位角（Atan2，UE XY 平面）
+	// 角度判断：圆心 → 目标的方位角，与角色朝向对比
 	const float AngleToTarget = FMath::RadiansToDegrees(
-		FMath::Atan2(TargetLoc.Y - CharLoc.Y, TargetLoc.X - CharLoc.X));
+		FMath::Atan2(TargetLoc.Y - CenterLoc.Y, TargetLoc.X - CenterLoc.X));
 
-	const float CenterAngle = CharYaw + Annulus.offset_degree;
-	const float DeltaAngle  = FMath::Abs(FMath::FindDeltaAngleDegrees(AngleToTarget, CenterAngle));
+	const float DeltaAngle = FMath::Abs(FMath::FindDeltaAngleDegrees(AngleToTarget, CharYaw));
 
 	return DeltaAngle <= Annulus.degree * 0.5f;
 }

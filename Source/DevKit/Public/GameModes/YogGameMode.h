@@ -221,11 +221,11 @@ protected:
 		float WaveTriggerInterval = 3.0f;
 	};
 
-	// 根据难度配置生成所有波次计划
-	void GenerateWavePlans(const FDifficultyConfig& Config, URoomDataAsset* Room);
+	// 根据总难度分和档位最大波次数生成所有波次计划
+	void GenerateWavePlans(int32 TotalScore, int32 MaxWaveCount, URoomDataAsset* Room);
 
-	// 生成单波计划（含预算分配三步骤）
-	FWavePlan BuildWavePlan(int32 Budget, const FDifficultyConfig& Config, URoomDataAsset* Room);
+	// 生成单波计划（程序自动决定触发条件和刷怪方式）
+	FWavePlan BuildWavePlan(int32 Budget, URoomDataAsset* Room);
 
 	// 触发并执行下一波（下标推进）
 	void TriggerNextWave();
@@ -251,9 +251,8 @@ protected:
 	// 从随机 MobSpawner 刷出指定类型的敌人
 	bool SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClass);
 
-	// 从 BuffPool 按难度数量随机选取关卡符文（RuneDA）
-	TArray<URuneDataAsset*> SelectRoomBuffs(
-		const URoomDataAsset& Room, const FDifficultyConfig& Config);
+	// 从 BuffPool 随机选取 BuffCount 个关卡符文（RuneDA）
+	TArray<URuneDataAsset*> SelectRoomBuffs(const URoomDataAsset& Room, int32 BuffCount);
 
 	// ---- 刷怪运行时状态 ----
 	TArray<FWavePlan> WavePlans;
@@ -281,10 +280,35 @@ protected:
 	// 本关激活的关卡符文（进关时骰子选好，新怪刷出时在其 BuffFlowComponent 上激活）
 	TArray<URuneDataAsset*> ActiveRoomBuffs;
 
-	// 当前关卡的房间配置和难度配置（StartLevelSpawning 时缓存，整理阶段使用）
+	// 当前关卡的房间配置（StartLevelSpawning 时缓存，整理阶段使用）
 	UPROPERTY()
 	TObjectPtr<URoomDataAsset> ActiveRoomData;
-	FDifficultyConfig ActiveDifficultyConfig;
+
+	// 当前关卡的奖励配置（从 FloorConfig 缓存，整理阶段使用）
+	int32 ActiveGoldMin  = 10;
+	int32 ActiveGoldMax  = 20;
+	int32 ActiveBuffCount = 1;
+
+	// ---- 刷怪参数（在 GameMode BP 中可调）----
+
+	// 选档阈值：TotalDifficultyScore ≤ 此值 → Low 档
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty")
+	int32 LowDifficultyScoreMax = 25;
+
+	// 选档阈值：TotalDifficultyScore ≥ 此值 → High 档（中间为 Medium）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty")
+	int32 HighDifficultyScoreMin = 50;
+
+	// Wave 模式每只怪之间的随机错开延迟范围（秒）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning", meta = (ClampMin = "0.0"))
+	float SpawnStaggerMin = 0.1f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning", meta = (ClampMin = "0.0"))
+	float SpawnStaggerMax = 0.5f;
+
+	// OneByOne 模式每只怪之间的固定间隔（秒）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning", meta = (ClampMin = "0.1"))
+	float OneByOneDefaultInterval = 3.0f;
 
 	UPROPERTY()
 	int32 Current_CallCount;

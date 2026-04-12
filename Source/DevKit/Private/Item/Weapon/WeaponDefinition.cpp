@@ -31,7 +31,16 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		//NewActor->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
 		
 
-		ReceivingChar->GetCharacterDataComponent()->GetCharacterData()->AbilityData = WeaponAbilityData;
+		{
+			UCharacterData* CD = ReceivingChar->GetCharacterDataComponent()->GetCharacterData();
+			UE_LOG(LogTemp, Warning, TEXT("[WeaponSetup][WeaponDefinition] Owner=%s | CD=%s IsCDO=%d IsTransient=%d | NewAbilityData=%s"),
+				*ReceivingChar->GetName(),
+				CD ? *CD->GetName() : TEXT("null"),
+				CD ? (int32)CD->HasAnyFlags(RF_ClassDefaultObject) : -1,
+				CD ? (int32)CD->HasAnyFlags(RF_Transient) : -1,
+				WeaponAbilityData ? *WeaponAbilityData->GetName() : TEXT("null"));
+			CD->AbilityData = WeaponAbilityData;
+		}
 	}
 
 	// 记录当前装备的武器 DA，供切关时写入 RunState

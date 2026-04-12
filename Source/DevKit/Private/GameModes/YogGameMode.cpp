@@ -265,6 +265,23 @@ void AYogGameMode::UpdateFinishLevel(int count)
 			WavePlans[CurrentWaveIndex].TotalKilledInWave += count;
 		}
 
+		// 场内已无存活敌人，但本波仍在分批刷（OneByOneTimer 等待中）→ 立即加速
+		if (TotalAliveEnemies == 0 && !bAllWavesSpawned
+			&& OneByOneSpawnIndex < OneByOneSpawnQueue.Num())
+		{
+			FTimerManager& TM = GetWorld()->GetTimerManager();
+			if (TM.IsTimerActive(OneByOneTimer))
+			{
+				const float Remaining = TM.GetTimerRemaining(OneByOneTimer);
+				if (Remaining > 0.5f)
+				{
+					TM.ClearTimer(OneByOneTimer);
+					TM.SetTimer(OneByOneTimer, this, &AYogGameMode::SpawnNextOneByOne, 0.3f, false);
+					UE_LOG(LogTemp, Log, TEXT("UpdateFinishLevel: 场内无敌人，加速下一只刷出（原剩余 %.1fs → 0.3s）"), Remaining);
+				}
+			}
+		}
+
 		CheckWaveTrigger();
 		CheckLevelComplete();
 		return;
@@ -308,11 +325,10 @@ void AYogGameMode::EnterArrangementPhase()
 			Backpack->SetLocked(false);
 		}
 
-		// 发放金币（新系统：按当前难度配置随机范围）
-		if (CampaignData && ActiveDifficultyConfig.GoldMax > 0)
+		// 发放金币（按当前关卡 FloorConfig 中的范围）
+		if (CampaignData && ActiveGoldMax > 0)
 		{
-			const int32 GoldReward = FMath::RandRange(
-				ActiveDifficultyConfig.GoldMin, ActiveDifficultyConfig.GoldMax);
+			const int32 GoldReward = FMath::RandRange(ActiveGoldMin, ActiveGoldMax);
 			Player->AddGold(GoldReward);
 			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 发放金币 %d"), GoldReward);
 		}
@@ -334,6 +350,19 @@ void AYogGameMode::EnterArrangementPhase()
 		{
 			GetWorld()->SpawnActor<AActor>(RewardPickupClass, SpawnLoc, FRotator::ZeroRotator);
 			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 生成 RewardPickup @ %s"), *SpawnLoc.ToString());
+
+			// DEBUG: 打印 LootPool 中可拾取的符文名称
+			if (GEngine && ActiveRoomData && !ActiveRoomData->LootPool.IsEmpty())
+			{
+				FString RuneNames;
+				for (const TObjectPtr<URuneDataAsset>& Rune : ActiveRoomData->LootPool)
+				{
+					if (Rune) RuneNames += Rune->GetName() + TEXT(" | ");
+				}
+				GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green,
+					FString::Printf(TEXT("[奖励拾取物] LootPool(%d): %s"),
+						ActiveRoomData->LootPool.Num(), *RuneNames));
+			}
 		}
 	}
 
@@ -468,6 +497,23 @@ void AYogGameMode::StartLevelSpawning()
 		// 第一关：优先使用 DefaultStartingRoom（策划手动指定）；未填则骰子选取
 		if (CurrentFloor == 1 && CampaignData->DefaultStartingRoom)
 		{
+			const FName DefaultRoomName = CampaignData->DefaultStartingRoom->RoomName;
+			if (!DefaultRoomName.IsNone())
+			{
+				// 检查当前加载的关卡是否已经是 DefaultStartingRoom 指定的关卡
+				// GetCurrentLevelName(true) 会去掉 PIE 前缀（如 "UEDPIE_0_"）
+				const FString CurrentMapName = UGameplayStatics::GetCurrentLevelName(GetWorld(), true);
+				if (!CurrentMapName.Equals(DefaultRoomName.ToString(), ESearchCase::IgnoreCase))
+				{
+					// 当前关卡不匹配，重定向到 DefaultStartingRoom 的关卡
+					UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: 当前关卡 [%s] ≠ DefaultStartingRoom [%s]，重定向..."),
+						*CurrentMapName, *DefaultRoomName.ToString());
+					if (GI) GI->PendingRoomData = CampaignData->DefaultStartingRoom;
+					UGameplayStatics::OpenLevel(GetWorld(), DefaultRoomName);
+					return;
+				}
+			}
+
 			ActiveRoomData = CampaignData->DefaultStartingRoom;
 			UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 使用 DefaultStartingRoom = %s"), *ActiveRoomData->GetName());
 		}
@@ -489,17 +535,29 @@ void AYogGameMode::StartLevelSpawning()
 	}
 
 
-	// 难度配置直接来自 FloorConfig（DA_Campaign 按关卡序号给出预算和波次等）
-	const FDifficultyConfig& DiffConfig = Config.DifficultyConfig;
+	// 缓存金币/Buff 奖励配置（整理阶段使用）
+	ActiveGoldMin   = Config.GoldMin;
+	ActiveGoldMax   = Config.GoldMax;
+	ActiveBuffCount = Config.BuffCount;
 
-	// 缓存难度配置（整理阶段发放战利品/金币时使用）
-	ActiveDifficultyConfig = DiffConfig;
+	// 根据总难度分选取房间难度档位（决定最大波次数）
+	const int32 Score = Config.TotalDifficultyScore;
+	const FRoomDifficultyTier& Tier = (Score <= LowDifficultyScoreMax)
+		? ActiveRoomData->LowDifficulty
+		: (Score >= HighDifficultyScoreMin)
+			? ActiveRoomData->HighDifficulty
+			: ActiveRoomData->MediumDifficulty;
+
+	UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 总难度分=%d → 档位=%s MaxWaveCount=%d"),
+		Score,
+		Score <= LowDifficultyScoreMax ? TEXT("Low") : (Score >= HighDifficultyScoreMin ? TEXT("High") : TEXT("Medium")),
+		Tier.MaxWaveCount);
 
 	// 选取本关 Buff（进关时确定，新怪刷出时施加）
-	ActiveRoomBuffs = SelectRoomBuffs(*ActiveRoomData, DiffConfig);
+	ActiveRoomBuffs = SelectRoomBuffs(*ActiveRoomData, ActiveBuffCount);
 
 	// 生成波次计划
-	GenerateWavePlans(DiffConfig, ActiveRoomData);
+	GenerateWavePlans(Score, Tier.MaxWaveCount, ActiveRoomData);
 
 	// 重置运行时状态
 	CurrentWaveIndex  = -1;
@@ -552,72 +610,43 @@ void AYogGameMode::StartLevelSpawning()
 	}
 }
 
-void AYogGameMode::GenerateWavePlans(const FDifficultyConfig& Config, URoomDataAsset* Room)
+void AYogGameMode::GenerateWavePlans(int32 TotalScore, int32 MaxWaveCount, URoomDataAsset* Room)
 {
 	WavePlans.Empty();
 	LevelTypeSpawnCounts.Empty();
 	TotalLevelPlannedEnemies = 0;
 
-	const int32 WaveCount = FMath::RandRange(Config.WaveCountMin, Config.WaveCountMax);
-	UE_LOG(LogTemp, Log, TEXT("GenerateWavePlans: 本关共 %d 波"), WaveCount);
+	// 在 [1, MaxWaveCount] 内随机波次数
+	const int32 WaveCount = FMath::RandRange(1, FMath::Max(1, MaxWaveCount));
+	UE_LOG(LogTemp, Log, TEXT("GenerateWavePlans: 总难度分=%d MaxWaveCount=%d → 实际 %d 波"), TotalScore, MaxWaveCount, WaveCount);
+
+	// 将总分均分到各波，余数加到第一波
+	const int32 BasePerWave  = (WaveCount > 0) ? (TotalScore / WaveCount) : TotalScore;
+	const int32 Remainder    = (WaveCount > 0) ? (TotalScore % WaveCount)  : 0;
 
 	for (int32 i = 0; i < WaveCount; i++)
 	{
-		const int32 Budget = FMath::RandRange(Config.WaveBudgetMin, Config.WaveBudgetMax);
-		WavePlans.Add(BuildWavePlan(Budget, Config, Room));
+		const int32 Budget = BasePerWave + (i == 0 ? Remainder : 0);
+		WavePlans.Add(BuildWavePlan(Budget, Room));
 	}
 }
 
-AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(
-	int32 Budget, const FDifficultyConfig& Config, URoomDataAsset* Room)
+AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset* Room)
 {
 	FWavePlan Plan;
 	int32 RemainingBudget = Budget;
 
-	// ---- Step 1: 选择触发条件 ----
-	if (Config.AllowedTriggers.Num() > 0)
-	{
-		TArray<FSpawnTriggerOption> Candidates;
-		for (const FSpawnTriggerOption& T : Config.AllowedTriggers)
-		{
-			if (T.DifficultyScore <= RemainingBudget)
-				Candidates.Add(T);
-		}
-		if (Candidates.Num() > 0)
-		{
-			const FSpawnTriggerOption& Chosen = Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
-			Plan.TriggerType         = Chosen.TriggerType;
-			Plan.WaveTriggerInterval = Chosen.TriggerInterval;
-			RemainingBudget         -= Chosen.DifficultyScore;
-		}
-		// 若无法负担任何触发条件，保持默认 AllEnemiesDead（0分）
-	}
+	// ---- Step 1: 程序决定触发条件（默认 AllEnemiesDead，最稳定）----
+	Plan.TriggerType = ESpawnTriggerType::AllEnemiesDead;
 
-	// ---- Step 2: 选择刷怪方式 ----
-	if (Config.AllowedSpawnModes.Num() > 0)
-	{
-		TArray<FSpawnModeOption> Candidates;
-		for (const FSpawnModeOption& M : Config.AllowedSpawnModes)
-		{
-			if (M.DifficultyScore <= RemainingBudget)
-				Candidates.Add(M);
-		}
-		if (Candidates.Num() > 0)
-		{
-			const FSpawnModeOption& Chosen = Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
-			Plan.SpawnMode        = Chosen.SpawnMode;
-			Plan.OneByOneInterval = Chosen.OneByOneInterval;
-			RemainingBudget      -= Chosen.DifficultyScore;
-		}
-	}
+	// ---- Step 2: 程序决定刷怪方式（随机 Wave / OneByOne）----
+	Plan.SpawnMode        = FMath::RandBool() ? ESpawnMode::Wave : ESpawnMode::OneByOne;
+	Plan.OneByOneInterval = OneByOneDefaultInterval;
 
-	// ---- Step 3: 用剩余预算填充敌人，遵守类型上限和关卡总上限 ----
+	// ---- Step 3: 用预算填充敌人，遵守类型上限 ----
 	bool bFirstEnemy = true;
 	while (true)
 	{
-		// 总敌人上限检查
-		if (Config.MaxTotalEnemies >= 0 && TotalLevelPlannedEnemies >= Config.MaxTotalEnemies)
-			break;
 
 		TArray<FEnemyEntry> Candidates;
 		for (const FEnemyEntry& E : Room->EnemyPool)
@@ -719,8 +748,8 @@ void AYogGameMode::TriggerNextWave()
 	OneByOneSpawnIndex = 0;
 
 	const float FirstDelay = FMath::FRandRange(
-		ActiveDifficultyConfig.SpawnStaggerMin,
-		ActiveDifficultyConfig.SpawnStaggerMax);
+		SpawnStaggerMin,
+		SpawnStaggerMax);
 
 	GetWorld()->GetTimerManager().SetTimer(
 		OneByOneTimer,
@@ -747,6 +776,20 @@ void AYogGameMode::SpawnNextOneByOne()
 	{
 		Wave.TotalSpawnedInWave++;
 		TotalAliveEnemies++;
+
+		// DEBUG: 打印本次刷怪数据
+		if (GEngine)
+		{
+			const FString EnemyName = OneByOneSpawnQueue[OneByOneSpawnIndex]
+				? OneByOneSpawnQueue[OneByOneSpawnIndex]->GetName() : TEXT("?");
+			GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
+				FString::Printf(TEXT("[刷怪] 波次%d | 队列%d/%d | 存活%d | %s"),
+					CurrentWaveIndex + 1,
+					OneByOneSpawnIndex + 1,
+					OneByOneSpawnQueue.Num(),
+					TotalAliveEnemies,
+					*EnemyName));
+		}
 	}
 	OneByOneSpawnIndex++;
 
@@ -759,7 +802,7 @@ void AYogGameMode::SpawnNextOneByOne()
 
 	// 计算下一只的延迟：Wave 模式随机错开，OneByOne 固定间隔
 	const float NextDelay = bWaveStaggerMode
-		? FMath::FRandRange(ActiveDifficultyConfig.SpawnStaggerMin, ActiveDifficultyConfig.SpawnStaggerMax)
+		? FMath::FRandRange(SpawnStaggerMin, SpawnStaggerMax)
 		: Wave.OneByOneInterval;
 
 	GetWorld()->GetTimerManager().SetTimer(
@@ -848,8 +891,8 @@ void AYogGameMode::CheckWaveTrigger()
 		{
 			// 还有补刷配额，延迟刷出一只替补（1-3s 随机）
 			const float Delay = FMath::FRandRange(
-				ActiveDifficultyConfig.SpawnStaggerMin,
-				ActiveDifficultyConfig.SpawnStaggerMax);
+				SpawnStaggerMin,
+				SpawnStaggerMax);
 			GetWorld()->GetTimerManager().SetTimer(
 				DemandSpawnTimer, this, &AYogGameMode::CheckDemandSpawn, Delay, false);
 		}
@@ -926,8 +969,8 @@ void AYogGameMode::CheckLevelComplete()
 		if (Wave.DemandCount > 0 && !Wave.DemandEnemyPool.IsEmpty())
 		{
 			const float Delay = FMath::FRandRange(
-				ActiveDifficultyConfig.SpawnStaggerMin,
-				ActiveDifficultyConfig.SpawnStaggerMax);
+				SpawnStaggerMin,
+				SpawnStaggerMax);
 			GetWorld()->GetTimerManager().SetTimer(
 				DemandSpawnTimer, this, &AYogGameMode::CheckDemandSpawn, Delay, false);
 			return;
@@ -991,11 +1034,10 @@ bool AYogGameMode::SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClas
 	return false;
 }
 
-TArray<URuneDataAsset*> AYogGameMode::SelectRoomBuffs(
-	const URoomDataAsset& Room, const FDifficultyConfig& Config)
+TArray<URuneDataAsset*> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int32 BuffCount)
 {
 	TArray<URuneDataAsset*> Selected;
-	if (Room.BuffPool.IsEmpty() || Config.BuffCount <= 0)
+	if (Room.BuffPool.IsEmpty() || BuffCount <= 0)
 		return Selected;
 
 	// 复制池子并洗牌（Fisher-Yates）
@@ -1006,7 +1048,7 @@ TArray<URuneDataAsset*> AYogGameMode::SelectRoomBuffs(
 		Pool.Swap(i, j);
 	}
 
-	const int32 Count = FMath::Min(Config.BuffCount, Pool.Num());
+	const int32 Count = FMath::Min(BuffCount, Pool.Num());
 	for (int32 i = 0; i < Count; i++)
 	{
 		if (Pool[i]) Selected.Add(Pool[i]);
@@ -1185,23 +1227,8 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 	if (URoomDataAsset* Found = PickByTag(CampaignData->RoomPool))
 		return Found;
 
-	// 3. 退化为 Normal（Shop/Event 无对应房间时不强制出现）
-	if (RequiredTag != NormalTag)
-	{
-		TArray<URoomDataAsset*> Fallback;
-		for (const TObjectPtr<URoomDataAsset>& Room : CampaignData->RoomPool)
-		{
-			if (!Room) continue;
-			if (!Room->RoomTags.HasTag(NormalTag)) continue;
-			if (LayerTag.IsValid() && !Room->RoomTags.HasTag(LayerTag)) continue;
-			Fallback.Add(Room);
-		}
-		if (!Fallback.IsEmpty())
-			return Fallback[FMath::RandRange(0, Fallback.Num() - 1)];
-	}
-
-	// 4. 最终兜底：传送门专属池有房间但类型全不匹配时，无视类型随机取一个
-	//    （避免因骰到 Elite 而导致整个门无法开启）
+	// 3. 门专属池兜底：类型不匹配时无视类型随机取门专属池里的任意一个
+	//    （优先于 Campaign 全局 Normal，避免回退到同一张地图）
 	if (PortalDest && !PortalDest->RoomPool.IsEmpty())
 	{
 		TArray<URoomDataAsset*> AnyInPool;
@@ -1214,6 +1241,21 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 			UE_LOG(LogTemp, Log, TEXT("SelectRoomByTag: 类型 [%s] 无精确匹配，使用门专属池兜底"), *RequiredTag.ToString());
 			return AnyInPool[FMath::RandRange(0, AnyInPool.Num() - 1)];
 		}
+	}
+
+	// 4. Campaign 全局 Normal 兜底（门专属池为空时才走到这里）
+	if (RequiredTag != NormalTag)
+	{
+		TArray<URoomDataAsset*> Fallback;
+		for (const TObjectPtr<URoomDataAsset>& Room : CampaignData->RoomPool)
+		{
+			if (!Room) continue;
+			if (!Room->RoomTags.HasTag(NormalTag)) continue;
+			if (LayerTag.IsValid() && !Room->RoomTags.HasTag(LayerTag)) continue;
+			Fallback.Add(Room);
+		}
+		if (!Fallback.IsEmpty())
+			return Fallback[FMath::RandRange(0, Fallback.Num() - 1)];
 	}
 
 	return nullptr;

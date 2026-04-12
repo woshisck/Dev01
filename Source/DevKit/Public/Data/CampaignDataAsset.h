@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "GameModes/SpawnTypes.h"
+#include "GameplayTagContainer.h"
 #include "CampaignDataAsset.generated.h"
 
 class URoomDataAsset;
@@ -12,8 +12,14 @@ class URoomDataAsset;
 /**
  * FFloorConfig — 局内序列中，单关的宏观配置
  *
- * 不直接指定 DA_Room，而是配置难度曲线和各房间类型的概率权重。
- * 具体 DA_Room 在关卡结算时由系统按类型 Tag 从传送门 RoomPool / 全局 RoomPool 中选取。
+ * 策划只需填写：
+ *   - TotalDifficultyScore：本关总难度分（决定刷出敌人总量）
+ *   - GoldMin / GoldMax：本关结算金币范围
+ *   - BuffCount：从 RoomDA.BuffPool 中随机抽几个 Buff 施加给敌人
+ *   - 房间类型概率 & 符文稀有度权重
+ *
+ * 波次数量、Wave/OneByOne 模式、触发条件等均由程序自动决定，
+ * 具体档位上限（MaxWaveCount）在 RoomDataAsset 的 Low/Medium/High 档位中配置。
  */
 USTRUCT(BlueprintType)
 struct DEVKIT_API FFloorConfig
@@ -24,10 +30,10 @@ struct DEVKIT_API FFloorConfig
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor")
     int32 FloorNumber = 1;
 
-    // ---- 此关的刷怪难度配置（波数、预算、触发条件等）----
-    // 难度分预算决定本关刷出的敌人总量，波次数量在 [WaveCountMin, WaveCountMax] 间随机
+    // 本关总难度分（程序用此值决定刷出的敌人总量 + 选取 RoomDA 难度档位）
+    // 程序自动将总分按波次数均分：每波预算 ≈ TotalDifficultyScore / 实际波次数
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor")
-    FDifficultyConfig DifficultyConfig;
+    int32 TotalDifficultyScore = 30;
 
     // ---- 房间类型概率 ----
     // 强制精英关（覆盖 EliteChance，必出精英）
@@ -55,15 +61,24 @@ struct DEVKIT_API FFloorConfig
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
     float EpicWeight = 0.1f;
+
+    // ---- 关卡奖励 ----
+    // 本关结算时发放的金币范围
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
+    int32 GoldMin = 10;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
+    int32 GoldMax = 20;
+
+    // 从 RoomDA.BuffPool 中随机选取施加给所有敌人的 Buff 数量
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
+    int32 BuffCount = 1;
 };
 
 /**
  * UCampaignDataAsset — 一次完整局内流程的关卡序列配置
  *
  * 命名规范：DA_Campaign_<名称>，例：DA_Campaign_MainRun
- *
- * 关卡序列通过 FloorTable 定义难度曲线和房间类型概率；
- * 具体 DA_Room 由系统在关卡结算时按 RoomTypeTag 从各传送门专属池或全局 RoomPool 中选取。
  */
 UCLASS(BlueprintType)
 class DEVKIT_API UCampaignDataAsset : public UPrimaryDataAsset
@@ -84,7 +99,6 @@ public:
 
     // ---- 全局 DA_Room 池（各房间自带 RoomTags 标明类型+层级）----
     // 关卡结算时，系统先查各传送门的专属 RoomPool，找不到对应类型才从此全局池回退
-    // 策划在此填写所有可用的 DA_Room 资产（Normal / Elite / Shop / Event 均放在一起）
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomPool")
     TArray<TObjectPtr<URoomDataAsset>> RoomPool;
 

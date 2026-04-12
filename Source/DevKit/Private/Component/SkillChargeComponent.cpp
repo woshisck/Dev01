@@ -79,6 +79,18 @@ int32 USkillChargeComponent::GetMaxCharge(FGameplayTag SkillTag) const
 	return State ? GetMaxChargeValue(*State) : 0;
 }
 
+float USkillChargeComponent::GetCDRemaining(FGameplayTag SkillTag) const
+{
+	const FSkillChargeState* State = ChargeStates.Find(SkillTag);
+	if (!State || State->ChargesInRecovery <= 0) return 0.f;
+
+	UWorld* World = GetWorld();
+	if (!World) return 0.f;
+
+	const float Remaining = World->GetTimerManager().GetTimerRemaining(State->RecoveryTimer);
+	return FMath::Max(0.f, Remaining);
+}
+
 int32 USkillChargeComponent::GetMaxChargeValue(const FSkillChargeState& State) const
 {
 	if (!ASC.IsValid()) return 1;

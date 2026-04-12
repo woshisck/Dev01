@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "Animation/AN_MeleeDamage.h"
 #include "GA_MeleeAttack.generated.h"
 
 /**
@@ -48,7 +49,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Melee")
 	TSubclassOf<UGameplayEffect> StatAfterATKEffect;
 
-	/** 从 CharacterData.AbilityData.AbilityMap[AbilityTags[0]] 读取当前技能的 ActionData */
+	/** 从缓存的 AN_MeleeDamage 读取当前技能的 ActionData（激活时缓存，结束时仍有效）*/
 	virtual FActionData GetAbilityActionData_Implementation() const override;
 
 protected:
@@ -68,6 +69,22 @@ protected:
 private:
 	/** GE_StatBeforeATK 的激活句柄，EndAbility 时自动移除 */
 	FActiveGameplayEffectHandle StatBeforeATKHandle;
+
+	/**
+	 * 激活时缓存蒙太奇第一个 AN_MeleeDamage，供 StatBeforeATK / GetAbilityActionData 使用。
+	 * 不使用 UPROPERTY 是因为 AnimNotify 不参与 GC，生命周期随蒙太奇资产。
+	 */
+	TObjectPtr<UAN_MeleeDamage> CachedDamageNotify;
+
+	/**
+	 * 每次 OnEventReceived 时更新：记录最后一次命中触发的 AN_MeleeDamage。
+	 * StatAfterATK 优先用此值（代表最后一击），未命中过时 fallback 到 CachedDamageNotify。
+	 * EventData.OptionalObject 是 const UObject*，故用原始 const 指针；AnimNotify 不参与 GC。
+	 */
+	const UAN_MeleeDamage* LastFiredDamageNotify = nullptr;
+
+	/** 扫描蒙太奇 Notifies 找到第一个 AN_MeleeDamage。*/
+	static UAN_MeleeDamage* GetFirstDamageNotify(UAnimMontage* Montage);
 
 	UFUNCTION()
 	void OnMontageCompleted(FGameplayTag EventTag, FGameplayEventData EventData);

@@ -85,6 +85,19 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 		//Pure Damage deal in health
 		const float LocalDamageDone = GetDamagePure();
 		SetDamagePure(0.f);
+
+		// 无敌帧：目标冲刺期间持有 Buff.Status.DashInvincible，跳过所有伤害
+		{
+			static const FGameplayTag TAG_DashInvincible =
+				FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.DashInvincible"));
+			UAbilitySystemComponent* TargetASC =
+				Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
+			if (TargetASC && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible))
+			{
+				return;
+			}
+		}
+
 		if (LocalDamageDone > 0)
 		{
 			// Apply the health change and then clamp it
@@ -147,6 +160,19 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 		//Physical Damage deal in health
 		const float LocalDamageDone = GetDamagePhysical();
 		SetDamagePhysical(0.f);
+
+		// 无敌帧：目标冲刺期间持有 Buff.Status.DashInvincible，跳过所有伤害
+		{
+			static const FGameplayTag TAG_DashInvincible =
+				FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.DashInvincible"));
+			UAbilitySystemComponent* TargetASC =
+				Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
+			if (TargetASC && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible))
+			{
+				return;
+			}
+		}
+
 		if (LocalDamageDone > 0)
 		{
 			// Apply the health change and then clamp it

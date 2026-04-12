@@ -5,9 +5,9 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/AbilityTask/YogTask_PlayMontageAbility.h"
 #include "Character/YogCharacterBase.h"
-//#include "Data/CharacterData.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/BufferComponent.h"
+#include "Animation/AN_MeleeDamage.h"
 
 UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
 {
@@ -30,9 +30,7 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
     AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
     FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
 
-    const FActionData* action_data = Owner->GetCharacterDataComponent()->GetCharacterData()->AbilityData->AbilityMap.Find(ability_tag);
-    
-    UAnimMontage* MontageToPlay = action_data ? action_data->Montage : nullptr;
+    UAnimMontage* MontageToPlay = Owner->GetCharacterDataComponent()->GetCharacterData()->AbilityData->GetMontage(ability_tag);
 	// 记录激活时刻，连击缓存只接受此时间之后的输入
 	AbilityActivationTime = GetWorld()->GetTimeSeconds();
 
@@ -65,18 +63,28 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
     if(MontageToPlay)
     {
 
+        // 从蒙太奇第一个 AN_MeleeDamage 读取攻击参数（原来从 AbilityData 读）
+        UAN_MeleeDamage* DmgNotify = nullptr;
+        for (FAnimNotifyEvent& NotifyEvent : MontageToPlay->Notifies)
+        {
+            if (UAN_MeleeDamage* N = Cast<UAN_MeleeDamage>(NotifyEvent.Notify))
+            {
+                DmgNotify = N;
+                break;
+            }
+        }
+
         FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
         FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(DynamicEffectClass, GetAbilityLevel(), Context);
 
-        if (SpecHandle.IsValid())
+        if (SpecHandle.IsValid() && DmgNotify)
         {
             FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
 
-            // Override attributes using ActionData
-            Spec->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Attribute.ActDamage")), action_data->ActDamage);
-            Spec->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Attribute.ActRange")), action_data->ActRange);
-            Spec->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Attribute.ActResilience")), action_data->ActResilience);
-            Spec->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Attribute.ActDmgReduce")), action_data->ActDmgReduce);
+            Spec->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Attribute.ActDamage")),    DmgNotify->ActDamage);
+            Spec->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Attribute.ActRange")),     DmgNotify->ActRange);
+            Spec->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Attribute.ActResilience")),DmgNotify->ActResilience);
+            Spec->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Attribute.ActDmgReduce")), DmgNotify->ActDmgReduce);
 
             // Apply to self
             ActiveEffectHandles.Add(ASC->ApplyGameplayEffectSpecToSelf(*Spec));

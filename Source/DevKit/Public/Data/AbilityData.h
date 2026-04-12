@@ -33,18 +33,28 @@ struct FHitboxAnnulus
 {
 	GENERATED_BODY()
 
-
+	/** 内圆剔除半径（圆心到目标距离小于此值则不命中）*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float inner_radius = 0;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//float outer_radius = 0;
-
+	/** 扇形圆弧角度（度）*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float degree = 0;
 
+	/**
+	 * 自动偏移（默认开）：
+	 *   开 — 圆心沿角色朝向后移 inner_radius，使扇形内沿恰好贴合玩家位置；OffsetCore 被忽略。
+	 *   关 — 圆心沿角色朝向偏移 OffsetCore（正值=向前，负值=向后），完全手动控制。
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float offset_degree = 0;
+	bool bAutoOffset = true;
+
+	/**
+	 * 手动模式下圆心的前后位移（世界单位）。
+	 * 正值沿角色朝向向前，负值向后。bAutoOffset = true 时此值被忽略。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "!bAutoOffset", EditConditionHides))
+	float OffsetCore = 0;
 
 };
 
@@ -299,15 +309,6 @@ public:
 	float ActDmgReduce = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float ActRotateSpeed = 360;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float JumpFrameTime = 0.15;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float FreezeFrameTime = 0.15;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UAnimMontage> Montage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -341,26 +342,31 @@ class DEVKIT_API UAbilityData : public UPrimaryDataAsset
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow), Category = "Action|Move")
-	TMap<FGameplayTag, FActionData> AbilityMap;
+	/**
+	 * 技能 Tag → 蒙太奇映射。
+	 * 攻击参数（伤害、范围、命中框等）已迁移至蒙太奇内的 AN_MeleeDamage Notify 上配置。
+	 * ForceInlineRow：每条记录 Key/Value 平铺在同一行，不展开。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action", meta = (ForceInlineRow))
+	TMap<FGameplayTag, TObjectPtr<UAnimMontage>> MontageMap;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow), Category = "Action|General")
 	TMap<FGameplayTag, FPassiveActionData> PassiveMap;
-	//TMap<FYogTagContainerWrapper, FActionData> AbilityMap;
-
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
-	FActionData GetAbility(const FGameplayTag& Key) const
+	UAnimMontage* GetMontage(const FGameplayTag& Key) const
 	{
-		return AbilityMap.FindRef(Key);
+		TObjectPtr<UAnimMontage> const* Found = MontageMap.Find(Key);
+		return Found ? Found->Get() : nullptr;
 	}
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
 	bool HasAbility(const FGameplayTag& Key) const
 	{
-		return AbilityMap.Contains(Key);
+		// 只有 Key 存在且蒙太奇非空才算"拥有该技能"，避免预填空 Key 被当成有效能力
+		TObjectPtr<UAnimMontage> const* Found = MontageMap.Find(Key);
+		return Found && Found->Get() != nullptr;
 	}
-
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
 	FPassiveActionData GetPassiveAbility(const FGameplayTag& Key) const
@@ -374,4 +380,26 @@ public:
 		return PassiveMap.Contains(Key);
 	}
 
+};
+
+// ---------------------------------------------------------------
+// 敌人技能数据 — 在内容浏览器创建时自动填入标准 Enemy Tag
+// ---------------------------------------------------------------
+UCLASS(BlueprintType, Blueprintable, DisplayName = "Enemy Ability Montage Data")
+class DEVKIT_API UEnemyAbilityMontageData : public UAbilityData
+{
+	GENERATED_BODY()
+
+	virtual void PostInitProperties() override;
+};
+
+// ---------------------------------------------------------------
+// 玩家技能数据 — 在内容浏览器创建时自动填入标准 Player Tag
+// ---------------------------------------------------------------
+UCLASS(BlueprintType, Blueprintable, DisplayName = "Player Ability Montage Data")
+class DEVKIT_API UPlayerAbilityMontageData : public UAbilityData
+{
+	GENERATED_BODY()
+
+	virtual void PostInitProperties() override;
 };

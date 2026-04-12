@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
-#include "GameModes/SpawnTypes.h"
+#include "GameModes/SpawnTypes.h"   // FEnemyEntry, FRoomDifficultyTier
 #include "Data/RuneDataAsset.h"
 #include "RoomDataAsset.generated.h"
 
@@ -89,6 +89,25 @@ public:
     // 关卡结算时从此池随机抽 3 个供玩家选择
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
     TArray<TObjectPtr<URuneDataAsset>> LootPool;
+
+    // =========================================================
+    // 难度档位配置（程序根据 DA_Campaign.TotalDifficultyScore 自动选档）
+    //
+    // 只需填写各档位的最大波次数；Wave/OneByOne 模式由程序自动决定。
+    // 选档阈值在 GameMode 的 LowDifficultyScoreMax / HighDifficultyScoreMin 中配置。
+    // =========================================================
+
+    // 低难度档（TotalDifficultyScore ≤ GameMode.LowDifficultyScoreMax）
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
+    FRoomDifficultyTier LowDifficulty;
+
+    // 中难度档（LowMax < Score < HighMin）
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
+    FRoomDifficultyTier MediumDifficulty;
+
+    // 高难度档（TotalDifficultyScore ≥ GameMode.HighDifficultyScoreMin）
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
+    FRoomDifficultyTier HighDifficulty;
 
     // =========================================================
     // 传送门目标配置

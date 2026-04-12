@@ -41,6 +41,7 @@ protected:
 
 
 	// Called when the game starts
+	virtual void InitializeComponent() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type endPlayReason) override;
 
@@ -50,7 +51,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character | CharacterData")
 	TSoftClassPtr<UCharacterData> CharacterDataClass;
 
-	/** BeginPlay 时缓存原始 AbilityData，EndPlay 时还原，防止武器拾取后 PIE 间数据污染 */
+	/** InitializeComponent 时捕获的原始资产引用（早于 Possess/RestoreRunState），EndPlay 无条件还原，防止 PIE 间污染 */
+	UPROPERTY()
+	TObjectPtr<UCharacterData> OriginalCharacterDataRef;
+
+	/** InitializeComponent 时捕获的干净 AbilityData 值，EndPlay 时写回原始资产 */
 	UPROPERTY()
 	TObjectPtr<UAbilityData> OriginalAbilityData;
 
