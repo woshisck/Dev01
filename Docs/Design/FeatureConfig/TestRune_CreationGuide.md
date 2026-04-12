@@ -1,6 +1,7 @@
-# 测试符文制作指南 v3
+# 测试符文制作指南 v4
 
-> 版本：v3（2026-04-09）更新重点：击退拆分为两个独立符文（1004 击退 + 1007 击退减速），引入符文联动模式（GameplayEvent 跨符文通信）；GA_Knockback 改为 C++ 实现，使用 RootMotionMoveToForce 精确控距。
+> 版本：v4（2026-04-12）更新重点：新增符文 1008 刀光波（远程投射物，每 3 次命中触发，穿透多敌，C++ 投射物 + C++ 被动 GA）。  
+> v3（2026-04-09）更新重点：击退拆分为两个独立符文（1004 击退 + 1007 击退减速），引入符文联动模式（GameplayEvent 跨符文通信）；GA_Knockback 改为 C++ 实现，使用 RootMotionMoveToForce 精确控距。
 > Tag 规范：[Buff_Tag_Spec.md](Buff_Tag_Spec.md) · 系统指南：[BuffFlow_SystemGuide.md](BuffFlow_SystemGuide.md)
 
 ---
@@ -16,7 +17,9 @@
 | 1007 击退减速 | ❌ 不需要 | ❌ 不需要 | 监听 1004 的击退事件，联动施加减速 |
 | 1005 流血 | ❌ 不需要 | ✅ 1个（速度扣血逻辑） | GrantTag 替代 GE_Bleeding |
 | 1006 额外伤害 | ❌ 不需要 | ❌ 不需要 | AddTag 守卫 + DoDamage |
+| 1008 刀光波 | ✅ 1个（GE_SlashWaveDamage，SetByCaller 扣血） | ✅ 2个（C++ GA_SlashWaveCounter + C++ ASlashWaveProjectile 的 BP 子类） | 命中 3 次发射穿透投射物 |
 
+**v4 变化：** 新增 1008 刀光波，引入 C++ 投射物模式（ASlashWaveProjectile）和持久被动 GA 计数器模式（GA_SlashWaveCounter）。  
 **v3 变化：** Blueprint GE 从 2 个减少到 **1 个**（仅 HeatTick）；击退改用 C++ GA + RootMotion，减速改为零资产联动符文。
 
 ---
@@ -489,6 +492,193 @@ ActivateAbility
 
 ---
 
+---
+
+## 符文 8：刀光波（1008）✅ 需要 1 个 Blueprint GE + 2 个 Blueprint GA（C++ 子类）
+
+**设计：** 命中敌人后累计次数，每命中 3 次向前方发射一道水平刀光波，穿透多个敌人。  
+刀光独立伤害，与攻击伤害叠加。不依赖热度，纯符文被动效果。
+
+**两个模式（同一套 C++ 代码，Blueprint 配置切换）：**
+
+| 模式 | bHitRequired | 触发条件 | 适合 |
+|------|-------------|---------|------|
+| 命中模式 | `true`（默认） | 攻击命中敌人后计数 | 精准、不浪费层数 |
+| 挥刀模式 | `false` | 每次挥刀帧计数（无论是否命中） | 高频触发、需配置守卫 Tag |
+
+> 本指南先制作命中模式（1008），挥刀模式配置差异见 [8-5 挥刀模式附加配置](#85-挥刀模式附加配置)。
+
+**需要创建：**
+- `GE_SlashWaveDamage`（Blueprint GE，一次性扣血）
+- `BP_SlashWaveProjectile`（ASlashWaveProjectile 的 Blueprint 子类，做表现层）
+- `BGA_SlashWaveCounter`（GA_SlashWaveCounter 的 Blueprint 子类，配置数值）
+- `FA_Rune_SlashWave`（命中模式 FlowAsset）
+- `DA_Rune_SlashWave`（符文 DataAsset）
+
+---
+
+### 8-0 前置：GameplayTag 创建
+
+**路径：** Edit → Project Settings → Gameplay Tags
+
+| Tag | 用途 |
+|---|---|
+| `Action.Rune.SlashWaveHit` | 命中模式：FA 命中敌人后发送到玩家 ASC，GA 计数用 |
+| `Action.Attack.Swing` | 挥刀模式：AN_MeleeDamage 每次攻击帧自动发送（C++ 已添加） |
+| `Buff.Status.SlashWaveSwingActive`| 挥刀模式守卫 Tag（挥刀模式 FA 激活时授予，符文移除时自动清理） |
+
+---
+
+### 8-1 GE：`GE_SlashWaveDamage`
+
+在内容浏览器创建 Blueprint → GameplayEffect，命名 `GE_SlashWaveDamage`。
+
+| 配置项 | 值 | 说明 |
+|---|---|---|
+| Duration Policy | **Instant** | 瞬间扣血 |
+| **Modifiers** | Attribute = 目标 HP 属性, Op = Additive | 填项目实际 HP 属性 |
+| Modifier Magnitude | **SetByCaller** | 通过代码传入伤害量 |
+| SetByCaller Tag | `Attribute.ActDamage` | 与 C++ 代码中的 SetByCaller Tag 一致 |
+
+> `Attribute.ActDamage` 与现有伤害管线标签一致，无需新增 Tag。
+
+---
+
+### 8-2 GA：`BGA_SlashWaveCounter`（GA_SlashWaveCounter C++ 子类）
+
+**创建 Blueprint 子类：**
+
+> Content Browser → 右键 → Blueprint Class → 父类搜索 `GA_SlashWaveCounter`  
+> 命名为 `BGA_SlashWaveCounter`
+
+**配置字段（Class Defaults）：**
+
+| 配置字段 | 值 | 说明 |
+|---|---|---|
+| **HitsRequired** | `3` | 每 3 次命中触发一次刀光 |
+| **bHitRequired** | `true` | 命中模式（监听 Action.Rune.SlashWaveHit） |
+| SwingModeGateTag | （留空） | 命中模式不需要守卫 Tag |
+| **ProjectileClass** | `BP_SlashWaveProjectile` | 见下方 8-3 |
+| **SlashDamage** | `30.0` | 刀光伤害量 |
+| **SlashDamageEffect** | `GE_SlashWaveDamage` | 见 8-1 |
+| **SpawnOffset** | `80.0` | 从角色中心向前 80cm 生成 |
+
+**授予方式：**
+
+> 玩家角色 BP → BeginPlay → `GiveAbility(BGA_SlashWaveCounter)`
+
+GA 被授予时自动激活（持久监听），无需手动触发。
+
+---
+
+### 8-3 Projectile：`BP_SlashWaveProjectile`（ASlashWaveProjectile C++ 子类）
+
+> Content Browser → 右键 → Blueprint Class → 父类搜索 `SlashWaveProjectile`  
+> 命名为 `BP_SlashWaveProjectile`
+
+**Class Defaults 可调整：**
+
+| 字段 | 默认值 | 说明 |
+|---|---|---|
+| Lifetime | `1.2` | 生存时间（秒） |
+| Speed | `1400` | 飞行速度（cm/s） |
+
+**表现层（在 BP 事件图中实现）：**
+
+| 事件 | 推荐实现 |
+|---|---|
+| `BP_OnHitEnemy(HitActor, HitLocation)` | 在 HitLocation 生成命中粒子、播放音效 |
+| `BP_OnExpired()` | 播放消散特效（如光芒消失） |
+
+> C++ 层控制所有碰撞/伤害/穿透逻辑，Blueprint 只做视觉表现。
+
+---
+
+### 8-4 FA：`FA_Rune_SlashWave`（命中模式）
+
+```
+[Start]
+  ↓
+[BFNode_OnDamageDealt]                      ← 等待玩家命中敌人
+  ↓ Out（命中时触发）
+[BFNode_SendGameplayEvent]
+    EventTag   = Action.Rune.SlashWaveHit   ← 通知 BGA_SlashWaveCounter 计数
+    Target     = Buff拥有者（玩家角色）      ← 事件发送到自身 ASC
+    Instigator = Buff拥有者
+  ↓ Out
+（回到 OnDamageDealt，继续监听下次命中）
+```
+
+**生命周期：**
+- 符文装入激活区 → FA 启动 → OnDamageDealt 开始监听
+- 每次命中 → SendGameplayEvent → BGA_SlashWaveCounter 计数 +1
+- 累计 3 次 → BGA_SlashWaveCounter 自动生成 BP_SlashWaveProjectile
+- 符文移出激活区 → FA 停止 → 监听器自动清理；计数器在 GA 下次激活前重置
+
+**Cleanup：** SendGameplayEvent 无持久资源，FA 停止时无需额外清理。
+
+---
+
+### 8-5 DA：`DA_Rune_SlashWave`
+
+| 字段 | 值 |
+|---|---|
+| RuneName | `SlashWave` |
+| RuneConfig.RuneID | `1008` |
+| RuneConfig.RuneType | `Buff` |
+| Flow.FlowAsset | `FA_Rune_SlashWave` |
+
+---
+
+### 8-6 测试要点（命中模式）
+
+1. **装备前验证：** 不装备符文时，攻击敌人无刀光，Output Log 无 SlashWave 相关输出
+2. **装备后计数：** 装备 DA_Rune_SlashWave，攻击敌人 1~2 次无刀光，第 3 次命中后生成投射物
+3. **穿透验证：** 刀光飞过 2 个并排敌人，两个都受到伤害（Output Log 两条 ApplyGE 记录）
+4. **伤害叠加：** 攻击命中 + 刀光命中同一敌人时，敌人血量减少两次（攻击 + 刀光各自独立）
+5. **计数重置：** 第 3 次触发后计数归零，再次命中 3 次才触发第二波刀光
+6. **移出检测：** 将符文移出激活区，后续攻击不再触发刀光（FA 已停止，不再发送事件）
+7. **GAS Debugger：** 命中时可见 `Action.Rune.SlashWaveHit` 事件发送到玩家 ASC
+
+---
+
+### 8-7 挥刀模式附加配置
+
+> 在完成命中模式基础测试后，按需创建挥刀模式版本。
+
+**额外需要创建：**
+- `BGA_SlashWaveCounter_Swing`（BGA_SlashWaveCounter 的副本，或新 Blueprint 子类）
+- `FA_Rune_SlashWave_Swing`（挥刀模式 FA）
+
+**BGA_SlashWaveCounter_Swing 差异配置：**
+
+| 字段 | 值（与命中模式不同） |
+|---|---|
+| bHitRequired | `false`（监听 Action.Attack.Swing） |
+| SwingModeGateTag | `Buff.Status.SlashWaveSwingActive` |
+
+**FA_Rune_SlashWave_Swing 节点图：**
+
+```
+[Start]
+  ↓
+[BFNode_GrantTag]                                    ← 授予守卫 Tag，告知 GA 符文已激活
+    Tag      = Buff.Status.SlashWaveSwingActive
+    Duration = Infinite（FA 停止时 Cleanup 自动移除）
+    Target   = Buff拥有者
+  ↓ Out（Tag 持续存在，FA 停止时自动清理）
+（FA 一直保持激活，守卫 Tag 存在 = 符文激活中）
+```
+
+**挥刀模式工作流：**
+1. 符文激活 → FA 启动 → GrantTag 授予 `Buff.Status.SlashWaveSwingActive`
+2. 每次挥刀（AN_MeleeDamage::Notify）→ 发送 `Action.Attack.Swing` 到玩家 ASC
+3. GA 收到事件 → 检查 `Buff.Status.SlashWaveSwingActive` 存在 → 计数 +1
+4. 累计 HitsRequired 次 → 生成投射物
+5. 符文移出 → FA 停止 → GrantTag Cleanup 移除守卫 Tag → GA 忽略后续挥刀事件
+
+---
+
 ## 资产目录结构
 
 ```
@@ -514,9 +704,16 @@ Content/Game/Runes/
 │   ├── DA_Rune_Bleed
 │   ├── FA_Rune_Bleed
 │   └── GA_Bleed                        ← 速度扣血逻辑，必须用 Blueprint GA
-└── ExtraDamage/
-    ├── DA_Rune_ExtraDamage
-    └── FA_Rune_ExtraDamage
+├── ExtraDamage/
+│   ├── DA_Rune_ExtraDamage
+│   └── FA_Rune_ExtraDamage
+└── SlashWave/
+    ├── DA_Rune_SlashWave
+    ├── FA_Rune_SlashWave                   ← 命中模式 FA
+    ├── FA_Rune_SlashWave_Swing             ← 挥刀模式 FA（可选）
+    ├── BGA_SlashWaveCounter                ← GA_SlashWaveCounter(C++) 的 Blueprint 子类
+    ├── BP_SlashWaveProjectile              ← ASlashWaveProjectile(C++) 的 Blueprint 子类
+    └── GE_SlashWaveDamage                  ← 刀光伤害 GE（SetByCaller）
 ```
 
 ---
@@ -532,6 +729,7 @@ Content/Game/Runes/
 | 1007 击退减速 | ✓ | ✓ | — | — | **必须装备 1004** | 联动模式范例 |
 | 1005 流血 | ✓ | ✓ | — | ✓ GA_Bleed | — | GE 由 GrantTag 替代 |
 | 1006 额外伤害 | ✓ | ✓ | — | — | — | 全零资产 |
+| 1008 刀光波 | ✓ | ✓ | ✓ GE_SlashWaveDamage | ✓ BGA_SlashWaveCounter + BP_SlashWaveProjectile | 玩家 BP 需 GiveAbility | 命中计数器 + 穿透投射物 |
 
 ---
 
@@ -544,6 +742,7 @@ Content/Game/Runes/
 5. **符文 1002（热度提升）** → 验证 Period + OngoingTagRequirements Inhibit
 6. **符文 1004（击退）** → 验证 GameplayEvent 触发 GA + RootMotion 精确控距
 7. **符文 1007（击退减速）** → 验证符文联动模式（WaitGameplayEvent 跨符文通信）
+8. **符文 1008（刀光波）** → 验证 C++ 投射物 + 持久被动 GA + OnDamageDealt 计数链路
 
 ---
 

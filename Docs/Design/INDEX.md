@@ -1,7 +1,7 @@
 # 设计文档索引
 
 > 项目：星骸降临 Dev01  
-> 更新：2026-04-11（新增：传送门 NeverOpen / 按 E 拾取 / 死亡碰撞 / 系统细化工作报告 / 进展路线图更新 / 玩家调研 / 商业计划分析）  
+> 更新：2026-04-12（AbilityData PIE 污染根治；冲刺架构重构为根运动驱动 + 越障；SkillChargeComponent.GetCDRemaining；Dash Debug 工具）  
 > 新增文档必须在此更新，参见 [DocWritingGuide.md](DocWritingGuide.md)
 
 ---
@@ -70,6 +70,7 @@
 | [传送门与关卡奖励系统设计](Systems/Portal_Design.md) | 传送门多分支切关 + 奖励拾取物设计原理（含 NeverOpen + 按 E 拾取）| 策划 + 程序 |
 | [跨关状态持久化技术文档](Systems/CrossLevelState_Technical.md) | FRunState 数据流、存储/恢复流程、调试方法 | 程序 |
 | [目标用户与玩家声音调研](Systems/PlayerResearch_Design.md) | 核心用户画像 / 玩家诉求 / 竞品分析 / 设计建议 / 市场估算 | 策划 |
+| [冲刺（Dash）系统](Systems/Dash_Design.md) | 方向/旋转/无敌帧/穿透/碰撞通道/障碍检测/扩展规划（GA_PlayerDash C++） | 策划 + 程序 |
 
 ---
 
@@ -86,8 +87,11 @@
 | [系统细化与交互优化 2026-04-11](WorkReports/SystemPolish_WorkReport_20260411.md) | 传送门 NeverOpen / 按 E 拾取 / 死亡碰撞清除 / 敌人朝向修复 |
 | [当前进展 2026-04-11](WorkReports/CurrentProgress_20260411.md) | 项目阶段概述、已完成 / 未完成功能速览、本周目标（最新）|
 | [开发路线图 2026-04-11](WorkReports/DevRoadmap_20260411.md) | 详细任务规划（P0-P3）、各任务步骤、里程碑时间线（最新）|
+| [当前进展 2026-04-12](WorkReports/CurrentProgress_20260412.md) | 项目阶段概述、已完成 / 未完成功能速览（最新）|
+| [冲刺系统 + 近战清理 2026-04-12](WorkReports/Dash_MeleeCleanup_WorkReport_20260412.md) | GA_PlayerDash C++ 实现、越障算法、根运动位移、AN_MeleeDamage 字段清理、ANS_AttackRotate |
 | [商业计划书分析 2026-04-11](WorkReports/BPAnalysis_20260411.md) | 差异化分析 / 问题查漏 / 改进建议 / 吸引力评估 |
 | [热度系统工作报告 2026-04-06](WorkReports/HeatSystem_WorkReport_20260406.md) | 热度系统实现阶段总结 |
+| [Bug 修复与冲刺重构 2026-04-12](WorkReports/BugFix_And_Dash_WorkReport_20260412.md) | AbilityData PIE 污染根治 / 冲刺根运动驱动 + 越障 / Debug 工具 |
 
 ---
 
@@ -104,7 +108,7 @@
 **策划：我想……**
 - 了解游戏整体循环设计 → [游戏主循环设计](Systems/MainLoop_Design.md)
 - 了解目标用户和玩家诉求 → [目标用户与玩家声音调研](Systems/PlayerResearch_Design.md)
-- 查看当前开发进度和优先级 → [当前进展 2026-04-11](WorkReports/CurrentProgress_20260411.md)
+- 查看当前开发进度和优先级 → [当前进展 2026-04-12](WorkReports/CurrentProgress_20260412.md)
 - 配置攻击造成伤害 → [攻击伤害配置指南](FeatureConfig/AttackDamage_ConfigGuide.md)
 - 攻击伤害的设计原理 → [攻击伤害系统设计说明](Systems/AttackDamage_Design.md)
 - 配置敌人攻击行为 → [行为树攻击任务配置](FeatureConfig/BT_AttackTask_ConfigGuide.md)
