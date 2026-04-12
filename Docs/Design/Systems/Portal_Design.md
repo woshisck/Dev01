@@ -3,7 +3,7 @@
 > 适用范围：关卡结算流程 / 切关机制 / 战利品触发  
 > 适用人群：策划 + 程序  
 > 配套文档：[传送门配置指南](../FeatureConfig/Portal_ConfigGuide.md)、[关卡系统技术文档](LevelSystem_ProgrammerDoc.md)、[跨关状态持久化](CrossLevelState_Technical.md)  
-> 最后更新：2026-04-10（更新：随机房间选取系统、FFloorConfig 重命名）
+> 最后更新：2026-04-12（与代码对齐：FPortalDestConfig.RoomPool 类型修正；FFloorConfig 字段修正；UCampaignDataAsset 单 RoomPool；开门规则精确描述）
 
 ---
 
@@ -27,9 +27,12 @@
   └─ YogGameMode::CheckLevelComplete()
        └─ EnterArrangementPhase()
             ├─ 解锁背包（SetLocked(false)）
-            ├─ 发放金币（AddGold，按难度配置随机范围）
+            ├─ 发放金币（按 FFloorConfig.GoldMin/Max 随机）
             ├─ 在 LastEnemyKillLocation 生成 ARewardPickup
-            └─ ActivatePortals()（随机决定哪些门开启）
+            └─ ActivatePortals()
+                 ├─ 骰出下一关房间类型（所有门共享同一次类型骰子）
+                 ├─ Fisher-Yates 洗牌 ActiveRoomData.PortalDestinations
+                 └─ 遍历洗牌后的列表，依次开门（第一个必开，后续 50%）
 
 玩家靠近 ARewardPickup
   └─ OnOverlapBegin()
@@ -49,20 +52,21 @@
 玩家走进已开启的 APortal
   └─ OnOverlapBegin()
        └─ EnterPortal（BlueprintNativeEvent）
-            └─ GM->TransitionToLevel(SelectedLevel, SelectedRoom)
+            └─ GM->TransitionToLevel(ChosenRoom->RoomName, ChosenRoom)
                  ├─ 锁背包
                  ├─ 保存 RunState 到 GameInstance
                  ├─ GI->PendingRoomData = SelectedRoom（下一关的 DA_Room）
-                 └─ OpenLevel(SelectedLevel)
+                 ├─ GI->PendingNextFloor = CurrentFloor + 1
+                 └─ OpenLevel(ChosenRoom->RoomName)
 ```
 
 ### 2.2 Actor 职责分工
 
 | Actor | 职责 |
 |---|---|
-| `APortal` | 承载门的视觉效果和碰撞；记录目标关卡；触发切关 |
-| `ARewardPickup` | 触发战利品选择流程；触碰后销毁自身 |
-| `AYogGameMode` | 决定哪些门开启；分配目标关卡；执行切关和状态保存 |
+| `APortal` | 承载门的视觉效果和碰撞；记录目标关卡名和 DA_Room；触发切关 |
+| `ARewardPickup` | 触发战利品选择流程；接触后登记引用，按 E 触发 |
+| `AYogGameMode` | 决定哪些门开启；分配目标 DA_Room；执行切关和状态保存 |
 
 ---
 
@@ -72,42 +76,47 @@
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `Index` | `int32` | 场景内唯一标识（与 CampaignData 中的 PortalIndex 对应）|
+| `Index` | `int32` | 场景内唯一标识（与 DA_Room.PortalDestinations 中的 PortalIndex 对应）|
 | `bIsOpen` | `bool` | 是否已开启（BeginPlay 时为 false）|
 | `bWillNeverOpen` | `bool` | 关卡开始时确定永不开启（未登记在 PortalDestinations）；由 GameMode 设置 |
-| `SelectedLevel` | `FName` | GameMode 分配的目标关卡名（类型无关）|
-| `SelectedRoom` | `URoomDataAsset*` | GameMode 分配的目标房间配置（骰子决定类型）|
+| `SelectedLevel` | `FName` | 目标关卡名（= ChosenRoom->RoomName），由 GameMode 通过 Open() 写入 |
+| `SelectedRoom` | `URoomDataAsset*` | 目标房间 DA，由 GameMode 通过 Open() 写入 |
 
-### 3.2 CampaignDataAsset 相关结构
+### 3.2 相关数据结构
 
-**FPortalDestConfig**（单个传送门的目标配置）：
+**FPortalDestConfig**（单个传送门的目标配置，存在 **DA_Room.PortalDestinations** 中）：
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `PortalIndex` | `int32` | 对应场景中 APortal.Index |
-| `NextLevelPool` | `TArray<FName>` | 目标关卡随机池（类型无关，同一张地图可以是任意房间类型）|
+| `RoomPool` | `TArray<TObjectPtr<URoomDataAsset>>` | 此门专属的 DA_Room 候选池（按类型 Tag 过滤后随机选）；为空时回退到 Campaign 全局 RoomPool |
 
-**FFloorConfig**（每关宏观配置，原 FFloorEntry）：
+> 关卡文件名 = 选中的 `DA_Room.RoomName`，不需要单独配置关卡名列表。
+
+**FFloorConfig**（每关宏观配置，存在 **DA_Campaign.FloorTable** 中）：
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `FloorNumber` | `int32` | 第几关（参考序号）|
-| `Difficulty` | `EDifficultyTier` | 难度等级，决定使用 DA_Room 的哪套配置 |
-| `bForceElite` | `bool` | 强制精英关（覆盖 EliteChance）|
+| `TotalDifficultyScore` | `int32` | 总难度分（驱动档位选择 + 波次预算）|
+| `bForceElite` | `bool` | 强制精英关 |
 | `EliteChance` | `float` | 精英关概率（0-1）|
 | `ShopChance` | `float` | 商店概率（0-1）|
 | `EventChance` | `float` | 事件房概率（0-1）|
-| `CommonWeight/RareWeight/EpicWeight` | `float` | 符文奖励稀有度相对权重 |
-| `PortalDestinations` | `TArray<FPortalDestConfig>` | 本关所有传送门的目标地图池 |
+| `CommonWeight/RareWeight/EpicWeight` | `float` | 符文稀有度权重 |
+| `GoldMin/GoldMax` | `int32` | 结算金币范围 |
+| `BuffCount` | `int32` | 从 DA_Room.BuffPool 选几个 Buff 施加给怪 |
 
-**UCampaignDataAsset 新增字段**（按房间类型划分的 DA_Room 池）：
+**UCampaignDataAsset**（全局 DA_Room 候选池）：
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `NormalRoomPool` | `TArray<URoomDataAsset*>` | 普通战斗房 DA_Room 池 |
-| `EliteRoomPool` | `TArray<URoomDataAsset*>` | 精英战斗房 DA_Room 池 |
-| `ShopRoomPool` | `TArray<URoomDataAsset*>` | 商店房 DA_Room 池 |
-| `EventRoomPool` | `TArray<URoomDataAsset*>` | 事件房 DA_Room 池 |
+| `FloorTable` | `TArray<FFloorConfig>` | 关卡序列 |
+| `LayerTag` | `FGameplayTag` | 层级 Tag，过滤用 |
+| `RoomPool` | `TArray<TObjectPtr<URoomDataAsset>>` | **所有类型** DA_Room 混放，按 RoomTags 过滤选取 |
+| `DefaultStartingRoom` | `TObjectPtr<URoomDataAsset>` | 第一关强制使用 |
+
+> DA_Campaign 只有一个 `RoomPool`（混放所有类型），不分 Normal/Elite/Shop 池。系统用类型 Tag 自动筛选。
 
 ### 3.3 YogGameMode 关键字段
 
@@ -115,61 +124,71 @@
 |---|---|---|
 | `LastEnemyKillLocation` | `FVector` | 最后一个被击杀敌人的位置（由 EnemyCharacterBase::Die() 写入）|
 | `RewardPickupClass` | `TSubclassOf<AActor>` | 在 GameMode BP 中指定奖励拾取物类 |
+| `ActiveRoomData` | `URoomDataAsset*` | 当前关卡的 DA_Room（含 PortalDestinations）|
 
 ---
 
-## 四、随机开门规则 + 随机房间选取
+## 四、随机开门规则与房间选取
 
 ### 4.1 开门规则（Fisher-Yates，保证至少 1 扇开启）
 
-1. 将当前关的 `PortalDestinations` 数组进行 Fisher-Yates 洗牌
+传送门配置读自 **ActiveRoomData.PortalDestinations**（DA_Room 里配置）：
+
+1. 将 `PortalDestinations` 数组进行 Fisher-Yates 洗牌
 2. 洗牌后顺序处理每个配置：
    - **第一个** → 必须开启（保证至少 1 门可用）
    - **后续每个** → 50% 概率开启
 
-### 4.2 房间类型骰子（每个开启门独立进行）
+### 4.2 下一关房间类型骰子（所有门共享一次骰子）
 
-开启的每扇门，都会独立执行一次骰子决定"这个分支下一关的房间类型"：
-
-```
-读取下一关的 FFloorConfig.EliteChance / ShopChance / EventChance
-  Roll = random(0.0, 1.0)
-  Roll < EliteChance                    → 精英房 → 从 EliteRoomPool 选 DA_Room
-  Roll < EliteChance + ShopChance       → 商店房 → 从 ShopRoomPool 选 DA_Room
-  Roll < EliteChance + ShopChance + EventChance → 事件房 → 从 EventRoomPool 选 DA_Room
-  else                                  → 普通房 → 从 NormalRoomPool 选 DA_Room
-
-选中的 DA_Room 存入 Portal.SelectedRoom
-```
-
-若 FFloorConfig.bForceElite = true，直接跳过骰子，选精英房。
-
-若某类型池为空，自动降级到 NormalRoomPool 兜底。
-
-### 4.3 地图选取（独立于房间类型）
-
-同一个门，地图名和房间类型是 **两次独立的随机**：
+所有门共享同一次类型骰子（不是每门独立骰）：
 
 ```
-ChosenRoom  = 骰子决定（上方规则）
-ChosenLevel = Portal.NextLevelPool 中随机选一个（类型无关）
+读取下一关的 FFloorConfig（FloorTable[CurrentFloor]）
+  如果 bForceElite = true → 类型固定为 Elite
+  否则：
+    Roll = random(0.0, 1.0)
+    Roll < EliteChance                              → Room.Type.Elite
+    Roll < EliteChance + ShopChance                → Room.Type.Shop
+    Roll < EliteChance + ShopChance + EventChance  → Room.Type.Event
+    else                                           → Room.Type.Normal
 ```
 
-意味着同一张地图（如 Level_Prison_A）可以承载普通战斗、也可以承载精英战斗，完全由骰子说了算。
+骰出 `RequiredRoomType` 后，所有门按此类型选 DA_Room。
+
+### 4.3 DA_Room 选取（SelectRoomByTag，四级优先级）
+
+每扇门独立执行 SelectRoomByTag(&Cfg, RequiredRoomType)：
+
+```
+1. 门专属 RoomPool（FPortalDestConfig.RoomPool）中，找类型+层级 Tag 都匹配的 DA_Room → 优先
+2. Campaign 全局 RoomPool，找类型+层级 Tag 都匹配的 DA_Room
+3. 若第 1、2 步都找不到（如 Elite 池为空）：
+   门专属 RoomPool 中任意选一个（无视类型，降级兜底）
+4. 若门专属池为空：Campaign RoomPool 中 Normal 类型兜底
+```
+
+选中后：`ChosenRoom->RoomName` = 关卡文件名，直接传给 `OpenLevel()`。
 
 ### 4.4 示例
 
 ```
-当前关 PortalDestinations（洗牌后假设顺序）：
-  门 1: NextLevelPool = ["Level_Prison_A"]
-  门 0: NextLevelPool = ["Level_Forest_A", "Level_Forest_B"]
-  门 2: NextLevelPool = ["Level_Market"]
+当前关 DA_Room.PortalDestinations（洗牌后假设顺序）：
+  {PortalIndex=1, RoomPool=[DA_Room_Forest_Normal, DA_Room_Forest_Elite]}
+  {PortalIndex=0, RoomPool=[DA_Room_Prison_Normal]}
+  {PortalIndex=2, RoomPool=[]}   ← 门专属池为空，走 Campaign 全局池
 
-下一关 FFloorConfig: EliteChance=0.3, ShopChance=0.15, EventChance=0.1
+下一关 FloorConfig: EliteChance=0.3, ShopChance=0.1, EventChance=0.0
+骰子结果：Roll=0.15 → Elite
 
-门 1 → 必开 → Roll=0.4 → Normal → DA_Room_Normal_01 + "Level_Prison_A"
-门 0 → 50% → 假设开 → Roll=0.1 → Elite → DA_Room_Elite_02 + 随机选 "Level_Forest_B"
-门 2 → 50% → 假设不开 → 关闭
+门1（Index=1）→ 必开 → 门专属池找 Elite → DA_Room_Forest_Elite
+  → RoomName = "Level_Forest_01" → 开门
+
+门0（Index=0）→ 50% 概率开 → 门专属池找 Elite → 没有 → Campaign 全局池找 Elite → DA_Room_Prison_Elite
+  → RoomName = "Level_Prison_01" → 开门（若概率满足）
+
+门2（Index=2）→ 50% 概率开 → 门专属池为空 → Campaign 全局池找 Elite → DA_Room_Prison_Elite
+  → 开门（若概率满足）
 ```
 
 ### 4.5 ⚠️ 待完善
@@ -209,9 +228,11 @@ Event Never Open
 | 情况 | 行为 |
 |---|---|
 | `Portal.Index` 与 `PortalDestinations` 中无匹配项 | 该门被标记 `bWillNeverOpen=true`，调用 `NeverOpen()`，显示为纯装饰 |
-| `NextLevelPool` 为空 | 该门不参与随机开启 |
+| 门专属 `RoomPool` 为空 | 系统回退到 Campaign 全局 RoomPool |
+| Campaign 全局 RoomPool 和门专属池都找不到所需类型 | 回退到 Normal 类型兜底 |
+| `DA_Room.RoomName` 为空 | 该门跳过，不开启（避免 OpenLevel 传空名） |
 | `RewardPickupClass` 未在 GameMode 中配置 | 不生成拾取物，玩家无法触发战利品界面 |
-| `LastEnemyKillLocation` 为 ZeroVector | RewardPickup 生成在世界原点（通常意味着没有敌人被击杀）|
+| `LastEnemyKillLocation` 为 ZeroVector | RewardPickup 生成在玩家当前位置（兜底） |
 | 传送门未放入当前关卡场景 | `ActivatePortals()` 找不到 APortal，不报错，但无门可进 |
 
 ---
@@ -224,4 +245,5 @@ Event Never Open
 | 奖励拾取物 | `Source/DevKit/Public/Map/RewardPickup.h` / `Private/Map/RewardPickup.cpp` |
 | 开门/切关逻辑 | `Source/DevKit/Private/GameModes/YogGameMode.cpp`（`ActivatePortals` / `TransitionToLevel`）|
 | 击杀位置记录 | `Source/DevKit/Private/Character/EnemyCharacterBase.cpp`（`Die()`）|
-| 数据结构 | `Source/DevKit/Public/Data/CampaignDataAsset.h`（`FPortalDestConfig` / `FFloorConfig` / Room Pools）|
+| 传送门目标结构 | `Source/DevKit/Public/Data/RoomDataAsset.h`（`FPortalDestConfig` / `URoomDataAsset.PortalDestinations`）|
+| 关卡序列结构 | `Source/DevKit/Public/Data/CampaignDataAsset.h`（`FFloorConfig` / `UCampaignDataAsset`）|
