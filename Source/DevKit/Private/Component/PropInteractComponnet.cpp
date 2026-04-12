@@ -7,6 +7,7 @@
 
 #include "Components/WidgetComponent.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Map/RewardPickup.h"
 
 // Sets default values for this component's properties
 UPropInteractComponnet::UPropInteractComponnet()
@@ -23,7 +24,7 @@ void UPropInteractComponnet::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 
 	if (OtherActor && OtherActor != GetOwner())
 	{
-		if (OtherActor->IsA(AItemSpawner::StaticClass()) && GetOwner()->IsA(APlayerCharacterBase::StaticClass()))
+		if (OtherActor->IsA(ARewardPickup::StaticClass()) && GetOwner()->IsA(APlayerCharacterBase::StaticClass()))
 		{
 			AYogCharacterBase* PlayerOwner = Cast<AYogCharacterBase>(GetOwner());
 			PlayerOwner->GetWidgetcomponent()->SetVisibility(true);
@@ -60,7 +61,7 @@ void UPropInteractComponnet::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, A
 
 	if (OtherActor && OtherActor != GetOwner())
 	{
-		if (OtherActor->IsA(AItemSpawner::StaticClass()) && GetOwner()->IsA(APlayerCharacterBase::StaticClass()))
+		if (OtherActor->IsA(ARewardPickup::StaticClass()) && GetOwner()->IsA(APlayerCharacterBase::StaticClass()))
 		{
 			AYogCharacterBase* PlayerOwner = Cast<AYogCharacterBase>(GetOwner());
 			PlayerOwner->GetWidgetcomponent()->SetVisibility(false);

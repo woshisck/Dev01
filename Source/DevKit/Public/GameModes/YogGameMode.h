@@ -138,7 +138,7 @@ public:
 
 	// 关卡结算奖励拾取物的 Actor 类（在 GameMode BP 中指定 ARewardPickup）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow")
-	TSubclassOf<AActor> RewardPickupClass;
+	TSubclassOf<ARewardPickup> RewardPickupClass;
 
 	// 进关后延迟多少秒再开始刷怪（给特效/动画和 AI 初始化预留时间）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow", meta = (ClampMin = "0.0"))
