@@ -1,7 +1,7 @@
 # 设计文档索引
 
 > 项目：星骸降临 Dev01  
-> 更新：2026-04-12（AbilityData PIE 污染根治；冲刺架构重构为根运动驱动 + 越障；SkillChargeComponent.GetCDRemaining；Dash Debug 工具）  
+> 更新：2026-04-13（FBuffEntry统一Buff结构；敌人专属Buff池；MaxEnemiesPerWave；主城房间；奖励配置移至难度档位）  
 > 新增文档必须在此更新，参见 [DocWritingGuide.md](DocWritingGuide.md)
 
 ---
@@ -92,6 +92,7 @@
 | [商业计划书分析 2026-04-11](WorkReports/BPAnalysis_20260411.md) | 差异化分析 / 问题查漏 / 改进建议 / 吸引力评估 |
 | [热度系统工作报告 2026-04-06](WorkReports/HeatSystem_WorkReport_20260406.md) | 热度系统实现阶段总结 |
 | [Bug 修复与冲刺重构 2026-04-12](WorkReports/BugFix_And_Dash_WorkReport_20260412.md) | AbilityData PIE 污染根治 / 冲刺根运动驱动 + 越障 / Debug 工具 |
+| [刷怪系统 — 敌人 Buff 与预算扩展 2026-04-13](WorkReports/SpawnSystem_EnemyBuff_WorkReport_20260413.md) | FBuffEntry / 敌人专属 Buff 池 / MaxEnemiesPerWave / 主城房间 / 奖励配置移至难度档位 |
 
 ---
 

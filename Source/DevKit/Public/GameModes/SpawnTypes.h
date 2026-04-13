@@ -76,4 +76,37 @@ struct DEVKIT_API FRoomDifficultyTier
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty",
         meta = (ClampMin = "1"))
     int32 MaxWaveCount = 3;
+
+    // 单波最多同屏存活敌人数（0 = 不限制）
+    // 超出上限时，BuildWavePlan 优先选取难度分 + Buff 合计最高的敌人填满上限
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty",
+        meta = (ClampMin = "0"))
+    int32 MaxEnemiesPerWave = 0;
+
+    // ---- 关卡奖励（按档位配置，难度越高奖励越丰厚）----
+
+    // 关卡结算金币范围
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
+    int32 GoldMin = 10;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
+    int32 GoldMax = 20;
+
+    // 从 RoomDA.BuffPool 中随机选取施加给所有敌人的 Buff 数量（0 = 不施加）
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward",
+        meta = (ClampMin = "0"))
+    int32 BuffCount = 1;
+
+    // 符文奖励稀有度权重（相对权重，无需归一化）
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward",
+        meta = (ClampMin = "0.0"))
+    float CommonWeight = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward",
+        meta = (ClampMin = "0.0"))
+    float RareWeight = 0.3f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward",
+        meta = (ClampMin = "0.0"))
+    float EpicWeight = 0.1f;
 };

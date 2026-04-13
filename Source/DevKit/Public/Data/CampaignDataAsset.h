@@ -26,10 +26,6 @@ struct DEVKIT_API FFloorConfig
 {
     GENERATED_BODY()
 
-    // 第几关（从 1 开始，供策划排序参考，不强制连续）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor")
-    int32 FloorNumber = 1;
-
     // 本关总难度分（程序用此值决定刷出的敌人总量 + 选取 RoomDA 难度档位）
     // 程序自动将总分按波次数均分：每波预算 ≈ TotalDifficultyScore / 实际波次数
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Floor")
@@ -52,28 +48,9 @@ struct DEVKIT_API FFloorConfig
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomType", meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float EventChance = 0.1f;
 
-    // ---- 符文奖励稀有度权重（相对权重，无需归一化）----
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
-    float CommonWeight = 1.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
-    float RareWeight = 0.3f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
-    float EpicWeight = 0.1f;
-
-    // ---- 关卡奖励 ----
-    // 本关结算时发放的金币范围
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
-    int32 GoldMin = 10;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
-    int32 GoldMax = 20;
-
-    // 从 RoomDA.BuffPool 中随机选取施加给所有敌人的 Buff 数量
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
-    int32 BuffCount = 1;
 };
+// 注意：GoldMin/GoldMax/BuffCount/CommonWeight/RareWeight/EpicWeight
+// 已移至 FRoomDifficultyTier（SpawnTypes.h），按 Low/Medium/High 档位分别配置。
 
 /**
  * UCampaignDataAsset — 一次完整局内流程的关卡序列配置

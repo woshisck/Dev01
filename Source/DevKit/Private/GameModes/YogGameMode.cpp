@@ -534,19 +534,53 @@ void AYogGameMode::StartLevelSpawning()
 		return;
 	}
 
+	// ── 主城/枢纽房间：无战斗，立即全开传送门 ──────────────────────────────
+	if (ActiveRoomData->bIsHubRoom)
+	{
+		// Hub 视为第 0 关，TransitionToLevel 写入 PendingNextFloor = 0+1 = 1
+		// → 下一关读 FloorTable[0]（第一个战斗关）
+		CurrentFloor = 0;
+		CurrentPhase = ELevelPhase::Arrangement; // 跳过战斗阶段
 
-	// 缓存金币/Buff 奖励配置（整理阶段使用）
-	ActiveGoldMin   = Config.GoldMin;
-	ActiveGoldMax   = Config.GoldMax;
-	ActiveBuffCount = Config.BuffCount;
+		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [HubRoom] %s — 跳过刷怪，立即开启传送门"), *ActiveRoomData->GetName());
 
-	// 根据总难度分选取房间难度档位（决定最大波次数）
+		// 标记场景中未登记的门为 NeverOpen
+		{
+			TArray<AActor*> AllPortalActors;
+			UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), AllPortalActors);
+			for (AActor* PortalActor : AllPortalActors)
+			{
+				APortal* Portal = Cast<APortal>(PortalActor);
+				if (!Portal) continue;
+				bool bCanOpen = false;
+				for (const FPortalDestConfig& Dest : ActiveRoomData->PortalDestinations)
+				{
+					if (Dest.PortalIndex == Portal->Index) { bCanOpen = true; break; }
+				}
+				if (!bCanOpen)
+				{
+					Portal->bWillNeverOpen = true;
+					Portal->NeverOpen();
+				}
+			}
+		}
+
+		ActivateHubPortals();
+		return;
+	}
+
+	// 根据总难度分选取房间难度档位（决定最大波次数 + 奖励配置）
 	const int32 Score = Config.TotalDifficultyScore;
 	const FRoomDifficultyTier& Tier = (Score <= LowDifficultyScoreMax)
 		? ActiveRoomData->LowDifficulty
 		: (Score >= HighDifficultyScoreMin)
 			? ActiveRoomData->HighDifficulty
 			: ActiveRoomData->MediumDifficulty;
+
+	// 缓存奖励配置（金币/Buff 现在按难度档位配置，整理阶段使用）
+	ActiveGoldMin   = Tier.GoldMin;
+	ActiveGoldMax   = Tier.GoldMax;
+	ActiveBuffCount = Tier.BuffCount;
 
 	UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 总难度分=%d → 档位=%s MaxWaveCount=%d"),
 		Score,
@@ -624,14 +658,45 @@ void AYogGameMode::GenerateWavePlans(int32 TotalScore, int32 MaxWaveCount, URoom
 	const int32 BasePerWave  = (WaveCount > 0) ? (TotalScore / WaveCount) : TotalScore;
 	const int32 Remainder    = (WaveCount > 0) ? (TotalScore % WaveCount)  : 0;
 
+	// 读取当前难度档位的 MaxEnemiesPerWave（GenerateWavePlans 调用前 ActiveRoomData 已缓存）
+	const FRoomDifficultyTier& Tier = [&]() -> const FRoomDifficultyTier&
+	{
+		if (Room)
+		{
+			const int32 Score = TotalScore;
+			if (Score >= HighDifficultyScoreMin) return Room->HighDifficulty;
+			if (Score <= LowDifficultyScoreMax)  return Room->LowDifficulty;
+			return Room->MediumDifficulty;
+		}
+		static FRoomDifficultyTier Default;
+		return Default;
+	}();
+
 	for (int32 i = 0; i < WaveCount; i++)
 	{
 		const int32 Budget = BasePerWave + (i == 0 ? Remainder : 0);
-		WavePlans.Add(BuildWavePlan(Budget, Room));
+		WavePlans.Add(BuildWavePlan(Budget, Room, Tier.MaxEnemiesPerWave));
 	}
 }
 
-AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset* Room)
+// 辅助：从 EnemyData 的 EnemyBuffPool 中随机选一个 Buff（返回 nullptr 表示不选）
+static URuneDataAsset* PickEnemyBuff(UEnemyData* EnemyData)
+{
+	if (!EnemyData || EnemyData->EnemyBuffPool.IsEmpty()) return nullptr;
+	const FBuffEntry& Entry = EnemyData->EnemyBuffPool[FMath::RandRange(0, EnemyData->EnemyBuffPool.Num() - 1)];
+	return Entry.RuneDA.Get();
+}
+
+// 辅助：计算关卡 Buff 对每只怪的额外扣分（所有激活关卡 Buff 的 DifficultyScore 之和）
+static int32 CalcRoomBuffCost(const TArray<FBuffEntry>& ActiveRoomBuffs)
+{
+	int32 Cost = 0;
+	for (const FBuffEntry& B : ActiveRoomBuffs)
+		Cost += B.DifficultyScore;
+	return Cost;
+}
+
+AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset* Room, int32 MaxEnemies)
 {
 	FWavePlan Plan;
 	int32 RemainingBudget = Budget;
@@ -643,17 +708,36 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 	Plan.SpawnMode        = FMath::RandBool() ? ESpawnMode::Wave : ESpawnMode::OneByOne;
 	Plan.OneByOneInterval = OneByOneDefaultInterval;
 
-	// ---- Step 3: 用预算填充敌人，遵守类型上限 ----
+	// 关卡 Buff 对每只怪的额外扣分（进关时已确定）
+	const int32 RoomBuffCostPerEnemy = CalcRoomBuffCost(ActiveRoomBuffs);
+
+	// ---- Step 3: 用预算填充敌人，遵守类型上限和每波上限 ----
 	bool bFirstEnemy = true;
 	while (true)
 	{
+		// MaxEnemiesPerWave == 0 表示不限制
+		if (MaxEnemies > 0 && Plan.EnemiesToSpawn.Num() >= MaxEnemies)
+			break;
 
 		TArray<FEnemyEntry> Candidates;
 		for (const FEnemyEntry& E : Room->EnemyPool)
 		{
 			if (!E.EnemyData || !E.EnemyData->EnemyClass) continue;
+
+			// 计算此敌人的有效成本（基础分 + 关卡Buff扣分 + 该敌人专属Buff中最低扣分）
+			// 敌人专属 Buff 在确认刷出时才选取，这里用最低可能成本做候选过滤
+			int32 MinEnemyBuffCost = 0;
+			if (!E.EnemyData->EnemyBuffPool.IsEmpty())
+			{
+				MinEnemyBuffCost = E.EnemyData->EnemyBuffPool[0].DifficultyScore;
+				for (const FBuffEntry& B : E.EnemyData->EnemyBuffPool)
+					MinEnemyBuffCost = FMath::Min(MinEnemyBuffCost, B.DifficultyScore);
+			}
+			const int32 EffectiveCostMin = E.EnemyData->DifficultyScore + RoomBuffCostPerEnemy;
+			(void)MinEnemyBuffCost; // 敌人专属Buff是可选的，候选时只用基础+房间Buff成本
+
 			// 第一只不过滤预算（允许超出），后续必须在预算内
-			if (!bFirstEnemy && E.EnemyData->DifficultyScore > RemainingBudget) continue;
+			if (!bFirstEnemy && EffectiveCostMin > RemainingBudget) continue;
 			// 类型上限检查
 			if (E.MaxCountPerLevel >= 0)
 			{
@@ -665,47 +749,105 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 
 		if (Candidates.IsEmpty()) break;
 
-		const FEnemyEntry& Chosen = Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
-		Plan.EnemiesToSpawn.Add(Chosen.EnemyData->EnemyClass);
-		RemainingBudget -= Chosen.EnemyData->DifficultyScore;
+		// 若已达到每波上限且还有预算，优先选有效成本（基础分）最高的候选
+		// 否则随机选取
+		const FEnemyEntry* Chosen = nullptr;
+		if (MaxEnemies > 0 && Plan.EnemiesToSpawn.Num() == MaxEnemies - 1)
+		{
+			// 最后一个名额：选有效成本最高的（充分消耗预算）
+			int32 MaxScore = -1;
+			for (const FEnemyEntry& C : Candidates)
+			{
+				if (C.EnemyData->DifficultyScore > MaxScore)
+				{
+					MaxScore = C.EnemyData->DifficultyScore;
+					Chosen   = &C;
+				}
+			}
+		}
+		if (!Chosen)
+			Chosen = &Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
+
+		// 从敌人专属 Buff 池中选取一个（若有）；若会导致成本超出，则不选
+		URuneDataAsset* SelectedEnemyBuff = nullptr;
+		int32 EnemyBuffCost = 0;
+		if (!Chosen->EnemyData->EnemyBuffPool.IsEmpty())
+		{
+			URuneDataAsset* Candidate = PickEnemyBuff(Chosen->EnemyData);
+			// 查找对应的 DifficultyScore
+			for (const FBuffEntry& B : Chosen->EnemyData->EnemyBuffPool)
+			{
+				if (B.RuneDA.Get() == Candidate)
+				{
+					EnemyBuffCost = B.DifficultyScore;
+					break;
+				}
+			}
+			// 预算足够或是第一只时才应用（第一只强制刷出，允许成本超出）
+			const int32 TotalCost = Chosen->EnemyData->DifficultyScore + RoomBuffCostPerEnemy + EnemyBuffCost;
+			if (bFirstEnemy || TotalCost <= RemainingBudget)
+				SelectedEnemyBuff = Candidate;
+			else
+				EnemyBuffCost = 0;
+		}
+
+		FPlannedEnemy Planned;
+		Planned.EnemyClass        = Chosen->EnemyData->EnemyClass;
+		Planned.SelectedEnemyBuff = SelectedEnemyBuff;
+		Plan.EnemiesToSpawn.Add(Planned);
+
+		const int32 ActualCost = Chosen->EnemyData->DifficultyScore + RoomBuffCostPerEnemy + EnemyBuffCost;
+		RemainingBudget -= ActualCost;
 		bFirstEnemy      = false;
 
 		// 更新跨波次计数
-		LevelTypeSpawnCounts.FindOrAdd(Chosen.EnemyData->EnemyClass)++;
+		LevelTypeSpawnCounts.FindOrAdd(Chosen->EnemyData->EnemyClass)++;
 		TotalLevelPlannedEnemies++;
 
 		if (RemainingBudget <= 0) break;
 	}
 
 	// ---- Step 4: 剩余预算无法正常填充时，构建按需补刷池 ----
-	// 条件：预算剩余 > 0 且 Step 3 因上限退出
 	if (RemainingBudget > 0)
 	{
-		// 收集所有分数 <= 剩余预算的敌人类型作为补刷候选（不受类型上限限制）
 		for (const FEnemyEntry& E : Room->EnemyPool)
 		{
 			if (!E.EnemyData || !E.EnemyData->EnemyClass) continue;
-			if (E.EnemyData->DifficultyScore <= RemainingBudget)
-				Plan.DemandEnemyPool.AddUnique(E.EnemyData->EnemyClass);
+			const int32 EffCost = E.EnemyData->DifficultyScore + RoomBuffCostPerEnemy;
+			if (EffCost <= RemainingBudget)
+			{
+				FPlannedEnemy Demand;
+				Demand.EnemyClass        = E.EnemyData->EnemyClass;
+				Demand.SelectedEnemyBuff = PickEnemyBuff(E.EnemyData);
+				Plan.DemandEnemyPool.Add(Demand);
+			}
 		}
+
+		// 去重（同类型保留第一个）
+		TSet<TSubclassOf<AEnemyCharacterBase>> SeenClasses;
+		Plan.DemandEnemyPool = Plan.DemandEnemyPool.FilterByPredicate([&](const FPlannedEnemy& P)
+		{
+			bool bAlreadySeen = SeenClasses.Contains(P.EnemyClass);
+			SeenClasses.Add(P.EnemyClass);
+			return !bAlreadySeen;
+		});
 
 		if (!Plan.DemandEnemyPool.IsEmpty())
 		{
-			// 用平均分估算补刷次数（至少 1 次，向下取整）
-			int32 AvgScore = 0;
-			for (const TSubclassOf<AEnemyCharacterBase>& EC : Plan.DemandEnemyPool)
+			int32 AvgCost = 0;
+			for (const FPlannedEnemy& P : Plan.DemandEnemyPool)
 			{
 				for (const FEnemyEntry& E : Room->EnemyPool)
 				{
-					if (E.EnemyData && E.EnemyData->EnemyClass == EC)
+					if (E.EnemyData && E.EnemyData->EnemyClass == P.EnemyClass)
 					{
-						AvgScore += E.EnemyData->DifficultyScore;
+						AvgCost += E.EnemyData->DifficultyScore + RoomBuffCostPerEnemy;
 						break;
 					}
 				}
 			}
-			AvgScore = FMath::Max(1, AvgScore / Plan.DemandEnemyPool.Num());
-			Plan.DemandCount = FMath::Max(1, RemainingBudget / AvgScore);
+			AvgCost = FMath::Max(1, AvgCost / Plan.DemandEnemyPool.Num());
+			Plan.DemandCount = FMath::Max(1, RemainingBudget / AvgCost);
 			UE_LOG(LogTemp, Log, TEXT("BuildWavePlan: 剩余预算 %d → 按需补刷 %d 只"),
 				RemainingBudget, Plan.DemandCount);
 		}
@@ -780,8 +922,8 @@ void AYogGameMode::SpawnNextOneByOne()
 		// DEBUG: 打印本次刷怪数据
 		if (GEngine)
 		{
-			const FString EnemyName = OneByOneSpawnQueue[OneByOneSpawnIndex]
-				? OneByOneSpawnQueue[OneByOneSpawnIndex]->GetName() : TEXT("?");
+			const TSubclassOf<AEnemyCharacterBase>& EC = OneByOneSpawnQueue[OneByOneSpawnIndex].EnemyClass;
+			const FString EnemyName = EC ? EC->GetName() : TEXT("?");
 			GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
 				FString::Printf(TEXT("[刷怪] 波次%d | 队列%d/%d | 存活%d | %s"),
 					CurrentWaveIndex + 1,
@@ -911,18 +1053,18 @@ void AYogGameMode::CheckDemandSpawn()
 
 	if (Wave.DemandCount <= 0 || Wave.DemandEnemyPool.IsEmpty()) return;
 
-	// 随机选一个补刷类型
-	const TSubclassOf<AEnemyCharacterBase> DemandClass =
+	// 随机选一个补刷条目
+	const FPlannedEnemy& DemandPlanned =
 		Wave.DemandEnemyPool[FMath::RandRange(0, Wave.DemandEnemyPool.Num() - 1)];
 
 	Wave.DemandCount--;
 
-	if (SpawnEnemyFromPool(DemandClass))
+	if (SpawnEnemyFromPool(DemandPlanned))
 	{
 		Wave.TotalSpawnedInWave++;
 		TotalAliveEnemies++;
 		UE_LOG(LogTemp, Log, TEXT("CheckDemandSpawn: 补刷 %s，剩余补刷次数=%d"),
-			*DemandClass->GetName(), Wave.DemandCount);
+			DemandPlanned.EnemyClass ? *DemandPlanned.EnemyClass->GetName() : TEXT("?"), Wave.DemandCount);
 	}
 	// 若刷出失败（没有 Spawner），DemandCount 已减，避免死循环
 }
@@ -983,9 +1125,9 @@ void AYogGameMode::CheckLevelComplete()
 	EnterArrangementPhase();
 }
 
-bool AYogGameMode::SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClass)
+bool AYogGameMode::SpawnEnemyFromPool(const FPlannedEnemy& Planned)
 {
-	if (!EnemyClass) return false;
+	if (!Planned.EnemyClass) return false;
 
 	TArray<AActor*> OutActors;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), OutActors);
@@ -1001,31 +1143,36 @@ bool AYogGameMode::SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClas
 	{
 		if (AMobSpawner* S = Cast<AMobSpawner>(Actor))
 		{
-			if (S->EnemySpawnClassis.Contains(EnemyClass))
+			if (S->EnemySpawnClassis.Contains(Planned.EnemyClass))
 				ValidSpawners.Add(S);
 		}
 	}
 
 	if (ValidSpawners.IsEmpty())
 	{
-		UE_LOG(LogTemp, Log, TEXT("SpawnEnemyFromPool: 没有 Spawner 支持 %s，跳过"), *EnemyClass->GetName());
+		UE_LOG(LogTemp, Log, TEXT("SpawnEnemyFromPool: 没有 Spawner 支持 %s，跳过"), *Planned.EnemyClass->GetName());
 		return false;
 	}
 
 	AMobSpawner* Spawner = ValidSpawners[FMath::RandRange(0, ValidSpawners.Num() - 1)];
 	if (Spawner)
 	{
-		AEnemyCharacterBase* SpawnedEnemy = Spawner->SpawnMob(EnemyClass);
-		if (SpawnedEnemy && ActiveRoomBuffs.Num() > 0)
+		AEnemyCharacterBase* SpawnedEnemy = Spawner->SpawnMob(Planned.EnemyClass);
+		if (SpawnedEnemy)
 		{
-			// 在敌人的 BuffFlowComponent 上直接激活关卡符文（永久激活，无需背包）
 			UBuffFlowComponent* BFC = SpawnedEnemy->BuffFlowComponent;
 			if (BFC)
 			{
-				for (URuneDataAsset* RuneDA : ActiveRoomBuffs)
+				// 施加关卡 Buff（进关时选好的，对所有怪生效）
+				for (const FBuffEntry& Entry : ActiveRoomBuffs)
 				{
-					if (!RuneDA || !RuneDA->RuneInfo.Flow.FlowAsset) continue;
-					BFC->StartBuffFlow(RuneDA->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), SpawnedEnemy);
+					if (!Entry.RuneDA || !Entry.RuneDA->RuneInfo.Flow.FlowAsset) continue;
+					BFC->StartBuffFlow(Entry.RuneDA->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), SpawnedEnemy);
+				}
+				// 施加敌人专属 Buff（BuildWavePlan 时选好的，只对此只怪生效）
+				if (Planned.SelectedEnemyBuff && Planned.SelectedEnemyBuff->RuneInfo.Flow.FlowAsset)
+				{
+					BFC->StartBuffFlow(Planned.SelectedEnemyBuff->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), SpawnedEnemy);
 				}
 			}
 		}
@@ -1034,14 +1181,14 @@ bool AYogGameMode::SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClas
 	return false;
 }
 
-TArray<URuneDataAsset*> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int32 BuffCount)
+TArray<FBuffEntry> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int32 BuffCount)
 {
-	TArray<URuneDataAsset*> Selected;
+	TArray<FBuffEntry> Selected;
 	if (Room.BuffPool.IsEmpty() || BuffCount <= 0)
 		return Selected;
 
 	// 复制池子并洗牌（Fisher-Yates）
-	TArray<TObjectPtr<URuneDataAsset>> Pool = Room.BuffPool;
+	TArray<FBuffEntry> Pool = Room.BuffPool;
 	for (int32 i = Pool.Num() - 1; i > 0; i--)
 	{
 		int32 j = FMath::RandRange(0, i);
@@ -1051,7 +1198,7 @@ TArray<URuneDataAsset*> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room
 	const int32 Count = FMath::Min(BuffCount, Pool.Num());
 	for (int32 i = 0; i < Count; i++)
 	{
-		if (Pool[i]) Selected.Add(Pool[i]);
+		if (Pool[i].RuneDA) Selected.Add(Pool[i]);
 	}
 
 	return Selected;
@@ -1259,6 +1406,51 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 	}
 
 	return nullptr;
+}
+
+void AYogGameMode::ActivateHubPortals()
+{
+	if (!CampaignData || !ActiveRoomData) return;
+	if (ActiveRoomData->PortalDestinations.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ActivateHubPortals: HubRoom [%s] 没有配置 PortalDestinations"), *ActiveRoomData->GetName());
+		return;
+	}
+
+	// 目标是 FloorTable[0]（第一个战斗关），骰子决定房间类型
+	const FGameplayTag RequiredRoomType = CampaignData->FloorTable.IsValidIndex(0)
+		? RollRoomTypeForFloor(CampaignData->FloorTable[0])
+		: FGameplayTag::RequestGameplayTag(FName("Room.Type.Normal"));
+
+	UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: 第一关类型 = %s"), *RequiredRoomType.ToString());
+
+	// 建立场景中 APortal 的 Index → Actor 映射
+	TArray<AActor*> PortalActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), PortalActors);
+	TMap<int32, APortal*> PortalMap;
+	for (AActor* Actor : PortalActors)
+	{
+		if (APortal* Portal = Cast<APortal>(Actor))
+			PortalMap.Add(Portal->Index, Portal);
+	}
+
+	// 主城所有传送门全开（不走 50% 随机）
+	for (const FPortalDestConfig& Cfg : ActiveRoomData->PortalDestinations)
+	{
+		APortal** Found = PortalMap.Find(Cfg.PortalIndex);
+		if (!Found || !(*Found)) continue;
+
+		URoomDataAsset* ChosenRoom = SelectRoomByTag(&Cfg, RequiredRoomType);
+		if (!ChosenRoom || ChosenRoom->RoomName.IsNone())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ActivateHubPortals: 门[%d] 找不到合适的 DA_Room，跳过"), Cfg.PortalIndex);
+			continue;
+		}
+
+		(*Found)->Open(ChosenRoom->RoomName, ChosenRoom);
+		UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: 门[%d] 开启 → 关卡=%s 房间=%s"),
+			Cfg.PortalIndex, *ChosenRoom->RoomName.ToString(), *ChosenRoom->GetName());
+	}
 }
 
 void AYogGameMode::ActivatePortals()

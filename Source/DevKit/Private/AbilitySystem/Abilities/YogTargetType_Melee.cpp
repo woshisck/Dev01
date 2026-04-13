@@ -52,6 +52,9 @@ static void DrawHitboxDebug(UWorld* World, const FVector& Loc, float Yaw,
 			const float YawRad = FMath::DegreesToRadians(Yaw);
 			const FVector CenterLoc = Loc + FVector(FMath::Cos(YawRad), FMath::Sin(YawRad), 0.f) * EffectiveOffset;
 
+			// bAutoOffset 时圆心后移了 InnerR，外径补偿使前向最终触达 = ActRange（配表直觉一致）
+			const float EffectiveOuterR = (Ann.bAutoOffset && InnerR > 0.f) ? OuterR + InnerR : OuterR;
+
 			constexpr int32 Seg = 24;
 			FVector PrevOuter = FVector::ZeroVector;
 			FVector PrevInner = FVector::ZeroVector;
@@ -60,7 +63,7 @@ static void DrawHitboxDebug(UWorld* World, const FVector& Loc, float Yaw,
 			{
 				float Deg = FMath::Lerp(StartDeg, EndDeg, (float)i / Seg);
 				float Rad = FMath::DegreesToRadians(Deg);
-				FVector Outer = CenterLoc + FVector(FMath::Cos(Rad) * OuterR, FMath::Sin(Rad) * OuterR, 0);
+				FVector Outer = CenterLoc + FVector(FMath::Cos(Rad) * EffectiveOuterR, FMath::Sin(Rad) * EffectiveOuterR, 0);
 				FVector Inner = CenterLoc + FVector(FMath::Cos(Rad) * InnerR, FMath::Sin(Rad) * InnerR, 0);
 				if (i > 0)
 				{
@@ -75,8 +78,8 @@ static void DrawHitboxDebug(UWorld* World, const FVector& Loc, float Yaw,
 				float Rad = FMath::DegreesToRadians(Deg);
 				return CenterLoc + FVector(FMath::Cos(Rad) * R, FMath::Sin(Rad) * R, 0);
 			};
-			DrawDebugLine(World, InnerR > 0 ? RadEdge(StartDeg, InnerR) : CenterLoc, RadEdge(StartDeg, OuterR), Color, false, Duration);
-			DrawDebugLine(World, InnerR > 0 ? RadEdge(EndDeg,   InnerR) : CenterLoc, RadEdge(EndDeg,   OuterR), Color, false, Duration);
+			DrawDebugLine(World, InnerR > 0 ? RadEdge(StartDeg, InnerR) : CenterLoc, RadEdge(StartDeg, EffectiveOuterR), Color, false, Duration);
+			DrawDebugLine(World, InnerR > 0 ? RadEdge(EndDeg,   InnerR) : CenterLoc, RadEdge(EndDeg,   EffectiveOuterR), Color, false, Duration);
 		}
 		else if (HB.hitboxType == EHitBoxType::Triangle)
 		{
@@ -182,8 +185,12 @@ bool UYogTargetType_MeleeBase::IsInAnnulus(
 	const FVector CenterLoc = CharLoc + CharForward * EffectiveOffset;
 
 	// 距离判断（基于偏移后的圆心）
+	// bAutoOffset 时圆心后移了 inner_radius，外径补偿使前向最终触达 = ActRange（配表直觉一致）
 	const float Dist2D = FVector::Dist2D(CenterLoc, TargetLoc);
-	if (Dist2D < Annulus.inner_radius || Dist2D > OuterRadius)
+	const float EffectiveOuterRadius = (Annulus.bAutoOffset && Annulus.inner_radius > 0.f)
+		? OuterRadius + Annulus.inner_radius
+		: OuterRadius;
+	if (Dist2D < Annulus.inner_radius || Dist2D > EffectiveOuterRadius)
 		return false;
 
 	// 角度判断：圆心 → 目标的方位角，与角色朝向对比
