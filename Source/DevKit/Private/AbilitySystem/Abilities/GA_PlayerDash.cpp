@@ -94,27 +94,19 @@ void UGA_PlayerDash::ActivateAbility(
 	// ── 3. 确定冲刺方向（Controller 已在激活前旋转好角色，直接用 ForwardVector）─
 	const FVector DashDirection = Character->GetActorForwardVector();
 
-	// ── 4. 计算冲刺目标（越障检测）────────────────────────────────────────────
+	// ── 4. 计算实际冲刺距离（越障检测：终点延伸逐步法）──────────────────────
 	const FVector StartLocation = Character->GetActorLocation();
 	DashDebugStartLocation = StartLocation; // 存起来，EndAbility 时画线用
 
-	bool    bIsTraversal  = false;
-	FVector TraversalEnd  = FVector::ZeroVector;
-	float   AnimScale     = 1.0f;
-	ComputeDashTarget(StartLocation, DashDirection, bIsTraversal, TraversalEnd, AnimScale);
+	const FVector DashEnd    = StartLocation + DashDirection * DashMaxDistance;
+	const float EffectiveDist = GetFurthestValidDashDistance(StartLocation, DashEnd);
+	const float AnimScale     = EffectiveDist / FMath::Max(DashMontageRootMotionLength, 1.f);
 
-	// ── 5. 修改碰撞：穿敌人 + 穿可穿越几何 ──────────────────────────────────
+	// ── 5. 修改碰撞：穿敌人 + 穿可穿越几何（全程无刚体阻挡，由根运动驱动）───
 	SetDashCollision(Character, ECR_Overlap);
 
-	// ── 6. 越障：瞬间传送到墙另一侧，蒙太奇仅作视觉（AnimScale=0）───────────
-	if (bIsTraversal)
-	{
-		Character->SetActorLocation(TraversalEnd, false);
-		AnimScale = 0.f;
-	}
-	// 非越障：完全由根运动驱动位移，不调用 SetActorLocation
-
-	// ── 7. 播放冲刺蒙太奇（AnimRootMotionTranslationScale 控制位移距离）───────
+	// ── 6. 播放冲刺蒙太奇（AnimRootMotionTranslationScale 控制位移距离）───────
+	// AnimScale > 1 时根运动超出满距，Capsule Overlap 使玩家穿越障碍落在背后
 	UYogAbilityTask_PlayMontageAndWaitForEvent* Task =
 		UYogAbilityTask_PlayMontageAndWaitForEvent::PlayMontageAndWaitForEvent(
 			this,
@@ -173,19 +165,10 @@ void UGA_PlayerDash::EndAbility(
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
-void UGA_PlayerDash::ComputeDashTarget(
-	const FVector& Start,
-	const FVector& Direction,
-	bool&    bOutIsTraversal,
-	FVector& OutTraversalEnd,
-	float&   OutAnimScale) const
+float UGA_PlayerDash::GetFurthestValidDashDistance(const FVector& Start, const FVector& End) const
 {
-	bOutIsTraversal = false;
-	OutTraversalEnd = FVector::ZeroVector;
-	OutAnimScale    = DashMaxDistance / FMath::Max(DashMontageRootMotionLength, 1.f);
-
 	UWorld* World = GetWorld();
-	if (!World) return;
+	if (!World) return DashMaxDistance;
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DashTrace), false);
 	if (AActor* Owner = GetOwningActorFromActorInfo())
@@ -194,63 +177,67 @@ void UGA_PlayerDash::ComputeDashTarget(
 	}
 	const FCollisionShape Sphere = FCollisionShape::MakeSphere(DashCapsuleRadius);
 
-	// ── 1. 前向扫描：找障碍物入口 ────────────────────────────────────────────
-	const FVector ForwardEnd = Start + Direction * DashMaxDistance;
-	FHitResult    ForwardHit;
-	const bool bWallFound = World->SweepSingleByChannel(
-		ForwardHit, Start, ForwardEnd, FQuat::Identity, DashTraceChannel, Sphere, Params);
+	// ── 1. 前向扫描：Start → End（满距终点）─────────────────────────────────
+	FHitResult ForwardHit;
+	const bool bHit = World->SweepSingleByChannel(
+		ForwardHit, Start, End, FQuat::Identity, DashTraceChannel, Sphere, Params);
 
-	if (!bWallFound)
+	if (!bHit)
 	{
-		// 无障碍，正常满距冲刺；OutAnimScale 已设好
-		return;
+		// 无障碍，满距冲刺
+		return DashMaxDistance;
 	}
 
-	const float WallEntryDist = ForwardHit.Distance;
-	const float HalfwayDist   = DashMaxDistance * 0.5f;
-	const float Remaining     = DashMaxDistance - WallEntryDist;
+	const float HitDist   = ForwardHit.Distance;
+	const float Threshold = DashMaxDistance - 2.f * DashCapsuleRadius;
 
-	// ── 2. 后半段遇墙 / 剩余不足 → 停在墙前 ─────────────────────────────────
-	if (WallEntryDist >= HalfwayDist || Remaining < 100.f)
+	// ── 2. 命中在终点附近（硬墙在末端）→ 停在障碍前 ─────────────────────────
+	if (HitDist > Threshold)
 	{
-		OutAnimScale = WallEntryDist / FMath::Max(DashMontageRootMotionLength, 1.f);
-		return;
+		return HitDist;
 	}
 
-	// ── 3. 后向扫描：找墙另一侧出口 ──────────────────────────────────────────
-	// 从（起点 + DashMax + MaxWallThick）向回扫，命中即为墙出口
-	const float   BackSearchRange  = DashMaxDistance + MaxTraversableWallThickness;
-	const FVector BackwardStart    = Start + Direction * BackSearchRange;
-	FHitResult    BackwardHit;
-	const bool bBackHit = World->SweepSingleByChannel(
-		BackwardHit, BackwardStart, ForwardHit.Location,
-		FQuat::Identity, DashTraceChannel, Sphere, Params);
+	// ── 3. 命中在前段 → 从满距终点逐步向前延伸，寻找越障落点 ──────────────────
+	// ForwardHit.TraceEnd = 传入的 End（UE5 中 TraceEnd 存储完整 End 参数，非命中点）
+	const FVector DashDir   = (End - Start).GetSafeNormal();
+	const FVector StepOrigin = ForwardHit.TraceEnd; // = End（满距终点）
 
-	if (!bBackHit)
+	constexpr int32 StepCount = 6;
+	constexpr float StepSize  = 50.f;
+
+	for (int32 i = 1; i <= StepCount; ++i)
 	{
-		// 无法找到墙出口（墙延伸超出搜索范围）→ 停在墙前
-		OutAnimScale = WallEntryDist / FMath::Max(DashMontageRootMotionLength, 1.f);
-		return;
+		const FVector SegStart = StepOrigin + DashDir * (StepSize * (i - 1));
+		const FVector SegEnd   = StepOrigin + DashDir * (StepSize * i);
+
+		TArray<FHitResult> StepHits;
+		World->SweepMultiByChannel(
+			StepHits, SegStart, SegEnd, FQuat::Identity, DashTraceChannel, Sphere, Params);
+
+		if (IsValidDashLocation(StepHits))
+		{
+			// 找到无阻挡落点，返回从起点到该落点的距离（> DashMaxDistance）
+			return FVector::Dist(Start, SegEnd);
+		}
 	}
 
-	// 墙出口距起点距离 = 后向扫描起点到起点的距离 − 后向命中距离
-	const float WallExitDist  = BackSearchRange - BackwardHit.Distance;
-	const float WallThickness = WallExitDist - WallEntryDist;
+	// ── 4. 6 步内无有效落点 → 停在最初障碍前 ─────────────────────────────────
+	return HitDist;
+}
 
-	// ── 4. 墙太厚 → 停在墙前 ─────────────────────────────────────────────────
-	if (WallThickness <= 0.f || WallThickness > MaxTraversableWallThickness)
+bool UGA_PlayerDash::IsValidDashLocation(const TArray<FHitResult>& Hits) const
+{
+	if (Hits.IsEmpty()) return true;
+
+	for (const FHitResult& Hit : Hits)
 	{
-		OutAnimScale = WallEntryDist / FMath::Max(DashMontageRootMotionLength, 1.f);
-		return;
+		UPrimitiveComponent* Comp = Hit.GetComponent();
+		if (Comp && Comp->GetCollisionResponseToChannel(DashTraceChannel) == ECR_Block)
+		{
+			return false;
+		}
 	}
-
-	// ── 5. 满足越障条件：传送到墙出口，蒙太奇视觉播放（Scale=0）───────────────
-	bOutIsTraversal = true;
-	OutTraversalEnd = FVector(
-		(Start + Direction * WallExitDist).X,
-		(Start + Direction * WallExitDist).Y,
-		Start.Z);
-	OutAnimScale = 0.f;
+	return true;
 }
 
 void UGA_PlayerDash::SetDashCollision(ACharacter* Character, ECollisionResponse Response) const
@@ -258,6 +245,8 @@ void UGA_PlayerDash::SetDashCollision(ACharacter* Character, ECollisionResponse 
 	UCapsuleComponent* Capsule = Character ? Character->GetCapsuleComponent() : nullptr;
 	if (!Capsule) return;
 
+	Capsule->SetCollisionResponseToChannel(ECC_WorldDynamic,   Response);
+	Capsule->SetCollisionResponseToChannel(ECC_Pawn,           Response);
 	Capsule->SetCollisionResponseToChannel(EnemyChannel,       Response);
 	Capsule->SetCollisionResponseToChannel(DashThroughChannel, Response);
 }
