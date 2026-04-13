@@ -1,80 +1,110 @@
 # 关卡 Buff 池配置指南
 
-> 适用范围：关卡敌人增强 / BuffPool 配置  
+> 适用范围：关卡敌人增强 / 敌人专属 Buff  
 > 适用人群：策划  
 > 配套文档：[关卡系统配置指南](../Systems/LevelSystem_ConfigGuide.md)  
-> 最后更新：2026-04-10
+> 最后更新：2026-04-13（修正为实际使用 RuneDataAsset + FBuffEntry；补充敌人专属 Buff 池）
 
 ---
 
 ## 概述
 
-BuffPool 是给"这个房间里所有敌人"叠加额外效果的池子。
+系统有两种 Buff 池：
 
-关卡开始时，系统从 BuffPool 中随机抽取 N 个 Buff（N 由难度配置决定），之后每只刷出的敌人都会自动被施加这些 Buff。
-
-> 类比：BuffPool 就是给关卡内所有怪物一次性"装备"的词条，类似《以撒》中精英房间怪物的特殊词条（护盾、速度、再生）。
-
----
-
-## 第一步：创建 BuffDataAsset
-
-每个 Buff 效果是一个独立的数据资产。
-
-1. 打开 Content Browser → 选好存放路径（建议 `Content/Data/Buff/`）
-2. 右键 → **Miscellaneous → Data Asset**
-3. 搜索并选择 **`BuffDataAsset`**
-4. 命名格式：`DA_Buff_<效果名>`
-
-**示例命名**：
-```
-DA_Buff_ArmorBreak     护甲破碎（敌人防御降低）
-DA_Buff_Haste          急速（敌人移速提升）
-DA_Buff_Regen          再生（敌人每秒回血）
-DA_Buff_Shield         护盾（敌人额外护盾值）
-```
-
----
-
-## 第二步：填写 BuffDataAsset 字段
-
-打开刚创建的资产，填写以下字段：
-
-| 字段 | 类型 | 说明 |
+| 类型 | 配置位置 | 效果范围 |
 |---|---|---|
-| `BuffName` | FName | Buff 的名称（供内部识别 / 未来 UI 显示用）|
-| `BuffDescription` | FText | Buff 效果的说明文字（未来 UI 展示用，现阶段可留空）|
-| `BuffEffect` | TSubclassOf\<UGameplayEffect\> | 实际施加给敌人的 GameplayEffect 类 |
+| **关卡 Buff 池（Room BuffPool）** | DA_Room → BuffPool | 本关所有刷出的怪都被施加 |
+| **敌人专属 Buff 池（Enemy BuffPool）** | DA_EnemyData → EnemyBuffPool | 仅被选中的那只怪被施加 |
 
-⚠️ `BuffEffect` 必须填写，否则这个 Buff 不会有任何实际效果。
+两种池的条目格式相同，都使用 **FBuffEntry**：
+
+| 字段 | 说明 |
+|---|---|
+| **Rune DA** | 关联的符文数据资产（RuneDataAsset），其 Flow Graph 会被激活到怪身上 |
+| **Difficulty Score** | 施加此 Buff 时从波次预算中额外扣除的难度分（Buff 越强，建议扣分越高） |
 
 ---
 
-## 第三步：在 DA_Room 中配置 BuffPool
+## 关卡 Buff 池（Room BuffPool）
+
+### 作用
+
+关卡开始时，程序从 DA_Room 的 BuffPool 中随机选取 N 个 Buff（N 由当前难度档位的 **Buff Count** 决定）。之后本关所有波次刷出的每只怪都自动被施加这些 Buff。
+
+### 配置步骤
+
+**步骤 1：确认 RuneDataAsset 已存在**
+
+Buff 效果使用项目中已有的 RuneDataAsset（符文资产）实现，符文的 Flow Graph 定义实际效果（属性加成、行为修改等）。无需新建专用 DA 类型。
+
+**步骤 2：在 DA_Room 中配置 BuffPool**
 
 1. 打开对应的 `DA_Room_XXX` 资产
-2. 在 **BuffPool** 数组中，点击 `+` 添加条目
-3. 将创建好的 `DA_Buff_XXX` 拖入对应槽位
+2. 找到 **Buff Pool** 数组，点 `+` 添加条目
+3. 每个条目填写：
+   - **Rune DA**：拖入 `DA_Rune_XXX`（该符文的 Flow Graph 即为 Buff 效果）
+   - **Difficulty Score**：填写此 Buff 对每只怪的额外扣分（建议：轻微增益填 1，中等增益填 2，强力增益填 3~5）
 
----
+**步骤 3：设置抽取数量（Buff Count）**
 
-## 第四步：设置随机抽取数量（BuffCount）
+打开 DA_Room → 展开对应难度档位（Low / Medium / High） → 修改 **Buff Count**：
+- `0` = 本关不抽 Buff，敌人正常
+- `1` = 随机抽 1 个 Buff 施加给所有怪
+- `2` = 随机抽 2 个 Buff（全部施加给所有怪）
 
-BuffCount 在**难度配置**中设置：
+> Buff Count 在各难度档位中独立配置。例如：低难度 BuffCount=0（无增益），高难度 BuffCount=2（双重增益）。
 
-1. 在 DA_Room 的 **DifficultyConfigs** 数组中，找到对应难度档（Low / Medium / High）
-2. 展开该档的 `Config` 字段
-3. 修改 **`BuffCount`** — 本关从 BuffPool 中随机抽取几个 Buff 施加给敌人
+### 难度分影响
 
-**示例**：
+关卡 Buff 的 DifficultyScore 会在 BuildWavePlan 时计入每只怪的有效成本：
+
+```
+每只怪的有效成本 = EnemyData.DifficultyScore + 所有关卡Buff的DifficultyScore之和 + 敌人专属Buff的DifficultyScore
+```
+
+这意味着开启高 DifficultyScore 的关卡 Buff 后，同等预算下刷出的怪会更少，但每只更强。
+
+### 示例
 
 ```
 DA_Room_Prison_Normal
-  BuffPool = [DA_Buff_ArmorBreak, DA_Buff_Haste, DA_Buff_Regen, DA_Buff_Shield]
-  DifficultyConfigs:
-    Low  → Config.BuffCount = 0   （普通关无额外 Buff）
-    High → Config.BuffCount = 1   （高难度随机抽 1 个 Buff）
+  BuffPool:
+    [0] Rune DA = DA_Rune_Haste,      Difficulty Score = 1
+    [1] Rune DA = DA_Rune_ArmorBreak, Difficulty Score = 2
+    [2] Rune DA = DA_Rune_Regen,      Difficulty Score = 2
+  
+  Low Difficulty:
+    Buff Count = 0  （无 Buff）
+  High Difficulty:
+    Buff Count = 1  （随机选 1 个）
 ```
+
+---
+
+## 敌人专属 Buff 池（EnemyBuffPool）
+
+### 作用
+
+在 DA_EnemyData 中配置，代表"这种敌人独特的增强词条"。例如老鼠可携带"流血"或"霸体"。
+
+BuildWavePlan 时，如果预算允许，程序会从该敌人的 EnemyBuffPool 中随机选取 1 个 Buff，在计划中标记（FPlannedEnemy.SelectedEnemyBuff）。刷出时由 SpawnEnemyFromPool 激活到该敌人的 BuffFlowComponent。
+
+### 配置步骤
+
+1. 打开 `DA_EnemyData_XXX`
+2. 找到 **Enemy Buff Pool** 数组，点 `+` 添加条目
+3. 每个条目填写：
+   - **Rune DA**：选中的符文 Flow Graph 定义实际效果
+   - **Difficulty Score**：此词条对波次预算的额外扣分
+
+### 与关卡 Buff 的区别
+
+| 对比项 | 关卡 Buff（Room BuffPool）| 敌人专属 Buff（EnemyBuffPool）|
+|---|---|---|
+| 配置位置 | DA_Room | DA_EnemyData |
+| 施加范围 | 本关所有刷出的怪 | 仅选中的单只怪 |
+| 抽取时机 | 关卡开始时（固定）| BuildWavePlan 时逐只敌人独立随机 |
+| 扣分方式 | 所有关卡 Buff 扣分之和，每只怪都扣 | 选中时一次性扣，未选中不扣 |
 
 ---
 
@@ -82,23 +112,23 @@ DA_Room_Prison_Normal
 
 | 情况 | 行为 |
 |---|---|
-| `BuffEffect` 字段为空 | 跳过该 Buff，不会崩溃，也不会有效果 |
-| `BuffCount` 大于 BuffPool 数量 | 取 BuffPool 全部，不重复选取 |
-| `BuffPool` 为空 | 关卡无 Buff 效果，敌人正常 |
-| `BuffCount = 0` | 不抽取任何 Buff |
+| Rune DA 为空 | 跳过该条目，不崩溃 |
+| Rune DA 的 Flow Graph 为空 | 跳过激活，无效果 |
+| Buff Count > BuffPool 数量 | 取 BuffPool 全部，不重复选取 |
+| BuffPool 为空或 Buff Count = 0 | 关卡无 Buff 效果（但敌人专属 Buff 仍可生效）|
+| 预算不足以承担敌人专属 Buff | 程序不选取敌人专属 Buff（该怪仍会刷出，只是没有专属词条）|
 
 ---
 
 ## 常见问题
 
-**Q：同一个房间在低难度和高难度下能有不同 Buff 数量吗？**  
-A：可以。每个难度档（DifficultyEntry）都有独立的 `BuffCount`，按当前难度等级选取对应配置即可。
+**Q：Buff 没有施加给怪**
+1. 确认 DA_Room 难度档位的 **Buff Count > 0**（注意是 DA_Room 里的难度档位，不是 DA_Campaign 的 FloorConfig）
+2. 确认 **Buff Pool** 有条目且 **Rune DA** 字段已填
+3. 确认对应符文的 **Flow Graph（FlowAsset）** 不为空
 
-**Q：Buff 是关卡开始就固定了，还是每波刷怪都重新随机？**  
-A：关卡开始时（`StartLevelSpawning`）固定选好，之后本关所有波次的所有敌人都使用同一批 Buff。
+**Q：高难度关卡的 Buff 比低难度少**
+A：检查各难度档位的 Buff Count 配置，High 档的 BuffCount 建议 ≥ Low 档。
 
-**Q：怎么快速创建一个 BuffEffect（GameplayEffect）？**  
-A：
-1. Content Browser → 右键 → Blueprint Class → 搜索 GameplayEffect → 创建
-2. 在 GE 的 Modifiers 中配置对应属性修改（如 Attack + 50%）
-3. 将该 GE Blueprint Class 填入 DA_Buff_XXX 的 BuffEffect 字段
+**Q：关卡 Buff 和敌人专属 Buff 会叠加吗？**
+A：会。一只怪可以同时被关卡 Buff（多个）和自身专属 Buff（最多 1 个）施加。

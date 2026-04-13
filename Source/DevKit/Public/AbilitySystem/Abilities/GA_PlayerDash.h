@@ -20,9 +20,9 @@
  *
  * 功能：
  * - 方向：冲刺前 Controller 已将角色旋转至摇杆方向，GA 直接沿 ActorForwardVector 冲
- * - 位移：AnimRootMotionTranslationScale 驱动（Scale = DashMaxDistance / DashMontageRootMotionLength）
- * - 越障：前向+后向 SphereTrace 检测薄墙（≤MaxTraversableWallThickness），满足条件则瞬传到墙出口
- * - 穿透：冲刺期间 Capsule 对 Enemy / DashThrough 通道设为 Overlap
+ * - 位移：AnimRootMotionTranslationScale 驱动（Scale = EffectiveDist / DashMontageRootMotionLength）
+ * - 越障：从冲刺终点逐步向前延伸（6步×50cm），找到无 DashTrace 阻挡的落点则延伸冲刺穿越
+ * - 穿透：冲刺期间 Capsule 对 Enemy / DashThrough 通道设为 Overlap，全程无刚体阻挡
  * - 无敌帧：ActivationOwnedTags 授予 Buff.Status.DashInvincible，GA 结束自动移除
  * - 次数/CD：走 SkillChargeComponent（不走 GAS CommitAbility），支持多段冲刺和符文改 CD
  */
@@ -47,10 +47,6 @@ public:
 	/** 冲刺蒙太奇根运动总长度（cm）。Scale = DashMaxDistance / DashMontageRootMotionLength。*/
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash", meta = (ClampMin = "1.0"))
 	float DashMontageRootMotionLength = 600.f;
-
-	/** 越障：可穿越墙体的最大厚度（cm）。超过此厚度则在墙前停止。*/
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash", meta = (ClampMin = "0.0"))
-	float MaxTraversableWallThickness = 400.f;
 
 	virtual bool CanActivateAbility(
 		const FGameplayAbilitySpecHandle Handle,
@@ -78,17 +74,15 @@ protected:
 
 private:
 	/**
-	 * 计算冲刺目标：前向扫描找墙，后向扫描找墙出口，决定是越障还是在墙前停止。
-	 * @param bOutIsTraversal  true=越障（需要 SetActorLocation + AnimScale=0）
-	 * @param OutTraversalEnd  越障落点（仅 bOutIsTraversal=true 时有效）
-	 * @param OutAnimScale     AnimRootMotionTranslationScale（越障时为 0）
+	 * 计算实际冲刺距离。从满距终点向前逐步延伸寻找可落点（越障），
+	 * 或在终点附近遇硬墙时返回停止距离。返回值用于计算 AnimScale。
 	 */
-	void ComputeDashTarget(
-		const FVector& Start,
-		const FVector& Direction,
-		bool&    bOutIsTraversal,
-		FVector& OutTraversalEnd,
-		float&   OutAnimScale) const;
+	float GetFurthestValidDashDistance(const FVector& Start, const FVector& End) const;
+
+	/**
+	 * 判断该位置是否为有效冲刺落点：命中列表为空，或所有命中体对 DashTrace 均非 Block。
+	 */
+	bool IsValidDashLocation(const TArray<FHitResult>& Hits) const;
 
 	/** 修改/恢复 Capsule 对 Enemy 和 DashThrough 通道的碰撞响应。*/
 	void SetDashCollision(ACharacter* Character, ECollisionResponse Response) const;

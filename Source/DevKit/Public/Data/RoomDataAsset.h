@@ -6,7 +6,8 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "GameModes/SpawnTypes.h"   // FEnemyEntry, FRoomDifficultyTier
-#include "Data/RuneDataAsset.h"
+#include "Data/EnemyData.h"         // FBuffEntry
+#include "Data/RuneDataAsset.h"     // URuneDataAsset (LootPool)
 #include "RoomDataAsset.generated.h"
 
 // 前向声明（FPortalDestConfig.RoomPool 需要引用本类）
@@ -77,10 +78,11 @@ public:
     // 关卡符文池（给所有敌人的词条 Buff）
     // =========================================================
 
-    // 进入关卡时从此池随机选取 N 个 RuneDA 施加给所有刷出的敌人
-    // N 由当前难度的 FDifficultyConfig.BuffCount 决定
+    // 进入关卡时从此池随机选取 N 个施加给所有刷出的敌人
+    // N 由当前难度档位的 FRoomDifficultyTier.BuffCount 决定
+    // 每个条目携带 DifficultyScore：该 Buff 施加期间，每只敌人的有效难度分额外增加此值
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomBuffs")
-    TArray<TObjectPtr<URuneDataAsset>> BuffPool;
+    TArray<FBuffEntry> BuffPool;
 
     // =========================================================
     // 玩家战利品池（符文三选一）
@@ -89,6 +91,15 @@ public:
     // 关卡结算时从此池随机抽 3 个供玩家选择
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
     TArray<TObjectPtr<URuneDataAsset>> LootPool;
+
+    // =========================================================
+    // 主城 / 枢纽房间
+    // =========================================================
+
+    // 勾选后，本房间视为主城/枢纽，不进行波次刷怪；
+    // 关卡开始时立即开启所有已配置的传送门，传送目标为 FloorTable[0]（第一个战斗关）。
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
+    bool bIsHubRoom = false;
 
     // =========================================================
     // 难度档位配置（程序根据 DA_Campaign.TotalDifficultyScore 自动选档）

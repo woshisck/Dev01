@@ -10,6 +10,30 @@
 #include "EnemyData.generated.h"
 
 class AEnemyCharacterBase;
+class URuneDataAsset;
+
+// =========================================================
+// Buff 条目（携带难度扣分）
+//
+// 用于两个场景：
+//   1. URoomDataAsset.BuffPool —— 关卡 Buff，刷怪时对每只怪额外扣分
+//   2. UEnemyData.EnemyBuffPool —— 敌人专属 Buff，BuildWavePlan 选取时扣分
+// =========================================================
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FBuffEntry
+{
+	GENERATED_BODY()
+
+	// 关联的符文/Buff 数据资产
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Buff")
+	TObjectPtr<URuneDataAsset> RuneDA;
+
+	// 将此 Buff 施加给敌人时，从波次预算中额外扣除的难度分
+	// （代表该 Buff 使敌人更强，因此占用更多预算）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Buff", meta = (ClampMin = "0"))
+	int32 DifficultyScore = 1;
+};
 
 
 USTRUCT(BlueprintType)
@@ -41,4 +65,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
 	int32 DifficultyScore = 3;
 
+	// 此敌人专属的 Buff 池（如老鼠→流血/霸体）
+	// BuildWavePlan 时从中随机选取 1 个施加；选中的 Buff 的 DifficultyScore 会从波次预算中额外扣除
+	// 若为空，则不选取敌人专属 Buff
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Buff")
+	TArray<FBuffEntry> EnemyBuffPool;
+
+	// 此敌人使用的行为树（留空则使用 AIController 默认行为树）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
+	TObjectPtr<UBehaviorTree> BehaviorTree;
 };

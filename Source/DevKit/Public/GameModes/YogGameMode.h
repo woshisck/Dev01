@@ -197,6 +197,9 @@ protected:
 	// ---- 传送门激活 ----
 	void ActivatePortals();
 
+	// 主城/枢纽房间：立即全开所有已配置的传送门（不走 50% 随机规则）
+	void ActivateHubPortals();
+
 	// 根据 FFloorConfig 的概率权重骰出此关的房间类型 Tag（Room.Type.Normal/Elite/Shop/Event）
 	FGameplayTag RollRoomTypeForFloor(const FFloorConfig& Config);
 
@@ -205,18 +208,26 @@ protected:
 
 	// ---- 刷怪算法 ----
 
+	// 单只待刷敌人的完整计划（类型 + 本次选中的敌人专属 Buff）
+	struct FPlannedEnemy
+	{
+		TSubclassOf<AEnemyCharacterBase> EnemyClass;
+		// BuildWavePlan 时从 EnemyData.EnemyBuffPool 中随机选出（可为 nullptr）
+		TObjectPtr<URuneDataAsset> SelectedEnemyBuff = nullptr;
+	};
+
 	// 波次计划（运行时数据，不需要 UE 反射）
 	struct FWavePlan
 	{
 		ESpawnTriggerType TriggerType = ESpawnTriggerType::AllEnemiesDead;
 		ESpawnMode        SpawnMode   = ESpawnMode::Wave;
 		float             OneByOneInterval = 3.0f;
-		TArray<TSubclassOf<AEnemyCharacterBase>> EnemiesToSpawn;
+		TArray<FPlannedEnemy> EnemiesToSpawn;
 		int32 TotalSpawnedInWave = 0;
 		int32 TotalKilledInWave  = 0;
 
 		// 按需补刷池（预算剩余但类型上限已达时，每死一只补刷一只）
-		TArray<TSubclassOf<AEnemyCharacterBase>> DemandEnemyPool;
+		TArray<FPlannedEnemy> DemandEnemyPool;
 		// 剩余可按需补刷的次数（0 = 无补刷）
 		int32 DemandCount = 0;
 
@@ -228,7 +239,7 @@ protected:
 	void GenerateWavePlans(int32 TotalScore, int32 MaxWaveCount, URoomDataAsset* Room);
 
 	// 生成单波计划（程序自动决定触发条件和刷怪方式）
-	FWavePlan BuildWavePlan(int32 Budget, URoomDataAsset* Room);
+	FWavePlan BuildWavePlan(int32 Budget, URoomDataAsset* Room, int32 MaxEnemies);
 
 	// 触发并执行下一波（下标推进）
 	void TriggerNextWave();
@@ -251,11 +262,11 @@ protected:
 	// 波次系统未能初始化时，降级统计场景内预放置敌人数量
 	void FallbackToPreplacedEnemies();
 
-	// 从随机 MobSpawner 刷出指定类型的敌人
-	bool SpawnEnemyFromPool(TSubclassOf<AEnemyCharacterBase> EnemyClass);
+	// 从随机 MobSpawner 刷出指定敌人（含专属 Buff 激活）
+	bool SpawnEnemyFromPool(const FPlannedEnemy& Planned);
 
-	// 从 BuffPool 随机选取 BuffCount 个关卡符文（RuneDA）
-	TArray<URuneDataAsset*> SelectRoomBuffs(const URoomDataAsset& Room, int32 BuffCount);
+	// 从 BuffPool 随机选取 BuffCount 个关卡 Buff 条目
+	TArray<FBuffEntry> SelectRoomBuffs(const URoomDataAsset& Room, int32 BuffCount);
 
 	// ---- 刷怪运行时状态 ----
 	TArray<FWavePlan> WavePlans;
@@ -267,7 +278,7 @@ protected:
 	FTimerHandle OneByOneTimer;
 	FTimerHandle InitialSpawnDelayTimer;
 	FTimerHandle DemandSpawnTimer;
-	TArray<TSubclassOf<AEnemyCharacterBase>> OneByOneSpawnQueue;
+	TArray<FPlannedEnemy> OneByOneSpawnQueue;
 	int32 OneByOneSpawnIndex = 0;
 
 	// Wave 模式下使用随机错开间隔（而非 OneByOne 的固定间隔）
@@ -280,8 +291,8 @@ protected:
 	// 按需补刷：每当有敌人死亡且当前波次 DemandCount > 0 时，延迟补刷一只
 	void CheckDemandSpawn();
 
-	// 本关激活的关卡符文（进关时骰子选好，新怪刷出时在其 BuffFlowComponent 上激活）
-	TArray<URuneDataAsset*> ActiveRoomBuffs;
+	// 本关激活的关卡 Buff（进关时骰子选好，新怪刷出时在其 BuffFlowComponent 上激活）
+	TArray<FBuffEntry> ActiveRoomBuffs;
 
 	// 当前关卡的房间配置（StartLevelSpawning 时缓存，整理阶段使用）
 	UPROPERTY()
