@@ -964,7 +964,10 @@ void AYogGameMode::SetupWaveTrigger(const FWavePlan& Wave)
 	switch (Wave.TriggerType)
 	{
 		case ESpawnTriggerType::AllEnemiesDead:
-			// 由 CheckWaveTrigger 在 UpdateFinishLevel 中处理
+			// 队列刷完后立即检查一次：
+			// 若本波全部刷出失败（无 Spawner 支持），TotalAliveEnemies 已为 0，
+			// 但不会再有敌人死亡事件触发 CheckWaveTrigger，需在此主动检查推进。
+			CheckWaveTrigger();
 			break;
 
 		case ESpawnTriggerType::TimeInterval:
@@ -991,12 +994,12 @@ void AYogGameMode::CheckWaveTrigger()
 	if (CurrentWaveIndex >= WavePlans.Num() - 1) return; // 最后一波，不触发下一波
 
 	FWavePlan& Wave = WavePlans[CurrentWaveIndex];
-	if (Wave.TotalSpawnedInWave == 0) return; // 本波还没开始刷怪
 
 	// ---- 百分比/时间触发：不受补刷影响，直接判断 ----
 	switch (Wave.TriggerType)
 	{
 		case ESpawnTriggerType::PercentKilled_50:
+			if (Wave.TotalSpawnedInWave == 0) return; // 本波还未成功刷出任何怪，等待
 			if (Wave.TotalKilledInWave >= FMath::CeilToInt(Wave.TotalSpawnedInWave * 0.5f))
 			{
 				GetWorld()->GetTimerManager().ClearTimer(DemandSpawnTimer);
@@ -1006,6 +1009,7 @@ void AYogGameMode::CheckWaveTrigger()
 			return;
 
 		case ESpawnTriggerType::PercentKilled_20:
+			if (Wave.TotalSpawnedInWave == 0) return;
 			if (Wave.TotalKilledInWave >= FMath::CeilToInt(Wave.TotalSpawnedInWave * 0.2f))
 			{
 				GetWorld()->GetTimerManager().ClearTimer(DemandSpawnTimer);

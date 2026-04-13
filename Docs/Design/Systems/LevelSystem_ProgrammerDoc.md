@@ -218,12 +218,18 @@ SpawnNextOneByOne()
 
 ### 3.4 波次触发（CheckWaveTrigger）
 
-每次敌人死亡时调用 `UpdateFinishLevel(1)` → `CheckWaveTrigger()`：
+主要调用入口：
+- 每次敌人死亡：`UpdateFinishLevel(1)` → `CheckWaveTrigger()`
+- 刷怪队列清空后（AllEnemiesDead 模式）：`SetupWaveTrigger` 末尾主动调用一次（见下）
 
 ```
 CheckWaveTrigger()
-  ├─ PercentKilled_50：本波击杀 ≥ 50% → 清 DemandSpawnTimer → TriggerNextWave
-  ├─ PercentKilled_20：本波击杀 ≥ 20% → 清 DemandSpawnTimer → TriggerNextWave
+  ├─ PercentKilled_50：
+  │    TotalSpawnedInWave == 0 → return（本波尚未成功刷出，等待）
+  │    本波击杀 ≥ 50% → 清 DemandSpawnTimer → TriggerNextWave
+  ├─ PercentKilled_20：
+  │    TotalSpawnedInWave == 0 → return
+  │    本波击杀 ≥ 20% → 清 DemandSpawnTimer → TriggerNextWave
   ├─ TimeInterval：
   │    TotalAliveEnemies <= 0 → ClearTimer(WaveTriggerTimer) → TriggerNextWave（保底提前触发）
   └─ AllEnemiesDead：
@@ -231,6 +237,10 @@ CheckWaveTrigger()
          ├─ DemandCount > 0 → SetTimer(DemandSpawnTimer, RandRange(StaggerMin, StaggerMax))
          └─ DemandCount == 0 → TriggerNextWave
 ```
+
+**AllEnemiesDead 模式的特殊处理**：
+
+`SetupWaveTrigger` 在刷怪队列全部入队后，对 `AllEnemiesDead` 类型主动调用一次 `CheckWaveTrigger()`。原因：若本波所有 Spawner 均无法支持该怪型（全部刷出失败），`TotalAliveEnemies` 保持为 0 且不会再有死亡事件，依赖死亡事件触发的路径永远不会执行，主动检查可避免流程卡死。
 
 > 当前 `BuildWavePlan` 硬编码 `TriggerType = AllEnemiesDead`，其他触发条件的代码路径已实现，后续可扩展为可配置。
 

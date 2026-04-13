@@ -30,7 +30,9 @@
 | 通道名 | 类型 | 编号 | 用途 |
 |--------|------|------|------|
 | `DashTrace` | Trace | ECC_GameTraceChannel1 | 路径障碍检测（SphereTrace） |
-| `Enemy` | Object | ECC_GameTraceChannel3 | 敌人胶囊，冲刺期间 Overlap |
+| `WorldDynamic` | Object | 内置 | 动态物体（家具/可推动物），冲刺期间 Overlap |
+| `Pawn` | Object | 内置 | 其他 Pawn（敌人），冲刺期间 Overlap |
+| `Enemy` | Object | ECC_GameTraceChannel3 | 敌人自定义通道，冲刺期间 Overlap |
 | `DashThrough` | Object | ECC_GameTraceChannel5 | 可穿越几何体，冲刺期间 Overlap |
 
 ### 2.2 几何体配置规则
@@ -38,8 +40,8 @@
 | 几何体 | Object Type | 对 DashTrace 的响应 | 冲刺期间 Capsule 行为 |
 |--------|-------------|--------------------|-----------------------|
 | 关卡外墙/地面 | `WorldStatic` | Block（不可穿） | Block（不修改） |
-| 薄墙/家具（可穿） | `DashThrough` | Ignore（路径穿越） | Overlap（期间修改） |
-| 敌人 | `Enemy` | **Ignore**（不阻断路径） | Overlap（期间修改） |
+| 薄墙/家具（可穿） | `DashThrough` / `WorldDynamic` | Ignore（路径穿越） | Overlap（期间修改） |
+| 敌人 | `Pawn` / `Enemy` | **Ignore**（不阻断路径） | Overlap（期间修改） |
 
 > **注意**：敌人碰撞体对 `DashTrace` 通道需手动设为 **Ignore**，否则会截断冲刺距离。
 
@@ -60,22 +62,33 @@ AnimRootMotionTranslationScale = DashMaxDistance / DashMontageRootMotionLength
 ### 3.2 越障（Wall Traversal）
 
 ```
-ComputeDashTarget(Start, Direction):
+GetFurthestValidDashDistance(Start, End):
 
-  1. 前向 SphereTrace（DashTrace 通道）→ 找墙入口 WallEntryDist
-     - 无障碍 → 正常冲刺满距离
-  
-  2. 判断越障条件（同时满足才越障）：
-     ① WallEntryDist < DashMaxDistance * 0.5   （墙在前半段）
-     ② 剩余距离 >= 100 cm                      （离墙不是只剩一点）
-  
-  3. 后向 SphereTrace（从 DashMax+MaxWallThick 向回扫）→ 找墙出口 WallExitDist
-     - WallThickness = WallExitDist - WallEntryDist
-  
-  4. WallThickness > MaxTraversableWallThickness → 停在墙前
-  
-  5. 满足越障：SetActorLocation(墙出口, Z 不变) + AnimScale = 0（蒙太奇纯视觉）
+  1. 前向 SphereTrace（DashTrace 通道）：Start → End（满距终点）
+     - 无命中 → 返回 DashMaxDistance（正常满距）
+
+  2. hitDist > DashMaxDistance - 2×CapsuleRadius
+     → 硬墙在冲刺末端 → 返回 hitDist（停在障碍前）
+
+  3. hitDist ≤ 阈值（障碍在前段）：
+     StepOrigin = ForwardHit.TraceEnd  ← UE5 中 TraceEnd = 完整 End 参数（满距终点）
+     循环 i = 1..6：
+       SphereTraceMulti(StepOrigin+(i-1)×50cm, StepOrigin+i×50cm, DashTrace)
+       IsValidDashLocation(命中列表) → 无 DashTrace-Block 命中 → true
+         true → 返回 Dist(Start, StepOrigin+i×50cm)  ← 大于 DashMaxDistance
+     6步均无效 → 返回 hitDist（停在最初障碍前）
+
+IsValidDashLocation(Hits):
+  空列表 → true
+  任意命中体对 DashTrace 响应为 ECR_Block → false
+  否则 → true
 ```
+
+**行为说明：**
+- 障碍在冲刺末端（紧贴终点）→ 停在障碍前，AnimScale < 1
+- 障碍在冲刺前段（路径中段）→ 从满距终点向前步进找空旷落点，AnimScale > 1，根运动超出满距驱动玩家穿越（Capsule 全程 Overlap）
+- 实心墙（WorldStatic）：每步 SphereTraceMulti 均命中 ECR_Block → IsValidDashLocation=false → 停在墙前
+- 薄墙/敌人（DashThrough/Pawn，DashTrace=Ignore）：TraceMulti 命中但非 ECR_Block → IsValidDashLocation=true → 穿越
 
 ---
 
@@ -85,10 +98,9 @@ ComputeDashTarget(Start, Direction):
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `DashMaxDistance` | 600 cm | 最远冲刺距离 |
+| `DashMaxDistance` | 600 cm | 最远冲刺距离；越障时实际位移可超过此值 |
 | `DashCapsuleRadius` | 35 cm | SphereTrace 半径（匹配角色 Capsule） |
 | `DashMontageRootMotionLength` | 600 cm | 蒙太奇根运动总长，改此值要匹配蒙太奇实际数据 |
-| `MaxTraversableWallThickness` | 400 cm | 可越障的墙最大厚度 |
 
 ### 4.2 Tag 配置（Blueprint 子类 Class Defaults）
 
@@ -122,16 +134,19 @@ ComputeDashTarget(Start, Direction):
 1. ConsumeCharge（SkillChargeComponent，消耗 1 格充能并启动 CD 回复）
 2. 从 AbilityDA 读取蒙太奇
 3. 取 ActorForwardVector 作为冲刺方向（Controller 已在激活前旋转角色）
-4. ComputeDashTarget → 得到 AnimScale 或越障落点
-5. 修改 Capsule 碰撞：Enemy + DashThrough → Overlap
-6. 若越障：SetActorLocation(墙出口) + AnimScale = 0
+4. GetFurthestValidDashDistance(Start, Start+Dir×DashMaxDistance) → EffectiveDist
+5. AnimScale = EffectiveDist / DashMontageRootMotionLength
+   - 正常冲刺：AnimScale ≤ 1（满距或停在障碍前）
+   - 穿越冲刺：AnimScale > 1（延伸越障，根运动超出满距）
+6. 修改 Capsule 碰撞：WorldDynamic + Pawn + Enemy + DashThrough → Overlap
 7. PlayMontageAndWaitForEvent（AnimRootMotionTranslationScale = AnimScale）
+   无 SetActorLocation，全程由根运动 + Capsule Overlap 驱动位移
 ```
 
 ### 4.6 EndAbility 流程
 
 ```
-1. 恢复 Capsule 碰撞：Overlap → Block
+1. 恢复 Capsule 碰撞：Overlap → Block（WorldDynamic / Pawn / Enemy / DashThrough）
 2. 绘制 Debug 线（起点→终点，显示实际位移距离）
 3. Super::EndAbility（自动移除 ActivationOwnedTags → DashInvincible 消失）
 ```
@@ -174,6 +189,8 @@ if (TargetASC && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible))
 | Tag | `Buff.Status.DashInvincible` | `Config/Tags/BuffTag.ini` |
 | 碰撞通道 | `DashThrough` (ECC_GameTraceChannel5) | `Config/DefaultEngine.ini` |
 | C++ 类 | `UGA_PlayerDash` | `Source/DevKit/Public/AbilitySystem/Abilities/GA_PlayerDash.h` |
+
+> **v2 变更（2026-04-13）**：越障算法由双向 SphereTrace + SetActorLocation 传送改为终点步进法；碰撞修改通道新增 WorldDynamic 和 Pawn；移除 `MaxTraversableWallThickness` 配置项。
 
 ---
 
