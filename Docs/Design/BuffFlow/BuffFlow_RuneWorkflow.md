@@ -1,6 +1,6 @@
 # BuffFlow 符文制作流程
 
-> 版本：Sprint 4.20（2026-04-13）
+> 版本：Sprint 4.14（2026-04-14）
 > 上级文档：[BuffFlow_DesignGuide.md](BuffFlow_DesignGuide.md)
 > 详细案例：[TestRune_CreationGuide.md](../FeatureConfig/TestRune_CreationGuide.md)
 
@@ -160,15 +160,21 @@
 
 ---
 
-### 模式 F：符文联动（Send / Wait Event）
-```
-符文A - FA：
-  [On Damage Dealt] → [Send Gameplay Event]（Tag=EventX, Target=敌人）
+### 模式 F：跨符文通信（Send / Wait Gameplay Event）
 
-符文B - FA：
-  [Start] → [Wait Gameplay Event]（Tag=EventX）→ Out → [效果]
+两个独立符文通过玩家 ASC 传信号：
+
 ```
-*示例：击退 1004 + 击退减速 1007*
+符文A - FA（持续监听伤害）：
+  [Start] → [On Damage Dealt] → [Send Gameplay Event]（Tag=Action.Rune.XXX, Target=BuffOwner）
+
+符文B - FA（等待信号）：
+  [Start] → [Wait Gameplay Event]（Tag=Action.Rune.XXX, Target=BuffOwner）→ Out → [效果节点]
+```
+
+**关键：Target 填 BuffOwner（玩家自身）**，不是敌人。两个符文通过玩家 ASC 通信，效果再通过 `LastDamageTarget` 指向敌人。
+
+*示例：击退 1004（发 `Action.Rune.KnockbackApplied` 到 BuffOwner）+ 击退减速 1007（Wait 监听后对 LastDamageTarget 施加减速）*
 
 ---
 
@@ -196,6 +202,33 @@ GA（预挂在目标身上）：
                                               [Apply Attribute Modifier].Value
 ```
 *示例：幽风低语 1012（速度加成 % → 暴击率）*
+
+---
+
+### 模式 I（新）：蒙太奇命中触发 — 一次性效果
+
+用于**特定连段命中时立即触发一次**的效果。FA 从 Start 直接执行，不等待任何事件，执行完立即 Finish。
+
+```
+[Start] → [Send Gameplay Event]（EventTag, Target=BuffGiver）→ [Finish]
+```
+
+**注意：Target 必须填 BuffGiver**（不是 LastDamageTarget）。此类 FA 由 C++ `ReceiveOnHitRune` 启动，`BuffGiver` 已被设置为被命中的敌人，而 `LastDamageTarget` 尚未在新 FA 上下文中更新。
+
+配套资产：需要单独的 `DA_HitEffect_XXX` 和 `FA_HitEffect_XXX`，不复用背包符文的 FA。
+
+*参考：[蒙太奇命中符文配置指南](../FeatureConfig/MeleeCombo_NotifyRune_Guide.md)*
+
+---
+
+### 两种 FA 结构对比
+
+| 类型 | 激活方式 | FA 结构 | Target 选择器 |
+|---|---|---|---|
+| **背包常驻符文** | 装备时启动，持续监听 | Start → OnDamageDealt → 效果 → (循环) | `LastDamageTarget` |
+| **蒙太奇命中触发** | 命中时启动，执行一次结束 | Start → 效果 → Finish | `BuffGiver` |
+
+> ⚠️ **不要把背包符文的 FA 直接填进 `AdditionalRuneEffects`**。背包 FA 有 `OnDamageDealt` 等待节点，启动后会延迟一次才触发，产生"晚一段才生效、之后每段都生效"的 Bug。
 
 ---
 

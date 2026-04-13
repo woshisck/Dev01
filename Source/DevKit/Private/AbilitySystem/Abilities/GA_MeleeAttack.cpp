@@ -5,11 +5,15 @@
 #include "Component/CharacterDataComponent.h"
 #include "Data/CharacterData.h"
 #include "Data/AbilityData.h"
-#include "Data/RuneDataAsset.h"
+#include "Data/NotifyRuneDataAsset.h"
 
 UGA_MeleeAttack::UGA_MeleeAttack()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+
+	// 受击硬直 / 击退期间不允许发动攻击
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.HitReact"));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Knockback"));
 }
 
 UAN_MeleeDamage* UGA_MeleeAttack::GetFirstDamageNotify(UAnimMontage* Montage)
@@ -232,7 +236,7 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 			}
 		}
 
-		for (URuneDataAsset* RuneDA : Owner->PendingAdditionalHitRunes)
+		for (UNotifyRuneDataAsset* RuneDA : Owner->PendingAdditionalHitRunes)
 		{
 			if (!RuneDA) continue;
 			for (AActor* HitActor : HitActors)

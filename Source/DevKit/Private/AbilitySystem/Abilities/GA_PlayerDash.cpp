@@ -23,6 +23,10 @@ static const FName DashChargeTagName = TEXT("PlayerState.AbilityCast.Dash");
 UGA_PlayerDash::UGA_PlayerDash()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+
+	// 受击硬直 / 击退期间不允许冲刺
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.HitReact"));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Knockback"));
 }
 
 bool UGA_PlayerDash::CanActivateAbility(

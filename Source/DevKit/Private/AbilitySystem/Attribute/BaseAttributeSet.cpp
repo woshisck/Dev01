@@ -78,14 +78,19 @@ bool UBaseAttributeSet::PreGameplayEffectExecute(FGameplayEffectModCallbackData&
 	{
 		CachedPreEffectHeat = GetHeat();
 
-		// 热度减少时，若持有 Buff.Status.Heat.Active 则阻断（战斗状态保热）
-		// GE 侧的 Ongoing Tag Requirements 在 UE5.4 周期性 GE 上不可靠，改用 C++ 保证
+		// 热度减少时，以下任一 Tag 存在则阻断（return false = GE 不执行）：
+		//   Buff.Status.Heat.Active       — 战斗状态保热（攻击/受伤后短暂持有）
+		//   Buff.Status.HeatDecayBlocked  — 符文主动阻断（如 Rune 1002 热度提升，激活期间禁止衰减）
 		if (Data.EvaluatedData.Magnitude < 0.f)
 		{
 			static const FGameplayTag HeatActiveTag =
 				FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Active"), false);
-			if (HeatActiveTag.IsValid() &&
-				GetOwningAbilitySystemComponent()->HasMatchingGameplayTag(HeatActiveTag))
+			static const FGameplayTag HeatDecayBlockedTag =
+				FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HeatDecayBlocked"), false);
+
+			UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
+			if ((HeatActiveTag.IsValid()        && ASC->HasMatchingGameplayTag(HeatActiveTag))       ||
+			    (HeatDecayBlockedTag.IsValid()   && ASC->HasMatchingGameplayTag(HeatDecayBlockedTag)))
 			{
 				return false;
 			}

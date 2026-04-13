@@ -25,6 +25,9 @@
 #include "Data/GasTemplate.h"
 #include "Components/WidgetComponent.h"
 #include "GameplayTagsManager.h"
+#include "BuffFlow/BuffFlowComponent.h"
+#include "BuffFlow/NotifyFlowAsset.h"
+#include "Data/NotifyRuneDataAsset.h"
 
 
 
@@ -370,6 +373,37 @@ void AYogCharacterBase::MaxHealthChanged(const FOnAttributeChangeData& Data)
 {
 	float MaxHealth = Data.NewValue;
 
+}
+
+void AYogCharacterBase::ReceiveOnHitRune_Implementation(UNotifyRuneDataAsset* RuneDA, AActor* AttackInstigator)
+{
+	if (!RuneDA || !AttackInstigator) return;
+
+	UNotifyFlowAsset* FlowAsset = RuneDA->FlowAsset;
+	if (!FlowAsset) return;
+
+	// 在攻击者（玩家）的 BFC 上启动 FA：
+	//   BuffOwner = 玩家（符文逻辑视角与背包符文一致）
+	//   BuffGiver = 被命中的敌人（this），FA 可通过 BuffGiver 选择器引用目标
+	//   LastDamageTarget 已由 OnDamageDealt 写入玩家 BFC，击退/减速等节点可直接使用
+	// 一次性符文（如击退）FA 执行完自动结束，无需手动清理
+	UBuffFlowComponent* BFC = AttackInstigator->FindComponentByClass<UBuffFlowComponent>();
+	if (!BFC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ReceiveOnHitRune] FAILED: AttackInstigator(%s) has no BuffFlowComponent"),
+			*AttackInstigator->GetName());
+		return;
+	}
+
+	FGuid RuneGuid = FGuid::NewGuid();
+	UE_LOG(LogTemp, Warning, TEXT("[ReceiveOnHitRune] StartBuffFlow | Rune=%s | FlowAsset=%s | Attacker(BuffOwner)=%s | HitTarget(BuffGiver)=%s | GUID=%s"),
+		*RuneDA->GetName(),
+		*FlowAsset->GetName(),
+		*AttackInstigator->GetName(),
+		*GetName(),
+		*RuneGuid.ToString());
+
+	BFC->StartBuffFlow(FlowAsset, RuneGuid, this);
 }
 
 void AYogCharacterBase::FinishDying()

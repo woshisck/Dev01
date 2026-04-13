@@ -1,6 +1,6 @@
 # BuffFlow 节点速查表
 
-> 版本：Sprint 4.15（2026-04-08）
+> 版本：Sprint 4.14（2026-04-14）
 > 上级文档：[BuffFlow_DesignGuide.md](BuffFlow_DesignGuide.md)
 
 ---
@@ -16,6 +16,7 @@
 | **On Dash** | 闪避/冲刺时 | — | 闪避加速、无敌帧特效 |
 | **On Buff Added** | 任意符文 FA 启动时 | — | 符文联动 |
 | **On Buff Removed** | 任意符文 FA 停止时 | — | 符文消失清理 |
+| **Wait Gameplay Event** | 指定 Actor 的 ASC 收到匹配 Tag 的 GameplayEvent 时触发 | `EventTag`：监听的 Tag；`Target`：监听哪个角色（默认 BuffOwner） | 跨符文通信、接收击退/减速信号 |
 | **On Phase Up Ready** | 热度满 + 可升阶时 | — | 升阶流程入口 |
 | **On Heat Reached Zero** | 热度从 >0 变为 0 | — | 降阶处理 |
 | **On Periodic** | 每隔 N 秒重复触发 | `Interval`（秒）/ `Fire Immediately` | 定时循环效果 |
@@ -58,6 +59,7 @@
 | **Grant Tag (Timed)** | 添加 Loose Tag，支持 N 秒后自动过期 | ❌ |
 | **Remove Tag** | 立即移除 Tag | ❌ |
 | **Do Damage** | 对目标造成伤害（固定值或基于上次伤害的倍率） | ✅ Blueprint GE（伤害 GE） |
+| **Send Gameplay Event** | 向指定 Actor 的 ASC 发送 GameplayEvent | ✅ 无需额外资产 |
 | **Play Niagara** | 播放 Niagara 粒子特效 | ✅ Niagara 资产 |
 | **Destroy Niagara** | 按名称销毁之前注册的粒子 | — |
 | **Play Montage** | 在目标角色播放动画蒙太奇 | ✅ 动画资产 |
@@ -86,6 +88,29 @@
 | **Literal Bool** | 输出固定布尔值 | 同上 |
 | **Math Float** | 浮点运算（+−×÷），Result 可连向下游 | — |
 | **Math Int** | 整数运算 | — |
+
+---
+
+## Send Gameplay Event 字段说明
+
+| 字段 | 说明 |
+|---|---|
+| `EventTag` | 要发送的 GameplayEvent Tag |
+| `Target` | 接收事件的 Actor（ASC 持有者）。**常用值：** `LastDamageTarget`（被打中的敌人）、`BuffOwner`（自身，用于跨符文通信）、`BuffGiver`（Notify 触发时 = 被命中目标） |
+| `Instigator` | 事件发起者，写入 `EventData.Instigator`，供 GA 读取击退方向等 |
+
+> **重要：** `Send Gameplay Event` 内部直接调用 `TargetASC->HandleGameplayEvent`，不依赖 `IAbilitySystemInterface`，对未实现接口的敌人也可正常发送。
+
+---
+
+## Wait Gameplay Event 字段说明
+
+| 字段 | 说明 |
+|---|---|
+| `EventTag` | 要监听的 Tag |
+| `Target` | 监听哪个 Actor 的 ASC。跨符文场景通常填 `BuffOwner`（两个符文通过同一玩家的 ASC 通信） |
+
+> 节点**持续监听**，每次收到匹配事件都触发 Out，FA 停止时自动解绑。触发后，`EventData.Instigator / Target` 会写入 BFC.LastEventContext，供下游节点的目标选择器读取。
 
 ---
 
@@ -147,3 +172,5 @@
 | J | 随机效果 | **On Kill** → **Multi Gate**（Random）→ 多效果分支 |
 | K | 延迟效果 | **On Kill** → **Delay**（2s）→ 效果 |
 | L | 动态数值 | **Get Attribute**.CachedValue →（数据线）→ **Apply Attribute Modifier**.Value |
+| M | 跨符文通信 | 符文A：**On Damage Dealt** → **Send Gameplay Event**（Target=BuffOwner）；符文B：**Wait Gameplay Event**（Target=BuffOwner）→ 效果 |
+| N | 一次性蒙太奇命中效果 | **Start** → **Send Gameplay Event**（Target=BuffGiver）→ **Finish** |
