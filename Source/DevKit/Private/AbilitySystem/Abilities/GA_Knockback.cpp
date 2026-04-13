@@ -29,9 +29,18 @@ void UGA_Knockback::ActivateAbility(
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
+    // ── DEBUG ──────────────────────────────────────────────────────────────
+    AActor* DbgAvatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
+    const AActor* DbgInstigator = TriggerEventData ? TriggerEventData->Instigator.Get() : nullptr;
+    UE_LOG(LogTemp, Warning, TEXT("[GA_Knockback] ActivateAbility called | Target=%s | Instigator=%s"),
+        DbgAvatar     ? *DbgAvatar->GetName()     : TEXT("NULL"),
+        DbgInstigator ? *DbgInstigator->GetName() : TEXT("NULL (方向将使用默认向后)"));
+    // ──────────────────────────────────────────────────────────────────────
+
     ACharacter* TargetChar = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
     if (!TargetChar)
     {
+        UE_LOG(LogTemp, Error, TEXT("[GA_Knockback] AvatarActor 不是 ACharacter，提前结束"));
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }

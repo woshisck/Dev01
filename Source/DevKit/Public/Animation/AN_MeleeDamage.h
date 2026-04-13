@@ -8,7 +8,7 @@
 #include "Data/AbilityData.h"
 #include "AN_MeleeDamage.generated.h"
 
-class URuneDataAsset;
+class UNotifyRuneDataAsset;
 
 /**
  * C++ AnimNotify：向角色 ASC 发送 GameplayEvent，触发 GA 里的 PlayMontageAndWaitForEvent。
@@ -66,7 +66,7 @@ public:
 	 * 跳帧/Freeze 等自伤效果同样可创建对应 Rune DA 并填入此列表。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
-	TArray<TObjectPtr<URuneDataAsset>> AdditionalRuneEffects;
+	TArray<TObjectPtr<UNotifyRuneDataAsset>> AdditionalRuneEffects;
 
 	// ── 工具 ───────────────────────────────────────────────────────────────
 

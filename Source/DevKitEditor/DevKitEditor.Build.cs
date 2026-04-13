@@ -47,7 +47,9 @@ public class DevKitEditor : ModuleRules
 				"GameplayTagsEditor",
 				"GameplayTasksEditor",
 				"GameplayAbilities",
-				"GameplayAbilitiesEditor"
+				"GameplayAbilitiesEditor",
+				"Flow",
+				"FlowEditor"
 				//"StudioTelemetry"
 
 

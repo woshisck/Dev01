@@ -1,7 +1,7 @@
 # 设计文档索引
 
 > 项目：星骸降临 Dev01  
-> 更新：2026-04-13（FBuffEntry统一Buff结构；敌人专属Buff池；MaxEnemiesPerWave；主城房间；奖励配置移至难度档位）  
+> 更新：2026-04-14（Wait Gameplay Event 节点；跨符文通信；蒙太奇命中符文；击退系统修复；ActivationBlockedTags）  
 > 新增文档必须在此更新，参见 [DocWritingGuide.md](DocWritingGuide.md)
 
 ---
@@ -53,6 +53,7 @@
 | [传送门配置指南](FeatureConfig/Portal_ConfigGuide.md) | 编辑器配置 APortal Index / PortalDestinations / RewardPickupClass / NeverOpen BP 实现 | 策划 |
 | [关卡 Buff 池配置指南](FeatureConfig/BuffPool_ConfigGuide.md) | 创建 BuffDataAsset + 在 DA_Room 中配置 BuffPool | 策划 |
 | [敌人朝向修正配置指南](FeatureConfig/EnemyRotation_ConfigGuide.md) | BTT_RotateCorrect 配置（Interp Speed）+ 转身动画方案设计 | 策划 + 程序 |
+| [蒙太奇命中符文配置指南](FeatureConfig/MeleeCombo_NotifyRune_Guide.md) | 在特定连段命中时触发一次性符文效果（FA 结构、AdditionalRuneEffects 配置、Debug 方法） | 策划 + 程序 |
 
 ---
 
@@ -122,6 +123,7 @@
 - 配置敌人攻击行为 → [行为树攻击任务配置](FeatureConfig/BT_AttackTask_ConfigGuide.md)
 - 配置死亡消解 → [死亡消解特效配置](FeatureConfig/DeathDissolve_ConfigGuide.md)
 - 配置多段连击 → [敌人连击蒙太奇配置](FeatureConfig/EnemyCombo_ConfigGuide.md)
+- 让某段攻击命中时触发击退/燃烧等效果 → [蒙太奇命中符文配置指南](FeatureConfig/MeleeCombo_NotifyRune_Guide.md)
 - 配置敌人朝向修正 / 转身动画方案 → [敌人朝向修正配置指南](FeatureConfig/EnemyRotation_ConfigGuide.md)
 - 不知道用什么 Tag → [Tag 情景使用指南](Tags/Tag_SituationalGuide.md)
 - GA 里怎么填 Tag → [GA Tag 字段使用指南](Tags/GA_TagFields_Guide.md)
