@@ -19,6 +19,7 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Map/Portal.h"
 #include "Map/RewardPickup.h"
+#include "UI/LootSelectionWidget.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
@@ -300,6 +301,11 @@ void AYogGameMode::UpdateFinishLevel(int count)
 void AYogGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+	
+
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+
+
 }
 
 // =========================================================
@@ -343,7 +349,13 @@ void AYogGameMode::EnterArrangementPhase()
 			if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
 			{
 				if (APawn* P = PC->GetPawn())
-					SpawnLoc = P->GetActorLocation();
+				{
+					float Angle = FMath::FRandRange(0.f, 2.f * PI);
+					float Radius = FMath::FRandRange(200.f, 250.0f);
+					FVector2D RandomPoint(Radius * FMath::Cos(Angle), Radius * FMath::Sin(Angle));
+
+					SpawnLoc = P->GetActorLocation() + FVector(RandomPoint, P->GetActorLocation().Z);
+				}
 			}
 		}
 		if (!SpawnLoc.IsZero())
@@ -1227,6 +1239,8 @@ void AYogGameMode::GenerateLootOptions()
 		OnLootGenerated.Broadcast(CurrentLootOptions);
 		return;
 	}
+	
+
 
 	// 复制掉落池并 Fisher-Yates 洗牌
 	TArray<URuneDataAsset*> Pool;
@@ -1252,6 +1266,8 @@ void AYogGameMode::GenerateLootOptions()
 
 	UE_LOG(LogTemp, Log, TEXT("GenerateLootOptions: 生成 %d 个符文选项"), CurrentLootOptions.Num());
 	OnLootGenerated.Broadcast(CurrentLootOptions);
+	
+
 }
 
 void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
