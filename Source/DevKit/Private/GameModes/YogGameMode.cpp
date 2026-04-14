@@ -1249,11 +1249,16 @@ void AYogGameMode::GenerateLootOptions()
 	
 
 
-	// 复制掉落池并 Fisher-Yates 洗牌
+	// 复制掉落池并去重（同一个 DA 资产出现多次只保留一份）
 	TArray<URuneDataAsset*> Pool;
+	TSet<URuneDataAsset*> Seen;
 	for (const TObjectPtr<URuneDataAsset>& Asset : *SourcePool)
 	{
-		if (Asset) Pool.Add(Asset);
+		if (Asset && !Seen.Contains(Asset.Get()))
+		{
+			Pool.Add(Asset.Get());
+			Seen.Add(Asset.Get());
+		}
 	}
 
 	for (int32 i = Pool.Num() - 1; i > 0; i--)
