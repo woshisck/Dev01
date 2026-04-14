@@ -73,6 +73,12 @@ void UBackpackGridComponent::BeginPlay()
 	{
 		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UBackpackGridComponent::DebugPlaceTestRunes);
 	}
+
+	// 隐藏被动符文：延迟一帧启动 BuffFlow，不占格子，不进 UI
+	if (HiddenPassiveRunes.Num() > 0)
+	{
+		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UBackpackGridComponent::ActivateHiddenPassiveRunes);
+	}
 }
 
 void UBackpackGridComponent::DebugPlaceTestRunes()
@@ -156,6 +162,31 @@ void UBackpackGridComponent::DebugPlaceTestRunes()
 					*Instance.RuneConfig.RuneName.ToString());
 			}
 		}
+	}
+}
+
+// =========================================================
+// 隐藏被动符文
+// =========================================================
+
+void UBackpackGridComponent::ActivateHiddenPassiveRunes()
+{
+	UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();
+	if (!BFC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateHiddenPassiveRunes: BuffFlowComponent not found"));
+		return;
+	}
+
+	for (URuneDataAsset* DA : HiddenPassiveRunes)
+	{
+		if (!DA || !DA->RuneInfo.Flow.FlowAsset) continue;
+
+		FRuneInstance Instance = DA->CreateInstance();
+		BFC->StartBuffFlow(Instance.Flow.FlowAsset, Instance.RuneGuid, GetOwner());
+
+		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] HiddenPassive activated: %s"),
+			*Instance.RuneConfig.RuneName.ToString());
 	}
 }
 

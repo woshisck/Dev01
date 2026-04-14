@@ -167,6 +167,19 @@ public:
     TArray<TObjectPtr<URuneDataAsset>> PermanentRunes;
 
     // =========================================================
+    // 隐藏被动符文（不占格子、不显示在背包 UI、玩家无法操控）
+    // =========================================================
+
+    /**
+     * 隐藏被动符文列表
+     * BeginPlay 时直接启动 BuffFlow，不放入格子，背包 UI 中完全不可见
+     * 用于：热度机制、全局 Buff、系统效果等玩家不应干预的后台逻辑
+     */
+    UPROPERTY(EditAnywhere, Category = "Backpack|Passive",
+              meta = (DisplayName = "隐藏被动符文（不进背包格）"))
+    TArray<TObjectPtr<URuneDataAsset>> HiddenPassiveRunes;
+
+    // =========================================================
     // Debug / Test
     // =========================================================
 
@@ -188,6 +201,9 @@ protected:
 private:
     // 懒初始化：确保 GridOccupancy 已分配（BeginPlay 前调用 TryPlaceRune 时触发）
     void EnsureGridInitialized();
+
+    // 启动隐藏被动符文的 BuffFlow（不放入格子）
+    void ActivateHiddenPassiveRunes();
 
     // 占用图：GridWidth×GridHeight 的平铺数组
     // 值 = PlacedRunes 数组的下标，-1 = 空

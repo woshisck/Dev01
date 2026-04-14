@@ -2,6 +2,24 @@
 #include "Component/BackpackGridComponent.h"
 #include "Character/PlayerCharacterBase.h"
 #include "GameFramework/Pawn.h"
+#include "Components/Button.h"
+#include "Components/Image.h"
+#include "Components/TextBlock.h"
+#include "Components/RichTextBlock.h"
+#include "Components/PanelWidget.h"
+
+// ============================================================
+//  格子颜色常量
+// ============================================================
+
+namespace BackpackColors
+{
+    static const FLinearColor Empty          (0.12f, 0.12f, 0.12f, 1.f); // 深灰
+    static const FLinearColor EmptyActive    (0.05f, 0.18f, 0.45f, 1.f); // 深蓝
+    static const FLinearColor OccupiedActive (0.10f, 0.55f, 1.00f, 1.f); // 亮蓝
+    static const FLinearColor OccupiedInact  (0.55f, 0.35f, 0.05f, 1.f); // 金橙
+    static const FLinearColor Selected       (1.00f, 0.82f, 0.10f, 1.f); // 高亮黄
+}
 
 // ============================================================
 //  内部辅助
@@ -10,24 +28,12 @@
 UBackpackGridComponent* UBackpackScreenWidget::GetBackpack() const
 {
     if (CachedBackpack.IsValid())
-    {
         return CachedBackpack.Get();
-    }
+
     APawn* Pawn = GetOwningPlayerPawn();
-    if (!Pawn)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[BackpackUI] GetBackpack: Pawn is null"));
-        return nullptr;
-    }
+    if (!Pawn) return nullptr;
+
     UBackpackGridComponent* Found = Pawn->FindComponentByClass<UBackpackGridComponent>();
-    if (!Found)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[BackpackUI] GetBackpack: BackpackGridComponent NOT found on %s"), *Pawn->GetName());
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("[BackpackUI] GetBackpack: OK, placed runes = %d"), Found->GetAllPlacedRunes().Num());
-    }
     return Found;
 }
 
@@ -39,11 +45,8 @@ void UBackpackScreenWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    // 找到玩家的背包组件
     if (APawn* Pawn = GetOwningPlayerPawn())
-    {
         CachedBackpack = Pawn->FindComponentByClass<UBackpackGridComponent>();
-    }
 
     if (UBackpackGridComponent* Backpack = GetBackpack())
     {
@@ -51,6 +54,8 @@ void UBackpackScreenWidget::NativeConstruct()
         Backpack->OnRuneRemoved.AddDynamic(this, &UBackpackScreenWidget::HandleRuneRemoved);
         Backpack->OnRuneActivationChanged.AddDynamic(this, &UBackpackScreenWidget::HandleRuneActivationChanged);
     }
+
+    BindGridCellClicks();
 }
 
 void UBackpackScreenWidget::NativeDestruct()
@@ -61,7 +66,6 @@ void UBackpackScreenWidget::NativeDestruct()
         Backpack->OnRuneRemoved.RemoveDynamic(this, &UBackpackScreenWidget::HandleRuneRemoved);
         Backpack->OnRuneActivationChanged.RemoveDynamic(this, &UBackpackScreenWidget::HandleRuneActivationChanged);
     }
-
     Super::NativeDestruct();
 }
 
@@ -76,13 +80,11 @@ void UBackpackScreenWidget::HandleRunePlaced(const FRuneInstance& Rune)
 
 void UBackpackScreenWidget::HandleRuneRemoved(FGuid RuneGuid)
 {
-    // 如果移除的是当前选中格子的符文，清除格子选中状态
-    if (UBackpackGridComponent* Backpack = GetBackpack())
+    if (SelectedCell != FIntPoint(-1, -1))
     {
-        if (SelectedCell != FIntPoint(-1, -1))
+        if (UBackpackGridComponent* Backpack = GetBackpack())
         {
-            int32 Idx = Backpack->GetRuneIndexAtCell(SelectedCell);
-            if (Idx == -1)
+            if (Backpack->GetRuneIndexAtCell(SelectedCell) == -1)
             {
                 SelectedCell = FIntPoint(-1, -1);
                 OnSelectionChanged();
@@ -98,6 +100,121 @@ void UBackpackScreenWidget::HandleRuneActivationChanged(FGuid RuneGuid, bool bAc
 }
 
 // ============================================================
+//  格子刷新（BlueprintNativeEvent 默认实现）
+// ============================================================
+
+void UBackpackScreenWidget::OnGridNeedsRefresh_Implementation()
+{
+    const int32 CellCount = CachedCellButtons.Num();
+    if (CellCount == 0) return;
+
+    for (int32 i = 0; i < CellCount; i++)
+    {
+        UButton* Btn = CachedCellButtons[i];
+        if (!Btn) continue;
+
+        const int32 Col = i % 5;
+        const int32 Row = i / 5;
+
+        // 颜色：选中格子用高亮黄，其余按状态设置
+        FLinearColor Color;
+        if (IsCellSelected(Col, Row))
+        {
+            Color = BackpackColors::Selected;
+        }
+        else
+        {
+            switch (GetCellVisualState(Col, Row))
+            {
+                case EBackpackCellState::EmptyActive:      Color = BackpackColors::EmptyActive;    break;
+                case EBackpackCellState::OccupiedActive:   Color = BackpackColors::OccupiedActive; break;
+                case EBackpackCellState::OccupiedInactive: Color = BackpackColors::OccupiedInact;  break;
+                default:                                   Color = BackpackColors::Empty;           break;
+            }
+        }
+        Btn->SetBackgroundColor(Color);
+
+        // 图标：有符文则显示，没有则隐藏
+        if (CachedCellIcons.IsValidIndex(i) && CachedCellIcons[i])
+        {
+            UImage* Icon = CachedCellIcons[i];
+            UTexture2D* Tex = GetRuneIconAtCell(Col, Row);
+            if (Tex)
+            {
+                Icon->SetBrushFromTexture(Tex, /*bMatchSize=*/false);
+                Icon->SetVisibility(ESlateVisibility::HitTestInvisible);
+            }
+            else
+            {
+                Icon->SetVisibility(ESlateVisibility::Collapsed);
+            }
+        }
+    }
+}
+
+// ============================================================
+//  详情面板刷新（BlueprintNativeEvent 默认实现）
+// ============================================================
+
+void UBackpackScreenWidget::OnSelectionChanged_Implementation()
+{
+    FRuneInstance Info = GetFocusedRuneInfo();
+    const bool bHasSelection = Info.RuneGuid.IsValid();
+
+    // 详情面板容器：有选中时显示，没有时隐藏
+    if (DetailPanel)
+        DetailPanel->SetVisibility(bHasSelection ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+
+    if (bHasSelection)
+    {
+        if (DetailName)
+            DetailName->SetText(FText::FromName(Info.RuneConfig.RuneName));
+
+        if (DetailDesc)
+            DetailDesc->SetText(Info.RuneConfig.RuneDescription);
+
+        if (DetailIcon)
+        {
+            if (Info.RuneConfig.RuneIcon)
+            {
+                DetailIcon->SetBrushFromTexture(Info.RuneConfig.RuneIcon, false);
+                DetailIcon->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+            }
+            else
+            {
+                DetailIcon->SetVisibility(ESlateVisibility::Collapsed);
+            }
+        }
+    }
+
+    // 操作提示
+    if (HintText)
+    {
+        if (SelectedCell != FIntPoint(-1, -1))
+        {
+            // 已选中格子：提示下一步
+            HintText->SetText(FText::Format(
+                NSLOCTEXT("Backpack", "HintMove", "已选中：{0}\n点击空格 → 移动\n「移除选中」→ 移除"),
+                FText::FromName(Info.RuneConfig.RuneName)));
+        }
+        else if (SelectedRuneIndex >= 0)
+        {
+            // 已选中列表符文：提示放置
+            HintText->SetText(FText::Format(
+                NSLOCTEXT("Backpack", "HintPlace", "已选中：{0}\n点击背包格子 → 放置"),
+                FText::FromName(Info.RuneConfig.RuneName)));
+        }
+        else
+        {
+            HintText->SetText(NSLOCTEXT("Backpack", "HintIdle", "点击背包格子选中符文\n点击左侧列表选择待放置符文"));
+        }
+    }
+
+    // 同时刷新格子高亮（让选中格子变黄）
+    OnGridNeedsRefresh();
+}
+
+// ============================================================
 //  状态查询
 // ============================================================
 
@@ -105,16 +222,13 @@ bool UBackpackScreenWidget::IsCellInActivationZone(int32 Col, int32 Row) const
 {
     UBackpackGridComponent* Backpack = GetBackpack();
     if (!Backpack) return false;
-
-    TArray<FIntPoint> ZoneCells = Backpack->GetActivationZoneCells();
-    return ZoneCells.Contains(FIntPoint(Col, Row));
+    return Backpack->GetActivationZoneCells().Contains(FIntPoint(Col, Row));
 }
 
 bool UBackpackScreenWidget::IsCellOccupied(int32 Col, int32 Row) const
 {
     UBackpackGridComponent* Backpack = GetBackpack();
     if (!Backpack) return false;
-
     return Backpack->GetRuneIndexAtCell(FIntPoint(Col, Row)) >= 0;
 }
 
@@ -127,9 +241,32 @@ FPlacedRune UBackpackScreenWidget::GetRuneAtCell(int32 Col, int32 Row) const
     if (Idx < 0) return FPlacedRune();
 
     const TArray<FPlacedRune>& Placed = Backpack->GetAllPlacedRunes();
-    if (!Placed.IsValidIndex(Idx)) return FPlacedRune();
+    return Placed.IsValidIndex(Idx) ? Placed[Idx] : FPlacedRune();
+}
 
-    return Placed[Idx];
+FRuneInstance UBackpackScreenWidget::GetFocusedRuneInfo() const
+{
+    if (SelectedCell != FIntPoint(-1, -1))
+    {
+        FPlacedRune PR = GetRuneAtCell(SelectedCell.X, SelectedCell.Y);
+        if (PR.Rune.RuneGuid.IsValid())
+            return PR.Rune;
+    }
+    return GetSelectedRuneInfo();
+}
+
+UTexture2D* UBackpackScreenWidget::GetRuneIconAtCell(int32 Col, int32 Row) const
+{
+    UBackpackGridComponent* Backpack = GetBackpack();
+    if (!Backpack) return nullptr;
+
+    int32 Idx = Backpack->GetRuneIndexAtCell(FIntPoint(Col, Row));
+    if (Idx < 0) return nullptr;
+
+    const TArray<FPlacedRune>& Placed = Backpack->GetAllPlacedRunes();
+    if (!Placed.IsValidIndex(Idx)) return nullptr;
+
+    return Placed[Idx].Rune.RuneConfig.RuneIcon;
 }
 
 EBackpackCellState UBackpackScreenWidget::GetCellVisualState(int32 Col, int32 Row) const
@@ -138,40 +275,26 @@ EBackpackCellState UBackpackScreenWidget::GetCellVisualState(int32 Col, int32 Ro
     if (!Backpack) return EBackpackCellState::Empty;
 
     int32 RuneIdx = Backpack->GetRuneIndexAtCell(FIntPoint(Col, Row));
-    bool bInZone = IsCellInActivationZone(Col, Row);
+    bool bInZone  = IsCellInActivationZone(Col, Row);
 
     if (RuneIdx < 0)
-    {
-        // 格子为空
         return bInZone ? EBackpackCellState::EmptyActive : EBackpackCellState::Empty;
-    }
-    else
-    {
-        // 格子有符文
-        const TArray<FPlacedRune>& Placed = Backpack->GetAllPlacedRunes();
-        if (Placed.IsValidIndex(RuneIdx) && Placed[RuneIdx].bIsActivated)
-        {
-            return EBackpackCellState::OccupiedActive;
-        }
-        return EBackpackCellState::OccupiedInactive;
-    }
+
+    const TArray<FPlacedRune>& Placed = Backpack->GetAllPlacedRunes();
+    if (Placed.IsValidIndex(RuneIdx) && Placed[RuneIdx].bIsActivated)
+        return EBackpackCellState::OccupiedActive;
+
+    return EBackpackCellState::OccupiedInactive;
 }
 
 TArray<FRuneInstance> UBackpackScreenWidget::GetRuneList() const
 {
     TArray<FRuneInstance> Result;
-
-    // PendingRunes（三选一获得，放置后消耗）
     if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn()))
-    {
         Result.Append(Player->PendingRunes);
-    }
 
-    // AvailableRunes（固定展示库，放置后不消耗）
     for (const TObjectPtr<URuneDataAsset>& DA : AvailableRunes)
-    {
         if (DA) Result.Add(DA->RuneInfo);
-    }
 
     return Result;
 }
@@ -193,9 +316,7 @@ const TArray<FPlacedRune>& UBackpackScreenWidget::GetAllPlacedRunes() const
 {
     static TArray<FPlacedRune> Empty;
     UBackpackGridComponent* Backpack = GetBackpack();
-    if (!Backpack) return Empty;
-
-    return Backpack->GetAllPlacedRunes();
+    return Backpack ? Backpack->GetAllPlacedRunes() : Empty;
 }
 
 // ============================================================
@@ -204,17 +325,7 @@ const TArray<FPlacedRune>& UBackpackScreenWidget::GetAllPlacedRunes() const
 
 void UBackpackScreenWidget::SelectRuneFromList(int32 Index)
 {
-    // 再次点击同一个 → 取消选中
-    if (SelectedRuneIndex == Index)
-    {
-        SelectedRuneIndex = -1;
-    }
-    else
-    {
-        SelectedRuneIndex = Index;
-    }
-
-    // 选了新符文，清除格子选中
+    SelectedRuneIndex = (SelectedRuneIndex == Index) ? -1 : Index;
     SelectedCell = FIntPoint(-1, -1);
     OnSelectionChanged();
 }
@@ -229,63 +340,53 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
 
     if (RuneIdx >= 0)
     {
-        // 格子有符文 → 选中这个格子（用于后续移动或移除）
         SelectedCell = Cell;
-        SelectedRuneIndex = -1; // 清除列表选中，避免误放置
+        SelectedRuneIndex = -1;
         OnSelectionChanged();
     }
     else if (SelectedCell != FIntPoint(-1, -1))
     {
-        // 格子空 + 有选中格子 → 移动该格子的符文到此处
-        int32 SrcRuneIdx = Backpack->GetRuneIndexAtCell(SelectedCell);
-        if (SrcRuneIdx >= 0)
+        int32 SrcIdx = Backpack->GetRuneIndexAtCell(SelectedCell);
+        if (SrcIdx >= 0)
         {
             const TArray<FPlacedRune>& Placed = Backpack->GetAllPlacedRunes();
-            if (Placed.IsValidIndex(SrcRuneIdx))
+            if (Placed.IsValidIndex(SrcIdx))
             {
-                FGuid RuneGuid = Placed[SrcRuneIdx].Rune.RuneGuid;
-                FName RuneName = Placed[SrcRuneIdx].Rune.RuneConfig.RuneName;
+                FGuid RuneGuid = Placed[SrcIdx].Rune.RuneGuid;
+                FName RuneName = Placed[SrcIdx].Rune.RuneConfig.RuneName;
                 if (Backpack->MoveRune(RuneGuid, Cell))
                 {
                     SelectedCell = FIntPoint(-1, -1);
                     OnSelectionChanged();
-                    OnStatusMessage(FText::Format(
-                        NSLOCTEXT("Backpack", "MoveOK", "已移动：{0}"),
-                        FText::FromName(RuneName)));
+                    OnStatusMessage(FText::Format(NSLOCTEXT("Backpack","MoveOK","已移动：{0}"), FText::FromName(RuneName)));
                 }
                 else
                 {
-                    OnStatusMessage(NSLOCTEXT("Backpack", "MoveFail", "无法移动：目标位置被占用"));
+                    OnStatusMessage(NSLOCTEXT("Backpack","MoveFail","无法移动：目标位置被占用"));
                 }
             }
         }
     }
     else if (SelectedRuneIndex >= 0)
     {
-        // 格子空 + 有选中列表符文 → 放置符文
-        // 判断来源：PendingRunes（消耗）还是 AvailableRunes（不消耗）
         APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
         const int32 PendingCount = Player ? Player->PendingRunes.Num() : 0;
-        const bool bFromPending = SelectedRuneIndex < PendingCount;
+        const bool bFromPending  = SelectedRuneIndex < PendingCount;
 
         FRuneInstance Instance;
         if (bFromPending)
         {
-            // PendingRune：直接使用现有实例（已有有效 Guid）
             Instance = Player->PendingRunes[SelectedRuneIndex];
         }
         else
         {
-            // AvailableRune：从 DA 创建新实例（生成新 Guid）
-            const int32 AvailableIdx = SelectedRuneIndex - PendingCount;
-            if (!AvailableRunes.IsValidIndex(AvailableIdx) || !AvailableRunes[AvailableIdx])
-                return;
-            Instance = AvailableRunes[AvailableIdx]->CreateInstance();
+            const int32 AvIdx = SelectedRuneIndex - PendingCount;
+            if (!AvailableRunes.IsValidIndex(AvIdx) || !AvailableRunes[AvIdx]) return;
+            Instance = AvailableRunes[AvIdx]->CreateInstance();
         }
 
         if (Backpack->TryPlaceRune(Instance, Cell))
         {
-            // 放置成功：如果是 Pending 来源，消耗（从列表移除）
             if (bFromPending && Player)
             {
                 Player->PendingRunes.RemoveAt(SelectedRuneIndex);
@@ -294,16 +395,13 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
             SelectedRuneIndex = -1;
             SelectedCell = FIntPoint(-1, -1);
             OnSelectionChanged();
-            OnStatusMessage(FText::Format(
-                NSLOCTEXT("Backpack", "PlaceOK", "已放置：{0}"),
-                FText::FromName(Instance.RuneConfig.RuneName)));
+            OnStatusMessage(FText::Format(NSLOCTEXT("Backpack","PlaceOK","已放置：{0}"), FText::FromName(Instance.RuneConfig.RuneName)));
         }
         else
         {
-            OnStatusMessage(NSLOCTEXT("Backpack", "PlaceFail", "无法放置：位置被占用"));
+            OnStatusMessage(NSLOCTEXT("Backpack","PlaceFail","无法放置：位置被占用"));
         }
     }
-    // 格子空 + 无任何选中 → 无操作
 }
 
 void UBackpackScreenWidget::RemoveRuneAtSelectedCell()
@@ -314,11 +412,7 @@ void UBackpackScreenWidget::RemoveRuneAtSelectedCell()
     if (!Backpack) return;
 
     int32 RuneIdx = Backpack->GetRuneIndexAtCell(SelectedCell);
-    if (RuneIdx < 0)
-    {
-        OnStatusMessage(NSLOCTEXT("Backpack", "RemoveEmpty", "该格子没有符文"));
-        return;
-    }
+    if (RuneIdx < 0) { OnStatusMessage(NSLOCTEXT("Backpack","RemoveEmpty","该格子没有符文")); return; }
 
     const TArray<FPlacedRune>& Placed = Backpack->GetAllPlacedRunes();
     if (!Placed.IsValidIndex(RuneIdx)) return;
@@ -330,9 +424,7 @@ void UBackpackScreenWidget::RemoveRuneAtSelectedCell()
     {
         SelectedCell = FIntPoint(-1, -1);
         OnSelectionChanged();
-        OnStatusMessage(FText::Format(
-            NSLOCTEXT("Backpack", "RemoveOK", "已移除：{0}"),
-            FText::FromName(RuneName)));
+        OnStatusMessage(FText::Format(NSLOCTEXT("Backpack","RemoveOK","已移除：{0}"), FText::FromName(RuneName)));
     }
 }
 
@@ -341,4 +433,61 @@ void UBackpackScreenWidget::ClearSelection()
     SelectedRuneIndex = -1;
     SelectedCell = FIntPoint(-1, -1);
     OnSelectionChanged();
+}
+
+// ============================================================
+//  格子按钮绑定 + Icon Image 自动创建
+// ============================================================
+
+void UBackpackScreenWidget::BindGridCellClicks()
+{
+    UPanelWidget* Grid = Cast<UPanelWidget>(GetWidgetFromName(TEXT("BackpackGrid")));
+    if (!Grid)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[BackpackUI] BackpackGrid 面板未找到，检查蓝图中面板名称"));
+        return;
+    }
+
+    CachedCellButtons.Empty();
+    CachedCellIcons.Empty();
+    CellClickHandlers.Empty();
+
+    for (int32 i = 0; i < Grid->GetChildrenCount(); i++)
+    {
+        // 支持 BackpackGrid→Button 和 BackpackGrid→SizeBox→Button 两种结构
+        UWidget* Child = Grid->GetChildAt(i);
+        UButton* Btn   = Cast<UButton>(Child);
+        if (!Btn)
+        {
+            if (UPanelWidget* Container = Cast<UPanelWidget>(Child))
+                Btn = Cast<UButton>(Container->GetChildAt(0));
+        }
+        if (!Btn) { CachedCellButtons.Add(nullptr); CachedCellIcons.Add(nullptr); continue; }
+
+        // 绑定点击
+        const int32 Col = i % 5;
+        const int32 Row = i / 5;
+        UGridCellClickHandler* Handler = NewObject<UGridCellClickHandler>(this);
+        Handler->Owner = this;
+        Handler->Col   = Col;
+        Handler->Row   = Row;
+        CellClickHandlers.Add(Handler);
+        Btn->OnClicked.AddDynamic(Handler, &UGridCellClickHandler::HandleClick);
+
+        // 在 Button 内部创建 Icon Image（覆盖整个按钮，不拦截点击）
+        UImage* Icon = NewObject<UImage>(this);
+        Icon->SetVisibility(ESlateVisibility::Collapsed);
+        Btn->SetContent(Icon);
+
+        CachedCellButtons.Add(Btn);
+        CachedCellIcons.Add(Icon);
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[BackpackUI] 已绑定 %d 个格子（Button + Icon）"), CachedCellButtons.Num());
+}
+
+void UGridCellClickHandler::HandleClick()
+{
+    if (UBackpackScreenWidget* W = Owner.Get())
+        W->ClickCell(Col, Row);
 }

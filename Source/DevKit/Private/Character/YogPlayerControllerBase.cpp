@@ -366,6 +366,7 @@ void AYogPlayerControllerBase::ToggleBackpack(const FInputActionValue& Value)
 		SetBlockGameInput(true);               // 屏蔽输入 + 显示鼠标 + GameAndUI
 		BackpackWidget->SetVisibility(ESlateVisibility::Visible);
 		BackpackWidget->OnGridNeedsRefresh();  // 打开时强制刷新格子颜色
+		BackpackWidget->OnSelectionChanged();  // 刷新提示文字
 	}
 }
 

@@ -6,13 +6,33 @@
 #include "BackpackScreenWidget.generated.h"
 
 class UBackpackGridComponent;
+class UBackpackScreenWidget;
 class APlayerCharacterBase;
+class UButton;
+class UImage;
+class UTextBlock;
+class URichTextBlock;
 struct FPlacedRune;
 
 // ============================================================
-//  格子视觉状态枚举（蓝图用颜色区分）
+//  格子点击中转（每格一个，存储 Col/Row 供 dynamic delegate 调用）
 // ============================================================
+UCLASS()
+class UGridCellClickHandler : public UObject
+{
+    GENERATED_BODY()
+public:
+    TWeakObjectPtr<UBackpackScreenWidget> Owner;
+    int32 Col = 0;
+    int32 Row = 0;
 
+    UFUNCTION()
+    void HandleClick();
+};
+
+// ============================================================
+//  格子视觉状态枚举
+// ============================================================
 UENUM(BlueprintType)
 enum class EBackpackCellState : uint8
 {
@@ -25,13 +45,17 @@ enum class EBackpackCellState : uint8
 // ============================================================
 //  UBackpackScreenWidget
 //
-//  使用方法：
-//  1. 新建 Widget Blueprint，父类选 BackpackScreenWidget
-//  2. 在 Details 面板填写 AvailableRunes（展示用符文列表）
-//  3. 设计 5x5 格子：每格一个 Button，OnClicked 调用 ClickCell(Col, Row)
-//  4. 实现 OnGridNeedsRefresh：遍历格子，调用 GetCellVisualState 设置颜色
-//  5. 左侧列表每项调用 SelectRuneFromList(Index)
-//  6. 实现 OnSelectionChanged：根据 SelectedRuneIndex/SelectedCell 高亮
+//  蓝图里只需要：
+//  1. 在 Details 面板填写 AvailableRunes
+//  2. 在 Designer 里放以下控件（名称必须完全一致）：
+//     - BackpackGrid        ← 格子面板（UniformGridPanel / HorizontalBox 等）
+//     - DetailPanel         ← 详情区容器（任意面板）
+//     - DetailIcon          ← Image，显示符文图标
+//     - DetailName          ← TextBlock，显示符文名称
+//     - DetailDesc          ← TextBlock，显示符文描述
+//  3. 格子内每个 Button 不需要手动绑定，C++ 自动完成
+//  4. OnGridNeedsRefresh / OnSelectionChanged 已有 C++ 默认实现，
+//     蓝图可覆盖，也可以直接删掉蓝图里的实现节点
 // ============================================================
 
 UCLASS(Blueprintable, BlueprintType)
@@ -41,124 +65,123 @@ class DEVKIT_API UBackpackScreenWidget : public UUserWidget
 
 public:
     // =========================================================
-    // 配置（在蓝图 Details 面板填写）
+    // 配置
     // =========================================================
 
-    /**
-     * 展示/调试用固定符文库（在 Details 面板填写 DA_Rune_* 资产）
-     * 放置后不消耗，可反复使用（供展示和调试）
-     * 游戏中实际符文来自 Player.PendingRunes（三选一获得）
-     */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Backpack")
     TArray<TObjectPtr<URuneDataAsset>> AvailableRunes;
+
+    // =========================================================
+    // 自动绑定的详情面板控件
+    // 在 Designer 里添加对应名称的控件即可，无需蓝图节点
+    // =========================================================
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UWidget> DetailPanel;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UImage> DetailIcon;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UTextBlock> DetailName;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UTextBlock> DetailDesc;
+
+    /**
+     * 操作提示文本（可选）
+     * 在 Designer 里加一个 TextBlock 命名 HintText，C++ 自动写入当前操作提示
+     */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<URichTextBlock> HintText;
 
     // =========================================================
     // 运行时状态（蓝图可读）
     // =========================================================
 
-    /** 当前在左侧列表中选中的符文索引，-1 = 未选中 */
     UPROPERTY(BlueprintReadOnly, Category = "Backpack")
     int32 SelectedRuneIndex = -1;
 
-    /** 当前在网格中选中的格子，(-1,-1) = 未选中 */
     UPROPERTY(BlueprintReadOnly, Category = "Backpack")
     FIntPoint SelectedCell = FIntPoint(-1, -1);
 
     // =========================================================
-    // 状态查询（BlueprintPure，蓝图直接调用）
+    // 状态查询
     // =========================================================
 
-    /** 格子是否在激活区 */
     UFUNCTION(BlueprintPure, Category = "Backpack")
     bool IsCellInActivationZone(int32 Col, int32 Row) const;
 
-    /** 格子是否有符文 */
     UFUNCTION(BlueprintPure, Category = "Backpack")
     bool IsCellOccupied(int32 Col, int32 Row) const;
 
-    /** 获取格子上的符文（需先判断 IsCellOccupied） */
     UFUNCTION(BlueprintPure, Category = "Backpack")
     FPlacedRune GetRuneAtCell(int32 Col, int32 Row) const;
 
-    /** 获取格子的综合视觉状态（蓝图用于设置颜色） */
     UFUNCTION(BlueprintPure, Category = "Backpack")
     EBackpackCellState GetCellVisualState(int32 Col, int32 Row) const;
 
-    /** 是否已选中待放置符文 */
     UFUNCTION(BlueprintPure, Category = "Backpack")
     bool HasSelectedRune() const { return SelectedRuneIndex >= 0; }
 
-    /**
-     * 获取所有可放置的符文列表（PendingRunes 在前，AvailableRunes 在后）
-     * 蓝图用此函数填充左侧符文列表，不要缓存返回值（每次调用都是最新数据）
-     */
     UFUNCTION(BlueprintPure, Category = "Backpack")
     TArray<FRuneInstance> GetRuneList() const;
 
-    /** PendingRunes 的数量（蓝图可用此值区分列表中哪些来自三选一） */
     UFUNCTION(BlueprintPure, Category = "Backpack")
     int32 GetPendingRuneCount() const;
 
-    /** 获取当前选中符文的信息（用于显示描述面板） */
     UFUNCTION(BlueprintPure, Category = "Backpack")
     FRuneInstance GetSelectedRuneInfo() const;
 
-    /** 获取所有已放置符文（调试或统计用） */
     UFUNCTION(BlueprintPure, Category = "Backpack")
     const TArray<FPlacedRune>& GetAllPlacedRunes() const;
 
-    /** 格子是否是当前选中格（需要绘制高亮边框） */
     UFUNCTION(BlueprintPure, Category = "Backpack")
-    bool IsCellSelected(int32 Col, int32 Row) const
-    {
-        return SelectedCell == FIntPoint(Col, Row);
-    }
+    bool IsCellSelected(int32 Col, int32 Row) const { return SelectedCell == FIntPoint(Col, Row); }
+
+    UFUNCTION(BlueprintPure, Category = "Backpack")
+    UTexture2D* GetRuneIconAtCell(int32 Col, int32 Row) const;
+
+    /** 获取当前焦点符文（格子选中优先，列表选中其次） */
+    UFUNCTION(BlueprintPure, Category = "Backpack")
+    FRuneInstance GetFocusedRuneInfo() const;
 
     // =========================================================
-    // 操作（Button OnClicked 绑定）
+    // 操作
     // =========================================================
 
-    /** 从左侧列表选中符文；再次点击同一个则取消选中 */
     UFUNCTION(BlueprintCallable, Category = "Backpack")
     void SelectRuneFromList(int32 Index);
 
-    /**
-     * 点击网格格子：
-     *  - 格子有符文 → 选中这个格子（可后续移除）
-     *  - 格子空 + 有选中符文 → 尝试放置
-     *  - 格子空 + 无选中符文 → 无操作
-     */
     UFUNCTION(BlueprintCallable, Category = "Backpack")
     void ClickCell(int32 Col, int32 Row);
 
-    /** 移除当前选中格子上的符文 */
     UFUNCTION(BlueprintCallable, Category = "Backpack")
     void RemoveRuneAtSelectedCell();
 
-    /** 清除所有选中状态 */
     UFUNCTION(BlueprintCallable, Category = "Backpack")
     void ClearSelection();
 
     // =========================================================
-    // Blueprint 实现的刷新事件
+    // 刷新事件（BlueprintNativeEvent：C++ 提供默认实现）
+    // 蓝图里如果有旧的实现节点，请删除，让 C++ 接管
     // =========================================================
 
-    /** 网格数据有变化，蓝图应遍历 5×5 格子刷新颜色和图标 */
-    UFUNCTION(BlueprintImplementableEvent, Category = "Backpack")
+    /** 网格颜色 + 图标刷新（C++ 自动处理，蓝图无需实现） */
+    UFUNCTION(BlueprintNativeEvent, Category = "Backpack")
     void OnGridNeedsRefresh();
+    virtual void OnGridNeedsRefresh_Implementation();
 
-    /** 选中状态变化（符文列表高亮、格子高亮、描述面板刷新） */
-    UFUNCTION(BlueprintImplementableEvent, Category = "Backpack")
+    /** 选中状态变化：详情面板刷新 + 格子高亮（C++ 自动处理） */
+    UFUNCTION(BlueprintNativeEvent, Category = "Backpack")
     void OnSelectionChanged();
+    virtual void OnSelectionChanged_Implementation();
 
-    /** 操作结果提示（放置成功/失败/移除等） */
+    /** 操作结果提示（蓝图可实现 Toast/弹窗，C++ 无默认实现） */
     UFUNCTION(BlueprintImplementableEvent, Category = "Backpack")
     void OnStatusMessage(const FText& Message);
 
-    /**
-     * PendingRunes 发生变化（三选一加入或放置消耗后）
-     * 蓝图应重新调用 GetRuneList() 刷新左侧符文列表
-     */
+    /** PendingRunes 变化（蓝图刷新左侧符文列表） */
     UFUNCTION(BlueprintImplementableEvent, Category = "Backpack")
     void OnRuneListChanged();
 
@@ -168,8 +191,21 @@ protected:
 
 private:
     TWeakObjectPtr<UBackpackGridComponent> CachedBackpack;
-
     UBackpackGridComponent* GetBackpack() const;
+
+    /** 遍历 BackpackGrid，为每个格子绑定点击并创建 Icon Image */
+    void BindGridCellClicks();
+
+    /** 按格子索引缓存 Button 和 Icon Image，供刷新时快速访问 */
+    UPROPERTY()
+    TArray<TObjectPtr<UButton>> CachedCellButtons;
+
+    UPROPERTY()
+    TArray<TObjectPtr<UImage>> CachedCellIcons;
+
+    /** 防止 GC 回收格子点击 handler */
+    UPROPERTY()
+    TArray<TObjectPtr<UGridCellClickHandler>> CellClickHandlers;
 
     UFUNCTION()
     void HandleRunePlaced(const FRuneInstance& Rune);
