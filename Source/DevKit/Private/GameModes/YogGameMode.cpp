@@ -354,7 +354,7 @@ void AYogGameMode::EnterArrangementPhase()
 					float Radius = FMath::FRandRange(200.f, 250.0f);
 					FVector2D RandomPoint(Radius * FMath::Cos(Angle), Radius * FMath::Sin(Angle));
 
-					SpawnLoc = P->GetActorLocation() + FVector(RandomPoint, P->GetActorLocation().Z);
+					SpawnLoc = P->GetActorLocation() + FVector(RandomPoint, 0.f);
 				}
 			}
 		}
