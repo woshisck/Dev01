@@ -353,6 +353,23 @@ void UBackpackGridComponent::OnHeatValueChanged(float HeatValue)
 		OnHeatAboveZero.Broadcast();
 	}
 	PreviousHeatValue = HeatValue;
+
+	// 通知热度条 UI
+	BroadcastHeatUI(HeatValue);
+}
+
+void UBackpackGridComponent::BroadcastHeatUI(float KnownHeatValue)
+{
+	float NormalizedHeat = 0.f;
+	if (CachedASC.IsValid())
+	{
+		bool bFound = false;
+		const float MaxHeat = CachedASC->GetGameplayAttributeValue(
+			UBaseAttributeSet::GetMaxHeatAttribute(), bFound);
+		if (MaxHeat > KINDA_SMALL_NUMBER)
+			NormalizedHeat = FMath::Clamp(KnownHeatValue / MaxHeat, 0.f, 1.f);
+	}
+	OnHeatBarUpdate.Broadcast(NormalizedHeat, CurrentPhase);
 }
 
 void UBackpackGridComponent::IncrementPhase()
@@ -394,6 +411,9 @@ void UBackpackGridComponent::IncrementPhase()
 		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Phase UP → %d | ActivationZone [%d cells]: %s"),
 			CurrentPhase, Zone.Num(), *ZoneStr);
 	}
+
+	// 通知热度条 UI（阶段变化时热度已被重置为 0）
+	BroadcastHeatUI(0.f);
 }
 
 void UBackpackGridComponent::DecrementPhase()
@@ -438,6 +458,8 @@ void UBackpackGridComponent::DecrementPhase()
 		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Phase DOWN → %d | ActivationZone [%d cells]: %s"),
 			CurrentPhase, Zone.Num(), *ZoneStr);
 	}
+
+	BroadcastHeatUI(0.f);
 }
 
 void UBackpackGridComponent::ResetHeatToPhaseFloor()
@@ -450,12 +472,14 @@ void UBackpackGridComponent::ResetHeatToPhaseFloor()
 	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), 0.f);
 	CurrentPhase = 0;
 	RefreshAllActivations();
+	BroadcastHeatUI(0.f);
 }
 
 void UBackpackGridComponent::RestorePhase(int32 Phase)
 {
 	CurrentPhase = FMath::Clamp(Phase, 0, 3);
 	RefreshAllActivations();
+	BroadcastHeatUI(0.f);
 }
 
 TArray<FIntPoint> UBackpackGridComponent::GetActivationZoneCells() const

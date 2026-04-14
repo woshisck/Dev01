@@ -6,29 +6,13 @@
 #include "BackpackScreenWidget.generated.h"
 
 class UBackpackGridComponent;
-class UBackpackScreenWidget;
 class APlayerCharacterBase;
 class UButton;
 class UImage;
 class UTextBlock;
 class URichTextBlock;
+class UDragDropOperation;
 struct FPlacedRune;
-
-// ============================================================
-//  格子点击中转（每格一个，存储 Col/Row 供 dynamic delegate 调用）
-// ============================================================
-UCLASS()
-class UGridCellClickHandler : public UObject
-{
-    GENERATED_BODY()
-public:
-    TWeakObjectPtr<UBackpackScreenWidget> Owner;
-    int32 Col = 0;
-    int32 Row = 0;
-
-    UFUNCTION()
-    void HandleClick();
-};
 
 // ============================================================
 //  格子视觉状态枚举
@@ -54,8 +38,7 @@ enum class EBackpackCellState : uint8
 //     - DetailName          ← TextBlock，显示符文名称
 //     - DetailDesc          ← TextBlock，显示符文描述
 //  3. 格子内每个 Button 不需要手动绑定，C++ 自动完成
-//  4. OnGridNeedsRefresh / OnSelectionChanged 已有 C++ 默认实现，
-//     蓝图可覆盖，也可以直接删掉蓝图里的实现节点
+//  4. 符文移动通过拖拽实现，蓝图无需节点
 // ============================================================
 
 UCLASS(Blueprintable, BlueprintType)
@@ -88,10 +71,6 @@ public:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UTextBlock> DetailDesc;
 
-    /**
-     * 操作提示文本（可选）
-     * 在 Designer 里加一个 TextBlock 命名 HintText，C++ 自动写入当前操作提示
-     */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<URichTextBlock> HintText;
 
@@ -164,7 +143,6 @@ public:
 
     // =========================================================
     // 刷新事件（BlueprintNativeEvent：C++ 提供默认实现）
-    // 蓝图里如果有旧的实现节点，请删除，让 C++ 接管
     // =========================================================
 
     /** 网格颜色 + 图标刷新（C++ 自动处理，蓝图无需实现） */
@@ -189,11 +167,30 @@ protected:
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
 
+    // ── 拖拽输入重写 ────────────────────────────────────────────────────
+    // BackpackGrid 和格子 Button 均设为 HitTestInvisible，
+    // 所有鼠标/拖拽事件由 BackpackScreenWidget 自身接管
+
+    /** 鼠标按下预览（隧道阶段）：检测是否在格子上，启动拖拽或执行点击 */
+    virtual FReply NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+
+    /** 拖拽检测触发：构建 URuneDragDropOperation 并设置拖拽视觉 */
+    virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
+
+    /** 拖拽经过：更新悬浮格子高亮 */
+    virtual bool NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
+    /** 松手放置：执行 MoveRune */
+    virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
+    /** 拖拽取消（Esc 或松手到无效区域）：清理悬浮状态 */
+    virtual void NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
 private:
     TWeakObjectPtr<UBackpackGridComponent> CachedBackpack;
     UBackpackGridComponent* GetBackpack() const;
 
-    /** 遍历 BackpackGrid，为每个格子绑定点击并创建 Icon Image */
+    /** 遍历 BackpackGrid，设置按钮 HitTestInvisible 并创建 Icon Image */
     void BindGridCellClicks();
 
     /** 按格子索引缓存 Button 和 Icon Image，供刷新时快速访问 */
@@ -203,9 +200,16 @@ private:
     UPROPERTY()
     TArray<TObjectPtr<UImage>> CachedCellIcons;
 
-    /** 防止 GC 回收格子点击 handler */
-    UPROPERTY()
-    TArray<TObjectPtr<UGridCellClickHandler>> CellClickHandlers;
+    /** 拖拽悬浮的目标格子（-1 = 无） */
+    int32 HoverCol = -1;
+    int32 HoverRow = -1;
+
+    /** 鼠标按下时暂存的格子坐标，供 NativeOnDragDetected 使用 */
+    int32 PendingDragCol = -1;
+    int32 PendingDragRow = -1;
+
+    /** 屏幕绝对坐标 → BackpackGrid 格子坐标（失败返回 false） */
+    bool GetGridCellAtScreenPos(const FVector2D& AbsolutePos, int32& OutCol, int32& OutRow) const;
 
     UFUNCTION()
     void HandleRunePlaced(const FRuneInstance& Rune);
