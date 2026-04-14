@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Types/FlowDataPinProperties.h"
 #include "BuffFlow/Nodes/BFNode_Base.h"
 #include "BFNode_OnDamageDealt.generated.h"
 
@@ -20,6 +21,11 @@ class DEVKIT_API UBFNode_OnDamageDealt : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "BuffFlow",
 		meta = (DisplayName = "Once Per Swing"))
 	bool bOncePerSwing = false;
+
+	/** 本次伤害量（数据输出引脚，可连线到 Math Float / Compare Float 等节点） */
+	UPROPERTY(EditAnywhere, Category = "BuffFlow",
+		meta = (DisplayName = "Last Damage Amount"))
+	FFlowDataPinOutputProperty_Float LastDamageOutput;
 
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;

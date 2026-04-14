@@ -1,6 +1,7 @@
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Data/CharacterData.h"
@@ -104,6 +105,18 @@ void UGA_MeleeAttack::ActivateAbility(
 	FGameplayTagContainer DamageEventTags;
 	DamageEventTags.AddTag(FGameplayTag::RequestGameplayTag(FName("GameplayEffect.DamageType.GeneralAttack")));
 
+	// 读取 AttackSpeed 属性作为蒙太奇播放速率
+	float AttackSpeedRate = 1.0f;
+	if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
+	{
+		bool bFound = false;
+		const float SpeedValue = ASC->GetGameplayAttributeValue(UBaseAttributeSet::GetAttackSpeedAttribute(), bFound);
+		if (bFound && SpeedValue > 0.f)
+		{
+			AttackSpeedRate = SpeedValue;
+		}
+	}
+
 	// 创建复合任务：播放蒙太奇 + 监听 GameplayEvent（AnimNotify 触发伤害事件）
 	UYogAbilityTask_PlayMontageAndWaitForEvent* Task =
 		UYogAbilityTask_PlayMontageAndWaitForEvent::PlayMontageAndWaitForEvent(
@@ -111,7 +124,7 @@ void UGA_MeleeAttack::ActivateAbility(
 			NAME_None,
 			Montage,
 			DamageEventTags,
-			1.0f,
+			AttackSpeedRate,
 			NAME_None,
 			true,   // bStopWhenAbilityEnds
 			1.0f);

@@ -178,16 +178,28 @@
 
 ---
 
-### 模式 G：GrantTag → GA 激活链
+### 模式 G：Send Gameplay Event → C++ GA 激活链
 ```
 FA：
-  [On Damage Dealt] → [Grant Tag (Timed)]（Status.Bleeding, Target=敌人）
+  [Apply Attribute Modifier]
+      GrantedTagsToASC = Buff.Status.Bleeding（计时 Tag，到期自动移除）
+      GrantedAbilities = GA_Bleed（随 GE 生命周期授予/撤销）
+      DurationType = HasDuration / Infinite
+      ↓ Out
+  [Send Gameplay Event]
+      EventTag = Buff.Event.Bleed
+      Target = LastDamageTarget（敌人）
+      Instigator = BuffOwner（玩家，用于伤害日志）
+      Magnitude = 每秒伤害量（可连数据引脚）
 
-GA（预挂在目标身上）：
-  ActivationOwnedTags = Status.Bleeding → 有 Tag 时自动激活
-  WaitGameplayTag Remove → Tag 消失时退出
+GA_Bleed（C++ 实现，挂在目标身上）：
+  TriggerTag = Buff.Event.Bleed → 事件激活，EventMagnitude 传入 DPS
+  BleedTick（每 0.5s）→ ApplyModToAttributeUnsafe(Health, -DPS×0.5)
+  监听 Buff.Status.Bleeding Tag 消失 → EndAbility
+  流血 Tick 不触发受击动画（YogCharacterBase 检测 Bleeding Tag 跳过 HitReact）
 ```
-*示例：流血 1005*
+*示例：流血 1005*  
+> **注意**：GA_Bleed 已迁移为 C++（`Source/DevKit/.../GA_Bleed`），不需要创建 Blueprint GA 子类。
 
 ---
 

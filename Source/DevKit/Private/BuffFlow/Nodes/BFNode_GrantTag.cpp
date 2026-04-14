@@ -56,6 +56,9 @@ void UBFNode_GrantTag::ExecuteInput(const FName& PinName)
 	TotalCountGranted++;
 	StoredASC = ASC;
 
+	UE_LOG(LogTemp, Warning, TEXT("[BFNode_GrantTag] Added Tag=%s → %s (Duration=%.1fs)"),
+		*Tag.ToString(), *GetNameSafe(TargetActor), Duration);
+
 	// Duration > 0：启动自动过期计时器
 	if (Duration > 0.f)
 	{

@@ -12,7 +12,6 @@ UGA_HitReaction::UGA_HitReaction(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
     // GA 身份标签，同时作为 AbilityData.PassiveMap 的 lookup key
-    // 编辑器里 AbilityTags 填 Action.HitReact，PassiveMap 也用同一个 Tag 作 key
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact")));
 
     // 受击硬直中，StateConflict 系统可据此 Tag 阻断低优先级技能
@@ -20,6 +19,12 @@ UGA_HitReaction::UGA_HitReaction(const FObjectInitializer& ObjectInitializer)
 
     // 每次受击独立实例，并发受击各自播放各自的动画
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
+
+    // 监听 Action.HitReact 事件自动激活（FA/C++ 通过 HandleGameplayEvent 发出此 Tag）
+    FAbilityTriggerData TriggerData;
+    TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact"));
+    TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+    AbilityTriggers.Add(TriggerData);
 }
 
 void UGA_HitReaction::ActivateAbility(

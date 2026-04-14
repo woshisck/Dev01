@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "Types/FlowDataPinProperties.h"
 #include "BuffFlow/Nodes/BFNode_Base.h"
 #include "BuffFlow/BuffFlowTypes.h"
 #include "BFNode_SendGameplayEvent.generated.h"
@@ -37,6 +38,17 @@ class DEVKIT_API UBFNode_SendGameplayEvent : public UBFNode_Base
 	 */
 	UPROPERTY(EditAnywhere, Category = "BuffFlow")
 	EBFTargetSelector Instigator = EBFTargetSelector::DamageCauser;
+
+	/**
+	 * 事件携带的数值（写入 FGameplayEventData.EventMagnitude）。
+	 * · 无连线：使用节点上直接填写的固定值
+	 * · 连线：使用连入的数据引脚值（如 GetAttribute.CachedValue、MathFloat 结果）
+	 *
+	 * 典型用途：传递流血每秒伤害（GA_Bleed 在 ActivateAbility 里读取此值）
+	 */
+	UPROPERTY(EditAnywhere, Category = "BuffFlow",
+		meta = (DisplayName = "Magnitude"))
+	FFlowDataPinInputProperty_Float Magnitude;
 
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;

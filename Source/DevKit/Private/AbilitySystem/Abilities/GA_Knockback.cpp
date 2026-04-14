@@ -19,6 +19,13 @@ UGA_Knockback::UGA_Knockback(const FObjectInitializer& ObjectInitializer)
 
     // 实例化模式：每次激活一个独立实例
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
+
+    // 监听 Action.Knockback 事件自动激活（FA 的 Send Gameplay Event 节点发出此 Tag）
+    // 设置在 C++ 中后无需 Blueprint 子类配置 AbilityTriggers
+    FAbilityTriggerData TriggerData;
+    TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"));
+    TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+    AbilityTriggers.Add(TriggerData);
 }
 
 void UGA_Knockback::ActivateAbility(

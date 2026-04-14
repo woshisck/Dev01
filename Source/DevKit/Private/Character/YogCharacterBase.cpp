@@ -354,9 +354,13 @@ void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 	UE_LOG(LogTemp, Log, TEXT("Health Changed to: %f"), Health);
 
 	// 血量减少且角色存活 → 自动触发受击动画
+	// 流血状态跳过：Buff.Status.Bleeding 存在时不播放受击动画，避免流血 Tick 每次打断动作
 	// 注：此处无法可靠拿到攻击者引用，受击方向默认走 Front；
 	// 若 FA 层需要精确前/后方向，可改由 FA 直接 SendGameplayEvent 并传入 Instigator
-	if (Data.NewValue < Data.OldValue && IsAlive() && AbilitySystemComponent)
+	const bool bIsBleeding = AbilitySystemComponent &&
+		AbilitySystemComponent->HasMatchingGameplayTag(
+			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Bleeding")));
+	if (Data.NewValue < Data.OldValue && IsAlive() && AbilitySystemComponent && !bIsBleeding)
 	{
 		FGameplayEventData HitEventData;
 		AbilitySystemComponent->HandleGameplayEvent(

@@ -1,30 +1,50 @@
-# 测试符文制作指南 v5
+# 测试符文制作指南 v8
 
-> 版本：v5（2026-04-13）更新重点：1002 热度提升改为零资产（FA 层条件跳过替代 OngoingTagRequirements GE）；新增 1009 弱点窥破、1010 突刺连击、1011 毒牙、1012 幽风低语。  
-> v4（2026-04-12）更新重点：新增符文 1008 刀光波（远程投射物，每 3 次命中触发，穿透多敌，C++ 投射物 + C++ 被动 GA）。  
-> v3（2026-04-09）更新重点：击退拆分为两个独立符文（1004 击退 + 1007 击退减速），引入符文联动模式（GameplayEvent 跨符文通信）；GA_Knockback 改为 C++ 实现。  
+> 版本：v8（2026-04-14）更新重点：1015 痛苦契约触发改为 OnHealthChanged（新节点，覆盖回血场景）；公式改为 ×0.25 系数（1%HP损失=+0.25%攻速）；新增 BFNode_OnHealthChanged C++ 节点；AttackSpeed 接入 GA_MeleeAttack 蒙太奇 PlayRate。  
+> 版本：v7（2026-04-14）更新重点：新增 1013 震爆、1014 暗影疾驰、1015 痛苦契约、1016 致命先机；BFNode_OnDamageDealt 新增 LastDamageOutput 数据引脚。  
+> v6（2026-04-14）更新重点：GA_Knockback / GA_HitReaction / GA_Dead / GA_Bleed 全部移至 C++，无需创建任何 Blueprint GA 子类；GA_Bleed 改为 GameplayEvent 触发，FA 通过 Send Gameplay Event 传入每秒伤害量。  
+> v5（2026-04-13）更新重点：1002 热度提升改为零资产；新增 1009 弱点窥破、1010 突刺连击、1011 毒牙、1012 幽风低语。  
+> v4（2026-04-12）更新重点：新增符文 1008 刀光波（C++ 投射物 + C++ 被动 GA）。  
 > Tag 规范：[Buff_Tag_Spec.md](Buff_Tag_Spec.md) · 系统指南：[BuffFlow_DesignGuide.md](BuffFlow_DesignGuide.md)
+
+---
+
+## 内置 GA 一览（无需 Blueprint，直接填 C++ 类）
+
+以下 GA 已在 C++ 构造函数中完整配置（AbilityTriggers + 逻辑），直接添加到角色的 GASTemplate 即可：
+
+| C++ 类 | 触发方式 | 触发 Tag | 授予目标 |
+|---|---|---|---|
+| `GA_Knockback` | GameplayEvent | `Action.Knockback` | 所有角色（DA_Base_AbilitySet） |
+| `GA_HitReaction` | GameplayEvent | `Action.HitReact` | 所有角色（DA_Base_AbilitySet） |
+| `GA_Dead` | GameplayEvent | `Action.Dead` | 所有角色（DA_Base_AbilitySet） |
+| `GA_Bleed` | GameplayEvent | `Buff.Event.Bleed` | 敌人（ApplyAttributeModifier GrantedAbilities 动态授予） |
+| `GA_SlashWaveCounter` | OnGiveAbility（自动激活） | — | 玩家（CharacterData → GASTemplate） |
 
 ---
 
 ## 资产策略总览
 
-| 符文 | Blueprint GE | C++/Blueprint GA | 说明 |
-|------|-------------|-----------------|------|
-| 1001 攻击强化 | ❌ 不需要 | ❌ 不需要 | ApplyAttributeModifier 直接处理 |
-| 1002 热度提升 | ❌ 不需要 | ❌ 不需要 | On Periodic + Has Tag 条件跳过，零资产 |
-| 1003 速度叠加 | ❌ 不需要 | ❌ 不需要 | ApplyAttributeModifier Stackable |
-| 1004 击退 | ❌ 不需要 | ✅ 1个（C++ GA_Knockback，精确控距） | 纯位移，无减速；可单独使用 |
-| 1007 击退减速 | ❌ 不需要 | ❌ 不需要 | 监听 1004 的击退事件，联动施加减速 |
-| 1005 流血 | ❌ 不需要 | ✅ 1个（速度扣血逻辑） | GrantTag 替代 GE_Bleeding |
-| 1006 额外伤害 | ❌ 不需要 | ❌ 不需要 | AddTag 守卫 + DoDamage |
-| 1008 刀光波 | ✅ 1个（GE_SlashWaveDamage，SetByCaller 扣血） | ✅ 2个（C++ GA_SlashWaveCounter + C++ ASlashWaveProjectile 的 BP 子类） | 命中 3 次发射穿透投射物 |
-| 1009 弱点窥破 | ❌ 不需要 | ❌ 不需要（测试版） | 连招末击额外伤害；C++ 版可接入真实暴击系统 |
-| 1010 突刺连击 | ❌ 不需要 | ❌ 不需要 | On Dash + 2 秒窗口 + DoDamage |
-| 1011 毒牙 | ❌ 不需要（测试版固定值）/ ✅ 1个（正式版 2% MaxHP） | ❌ 不需要 | On Crit Hit → 中毒 DoT |
-| 1012 幽风低语 | ❌ 不需要 | ❌ 不需要 | On Periodic 读 MoveSpeed → 动态 Crit_Rate |
+| 符文 | Blueprint GE | GA 说明 |
+|------|-------------|---------|
+| 1001 攻击强化 | ❌ | ❌ 零资产 |
+| 1002 热度提升 | ❌ | ❌ 零资产 |
+| 1003 速度叠加 | ❌ | ❌ 零资产 |
+| 1004 击退 | ❌ | ✅ **C++ GA_Knockback**（AbilityTriggers 已配置，**无需 BP 子类**） |
+| 1007 击退减速 | ❌ | ❌ 零资产（Wait Gameplay Event 联动） |
+| 1005 流血 | ❌ | ✅ **C++ GA_Bleed**（OwnedTagPresent 自动激活，**无需 BP 子类**） |
+| 1006 额外伤害 | ❌ | ❌ 零资产 |
+| 1008 刀光波 | ✅ GE_SlashWaveDamage | ✅ C++ GA_SlashWaveCounter（仍需 **BGA_SlashWaveCounter** 配置 ProjectileClass/SlashDamageEffect） |
+| 1009 弱点窥破 | ❌ | ❌ 零资产（测试版） |
+| 1010 突刺连击 | ❌ | ❌ 零资产 |
+| 1011 毒牙 | ❌/✅ 正式版 | ❌ 零资产（测试版） |
+| 1012 幽风低语 | ❌ | ❌ 零资产 |
+| 1013 震爆 | ❌ | ❌ 零资产（复用 GA_Knockback） |
+| 1014 暗影疾驰 | ❌ | ❌ 零资产 |
+| 1015 痛苦契约 | ❌ | ❌ 零资产 |
+| 1016 致命先机 | ❌ | ❌ 零资产 |
 
-**v5 变化：** 1002 从"需要 Blueprint GE"改为零资产（FA 层 `Has Tag` 条件判断替代 GAS `OngoingTagRequirements`）；新增 1009-1012 四个符文。
+**v6 变化：** GA_Knockback AbilityTriggers 移至 C++ 构造函数（不再需要 BGA_Knockback）；GA_HitReaction / GA_Dead 同步处理；新增 C++ GA_Bleed（替代原 Blueprint GA_Bleed）。
 
 ---
 
@@ -201,49 +221,49 @@
 
 ---
 
-## 符文 4：击退（1004）✅ 需要 C++ GA
+## 符文 4：击退（1004）✅ C++ GA（无需 Blueprint 子类）
 
 **设计：** 命中敌人后，将其沿击退方向位移固定距离（默认 500cm）。  
 **纯位移效果，不含减速。** 若需要击退后减速，搭配符文 1007（击退减速）使用。
 
-**需要创建：** GA_Knockback（C++ 已实现）的 Blueprint 子类 + FA + DA
+**需要创建：** FA + DA（GA 已经是 C++，无需再创建任何 Blueprint）
 
 ---
 
 ### 符文使用说明
 
 > **独立使用：** 仅装备 1004，命中敌人后触发纯位移击退。  
-> **联动使用：** 同时装备 1004 + 1007，击退完成后自动触发减速效果。联动不需要额外配置。
+> **联动使用：** 同时装备 1004 + 1007，击退完成后自动触发减速效果。
 
 **工作流程（联动时）：**
 ```
 FA_Rune_Knockback（1004）
   OnDamageDealt → 向目标发送 GameplayEvent(Action.Knockback)
                         ↓
-              GA_Knockback（C++）在目标上激活
+              GA_Knockback（C++，AbilityTriggers 已内置）在目标上激活
                         ↓
               执行 RootMotionMoveToForce（精确位移 KnockbackDistance cm）
                         ↓
-              向玩家 ASC 广播 Event.Rune.KnockbackApplied（携带目标引用）
+              向玩家 ASC 广播 Action.Rune.KnockbackApplied
                         ↓
 FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300，持续 1 秒
 ```
 
 ---
 
-### 4-1 GA：`BGA_Knockback`（GA_Knockback C++ 子类）
+### 4-1 GA 配置（C++ 默认值，无需编辑器配置）
 
-> Content Browser → Blueprint Class → 父类 `GA_Knockback` → 命名 `BGA_Knockback`
+`GA_Knockback` 构造函数已内置所有配置，**无需创建 Blueprint 子类**：
 
-| 配置字段 | 值 |
-|---|---|
-| Activation Owned Tags | `Buff.Status.Knockback` |
-| Trigger Tag / Source | `Action.Knockback` / `GameplayEvent` |
-| KnockbackDistance | `500.0` |
-| KnockbackDuration | `0.3` |
-| bZeroVelocityOnFinish | `true` |
+| 配置项 | 值（C++ 默认） | 说明 |
+|---|---|---|
+| AbilityTriggers | `Action.Knockback / GameplayEvent` | 由 FA 的 Send Gameplay Event 触发 |
+| ActivationOwnedTags | `Buff.Status.Knockback` | 击退期间挂载 |
+| KnockbackDistance | `500.0` | cm |
+| KnockbackDuration | `0.3` | 秒 |
+| bZeroVelocityOnFinish | `true` | 结束时清零速度 |
 
-**授予方式：** 敌人角色 BP → BeginPlay → `GiveAbility(BGA_Knockback)`
+**授予方式：** 所有角色 → `DA_Base_AbilitySet`（已有）→ 添加 `GA_Knockback`（C++ 类）
 
 ---
 
@@ -256,6 +276,7 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
                 EventTag   = Action.Knockback
                 Target     = LastDamageTarget
                 Instigator = BuffOwner
+            ↓ Out → （继续监听下次命中）
 ```
 
 ### 4-3 DA：`DA_Rune_Knockback`
@@ -313,46 +334,52 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 
 ---
 
-## 符文 5：流血（1005）⚡ 无需 Blueprint GE
+## 符文 5：流血（1005）✅ C++ GA（无需 Blueprint 子类）
 
 **设计：** 命中敌人施加流血状态（10 秒），流血期间移动速度越快扣血越多（每秒扣血 = 速度 / 200）。
 
-**需要创建：** GA_Bleed（Blueprint）+ FA + DA
+**需要创建：** FA + DA（GA 已经是 C++，无需再创建任何 Blueprint）
 
-### 5-1 GA：`GA_Bleed`
+### 5-1 GA 配置（C++ 默认值，无需编辑器配置）
 
-**授予方式：** 敌人角色 BP → BeginPlay → `GiveAbility(GA_Bleed)`
+`GA_Bleed` 构造函数已内置所有配置，**无需创建 Blueprint 子类**：
 
-| 配置字段 | 值 |
-|---|---|
-| Activation Owned Tags | `Buff.Status.Bleeding` |
+| 配置项 | 值（C++ 内置） | 说明 |
+|---|---|---|
+| AbilityTriggers | `Buff.Event.Bleed / GameplayEvent` | FA 的 Send Gameplay Event 激活，EventMagnitude = 每秒伤害 |
+| BleedTickInterval | `0.5s` | 每 Tick 扣血间隔 |
+| DefaultDamagePerSecond | `5.0` | FA 未传入 Magnitude 时的 fallback |
+| 扣血公式 | `DamagePerSecond × 0.5` / Tick | DPS 由 FA 的 Send Gameplay Event.Magnitude 决定 |
 
-**ActivateAbility 蓝图逻辑（检测 Tag 消失退出循环）：**
-```
-ActivateAbility
-  → Loop:
-      WaitGameplayTag: Remove → Buff.Status.Bleeding（Tag 消失时退出）
-      WaitDelay: 0.2s
-      → GetOwnerVelocity().Size() → Speed
-      → DamagePerTick = Speed / 200.0 × 0.2
-      → if DamagePerTick > 0.01: ApplyDamage(OwnerActor, DamagePerTick)
-  ← Loop 结束
-  → EndAbility
-```
+**授予方式：** 通过 `Apply Attribute Modifier` 节点的 `Granted Abilities` 动态授予，**无需预先添加到角色 GASTemplate**。
 
-> 每 0.2 秒检测，等价于"每秒 Speed/200 点伤害"，帧率无关。
+> **受击动画屏蔽（v6 已处理）：** 流血 Tick 使用 `ApplyModToAttributeUnsafe` 直接扣血。  
+> `YogCharacterBase::HealthChanged` 已加入 `Buff.Status.Bleeding` 检测，流血期间自动跳过 `Action.HitReact`。
 
 ### 5-2 FA：`FA_Rune_Bleed`
 
 ```
-[Start] ──→ [On Damage Dealt] ──→ [Grant Tag (Timed)]
-                                      Tag      = Buff.Status.Bleeding
-                                      Duration = 10.0
-                                      Target   = LastDamageTarget
-                                      ↓ Out → （继续监听，刷新流血计时）
+[Start] ──→ [On Damage Dealt]
+                ↓
+            [Apply Attribute Modifier]
+                Attribute       = BaseAttributeSet.Health
+                ModOp           = Additive
+                Value           = 0                    ← 仅用于 GrantedAbilities / GrantedTagsToASC
+                DurationType    = HasDuration
+                Duration        = 10.0
+                GrantedTagsToASC = Buff.Status.Bleeding
+                GrantedAbilities = GA_Bleed
+                Target          = LastDamageTarget
+                ↓ Out
+            [Send Gameplay Event]
+                EventTag   = Buff.Event.Bleed
+                Target     = LastDamageTarget
+                Instigator = BuffOwner
+                Magnitude  = 10.0                      ← 每秒伤害，可连接数据引脚
+                ↓ Out → （继续监听，刷新流血计时）
 ```
 
-**生命周期：** 命中 → 授予 Bleeding 10s → GA_Bleed 激活 → 再次命中刷新计时 → 10s 未命中 Tag 到期 → GA_Bleed 退出
+**生命周期：** 命中 → 授予 Bleeding Tag + GA_Bleed → 发送 Bleed Event → GA_Bleed 激活读取 DPS → 每 0.5s 扣血 → 再次命中刷新 10s 计时 → Tag 到期 → GA_Bleed 自动退出
 
 ### 5-3 DA：`DA_Rune_Bleed`
 
@@ -365,7 +392,8 @@ ActivateAbility
 ### 5-4 测试要点
 
 - 命中后目标 ASC 出现 `Buff.Status.Bleeding` Tag
-- 移动中目标持续掉血（移速越高越快）；静止不扣血
+- 每 0.5 秒扣 5 血（默认 DPS=10，Tick=0.5）；GAS Debugger 可见 Health 下降
+- 流血期间不触发受击动画（已屏蔽）
 - 10 秒未命中：Tag 消失，GA_Bleed 停止
 - 连续命中：计时器刷新
 
@@ -429,7 +457,12 @@ ActivateAbility
 
 ---
 
-### 8-2 GA：`BGA_SlashWaveCounter`（GA_SlashWaveCounter C++ 子类）
+### 8-2 GA：`BGA_SlashWaveCounter`（仍需 Blueprint 子类）
+
+> **为什么这个 GA 还需要 Blueprint？**  
+> `ProjectileClass` 和 `SlashDamageEffect` 引用的是 Blueprint 资产（BP_SlashWaveProjectile / GE_SlashWaveDamage），  
+> 这两个引用无法在 C++ 代码中直接写死，需要通过 Blueprint 子类在编辑器里指定。  
+> 其余 GA（Knockback / Bleed 等）因为不依赖 Blueprint 资产，已完全移至 C++。
 
 > Content Browser → Blueprint Class → 父类 `GA_SlashWaveCounter` → 命名 `BGA_SlashWaveCounter`
 
@@ -443,7 +476,7 @@ ActivateAbility
 | SlashDamageEffect | `GE_SlashWaveDamage` |
 | SpawnOffset | `80.0` |
 
-**授予方式：** 玩家角色 BP → BeginPlay → `GiveAbility(BGA_SlashWaveCounter)`
+**授予方式：** 玩家 → `CharacterData → GASTemplate.AbilityMap` → 添加 `BGA_SlashWaveCounter`
 
 ---
 
@@ -801,6 +834,241 @@ ActivateAbility
 
 ---
 
+## 符文 13：震爆（1013）⚡ 零资产 · 复用 GA_Knockback
+
+**设计：** 触发暴击时，对目标造成击退。效果与符文 1004 相同，但触发条件从"命中"变为"暴击"。
+
+**需要创建：** FA + DA（DA_Rune_Shockwave / FA_Rune_Shockwave 已在 Content 目录中存在，直接配置即可）
+
+### 13-1 FA：`FA_Rune_Shockwave`
+
+```
+[Start] ──→ [On Crit Hit]
+                ↓ OnCrit
+            [Send Gameplay Event]
+                EventTag   = Action.Knockback
+                Target     = LastDamageTarget
+                Instigator = BuffOwner
+            ↓ Out → （继续监听下次暴击）
+```
+
+**前提：** `GA_Knockback` 已在所有角色的 `DA_Base_AbilitySet` 中授予（随 1004 击退符文配置）。
+
+### 13-2 DA：`DA_Rune_Shockwave`
+
+| 字段 | 值 |
+|---|---|
+| RuneConfig.RuneID | `1013` |
+| Buff.Rune.Type | `Buff.Rune.Type.Attack` |
+| Buff.Rune.Rarity | `Buff.Rune.Rarity.Rare` |
+| Flow.FlowAsset | `FA_Rune_Shockwave` |
+
+### 13-3 测试要点
+
+- 普通攻击命中：无击退
+- 暴击命中：敌人被位移约 500cm（与 1004 相同距离）
+- 击退期间 GAS Debugger：目标 ASC 有 `Buff.Status.Knockback` Tag
+- 可与 1007 击退减速联动（击退完成后目标减速）
+
+---
+
+## 符文 14：暗影疾驰（1014）⚡ 零资产
+
+**设计：** 冲刺可以储存次数，最多储存 2 个，充能时间增加 25%。
+
+**实现原理：** 修改 `PlayerAttributeSet.MaxDashCharge`（+1）和 `PlayerAttributeSet.DashCooldownDuration`（×1.25）两个属性，`SkillChargeComponent` 运行时读取这两个属性控制冲刺行为。
+
+**需要创建：** FA + DA
+
+### 14-1 FA：`FA_Rune_ShadowDash`
+
+```
+[Start]
+  ↓
+[Apply Attribute Modifier]          ← 最大储存格 +1
+    Attribute    = PlayerAttributeSet.MaxDashCharge
+    ModOp        = Additive
+    Value        = 1.0
+    DurationType = Infinite
+    Target       = BuffOwner
+  ↓ Out
+[Apply Attribute Modifier]          ← 充能时间 ×1.25（慢 25%）
+    Attribute    = PlayerAttributeSet.DashCooldownDuration
+    ModOp        = Multiplicative
+    Value        = 1.25
+    DurationType = Infinite
+    Target       = BuffOwner
+```
+
+**Cleanup：** FA 停止时两个修改器自动移除，MaxDashCharge 和 DashCooldownDuration 恢复原值。
+
+### 14-2 DA：`DA_Rune_ShadowDash`
+
+| 字段 | 值 |
+|---|---|
+| RuneConfig.RuneID | `1014` |
+| Buff.Rune.Type | `Buff.Rune.Type.Utility` |
+| Buff.Rune.Rarity | `Buff.Rune.Rarity.Rare` |
+| Flow.FlowAsset | `FA_Rune_ShadowDash` |
+
+### 14-3 测试要点
+
+- 未装备：1 格冲刺，冲刺后等待原始 CD 回满
+- 装备后：GAS Debugger → MaxDashCharge = 2，DashCooldownDuration = 原值 × 1.25
+- 两次冲刺均可立即使用（有格数）；第一格回复比原来慢 25%
+- 拖出激活区：MaxDashCharge 恢复 1，CD 恢复原值
+
+---
+
+## 符文 15：痛苦契约（1015）⚡ 零资产
+
+**设计：** 每损失 1% 最大生命值，提升 0.25% 攻击速度（连续线性缩放，非离散阶梯）。HP 损失 100% 时最多 +25% 攻击速度。
+
+**数值逻辑：** `AttackSpeedBonus = ((MaxHP - HP) / MaxHP) × 0.25`。  
+任意血量变化（受伤或回血）都更新修改器（Unique 策略：同一符文只保留最新的修改器值）。
+
+**C++ 依赖：** `BFNode_OnHealthChanged`（v8 新增）——监听 HP 属性变化委托，覆盖受伤和回血场景。
+
+**需要创建：** FA + DA
+
+### 15-1 FA：`FA_Rune_AgonyPact`
+
+```
+[Start] ──→ [On Health Changed]      ← 新节点：监听 BuffOwner 的 HP 属性变化
+                ↓ OnHealthChanged
+            [Get Attribute]
+                Attribute = BaseAttributeSet.MaxHealth
+                Target    = BuffOwner
+                ↓ CachedValue（MaxHP）───────────────────────┐
+            [Math Float]                                     │
+                A        ← MaxHP                            │
+                Operator  = Subtract                         │
+                B        ← OnHealthChanged.NewHP（数据引脚）  │
+                ↓ Result（lostHP）                           │
+            [Math Float]                                     │
+                A        ← lostHP（Result）                  │
+                Operator  = Divide                           │
+                B        ← MaxHP ─────────────────────────┘
+                ↓ Result（lostPct，范围 0~1）
+            [Math Float]
+                A        ← lostPct（Result）
+                Operator  = Multiply
+                B         = 0.25                            ← 固定系数：1% HP → +0.25% 攻速
+                ↓ Result（scaledBonus）
+            [Apply Attribute Modifier]
+                Attribute    = BaseAttributeSet.AttackSpeed
+                ModOp        = Additive
+                Value       ← scaledBonus（数据引脚连线）
+                DurationType = Infinite
+                UniqueType   = BySource                    ← 每次更新替换旧值，不叠加
+                Target       = BuffOwner
+            ↓ Out → （继续监听下次血量变化）
+```
+
+**数据引脚连线说明：**
+1. `OnHealthChanged.NewHP` → `MathFloat(减法).B`（当前 HP 值）
+2. `GetAttribute(MaxHealth).CachedValue` → `MathFloat(减法).A` 和 `MathFloat(除法).B`
+3. `MathFloat(减法).Result` → `MathFloat(除法).A`
+4. `MathFloat(除法).Result` → `MathFloat(乘0.25).A`
+5. `MathFloat(乘0.25).Result` → `ApplyAttributeModifier.Value`
+
+**Cleanup：** FA 停止时 Infinite 修改器自动移除，AttackSpeed 恢复原值。
+
+### 15-2 DA：`DA_Rune_AgonyPact`
+
+| 字段 | 值 |
+|---|---|
+| RuneConfig.RuneID | `1015` |
+| Buff.Rune.Type | `Buff.Rune.Type.Attack` |
+| Buff.Rune.Rarity | `Buff.Rune.Rarity.Epic` |
+| Flow.FlowAsset | `FA_Rune_AgonyPact` |
+
+### 15-3 测试要点
+
+- 满血时：AttackSpeed 无加成（lostPct = 0）
+- 受伤后（损失 50% HP）：AttackSpeed +0.5
+- 再次受伤（总损失 80%）：AttackSpeed 更新为 +0.8（旧修改器被替换，不叠加）
+- 回血（如有）：**注意：** 当前版本只在受伤时更新，回血不会触发重新计算（测试版接受此限制）
+- 拖出激活区：AttackSpeed 修改器移除
+
+---
+
+## 符文 16：致命先机（1016）⚡ 零资产
+
+**设计：** 对生命值全满的敌人造成双倍伤害（在命中瞬间判断目标是否处于满血状态，若是则施加等量额外伤害）。
+
+**实现原理：** `OnDamageDealt` 触发后，用 `(CurrentHP + DamageDealt) >= MaxHP` 判断目标击中前是否满血。若满血，追加等量真实伤害。  
+**C++ 依赖：** BFNode_OnDamageDealt 的 `Last Damage Amount` 数据输出引脚（v7 新增）。
+
+**需要创建：** FA + DA
+
+### 16-1 FA：`FA_Rune_DeadlyStrike`
+
+```
+[Start] ──→ [On Damage Dealt]
+                ↓ OnDamage
+                │ LastDamageAmount ──────────────────────────┐
+            [Get Attribute]                                  │
+                Attribute = BaseAttributeSet.Health          │
+                Target    = LastDamageTarget                 │
+                ↓ CachedValue（CurrentHP，已扣血后）         │
+            [Get Attribute]                                  │
+                Attribute = BaseAttributeSet.MaxHealth       │
+                Target    = LastDamageTarget                 │
+                ↓ CachedValue（MaxHP）──────────────────┐   │
+            [Math Float]                                │   │
+                A        ← CurrentHP                   │   │
+                Operator  = Add                         │   │
+                B        ← LastDamageAmount ────────────┼───┘
+                ↓ Result（HP命中前的估算值）             │
+            [Compare Float]                             │
+                A        ← Result                       │
+                Operator  = >=                          │
+                B        ← MaxHP ──────────────────────┘
+                ↓ True（目标命中前满血）  ↓ False → 跳过
+            [Has Tag]
+                Tag    = Buff.Status.ExtraDamageApplied
+                Target = BuffOwner
+                ↓ No
+            [Add Tag]
+                Tag = Buff.Status.ExtraDamageApplied
+                ↓
+            [Do Damage]
+                TargetSelector   = LastDamageTarget
+                FlatDamage       = 0
+                DamageMultiplier = 1.0                   ← 追加 100% 原始伤害，合计 200%
+                ↓
+            [Remove Tag]
+                Tag = Buff.Status.ExtraDamageApplied
+            ↓ Out → （继续监听下次命中）
+```
+
+**数据引脚连线说明：**
+1. `OnDamageDealt.LastDamageAmount` → `MathFloat(加法).B`
+2. `GetAttribute(Health).CachedValue` → `MathFloat(加法).A`
+3. `MathFloat(加法).Result` → `CompareFloat.A`
+4. `GetAttribute(MaxHealth).CachedValue` → `CompareFloat.B`
+
+**递归守卫：** `ExtraDamageApplied` 确保 `Do Damage` 不再触发第二次 `On Damage Dealt` 的双倍逻辑。
+
+### 16-2 DA：`DA_Rune_DeadlyStrike`
+
+| 字段 | 值 |
+|---|---|
+| RuneConfig.RuneID | `1016` |
+| Buff.Rune.Type | `Buff.Rune.Type.Attack` |
+| Buff.Rune.Rarity | `Buff.Rune.Rarity.Epic` |
+| Flow.FlowAsset | `FA_Rune_DeadlyStrike` |
+
+### 16-3 测试要点
+
+- 命中满血敌人：目标受到双倍总伤害（原伤 + 等量追加）
+- 命中已受伤敌人：正常伤害，无追加
+- 递归验证：追加伤害不再触发第二次双倍（守卫生效）
+- GAS Debugger：追加伤害走 `Buff.Status.ExtraDamageApplied` 守卫
+
+---
+
 ## 资产目录结构
 
 ```
@@ -845,9 +1113,21 @@ Content/Game/Runes/
 │   ├── DA_Rune_VenomFang
 │   ├── FA_Rune_VenomFang
 │   └── GE_Poison                           ← 正式版才需要
-└── WraithwindWhisper/
-    ├── DA_Rune_WraithwindWhisper
-    └── FA_Rune_WraithwindWhisper
+├── WraithwindWhisper/
+│   ├── DA_Rune_WraithwindWhisper
+│   └── FA_Rune_WraithwindWhisper
+├── Shockwave/
+│   ├── DA_Rune_Shockwave
+│   └── FA_Rune_Shockwave
+├── ShadowDash/
+│   ├── DA_Rune_ShadowDash
+│   └── FA_Rune_ShadowDash
+├── AgonyPact/
+│   ├── DA_Rune_AgonyPact
+│   └── FA_Rune_AgonyPact
+└── DeadlyStrike/
+    ├── DA_Rune_DeadlyStrike
+    └── FA_Rune_DeadlyStrike
 ```
 
 ---
@@ -868,6 +1148,10 @@ Content/Game/Runes/
 | 1010 突刺连击 | ✓ | ✓ | — | — | — | 全零资产 |
 | 1011 毒牙 | ✓ | ✓ | — / ✓ GE_Poison | — | — | 测试版零资产；正式版需 GE |
 | 1012 幽风低语 | ✓ | ✓ | — | — | — | 全零资产；与 1003 天然联动 |
+| 1013 震爆 | ✓ | ✓ | — | ✓ GA_Knockback（复用） | **需 GA_Knockback 已授予** | 暴击触发击退；FA 改用 On Crit Hit |
+| 1014 暗影疾驰 | ✓ | ✓ | — | — | — | 修改 PlayerAttributeSet 两个属性；全零资产 |
+| 1015 痛苦契约 | ✓ | ✓ | — | — | — | 动态 AttackSpeed 加成；BySource 策略替换旧值 |
+| 1016 致命先机 | ✓ | ✓ | — | — | — | 需 OnDamageDealt.LastDamageAmount 数据引脚（v7 新增） |
 
 ---
 

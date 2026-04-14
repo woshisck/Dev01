@@ -169,7 +169,17 @@ public:
 	FKilledTargetDelegate OnKilledTarget;
 
 	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage);
-	
+
+	/**
+	 * 玩家伤害日志（纯调试，无 UMG）。
+	 * 屏幕上滚动显示最近 30 条，同时写入 Output Log。
+	 * @param Target     受害目标
+	 * @param Damage     最终伤害量
+	 * @param DamageType 伤害分类标签，如 Attack / Attack_Crit / Bleed / Rune
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DamageLog")
+	void LogDamageDealt(AActor* Target, float Damage, FName DamageType);
+
 
 	UFUNCTION(BlueprintCallable)
 	void AddActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToBlock);

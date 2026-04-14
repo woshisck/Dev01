@@ -87,7 +87,7 @@ private:
 	/** 修改/恢复 Capsule 对 Enemy 和 DashThrough 通道的碰撞响应。*/
 	void SetDashCollision(ACharacter* Character, ECollisionResponse Response) const;
 
-	/** 每 0.5s 打印冲刺充能/CD 调试信息到屏幕 */
+	/** 每 0.1s 打印冲刺充能/CD 调试信息到屏幕 */
 	void PrintDashDebugInfo();
 
 	FTimerHandle DebugPrintTimer;

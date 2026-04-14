@@ -23,7 +23,7 @@ void USkillChargeComponent::RegisterSkill(FGameplayTag SkillTag, FGameplayAttrib
 	// 初始充能 = 上限（满格开始）
 	State.CurrentCharge = GetMaxChargeValue(State);
 
-	// 监听 MaxCharge 变化：符文离区时 GE 撤销导致 Max 下降，需要钳制 Current
+	// 监听 MaxCharge 变化：符文入区 Max 上升时补充格数，符文离区 Max 下降时钳制
 	ASC->GetGameplayAttributeValueChangeDelegate(MaxChargeAttr)
 		.AddLambda([this, SkillTag](const FOnAttributeChangeData& Data)
 		{
@@ -31,8 +31,17 @@ void USkillChargeComponent::RegisterSkill(FGameplayTag SkillTag, FGameplayAttrib
 			if (!StatePtr) return;
 
 			const int32 NewMax = FMath::Max(1, FMath::RoundToInt(Data.NewValue));
-			if (StatePtr->CurrentCharge > NewMax)
+			const int32 OldMax = FMath::Max(1, FMath::RoundToInt(Data.OldValue));
+
+			if (NewMax > OldMax)
 			{
+				// 最大值增加（符文赋予新充能格）→ 立即补充对应格数
+				StatePtr->CurrentCharge = FMath::Min(StatePtr->CurrentCharge + (NewMax - OldMax), NewMax);
+				OnChargeChanged.Broadcast(SkillTag, StatePtr->CurrentCharge);
+			}
+			else if (StatePtr->CurrentCharge > NewMax)
+			{
+				// 最大值减少（符文移除）→ 钳制 Current 不超过新上限
 				StatePtr->CurrentCharge = NewMax;
 				OnChargeChanged.Broadcast(SkillTag, StatePtr->CurrentCharge);
 			}

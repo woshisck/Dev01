@@ -119,6 +119,15 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 		SourceASC->OnCritHit.Broadcast(TargetASC, FinalDamage);
 	}
 
+	// ── 伤害日志（仅玩家来源）────────────────────────────────────────────
+	AActor* SourceActor = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
+	APawn* SourcePawn = Cast<APawn>(SourceActor);
+	if (SourceASC && SourcePawn && SourcePawn->IsPlayerControlled())
+	{
+		const FName DmgType = bIsCrit ? FName("Attack_Crit") : FName("Attack");
+		SourceASC->LogDamageDealt(TargetASC ? TargetASC->GetAvatarActor() : nullptr, FinalDamage, DmgType);
+	}
+
 
 	//const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
 	//const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
