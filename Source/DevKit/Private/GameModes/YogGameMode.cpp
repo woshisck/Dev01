@@ -1234,8 +1234,15 @@ void AYogGameMode::GenerateLootOptions()
 	{
 		SourcePool = &ActiveRoomData->LootPool;
 	}
+	// 兜底：初始关卡或无 ActiveRoomData 时，使用 GameMode 上配置的 FallbackLootPool
+	if (!SourcePool && !FallbackLootPool.IsEmpty())
+	{
+		SourcePool = &FallbackLootPool;
+	}
+
 	if (!SourcePool)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("GenerateLootOptions: 无可用符文池，请在 GameMode BP 配置 FallbackLootPool"));
 		OnLootGenerated.Broadcast(CurrentLootOptions);
 		return;
 	}

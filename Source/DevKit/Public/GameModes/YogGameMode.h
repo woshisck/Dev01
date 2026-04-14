@@ -175,6 +175,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void GenerateLootOptions();
 
+	/**
+	 * 兜底符文池：当 ActiveRoomData 为空时（如初始关卡/独立测试关卡）使用
+	 * 在 GameMode BP 的 Details 面板中填入 DA_Rune_* 资产即可
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow")
+	TArray<TObjectPtr<URuneDataAsset>> FallbackLootPool;
+
 	// =========================================================
 	// 新刷怪系统（难度分预算波次）
 	// =========================================================

@@ -158,6 +158,26 @@ UBackpackGridComponent* APlayerCharacterBase::GetBackpackGridComponent()
 
 void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 {
+	// 优先自动寻位放入背包格子（左上角开始，逐行扫描）
+	if (BackpackGridComponent)
+	{
+		for (int32 Row = 0; Row < BackpackGridComponent->GridHeight; Row++)
+		{
+			for (int32 Col = 0; Col < BackpackGridComponent->GridWidth; Col++)
+			{
+				if (BackpackGridComponent->TryPlaceRune(Rune, FIntPoint(Col, Row)))
+				{
+					UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 自动放置到 (%d,%d)"),
+						*Rune.RuneConfig.RuneName.ToString(), Col, Row);
+					return;
+				}
+			}
+		}
+	}
+
+	// 背包已满，进入待放置列表（玩家可在背包UI手动放置）
+	UE_LOG(LogTemp, Warning, TEXT("AddRuneToInventory: 背包已满，%s 进入待放置列表"),
+		*Rune.RuneConfig.RuneName.ToString());
 	PendingRunes.Add(Rune);
 }
 

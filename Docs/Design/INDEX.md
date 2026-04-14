@@ -45,6 +45,7 @@
 
 | 文档 | 内容 | 适用人群 |
 |---|---|---|
+| [背包系统蓝图制作指南](FeatureConfig/BackpackSystem_Guide.md) | WBP_BackpackScreen 制作步骤、FallbackLootPool 配置、Tab 键绑定、场景拾取物放置 | 策划 + 程序 |
 | [攻击伤害配置指南](FeatureConfig/AttackDamage_ConfigGuide.md) | 配置 EffectContainerMap 使攻击造成伤害，含多段连击示例 | 策划 |
 | [行为树攻击任务配置](FeatureConfig/BT_AttackTask_ConfigGuide.md) | `BTTask_ActivateAbilityByTag` 用法、随机攻击、距离判断 | 策划 |
 | [敌人连击蒙太奇配置](FeatureConfig/EnemyCombo_ConfigGuide.md) | 多段连击蒙太奇结构 + AN_EnemyComboSection 配置 | 策划 |
@@ -64,6 +65,7 @@
 | [游戏主循环设计](Systems/MainLoop_Design.md) | 核心循环流程、房间类型、奖励系统、章节结构、局外成长 | 策划 + 程序 |
 | [攻击伤害系统 — 设计说明](Systems/AttackDamage_Design.md) | 攻击判定流程、伤害容器设计原理、与其他系统关系 | 策划 |
 | [攻击伤害系统 — 技术文档](Systems/AttackDamage_Technical.md) | 架构图、核心函数、CDO 问题、改造方案（移 GA / C++ TargetType） | 程序 |
+| [背包与符文激活系统 — 技术文档](Systems/BackpackSystem_Technical.md) | 架构图、数据结构、三选一拾取流程、热度激活流程、C++ 接口说明 | 程序 |
 | [热度系统设计](Systems/HeatSystem_Design.md) | 热度阶段机制、衰减规则、符文联动 | 策划 + 程序 |
 | [充能系统指南](Systems/SkillCharge_Guide.md) | SkillChargeComponent 配置和使用 | 策划 + 程序 |
 | [关卡系统配置指南](Systems/LevelSystem_ConfigGuide.md) | DA_Room / DA_Campaign 配置（敌人池 / 难度 / MobSpawner 白名单 / 传送门）| 策划 |
@@ -99,6 +101,7 @@
 | [刷怪系统 — 敌人 Buff 与预算扩展 2026-04-13](WorkReports/SpawnSystem_EnemyBuff_WorkReport_20260413.md) | FBuffEntry / 敌人专属 Buff 池 / MaxEnemiesPerWave / 主城房间 / 奖励配置移至难度档位 |
 | [近战HitBox修复 + 冲刺越障重构 2026-04-13](WorkReports/MeleeAndDash_WorkReport_20260413.md) | Annulus InnerR补偿 / 冲刺步进越障算法 / WorldDynamic+Pawn通道 / 波次卡死修复 |
 | [当前进展 2026-04-13](WorkReports/CurrentProgress_20260413.md) | 项目阶段概述、已完成 / 未完成功能速览（最新）|
+| [背包与符文激活系统 2026-04-14](WorkReports/BackpackSystem_WorkReport_20260414.md) | BackpackScreenWidget / 符文移动 / 自动入格 / FallbackLootPool |
 
 ---
 
@@ -130,6 +133,7 @@
 - 配置状态冲突规则 → [状态冲突规则表](StateConflict/StateConflict_TagBlock.md)
 - 设计新符文 → [BuffFlow 符文工作流](BuffFlow/BuffFlow_RuneWorkflow.md)
 - 配置传送门（含 NeverOpen 和按 E 拾取）→ [传送门配置指南](FeatureConfig/Portal_ConfigGuide.md)
+- 制作背包 UI / 配置三选一符文池 → [背包系统蓝图制作指南](FeatureConfig/BackpackSystem_Guide.md)
 - 配置关卡 Buff → [关卡 Buff 池配置指南](FeatureConfig/BuffPool_ConfigGuide.md)
 
 **程序：我想……**
@@ -138,4 +142,5 @@
 - 了解 Tag 架构 → [GameplayTag 总体设计指南](Tags/GameplayTag_MasterGuide.md)
 - 了解 StateConflict 实现 → [状态冲突系统技术文档](StateConflict/StateConflict_Technical.md)
 - 接入 BuffFlow → [BuffFlow 程序接入指南](BuffFlow/BuffFlow_ProgrammerGuide.md)
+- 了解背包系统架构和接口 → [背包与符文激活系统技术文档](Systems/BackpackSystem_Technical.md)
 - 写新文档 → [文档编写规则](DocWritingGuide.md)
