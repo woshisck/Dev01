@@ -42,9 +42,11 @@ struct DEVKIT_API FPlacedRune
 
 DECLARE_MULTICAST_DELEGATE(FBGCPhaseEvent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRunePlaced, const FRuneInstance&, Rune);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRuneRemoved, FGuid, RuneGuid);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRuneActivationChanged, FGuid, RuneGuid, bool, bActivated);
+
+/** UI 热度条专用：归一化热度（0-1）+ 当前阶段（0-3） */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHeatBarUpdate, float, NormalizedHeat, int32, NewPhase);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class DEVKIT_API UBackpackGridComponent : public UActorComponent
@@ -85,6 +87,10 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category = "Backpack|Events")
     FOnRuneActivationChanged OnRuneActivationChanged;
+
+    /** 热度条 UI 专用：热度值变化或阶段变化时广播 */
+    UPROPERTY(BlueprintAssignable, Category = "Backpack|Events")
+    FOnHeatBarUpdate OnHeatBarUpdate;
 
     // C++专用委托（非动态，FA 的 BFNode 绑定用）
     FBGCPhaseEvent OnPhaseUpReady;    // 热度达到上限 + LastHit → 满足升阶条件
@@ -251,4 +257,7 @@ private:
 
     // 坐标合法性检查
     bool IsCellValid(FIntPoint Cell) const;
+
+    // 向 UI 广播当前归一化热度 + 阶段（在 Heat/Phase 变化后调用）
+    void BroadcastHeatUI(float KnownHeatValue);
 };
