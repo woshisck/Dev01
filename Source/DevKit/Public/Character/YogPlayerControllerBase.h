@@ -64,6 +64,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_Interact;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_OpenBackpack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<class UBackpackScreenWidget> BackpackWidgetClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<class ULootSelectionWidget> LootSelectionWidgetClass;
 
 	UFUNCTION(BlueprintCallable)
 	void OnInteractTriggered(const AItemSpawner* item);
@@ -95,19 +103,34 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	void SetPlayerState(EYogCharacterState newState);
 
+	void ToggleBackpack(const FInputActionValue& Value);
+
+	/**
+	 * 当任何 UI（背包/三选一）打开时调用 true，关闭时调用 false
+	 * 蓝图可通过 "Get Owning Player → Cast → SetBlockGameInput" 调用
+	 */
+	/**
+	 * bBlock=true 时屏蔽游戏输入并切换输入模式
+	 * bUIOnly=true  → UIOnly 模式（三选一：LMB 不被攻击消耗，按钮可点击）
+	 * bUIOnly=false → GameAndUI 模式（背包：Tab 键仍可关闭）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void SetBlockGameInput(bool bBlock, bool bUIOnly = false);
+
 private:
-	// Enhanced input handle to move forward
+	/** UI 打开期间为 true，屏蔽移动/攻击/冲刺输入 */
+	bool bBlockGameInput = false;
+
+	UPROPERTY()
+	TObjectPtr<class ULootSelectionWidget> LootSelectionWidget;
+
 	uint32 MoveInputHandle = INDEX_NONE;
-
-	// Enhanced input handle to move forward
 	uint32 LightAttackInputHandle = INDEX_NONE;
-
-	// Enhanced input handle to move forward
 	uint32 HeavyAttackInputHandle = INDEX_NONE;
-
-	// Enhanced input handle to move forward
 	uint32 DashInputHandle = INDEX_NONE;
-
-	// Enhanced input handle to move forward
 	uint32 InteractInputHandle = INDEX_NONE;
+	uint32 OpenBackpackInputHandle = INDEX_NONE;
+
+	UPROPERTY()
+	TObjectPtr<class UBackpackScreenWidget> BackpackWidget;
 };

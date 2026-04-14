@@ -34,7 +34,7 @@ enum class EBackpackCellState : uint8
 //  6. 实现 OnSelectionChanged：根据 SelectedRuneIndex/SelectedCell 高亮
 // ============================================================
 
-UCLASS()
+UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UBackpackScreenWidget : public UUserWidget
 {
     GENERATED_BODY()

@@ -14,9 +14,21 @@ UBackpackGridComponent* UBackpackScreenWidget::GetBackpack() const
         return CachedBackpack.Get();
     }
     APawn* Pawn = GetOwningPlayerPawn();
-    if (!Pawn) return nullptr;
-
-    return Pawn->FindComponentByClass<UBackpackGridComponent>();
+    if (!Pawn)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[BackpackUI] GetBackpack: Pawn is null"));
+        return nullptr;
+    }
+    UBackpackGridComponent* Found = Pawn->FindComponentByClass<UBackpackGridComponent>();
+    if (!Found)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[BackpackUI] GetBackpack: BackpackGridComponent NOT found on %s"), *Pawn->GetName());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("[BackpackUI] GetBackpack: OK, placed runes = %d"), Found->GetAllPlacedRunes().Num());
+    }
+    return Found;
 }
 
 // ============================================================
@@ -39,9 +51,6 @@ void UBackpackScreenWidget::NativeConstruct()
         Backpack->OnRuneRemoved.AddDynamic(this, &UBackpackScreenWidget::HandleRuneRemoved);
         Backpack->OnRuneActivationChanged.AddDynamic(this, &UBackpackScreenWidget::HandleRuneActivationChanged);
     }
-
-    // 首次刷新
-    OnGridNeedsRefresh();
 }
 
 void UBackpackScreenWidget::NativeDestruct()

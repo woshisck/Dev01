@@ -4,6 +4,9 @@
 #include "Character/YogPlayerControllerBase.h"
 #include <AbilitySystemGlobals.h>
 #include "Character/YogCharacterBase.h"
+#include "UI/BackpackScreenWidget.h"
+#include "UI/LootSelectionWidget.h"
+#include "Blueprint/UserWidget.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/YogCameraPawn.h"
@@ -92,10 +95,31 @@ void AYogPlayerControllerBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
 		Subsystem->AddMappingContext(DefaultMappingContext, 0);
+	}
+
+	// 创建三选一 UI（在 GameMode 广播前必须存在，NativeConstruct 里完成事件绑定）
+	if (LootSelectionWidgetClass && IsLocalController())
+	{
+		LootSelectionWidget = CreateWidget<ULootSelectionWidget>(this, LootSelectionWidgetClass);
+		if (LootSelectionWidget)
+		{
+			LootSelectionWidget->AddToViewport();
+			LootSelectionWidget->SetVisibility(ESlateVisibility::Hidden);
+		}
+	}
+
+	// 创建背包 UI
+	if (BackpackWidgetClass && IsLocalController())
+	{
+		BackpackWidget = CreateWidget<UBackpackScreenWidget>(this, BackpackWidgetClass);
+		if (BackpackWidget)
+		{
+			BackpackWidget->AddToViewport();
+			BackpackWidget->SetVisibility(ESlateVisibility::Hidden);
+		}
 	}
 
 
@@ -138,6 +162,11 @@ void AYogPlayerControllerBase::SetupInputComponent()
 			const FEnhancedInputActionEventBinding& interactBinding = EnhancedInputComp->BindAction(Input_Interact, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::Interact);
 			InteractInputHandle = interactBinding.GetHandle();
 		}
+		if (Input_OpenBackpack)
+		{
+			const FEnhancedInputActionEventBinding& backpackBinding = EnhancedInputComp->BindAction(Input_OpenBackpack, ETriggerEvent::Started, this, &AYogPlayerControllerBase::ToggleBackpack);
+			OpenBackpackInputHandle = backpackBinding.GetHandle();
+		}
 
 	}
 
@@ -160,8 +189,37 @@ void AYogPlayerControllerBase::OnInteractTriggered(const AItemSpawner* item)
 // Controller Input
 //--------------------------------------------
 
+void AYogPlayerControllerBase::SetBlockGameInput(bool bBlock, bool bUIOnly)
+{
+	bBlockGameInput = bBlock;
+	if (bBlock)
+	{
+		SetShowMouseCursor(true);
+		if (bUIOnly)
+		{
+			// 三选一：UIOnly 模式，LMB 完全给 Slate，不会被攻击 Enhanced Input 消耗
+			FInputModeUIOnly InputMode;
+			SetInputMode(InputMode);
+		}
+		else
+		{
+			// 背包：GameAndUI 模式，Tab 键仍可触发 Enhanced Input 关闭背包
+			FInputModeGameAndUI InputMode;
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			SetInputMode(InputMode);
+		}
+	}
+	else
+	{
+		FInputModeGameOnly InputMode;
+		SetInputMode(InputMode);
+		SetShowMouseCursor(false);
+	}
+}
+
 void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 {
+	if (bBlockGameInput) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		FGameplayTagContainer TagContainer;
@@ -175,6 +233,7 @@ void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 }
 void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 {
+	if (bBlockGameInput) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		FGameplayTagContainer TagContainer;
@@ -189,6 +248,7 @@ void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 
 void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 {
+	if (bBlockGameInput) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		// 冲刺前先将角色朝向对齐最后一次移动输入方向
@@ -215,6 +275,7 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 
 void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 {
+	if (bBlockGameInput) return;
 	// Get the movement vector (2D: X = forward/back, Y = right/left)
 	FVector2D Input = Value.Get<FVector2D>();
 	FVector2D Rotated = Input.GetRotated(-45.0f);
@@ -289,6 +350,24 @@ void AYogPlayerControllerBase::Interact(const FInputActionValue& Value)
 }
 
 
+
+void AYogPlayerControllerBase::ToggleBackpack(const FInputActionValue& Value)
+{
+	if (!BackpackWidget) return;
+
+	const bool bVisible = BackpackWidget->GetVisibility() == ESlateVisibility::Visible;
+	if (bVisible)
+	{
+		SetBlockGameInput(false);              // 恢复游戏输入 + 隐藏鼠标 + GameOnly
+		BackpackWidget->SetVisibility(ESlateVisibility::Hidden);
+	}
+	else
+	{
+		SetBlockGameInput(true);               // 屏蔽输入 + 显示鼠标 + GameAndUI
+		BackpackWidget->SetVisibility(ESlateVisibility::Visible);
+		BackpackWidget->OnGridNeedsRefresh();  // 打开时强制刷新格子颜色
+	}
+}
 
 void AYogPlayerControllerBase::ToggleInput(bool bEnable)
 {

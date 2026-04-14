@@ -434,6 +434,8 @@ TArray<FIntPoint> UBackpackGridComponent::GetActivationZoneCells() const
 
 int32 UBackpackGridComponent::GetRuneIndexAtCell(FIntPoint Cell) const
 {
+	if (GridOccupancy.IsEmpty())
+		return -1;
 	if (!IsCellValid(Cell))
 		return -1;
 	return GridOccupancy[CellToIndex(Cell)];

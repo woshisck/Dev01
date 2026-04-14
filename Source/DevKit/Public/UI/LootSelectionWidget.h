@@ -50,6 +50,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Loot")
 	void SelectRuneLoot(int32 Index);
 
+	// A/D键盘导航：Delta=-1(左) +1(右)，蓝图实现高亮逻辑
+	UFUNCTION(BlueprintImplementableEvent, Category = "Loot")
+	void OnNavigateSelection(int32 Delta);
+
 	// "确认整理" 按钮：锁背包并加载下一关
 	UFUNCTION(BlueprintCallable, Category = "Loot")
 	void ConfirmAndTransition();
