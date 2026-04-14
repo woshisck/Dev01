@@ -279,10 +279,10 @@ void UGA_PlayerDash::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, con
 {
 	Super::OnAvatarSet(ActorInfo, Spec);
 
-	// 每 0.5s 打印冲刺充能/CD 调试信息
+	// 每 0.1s 打印冲刺充能/CD 调试信息
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(DebugPrintTimer, this, &UGA_PlayerDash::PrintDashDebugInfo, 0.5f, true);
+		World->GetTimerManager().SetTimer(DebugPrintTimer, this, &UGA_PlayerDash::PrintDashDebugInfo, 0.1f, true);
 	}
 }
 
@@ -312,6 +312,6 @@ void UGA_PlayerDash::PrintDashDebugInfo()
 
 	if (GEngine)
 	{
-		GEngine->AddOnScreenDebugMessage(200, 0.6f, FColor::Cyan, Msg);
+		GEngine->AddOnScreenDebugMessage(200, 0.15f, FColor::Cyan, Msg);
 	}
 }

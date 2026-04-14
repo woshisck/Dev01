@@ -148,6 +148,9 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 								if (HasMatchingGameplayTag(BlockTag)) { bStillBlocked = true; break; }
 							}
 						}
+						UE_LOG(LogTemp, Warning, TEXT("[Block.AI] Tag=%s Exists=0 | bStillBlocked=%d → %s"),
+							*Tag.ToString(), (int32)bStillBlocked,
+							bStillBlocked ? TEXT("SKIP ResumeLogic") : TEXT("ResumeLogic"));
 						if (!bStillBlocked)
 							Brain->ResumeLogic(Tag.ToString());
 					}
@@ -526,4 +529,29 @@ void UYogAbilitySystemComponent::RemoveRuneModifiers(FActiveGameplayEffectHandle
 	{
 		RemoveActiveGameplayEffect(Handle);
 	}
+}
+
+void UYogAbilitySystemComponent::LogDamageDealt(AActor* Target, float Damage, FName DamageType)
+{
+	// 屏幕滚动槽：3000-3029（30 条），每条显示 4 秒，按时间滚动
+	static int32 RollingSlot = 0;
+	const int32 MsgKey = 3000 + (RollingSlot++ % 30);
+
+	const FString SourceName = GetNameSafe(GetAvatarActor());
+	const FString TargetName = GetNameSafe(Target);
+
+	// 不同伤害类型用不同颜色区分
+	FColor MsgColor = FColor::Orange;
+	if (DamageType == FName("Bleed"))         MsgColor = FColor::Red;
+	else if (DamageType == FName("Attack_Crit")) MsgColor = FColor::Yellow;
+	else if (DamageType.ToString().StartsWith("Rune")) MsgColor = FColor::Purple;
+
+	const FString Msg = FString::Printf(TEXT("[DmgLog] %.1f  [%s]  → %s"),
+		Damage, *DamageType.ToString(), *TargetName);
+
+	if (GEngine)
+		GEngine->AddOnScreenDebugMessage(MsgKey, 4.f, MsgColor, Msg);
+
+	UE_LOG(LogTemp, Log, TEXT("[DmgLog] %s → %s | %.1f | %s"),
+		*SourceName, *TargetName, Damage, *DamageType.ToString());
 }

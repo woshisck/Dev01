@@ -47,6 +47,7 @@ void UBFNode_OnDamageDealt::HandleDamageDealt(UYogAbilitySystemComponent* Target
 	}
 
 	CachedDamage = Damage;
+	LastDamageOutput.Value = Damage;
 
 	// 填充事件上下文：自己是攻击者，TargetASC 是被击者
 	if (UBuffFlowComponent* BFC = GetBuffFlowComponent())
@@ -54,6 +55,11 @@ void UBFNode_OnDamageDealt::HandleDamageDealt(UYogAbilitySystemComponent* Target
 		BFC->LastEventContext.DamageCauser   = BFC->GetBuffOwner();
 		BFC->LastEventContext.DamageReceiver = TargetASC ? TargetASC->GetAvatarActor() : nullptr;
 		BFC->LastEventContext.DamageAmount   = Damage;
+
+		UE_LOG(LogTemp, Warning, TEXT("[OnDamageDealt] Attacker=%s | Target=%s | Damage=%.1f"),
+			*GetNameSafe(BFC->GetBuffOwner()),
+			*GetNameSafe(BFC->LastEventContext.DamageReceiver.Get()),
+			Damage);
 	}
 
 	// Trigger output but do NOT finish - keep listening

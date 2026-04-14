@@ -15,6 +15,12 @@ UGA_Dead::UGA_Dead(const FObjectInitializer& ObjectInitializer)
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.Dead")));
     ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+
+    // 监听 Action.Dead 事件自动激活（YogCharacterBase::Die() 在血量归零时发送此 Tag）
+    FAbilityTriggerData TriggerData;
+    TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Action.Dead"));
+    TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+    AbilityTriggers.Add(TriggerData);
 }
 
 void UGA_Dead::ActivateAbility(

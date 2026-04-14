@@ -502,6 +502,19 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 
 	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] ActivateRune: %s"), *Placed.Rune.RuneConfig.RuneName.ToString());
 
+	// Shape 空检查：没有 Cells 时符文仍可激活，但无法参与背包格子系统
+	if (Placed.Rune.Shape.Cells.IsEmpty())
+	{
+		const FString DAName = GetNameSafe(Placed.Rune.SourceDA);
+		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] WARN: Rune '%s' (DA: %s) has no shape cells configured! Rune activates but occupies no grid cells."),
+			*Placed.Rune.RuneConfig.RuneName.ToString(), *DAName);
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Yellow,
+				FString::Printf(TEXT("[Rune] Shape is NULL: %s"), *DAName));
+		}
+	}
+
 	if (Placed.Rune.Flow.FlowAsset)
 	{
 		// FA 路径：启动 BuffFlow，由 FA 节点负责施加 GE/GA

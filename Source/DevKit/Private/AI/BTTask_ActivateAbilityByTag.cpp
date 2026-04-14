@@ -34,7 +34,26 @@ EBTNodeResult::Type UBTTask_ActivateAbilityByTag::ExecuteTask(UBehaviorTreeCompo
 		return EBTNodeResult::Failed;
 	}
 
-	// 保存 ASC 引用，注册 GA 结束回调
+	// 检查 GA 是否已同步结束（如无蒙太奇时会在 ActivateAbility 内直接 EndAbility）
+	// 若此时没有匹配 Tag 的 Spec 仍处于 Active 状态，说明 GA 已立即结束，直接返回 Succeeded。
+	// 否则注册 OnAbilityEnded 回调，等待异步结束（BT Task 保持 InProgress）。
+	bool bStillActive = false;
+	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	{
+		if (Spec.IsActive() && Spec.Ability && Spec.Ability->AbilityTags.HasAny(AbilityTags))
+		{
+			bStillActive = true;
+			break;
+		}
+	}
+
+	if (!bStillActive)
+	{
+		// GA 在激活期间已同步结束，无需等待回调
+		return EBTNodeResult::Succeeded;
+	}
+
+	// GA 仍在运行，注册结束回调等待完成
 	auto* Memory = CastInstanceNodeMemory<FActivateAbilityMemory>(NodeMemory);
 	Memory->ASC = ASC;
 

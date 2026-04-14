@@ -4,6 +4,7 @@
 #include "AttributeSet.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
+#include "Abilities/GameplayAbility.h"
 #include "Types/FlowDataPinProperties.h"
 #include "BuffFlow/Nodes/BFNode_Base.h"
 #include "BuffFlow/BuffFlowTypes.h"
@@ -109,6 +110,25 @@ class DEVKIT_API UBFNode_ApplyAttributeModifier : public UBFNode_Base
         meta = (DisplayName = "Pass Through Owner Tags"))
     FGameplayTagContainer PassThroughOwnerTags;
 
+    /**
+     * GE 生效期间授予目标 ASC 的 Tag（等价于 GE 编辑器里的 Granted Tags）。
+     * GE 到期 / 被移除时，GAS 自动从 ASC 撤销这些 Tag。
+     * 典型用途：授予 Buff.Status.Bleeding，供 GA_Bleed 的 OwnedTagPresent 触发器使用。
+     */
+    UPROPERTY(EditAnywhere, Category = "BuffFlow|Granted",
+        meta = (DisplayName = "Granted Tags To ASC"))
+    FGameplayTagContainer GrantedTagsToASC;
+
+    /**
+     * GE 生效期间动态授予目标 ASC 的 GA（等价于 GE 编辑器里的 Granted Abilities）。
+     * GE 到期 / 被移除时，GAS 自动从 ASC 撤销这些 GA。
+     * 无需预授予到角色蓝图，由 GE 生命周期完全管理。
+     * 典型用途：授予 GA_Bleed，让其在流血 GE 存活期间运行。
+     */
+    UPROPERTY(EditAnywhere, Category = "BuffFlow|Granted",
+        meta = (DisplayName = "Granted Abilities"))
+    TArray<TSubclassOf<UGameplayAbility>> GrantedAbilities;
+
     // ── 堆叠控制 ──
 
     /**
@@ -158,7 +178,7 @@ class DEVKIT_API UBFNode_ApplyAttributeModifier : public UBFNode_Base
 protected:
     virtual void ExecuteInput(const FName& PinName) override;
 
-    /** FA 停止时自动调用，移除非瞬发 GE */
+    /** FA 停止时自动调用，移除非瞬发 GE，取消过期计时器 */
     virtual void Cleanup() override;
 
 private:
@@ -168,4 +188,18 @@ private:
     /** 缓存同一个 GE 对象供复用——GAS 堆叠规则依赖相同的 Def 指针 */
     UPROPERTY()
     TObjectPtr<UGameplayEffect> CachedGE;
+
+    /**
+     * HasDuration 时用于触发 Expired 引脚的计时器。
+     * 每次 In 引脚触发（包括堆叠刷新）都重置倒计时，与 GAS GE 的真实剩余时间保持同步。
+     * FA 提前停止时 Cleanup() 清除此计时器，Expired 不会错误触发。
+     */
+    FTimerHandle ExpiryTimer;
+
+    /**
+     * 手动授予给目标 ASC 的 GA handles（随 GE 生命周期管理）。
+     * UE5.4 不支持对动态 NewObject GE 使用 GE.GrantedAbilities，改为手动 GiveAbility。
+     * ExpiryTimer 到期或 Cleanup() 时调用 ClearAbility 撤销。
+     */
+    TArray<FGameplayAbilitySpecHandle> GrantedAbilityHandles;
 };

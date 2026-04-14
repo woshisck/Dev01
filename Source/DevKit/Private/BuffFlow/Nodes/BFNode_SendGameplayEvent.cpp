@@ -1,5 +1,6 @@
 #include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
 #include "AbilitySystemComponent.h"
+#include "Types/FlowDataPinResults.h"
 
 UBFNode_SendGameplayEvent::UBFNode_SendGameplayEvent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -43,10 +44,20 @@ void UBFNode_SendGameplayEvent::ExecuteInput(const FName& PinName)
 		*TargetActor->GetName(),
 		InstigatorActor ? *InstigatorActor->GetName() : TEXT("NULL"));
 
+	// Magnitude：优先读取连入的数据引脚，无连线则使用节点上的固定值
+	float ResolvedMagnitude = Magnitude.Value;
+	FFlowDataPinResult_Float PinResult = TryResolveDataPinAsFloat(
+		GET_MEMBER_NAME_CHECKED(UBFNode_SendGameplayEvent, Magnitude));
+	if (PinResult.Result == EFlowDataPinResolveResult::Success)
+	{
+		ResolvedMagnitude = PinResult.Value;
+	}
+
 	FGameplayEventData EventData;
-	EventData.EventTag   = EventTag;
-	EventData.Instigator = InstigatorActor;
-	EventData.Target     = TargetActor;
+	EventData.EventTag        = EventTag;
+	EventData.Instigator      = InstigatorActor;
+	EventData.Target          = TargetActor;
+	EventData.EventMagnitude  = ResolvedMagnitude;
 
 	// 直接调用已找到的 ASC，避免 SendGameplayEventToActor 内部再次通过
 	// IAbilitySystemInterface 查找 ASC（若目标未实现该接口会悄悄返回 0）
