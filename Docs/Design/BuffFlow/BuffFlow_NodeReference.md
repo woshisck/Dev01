@@ -1,6 +1,6 @@
 # BuffFlow 节点速查表
 
-> 版本：Sprint 4.14（2026-04-14）
+> 版本：Sprint 4.14b（2026-04-14）
 > 上级文档：[BuffFlow_DesignGuide.md](BuffFlow_DesignGuide.md)
 
 ---
@@ -9,8 +9,9 @@
 
 | FA 显示名 | 触发时机 | 核心配置 | 常见用途 |
 |---|---|---|---|
-| **On Damage Dealt** | 造成伤害时 | `Once Per Swing`：同帧多目标只算一次 | 命中叠加、命中流血 |
+| **On Damage Dealt** | 造成伤害时 | `Once Per Swing`：同帧多目标只算一次；`LastDamageAmount`：数据输出，本次伤害量（Float） | 命中叠加、命中流血、满血双倍判断 |
 | **On Damage Received** | 受到伤害时 | — | 受伤暂停热度、受伤防盾 |
+| **On Health Changed** | 任意 HP 变化时（含受伤、回血） | `NewHP`：数据输出，变化后的血量（Float） | 基于血量的动态属性修改（如痛苦契约攻速） |
 | **On Crit Hit** | 触发暴击时 | — | 暴击专属增益 |
 | **On Kill** | 击杀目标时 | — | 击杀回血、击杀叠加 |
 | **On Dash** | 闪避/冲刺时 | — | 闪避加速、无敌帧特效 |
@@ -174,3 +175,5 @@
 | L | 动态数值 | **Get Attribute**.CachedValue →（数据线）→ **Apply Attribute Modifier**.Value |
 | M | 跨符文通信 | 符文A：**On Damage Dealt** → **Send Gameplay Event**（Target=BuffOwner）；符文B：**Wait Gameplay Event**（Target=BuffOwner）→ 效果 |
 | N | 一次性蒙太奇命中效果 | **Start** → **Send Gameplay Event**（Target=BuffGiver）→ **Finish** |
+| O | 基于血量的动态修改器 | **On Health Changed**.NewHP →（数据线）→ **Math Float**（算损失百分比）→ **Apply Attribute Modifier**（Infinite, Unique） |
+| P | 击中前满血判断 | **On Damage Dealt**.LastDamageAmount + **Get Attribute**(HP) → **Math Float**(Add) → **Compare Float** >= MaxHP → True → 追加效果 |
