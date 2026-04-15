@@ -1,4 +1,5 @@
 ﻿#include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "UI/CombatLogStatics.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Abilities/PassiveAbility.h"
@@ -320,16 +321,81 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		SourceASC->DealtDamage.Broadcast(this, Damage);
 	}
 
-	// 自动触发受击 GA（GA_GetHit 通过 Trigger: GameplayEvent 监听此 Tag）
-	// HitReactEventTag 在角色蓝图 CDO 上配置，留空则跳过
-	if (HitReactEventTag.IsValid() && IsValid(GetAvatarActor()))
+	if (!HitReactEventTag.IsValid() || !IsValid(GetAvatarActor()))
+		return;
+
+	// =========================================================
+	// 韧性（Poise）比较：决定是否触发受击动画
+	// 攻击方有效韧性 = Resilience属性 + 动作韧性（由 GA 在命中前设置）
+	// =========================================================
+	float AttackerPoise = 0.f;
+	if (SourceASC)
 	{
-		FGameplayEventData EventData;
-		EventData.Instigator = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
-		EventData.EventMagnitude = Damage;
-		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
-			GetAvatarActor(), HitReactEventTag, EventData);
+		AttackerPoise = SourceASC->GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute())
+		              + SourceASC->CurrentActionPoiseBonus;
+		SourceASC->CurrentActionPoiseBonus = 0.f; // 读取后立即清零，避免跨帧残留
 	}
+
+	const float DefenderPoise = GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
+	const bool  bSuperArmor   = HasMatchingGameplayTag(
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
+
+	UE_LOG(LogTemp, Log, TEXT("[Poise] Attacker=%.0f Defender=%.0f SuperArmor=%d"),
+		AttackerPoise, DefenderPoise, (int32)bSuperArmor);
+
+	// 攻击方韧性 <= 防御方韧性，或防御方处于霸体：不触发受击
+	if (AttackerPoise <= DefenderPoise || bSuperArmor)
+		return;
+
+	// =========================================================
+	// 触发受击事件（Action.HitReact.Front / .Back 等子级）
+	// =========================================================
+	FGameplayEventData EventData;
+	EventData.Instigator     = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
+	EventData.EventMagnitude = Damage;
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+		GetAvatarActor(), HitReactEventTag, EventData);
+
+	// =========================================================
+	// 霸体计数（仅非玩家）：连续触发 SuperArmorThreshold 次受击 → 进入霸体
+	// =========================================================
+	APawn* DefenderPawn = Cast<APawn>(GetAvatarActor());
+	if (DefenderPawn && !DefenderPawn->IsPlayerControlled())
+	{
+		PoiseHitCount++;
+
+		UE_LOG(LogTemp, Log, TEXT("[Poise] PoiseHitCount=%d/%d on %s"),
+			PoiseHitCount, SuperArmorThreshold, *GetNameSafe(GetAvatarActor()));
+
+		// 5s 无受击后重置计数
+		if (UWorld* W = GetWorld())
+			W->GetTimerManager().SetTimer(
+				PoiseResetTimer, this, &UYogAbilitySystemComponent::OnPoiseResetTimerEnd, 5.f, false);
+
+		if (PoiseHitCount >= SuperArmorThreshold)
+		{
+			PoiseHitCount = 0;
+			AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
+			UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor ACTIVATED on %s (%.1fs)"),
+				*GetNameSafe(GetAvatarActor()), SuperArmorDuration);
+
+			if (UWorld* W = GetWorld())
+				W->GetTimerManager().SetTimer(
+					SuperArmorTimer, this, &UYogAbilitySystemComponent::OnSuperArmorTimerEnd, SuperArmorDuration, false);
+		}
+	}
+}
+
+void UYogAbilitySystemComponent::OnPoiseResetTimerEnd()
+{
+	PoiseHitCount = 0;
+	UE_LOG(LogTemp, Log, TEXT("[Poise] PoiseHitCount reset on %s"), *GetNameSafe(GetAvatarActor()));
+}
+
+void UYogAbilitySystemComponent::OnSuperArmorTimerEnd()
+{
+	RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
+	UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor EXPIRED on %s"), *GetNameSafe(GetAvatarActor()));
 }
 
 void UYogAbilitySystemComponent::AddActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToBlock)

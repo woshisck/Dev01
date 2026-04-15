@@ -65,6 +65,31 @@ void ULootSelectionWidget::SelectRuneLoot(int32 Index)
 	}
 }
 
+FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey Key = InKeyEvent.GetKey();
+
+	if (Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Left)
+	{
+		CurrentHighlightIndex = FMath::Max(0, CurrentHighlightIndex - 1);
+		OnNavigateSelection(-1);
+		return FReply::Handled();
+	}
+	if (Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Right)
+	{
+		CurrentHighlightIndex = FMath::Min(2, CurrentHighlightIndex + 1);
+		OnNavigateSelection(1);
+		return FReply::Handled();
+	}
+	if (Key == EKeys::Gamepad_FaceButton_Bottom || Key == EKeys::Enter)
+	{
+		SelectRuneLoot(CurrentHighlightIndex);
+		return FReply::Handled();
+	}
+
+	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
 void ULootSelectionWidget::ConfirmAndTransition()
 {
 	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld())))

@@ -95,6 +95,9 @@ private:
 	/** ActivateAbility 时记录起始位置，EndAbility 时用于绘制真实冲刺距离线 */
 	FVector DashDebugStartLocation;
 
+	/** ActivateAbility 时记录 AnimScale，EndAbility 时用于 Z 下沉诊断 */
+	float DashAnimScale = 1.f;
+
 	UFUNCTION()
 	void OnMontageCompleted(FGameplayTag EventTag, FGameplayEventData EventData);
 
