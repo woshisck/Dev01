@@ -218,6 +218,10 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 	if (const UAN_MeleeDamage* FiredNotify = Cast<const UAN_MeleeDamage>(EventData.OptionalObject))
 	{
 		LastFiredDamageNotify = FiredNotify;
+
+		// 动作韧性：命中窗口期间攻击方韧性临时提升，ReceiveDamage 读取后自动清零
+		if (UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo()))
+			SourceASC->CurrentActionPoiseBonus = FiredNotify->ActResilience;
 	}
 
 	// 拆分为两步以复用 ContainerSpec（目标数据 + 附加 Effect 需要同一批目标）
