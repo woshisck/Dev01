@@ -167,6 +167,15 @@ private:
 	// 防止 OnTagUpdated 递归（BlockAbilitiesWithTags 内部也会触发 tag 变化）
 	bool bProcessingConflict = false;
 
+	// ── 韧性系统内部状态 ──────────────────────────────────────────────
+	/** 连续触发受击次数（5s 无受击后归零，达到 SuperArmorThreshold 时触发霸体） */
+	int32 PoiseHitCount = 0;
+	FTimerHandle PoiseResetTimer;
+	FTimerHandle SuperArmorTimer;
+
+	void OnPoiseResetTimerEnd();
+	void OnSuperArmorTimerEnd();
+
 public:
 	//////////////////////////////////Gameplay Tag//////////////////////////////////
 	UFUNCTION(BlueprintCallable)
@@ -195,6 +204,27 @@ public:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitReact")
 	FGameplayTag HitReactEventTag;
+
+	// ── 韧性（Poise）系统 ─────────────────────────────────────────────
+	/**
+	 * 动作韧性：GA_MeleeAttack 在命中 Notify 触发前设置（= AN_MeleeDamage.ActResilience），
+	 * ReceiveDamage 读取后立即清零。无需手动维护，GA 自动管理。
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "Poise")
+	float CurrentActionPoiseBonus = 0.f;
+
+	/**
+	 * 连续触发受击多少次后进入霸体（仅对非玩家生效）。
+	 * 默认 3 次。
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Poise")
+	int32 SuperArmorThreshold = 3;
+
+	/**
+	 * 霸体持续时间（秒）。
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Poise")
+	float SuperArmorDuration = 2.f;
 
 	UPROPERTY(BlueprintAssignable, Category = "DamageTaken")
 	FReceivedDamageDelegate ReceivedDamage;

@@ -105,6 +105,7 @@ void UGA_PlayerDash::ActivateAbility(
 	const FVector DashEnd    = StartLocation + DashDirection * DashMaxDistance;
 	const float EffectiveDist = GetFurthestValidDashDistance(StartLocation, DashEnd);
 	const float AnimScale     = EffectiveDist / FMath::Max(DashMontageRootMotionLength, 1.f);
+	DashAnimScale = AnimScale; // 记录供 EndAbility Z 下沉诊断
 
 	// ── 5. 修改碰撞：穿敌人 + 穿可穿越几何（全程无刚体阻挡，由根运动驱动）───
 	SetDashCollision(Character, ECR_Overlap);
@@ -163,6 +164,48 @@ void UGA_PlayerDash::EndAbility(
 				FString::Printf(TEXT("[Dash] 总位移: %.0f UU (≈%.1f m) | 配置最大: %.0f UU"),
 					TotalDist, TotalDist * 0.01f, DashMaxDistance));
 		}
+
+		// ── Z 下沉诊断 ──────────────────────────────────────────────────────
+		const float ZDelta = EndLocation.Z - DashDebugStartLocation.Z;
+		UE_LOG(LogTemp, Warning, TEXT("[Dash] Z移位=%.1f cm | AnimScale=%.3f | StartZ=%.1f → EndZ=%.1f"),
+			ZDelta, DashAnimScale, DashDebugStartLocation.Z, EndLocation.Z);
+		if (GEngine)
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, ZDelta < -10.f ? FColor::Red : FColor::White,
+				FString::Printf(TEXT("[Dash] Z移位: %.1fcm  Scale=%.2f"), ZDelta, DashAnimScale));
+
+		// ── 地板吸附修正：若 Z 明显下沉（>10cm）强制归位 ──────────────────
+		if (ZDelta < -10.f)
+		{
+			const FVector CheckStart = EndLocation + FVector(0.f, 0.f, 200.f);
+			const FVector CheckEnd   = EndLocation - FVector(0.f, 0.f, 500.f);
+			FCollisionQueryParams SnapParams(SCENE_QUERY_STAT(DashFloorCorrect), false);
+			SnapParams.AddIgnoredActor(Character);
+			const FCollisionShape SnapSphere = FCollisionShape::MakeSphere(25.f);
+
+			FHitResult FloorHit;
+			bool bFoundFloor = GetWorld()->SweepSingleByChannel(
+				FloorHit, CheckStart, CheckEnd, FQuat::Identity, ECC_WorldStatic, SnapSphere, SnapParams);
+			if (!bFoundFloor)
+				bFoundFloor = GetWorld()->SweepSingleByChannel(
+					FloorHit, CheckStart, CheckEnd, FQuat::Identity, ECC_WorldDynamic, SnapSphere, SnapParams);
+
+			if (bFoundFloor)
+			{
+				const float HalfHeight = Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+				const FVector Corrected = FVector(EndLocation.X, EndLocation.Y, FloorHit.ImpactPoint.Z + HalfHeight);
+				Character->SetActorLocation(Corrected, false, nullptr, ETeleportType::TeleportPhysics);
+				UE_LOG(LogTemp, Warning, TEXT("[Dash] FloorCorrect: Z %.1f → %.1f (地板 ImpactZ=%.1f)"),
+					EndLocation.Z, Corrected.Z, FloorHit.ImpactPoint.Z);
+				if (GEngine)
+					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow,
+						FString::Printf(TEXT("[Dash] 已修正地板 Z: %.1f → %.1f"), EndLocation.Z, Corrected.Z));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[Dash] FloorCorrect: Z下沉但未找到地板，跳过修正"));
+			}
+		}
+
 		DashDebugStartLocation = FVector::ZeroVector;
 	}
 

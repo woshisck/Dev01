@@ -69,6 +69,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "CombatLog")
 	static void ClearEntries();
 
+	/**
+	 * 返回过滤后的完整日志文字（一次性拿到，直接 SetText）
+	 * 格式：[MM:SS] Source → Target  [动作]  25×1.2×1.0 ★CRIT = 30.0
+	 */
+	UFUNCTION(BlueprintPure, Category = "CombatLog")
+	static FString GetFormattedLog(ECombatLogFilter Filter = ECombatLogFilter::All);
+
+	/** 返回会话统计汇总文字（直接 SetText） */
+	UFUNCTION(BlueprintPure, Category = "CombatLog")
+	static FString GetFormattedSummary();
+
+	/** 格式化单条记录为显示文字（供 Blueprint 逐条创建行时使用） */
+	UFUNCTION(BlueprintPure, Category = "CombatLog")
+	static FString GetEntryText(const FDamageBreakdown& Entry);
+
+	/** 返回单条记录的颜色（普通=白，暴击=黄，符文=紫，流血=红） */
+	UFUNCTION(BlueprintPure, Category = "CombatLog")
+	static FLinearColor GetEntryColor(const FDamageBreakdown& Entry);
+
+	/** 判断单条记录是否通过过滤器 */
+	UFUNCTION(BlueprintPure, Category = "CombatLog")
+	static bool PassesFilter(const FDamageBreakdown& Entry, ECombatLogFilter Filter);
+
 	/** 单次会话最多保留的记录数（超出后移除最旧的） */
 	static constexpr int32 MaxEntries = 500;
 

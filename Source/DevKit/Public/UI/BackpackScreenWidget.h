@@ -12,6 +12,7 @@ class UImage;
 class UTextBlock;
 class URichTextBlock;
 class UDragDropOperation;
+class URuneTooltipWidget;
 struct FPlacedRune;
 
 // ============================================================
@@ -83,6 +84,29 @@ public:
 
     UPROPERTY(BlueprintReadOnly, Category = "Backpack")
     FIntPoint SelectedCell = FIntPoint(-1, -1);
+
+    // =========================================================
+    // 手柄光标状态（蓝图可读，用于绘制手柄光标高亮）
+    // =========================================================
+
+    /** 当前手柄光标所在格子（Col, Row） */
+    UPROPERTY(BlueprintReadOnly, Category = "Backpack|Gamepad")
+    FIntPoint GamepadCursorCell = FIntPoint(0, 0);
+
+    /** 是否正在持有符文（A 抓取后为 true，A 放置或 B 取消后为 false） */
+    UPROPERTY(BlueprintReadOnly, Category = "Backpack|Gamepad")
+    bool bGrabbingRune = false;
+
+    /** 抓取操作的源格子（bGrabbingRune=true 时有效） */
+    UPROPERTY(BlueprintReadOnly, Category = "Backpack|Gamepad")
+    FIntPoint GrabbedFromCell = FIntPoint(-1, -1);
+
+    // =========================================================
+    // 符文悬浮 Tooltip（蓝图放置 WBP_RuneTooltip 子控件）
+    // =========================================================
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<URuneTooltipWidget> RuneTooltip;
 
     // =========================================================
     // 状态查询
@@ -167,6 +191,10 @@ protected:
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
 
+    // ── 手柄 / 键盘输入 ─────────────────────────────────────────────────
+    virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+    virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+
     // ── 拖拽输入重写 ────────────────────────────────────────────────────
     // BackpackGrid 和格子 Button 均设为 HitTestInvisible，
     // 所有鼠标/拖拽事件由 BackpackScreenWidget 自身接管
@@ -210,6 +238,12 @@ private:
 
     /** 屏幕绝对坐标 → BackpackGrid 格子坐标（失败返回 false） */
     bool GetGridCellAtScreenPos(const FVector2D& AbsolutePos, int32& OutCol, int32& OutRow) const;
+
+    // ── 手柄辅助 ────────────────────────────────────────────────────────
+    void MoveGamepadCursor(int32 DCol, int32 DRow);
+    void GamepadConfirm();
+    void GamepadCancel();
+    void UpdateTooltipForCell(int32 Col, int32 Row, const FVector2D& LocalPos);
 
     UFUNCTION()
     void HandleRunePlaced(const FRuneInstance& Rune);
