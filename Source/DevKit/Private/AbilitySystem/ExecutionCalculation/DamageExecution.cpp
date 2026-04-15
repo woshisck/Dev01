@@ -124,8 +124,44 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	APawn* SourcePawn = Cast<APawn>(SourceActor);
 	if (SourceASC && SourcePawn && SourcePawn->IsPlayerControlled())
 	{
-		const FName DmgType = bIsCrit ? FName("Attack_Crit") : FName("Attack");
-		SourceASC->LogDamageDealt(TargetASC ? TargetASC->GetAvatarActor() : nullptr, FinalDamage, DmgType);
+		// 从 SourceTags 识别当前动作名称（源自 GA 的 AbilityTags 在 GE Spec 快照中）
+		static const struct { const TCHAR* Tag; const TCHAR* Name; } ActionMap[] =
+		{
+			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo1"), TEXT("轻击1") },
+			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo2"), TEXT("轻击2") },
+			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo3"), TEXT("轻击3") },
+			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo4"), TEXT("轻击4") },
+			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1"), TEXT("重击1") },
+			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"), TEXT("重击2") },
+			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3"), TEXT("重击3") },
+			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"), TEXT("重击4") },
+		};
+
+		FName ActionName = FName("Attack");
+		if (SourceTags)
+		{
+			for (const auto& M : ActionMap)
+			{
+				if (SourceTags->HasTag(FGameplayTag::RequestGameplayTag(FName(M.Tag), false)))
+				{
+					ActionName = FName(M.Name);
+					break;
+				}
+			}
+		}
+
+		FDamageBreakdown Breakdown;
+		Breakdown.BaseAttack      = SourceAttack;
+		Breakdown.ActionMultiplier = SourceAttackPower;
+		Breakdown.DmgTakenMult    = TargetDmgTaken;
+		Breakdown.FinalDamage     = FinalDamage;
+		Breakdown.bIsCrit         = bIsCrit;
+		Breakdown.ActionName      = ActionName;
+		Breakdown.DamageType      = bIsCrit ? FName("Attack_Crit") : FName("Attack");
+		Breakdown.TargetName      = GetNameSafe(TargetASC ? TargetASC->GetAvatarActor() : nullptr);
+		Breakdown.SourceName      = GetNameSafe(SourceActor);
+
+		SourceASC->LogDamageDealtDetailed(TargetASC ? TargetASC->GetAvatarActor() : nullptr, Breakdown);
 	}
 
 

@@ -12,6 +12,52 @@
 class UYogAbilitySystemComponent;
 
 
+// =========================================================
+// 伤害明细结构体（DamageBreakdownWidget 使用）
+// =========================================================
+
+/**
+ * 一次伤害命中的完整构成数据。
+ * DamageExecution 填充后通过 OnDamageBreakdown 广播给 Widget。
+ */
+USTRUCT(BlueprintType)
+struct DEVKIT_API FDamageBreakdown
+{
+	GENERATED_BODY()
+
+	/** 来源的 Attack 属性（基础攻击力） */
+	UPROPERTY(BlueprintReadOnly) float BaseAttack = 0.f;
+
+	/** 动作系数（AttackPower，由动作 Notify 的 ActDamage 设置） */
+	UPROPERTY(BlueprintReadOnly) float ActionMultiplier = 1.f;
+
+	/** 目标减伤系数（DmgTaken，>1 表示易伤，<1 表示减伤） */
+	UPROPERTY(BlueprintReadOnly) float DmgTakenMult = 1.f;
+
+	/** 最终伤害（含暴击加成） */
+	UPROPERTY(BlueprintReadOnly) float FinalDamage = 0.f;
+
+	/** 是否暴击 */
+	UPROPERTY(BlueprintReadOnly) bool bIsCrit = false;
+
+	/** 动作名称，如 "轻击1"、"重击2"；流血/符文时为对应名称 */
+	UPROPERTY(BlueprintReadOnly) FName ActionName;
+
+	/** 伤害类型："Attack"、"Attack_Crit"、"Bleed"、"Rune_XXX" */
+	UPROPERTY(BlueprintReadOnly) FName DamageType;
+
+	/** 目标名称（调试用） */
+	UPROPERTY(BlueprintReadOnly) FString TargetName;
+
+	/** 来源Actor名称（调试用） */
+	UPROPERTY(BlueprintReadOnly) FString SourceName;
+
+	/** 伤害发生时的游戏时间（秒），由 Widget 在 HandleDamageEntry 时填入 */
+	UPROPERTY(BlueprintReadOnly) float GameTime = 0.f;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageBreakdown, FDamageBreakdown, Entry);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceivedDamageDelegate, UYogAbilitySystemComponent*, SourceASC, float, Damage);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceiveHitResultDelegate, class UYogAbilitySystemComponent*, SourceASC, bool, HitResult);
@@ -171,14 +217,22 @@ public:
 	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage);
 
 	/**
-	 * 玩家伤害日志（纯调试，无 UMG）。
-	 * 屏幕上滚动显示最近 30 条，同时写入 Output Log。
-	 * @param Target     受害目标
-	 * @param Damage     最终伤害量
-	 * @param DamageType 伤害分类标签，如 Attack / Attack_Crit / Bleed / Rune
+	 * 玩家伤害日志（基础版，向后兼容）。
+	 * 屏幕上滚动显示最近 30 条，同时写入 Output Log，并广播 OnDamageBreakdown。
 	 */
 	UFUNCTION(BlueprintCallable, Category = "DamageLog")
 	void LogDamageDealt(AActor* Target, float Damage, FName DamageType);
+
+	/**
+	 * 玩家伤害日志（详细版，DamageExecution 调用）。
+	 * 携带完整的伤害构成数据，广播给 DamageBreakdownWidget。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DamageLog")
+	void LogDamageDealtDetailed(AActor* Target, const FDamageBreakdown& Breakdown);
+
+	/** 伤害明细事件，DamageBreakdownWidget 订阅此委托刷新显示 */
+	UPROPERTY(BlueprintAssignable, Category = "DamageLog")
+	FOnDamageBreakdown OnDamageBreakdown;
 
 
 	UFUNCTION(BlueprintCallable)

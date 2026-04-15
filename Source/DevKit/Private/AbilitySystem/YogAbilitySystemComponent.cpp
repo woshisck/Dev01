@@ -1,4 +1,5 @@
 ﻿#include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "UI/CombatLogStatics.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Abilities/PassiveAbility.h"
 #include "GameplayEffect.h"
@@ -533,17 +534,16 @@ void UYogAbilitySystemComponent::RemoveRuneModifiers(FActiveGameplayEffectHandle
 
 void UYogAbilitySystemComponent::LogDamageDealt(AActor* Target, float Damage, FName DamageType)
 {
-	// 屏幕滚动槽：3000-3029（30 条），每条显示 4 秒，按时间滚动
+	// 屏幕滚动槽：3000-3029（30 条），每条显示 4 秒
 	static int32 RollingSlot = 0;
 	const int32 MsgKey = 3000 + (RollingSlot++ % 30);
 
 	const FString SourceName = GetNameSafe(GetAvatarActor());
 	const FString TargetName = GetNameSafe(Target);
 
-	// 不同伤害类型用不同颜色区分
 	FColor MsgColor = FColor::Orange;
-	if (DamageType == FName("Bleed"))         MsgColor = FColor::Red;
-	else if (DamageType == FName("Attack_Crit")) MsgColor = FColor::Yellow;
+	if (DamageType == FName("Bleed"))              MsgColor = FColor::Red;
+	else if (DamageType == FName("Attack_Crit"))   MsgColor = FColor::Yellow;
 	else if (DamageType.ToString().StartsWith("Rune")) MsgColor = FColor::Purple;
 
 	const FString Msg = FString::Printf(TEXT("[DmgLog] %.1f  [%s]  → %s"),
@@ -554,4 +554,49 @@ void UYogAbilitySystemComponent::LogDamageDealt(AActor* Target, float Damage, FN
 
 	UE_LOG(LogTemp, Log, TEXT("[DmgLog] %s → %s | %.1f | %s"),
 		*SourceName, *TargetName, Damage, *DamageType.ToString());
+
+	// 向 DamageBreakdownWidget 广播（简化形式，无动作系数分解）
+	FDamageBreakdown Simple;
+	Simple.FinalDamage   = Damage;
+	Simple.DamageType    = DamageType;
+	Simple.bIsCrit       = (DamageType == FName("Attack_Crit"));
+	Simple.ActionName    = DamageType;
+	Simple.TargetName    = TargetName;
+	Simple.SourceName    = GetNameSafe(GetAvatarActor());
+	OnDamageBreakdown.Broadcast(Simple);
+	UCombatLogStatics::PushEntry(Simple);
+}
+
+void UYogAbilitySystemComponent::LogDamageDealtDetailed(AActor* Target, const FDamageBreakdown& Breakdown)
+{
+	// 屏幕滚动槽：3000-3029（30 条），每条显示 4 秒
+	static int32 RollingSlot = 0;
+	const int32 MsgKey = 3000 + (RollingSlot++ % 30);
+
+	FColor MsgColor = FColor::Orange;
+	if (Breakdown.DamageType == FName("Bleed"))              MsgColor = FColor::Red;
+	else if (Breakdown.bIsCrit)                              MsgColor = FColor::Yellow;
+	else if (Breakdown.DamageType.ToString().StartsWith("Rune")) MsgColor = FColor::Purple;
+
+	// 格式：[轻击2]  25 × 0.88 × 1.00 ★CRIT = 44.0  → BP_Enemy_Rat
+	const FString CritStr = Breakdown.bIsCrit ? TEXT(" ★CRIT") : TEXT("");
+	const FString Msg = FString::Printf(
+		TEXT("[%s]  %.0f × %.2f × %.2f%s = %.1f  → %s"),
+		*Breakdown.ActionName.ToString(),
+		Breakdown.BaseAttack,
+		Breakdown.ActionMultiplier,
+		Breakdown.DmgTakenMult,
+		*CritStr,
+		Breakdown.FinalDamage,
+		*Breakdown.TargetName);
+
+	if (GEngine)
+		GEngine->AddOnScreenDebugMessage(MsgKey, 4.f, MsgColor, Msg);
+
+	UE_LOG(LogTemp, Log, TEXT("[DmgLog] %s → %s | %.1f | %s"),
+		*GetNameSafe(GetAvatarActor()), *Breakdown.TargetName, Breakdown.FinalDamage, *Breakdown.DamageType.ToString());
+
+	// 广播给 DamageBreakdownWidget + 静态编辑器桥
+	OnDamageBreakdown.Broadcast(Breakdown);
+	UCombatLogStatics::PushEntry(Breakdown);
 }

@@ -249,10 +249,11 @@ void UGA_PlayerDash::SetDashCollision(ACharacter* Character, ECollisionResponse 
 	UCapsuleComponent* Capsule = Character ? Character->GetCapsuleComponent() : nullptr;
 	if (!Capsule) return;
 
-	Capsule->SetCollisionResponseToChannel(ECC_WorldDynamic,   Response);
-	Capsule->SetCollisionResponseToChannel(ECC_Pawn,           Response);
-	Capsule->SetCollisionResponseToChannel(EnemyChannel,       Response);
-	Capsule->SetCollisionResponseToChannel(DashThroughChannel, Response);
+	// 只改"允许被穿越"的通道；WorldDynamic/WorldStatic 保持不变，防止穿地板/动态关卡几何体。
+	// 如需某物体可被穿越，在该 Mesh 的 Collision Profile 里手动将 DashThrough 设为 Overlap 即可。
+	Capsule->SetCollisionResponseToChannel(ECC_Pawn,           Response); // 穿透其他 Pawn
+	Capsule->SetCollisionResponseToChannel(EnemyChannel,       Response); // 穿透敌人（自定义通道）
+	Capsule->SetCollisionResponseToChannel(DashThroughChannel, Response); // 穿透指定可穿越几何体
 }
 
 void UGA_PlayerDash::OnMontageCompleted(FGameplayTag EventTag, FGameplayEventData EventData)

@@ -1,0 +1,78 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"   // FDamageBreakdown
+#include "CombatLogStatics.generated.h"
+
+// ============================================================
+//  过滤器枚举（DamageBreakdownWidget 和 EUWCombatLog 共用）
+// ============================================================
+
+UENUM(BlueprintType)
+enum class ECombatLogFilter : uint8
+{
+	All    UMETA(DisplayName = "全部"),
+	Normal UMETA(DisplayName = "普通"),
+	Crit   UMETA(DisplayName = "暴击"),
+	Rune   UMETA(DisplayName = "符文"),
+	Bleed  UMETA(DisplayName = "流血"),
+};
+
+/**
+ * 战斗日志静态数据桥
+ *
+ * 使用静态存储，天然穿越 PIE / Editor 世界边界。
+ * YogAbilitySystemComponent 写入，Editor Utility Widget 读取。
+ *
+ * 在编辑器中创建 EUW 步骤：
+ *   1. Content Browser → 右键 → Editor Utilities → Editor Utility Widget
+ *   2. 父类选默认 EditorUtilityWidget 即可
+ *   3. 命名 EUW_CombatLog，放到 Content/UI/Debug/
+ *   4. Designer 里放 ScrollBox + 过滤按钮 + SummaryText（同 WBP_DamageBreakdown）
+ *   5. Graph 里用 EventTick：
+ *        GetVersion != CachedVersion → 刷新显示 → 更新 CachedVersion
+ *   6. 窗口菜单 → Tools → EUW_CombatLog 打开（可停靠）
+ */
+UCLASS()
+class DEVKIT_API UCombatLogStatics : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+
+public:
+	// ── 写入（由 YogAbilitySystemComponent 调用） ─────────────────
+
+	/** 追加一条伤害记录（内部维护最多 MaxEntries 条） */
+	UFUNCTION(BlueprintCallable, Category = "CombatLog")
+	static void PushEntry(const FDamageBreakdown& Entry);
+
+	// ── 读取（由 EUW Tick 调用） ──────────────────────────────────
+
+	/**
+	 * 版本号：每次 PushEntry / ClearEntries 时自增。
+	 * EUW 缓存这个值，只有不同时才重建显示，避免每帧重绘。
+	 */
+	UFUNCTION(BlueprintPure, Category = "CombatLog")
+	static int32 GetVersion();
+
+	/** 返回所有记录（按时间从旧到新） */
+	UFUNCTION(BlueprintPure, Category = "CombatLog")
+	static const TArray<FDamageBreakdown>& GetAllEntries();
+
+	/** 返回记录总数 */
+	UFUNCTION(BlueprintPure, Category = "CombatLog")
+	static int32 GetEntryCount();
+
+	// ── 管理 ──────────────────────────────────────────────────────
+
+	/** 清空所有记录（可绑定到 EUW 的"重置"按钮） */
+	UFUNCTION(BlueprintCallable, Category = "CombatLog")
+	static void ClearEntries();
+
+	/** 单次会话最多保留的记录数（超出后移除最旧的） */
+	static constexpr int32 MaxEntries = 500;
+
+private:
+	static TArray<FDamageBreakdown> Entries;
+	static int32 Version;
+};
