@@ -129,6 +129,12 @@ struct DEVKIT_API FRuneConfig
     /** 数值 ID，供策划表引用 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 RuneID = 0;
+
+    // ── 经济 ─────────────────────────────────────────────────────
+
+    /** 购买价格（金币）。卖出价 = GoldCost / 2，由系统自动计算。0 = 免费 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Economy")
+    int32 GoldCost = 0;
 };
 
 

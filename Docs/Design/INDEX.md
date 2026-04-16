@@ -105,7 +105,9 @@
 | [背包与符文激活系统 2026-04-14](WorkReports/BackpackSystem_WorkReport_20260414.md) | BackpackScreenWidget / 符文移动 / 自动入格 / FallbackLootPool |
 | [符文升级系统 2026-04-14](WorkReports/RuneUpgrade_WorkReport_20260414.md) | 升级决策分析 / Lv.I→II→III 倍率 / NotifyRuneUpgraded / 满级奖励池过滤 |
 | [当前进展 2026-04-14](WorkReports/CurrentProgress_20260414.md) | 项目阶段概述、已完成 / 未完成功能速览 |
-| [相机系统 + 背包UI手柄适配 2026-04-16](WorkReports/CameraAndUI_WorkReport_20260416.md) | AYogCameraPawn 6状态相机 / 手柄背包操作 / 战斗日志 / 蓝图配置任务清单（最新） |
+| [相机系统 + 背包UI手柄适配 2026-04-16](WorkReports/CameraAndUI_WorkReport_20260416.md) | AYogCameraPawn 6状态相机 / 手柄背包操作 / 战斗日志 / 蓝图配置任务清单 |
+| [CommonUI UI重构 + 背包金币系统 2026-04-16](WorkReports/UICommonUI_WorkReport_20260416.md) | BackpackScreenWidget/LootSelectionWidget迁移CommonUI / Gold迁移BackpackGridComponent / BuyRune/SellRune / GoldCost |
+| [开发路线图 2026-04-16](WorkReports/DevRoadmap_20260416.md) | 感知强化→内容扩充→深度构建三阶段计划，含匕首武器、关卡扩充、符文目标（最新） |
 
 ---
 

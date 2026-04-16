@@ -79,6 +79,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<class ULootSelectionWidget> LootSelectionWidgetClass;
 
+	/** 战斗 HUD Widget 类（Details 面板里填入，如 WBP_CombatHUD）
+	 *  有 MenuWidget 激活时自动隐藏，全部关闭后恢复显示 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UUserWidget> CombatHUDClass;
+
 	UFUNCTION(BlueprintCallable)
 	void OnInteractTriggered(const AItemSpawner* item);
 
@@ -125,9 +130,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void SetBlockGameInput(bool bBlock, bool bUIOnly = false);
 
+	// ── Push/Pull 菜单计数 ──────────────────────────────────────────
+	/** 当前有几个菜单层 widget 处于激活状态；归零时显示 CombatHUDWidget */
+	void OnMenuWidgetActivated();
+	void OnMenuWidgetDeactivated();
+
 private:
 	/** UI 打开期间为 true，屏蔽移动/攻击/冲刺输入 */
 	bool bBlockGameInput = false;
+
+	int32 ActiveMenuCount = 0;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> CombatHUDWidget;
 
 	UPROPERTY()
 	TObjectPtr<class ULootSelectionWidget> LootSelectionWidget;

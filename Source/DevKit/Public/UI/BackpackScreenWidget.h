@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "CommonActivatableWidget.h"
 #include "Data/RuneDataAsset.h"
 #include "BackpackScreenWidget.generated.h"
 
@@ -44,7 +44,7 @@ enum class EBackpackCellState : uint8
 // ============================================================
 
 UCLASS(Blueprintable, BlueprintType)
-class DEVKIT_API UBackpackScreenWidget : public UUserWidget
+class DEVKIT_API UBackpackScreenWidget : public UCommonActivatableWidget
 {
     GENERATED_BODY()
 
@@ -229,13 +229,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Backpack")
     void ClearSelection();
 
-    /** 打开背包：显示 Widget + 暂停游戏 + 切换 UI 输入模式 */
-    UFUNCTION(BlueprintCallable, Category = "Backpack")
-    void OpenBackpack();
+    // =========================================================
+    // 出售（SellButton 在 Designer 里放同名 Button，C++ 自动绑定）
+    // =========================================================
 
-    /** 关闭背包：隐藏 Widget + 恢复游戏 + 切换 Game 输入模式 */
-    UFUNCTION(BlueprintCallable, Category = "Backpack")
-    void CloseBackpack();
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UButton> SellButton;
 
     // =========================================================
     // 刷新事件（BlueprintNativeEvent：C++ 提供默认实现）
@@ -262,6 +261,11 @@ public:
 protected:
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
+
+    // ── CommonUI ──────────────────────────────────────────────────────────
+    virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
+    virtual void NativeOnActivated() override;
+    virtual void NativeOnDeactivated() override;
 
     // ── 手柄 / 键盘输入 ─────────────────────────────────────────────────
     virtual void   NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -354,4 +358,7 @@ private:
 
     UFUNCTION()
     void HandleRuneActivationChanged(FGuid RuneGuid, bool bActivated);
+
+    UFUNCTION()
+    void OnSellButtonClicked();
 };

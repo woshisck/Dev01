@@ -48,6 +48,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRuneActivationChanged, FGuid, Ru
 /** UI 热度条专用：归一化热度（0-1）+ 当前阶段（0-3） */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHeatBarUpdate, float, NormalizedHeat, int32, NewPhase);
 
+/** 金币数量变化 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGoldChanged, int32, NewGold);
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class DEVKIT_API UBackpackGridComponent : public UActorComponent
 {
@@ -92,10 +95,49 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Backpack|Events")
     FOnHeatBarUpdate OnHeatBarUpdate;
 
+    /** 金币数量变化时广播（UI 监听此委托刷新显示） */
+    UPROPERTY(BlueprintAssignable, Category = "Economy|Events")
+    FOnGoldChanged OnGoldChanged;
+
     // C++专用委托（非动态，FA 的 BFNode 绑定用）
     FBGCPhaseEvent OnPhaseUpReady;    // 热度达到上限 + LastHit → 满足升阶条件
     FBGCPhaseEvent OnHeatReachedZero; // 热度从 >0 跌落到 0（边沿，Phase>0 时）
     FBGCPhaseEvent OnHeatAboveZero;   // 热度从 0 回升到 >0（边沿）
+
+    // =========================================================
+    // 金币（Economy）
+    // =========================================================
+
+    /** 当前持有金币量（SaveGame 持久化） */
+    UPROPERTY(SaveGame, BlueprintReadOnly, Category = "Economy")
+    int32 Gold = 0;
+
+    /** 增加金币（Amount > 0 时生效），广播 OnGoldChanged */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    void AddGold(int32 Amount);
+
+    /** 扣除金币。金币不足返回 false，不执行扣除 */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool SpendGold(int32 Amount);
+
+    /** 查询金币是否 >= DA.GoldCost（仅判断，不扣除） */
+    UFUNCTION(BlueprintPure, Category = "Economy")
+    bool CanAffordRune(const URuneDataAsset* DA) const;
+
+    /**
+     * 购买符文：验证 Gold >= DA.GoldCost 后扣除金币，返回 true。
+     * 调用方负责将符文加入 PendingRunes（PlayerChar->AddRuneToInventory）。
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool BuyRune(URuneDataAsset* DA);
+
+    /**
+     * 出售已放置的符文：从 PlacedRunes 移除，返还 GoldCost/2 金币。
+     * 内部调用 RemoveRune（触发 BuffFlow 停止 + OnRuneRemoved 广播）。
+     * 找不到符文返回 false。
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool SellRune(FGuid RuneGuid);
 
     // =========================================================
     // 公开接口

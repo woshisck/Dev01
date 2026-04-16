@@ -50,6 +50,32 @@
 
 ---
 
+### [UI-002] CommonUI UI重构 + 背包金币系统
+
+**状态**：C++ 完成，蓝图 WBP_BackpackScreen / WBP_LootSelection 需重建  
+**Commit**：本次提交
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `BackpackScreenWidget.h/.cpp`、`LootSelectionWidget.h/.cpp`、`BackpackGridComponent.h/.cpp`、`YogPlayerControllerBase.h/.cpp` |
+| 基类变更 | BackpackScreenWidget / LootSelectionWidget 均改为 `UCommonActivatableWidget` |
+| UI 开关 | `ActivateWidget()` / `DeactivateWidget()`，Controller 侧 `ActiveMenuCount` 计数 |
+| 战斗HUD管理 | `CombatHUDClass`（BP Details填入）→ 菜单激活时隐藏，全部关闭后恢复 |
+| 输入模式 | 背包：`ECommonInputMode::All`；三选一：`ECommonInputMode::Menu` |
+| 手柄导航 | D-Pad 切换卡片 → `OnCardFocused(Index)` 广播给 BP（蓝图实现隐藏其余两张） |
+| 金币接口 | `BackpackGridComponent::AddGold / SpendGold / CanAffordRune / BuyRune / SellRune` |
+| 金币委托 | `FOnGoldChanged`（Dynamic），UI 监听刷新显示 |
+| GoldCost | `FRuneConfig` 新增 `GoldCost` 字段；卖出价 = GoldCost / 2 |
+| SellButton | `WBP_BackpackScreen` 放置 `Button` 命名 `SellButton`，C++ 自动绑定 → `SellRune` |
+| 设计文档 | [CommonUI重构工作报告](WorkReports/UICommonUI_WorkReport_20260416.md) |
+
+**蓝图待完成**
+- 重建 `WBP_BackpackScreen`（父类 BackpackScreenWidget，加 SellButton）
+- 重建 `WBP_LootSelection`（实现 `OnCardFocused` 事件）
+- `B_YogPlayerControllerBase` Details 填入 `CombatHUDClass`
+
+---
+
 ### [LOOP-001] 主循环 — 波次刷怪 + 切关 + 三选一
 
 **状态**：逻辑层完整，UI 接入完成  

@@ -5,6 +5,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "CommonInputSubsystem.h"
+#include "Input/CommonUIInputTypes.h"
 #include "GameFramework/Pawn.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
@@ -70,6 +71,9 @@ void UBackpackScreenWidget::NativeConstruct()
     BindGridCellClicks();
     BindPendingRuneSlots();
     RefreshPendingRuneSlots();
+
+    if (SellButton)
+        SellButton->OnClicked.AddDynamic(this, &UBackpackScreenWidget::OnSellButtonClicked);
 }
 
 void UBackpackScreenWidget::NativeDestruct()
@@ -504,33 +508,65 @@ void UBackpackScreenWidget::ClearSelection()
     OnSelectionChanged();
 }
 
-void UBackpackScreenWidget::OpenBackpack()
+// ============================================================
+//  CommonUI 生命周期
+// ============================================================
+
+TOptional<FUIInputConfig> UBackpackScreenWidget::GetDesiredInputConfig() const
 {
-    SetVisibility(ESlateVisibility::Visible);
-
-    if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(GetOwningPlayer()))
-    {
-        PC->SetPause(true);
-        PC->SetBlockGameInput(true, true);  // UIOnly 模式，显示鼠标
-    }
-
-    // 请求焦点，使手柄输入生效
-    SetUserFocus(GetOwningPlayer());
+    // GameAndMenu：背包打开时鼠标可用，Tab 键仍可通过 EnhancedInput 触发 ToggleBackpack
+    return FUIInputConfig(ECommonInputMode::All, EMouseCaptureMode::NoCapture);
 }
 
-void UBackpackScreenWidget::CloseBackpack()
+void UBackpackScreenWidget::NativeOnActivated()
 {
-    SetVisibility(ESlateVisibility::Collapsed);
+    Super::NativeOnActivated();
 
+    if (APlayerController* PC = GetOwningPlayer())
+    {
+        PC->SetPause(true);
+        PC->SetShowMouseCursor(true);
+
+        FInputModeGameAndUI InputMode;
+        InputMode.SetWidgetToFocus(TakeWidget());
+        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        PC->SetInputMode(InputMode);
+    }
+
+    SetUserFocus(GetOwningPlayer());
+    OnGridNeedsRefresh();
+    OnSelectionChanged();
+}
+
+void UBackpackScreenWidget::NativeOnDeactivated()
+{
     // 清空持有状态
     bGrabbingRune   = false;
     GrabbedFromCell = FIntPoint(-1, -1);
     ClearSelection();
 
-    if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(GetOwningPlayer()))
+    if (APlayerController* PC = GetOwningPlayer())
     {
         PC->SetPause(false);
-        PC->SetBlockGameInput(false);  // 恢复 Game 模式
+        PC->SetShowMouseCursor(false);
+        PC->SetInputMode(FInputModeGameOnly());
+    }
+
+    Super::NativeOnDeactivated();
+}
+
+// ============================================================
+//  出售按钮
+// ============================================================
+
+void UBackpackScreenWidget::OnSellButtonClicked()
+{
+    if (SelectedCell == FIntPoint(-1, -1)) return;
+    if (UBackpackGridComponent* Backpack = GetBackpack())
+    {
+        FPlacedRune PR = GetRuneAtCell(SelectedCell.X, SelectedCell.Y);
+        if (PR.Rune.RuneGuid.IsValid())
+            Backpack->SellRune(PR.Rune.RuneGuid);
     }
 }
 
@@ -1127,7 +1163,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
     // Special Left / Tab：关闭背包（绕过 Enhanced Input 的暂停屏蔽）
     if (Key == EKeys::Gamepad_Special_Left || Key == EKeys::Tab)
     {
-        CloseBackpack();
+        DeactivateWidget();
         return FReply::Handled();
     }
 

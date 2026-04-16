@@ -84,9 +84,12 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute(), State.CurrentHP);
 	}
 
-	// 恢复金币
-	Gold = FMath::Max(0, State.CurrentGold);
-	OnGoldChanged.Broadcast(Gold);
+	// 恢复金币（现在由 BackpackGridComponent 持有）
+	if (BackpackGridComponent)
+	{
+		BackpackGridComponent->Gold = FMath::Max(0, State.CurrentGold);
+		BackpackGridComponent->OnGoldChanged.Broadcast(BackpackGridComponent->Gold);
+	}
 
 	// 恢复符文（仅非永久符文；永久符文由 BackpackGridComponent::BeginPlay 自动放置）
 	if (BackpackGridComponent)
@@ -197,11 +200,6 @@ void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 	PendingRunes.Add(Rune);
 }
 
-void APlayerCharacterBase::AddGold(int32 Amount)
-{
-	Gold = FMath::Max(0, Gold + Amount);
-	OnGoldChanged.Broadcast(Gold);
-}
 
 
 void APlayerCharacterBase::BeginPlay()

@@ -4,6 +4,7 @@
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "Character/YogPlayerControllerBase.h"
+#include "Input/CommonUIInputTypes.h"
 
 void ULootSelectionWidget::NativeConstruct()
 {
@@ -34,19 +35,12 @@ void ULootSelectionWidget::NativeDestruct()
 void ULootSelectionWidget::HandleLootGenerated(const TArray<FLootOption>& LootOptions)
 {
 	CurrentLootOptions = LootOptions;
-
-	// 在 C++ 里直接显示并切换输入模式，不依赖蓝图 Cast
-	SetVisibility(ESlateVisibility::Visible);
-	if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(GetOwningPlayer()))
-	{
-		PC->SetBlockGameInput(true, true);  // UIOnly：LMB 不被攻击消耗，按钮可点击
-	}
-
-	// 暂停游戏（时间停止，敌人/动画冻结）
-	if (APlayerController* PC = GetOwningPlayer())
-		PC->SetPause(true);
-
 	OnLootOptionsReady(LootOptions);  // 通知蓝图填充卡片数据
+
+	// 通过 CommonUI 激活（SetVisibility / 暂停 / 输入模式由 NativeOnActivated 处理）
+	ActivateWidget();
+	CurrentHighlightIndex = 0;
+	OnCardFocused(0);
 }
 
 void ULootSelectionWidget::HandlePhaseChanged(ELevelPhase NewPhase)
@@ -61,13 +55,44 @@ void ULootSelectionWidget::SelectRuneLoot(int32 Index)
 		GM->SelectLoot(Index);
 	}
 
-	// 选完后在 C++ 里直接隐藏并恢复输入
-	SetVisibility(ESlateVisibility::Hidden);
-	if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(GetOwningPlayer()))
+	// 通过 CommonUI 停用（SetVisibility / 恢复暂停 / 恢复输入模式由 NativeOnDeactivated 处理）
+	DeactivateWidget();
+}
+
+// ============================================================
+//  CommonUI 生命周期
+// ============================================================
+
+TOptional<FUIInputConfig> ULootSelectionWidget::GetDesiredInputConfig() const
+{
+	// Menu（UIOnly）：鼠标完全交给 Slate，不会被攻击等 EnhancedInput 消耗
+	return FUIInputConfig(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+}
+
+void ULootSelectionWidget::NativeOnActivated()
+{
+	Super::NativeOnActivated();
+
+	if (APlayerController* PC = GetOwningPlayer())
 	{
-		PC->SetPause(false);           // 恢复游戏时间
-		PC->SetBlockGameInput(false);  // 恢复游戏输入 + GameOnly + 隐藏鼠标
+		PC->SetPause(true);
+		PC->SetShowMouseCursor(true);
+		PC->SetInputMode(FInputModeUIOnly());
 	}
+
+	SetUserFocus(GetOwningPlayer());
+}
+
+void ULootSelectionWidget::NativeOnDeactivated()
+{
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		PC->SetPause(false);
+		PC->SetShowMouseCursor(false);
+		PC->SetInputMode(FInputModeGameOnly());
+	}
+
+	Super::NativeOnDeactivated();
 }
 
 FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
@@ -78,12 +103,14 @@ FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 	{
 		CurrentHighlightIndex = FMath::Max(0, CurrentHighlightIndex - 1);
 		OnNavigateSelection(-1);
+		OnCardFocused(CurrentHighlightIndex);
 		return FReply::Handled();
 	}
 	if (Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Right)
 	{
 		CurrentHighlightIndex = FMath::Min(2, CurrentHighlightIndex + 1);
 		OnNavigateSelection(1);
+		OnCardFocused(CurrentHighlightIndex);
 		return FReply::Handled();
 	}
 	if (Key == EKeys::Gamepad_FaceButton_Bottom || Key == EKeys::Enter)

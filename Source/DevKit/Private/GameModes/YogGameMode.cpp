@@ -335,7 +335,8 @@ void AYogGameMode::EnterArrangementPhase()
 		if (CampaignData && ActiveGoldMax > 0)
 		{
 			const int32 GoldReward = FMath::RandRange(ActiveGoldMin, ActiveGoldMax);
-			Player->AddGold(GoldReward);
+			if (Player->BackpackGridComponent)
+				Player->BackpackGridComponent->AddGold(GoldReward);
 			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 发放金币 %d"), GoldReward);
 		}
 	}
@@ -430,7 +431,7 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 			{
 				FRunState NewState;
 				NewState.bIsValid = true;
-				NewState.CurrentGold = Player->GetGold();
+				NewState.CurrentGold = Player->BackpackGridComponent ? Player->BackpackGridComponent->Gold : 0;
 
 				if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
 				{
@@ -1335,7 +1336,7 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 			// 保存跑局状态
 			FRunState NewState;
 			NewState.bIsValid    = true;
-			NewState.CurrentGold = Player->GetGold();
+			NewState.CurrentGold = Player->BackpackGridComponent ? Player->BackpackGridComponent->Gold : 0;
 
 			if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
 			{

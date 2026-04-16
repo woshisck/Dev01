@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "CommonActivatableWidget.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "LootSelectionWidget.generated.h"
 
@@ -19,7 +19,7 @@
  * 6. 在 PlayerController 或 HUD 的 BeginPlay 里创建本 Widget 并 AddToViewport
  */
 UCLASS()
-class DEVKIT_API ULootSelectionWidget : public UUserWidget
+class DEVKIT_API ULootSelectionWidget : public UCommonActivatableWidget
 {
 	GENERATED_BODY()
 
@@ -32,6 +32,11 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+
+	// ── CommonUI ────────────────────────────────────────────────
+	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
+	virtual void NativeOnActivated() override;
+	virtual void NativeOnDeactivated() override;
 
 	// ---- Blueprint 实现这两个事件 ----
 
@@ -54,6 +59,10 @@ public:
 	// A/D键盘导航：Delta=-1(左) +1(右)，蓝图实现高亮逻辑
 	UFUNCTION(BlueprintImplementableEvent, Category = "Loot")
 	void OnNavigateSelection(int32 Delta);
+
+	// 手柄导航聚焦到某张卡片：蓝图实现显示选中卡片 / 隐藏其余两张
+	UFUNCTION(BlueprintImplementableEvent, Category = "Loot")
+	void OnCardFocused(int32 FocusedIndex);
 
 	// "确认整理" 按钮：锁背包并加载下一关
 	UFUNCTION(BlueprintCallable, Category = "Loot")

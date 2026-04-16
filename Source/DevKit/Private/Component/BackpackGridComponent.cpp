@@ -49,6 +49,57 @@ void UBackpackGridComponent::EditorCenterOnGrid()
 {
 }
 
+// =========================================================
+// 金币（Economy）
+// =========================================================
+
+void UBackpackGridComponent::AddGold(int32 Amount)
+{
+	if (Amount <= 0) return;
+	Gold += Amount;
+	OnGoldChanged.Broadcast(Gold);
+}
+
+bool UBackpackGridComponent::SpendGold(int32 Amount)
+{
+	if (Amount < 0 || Gold < Amount) return false;
+	Gold -= Amount;
+	OnGoldChanged.Broadcast(Gold);
+	return true;
+}
+
+bool UBackpackGridComponent::CanAffordRune(const URuneDataAsset* DA) const
+{
+	if (!DA) return false;
+	return Gold >= DA->RuneInfo.RuneConfig.GoldCost;
+}
+
+bool UBackpackGridComponent::BuyRune(URuneDataAsset* DA)
+{
+	if (!DA) return false;
+	return SpendGold(DA->RuneInfo.RuneConfig.GoldCost);
+}
+
+bool UBackpackGridComponent::SellRune(FGuid RuneGuid)
+{
+	// 先找到符文，取出 GoldCost，再移除
+	int32 GoldRefund = 0;
+	for (const FPlacedRune& PR : PlacedRunes)
+	{
+		if (PR.Rune.RuneGuid == RuneGuid)
+		{
+			GoldRefund = PR.Rune.RuneConfig.GoldCost / 2;
+			break;
+		}
+	}
+
+	if (!RemoveRune(RuneGuid))
+		return false;
+
+	AddGold(GoldRefund);
+	return true;
+}
+
 void UBackpackGridComponent::EnsureGridInitialized()
 {
 	if (GridOccupancy.IsEmpty())

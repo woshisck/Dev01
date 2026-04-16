@@ -109,14 +109,24 @@ void AYogPlayerControllerBase::BeginPlay()
 		Subsystem->AddMappingContext(DefaultMappingContext, 0);
 	}
 
+	// 创建战斗 HUD（最底层，z=0）
+	if (CombatHUDClass && IsLocalController())
+	{
+		CombatHUDWidget = CreateWidget<UUserWidget>(this, CombatHUDClass);
+		if (CombatHUDWidget)
+			CombatHUDWidget->AddToViewport(0);
+	}
+
 	// 创建三选一 UI（在 GameMode 广播前必须存在，NativeConstruct 里完成事件绑定）
 	if (LootSelectionWidgetClass && IsLocalController())
 	{
 		LootSelectionWidget = CreateWidget<ULootSelectionWidget>(this, LootSelectionWidgetClass);
 		if (LootSelectionWidget)
 		{
-			LootSelectionWidget->AddToViewport();
-			LootSelectionWidget->SetVisibility(ESlateVisibility::Hidden);
+			LootSelectionWidget->AddToViewport(10);
+			// CommonUI 控制显隐，无需手动 SetVisibility
+			LootSelectionWidget->OnWidgetActivated.AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetActivated);
+			LootSelectionWidget->OnWidgetDeactivated.AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetDeactivated);
 		}
 	}
 
@@ -126,8 +136,10 @@ void AYogPlayerControllerBase::BeginPlay()
 		BackpackWidget = CreateWidget<UBackpackScreenWidget>(this, BackpackWidgetClass);
 		if (BackpackWidget)
 		{
-			BackpackWidget->AddToViewport();
-			BackpackWidget->SetVisibility(ESlateVisibility::Hidden);
+			BackpackWidget->AddToViewport(10);
+			// CommonUI 控制显隐，无需手动 SetVisibility
+			BackpackWidget->OnWidgetActivated.AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetActivated);
+			BackpackWidget->OnWidgetDeactivated.AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetDeactivated);
 		}
 	}
 
@@ -371,33 +383,35 @@ void AYogPlayerControllerBase::ToggleBackpack(const FInputActionValue& Value)
 {
 	if (!BackpackWidget) return;
 
-	const bool bVisible = BackpackWidget->GetVisibility() == ESlateVisibility::Visible;
-	if (bVisible)
+	// CommonUI：IsActivated() 判断是否当前激活
+	if (BackpackWidget->IsActivated())
 	{
-		// CloseBackpack 内部处理：SetPause(false) + SetBlockGameInput(false) + 清除手柄抓取状态
-		BackpackWidget->CloseBackpack();
+		// NativeOnDeactivated 处理：SetPause(false) + 恢复输入 + 清除手柄状态
+		BackpackWidget->DeactivateWidget();
 	}
 	else
 	{
-		bBlockGameInput = true;
-		SetShowMouseCursor(true);
-		SetPause(true);
+		// NativeOnActivated 处理：SetPause(true) + GameAndUI 输入 + 刷新网格
+		BackpackWidget->ActivateWidget();
+	}
+}
 
-		// GameAndUI 模式 + SetWidgetToFocus：让 D-Pad / A 键到达 NativeOnKeyDown
-		// Tab 键仍可通过 Enhanced Input 触发本函数关闭背包
-		FInputModeGameAndUI InputMode;
-		InputMode.SetWidgetToFocus(BackpackWidget->TakeWidget());
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		SetInputMode(InputMode);
+void AYogPlayerControllerBase::OnMenuWidgetActivated()
+{
+	ActiveMenuCount++;
+	bBlockGameInput = true;
+	if (CombatHUDWidget && ActiveMenuCount == 1)
+		CombatHUDWidget->SetVisibility(ESlateVisibility::Hidden);
+}
 
-		BackpackWidget->SetVisibility(ESlateVisibility::Visible);
-		BackpackWidget->SetUserFocus(this);    // Slate 侧焦点
-		BackpackWidget->OnGridNeedsRefresh();
-		BackpackWidget->OnSelectionChanged();
-
-		UE_LOG(LogTemp, Log, TEXT("[BackpackUI] 背包打开  GamepadCursorCell=(%d,%d)  bGrabbing=%d"),
-			BackpackWidget->GamepadCursorCell.X, BackpackWidget->GamepadCursorCell.Y,
-			BackpackWidget->bGrabbingRune ? 1 : 0);
+void AYogPlayerControllerBase::OnMenuWidgetDeactivated()
+{
+	ActiveMenuCount = FMath::Max(0, ActiveMenuCount - 1);
+	if (ActiveMenuCount == 0)
+	{
+		bBlockGameInput = false;
+		if (CombatHUDWidget)
+			CombatHUDWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
 }
 

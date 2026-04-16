@@ -33,7 +33,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FItemInteractStartDelegate, APlayer
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHeatUpdateDelegate, const float, HeatPercent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMaxHeatUpdateDelegate, const float, MaxHeatValue);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGoldChangedDelegate, int32, NewGold);
 
 UCLASS()
 class DEVKIT_API APlayerCharacterBase : public AYogCharacterBase
@@ -107,19 +106,6 @@ public:
 	// 待放置符文列表（整理阶段从此处拖放到格子）
 	UPROPERTY(BlueprintReadOnly, Category = "Backpack")
 	TArray<FRuneInstance> PendingRunes;
-
-	// ─── 货币 ─────────────────────────────────────────────────────
-	UPROPERTY(BlueprintReadOnly, Category = "Currency")
-	int32 Gold = 0;
-
-	UPROPERTY(BlueprintAssignable, Category = "Currency")
-	FGoldChangedDelegate OnGoldChanged;
-
-	UFUNCTION(BlueprintCallable, Category = "Currency")
-	void AddGold(int32 Amount);
-
-	UFUNCTION(BlueprintPure, Category = "Currency")
-	int32 GetGold() const { return Gold; }
 
 	// 切关后从 GameInstance.PendingRunState 恢复 HP / 金币 / 符文 / 热度阶段
 	void RestoreRunStateFromGI();
