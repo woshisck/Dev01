@@ -13,7 +13,7 @@
 **Commit**：`3b04ec14`
 
 | 项目 | 内容 |
-|------|------|
+| --- | --- |
 | 核心文件 | `YogCameraPawn.h/.cpp`、`CameraConstraintActor.h/.cpp` |
 | 依赖文件 | `YogGameMode`（敌人注册表）、`GA_PlayerDash`（SetDashMode）、`YogPlayerControllerBase`（Input_CameraLook） |
 | 状态枚举 | `EYogCameraStates`：Dash / CombatFocus / CombatSearch / PickupFocus / LookAhead / FocusCharacter |
@@ -24,6 +24,7 @@
 | 设计文档 | [Camera_Design.md](Design/Systems/Camera_Design.md) |
 
 **已知限制**
+
 - 每个关卡只能放一个 `CameraConstraintActor`（自动查找第一个）
 - 冲刺时 LookAheadAlpha 强制重置为 0，避免残余偏移
 
@@ -35,7 +36,7 @@
 **Commit**：`809ebe5b`
 
 | 项目 | 内容 |
-|------|------|
+| --- | --- |
 | 核心文件 | `BackpackScreenWidget.h/.cpp`、`LootSelectionWidget.h/.cpp`、`RuneTooltipWidget.h/.cpp` |
 | 战斗日志 | `CombatLogStatics.h/.cpp`、`YogAbilitySystemComponent`（PushEntry） |
 | 手柄键位（背包） | D-Pad 移动光标 / A 抓取放置 / B 取消 / Y 移除 |
@@ -45,8 +46,32 @@
 | 设计文档 | [BackpackGamepadAndUI.md](Design/BackpackGamepadAndUI.md) |
 
 **已知限制**
+
 - Swap 失败回滚后光标位置保持原格子，不跳转
 - 浮空拖拽效果（1.08×放大）仅在鼠标拖拽时触发，手柄 A 键两步式不触发浮空
+
+---
+
+### [CAM-002] 相机平滑优化 — 消除根运动僵硬 + LookAhead 开关
+
+**状态**：已完成，编译通过
+**Commit**：本次提交
+
+| 项目 | 内容 |
+| --- | --- |
+| 核心文件 | `YogPlayerCameraManager.h/.cpp` |
+| 根运动平滑 | VInterpTo 起点改为 `GetCameraLocation()`（上一帧输出），消除攻击/冲刺时相机直接 snap 的僵硬感 |
+| LookAhead 开关 | `bEnableLookAhead`（默认 false），关闭后相机不再前冲/回弹，消除移动眩晕感 |
+| 移动跟随速度 | `MovingFollowSpeed = 8.f`（LookAhead 关闭时生效） |
+| 静止归位速度 | `StationarySettleSpeed = 5.f`，静止后缓慢归位，不漂移 |
+| 冲刺跟随速度 | `DashFollowSpeed = 18.f`，冲刺高速跟随消除单帧抖动 |
+| 参数位置 | `BP_PlayerCameraManager` 蓝图 Details，无需重编译即可调节 |
+| 设计文档 | [Camera_Design.md](Design/Systems/Camera_Design.md)（v2.1） |
+
+**已知限制**
+
+- `StationarySettleSpeed` 越低，停下后相机漂移时间越长；建议保持 5~15
+- LookAhead 开启时前冲/回弹感明显，仅推荐用于镜头行程大的关卡
 
 ---
 
@@ -56,7 +81,7 @@
 **Commit**：本次提交
 
 | 项目 | 内容 |
-|------|------|
+| --- | --- |
 | 核心文件 | `BackpackScreenWidget.h/.cpp`、`LootSelectionWidget.h/.cpp`、`BackpackGridComponent.h/.cpp`、`YogPlayerControllerBase.h/.cpp` |
 | 基类变更 | BackpackScreenWidget / LootSelectionWidget 均改为 `UCommonActivatableWidget` |
 | UI 开关 | `ActivateWidget()` / `DeactivateWidget()`，Controller 侧 `ActiveMenuCount` 计数 |
@@ -82,7 +107,7 @@
 **Commit**：`64bb6aae`
 
 | 项目 | 内容 |
-|------|------|
+| --- | --- |
 | 核心文件 | `YogGameMode.h/.cpp` |
 | 触发条件 | AllEnemiesDead / PercentKilled_50 / PercentKilled_20 / Timer |
 | 兜底池 | `FallbackLootPool`（无 ActiveRoomData 时自动使用） |
@@ -91,6 +116,7 @@
 | 设计文档 | [MainLoop_Design.md](Design/Systems/MainLoop_Design.md) |
 
 **已知限制**
+
 - 波次全批次刷出失败时需手动调 `CheckWaveTrigger()`（已内置，不需要外部调用）
 - 同一关卡中 PortalIndex 必须唯一，重复会导致门分配错误
 
@@ -102,7 +128,7 @@
 **Commit**：`e271ce5f`（韧性） + 早期 commit
 
 | 项目 | 内容 |
-|------|------|
+| --- | --- |
 | 核心文件 | `GA_MeleeAttack.h/.cpp` |
 | 连击控制 | `ComboWindow` / `EarlyExit` / `ClearBuffer` |
 | 命中判定 | `AN_MeleeDamage`（AnimNotify）→ `IsInAnnulus`（环形扇区） |
@@ -112,6 +138,7 @@
 | 设计文档 | [AttackDamage_Design.md](Design/Systems/AttackDamage_Design.md) |
 
 **已知限制**
+
 - InnerR 补偿：`bAutoOffset=true` 时 EffectiveOuterRadius = OuterRadius + InnerR
 - 连击 Buffer 仅记录最后一次输入，不排队多次
 
@@ -123,7 +150,7 @@
 **Commit**：`d30dd48a` 区段
 
 | 项目 | 内容 |
-|------|------|
+| --- | --- |
 | 核心文件 | `GA_PlayerDash.h/.cpp` |
 | 越障算法 | 终点步进法（6×50cm），无 SetActorLocation |
 | 碰撞通道 | WorldDynamic + Pawn → Overlap（与蓝图对齐） |
@@ -133,6 +160,7 @@
 | 设计文档 | [Dash_Design.md](Design/Systems/Dash_Design.md) |
 
 **已知限制**
+
 - 敌人胶囊需对 DashTrace 通道设为 Ignore，否则会被敌人卡住
 
 ---
@@ -143,7 +171,7 @@
 **Commit**：背包系统系列
 
 | 项目 | 内容 |
-|------|------|
+| --- | --- |
 | 核心文件 | `BackpackGridComponent.h/.cpp`、`BackpackScreenWidget.h/.cpp` |
 | 热度联动 | Phase 0-3 驱动激活区大小，`CanPhaseUp` 精确控制 |
 | 永久符文格 | 内圈固定激活，不受热度影响 |
@@ -154,6 +182,7 @@
 | 设计文档 | [BackpackSystem_Technical.md](Design/Systems/BackpackSystem_Technical.md) |
 
 **已知限制**
+
 - 多格异形符文 UI 显示未实现（Shape 数据已存，只是渲染未做）
 - AvailableRunes 为测试展示库，不消耗；PendingRunes 为实际获得符文，放入后消耗
 
@@ -165,7 +194,7 @@
 **Commit**：系统细化系列
 
 | 项目 | 内容 |
-|------|------|
+| --- | --- |
 | 核心文件 | `Portal.h/.cpp` |
 | 状态接口 | `EnablePortal()` / `DisablePortal()` / `NeverOpen()`（均为 BlueprintNativeEvent） |
 | 美术配置 | `ClosedArt` / `NeverOpenArt` / `DestinationArtMap`（TMap<FName, FPortalArtConfig>）|
@@ -174,6 +203,7 @@
 | 设计文档 | [Portal_Design.md](Design/Systems/Portal_Design.md) |
 
 **已知限制**
+
 - PortalIndex 必须与 `DA_Campaign.PortalDestinations[i].PortalIndex` 对应，错位会导致门永不开启
 
 ---
@@ -184,7 +214,7 @@
 **Commit**：本次提交
 
 | 项目 | 内容 |
-|------|------|
+| --- | --- |
 | 核心文件 | `WeaponSpawner.h/.cpp`、`WeaponInstance.h/.cpp`、`WeaponDefinition.h/.cpp`、`PlayerCharacterBase.h/.cpp` |
 | 拾取方式 | Overlap 进入范围 → `PendingWeaponSpawner` 登记，按 E → `TryPickupWeapon`（与 RewardPickup 同模式） |
 | 换武器逻辑 | 旧 Spawner 恢复原色（`OriginalMeshMaterials`），旧 WeaponInstance Destroy，热度委托 RemoveDynamic |

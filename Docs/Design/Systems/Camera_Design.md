@@ -1,6 +1,6 @@
 # 相机管理系统设计文档
 
-**版本**：v2.0
+**版本**：v2.1
 **日期**：2026-04-16
 **状态**：已实现
 
@@ -75,6 +75,8 @@ Priority 6 ▶ FocusCharacter 静止：慢速回归中心
 
 ## 4. 前瞻系统（LookAhead）
 
+> **默认关闭**（`bEnableLookAhead = false`）。开启后相机在移动时向前领先，停下时回弹，适合镜头行程较大的关卡。关闭时使用纯跟随模式（见第 4.1 节）。
+
 | 阶段 | 时间 | 行为 |
 |------|------|------|
 | 初期落后 | 0 → `LookAheadBuildupTime` | Alpha=0，慢速跟随（InitialFollowLerpSpeed） |
@@ -85,6 +87,23 @@ LookAheadAlpha = Clamp(MovingTime / LookAheadBuildupTime, 0, 1)
 XY偏移 = LastMovementDir.XY × LookAheadDistance × LookAheadAlpha
 停止后 Alpha 以 LookAheadAlphaDecaySpeed 快速衰减
 ```
+
+### 4.1 纯跟随模式（LookAhead 关闭，默认）
+
+关闭 `bEnableLookAhead` 后：
+
+- 移动时：以 `MovingFollowSpeed`（默认 8）平滑追随，不产生领先偏移
+- 静止时：以 `StationarySettleSpeed`（默认 5）缓速归位，残留漂移迅速消失
+- 状态机始终在 `FocusCharacter`（跳过 LookAhead 状态）
+
+```
+移动  → VInterpTo(GetCameraLocation(), SpringArmPos, DeltaTime, MovingFollowSpeed)
+静止  → VInterpTo(GetCameraLocation(), SpringArmPos, DeltaTime, StationarySettleSpeed)
+冲刺  → VInterpTo(GetCameraLocation(), SpringArmPos, DeltaTime, DashFollowSpeed)
+```
+
+> **关键**：起点使用 `GetCameraLocation()`（上一帧输出），而非 `OutVT.POV.Location`（当帧 SpringArm snap 位置）。
+> 这样根运动造成的角色位移会被 VInterpTo 平滑，消除攻击/冲刺时镜头直接"贴身"的僵硬感。
 
 ---
 
@@ -163,7 +182,19 @@ CameraManager 自身就是 `APlayerCameraManager`，直接调用内置 `StartCam
 
 ## 10. 可调参数汇总
 
-> 在 **PlayerController 蓝图 Details** 的 PlayerCameraManager 子对象中调整，或创建 `AYogPlayerCameraManager` 蓝图子类。
+> 参数在 **BP_PlayerCameraManager 蓝图 Details** 中调整，无需重新编译。
+
+### 10.1 跟随行为（Camera|Movement / Camera|LookAhead）
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `bEnableLookAhead` | **false** | 是否启用前瞻偏移；关闭时相机只跟随不领先 |
+| `MovingFollowSpeed` | **8.0** | LookAhead 关闭时移动跟随速度（推荐 6~12） |
+| `StationarySettleSpeed` | **5.0** | 静止时归位速度（越大越快；5=缓慢，15=快速） |
+| `DashFollowSpeed` | **18.0** | 冲刺期间跟随速度（0=直接 snap） |
+| `MovingSpeedThreshold` | 10 uu/s | 速度超过此值视为移动中 |
+
+### 10.2 前瞻系统（仅 bEnableLookAhead=true 时生效）
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
@@ -172,17 +203,28 @@ CameraManager 自身就是 `APlayerCameraManager`，直接调用内置 `StartCam
 | `LookAheadLerpSpeed` | 4.0 | 前瞻阶段跟随速度 |
 | `InitialFollowLerpSpeed` | 2.0 | 起步时跟随速度（产生落后感） |
 | `LookAheadAlphaDecaySpeed` | 5.0 | 停止后前瞻衰减速度 |
-| `FocusLerpSpeed` | 1.5 | 静止时回归中心的速度 |
+| `FocusLerpSpeed` | 1.5 | 静止时回归中心的速度（LookAhead 开启时） |
+
+### 10.3 战斗 / 拾取感知
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
 | `CombatSearchRadius` | 1200 uu | 视为"附近有敌人"的半径 |
 | `CombatBiasDistance` | 220 uu | CombatFocus 最大偏移 |
 | `CombatSearchOffset` | 160 uu | CombatSearch 偏移 |
 | `CombatLerpSpeed` | 2.5 | 战斗状态跟随速度 |
 | `PickupBiasDistance` | 150 uu | 整理阶段拾取物偏移 |
 | `PickupLerpSpeed` | 2.0 | 拾取物状态跟随速度 |
+
+### 10.4 输入偏移 / 震动
+
+| 参数 | 默认值 | 说明 |
+| --- | --- | --- |
 | `MaxInputOffset` | 200 uu | 手柄/鼠标最大偏移 |
 | `InputOffsetLerpSpeed` | 8.0 | 输入偏移平滑速度 |
 | `bAutoReadMouseOffset` | true | 手柄未激活时自动读取鼠标 |
-| `MovingSpeedThreshold` | 10 uu/s | 速度超过此值视为移动中 |
+| `HeavyHitShakeClass` | — | 重伤相机震动蓝图 |
+| `CritHitShakeClass` | — | 暴击相机震动蓝图 |
 
 ---
 
