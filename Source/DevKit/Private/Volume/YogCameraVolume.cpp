@@ -1,25 +1,15 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "Volume/YogCameraVolume.h"
 #include "Components/BrushComponent.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "Camera/YogCameraPawn.h"
+#include "Camera/YogPlayerCameraManager.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Kismet/GameplayStatics.h"
 
 AYogCameraVolume::AYogCameraVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	//GetBrushComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	//GetBrushComponent()->SetCollisionObjectType(ECC_WorldStatic);
-	//GetBrushComponent()->SetCollisionResponseToAllChannels(ECR_Block);
-	//GetBrushComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	//GetBrushComponent()->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap);
-	//GetBrushComponent()->SetGenerateOverlapEvents(true);
-	//this->bDisplayShadedVolume = true;
-	// Optional: Make the volume visible in game
 	GetBrushComponent()->SetHiddenInGame(false);
-
 }
 
 void AYogCameraVolume::BeginPlay()
@@ -28,36 +18,26 @@ void AYogCameraVolume::BeginPlay()
 
 	OnActorBeginOverlap.AddDynamic(this, &AYogCameraVolume::OnOverlapBegin);
 	OnActorEndOverlap.AddDynamic(this, &AYogCameraVolume::OnOverlapEnd);
-
 }
 
 void AYogCameraVolume::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 {
-	UE_LOG(LogTemp, Warning, TEXT("OverlappedActor: %s"), *OverlappedActor->GetName());
-	UE_LOG(LogTemp, Warning, TEXT("OtherActor: %s"), *OtherActor->GetName());
+	if (!Cast<APlayerCharacterBase>(OtherActor)) return;
 
-
-
-	//APlayerCharacterBase* player = Cast<APlayerCharacterBase>(OtherActor);
-	////AYogCameraPawn* Camera = Cast<AYogPlayerControllerBase>(player->GetController())
-	//AYogCameraPawn* Camera = player->GetOwnCamera();
-	//if (Camera)
-	//{
-	//	Camera->SetVolumeOverlapLoc(Camera->GetActorLocation());
-	//	//Camera->SetCameraStates(EYogCameraStates::Idle);
-	//}
-
+	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(
+		UGameplayStatics::GetPlayerCameraManager(this, 0)))
+	{
+		CM->SetConstraintVolume(this);
+	}
 }
 
 void AYogCameraVolume::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 {
-	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(OtherActor);
-	//AYogCameraPawn* Camera = Cast<AYogPlayerControllerBase>(player->GetController())
+	if (!Cast<APlayerCharacterBase>(OtherActor)) return;
 
-	//AYogCameraPawn* Camera = player->GetOwnCamera();
-	//if (Camera)
-	//{
-	//	Camera->SetCameraStates(Camera->PrevStatus);
-	//}
-
+	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(
+		UGameplayStatics::GetPlayerCameraManager(this, 0)))
+	{
+		CM->SetConstraintVolume(nullptr);
+	}
 }

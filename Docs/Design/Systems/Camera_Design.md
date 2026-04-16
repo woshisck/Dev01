@@ -1,54 +1,58 @@
 # 相机管理系统设计文档
 
-**版本**：v1.2  
-**日期**：2026-04-16  
-**状态**：已实现，配置指南见第 11 节
+**版本**：v2.0
+**日期**：2026-04-16
+**状态**：已实现
 
 ---
 
 ## 1. 系统概述
 
-相机管理系统以 **AYogCameraPawn** 为核心，作为独立 Pawn 控制相机位置，通过 `SetViewTarget` 成为玩家视角。Owner 设置为玩家角色，每帧跟随其位置并叠加多层偏移。
+相机管理系统以 **AYogPlayerCameraManager** 为核心，通过重写 `UpdateViewTarget()` 在 UE 标准 SpringArm + Camera 渲染管线之上叠加智能偏移。这是 UE 推荐的相机定制方式，无需额外 Pawn Actor。
 
-### 设计目标
+### 架构对比
 
-| 目标 | 效果 |
-|------|------|
-| 静止自然聚焦 | 玩家静止时相机缓慢回到角色中心，感觉有呼吸感 |
-| 移动前瞻视野 | 玩家移动初期稍有落后，持续移动后领先于移动方向，给予更多前方视野 |
-| 冲刺冲击感 | 冲刺时相机 1:1 无延迟跟随，强调位移力度 |
-| 战斗感知 | 相机向屏幕上敌人质心偏移，协助玩家感知战场 |
-| 整理阶段引导 | 消灭全部敌人后，相机向拾取物偏移，引导玩家走向奖励 |
-| 边界约束 | 通过多边形 Constraint Actor 防止相机越出地图 |
-| 输入微偏 | 手柄右摇杆 / 鼠标引起细微偏移，增强控制感 |
-| 特殊事件反馈 | 暴击、重伤时触发可配置的相机震动 |
+| 旧方案（v1.x）| 新方案（v2.0）|
+|--------------|--------------|
+| 独立 AYogCameraPawn（额外 Actor） | 无额外 Actor，逻辑在 CameraManager |
+| 多边形 CameraConstraintActor | UE 原生 AYogCameraVolume（Brush） |
+| Pawn::Tick 驱动 | CameraManager::UpdateViewTarget 驱动 |
+| SetViewTarget 切换视角 | 角色自带 Camera，视角天然正确 |
 
 ---
 
 ## 2. 架构
 
 ```
-AYogCameraPawn
-│
-├── UpdateCameraLoc(DeltaTime)         ← 每帧入口
-│   ├── 获取玩家速度，判断是否移动
-│   ├── 更新 MovingTime / LookAheadAlpha
-│   ├── DetermineState()               ← 优先级状态决策
-│   ├── ComputeStateOffset()           ← 计算 XY 偏移
-│   ├── 更新 ActiveAxis（手柄优先，否则鼠标）
-│   ├── 平滑 CurrentInputOffset
-│   ├── 合成 TargetXY = PlayerXY + StateOffset + InputOffset
-│   ├── ConstrainPosition()            ← 多边形边界约束
-│   └── VInterpTo / SetActorLocation   ← 位置应用
-│
-├── ACameraConstraintActor             ← 场景中放置的边界 Actor
-│   └── BoundaryPoints[]               ← 美术在 Details 中编辑顶点
-│
-└── AYogGameMode（战斗感知数据源）
-    ├── AliveEnemies[]
-    ├── GetEnemyCentroid()
-    ├── GetNearestEnemyDirection()
-    └── GetNearbyEnemies()
+APlayerCharacterBase (角色蓝图)
+  ├── UYogSpringArmComponent (CameraBoom)   ← 臂长、碰撞避让、关闭自带 Lag
+  └── UCameraComponent                      ← 实际相机，视角来源
+
+AYogPlayerCameraManager                     ← 核心：重写 UpdateViewTarget()
+  │  PlayerController 构造函数自动注册
+  │
+  ├── UpdateViewTarget(OutVT, DeltaTime)
+  │     Step 1  Super() → SpringArm + Camera 写入基础 POV
+  │     Step 2  获取玩家位置、速度
+  │     Step 3  更新 MovingTime / LookAheadAlpha
+  │     Step 4  DetermineState()           ← 优先级状态决策
+  │     Step 5  ComputeStateOffset()       ← XY 偏移
+  │     Step 6  InputOffset（手柄/鼠标）
+  │     Step 7  合成候选位置
+  │     Step 8  VolumeClamp               ← EncompassesPoint 约束
+  │     Step 9  应用（Dash 直接赋值，其余 VInterpTo）
+  │
+  └── API：SetDashMode / SetCameraInputAxis / NotifyHeavyHit / NotifyCritHit
+           SetConstraintVolume
+
+AYogCameraVolume (Level 中放置的 Brush Volume)
+  ├── OnOverlapBegin(Player) → CameraManager->SetConstraintVolume(this)
+  └── OnOverlapEnd(Player)   → CameraManager->SetConstraintVolume(nullptr)
+
+AYogGameMode (战斗感知数据源，不变)
+  ├── RegisterEnemy / UnregisterEnemy
+  ├── GetEnemyCentroid / GetNearestEnemyDirection
+  └── GetNearbyEnemies
 ```
 
 ---
@@ -56,214 +60,170 @@ AYogCameraPawn
 ## 3. 相机状态优先级
 
 ```
-Priority 1 ▶ Dash          冲刺：无延迟 1:1 跟随
+Priority 1 ▶ Dash          冲刺：直接赋值，无任何延迟
 Priority 2 ▶ CombatFocus   战斗中 + 附近有敌：向质心偏移
-Priority 3 ▶ CombatSearch  战斗中 + 敌人不在范围：向最近敌人方向偏移
-Priority 4 ▶ PickupFocus   整理阶段 + 拾取物存在：向拾取物偏移
-Priority 5 ▶ LookAhead     玩家移动：前瞻偏移（随时间增强）
-Priority 6 ▶ FocusCharacter 静止：慢速回归玩家中心
+Priority 3 ▶ CombatSearch  战斗中 + 敌人超出半径：向最近敌人方向偏移
+Priority 4 ▶ PickupFocus   整理阶段 + 场景有拾取物：向拾取物偏移
+Priority 5 ▶ LookAhead     移动中：前瞻偏移（Alpha 随时间 0→1）
+Priority 6 ▶ FocusCharacter 静止：慢速回归中心
 ```
 
-> 状态 2/3 在 `GameMode.CurrentPhase == Combat` 时才激活；  
-> 状态 4 在 `GameMode.CurrentPhase == Arrangement` 且场景中有 `ARewardPickup` 时激活。
+> 状态 2/3 在 `GameMode.CurrentPhase == Combat` 时激活；
+> 状态 4 在 `GameMode.CurrentPhase == Arrangement` 且有 `ARewardPickup` 时激活。
 
 ---
 
 ## 4. 前瞻系统（LookAhead）
 
-| 阶段 | 时间 | 相机行为 |
-|------|------|----------|
-| 初期落后 | 0 → `LookAheadBuildupTime` | Alpha=0，慢速跟随，产生轻微落后感 |
-| 前瞻增强 | `LookAheadBuildupTime` 后 | Alpha→1，逐步移到移动方向前方 |
+| 阶段 | 时间 | 行为 |
+|------|------|------|
+| 初期落后 | 0 → `LookAheadBuildupTime` | Alpha=0，慢速跟随（InitialFollowLerpSpeed） |
+| 前瞻增强 | `LookAheadBuildupTime` 后 | Alpha→1，领先移动方向（LookAheadLerpSpeed） |
 
-- `LookAheadAlpha = Clamp(MovingTime / LookAheadBuildupTime, 0, 1)`
-- 目标偏移：`LastMovementDir × LookAheadDistance × CurrentLookAheadAlpha`
-- 跟随速度：从 `InitialFollowLerpSpeed` 插值到 `LookAheadLerpSpeed`
-- 停止后 Alpha 以 `LookAheadAlphaDecaySpeed` 快速衰减
+```
+LookAheadAlpha = Clamp(MovingTime / LookAheadBuildupTime, 0, 1)
+XY偏移 = LastMovementDir.XY × LookAheadDistance × LookAheadAlpha
+停止后 Alpha 以 LookAheadAlphaDecaySpeed 快速衰减
+```
 
 ---
 
 ## 5. 冲刺模式（Dash）
 
-- `SetActorLocation(PlayerPos)` 直接设置，**不经过 VInterpTo**
+- `UpdateViewTarget` 中对 `OutVT.POV.Location` **直接赋值**，不经过 VInterpTo
 - 进入时 `LookAheadAlpha` 重置为 0，避免残余偏移
-- **接入**：已在 `GA_PlayerDash.cpp` 中自动调用，无需额外配置
-
-```
-ActivateAbility → Player->GetOwnCamera()->SetDashMode(true)
-EndAbility      → Player->GetOwnCamera()->SetDashMode(false)
-```
+- **接入**：`GA_PlayerDash` 在 Activate/End 调用 `GetPlayerCameraManager(0)->SetDashMode(true/false)`
 
 ---
 
-## 6. 边界约束（ACameraConstraintActor）
+## 6. 边界约束（AYogCameraVolume）
 
-1. 将 `ACameraConstraintActor`（或其蓝图子类）拖入关卡（位置任意）
-2. Details > **Camera Constraint** > **Boundary Points** 添加顶点（或在视口直接拖拽黄色控制柄）
-3. 顶点 Z 值无关紧要，系统只取 XY 坐标
-4. 非 Shipping 版本下自动绘制**青色连线 + 黄色球标**
-5. 每个关卡放**一个**即可，CameraPawn 自动查找并缓存
+### 原理
 
-> **坐标系说明**：BoundaryPoints 存储的是 Actor 本地坐标，运行时自动通过 `GetActorTransform().TransformPosition()` 转换为世界坐标参与计算和调试绘制。Actor 可放在关卡任意位置，边界会正确跟随。
+`AVolume::EncompassesPoint(FVector)` 是 UE 内置方法，直接检测 3D 点是否在 Brush 几何体内。
+CameraManager 将候选相机位置（投影到玩家 Z 高度）传入检测，若超出则 XY 退回玩家位置。
 
-算法：**射线法**判断点是否在多边形内，在外则返回距最近边的投影点（`FMath::ClosestPointOnSegment2D`）。
+```cpp
+const FVector CheckPt(Candidate.X, Candidate.Y, PlayerPos.Z);
+if (!ConstraintVolume->EncompassesPoint(CheckPt))
+{
+    Candidate.X = PlayerPos.X;
+    Candidate.Y = PlayerPos.Y;
+}
+```
+
+### 关卡配置
+
+1. 关卡编辑器 > Place Actors 搜索 `YogCameraVolume` 拖入关卡
+2. 用 **Geometry Edit 模式**（快捷键 Shift+5）拖拽顶点围住可玩区域
+3. 可以是任意形状，高度建议覆盖 `-1000 ~ +1000`（EncompassesPoint 是 3D 检测）
+4. 玩家走进 Volume 时自动注册，走出时注销
+5. 每个关卡可放多个 Volume（嵌套区域），但只有最后触发的生效
 
 ---
 
 ## 7. 战斗感知偏移
 
-**数据流**：
+**数据流**（同 v1.x，不变）：
 ```
-AEnemyCharacterBase::BeginPlay  → GameMode.RegisterEnemy()
-AEnemyCharacterBase::Die        → GameMode.UnregisterEnemy()
-AYogCameraPawn::Tick            → GameMode.GetEnemyCentroid() / GetNearestEnemyDirection()
+EnemyCharacterBase::BeginPlay  → GameMode.RegisterEnemy()
+EnemyCharacterBase::Die        → GameMode.UnregisterEnemy()
+AYogPlayerCameraManager::UpdateViewTarget → GameMode.GetEnemyCentroid() / GetNearestEnemyDirection()
 ```
-
-| 状态 | 触发条件 | 偏移计算 |
-|------|----------|----------|
-| CombatFocus | `CombatSearchRadius` 内有存活敌人 | 玩家 → 质心方向 × `CombatBiasDistance` |
-| CombatSearch | 有存活敌人但超出搜索半径 | 玩家 → 最近敌人方向 × `CombatSearchOffset` |
 
 ---
 
 ## 8. 输入偏移（手柄右摇杆 / 鼠标）
 
-### 逻辑
-
-每帧根据 `GamepadInputAxis.SizeSquared() > 0.01f` 判断优先级：
-
 ```
-手柄激活 → ActiveAxis = GamepadInputAxis（由 SetCameraInputAxis 写入）
-手柄未激活 + bAutoReadMouseOffset=true
-         → ActiveAxis = 鼠标归一化坐标（在 CameraPawn Tick 中自动读取）
-最终偏移  = ActiveAxis × MaxInputOffset（经 InputOffsetLerpSpeed 平滑）
+GamepadInputAxis.SizeSquared() > 0.01f
+  → 使用 GamepadInputAxis（由 PlayerController.CameraLook 写入）
+否则 + bAutoReadMouseOffset=true
+  → 自动读取 GetMousePosition，归一化到 [-1,1]
+最终偏移 = ActiveAxis × MaxInputOffset（VInterpTo 平滑）
 ```
 
-### 接入情况
-
-| 输入源 | 接入方式 | 状态 |
-|--------|----------|------|
-| 鼠标 | CameraPawn Tick 自动读取，无需额外配置 | ✅ 已完成 |
-| 手柄右摇杆 | PlayerController 绑定 `Input_CameraLook` | ✅ 已完成（需编辑器配置，见第 11 节）|
+- **鼠标**：CameraManager `UpdateViewTarget` 中自动读取，无需额外配置
+- **手柄**：PlayerController `CameraLook` 回调 → `CameraManager->SetCameraInputAxis()`
 
 ---
 
-## 9. 相机震动（特殊事件）
+## 9. 相机震动
 
-在 **CameraPawn 蓝图 Details** 中配置：
+CameraManager 自身就是 `APlayerCameraManager`，直接调用内置 `StartCameraShake()`，无需中转。
 
 | 属性 | 说明 |
 |------|------|
-| `HeavyHitShakeClass` | 重伤时播放的 CameraShake 蓝图类 |
-| `HeavyHitShakeScale` | 震动强度（默认 1.0） |
-| `CritHitShakeClass` | 暴击时的 CameraShake 蓝图类 |
-| `CritHitShakeScale` | 震动强度（默认 1.0） |
+| `HeavyHitShakeClass` | 重伤时的 CameraShake 蓝图 |
+| `CritHitShakeClass` | 暴击时的 CameraShake 蓝图 |
 
-调用方式（GE / GA / AnimNotify 中）：
-```
-PlayerCharacter → GetOwnCamera → NotifyHeavyHit()
-PlayerCharacter → GetOwnCamera → NotifyCritHit()
-```
+调用：`Cast<AYogPlayerCameraManager>(GetPlayerCameraManager(0))->NotifyHeavyHit()`
 
 ---
 
 ## 10. 可调参数汇总
 
-> 所有参数均可在 **CameraPawn 蓝图 Details** 中调整，无需改代码。
+> 在 **PlayerController 蓝图 Details** 的 PlayerCameraManager 子对象中调整，或创建 `AYogPlayerCameraManager` 蓝图子类。
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `LookAheadBuildupTime` | 0.5s | 达到最大前瞻偏移所需移动时间 |
 | `LookAheadDistance` | 280 uu | 最大前瞻偏移距离 |
-| `LookAheadLerpSpeed` | 4.0 | 前瞻状态跟随速度 |
+| `LookAheadLerpSpeed` | 4.0 | 前瞻阶段跟随速度 |
 | `InitialFollowLerpSpeed` | 2.0 | 起步时跟随速度（产生落后感） |
 | `LookAheadAlphaDecaySpeed` | 5.0 | 停止后前瞻衰减速度 |
 | `FocusLerpSpeed` | 1.5 | 静止时回归中心的速度 |
 | `CombatSearchRadius` | 1200 uu | 视为"附近有敌人"的半径 |
-| `CombatBiasDistance` | 220 uu | CombatFocus 最大偏移距离 |
-| `CombatSearchOffset` | 160 uu | CombatSearch 偏移距离 |
+| `CombatBiasDistance` | 220 uu | CombatFocus 最大偏移 |
+| `CombatSearchOffset` | 160 uu | CombatSearch 偏移 |
 | `CombatLerpSpeed` | 2.5 | 战斗状态跟随速度 |
-| `PickupBiasDistance` | 150 uu | 整理阶段拾取物偏移距离 |
+| `PickupBiasDistance` | 150 uu | 整理阶段拾取物偏移 |
 | `PickupLerpSpeed` | 2.0 | 拾取物状态跟随速度 |
-| `MaxInputOffset` | 200 uu | 手柄/鼠标最大偏移量 |
+| `MaxInputOffset` | 200 uu | 手柄/鼠标最大偏移 |
 | `InputOffsetLerpSpeed` | 8.0 | 输入偏移平滑速度 |
-| `bAutoReadMouseOffset` | true | 手柄未激活时是否自动读取鼠标偏移 |
-| `MovingSpeedThreshold` | 10 uu/s | 速度超过此值视为"移动中" |
+| `bAutoReadMouseOffset` | true | 手柄未激活时自动读取鼠标 |
+| `MovingSpeedThreshold` | 10 uu/s | 速度超过此值视为移动中 |
 
 ---
 
 ## 11. 编辑器配置指南
 
-### 11.1 首次接入流程（按顺序操作）
+### 11.1 角色蓝图（一次性）
 
-**Step 1 — 创建 CameraPawn 蓝图**
+打开玩家角色蓝图 > Components 面板：
 
-> 如果已有蓝图子类，跳过此步。
+1. 添加 `YogSpringArmComponent`，命名 `CameraBoom`
+2. 在 CameraBoom 下添加 `CameraComponent`
+3. 选中 CameraBoom，在 Details 中：
+   - `Target Arm Length` → 调整到俯视距离（约 1200~1800）
+   - `Socket Offset` → Z 值控制相机高度（约 600~900）
+   - `Rotation` → X=-60（俯角），Y=0，Z=0（或按需调整）
+   - **关闭** `Enable Camera Lag`（由 CameraManager 统一处理偏移）
+   - **关闭** `Enable Camera Rotation Lag`
+   - `bUsePawnControlRotation = false`
 
-1. 内容浏览器 > 右键 > Blueprint Class
-2. 父类选 `YogCameraPawn`
-3. 命名为 `BP_YogCameraPawn`
+### 11.2 PlayerController 蓝图（自动生效）
 
-**Step 2 — 配置 PlayerController 蓝图**
+C++ 构造函数已设置 `PlayerCameraManagerClass = AYogPlayerCameraManager::StaticClass()`，蓝图子类自动继承，**无需手动配置**。
 
-打开 `BP_YogPlayerController`（或你的 PlayerController 蓝图子类），在 **Details** 面板找到：
+如需在蓝图中覆盖参数（如调整 LookAheadDistance），可在 PlayerController 蓝图中：
+Details > Player Camera Manager > 找到相关参数直接修改。
 
-| 属性 | 填写内容 |
-|------|----------|
-| Camera Setting > **Camera Pawn Class** | `BP_YogCameraPawn` |
-| Input > **Input Camera Look** | `IA_CameraLook`（见 Step 3） |
+### 11.3 关卡边界 Volume
 
-**Step 3 — 创建 IA_CameraLook InputAction 资产**
+1. Place Actors 面板搜索 `Yog Camera Volume`，拖入关卡
+2. 选中后按 **Shift+5** 进入 Geometry Edit 模式，拖拽顶点
+3. 或在 Details > Brush Settings 直接输入尺寸（矩形地图用这个最快）
+4. Volume 高度需覆盖玩家可能到达的 Z 范围
 
-1. 内容浏览器 > 右键 > Input > **Input Action**
-2. 命名为 `IA_CameraLook`
-3. 打开，将 **Value Type** 设为 **Axis2D (Vector2D)**
-4. 保存
+### 11.4 相机震动（可选）
 
-**Step 4 — 在 IMC 中绑定右摇杆**
-
-1. 打开你的 **Input Mapping Context**（`IMC_Default` 或类似名称）
-2. 点击 `+`，选择 `IA_CameraLook`
-3. 添加映射：**Gamepad Right Thumbstick 2D-Axis**
-4. 无需额外修改器（Enhanced Input 会自动归一化）
-5. 保存 IMC
-
----
-
-### 11.2 边界约束配置
-
-1. 内容浏览器搜索 `CameraConstraintActor`，拖入关卡
-2. 选中该 Actor，Details > **Camera Constraint** > **Boundary Points**
-3. 点击 `+` 添加顶点，或在视口中拖拽顶点（`MakeEditWidget` 已启用）
-4. 通常放 4~6 个顶点围住地图可玩区域
-
-> 每个关卡只需放**一个** CameraConstraintActor，系统自动查找并缓存。
-
----
-
-### 11.3 相机震动配置（可选）
-
-1. 内容浏览器 > 右键 > Blueprint Class > 父类选 `CameraShakeBase`（或 `MatineeCameraShake`）
-2. 配置震动参数（幅度、频率、持续时间）
-3. 打开 `BP_YogCameraPawn` > Details：
-   - `Heavy Hit Shake Class` → 你的重伤震动蓝图
-   - `Crit Hit Shake Class` → 你的暴击震动蓝图
-4. 在受击逻辑（GE / AnimNotify）中调用：
+1. 创建 `CameraShakeBase` 蓝图子类，配置震动参数
+2. 在 PlayerController 蓝图 Details > Player Camera Manager > `Heavy Hit Shake Class` / `Crit Hit Shake Class` 中指定
+3. 受击逻辑中调用：
    ```
-   PlayerCharacter → GetOwnCamera → NotifyHeavyHit / NotifyCritHit
+   Cast<AYogPlayerCameraManager>(GetPlayerCameraManager()) → NotifyHeavyHit / NotifyCritHit
    ```
-
----
-
-### 11.4 手动 Spawn CameraPawn（如未自动创建）
-
-如果关卡开始后没有相机，检查 PlayerController 蓝图的 `BeginPlay`：
-
-```
-Event BeginPlay → SpawnCameraPawn(GetControlledCharacter())
-```
-
-> `SpawnCameraPawn` 会自动设置 Owner、调用 `SetOwnCamera`、并执行 `SetViewTarget`。
 
 ---
 
@@ -271,19 +231,27 @@ Event BeginPlay → SpawnCameraPawn(GetControlledCharacter())
 
 | 文件 | 说明 |
 |------|------|
-| [YogCameraPawn.h](../../../Source/DevKit/Public/Camera/YogCameraPawn.h) | 相机 Pawn 声明 |
-| [YogCameraPawn.cpp](../../../Source/DevKit/Private/Camera/YogCameraPawn.cpp) | 相机 Pawn 实现 |
-| [CameraConstraintActor.h](../../../Source/DevKit/Public/Camera/CameraConstraintActor.h) | 边界约束 Actor |
-| [YogPlayerControllerBase.h](../../../Source/DevKit/Public/Character/YogPlayerControllerBase.h) | 输入绑定（含 Input_CameraLook） |
-| [YogPlayerControllerBase.cpp](../../../Source/DevKit/Private/Character/YogPlayerControllerBase.cpp) | CameraLook / CameraLookReleased 实现 |
+| [YogPlayerCameraManager.h](../../../Source/DevKit/Public/Camera/YogPlayerCameraManager.h) | CameraManager 声明（状态枚举、参数、API）|
+| [YogPlayerCameraManager.cpp](../../../Source/DevKit/Private/Camera/YogPlayerCameraManager.cpp) | UpdateViewTarget 完整实现 |
+| [YogSpringArmComponent.h](../../../Source/DevKit/Public/Camera/YogSpringArmComponent.h) | SpringArm 组件（挂在角色蓝图上）|
+| [YogCameraVolume.h](../../../Source/DevKit/Public/Volume/YogCameraVolume.h) | 边界 Volume |
+| [YogCameraVolume.cpp](../../../Source/DevKit/Private/Volume/YogCameraVolume.cpp) | Overlap → SetConstraintVolume |
+| [YogPlayerControllerBase.cpp](../../../Source/DevKit/Private/Character/YogPlayerControllerBase.cpp) | PlayerCameraManagerClass 注册、CameraLook 路由 |
 | [GA_PlayerDash.cpp](../../../Source/DevKit/Private/AbilitySystem/Abilities/GA_PlayerDash.cpp) | SetDashMode 调用 |
 | [YogGameMode.h](../../../Source/DevKit/Public/GameModes/YogGameMode.h) | 敌人注册接口 |
-| [EnemyCharacterBase.cpp](../../../Source/DevKit/Private/Character/EnemyCharacterBase.cpp) | 注册/注销钩子 |
+
+### 已废弃（保留但不再使用）
+
+| 文件 | 原因 |
+|------|------|
+| `YogCameraPawn.h/.cpp` | 被 CameraManager 方案替代 |
+| `CameraConstraintActor.h/.cpp` | 被 YogCameraVolume 替代 |
 
 ---
 
 ## 13. 待办
 
-- [ ] 创建 CameraShake 蓝图资产并分配到 CameraPawn Details
-- [ ] 关卡中放置 ACameraConstraintActor 并配置多边形顶点
-- [ ] 重伤/暴击逻辑接入 `NotifyHeavyHit / NotifyCritHit`
+- [ ] 角色蓝图添加 YogSpringArmComponent + CameraComponent 并调整参数
+- [ ] 关卡中放置 AYogCameraVolume 围住可玩区域
+- [ ] 创建 CameraShake 蓝图资产并分配
+- [ ] 受击逻辑接入 NotifyHeavyHit / NotifyCritHit

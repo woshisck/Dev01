@@ -14,6 +14,7 @@
 
 class AYogCameraPawn;
 class AYogCharacterBase;
+class AYogPlayerCameraManager;
 class UInputMappingContext;
 
 
@@ -25,7 +26,8 @@ class DEVKIT_API AYogPlayerControllerBase : public AModularPlayerController
 	GENERATED_BODY()
 
 public:
-	AYogPlayerControllerBase(){}
+	AYogPlayerControllerBase();
+
 
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;

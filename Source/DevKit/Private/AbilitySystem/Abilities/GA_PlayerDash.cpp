@@ -1,6 +1,6 @@
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
-#include "Camera/YogCameraPawn.h"
+#include "Camera/YogPlayerCameraManager.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/SkillChargeComponent.h"
@@ -132,12 +132,10 @@ void UGA_PlayerDash::ActivateAbility(
 	Task->ReadyForActivation();
 
 	// ── 7. 通知相机进入冲刺模式（1:1 无延迟跟随）────────────────────────────
-	if (Player)
+	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(
+		UGameplayStatics::GetPlayerCameraManager(this, 0)))
 	{
-		if (AYogCameraPawn* Cam = Player->GetOwnCamera())
-		{
-			Cam->SetDashMode(true);
-		}
+		CM->SetDashMode(true);
 	}
 }
 
@@ -157,12 +155,10 @@ void UGA_PlayerDash::EndAbility(
 	}
 
 	// 退出相机冲刺模式，恢复正常跟随
-	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Character))
+	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(
+		UGameplayStatics::GetPlayerCameraManager(this, 0)))
 	{
-		if (AYogCameraPawn* Cam = Player->GetOwnCamera())
-		{
-			Cam->SetDashMode(false);
-		}
+		CM->SetDashMode(false);
 	}
 
 	// DEBUG: 蒙太奇结束后画线，此时根运动已完成，终点是真实位置

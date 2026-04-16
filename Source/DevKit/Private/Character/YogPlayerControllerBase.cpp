@@ -10,6 +10,7 @@
 
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/YogCameraPawn.h"
+#include "Camera/YogPlayerCameraManager.h"
 #include "Character/PlayerCharacterBase.h"
 
 #include "Character/YogCharacterBase.h"
@@ -23,6 +24,11 @@
 #include "Component/BufferComponent.h"
 
 
+
+AYogPlayerControllerBase::AYogPlayerControllerBase()
+{
+	PlayerCameraManagerClass = AYogPlayerCameraManager::StaticClass();
+}
 
 void AYogPlayerControllerBase::OnPossess(APawn* InPawn)
 {
@@ -129,9 +135,8 @@ void AYogPlayerControllerBase::BeginPlay()
 	
 	//AYogCharacterBase* TargetCharacter = Cast<AYogCharacterBase>(UGameplayStatics::GetPlayerCharacter(this, 0));
 	
-	//TODO: Swap to camera manager in future, but NOT YET
-
-	//SpawnCameraPawn(Cast<AYogCharacterBase>(this->GetControlledCharacter()));
+	// 相机已切换为 AYogPlayerCameraManager + SpringArm + CameraComponent 方案
+	// SpawnCameraPawn 已废弃，PlayerCameraManagerClass 在构造函数中设置
 
 }
 
@@ -400,27 +405,18 @@ void AYogPlayerControllerBase::CameraLook(const FInputActionValue& Value)
 {
 	if (bBlockGameInput) return;
 
-	APlayerCharacterBase* PlayerChar = Cast<APlayerCharacterBase>(GetPawn());
-	if (!PlayerChar) return;
-
-	AYogCameraPawn* Cam = PlayerChar->GetOwnCamera();
-	if (!Cam) return;
-
-	// InputAction 类型为 Vector2D；右摇杆 X=右, Y=上（Enhanced Input 默认）
-	const FVector2D Axis = Value.Get<FVector2D>();
-	Cam->SetCameraInputAxis(Axis);
+	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(PlayerCameraManager))
+	{
+		CM->SetCameraInputAxis(Value.Get<FVector2D>());
+	}
 }
 
 void AYogPlayerControllerBase::CameraLookReleased(const FInputActionValue& Value)
 {
-	APlayerCharacterBase* PlayerChar = Cast<APlayerCharacterBase>(GetPawn());
-	if (!PlayerChar) return;
-
-	AYogCameraPawn* Cam = PlayerChar->GetOwnCamera();
-	if (!Cam) return;
-
-	// 摇杆松开后归零，让 CameraPawn 的 Tick 接管鼠标偏移
-	Cam->SetCameraInputAxis(FVector2D::ZeroVector);
+	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(PlayerCameraManager))
+	{
+		CM->SetCameraInputAxis(FVector2D::ZeroVector);
+	}
 }
 
 void AYogPlayerControllerBase::ToggleInput(bool bEnable)
