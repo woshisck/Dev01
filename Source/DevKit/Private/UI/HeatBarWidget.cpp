@@ -5,6 +5,8 @@
 #include "GameFramework/Pawn.h"
 #include "Components/ProgressBar.h"
 #include "Components/Image.h"
+#include "Character/PlayerCharacterBase.h"
+#include "Kismet/GameplayStatics.h"
 
 // ============================================================
 //  颜色常量（sRGB hex → 线性）
@@ -45,33 +47,38 @@ void UHeatBarWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    // 缓存 BackpackGridComponent
-    if (APawn* Pawn = GetOwningPlayerPawn())
-        CachedBackpack = Pawn->FindComponentByClass<UBackpackGridComponent>();
-
-    if (UBackpackGridComponent* Backpack = GetBackpack())
+    if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
     {
-        Backpack->OnHeatBarUpdate.AddDynamic(this, &UHeatBarWidget::HandleHeatBarUpdate);
+        CachedBackpack = player->GetBackpackGridComponent();
+    }
 
+
+
+    // 缓存 BackpackGridComponent
+    if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn()))
+        CachedBackpack = player->FindComponentByClass<UBackpackGridComponent>();
+    if (CachedBackpack.IsValid())
+    {
+        CachedBackpack->OnHeatBarUpdate.AddDynamic(this, &UHeatBarWidget::HandleHeatBarUpdate);
         // 立即显示初始状态（从 ASC 读取当前热度）
         float Heat = 0.f, MaxHeat = 1.f;
         if (UAbilitySystemComponent* ASC =
             UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwningPlayerPawn()))
         {
             bool bFound = false;
-            Heat    = ASC->GetGameplayAttributeValue(UBaseAttributeSet::GetHeatAttribute(),    bFound);
+            Heat = ASC->GetGameplayAttributeValue(UBaseAttributeSet::GetHeatAttribute(), bFound);
             MaxHeat = ASC->GetGameplayAttributeValue(UBaseAttributeSet::GetMaxHeatAttribute(), bFound);
         }
         const float NormalizedHeat = (MaxHeat > KINDA_SMALL_NUMBER)
             ? FMath::Clamp(Heat / MaxHeat, 0.f, 1.f) : 0.f;
-
-        RefreshDisplay(NormalizedHeat, Backpack->GetCurrentPhase());
-    }
-    else
+        RefreshDisplay(NormalizedHeat, CachedBackpack->GetCurrentPhase());
+        
+    }else
     {
         // 没有背包时显示默认空状态
         RefreshDisplay(0.f, 0);
     }
+
 }
 
 void UHeatBarWidget::NativeDestruct()
