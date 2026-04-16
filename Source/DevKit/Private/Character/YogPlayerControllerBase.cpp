@@ -389,6 +389,10 @@ void AYogPlayerControllerBase::ToggleBackpack(const FInputActionValue& Value)
 		BackpackWidget->SetUserFocus(this);    // Slate 侧焦点
 		BackpackWidget->OnGridNeedsRefresh();
 		BackpackWidget->OnSelectionChanged();
+
+		UE_LOG(LogTemp, Log, TEXT("[BackpackUI] 背包打开  GamepadCursorCell=(%d,%d)  bGrabbing=%d"),
+			BackpackWidget->GamepadCursorCell.X, BackpackWidget->GamepadCursorCell.Y,
+			BackpackWidget->bGrabbingRune ? 1 : 0);
 	}
 }
 

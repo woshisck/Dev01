@@ -1,7 +1,7 @@
 # 设计文档索引
 
 > 项目：星骸降临 Dev01  
-> 更新：2026-04-14（符文升级系统：Lv.I→II→III / 满级过滤 / BackpackGridComponent 新接口）  
+> 更新：2026-04-16（相机管理系统 / 背包UI手柄适配 / 战斗日志系统）  
 > 新增文档必须在此更新，参见 [DocWritingGuide.md](DocWritingGuide.md)
 
 ---
@@ -104,7 +104,8 @@
 | [当前进展 2026-04-13](WorkReports/CurrentProgress_20260413.md) | 项目阶段概述、已完成 / 未完成功能速览（最新）|
 | [背包与符文激活系统 2026-04-14](WorkReports/BackpackSystem_WorkReport_20260414.md) | BackpackScreenWidget / 符文移动 / 自动入格 / FallbackLootPool |
 | [符文升级系统 2026-04-14](WorkReports/RuneUpgrade_WorkReport_20260414.md) | 升级决策分析 / Lv.I→II→III 倍率 / NotifyRuneUpgraded / 满级奖励池过滤 |
-| [当前进展 2026-04-14](WorkReports/CurrentProgress_20260414.md) | 项目阶段概述、已完成 / 未完成功能速览（最新） |
+| [当前进展 2026-04-14](WorkReports/CurrentProgress_20260414.md) | 项目阶段概述、已完成 / 未完成功能速览 |
+| [相机系统 + 背包UI手柄适配 2026-04-16](WorkReports/CameraAndUI_WorkReport_20260416.md) | AYogCameraPawn 6状态相机 / 手柄背包操作 / 战斗日志 / 蓝图配置任务清单（最新） |
 
 ---
 

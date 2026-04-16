@@ -23,4 +23,7 @@ public:
 
     /** 被拖拽的符文实例（含名称、图标等显示信息） */
     FRuneInstance DraggedRune;
+
+    /** >= 0 时表示拖拽来源是左侧待放置列表（PendingRunes[PendingSourceIndex]） */
+    int32 PendingSourceIndex = -1;
 };

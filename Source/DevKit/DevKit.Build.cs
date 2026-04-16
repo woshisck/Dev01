@@ -40,6 +40,7 @@ public class DevKit : ModuleRules
                 "Hotfix",
                 "PropertyPath",
                 "CommonUI",
+                "CommonInput",
                 "NavigationSystem",
                 "AIModule",
                 "AnimGraphRuntime",
