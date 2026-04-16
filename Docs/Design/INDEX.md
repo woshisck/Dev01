@@ -1,7 +1,7 @@
 # 设计文档索引
 
 > 项目：星骸降临 Dev01  
-> 更新：2026-04-16（相机管理系统：前瞻跟随 / 冲刺 1:1 / 战斗感知 / 多边形边界约束 / 输入偏移 / 震动）  
+> 更新：2026-04-14（符文升级系统：Lv.I→II→III / 满级过滤 / BackpackGridComponent 新接口）  
 > 新增文档必须在此更新，参见 [DocWritingGuide.md](DocWritingGuide.md)
 
 ---
@@ -103,6 +103,8 @@
 | [近战HitBox修复 + 冲刺越障重构 2026-04-13](WorkReports/MeleeAndDash_WorkReport_20260413.md) | Annulus InnerR补偿 / 冲刺步进越障算法 / WorldDynamic+Pawn通道 / 波次卡死修复 |
 | [当前进展 2026-04-13](WorkReports/CurrentProgress_20260413.md) | 项目阶段概述、已完成 / 未完成功能速览（最新）|
 | [背包与符文激活系统 2026-04-14](WorkReports/BackpackSystem_WorkReport_20260414.md) | BackpackScreenWidget / 符文移动 / 自动入格 / FallbackLootPool |
+| [符文升级系统 2026-04-14](WorkReports/RuneUpgrade_WorkReport_20260414.md) | 升级决策分析 / Lv.I→II→III 倍率 / NotifyRuneUpgraded / 满级奖励池过滤 |
+| [当前进展 2026-04-14](WorkReports/CurrentProgress_20260414.md) | 项目阶段概述、已完成 / 未完成功能速览（最新） |
 
 ---
 
@@ -121,7 +123,7 @@
 - 了解目标用户和玩家诉求 → [目标用户与玩家声音调研](Systems/PlayerResearch_Design.md)
 - 查看调研方法和访谈提纲 → [玩家调研报告 v0.1](PlayerResearch/PlayerResearch_Report_v0.1_20260415.md)
 - 找问卷题目 / 访谈 Q&A → [问卷](PlayerResearch/PlayerResearch_Questionnaire_v0.1_20260415.md) · [Q&A 题库](PlayerResearch/PlayerResearch_QA_20260415.md)
-- 查看当前开发进度和优先级 → [当前进展 2026-04-13](WorkReports/CurrentProgress_20260413.md)
+- 查看当前开发进度和优先级 → [当前进展 2026-04-14](WorkReports/CurrentProgress_20260414.md)
 - 配置攻击造成伤害 → [攻击伤害配置指南](FeatureConfig/AttackDamage_ConfigGuide.md)
 - 攻击伤害的设计原理 → [攻击伤害系统设计说明](Systems/AttackDamage_Design.md)
 - 配置敌人攻击行为 → [行为树攻击任务配置](FeatureConfig/BT_AttackTask_ConfigGuide.md)
