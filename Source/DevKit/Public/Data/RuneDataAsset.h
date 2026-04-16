@@ -185,6 +185,13 @@ struct DEVKIT_API FRuneInstance
     UPROPERTY(BlueprintReadWrite)
     int32 Level = 1;
 
+    /** 升级等级：0=Lv.I（基础）, 1=Lv.II（×1.5）, 2=Lv.III（×2.0，满级）*/
+    UPROPERTY(BlueprintReadWrite, Category = "Upgrade")
+    int32 UpgradeLevel = 0;
+
+    /** 根据 UpgradeLevel 返回效果倍率：1.0 / 1.5 / 2.0（C++ 内部使用，FlowAsset 直接读 UpgradeLevel）*/
+    float GetUpgradeMultiplier() const { return 1.0f + (UpgradeLevel * 0.5f); }
+
     UPROPERTY(BlueprintReadWrite)
     FGuid RuneGuid;
 

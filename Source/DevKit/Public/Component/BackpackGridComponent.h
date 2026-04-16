@@ -148,6 +148,13 @@ public:
     UFUNCTION(BlueprintPure, Category = "Backpack")
     const TArray<FPlacedRune>& GetAllPlacedRunes() const { return PlacedRunes; }
 
+    // 按 RuneName 查找已放置符文，返回指针（nullptr 表示未找到）；升级检查时使用
+    FPlacedRune* FindRuneByName(FName RuneName);
+
+    // 返回已达满级（UpgradeLevel == 2）的符文名称列表；供 GenerateLootBatch 过滤奖励池
+    UFUNCTION(BlueprintPure, Category = "Backpack")
+    TArray<FName> GetMaxLevelRuneNames() const;
+
     // 返回当前激活区的所有格子坐标（UI高亮用）
     UFUNCTION(BlueprintPure, Category = "Backpack")
     TArray<FIntPoint> GetActivationZoneCells() const;

@@ -99,6 +99,7 @@ AttributeSet::PostAttributeChange(Heat)
 | `Shape.Cells` | TArray\<FIntPoint\> | 背包格子形状（相对偏移，当前展示版固定 1x1）|
 | `Flow.FlowAsset` | UFlowAsset* | BuffFlow 逻辑资产，激活时自动启动 |
 | `RuneGuid` | FGuid | 唯一标识，RemoveRune/MoveRune 时使用 |
+| `UpgradeLevel` | int32 | 升级等级：0=Lv.I，1=Lv.II，2=Lv.III（满级） |
 
 ### `FPlacedRune`（已放置符文状态）
 
@@ -169,27 +170,102 @@ WBP_LootSelection::HandleLootGenerated()
 
 ---
 
-## 六、AddRuneToInventory 自动寻位逻辑
+## 六、符文升级系统
+
+### 6.1 设计规则
+
+| 规则 | 内容 |
+| --- | --- |
+| 重复限制 | 每种符文（按 RuneName 判断）在背包中只能存在**一张** |
+| 拿到重复符文 | 背包中该符文自动升级（Lv.I → II → III），不新占格子 |
+| 达到 Lv.III 后 | 该符文从奖励池中过滤，不再出现（后期规划转化为资源） |
+| 升级效果 | 线性倍率：Lv.I × 1.0 / Lv.II × 1.5 / Lv.III × 2.0 |
+
+> 升级倍率由 BuffFlow 中的 `UpgradeMultiplier` 节点读取 `UpgradeLevel` 实现，无需为每级单独制作 FlowAsset。
+
+### 6.2 AddRuneToInventory 升级逻辑
 
 ```cpp
 // PlayerCharacterBase.cpp
 void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 {
-    // 自动寻位：左上角开始，逐行逐列扫描
     if (BackpackGridComponent)
     {
+        // 1. 检查背包里是否已有同名符文
+        FPlacedRune* Existing = BackpackGridComponent->FindRuneByName(Rune.RuneConfig.RuneName);
+        if (Existing)
+        {
+            if (Existing->Rune.UpgradeLevel < 2)  // 未满级（0/1 → 升到 1/2）
+            {
+                Existing->Rune.UpgradeLevel++;
+                BackpackGridComponent->RefreshAllActivations();
+                BackpackGridComponent->OnRuneActivationChanged.Broadcast();
+            }
+            // 满级（UpgradeLevel == 2）：GenerateLootOptions 已过滤，正常不会到这里
+            return;
+        }
+
+        // 2. 新符文：自动寻位放置
         for (int32 Row = 0; Row < GridHeight; Row++)
             for (int32 Col = 0; Col < GridWidth; Col++)
-                if (TryPlaceRune(Rune, FIntPoint(Col, Row)))
-                    return;  // 放置成功，结束
+                if (BackpackGridComponent->TryPlaceRune(Rune, FIntPoint(Col, Row)))
+                    return;
     }
     PendingRunes.Add(Rune);  // 背包满，进待放置列表
 }
 ```
 
+### 6.3 GenerateLootOptions 过滤满级符文
+
+```cpp
+// YogGameMode.cpp - GenerateLootOptions 中
+// 生成候选列表前，排除玩家背包中已达 Lv.III 的符文类型
+TArray<FName> MaxLevelRunes = PlayerCharacter->BackpackGridComponent->GetMaxLevelRuneNames();
+Pool = Pool.FilterByPredicate([&](const URuneDataAsset* DA) {
+    return !MaxLevelRunes.Contains(DA->RuneInfo.RuneConfig.RuneName);
+});
+```
+
+### 6.4 新增 BackpackGridComponent 接口
+
+| 方法 | 说明 |
+| --- | --- |
+| `FindRuneByName(FName)` | 按名称查找已放置符文，返回指针（升级用） |
+| `GetMaxLevelRuneNames()` | 返回所有 UpgradeLevel == 2 的符文名称集合（奖励过滤用） |
+
+### 6.5 UI 展示升级等级
+
+背包格子内符文图标右上角叠加等级文字：
+
+| UpgradeLevel | 显示 |
+| --- | --- |
+| 0 | 无标记（Lv.I 为默认状态） |
+| 1 | `II` |
+| 2 | `III`（或用金色加以区分） |
+
+三选一卡片中，若该符文玩家已有，卡片标题附加当前等级：`烈焰符文 [Lv.II → III]`。
+
 ---
 
-## 七、C++ 文件索引
+## 七、AddRuneToInventory 自动寻位逻辑（原始版本）
+
+> ⚠️ 此节为旧版本参考，已被第六节的升级逻辑取代。
+
+```cpp
+// 原逻辑（无升级判断，仅供参考）
+void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
+{
+    for (int32 Row = 0; Row < GridHeight; Row++)
+        for (int32 Col = 0; Col < GridWidth; Col++)
+            if (TryPlaceRune(Rune, FIntPoint(Col, Row)))
+                return;
+    PendingRunes.Add(Rune);
+}
+```
+
+---
+
+## 八、C++ 文件索引
 
 | 文件 | 作用 |
 |---|---|

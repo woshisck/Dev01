@@ -42,6 +42,10 @@ void ULootSelectionWidget::HandleLootGenerated(const TArray<FLootOption>& LootOp
 		PC->SetBlockGameInput(true, true);  // UIOnly：LMB 不被攻击消耗，按钮可点击
 	}
 
+	// 暂停游戏（时间停止，敌人/动画冻结）
+	if (APlayerController* PC = GetOwningPlayer())
+		PC->SetPause(true);
+
 	OnLootOptionsReady(LootOptions);  // 通知蓝图填充卡片数据
 }
 
@@ -61,6 +65,7 @@ void ULootSelectionWidget::SelectRuneLoot(int32 Index)
 	SetVisibility(ESlateVisibility::Hidden);
 	if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(GetOwningPlayer()))
 	{
+		PC->SetPause(false);           // 恢复游戏时间
 		PC->SetBlockGameInput(false);  // 恢复游戏输入 + GameOnly + 隐藏鼠标
 	}
 }

@@ -2,13 +2,38 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "NiagaraSystem.h"
 #include "Portal.generated.h"
 
 class APlayerCharacterBase;
 class UBillboardComponent;
 class UBoxComponent;
+class UNiagaraComponent;
+class UStaticMeshComponent;
 class UYogSaveSubsystem;
 class URoomDataAsset;
+
+/**
+ * 传送门单个状态的美术配置。
+ * 在蓝图 Details 面板里填写资产即可，无需写蓝图逻辑。
+ */
+USTRUCT(BlueprintType)
+struct DEVKIT_API FPortalArtConfig
+{
+	GENERATED_BODY()
+
+	// 门的静态网格体
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Art")
+	TObjectPtr<UStaticMesh> Mesh;
+
+	// 开启瞬间播放一次的特效（激活后自动结束）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Art")
+	TObjectPtr<UNiagaraSystem> OpenVFX;
+
+	// 开启后持续循环的特效（待机状态）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Art")
+	TObjectPtr<UNiagaraSystem> IdleVFX;
+};
 
 UCLASS()
 class DEVKIT_API APortal : public AActor
@@ -19,16 +44,27 @@ public:
 
 	APortal(const FObjectInitializer& ObjectInitializer);
 
-	// 视觉效果由 BP 实现（雾效开关）
-	UFUNCTION(BlueprintImplementableEvent)
+	/**
+	 * 开启传送门：C++ 根据 SelectedLevel 查 DestinationArtMap 自动切换美术。
+	 * 蓝图可 override 追加表现（如相机抖动、声音等），但无需实现美术切换逻辑。
+	 */
+	UFUNCTION(BlueprintNativeEvent)
 	void EnablePortal();
+	virtual void EnablePortal_Implementation();
 
-	UFUNCTION(BlueprintImplementableEvent)
+	/**
+	 * 关闭传送门（关卡开始时）：C++ 自动应用 ClosedArt。
+	 */
+	UFUNCTION(BlueprintNativeEvent)
 	void DisablePortal();
+	virtual void DisablePortal_Implementation();
 
-	// 关卡开始时由 GameMode 确定该门永不开启：隐藏门效果，显示静态装饰，无碰撞
-	UFUNCTION(BlueprintImplementableEvent)
+	/**
+	 * 关卡开始时由 GameMode 确定该门永不开启：C++ 应用 NeverOpenArt 并禁用碰撞。
+	 */
+	UFUNCTION(BlueprintNativeEvent)
 	void NeverOpen();
+	virtual void NeverOpen_Implementation();
 
 	// GameMode 在关卡结束时调用，分配目标关卡和房间配置并开启门
 	UFUNCTION(BlueprintCallable)
@@ -76,4 +112,44 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	TObjectPtr<UBillboardComponent> BillBoard;
+
+	// =========================================================
+	// 美术组件（C++ 驱动，蓝图只需在 Details 填入资产）
+	// =========================================================
+
+	// 门体网格。DisablePortal/EnablePortal 时由 C++ 自动切换资产。
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components")
+	TObjectPtr<UStaticMeshComponent> PortalMesh;
+
+	// 门开启瞬间的一次性特效（播完自动停止）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components")
+	TObjectPtr<UNiagaraComponent> OpenVFXComp;
+
+	// 门开启后的持续待机特效
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components")
+	TObjectPtr<UNiagaraComponent> IdleVFXComp;
+
+	// =========================================================
+	// 美术配置（在蓝图 Details 面板填写即可）
+	// =========================================================
+
+	// 关卡开始时（关闭状态）的美术
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Art")
+	FPortalArtConfig ClosedArt;
+
+	// 永不开启时的美术（留空则直接隐藏网格）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Art")
+	FPortalArtConfig NeverOpenArt;
+
+	/**
+	 * 目标关卡 → 对应美术配置。
+	 * Key 填关卡资产名称（FName），如 "L1_Forest"、"L1_Desert"。
+	 * GameMode 调用 Open() 时已确定 SelectedLevel，EnablePortal 会自动查此 Map。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Art")
+	TMap<FName, FPortalArtConfig> DestinationArtMap;
+
+private:
+	// 统一应用一套 FPortalArtConfig：切换网格、激活/停止特效
+	void ApplyArtConfig(const FPortalArtConfig& Config, bool bPlayOpenVFX = false);
 };

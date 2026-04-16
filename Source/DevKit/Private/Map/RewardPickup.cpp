@@ -47,6 +47,11 @@ void ARewardPickup::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActo
 	}
 }
 
+void ARewardPickup::AssignLoot(const TArray<FLootOption>& InLoot)
+{
+	AssignedLoot = InLoot;
+}
+
 void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 {
 	if (bPickedUp || !Player) return;
@@ -54,10 +59,18 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 
 	Player->PendingPickup = nullptr;
 
-	// 通知 GameMode 生成战利品选项并广播给 UI
 	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this)))
 	{
-		GM->GenerateLootOptions();
+		if (AssignedLoot.Num() > 0)
+		{
+			// 使用预分配的选项：多个拾取物互不干扰
+			GM->ShowLootOptions(AssignedLoot);
+		}
+		else
+		{
+			// 兜底：GameMode 即时生成（单拾取物场景 / 旧逻辑兼容）
+			GM->GenerateLootOptions();
+		}
 	}
 
 	Destroy();

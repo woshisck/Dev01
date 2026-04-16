@@ -165,6 +165,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Backpack")
     void ClearSelection();
 
+    /** 打开背包：显示 Widget + 暂停游戏 + 切换 UI 输入模式 */
+    UFUNCTION(BlueprintCallable, Category = "Backpack")
+    void OpenBackpack();
+
+    /** 关闭背包：隐藏 Widget + 恢复游戏 + 切换 Game 输入模式 */
+    UFUNCTION(BlueprintCallable, Category = "Backpack")
+    void CloseBackpack();
+
     // =========================================================
     // 刷新事件（BlueprintNativeEvent：C++ 提供默认实现）
     // =========================================================
@@ -192,7 +200,9 @@ protected:
     virtual void NativeDestruct() override;
 
     // ── 手柄 / 键盘输入 ─────────────────────────────────────────────────
+    virtual void   NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
     virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+    virtual FReply NativeOnKeyUp(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
     virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
     // ── 拖拽输入重写 ────────────────────────────────────────────────────
@@ -244,6 +254,17 @@ private:
     void GamepadConfirm();
     void GamepadCancel();
     void UpdateTooltipForCell(int32 Col, int32 Row, const FVector2D& LocalPos);
+
+    // ── 手柄方向键重复（平滑导航） ────────────────────────────────────
+    // 首次按下立即移动；持续按住 DirRepeatInitial 秒后，
+    // 每隔 DirRepeatRate 秒自动重复移动一格
+    FKey  HeldDirKey;
+    float HeldKeyTime    = 0.f;
+    int32 LastRepeatCount = 0;
+    bool  bDirKeyHeld    = false;
+
+    static constexpr float DirRepeatInitial = 0.30f;  // 初始延迟（秒）
+    static constexpr float DirRepeatRate    = 0.10f;  // 重复间隔（秒）
 
     UFUNCTION()
     void HandleRunePlaced(const FRuneInstance& Rune);

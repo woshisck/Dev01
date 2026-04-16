@@ -631,6 +631,27 @@ int32 UBackpackGridComponent::CellToIndex(FIntPoint Cell) const
 	return Cell.Y * GridWidth + Cell.X;
 }
 
+FPlacedRune* UBackpackGridComponent::FindRuneByName(FName RuneName)
+{
+	for (FPlacedRune& Placed : PlacedRunes)
+	{
+		if (Placed.Rune.RuneConfig.RuneName == RuneName)
+			return &Placed;
+	}
+	return nullptr;
+}
+
+TArray<FName> UBackpackGridComponent::GetMaxLevelRuneNames() const
+{
+	TArray<FName> Result;
+	for (const FPlacedRune& Placed : PlacedRunes)
+	{
+		if (Placed.Rune.UpgradeLevel >= 2)
+			Result.Add(Placed.Rune.RuneConfig.RuneName);
+	}
+	return Result;
+}
+
 bool UBackpackGridComponent::IsCellValid(FIntPoint Cell) const
 {
 	return Cell.X >= 0 && Cell.X < GridWidth

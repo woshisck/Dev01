@@ -3,6 +3,7 @@
 #include "UI/RuneTooltipWidget.h"
 #include "Component/BackpackGridComponent.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Character/YogPlayerControllerBase.h"
 #include "GameFramework/Pawn.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
@@ -446,6 +447,36 @@ void UBackpackScreenWidget::ClearSelection()
     OnSelectionChanged();
 }
 
+void UBackpackScreenWidget::OpenBackpack()
+{
+    SetVisibility(ESlateVisibility::Visible);
+
+    if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(GetOwningPlayer()))
+    {
+        PC->SetPause(true);
+        PC->SetBlockGameInput(true, true);  // UIOnly 模式，显示鼠标
+    }
+
+    // 请求焦点，使手柄输入生效
+    SetUserFocus(GetOwningPlayer());
+}
+
+void UBackpackScreenWidget::CloseBackpack()
+{
+    SetVisibility(ESlateVisibility::Collapsed);
+
+    // 清空持有状态
+    bGrabbingRune   = false;
+    GrabbedFromCell = FIntPoint(-1, -1);
+    ClearSelection();
+
+    if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(GetOwningPlayer()))
+    {
+        PC->SetPause(false);
+        PC->SetBlockGameInput(false);  // 恢复 Game 模式
+    }
+}
+
 // ============================================================
 //  格子绑定（拖拽模式：按钮设为 HitTestInvisible，不绑 OnClicked）
 // ============================================================
@@ -538,6 +569,8 @@ FReply UBackpackScreenWidget::NativeOnPreviewMouseButtonDown(const FGeometry& In
         // 立即选中格子（详情面板即时响应）
         SelectedCell      = FIntPoint(Col, Row);
         SelectedRuneIndex = -1;
+        // 鼠标点击时同步手柄光标，避免之后按 A 时作用到错误格子
+        GamepadCursorCell = FIntPoint(Col, Row);
         OnSelectionChanged();
 
         // 记录拖拽源，等待 NativeOnDragDetected
@@ -706,6 +739,52 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
     return false;
 }
 
+FReply UBackpackScreenWidget::NativeOnKeyUp(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+    if (InKeyEvent.GetKey() == HeldDirKey)
+    {
+        bDirKeyHeld    = false;
+        HeldKeyTime    = 0.f;
+        LastRepeatCount = 0;
+    }
+    return Super::NativeOnKeyUp(InGeometry, InKeyEvent);
+}
+
+void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+    Super::NativeTick(MyGeometry, InDeltaTime);
+
+    if (!bDirKeyHeld) return;
+
+    // 焦点丢失时 NativeOnKeyUp 可能未触发，双重确认按键实际还在被按住
+    if (APlayerController* PC = GetOwningPlayer())
+    {
+        if (!PC->IsInputKeyDown(HeldDirKey))
+        {
+            bDirKeyHeld    = false;
+            HeldKeyTime    = 0.f;
+            LastRepeatCount = 0;
+            return;
+        }
+    }
+
+    HeldKeyTime += InDeltaTime;
+
+    // 初始延迟未到，不重复
+    if (HeldKeyTime < DirRepeatInitial) return;
+
+    // 计算应当已发生的重复次数
+    const int32 TargetCount = FMath::FloorToInt((HeldKeyTime - DirRepeatInitial) / DirRepeatRate);
+    if (TargetCount <= LastRepeatCount) return;
+
+    LastRepeatCount = TargetCount;
+
+    if      (HeldDirKey == EKeys::Gamepad_DPad_Up)    MoveGamepadCursor( 0, -1);
+    else if (HeldDirKey == EKeys::Gamepad_DPad_Down)  MoveGamepadCursor( 0,  1);
+    else if (HeldDirKey == EKeys::Gamepad_DPad_Left)  MoveGamepadCursor(-1,  0);
+    else if (HeldDirKey == EKeys::Gamepad_DPad_Right) MoveGamepadCursor( 1,  0);
+}
+
 void UBackpackScreenWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
     HoverCol       = HoverRow       = -1;
@@ -721,24 +800,37 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
 {
     const FKey Key = InKeyEvent.GetKey();
 
-    // D-Pad 移动光标
-    if (Key == EKeys::Gamepad_DPad_Up)    { MoveGamepadCursor( 0, -1); return FReply::Handled(); }
-    if (Key == EKeys::Gamepad_DPad_Down)  { MoveGamepadCursor( 0,  1); return FReply::Handled(); }
-    if (Key == EKeys::Gamepad_DPad_Left)  { MoveGamepadCursor(-1,  0); return FReply::Handled(); }
-    if (Key == EKeys::Gamepad_DPad_Right) { MoveGamepadCursor( 1,  0); return FReply::Handled(); }
+    UE_LOG(LogTemp, Log, TEXT("[BackpackUI] KeyDown: %s  IsRepeat=%d  CursorCell=(%d,%d)  bGrabbing=%d"),
+        *Key.ToString(), InKeyEvent.IsRepeat() ? 1 : 0,
+        GamepadCursorCell.X, GamepadCursorCell.Y, bGrabbingRune ? 1 : 0);
 
-    // A 键：抓取 / 放置
-    if (Key == EKeys::Gamepad_FaceButton_Bottom) { GamepadConfirm(); return FReply::Handled(); }
-
-    // B 键：取消
-    if (Key == EKeys::Gamepad_FaceButton_Right) { GamepadCancel(); return FReply::Handled(); }
-
-    // Y 键：移除当前光标格子的符文
-    if (Key == EKeys::Gamepad_FaceButton_Top)
+    // D-Pad 移动光标：立即移动一格，同时启动重复计时
+    auto StartDirRepeat = [&](int32 DC, int32 DR)
     {
-        SelectedCell = GamepadCursorCell;
-        RemoveRuneAtSelectedCell();
+        MoveGamepadCursor(DC, DR);
+        HeldDirKey     = Key;
+        bDirKeyHeld    = true;
+        HeldKeyTime    = 0.f;
+        LastRepeatCount = 0;
         return FReply::Handled();
+    };
+
+    if (Key == EKeys::Gamepad_DPad_Up)    return StartDirRepeat( 0, -1);
+    if (Key == EKeys::Gamepad_DPad_Down)  return StartDirRepeat( 0,  1);
+    if (Key == EKeys::Gamepad_DPad_Left)  return StartDirRepeat(-1,  0);
+    if (Key == EKeys::Gamepad_DPad_Right) return StartDirRepeat( 1,  0);
+
+    // A / B / Y 不允许 OS 重复触发（防止按住 A 导致抓取后立即放置）
+    if (!InKeyEvent.IsRepeat())
+    {
+        if (Key == EKeys::Gamepad_FaceButton_Bottom) { GamepadConfirm(); return FReply::Handled(); }
+        if (Key == EKeys::Gamepad_FaceButton_Right)  { GamepadCancel();  return FReply::Handled(); }
+        if (Key == EKeys::Gamepad_FaceButton_Top)
+        {
+            SelectedCell = GamepadCursorCell;
+            RemoveRuneAtSelectedCell();
+            return FReply::Handled();
+        }
     }
 
     return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
@@ -753,9 +845,18 @@ void UBackpackScreenWidget::MoveGamepadCursor(int32 DCol, int32 DRow)
     GamepadCursorCell.X = FMath::Clamp(GamepadCursorCell.X + DCol, 0, W - 1);
     GamepadCursorCell.Y = FMath::Clamp(GamepadCursorCell.Y + DRow, 0, H - 1);
 
-    // 更新选中高亮（视觉反馈）
-    SelectedCell = GamepadCursorCell;
-    OnSelectionChanged();
+    // 抓取中：SelectedCell 保持在抓取源格（黄色高亮 = "被抓的符文在哪"）
+    // 未抓取：SelectedCell 跟随光标（黄色高亮 = "光标在哪"）
+    if (!bGrabbingRune)
+    {
+        SelectedCell = GamepadCursorCell;
+        OnSelectionChanged();
+    }
+    else
+    {
+        // 只刷新格子颜色（让悬浮目标格也能看到），不改变选中状态
+        OnGridNeedsRefresh();
+    }
 
     // 更新 Tooltip（传入虚拟本地坐标，Tooltip 显示在光标格右侧）
     UpdateTooltipForCell(GamepadCursorCell.X, GamepadCursorCell.Y, FVector2D::ZeroVector);
@@ -766,10 +867,17 @@ void UBackpackScreenWidget::GamepadConfirm()
     UBackpackGridComponent* Backpack = GetBackpack();
     if (!Backpack) return;
 
+    UE_LOG(LogTemp, Log, TEXT("[BackpackUI] GamepadConfirm  bGrabbing=%d  CursorCell=(%d,%d)  GrabbedFrom=(%d,%d)"),
+        bGrabbingRune ? 1 : 0,
+        GamepadCursorCell.X, GamepadCursorCell.Y,
+        GrabbedFromCell.X, GrabbedFromCell.Y);
+
     if (!bGrabbingRune)
     {
         // 第一步：抓取
         int32 RuneIdx = Backpack->GetRuneIndexAtCell(GamepadCursorCell);
+        UE_LOG(LogTemp, Log, TEXT("[BackpackUI]   → 尝试抓取 (%d,%d)  RuneIdx=%d"),
+            GamepadCursorCell.X, GamepadCursorCell.Y, RuneIdx);
         if (RuneIdx >= 0)
         {
             bGrabbingRune    = true;
@@ -788,6 +896,7 @@ void UBackpackScreenWidget::GamepadConfirm()
         // 第二步：放置或互换
         if (GamepadCursorCell == GrabbedFromCell)
         {
+            UE_LOG(LogTemp, Log, TEXT("[BackpackUI]   → 光标未移动，取消抓取"));
             // 放回原位 = 取消
             GamepadCancel();
             return;
@@ -797,9 +906,13 @@ void UBackpackScreenWidget::GamepadConfirm()
         int32 SrcIdx = Backpack->GetRuneIndexAtCell(GrabbedFromCell);
         int32 DstIdx = Backpack->GetRuneIndexAtCell(GamepadCursorCell);
 
+        UE_LOG(LogTemp, Log, TEXT("[BackpackUI]   → 放置 GrabbedFrom=(%d,%d) SrcIdx=%d → Target=(%d,%d) DstIdx=%d"),
+            GrabbedFromCell.X, GrabbedFromCell.Y, SrcIdx,
+            GamepadCursorCell.X, GamepadCursorCell.Y, DstIdx);
+
         if (SrcIdx < 0)
         {
-            // 源格子符文已不存在（被移除），取消抓取
+            UE_LOG(LogTemp, Warning, TEXT("[BackpackUI]   → 源格子符文不存在，取消"));
             bGrabbingRune = false;
             GrabbedFromCell = FIntPoint(-1, -1);
             return;
