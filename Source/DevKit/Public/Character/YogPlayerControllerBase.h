@@ -67,6 +67,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_OpenBackpack;
 
+	/** 手柄右摇杆 — 驱动相机微偏移（Vector2D InputAction） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_CameraLook;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<class UBackpackScreenWidget> BackpackWidgetClass;
 
@@ -104,6 +108,8 @@ public:
 	void SetPlayerState(EYogCharacterState newState);
 
 	void ToggleBackpack(const FInputActionValue& Value);
+	void CameraLook(const FInputActionValue& Value);
+	void CameraLookReleased(const FInputActionValue& Value);
 
 	/**
 	 * 当任何 UI（背包/三选一）打开时调用 true，关闭时调用 false
@@ -130,6 +136,7 @@ private:
 	uint32 DashInputHandle = INDEX_NONE;
 	uint32 InteractInputHandle = INDEX_NONE;
 	uint32 OpenBackpackInputHandle = INDEX_NONE;
+	uint32 CameraLookInputHandle = INDEX_NONE;
 
 	UPROPERTY()
 	TObjectPtr<class UBackpackScreenWidget> BackpackWidget;

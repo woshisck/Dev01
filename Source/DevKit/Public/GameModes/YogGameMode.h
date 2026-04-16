@@ -123,6 +123,40 @@ public:
 	int RemainKillCount;
 
 	// =========================================================
+	// 敌人注册表（供相机感知使用）
+	// =========================================================
+
+	/** 敌人出生时注册，提供给 CameraPawn 做战斗感知偏移 */
+	void RegisterEnemy(AEnemyCharacterBase* Enemy);
+
+	/** 敌人死亡时注销 */
+	void UnregisterEnemy(AEnemyCharacterBase* Enemy);
+
+	/** 当前是否有存活的敌人（包含已注册但尚未死亡的） */
+	UFUNCTION(BlueprintPure, Category = "Camera|Combat")
+	bool HasAliveEnemies() const;
+
+	/**
+	 * 获取 Origin 半径 WithinRadius 内所有存活敌人的位置质心。
+	 * 若范围内无敌人，返回 Origin 本身（偏移量为零）。
+	 */
+	UFUNCTION(BlueprintPure, Category = "Camera|Combat")
+	FVector GetEnemyCentroid(FVector Origin, float WithinRadius) const;
+
+	/**
+	 * 获取距 Origin 最近的存活敌人方向（单位向量）。
+	 * 若无存活敌人，返回 FVector::ZeroVector。
+	 */
+	UFUNCTION(BlueprintPure, Category = "Camera|Combat")
+	FVector GetNearestEnemyDirection(FVector Origin) const;
+
+	/**
+	 * 获取 Origin 半径 WithinRadius 内的所有存活敌人指针列表。
+	 * 不包含已死亡或已销毁的对象。
+	 */
+	TArray<AEnemyCharacterBase*> GetNearbyEnemies(FVector Origin, float WithinRadius) const;
+
+	// =========================================================
 	// 关卡流程
 	// =========================================================
 
@@ -171,9 +205,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom = nullptr);
 
-	// 从 LootPool 中随机生成战利品选项并广播（由 ARewardPickup 触发）
+	// 从 LootPool 中随机生成战利品选项并广播（由 ARewardPickup 兜底路径触发）
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void GenerateLootOptions();
+
+	/**
+	 * 将已生成的选项广播给 UI（由 ARewardPickup::TryPickup 使用预分配路径调用）。
+	 * 不重新生成选项，直接用传入的 Options。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
+	void ShowLootOptions(const TArray<FLootOption>& Options);
 
 	/**
 	 * 兜底符文池：当 ActiveRoomData 为空时（如初始关卡/独立测试关卡）使用
@@ -298,6 +339,10 @@ protected:
 	// 按需补刷：每当有敌人死亡且当前波次 DemandCount > 0 时，延迟补刷一只
 	void CheckDemandSpawn();
 
+	// ---- 敌人注册表（相机战斗感知）----
+	// 使用原始指针 + 手动生命期管理（RegisterEnemy/UnregisterEnemy 保持同步）
+	TArray<TWeakObjectPtr<AEnemyCharacterBase>> AliveEnemies;
+
 	// 本关激活的关卡 Buff（进关时骰子选好，新怪刷出时在其 BuffFlowComponent 上激活）
 	TArray<FBuffEntry> ActiveRoomBuffs;
 
@@ -333,4 +378,15 @@ protected:
 
 	UPROPERTY()
 	int32 Current_CallCount;
+
+	// ---- 战利品生成 ----
+
+	/**
+	 * 从符文池中生成一批（最多 3 个）不与 AlreadyOffered 重复的选项。
+	 * 生成的符文 DA 指针会被写入 AlreadyOffered，供同关下一次调用去重。
+	 */
+	TArray<FLootOption> GenerateLootBatch(TSet<URuneDataAsset*>& AlreadyOffered);
+
+	// 本关已分配给各拾取物的符文集合（防止同关多个拾取物提供重复选项）
+	TSet<URuneDataAsset*> LootAssignedThisLevel;
 };

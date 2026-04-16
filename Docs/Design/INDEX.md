@@ -1,7 +1,7 @@
 # 设计文档索引
 
 > 项目：星骸降临 Dev01  
-> 更新：2026-04-14（Wait Gameplay Event 节点；跨符文通信；蒙太奇命中符文；击退系统修复；ActivationBlockedTags）  
+> 更新：2026-04-16（相机管理系统：前瞻跟随 / 冲刺 1:1 / 战斗感知 / 多边形边界约束 / 输入偏移 / 震动）  
 > 新增文档必须在此更新，参见 [DocWritingGuide.md](DocWritingGuide.md)
 
 ---
@@ -77,6 +77,7 @@
 | [玩家调研问卷 v0.1（4.15）](PlayerResearch/PlayerResearch_Questionnaire_v0.1_20260415.md) | 完整在线问卷题目（44 题，分场景使用）| 策划 |
 | [玩家调研 Q&A 题库 v0.2（4.15）](PlayerResearch/PlayerResearch_QA_20260415.md) | 热度/背包/动作/画像/可用性共 48 题问答（主持人预演用）| 策划 |
 | [冲刺（Dash）系统](Systems/Dash_Design.md) | 方向/旋转/无敌帧/穿透/碰撞通道/障碍检测/扩展规划（GA_PlayerDash C++） | 策划 + 程序 |
+| [相机管理系统](Systems/Camera_Design.md) | 前瞻跟随 / 冲刺 1:1 / 战斗感知偏移 / 多边形边界约束 / 手柄输入偏移 / 震动事件 | 策划 + 程序 |
 
 ---
 

@@ -50,6 +50,12 @@ void AEnemyCharacterBase::BeginPlay()
 	{
 		AttributeStatsComponent->OnHealthChange.AddDynamic(this, &AEnemyCharacterBase::OnHealthChangedForDeath);
 	}
+
+	// 注册到 GameMode 的敌人列表（供 CameraPawn 战斗感知使用）
+	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		GM->RegisterEnemy(this);
+	}
 }
 
 void AEnemyCharacterBase::Tick(float DeltaSeconds)
@@ -83,6 +89,8 @@ void AEnemyCharacterBase::Die()
 	{
 		GM->LastEnemyKillLocation = GetActorLocation();
 		GM->UpdateFinishLevel(1);
+		// 从相机战斗感知列表中移除
+		GM->UnregisterEnemy(this);
 	}
 
 	// 绝对兜底：正常死亡销毁由 GA_Dead 处理（有蒙太奇→动画结束销毁；无蒙太奇→2秒后销毁）

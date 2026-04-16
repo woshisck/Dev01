@@ -340,6 +340,9 @@ void AYogGameMode::EnterArrangementPhase()
 		}
 	}
 
+	// 重置本关已分配符文的追踪集合（多拾取物去重用）
+	LootAssignedThisLevel.Empty();
+
 	// 在最后击杀位置生成奖励拾取物（若无敌人被击杀则退而在玩家位置生成）
 	if (RewardPickupClass)
 	{
@@ -360,20 +363,15 @@ void AYogGameMode::EnterArrangementPhase()
 		}
 		if (!SpawnLoc.IsZero())
 		{
-			GetWorld()->SpawnActor<AActor>(RewardPickupClass, SpawnLoc, FRotator::ZeroRotator);
+			AActor* Spawned = GetWorld()->SpawnActor<AActor>(RewardPickupClass, SpawnLoc, FRotator::ZeroRotator);
 			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 生成 RewardPickup @ %s"), *SpawnLoc.ToString());
 
-			// DEBUG: 打印 LootPool 中可拾取的符文名称
-			if (GEngine && ActiveRoomData && !ActiveRoomData->LootPool.IsEmpty())
+			// 预分配战利品选项，拾取时直接展示，无需再次生成
+			if (ARewardPickup* Pickup = Cast<ARewardPickup>(Spawned))
 			{
-				FString RuneNames;
-				for (const TObjectPtr<URuneDataAsset>& Rune : ActiveRoomData->LootPool)
-				{
-					if (Rune) RuneNames += Rune->GetName() + TEXT(" | ");
-				}
-				GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green,
-					FString::Printf(TEXT("[奖励拾取物] LootPool(%d): %s"),
-						ActiveRoomData->LootPool.Num(), *RuneNames));
+				TArray<FLootOption> Batch = GenerateLootBatch(LootAssignedThisLevel);
+				Pickup->AssignLoot(Batch);
+				UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 预分配 %d 个符文选项给 RewardPickup"), Batch.Num());
 			}
 		}
 	}
@@ -1224,17 +1222,16 @@ TArray<FBuffEntry> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int
 // 关卡流程
 // =========================================================
 
-void AYogGameMode::GenerateLootOptions()
+TArray<FLootOption> AYogGameMode::GenerateLootBatch(TSet<URuneDataAsset*>& AlreadyOffered)
 {
-	CurrentLootOptions.Empty();
+	TArray<FLootOption> Batch;
 
-	// 优先使用新系统（CampaignData + RoomDataAsset.LootPool）
+	// 确定符文源池
 	const TArray<TObjectPtr<URuneDataAsset>>* SourcePool = nullptr;
 	if (CampaignData && ActiveRoomData && !ActiveRoomData->LootPool.IsEmpty())
 	{
 		SourcePool = &ActiveRoomData->LootPool;
 	}
-	// 兜底：初始关卡或无 ActiveRoomData 时，使用 GameMode 上配置的 FallbackLootPool
 	if (!SourcePool && !FallbackLootPool.IsEmpty())
 	{
 		SourcePool = &FallbackLootPool;
@@ -1242,25 +1239,23 @@ void AYogGameMode::GenerateLootOptions()
 
 	if (!SourcePool)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("GenerateLootOptions: 无可用符文池，请在 GameMode BP 配置 FallbackLootPool"));
-		OnLootGenerated.Broadcast(CurrentLootOptions);
-		return;
+		UE_LOG(LogTemp, Warning, TEXT("GenerateLootBatch: 无可用符文池，请在 GameMode BP 配置 FallbackLootPool"));
+		return Batch;
 	}
-	
 
-
-	// 复制掉落池并去重（同一个 DA 资产出现多次只保留一份）
+	// 去重 + 排除本关已分配过的符文
 	TArray<URuneDataAsset*> Pool;
 	TSet<URuneDataAsset*> Seen;
 	for (const TObjectPtr<URuneDataAsset>& Asset : *SourcePool)
 	{
-		if (Asset && !Seen.Contains(Asset.Get()))
+		if (Asset && !Seen.Contains(Asset.Get()) && !AlreadyOffered.Contains(Asset.Get()))
 		{
 			Pool.Add(Asset.Get());
 			Seen.Add(Asset.Get());
 		}
 	}
 
+	// 洗牌
 	for (int32 i = Pool.Num() - 1; i > 0; i--)
 	{
 		int32 j = FMath::RandRange(0, i);
@@ -1273,13 +1268,25 @@ void AYogGameMode::GenerateLootOptions()
 		FLootOption Option;
 		Option.LootType  = ELootType::Rune;
 		Option.RuneAsset = Pool[i];
-		CurrentLootOptions.Add(Option);
+		Batch.Add(Option);
+		AlreadyOffered.Add(Pool[i]); // 写入已分配集合，下次调用时排除
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("GenerateLootOptions: 生成 %d 个符文选项"), CurrentLootOptions.Num());
-	OnLootGenerated.Broadcast(CurrentLootOptions);
-	
+	return Batch;
+}
 
+void AYogGameMode::ShowLootOptions(const TArray<FLootOption>& Options)
+{
+	CurrentLootOptions = Options;
+	UE_LOG(LogTemp, Log, TEXT("ShowLootOptions: 展示 %d 个符文选项"), CurrentLootOptions.Num());
+	OnLootGenerated.Broadcast(CurrentLootOptions);
+}
+
+void AYogGameMode::GenerateLootOptions()
+{
+	// 兜底路径：即时生成并广播（单拾取物 / 旧逻辑兼容）
+	TArray<FLootOption> Batch = GenerateLootBatch(LootAssignedThisLevel);
+	ShowLootOptions(Batch);
 }
 
 void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
@@ -1567,4 +1574,110 @@ void AYogGameMode::ActivatePortals()
 		UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 开启 → 关卡=%s 房间=%s"),
 			Cfg.PortalIndex, *LevelName.ToString(), *ChosenRoom->GetName());
 	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 敌人注册表（相机战斗感知）
+// ─────────────────────────────────────────────────────────────────────────────
+
+void AYogGameMode::RegisterEnemy(AEnemyCharacterBase* Enemy)
+{
+	if (!IsValid(Enemy)) return;
+
+	// 去重（防止同一敌人注册两次）
+	for (const TWeakObjectPtr<AEnemyCharacterBase>& W : AliveEnemies)
+	{
+		if (W.Get() == Enemy) return;
+	}
+
+	// 清理失效条目（防止数组无限增长）
+	AliveEnemies.RemoveAllSwap([](const TWeakObjectPtr<AEnemyCharacterBase>& W)
+	{
+		return !W.IsValid();
+	});
+
+	AliveEnemies.Add(Enemy);
+}
+
+void AYogGameMode::UnregisterEnemy(AEnemyCharacterBase* Enemy)
+{
+	AliveEnemies.RemoveAllSwap([Enemy](const TWeakObjectPtr<AEnemyCharacterBase>& W)
+	{
+		return !W.IsValid() || W.Get() == Enemy;
+	});
+}
+
+bool AYogGameMode::HasAliveEnemies() const
+{
+	for (const TWeakObjectPtr<AEnemyCharacterBase>& W : AliveEnemies)
+	{
+		if (AEnemyCharacterBase* E = W.Get())
+		{
+			if (E->IsAlive()) return true;
+		}
+	}
+	return false;
+}
+
+FVector AYogGameMode::GetEnemyCentroid(FVector Origin, float WithinRadius) const
+{
+	FVector Sum = FVector::ZeroVector;
+	int32 Count = 0;
+	const float RadiusSq = WithinRadius * WithinRadius;
+
+	for (const TWeakObjectPtr<AEnemyCharacterBase>& W : AliveEnemies)
+	{
+		if (AEnemyCharacterBase* E = W.Get())
+		{
+			if (!E->IsAlive()) continue;
+			const float DistSq = FVector::DistSquared(E->GetActorLocation(), Origin);
+			if (DistSq <= RadiusSq)
+			{
+				Sum += E->GetActorLocation();
+				Count++;
+			}
+		}
+	}
+
+	return (Count > 0) ? (Sum / static_cast<float>(Count)) : Origin;
+}
+
+FVector AYogGameMode::GetNearestEnemyDirection(FVector Origin) const
+{
+	float MinDistSq = FLT_MAX;
+	FVector NearestDir = FVector::ZeroVector;
+
+	for (const TWeakObjectPtr<AEnemyCharacterBase>& W : AliveEnemies)
+	{
+		if (AEnemyCharacterBase* E = W.Get())
+		{
+			if (!E->IsAlive()) continue;
+			const float DistSq = FVector::DistSquared(E->GetActorLocation(), Origin);
+			if (DistSq < MinDistSq)
+			{
+				MinDistSq = DistSq;
+				NearestDir = (E->GetActorLocation() - Origin).GetSafeNormal();
+			}
+		}
+	}
+	return NearestDir;
+}
+
+TArray<AEnemyCharacterBase*> AYogGameMode::GetNearbyEnemies(FVector Origin, float WithinRadius) const
+{
+	TArray<AEnemyCharacterBase*> Result;
+	const float RadiusSq = WithinRadius * WithinRadius;
+
+	for (const TWeakObjectPtr<AEnemyCharacterBase>& W : AliveEnemies)
+	{
+		if (AEnemyCharacterBase* E = W.Get())
+		{
+			if (!E->IsAlive()) continue;
+			if (FVector::DistSquared(E->GetActorLocation(), Origin) <= RadiusSq)
+			{
+				Result.Add(E);
+			}
+		}
+	}
+	return Result;
 }

@@ -79,7 +79,10 @@ void AYogPlayerControllerBase::SpawnCameraPawn(AYogCharacterBase* TargetCharacte
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 		AYogCameraPawn* CameraActorPawn = GetWorld()->SpawnActor<AYogCameraPawn>(CameraPawnClass, Location, Rotation, SpawnParams);
 		CameraActorPawn->SetOwner(TargetCharacter);
-		//TargetCharacter->SetOwnCamera(CameraActorPawn);
+		if (APlayerCharacterBase* PlayerChar = Cast<APlayerCharacterBase>(TargetCharacter))
+		{
+			PlayerChar->SetOwnCamera(CameraActorPawn);
+		}
 		this->SetViewTargetWithBlend(CameraActorPawn, 0.0f, EViewTargetBlendFunction::VTBlend_Linear, 0.0f, false);
 	}
 
@@ -166,6 +169,14 @@ void AYogPlayerControllerBase::SetupInputComponent()
 		{
 			const FEnhancedInputActionEventBinding& backpackBinding = EnhancedInputComp->BindAction(Input_OpenBackpack, ETriggerEvent::Started, this, &AYogPlayerControllerBase::ToggleBackpack);
 			OpenBackpackInputHandle = backpackBinding.GetHandle();
+		}
+		if (Input_CameraLook)
+		{
+			// Triggered: 右摇杆拨动时持续更新轴值
+			const FEnhancedInputActionEventBinding& lookBinding = EnhancedInputComp->BindAction(Input_CameraLook, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::CameraLook);
+			CameraLookInputHandle = lookBinding.GetHandle();
+			// Completed: 右摇杆回中时将轴值重置为零
+			EnhancedInputComp->BindAction(Input_CameraLook, ETriggerEvent::Completed, this, &AYogPlayerControllerBase::CameraLookReleased);
 		}
 
 	}
@@ -358,16 +369,54 @@ void AYogPlayerControllerBase::ToggleBackpack(const FInputActionValue& Value)
 	const bool bVisible = BackpackWidget->GetVisibility() == ESlateVisibility::Visible;
 	if (bVisible)
 	{
-		SetBlockGameInput(false);              // 恢复游戏输入 + 隐藏鼠标 + GameOnly
-		BackpackWidget->SetVisibility(ESlateVisibility::Hidden);
+		// CloseBackpack 内部处理：SetPause(false) + SetBlockGameInput(false) + 清除手柄抓取状态
+		BackpackWidget->CloseBackpack();
 	}
 	else
 	{
-		SetBlockGameInput(true);               // 屏蔽输入 + 显示鼠标 + GameAndUI
+		bBlockGameInput = true;
+		SetShowMouseCursor(true);
+		SetPause(true);
+
+		// GameAndUI 模式 + SetWidgetToFocus：让 D-Pad / A 键到达 NativeOnKeyDown
+		// Tab 键仍可通过 Enhanced Input 触发本函数关闭背包
+		FInputModeGameAndUI InputMode;
+		InputMode.SetWidgetToFocus(BackpackWidget->TakeWidget());
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		SetInputMode(InputMode);
+
 		BackpackWidget->SetVisibility(ESlateVisibility::Visible);
-		BackpackWidget->OnGridNeedsRefresh();  // 打开时强制刷新格子颜色
-		BackpackWidget->OnSelectionChanged();  // 刷新提示文字
+		BackpackWidget->SetUserFocus(this);    // Slate 侧焦点
+		BackpackWidget->OnGridNeedsRefresh();
+		BackpackWidget->OnSelectionChanged();
 	}
+}
+
+void AYogPlayerControllerBase::CameraLook(const FInputActionValue& Value)
+{
+	if (bBlockGameInput) return;
+
+	APlayerCharacterBase* PlayerChar = Cast<APlayerCharacterBase>(GetPawn());
+	if (!PlayerChar) return;
+
+	AYogCameraPawn* Cam = PlayerChar->GetOwnCamera();
+	if (!Cam) return;
+
+	// InputAction 类型为 Vector2D；右摇杆 X=右, Y=上（Enhanced Input 默认）
+	const FVector2D Axis = Value.Get<FVector2D>();
+	Cam->SetCameraInputAxis(Axis);
+}
+
+void AYogPlayerControllerBase::CameraLookReleased(const FInputActionValue& Value)
+{
+	APlayerCharacterBase* PlayerChar = Cast<APlayerCharacterBase>(GetPawn());
+	if (!PlayerChar) return;
+
+	AYogCameraPawn* Cam = PlayerChar->GetOwnCamera();
+	if (!Cam) return;
+
+	// 摇杆松开后归零，让 CameraPawn 的 Tick 接管鼠标偏移
+	Cam->SetCameraInputAxis(FVector2D::ZeroVector);
 }
 
 void AYogPlayerControllerBase::ToggleInput(bool bEnable)
