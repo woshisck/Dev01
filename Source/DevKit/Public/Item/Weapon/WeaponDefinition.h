@@ -12,6 +12,7 @@
 class UYogAbilitySet;
 class AWeaponInstance;
 class APlayerCharacterBase;
+class UMaterialInterface;
 //class UYogAnimInstance;
 
 
@@ -88,6 +89,11 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Anime")
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
+
+	// 热度阶段 Overlay 材质（带 Fresnel + EmissiveColor 参数）
+	// 武器被拾取时由 WeaponSpawner 自动传给 WeaponInstance
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Heat")
+	TObjectPtr<UMaterialInterface> HeatOverlayMaterial;
 
 	UFUNCTION(BlueprintCallable)
 	void SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar);

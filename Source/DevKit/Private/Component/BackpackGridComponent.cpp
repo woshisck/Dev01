@@ -1,4 +1,5 @@
 #include "Component/BackpackGridComponent.h"
+#include "Engine/Engine.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayTagsManager.h"
@@ -459,8 +460,12 @@ void UBackpackGridComponent::IncrementPhase()
 		FString ZoneStr;
 		for (const FIntPoint& C : Zone)
 			ZoneStr += FString::Printf(TEXT("(%d,%d) "), C.X, C.Y);
-		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Phase UP → %d | ActivationZone [%d cells]: %s"),
-			CurrentPhase, Zone.Num(), *ZoneStr);
+		UE_LOG(LogTemp, Warning, TEXT("[Heat] Phase %d → %d 完成 | 激活区 %d 格: %s"),
+			CurrentPhase - 1, CurrentPhase, Zone.Num(), *ZoneStr);
+		if (GEngine)
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Orange,
+				FString::Printf(TEXT("[热度升阶] Phase %d → %d  激活区 %d 格"),
+					CurrentPhase - 1, CurrentPhase, Zone.Num()));
 	}
 
 	// 通知热度条 UI（阶段变化时热度已被重置为 0）

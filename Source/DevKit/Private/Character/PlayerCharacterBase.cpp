@@ -227,6 +227,9 @@ void APlayerCharacterBase::BeginPlay()
 		// 新技能在此处继续 RegisterSkill 即可，无需额外 C++ 改动
 	}
 
+	// 注册热度阶段 Tag 事件，驱动武器边缘发光材质
+	SetupHeatPhaseTagListeners();
+
 	// GAS Template 授能（在 Super::BeginPlay 中完成）可能覆盖切关前 Link 的武器动画层；
 	// 在此重新 Link，确保武器层优先级高于默认层
 	RelinkWeaponAnimLayer();
@@ -283,8 +286,54 @@ void APlayerCharacterBase::RelinkWeaponAnimLayer()
 void APlayerCharacterBase::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
-
-
 }
 
+void APlayerCharacterBase::SetupHeatPhaseTagListeners()
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC) return;
+
+	// 监听各阶段 tag 新增 → 广播对应 Phase
+	ASC->RegisterGameplayTagEvent(
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.1")),
+		EGameplayTagEventType::NewOrRemoved)
+		.AddUObject(this, &APlayerCharacterBase::OnHeatPhaseTagChanged);
+
+	ASC->RegisterGameplayTagEvent(
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.2")),
+		EGameplayTagEventType::NewOrRemoved)
+		.AddUObject(this, &APlayerCharacterBase::OnHeatPhaseTagChanged);
+
+	ASC->RegisterGameplayTagEvent(
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.3")),
+		EGameplayTagEventType::NewOrRemoved)
+		.AddUObject(this, &APlayerCharacterBase::OnHeatPhaseTagChanged);
+
+	// 监听 parent tag 归零 → 广播 Phase=0（关闭发光）
+	ASC->RegisterGameplayTagEvent(
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase")),
+		EGameplayTagEventType::NewOrRemoved)
+		.AddUObject(this, &APlayerCharacterBase::OnHeatPhaseParentTagChanged);
+}
+
+void APlayerCharacterBase::OnHeatPhaseTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	if (NewCount <= 0) return; // 移除事件交由 parent tag 回调处理
+
+	static const FGameplayTag Phase1 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.1"));
+	static const FGameplayTag Phase2 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.2"));
+	static const FGameplayTag Phase3 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.3"));
+
+	if      (Tag == Phase1) OnHeatPhaseChanged.Broadcast(1);
+	else if (Tag == Phase2) OnHeatPhaseChanged.Broadcast(2);
+	else if (Tag == Phase3) OnHeatPhaseChanged.Broadcast(3);
+}
+
+void APlayerCharacterBase::OnHeatPhaseParentTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	if (NewCount == 0)
+	{
+		OnHeatPhaseChanged.Broadcast(0);
+	}
+}
 

@@ -10,6 +10,9 @@ void ULootSelectionWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	// 未激活时折叠
+	SetVisibility(ESlateVisibility::Collapsed);
+
 	// 允许接收键盘焦点，使 OnKeyDown 在蓝图中生效
 	bIsFocusable = true;
 
@@ -72,6 +75,7 @@ TOptional<FUIInputConfig> ULootSelectionWidget::GetDesiredInputConfig() const
 void ULootSelectionWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
+	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{
@@ -85,6 +89,8 @@ void ULootSelectionWidget::NativeOnActivated()
 
 void ULootSelectionWidget::NativeOnDeactivated()
 {
+	SetVisibility(ESlateVisibility::Collapsed);
+
 	if (APlayerController* PC = GetOwningPlayer())
 	{
 		PC->SetPause(false);

@@ -4,27 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Camera/YogCameraPawn.h"
 #include "YogPlayerCameraManager.generated.h"
 
 class AYogCameraVolume;
 class AYogGameMode;
 class UCameraShakeBase;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 相机状态枚举（优先级由高到低）
-// ─────────────────────────────────────────────────────────────────────────────
-
-UENUM(BlueprintType)
-enum class EYogCameraStates : uint8
-{
-	FocusCharacter	UMETA(DisplayName = "FocusCharacter"),
-	LookAhead		UMETA(DisplayName = "LookAhead"),
-	Dash			UMETA(DisplayName = "Dash"),
-	CombatFocus		UMETA(DisplayName = "CombatFocus"),
-	CombatSearch	UMETA(DisplayName = "CombatSearch"),
-	PickupFocus		UMETA(DisplayName = "PickupFocus"),
-	Idle			UMETA(DisplayName = "Idle")
-};
+// EYogCameraStates 定义在 YogCameraPawn.h，此处复用
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AYogPlayerCameraManager
@@ -83,19 +70,27 @@ public:
 
 	// ─── 前瞻（LookAhead）参数 ────────────────────────────────────────────
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|LookAhead", meta = (ClampMin = "0.1"))
+	/** 是否启用前瞻偏移（移动时相机向前领先）；关闭后相机只跟随，不领先 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|LookAhead")
+	bool bEnableLookAhead = false;
+
+	/** LookAhead 关闭时，玩家移动期间的相机跟随速度（8~12 为推荐范围） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|LookAhead", meta = (ClampMin = "0.1", EditCondition = "!bEnableLookAhead"))
+	float MovingFollowSpeed = 8.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|LookAhead", meta = (ClampMin = "0.1", EditCondition = "bEnableLookAhead"))
 	float LookAheadBuildupTime = 0.5f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|LookAhead", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|LookAhead", meta = (ClampMin = "0.0", EditCondition = "bEnableLookAhead"))
 	float LookAheadDistance = 280.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|LookAhead", meta = (ClampMin = "0.1"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|LookAhead", meta = (ClampMin = "0.1", EditCondition = "bEnableLookAhead"))
 	float LookAheadLerpSpeed = 4.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|LookAhead", meta = (ClampMin = "0.1"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|LookAhead", meta = (ClampMin = "0.1", EditCondition = "bEnableLookAhead"))
 	float InitialFollowLerpSpeed = 2.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|LookAhead", meta = (ClampMin = "0.1"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|LookAhead", meta = (ClampMin = "0.1", EditCondition = "bEnableLookAhead"))
 	float LookAheadAlphaDecaySpeed = 5.f;
 
 	// ─── 静止聚焦（FocusCharacter）参数 ──────────────────────────────────
@@ -141,6 +136,16 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Movement", meta = (ClampMin = "1.0"))
 	float MovingSpeedThreshold = 10.f;
+
+	/** 玩家静止时相机归位速度（越小越缓，5=缓慢归位几乎感觉不到；15=快速稳定） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Movement", meta = (ClampMin = "0.0"))
+	float StationarySettleSpeed = 5.f;
+
+	// ─── 冲刺跟随 ────────────────────────────────────────────────────────────
+
+	/** 冲刺期间相机跟随速度（越大越贴紧，15~25 为推荐范围；0 = 完全贴紧/瞬间） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Dash", meta = (ClampMin = "0.0"))
+	float DashFollowSpeed = 18.f;
 
 	// ─── 相机震动 ─────────────────────────────────────────────────────────
 

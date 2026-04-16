@@ -55,6 +55,9 @@ void UBackpackScreenWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
+    // 未激活时折叠：CommonUI 无 Stack 容器时不会自动隐藏
+    SetVisibility(ESlateVisibility::Collapsed);
+
     // 允许接收手柄/键盘输入
     bIsFocusable = true;
 
@@ -521,6 +524,7 @@ TOptional<FUIInputConfig> UBackpackScreenWidget::GetDesiredInputConfig() const
 void UBackpackScreenWidget::NativeOnActivated()
 {
     Super::NativeOnActivated();
+    SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 
     if (APlayerController* PC = GetOwningPlayer())
     {
@@ -540,6 +544,8 @@ void UBackpackScreenWidget::NativeOnActivated()
 
 void UBackpackScreenWidget::NativeOnDeactivated()
 {
+    SetVisibility(ESlateVisibility::Collapsed);
+
     // 清空持有状态
     bGrabbingRune   = false;
     GrabbedFromCell = FIntPoint(-1, -1);

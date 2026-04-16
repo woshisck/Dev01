@@ -4,6 +4,7 @@
 #include "Item/Weapon/WeaponSpawner.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/Pawn.h"
@@ -25,7 +26,10 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 
 	RootComponent = CollisionVolume = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CollisionVolume"));
 	CollisionVolume->InitCapsuleSize(80.f, 80.f);
+	CollisionVolume->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
+	CollisionVolume->SetGenerateOverlapEvents(true);
 	CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &AWeaponSpawner::OnOverlapBegin);
+	CollisionVolume->OnComponentEndOverlap.AddDynamic(this, &AWeaponSpawner::OnOverlapEnd);
 
 	//WeaponMesh
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
@@ -43,7 +47,13 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 void AWeaponSpawner::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	// 保存 WeaponMesh 原始材质，供换武器时恢复
+	OriginalMeshMaterials.Empty();
+	for (int32 i = 0; i < WeaponMesh->GetNumMaterials(); i++)
+	{
+		OriginalMeshMaterials.Add(WeaponMesh->GetMaterial(i));
+	}
 }
 
 void AWeaponSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -75,43 +85,115 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 
 void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
-	UE_LOG(LogTemp, Warning, TEXT(" AWeaponSpawner::OnOverlapBegin"));
-	APlayerCharacterBase* OverlappingPawn = Cast<APlayerCharacterBase>(OtherActor);
-	if (!OverlappingPawn)
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
+	if (!Player || !WeaponDefinition) return;
+
+	// 进入范围时登记，等待玩家主动按 E 拾取
+	Player->PendingWeaponSpawner = this;
+	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 玩家进入范围，按 E 拾取武器"));
+}
+
+void AWeaponSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
+	if (!Player) return;
+
+	if (Player->PendingWeaponSpawner == this)
 	{
-		return;
+		Player->PendingWeaponSpawner = nullptr;
+		UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 玩家离开范围"));
+	}
+}
+
+void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
+{
+	if (!Player || !WeaponDefinition) return;
+
+	// ── 1. 处理旧武器 ────────────────────────────────────────────────
+	if (Player->EquippedFromSpawner && Player->EquippedFromSpawner != this)
+	{
+		Player->EquippedFromSpawner->RestoreSpawnerMesh();
+	}
+	if (Player->EquippedWeaponInstance)
+	{
+		// 解绑热度委托，再销毁
+		Player->OnHeatPhaseChanged.RemoveDynamic(Player->EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
+		Player->EquippedWeaponInstance->Destroy();
+		Player->EquippedWeaponInstance = nullptr;
 	}
 
-
-
-	for (const FWeaponSpawnData& weapon_spawn_data : WeaponDefinition->ActorsToSpawn)
+	// ── 2. 生成并装备新武器 ──────────────────────────────────────────
+	AWeaponInstance* NewWeapon = nullptr;
+	for (const FWeaponSpawnData& WeaponSpawnData : WeaponDefinition->ActorsToSpawn)
 	{
 		FWeaponSpawnData SpawnData;
-		SpawnData.ActorToSpawn = weapon_spawn_data.ActorToSpawn;
-		SpawnData.AttachSocket = weapon_spawn_data.AttachSocket;
-		SpawnData.AttachTransform = weapon_spawn_data.AttachTransform;
-		SpawnData.WeaponLayer = weapon_spawn_data.WeaponLayer;
-		SpawnData.WeaponAbilities = weapon_spawn_data.WeaponAbilities;
+		SpawnData.ActorToSpawn   = WeaponSpawnData.ActorToSpawn;
+		SpawnData.AttachSocket   = WeaponSpawnData.AttachSocket;
+		SpawnData.AttachTransform = WeaponSpawnData.AttachTransform;
+		SpawnData.WeaponLayer    = WeaponSpawnData.WeaponLayer;
+		SpawnData.WeaponAbilities = WeaponSpawnData.WeaponAbilities;
 		SpawnData.bShouldSaveToGame = true;
 
-		AWeaponInstance* WeaponActor = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(OverlappingPawn, OverlappingPawn->GetTransform(), SpawnData);
+		NewWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
+
+		UCharacterData* CD = Player->GetCharacterDataComponent()->GetCharacterData();
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponSetup][WeaponSpawner] Owner=%s | CD=%s | NewAbilityData=%s"),
+			*Player->GetName(),
+			CD ? *CD->GetName() : TEXT("null"),
+			WeaponDefinition->WeaponAbilityData ? *WeaponDefinition->WeaponAbilityData->GetName() : TEXT("null"));
+		CD->AbilityData = WeaponDefinition->WeaponAbilityData;
+	}
+
+	// ── 3. 传入热度材质 + 绑定热度委托 ──────────────────────────────
+	if (NewWeapon)
+	{
+		// 从 DA 把 Overlay 材质传给武器实例，无需在 BP 里手动赋值
+		NewWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
+
+		Player->OnHeatPhaseChanged.AddDynamic(NewWeapon, &AWeaponInstance::OnHeatPhaseChanged);
+		Player->EquippedWeaponInstance = NewWeapon;
+
+		// 查当前实际热度阶段，追赶同步（防止升阶早于武器拾取）
+		int32 CurrentPhase = 0;
+		if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
 		{
-			UCharacterData* CD = OverlappingPawn->GetCharacterDataComponent()->GetCharacterData();
-			UE_LOG(LogTemp, Warning, TEXT("[WeaponSetup][WeaponSpawner] Owner=%s | CD=%s IsCDO=%d IsTransient=%d | NewAbilityData=%s"),
-				*OverlappingPawn->GetName(),
-				CD ? *CD->GetName() : TEXT("null"),
-				CD ? (int32)CD->HasAnyFlags(RF_ClassDefaultObject) : -1,
-				CD ? (int32)CD->HasAnyFlags(RF_Transient) : -1,
-				WeaponDefinition->WeaponAbilityData ? *WeaponDefinition->WeaponAbilityData->GetName() : TEXT("null"));
-			CD->AbilityData = WeaponDefinition->WeaponAbilityData;
+			if      (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.3")))) CurrentPhase = 3;
+			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.2")))) CurrentPhase = 2;
+			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.1")))) CurrentPhase = 1;
+		}
+		Player->OnHeatPhaseChanged.Broadcast(CurrentPhase);
+	}
+	else
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
+				TEXT("[WeaponSpawner] 武器生成失败，NewWeapon 为空"));
 		}
 	}
 
-	// 记录已装备的武器 DA，供切关时写入 FRunState
-	OverlappingPawn->EquippedWeaponDef = WeaponDefinition;
+	// ── 4. 记录状态 ──────────────────────────────────────────────────
+	Player->EquippedWeaponDef    = WeaponDefinition;
+	Player->EquippedFromSpawner  = this;
+	Player->PendingWeaponSpawner = nullptr;
 
-	UE_LOG(LogTemp, Display, TEXT("ADD GAMEPLAY TAG "));
-	//OverlappingPawn->GetASC()->AddGameplayTagWithCount(Tag, 1);
+	// ── 5. 本 Spawner 展示网格变黑 ───────────────────────────────────
+	if (BlackedOutMaterial)
+	{
+		for (int32 i = 0; i < WeaponMesh->GetNumMaterials(); i++)
+		{
+			WeaponMesh->SetMaterial(i, BlackedOutMaterial);
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾取 [%s]"), *WeaponDefinition->GetName());
+}
+
+void AWeaponSpawner::RestoreSpawnerMesh()
+{
+	for (int32 i = 0; i < OriginalMeshMaterials.Num(); i++)
+	{
+		WeaponMesh->SetMaterial(i, OriginalMeshMaterials[i]);
+	}
 }
 
 AWeaponInstance* AWeaponSpawner::SpawnWeaponDeferred(UWorld* World, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)

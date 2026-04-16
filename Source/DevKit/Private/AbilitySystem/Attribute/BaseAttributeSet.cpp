@@ -2,6 +2,7 @@
 
 
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
+#include "Engine/Engine.h"
 #include "Net/UnrealNetwork.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
@@ -154,6 +155,11 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 					UBackpackGridComponent* BGC = Player->GetBackpackGridComponent();
 					if (BGC)
 					{
+						UE_LOG(LogTemp, Warning, TEXT("[Heat] 升阶触发 | Heat=%.0f/%.0f | bWasAlreadyFull=%d | Owner=%s"),
+							CachedPreEffectHeat, GetMaxHeat(), (int32)bWasAlreadyFull, *GetNameSafe(GetOwningActor()));
+						if (GEngine)
+							GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Orange,
+								FString::Printf(TEXT("[热度升阶] 热度满额触发 → Phase+1")));
 						BGC->OnPhaseUpReady.Broadcast();
 					}
 				}

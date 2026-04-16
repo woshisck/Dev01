@@ -14,6 +14,8 @@
  */
 //class AAuraBase;
 class ARewardPickup;
+class AWeaponSpawner;
+class AWeaponInstance;
 class UYogSaveGame;
 class UBackpackGridComponent;
 class UBuffFlowComponent;
@@ -33,6 +35,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FItemInteractStartDelegate, APlayer
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHeatUpdateDelegate, const float, HeatPercent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMaxHeatUpdateDelegate, const float, MaxHeatValue);
+// 热度阶段变化（0=无热度, 1=白光, 2=绿光, 3=橙黄, 4=过热红光）
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHeatPhaseDelegate, int32, Phase);
 
 UCLASS()
 class DEVKIT_API APlayerCharacterBase : public AYogCharacterBase
@@ -89,12 +93,28 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "State")
 	FPlayerStateDelegate OnFPlayerStateDeleg;
 
+	// 热度阶段广播（由热度系统调用，武器 Instance 订阅以更新发光颜色）
+	UPROPERTY(BlueprintAssignable, Category = "Heat")
+	FHeatPhaseDelegate OnHeatPhaseChanged;
+
 	UPROPERTY()
 	TObjectPtr<AItemSpawner> OverlappingSpawner;
 
 	// 当前在拾取范围内的 RewardPickup（按 E 键时触发拾取）
 	UPROPERTY()
 	TObjectPtr<ARewardPickup> PendingPickup;
+
+	// 当前在拾取范围内的 WeaponSpawner（按 E 键时触发武器拾取）
+	UPROPERTY()
+	TObjectPtr<AWeaponSpawner> PendingWeaponSpawner;
+
+	// 当前装备的武器 Actor（换武器时 Destroy）
+	UPROPERTY()
+	TObjectPtr<AWeaponInstance> EquippedWeaponInstance;
+
+	// 提供当前武器的 Spawner（换武器时恢复其展示网格颜色）
+	UPROPERTY()
+	TObjectPtr<AWeaponSpawner> EquippedFromSpawner;
 
 	UFUNCTION(BlueprintPure, Category = "Backpack")
 	UBackpackGridComponent* GetBackpackGridComponent();
@@ -129,6 +149,15 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AYogCameraPawn> CameraPawnActor;
 
+private:
 
+	/** BeginPlay 中注册 GAS Tag 事件，监听热度阶段变化并广播 OnHeatPhaseChanged */
+	void SetupHeatPhaseTagListeners();
+
+	/** Phase.1/2/3 tag 新增时广播对应阶段；移除时由 parent tag 回调处理 */
+	void OnHeatPhaseTagChanged(const FGameplayTag Tag, int32 NewCount);
+
+	/** parent tag Buff.Status.Heat.Phase 计数归零时广播 Phase=0（关闭发光） */
+	void OnHeatPhaseParentTagChanged(const FGameplayTag Tag, int32 NewCount);
 
 };

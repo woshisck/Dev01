@@ -64,4 +64,18 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void EquipWeaponToCharacter(APlayerCharacterBase* ReceivingChar);
 
+	// 热度阶段材质接口（订阅 PlayerCharacterBase::OnHeatPhaseChanged）
+	// Phase: 0=无, 1=白光, 2=绿光, 3=橙黄, 4=过热红光
+	UFUNCTION()
+	void OnHeatPhaseChanged(int32 Phase);
+
+	// 热度 Overlay 材质（由 WeaponSpawner 从 WeaponDefinition 自动赋入，无需 BP 手动填）
+	UPROPERTY(BlueprintReadOnly, Category = "Heat")
+	TObjectPtr<UMaterialInterface> HeatOverlayMaterial;
+
+private:
+	// 运行时动态材质实例（首次调用时创建）
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> HeatOverlayDynMat;
+
 };

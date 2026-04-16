@@ -147,7 +147,11 @@ void AYogPlayerCameraManager::DetermineState(const FVector& PlayerPos, bool bIsM
 		}
 	}
 
-	SetCameraStates(bIsMoving ? EYogCameraStates::LookAhead : EYogCameraStates::FocusCharacter);
+	// LookAhead 关闭时：始终 FocusCharacter，相机只跟随不领先
+	if (bEnableLookAhead)
+		SetCameraStates(bIsMoving ? EYogCameraStates::LookAhead : EYogCameraStates::FocusCharacter);
+	else
+		SetCameraStates(EYogCameraStates::FocusCharacter);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -291,15 +295,27 @@ void AYogPlayerCameraManager::UpdateViewTarget(FTViewTarget& OutVT, float DeltaT
 	}
 
 	// Step 9 & 10: 应用位置
+	// 起点统一使用 GetCameraLocation()（上一帧真实输出位置），避免 SpringArm snap 穿透到镜头。
+	// 移动时：用状态对应的慢速跟随（产生前瞻/战斗偏移的平滑感）。
+	// 静止时：用 StationarySettleSpeed 快速归位，消除残留漂移，相机在玩家停下后立刻稳定。
 	if (CameraStatus == EYogCameraStates::Dash)
 	{
-		// 冲刺：无插值，直接同步
-		OutVT.POV.Location = Candidate;
+		// 冲刺：高速跟随（DashFollowSpeed=0 时退化为直接 snap）
+		if (DashFollowSpeed > 0.f)
+			OutVT.POV.Location = FMath::VInterpTo(GetCameraLocation(), Candidate, DeltaTime, DashFollowSpeed);
+		else
+			OutVT.POV.Location = Candidate;
 	}
 	else
 	{
-		const float Speed = GetCurrentLerpSpeed();
-		OutVT.POV.Location = FMath::VInterpTo(OutVT.POV.Location, Candidate, DeltaTime, Speed);
+		float Speed;
+		if (!bIsMoving)
+			Speed = StationarySettleSpeed;
+		else if (bEnableLookAhead)
+			Speed = GetCurrentLerpSpeed();   // LookAhead 模式：慢速跟随以产生领先感
+		else
+			Speed = MovingFollowSpeed;        // 纯跟随模式：中速，不领先也不明显滞后
+		OutVT.POV.Location = FMath::VInterpTo(GetCameraLocation(), Candidate, DeltaTime, Speed);
 	}
 
 #if !UE_BUILD_SHIPPING

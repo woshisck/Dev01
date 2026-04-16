@@ -17,6 +17,7 @@
 #include <EnhancedInputSubsystems.h>
 #include "Item/ItemSpawner.h"
 #include "Map/RewardPickup.h"
+#include "Item/Weapon/WeaponSpawner.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -125,8 +126,8 @@ void AYogPlayerControllerBase::BeginPlay()
 		{
 			LootSelectionWidget->AddToViewport(10);
 			// CommonUI 控制显隐，无需手动 SetVisibility
-			LootSelectionWidget->OnWidgetActivated.AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetActivated);
-			LootSelectionWidget->OnWidgetDeactivated.AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetDeactivated);
+			LootSelectionWidget->OnActivated().AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetActivated);
+			LootSelectionWidget->OnDeactivated().AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetDeactivated);
 		}
 	}
 
@@ -138,8 +139,8 @@ void AYogPlayerControllerBase::BeginPlay()
 		{
 			BackpackWidget->AddToViewport(10);
 			// CommonUI 控制显隐，无需手动 SetVisibility
-			BackpackWidget->OnWidgetActivated.AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetActivated);
-			BackpackWidget->OnWidgetDeactivated.AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetDeactivated);
+			BackpackWidget->OnActivated().AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetActivated);
+			BackpackWidget->OnDeactivated().AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetDeactivated);
 		}
 	}
 
@@ -369,8 +370,13 @@ void AYogPlayerControllerBase::Interact(const FInputActionValue& Value)
 			UE_LOG(LogTemp, Warning, TEXT("Player is overlapping with spawner: %s"), *player->OverlappingSpawner->GetName());
 		}
 
+		// 范围内有武器 Spawner → 按 E 触发武器拾取
+		if (player->PendingWeaponSpawner)
+		{
+			player->PendingWeaponSpawner->TryPickupWeapon(player);
+		}
 		// 范围内有奖励拾取物 → 按 E 触发拾取
-		if (player->PendingPickup)
+		else if (player->PendingPickup)
 		{
 			player->PendingPickup->TryPickup(player);
 		}
