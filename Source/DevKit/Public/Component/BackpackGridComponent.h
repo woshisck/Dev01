@@ -155,6 +155,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Backpack")
     TArray<FName> GetMaxLevelRuneNames() const;
 
+    // 符文升级后调用：重启对应符文的 BuffFlow 使新 UpgradeLevel 立即生效，并广播激活变更事件
+    void NotifyRuneUpgraded(FGuid RuneGuid);
+
     // 返回当前激活区的所有格子坐标（UI高亮用）
     UFUNCTION(BlueprintPure, Category = "Backpack")
     TArray<FIntPoint> GetActivationZoneCells() const;

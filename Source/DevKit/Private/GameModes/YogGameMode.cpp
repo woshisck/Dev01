@@ -1255,6 +1255,24 @@ TArray<FLootOption> AYogGameMode::GenerateLootBatch(TSet<URuneDataAsset*>& Alrea
 		}
 	}
 
+	// 排除玩家背包中已满级（Lv.III）的符文
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
+		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
+	{
+		if (Player->BackpackGridComponent)
+		{
+			TArray<FName> MaxLevelNames = Player->BackpackGridComponent->GetMaxLevelRuneNames();
+			if (!MaxLevelNames.IsEmpty())
+			{
+				TSet<FName> MaxLevelSet(MaxLevelNames);
+				Pool = Pool.FilterByPredicate([&](URuneDataAsset* DA)
+				{
+					return DA && !MaxLevelSet.Contains(DA->RuneInfo.RuneConfig.RuneName);
+				});
+			}
+		}
+	}
+
 	// 洗牌
 	for (int32 i = Pool.Num() - 1; i > 0; i--)
 	{

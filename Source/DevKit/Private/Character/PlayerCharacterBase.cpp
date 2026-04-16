@@ -158,9 +158,25 @@ UBackpackGridComponent* APlayerCharacterBase::GetBackpackGridComponent()
 
 void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 {
-	// 优先自动寻位放入背包格子（左上角开始，逐行扫描）
 	if (BackpackGridComponent)
 	{
+		// 1. 升级检查：背包已有同名符文 → 升级而非新占格子
+		FPlacedRune* Existing = BackpackGridComponent->FindRuneByName(Rune.RuneConfig.RuneName);
+		if (Existing)
+		{
+			if (Existing->Rune.UpgradeLevel < 2)
+			{
+				Existing->Rune.UpgradeLevel++;
+				UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 升级到 Lv.%d"),
+					*Rune.RuneConfig.RuneName.ToString(), Existing->Rune.UpgradeLevel + 1);
+				// 重启 BuffFlow 使新 UpgradeLevel 生效，并广播 UI 刷新事件
+				BackpackGridComponent->NotifyRuneUpgraded(Existing->Rune.RuneGuid);
+			}
+			// 满级（UpgradeLevel == 2）：GenerateLootBatch 已过滤，正常不会到达这里
+			return;
+		}
+
+		// 2. 新符文：自动寻位放置（左上角开始，逐行扫描）
 		for (int32 Row = 0; Row < BackpackGridComponent->GridHeight; Row++)
 		{
 			for (int32 Col = 0; Col < BackpackGridComponent->GridWidth; Col++)
@@ -175,7 +191,7 @@ void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 		}
 	}
 
-	// 背包已满，进入待放置列表（玩家可在背包UI手动放置）
+	// 3. 背包已满，进入待放置列表（玩家可在背包UI手动放置）
 	UE_LOG(LogTemp, Warning, TEXT("AddRuneToInventory: 背包已满，%s 进入待放置列表"),
 		*Rune.RuneConfig.RuneName.ToString());
 	PendingRunes.Add(Rune);

@@ -641,6 +641,24 @@ FPlacedRune* UBackpackGridComponent::FindRuneByName(FName RuneName)
 	return nullptr;
 }
 
+void UBackpackGridComponent::NotifyRuneUpgraded(FGuid RuneGuid)
+{
+	for (FPlacedRune& Placed : PlacedRunes)
+	{
+		if (Placed.Rune.RuneGuid == RuneGuid)
+		{
+			// 重启 BuffFlow 使新的 UpgradeLevel 立即生效
+			if (Placed.bIsActivated)
+			{
+				DeactivateRune(Placed);
+				ActivateRune(Placed);
+			}
+			OnRuneActivationChanged.Broadcast(RuneGuid, Placed.bIsActivated);
+			return;
+		}
+	}
+}
+
 TArray<FName> UBackpackGridComponent::GetMaxLevelRuneNames() const
 {
 	TArray<FName> Result;
