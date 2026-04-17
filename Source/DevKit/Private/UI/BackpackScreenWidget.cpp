@@ -933,6 +933,9 @@ bool UBackpackScreenWidget::NativeOnDragOver(const FGeometry& InGeometry, const 
     if (!Cast<URuneDragDropOperation>(InOperation))
         return false;
 
+    // 更新鼠标位置供 Tick 里 GrabbedRuneIcon 使用
+    LastMouseAbsPos = InDragDropEvent.GetScreenSpacePosition();
+
     int32 Col, Row;
     if (GetGridCellAtScreenPos(InDragDropEvent.GetScreenSpacePosition(), Col, Row))
     {
@@ -954,6 +957,8 @@ bool UBackpackScreenWidget::NativeOnDragOver(const FGeometry& InGeometry, const 
 
 bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
+    bMouseDragging = false;
+    MouseDragTex   = nullptr;
     HoverCol = HoverRow = -1;
 
     URuneDragDropOperation* RuneOp = Cast<URuneDragDropOperation>(InOperation);
@@ -1093,18 +1098,33 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
 
-    // ── 浮空抓取图标（每帧更新位置 + 上下浮动动画） ──────────────────────────
+    // ── 浮空抓取图标（手柄 + 鼠标拖拽共用，每帧更新位置） ──────────────────
     if (GrabbedRuneIcon)
     {
-        if (bGrabbingRune)
+        const float FloatY = FMath::Sin(GetWorld()->GetTimeSeconds() * 3.f) * 5.f;
+        const float CellPx = StyleDA ? StyleDA->CellSize : 64.f;
+        const float HalfPx = CellPx * 0.5f;
+
+        if (bMouseDragging && MouseDragTex)
         {
+            // 鼠标拖拽：图标跟随鼠标，直接出现在鼠标下方
+            GrabbedRuneIcon->SetBrushFromTexture(MouseDragTex, false);
+            GrabbedRuneIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+            const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(LastMouseAbsPos);
+            FWidgetTransform T;
+            T.Translation = LocalPos + FVector2D(-HalfPx, -HalfPx + FloatY);
+            GrabbedRuneIcon->SetRenderTransform(T);
+        }
+        else if (bGrabbingRune)
+        {
+            // 手柄抓取：图标跟随手柄光标格子中心
             UTexture2D* Tex = GetRuneIconAtCell(GrabbedFromCell.X, GrabbedFromCell.Y);
             if (Tex)
             {
                 GrabbedRuneIcon->SetBrushFromTexture(Tex, false);
                 GrabbedRuneIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
 
-                // 计算 GamepadCursorCell 格子中心在本 Widget 局部坐标下的位置
                 UWidget* GridWidget = GetWidgetFromName(TEXT("BackpackGrid"));
                 if (GridWidget)
                 {
@@ -1124,14 +1144,10 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
                         const FVector2D AbsPos   = GridGeo.LocalToAbsolute(CellCenter);
                         const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(AbsPos);
 
-                        // 上下浮动动画（sin 波形，振幅 5px，频率 3Hz）
-                        const float FloatY = FMath::Sin(GetWorld()->GetTimeSeconds() * 3.f) * 5.f;
-
-                        // 图标中心对准格子中心（图标尺寸由 Designer 决定，用 CellW*0.7 估算半径）
                         const float HalfSize = CellW * 0.35f;
                         FWidgetTransform T;
                         T.Translation = LocalPos + FVector2D(-HalfSize, -HalfSize + FloatY);
-                        T.Scale       = FVector2D(0.7f, 0.7f); // 略小于一格，防止遮挡格子颜色
+                        T.Scale       = FVector2D(0.7f, 0.7f);
                         GrabbedRuneIcon->SetRenderTransform(T);
                     }
                 }
@@ -1180,6 +1196,8 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 
 void UBackpackScreenWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
+    bMouseDragging = false;
+    MouseDragTex   = nullptr;
     HoverCol       = HoverRow       = -1;
     PendingDragCol = PendingDragRow = -1;
     OnGridNeedsRefresh();
