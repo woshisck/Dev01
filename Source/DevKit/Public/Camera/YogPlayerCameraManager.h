@@ -24,7 +24,8 @@ class UCameraShakeBase;
  * 玩家角色蓝图中需挂载 UYogSpringArmComponent + UCameraComponent。
  *
  * 状态优先级（高→低）：
- *   Dash > CombatFocus > CombatSearch > PickupFocus > LookAhead > FocusCharacter
+ *   Dash > PickupFocus > LookAhead > FocusCharacter
+ *   （CombatFocus/CombatSearch 保留枚举和偏移实现，DetermineState 中不再触发）
  */
 UCLASS()
 class DEVKIT_API AYogPlayerCameraManager : public APlayerCameraManager

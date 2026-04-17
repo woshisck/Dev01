@@ -3,7 +3,6 @@
 #include "Camera/YogPlayerCameraManager.h"
 
 #include "Volume/YogCameraVolume.h"
-#include "Character/EnemyCharacterBase.h"
 #include "GameFramework/Character.h"
 #include "GameModes/YogGameMode.h"
 #include "GameModes/LevelFlowTypes.h"
@@ -125,18 +124,6 @@ void AYogPlayerCameraManager::DetermineState(const FVector& PlayerPos, bool bIsM
 	}
 
 	AYogGameMode* GM = GetYogGameMode();
-
-	if (GM && GM->CurrentPhase == ELevelPhase::Combat)
-	{
-		if (GM->HasAliveEnemies())
-		{
-			const TArray<AEnemyCharacterBase*> Nearby = GM->GetNearbyEnemies(PlayerPos, CombatSearchRadius);
-			SetCameraStates(Nearby.Num() > 0
-				? EYogCameraStates::CombatFocus
-				: EYogCameraStates::CombatSearch);
-			return;
-		}
-	}
 
 	if (GM && GM->CurrentPhase == ELevelPhase::Arrangement)
 	{
