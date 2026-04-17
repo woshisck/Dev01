@@ -210,11 +210,6 @@ void UBackpackScreenWidget::OnSelectionChanged_Implementation()
     FRuneInstance Info = GetFocusedRuneInfo();
     const bool bHasSelection = Info.RuneGuid.IsValid();
 
-    UE_LOG(LogTemp, Warning, TEXT("[BackpackUI][Selection] bHasSelection=%d  RuneInfoCard=%s  RuneName=%s"),
-        (int32)bHasSelection,
-        RuneInfoCard ? TEXT("OK") : TEXT("NULL"),
-        *Info.RuneConfig.RuneName.ToString());
-
     // 详情面板容器：有选中时显示，没有时隐藏
     if (DetailPanel)
         DetailPanel->SetVisibility(bHasSelection ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
@@ -269,6 +264,7 @@ void UBackpackScreenWidget::OnSelectionChanged_Implementation()
             RuneInfoCard->ShowRune(Info);
         else
             RuneInfoCard->HideCard();
+
     }
 
     // 同时刷新格子高亮（让选中格子变黄）
@@ -406,30 +402,6 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
         SelectedRuneIndex = -1;
         OnSelectionChanged();
     }
-    else if (SelectedCell != FIntPoint(-1, -1))
-    {
-        // 空格 + 已选中格子 → 点击移动（拖拽的备用方式）
-        int32 SrcIdx = Backpack->GetRuneIndexAtCell(SelectedCell);
-        if (SrcIdx >= 0)
-        {
-            const TArray<FPlacedRune>& Placed = Backpack->GetAllPlacedRunes();
-            if (Placed.IsValidIndex(SrcIdx))
-            {
-                FGuid RuneGuid = Placed[SrcIdx].Rune.RuneGuid;
-                FName RuneName = Placed[SrcIdx].Rune.RuneConfig.RuneName;
-                if (Backpack->MoveRune(RuneGuid, Cell))
-                {
-                    SelectedCell = FIntPoint(-1, -1);
-                    OnSelectionChanged();
-                    OnStatusMessage(FText::Format(NSLOCTEXT("Backpack","MoveOK","已移动：{0}"), FText::FromName(RuneName)));
-                }
-                else
-                {
-                    OnStatusMessage(NSLOCTEXT("Backpack","MoveFail","无法移动：目标位置被占用"));
-                }
-            }
-        }
-    }
     else if (SelectedRuneIndex >= 0)
     {
         // 空格 + 已选中列表符文 → 放置
@@ -513,20 +485,6 @@ void UBackpackScreenWidget::NativeOnActivated()
 {
     Super::NativeOnActivated();
     SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-
-    // ── 诊断日志（确认格子状态）──────────────────────────────
-    UE_LOG(LogTemp, Warning, TEXT("[BackpackUI][Activated] BackpackGrid=%s  CachedButtons=%d  SlotW=%.0f  SlotH=%.0f"),
-        BackpackGrid ? TEXT("OK") : TEXT("NULL"),
-        CachedCellButtons.Num(),
-        BackpackGrid ? BackpackGrid->GetMinDesiredSlotWidth()  : -1.f,
-        BackpackGrid ? BackpackGrid->GetMinDesiredSlotHeight() : -1.f);
-    if (BackpackGrid && BackpackGrid->GetChildrenCount() > 0)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[BackpackUI][Activated] BackpackGrid 子节点=%d，首个子节点类=%s"),
-            BackpackGrid->GetChildrenCount(),
-            *BackpackGrid->GetChildAt(0)->GetClass()->GetName());
-    }
-    // ─────────────────────────────────────────────────────────
 
     if (APlayerController* PC = GetOwningPlayer())
     {
@@ -864,10 +822,15 @@ FReply UBackpackScreenWidget::NativeOnPreviewMouseButtonDown(const FGeometry& In
     }
     else
     {
-        // 空格子：放置列表符文 / 点击移动已选符文
+        // 空格子：清除选中（移动仅通过拖拽完成）
         PendingDragCol = -1;
         PendingDragRow = -1;
-        ClickCell(Col, Row);
+        if (SelectedCell != FIntPoint(-1, -1) || SelectedRuneIndex >= 0)
+        {
+            SelectedCell      = FIntPoint(-1, -1);
+            SelectedRuneIndex = -1;
+            OnSelectionChanged();
+        }
         return FReply::Handled();
     }
 }

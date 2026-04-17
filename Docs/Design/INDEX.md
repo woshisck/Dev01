@@ -80,6 +80,7 @@
 | [冲刺（Dash）系统](Systems/Dash_Design.md) | 方向/旋转/无敌帧/穿透/碰撞通道/障碍检测/扩展规划（GA_PlayerDash C++） | 策划 + 程序 |
 | [相机管理系统](Systems/Camera_Design.md) | 前瞻跟随 / 冲刺 1:1 / 战斗感知偏移 / 多边形边界约束 / 手柄输入偏移 / 震动事件 | 策划 + 程序 |
 | [武器系统技术文档](Systems/WeaponSystem_Technical.md) | WeaponSpawner 拾取交互 / WeaponInstance 热度发光 / 切关恢复路径 / Overlay 材质配置 | 程序 |
+| [新手引导系统设计](Systems/Tutorial_Design.md) | 8 步引导流程 / 武器浮窗 / 战斗锁定背包 / 热度预览切换 / 引导符文池 | 策划 + 程序 |
 
 ---
 
