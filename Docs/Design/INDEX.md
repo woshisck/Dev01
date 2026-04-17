@@ -55,6 +55,7 @@
 | [关卡 Buff 池配置指南](FeatureConfig/BuffPool_ConfigGuide.md) | 创建 BuffDataAsset + 在 DA_Room 中配置 BuffPool | 策划 |
 | [敌人朝向修正配置指南](FeatureConfig/EnemyRotation_ConfigGuide.md) | BTT_RotateCorrect 配置（Interp Speed）+ 转身动画方案设计 | 策划 + 程序 |
 | [蒙太奇命中符文配置指南](FeatureConfig/MeleeCombo_NotifyRune_Guide.md) | 在特定连段命中时触发一次性符文效果（FA 结构、AdditionalRuneEffects 配置、Debug 方法） | 策划 + 程序 |
+| [韧性系统配置指南](FeatureConfig/PoiseSystem_ConfigGuide.md) | Resilience 属性初始值、动作韧性（ActResilience）、霸体阈值与时长配置 | 策划 + 程序 |
 
 ---
 

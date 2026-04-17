@@ -191,7 +191,7 @@
 | 核心文件 | `GA_MeleeAttack.h/.cpp` |
 | 连击控制 | `ComboWindow` / `EarlyExit` / `ClearBuffer` |
 | 命中判定 | `AN_MeleeDamage`（AnimNotify）→ `IsInAnnulus`（环形扇区） |
-| 韧性系统 | `Stagger.Action` Tag + GE 驱动，GA_MeleeAttack 写入 |
+| 韧性系统 | 已重构为 Resilience 属性比较 + 霸体机制，见 COMBAT-005 |
 | 伤害容器 | `EffectContainerMap`（DA 配置，Key = GameplayTag） |
 | 配置入口 | `BP_GA_MeleeAttack` Details → EffectContainerMap / ComboMontages |
 | 设计文档 | [AttackDamage_Design.md](Design/Systems/AttackDamage_Design.md) |
@@ -288,6 +288,37 @@
 
 - `ActorsToSpawn` 数组有多项时只有最后一个 WeaponInstance 绑定热度委托（单武器设计，暂无多件武器需求）
 - `BlackedOutMaterial` 需在 `BP_WeaponSpawner` CDO 填入，不在 DA 配置
+
+---
+
+### [COMBAT-005] 韧性系统 — Poise + 霸体
+
+**状态**：完整  
+**Commit**：`16f1cab1`
+
+| 项目 | 内容 |
+| --- | --- |
+| 核心文件 | `YogAbilitySystemComponent.h/.cpp`、`GA_MeleeAttack.cpp`、`BaseAttributeSet.h` |
+| 核心逻辑 | `ReceiveDamage` 中比较攻击方与防御方 Resilience，攻击方 ≤ 防御方则不触发受击 |
+| 动作韧性 | `AN_MeleeDamage.ActResilience`（默认 20）由 `GA_MeleeAttack::OnEventReceived` 写入 `CurrentActionPoiseBonus`，`ReceiveDamage` 读取后立即清零 |
+| 属性来源 | `BaseAttributeSet.Resilience`（已存在属性，直接复用，在角色属性数据表填写初始值） |
+| 霸体机制 | 非玩家角色连续触发受击 ≥ `SuperArmorThreshold`（默认 3）次后，添加 `Buff.Status.SuperArmor` Tag，持续 `SuperArmorDuration`（默认 2s）；霸体期间免疫受击 |
+| 计数重置 | 5 秒内无新受击触发则 `PoiseHitCount` 归零 |
+| 配置入口 | 敌人角色蓝图 ASC → `Super Armor Threshold` / `Super Armor Duration`；角色数据表 → `Resilience` 初始值；蒙太奇 `AN_MeleeDamage.ActResilience` → 动作韧性 |
+| 配置文档 | [PoiseSystem_ConfigGuide.md](FeatureConfig/PoiseSystem_ConfigGuide.md) |
+
+推荐初始值参考：
+
+| 角色 | Resilience | 说明 |
+| --- | --- | --- |
+| 玩家 | 100 | 基准值 |
+| 普通敌人 | 50 | 轻击（20+100=120 > 50）可打出受击 |
+| 精英敌人 | 150 | 需要重击（ActResilience 50+100=150）才能打出受击 |
+
+**已知限制**
+
+- 敌人攻击时的动作韧性尚未配置（敌人 GA 需手动写入 `CurrentActionPoiseBonus`）
+- 玩家无霸体上限（被连击不会进入霸体，未来可按需扩展）
 
 ---
 
