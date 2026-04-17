@@ -1,277 +1,211 @@
 # 背包系统蓝图制作指南
 
-> 适用范围：背包 UI 蓝图制作、三选一配置、场景拾取物放置  
-> 适用人群：策划 + 程序  
+> 适用范围：WBP_BackpackScreen / WBP_RuneInfoCard 蓝图制作、样式 DA 配置  
+> 适用人群：策划 + 美术  
 > 配套文档：[背包系统技术文档](../Systems/BackpackSystem_Technical.md)  
-> 最后更新：2026-04-14
+> 最后更新：2026-04-17
 
 ---
 
-## 概述
+## 架构概述
 
-本指南指导完成明天展示所需的最低限度背包系统，包含：
+**所有格子由 C++ 自动生成**，蓝图 Designer 里只需放 7 个命名控件，不需要手动建 Button 数组、不需要 Event Graph 节点。
 
-1. **配置符文池**（GameMode BP，10 分钟）
-2. **确认三选一 UI**（WBP_LootSelection，15 分钟）
-3. **制作背包 UI**（WBP_BackpackScreen，45 分钟）
-4. **绑定 Tab 键开关背包**（PlayerController，10 分钟）
-5. **在场景放置拾取物**（5 分钟）
-
-完成后即可跑通：**走近拾取物 → 三选一 → 符文自动入背包 → Tab 打开背包调整位置 → 热度上升自动激活**。
+| 控件名（大小写完全一致） | 类型 | 说明 |
+| --- | --- | --- |
+| `BackpackGrid` | UniformGridPanel | 主背包网格，C++ 填充 |
+| `PendingRuneGrid` | UniformGridPanel | 左侧待放置区，C++ 填充 |
+| `RuneInfoCard` | WBP_RuneInfoCard 实例 | 右侧符文信息卡 |
+| `GrabbedRuneIcon` | Image | 拖拽/手柄抓取时的浮空图标 |
+| `SellButton` | Button | 出售选中格子的符文 |
+| `HintText` | RichTextBlock | 操作提示文字（可选） |
+| `RuneTooltip` | WBP_RuneTooltip 实例 | 鼠标悬浮 Tooltip（可选） |
 
 ---
 
-## 一、配置符文池（必做，最先做）
+## 一、WBP_BackpackScreen 蓝图制作
 
-在 **BP_YogGameModeBase** Details 面板：
+### 1.1 创建 Widget
 
-1. 找到 **Level Flow → Fallback Loot Pool**
-2. 添加以下符文资产（在 `Content/Docs/BuffDocs/Playtest_GA/` 下）：
+1. Content Browser → `+ Add → User Interface → Widget Blueprint`
+2. 父类搜索 **`BackpackScreenWidget`** → Select
+3. 文件命名 **`WBP_BackpackScreen`**，放到 `Content/UI/Playtest_UI/`
 
-| 推荐填入的符文 | 路径 |
+### 1.2 Designer 层级结构
+
+```
+Canvas Panel（全屏，Anchors: 全拉伸）
+├── Border [半透明背景，Brush Color #1A1A1A Alpha=0.9，全屏]
+│   └── Horizontal Box [两栏布局，Size Auto，Canvas 居中锚点]
+│       │
+│       ├── [左列] Vertical Box (Size Auto)
+│       │   ├── Text "待放置"
+│       │   └── UniformGridPanel  ← 变量名: PendingRuneGrid  ★ 必须留空，C++填充
+│       │
+│       ├── [中列] Vertical Box (Size Auto)
+│       │   ├── Text "背包"
+│       │   └── UniformGridPanel  ← 变量名: BackpackGrid  ★ 必须留空，C++填充
+│       │
+│       └── [右列] WBP_RuneInfoCard 实例  ← 变量名: RuneInfoCard
+│           (Visibility: Collapsed，C++ 自动控制显隐)
+│
+├── Image  ← 变量名: GrabbedRuneIcon  (Visibility: Collapsed, HitTestInvisible)
+│   [放在 Canvas Panel 根层，位置随意，C++ Tick 每帧移动]
+│
+└── Button  ← 变量名: SellButton
+    └── Text "出售"
+```
+
+> ⚠️ `BackpackGrid` 和 `PendingRuneGrid` 内部**不能放任何子控件**，C++ 会清空并重建。
+>
+> ⚠️ `GrabbedRuneIcon` 必须在 Canvas Panel 根层（不在 Border 里），这样它可以自由定位到任意屏幕坐标。
+>
+> ⚠️ `RuneInfoCard` 要放在层级最下方（最后一个子控件），确保渲染在最上层。
+
+### 1.3 各控件关键参数
+
+#### UniformGridPanel（BackpackGrid / PendingRuneGrid）
+
+- Slot Padding：不需要设置，C++ 通过格子间距自动控制
+- 保持默认，不要在 Designer 里改 Min Desired Slot Width/Height
+
+#### GrabbedRuneIcon
+
+- Size to Content：关（不勾选）
+- Image Size：64×64（与格子同尺寸，C++ 用 StyleDA.CellSize 驱动）
+- Brush → Image：留空（C++ 运行时填入）
+
+#### SellButton
+
+- 不需要在 Event Graph 里绑定 OnClicked，C++ 自动绑定
+
+#### RuneInfoCard（WBP_RuneInfoCard 实例）
+
+- Overlay Slot → Horizontal/Vertical Alignment：Fill（两个都要填 Fill）
+
+### 1.4 Event Graph 不需要任何节点
+
+所有逻辑（格子颜色、拖拽、选中、出售）均由 C++ 处理，蓝图 Event Graph 保持空白即可。
+
+---
+
+## 二、WBP_RuneInfoCard 蓝图制作
+
+### 2.1 创建 Widget
+
+1. 父类搜索 **`RuneInfoCardWidget`**
+2. 文件命名 **`WBP_RuneInfoCard`**，放到 `Content/UI/Playtest_UI/`
+
+### 2.2 Designer 层级结构
+
+```
+Overlay（根节点）
+├── Image  ← 变量名: CardBG  [背景色，Overlay Slot: Fill + Fill]
+└── Vertical Box  ← 变量名: CardContent  [Overlay Slot: Fill + Fill, Padding 12]
+    ├── Image      ← 变量名: CardIcon    [图标，Size Auto]
+    ├── Text       ← 变量名: CardName    [符文名称，字号 16，加粗]
+    ├── Text       ← 变量名: CardDesc    [描述，字号 12，Auto Wrap Text 勾上]
+    └── Text       ← 变量名: CardUpgrade [升级等级，字号 11，默认 Collapsed]
+```
+
+### 2.3 关键设置
+
+- 根节点 Overlay 的 **Size to Content**：勾上（或者用 SizeBox 固定宽高）
+- `CardBG`：Overlay Slot → Horizontal Alignment = Fill，Vertical Alignment = Fill
+- `CardContent`：Overlay Slot → Horizontal/Vertical Alignment = Fill，Padding = 12
+
+---
+
+## 三、配置视觉样式（DA_BackpackStyle）
+
+### 3.1 创建 DataAsset
+
+1. Content Browser → `+ Add → Miscellaneous → Data Asset`
+2. 选择类型 **`BackpackStyleDataAsset`**
+3. 命名 **`DA_BackpackStyle`**，放到 `Content/UI/Playtest_UI/`
+
+### 3.2 填入 WBP_BackpackScreen
+
+打开 `WBP_BackpackScreen` → Details 面板 → **Backpack | Style → Style DA** → 填入 `DA_BackpackStyle`
+
+### 3.3 可配置参数
+
+| 参数 | 默认值 | 说明 |
+| --- | --- | --- |
+| Empty Color | 灰 (0.40, 0.40, 0.42) | 未激活区空格 |
+| Empty Active Color | 深蓝 (0.15, 0.35, 0.75) | 激活区空格 |
+| Occupied Active Color | 亮蓝 (0.10, 0.55, 1.00) | 激活区有符文 |
+| Occupied Inactive Color | 橙 (0.55, 0.35, 0.05) | 非激活区有符文 |
+| Selected Color | 金黄 (1.00, 0.82, 0.10) | 选中高亮 |
+| Hover Color | 绿 (0.10, 0.80, 0.20) | 拖拽悬浮目标格 |
+| Grabbed Source Color | 暗橙 (0.25, 0.15, 0.03) | 被拖起的源格 |
+| Pending Has Rune Color | 深紫 (0.12, 0.08, 0.22) | 左侧有符文槽 |
+| Pending Empty Color | 灰 (0.40, 0.40, 0.42) | 左侧空槽 |
+| Cell Size | 64 px | 格子边长 |
+| Cell Padding | 2 px | 格子间距 |
+| Cell Corner Radius | 3 px | 圆角半径 |
+| Icon Padding | 6 px | 图标内边距 |
+
+---
+
+## 四、配置背包网格大小
+
+在 **角色蓝图**（B_PlayerCharacterBase）的 Components 面板选中 `BackpackGridComponent`：
+
+- Details → **Config → Grid Width**：列数（默认 5）
+- Details → **Config → Grid Height**：行数（默认 5）
+
+---
+
+## 五、符文池配置
+
+在 **BP_YogGameModeBase** → Class Defaults → **Level Flow → Fallback Loot Pool**：
+
+添加符文资产（`Content/Docs/BuffDocs/Playtest_GA/` 下），至少 3 个。
+
+---
+
+## 六、拖拽操作说明（技术）
+
+| 操作 | 行为 |
 |---|---|
-| `DA_Rune_AttackUp` | .../AttackUp/ |
-| `DA_Rune_Bleed` | .../Bleed/ |
-| `DA_Rune_DeadlyStrike` | .../DeadlyStrike/ |
-| `DA_Rune_Frenzy` | .../Frenzy/ |
-| `DA_Rune_ShadowDash` | .../ShadowDash/ |
-| `DA_Rune_VenomFang` | .../VenomFang/ |
-| `DA_Rune_Shockwave` | .../Shockwave/ |
-| `DA_Rune_WeaknessUnveiled` | .../Weakness_Unveiled/ |
+| 按住左键拖拽格子中符文 | 启动拖拽，`GrabbedRuneIcon` 立即出现在鼠标位置跟随移动 |
+| 拖到目标格子松手 | 放置（若有符文则交换） |
+| 拖到空白区松手 / Esc | 取消，符文回原位 |
+| 从左侧待放置区拖到主格子 | 将 PendingRune 放置到背包 |
+| 手柄 D-Pad 导航 + A 抓取 + A 放置 | 等同鼠标操作，`GrabbedRuneIcon` 跟随手柄光标 |
 
-> ⚠️ 至少填 3 个，否则三选一无法显示。
+> 浮空图标由 C++ Tick 每帧驱动（`GrabbedRuneIcon`），不依赖 UE 内置 `DefaultDragVisual`，可直接出现在鼠标下方，无飞入动画。
 
 ---
 
-## 二、确认三选一 UI（WBP_LootSelection）
-
-打开 `Content/UI/Playtest_UI/WBP_LootSelection`，确认以下两个事件已实现：
-
-### `OnLootOptionsReady(LootOptions)`
-
-```
-For Each (LootOptions, Index):
-  找到第 Index 张卡片
-  → 设置卡片名称文字 = LootOptions[Index].RuneAsset.RuneInfo.RuneConfig.RuneName
-  → 设置卡片图标   = LootOptions[Index].RuneAsset.RuneInfo.RuneConfig.RuneIcon
-  → 卡片按钮 OnClicked → SelectRuneLoot(Index)
-Set Visibility → Visible（显示整个 Widget）
-```
-
-### `OnLevelPhaseChanged(NewPhase)`
-
-```
-Switch (NewPhase):
-  Arrangement → Set Visibility Visible
-  其他        → Set Visibility Hidden
-```
-
-### 添加到 Viewport
-
-在 **PlayerController 或 HUD 的 Event BeginPlay**：
-
-```
-Create Widget [WBP_LootSelection] → Add to Viewport
-```
-
----
-
-## 三、制作背包 UI（WBP_BackpackScreen）
-
-### 3.1 新建 Widget
-
-- 路径：`Content/UI/Backpack/WBP_BackpackScreen`
-- **父类**：选 `BackpackScreenWidget`（C++ 基类）
-
-### 3.2 UMG 布局
-
-```
-Canvas Panel（填满屏幕）
-└── Border [全屏半透明，Brush Color #1A1A1A, Alpha 0.9]
-    └── Horizontal Box [宽900 × 高600，居中]
-        │
-        ├── [左侧] Vertical Box [宽260]
-        │   ├── Text "待放置符文" [字号16，居中]
-        │   ├── ScrollBox              ← 变量名: RuneListBox
-        │   └── Border [高100，描述区]
-        │       ├── Text               ← 变量名: InfoName  [字号14，加粗]
-        │       └── Text               ← 变量名: InfoDesc  [字号11，自动换行]
-        │
-        └── [右侧] Vertical Box [宽600]
-            ├── Text "背包" [字号16，居中]
-            ├── Uniform Grid Panel     ← 变量名: BackpackGrid
-            │   └── 25 个 Button（见 3.3）
-            └── Horizontal Box [底部操作栏]
-                ├── Button "移除选中" → OnClicked: RemoveRuneAtSelectedCell
-                └── Button "取消选中" → OnClicked: ClearSelection
-```
-
-### 3.3 放置 25 个格子 Button
-
-在 `BackpackGrid`（Uniform Grid Panel）里放 25 个 Button：
-
-| 参数 | 设置 |
-|---|---|
-| Column | 0 ~ 4 |
-| Row | 0 ~ 4 |
-| 尺寸 | 90 × 90 |
-| 每个 Button 内 | Vertical Box → Image（70×70）+ Text（字号8）|
-
-建立数组变量 `GridButtons`（类型：`Button` 数组），在 Event Construct 里按 **Col × 5 + Row** 的顺序填入所有 25 个 Button 引用。
-
-每个 Button 对应的 `OnClicked` 绑定：
-
-```
-Btn(Col, Row) OnClicked → ClickCell(Col, Row)
-```
-
-### 3.4 Event Construct
-
-```
-Event Construct
-  → 填充 GridButtons 数组（Add 25个Button，顺序：Col=0,Row=0 到 Col=4,Row=4）
-  → 调用自定义函数 [RefreshRuneList]
-  → 调用 OnGridNeedsRefresh
-```
-
-### 3.5 自定义函数：`RefreshRuneList`
-
-```
-RuneListBox → Clear Children
-
-GetRuneList() → For Each (ArrayIndex, RuneInstance)
-  → Create Widget [Button]（或直接 Create Text Block）
-      标签文字 = RuneInstance.RuneConfig.RuneName
-      如果 ArrayIndex < GetPendingRuneCount()：
-        标签文字前加 "★ "（表示三选一获得的符文）
-      OnClicked → SelectRuneFromList(ArrayIndex)
-  → RuneListBox → Add Child
-```
-
-### 3.6 实现 `OnGridNeedsRefresh`
-
-```
-For Col = 0 To 4:
-  For Row = 0 To 4:
-    Index = Col * 5 + Row
-    Button = GridButtons[Index]
-
-    [颜色] GetCellVisualState(Col, Row) → Switch:
-      Empty            → Button BG Color = #3A3A3A
-      EmptyActive      → Button BG Color = #1A3A6A
-      OccupiedActive   → Button BG Color = #2266CC
-      OccupiedInactive → Button BG Color = #7A4A1A
-
-    [选中高亮] IsCellSelected(Col, Row) → True:
-      Button BG Color = #FFAA00（覆盖上面的颜色）
-
-    [内容] IsCellOccupied(Col, Row) → True:
-      GetRuneAtCell(Col, Row) → 设置 Button 内的 Image = RuneConfig.RuneIcon
-                               → 设置 Button 内的 Text  = RuneConfig.RuneName
-    → False:
-      Image = None，Text = ""
-```
-
-### 3.7 实现 `OnSelectionChanged`
-
-```
-调用 RefreshRuneList
-调用 OnGridNeedsRefresh
-
-HasSelectedRune() → True:
-  GetSelectedRuneInfo() → InfoName.SetText = RuneConfig.RuneName
-                        → InfoDesc.SetText = RuneConfig.RuneDescription
-→ False:
-  InfoName.SetText = ""
-  InfoDesc.SetText = ""
-```
-
-### 3.8 实现 `OnRuneListChanged`
-
-```
-调用 RefreshRuneList
-```
-
-### 3.9 实现 `OnStatusMessage(Message)`
-
-```
-StatusText.SetText(Message)
-Delay(2.0)
-StatusText.SetText("")
-```
-
-> 需要在布局中添加一个底部 **Text 控件**，变量名 `StatusText`，字号 12，居中。
-
----
-
-## 四、绑定 Tab 键开关背包
-
-### 4.1 添加 InputAction
-
-**Project Settings → Input → Action Mappings** → 新增：
-
-| 名称 | 按键 |
-|---|---|
-| `OpenBackpack` | Tab |
-
-### 4.2 在 PlayerController 蓝图绑定
-
-```
-Event Begin Play
-  → Create Widget [WBP_BackpackScreen] → 存入变量 BackpackWidget
-  → Add to Viewport
-  → Set Visibility: Hidden
-
-InputAction "OpenBackpack" (Pressed)
-  → BackpackWidget Is Visible?
-      True  → Set Visibility Hidden
-              Set Input Mode: Game Only
-      False → Set Visibility Visible
-              Set Input Mode: Game And UI
-              Set Keyboard Focus: BackpackWidget
-```
-
----
-
-## 五、在场景放置拾取物
-
-1. 打开初始关卡（测试关卡）
-2. 在 **Content Browser** 找到 `BP_RewardPickup`
-3. 拖入场景，放置 **3 个**，分散摆放（玩家需要依次走近）
-4. 无需配置，自动读取 GameMode 的 `FallbackLootPool`
-
----
-
-## 六、展示前验证清单
+## 七、展示前验证清单
 
 | 检查项 | 验证方法 |
 |---|---|
-| 编译通过 | 编辑器无报错 |
-| FallbackLootPool 已填 | GameMode BP Details 有符文资产 |
-| WBP_LootSelection 已添加到 Viewport | PIE 走近拾取物按 E，弹出三选一 |
-| 选符文后自动入格子 | Output Log 打印"自动放置到 (0,0)" |
-| Tab 键打开背包 | 按 Tab 显示 WBP_BackpackScreen |
-| 格子颜色正确 | 激活区深蓝，已放置符文橙色 |
-| 点格子选中 → 点空格子移动 | 符文位置变化，颜色随之刷新 |
-| 热度增加后激活区符文变蓝 | 符文颜色从橙 → 亮蓝 |
+| 格子出现且有颜色 | 开背包后看到灰/蓝色格子 |
+| 符文图标显示 | 三选一选符文后，格子里有图标 |
+| 拖拽跟手 | 按住符文拖动，浮空图标紧随鼠标 |
+| 悬浮高亮 | 拖到目标格时格子变绿 |
+| RuneInfoCard 弹出 | 点选格子后右侧出现符文详情卡 |
+| 出售按钮生效 | 选中格子后点 SellButton，符文消失 |
+| 手柄导航 | D-Pad 移动光标，A 抓取/放置 |
 
 ---
 
-## 七、常见问题
+## 八、常见问题
 
-**Q：走近拾取物按 E，但三选一没弹出？**  
-A：检查以下几点：
-1. GameMode BP 的 `FallbackLootPool` 是否有符文（至少 3 个）
-2. `WBP_LootSelection` 是否已 Add to Viewport
-3. Output Log 是否有"GenerateLootOptions: 无可用符文池"的 Warning
+**Q：格子没有出现？**  
+A：`BackpackGrid` 控件名拼写是否完全匹配（大小写一致），UniformGridPanel 里是否为空（没有手动放 Button）。
 
-**Q：选了符文但背包 UI 没有显示？**  
-A：
-1. 检查 Output Log 是否有"自动放置到 (X,Y)"的 Log
-2. 如果有 Log 说明格子已放置，是 UI 刷新问题 → 检查 `OnGridNeedsRefresh` 的 GridButtons 数组是否正确填充
+**Q：GrabbedRuneIcon 不跟随鼠标？**  
+A：确认 `GrabbedRuneIcon` 在 Canvas Panel 根层，不在任何 Border/Overlay 内。Image 变量名精确为 `GrabbedRuneIcon`。
 
-**Q：格子颜色全是深灰，没有深蓝激活区？**  
-A：`GetActivationZoneCells()` 依赖 `ActivationZoneConfig`。在 Player 角色蓝图的 BackpackGridComponent Details 面板检查 `Activation Zone Config` 是否有 ZoneShapes 数据（默认值由 C++ `MakeDefault()` 提供，无需手动填写）。
+**Q：RuneInfoCard 选中格子后没有出现？**  
+A：1) 确认控件名精确为 `RuneInfoCard`；2) 确认它是 `WBP_RuneInfoCard` 实例（父类为 RuneInfoCardWidget）；3) 确认它是 Canvas Panel 层级的**最后一个子控件**（渲染最上层）。
 
-**Q：热度增加但符文没有激活（颜色不变蓝）？**  
-A：`OnHeatValueChanged` 需要由 `PlayerAttributeSet::PostAttributeChange` 调用。检查 AttributeSet 里是否有相关调用逻辑。
+**Q：格子被拉伸（不是正方形）？**  
+A：包含 `BackpackGrid` 的 VerticalBox / HorizontalBox Slot → **Size = Auto**（不要用 Fill）。
+
+**Q：待放置区颜色不对？**  
+A：在 `DA_BackpackStyle` 里调 `Pending Has Rune Color` / `Pending Empty Color`。

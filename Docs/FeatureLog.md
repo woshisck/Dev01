@@ -368,15 +368,32 @@
 ### [UI-003] 背包样式系统 — BackpackStyleDataAsset + RuneInfoCard
 
 **状态**：完整  
-**Commit**：本次提交
+**Commit**：`62c298a9` / `ef253286`
 
 | 项目 | 内容 |
 | --- | --- |
 | 核心文件 | `BackpackScreenWidget.h/.cpp`、`BackpackStyleDataAsset`、`RuneInfoCardWidget` |
-| 样式 DA | `DA_BackpackStyle` — 统一管理格子颜色、字体、边框等视觉参数，无需改代码 |
-| RuneInfoCard | `WBP_RuneInfoCard` — 悬浮在格子上的符文详情卡片，替代旧 Tooltip |
-| 颜色系统 | 格子状态颜色（Empty / EmptyActive / OccupiedActive / OccupiedInact / Selected / Hover）迁移至 DA |
+| 样式 DA | `DA_BackpackStyle` — 统一管理格子颜色、边框、尺寸等视觉参数，无需改代码 |
+| RuneInfoCard | `WBP_RuneInfoCard` — 独立 Widget，选中格子后由 C++ 自动调用 ShowRune/HideCard |
+| 颜色系统 | 格子状态颜色（Empty / EmptyActive / OccupiedActive / OccupiedInact / Selected / Hover / GrabbedSource）迁移至 DA |
 | 配置入口 | `WBP_BackpackScreen` → Details → `Backpack Style` 填入 `DA_BackpackStyle` |
+| 格子渲染 | 每格为 UOverlay + UImage(RoundedBox brush) + UImage(icon)，C++ 动态生成，UniformGridPanel 保持空 |
+
+---
+
+### [UI-004] 拖拽浮空图标修复 — 绑过 DefaultDragVisual
+
+**状态**：完整  
+**Commit**：`ef253286`
+
+| 项目 | 内容 |
+| --- | --- |
+| 核心文件 | `BackpackScreenWidget.h/.cpp` |
+| 问题 | UE `DefaultDragVisual` 始终从屏幕 (0,0) 飞向鼠标，无法直接出现在鼠标下方 |
+| 解决方案 | 不设置 `DefaultDragVisual`，改用 `GrabbedRuneIcon`（Canvas Panel 根层 Image）；`NativeTick` 每帧用 `LastMouseAbsPos` 定位，`NativeOnDragOver` 每帧更新鼠标坐标 |
+| 新增字段 | `bMouseDragging`、`MouseDragTex`、`LastMouseAbsPos`（私有，仅 Tick 用） |
+| 手柄复用 | `GrabbedRuneIcon` 同时服务手柄抓取模式（`bGrabbingRune`），两个分支共用同一 Image |
+| 设计文档 | [BackpackSystem_Guide.md](Design/FeatureConfig/BackpackSystem_Guide.md) §六 |
 
 ---
 
