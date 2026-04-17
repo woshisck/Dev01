@@ -398,6 +398,49 @@ void UYogAbilitySystemComponent::OnSuperArmorTimerEnd()
 	UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor EXPIRED on %s"), *GetNameSafe(GetAvatarActor()));
 }
 
+// =========================================================
+// 冲刺连招保存
+// =========================================================
+
+void UYogAbilitySystemComponent::ApplyDashSave(const FGameplayTagContainer& Tags)
+{
+	// 先清理上次残留（双冲刺连打时保护）
+	ConsumeDashSave();
+
+	DashSaveComboTags = Tags;
+	for (const FGameplayTag& Tag : DashSaveComboTags)
+		AddLooseGameplayTag(Tag);
+
+	// 2s 内未消费则自动清理（防止玩家没有接攻击导致 Tag 残留）
+	if (UWorld* W = GetWorld())
+		W->GetTimerManager().SetTimer(
+			DashSaveExpireTimer, this, &UYogAbilitySystemComponent::DashSaveExpired, 2.f, false);
+
+	UE_LOG(LogTemp, Log, TEXT("[DashSave] Applied %d combo tags on %s (2s window)"),
+		Tags.Num(), *GetNameSafe(GetAvatarActor()));
+}
+
+void UYogAbilitySystemComponent::ConsumeDashSave()
+{
+	if (DashSaveComboTags.IsEmpty())
+		return;
+
+	if (UWorld* W = GetWorld())
+		W->GetTimerManager().ClearTimer(DashSaveExpireTimer);
+
+	for (const FGameplayTag& Tag : DashSaveComboTags)
+		RemoveLooseGameplayTag(Tag);
+
+	DashSaveComboTags.Reset();
+	UE_LOG(LogTemp, Log, TEXT("[DashSave] Consumed on %s"), *GetNameSafe(GetAvatarActor()));
+}
+
+void UYogAbilitySystemComponent::DashSaveExpired()
+{
+	UE_LOG(LogTemp, Log, TEXT("[DashSave] Expired (not consumed) on %s"), *GetNameSafe(GetAvatarActor()));
+	ConsumeDashSave();
+}
+
 void UYogAbilitySystemComponent::AddActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToBlock)
 {
 	this->AddLooseGameplayTags(TagsToBlock);

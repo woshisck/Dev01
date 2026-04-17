@@ -1,4 +1,5 @@
 #include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 // ── 玩家近战公共基类 ──────────────────────────────────────────────────────
@@ -110,6 +111,21 @@ UGA_Player_LightAtk4::UGA_Player_LightAtk4()
 	ActivationBlockedTags.AddTag(GT(TAG_LC4));
 }
 
+void UGA_Player_LightAtk4::ActivateAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	const FGameplayEventData* TriggerEventData)
+{
+	// 消费冲刺连招保存的 LooseGameplayTags（若非 DashSave 触发则为空操作）
+	if (UYogAbilitySystemComponent* YASC = Cast<UYogAbilitySystemComponent>(
+		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr))
+	{
+		YASC->ConsumeDashSave();
+	}
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+}
+
 // ── Heavy Attack Combo ────────────────────────────────────────────────────
 
 UGA_Player_HeavyAtk1::UGA_Player_HeavyAtk1()
@@ -164,6 +180,21 @@ UGA_Player_HeavyAtk4::UGA_Player_HeavyAtk4()
 	ActivationRequiredTags.AddTag(GT(TAG_HC3));
 
 	ActivationBlockedTags.AddTag(GT(TAG_HC4));
+}
+
+void UGA_Player_HeavyAtk4::ActivateAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	const FGameplayEventData* TriggerEventData)
+{
+	// 消费冲刺连招保存的 LooseGameplayTags（若非 DashSave 触发则为空操作）
+	if (UYogAbilitySystemComponent* YASC = Cast<UYogAbilitySystemComponent>(
+		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr))
+	{
+		YASC->ConsumeDashSave();
+	}
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 }
 
 // ── Dash Attack ───────────────────────────────────────────────────────────

@@ -24,14 +24,34 @@ public:
 UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Player_LightAtk1 : public UGA_PlayerMeleeAttack { GENERATED_BODY() public: UGA_Player_LightAtk1(); };
 UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Player_LightAtk2 : public UGA_PlayerMeleeAttack { GENERATED_BODY() public: UGA_Player_LightAtk2(); };
 UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Player_LightAtk3 : public UGA_PlayerMeleeAttack { GENERATED_BODY() public: UGA_Player_LightAtk3(); };
-UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Player_LightAtk4 : public UGA_PlayerMeleeAttack { GENERATED_BODY() public: UGA_Player_LightAtk4(); };
+
+UCLASS(BlueprintType, Blueprintable)
+class DEVKIT_API UGA_Player_LightAtk4 : public UGA_PlayerMeleeAttack
+{
+	GENERATED_BODY()
+public:
+	UGA_Player_LightAtk4();
+protected:
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+};
 
 // ── Heavy Attack Combo ────────────────────────────────────────────────────
 
 UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Player_HeavyAtk1 : public UGA_PlayerMeleeAttack { GENERATED_BODY() public: UGA_Player_HeavyAtk1(); };
 UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Player_HeavyAtk2 : public UGA_PlayerMeleeAttack { GENERATED_BODY() public: UGA_Player_HeavyAtk2(); };
 UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Player_HeavyAtk3 : public UGA_PlayerMeleeAttack { GENERATED_BODY() public: UGA_Player_HeavyAtk3(); };
-UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Player_HeavyAtk4 : public UGA_PlayerMeleeAttack { GENERATED_BODY() public: UGA_Player_HeavyAtk4(); };
+
+UCLASS(BlueprintType, Blueprintable)
+class DEVKIT_API UGA_Player_HeavyAtk4 : public UGA_PlayerMeleeAttack
+{
+	GENERATED_BODY()
+public:
+	UGA_Player_HeavyAtk4();
+protected:
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+};
 
 // ── Dash Attack ───────────────────────────────────────────────────────────
 

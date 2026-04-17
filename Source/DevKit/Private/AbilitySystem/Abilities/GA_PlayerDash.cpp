@@ -1,5 +1,6 @@
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Camera/YogPlayerCameraManager.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
@@ -10,6 +11,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Kismet/GameplayStatics.h"
 
 // ECC_GameTraceChannel1 = DashTrace（用于障碍 SphereTrace）
 static const ECollisionChannel DashTraceChannel   = ECC_GameTraceChannel1;
@@ -49,6 +51,44 @@ bool UGA_PlayerDash::CanActivateAbility(
 			!Player->SkillChargeComponent->HasCharge(FGameplayTag::RequestGameplayTag(DashChargeTagName)))
 		{
 			return false;
+		}
+	}
+
+	// ── 连招桥接检测 ─────────────────────────────────────────────────────
+	// 蒙太奇在"桥接窗口"用 AnimNotifyState 授予 ComboSavePoint Tag。
+	// 此时 CancelAbilitiesWithTag 尚未执行，ActivationOwnedTags 仍在 ASC 上，
+	// 直接收集当前所有连招进度 Tag 写入 PendingSaveComboTags。
+	PendingSaveComboTags.Reset();
+	if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
+	{
+		static const FGameplayTag SavePoint =
+			FGameplayTag::RequestGameplayTag(TEXT("Action.Combo.DashSavePoint"), false);
+
+		if (SavePoint.IsValid() && ASC->HasMatchingGameplayTag(SavePoint))
+		{
+			static const FGameplayTag CanCombo =
+				FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
+
+			// 所有已知连招进度 Tag（ActivationOwnedTags 已注入到 ASC，直接查）
+			static const FName KnownComboTagNames[] = {
+				TEXT("PlayerState.AbilityCast.LightAtk.Combo1"),
+				TEXT("PlayerState.AbilityCast.LightAtk.Combo2"),
+				TEXT("PlayerState.AbilityCast.LightAtk.Combo3"),
+				TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1"),
+				TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"),
+				TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3"),
+			};
+
+			PendingSaveComboTags.AddTag(CanCombo);
+			for (const FName& TagName : KnownComboTagNames)
+			{
+				FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+				if (Tag.IsValid() && ASC->HasMatchingGameplayTag(Tag))
+					PendingSaveComboTags.AddTag(Tag);
+			}
+
+			UE_LOG(LogTemp, Log, TEXT("[DashSave] ComboSavePoint detected, cached %d tags"),
+				PendingSaveComboTags.Num());
 		}
 	}
 
@@ -222,6 +262,17 @@ void UGA_PlayerDash::EndAbility(
 		}
 
 		DashDebugStartLocation = FVector::ZeroVector;
+	}
+
+	// ── 连招保存：从桥接位冲刺时为下一击注入 LooseGameplayTags ─────────────
+	if (!bWasCancelled && !PendingSaveComboTags.IsEmpty())
+	{
+		if (UYogAbilitySystemComponent* YASC = Cast<UYogAbilitySystemComponent>(
+			ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr))
+		{
+			YASC->ApplyDashSave(PendingSaveComboTags);
+		}
+		PendingSaveComboTags.Reset();
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

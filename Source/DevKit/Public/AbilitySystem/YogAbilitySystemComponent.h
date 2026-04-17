@@ -176,6 +176,14 @@ private:
 	void OnPoiseResetTimerEnd();
 	void OnSuperArmorTimerEnd();
 
+	// ── 冲刺连招保存内部状态 ───────────────────────────────────────────
+	/** 当前保存的连招 Tag 集合（ApplyDashSave 注入 / ConsumeDashSave 移除） */
+	FGameplayTagContainer DashSaveComboTags;
+	/** 2s 后自动消费（未被攻击消费时清理） */
+	FTimerHandle DashSaveExpireTimer;
+
+	void DashSaveExpired();
+
 public:
 	//////////////////////////////////Gameplay Tag//////////////////////////////////
 	UFUNCTION(BlueprintCallable)
@@ -314,5 +322,19 @@ public:
 	// 移除之前 Apply 的符文 GE
 	UFUNCTION(BlueprintCallable, Category = "Rune")
 	void RemoveRuneModifiers(FActiveGameplayEffectHandle Handle);
+
+	// ── 冲刺连招保存 ────────────────────────────────────────────────────────
+	/**
+	 * 以 LooseGameplayTag 方式注入连招 Tag，使玩家冲刺后可直接接 X 招。
+	 * 自动在 2s 后过期；或由 ConsumeDashSave 主动消费。
+	 * GA_PlayerDash::EndAbility 在检测到处于 X-1 招位时调用。
+	 */
+	void ApplyDashSave(const FGameplayTagContainer& Tags);
+
+	/**
+	 * 消费（移除）之前注入的连招 Tag，并清除过期计时器。
+	 * LightAtk4 / HeavyAtk4 在 ActivateAbility 时调用。
+	 */
+	void ConsumeDashSave();
 
 };

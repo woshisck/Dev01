@@ -98,6 +98,13 @@ private:
 	/** ActivateAbility 时记录 AnimScale，EndAbility 时用于 Z 下沉诊断 */
 	float DashAnimScale = 1.f;
 
+	/**
+	 * CanActivateAbility 检测到处于 X-1 招位时缓存应注入的连招 Tag。
+	 * mutable：const 方法内写入，ActivateAbility/EndAbility 时读取。
+	 * 非桥接位冲刺时为空容器。
+	 */
+	mutable FGameplayTagContainer PendingSaveComboTags;
+
 	UFUNCTION()
 	void OnMontageCompleted(FGameplayTag EventTag, FGameplayEventData EventData);
 

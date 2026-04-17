@@ -8,11 +8,15 @@
 class UBackpackGridComponent;
 class APlayerCharacterBase;
 class UButton;
+class UBorder;
 class UImage;
+class UOverlay;
 class UTextBlock;
 class URichTextBlock;
 class UDragDropOperation;
 class URuneTooltipWidget;
+class URuneInfoCardWidget;
+class UBackpackStyleDataAsset;
 class UUniformGridPanel;
 struct FPlacedRune;
 
@@ -62,6 +66,10 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Backpack|Pending")
     int32 PendingGridRows = 4;
+
+    /** 视觉风格配置（Content Browser 创建 DA_BackpackStyle 后填入） */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Backpack|Style")
+    TObjectPtr<UBackpackStyleDataAsset> StyleDA;
 
     // =========================================================
     // 自动绑定的详情面板控件
@@ -142,29 +150,14 @@ public:
     TObjectPtr<UUniformGridPanel> PendingRuneGrid;
 
     // =========================================================
-    // 右侧符文信息卡
-    // Designer：在 RightPanel 空余处放一个任意面板，命名 RuneInfoCard
-    //   └─ 内部放（名称必须完全一致）：
-    //        CardIcon    Image     符文图标
-    //        CardName    TextBlock 符文名
-    //        CardDesc    TextBlock 符文描述
-    //        CardUpgrade TextBlock 升级等级（Lv.2 / Lv.3），无升级时隐藏
+    // 右侧符文信息卡（独立 Widget）
+    // Designer：在 Canvas Panel 根层放一个 WBP_RuneInfoCard 实例，
+    //           命名为 RuneInfoCard，Visibility = Collapsed
+    //           C++ 通过 ShowRune / HideCard 自动控制显隐
     // =========================================================
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UWidget> RuneInfoCard;
-
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UImage> CardIcon;
-
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UTextBlock> CardName;
-
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UTextBlock> CardDesc;
-
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UTextBlock> CardUpgrade;
+    TObjectPtr<URuneInfoCardWidget> RuneInfoCard;
 
     // =========================================================
     // 对外调用：手动刷新左侧待放置槽（切换关卡后外部也可调用）
@@ -303,12 +296,19 @@ private:
     UPROPERTY()
     TArray<TObjectPtr<UButton>> CachedCellButtons;
 
+    /** 格子背景色层（UImage，RoundedBox brush，SetColorAndOpacity 更新颜色） */
+    UPROPERTY()
+    TArray<TObjectPtr<UImage>> CachedCellBorders;
+
     UPROPERTY()
     TArray<TObjectPtr<UImage>> CachedCellIcons;
 
     /** 左侧待放置槽缓存 */
     UPROPERTY()
     TArray<TObjectPtr<UButton>> CachedPendingButtons;
+
+    UPROPERTY()
+    TArray<TObjectPtr<UImage>> CachedPendingBGImages;
 
     UPROPERTY()
     TArray<TObjectPtr<UImage>> CachedPendingIcons;
@@ -346,6 +346,11 @@ private:
 
     /** D-Pad 按过后置 true，鼠标移动后置 false，用于区分 A键虚拟点击 vs 真实鼠标点击 */
     bool  bIsGamepadInputMode = false;
+
+    // ── 鼠标拖拽浮空图标（绕过 DefaultDragVisual，直接驱动 GrabbedRuneIcon） ──
+    bool          bMouseDragging  = false;
+    UTexture2D*   MouseDragTex    = nullptr;
+    FVector2D     LastMouseAbsPos = FVector2D::ZeroVector;
 
     static constexpr float DirRepeatInitial = 0.30f;  // 初始延迟（秒）
     static constexpr float DirRepeatRate    = 0.10f;  // 重复间隔（秒）

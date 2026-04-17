@@ -1,6 +1,8 @@
 #include "UI/BackpackScreenWidget.h"
 #include "UI/RuneDragDropOperation.h"
 #include "UI/RuneTooltipWidget.h"
+#include "UI/RuneInfoCardWidget.h"
+#include "UI/BackpackStyleDataAsset.h"
 #include "Component/BackpackGridComponent.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogPlayerControllerBase.h"
@@ -8,12 +10,16 @@
 #include "Input/CommonUIInputTypes.h"
 #include "GameFramework/Pawn.h"
 #include "Components/Button.h"
+#include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/RichTextBlock.h"
 #include "Components/PanelWidget.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
+#include "Components/SizeBox.h"
 #include "InputCoreTypes.h"
 
 // ============================================================
@@ -22,14 +28,14 @@
 
 namespace BackpackColors
 {
-    static const FLinearColor Empty          (0.12f, 0.12f, 0.12f, 1.f); // 深灰
-    static const FLinearColor EmptyActive    (0.05f, 0.18f, 0.45f, 1.f); // 深蓝
-    static const FLinearColor OccupiedActive (0.10f, 0.55f, 1.00f, 1.f); // 亮蓝
-    static const FLinearColor OccupiedInact  (0.55f, 0.35f, 0.05f, 1.f); // 金橙
-    static const FLinearColor Selected       (1.00f, 0.82f, 0.10f, 1.f); // 高亮黄
-    static const FLinearColor Hover          (0.10f, 0.80f, 0.20f, 1.f); // 拖拽悬浮绿
-    static const FLinearColor GrabbedSource  (0.25f, 0.15f, 0.03f, 1.f); // 暗橙（被抓起的源格）
-    static const FLinearColor CursorTarget   (0.05f, 0.60f, 0.55f, 1.f); // 青绿（手柄放置目标格）
+    static const FLinearColor Empty          (0.40f, 0.40f, 0.42f, 1.00f); // 中灰（可见）
+    static const FLinearColor EmptyActive    (0.15f, 0.35f, 0.75f, 1.00f); // 蓝色（激活区）
+    static const FLinearColor OccupiedActive (0.10f, 0.55f, 1.00f, 1.00f); // 亮蓝（有符文激活）
+    static const FLinearColor OccupiedInact  (0.55f, 0.35f, 0.05f, 1.00f); // 金橙（有符文未激活）
+    static const FLinearColor Selected       (1.00f, 0.82f, 0.10f, 1.00f); // 高亮黄
+    static const FLinearColor Hover          (0.10f, 0.80f, 0.20f, 1.00f); // 拖拽悬浮绿
+    static const FLinearColor GrabbedSource  (0.25f, 0.15f, 0.03f, 1.00f); // 暗橙（被抓起的源格）
+    static const FLinearColor CursorTarget   (0.05f, 0.60f, 0.55f, 1.00f); // 青绿（手柄放置目标格）
 }
 
 // ============================================================
@@ -77,6 +83,10 @@ void UBackpackScreenWidget::NativeConstruct()
 
     if (SellButton)
         SellButton->OnClicked.AddDynamic(this, &UBackpackScreenWidget::OnSellButtonClicked);
+
+    // HintText（RichTextBlock）当前不使用，后续由右侧信息卡替代
+    if (HintText)
+        HintText->SetVisibility(ESlateVisibility::Collapsed);
 }
 
 void UBackpackScreenWidget::NativeDestruct()
@@ -126,7 +136,7 @@ void UBackpackScreenWidget::HandleRuneActivationChanged(FGuid RuneGuid, bool bAc
 
 void UBackpackScreenWidget::OnGridNeedsRefresh_Implementation()
 {
-    const int32 CellCount = CachedCellButtons.Num();
+    const int32 CellCount = CachedCellIcons.Num();
     if (CellCount == 0) return;
 
     UBackpackGridComponent* BackpackComp = GetBackpack();
@@ -134,44 +144,44 @@ void UBackpackScreenWidget::OnGridNeedsRefresh_Implementation()
 
     for (int32 i = 0; i < CellCount; i++)
     {
-        UButton* Btn = CachedCellButtons[i];
-        if (!Btn) continue;
-
         const int32 Col = i % GW;
         const int32 Row = i / GW;
-
-        // 颜色优先级（手柄抓取中）：目标格 > 源格 > 选中 > 拖拽悬浮 > 状态色
         const FIntPoint Cell(Col, Row);
-        FLinearColor Color;
-        if (bGrabbingRune && Cell == GamepadCursorCell)
-        {
-            Color = BackpackColors::CursorTarget;   // 青绿：将要放置的目标格
-        }
-        else if (bGrabbingRune && Cell == GrabbedFromCell)
-        {
-            Color = BackpackColors::GrabbedSource;  // 暗橙：符文被抓起的源格
-        }
-        else if (IsCellSelected(Col, Row))
-        {
-            Color = BackpackColors::Selected;
-        }
-        else if (Col == HoverCol && Row == HoverRow)
-        {
-            Color = BackpackColors::Hover;
-        }
-        else
-        {
-            switch (GetCellVisualState(Col, Row))
-            {
-                case EBackpackCellState::EmptyActive:      Color = BackpackColors::EmptyActive;    break;
-                case EBackpackCellState::OccupiedActive:   Color = BackpackColors::OccupiedActive; break;
-                case EBackpackCellState::OccupiedInactive: Color = BackpackColors::OccupiedInact;  break;
-                default:                                   Color = BackpackColors::Empty;           break;
-            }
-        }
-        Btn->SetBackgroundColor(Color);
 
-        // 图标：有符文则显示；抓取中源格图标半透明（视觉上"已被拿起"）
+        // ── 背景色（按状态/选中/悬浮优先级决定）──────────────────────────
+        if (CachedCellBorders.IsValidIndex(i) && CachedCellBorders[i])
+        {
+            // StyleDA 有值时用 DA 颜色，否则用代码默认值
+            const FLinearColor C_Empty    = StyleDA ? StyleDA->EmptyColor           : BackpackColors::Empty;
+            const FLinearColor C_Active   = StyleDA ? StyleDA->EmptyActiveColor     : BackpackColors::EmptyActive;
+            const FLinearColor C_OccAct   = StyleDA ? StyleDA->OccupiedActiveColor  : BackpackColors::OccupiedActive;
+            const FLinearColor C_OccInact = StyleDA ? StyleDA->OccupiedInactiveColor: BackpackColors::OccupiedInact;
+            const FLinearColor C_Selected = StyleDA ? StyleDA->SelectedColor        : BackpackColors::Selected;
+            const FLinearColor C_Hover    = StyleDA ? StyleDA->HoverColor           : BackpackColors::Hover;
+            const FLinearColor C_Grabbed  = StyleDA ? StyleDA->GrabbedSourceColor   : BackpackColors::GrabbedSource;
+
+            FLinearColor BGColor;
+            if (SelectedCell == Cell)
+                BGColor = C_Selected;
+            else if (bGrabbingRune && Cell == GrabbedFromCell)
+                BGColor = C_Grabbed;
+            else if (Cell == FIntPoint(HoverCol, HoverRow))
+                BGColor = C_Hover;
+            else
+            {
+                switch (GetCellVisualState(Col, Row))
+                {
+                case EBackpackCellState::EmptyActive:      BGColor = C_Active;   break;
+                case EBackpackCellState::OccupiedActive:   BGColor = C_OccAct;   break;
+                case EBackpackCellState::OccupiedInactive: BGColor = C_OccInact; break;
+                default:                                   BGColor = C_Empty;    break;
+                }
+            }
+
+            CachedCellBorders[i]->SetColorAndOpacity(BGColor);
+        }
+
+        // ── 图标（有符文则显示，源格抓取中半透明）──────────────────────────
         if (CachedCellIcons.IsValidIndex(i) && CachedCellIcons[i])
         {
             UImage* Icon = CachedCellIcons[i];
@@ -199,6 +209,11 @@ void UBackpackScreenWidget::OnSelectionChanged_Implementation()
 {
     FRuneInstance Info = GetFocusedRuneInfo();
     const bool bHasSelection = Info.RuneGuid.IsValid();
+
+    UE_LOG(LogTemp, Warning, TEXT("[BackpackUI][Selection] bHasSelection=%d  RuneInfoCard=%s  RuneName=%s"),
+        (int32)bHasSelection,
+        RuneInfoCard ? TEXT("OK") : TEXT("NULL"),
+        *Info.RuneConfig.RuneName.ToString());
 
     // 详情面板容器：有选中时显示，没有时隐藏
     if (DetailPanel)
@@ -247,40 +262,13 @@ void UBackpackScreenWidget::OnSelectionChanged_Implementation()
         }
     }
 
-    // ── 右侧信息卡 ─────────────────────────────────────────────────────────
+    // ── 右侧信息卡（URuneInfoCardWidget 独立管理显隐和内容）──────────────
     if (RuneInfoCard)
     {
-        RuneInfoCard->SetVisibility(bHasSelection
-            ? ESlateVisibility::SelfHitTestInvisible
-            : ESlateVisibility::Collapsed);
-
         if (bHasSelection)
-        {
-            if (CardName)  CardName->SetText(FText::FromName(Info.RuneConfig.RuneName));
-            if (CardDesc)  CardDesc->SetText(Info.RuneConfig.RuneDescription);
-
-            if (CardIcon)
-            {
-                if (Info.RuneConfig.RuneIcon)
-                {
-                    CardIcon->SetBrushFromTexture(Info.RuneConfig.RuneIcon, false);
-                    CardIcon->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-                }
-                else { CardIcon->SetVisibility(ESlateVisibility::Collapsed); }
-            }
-
-            if (CardUpgrade)
-            {
-                if (Info.UpgradeLevel > 0)
-                {
-                    CardUpgrade->SetText(FText::Format(
-                        NSLOCTEXT("Backpack", "CardLv", "Lv.{0}"),
-                        FText::AsNumber(Info.UpgradeLevel + 1)));
-                    CardUpgrade->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-                }
-                else { CardUpgrade->SetVisibility(ESlateVisibility::Collapsed); }
-            }
-        }
+            RuneInfoCard->ShowRune(Info);
+        else
+            RuneInfoCard->HideCard();
     }
 
     // 同时刷新格子高亮（让选中格子变黄）
@@ -526,6 +514,20 @@ void UBackpackScreenWidget::NativeOnActivated()
     Super::NativeOnActivated();
     SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 
+    // ── 诊断日志（确认格子状态）──────────────────────────────
+    UE_LOG(LogTemp, Warning, TEXT("[BackpackUI][Activated] BackpackGrid=%s  CachedButtons=%d  SlotW=%.0f  SlotH=%.0f"),
+        BackpackGrid ? TEXT("OK") : TEXT("NULL"),
+        CachedCellButtons.Num(),
+        BackpackGrid ? BackpackGrid->GetMinDesiredSlotWidth()  : -1.f,
+        BackpackGrid ? BackpackGrid->GetMinDesiredSlotHeight() : -1.f);
+    if (BackpackGrid && BackpackGrid->GetChildrenCount() > 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[BackpackUI][Activated] BackpackGrid 子节点=%d，首个子节点类=%s"),
+            BackpackGrid->GetChildrenCount(),
+            *BackpackGrid->GetChildAt(0)->GetClass()->GetName());
+    }
+    // ─────────────────────────────────────────────────────────
+
     if (APlayerController* PC = GetOwningPlayer())
     {
         PC->SetPause(true);
@@ -584,7 +586,7 @@ void UBackpackScreenWidget::BindGridCellClicks()
 {
     if (!BackpackGrid)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[BackpackUI] BackpackGrid 未找到，检查 Designer 中面板名称"));
+        UE_LOG(LogTemp, Error, TEXT("[BackpackUI][BindGrid] BackpackGrid 未找到！检查 Designer 中 UniformGridPanel 名称是否为 'BackpackGrid'（区分大小写）"));
         return;
     }
 
@@ -592,32 +594,65 @@ void UBackpackScreenWidget::BindGridCellClicks()
     const int32 GW = Backpack ? Backpack->GridWidth  : 5;
     const int32 GH = Backpack ? Backpack->GridHeight : 5;
 
+    UE_LOG(LogTemp, Log, TEXT("[BackpackUI][BindGrid] BackpackGrid 找到，GridComponent=%s，准备创建 %d×%d 格子"),
+        Backpack ? TEXT("OK") : TEXT("NULL(用默认5×5)"), GW, GH);
+
     // 清空旧子节点（每次 NativeConstruct 重新创建，支持运行时尺寸变化）
     BackpackGrid->ClearChildren();
     CachedCellButtons.Empty();
+    CachedCellBorders.Empty();
     CachedCellIcons.Empty();
 
+    // 强制格子最小尺寸（Button 内容 Collapsed 时 UniformGrid 无法自动推算）
+    BackpackGrid->SetMinDesiredSlotWidth(64.f);
+    BackpackGrid->SetMinDesiredSlotHeight(64.f);
+    BackpackGrid->SetSlotPadding(FMargin(2.f)); // 格子间 2px 间隔，形成边框感
     BackpackGrid->SetVisibility(ESlateVisibility::HitTestInvisible);
 
     for (int32 Row = 0; Row < GH; Row++)
     {
         for (int32 Col = 0; Col < GW; Col++)
         {
-            UButton* Btn = NewObject<UButton>(this);
-            Btn->SetVisibility(ESlateVisibility::HitTestInvisible);
+            // 每格用 Overlay 叠放：背景 UImage（底层）+ 符文图标 UImage（上层）
+            UOverlay* CellOverlay = NewObject<UOverlay>(this);
 
-            UUniformGridSlot* GridSlot = BackpackGrid->AddChildToUniformGrid(Btn, Row, Col);
+            // ── 背景 UImage：RoundedBox brush，SetColorAndOpacity 控制颜色 ──
+            UImage* BGImage = NewObject<UImage>(this);
+            {
+                FSlateBrush Brush;
+                Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
+                Brush.TintColor = FSlateColor(FLinearColor::White); // 白色底，颜色由 SetColorAndOpacity 控制
+                Brush.OutlineSettings.CornerRadii  = FVector4(3.f, 3.f, 3.f, 3.f);
+                Brush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+                BGImage->SetBrush(Brush);
+            }
+            BGImage->SetColorAndOpacity(BackpackColors::Empty);
 
+            UOverlaySlot* BGSlot = CellOverlay->AddChildToOverlay(BGImage);
+            BGSlot->SetHorizontalAlignment(HAlign_Fill);
+            BGSlot->SetVerticalAlignment(VAlign_Fill);
+
+            // ── 符文图标 UImage（默认隐藏，有符文时显示）──
             UImage* Icon = NewObject<UImage>(this);
             Icon->SetVisibility(ESlateVisibility::Collapsed);
-            Btn->SetContent(Icon);
 
-            CachedCellButtons.Add(Btn);
+            UOverlaySlot* IconSlot = CellOverlay->AddChildToOverlay(Icon);
+            IconSlot->SetHorizontalAlignment(HAlign_Fill);
+            IconSlot->SetVerticalAlignment(VAlign_Fill);
+            IconSlot->SetPadding(FMargin(6.f)); // 图标与格子边缘留 6px 间距
+
+            UUniformGridSlot* GridSlot = BackpackGrid->AddChildToUniformGrid(CellOverlay, Row, Col);
+            GridSlot->SetHorizontalAlignment(HAlign_Fill);
+            GridSlot->SetVerticalAlignment(VAlign_Fill);
+
+            CachedCellButtons.Add(nullptr);
+            CachedCellBorders.Add(BGImage); // 存背景 UImage，刷新时更新颜色
             CachedCellIcons.Add(Icon);
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[BackpackUI] 动态创建主格子 %d×%d = %d 个"), GW, GH, GW * GH);
+    UE_LOG(LogTemp, Log, TEXT("[BackpackUI][BindGrid] 完成：共创建 %d 个格子（Border+Button），BackpackGrid 子节点数=%d"),
+        CachedCellBorders.Num(), BackpackGrid->GetChildrenCount());
 }
 
 // ============================================================
@@ -630,8 +665,12 @@ void UBackpackScreenWidget::BindPendingRuneSlots()
 
     PendingRuneGrid->ClearChildren();
     CachedPendingButtons.Empty();
+    CachedPendingBGImages.Empty();
     CachedPendingIcons.Empty();
 
+    PendingRuneGrid->SetMinDesiredSlotWidth(64.f);
+    PendingRuneGrid->SetMinDesiredSlotHeight(64.f);
+    PendingRuneGrid->SetSlotPadding(FMargin(2.f));
     PendingRuneGrid->SetVisibility(ESlateVisibility::HitTestInvisible);
 
     const int32 TotalSlots = FMath::Max(1, PendingGridCols) * FMath::Max(1, PendingGridRows);
@@ -640,16 +679,38 @@ void UBackpackScreenWidget::BindPendingRuneSlots()
         const int32 Col = i % PendingGridCols;
         const int32 Row = i / PendingGridCols;
 
-        UButton* Btn = NewObject<UButton>(this);
-        Btn->SetVisibility(ESlateVisibility::HitTestInvisible);
+        // 每格用 Overlay：背景 UImage + 图标 UImage（和主格子相同结构）
+        UOverlay* CellOverlay = NewObject<UOverlay>(this);
 
-        PendingRuneGrid->AddChildToUniformGrid(Btn, Row, Col);
+        UImage* BGImage = NewObject<UImage>(this);
+        {
+            FSlateBrush Brush;
+            Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
+            Brush.TintColor = FSlateColor(FLinearColor::White);
+            Brush.OutlineSettings.CornerRadii  = FVector4(3.f, 3.f, 3.f, 3.f);
+            Brush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+            BGImage->SetBrush(Brush);
+        }
+        BGImage->SetColorAndOpacity(BackpackColors::Empty);
+
+        UOverlaySlot* BGSlot = CellOverlay->AddChildToOverlay(BGImage);
+        BGSlot->SetHorizontalAlignment(HAlign_Fill);
+        BGSlot->SetVerticalAlignment(VAlign_Fill);
 
         UImage* Icon = NewObject<UImage>(this);
         Icon->SetVisibility(ESlateVisibility::Collapsed);
-        Btn->SetContent(Icon);
 
-        CachedPendingButtons.Add(Btn);
+        UOverlaySlot* IconSlot = CellOverlay->AddChildToOverlay(Icon);
+        IconSlot->SetHorizontalAlignment(HAlign_Fill);
+        IconSlot->SetVerticalAlignment(VAlign_Fill);
+        IconSlot->SetPadding(FMargin(6.f));
+
+        UUniformGridSlot* GridSlot = PendingRuneGrid->AddChildToUniformGrid(CellOverlay, Row, Col);
+        GridSlot->SetHorizontalAlignment(HAlign_Fill);
+        GridSlot->SetVerticalAlignment(VAlign_Fill);
+
+        CachedPendingButtons.Add(nullptr);
+        CachedPendingBGImages.Add(BGImage);
         CachedPendingIcons.Add(Icon);
     }
 
@@ -658,23 +719,24 @@ void UBackpackScreenWidget::BindPendingRuneSlots()
 
 void UBackpackScreenWidget::RefreshPendingRuneSlots()
 {
-    if (CachedPendingButtons.Num() == 0) return;
+    if (CachedPendingIcons.Num() == 0) return;
 
     APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
     const int32 PendingCount = Player ? Player->PendingRunes.Num() : 0;
 
-    for (int32 i = 0; i < CachedPendingButtons.Num(); i++)
+    for (int32 i = 0; i < CachedPendingIcons.Num(); i++)
     {
-        UButton* Btn = CachedPendingButtons[i];
-        if (!Btn) continue;
+        UImage* BG   = CachedPendingBGImages.IsValidIndex(i) ? CachedPendingBGImages[i] : nullptr;
+        UImage* Icon = CachedPendingIcons[i];
 
         if (i < PendingCount)
         {
-            // 有符文：显示图标
-            Btn->SetBackgroundColor(FLinearColor(0.12f, 0.08f, 0.22f, 1.f)); // 深紫
-            if (CachedPendingIcons.IsValidIndex(i) && CachedPendingIcons[i])
+            // 有符文：深紫背景 + 显示图标
+            const FLinearColor HasRuneColor = StyleDA ? StyleDA->PendingHasRuneColor : FLinearColor(0.12f, 0.08f, 0.22f, 1.f);
+            if (BG) BG->SetColorAndOpacity(HasRuneColor);
+
+            if (Icon)
             {
-                UImage* Icon = CachedPendingIcons[i];
                 UTexture2D* Tex = Player->PendingRunes[i].RuneConfig.RuneIcon;
                 if (Tex)
                 {
@@ -687,27 +749,26 @@ void UBackpackScreenWidget::RefreshPendingRuneSlots()
         }
         else
         {
-            // 空槽：灰色
-            Btn->SetBackgroundColor(FLinearColor(0.06f, 0.06f, 0.06f, 1.f));
-            if (CachedPendingIcons.IsValidIndex(i) && CachedPendingIcons[i])
-                CachedPendingIcons[i]->SetVisibility(ESlateVisibility::Collapsed);
+            // 空槽：普通灰色背景，图标隐藏
+            if (BG)   BG->SetColorAndOpacity(BackpackColors::Empty);
+            if (Icon) Icon->SetVisibility(ESlateVisibility::Collapsed);
         }
     }
 }
 
 bool UBackpackScreenWidget::GetPendingSlotAtScreenPos(const FVector2D& AbsPos, int32& OutIndex) const
 {
-    // 逐个检测 Button 几何体，兼容任意 Panel 布局
-    for (int32 i = 0; i < CachedPendingButtons.Num(); i++)
+    // 用 BGImage 几何体做命中检测（与格子 Overlay 同尺寸）
+    for (int32 i = 0; i < CachedPendingBGImages.Num(); i++)
     {
-        UButton* Btn = CachedPendingButtons[i];
-        if (!Btn) continue;
+        UImage* BG = CachedPendingBGImages[i];
+        if (!BG) continue;
 
-        const FGeometry BtnGeo  = Btn->GetCachedGeometry();
-        const FVector2D Local   = BtnGeo.AbsoluteToLocal(AbsPos);
-        const FVector2D BtnSize = BtnGeo.GetLocalSize();
+        const FGeometry Geo  = BG->GetCachedGeometry();
+        const FVector2D Local = Geo.AbsoluteToLocal(AbsPos);
+        const FVector2D Size  = Geo.GetLocalSize();
 
-        if (Local.X >= 0.f && Local.X < BtnSize.X && Local.Y >= 0.f && Local.Y < BtnSize.Y)
+        if (Local.X >= 0.f && Local.X < Size.X && Local.Y >= 0.f && Local.Y < Size.Y)
         {
             OutIndex = i;
             return true;
@@ -828,18 +889,19 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
             DragOp->DraggedRune       = PendingRune;
             DragOp->PendingSourceIndex = PendingDragIndex;
 
+            const float CellPx = StyleDA ? StyleDA->CellSize : 64.f;
+            USizeBox* DragBox = NewObject<USizeBox>(this);
+            DragBox->SetWidthOverride(CellPx);
+            DragBox->SetHeightOverride(CellPx);
+
             UImage* DragVisual = NewObject<UImage>(this);
             if (UTexture2D* Tex = PendingRune.RuneConfig.RuneIcon)
                 DragVisual->SetBrushFromTexture(Tex, false);
-            DragVisual->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.7f));
+            DragVisual->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.85f));
+            DragBox->AddChild(DragVisual);
 
-            FWidgetTransform T;
-            T.Scale       = FVector2D(1.08f, 1.08f);
-            T.Translation = FVector2D(0.f, -8.f);
-            DragVisual->SetRenderTransform(T);
-
-            DragOp->DefaultDragVisual = DragVisual;
-            DragOp->Pivot             = EDragPivot::MouseDown;
+            DragOp->DefaultDragVisual = DragBox;
+            DragOp->Pivot             = EDragPivot::CenterCenter;
 
             PendingDragIndex = -1;
             OutOperation = DragOp;
@@ -866,20 +928,20 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
     DragOp->SrcPivot    = PR.Pivot;   // 记录原始 Pivot，用于多格形状的落点偏移计算
     DragOp->DraggedRune = PR.Rune;
 
-    // 拖拽视觉：符文图标（半透明）
+    // 拖拽视觉：SizeBox(CellSize×CellSize) 包裹符文图标
+    const float CellPx = StyleDA ? StyleDA->CellSize : 64.f;
+    USizeBox* DragBox = NewObject<USizeBox>(this);
+    DragBox->SetWidthOverride(CellPx);
+    DragBox->SetHeightOverride(CellPx);
+
     UImage* DragVisual = NewObject<UImage>(this);
     if (UTexture2D* Tex = PR.Rune.RuneConfig.RuneIcon)
         DragVisual->SetBrushFromTexture(Tex, /*bMatchSize=*/false);
-    DragVisual->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.7f));
+    DragVisual->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.85f));
+    DragBox->AddChild(DragVisual);
 
-    // 浮空效果：略微放大 + 向上偏移
-    FWidgetTransform DragTransform;
-    DragTransform.Scale       = FVector2D(1.08f, 1.08f);
-    DragTransform.Translation = FVector2D(0.f, -8.f);
-    DragVisual->SetRenderTransform(DragTransform);
-
-    DragOp->DefaultDragVisual = DragVisual;
-    DragOp->Pivot             = EDragPivot::MouseDown;
+    DragOp->DefaultDragVisual = DragBox;
+    DragOp->Pivot             = EDragPivot::CenterCenter;
 
     PendingDragCol = PendingDragRow = -1;
     OutOperation = DragOp;

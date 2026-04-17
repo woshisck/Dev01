@@ -6,6 +6,7 @@
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "Data/RuneDataAsset.h"
+#include "GameFramework/ForceFeedbackEffect.h"
 
 #include "PlayerCharacterBase.generated.h"
 
@@ -96,6 +97,10 @@ public:
 	// 热度阶段广播（由热度系统调用，武器 Instance 订阅以更新发光颜色）
 	UPROPERTY(BlueprintAssignable, Category = "Heat")
 	FHeatPhaseDelegate OnHeatPhaseChanged;
+
+	/** 热度升阶时的手柄震动效果（在角色蓝图 Details 中填入 ForceFeedbackEffect 资产） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Heat|Feedback")
+	TObjectPtr<UForceFeedbackEffect> PhaseUpForceFeedback;
 
 	UPROPERTY()
 	TObjectPtr<AItemSpawner> OverlappingSpawner;

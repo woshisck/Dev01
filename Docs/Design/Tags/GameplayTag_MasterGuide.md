@@ -27,22 +27,30 @@
 
 ### 2.1 `Action.*` — 动作信号层
 
-**职责：** 描述"战斗中发生了某件事"，是一次性信号，不是持续状态。  
-**挂载位置：** 不挂 ASC；通过 `SendGameplayEventToActor` 广播，或由动画/代码发送。  
-**读取方式：** GA 的 `AbilityTriggers → GameplayEvent`，或 FA 的 `BFNode_WaitGameplayEvent`。
+**职责：** 描述"当前正在发生什么动作/处于什么动作窗口"，用于标记具体的战斗时机。  
+**两种挂载方式：**
 
-| 现有 Tag | 含义 |
-|---------|------|
-| `Action.Combo.LastHit` | 连招最后一击判定帧 |
-| `Action.Dead` | 触发死亡 GA 的事件信号（由 Die() 自动发送） |
-| `Action.Heat.CanPhaseUp` | 允许热度升阶（可由 LastHit / 完美闪避等授予） |
-| `Action.HitReact` | 触发受击 GA 的事件信号（由 FA 判断后发送） |
-| `Action.Knockback` | 触发击退 GA 的事件信号 |
-| `Action.Dash` | ⭐ 建议新增：闪避动作发生 |
-| `Action.Interact` | ⭐ 建议新增：交互动作发生 |
-| `Action.SkillCast` | ⭐ 建议新增：主动技能释放 |
+1. **GameplayEvent（瞬时）**：`SendGameplayEventToActor` 广播，触发 GA 或 FA 节点，火后即灭
+2. **AnimNotifyState（窗口持续）**：ANS 期间 `AddLooseGameplayTag`，描述"当前动作窗口"，代码可轮询判断（如 `CanActivateAbility` 检查）
 
-**`Action.*` 的双重用途（通用响应型 GA）：**
+**读取方式：**
+
+- Event 型：GA 的 `AbilityTriggers → GameplayEvent`，或 FA 的 `BFNode_WaitGameplayEvent`
+- ANS 型：`ASC->HasMatchingGameplayTag(...)` 轮询，或 `ActivationRequiredTags` 条件
+
+| 现有 Tag | 含义 | 类型 |
+| --------- | ------ | ----- |
+| `Action.Combo.LastHit` | 连招最后一击判定窗口 | ANS |
+| `Action.Combo.DashSavePoint` | 可触发冲刺连招保存的窗口 | ANS |
+| `Action.Dead` | 触发死亡 GA 的事件信号（由 Die() 自动发送） | Event |
+| `Action.Heat.CanPhaseUp` | 允许热度升阶（GE AssetTag 形式） | Event/AssetTag |
+| `Action.HitReact` | 触发受击 GA 的事件信号（由 FA 判断后发送） | Event |
+| `Action.Knockback` | 触发击退 GA 的事件信号 | Event |
+| `Action.Dash` | ⭐ 建议新增：闪避动作发生 | Event |
+| `Action.Interact` | ⭐ 建议新增：交互动作发生 | Event |
+| `Action.SkillCast` | ⭐ 建议新增：主动技能释放 | Event |
+
+**`Action.*` 的多重用途（通用响应型 GA）：**
 
 对于 GA_Knockback / GA_HitReaction / GA_Dead 这类玩家和敌人均可触发的通用 GA：
 
@@ -52,13 +60,13 @@
 | GA.AbilityTags | GA 身份标签（用于 CancelAbilitiesWithTag 查询） |
 | AbilityData.PassiveMap key | 查找动画/效果数据的 key |
 
-同一个 `Action.*` Tag 兼顾三个角色，不需要额外命名空间。  
-`AbilityTags` 不会挂到 actor 的 OwnedGameplayTags，不违反 "Action.* 不挂 ASC" 的规则。
+同一个 `Action.*` Tag 兼顾多个角色，不需要额外命名空间。  
+ANS 型 Tag 临时挂在 ASC 上仅在窗口期间有效，不属于"永久状态"，符合 Action.* 语义。
 
 **创建规则：**
-- 命名用动词或名词，表示"某事发生了"
-- 不描述持续状态，不做条件判断
+- 命名用名词或动名词，描述"正在发生/可发生什么动作"
 - 每个动作时机只对应一个 Tag
+- 选择 Event 还是 ANS 取决于读取方式（触发响应用 Event，轮询检查用 ANS）
 
 ---
 

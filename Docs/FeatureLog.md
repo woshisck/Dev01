@@ -52,6 +52,65 @@
 
 ---
 
+### [CAM-003] 相机输入 — 移除鼠标偏移、手柄右摇杆生效
+
+**状态**：已完成，编译通过
+**Commit**：本次提交
+
+| 项目 | 内容 |
+| --- | --- |
+| 核心文件 | `YogPlayerCameraManager.h/.cpp`、`IMC_YogPlayerBase.uasset` |
+| 鼠标偏移 | 从 `.cpp` 彻底移除读取鼠标位置的逻辑，与 `bAutoReadMouseOffset` 属性均删除 |
+| 右摇杆 | 创建 `IA_CameraLook`（Axis2D），IMC 绑定 Gamepad Right Thumbstick 2D-Axis |
+| 背包手柄键 | IMC 给 `IA_OpenBackpack` 添加 Gamepad Special Left（Select/View 键） |
+| 接入方式 | `B_YogPlayerControllerBase` Details → `Input_CameraLook = IA_CameraLook` |
+
+---
+
+### [BACKPACK-002] 背包 UI — StyleDA + RuneInfoCard + 拖拽重写
+
+**状态**：C++ 完成，蓝图 WBP_BackpackScreen 需按新结构重建
+**Commit**：本次提交
+
+| 项目 | 内容 |
+| --- | --- |
+| 核心文件 | `BackpackScreenWidget.h/.cpp`、`BackpackStyleDataAsset.h/.cpp`、`RuneInfoCardWidget.h/.cpp` |
+| StyleDA | `UBackpackStyleDataAsset`：格子颜色 × 7 + 待放置区颜色 × 2 + 尺寸 × 4，无需重编译即可调视觉 |
+| StyleDA 配置 | 创建 `DA_BackpackStyle`，拖到 WBP_BackpackScreen Details → Style DA |
+| RuneInfoCard | `URuneInfoCardWidget`：`ShowRune(FRuneInstance)` / `HideCard()`；Designer 放 CardIcon / CardName / CardDesc / CardUpgrade |
+| 格子状态枚举 | `EBackpackCellState`：Empty / EmptyActive / OccupiedActive / OccupiedInactive |
+| 拖拽重写 | 所有拖拽事件由 BackpackScreenWidget 自身接管（格子 HitTestInvisible），移除旧 DragDropOperation 蓝图依赖 |
+| 手柄导航 | D-Pad 方向键重复（首按立即响应，持续 0.3s 后每 0.1s 重复），A 确认/B 取消 |
+
+**蓝图待完成**
+
+- WBP_BackpackScreen：添加 `RuneInfoCard`（子 Widget，Visibility=Collapsed）、`StyleDA` 填入 DA_BackpackStyle
+- WBP_RuneInfoCard：新建蓝图，放 CardIcon / CardName / CardDesc / CardUpgrade
+
+---
+
+### [COMBAT-003] 玩家攻击 GA 中间层 + 冲刺连招桥接保存
+
+**状态**：C++ 完成，蓝图 GA 无需改动
+**Commit**：本次提交
+
+| 项目 | 内容 |
+| --- | --- |
+| 核心文件 | `GA_PlayerMeleeAttacks.h/.cpp`、`GA_PlayerDash.h/.cpp`、`YogAbilitySystemComponent.h/.cpp` |
+| 中间基类 | `UGA_PlayerMeleeAttack`：构造函数自动绑定 `GE_StatBeforeATK` / `GE_StatAfterATK`，子 GA 不再需手动填写 |
+| 具体 GA | `GA_Player_LightAtk1~4`、`GA_Player_HeavyAtk1~4`、`GA_Player_DashAtk` — 蓝图子类直接替换旧 GA |
+| 连招桥接 | 冲刺 `CanActivateAbility` 检测 `Action.Combo.DashSavePoint` ANS Tag，命中时缓存当前连招进度 Tag |
+| 桥接保存 | `EndAbility`（未取消）调用 `YASC->ApplyDashSave(PendingSaveComboTags)` 为下一击注入 LooseTag |
+| 伤害明细 | `FDamageBreakdown`：BaseAttack / ActionMultiplier / FinalDamage / bIsCrit / DamageType 等字段 |
+| 伤害委托 | `FOnDamageBreakdown`（Dynamic），DamageBreakdownWidget 订阅后实时显示伤害构成 |
+
+**已知限制**
+
+- `ApplyDashSave` 需在 `YogAbilitySystemComponent` 中实现（本次仅声明调用端）
+- 连招桥接要求动画 ANS 在对应帧授予 `Action.Combo.DashSavePoint`
+
+---
+
 ### [CAM-002] 相机平滑优化 — 消除根运动僵硬 + LookAhead 开关
 
 **状态**：已完成，编译通过
@@ -229,6 +288,64 @@
 
 - `ActorsToSpawn` 数组有多项时只有最后一个 WeaponInstance 绑定热度委托（单武器设计，暂无多件武器需求）
 - `BlackedOutMaterial` 需在 `BP_WeaponSpawner` CDO 填入，不在 DA 配置
+
+---
+
+### [COMBAT-004] 冲刺连招保存 — DashSave 桥接系统
+
+**状态**：完整  
+**Commit**：本次提交
+
+| 项目 | 内容 |
+| --- | --- |
+| 核心文件 | `GA_PlayerDash.h/.cpp`、`YogAbilitySystemComponent.h/.cpp`、`GA_PlayerMeleeAttacks.h/.cpp` |
+| 功能描述 | 在攻击连招"桥接窗口"内冲刺，可保留连招进度继续接后续攻击 |
+| 触发条件 | 蒙太奇通过 AnimNotifyState 授予 `Action.Combo.DashSavePoint` Tag |
+| 保存逻辑 | `GA_PlayerDash::CanActivateAbility` 检测 DashSavePoint Tag，缓存当前连招进度 Tags 到 `PendingSaveComboTags` |
+| 恢复逻辑 | `YogASC::ApplyDashSave` 将保存的 Tags 以 LooseGameplayTag 方式重新施加；下次攻击 `ActivateAbility` 时 `ConsumeDashSave` 清除 |
+| 自动过期 | 2 秒内未接攻击则 `DashSaveExpired` 自动清理，防止 Tag 残留 |
+| 消费节点 | `LightAtk4` / `HeavyAtk4` 的 `ActivateAbility` 中调用 `ConsumeDashSave` |
+| Tag 依赖 | `Action.Combo.DashSavePoint`（ANS 授予）、`PlayerState.AbilityCast.CanCombo`、各 Combo 进度 Tag |
+
+**已知限制**
+
+- 目前仅 LightAtk4 / HeavyAtk4 接入消费逻辑；其他连招段若需要桥接需各自添加 `ConsumeDashSave` 调用
+- 双冲刺连打时旧保存会被新保存覆盖（`ApplyDashSave` 内部先调 `ConsumeDashSave` 保护）
+
+---
+
+### [FEEL-001] 热度升阶手柄震动
+
+**状态**：完整  
+**Commit**：本次提交
+
+| 项目 | 内容 |
+| --- | --- |
+| 核心文件 | `PlayerCharacterBase.h/.cpp` |
+| 触发时机 | GAS Tag `Buff.Status.Heat.Phase.1/2/3` 新增时（即升阶瞬间） |
+| 接口 | `APlayerController::ClientPlayForceFeedback(PhaseUpForceFeedback)` |
+| 配置入口 | 角色蓝图（`BP_PlayerCharacterBase` 或 `B_PlayerOne`）→ Class Defaults → `Heat \| Feedback` → `Phase Up Force Feedback` |
+| 资产位置 | `Content/Code/Core/ForceFeedbackEffect/FFE_HeatPhaseUp` |
+| 曲线资产 | `FFE_HeatPhaseUp_ExternalCurve`（Duration 由曲线最后关键帧决定，非 Duration 字段） |
+
+**已知限制**
+
+- Phase 1 / 2 / 3 使用同一个震动效果；如需按阶段差异化需扩展为 TArray 配置
+
+---
+
+### [UI-003] 背包样式系统 — BackpackStyleDataAsset + RuneInfoCard
+
+**状态**：完整  
+**Commit**：本次提交
+
+| 项目 | 内容 |
+| --- | --- |
+| 核心文件 | `BackpackScreenWidget.h/.cpp`、`BackpackStyleDataAsset`、`RuneInfoCardWidget` |
+| 样式 DA | `DA_BackpackStyle` — 统一管理格子颜色、字体、边框等视觉参数，无需改代码 |
+| RuneInfoCard | `WBP_RuneInfoCard` — 悬浮在格子上的符文详情卡片，替代旧 Tooltip |
+| 颜色系统 | 格子状态颜色（Empty / EmptyActive / OccupiedActive / OccupiedInact / Selected / Hover）迁移至 DA |
+| 配置入口 | `WBP_BackpackScreen` → Details → `Backpack Style` 填入 `DA_BackpackStyle` |
 
 ---
 

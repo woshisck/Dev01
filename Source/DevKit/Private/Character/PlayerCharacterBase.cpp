@@ -179,24 +179,11 @@ void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 			return;
 		}
 
-		// 2. 新符文：自动寻位放置（左上角开始，逐行扫描）
-		for (int32 Row = 0; Row < BackpackGridComponent->GridHeight; Row++)
-		{
-			for (int32 Col = 0; Col < BackpackGridComponent->GridWidth; Col++)
-			{
-				if (BackpackGridComponent->TryPlaceRune(Rune, FIntPoint(Col, Row)))
-				{
-					UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 自动放置到 (%d,%d)"),
-						*Rune.RuneConfig.RuneName.ToString(), Col, Row);
-					return;
-				}
-			}
-		}
+		// 2. 新符文：直接进入待放置列表（玩家在背包UI手动拖入格子）
+		UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s → 待放置列表"),
+			*Rune.RuneConfig.RuneName.ToString());
 	}
 
-	// 3. 背包已满，进入待放置列表（玩家可在背包UI手动放置）
-	UE_LOG(LogTemp, Warning, TEXT("AddRuneToInventory: 背包已满，%s 进入待放置列表"),
-		*Rune.RuneConfig.RuneName.ToString());
 	PendingRunes.Add(Rune);
 }
 
@@ -327,6 +314,15 @@ void APlayerCharacterBase::OnHeatPhaseTagChanged(const FGameplayTag Tag, int32 N
 	if      (Tag == Phase1) OnHeatPhaseChanged.Broadcast(1);
 	else if (Tag == Phase2) OnHeatPhaseChanged.Broadcast(2);
 	else if (Tag == Phase3) OnHeatPhaseChanged.Broadcast(3);
+
+	// 手柄震动
+	if (PhaseUpForceFeedback)
+	{
+		if (APlayerController* PC = Cast<APlayerController>(GetController()))
+		{
+			PC->ClientPlayForceFeedback(PhaseUpForceFeedback);
+		}
+	}
 }
 
 void APlayerCharacterBase::OnHeatPhaseParentTagChanged(const FGameplayTag Tag, int32 NewCount)

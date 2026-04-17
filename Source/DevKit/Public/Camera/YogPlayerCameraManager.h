@@ -128,10 +128,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Input", meta = (ClampMin = "0.1"))
 	float InputOffsetLerpSpeed = 8.f;
 
-	/** 手柄未激活时是否自动读取鼠标位置作为偏移源 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Input")
-	bool bAutoReadMouseOffset = true;
-
 	// ─── 移动判定 ─────────────────────────────────────────────────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Movement", meta = (ClampMin = "1.0"))

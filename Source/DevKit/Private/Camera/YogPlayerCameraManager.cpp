@@ -254,26 +254,8 @@ void AYogPlayerCameraManager::UpdateViewTarget(FTViewTarget& OutVT, float DeltaT
 	// Step 5: 状态偏移
 	const FVector2D StateOffset = ComputeStateOffset(PlayerPos);
 
-	// Step 6: 输入偏移（手柄优先，否则鼠标）
-	const bool bGamepadActive = GamepadInputAxis.SizeSquared() > 0.01f;
-	FVector2D  ActiveAxis     = GamepadInputAxis;
-
-	if (!bGamepadActive && bAutoReadMouseOffset)
-	{
-		if (PCOwner)
-		{
-			float MouseX = 0.f, MouseY = 0.f;
-			int32 ViewX = 1,    ViewY = 1;
-			PCOwner->GetMousePosition(MouseX, MouseY);
-			PCOwner->GetViewportSize(ViewX, ViewY);
-
-			const float NormX =  (MouseX / FMath::Max(ViewX, 1)) * 2.f - 1.f;
-			const float NormY = -((MouseY / FMath::Max(ViewY, 1)) * 2.f - 1.f);
-			ActiveAxis = FVector2D(NormX, NormY);
-		}
-	}
-
-	const FVector TargetInputV(ActiveAxis.X * MaxInputOffset, ActiveAxis.Y * MaxInputOffset, 0.f);
+	// Step 6: 输入偏移（仅手柄右摇杆，鼠标偏移已禁用）
+	const FVector TargetInputV(GamepadInputAxis.X * MaxInputOffset, GamepadInputAxis.Y * MaxInputOffset, 0.f);
 	CurrentInputOffset = FMath::VInterpTo(CurrentInputOffset, TargetInputV, DeltaTime, InputOffsetLerpSpeed);
 
 	// Step 7: 合成候选位置（XY 叠加偏移，Z 不动）
