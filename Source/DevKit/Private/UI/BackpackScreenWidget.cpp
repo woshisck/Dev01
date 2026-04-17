@@ -889,19 +889,10 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
             DragOp->DraggedRune       = PendingRune;
             DragOp->PendingSourceIndex = PendingDragIndex;
 
-            const float CellPx = StyleDA ? StyleDA->CellSize : 64.f;
-            USizeBox* DragBox = NewObject<USizeBox>(this);
-            DragBox->SetWidthOverride(CellPx);
-            DragBox->SetHeightOverride(CellPx);
-
-            UImage* DragVisual = NewObject<UImage>(this);
-            if (UTexture2D* Tex = PendingRune.RuneConfig.RuneIcon)
-                DragVisual->SetBrushFromTexture(Tex, false);
-            DragVisual->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.85f));
-            DragBox->AddChild(DragVisual);
-
-            DragOp->DefaultDragVisual = DragBox;
-            DragOp->Pivot             = EDragPivot::CenterCenter;
+            // 用 GrabbedRuneIcon 自行管理浮空图标，不依赖 DefaultDragVisual
+            bMouseDragging  = true;
+            MouseDragTex    = PendingRune.RuneConfig.RuneIcon;
+            LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
 
             PendingDragIndex = -1;
             OutOperation = DragOp;
@@ -928,20 +919,10 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
     DragOp->SrcPivot    = PR.Pivot;   // 记录原始 Pivot，用于多格形状的落点偏移计算
     DragOp->DraggedRune = PR.Rune;
 
-    // 拖拽视觉：SizeBox(CellSize×CellSize) 包裹符文图标
-    const float CellPx = StyleDA ? StyleDA->CellSize : 64.f;
-    USizeBox* DragBox = NewObject<USizeBox>(this);
-    DragBox->SetWidthOverride(CellPx);
-    DragBox->SetHeightOverride(CellPx);
-
-    UImage* DragVisual = NewObject<UImage>(this);
-    if (UTexture2D* Tex = PR.Rune.RuneConfig.RuneIcon)
-        DragVisual->SetBrushFromTexture(Tex, /*bMatchSize=*/false);
-    DragVisual->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.85f));
-    DragBox->AddChild(DragVisual);
-
-    DragOp->DefaultDragVisual = DragBox;
-    DragOp->Pivot             = EDragPivot::CenterCenter;
+    // 用 GrabbedRuneIcon 自行管理浮空图标，不依赖 DefaultDragVisual
+    bMouseDragging  = true;
+    MouseDragTex    = PR.Rune.RuneConfig.RuneIcon;
+    LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
 
     PendingDragCol = PendingDragRow = -1;
     OutOperation = DragOp;
