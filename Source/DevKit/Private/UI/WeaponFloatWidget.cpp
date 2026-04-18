@@ -124,9 +124,9 @@ void UWeaponFloatWidget::BuildZonePanel(UCanvasPanel* GridPanel, UImage* ImgWidg
 			Dot->SetBrush(Brush);
 			Dot->SetColorAndOpacity(bActive ? WeaponZoneColors::Active : WeaponZoneColors::Inactive);
 
-			UCanvasPanelSlot* Slot = GridPanel->AddChildToCanvas(Dot);
-			Slot->SetPosition(FVector2D(Col * Step, Row * Step));
-			Slot->SetSize(FVector2D(DotSize, DotSize));
+			UCanvasPanelSlot* DotSlot = GridPanel->AddChildToCanvas(Dot);
+			DotSlot->SetPosition(FVector2D(Col * Step, Row * Step));
+			DotSlot->SetSize(FVector2D(DotSize, DotSize));
 		}
 	}
 }
