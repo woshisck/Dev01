@@ -156,6 +156,9 @@ public:
 	 */
 	TArray<AEnemyCharacterBase*> GetNearbyEnemies(FVector Origin, float WithinRadius) const;
 
+	/** 返回当前所有存活敌人（无距离过滤，供 EnemyArrowWidget 使用） */
+	TArray<AEnemyCharacterBase*> GetAllAliveEnemies() const;
+
 	// =========================================================
 	// 关卡流程
 	// =========================================================

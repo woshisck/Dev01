@@ -7,15 +7,21 @@
 #include "AbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/WidgetComponent.h"
 #include "GameFramework/Pawn.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "TimerManager.h"
 #include "Item/Weapon/WeaponInstance.h"
+#include "Item/Weapon/WeaponDefinition.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "YogBlueprintFunctionLibrary.h"
 #include "Component/CharacterDataComponent.h"
+#include "Component/BackpackGridComponent.h"
+#include "Tutorial/TutorialManager.h"
+#include "Character/YogPlayerControllerBase.h"
+#include "UI/WeaponFloatWidget.h"
 
 // Sets default values
 AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
@@ -41,6 +47,11 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 	}
 
 	WeaponMeshRotationSpeed = 40.0f;
+
+	WeaponInfoWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("WeaponInfoWidgetComp"));
+	WeaponInfoWidgetComp->SetupAttachment(RootComponent);
+	WeaponInfoWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
+	WeaponInfoWidgetComp->SetVisibility(false);
 }
 
 // Called when the game starts or when spawned
@@ -53,6 +64,17 @@ void AWeaponSpawner::BeginPlay()
 	for (int32 i = 0; i < WeaponMesh->GetNumMaterials(); i++)
 	{
 		OriginalMeshMaterials.Add(WeaponMesh->GetMaterial(i));
+	}
+
+	// 初始化浮窗 Widget
+	if (WeaponFloatWidgetClass && WeaponInfoWidgetComp && WeaponDefinition)
+	{
+		WeaponInfoWidgetComp->SetWidgetClass(WeaponFloatWidgetClass);
+		WeaponInfoWidgetComp->InitWidget();
+		if (UWeaponFloatWidget* FloatWidget = Cast<UWeaponFloatWidget>(WeaponInfoWidgetComp->GetWidget()))
+		{
+			FloatWidget->SetWeaponDefinition(WeaponDefinition);
+		}
 	}
 }
 
@@ -68,6 +90,49 @@ void AWeaponSpawner::Tick(float DeltaTime)
 	UWorld* World = GetWorld();
 	WeaponMesh->AddRelativeRotation(FRotator(0.0f, World->GetDeltaSeconds() * WeaponMeshRotationSpeed, 0.0f));
 
+	// 朝向判断 + 动态偏移：浮窗始终在武器右侧，不遮挡玩家和武器
+	if (bPlayerInRange && NearbyPlayer.IsValid() && WeaponInfoWidgetComp)
+	{
+		FVector ToWeapon = GetActorLocation() - NearbyPlayer->GetActorLocation();
+		ToWeapon.Z = 0.f;
+		ToWeapon.Normalize();
+		FVector Forward = NearbyPlayer->GetActorForwardVector();
+		Forward.Z = 0.f;
+		Forward.Normalize();
+
+		const bool bShouldShow = FVector::DotProduct(Forward, ToWeapon) > -0.3f;
+		WeaponInfoWidgetComp->SetVisibility(bShouldShow);
+
+		if (bShouldShow)
+		{
+			// 45°斜视角：用摄像机 Right 向量投影到水平面，确保偏移与屏幕对齐
+			FVector Right = FVector(0.f, 1.f, 0.f); // 兜底：世界 Y
+			if (APlayerController* PC = NearbyPlayer->GetController<APlayerController>())
+			{
+				if (PC->PlayerCameraManager)
+				{
+					FVector CamRight = FRotationMatrix(PC->PlayerCameraManager->GetCameraRotation())
+						.GetScaledAxis(EAxis::Y);
+					CamRight.Z = 0.f;
+					if (!CamRight.IsNearlyZero())
+						Right = CamRight.GetSafeNormal();
+				}
+
+				// 根据武器在屏幕上的位置决定偏移方向：屏幕右半则向左偏，左半则向右偏
+				FVector2D WeaponScreenPos;
+				if (PC->ProjectWorldLocationToScreen(GetActorLocation(), WeaponScreenPos, false))
+				{
+					FVector2D ViewportSize;
+					if (GEngine && GEngine->GameViewport)
+						GEngine->GameViewport->GetViewportSize(ViewportSize);
+					if (WeaponScreenPos.X > ViewportSize.X * 0.5f)
+						Right = -Right;
+				}
+			}
+			WeaponInfoWidgetComp->SetRelativeLocation(
+				Right * WidgetSideOffset + FVector(0.f, 0.f, WidgetZOffset));
+		}
+	}
 }
 
 void AWeaponSpawner::OnConstruction(const FTransform& Transform)
@@ -90,6 +155,8 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 
 	// 进入范围时登记，等待玩家主动按 E 拾取
 	Player->PendingWeaponSpawner = this;
+	NearbyPlayer = Player;
+	bPlayerInRange = true;
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 玩家进入范围，按 E 拾取武器"));
 }
 
@@ -103,11 +170,22 @@ void AWeaponSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AAct
 		Player->PendingWeaponSpawner = nullptr;
 		UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 玩家离开范围"));
 	}
+	if (NearbyPlayer.Get() == Player)
+	{
+		NearbyPlayer = nullptr;
+		bPlayerInRange = false;
+		if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
+	}
 }
 
 void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 {
 	if (!Player || !WeaponDefinition) return;
+
+	// 拾取时立即隐藏浮窗
+	bPlayerInRange = false;
+	NearbyPlayer = nullptr;
+	if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
 
 	// ── 1. 处理旧武器 ────────────────────────────────────────────────
 	if (Player->EquippedFromSpawner && Player->EquippedFromSpawner != this)
@@ -172,7 +250,16 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		}
 	}
 
-	// ── 4. 记录状态 ──────────────────────────────────────────────────
+	// ── 4. 注入背包配置 ───────────────────────────────────────────────
+	if (UBackpackGridComponent* BG = Player->BackpackGridComponent)
+	{
+		BG->ApplyBackpackConfig(
+			WeaponDefinition->BackpackConfig.GridWidth,
+			WeaponDefinition->BackpackConfig.GridHeight,
+			WeaponDefinition->BackpackConfig.ActivationZoneConfig);
+	}
+
+	// ── 5. 记录状态 ──────────────────────────────────────────────────
 	Player->EquippedWeaponDef    = WeaponDefinition;
 	Player->EquippedFromSpawner  = this;
 	Player->PendingWeaponSpawner = nullptr;
@@ -186,6 +273,15 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		}
 	}
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾取 [%s]"), *WeaponDefinition->GetName());
+
+	// 武器教程：首次拾取时延迟打开背包并弹出引导弹窗
+	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
+	{
+		if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(Player->GetController()))
+		{
+			TM->TryWeaponTutorial(PC);
+		}
+	}
 }
 
 void AWeaponSpawner::RestoreSpawnerMesh()

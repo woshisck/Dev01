@@ -5,8 +5,53 @@
 #include "Component/BackpackGridComponent.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
+#include "Components/SizeBox.h"
+#include "Components/Button.h"
+#include "Components/TextBlock.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Blueprint/WidgetTree.h"
+
+// ============================================================
+//  生命周期
+// ============================================================
+
+void UBackpackGridWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    if (HeatPhaseDot0) HeatPhaseDot0->OnClicked.AddDynamic(this, &UBackpackGridWidget::OnHeatPhaseDot0Clicked);
+    if (HeatPhaseDot1) HeatPhaseDot1->OnClicked.AddDynamic(this, &UBackpackGridWidget::OnHeatPhaseDot1Clicked);
+    if (HeatPhaseDot2) HeatPhaseDot2->OnClicked.AddDynamic(this, &UBackpackGridWidget::OnHeatPhaseDot2Clicked);
+
+    if (GamepadHintLabel)
+    {
+        GamepadHintLabel->SetText(NSLOCTEXT("Backpack", "GamepadHeat", "L1 / R1   切换热度显示"));
+        GamepadHintLabel->SetVisibility(ESlateVisibility::Collapsed);
+    }
+}
+
+void UBackpackGridWidget::RefreshHeatPhaseButtons(int32 PreviewPhase, bool bIsGamepadMode)
+{
+    static const FLinearColor DotActive  (1.00f, 0.80f, 0.10f, 1.f);
+    static const FLinearColor DotInactive(0.28f, 0.28f, 0.32f, 1.f);
+
+    auto ApplyTint = [](UButton* Btn, bool bOn)
+    {
+        if (Btn) Btn->SetColorAndOpacity(bOn ? DotActive : DotInactive);
+    };
+    ApplyTint(HeatPhaseDot0, PreviewPhase == 0);
+    ApplyTint(HeatPhaseDot1, PreviewPhase == 1);
+    ApplyTint(HeatPhaseDot2, PreviewPhase == 2);
+
+    if (GamepadHintLabel)
+        GamepadHintLabel->SetVisibility(
+            bIsGamepadMode ? ESlateVisibility::SelfHitTestInvisible
+                           : ESlateVisibility::Collapsed);
+}
+
+void UBackpackGridWidget::OnHeatPhaseDot0Clicked() { OnHeatPhaseButtonClicked.Broadcast(0); }
+void UBackpackGridWidget::OnHeatPhaseDot1Clicked() { OnHeatPhaseButtonClicked.Broadcast(1); }
+void UBackpackGridWidget::OnHeatPhaseDot2Clicked() { OnHeatPhaseButtonClicked.Broadcast(2); }
 
 // ============================================================
 //  格子创建
@@ -28,12 +73,20 @@ void UBackpackGridWidget::BuildGrid(UBackpackGridComponent* InBackpack)
     BackpackGrid->ClearChildren();
     CachedSlots.Empty();
 
-    const float CellSize    = StyleDA ? StyleDA->CellSize        : 64.f;
-    const float CellPadding = StyleDA ? StyleDA->CellPadding     : 2.f;
+    const float CellSize    = StyleDA ? StyleDA->CellSize    : 64.f;
+    const float CellPadding = StyleDA ? StyleDA->CellPadding : 2.f;
 
     BackpackGrid->SetMinDesiredSlotWidth(CellSize);
     BackpackGrid->SetMinDesiredSlotHeight(CellSize);
     BackpackGrid->SetSlotPadding(FMargin(CellPadding));
+
+    // 锁定总像素尺寸，确保每格精确为 CellSize×CellSize（1:1）
+    if (GridSizeBox)
+    {
+        const float SlotTotal = CellSize + CellPadding * 2.f;
+        GridSizeBox->SetWidthOverride(GW * SlotTotal);
+        GridSizeBox->SetHeightOverride(GH * SlotTotal);
+    }
 
     // 激活区动画材质：所有格子共用一个 DynMat（材质内部用 Time 节点自驱动动画）
     UMaterialInstanceDynamic* ActiveZoneDynMat = nullptr;
@@ -83,10 +136,16 @@ void UBackpackGridWidget::RefreshCells(UBackpackGridComponent* Backpack,
                                        FIntPoint SelectedCell,
                                        FIntPoint HoverCell,
                                        FIntPoint GrabbedFromCell,
-                                       bool bGrabbing)
+                                       bool bGrabbing,
+                                       int32 PreviewPhase)
 {
     const int32 SlotCount = CachedSlots.Num();
     if (SlotCount == 0) return;
+
+    // 三阶叠加区格子列表（循环外查询一次，避免逐格重复调用）
+    const TArray<FIntPoint> Zone0 = Backpack ? Backpack->GetActivationZoneCellsForPhase(0) : TArray<FIntPoint>{};
+    const TArray<FIntPoint> Zone1 = Backpack ? Backpack->GetActivationZoneCellsForPhase(1) : TArray<FIntPoint>{};
+    const TArray<FIntPoint> Zone2 = Backpack ? Backpack->GetActivationZoneCellsForPhase(2) : TArray<FIntPoint>{};
 
     for (int32 i = 0; i < SlotCount; i++)
     {
@@ -104,8 +163,7 @@ void UBackpackGridWidget::RefreshCells(UBackpackGridComponent* Backpack,
 
         if (Backpack)
         {
-            const bool bInZone = Backpack->GetActivationZoneCells().Contains(Cell);
-            const int32 Idx    = Backpack->GetRuneIndexAtCell(Cell);
+            const int32 Idx = Backpack->GetRuneIndexAtCell(Cell);
             bOccupied = (Idx >= 0);
 
             if (bOccupied)
@@ -117,10 +175,21 @@ void UBackpackGridWidget::RefreshCells(UBackpackGridComponent* Backpack,
                 State = bActivated ? EBackpackCellState::OccupiedActive
                                    : EBackpackCellState::OccupiedInactive;
             }
+            else if (PreviewPhase >= 0)
+            {
+                // 单阶聚焦：只高亮选中阶段，其余置灰
+                if      (PreviewPhase == 0 && Zone0.Contains(Cell)) State = EBackpackCellState::EmptyActive;
+                else if (PreviewPhase == 1 && Zone1.Contains(Cell)) State = EBackpackCellState::EmptyZone1;
+                else if (PreviewPhase == 2 && Zone2.Contains(Cell)) State = EBackpackCellState::EmptyZone2;
+                else                                                 State = EBackpackCellState::Empty;
+            }
             else
             {
-                State = bInZone ? EBackpackCellState::EmptyActive
-                                : EBackpackCellState::Empty;
+                // 叠加模式（默认）：三阶全显，Zone0 优先级最高
+                if      (Zone0.Contains(Cell)) State = EBackpackCellState::EmptyActive;
+                else if (Zone1.Contains(Cell)) State = EBackpackCellState::EmptyZone1;
+                else if (Zone2.Contains(Cell)) State = EBackpackCellState::EmptyZone2;
+                else                           State = EBackpackCellState::Empty;
             }
         }
 

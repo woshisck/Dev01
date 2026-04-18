@@ -51,8 +51,16 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
         switch (State)
         {
         case EBackpackCellState::EmptyActive:
-            BGColor = Style ? Style->EmptyActiveColor          : SlotDefaults::EmptyActive;
+            BGColor = Style ? Style->HeatZone0Color            : SlotDefaults::EmptyActive;
             BGTex   = Style ? Style->CellActiveTexture.Get()          : nullptr;
+            break;
+        case EBackpackCellState::EmptyZone1:
+            BGColor = Style ? Style->HeatZone1Color            : FLinearColor(0.15f, 0.35f, 0.75f, 1.f);
+            BGTex   = nullptr;
+            break;
+        case EBackpackCellState::EmptyZone2:
+            BGColor = Style ? Style->HeatZone2Color            : FLinearColor(0.08f, 0.20f, 0.48f, 1.f);
+            BGTex   = nullptr;
             break;
         case EBackpackCellState::OccupiedActive:
             BGColor = Style ? Style->OccupiedActiveColor       : SlotDefaults::OccupiedActive;
@@ -81,7 +89,9 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
     // ── 激活区特效层：仅在激活区格子上显示 ──────────────────────────────
     if (ActiveZoneOverlay)
     {
-        const bool bInActiveZone = (State == EBackpackCellState::EmptyActive ||
+        const bool bInActiveZone = (State == EBackpackCellState::EmptyActive  ||
+                                    State == EBackpackCellState::EmptyZone1   ||
+                                    State == EBackpackCellState::EmptyZone2   ||
                                     State == EBackpackCellState::OccupiedActive);
         if (bInActiveZone)
         {

@@ -13,6 +13,7 @@
 #include "AbilitySystemInterface.h"
 #include "Data/CharacterData.h"
 #include "Component/AttributeStatComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "YogCharacterBase.generated.h"
 
 
@@ -302,6 +303,32 @@ public:
 	friend UDamageAttributeSet;
 	//friend UAdditionAttributeSet;
 
+	// ─── 命中闪白 / 攻击前闪红 ──────────────────────────────────────────────
+
+	/** 角色闪光 Overlay 材质（需含 FlashColor、FlashAlpha、Power 三个参数） */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Visual")
+	TObjectPtr<UMaterialInterface> CharacterFlashMaterial;
+
+	/** 命中闪白持续时间（秒） */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Visual", meta = (ClampMin = "0.05"))
+	float HitFlashDuration = 0.12f;
+
+	/** 攻击前闪红脉冲频率（次/秒） */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Visual", meta = (ClampMin = "0.5"))
+	float PreAttackPulseFreq = 4.0f;
+
+	/** 由 HealthChanged 自动调用；也可蓝图手动触发 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
+	void StartHitFlash();
+
+	/** 攻击前摇开始时调用（AnimNotify 或 GA 中） */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
+	void StartPreAttackFlash();
+
+	/** 攻击动作结束/取消时调用 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
+	void StopPreAttackFlash();
+
 private:
 	UPROPERTY()
 	EYogCharacterState CurrentState;
@@ -313,10 +340,19 @@ private:
 	EWeaponState CurrentWeaponState;
 
 	void InitializeComponentsWithStats(UCharacterData* characterData);
-	
+
 	void InitializeStats(const FYogBaseAttributeData* attributeData) const;
 
 	void InitializeMovement(const FMovementData* movementData) const;
+
+	void TickCharacterFlash(float DeltaTime);
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> FlashDynMat;
+
+	float HitFlashElapsed  = -1.f;
+	bool  bPreAttackActive = false;
+	float PreAttackElapsed = 0.f;
 };
 
 

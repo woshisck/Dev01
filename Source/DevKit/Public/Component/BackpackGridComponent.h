@@ -78,6 +78,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Config")
     FActivationZoneConfig ActivationZoneConfig;
 
+    // 战斗阶段标志：true 时禁止拖动符文（由 GameMode 写入）
+    UPROPERTY(BlueprintReadWrite, Category = "Combat")
+    bool bIsInCombat = false;
+
     // =========================================================
     // 委托
     // =========================================================
@@ -204,6 +208,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Backpack")
     TArray<FIntPoint> GetActivationZoneCells() const;
 
+    // 返回指定热度阶段的激活区格子（Phase 越界时返回空数组）
+    UFUNCTION(BlueprintPure, Category = "Backpack|ActivationZone")
+    TArray<FIntPoint> GetActivationZoneCellsForPhase(int32 Phase) const;
+
     // 查询某格是否被占用，返回 PlacedRunes 下标，-1表示空
     UFUNCTION(BlueprintPure, Category = "Backpack")
     int32 GetRuneIndexAtCell(FIntPoint Cell) const;
@@ -215,6 +223,10 @@ public:
     // 装备武器时调用，注入激活区配置（未调用时使用默认矩形配置）
     UFUNCTION(BlueprintCallable, Category = "Backpack")
     void SetActivationZoneConfig(const FActivationZoneConfig& Config);
+
+    // 装备武器时统一设置背包尺寸 + 激活区配置
+    UFUNCTION(BlueprintCallable, Category = "Backpack")
+    void ApplyBackpackConfig(int32 InGridWidth, int32 InGridHeight, const FActivationZoneConfig& InConfig);
 
     // =========================================================
     // 永久符文（生产用，BeginPlay 自动放置）

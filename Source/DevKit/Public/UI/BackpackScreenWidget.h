@@ -26,7 +26,9 @@ UENUM(BlueprintType)
 enum class EBackpackCellState : uint8
 {
     Empty            UMETA(DisplayName = "空格(灰)"),
-    EmptyActive      UMETA(DisplayName = "激活区空格(深蓝)"),
+    EmptyActive      UMETA(DisplayName = "热度1区空格"),
+    EmptyZone1       UMETA(DisplayName = "热度2区空格"),
+    EmptyZone2       UMETA(DisplayName = "热度3区空格"),
     OccupiedActive   UMETA(DisplayName = "激活中符文(亮蓝)"),
     OccupiedInactive UMETA(DisplayName = "未激活符文(橙)"),
 };
@@ -243,6 +245,9 @@ private:
     UTexture2D* MouseDragTex    = nullptr;
     FVector2D   LastMouseAbsPos = FVector2D::ZeroVector;
 
+    // ── 热度阶段预览 ──────────────────────────────────────────────────────
+    int32 PreviewPhase = -1; // -1 = 无预览；0/1/2 = 预览对应热度阶段激活区
+
     // ── 手柄方向键重复 ────────────────────────────────────────────────────
     FKey  HeldDirKey;
     float HeldKeyTime    = 0.f;
@@ -277,4 +282,7 @@ private:
 
     UFUNCTION()
     void OnSellButtonClicked();
+
+    UFUNCTION()
+    void HandleHeatPhaseButtonClicked(int32 Phase);
 };

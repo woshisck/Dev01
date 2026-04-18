@@ -20,6 +20,7 @@
 #include "Map/Portal.h"
 #include "Map/RewardPickup.h"
 #include "UI/LootSelectionWidget.h"
+#include "Tutorial/TutorialManager.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
@@ -395,6 +396,16 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 	if (Chosen.LootType == ELootType::Rune && Chosen.RuneAsset)
 	{
 		Player->AddRuneToInventory(Chosen.RuneAsset->CreateInstance());
+	}
+
+	// 战斗后教程：符文选完后引导玩家配置背包
+	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
+	{
+		if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(
+			UGameplayStatics::GetPlayerController(GetWorld(), 0)))
+		{
+			TM->TryPostCombatTutorial(PC);
+		}
 	}
 }
 
@@ -1697,6 +1708,17 @@ TArray<AEnemyCharacterBase*> AYogGameMode::GetNearbyEnemies(FVector Origin, floa
 				Result.Add(E);
 			}
 		}
+	}
+	return Result;
+}
+
+TArray<AEnemyCharacterBase*> AYogGameMode::GetAllAliveEnemies() const
+{
+	TArray<AEnemyCharacterBase*> Result;
+	for (const TWeakObjectPtr<AEnemyCharacterBase>& W : AliveEnemies)
+	{
+		if (AEnemyCharacterBase* E = W.Get(); E && E->IsAlive())
+			Result.Add(E);
 	}
 	return Result;
 }

@@ -6,6 +6,7 @@
 #include "PendingGridWidget.generated.h"
 
 class UUniformGridPanel;
+class USizeBox;
 class UImage;
 class UBackpackStyleDataAsset;
 
@@ -26,6 +27,10 @@ public:
     /** Designer 中放 UniformGridPanel，命名 "PendingRuneGrid" */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     TObjectPtr<UUniformGridPanel> PendingRuneGrid;
+
+    /** 包裹 PendingRuneGrid 的 SizeBox，命名 "PendingGridSizeBox"，BuildSlots 时动态设置精确尺寸保证格子 1:1 */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<USizeBox> PendingGridSizeBox;
 
     /** 待放置区列数（2 列） */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Config")

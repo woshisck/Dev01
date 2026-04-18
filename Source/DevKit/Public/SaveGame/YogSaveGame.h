@@ -10,6 +10,7 @@
 #include "Animation/YogAnimInstance.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Item/Weapon/WeaponInstance.h"
+#include "Tutorial/TutorialHintDataAsset.h"
 #include "YogSaveGame.generated.h"
 
 
@@ -310,6 +311,10 @@ public:
 	TArray<FCharacterSaveData> SavedCharacter;
 
 	/* Actors stored from a level (currently does not support a specific level and just assumes the demo map) */
+
+	// 教程引导状态（新存档默认 NeedWeaponTutorial，引导完成后 Completed）
+	UPROPERTY()
+	ETutorialState TutorialState = ETutorialState::NeedWeaponTutorial;
 
 	FCharacterSaveData* GetPlayerData(APlayerState* PlayerState);
 

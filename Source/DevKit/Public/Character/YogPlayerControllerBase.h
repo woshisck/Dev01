@@ -115,6 +115,11 @@ public:
 	void SetPlayerState(EYogCharacterState newState);
 
 	void ToggleBackpack(const FInputActionValue& Value);
+
+	// 由 TutorialManager 调用：强制打开背包（未激活时才打开）
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void OpenBackpack();
+
 	void CameraLook(const FInputActionValue& Value);
 	void CameraLookReleased(const FInputActionValue& Value);
 

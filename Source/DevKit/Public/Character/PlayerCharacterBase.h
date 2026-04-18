@@ -102,6 +102,24 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Heat|Feedback")
 	TObjectPtr<UForceFeedbackEffect> PhaseUpForceFeedback;
 
+	// ─── 热度升阶视觉光效（玩家身体）─────────────────────────────────────
+
+	/** 玩家骨骼网格 Overlay 材质（需含 SweepProgress / GlowAlpha / EmissiveColor 三个参数） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Heat|Visual")
+	TObjectPtr<UMaterialInterface> PhaseUpPlayerOverlayMaterial;
+
+	/** 扫射动画时长（秒） */
+	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0.1"))
+	float GlowSweepDuration = 0.5f;
+
+	/** 扫射结束后边缘光保持时长（秒） */
+	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0.0"))
+	float GlowHoldDuration = 3.0f;
+
+	/** 边缘光淡出时长（秒） */
+	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0.1"))
+	float GlowFadeDuration = 0.5f;
+
 	UPROPERTY()
 	TObjectPtr<AItemSpawner> OverlappingSpawner;
 
@@ -156,13 +174,16 @@ protected:
 
 private:
 
-	/** BeginPlay 中注册 GAS Tag 事件，监听热度阶段变化并广播 OnHeatPhaseChanged */
 	void SetupHeatPhaseTagListeners();
-
-	/** Phase.1/2/3 tag 新增时广播对应阶段；移除时由 parent tag 回调处理 */
 	void OnHeatPhaseTagChanged(const FGameplayTag Tag, int32 NewCount);
-
-	/** parent tag Buff.Status.Heat.Phase 计数归零时广播 Phase=0（关闭发光） */
 	void OnHeatPhaseParentTagChanged(const FGameplayTag Tag, int32 NewCount);
+
+	/** 触发玩家身体扫射+边缘光效果 */
+	void StartPlayerPhaseGlow(int32 Phase);
+	/** Tick 内逐帧更新材质参数 */
+	void TickPlayerPhaseGlow(float DeltaTime);
+
+	float PhaseGlowElapsed = -1.f;
+	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> PlayerOverlayDynMat;
 
 };

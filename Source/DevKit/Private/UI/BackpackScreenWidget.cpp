@@ -65,6 +65,10 @@ void UBackpackScreenWidget::NativeConstruct()
     if (SellButton)
         SellButton->OnClicked.AddDynamic(this, &UBackpackScreenWidget::OnSellButtonClicked);
 
+    if (BackpackGridWidget)
+        BackpackGridWidget->OnHeatPhaseButtonClicked.AddDynamic(
+            this, &UBackpackScreenWidget::HandleHeatPhaseButtonClicked);
+
     if (HintText)
         HintText->SetVisibility(ESlateVisibility::Collapsed);
 }
@@ -123,7 +127,9 @@ void UBackpackScreenWidget::OnGridNeedsRefresh_Implementation()
             SelectedCell,
             FIntPoint(HoverCol, HoverRow),
             GrabbedFromCell,
-            bGrabbingRune);
+            bGrabbingRune,
+            PreviewPhase);
+        BackpackGridWidget->RefreshHeatPhaseButtons(PreviewPhase, bIsGamepadInputMode);
     }
 }
 
@@ -424,6 +430,18 @@ void UBackpackScreenWidget::NativeOnActivated()
     }
 
     SetUserFocus(GetOwningPlayer());
+
+    // 每次打开时重建格子，确保武器切换后的 GridWidth/GridHeight 生效
+    if (BackpackGridWidget)
+    {
+        UBackpackGridComponent* BG = GetBackpack();
+        UE_LOG(LogTemp, Warning, TEXT("[BackpackScreenWidget] NativeOnActivated BuildGrid: Backpack=%s, W=%d H=%d"),
+            BG ? *BG->GetName() : TEXT("null"),
+            BG ? BG->GridWidth  : -1,
+            BG ? BG->GridHeight : -1);
+        BackpackGridWidget->BuildGrid(BG);
+    }
+
     RefreshPendingRuneSlots();
     OnGridNeedsRefresh();
     OnSelectionChanged();
@@ -435,6 +453,7 @@ void UBackpackScreenWidget::NativeOnDeactivated()
 
     bGrabbingRune   = false;
     GrabbedFromCell = FIntPoint(-1, -1);
+    PreviewPhase    = -1;
     ClearSelection();
 
     if (APlayerController* PC = GetOwningPlayer())
@@ -459,6 +478,12 @@ void UBackpackScreenWidget::OnSellButtonClicked()
         if (PR.Rune.RuneGuid.IsValid())
             Backpack->SellRune(PR.Rune.RuneGuid);
     }
+}
+
+void UBackpackScreenWidget::HandleHeatPhaseButtonClicked(int32 Phase)
+{
+    PreviewPhase = (PreviewPhase == Phase) ? -1 : Phase;
+    OnGridNeedsRefresh();
 }
 
 // ============================================================
@@ -807,7 +832,12 @@ void UBackpackScreenWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDr
 
 FReply UBackpackScreenWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-    bIsGamepadInputMode = false;
+    if (bIsGamepadInputMode)
+    {
+        bIsGamepadInputMode = false;
+        if (BackpackGridWidget)
+            BackpackGridWidget->RefreshHeatPhaseButtons(PreviewPhase, false);
+    }
     LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
     return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
@@ -918,8 +948,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
 {
     const FKey Key = InKeyEvent.GetKey();
 
-    bIsGamepadInputMode = true;
-
+    // 摇杆轴事件不触发输入模式切换，直接忽略
     if (Key == EKeys::Gamepad_RightStick_Up   || Key == EKeys::Gamepad_RightStick_Down  ||
         Key == EKeys::Gamepad_RightStick_Left  || Key == EKeys::Gamepad_RightStick_Right ||
         Key == EKeys::Gamepad_LeftStick_Up     || Key == EKeys::Gamepad_LeftStick_Down   ||
@@ -928,10 +957,47 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         return FReply::Handled();
     }
 
+    // 首次切换到手柄模式时立刻显示操作提示
+    const bool bWasGamepad = bIsGamepadInputMode;
+    bIsGamepadInputMode = true;
+    if (!bWasGamepad && BackpackGridWidget)
+        BackpackGridWidget->RefreshHeatPhaseButtons(PreviewPhase, true);
+
     if (Key == EKeys::Gamepad_Special_Left || Key == EKeys::Tab)
     {
         DeactivateWidget();
         return FReply::Handled();
+    }
+
+    // ── 热度阶段预览切换 ────────────────────────────────────────────────
+    {
+        const int32 MaxPhase = GetBackpack()
+            ? GetBackpack()->ActivationZoneConfig.ZoneShapes.Num() - 1
+            : 2;
+
+        auto TogglePreview = [&](int32 Phase) -> FReply
+        {
+            PreviewPhase = (PreviewPhase == Phase) ? -1 : Phase;
+            OnGridNeedsRefresh();
+            return FReply::Handled();
+        };
+
+        if (Key == EKeys::One)   return TogglePreview(0);
+        if (Key == EKeys::Two)   return TogglePreview(1);
+        if (Key == EKeys::Three) return TogglePreview(2);
+
+        if (Key == EKeys::Gamepad_LeftShoulder)
+        {
+            PreviewPhase = (PreviewPhase < 0) ? MaxPhase : PreviewPhase - 1;
+            OnGridNeedsRefresh();
+            return FReply::Handled();
+        }
+        if (Key == EKeys::Gamepad_RightShoulder)
+        {
+            PreviewPhase = (PreviewPhase >= MaxPhase) ? -1 : PreviewPhase + 1;
+            OnGridNeedsRefresh();
+            return FReply::Handled();
+        }
     }
 
     auto StartDirRepeat = [&](int32 DC, int32 DR)

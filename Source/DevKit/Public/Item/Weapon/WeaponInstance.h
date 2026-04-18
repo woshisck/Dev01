@@ -42,9 +42,9 @@ class DEVKIT_API AWeaponInstance : public AActor
 public:
 	AWeaponInstance();
 
-	virtual void BeginPlay()override;
-
-	virtual void PostActorCreated()override;
+	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
+	virtual void PostActorCreated() override;
 
 	UPROPERTY(BlueprintReadWrite, SaveGame)
 	FName AttachSocket;
@@ -73,9 +73,23 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Heat")
 	TObjectPtr<UMaterialInterface> HeatOverlayMaterial;
 
+	/** 扫射时长（秒） */
+	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0.1"))
+	float GlowSweepDuration = 0.5f;
+
+	/** 边缘光保持时长（秒） */
+	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0.0"))
+	float GlowHoldDuration = 3.0f;
+
+	/** 边缘光淡出时长（秒） */
+	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0.1"))
+	float GlowFadeDuration = 0.5f;
+
 private:
 	// 运行时动态材质实例（首次调用时创建）
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> HeatOverlayDynMat;
 
+	// -1 = 未激活；>= 0 = 动画运行中
+	float GlowElapsed = -1.f;
 };
