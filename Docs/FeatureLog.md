@@ -397,6 +397,26 @@
 
 ---
 
+## 2026-04-18
+
+### [UI-005] RuneInfoCard 视觉重构 — 点阵 + 背景图
+
+**状态**：完整  
+**Commit**：待填
+
+| 项目 | 内容 |
+| --- | --- |
+| 核心文件 | `RuneInfoCardWidget.h/.cpp`、`RuneDataAsset.h` |
+| 点阵渲染 | 从 UniformGridPanel 改为 **CanvasPanel 绝对定位**；点固定 **8×8 px**，间隔 **2 px**，整体居中于 64×64 的 `ShapeGrid` CanvasPanel |
+| 颜色 | 已占格蓝 `(0.20, 0.60, 1.00)`，空格暗灰 `(0.18, 0.18, 0.22, 0.6)` |
+| DA 新字段 | `FRuneConfig::CardBackground`（`UTexture2D*`）— 信息卡背景贴图 |
+| CardBG 绑定 | `RuneInfoCardWidget` 新增 `CardBG`（`BindWidgetOptional`）；有贴图时显示贴图，留空时显示不透明黑色 |
+| CardEffect 绑定 | 新增 `CardEffect` TextBlock，与 `CardDesc` 分开显示效果描述 |
+| WBP 布局 | `ShapeGrid` 在蓝图中为 **CanvasPanel，固定 64×64**；`WBP_RuneInfoCard` 根节点用 SizeBox 定宽高，`WBP_BackpackScreen` 中该实例勾选 **Size To Content**，只管位置 |
+| 配置入口 | 各符文 DA → `Card Background` 字段填入背景贴图（留空 = 纯黑兜底） |
+
+---
+
 ## 格式说明
 
 ```

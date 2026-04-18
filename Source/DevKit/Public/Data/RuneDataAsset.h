@@ -116,6 +116,10 @@ struct DEVKIT_API FRuneConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TObjectPtr<UTexture2D> RuneIcon;
 
+    /** 信息卡背景图（RuneInfoCard 的 CardBG 使用此贴图；留空则隐藏） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TObjectPtr<UTexture2D> CardBackground;
+
     /** 符文描述文本 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FText RuneDescription;

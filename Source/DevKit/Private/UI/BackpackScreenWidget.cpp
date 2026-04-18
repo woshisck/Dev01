@@ -1,4 +1,6 @@
 #include "UI/BackpackScreenWidget.h"
+#include "UI/BackpackGridWidget.h"
+#include "UI/PendingGridWidget.h"
 #include "UI/RuneDragDropOperation.h"
 #include "UI/RuneTooltipWidget.h"
 #include "UI/RuneInfoCardWidget.h"
@@ -10,33 +12,10 @@
 #include "Input/CommonUIInputTypes.h"
 #include "GameFramework/Pawn.h"
 #include "Components/Button.h"
-#include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/RichTextBlock.h"
-#include "Components/PanelWidget.h"
-#include "Components/Overlay.h"
-#include "Components/OverlaySlot.h"
-#include "Components/UniformGridPanel.h"
-#include "Components/UniformGridSlot.h"
-#include "Components/SizeBox.h"
 #include "InputCoreTypes.h"
-
-// ============================================================
-//  格子颜色常量
-// ============================================================
-
-namespace BackpackColors
-{
-    static const FLinearColor Empty          (0.40f, 0.40f, 0.42f, 1.00f); // 中灰（可见）
-    static const FLinearColor EmptyActive    (0.15f, 0.35f, 0.75f, 1.00f); // 蓝色（激活区）
-    static const FLinearColor OccupiedActive (0.10f, 0.55f, 1.00f, 1.00f); // 亮蓝（有符文激活）
-    static const FLinearColor OccupiedInact  (0.55f, 0.35f, 0.05f, 1.00f); // 金橙（有符文未激活）
-    static const FLinearColor Selected       (1.00f, 0.82f, 0.10f, 1.00f); // 高亮黄
-    static const FLinearColor Hover          (0.10f, 0.80f, 0.20f, 1.00f); // 拖拽悬浮绿
-    static const FLinearColor GrabbedSource  (0.25f, 0.15f, 0.03f, 1.00f); // 暗橙（被抓起的源格）
-    static const FLinearColor CursorTarget   (0.05f, 0.60f, 0.55f, 1.00f); // 青绿（手柄放置目标格）
-}
 
 // ============================================================
 //  内部辅助
@@ -61,10 +40,7 @@ void UBackpackScreenWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    // 未激活时折叠：CommonUI 无 Stack 容器时不会自动隐藏
     SetVisibility(ESlateVisibility::Collapsed);
-
-    // 允许接收手柄/键盘输入
     bIsFocusable = true;
 
     if (APawn* Pawn = GetOwningPlayerPawn())
@@ -77,14 +53,18 @@ void UBackpackScreenWidget::NativeConstruct()
         Backpack->OnRuneActivationChanged.AddDynamic(this, &UBackpackScreenWidget::HandleRuneActivationChanged);
     }
 
-    BindGridCellClicks();
-    BindPendingRuneSlots();
+    // 子 Widget 初始化（NativeConstruct 时子 Widget 已构建完毕）
+    if (BackpackGridWidget)
+        BackpackGridWidget->BuildGrid(GetBackpack());
+
+    if (PendingGridWidget)
+        PendingGridWidget->BuildSlots();
+
     RefreshPendingRuneSlots();
 
     if (SellButton)
         SellButton->OnClicked.AddDynamic(this, &UBackpackScreenWidget::OnSellButtonClicked);
 
-    // HintText（RichTextBlock）当前不使用，后续由右侧信息卡替代
     if (HintText)
         HintText->SetVisibility(ESlateVisibility::Collapsed);
 }
@@ -131,78 +111,24 @@ void UBackpackScreenWidget::HandleRuneActivationChanged(FGuid RuneGuid, bool bAc
 }
 
 // ============================================================
-//  格子刷新（BlueprintNativeEvent 默认实现）
+//  格子刷新（委托给 BackpackGridWidget）
 // ============================================================
 
 void UBackpackScreenWidget::OnGridNeedsRefresh_Implementation()
 {
-    const int32 CellCount = CachedCellIcons.Num();
-    if (CellCount == 0) return;
-
-    UBackpackGridComponent* BackpackComp = GetBackpack();
-    const int32 GW = BackpackComp ? BackpackComp->GridWidth : 5;
-
-    for (int32 i = 0; i < CellCount; i++)
+    if (BackpackGridWidget)
     {
-        const int32 Col = i % GW;
-        const int32 Row = i / GW;
-        const FIntPoint Cell(Col, Row);
-
-        // ── 背景色（按状态/选中/悬浮优先级决定）──────────────────────────
-        if (CachedCellBorders.IsValidIndex(i) && CachedCellBorders[i])
-        {
-            // StyleDA 有值时用 DA 颜色，否则用代码默认值
-            const FLinearColor C_Empty    = StyleDA ? StyleDA->EmptyColor           : BackpackColors::Empty;
-            const FLinearColor C_Active   = StyleDA ? StyleDA->EmptyActiveColor     : BackpackColors::EmptyActive;
-            const FLinearColor C_OccAct   = StyleDA ? StyleDA->OccupiedActiveColor  : BackpackColors::OccupiedActive;
-            const FLinearColor C_OccInact = StyleDA ? StyleDA->OccupiedInactiveColor: BackpackColors::OccupiedInact;
-            const FLinearColor C_Selected = StyleDA ? StyleDA->SelectedColor        : BackpackColors::Selected;
-            const FLinearColor C_Hover    = StyleDA ? StyleDA->HoverColor           : BackpackColors::Hover;
-            const FLinearColor C_Grabbed  = StyleDA ? StyleDA->GrabbedSourceColor   : BackpackColors::GrabbedSource;
-
-            FLinearColor BGColor;
-            if (SelectedCell == Cell)
-                BGColor = C_Selected;
-            else if (bGrabbingRune && Cell == GrabbedFromCell)
-                BGColor = C_Grabbed;
-            else if (Cell == FIntPoint(HoverCol, HoverRow))
-                BGColor = C_Hover;
-            else
-            {
-                switch (GetCellVisualState(Col, Row))
-                {
-                case EBackpackCellState::EmptyActive:      BGColor = C_Active;   break;
-                case EBackpackCellState::OccupiedActive:   BGColor = C_OccAct;   break;
-                case EBackpackCellState::OccupiedInactive: BGColor = C_OccInact; break;
-                default:                                   BGColor = C_Empty;    break;
-                }
-            }
-
-            CachedCellBorders[i]->SetColorAndOpacity(BGColor);
-        }
-
-        // ── 图标（有符文则显示，源格抓取中半透明）──────────────────────────
-        if (CachedCellIcons.IsValidIndex(i) && CachedCellIcons[i])
-        {
-            UImage* Icon = CachedCellIcons[i];
-            UTexture2D* Tex = GetRuneIconAtCell(Col, Row);
-            if (Tex)
-            {
-                Icon->SetBrushFromTexture(Tex, /*bMatchSize=*/false);
-                const float Opacity = (bGrabbingRune && Cell == GrabbedFromCell) ? 0.30f : 1.f;
-                Icon->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, Opacity));
-                Icon->SetVisibility(ESlateVisibility::HitTestInvisible);
-            }
-            else
-            {
-                Icon->SetVisibility(ESlateVisibility::Collapsed);
-            }
-        }
+        BackpackGridWidget->RefreshCells(
+            GetBackpack(),
+            SelectedCell,
+            FIntPoint(HoverCol, HoverRow),
+            GrabbedFromCell,
+            bGrabbingRune);
     }
 }
 
 // ============================================================
-//  详情面板刷新（BlueprintNativeEvent 默认实现）
+//  详情面板刷新
 // ============================================================
 
 void UBackpackScreenWidget::OnSelectionChanged_Implementation()
@@ -210,7 +136,6 @@ void UBackpackScreenWidget::OnSelectionChanged_Implementation()
     FRuneInstance Info = GetFocusedRuneInfo();
     const bool bHasSelection = Info.RuneGuid.IsValid();
 
-    // 详情面板容器：有选中时显示，没有时隐藏
     if (DetailPanel)
         DetailPanel->SetVisibility(bHasSelection ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 
@@ -236,7 +161,6 @@ void UBackpackScreenWidget::OnSelectionChanged_Implementation()
         }
     }
 
-    // 操作提示
     if (HintText)
     {
         if (SelectedCell != FIntPoint(-1, -1))
@@ -257,17 +181,14 @@ void UBackpackScreenWidget::OnSelectionChanged_Implementation()
         }
     }
 
-    // ── 右侧信息卡（URuneInfoCardWidget 独立管理显隐和内容）──────────────
     if (RuneInfoCard)
     {
         if (bHasSelection)
             RuneInfoCard->ShowRune(Info);
         else
             RuneInfoCard->HideCard();
-
     }
 
-    // 同时刷新格子高亮（让选中格子变黄）
     OnGridNeedsRefresh();
 }
 
@@ -397,14 +318,12 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
 
     if (RuneIdx >= 0)
     {
-        // 已有符文 → 选中（拖拽是主要移动方式，这里保留点选作为备用）
         SelectedCell = Cell;
         SelectedRuneIndex = -1;
         OnSelectionChanged();
     }
     else if (SelectedRuneIndex >= 0)
     {
-        // 空格 + 已选中列表符文 → 放置
         APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
         const int32 PendingCount = Player ? Player->PendingRunes.Num() : 0;
         const bool bFromPending  = SelectedRuneIndex < PendingCount;
@@ -472,32 +391,40 @@ void UBackpackScreenWidget::ClearSelection()
 }
 
 // ============================================================
+//  待放置区刷新（委托给 PendingGridWidget）
+// ============================================================
+
+void UBackpackScreenWidget::RefreshPendingRuneSlots()
+{
+    if (!PendingGridWidget) return;
+
+    APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
+    const TArray<FRuneInstance>& PendingRunes = Player ? Player->PendingRunes : TArray<FRuneInstance>();
+    PendingGridWidget->RefreshSlots(PendingRunes);
+}
+
+// ============================================================
 //  CommonUI 生命周期
 // ============================================================
 
 TOptional<FUIInputConfig> UBackpackScreenWidget::GetDesiredInputConfig() const
 {
-    // GameAndMenu：背包打开时鼠标可用，Tab 键仍可通过 EnhancedInput 触发 ToggleBackpack
     return FUIInputConfig(ECommonInputMode::All, EMouseCaptureMode::NoCapture);
 }
 
 void UBackpackScreenWidget::NativeOnActivated()
 {
     Super::NativeOnActivated();
-    SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+    SetVisibility(ESlateVisibility::Visible);
 
     if (APlayerController* PC = GetOwningPlayer())
     {
         PC->SetPause(true);
         PC->SetShowMouseCursor(true);
-
-        FInputModeGameAndUI InputMode;
-        InputMode.SetWidgetToFocus(TakeWidget());
-        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-        PC->SetInputMode(InputMode);
     }
 
     SetUserFocus(GetOwningPlayer());
+    RefreshPendingRuneSlots();
     OnGridNeedsRefresh();
     OnSelectionChanged();
 }
@@ -506,7 +433,6 @@ void UBackpackScreenWidget::NativeOnDeactivated()
 {
     SetVisibility(ESlateVisibility::Collapsed);
 
-    // 清空持有状态
     bGrabbingRune   = false;
     GrabbedFromCell = FIntPoint(-1, -1);
     ClearSelection();
@@ -515,7 +441,6 @@ void UBackpackScreenWidget::NativeOnDeactivated()
     {
         PC->SetPause(false);
         PC->SetShowMouseCursor(false);
-        PC->SetInputMode(FInputModeGameOnly());
     }
 
     Super::NativeOnDeactivated();
@@ -537,256 +462,41 @@ void UBackpackScreenWidget::OnSellButtonClicked()
 }
 
 // ============================================================
-//  格子绑定（拖拽模式：按钮设为 HitTestInvisible，不绑 OnClicked）
-// ============================================================
-
-void UBackpackScreenWidget::BindGridCellClicks()
-{
-    if (!BackpackGrid)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[BackpackUI][BindGrid] BackpackGrid 未找到！检查 Designer 中 UniformGridPanel 名称是否为 'BackpackGrid'（区分大小写）"));
-        return;
-    }
-
-    UBackpackGridComponent* Backpack = GetBackpack();
-    const int32 GW = Backpack ? Backpack->GridWidth  : 5;
-    const int32 GH = Backpack ? Backpack->GridHeight : 5;
-
-    UE_LOG(LogTemp, Log, TEXT("[BackpackUI][BindGrid] BackpackGrid 找到，GridComponent=%s，准备创建 %d×%d 格子"),
-        Backpack ? TEXT("OK") : TEXT("NULL(用默认5×5)"), GW, GH);
-
-    // 清空旧子节点（每次 NativeConstruct 重新创建，支持运行时尺寸变化）
-    BackpackGrid->ClearChildren();
-    CachedCellButtons.Empty();
-    CachedCellBorders.Empty();
-    CachedCellIcons.Empty();
-
-    // 强制格子最小尺寸（Button 内容 Collapsed 时 UniformGrid 无法自动推算）
-    BackpackGrid->SetMinDesiredSlotWidth(64.f);
-    BackpackGrid->SetMinDesiredSlotHeight(64.f);
-    BackpackGrid->SetSlotPadding(FMargin(2.f)); // 格子间 2px 间隔，形成边框感
-    BackpackGrid->SetVisibility(ESlateVisibility::HitTestInvisible);
-
-    for (int32 Row = 0; Row < GH; Row++)
-    {
-        for (int32 Col = 0; Col < GW; Col++)
-        {
-            // 每格用 Overlay 叠放：背景 UImage（底层）+ 符文图标 UImage（上层）
-            UOverlay* CellOverlay = NewObject<UOverlay>(this);
-
-            // ── 背景 UImage：RoundedBox brush，SetColorAndOpacity 控制颜色 ──
-            UImage* BGImage = NewObject<UImage>(this);
-            {
-                FSlateBrush Brush;
-                Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
-                Brush.TintColor = FSlateColor(FLinearColor::White); // 白色底，颜色由 SetColorAndOpacity 控制
-                Brush.OutlineSettings.CornerRadii  = FVector4(3.f, 3.f, 3.f, 3.f);
-                Brush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
-                BGImage->SetBrush(Brush);
-            }
-            BGImage->SetColorAndOpacity(BackpackColors::Empty);
-
-            UOverlaySlot* BGSlot = CellOverlay->AddChildToOverlay(BGImage);
-            BGSlot->SetHorizontalAlignment(HAlign_Fill);
-            BGSlot->SetVerticalAlignment(VAlign_Fill);
-
-            // ── 符文图标 UImage（默认隐藏，有符文时显示）──
-            UImage* Icon = NewObject<UImage>(this);
-            Icon->SetVisibility(ESlateVisibility::Collapsed);
-
-            UOverlaySlot* IconSlot = CellOverlay->AddChildToOverlay(Icon);
-            IconSlot->SetHorizontalAlignment(HAlign_Fill);
-            IconSlot->SetVerticalAlignment(VAlign_Fill);
-            IconSlot->SetPadding(FMargin(6.f)); // 图标与格子边缘留 6px 间距
-
-            UUniformGridSlot* GridSlot = BackpackGrid->AddChildToUniformGrid(CellOverlay, Row, Col);
-            GridSlot->SetHorizontalAlignment(HAlign_Fill);
-            GridSlot->SetVerticalAlignment(VAlign_Fill);
-
-            CachedCellButtons.Add(nullptr);
-            CachedCellBorders.Add(BGImage); // 存背景 UImage，刷新时更新颜色
-            CachedCellIcons.Add(Icon);
-        }
-    }
-
-    UE_LOG(LogTemp, Log, TEXT("[BackpackUI][BindGrid] 完成：共创建 %d 个格子（Border+Button），BackpackGrid 子节点数=%d"),
-        CachedCellBorders.Num(), BackpackGrid->GetChildrenCount());
-}
-
-// ============================================================
-//  左侧待放置符文槽
-// ============================================================
-
-void UBackpackScreenWidget::BindPendingRuneSlots()
-{
-    if (!PendingRuneGrid) return;
-
-    PendingRuneGrid->ClearChildren();
-    CachedPendingButtons.Empty();
-    CachedPendingBGImages.Empty();
-    CachedPendingIcons.Empty();
-
-    PendingRuneGrid->SetMinDesiredSlotWidth(64.f);
-    PendingRuneGrid->SetMinDesiredSlotHeight(64.f);
-    PendingRuneGrid->SetSlotPadding(FMargin(2.f));
-    PendingRuneGrid->SetVisibility(ESlateVisibility::HitTestInvisible);
-
-    const int32 TotalSlots = FMath::Max(1, PendingGridCols) * FMath::Max(1, PendingGridRows);
-    for (int32 i = 0; i < TotalSlots; i++)
-    {
-        const int32 Col = i % PendingGridCols;
-        const int32 Row = i / PendingGridCols;
-
-        // 每格用 Overlay：背景 UImage + 图标 UImage（和主格子相同结构）
-        UOverlay* CellOverlay = NewObject<UOverlay>(this);
-
-        UImage* BGImage = NewObject<UImage>(this);
-        {
-            FSlateBrush Brush;
-            Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
-            Brush.TintColor = FSlateColor(FLinearColor::White);
-            Brush.OutlineSettings.CornerRadii  = FVector4(3.f, 3.f, 3.f, 3.f);
-            Brush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
-            BGImage->SetBrush(Brush);
-        }
-        BGImage->SetColorAndOpacity(BackpackColors::Empty);
-
-        UOverlaySlot* BGSlot = CellOverlay->AddChildToOverlay(BGImage);
-        BGSlot->SetHorizontalAlignment(HAlign_Fill);
-        BGSlot->SetVerticalAlignment(VAlign_Fill);
-
-        UImage* Icon = NewObject<UImage>(this);
-        Icon->SetVisibility(ESlateVisibility::Collapsed);
-
-        UOverlaySlot* IconSlot = CellOverlay->AddChildToOverlay(Icon);
-        IconSlot->SetHorizontalAlignment(HAlign_Fill);
-        IconSlot->SetVerticalAlignment(VAlign_Fill);
-        IconSlot->SetPadding(FMargin(6.f));
-
-        UUniformGridSlot* GridSlot = PendingRuneGrid->AddChildToUniformGrid(CellOverlay, Row, Col);
-        GridSlot->SetHorizontalAlignment(HAlign_Fill);
-        GridSlot->SetVerticalAlignment(VAlign_Fill);
-
-        CachedPendingButtons.Add(nullptr);
-        CachedPendingBGImages.Add(BGImage);
-        CachedPendingIcons.Add(Icon);
-    }
-
-    UE_LOG(LogTemp, Log, TEXT("[BackpackUI] 动态创建待放置槽 %d×%d = %d 个"), PendingGridCols, PendingGridRows, TotalSlots);
-}
-
-void UBackpackScreenWidget::RefreshPendingRuneSlots()
-{
-    if (CachedPendingIcons.Num() == 0) return;
-
-    APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
-    const int32 PendingCount = Player ? Player->PendingRunes.Num() : 0;
-
-    for (int32 i = 0; i < CachedPendingIcons.Num(); i++)
-    {
-        UImage* BG   = CachedPendingBGImages.IsValidIndex(i) ? CachedPendingBGImages[i] : nullptr;
-        UImage* Icon = CachedPendingIcons[i];
-
-        if (i < PendingCount)
-        {
-            // 有符文：深紫背景 + 显示图标
-            const FLinearColor HasRuneColor = StyleDA ? StyleDA->PendingHasRuneColor : FLinearColor(0.12f, 0.08f, 0.22f, 1.f);
-            if (BG) BG->SetColorAndOpacity(HasRuneColor);
-
-            if (Icon)
-            {
-                UTexture2D* Tex = Player->PendingRunes[i].RuneConfig.RuneIcon;
-                if (Tex)
-                {
-                    Icon->SetBrushFromTexture(Tex, false);
-                    Icon->SetColorAndOpacity(FLinearColor::White);
-                    Icon->SetVisibility(ESlateVisibility::HitTestInvisible);
-                }
-                else { Icon->SetVisibility(ESlateVisibility::Collapsed); }
-            }
-        }
-        else
-        {
-            // 空槽：普通灰色背景，图标隐藏
-            if (BG)   BG->SetColorAndOpacity(BackpackColors::Empty);
-            if (Icon) Icon->SetVisibility(ESlateVisibility::Collapsed);
-        }
-    }
-}
-
-bool UBackpackScreenWidget::GetPendingSlotAtScreenPos(const FVector2D& AbsPos, int32& OutIndex) const
-{
-    // 用 BGImage 几何体做命中检测（与格子 Overlay 同尺寸）
-    for (int32 i = 0; i < CachedPendingBGImages.Num(); i++)
-    {
-        UImage* BG = CachedPendingBGImages[i];
-        if (!BG) continue;
-
-        const FGeometry Geo  = BG->GetCachedGeometry();
-        const FVector2D Local = Geo.AbsoluteToLocal(AbsPos);
-        const FVector2D Size  = Geo.GetLocalSize();
-
-        if (Local.X >= 0.f && Local.X < Size.X && Local.Y >= 0.f && Local.Y < Size.Y)
-        {
-            OutIndex = i;
-            return true;
-        }
-    }
-    return false;
-}
-
-// ============================================================
-//  坐标辅助
+//  坐标辅助（委托给子 Widget）
 // ============================================================
 
 bool UBackpackScreenWidget::GetGridCellAtScreenPos(const FVector2D& AbsolutePos, int32& OutCol, int32& OutRow) const
 {
-    if (!BackpackGrid) return false;
+    if (!BackpackGridWidget) return false;
+    return BackpackGridWidget->GetCellAtScreenPos(AbsolutePos, GetBackpack(), OutCol, OutRow);
+}
 
-    UBackpackGridComponent* Backpack = GetBackpack();
-    const int32 GW = Backpack ? Backpack->GridWidth  : 5;
-    const int32 GH = Backpack ? Backpack->GridHeight : 5;
-
-    const FGeometry& GridGeo = BackpackGrid->GetCachedGeometry();
-    const FVector2D  GridSize = GridGeo.GetLocalSize();
-    if (GridSize.X <= 0.f || GridSize.Y <= 0.f) return false;
-
-    const FVector2D LocalPos = GridGeo.AbsoluteToLocal(AbsolutePos);
-    const float CellW = GridSize.X / GW;
-    const float CellH = GridSize.Y / GH;
-
-    const int32 Col = FMath::FloorToInt(LocalPos.X / CellW);
-    const int32 Row = FMath::FloorToInt(LocalPos.Y / CellH);
-
-    if (Col < 0 || Col >= GW || Row < 0 || Row >= GH) return false;
-
-    OutCol = Col;
-    OutRow = Row;
-    return true;
+bool UBackpackScreenWidget::GetPendingSlotAtScreenPos(const FVector2D& AbsPos, int32& OutIndex) const
+{
+    if (!PendingGridWidget) return false;
+    return PendingGridWidget->GetSlotAtScreenPos(AbsPos, OutIndex);
 }
 
 // ============================================================
 //  拖拽事件实现
 // ============================================================
 
-FReply UBackpackScreenWidget::NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-    if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
-        return Super::NativeOnPreviewMouseButtonDown(InGeometry, InMouseEvent);
+    UE_LOG(LogTemp, Warning, TEXT("[BackpackScreen] MouseButtonDown button=%s pos=(%f,%f)"),
+        *InMouseEvent.GetEffectingButton().ToString(),
+        InMouseEvent.GetScreenSpacePosition().X, InMouseEvent.GetScreenSpacePosition().Y);
 
-    // ── 手柄A键检测：用自跟踪的 bIsGamepadInputMode 标志 ────────────────────
-    // NativeOnKeyDown 任意手柄键按下时置 true，NativeOnMouseMove 鼠标移动时置 false
-    // 比 IsInputKeyDown 可靠（IsInputKeyDown 在 PreviewMouseDown 阶段还未注册）
+    if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+        return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+
     if (bIsGamepadInputMode)
     {
-        UE_LOG(LogTemp, Log, TEXT("[BackpackUI] PreviewMouseDown 手柄A键(bIsGamepadInputMode) → 直接调 GamepadConfirm"));
         GamepadConfirm();
         return FReply::Handled();
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[BackpackUI] PreviewMouseDown  真实鼠标点击"));
-
-    // ── 左侧待放置槽检测：优先于主格子 ──────────────────────────────────
+    // 左侧待放置槽：优先于主格子
     {
         int32 PendingIdx;
         if (GetPendingSlotAtScreenPos(InMouseEvent.GetScreenSpacePosition(), PendingIdx))
@@ -797,24 +507,21 @@ FReply UBackpackScreenWidget::NativeOnPreviewMouseButtonDown(const FGeometry& In
                 PendingDragIndex = PendingIdx;
                 return FReply::Handled().DetectDrag(TakeWidget(), EKeys::LeftMouseButton);
             }
-            return FReply::Handled(); // 空槽，吃掉事件
+            return FReply::Handled();
         }
     }
 
     int32 Col, Row;
     if (!GetGridCellAtScreenPos(InMouseEvent.GetScreenSpacePosition(), Col, Row))
-        return Super::NativeOnPreviewMouseButtonDown(InGeometry, InMouseEvent);
+        return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 
     if (IsCellOccupied(Col, Row))
     {
-        // 立即选中格子（详情面板即时响应）
         SelectedCell      = FIntPoint(Col, Row);
         SelectedRuneIndex = -1;
-        // 真实鼠标点击时同步手柄光标
         GamepadCursorCell = FIntPoint(Col, Row);
         OnSelectionChanged();
 
-        // 记录拖拽源，等待 NativeOnDragDetected
         PendingDragCol = Col;
         PendingDragRow = Row;
 
@@ -822,7 +529,6 @@ FReply UBackpackScreenWidget::NativeOnPreviewMouseButtonDown(const FGeometry& In
     }
     else
     {
-        // 空格子：清除选中（移动仅通过拖拽完成）
         PendingDragCol = -1;
         PendingDragRow = -1;
         if (SelectedCell != FIntPoint(-1, -1) || SelectedRuneIndex >= 0)
@@ -837,7 +543,6 @@ FReply UBackpackScreenWidget::NativeOnPreviewMouseButtonDown(const FGeometry& In
 
 void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
-    // ── 左侧待放置符文拖拽 ────────────────────────────────────────────────
     if (PendingDragIndex >= 0)
     {
         APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
@@ -852,7 +557,6 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
             DragOp->DraggedRune       = PendingRune;
             DragOp->PendingSourceIndex = PendingDragIndex;
 
-            // 用 GrabbedRuneIcon 自行管理浮空图标，不依赖 DefaultDragVisual
             bMouseDragging  = true;
             MouseDragTex    = PendingRune.RuneConfig.RuneIcon;
             LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
@@ -865,7 +569,6 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
         return;
     }
 
-    // ── 主格子符文拖拽 ────────────────────────────────────────────────────
     if (PendingDragCol < 0 || PendingDragRow < 0)
         return;
 
@@ -879,10 +582,9 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
     URuneDragDropOperation* DragOp = NewObject<URuneDragDropOperation>(this);
     DragOp->SrcCol      = PendingDragCol;
     DragOp->SrcRow      = PendingDragRow;
-    DragOp->SrcPivot    = PR.Pivot;   // 记录原始 Pivot，用于多格形状的落点偏移计算
+    DragOp->SrcPivot    = PR.Pivot;
     DragOp->DraggedRune = PR.Rune;
 
-    // 用 GrabbedRuneIcon 自行管理浮空图标，不依赖 DefaultDragVisual
     bMouseDragging  = true;
     MouseDragTex    = PR.Rune.RuneConfig.RuneIcon;
     LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
@@ -896,7 +598,6 @@ bool UBackpackScreenWidget::NativeOnDragOver(const FGeometry& InGeometry, const 
     if (!Cast<URuneDragDropOperation>(InOperation))
         return false;
 
-    // 更新鼠标位置供 Tick 里 GrabbedRuneIcon 使用
     LastMouseAbsPos = InDragDropEvent.GetScreenSpacePosition();
 
     int32 Col, Row;
@@ -931,7 +632,53 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
         return false;
     }
 
-    // ── 左侧待放置符文 → 主格子放置 ──────────────────────────────────────
+    // ── 主格子符文拖回待放置区（取回） ──────────────────────────────────────
+    // 只要落点在主格子面板左侧（含 Pending 区域和两者之间的空白），都触发取回
+    if (RuneOp->PendingSourceIndex < 0 && RuneOp->DraggedRune.RuneGuid.IsValid())
+    {
+        bool bShouldUnplace = false;
+
+        // 精确命中 Pending 面板
+        int32 PendingTargetIdx;
+        bShouldUnplace = GetPendingSlotAtScreenPos(InDragDropEvent.GetScreenSpacePosition(), PendingTargetIdx);
+
+        // 扩展：落点在主格子面板左侧也算取回
+        if (!bShouldUnplace && BackpackGridWidget)
+        {
+            const FGeometry GridGeo  = BackpackGridWidget->GetGridGeometry();
+            const FVector2D LocalInGrid = GridGeo.AbsoluteToLocal(InDragDropEvent.GetScreenSpacePosition());
+            bShouldUnplace = (LocalInGrid.X < 0.f);
+        }
+
+        if (bShouldUnplace)
+        {
+            UBackpackGridComponent* Backpack = GetBackpack();
+            APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
+            if (Backpack && Player)
+            {
+                // 通过 Y 坐标（X 钳制到面板内）确定目标槽位，再 Insert 到对应位置
+                int32 TargetSlot = Player->PendingRunes.Num();
+                if (PendingGridWidget)
+                {
+                    int32 NearestIdx;
+                    if (PendingGridWidget->GetNearestSlotAtScreenPos(
+                            InDragDropEvent.GetScreenSpacePosition(), NearestIdx))
+                        TargetSlot = FMath::Min(NearestIdx, Player->PendingRunes.Num());
+                }
+
+                Backpack->RemoveRune(RuneOp->DraggedRune.RuneGuid);
+                Player->PendingRunes.Insert(RuneOp->DraggedRune, TargetSlot);
+                RefreshPendingRuneSlots();
+                SelectedCell = FIntPoint(-1, -1);
+                OnSelectionChanged();
+                OnStatusMessage(FText::Format(
+                    NSLOCTEXT("Backpack", "UnplaceOK", "已取回：{0}"),
+                    FText::FromName(RuneOp->DraggedRune.RuneConfig.RuneName)));
+                return true;
+            }
+        }
+    }
+
     if (RuneOp->PendingSourceIndex >= 0)
     {
         APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
@@ -948,6 +695,10 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
             OnGridNeedsRefresh();
             return false;
         }
+
+        UE_LOG(LogTemp, Warning, TEXT("[BackpackDrop] Pending->Grid Drop pos=(%f,%f) Cell=(%d,%d)"),
+            InDragDropEvent.GetScreenSpacePosition().X, InDragDropEvent.GetScreenSpacePosition().Y,
+            TargetCol, TargetRow);
 
         const FRuneInstance PendingRune = Player->PendingRunes[RuneOp->PendingSourceIndex];
         if (Backpack->TryPlaceRune(PendingRune, FIntPoint(TargetCol, TargetRow)))
@@ -975,7 +726,6 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
         return false;
     }
 
-    // 拖到原格子，视为取消
     if (TargetCol == RuneOp->SrcCol && TargetRow == RuneOp->SrcRow)
     {
         OnGridNeedsRefresh();
@@ -989,8 +739,6 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
         return false;
     }
 
-    // 抓取偏移 = 抓取格 - 原始Pivot；新Pivot = 落点 - 抓取偏移
-    // 保证"抓哪格，那格就落在鼠标松开的位置"，多格形状整体跟着移动
     const FIntPoint GrabOffset = FIntPoint(RuneOp->SrcCol, RuneOp->SrcRow) - RuneOp->SrcPivot;
     const FIntPoint NewPivot   = FIntPoint(TargetCol, TargetRow) - GrabOffset;
 
@@ -1004,7 +752,6 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
         return true;
     }
 
-    // MoveRune 失败：检查目标格是否被另一个符文占用 → 尝试互换
     const int32 DstIdx = Backpack->GetRuneIndexAtCell(FIntPoint(TargetCol, TargetRow));
     if (DstIdx >= 0)
     {
@@ -1032,7 +779,6 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
                 return true;
             }
 
-            // 互换失败（形状冲突），放回原位
             Backpack->TryPlaceRune(RuneOp->DraggedRune, PivotA);
             Backpack->TryPlaceRune(RuneB, PivotB);
             OnStatusMessage(NSLOCTEXT("Backpack", "SwapFail", "无法互换：形状冲突"));
@@ -1044,6 +790,26 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
     OnStatusMessage(NSLOCTEXT("Backpack", "MoveFail", "无法移动：目标位置被占用"));
     OnGridNeedsRefresh();
     return false;
+}
+
+void UBackpackScreenWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+    bMouseDragging = false;
+    MouseDragTex   = nullptr;
+    HoverCol       = HoverRow       = -1;
+    PendingDragCol = PendingDragRow = -1;
+    OnGridNeedsRefresh();
+}
+
+// ============================================================
+//  手柄输入
+// ============================================================
+
+FReply UBackpackScreenWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+    bIsGamepadInputMode = false;
+    LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
+    return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
 
 FReply UBackpackScreenWidget::NativeOnKeyUp(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
@@ -1061,16 +827,15 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
 
-    // ── 浮空抓取图标（手柄 + 鼠标拖拽共用，每帧更新位置） ──────────────────
     if (GrabbedRuneIcon)
     {
-        const float FloatY = FMath::Sin(GetWorld()->GetTimeSeconds() * 3.f) * 5.f;
-        const float CellPx = StyleDA ? StyleDA->CellSize : 64.f;
-        const float HalfPx = CellPx * 0.5f;
+        const UBackpackStyleDataAsset* Style = BackpackGridWidget ? BackpackGridWidget->StyleDA.Get() : nullptr;
+        const float CellPx  = Style ? Style->CellSize : 64.f;
+        const float HalfPx  = CellPx * 0.5f;
+        const float FloatY  = FMath::Sin(GetWorld()->GetTimeSeconds() * 3.f) * 5.f;
 
         if (bMouseDragging && MouseDragTex)
         {
-            // 鼠标拖拽：图标跟随鼠标，直接出现在鼠标下方
             GrabbedRuneIcon->SetBrushFromTexture(MouseDragTex, false);
             GrabbedRuneIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
 
@@ -1079,40 +844,36 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
             T.Translation = LocalPos + FVector2D(-HalfPx, -HalfPx + FloatY);
             GrabbedRuneIcon->SetRenderTransform(T);
         }
-        else if (bGrabbingRune)
+        else if (bGrabbingRune && BackpackGridWidget)
         {
-            // 手柄抓取：图标跟随手柄光标格子中心
             UTexture2D* Tex = GetRuneIconAtCell(GrabbedFromCell.X, GrabbedFromCell.Y);
             if (Tex)
             {
                 GrabbedRuneIcon->SetBrushFromTexture(Tex, false);
                 GrabbedRuneIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
 
-                UWidget* GridWidget = GetWidgetFromName(TEXT("BackpackGrid"));
-                if (GridWidget)
+                const FGeometry GridGeo  = BackpackGridWidget->GetGridGeometry();
+                const FVector2D GridSize = GridGeo.GetLocalSize();
+                if (GridSize.X > 0.f && GridSize.Y > 0.f)
                 {
-                    const FGeometry& GridGeo = GridWidget->GetCachedGeometry();
-                    const FVector2D  GridSize = GridGeo.GetLocalSize();
-                    if (GridSize.X > 0.f && GridSize.Y > 0.f)
-                    {
-                        UBackpackGridComponent* BGComp = GetBackpack();
-                        const int32 TGW = BGComp ? BGComp->GridWidth  : 5;
-                        const int32 TGH = BGComp ? BGComp->GridHeight : 5;
-                        const float CellW = GridSize.X / TGW;
-                        const float CellH = GridSize.Y / TGH;
-                        const FVector2D CellCenter(
-                            (GamepadCursorCell.X + 0.5f) * CellW,
-                            (GamepadCursorCell.Y + 0.5f) * CellH);
+                    UBackpackGridComponent* BGComp = GetBackpack();
+                    const int32 TGW = BGComp ? BGComp->GridWidth  : 5;
+                    const int32 TGH = BGComp ? BGComp->GridHeight : 5;
 
-                        const FVector2D AbsPos   = GridGeo.LocalToAbsolute(CellCenter);
-                        const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(AbsPos);
+                    const float CellW = GridSize.X / TGW;
+                    const float CellH = GridSize.Y / TGH;
+                    const FVector2D CellCenter(
+                        (GamepadCursorCell.X + 0.5f) * CellW,
+                        (GamepadCursorCell.Y + 0.5f) * CellH);
 
-                        const float HalfSize = CellW * 0.35f;
-                        FWidgetTransform T;
-                        T.Translation = LocalPos + FVector2D(-HalfSize, -HalfSize + FloatY);
-                        T.Scale       = FVector2D(0.7f, 0.7f);
-                        GrabbedRuneIcon->SetRenderTransform(T);
-                    }
+                    const FVector2D AbsPos   = GridGeo.LocalToAbsolute(CellCenter);
+                    const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(AbsPos);
+
+                    const float HalfSize = CellW * 0.35f;
+                    FWidgetTransform T;
+                    T.Translation = LocalPos + FVector2D(-HalfSize, -HalfSize + FloatY);
+                    T.Scale       = FVector2D(0.7f, 0.7f);
+                    GrabbedRuneIcon->SetRenderTransform(T);
                 }
             }
             else
@@ -1128,7 +889,6 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 
     if (!bDirKeyHeld) return;
 
-    // 焦点丢失时 NativeOnKeyUp 可能未触发，双重确认按键实际还在被按住
     if (APlayerController* PC = GetOwningPlayer())
     {
         if (!PC->IsInputKeyDown(HeldDirKey))
@@ -1141,11 +901,8 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
     }
 
     HeldKeyTime += InDeltaTime;
-
-    // 初始延迟未到，不重复
     if (HeldKeyTime < DirRepeatInitial) return;
 
-    // 计算应当已发生的重复次数
     const int32 TargetCount = FMath::FloorToInt((HeldKeyTime - DirRepeatInitial) / DirRepeatRate);
     if (TargetCount <= LastRepeatCount) return;
 
@@ -1157,31 +914,12 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
     else if (HeldDirKey == EKeys::Gamepad_DPad_Right) MoveGamepadCursor( 1,  0);
 }
 
-void UBackpackScreenWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
-{
-    bMouseDragging = false;
-    MouseDragTex   = nullptr;
-    HoverCol       = HoverRow       = -1;
-    PendingDragCol = PendingDragRow = -1;
-    OnGridNeedsRefresh();
-}
-
-// ============================================================
-//  手柄输入
-// ============================================================
-
 FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
     const FKey Key = InKeyEvent.GetKey();
 
-    UE_LOG(LogTemp, Log, TEXT("[BackpackUI] KeyDown: %s  IsRepeat=%d  CursorCell=(%d,%d)  bGrabbing=%d"),
-        *Key.ToString(), InKeyEvent.IsRepeat() ? 1 : 0,
-        GamepadCursorCell.X, GamepadCursorCell.Y, bGrabbingRune ? 1 : 0);
-
-    // 任意手柄键按下 → 标记为手柄模式（鼠标移动时会重置为 false）
     bIsGamepadInputMode = true;
 
-    // 屏蔽摇杆数字键：防止传给 Super 触发 Slate 焦点导航
     if (Key == EKeys::Gamepad_RightStick_Up   || Key == EKeys::Gamepad_RightStick_Down  ||
         Key == EKeys::Gamepad_RightStick_Left  || Key == EKeys::Gamepad_RightStick_Right ||
         Key == EKeys::Gamepad_LeftStick_Up     || Key == EKeys::Gamepad_LeftStick_Down   ||
@@ -1190,14 +928,12 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         return FReply::Handled();
     }
 
-    // Special Left / Tab：关闭背包（绕过 Enhanced Input 的暂停屏蔽）
     if (Key == EKeys::Gamepad_Special_Left || Key == EKeys::Tab)
     {
         DeactivateWidget();
         return FReply::Handled();
     }
 
-    // D-Pad 移动光标：立即移动一格，同时启动重复计时
     auto StartDirRepeat = [&](int32 DC, int32 DR)
     {
         MoveGamepadCursor(DC, DR);
@@ -1213,7 +949,6 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
     if (Key == EKeys::Gamepad_DPad_Left)  return StartDirRepeat(-1,  0);
     if (Key == EKeys::Gamepad_DPad_Right) return StartDirRepeat( 1,  0);
 
-    // A / B / Y 不允许 OS 重复触发（防止按住 A 导致抓取后立即放置）
     if (!InKeyEvent.IsRepeat())
     {
         if (Key == EKeys::Gamepad_FaceButton_Bottom) { GamepadConfirm(); return FReply::Handled(); }
@@ -1235,14 +970,9 @@ void UBackpackScreenWidget::MoveGamepadCursor(int32 DCol, int32 DRow)
     const int32 W = Backpack ? Backpack->GridWidth  : 5;
     const int32 H = Backpack ? Backpack->GridHeight : 5;
 
-    const FIntPoint Before = GamepadCursorCell;
     GamepadCursorCell.X = FMath::Clamp(GamepadCursorCell.X + DCol, 0, W - 1);
     GamepadCursorCell.Y = FMath::Clamp(GamepadCursorCell.Y + DRow, 0, H - 1);
-    UE_LOG(LogTemp, Log, TEXT("[BackpackUI] MoveGamepadCursor (%d,%d)+(%d,%d) → (%d,%d)"),
-        Before.X, Before.Y, DCol, DRow, GamepadCursorCell.X, GamepadCursorCell.Y);
 
-    // 抓取中：SelectedCell 保持在抓取源格（黄色高亮 = "被抓的符文在哪"）
-    // 未抓取：SelectedCell 跟随光标（黄色高亮 = "光标在哪"）
     if (!bGrabbingRune)
     {
         SelectedCell = GamepadCursorCell;
@@ -1250,11 +980,9 @@ void UBackpackScreenWidget::MoveGamepadCursor(int32 DCol, int32 DRow)
     }
     else
     {
-        // 只刷新格子颜色（让悬浮目标格也能看到），不改变选中状态
         OnGridNeedsRefresh();
     }
 
-    // 更新 Tooltip（传入虚拟本地坐标，Tooltip 显示在光标格右侧）
     UpdateTooltipForCell(GamepadCursorCell.X, GamepadCursorCell.Y, FVector2D::ZeroVector);
 }
 
@@ -1263,17 +991,9 @@ void UBackpackScreenWidget::GamepadConfirm()
     UBackpackGridComponent* Backpack = GetBackpack();
     if (!Backpack) return;
 
-    UE_LOG(LogTemp, Log, TEXT("[BackpackUI] GamepadConfirm  bGrabbing=%d  CursorCell=(%d,%d)  GrabbedFrom=(%d,%d)"),
-        bGrabbingRune ? 1 : 0,
-        GamepadCursorCell.X, GamepadCursorCell.Y,
-        GrabbedFromCell.X, GrabbedFromCell.Y);
-
     if (!bGrabbingRune)
     {
-        // 第一步：抓取
         int32 RuneIdx = Backpack->GetRuneIndexAtCell(GamepadCursorCell);
-        UE_LOG(LogTemp, Log, TEXT("[BackpackUI]   → 尝试抓取 (%d,%d)  RuneIdx=%d"),
-            GamepadCursorCell.X, GamepadCursorCell.Y, RuneIdx);
         if (RuneIdx >= 0)
         {
             bGrabbingRune    = true;
@@ -1289,11 +1009,8 @@ void UBackpackScreenWidget::GamepadConfirm()
     }
     else
     {
-        // 第二步：放置或互换
         if (GamepadCursorCell == GrabbedFromCell)
         {
-            UE_LOG(LogTemp, Log, TEXT("[BackpackUI]   → 光标未移动，取消抓取"));
-            // 放回原位 = 取消
             GamepadCancel();
             return;
         }
@@ -1302,13 +1019,8 @@ void UBackpackScreenWidget::GamepadConfirm()
         int32 SrcIdx = Backpack->GetRuneIndexAtCell(GrabbedFromCell);
         int32 DstIdx = Backpack->GetRuneIndexAtCell(GamepadCursorCell);
 
-        UE_LOG(LogTemp, Log, TEXT("[BackpackUI]   → 放置 GrabbedFrom=(%d,%d) SrcIdx=%d → Target=(%d,%d) DstIdx=%d"),
-            GrabbedFromCell.X, GrabbedFromCell.Y, SrcIdx,
-            GamepadCursorCell.X, GamepadCursorCell.Y, DstIdx);
-
         if (SrcIdx < 0)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[BackpackUI]   → 源格子符文不存在，取消"));
             bGrabbingRune = false;
             GrabbedFromCell = FIntPoint(-1, -1);
             return;
@@ -1318,10 +1030,9 @@ void UBackpackScreenWidget::GamepadConfirm()
 
         if (DstIdx >= 0)
         {
-            // 目标有符文 → 互换
-            FRuneInstance RuneB     = Placed[DstIdx].Rune;
-            FIntPoint     PivotA    = Placed[SrcIdx].Pivot;
-            FIntPoint     PivotB    = Placed[DstIdx].Pivot;
+            FRuneInstance RuneB  = Placed[DstIdx].Rune;
+            FIntPoint     PivotA = Placed[SrcIdx].Pivot;
+            FIntPoint     PivotB = Placed[DstIdx].Pivot;
 
             Backpack->RemoveRune(RuneA.RuneGuid);
             Backpack->RemoveRune(RuneB.RuneGuid);
@@ -1335,21 +1046,11 @@ void UBackpackScreenWidget::GamepadConfirm()
         }
         else
         {
-            // 目标空格 → 移动
             FIntPoint SrcPivot = Placed[SrcIdx].Pivot;
             FIntPoint Offset   = GrabbedFromCell - SrcPivot;
             FIntPoint NewPivot = GamepadCursorCell - Offset;
 
-            UE_LOG(LogTemp, Log, TEXT("[BackpackUI]   → 移动计算: SrcPivot=(%d,%d)  GrabbedFrom=(%d,%d)  Offset=(%d,%d)  Cursor=(%d,%d)  NewPivot=(%d,%d)"),
-                SrcPivot.X, SrcPivot.Y,
-                GrabbedFromCell.X, GrabbedFromCell.Y,
-                Offset.X, Offset.Y,
-                GamepadCursorCell.X, GamepadCursorCell.Y,
-                NewPivot.X, NewPivot.Y);
-
             const bool bMoved = Backpack->MoveRune(RuneA.RuneGuid, NewPivot);
-            UE_LOG(LogTemp, Log, TEXT("[BackpackUI]   → MoveRune 结果: %s"), bMoved ? TEXT("成功") : TEXT("失败"));
-
             if (bMoved)
             {
                 OnStatusMessage(FText::Format(
@@ -1387,7 +1088,6 @@ void UBackpackScreenWidget::UpdateTooltipForCell(int32 Col, int32 Row, const FVe
         FPlacedRune PR = GetRuneAtCell(Col, Row);
         RuneTooltip->ShowRuneInfo(PR.Rune);
 
-        // 定位：偏移到鼠标/光标右下方
         const FVector2D Offset(16.f, -8.f);
         RuneTooltip->SetRenderTranslation(LocalPos + Offset);
     }
@@ -1395,33 +1095,4 @@ void UBackpackScreenWidget::UpdateTooltipForCell(int32 Col, int32 Row, const FVe
     {
         RuneTooltip->HideTooltip();
     }
-}
-
-// ============================================================
-//  鼠标移动：Tooltip 跟随
-// ============================================================
-
-FReply UBackpackScreenWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
-{
-    // 只有超过阈值的移动才切回鼠标模式
-    // 防止：① D-Pad 触发 Slate 虚拟光标重定位产生的小 delta ② 手无意碰到鼠标
-    const FVector2D Delta = InMouseEvent.GetCursorDelta();
-    if (Delta.SizeSquared() > 64.f)   // 8px 以上才视为真实鼠标操作
-    {
-        bIsGamepadInputMode = false;
-        UE_LOG(LogTemp, Verbose, TEXT("[BackpackUI] MouseMove delta=%.1f → 切换鼠标模式"), FMath::Sqrt(Delta.SizeSquared()));
-    }
-
-    int32 Col, Row;
-    if (GetGridCellAtScreenPos(InMouseEvent.GetScreenSpacePosition(), Col, Row))
-    {
-        const FVector2D LocalPos = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
-        UpdateTooltipForCell(Col, Row, LocalPos);
-    }
-    else if (RuneTooltip)
-    {
-        RuneTooltip->HideTooltip();
-    }
-
-    return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
