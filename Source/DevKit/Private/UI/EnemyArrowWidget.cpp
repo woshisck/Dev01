@@ -74,15 +74,23 @@ void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 
     TArray<AEnemyCharacterBase*> AllEnemies = GM->GetAllAliveEnemies();
 
-    // 投影所有敌人，判断是否有任意一个在屏幕内
     bool bAnyOnScreen = false;
     TArray<TPair<AEnemyCharacterBase*, FVector2D>> EnemyScreenData;
     EnemyScreenData.Reserve(AllEnemies.Num());
 
+    const FVector PlayerPos = PC->GetPawn()->GetActorLocation();
     for (AEnemyCharacterBase* E : AllEnemies)
     {
         FVector2D SP;
-        const bool bOn = IsOnScreen(E->GetActorLocation(), SP);
+        // 抬高投影点到胶囊中段，修正斜视角下脚底投影偏差
+        const FVector ProjectPoint = E->GetActorLocation() + FVector(0.f, 0.f, ArrowProjectionZOffset);
+        bool bOn = IsOnScreen(ProjectPoint, SP);
+        // 世界距离超限 → 强制视为离屏
+        if (bOn && ForceOffScreenDistance > 0.f)
+        {
+            if (FVector::Dist(ProjectPoint, PlayerPos) > ForceOffScreenDistance)
+                bOn = false;
+        }
         EnemyScreenData.Add({ E, SP });
         if (bOn) bAnyOnScreen = true;
     }
@@ -98,7 +106,6 @@ void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
     }
 
     // 按距离排序，取最近的 MaxArrows 个
-    const FVector PlayerPos = PC->GetPawn()->GetActorLocation();
     EnemyScreenData.Sort([&PlayerPos](const TPair<AEnemyCharacterBase*, FVector2D>& A,
                                       const TPair<AEnemyCharacterBase*, FVector2D>& B)
     {
@@ -148,8 +155,8 @@ bool UEnemyArrowWidget::IsOnScreen(const FVector& WorldPos, FVector2D& OutScreen
 
     FVector2D ViewSize;
     GetWorld()->GetGameViewport()->GetViewportSize(ViewSize);
-    return OutScreenPos.X >= 0.f && OutScreenPos.X <= ViewSize.X
-        && OutScreenPos.Y >= 0.f && OutScreenPos.Y <= ViewSize.Y;
+    return OutScreenPos.X >= OnScreenShrink && OutScreenPos.X <= ViewSize.X - OnScreenShrink
+        && OutScreenPos.Y >= OnScreenShrink && OutScreenPos.Y <= ViewSize.Y - OnScreenShrink;
 }
 
 FVector2D UEnemyArrowWidget::ClampToScreenEdge(const FVector2D& ScreenPos,

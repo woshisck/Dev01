@@ -7,6 +7,7 @@
 class UTutorialPopupWidget;
 class UDialogContentDA;
 class UYogSaveGame;
+class UEnemyArrowWidget;
 
 UCLASS()
 class DEVKIT_API AYogHUD : public AHUD
@@ -18,6 +19,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Tutorial")
 	TSubclassOf<UTutorialPopupWidget> TutorialPopupClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "EnemyArrow")
+	TSubclassOf<UEnemyArrowWidget> EnemyArrowWidgetClass;
+
 	// DA_DialogContent：在编辑器里填写所有弹窗事件页面内容
 	UPROPERTY(EditDefaultsOnly, Category = "Tutorial")
 	TObjectPtr<UDialogContentDA> DialogContentDA;
@@ -28,6 +32,9 @@ protected:
 private:
 	UPROPERTY()
 	TObjectPtr<UTutorialPopupWidget> TutorialPopupWidget;
+
+	UPROPERTY()
+	TObjectPtr<UEnemyArrowWidget> EnemyArrowWidget;
 
 	UFUNCTION()
 	void OnSaveGameLoaded(UYogSaveGame* SaveGame);

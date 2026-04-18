@@ -7,6 +7,42 @@
 
 ## 2026-04-19
 
+### [UI-009] 敌人方向箭头指示 — EnemyArrowWidget
+
+**状态**：已实现已编译，WBP_EnemyArrow 蓝图已配置
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `EnemyArrowWidget.h/.cpp`、`YogGameMode.h/.cpp`（`GetAllAliveEnemies`）、`YogHUD.h/.cpp` |
+| 触发条件 | 同时满足：① 所有存活敌人均不在屏幕内 ② 玩家 `AppearDelay` 秒内未受伤 |
+| 显示内容 | 最多 `MaxArrows` 个（默认 3）三角箭头，贴屏幕边缘，指向距离最近的敌人 |
+| 后方敌人 | `IsOnScreen` 对摄像机后方敌人做坐标镜像，箭头出现在玩家"背向"的屏幕边缘 |
+| 投影点修正 | `ArrowProjectionZOffset`（默认 60cm）将投影点从脚底抬至腰部，修正斜视角偏差 |
+| 离屏判断双保险 | `OnScreenShrink`（屏幕内缩像素）+ `ForceOffScreenDistance`（世界距离阈值，默认 1500cm） |
+| 受伤重置 | 订阅 `YogAbilitySystemComponent::ReceivedDamage`，受伤时重置倒计时 |
+| 敌人来源 | `YogGameMode::GetAllAliveEnemies()`，遍历 `AliveEnemies` 弱指针表，过滤 `IsAlive()` |
+| WBP 配置 | `WBP_EnemyArrow`，根节点 Canvas Panel 命名 `RootCanvas`（全屏）；Details 填 ArrowTexture、各 Config 参数 |
+| HUD 配置 | `BP_YogHUD` Details → EnemyArrow → `Enemy Arrow Widget Class = WBP_EnemyArrow` |
+
+#### Config 参数速查
+
+| 参数 | 默认 | 说明 |
+| ---- | ---- | ---- |
+| `AppearDelay` | 1.5s | 无伤多久后出现 |
+| `MaxArrows` | 3 | 最多同时显示几个 |
+| `ArrowSize` | 32px | 箭头图标大小 |
+| `EdgeMargin` | 60px | 距屏幕边缘留白 |
+| `OnScreenShrink` | 150px | 屏幕内缩判断区 |
+| `ForceOffScreenDistance` | 1500cm | 超距强制离屏 |
+| `ArrowProjectionZOffset` | 60cm | 投影点高度修正 |
+| `ArrowColor` | 黄色(1,0.8,0.2,0.9) | 箭头颜色 |
+
+**已知限制**
+
+- 箭头贴图约定顶点朝上（-Y 方向），`CalcArrowAngle` 已加 90° 补偿；贴图方向不同需在蓝图中调整 `ArrowColor` 或旋转贴图本身
+
+---
+
 ### [UI-008] 武器拾取浮窗 — WBP_WeaponFloat
 
 **状态**：已实现已编译
