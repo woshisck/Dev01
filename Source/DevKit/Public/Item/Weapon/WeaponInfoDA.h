@@ -20,6 +20,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息", meta = (MultiLine = true))
 	FText WeaponDescription;
 
+	// 子描述（留空则自动隐藏）
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息", meta = (MultiLine = true))
+	FText WeaponSubDescription;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息")
 	TObjectPtr<UTexture2D> Thumbnail;
 

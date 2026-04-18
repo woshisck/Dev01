@@ -52,6 +52,16 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 		if (bHasDesc) WeaponDescText->SetText(Info->WeaponDescription);
 	}
 
+	// ── 子描述（可选） ───────────────────────────────────────────
+	if (WeaponSubDescText)
+	{
+		const bool bHasSub = Info && !Info->WeaponSubDescription.IsEmpty();
+		WeaponSubDescText->SetVisibility(bHasSub
+			? ESlateVisibility::SelfHitTestInvisible
+			: ESlateVisibility::Collapsed);
+		if (bHasSub) WeaponSubDescText->SetText(Info->WeaponSubDescription);
+	}
+
 	// ── 激活区点阵 / 图像 ─────────────────────────────────────────
 	const FActivationZoneConfig& ZoneCfg = Def->BackpackConfig.ActivationZoneConfig;
 	const int32 GW = Def->BackpackConfig.GridWidth;

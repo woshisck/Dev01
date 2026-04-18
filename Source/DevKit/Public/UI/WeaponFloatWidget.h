@@ -16,12 +16,17 @@ struct FRuneShape;
  * 武器拾取浮窗 Widget
  *
  * WBP 需命名以下控件（全部 BindWidgetOptional）：
- *   WeaponThumbnail  Image        武器缩略图
- *   WeaponNameText   TextBlock    武器名称
- *   WeaponDescText   TextBlock    武器描述（空时自动隐藏）
- *   ZoneGrid1/2/3    CanvasPanel  激活区点阵（建议 60×60）
- *   Zone1Image/2/3   Image        激活区图像覆盖（提供时替代点阵）
- *   RuneListBox      VerticalBox  初始符文列表（C++ 动态填充）
+ *   WeaponThumbnail   Image        武器缩略图
+ *   WeaponNameText    TextBlock    武器名称
+ *   WeaponDescText    TextBlock    武器描述（空时自动隐藏）
+ *   WeaponSubDescText TextBlock    武器子描述（空时自动隐藏）
+ *   ZoneGrid1/2/3     CanvasPanel  激活区点阵（建议 60×60）
+ *   Zone1Image/2/3    Image        激活区图像覆盖（提供时替代点阵）
+ *   RuneListBox       VerticalBox  初始符文列表（C++ 动态填充）
+ *
+ * 底部按键提示（纯 WBP，无需 C++ 绑定）：
+ *   CommonActionWidget  自动切换手柄/键鼠图标（需在 WBP 里设置 InputAction）
+ *   TextBlock           提示文字，直接在 WBP 里填写即可
  */
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UWeaponFloatWidget : public UUserWidget
@@ -41,6 +46,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> WeaponDescText;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> WeaponSubDescText;
 
 	// 三个激活区点阵容器（ZoneGridN 与 ZoneNImage 互斥：有图像时隐藏点阵）
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
