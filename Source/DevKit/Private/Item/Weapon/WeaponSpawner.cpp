@@ -105,8 +105,18 @@ void AWeaponSpawner::Tick(float DeltaTime)
 
 		if (bShouldShow)
 		{
-			// 从玩家视角看向武器，Right 为其右侧方向
-			FVector Right = FVector::CrossProduct(FVector::UpVector, ToWeapon).GetSafeNormal();
+			// 45°斜视角：用摄像机 Right 向量投影到水平面，确保偏移与屏幕对齐
+			FVector Right = FVector::RightVector; // 兜底
+			if (APlayerController* PC = NearbyPlayer->GetController<APlayerController>())
+			{
+				if (PC->PlayerCameraManager)
+				{
+					FVector CamRight = FRotationMatrix(PC->PlayerCameraManager->GetCameraRotation())
+						.GetScaledAxis(EAxis::Y);
+					CamRight.Z = 0.f;
+					Right = CamRight.GetSafeNormal();
+				}
+			}
 			FVector WidgetPos = GetActorLocation()
 				+ Right * WidgetSideOffset
 				+ FVector(0.f, 0.f, WidgetZOffset);
