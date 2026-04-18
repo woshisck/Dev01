@@ -50,7 +50,6 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 
 	WeaponInfoWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("WeaponInfoWidgetComp"));
 	WeaponInfoWidgetComp->SetupAttachment(RootComponent);
-	WeaponInfoWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
 	WeaponInfoWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
 	WeaponInfoWidgetComp->SetVisibility(false);
 }
@@ -91,7 +90,7 @@ void AWeaponSpawner::Tick(float DeltaTime)
 	UWorld* World = GetWorld();
 	WeaponMesh->AddRelativeRotation(FRotator(0.0f, World->GetDeltaSeconds() * WeaponMeshRotationSpeed, 0.0f));
 
-	// 朝向判断：玩家在范围内且面朝武器时显示浮窗（±105°以内）
+	// 朝向判断 + 动态偏移：浮窗始终在武器右侧，不遮挡玩家和武器
 	if (bPlayerInRange && NearbyPlayer.IsValid() && WeaponInfoWidgetComp)
 	{
 		FVector ToWeapon = GetActorLocation() - NearbyPlayer->GetActorLocation();
@@ -100,7 +99,19 @@ void AWeaponSpawner::Tick(float DeltaTime)
 		FVector Forward = NearbyPlayer->GetActorForwardVector();
 		Forward.Z = 0.f;
 		Forward.Normalize();
-		WeaponInfoWidgetComp->SetVisibility(FVector::DotProduct(Forward, ToWeapon) > -0.3f);
+
+		const bool bShouldShow = FVector::DotProduct(Forward, ToWeapon) > -0.3f;
+		WeaponInfoWidgetComp->SetVisibility(bShouldShow);
+
+		if (bShouldShow)
+		{
+			// 从玩家视角看向武器，Right 为其右侧方向
+			FVector Right = FVector::CrossProduct(FVector::UpVector, ToWeapon).GetSafeNormal();
+			FVector WidgetPos = GetActorLocation()
+				+ Right * WidgetSideOffset
+				+ FVector(0.f, 0.f, WidgetZOffset);
+			WeaponInfoWidgetComp->SetWorldLocation(WidgetPos);
+		}
 	}
 }
 
