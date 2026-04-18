@@ -5,6 +5,7 @@
 #include "Components/OverlaySlot.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
+#include "Components/SizeBox.h"
 
 static const FLinearColor PendingEmptyColor (0.40f, 0.40f, 0.42f, 1.00f);
 
@@ -31,9 +32,15 @@ void UPendingGridWidget::BuildSlots()
 
     const int32 Cols       = FMath::Max(1, PendingGridCols);
     const int32 Rows       = FMath::Max(1, PendingGridRows);
-    const int32 TotalSlots = Cols * Rows;
 
-    for (int32 i = 0; i < TotalSlots; i++)
+    if (PendingGridSizeBox)
+    {
+        const float SlotTotal = CellSize + CellPadding * 2.f;
+        PendingGridSizeBox->SetWidthOverride(Cols * SlotTotal);
+        PendingGridSizeBox->SetHeightOverride(Rows * SlotTotal);
+    }
+
+    for (int32 i = 0; i < Cols * Rows; i++)
     {
         const int32 Col = i % Cols;
         const int32 Row = i / Cols;

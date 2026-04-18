@@ -1,9 +1,9 @@
 # 背包系统 UI 制作手册（零基础版）
 
-> 适用范围：WBP_BackpackScreen / WBP_RuneInfoCard 蓝图制作  
+> 适用范围：WBP_RuneSlot / WBP_BackpackGrid / WBP_PendingGrid / WBP_BackpackScreen 蓝图制作  
 > 适用人群：完全不熟悉 UE5 蓝图和 UMG 的人  
 > 配套文档：[背包系统配置指南](../FeatureConfig/BackpackSystem_Guide.md)  
-> 最后更新：2026-04-17
+> 最后更新：2026-04-18
 
 ---
 
@@ -11,280 +11,424 @@
 
 **格子和颜色全部由 C++ 自动生成，你不需要写任何蓝图节点。**
 
-只需要在 Designer 里放好 7 个指定名称的控件，C++ 就会自动找到它们并填充内容。
+只需要在各 WBP 的 Designer 里放好指定名称的控件，C++ 就会自动找到并填充。
+
+**控件命名区分大小写，名字错了 C++ 找不到！**
 
 **本文约定：**
 
-- `Content Browser`：编辑器左下角的资源浏览器
-- `Details`：选中物体后右边出现的属性面板
-- `Hierarchy`：Widget 蓝图左边的层级面板
-- `Designer`：Widget 蓝图里的布局编辑区域
-- `Event Graph`：Widget 蓝图里的逻辑编辑区域（本次**不需要动**）
+- `Content Browser`：编辑器左下角资源浏览器
+- `Details`：选中控件后右侧属性面板
+- `Hierarchy`：Widget 蓝图左侧层级面板
+- `Designer`：Widget 蓝图布局编辑区域
+- `Palette`：Widget 蓝图左侧可拖入的控件列表
 
 ---
 
-## 第一步：制作 WBP_RuneInfoCard（符文信息卡）
+## 整体 Widget 架构
 
-> 先做这个，因为第二步的背包 Widget 里需要用到它。
+```text
+WBP_BackpackScreen      ← 主界面（BackpackScreenWidget）
+├── WBP_BackpackGrid    ← 主格子（BackpackGridWidget），变量名: BackpackGridWidget
+│   ├── SizeBox         ← 变量名: GridSizeBox（固定格子像素尺寸）
+│   │   └── UniformGridPanel ← 变量名: BackpackGrid ★（C++ 在此生成格子）
+│   ├── Button          ← 变量名: HeatPhaseDot0（可选，热度按钮）
+│   ├── Button          ← 变量名: HeatPhaseDot1（可选）
+│   ├── Button          ← 变量名: HeatPhaseDot2（可选）
+│   └── TextBlock       ← 变量名: GamepadHintLabel（可选，手柄提示）
+│
+├── WBP_PendingGrid     ← 待放置区（PendingGridWidget），变量名: PendingGridWidget
+│   └── SizeBox         ← 变量名: PendingGridSizeBox（固定格子像素尺寸）
+│       └── UniformGridPanel ← 变量名: PendingRuneGrid ★（C++ 在此生成格子）
+│
+├── WBP_RuneInfoCard    ← 符文信息卡，变量名: RuneInfoCard
+├── Image               ← 浮空拖拽图标，变量名: GrabbedRuneIcon
+└── Button              ← 出售按钮，变量名: SellButton
+```
+
+> ★ = 必须放且命名精确，其余带"可选"标注的不放也不会报错。
+
+---
+
+## 第一步：制作 WBP_RuneSlot（单格子）
+
+> 这是主格子里每一格的 Widget，由 BackpackGridWidget 在运行时自动创建，不需要手动放入。
 
 ### 1.1 创建 Widget
 
-1. 在 Content Browser 右键 → `User Interface → Widget Blueprint`
-2. 弹出"Pick Parent Class"，搜索 **`RuneInfoCardWidget`** → Select
-3. 命名 **`WBP_RuneInfoCard`**，保存到 `Content/UI/Playtest_UI/`
+1. Content Browser 右键 → `User Interface → Widget Blueprint`
+2. 搜索父类 **`RuneSlotWidget`** → Select
+3. 命名 **`WBP_RuneSlot`**，保存到 `Content/UI/Playtest_UI/BackpackGrid/`
 
 ### 1.2 Designer 层级结构
 
-在 Hierarchy 面板按以下顺序搭建（缩进表示父子关系）：
-
 ```text
-Overlay（根节点，默认就有）
-├── Image               ← 命名: CardBG
-└── Vertical Box        ← 命名: CardContent
-    ├── Image           ← 命名: CardIcon
-    ├── Text Block      ← 命名: CardName
-    ├── Text Block      ← 命名: CardDesc
-    └── Text Block      ← 命名: CardUpgrade
+Overlay（根节点）
+├── Image    ← 变量名: CellBG         （格子背景色，C++ 控制颜色）
+├── Image    ← 变量名: ActiveZoneOverlay（激活区特效层，C++ 控制显隐）
+└── Image    ← 变量名: CellIcon        （符文图标，C++ 控制）
 ```
 
-> ⚠️ 控件名必须和上面完全一致，包括大小写。名字错了 C++ 找不到。
+三个控件均为 **BindWidgetOptional**（名字不对只是无效，不会崩）。
 
-### 1.3 设置各控件参数
+### 1.3 各控件 Slot 设置
 
-#### Overlay（根节点）
+所有三个 Image 的 Overlay Slot：
 
-- Details → Behavior → `Is Variable`：**打勾**
+| 属性 | 值 |
+|------|-----|
+| Horizontal Alignment | **Fill** |
+| Vertical Alignment | **Fill** |
 
-#### CardBG（Image，背景色）
+ActiveZoneOverlay 额外：
 
-- 选中 CardBG → 在 Hierarchy 面板右边看到 **Slot** 区域（不是 Details！）
-- Slot → Horizontal Alignment：**Fill**
-- Slot → Vertical Alignment：**Fill**
-- Details → Appearance → Brush → Draw As：**Image** 或 **Box**（颜色随意，改成深色即可）
-- Details → Color And Opacity：改成深色（例如 R=0.1, G=0.1, B=0.15, A=1）
-
-#### CardContent（Vertical Box，内容容器）
-
-- Slot → Horizontal Alignment：**Fill**
-- Slot → Vertical Alignment：**Fill**
-- Slot → Padding：**12**（四边都填 12）
-
-#### CardIcon（Image，符文图标）
-
-- Size To Content：**打勾**（自动匹配图片大小）
-- 或者手动设置 Size X/Y = 80 × 80
-
-#### CardName（Text Block，符文名称）
-
-- Details → Content → Text：`符文名称`（占位文字）
-- Details → Appearance → Font → Size：**16**，可以选 Bold
-
-#### CardDesc（Text Block，符文描述）
-
-- Details → Content → Auto Wrap Text：**打勾**（描述文字自动换行）
-- Font Size：**12**
-
-#### CardUpgrade（Text Block，升级等级）
-
-- Font Size：**11**
-- Details → Behavior → Visibility：**Collapsed**（默认隐藏，C++ 自动控制）
-
-### 1.4 设置 Widget 大小
-
-点击 Hierarchy 面板里最顶层的节点（Overlay 根节点）：
-
-- 方案 A：Details → Layout → **Size to Content**：打勾（自动适应内容大小）
-- 方案 B：在外面套一个 SizeBox，固定宽度（例如 240px）
+- Details → Behavior → Visibility：**Collapsed**（C++ 在激活区格子时自动显示）
 
 ---
 
-## 第二步：制作 WBP_BackpackScreen（背包主界面）
+## 第二步：制作 WBP_RuneInfoCard（符文信息卡）
 
 ### 2.1 创建 Widget
+
+1. Content Browser 右键 → `User Interface → Widget Blueprint`
+2. 搜索父类 **`RuneInfoCardWidget`** → Select
+3. 命名 **`WBP_RuneInfoCard`**，保存到 `Content/UI/Playtest_UI/`
+
+### 2.2 Designer 层级结构
+
+```text
+Overlay（根节点）
+├── Image           ← 变量名: CardBG
+└── Vertical Box    ← 变量名: CardContent
+    ├── Image       ← 变量名: CardIcon
+    ├── Text Block  ← 变量名: CardName
+    ├── Text Block  ← 变量名: CardDesc
+    └── Text Block  ← 变量名: CardUpgrade
+```
+
+### 2.3 各控件设置
+
+| 控件 | 关键属性 |
+|------|---------|
+| CardBG | Slot → Fill/Fill；Color：深色（R=0.1, G=0.1, B=0.15） |
+| CardContent | Slot → Fill/Fill；Padding：12（四边） |
+| CardIcon | Size 80×80 或勾选 Size To Content |
+| CardName | Font Size 16，Bold |
+| CardDesc | Font Size 12；勾选 Auto Wrap Text |
+| CardUpgrade | Font Size 11；Visibility → **Collapsed** |
+
+---
+
+## 第三步：制作 WBP_BackpackGrid（主格子 Widget）
+
+### 3.1 创建 Widget
+
+1. Content Browser 右键 → `User Interface → Widget Blueprint`
+2. 搜索父类 **`BackpackGridWidget`** → Select
+3. 命名 **`WBP_BackpackGrid`**，保存到 `Content/UI/Playtest_UI/BackpackGrid/`
+
+### 3.2 Designer 层级结构
+
+```text
+Canvas Panel（根节点，或 Overlay 亦可）
+├── SizeBox                     ← 变量名: GridSizeBox ★
+│   └── UniformGridPanel        ← 变量名: BackpackGrid ★
+│
+├── Button                      ← 变量名: HeatPhaseDot0（可选）
+├── Button                      ← 变量名: HeatPhaseDot1（可选）
+├── Button                      ← 变量名: HeatPhaseDot2（可选）
+└── Text Block                  ← 变量名: GamepadHintLabel（可选）
+```
+
+### 3.3 GridSizeBox 设置
+
+SizeBox 不需要手动设置宽高，C++ 在 BuildGrid 时会自动写入精确像素尺寸（保证每格 1:1 正方形）。
+
+- Slot → Horizontal Alignment：**Left**（不要 Fill，否则 SizeBox 会被拉伸）
+- Slot → Vertical Alignment：**Top**
+
+### 3.4 BackpackGrid (UniformGridPanel) 设置
+
+- `Is Variable`：**打勾**
+- 变量名：**`BackpackGrid`**（大小写精确）
+- 面板内**不要放任何子控件**，C++ 自动生成
+
+Slot（位于 SizeBox 内）：
+
+| 属性 | 值 |
+|------|-----|
+| Horizontal Alignment | **Fill** |
+| Vertical Alignment | **Fill** |
+
+### 3.5 热度阶段点按钮（可选）
+
+在 Canvas Panel 根层放三个 **Button**：
+
+| 控件 | 变量名 | 说明 |
+|------|--------|------|
+| Button | `HeatPhaseDot0` | 热度阶段 1 |
+| Button | `HeatPhaseDot1` | 热度阶段 2 |
+| Button | `HeatPhaseDot2` | 热度阶段 3 |
+
+建议做成小圆点样式（Size 16×16，圆角 Box），水平排列在格子右上方或下方。  
+C++ 会自动绑定点击事件（不需要蓝图节点），点击时切换该阶段的单阶聚焦视图。
+
+### 3.6 GamepadHintLabel（可选）
+
+放一个 **Text Block**：
+
+- 变量名：**`GamepadHintLabel`**
+- Details → Behavior → Visibility：**Collapsed**（手柄模式时 C++ 自动显示）
+- 内容由 C++ 写入，Designer 留空即可
+
+### 3.7 填写 Details 配置
+
+打开 WBP_BackpackGrid → 右上角 Details（非控件 Details）：
+
+| 属性 | 填写内容 |
+|------|---------|
+| Slot → Run Slot Class | **WBP_RuneSlot**（第一步创建的）|
+| Style DA | **DA_BackpackStyle**（第六步创建）|
+
+---
+
+## 第四步：制作 WBP_PendingGrid（待放置区 Widget）
+
+### 4.1 创建 Widget
+
+1. Content Browser 右键 → `User Interface → Widget Blueprint`
+2. 搜索父类 **`PendingGridWidget`** → Select
+3. 命名 **`WBP_PendingGrid`**，保存到 `Content/UI/Playtest_UI/BackpackGrid/`
+
+### 4.2 Designer 层级结构
+
+```text
+Canvas Panel（根节点）
+└── SizeBox                     ← 变量名: PendingGridSizeBox ★
+    └── UniformGridPanel        ← 变量名: PendingRuneGrid ★
+```
+
+### 4.3 各控件设置
+
+**SizeBox (PendingGridSizeBox)**：
+
+- `Is Variable`：**打勾**
+- Slot → Horizontal Alignment：**Left**
+- 宽高不用手动填，BuildSlots 时 C++ 自动设置
+
+**UniformGridPanel (PendingRuneGrid)**：
+
+- `Is Variable`：**打勾**
+- 变量名：**`PendingRuneGrid`**
+- 面板内**不要放任何子控件**
+
+Slot（位于 SizeBox 内）：
+
+| 属性 | 值 |
+|------|-----|
+| Horizontal Alignment | **Fill** |
+| Vertical Alignment | **Fill** |
+
+### 4.4 填写 Details 配置
+
+| 属性 | 填写内容 |
+|------|---------|
+| Config → Pending Grid Cols | **2**（列数） |
+| Config → Pending Grid Rows | **4**（行数） |
+| Style DA | **DA_BackpackStyle** |
+
+---
+
+## 第五步：制作 WBP_BackpackScreen（主界面）
+
+### 5.1 创建 Widget
 
 1. Content Browser 右键 → `User Interface → Widget Blueprint`
 2. 搜索父类 **`BackpackScreenWidget`** → Select
 3. 命名 **`WBP_BackpackScreen`**，保存到 `Content/UI/Playtest_UI/`
 
-### 2.2 画布尺寸
+### 5.2 画布尺寸
 
-点击 Designer 画布空白区域（不选中任何控件）→ Details → **Screen Size**：
+点击 Designer 画布空白区域 → Details → **Screen Size**：Width 1920 / Height 1080
 
-- Width：**1920**，Height：**1080**
-
-### 2.3 层级结构总览
+### 5.3 层级结构
 
 ```text
-[Canvas Panel]（全屏）
-├── [Border] 半透明背景                    ← 全屏铺满
-│   └── [Horizontal Box] 两栏布局
-│       ├── [Vertical Box] 左列
-│       │   ├── [Text] "待放置"
-│       │   └── [UniformGridPanel]          ← 变量名: PendingRuneGrid ★
-│       │
-│       ├── [Vertical Box] 中列
-│       │   ├── [Text] "背包"
-│       │   └── [UniformGridPanel]          ← 变量名: BackpackGrid ★
-│       │
-│       └── WBP_RuneInfoCard 实例           ← 变量名: RuneInfoCard ★
+Canvas Panel（全屏）
+├── Border                          ← 半透明背景
+│   └── Horizontal Box              ← 三栏布局
+│       ├── WBP_PendingGrid 实例    ← 变量名: PendingGridWidget ★
+│       ├── WBP_BackpackGrid 实例   ← 变量名: BackpackGridWidget ★
+│       └── WBP_RuneInfoCard 实例   ← 变量名: RuneInfoCard ★
 │
-├── [Image] 浮空拖拽图标                   ← 变量名: GrabbedRuneIcon ★
-└── [Button] 出售按钮                      ← 变量名: SellButton ★
+├── Image                           ← 变量名: GrabbedRuneIcon ★
+└── Button                          ← 变量名: SellButton ★
 ```
 
-> ★ = C++ 需要绑定的控件，名字必须精确匹配
+### 5.4 搭建步骤
 
-### 2.4 搭建步骤
+#### 步骤 A：Canvas Panel（全屏）
 
-#### 步骤 A：放 Canvas Panel
-
-从 Palette 搜索 **Canvas Panel** 拖到画布。
-
-选中它 → Details：
-
-- Anchors：点锚点图标，选**全屏拉伸**（四个角的那种）
+- Anchors：全屏拉伸（四角那种）
 - Offset Left/Top/Right/Bottom：全部 **0**
 
-#### 步骤 B：放半透明背景 Border
-
-在 Canvas Panel 里放一个 **Border**：
+#### 步骤 B：Border（半透明背景）
 
 - Anchors：全屏拉伸，Offset 全 0
-- Details → Brush → Tint：R=0.06, G=0.06, B=0.10, A=**0.92**（深蓝黑半透明）
+- Brush → Tint：R=0.06, G=0.06, B=0.10, A=0.92
 
-#### 步骤 C：放两栏 Horizontal Box
+#### 步骤 C：Horizontal Box（三栏）
 
-在 Border 里放 **Horizontal Box**：
+在 Border 里放 Horizontal Box：
 
 - Anchors：居中（中间那个），Alignment X=0.5, Y=0.5
-- Size X：约 **800**，Size Y：约 **600**
+- 尺寸根据实际格子数量调整
 
-> 后续可以根据实际格子数量和格子尺寸来调整。
+#### 步骤 D：WBP_PendingGrid（左列）
 
-#### 步骤 D：左列（待放置区）
+在 Horizontal Box 里拖入 **WBP_PendingGrid** 实例：
 
-在 Horizontal Box 里放 **Vertical Box**，命名 `LeftColumn`：
-
-- Slot → Size：**Auto**（不要用 Fill，否则格子会被拉伸）
-
-在 LeftColumn 里放：
-
-1. **Text Block**，Content = `待放置`，Font Size 14，居中
-2. **Uniform Grid Panel** → `Is Variable` 打勾，变量名改为 **`PendingRuneGrid`**
-
-> ⚠️ `PendingRuneGrid` 里面**不要放任何控件**，C++ 会自动生成格子。
-
-#### 步骤 E：中列（主背包网格）
-
-在 Horizontal Box 里再放一个 **Vertical Box**，命名 `CenterColumn`：
-
-- Slot → Size：**Auto**（同上，必须是 Auto，否则格子会被拉伸变形）
-
-在 CenterColumn 里放：
-
-1. **Text Block**，Content = `背包`，Font Size 14，居中
-2. **Uniform Grid Panel** → `Is Variable` 打勾，变量名改为 **`BackpackGrid`**
-
-> ⚠️ `BackpackGrid` 里面**不要放任何控件**，C++ 会自动生成格子。
-
-#### 步骤 F：右列（符文信息卡）
-
-在 Horizontal Box 里放第三个子控件：直接**拖入 `WBP_RuneInfoCard`**（从 Content Browser 拖）。
-
-- `Is Variable` 打勾，变量名改为 **`RuneInfoCard`**
+- `Is Variable`：**打勾**
+- 变量名：**`PendingGridWidget`**
+- Slot → Size：**Auto**（重要：不要 Fill）
 - Slot → Vertical Alignment：**Center**
-- Details → Behavior → Visibility：**Collapsed**（C++ 自动控制显示）
 
-> ⚠️ `RuneInfoCard` 必须是 Horizontal Box 的**最后一个子控件**（层级最下方），确保渲染在最上层。
+#### 步骤 E：WBP_BackpackGrid（中列）
 
-#### 步骤 G：浮空图标 Image（拖拽跟手用）
+在 Horizontal Box 里拖入 **WBP_BackpackGrid** 实例：
 
-**回到 Canvas Panel 根层**（不要放在 Border 里），放一个 **Image**：
+- `Is Variable`：**打勾**
+- 变量名：**`BackpackGridWidget`**
+- Slot → Size：**Auto**（重要：不要 Fill）
+- Slot → Vertical Alignment：**Center**
 
-- `Is Variable` 打勾，变量名改为 **`GrabbedRuneIcon`**
-- Details → Behavior → Visibility：**Collapsed**
-- Details → Behavior → `Is Hit Test Invisible`：**打勾**
-- Size：**64 × 64**（和格子同尺寸）
-- 位置随意，C++ 每帧会自动把它移到鼠标/手柄光标位置
+#### 步骤 F：WBP_RuneInfoCard（右列）
 
-#### 步骤 H：出售按钮
+在 Horizontal Box 里拖入 **WBP_RuneInfoCard** 实例：
+
+- `Is Variable`：**打勾**
+- 变量名：**`RuneInfoCard`**
+- Slot → Vertical Alignment：**Center**
+- Details → Behavior → Visibility：**Collapsed**（C++ 自动控制）
+
+> ⚠️ RuneInfoCard 必须是 Horizontal Box 的**最后一个子控件**（层级最下方）。
+
+#### 步骤 G：GrabbedRuneIcon（浮空图标）
+
+**回到 Canvas Panel 根层**（不在 Border 里），放一个 **Image**：
+
+- `Is Variable`：**打勾**
+- 变量名：**`GrabbedRuneIcon`**
+- Visibility：**Collapsed**
+- Is Hit Test Invisible：**打勾**
+- Size：64×64
+
+#### 步骤 H：SellButton（出售按钮）
 
 在 Canvas Panel 根层放一个 **Button**：
 
-- `Is Variable` 打勾，变量名改为 **`SellButton`**
-- 在 Button 里放一个 Text Block，内容 = `出售`
-- 位置：拖到背包界面右下角合适的地方
+- `Is Variable`：**打勾**
+- 变量名：**`SellButton`**
+- 内部放 Text Block，内容 = `出售`
+- 拖到右下角合适位置
 
 ---
 
-## 第三步：配置视觉样式 DataAsset
+## 第六步：配置 DA_BackpackStyle
 
-格子颜色、尺寸等视觉参数通过 DataAsset 配置，不需要改代码。
-
-### 3.1 创建 DA_BackpackStyle
+### 6.1 创建
 
 Content Browser → `+ Add → Miscellaneous → Data Asset` → 选 **`BackpackStyleDataAsset`**
 
 命名 **`DA_BackpackStyle`**，保存到 `Content/UI/Playtest_UI/`
 
-### 3.2 填入 WBP_BackpackScreen
+### 6.2 填入各 Widget
 
-打开 `WBP_BackpackScreen` → Details 面板（右上角，不是控件 Details） → 搜索 **Style DA** → 填入 `DA_BackpackStyle`
+| Widget | 属性位置 | 填写 |
+|--------|---------|------|
+| WBP_BackpackGrid | Details → Style DA | DA_BackpackStyle |
+| WBP_PendingGrid | Details → Style DA | DA_BackpackStyle |
 
-> 如果看不到 Style DA，确认父类是 BackpackScreenWidget（不是 UserWidget）。
+（WBP_BackpackScreen 本身无 StyleDA 字段，通过子 Widget 分别引用）
 
-### 3.3 调整颜色（可选，有默认值）
+### 6.3 颜色配置
 
-双击打开 `DA_BackpackStyle`，可以修改：
+双击打开 `DA_BackpackStyle`，可修改所有颜色：
 
-| 参数 | 默认颜色 | 说明 |
-| --- | --- | --- |
-| Empty Color | 灰 | 未激活区空格 |
-| Empty Active Color | 深蓝 | 激活区空格 |
+**格子颜色：**
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| Empty Color | 中灰 | 非激活区空格 |
+| Occupied Inactive Color | 深紫灰 | 非激活区有符文 |
 | Occupied Active Color | 亮蓝 | 激活区有符文 |
-| Occupied Inactive Color | 橙 | 非激活区有符文 |
-| Selected Color | 金黄 | 鼠标点击选中 |
+| Selected Color | 金黄 | 选中格 |
 | Hover Color | 绿 | 拖拽悬浮目标格 |
-| Cell Size | 64 px | 格子边长 |
+| Grabbed Source Color | 亮黄 | 被抓起的源格 |
+
+**热度阶段颜色（自填，三色叠加显示区域）：**
+
+| 参数 | 说明 |
+|------|------|
+| Heat Zone 0 Color | 热度阶段 1 的区域颜色（最内层，优先级最高） |
+| Heat Zone 1 Color | 热度阶段 2 的区域颜色 |
+| Heat Zone 2 Color | 热度阶段 3 的区域颜色（最外层） |
+
+> 三色建议从亮到暗渐进（如亮蓝→中蓝→暗蓝），视觉上体现热度由内向外递减。
+
+**格子尺寸：**
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| Cell Size | 64 px | 格子边长（SizeBox 自动计算总尺寸） |
+| Cell Padding | 2 px | 格子间距 |
+| Cell Corner Radius | 3 px | 格子圆角 |
+| Icon Padding | 6 px | 符文图标内边距 |
 
 ---
 
-## 第四步：配置背包网格大小
+## 第七步：配置背包网格大小
 
 打开角色蓝图 **B_PlayerCharacterBase**：
 
-1. 在 Components 面板找到 `BackpackGridComponent`
-2. Details → **Config → Grid Width**：列数（默认 5）
-3. Details → **Config → Grid Height**：行数（默认 5）
+1. Components 面板 → `BackpackGridComponent`
+2. Details → Config → **Grid Width**（列数，默认 5）
+3. Details → Config → **Grid Height**（行数，默认 5）
+
+激活区形状在武器 DA（`WeaponDefinition`）里配置：**Backpack Config → Activation Zone Config → Zone Shapes**。  
+每个 Shape 是一组格子坐标（X=列，Y=行，从 0 开始），最多 3 阶。
 
 ---
 
-## 第五步：验证
+## 第八步：验证
 
-在编辑器按 Play，然后：
+按 Play，然后：
 
-1. 走近场景中的 `BP_RewardPickup` 按 `E`，三选一选一个符文
+1. 走近场景 `BP_RewardPickup` 按 `E` 选一个符文
 2. 按 **Tab** 打开背包
-3. 验证以下内容：
 
 | 检查 | 正常现象 |
-| --- | --- |
-| 格子出现 | 灰色/蓝色格子填满背包区 |
-| 符文图标显示 | 刚选的符文出现在格子里 |
-| 点格子 | 右边出现 RuneInfoCard 显示符文名称和描述 |
-| 拖拽格子 | 按住符文拖动，浮空图标紧随鼠标，松手放置 |
-| 悬浮高亮 | 拖拽时，悬浮的目标格变绿 |
-| 出售 | 点选格子后点"出售"按钮，符文消失 |
+|------|---------|
+| 主格子出现 | 灰色/彩色格子填满背包区，格子 1:1 正方形 |
+| 激活区颜色 | 三个热度阶段各自不同颜色叠加显示，热度1最亮 |
+| 热度切换 | 键盘 1/2/3 → 单阶聚焦显示；再按同键 → 恢复叠加；手柄 L1/R1 循环 |
+| 热度按钮 | 鼠标点击 HeatPhaseDot0/1/2 与键盘 1/2/3 效果相同 |
+| 手柄提示 | 手柄输入时 GamepadHintLabel 出现"L1/R1 切换热度显示" |
+| 符文图标 | 选取符文后图标出现在格子里 |
+| 拖拽放置 | 按住符文拖动，浮空图标跟鼠标，松手放置 |
+| 待放置区 | 左侧出现 2×4 灰色槽位，选符文后图标填入 |
+| 出售 | 选中格子点"出售"按钮，符文消失 |
 
 ---
 
 ## 遇到问题
 
 | 问题 | 解决方法 |
-| --- | --- |
-| 格子没出现 | 检查 `BackpackGrid` 变量名拼写（大小写）；确认 UniformGridPanel 里没有手动放子控件 |
-| 格子被拉伸不是正方形 | 包含 BackpackGrid 的 VerticalBox Slot → Size 改为 **Auto** |
-| RuneInfoCard 没出现 | 检查变量名 `RuneInfoCard`；确认是 WBP_RuneInfoCard 实例（父类 RuneInfoCardWidget）；确认它是 HorizontalBox 最后一个子控件 |
+|------|---------|
+| 格子没出现 | 检查 `BackpackGrid` / `PendingRuneGrid` 变量名（大小写）；UniformGridPanel 里不要手放子控件 |
+| 格子不是正方形 | 检查 SizeBox（`GridSizeBox` / `PendingGridSizeBox`）是否放且命名正确；子控件 Slot 是否为 Fill/Fill |
+| 子 Widget 绑定失败 | BackpackGridWidget / PendingGridWidget 的变量名是否精确（大小写）；父类选择是否正确 |
+| 热度按钮无反应 | 确认按钮在 **WBP_BackpackGrid** 的 Designer 里（不在 WBP_BackpackScreen 里）；变量名精确匹配 |
+| 激活区颜色没变 | DA_BackpackStyle 是否填入 WBP_BackpackGrid 的 Style DA 字段；武器 DA 的 Zone Shapes 是否填写 |
+| RuneInfoCard 没出现 | 变量名 `RuneInfoCard`；确认它是 WBP_RuneInfoCard 实例；确认它是 HorizontalBox 最后一个子控件 |
 | GrabbedRuneIcon 不跟鼠标 | 确认 Image 在 Canvas Panel 根层（不在 Border 里）；变量名精确为 `GrabbedRuneIcon` |
-| Style DA 字段找不到 | 父类是否选了 BackpackScreenWidget（不是 UserWidget） |
-| 左侧待放置区没格子 | 检查变量名 `PendingRuneGrid`；确认 UniformGridPanel 里没有手动子控件 |

@@ -402,6 +402,14 @@ void AYogPlayerControllerBase::ToggleBackpack(const FInputActionValue& Value)
 	}
 }
 
+void AYogPlayerControllerBase::OpenBackpack()
+{
+	if (BackpackWidget && !BackpackWidget->IsActivated())
+	{
+		BackpackWidget->ActivateWidget();
+	}
+}
+
 void AYogPlayerControllerBase::OnMenuWidgetActivated()
 {
 	ActiveMenuCount++;

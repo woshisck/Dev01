@@ -543,6 +543,13 @@ TArray<FIntPoint> UBackpackGridComponent::GetActivationZoneCells() const
 	return ComputeActivationZone().Array();
 }
 
+TArray<FIntPoint> UBackpackGridComponent::GetActivationZoneCellsForPhase(int32 Phase) const
+{
+	if (!ActivationZoneConfig.ZoneShapes.IsValidIndex(Phase))
+		return {};
+	return ActivationZoneConfig.ZoneShapes[Phase].Cells;
+}
+
 int32 UBackpackGridComponent::GetRuneIndexAtCell(FIntPoint Cell) const
 {
 	if (GridOccupancy.IsEmpty())
@@ -560,6 +567,30 @@ void UBackpackGridComponent::InitWithASC(UAbilitySystemComponent* ASC)
 void UBackpackGridComponent::SetActivationZoneConfig(const FActivationZoneConfig& Config)
 {
 	ActivationZoneConfig = Config;
+	RefreshAllActivations();
+}
+
+void UBackpackGridComponent::ApplyBackpackConfig(int32 InGridWidth, int32 InGridHeight, const FActivationZoneConfig& InConfig)
+{
+	GridWidth  = FMath::Max(1, InGridWidth);
+	GridHeight = FMath::Max(1, InGridHeight);
+	ActivationZoneConfig = InConfig;
+
+	// 重建占用网格（大小随新尺寸变化）
+	GridOccupancy.Init(-1, GridWidth * GridHeight);
+
+	// 重新索引仍在新网格内的已放置符文
+	for (int32 i = 0; i < PlacedRunes.Num(); i++)
+	{
+		for (const FIntPoint Cell : GetRuneCells(PlacedRunes[i].Rune, PlacedRunes[i].Pivot))
+		{
+			if (IsCellValid(Cell))
+				GridOccupancy[CellToIndex(Cell)] = i;
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[BackpackGridComponent] ApplyBackpackConfig: Grid=%dx%d, ZoneShapes=%d"),
+		GridWidth, GridHeight, ActivationZoneConfig.ZoneShapes.Num());
 	RefreshAllActivations();
 }
 

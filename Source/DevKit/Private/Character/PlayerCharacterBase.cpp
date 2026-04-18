@@ -23,6 +23,7 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "System/YogGameInstanceBase.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -252,7 +253,7 @@ void APlayerCharacterBase::BeginPlay()
 void APlayerCharacterBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
+	TickPlayerPhaseGlow(DeltaSeconds);
 }
 
 void APlayerCharacterBase::RelinkWeaponAnimLayer()
@@ -311,9 +312,12 @@ void APlayerCharacterBase::OnHeatPhaseTagChanged(const FGameplayTag Tag, int32 N
 	static const FGameplayTag Phase2 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.2"));
 	static const FGameplayTag Phase3 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.3"));
 
-	if      (Tag == Phase1) OnHeatPhaseChanged.Broadcast(1);
-	else if (Tag == Phase2) OnHeatPhaseChanged.Broadcast(2);
-	else if (Tag == Phase3) OnHeatPhaseChanged.Broadcast(3);
+	int32 BroadcastPhase = 0;
+	if      (Tag == Phase1) BroadcastPhase = 1;
+	else if (Tag == Phase2) BroadcastPhase = 2;
+	else if (Tag == Phase3) BroadcastPhase = 3;
+	OnHeatPhaseChanged.Broadcast(BroadcastPhase);
+	StartPlayerPhaseGlow(BroadcastPhase);
 
 	// 手柄震动
 	if (PhaseUpForceFeedback)
@@ -330,6 +334,72 @@ void APlayerCharacterBase::OnHeatPhaseParentTagChanged(const FGameplayTag Tag, i
 	if (NewCount == 0)
 	{
 		OnHeatPhaseChanged.Broadcast(0);
+	}
+}
+
+void APlayerCharacterBase::StartPlayerPhaseGlow(int32 Phase)
+{
+	if (Phase == 0 || !PhaseUpPlayerOverlayMaterial) return;
+
+	static const FLinearColor PhaseColors[] =
+	{
+		FLinearColor(0.f, 0.f, 0.f),
+		FLinearColor(2.f, 2.f, 2.f),
+		FLinearColor(0.f, 3.f, 0.f),
+		FLinearColor(4.f, 2.f, 0.f),
+		FLinearColor(5.f, 0.f, 0.f),
+	};
+
+	if (!PlayerOverlayDynMat)
+	{
+		PlayerOverlayDynMat = UMaterialInstanceDynamic::Create(PhaseUpPlayerOverlayMaterial, this);
+	}
+
+	const int32 Idx = FMath::Clamp(Phase, 0, 4);
+	PlayerOverlayDynMat->SetVectorParameterValue(TEXT("EmissiveColor"), PhaseColors[Idx]);
+	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), 0.f);
+	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), 1.f);
+	GetMesh()->SetOverlayMaterial(PlayerOverlayDynMat);
+	PhaseGlowElapsed = 0.f;
+}
+
+void APlayerCharacterBase::TickPlayerPhaseGlow(float DeltaTime)
+{
+	if (PhaseGlowElapsed < 0.f) return;
+
+	PhaseGlowElapsed += DeltaTime;
+
+	const float HoldEnd      = GlowSweepDuration + GlowHoldDuration;
+	const float TotalDuration = HoldEnd + GlowFadeDuration;
+
+	float SweepProgress, GlowAlpha;
+
+	if (PhaseGlowElapsed < GlowSweepDuration)
+	{
+		SweepProgress = PhaseGlowElapsed / GlowSweepDuration;
+		GlowAlpha     = 1.f;
+	}
+	else if (PhaseGlowElapsed < HoldEnd)
+	{
+		SweepProgress = 1.f;
+		GlowAlpha     = 1.f;
+	}
+	else if (PhaseGlowElapsed < TotalDuration)
+	{
+		SweepProgress = 1.f;
+		GlowAlpha     = 1.f - (PhaseGlowElapsed - HoldEnd) / GlowFadeDuration;
+	}
+	else
+	{
+		GetMesh()->SetOverlayMaterial(nullptr);
+		PhaseGlowElapsed = -1.f;
+		return;
+	}
+
+	if (PlayerOverlayDynMat)
+	{
+		PlayerOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), SweepProgress);
+		PlayerOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), GlowAlpha);
 	}
 }
 

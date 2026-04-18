@@ -18,6 +18,8 @@ class APlayerCharacterBase;
 class UObject;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
+class UWidgetComponent;
+class UWeaponFloatWidget;
 
 class UWeaponDefinition;
 
@@ -88,12 +90,23 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "ItemPickup")
 	TObjectPtr<UMaterialInterface> BlackedOutMaterial;
 
+	// 武器信息浮窗 WidgetComponent（Screen Space，自动跟随武器位置）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "浮窗", meta = (AllowPrivateAccess = true))
+	TObjectPtr<UWidgetComponent> WeaponInfoWidgetComp;
+
+	// 在 BP_WeaponSpawner 里指定浮窗 WBP 类
+	UPROPERTY(EditDefaultsOnly, Category = "浮窗")
+	TSubclassOf<UWeaponFloatWidget> WeaponFloatWidgetClass;
+
 private:
 
 	// BeginPlay 时保存的原始材质，用于换武器时恢复
 	UPROPERTY()
 	TArray<TObjectPtr<UMaterialInterface>> OriginalMeshMaterials;
 
-	// Helper function to apply spawn data to weapon
+	// 朝向检测：玩家在范围内时每帧判断是否应显示浮窗
+	bool bPlayerInRange = false;
+	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
+
 	void ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data);
 };

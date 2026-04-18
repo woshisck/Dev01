@@ -12,7 +12,7 @@
 AWeaponInstance::AWeaponInstance()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	USceneComponent* root = CreateOptionalDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(root);
@@ -22,6 +22,51 @@ AWeaponInstance::AWeaponInstance()
 void AWeaponInstance::BeginPlay()
 {
 	Super::BeginPlay();
+}
+
+void AWeaponInstance::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (GlowElapsed < 0.f) return;
+
+	GlowElapsed += DeltaTime;
+
+	const float HoldEnd       = GlowSweepDuration + GlowHoldDuration;
+	const float TotalDuration = HoldEnd + GlowFadeDuration;
+
+	TArray<UMeshComponent*> Meshes;
+	GetComponents<UMeshComponent>(Meshes);
+
+	float SweepProgress, GlowAlpha;
+
+	if (GlowElapsed < GlowSweepDuration)
+	{
+		SweepProgress = GlowElapsed / GlowSweepDuration;
+		GlowAlpha     = 1.f;
+	}
+	else if (GlowElapsed < HoldEnd)
+	{
+		SweepProgress = 1.f;
+		GlowAlpha     = 1.f;
+	}
+	else if (GlowElapsed < TotalDuration)
+	{
+		SweepProgress = 1.f;
+		GlowAlpha     = 1.f - (GlowElapsed - HoldEnd) / GlowFadeDuration;
+	}
+	else
+	{
+		for (UMeshComponent* Mesh : Meshes) { Mesh->SetOverlayMaterial(nullptr); }
+		GlowElapsed = -1.f;
+		return;
+	}
+
+	if (HeatOverlayDynMat)
+	{
+		HeatOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), SweepProgress);
+		HeatOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), GlowAlpha);
+	}
 }
 
 void AWeaponInstance::PostActorCreated()
@@ -59,48 +104,38 @@ void AWeaponInstance::EquipWeaponToCharacter(APlayerCharacterBase* ReceivingChar
 
 void AWeaponInstance::OnHeatPhaseChanged(int32 Phase)
 {
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Cyan,
-			FString::Printf(TEXT("[WeaponInstance] Heat Phase: %d"), Phase));
-	}
-
-	// 获取本 Actor 上所有 MeshComponent（蓝图里添加的武器网格）
 	TArray<UMeshComponent*> Meshes;
 	GetComponents<UMeshComponent>(Meshes);
 
 	if (Phase == 0 || !HeatOverlayMaterial)
 	{
-		// 关闭发光
-		for (UMeshComponent* Mesh : Meshes)
-		{
-			Mesh->SetOverlayMaterial(nullptr);
-		}
+		// 立即关闭（Phase=0 或无材质）
+		for (UMeshComponent* Mesh : Meshes) { Mesh->SetOverlayMaterial(nullptr); }
+		GlowElapsed = -1.f;
 		return;
 	}
 
-	// 各阶段 Emissive 颜色（线性空间，HDR 亮度）
 	static const FLinearColor PhaseColors[] =
 	{
-		FLinearColor(0.f,  0.f,  0.f),   // 0: 无（占位）
-		FLinearColor(2.f,  2.f,  2.f),   // 1: 白光
-		FLinearColor(0.f,  3.f,  0.f),   // 2: 绿光
-		FLinearColor(4.f,  2.f,  0.f),   // 3: 橙黄
-		FLinearColor(5.f,  0.f,  0.f),   // 4: 过热红光
+		FLinearColor(0.f, 0.f, 0.f),
+		FLinearColor(2.f, 2.f, 2.f),
+		FLinearColor(0.f, 3.f, 0.f),
+		FLinearColor(4.f, 2.f, 0.f),
+		FLinearColor(5.f, 0.f, 0.f),
 	};
 
-	const int32 ColorIdx = FMath::Clamp(Phase, 0, 4);
-
-	// 首次调用时创建动态材质实例
 	if (!HeatOverlayDynMat)
 	{
 		HeatOverlayDynMat = UMaterialInstanceDynamic::Create(HeatOverlayMaterial, this);
 	}
 
-	HeatOverlayDynMat->SetVectorParameterValue(TEXT("EmissiveColor"), PhaseColors[ColorIdx]);
+	const int32 Idx = FMath::Clamp(Phase, 0, 4);
+	HeatOverlayDynMat->SetVectorParameterValue(TEXT("EmissiveColor"), PhaseColors[Idx]);
+	HeatOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), 0.f);
+	HeatOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), 1.f);
 
-	for (UMeshComponent* Mesh : Meshes)
-	{
-		Mesh->SetOverlayMaterial(HeatOverlayDynMat);
-	}
+	for (UMeshComponent* Mesh : Meshes) { Mesh->SetOverlayMaterial(HeatOverlayDynMat); }
+
+	// 启动动画计时
+	GlowElapsed = 0.f;
 }

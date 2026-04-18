@@ -27,10 +27,10 @@ public:
     FLinearColor EmptyActiveColor = FLinearColor(0.15f, 0.35f, 0.75f, 1.f);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
-    FLinearColor OccupiedActiveColor = FLinearColor(0.10f, 0.55f, 1.00f, 1.f);
+    FLinearColor OccupiedActiveColor = FLinearColor(0.10f, 0.65f, 1.00f, 1.f);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
-    FLinearColor OccupiedInactiveColor = FLinearColor(0.55f, 0.35f, 0.05f, 1.f);
+    FLinearColor OccupiedInactiveColor = FLinearColor(0.18f, 0.10f, 0.25f, 1.f);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
     FLinearColor SelectedColor = FLinearColor(1.00f, 0.82f, 0.10f, 1.f);
@@ -39,7 +39,7 @@ public:
     FLinearColor HoverColor = FLinearColor(0.10f, 0.80f, 0.20f, 1.f);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
-    FLinearColor GrabbedSourceColor = FLinearColor(0.25f, 0.15f, 0.03f, 1.f);
+    FLinearColor GrabbedSourceColor = FLinearColor(1.00f, 0.85f, 0.10f, 1.f);
 
     // =========================================================
     // 格子背景纹理（有纹理时覆盖颜色，颜色作为 Tint 叠加）
@@ -89,6 +89,19 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "激活区特效",
               meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float ActiveZoneOverlayOpacity = 0.6f;
+
+    // =========================================================
+    // 热度阶段叠加区颜色（热度1最上层，热度3最底层）
+    // =========================================================
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度阶段颜色")
+    FLinearColor HeatZone0Color = FLinearColor(0.10f, 0.65f, 1.00f, 1.f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度阶段颜色")
+    FLinearColor HeatZone1Color = FLinearColor(0.15f, 0.35f, 0.75f, 1.f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度阶段颜色")
+    FLinearColor HeatZone2Color = FLinearColor(0.08f, 0.20f, 0.48f, 1.f);
 
     // =========================================================
     // 待放置区颜色

@@ -218,26 +218,47 @@ TArray<FIntPoint> GetActivationZoneForPhase(int32 Phase) const;
 
 ### 5.3 WBP_TutorialPopup（通用弹窗）
 
-| 变量 | 类型 | 说明 |
-|------|------|------|
-| TitleText | FText | 标题 |
-| BodyText | FText | 正文 |
-| HighlightWidget | UWidget* | 箭头指向目标（可空） |
-| ConfirmText | FText | 按钮文字 |
-| OnConfirmed | 委托 | 点击后回调 |
+> **实现状态**：C++ 完整（`UTutorialPopupWidget`，父类 `UCommonActivatableWidget`）
+
+**WBP 必须放置的命名控件（BindWidget，名字一字不差）：**
+
+| 控件名 | 类型 | 说明 |
+|--------|------|------|
+| `TitleText` | TextBlock | 当前页标题 |
+| `BodyText` | TextBlock | 当前页正文（AutoWrapText 打勾） |
+| `BtnConfirm` | Button | 翻页 / 关闭按钮 |
+| `BtnConfirmLabel` | TextBlock（Button 内） | 非末页显示"下一页"，末页显示"知道了" |
+
+**翻页逻辑（全在 C++ 里，WBP 不需要写节点）：**
+
+- `ShowPopup(TArray<FTutorialPage>)` — 传入多页数据，自动激活 Widget 并暂停游戏
+- `OnNextPressed()` — BtnConfirm 点击回调（`NativeConstruct` 里自动绑定）：
+  - 当前页 < 末页 → 翻页，刷新 TitleText / BodyText / BtnConfirmLabel
+  - 当前页 = 末页 → `DeactivateWidget()`，游戏恢复
+
+**FTutorialPage 结构（在 `GameDialogWidget.h` 定义）：**
+
+```cpp
+USTRUCT(BlueprintType)
+struct FTutorialPage
+{
+    FText Title;
+    FText Body;
+};
+```
 
 ---
 
 ## 六、实现优先级
 
-| 优先级 | 任务 | 类型 |
+| 优先级 | 任务 | 状态 |
 |--------|------|------|
-| P0 | `bIsInCombat` + GameMode 写入时机 | C++ |
-| P0 | 战斗阶段符文锁定 + 抖动 + 红闪 | C++ + BP |
-| P0 | 节点 B：拾取武器后强制打开背包 + 弹窗 | C++ + BP |
-| P1 | `WBP_TutorialPopup` 通用弹窗 | BP |
-| P1 | 节点 E：三选一后强制打开背包 + 弹窗 | C++ + BP |
-| P1 | 战斗阶段激活区热度 VFX | BP + VFX |
-| P2 | 节点 A：WeaponSpawner 世界浮窗 | BP |
-| P2 | Tab 键热度预览切换 | C++ + BP |
-| P2 | ETutorialState 状态机 + 持久化 | C++ |
+| P0 | `bIsInCombat` 字段（BackpackGridComponent） | ✅ 已完成 |
+| P0 | ETutorialState 状态机 + SaveGame 持久化 | ✅ 已完成 |
+| P0 | 节点 B：拾取武器后延迟打开背包 + 弹窗（含翻页） | ✅ 已完成 |
+| P1 | 节点 E：三选一后延迟打开背包 + 弹窗（含翻页） | ✅ 已完成 |
+| P1 | GameMode 写入 `bIsInCombat`（Combat / Arrangement 阶段切换） | ⬜ 待做 |
+| P1 | 战斗阶段符文锁定 + 抖动 + 红闪 | ⬜ 待做 |
+| P1 | 战斗阶段激活区热度 VFX | ⬜ 待做 |
+| P2 | 节点 A：WeaponSpawner 世界浮窗（WidgetComponent） | ⬜ 待做 |
+| P2 | Tab 键热度预览切换 | ⬜ 待做 |

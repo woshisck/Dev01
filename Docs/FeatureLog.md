@@ -5,6 +5,83 @@
 
 ---
 
+## 2026-04-18
+
+### [UI-005] 背包热度阶段点按钮重构 — HeatPhaseDot + delegate 跨 Widget 通信
+
+**状态**：已实现已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `BackpackGridWidget.h/.cpp`、`BackpackScreenWidget.h/.cpp` |
+| 根因 | `BindWidgetOptional` 不递归到嵌套 UserWidget 内部树，按钮必须在直接拥有它的 Widget C++ 类里绑定 |
+| 架构 | BackpackGridWidget 持有 3 个 Button → 广播 `FOnHeatPhaseButtonClicked` delegate → BackpackScreenWidget 订阅处理 |
+| 新接口 | `BackpackGridWidget::RefreshHeatPhaseButtons(PreviewPhase, bIsGamepadMode)` |
+| WBP 位置 | HeatPhaseDot0/1/2 和 GamepadHintLabel 放在 **WBP_BackpackGrid**（不是 WBP_BackpackScreen）|
+| 手柄提示 | 鼠标输入时隐藏；任意键盘/手柄输入时显示 "L1/R1 切换热度显示" |
+| 设计文档 | [BackpackUI_StepByStep.md](../UI/BackpackUI_StepByStep.md) |
+
+---
+
+### [UI-006] 格子 1:1 强制约束 — GridSizeBox / PendingGridSizeBox
+
+**状态**：已实现已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `BackpackGridWidget.h/.cpp`、`PendingGridWidget.h/.cpp` |
+| 方案 | SizeBox 包裹 UniformGridPanel；`BuildGrid` / `BuildSlots` 时计算 `CellSize + Padding*2` 精确写入 SizeBox |
+| WBP 配置 | WBP_BackpackGrid 里放 SizeBox（变量名 `GridSizeBox`）→ UniformGridPanel（`BackpackGrid`） |
+|  | WBP_PendingGrid 里放 SizeBox（变量名 `PendingGridSizeBox`）→ UniformGridPanel（`PendingRuneGrid`） |
+| 已知限制 | SizeBox 的 Slot 必须设为 **Left / Top**（不要 Fill），否则 SizeBox 自身被拉伸 |
+
+---
+
+### [UI-007] 热度区三色叠加/单阶切换显示
+
+**状态**：已实现已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `BackpackScreenWidget.h`（enum）、`BackpackStyleDataAsset.h`、`RuneSlotWidget.cpp`、`BackpackGridWidget.cpp` |
+| 新枚举值 | `EBackpackCellState::EmptyZone1`（热度2区）、`EmptyZone2`（热度3区）|
+| DA 新字段 | `HeatZone0Color` / `HeatZone1Color` / `HeatZone2Color`（分类"热度阶段颜色"，自填）|
+| 默认行为 | `PreviewPhase=-1`：三阶叠加全显，Zone0 优先级最高（最内层压盖最外层） |
+| 切换行为 | 点 Dot / 按键盘 1/2/3 → `PreviewPhase=0/1/2`：只显示该阶格子，其余置灰；再按 → 恢复叠加 |
+| 颜色建议 | 亮蓝→中蓝→暗蓝渐进，视觉上体现热度由内向外递减 |
+
+---
+
+### [VFX-001] 热度升阶发光特效 — 玩家身体 + 武器
+
+**状态**：已实现已编译
+
+| 项目 | 内容 |
+|---|---|
+| 核心文件 | `PlayerCharacterBase.h/.cpp`、`WeaponInstance.h/.cpp` |
+| 触发 | GAS Tag `Buff.Status.Heat.Phase.1/2/3` 新增时自动触发 |
+| 玩家配置 | `BP_PlayerCharacterBase` → Heat\|Visual → `PhaseUpPlayerOverlayMaterial` |
+| 武器配置 | `WeaponDefinition` DA → `HeatOverlayMaterial` |
+| 时序 | 扫射(`GlowSweepDuration`) + 保持(`GlowHoldDuration`) + 淡出(`GlowFadeDuration`) |
+| 材质参数 | `SweepProgress`、`GlowAlpha`、`EmissiveColor`、`SwipeCount`、`Power` |
+| 设计文档 | [CharacterFlash_Technical.md](Design/VFX/CharacterFlash_Technical.md) |
+
+### [VFX-002] 命中闪白 / 攻击前闪红 — 敌人
+
+**状态**：已实现已编译
+
+| 项目 | 内容 |
+|---|---|
+| 核心文件 | `YogCharacterBase.h/.cpp` |
+| 命中闪白触发 | `HealthChanged` 血量减少时自动调用 `StartHitFlash()` |
+| 攻击前闪红触发 | 蓝图调用 `StartPreAttackFlash()` / `StopPreAttackFlash()` |
+| 配置入口 | 敌人 BP Details → Combat\|Visual → `CharacterFlashMaterial` |
+| 可调参数 | `HitFlashDuration`(默认0.12s)、`PreAttackPulseFreq`(默认4Hz) |
+| 材质参数 | `FlashColor`(Vector)、`FlashAlpha`(Scalar)、`Power`(Scalar) |
+| 设计文档 | [CharacterFlash_Technical.md](Design/VFX/CharacterFlash_Technical.md) |
+
+---
+
 ## 2026-04-16
 
 ### [CAM-001] 相机管理系统 — AYogCameraPawn
@@ -414,6 +491,57 @@
 | CardEffect 绑定 | 新增 `CardEffect` TextBlock，与 `CardDesc` 分开显示效果描述 |
 | WBP 布局 | `ShapeGrid` 在蓝图中为 **CanvasPanel，固定 64×64**；`WBP_RuneInfoCard` 根节点用 SizeBox 定宽高，`WBP_BackpackScreen` 中该实例勾选 **Size To Content**，只管位置 |
 | 配置入口 | 各符文 DA → `Card Background` 字段填入背景贴图（留空 = 纯黑兜底） |
+
+---
+
+### [UI-006] 教程引导系统 — TutorialManager + TutorialPopupWidget
+
+**状态**：C++ 完整，蓝图 WBP_TutorialPopup 待制作  
+**Commit**：待填
+
+| 项目 | 内容 |
+| --- | --- |
+| 核心文件 | `Tutorial/TutorialManager.h/.cpp`、`UI/GameDialogWidget.h/.cpp`（类名 UTutorialPopupWidget）、`Tutorial/TutorialHintDataAsset.h`（ETutorialState） |
+| 触发①（武器） | `WeaponSpawner::TryPickupWeapon` → `TM->TryWeaponTutorial(PC)`，延迟 0.4s，自动打开背包 + 弹窗 |
+| 触发②（战斗后） | `YogGameMode::SelectLoot` → `TM->TryPostCombatTutorial(PC)`，延迟 0.2s，自动打开背包 + 弹窗 |
+| 状态机 | `ETutorialState`：None / NeedWeaponTutorial / WeaponTutorialDone / NeedPostCombatTutorial / Completed |
+| 持久化 | `UYogSaveGame::TutorialState`（默认 NeedWeaponTutorial，引导完成写 Completed） |
+| bIsInCombat | `BackpackGridComponent::bIsInCombat`（P0 添加，GameMode 负责写入） |
+| 新接口 | `YogPlayerControllerBase::OpenBackpack()` — TutorialManager 调用强制开背包 |
+| HUD 配置 | `AYogHUD::TutorialPopupClass`（BP_HUD Details 填 WBP_TutorialPopup） |
+| WBP 控件名 | `TitleText`（TextBlock）、`BodyText`（TextBlock）、`BtnConfirm`（Button）、`BtnConfirmLabel`（Button 内 TextBlock）— 名字必须精确匹配 |
+| 设计文档 | [Tutorial_Design.md](Design/Systems/Tutorial_Design.md) |
+
+已知限制：GameMode 未写入 `bIsInCombat`（待接入阶段切换时补充）；弹窗文字为硬编码 LOCTEXT，后期如需多语言可改 StringTable。
+
+---
+
+### [COMBAT-006] 命中停顿 + 全局时间缩放 — HitStopManager + AN_HitStop
+
+**状态**：C++ 完成，AnimNotify 已可放蒙太奇；蓝图无需配置  
+**Commit**：本次提交
+
+| 项目 | 内容 |
+| --- | --- |
+| 核心文件 | `Animation/HitStopManager.h/.cpp`、`Animation/AN_HitStop.h/.cpp` |
+| 运行机制 | `UTickableWorldSubsystem`：不受 TimeDilation 影响，Tick 持续调用；`FPlatformTime::Seconds()` 计量真实经过时长 |
+| 两阶段效果 | 1. **Frozen**：全局 TimeDilation≈0.0001，持续 FrozenDuration 真实秒；2. **Slow**：TimeDilation=SlowTimeDilation，持续 SlowDuration 真实秒 |
+| 中断策略 | Frozen 期间新 RequestHitStop 忽略（冻结优先级最高）；Slow 期间可被更重的新请求覆盖 |
+| AnimNotify | 放在攻击蒙太奇命中帧，Notify Details 设三个参数即可触发 |
+| 典型配置 | 轻击：F=50ms/S=0；重击：F=80ms/S=120ms@25%；暴击：F=60ms/S=150ms@20% |
+| 防泄漏 | `Deinitialize` 强制 EndHitStop，关卡切换时不残留 TimeDilation |
+| Notify 显示 | 蒙太奇编辑器中自动显示 `HitStop 50ms` 或 `HitStop F=80ms S=120ms@25%` |
+
+**使用方式**
+
+1. 打开攻击蒙太奇，在命中帧添加 Notify → 选择 `AN Hit Stop`
+2. Notify Details 填写：FrozenDuration / SlowDuration / SlowTimeDilation
+3. 无需蓝图或 GameMode 配置，系统自动启动
+
+**已知限制**
+
+- `SlowTimeDilation=0.0f` 会导致 Slow 阶段 TimeDilation 实际 clamp 到 0.01（引擎内部限制），推荐最低 0.1
+- 同帧多次命中时第一次触发生效，后续同优先级忽略（设计预期）
 
 ---
 

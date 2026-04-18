@@ -28,6 +28,7 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "BuffFlow/NotifyFlowAsset.h"
 #include "Data/NotifyRuneDataAsset.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 
 
@@ -140,7 +141,7 @@ void AYogCharacterBase::BeginPlay()
 void AYogCharacterBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
+	TickCharacterFlash(DeltaSeconds);
 }
 
 void AYogCharacterBase::PostInitializeComponents()
@@ -365,6 +366,8 @@ void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 		FGameplayEventData HitEventData;
 		AbilitySystemComponent->HandleGameplayEvent(
 			FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact")), &HitEventData);
+
+		StartHitFlash();
 	}
 
 	if (!IsAlive() && !bIsDead)
@@ -560,5 +563,88 @@ void AYogCharacterBase::GetActiveAbilitiesWithTags(FGameplayTagContainer Ability
 	if (AbilitySystemComponent)
 	{
 		AbilitySystemComponent->GetActiveAbilitiesWithTags(AbilityTags, ActiveAbilities);
+	}
+}
+
+void AYogCharacterBase::StartHitFlash()
+{
+	if (!CharacterFlashMaterial) return;
+
+	if (!FlashDynMat)
+	{
+		FlashDynMat = UMaterialInstanceDynamic::Create(CharacterFlashMaterial, this);
+	}
+
+	// 白色 HDR
+	FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(3.f, 3.f, 3.f));
+	FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), 1.f);
+	GetMesh()->SetOverlayMaterial(FlashDynMat);
+
+	HitFlashElapsed = 0.f;
+}
+
+void AYogCharacterBase::StartPreAttackFlash()
+{
+	if (!CharacterFlashMaterial) return;
+
+	if (!FlashDynMat)
+	{
+		FlashDynMat = UMaterialInstanceDynamic::Create(CharacterFlashMaterial, this);
+	}
+
+	// 红色 HDR
+	FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(3.f, 0.f, 0.f));
+	GetMesh()->SetOverlayMaterial(FlashDynMat);
+
+	bPreAttackActive = true;
+	PreAttackElapsed = 0.f;
+}
+
+void AYogCharacterBase::StopPreAttackFlash()
+{
+	bPreAttackActive = false;
+
+	// 只有命中闪白也未激活时才移除 Overlay
+	if (HitFlashElapsed < 0.f)
+	{
+		GetMesh()->SetOverlayMaterial(nullptr);
+	}
+}
+
+void AYogCharacterBase::TickCharacterFlash(float DeltaTime)
+{
+	// ── 命中闪白（优先级高，快速淡出）───────────────────────────────────────
+	if (HitFlashElapsed >= 0.f)
+	{
+		HitFlashElapsed += DeltaTime;
+		const float Alpha = FMath::Max(0.f, 1.f - HitFlashElapsed / HitFlashDuration);
+
+		if (FlashDynMat)
+		{
+			FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(3.f, 3.f, 3.f));
+			FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), Alpha);
+		}
+
+		if (HitFlashElapsed >= HitFlashDuration)
+		{
+			HitFlashElapsed = -1.f;
+
+			// 闪白结束后，若攻击前摇红光仍激活则无缝衔接
+			if (!bPreAttackActive)
+			{
+				GetMesh()->SetOverlayMaterial(nullptr);
+			}
+		}
+		return; // 闪白期间跳过红光更新
+	}
+
+	// ── 攻击前摇脉冲红光 ────────────────────────────────────────────────────
+	if (bPreAttackActive && FlashDynMat)
+	{
+		PreAttackElapsed += DeltaTime;
+		const float Alpha = FMath::Abs(FMath::Sin(PreAttackElapsed * PreAttackPulseFreq * PI));
+
+		FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(3.f, 0.f, 0.f));
+		FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), Alpha * 0.85f);
 	}
 }

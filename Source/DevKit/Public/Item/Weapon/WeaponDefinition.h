@@ -6,6 +6,8 @@
 #include "AbilitySystem/Abilities/YogAbilitySet.h"
 #include "Data/AbilityData.h"
 #include "Animation/YogAnimInstance.h"
+#include "Component/BackpackGridComponent.h"
+#include "Item/Weapon/WeaponInfoDA.h"
 
 #include "WeaponDefinition.generated.h"
 
@@ -13,9 +15,25 @@ class UYogAbilitySet;
 class AWeaponInstance;
 class APlayerCharacterBase;
 class UMaterialInterface;
+class URuneDataAsset;
 //class UYogAnimInstance;
 
 
+
+USTRUCT(BlueprintType)
+struct FBackpackConfig
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "背包")
+    int32 GridWidth = 5;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "背包")
+    int32 GridHeight = 5;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "背包")
+    FActivationZoneConfig ActivationZoneConfig;
+};
 
 USTRUCT(BlueprintType)
 struct FWeaponSpawnData
@@ -94,6 +112,18 @@ public:
 	// 武器被拾取时由 WeaponSpawner 自动传给 WeaponInstance
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Heat")
 	TObjectPtr<UMaterialInterface> HeatOverlayMaterial;
+
+	// 背包配置（格子尺寸 + 各热度阶段激活区）；装备时自动注入到 BackpackGridComponent
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "背包配置")
+	FBackpackConfig BackpackConfig;
+
+	// 武器展示信息（名称/描述/缩略图/激活区图像），驱动武器浮窗
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息")
+	TObjectPtr<UWeaponInfoDA> WeaponInfo;
+
+	// 初始符文列表：拾取武器时在浮窗展示，并预置到激活区起始格
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息")
+	TArray<TObjectPtr<URuneDataAsset>> InitialRunes;
 
 	UFUNCTION(BlueprintCallable)
 	void SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar);
