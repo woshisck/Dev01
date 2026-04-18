@@ -106,7 +106,8 @@ void AWeaponSpawner::Tick(float DeltaTime)
 		if (bShouldShow)
 		{
 			// 45°斜视角：用摄像机 Right 向量投影到水平面，确保偏移与屏幕对齐
-			FVector Right = FVector::RightVector; // 兜底
+			// Spawner 无旋转，RelativeLocation == WorldOffset，直接 SetRelativeLocation 最稳定
+			FVector Right = FVector(0.f, 1.f, 0.f); // 兜底：世界 Y
 			if (APlayerController* PC = NearbyPlayer->GetController<APlayerController>())
 			{
 				if (PC->PlayerCameraManager)
@@ -114,13 +115,12 @@ void AWeaponSpawner::Tick(float DeltaTime)
 					FVector CamRight = FRotationMatrix(PC->PlayerCameraManager->GetCameraRotation())
 						.GetScaledAxis(EAxis::Y);
 					CamRight.Z = 0.f;
-					Right = CamRight.GetSafeNormal();
+					if (!CamRight.IsNearlyZero())
+						Right = CamRight.GetSafeNormal();
 				}
 			}
-			FVector WidgetPos = GetActorLocation()
-				+ Right * WidgetSideOffset
-				+ FVector(0.f, 0.f, WidgetZOffset);
-			WeaponInfoWidgetComp->SetWorldLocation(WidgetPos);
+			WeaponInfoWidgetComp->SetRelativeLocation(
+				Right * WidgetSideOffset + FVector(0.f, 0.f, WidgetZOffset));
 		}
 	}
 }
