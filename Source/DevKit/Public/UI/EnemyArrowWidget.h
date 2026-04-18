@@ -63,11 +63,21 @@ public:
      * 推荐值：1500~3000（约 15~30 米）。
      */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Config", meta = (ClampMin = "0"))
-    float ForceOffScreenDistance = 1500.f;
+    float ForceOffScreenDistance = 0.f;
 
     /** 投影点相对脚底的 Z 抬升量（cm），修正斜视角下的显示偏差，默认 60 ≈ 角色腰部 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Config")
     float ArrowProjectionZOffset = 60.f;
+
+    /**
+     * 箭头旋转基准偏移（°）。根据贴图朝向调整：
+     *  顶点朝上（-Y）→ 90（默认）
+     *  顶点朝右（+X）→ 0
+     *  顶点朝下（+Y）→ -90
+     *  顶点朝左（-X）→ 180
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Config")
+    float ArrowAngleOffset = 90.f;
 
     /** 箭头颜色 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Config")

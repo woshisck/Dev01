@@ -182,7 +182,7 @@ float UEnemyArrowWidget::CalcArrowAngle(const FVector2D& EnemyScreenPos,
     const FVector2D Dir = EnemyScreenPos - Center;
     // atan2 在屏幕坐标下（Y 向下）给出相对 +X 轴的角度
     // 加 90° 是因为贴图约定顶点朝上（-Y），对应旋转 0° 时朝右（+X）需要补偿
-    return FMath::RadiansToDegrees(FMath::Atan2(Dir.Y, Dir.X)) + 90.f;
+    return FMath::RadiansToDegrees(FMath::Atan2(Dir.Y, Dir.X)) + ArrowAngleOffset;
 }
 
 void UEnemyArrowWidget::OnPlayerDamageTaken(UYogAbilitySystemComponent* /*SourceASC*/, float Damage)
