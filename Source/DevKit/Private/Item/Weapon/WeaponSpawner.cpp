@@ -106,7 +106,6 @@ void AWeaponSpawner::Tick(float DeltaTime)
 		if (bShouldShow)
 		{
 			// 45°斜视角：用摄像机 Right 向量投影到水平面，确保偏移与屏幕对齐
-			// Spawner 无旋转，RelativeLocation == WorldOffset，直接 SetRelativeLocation 最稳定
 			FVector Right = FVector(0.f, 1.f, 0.f); // 兜底：世界 Y
 			if (APlayerController* PC = NearbyPlayer->GetController<APlayerController>())
 			{
@@ -117,6 +116,17 @@ void AWeaponSpawner::Tick(float DeltaTime)
 					CamRight.Z = 0.f;
 					if (!CamRight.IsNearlyZero())
 						Right = CamRight.GetSafeNormal();
+				}
+
+				// 根据武器在屏幕上的位置决定偏移方向：屏幕右半则向左偏，左半则向右偏
+				FVector2D WeaponScreenPos;
+				if (PC->ProjectWorldLocationToScreen(GetActorLocation(), WeaponScreenPos, false))
+				{
+					FVector2D ViewportSize;
+					if (GEngine && GEngine->GameViewport)
+						GEngine->GameViewport->GetViewportSize(ViewportSize);
+					if (WeaponScreenPos.X > ViewportSize.X * 0.5f)
+						Right = -Right;
 				}
 			}
 			WeaponInfoWidgetComp->SetRelativeLocation(

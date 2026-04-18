@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-04-19
+
+### [UI-008] 武器拾取浮窗 — WBP_WeaponFloat
+
+**状态**：已实现已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `WeaponInfoDA.h`、`WeaponFloatWidget.h/.cpp`、`WeaponSpawner.h/.cpp`、`WeaponDefinition.h` |
+| 触发时机 | 玩家进入 WeaponSpawner CollisionVolume 且朝向武器（±105° 宽松判断） |
+| 信息来源 | `WeaponDefinition` → `WeaponInfo`（UWeaponInfoDA）和 `InitialRunes`（TArray<URuneDataAsset>） |
+| WeaponInfoDA 字段 | `WeaponName`、`WeaponDescription`、`WeaponSubDescription`、`Thumbnail`、`Zone1/2/3Image` |
+| 点阵激活区 | 三个 CanvasPanel（ZoneGrid1/2/3），自动从 `ZoneGridSize` 属性缩放，与 WBP SizeBox 对齐 |
+| 图像覆盖 | ZoneNImage 有贴图时替代点阵；无贴图时显示高亮点阵（蓝色激活，暗灰未激活） |
+| 符文列表 | BuildRuneList 动态创建 HBox（40×40 图标 + VBox 名称/描述），填入 RuneListBox VerticalBox |
+| 动态偏移 | Tick 每帧投影武器到屏幕，武器在左半→向右偏，右半→向左偏，使用摄像机 Right 向量（适配45°斜视角） |
+| WBP 控件名 | `WeaponThumbnail`、`WeaponNameText`、`WeaponDescText`、`WeaponSubDescText`、`ZoneGrid1/2/3`、`Zone1/2/3Image`、`RuneListBox` |
+| BP 配置 | `BP_WeaponSpawner` Details → 浮窗 → `WeaponFloatWidgetClass`、`WidgetSideOffset`（默认300cm）、`WidgetZOffset`（默认50cm） |
+| WidgetComponent | Screen Space，初始隐藏，`SetRelativeLocation` 每帧更新偏移，随武器 Actor 移动 |
+
+**已知限制**
+
+- `InitialRunes` 自动放置到激活区格子的逻辑尚未实现（当前仅在浮窗列表展示）
+- CommonActionWidget 按键提示为纯 WBP 配置，不由 C++ 控制
+
+---
+
 ## 2026-04-18
 
 ### [UI-005] 背包热度阶段点按钮重构 — HeatPhaseDot + delegate 跨 Widget 通信
