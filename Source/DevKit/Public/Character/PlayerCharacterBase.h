@@ -22,6 +22,7 @@ class UBackpackGridComponent;
 class UBuffFlowComponent;
 class USkillChargeComponent;
 class UWeaponDefinition;
+class USacrificeGraceDA;
 UENUM()
 enum class EPlayerState : uint8
 {
@@ -163,6 +164,19 @@ public:
 	// 当前装备的武器定义（切关时写入 RunState，由 RestoreRunStateFromGI 重新装备）
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UWeaponDefinition> EquippedWeaponDef;
+
+	// ─── 献祭恩赐（全局 Run Buff）────────────────────────────────────
+
+	/** 当前生效的献祭恩赐 DA（None = 未获得） */
+	UPROPERTY(BlueprintReadOnly, Category = "SacrificeGrace")
+	TObjectPtr<USacrificeGraceDA> ActiveSacrificeGrace;
+
+	/**
+	 * 获取献祭恩赐：施加满热度 GE + BonusEffect + 启动衰退 FA
+	 * 由拾取物触发（接受确认后调用）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SacrificeGrace")
+	void AcquireSacrificeGrace(USacrificeGraceDA* DA);
 
 	// ─── 最后输入方向（冲刺朝向使用）────────────────────────────────
 	// 由 Controller.Move() 在每次非零输入时更新，世界空间单位向量

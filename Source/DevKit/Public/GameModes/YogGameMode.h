@@ -9,6 +9,7 @@
 #include "GameModes/SpawnTypes.h"
 #include "Data/CampaignDataAsset.h"
 #include "Data/RoomDataAsset.h"
+#include "Data/SacrificeGraceDA.h"
 #include "YogGameMode.generated.h"
 
 class AYogPlayerControllerBase;
@@ -225,6 +226,21 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow")
 	TArray<TObjectPtr<URuneDataAsset>> FallbackLootPool;
+
+	// ─── 献祭恩赐额外掉落 ────────────────────────────────────────────
+
+	/** 献祭恩赐 DA 候选池（随机抽一个） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SacrificeGrace")
+	TArray<TObjectPtr<USacrificeGraceDA>> SacrificeGracePool;
+
+	/** 每关触发概率（非主城关卡，0~1） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SacrificeGrace",
+	          meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float SacrificeDropChance = 0.15f;
+
+	/** 生成的献祭拾取物 Actor 类（在 BP 中配置，接受/拒绝弹窗由拾取物自己处理） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SacrificeGrace")
+	TSubclassOf<AActor> SacrificePickupClass;
 
 	// =========================================================
 	// 新刷怪系统（难度分预算波次）

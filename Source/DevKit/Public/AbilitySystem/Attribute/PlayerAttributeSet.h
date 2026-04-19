@@ -63,6 +63,17 @@ public:
     FGameplayAttributeData DashCooldownDuration;
     ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, DashCooldownDuration);
 
+    // ── 火绳枪弹药系统 ─────────────────────────────────────────────────────────
+    /** 当前弹药数，每次开枪 -1，换弹 +1，符文可修改 MaxAmmo */
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Musket")
+    FGameplayAttributeData CurrentAmmo;
+    ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, CurrentAmmo);
+
+    /** 弹仓容量（默认 6），符文可 Additive/Multiplicative 修改 */
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Musket")
+    FGameplayAttributeData MaxAmmo;
+    ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, MaxAmmo);
+
     virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
 
     //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")

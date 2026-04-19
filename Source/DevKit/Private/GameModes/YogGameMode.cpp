@@ -378,6 +378,42 @@ void AYogGameMode::EnterArrangementPhase()
 		}
 	}
 
+	// 献祭恩赐额外掉落（非主城关卡，15% 概率）
+	const bool bIsHubRoom = ActiveRoomData && ActiveRoomData->bIsHubRoom;
+	if (!bIsHubRoom && SacrificePickupClass && SacrificeGracePool.Num() > 0
+		&& FMath::FRand() < SacrificeDropChance)
+	{
+		const int32 ChosenIdx = FMath::RandRange(0, SacrificeGracePool.Num() - 1);
+		USacrificeGraceDA* ChosenDA = SacrificeGracePool[ChosenIdx];
+
+		// 在普通奖励旁边偏移 250cm 处生成
+		FVector SacrificeSpawnLoc = LastEnemyKillLocation;
+		if (SacrificeSpawnLoc.IsZero())
+		{
+			if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+			{
+				if (APawn* P = PC->GetPawn())
+					SacrificeSpawnLoc = P->GetActorLocation();
+			}
+		}
+		SacrificeSpawnLoc += FVector(250.f, 0.f, 0.f);
+
+		AActor* SacrificePickup = GetWorld()->SpawnActor<AActor>(
+			SacrificePickupClass, SacrificeSpawnLoc, FRotator::ZeroRotator);
+
+		// 把选中的 DA 注入拾取物（拾取物需实现 SetSacrificeGraceDA BlueprintNativeEvent 或公开 UPROPERTY）
+		if (SacrificePickup)
+		{
+			if (UFunction* SetDA = SacrificePickup->FindFunction(TEXT("SetSacrificeGraceDA")))
+			{
+				struct { USacrificeGraceDA* DA; } Params{ ChosenDA };
+				SacrificePickup->ProcessEvent(SetDA, &Params);
+			}
+			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 献祭恩赐掉落 [%s] @ %s"),
+				*ChosenDA->GetName(), *SacrificeSpawnLoc.ToString());
+		}
+	}
+
 	// 开启传送门
 	ActivatePortals();
 }

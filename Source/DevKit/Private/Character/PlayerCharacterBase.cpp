@@ -18,6 +18,7 @@
 #include "Component/BackpackGridComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/SkillChargeComponent.h"
+#include "Data/SacrificeGraceDA.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "AbilitySystem/Abilities/YogTargetType_Melee.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
@@ -190,6 +191,42 @@ void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 
 
 
+void APlayerCharacterBase::AcquireSacrificeGrace(USacrificeGraceDA* DA)
+{
+	if (!DA || !BuffFlowComponent) return;
+
+	ActiveSacrificeGrace = DA;
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+
+	// 立即将热度设为满值（Override GE）
+	if (ASC)
+	{
+		const float MaxHeat = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
+		if (MaxHeat > 0.f)
+		{
+			ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), MaxHeat);
+		}
+
+		// 施加奖励 GE（Infinite 类型，随 Run 持续）
+		if (DA->BonusEffect)
+		{
+			FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
+			FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(DA->BonusEffect, 1.f, Ctx);
+			if (Spec.IsValid())
+			{
+				ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+			}
+		}
+	}
+
+	// 启动衰退 FA（FA 内含 BFNode_SacrificeDecay，In 引脚自动触发）
+	if (DA->FlowAsset)
+	{
+		BuffFlowComponent->StartBuffFlow(DA->FlowAsset, FGuid::NewGuid(), this);
+	}
+}
+
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
@@ -217,6 +254,12 @@ void APlayerCharacterBase::BeginPlay()
 
 	// 注册热度阶段 Tag 事件，驱动武器边缘发光材质
 	SetupHeatPhaseTagListeners();
+
+	// 切关后重新激活献祭恩赐（热度重充满 + 衰退速率归零 + FA 重启）
+	if (ActiveSacrificeGrace)
+	{
+		AcquireSacrificeGrace(ActiveSacrificeGrace);
+	}
 
 	// GAS Template 授能（在 Super::BeginPlay 中完成）可能覆盖切关前 Link 的武器动画层；
 	// 在此重新 Link，确保武器层优先级高于默认层
