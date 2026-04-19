@@ -40,9 +40,22 @@ public:
 	// 显示弹窗（由 TutorialManager 调用，支持单页或多页）
 	void ShowPopup(const TArray<FTutorialPage>& InPages);
 
-	// BtnConfirm 点击：非末页则翻页，末页则关闭
+	// BtnConfirm 点击：非末页则翻页，末页则触发渐出流程
 	UFUNCTION(BlueprintCallable, Category = "Tutorial")
 	void OnNextPressed();
+
+	// WBP 渐出动画结束后调用此函数完成关闭
+	UFUNCTION(BlueprintCallable, Category = "Tutorial")
+	void ConfirmClose();
+
+protected:
+	// WBP 实现：弹窗渐入动画（NativeOnActivated 后调用）
+	UFUNCTION(BlueprintImplementableEvent, Category = "Tutorial")
+	void BP_OnPopupShown();
+
+	// WBP 实现：末页点击后开始渐出动画，动画结束时调用 ConfirmClose
+	UFUNCTION(BlueprintImplementableEvent, Category = "Tutorial")
+	void BP_OnPopupClosing();
 
 	// 当前页索引（0-based），蓝图可读
 	UPROPERTY(BlueprintReadOnly, Category = "Tutorial")
@@ -52,7 +65,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Tutorial")
 	int32 TotalPages = 0;
 
-protected:
 	virtual void NativeConstruct() override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 	virtual void NativeOnActivated() override;

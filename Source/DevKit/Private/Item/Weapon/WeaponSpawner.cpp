@@ -21,6 +21,7 @@
 #include "Component/BackpackGridComponent.h"
 #include "Tutorial/TutorialManager.h"
 #include "Character/YogPlayerControllerBase.h"
+#include "Engine/GameInstance.h"
 #include "UI/WeaponFloatWidget.h"
 
 // Sets default values
@@ -90,6 +91,16 @@ void AWeaponSpawner::Tick(float DeltaTime)
 	UWorld* World = GetWorld();
 	WeaponMesh->AddRelativeRotation(FRotator(0.0f, World->GetDeltaSeconds() * WeaponMeshRotationSpeed, 0.0f));
 
+	// Tutorial 弹窗显示期间隐藏浮窗
+	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
+	{
+		if (TM->IsPopupShowing())
+		{
+			if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
+			return;
+		}
+	}
+
 	// 朝向判断 + 动态偏移：浮窗始终在武器右侧，不遮挡玩家和武器
 	if (bPlayerInRange && NearbyPlayer.IsValid() && WeaponInfoWidgetComp)
 	{
@@ -158,6 +169,15 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 	NearbyPlayer = Player;
 	bPlayerInRange = true;
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 玩家进入范围，按 E 拾取武器"));
+
+	// 武器教程：在浮窗出现前触发（原先在 TryPickupWeapon 末尾，现提前到此处）
+	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
+	{
+		if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(Player->GetController()))
+		{
+			TM->TryWeaponTutorial(PC);
+		}
+	}
 }
 
 void AWeaponSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
@@ -274,14 +294,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	}
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾取 [%s]"), *WeaponDefinition->GetName());
 
-	// 武器教程：首次拾取时延迟打开背包并弹出引导弹窗
-	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
-	{
-		if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(Player->GetController()))
-		{
-			TM->TryWeaponTutorial(PC);
-		}
-	}
 }
 
 void AWeaponSpawner::RestoreSpawnerMesh()

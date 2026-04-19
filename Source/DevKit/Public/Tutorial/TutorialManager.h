@@ -22,7 +22,13 @@ public:
 	void TryPostCombatTutorial(AYogPlayerControllerBase* PC);
 	void LoadFromSave(UYogSaveGame* Save);
 
+	// 供 LevelFlow 节点调用：按 EventID 直接显示教程弹窗（不检查 State）
+	void ShowByEventID(FName EventID, APlayerController* PC);
+
 	ETutorialState GetState() const { return State; }
+
+	// 返回 true 表示教程弹窗正在显示（Tick 中用于屏蔽浮窗）
+	bool IsPopupShowing() const;
 
 private:
 	ETutorialState State = ETutorialState::NeedWeaponTutorial;
@@ -33,6 +39,9 @@ private:
 	TObjectPtr<UDialogContentDA> ContentDA;
 
 	FTimerHandle DelayHandle;
+
+	// FTSTicker 句柄：用于在时间膨胀期间以真实时间计时
+	FTSTicker::FDelegateHandle DilationTickerHandle;
 
 	void DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC);
 	void DoShowPostCombatPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC);

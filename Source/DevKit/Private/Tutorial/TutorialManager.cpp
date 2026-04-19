@@ -4,6 +4,8 @@
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "Character/YogPlayerControllerBase.h"
+#include "Kismet/GameplayStatics.h"
+#include "Containers/Ticker.h"
 
 #define LOCTEXT_NAMESPACE "Tutorial"
 
@@ -27,6 +29,11 @@ void UTutorialManager::LoadFromSave(UYogSaveGame* Save)
 	State = Save->TutorialState;
 }
 
+bool UTutorialManager::IsPopupShowing() const
+{
+	return PopupWidget.IsValid() && PopupWidget->IsInViewport() && PopupWidget->IsActivated();
+}
+
 void UTutorialManager::TryWeaponTutorial(AYogPlayerControllerBase* PC)
 {
 	UE_LOG(LogTemp, Warning, TEXT("[Tutorial] TryWeaponTutorial: State=%d, PopupValid=%d, PC=%s"),
@@ -38,16 +45,25 @@ void UTutorialManager::TryWeaponTutorial(AYogPlayerControllerBase* PC)
 	State = ETutorialState::WeaponTutorialDone;
 	SaveState();
 
+	// 1. 时间膨胀降速，营造"世界停顿"氛围
+	UGameplayStatics::SetGlobalTimeDilation(GetGameInstance(), 0.08f);
+
+	// 2. FTSTicker 基于真实时间计时（不受 TimeDilation 影响），0.35s 后显示弹窗
 	TWeakObjectPtr<AYogPlayerControllerBase> WeakPC = PC;
 	TWeakObjectPtr<UTutorialManager> WeakThis = this;
 
-	GetGameInstance()->GetWorld()->GetTimerManager().SetTimer(
-		DelayHandle,
-		[WeakThis, WeakPC]()
+	DilationTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateLambda([WeakThis, WeakPC](float) -> bool
 		{
-			if (WeakThis.IsValid()) WeakThis->DoShowWeaponPopup(WeakPC);
-		},
-		0.4f, false);
+			if (WeakThis.IsValid())
+			{
+				// 恢复正常时间后显示弹窗（弹窗内部会调用 SetGamePaused）
+				UGameplayStatics::SetGlobalTimeDilation(WeakThis->GetGameInstance(), 1.0f);
+				WeakThis->DoShowWeaponPopup(WeakPC);
+			}
+			return false; // 只触发一次
+		}),
+		0.35f);
 }
 
 void UTutorialManager::TryPostCombatTutorial(AYogPlayerControllerBase* PC)
@@ -116,6 +132,25 @@ void UTutorialManager::DoShowPostCombatPopup(TWeakObjectPtr<AYogPlayerController
 	TArray<FTutorialPage> Pages;
 	Pages.Add({ LOCTEXT("PostCombatTitle", "放置你的新符文"),
 	            LOCTEXT("PostCombatBody", "把新符文移动到你想要的位置。\n进入下一关后，战斗中将无法调整。") });
+	PopupWidget->ShowPopup(Pages);
+}
+
+void UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC)
+{
+	if (!PopupWidget.IsValid()) return;
+
+	if (ContentDA)
+	{
+		if (const TArray<FTutorialPage>* Pages = ContentDA->FindPages(EventID))
+		{
+			PopupWidget->ShowPopup(*Pages);
+			return;
+		}
+	}
+
+	// 兜底：单页显示 EventID 本身
+	TArray<FTutorialPage> Pages;
+	Pages.Add({ FText::FromName(EventID), FText::GetEmpty() });
 	PopupWidget->ShowPopup(Pages);
 }
 

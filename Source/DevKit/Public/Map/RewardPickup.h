@@ -6,6 +6,8 @@
 #include "RewardPickup.generated.h"
 
 class UBoxComponent;
+class UWidgetComponent;
+class URuneRewardFloatWidget;
 class APlayerCharacterBase;
 
 /**
@@ -34,15 +36,34 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup")
 	TObjectPtr<UBoxComponent> CollisionVolume;
+
+	// 符文奖励浮窗 WidgetComponent（Screen Space）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "浮窗")
+	TObjectPtr<UWidgetComponent> RuneInfoWidgetComp;
+
+	// 在 BP_RewardPickup 里指定浮窗 WBP 类
+	UPROPERTY(EditDefaultsOnly, Category = "浮窗")
+	TSubclassOf<URuneRewardFloatWidget> RuneFloatWidgetClass;
+
+	// 浮窗侧向偏移（摄像机 Right 方向，cm）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "浮窗")
+	float WidgetSideOffset = 300.f;
+
+	// 浮窗垂直偏移（cm）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "浮窗")
+	float WidgetZOffset = 50.f;
 
 private:
 	// GameMode 预分配的战利品选项（Spawn 时写入，拾取时广播给 UI）
 	TArray<FLootOption> AssignedLoot;
 
 	bool bPickedUp = false;
+	bool bPlayerInRange = false;
+	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
 
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,

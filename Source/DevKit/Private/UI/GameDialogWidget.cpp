@@ -28,10 +28,16 @@ void UTutorialPopupWidget::OnNextPressed()
 	CurrentPage++;
 	if (CurrentPage >= Pages.Num())
 	{
-		DeactivateWidget();
+		// 触发 WBP 渐出动画；动画结束后 WBP 调用 ConfirmClose()
+		BP_OnPopupClosing();
 		return;
 	}
 	RefreshPage();
+}
+
+void UTutorialPopupWidget::ConfirmClose()
+{
+	DeactivateWidget();
 }
 
 void UTutorialPopupWidget::NativeConstruct()
@@ -54,8 +60,7 @@ void UTutorialPopupWidget::NativeOnActivated()
 	SetVisibility(ESlateVisibility::Visible);
 	UGameplayStatics::SetGamePaused(this, true);
 	RefreshPage();
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green,
-		TEXT("[Tutorial] NativeOnActivated — popup should be visible now"));
+	BP_OnPopupShown();
 }
 
 void UTutorialPopupWidget::NativeOnDeactivated()
