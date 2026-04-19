@@ -80,7 +80,7 @@ void UHeatBarWidget::NativeConstruct()
 void UHeatBarWidget::NativeDestruct()
 {
     if (UBackpackGridComponent* Backpack = GetBackpack())
-        Backpack->OnHeatBarUpdate.RemoveDynamic(this, &UHeatBarWidget::HandleHeatBarUpdate);
+        Backpack->OnHeatBarUpdate.RemoveDynamic(this, &UHeatBarWidget::HandleHeatBarUpdate_Implementation);
 
     Super::NativeDestruct();
 }
@@ -89,9 +89,17 @@ void UHeatBarWidget::NativeDestruct()
 //  委托回调
 // ============================================================
 
-void UHeatBarWidget::HandleHeatBarUpdate(float NormalizedHeat, int32 NewPhase)
+void UHeatBarWidget::HandleHeatBarUpdate_Implementation(float NormalizedHeat, int32 NewPhase)
 {
-    RefreshDisplay(NormalizedHeat, NewPhase);
+    const int32 PhaseBefore = CurrentPhase;
+    const int32 PhaseNext   = NewPhase;
+
+    if (PhaseBefore != PhaseNext)
+    {
+        CurrentPhase = PhaseNext;
+    }
+
+    RefreshDisplay(NormalizedHeat, CurrentPhase);
 }
 
 // ============================================================

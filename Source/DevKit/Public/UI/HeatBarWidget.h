@@ -45,6 +45,11 @@ public:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UProgressBar> HeatBar;
 
+    UFUNCTION(BlueprintNativeEvent)
+    void HandleHeatBarUpdate(float NormalizedHeat, int32 NewPhase);
+
+    virtual void HandleHeatBarUpdate_Implementation(float NormalizedHeat, int32 NewPhase);
+
 protected:
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
@@ -53,8 +58,7 @@ private:
     TWeakObjectPtr<UBackpackGridComponent> CachedBackpack;
     UBackpackGridComponent* GetBackpack() const;
 
-    UFUNCTION()
-    void HandleHeatBarUpdate(float NormalizedHeat, int32 NewPhase);
+    int32 CurrentPhase = -1;
 
     /** 立即刷新颜色和进度（NativeConstruct 也会调用一次以显示初始状态） */
     void RefreshDisplay(float NormalizedHeat, int32 Phase);
