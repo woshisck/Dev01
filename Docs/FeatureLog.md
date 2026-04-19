@@ -5,6 +5,51 @@
 
 ---
 
+## 2026-04-19（本次会话追加）
+
+### [FIX-007] CommonUI 输入模式残留 — 所有 UCommonActivatableWidget 手动还原 InputMode
+
+**状态**：已修复已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `GameDialogWidget.cpp`、`BackpackScreenWidget.cpp` |
+| 根因 | 三个菜单 Widget 均用 `AddToViewport` 而非 CommonUI Stack；`Super::NativeOnDeactivated()` 无 Stack 时无法自动还原 `ECommonInputMode`，关闭后操控被 block（表现为"长按鼠标左键才能控制"） |
+| BackpackScreenWidget | `NativeOnDeactivated` 末尾补 `PC->SetInputMode(FInputModeGameOnly())` |
+| TutorialPopupWidget | `NativeOnActivated` 明确调 `SetShowMouseCursor(true)` + `SetInputMode(UIOnly)`；`NativeOnDeactivated` 把还原逻辑（`SetShowMouseCursor(false)` + `SetInputMode(GameOnly)` + `SetGamePaused(false)`）移到 `Super::` **之前**，防止 Super 的 CommonUI 回调覆盖 |
+| LootSelectionWidget | 原本已正确实现，无需改动 |
+
+---
+
+### [FIX-006] Tutorial 弹窗"知道了"无法关闭 + 武器教程不再开背包
+
+**状态**：已修复已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `GameDialogWidget.h/.cpp`、`TutorialManager.cpp` |
+| 根因 | `BP_OnPopupClosing` 为 `BlueprintImplementableEvent`（纯 BP 虚函数），WBP 未 override 时调用完全无效 |
+| 修复 | 改为 `BlueprintNativeEvent`，添加 `BP_OnPopupClosing_Implementation()` 默认调 `ConfirmClose()` → `DeactivateWidget()` |
+| 武器教程 | 删除 `DoShowWeaponPopup` 中的 `WeakPC->OpenBackpack()` 调用，武器教程不再强制打开背包 |
+
+---
+
+### [UI-011] Tutorial 弹窗触发时机重构 + 时间膨胀 + 符文浮窗 + LevelFlow
+
+**状态**：已实现已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `WeaponSpawner.cpp`、`TutorialManager.h/.cpp`、`RewardPickup.h/.cpp`、`RuneRewardFloatWidget.h/.cpp`、`LevelFlowAsset.h`、`LevelEventTrigger.h/.cpp`、`LENode_*.h/.cpp` |
+| 触发时机 | 由拾取后改为**进入 WeaponSpawner 范围时**（OnOverlapBegin）立即触发；浮窗由 `IsPopupShowing()` 保护，弹窗期间不出现 |
+| 时间膨胀 | `TryWeaponTutorial`：先 `GlobalTimeDilation(0.08f)`，用 `FTSTicker`（真实时间）等 0.35s，再恢复并显示弹窗 |
+| 渐出钩子 | `BP_OnPopupShown` / `BP_OnPopupClosing`（NativeEvent）/ `ConfirmClose()`：WBP 可 override 播动画，动画结束调 `ConfirmClose()` |
+| 符文浮窗 | `ARewardPickup` + `URuneRewardFloatWidget`：动态显示可选符文列表（图标+名称），同 WeaponSpawner 屏幕侧向偏移 |
+| LevelFlow | `ULevelFlowAsset`（独立于 BuffFlow）、`ALevelEventTrigger`（Box 触发器）、`LENode_TimeDilation`、`LENode_ShowTutorial` |
+| HUD 清理 | 删除 `YogHUD` 对已废弃 `EnemyArrowWidget`（2026-04-19 前一 commit 已删源文件）的残留引用 |
+
+---
+
 ## 2026-04-19
 
 ### [UI-010] 背包格子默认半透明 — InactiveZoneOpacity
