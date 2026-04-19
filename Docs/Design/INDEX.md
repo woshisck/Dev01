@@ -55,6 +55,7 @@
 | [敌人朝向修正配置指南](FeatureConfig/EnemyRotation_ConfigGuide.md) | BTT_RotateCorrect 配置（Interp Speed）+ 转身动画方案设计 | 策划 + 程序 |
 | [蒙太奇命中符文配置指南](FeatureConfig/MeleeCombo_NotifyRune_Guide.md) | 在特定连段命中时触发一次性符文效果（FA 结构、AdditionalRuneEffects 配置、Debug 方法） | 策划 + 程序 |
 | [韧性系统配置指南](FeatureConfig/PoiseSystem_ConfigGuide.md) | Resilience 属性初始值、动作韧性（ActResilience）、霸体阈值与时长配置 | 策划 + 程序 |
+| [GM 调试命令指南](FeatureConfig/GMCommands_Guide.md) | `Yog_*` 控制台命令：热度/阶段/符文/属性/敌人/Debug 打印，含接入方式和常用测试场景 | 程序 + 策划 |
 | [符文制作主指南](FeatureConfig/RuneMaster_ProductionGuide.md) | 1001-1021 全量，制作优先级（P0-P3+停用），每符文逻辑层+表现层（GC/Niagara/SFX/浮字）完整规格 | 策划 + 程序 |
 | [测试符文制作指南（逻辑层）](FeatureConfig/TestRune_CreationGuide.md) | 1001-1016 详细 FA 流程 + DA 配置 + 测试要点（符文制作主指南的执行参考） | 策划 + 程序 |
 | [高感知测试符文设计指南（逻辑层）](FeatureConfig/TestRune_HighPerception_Guide.md) | 1017-1021 详细 FA 流程 + DA 配置，禁用被动数值类设计原则 | 策划 + 程序 |
@@ -66,7 +67,7 @@
 | 文档 | 内容 | 适用人群 |
 |---|---|---|
 | [角色闪光特效系统 — 技术文档](VFX/CharacterFlash_Technical.md) | 命中闪白 / 攻击前闪红 / 热度升阶发光：C++ 接口、材质参数、蓝图配置清单 | 程序 + 策划 |
-| [角色特效制作规范](VFX/VFX_CreationGuide.md) | 新建特效标准流程、材质模板 HLSL、颜色约定、调参习惯 | 程序 |
+| [角色特效制作规范](VFX/VFX_CreationGuide.md) | 新建特效标准流程、材质模板 HLSL、颜色约定、调参习惯；含 .ush 共享文件说明 | 程序 |
 
 ---
 
@@ -74,6 +75,7 @@
 
 | 文档 | 内容 | 适用人群 |
 |---|---|---|
+| [液态玻璃框技术文档](UI/GlassFrame_Technical.md) | WBP_GlassFrame 层级、材质 HLSL（.ush include 体系）、C++ 接口、各场景参数推荐值 | 程序 + 策划 |
 | [背包 UI 零基础制作手册](UI/BackpackUI_StepByStep.md) | WBP_BackpackScreen / WBP_RuneInfoCard 蓝图搭建步骤，适合不熟悉 UE5 的人 | 策划（零基础） |
 | [新手引导图像生成提示词](UI/Tutorial_ImagePrompts.md) | Nano Banana 图像提示词，覆盖引导全节点 UI 概念图 | 策划 |
 
