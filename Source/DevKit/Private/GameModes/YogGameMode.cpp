@@ -1711,14 +1711,3 @@ TArray<AEnemyCharacterBase*> AYogGameMode::GetNearbyEnemies(FVector Origin, floa
 	}
 	return Result;
 }
-
-TArray<AEnemyCharacterBase*> AYogGameMode::GetAllAliveEnemies() const
-{
-	TArray<AEnemyCharacterBase*> Result;
-	for (const TWeakObjectPtr<AEnemyCharacterBase>& W : AliveEnemies)
-	{
-		if (AEnemyCharacterBase* E = W.Get(); E && E->IsAlive())
-			Result.Add(E);
-	}
-	return Result;
-}

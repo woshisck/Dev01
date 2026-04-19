@@ -50,6 +50,7 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 
 	WeaponInfoWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("WeaponInfoWidgetComp"));
 	WeaponInfoWidgetComp->SetupAttachment(RootComponent);
+	WeaponInfoWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
 	WeaponInfoWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
 	WeaponInfoWidgetComp->SetVisibility(false);
 }
@@ -90,7 +91,7 @@ void AWeaponSpawner::Tick(float DeltaTime)
 	UWorld* World = GetWorld();
 	WeaponMesh->AddRelativeRotation(FRotator(0.0f, World->GetDeltaSeconds() * WeaponMeshRotationSpeed, 0.0f));
 
-	// 朝向判断 + 动态偏移：浮窗始终在武器右侧，不遮挡玩家和武器
+	// 朝向判断：玩家在范围内且面朝武器时显示浮窗（±105°以内）
 	if (bPlayerInRange && NearbyPlayer.IsValid() && WeaponInfoWidgetComp)
 	{
 		FVector ToWeapon = GetActorLocation() - NearbyPlayer->GetActorLocation();
@@ -99,39 +100,7 @@ void AWeaponSpawner::Tick(float DeltaTime)
 		FVector Forward = NearbyPlayer->GetActorForwardVector();
 		Forward.Z = 0.f;
 		Forward.Normalize();
-
-		const bool bShouldShow = FVector::DotProduct(Forward, ToWeapon) > -0.3f;
-		WeaponInfoWidgetComp->SetVisibility(bShouldShow);
-
-		if (bShouldShow)
-		{
-			// 45°斜视角：用摄像机 Right 向量投影到水平面，确保偏移与屏幕对齐
-			FVector Right = FVector(0.f, 1.f, 0.f); // 兜底：世界 Y
-			if (APlayerController* PC = NearbyPlayer->GetController<APlayerController>())
-			{
-				if (PC->PlayerCameraManager)
-				{
-					FVector CamRight = FRotationMatrix(PC->PlayerCameraManager->GetCameraRotation())
-						.GetScaledAxis(EAxis::Y);
-					CamRight.Z = 0.f;
-					if (!CamRight.IsNearlyZero())
-						Right = CamRight.GetSafeNormal();
-				}
-
-				// 根据武器在屏幕上的位置决定偏移方向：屏幕右半则向左偏，左半则向右偏
-				FVector2D WeaponScreenPos;
-				if (PC->ProjectWorldLocationToScreen(GetActorLocation(), WeaponScreenPos, false))
-				{
-					FVector2D ViewportSize;
-					if (GEngine && GEngine->GameViewport)
-						GEngine->GameViewport->GetViewportSize(ViewportSize);
-					if (WeaponScreenPos.X > ViewportSize.X * 0.5f)
-						Right = -Right;
-				}
-			}
-			WeaponInfoWidgetComp->SetRelativeLocation(
-				Right * WidgetSideOffset + FVector(0.f, 0.f, WidgetZOffset));
-		}
+		WeaponInfoWidgetComp->SetVisibility(FVector::DotProduct(Forward, ToWeapon) > -0.3f);
 	}
 }
 

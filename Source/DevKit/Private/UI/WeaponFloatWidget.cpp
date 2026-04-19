@@ -52,16 +52,6 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 		if (bHasDesc) WeaponDescText->SetText(Info->WeaponDescription);
 	}
 
-	// ── 子描述（可选） ───────────────────────────────────────────
-	if (WeaponSubDescText)
-	{
-		const bool bHasSub = Info && !Info->WeaponSubDescription.IsEmpty();
-		WeaponSubDescText->SetVisibility(bHasSub
-			? ESlateVisibility::SelfHitTestInvisible
-			: ESlateVisibility::Collapsed);
-		if (bHasSub) WeaponSubDescText->SetText(Info->WeaponSubDescription);
-	}
-
 	// ── 激活区点阵 / 图像 ─────────────────────────────────────────
 	const FActivationZoneConfig& ZoneCfg = Def->BackpackConfig.ActivationZoneConfig;
 	const int32 GW = Def->BackpackConfig.GridWidth;
@@ -115,13 +105,9 @@ void UWeaponFloatWidget::BuildZonePanel(UCanvasPanel* GridPanel, UImage* ImgWidg
 	TSet<FIntPoint> ActiveCells;
 	if (Shape) ActiveCells.Append(Shape->Cells);
 
-	// 根据 ZoneGridSize 自动计算 Step/DotSize，填满 CanvasPanel
-	const int32 MaxDim  = FMath::Max(FMath::Max(GW, GH), 1);
-	const float Step    = ZoneGridSize / MaxDim;
-	const float DotSize = FMath::Max(Step - 2.f, 1.f);   // 固定 2px 间隔，至少 1px
-	const float OffX    = (ZoneGridSize - (GW * Step - (Step - DotSize))) * 0.5f;
-	const float OffY    = (ZoneGridSize - (GH * Step - (Step - DotSize))) * 0.5f;
-	const float Radius  = FMath::Max(DotSize * 0.25f, 1.f);
+	constexpr float DotSize = 8.f;
+	constexpr float Gap     = 2.f;
+	constexpr float Step    = DotSize + Gap;
 
 	for (int32 Row = 0; Row < GH; Row++)
 	{
@@ -133,13 +119,13 @@ void UWeaponFloatWidget::BuildZonePanel(UCanvasPanel* GridPanel, UImage* ImgWidg
 			FSlateBrush Brush;
 			Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
 			Brush.TintColor = FSlateColor(FLinearColor::White);
-			Brush.OutlineSettings.CornerRadii  = FVector4(Radius, Radius, Radius, Radius);
+			Brush.OutlineSettings.CornerRadii  = FVector4(2.f, 2.f, 2.f, 2.f);
 			Brush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
 			Dot->SetBrush(Brush);
 			Dot->SetColorAndOpacity(bActive ? WeaponZoneColors::Active : WeaponZoneColors::Inactive);
 
 			UCanvasPanelSlot* DotSlot = GridPanel->AddChildToCanvas(Dot);
-			DotSlot->SetPosition(FVector2D(OffX + Col * Step, OffY + Row * Step));
+			DotSlot->SetPosition(FVector2D(Col * Step, Row * Step));
 			DotSlot->SetSize(FVector2D(DotSize, DotSize));
 		}
 	}
