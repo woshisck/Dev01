@@ -5,7 +5,41 @@
 
 ---
 
-## 2026-04-19（第三次会话追加）
+## 2026-04-19（第四次会话追加）
+
+### [FEAT-013] 链路系统（Chain System）— BackpackGridComponent
+
+**状态**：C++ 完成，已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Component/BackpackGridComponent.h/.cpp`、`Data/RuneDataAsset.h` |
+| 新增枚举 | `ERuneChainRole`（None/Producer/Consumer）、`EChainDirection`（8方向） |
+| FRuneConfig 新增字段 | `ChainRole`、`ChainDirections`（Producer 专用） |
+| Producer 逻辑 | 在激活区内时，按 ChainDirections 向相邻格传导激活（BFS 多跳） |
+| Consumer 限制 | 系统层面阻止放入任何阶段激活区的格子（`ComputeAllPossibleActivationCells`） |
+| 激活计算 | `RefreshAllActivations` 用 `EffectiveZone = DirectZone ∪ ChainZone` |
+| 新私有方法 | `ComputeAllPossibleActivationCells`、`ComputeChainActivatedCells`、`ChainDirectionToOffset`、`IsRuneInZone` |
+
+---
+
+### [FEAT-014] 献祭恩赐系统（Sacrifice Grace）— 全局 Run Buff
+
+**状态**：C++ 完成，已编译；需在编辑器创建配套 FA 和拾取物 BP
+
+| 项目 | 内容 |
+|------|------|
+| 数据资产 | `Data/SacrificeGraceDA.h`（BaseDecayRate/DecayAccelPerSecond/MaxDecayRate/HPDrainPerSecond/BonusEffect/FlowAsset） |
+| 衰退节点 | `BuffFlow/Nodes/BFNode_SacrificeDecay.h/.cpp`（In/Stop 引脚，1s 定时器，动态 GE 创建） |
+| 玩家接口 | `PlayerCharacterBase::AcquireSacrificeGrace(DA)` — 满热度 + BonusEffect + 启动 FA |
+| 关卡重入 | `BeginPlay` 中若 `ActiveSacrificeGrace` 非空自动重新激活（衰退速率重置，热度重充满） |
+| 掉落逻辑 | `YogGameMode::EnterArrangementPhase()` 尾部：非主城关 15% 概率生成 `SacrificePickupClass` |
+| 编辑器配置 | GameMode BP：`SacrificeGracePool`、`SacrificeDropChance`、`SacrificePickupClass` |
+| 待完成 | 创建 FA（In→BFNode_SacrificeDecay）、创建拾取物 BP（显示 GameDialogWidget 接受/拒绝） |
+
+---
+
+## 2026-04-19（第三次会话）
 
 ### [VFX-003] 攻击前摇闪红 AnimNotifyState — ANS_PreAttackFlash
 
