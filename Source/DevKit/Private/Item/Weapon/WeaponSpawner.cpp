@@ -51,6 +51,7 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 
 	WeaponInfoWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("WeaponInfoWidgetComp"));
 	WeaponInfoWidgetComp->SetupAttachment(RootComponent);
+	WeaponInfoWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
 	WeaponInfoWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
 	WeaponInfoWidgetComp->SetVisibility(false);
 }

@@ -98,14 +98,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "浮窗")
 	TSubclassOf<UWeaponFloatWidget> WeaponFloatWidgetClass;
 
-	// 浮窗相对武器的侧向偏移（摄像机右方向，单位 cm，正值=右，负值=左）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "浮窗")
-	float WidgetSideOffset = 300.f;
-
-	// 浮窗相对武器的垂直偏移（单位 cm）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "浮窗")
-	float WidgetZOffset = 50.f;
-
 private:
 
 	// BeginPlay 时保存的原始材质，用于换武器时恢复

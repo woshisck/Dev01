@@ -1,5 +1,4 @@
 #include "UI/YogHUD.h"
-#include "UI/EnemyArrowWidget.h"
 #include "UI/GameDialogWidget.h"
 #include "UI/DialogContentDA.h"
 #include "Tutorial/TutorialManager.h"
@@ -19,13 +18,6 @@ void AYogHUD::BeginPlay()
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
 	{
 		TM->Init(TutorialPopupWidget, DialogContentDA);
-	}
-
-	if (EnemyArrowWidgetClass)
-	{
-		EnemyArrowWidget = CreateWidget<UEnemyArrowWidget>(GetOwningPlayerController(), EnemyArrowWidgetClass);
-		if (EnemyArrowWidget)
-			EnemyArrowWidget->AddToViewport(0);
 	}
 
 	UYogSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UYogSaveSubsystem>();
