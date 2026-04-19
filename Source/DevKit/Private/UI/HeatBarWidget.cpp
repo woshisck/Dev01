@@ -57,7 +57,7 @@ void UHeatBarWidget::NativeConstruct()
 
     if (CachedBackpack.IsValid())
     {
-        CachedBackpack->OnHeatBarUpdate.AddDynamic(this, &UHeatBarWidget::HandleHeatBarUpdate);
+        CachedBackpack->OnHeatBarUpdate.AddDynamic(this, &UHeatBarWidget::OnHeatBarUpdateReceived);
 
         float Heat = 0.f, MaxHeat = 1.f;
         if (UAbilitySystemComponent* ASC =
@@ -69,18 +69,18 @@ void UHeatBarWidget::NativeConstruct()
         }
         const float NormalizedHeat = (MaxHeat > KINDA_SMALL_NUMBER)
             ? FMath::Clamp(Heat / MaxHeat, 0.f, 1.f) : 0.f;
-        RefreshDisplay(NormalizedHeat, CachedBackpack->GetCurrentPhase());
+        OnHeatBarUpdateReceived(NormalizedHeat, CachedBackpack->GetCurrentPhase());
     }
     else
     {
-        RefreshDisplay(0.f, 0);
+        OnHeatBarUpdateReceived(0.f, 0);
     }
 }
 
 void UHeatBarWidget::NativeDestruct()
 {
     if (UBackpackGridComponent* Backpack = GetBackpack())
-        Backpack->OnHeatBarUpdate.RemoveDynamic(this, &UHeatBarWidget::HandleHeatBarUpdate_Implementation);
+        Backpack->OnHeatBarUpdate.RemoveDynamic(this, &UHeatBarWidget::OnHeatBarUpdateReceived);
 
     Super::NativeDestruct();
 }
@@ -89,17 +89,18 @@ void UHeatBarWidget::NativeDestruct()
 //  委托回调
 // ============================================================
 
+void UHeatBarWidget::OnHeatBarUpdateReceived(float NormalizedHeat, int32 NewPhase)
+{
+    PreviousPhase = CurrentPhase;
+    bPhaseChanged = (PreviousPhase != NewPhase);
+    CurrentPhase = NewPhase;
+
+    HandleHeatBarUpdate(NormalizedHeat, NewPhase);
+}
+
 void UHeatBarWidget::HandleHeatBarUpdate_Implementation(float NormalizedHeat, int32 NewPhase)
 {
-    const int32 PhaseBefore = CurrentPhase;
-    const int32 PhaseNext   = NewPhase;
-
-    if (PhaseBefore != PhaseNext)
-    {
-        CurrentPhase = PhaseNext;
-    }
-
-    RefreshDisplay(NormalizedHeat, CurrentPhase);
+    RefreshDisplay(NormalizedHeat, NewPhase);
 }
 
 // ============================================================
