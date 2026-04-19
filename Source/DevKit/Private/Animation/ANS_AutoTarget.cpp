@@ -3,6 +3,7 @@
 #include "Animation/ANS_AutoTarget.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Character/YogCharacterBase.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -36,8 +37,9 @@ void UANS_AutoTarget::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequence
 	if (!Character)
 		return;
 
-	// 目标失效时重新搜索
-	if (!CachedTarget.IsValid())
+	// 目标失效或已死亡时重新搜索
+	AYogCharacterBase* CachedChar = Cast<AYogCharacterBase>(CachedTarget.Get());
+	if (!CachedTarget.IsValid() || (CachedChar && !CachedChar->IsAlive()))
 		CachedTarget = FindBestTarget(Character);
 
 	if (CachedTarget.IsValid())
@@ -87,6 +89,13 @@ AActor* UANS_AutoTarget::FindBestTarget(ACharacter* Character) const
 	{
 		if (!IsValid(Actor) || Actor == Character)
 			continue;
+
+		// 跳过已死亡敌人
+		if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(Actor))
+		{
+			if (!Char->IsAlive())
+				continue;
+		}
 
 		// 距离过滤
 		const FVector ToTarget = Actor->GetActorLocation() - Origin;

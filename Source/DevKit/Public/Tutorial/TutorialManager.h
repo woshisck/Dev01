@@ -28,7 +28,13 @@ public:
 	ETutorialState GetState() const { return State; }
 
 	// 返回 true 表示教程弹窗正在显示（Tick 中用于屏蔽浮窗）
-	bool IsPopupShowing() const;
+	bool IsPopupShowing() const { return bPopupShowing; }
+
+	// 由 GameDialogWidget 在关闭时调用，清除弹窗标志并广播委托
+	void NotifyPopupClosed();
+
+	// 弹窗关闭时广播（供 LENode_ShowTutorial 等节点等待）
+	FSimpleMulticastDelegate OnPopupClosed;
 
 private:
 	ETutorialState State = ETutorialState::NeedWeaponTutorial;
@@ -37,6 +43,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UDialogContentDA> ContentDA;
+
+	// 弹窗是否正在显示（由 DoShowWeaponPopup/DoShowPostCombatPopup 置 true，NotifyPopupClosed 置 false）
+	bool bPopupShowing = false;
 
 	FTimerHandle DelayHandle;
 

@@ -29,10 +29,7 @@ void UTutorialManager::LoadFromSave(UYogSaveGame* Save)
 	State = Save->TutorialState;
 }
 
-bool UTutorialManager::IsPopupShowing() const
-{
-	return PopupWidget.IsValid() && PopupWidget->IsInViewport() && PopupWidget->IsActivated();
-}
+// IsPopupShowing() 是内联的，由 bPopupShowing 驱动，不依赖 Widget 状态
 
 void UTutorialManager::TryWeaponTutorial(AYogPlayerControllerBase* PC)
 {
@@ -90,6 +87,8 @@ void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase
 	UE_LOG(LogTemp, Warning, TEXT("[Tutorial] DoShowWeaponPopup fired"));
 	if (!WeakPC.IsValid() || !PopupWidget.IsValid()) return;
 
+	bPopupShowing = true;
+
 	// 优先从 DA 读页面；DA 未配置则用兜底文字
 	if (ContentDA)
 	{
@@ -111,6 +110,8 @@ void UTutorialManager::DoShowPostCombatPopup(TWeakObjectPtr<AYogPlayerController
 {
 	UE_LOG(LogTemp, Warning, TEXT("[Tutorial] DoShowPostCombatPopup fired"));
 	if (!WeakPC.IsValid() || !PopupWidget.IsValid()) return;
+
+	bPopupShowing = true;
 
 	State = ETutorialState::Completed;
 	SaveState();
@@ -137,6 +138,8 @@ void UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC)
 {
 	if (!PopupWidget.IsValid()) return;
 
+	bPopupShowing = true;
+
 	if (ContentDA)
 	{
 		if (const TArray<FTutorialPage>* Pages = ContentDA->FindPages(EventID))
@@ -150,6 +153,12 @@ void UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC)
 	TArray<FTutorialPage> Pages;
 	Pages.Add({ FText::FromName(EventID), FText::GetEmpty() });
 	PopupWidget->ShowPopup(Pages);
+}
+
+void UTutorialManager::NotifyPopupClosed()
+{
+	bPopupShowing = false;
+	OnPopupClosed.Broadcast();
 }
 
 void UTutorialManager::SaveState()

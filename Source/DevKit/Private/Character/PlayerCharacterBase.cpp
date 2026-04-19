@@ -360,6 +360,7 @@ void APlayerCharacterBase::StartPlayerPhaseGlow(int32 Phase)
 	PlayerOverlayDynMat->SetVectorParameterValue(TEXT("EmissiveColor"), PhaseColors[Idx]);
 	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), 0.f);
 	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), 1.f);
+	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("IridIntensity"), GlowIridIntensity);
 	GetMesh()->SetOverlayMaterial(PlayerOverlayDynMat);
 	PhaseGlowElapsed = 0.f;
 }

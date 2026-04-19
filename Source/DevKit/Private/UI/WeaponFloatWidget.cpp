@@ -1,4 +1,5 @@
 #include "UI/WeaponFloatWidget.h"
+#include "UI/WeaponGlassAnimDA.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInfoDA.h"
 #include "Data/RuneDataAsset.h"
@@ -11,6 +12,7 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/SizeBox.h"
+#include "Components/Widget.h"
 
 namespace WeaponZoneColors
 {
@@ -22,15 +24,25 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 {
 	if (!Def) return;
 
+	// 重置动画状态（每次拿到新武器从 Idle 开始）
+	CurrentPhase = EWeaponFloatPhase::Idle;
+	PhaseTimer   = 0.f;
+	SetRenderTransform(FWidgetTransform());
+	SetRenderOpacity(1.f);
+	if (InfoContainer)
+		InfoContainer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
 	const UWeaponInfoDA* Info = Def->WeaponInfo;
 
-	// ── 缩略图 ───────────────────────────────────────────────────
+	// ── 缩略图 ─────────────────────────────────
+	CachedThumbnail = nullptr;
 	if (WeaponThumbnail)
 	{
 		if (Info && Info->Thumbnail)
 		{
 			WeaponThumbnail->SetBrushFromTexture(Info->Thumbnail, true);
 			WeaponThumbnail->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+			CachedThumbnail = Info->Thumbnail;
 		}
 		else
 		{
@@ -38,36 +50,32 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 		}
 	}
 
-	// ── 名称 ─────────────────────────────────────────────────────
+	// ── 名称 ───────────────────────────────────
 	if (WeaponNameText)
 		WeaponNameText->SetText(Info ? Info->WeaponName : FText::GetEmpty());
 
-	// ── 描述（可选） ─────────────────────────────────────────────
+	// ── 描述 ───────────────────────────────────
 	if (WeaponDescText)
 	{
-		const bool bHasDesc = Info && !Info->WeaponDescription.IsEmpty();
-		WeaponDescText->SetVisibility(bHasDesc
-			? ESlateVisibility::SelfHitTestInvisible
-			: ESlateVisibility::Collapsed);
-		if (bHasDesc) WeaponDescText->SetText(Info->WeaponDescription);
+		const bool bHas = Info && !Info->WeaponDescription.IsEmpty();
+		WeaponDescText->SetVisibility(bHas ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		if (bHas) WeaponDescText->SetText(Info->WeaponDescription);
 	}
 
-	// ── 子描述（可选） ───────────────────────────────────────────
+	// ── 子描述 ─────────────────────────────────
 	if (WeaponSubDescText)
 	{
-		const bool bHasSub = Info && !Info->WeaponSubDescription.IsEmpty();
-		WeaponSubDescText->SetVisibility(bHasSub
-			? ESlateVisibility::SelfHitTestInvisible
-			: ESlateVisibility::Collapsed);
-		if (bHasSub) WeaponSubDescText->SetText(Info->WeaponSubDescription);
+		const bool bHas = Info && !Info->WeaponSubDescription.IsEmpty();
+		WeaponSubDescText->SetVisibility(bHas ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		if (bHas) WeaponSubDescText->SetText(Info->WeaponSubDescription);
 	}
 
-	// ── 激活区点阵 / 图像 ─────────────────────────────────────────
+	// ── 激活区 ─────────────────────────────────
 	const FActivationZoneConfig& ZoneCfg = Def->BackpackConfig.ActivationZoneConfig;
 	const int32 GW = Def->BackpackConfig.GridWidth;
 	const int32 GH = Def->BackpackConfig.GridHeight;
 
-	auto GetShape = [&](int32 Idx) -> const FRuneShape*
+	auto GetShape   = [&](int32 Idx) -> const FRuneShape*
 	{
 		return ZoneCfg.ZoneShapes.IsValidIndex(Idx) ? &ZoneCfg.ZoneShapes[Idx] : nullptr;
 	};
@@ -86,13 +94,128 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 	BuildZonePanel(ZoneGrid2, Zone2Image, GetZoneImg(1), GetShape(1), GW, GH);
 	BuildZonePanel(ZoneGrid3, Zone3Image, GetZoneImg(2), GetShape(2), GW, GH);
 
-	// ── 初始符文列表 ─────────────────────────────────────────────
+	// ── 初始符文列表 ───────────────────────────
 	BuildRuneList(Def->InitialRunes);
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-//  激活区：图像覆盖 or 全格点阵（高亮激活格）
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  动画：折叠 → 缩小 → 飞行
+// ─────────────────────────────────────────────────────────────────────────────
+
+void UWeaponFloatWidget::StartCollapseAndFly(FVector2D TargetScreenCenter,
+                                              const UWeaponGlassAnimDA* InAnimDA)
+{
+	if (!InAnimDA || CurrentPhase != EWeaponFloatPhase::Idle) return;
+
+	AnimDA    = InAnimDA;
+	PhaseTimer = 0.f;
+	CurrentPhase = EWeaponFloatPhase::Collapsing;
+
+	// Phase 1：立即隐藏非缩略图区域（用 InfoContainer 整体折叠，或逐个隐藏）
+	if (InfoContainer)
+	{
+		InfoContainer->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	else
+	{
+		// 没有 InfoContainer 时退化为逐个隐藏
+		if (WeaponNameText)    WeaponNameText->SetVisibility(ESlateVisibility::Collapsed);
+		if (WeaponDescText)    WeaponDescText->SetVisibility(ESlateVisibility::Collapsed);
+		if (WeaponSubDescText) WeaponSubDescText->SetVisibility(ESlateVisibility::Collapsed);
+		if (ZoneGrid1)         ZoneGrid1->SetVisibility(ESlateVisibility::Collapsed);
+		if (ZoneGrid2)         ZoneGrid2->SetVisibility(ESlateVisibility::Collapsed);
+		if (ZoneGrid3)         ZoneGrid3->SetVisibility(ESlateVisibility::Collapsed);
+		if (Zone1Image)        Zone1Image->SetVisibility(ESlateVisibility::Collapsed);
+		if (Zone2Image)        Zone2Image->SetVisibility(ESlateVisibility::Collapsed);
+		if (Zone3Image)        Zone3Image->SetVisibility(ESlateVisibility::Collapsed);
+		if (RuneListBox)       RuneListBox->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	// 计算缩小目标 Scale
+	const FGeometry Geom     = GetCachedGeometry();
+	const FVector2D LocalSize = Geom.GetLocalSize();
+	if (LocalSize.X > 0.f && LocalSize.Y > 0.f)
+	{
+		TargetShrinkScale = FMath::Min(
+			InAnimDA->GlassIconSize.X / LocalSize.X,
+			InAnimDA->GlassIconSize.Y / LocalSize.Y);
+	}
+	else
+	{
+		TargetShrinkScale = 0.15f;
+	}
+
+	// 计算飞行位移（屏幕绝对坐标 Center → 目标中心）
+	const FVector2D WidgetCenter = Geom.LocalToAbsolute(LocalSize * 0.5f);
+	FlyDelta = TargetScreenCenter - WidgetCenter;
+}
+
+void UWeaponFloatWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (CurrentPhase == EWeaponFloatPhase::Idle || !AnimDA) return;
+
+	PhaseTimer += InDeltaTime;
+
+	const float T_Collapse = AnimDA->CollapseDuration;
+	const float T_Shrink   = AnimDA->ShrinkDuration;
+	const float T_Fly      = AnimDA->FlyDuration;
+
+	FWidgetTransform WT;
+
+	if (PhaseTimer < T_Collapse)
+	{
+		// Phase 1 Collapsing：等待，不做 transform（已瞬间隐藏 InfoContainer）
+		CurrentPhase = EWeaponFloatPhase::Collapsing;
+		return;
+	}
+
+	const float ShrinkElapsed = PhaseTimer - T_Collapse;
+
+	if (ShrinkElapsed < T_Shrink)
+	{
+		// Phase 2 Shrinking
+		CurrentPhase = EWeaponFloatPhase::Shrinking;
+		const float Alpha = ShrinkElapsed / FMath::Max(T_Shrink, 0.001f);
+		const float Scale = FMath::Lerp(1.f, TargetShrinkScale, Alpha);
+		WT.Scale = FVector2D(Scale);
+
+		// 缩略图在缩小过程中淡至飞行不透明度
+		if (WeaponThumbnail)
+			WeaponThumbnail->SetRenderOpacity(FMath::Lerp(1.f, AnimDA->ThumbnailFlyOpacity, Alpha));
+	}
+	else
+	{
+		const float FlyElapsed = ShrinkElapsed - T_Shrink;
+
+		if (FlyElapsed < T_Fly)
+		{
+			// Phase 3 Flying
+			CurrentPhase = EWeaponFloatPhase::Flying;
+			const float Alpha = FlyElapsed / FMath::Max(T_Fly, 0.001f);
+			WT.Scale       = FVector2D(TargetShrinkScale);
+			WT.Translation = FMath::Lerp(FVector2D::ZeroVector, FlyDelta, Alpha);
+		}
+		else
+		{
+			// Done
+			CurrentPhase = EWeaponFloatPhase::Idle;
+			SetVisibility(ESlateVisibility::Collapsed);
+			SetRenderTransform(FWidgetTransform());
+			if (WeaponThumbnail) WeaponThumbnail->SetRenderOpacity(1.f);
+
+			OnFlyComplete.Broadcast(CachedThumbnail);
+			return;
+		}
+	}
+
+	SetRenderTransform(WT);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  激活区：图像覆盖 or 全格点阵
+// ─────────────────────────────────────────────────────────────────────────────
 
 void UWeaponFloatWidget::BuildZonePanel(UCanvasPanel* GridPanel, UImage* ImgWidget,
                                          UTexture2D* ZoneTexture, const FRuneShape* Shape,
@@ -115,10 +238,9 @@ void UWeaponFloatWidget::BuildZonePanel(UCanvasPanel* GridPanel, UImage* ImgWidg
 	TSet<FIntPoint> ActiveCells;
 	if (Shape) ActiveCells.Append(Shape->Cells);
 
-	// 根据 ZoneGridSize 自动计算 Step/DotSize，填满 CanvasPanel
 	const int32 MaxDim  = FMath::Max(FMath::Max(GW, GH), 1);
 	const float Step    = ZoneGridSize / MaxDim;
-	const float DotSize = FMath::Max(Step - 2.f, 1.f);   // 固定 2px 间隔，至少 1px
+	const float DotSize = FMath::Max(Step - 2.f, 1.f);
 	const float OffX    = (ZoneGridSize - (GW * Step - (Step - DotSize))) * 0.5f;
 	const float OffY    = (ZoneGridSize - (GH * Step - (Step - DotSize))) * 0.5f;
 	const float Radius  = FMath::Max(DotSize * 0.25f, 1.f);
@@ -145,9 +267,9 @@ void UWeaponFloatWidget::BuildZonePanel(UCanvasPanel* GridPanel, UImage* ImgWidg
 	}
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-//  初始符文列表：每条 = [Icon 40×40] + [Name / Desc]
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  初始符文列表
+// ─────────────────────────────────────────────────────────────────────────────
 
 void UWeaponFloatWidget::BuildRuneList(const TArray<TObjectPtr<URuneDataAsset>>& Runes)
 {
@@ -161,7 +283,6 @@ void UWeaponFloatWidget::BuildRuneList(const TArray<TObjectPtr<URuneDataAsset>>&
 
 		UHorizontalBox* Row = NewObject<UHorizontalBox>(this);
 
-		// 图标（固定 40×40）
 		USizeBox* IconBox = NewObject<USizeBox>(this);
 		IconBox->SetWidthOverride(40.f);
 		IconBox->SetHeightOverride(40.f);
@@ -177,7 +298,6 @@ void UWeaponFloatWidget::BuildRuneList(const TArray<TObjectPtr<URuneDataAsset>>&
 		IconSlot->SetVerticalAlignment(VAlign_Center);
 		IconSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
-		// 名称 + 描述
 		UVerticalBox* TextCol = NewObject<UVerticalBox>(this);
 		UTextBlock* NameTB = NewObject<UTextBlock>(this);
 		NameTB->SetText(FText::FromName(Cfg.RuneName));

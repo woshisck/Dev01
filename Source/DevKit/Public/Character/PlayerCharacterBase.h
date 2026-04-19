@@ -120,6 +120,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0.1"))
 	float GlowFadeDuration = 0.5f;
 
+	/** 炫彩强度（玩家边缘 Fresnel 极强处的彩虹光，0=关闭，推荐 0.2–0.35） */
+	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0", ClampMax = "1"))
+	float GlowIridIntensity = 0.28f;
+
 	UPROPERTY()
 	TObjectPtr<AItemSpawner> OverlappingSpawner;
 

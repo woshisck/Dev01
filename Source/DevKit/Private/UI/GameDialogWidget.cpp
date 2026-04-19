@@ -1,5 +1,7 @@
 #include "UI/GameDialogWidget.h"
 #include "Kismet/GameplayStatics.h"
+#include "Tutorial/TutorialManager.h"
+#include "UI/YogHUD.h"
 
 #define LOCTEXT_NAMESPACE "TutorialPopup"
 
@@ -37,6 +39,14 @@ void UTutorialPopupWidget::OnNextPressed()
 
 void UTutorialPopupWidget::ConfirmClose()
 {
+	// 通知 TutorialManager 弹窗已关闭（清除 IsPopupShowing 标志，让浮窗恢复显示）
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
+		{
+			TM->NotifyPopupClosed();
+		}
+	}
 	DeactivateWidget();
 }
 
@@ -65,6 +75,10 @@ void UTutorialPopupWidget::NativeOnActivated()
 	SetVisibility(ESlateVisibility::Visible);
 	UGameplayStatics::SetGamePaused(this, true);
 
+	if (APlayerController* PC = GetOwningPlayer())
+		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			HUD->BeginPauseEffect();
+
 	// 明确显示光标 + 切换到 UI 输入模式（不依赖 CommonUI Stack 自动管理）
 	if (APlayerController* PC = GetOwningPlayer())
 	{
@@ -78,6 +92,15 @@ void UTutorialPopupWidget::NativeOnActivated()
 
 void UTutorialPopupWidget::NativeOnDeactivated()
 {
+	// 安全网：确保 bPopupShowing 一定被清除（防止 WBP 未调用 ConfirmClose 时标志滞留）
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
+		{
+			TM->NotifyPopupClosed();
+		}
+	}
+
 	// 先还原输入/光标，再调 Super —— 防止 Super 的 CommonUI 回调覆盖还原结果
 	if (APlayerController* PC = GetOwningPlayer())
 	{
@@ -85,6 +108,10 @@ void UTutorialPopupWidget::NativeOnDeactivated()
 		PC->SetInputMode(FInputModeGameOnly());
 	}
 	UGameplayStatics::SetGamePaused(this, false);
+
+	if (APlayerController* PC = GetOwningPlayer())
+		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			HUD->EndPauseEffect();
 
 	Super::NativeOnDeactivated();
 	RemoveFromParent();

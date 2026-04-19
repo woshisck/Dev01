@@ -16,6 +16,7 @@
 #include "Components/TextBlock.h"
 #include "Components/RichTextBlock.h"
 #include "InputCoreTypes.h"
+#include "UI/YogHUD.h"
 
 // ============================================================
 //  内部辅助
@@ -424,6 +425,10 @@ void UBackpackScreenWidget::NativeOnActivated()
     SetVisibility(ESlateVisibility::Visible);
 
     if (APlayerController* PC = GetOwningPlayer())
+        if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+            HUD->BeginPauseEffect();
+
+    if (APlayerController* PC = GetOwningPlayer())
     {
         PC->SetPause(true);
         PC->SetShowMouseCursor(true);
@@ -463,6 +468,10 @@ void UBackpackScreenWidget::NativeOnDeactivated()
         // AddToViewport 绕过 CommonUI Stack，输入模式不会自动还原，必须手动设回 GameOnly
         PC->SetInputMode(FInputModeGameOnly());
     }
+
+    if (APlayerController* PC = GetOwningPlayer())
+        if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+            HUD->EndPauseEffect();
 
     Super::NativeOnDeactivated();
 }

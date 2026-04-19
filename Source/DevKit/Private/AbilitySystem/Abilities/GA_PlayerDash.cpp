@@ -13,6 +13,11 @@
 #include "DrawDebugHelpers.h"
 #include "Kismet/GameplayStatics.h"
 
+static TAutoConsoleVariable<int32> CVarDashDebugTrace(
+	TEXT("Dash.DebugTrace"),
+	0,
+	TEXT("1 = 绘制冲刺扫描路径和命中信息"));
+
 // ECC_GameTraceChannel1 = DashTrace（用于障碍 SphereTrace）
 static const ECollisionChannel DashTraceChannel   = ECC_GameTraceChannel1;
 // ECC_GameTraceChannel3 = Enemy（冲刺期间 Overlap）
@@ -283,37 +288,66 @@ float UGA_PlayerDash::GetFurthestValidDashDistance(const FVector& Start, const F
 	UWorld* World = GetWorld();
 	if (!World) return DashMaxDistance;
 
+	// ── 台阶偏移：抬高 Sweep 使其从台阶竖面上方通过，CMC Step-Up 在根运动中照常生效 ──
+	float StepOffset = 0.f;
+	if (ACharacter* Owner = Cast<ACharacter>(GetOwningActorFromActorInfo()))
+	{
+		if (UCharacterMovementComponent* CMC = Owner->GetCharacterMovement())
+			StepOffset = CMC->MaxStepHeight;
+	}
+	const FVector SweepStart = Start + FVector(0.f, 0.f, StepOffset);
+	const FVector SweepEnd   = End   + FVector(0.f, 0.f, StepOffset);
+
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(DashTrace), false);
 	if (AActor* Owner = GetOwningActorFromActorInfo())
-	{
 		Params.AddIgnoredActor(Owner);
-	}
 	const FCollisionShape Sphere = FCollisionShape::MakeSphere(DashCapsuleRadius);
 
-	// ── 1. 前向扫描：Start → End（满距终点）─────────────────────────────────
+	// ── 1. 前向扫描（抬高 StepOffset，跳过台阶竖面）─────────────────────────
 	FHitResult ForwardHit;
 	const bool bHit = World->SweepSingleByChannel(
-		ForwardHit, Start, End, FQuat::Identity, DashTraceChannel, Sphere, Params);
+		ForwardHit, SweepStart, SweepEnd, FQuat::Identity, DashTraceChannel, Sphere, Params);
+
+	const bool bDebugTrace = CVarDashDebugTrace.GetValueOnGameThread() != 0;
+	if (bDebugTrace)
+	{
+		// 绿线 = 扫描路径；命中时在碰撞点画红球 + 白法线
+		const FColor LineColor = bHit ? FColor::Red : FColor::Green;
+		DrawDebugLine(World, SweepStart, bHit ? ForwardHit.ImpactPoint : SweepEnd, LineColor, false, 3.f, 0, 2.f);
+		DrawDebugSphere(World, SweepStart, DashCapsuleRadius, 12, FColor::Yellow, false, 3.f);
+		if (bHit)
+		{
+			DrawDebugSphere(World, ForwardHit.ImpactPoint, DashCapsuleRadius, 12, FColor::Red, false, 3.f);
+			DrawDebugLine(World, ForwardHit.ImpactPoint, ForwardHit.ImpactPoint + ForwardHit.ImpactNormal * 60.f,
+				FColor::White, false, 3.f, 0, 2.f);
+			const FString HitMsg = FString::Printf(
+				TEXT("[DashTrace] 命中: %s | 组件: %s | Dist=%.0f | StepOffset=%.0f"),
+				ForwardHit.GetActor() ? *ForwardHit.GetActor()->GetName() : TEXT("None"),
+				ForwardHit.GetComponent() ? *ForwardHit.GetComponent()->GetName() : TEXT("None"),
+				ForwardHit.Distance, StepOffset);
+			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, HitMsg);
+			UE_LOG(LogTemp, Warning, TEXT("%s"), *HitMsg);
+		}
+		else
+		{
+			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+				FString::Printf(TEXT("[DashTrace] 无阻挡，满距 %.0f cm"), DashMaxDistance));
+		}
+	}
 
 	if (!bHit)
-	{
-		// 无障碍，满距冲刺
 		return DashMaxDistance;
-	}
 
 	const float HitDist   = ForwardHit.Distance;
 	const float Threshold = DashMaxDistance - 2.f * DashCapsuleRadius;
 
-	// ── 2. 命中在终点附近（硬墙在末端）→ 停在障碍前 ─────────────────────────
+	// ── 2. 命中在终点附近（末端硬墙）→ 停在障碍前 ───────────────────────────
 	if (HitDist > Threshold)
-	{
 		return HitDist;
-	}
 
-	// ── 3. 命中在前段 → 从满距终点逐步向前延伸，寻找越障落点 ──────────────────
-	// ForwardHit.TraceEnd = 传入的 End（UE5 中 TraceEnd 存储完整 End 参数，非命中点）
-	const FVector DashDir   = (End - Start).GetSafeNormal();
-	const FVector StepOrigin = ForwardHit.TraceEnd; // = End（满距终点）
+	// ── 3. 前段阻挡 → 从满距终点逐步向前延伸，寻找越障落点 ──────────────────
+	const FVector DashDir    = (SweepEnd - SweepStart).GetSafeNormal();
+	const FVector StepOrigin = SweepEnd; // 满距终点（已含 StepOffset）
 
 	constexpr int32 StepCount = 6;
 	constexpr float StepSize  = 50.f;
@@ -327,14 +361,21 @@ float UGA_PlayerDash::GetFurthestValidDashDistance(const FVector& Start, const F
 		World->SweepMultiByChannel(
 			StepHits, SegStart, SegEnd, FQuat::Identity, DashTraceChannel, Sphere, Params);
 
-		if (IsValidDashLocation(StepHits))
+		if (bDebugTrace)
 		{
-			// 找到无阻挡落点，返回从起点到该落点的距离（> DashMaxDistance）
-			return FVector::Dist(Start, SegEnd);
+			const bool bSegClear = IsValidDashLocation(StepHits);
+			DrawDebugSphere(World, SegEnd, DashCapsuleRadius * 0.5f, 8,
+				bSegClear ? FColor::Green : FColor::Orange, false, 3.f);
 		}
+
+		if (IsValidDashLocation(StepHits))
+			return FVector::Dist2D(Start, SegEnd); // 水平距离，忽略 StepOffset Z 分量
 	}
 
-	// ── 4. 6 步内无有效落点 → 停在最初障碍前 ─────────────────────────────────
+	if (bDebugTrace && GEngine)
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("[DashTrace] 延伸6步均被阻挡，停在障碍前"));
+
+	// ── 4. 无有效落点 → 停在最初障碍前 ──────────────────────────────────────
 	return HitDist;
 }
 

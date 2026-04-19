@@ -9,19 +9,38 @@ class UImage;
 class UTextBlock;
 class UCanvasPanel;
 class UVerticalBox;
+class UWidget;
 class UWeaponDefinition;
+class UWeaponGlassAnimDA;
 struct FRuneShape;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeaponFlyComplete, UTexture2D*, CachedThumbnail);
+
+/** 浮窗动画阶段 */
+UENUM()
+enum class EWeaponFloatPhase : uint8
+{
+	Idle,       // 正常展示
+	Collapsing, // 隐藏文字/符文区域
+	Shrinking,  // 缩放至玻璃图标尺寸
+	Flying,     // 平移飞向 HUD 锚点
+};
 
 /**
  * 武器拾取浮窗 Widget
  *
  * WBP 需命名以下控件（全部 BindWidgetOptional）：
- *   WeaponThumbnail  Image        武器缩略图
+ *   WeaponThumbnail  Image        武器缩略图（折叠/飞行时保留）
+ *   InfoContainer    Widget       包裹名称/描述/符文的容器（折叠时整体隐藏）
  *   WeaponNameText   TextBlock    武器名称
  *   WeaponDescText   TextBlock    武器描述（空时自动隐藏）
+ *   WeaponSubDescText TextBlock   武器子描述
  *   ZoneGrid1/2/3    CanvasPanel  激活区点阵（建议 60×60）
  *   Zone1Image/2/3   Image        激活区图像覆盖（提供时替代点阵）
  *   RuneListBox      VerticalBox  初始符文列表（C++ 动态填充）
+ *
+ * 动画流程（C++ Tick 驱动，参数由 WeaponGlassAnimDA 控制）：
+ *   StartCollapseAndFly → Collapsing → Shrinking → Flying → OnFlyComplete 广播
  */
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UWeaponFloatWidget : public UUserWidget
@@ -32,9 +51,38 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "WeaponFloat")
 	void SetWeaponDefinition(const UWeaponDefinition* Def);
 
+	/**
+	 * 开始折叠→缩小→飞行动画序列
+	 * @param TargetScreenCenter  飞行终点屏幕坐标（中心点）
+	 * @param InAnimDA            动画参数 DA
+	 */
+	UFUNCTION(BlueprintCallable, Category = "WeaponFloat")
+	void StartCollapseAndFly(FVector2D TargetScreenCenter, const UWeaponGlassAnimDA* InAnimDA);
+
+	/** 飞行结束后广播（参数为缓存的缩略图贴图，可直接传给 WeaponGlassIconWidget） */
+	UPROPERTY(BlueprintAssignable, Category = "WeaponFloat")
+	FOnWeaponFlyComplete OnFlyComplete;
+
+	/** 当前动画阶段（只读，供 BP 查询） */
+	UFUNCTION(BlueprintPure, Category = "WeaponFloat")
+	EWeaponFloatPhase GetFloatPhase() const { return CurrentPhase; }
+
 protected:
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
+	// ──────────────────────────────────────────
+	//  BindWidgetOptional（WBP 按名称绑定）
+	// ──────────────────────────────────────────
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UImage> WeaponThumbnail;
+
+	/**
+	 * 包裹所有非缩略图内容的容器（折叠阶段整体隐藏）
+	 * WBP 里将 WeaponNameText / ZoneGrid / RuneListBox 等放入此容器并命名 "InfoContainer"
+	 */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> InfoContainer;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> WeaponNameText;
@@ -49,7 +97,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponFloat", meta = (ClampMin = "20"))
 	float ZoneGridSize = 60.f;
 
-	// 三个激活区点阵容器（ZoneGridN 与 ZoneNImage 互斥：有图像时隐藏点阵）
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UCanvasPanel> ZoneGrid1;
 
@@ -68,7 +115,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UImage> Zone3Image;
 
-	// 初始符文列表容器（C++ 动态生成 HorizontalBox 子项）
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UVerticalBox> RuneListBox;
 
@@ -78,4 +124,18 @@ private:
 	                    int32 GW, int32 GH);
 
 	void BuildRuneList(const TArray<TObjectPtr<URuneDataAsset>>& Runes);
+
+	// ── 动画状态 ──────────────────────────────
+	EWeaponFloatPhase CurrentPhase = EWeaponFloatPhase::Idle;
+
+	UPROPERTY()
+	TObjectPtr<const UWeaponGlassAnimDA> AnimDA;
+
+	float PhaseTimer       = 0.f;
+	float TargetShrinkScale = 1.f;   // 缩小至目标 Scale（均匀）
+	FVector2D FlyDelta;              // 飞行位移（屏幕像素）
+
+	// 缓存缩略图，飞行完成后传给 WeaponGlassIconWidget
+	UPROPERTY()
+	TObjectPtr<UTexture2D> CachedThumbnail;
 };

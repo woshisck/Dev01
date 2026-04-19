@@ -61,11 +61,16 @@ void AWeaponSpawner::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 保存 WeaponMesh 原始材质，供换武器时恢复
-	OriginalMeshMaterials.Empty();
-	for (int32 i = 0; i < WeaponMesh->GetNumMaterials(); i++)
+	// BP 里未赋值时自动按路径兜底，防止 merge 丢失引用
+	if (!WeaponFloatWidgetClass)
 	{
-		OriginalMeshMaterials.Add(WeaponMesh->GetMaterial(i));
+		WeaponFloatWidgetClass = LoadClass<UWeaponFloatWidget>(
+			nullptr,
+			TEXT("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponFloat.WBP_WeaponFloat_C"));
+		if (!WeaponFloatWidgetClass)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] WBP_WeaponFloat 未找到，请检查资产路径"));
+		}
 	}
 
 	// 初始化浮窗 Widget
@@ -92,7 +97,12 @@ void AWeaponSpawner::Tick(float DeltaTime)
 	UWorld* World = GetWorld();
 	WeaponMesh->AddRelativeRotation(FRotator(0.0f, World->GetDeltaSeconds() * WeaponMeshRotationSpeed, 0.0f));
 
-	// Tutorial 弹窗显示期间隐藏浮窗
+	// Tutorial 弹窗显示期间、或武器已被拾取后隐藏浮窗
+	if (bPickedUp)
+	{
+		if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
+		return;
+	}
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
 	{
 		if (TM->IsPopupShowing())
@@ -203,16 +213,10 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 {
 	if (!Player || !WeaponDefinition) return;
 
-	// 拾取时立即隐藏浮窗
-	bPlayerInRange = false;
-	NearbyPlayer = nullptr;
-	if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
+	// 拾取后浮窗永久隐藏
+	bPickedUp = true;
 
 	// ── 1. 处理旧武器 ────────────────────────────────────────────────
-	if (Player->EquippedFromSpawner && Player->EquippedFromSpawner != this)
-	{
-		Player->EquippedFromSpawner->RestoreSpawnerMesh();
-	}
 	if (Player->EquippedWeaponInstance)
 	{
 		// 解绑热度委托，再销毁
@@ -285,25 +289,10 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	Player->EquippedFromSpawner  = this;
 	Player->PendingWeaponSpawner = nullptr;
 
-	// ── 5. 本 Spawner 展示网格变黑 ───────────────────────────────────
-	if (BlackedOutMaterial)
-	{
-		for (int32 i = 0; i < WeaponMesh->GetNumMaterials(); i++)
-		{
-			WeaponMesh->SetMaterial(i, BlackedOutMaterial);
-		}
-	}
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾取 [%s]"), *WeaponDefinition->GetName());
 
 }
 
-void AWeaponSpawner::RestoreSpawnerMesh()
-{
-	for (int32 i = 0; i < OriginalMeshMaterials.Num(); i++)
-	{
-		WeaponMesh->SetMaterial(i, OriginalMeshMaterials[i]);
-	}
-}
 
 AWeaponInstance* AWeaponSpawner::SpawnWeaponDeferred(UWorld* World, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)
 {

@@ -6,7 +6,8 @@
 
 /**
  * 关卡事件节点：显示教程弹窗
- * In → 触发 TutorialManager 按 EventID 显示弹窗 → （弹窗关闭后无回调，直接 Out）
+ * In  → 调 TutorialManager::ShowByEventID，弹窗显示（游戏暂停）
+ * OnClosed → 玩家关闭弹窗后触发（用于串联后续节点）
  */
 UCLASS(meta = (DisplayName = "Show Tutorial Popup"))
 class DEVKIT_API ULENode_ShowTutorial : public ULENode_Base
@@ -19,4 +20,8 @@ class DEVKIT_API ULENode_ShowTutorial : public ULENode_Base
 
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void Cleanup() override;
+
+private:
+	FDelegateHandle PopupClosedHandle;
 };

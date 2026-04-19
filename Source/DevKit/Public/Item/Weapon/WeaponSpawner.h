@@ -80,15 +80,8 @@ public:
 	// 玩家按 E 后触发：换武器逻辑 + 材质变黑
 	void TryPickupWeapon(APlayerCharacterBase* Player);
 
-	// 换武器时恢复本 Spawner 的展示网格材质
-	void RestoreSpawnerMesh();
-
 	UFUNCTION()
 	AWeaponInstance* SpawnWeaponDeferred(UWorld* World, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData);
-
-	// 武器被拾取后展示网格切换到的黑色材质（在 BP 里赋值）
-	UPROPERTY(EditDefaultsOnly, Category = "ItemPickup")
-	TObjectPtr<UMaterialInterface> BlackedOutMaterial;
 
 	// 武器信息浮窗 WidgetComponent（Screen Space，自动跟随武器位置）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "浮窗", meta = (AllowPrivateAccess = true))
@@ -108,12 +101,9 @@ public:
 
 private:
 
-	// BeginPlay 时保存的原始材质，用于换武器时恢复
-	UPROPERTY()
-	TArray<TObjectPtr<UMaterialInterface>> OriginalMeshMaterials;
-
 	// 朝向检测：玩家在范围内时每帧判断是否应显示浮窗
 	bool bPlayerInRange = false;
+	bool bPickedUp     = false;   // 拾取后浮窗永久隐藏
 	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
 
 	void ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data);

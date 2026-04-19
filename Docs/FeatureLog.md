@@ -5,7 +5,306 @@
 
 ---
 
-## 2026-04-19（本次会话追加）
+## 2026-04-19（第三次会话追加）
+
+### [VFX-003] 攻击前摇闪红 AnimNotifyState — ANS_PreAttackFlash
+
+**状态**：C++ 完成，需在敌人攻击蒙太奇前摇帧配置
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Animation/ANS_PreAttackFlash.h/.cpp` |
+| 驱动接口 | `AYogCharacterBase::StartPreAttackFlash()` / `StopPreAttackFlash()` |
+| 适用范围 | 玩家和敌人通用（任何继承 `AYogCharacterBase` 的角色） |
+| 使用方式 | 攻击蒙太奇前摇帧拖出 `ANS Pre Attack Flash` 区间，覆盖预警到命中帧 |
+| 可调参数 | `PreAttackPulseFreq`（默认 4Hz）、`CharacterFlashMaterial`（敌人 BP Details 填入） |
+
+---
+
+### [FIX-008] ANS_AutoTarget 吸附死亡敌人 — IsAlive 过滤
+
+**状态**：已修复已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Animation/ANS_AutoTarget.cpp` |
+| 根因 | `FindBestTarget` 只检查 `IsValid()`（未销毁），不检查存活；`bContinuousTracking` 下目标已死但 CachedTarget 有效仍持续吸附 |
+| 修复① | `FindBestTarget` 遍历时 Cast 到 `AYogCharacterBase`，`!IsAlive()` 则跳过 |
+| 修复② | `NotifyTick` 中 CachedTarget 有效但 `!IsAlive()` 时触发重新搜索 |
+
+---
+
+### [COMBAT-007] GA_PlayerDash 台阶支持 + 诊断 CVar
+
+**状态**：已完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `AbilitySystem/Abilities/GA_PlayerDash.cpp` |
+| 台阶根因 | 球形扫描在角色当前 Z 做水平射线，台阶竖面 Block 导致冲刺提前停止 |
+| 修复 | `GetFurthestValidDashDistance` 所有 Sweep 整体上移 `CMC->MaxStepHeight`（约 45cm），球从台阶竖面上方通过，CMC 根运动 Step-Up 正常生效 |
+| 诊断 CVar | 控制台 `Dash.DebugTrace 1` 绘制扫描路径和命中信息；`0` 关闭，关闭时无任何性能开销 |
+| 注意 | 点光源 `SphereVolume` 响应 DashTrace 会挡冲刺，需在对应 BP 中将该通道设为 Ignore |
+
+---
+
+## 2026-04-19（充能CD系统）
+
+### [SKILL-001] 统一充能/CD 系统 — SkillChargeComponent
+
+**状态**：C++ 已落地已编译，蓝图 GA 接入待配置
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `SkillChargeComponent.h/.cpp`、`PlayerCharacterBase.cpp`、`PlayerAttributeSet.h/.cpp` |
+| 设计 | 用后触发队列：每用 1 格启动独立 CDTimer，顺序回复；MaxCharge=1 即单次 CD，MaxCharge>1 即多格充能，同一组件处理 |
+| GAS 属性 | `MaxDashCharge`（符文可加格数）/ `DashCooldownDuration`（符文可改 CD 速），运行时从属性读值 |
+| 主要接口 | `InitWithASC()`、`RegisterSkill(Tag, MaxAttr, CDAttr)`、`HasCharge(Tag)`、`ConsumeCharge(Tag)` |
+| 委托 | `OnChargeChanged(SkillTag, NewCharge)` 供 UI 刷新绑定 |
+| 冲刺注册 | BeginPlay：`RegisterSkill("Ability.Dash", MaxDashCharge, DashCooldownDuration)` |
+| 扩展新技能 | 只需在 PlayerCharacterBase.cpp 加一行 `RegisterSkill`，无需额外 C++ |
+
+#### GA 蓝图接入模板
+
+| 时机 | 节点 |
+|------|------|
+| CanActivateAbility | `GetSkillChargeComponent → HasCharge("Ability.Dash")` |
+| ActivateAbility 开头 | `GetSkillChargeComponent → ConsumeCharge("Ability.Dash")` |
+
+#### 符文修改示例
+
+| 效果 | FA Apply Attribute Modifier 参数 |
+|------|------|
+| 冲刺 +1 格 | Attr=MaxDashCharge / Op=Additive / Val=1 / Infinite |
+| CD 缩短 25% | Attr=DashCooldownDuration / Op=Multiplicative / Val=-0.25 / Infinite |
+
+> FA 停止时 `BFNode_ApplyAttributeModifier.Cleanup()` 自动移除 GE，FA 内无需写 Stop 节点。
+
+**配置前提**：ProjectSettings → GameplayTags 添加 `Ability.Dash`
+
+设计文档：[充能系统指南](Design/Systems/SkillCharge_Guide.md)
+
+---
+
+## 2026-04-19（第二次会话追加）
+
+### [FEAT-012] LevelFlow 系统完善 — LENode_Delay + OnClosed 回调 + 节点可见性隔离
+
+**状态**：已实现已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `LENode_Delay.h/.cpp`、`LENode_ShowTutorial.h/.cpp`、`LENode_Base.cpp`、`BFNode_Base.cpp`、`TutorialManager.h/.cpp` |
+| LENode_Delay | 新建真实时间延迟节点（FTSTicker，不受 GlobalTimeDilation 影响）；`Duration` 秒后触发 Out |
+| LENode_ShowTutorial | Out 改为 **OnClosed**：绑定 `TutorialManager::OnPopupClosed` 委托，玩家关闭弹窗后才触发下一节点；`ShowByEventID` 同步设置 `bPopupShowing=true` |
+| TutorialManager | `NotifyPopupClosed()` 从 inline 改为 .cpp 实现，广播 `FSimpleMulticastDelegate OnPopupClosed` |
+| 节点隔离 | `BFNode_Base` 构造函数设 `AllowedAssetClasses = {UNotifyFlowAsset}`；`LENode_Base` 设 `AllowedAssetClasses = {ULevelFlowAsset}`；两套节点在各自编辑器内互不可见 |
+
+#### 使用方式（编辑器）
+
+1. Content Browser 右键 → Data Asset → **Level Event Flow** → 命名 `DA_LevelEvent_XXX`
+2. 双击打开 Flow 编辑器，右键只会出现 `LevelEvent` 分类节点（TimeDilation / Delay / Show Tutorial Popup）
+3. 关卡放置 `BP_LevelEventTrigger`，Details → LevelFlow → 指定 DA，调整 Box 触发范围
+
+---
+
+### [FIX-009] WeaponSpawner 拾取黑化移除 + 浮窗拾取后隐藏
+
+**状态**：已修复已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `WeaponSpawner.h/.cpp` |
+| 问题 | 拾取武器后 Spawner 网格变纯黑（BlackedOutMaterial），且浮窗永久消失，视觉上误以为无法再拾取 |
+| 修复 | 删除 `BlackedOutMaterial`、`OriginalMeshMaterials`、`RestoreSpawnerMesh` 全部黑化逻辑 |
+| 浮窗行为 | 加 `bPickedUp` 标志：拾取后浮窗永不再显示（Tick 中 `bPickedUp=true` 时直接 return）；Spawner 网格保持原始外观 |
+| 再拾取 | 玩家离开区域再进入仍可按 E 换武器，不受限制 |
+
+---
+
+### [FIX-008] 武器浮窗消失 — WBP 引用 merge 后丢失 + bPopupShowing 安全网
+
+**状态**：已修复已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `WeaponSpawner.cpp`、`GameDialogWidget.cpp` |
+| 根因 1 | merge 引入远端 commit（0c7c83f5）中 `BP_WeaponSpawner.uasset` 版本，该版本 `WeaponFloatWidgetClass` 为空（远端 WBP 已删）；本地 WBP 保留但 BP 引用丢失 |
+| 修复 1 | `BeginPlay` 加路径兜底：`WeaponFloatWidgetClass` 为空时自动 `LoadClass<>("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponFloat.WBP_WeaponFloat_C")` |
+| 根因 2 | WBP 若 override `BP_OnPopupClosing` 只播动画但未调 `ConfirmClose()`，`bPopupShowing` 永不清除，Tick 每帧隐藏浮窗 |
+| 修复 2 | `NativeOnDeactivated` 开头加 `TM->NotifyPopupClosed()`，Widget 无论通过何种路径关闭都能清除标志 |
+
+---
+
+## 2026-04-19（第三次会话追加）
+
+### [UI-014] 三选一结束后自动打开背包
+
+**状态**：已实现已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `LootSelectionWidget.cpp`、`YogHUD.h/.cpp` |
+| 触发时机 | `LootSelectionWidget::SelectRuneLoot` 在 `DeactivateWidget()` 之后调 `HUD->OpenBackpack()` |
+| YogHUD 新增 | `BackpackScreenClass`（EditDefaultsOnly）、`BackpackWidget`（实例）、`OpenBackpack()` |
+| 生命周期 | BackpackWidget 在 BeginPlay 创建 `AddToViewport(5)`；`OpenBackpack()` 调 `ActivateWidget()` |
+| 配置入口 | HUD 蓝图 Details → **Backpack → Backpack Screen Class** = WBP_BackpackScreen |
+| 注意 | 若背包 WBP 原先在其他 Blueprint 中创建，需移除，改由 YogHUD 统一管理避免实例重复 |
+
+---
+
+### [UI-013] 武器浮窗→玻璃图标流程框架 — WeaponGlass
+
+**状态**：C++ 框架已落地已编译，WBP + DA 待编辑器配置
+
+**核心文件**：`WeaponGlassAnimDA.h` / `WeaponGlassIconWidget.h/.cpp` / `WeaponFloatWidget.h/.cpp`（重构）/ `YogHUD.h/.cpp`（扩展）
+
+#### 流程
+
+```text
+拾取武器 → HUD::TriggerWeaponPickup(Def) → WeaponFloat 展示
+  → [AutoCollapseDelay] → Phase1 折叠(隐InfoContainer)
+  → Phase2 缩小(Scale→GlassIconSize) → Phase3 飞行(Translation→左下角)
+  → WeaponGlassIconWidget 常驻
+
+打开背包 → HUD::NotifyBackpackOpening() → GlassIcon 放大+渐隐
+```
+
+#### YogHUD 新增接口
+
+| 接口 | 说明 |
+|------|------|
+| `TriggerWeaponPickup(Def)` | 显示 WeaponFloat，启动 AutoCollapse 计时 |
+| `TriggerWeaponCollapse()` | 手动跳过延迟立即折叠 |
+| `NotifyBackpackOpening()` | GlassIcon 放大消失 |
+| `GetWeaponGlassIconScreenCenter()` | 返回左下角锚点坐标 |
+| `GetWeaponFloatWidget()` | 返回实例供 BP 调用 |
+
+#### WeaponGlassAnimDA 参数速查
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `AutoCollapseDelay` | 2.5s | 自动折叠延迟；0=手动 |
+| `CollapseDuration` | 0.25s | Phase1 等待 |
+| `ShrinkDuration` | 0.35s | Phase2 缩放 |
+| `GlassIconSize` | 64×64px | 目标图标尺寸 |
+| `FlyDuration` | 0.45s | Phase3 飞行 |
+| `HUDOffsetFromBottomLeft` | (44,120)px | 图标距左下偏移 |
+| `ExpandDuration` | 0.2s | 消失动画时长 |
+| `ExpandScale` | 1.35 | 消失前最大放大倍率 |
+| `ThumbnailFlyOpacity` | 0.45 | 飞行中缩略图透明度 |
+
+#### WBP 配置
+
+- **WBP_WeaponFloat**：缩略图命名 `WeaponThumbnail`；其余内容包在容器命名 `InfoContainer`
+- **WBP_WeaponGlassIcon**（父类 WeaponGlassIconWidget）：Overlay 层 `GlassBG` / `GlassBorderImage`(M_GlassFrame) / `WeaponThumbnailImg` / `HeatColorOverlay`
+- **HUD 蓝图**：填 `WeaponFloatClass`、`WeaponGlassIconClass`、`WeaponGlassAnimDA`
+
+---
+
+### [UI-012] 暂停弹窗屏幕变暗效果 — PauseEffect
+
+**状态**：已实现已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `YogHUD.h/.cpp`、`BackpackScreenWidget.cpp`、`LootSelectionWidget.cpp`、`GameDialogWidget.cpp` |
+| 效果 | 所有暂停式弹窗激活时画面在 `PauseFadeDuration` 内渐变至低饱和+变暗，关闭后恢复 |
+| 实现 | BeginPlay 生成 unbound `APostProcessVolume`；HUD Tick 设 `bTickEvenWhenPaused=true`；每帧插值 `ColorSaturation.W` / `ColorGain.W` |
+| 计数器 | `PausePopupCount` 支持多弹窗叠加，全部关闭后才淡出 |
+| 接入 | 各弹窗 `NativeOnActivated` → `BeginPauseEffect()`；`NativeOnDeactivated` → `EndPauseEffect()` |
+| 配置入口 | HUD 蓝图 Details → PauseEffect |
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `PauseFadeDuration` | 0.25s | 渐变时长 |
+| `PauseTargetSaturation` | 0.10 | 目标饱和度（0=灰度） |
+| `PauseTargetGain` | 0.40 | 目标亮度系数 |
+
+---
+
+## 2026-04-19（第四次会话追加）
+
+### [VFX-004] 热度升阶玻璃边缘光 — 菲涅尔炫彩 + HLSL Include 体系
+
+**状态**：C++ 已编译，材质需在编辑器更新 Custom 节点
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Shaders/GlassRim.ush`、`Shaders/PlayerGlowOverlay.ush`、`Shaders/WeaponGlowOverlay.ush`、`DevKit.h/.cpp`（FDevKitModule）、`PlayerCharacterBase.h/.cpp` |
+| 效果 | 升阶时边缘菲涅尔区出现神秘炫彩；边缘 alpha 高于中心（更不透明）；炫彩随法线方向 + 时间缓慢流动 |
+| 共享函数 | `GlassRim.ush`：`GR_HueToRGB` / `GR_Iridescence` / `GR_Fresnel`，供玩家和武器材质共用 |
+| 模块注册 | `FDevKitModule::StartupModule()` 调 `AddShaderSourceDirectoryMapping("/Project", Shaders/)`，使 `.ush` 可跨电脑正常 include |
+| 玩家参数 | `GlowIridIntensity`（默认 0.28）加到 `PlayerCharacterBase`，升阶时写入 DynMat `IridIntensity` |
+
+#### 材质 Custom 节点更新方法（玩家 / 武器各做一次）
+
+| 步骤 | 操作 |
+|---|---|
+| Include File Paths | 点 Custom 节点 → Details → Include File Paths → `+` → 填 `/Project/PlayerGlowOverlay.ush`（武器填 WeaponGlowOverlay.ush） |
+| Code 字段 | `return PlayerGlowMain(UV, N, V, Time, EmissiveColor, SweepProgress, GlowAlpha, Power, BandWidth, SwipeCount, IridIntensity, IridSpeed);` |
+| 新增 Inputs | Time（Time节点）、BandWidth（ScalarParam 默认 0.15）、IridIntensity（ScalarParam 默认 0.28）、IridSpeed（ScalarParam 默认 0.06） |
+
+---
+
+### [UI-015] 液态玻璃框 — GlassFrameWidget
+
+**状态**：C++ 已落地已编译，材质 M_GlassFrame + WBP_GlassFrame 待编辑器创建
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `GlassFrameWidget.h/.cpp` |
+| 设计意向 | Apple 液态玻璃：中心毛玻璃模糊 + 边框 SDF 折射 + 角落炫彩 |
+| 背景模糊 | `UBackgroundBlur`（命名 `GlassBG`）实时采样游戏帧，BlurStrength 控制强度 |
+| 边框材质 | Custom HLSL：圆角 SDF + UV 菲涅尔 + Hue 炫彩，5 个 Scalar Parameter |
+| 主要接口 | `ApplyGlassStyle()` — 批量写入所有材质参数；`GetGlassDynMat()` — 供 BP 扩展 |
+| BindWidget | `GlassBG`（BackgroundBlur）、`GlassBorderImage`（Image），均为 Optional |
+| 内容挂载 | NamedSlot `Content`，背包格子/武器图标/HUD缩略图放此处 |
+
+#### 各场景参数速查
+
+| 场景 | BlurStrength | CornerRadius | IridIntensity |
+|---|---|---|---|
+| 背包主界面 | 14 | 0.06 | 0.18 |
+| 武器图案框 | 10 | 0.08 | 0.12 |
+| HUD 缩略框 | 6 | 0.10 | 0.08 |
+
+#### 编辑器剩余任务
+
+1. 新建 Material `M_GlassFrame`（Domain=UI，Blend=Translucent）→ Custom 节点粘入 HLSL，添加 5 个 ScalarParam
+2. 新建 `WBP_GlassFrame`，父类选 `GlassFrameWidget`，搭建三层控件（GlassBG / GlassBorderImage / Content）
+3. Details → GlassBorderMaterial 填 `M_GlassFrame`
+4. 在背包/武器/HUD 对应 WBP 中替换为 `WBP_GlassFrame` 作为容器
+
+#### 技术参考
+
+详见 [液态玻璃框技术文档](Docs/Design/UI/GlassFrame_Technical.md)
+
+---
+
+### [FIX-010] BTTask_ActivateAbilityByTag.h 缺失 — 补全头文件
+
+**状态**：已修复已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Source/DevKit/Public/AI/BTTask_ActivateAbilityByTag.h`（新建） |
+| 根因 | `.cpp` 实现存在但 `.h` 头文件丢失，导致整个模块 fatal error 无法编译 |
+| 修复 | 从 `.cpp` 反推类声明，补全头文件；注意 `FActivateAbilityMemory` 结构体需 forward declare `UAbilitySystemComponent` 才能实例化模板 |
+
+---
+
+### [FIX-011] WeaponGlassIconWidget 编译错误 — SetRenderTransformScale 不存在
+
+**状态**：已修复已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `WeaponGlassIconWidget.cpp` |
+| 根因 | `UWidget::SetRenderTransformScale(FVector2D)` 在 UE5.4 不存在 |
+| 修复 | 替换为 `FWidgetTransform T; T.Scale = ...; SetRenderTransform(T);` |
+
+---
 
 ### [FIX-007] CommonUI 输入模式残留 — 所有 UCommonActivatableWidget 手动还原 InputMode
 

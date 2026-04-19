@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Input/CommonUIInputTypes.h"
+#include "UI/YogHUD.h"
 
 void ULootSelectionWidget::NativeConstruct()
 {
@@ -60,6 +61,11 @@ void ULootSelectionWidget::SelectRuneLoot(int32 Index)
 
 	// 通过 CommonUI 停用（SetVisibility / 恢复暂停 / 恢复输入模式由 NativeOnDeactivated 处理）
 	DeactivateWidget();
+
+	// 选完符文后自动打开背包，让玩家立即整理
+	if (APlayerController* PC = GetOwningPlayer())
+		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			HUD->OpenBackpack();
 }
 
 // ============================================================
@@ -76,6 +82,10 @@ void ULootSelectionWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
 	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	if (APlayerController* PC = GetOwningPlayer())
+		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			HUD->BeginPauseEffect();
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{
@@ -97,6 +107,10 @@ void ULootSelectionWidget::NativeOnDeactivated()
 		PC->SetShowMouseCursor(false);
 		PC->SetInputMode(FInputModeGameOnly());
 	}
+
+	if (APlayerController* PC = GetOwningPlayer())
+		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			HUD->EndPauseEffect();
 
 	Super::NativeOnDeactivated();
 }

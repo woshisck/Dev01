@@ -8,7 +8,13 @@
 #include "Engine/Engine.h"
 #include "Net/UnrealNetwork.h"
 #include "YogTypes.h"
+#include "Modules/ModuleInterface.h"
 
+class FDevKitModule : public IModuleInterface
+{
+public:
+    virtual void StartupModule() override;
+};
 
 //General Log
 DEVKIT_API DECLARE_LOG_CATEGORY_EXTERN(DevKitGame, Log, All);

@@ -1,6 +1,5 @@
 #include "LevelFlow/Nodes/LENode_ShowTutorial.h"
 #include "Tutorial/TutorialManager.h"
-#include "Kismet/GameplayStatics.h"
 
 ULENode_ShowTutorial::ULENode_ShowTutorial(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -9,15 +8,33 @@ ULENode_ShowTutorial::ULENode_ShowTutorial(const FObjectInitializer& ObjectIniti
 	Category = TEXT("LevelEvent");
 #endif
 	InputPins  = { FFlowPin(TEXT("In")) };
-	OutputPins = { FFlowPin(TEXT("Out")) };
+	OutputPins = { FFlowPin(TEXT("OnClosed")) };
 }
 
 void ULENode_ShowTutorial::ExecuteInput(const FName& PinName)
 {
+	UTutorialManager* TM = GetTutorialManager();
+	if (!TM)
+	{
+		TriggerOutput(TEXT("OnClosed"), true);
+		return;
+	}
+
+	// 绑定弹窗关闭委托，关闭后触发 OnClosed
+	PopupClosedHandle = TM->OnPopupClosed.AddLambda([this]()
+	{
+		TriggerOutput(TEXT("OnClosed"), true);
+	});
+
+	TM->ShowByEventID(EventID, GetPlayerController());
+}
+
+void ULENode_ShowTutorial::Cleanup()
+{
 	if (UTutorialManager* TM = GetTutorialManager())
 	{
-		APlayerController* PC = GetPlayerController();
-		TM->ShowByEventID(EventID, PC);
+		TM->OnPopupClosed.Remove(PopupClosedHandle);
 	}
-	TriggerOutput(TEXT("Out"), true);
+	PopupClosedHandle.Reset();
+	Super::Cleanup();
 }
