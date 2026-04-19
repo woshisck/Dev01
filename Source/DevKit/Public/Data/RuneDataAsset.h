@@ -14,6 +14,29 @@ class URuneDataAsset;
 //  辅助枚举
 // ============================================================
 
+/** 链路角色：决定符文在链路系统中的身份 */
+UENUM(BlueprintType)
+enum class ERuneChainRole : uint8
+{
+    None     UMETA(DisplayName = "无"),
+    Producer UMETA(DisplayName = "链路传出（需在激活区内才可传导）"),
+    Consumer UMETA(DisplayName = "外圈限定（不能放入任何激活区格子）"),
+};
+
+/** 链路传导方向（8方向，Producer 符文按勾选方向传导激活） */
+UENUM(BlueprintType)
+enum class EChainDirection : uint8
+{
+    N  UMETA(DisplayName = "上"),
+    S  UMETA(DisplayName = "下"),
+    E  UMETA(DisplayName = "右"),
+    W  UMETA(DisplayName = "左"),
+    NE UMETA(DisplayName = "右上"),
+    NW UMETA(DisplayName = "左上"),
+    SE UMETA(DisplayName = "右下"),
+    SW UMETA(DisplayName = "左下"),
+};
+
 /** 符文类型（增益/减益/无，用于 UI 分类显示） */
 UENUM(BlueprintType)
 enum class ERuneType : uint8
@@ -139,6 +162,21 @@ struct DEVKIT_API FRuneConfig
     /** 购买价格（金币）。卖出价 = GoldCost / 2，由系统自动计算。0 = 免费 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Economy")
     int32 GoldCost = 0;
+
+    // ── 链路系统 ──────────────────────────────────────────────────
+
+    /** 链路角色：None=普通符文，Producer=可传导激活，Consumer=只能放外圈 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chain")
+    ERuneChainRole ChainRole = ERuneChainRole::None;
+
+    /**
+     * Producer 传导方向（ChainRole=Producer 时生效）
+     * 勾选的方向：此符文在激活区内时，向相邻格传导激活
+     * 空 = 不传导任何方向
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chain",
+              meta = (EditCondition = "ChainRole == ERuneChainRole::Producer"))
+    TSet<EChainDirection> ChainDirections;
 };
 
 

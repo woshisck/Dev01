@@ -301,10 +301,23 @@ private:
     // 计算当前激活区的格子集合
     TSet<FIntPoint> ComputeActivationZone() const;
 
+    // 计算所有热度阶段激活区的并集（Consumer 放置验证用）
+    TSet<FIntPoint> ComputeAllPossibleActivationCells() const;
+
+    // 链路 BFS：从 DirectZone 内的 Producer 出发，传播激活到相邻格子
+    // 返回"被链路激活"的格子集合（不含 DirectZone 本身）
+    TSet<FIntPoint> ComputeChainActivatedCells(const TSet<FIntPoint>& DirectZone) const;
+
+    // 链路方向枚举 → 格子偏移量
+    static FIntPoint ChainDirectionToOffset(EChainDirection Dir);
+
     // 根据符文形状+Pivot，计算实际占用的所有格子坐标
     TArray<FIntPoint> GetRuneCells(const FRuneInstance& Rune, FIntPoint Pivot) const;
 
-    // 判断已放置符文是否（部分或全部）在激活区内
+    // 判断已放置符文所有格子是否都在给定格子集合中
+    bool IsRuneInZone(const FPlacedRune& Placed, const TSet<FIntPoint>& Zone) const;
+
+    // 判断已放置符文是否（部分或全部）在激活区内（内部调用 ComputeActivationZone）
     bool IsRuneInActivationZone(const FPlacedRune& Placed) const;
 
     // 激活单个符文（施加 GE）

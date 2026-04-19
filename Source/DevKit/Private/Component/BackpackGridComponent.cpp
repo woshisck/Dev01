@@ -381,6 +381,22 @@ bool UBackpackGridComponent::CanPlaceRune(const FRuneInstance& Rune, FIntPoint P
 		if (GridOccupancy[CellToIndex(Cell)] != -1)
 			return false;
 	}
+
+	// Consumer 限制：不能放入任何热度阶段的激活区格子
+	if (Rune.RuneConfig.ChainRole == ERuneChainRole::Consumer)
+	{
+		const TSet<FIntPoint> AllZoneCells = ComputeAllPossibleActivationCells();
+		for (const FIntPoint Cell : Cells)
+		{
+			if (AllZoneCells.Contains(Cell))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] Consumer 符文 [%s] 不能放入激活区格子 (%d,%d)"),
+					*Rune.RuneConfig.RuneName.ToString(), Cell.X, Cell.Y);
+				return false;
+			}
+		}
+	}
+
 	return true;
 }
 
@@ -701,10 +717,18 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 
 void UBackpackGridComponent::RefreshAllActivations()
 {
+	// 直接激活区
+	const TSet<FIntPoint> DirectZone = ComputeActivationZone();
+	// 链路传导扩展（BFS，Producer 向外传播）
+	const TSet<FIntPoint> ChainZone  = ComputeChainActivatedCells(DirectZone);
+	// 有效激活区 = 直接激活区 ∪ 链路激活区
+	TSet<FIntPoint> EffectiveZone = DirectZone;
+	EffectiveZone.Append(ChainZone);
+
 	for (FPlacedRune& Placed : PlacedRunes)
 	{
 		// 永久符文跳过激活区检查，始终激活
-		const bool bShouldActivate = Placed.bIsPermanent || IsRuneInActivationZone(Placed);
+		const bool bShouldActivate = Placed.bIsPermanent || IsRuneInZone(Placed, EffectiveZone);
 
 		if (bShouldActivate && !Placed.bIsActivated)
 			ActivateRune(Placed);
@@ -761,4 +785,118 @@ bool UBackpackGridComponent::IsCellValid(FIntPoint Cell) const
 {
 	return Cell.X >= 0 && Cell.X < GridWidth
 		&& Cell.Y >= 0 && Cell.Y < GridHeight;
+}
+
+// =========================================================
+// 链路系统
+// =========================================================
+
+TSet<FIntPoint> UBackpackGridComponent::ComputeAllPossibleActivationCells() const
+{
+	TSet<FIntPoint> AllCells;
+	for (const FRuneShape& Shape : ActivationZoneConfig.ZoneShapes)
+	{
+		for (const FIntPoint Cell : Shape.Cells)
+		{
+			if (IsCellValid(Cell))
+				AllCells.Add(Cell);
+		}
+	}
+	return AllCells;
+}
+
+FIntPoint UBackpackGridComponent::ChainDirectionToOffset(EChainDirection Dir)
+{
+	switch (Dir)
+	{
+	case EChainDirection::N:  return FIntPoint( 0, -1);
+	case EChainDirection::S:  return FIntPoint( 0,  1);
+	case EChainDirection::E:  return FIntPoint( 1,  0);
+	case EChainDirection::W:  return FIntPoint(-1,  0);
+	case EChainDirection::NE: return FIntPoint( 1, -1);
+	case EChainDirection::NW: return FIntPoint(-1, -1);
+	case EChainDirection::SE: return FIntPoint( 1,  1);
+	case EChainDirection::SW: return FIntPoint(-1,  1);
+	default:                  return FIntPoint( 0,  0);
+	}
+}
+
+TSet<FIntPoint> UBackpackGridComponent::ComputeChainActivatedCells(const TSet<FIntPoint>& DirectZone) const
+{
+	TSet<FIntPoint> ChainZone;
+
+	// BFS 队列：存放已确认"处于有效区内"的 Producer 的 PlacedRunes 下标
+	TQueue<int32> Queue;
+	TSet<int32>   Visited;
+
+	// 将 DirectZone 内所有 Producer 符文作为种子
+	for (int32 i = 0; i < PlacedRunes.Num(); i++)
+	{
+		const FPlacedRune& Placed = PlacedRunes[i];
+		if (Placed.Rune.RuneConfig.ChainRole != ERuneChainRole::Producer)
+			continue;
+		if (Placed.Rune.RuneConfig.ChainDirections.IsEmpty())
+			continue;
+
+		// Producer 的所有格子必须都在 DirectZone 内才能传导
+		bool bAllInZone = true;
+		for (const FIntPoint Cell : GetRuneCells(Placed.Rune, Placed.Pivot))
+		{
+			if (!DirectZone.Contains(Cell)) { bAllInZone = false; break; }
+		}
+		if (bAllInZone)
+		{
+			Queue.Enqueue(i);
+			Visited.Add(i);
+		}
+	}
+
+	// BFS 传播
+	while (!Queue.IsEmpty())
+	{
+		int32 Idx;
+		Queue.Dequeue(Idx);
+		const FPlacedRune& Producer = PlacedRunes[Idx];
+
+		// 从 Producer 的每个格子，向每个配置方向传播
+		for (const FIntPoint SrcCell : GetRuneCells(Producer.Rune, Producer.Pivot))
+		{
+			for (const EChainDirection Dir : Producer.Rune.RuneConfig.ChainDirections)
+			{
+				const FIntPoint Adj = SrcCell + ChainDirectionToOffset(Dir);
+				if (!IsCellValid(Adj)) continue;
+				if (DirectZone.Contains(Adj)) continue;   // 已在直接激活区，跳过
+				if (ChainZone.Contains(Adj)) continue;    // 已传播过，跳过
+
+				ChainZone.Add(Adj);
+
+				// 若邻格内有 Producer，将其加入 BFS（实现多跳）
+				const int32 AdjRuneIdx = GridOccupancy[CellToIndex(Adj)];
+				if (AdjRuneIdx != INDEX_NONE && !Visited.Contains(AdjRuneIdx))
+				{
+					const FPlacedRune& AdjPlaced = PlacedRunes[AdjRuneIdx];
+					if (AdjPlaced.Rune.RuneConfig.ChainRole == ERuneChainRole::Producer
+						&& !AdjPlaced.Rune.RuneConfig.ChainDirections.IsEmpty())
+					{
+						// 邻格 Producer 被链路激活，检查其所有格子是否都在有效区内
+						// （有效区 = DirectZone ∪ ChainZone，取近似：只要 Adj 在 ChainZone 即可进入队列）
+						Visited.Add(AdjRuneIdx);
+						Queue.Enqueue(AdjRuneIdx);
+					}
+				}
+			}
+		}
+	}
+
+	return ChainZone;
+}
+
+bool UBackpackGridComponent::IsRuneInZone(const FPlacedRune& Placed, const TSet<FIntPoint>& Zone) const
+{
+	if (Zone.IsEmpty()) return false;
+	for (const FIntPoint Cell : GetRuneCells(Placed.Rune, Placed.Pivot))
+	{
+		if (!Zone.Contains(Cell)) return false;
+	}
+	return true;
 }
