@@ -460,6 +460,8 @@ void UBackpackScreenWidget::NativeOnDeactivated()
     {
         PC->SetPause(false);
         PC->SetShowMouseCursor(false);
+        // AddToViewport 绕过 CommonUI Stack，输入模式不会自动还原，必须手动设回 GameOnly
+        PC->SetInputMode(FInputModeGameOnly());
     }
 
     Super::NativeOnDeactivated();

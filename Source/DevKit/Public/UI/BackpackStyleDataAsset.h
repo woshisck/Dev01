@@ -90,18 +90,28 @@ public:
               meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float ActiveZoneOverlayOpacity = 0.6f;
 
+    /**
+     * 非聚焦区格子透明度。
+     * 热度检视模式下当前阶段以外的区域使用此值；
+     * 未开启检视时，所有无符文格子也使用此值。
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "激活区特效",
+              meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float InactiveZoneOpacity = 0.35f;
+
     // =========================================================
     // 热度阶段叠加区颜色（热度1最上层，热度3最底层）
     // =========================================================
 
+    // Phase 1=冷白/淡蓝  Phase 2=暖橙  Phase 3=金色
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度阶段颜色")
-    FLinearColor HeatZone0Color = FLinearColor(0.10f, 0.65f, 1.00f, 1.f);
+    FLinearColor HeatZone0Color = FLinearColor(0.45f, 0.60f, 1.00f, 1.f);  // Phase1 冷白/淡蓝
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度阶段颜色")
-    FLinearColor HeatZone1Color = FLinearColor(0.15f, 0.35f, 0.75f, 1.f);
+    FLinearColor HeatZone1Color = FLinearColor(1.00f, 0.50f, 0.08f, 1.f);  // Phase2 暖橙
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度阶段颜色")
-    FLinearColor HeatZone2Color = FLinearColor(0.08f, 0.20f, 0.48f, 1.f);
+    FLinearColor HeatZone2Color = FLinearColor(1.00f, 0.82f, 0.10f, 1.f);  // Phase3 金色
 
     // =========================================================
     // 待放置区颜色

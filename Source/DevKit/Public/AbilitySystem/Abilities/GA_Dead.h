@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "GameplayTagContainer.h"
 #include "GA_Dead.generated.h"
 
 class UAbilityTask_PlayMontageAndWait;
@@ -46,6 +47,12 @@ public:
 private:
     UPROPERTY()
     TObjectPtr<UAbilityTask_PlayMontageAndWait> MontageTask;
+
+    FGameplayTag CachedDissolveTag;
+    FTimerHandle DeathDelayTimer;
+
+    void StartDeathDelay();
+    void OnDeathDelayExpired();
 
     UFUNCTION()
     void OnDeathMontageCompleted();

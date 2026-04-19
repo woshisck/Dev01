@@ -42,6 +42,13 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> WeaponDescText;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> WeaponSubDescText;
+
+	// 点阵填充尺寸（px）：与 WBP 里 ZoneGrid SizeBox 的宽高保持一致
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponFloat", meta = (ClampMin = "20"))
+	float ZoneGridSize = 60.f;
+
 	// 三个激活区点阵容器（ZoneGridN 与 ZoneNImage 互斥：有图像时隐藏点阵）
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UCanvasPanel> ZoneGrid1;

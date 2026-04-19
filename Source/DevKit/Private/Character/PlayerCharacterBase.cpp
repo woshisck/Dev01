@@ -341,13 +341,14 @@ void APlayerCharacterBase::StartPlayerPhaseGlow(int32 Phase)
 {
 	if (Phase == 0 || !PhaseUpPlayerOverlayMaterial) return;
 
+	// Phase 1=冷白/淡蓝(0.3强) Phase 2=暖橙(0.7强) Phase 3=金色(1.5强)
 	static const FLinearColor PhaseColors[] =
 	{
-		FLinearColor(0.f, 0.f, 0.f),
-		FLinearColor(2.f, 2.f, 2.f),
-		FLinearColor(0.f, 3.f, 0.f),
-		FLinearColor(4.f, 2.f, 0.f),
-		FLinearColor(5.f, 0.f, 0.f),
+		FLinearColor(0.f,   0.f,   0.f  ),  // 0: 无
+		FLinearColor(0.9f,  1.0f,  1.8f ),  // 1: 冷白/淡蓝
+		FLinearColor(2.5f,  1.0f,  0.08f),  // 2: 暖橙
+		FLinearColor(5.5f,  4.0f,  0.3f ),  // 3: 金色
+		FLinearColor(5.5f,  4.0f,  0.3f ),  // 4: 占位
 	};
 
 	if (!PlayerOverlayDynMat)

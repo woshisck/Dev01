@@ -177,20 +177,13 @@ void UBackpackGridWidget::RefreshCells(UBackpackGridComponent* Backpack,
             }
             else if (PreviewPhase >= 0)
             {
-                // 单阶聚焦：只高亮选中阶段，其余置灰
-                if      (PreviewPhase == 0 && Zone0.Contains(Cell)) State = EBackpackCellState::EmptyActive;
-                else if (PreviewPhase == 1 && Zone1.Contains(Cell)) State = EBackpackCellState::EmptyZone1;
-                else if (PreviewPhase == 2 && Zone2.Contains(Cell)) State = EBackpackCellState::EmptyZone2;
-                else                                                 State = EBackpackCellState::Empty;
+                // 累积模式：区 0..PreviewPhase 全部显示
+                if      (Zone0.Contains(Cell)) { State = EBackpackCellState::EmptyActive; }
+                else if (Zone1.Contains(Cell)) { State = EBackpackCellState::EmptyZone1;  }
+                else if (Zone2.Contains(Cell)) { State = EBackpackCellState::EmptyZone2;  }
+                // 非热度区：State 保持 Empty
             }
-            else
-            {
-                // 叠加模式（默认）：三阶全显，Zone0 优先级最高
-                if      (Zone0.Contains(Cell)) State = EBackpackCellState::EmptyActive;
-                else if (Zone1.Contains(Cell)) State = EBackpackCellState::EmptyZone1;
-                else if (Zone2.Contains(Cell)) State = EBackpackCellState::EmptyZone2;
-                else                           State = EBackpackCellState::Empty;
-            }
+            // PreviewPhase == -1：不显示任何热度颜色，所有空格保持 Empty
         }
 
         // ── 推状态给 Slot（Slot 内部只在变化时触发 BP 事件） ─────────────
@@ -198,7 +191,26 @@ void UBackpackGridWidget::RefreshCells(UBackpackGridComponent* Backpack,
         const bool bThisHovered  = (Cell == HoverCell);
         const bool bThisGrabbing = (bGrabbing && Cell == GrabbedFromCell);
 
-        RuneSlot->SetSlotState(State, bThisSelected, bThisHovered, bThisGrabbing, StyleDA.Get());
+        // 透明度：检视模式下聚焦区（0..PreviewPhase）全亮，其余降至 DimOpacity；
+        //         默认模式下无符文格子也降至 DimOpacity
+        const float DimOpacity = StyleDA ? StyleDA->InactiveZoneOpacity : 0.35f;
+        float ZoneOpacity = 1.f;
+        if (PreviewPhase >= 0)
+        {
+            int32 CellZone = -1;
+            if      (State == EBackpackCellState::EmptyActive) CellZone = 0;
+            else if (State == EBackpackCellState::EmptyZone1)  CellZone = 1;
+            else if (State == EBackpackCellState::EmptyZone2)  CellZone = 2;
+
+            if (CellZone < 0 || CellZone > PreviewPhase)
+                ZoneOpacity = DimOpacity;
+        }
+        else if (!bOccupied)
+        {
+            ZoneOpacity = DimOpacity;
+        }
+
+        RuneSlot->SetSlotState(State, bThisSelected, bThisHovered, bThisGrabbing, StyleDA.Get(), ZoneOpacity);
 
         // ── 符文图标 ─────────────────────────────────────────────────────
         UTexture2D* Tex = nullptr;

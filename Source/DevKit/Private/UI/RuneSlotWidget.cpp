@@ -25,7 +25,8 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
                                    bool bSelected,
                                    bool bHovered,
                                    bool bGrabbing,
-                                   const UBackpackStyleDataAsset* Style)
+                                   const UBackpackStyleDataAsset* Style,
+                                   float ZoneOpacity)
 {
     // ── 确定背景颜色和纹理 ────────────────────────────────────────────────
     FLinearColor BGColor;
@@ -51,16 +52,18 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
         switch (State)
         {
         case EBackpackCellState::EmptyActive:
-            BGColor = Style ? Style->HeatZone0Color            : SlotDefaults::EmptyActive;
-            BGTex   = Style ? Style->CellActiveTexture.Get()          : nullptr;
-            break;
         case EBackpackCellState::EmptyZone1:
-            BGColor = Style ? Style->HeatZone1Color            : FLinearColor(0.15f, 0.35f, 0.75f, 1.f);
-            BGTex   = nullptr;
-            break;
         case EBackpackCellState::EmptyZone2:
-            BGColor = Style ? Style->HeatZone2Color            : FLinearColor(0.08f, 0.20f, 0.48f, 1.f);
-            BGTex   = nullptr;
+            // 热度叠加模式：只做 CellBG 颜色 tint，不启用 ActiveZoneOverlay
+            if (State == EBackpackCellState::EmptyActive)
+                BGColor = Style ? Style->HeatZone0Color : SlotDefaults::EmptyActive;
+            else if (State == EBackpackCellState::EmptyZone1)
+                BGColor = Style ? Style->HeatZone1Color : FLinearColor(0.15f, 0.35f, 0.75f, 1.f);
+            else
+                BGColor = Style ? Style->HeatZone2Color : FLinearColor(0.08f, 0.20f, 0.48f, 1.f);
+            // 统一使用空格纹理作为图案底，tint 改色；无空格纹理时退化为纯色
+            BGTex = Style ? Style->CellEmptyTexture.Get() : nullptr;
+            BGColor.A *= ZoneOpacity;
             break;
         case EBackpackCellState::OccupiedActive:
             BGColor = Style ? Style->OccupiedActiveColor       : SlotDefaults::OccupiedActive;
@@ -73,6 +76,7 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
         default:
             BGColor = Style ? Style->EmptyColor                : SlotDefaults::Empty;
             BGTex   = Style ? Style->CellEmptyTexture.Get()           : nullptr;
+            BGColor.A *= ZoneOpacity;
             break;
         }
     }
@@ -89,10 +93,9 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
     // ── 激活区特效层：仅在激活区格子上显示 ──────────────────────────────
     if (ActiveZoneOverlay)
     {
-        const bool bInActiveZone = (State == EBackpackCellState::EmptyActive  ||
-                                    State == EBackpackCellState::EmptyZone1   ||
-                                    State == EBackpackCellState::EmptyZone2   ||
-                                    State == EBackpackCellState::OccupiedActive);
+        // ActiveZoneOverlay 只用于有符文占用的激活格（动效边框）
+        // 热度区空格子改用 CellBG 颜色 tint，不叠加此层
+        const bool bInActiveZone = (State == EBackpackCellState::OccupiedActive);
         if (bInActiveZone)
         {
             const float Opacity = Style ? Style->ActiveZoneOverlayOpacity : 0.6f;

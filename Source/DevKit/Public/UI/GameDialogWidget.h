@@ -54,7 +54,8 @@ protected:
 	void BP_OnPopupShown();
 
 	// WBP 实现：末页点击后开始渐出动画，动画结束时调用 ConfirmClose
-	UFUNCTION(BlueprintImplementableEvent, Category = "Tutorial")
+	// 默认实现：无动画时直接关闭（WBP 可 override 播渐出动画）
+	UFUNCTION(BlueprintNativeEvent, Category = "Tutorial")
 	void BP_OnPopupClosing();
 
 	// 当前页索引（0-based），蓝图可读

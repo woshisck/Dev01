@@ -40,6 +40,11 @@ void UTutorialPopupWidget::ConfirmClose()
 	DeactivateWidget();
 }
 
+void UTutorialPopupWidget::BP_OnPopupClosing_Implementation()
+{
+	ConfirmClose();
+}
+
 void UTutorialPopupWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -59,15 +64,30 @@ void UTutorialPopupWidget::NativeOnActivated()
 	Super::NativeOnActivated();
 	SetVisibility(ESlateVisibility::Visible);
 	UGameplayStatics::SetGamePaused(this, true);
+
+	// 明确显示光标 + 切换到 UI 输入模式（不依赖 CommonUI Stack 自动管理）
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		PC->SetShowMouseCursor(true);
+		PC->SetInputMode(FInputModeUIOnly());
+	}
+
 	RefreshPage();
 	BP_OnPopupShown();
 }
 
 void UTutorialPopupWidget::NativeOnDeactivated()
 {
-	Super::NativeOnDeactivated();
+	// 先还原输入/光标，再调 Super —— 防止 Super 的 CommonUI 回调覆盖还原结果
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		PC->SetShowMouseCursor(false);
+		PC->SetInputMode(FInputModeGameOnly());
+	}
 	UGameplayStatics::SetGamePaused(this, false);
-	RemoveFromParent(); // 从 Viewport 彻底移除，下次 ShowPopup 重新添加
+
+	Super::NativeOnDeactivated();
+	RemoveFromParent();
 }
 
 void UTutorialPopupWidget::RefreshPage()

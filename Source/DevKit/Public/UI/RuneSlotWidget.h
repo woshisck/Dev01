@@ -59,7 +59,8 @@ public:
                       bool bSelected,
                       bool bHovered,
                       bool bGrabbing,
-                      const UBackpackStyleDataAsset* Style);
+                      const UBackpackStyleDataAsset* Style,
+                      float ZoneOpacity = 1.f);
 
     /**
      * 设置符文图标。Tex=null 时隐藏图标。

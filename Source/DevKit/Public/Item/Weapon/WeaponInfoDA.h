@@ -20,6 +20,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息", meta = (MultiLine = true))
 	FText WeaponDescription;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息", meta = (MultiLine = true))
+	FText WeaponSubDescription;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息")
 	TObjectPtr<UTexture2D> Thumbnail;
 

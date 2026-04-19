@@ -90,8 +90,6 @@ void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase
 	UE_LOG(LogTemp, Warning, TEXT("[Tutorial] DoShowWeaponPopup fired"));
 	if (!WeakPC.IsValid() || !PopupWidget.IsValid()) return;
 
-	WeakPC->OpenBackpack();
-
 	// 优先从 DA 读页面；DA 未配置则用兜底文字
 	if (ContentDA)
 	{
