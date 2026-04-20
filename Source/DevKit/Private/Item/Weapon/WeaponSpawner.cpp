@@ -31,12 +31,18 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	RootComponent = CollisionVolume = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CollisionVolume"));
-	CollisionVolume->InitCapsuleSize(80.f, 80.f);
-	CollisionVolume->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
-	CollisionVolume->SetGenerateOverlapEvents(true);
-	CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &AWeaponSpawner::OnOverlapBegin);
-	CollisionVolume->OnComponentEndOverlap.AddDynamic(this, &AWeaponSpawner::OnOverlapEnd);
+	RootComponent = PlayerInteractVolume = CreateDefaultSubobject<UCapsuleComponent>(TEXT("PlayerInteractVolume"));
+	PlayerInteractVolume->InitCapsuleSize(80.f, 80.f);
+	PlayerInteractVolume->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
+	PlayerInteractVolume->SetGenerateOverlapEvents(true);
+	PlayerInteractVolume->OnComponentBeginOverlap.AddDynamic(this, &AWeaponSpawner::OnOverlapBegin);
+	PlayerInteractVolume->OnComponentEndOverlap.AddDynamic(this, &AWeaponSpawner::OnOverlapEnd);
+
+	BlockVolume = CreateDefaultSubobject<UCapsuleComponent>(TEXT("BlockVolume"));
+	BlockVolume->InitCapsuleSize(60.f, 60.f);
+	BlockVolume->SetupAttachment(RootComponent);
+	BlockVolume->SetCollisionProfileName(TEXT("BlockAllDynamic"));
+	BlockVolume->SetGenerateOverlapEvents(false);
 
 	//WeaponMesh
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
@@ -172,16 +178,33 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 
 void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
 {
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
+	{
+		OnPlayerBeginOverlap(Player);
+	}
+}
+
+void AWeaponSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
+	{
+		OnPlayerEndOverlap(Player);
+	}
+}
+
+void AWeaponSpawner::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
+{
 	if (!Player || !WeaponDefinition) return;
 
-	// 进入范围时登记，等待玩家主动按 E 拾取
 	Player->PendingWeaponSpawner = this;
 	NearbyPlayer = Player;
 	bPlayerInRange = true;
-	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 玩家进入范围，按 E 拾取武器"));
 
-	// 武器教程：在浮窗出现前触发（原先在 TryPickupWeapon 末尾，现提前到此处）
+	if (UWidgetComponent* WC = Player->GetWidgetcomponent())
+	{
+		WC->SetVisibility(true);
+	}
+
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
 	{
 		if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(Player->GetController()))
@@ -191,21 +214,24 @@ void AWeaponSpawner::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AA
 	}
 }
 
-void AWeaponSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+void AWeaponSpawner::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 {
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
 	if (!Player) return;
 
 	if (Player->PendingWeaponSpawner == this)
 	{
 		Player->PendingWeaponSpawner = nullptr;
-		UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 玩家离开范围"));
 	}
 	if (NearbyPlayer.Get() == Player)
 	{
 		NearbyPlayer = nullptr;
 		bPlayerInRange = false;
 		if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
+	}
+
+	if (UWidgetComponent* WC = Player->GetWidgetcomponent())
+	{
+		WC->SetVisibility(false);
 	}
 }
 

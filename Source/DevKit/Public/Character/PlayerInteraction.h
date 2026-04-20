@@ -6,20 +6,19 @@
 #include "UObject/Interface.h"
 #include "PlayerInteraction.generated.h"
 
-// This class does not need to be modified.
+class APlayerCharacterBase;
+
 UINTERFACE(MinimalAPI)
 class UPlayerInteraction : public UInterface
 {
 	GENERATED_BODY()
 };
 
-/**
- * 
- */
 class DEVKIT_API IPlayerInteraction
 {
 	GENERATED_BODY()
 
-	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
+	virtual void OnPlayerBeginOverlap(APlayerCharacterBase* Player) = 0;
+	virtual void OnPlayerEndOverlap(APlayerCharacterBase* Player) = 0;
 };

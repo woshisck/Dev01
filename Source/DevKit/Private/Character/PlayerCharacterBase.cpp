@@ -139,21 +139,11 @@ void APlayerCharacterBase::ItemInteract(const AItemSpawner* item)
 void APlayerCharacterBase::NotifyActorBeginOverlap(AActor* OtherActor)
 {
 	Super::NotifyActorBeginOverlap(OtherActor);
-
-	if (AItemSpawner* Spawner = Cast<AItemSpawner>(OtherActor))
-	{
-		OverlappingSpawner = Spawner;
-	}
 }
 
 void APlayerCharacterBase::NotifyActorEndOverlap(AActor* OtherActor)
 {
 	Super::NotifyActorEndOverlap(OtherActor);
-
-	if (OtherActor == OverlappingSpawner)
-	{
-		OverlappingSpawner = nullptr;
-	}
 }
 
 UBackpackGridComponent* APlayerCharacterBase::GetBackpackGridComponent()

@@ -7,6 +7,7 @@
 
 #include "Components/WidgetComponent.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Character/PlayerInteraction.h"
 #include "Map/RewardPickup.h"
 
 // Sets default values for this component's properties
@@ -21,17 +22,18 @@ UPropInteractComponnet::UPropInteractComponnet()
 
 void UPropInteractComponnet::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	if (!OtherActor || OtherActor == GetOwner()) return;
 
-	if (OtherActor && OtherActor != GetOwner())
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwner());
+	if (!Player) return;
+
+	if (IPlayerInteraction* Interactable = Cast<IPlayerInteraction>(OtherActor))
 	{
-		if (OtherActor->IsA(ARewardPickup::StaticClass()) && GetOwner()->IsA(APlayerCharacterBase::StaticClass()))
-		{
-			AYogCharacterBase* PlayerOwner = Cast<AYogCharacterBase>(GetOwner());
-			PlayerOwner->GetWidgetcomponent()->SetVisibility(true);
-	
-		}
-		UE_LOG(LogTemp, Log, TEXT("Overlapped with: %s"), *OtherActor->GetName());
-		// You can store reference to item here
+		Interactable->OnPlayerBeginOverlap(Player);
+	}
+	else if (OtherActor->IsA(ARewardPickup::StaticClass()))
+	{
+		Player->GetWidgetcomponent()->SetVisibility(true);
 	}
 }
 
@@ -58,17 +60,18 @@ void UPropInteractComponnet::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 
 void UPropInteractComponnet::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
+	if (!OtherActor || OtherActor == GetOwner()) return;
 
-	if (OtherActor && OtherActor != GetOwner())
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwner());
+	if (!Player) return;
+
+	if (IPlayerInteraction* Interactable = Cast<IPlayerInteraction>(OtherActor))
 	{
-		if (OtherActor->IsA(ARewardPickup::StaticClass()) && GetOwner()->IsA(APlayerCharacterBase::StaticClass()))
-		{
-			AYogCharacterBase* PlayerOwner = Cast<AYogCharacterBase>(GetOwner());
-			PlayerOwner->GetWidgetcomponent()->SetVisibility(false);
-
-		}
-		UE_LOG(LogTemp, Log, TEXT("Overlapped with: %s"), *OtherActor->GetName());
-		// You can store reference to item here
+		Interactable->OnPlayerEndOverlap(Player);
+	}
+	else if (OtherActor->IsA(ARewardPickup::StaticClass()))
+	{
+		Player->GetWidgetcomponent()->SetVisibility(false);
 	}
 }
 

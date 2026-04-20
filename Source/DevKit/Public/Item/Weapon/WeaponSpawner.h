@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Character/PlayerInteraction.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Item/Weapon/WeaponDefinition.h"
 
@@ -31,7 +32,7 @@ struct FHitResult;
 
 
 UCLASS(Blueprintable, BlueprintType)
-class DEVKIT_API AWeaponSpawner : public AActor
+class DEVKIT_API AWeaponSpawner : public AActor, public IPlayerInteraction
 {
 	GENERATED_BODY()
 	
@@ -56,12 +57,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Definition")
 	float CheckExistingOverlapDelay;
 
+	// --- IPlayerInteraction ---
+	virtual void OnPlayerBeginOverlap(APlayerCharacterBase* Player) override;
+	virtual void OnPlayerEndOverlap(APlayerCharacterBase* Player) override;
+
 	UFUNCTION(BlueprintImplementableEvent)
 	void GrantWeapon(APlayerCharacterBase* ReceivingChar);
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
+	TObjectPtr<UCapsuleComponent> PlayerInteractVolume;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
-	TObjectPtr<UCapsuleComponent> CollisionVolume;
+	TObjectPtr<UCapsuleComponent> BlockVolume;
 
 
 	UPROPERTY(BlueprintReadOnly, Category = "ItemPickup")
