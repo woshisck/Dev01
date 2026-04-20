@@ -1,5 +1,4 @@
 #include "UI/WeaponFloatWidget.h"
-#include "UI/WeaponGlassAnimDA.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInfoDA.h"
 #include "Data/RuneDataAsset.h"
@@ -24,9 +23,6 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 {
 	if (!Def) return;
 
-	// 重置动画状态（每次拿到新武器从 Idle 开始）
-	CurrentPhase = EWeaponFloatPhase::Idle;
-	PhaseTimer   = 0.f;
 	SetRenderTransform(FWidgetTransform());
 	SetRenderOpacity(1.f);
 	if (InfoContainer)
@@ -96,149 +92,6 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 
 	// ── 初始符文列表 ───────────────────────────
 	BuildRuneList(Def->InitialRunes);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  动画：折叠 → 缩小 → 飞行
-// ─────────────────────────────────────────────────────────────────────────────
-
-void UWeaponFloatWidget::StartCollapseAndFly(FVector2D TargetScreenCenter,
-                                              const UWeaponGlassAnimDA* InAnimDA)
-{
-	if (!InAnimDA || CurrentPhase != EWeaponFloatPhase::Idle)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] StartCollapseAndFly 中止 — DA=%s Phase=%d"),
-			InAnimDA ? TEXT("OK") : TEXT("NULL"), (int32)CurrentPhase);
-		return;
-	}
-
-	AnimDA           = InAnimDA;
-	PhaseTimer       = 0.f;
-	bFlyStartCaptured = false;
-	CurrentPhase     = EWeaponFloatPhase::Collapsing;
-
-	// Phase 1：立即隐藏非缩略图区域（用 InfoContainer 整体折叠，或逐个隐藏）
-	if (InfoContainer)
-	{
-		InfoContainer->SetVisibility(ESlateVisibility::Collapsed);
-	}
-	else
-	{
-		// 没有 InfoContainer 时退化为逐个隐藏
-		if (WeaponNameText)    WeaponNameText->SetVisibility(ESlateVisibility::Collapsed);
-		if (WeaponDescText)    WeaponDescText->SetVisibility(ESlateVisibility::Collapsed);
-		if (WeaponSubDescText) WeaponSubDescText->SetVisibility(ESlateVisibility::Collapsed);
-		if (ZoneGrid1)         ZoneGrid1->SetVisibility(ESlateVisibility::Collapsed);
-		if (ZoneGrid2)         ZoneGrid2->SetVisibility(ESlateVisibility::Collapsed);
-		if (ZoneGrid3)         ZoneGrid3->SetVisibility(ESlateVisibility::Collapsed);
-		if (Zone1Image)        Zone1Image->SetVisibility(ESlateVisibility::Collapsed);
-		if (Zone2Image)        Zone2Image->SetVisibility(ESlateVisibility::Collapsed);
-		if (Zone3Image)        Zone3Image->SetVisibility(ESlateVisibility::Collapsed);
-		if (RuneListBox)       RuneListBox->SetVisibility(ESlateVisibility::Collapsed);
-	}
-
-	// 计算缩小目标 Scale
-	const FGeometry Geom     = GetCachedGeometry();
-	const FVector2D LocalSize = Geom.GetLocalSize();
-	if (LocalSize.X > 0.f && LocalSize.Y > 0.f)
-	{
-		TargetShrinkScale = FMath::Min(
-			InAnimDA->GlassIconSize.X / LocalSize.X,
-			InAnimDA->GlassIconSize.Y / LocalSize.Y);
-	}
-	else
-	{
-		TargetShrinkScale = 0.15f;
-	}
-
-	// 计算飞行位移（屏幕绝对坐标 Center → 目标中心）
-	const FVector2D WidgetCenter = Geom.LocalToAbsolute(LocalSize * 0.5f);
-	FlyDelta = TargetScreenCenter - WidgetCenter;
-
-	UE_LOG(LogTemp, Warning,
-		TEXT("[WeaponPickup] StartCollapseAndFly OK — LocalSize=(%.0f,%.0f) WidgetCenter=(%.0f,%.0f) TargetCenter=(%.0f,%.0f) ShrinkScale=%.3f FlyDelta=(%.0f,%.0f)"),
-		LocalSize.X, LocalSize.Y, WidgetCenter.X, WidgetCenter.Y,
-		TargetScreenCenter.X, TargetScreenCenter.Y,
-		TargetShrinkScale, FlyDelta.X, FlyDelta.Y);
-}
-
-void UWeaponFloatWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
-{
-	Super::NativeTick(MyGeometry, InDeltaTime);
-
-	if (CurrentPhase == EWeaponFloatPhase::Idle || !AnimDA) return;
-
-	PhaseTimer += InDeltaTime;
-
-	const float T_Collapse = AnimDA->CollapseDuration;
-	const float T_Shrink   = AnimDA->ShrinkDuration;
-	const float T_Fly      = AnimDA->FlyDuration;
-
-	FWidgetTransform WT;
-
-	if (PhaseTimer < T_Collapse)
-	{
-		// Phase 1 Collapsing：等待，不做 transform（已瞬间隐藏 InfoContainer）
-		if (CurrentPhase != EWeaponFloatPhase::Collapsing)
-			UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] → Phase: Collapsing"));
-		CurrentPhase = EWeaponFloatPhase::Collapsing;
-		return;
-	}
-
-	const float ShrinkElapsed = PhaseTimer - T_Collapse;
-
-	if (ShrinkElapsed < T_Shrink)
-	{
-		// Phase 2 Shrinking
-		if (CurrentPhase != EWeaponFloatPhase::Shrinking)
-			UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] → Phase: Shrinking (ShrinkScale=%.3f)"), TargetShrinkScale);
-		CurrentPhase = EWeaponFloatPhase::Shrinking;
-		const float Alpha = ShrinkElapsed / FMath::Max(T_Shrink, 0.001f);
-		const float Scale = FMath::Lerp(1.f, TargetShrinkScale, Alpha);
-		WT.Scale = FVector2D(Scale);
-
-		// 缩略图在缩小过程中淡至飞行不透明度
-		if (WeaponThumbnail)
-			WeaponThumbnail->SetRenderOpacity(FMath::Lerp(1.f, AnimDA->ThumbnailFlyOpacity, Alpha));
-	}
-	else
-	{
-		const float FlyElapsed = ShrinkElapsed - T_Shrink;
-
-		if (FlyElapsed < T_Fly)
-		{
-			// Phase 3 Flying
-			if (CurrentPhase != EWeaponFloatPhase::Flying)
-				UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] → Phase: Flying (FlyDelta=%.0f,%.0f)"), FlyDelta.X, FlyDelta.Y);
-			CurrentPhase = EWeaponFloatPhase::Flying;
-			const float Alpha = FlyElapsed / FMath::Max(T_Fly, 0.001f);
-			WT.Scale       = FVector2D(TargetShrinkScale);
-			WT.Translation = FMath::Lerp(FVector2D::ZeroVector, FlyDelta, Alpha);
-
-			// 首帧捕获飞行起点（layout 绝对中心）
-			if (!bFlyStartCaptured)
-			{
-				FlyAbsStart = MyGeometry.LocalToAbsolute(MyGeometry.GetLocalSize() * 0.5f);
-				bFlyStartCaptured = true;
-				UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] FlyAbsStart 捕获 — (%.0f,%.0f)"), FlyAbsStart.X, FlyAbsStart.Y);
-			}
-			OnFlyProgress.Broadcast(FlyAbsStart, FlyAbsStart + WT.Translation, Alpha);
-		}
-		else
-		{
-			// Done
-			UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] → Phase: Done — 广播 OnFlyComplete"));
-			CurrentPhase = EWeaponFloatPhase::Idle;
-			SetVisibility(ESlateVisibility::Collapsed);
-			SetRenderTransform(FWidgetTransform());
-			if (WeaponThumbnail) WeaponThumbnail->SetRenderOpacity(1.f);
-
-			OnFlyComplete.Broadcast(CachedThumbnail);
-			return;
-		}
-	}
-
-	SetRenderTransform(WT);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -344,5 +197,48 @@ void UWeaponFloatWidget::BuildRuneList(const TArray<TObjectPtr<URuneDataAsset>>&
 
 		UVerticalBoxSlot* RowSlot = RuneListBox->AddChildToVerticalBox(Row);
 		RowSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  折叠动画
+// ─────────────────────────────────────────────────────────────────────────────
+
+void UWeaponFloatWidget::StartCollapse(float InDuration)
+{
+	CollapseDuration = FMath::Max(InDuration, 0.05f);
+	CollapseTimer    = 0.f;
+	bCollapsing      = true;
+}
+
+void UWeaponFloatWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (!bCollapsing) return;
+
+	CollapseTimer += InDeltaTime;
+	const float Alpha = FMath::Clamp(CollapseTimer / CollapseDuration, 0.f, 1.f);
+
+	// InfoContainer 淡出（点阵 + 符文列表），WeaponThumbnail 保持不变
+	if (InfoContainer)
+		InfoContainer->SetRenderOpacity(1.f - Alpha);
+
+	if (Alpha >= 1.f)
+	{
+		bCollapsing = false;
+		if (InfoContainer)
+			InfoContainer->SetVisibility(ESlateVisibility::Collapsed);
+
+		// 获取缩略图的屏幕绝对中心坐标作为飞行起点
+		FVector2D ThumbnailCenter = FVector2D::ZeroVector;
+		if (WeaponThumbnail)
+		{
+			const FGeometry& G = WeaponThumbnail->GetCachedGeometry();
+			ThumbnailCenter = G.LocalToAbsolute(G.GetLocalSize() * 0.5f);
+		}
+
+		if (OnCollapseComplete.IsBound())
+			OnCollapseComplete.Execute(ThumbnailCenter);
 	}
 }

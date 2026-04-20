@@ -317,6 +317,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Visual", meta = (ClampMin = "0.5"))
 	float PreAttackPulseFreq = 4.0f;
 
+	/** 攻击前红光 Fresnel 指数（越小越整体发红，越大越集中在边缘）推荐 0.5–2.0 */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Visual", meta = (ClampMin = "0.1", ClampMax = "8.0"))
+	float PreAttackFresnelPower = 1.0f;
+
+	/** 攻击前红光最大强度（乘在 Alpha 上，推荐 0.6–1.0） */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Visual", meta = (ClampMin = "0.1", ClampMax = "1.0"))
+	float PreAttackMaxAlpha = 0.85f;
+
 	/** 由 HealthChanged 自动调用；也可蓝图手动触发 */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
 	void StartHitFlash();

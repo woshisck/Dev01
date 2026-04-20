@@ -1,6 +1,6 @@
 #include "BuffFlow/Nodes/BFNode_Base.h"
 #include "BuffFlow/BuffFlowComponent.h"
-#include "BuffFlow/NotifyFlowAsset.h"
+#include "LevelFlow/LevelFlowAsset.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
 
@@ -8,8 +8,8 @@ UBFNode_Base::UBFNode_Base(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITOR
-	// 只在 NotifyFlowAsset（符文/Buff Flow）编辑器中出现，不显示在 LevelFlowAsset 里
-	AllowedAssetClasses = { UNotifyFlowAsset::StaticClass() };
+	// 在所有 FlowAsset（普通 FA / NotifyFlowAsset）中可见，只排除 LevelFlowAsset
+	DeniedAssetClasses = { ULevelFlowAsset::StaticClass() };
 #endif
 }
 

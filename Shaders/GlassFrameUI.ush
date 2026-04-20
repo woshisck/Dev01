@@ -1,62 +1,41 @@
-// GlassFrameUI.ush
-// Apple 液态玻璃 UI 边框
-// 三层结构：极细边缘高光线 + 顶部镜面高光 + 底边炫彩；内部几乎完全透明
+// GlassFrameUI.ush  v5
+// 极简深色玻璃边框：无白边、无蓝色、无亮带
+// 仅做背景加深：内部轻度压暗，边缘更暗
 
 #include "/Project/GlassRim.ush"
 
 float4 GlassFrameMain(
-    float2 UV,           // TexCoord[0]
-    float  Time,         // Time 节点
-    float  CornerRadius, // ScalarParam，推荐 0.08–0.12（控制圆角）
-    float  BorderWidth,  // ScalarParam，推荐 0.006–0.012（边缘高光线宽度）
-    float  FresnelPower, // ScalarParam，推荐 1.5–2.5（顶部高光集中度）
-    float  IridIntensity,// ScalarParam，推荐 0.4–0.8（底边炫彩强度）
-    float  IridSpeed     // ScalarParam，推荐 0.02–0.04（炫彩流速）
+    float2 UV,            // TexCoord[0]
+    float  Time,          // Time 节点（暂未使用，保留接口）
+    float  CornerRadius,  // 推荐 0.08–0.12
+    float  BorderWidth,   // 边缘暗带宽度，推荐 0.010–0.020
+    float  FresnelPower,  // 暂未使用，保留接口
+    float  IridIntensity, // 整体压暗强度倍率，推荐 0.6–1.0
+    float  IridSpeed      // 暂未使用，保留接口
 )
 {
-    // ── 1. SDF 圆角方形 ───────────────────────────────────────────
-    float2 uv  = UV - 0.5;
-    float2 q   = abs(uv) - (0.5 - CornerRadius);
+    // ── SDF 圆角矩形 ─────────────────────────────────────────────────
+    float2 uv   = UV - 0.5;
+    float2 q    = abs(uv) - (0.5 - CornerRadius);
     float  dist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - CornerRadius;
 
-    // 轮廓外完全透明
+    // 形状外完全透明
     float shapeMask = 1.0 - smoothstep(-0.003, 0.003, dist);
 
-    // ── 2. 极细边缘高光线（玻璃边缘折射，最主要的边框感）────────
-    // dist=0 是 SDF 零界面；BorderWidth 控制线的宽度
-    float edgeLine = smoothstep(BorderWidth * 1.2, 0.0, abs(dist));
+    // ── 内部：轻度压暗背景 ────────────────────────────────────────────
+    // 越靠近中心越暗，边缘过渡自然
+    float bodyMask  = smoothstep(-0.005, -BorderWidth * 3.0, dist) * shapeMask;
+    float bodyAlpha = bodyMask * 0.30 * IridIntensity;
 
-    // ── 3. 顶部镜面高光（天光打在玻璃上表面）────────────────────
-    // uv.y: -0.5=顶 → +0.5=底，所以 -uv.y 在顶部最大
-    float topHighlight = pow(saturate((-uv.y + 0.12) * 2.5), FresnelPower);
-    // 横向：中心比边缘更亮（聚光效果）
-    topHighlight *= saturate(1.0 - abs(uv.x) * 3.2);
-    topHighlight *= shapeMask;
+    // ── 边缘：比内部更暗（形成深色边框感）────────────────────────────
+    // 贴着形状内侧的一圈，明显比中间深
+    float edgeMask  = smoothstep(0.0, -BorderWidth, dist)
+                    * smoothstep(-BorderWidth * 2.5, -BorderWidth, dist);
+    edgeMask *= shapeMask;
+    float edgeAlpha = edgeMask * 0.45 * IridIntensity;
 
-    // ── 4. 内圈二次高光（边缘内侧薄亮条，模拟玻璃折射内壁）─────
-    float innerRim = smoothstep(0.0, -0.018, dist) * smoothstep(-0.045, -0.020, dist);
-    innerRim *= shapeMask;
+    // ── 合并：颜色全为纯黑，仅靠 alpha 控制压暗强度 ──────────────────
+    float finalAlpha = saturate(bodyAlpha + edgeAlpha);
 
-    // ── 5. 底边炫彩（仅底部边缘极窄区域）────────────────────────
-    float bottomMask = smoothstep(-0.010, 0.004, uv.y)   // 只在下半部
-                     * smoothstep(BorderWidth * 1.5, 0.0, abs(dist)); // 只在边缘线上
-    float  hue        = frac(atan2(uv.y, uv.x) / 6.28318 + Time * IridSpeed);
-    float3 iridColor  = GR_HueToRGB(hue);
-    float3 iridContrib = iridColor * bottomMask * IridIntensity;
-
-    // ── 6. 合并 ───────────────────────────────────────────────────
-    float3 white     = float3(1.00, 1.00, 1.00);
-    float3 coolWhite = float3(0.93, 0.96, 1.00);
-
-    float3 finalColor = white     * edgeLine
-                      + coolWhite * topHighlight
-                      + coolWhite * innerRim * 0.55
-                      + iridContrib;
-
-    float finalAlpha = edgeLine   * 0.65        // 主边框线（清晰但不厚重）
-                     + topHighlight * 0.20      // 顶部高光（半透明）
-                     + innerRim  * 0.06         // 内圈（极淡）
-                     + bottomMask * IridIntensity * 0.55; // 炫彩
-
-    return float4(finalColor, saturate(finalAlpha * shapeMask));
+    return float4(0.0, 0.0, 0.0, finalAlpha);
 }

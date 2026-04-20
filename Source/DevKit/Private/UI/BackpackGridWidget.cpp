@@ -207,7 +207,12 @@ void UBackpackGridWidget::RefreshCells(UBackpackGridComponent* Backpack,
         }
         else if (!bOccupied)
         {
-            ZoneOpacity = DimOpacity;
+            // 激活区格子（热度颜色）始终全亮；只对无区域的普通空格降低亮度
+            const bool bInAnyZone = (State == EBackpackCellState::EmptyActive ||
+                                     State == EBackpackCellState::EmptyZone1  ||
+                                     State == EBackpackCellState::EmptyZone2);
+            if (!bInAnyZone)
+                ZoneOpacity = DimOpacity;
         }
 
         RuneSlot->SetSlotState(State, bThisSelected, bThisHovered, bThisGrabbing, StyleDA.Get(), ZoneOpacity);

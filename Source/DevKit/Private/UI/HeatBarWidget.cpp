@@ -6,24 +6,15 @@
 #include "Components/ProgressBar.h"
 #include "Components/Image.h"
 #include "Character/PlayerCharacterBase.h"
+#include "UI/BackpackStyleDataAsset.h"
 #include "Kismet/GameplayStatics.h"
 
-// ============================================================
-//  颜色常量（sRGB hex → 线性）
-//  Phase 1: 冷白/淡蓝 #7BA8FF
-//  Phase 2: 暖橙      #FF8020
-//  Phase 3: 金色      #FFD020
-// ============================================================
-
+// 兜底颜色（DA 未配置时使用）
 namespace HeatBarColors
 {
-    // Phase 1: 冷白/淡蓝 #7BA8FF
     static const FLinearColor CoolBlue   = FLinearColor::FromSRGBColor(FColor(0x7B, 0xA8, 0xFF, 0xFF));
-    // Phase 2: 暖橙 #FF8020
     static const FLinearColor WarmOrange = FLinearColor::FromSRGBColor(FColor(0xFF, 0x80, 0x20, 0xFF));
-    // Phase 3: 金色 #FFD020
     static const FLinearColor Gold       = FLinearColor::FromSRGBColor(FColor(0xFF, 0xD0, 0x20, 0xFF));
-    // Phase 0 背景深灰
     static const FLinearColor DarkBG     = FLinearColor(0.08f, 0.08f, 0.08f, 1.f);
 }
 
@@ -111,22 +102,40 @@ void UHeatBarWidget::HandleHeatBarUpdate_Implementation(float NormalizedHeat, in
 
 void UHeatBarWidget::RefreshDisplay(float NormalizedHeat, int32 Phase)
 {
+    // 从玩家角色的 HeatStyleDA 读取颜色，兜底走硬编码常量
+    FLinearColor C0 = HeatBarColors::CoolBlue;
+    FLinearColor C1 = HeatBarColors::WarmOrange;
+    FLinearColor C2 = HeatBarColors::Gold;
+
+    APlayerCharacterBase* Char = CachedBackpack.IsValid()
+        ? Cast<APlayerCharacterBase>(CachedBackpack->GetOwner()) : nullptr;
+
+    if (Char)
+    {
+        if (UBackpackStyleDataAsset* DA = Char->HeatStyleDA)
+        {
+            C0 = DA->HeatZone0Color;
+            C1 = DA->HeatZone1Color;
+            C2 = DA->HeatZone2Color;
+        }
+    }
+
     FLinearColor BGColor, FillColor;
 
     if (Phase <= 0)
     {
         BGColor   = HeatBarColors::DarkBG;
-        FillColor = HeatBarColors::CoolBlue;    // 向 Phase1 冲
+        FillColor = C0;
     }
     else if (Phase == 1)
     {
-        BGColor   = HeatBarColors::CoolBlue;    // Phase1 已达
-        FillColor = HeatBarColors::WarmOrange;  // 向 Phase2 冲
+        BGColor   = C0;
+        FillColor = C1;
     }
     else  // Phase 2+
     {
-        BGColor   = HeatBarColors::WarmOrange;  // Phase2 已达
-        FillColor = HeatBarColors::Gold;        // 向 Phase3 冲
+        BGColor   = C1;
+        FillColor = C2;
     }
 
     if (HeatBarBG)

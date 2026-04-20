@@ -106,11 +106,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "浮窗", meta = (ClampMin = "0"))
 	float WidgetZOffset = 50.f;
 
+	// 拾取时浮窗折叠动画时长（秒），增大可预览效果
+	UPROPERTY(EditDefaultsOnly, Category = "浮窗", meta = (ClampMin = "0.05"))
+	float PickupCollapseDuration = 0.25f;
+
 private:
 
 	// 朝向检测：玩家在范围内时每帧判断是否应显示浮窗
-	bool bPlayerInRange = false;
-	bool bPickedUp     = false;   // 拾取后浮窗永久隐藏
+	bool bPlayerInRange       = false;
+	bool bPickedUp            = false;  // 拾取后浮窗永久隐藏
+	bool bCollapsingForPickup = false;  // 折叠动画进行中，保持 WidgetComp 可见
 	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
 
 	void ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data);
