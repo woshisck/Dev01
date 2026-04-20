@@ -5,6 +5,100 @@
 
 ---
 
+## 2026-04-20
+
+### [FIX-009] Tutorial Popup 幽灵输入修复 — bIsInteractable 防护
+
+**状态**：已修复已编译，WBP 需手动配置双关键帧动画
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/GameDialogWidget.h/.cpp` |
+| 根因 | FadeIn 动画在 WBP 中只配置了 t=0 单帧（opacity=0），动画瞬间完成，`bIsInteractable` 几乎未起效 |
+| C++ 修复 | `NativeOnActivated` 播放 FadeIn 前设 `bIsInteractable=false`，`BindToAnimationFinished` 回调后置 true |
+| WBP 修复 | Anim_FadeIn：t=0 opacity=0 → t=0.3s opacity=1；Anim_FadeOut 独立两帧（勿共享） |
+| 接口 | `OnNextPressed()` 首行判 `if (!bIsInteractable) return;` |
+
+---
+
+### [FEAT-015] 武器拾取 HUD 动画系统（WeaponFloat → Trail → GlassIcon）
+
+**状态**：C++ 全链路完成已编译；WBP 配置待完成（白屏 Bug 待修 — 背景需在 InfoContainer 内）
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/WeaponFloatWidget.h/.cpp`、`UI/WeaponTrailWidget.h/.cpp`、`UI/YogHUD.h/.cpp`、`Item/Weapon/WeaponSpawner.cpp` |
+| 数据资产 | `UI/WeaponGlassAnimDA.h`（AutoCollapseDelay / CollapseDuration / ShrinkDuration / FlyDuration / GlassIconSize / HUDOffsetFromBottomLeft）|
+| 动画三阶段 | Collapsing（InfoContainer 瞬间隐藏）→ Shrinking（Scale 1→TargetShrinkScale）→ Flying（Translation 至左下角图标）|
+| 流光拖尾 | `WeaponTrailWidget`：全屏 Canvas 叠层，CanvasPanelSlot + RenderTransformAngle 实现旋转线段；材质参数 Alpha / Progress |
+| 流光着色器 | `Shaders/WeaponTrail.ush` — 边缘衰减 + 尾部淡出 + 流光脉冲 + 头部白核 + Emissive；include `/Project/WeaponTrail.ush` |
+| HUD 管理 | `TriggerWeaponPickup` → 定时器 → `TriggerWeaponCollapse` → 创建 Trail + 绑委托 → `OnFlyProgressUpdate` → `OnWeaponFlyComplete` 淡出 |
+| 触发接入 | `WeaponSpawner::TryPickupWeapon` 末尾调 `HUD->TriggerWeaponPickup(WeaponDefinition)` |
+| 广播委托 | `FOnWeaponFlyProgress`（非动态 Multicast）— Flying 首帧捕获绝对起点，每帧广播 (FlyAbsStart, CurrentPos, Alpha) |
+| BP 配置 | BP_YogHUD：`TrailWidgetClass`=WBP_WeaponTrail；WBP_WeaponTrail：根全屏 Canvas + Image 命名 TrailLine；M_WeaponTrail：Custom Node include WeaponTrail.ush |
+| 已知问题 | WBP_WeaponFloat 背景若在 InfoContainer 外，折叠后留白；修复：将背景移入 InfoContainer |
+
+---
+
+### [FEAT-016] 液态玻璃框 UI（GlassFrame）
+
+**状态**：C++ + 材质 + WBP 完成；WeaponGlassIconWidget 继承可用
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/GlassFrameWidget.h/.cpp`、`Shaders/GlassFrameUI.ush` |
+| 材质资产 | `M_GlassFrame`（UI Domain，Custom Node include `/Project/GlassFrameUI.ush`）、`MI_GlassFrame` |
+| WBP | `WBP_GlassFrame`（背包格背景用）、`WBP_WeaponGlassIcon`（武器落点图标）|
+| 三层结构 | 极细边缘高光线（SDF）+ 顶部镜面高光（Fresnel）+ 底边炫彩（atan2 Hue + Time）|
+| C++ 参数 | `CornerRadius` / `BorderWidth` / `FresnelPower` / `IridIntensity` / `IridSpeed` |
+| 武器图标接口 | `ShowForWeapon(Thumbnail, DA)`、`StartExpandAndHide()`（打开背包前调用）|
+
+---
+
+### [UI-017] 弹药计数器 HUD — WBP_AmmoCounter（火绳枪配套）
+
+**状态**：C++ 已落地已编译，WBP_AmmoCounter 蓝图待创建
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `WBP_AmmoCounter.h/.cpp` |
+| 用途 | 火绳枪弹药数量图标式 HUD；横排显示 MaxAmmo 个图标，当前弹量金色，空仓灰色 |
+| 数据来源 | 订阅 ASC 的 `CurrentAmmo` / `MaxAmmo` 属性变化，无需 BP 代码自动刷新 |
+| WBP 配置 | Designer 放 HorizontalBox 命名 `BulletIconBox`；BP 子类无需任何蓝图逻辑 |
+| 可调参数 | `IconSize`（22×22px）、`IconPadding`（4px）、`FilledColor`（金色）、`EmptyColor`（灰色） |
+
+---
+
+### [UI-018] 三选一 UI C++ 化 + 战斗阶段符文锁定 ⚠️ 已回滚
+
+**状态**：已实现后回滚——Slate 崩溃，根因待查
+
+#### 实现内容（均已撤销，代码已还原 HEAD）
+
+| 功能 | 方案 |
+|------|------|
+| 战斗阶段符文锁定 | `IsInCombatPhase()` 查 `YogGameMode::HasAliveEnemies()`；5 个交互点拦截并调 `FlashAndShakeCell` |
+| 格子红闪+水平抖动 | `RuneSlotWidget::ShakeAndFlash()`：阻尼正弦 `X = 8·sin(30t)·e^{-8t}` 驱动偏移 |
+| RuneInfoCard 卡片高亮 | `CardBG->SetColorAndOpacity(HighlightColor)`；手柄/悬停切换 |
+| 三选一卡片 C++ 动态创建 | `HandleLootGenerated` 全移入 C++，用 `UHorizontalBox::AddChildToHorizontalBox` 平分空间 |
+
+#### 崩溃信息
+
+```
+EXCEPTION_ACCESS_VIOLATION reading address 0xffffffffffffffff
+Stack: UnrealEditor_SlateCore / UnrealEditor_Slate（无游戏代码帧）
+```
+
+推测 `BuildShapeGrid` 中 `NewObject<UImage>` 创建的子节点与 Slate 渲染生命周期冲突。
+
+#### 下次优先排查
+
+1. `BuildShapeGrid` 改为静态 UImage 数组（WBP Designer 预置，C++ 只刷新 brush），不在运行时 NewObject
+2. 或改用自定义 `SLeafWidget` 绘制点阵，绕开 UMG 对象树
+3. 三选一卡片高亮、战斗锁定两个功能独立实现，排除互相干扰
+
+---
+
 ## 2026-04-19（第四次会话追加）
 
 ### [FEAT-013] 链路系统（Chain System）— BackpackGridComponent

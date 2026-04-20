@@ -6,6 +6,7 @@
 #include "UI/WeaponFloatWidget.h"
 #include "UI/WeaponGlassIconWidget.h"
 #include "UI/WeaponGlassAnimDA.h"
+#include "UI/WeaponTrailWidget.h"
 #include "Tutorial/TutorialManager.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
@@ -111,6 +112,9 @@ void AYogHUD::TriggerWeaponPickup(const UWeaponDefinition* Def)
 {
 	if (!WeaponFloatWidget || !Def) return;
 
+	UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] TriggerWeaponPickup — Def=%s WeaponGlassAnimDA=%s"),
+		*Def->GetName(), WeaponGlassAnimDA ? *WeaponGlassAnimDA->GetName() : TEXT("NULL"));
+
 	// 取消上一次未完成的自动折叠计时
 	GetWorld()->GetTimerManager().ClearTimer(CollapseTimerHandle);
 
@@ -124,22 +128,92 @@ void AYogHUD::TriggerWeaponPickup(const UWeaponDefinition* Def)
 	// 自动延迟折叠
 	if (WeaponGlassAnimDA && WeaponGlassAnimDA->AutoCollapseDelay > 0.f)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] 自动折叠计时器已设置 — 延迟 %.2fs"),
+			WeaponGlassAnimDA->AutoCollapseDelay);
 		GetWorld()->GetTimerManager().SetTimer(
 			CollapseTimerHandle, this, &AYogHUD::TriggerWeaponCollapse,
 			WeaponGlassAnimDA->AutoCollapseDelay, false);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] 无自动折叠 — DA为空或AutoCollapseDelay<=0，折叠不会自动触发"));
 	}
 }
 
 void AYogHUD::TriggerWeaponCollapse()
 {
-	if (!WeaponFloatWidget || !WeaponGlassAnimDA) return;
+	if (!WeaponFloatWidget || !WeaponGlassAnimDA)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] TriggerWeaponCollapse — 中止: WeaponFloatWidget=%s WeaponGlassAnimDA=%s"),
+			WeaponFloatWidget ? TEXT("OK") : TEXT("NULL"),
+			WeaponGlassAnimDA ? TEXT("OK") : TEXT("NULL"));
+		return;
+	}
+
+	const FVector2D TargetCenter = GetWeaponGlassIconScreenCenter();
+	UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] TriggerWeaponCollapse — TrailWidgetClass=%s TargetCenter=(%.0f,%.0f)"),
+		TrailWidgetClass ? *TrailWidgetClass->GetName() : TEXT("NULL"),
+		TargetCenter.X, TargetCenter.Y);
 
 	GetWorld()->GetTimerManager().ClearTimer(CollapseTimerHandle);
-	WeaponFloatWidget->StartCollapseAndFly(GetWeaponGlassIconScreenCenter(), WeaponGlassAnimDA);
+
+	// 清理上次残留的拖尾
+	if (ActiveTrailWidget)
+	{
+		WeaponFloatWidget->OnFlyProgress.RemoveAll(this);
+		ActiveTrailWidget->RemoveFromParent();
+		ActiveTrailWidget = nullptr;
+	}
+
+	// 创建流光拖尾（ZOrder 9，低于 WeaponFloat 的 10）
+	if (TrailWidgetClass)
+	{
+		ActiveTrailWidget = CreateWidget<UWeaponTrailWidget>(
+			GetOwningPlayerController(), TrailWidgetClass);
+		if (ActiveTrailWidget)
+		{
+			ActiveTrailWidget->AddToViewport(9);
+			WeaponFloatWidget->OnFlyProgress.AddUObject(
+				this, &AYogHUD::OnFlyProgressUpdate);
+			UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] TrailWidget 已创建并添加到视口"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] TrailWidgetClass 为空 — 无流光拖尾，请在 BP_YogHUD 中赋值"));
+	}
+
+	WeaponFloatWidget->StartCollapseAndFly(TargetCenter, WeaponGlassAnimDA);
+	UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] StartCollapseAndFly 已调用"));
+}
+
+void AYogHUD::OnFlyProgressUpdate(FVector2D FlyStart, FVector2D CurrentPos, float Alpha)
+{
+	// 只在首帧打一次 log，避免每帧刷屏
+	if (Alpha < 0.01f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] FlyProgress 首帧 — Start=(%.0f,%.0f) Cur=(%.0f,%.0f) Trail=%s"),
+			FlyStart.X, FlyStart.Y, CurrentPos.X, CurrentPos.Y,
+			ActiveTrailWidget ? TEXT("OK") : TEXT("NULL"));
+	}
+	if (ActiveTrailWidget)
+		ActiveTrailWidget->SetTrailEndpoints(FlyStart, CurrentPos, Alpha);
 }
 
 void AYogHUD::OnWeaponFlyComplete(UTexture2D* Thumbnail)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] OnWeaponFlyComplete — Thumbnail=%s Trail=%s"),
+		Thumbnail ? *Thumbnail->GetName() : TEXT("NULL"),
+		ActiveTrailWidget ? TEXT("OK") : TEXT("NULL"));
+
+	// 拖尾淡出（Widget 自行从视口移除）
+	if (ActiveTrailWidget)
+	{
+		WeaponFloatWidget->OnFlyProgress.RemoveAll(this);
+		ActiveTrailWidget->StartFadeOut();
+		ActiveTrailWidget = nullptr;
+	}
+
 	if (!WeaponGlassIconWidget || !WeaponGlassAnimDA) return;
 	WeaponGlassIconWidget->ShowForWeapon(Thumbnail, WeaponGlassAnimDA);
 }

@@ -1,0 +1,18 @@
+// GlassBlurMask.ush
+// BackgroundBlur 中心遮罩：中心不透明（满强度模糊）→ 边缘透明（无模糊）
+// 被 M_GlassBlurMask 材质的 Custom 节点 include，作为 GlassBGCenter 的 Brush 材质
+
+float4 GlassBlurMaskMain(
+    float2 UV,          // TexCoord[0]
+    float  Radius,      // ScalarParam：模糊区半径，1.0=撑到控件边缘，推荐 0.7–0.9
+    float  Softness     // ScalarParam：边缘软化宽度，推荐 0.2–0.4，越大越渐变
+)
+{
+    float2 uv   = UV - 0.5;
+    float  dist = length(uv) * 2.0;   // 0=中心，1=控件边缘中点，>1=角落
+
+    // 中心 → 1.0，边缘 → 0.0
+    float mask = 1.0 - smoothstep(Radius - Softness, Radius, dist);
+
+    return float4(1.0, 1.0, 1.0, saturate(mask));
+}

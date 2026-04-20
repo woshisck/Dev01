@@ -1,0 +1,42 @@
+// WeaponGlowOverlay.ush
+// 武器热度升阶 Overlay 材质完整逻辑
+// 效果与 PlayerGlowOverlay 一致，但炫彩更精致（pow 4.0，更集中）
+
+#include "/Project/GlassRim.ush"
+
+float4 WeaponGlowMain(
+    float2 UV,           // TexCoord[0]
+    float3 N,            // VertexNormalWS
+    float3 V,            // CameraVectorWS
+    float  Time,         // Time 节点
+    float3 EmissiveColor,// C++ SetVectorParameter "EmissiveColor"（相位颜色）
+    float  SweepProgress,// C++ SetScalarParameter "SweepProgress" [0,1]
+    float  GlowAlpha,    // C++ SetScalarParameter "GlowAlpha" [0,1]
+    float  FresnelPower, // ScalarParameter "FresnelPower"（默认 2.5）
+    float  BandWidth,    // ScalarParameter "BandWidth"（默认 0.15）
+    float  SwipeCount,   // ScalarParameter "SwipeCount"（默认 1.0）
+    float  IridIntensity,// ScalarParameter "IridIntensity"（默认 0.18）
+    float  IridSpeed     // ScalarParameter "IridSpeed"（默认 0.06）
+)
+{
+    // ── 1. 扫射带 ─────────────────────────────────────────────────
+    float repeated  = frac(SweepProgress * SwipeCount);
+    float BandPos   = 1.0 - repeated;
+    float SweepBand = pow(saturate(1.0 - abs(UV.y - BandPos) / BandWidth), 2.0);
+    SweepBand *= GlowAlpha;
+
+    // ── 2. 菲涅尔边缘光 ───────────────────────────────────────────
+    float fresnel   = GR_Fresnel(N, V, FresnelPower);
+    float edgeAlpha = fresnel * GlowAlpha * 0.80;
+    float finalAlpha = saturate(edgeAlpha + SweepBand);
+
+    // ── 3. 炫彩（武器比玩家更集中，pow 4.0） ──────────────────────
+    float3 iridColor   = GR_Iridescence(N, Time, IridSpeed);
+    float  iridMask    = pow(fresnel, 4.0) * GlowAlpha;
+    float3 iridContrib = iridColor * iridMask * IridIntensity;
+
+    // ── 4. 发光合并 ───────────────────────────────────────────────
+    float3 finalEmissive = (EmissiveColor + iridContrib) * (fresnel * GlowAlpha + SweepBand);
+
+    return float4(finalEmissive, finalAlpha);
+}

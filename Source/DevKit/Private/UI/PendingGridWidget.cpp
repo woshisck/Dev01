@@ -124,6 +124,31 @@ void UPendingGridWidget::RefreshSlots(const TArray<FRuneInstance>& PendingRunes)
     }
 }
 
+void UPendingGridWidget::SetGamepadCursor(int32 Index)
+{
+    const FLinearColor CursorColor = StyleDA ? StyleDA->SelectedColor
+                                             : FLinearColor(1.f, 0.85f, 0.1f, 1.f);
+    const FLinearColor HasRuneColor = StyleDA ? StyleDA->PendingHasRuneColor
+                                              : FLinearColor(0.12f, 0.08f, 0.22f, 1.f);
+
+    for (int32 i = 0; i < CachedPendingBGImages.Num(); i++)
+    {
+        UImage* BG = CachedPendingBGImages[i];
+        if (!BG) continue;
+
+        const bool bHasRune = CachedPendingIcons.IsValidIndex(i)
+            && CachedPendingIcons[i]
+            && CachedPendingIcons[i]->GetVisibility() != ESlateVisibility::Collapsed;
+
+        if (i == Index)
+            BG->SetColorAndOpacity(CursorColor);
+        else if (bHasRune)
+            BG->SetColorAndOpacity(HasRuneColor);
+        else
+            BG->SetColorAndOpacity(PendingEmptyColor);
+    }
+}
+
 // ============================================================
 //  坐标辅助
 // ============================================================

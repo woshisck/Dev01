@@ -23,6 +23,7 @@
 #include "Character/YogPlayerControllerBase.h"
 #include "Engine/GameInstance.h"
 #include "UI/WeaponFloatWidget.h"
+#include "UI/YogHUD.h"
 
 // Sets default values
 AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
@@ -242,6 +243,10 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	// 拾取后浮窗永久隐藏
 	bPickedUp = true;
 
+	// 若教程弹窗仍在显示（玩家在弹窗期间按 E 拾取），强制关闭
+	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
+		if (TM->IsPopupShowing()) TM->ForceClosePopup();
+
 	// ── 1. 处理旧武器 ────────────────────────────────────────────────
 	if (Player->EquippedWeaponInstance)
 	{
@@ -317,6 +322,19 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾取 [%s]"), *WeaponDefinition->GetName());
 
+	// 触发 HUD 拾取动画：浮窗折叠→流光→飞入背包图标
+	if (APlayerController* PC = Player->GetController<APlayerController>())
+	{
+		AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD());
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] SpawnStep5 PC=%s HUD=%s"),
+			*PC->GetName(), HUD ? *HUD->GetName() : TEXT("NULL"));
+		if (HUD)
+			HUD->TriggerWeaponPickup(WeaponDefinition);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] SpawnStep5 PC=NULL — HUD 动画不会触发"));
+	}
 }
 
 

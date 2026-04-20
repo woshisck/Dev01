@@ -4,11 +4,15 @@
 #include "AbilitySystem/AbilityTask/AbilityTask_MusketCharge.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
+#include "Item/Weapon/AimArcActor.h"
 #include "Character/YogCharacterBase.h"
 
 UGA_Musket_HeavyAttack::UGA_Musket_HeavyAttack()
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Heavy"));
+
+    // C++ 默认值：无材质时弧不可见但不崩溃
+    AimArcClass = AYogAimArcActor::StaticClass();
 
     ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Musket.Aiming"));
 

@@ -14,6 +14,7 @@ class UWeaponGlassIconWidget;
 class UWeaponGlassAnimDA;
 class UWeaponDefinition;
 class UBackpackScreenWidget;
+class UWeaponTrailWidget;
 
 UCLASS()
 class DEVKIT_API AYogHUD : public AHUD
@@ -75,6 +76,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
 	TSubclassOf<UWeaponGlassIconWidget> WeaponGlassIconClass;
 
+	/** 流光拖尾 Widget（全屏透明叠层，飞行阶段显示发光线段） */
+	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
+	TSubclassOf<UWeaponTrailWidget> TrailWidgetClass;
+
 	/** 动画时序 DA（折叠/缩小/飞行/消失参数） */
 	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
 	TObjectPtr<UWeaponGlassAnimDA> WeaponGlassAnimDA;
@@ -132,7 +137,12 @@ private:
 	UPROPERTY()
 	TObjectPtr<UWeaponGlassIconWidget> WeaponGlassIconWidget;
 
+	UPROPERTY()
+	TObjectPtr<UWeaponTrailWidget> ActiveTrailWidget;
+
 	FTimerHandle CollapseTimerHandle;
+
+	void OnFlyProgressUpdate(FVector2D FlyStart, FVector2D CurrentPos, float Alpha);
 
 	UFUNCTION()
 	void OnSaveGameLoaded(UYogSaveGame* SaveGame);

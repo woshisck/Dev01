@@ -1,0 +1,28 @@
+// GlassRim.ush
+// 玻璃边缘光共享函数：Fresnel + 炫彩
+// 被 PlayerGlowOverlay.ush / WeaponGlowOverlay.ush / UI 材质共同 include
+
+// 快速 Hue→RGB（不依赖任何外部函数）
+float3 GR_HueToRGB(float h)
+{
+    float r = abs(h * 6.0 - 3.0) - 1.0;
+    float g = 2.0 - abs(h * 6.0 - 2.0);
+    float b = 2.0 - abs(h * 6.0 - 4.0);
+    return saturate(float3(r, g, b));
+}
+
+// 基于世界法线角度的炫彩颜色（随时间缓慢漂移）
+float3 GR_Iridescence(float3 WorldNormal, float Time, float IridSpeed)
+{
+    float angle = atan2(WorldNormal.y, WorldNormal.x);
+    float hue   = frac(angle / 6.28318 + Time * IridSpeed);
+    return GR_HueToRGB(hue);
+}
+
+// NdotV Fresnel（3D 网格，有真实顶点法线）
+// Normal / CameraDir 无需预先 normalize，内部处理
+float GR_Fresnel(float3 Normal, float3 CameraDir, float Power)
+{
+    float NdotV = saturate(dot(normalize(Normal), normalize(CameraDir)));
+    return pow(1.0 - NdotV, Power);
+}

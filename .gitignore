@@ -1891,3 +1891,7 @@ sunchuankai_run_claude_code.bat
 CLAUDE.md
 Plugins/GameFeatures/CountDownTime/Binaries/Win64/UnrealEditor-CountDownTimeRuntime.dll
 Plugins/ElectronicNodes/Binaries/Win64/UnrealEditor-ElectronicNodes.dll
+
+# 项目自定义 USH 着色器（覆盖上方 /Shaders 忽略规则）
+!/Shaders/*.ush
+!/Shaders/

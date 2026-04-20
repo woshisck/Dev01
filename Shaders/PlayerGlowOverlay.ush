@@ -1,0 +1,48 @@
+// PlayerGlowOverlay.ush
+// 玩家热度升阶 Overlay 材质完整逻辑
+// 效果：扫射带 + 菲涅尔边缘光（边缘不透明度高于中心）+ 炫彩在菲涅尔极强处
+
+#include "/Project/GlassRim.ush"
+
+float4 PlayerGlowMain(
+    float2 UV,           // TexCoord[0]
+    float3 N,            // VertexNormalWS
+    float3 V,            // CameraVectorWS
+    float  Time,         // Time 节点
+    float3 EmissiveColor,// C++ SetVectorParameter "EmissiveColor"（相位颜色）
+    float  SweepProgress,// C++ SetScalarParameter "SweepProgress" [0,1]
+    float  GlowAlpha,    // C++ SetScalarParameter "GlowAlpha" [0,1]
+    float  FresnelPower, // ScalarParameter "FresnelPower"（默认 2.5）
+    float  BandWidth,    // ScalarParameter "BandWidth"（默认 0.15）
+    float  SwipeCount,   // ScalarParameter "SwipeCount"（默认 1.0）
+    float  IridIntensity,// C++ SetScalarParameter "IridIntensity"（默认 0.28）
+    float  IridSpeed     // ScalarParameter "IridSpeed"（默认 0.06）
+)
+{
+    // ── 1. 扫射带（SweepProgress 0→1 从下到上扫过） ─────────────
+    float repeated  = frac(SweepProgress * SwipeCount);
+    float BandPos   = 1.0 - repeated;
+    float SweepBand = pow(saturate(1.0 - abs(UV.y - BandPos) / BandWidth), 2.0);
+    SweepBand *= GlowAlpha;
+
+    // ── 2. 菲涅尔边缘光 ───────────────────────────────────────────
+    float fresnel = GR_Fresnel(N, V, FresnelPower);
+
+    // 边缘比中心不透明度更低（透明程度更低 = alpha 更高）
+    // 中心区域 fresnel≈0 → alpha 主要来自 SweepBand
+    // 边缘区域 fresnel≈1 → alpha 显著提升
+    float edgeAlpha = fresnel * GlowAlpha * 0.85;
+
+    float finalAlpha = saturate(edgeAlpha + SweepBand);
+
+    // ── 3. 炫彩（仅在菲涅尔极强处出现，稍明显但不抢眼） ─────────
+    float3 iridColor   = GR_Iridescence(N, Time, IridSpeed);
+    float  iridMask    = pow(fresnel, 3.5) * GlowAlpha;   // pow(3.5) 极集中在角落/轮廓处
+    float3 iridContrib = iridColor * iridMask * IridIntensity;
+
+    // ── 4. 发光合并 ───────────────────────────────────────────────
+    // 炫彩叠加在相位颜色上，仅在 Fresnel 强处可见
+    float3 finalEmissive = (EmissiveColor + iridContrib) * (fresnel * GlowAlpha + SweepBand);
+
+    return float4(finalEmissive, finalAlpha);
+}

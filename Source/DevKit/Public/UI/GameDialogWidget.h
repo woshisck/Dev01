@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "CommonActivatableWidget.h"
+#include "Animation/WidgetAnimation.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
@@ -19,59 +20,45 @@ struct FTutorialPage
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (MultiLine = true))
 	FText Body;
 
-	// 左侧插图（留空则插图区域保持黑色占位）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UTexture2D> Illustration = nullptr;
 
-	// 补充说明（留空则 BodySubText 自动隐藏）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (MultiLine = true))
 	FText SubText;
 };
 
 // 教程弹窗 Widget — 支持多页翻页
-// C++ 控制全部逻辑，WBP 放四个命名控件：
-//   TitleText / BodyText / BtnConfirm / BtnConfirmLabel（按钮内的文字）
+// WBP 只需：正确命名控件 + 创建两个 UMG 动画（Anim_FadeIn / Anim_FadeOut）
+// 不需要任何 Event Graph 节点
 UCLASS()
 class DEVKIT_API UTutorialPopupWidget : public UCommonActivatableWidget
 {
 	GENERATED_BODY()
 
 public:
-	// 显示弹窗（由 TutorialManager 调用，支持单页或多页）
 	void ShowPopup(const TArray<FTutorialPage>& InPages);
 
-	// BtnConfirm 点击：非末页则翻页，末页则触发渐出流程
 	UFUNCTION(BlueprintCallable, Category = "Tutorial")
 	void OnNextPressed();
 
-	// WBP 渐出动画结束后调用此函数完成关闭
+	// 渐出动画结束后由 C++ 自动调用，无需在 WBP 手动调用
 	UFUNCTION(BlueprintCallable, Category = "Tutorial")
 	void ConfirmClose();
 
 protected:
-	// WBP 实现：弹窗渐入动画（NativeOnActivated 后调用）
-	UFUNCTION(BlueprintImplementableEvent, Category = "Tutorial")
-	void BP_OnPopupShown();
-
-	// WBP 实现：末页点击后开始渐出动画，动画结束时调用 ConfirmClose
-	// 默认实现：无动画时直接关闭（WBP 可 override 播渐出动画）
-	UFUNCTION(BlueprintNativeEvent, Category = "Tutorial")
-	void BP_OnPopupClosing();
-
-	// 当前页索引（0-based），蓝图可读
 	UPROPERTY(BlueprintReadOnly, Category = "Tutorial")
 	int32 CurrentPage = 0;
 
-	// 总页数，蓝图可读
 	UPROPERTY(BlueprintReadOnly, Category = "Tutorial")
 	int32 TotalPages = 0;
 
 	virtual void NativeConstruct() override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
+	virtual UWidget* NativeGetDesiredFocusTarget() const override;
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
 
-	// 四个命名控件，WBP 中名字必须完全一致
+	// ——— BindWidget 控件（名字必须与 WBP 中完全一致）———
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> TitleText;
 
@@ -81,24 +68,33 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> BtnConfirm;
 
-	// 按钮内的文字控件（非末页显示"下一页"，末页显示"知道了"）
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> BtnConfirmLabel;
 
-	// 页码显示（可选，显示"1 / 3"；只有一页时自动隐藏）
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> PageHint;
 
-	// 补充说明文字（可选，SubText 为空时自动 Collapsed）
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> BodySubText;
 
-	// 左侧插图（可选，有贴图时显示，无贴图时保持黑色背景）
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UImage> IllustrationImage;
 
+	// ——— BindWidgetAnim（WBP 中动画名必须与变量名完全一致）———
+	UPROPERTY(Transient, meta = (BindWidgetAnim))
+	TObjectPtr<UWidgetAnimation> Anim_FadeIn;
+
+	UPROPERTY(Transient, meta = (BindWidgetAnim))
+	TObjectPtr<UWidgetAnimation> Anim_FadeOut;
+
 private:
 	TArray<FTutorialPage> Pages;
-
+	bool bIsInteractable = false; // FadeIn 完成前禁止翻页/关闭，防止幽灵输入
 	void RefreshPage();
+
+	UFUNCTION()
+	void OnFadeInAnimFinished();
+
+	UFUNCTION()
+	void OnFadeOutAnimFinished();
 };

@@ -44,13 +44,18 @@ public:
     TObjectPtr<UMaterialInterface> GlassBorderMaterial;
 
     // =========================================================
-    // 模糊
+    // 模糊（两层：中心强模糊 + 边缘弱模糊，叠出自然的景深感）
     // =========================================================
 
-    /** BackgroundBlur 强度（背包大框≈14，HUD小图标≈6） */
+    /** 中心区域模糊强度（GlassBGCenter，配合渐变遮罩让中心更"厚"） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "玻璃框|模糊",
+              meta = (ClampMin = "0", ClampMax = "100"))
+    float CenterBlurStrength = 28.f;
+
+    /** 边缘/全局底层模糊强度（GlassBG，铺满整个控件） */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "玻璃框|模糊",
               meta = (ClampMin = "0", ClampMax = "50"))
-    float BlurStrength = 14.f;
+    float BlurStrength = 6.f;
 
     // =========================================================
     // 边框形状（传给材质 Custom 节点）
@@ -108,8 +113,13 @@ protected:
     // Designer 绑定（BindWidgetOptional：名称不一致时跳过，不崩溃）
     // =========================================================
 
+    /** 底层：低强度，铺满全区域，提供边缘模糊 */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UBackgroundBlur> GlassBG;
+
+    /** 中层：高强度，带渐变遮罩（M_GlassBlurMask），Apply Alpha to Blur = ON */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UBackgroundBlur> GlassBGCenter;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UImage> GlassBorderImage;

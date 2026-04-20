@@ -16,6 +16,9 @@ struct FRuneShape;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeaponFlyComplete, UTexture2D*, CachedThumbnail);
 
+/** 飞行阶段每帧广播 (飞行起点, 当前绝对坐标, 进度 0-1)，供拖尾 Widget 使用 */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWeaponFlyProgress, FVector2D, FVector2D, float);
+
 /** 浮窗动画阶段 */
 UENUM()
 enum class EWeaponFloatPhase : uint8
@@ -62,6 +65,9 @@ public:
 	/** 飞行结束后广播（参数为缓存的缩略图贴图，可直接传给 WeaponGlassIconWidget） */
 	UPROPERTY(BlueprintAssignable, Category = "WeaponFloat")
 	FOnWeaponFlyComplete OnFlyComplete;
+
+	/** 飞行中每帧广播 (FlyAbsStart, CurrentAbsPos, Alpha)，供 WeaponTrailWidget 更新线段 */
+	FOnWeaponFlyProgress OnFlyProgress;
 
 	/** 当前动画阶段（只读，供 BP 查询） */
 	UFUNCTION(BlueprintPure, Category = "WeaponFloat")
@@ -131,9 +137,13 @@ private:
 	UPROPERTY()
 	TObjectPtr<const UWeaponGlassAnimDA> AnimDA;
 
-	float PhaseTimer       = 0.f;
-	float TargetShrinkScale = 1.f;   // 缩小至目标 Scale（均匀）
+	float PhaseTimer        = 0.f;
+	float TargetShrinkScale = 1.f;
 	FVector2D FlyDelta;              // 飞行位移（屏幕像素）
+
+	// 飞行起点（绝对屏幕坐标），Flying 首帧捕获
+	FVector2D FlyAbsStart      = FVector2D::ZeroVector;
+	bool      bFlyStartCaptured = false;
 
 	// 缓存缩略图，飞行完成后传给 WeaponGlassIconWidget
 	UPROPERTY()

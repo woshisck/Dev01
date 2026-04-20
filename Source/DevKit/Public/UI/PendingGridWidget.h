@@ -58,6 +58,9 @@ public:
      */
     void RefreshSlots(const TArray<FRuneInstance>& PendingRunes);
 
+    /** 高亮手柄光标所在槽位；Index=-1 清除高亮 */
+    void SetGamepadCursor(int32 Index);
+
     /**
      * 屏幕绝对坐标 → 槽位索引。失败返回 false。
      * BackpackScreenWidget 拖拽事件中调用。

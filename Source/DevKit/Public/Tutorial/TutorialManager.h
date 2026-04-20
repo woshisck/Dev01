@@ -33,6 +33,9 @@ public:
 	// 由 GameDialogWidget 在关闭时调用，清除弹窗标志并广播委托
 	void NotifyPopupClosed();
 
+	// 强制立即关闭弹窗（跳过渐出动画），用于武器拾取等打断场景
+	void ForceClosePopup();
+
 	// 弹窗关闭时广播（供 LENode_ShowTutorial 等节点等待）
 	FSimpleMulticastDelegate OnPopupClosed;
 

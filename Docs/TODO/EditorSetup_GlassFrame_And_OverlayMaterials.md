@@ -61,6 +61,14 @@
 
 **Output Type**：`CMOT Float 4`
 
+**Include File Paths（关键！和玩家/武器材质一样的做法）**：
+
+Details 面板找到 **Include File Paths** 数组 → 点 `+` → 填入：
+
+```text
+/Project/GlassFrameUI.ush
+```
+
 **Inputs（按顺序添加，名称精确）**：
 
 | Name | Type |
@@ -75,46 +83,13 @@
 
 点 Inputs 数组右边的 **+** 按钮添加，每条填名字和类型。
 
-**Code 字段（粘贴以下代码）**：
+**Code 字段（只需一行函数调用）**：
 
 ```hlsl
-float2 uv = UV - 0.5;
-float2 q = abs(uv) - (0.5 - CornerRadius);
-float dist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - CornerRadius;
-
-float innerMask  = 1.0 - smoothstep(-0.002, 0.0, dist);
-float borderMask = 1.0 - smoothstep(0.0, BorderWidth, abs(dist));
-
-float fresnelRaw = length(abs(uv) * 2.0);
-fresnelRaw = saturate(fresnelRaw);
-float fresnel = pow(fresnelRaw, FresnelPower);
-
-float angle  = atan2(uv.y, uv.x);
-float hueRaw = frac(angle / 6.28318 + Time * IridSpeed);
-
-float3 irid;
-float h6 = hueRaw * 6.0;
-irid.r = saturate(abs(h6 - 3.0) - 1.0);
-irid.g = saturate(2.0 - abs(h6 - 2.0));
-irid.b = saturate(2.0 - abs(h6 - 4.0));
-
-float iridMask  = borderMask * pow(fresnel, 3.0);
-float3 iridColor = irid * iridMask * IridIntensity;
-
-float3 borderBaseColor = float3(0.85, 0.90, 1.00);
-float  borderAlpha     = borderMask * lerp(0.30, 0.72, fresnel);
-
-float3 innerColor = float3(0.05, 0.05, 0.10);
-float  innerAlpha = innerMask * 0.12;
-
-float3 finalColor = (borderBaseColor + iridColor) * borderMask
-                  + innerColor * innerMask * (1.0 - borderMask);
-float  finalAlpha = saturate(borderAlpha + innerAlpha);
-
-return float4(finalColor, finalAlpha);
+return GlassFrameMain(UV, Time, CornerRadius, BorderWidth, FresnelPower, IridIntensity, IridSpeed);
 ```
 
-> ⚠️ 这个材质是 UI 材质，没有真实顶点法线，所以菲涅尔是用 UV 离中心距离模拟的（不是 3D Fresnel）。
+> ⚠️ 所有 HLSL 逻辑都在 `Shaders/GlassFrameUI.ush` 里，该文件通过 `FDevKitModule::StartupModule()` 注册的 `/Project` 虚拟路径访问，跨电脑有效。UI 材质无顶点法线，ush 内用 UV 离中心距离模拟菲涅尔。
 
 ### A-6 连接节点
 

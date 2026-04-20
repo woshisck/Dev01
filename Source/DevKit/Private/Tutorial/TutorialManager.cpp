@@ -161,6 +161,14 @@ void UTutorialManager::NotifyPopupClosed()
 	OnPopupClosed.Broadcast();
 }
 
+void UTutorialManager::ForceClosePopup()
+{
+	if (PopupWidget.IsValid() && bPopupShowing)
+	{
+		PopupWidget->ConfirmClose();
+	}
+}
+
 void UTutorialManager::SaveState()
 {
 	UYogSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UYogSaveSubsystem>();

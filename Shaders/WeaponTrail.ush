@@ -1,0 +1,58 @@
+// WeaponTrail.ush
+// 武器拾取流光拖尾
+//
+// UV 布局（C++ 将 Image 从起点拉伸到当前位置后旋转）：
+//   U (x) : 0 = 尾部（起点），1 = 头部（当前飞行端）
+//   V (y) : 0 = 上边缘，1 = 下边缘，0.5 = 中心线
+//
+// Custom 节点输出 float4，RGB 接 Final Color，A 接 Opacity
+// ─────────────────────────────────────────────────────────────────────────────
+
+float4 WeaponTrailMain(
+    float2 UV,          // TexCoord[0]
+    float  Alpha,       // ScalarParam：整体不透明度（飞行进度 0→1）
+    float  Progress     // ScalarParam：流光相位驱动（飞行进度 0→1）
+)
+{
+    // ── 1. 垂直方向：中心亮、边缘衰减（软发光轮廓）─────────────────────────
+    float centerV   = abs(UV.y - 0.5) * 2.0;          // 0=中心线，1=边缘
+    float edgeFade  = pow(saturate(1.0 - centerV), 1.6);
+
+    // ── 2. 水平方向：头部（U=1）亮，尾部（U=0）淡出 ────────────────────────
+    float tailFade  = pow(saturate(UV.x), 1.4);
+
+    // ── 3. 流光脉冲：从尾向头持续移动的亮带 ────────────────────────────────
+    //    frac(UV.x - Progress*speed) 产生 0→1 周期，leading edge 在 0 附近最亮
+    float flowU     = frac(UV.x - Progress * 1.6);
+    float pulse     = pow(saturate(1.0 - flowU * 1.5), 4.5);  // 锐利的领头亮边
+
+    // ── 4. 头部核心：最前端固定白亮区 ──────────────────────────────────────
+    float headZone  = saturate((UV.x - 0.62) / 0.38);         // 最后 38% 开始
+    float headCore  = pow(headZone, 1.8);
+
+    // ── 5. 综合强度 ──────────────────────────────────────────────────────────
+    float base      = edgeFade * tailFade;
+    float intensity = saturate(
+        base * 0.55
+        + edgeFade * pulse  * 0.50
+        + edgeFade * headCore * 1.40
+    );
+
+    // ── 6. 颜色：外缘深蓝 → 内侧电蓝白 → 头端纯白 ─────────────────────────
+    float3 outerBlue = float3(0.04, 0.18, 0.90);   // 深电蓝（外缘/尾部）
+    float3 coreBlue  = float3(0.55, 0.82, 1.00);   // 亮蓝白（内侧）
+    float3 pureWhite = float3(1.00, 1.00, 1.00);   // 纯白（头端核心）
+
+    float  colorBlend  = saturate(base + headCore);
+    float3 trailColor  = lerp(outerBlue, coreBlue, colorBlend);
+           trailColor  = lerp(trailColor, pureWhite, headCore * edgeFade * 0.75);
+
+    // Emissive 增益：头部额外提亮，脉冲也闪
+    float  emissive   = 1.8 + headCore * 2.5 + pulse * 0.9;
+           trailColor *= emissive;
+
+    // ── 7. 不透明度：整体随 Alpha 参数控制（飞行结束时 YogHUD 调为 0）───────
+    float opacity = saturate(intensity * Alpha);
+
+    return float4(trailColor, opacity);
+}

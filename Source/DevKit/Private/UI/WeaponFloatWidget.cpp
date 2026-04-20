@@ -105,11 +105,17 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 void UWeaponFloatWidget::StartCollapseAndFly(FVector2D TargetScreenCenter,
                                               const UWeaponGlassAnimDA* InAnimDA)
 {
-	if (!InAnimDA || CurrentPhase != EWeaponFloatPhase::Idle) return;
+	if (!InAnimDA || CurrentPhase != EWeaponFloatPhase::Idle)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] StartCollapseAndFly 中止 — DA=%s Phase=%d"),
+			InAnimDA ? TEXT("OK") : TEXT("NULL"), (int32)CurrentPhase);
+		return;
+	}
 
-	AnimDA    = InAnimDA;
-	PhaseTimer = 0.f;
-	CurrentPhase = EWeaponFloatPhase::Collapsing;
+	AnimDA           = InAnimDA;
+	PhaseTimer       = 0.f;
+	bFlyStartCaptured = false;
+	CurrentPhase     = EWeaponFloatPhase::Collapsing;
 
 	// Phase 1：立即隐藏非缩略图区域（用 InfoContainer 整体折叠，或逐个隐藏）
 	if (InfoContainer)
@@ -148,6 +154,12 @@ void UWeaponFloatWidget::StartCollapseAndFly(FVector2D TargetScreenCenter,
 	// 计算飞行位移（屏幕绝对坐标 Center → 目标中心）
 	const FVector2D WidgetCenter = Geom.LocalToAbsolute(LocalSize * 0.5f);
 	FlyDelta = TargetScreenCenter - WidgetCenter;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[WeaponPickup] StartCollapseAndFly OK — LocalSize=(%.0f,%.0f) WidgetCenter=(%.0f,%.0f) TargetCenter=(%.0f,%.0f) ShrinkScale=%.3f FlyDelta=(%.0f,%.0f)"),
+		LocalSize.X, LocalSize.Y, WidgetCenter.X, WidgetCenter.Y,
+		TargetScreenCenter.X, TargetScreenCenter.Y,
+		TargetShrinkScale, FlyDelta.X, FlyDelta.Y);
 }
 
 void UWeaponFloatWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -167,6 +179,8 @@ void UWeaponFloatWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 	if (PhaseTimer < T_Collapse)
 	{
 		// Phase 1 Collapsing：等待，不做 transform（已瞬间隐藏 InfoContainer）
+		if (CurrentPhase != EWeaponFloatPhase::Collapsing)
+			UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] → Phase: Collapsing"));
 		CurrentPhase = EWeaponFloatPhase::Collapsing;
 		return;
 	}
@@ -176,6 +190,8 @@ void UWeaponFloatWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 	if (ShrinkElapsed < T_Shrink)
 	{
 		// Phase 2 Shrinking
+		if (CurrentPhase != EWeaponFloatPhase::Shrinking)
+			UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] → Phase: Shrinking (ShrinkScale=%.3f)"), TargetShrinkScale);
 		CurrentPhase = EWeaponFloatPhase::Shrinking;
 		const float Alpha = ShrinkElapsed / FMath::Max(T_Shrink, 0.001f);
 		const float Scale = FMath::Lerp(1.f, TargetShrinkScale, Alpha);
@@ -192,14 +208,26 @@ void UWeaponFloatWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 		if (FlyElapsed < T_Fly)
 		{
 			// Phase 3 Flying
+			if (CurrentPhase != EWeaponFloatPhase::Flying)
+				UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] → Phase: Flying (FlyDelta=%.0f,%.0f)"), FlyDelta.X, FlyDelta.Y);
 			CurrentPhase = EWeaponFloatPhase::Flying;
 			const float Alpha = FlyElapsed / FMath::Max(T_Fly, 0.001f);
 			WT.Scale       = FVector2D(TargetShrinkScale);
 			WT.Translation = FMath::Lerp(FVector2D::ZeroVector, FlyDelta, Alpha);
+
+			// 首帧捕获飞行起点（layout 绝对中心）
+			if (!bFlyStartCaptured)
+			{
+				FlyAbsStart = MyGeometry.LocalToAbsolute(MyGeometry.GetLocalSize() * 0.5f);
+				bFlyStartCaptured = true;
+				UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] FlyAbsStart 捕获 — (%.0f,%.0f)"), FlyAbsStart.X, FlyAbsStart.Y);
+			}
+			OnFlyProgress.Broadcast(FlyAbsStart, FlyAbsStart + WT.Translation, Alpha);
 		}
 		else
 		{
 			// Done
+			UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] → Phase: Done — 广播 OnFlyComplete"));
 			CurrentPhase = EWeaponFloatPhase::Idle;
 			SetVisibility(ESlateVisibility::Collapsed);
 			SetRenderTransform(FWidgetTransform());

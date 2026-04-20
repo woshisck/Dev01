@@ -1,0 +1,36 @@
+// MusketAimArc.ush
+// 扇形瞄准弧遮罩，供材质 Custom 节点 #include 使用。
+//
+// 使用方法（Custom 节点）：
+//   Inputs:
+//     float2 UV         ← TexCoord[0]
+//     float  HalfAngle  ← ScalarParameter "HalfAngle"（度数，0~90）
+//     float  Softness   ← ScalarParameter "Softness"（默认 0.05，边缘柔化宽度，弧度）
+//   Code:
+//     #include "/Project/MusketAimArc.ush"
+//     return MusketAimArc_GetMask(UV, HalfAngle, Softness);
+//   Output Type: CMOT Float 1
+
+float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
+{
+    // 1. UV 中心化到 [-0.5, 0.5]
+    float2 C = UV - 0.5;
+
+    // 2. 以 +Y 为正前方计算角度（atan2(x,y)：右正左负）
+    float Angle = atan2(C.x, C.y);
+
+    // 3. 半角转弧度
+    float HalfRad = HalfAngleDeg * (3.14159265 / 180.0);
+
+    // 4. 角度遮罩：平滑边缘
+    float AngleMask = 1.0 - smoothstep(HalfRad - Softness, HalfRad + Softness, abs(Angle));
+
+    // 5. 外圆遮罩：超出 Decal 圆边界渐隐（UV 归一化，0.5 = Decal 半径）
+    float R = length(C);
+    float OuterMask = 1.0 - smoothstep(0.44, 0.50, R);
+
+    // 6. 中心小孔（避免正中间过亮）
+    float InnerMask = smoothstep(0.0, 0.04, R);
+
+    return AngleMask * OuterMask * InnerMask;
+}

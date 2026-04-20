@@ -5,33 +5,50 @@
 
 #define LOCTEXT_NAMESPACE "TutorialPopup"
 
+// ————————————————————————————————————————————————————
+// 公共接口
+// ————————————————————————————————————————————————————
+
 void UTutorialPopupWidget::ShowPopup(const TArray<FTutorialPage>& InPages)
 {
 	if (InPages.IsEmpty()) return;
-	Pages = InPages;
+	Pages      = InPages;
 	CurrentPage = 0;
-	TotalPages = Pages.Num();
+	TotalPages  = Pages.Num();
 
-	// 每次显示时重新加入 Viewport（关闭时 RemoveFromParent 移除了）
 	if (!IsInViewport())
-	{
 		AddToViewport(200);
-	}
-	// 重置激活状态确保 NativeOnActivated 一定被调用
+
 	if (IsActivated())
-	{
 		DeactivateWidget();
-	}
+
 	ActivateWidget();
 }
 
 void UTutorialPopupWidget::OnNextPressed()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] OnNextPressed called — bIsInteractable=%s"),
+		bIsInteractable ? TEXT("true") : TEXT("false"));
+	if (!bIsInteractable) return;
+
 	CurrentPage++;
+	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] OnNextPressed PASS: CurrentPage=%d TotalPages=%d"), CurrentPage, TotalPages);
 	if (CurrentPage >= Pages.Num())
 	{
-		// 触发 WBP 渐出动画；动画结束后 WBP 调用 ConfirmClose()
-		BP_OnPopupClosing();
+		UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] Last page — Anim_FadeOut=%s"),
+			Anim_FadeOut ? TEXT("VALID") : TEXT("NULL"));
+		// 末页：播放渐出动画；动画结束后自动调用 OnFadeOutAnimFinished → ConfirmClose
+		if (Anim_FadeOut)
+		{
+			FWidgetAnimationDynamicEvent FinishEvent;
+			FinishEvent.BindDynamic(this, &UTutorialPopupWidget::OnFadeOutAnimFinished);
+			BindToAnimationFinished(Anim_FadeOut, FinishEvent);
+			PlayAnimation(Anim_FadeOut);
+		}
+		else
+		{
+			ConfirmClose();
+		}
 		return;
 	}
 	RefreshPage();
@@ -39,34 +56,34 @@ void UTutorialPopupWidget::OnNextPressed()
 
 void UTutorialPopupWidget::ConfirmClose()
 {
-	// 通知 TutorialManager 弹窗已关闭（清除 IsPopupShowing 标志，让浮窗恢复显示）
+	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] ConfirmClose called"));
 	if (UGameInstance* GI = GetGameInstance())
-	{
 		if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
-		{
 			TM->NotifyPopupClosed();
-		}
-	}
+
 	DeactivateWidget();
 }
 
-void UTutorialPopupWidget::BP_OnPopupClosing_Implementation()
-{
-	ConfirmClose();
-}
+// ————————————————————————————————————————————————————
+// CommonUI 覆写
+// ————————————————————————————————————————————————————
 
 void UTutorialPopupWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	if (BtnConfirm)
-	{
 		BtnConfirm->OnClicked.AddDynamic(this, &UTutorialPopupWidget::OnNextPressed);
-	}
 }
 
 TOptional<FUIInputConfig> UTutorialPopupWidget::GetDesiredInputConfig() const
 {
 	return FUIInputConfig(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+}
+
+UWidget* UTutorialPopupWidget::NativeGetDesiredFocusTarget() const
+{
+	// Widget 激活时 CommonUI 自动把焦点给 BtnConfirm，手柄 A 键可直接点击
+	return BtnConfirm;
 }
 
 void UTutorialPopupWidget::NativeOnActivated()
@@ -79,34 +96,44 @@ void UTutorialPopupWidget::NativeOnActivated()
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 			HUD->BeginPauseEffect();
 
-	// 明确显示光标 + 切换到 UI 输入模式（不依赖 CommonUI Stack 自动管理）
+	// 只管光标，不手动设 InputMode —— CommonUI 通过 GetDesiredInputConfig() 自动处理
+	// 手动调 SetInputMode 会覆盖 CommonUI 的焦点路由，导致 NativeGetDesiredFocusTarget 失效
 	if (APlayerController* PC = GetOwningPlayer())
-	{
 		PC->SetShowMouseCursor(true);
-		PC->SetInputMode(FInputModeUIOnly());
-	}
 
 	RefreshPage();
-	BP_OnPopupShown();
+
+	bIsInteractable = false;
+	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] NativeOnActivated: bIsInteractable=false, Anim_FadeIn=%s"),
+		Anim_FadeIn ? TEXT("VALID") : TEXT("NULL"));
+
+	if (Anim_FadeIn)
+	{
+		FWidgetAnimationDynamicEvent FadeInFinishEvent;
+		FadeInFinishEvent.BindDynamic(this, &UTutorialPopupWidget::OnFadeInAnimFinished);
+		BindToAnimationFinished(Anim_FadeIn, FadeInFinishEvent);
+		PlayAnimation(Anim_FadeIn);
+		UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] PlayAnimation(Anim_FadeIn) called, waiting for finish..."));
+	}
+	else
+	{
+		bIsInteractable = true;
+		UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] No Anim_FadeIn — bIsInteractable=true immediately"));
+	}
 }
 
 void UTutorialPopupWidget::NativeOnDeactivated()
 {
-	// 安全网：确保 bPopupShowing 一定被清除（防止 WBP 未调用 ConfirmClose 时标志滞留）
+	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] NativeOnDeactivated — bIsInteractable=%s"),
+		bIsInteractable ? TEXT("true") : TEXT("false"));
+	// 安全网：无论何种关闭路径都清除 bPopupShowing
 	if (UGameInstance* GI = GetGameInstance())
-	{
 		if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
-		{
 			TM->NotifyPopupClosed();
-		}
-	}
 
-	// 先还原输入/光标，再调 Super —— 防止 Super 的 CommonUI 回调覆盖还原结果
 	if (APlayerController* PC = GetOwningPlayer())
-	{
 		PC->SetShowMouseCursor(false);
-		PC->SetInputMode(FInputModeGameOnly());
-	}
+
 	UGameplayStatics::SetGamePaused(this, false);
 
 	if (APlayerController* PC = GetOwningPlayer())
@@ -117,13 +144,33 @@ void UTutorialPopupWidget::NativeOnDeactivated()
 	RemoveFromParent();
 }
 
+// ————————————————————————————————————————————————————
+// 私有
+// ————————————————————————————————————————————————————
+
+void UTutorialPopupWidget::OnFadeInAnimFinished()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] OnFadeInAnimFinished — FadeOut already playing=%s"),
+		(Anim_FadeOut && IsAnimationPlaying(Anim_FadeOut)) ? TEXT("YES_LEAK") : TEXT("no"));
+	UnbindAllFromAnimationFinished(Anim_FadeIn);
+	bIsInteractable = true;
+	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] bIsInteractable=true SET"));
+}
+
+void UTutorialPopupWidget::OnFadeOutAnimFinished()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] OnFadeOutAnimFinished — calling ConfirmClose"));
+	UnbindAllFromAnimationFinished(Anim_FadeOut);
+	ConfirmClose();
+}
+
 void UTutorialPopupWidget::RefreshPage()
 {
 	if (!Pages.IsValidIndex(CurrentPage)) return;
 
 	const FTutorialPage& Page = Pages[CurrentPage];
-	if (TitleText)   TitleText->SetText(Page.Title);
-	if (BodyText)    BodyText->SetText(Page.Body);
+	if (TitleText) TitleText->SetText(Page.Title);
+	if (BodyText)  BodyText->SetText(Page.Body);
 
 	const bool bIsLast = (CurrentPage == TotalPages - 1);
 	if (BtnConfirmLabel)
@@ -136,14 +183,9 @@ void UTutorialPopupWidget::RefreshPage()
 	if (IllustrationImage)
 	{
 		if (Page.Illustration)
-		{
 			IllustrationImage->SetBrushFromTexture(Page.Illustration, true);
-		}
 		else
-		{
-			// 无插图：保持黑色背景（Brush 不变，不设置贴图）
 			IllustrationImage->SetBrushTintColor(FLinearColor::Black);
-		}
 	}
 
 	if (BodySubText)

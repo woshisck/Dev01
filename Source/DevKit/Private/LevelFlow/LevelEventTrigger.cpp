@@ -3,7 +3,6 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Components/BoxComponent.h"
 #include "FlowComponent.h"
-#include "FlowSubsystem.h"
 
 ALevelEventTrigger::ALevelEventTrigger()
 {
@@ -29,12 +28,11 @@ void ALevelEventTrigger::OnOverlapBegin(UPrimitiveComponent*, AActor* OtherActor
 {
 	if (!Cast<APlayerCharacterBase>(OtherActor)) return;
 	if (bTriggerOnce && bTriggered) return;
-	if (!LevelFlow) return;
+	if (!LevelFlow) { UE_LOG(LogTemp, Warning, TEXT("[LevelEventTrigger] LevelFlow 未赋值！")); return; }
 
 	bTriggered = true;
+	UE_LOG(LogTemp, Log, TEXT("[LevelEventTrigger] 触发 Flow: %s"), *LevelFlow->GetName());
 
-	if (UFlowSubsystem* FlowSubsystem = GetWorld()->GetGameInstance()->GetSubsystem<UFlowSubsystem>())
-	{
-		FlowSubsystem->StartRootFlow(LevelFlowComp, LevelFlow, false);
-	}
+	LevelFlowComp->RootFlow = LevelFlow;
+	LevelFlowComp->StartRootFlow();
 }

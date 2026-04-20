@@ -10,6 +10,9 @@ void UGlassFrameWidget::NativeConstruct()
     if (GlassBG)
         GlassBG->SetBlurStrength(BlurStrength);
 
+    if (GlassBGCenter)
+        GlassBGCenter->SetBlurStrength(CenterBlurStrength);
+
     if (GlassBorderMaterial && GlassBorderImage)
     {
         GlassDynMat = UMaterialInstanceDynamic::Create(GlassBorderMaterial, this);
@@ -22,6 +25,9 @@ void UGlassFrameWidget::ApplyGlassStyle()
 {
     if (GlassBG)
         GlassBG->SetBlurStrength(BlurStrength);
+
+    if (GlassBGCenter)
+        GlassBGCenter->SetBlurStrength(CenterBlurStrength);
 
     if (!GlassDynMat) return;
 

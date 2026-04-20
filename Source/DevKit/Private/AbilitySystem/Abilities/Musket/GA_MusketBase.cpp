@@ -3,10 +3,12 @@
 #include "AbilitySystem/Abilities/Musket/GA_MusketBase.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
+#include "AbilitySystem/GameplayEffect/GE_MusketBullet_Damage.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Item/Weapon/WeaponInstance.h"
+#include "Projectile/MusketBullet.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemBlueprintLibrary.h"
@@ -18,6 +20,10 @@ static const FGameplayTag TAG_CueMusketChargeFull = FGameplayTag::RequestGamepla
 UGA_MusketBase::UGA_MusketBase()
 {
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+
+    // C++ 默认值：无需 Blueprint 子类即可直接使用
+    BulletClass             = AMusketBullet::StaticClass();
+    BulletDamageEffectClass = UGE_MusketBullet_Damage::StaticClass();
 }
 
 bool UGA_MusketBase::InitCharacterCache(const FGameplayAbilityActorInfo* ActorInfo)

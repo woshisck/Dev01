@@ -8,7 +8,7 @@
 
 ## 一、效果层次
 
-```
+```text
 [BackgroundBlur]       ← 实时模糊游戏场景（毛玻璃底）
 [GlassBorderImage]     ← 玻璃边框：SDF + 菲涅尔 + 炫彩（自定义材质）
 [Content NamedSlot]    ← 背包格子 / 武器图标 / HUD 缩略图
@@ -76,59 +76,31 @@
 | IridIntensity | Float1 | Scalar Parameter（默认 0.18） |
 | IridSpeed | Float1 | Scalar Parameter（默认 0.04） |
 
-### 3.3 Custom 节点完整 HLSL
+### 3.3 Custom 节点配置
+
+与玩家/武器 Overlay 材质相同的 .ush include 体系：
+
+**Include File Paths**（Custom 节点 Details 面板）：
+
+```text
+/Project/GlassFrameUI.ush
+```
+
+**Code 字段（只需一行）**：
 
 ```hlsl
-// ── 1. SDF：带圆角的方形 ──────────────────────────────────────
-float2 uv = UV - 0.5;
-float2 q = abs(uv) - (0.5 - CornerRadius);
-float dist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - CornerRadius;
-
-// ── 2. 遮罩 ───────────────────────────────────────────────────
-float innerMask  = 1.0 - smoothstep(-0.002, 0.0, dist);   // 内部区域
-float borderMask = 1.0 - smoothstep(0.0, BorderWidth, abs(dist)); // 边框带
-
-// ── 3. 菲涅尔（边缘越强，中心越弱）──────────────────────────
-float fresnelRaw = length(abs(uv) * 2.0);
-fresnelRaw = saturate(fresnelRaw);
-float fresnel = pow(fresnelRaw, FresnelPower);
-
-// ── 4. 炫彩（仅出现在菲涅尔峰值 × 边框交叉区）───────────────
-float angle  = atan2(uv.y, uv.x);
-float hueRaw = frac(angle / 6.28318 + Time * IridSpeed);
-
-float3 irid;
-float h6 = hueRaw * 6.0;
-irid.r = saturate(abs(h6 - 3.0) - 1.0);
-irid.g = saturate(2.0 - abs(h6 - 2.0));
-irid.b = saturate(2.0 - abs(h6 - 4.0));
-
-float iridMask  = borderMask * pow(fresnel, 3.0);
-float3 iridColor = irid * iridMask * IridIntensity;
-
-// ── 5. 边框基础色（冷白玻璃感）───────────────────────────────
-float3 borderBaseColor = float3(0.85, 0.90, 1.00);
-float  borderAlpha     = borderMask * lerp(0.30, 0.72, fresnel);
-
-// ── 6. 内部薄膜（极淡，主要靠 BackgroundBlur）────────────────
-float3 innerColor = float3(0.05, 0.05, 0.10);
-float  innerAlpha = innerMask * 0.12;
-
-// ── 7. 合并 ───────────────────────────────────────────────────
-float3 finalColor = (borderBaseColor + iridColor) * borderMask
-                  + innerColor * innerMask * (1.0 - borderMask);
-float  finalAlpha = saturate(borderAlpha + innerAlpha);
-
-return float4(finalColor, finalAlpha);
+return GlassFrameMain(UV, Time, CornerRadius, BorderWidth, FresnelPower, IridIntensity, IridSpeed);
 ```
+
+所有 HLSL 逻辑在 `Shaders/GlassFrameUI.ush`，该文件 include 了 `GlassRim.ush` 复用 `GR_HueToRGB`。
 
 ### 3.4 节点连接
 
-```
-CustomNode.RGBA → Break Float4 → RGB→EmissiveColor, A→Opacity
-TexCoord[0]     → UV
-Time(node)      → Time
-各 ScalarParam  → 对应 Input（参数名与 C++ SetScalarParameterValue 的 Key 必须完全一致）
+```text
+TexCoord[0]     → Custom.UV
+Time(node)      → Custom.Time
+各 ScalarParam  → Custom 对应 Input（参数名与 C++ SetScalarParameterValue 的 Key 必须完全一致）
+Custom.RGBA     → Break Float4 → RGB→EmissiveColor, A→Opacity
 ```
 
 ---
