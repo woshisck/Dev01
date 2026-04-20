@@ -6,11 +6,13 @@
 #include "BTTask_ActivateAbilityByTag.generated.h"
 
 class UAbilitySystemComponent;
+class AYogCharacterBase;
 
 struct FActivateAbilityMemory
 {
     TWeakObjectPtr<UAbilitySystemComponent> ASC;
     FDelegateHandle EndHandle;
+    TWeakObjectPtr<AYogCharacterBase> FlashCharacter;
 };
 
 UCLASS()
@@ -23,6 +25,10 @@ public:
 
     UPROPERTY(EditAnywhere, Category = "Ability")
     FGameplayTagContainer AbilityTags;
+
+    /** 激活技能的同时触发攻击前摇红光；技能结束时自动停止。勾选后在动画里留出前摇时间即可。 */
+    UPROPERTY(EditAnywhere, Category = "Ability")
+    bool bPreAttackFlash = true;
 
     virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
     virtual void OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult) override;

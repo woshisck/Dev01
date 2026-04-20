@@ -1091,6 +1091,22 @@ Stack: UnrealEditor_SlateCore / UnrealEditor_Slate（无游戏代码帧）
 
 ---
 
+### [FIX-010] 敌人攻击 BT Task 自动过滤无蒙太奇 Tag
+
+**状态**：完整，编译后生效，BT 无需改动
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `AI/BTTask_ActivateAbilityByTag.cpp` |
+| 根因 | 所有 ATK GA 都 Grant 给敌人，但 `DA_AbilityMontage_*` 中部分 Tag 蒙太奇为 None，GA 激活后无法播放动画 |
+| 修复逻辑 | `ExecuteTask` 在调用 `TryActivateRandomAbilitiesByTag` 前，先用 `AbilityData->HasAbility(Tag)` 过滤掉蒙太奇为 None 的 Tag，只把有效 Tag 传入随机激活 |
+| 过滤链 | `Pawn → CharacterDataComponent → CharacterData → AbilityData → HasAbility(Tag)` |
+| 无效 Tag 处理 | `ValidTags` 为空时直接返回 `Failed`，BT 正常处理失败分支，敌人不会卡住 |
+| 配置入口 | 每个敌人的 `DA_AbilityMontage_*`：填入蒙太奇 = 启用该攻击；留 None = 自动跳过 |
+| 已知限制 | 依赖 `CharacterDataComponent` 存在，纯蓝图敌人不走此路径 |
+
+---
+
 ## 格式说明
 
 ```

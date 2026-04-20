@@ -5,6 +5,10 @@
 #include "AbilitySystemInterface.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Character/YogCharacterBase.h"
+#include "Component/CharacterDataComponent.h"
+#include "Data/CharacterData.h"
+#include "Data/AbilityData.h"
 
 UBTTask_ActivateAbilityByTag::UBTTask_ActivateAbilityByTag()
 {
@@ -27,10 +31,49 @@ EBTNodeResult::Type UBTTask_ActivateAbilityByTag::ExecuteTask(UBehaviorTreeCompo
 	UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(ASC);
 	if (!YogASC) return EBTNodeResult::Failed;
 
-	// 尝试激活匹配 Tag 的 GA（随机选一个）
-	const bool bActivated = YogASC->TryActivateRandomAbilitiesByTag(AbilityTags, false);
+	// 过滤掉没有蒙太奇数据的 Tag，只在敌人实际配置了蒙太奇的攻击中随机选
+	FGameplayTagContainer ValidTags;
+	if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(Pawn))
+	{
+		if (const UCharacterDataComponent* DC = Char->GetCharacterDataComponent())
+		{
+			if (const UCharacterData* CD = DC->GetCharacterData())
+			{
+				if (const UAbilityData* AD = CD->AbilityData)
+				{
+					for (const FGameplayTag& Tag : AbilityTags)
+					{
+						if (AD->HasAbility(Tag))
+						{
+							ValidTags.AddTag(Tag);
+						}
+					}
+				}
+			}
+		}
+	}
+	if (ValidTags.IsEmpty()) return EBTNodeResult::Failed;
+
+	// 攻击前摇红光（勾选 bPreAttackFlash 时，与技能同步开始）
+	auto* Memory = CastInstanceNodeMemory<FActivateAbilityMemory>(NodeMemory);
+	if (bPreAttackFlash)
+	{
+		if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(Pawn))
+		{
+			Char->StartPreAttackFlash();
+			Memory->FlashCharacter = Char;
+		}
+	}
+
+	// 尝试激活匹配 Tag 的 GA（只从有效 Tag 中随机选）
+	const bool bActivated = YogASC->TryActivateRandomAbilitiesByTag(ValidTags, false);
 	if (!bActivated)
 	{
+		if (Memory->FlashCharacter.IsValid())
+		{
+			Memory->FlashCharacter->StopPreAttackFlash();
+			Memory->FlashCharacter.Reset();
+		}
 		return EBTNodeResult::Failed;
 	}
 
@@ -54,7 +97,6 @@ EBTNodeResult::Type UBTTask_ActivateAbilityByTag::ExecuteTask(UBehaviorTreeCompo
 	}
 
 	// GA 仍在运行，注册结束回调等待完成
-	auto* Memory = CastInstanceNodeMemory<FActivateAbilityMemory>(NodeMemory);
 	Memory->ASC = ASC;
 
 	TWeakObjectPtr<UBehaviorTreeComponent> WeakOwner(&OwnerComp);
@@ -84,6 +126,13 @@ void UBTTask_ActivateAbilityByTag::OnTaskFinished(UBehaviorTreeComponent& OwnerC
 		Memory->EndHandle.Reset();
 	}
 	Memory->ASC = nullptr;
+
+	// 停止红光（技能正常结束或被打断均会走这里）
+	if (Memory->FlashCharacter.IsValid())
+	{
+		Memory->FlashCharacter->StopPreAttackFlash();
+		Memory->FlashCharacter.Reset();
+	}
 
 	Super::OnTaskFinished(OwnerComp, NodeMemory, TaskResult);
 }
