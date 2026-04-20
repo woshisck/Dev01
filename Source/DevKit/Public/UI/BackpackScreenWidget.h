@@ -87,6 +87,10 @@ public:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UButton> SellButton;
 
+    /** 右上角关闭按钮（命名 "CloseButton"，点击关闭背包） */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UButton> CloseButton;
+
     // ── 旧版详情面板（可选保留，新版统一用 RuneInfoCard） ──────────────
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UWidget> DetailPanel;
@@ -233,6 +237,18 @@ private:
     TWeakObjectPtr<UBackpackGridComponent> CachedBackpack;
     UBackpackGridComponent* GetBackpack() const;
 
+    // ── 待放置区稀疏格子（本地，开关背包时与 Player->PendingRunes 同步） ──────
+    TArray<FRuneInstance> PendingGrid;  // 平铺数组 PendingCols×PendingRows，无效 GUID = 空
+    int32 PendingCols = 2;
+    int32 PendingRows = 4;
+    int32 PendingSelectedIdx = -1;      // 鼠标点选的待放置格（-1=无）
+
+    // ── 待放置区手柄光标 ─────────────────────────────────────────────────
+    bool  bCursorInPendingArea = false;
+    int32 PendingCursorIdx     = 0;
+    bool  bGrabbingFromPending = false; // 手柄从待放置区抓起符文
+    int32 PendingGrabbedIdx    = -1;
+
     // ── 拖拽状态 ─────────────────────────────────────────────────────────
     int32 PendingDragIndex = -1; // 左侧待放置槽拖拽索引（-1 = 无）
     int32 HoverCol = -1;         // 拖拽悬浮目标格
@@ -264,6 +280,16 @@ private:
     bool GetGridCellAtScreenPos(const FVector2D& AbsolutePos, int32& OutCol, int32& OutRow) const;
     bool GetPendingSlotAtScreenPos(const FVector2D& AbsPos, int32& OutIndex) const;
 
+    bool IsInCombatPhase() const;
+
+    // ── 待放置区辅助 ──────────────────────────────────────────────────────
+    void SyncPendingFromPlayer();        // 打开时：Player->PendingRunes → PendingGrid
+    void SyncPendingToPlayer();          // 关闭/修改后：PendingGrid → Player->PendingRunes
+    void RefreshPendingGrid();           // 驱动 PendingGridWidget->RefreshSlots
+    void MovePendingCursor(int32 DCol, int32 DRow);
+    void PendingGamepadConfirm();
+    void PendingGamepadCancel();
+
     // ── 手柄辅助 ──────────────────────────────────────────────────────────
     void MoveGamepadCursor(int32 DCol, int32 DRow);
     void GamepadConfirm();
@@ -282,6 +308,9 @@ private:
 
     UFUNCTION()
     void OnSellButtonClicked();
+
+    UFUNCTION()
+    void OnCloseButtonClicked();
 
     UFUNCTION()
     void HandleHeatPhaseButtonClicked(int32 Phase);

@@ -261,3 +261,10 @@ FGeometry UBackpackGridWidget::GetGridGeometry() const
 {
     return BackpackGrid ? BackpackGrid->GetCachedGeometry() : FGeometry();
 }
+
+void UBackpackGridWidget::FlashAndShakeCell(int32 Col, int32 Row)
+{
+    const int32 Idx = Row * CachedGridW + Col;
+    if (CachedSlots.IsValidIndex(Idx) && CachedSlots[Idx])
+        CachedSlots[Idx]->ShakeAndFlash();
+}

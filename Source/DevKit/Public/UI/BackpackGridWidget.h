@@ -92,6 +92,9 @@ public:
     bool GetCellAtScreenPos(const FVector2D& AbsPos, UBackpackGridComponent* Backpack,
                             int32& OutCol, int32& OutRow) const;
 
+    /** 放置失败反馈：指定格子红闪+抖动 */
+    void FlashAndShakeCell(int32 Col, int32 Row);
+
     /** 返回 BackpackGrid 的 CachedGeometry，供手柄图标定位使用 */
     FGeometry GetGridGeometry() const;
 

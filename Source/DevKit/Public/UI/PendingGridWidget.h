@@ -7,16 +7,15 @@
 
 class UUniformGridPanel;
 class USizeBox;
-class UImage;
+class URuneSlotWidget;
 class UBackpackStyleDataAsset;
 
 /**
  * 左侧待放置符文槽子 Widget。
- * 只负责槽位的创建（BuildSlots）和图标刷新（RefreshSlots）。
- * 不持有任何游戏状态，由 BackpackScreenWidget 驱动。
+ * 使用 RuneSlotWidget 格子（与主背包视觉一致），支持自由放置和手柄导航。
  *
- * Blueprint 中命名此 Widget 实例为 "PendingGridWidget"（供父级 BindWidget）。
- * 该 Widget 自身的 Designer 里放一个 UniformGridPanel，命名为 "PendingRuneGrid"。
+ * Designer 里放 UniformGridPanel，命名 "PendingRuneGrid"（BindWidget 必须）。
+ * 外层 SizeBox 命名 "PendingGridSizeBox"（BindWidgetOptional，用于锁定像素尺寸）。
  */
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UPendingGridWidget : public UUserWidget
@@ -28,58 +27,45 @@ public:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     TObjectPtr<UUniformGridPanel> PendingRuneGrid;
 
-    /** 包裹 PendingRuneGrid 的 SizeBox，命名 "PendingGridSizeBox"，BuildSlots 时动态设置精确尺寸保证格子 1:1 */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<USizeBox> PendingGridSizeBox;
 
-    /** 待放置区列数（2 列） */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Config")
     int32 PendingGridCols = 2;
 
-    /** 待放置区行数（4 行） */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Config")
     int32 PendingGridRows = 4;
 
-    /** 视觉风格配置 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Style")
     TObjectPtr<UBackpackStyleDataAsset> StyleDA;
 
+    /** 格子 Widget 类（填 WBP_RuneSlot，与主背包共用） */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Slot")
+    TSubclassOf<URuneSlotWidget> RuneSlotClass;
+
     /**
-     * 动态创建槽位 Overlay（背景 Image + 图标 Image）。
+     * 创建格子（使用 RuneSlotWidget）。
      * 由 BackpackScreenWidget.NativeConstruct 调用一次。
      */
     void BuildSlots();
 
     /**
-     * 刷新槽位图标。
-     * BackpackScreenWidget.RefreshPendingRuneSlots 调用此函数。
-     *
-     * @param PendingRunes 当前待放置符文列表（按顺序填充槽位，多余槽位置灰）
+     * 刷新所有格子视觉。
+     * @param Grid      平铺数组（Cols×Rows），无效 GUID = 空格
+     * @param CursorIdx 手柄光标所在格（-1=无），显示选中边框
+     * @param GrabbedIdx 当前抓取/拖拽源格（-1=无），图标半透明
      */
-    void RefreshSlots(const TArray<FRuneInstance>& PendingRunes);
+    void RefreshSlots(const TArray<FRuneInstance>& Grid,
+                      int32 CursorIdx  = -1,
+                      int32 GrabbedIdx = -1);
 
-    /** 高亮手柄光标所在槽位；Index=-1 清除高亮 */
-    void SetGamepadCursor(int32 Index);
-
-    /**
-     * 屏幕绝对坐标 → 槽位索引。失败返回 false。
-     * BackpackScreenWidget 拖拽事件中调用。
-     */
+    /** 屏幕绝对坐标 → 格子索引。落点在面板外则返回 false。 */
     bool GetSlotAtScreenPos(const FVector2D& AbsPos, int32& OutIndex) const;
 
-    /**
-     * 屏幕绝对坐标 → 最近槽位索引（X/Y 钳制到面板内部，不会越界）。
-     * 用于取回操作：即使落点在 Pending 面板之外，也能通过 Y 坐标估算目标行。
-     * 面板未初始化时返回 false。
-     */
+    /** 屏幕绝对坐标 → 最近格子索引（坐标先 Clamp 到面板内）。 */
     bool GetNearestSlotAtScreenPos(const FVector2D& AbsPos, int32& OutIndex) const;
 
 private:
-    /** 槽位背景 UImage */
     UPROPERTY()
-    TArray<TObjectPtr<UImage>> CachedPendingBGImages;
-
-    /** 槽位图标 UImage */
-    UPROPERTY()
-    TArray<TObjectPtr<UImage>> CachedPendingIcons;
+    TArray<TObjectPtr<URuneSlotWidget>> CachedSlots;
 };

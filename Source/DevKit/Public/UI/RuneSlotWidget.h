@@ -47,6 +47,14 @@ public:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UImage> CellIcon;
 
+    /**
+     * 选中边框叠加层（在 Designer 中放在 CellIcon 上方，命名 "SelectionBorder"）。
+     * 选中时显示黄色边框，不选中时 Collapsed。
+     * 推荐使用带透明中心的边框贴图，或直接用 FillImage 纯色（alpha 0.25 左右）。
+     */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UImage> SelectionBorder;
+
     // =========================================================
     // C++ 驱动接口（由 BackpackGridWidget 调用）
     // =========================================================
@@ -73,6 +81,9 @@ public:
      * 材质内部用 Time 节点驱动，无需 C++ Tick 更新参数。
      */
     void SetActiveZoneMaterial(UMaterialInstanceDynamic* DynMat);
+
+    /** 放置失败时：红闪 + 水平抖动（阻尼正弦，约 0.4s） */
+    void ShakeAndFlash();
 
     // =========================================================
     // Blueprint 动效钩子（实现动效时在 BP 里 override 这些事件）
@@ -101,10 +112,18 @@ public:
     UFUNCTION(BlueprintImplementableEvent, Category = "RuneSlot|Animation")
     void OnRuneIconSet(UTexture2D* Icon, float Opacity);
 
+protected:
+    virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
 private:
     // 上一帧状态缓存，避免无变化时重复触发 BP 事件
     EBackpackCellState PrevState    = EBackpackCellState::Empty;
     bool bPrevSelected  = false;
     bool bPrevHovered   = false;
     bool bPrevGrabbing  = false;
+
+    // 抖动状态
+    bool  bShaking      = false;
+    float ShakeElapsed  = 0.f;
+    static constexpr float ShakeDuration = 0.4f;
 };

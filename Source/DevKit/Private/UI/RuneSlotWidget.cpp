@@ -108,6 +108,21 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
         }
     }
 
+    // ── 选中边框叠加层（始终覆盖在图标之上，独立于 CellBG） ──────────────
+    if (SelectionBorder)
+    {
+        if (bSelected)
+        {
+            const FLinearColor BorderColor = Style ? Style->SelectedColor : SlotDefaults::Selected;
+            SelectionBorder->SetColorAndOpacity(BorderColor);
+            SelectionBorder->SetVisibility(ESlateVisibility::HitTestInvisible);
+        }
+        else
+        {
+            SelectionBorder->SetVisibility(ESlateVisibility::Collapsed);
+        }
+    }
+
     // ── 触发 Blueprint 动效事件（仅状态变化时触发，避免每帧重复） ─────────
     if (State != PrevState)
     {
@@ -164,4 +179,45 @@ void URuneSlotWidget::SetActiveZoneMaterial(UMaterialInstanceDynamic* DynMat)
 {
     if (ActiveZoneOverlay && DynMat)
         ActiveZoneOverlay->SetBrushFromMaterial(DynMat);
+}
+
+// ============================================================
+//  放置失败反馈：红闪 + 抖动
+// ============================================================
+
+void URuneSlotWidget::ShakeAndFlash()
+{
+    bShaking     = true;
+    ShakeElapsed = 0.f;
+    if (CellBG)
+        CellBG->SetColorAndOpacity(FLinearColor(1.f, 0.15f, 0.15f, 1.f));
+}
+
+void URuneSlotWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+    Super::NativeTick(MyGeometry, InDeltaTime);
+
+    if (!bShaking) return;
+
+    ShakeElapsed += InDeltaTime;
+    if (ShakeElapsed >= ShakeDuration)
+    {
+        bShaking = false;
+        SetRenderTranslation(FVector2D::ZeroVector);
+        return;
+    }
+
+    // 阻尼正弦水平抖动：X = 8·sin(30t)·e^{-8t}
+    const float T      = ShakeElapsed;
+    const float OffX   = 8.f * FMath::Sin(30.f * T) * FMath::Exp(-8.f * T);
+    SetRenderTranslation(FVector2D(OffX, 0.f));
+
+    // 红色随时间衰减回上一状态（简单线性插值）
+    const float Alpha = ShakeElapsed / ShakeDuration;
+    if (CellBG)
+    {
+        const FLinearColor Red  (1.f, 0.15f, 0.15f, 1.f);
+        const FLinearColor White(1.f, 1.f,   1.f,   1.f);
+        CellBG->SetColorAndOpacity(FMath::Lerp(Red, White, Alpha));
+    }
 }

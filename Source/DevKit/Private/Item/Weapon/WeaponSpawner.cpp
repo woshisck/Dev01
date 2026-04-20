@@ -206,13 +206,7 @@ void AWeaponSpawner::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 		WC->SetVisibility(true);
 	}
 
-	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
-	{
-		if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(Player->GetController()))
-		{
-			TM->TryWeaponTutorial(PC);
-		}
-	}
+	// 武器教程由关卡中的 LevelEventTrigger + Flow 管理，不在此触发
 }
 
 void AWeaponSpawner::OnPlayerEndOverlap(APlayerCharacterBase* Player)

@@ -17,6 +17,7 @@
 #include "Components/RichTextBlock.h"
 #include "InputCoreTypes.h"
 #include "UI/YogHUD.h"
+#include "GameModes/YogGameMode.h"
 
 // ============================================================
 //  内部辅助
@@ -65,6 +66,9 @@ void UBackpackScreenWidget::NativeConstruct()
 
     if (SellButton)
         SellButton->OnClicked.AddDynamic(this, &UBackpackScreenWidget::OnSellButtonClicked);
+
+    if (CloseButton)
+        CloseButton->OnClicked.AddDynamic(this, &UBackpackScreenWidget::OnCloseButtonClicked);
 
     if (BackpackGridWidget)
         BackpackGridWidget->OnHeatPhaseButtonClicked.AddDynamic(
@@ -329,6 +333,31 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
         SelectedRuneIndex = -1;
         OnSelectionChanged();
     }
+    else if (PendingSelectedIdx >= 0
+        && PendingGrid.IsValidIndex(PendingSelectedIdx)
+        && PendingGrid[PendingSelectedIdx].RuneGuid.IsValid())
+    {
+        // 点击主格子空格 → 从待放置区放置选中的符文
+        const FRuneInstance Instance = PendingGrid[PendingSelectedIdx];
+        if (Backpack->TryPlaceRune(Instance, Cell))
+        {
+            PendingGrid[PendingSelectedIdx] = FRuneInstance();
+            SyncPendingToPlayer();
+            PendingSelectedIdx   = -1;
+            bCursorInPendingArea = false;
+            SelectedCell         = FIntPoint(-1, -1);
+            RefreshPendingGrid();
+            OnSelectionChanged();
+            OnStatusMessage(FText::Format(
+                NSLOCTEXT("Backpack", "PlaceOK", "已放置：{0}"),
+                FText::FromName(Instance.RuneConfig.RuneName)));
+        }
+        else
+        {
+            if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
+            OnStatusMessage(NSLOCTEXT("Backpack", "PlaceFail", "无法放置：位置被占用"));
+        }
+    }
     else if (SelectedRuneIndex >= 0)
     {
         APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
@@ -403,11 +432,40 @@ void UBackpackScreenWidget::ClearSelection()
 
 void UBackpackScreenWidget::RefreshPendingRuneSlots()
 {
-    if (!PendingGridWidget) return;
+    RefreshPendingGrid();
+}
+
+// ── 待放置区稀疏格子辅助 ─────────────────────────────────────────────────
+
+void UBackpackScreenWidget::SyncPendingFromPlayer()
+{
+    PendingCols = PendingGridWidget ? FMath::Max(1, PendingGridWidget->PendingGridCols) : 2;
+    PendingRows = PendingGridWidget ? FMath::Max(1, PendingGridWidget->PendingGridRows) : 4;
+    PendingGrid.SetNum(PendingCols * PendingRows);
+    for (FRuneInstance& R : PendingGrid) R = FRuneInstance();
 
     APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
-    const TArray<FRuneInstance>& PendingRunes = Player ? Player->PendingRunes : TArray<FRuneInstance>();
-    PendingGridWidget->RefreshSlots(PendingRunes);
+    if (!Player) return;
+    for (int32 i = 0; i < Player->PendingRunes.Num() && i < PendingGrid.Num(); i++)
+        PendingGrid[i] = Player->PendingRunes[i];
+}
+
+void UBackpackScreenWidget::SyncPendingToPlayer()
+{
+    APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
+    if (!Player) return;
+    Player->PendingRunes.Empty();
+    for (const FRuneInstance& R : PendingGrid)
+        if (R.RuneGuid.IsValid())
+            Player->PendingRunes.Add(R);
+}
+
+void UBackpackScreenWidget::RefreshPendingGrid()
+{
+    if (!PendingGridWidget) return;
+    const int32 CursorIdx  = bCursorInPendingArea ? PendingCursorIdx : -1;
+    const int32 GrabbedIdx = bGrabbingFromPending ? PendingGrabbedIdx : -1;
+    PendingGridWidget->RefreshSlots(PendingGrid, CursorIdx, GrabbedIdx);
 }
 
 // ============================================================
@@ -447,7 +505,8 @@ void UBackpackScreenWidget::NativeOnActivated()
         BackpackGridWidget->BuildGrid(BG);
     }
 
-    RefreshPendingRuneSlots();
+    SyncPendingFromPlayer();
+    RefreshPendingGrid();
     OnGridNeedsRefresh();
     OnSelectionChanged();
 }
@@ -455,6 +514,12 @@ void UBackpackScreenWidget::NativeOnActivated()
 void UBackpackScreenWidget::NativeOnDeactivated()
 {
     SetVisibility(ESlateVisibility::Collapsed);
+
+    SyncPendingToPlayer();
+    bCursorInPendingArea = false;
+    bGrabbingFromPending = false;
+    PendingGrabbedIdx    = -1;
+    PendingSelectedIdx   = -1;
 
     bGrabbingRune   = false;
     GrabbedFromCell = FIntPoint(-1, -1);
@@ -489,6 +554,18 @@ void UBackpackScreenWidget::OnSellButtonClicked()
         if (PR.Rune.RuneGuid.IsValid())
             Backpack->SellRune(PR.Rune.RuneGuid);
     }
+}
+
+void UBackpackScreenWidget::OnCloseButtonClicked()
+{
+    DeactivateWidget();
+}
+
+bool UBackpackScreenWidget::IsInCombatPhase() const
+{
+    if (AYogGameMode* GM = GetWorld()->GetAuthGameMode<AYogGameMode>())
+        return GM->HasAliveEnemies();
+    return false;
 }
 
 void UBackpackScreenWidget::HandleHeatPhaseButtonClicked(int32 Phase)
@@ -537,13 +614,48 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         int32 PendingIdx;
         if (GetPendingSlotAtScreenPos(InMouseEvent.GetScreenSpacePosition(), PendingIdx))
         {
-            APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
-            if (Player && PendingIdx < Player->PendingRunes.Num())
+            bCursorInPendingArea = true;
+            PendingCursorIdx     = PendingIdx;
+
+            const bool bHasRune = PendingGrid.IsValidIndex(PendingIdx)
+                && PendingGrid[PendingIdx].RuneGuid.IsValid();
+
+            if (bHasRune)
             {
+                // 选中该格（显示选中边框）
+                PendingSelectedIdx = PendingIdx;
+                SelectedCell       = FIntPoint(-1, -1);
+                SelectedRuneIndex  = -1;
+                RefreshPendingGrid();
+                OnSelectionChanged();
+
+                if (IsInCombatPhase())
+                {
+                    OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
+                    return FReply::Handled();
+                }
                 PendingDragIndex = PendingIdx;
                 return FReply::Handled().DetectDrag(TakeWidget(), EKeys::LeftMouseButton);
             }
-            return FReply::Handled();
+            else if (PendingSelectedIdx >= 0
+                && PendingGrid.IsValidIndex(PendingSelectedIdx)
+                && PendingGrid[PendingSelectedIdx].RuneGuid.IsValid())
+            {
+                // 点击空格 + 已有选中符文 → 移动到该格
+                PendingGrid[PendingIdx]          = PendingGrid[PendingSelectedIdx];
+                PendingGrid[PendingSelectedIdx]  = FRuneInstance();
+                SyncPendingToPlayer();
+                PendingSelectedIdx = PendingIdx;
+                PendingCursorIdx   = PendingIdx;
+                RefreshPendingGrid();
+                return FReply::Handled();
+            }
+            else
+            {
+                PendingSelectedIdx = -1;
+                RefreshPendingGrid();
+                return FReply::Handled();
+            }
         }
     }
 
@@ -557,6 +669,12 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         SelectedRuneIndex = -1;
         GamepadCursorCell = FIntPoint(Col, Row);
         OnSelectionChanged();
+
+        if (IsInCombatPhase())
+        {
+            OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
+            return FReply::Handled();
+        }
 
         PendingDragCol = Col;
         PendingDragRow = Row;
@@ -581,16 +699,22 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
 {
     if (PendingDragIndex >= 0)
     {
-        APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
-        if (Player && PendingDragIndex < Player->PendingRunes.Num())
+        const bool bValid = PendingGrid.IsValidIndex(PendingDragIndex)
+            && PendingGrid[PendingDragIndex].RuneGuid.IsValid();
+        if (bValid)
         {
-            const FRuneInstance& PendingRune = Player->PendingRunes[PendingDragIndex];
+            if (IsInCombatPhase())
+            {
+                PendingDragIndex = -1;
+                return;
+            }
 
+            const FRuneInstance PendingRune = PendingGrid[PendingDragIndex];
             URuneDragDropOperation* DragOp = NewObject<URuneDragDropOperation>(this);
-            DragOp->SrcCol            = -1;
-            DragOp->SrcRow            = -1;
-            DragOp->SrcPivot          = FIntPoint(-1, -1);
-            DragOp->DraggedRune       = PendingRune;
+            DragOp->SrcCol             = -1;
+            DragOp->SrcRow             = -1;
+            DragOp->SrcPivot           = FIntPoint(-1, -1);
+            DragOp->DraggedRune        = PendingRune;
             DragOp->PendingSourceIndex = PendingDragIndex;
 
             bMouseDragging  = true;
@@ -610,6 +734,12 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
 
     FPlacedRune PR = GetRuneAtCell(PendingDragCol, PendingDragRow);
     if (!PR.Rune.RuneGuid.IsValid())
+    {
+        PendingDragCol = PendingDragRow = -1;
+        return;
+    }
+
+    if (IsInCombatPhase())
     {
         PendingDragCol = PendingDragRow = -1;
         return;
@@ -689,22 +819,38 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
         if (bShouldUnplace)
         {
             UBackpackGridComponent* Backpack = GetBackpack();
-            APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
-            if (Backpack && Player)
+            if (Backpack)
             {
-                // 通过 Y 坐标（X 钳制到面板内）确定目标槽位，再 Insert 到对应位置
-                int32 TargetSlot = Player->PendingRunes.Num();
+                // 找目标格子：先尝试最近格，若已占用则找第一个空格
+                int32 TargetSlot = -1;
                 if (PendingGridWidget)
                 {
                     int32 NearestIdx;
                     if (PendingGridWidget->GetNearestSlotAtScreenPos(
-                            InDragDropEvent.GetScreenSpacePosition(), NearestIdx))
-                        TargetSlot = FMath::Min(NearestIdx, Player->PendingRunes.Num());
+                            InDragDropEvent.GetScreenSpacePosition(), NearestIdx)
+                        && PendingGrid.IsValidIndex(NearestIdx)
+                        && !PendingGrid[NearestIdx].RuneGuid.IsValid())
+                    {
+                        TargetSlot = NearestIdx;
+                    }
+                }
+                if (TargetSlot < 0)
+                {
+                    for (int32 i = 0; i < PendingGrid.Num(); i++)
+                        if (!PendingGrid[i].RuneGuid.IsValid()) { TargetSlot = i; break; }
+                }
+                if (TargetSlot < 0)
+                {
+                    OnStatusMessage(NSLOCTEXT("Backpack", "PendingFull", "待放置区已满"));
+                    OnGridNeedsRefresh();
+                    return false;
                 }
 
                 Backpack->RemoveRune(RuneOp->DraggedRune.RuneGuid);
-                Player->PendingRunes.Insert(RuneOp->DraggedRune, TargetSlot);
-                RefreshPendingRuneSlots();
+                PendingGrid[TargetSlot] = RuneOp->DraggedRune;
+                SyncPendingToPlayer();
+                PendingSelectedIdx = TargetSlot;
+                RefreshPendingGrid();
                 SelectedCell = FIntPoint(-1, -1);
                 OnSelectionChanged();
                 OnStatusMessage(FText::Format(
@@ -717,9 +863,32 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
 
     if (RuneOp->PendingSourceIndex >= 0)
     {
-        APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
+        // ── 待放置区内部拖拽（pending → pending 交换）───────────────────────
+        {
+            int32 PendingTargetIdx;
+            if (PendingGridWidget && PendingGridWidget->GetSlotAtScreenPos(
+                    InDragDropEvent.GetScreenSpacePosition(), PendingTargetIdx)
+                && PendingTargetIdx != RuneOp->PendingSourceIndex)
+            {
+                const FRuneInstance Src = PendingGrid.IsValidIndex(RuneOp->PendingSourceIndex)
+                    ? PendingGrid[RuneOp->PendingSourceIndex] : FRuneInstance();
+                const FRuneInstance Dst = PendingGrid.IsValidIndex(PendingTargetIdx)
+                    ? PendingGrid[PendingTargetIdx] : FRuneInstance();
+                if (PendingGrid.IsValidIndex(RuneOp->PendingSourceIndex))
+                    PendingGrid[RuneOp->PendingSourceIndex] = Dst;
+                if (PendingGrid.IsValidIndex(PendingTargetIdx))
+                    PendingGrid[PendingTargetIdx] = Src;
+                SyncPendingToPlayer();
+                PendingSelectedIdx = PendingTargetIdx;
+                PendingCursorIdx   = PendingTargetIdx;
+                RefreshPendingGrid();
+                return true;
+            }
+        }
+
+        // ── 待放置区 → 主格子拖拽 ────────────────────────────────────────────
         UBackpackGridComponent* Backpack = GetBackpack();
-        if (!Player || !Backpack || RuneOp->PendingSourceIndex >= Player->PendingRunes.Num())
+        if (!Backpack || !PendingGrid.IsValidIndex(RuneOp->PendingSourceIndex))
         {
             OnGridNeedsRefresh();
             return false;
@@ -732,15 +901,15 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
             return false;
         }
 
-        UE_LOG(LogTemp, Warning, TEXT("[BackpackDrop] Pending->Grid Drop pos=(%f,%f) Cell=(%d,%d)"),
-            InDragDropEvent.GetScreenSpacePosition().X, InDragDropEvent.GetScreenSpacePosition().Y,
-            TargetCol, TargetRow);
+        const FRuneInstance PendingRune = PendingGrid[RuneOp->PendingSourceIndex];
+        if (!PendingRune.RuneGuid.IsValid()) { OnGridNeedsRefresh(); return false; }
 
-        const FRuneInstance PendingRune = Player->PendingRunes[RuneOp->PendingSourceIndex];
         if (Backpack->TryPlaceRune(PendingRune, FIntPoint(TargetCol, TargetRow)))
         {
-            Player->PendingRunes.RemoveAt(RuneOp->PendingSourceIndex);
-            RefreshPendingRuneSlots();
+            PendingGrid[RuneOp->PendingSourceIndex] = FRuneInstance();
+            SyncPendingToPlayer();
+            PendingSelectedIdx = -1;
+            RefreshPendingGrid();
             OnRuneListChanged();
             SelectedCell = FIntPoint(-1, -1);
             OnSelectionChanged();
@@ -885,9 +1054,11 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
             T.Translation = LocalPos + FVector2D(-HalfPx, -HalfPx + FloatY);
             GrabbedRuneIcon->SetRenderTransform(T);
         }
-        else if (bGrabbingRune && BackpackGridWidget)
+        else if ((bGrabbingRune || bGrabbingFromPending) && BackpackGridWidget && !bCursorInPendingArea)
         {
-            UTexture2D* Tex = GetRuneIconAtCell(GrabbedFromCell.X, GrabbedFromCell.Y);
+            UTexture2D* Tex = bGrabbingFromPending
+                ? (PendingGrid.IsValidIndex(PendingGrabbedIdx) ? PendingGrid[PendingGrabbedIdx].RuneConfig.RuneIcon.Get() : nullptr)
+                : GetRuneIconAtCell(GrabbedFromCell.X, GrabbedFromCell.Y);
             if (Tex)
             {
                 GrabbedRuneIcon->SetBrushFromTexture(Tex, false);
@@ -949,10 +1120,20 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 
     LastRepeatCount = TargetCount;
 
-    if      (HeldDirKey == EKeys::Gamepad_DPad_Up)    MoveGamepadCursor( 0, -1);
-    else if (HeldDirKey == EKeys::Gamepad_DPad_Down)  MoveGamepadCursor( 0,  1);
-    else if (HeldDirKey == EKeys::Gamepad_DPad_Left)  MoveGamepadCursor(-1,  0);
-    else if (HeldDirKey == EKeys::Gamepad_DPad_Right) MoveGamepadCursor( 1,  0);
+    if (bCursorInPendingArea)
+    {
+        if      (HeldDirKey == EKeys::Gamepad_DPad_Up)    MovePendingCursor( 0, -1);
+        else if (HeldDirKey == EKeys::Gamepad_DPad_Down)  MovePendingCursor( 0,  1);
+        else if (HeldDirKey == EKeys::Gamepad_DPad_Left)  MovePendingCursor(-1,  0);
+        else if (HeldDirKey == EKeys::Gamepad_DPad_Right) MovePendingCursor( 1,  0);
+    }
+    else
+    {
+        if      (HeldDirKey == EKeys::Gamepad_DPad_Up)    MoveGamepadCursor( 0, -1);
+        else if (HeldDirKey == EKeys::Gamepad_DPad_Down)  MoveGamepadCursor( 0,  1);
+        else if (HeldDirKey == EKeys::Gamepad_DPad_Left)  MoveGamepadCursor(-1,  0);
+        else if (HeldDirKey == EKeys::Gamepad_DPad_Right) MoveGamepadCursor( 1,  0);
+    }
 }
 
 FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
@@ -1011,12 +1192,13 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         }
     }
 
-    auto StartDirRepeat = [&](int32 DC, int32 DR)
+    auto StartDirRepeat = [&](int32 DC, int32 DR) -> FReply
     {
-        MoveGamepadCursor(DC, DR);
-        HeldDirKey     = Key;
-        bDirKeyHeld    = true;
-        HeldKeyTime    = 0.f;
+        if (bCursorInPendingArea) MovePendingCursor(DC, DR);
+        else                      MoveGamepadCursor(DC, DR);
+        HeldDirKey      = Key;
+        bDirKeyHeld     = true;
+        HeldKeyTime     = 0.f;
         LastRepeatCount = 0;
         return FReply::Handled();
     };
@@ -1028,9 +1210,19 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
 
     if (!InKeyEvent.IsRepeat())
     {
-        if (Key == EKeys::Gamepad_FaceButton_Bottom) { GamepadConfirm(); return FReply::Handled(); }
-        if (Key == EKeys::Gamepad_FaceButton_Right)  { GamepadCancel();  return FReply::Handled(); }
-        if (Key == EKeys::Gamepad_FaceButton_Top)
+        if (Key == EKeys::Gamepad_FaceButton_Bottom)
+        {
+            if (bCursorInPendingArea) PendingGamepadConfirm();
+            else                      GamepadConfirm();
+            return FReply::Handled();
+        }
+        if (Key == EKeys::Gamepad_FaceButton_Right)
+        {
+            if (bCursorInPendingArea) PendingGamepadCancel();
+            else                      GamepadCancel();
+            return FReply::Handled();
+        }
+        if (Key == EKeys::Gamepad_FaceButton_Top && !bCursorInPendingArea)
         {
             SelectedCell = GamepadCursorCell;
             RemoveRuneAtSelectedCell();
@@ -1046,6 +1238,25 @@ void UBackpackScreenWidget::MoveGamepadCursor(int32 DCol, int32 DRow)
     UBackpackGridComponent* Backpack = GetBackpack();
     const int32 W = Backpack ? Backpack->GridWidth  : 5;
     const int32 H = Backpack ? Backpack->GridHeight : 5;
+
+    // DPad Left 从第 0 列出边界 → 进入待放置区
+    if (DCol == -1 && GamepadCursorCell.X == 0)
+    {
+        bCursorInPendingArea = true;
+        const int32 PCols = FMath::Max(1, PendingCols);
+        const int32 PRows = FMath::Max(1, PendingRows);
+        const int32 Row   = FMath::Clamp(GamepadCursorCell.Y, 0, PRows - 1);
+        PendingCursorIdx  = Row * PCols + (PCols - 1);
+
+        if (!bGrabbingRune && !bGrabbingFromPending)
+        {
+            SelectedCell = FIntPoint(-1, -1);
+            OnSelectionChanged();
+        }
+        RefreshPendingGrid();
+        OnGridNeedsRefresh();
+        return;
+    }
 
     GamepadCursorCell.X = FMath::Clamp(GamepadCursorCell.X + DCol, 0, W - 1);
     GamepadCursorCell.Y = FMath::Clamp(GamepadCursorCell.Y + DRow, 0, H - 1);
@@ -1065,6 +1276,39 @@ void UBackpackScreenWidget::MoveGamepadCursor(int32 DCol, int32 DRow)
 
 void UBackpackScreenWidget::GamepadConfirm()
 {
+    // 从待放置区抓起后，在主格子落点
+    if (bGrabbingFromPending)
+    {
+        if (!PendingGrid.IsValidIndex(PendingGrabbedIdx) || !PendingGrid[PendingGrabbedIdx].RuneGuid.IsValid())
+        {
+            bGrabbingFromPending = false; PendingGrabbedIdx = -1; return;
+        }
+        UBackpackGridComponent* Backpack = GetBackpack();
+        if (!Backpack) return;
+
+        const FRuneInstance PendingRune = PendingGrid[PendingGrabbedIdx];
+        if (Backpack->TryPlaceRune(PendingRune, GamepadCursorCell))
+        {
+            PendingGrid[PendingGrabbedIdx] = FRuneInstance();
+            SyncPendingToPlayer();
+            bGrabbingFromPending = false;
+            PendingGrabbedIdx    = -1;
+            PendingSelectedIdx   = -1;
+            RefreshPendingGrid();
+            SelectedCell = FIntPoint(-1, -1);
+            OnSelectionChanged();
+            OnStatusMessage(FText::Format(
+                NSLOCTEXT("Backpack", "PendingPlaceOK", "已放置：{0}"),
+                FText::FromName(PendingRune.RuneConfig.RuneName)));
+        }
+        else
+        {
+            if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(GamepadCursorCell.X, GamepadCursorCell.Y);
+            OnStatusMessage(NSLOCTEXT("Backpack", "PendingPlaceFail", "无法放置：位置被占用"));
+        }
+        return;
+    }
+
     UBackpackGridComponent* Backpack = GetBackpack();
     if (!Backpack) return;
 
@@ -1073,6 +1317,12 @@ void UBackpackScreenWidget::GamepadConfirm()
         int32 RuneIdx = Backpack->GetRuneIndexAtCell(GamepadCursorCell);
         if (RuneIdx >= 0)
         {
+            if (IsInCombatPhase())
+            {
+                OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
+                return;
+            }
+
             bGrabbingRune    = true;
             GrabbedFromCell  = GamepadCursorCell;
             SelectedCell     = GamepadCursorCell;
@@ -1149,11 +1399,115 @@ void UBackpackScreenWidget::GamepadConfirm()
 
 void UBackpackScreenWidget::GamepadCancel()
 {
+    if (bGrabbingFromPending)
+    {
+        bGrabbingFromPending = false;
+        PendingGrabbedIdx    = -1;
+        RefreshPendingGrid();
+        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "已取消"));
+        return;
+    }
+
     bGrabbingRune   = false;
     GrabbedFromCell = FIntPoint(-1, -1);
     SelectedCell    = FIntPoint(-1, -1);
     OnSelectionChanged();
     OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "已取消"));
+}
+
+// ── 待放置区手柄方法 ──────────────────────────────────────────────────────
+
+void UBackpackScreenWidget::MovePendingCursor(int32 DCol, int32 DRow)
+{
+    const int32 PCols = FMath::Max(1, PendingCols);
+    const int32 PRows = FMath::Max(1, PendingRows);
+
+    int32 Col = PendingCursorIdx % PCols + DCol;
+    int32 Row = PendingCursorIdx / PCols + DRow;
+
+    // 向右出边界 → 切换到主格子
+    if (DCol == 1 && Col >= PCols)
+    {
+        bCursorInPendingArea = false;
+        UBackpackGridComponent* Backpack = GetBackpack();
+        const int32 GH = Backpack ? Backpack->GridHeight : 5;
+        GamepadCursorCell = FIntPoint(0, FMath::Clamp(Row, 0, GH - 1));
+
+        if (!bGrabbingRune && !bGrabbingFromPending)
+        {
+            SelectedCell = GamepadCursorCell;
+            OnSelectionChanged();
+        }
+        else
+        {
+            OnGridNeedsRefresh();
+        }
+        RefreshPendingGrid();
+        return;
+    }
+
+    Col = FMath::Clamp(Col, 0, PCols - 1);
+    Row = FMath::Clamp(Row, 0, PRows - 1);
+    PendingCursorIdx = Row * PCols + Col;
+    RefreshPendingGrid();
+}
+
+void UBackpackScreenWidget::PendingGamepadConfirm()
+{
+    const bool bHasRune = PendingGrid.IsValidIndex(PendingCursorIdx)
+        && PendingGrid[PendingCursorIdx].RuneGuid.IsValid();
+
+    if (!bGrabbingFromPending)
+    {
+        if (!bHasRune) { OnStatusMessage(NSLOCTEXT("Backpack", "PendingGrabEmpty", "该格子没有符文")); return; }
+        if (IsInCombatPhase()) { OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文")); return; }
+
+        bGrabbingFromPending = true;
+        PendingGrabbedIdx    = PendingCursorIdx;
+        PendingSelectedIdx   = PendingCursorIdx;
+        RefreshPendingGrid();
+        OnStatusMessage(NSLOCTEXT("Backpack", "PendingGrabOK", "已抓取符文，DPad→移动，A→放置，B→取消"));
+    }
+    else
+    {
+        if (PendingCursorIdx == PendingGrabbedIdx) { PendingGamepadCancel(); return; }
+
+        // 在待放置区内交换
+        const FRuneInstance Src = PendingGrid[PendingGrabbedIdx];
+        const FRuneInstance Dst = PendingGrid.IsValidIndex(PendingCursorIdx)
+            ? PendingGrid[PendingCursorIdx] : FRuneInstance();
+        PendingGrid[PendingGrabbedIdx] = Dst;
+        if (PendingGrid.IsValidIndex(PendingCursorIdx)) PendingGrid[PendingCursorIdx] = Src;
+
+        SyncPendingToPlayer();
+        bGrabbingFromPending = false;
+        PendingGrabbedIdx    = -1;
+        PendingSelectedIdx   = PendingCursorIdx;
+        RefreshPendingGrid();
+        OnStatusMessage(NSLOCTEXT("Backpack", "PendingMoved", "已移动符文"));
+    }
+}
+
+void UBackpackScreenWidget::PendingGamepadCancel()
+{
+    if (bGrabbingFromPending)
+    {
+        bGrabbingFromPending = false;
+        PendingGrabbedIdx    = -1;
+        RefreshPendingGrid();
+        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "已取消"));
+        return;
+    }
+    // 未抓取时 B 键退出待放置区，回到主格子最左列
+    bCursorInPendingArea = false;
+    PendingSelectedIdx   = -1;
+    UBackpackGridComponent* Backpack = GetBackpack();
+    const int32 GH = Backpack ? Backpack->GridHeight : 5;
+    const int32 Row = FMath::Clamp(PendingCursorIdx / FMath::Max(1, PendingCols), 0, GH - 1);
+    GamepadCursorCell = FIntPoint(0, Row);
+    SelectedCell = GamepadCursorCell;
+    OnSelectionChanged();
+    RefreshPendingGrid();
 }
 
 void UBackpackScreenWidget::UpdateTooltipForCell(int32 Col, int32 Row, const FVector2D& LocalPos)
