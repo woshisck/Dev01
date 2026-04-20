@@ -5,6 +5,7 @@
 #include "Item/Weapon/WeaponSpawner.h"
 #include "SaveGame/YogSaveGame.h"
 #include "Character/PlayerCharacterBase.h"
+#include "UI/BackpackStyleDataAsset.h"
 #include "Components/MeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
@@ -115,15 +116,23 @@ void AWeaponInstance::OnHeatPhaseChanged(int32 Phase)
 		return;
 	}
 
-	// Phase 1=冷白/淡蓝(0.3强) Phase 2=暖橙(0.7强) Phase 3=金色(1.5强)
-	static const FLinearColor PhaseColors[] =
-	{
-		FLinearColor(0.f,   0.f,   0.f  ),  // 0: 无
-		FLinearColor(0.9f,  1.0f,  1.8f ),  // 1: 冷白/淡蓝
-		FLinearColor(2.5f,  1.0f,  0.08f),  // 2: 暖橙
-		FLinearColor(5.5f,  4.0f,  0.3f ),  // 3: 金色
-		FLinearColor(5.5f,  4.0f,  0.3f ),  // 4: 占位
+	FLinearColor GlowColors[5] = {
+		FLinearColor::Black,
+		FLinearColor(0.9f,  1.0f,  1.8f ),
+		FLinearColor(2.5f,  1.0f,  0.08f),
+		FLinearColor(5.5f,  4.0f,  0.3f ),
+		FLinearColor(5.5f,  4.0f,  0.3f ),
 	};
+	if (APlayerCharacterBase* Char = Cast<APlayerCharacterBase>(GetOwner()))
+	{
+		if (UBackpackStyleDataAsset* DA = Char->HeatStyleDA)
+		{
+			GlowColors[1] = DA->Phase1GlowColor;
+			GlowColors[2] = DA->Phase2GlowColor;
+			GlowColors[3] = DA->Phase3GlowColor;
+			GlowColors[4] = DA->Phase3GlowColor;
+		}
+	}
 
 	if (!HeatOverlayDynMat)
 	{
@@ -131,7 +140,7 @@ void AWeaponInstance::OnHeatPhaseChanged(int32 Phase)
 	}
 
 	const int32 Idx = FMath::Clamp(Phase, 0, 4);
-	HeatOverlayDynMat->SetVectorParameterValue(TEXT("EmissiveColor"), PhaseColors[Idx]);
+	HeatOverlayDynMat->SetVectorParameterValue(TEXT("EmissiveColor"), GlowColors[Idx]);
 	HeatOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), 0.f);
 	HeatOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), 1.f);
 

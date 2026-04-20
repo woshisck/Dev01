@@ -114,6 +114,20 @@ public:
     FLinearColor HeatZone2Color = FLinearColor(1.00f, 0.82f, 0.10f, 1.f);  // Phase3 金色
 
     // =========================================================
+    // 热度升阶发光颜色（角色/武器 Overlay 材质 EmissiveColor，HDR 线性空间）
+    // 与上方背包格子颜色保持同色相，数值可 >1 以增强发光强度
+    // =========================================================
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度升阶发光颜色")
+    FLinearColor Phase1GlowColor = FLinearColor(0.9f, 1.0f, 1.8f);   // 冷白/淡蓝（对应 HeatZone0）
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度升阶发光颜色")
+    FLinearColor Phase2GlowColor = FLinearColor(2.5f, 1.0f, 0.08f);  // 暖橙（对应 HeatZone1）
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度升阶发光颜色")
+    FLinearColor Phase3GlowColor = FLinearColor(5.5f, 4.0f, 0.3f);   // 金色（对应 HeatZone2）
+
+    // =========================================================
     // 待放置区颜色
     // =========================================================
 

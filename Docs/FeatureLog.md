@@ -7,6 +7,56 @@
 
 ## 2026-04-20
 
+### [FIX-012] Tutorial Popup 关闭后操控锁死 — CommonUI 输入模式显式恢复
+
+**状态**：已修复已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/GameDialogWidget.cpp` |
+| 根因 | `Super::NativeOnDeactivated()` 将 Menu 模式从 CommonUI Stack 弹出，但若 Stack 上没有其他 Game 模式 Widget，输入不会自动切回 GameOnly，玩家控制锁死 |
+| 修复 | Super 调用后立即 `PC->SetInputMode(FInputModeGameOnly())`；Deactivate 路径调用安全，不影响 Activate 时 CommonUI 建立的 Focus 路由 |
+
+---
+
+### [VFX-005] 热度升阶发光颜色统一走 BackpackStyleDA
+
+**状态**：已完成已编译，需在 `B_PlayerOne` 中赋值 HeatStyleDA
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/BackpackStyleDataAsset.h`、`Character/PlayerCharacterBase.h/.cpp`、`Item/Weapon/WeaponInstance.cpp` |
+| 新增 DA 字段 | `Phase1/2/3GlowColor`（分类"热度升阶发光颜色"）：HDR 线性空间，数值可 >1 增强发光 |
+| 接入 | `PlayerCharacterBase` 新增 `HeatStyleDA`（EditDefaultsOnly）；玩家身体和武器 `OnHeatPhaseChanged` 均优先读 DA 颜色 |
+| 配置入口 | `B_PlayerOne` Details → Heat\|Visual → `HeatStyleDA` 填 `DA_BackpackStyle` |
+
+---
+
+### [AI-002] BT 攻击前摇红光集成 + BTTask_PreAttackFlash + BTDecorator_HasAbilityWithTag
+
+**状态**：已完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `AI/BTTask_ActivateAbilityByTag.h/.cpp`、`AI/BTTask_PreAttackFlash.h/.cpp`、`AI/BTDecorator_HasAbilityWithTag.h/.cpp` |
+| bPreAttackFlash | `BTTask_ActivateAbilityByTag` 新增勾选项（默认 true）：技能激活时同步 `StartPreAttackFlash()`，技能结束（正常/打断）均调 `StopPreAttackFlash()`，完全同步于 GA 生命周期 |
+| BTTask_PreAttackFlash | 独立前摇任务：`FlashDuration` 秒后返回 Succeeded，Abort 立即停止；用于不与 GA 绑定的前摇预警 |
+| BTDecorator_HasAbilityWithTag | 装饰器：检查 ASC 是否有匹配 Tag 的可激活 GA；无则直接跳过节点，防止激活无蒙太奇 GA |
+
+---
+
+### [FIX-013] PendingGrid 不做 Zone Dimming + BackpackScreen 激活时同步 PreviewPhase
+
+**状态**：已修复已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/PendingGridWidget.cpp`、`UI/BackpackScreenWidget.cpp` |
+| PendingGrid | 待放置区格子 `ZoneOpacity` 固定 `1.f`，不受 InactiveZoneOpacity 影响（待放区无激活区概念，全格等亮） |
+| BackpackScreen | `NativeOnActivated` 末尾从 `BackpackGridComponent::GetCurrentPhase()` 同步 `PreviewPhase`，避免打开背包时热度阶段显示与实际不符 |
+
+---
+
 ### [FIX-009] Tutorial Popup 幽灵输入修复 — bIsInteractable 防护
 
 **状态**：已修复已编译，WBP 需手动配置双关键帧动画

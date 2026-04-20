@@ -18,6 +18,7 @@ class ARewardPickup;
 class AWeaponSpawner;
 class AWeaponInstance;
 class UYogSaveGame;
+class UBackpackStyleDataAsset;
 class UBackpackGridComponent;
 class UBuffFlowComponent;
 class USkillChargeComponent;
@@ -108,6 +109,10 @@ public:
 	/** 玩家骨骼网格 Overlay 材质（需含 SweepProgress / GlowAlpha / EmissiveColor 三个参数） */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Heat|Visual")
 	TObjectPtr<UMaterialInterface> PhaseUpPlayerOverlayMaterial;
+
+	/** 热度颜色配置（与背包格子颜色统一来源，填入 DA_BackpackStyle） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Heat|Visual")
+	TObjectPtr<UBackpackStyleDataAsset> HeatStyleDA;
 
 	/** 扫射动画时长（秒） */
 	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0.1"))

@@ -2,6 +2,7 @@
 
 
 #include "Character/PlayerCharacterBase.h"
+#include "UI/BackpackStyleDataAsset.h"
 #include "Character/YogCharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Item/ItemInstance.h"
@@ -374,15 +375,20 @@ void APlayerCharacterBase::StartPlayerPhaseGlow(int32 Phase)
 {
 	if (Phase == 0 || !PhaseUpPlayerOverlayMaterial) return;
 
-	// Phase 1=冷白/淡蓝(0.3强) Phase 2=暖橙(0.7强) Phase 3=金色(1.5强)
-	static const FLinearColor PhaseColors[] =
-	{
-		FLinearColor(0.f,   0.f,   0.f  ),  // 0: 无
-		FLinearColor(0.9f,  1.0f,  1.8f ),  // 1: 冷白/淡蓝
-		FLinearColor(2.5f,  1.0f,  0.08f),  // 2: 暖橙
-		FLinearColor(5.5f,  4.0f,  0.3f ),  // 3: 金色
-		FLinearColor(5.5f,  4.0f,  0.3f ),  // 4: 占位
+	FLinearColor GlowColors[5] = {
+		FLinearColor::Black,
+		FLinearColor(0.9f,  1.0f,  1.8f ),
+		FLinearColor(2.5f,  1.0f,  0.08f),
+		FLinearColor(5.5f,  4.0f,  0.3f ),
+		FLinearColor(5.5f,  4.0f,  0.3f ),
 	};
+	if (HeatStyleDA)
+	{
+		GlowColors[1] = HeatStyleDA->Phase1GlowColor;
+		GlowColors[2] = HeatStyleDA->Phase2GlowColor;
+		GlowColors[3] = HeatStyleDA->Phase3GlowColor;
+		GlowColors[4] = HeatStyleDA->Phase3GlowColor;
+	}
 
 	if (!PlayerOverlayDynMat)
 	{
@@ -390,7 +396,7 @@ void APlayerCharacterBase::StartPlayerPhaseGlow(int32 Phase)
 	}
 
 	const int32 Idx = FMath::Clamp(Phase, 0, 4);
-	PlayerOverlayDynMat->SetVectorParameterValue(TEXT("EmissiveColor"), PhaseColors[Idx]);
+	PlayerOverlayDynMat->SetVectorParameterValue(TEXT("EmissiveColor"), GlowColors[Idx]);
 	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), 0.f);
 	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), 1.f);
 	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("IridIntensity"), GlowIridIntensity);

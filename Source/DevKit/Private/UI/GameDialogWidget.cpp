@@ -141,6 +141,11 @@ void UTutorialPopupWidget::NativeOnDeactivated()
 			HUD->EndPauseEffect();
 
 	Super::NativeOnDeactivated();
+
+	// CommonUI 在 Super 里弹出 Menu 模式，但不会主动设回 Game 模式，需要显式恢复
+	if (APlayerController* PC = GetOwningPlayer())
+		PC->SetInputMode(FInputModeGameOnly());
+
 	RemoveFromParent();
 }
 
