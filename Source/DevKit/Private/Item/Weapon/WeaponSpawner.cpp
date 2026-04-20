@@ -107,7 +107,9 @@ void AWeaponSpawner::Tick(float DeltaTime)
 	// Tutorial 弹窗显示期间、或武器已被拾取后隐藏浮窗
 	if (bPickedUp)
 	{
-		if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
+		// 折叠动画进行中时保持可见，动画结束后由回调隐藏
+		if (!bCollapsingForPickup && WeaponInfoWidgetComp)
+			WeaponInfoWidgetComp->SetVisibility(false);
 		return;
 	}
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
@@ -316,18 +318,61 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾取 [%s]"), *WeaponDefinition->GetName());
 
-	// 触发 HUD 拾取动画：浮窗折叠→流光→飞入背包图标
+	// 浮窗折叠动画 → 完成后以缩略图屏幕坐标触发飞行
 	if (APlayerController* PC = Player->GetController<APlayerController>())
 	{
-		AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD());
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] SpawnStep5 PC=%s HUD=%s"),
-			*PC->GetName(), HUD ? *HUD->GetName() : TEXT("NULL"));
-		if (HUD)
-			HUD->TriggerWeaponPickup(WeaponDefinition);
+		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+		{
+			UWeaponFloatWidget* FloatWidget = Cast<UWeaponFloatWidget>(WeaponInfoWidgetComp->GetWidget());
+			if (FloatWidget)
+			{
+				bCollapsingForPickup = true;
+
+				TWeakObjectPtr<AWeaponSpawner>     WeakThis(this);
+				TWeakObjectPtr<APlayerController>  WeakPC(PC);
+				TWeakObjectPtr<AYogHUD>            WeakHUD(HUD);
+				UWeaponDefinition*                 CapturedDef = WeaponDefinition;
+
+				FloatWidget->OnCollapseComplete.BindLambda(
+					[WeakThis, WeakPC, WeakHUD, CapturedDef](FVector2D ThumbnailPos)
+				{
+					if (WeakThis.IsValid())
+					{
+						WeakThis->bCollapsingForPickup = false;
+						if (WeakThis->WeaponInfoWidgetComp)
+							WeakThis->WeaponInfoWidgetComp->SetVisibility(false);
+					}
+					if (WeakHUD.IsValid() && CapturedDef)
+					{
+						UE_LOG(LogTemp, Warning,
+							TEXT("[WeaponPickup] 折叠完成 → TriggerWeaponPickup Pos=(%.0f,%.0f)"),
+							ThumbnailPos.X, ThumbnailPos.Y);
+						WeakHUD->TriggerWeaponPickup(CapturedDef, ThumbnailPos);
+					}
+				});
+
+				FloatWidget->StartCollapse(PickupCollapseDuration);
+			}
+			else
+			{
+				// 浮窗未就绪，直接用 Spawner 世界坐标投影兜底
+				FVector2D FallbackPos(0.f, 0.f);
+				PC->ProjectWorldLocationToScreen(
+					GetActorLocation() + FVector(0.f, 0.f, 80.f), FallbackPos, false);
+				UE_LOG(LogTemp, Warning,
+					TEXT("[WeaponPickup] FloatWidget=NULL，使用兜底坐标 (%.0f,%.0f)"),
+					FallbackPos.X, FallbackPos.Y);
+				HUD->TriggerWeaponPickup(WeaponDefinition, FallbackPos);
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] HUD=NULL — 动画不会触发"));
+		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] SpawnStep5 PC=NULL — HUD 动画不会触发"));
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] PC=NULL — 动画不会触发"));
 	}
 }
 

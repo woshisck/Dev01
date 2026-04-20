@@ -63,7 +63,7 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
                 BGColor = Style ? Style->HeatZone2Color : FLinearColor(0.08f, 0.20f, 0.48f, 1.f);
             // 统一使用空格纹理作为图案底，tint 改色；无空格纹理时退化为纯色
             BGTex = Style ? Style->CellEmptyTexture.Get() : nullptr;
-            BGColor.A *= ZoneOpacity;
+            BGColor.R *= ZoneOpacity; BGColor.G *= ZoneOpacity; BGColor.B *= ZoneOpacity;
             break;
         case EBackpackCellState::OccupiedActive:
             BGColor = Style ? Style->OccupiedActiveColor       : SlotDefaults::OccupiedActive;
@@ -76,7 +76,7 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
         default:
             BGColor = Style ? Style->EmptyColor                : SlotDefaults::Empty;
             BGTex   = Style ? Style->CellEmptyTexture.Get()           : nullptr;
-            BGColor.A *= ZoneOpacity;
+            BGColor.R *= ZoneOpacity; BGColor.G *= ZoneOpacity; BGColor.B *= ZoneOpacity;
             break;
         }
     }

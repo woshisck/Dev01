@@ -594,6 +594,7 @@ void AYogCharacterBase::StartPreAttackFlash()
 
 	// 红色 HDR
 	FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(3.f, 0.f, 0.f));
+	FlashDynMat->SetScalarParameterValue(TEXT("Power"), PreAttackFresnelPower);
 	GetMesh()->SetOverlayMaterial(FlashDynMat);
 
 	bPreAttackActive = true;
@@ -645,6 +646,6 @@ void AYogCharacterBase::TickCharacterFlash(float DeltaTime)
 		const float Alpha = FMath::Abs(FMath::Sin(PreAttackElapsed * PreAttackPulseFreq * PI));
 
 		FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(3.f, 0.f, 0.f));
-		FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), Alpha * 0.85f);
+		FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), Alpha * PreAttackMaxAlpha);
 	}
 }
