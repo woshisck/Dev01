@@ -96,12 +96,14 @@
 
 | 项目 | 内容 |
 |------|------|
-| 核心文件 | `UI/GlassFrameWidget.h/.cpp`、`Shaders/GlassFrameUI.ush` |
+| 核心文件 | `UI/GlassFrameWidget.h/.cpp`、`Shaders/GlassFrameUI.ush`、`Shaders/GlassBlurMask.ush` |
 | 材质资产 | `M_GlassFrame`（UI Domain，Custom Node include `/Project/GlassFrameUI.ush`）、`MI_GlassFrame` |
 | WBP | `WBP_GlassFrame`（背包格背景用）、`WBP_WeaponGlassIcon`（武器落点图标）|
-| 三层结构 | 极细边缘高光线（SDF）+ 顶部镜面高光（Fresnel）+ 底边炫彩（atan2 Hue + Time）|
-| C++ 参数 | `CornerRadius` / `BorderWidth` / `FresnelPower` / `IridIntensity` / `IridSpeed` |
+| 玻璃效果 | Apple 液态玻璃：极细 SDF 边缘线 + 顶部镜面高光（Fresnel）+ 底边炫彩（atan2 Hue + Time）；内部近透明，无重色边框 |
+| 双层模糊 | `GlassBG`（低模糊，全区域）+ `GlassBGCenter`（高模糊，Apply Alpha to Blur=ON，M_GlassBlurMask 径向渐变遮罩） |
+| C++ 参数 | `CornerRadius` / `BorderWidth` / `FresnelPower` / `IridIntensity` / `IridSpeed` / `BlurStrength`（边缘）/ `CenterBlurStrength`（中心） |
 | 武器图标接口 | `ShowForWeapon(Thumbnail, DA)`、`StartExpandAndHide()`（打开背包前调用）|
+| 配置入口 | WBP 需添加 `GlassBGCenter` BackgroundBlur；M_GlassBlurMask 用 Custom Node include `/Project/GlassBlurMask.ush` |
 
 ---
 
