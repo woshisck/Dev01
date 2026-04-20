@@ -41,6 +41,7 @@ UBackpackGridComponent* UBackpackScreenWidget::GetBackpack() const
 void UBackpackScreenWidget::NativeConstruct()
 {
     Super::NativeConstruct();
+    UE_LOG(LogTemp, Log, TEXT("[BackpackScreen] NativeConstruct outer=%s"), *GetNameSafe(GetOuter()));
 
     SetVisibility(ESlateVisibility::Collapsed);
     bIsFocusable = true;
@@ -60,7 +61,11 @@ void UBackpackScreenWidget::NativeConstruct()
         BackpackGridWidget->BuildGrid(GetBackpack());
 
     if (PendingGridWidget)
+    {
         PendingGridWidget->BuildSlots();
+        PendingCols = PendingGridWidget->PendingGridCols;
+        PendingRows = PendingGridWidget->PendingGridRows;
+    }
 
     RefreshPendingRuneSlots();
 
@@ -507,6 +512,10 @@ void UBackpackScreenWidget::NativeOnActivated()
 
     SyncPendingFromPlayer();
     RefreshPendingGrid();
+
+    if (UBackpackGridComponent* BG = GetBackpack())
+        PreviewPhase = FMath::Clamp(BG->GetCurrentPhase(), 0, 2);
+
     OnGridNeedsRefresh();
     OnSelectionChanged();
 }

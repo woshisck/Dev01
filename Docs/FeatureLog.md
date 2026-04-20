@@ -69,6 +69,55 @@
 
 ---
 
+## 2026-04-20（续）
+
+### [REFACTOR-018] PendingGrid 全面重构 — 改用 RuneSlotWidget 稀疏格子
+
+**状态**：C++ 完成已编译；WBP 需重建（见配置）
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/PendingGridWidget.h/.cpp`、`UI/BackpackScreenWidget.h/.cpp` |
+| 重构内容 | 旧版（UImage/Overlay 线性列表）→ 新版（RuneSlotWidget 稀疏格子，与主背包视觉一致）|
+| 数据层 | `BackpackScreenWidget::PendingGrid`：`TArray<FRuneInstance>`，大小 = PendingGridCols × PendingGridRows |
+| 同步 | `SyncPendingFromPlayer()`（打开时）/ `SyncPendingToPlayer()`（关闭/操作后）|
+| 视觉层 | `PendingGridWidget::BuildSlots()` 动态创建 RuneSlotWidget；`RefreshSlots(Grid, CursorIdx, GrabbedIdx)` |
+| 空格显示 | ZoneOpacity 固定 1.0（Pending 区无热度分区，不压暗空格）|
+| WBP 配置 | WBP_PendingGrid：根节点 SizeBox（名 `PendingGridSizeBox`）→ UniformGridPanel（名 `PendingRuneGrid`）；Details 填 `RuneSlotClass=WBP_RuneSlot`、`StyleDA`、`PendingGridCols`、`PendingGridRows` |
+| 尺寸同步 | NativeConstruct 从 PendingGridWidget 读取 Cols/Rows → 赋给 PendingCols/PendingRows，避免数据/视觉错位 |
+
+---
+
+### [FIX-019] 背包手柄导航恢复 + CloseButton + 战斗锁定
+
+**状态**：C++ 完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/BackpackScreenWidget.h/.cpp`、`UI/RuneSlotWidget.h/.cpp`、`UI/BackpackGridWidget.h/.cpp` |
+| 手柄 D-Pad | 左移至 col=0 → `bCursorInPendingArea=true`，右移至末列 → 返回主格子 col=0 |
+| 手柄 A（FaceBottom）| 主格子：抓/放符文；Pending 区：`PendingGamepadConfirm` |
+| 手柄 B（FaceRight）| 主格子：取消抓取；Pending 区：取消或退出回主格子；无抓取时关闭背包 |
+| CloseButton | WBP 右上角 Button 命名 `CloseButton`，C++ 自动绑定 `DeactivateWidget()` |
+| 战斗锁定 | `IsInCombatPhase()` 在 5 处操作点阻断（拖拽开始/落点/点格/手柄确认），弹 `OnStatusMessage("战斗阶段无法移动符文")` |
+| SelectionBorder | RuneSlotWidget 新增 Image（命名 `SelectionBorder`），`SetSlotState(bSelected=true)` 时显示金黄边框 |
+| ShakeAndFlash | RuneSlotWidget 新增 `ShakeAndFlash()`：红闪 + 阻尼正弦抖动（8·sin(30t)·e^{-8t}，0.4s）|
+
+---
+
+### [FEAT-020] 背包热度预览默认显示当前热度阶段
+
+**状态**：C++ 完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/BackpackScreenWidget.cpp`（`NativeOnActivated`） |
+| 改动 | 打开背包时 `PreviewPhase = Clamp(BackpackGridComponent::GetCurrentPhase(), 0, 2)` |
+| 效果 | 背包打开后自动高亮当前热度阶段的激活区，无需玩家手动点 HeatPhaseDot |
+| 关闭行为 | `NativeOnDeactivated` 仍重置为 -1（下次打开重新读取） |
+
+---
+
 ### [UI-018] 三选一 UI C++ 化 + 战斗阶段符文锁定 ⚠️ 已回滚
 
 **状态**：已实现后回滚——Slate 崩溃，根因待查

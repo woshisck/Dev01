@@ -38,6 +38,9 @@ void UPendingGridWidget::BuildSlots()
         ? RuneSlotClass
         : TSubclassOf<URuneSlotWidget>(URuneSlotWidget::StaticClass());
 
+    UE_LOG(LogTemp, Log, TEXT("[PendingGridWidget] BuildSlots: SlotClass=%s StyleDA=%s CellSize=%.0f"),
+        *GetNameSafe(SlotClass), *GetNameSafe(StyleDA.Get()), CellSize);
+
     for (int32 Row = 0; Row < Rows; Row++)
     {
         for (int32 Col = 0; Col < Cols; Col++)
@@ -52,7 +55,7 @@ void UPendingGridWidget::BuildSlots()
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[PendingGridWidget] 创建 %d×%d 格子完成"), Cols, Rows);
+    UE_LOG(LogTemp, Log, TEXT("[PendingGridWidget] 创建 %d×%d 格子完成 CachedSlots=%d"), Cols, Rows, CachedSlots.Num());
 }
 
 // ============================================================
@@ -64,6 +67,8 @@ void UPendingGridWidget::RefreshSlots(const TArray<FRuneInstance>& Grid,
                                       int32 GrabbedIdx)
 {
     const float DimOpacity = StyleDA ? StyleDA->InactiveZoneOpacity : 0.35f;
+    UE_LOG(LogTemp, Log, TEXT("[PendingGridWidget] RefreshSlots: Grid=%d CachedSlots=%d StyleDA=%s DimOpacity=%.2f"),
+        Grid.Num(), CachedSlots.Num(), *GetNameSafe(StyleDA.Get()), DimOpacity);
 
     for (int32 i = 0; i < CachedSlots.Num(); i++)
     {
@@ -77,7 +82,7 @@ void UPendingGridWidget::RefreshSlots(const TArray<FRuneInstance>& Grid,
 
         const bool bIsSelected = (i == CursorIdx);
         const bool bIsGrabbing = (i == GrabbedIdx);
-        const float ZoneOpacity = bHasRune ? 1.f : DimOpacity;
+        const float ZoneOpacity = 1.f; // pending area: no zone dimming
 
         RuneSlot->SetSlotState(State, bIsSelected, false, bIsGrabbing, StyleDA.Get(), ZoneOpacity);
 
