@@ -5,6 +5,91 @@
 
 ---
 
+## 2026-04-22
+
+### [FEAT-023] 关卡结束视觉特效 — 时间膨胀 + 渐黑 + 圆形揭幕
+
+**状态**：C++ 完成已编译；需在 Editor 创建 WBP_LevelEndReveal + DA_LevelEndEffect 并配置 BP_YogHUD
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/LevelEndRevealWidget.h/.cpp`、`Data/LevelEndEffectDA.h`、`UI/YogHUD.h/.cpp` |
+| 数据资产 | `LevelEndEffectDA`（SlowMoScale / SlowMoDuration / BlackoutFadeDuration / RevealDuration / RevealEdgeSharpness / RevealMaterial） |
+| 时序 | [0, BlackoutFadeDuration) 渐黑 → 保持全黑 → t=SlowMoDuration 恢复时速 → 圆形揭幕扩散 |
+| 圆形揭幕 | `LevelEndRevealWidget`：全屏 Image 命名 `RevealImage`，`InitReveal()` 创建 DynMat，YogHUD Tick 每帧写 `RevealProgress` |
+| 揭幕中心 | `TriggerLevelEndEffect(LootWorldPos)` 传入 Loot 世界坐标，HUD 转屏幕 UV 写入材质 `RevealCenter` |
+| 配置入口 | `BP_YogHUD` → `LevelEndEffectDA`=`DA_LevelEndEffect`；`LevelEndRevealWidgetClass`=`WBP_LevelEndReveal` |
+
+---
+
+### [FEAT-024] 开场镜头标记 — ALevelIntroCameraMarker
+
+**状态**：C++ 完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Map/LevelIntroCameraMarker.h/.cpp` |
+| 功能 | 关卡中放置 Actor → 调 `TriggerIntro()` → 立即切到标记视角 → 停留 `HoldDuration` → 平滑移回玩家 |
+| 参数 | `HoldDuration`（默认 2s）、`MoveDuration`（默认 1.5s）、`bDisableInputDuringIntro`（默认 true） |
+| 调用 | 从 LevelFlow 或 `BeginPlay` 调 `TriggerIntro()`，内部用 Timer 序列管理 ViewTarget 切换 |
+
+---
+
+### [FEAT-025] 符文旋转系统 + Loot 最佳落点算法
+
+**状态**：C++ 完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Data/RuneDataAsset.h/.cpp`、`UI/BackpackScreenWidget.h/.cpp`、`GameModes/YogGameMode.h/.cpp` |
+| 符文旋转 | `FRuneInstance.Rotation`（0-3，每次 90° 顺时针）；`FRuneShape::Rotate90()` 返回旋转后形状；`GetPivotOffset(N)` 补偿 Pivot 坐标偏移 |
+| 操作接口 | `RotateSelectedRune()`（格子内已选符文）、`RotatePendingRune()`（待放置区符文） |
+| Loot 落点 | `FindLootSpawnLocation()`：8 方向候选，依次筛选无碰撞 + 相机可见 + 屏幕内（5% 边缘余量），全部失败退回玩家原位 |
+
+---
+
+### [UI-021] 背包交互重构 — 单击抓取 / 长按退回 / 换格自动拾起 / 悬停绿框
+
+**状态**：C++ 完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/BackpackScreenWidget.h/.cpp` |
+| 单击抓取 | 鼠标左键点击有符文格 → 立即进入 `bGrabbingRune=true`，黄框高亮，信息卡弹出；不再需要二次拖拽 |
+| 长按退回 | 抓取状态下持续按住鼠标 3s（`LongPressDuration=3.0f`）→ `SendGrabbedRuneToPending()`：自动取出放入待放置区第一个空格并清除抓取状态 |
+| 换格自动拾起 | 将符文放入有其他符文的格子（swap）成功后，被替换出来的符文自动进入抓取状态（`bGrabbingRune=true`，`GrabbedFromCell=PivotA`），无需再次点击 |
+| 悬停绿框 | 鼠标移动或 D-Pad 移动时（无符文抓取中），当前悬停格所在的符文显示绿色包围框（NativePaint `CachedHoverGuid`）；进入抓取状态后绿框自动消失 |
+| 新增私有字段 | `LongPressHoldTime`、`bLongPressActive`、`LongPressCell`、`LongPressDuration`（3s）、`SendGrabbedRuneToPending()` |
+
+---
+
+### [UI-022] 符文边框 NativePaint — 替换 CanvasPanel Overlay + 像素精确对齐
+
+**状态**：C++ 完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/BackpackGridWidget.h/.cpp` |
+| 替换原因 | `RuneBorderCanvas`（CanvasPanel Overlay）在 BackpackGrid 嵌套于 VerticalBox→SizeBox 时定位失准 |
+| 方案 | `UBackpackGridWidget::NativePaint` override：`FSlateDrawElement::MakeLines` 直接在 Widget 渲染层绘制包围框，无需额外 CanvasPanel |
+| 对齐精度 | 每条边框的 TL/BR 坐标从对应角格的 `CachedSlots[idx]->GetCachedGeometry()` 直接读取绝对位置再转换，完全消除层级嵌套引入的偏移 |
+| 颜色分层 | 选中符文：金黄（2.5px）/ 悬浮符文：绿（2.0px）/ 其余符文：灰（1.5px） |
+| 缓存字段 | `CachedBackpackRef`、`CachedSelectedGuid`、`CachedHoverGuid`（`RefreshCells` 更新，`NativePaint` 只读） |
+
+---
+
+### [FIX-021] 战斗锁定补全三处红闪+抖动调用
+
+**状态**：已修复已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/BackpackScreenWidget.cpp` |
+| 根因 | `ShakeAndFlash()` 已在 [FIX-019] 实现，但 `BackpackScreenWidget` 的三处战斗锁定检查点（鼠标点击放下 / 鼠标点击拾起 / 手柄 A 键拾起）均未调用它，导致只弹文字提示无视觉反馈 |
+| 修复 | 三处 `IsInCombatPhase()` 命中后均追加 `BackpackGridWidget->FlashAndShakeCell(Col, Row)` 调用 |
+
+---
+
 ## 2026-04-20
 
 ### [INPUT-001] 火绳枪输入系统完整接入 — Reload 绑定 + 重攻击松键修复 + GA Tag 激活
@@ -1205,6 +1290,37 @@ Stack: UnrealEditor_SlateCore / UnrealEditor_Slate（无游戏代码帧）
 
 - `SlowTimeDilation=0.0f` 会导致 Slow 阶段 TimeDilation 实际 clamp 到 0.01（引擎内部限制），推荐最低 0.1
 - 同帧多次命中时第一次触发生效，后续同优先级忽略（设计预期）
+
+---
+
+### [MAP-002] 关卡结束揭幕特效 — LevelEndReveal + YogHUD
+
+**状态**：C++ 完整；WBP_LevelEndReveal + M_LevelEndReveal 需在编辑器配置材质参数
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/LevelEndRevealWidget.h/.cpp`、`Data/LevelEndEffectDA.h/.cpp`、`UI/YogHUD.h/.cpp` |
+| 触发接口 | `YogHUD::TriggerLevelEndEffect(FVector LootWorldPos)` — 由 GameMode/LevelFlow 在关卡结束时调用 |
+| 揭幕流程 | 延迟（DA 配置）→ 创建 WBP_LevelEndReveal → `InitReveal(Mat, LootScreenUV, EdgeSharpness)` → 每帧 Tick 驱动材质参数 `RevealProgress` |
+| 数据资产 | `DA_LevelEndEffect`：Delay / RevealDuration / EdgeSharpness / RevealMaterial |
+| WBP 配置 | `WBP_LevelEndReveal`：根 Image 命名 `RevealImage`，HAlign/VAlign = Fill，填入 `M_LevelEndReveal` |
+| 参数传递 | `LootWorldPos` → `UGameplayStatics::ProjectWorldToScreen` 转 UV → 传入材质，圆心跟随掉落物位置 |
+| HUD 配置 | `BP_YogHUD` Details → `LevelEndEffect` → 填 `DA_LevelEndEffect` 和 `LevelEndRevealWidgetClass` |
+
+---
+
+### [MAP-003] 关卡开场镜头标记 — LevelIntroCameraMarker
+
+**状态**：C++ 完整；需在关卡中放置 Actor 并在 LevelFlow 调用 TriggerIntro
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Map/LevelIntroCameraMarker.h/.cpp` |
+| 用途 | 关卡加载后切到标记处视角，停留后平滑移回玩家，制造开场镜头感 |
+| 调用方式 | 从 LevelFlow 节点或 BeginPlay 调用 `ALevelIntroCameraMarker::TriggerIntro()` |
+| 可配参数 | `HoldDuration`（停留时长，默认 2s）/ `MoveDuration`（移回玩家时长，默认 1.5s）/ `bDisableInputDuringIntro` |
+| 镜头方向 | 通过 Actor 上的 `CameraComp` 组件在编辑器中调整朝向 |
+| 已知限制 | 移回玩家目前用线性插值，无缓动曲线 |
 
 ---
 
