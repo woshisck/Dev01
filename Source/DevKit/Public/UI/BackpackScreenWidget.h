@@ -278,6 +278,12 @@ private:
     static constexpr float DirRepeatInitial = 0.30f;
     static constexpr float DirRepeatRate    = 0.10f;
 
+    // ── 长按计时（3s → 退回待放置区） ────────────────────────────────────
+    float     LongPressHoldTime = 0.f;
+    bool      bLongPressActive  = false;
+    FIntPoint LongPressCell     = FIntPoint(-1,-1);
+    static constexpr float LongPressDuration = 3.0f;
+
     // ── 坐标辅助（委托给子 Widget） ───────────────────────────────────────
     bool GetGridCellAtScreenPos(const FVector2D& AbsolutePos, int32& OutCol, int32& OutRow) const;
     bool GetPendingSlotAtScreenPos(const FVector2D& AbsPos, int32& OutIndex) const;
@@ -297,6 +303,11 @@ private:
     void GamepadConfirm();
     void GamepadCancel();
     void UpdateTooltipForCell(int32 Col, int32 Row, const FVector2D& LocalPos);
+
+    // ── 旋转 ──────────────────────────────────────────────────────────────
+    void RotateSelectedRune();
+    void RotatePendingRune();
+    void SendGrabbedRuneToPending();
 
     // ── 事件处理 ──────────────────────────────────────────────────────────
     UFUNCTION()

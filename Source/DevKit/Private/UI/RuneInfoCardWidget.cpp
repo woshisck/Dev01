@@ -75,6 +75,25 @@ void URuneInfoCardWidget::ShowRune(const FRuneInstance& Rune)
     }
 
     BuildShapeGrid(Rune.Shape);
+
+    // 触发淡入动画
+    FadeAlpha = 0.f;
+    bFading   = true;
+    SetRenderOpacity(0.f);
+}
+
+// ============================================================
+//  淡入 Tick
+// ============================================================
+
+void URuneInfoCardWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+    Super::NativeTick(MyGeometry, InDeltaTime);
+    if (!bFading) return;
+
+    FadeAlpha = FMath::Min(FadeAlpha + InDeltaTime / FadeDuration, 1.f);
+    SetRenderOpacity(FadeAlpha);
+    if (FadeAlpha >= 1.f) bFading = false;
 }
 
 // ============================================================

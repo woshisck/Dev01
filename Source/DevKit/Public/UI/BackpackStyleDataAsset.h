@@ -73,6 +73,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子纹理")
     TObjectPtr<UTexture2D> CellGrabbedSourceTexture;
 
+    /** 多格符文的非主格通用图标（留空则不显示图标） */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子纹理")
+    TObjectPtr<UTexture2D> CellMultipartIcon;
+
     // =========================================================
     // 激活区光效/扰动动画材质
     // =========================================================
@@ -98,6 +102,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "激活区特效",
               meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float InactiveZoneOpacity = 0.35f;
+
+    /** 热度预览时激活区空格子的 dim glow 透明度（0=无，1=全亮）*/
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "激活区特效",
+              meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float ZoneGlowOpacity = 0.20f;
 
     // =========================================================
     // 热度阶段叠加区颜色（热度1最上层，热度3最底层）

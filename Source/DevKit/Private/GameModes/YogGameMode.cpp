@@ -21,6 +21,7 @@
 #include "Map/RewardPickup.h"
 #include "UI/LootSelectionWidget.h"
 #include "Tutorial/TutorialManager.h"
+#include "UI/YogHUD.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
@@ -345,24 +346,21 @@ void AYogGameMode::EnterArrangementPhase()
 	// 重置本关已分配符文的追踪集合（多拾取物去重用）
 	LootAssignedThisLevel.Empty();
 
-	// 在最后击杀位置生成奖励拾取物（若无敌人被击杀则退而在玩家位置生成）
+	// Loot 落点：优先玩家前方，被墙阻挡/角落时自动选相机可见方向
+	FVector LootSpawnLoc = LastEnemyKillLocation;
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		if (APawn* P = PC->GetPawn())
+			LootSpawnLoc = FindLootSpawnLocation(P, PC);
+
+	// 关卡结束视觉特效（时间膨胀 + 变黑 + 圆形揭幕），传入 Loot 位置供圆心定位
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			HUD->TriggerLevelEndEffect(LootSpawnLoc);
+
+	// 生成奖励拾取物
 	if (RewardPickupClass)
 	{
-		FVector SpawnLoc = LastEnemyKillLocation;
-		if (SpawnLoc.IsZero())
-		{
-			if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-			{
-				if (APawn* P = PC->GetPawn())
-				{
-					float Angle = FMath::FRandRange(0.f, 2.f * PI);
-					float Radius = FMath::FRandRange(200.f, 250.0f);
-					FVector2D RandomPoint(Radius * FMath::Cos(Angle), Radius * FMath::Sin(Angle));
-
-					SpawnLoc = P->GetActorLocation() + FVector(RandomPoint, 0.f);
-				}
-			}
-		}
+		FVector SpawnLoc = LootSpawnLoc;
 		if (!SpawnLoc.IsZero())
 		{
 			AActor* Spawned = GetWorld()->SpawnActor<AActor>(RewardPickupClass, SpawnLoc, FRotator::ZeroRotator);
@@ -387,16 +385,7 @@ void AYogGameMode::EnterArrangementPhase()
 		USacrificeGraceDA* ChosenDA = SacrificeGracePool[ChosenIdx];
 
 		// 在普通奖励旁边偏移 250cm 处生成
-		FVector SacrificeSpawnLoc = LastEnemyKillLocation;
-		if (SacrificeSpawnLoc.IsZero())
-		{
-			if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-			{
-				if (APawn* P = PC->GetPawn())
-					SacrificeSpawnLoc = P->GetActorLocation();
-			}
-		}
-		SacrificeSpawnLoc += FVector(250.f, 0.f, 0.f);
+		FVector SacrificeSpawnLoc = LootSpawnLoc + FVector(250.f, 0.f, 0.f);
 
 		AActor* SacrificePickup = GetWorld()->SpawnActor<AActor>(
 			SacrificePickupClass, SacrificeSpawnLoc, FRotator::ZeroRotator);
@@ -1757,4 +1746,60 @@ TArray<AEnemyCharacterBase*> AYogGameMode::GetAllAliveEnemies() const
 			Result.Add(E);
 	}
 	return Result;
+}
+
+
+FVector AYogGameMode::FindLootSpawnLocation(APawn* PlayerPawn, APlayerController* PC) const
+{
+	if (!PlayerPawn || !PC) return FVector::ZeroVector;
+
+	const FVector PlayerLoc = PlayerPawn->GetActorLocation();
+	const float   SpawnDist = 200.f;
+
+	// 前方优先，依次尝试 8 个方向（步进 45°）
+	static const float AngleDegrees[] = { 0.f, 45.f, -45.f, 90.f, -90.f, 135.f, -135.f, 180.f };
+
+	FVector Forward = PlayerPawn->GetActorForwardVector();
+	Forward.Z = 0.f;
+	if (!Forward.IsNearlyZero()) Forward.Normalize();
+
+	FVector  CamLoc; FRotator CamRot;
+	PC->GetPlayerViewPoint(CamLoc, CamRot);
+
+	FVector2D ViewportSize(1920.f, 1080.f);
+	if (GEngine && GEngine->GameViewport)
+		GEngine->GameViewport->GetViewportSize(ViewportSize);
+
+	const float MarginX = ViewportSize.X * 0.05f;
+	const float MarginY = ViewportSize.Y * 0.05f;
+
+	FCollisionQueryParams TraceParams(TEXT("LootSpawnFind"), false, PlayerPawn);
+
+	for (float AngleDeg : AngleDegrees)
+	{
+		const FVector Dir       = Forward.RotateAngleAxis(AngleDeg, FVector::UpVector);
+		const FVector Candidate = PlayerLoc + Dir * SpawnDist;
+
+		FHitResult Hit;
+
+		// 1. 玩家到候选点之间无墙
+		if (GetWorld()->LineTraceSingleByChannel(Hit, PlayerLoc, Candidate, ECC_Visibility, TraceParams))
+			continue;
+
+		// 2. 相机到候选点之间无遮挡
+		if (GetWorld()->LineTraceSingleByChannel(Hit, CamLoc, Candidate, ECC_Visibility, TraceParams))
+			continue;
+
+		// 3. 候选点在屏幕范围内（留 5% 边缘余量）
+		FVector2D ScreenPos;
+		if (!PC->ProjectWorldLocationToScreen(Candidate, ScreenPos)) continue;
+		if (ScreenPos.X < MarginX || ScreenPos.X > ViewportSize.X - MarginX) continue;
+		if (ScreenPos.Y < MarginY || ScreenPos.Y > ViewportSize.Y - MarginY) continue;
+
+		return Candidate;
+	}
+
+	// 全部候选失败，退回玩家原位（极少发生）
+	UE_LOG(LogTemp, Warning, TEXT("[LootSpawn] 所有方向被遮挡，退回玩家位置"));
+	return PlayerLoc;
 }

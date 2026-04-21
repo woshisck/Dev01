@@ -632,11 +632,14 @@ TSet<FIntPoint> UBackpackGridComponent::ComputeActivationZone() const
 
 TArray<FIntPoint> UBackpackGridComponent::GetRuneCells(const FRuneInstance& Rune, FIntPoint Pivot) const
 {
+	FRuneShape Shape = Rune.Shape;
+	const int32 RotCount = Rune.Rotation % 4;
+	for (int32 i = 0; i < RotCount; i++)
+		Shape = Shape.Rotate90();
+
 	TArray<FIntPoint> Cells;
-	for (const FIntPoint Offset : Rune.Shape.Cells)
-	{
+	for (const FIntPoint Offset : Shape.Cells)
 		Cells.Add(Pivot + Offset);
-	}
 	return Cells;
 }
 

@@ -115,6 +115,7 @@ struct DEVKIT_API FRuneShape
 
     int32 GetCellCount() const { return Cells.Num(); }
     FRuneShape Rotate90() const;
+    FIntPoint  GetPivotOffset(int32 NumRotations) const;
 };
 
 
@@ -242,6 +243,10 @@ struct DEVKIT_API FRuneInstance
 
     UPROPERTY(BlueprintReadWrite)
     FGuid RuneGuid;
+
+    /** 旋转次数（0-3，每次 90° 顺时针）。运行时修改，不从 DA 读取。*/
+    UPROPERTY(BlueprintReadWrite)
+    int32 Rotation = 0;
 
     UPROPERTY(BlueprintReadOnly)
     TObjectPtr<URuneDataAsset> SourceDA;
