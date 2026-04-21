@@ -219,3 +219,14 @@ Fresnel 参数建议：
 **WeaponSpawner Overlap 不触发**
 
 `CollisionVolume` 的 Profile 和 `GenerateOverlapEvents` 在 C++ 构造函数中强制设置，蓝图继承时无需手动配置。若仍不触发，检查角色胶囊的碰撞通道是否与 `OverlapAllDynamic` 兼容。
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **WeaponInstance 不是 Actor 的子类**：`WeaponInstance` 是 `UObject`，附着逻辑靠 `AttachToComponent`，不能用 Actor 的 `SetActorLocation` 等接口
+- **热度发光走 GAS Tag 事件**：不要轮询热度值，使用 `RegisterGameplayTagEvent(Buff.Status.Heat.Phase.N)` 监听 Tag 变化，NewCount>0 触发 Broadcast
+- **切关恢复顺序**：`YogSaveSubsystem::RestoreWeapon` 必须在 `BeginPlay` 之后、`OnHeatPhaseChanged` Delegate 注册之后才调用，否则追赶广播无效
+- **HeatOverlayMaterial 不能为 nullptr**：`WeaponInstance` 创建时如果 `WeaponDefinition` 里未填 HeatOverlayMaterial，动态材质创建会 Crash，C++ 里必须判空
+- **拾取时销毁旧武器**：`TryPickupWeapon` 执行前必须先 `RemoveDynamic`（旧 WeaponInstance 的 OnHeatPhaseChanged），再 `Destroy` SpawnedActor，顺序不能反
+- **WeaponDefinition 软引用**：蒙太奇等大资产用 `TSoftObjectPtr`，运行时按需 LoadSynchronous，不在构造时加载

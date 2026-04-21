@@ -207,3 +207,14 @@ if (TargetASC && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible))
 1. 新建 Blueprint，Parent Class = `GA_PlayerDash`
 2. Class Defaults 填写 Tag（见 4.2 节）
 3. 蒙太奇在 `CharacterData → AbilityData` MontageMap 中配置（Key = `PlayerState.AbilityCast.Dash.Dash1`）
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **越障用 SweepMultiByChannel + DashTrace 通道**：`GetFurthestValidDashDistance` 的扫描全部走 `ECC_GameTraceChannel2`（DashTrace），不要用 WorldStatic
+- **台阶偏移不可删**：`StepOffset = CMC->MaxStepHeight`，所有 SweepStart/End 必须加这个高度偏移，否则台阶竖面会阻挡冲刺
+- **距离计算用 Dist2D**：引入 Z 偏移后用 `FVector::Dist2D` 计算 XY 平面距离，不用 `Dist`（Z 差会导致 AnimScale 算错）
+- **SetDashCollision 必须在 EndAbility 还原**：`ActivateAbility` 里改 Capsule 碰撞为 Overlap，`EndAbility` 里无论成功/取消都必须还原，否则角色永远穿透敌人
+- **调试用 CVar，不用 UPROPERTY**：GA 是纯 C++ 无 Blueprint 子类，开关调试信息用 `CVarDashDebugTrace`（`Dash.DebugTrace 1`）
+- **`PendingSaveComboTags` 是 mutable**：CanActivateAbility 是 const，需要缓存连招桥接 Tag 时只能用 mutable 成员

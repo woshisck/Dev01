@@ -293,3 +293,14 @@ GA_PlayerDash（技能执行层）
 ```
 
 符文系统和充能系统**正交**：符文只改 GAS 属性（MaxCharge / CDDuration），充能系统自动读取属性运行，两边互不耦合。
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **SkillChargeComponent 替代 GAS 原生 CD**：不要用 `UGameplayAbility::CommitAbilityCooldown`，所有充能/冷却逻辑通过 `SkillChargeComponent::ConsumeCharge()` 和 `HasCharge()` 管理
+- **GA 的 CanActivateAbility 必须调 HasCharge()**：在 `CanActivateAbility` 里显式调用 `SkillChargeComponent->HasCharge(AbilityTag)`，GAS 默认 CD 检查不管 SkillCharge
+- **充能恢复走 TimerManager**：`CooldownDuration` 用 `GetWorld()->GetTimerManager().SetTimer` 触发单次充能恢复，不要在 Tick 里累积时间（Tick 在 TimeDilation=0 时可能不走）
+- **符文修改 CD 的接口**：符文 FA 节点通过 `SkillChargeComponent::SetCooldownMultiplier(float)` 修改冷却倍率，不直接改 Timer 句柄
+- **CurrentCharge 不走 GAS Attribute**：充能次数存在 `SkillChargeComponent` 成员变量里，不是 GAS Attribute，不要用 `GetAttributeValue` 读取
+- **挂载位置**：`SkillChargeComponent` 挂在 `AYogCharacterBase` 或其子类上，不要挂在 GA 对象上（GA 对象没有稳定的生命周期）

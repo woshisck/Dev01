@@ -562,3 +562,15 @@ WBP_AmmoCounter 的可调参数（Class Defaults）：
 ---
 
 *文档由 Claude Code 维护，上次更新：2026-04-21*
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **所有 GA 必须有 C++ 父类 + BP 子类**：GA_Musket_* 的 C++ 父类已编译完成，BP 子类（BGA_Musket_*）在编辑器里创建，蒙太奇和 GE 引用在 BP 里配置，C++ 里不硬编码资产路径
+- **重击蓄力用 WaitInputRelease**：`GA_Musket_HeavyAttack` 的松手触发靠 `WaitInputRelease` Task，不要用 Tick 轮询，蓄力进度靠 `GetWorld()->GetTimeSeconds() - ChargeStartTime`
+- **弹药用 GAS Attribute 不用变量**：弹药值必须存在 `UMusketAttributeSet::CurrentAmmo`，不要在 GA C++ 里用成员变量存弹药，否则跨 GA 同步会出问题
+- **瞄准弧材质参数名区分大小写**：`M_AimArc` 的 MPC 参数名（`ArcProgress`/`ArcColor` 等）与 C++ 里 `SetVectorParameterValue` 的字符串必须完全一致，大小写错误不报错但不生效
+- **子弹 Actor 生命周期**：`BP_MusketBullet` Hit 后必须调 `Destroy()`，不要依赖 LifeSpan 做清理（LifeSpan 在网络下行为不一致）
+- **SprintReload 能力激活条件**：`GA_Musket_SprintReload` 的 ActivationRequiredTags 必须包含 `Character.State.Sprinting`，否则普通站立状态也会触发错误动画
+- **AmmoCounter 监听方式**：`AmmoCounter` Widget 通过 `GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate` 监听，不要用 Tick 轮询 Attribute 值

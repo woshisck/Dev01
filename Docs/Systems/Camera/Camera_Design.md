@@ -297,3 +297,15 @@ Details > Player Camera Manager > 找到相关参数直接修改。
 - [ ] 关卡中放置 AYogCameraVolume 围住可玩区域
 - [ ] 创建 CameraShake 蓝图资产并分配
 - [ ] 受击逻辑接入 NotifyHeavyHit / NotifyCritHit
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **禁止 LookAhead**：不要添加任何前瞻偏移逻辑（根据速度方向预测摄像机位置），已确认不符合本项目手感要求
+- **插值起点必须用 GetCameraLocation()**：`VInterpTo` 的当前值必须传 `SpringArmComponent->GetComponentLocation()`（实际摄像机位置），不能用 `TargetLocation`（会导致插值抖动）
+- **禁止追敌摄像机**：摄像机不跟踪敌人，只跟随玩家角色，不要加任何基于敌人位置的偏移逻辑
+- **6 状态优先级**：普通(0) < 冲刺(1) < 战斗(2) < 背包(3) < 引导(4) < 边界(5)，高优先级状态覆盖低优先级，C++ 里用整型优先级比较，不要用枚举位运算
+- **多边形边界约束**：摄像机位置限制在 `PolygonBoundaryPoints` 定义的多边形内，用射线投影到最近边的方式修正，不要用 AABB（矩形边界太生硬）
+- **分速度插值**：普通跟随用慢速（建议 InterpSpeed=3.0），冲刺状态用快速（InterpSpeed=8.0），状态切换时立即切换速度，不要对速度本身插值
+- **禁止鼠标偏移**：摄像机位置与鼠标位置无关，不要读取鼠标坐标影响摄像机

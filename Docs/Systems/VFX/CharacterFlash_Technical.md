@@ -150,3 +150,14 @@ return float4(Color, Alpha);
 ### 武器蓝图（WeaponInstance 子类）
 
 - [ ] `WeaponDefinition` DA → `HeatOverlayMaterial` 填入 `M_HeatPhaseOverlay`（由 Spawner 自动传入）
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **Overlay Material 必须在 Details 面板配置**：`CharacterFlashMaterial` 是 `UPROPERTY`，C++ 不默认赋值，角色 BP Details 里必须手动填入含 `FlashColor`/`FlashAlpha`/`Power` 参数的 Overlay 材质，否则 `CreateDynamicMaterialInstance` 返回 nullptr
+- **闪白走 Tick 不走 Timeline**：`HitFlashAlpha` 在 `Tick` 里线性衰减（`DeltaTime / HitFlashDuration`），不要用 UE 的 Timeline 组件，Timeline 在 EndAbility 后停止 Tick 会导致残留闪光
+- **前摇闪红 sin 脉冲**：`PreAttackFlashAlpha = FMath::Sin(AccumulatedTime * FrequencyHz * 2.f * PI) * 0.5f + 0.5f`，FrequencyHz 建议 4.0，AccumulatedTime 在 `Tick` 里累加，StopPreAttackFlash 时置 0
+- **FlashColor 参数顺序**：C++ 里用 `SetVectorParameterValue(TEXT("FlashColor"), Color)` 传 `FLinearColor`，材质 Custom Node 里变量名必须完全一致（区分大小写）
+- **多层叠加问题**：HitFlash 和 PreAttackFlash 同时激活时，取两者 Alpha 最大值作为最终 Alpha，不要相加（相加会超过 1.0 造成过曝）
+- **ANS_PreAttackFlash 调用路径**：ANS 的 `NotifyBegin` 调 `Character->StartPreAttackFlash()`，`NotifyEnd` 调 `Character->StopPreAttackFlash()`，接口在 `YogCharacterBase` 里，不在 PlayerCharacterBase

@@ -277,3 +277,14 @@ void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 | `Public/Character/PlayerCharacterBase.h` | AddRuneToInventory、PendingRunes |
 | `Public/GameModes/YogGameMode.h` | GenerateLootOptions、FallbackLootPool、SelectLoot |
 | `Public/Map/RewardPickup.h` | 场景拾取物，触发三选一 |
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **组件访问路径**：`BackpackGridComponent` 挂在 `PlayerCharacterBase` 上，通过 `Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo())->BackpackGridComponent` 获取，不要用 GetOwner() 直接访问
+- **格子坐标系**：`FIntPoint(Col, Row)`，Col=X 轴（左→右），Row=Y 轴（上→下）。修改格子逻辑时不要搞反 X/Y
+- **热度在组件内计算，不在 GAS**：热度值来自 `BackpackGridComponent::GetCurrentHeat()`，不要在 AttributeSet 里另建热度 Attribute（会双轨）
+- **FA 执行期间不改 RuneSlots**：BuffFlow FA 的 BFNode 执行是同帧同步的，不要在 BFNode 回调里修改 BackpackGrid 的槽位数据（重入风险）
+- **升级合并走 `TryMergeRunes`**：添加新符文后必须调 `TryMergeRunes`，不要手动改 RuneLevel 字段
+- **FallbackLootPool 只在奖励池耗尽时启用**：不要把 FallbackLootPool 当普通池用，它是兜底，优先用 BuffDataAsset 配置的池

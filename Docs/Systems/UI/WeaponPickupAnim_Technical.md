@@ -179,3 +179,13 @@ void StartExpandAndHide();
 | BP_YogHUD：`TrailWidgetClass` 赋值 WBP_WeaponTrail | P0 |
 | M_WeaponTrail：创建 Custom Node + 材质实例 | P1 |
 | DA_WeaponGlassAnim：调整 AutoCollapseDelay 到合适时长 | P1 |
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **WeaponFloatWidget 是 World Space Widget**：浮动拾取动画用 `UWidgetComponent`（WorldSpace），不用 Screen Space，位置跟随 WeaponSpawner Actor 的 3D 位置
+- **动画走 WidgetAnimation 不走 Tick**：拾取动画（浮动、光晕脉冲）用 UMG 内置的 WidgetAnimation，C++ 里调 `PlayAnimation`，不在 `NativeTick` 里手动插值
+- **拾取触发时序**：玩家拾取后，先调 `WeaponPickupWidget::PlayPickupAnimation()`（播放消失动画），动画结束回调里才 `RemoveFromParent()`，不要立即 RemoveFromParent
+- **WeaponTrailWidget 用 CustomPaint**：拖尾效果继承 `UWidget` 并重写 `OnPaint`，用 `FPaintGeometry` + `FSlateDrawElement::MakeLines` 绘制，不用 Canvas Panel 拼接多个 Image
+- **颜色从 DA 读**：拾取光效颜色从 `UWeaponDefinition` 里的 `PickupGlowColor`（`FLinearColor`）字段读，不硬编码

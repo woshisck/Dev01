@@ -177,3 +177,14 @@
 | N | 一次性蒙太奇命中效果 | **Start** → **Send Gameplay Event**（Target=BuffGiver）→ **Finish** |
 | O | 基于血量的动态修改器 | **On Health Changed**.NewHP →（数据线）→ **Math Float**（算损失百分比）→ **Apply Attribute Modifier**（Infinite, Unique） |
 | P | 击中前满血判断 | **On Damage Dealt**.LastDamageAmount + **Get Attribute**(HP) → **Math Float**(Add) → **Compare Float** >= MaxHP → True → 追加效果 |
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **FA 是所有效果逻辑的唯一载体**：任何 Buff/符文效果逻辑必须在 FA（Flow Asset）里实现，不要在 GA C++ 里直接写效果逻辑（破坏了 BuffFlow 的可视化编辑能力）
+- **ExecuteOutput 必须恰好调用一次**：每个 BFNode 的 `Execute` 实现里，无论何种分支，最终必须调用且只调用一次 `ExecuteOutput()`，否则 FA 执行链会卡死或重复执行
+- **节点执行是同步的**：FA 节点图是同步执行的，不支持 async/await 模式，如果需要延迟效果，在节点里启动 Timer，Timer 回调里触发后续逻辑
+- **Pin 名称区分大小写**：BFNode 的 Input/Output Pin 名称在 C++ `GetPins()` 里定义，FA 连线时名称必须完全匹配（包括大小写），名称错误不报错但连线无效
+- **FA 在 RuneDA 里用软引用**：`URuneDataAsset::FlowAsset` 字段类型必须是 `TSoftObjectPtr<UFlowAsset>`，不用裸指针，防止编辑器启动时加载所有 FA
+- **Build.cs 依赖**：使用 BuffFlow 模块的 C++ 文件，`Build.cs` 的 `PrivateDependencyModuleNames` 里必须包含 `"Flow"`，否则编译找不到 `UFlowAsset`

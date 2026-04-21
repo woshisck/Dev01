@@ -153,3 +153,12 @@ A：不会冲突，因为两者在 AnimBP State Machine 的不同状态下使用
 
 **Q：能不能在攻击动画中也加转身追踪？**  
 A：可以通过 `AbilityData` 的 `ActRotateSpeed` 字段配置攻击时的追踪速度，但通常建议攻击中锁定朝向（打击感更强），攻击前由 `BTT_RotateCorrect` 修正好方向。
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **朝向控制禁止用 SetActorRotation**：敌人攻击朝向通过 `UCharacterMovementComponent::bOrientRotationToMovement` + 移动输入方向控制，不要在 BT Task 里直接调 `SetActorRotation`（会与 CMC 冲突）
+- **BTTask 激活 Ability 走 Tag**：`BTTask_ActivateAbilityByTag` 只传 GameplayTag，不持有 GA 指针，Tag 必须是 `Ability.Enemy.*` 命名空间下已注册的 Tag
+- **BT 访问 ASC 路径**：从 `UAIController` → `GetPawn()` → `Cast<AYogCharacterBase>` → `GetAbilitySystemComponent()`，不要用 `UAbilitySystemGlobals::GetAbilitySystemComponentFromActor`（在 AIController 上调返回 nullptr）
+- **EnemyCombo 依赖 UAN_EnemyComboSection**：多段连击的段落衔接通过 `UAN_EnemyComboSection` AnimNotify 触发下一段，BT 只负责启动第一段 GA，后续连击在 GA 内部靠 Notify 推进

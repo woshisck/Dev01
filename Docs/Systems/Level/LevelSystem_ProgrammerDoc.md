@@ -376,3 +376,14 @@ ActivateHubPortals()（主城/枢纽房间专用）
 - ✅ 主城/枢纽房间支持（bIsHubRoom，跳过刷怪，所有传送门立即开启）
 - ✅ 奖励配置移至难度档位（GoldMin/Max、BuffCount、符文权重全在 FRoomDifficultyTier）
 - ✅ 敌人行为树字段（EnemyData.BehaviorTree）
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **LevelEventTrigger 靠 DA 驱动**：`ULevelFlowAsset` 是节点图 DA，`ALevelEventTrigger` 场景中放置后引用 DA，C++ 里不内联事件序列，所有时序配置在 DA 里
+- **延迟节点走 FTimerManager**：LevelFlow 的延迟节点实现必须用 `GetWorld()->GetTimerManager().SetTimer`，不能用 `FPlatformProcess::Sleep`（会卡主线程）
+- **波次 MobSpawner 需要 Identity Tag**：`AMobSpawner` 上的 Identity Tag 必须唯一，`YogGameMode` 靠 Tag 索引查找 Spawner，重复 Tag 会导致补刷逻辑只触发一个
+- **GameMode 不持有 UI 引用**：波次开始/结束事件通过 `Broadcast` 发出，UI 自行订阅，不要在 `YogGameMode` 里持有 Widget 指针
+- **MobSpawner 的 SpawnClass 用软引用**：`TSubclassOf<APawn>` 应换成 `TSoftClassPtr`，防止编辑器启动时加载全部敌人 BP
+- **关卡结束不能直接 OpenLevel**：切关必须经过 `APortal::ActivatePortal()` → 触发 `YogSaveSubsystem::SaveAll()` → 然后 OpenLevel，直接 OpenLevel 会丢失存档数据

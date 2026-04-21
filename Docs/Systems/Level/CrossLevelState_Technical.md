@@ -139,3 +139,14 @@ APlayerCharacterBase::Die()
 | `OpenLevel` 后 GameInstance 被替换 | 数据丢失 | 检查 GameInstance Class 是否在 Project Settings 中正确配置 |
 | 背包组件未初始化就 TryPlaceRune | 无效操作 | `RestoreRunStateFromGI` 内部检查 `BackpackGridComponent` 指针有效性 |
 | 多次调用 RestoreRunStateFromGI | 符文重复放置 | 恢复成功后 `bIsValid` 应置为 false（待验证是否已实现）|
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **SaveAll 必须在 OpenLevel 之前同步完成**：`YogSaveSubsystem::SaveAll` 是同步操作，调用后立即 `UGameplayStatics::OpenLevel`，不要用异步回调（UE5 的 AsyncSaveGame 在切关时可能未完成）
+- **RestoreAll 在 BeginPlay 的时机**：恢复调用必须在 `PlayerCharacter::BeginPlay` 里、ASC 初始化之后、AbilitySet 授予之后，否则弹药 Attribute 恢复会被默认值覆盖
+- **背包恢复顺序**：先 RestoreRunes（恢复符文格子）→ 再 RestoreHeat（恢复热度 Tag）→ 最后 RestoreWeapon（恢复武器 + 追赶广播），顺序错误会导致热度发光状态错误
+- **SaveGame 对象不能存 UObject 指针**：`UYogSaveGame` 里只能存基础类型（int/float/FString/FGameplayTag/TArray），不能存 Actor* 或 UObject*，切关后指针全部失效
+- **调试用 GM 命令**：开发期可用 `SaveSubsystem.Debug 1` 在每次 Save/Restore 时打印详细日志，发布前关闭
+- **符文格子用 FIntPoint 序列化**：背包格坐标存为 `FIntPoint`，反序列化后用 `BackpackGridComponent::TryRestoreRune(Coord, RuneTag)` 恢复，不要用格子 Index（宽度变化后 Index 会错位）

@@ -298,3 +298,14 @@ Source/DevKit/Public/Component/BackpackGridComponent.h
 Source/DevKit/Public/BuffFlow/BuffFlowComponent.h
 Source/DevKit/Public/Data/RuneDataAsset.h
 ```
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **所有 Buff/符文效果必须走 FA**：不允许把 GA 预授予到角色 Blueprint，需要动态效果时用 FA 的 BFNode_GrantAbility 节点动态 grant
+- **BFNode 必须调且只调一次 `ExecuteOutput()`**：同步节点在 Execute() 末尾调，异步节点在回调里调，忘记调会导致 FA 卡死不往下执行
+- **FA 执行是同帧同步**：不要在 BFNode 里做耗时操作或 latent 等待，如需异步用 UE 的 Delay Task 或 AbilityTask
+- **BFNode 的输入 Pin 参数**：在 `GetInputPinNames()` 里注册的 Pin 名必须与 BP 里连线的名字完全一致（大小写敏感）
+- **RuneDataAsset 的 FA 引用用软引用**：`TSoftObjectPtr<UFlowAsset>` 防止启动时全部加载，需要时调 `LoadSynchronous()`
+- **自定义 BFNode 必须在 DevKit.Build.cs 添加模块依赖**：如果新 BFNode 用到 GameplayAbilities 模块，确认 Build.cs 里已有

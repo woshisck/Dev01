@@ -193,3 +193,14 @@ TSubclassOf<UYogGameplayEffect>  DefaultMeleeDamageEffect;  // 设为伤害 GE
 | 连击首段会同时激活所有段 | 正确实现 ActivationOwnedTags 累积链 + ActivationRequiredTags 顺序门 |
 | AnimNotify EventTag 为空，OnEventReceived 不触发 | 明确传入 `GameplayEffect.DamageType.GeneralAttack` Tag |
 | GE_StatBeforeATK SetByCaller 缺 Magnitude | 在 ActivateAbility 中读取 ActionData 后设置 4 个 Magnitude |
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **伤害必须走 EffectContainerMap**：不允许在 GA C++ 里直接 `ApplyGameplayEffectToTarget`，所有伤害 GE 配置在 Blueprint EffectContainerMap 的 `Event.Attack.Hit` Key 下
+- **TargetType 碰撞通道**：近战判定用 `ECC_WorldDynamic + ECC_Pawn`，不要用 `ECC_Visibility`（会打到 Trigger Volume）
+- **CDO 问题**：不要在 `UGameplayAbility` 构造函数里 Spawn Actor 或访问 World，只在 `ActivateAbility` 里做
+- **连击 Tag 累积链**：每段连击靠 `ActivationOwnedTags` 累积 + `ActivationRequiredTags` 顺序门控制，改连击段数时两个 Tag 容器必须同步
+- **AnimNotify EventTag 不能为空**：`WaitGameplayEvent` 的 Tag 必须显式填入，如 `GameplayEffect.DamageType.GeneralAttack`，空 Tag 不触发回调
+- **SetByCaller Magnitude**：GE 用 SetByCaller 传伤害时，`ActivateAbility` 里必须先 `SetByCallerTagMagnitude`，否则 GE Apply 后伤害为 0

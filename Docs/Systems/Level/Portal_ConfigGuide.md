@@ -161,3 +161,13 @@ A：填写 UE 关卡资产的名称（不含路径和扩展名），例如 `L_Ro
 
 **Q：门开启后视觉上没有变化？**  
 A：视觉效果由蓝图的 `EnablePortal` 事件实现。请确认 BP_Portal 中已实现该蓝图事件（显示雾效消散等效果）。
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **切关必须经过 Portal**：不允许在代码里直接调 `UGameplayStatics::OpenLevel`，切关流程是：`APortal::ActivatePortal()` → 触发 `YogSaveSubsystem::SaveAll()` → 延帧后 OpenLevel，确保存档完整
+- **DA_Campaign 决定关卡顺序**：`UCampaignDataAsset` 里配置关卡列表和传送门分支，`APortal` 读取 DA 决定目标关卡，不要在 Portal BP 里硬编码 Level 名称
+- **随机门逻辑在 C++ 里**：多分支传送门的随机选择在 C++ `APortal::SelectRandomBranch()` 里，不要在 BP 里用 Random Integer 节点（无法统一控制随机种子）
+- **玩家进入触发 Overlap**：Portal 的激活靠 `OnComponentBeginOverlap`，Overlap 组件的 ObjectType 只响应 `ECC_Pawn`，不要用 Tick 轮询距离
+- **传送门动画走 Niagara**：Portal 的激活特效用 Niagara System，C++ 只调 `UNiagaraFunctionLibrary::SpawnSystemAtLocation`，不在 C++ 里创建粒子参数

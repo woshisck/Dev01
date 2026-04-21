@@ -166,3 +166,14 @@ Blueprint 同理：调用 `ApplyGlassStyle` 节点即可。
 | `Source/DevKit/Private/UI/GlassFrameWidget.cpp` | C++ 实现 |
 | `Content/UI/Materials/M_GlassFrame`（待创建） | 玻璃边框材质 |
 | `Content/UI/Widgets/WBP_GlassFrame`（待创建） | Blueprint Widget |
+
+---
+
+## ⚠️ Claude 编写注意事项
+
+- **双层模糊必须用 BackgroundBlur + RetainerBox 组合**：`BackgroundBlur` 负责高斯模糊，`RetainerBox` 负责第二层效果材质采样，直接用单层 `BackgroundBlur` 无法实现液态玻璃的双层深度感
+- **SDF 圆角边框走材质 Custom Node**：圆角效果在 .ush 里用 SDF（有向距离场）实现，C++ 不要尝试用 UCanvasPanelSlot 的 Padding 模拟圆角
+- **UI 材质禁止使用 WorldNormal/CameraVector**：玻璃框材质必须在 Material Domain=User Interface 下创建，不能引用 Normal、Camera 等 3D 渲染专用节点
+- **炫彩底边走 Time 节点**：底边渐变色用材质 `Time` 节点驱动 UV 偏移，不要在 Widget C++ 的 Tick 里每帧改材质参数（性能差且不必要）
+- **GlassFrameWidget 继承 UserWidget**：C++ 父类继承 `UUserWidget`，不继承 `UCommonUserWidget`（CommonUI 的输入焦点系统会干扰玻璃框的鼠标穿透设置）
+- **颜色必须从 DA_BackpackStyle 读**：框体颜色（边框色、底层玻璃色）通过 `UBackpackStyleDataAsset` 读取，不要在 C++ 或 WBP 里硬编码颜色值
