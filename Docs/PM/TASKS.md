@@ -87,6 +87,7 @@
 | TAG-AUTOTGT | ANS_AutoTarget 锥角过滤自动吸附 | 2026-04-10 |
 | MAP-002 | 关卡结束圆形揭幕特效 LevelEndRevealWidget + YogHUD 集成 + DA | 2026-04-22 |
 | MAP-003 | 关卡开场镜头标记 LevelIntroCameraMarker | 2026-04-22 |
+| LOOT-001 | FindLootSpawnLocation 8方向智能落点（双射线+屏幕边界） | 2026-04-22 |
 | UI-021 | 背包交互重构：单击抓取 / 长按3s退回 / 换格自动拾起 / 悬停绿框 | 2026-04-22 |
 | UI-022 | 符文包围框 NativePaint：替换 CanvasPanel，像素精确对齐，三色分层 | 2026-04-22 |
 | FIX-021 | 背包战斗锁定三处触发点补全红闪+抖动调用 | 2026-04-22 |
