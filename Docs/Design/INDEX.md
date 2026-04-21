@@ -69,6 +69,7 @@
 |---|---|---|
 | [角色闪光特效系统 — 技术文档](VFX/CharacterFlash_Technical.md) | 命中闪白 / 攻击前闪红 / 热度升阶发光：C++ 接口、材质参数、蓝图配置清单 | 程序 + 策划 |
 | [角色特效制作规范](VFX/VFX_CreationGuide.md) | 新建特效标准流程、材质模板 HLSL、颜色约定、调参习惯；含 .ush 共享文件说明 | 程序 |
+| [材质编写规范](VFX/Material_Authoring_Guide.md) | Custom Node + .ush 体系、所有 .ush 文件清单、颜色 DA 统一方案、历史踩坑与调参参考值 | 程序 |
 
 ---
 
@@ -80,6 +81,7 @@
 | [武器拾取动画系统技术文档](UI/WeaponPickupAnim_Technical.md) | WeaponFloat 3阶段动画 / 流光拖尾 Trail / 液态玻璃落点图标 / 材质体系 / BP 配置清单 | 程序 + 策划 |
 | [背包 UI 零基础制作手册](UI/BackpackUI_StepByStep.md) | WBP_BackpackScreen / WBP_RuneInfoCard 蓝图搭建步骤，适合不熟悉 UE5 的人 | 策划（零基础） |
 | [新手引导图像生成提示词](UI/Tutorial_ImagePrompts.md) | Nano Banana 图像提示词，覆盖引导全节点 UI 概念图 | 策划 |
+| [WBP 布局配置规范文档](UI/WBP_LayoutSpec_Standard.md) | Claude 提供 WBP 布局规格时的标准格式：层级树/Slot属性表/BindWidget汇总/颜色速查/控件类型字段速查 | 程序 + 策划 |
 
 ---
 
