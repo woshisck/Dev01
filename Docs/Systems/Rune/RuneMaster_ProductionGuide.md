@@ -996,3 +996,85 @@ SFX：
 
 > 1020/1021 放入正式关卡符文池，不进引导（概念过多）。  
 > 1004 击退可作为武器天然符文预置，无需进入三选一。
+
+---
+
+## 十、FlowGraph 节点类对照表
+
+> 以下为本文档 FA 流程图中所有 `[方括号节点]` 对应的 C++ BFNode 类。  
+> 头文件路径：`Source/DevKit/Public/BuffFlow/Nodes/`
+
+### 触发器节点（Event）
+
+| FA 节点名 | BFNode 类 | 说明 |
+|-----------|-----------|------|
+| `[On Damage Dealt]` | `UBFNode_OnDamageDealt` | 造成伤害时触发 |
+| `[On Damage Received]` | `UBFNode_OnDamageReceived` | 受到伤害时触发 |
+| `[On Crit Hit]` | `UBFNode_OnCritHit` | 暴击命中时触发 |
+| `[On Kill]` | `UBFNode_OnKill` | 击杀时触发 |
+| `[On Dash]` | `UBFNode_OnDash` | 冲刺时触发 |
+| `[On Periodic]` | `UBFNode_OnPeriodic` | 定时触发（可配置间隔） |
+| `[On Health Changed]` | `UBFNode_OnHealthChanged` | 生命值变化时触发 |
+| `[On Buff Added]` | `UBFNode_OnBuffAdded` | Buff 添加时触发 |
+| `[On Buff Removed]` | `UBFNode_OnBuffRemoved` | Buff 移除时触发 |
+| `[Wait Gameplay Event]` | `UBFNode_WaitGameplayEvent` | 监听 ASC 上的 GameplayEvent |
+
+### 效果节点（Effect）
+
+| FA 节点名 | BFNode 类 | 说明 |
+|-----------|-----------|------|
+| `[Apply Attribute Modifier]` | `UBFNode_ApplyAttributeModifier` | 直接修改属性值 |
+| `[Apply Gameplay Effect Class]` | `UBFNode_ApplyEffect` | 施加 GE 到目标 |
+| `[Apply GE to Targets in Radius]` | `UBFNode_ApplyGEInRadius` | **新增** — 对半径内所有有效目标施加 GE |
+| `[Do Damage]` | `UBFNode_DoDamage` | 直接造成伤害（语义化 ApplyEffect） |
+| `[Area Damage]` | `UBFNode_AreaDamage` | 持续区域伤害（生成 DamageZone Actor） |
+| `[Apply Execution]` | `UBFNode_ApplyExecution` | 施加 GameplayEffect Execution |
+
+### Tag / Event 节点
+
+| FA 节点名 | BFNode 类 | 说明 |
+|-----------|-----------|------|
+| `[Has Tag]` | `UBFNode_HasTag` | 条件判断：目标是否拥有指定 Tag |
+| `[Grant Tag]` | `UBFNode_GrantTag` | 授予 Tag（可配置持续时间） |
+| `[Add Tag]` | `UBFNode_AddTag` | 添加 Loose Tag |
+| `[Remove Tag]` | `UBFNode_RemoveTag` | 移除 Tag |
+| `[Send Gameplay Event]` | `UBFNode_SendGameplayEvent` | 向目标 ASC 发送 GameplayEvent |
+| `[Grant GA]` | `UBFNode_GrantGA` | 授予 GameplayAbility |
+
+### 视觉 / Cue 节点
+
+| FA 节点名 | BFNode 类 | 说明 |
+|-----------|-----------|------|
+| `[Spawn Gameplay Cue on Actor]` | `UBFNode_SpawnGameplayCueOnActor` | **新增** — 在目标 Actor 上执行一次性 GC |
+| `[Spawn Gameplay Cue at Location]` | `UBFNode_SpawnGameplayCueAtLocation` | **新增** — 在世界位置执行一次性 GC |
+| `[Play Niagara]` | `UBFNode_PlayNiagara` | 在目标上播放 Niagara 特效 |
+| `[Destroy Niagara]` | `UBFNode_DestroyNiagara` | 销毁已播放的 Niagara 特效 |
+| `[Play Montage]` | `UBFNode_PlayMontage` | 播放动画蒙太奇 |
+| `[Spawn Actor At Location]` | `UBFNode_SpawnActorAtLocation` | 在指定位置生成 Actor |
+
+### 逻辑 / 工具节点
+
+| FA 节点名 | BFNode 类 | 说明 |
+|-----------|-----------|------|
+| `[Compare Float]` | `UBFNode_CompareFloat` | 浮点数比较 |
+| `[Compare Int]` | `UBFNode_CompareInt` | 整数比较 |
+| `[Math Float]` | `UBFNode_MathFloat` | 浮点数学运算 |
+| `[Math Int]` | `UBFNode_MathInt` | 整数数学运算 |
+| `[Literal Float]` | `UBFNode_LiteralFloat` | 浮点常量 |
+| `[Literal Int]` | `UBFNode_LiteralInt` | 整数常量 |
+| `[Literal Bool]` | `UBFNode_LiteralBool` | 布尔常量 |
+| `[Get Attribute]` | `UBFNode_GetAttribute` | 读取 ASC 属性值 |
+| `[Get Rune Info]` | `UBFNode_GetRuneInfo` | 读取符文数据 |
+| `[Check Target Type]` | `UBFNode_CheckTargetType` | 判断目标类型 |
+| `[Delay]` | `UBFNode_Delay` | 延迟执行 |
+| `[Finish Buff]` | `UBFNode_FinishBuff` | 结束 Buff Flow |
+
+### 热度阶段节点
+
+| FA 节点名 | BFNode 类 | 说明 |
+|-----------|-----------|------|
+| `[Increment Phase]` | `UBFNode_IncrementPhase` | 提升热度阶段 |
+| `[Decrement Phase]` | `UBFNode_DecrementPhase` | 降低热度阶段 |
+| `[On Phase Up Ready]` | `UBFNode_OnPhaseUpReady` | 阶段提升就绪时触发 |
+| `[Phase Decay Timer]` | `UBFNode_PhaseDecayTimer` | 阶段衰退计时 |
+| `[Sacrifice Decay]` | `UBFNode_SacrificeDecay` | 献祭衰退 |
