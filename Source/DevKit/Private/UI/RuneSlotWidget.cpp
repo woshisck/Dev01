@@ -10,8 +10,8 @@ namespace SlotDefaults
 {
     static const FLinearColor Empty          (0.40f, 0.40f, 0.42f, 1.f);
     static const FLinearColor EmptyActive    (0.15f, 0.35f, 0.75f, 1.f);
-    static const FLinearColor OccupiedActive (0.10f, 0.55f, 1.00f, 1.f);
-    static const FLinearColor OccupiedInact  (0.55f, 0.35f, 0.05f, 1.f);
+    static const FLinearColor OccupiedActive (1.00f, 0.82f, 0.10f, 1.f); // 激活：金黄
+    static const FLinearColor OccupiedInact  (0.35f, 0.35f, 0.37f, 1.f); // 未激活：中灰
     static const FLinearColor Selected       (1.00f, 0.82f, 0.10f, 1.f);
     static const FLinearColor Hover          (0.10f, 0.80f, 0.20f, 1.f);
     static const FLinearColor GrabbedSource  (0.25f, 0.15f, 0.03f, 1.f);

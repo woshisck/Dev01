@@ -24,6 +24,7 @@
 #include "Engine/GameInstance.h"
 #include "UI/WeaponFloatWidget.h"
 #include "UI/YogHUD.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
 
 // Sets default values
 AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
@@ -334,7 +335,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 				UWeaponDefinition*                 CapturedDef = WeaponDefinition;
 
 				FloatWidget->OnCollapseComplete.BindLambda(
-					[WeakThis, WeakPC, WeakHUD, CapturedDef](FVector2D ThumbnailPos)
+					[WeakThis, WeakPC, WeakHUD, CapturedDef](FVector2D /*ThumbnailPos*/)
 				{
 					if (WeakThis.IsValid())
 					{
@@ -342,12 +343,20 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 						if (WeakThis->WeaponInfoWidgetComp)
 							WeakThis->WeaponInfoWidgetComp->SetVisibility(false);
 					}
-					if (WeakHUD.IsValid() && CapturedDef)
+					if (WeakHUD.IsValid() && CapturedDef && WeakPC.IsValid() && WeakThis.IsValid())
 					{
+						// ProjectWorldLocationToScreen 返回像素坐标，除以 DPI 转为 Slate/UMG 单位
+						FVector2D ScreenPos(0.f, 0.f);
+						WeakPC->ProjectWorldLocationToScreen(
+							WeakThis->GetActorLocation() + FVector(0.f, 0.f, 80.f),
+							ScreenPos, false);
+						const float DPI = UWidgetLayoutLibrary::GetViewportScale(WeakThis.Get());
+						if (DPI > 0.f) ScreenPos /= DPI;
+
 						UE_LOG(LogTemp, Warning,
 							TEXT("[WeaponPickup] 折叠完成 → TriggerWeaponPickup Pos=(%.0f,%.0f)"),
-							ThumbnailPos.X, ThumbnailPos.Y);
-						WeakHUD->TriggerWeaponPickup(CapturedDef, ThumbnailPos);
+							ScreenPos.X, ScreenPos.Y);
+						WeakHUD->TriggerWeaponPickup(CapturedDef, ScreenPos);
 					}
 				});
 
@@ -359,6 +368,8 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 				FVector2D FallbackPos(0.f, 0.f);
 				PC->ProjectWorldLocationToScreen(
 					GetActorLocation() + FVector(0.f, 0.f, 80.f), FallbackPos, false);
+				const float DPI = UWidgetLayoutLibrary::GetViewportScale(this);
+				if (DPI > 0.f) FallbackPos /= DPI;
 				UE_LOG(LogTemp, Warning,
 					TEXT("[WeaponPickup] FloatWidget=NULL，使用兜底坐标 (%.0f,%.0f)"),
 					FallbackPos.X, FallbackPos.Y);

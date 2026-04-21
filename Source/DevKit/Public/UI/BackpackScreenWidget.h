@@ -51,6 +51,8 @@ class DEVKIT_API UBackpackScreenWidget : public UCommonActivatableWidget
     GENERATED_BODY()
 
 public:
+    UBackpackScreenWidget(const FObjectInitializer& ObjectInitializer);
+
     // =========================================================
     // 配置（蓝图 Details 填写）
     // =========================================================

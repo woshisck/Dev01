@@ -13,6 +13,7 @@
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInfoDA.h"
 #include "Engine/PostProcessVolume.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
 
 void AYogHUD::BeginPlay()
 {
@@ -71,6 +72,22 @@ void AYogHUD::BeginPlay()
 	}
 
 	// ── Weapon Glass Icon（常驻左下角） ──────────
+	if (!ThumbnailFlyClass)
+	{
+		ThumbnailFlyClass = LoadClass<UWeaponThumbnailFlyWidget>(
+			nullptr, TEXT("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponThumbnailFly.WBP_WeaponThumbnailFly_C"));
+		if (!ThumbnailFlyClass)
+			UE_LOG(LogTemp, Warning, TEXT("[YogHUD] WBP_WeaponThumbnailFly 未找到，请检查资产路径或在 BP_YogHUD 手动赋值"));
+	}
+
+	if (!WeaponGlassIconClass)
+	{
+		WeaponGlassIconClass = LoadClass<UWeaponGlassIconWidget>(
+			nullptr, TEXT("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponGlassIcon.WBP_WeaponGlassIcon_C"));
+		if (!WeaponGlassIconClass)
+			UE_LOG(LogTemp, Warning, TEXT("[YogHUD] WBP_WeaponGlassIcon 未找到，请检查资产路径或在 BP_YogHUD 手动赋值"));
+	}
+
 	if (WeaponGlassIconClass)
 	{
 		WeaponGlassIconWidget = CreateWidget<UWeaponGlassIconWidget>(
@@ -178,6 +195,9 @@ void AYogHUD::OnWeaponFlyComplete(UTexture2D* Thumbnail)
 	FVector2D ViewSize = FVector2D::ZeroVector;
 	if (GetWorld() && GetWorld()->GetGameViewport())
 		GetWorld()->GetGameViewport()->GetViewportSize(ViewSize);
+	// 转换为 DPI 无关单位
+	const float DPI = UWidgetLayoutLibrary::GetViewportScale(GetWorld());
+	if (DPI > 0.f) ViewSize /= DPI;
 	const FVector2D& Off = WeaponGlassAnimDA->HUDOffsetFromBottomLeft;
 	WeaponGlassIconWidget->SetPositionInViewport(
 		FVector2D(Off.X, ViewSize.Y - Off.Y - Size.Y), false);
@@ -199,6 +219,10 @@ FVector2D AYogHUD::GetWeaponGlassIconScreenCenter() const
 	FVector2D ViewSize = FVector2D::ZeroVector;
 	if (GetWorld() && GetWorld()->GetGameViewport())
 		GetWorld()->GetGameViewport()->GetViewportSize(ViewSize);
+
+	// 转换为 DPI 无关的 Slate/UMG 单位（CanvasPanelSlot 和 SetPositionInViewport 都用这个坐标系）
+	const float DPI = UWidgetLayoutLibrary::GetViewportScale(GetWorld());
+	if (DPI > 0.f) ViewSize /= DPI;
 
 	if (!WeaponGlassAnimDA) return ViewSize * FVector2D(0.1f, 0.8f);
 
