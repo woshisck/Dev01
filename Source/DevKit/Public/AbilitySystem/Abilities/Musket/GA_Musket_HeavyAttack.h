@@ -115,7 +115,7 @@ private:
 
     UFUNCTION() void OnChargeTick(float HalfAngleDeg, float RadiusCm, bool bFull);
     UFUNCTION() void OnChargeFullNotify();
-    UFUNCTION() void OnInputReleased(float TimeHeld);
+    UFUNCTION() void OnHeavyReleaseEvent(FGameplayEventData EventData);
 
     UFUNCTION() void OnFireMontageComplete(FGameplayTag EventTag, FGameplayEventData EventData);
     UFUNCTION() void OnFireMontageBlendOut(FGameplayTag EventTag, FGameplayEventData EventData);

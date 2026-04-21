@@ -3,13 +3,14 @@
 #include "AbilitySystem/Abilities/Musket/GA_Musket_HeavyAttack.h"
 #include "AbilitySystem/AbilityTask/AbilityTask_MusketCharge.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
-#include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
+#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Item/Weapon/AimArcActor.h"
 #include "Character/YogCharacterBase.h"
 
 UGA_Musket_HeavyAttack::UGA_Musket_HeavyAttack()
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Heavy"));
+    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.HeavyAtk"));
 
     // C++ 默认值：无材质时弧不可见但不崩溃
     AimArcClass = AYogAimArcActor::StaticClass();
@@ -69,10 +70,12 @@ void UGA_Musket_HeavyAttack::ActivateAbility(
     ChargeTask->OnChargeFull.AddDynamic(this, &UGA_Musket_HeavyAttack::OnChargeFullNotify);
     ChargeTask->ReadyForActivation();
 
-    // 等待玩家松开输入
-    UAbilityTask_WaitInputRelease* ReleaseTask =
-        UAbilityTask_WaitInputRelease::WaitInputRelease(this, false);
-    ReleaseTask->OnRelease.AddDynamic(this, &UGA_Musket_HeavyAttack::OnInputReleased);
+    // 等待重攻击松键事件（Controller Completed 绑定通过 HandleGameplayEvent 发送）
+    UAbilityTask_WaitGameplayEvent* ReleaseTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+        this,
+        FGameplayTag::RequestGameplayTag("GameplayEvent.Musket.HeavyRelease"),
+        nullptr, false, true);
+    ReleaseTask->EventReceived.AddDynamic(this, &UGA_Musket_HeavyAttack::OnHeavyReleaseEvent);
     ReleaseTask->ReadyForActivation();
 }
 
@@ -95,7 +98,7 @@ void UGA_Musket_HeavyAttack::OnChargeFullNotify()
     if (AimArcActor) AimArcActor->SetArcColor(FullChargeArcColor);
 }
 
-void UGA_Musket_HeavyAttack::OnInputReleased(float /*TimeHeld*/)
+void UGA_Musket_HeavyAttack::OnHeavyReleaseEvent(FGameplayEventData /*EventData*/)
 {
     DoFire();
 }

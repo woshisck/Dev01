@@ -6,15 +6,15 @@
 
 UGA_Musket_LightAttack::UGA_Musket_LightAttack()
 {
-    // AbilityTag — 用于 Cancel/Block 判断
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Light"));
+    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.LightAtk"));
 
-    // 激活时取消进行中的换弹
     CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Reload"));
 
-    // 蓄力/瞄准中不允许轻攻击
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Musket.Aiming"));
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Musket.Reloading"));
+    // 冲刺中由 SprintAttack 处理，不激活普通轻攻击
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.DashInvincible"));
 }
 
 void UGA_Musket_LightAttack::ActivateAbility(

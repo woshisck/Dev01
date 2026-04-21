@@ -7,6 +7,22 @@
 
 ## 2026-04-20
 
+### [INPUT-001] 火绳枪输入系统完整接入 — Reload 绑定 + 重攻击松键修复 + GA Tag 激活
+
+**状态**：已完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Character/YogPlayerControllerBase.h/.cpp`、`AbilitySystem/Abilities/Musket/GA_Musket_HeavyAttack.h/.cpp`、以及所有 6 个 Musket GA cpp |
+| 根因（重攻击松键） | 项目使用 `TryActivateAbilitiesByTag`，不走 InputID 路径，`UAbilityTask_WaitInputRelease::OnRelease` 永远不触发 |
+| 修复方案 | `Input_HeavyAttack` 额外绑定 `ETriggerEvent::Completed` → `HeavyAttackReleased()`；该函数调 `ASC->HandleGameplayEvent(GameplayEvent.Musket.HeavyRelease)`；GA 改用 `UAbilityTask_WaitGameplayEvent` 等待该事件后 `DoFire()` |
+| Reload 绑定 | 新增 `Input_Reload` UPROPERTY；绑 `MusketReload()` → `TryActivateAbilitiesByTag(PlayerState.AbilityCast.Reload)` |
+| GA Tag 接入 | 6 个 GA 各自在 `AbilityTags` 补加 `PlayerState.AbilityCast.*`；LightAttack 追加 `ActivationBlockedTags: Buff.Status.DashInvincible` |
+| 新增 Tags | `GameplayEvent.Musket.HeavyRelease`、`PlayerState.AbilityCast.LightAtk/HeavyAtk/Dash/Reload` 已写入 `DefaultGameplayTags.ini` |
+| 用户需在 Editor 操作 | 创建 `IA_Reload`（Digital，Keyboard R）→ 赋给 `BP_PlayerController.Input_Reload`；`IMC_Default` 加入该 Action |
+
+---
+
 ### [FIX-012] Tutorial Popup 关闭后操控锁死 — CommonUI 输入模式显式恢复
 
 **状态**：已修复已编译

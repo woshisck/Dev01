@@ -7,6 +7,8 @@
 UGA_Musket_SprintReload::UGA_Musket_SprintReload()
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.SprintReload"));
+    // Reload 按键时与 Reload_Single/All 共用同一激活 Tag，由 ActivationRequiredTags 区分
+    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.Reload"));
 
     // 必须在冲刺状态（DashInvincible）中才能激活
     ActivationRequiredTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.DashInvincible"));

@@ -9,6 +9,8 @@
 UGA_Musket_SprintAttack::UGA_Musket_SprintAttack()
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.SprintAtk"));
+    // LightAtk 按键时与 LightAttack 共用同一激活 Tag，由 ActivationRequiredTags 区分
+    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.LightAtk"));
 
     // 必须在冲刺（DashInvincible 标签）中才能激活
     ActivationRequiredTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.DashInvincible"));
