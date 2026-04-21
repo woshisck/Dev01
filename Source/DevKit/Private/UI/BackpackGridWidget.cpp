@@ -10,6 +10,7 @@
 #include "Components/TextBlock.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Blueprint/WidgetTree.h"
+#include "Rendering/DrawElements.h"
 
 // ============================================================
 //  生命周期
@@ -142,6 +143,34 @@ void UBackpackGridWidget::RefreshCells(UBackpackGridComponent* Backpack,
     const int32 SlotCount = CachedSlots.Num();
     if (SlotCount == 0) return;
 
+    // 缓存供 NativePaint 使用
+    CachedBackpackRef    = Backpack;
+    CachedBGrabbing      = bGrabbing;
+    CachedGrabbedFromCell = GrabbedFromCell;
+
+    // 确定选中符文 GUID
+    CachedSelectedGuid = FGuid();
+    const FIntPoint CheckCell = bGrabbing ? GrabbedFromCell : SelectedCell;
+    if (Backpack && CheckCell != FIntPoint(-1, -1))
+    {
+        const int32 CheckIdx = Backpack->GetRuneIndexAtCell(CheckCell);
+        if (CheckIdx >= 0)
+            CachedSelectedGuid = Backpack->GetAllPlacedRunes()[CheckIdx].Rune.RuneGuid;
+    }
+
+    // 确定悬浮符文 GUID（无选中时显示绿框）
+    CachedHoverGuid = FGuid();
+    if (Backpack && HoverCell.X >= 0 && HoverCell.Y >= 0)
+    {
+        const int32 HIdx = Backpack->GetRuneIndexAtCell(HoverCell);
+        if (HIdx >= 0)
+        {
+            const FGuid HGuid = Backpack->GetAllPlacedRunes()[HIdx].Rune.RuneGuid;
+            if (HGuid != CachedSelectedGuid)
+                CachedHoverGuid = HGuid;
+        }
+    }
+
     // 三阶叠加区格子列表（循环外查询一次，避免逐格重复调用）
     const TArray<FIntPoint> Zone0 = Backpack ? Backpack->GetActivationZoneCellsForPhase(0) : TArray<FIntPoint>{};
     const TArray<FIntPoint> Zone1 = Backpack ? Backpack->GetActivationZoneCellsForPhase(1) : TArray<FIntPoint>{};
@@ -181,18 +210,14 @@ void UBackpackGridWidget::RefreshCells(UBackpackGridComponent* Backpack,
                 if      (Zone0.Contains(Cell)) { State = EBackpackCellState::EmptyActive; }
                 else if (Zone1.Contains(Cell)) { State = EBackpackCellState::EmptyZone1;  }
                 else if (Zone2.Contains(Cell)) { State = EBackpackCellState::EmptyZone2;  }
-                // 非热度区：State 保持 Empty
             }
-            // PreviewPhase == -1：不显示任何热度颜色，所有空格保持 Empty
         }
 
-        // ── 推状态给 Slot（Slot 内部只在变化时触发 BP 事件） ─────────────
+        // ── 推状态给 Slot ─────────────────────────────────────────────────
         const bool bThisSelected = (SelectedCell == Cell);
         const bool bThisHovered  = (Cell == HoverCell);
         const bool bThisGrabbing = (bGrabbing && Cell == GrabbedFromCell);
 
-        // 透明度：检视模式下聚焦区（0..PreviewPhase）全亮，其余降至 DimOpacity；
-        //         默认模式下无符文格子也降至 DimOpacity
         const float DimOpacity = StyleDA ? StyleDA->InactiveZoneOpacity : 0.35f;
         float ZoneOpacity = 1.f;
         if (PreviewPhase >= 0)
@@ -207,7 +232,6 @@ void UBackpackGridWidget::RefreshCells(UBackpackGridComponent* Backpack,
         }
         else if (!bOccupied)
         {
-            // 激活区格子（热度颜色）始终全亮；只对无区域的普通空格降低亮度
             const bool bInAnyZone = (State == EBackpackCellState::EmptyActive ||
                                      State == EBackpackCellState::EmptyZone1  ||
                                      State == EBackpackCellState::EmptyZone2);
@@ -215,7 +239,14 @@ void UBackpackGridWidget::RefreshCells(UBackpackGridComponent* Backpack,
                 ZoneOpacity = DimOpacity;
         }
 
-        RuneSlot->SetSlotState(State, bThisSelected, bThisHovered, bThisGrabbing, StyleDA.Get(), ZoneOpacity);
+        const bool bGlowZone = (PreviewPhase >= 0) && !bOccupied &&
+                               (State == EBackpackCellState::EmptyActive ||
+                                State == EBackpackCellState::EmptyZone1  ||
+                                State == EBackpackCellState::EmptyZone2) &&
+                               (ZoneOpacity >= 1.0f - KINDA_SMALL_NUMBER);
+
+        RuneSlot->SetSlotState(State, bThisSelected, bThisHovered, bThisGrabbing,
+                               StyleDA.Get(), ZoneOpacity, bGlowZone);
 
         // ── 符文图标 ─────────────────────────────────────────────────────
         UTexture2D* Tex = nullptr;
@@ -224,12 +255,112 @@ void UBackpackGridWidget::RefreshCells(UBackpackGridComponent* Backpack,
             const int32 Idx    = Backpack->GetRuneIndexAtCell(Cell);
             const auto& Placed = Backpack->GetAllPlacedRunes();
             if (Placed.IsValidIndex(Idx))
-                Tex = Placed[Idx].Rune.RuneConfig.RuneIcon;
+            {
+                const FPlacedRune& PR = Placed[Idx];
+                // DA (0,0) 格（旋转后的主 icon 格）显示符文图标，其余格显示通用图标
+                const FIntPoint IconAbsCell = PR.Pivot + PR.Rune.Shape.GetPivotOffset(PR.Rune.Rotation);
+                if (Cell == IconAbsCell)
+                    Tex = PR.Rune.RuneConfig.RuneIcon;
+                else if (StyleDA && StyleDA->CellMultipartIcon)
+                    Tex = StyleDA->CellMultipartIcon;
+            }
         }
 
         const float IconOpacity = bThisGrabbing ? 0.30f : 1.f;
         RuneSlot->SetRuneIcon(Tex, IconOpacity);
     }
+
+    // 触发重绘（边框在 NativePaint 中绘制）
+    Invalidate(EInvalidateWidgetReason::Paint);
+}
+
+// ============================================================
+//  NativePaint — 符文包围框边线
+// ============================================================
+
+int32 UBackpackGridWidget::NativePaint(const FPaintArgs& Args,
+                                        const FGeometry& AllottedGeometry,
+                                        const FSlateRect& MyCullingRect,
+                                        FSlateWindowElementList& OutDrawElements,
+                                        int32 LayerId,
+                                        const FWidgetStyle& InWidgetStyle,
+                                        bool bParentEnabled) const
+{
+    const int32 SuperLayer = Super::NativePaint(Args, AllottedGeometry, MyCullingRect,
+                                                OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
+
+    UBackpackGridComponent* Backpack = CachedBackpackRef.Get();
+    if (!Backpack || !BackpackGrid) return SuperLayer;
+
+    if (CachedSlots.IsEmpty()) return SuperLayer;
+
+    static const FLinearColor YellowBorder(1.00f, 0.82f, 0.10f, 1.0f);
+    static const FLinearColor GrayBorder  (0.40f, 0.40f, 0.42f, 0.7f);
+
+    const int32 BorderLayer = SuperLayer + 1;
+
+    for (const FPlacedRune& PR : Backpack->GetAllPlacedRunes())
+    {
+        // 计算旋转后的包围盒
+        FRuneShape RotShape = PR.Rune.Shape;
+        const int32 RotCount = PR.Rune.Rotation % 4;
+        for (int32 r = 0; r < RotCount; r++) RotShape = RotShape.Rotate90();
+        if (RotShape.Cells.IsEmpty()) continue;
+
+        int32 MinCol = INT32_MAX, MinRow = INT32_MAX;
+        int32 MaxCol = INT32_MIN, MaxRow = INT32_MIN;
+        for (const FIntPoint& Offset : RotShape.Cells)
+        {
+            const FIntPoint AbsCell = PR.Pivot + Offset;
+            MinCol = FMath::Min(MinCol, AbsCell.X);
+            MaxCol = FMath::Max(MaxCol, AbsCell.X);
+            MinRow = FMath::Min(MinRow, AbsCell.Y);
+            MaxRow = FMath::Max(MaxRow, AbsCell.Y);
+        }
+
+        // 直接从边角 slot 的 CachedGeometry 读取屏幕位置，无需手动计算偏移
+        const int32 TLIdx = MinRow * CachedGridW + MinCol;
+        const int32 BRIdx = MaxRow * CachedGridW + MaxCol;
+        if (!CachedSlots.IsValidIndex(TLIdx) || !CachedSlots[TLIdx]) continue;
+        if (!CachedSlots.IsValidIndex(BRIdx) || !CachedSlots[BRIdx]) continue;
+
+        const FGeometry& TLGeo = CachedSlots[TLIdx]->GetCachedGeometry();
+        const FGeometry& BRGeo = CachedSlots[BRIdx]->GetCachedGeometry();
+
+        const FVector2D TLLocal = AllottedGeometry.AbsoluteToLocal(TLGeo.LocalToAbsolute(FVector2D::ZeroVector));
+        const FVector2D BRLocal = AllottedGeometry.AbsoluteToLocal(BRGeo.LocalToAbsolute(BRGeo.GetLocalSize()));
+
+        const float W = BRLocal.X - TLLocal.X;
+        const float H = BRLocal.Y - TLLocal.Y;
+
+        static const FLinearColor GreenBorder(0.20f, 0.90f, 0.30f, 0.85f);
+        const bool bIsSelected = (PR.Rune.RuneGuid == CachedSelectedGuid);
+        const bool bIsHover    = !bIsSelected && (PR.Rune.RuneGuid == CachedHoverGuid);
+        const FLinearColor BorderColor = bIsSelected ? YellowBorder
+                                       : bIsHover    ? GreenBorder
+                                       :               GrayBorder;
+        const float BorderWidth = bIsSelected ? 2.5f : (bIsHover ? 2.0f : 1.5f);
+
+        TArray<FVector2D> Points;
+        Points.Reserve(5);
+        Points.Add(TLLocal);
+        Points.Add(TLLocal + FVector2D(W, 0.f));
+        Points.Add(TLLocal + FVector2D(W, H));
+        Points.Add(TLLocal + FVector2D(0.f, H));
+        Points.Add(TLLocal);
+
+        FSlateDrawElement::MakeLines(
+            OutDrawElements,
+            BorderLayer,
+            AllottedGeometry.ToPaintGeometry(),
+            Points,
+            ESlateDrawEffect::None,
+            BorderColor,
+            true,
+            BorderWidth);
+    }
+
+    return BorderLayer;
 }
 
 // ============================================================

@@ -26,7 +26,8 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
                                    bool bHovered,
                                    bool bGrabbing,
                                    const UBackpackStyleDataAsset* Style,
-                                   float ZoneOpacity)
+                                   float ZoneOpacity,
+                                   bool bGlowZone)
 {
     // ── 确定背景颜色和纹理 ────────────────────────────────────────────────
     FLinearColor BGColor;
@@ -90,16 +91,24 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
         CellBG->SetColorAndOpacity(BGColor);
     }
 
-    // ── 激活区特效层：仅在激活区格子上显示 ──────────────────────────────
+    // ── 激活区特效层 ─────────────────────────────────────────────────────
     if (ActiveZoneOverlay)
     {
-        // ActiveZoneOverlay 只用于有符文占用的激活格（动效边框）
-        // 热度区空格子改用 CellBG 颜色 tint，不叠加此层
-        const bool bInActiveZone = (State == EBackpackCellState::OccupiedActive);
-        if (bInActiveZone)
+        const bool bFullGlow = (State == EBackpackCellState::OccupiedActive);
+        const bool bDimGlow  = bGlowZone &&
+                               (State == EBackpackCellState::EmptyActive ||
+                                State == EBackpackCellState::EmptyZone1  ||
+                                State == EBackpackCellState::EmptyZone2);
+        if (bFullGlow)
         {
-            const float Opacity = Style ? Style->ActiveZoneOverlayOpacity : 0.6f;
-            ActiveZoneOverlay->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, Opacity));
+            const float Op = Style ? Style->ActiveZoneOverlayOpacity : 0.6f;
+            ActiveZoneOverlay->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, Op));
+            ActiveZoneOverlay->SetVisibility(ESlateVisibility::HitTestInvisible);
+        }
+        else if (bDimGlow)
+        {
+            const float Op = Style ? Style->ZoneGlowOpacity : 0.20f;
+            ActiveZoneOverlay->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, Op));
             ActiveZoneOverlay->SetVisibility(ESlateVisibility::HitTestInvisible);
         }
         else

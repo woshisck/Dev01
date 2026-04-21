@@ -408,4 +408,14 @@ protected:
 
 	// 本关已分配给各拾取物的符文集合（防止同关多个拾取物提供重复选项）
 	TSet<URuneDataAsset*> LootAssignedThisLevel;
+
+	/**
+	 * 寻找 Loot 最佳落点（玩家前方优先）：
+	 * 从 8 个方向候选中选取同时满足以下条件的第一个：
+	 *   1. 玩家→候选点之间无碰撞（不在角落/墙后）
+	 *   2. 相机→候选点之间无遮挡（相机可见）
+	 *   3. 候选点在屏幕范围内（含 5% 边缘余量）
+	 * 全部失败时退回玩家原位。
+	 */
+	FVector FindLootSpawnLocation(APawn* PlayerPawn, APlayerController* PC) const;
 };

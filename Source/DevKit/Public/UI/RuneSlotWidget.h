@@ -68,7 +68,8 @@ public:
                       bool bHovered,
                       bool bGrabbing,
                       const UBackpackStyleDataAsset* Style,
-                      float ZoneOpacity = 1.f);
+                      float ZoneOpacity = 1.f,
+                      bool bGlowZone = false);
 
     /**
      * 设置符文图标。Tex=null 时隐藏图标。

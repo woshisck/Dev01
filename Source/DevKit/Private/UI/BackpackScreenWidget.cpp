@@ -615,6 +615,19 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         *InMouseEvent.GetEffectingButton().ToString(),
         InMouseEvent.GetScreenSpacePosition().X, InMouseEvent.GetScreenSpacePosition().Y);
 
+    // 右键 → 取消抓取
+    if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+    {
+        if (bGrabbingRune || bGrabbingFromPending)
+        {
+            bLongPressActive  = false;
+            LongPressHoldTime = 0.f;
+            GamepadCancel();
+            return FReply::Handled();
+        }
+        return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+    }
+
     if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
         return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 
@@ -637,7 +650,6 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
 
             if (bHasRune)
             {
-                // 选中该格（显示选中边框）
                 PendingSelectedIdx = PendingIdx;
                 SelectedCell       = FIntPoint(-1, -1);
                 SelectedRuneIndex  = -1;
@@ -656,7 +668,6 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
                 && PendingGrid.IsValidIndex(PendingSelectedIdx)
                 && PendingGrid[PendingSelectedIdx].RuneGuid.IsValid())
             {
-                // 点击空格 + 已有选中符文 → 移动到该格
                 PendingGrid[PendingIdx]          = PendingGrid[PendingSelectedIdx];
                 PendingGrid[PendingSelectedIdx]  = FRuneInstance();
                 SyncPendingToPlayer();
@@ -678,28 +689,129 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
     if (!GetGridCellAtScreenPos(InMouseEvent.GetScreenSpacePosition(), Col, Row))
         return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 
+    const FIntPoint ClickCell(Col, Row);
+
+    // ── 已抓取状态下点击另一格：移动或互换 ──────────────────────────────────
+    if (bGrabbingRune && ClickCell != GrabbedFromCell)
+    {
+        bLongPressActive  = false;
+        LongPressHoldTime = 0.f;
+
+        if (IsInCombatPhase())
+        {
+            if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(GrabbedFromCell.X, GrabbedFromCell.Y);
+            OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
+            return FReply::Handled();
+        }
+
+        UBackpackGridComponent* Backpack = GetBackpack();
+        if (!Backpack) return FReply::Handled();
+
+        const TArray<FPlacedRune>& Placed = Backpack->GetAllPlacedRunes();
+        const int32 SrcIdx = Backpack->GetRuneIndexAtCell(GrabbedFromCell);
+        if (SrcIdx < 0)
+        {
+            bGrabbingRune   = false;
+            GrabbedFromCell = FIntPoint(-1,-1);
+            SelectedCell    = FIntPoint(-1,-1);
+            OnSelectionChanged();
+            return FReply::Handled();
+        }
+
+        const FRuneInstance RuneA  = Placed[SrcIdx].Rune;
+        const FIntPoint     PivotA = Placed[SrcIdx].Pivot;
+        const int32 DstIdx = Backpack->GetRuneIndexAtCell(ClickCell);
+
+        if (DstIdx >= 0)
+        {
+            // 互换 → 自动抓取被替换的符文
+            const FRuneInstance RuneB  = Placed[DstIdx].Rune;
+            const FIntPoint     PivotB = Placed[DstIdx].Pivot;
+
+            Backpack->RemoveRune(RuneA.RuneGuid);
+            Backpack->RemoveRune(RuneB.RuneGuid);
+            Backpack->TryPlaceRune(RuneA, PivotB);
+            Backpack->TryPlaceRune(RuneB, PivotA);
+
+            GrabbedFromCell = PivotA;   // RuneB 现在在 PivotA，自动抓取
+            SelectedCell    = PivotA;
+            // bGrabbingRune 保持 true
+            OnSelectionChanged();
+            OnStatusMessage(FText::Format(
+                NSLOCTEXT("Backpack", "SwapOK", "已互换：{0} ↔ {1}"),
+                FText::FromName(RuneA.RuneConfig.RuneName),
+                FText::FromName(RuneB.RuneConfig.RuneName)));
+        }
+        else
+        {
+            // 移动到空格 → 结束抓取
+            const FIntPoint Offset   = GrabbedFromCell - PivotA;
+            const FIntPoint NewPivot = ClickCell - Offset;
+
+            if (Backpack->MoveRune(RuneA.RuneGuid, NewPivot))
+            {
+                bGrabbingRune   = false;
+                GrabbedFromCell = FIntPoint(-1,-1);
+                SelectedCell    = FIntPoint(-1,-1);
+                OnSelectionChanged();
+                OnStatusMessage(FText::Format(
+                    NSLOCTEXT("Backpack", "MoveOK", "已移动：{0}"),
+                    FText::FromName(RuneA.RuneConfig.RuneName)));
+            }
+            else
+            {
+                if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
+                OnStatusMessage(NSLOCTEXT("Backpack", "MoveFail", "无法放置：目标位置被占用"));
+            }
+        }
+        return FReply::Handled();
+    }
+
+    // ── 点击已抓取符文自身 → 取消抓取 ───────────────────────────────────────
+    if (bGrabbingRune && ClickCell == GrabbedFromCell)
+    {
+        bGrabbingRune     = false;
+        GrabbedFromCell   = FIntPoint(-1,-1);
+        bLongPressActive  = false;
+        LongPressHoldTime = 0.f;
+        SelectedCell      = FIntPoint(-1,-1);
+        OnSelectionChanged();
+        return FReply::Handled();
+    }
+
+    // ── 非抓取：点击占用格 → 进入抓取/悬浮 ─────────────────────────────────
     if (IsCellOccupied(Col, Row))
     {
-        SelectedCell      = FIntPoint(Col, Row);
+        SelectedCell      = ClickCell;
         SelectedRuneIndex = -1;
-        GamepadCursorCell = FIntPoint(Col, Row);
+        GamepadCursorCell = ClickCell;
+        bGrabbingRune     = true;
+        GrabbedFromCell   = ClickCell;
+        HoverCol = HoverRow = -1;
+        bLongPressActive  = true;
+        LongPressHoldTime = 0.f;
+        LongPressCell     = ClickCell;
         OnSelectionChanged();
 
         if (IsInCombatPhase())
         {
+            bGrabbingRune    = false;
+            GrabbedFromCell  = FIntPoint(-1,-1);
+            bLongPressActive = false;
+            if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
             OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
             return FReply::Handled();
         }
 
         PendingDragCol = Col;
         PendingDragRow = Row;
-
         return FReply::Handled().DetectDrag(TakeWidget(), EKeys::LeftMouseButton);
     }
     else
     {
-        PendingDragCol = -1;
-        PendingDragRow = -1;
+        bLongPressActive  = false;
+        LongPressHoldTime = 0.f;
+        PendingDragCol    = PendingDragRow = -1;
         if (SelectedCell != FIntPoint(-1, -1) || SelectedRuneIndex >= 0)
         {
             SelectedCell      = FIntPoint(-1, -1);
@@ -712,6 +824,12 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
 
 void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
+    // 拖拽接管：清除点击抓取状态和长按计时
+    bGrabbingRune     = false;
+    GrabbedFromCell   = FIntPoint(-1,-1);
+    bLongPressActive  = false;
+    LongPressHoldTime = 0.f;
+
     if (PendingDragIndex >= 0)
     {
         const bool bValid = PendingGrid.IsValidIndex(PendingDragIndex)
@@ -990,7 +1108,10 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
 
             if (bPlaceA && bPlaceB)
             {
-                SelectedCell = FIntPoint(-1, -1);
+                // 互换成功 → 自动抓取被替换的符文（RuneB 现在在 PivotA）
+                bGrabbingRune   = true;
+                GrabbedFromCell = PivotA;
+                SelectedCell    = PivotA;
                 OnSelectionChanged();
                 OnStatusMessage(FText::Format(
                     NSLOCTEXT("Backpack", "SwapOK", "已互换：{0} ↔ {1}"),
@@ -1034,6 +1155,25 @@ FReply UBackpackScreenWidget::NativeOnMouseMove(const FGeometry& InGeometry, con
             BackpackGridWidget->RefreshHeatPhaseButtons(PreviewPhase, false);
     }
     LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
+
+    // 无抓取/拖拽时追踪主格子悬浮格，驱动绿框高亮
+    if (!bGrabbingRune && !bMouseDragging)
+    {
+        int32 NewHCol = -1, NewHRow = -1;
+        int32 Col, Row;
+        if (GetGridCellAtScreenPos(InMouseEvent.GetScreenSpacePosition(), Col, Row))
+        {
+            NewHCol = Col;
+            NewHRow = Row;
+        }
+        if (HoverCol != NewHCol || HoverRow != NewHRow)
+        {
+            HoverCol = NewHCol;
+            HoverRow = NewHRow;
+            OnGridNeedsRefresh();
+        }
+    }
+
     return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
 
@@ -1136,6 +1276,30 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
         else
         {
             GrabbedRuneIcon->SetVisibility(ESlateVisibility::Collapsed);
+        }
+    }
+
+    // ── 长按计时（3s → 符文退回待放置区） ───────────────────────────────────
+    if (bLongPressActive)
+    {
+        bool bMouseHeld = false;
+        if (APlayerController* PC = GetOwningPlayer())
+            bMouseHeld = PC->IsInputKeyDown(EKeys::LeftMouseButton);
+
+        if (!bMouseHeld || bMouseDragging)
+        {
+            bLongPressActive  = false;
+            LongPressHoldTime = 0.f;
+        }
+        else
+        {
+            LongPressHoldTime += InDeltaTime;
+            if (LongPressHoldTime >= LongPressDuration && !IsInCombatPhase())
+            {
+                bLongPressActive  = false;
+                LongPressHoldTime = 0.f;
+                SendGrabbedRuneToPending();
+            }
         }
     }
 
@@ -1270,6 +1434,24 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         }
     }
 
+    // ── 符文旋转 ────────────────────────────────────────────────────────
+    if (Key == EKeys::R)
+    {
+        if (bCursorInPendingArea || PendingSelectedIdx >= 0)
+            RotatePendingRune();
+        else
+            RotateSelectedRune();
+        return FReply::Handled();
+    }
+    if (Key == EKeys::Gamepad_FaceButton_Left) // X 键
+    {
+        if (bCursorInPendingArea)
+            RotatePendingRune();
+        else
+            RotateSelectedRune();
+        return FReply::Handled();
+    }
+
     return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
@@ -1303,8 +1485,10 @@ void UBackpackScreenWidget::MoveGamepadCursor(int32 DCol, int32 DRow)
 
     if (!bGrabbingRune)
     {
-        SelectedCell = GamepadCursorCell;
-        OnSelectionChanged();
+        // 仅悬浮高亮（绿框），不触发选中/信息卡
+        HoverCol = GamepadCursorCell.X;
+        HoverRow = GamepadCursorCell.Y;
+        OnGridNeedsRefresh();
     }
     else
     {
@@ -1359,6 +1543,7 @@ void UBackpackScreenWidget::GamepadConfirm()
         {
             if (IsInCombatPhase())
             {
+                if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(GamepadCursorCell.X, GamepadCursorCell.Y);
                 OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
                 return;
             }
@@ -1366,6 +1551,7 @@ void UBackpackScreenWidget::GamepadConfirm()
             bGrabbingRune    = true;
             GrabbedFromCell  = GamepadCursorCell;
             SelectedCell     = GamepadCursorCell;
+            HoverCol = HoverRow = -1;
             OnSelectionChanged();
             OnStatusMessage(NSLOCTEXT("Backpack", "GrabOK", "已抓取符文，移动光标后按 A 放置"));
         }
@@ -1393,47 +1579,54 @@ void UBackpackScreenWidget::GamepadConfirm()
             return;
         }
 
-        FRuneInstance RuneA = Placed[SrcIdx].Rune;
+        const FRuneInstance RuneA  = Placed[SrcIdx].Rune;
+        const FIntPoint     PivotA = Placed[SrcIdx].Pivot;
 
         if (DstIdx >= 0)
         {
-            FRuneInstance RuneB  = Placed[DstIdx].Rune;
-            FIntPoint     PivotA = Placed[SrcIdx].Pivot;
-            FIntPoint     PivotB = Placed[DstIdx].Pivot;
+            // 互换 → 自动抓取被替换符文（RuneB 现在在 PivotA）
+            const FRuneInstance RuneB  = Placed[DstIdx].Rune;
+            const FIntPoint     PivotB = Placed[DstIdx].Pivot;
 
             Backpack->RemoveRune(RuneA.RuneGuid);
             Backpack->RemoveRune(RuneB.RuneGuid);
             Backpack->TryPlaceRune(RuneA, PivotB);
             Backpack->TryPlaceRune(RuneB, PivotA);
 
+            GrabbedFromCell   = PivotA;
+            SelectedCell      = PivotA;
+            GamepadCursorCell = PivotA;
+            // bGrabbingRune 保持 true
+            OnSelectionChanged();
             OnStatusMessage(FText::Format(
                 NSLOCTEXT("Backpack", "SwapOK", "已互换：{0} ↔ {1}"),
                 FText::FromName(RuneA.RuneConfig.RuneName),
                 FText::FromName(RuneB.RuneConfig.RuneName)));
+            OnGridNeedsRefresh();
         }
         else
         {
-            FIntPoint SrcPivot = Placed[SrcIdx].Pivot;
-            FIntPoint Offset   = GrabbedFromCell - SrcPivot;
-            FIntPoint NewPivot = GamepadCursorCell - Offset;
+            // 移动到空格 → 放置成功后结束抓取
+            const FIntPoint Offset   = GrabbedFromCell - PivotA;
+            const FIntPoint NewPivot = GamepadCursorCell - Offset;
 
-            const bool bMoved = Backpack->MoveRune(RuneA.RuneGuid, NewPivot);
-            if (bMoved)
+            if (Backpack->MoveRune(RuneA.RuneGuid, NewPivot))
             {
+                bGrabbingRune   = false;
+                GrabbedFromCell = FIntPoint(-1,-1);
+                SelectedCell    = FIntPoint(-1,-1);
+                OnSelectionChanged();
                 OnStatusMessage(FText::Format(
                     NSLOCTEXT("Backpack", "MoveOK", "已移动：{0}"),
                     FText::FromName(RuneA.RuneConfig.RuneName)));
             }
             else
             {
+                if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(GamepadCursorCell.X, GamepadCursorCell.Y);
                 OnStatusMessage(NSLOCTEXT("Backpack", "MoveFail", "无法放置：目标位置被占用"));
+                OnGridNeedsRefresh();
             }
         }
-
-        bGrabbingRune   = false;
-        GrabbedFromCell = FIntPoint(-1, -1);
-        SelectedCell    = GamepadCursorCell;
-        OnGridNeedsRefresh();
     }
 }
 
@@ -1593,6 +1786,97 @@ void UBackpackScreenWidget::PendingGamepadCancel()
     SelectedCell = GamepadCursorCell;
     OnSelectionChanged();
     RefreshPendingGrid();
+}
+
+// ============================================================
+//  符文旋转
+// ============================================================
+
+void UBackpackScreenWidget::RotateSelectedRune()
+{
+    UBackpackGridComponent* Backpack = GetBackpack();
+    if (!Backpack) return;
+
+    const FIntPoint TargetCell = bGrabbingRune ? GrabbedFromCell : SelectedCell;
+    if (TargetCell == FIntPoint(-1, -1)) return;
+
+    const int32 Idx = Backpack->GetRuneIndexAtCell(TargetCell);
+    const TArray<FPlacedRune>& AllPlaced = Backpack->GetAllPlacedRunes();
+    if (!AllPlaced.IsValidIndex(Idx)) return;
+
+    const FPlacedRune PR = AllPlaced[Idx];
+    FRuneInstance NewRune = PR.Rune;
+    NewRune.Rotation = (NewRune.Rotation + 1) % 4;
+
+    // 以符文 (0,0) 格为旋转中心：计算旋转后使 icon 格保持原位置的新 Pivot
+    const FIntPoint IconAbsCell = PR.Pivot + PR.Rune.Shape.GetPivotOffset(PR.Rune.Rotation);
+    const FIntPoint NewPivot    = IconAbsCell - NewRune.Shape.GetPivotOffset(NewRune.Rotation);
+
+    Backpack->RemoveRune(PR.Rune.RuneGuid);
+    bool bSuccess = Backpack->TryPlaceRune(NewRune, NewPivot);
+    if (!bSuccess)
+        bSuccess = Backpack->TryPlaceRune(NewRune, PR.Pivot);  // 退而求其次：原 Pivot
+    if (!bSuccess)
+        Backpack->TryPlaceRune(PR.Rune, PR.Pivot);              // 还原
+
+    // icon 格保持在 IconAbsCell，将选中/抓取指针更新到该格
+    if (bSuccess)
+    {
+        SelectedCell = IconAbsCell;
+        if (bGrabbingRune) GrabbedFromCell = IconAbsCell;
+        OnSelectionChanged();
+    }
+    OnGridNeedsRefresh();
+}
+
+void UBackpackScreenWidget::RotatePendingRune()
+{
+    const int32 Idx = bCursorInPendingArea ? PendingCursorIdx : PendingSelectedIdx;
+    if (!PendingGrid.IsValidIndex(Idx)) return;
+    if (PendingGrid[Idx].RuneGuid == FGuid()) return; // 空格
+
+    PendingGrid[Idx].Rotation = (PendingGrid[Idx].Rotation + 1) % 4;
+    SyncPendingToPlayer();
+    RefreshPendingGrid();
+}
+
+void UBackpackScreenWidget::SendGrabbedRuneToPending()
+{
+    UBackpackGridComponent* Backpack = GetBackpack();
+    if (!Backpack) return;
+
+    const FIntPoint TargetCell = bGrabbingRune ? GrabbedFromCell : LongPressCell;
+    const int32 Idx = Backpack->GetRuneIndexAtCell(TargetCell);
+    if (Idx < 0) return;
+
+    const TArray<FPlacedRune>& Placed = Backpack->GetAllPlacedRunes();
+    if (!Placed.IsValidIndex(Idx)) return;
+    const FPlacedRune PR = Placed[Idx];
+
+    // 找第一个空格
+    int32 TargetSlot = -1;
+    for (int32 i = 0; i < PendingGrid.Num(); i++)
+        if (!PendingGrid[i].RuneGuid.IsValid()) { TargetSlot = i; break; }
+
+    if (TargetSlot < 0)
+    {
+        OnStatusMessage(NSLOCTEXT("Backpack", "PendingFull", "待放置区已满"));
+        return;
+    }
+
+    Backpack->RemoveRune(PR.Rune.RuneGuid);
+    PendingGrid[TargetSlot] = PR.Rune;
+    SyncPendingToPlayer();
+
+    bGrabbingRune      = false;
+    GrabbedFromCell    = FIntPoint(-1,-1);
+    SelectedCell       = FIntPoint(-1,-1);
+    PendingSelectedIdx = TargetSlot;
+    RefreshPendingGrid();
+    OnSelectionChanged();
+    OnStatusMessage(FText::Format(
+        NSLOCTEXT("Backpack", "UnplaceOK", "已取回：{0}"),
+        FText::FromName(PR.Rune.RuneConfig.RuneName)));
 }
 
 void UBackpackScreenWidget::UpdateTooltipForCell(int32 Col, int32 Row, const FVector2D& LocalPos)

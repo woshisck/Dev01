@@ -19,6 +19,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHeatPhaseButtonClicked, int32, Ph
  * 主格子子 Widget（WBP_BackpackGrid）。
  * 负责格子布局创建（BuildGrid）和视觉刷新（RefreshCells）。
  * 每格实例化一个 WBP_RuneSlot（URuneSlotWidget），由其负责格子动效。
+ * 符文包围框通过 NativePaint 直接绘制，不需要额外的 CanvasPanel 覆盖层。
  *
  * Designer 里放一个 UniformGridPanel，命名 "BackpackGrid"。
  */
@@ -100,11 +101,25 @@ public:
 
 protected:
     virtual void NativeConstruct() override;
+    virtual int32 NativePaint(const FPaintArgs& Args,
+                              const FGeometry& AllottedGeometry,
+                              const FSlateRect& MyCullingRect,
+                              FSlateWindowElementList& OutDrawElements,
+                              int32 LayerId,
+                              const FWidgetStyle& InWidgetStyle,
+                              bool bParentEnabled) const override;
 
 private:
     /** 每格对应的 RuneSlotWidget 实例（Row*GridW + Col 索引） */
     UPROPERTY()
     TArray<TObjectPtr<URuneSlotWidget>> CachedSlots;
+
+    /** NativePaint 绘制所需缓存数据（RefreshCells 更新） */
+    TWeakObjectPtr<UBackpackGridComponent> CachedBackpackRef;
+    FGuid  CachedSelectedGuid;
+    FGuid  CachedHoverGuid;
+    bool   CachedBGrabbing    = false;
+    FIntPoint CachedGrabbedFromCell = FIntPoint(-1, -1);
 
     UFUNCTION() void OnHeatPhaseDot0Clicked();
     UFUNCTION() void OnHeatPhaseDot1Clicked();

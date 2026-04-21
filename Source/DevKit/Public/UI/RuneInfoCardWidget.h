@@ -72,7 +72,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RuneInfoCard")
     void HideCard();
 
+protected:
+    virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
 private:
     /** 根据 FRuneShape 重建 ShapeGrid 子节点（点阵） */
     void BuildShapeGrid(const FRuneShape& Shape);
+
+    float FadeAlpha = 1.f;
+    bool  bFading   = false;
+    static constexpr float FadeDuration = 0.15f;
 };

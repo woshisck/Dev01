@@ -15,6 +15,9 @@ class UWeaponDefinition;
 class UBackpackScreenWidget;
 class UWeaponTrailWidget;
 class UWeaponThumbnailFlyWidget;
+class ULevelEndEffectDA;
+class ULevelEndRevealWidget;
+class UMaterialInstanceDynamic;
 
 UCLASS()
 class DEVKIT_API AYogHUD : public AHUD
@@ -54,6 +57,25 @@ public:
 
 	void BeginPauseEffect();
 	void EndPauseEffect();
+
+	// ─────────────────────────────────────────
+	//  关卡结束视觉特效
+	// ─────────────────────────────────────────
+
+	// 特效参数 DA（在 BP_YogHUD Details 面板赋值 DA_LevelEndEffect）
+	UPROPERTY(EditDefaultsOnly, Category = "LevelEndEffect")
+	TObjectPtr<ULevelEndEffectDA> LevelEndEffectDA;
+
+	// 圆形揭幕 Widget 类（WBP 中一个全屏 Image 命名 RevealImage）
+	UPROPERTY(EditDefaultsOnly, Category = "LevelEndEffect")
+	TSubclassOf<ULevelEndRevealWidget> LevelEndRevealWidgetClass;
+
+	/**
+	 * 触发关卡结束特效（由 YogGameMode::EnterArrangementPhase 调用）。
+	 * @param LootWorldPos  loot 拾取物的世界坐标，用于圆形揭幕中心
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LevelEndEffect")
+	void TriggerLevelEndEffect(FVector LootWorldPos);
 
 	// ─────────────────────────────────────────
 	//  背包
@@ -116,6 +138,20 @@ private:
 
 	int32 PausePopupCount  = 0;
 	float PauseEffectAlpha = 0.f;
+
+	bool    bLevelEndEffectActive     = false;
+	bool    bSlowMoPhaseEnded         = false;
+	float   LevelEndEffectStartRealTime = 0.f;
+	FVector CachedLootWorldPos        = FVector::ZeroVector;
+
+	UPROPERTY()
+	TObjectPtr<ULevelEndRevealWidget> ActiveRevealWidget;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> RevealDynMat;
+
+	void TickLevelEndEffect();
+	void StartRevealAnimation();
 
 	UPROPERTY()
 	TObjectPtr<UBackpackScreenWidget> BackpackWidget;

@@ -1,6 +1,6 @@
 # TASKS — 星骸降临 Dev01
 
-> **唯一任务源**。更新时间：2026-04-21  
+> **唯一任务源**。更新时间：2026-04-22  
 > P0 = 测试前必须 | P1 = 体验完善 | P2 = 后续迭代  
 > 执行方：`Claude` = C++/蓝图逻辑代码 | `用户` = 编辑器内配置/DA填写/蒙太奇操作
 
@@ -10,13 +10,14 @@
 
 | ID | 任务 | 执行方 | 参考文档 | 依赖 |
 |---|---|---|---|---|
-| MUSKET-001 | 火绳枪 BP GAs：Light / Heavy / Sprint Attack | 用户 | [Musket_System_Guide](../Design/Weapon/Musket_System_Guide.md) | C++ GA 框架已完成 |
-| MUSKET-002 | 火绳枪 BP GAs：Reload_Single / Reload_All / Sprint_Reload | 用户 | [Musket_System_Guide](../Design/Weapon/Musket_System_Guide.md) | C++ GA 框架已完成 |
-| MUSKET-003 | GE 伤害 + 弹药 Attribute 初始值 | 用户 | [Musket_System_Guide](../Design/Weapon/Musket_System_Guide.md) | - |
+| MUSKET-001 | 火绳枪 BP GAs：Light / Heavy / Sprint Attack | 用户 | [Musket_System_Guide](../Systems/Weapon/Musket_System_Guide.md) | C++ GA 框架已完成 |
+| MUSKET-002 | 火绳枪 BP GAs：Reload_Single / Reload_All / Sprint_Reload | 用户 | [Musket_System_Guide](../Systems/Weapon/Musket_System_Guide.md) | C++ GA 框架已完成 |
+| MUSKET-003 | GE 伤害 + 弹药 Attribute 初始值 | 用户 | [Musket_System_Guide](../Systems/Weapon/Musket_System_Guide.md) | - |
 | MUSKET-004 | WBP_AmmoCounter 蓝图配置（Parent = AmmoCounter C++ 类） | 用户 | [AmmoCounter.h](../../Source/DevKit/Public/UI/AmmoCounter.h) | - |
-| VFX-004 | 所有**敌人**攻击蒙太奇：前摇帧拖入 `ANS Pre Attack Flash` | 用户 | [CharacterFlash_Technical](../Design/VFX/CharacterFlash_Technical.md) | ANS 类已完成 |
+| LEVEL-END-CONFIG | 创建 WBP_LevelEndReveal（全屏 Image 命名 RevealImage）+ DA_LevelEndEffect + 配置 BP_YogHUD | 用户 | [FeatureLog FEAT-023](../FeatureLog.md) | C++ 已完成 |
+| VFX-004 | 所有**敌人**攻击蒙太奇：前摇帧拖入 `ANS Pre Attack Flash` | 用户 | [CharacterFlash_Technical](../Systems/VFX/CharacterFlash_Technical.md) | ANS 类已完成 |
 | VFX-005 | 玩家攻击蒙太奇命中帧：添加 `AN Hit Stop` + 配置参数 | 用户 | 轻攻 F=50ms；重攻 F=80ms/S=120ms@25% | AN 类已完成 |
-| RUNE-P0-1 | 1017 符文 FA 制作（高感知测试符文） | 用户 | [TestRune_HighPerception_Guide](../Design/FeatureConfig/TestRune_HighPerception_Guide.md) | - |
+| RUNE-P0-1 | 1017 符文 FA 制作（高感知测试符文） | 用户 | [TestRune_HighPerception_Guide](../Systems/Rune/TestRune_HighPerception_Guide.md) | - |
 | RUNE-P0-2 | 1018 符文 FA 制作 | 用户 | 同上 | - |
 | RUNE-P0-3 | 1019 符文 FA 制作 | 用户 | 同上 | - |
 | FIX-009 | BP_CelesPointLight → SphereVolume → Collision → DashTrace = Ignore | 用户 | 已用 `Dash.DebugTrace 1` 确认 | - |
@@ -27,8 +28,9 @@
 
 | ID | 任务 | 执行方 | 参考文档 | 依赖 |
 |---|---|---|---|---|
-| VFX-006 | 所有**敌人** BP Details → Combat\|Visual → `CharacterFlashMaterial` 填入 Overlay 材质 | 用户 | [CharacterFlash_Technical](../Design/VFX/CharacterFlash_Technical.md) | - |
-| UI-001 | WBP_WeaponGlassIcon + WeaponGlassAnimDA 编辑器配置 | 用户 | [WeaponPickupAnim_Technical](../Design/UI/WeaponPickupAnim_Technical.md) | - |
+| VFX-006 | 所有**敌人** BP Details → Combat\|Visual → `CharacterFlashMaterial` 填入 Overlay 材质 | 用户 | [CharacterFlash_Technical](../Systems/VFX/CharacterFlash_Technical.md) | - |
+| LEVEL-INTRO-CONFIG | 在关卡中放置 ALevelIntroCameraMarker Actor，从 LevelFlow 或 BeginPlay 调用 TriggerIntro() | 用户 | [FeatureLog FEAT-024](../FeatureLog.md) | C++ 已完成 |
+| UI-001 | WBP_WeaponGlassIcon + WeaponGlassAnimDA 编辑器配置 | 用户 | [WeaponPickupAnim_Technical](../Systems/UI/WeaponPickupAnim_Technical.md) | - |
 | UI-002 | WBP_WeaponTrail 创建 | 用户 | 同上 | - |
 | CONTENT-001 | 献祭恩赐 FA（In → BFNode_SacrificeDecay）+ BP_SacrificePickup | 用户 + Claude | [EditorSetup_ChainAndSacrifice](../TODO/EditorSetup_ChainAndSacrifice.md) | - |
 | FIX-010 | WBP_WeaponFloat 白屏 Bug：将背景移入 InfoContainer | Claude | WeaponPickupAnim_Technical.md | - |
@@ -39,8 +41,8 @@
 
 | ID | 任务 | 执行方 | 备注 |
 |---|---|---|---|
-| RUNE-VFX | 符文表现层：16 个 GameplayCue + Niagara + SFX + 浮字 | 用户 + Claude | [RuneMaster_ProductionGuide](../Design/FeatureConfig/RuneMaster_ProductionGuide.md) |
-| RUNE-FA | 符文逻辑层 FA：1001–1016 | 用户 | [TestRune_CreationGuide](../Design/FeatureConfig/TestRune_CreationGuide.md) |
+| RUNE-VFX | 符文表现层：16 个 GameplayCue + Niagara + SFX + 浮字 | 用户 + Claude | [RuneMaster_ProductionGuide](../Systems/Rune/RuneMaster_ProductionGuide.md) |
+| RUNE-FA | 符文逻辑层 FA：1001–1016 | 用户 | [TestRune_CreationGuide](../Systems/Rune/TestRune_CreationGuide.md) |
 | UI-003 | 多格/异形符文 UI 渲染（Shape.Cells 数据已存） | Claude | BackpackSystem_Technical.md |
 | BAL-001 | 数值平衡调参 | 用户 | 依赖测试反馈 |
 | REMOTE-001 | 第二类远程武器框架 | Claude | 依赖火绳枪系统稳定后 |
@@ -53,6 +55,13 @@
 
 | ID | 功能 | 完成日期 |
 |---|---|---|
+| INPUT-001 | 火绳枪输入系统：Reload 绑定 + 重攻击松键 WaitGameplayEvent 修复 | 2026-04-20 |
+| MAP-002 | 关卡结束圆形揭幕特效 LevelEndRevealWidget + YogHUD 集成 + DA | 2026-04-22 |
+| MAP-003 | 关卡开场镜头标记 LevelIntroCameraMarker | 2026-04-22 |
+| UI-021 | 背包交互重构：单击抓取 / 长按3s退回 / 换格自动拾起 / 悬停绿框 | 2026-04-22 |
+| UI-022 | 符文包围框 NativePaint：替换 CanvasPanel，像素精确对齐，三色分层 | 2026-04-22 |
+| FIX-021 | 背包战斗锁定三处触发点补全红闪+抖动调用 | 2026-04-22 |
+| FEAT-025 | 符文旋转系统（0-3×90°）+ Loot 8方向最佳落点算法 | 2026-04-22 |
 | COMBAT-007b | GA_PlayerDash 冲刺调试 CVar（`Dash.DebugTrace 1`） | 2026-04-19 |
 | COMBAT-007 | GA_PlayerDash 台阶/坡度越障支持 | 2026-04-19 |
 | FIX-008 | ANS_AutoTarget 吸附死亡敌人修复 | 2026-04-19 |
