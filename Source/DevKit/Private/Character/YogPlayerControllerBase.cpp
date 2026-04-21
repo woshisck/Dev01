@@ -23,6 +23,7 @@
 #include "Kismet/KismetMathLibrary.h"
 
 #include "Component/BufferComponent.h"
+#include "AbilitySystemComponent.h"
 
 
 
@@ -172,6 +173,13 @@ void AYogPlayerControllerBase::SetupInputComponent()
 		{
 			const FEnhancedInputActionEventBinding& heavyAttackBinding = EnhancedInputComp->BindAction(Input_HeavyAttack, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::HeavyAtack);
 			HeavyAttackInputHandle = heavyAttackBinding.GetHandle();
+			// Completed fires when the key is released — sends GameplayEvent so WaitGameplayEvent in GA can fire
+			EnhancedInputComp->BindAction(Input_HeavyAttack, ETriggerEvent::Completed, this, &AYogPlayerControllerBase::HeavyAttackReleased);
+		}
+		if (Input_Reload)
+		{
+			const FEnhancedInputActionEventBinding& reloadBinding = EnhancedInputComp->BindAction(Input_Reload, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::MusketReload);
+			ReloadInputHandle = reloadBinding.GetHandle();
 		}
 		if (Input_Dash)
 		{
@@ -274,6 +282,31 @@ void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 	//UE_LOG(LogTemp, Log, TEXT("HeavyAtack"));
 }
 
+
+void AYogPlayerControllerBase::HeavyAttackReleased(const FInputActionValue& Value)
+{
+	if (bBlockGameInput) return;
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		UAbilitySystemComponent* ASC = player->GetASC();
+		if (!ASC) return;
+		FGameplayEventData EventData;
+		ASC->HandleGameplayEvent(
+			FGameplayTag::RequestGameplayTag(FName("GameplayEvent.Musket.HeavyRelease")),
+			&EventData);
+	}
+}
+
+void AYogPlayerControllerBase::MusketReload(const FInputActionValue& Value)
+{
+	if (bBlockGameInput) return;
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Reload")));
+		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+	}
+}
 
 void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 {

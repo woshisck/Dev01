@@ -7,6 +7,7 @@
 UGA_Musket_Reload_Single::UGA_Musket_Reload_Single()
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Reload"));
+    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.Reload"));
 
     // 激活时持有 Reloading 标签（阻断射击 GA 并广播换弹状态）
     ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Musket.Reloading"));

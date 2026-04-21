@@ -11,7 +11,7 @@
 //     return MusketAimArc_GetMask(UV, HalfAngle, Softness);
 //   Output Type: CMOT Float 1
 
-float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
+static float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
 {
     // 1. UV 中心化到 [-0.5, 0.5]
     float2 C = UV - 0.5;
