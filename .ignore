@@ -1,5 +1,5 @@
-/.claude
 /.git
+/.github
 /.vs
 /.vscode
 /CardImg
@@ -9,6 +9,7 @@
 /Intermediate
 /py
 /Saved
+/Shaders
 /ThirdPartySource
 /Tools
 /Plugins/CommonLoadingScreen/Intermediate
