@@ -268,6 +268,7 @@ CheckLevelComplete()
 
 ```
 EnterArrangementPhase()
+  ├─ 设置 CurrentPhase = ELevelPhase::Arrangement  ← 解除背包战斗锁
   ├─ 解锁背包 SetLocked(false)
   ├─ 发放金币 RandRange(ActiveTier.GoldMin, ActiveTier.GoldMax)
   ├─ SpawnActor<ARewardPickup>(LastEnemyKillLocation)
