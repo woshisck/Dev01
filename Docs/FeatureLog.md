@@ -79,7 +79,7 @@
 
 ---
 
-### [FIX-024] 背包战斗锁定改为基于 ELevelPhase — 进入关卡即锁定
+### [FIX-027] 背包战斗锁定改为基于 ELevelPhase — 进入关卡即锁定
 
 **状态**：已修复已编译
 
@@ -141,6 +141,73 @@
 | 核心文件 | `UI/BackpackScreenWidget.cpp` |
 | 根因 | `ShakeAndFlash()` 已在 [FIX-019] 实现，但 `BackpackScreenWidget` 的三处战斗锁定检查点（鼠标点击放下 / 鼠标点击拾起 / 手柄 A 键拾起）均未调用它，导致只弹文字提示无视觉反馈 |
 | 修复 | 三处 `IsInCombatPhase()` 命中后均追加 `BackpackGridWidget->FlashAndShakeCell(Col, Row)` 调用 |
+
+---
+
+### [FIX-024] 跨关热度丢失修复 — FRunState 保存与恢复重构
+
+**状态**：C++ 完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `System/YogGameInstanceBase.h`、`GameModes/YogGameMode.cpp`、`Character/PlayerCharacterBase.cpp` |
+| 根因 | `FRunState` 有 `CurrentPhase` 字段但无热度值字段；恢复时调 `ResetHeatToPhaseFloor()` 总是将热度重置为 0 |
+| 修复 | `FRunState` 新增 `CurrentHeat`（float）字段；两处切关触发点（`ConfirmArrangementAndTransition` / Portal TransitionToLevel）保存当时热度绝对值；恢复时 `SetNumericAttributeBase` + `OnHeatValueChanged` |
+| 两阶溢出处理 | `CurrentHeat > MaxHeat` 时先 `IncrementPhase()` 再 `HeatToSet -= MaxHeat`，实现两阶保留符文的跨阶恢复 |
+| 默认行为 | 无热度携带符文时 `CurrentHeat = 0`，热度清空 |
+
+---
+
+### [FIX-025] 满阶热度溢出修复 — BaseAttributeSet + BFNode 双重拦截
+
+**状态**：C++ 完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `AbilitySystem/Attribute/BaseAttributeSet.cpp`、`BuffFlow/Nodes/BFNode_IncrementPhase.cpp` |
+| 问题 | 热度阶段已为 3（最高）时，热度满溢仍触发升阶逻辑 → `BGC->IncrementPhase()` 无实际效果但 `BFNode_IncrementPhase` Out 引脚仍触发，导致 FA 下游清零节点将热度置 0 |
+| 修复①（AttributeSet）| `PostGameplayEffectExecute`：`BGC->GetCurrentPhase() >= 3` 时改为 `SetHeat(GetMaxHeat())`，不再广播 `OnPhaseUpReady` |
+| 修复②（BFNode）| `BFNode_IncrementPhase::ExecuteInput`：比较 `PhaseBefore` 与调用后实际值，仅阶段真正变化时才触发 Out 引脚 |
+
+---
+
+### [FIX-026] SacrificeGrace 跨关未保存修复
+
+**状态**：C++ 完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `System/YogGameInstanceBase.h`、`GameModes/YogGameMode.cpp`、`Character/PlayerCharacterBase.cpp` |
+| 根因 | `FRunState` 无 `ActiveSacrificeGrace` 字段，切关后献祭恩赐 Buff 丢失 |
+| 修复 | `FRunState` 新增 `TObjectPtr<USacrificeGraceDA> ActiveSacrificeGrace`；切关时两处读 `Player->ActiveSacrificeGrace` 写入；恢复时 `RestoreRunStateFromGI()` 读回 |
+
+---
+
+### [FEAT-026] 热度携带符文 — 余烬（一阶）/ 炽核（两阶）
+
+**状态**：C++ 完成已编译；需在 Editor 创建两个 FA 并赋值 Tag
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Config/DefaultGameplayTags.ini`、`GameModes/YogGameMode.cpp` |
+| 新增 Tag | `Buff.HeatCarry.OnePhase`（余烬）/ `Buff.HeatCarry.TwoPhase`（炽核）|
+| 保存逻辑 | 切关时检查玩家 ASC：炽核 → `CurrentHeat = MaxHeat * 2`；余烬 → `CurrentHeat = MaxHeat`；无符文 → `CurrentHeat = 0` |
+| 恢复逻辑 | `RestoreRunStateFromGI()`：`CurrentHeat > MaxHeat` 时额外执行一次 `IncrementPhase()` 实现跨阶，剩余热度写入当前阶段 |
+| Editor 操作 | 创建 `FA_Rune_余烬`：`Start → BFNode_GrantTag(Buff.HeatCarry.OnePhase)`；`FA_Rune_炽核`：`Start → BFNode_GrantTag(Buff.HeatCarry.TwoPhase)` |
+
+---
+
+### [FEAT-027] 武器初始符文自动放置 — 拾取时注入热度一激活区
+
+**状态**：C++ 完成已编译；需在 `DA_Weapon_*` 的 `InitialRunes` 数组填入起始符文
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Item/Weapon/WeaponSpawner.cpp`（`TryPickupWeapon` 步骤 4b） |
+| 触发时机 | 拾取武器后 `ApplyBackpackConfig` 完成后立即执行 |
+| 放置逻辑 | `GetActivationZoneCellsForPhase(0)` 获取热度一激活区所有格子；对每个 `InitialRunes[i]` 创建 `FRuneInstance` 后逐格 `TryPlaceRune`，成功即 break |
+| 数据来源 | `UWeaponDefinition::InitialRunes`（`TArray<URuneDataAsset*>`），只需在 DA 填值 |
+| 限制 | 激活区格子不足时多余符文静默跳过；切关恢复走 `PlacedRunes` 序列化路径，无需重复放置 |
 
 ---
 

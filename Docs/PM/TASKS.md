@@ -55,6 +55,7 @@
 
 | ID | 功能 | 完成日期 |
 |---|---|---|
+| FIX-027 | 背包战斗锁定改为基于 ELevelPhase：进入关卡即锁定，刷怪前窗口关闭 | 2026-04-22 |
 | FIX-022 | 三选一 Loot UI 以拾取物为主导：多拾取物独立触发、ShowLootUI 单次调用、持久 Widget | 2026-04-22 |
 | FIX-023 | LootSelectionWidget CommonUI 完全隔离：NativeOnFocusLost/NativeOnDeactivated/GetDesiredInputConfig 三处截断 | 2026-04-22 |
 | INPUT-001 | 火绳枪输入系统：Reload 绑定 + 重攻击松键 WaitGameplayEvent 修复 | 2026-04-20 |

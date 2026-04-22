@@ -274,6 +274,8 @@ EnterArrangementPhase()
   ├─ SpawnActor<ARewardPickup>(LastEnemyKillLocation)
   └─ ActivatePortals()
 
+> **背包锁定说明**：`BackpackScreenWidget::IsInCombatPhase()` 检查 `CurrentPhase == ELevelPhase::Combat`（而非 `HasAliveEnemies()`）。默认值即 `Combat`，因此进入关卡时（刷怪前）背包就已锁定；`EnterArrangementPhase()` 将 Phase 改为 `Arrangement` 后解锁。主城 Hub Room 在 `StartLevelSpawning` 直接写 `Arrangement`，背包始终可操作。
+
 ActivatePortals()（普通关卡；传送门目标在 ActiveRoomData.PortalDestinations）
   ├─ 读下一关 FloorConfig → RollRoomTypeForFloor → RequiredRoomType（所有门共享此类型）
   ├─ Fisher-Yates 洗牌 PortalDestinations
