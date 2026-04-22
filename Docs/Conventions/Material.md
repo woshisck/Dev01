@@ -52,6 +52,7 @@
 | `Shaders/GlassBlurMask.ush` | `GlassBlurMaskMain(...)` | 玻璃中心高模糊遮罩 |
 | `Shaders/WeaponTrail.ush` | `WeaponTrailMain(...)` | 武器拾取流光拖尾 |
 | `Shaders/MusketAimArc.ush` | *(内部函数)* | 瞄准弧线 UI 材质 |
+| `Shaders/LiquidHealthBar.ush` | `LiquidHealthBarMain(...)` | 液态血条：横向填充 + 粘稠晃动 + 圆柱体积感 |
 
 ---
 

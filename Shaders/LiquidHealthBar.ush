@@ -1,0 +1,77 @@
+// LiquidHealthBar.ush  v1
+// 液态血条材质主函数：横向管道 + 粘稠液体晃动
+// Custom Node 调用：return LiquidHealthBarMain(UV, FillPct, SloshAmp, SloshPh, ColorDeep, ColorSurface, GlintColor);
+// 返回 float4：rgb = 液体颜色，a = 透明度（接 Opacity）
+//
+// 参数说明：
+//   UV           — TexCoord[0]
+//   FillPct      — ScalarParameter "FillPercent"（0-1）
+//   SloshAmp     — ScalarParameter "SloshAmplitude"（C++ Tick 驱动，静止时 = 0）
+//   SloshPh      — ScalarParameter "SloshPhase"（C++ Tick 驱动相位）
+//   ColorDeep    — VectorParameter "LiquidColorDeep"（管道深处/底部颜色）
+//   ColorSurface — VectorParameter "LiquidColorSurface"（液面附近/顶部颜色）
+//   GlintColor   — VectorParameter "GlintColor"（液面高光线颜色）
+//
+// Custom Node 节点设置：
+//   Include File Path : /Project/LiquidHealthBar.ush
+//   Output Type       : CMOT Float 4
+//   Code              : return LiquidHealthBarMain(UV, FillPct, SloshAmp, SloshPh, ColorDeep, ColorSurface, GlintColor);
+//
+// Material 节点：
+//   float4.rgb → Emissive Color
+//   float4.a   → Opacity
+
+float4 LiquidHealthBarMain(
+    float2 UV,
+    float  FillPct,
+    float  SloshAmp,
+    float  SloshPh,
+    float4 ColorDeep,      // VectorParameter 传入，取 .rgb
+    float4 ColorSurface,
+    float4 GlintColor
+)
+{
+    // ── 1. 管道截面纵向遮罩（模拟圆柱：上下边缘软化）────────────────────
+    //   smoothstep 在 [0, EdgeH] 和 [1-EdgeH, 1] 处衰减，中间区域保持 1
+    float EdgeH   = 0.07;
+    float tubeY   = smoothstep(0.0,         EdgeH,      UV.y)
+                  * smoothstep(1.0, 1.0 - EdgeH,        UV.y);
+
+    // ── 2. 液面位置（晃动波形）──────────────────────────────────────────
+    //   SloshAmp = 0 时波形消失，液面静止
+    //   SpatialFreq：液面沿 Y 方向的空间频率（越大波纹越密）
+    float SpatialFreq = 5.5;
+    float wave    = SloshAmp * sin(SloshPh + UV.y * SpatialFreq);
+    float surfX   = saturate(FillPct + wave);
+
+    // ── 3. 填充遮罩（液体 = 液面左侧）───────────────────────────────────
+    //   EdgeSoft：液面边缘软化宽度（越小越锐利，0.006-0.010 较自然）
+    float EdgeSoft = 0.007;
+    float fill     = 1.0 - smoothstep(surfX - EdgeSoft, surfX + EdgeSoft, UV.x);
+
+    // ── 4. 液体颜色：纵向渐变（底部深色 → 顶部亮色）─────────────────────
+    float3 col = lerp(ColorDeep.rgb, ColorSurface.rgb, UV.y);
+
+    // ── 5. 圆柱体积感（管道中心亮、边缘暗）─────────────────────────────
+    //   pow 控制明暗曲线：值越大，中心亮区越集中
+    col *= (0.45 + 0.55 * pow(tubeY, 0.6));
+
+    // ── 6. 液面高光线（液面处的窄亮线）─────────────────────────────────
+    //   GlintWidth：高光线宽度（UV 空间）
+    //   管道上半部分（UV.y > 0.35）高光更明显，模拟从上方来的光
+    float GlintWidth = 0.018;
+    float glintDist  = abs(UV.x - surfX);
+    float glintMask  = saturate(1.0 - glintDist / GlintWidth);
+    float glintY     = smoothstep(0.2, 0.75, UV.y);   // 上半段增强
+    col += GlintColor.rgb * glintMask * glintY;
+
+    // ── 7. 管道顶部反光条纹（玻璃内壁高光）──────────────────────────────
+    //   只在填充区域内显示；UV.y 高于 0.58 的区域
+    float gleam = smoothstep(0.58, 0.82, UV.y) * fill * 0.14;
+    col += gleam;
+
+    // ── 8. 透明度 = 填充遮罩 × 截面遮罩 ────────────────────────────────
+    float alpha = fill * tubeY;
+
+    return float4(col, alpha);
+}
