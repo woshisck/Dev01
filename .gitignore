@@ -1895,3 +1895,5 @@ Plugins/ElectronicNodes/Binaries/Win64/UnrealEditor-ElectronicNodes.dll
 # 项目自定义 USH 着色器（覆盖上方 /Shaders 忽略规则）
 !/Shaders/*.ush
 !/Shaders/
+/Content/Free_Magic/Demo
+/Content/Free_Magic
