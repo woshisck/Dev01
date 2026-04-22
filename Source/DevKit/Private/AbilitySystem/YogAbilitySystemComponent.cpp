@@ -5,6 +5,7 @@
 #include "AbilitySystem/Abilities/PassiveAbility.h"
 #include "GameplayEffect.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemGlobals.h"
 #include "Character/YogCharacterBase.h"
 #include "AIController.h"
 #include "BrainComponent.h"
@@ -487,6 +488,36 @@ bool UYogAbilitySystemComponent::TryActivateRandomAbilitiesByTag(const FGameplay
 
 	const int32 RandomIndex = FMath::RandRange(0, AbilitiesToActivate.Num() - 1);
 	return TryActivateAbility(AbilitiesToActivate[RandomIndex].Handle, bAllowRemoteActivation);
+}
+
+bool UYogAbilitySystemComponent::DebugHasAbilityClass(AActor* Actor, TSubclassOf<UGameplayAbility> AbilityClass)
+{
+	if (!Actor || !AbilityClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugHasAbilityClass] Actor or AbilityClass is null."));
+		return false;
+	}
+
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor);
+	if (!ASC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugHasAbilityClass] No ASC found on %s."), *GetNameSafe(Actor));
+		return false;
+	}
+
+	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	{
+		if (Spec.Ability && Spec.Ability->GetClass() == AbilityClass)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[DebugHasAbilityClass] %s HAS %s (Handle=%s)"),
+				*GetNameSafe(Actor), *GetNameSafe(AbilityClass), *Spec.Handle.ToString());
+			return true;
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[DebugHasAbilityClass] %s does NOT have %s"),
+		*GetNameSafe(Actor), *GetNameSafe(AbilityClass));
+	return false;
 }
 
 void UYogAbilitySystemComponent::RemoveActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToUnblock)

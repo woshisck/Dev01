@@ -284,6 +284,13 @@ public:
 
 
 
+	/**
+	 * [Debug] 检查某个 Actor 是否已被赋予指定 GA class。
+	 * 静态函数，可在任意类中调用。Actor 无 ASC 或 Class 为空时返回 false。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Abilities|Debug", meta = (DisplayName = "Has Ability Class (Debug)"))
+	static bool DebugHasAbilityClass(AActor* Actor, TSubclassOf<UGameplayAbility> AbilityClass);
+
 	UFUNCTION(BlueprintCallable)
 	void RemoveActivationBlockedTags(const FGameplayTag& Tag, const FGameplayTagContainer& TagsToUnblock);
 
