@@ -310,6 +310,22 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 			WeaponDefinition->BackpackConfig.GridWidth,
 			WeaponDefinition->BackpackConfig.GridHeight,
 			WeaponDefinition->BackpackConfig.ActivationZoneConfig);
+
+		// ── 4b. 放置武器初始符文到热度一激活区 ──────────────────────────
+		if (WeaponDefinition->InitialRunes.Num() > 0)
+		{
+			TArray<FIntPoint> Phase1Cells = BG->GetActivationZoneCellsForPhase(0);
+			for (URuneDataAsset* RuneDA : WeaponDefinition->InitialRunes)
+			{
+				if (!RuneDA) continue;
+				FRuneInstance RuneInst = RuneDA->CreateInstance();
+				for (const FIntPoint& Cell : Phase1Cells)
+				{
+					if (BG->TryPlaceRune(RuneInst, Cell))
+						break;
+				}
+			}
+		}
 	}
 
 	// ── 5. 记录状态 ──────────────────────────────────────────────────

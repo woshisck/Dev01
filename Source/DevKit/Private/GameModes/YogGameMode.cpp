@@ -417,6 +417,8 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 	if (!Player)
 		return;
 
+	bLootOptionsPending = false;
+
 	const FLootOption& Chosen = CurrentLootOptions[LootIndex];
 	if (Chosen.LootType == ELootType::Rune && Chosen.RuneAsset)
 	{
@@ -472,6 +474,17 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 				if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
 				{
 					NewState.CurrentHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
+
+					// 热度切关：默认归零，符文可保留一阶或两阶
+					static const FGameplayTag TagRetainTwo = FGameplayTag::RequestGameplayTag(TEXT("Buff.HeatCarry.TwoPhase"), false);
+					static const FGameplayTag TagRetainOne = FGameplayTag::RequestGameplayTag(TEXT("Buff.HeatCarry.OnePhase"), false);
+					const float MaxHeat = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
+					if (TagRetainTwo.IsValid() && ASC->HasMatchingGameplayTag(TagRetainTwo))
+						NewState.CurrentHeat = MaxHeat * 2.f;
+					else if (TagRetainOne.IsValid() && ASC->HasMatchingGameplayTag(TagRetainOne))
+						NewState.CurrentHeat = MaxHeat;
+					else
+						NewState.CurrentHeat = 0.f;
 				}
 
 				if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
@@ -487,9 +500,11 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 					}
 				}
 
+				NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
+
 				GI->PendingRunState = NewState;
-				UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE — HP=%.1f Gold=%d Phase=%d Runes=%d"),
-					NewState.CurrentHP, NewState.CurrentGold, NewState.CurrentPhase, NewState.PlacedRunes.Num());
+				UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE — HP=%.1f Gold=%d Phase=%d Heat=%.0f Runes=%d"),
+					NewState.CurrentHP, NewState.CurrentGold, NewState.CurrentPhase, NewState.CurrentHeat, NewState.PlacedRunes.Num());
 			}
 		}
 		UGameplayStatics::OpenLevel(GetWorld(), NextLevelName);
@@ -1276,7 +1291,7 @@ TArray<FLootOption> AYogGameMode::GenerateLootBatch(TSet<URuneDataAsset*>& Alrea
 
 	if (!SourcePool)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("GenerateLootBatch: 无可用符文池，请在 GameMode BP 配置 FallbackLootPool"));
+		UE_LOG(LogTemp, Warning, TEXT("[GenerateLootBatch] 无可用符文池，请在 GameMode BP 配置 FallbackLootPool"));
 		return Batch;
 	}
 
@@ -1333,15 +1348,22 @@ TArray<FLootOption> AYogGameMode::GenerateLootBatch(TSet<URuneDataAsset*>& Alrea
 void AYogGameMode::ShowLootOptions(const TArray<FLootOption>& Options)
 {
 	CurrentLootOptions = Options;
-	UE_LOG(LogTemp, Log, TEXT("ShowLootOptions: 展示 %d 个符文选项"), CurrentLootOptions.Num());
+	bLootOptionsPending = true;
 	OnLootGenerated.Broadcast(CurrentLootOptions);
+}
+
+TArray<FLootOption> AYogGameMode::GenerateIndependentLootOptions()
+{
+	TSet<URuneDataAsset*> Local;
+	TArray<FLootOption> Batch = GenerateLootBatch(Local);
+	CurrentLootOptions = Batch;
+	bLootOptionsPending = true;
+	return Batch;
 }
 
 void AYogGameMode::GenerateLootOptions()
 {
-	// 兜底路径：即时生成并广播（单拾取物 / 旧逻辑兼容）
-	TArray<FLootOption> Batch = GenerateLootBatch(LootAssignedThisLevel);
-	ShowLootOptions(Batch);
+	ShowLootOptions(GenerateIndependentLootOptions());
 }
 
 void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
@@ -1377,6 +1399,17 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 			if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
 			{
 				NewState.CurrentHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
+
+				// 热度切关：默认归零，符文可保留一阶或两阶
+				static const FGameplayTag TagRetainTwo = FGameplayTag::RequestGameplayTag(TEXT("Buff.HeatCarry.TwoPhase"), false);
+				static const FGameplayTag TagRetainOne = FGameplayTag::RequestGameplayTag(TEXT("Buff.HeatCarry.OnePhase"), false);
+				const float MaxHeat = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
+				if (TagRetainTwo.IsValid() && ASC->HasMatchingGameplayTag(TagRetainTwo))
+					NewState.CurrentHeat = MaxHeat * 2.f;
+				else if (TagRetainOne.IsValid() && ASC->HasMatchingGameplayTag(TagRetainOne))
+					NewState.CurrentHeat = MaxHeat;
+				else
+					NewState.CurrentHeat = 0.f;
 			}
 
 			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
@@ -1396,6 +1429,9 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 
 			// 保存整理阶段选出但尚未放入格子的符文
 			NewState.PendingRunes = Player->PendingRunes;
+
+			// 保存献祭恩赐
+			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 
 			GI->PendingRunState = NewState;
 			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Gold=%d Phase=%d Runes=%d Weapon=%s Room=%s"),

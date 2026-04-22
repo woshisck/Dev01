@@ -148,22 +148,30 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 
 			if (bCanPhaseUp && bWasAlreadyFull)
 			{
-				// 热度已满 + LastHit → 升阶
+				// 热度已满 + LastHit → 升阶（最高阶段时卡住热度）
 				APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor());
 				if (Player)
 				{
 					UBackpackGridComponent* BGC = Player->GetBackpackGridComponent();
 					if (BGC)
 					{
-						UE_LOG(LogTemp, Warning, TEXT("[Heat] 升阶触发 | Heat=%.0f/%.0f | bWasAlreadyFull=%d | Owner=%s"),
-							CachedPreEffectHeat, GetMaxHeat(), (int32)bWasAlreadyFull, *GetNameSafe(GetOwningActor()));
-						if (GEngine)
-							GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Orange,
-								FString::Printf(TEXT("[热度升阶] 热度满额触发 → Phase+1")));
-						BGC->OnPhaseUpReady.Broadcast();
+						if (BGC->GetCurrentPhase() >= 3)
+						{
+							// 已是最高阶段，热度卡在上限，不触发升阶
+							SetHeat(GetMaxHeat());
+						}
+						else
+						{
+							UE_LOG(LogTemp, Warning, TEXT("[Heat] 升阶触发 | Heat=%.0f/%.0f | bWasAlreadyFull=%d | Owner=%s"),
+								CachedPreEffectHeat, GetMaxHeat(), (int32)bWasAlreadyFull, *GetNameSafe(GetOwningActor()));
+							if (GEngine)
+								GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Orange,
+									FString::Printf(TEXT("[热度升阶] 热度满额触发 → Phase+1")));
+							BGC->OnPhaseUpReady.Broadcast();
+							SetHeat(0.f);
+						}
 					}
 				}
-				SetHeat(0.f);
 			}
 			else
 			{

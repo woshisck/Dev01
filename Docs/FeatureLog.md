@@ -7,6 +7,37 @@
 
 ## 2026-04-22
 
+### [FIX-022] 三选一 Loot UI — 以拾取物为主导 + 多拾取物独立触发
+
+**状态**：C++ 完成已编译；需在 HB_PlayerMain Details → Loot → `LootSelectionWidgetClass` 赋值 `WBP_LootSelection`
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Map/RewardPickup.cpp`、`GameModes/YogGameMode.h/.cpp`、`UI/YogHUD.h/.cpp`、`UI/LootSelectionWidget.h/.cpp` |
+| 核心接口 | `YogGameMode::GenerateIndependentLootOptions()` / `AYogHUD::ShowLootSelectionUI()` / `ULootSelectionWidget::ShowLootUI()` |
+| 架构变化 | 每个 `ARewardPickup` 拾取时直接调 `HUD->ShowLootSelectionUI`，不走 `OnLootGenerated` 广播；Widget 在 HUD BeginPlay 持久创建（ZOrder 15），HUD 检测 `IsInViewport()` 自动重建 |
+| 原 Bug | ① 共享 `LootAssignedThisLevel` TSet 耗尽符文池 → 改为本地 TSet；② 广播 + HUD 直调 + NativeConstruct pending 三路并发 → ShowLootUI 被调 3 次 |
+| 输入恢复顺序 | `SetPause(false)` → `SetInputMode(GameOnly)` → `OpenBackpack()`（顺序不能颠倒） |
+| 技术文档 | [LootSelection_Technical](../Systems/UI/LootSelection_Technical.md) |
+
+---
+
+### [FIX-023] LootSelectionWidget CommonUI 完全隔离 — 防止 NativeOnFocusLost 销毁 Widget
+
+**状态**：C++ 完成已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/LootSelectionWidget.h/.cpp` |
+| 根因 | `SetUserFocus()` 把焦点交给子控件时触发 `NativeOnFocusLost` → `Super` → `BP_OnFocusLost` → WBP `Event On Focus Lost` 有延迟 `RemoveFromParent` → Widget 在选择后被销毁 |
+| 诊断过程 | `NativeOnDeactivated` 无日志（CommonUI DeactivateWidget 路径未走）；`NativeOnFocusLost cause=0` 出现在 ShowLootUI 期间，NativeDestruct 在 SelectRuneLoot 之后 → 确认为 BP 事件延迟销毁 |
+| 修复 | 三处截断：① `GetDesiredInputConfig()` 返回空 optional；② `NativeOnDeactivated` 不调 Super；③ `NativeOnFocusLost` 不调 Super（阻断 BP_OnFocusLost） |
+| 重建兜底 | `ShowLootSelectionUI` 改用 `IsInViewport()` 检查（`GetIsEnabled()` 在 Widget 被移出 Viewport 后仍返回 true，无法正确检测） |
+| WBP 建议 | 删除 WBP_LootSelection 中 `Event On Focus Lost` 下的所有节点 |
+| 技术文档 | [LootSelection_Technical](../Systems/UI/LootSelection_Technical.md) |
+
+---
+
 ### [FEAT-023] 关卡结束视觉特效 — 时间膨胀 + 渐黑 + 圆形揭幕
 
 **状态**：C++ 完成已编译；需在 Editor 创建 WBP_LevelEndReveal + DA_LevelEndEffect 并配置 BP_YogHUD
@@ -45,6 +76,29 @@
 | 符文旋转 | `FRuneInstance.Rotation`（0-3，每次 90° 顺时针）；`FRuneShape::Rotate90()` 返回旋转后形状；`GetPivotOffset(N)` 补偿 Pivot 坐标偏移 |
 | 操作接口 | `RotateSelectedRune()`（格子内已选符文）、`RotatePendingRune()`（待放置区符文） |
 | Loot 落点 | `FindLootSpawnLocation()`：8 方向候选，依次筛选无碰撞 + 相机可见 + 屏幕内（5% 边缘余量），全部失败退回玩家原位 |
+
+---
+
+### [FIX-022] 背包战斗锁定改为基于 ELevelPhase — 进入关卡即锁定
+
+**状态**：已修复已编译
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/BackpackScreenWidget.cpp` |
+| 根因 | `IsInCombatPhase()` 原来调 `HasAliveEnemies()`；进入关卡到第一波刷怪前 `AliveEnemies` 为空，返回 false，背包在此窗口可操作 |
+| 修复 | 改为 `GM->CurrentPhase == ELevelPhase::Combat`；`CurrentPhase` 默认值即为 `Combat`，进关即锁 |
+| 解锁时机 | `EnterArrangementPhase()` 设 `CurrentPhase = Arrangement`（在 `CheckLevelComplete()` 内由最后一只敌人死亡触发）|
+| Hub Room 兼容 | `StartLevelSpawning` 对主城房间直接写 `CurrentPhase = Arrangement`，锁定逻辑自动跳过 |
+
+**关卡流程对应表：**
+
+| 时间点 | CurrentPhase | 背包 |
+|--------|-------------|------|
+| 进入关卡（刷怪前）| Combat | 🔒 锁定 |
+| 敌人存活中 | Combat | 🔒 锁定 |
+| 所有敌人死亡 → CheckLevelComplete → EnterArrangementPhase | Arrangement | ✅ 可操作 |
+| 主城 Hub Room（StartLevelSpawning 直接设置）| Arrangement | ✅ 可操作 |
 
 ---
 

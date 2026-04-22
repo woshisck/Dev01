@@ -5,6 +5,7 @@
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "UI/RuneRewardFloatWidget.h"
+#include "UI/YogHUD.h"
 
 ARewardPickup::ARewardPickup()
 {
@@ -121,16 +122,20 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 
 	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this)))
 	{
+		TArray<FLootOption> Options;
 		if (AssignedLoot.Num() > 0)
-		{
-			// 使用预分配的选项：多个拾取物互不干扰
-			GM->ShowLootOptions(AssignedLoot);
-		}
+			Options = AssignedLoot;
 		else
-		{
-			// 兜底：GameMode 即时生成（单拾取物场景 / 旧逻辑兼容）
-			GM->GenerateLootOptions();
-		}
+			Options = GM->GenerateIndependentLootOptions();
+
+		// 拾取物直接驱动 UI，每次拾取独立触发一次
+		if (APlayerController* PC = Player->GetController<APlayerController>())
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+				HUD->ShowLootSelectionUI(Options);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[RewardPickup] TryPickup: 无法获取 YogGameMode！"));
 	}
 
 	Destroy();

@@ -579,7 +579,7 @@ void UBackpackScreenWidget::OnCloseButtonClicked()
 bool UBackpackScreenWidget::IsInCombatPhase() const
 {
     if (AYogGameMode* GM = GetWorld()->GetAuthGameMode<AYogGameMode>())
-        return GM->HasAliveEnemies();
+        return GM->CurrentPhase == ELevelPhase::Combat;
     return false;
 }
 

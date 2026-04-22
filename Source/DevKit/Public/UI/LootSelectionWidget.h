@@ -32,6 +32,7 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual void NativeOnFocusLost(const FFocusEvent& InFocusEvent) override;
 
 	// ── CommonUI ────────────────────────────────────────────────
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
@@ -50,6 +51,9 @@ protected:
 	void OnLevelPhaseChanged(ELevelPhase NewPhase);
 
 public:
+	// HUD 直接调用（不走 delegate，防止 Widget 被销毁后绑定断开）
+	void ShowLootUI(const TArray<FLootOption>& Options);
+
 	// ---- 按钮绑定的函数 ----
 
 	// 三张符文卡片的点击事件，Index = 0/1/2

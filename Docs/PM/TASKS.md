@@ -55,6 +55,8 @@
 
 | ID | 功能 | 完成日期 |
 |---|---|---|
+| FIX-022 | 三选一 Loot UI 以拾取物为主导：多拾取物独立触发、ShowLootUI 单次调用、持久 Widget | 2026-04-22 |
+| FIX-023 | LootSelectionWidget CommonUI 完全隔离：NativeOnFocusLost/NativeOnDeactivated/GetDesiredInputConfig 三处截断 | 2026-04-22 |
 | INPUT-001 | 火绳枪输入系统：Reload 绑定 + 重攻击松键 WaitGameplayEvent 修复 | 2026-04-20 |
 | MAP-002 | 关卡结束圆形揭幕特效 LevelEndRevealWidget + YogHUD 集成 + DA | 2026-04-22 |
 | MAP-003 | 关卡开场镜头标记 LevelIntroCameraMarker | 2026-04-22 |

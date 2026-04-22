@@ -14,12 +14,17 @@ UBFNode_IncrementPhase::UBFNode_IncrementPhase(const FObjectInitializer& ObjectI
 
 void UBFNode_IncrementPhase::ExecuteInput(const FName& PinName)
 {
+    bool bActuallyIncremented = false;
     if (AYogCharacterBase* Owner = GetBuffOwner())
     {
         if (UBackpackGridComponent* BGC = Owner->FindComponentByClass<UBackpackGridComponent>())
         {
+            const int32 PhaseBefore = BGC->GetCurrentPhase();
             BGC->IncrementPhase();
+            bActuallyIncremented = (BGC->GetCurrentPhase() > PhaseBefore);
         }
     }
-    TriggerOutput(TEXT("Out"), true);
+    // 只有真正升阶时才触发 Out，避免满阶时后续节点（如热度清零）误执行
+    if (bActuallyIncremented)
+        TriggerOutput(TEXT("Out"), true);
 }

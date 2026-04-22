@@ -1,5 +1,6 @@
 #include "UI/YogHUD.h"
 #include "UI/BackpackScreenWidget.h"
+#include "UI/LootSelectionWidget.h"
 #include "UI/EnemyArrowWidget.h"
 #include "UI/GameDialogWidget.h"
 #include "UI/DialogContentDA.h"
@@ -75,6 +76,15 @@ void AYogHUD::BeginPlay()
 			BackpackWidget->AddToViewport(5);
 	}
 
+	// ── Loot Selection（常驻，不走 CommonUI Stack，避免 DeactivateWidget 时被 destroy）
+	if (LootSelectionWidgetClass)
+	{
+		LootSelectionWidget = CreateWidget<ULootSelectionWidget>(
+			GetOwningPlayerController(), LootSelectionWidgetClass);
+		if (LootSelectionWidget)
+			LootSelectionWidget->AddToViewport(15);
+	}
+
 	// ── Weapon Glass Icon（常驻左下角） ──────────
 	if (!ThumbnailFlyClass)
 	{
@@ -112,6 +122,23 @@ void AYogHUD::OpenBackpack()
 {
 	if (BackpackWidget)
 		BackpackWidget->ActivateWidget();
+}
+
+void AYogHUD::ShowLootSelectionUI(const TArray<FLootOption>& Options)
+{
+	// Widget 可能被 CommonUI 框架销毁，重建后重新加入 Viewport
+	if (!LootSelectionWidget || !LootSelectionWidget->IsInViewport())
+	{
+		if (LootSelectionWidgetClass)
+		{
+			LootSelectionWidget = CreateWidget<ULootSelectionWidget>(
+				GetOwningPlayerController(), LootSelectionWidgetClass);
+			if (LootSelectionWidget)
+				LootSelectionWidget->AddToViewport(15);
+		}
+	}
+	if (LootSelectionWidget)
+		LootSelectionWidget->ShowLootUI(Options);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

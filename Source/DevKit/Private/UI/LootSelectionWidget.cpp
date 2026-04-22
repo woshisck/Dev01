@@ -11,13 +11,10 @@ void ULootSelectionWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	// 未激活时折叠
 	SetVisibility(ESlateVisibility::Collapsed);
-
-	// 允许接收键盘焦点，使 OnKeyDown 在蓝图中生效
 	bIsFocusable = true;
 
-	// 绑定 GameMode 的两个广播
+
 	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld())))
 	{
 		GM->OnLootGenerated.AddDynamic(this, &ULootSelectionWidget::HandleLootGenerated);
@@ -27,6 +24,7 @@ void ULootSelectionWidget::NativeConstruct()
 
 void ULootSelectionWidget::NativeDestruct()
 {
+
 	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld())))
 	{
 		GM->OnLootGenerated.RemoveDynamic(this, &ULootSelectionWidget::HandleLootGenerated);
@@ -36,15 +34,31 @@ void ULootSelectionWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void ULootSelectionWidget::HandleLootGenerated(const TArray<FLootOption>& LootOptions)
+void ULootSelectionWidget::ShowLootUI(const TArray<FLootOption>& Options)
 {
-	CurrentLootOptions = LootOptions;
-	OnLootOptionsReady(LootOptions);  // 通知蓝图填充卡片数据
 
-	// 通过 CommonUI 激活（SetVisibility / 暂停 / 输入模式由 NativeOnActivated 处理）
-	ActivateWidget();
+	CurrentLootOptions = Options;
+	OnLootOptionsReady(Options);
+
+	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			HUD->BeginPauseEffect();
+		PC->SetPause(true);
+		PC->SetShowMouseCursor(true);
+		PC->SetInputMode(FInputModeUIOnly());
+	}
+
+	SetUserFocus(GetOwningPlayer());
 	CurrentHighlightIndex = 0;
 	OnCardFocused(0);
+}
+
+void ULootSelectionWidget::HandleLootGenerated(const TArray<FLootOption>& LootOptions)
+{
+	ShowLootUI(LootOptions);
 }
 
 void ULootSelectionWidget::HandlePhaseChanged(ELevelPhase NewPhase)
@@ -55,27 +69,33 @@ void ULootSelectionWidget::HandlePhaseChanged(ELevelPhase NewPhase)
 void ULootSelectionWidget::SelectRuneLoot(int32 Index)
 {
 	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld())))
-	{
 		GM->SelectLoot(Index);
-	}
 
-	// 通过 CommonUI 停用（SetVisibility / 恢复暂停 / 恢复输入模式由 NativeOnDeactivated 处理）
-	DeactivateWidget();
+	// 直接收起，不调 DeactivateWidget（会触发 CommonUI destroy）
+	SetVisibility(ESlateVisibility::Collapsed);
 
-	// 选完符文后自动打开背包，让玩家立即整理
 	if (APlayerController* PC = GetOwningPlayer())
+	{
+		// 先恢复游戏状态，再开背包（背包会自己设 UIOnly 输入模式）
+		PC->SetPause(false);
+		PC->SetShowMouseCursor(false);
+		PC->SetInputMode(FInputModeGameOnly());
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+		{
+			HUD->EndPauseEffect();
 			HUD->OpenBackpack();
+		}
+	}
 }
 
 // ============================================================
-//  CommonUI 生命周期
+//  CommonUI 生命周期（仅供 Stack 场景保留，手动放置路径不走这里）
 // ============================================================
 
 TOptional<FUIInputConfig> ULootSelectionWidget::GetDesiredInputConfig() const
 {
-	// Menu（UIOnly）：鼠标完全交给 Slate，不会被攻击等 EnhancedInput 消耗
-	return FUIInputConfig(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+	// 不让 CommonUI 管理此 Widget 的输入，避免 SetInputMode 触发 DeactivateWidget
+	return TOptional<FUIInputConfig>();
 }
 
 void ULootSelectionWidget::NativeOnActivated()
@@ -84,11 +104,9 @@ void ULootSelectionWidget::NativeOnActivated()
 	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 
 	if (APlayerController* PC = GetOwningPlayer())
+	{
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 			HUD->BeginPauseEffect();
-
-	if (APlayerController* PC = GetOwningPlayer())
-	{
 		PC->SetPause(true);
 		PC->SetShowMouseCursor(true);
 		PC->SetInputMode(FInputModeUIOnly());
@@ -97,8 +115,15 @@ void ULootSelectionWidget::NativeOnActivated()
 	SetUserFocus(GetOwningPlayer());
 }
 
+void ULootSelectionWidget::NativeOnFocusLost(const FFocusEvent& InFocusEvent)
+{
+	// 不调 Super：UUserWidget::NativeOnFocusLost 会触发 BP_OnFocusLost，
+	// WBP 里可能有 Event On Focus Lost → RemoveFromParent 导致 Widget 被销毁
+}
+
 void ULootSelectionWidget::NativeOnDeactivated()
 {
+
 	SetVisibility(ESlateVisibility::Collapsed);
 
 	if (APlayerController* PC = GetOwningPlayer())
@@ -106,13 +131,12 @@ void ULootSelectionWidget::NativeOnDeactivated()
 		PC->SetPause(false);
 		PC->SetShowMouseCursor(false);
 		PC->SetInputMode(FInputModeGameOnly());
-	}
-
-	if (APlayerController* PC = GetOwningPlayer())
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 			HUD->EndPauseEffect();
+	}
 
-	Super::NativeOnDeactivated();
+	// 不调 Super：CommonUI 的 NativeOnDeactivated 会检查 bDestroyOnDeactivation → RemoveFromParent
+	// 我们手动管理生命周期，Widget 保持在 Viewport 中只改可见性
 }
 
 FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
@@ -145,7 +169,5 @@ FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 void ULootSelectionWidget::ConfirmAndTransition()
 {
 	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld())))
-	{
 		GM->ConfirmArrangementAndTransition();
-	}
 }

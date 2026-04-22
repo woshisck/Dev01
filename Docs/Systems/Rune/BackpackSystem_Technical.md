@@ -44,7 +44,7 @@ AttributeSet::PostAttributeChange(Heat)
 | `GetRuneIndexAtCell(Cell)` | 返回格子上的符文下标，-1 = 空 |
 | `GetAllPlacedRunes()` | 返回所有已放置符文（UI 用）|
 | `OnHeatValueChanged(HeatValue)` | 由 AttributeSet 调用，触发激活区重算 |
-| `SetLocked(bool)` | 锁定背包（战斗阶段 = true，整理阶段 = false）|
+| `SetLocked(bool)` | 锁定背包（切关时 = true；`EnterArrangementPhase()` 时 = false）|
 
 **委托（UI 绑定用）：**
 
@@ -70,6 +70,7 @@ AttributeSet::PostAttributeChange(Heat)
 | `IsCellOccupied(Col,Row)` | Pure | 格子是否有符文 |
 | `GetRuneAtCell(Col,Row)` | Pure | 获取格子上的符文实例 |
 | `IsCellSelected(Col,Row)` | Pure | 格子是否被选中（用于高亮边框）|
+| `IsInCombatPhase()` | Private | 检查 `YogGameMode::CurrentPhase == ELevelPhase::Combat`；进入关卡即 true，`EnterArrangementPhase()` 后变 false；所有符文移动操作点均先过此检查 |
 | `SelectRuneFromList(Index)` | Callable | 从列表选中符文，再次调用取消 |
 | `ClickCell(Col,Row)` | Callable | 格子点击，内部处理选中/放置/移动三种情况 |
 | `RemoveRuneAtSelectedCell()` | Callable | 移除选中格子的符文 |

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
 #include "EnemyArrowWidget.h"
+#include "GameModes/LevelFlowTypes.h"
 #include "YogHUD.generated.h"
 
 class UTutorialPopupWidget;
@@ -18,6 +19,7 @@ class UWeaponThumbnailFlyWidget;
 class ULevelEndEffectDA;
 class ULevelEndRevealWidget;
 class UMaterialInstanceDynamic;
+class ULootSelectionWidget;
 
 UCLASS()
 class DEVKIT_API AYogHUD : public AHUD
@@ -88,6 +90,17 @@ public:
 	void OpenBackpack();
 
 	// ─────────────────────────────────────────
+	//  三选一 Loot
+	// ─────────────────────────────────────────
+
+	// 在 BP_YogHUD Details 中指定 WBP_LootSelection（从 HB_PlayerMain 里移除对应的 CommonUI Stack 条目）
+	UPROPERTY(EditDefaultsOnly, Category = "Loot")
+	TSubclassOf<ULootSelectionWidget> LootSelectionWidgetClass;
+
+	// GameMode 直接调用（不走 delegate），Widget 被销毁时自动重建
+	void ShowLootSelectionUI(const TArray<FLootOption>& Options);
+
+	// ─────────────────────────────────────────
 	//  武器缩略图飞行 → 玻璃图标
 	// ─────────────────────────────────────────
 
@@ -155,6 +168,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UBackpackScreenWidget> BackpackWidget;
+
+	UPROPERTY()
+	TObjectPtr<ULootSelectionWidget> LootSelectionWidget;
 
 	UPROPERTY()
 	TObjectPtr<UWeaponGlassIconWidget> WeaponGlassIconWidget;

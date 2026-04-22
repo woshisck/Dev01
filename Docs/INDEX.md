@@ -16,7 +16,7 @@
 | 制作已规划的符文 1001–1016 | FA 制作指南 | [TestRune_CreationGuide](Systems/Rune/TestRune_CreationGuide.md) |
 | 制作高感知符文 1017–1021（P0） | FA 制作指南 | [TestRune_HighPerception_Guide](Systems/Rune/TestRune_HighPerception_Guide.md) |
 | 背包式符文构筑界面 | BackpackGridComponent + WBP | [BackpackSystem_Guide](Systems/Rune/BackpackSystem_Guide.md) |
-| 三选一符文奖励界面 | LootSelectionWidget | [BackpackSystem_Guide](Systems/Rune/BackpackSystem_Guide.md) |
+| 三选一符文奖励界面 | LootSelectionWidget + ARewardPickup | [LootSelection_Technical](Systems/UI/LootSelection_Technical.md) |
 | 热度越高效果越强 | HeatSystem | [BackpackSystem_Technical](Systems/Rune/BackpackSystem_Technical.md) |
 | 献祭 HP 换取强力恩赐 | SacrificeGrace + BFNode | [EditorSetup_ChainAndSacrifice](TODO/EditorSetup_ChainAndSacrifice.md) |
 | 符文有链路传导（Producer/Consumer） | BackpackGridComponent | [BackpackSystem_Technical](Systems/Rune/BackpackSystem_Technical.md) |
@@ -56,7 +56,7 @@
 | 我想要… | 对应功能 | 文档 |
 |---|---|---|
 | 关卡内事件序列/指引（时间轴编排） | LevelFlow | [EditorSetup_LevelFlow](TODO/EditorSetup_LevelFlow_Tutorial_WeaponSpawner.md) |
-| 新手引导弹窗 | TutorialManager | [EditorSetup_LevelFlow](TODO/EditorSetup_LevelFlow_Tutorial_WeaponSpawner.md) |
+| 新手引导弹窗 | TutorialManager | [EditorSetup_LevelFlow](TODO/EditorSetup_LevelFlow_Tutorial_WeaponSpawner.md) · [文案设计](Systems/UI/TutorialPopup_Copy.md) |
 | 波次刷怪 + 补刷 | YogGameMode + MobSpawner | [LevelSystem_ConfigGuide](Systems/Level/LevelSystem_ConfigGuide.md) |
 | 多分支传送门切关 | APortal + DA_Campaign | [Portal_ConfigGuide](Systems/Level/Portal_ConfigGuide.md) |
 | HP/金币/背包跨关卡存档 | YogSaveSubsystem | [CrossLevelState_Technical](Systems/Level/CrossLevelState_Technical.md) |
@@ -71,6 +71,7 @@
 |---|---|---|
 | 磨砂玻璃感 UI 框 | GlassFrameWidget | [GlassFrame_Technical](Systems/UI/GlassFrame_Technical.md) |
 | 武器拾取有华丽动画 | WeaponFloatWidget + WeaponTrailWidget | [WeaponPickupAnim_Technical](Systems/UI/WeaponPickupAnim_Technical.md) |
+| 新手引导弹窗文案（5 条） | DA_TutorialStep 配置项 | [TutorialPopup_Copy](Systems/UI/TutorialPopup_Copy.md) |
 | 相机跟随角色（俯视角） | YogCameraPawn | [Camera_Design](Systems/Camera/Camera_Design.md) |
 | 角色随热度阶段发光 | PlayerGlowOverlay.ush | [CharacterFlash_Technical](Systems/VFX/CharacterFlash_Technical.md) |
 | 新建材质用自定义 HLSL | .ush 体系 + Custom Node | [Conventions/Material.md](Conventions/Material.md) |

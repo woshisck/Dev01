@@ -5,6 +5,7 @@
 #include "Component/BackpackGridComponent.h"
 #include "Data/RoomDataAsset.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "Data/SacrificeGraceDA.h"
 
 #include "YogGameInstanceBase.generated.h"
 
@@ -34,6 +35,10 @@ struct FRunState
 	UPROPERTY()
 	int32 CurrentPhase = 0;
 
+	// 切关时的热度绝对值（配合 CurrentPhase 恢复热度条进度）
+	UPROPERTY()
+	float CurrentHeat = 0.f;
+
 	// 非永久符文（永久符文由 BGC::BeginPlay 重新放置，无需保存）
 	UPROPERTY()
 	TArray<FPlacedRune> PlacedRunes;
@@ -45,6 +50,10 @@ struct FRunState
 	// 整理阶段已选但尚未放入格子的符文（新关卡恢复后放回 PendingRunes）
 	UPROPERTY()
 	TArray<FRuneInstance> PendingRunes;
+
+	// 献祭恩赐（全程跑局 Buff，None = 未获得）
+	UPROPERTY()
+	TObjectPtr<USacrificeGraceDA> ActiveSacrificeGrace;
 };
 /**
  * Base class for GameInstance, should be blueprinted

@@ -193,6 +193,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "LevelFlow|Events")
 	FOnLootGenerated OnLootGenerated;
 
+	// LootSelectionWidget 被 CommonUI 销毁后重建时，NativeConstruct 检查此标志自动激活
+	UPROPERTY(BlueprintReadOnly, Category = "LevelFlow")
+	bool bLootOptionsPending = false;
+
 	// 关卡清空后调用，进入整理阶段
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void EnterArrangementPhase();
@@ -212,6 +216,10 @@ public:
 	// 从 LootPool 中随机生成战利品选项并广播（由 ARewardPickup 兜底路径触发）
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void GenerateLootOptions();
+
+	// 独立生成战利品（不广播、不调 HUD），供 ARewardPickup 手动放置路径使用
+	// 设置 CurrentLootOptions/bLootOptionsPending 后返回结果，由调用方决定何时显示 UI
+	TArray<FLootOption> GenerateIndependentLootOptions();
 
 	/**
 	 * 将已生成的选项广播给 UI（由 ARewardPickup::TryPickup 使用预分配路径调用）。

@@ -105,9 +105,24 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 			}
 		}
 
-		// 恢复热度阶段，并将热度重置到该阶段起点（避免热度值从 0 / 默认值开始）
+		// 恢复热度阶段 + 热度绝对值
 		BackpackGridComponent->RestorePhase(State.CurrentPhase);
-		BackpackGridComponent->ResetHeatToPhaseFloor();
+		if (UAbilitySystemComponent* HeatASC = GetAbilitySystemComponent())
+		{
+			const float MaxHeat = HeatASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
+			float HeatToSet = State.CurrentHeat;
+
+			// 两阶符文：CurrentHeat = MaxHeat*2，先升阶一次再取余
+			if (HeatToSet > MaxHeat && MaxHeat > KINDA_SMALL_NUMBER)
+			{
+				BackpackGridComponent->IncrementPhase();
+				HeatToSet = FMath::Max(0.f, HeatToSet - MaxHeat);
+			}
+
+			HeatToSet = FMath::Clamp(HeatToSet, 0.f, MaxHeat);
+			HeatASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), HeatToSet);
+			BackpackGridComponent->OnHeatValueChanged(HeatToSet);
+		}
 	}
 
 	// 恢复整理阶段已选但尚未放置的符文
@@ -119,6 +134,9 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		State.EquippedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
 		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE Weapon — %s"), *State.EquippedWeaponDef->GetName());
 	}
+
+	// 恢复献祭恩赐
+	ActiveSacrificeGrace = State.ActiveSacrificeGrace;
 }
 
 void APlayerCharacterBase::ItemInteract(const AItemSpawner* item)
