@@ -29,54 +29,32 @@ void AMobSpawner::Tick(float DeltaTime)
 
 }
 
-AEnemyCharacterBase* AMobSpawner::SpawnMob(TSubclassOf<AActor> spawn_actor_class)
+FVector AMobSpawner::PrepareSpawnLocation()
+{
+    return GetRandomReachablePoint();
+}
+
+AEnemyCharacterBase* AMobSpawner::SpawnMobAtLocation(TSubclassOf<AActor> EnemyClass, FVector Location)
 {
     UWorld* World = GetWorld();
-    if (!World) return nullptr;
+    if (!World || Location == FVector::ZeroVector) return nullptr;
 
-    //if (EnemySpawnClassis.Num() <= 0)
-    //{
-    //    return nullptr;
-    //}
-    //TSubclassOf<AEnemyCharacterBase> RandomClass;
-    //if (SingleSpawn == false)
-    //{
-    //    int32 RandomIndex = FMath::RandRange(0, EnemySpawnClassis.Num() - 1);
-    //    RandomClass = EnemySpawnClassis[RandomIndex];
-    //}
-    //else
-    //{
-    //    RandomClass = EnemySpawnClassis[0];
-    //}
+    FActorSpawnParameters Params;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-
-
-    FVector Location = GetRandomReachablePoint();
-    if (Location != FVector::ZeroVector)
+    AEnemyCharacterBase* Spawned = World->SpawnActor<AEnemyCharacterBase>(EnemyClass, Location, FRotator::ZeroRotator, Params);
+    if (Spawned)
     {
-        FActorSpawnParameters Params;
-        Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-        AEnemyCharacterBase* Spawned_Enemy = World->SpawnActor<AEnemyCharacterBase>(spawn_actor_class, Location, FRotator::ZeroRotator, Params);
-
-        if (Spawned_Enemy)
-        {
-            // AutoPossessAI 可能为 PlacedInWorld，运行时刷怪需手动触发 AIController 绑定
-            if (!Spawned_Enemy->GetController())
-            {
-                Spawned_Enemy->SpawnDefaultController();
-            }
-
-            // 通知蓝图子类播放出生特效（在此位置放 Niagara / 出场动画）
-            OnEnemySpawned(Spawned_Enemy, Location);
-        }
-
-        return Spawned_Enemy;
+        if (!Spawned->GetController())
+            Spawned->SpawnDefaultController();
+        OnEnemySpawned(Spawned, Location);
     }
-    else
-    {
-        return nullptr;
-    }
+    return Spawned;
+}
+
+AEnemyCharacterBase* AMobSpawner::SpawnMob(TSubclassOf<AActor> spawn_actor_class)
+{
+    return SpawnMobAtLocation(spawn_actor_class, PrepareSpawnLocation());
 }
 
 FVector AMobSpawner::GetRandomReachablePoint()

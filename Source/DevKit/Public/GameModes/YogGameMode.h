@@ -18,6 +18,8 @@ class AEnemyCharacterBase;
 class APortal;
 class ARewardPickup;
 class ULootSelectionWidget;
+class AMobSpawner;
+class UNiagaraSystem;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMapClean);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, ELevelPhase, NewPhase);
@@ -289,6 +291,9 @@ protected:
 		TSubclassOf<AEnemyCharacterBase> EnemyClass;
 		// BuildWavePlan 时从 EnemyData.EnemyBuffPool 中随机选出（可为 nullptr）
 		TObjectPtr<URuneDataAsset> SelectedEnemyBuff = nullptr;
+		// 从 EnemyData 复制，运行时只读
+		TObjectPtr<UNiagaraSystem> PreSpawnFX;
+		float PreSpawnFXDuration = 0.f;
 	};
 
 	// 波次计划（运行时数据，不需要 UE 反射）
@@ -337,8 +342,13 @@ protected:
 	// 波次系统未能初始化时，降级统计场景内预放置敌人数量
 	void FallbackToPreplacedEnemies();
 
-	// 从随机 MobSpawner 刷出指定敌人（含专属 Buff 激活）
+	// 从随机 MobSpawner 刷出指定敌人（含专属 Buff 激活）【旧路径，DemandSpawn 仍使用】
 	bool SpawnEnemyFromPool(const FPlannedEnemy& Planned);
+
+	// 新路径：播放预生成 FX，FX 结束后才真正 SpawnActor
+	void BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned);
+	void FinishSpawnFromPool(FPlannedEnemy Planned,
+		TWeakObjectPtr<AMobSpawner> WeakSpawner, FVector Location, int32 WaveIdx);
 
 	// 从 BuffPool 随机选取 BuffCount 个关卡 Buff 条目
 	TArray<FBuffEntry> SelectRoomBuffs(const URoomDataAsset& Room, int32 BuffCount);
@@ -348,6 +358,8 @@ protected:
 	int32             CurrentWaveIndex    = -1;
 	int32             TotalAliveEnemies   = 0;
 	bool              bAllWavesSpawned    = false;
+	// FX 播放中、尚未真正 SpawnActor 的敌人数（防止 CheckLevelComplete 提前结算）
+	int32             PendingSpawnCount   = 0;
 
 	FTimerHandle WaveTriggerTimer;
 	FTimerHandle OneByOneTimer;

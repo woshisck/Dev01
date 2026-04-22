@@ -2,6 +2,7 @@
 
 
 #include "GameModes/YogGameMode.h"
+#include "NiagaraFunctionLibrary.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/BackpackGridComponent.h"
@@ -854,8 +855,10 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 		}
 
 		FPlannedEnemy Planned;
-		Planned.EnemyClass        = Chosen->EnemyData->EnemyClass;
-		Planned.SelectedEnemyBuff = SelectedEnemyBuff;
+		Planned.EnemyClass         = Chosen->EnemyData->EnemyClass;
+		Planned.SelectedEnemyBuff  = SelectedEnemyBuff;
+		Planned.PreSpawnFX         = Chosen->EnemyData->PreSpawnFX;
+		Planned.PreSpawnFXDuration = Chosen->EnemyData->PreSpawnFXDuration;
 		Plan.EnemiesToSpawn.Add(Planned);
 
 		const int32 ActualCost = Chosen->EnemyData->DifficultyScore + RoomBuffCostPerEnemy + EnemyBuffCost;
@@ -976,25 +979,7 @@ void AYogGameMode::SpawnNextOneByOne()
 		return;
 	}
 
-	if (SpawnEnemyFromPool(OneByOneSpawnQueue[OneByOneSpawnIndex]))
-	{
-		Wave.TotalSpawnedInWave++;
-		TotalAliveEnemies++;
-
-		// DEBUG: 打印本次刷怪数据
-		if (GEngine)
-		{
-			const TSubclassOf<AEnemyCharacterBase>& EC = OneByOneSpawnQueue[OneByOneSpawnIndex].EnemyClass;
-			const FString EnemyName = EC ? EC->GetName() : TEXT("?");
-			GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
-				FString::Printf(TEXT("[刷怪] 波次%d | 队列%d/%d | 存活%d | %s"),
-					CurrentWaveIndex + 1,
-					OneByOneSpawnIndex + 1,
-					OneByOneSpawnQueue.Num(),
-					TotalAliveEnemies,
-					*EnemyName));
-		}
-	}
+	BeginSpawnEnemyFromPool(OneByOneSpawnQueue[OneByOneSpawnIndex]);
 	OneByOneSpawnIndex++;
 
 	if (OneByOneSpawnIndex >= OneByOneSpawnQueue.Num())
@@ -1168,7 +1153,7 @@ void AYogGameMode::FallbackToPreplacedEnemies()
 
 void AYogGameMode::CheckLevelComplete()
 {
-	if (!bAllWavesSpawned || TotalAliveEnemies > 0) return;
+	if (!bAllWavesSpawned || TotalAliveEnemies > 0 || PendingSpawnCount > 0) return;
 
 	// 最后一波可能有按需补刷剩余，先补刷，待全部死亡后再结算
 	if (WavePlans.IsValidIndex(CurrentWaveIndex))
@@ -1245,6 +1230,96 @@ bool AYogGameMode::SpawnEnemyFromPool(const FPlannedEnemy& Planned)
 		return SpawnedEnemy != nullptr;
 	}
 	return false;
+}
+
+void AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
+{
+	if (!Planned.EnemyClass) return;
+
+	TArray<AActor*> OutActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), OutActors);
+
+	TArray<AMobSpawner*> ValidSpawners;
+	for (AActor* A : OutActors)
+		if (AMobSpawner* S = Cast<AMobSpawner>(A))
+			if (S->EnemySpawnClassis.Contains(Planned.EnemyClass))
+				ValidSpawners.Add(S);
+
+	if (ValidSpawners.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BeginSpawnEnemyFromPool: 没有 Spawner 支持 %s"), *Planned.EnemyClass->GetName());
+		return;
+	}
+
+	AMobSpawner* Spawner = ValidSpawners[FMath::RandRange(0, ValidSpawners.Num() - 1)];
+	FVector Location = Spawner->PrepareSpawnLocation();
+	if (Location == FVector::ZeroVector) return;
+
+	const float FXDuration = FMath::Max(0.f,
+		Planned.PreSpawnFXDuration + FMath::FRandRange(-Spawner->SpawnFXVariance, Spawner->SpawnFXVariance));
+
+	if (Planned.PreSpawnFX)
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), Planned.PreSpawnFX, Location);
+
+	PendingSpawnCount++;
+
+	const int32 WaveIdx = CurrentWaveIndex;
+	TWeakObjectPtr<AYogGameMode> WeakThis(this);
+	TWeakObjectPtr<AMobSpawner>  WeakSpawner(Spawner);
+
+	if (FXDuration <= 0.f)
+	{
+		FinishSpawnFromPool(Planned, WeakSpawner, Location, WaveIdx);
+		return;
+	}
+
+	FTimerHandle SpawnHandle;
+	GetWorld()->GetTimerManager().SetTimer(SpawnHandle,
+		FTimerDelegate::CreateLambda([WeakThis, Planned, WeakSpawner, Location, WaveIdx]()
+		{
+			if (WeakThis.IsValid())
+				WeakThis->FinishSpawnFromPool(Planned, WeakSpawner, Location, WaveIdx);
+		}),
+		FXDuration, false);
+}
+
+void AYogGameMode::FinishSpawnFromPool(FPlannedEnemy Planned,
+	TWeakObjectPtr<AMobSpawner> WeakSpawner, FVector Location, int32 WaveIdx)
+{
+	PendingSpawnCount = FMath::Max(0, PendingSpawnCount - 1);
+
+	if (!WeakSpawner.IsValid())
+	{
+		CheckLevelComplete();
+		return;
+	}
+
+	AEnemyCharacterBase* SpawnedEnemy = WeakSpawner->SpawnMobAtLocation(Planned.EnemyClass, Location);
+	if (SpawnedEnemy)
+	{
+		UBuffFlowComponent* BFC = SpawnedEnemy->BuffFlowComponent;
+		if (BFC)
+		{
+			for (const FBuffEntry& Entry : ActiveRoomBuffs)
+			{
+				if (!Entry.RuneDA || !Entry.RuneDA->RuneInfo.Flow.FlowAsset) continue;
+				BFC->StartBuffFlow(Entry.RuneDA->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), SpawnedEnemy);
+			}
+			if (Planned.SelectedEnemyBuff && Planned.SelectedEnemyBuff->RuneInfo.Flow.FlowAsset)
+				BFC->StartBuffFlow(Planned.SelectedEnemyBuff->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), SpawnedEnemy);
+		}
+
+		if (WavePlans.IsValidIndex(WaveIdx))
+			WavePlans[WaveIdx].TotalSpawnedInWave++;
+		TotalAliveEnemies++;
+
+		if (GEngine)
+			GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
+				FString::Printf(TEXT("[刷怪] 波次%d | 存活%d | %s（FX完成）"),
+					WaveIdx + 1, TotalAliveEnemies, *Planned.EnemyClass->GetName()));
+	}
+
+	CheckLevelComplete();
 }
 
 TArray<FBuffEntry> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int32 BuffCount)

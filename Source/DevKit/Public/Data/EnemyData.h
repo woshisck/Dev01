@@ -7,6 +7,7 @@
 #include "BehaviorTree/BehaviorTree.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Data/CharacterData.h"
+#include "NiagaraSystem.h"
 #include "EnemyData.generated.h"
 
 class AEnemyCharacterBase;
@@ -74,4 +75,12 @@ public:
 	// 此敌人使用的行为树（留空则使用 AIController 默认行为树）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
 	TObjectPtr<UBehaviorTree> BehaviorTree;
+
+	// 预生成特效（留空 = 无 FX，立即刷出）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Spawn")
+	TObjectPtr<UNiagaraSystem> PreSpawnFX;
+
+	// 预生成特效持续时间（秒）。FX 结束后才真正 SpawnActor；0 = 立即刷出
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Spawn")
+	float PreSpawnFXDuration = 0.f;
 };
