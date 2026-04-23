@@ -1,0 +1,390 @@
+# FA 通用架构：全局符文/能力系统
+
+> 项目：星骸降临
+> 文档性质：系统架构设计规范
+> 创建日期：2026-04-24
+> 关联文档：[BuffFlow_ArchitectureAndPlan.md](BuffFlow_ArchitectureAndPlan.md) · [BuffFlow_ProgrammerGuide.md](BuffFlow_ProgrammerGuide.md)
+
+---
+
+## 一、问题背景
+
+### 1.1 原有设计的局限
+
+最初的 FA（FlowAsset）体系以"玩家背包"为入口：
+
+```
+背包激活区 → 启动 FA → FA 监听战斗事件 → 触发 GE/GA
+```
+
+这导致三个问题：
+
+1. **敌人无法使用同一套 FA**：敌人没有背包，所有 BuffFlow 节点都依赖背包激活路径
+2. **动作作用域 FA 无终止机制**：特殊攻击 GA 启动 FA 后，没有标准方式在 GA 结束时停止它
+3. **触发节点依赖背包专属事件**：FA 内部的触发节点如果只通过 BFC 的背包委托监听，敌人的 BFC 永远收不到相同信号
+
+### 1.2 核心洞察
+
+问题不在于 `BuffFlowComponent`（BFC），它本身已是通用的：
+
+```cpp
+// 任意 Actor 上的 BFC 都可以调用
+BFC->StartBuffFlow(FlowAsset, Guid, GiverActor);
+BFC->StopBuffFlow(Guid);
+```
+
+问题在于：
+- **启动入口只有背包**，没有其他规范路径
+- **触发信号不通用**，缺少全 Actor 共享的事件广播标准
+
+---
+
+## 二、架构总览：三层模型
+
+```
+┌──────────── 授予层（Grant Layer）─────────────────────────┐
+│ 决定「谁」以「什么条件」获得一个 FA 能力                    │
+│                                                            │
+│  A. 玩家背包激活区   → BackpackGridComponent               │
+│  B. 敌人 Spawn       → YogGameMode::SpawnEnemyFromPool     │
+│  C. 关卡 Buff 注入   → YogGameMode::StartLevelSpawning     │
+│  D. GA 动作作用域    → GA::ActivateAbility                 │
+│  E. 献祭恩赐         → PlayerCharacterBase::AcquireSacrificeGrace │
+│                                                            │
+│       全部调用 → BuffFlowComponent::StartBuffFlow()        │
+└───────────────────────────────┬────────────────────────────┘
+                                │ StartBuffFlow(FA, Guid, Giver)
+┌───────────────────────────────▼────────────────────────────┐
+│                   执行层（FA Execution Layer）               │
+│ FA 不感知来源，只做：监听事件 → 施加效果 → 循环/终止        │
+│                                                            │
+│  BFNode_OnDamageDealt / OnKill / OnDash / OnDamageReceived │
+│  BFNode_ApplyAttributeModifier / ApplyEffect / GrantGA     │
+│                                                            │
+│  触发信号来源：UAbilitySystemBlueprintLibrary::             │
+│               SendGameplayEventToActor (Ability.Event.*)   │
+└───────────────────────────────┬────────────────────────────┘
+                                │ StopBuffFlow(Guid)
+┌───────────────────────────────▼────────────────────────────┐
+│                   终止层（Revoke Layer）                     │
+│ 决定「何时」停止 FA                                         │
+│                                                            │
+│  A. 玩家符文离开激活区 → BackpackGridComponent              │
+│  B. 敌人死亡           → BuffFlowComponent 随 Actor 销毁   │
+│  C. GA 结束            → GA::EndAbility 显式调用           │
+└────────────────────────────────────────────────────────────┘
+```
+
+**核心原则：FA 内部零感知授予与终止来源。** 一个"流血"FA 不管是玩家符文还是敌人固有能力给的，节点图完全相同。
+
+---
+
+## 三、FA 三类生命周期
+
+### Category A：持续型（Persistent）
+
+FA 跟随"拥有权"存续，长期运行并等待战斗事件触发效果。
+
+| 阶段 | 条件 | 调用方 |
+|------|------|--------|
+| 授予 | 符文进入激活区 / 拾取献祭恩赐 | `BackpackGridComponent::RefreshAllActivations` / `AcquireSacrificeGrace` |
+| 运行 | 持续监听，无主动超时 | FA 内部节点 |
+| 终止 | 符文离开激活区 / 角色死亡 | `BackpackGridComponent` / Actor 销毁 |
+
+典型模式：
+```
+[Start] → [BFNode_OnDamageDealt] → [BFNode_ApplyEffect: GE_Bleed] → ↩
+```
+
+---
+
+### Category B：实体能力型（Actor Ability）
+
+FA 与实体（敌人/Boss）共生。是这个 Actor 在整个生存期内的"固有能力"。
+
+| 阶段 | 条件 | 调用方 |
+|------|------|--------|
+| 授予 | 敌人 Spawn | `YogGameMode::SpawnEnemyFromPool`（**已实现**） |
+| 运行 | 跟随实体存活期 | FA 内部节点 |
+| 终止 | 敌人死亡 | `BuffFlowComponent` 随 Actor 销毁自动 Cleanup |
+
+当前实现（`YogGameMode.cpp` 行 ~1220）：
+```cpp
+// 关卡 Buff（所有敌人共享）
+for (const FBuffEntry& Entry : ActiveRoomBuffs)
+{
+    if (Entry.RuneDA && Entry.RuneDA->RuneInfo.Flow.FlowAsset)
+        BFC->StartBuffFlow(Entry.RuneDA->RuneInfo.Flow.FlowAsset,
+                           FGuid::NewGuid(), SpawnedEnemy);
+}
+
+// 敌人专属 Buff（BuildWavePlan 时从 EnemyBuffPool 选取）
+if (Planned.SelectedEnemyBuff && Planned.SelectedEnemyBuff->RuneInfo.Flow.FlowAsset)
+    BFC->StartBuffFlow(Planned.SelectedEnemyBuff->RuneInfo.Flow.FlowAsset,
+                       FGuid::NewGuid(), SpawnedEnemy);
+```
+
+> **注意**：`SpawnEnemyFromPool` 已经对两种来源都调用了 `StartBuffFlow`，Category B 在 C++ 层已完整实现。
+> 需要补充的是 FA 内部的**触发标签广播**（见第四节）。
+
+---
+
+### Category C：动作作用域型（GA Scoped）
+
+FA 的生存期完全绑定单次 GA 执行。GA 启动时授予，GA 结束时撤销。
+
+| 阶段 | 条件 | 调用方 |
+|------|------|--------|
+| 授予 | `GA::ActivateAbility` | GA C++ / Blueprint |
+| 运行 | GA 存活期间 | FA 内部节点 |
+| 终止 | `GA::EndAbility` | GA 显式调用 `StopBuffFlow` |
+
+**标准模板（C++ GA）：**
+
+```cpp
+// GA 头文件
+private:
+    FGuid ActionFAGuid;
+
+// ActivateAbility()
+void UGA_SpecialAttack::ActivateAbility(...)
+{
+    // ... 其他初始化 ...
+    if (UFlowAsset* ActionFA = GetActionFlowAsset())
+    {
+        ActionFAGuid = FGuid::NewGuid();
+        GetBuffFlowComp()->StartBuffFlow(ActionFA, ActionFAGuid, GetAvatarActorFromActorInfo());
+    }
+}
+
+// EndAbility()
+void UGA_SpecialAttack::EndAbility(...)
+{
+    GetBuffFlowComp()->StopBuffFlow(ActionFAGuid);
+    Super::EndAbility(...);
+}
+```
+
+> 同一 GA 可能同时运行多个 Category C FA（比如主 FA + VFX FA），各自持有不同的 Guid，互不干扰。
+
+---
+
+## 四、触发系统标准化
+
+### 4.1 问题
+
+原有 BFNode 触发节点（`BFNode_OnDamageDealt` 等）通过 **BFC 的内部委托**接收事件。这套委托需要调用方显式通知 BFC，目前只有玩家伤害流水线规范地通知了它。
+
+敌人拥有 FA 后，如果攻击事件没有通知到敌人的 BFC，FA 内的触发节点永远不会触发。
+
+### 4.2 方案：统一 Gameplay Event 广播
+
+所有攻击/冲刺 GA 在关键时机通过 **Gameplay Event Tag** 广播事件。BFNode 内部统一用 `WaitGameplayEvent` 监听这些 Tag。
+
+**标准事件 Tag 表（需在 `Config/DefaultGameplayTags.ini` 中注册）：**
+
+| Tag | 含义 | 广播时机 | 广播者 |
+|-----|------|---------|--------|
+| `Ability.Event.Attack.Hit` | 攻击命中目标 | 近战/远程命中判定后 | 武器 GA 的 `DoFire` / `OnHit` 回调 |
+| `Ability.Event.Attack.Miss` | 攻击未命中 | 判定为未命中时 | 武器 GA |
+| `Ability.Event.Kill` | 击杀目标 | 目标 HP 归零时 | 伤害计算层（`HandleDeath`） |
+| `Ability.Event.Damaged` | 自身受到伤害 | 受击处理时 | `YogCharacterBase::OnDamaged` |
+| `Ability.Event.Dash` | 执行冲刺 | 冲刺位移开始时 | 冲刺 GA |
+
+**广播方式（GA 端）：**
+
+```cpp
+void UGA_MeleeAttack::OnHit(AActor* HitTarget)
+{
+    FGameplayEventData Payload;
+    Payload.Instigator = GetAvatarActorFromActorInfo();
+    Payload.Target     = HitTarget;
+
+    // 广播给攻击者（触发攻击者身上的 FA）
+    UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+        Payload.Instigator,
+        FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit")),
+        Payload);
+
+    // 如果需要触发目标身上的 FA（例如目标有"被命中时反弹"符文）
+    UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+        HitTarget,
+        FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Damaged")),
+        Payload);
+}
+```
+
+**FA 端监听（BFNode_OnDamageDealt 内部，或直接用 BFNode_WaitGameplayEvent）：**
+
+```cpp
+// BFNode 内部
+void UBFNode_OnDamageDealt::ExecuteInput(const FName& PinName)
+{
+    // 向 ASC 注册 WaitGameplayEvent 监听
+    // 当 Ability.Event.Attack.Hit 到来时，读取 Payload.Target 填入 LastEventContext
+    ASC->GenericGameplayEventCallbacks.FindOrAdd(HitTag)
+        .AddUObject(this, &UBFNode_OnDamageDealt::OnEventReceived);
+}
+```
+
+> **关键**：同一套 BFNode 代码，玩家和敌人的 FA 无需任何修改。只要攻击 GA 广播了事件，拥有对应 FA 的任何 Actor 都会响应。
+
+---
+
+## 五、玩家背包的正确定位
+
+玩家背包不是"FA 的触发器"，是"**能力的授予条件（Grant Condition）**"。
+
+```
+玩家获得符文 DA
+    │
+    ├── 放入背包格子
+    │       │
+    │       ├── 进入激活区 → StartBuffFlow(FA, Guid, Player)   ← 能力授予
+    │       │
+    │       └── 离开激活区 → StopBuffFlow(Guid)                ← 能力撤销
+    │
+    └── [激活区外] → FA 未运行，符文无效果
+```
+
+**背包比敌人的授予条件更严格**（需要正确放置 + 热度足够），但 FA 执行层完全相同。
+
+玩家可以把同一个 `FA_Rune_Bleed` 放入背包，敌人 Spawn 时也可以获得同一个 `FA_Rune_Bleed`。两者共用同一个 FA 资产，节点图不需要任何区分。
+
+---
+
+## 六、各授予源实现状态
+
+| 授予源 | C++ 状态 | 涉及文件 |
+|--------|---------|---------|
+| 玩家背包激活区 | ✅ 完整实现 | `BackpackGridComponent::RefreshAllActivations` |
+| 敌人 Spawn（关卡 Buff） | ✅ 完整实现 | `YogGameMode::SpawnEnemyFromPool` 行 ~1220 |
+| 敌人 Spawn（专属 Buff） | ✅ 完整实现 | `YogGameMode::SpawnEnemyFromPool` 行 ~1228 |
+| GA 动作作用域 | ⚠️ 有标准模板，各 GA 按需接入 | 见第三节 Category C 模板 |
+| 献祭恩赐 | ✅ 完整实现 | `PlayerCharacterBase::AcquireSacrificeGrace` |
+
+---
+
+## 七、待完成工作
+
+### P0：攻击 GA 补充 Gameplay Event 广播
+
+各武器 GA（近战、远程、冲刺）在命中/执行时调用 `SendGameplayEventToActor`。
+
+优先级：近战普攻 GA → 远程 GA → 冲刺 GA
+
+涉及文件：各 `GA_*.cpp` 的 `DoFire()` / `OnHit()` 回调
+
+### P1：验证敌人死亡时 FA 自动 Cleanup
+
+确认 `AEnemyCharacterBase::Die()` 路径最终触发 Actor 销毁，从而触发 `BuffFlowComponent` 的 `EndPlay` → `StopAllBuffFlows()`。
+
+涉及文件：`Source/DevKit/Private/Character/EnemyCharacterBase.cpp`
+
+### P2（可选）：EnemyCharacterBase::GrantRuneAbility 封装
+
+当前 `SpawnEnemyFromPool` 直接操作 `BFC->StartBuffFlow`，功能完整。
+如需在蓝图中手动给敌人授予能力（如事件触发赋能），可封装为：
+
+```cpp
+UFUNCTION(BlueprintCallable, Category = "Ability")
+void GrantRuneAbility(URuneDataAsset* RuneDA, FGuid& OutAbilityID);
+
+UFUNCTION(BlueprintCallable, Category = "Ability")
+void RevokeRuneAbility(FGuid AbilityID);
+```
+
+涉及文件：`Source/DevKit/Public/Character/EnemyCharacterBase.h`
+
+---
+
+## 八、链路系统补充说明
+
+链路系统是玩家背包专属的授予条件扩展，不影响 Category B / C。
+
+```
+激活区（直接区域）
+  + BFS 传导区（Producer 符文向指定方向传出）
+  = 有效激活区
+
+Consumer 符文只能放在有效激活区之外
+Producer 在有效激活区内时，向其 ChainDirections 指定方向的相邻符文也会被激活
+```
+
+相关文件：
+- 枚举定义：`Source/DevKit/Public/Data/RuneDataAsset.h`（`ERuneChainRole` / `EChainDirection`）
+- 算法实现：`Source/DevKit/Public/Component/BackpackGridComponent.h`（`ComputeChainActivatedCells`）
+
+---
+
+## 九、献祭恩赐补充说明
+
+献祭恩赐是一个 Category A FA，但授予源是"拾取物"而非背包：
+
+```
+EnterArrangementPhase → 15% 概率 → SpawnSacrificePickup
+玩家拾取 → BP_SacrificeGracePickup 弹出接受/拒绝弹窗
+接受 → PlayerCharacterBase::AcquireSacrificeGrace(DA)
+      ├── 热度设置为 MaxHeat
+      ├── 应用 BonusEffect GE
+      └── StartBuffFlow(DA->FlowAsset, NewGuid, Player)
+            └── BFNode_SacrificeDecay 开始计时衰减热度
+```
+
+每次进入新关卡时（`BeginPlay`），若 `ActiveSacrificeGrace` 非空，自动重新调用 `AcquireSacrificeGrace` 重置衰减速率并充满热度。
+
+相关文件：
+- DA 定义：`Source/DevKit/Public/Data/SacrificeGraceDA.h`
+- 衰减节点：`Source/DevKit/Public/BuffFlow/Nodes/BFNode_SacrificeDecay.h`
+- 玩家接入：`Source/DevKit/Private/Character/PlayerCharacterBase.cpp`
+- 掉落逻辑：`Source/DevKit/Private/GameModes/YogGameMode.cpp`（`EnterArrangementPhase`）
+
+---
+
+## 十、快速决策树
+
+```
+需要给某个角色/动作赋予 FA 效果？
+
+├── 是「玩家符文」吗？
+│     是 → 在 RuneDataAsset 填写 FA，放入背包激活区即可（Category A）
+│
+├── 是「敌人固有能力」吗？
+│     是 → 在 EnemyData.EnemyBuffPool 填写 RuneDA（Category B，已实现）
+│
+├── 是「关卡给所有敌人的 Buff」吗？
+│     是 → 在 RoomDataAsset.BuffPool 填写 RuneDA（Category B，已实现）
+│
+├── 是「某个特殊攻击动作的临时效果」吗？
+│     是 → 在 GA::ActivateAbility 调用 StartBuffFlow，
+│          在 GA::EndAbility 调用 StopBuffFlow（Category C）
+│
+└── 是「全局运行的 Run Buff」吗？
+      是 → 新建 DA + FA，在合适时机调用 StartBuffFlow（Category A 变体）
+```
+
+---
+
+## 十一、关键接口速查
+
+```cpp
+// 启动 FA（通用入口）
+BuffFlowComponent->StartBuffFlow(UFlowAsset* FA, FGuid Guid, AActor* Giver);
+
+// 停止特定 FA
+BuffFlowComponent->StopBuffFlow(FGuid Guid);
+
+// 停止全部 FA（Actor 死亡时）
+BuffFlowComponent->StopAllBuffFlows();
+
+// 广播战斗事件（攻击/冲刺 GA 端）
+UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+    Actor, FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit")), Payload);
+
+// 检查 BFC 是否存在（敌人和玩家的父类 AYogCharacterBase 均有 BFC）
+UBuffFlowComponent* BFC = Actor->FindComponentByClass<UBuffFlowComponent>();
+```
+
+---
+
+*本文档描述 FA 通用架构的设计规范与实现现状。具体节点用法见 [BuffFlow_NodeReference.md](BuffFlow_NodeReference.md)，符文创建流程见 [BuffFlow_RuneWorkflow.md](BuffFlow_RuneWorkflow.md)。*

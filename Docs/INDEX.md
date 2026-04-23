@@ -20,6 +20,7 @@
 | 热度越高效果越强 | HeatSystem | [BackpackSystem_Technical](Systems/Rune/BackpackSystem_Technical.md) |
 | 献祭 HP 换取强力恩赐 | SacrificeGrace + BFNode | [EditorSetup_ChainAndSacrifice](TODO/EditorSetup_ChainAndSacrifice.md) |
 | 符文有链路传导（Producer/Consumer） | BackpackGridComponent | [BackpackSystem_Technical](Systems/Rune/BackpackSystem_Technical.md) |
+| 敌人/动作 GA 也能用 FA | FA 通用架构（三层模型） | [FA_UniversalArchitecture](Systems/Rune/FA_UniversalArchitecture.md) |
 
 ---
 
