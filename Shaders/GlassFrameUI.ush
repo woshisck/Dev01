@@ -1,14 +1,13 @@
-// GlassFrameUI.ush  v6
-// 仿真实玻璃边缘效果：折射阴影 + 边界亮线 + 流动色差环
+// GlassFrameUI.ush  v7
+// 玻璃边框叠加层：折射内阴影带 + 边界亮线
+// 实际色差扰动由 GlassChromaDistort（RetainerBox 层）处理，此处不做彩色叠加
 //
-// 参数语义（与 GlassFrameWidget 属性对应）：
+// 参数：
 //   CornerRadius  — 圆角（0.5 = 整圆）
-//   BorderWidth   — 边缘效果带宽度，推荐 0.025–0.04
-//   FresnelPower  — 亮线宽度系数（越大越粗），推荐 0.8–2.0
-//   IridIntensity — 色差环强度，推荐 0.4–0.8
-//   IridSpeed     — 色差流速，推荐 0.06–0.15
-
-#include "/Project/GlassRim.ush"
+//   BorderWidth   — 暗带宽度，推荐 0.025–0.04
+//   FresnelPower  — 亮线宽度系数（越大越粗），推荐 0.8–1.8
+//   IridIntensity — 暗带透明度倍率，推荐 0.6–1.0
+//   IridSpeed     — 未使用，保留接口
 
 float4 GlassFrameMain(
     float2 UV,
@@ -20,58 +19,37 @@ float4 GlassFrameMain(
     float  IridSpeed
 )
 {
-    // ── SDF 圆角矩形（CornerRadius = 0.5 → 完整圆形）────────────────
+    // ── SDF 圆角矩形 ─────────────────────────────────────────────────
     float2 uv   = UV - 0.5;
     float2 q    = abs(uv) - (0.5 - CornerRadius);
     float  dist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - CornerRadius;
-    // dist < 0：内部；dist = 0：边界；dist > 0：外部
 
     float shapeMask = 1.0 - smoothstep(-0.003, 0.003, dist);
 
-    // ── 层 1：内部轻压暗（玻璃体透射损失）──────────────────────────
-    // 越靠近中心越浅，越靠近边缘越深，自然过渡
+    // ── 层 1：内部轻压暗 ─────────────────────────────────────────────
     float bodyAlpha = smoothstep(-BorderWidth * 0.2, -BorderWidth * 4.0, dist)
-                    * shapeMask * 0.12;
+                    * shapeMask * 0.12 * IridIntensity;
 
-    // ── 层 2：折射内阴影带（贴着边界内侧）──────────────────────────
-    // 模拟真实玻璃边缘折射导致的暗区
+    // ── 层 2：折射内阴影带（紧贴边界内侧的深色区域）────────────────
     float bw       = BorderWidth;
     float darkBand = smoothstep(0.0, -bw * 0.6, dist)
                    * smoothstep(-bw * 2.8, -bw * 1.4, dist);
     darkBand *= shapeMask;
-    float darkAlpha = darkBand * 0.52;
+    float darkAlpha = darkBand * 0.50 * IridIntensity;
 
-    // ── 层 3：边界折射亮线（白色，位于 dist ≈ 0）────────────────────
-    // 真实玻璃边界处折射最强，产生明亮高光线
+    // ── 层 3：边界折射亮线（dist ≈ 0 处的折射峰值高光）───────────────
     float lineHalfW = bw * 0.18 * FresnelPower;
     float edgeLine  = max(0.0, 1.0 - abs(dist) / max(lineHalfW, 0.0001));
     edgeLine *= shapeMask;
-    float lineAlpha = edgeLine * 0.88;
+    float lineAlpha = edgeLine * 0.85;
 
-    // ── 层 4：流动色差环（色散彩虹，贴着亮线内侧）──────────────────
-    // 范围：-2.6*bw ~ -0.7*bw（刚好在暗带里层）
-    float chromaMask = smoothstep(-bw * 0.7,  -bw * 1.0,  dist)
-                     * smoothstep(-bw * 2.6,  -bw * 2.2,  dist);
-    chromaMask *= shapeMask;
-
-    // 角度随时间旋转 → 流动彩虹
-    float angle    = atan2(uv.y, uv.x);
-    float hue      = frac(angle / 6.28318 + Time * IridSpeed);
-    float3 chromaC = GR_HueToRGB(hue);
-    float chromaAlpha = chromaMask * IridIntensity;
-
-    // ── 合并（预乘加权平均，各层空间基本不重叠）────────────────────
-    // 黑色贡献（压暗）
-    float darkTotal   = saturate(bodyAlpha + darkAlpha);
-    // 白线 + 彩色贡献（提亮/染色）
-    float brightTotal = saturate(lineAlpha + chromaAlpha);
-
-    float totalAlpha  = saturate(darkTotal + brightTotal);
+    // ── 合并（预乘加权，黑色压暗 + 白色亮线）────────────────────────
+    float darkTotal  = saturate(bodyAlpha + darkAlpha);
+    float totalAlpha = saturate(darkTotal + lineAlpha);
 
     float3 premulColor = float3(0.0, 0.0, 0.0) * darkTotal
-                       + float3(1.0, 1.0, 1.0) * lineAlpha
-                       + chromaC * chromaAlpha;
-    float3 finalColor = premulColor / max(totalAlpha, 0.0001);
+                       + float3(1.0, 1.0, 1.0) * lineAlpha;
+    float3 finalColor  = premulColor / max(totalAlpha, 0.0001);
 
     return float4(finalColor, totalAlpha * shapeMask);
 }

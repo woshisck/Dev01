@@ -53,6 +53,7 @@
 | `Shaders/WeaponTrail.ush` | `WeaponTrailMain(...)` | 武器拾取流光拖尾 |
 | `Shaders/MusketAimArc.ush` | *(内部函数)* | 瞄准弧线 UI 材质 |
 | `Shaders/LiquidHealthBar.ush` | `LiquidHealthBarMain(...)` | 液态血条：横向填充 + 粘稠晃动 + 圆柱体积感 |
+| `Shaders/GlassChromaDistort.ush` | `GlassChromaMain(...)` | RetainerBox 色差层：边缘对背景做 RGB 通道径向偏移 |
 
 ---
 

@@ -1,0 +1,28 @@
+// GlassChromaDistort.ush
+// 仅计算边缘色差的 UV 径向偏移向量，纹理采样在材质图中完成。
+//
+// Custom Node 输入：UV, CornerRadius, BorderWidth, ChromaStrength
+// Custom Node Code：return ComputeChromaOffset(UV, CornerRadius, BorderWidth, ChromaStrength);
+// 输出类型：CMOT Float 2（XY = 径向偏移量，用于 UV+Offset 和 UV-Offset）
+
+float2 ComputeChromaOffset(
+    float2 UV,
+    float  CornerRadius,
+    float  BorderWidth,
+    float  ChromaStrength
+)
+{
+    // ── SDF 圆角矩形（CornerRadius=0.5 → 整圆）──────────────────────
+    float2 uv   = UV - 0.5;
+    float2 q    = abs(uv) - (0.5 - CornerRadius);
+    float  dist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - CornerRadius;
+
+    // ── 边缘权重（三次方曲线：中心=0，边界=1）───────────────────────
+    float edgeT      = saturate(-dist / max(BorderWidth, 0.0001));
+    float edgeWeight = edgeT * edgeT * edgeT;
+
+    // ── 径向方向（从中心指向边缘）────────────────────────────────────
+    float2 radial = length(uv) > 0.0001 ? normalize(uv) : float2(0.0, 1.0);
+
+    return radial * ChromaStrength * edgeWeight;
+}
