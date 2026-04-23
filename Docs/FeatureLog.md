@@ -7,6 +7,101 @@
 
 ## 2026-04-23
 
+### [FEAT-032] HitStop 命中停顿系统重构：AN → FA + Tag 驱动 + 蒙太奇暂停
+
+**状态**：C++ 完成已编译；需在编辑器创建 `FA_PlayerHitStop` FlowAsset 并挂载到玩家，删除蒙太奇上旧的 `AN Hit Stop` Notify
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Animation/HitStopManager.h/.cpp`、`BuffFlow/Nodes/BFNode_HitStop.h/.cpp` |
+| 删除文件 | `Animation/AN_HitStop.h/.cpp`（全量删除，不再使用 AnimNotify 触发） |
+| 新 Tag | `Buff.Status.HitStop.Freeze`（冻结帧）、`Buff.Status.HitStop.Slow`（延缓帧）；写入 `Config/Tags/BuffTag.ini` |
+| 冻结帧逻辑 | `Montage_Pause` → 真实时间计时（FrozenDuration 秒）→ `Montage_Resume`；不暂停全局时间 |
+| 延缓帧逻辑 | `Montage_SetPlayRate(SlowRate)` → 真实时间计时（SlowDuration 秒）→ `SetPlayRate(CatchUpRate)` 追帧 → 恢复 1.0；追帧时长自动计算：`SlowDuration × (1-SlowRate) / (CatchUpRate-1)` |
+| FA 接线 | `[OnDamageDealt] → [BFNode_HitStop]`（无 Tag 时静默跳过） |
+| 暴击冻结帧 | 暴击 FA：`[OnCritHit] → [AddTag: Buff.Status.HitStop.Freeze]`；OnCritHit 先于 OnDamageDealt 触发，顺序天然正确 |
+| 设计文档 | `Docs/Design/Combat/HitStop_Design.md` |
+
+---
+
+### [FIX-028] EnemyArrow 系统修复：WBP 还原 + NativeTick 崩溃防御
+
+**状态**：C++ 完成已编译；需在 HB_PlayerMain Details → Enemy Arrow → `EnemyArrowWidgetClass` 赋值 `WBP_EnemyArrow`
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/EnemyArrowWidget.cpp`、`Content/UI/Playtest_UI/CombatInfo/WBP_EnemyArrow.uasset` |
+| WBP 还原 | `WBP_EnemyArrow` 被 `0c7c83f5` 提交意外删除，从 `5f6f088a` 恢复到 `Content/UI/Playtest_UI/CombatInfo/` |
+| 崩溃原因 | `RootCanvas`（BindWidget）为 null 时 `RebuildArrowPool` 提前返回，`ArrowImages` 为空，`NativeTick` 第 121 行访问 `ArrowImages[0]` 越界 |
+| 修复方案 | `NativeTick` 排序前加守卫：`if (ArrowImages.IsEmpty() && RootCanvas) RebuildArrowPool();` + `if (ArrowImages.IsEmpty()) { HideAll(); return; }` |
+| WBP 必要结构 | 根控件必须为 `Canvas Panel`，命名精确为 `RootCanvas`；Anchors 全屏，Hit Test = Invisible |
+| 显示条件 | 所有存活敌人均不在屏幕内 **且** 距上次受伤/屏幕内敌人超过 `AppearDelay`（默认 1.5s）才显示箭头 |
+
+---
+
+### [FEAT-030] 信息浮窗（不暂停）：LENode_ShowTutorial 增加 bPauseGame 选项
+
+**状态**：C++ 完成已编译；LevelFlow DA 里取消勾选 `Pause Game` 即可使用
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/GameDialogWidget.h/.cpp`、`Tutorial/TutorialManager.h/.cpp`、`LevelFlow/Nodes/LENode_ShowTutorial.h/.cpp` |
+| 接口变化 | `ShowPopup(Pages, bPauseGame=true)`、`ShowByEventID(EventID, PC, bPauseGame=true)` — 均向后兼容 |
+| 节点字段 | `LENode_ShowTutorial` Details → `Pause Game`（默认勾选 = 原有行为，取消 = 纯信息提示） |
+| 影响范围 | `bPauseGame=false` 时：不调 `SetGamePaused`、不触发 `BeginPauseEffect`/`EndPauseEffect`；鼠标显示/隐藏逻辑不变 |
+| 典型用法 | 触发区域信息提示：`ALevelEventTrigger` → DA 里 `Show Tutorial Popup`（取消勾选 Pause Game）→ OnClosed → End |
+
+---
+
+### [FEAT-031] LevelFlow 新节点：LENode_WaitForLootSelected（等待玩家选符文）
+
+**状态**：C++ 完成已编译；在 LevelFlow DA Flow 编辑器中可用
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `LevelFlow/Nodes/LENode_WaitForLootSelected.h/.cpp`、`GameModes/YogGameMode.h/.cpp` |
+| 委托 | `AYogGameMode::OnLootSelected`（`FOnLootSelected`，非 Dynamic）；在 `SelectLoot()` 末尾广播 |
+| 节点引脚 | In → 开始监听；OnSelected → 玩家选完任意符文后触发 |
+| 典型连法 | `Start → WaitForLootSelected → ShowTutorial（bPauseGame=false）→ End` |
+| 注意 | 每次 `SelectLoot` 均会广播，若同关卡多次触发三选一，节点只等第一次（`TriggerOutput` 后自动 Cleanup） |
+
+---
+
+### [FEAT-029] 祭坛交互系统（AltarActor + 三功能 UI）
+
+**状态**：C++ 完成已编译；需在 Editor 创建 DA/BP/WBP 资产并放置到事件关卡场景
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Map/AltarActor.h/.cpp`、`Data/AltarDataAsset.h`、`UI/AltarMenuWidget.h/.cpp`、`UI/RunePurificationWidget.h/.cpp`、`UI/SacrificeSelectionWidget.h/.cpp`、`Component/BackpackGridComponent.h/.cpp`（新增 TryRemoveRuneCell） |
+| 三功能 | 净化（删格子）/ 升级（存根，按钮置灰）/ 献祭（三选一获取符文） |
+| 交互接口 | `AAltarActor` 实现 `IPlayerInteraction`；`bIsActive` 仅在 `ELevelPhase::Arrangement` 为 true；`TryInteract(Player)` 打开 `UAltarMenuWidget` |
+| 净化逻辑 | `RunePurificationWidget`：Phase0 展示符文列表 → `SelectRune(Guid)` → Phase1 展示可选格子（Shape.Cells 除 (0,0)）→ `SelectCell` → `ConfirmPurification` 调 `BackpackGridComponent::TryRemoveRuneCell` |
+| TryRemoveRuneCell | `GridOccupancy` 清格、`Shape.Cells.RemoveAt`、`RefreshAllActivations`、广播 `OnRuneCellRemoved`；(0,0) pivot 格拒绝删除 |
+| 献祭逻辑 | `SacrificeSelectionWidget`：从 `UAltarDataAsset.SacrificeRunePool` 随机抽三个 → `SelectSacrificeOption` → 展示代价文字 → `ConfirmSacrifice` 调 `Player->AddRuneToInventory`；代价 FA 由 GrantedRune 激活时执行 |
+| 取消行为 | 净化任意阶段取消关闭；献祭 Phase1 取消回 Phase0，Phase0 取消关闭 |
+| DA 配置 | 创建 `UAltarDataAsset`（`DA_Altar_*`），填 `SacrificeRunePool`（条目含符文 + `CostDescription`） |
+| Editor 操作 | BP_AltarActor（配 AltarData + 三个 WidgetClass）+ WBP_AltarMenu + WBP_RunePurification + WBP_SacrificeSelection；放置到事件关卡 |
+| 已知限制 | 符文升级功能为存根（`OnUpgradeRequested` BP 事件，无逻辑）；献祭代价执行依赖 GrantedRune FA 设计 |
+
+---
+
+### [COMBAT-008] 霸体金光 + 敌人韧性 DA 化
+
+**状态**：C++ 完成已编译；需在各 DA_Enemy_* 的 Enemy — Poise 分类填写参数
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Data/EnemyData.h`、`Character/EnemyCharacterBase.cpp`、`Character/YogCharacterBase.h/.cpp`、`AbilitySystem/YogAbilitySystemComponent.cpp` |
+| DA 新字段 | `SuperArmorThreshold`（默认 3）/ `SuperArmorDuration`（默认 2s）——`EnemyCharacterBase::BeginPlay` 自动推到 ASC |
+| 金光触发 | 连续受击 ≥ Threshold → ASC 调 `StartSuperArmorFlash()` → Tick 以 `SuperArmorPulseFreq`（默认 6Hz）驱动金黄正弦脉冲（`FLinearColor(5,3,0)`） |
+| 金光结束 | `SuperArmorDuration` 到期 → ASC 调 `StopSuperArmorFlash()` → Overlay 移除 |
+| 优先级 | 命中白闪 > 霸体金光 > 攻击前红光；白闪结束后金光自动恢复 |
+| 可调参数 | `SuperArmorPulseFreq`（蓝图 Details → Combat\|Visual，默认 6）/ `SuperArmorThreshold` / `SuperArmorDuration`（DA） |
+| 技术文档 | [CharacterFlash_Technical](../Systems/VFX/CharacterFlash_Technical.md) |
+
+---
+
 ### [UI-023] 液态血条系统 — LiquidHealthBarWidget + LiquidHealthBar.ush
 
 **状态**：C++ 完成已编译；需在 WBP_HUDRoot 中放置 WB_PlayerHealthBar（变量名 `PlayerHealthBar`），并在 WB_PlayerHealthBar Details 调整 `FillWindowEnd`
