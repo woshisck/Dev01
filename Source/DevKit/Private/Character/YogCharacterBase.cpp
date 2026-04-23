@@ -605,16 +605,40 @@ void AYogCharacterBase::StopPreAttackFlash()
 {
 	bPreAttackActive = false;
 
-	// 只有命中闪白也未激活时才移除 Overlay
-	if (HitFlashElapsed < 0.f)
+	if (HitFlashElapsed < 0.f && !bSuperArmorFlashActive)
 	{
+		GetMesh()->SetOverlayMaterial(nullptr);
+	}
+}
+
+void AYogCharacterBase::StartSuperArmorFlash()
+{
+	if (!CharacterFlashMaterial) return;
+
+	if (!FlashDynMat)
+		FlashDynMat = UMaterialInstanceDynamic::Create(CharacterFlashMaterial, this);
+
+	GetMesh()->SetOverlayMaterial(FlashDynMat);
+	bSuperArmorFlashActive  = true;
+	SuperArmorFlashElapsed  = 0.f;
+}
+
+void AYogCharacterBase::StopSuperArmorFlash()
+{
+	bSuperArmorFlashActive = false;
+	SuperArmorFlashElapsed = 0.f;
+
+	if (HitFlashElapsed < 0.f && !bPreAttackActive)
+	{
+		if (FlashDynMat)
+			FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), 0.f);
 		GetMesh()->SetOverlayMaterial(nullptr);
 	}
 }
 
 void AYogCharacterBase::TickCharacterFlash(float DeltaTime)
 {
-	// ── 命中闪白（优先级高，快速淡出）───────────────────────────────────────
+	// ── 命中闪白（最高优先级，快速淡出）──────────────────────────────────────
 	if (HitFlashElapsed >= 0.f)
 	{
 		HitFlashElapsed += DeltaTime;
@@ -630,16 +654,24 @@ void AYogCharacterBase::TickCharacterFlash(float DeltaTime)
 		{
 			HitFlashElapsed = -1.f;
 
-			// 闪白结束后，若攻击前摇红光仍激活则无缝衔接
-			if (!bPreAttackActive)
-			{
+			if (!bSuperArmorFlashActive && !bPreAttackActive)
 				GetMesh()->SetOverlayMaterial(nullptr);
-			}
 		}
-		return; // 闪白期间跳过红光更新
+		return;
 	}
 
-	// ── 攻击前摇脉冲红光 ────────────────────────────────────────────────────
+	// ── 霸体金光脉冲（第二优先级）────────────────────────────────────────────
+	if (bSuperArmorFlashActive && FlashDynMat)
+	{
+		SuperArmorFlashElapsed += DeltaTime;
+		const float Alpha = FMath::Abs(FMath::Sin(SuperArmorFlashElapsed * SuperArmorPulseFreq * PI));
+
+		FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(5.f, 3.f, 0.f));
+		FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), Alpha);
+		return;
+	}
+
+	// ── 攻击前摇脉冲红光（最低优先级）───────────────────────────────────────
 	if (bPreAttackActive && FlashDynMat)
 	{
 		PreAttackElapsed += DeltaTime;

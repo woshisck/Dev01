@@ -134,7 +134,7 @@ void UTutorialManager::DoShowPostCombatPopup(TWeakObjectPtr<AYogPlayerController
 	PopupWidget->ShowPopup(Pages);
 }
 
-void UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC)
+void UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool bPauseGame)
 {
 	if (!PopupWidget.IsValid()) return;
 
@@ -144,7 +144,7 @@ void UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC)
 	{
 		if (const TArray<FTutorialPage>* Pages = ContentDA->FindPages(EventID))
 		{
-			PopupWidget->ShowPopup(*Pages);
+			PopupWidget->ShowPopup(*Pages, bPauseGame);
 			return;
 		}
 	}
@@ -152,7 +152,7 @@ void UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC)
 	// 兜底：单页显示 EventID 本身
 	TArray<FTutorialPage> Pages;
 	Pages.Add({ FText::FromName(EventID), FText::GetEmpty() });
-	PopupWidget->ShowPopup(Pages);
+	PopupWidget->ShowPopup(Pages, bPauseGame);
 }
 
 void UTutorialManager::NotifyPopupClosed()

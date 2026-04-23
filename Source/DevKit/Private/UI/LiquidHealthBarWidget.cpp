@@ -6,12 +6,6 @@ void ULiquidHealthBarWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    UE_LOG(LogTemp, Warning, TEXT("[LiquidHB] NativeConstruct — this=%p Outer=%s LiquidMaterial=%s LiquidFillImage=%s"),
-        this,
-        GetOuter() ? *GetOuter()->GetName() : TEXT("NULL"),
-        LiquidMaterial ? *LiquidMaterial->GetName() : TEXT("NULL"),
-        LiquidFillImage ? TEXT("OK") : TEXT("NULL"));
-
     if (LiquidMaterial && LiquidFillImage)
     {
         LiquidDynMat = UMaterialInstanceDynamic::Create(LiquidMaterial, this);
@@ -21,17 +15,10 @@ void ULiquidHealthBarWidget::NativeConstruct()
         LiquidDynMat->SetScalarParameterValue(TEXT("SloshAmplitude"), 0.f);
         LiquidDynMat->SetScalarParameterValue(TEXT("SloshPhase"),     0.f);
         ApplyColors();
-        UE_LOG(LogTemp, Warning, TEXT("[LiquidHB] DMI 创建成功，FillPercent 初始=%.2f"), CurrentPct);
-
-        // 诊断：确认材质里确实有名为 "FillPercent" 的 ScalarParameter
-        float DiagVal = -1.f;
-        const bool bFound = LiquidDynMat->GetScalarParameterValue(TEXT("FillPercent"), DiagVal);
-        UE_LOG(LogTemp, Warning, TEXT("[LiquidHB] 参数诊断 — 'FillPercent' 存在=%s 当前值=%.2f"),
-            bFound ? TEXT("YES") : TEXT("NO(名字不对！)"), DiagVal);
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("[LiquidHB] DMI 未创建 — 请检查 WBP 中 LiquidMaterial 是否赋值，LiquidFillImage 是否命名正确"));
+        UE_LOG(LogTemp, Error, TEXT("[LiquidHB] DMI 未创建 — LiquidMaterial 或 LiquidFillImage 未绑定"));
     }
 }
 
@@ -72,7 +59,6 @@ void ULiquidHealthBarWidget::SetHealthPercent(float NewPct)
         return;
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("[LiquidHB] SetHealthPercent — → %.2f mapped=%.2f (DMI=%s)"), CurrentPct, CurrentPct * FillWindowEnd, LiquidDynMat ? TEXT("OK") : TEXT("null"));
     LiquidDynMat->SetScalarParameterValue(TEXT("FillPercent"), CurrentPct * FillWindowEnd);
 
     if (Delta > KINDA_SMALL_NUMBER)

@@ -325,6 +325,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Visual", meta = (ClampMin = "0.1", ClampMax = "1.0"))
 	float PreAttackMaxAlpha = 0.85f;
 
+	/** 霸体金光脉冲频率（次/秒，推荐 4–8） */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Visual", meta = (ClampMin = "0.5"))
+	float SuperArmorPulseFreq = 6.f;
+
 	/** 由 HealthChanged 自动调用；也可蓝图手动触发 */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
 	void StartHitFlash();
@@ -336,6 +340,14 @@ public:
 	/** 攻击动作结束/取消时调用 */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
 	void StopPreAttackFlash();
+
+	/** 霸体激活时调用（ASC 内部触发，也可蓝图手动调用） */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
+	void StartSuperArmorFlash();
+
+	/** 霸体结束时调用 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
+	void StopSuperArmorFlash();
 
 private:
 	UPROPERTY()
@@ -358,9 +370,11 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> FlashDynMat;
 
-	float HitFlashElapsed  = -1.f;
-	bool  bPreAttackActive = false;
-	float PreAttackElapsed = 0.f;
+	float HitFlashElapsed       = -1.f;
+	bool  bPreAttackActive      = false;
+	float PreAttackElapsed      = 0.f;
+	bool  bSuperArmorFlashActive = false;
+	float SuperArmorFlashElapsed = 0.f;
 };
 
 

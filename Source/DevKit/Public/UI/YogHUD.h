@@ -20,6 +20,7 @@ class ULevelEndRevealWidget;
 class UMaterialInstanceDynamic;
 class ULootSelectionWidget;
 class UYogHUDRootWidget;
+class UBackpackStyleDataAsset;
 
 UCLASS()
 class DEVKIT_API AYogHUD : public AHUD
@@ -117,6 +118,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
 	TObjectPtr<UWeaponGlassAnimDA> WeaponGlassAnimDA;
 
+	/** 背包样式 DA（取热度颜色用） */
+	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
+	TObjectPtr<UBackpackStyleDataAsset> BackpackStyleDA;
+
 	/**
 	 * 拾取武器时调用：从 StartScreenPos 飞向左下角玻璃图标
 	 * @param Def            武器定义（获取缩略图）
@@ -171,6 +176,13 @@ private:
 
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
 	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
+
+	UFUNCTION()
+	void OnHeatPhaseChanged(int32 Phase);
+
+	void ApplyGlassIconHeatColor();
+
+	int32 CurrentHeatPhase = 0;
 
 	UPROPERTY()
 	TObjectPtr<UBackpackScreenWidget> BackpackWidget;

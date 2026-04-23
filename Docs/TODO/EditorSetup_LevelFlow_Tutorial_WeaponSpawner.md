@@ -128,32 +128,50 @@ Content Browser 右键 → **Miscellaneous → Data Asset**
 
 双击资产打开 Flow 编辑器。右键空白处只会出现 **LevelEvent 分类**（BFNode 不会显示）。
 
-**武器教程触发示例（推荐连法）：**
+**可用节点一览：**
+
+| 节点名（右键菜单） | 作用 | 关键字段 |
+| --- | --- | --- |
+| `Time Dilation` | 全局时间膨胀一段时间 | `Dilation Scale`（0.08=慢动作）/ `Duration`（真实秒） |
+| `Show Tutorial Popup` | 显示信息弹窗 | `Event ID`（DialogContentDA 的 Key）/ `Pause Game`（默认 true） |
+| `Wait For Loot Selected` | 等待玩家在三选一界面选完符文 | 无参数；OnSelected 引脚触发后继续 |
+| `Delay` | 延迟（真实时间，不受 TimeDilation 影响） | `Duration` |
+
+**示例 A — 武器教程触发（慢动作 + 暂停弹窗）：**
 
 ```
 [Start] ──→ [Time Dilation]       ──→ [Show Tutorial Popup] ──→ [Delay] ──→ [End]
               DilationScale: 0.08        EventID: WeaponTutorial   Duration: 0.5
-              Duration: 0.35             ↑ OnClosed 引脚接 Delay
+              Duration: 0.35             Pause Game: ✅
+                                         ↑ OnClosed 引脚接 Delay
 ```
 
-**节点参数说明：**
+**示例 B — 区域进入纯提示（不暂停游戏）：**
 
-| 节点 | 关键字段 | 推荐值 | 说明 |
-|------|----------|--------|------|
-| Time Dilation | `Dilation Scale` | 0.08 | 慢动作 8%，营造"世界暂停"感 |
-| Time Dilation | `Duration` | 0.35 | 真实时间 0.35s 后恢复正常并弹出弹窗 |
-| Show Tutorial Popup | `Event ID` | `WeaponTutorial` | 对应 DialogContentDA 里的 Key |
-| Delay | `Duration` | 0.5 | 弹窗关闭后延迟 0.5s 再触发 End（可选） |
+```
+[Start] ──→ [Show Tutorial Popup] ──→ [End]
+               EventID: RoomInfo
+               Pause Game: ☐（取消勾选）
+               ↑ OnClosed 引脚接 End
+```
+
+**示例 C — 战斗结束选符文后弹说明：**
+
+```
+[Start] ──→ [Wait For Loot Selected] ──→ [Show Tutorial Popup] ──→ [End]
+                ↑ OnSelected 引脚          EventID: RuneGuide
+                                            Pause Game: ☐
+```
 
 > **OnClosed 引脚**：Show Tutorial Popup 的 OnClosed 会等玩家关闭弹窗后才触发，  
 > 适合在弹窗后接后续关卡事件（对话 / 下一阶段触发 / 解锁门等）。
 
-### 4.3 纯区域触发（无时间膨胀）示例
+### 4.3 Show Tutorial Popup — Pause Game 字段说明
 
-```
-[Start] ──→ [Show Tutorial Popup] ──→ [End]
-               EventID: WeaponTutorial
-```
+| `Pause Game` | 游戏暂停 | 模糊效果 | 适用场景 |
+| --- | --- | --- | --- |
+| ✅ 勾选（默认） | 是 | 是（BeginPauseEffect） | 重要引导，需要玩家专注阅读 |
+| ☐ 取消 | 否 | 否 | 路过提示、战斗中信息 |
 
 ---
 
@@ -199,10 +217,12 @@ Content Browser 右键 → **Miscellaneous → Data Asset**
 
 | 场景 | Flow 连法 | 说明 |
 |------|-----------|------|
-| 区域进入显示提示 | Start → ShowTutorial → End | 最简，OnClosed 后结束 |
+| 区域进入显示提示（不暂停） | Start → ShowTutorial（Pause Game=false）→ End | 游戏不暂停，纯提示浮窗 |
+| 区域进入显示提示（暂停） | Start → ShowTutorial（Pause Game=true）→ End | 默认行为，游戏暂停 |
 | 区域进入 + 慢动作 | Start → TimeDilation → ShowTutorial → End | 氛围感更强 |
 | 依次显示多条信息 | Start → Show(A) → Show(B) → Show(C) → End | OnClosed 串联，逐页展示 |
 | 显示后延迟触发下一事件 | …→ ShowTutorial → Delay(2s) → [其他节点] → End | Delay 为真实时间 |
+| 战斗后选符文 → 弹提示 | Start → WaitForLootSelected → ShowTutorial → End | 等玩家在三选一界面选完后弹出说明 |
 
 ---
 

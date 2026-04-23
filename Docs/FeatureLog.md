@@ -7,6 +7,21 @@
 
 ## 2026-04-23
 
+### [FEAT-033] 冲刺空气墙 — BP_DashBarrier + GA_PlayerDash 精确停止
+
+**状态**：C++ 完成已编译；需在编辑器创建 `BP_DashBarrier` Blueprint（见下方配置说明）并放置到关卡边界
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `AbilitySystem/Abilities/GA_PlayerDash.cpp`（`GetFurthestValidDashDistance` 新增 DashBarrier 检测） |
+| 工作原理 | 前向 DashTrace 扫描命中 `ActorHasTag("DashBarrier")` 的 Actor 时，直接返回 `HitDist`，跳过越障延伸步逻辑；`AnimScale` 精确缩至停止点，动画不会穿墙 |
+| 兼容性 | 对普通台阶/障碍物的越障延伸（6步×50cm）行为**完全保留**，互不影响 |
+| 蓝图配置 | 创建 `BP_DashBarrier`（父类 Actor）→ 添加 BoxCollision → Actor Tags 加 `DashBarrier` |
+| 碰撞设置 | BoxCollision：`DashTrace`（GameTraceChannel1）= Block；`WorldStatic` = Block；其余 Ignore |
+| 典型用法 | 放置在不允许冲刺进入的区域边界；不需 Mesh，默认不可见；调试可临时 `SetHiddenInGame(false)` |
+
+---
+
 ### [FEAT-032] HitStop 命中停顿系统重构：AN → FA + Tag 驱动 + 蒙太奇暂停
 
 **状态**：C++ 完成已编译；需在编辑器创建 `FA_PlayerHitStop` FlowAsset 并挂载到玩家，删除蒙太奇上旧的 `AN Hit Stop` Notify

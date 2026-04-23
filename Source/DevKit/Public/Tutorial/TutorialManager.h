@@ -23,7 +23,8 @@ public:
 	void LoadFromSave(UYogSaveGame* Save);
 
 	// 供 LevelFlow 节点调用：按 EventID 直接显示教程弹窗（不检查 State）
-	void ShowByEventID(FName EventID, APlayerController* PC);
+	// bPauseGame=false 用于纯信息提示（不暂停游戏）
+	void ShowByEventID(FName EventID, APlayerController* PC, bool bPauseGame = true);
 
 	ETutorialState GetState() const { return State; }
 

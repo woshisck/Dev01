@@ -435,6 +435,9 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 			TM->TryPostCombatTutorial(PC);
 		}
 	}
+
+	// 通知 LevelFlow 节点：玩家已选符文
+	OnLootSelected.Broadcast();
 }
 
 void AYogGameMode::ConfirmArrangementAndTransition()

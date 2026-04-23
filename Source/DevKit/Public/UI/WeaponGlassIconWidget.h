@@ -28,9 +28,9 @@ class DEVKIT_API UWeaponGlassIconWidget : public UGlassFrameWidget
 	GENERATED_BODY()
 
 public:
-	/** 飞行结束后调用：显示武器缩略图，进入常驻状态 */
+	/** 飞行结束后调用：显示图标（热度颜色由 SetHeatColor 驱动），进入常驻状态 */
 	UFUNCTION(BlueprintCallable, Category = "WeaponGlass")
-	void ShowForWeapon(UTexture2D* Thumbnail, const UWeaponGlassAnimDA* InAnimDA);
+	void Show(const UWeaponGlassAnimDA* InAnimDA);
 
 	/** 同步热度颜色（与热度槽颜色一致） */
 	UFUNCTION(BlueprintCallable, Category = "WeaponGlass")
@@ -45,10 +45,8 @@ public:
 	FOnWeaponGlassHidden OnHidden;
 
 protected:
+	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UImage> WeaponThumbnailImg;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UImage> HeatColorOverlay;
