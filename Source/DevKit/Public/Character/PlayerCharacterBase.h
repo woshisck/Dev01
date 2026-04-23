@@ -190,6 +190,9 @@ public:
 
 	friend UPlayerAttributeSet;
 
+	UFUNCTION(BlueprintPure, Category = "Heat")
+	int32 GetCurrentHeatPhase() const { return CurrentHeatPhase; }
+
 protected:
 
 	UPROPERTY(BlueprintReadOnly)
@@ -206,6 +209,7 @@ private:
 	/** Tick 内逐帧更新材质参数 */
 	void TickPlayerPhaseGlow(float DeltaTime);
 
+	int32 CurrentHeatPhase = 0;
 	float PhaseGlowElapsed = -1.f;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> PlayerOverlayDynMat;
 
