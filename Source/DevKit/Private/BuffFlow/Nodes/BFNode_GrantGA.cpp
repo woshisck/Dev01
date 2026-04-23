@@ -8,12 +8,28 @@ UBFNode_GrantGA::UBFNode_GrantGA(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	Category = TEXT("BuffFlow|Effect");
 #endif
-	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
+	InputPins  = { FFlowPin(TEXT("Grant")), FFlowPin(TEXT("Revoke")) };
+	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")), FFlowPin(TEXT("Revoked")) };
 	AbilityLevel = FFlowDataPinInputProperty_Int32(1);
 }
 
 void UBFNode_GrantGA::ExecuteInput(const FName& PinName)
 {
+	// ── Revoke 引脚：撤销已授予的 GA ─────────────────────────────────
+	if (PinName == TEXT("Revoke"))
+	{
+		if (GrantedHandle.IsValid() && GrantedASC.IsValid())
+		{
+			GrantedASC->ClearAbility(GrantedHandle);
+			UE_LOG(LogTemp, Verbose, TEXT("[BFNode_GrantGA] Revoked %s"), *GetNameSafe(AbilityClass));
+		}
+		GrantedHandle = FGameplayAbilitySpecHandle();
+		GrantedASC.Reset();
+		TriggerOutput(TEXT("Revoked"), true);
+		return;
+	}
+
+	// ── Grant 引脚（同时兼容旧版 "In" 引脚名）────────────────────────
 	auto FailOut = [this]()
 	{
 		bGAGranted = FFlowDataPinOutputProperty_Bool(false);

@@ -100,6 +100,26 @@ enum class ERuneStackReduceType : uint8
     One UMETA(DisplayName = "逐一"),
 };
 
+/**
+ * 符文触发时机
+ *   Passive        — 进激活区立即生效，持续常驻（默认）
+ *   OnAttackHit    — 攻击命中目标时触发一次 FA（每次命中独立实例）
+ *   OnDash         — 执行冲刺时触发
+ *   OnKill         — 击杀目标时触发
+ *   OnCritHit      — 暴击命中时触发
+ *   OnDamageReceived — 自身受到伤害时触发
+ */
+UENUM(BlueprintType)
+enum class ERuneTriggerType : uint8
+{
+    Passive          UMETA(DisplayName = "常驻（进激活区生效）"),
+    OnAttackHit      UMETA(DisplayName = "攻击命中时"),
+    OnDash           UMETA(DisplayName = "冲刺时"),
+    OnKill           UMETA(DisplayName = "击杀时"),
+    OnCritHit        UMETA(DisplayName = "暴击时"),
+    OnDamageReceived UMETA(DisplayName = "自身受击时"),
+};
+
 
 // ============================================================
 //  FRuneShape — 背包格子形状
@@ -178,6 +198,15 @@ struct DEVKIT_API FRuneConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chain",
               meta = (EditCondition = "ChainRole == ERuneChainRole::Producer"))
     TSet<EChainDirection> ChainDirections;
+
+    // ── 触发时机 ──────────────────────────────────────────────────
+
+    /**
+     * 符文 FA 的触发时机（BGC 读取此字段决定何时调用 StartBuffFlow）
+     * Passive = 进激活区立即生效；其余类型 = 对应事件发生时才启动 FA
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
+    ERuneTriggerType TriggerType = ERuneTriggerType::Passive;
 };
 
 

@@ -3,6 +3,7 @@
 > 项目：星骸降临
 > 文档性质：系统架构设计规范
 > 创建日期：2026-04-24
+> 最后更新：2026-04-24（TriggerType 系统实现、Ability.Event.* 全量广播、节点引脚扩展）
 > 关联文档：[BuffFlow_ArchitectureAndPlan.md](BuffFlow_ArchitectureAndPlan.md) · [BuffFlow_ProgrammerGuide.md](BuffFlow_ProgrammerGuide.md)
 
 ---
@@ -181,15 +182,25 @@ void UGA_SpecialAttack::EndAbility(...)
 
 所有攻击/冲刺 GA 在关键时机通过 **Gameplay Event Tag** 广播事件。BFNode 内部统一用 `WaitGameplayEvent` 监听这些 Tag。
 
-**标准事件 Tag 表（需在 `Config/DefaultGameplayTags.ini` 中注册）：**
+**标准事件 Tag 表（已在 `Config/DefaultGameplayTags.ini` 注册，所有广播已实装）：**
 
-| Tag | 含义 | 广播时机 | 广播者 |
-|-----|------|---------|--------|
-| `Ability.Event.Attack.Hit` | 攻击命中目标 | 近战/远程命中判定后 | 武器 GA 的 `DoFire` / `OnHit` 回调 |
-| `Ability.Event.Attack.Miss` | 攻击未命中 | 判定为未命中时 | 武器 GA |
-| `Ability.Event.Kill` | 击杀目标 | 目标 HP 归零时 | 伤害计算层（`HandleDeath`） |
-| `Ability.Event.Damaged` | 自身受到伤害 | 受击处理时 | `YogCharacterBase::OnDamaged` |
-| `Ability.Event.Dash` | 执行冲刺 | 冲刺位移开始时 | 冲刺 GA |
+| Tag | 含义 | 广播时机 | 广播者 | 状态 |
+|-----|------|---------|--------|------|
+| `Ability.Event.Attack.Hit` | 攻击命中目标 | 近战命中判定后（GE 命中目标时） | `GA_MeleeAttack::OnEventReceived` | ✅ |
+| `Ability.Event.Attack.Miss` | 攻击未命中 | 判定为未命中时 | 武器 GA | ⏳ 待实现 |
+| `Ability.Event.Kill` | 击杀目标 | 目标 HP 归零时 | `DamageAttributeSet::PostGameplayEffectExecute` | ✅ |
+| `Ability.Event.Death` | 自身死亡 | HP 归零后广播给死亡者 | `DamageAttributeSet::PostGameplayEffectExecute` | ✅ |
+| `Ability.Event.Damaged` | 自身受到伤害 | 受击处理时 | `YogCharacterBase::OnDamaged` | ⏳ 待实现 |
+| `Ability.Event.Dash` | 执行冲刺 | 冲刺位移开始时（Task->ReadyForActivation 后） | `GA_PlayerDash::ActivateAbility` | ✅ |
+
+**Payload 约定：**
+
+| Tag | `Payload.Instigator` | `Payload.Target` |
+|-----|---------------------|-----------------|
+| Attack.Hit | 攻击者（玩家/敌人） | 被命中目标 |
+| Kill | 击杀者 | 死亡目标 |
+| Death | 击杀者 | 死亡者自身 |
+| Dash | 冲刺者 | — |
 
 **广播方式（GA 端）：**
 
@@ -257,7 +268,8 @@ void UBFNode_OnDamageDealt::ExecuteInput(const FName& PinName)
 
 | 授予源 | C++ 状态 | 涉及文件 |
 |--------|---------|---------|
-| 玩家背包激活区 | ✅ 完整实现 | `BackpackGridComponent::RefreshAllActivations` |
+| 玩家背包激活区（Passive） | ✅ 完整实现 | `BackpackGridComponent::ActivateRune` |
+| 玩家背包激活区（TriggerType 事件驱动） | ✅ 完整实现 | `BackpackGridComponent::ActivateRune` → 注册 ASC 事件监听器 |
 | 敌人 Spawn（关卡 Buff） | ✅ 完整实现 | `YogGameMode::SpawnEnemyFromPool` 行 ~1220 |
 | 敌人 Spawn（专属 Buff） | ✅ 完整实现 | `YogGameMode::SpawnEnemyFromPool` 行 ~1228 |
 | GA 动作作用域 | ⚠️ 有标准模板，各 GA 按需接入 | 见第三节 Category C 模板 |
@@ -267,19 +279,27 @@ void UBFNode_OnDamageDealt::ExecuteInput(const FName& PinName)
 
 ## 七、待完成工作
 
-### P0：攻击 GA 补充 Gameplay Event 广播
+### ✅ 已完成（原 P0）：攻击 GA Gameplay Event 广播
 
-各武器 GA（近战、远程、冲刺）在命中/执行时调用 `SendGameplayEventToActor`。
+| GA | 广播 Tag | 实现位置 |
+|----|---------|---------|
+| `GA_MeleeAttack` | `Ability.Event.Attack.Hit` | `OnEventReceived`，对每个命中目标广播 |
+| `GA_PlayerDash` | `Ability.Event.Dash` | `ActivateAbility`，Task->ReadyForActivation 后 |
+| 伤害系统 | `Ability.Event.Kill` / `Ability.Event.Death` | `DamageAttributeSet::PostGameplayEffectExecute` |
 
-优先级：近战普攻 GA → 远程 GA → 冲刺 GA
+### ✅ 已完成（原 P0）：TriggerType 激活系统
 
-涉及文件：各 `GA_*.cpp` 的 `DoFire()` / `OnHit()` 回调
+见第十二节。`BackpackGridComponent::ActivateRune` 现在读取 `DA.RuneInfo.RuneConfig.TriggerType`，对非 Passive 符文注册 ASC 事件监听器而非立即启动 FA。
 
 ### P1：验证敌人死亡时 FA 自动 Cleanup
 
 确认 `AEnemyCharacterBase::Die()` 路径最终触发 Actor 销毁，从而触发 `BuffFlowComponent` 的 `EndPlay` → `StopAllBuffFlows()`。
 
 涉及文件：`Source/DevKit/Private/Character/EnemyCharacterBase.cpp`
+
+### P1：Attack.Miss / Damaged 广播补充
+
+`Ability.Event.Attack.Miss` 和 `Ability.Event.Damaged` 尚未广播，如果有符文使用这两个 TriggerType 时再实现。
 
 ### P2（可选）：EnemyCharacterBase::GrantRuneAbility 封装
 
@@ -384,6 +404,121 @@ UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
 // 检查 BFC 是否存在（敌人和玩家的父类 AYogCharacterBase 均有 BFC）
 UBuffFlowComponent* BFC = Actor->FindComponentByClass<UBuffFlowComponent>();
 ```
+
+---
+
+---
+
+## 十二、TriggerType 激活系统
+
+### 12.1 设计意图
+
+原有所有符文都是 Passive——进入激活区后 FA 立即启动，FA 内部再用 `OnDamageDealt`、`OnKill` 等触发节点等待事件。这导致：
+- FA 长期挂起，占用 Flow 实例
+- 符文"常驻运行"与"事件驱动"的语义耦合在 FA 内部，不直观
+
+**TriggerType** 把触发时机提前到 BGC 层：符文只有在指定事件发生时才启动 FA 实例，FA 本身不再需要事件等待节点。
+
+### 12.2 枚举定义
+
+```cpp
+// Source/DevKit/Public/Data/RuneDataAsset.h
+UENUM(BlueprintType)
+enum class ERuneTriggerType : uint8
+{
+    Passive          // 进激活区立即启动 FA（默认）
+    OnAttackHit      // Ability.Event.Attack.Hit 时启动
+    OnDash           // Ability.Event.Dash 时启动
+    OnKill           // Ability.Event.Kill 时启动
+    OnCritHit        // Ability.Event.Attack.Hit（暴击，复用同 Tag）时启动
+    OnDamageReceived // Ability.Event.Damaged 时启动
+};
+```
+
+字段位置：`RuneDataAsset → RuneInfo → RuneConfig → TriggerType`（编辑器 Category: "Trigger"）
+
+### 12.3 BGC 的行为差异
+
+| TriggerType | BGC::ActivateRune 行为 | BGC::DeactivateRune 行为 |
+|-------------|----------------------|------------------------|
+| Passive | 立即 `BFC->StartBuffFlow(FA, RuneGuid, ...)` | `BFC->StopBuffFlow(RuneGuid)` |
+| 其他类型 | 向玩家 ASC 注册事件监听器，每次事件触发 `BFC->StartBuffFlow(FA, NewGuid, HitTarget)` | 从 ASC 移除监听器（已启动的 FA 实例自行运行至结束） |
+
+**关键差异**：事件驱动型符文的每次触发都生成新 GUID，FA 实例独立运行；不像 Passive 那样单个 FA 实例持续持有 GE handle。
+
+### 12.4 FA 设计规则（按 TriggerType）
+
+#### Passive（持续型）
+FA 长期运行，内部需要事件节点才能做条件触发：
+```
+[Start] → [OnDamageDealt] → [ApplyEffect ...] → ↩ 循环
+```
+符文离开激活区时 BGC 调用 `StopBuffFlow`，FA Cleanup 清除 GE/GA。
+
+#### 事件驱动型（OnAttackHit / OnKill / OnDash）
+FA 收到事件时才启动，**每次独立实例**，适合**即发即止**的效果：
+```
+[Start] → [DoDamage / SpawnActor / instant GE] → [FinishBuff]
+```
+> ⚠️ **不适合 Duration GE**：FA 实例结束时 BFNode_ApplyEffect 会 Cleanup 移除 GE。
+> 需要"持续 N 秒 buff"的符文应保持 **Passive + 内部 OnDamageDealt 节点**，不要改为事件驱动型。
+
+#### 事件驱动型 + Delay（受控持续）
+若确实需要事件触发但效果持续一段时间：
+```
+[Start] → [ApplyAttributeModifier: Additive +30, HasDuration=3s] → [FinishBuff]
+```
+`ApplyAttributeModifier` 使用 `HasDuration` 模式：GE 的持续时间由 GAS 管理，FA 可立即 Finish 而不会破坏 GE 生命周期（AttributeModifier 的 GE 是 Transient，不存 handle，Cleanup 无副作用）。
+
+---
+
+## 十三、GE 生命周期驱动 GA 模式
+
+### 13.1 问题场景
+
+"玩家攻击给敌人打上 3 秒的腐蚀印记，期间敌人持续受到灼伤（GA_Burn）。印记到期后灼伤自动消失。"
+
+传统方案需要在 Blueprint GE 里填写 `GrantedAbilities`——不可见、不可热更新。
+
+### 13.2 新节点能力
+
+**BFNode_ApplyEffect** 新增 `OnRemoved` 执行输出引脚：GE 被外部移除（到期或手动 Remove）时触发，受 `bCleaningUp` 保护（FA 自身 Cleanup 移除 GE 时不触发此引脚，避免循环）。
+
+**BFNode_GrantGA** 新增 `Grant` / `Revoke` 输入引脚和 `Revoked` 输出引脚：
+- 旧 `In` 引脚已更名为 `Grant`（已有 FA 需在编辑器中重连）
+- `Revoke` 引脚：调用 `ClearAbility` 并触发 `Revoked` 输出
+- `Cleanup` 仍会自动撤销 GA（FA 整体停止时兜底）
+
+### 13.3 FA 连线方案（腐蚀印记示例）
+
+```
+[Start]
+  │
+  ▼
+[OnDamageDealt]
+  │
+  ▼
+[ApplyEffect: GE_CorrosionMark, Duration=3s] ──Out──▶ [GrantGA: GA_Burn, Grant]
+                                              │
+                                              OnRemoved
+                                              │
+                                              ▼
+                                         [GrantGA: GA_Burn, Revoke]
+```
+
+**工作流程**：
+1. 命中目标 → 施加 GE_CorrosionMark（3s），同时授予 GA_Burn
+2. GE 到期 → `OnRemoved` 触发 → `Revoke` 撤销 GA_Burn
+3. 符文离开激活区 → FA Cleanup → GE 和 GA 一并清理（`bCleaningUp` 防止 OnRemoved 重复触发）
+
+### 13.4 适用场景
+
+| 场景 | 推荐方案 |
+|------|---------|
+| GE 持续期间给攻击者 buff，GE 到期 buff 消失 | ApplyEffect.OnRemoved → GrantGA.Revoke |
+| GE 到期触发爆炸 | ApplyEffect.OnRemoved → DoDamage / SpawnActor |
+| GE 到期开始下一阶段 | ApplyEffect.OnRemoved → 下一个 ApplyEffect |
+| GA 需要独立于 GE 存活 | 不使用此模式，让 GrantGA 由 FA Cleanup 管理 |
 
 ---
 

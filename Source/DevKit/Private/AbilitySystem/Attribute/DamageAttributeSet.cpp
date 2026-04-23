@@ -9,6 +9,7 @@
 #include "Character/YogCharacterBase.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectExtension.h"
+#include "AbilitySystemBlueprintLibrary.h"
 
 
 
@@ -115,6 +116,25 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				if (TargetCharacter->BaseAttributeSet->GetHealth() <= 0.f && SourceYogASC)
 				{
 					SourceYogASC->OnKilledTarget.Broadcast(TargetCharacter, TargetCharacter->GetActorLocation());
+
+					// 广播 Ability.Event.Kill 给击杀者（BGC 事件驱动型符文监听此事件）
+					// 广播 Ability.Event.Death 给死亡者
+					static const FGameplayTag KillTag  = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Kill"));
+					static const FGameplayTag DeathTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Death"));
+					AActor* KillerActor = SourceYogASC->GetAvatarActor();
+					if (KillerActor)
+					{
+						FGameplayEventData KillPayload;
+						KillPayload.Instigator = KillerActor;
+						KillPayload.Target     = TargetCharacter;
+						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(KillerActor, KillTag, KillPayload);
+					}
+					{
+						FGameplayEventData DeathPayload;
+						DeathPayload.Instigator = KillerActor;
+						DeathPayload.Target     = TargetCharacter;
+						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetCharacter, DeathTag, DeathPayload);
+					}
 				}
 			}
 		}
@@ -190,6 +210,25 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				if (TargetCharacter->BaseAttributeSet->GetHealth() <= 0.f && SourceYogASC)
 				{
 					SourceYogASC->OnKilledTarget.Broadcast(TargetCharacter, TargetCharacter->GetActorLocation());
+
+					// 广播 Ability.Event.Kill 给击杀者（BGC 事件驱动型符文监听此事件）
+					// 广播 Ability.Event.Death 给死亡者
+					static const FGameplayTag KillTag  = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Kill"));
+					static const FGameplayTag DeathTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Death"));
+					AActor* KillerActor = SourceYogASC->GetAvatarActor();
+					if (KillerActor)
+					{
+						FGameplayEventData KillPayload;
+						KillPayload.Instigator = KillerActor;
+						KillPayload.Target     = TargetCharacter;
+						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(KillerActor, KillTag, KillPayload);
+					}
+					{
+						FGameplayEventData DeathPayload;
+						DeathPayload.Instigator = KillerActor;
+						DeathPayload.Target     = TargetCharacter;
+						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetCharacter, DeathTag, DeathPayload);
+					}
 				}
 			}
 		}
