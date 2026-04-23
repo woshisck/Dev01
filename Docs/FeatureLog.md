@@ -5,6 +5,40 @@
 
 ---
 
+## 2026-04-23
+
+### [UI-023] 液态血条系统 — LiquidHealthBarWidget + LiquidHealthBar.ush
+
+**状态**：C++ 完成已编译；需在 WBP_HUDRoot 中放置 WB_PlayerHealthBar（变量名 `PlayerHealthBar`），并在 WB_PlayerHealthBar Details 调整 `FillWindowEnd`
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/LiquidHealthBarWidget.h/.cpp`、`Shaders/LiquidHealthBar.ush`、`UI/YogHUD.cpp` |
+| 材质驱动 | C++ 在 `NativeConstruct` 创建 DMI，写 `FillPercent / SloshAmplitude / SloshPhase` 三个 ScalarParameter |
+| 液态晃动 | `SetHealthPercent` 触发晃动（幅度 ∝ 血量变化量），`NativeTick` 指数阻尼 `exp(-DampingRate * dt)`，幅度 <0.0004 停 Tick |
+| UV 映射 | `FillWindowEnd`（默认 0.5）：帧纹理透明管道右边界；`LiquidDynMat->SetScalarParameterValue("FillPercent", CurrentPct * FillWindowEnd)` |
+| GAS 绑定 | `YogHUD::BindHealthAttributes` 绑 `GetHealthAttribute` + `GetMaxHealthAttribute` 委托；Pawn 未就绪时等 `OnPossessedPawnChanged` |
+| 颜色配置 | `LiquidColorDeep / LiquidColorSurface / GlintColor`（在 WBP Details 里调色） |
+| 配置入口 | `WB_PlayerHealthBar` Details → `LiquidMaterial`（MI_LiquidHealthBar）/ `LiquidFillImage`（控件变量名）/ `FillWindowEnd` |
+
+---
+
+### [UI-024] HUD 主容器架构 — YogHUDRootWidget
+
+**状态**：C++ 完成已编译；需在 Editor 创建 WBP_HUDRoot（父类 YogHUDRootWidget）并在 BP_YogHUD Details → MainHUDClass 赋值
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/YogHUDRootWidget.h/.cpp`、`UI/YogHUD.h/.cpp` |
+| 架构变化 | 原来各 HUD 控件由 `YogHUD.h` 分别持有并逐个 `CreateWidget + AddToViewport`；改为一个 `UYogHUDRootWidget` 容器，所有常驻子控件在 WBP Canvas Panel 里摆放，位置用锚点可视化调整 |
+| BindWidget 字段 | `PlayerHealthBar`（必须，`ULiquidHealthBarWidget`）/ `EnemyArrow`（可选）/ `WeaponGlassIcon`（可选）/ `HeatBar`（可选，`UHeatBarWidget`） |
+| 创建方式 | `YogHUD::BeginPlay` 仅 `CreateWidget<UYogHUDRootWidget>(…, MainHUDClass)` 一次，`AddToViewport(1)` |
+| 访问路径 | `MainHUDWidget->PlayerHealthBar`、`MainHUDWidget->WeaponGlassIcon` 等 |
+| WBP 配置 | 父类选 `YogHUDRootWidget`；各子控件的 **变量名** 必须与 BindWidget 字段名完全一致；Is Variable = ON |
+| 配置入口 | `BP_YogHUD` Details → HUD → `MainHUDClass` = `WBP_HUDRoot` |
+
+---
+
 ## 2026-04-22
 
 ### [FIX-022] 三选一 Loot UI — 以拾取物为主导 + 多拾取物独立触发

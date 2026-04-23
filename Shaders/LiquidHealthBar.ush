@@ -26,9 +26,9 @@ float4 LiquidHealthBarMain(
     float  FillPct,
     float  SloshAmp,
     float  SloshPh,
-    float4 ColorDeep,      // VectorParameter 传入，取 .rgb
-    float4 ColorSurface,
-    float4 GlintColor
+    float3 ColorDeep,      // VectorParameter → ComponentMask(RGB) 后传入
+    float3 ColorSurface,
+    float3 GlintColor
 )
 {
     // ── 1. 管道截面纵向遮罩（模拟圆柱：上下边缘软化）────────────────────
@@ -50,7 +50,7 @@ float4 LiquidHealthBarMain(
     float fill     = 1.0 - smoothstep(surfX - EdgeSoft, surfX + EdgeSoft, UV.x);
 
     // ── 4. 液体颜色：纵向渐变（底部深色 → 顶部亮色）─────────────────────
-    float3 col = lerp(ColorDeep.rgb, ColorSurface.rgb, UV.y);
+    float3 col = lerp(ColorDeep, ColorSurface, UV.y);
 
     // ── 5. 圆柱体积感（管道中心亮、边缘暗）─────────────────────────────
     //   pow 控制明暗曲线：值越大，中心亮区越集中
@@ -63,7 +63,7 @@ float4 LiquidHealthBarMain(
     float glintDist  = abs(UV.x - surfX);
     float glintMask  = saturate(1.0 - glintDist / GlintWidth);
     float glintY     = smoothstep(0.2, 0.75, UV.y);   // 上半段增强
-    col += GlintColor.rgb * glintMask * glintY;
+    col += GlintColor * glintMask * glintY;
 
     // ── 7. 管道顶部反光条纹（玻璃内壁高光）──────────────────────────────
     //   只在填充区域内显示；UV.y 高于 0.58 的区域

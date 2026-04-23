@@ -1,13 +1,17 @@
 #include "UI/YogHUD.h"
+#include "UI/YogHUDRootWidget.h"
+#include "UI/LiquidHealthBarWidget.h"
+#include "UI/EnemyArrowWidget.h"
+#include "UI/WeaponGlassIconWidget.h"
 #include "UI/BackpackScreenWidget.h"
 #include "UI/LootSelectionWidget.h"
-#include "UI/EnemyArrowWidget.h"
 #include "UI/GameDialogWidget.h"
 #include "UI/DialogContentDA.h"
 #include "UI/WeaponThumbnailFlyWidget.h"
-#include "UI/WeaponGlassIconWidget.h"
 #include "UI/WeaponGlassAnimDA.h"
 #include "UI/WeaponTrailWidget.h"
+#include "Character/YogCharacterBase.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Tutorial/TutorialManager.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
@@ -35,15 +39,6 @@ void AYogHUD::BeginPlay()
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
 		TM->Init(TutorialPopupWidget, DialogContentDA);
 
-	// ── Enemy Arrow ─────────────────────────────
-	if (EnemyArrowWidgetClass)
-	{
-		EnemyArrowWidget = CreateWidget<UEnemyArrowWidget>(
-			GetOwningPlayerController(), EnemyArrowWidgetClass);
-		if (EnemyArrowWidget)
-			EnemyArrowWidget->AddToViewport(0);
-	}
-
 	// ── Save Game ───────────────────────────────
 	if (UYogSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UYogSaveSubsystem>())
 	{
@@ -67,6 +62,25 @@ void AYogHUD::BeginPlay()
 		PausePPVolume->Settings.ColorGain       = FVector4(1.f, 1.f, 1.f, 1.f);
 	}
 
+	// ── 主 HUD 容器（血条 / 敌人箭头 / 武器图标 等常驻元素）────────
+	if (MainHUDClass)
+	{
+		MainHUDWidget = CreateWidget<UYogHUDRootWidget>(
+			GetOwningPlayerController(), MainHUDClass);
+		if (MainHUDWidget)
+			MainHUDWidget->AddToViewport(1);
+	}
+
+	// Attribute 绑定：若 Pawn 已就绪则立即绑；否则等 OnPossessedPawnChanged
+	if (APawn* Pawn = GetOwningPawn())
+	{
+		BindHealthAttributes(Pawn);
+	}
+	else if (APlayerController* PC = GetOwningPlayerController())
+	{
+		PC->OnPossessedPawnChanged.AddDynamic(this, &AYogHUD::OnPawnPossessed);
+	}
+
 	// ── Backpack ─────────────────────────────────
 	if (BackpackScreenClass)
 	{
@@ -85,32 +99,13 @@ void AYogHUD::BeginPlay()
 			LootSelectionWidget->AddToViewport(15);
 	}
 
-	// ── Weapon Glass Icon（常驻左下角） ──────────
+	// ── Weapon Thumbnail Fly（按需回退加载） ──────
 	if (!ThumbnailFlyClass)
 	{
 		ThumbnailFlyClass = LoadClass<UWeaponThumbnailFlyWidget>(
 			nullptr, TEXT("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponThumbnailFly.WBP_WeaponThumbnailFly_C"));
 		if (!ThumbnailFlyClass)
-			UE_LOG(LogTemp, Warning, TEXT("[YogHUD] WBP_WeaponThumbnailFly 未找到，请检查资产路径或在 BP_YogHUD 手动赋值"));
-	}
-
-	if (!WeaponGlassIconClass)
-	{
-		WeaponGlassIconClass = LoadClass<UWeaponGlassIconWidget>(
-			nullptr, TEXT("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponGlassIcon.WBP_WeaponGlassIcon_C"));
-		if (!WeaponGlassIconClass)
-			UE_LOG(LogTemp, Warning, TEXT("[YogHUD] WBP_WeaponGlassIcon 未找到，请检查资产路径或在 BP_YogHUD 手动赋值"));
-	}
-
-	if (WeaponGlassIconClass)
-	{
-		WeaponGlassIconWidget = CreateWidget<UWeaponGlassIconWidget>(
-			GetOwningPlayerController(), WeaponGlassIconClass);
-		if (WeaponGlassIconWidget)
-		{
-			WeaponGlassIconWidget->AddToViewport(10);
-			WeaponGlassIconWidget->SetVisibility(ESlateVisibility::Collapsed);
-		}
+			UE_LOG(LogTemp, Warning, TEXT("[YogHUD] WBP_WeaponThumbnailFly 未找到，请在 BP_YogHUD 手动赋值"));
 	}
 }
 
@@ -169,8 +164,9 @@ void AYogHUD::TriggerWeaponPickup(const UWeaponDefinition* Def, FVector2D StartS
 	}
 
 	// 隐藏旧玻璃图标（换武器时）
-	if (WeaponGlassIconWidget)
-		WeaponGlassIconWidget->SetVisibility(ESlateVisibility::Collapsed);
+	UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr;
+	if (GlassIcon)
+		GlassIcon->SetVisibility(ESlateVisibility::Collapsed);
 
 	// 创建缩略图飞行 Widget（每次拾取创建一个新实例，动画结束自行销毁）
 	UWeaponThumbnailFlyWidget* FlyWidget = CreateWidget<UWeaponThumbnailFlyWidget>(
@@ -217,50 +213,44 @@ void AYogHUD::OnWeaponFlyComplete(UTexture2D* Thumbnail)
 		ActiveTrailWidget = nullptr;
 	}
 
-	if (!WeaponGlassIconWidget || !WeaponGlassAnimDA) return;
+	UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr;
+	if (!GlassIcon || !WeaponGlassAnimDA) return;
 
-	// 在显示前设置尺寸和位置，防止 BackgroundBlur 铺满全屏
-	const FVector2D Size = WeaponGlassAnimDA->GlassIconSize;
-	WeaponGlassIconWidget->SetDesiredSizeInViewport(Size);
-
-	FVector2D ViewSize = FVector2D::ZeroVector;
-	if (GetWorld() && GetWorld()->GetGameViewport())
-		GetWorld()->GetGameViewport()->GetViewportSize(ViewSize);
-	// 转换为 DPI 无关单位
-	const float DPI = UWidgetLayoutLibrary::GetViewportScale(GetWorld());
-	if (DPI > 0.f) ViewSize /= DPI;
-	const FVector2D& Off = WeaponGlassAnimDA->HUDOffsetFromBottomLeft;
-	WeaponGlassIconWidget->SetPositionInViewport(
-		FVector2D(Off.X, ViewSize.Y - Off.Y - Size.Y), false);
-
-	WeaponGlassIconWidget->ShowForWeapon(Thumbnail, WeaponGlassAnimDA);
+	GlassIcon->ShowForWeapon(Thumbnail, WeaponGlassAnimDA);
 }
 
 void AYogHUD::NotifyBackpackOpening()
 {
-	if (WeaponGlassIconWidget &&
-	    WeaponGlassIconWidget->GetVisibility() != ESlateVisibility::Collapsed)
+	UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr;
+	if (GlassIcon &&
+	    GlassIcon->GetVisibility() != ESlateVisibility::Collapsed)
 	{
-		WeaponGlassIconWidget->StartExpandAndHide();
+		GlassIcon->StartExpandAndHide();
 	}
 }
 
 FVector2D AYogHUD::GetWeaponGlassIconScreenCenter() const
 {
-	FVector2D ViewSize = FVector2D::ZeroVector;
+	// 优先从 Widget 实际几何体获取（位置由 WBP Canvas Panel 决定）
+	UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr;
+	if (GlassIcon)
+	{
+		const FGeometry& Geo = GlassIcon->GetCachedGeometry();
+		const FVector2D AbsCenter = Geo.GetAbsolutePositionAtCoordinates(FVector2D(0.5f, 0.5f));
+		const float DPI = UWidgetLayoutLibrary::GetViewportScale(GetWorld());
+		if (DPI > 0.f) return AbsCenter / DPI;
+	}
+
+	// 回退：DA 计算（首帧几何体尚未缓存时使用）
+	FVector2D ViewSize(1920.f, 1080.f);
 	if (GetWorld() && GetWorld()->GetGameViewport())
 		GetWorld()->GetGameViewport()->GetViewportSize(ViewSize);
-
-	// 转换为 DPI 无关的 Slate/UMG 单位（CanvasPanelSlot 和 SetPositionInViewport 都用这个坐标系）
 	const float DPI = UWidgetLayoutLibrary::GetViewportScale(GetWorld());
 	if (DPI > 0.f) ViewSize /= DPI;
-
 	if (!WeaponGlassAnimDA) return ViewSize * FVector2D(0.1f, 0.8f);
-
 	const FVector2D& Off  = WeaponGlassAnimDA->HUDOffsetFromBottomLeft;
 	const FVector2D  Size = WeaponGlassAnimDA->GlassIconSize;
-	return FVector2D(Off.X + Size.X * 0.5f,
-	                 ViewSize.Y - Off.Y - Size.Y * 0.5f);
+	return FVector2D(Off.X + Size.X * 0.5f, ViewSize.Y - Off.Y - Size.Y * 0.5f);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -428,4 +418,76 @@ void AYogHUD::OnSaveGameLoaded(UYogSaveGame* SaveGame)
 {
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
 		TM->LoadFromSave(SaveGame);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  液态血条
+// ─────────────────────────────────────────────────────────────────────────────
+
+void AYogHUD::BindHealthAttributes(APawn* Pawn)
+{
+	UE_LOG(LogTemp, Warning, TEXT("[HealthBar] BindHealthAttributes — Pawn=%s"),
+		Pawn ? *Pawn->GetName() : TEXT("NULL"));
+
+	AYogCharacterBase* Char = Cast<AYogCharacterBase>(Pawn);
+	if (!Char)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HealthBar] Cast<AYogCharacterBase> 失败"));
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = Char->GetAbilitySystemComponent();
+	if (!ASC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HealthBar] GetAbilitySystemComponent() 返回 null"));
+		return;
+	}
+
+	ASC->GetGameplayAttributeValueChangeDelegate(UBaseAttributeSet::GetHealthAttribute())
+		.AddUObject(this, &AYogHUD::OnHealthChanged);
+	ASC->GetGameplayAttributeValueChangeDelegate(UBaseAttributeSet::GetMaxHealthAttribute())
+		.AddUObject(this, &AYogHUD::OnMaxHealthChanged);
+
+	const float MaxHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
+	const float CurHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
+	UE_LOG(LogTemp, Warning, TEXT("[HealthBar] 绑定成功 — HP=%.1f / MaxHP=%.1f — Widget=%s"),
+		CurHP, MaxHP,
+		(MainHUDWidget && MainHUDWidget->PlayerHealthBar) ? TEXT("OK") : TEXT("NULL"));
+
+	if (MainHUDWidget && MainHUDWidget->PlayerHealthBar && MaxHP > 0.f)
+		MainHUDWidget->PlayerHealthBar->SetHealthPercent(CurHP / MaxHP);
+}
+
+void AYogHUD::OnPawnPossessed(APawn* OldPawn, APawn* NewPawn)
+{
+	UE_LOG(LogTemp, Warning, TEXT("[HealthBar] OnPawnPossessed — New=%s"),
+		NewPawn ? *NewPawn->GetName() : TEXT("NULL"));
+	if (NewPawn)
+		BindHealthAttributes(NewPawn);
+}
+
+void AYogHUD::OnHealthChanged(const FOnAttributeChangeData& Data)
+{
+	if (!MainHUDWidget || !MainHUDWidget->PlayerHealthBar) return;
+	if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(GetOwningPawn()))
+	{
+		const float MaxHP = Char->GetAbilitySystemComponent()
+			->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
+		const float Pct = (MaxHP > 0.f) ? (Data.NewValue / MaxHP) : 0.f;
+		if (MaxHP > 0.f)
+			MainHUDWidget->PlayerHealthBar->SetHealthPercent(Pct);
+	}
+}
+
+void AYogHUD::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
+{
+	if (!MainHUDWidget || !MainHUDWidget->PlayerHealthBar || Data.NewValue <= 0.f) return;
+	if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(GetOwningPawn()))
+	{
+		const float CurHP = Char->GetAbilitySystemComponent()
+			->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
+		UE_LOG(LogTemp, Warning, TEXT("[HealthBar] OnMaxHealthChanged — MaxHP=%.1f CurHP=%.1f"),
+			Data.NewValue, CurHP);
+		MainHUDWidget->PlayerHealthBar->SetHealthPercent(CurHP / Data.NewValue);
+	}
 }

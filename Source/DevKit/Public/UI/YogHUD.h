@@ -2,15 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
-#include "EnemyArrowWidget.h"
 #include "GameModes/LevelFlowTypes.h"
+#include "GameplayEffectTypes.h"
 #include "YogHUD.generated.h"
 
 class UTutorialPopupWidget;
 class UDialogContentDA;
 class UYogSaveGame;
 class APostProcessVolume;
-class UWeaponGlassIconWidget;
 class UWeaponGlassAnimDA;
 class UWeaponDefinition;
 class UBackpackScreenWidget;
@@ -20,6 +19,7 @@ class ULevelEndEffectDA;
 class ULevelEndRevealWidget;
 class UMaterialInstanceDynamic;
 class ULootSelectionWidget;
+class UYogHUDRootWidget;
 
 UCLASS()
 class DEVKIT_API AYogHUD : public AHUD
@@ -38,11 +38,12 @@ public:
 	TObjectPtr<UDialogContentDA> DialogContentDA;
 
 	// ─────────────────────────────────────────
-	//  EnemyArrow
+	//  主 HUD 容器
 	// ─────────────────────────────────────────
 
-	UPROPERTY(EditDefaultsOnly, Category = "EnemyArrow")
-	TSubclassOf<UEnemyArrowWidget> EnemyArrowWidgetClass;
+	/** 主 HUD 容器 WBP（WBP_HUDRoot，内含血条/箭头/武器图标等常驻元素） */
+	UPROPERTY(EditDefaultsOnly, Category = "HUD")
+	TSubclassOf<UYogHUDRootWidget> MainHUDClass;
 
 	// ─────────────────────────────────────────
 	//  暂停遮罩后处理
@@ -108,9 +109,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
 	TSubclassOf<UWeaponThumbnailFlyWidget> ThumbnailFlyClass;
 
-	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
-	TSubclassOf<UWeaponGlassIconWidget> WeaponGlassIconClass;
-
 	/** 流光拖尾 Widget */
 	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
 	TSubclassOf<UWeaponTrailWidget> TrailWidgetClass;
@@ -141,10 +139,10 @@ protected:
 
 private:
 	UPROPERTY()
-	TObjectPtr<UTutorialPopupWidget> TutorialPopupWidget;
+	TObjectPtr<UYogHUDRootWidget> MainHUDWidget;
 
 	UPROPERTY()
-	TObjectPtr<UEnemyArrowWidget> EnemyArrowWidget;
+	TObjectPtr<UTutorialPopupWidget> TutorialPopupWidget;
 
 	UPROPERTY()
 	TObjectPtr<APostProcessVolume> PausePPVolume;
@@ -166,14 +164,19 @@ private:
 	void TickLevelEndEffect();
 	void StartRevealAnimation();
 
+	void BindHealthAttributes(APawn* Pawn);
+
+	UFUNCTION()
+	void OnPawnPossessed(APawn* OldPawn, APawn* NewPawn);
+
+	void OnHealthChanged(const FOnAttributeChangeData& Data);
+	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
+
 	UPROPERTY()
 	TObjectPtr<UBackpackScreenWidget> BackpackWidget;
 
 	UPROPERTY()
 	TObjectPtr<ULootSelectionWidget> LootSelectionWidget;
-
-	UPROPERTY()
-	TObjectPtr<UWeaponGlassIconWidget> WeaponGlassIconWidget;
 
 	UPROPERTY()
 	TObjectPtr<UWeaponTrailWidget> ActiveTrailWidget;
