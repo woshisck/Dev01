@@ -55,6 +55,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<const UWeaponGlassAnimDA> AnimDA;
 
-	bool  bExpanding    = false;
-	float ExpandTimer   = 0.f;
+	bool  bExpanding      = false;
+	float ExpandTimer     = 0.f;
+	bool  bWeaponShowing  = false;
 };

@@ -11,6 +11,8 @@
 #include "UI/WeaponGlassAnimDA.h"
 #include "UI/WeaponTrailWidget.h"
 #include "Character/YogCharacterBase.h"
+#include "Character/PlayerCharacterBase.h"
+#include "UI/BackpackStyleDataAsset.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Tutorial/TutorialManager.h"
 #include "SaveGame/YogSaveSubsystem.h"
@@ -214,6 +216,7 @@ void AYogHUD::OnWeaponFlyComplete(UTexture2D* Thumbnail)
 	if (!GlassIcon || !WeaponGlassAnimDA) return;
 
 	GlassIcon->Show(WeaponGlassAnimDA);
+	ApplyGlassIconHeatColor();
 }
 
 void AYogHUD::NotifyBackpackOpening()
@@ -456,6 +459,9 @@ void AYogHUD::BindHealthAttributes(APawn* Pawn)
 
 	if (MainHUDWidget && MainHUDWidget->PlayerHealthBar && MaxHP > 0.f)
 		MainHUDWidget->PlayerHealthBar->SetHealthPercent(CurHP / MaxHP);
+
+	if (APlayerCharacterBase* PC = Cast<APlayerCharacterBase>(Pawn))
+		PC->OnHeatPhaseChanged.AddDynamic(this, &AYogHUD::OnHeatPhaseChanged);
 }
 
 void AYogHUD::OnPawnPossessed(APawn* OldPawn, APawn* NewPawn)
@@ -490,4 +496,26 @@ void AYogHUD::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
 			Data.NewValue, CurHP);
 		MainHUDWidget->PlayerHealthBar->SetHealthPercent(CurHP / Data.NewValue);
 	}
+}
+
+void AYogHUD::OnHeatPhaseChanged(int32 Phase)
+{
+	CurrentHeatPhase = Phase;
+	ApplyGlassIconHeatColor();
+}
+
+void AYogHUD::ApplyGlassIconHeatColor()
+{
+	UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr;
+	if (!GlassIcon || !BackpackStyleDA) return;
+
+	FLinearColor Color = FLinearColor(0.f, 0.f, 0.f, 0.f);
+	switch (CurrentHeatPhase)
+	{
+		case 1: Color = BackpackStyleDA->HeatZone0Color; break;
+		case 2: Color = BackpackStyleDA->HeatZone1Color; break;
+		case 3: Color = BackpackStyleDA->HeatZone2Color; break;
+		default: break;
+	}
+	GlassIcon->SetHeatColor(Color);
 }

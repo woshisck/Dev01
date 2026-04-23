@@ -13,19 +13,24 @@ void UWeaponGlassIconWidget::NativeConstruct()
 
 void UWeaponGlassIconWidget::Show(const UWeaponGlassAnimDA* InAnimDA)
 {
-	AnimDA      = InAnimDA;
-	bExpanding  = false;
-	ExpandTimer = 0.f;
+	AnimDA         = InAnimDA;
+	bExpanding     = false;
+	ExpandTimer    = 0.f;
+	bWeaponShowing = true;
 	{ FWidgetTransform T; T.Scale = FVector2D::UnitVector; SetRenderTransform(T); }
-	// widget 已经常驻可见，只重置动画状态
 }
 
 void UWeaponGlassIconWidget::SetHeatColor(FLinearColor Color)
 {
-	if (HeatColorOverlay)
+	if (!HeatColorOverlay) return;
+	if (bWeaponShowing && Color.A > 0.f)
 	{
 		HeatColorOverlay->SetColorAndOpacity(Color);
 		HeatColorOverlay->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	else
+	{
+		HeatColorOverlay->SetColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.f));
 	}
 }
 
@@ -50,7 +55,8 @@ void UWeaponGlassIconWidget::NativeTick(const FGeometry& MyGeometry, float InDel
 
 	if (Alpha >= 1.f)
 	{
-		bExpanding = false;
+		bExpanding     = false;
+		bWeaponShowing = false;
 		{ FWidgetTransform T; T.Scale = FVector2D::UnitVector; SetRenderTransform(T); }
 		SetRenderOpacity(1.f);
 		if (HeatColorOverlay)
