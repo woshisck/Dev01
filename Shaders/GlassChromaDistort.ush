@@ -1,0 +1,59 @@
+// GlassChromaDistort.ush
+// RetainerBox effect material：对捕获的背景图像做边缘色差扰动
+//
+// 原理：边缘区域将 R/G/B 通道分别向不同方向径向偏移采样，
+//       产生真实的色散（色差）失真效果。中心区域不扰动。
+//
+// 材质设置（M_GlassChromaDistort）：
+//   - Blend Mode : Opaque（RetainerBox effect material 固定用 Opaque）
+//   - 添加 Texture Parameter 2D，名称精确为 "SlateUI"（RetainerBox 自动注入）
+//   - 将 SlateUI 的 Texture Object 和 Sampler 传入 Custom Node
+
+// 边缘色差主函数
+//   WidgetTex/Sampler : SlateUI 纹理（RetainerBox 捕获的 widget 内容）
+//   UV                : TexCoord[0]（0–1 widget 空间）
+//   CornerRadius      : 圆角（0.5 = 整圆）
+//   BorderWidth       : 边缘色差影响宽度（UV 空间，推荐 0.04–0.08）
+//   ChromaStrength    : 色差偏移量（推荐 0.005–0.015）
+float4 GlassChromaMain(
+    Texture2D    WidgetTex,
+    SamplerState WidgetSampler,
+    float2 UV,
+    float  CornerRadius,
+    float  BorderWidth,
+    float  ChromaStrength
+)
+{
+    // ── SDF 圆角矩形 ─────────────────────────────────────────────────
+    float2 uv   = UV - 0.5;
+    float2 q    = abs(uv) - (0.5 - CornerRadius);
+    float  dist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - CornerRadius;
+
+    // 形状裁切
+    float shapeMask = 1.0 - smoothstep(-0.003, 0.003, dist);
+
+    // ── 边缘权重：越靠近边界越强，中心为 0 ────────────────────────
+    // 仅在 BorderWidth 范围内生效
+    float edgeT = saturate(-dist / BorderWidth);          // 0=中心 1=边界
+    float edgeWeight = edgeT * edgeT * edgeT;             // 三次方：中间平缓，边缘陡增
+
+    // ── 径向方向（从中心指向边界）──────────────────────────────────
+    float2 radial = length(uv) > 0.0001 ? normalize(uv) : float2(0.0, 1.0);
+
+    // ── RGB 通道偏移（色差扰动）────────────────────────────────────
+    // R 通道：向外偏移（更大的折射角）
+    // G 通道：不偏移（参考基准）
+    // B 通道：向内偏移（更小的折射角）
+    float  offset = ChromaStrength * edgeWeight;
+    float2 uvR    = UV + radial * offset;
+    float2 uvG    = UV;
+    float2 uvB    = UV - radial * offset;
+
+    float r = Texture2DSampleLevel(WidgetTex, WidgetSampler, uvR, 0).r;
+    float g = Texture2DSampleLevel(WidgetTex, WidgetSampler, uvG, 0).g;
+    float b = Texture2DSampleLevel(WidgetTex, WidgetSampler, uvB, 0).b;
+    float a = Texture2DSampleLevel(WidgetTex, WidgetSampler, UV,  0).a;
+
+    // 形状外透明裁切
+    return float4(r, g, b, a * shapeMask);
+}
