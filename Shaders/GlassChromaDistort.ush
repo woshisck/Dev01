@@ -1,17 +1,27 @@
 // GlassChromaDistort.ush
 // RetainerBox effect material：对捕获的背景图像做边缘色差扰动
 //
-// UE5 Custom Node 规则：
-//   传入 TextureObject 输入（名称 WidgetTex）时，
-//   UE5 会自动在 HLSL 作用域内生成 SamplerState WidgetTexSampler，
-//   无需单独 SamplerState 输入引脚。
+// UE5 Custom Node 传 TextureObject 时，自动在 Code 字段作用域内生成
+// SamplerState WidgetTexSampler，但该变量不会自动传递给 .ush 函数。
+// 因此函数签名保留 SamplerState 参数，Code 字段显式传入 WidgetTexSampler。
+//
+// Custom Node Code 字段写法：
+//   return GlassChromaMain(WidgetTex, WidgetTexSampler, UV, CornerRadius, BorderWidth, ChromaStrength);
+//
+// Custom Node 输入引脚（5 个，无需单独的 Sampler 引脚）：
+//   WidgetTex      ← SlateUI（TextureObject 引脚直连）
+//   UV             ← TexCoord[0]
+//   CornerRadius   ← Scalar Param (0.5)
+//   BorderWidth    ← Scalar Param (0.025)
+//   ChromaStrength ← Scalar Param (0.01)
 
 float4 GlassChromaMain(
-    Texture2D WidgetTex,   // Custom Node 输入：SlateUI（TextureObject 引脚直连）
-    float2    UV,          // TexCoord[0]
-    float     CornerRadius,
-    float     BorderWidth,
-    float     ChromaStrength
+    Texture2D    WidgetTex,
+    SamplerState WidgetSamp,   // 由 Code 字段传入 WidgetTexSampler
+    float2       UV,
+    float        CornerRadius,
+    float        BorderWidth,
+    float        ChromaStrength
 )
 {
     // ── SDF 圆角矩形（CornerRadius=0.5 → 整圆）──────────────────────
@@ -29,17 +39,15 @@ float4 GlassChromaMain(
     float2 radial = length(uv) > 0.0001 ? normalize(uv) : float2(0.0, 1.0);
 
     // ── RGB 通道径向偏移（色差）─────────────────────────────────────
-    // R 向外偏移，G 不动，B 向内偏移
     float  off = ChromaStrength * edgeWeight;
     float2 uvR = UV + radial * off;
     float2 uvG = UV;
     float2 uvB = UV - radial * off;
 
-    // WidgetTexSampler 由 UE5 根据输入名 "WidgetTex" 自动生成
-    float r = Texture2DSampleLevel(WidgetTex, WidgetTexSampler, uvR, 0).r;
-    float g = Texture2DSampleLevel(WidgetTex, WidgetTexSampler, uvG, 0).g;
-    float b = Texture2DSampleLevel(WidgetTex, WidgetTexSampler, uvB, 0).b;
-    float a = Texture2DSampleLevel(WidgetTex, WidgetTexSampler, UV,  0).a;
+    float r = Texture2DSampleLevel(WidgetTex, WidgetSamp, uvR, 0).r;
+    float g = Texture2DSampleLevel(WidgetTex, WidgetSamp, uvG, 0).g;
+    float b = Texture2DSampleLevel(WidgetTex, WidgetSamp, uvB, 0).b;
+    float a = Texture2DSampleLevel(WidgetTex, WidgetSamp, UV,  0).a;
 
     return float4(r, g, b, a * shapeMask);
 }
