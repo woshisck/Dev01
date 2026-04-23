@@ -5,16 +5,19 @@
 #include "Tickable.h"
 #include "HitStopManager.generated.h"
 
+class UAnimInstance;
+
 /**
- * 命中停顿 & 全局时间缩放管理器。
- * 作为 UTickableWorldSubsystem 自动随世界创建，无需手动管理生命周期。
+ * 命中停顿管理器（WorldSubsystem，自动随世界创建）。
  *
- * 工作流：
- *   冻结阶段（dilation ≈ 0）→ 慢动作阶段（dilation = SlowAmount）→ 恢复
- *   任一阶段时长为 0 时跳过。
+ * 操作玩家蒙太奇的播放状态，分三阶段：
+ *   Frozen  → Montage_Pause，持续 FrozenDuration 真实秒后恢复
+ *   Slow    → Montage_SetPlayRate(SlowRate)，持续 SlowDuration 真实秒
+ *   CatchUp → Montage_SetPlayRate(CatchUpRate)，自动计算时长后恢复 1.0
+ * 任意阶段时长为 0 则跳过。
  *
- * 调用方式：
- *   World->GetSubsystem<UHitStopManager>()->RequestHitStop(...)
+ * 调用方式（通过 BFNode_HitStop FA 节点间接调用）：
+ *   World->GetSubsystem<UHitStopManager>()->RequestMontageHitStop(...)
  */
 UCLASS()
 class DEVKIT_API UHitStopManager : public UTickableWorldSubsystem
@@ -23,32 +26,42 @@ class DEVKIT_API UHitStopManager : public UTickableWorldSubsystem
 
 public:
 	/**
-	 * 请求命中停顿。
-	 * @param FrozenDuration  冻结阶段时长（真实秒）。0 = 跳过，直接进慢动作
-	 * @param SlowDuration    慢动作阶段时长（真实秒）。0 = 跳过，直接恢复
-	 * @param SlowDilation    慢动作阶段时间缩放（0.1 = 10% 速度）
+	 * 请求蒙太奇命中停顿。
+	 * @param AnimInst       目标角色的 AnimInstance
+	 * @param FrozenDuration 暂停时长（真实秒）。0 = 跳过冻结阶段
+	 * @param SlowDuration   减速时长（真实秒）。0 = 跳过减速阶段
+	 * @param SlowRate       减速阶段播放速率（0.01~1.0）
+	 * @param CatchUpRate    追帧阶段播放速率（>1），持续时间自动计算
 	 */
-	void RequestHitStop(float FrozenDuration, float SlowDuration, float SlowDilation);
+	void RequestMontageHitStop(UAnimInstance* AnimInst,
+		float FrozenDuration, float SlowDuration = 0.f,
+		float SlowRate = 0.3f, float CatchUpRate = 2.0f);
 
 	// USubsystem
 	virtual void Deinitialize() override;
 
-	// FTickableGameObject — 每帧用真实时间检查阶段转换
+	// FTickableGameObject
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UHitStopManager, STATGROUP_Tickables); }
-	virtual bool IsTickable() const override { return CurrentPhase != EPhase::None; }
+	virtual bool IsTickable() const override { return Phase != EPhase::None; }
 
 private:
-	enum class EPhase : uint8 { None, Frozen, Slow };
+	enum class EPhase : uint8 { None, Frozen, Slow, CatchUp };
 
-	EPhase  CurrentPhase       = EPhase::None;
+	EPhase  Phase              = EPhase::None;
 	double  PhaseStartRealTime = 0.0;
-	float   CachedFrozenDur   = 0.0f;
-	float   CachedSlowDur     = 0.0f;
-	float   CachedSlowDilation = 0.3f;
-	float   SavedTimeDilation  = 1.0f;
+	float   CachedFrozenDur   = 0.f;
+	float   CachedSlowDur     = 0.f;
+	float   CachedSlowRate    = 0.3f;
+	float   CachedCatchUpRate = 2.0f;
+	float   CachedCatchUpDur  = 0.f;
+
+	TWeakObjectPtr<UAnimInstance> AnimInst;
 
 	void TransitionToSlow();
+	void TransitionToCatchUp();
 	void EndHitStop();
-	void ApplyDilation(float Dilation);
+	void SetPlayRate(float Rate);
+	void PauseMontage();
+	void ResumeMontage();
 };

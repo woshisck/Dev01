@@ -83,4 +83,12 @@ public:
 	// 预生成特效持续时间（秒）。FX 结束后才真正 SpawnActor；0 = 立即刷出
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Spawn")
 	float PreSpawnFXDuration = 0.f;
+
+	// 连续被击中多少次后进入霸体（0 = 永不触发霸体）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Poise", meta = (ClampMin = "0"))
+	int32 SuperArmorThreshold = 3;
+
+	// 霸体持续时间（秒）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Poise", meta = (ClampMin = "0.0"))
+	float SuperArmorDuration = 2.f;
 };

@@ -11,6 +11,8 @@
 #include "UI/WeaponGlassAnimDA.h"
 #include "UI/WeaponTrailWidget.h"
 #include "Character/YogCharacterBase.h"
+#include "Character/PlayerCharacterBase.h"
+#include "UI/BackpackStyleDataAsset.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Tutorial/TutorialManager.h"
 #include "SaveGame/YogSaveSubsystem.h"
@@ -204,9 +206,6 @@ void AYogHUD::OnFlyProgressUpdate(FVector2D FlyStart, FVector2D CurrentPos, floa
 
 void AYogHUD::OnWeaponFlyComplete(UTexture2D* Thumbnail)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] OnWeaponFlyComplete — Thumbnail=%s"),
-		Thumbnail ? *Thumbnail->GetName() : TEXT("NULL"));
-
 	if (ActiveTrailWidget)
 	{
 		ActiveTrailWidget->StartFadeOut();
@@ -216,7 +215,8 @@ void AYogHUD::OnWeaponFlyComplete(UTexture2D* Thumbnail)
 	UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr;
 	if (!GlassIcon || !WeaponGlassAnimDA) return;
 
-	GlassIcon->ShowForWeapon(Thumbnail, WeaponGlassAnimDA);
+	GlassIcon->Show(WeaponGlassAnimDA);
+	ApplyGlassIconHeatColor();
 }
 
 void AYogHUD::NotifyBackpackOpening()
@@ -236,9 +236,12 @@ FVector2D AYogHUD::GetWeaponGlassIconScreenCenter() const
 	if (GlassIcon)
 	{
 		const FGeometry& Geo = GlassIcon->GetCachedGeometry();
-		const FVector2D AbsCenter = Geo.GetAbsolutePositionAtCoordinates(FVector2D(0.5f, 0.5f));
-		const float DPI = UWidgetLayoutLibrary::GetViewportScale(GetWorld());
-		if (DPI > 0.f) return AbsCenter / DPI;
+		if (!Geo.GetLocalSize().IsNearlyZero())
+		{
+			const FVector2D AbsCenter = Geo.GetAbsolutePositionAtCoordinates(FVector2D(0.5f, 0.5f));
+			const float DPI = UWidgetLayoutLibrary::GetViewportScale(GetWorld());
+			if (DPI > 0.f) return AbsCenter / DPI;
+		}
 	}
 
 	// 回退：DA 计算（首帧几何体尚未缓存时使用）
@@ -456,6 +459,9 @@ void AYogHUD::BindHealthAttributes(APawn* Pawn)
 
 	if (MainHUDWidget && MainHUDWidget->PlayerHealthBar && MaxHP > 0.f)
 		MainHUDWidget->PlayerHealthBar->SetHealthPercent(CurHP / MaxHP);
+
+	if (APlayerCharacterBase* PC = Cast<APlayerCharacterBase>(Pawn))
+		PC->OnHeatPhaseChanged.AddDynamic(this, &AYogHUD::OnHeatPhaseChanged);
 }
 
 void AYogHUD::OnPawnPossessed(APawn* OldPawn, APawn* NewPawn)
@@ -490,4 +496,26 @@ void AYogHUD::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
 			Data.NewValue, CurHP);
 		MainHUDWidget->PlayerHealthBar->SetHealthPercent(CurHP / Data.NewValue);
 	}
+}
+
+void AYogHUD::OnHeatPhaseChanged(int32 Phase)
+{
+	CurrentHeatPhase = Phase;
+	ApplyGlassIconHeatColor();
+}
+
+void AYogHUD::ApplyGlassIconHeatColor()
+{
+	UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr;
+	if (!GlassIcon || !BackpackStyleDA) return;
+
+	FLinearColor Color = FLinearColor(0.f, 0.f, 0.f, 0.f);
+	switch (CurrentHeatPhase)
+	{
+		case 1: Color = BackpackStyleDA->HeatZone0Color; break;
+		case 2: Color = BackpackStyleDA->HeatZone1Color; break;
+		case 3: Color = BackpackStyleDA->HeatZone2Color; break;
+		default: break;
+	}
+	GlassIcon->SetHeatColor(Color);
 }

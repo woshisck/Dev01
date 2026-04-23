@@ -341,6 +341,13 @@ float UGA_PlayerDash::GetFurthestValidDashDistance(const FVector& Start, const F
 	const float HitDist   = ForwardHit.Distance;
 	const float Threshold = DashMaxDistance - 2.f * DashCapsuleRadius;
 
+	// ── 空气墙（DashBarrier）：标记了 DashBarrier Tag 的 Actor 直接停住，不做越障延伸 ──
+	if (AActor* HitActor = ForwardHit.GetActor())
+	{
+		if (HitActor->ActorHasTag(TEXT("DashBarrier")))
+			return HitDist;
+	}
+
 	// ── 2. 命中在终点附近（末端硬墙）→ 停在障碍前 ───────────────────────────
 	if (HitDist > Threshold)
 		return HitDist;

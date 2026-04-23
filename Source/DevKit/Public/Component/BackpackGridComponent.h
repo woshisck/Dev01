@@ -43,6 +43,7 @@ struct DEVKIT_API FPlacedRune
 DECLARE_MULTICAST_DELEGATE(FBGCPhaseEvent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRunePlaced, const FRuneInstance&, Rune);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRuneRemoved, FGuid, RuneGuid);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRuneCellRemoved, FGuid, RuneGuid);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRuneActivationChanged, FGuid, RuneGuid, bool, bActivated);
 
 /** UI 热度条专用：归一化热度（0-1）+ 当前阶段（0-3） */
@@ -94,6 +95,9 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category = "Backpack|Events")
     FOnRuneActivationChanged OnRuneActivationChanged;
+
+    UPROPERTY(BlueprintAssignable, Category = "Backpack|Events")
+    FOnRuneCellRemoved OnRuneCellRemoved;
 
     /** 热度条 UI 专用：热度值变化或阶段变化时广播 */
     UPROPERTY(BlueprintAssignable, Category = "Backpack|Events")
@@ -154,6 +158,10 @@ public:
     // 移除指定 Guid 的符文，成功返回 true
     UFUNCTION(BlueprintCallable, Category = "Backpack")
     bool RemoveRune(FGuid RuneGuid);
+
+    // 从指定符文中删除一个格子（LocalCellOffset 是 Shape.Cells 本地坐标，不能为 (0,0) pivot 格）
+    UFUNCTION(BlueprintCallable, Category = "Backpack")
+    bool TryRemoveRuneCell(FGuid RuneGuid, FIntPoint LocalCellOffset);
 
     // 将指定符文移动到新位置（内部等价于 Remove + Place）
     UFUNCTION(BlueprintCallable, Category = "Backpack")

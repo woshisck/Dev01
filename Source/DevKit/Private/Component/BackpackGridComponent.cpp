@@ -318,6 +318,34 @@ bool UBackpackGridComponent::RemoveRune(FGuid RuneGuid)
 	return true;
 }
 
+bool UBackpackGridComponent::TryRemoveRuneCell(FGuid RuneGuid, FIntPoint LocalCellOffset)
+{
+	if (LocalCellOffset == FIntPoint(0, 0)) return false;
+
+	for (FPlacedRune& Placed : PlacedRunes)
+	{
+		if (Placed.Rune.RuneGuid != RuneGuid) continue;
+
+		int32 ShapeIdx = Placed.Rune.Shape.Cells.IndexOfByKey(LocalCellOffset);
+		if (ShapeIdx == INDEX_NONE) return false;
+
+		// GetRuneCells 返回的顺序与 Shape.Cells 一致（旋转后），用索引直接定位实际格子
+		TArray<FIntPoint> ActualCells = GetRuneCells(Placed.Rune, Placed.Pivot);
+		FIntPoint ActualPos = ActualCells[ShapeIdx];
+
+		int32 GridIdx = CellToIndex(ActualPos);
+		if (GridOccupancy.IsValidIndex(GridIdx))
+			GridOccupancy[GridIdx] = -1;
+
+		Placed.Rune.Shape.Cells.RemoveAt(ShapeIdx);
+
+		RefreshAllActivations();
+		OnRuneCellRemoved.Broadcast(RuneGuid);
+		return true;
+	}
+	return false;
+}
+
 bool UBackpackGridComponent::MoveRune(FGuid RuneGuid, FIntPoint NewPivot)
 {
 	int32 FoundIndex = INDEX_NONE;

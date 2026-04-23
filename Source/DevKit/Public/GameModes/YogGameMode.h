@@ -24,6 +24,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMapClean);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, ELevelPhase, NewPhase);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLootGenerated, const TArray<FLootOption>&, LootOptions);
+DECLARE_MULTICAST_DELEGATE(FOnLootSelected);
 
 
 DECLARE_DELEGATE(FCleanAllMobInMap);
@@ -194,6 +195,9 @@ public:
 	// 战利品生成事件（传入 3 个选项）
 	UPROPERTY(BlueprintAssignable, Category = "LevelFlow|Events")
 	FOnLootGenerated OnLootGenerated;
+
+	// 玩家选定符文后广播（供 LevelFlow LENode_WaitForLootSelected 等待）
+	FOnLootSelected OnLootSelected;
 
 	// LootSelectionWidget 被 CommonUI 销毁后重建时，NativeConstruct 检查此标志自动激活
 	UPROPERTY(BlueprintReadOnly, Category = "LevelFlow")

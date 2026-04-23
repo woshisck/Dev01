@@ -7,6 +7,7 @@
 #include "AbilitySystem/Abilities/YogTargetType_Melee.h"
 #include "Character/YogCharacterMovementComponent.h"
 #include "Data/EnemyData.h"
+#include "Component/CharacterDataComponent.h"
 #include "Controller/YogAIController.h"
 #include "Data/GASTemplate.h"
 #include "GameModes/YogGameMode.h"
@@ -49,6 +50,16 @@ void AEnemyCharacterBase::BeginPlay()
 	if (AttributeStatsComponent)
 	{
 		AttributeStatsComponent->OnHealthChange.AddDynamic(this, &AEnemyCharacterBase::OnHealthChangedForDeath);
+	}
+
+	// 从 EnemyData DA 推送霸体参数到 ASC（填表即生效，不需改每个敌人 BP）
+	if (CharacterDataComponent && AbilitySystemComponent)
+	{
+		if (UEnemyData* ED = Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()))
+		{
+			AbilitySystemComponent->SuperArmorThreshold = ED->SuperArmorThreshold;
+			AbilitySystemComponent->SuperArmorDuration  = ED->SuperArmorDuration;
+		}
 	}
 
 	// 注册到 GameMode 的敌人列表（供 CameraPawn 战斗感知使用）

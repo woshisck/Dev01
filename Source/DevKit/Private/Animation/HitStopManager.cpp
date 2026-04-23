@@ -1,26 +1,32 @@
 #include "Animation/HitStopManager.h"
-#include "Kismet/GameplayStatics.h"
-#include "Engine/World.h"
-#include "GameFramework/WorldSettings.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
 
-void UHitStopManager::RequestHitStop(float FrozenDuration, float SlowDuration, float SlowDilation)
+void UHitStopManager::RequestMontageHitStop(UAnimInstance* InAnimInst,
+	float FrozenDuration, float SlowDuration, float SlowRate, float CatchUpRate)
 {
-	// 冻结阶段优先级最高：正在冻结时忽略新请求
-	if (CurrentPhase == EPhase::Frozen) return;
+	if (!InAnimInst) return;
 
-	UWorld* World = GetWorld();
-	if (!World) return;
+	// 冻结阶段优先：正在冻结时忽略新请求，防止暴击连击叠加产生卡顿
+	if (Phase == EPhase::Frozen) return;
 
-	SavedTimeDilation  = World->GetWorldSettings()->TimeDilation;
+	AnimInst          = InAnimInst;
 	CachedFrozenDur   = FrozenDuration;
 	CachedSlowDur     = SlowDuration;
-	CachedSlowDilation = SlowDilation;
+	CachedSlowRate    = FMath::Clamp(SlowRate, 0.01f, 1.0f);
+	CachedCatchUpRate = FMath::Max(CatchUpRate, 1.01f);
 
-	if (FrozenDuration > 0.0f)
+	// 追帧时长 = 慢放丢失帧量 / (CatchUpRate - 1)
+	const float MissedTime = SlowDuration * (1.f - CachedSlowRate);
+	CachedCatchUpDur = (SlowDuration > 0.f && MissedTime > 0.f)
+		? MissedTime / (CachedCatchUpRate - 1.f)
+		: 0.f;
+
+	if (FrozenDuration > 0.f)
 	{
-		CurrentPhase       = EPhase::Frozen;
+		Phase              = EPhase::Frozen;
 		PhaseStartRealTime = FPlatformTime::Seconds();
-		ApplyDilation(0.0001f); // 近零而非绝对零，保证引擎仍能正常推进
+		PauseMontage();
 	}
 	else
 	{
@@ -30,14 +36,17 @@ void UHitStopManager::RequestHitStop(float FrozenDuration, float SlowDuration, f
 
 void UHitStopManager::Tick(float /*DeltaTime*/)
 {
-	// 使用真实时钟，不受 TimeDilation 影响
 	const double Elapsed = FPlatformTime::Seconds() - PhaseStartRealTime;
 
-	if (CurrentPhase == EPhase::Frozen && Elapsed >= CachedFrozenDur)
+	if (Phase == EPhase::Frozen && Elapsed >= CachedFrozenDur)
 	{
 		TransitionToSlow();
 	}
-	else if (CurrentPhase == EPhase::Slow && Elapsed >= CachedSlowDur)
+	else if (Phase == EPhase::Slow && Elapsed >= CachedSlowDur)
+	{
+		TransitionToCatchUp();
+	}
+	else if (Phase == EPhase::CatchUp && Elapsed >= CachedCatchUpDur)
 	{
 		EndHitStop();
 	}
@@ -45,11 +54,27 @@ void UHitStopManager::Tick(float /*DeltaTime*/)
 
 void UHitStopManager::TransitionToSlow()
 {
-	if (CachedSlowDur > 0.0f)
+	ResumeMontage();
+
+	if (CachedSlowDur > 0.f)
 	{
-		CurrentPhase       = EPhase::Slow;
+		Phase              = EPhase::Slow;
 		PhaseStartRealTime = FPlatformTime::Seconds();
-		ApplyDilation(CachedSlowDilation);
+		SetPlayRate(CachedSlowRate);
+	}
+	else
+	{
+		EndHitStop();
+	}
+}
+
+void UHitStopManager::TransitionToCatchUp()
+{
+	if (CachedCatchUpDur > 0.f)
+	{
+		Phase              = EPhase::CatchUp;
+		PhaseStartRealTime = FPlatformTime::Seconds();
+		SetPlayRate(CachedCatchUpRate);
 	}
 	else
 	{
@@ -59,24 +84,35 @@ void UHitStopManager::TransitionToSlow()
 
 void UHitStopManager::EndHitStop()
 {
-	CurrentPhase = EPhase::None;
-	ApplyDilation(SavedTimeDilation);
+	Phase = EPhase::None;
+	SetPlayRate(1.f);
+	AnimInst.Reset();
 }
 
-void UHitStopManager::ApplyDilation(float Dilation)
+void UHitStopManager::PauseMontage()
 {
-	if (UWorld* World = GetWorld())
-	{
-		UGameplayStatics::SetGlobalTimeDilation(World, Dilation);
-	}
+	if (UAnimInstance* AI = AnimInst.Get())
+		if (UAnimMontage* M = AI->GetCurrentActiveMontage())
+			AI->Montage_Pause(M);
+}
+
+void UHitStopManager::ResumeMontage()
+{
+	if (UAnimInstance* AI = AnimInst.Get())
+		if (UAnimMontage* M = AI->GetCurrentActiveMontage())
+			AI->Montage_Resume(M);
+}
+
+void UHitStopManager::SetPlayRate(float Rate)
+{
+	if (UAnimInstance* AI = AnimInst.Get())
+		if (UAnimMontage* M = AI->GetCurrentActiveMontage())
+			AI->Montage_SetPlayRate(M, Rate);
 }
 
 void UHitStopManager::Deinitialize()
 {
-	// 世界销毁前强制恢复，防止 dilation 泄漏到下一个关卡
-	if (CurrentPhase != EPhase::None)
-	{
+	if (Phase != EPhase::None)
 		EndHitStop();
-	}
 	Super::Deinitialize();
 }

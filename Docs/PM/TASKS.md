@@ -1,6 +1,6 @@
 # TASKS — 星骸降临 Dev01
 
-> **唯一任务源**。更新时间：2026-04-22  
+> **唯一任务源**。更新时间：2026-04-23  
 > P0 = 测试前必须 | P1 = 体验完善 | P2 = 后续迭代  
 > 执行方：`Claude` = C++/蓝图逻辑代码 | `用户` = 编辑器内配置/DA填写/蒙太奇操作
 
@@ -10,6 +10,12 @@
 
 | ID | 任务 | 执行方 | 参考文档 | 依赖 |
 |---|---|---|---|---|
+| HUD-001 | 创建 WBP_HUDRoot（Parent = YogHUDRootWidget）+ WBP_PlayerHealthBar（父类 LiquidHealthBarWidget），配置 BP_YogHUD → MainHUDClass | 用户 | [FeatureLog UI-023/UI-024](../FeatureLog.md) | C++ 已完成 |
+| ENEMY-DA-001 | 所有 DA_Enemy_* → Enemy\|Spawn：填 `PreSpawnFX`（NS_EnemySpawn）+ `PreSpawnFXDuration`（0.8~1.5s） | 用户 | [FeatureLog FEAT-028](../FeatureLog.md) | C++ 已完成 |
+| ENEMY-DA-002 | 所有 DA_Enemy_* → Enemy\|Poise：填 `SuperArmorThreshold`（建议 3）+ `SuperArmorDuration`（建议 2s） | 用户 | [FeatureLog COMBAT-008](../FeatureLog.md) | C++ 已完成 |
+| ALTAR-001 | 创建 DA_Altar_EventRoom（UAltarDataAsset），填献祭符文池 + 代价文字 | 用户 | [FeatureLog FEAT-029](../FeatureLog.md) | C++ 已完成 |
+| ALTAR-002 | 创建 BP_AltarActor（AAltarActor），配置 mesh + InteractBox，重写 OnPlayerNearby；填 AltarData + 三个 WidgetClass | 用户 | 同上 | ALTAR-001 |
+| ALTAR-003 | 创建 WBP_AltarMenu / WBP_RunePurification / WBP_SacrificeSelection，各按钮调对应 BlueprintCallable | 用户 | 同上 | - |
 | MUSKET-001 | 火绳枪 BP GAs：Light / Heavy / Sprint Attack | 用户 | [Musket_System_Guide](../Systems/Weapon/Musket_System_Guide.md) | C++ GA 框架已完成 |
 | MUSKET-002 | 火绳枪 BP GAs：Reload_Single / Reload_All / Sprint_Reload | 用户 | [Musket_System_Guide](../Systems/Weapon/Musket_System_Guide.md) | C++ GA 框架已完成 |
 | MUSKET-003 | GE 伤害 + 弹药 Attribute 初始值 | 用户 | [Musket_System_Guide](../Systems/Weapon/Musket_System_Guide.md) | - |
@@ -20,6 +26,8 @@
 | RUNE-P0-1 | 1017 符文 FA 制作（高感知测试符文） | 用户 | [TestRune_HighPerception_Guide](../Systems/Rune/TestRune_HighPerception_Guide.md) | - |
 | RUNE-P0-2 | 1018 符文 FA 制作 | 用户 | 同上 | - |
 | RUNE-P0-3 | 1019 符文 FA 制作 | 用户 | 同上 | - |
+| HEAT-CARRY-001 | FA_Rune_余烬：热度携带符文，低热度时触发周期性弱爆炸（参见 HeatCarry 设计） | 用户 | [FeatureLog](../FeatureLog.md) | - |
+| HEAT-CARRY-002 | FA_Rune_炽核：热度携带符文，高热度时强化攻击 | 用户 | 同上 | - |
 | FIX-009 | BP_CelesPointLight → SphereVolume → Collision → DashTrace = Ignore | 用户 | 已用 `Dash.DebugTrace 1` 确认 | - |
 
 ---
@@ -55,6 +63,12 @@
 
 | ID | 功能 | 完成日期 |
 |---|---|---|
+| FEAT-029 | 祭坛交互系统：AltarActor + BackpackGridComponent::TryRemoveRuneCell + 净化/升级(存根)/献祭三功能 UI | 2026-04-23 |
+| FIX-028 | EnemyArrow WBP 还原 + NativeTick 越界崩溃防御（懒初始化 ArrowImages） | 2026-04-23 |
+| FEAT-031 | LevelFlow 新节点 WaitForLootSelected：等玩家选完符文后触发后续节点 | 2026-04-23 |
+| FEAT-030 | LENode_ShowTutorial 增加 bPauseGame 选项：取消勾选 = 不暂停游戏的纯信息浮窗 | 2026-04-23 |
+| COMBAT-008 | 霸体金光：连续被击触发金黄脉冲；SuperArmorThreshold/Duration DA 化 | 2026-04-23 |
+| FEAT-028 | 敌人预生成粒子系统：DA 填 PreSpawnFX+Duration，C++ 自动播放，无需 BP 操作 | 2026-04-22 |
 | FIX-027 | 背包战斗锁定改为基于 ELevelPhase：进入关卡即锁定，刷怪前窗口关闭 | 2026-04-22 |
 | FIX-022 | 三选一 Loot UI 以拾取物为主导：多拾取物独立触发、ShowLootUI 单次调用、持久 Widget | 2026-04-22 |
 | FIX-023 | LootSelectionWidget CommonUI 完全隔离：NativeOnFocusLost/NativeOnDeactivated/GetDesiredInputConfig 三处截断 | 2026-04-22 |

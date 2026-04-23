@@ -36,7 +36,8 @@ class DEVKIT_API UTutorialPopupWidget : public UCommonActivatableWidget
 	GENERATED_BODY()
 
 public:
-	void ShowPopup(const TArray<FTutorialPage>& InPages);
+	// bPauseGame=false 可显示不暂停游戏的纯信息浮窗
+	void ShowPopup(const TArray<FTutorialPage>& InPages, bool bPauseGame = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Tutorial")
 	void OnNextPressed();
@@ -90,6 +91,7 @@ protected:
 private:
 	TArray<FTutorialPage> Pages;
 	bool bIsInteractable = false; // FadeIn 完成前禁止翻页/关闭，防止幽灵输入
+	bool bPauseMe = true;         // ShowPopup 时传入，控制 NativeOnActivated 是否暂停游戏
 	void RefreshPage();
 
 	UFUNCTION()

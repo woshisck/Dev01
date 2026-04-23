@@ -1,7 +1,7 @@
 # 角色闪光特效系统 — 技术文档
 
-> 更新：2026-04-18  
-> 涵盖：命中闪白 / 攻击前闪红 / 热度升阶发光
+> 更新：2026-04-23  
+> 涵盖：命中闪白 / 攻击前闪红 / 霸体金光 / 热度升阶发光
 
 ---
 
@@ -14,17 +14,29 @@
 |---|---|---|---|
 | 命中闪白 | 敌人 / 任意角色 | 血量减少时自动触发 | 线性淡出（0.12s） |
 | 攻击前闪红 | 敌人 | 蓝图调用 `StartPreAttackFlash()` | 正弦脉冲，持续到 `StopPreAttackFlash()` |
+| **霸体金光** | **敌人** | **连续被击 ≥ `SuperArmorThreshold` 次时 ASC 自动触发** | **正弦脉冲，持续 `SuperArmorDuration` 秒后自动停止** |
 | 热度升阶发光 | 玩家 | GAS Tag `Buff.Status.Heat.Phase.*` | 扫射(0.5s) + 保持(3s) + 淡出(0.5s) |
+
+### 优先级链
+
+同一帧多个特效同时激活时按优先级执行，高优先级覆盖低优先级：
+
+```text
+命中闪白（白）> 霸体金光（金）> 攻击前摇（红）
+```
+
+命中白闪结束后，若霸体金光仍激活则无缝恢复金色脉冲。
 
 ---
 
-## 二、命中闪白 / 攻击前闪红
+## 二、命中闪白 / 攻击前闪红 / 霸体金光
 
 ### 核心文件
 
 | 文件 | 说明 |
 |---|---|
-| `YogCharacterBase.h/.cpp` | 特效逻辑，所有角色共用 |
+| `Character/YogCharacterBase.h/.cpp` | 三种特效逻辑，所有角色共用 |
+| `AbilitySystem/YogAbilitySystemComponent.cpp` | 霸体激活/结束时调用角色接口 |
 
 ### C++ 接口
 
@@ -36,22 +48,36 @@ void StartHitFlash();
 UFUNCTION(BlueprintCallable)
 void StartPreAttackFlash();
 
-// 攻击出手 / 取消时调用
+// 攻击动作结束/取消时调用
 UFUNCTION(BlueprintCallable)
 void StopPreAttackFlash();
+
+// 霸体激活时由 ASC 自动调用（也可蓝图手动触发）
+UFUNCTION(BlueprintCallable)
+void StartSuperArmorFlash();
+
+// 霸体结束时由 ASC 自动调用
+UFUNCTION(BlueprintCallable)
+void StopSuperArmorFlash();
 ```
 
 ### 可配置属性（蓝图 Details → Combat|Visual）
 
 | 属性 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `CharacterFlashMaterial` | UMaterialInterface | — | 角色闪光 Overlay 材质 |
+| `CharacterFlashMaterial` | UMaterialInterface | — | 角色闪光 Overlay 材质（三种特效共用） |
 | `HitFlashDuration` | float | 0.12 | 命中闪白淡出时长（秒） |
 | `PreAttackPulseFreq` | float | 4.0 | 攻击前红光脉冲频率（次/秒） |
+| `SuperArmorPulseFreq` | float | 6.0 | 霸体金光脉冲频率（次/秒） |
 
-### 优先级规则
+### 霸体触发参数（DA_Enemy_* → Enemy — Poise 分类）
 
-命中闪白期间跳过红光更新（白光覆盖红光）；闪白结束后若红光仍激活则无缝衔接。
+| 属性 | 默认值 | 说明 |
+|---|---|---|
+| `SuperArmorThreshold` | 3 | 连续被击多少次触发霸体（0 = 永不触发） |
+| `SuperArmorDuration` | 2.0 | 霸体持续时间（秒），金光同步持续 |
+
+> `SuperArmorThreshold` / `SuperArmorDuration` 在 `EnemyData.h` 定义，`EnemyCharacterBase::BeginPlay` 自动推送到 ASC。
 
 ---
 
@@ -136,11 +162,20 @@ return float4(Color, Alpha);
 
 ## 五、蓝图配置清单
 
-### 敌人蓝图
+### 敌人蓝图（BP_Enemy_*）
 
-- [ ] Details → Combat|Visual → `CharacterFlashMaterial` 填入 `M_CharacterFlash`
+- [ ] Details → Combat|Visual → `CharacterFlashMaterial` 填入 `M_CharacterFlash`（命中闪白 + 霸体金光 + 攻击前红共用）
 - [ ] 攻击前摇 AnimNotify → 调用 `StartPreAttackFlash()`
 - [ ] 攻击出手/取消 AnimNotify → 调用 `StopPreAttackFlash()`
+
+### 敌人数据资产（DA_Enemy_*）
+
+| 字段 | 分类 | 推荐值 |
+| --- | --- | --- |
+| `SuperArmorThreshold` | Enemy — Poise | 普通怪 5 / 精英怪 3 / Boss 2 |
+| `SuperArmorDuration` | Enemy — Poise | 普通怪 2s / 精英怪 3s / Boss 4s |
+
+> 填 0 = 永不触发霸体（适用于弱小/可无限硬直的杂兵）。
 
 ### 玩家蓝图（BP_PlayerCharacterBase）
 

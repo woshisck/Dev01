@@ -9,12 +9,13 @@
 // 公共接口
 // ————————————————————————————————————————————————————
 
-void UTutorialPopupWidget::ShowPopup(const TArray<FTutorialPage>& InPages)
+void UTutorialPopupWidget::ShowPopup(const TArray<FTutorialPage>& InPages, bool bPauseGame)
 {
 	if (InPages.IsEmpty()) return;
-	Pages      = InPages;
+	Pages       = InPages;
 	CurrentPage = 0;
 	TotalPages  = Pages.Num();
+	bPauseMe    = bPauseGame;
 
 	if (!IsInViewport())
 		AddToViewport(200);
@@ -90,11 +91,13 @@ void UTutorialPopupWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
 	SetVisibility(ESlateVisibility::Visible);
-	UGameplayStatics::SetGamePaused(this, true);
+	if (bPauseMe)
+		UGameplayStatics::SetGamePaused(this, true);
 
-	if (APlayerController* PC = GetOwningPlayer())
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			HUD->BeginPauseEffect();
+	if (bPauseMe)
+		if (APlayerController* PC = GetOwningPlayer())
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+				HUD->BeginPauseEffect();
 
 	// 只管光标，不手动设 InputMode —— CommonUI 通过 GetDesiredInputConfig() 自动处理
 	// 手动调 SetInputMode 会覆盖 CommonUI 的焦点路由，导致 NativeGetDesiredFocusTarget 失效
@@ -134,11 +137,13 @@ void UTutorialPopupWidget::NativeOnDeactivated()
 	if (APlayerController* PC = GetOwningPlayer())
 		PC->SetShowMouseCursor(false);
 
-	UGameplayStatics::SetGamePaused(this, false);
-
-	if (APlayerController* PC = GetOwningPlayer())
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			HUD->EndPauseEffect();
+	if (bPauseMe)
+	{
+		UGameplayStatics::SetGamePaused(this, false);
+		if (APlayerController* PC = GetOwningPlayer())
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+				HUD->EndPauseEffect();
+	}
 
 	Super::NativeOnDeactivated();
 

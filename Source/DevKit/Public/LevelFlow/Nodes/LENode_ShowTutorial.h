@@ -18,6 +18,10 @@ class DEVKIT_API ULENode_ShowTutorial : public ULENode_Base
 	UPROPERTY(EditAnywhere, Category = "Tutorial")
 	FName EventID = TEXT("WeaponTutorial");
 
+	// 取消勾选 = 纯信息浮窗（不暂停游戏，不屏蔽输入）
+	UPROPERTY(EditAnywhere, Category = "Tutorial")
+	bool bPauseGame = true;
+
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;
 	virtual void Cleanup() override;

@@ -380,6 +380,9 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 			UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor ACTIVATED on %s (%.1fs)"),
 				*GetNameSafe(GetAvatarActor()), SuperArmorDuration);
 
+			if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(GetAvatarActor()))
+				Char->StartSuperArmorFlash();
+
 			if (UWorld* W = GetWorld())
 				W->GetTimerManager().SetTimer(
 					SuperArmorTimer, this, &UYogAbilitySystemComponent::OnSuperArmorTimerEnd, SuperArmorDuration, false);
@@ -397,6 +400,9 @@ void UYogAbilitySystemComponent::OnSuperArmorTimerEnd()
 {
 	RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
 	UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor EXPIRED on %s"), *GetNameSafe(GetAvatarActor()));
+
+	if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(GetAvatarActor()))
+		Char->StopSuperArmorFlash();
 }
 
 // =========================================================
