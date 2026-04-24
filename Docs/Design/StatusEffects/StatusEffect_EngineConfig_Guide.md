@@ -10,8 +10,8 @@
 1. [架构总览](#1-架构总览)
 2. [前置条件](#2-前置条件)
 3. [基础效果 FA 创建清单](#3-基础效果-fa-创建清单)
-4. [GA Blueprint 子类配置](#4-ga-blueprint-子类配置)
-5. [GE 资产配置](#5-ge-资产配置)
+4. [传统 GAS 备选方案 — GA Blueprint 子类配置](#4-传统-gas-备选方案--ga-blueprint-子类配置)
+5. [传统 GAS 备选方案 — GE 资产配置](#5-传统-gas-备选方案--ge-资产配置)
 6. [RuneDataAsset 包装](#6-runedataasset-包装)
 7. [符文 FA 调用示例](#7-符文-fa-调用示例)
 8. [敌人配置](#8-敌人配置)
@@ -83,8 +83,9 @@
 **通用事件**：
 - Ability.Event.Damaged, Ability.Event.Attack.Hit, Ability.Event.Kill
 
-**SetByCaller 数据标签**（Data.Damage.*）：
-- Rend, Wound, Knockback, Fear
+**SetByCaller 数据标签**：
+
+- Data.Damage（所有 GA 共用同一个 SetByCaller 槽）
 
 ### 2.2 AttributeSet
 
@@ -205,152 +206,218 @@
 
 > 乘算叠加：1 层 90%、3 层 72.9%、7 层 ≈47.8%。MaxHP 下降时 C++ 自动等比缩放 HP（PreAttributeChange），上升时保持绝对值。
 
-### 3.5 FA_Effect_Bleed（流血）— FA + GA
+### 3.5 FA_Effect_Bleed（流血）— 纯 FA
+
+每 0.5 秒造成固定状态伤害，持续 5 秒。与中毒模式相同（周期性 DamageBuff）。
 
 ```
 [Custom Input "Apply"]
+    Properties: DamagePerTick(Float, 2.5), Duration(Float, 5.0)
     ↓
 [ApplyAttributeModifier
-    DurationType     = HasDuration
-    Duration         = 5.0
-    GrantedTags      = Buff.Status.Bleeding
-    GrantedAbilities = GA_Bleed
-    StackMode        = Unique
-    DurationRefresh  = RefreshOnSuccessfulApplication
-    Target           = LastDamageTarget]
-    ↓ Out
-[SendGameplayEvent
-    EventTag   = Buff.Event.Bleed
-    Magnitude  = 10.0
-    Target     = LastDamageTarget
-    Instigator = DamageCauser]
+    Attribute       = DamageAttributeSet.DamageBuff
+    ModOp           = Additive
+    Value           = DamagePerTick  ← data pin
+    DurationType    = HasDuration
+    Duration        = 5.0
+    Period          = 0.5
+    FireImmediately = false
+    GrantedTags     = Buff.Status.Bleeding
+    StackMode       = Unique
+    DurationRefresh = RefreshOnSuccessfulApplication
+    Target          = LastDamageTarget]
     ↓ Out
 [Custom Output "Done"]
 ```
 
-> GA_Bleed 内部每 0.5s 直接扣 Health（ApplyModToAttributeUnsafe），无需 GE 资产。  
-> Magnitude = 每秒伤害量，GA 读取后按 TickInterval 分摊。
+> 无需 GA_Bleed / GE。DamageBuff 管道自带 HP≥1 保护。
 
-### 3.6 FA_Effect_Rend（撕裂）— FA + GA
+### 3.6 FA_Effect_Rend（撕裂）— 纯 FA（使用 TrackMovement 节点）
 
-```
-[Custom Input "Apply"]
-    ↓
-[ApplyAttributeModifier
-    DurationType     = HasDuration
-    Duration         = 8.0
-    GrantedTags      = Buff.Status.Rended
-    GrantedAbilities = GA_Rend
-    StackMode        = Unique
-    DurationRefresh  = RefreshOnSuccessfulApplication
-    Target           = LastDamageTarget]
-    ↓ Out
-[SendGameplayEvent
-    EventTag   = Buff.Event.Rend
-    Magnitude  = 15.0
-    Target     = LastDamageTarget
-    Instigator = DamageCauser]
-    ↓ Out
-[Custom Output "Done"]
-```
-
-### 3.7 FA_Effect_Wound（伤口）— FA + GA
+目标每移动 100 单位造成一次伤害，持续 8 秒，静止 2 秒后提前结束。
 
 ```
 [Custom Input "Apply"]
+    Properties: DamagePerTrigger(Float, 15.0), DistanceUnit(Float, 100.0), Duration(Float, 8.0)
     ↓
-[ApplyAttributeModifier
-    DurationType     = HasDuration
-    Duration         = 6.0
-    GrantedTags      = Buff.Status.Wounded
-    GrantedAbilities = GA_Wound
-    StackMode        = Unique
-    DurationRefresh  = RefreshOnSuccessfulApplication
-    Target           = LastDamageTarget]
-    ↓ Out
-[SendGameplayEvent
-    EventTag   = Buff.Event.Wound
-    Magnitude  = 15.0
-    Target     = LastDamageTarget
-    Instigator = DamageCauser]
-    ↓ Out
-[Custom Output "Done"]
+[ApplyAttributeModifier ①
+    DurationType    = HasDuration
+    Duration        = Duration
+    GrantedTags     = Buff.Status.Rended
+    StackMode       = Unique
+    Target          = LastDamageTarget]
+    ├── Out ─→ [TrackMovement ②
+    │               Target             = LastDamageTarget
+    │               DistancePerTrigger = DistanceUnit
+    │               TickInterval       = 0.2
+    │               StationaryTimeout  = 2.0]
+    │               ├── OnTrigger ──→ [ApplyAttributeModifier ③
+    │               │                     Attribute    = DamageBuff
+    │               │                     ModOp        = Additive
+    │               │                     Value        = DamagePerTrigger
+    │               │                     DurationType = Instant
+    │               │                     Target       = LastDamageTarget]
+    │               └── OnStationary ──→ [Custom Output "Done"]
+    │
+    └── Expired ──→ [Custom Output "Done"]
 ```
 
-### 3.8 FA_Effect_Knockback（击退）— FA + GA
+> ① 管理标签和持续时间，到期时 Cleanup 自动清理 ②。
+> 无需 GA_Rend / GE_RendDamage。
+
+### 3.7 FA_Effect_Wound（伤口）— 纯 FA（使用 WaitGameplayEvent 节点）
+
+目标每次受击时额外受到固定伤害，持续 6 秒。
 
 ```
 [Custom Input "Apply"]
+    Properties: ExtraDamage(Float, 10.0), Duration(Float, 6.0)
     ↓
-[ApplyAttributeModifier
-    DurationType     = HasDuration
-    Duration         = 5.0
-    GrantedTags      = Buff.Status.KnockbackDebuff
-    GrantedAbilities = GA_KnockbackDebuff
-    StackMode        = Unique
-    DurationRefresh  = RefreshOnSuccessfulApplication
-    Target           = LastDamageTarget]
-    ↓ Out
-[SendGameplayEvent
-    EventTag   = Buff.Event.KnockbackDebuff
-    Target     = LastDamageTarget
-    Instigator = DamageCauser]
-    ↓ Out
-[Custom Output "Done"]
+[ApplyAttributeModifier ①
+    DurationType    = HasDuration
+    Duration        = Duration
+    GrantedTags     = Buff.Status.Wounded
+    StackMode       = Unique
+    Target          = LastDamageTarget]
+    ├── Out ─→ [WaitGameplayEvent ②
+    │               EventTag = Ability.Event.Damaged
+    │               Target   = LastDamageTarget]
+    │               └── Out ──→ [ApplyAttributeModifier ③
+    │                                Attribute    = DamageBuff
+    │                                ModOp        = Additive
+    │                                Value        = ExtraDamage
+    │                                DurationType = Instant
+    │                                Target       = LastDamageTarget]
+    │
+    └── Expired ──→ [Custom Output "Done"]
 ```
 
-### 3.9 FA_Effect_Fear（恐惧）— FA + GA
+> WaitGameplayEvent 持续监听目标受击事件，每次触发 Out → 施加额外伤害。
+> ① Expired/Cleanup 时 ② 也被清理。无需 GA_Wound / GE_WoundDamage。
+
+### 3.8 FA_Effect_Knockback（击退）— 纯 FA（使用 WaitGameplayEvent + HasTag 条件）
+
+目标每次受击时触发物理击退，有护甲时额外扣护甲（来袭伤害的 15%）。
 
 ```
 [Custom Input "Apply"]
+    Properties: ArmorDmgPct(Float, 0.15), Duration(Float, 5.0)
     ↓
-[ApplyAttributeModifier
-    DurationType     = HasDuration
-    Duration         = 2.5
-    GrantedTags      = Buff.Status.Feared, Character.State.Feared
-    GrantedAbilities = GA_Fear
-    StackMode        = Unique
-    DurationRefresh  = RefreshOnSuccessfulApplication
-    Target           = LastDamageTarget]
-    ↓ Out
-[SendGameplayEvent
-    EventTag   = Buff.Event.Fear
-    Magnitude  = 30.0
-    Target     = LastDamageTarget
-    Instigator = DamageCauser]
-    ↓ Out
-[Custom Output "Done"]
+[ApplyAttributeModifier ①
+    DurationType    = HasDuration
+    Duration        = Duration
+    GrantedTags     = Buff.Status.KnockbackDebuff
+    StackMode       = Unique
+    Target          = LastDamageTarget]
+    ├── Out ─→ [WaitGameplayEvent ②
+    │               EventTag = Ability.Event.Damaged
+    │               Target   = LastDamageTarget]
+    │               └── Out ──→ [SendGameplayEvent
+    │                                EventTag   = Action.Knockback
+    │                                Target     = LastDamageTarget
+    │                                Instigator = DamageCauser]
+    │                            └── Out ──→ [HasTag
+    │                                            Tag    = Buff.Status.Armored
+    │                                            Target = LastDamageTarget]
+    │                                            └── True ──→ [MathFloat
+    │                                                              A  = EventMagnitude（② 的数据引脚）
+    │                                                              Op = ×
+    │                                                              B  = ArmorDmgPct]
+    │                                                          └── Out ──→ [ApplyAttributeModifier
+    │                                                                          Attribute = ArmorHP
+    │                                                                          ModOp     = Additive
+    │                                                                          Value     = -Result
+    │                                                                          Instant
+    │                                                                          Target    = LastDamageTarget]
+    │
+    └── Expired ──→ [Custom Output "Done"]
 ```
 
-> 仅对 AI 敌人有效。
+> 物理击退由已有 GA_Knockback 处理（通过 `Action.Knockback` 事件触发）。
+> 护甲伤害需要 WaitGameplayEvent 的 EventMagnitude 数据输出引脚（已增强）。
+> 无需 GA_KnockbackDebuff / GE_KnockbackArmorDamage。
 
-### 3.10 FA_Effect_Freeze（冻结）— FA + GA
+### 3.9 FA_Effect_Fear（恐惧）— 纯 FA（使用 CheckDistance 节点）
+
+施加恐惧标签，N 秒后检查目标是否逃离足够远，未逃离则惩罚伤害。
 
 ```
 [Custom Input "Apply"]
+    Properties: PenaltyDamage(Float, 30.0), FearDuration(Float, 2.0), EscapeDistance(Float, 800.0)
     ↓
-[ApplyAttributeModifier
-    DurationType     = HasDuration
-    Duration         = 4.0
-    GrantedTags      = Buff.Status.Chilled
-    GrantedAbilities = GA_Freeze
-    StackMode        = Unique
-    DurationRefresh  = RefreshOnSuccessfulApplication
-    Target           = LastDamageTarget]
-    ↓ Out
-[SendGameplayEvent
-    EventTag   = Buff.Event.Freeze
-    Magnitude  = 30.0
-    Target     = LastDamageTarget
-    Instigator = DamageCauser]
-    ↓ Out
-[Custom Output "Done"]
+[ApplyAttributeModifier ①
+    DurationType    = HasDuration
+    Duration        = FearDuration
+    GrantedTags     = Buff.Status.Feared, Character.State.Feared
+    StackMode       = Unique
+    Target          = LastDamageTarget]
+    ├── Out ─→ [CheckDistance ②  (Save 引脚)
+    │               Target           = LastDamageTarget
+    │               RequiredDistance  = EscapeDistance]
+    │               └── Saved ──→ [Delay ③  Duration = FearDuration]
+    │                                  └── Completed ──→ [CheckDistance ②  (Check 引脚)]
+    │                                                     ├── Far  ──→ [Custom Output "Done"]
+    │                                                     └── Near ──→ [ApplyAttributeModifier ④
+    │                                                                       Attribute = DamageBuff
+    │                                                                       Value     = PenaltyDamage
+    │                                                                       Instant
+    │                                                                       Target    = LastDamageTarget]
+    │                                                                   └── Out ──→ [Custom Output "Done"]
+    │
+    └── Expired ──→ [Custom Output "Done"]
 ```
+
+> 逃跑行为由行为树响应 `Character.State.Feared` 标签实现，FA 只管判定和惩罚。
+> 无需 GA_Fear / GE_FearPenalty。
+
+### 3.10 FA_Effect_Freeze（冻结）— 纯 FA（两阶段：减速 → 条件眩晕）
+
+先减速 50%，N 秒后检查逃离距离，未逃离则眩晕 + 伤害。
+
+```
+[Custom Input "Apply"]
+    Properties: PenaltyDamage(Float, 30.0), SlowDuration(Float, 3.0),
+                StunDuration(Float, 1.5), EscapeDistance(Float, 800.0)
+    ↓
+[ApplyAttributeModifier ①  ← 减速阶段
+    Attribute       = BaseAttributeSet.MoveSpeed
+    ModOp           = Multiply
+    Value           = 0.5
+    DurationType    = HasDuration
+    Duration        = SlowDuration
+    GrantedTags     = Buff.Status.Chilled
+    StackMode       = Unique
+    Target          = LastDamageTarget]
+    ├── Out ─→ [CheckDistance ②  (Save 引脚)
+    │               Target           = LastDamageTarget
+    │               RequiredDistance  = EscapeDistance]
+    │               └── Saved ──→ [Delay ③  Duration = SlowDuration]
+    │                                  └── Completed ──→ [CheckDistance ②  (Check 引脚)]
+    │                                                     ├── Far  ──→ [Custom Output "Done"]
+    │                                                     └── Near ──→ [ApplyAttributeModifier ④
+    │                                                                       DurationType = HasDuration
+    │                                                                       Duration     = StunDuration
+    │                                                                       GrantedTags  = Buff.Status.Frozen,
+    │                                                                                      Character.State.Stunned
+    │                                                                       Target       = LastDamageTarget]
+    │                                                                   └── Out ──→ [ApplyAttributeModifier ⑤
+    │                                                                                    Attribute = DamageBuff
+    │                                                                                    Value     = PenaltyDamage
+    │                                                                                    Instant
+    │                                                                                    Target    = LastDamageTarget]
+    │                                                                                └── Out ──→ [Custom Output "Done"]
+    │
+    └── Expired ──→ [Custom Output "Done"]
+```
+
+> 无需 GA_Freeze / GE_Chill / GE_FrozenStun。
 
 ---
 
-## 4. GA Blueprint 子类配置
+## 4. 传统 GAS 备选方案 — GA Blueprint 子类配置
 
+> **⚠️ 备选方案**：推荐使用第 3 节的纯 FA 方案。本节描述传统 GAS 方案，通过 FA 的 ApplyAttributeModifier（GrantedAbilities）授予 C++ GA，再由 SendGameplayEvent 触发。适用于需要复用已有 C++ GA 逻辑的场景。
+>
 > 纯 FA 效果（Poison/Burn/Stun/Curse）不需要 GA。  
 > GA_Bleed 不需要 Blueprint 子类（无 GE 引用，直接用 C++ 基类即可）。  
 > 以下 5 个 GA 需要在编辑器里创建 Blueprint 子类并填写 GE 引用。
@@ -369,18 +436,20 @@
 
 ---
 
-## 5. GE 资产配置
+## 5. 传统 GAS 备选方案 — GE 资产配置
 
+> **⚠️ 备选方案**：仅当使用第 4 节的传统 GAS 方案时才需要创建这些 GE 资产。纯 FA 方案不需要独立 GE 资产。
+>
 > 这些 GE 仅作为 GA 内部伤害通道，不在 FA 图中直接引用。
 
 | GE 名 | Duration | Modifiers | 用途 |
 | ---- | ---- | ---- | ---- |
-| GE_RendDamage | Instant | DamageBuff Additive SetByCaller(Data.Damage.Rend) | 撕裂每次移动触发的伤害 |
-| GE_WoundDamage | Instant | DamageBuff Additive SetByCaller(Data.Damage.Wound) | 伤口受击额外伤害 |
-| GE_FearPenalty | Instant | DamageBuff Additive SetByCaller(Data.Damage.Fear) | 恐惧逃跑失败惩罚 |
-| GE_KnockbackArmorDamage | Instant | ArmorHP Additive SetByCaller(Data.Damage.Knockback) | 击退额外护甲伤害 |
+| GE_RendDamage | Instant | DamageBuff Additive SetByCaller(Data.Damage) | 撕裂每次移动触发的伤害 |
+| GE_WoundDamage | Instant | DamageBuff Additive SetByCaller(Data.Damage) | 伤口受击额外伤害 |
+| GE_FearPenalty | Instant | DamageBuff Additive SetByCaller(Data.Damage) | 恐惧逃跑失败惩罚 |
+| GE_KnockbackArmorDamage | Instant | ArmorHP Additive SetByCaller(Data.Damage) | 击退额外护甲伤害 |
 | GE_Chill | Infinite | MoveSpeed Multiply 0.5, GrantedTags=Buff.Status.Chilled | 冻结减速阶段 |
-| GE_FrozenStun | HasDuration 1.5s | GrantedTags=Buff.Status.Frozen + Character.State.Stunned | 冻结眩晕阶段 |
+| GE_FrozenStun | HasDuration 1.5s | DamageBuff Additive SetByCaller(Data.Damage), GrantedTags=Buff.Status.Frozen + Character.State.Stunned | 冻结眩晕阶段 |
 
 建议资产路径：`Content/AbilitySystem/GameplayEffects/StatusEffects/`
 
@@ -554,12 +623,14 @@ RuneDataAsset 配置：
 - [ ] 打开 Project Settings → Gameplay Tags，确认所有 Tag 存在
 - [ ] 敌人蓝图已添加 BuffFlowComponent
 
-### 第二步：创建资产
+### 第二步：创建资产（纯 FA 方案）
 
 - [ ] 10 个基础效果 FA 已创建（FA_Effect_*）
 - [ ] 10 个 RuneDataAsset 已创建（DA_Effect_*）
-- [ ] 5 个 GA Blueprint 子类已创建并填写 GE 引用
-- [ ] 6 个 GE 资产已创建
+
+> 若使用传统 GAS 备选方案（第 4-5 节），还需额外创建：
+> - [ ] 5 个 GA Blueprint 子类（GA_*_BP）
+> - [ ] 6 个 GE 资产（GE_*）
 
 ### 第三步：功能验证
 
@@ -567,10 +638,14 @@ RuneDataAsset 配置：
 | ---- | ---- | ---- |
 | 中毒（纯 FA） | 创建 FA_Rune_Test → SubGraph(FA_Effect_Poison) | 每 2 秒 DamageBuff，HP>=1 |
 | 燃烧（纯 FA） | 先施加流血再触发燃烧 | 每跳 = 20 x 1.15 = 23 |
-| 眩晕（纯 FA） | 触发后检查 GA | Character.State.Stunned 持续 2 秒 |
-| 诅咒（纯 FA） | 多次触发检查 MaxHP | 每层 -50，HP 等比缩放，最多 5 层 |
-| 流血（FA+GA） | 触发后查看 HP 变化 | 每 0.5s 扣血，持续 5 秒 |
-| 击退（FA+GA） | 触发后观察敌人位移 | 敌人被推开 + 护甲额外伤害 |
+| 眩晕（纯 FA） | 触发后检查 Tag | Character.State.Stunned 持续 2 秒 |
+| 诅咒（纯 FA） | 多次触发检查 MaxHP | 每层 ×0.9，HP 等比缩放，最多 7 层 |
+| 流血（纯 FA） | 触发后查看 HP 变化 | 每 0.5s DamageBuff 扣血，持续 5 秒，HP>=1 |
+| 撕裂（纯 FA） | 对目标施加后让其移动 | 每 100 单位触发一次伤害，静止 2s 结束 |
+| 伤口（纯 FA） | 对目标施加后再攻击 | 每次受击额外 DamageBuff |
+| 击退（纯 FA） | 触发后观察敌人位移 | 敌人被推开 + 有护甲时额外扣护甲 |
+| 恐惧（纯 FA） | 触发后观察 AI 行为 | 逃跑行为 + 未逃离足够远则惩罚伤害 |
+| 冻结（纯 FA） | 触发后观察移速 | 减速 50% → 未逃离则眩晕 + 伤害 |
 | 敌人中毒 | 毒蛇攻击玩家 | 玩家中毒，行为与玩家符文一致 |
 | SubGraph 复用 | 两个不同符文都 SubGraph(FA_Effect_Poison) | 各自独立实例，互不干扰 |
 
@@ -583,6 +658,8 @@ RuneDataAsset 配置：
 ---
 
 ## 附录：资产路径汇总
+
+### 纯 FA 方案（推荐）
 
 ```
 Content/
@@ -598,27 +675,33 @@ Content/
 │       ├── FA_Effect_Knockback.uasset
 │       ├── FA_Effect_Fear.uasset
 │       └── FA_Effect_Freeze.uasset
-├── Data/
-│   └── StatusEffects/
-│       ├── DA_Effect_Poison.uasset
-│       ├── DA_Effect_Burn.uasset
-│       └── ... (共 10 个)
-├── AbilitySystem/
-│   ├── Abilities/
-│   │   └── StatusEffects/
-│   │       ├── GA_Rend_BP.uasset
-│   │       ├── GA_Wound_BP.uasset
-│   │       ├── GA_KnockbackDebuff_BP.uasset
-│   │       ├── GA_Fear_BP.uasset
-│   │       └── GA_Freeze_BP.uasset
-│   └── GameplayEffects/
-│       └── StatusEffects/
-│           ├── GE_RendDamage.uasset
-│           ├── GE_WoundDamage.uasset
-│           ├── GE_FearPenalty.uasset
-│           ├── GE_KnockbackArmorDamage.uasset
-│           ├── GE_Chill.uasset
-│           └── GE_FrozenStun.uasset
+└── Data/
+    └── StatusEffects/
+        ├── DA_Effect_Poison.uasset
+        ├── DA_Effect_Burn.uasset
+        └── ... (共 10 个)
+```
+
+### 传统 GAS 备选方案（额外资产）
+
+```
+Content/
+└── AbilitySystem/
+    ├── Abilities/
+    │   └── StatusEffects/
+    │       ├── GA_Rend_BP.uasset
+    │       ├── GA_Wound_BP.uasset
+    │       ├── GA_KnockbackDebuff_BP.uasset
+    │       ├── GA_Fear_BP.uasset
+    │       └── GA_Freeze_BP.uasset
+    └── GameplayEffects/
+        └── StatusEffects/
+            ├── GE_RendDamage.uasset
+            ├── GE_WoundDamage.uasset
+            ├── GE_FearPenalty.uasset
+            ├── GE_KnockbackArmorDamage.uasset
+            ├── GE_Chill.uasset
+            └── GE_FrozenStun.uasset
 ```
 
 ---

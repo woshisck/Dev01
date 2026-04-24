@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "Types/FlowDataPinProperties.h"
 #include "BuffFlow/Nodes/BFNode_Base.h"
 #include "BuffFlow/BuffFlowTypes.h"
 #include "BFNode_WaitGameplayEvent.generated.h"
@@ -40,6 +41,10 @@ class DEVKIT_API UBFNode_WaitGameplayEvent : public UBFNode_Base
 	 */
 	UPROPERTY(EditAnywhere, Category = "BuffFlow")
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
+
+	/** 事件携带的 Magnitude 值（数据输出引脚，每次事件触发时更新） */
+	UPROPERTY(EditAnywhere, Category = "Output|Data")
+	FFlowDataPinOutputProperty_Float EventMagnitude;
 
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;
