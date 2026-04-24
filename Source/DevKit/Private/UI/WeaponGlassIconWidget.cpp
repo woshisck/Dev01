@@ -1,14 +1,24 @@
 #include "UI/WeaponGlassIconWidget.h"
 #include "UI/WeaponGlassAnimDA.h"
 #include "Components/Image.h"
+#include "Character/PlayerCharacterBase.h"
+#include "UI/BackpackStyleDataAsset.h"
 
 void UWeaponGlassIconWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	// 始终可见：玻璃模糊常驻，热度颜色初始透明
 	SetVisibility(ESlateVisibility::HitTestInvisible);
-	if (HeatColorOverlay)
-		HeatColorOverlay->SetColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.f));
+
+	// 订阅热度阶段变化，并立即同步当前相位
+	if (APlayerCharacterBase* PC = Cast<APlayerCharacterBase>(GetOwningPlayerPawn()))
+	{
+		PC->OnHeatPhaseChanged.AddDynamic(this, &UWeaponGlassIconWidget::OnHeatPhaseChanged);
+		RefreshHeatOverlay(PC->GetCurrentHeatPhase());
+	}
+	else
+	{
+		RefreshHeatOverlay(0);
+	}
 }
 
 void UWeaponGlassIconWidget::Show(const UWeaponGlassAnimDA* InAnimDA)
@@ -17,27 +27,51 @@ void UWeaponGlassIconWidget::Show(const UWeaponGlassAnimDA* InAnimDA)
 	bExpanding     = false;
 	ExpandTimer    = 0.f;
 	bWeaponShowing = true;
+	SetVisibility(ESlateVisibility::HitTestInvisible);
+	SetRenderOpacity(1.f);
 	{ FWidgetTransform T; T.Scale = FVector2D::UnitVector; SetRenderTransform(T); }
-}
 
-void UWeaponGlassIconWidget::SetHeatColor(FLinearColor Color)
-{
-	if (!HeatColorOverlay) return;
-	if (bWeaponShowing && Color.A > 0.f)
-	{
-		HeatColorOverlay->SetColorAndOpacity(Color);
-		HeatColorOverlay->SetVisibility(ESlateVisibility::HitTestInvisible);
-	}
-	else
-	{
-		HeatColorOverlay->SetColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.f));
-	}
+	// 拾武器时立即刷新颜色（防止 NativeConstruct 时 PC 尚未 possess）
+	if (APlayerCharacterBase* PC = Cast<APlayerCharacterBase>(GetOwningPlayerPawn()))
+		RefreshHeatOverlay(PC->GetCurrentHeatPhase());
 }
 
 void UWeaponGlassIconWidget::StartExpandAndHide()
 {
 	bExpanding  = true;
 	ExpandTimer = 0.f;
+}
+
+void UWeaponGlassIconWidget::OnHeatPhaseChanged(int32 Phase)
+{
+	RefreshHeatOverlay(Phase);
+}
+
+void UWeaponGlassIconWidget::RefreshHeatOverlay(int32 Phase)
+{
+	if (!HeatColorOverlay) return;
+
+	static const FLinearColor BaseColor(0.04f, 0.06f, 0.15f, 0.35f);
+
+	FLinearColor Color = BaseColor;
+	if (bWeaponShowing)
+	{
+		const APlayerCharacterBase* PC = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
+		const UBackpackStyleDataAsset* StyleDA = PC ? PC->HeatStyleDA.Get() : nullptr;
+		if (StyleDA)
+		{
+			switch (Phase)
+			{
+				case 1: Color = StyleDA->HeatZone0Color; break;
+				case 2: Color = StyleDA->HeatZone1Color; break;
+				case 3: Color = StyleDA->HeatZone2Color; break;
+				default: Color = BaseColor; break;
+			}
+		}
+	}
+
+	HeatColorOverlay->SetColorAndOpacity(Color);
+	HeatColorOverlay->SetVisibility(ESlateVisibility::HitTestInvisible);
 }
 
 void UWeaponGlassIconWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -59,8 +93,7 @@ void UWeaponGlassIconWidget::NativeTick(const FGeometry& MyGeometry, float InDel
 		bWeaponShowing = false;
 		{ FWidgetTransform T; T.Scale = FVector2D::UnitVector; SetRenderTransform(T); }
 		SetRenderOpacity(1.f);
-		if (HeatColorOverlay)
-			HeatColorOverlay->SetColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.f));
+		RefreshHeatOverlay(0);
 		OnHidden.Broadcast();
 	}
 }

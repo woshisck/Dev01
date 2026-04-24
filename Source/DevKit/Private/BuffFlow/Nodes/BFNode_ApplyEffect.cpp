@@ -11,13 +11,14 @@ UBFNode_ApplyEffect::UBFNode_ApplyEffect(const FObjectInitializer& ObjectInitial
 	Category = TEXT("BuffFlow|Effect");
 #endif
 	InputPins  = { FFlowPin(TEXT("In")), FFlowPin(TEXT("Remove")) };
-	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")), FFlowPin(TEXT("Removed")) };
+	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")), FFlowPin(TEXT("Removed")), FFlowPin(TEXT("OnRemoved")) };
 	Level = FFlowDataPinInputProperty_Float(1.f);
 	StacksToRemove = FFlowDataPinInputProperty_Int32(1);
 }
 
 void UBFNode_ApplyEffect::Cleanup()
 {
+	bCleaningUp = true;
 	if (GrantedASC.IsValid() && GrantedHandle.IsValid())
 	{
 		GrantedASC->RemoveActiveGameplayEffect(GrantedHandle);
@@ -25,6 +26,14 @@ void UBFNode_ApplyEffect::Cleanup()
 	GrantedHandle = FActiveGameplayEffectHandle();
 	GrantedASC.Reset();
 	Super::Cleanup();
+}
+
+void UBFNode_ApplyEffect::HandleGERemoved(const FActiveGameplayEffect& /*RemovedEffect*/)
+{
+	if (!bCleaningUp)
+	{
+		TriggerOutput(TEXT("OnRemoved"), true);
+	}
 }
 
 void UBFNode_ApplyEffect::ExecuteInput(const FName& PinName)
@@ -121,6 +130,13 @@ void UBFNode_ApplyEffect::ExecuteInput(const FName& PinName)
 	{
 		GrantedHandle = Handle;
 		GrantedASC    = TargetASC;
+
+		// 注册 GE 移除回调：GE 被外部撤销（到期/手动Remove）时触发 OnRemoved 引脚
+		FOnActiveGameplayEffectRemoved_Info* Del = TargetASC->OnGameplayEffectRemoved_InfoDelegate(Handle);
+		if (Del)
+		{
+			Del->AddUObject(this, &UBFNode_ApplyEffect::HandleGERemoved);
+		}
 	}
 
 	// ── 写入输出数据引脚（反映施加瞬间状态） ──────────────────────────

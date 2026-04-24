@@ -1,15 +1,27 @@
 // GlassChromaDistort.ush
-// 仅计算边缘色差的 UV 径向偏移向量，纹理采样在材质图中完成。
+// RetainerBox effect material：边缘色差扰动
 //
-// Custom Node 输入：UV, CornerRadius, BorderWidth, ChromaStrength
-// Custom Node Code：return ComputeChromaOffset(UV, CornerRadius, BorderWidth, ChromaStrength);
-// 输出类型：CMOT Float 2（XY = 径向偏移量，用于 UV+Offset 和 UV-Offset）
+// 要求：Custom Node 的 WidgetTex 输入连接 Param Tex Object（不是 Param2D）
+// UE5 会自动在 Code 字段作用域内生成 SamplerState WidgetTexSampler
+// 但该名称不自动传入 .ush 函数，需在 Code 字段显式传入。
+//
+// Custom Node 输入引脚（5个）：
+//   WidgetTex      ← Param Tex Object（SlateUI，需填任意占位贴图）
+//   UV             ← TexCoord[0]
+//   CornerRadius   ← Scalar Param（默认 0.5）
+//   BorderWidth    ← Scalar Param（默认 0.06）
+//   ChromaStrength ← Scalar Param（默认 0.01）
+//
+// Custom Node Code 字段（一行）：
+//   return GlassChromaMain(WidgetTex, WidgetTexSampler, UV, CornerRadius, BorderWidth, ChromaStrength);
 
-float2 ComputeChromaOffset(
-    float2 UV,
-    float  CornerRadius,
-    float  BorderWidth,
-    float  ChromaStrength
+float4 GlassChromaMain(
+    Texture2D    WidgetTex,
+    SamplerState WidgetSamp,
+    float2       UV,
+    float        CornerRadius,
+    float        BorderWidth,
+    float        ChromaStrength
 )
 {
     // ── SDF 圆角矩形（CornerRadius=0.5 → 整圆）──────────────────────
@@ -17,12 +29,25 @@ float2 ComputeChromaOffset(
     float2 q    = abs(uv) - (0.5 - CornerRadius);
     float  dist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - CornerRadius;
 
-    // ── 边缘权重（三次方曲线：中心=0，边界=1）───────────────────────
+    float shapeMask = 1.0 - smoothstep(-0.003, 0.003, dist);
+
+    // ── 边缘权重（三次方：中心=0，边界=1）──────────────────────────
     float edgeT      = saturate(-dist / max(BorderWidth, 0.0001));
     float edgeWeight = edgeT * edgeT * edgeT;
 
-    // ── 径向方向（从中心指向边缘）────────────────────────────────────
+    // ── 径向方向（从中心向外）────────────────────────────────────────
     float2 radial = length(uv) > 0.0001 ? normalize(uv) : float2(0.0, 1.0);
 
-    return radial * ChromaStrength * edgeWeight;
+    // ── RGB 通道偏移：R 外移，G 不动，B 内移 ─────────────────────────
+    float  off = ChromaStrength * edgeWeight;
+    float2 uvR = UV + radial * off;
+    float2 uvG = UV;
+    float2 uvB = UV - radial * off;
+
+    float r = Texture2DSampleLevel(WidgetTex, WidgetSamp, uvR, 0).r;
+    float g = Texture2DSampleLevel(WidgetTex, WidgetSamp, uvG, 0).g;
+    float b = Texture2DSampleLevel(WidgetTex, WidgetSamp, uvB, 0).b;
+    float a = Texture2DSampleLevel(WidgetTex, WidgetSamp, UV,  0).a;
+
+    return float4(r, g, b, a * shapeMask);
 }

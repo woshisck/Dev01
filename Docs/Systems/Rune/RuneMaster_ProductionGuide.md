@@ -1078,3 +1078,106 @@ SFX：
 | `[On Phase Up Ready]` | `UBFNode_OnPhaseUpReady` | 阶段提升就绪时触发 |
 | `[Phase Decay Timer]` | `UBFNode_PhaseDecayTimer` | 阶段衰退计时 |
 | `[Sacrifice Decay]` | `UBFNode_SacrificeDecay` | 献祭衰退 |
+
+---
+
+## 十一、新节点系统升级方案（2026-04-24）
+
+> Sprint 4.14b 新增：`ERuneTriggerType` 系统、`BFNode_ApplyEffect.OnRemoved` 引脚、`BFNode_GrantGA` Grant/Revoke 引脚。
+> 以下 P0 符文的逻辑层方案因新系统而简化或优化，**请以本节方案为准，第三节原有方案仅供历史参考**。
+
+---
+
+### 1017 击杀爆炸 — 改用 TriggerType=OnKill
+
+**变更说明：** 旧方案在 FA 内部用 `On Damage Dealt + Has Tag(Action.Dead)` 检测击杀，是权宜之计。新方案改 `TriggerType=OnKill`，BGC 在收到 `Ability.Event.Kill` 时直接启动 FA 实例，FA 内部无需任何触发节点。
+
+**DA 新增字段：**
+
+| 字段 | 值 |
+|------|-----|
+| `RuneConfig.TriggerType` | `OnKill` |
+
+**更新后 FA 逻辑（`FA_Rune_KillExplosion`）：**
+
+```
+[Start]
+  ↓
+[Spawn Actor At Location]
+  ActorClass = BP_KillExplosion（自处理 AoE 伤害 + GameplayCue.Rune.KillExplosion）
+  Target     = BuffGiver（BGC 传入 KilledTarget，即死亡敌人的位置）
+  ↓
+[Finish Buff]
+```
+
+BGC 行为：`Ability.Event.Kill` 到达时，`BFC->StartBuffFlow(FA, NewGuid, Payload.Target)`，`Payload.Target = KilledTarget`。FA 启动时 `BuffGiver = KilledTarget`，Spawn Actor 在其位置生成即可。
+
+**废弃节点：** `[On Damage Dealt]` + `[Has Tag(Action.Dead)]`——这两个节点是旧方案检测击杀的变通写法，新方案删除。
+
+---
+
+### 1018 生命汲取 — 维持 Passive（保留内部 On Damage Dealt）
+
+**变更说明：** 无需改动，维持 `TriggerType=Passive`（默认值）。
+
+**原因：** 生命汲取的回复量为"本次伤害的 15%"，必须通过 `On Damage Dealt` 节点的 `LastDamageAmount` 数据引脚做百分比计算。事件驱动型 FA（TriggerType≠Passive）启动时不携带伤害量，无法实现比例治疗，因此不适合切换。
+
+**正确 FA 连线（不变）：**
+
+```
+[Start]
+  ↓
+[On Damage Dealt] ── LastDamageAmount（数据）──→ [Math Float: × 0.15] ── Result ──┐
+  ↓ (执行流)                                                                      │
+[Apply Attribute Modifier]  ←──────────────────────────────────────── Value ──────┘
+  Attribute    = BaseAttributeSet.HP
+  ModOp        = Additive
+  DurationType = Instant
+  Target       = BuffOwner
+```
+
+---
+
+### 1019 燃烧印记 — 改用 GE 生命周期驱动 GA 模式
+
+**变更说明：** 旧方案通过 `Send Gameplay Event(Buff.Event.Burn)` 启动 GA_Burn，GA_Burn 内部自行管理计时与刷新，触发逻辑分散在 FA 和 GA C++ 中。新方案改用 `BFNode_ApplyEffect.OnRemoved → BFNode_GrantGA.Revoke`，GA 的生命周期完全由 GE 驱动，FA 图中即可看到完整逻辑。
+
+**更新后 FA 逻辑（`FA_Rune_BurnMark`）：**
+
+```
+[Start]
+  ↓
+[On Damage Dealt]
+  ↓
+[Apply Gameplay Effect Class: GE_BurnMark]
+  StackMode = Unique（重复命中刷新 3s 计时）
+  Target    = LastDamageTarget
+  │
+  ├── Out ──────────────────→ [Grant GA: GA_Burn].Grant
+  │                              Target = LastDamageTarget
+  └── OnRemoved（GE 到期）──→ [Grant GA: GA_Burn].Revoke
+```
+
+**GE_BurnMark 配置：**
+
+| 字段 | 值 |
+|------|-----|
+| DurationType | `HasDuration` |
+| Duration | `3.0` |
+| StackingType | `AggregateBySource` |
+| StackDurationRefreshPolicy | `RefreshOnSuccessfulApplication` |
+| GrantedTags | `Buff.Status.Burning` |
+
+**更新后 GA_Burn（简化）：**
+
+| 项目 | 旧方案 | 新方案 |
+|------|--------|--------|
+| 触发方式 | 监听 `Buff.Event.Burn` GameplayEvent | FA 通过 `Grant GA.Grant` 直接授予 |
+| 结束方式 | GA 内部 3s Timer 自行 EndAbility | FA 通过 `Grant GA.Revoke` 显式撤销 |
+| 重复命中刷新 | GA 内部检测 `Buff.Status.Burning` Tag 刷新 Timer | GE_BurnMark Unique 刷新，GA 不感知 |
+| 每 Tick 伤害 | 每 0.5s 施加伤害 GE | 不变 |
+| ActivationBlockedTags | `Buff.Status.Burning`（防重复激活） | 保留（多目标命中保护） |
+
+> **多目标说明：** 同一时间对多个敌人使用时，每个敌人的 GE 独立计时；`Grant GA.Grant` 节点含幂等保护，同一目标不会重复授予 GA_Burn（第一次 Grant 成功后，后续命中刷新 GE 但 GA 不重复授予）。对不同敌人的 GA 管理则靠各自 ASC 上的 `Buff.Status.Burning` 块标签隔离。
+
+**废弃的资产：** `Buff.Event.Burn` Tag 可移除；GA_Burn 中的 `WaitGameplayEvent` 监听逻辑可删除。

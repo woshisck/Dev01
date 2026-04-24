@@ -706,22 +706,61 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 		}
 	}
 
-	if (Placed.Rune.Flow.FlowAsset)
+	if (!Placed.Rune.Flow.FlowAsset)
 	{
-		// FA 路径：启动 BuffFlow，由 FA 节点负责施加 GE/GA
+		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune SKIP: no FA on Rune %s"), *Placed.Rune.RuneConfig.RuneName.ToString());
+		return;
+	}
+
+	const ERuneTriggerType TriggerType = Placed.Rune.RuneConfig.TriggerType;
+
+	if (TriggerType == ERuneTriggerType::Passive)
+	{
+		// Passive：进激活区立即启动 FA（常驻型，FA 持续运行直到离区）
 		UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();
 		if (!BFC)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune FAILED: BuffFlowComponent not found on %s"), *GetOwner()->GetName());
 			return;
 		}
-		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] StartBuffFlow -> Rune: %s"), *Placed.Rune.RuneConfig.RuneName.ToString());
+		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] StartBuffFlow (Passive) -> Rune: %s"), *Placed.Rune.RuneConfig.RuneName.ToString());
 		BFC->StartBuffFlow(Placed.Rune.Flow.FlowAsset, Placed.Rune.RuneGuid, GetOwner());
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune SKIP: no FA on Rune %s"), *Placed.Rune.RuneConfig.RuneName.ToString());
-		return;
+		// 事件驱动型：注册 ASC 监听器，每次事件触发时启动一次性 FA 实例
+		UAbilitySystemComponent* ASC = GetOwner()->FindComponentByClass<UAbilitySystemComponent>();
+		if (!ASC)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune FAILED: ASC not found on %s"), *GetOwner()->GetName());
+			return;
+		}
+
+		const FGameplayTag EventTag = GetEventTagForTriggerType(TriggerType);
+		if (!EventTag.IsValid())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune SKIP: unknown TriggerType for Rune %s"), *Placed.Rune.RuneConfig.RuneName.ToString());
+			return;
+		}
+
+		const FGuid RuneGuid          = Placed.Rune.RuneGuid;
+		TWeakObjectPtr<UFlowAsset> WeakFA(Placed.Rune.Flow.FlowAsset);
+
+		FDelegateHandle Handle = ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag)
+			.AddWeakLambda(this, [this, RuneGuid, WeakFA](const FGameplayEventData* Payload)
+			{
+				UFlowAsset* FA = WeakFA.Get();
+				if (!FA || !Payload) return;
+				UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();
+				if (!BFC) return;
+				AActor* Target = const_cast<AActor*>(Cast<AActor>(Payload->Target.Get()));
+				UE_LOG(LogTemp, Verbose, TEXT("[BackpackGrid] TriggeredRune event fired: Rune=%s"), *RuneGuid.ToString());
+				BFC->StartBuffFlow(FA, FGuid::NewGuid(), Target ? Target : GetOwner());
+			});
+
+		TriggeredRuneListeners.Add(RuneGuid, Handle);
+		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Registered listener (TriggerType=%d) for Rune: %s"),
+			static_cast<int32>(TriggerType), *Placed.Rune.RuneConfig.RuneName.ToString());
 	}
 
 	Placed.bIsActivated = true;
@@ -735,15 +774,49 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 
 	if (Placed.Rune.Flow.FlowAsset)
 	{
-		// FA 停止 → BFNode 的 Cleanup() 自动移除 GE/GA
-		if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
+		const ERuneTriggerType TriggerType = Placed.Rune.RuneConfig.TriggerType;
+
+		if (TriggerType == ERuneTriggerType::Passive)
 		{
-			BFC->StopBuffFlow(Placed.Rune.RuneGuid);
+			// Passive：停止持续运行的 FA
+			if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
+			{
+				BFC->StopBuffFlow(Placed.Rune.RuneGuid);
+			}
+		}
+		else
+		{
+			// 事件驱动型：注销 ASC 监听器
+			if (FDelegateHandle* Handle = TriggeredRuneListeners.Find(Placed.Rune.RuneGuid))
+			{
+				const FGameplayTag EventTag = GetEventTagForTriggerType(TriggerType);
+				if (UAbilitySystemComponent* ASC = GetOwner()->FindComponentByClass<UAbilitySystemComponent>())
+				{
+					if (EventTag.IsValid())
+					{
+						ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag).Remove(*Handle);
+					}
+				}
+				TriggeredRuneListeners.Remove(Placed.Rune.RuneGuid);
+			}
 		}
 	}
 
 	Placed.bIsActivated = false;
 	OnRuneActivationChanged.Broadcast(Placed.Rune.RuneGuid, false);
+}
+
+FGameplayTag UBackpackGridComponent::GetEventTagForTriggerType(ERuneTriggerType Type) const
+{
+	switch (Type)
+	{
+	case ERuneTriggerType::OnAttackHit:      return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
+	case ERuneTriggerType::OnDash:           return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Dash"));
+	case ERuneTriggerType::OnKill:           return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Kill"));
+	case ERuneTriggerType::OnCritHit:        return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
+	case ERuneTriggerType::OnDamageReceived: return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Damaged"));
+	default:                                  return FGameplayTag();
+	}
 }
 
 void UBackpackGridComponent::RefreshAllActivations()

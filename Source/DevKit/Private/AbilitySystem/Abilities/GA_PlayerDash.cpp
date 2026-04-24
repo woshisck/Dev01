@@ -12,6 +12,7 @@
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Kismet/GameplayStatics.h"
+#include "AbilitySystemBlueprintLibrary.h"
 
 static TAutoConsoleVariable<int32> CVarDashDebugTrace(
 	TEXT("Dash.DebugTrace"),
@@ -175,6 +176,15 @@ void UGA_PlayerDash::ActivateAbility(
 	Task->OnCancelled.AddDynamic(this, &UGA_PlayerDash::OnMontageCancelled);
 
 	Task->ReadyForActivation();
+
+	// 广播 Ability.Event.Dash 给玩家（BGC 事件驱动型符文监听此事件）
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		static const FGameplayTag DashEventTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Dash"));
+		FGameplayEventData DashPayload;
+		DashPayload.Instigator = Character;
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Character, DashEventTag, DashPayload);
+	}
 
 	// ── 7. 通知相机进入冲刺模式（1:1 无延迟跟随）────────────────────────────
 	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(

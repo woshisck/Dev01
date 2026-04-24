@@ -23,7 +23,7 @@ class UGASTemplate;
 class UGameEffectComponent;
 class UCharacterDataComponent;
 class UBufferComponent;
-class UNotifyRuneDataAsset;
+class URuneDataAsset;
 
 UENUM(BlueprintType)
 enum class EYogCharacterState : uint8
@@ -256,7 +256,7 @@ public:
 	bool bComboHitConnected = false;
 
 	// AN_MeleeDamage notify 存入的附加命中 Rune，GA_MeleeAttack::OnEventReceived 触发到命中目标后清空
-	TArray<TObjectPtr<UNotifyRuneDataAsset>> PendingAdditionalHitRunes;
+	TArray<TObjectPtr<URuneDataAsset>> PendingAdditionalHitRunes;
 
 	/**
 	 * 命中目标时触发附加符文效果的入口（由 GA_MeleeAttack::OnEventReceived 调用）。
@@ -265,8 +265,8 @@ public:
 	 * @param Instigator 发起攻击的角色
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Character|Combat")
-	void ReceiveOnHitRune(UNotifyRuneDataAsset* RuneDA, AActor* AttackInstigator);
-	virtual void ReceiveOnHitRune_Implementation(UNotifyRuneDataAsset* RuneDA, AActor* AttackInstigator);
+	void ReceiveOnHitRune(URuneDataAsset* RuneDA, AActor* AttackInstigator);
+	virtual void ReceiveOnHitRune_Implementation(URuneDataAsset* RuneDA, AActor* AttackInstigator);
 
 
 	UPROPERTY(BlueprintReadOnly)

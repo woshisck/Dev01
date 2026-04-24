@@ -2,11 +2,12 @@
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Data/CharacterData.h"
 #include "Data/AbilityData.h"
-#include "Data/NotifyRuneDataAsset.h"
+#include "Data/RuneDataAsset.h"
 
 UGA_MeleeAttack::UGA_MeleeAttack()
 {
@@ -234,12 +235,8 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 	if (Handles.Num() > 0 && Owner)
 	{
 		Owner->bComboHitConnected = true;
-	}
 
-	// 触发来自 AN_MeleeDamage::AdditionalRuneEffects 的附加符文（复用同批目标）
-	if (Owner && Owner->PendingAdditionalHitRunes.Num() > 0 && Handles.Num() > 0)
-	{
-		// 从 TargetData 收集命中的 Actor（避免重复）
+		// 收集本次命中的所有目标（供 Ability.Event 广播和 AdditionalRuneEffects 共用）
 		TArray<AActor*> HitActors;
 		for (const TSharedPtr<FGameplayAbilityTargetData>& Data : ContainerSpec.TargetData.Data)
 		{
@@ -253,7 +250,18 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 			}
 		}
 
-		for (UNotifyRuneDataAsset* RuneDA : Owner->PendingAdditionalHitRunes)
+		// 广播 Ability.Event.Attack.Hit 给攻击者（BGC 事件驱动型符文监听此事件）
+		static const FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
+		for (AActor* HitActor : HitActors)
+		{
+			FGameplayEventData Payload;
+			Payload.Instigator = Owner;
+			Payload.Target     = HitActor;
+			UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, HitTag, Payload);
+		}
+
+		// 触发来自 AN_MeleeDamage::AdditionalRuneEffects 的附加符文（复用同批目标）
+		for (URuneDataAsset* RuneDA : Owner->PendingAdditionalHitRunes)
 		{
 			if (!RuneDA) continue;
 			for (AActor* HitActor : HitActors)

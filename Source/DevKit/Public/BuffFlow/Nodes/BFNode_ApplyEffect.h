@@ -121,4 +121,10 @@ private:
 	/** 首次施加后存储的 handle（Unique/Stackable GE 共享同一实例，handle 保持有效） */
 	FActiveGameplayEffectHandle GrantedHandle;
 	TWeakObjectPtr<UAbilitySystemComponent> GrantedASC;
+
+	/** Cleanup 主动移除 GE 时置 true，阻止 HandleGERemoved 二次触发 OnRemoved 引脚 */
+	bool bCleaningUp = false;
+
+	/** GE 被外部（时间到期/手动移除）撤销时的回调，触发 OnRemoved 执行引脚 */
+	void HandleGERemoved(const FActiveGameplayEffect& RemovedEffect);
 };

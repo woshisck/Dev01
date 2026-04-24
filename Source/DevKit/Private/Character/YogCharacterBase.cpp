@@ -26,8 +26,7 @@
 #include "Components/WidgetComponent.h"
 #include "GameplayTagsManager.h"
 #include "BuffFlow/BuffFlowComponent.h"
-#include "BuffFlow/NotifyFlowAsset.h"
-#include "Data/NotifyRuneDataAsset.h"
+#include "Data/RuneDataAsset.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 
@@ -382,11 +381,11 @@ void AYogCharacterBase::MaxHealthChanged(const FOnAttributeChangeData& Data)
 
 }
 
-void AYogCharacterBase::ReceiveOnHitRune_Implementation(UNotifyRuneDataAsset* RuneDA, AActor* AttackInstigator)
+void AYogCharacterBase::ReceiveOnHitRune_Implementation(URuneDataAsset* RuneDA, AActor* AttackInstigator)
 {
 	if (!RuneDA || !AttackInstigator) return;
 
-	UNotifyFlowAsset* FlowAsset = RuneDA->FlowAsset;
+	UFlowAsset* FlowAsset = RuneDA->RuneInfo.Flow.FlowAsset;
 	if (!FlowAsset) return;
 
 	// 在攻击者（玩家）的 BFC 上启动 FA：

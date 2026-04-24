@@ -302,6 +302,9 @@ private:
     // ASC 弱引用（避免循环引用）
     TWeakObjectPtr<UAbilitySystemComponent> CachedASC;
 
+    // 事件驱动型符文的 ASC 监听器句柄（Key=RuneGuid），离区时注销
+    TMap<FGuid, FDelegateHandle> TriggeredRuneListeners;
+
     // =========================================================
     // 私有算法
     // =========================================================
@@ -336,6 +339,9 @@ private:
 
     // 重新计算所有符文的激活状态（热度变化或网格变动后调用）
     void RefreshAllActivations();
+
+    // TriggerType 枚举 → 对应的 Ability.Event.* 标签
+    FGameplayTag GetEventTagForTriggerType(ERuneTriggerType Type) const;
 
     // 坐标转平铺索引
     int32 CellToIndex(FIntPoint Cell) const;

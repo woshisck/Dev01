@@ -7,6 +7,27 @@
 
 ## 2026-04-23
 
+### [UI-007] 武器玻璃图标热度颜色 — WeaponGlassIconWidget 自订阅热度阶段
+
+**状态**：C++ 完成已编译；WBP 层级需在编辑器按规格搭建 HeatColorOverlay
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `WeaponGlassIconWidget.h/.cpp`、`PlayerCharacterBase.h/.cpp`、`YogHUD.h/.cpp` |
+| 功能说明 | 武器拾取后左下角玻璃图标显示当前热度颜色；升阶时自动变色；切关卡后颜色恢复 |
+| 架构变更 | Widget 在 `NativeConstruct` 自订阅 `PlayerCharacterBase::OnHeatPhaseChanged`，读取 `PlayerCharacterBase::HeatStyleDA` 获取颜色，不再由 YogHUD 推送 |
+| 新增接口 | `PlayerCharacterBase::GetCurrentHeatPhase()` — BlueprintPure，返回当前阶段 0/1/2/3 |
+| 移除接口 | `WeaponGlassIconWidget::SetHeatColor()`、`YogHUD::ApplyGlassIconHeatColor()`、`YogHUD::BackpackStyleDA` |
+| YogHUD 保留 | `bHasWeapon` — 跨关卡记录是否已拾取武器，重建 Widget 后调用 `Show()` 恢复 |
+| WBP 层级 | Overlay → GlassBG → GlassBGCenter → **HeatColorOverlay**（Image，Fill，Translucent） → GlassBorderImage |
+| 颜色来源 | `DA_BackpackStyle`（通过 `PlayerCharacterBase::HeatStyleDA` 访问，与背包格子颜色同源） |
+| 配置入口 | `B_PlayerOne` Details → Heat\|Visual → **HeatStyleDA** 填入 `DA_BackpackStyle` |
+| 已知限制 | `NativeConstruct` 时若 PlayerPawn 尚未 Possess（极少数情况），初始颜色延迟到 `Show()` 调用时同步 |
+
+---
+
+## 2026-04-23
+
 ### [FEAT-033] 冲刺空气墙 — BP_DashBarrier + GA_PlayerDash 精确停止
 
 **状态**：C++ 完成已编译；需在编辑器创建 `BP_DashBarrier` Blueprint（见下方配置说明）并放置到关卡边界

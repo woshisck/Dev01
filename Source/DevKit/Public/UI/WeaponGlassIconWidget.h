@@ -9,32 +9,15 @@ class UWeaponGlassAnimDA;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeaponGlassHidden);
 
-/**
- * 武器玻璃图标 — 拾取武器后常驻于屏幕左下角的液态玻璃方块
- *
- * WBP 层级（父类 WeaponGlassIconWidget）：
- *   [Root] Overlay（Fill）
- *   ├── BackgroundBlur  "GlassBG"          ← 毛玻璃底（继承自 GlassFrameWidget）
- *   ├── Image           "GlassBorderImage"  ← 玻璃边框材质（继承自 GlassFrameWidget）
- *   ├── Image           "WeaponThumbnailImg" ← 武器缩略图（半透明）
- *   └── Image           "HeatColorOverlay"  ← 热度颜色叠加（乘法/Additive 混合）
- *
- * 调用顺序：
- *   YogHUD 在武器飞行结束后调用 ShowForWeapon → 开背包时调用 StartExpandAndHide
- */
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UWeaponGlassIconWidget : public UGlassFrameWidget
 {
 	GENERATED_BODY()
 
 public:
-	/** 飞行结束后调用：显示图标（热度颜色由 SetHeatColor 驱动），进入常驻状态 */
+	/** 飞行结束后调用：显示图标，进入常驻状态 */
 	UFUNCTION(BlueprintCallable, Category = "WeaponGlass")
 	void Show(const UWeaponGlassAnimDA* InAnimDA);
-
-	/** 同步热度颜色（与热度槽颜色一致） */
-	UFUNCTION(BlueprintCallable, Category = "WeaponGlass")
-	void SetHeatColor(FLinearColor Color);
 
 	/** 触发放大→渐隐消失动画（开背包时调用） */
 	UFUNCTION(BlueprintCallable, Category = "WeaponGlass")
@@ -52,10 +35,15 @@ protected:
 	TObjectPtr<UImage> HeatColorOverlay;
 
 private:
+	void RefreshHeatOverlay(int32 Phase);
+
+	UFUNCTION()
+	void OnHeatPhaseChanged(int32 Phase);
+
 	UPROPERTY()
 	TObjectPtr<const UWeaponGlassAnimDA> AnimDA;
 
-	bool  bExpanding      = false;
-	float ExpandTimer     = 0.f;
-	bool  bWeaponShowing  = false;
+	bool  bExpanding     = false;
+	float ExpandTimer    = 0.f;
+	bool  bWeaponShowing = false;
 };

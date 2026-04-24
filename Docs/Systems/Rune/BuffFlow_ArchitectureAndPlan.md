@@ -2,7 +2,7 @@
 
 > 项目：星骸降临
 > 文档性质：架构设计思路整理 + 开发决策记录 + 完整开发计划
-> 更新日期：2026-04-08
+> 更新日期：2026-04-24（BFNode_ApplyEffect OnRemoved 引脚、BFNode_GrantGA Grant/Revoke 引脚、Send Gameplay Event 已实现）
 > 作者：龚正昂
 
 ---
@@ -317,8 +317,8 @@ FGameplayAbilitySpecHandle GAHandle;        // GA handle
 | 节点 | 功能 | Cleanup |
 |------|------|---------|
 | `BFNode_ApplyAttributeModifier` | 零资产属性修改（核心节点） | 自动移除 GE |
-| `BFNode_ApplyEffect` | 施加 Blueprint GE，含 Remove 引脚 | 自动移除 GE |
-| `BFNode_GrantGA` | 授予 GA | 自动撤销 GA |
+| `BFNode_ApplyEffect` | 施加 Blueprint GE，含 Remove 引脚 + `OnRemoved`（GE 到期/外部移除时触发，`bCleaningUp` 保护避免 FA 自身 Cleanup 时循环触发） | 自动移除 GE |
+| `BFNode_GrantGA` | Grant / Revoke 双输入引脚；Grant 授予 GA，Revoke 显式撤销并触发 Revoked 输出；Grant 幂等保护（GrantedHandle 已有效时跳过重复授予） | 自动撤销 GA |
 | `BFNode_AddTag` | 添加 Loose Tag | 自动移除 Tag |
 | `BFNode_RemoveTag` | 移除 Tag | — |
 | `BFNode_DoDamage` | 造成伤害（Flat 或 LastAmount×倍率） | — |
@@ -475,7 +475,7 @@ FA_Util_PhaseBonus（子图）:
 | OngoingTagRequirements | ✅ 通过 Blueprint GE 配置 | 自动 Inhibit，无需 FA 节点参与 |
 | GameplayCue（触发） | ⏳ 待做 | `BFNode_PlayGameplayCue`（P1） |
 | GA 激活（触发已有 GA）| ⏳ 待做 | `BFNode_ActivateAbilityByTag`（P2） |
-| Gameplay Event | ⏳ 待做 | `BFNode_SendGameplayEvent`（P2） |
+| Gameplay Event | ✅ 完全 | `BFNode_SendGameplayEvent`（发送）+ `BFNode_WaitGameplayEvent`（监听，FA 停止自动解绑） |
 | AbilityTask（复杂） | ❌ 不适合 FA | 保留 Blueprint GA |
 | 网络同步 Replication | ❌ 不适合 FA | 保留 Blueprint GA + Replication |
 

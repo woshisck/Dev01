@@ -368,6 +368,7 @@ void APlayerCharacterBase::OnHeatPhaseTagChanged(const FGameplayTag Tag, int32 N
 	if      (Tag == Phase1) BroadcastPhase = 1;
 	else if (Tag == Phase2) BroadcastPhase = 2;
 	else if (Tag == Phase3) BroadcastPhase = 3;
+	CurrentHeatPhase = BroadcastPhase;
 	OnHeatPhaseChanged.Broadcast(BroadcastPhase);
 	StartPlayerPhaseGlow(BroadcastPhase);
 
@@ -385,6 +386,7 @@ void APlayerCharacterBase::OnHeatPhaseParentTagChanged(const FGameplayTag Tag, i
 {
 	if (NewCount == 0)
 	{
+		CurrentHeatPhase = 0;
 		OnHeatPhaseChanged.Broadcast(0);
 	}
 }

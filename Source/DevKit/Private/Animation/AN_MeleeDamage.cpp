@@ -3,7 +3,7 @@
 #include "Animation/AN_MeleeDamage.h"
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystemBlueprintLibrary.h"
-#include "Data/NotifyRuneDataAsset.h"
+#include "Data/RuneDataAsset.h"
 
 UAN_MeleeDamage::UAN_MeleeDamage()
 {

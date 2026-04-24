@@ -1,6 +1,6 @@
 # BuffFlow 节点速查表
 
-> 版本：Sprint 4.14b（2026-04-14）
+> 版本：Sprint 4.14b → 更新 2026-04-24（TriggerType 系统、BFNode_ApplyEffect.OnRemoved、BFNode_GrantGA.Grant/Revoke）
 > 上级文档：[BuffFlow_DesignGuide.md](BuffFlow_DesignGuide.md)
 
 ---
@@ -53,9 +53,9 @@
 | FA 显示名 | 一句话功能 | 需要额外资产？ |
 |---|---|---|
 | **Apply Attribute Modifier** | 直接修改属性，数值在节点上配置，无需 GE 资产 | ❌ |
-| **Apply Gameplay Effect Class** | 施加一个 Blueprint GE 类，支持 SetByCaller 传值 | ✅ Blueprint GE |
+| **Apply Gameplay Effect Class** | 施加一个 Blueprint GE 类，支持 SetByCaller 传值；GE 被外部移除时触发 **OnRemoved** 引脚 | ✅ Blueprint GE |
 | **Apply Execution Calculation** | 执行 C++ ExecCalc，适合复杂伤害公式 | ✅ 程序写 C++ |
-| **Grant GA** | 授予目标一个 GameplayAbility | ✅ Blueprint GA |
+| **Grant GA** | 授予目标一个 GameplayAbility；支持 **Grant** / **Revoke** 双引脚，可由 ApplyEffect.OnRemoved 驱动撤销 | ✅ Blueprint GA |
 | **Add Tag** | 添加 Loose Tag，FA 停止时自动移除 | ❌ |
 | **Grant Tag (Timed)** | 添加 Loose Tag，支持 N 秒后自动过期 | ❌ |
 | **Remove Tag** | 立即移除 Tag | ❌ |
@@ -177,6 +177,39 @@
 | N | 一次性蒙太奇命中效果 | **Start** → **Send Gameplay Event**（Target=BuffGiver）→ **Finish** |
 | O | 基于血量的动态修改器 | **On Health Changed**.NewHP →（数据线）→ **Math Float**（算损失百分比）→ **Apply Attribute Modifier**（Infinite, Unique） |
 | P | 击中前满血判断 | **On Damage Dealt**.LastDamageAmount + **Get Attribute**(HP) → **Math Float**(Add) → **Compare Float** >= MaxHP → True → 追加效果 |
+| Q | GE 生命周期驱动 GA | **On Damage Dealt** → **Apply Effect**(GE_Mark 3s).Out → **Grant GA**.Grant；**Apply Effect**.OnRemoved → **Grant GA**.Revoke（见 FA_UniversalArchitecture.md §13） |
+| R | 事件驱动型一次性效果 | DA.TriggerType=OnKill；FA：**Start** → **Spawn Actor** → **Finish Buff**（不需要 On Kill 节点，BGC 直接按事件启动 FA） |
+
+---
+
+## Apply Gameplay Effect Class 引脚详解（2026-04-24 更新）
+
+| 引脚类型 | 引脚名 | 说明 |
+|---------|--------|------|
+| 输入 | In | 施加 GE |
+| 输入 | Remove | 手动移除（按 RemoveMode 决定移除层数） |
+| 输出 | Out | 施加成功后触发（bFinish=false，节点保持活跃） |
+| 输出 | Failed | GE 施加失败 |
+| 输出 | Removed | 手动 Remove 后触发 |
+| **输出** | **OnRemoved** | **GE 被外部移除时触发（到期 / 外部 RemoveActiveGE）；FA 自身 Cleanup 时不触发（bCleaningUp 保护）** |
+
+数据输出引脚：`bGEApplied`（Bool）、`GEStackCount`（Int）、`GELevel`（Float）、`GETimeRemaining`（Float）
+
+---
+
+## Grant GA 引脚详解（2026-04-24 更新）
+
+| 引脚类型 | 引脚名 | 说明 |
+|---------|--------|------|
+| 输入 | **Grant** | 授予 GA（原 "In" 引脚更名，已有 FA 需在编辑器重连） |
+| 输入 | **Revoke** | 立即撤销已授予的 GA，触发 Revoked 输出 |
+| 输出 | Out | 授予成功 |
+| 输出 | Failed | 授予失败（无 ASC / 无 AbilityClass） |
+| 输出 | **Revoked** | Revoke 引脚执行后触发 |
+
+数据输出引脚：`bGAGranted`（Bool）、`GALevel`（Int）
+
+> **幂等保护**：若 GrantedHandle 已存在且仍有效，重复触发 Grant 引脚会直接复用现有 GA，不会重复授予。
 
 ---
 
