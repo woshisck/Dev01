@@ -182,20 +182,20 @@
 
 ### 3.4 FA_Effect_Curse（诅咒）— 纯 FA
 
-每层诅咒减少 50 MaxHP，最多 5 层，持续 10 秒。
+每层诅咒减少当前最大生命值 10%（乘算），最多 7 层，持续 10 秒。
 
 ```
 [Custom Input "Apply"]
     ↓
 [ApplyAttributeModifier
     Attribute        = BaseAttributeSet.MaxHealth
-    ModOp            = Additive
-    Value            = -50.0
+    ModOp            = Multiply
+    Value            = 0.9
     DurationType     = HasDuration
     Duration         = 10.0
     GrantedTags      = Buff.Status.Cursed
     StackMode        = Stackable
-    MaxStacks        = 5
+    MaxStacks        = 7
     DurationRefresh  = NeverRefresh
     ExpirationPolicy = RemoveSingleStackAndRefreshDuration
     Target           = LastDamageTarget]
@@ -203,7 +203,7 @@
 [Custom Output "Done"]
 ```
 
-> MaxHP 下降时 C++ 自动等比缩放 HP（PreAttributeChange），上升时保持绝对值。
+> 乘算叠加：1 层 90%、3 层 72.9%、7 层 ≈47.8%。MaxHP 下降时 C++ 自动等比缩放 HP（PreAttributeChange），上升时保持绝对值。
 
 ### 3.5 FA_Effect_Bleed（流血）— FA + GA
 

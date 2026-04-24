@@ -1243,10 +1243,6 @@ TWeakObjectPtr<UFlowAsset> UFlowAsset::GetFlowInstance(UFlowNode_SubGraph* SubGr
 
 void UFlowAsset::TriggerCustomInput_FromSubGraph(UFlowNode_SubGraph* SubGraphNode, const FName& EventName) const
 {
-	// NOTE (gtaylor) Custom Input nodes cannot currently add data pins (like Start or DefineProperties nodes can)
-	// but we may want to allow them to source parameters, so I am providing the subgraph node as the 
-	// IFlowDataPinValueSupplierInterface when triggering the node (even though it's not used at this time).
-
 	const TWeakObjectPtr<UFlowAsset> FlowInstance = ActiveSubGraphs.FindRef(SubGraphNode);
 	if (FlowInstance.IsValid())
 	{
@@ -1261,10 +1257,6 @@ void UFlowAsset::TriggerCustomInput(const FName& EventName, IFlowDataPinValueSup
 		if (CustomInputNode->EventName == EventName)
 		{
 			RecordedNodes.Add(CustomInputNode);
-
-			// NOTE (gtaylor) Custom Input nodes cannot currently add data pins (like Start or DefineProperties nodes can)
-			// but we may want to allow them to source parameters, so I am providing the subgraph node as the 
-			// IFlowDataPinValueSupplierInterface when triggering the node (even though it's not used at this time).
 
 			if (IFlowNodeWithExternalDataPinSupplierInterface* ExternalPinSuppliedNode = Cast<IFlowNodeWithExternalDataPinSupplierInterface>(CustomInputNode))
 			{
