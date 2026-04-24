@@ -22,6 +22,7 @@
 | 献祭 HP 换取强力恩赐 | SacrificeGrace + BFNode | [EditorSetup_ChainAndSacrifice](TODO/EditorSetup_ChainAndSacrifice.md) |
 | 符文有链路传导（Producer/Consumer） | BackpackGridComponent | [BackpackSystem_Technical](Systems/Rune/BackpackSystem_Technical.md) |
 | 敌人/动作 GA 也能用 FA | FA 通用架构（三层模型） | [FA_UniversalArchitecture](Systems/Rune/FA_UniversalArchitecture.md) |
+| 子图 CustomInput 传参（父图→子图数据传递） | CustomInput DataPin | [BuffFlow_CustomInputDataPin](Systems/Rune/BuffFlow_CustomInputDataPin.md) |
 
 ---
 
