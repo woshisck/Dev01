@@ -123,6 +123,17 @@ public:
     FGameplayAttributeData Resist;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resist);
 
+    // ─── 护甲 ─────────────────────────────────────────────────────────────────
+    /** 当前护甲值（独立血条）。归零时自动移除 Buff.Status.Armored Tag */
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ArmorHP, Category = "Armor")
+    FGameplayAttributeData ArmorHP;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ArmorHP);
+
+    /** 最大护甲值 */
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxArmorHP, Category = "Armor")
+    FGameplayAttributeData MaxArmorHP;
+    ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MaxArmorHP);
+
     UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
     FGameplayAttributeData DmgTaken;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, DmgTaken);
@@ -177,6 +188,12 @@ public:
 
     UFUNCTION()
     void OnRep_Resist(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_ArmorHP(const FGameplayAttributeData& OldValue);
+
+    UFUNCTION()
+    void OnRep_MaxArmorHP(const FGameplayAttributeData& OldValue);
 
     UFUNCTION()
     void OnRep_DmgTaken(const FGameplayAttributeData& OldValue);

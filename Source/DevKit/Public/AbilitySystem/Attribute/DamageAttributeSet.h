@@ -43,6 +43,11 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Weapon|Player")
     FGameplayAttributeData DamagePure;
 
+    // ─── 状态效果伤害（绕过护甲吸收，由GEExec_PoisonDamage / GA_Wound等写入）─────
+    /** 状态效果伤害：直接减少 Health，跳过护甲吸收。不重播 Ability.Event.Damaged（防止递归）*/
+    UPROPERTY(BlueprintReadWrite, Category = "Buff")
+    FGameplayAttributeData DamageBuff;
+    ATTRIBUTE_ACCESSORS(UDamageAttributeSet, DamageBuff);
 
     virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 };

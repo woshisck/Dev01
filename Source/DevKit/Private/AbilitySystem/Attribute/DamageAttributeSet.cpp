@@ -4,6 +4,7 @@
 
 #include "AbilitySystem/Attribute/DamageAttributeSet.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Net/UnrealNetwork.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
@@ -19,6 +20,7 @@ UDamageAttributeSet::UDamageAttributeSet()
 	InitDamagePhysical(0);
 	InitDamageMagic(0);
 	InitDamagePure(0);
+	InitDamageBuff(0);
 }
 
 void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
@@ -101,9 +103,25 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 
 		if (LocalDamageDone > 0)
 		{
-			// Apply the health change and then clamp it
-			const float OldHealth = TargetCharacter->BaseAttributeSet->GetHealth();
-			TargetCharacter->BaseAttributeSet->SetHealth(FMath::Clamp(OldHealth - LocalDamageDone, 0.0f, TargetCharacter->BaseAttributeSet->GetMaxHealth()));
+			// ── 护甲拦截（护甲先吸收，溢出才扣血）─────────────────────────
+			float HealthDamage = LocalDamageDone;
+			if (TargetCharacter->BaseAttributeSet)
+			{
+				const float CurrentArmor = TargetCharacter->BaseAttributeSet->GetArmorHP();
+				if (CurrentArmor > 0.f)
+				{
+					const float ArmorAbsorbed = FMath::Min(LocalDamageDone, CurrentArmor);
+					TargetCharacter->BaseAttributeSet->SetArmorHP(FMath::Max(0.f, CurrentArmor - ArmorAbsorbed));
+					HealthDamage = LocalDamageDone - ArmorAbsorbed;
+				}
+			}
+
+			if (HealthDamage > 0.f)
+			{
+				const float OldHealth = TargetCharacter->BaseAttributeSet->GetHealth();
+				TargetCharacter->BaseAttributeSet->SetHealth(FMath::Clamp(OldHealth - HealthDamage, 0.0f, TargetCharacter->BaseAttributeSet->GetMaxHealth()));
+			}
+
 			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
 			if (ASC)
 			{
@@ -112,13 +130,24 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
 
+				// 广播 Ability.Event.Damaged 给受击目标（GA_Wound 等监听此事件）
+				{
+					static const FGameplayTag DamagedTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Damaged"), false);
+					if (DamagedTag.IsValid() && SourceActor)
+					{
+						FGameplayEventData DamagedPayload;
+						DamagedPayload.Instigator     = SourceActor;
+						DamagedPayload.Target         = TargetCharacter;
+						DamagedPayload.EventMagnitude = LocalDamageDone;
+						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetCharacter, DamagedTag, DamagedPayload);
+					}
+				}
+
 				// 击杀广播
 				if (TargetCharacter->BaseAttributeSet->GetHealth() <= 0.f && SourceYogASC)
 				{
 					SourceYogASC->OnKilledTarget.Broadcast(TargetCharacter, TargetCharacter->GetActorLocation());
 
-					// 广播 Ability.Event.Kill 给击杀者（BGC 事件驱动型符文监听此事件）
-					// 广播 Ability.Event.Death 给死亡者
 					static const FGameplayTag KillTag  = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Kill"));
 					static const FGameplayTag DeathTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Death"));
 					AActor* KillerActor = SourceYogASC->GetAvatarActor();
@@ -195,9 +224,25 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 
 		if (LocalDamageDone > 0)
 		{
-			// Apply the health change and then clamp it
-			const float OldHealth = TargetCharacter->BaseAttributeSet->GetHealth();
-			TargetCharacter->BaseAttributeSet->SetHealth(FMath::Clamp(OldHealth - LocalDamageDone, 0.0f, TargetCharacter->BaseAttributeSet->GetMaxHealth()));
+			// ── 护甲拦截 ─────────────────────────────────────────────────────
+			float HealthDamage = LocalDamageDone;
+			if (TargetCharacter->BaseAttributeSet)
+			{
+				const float CurrentArmor = TargetCharacter->BaseAttributeSet->GetArmorHP();
+				if (CurrentArmor > 0.f)
+				{
+					const float ArmorAbsorbed = FMath::Min(LocalDamageDone, CurrentArmor);
+					TargetCharacter->BaseAttributeSet->SetArmorHP(FMath::Max(0.f, CurrentArmor - ArmorAbsorbed));
+					HealthDamage = LocalDamageDone - ArmorAbsorbed;
+				}
+			}
+
+			if (HealthDamage > 0.f)
+			{
+				const float OldHealth = TargetCharacter->BaseAttributeSet->GetHealth();
+				TargetCharacter->BaseAttributeSet->SetHealth(FMath::Clamp(OldHealth - HealthDamage, 0.0f, TargetCharacter->BaseAttributeSet->GetMaxHealth()));
+			}
+
 			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
 			if (ASC)
 			{
@@ -206,13 +251,24 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
 
+				// 广播 Ability.Event.Damaged（不在 DamageBuff 路径广播，防止 GA_Wound 递归）
+				{
+					static const FGameplayTag DamagedTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Damaged"), false);
+					if (DamagedTag.IsValid() && SourceActor)
+					{
+						FGameplayEventData DamagedPayload;
+						DamagedPayload.Instigator     = SourceActor;
+						DamagedPayload.Target         = TargetCharacter;
+						DamagedPayload.EventMagnitude = LocalDamageDone;
+						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetCharacter, DamagedTag, DamagedPayload);
+					}
+				}
+
 				// 击杀广播
 				if (TargetCharacter->BaseAttributeSet->GetHealth() <= 0.f && SourceYogASC)
 				{
 					SourceYogASC->OnKilledTarget.Broadcast(TargetCharacter, TargetCharacter->GetActorLocation());
 
-					// 广播 Ability.Event.Kill 给击杀者（BGC 事件驱动型符文监听此事件）
-					// 广播 Ability.Event.Death 给死亡者
 					static const FGameplayTag KillTag  = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Kill"));
 					static const FGameplayTag DeathTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Death"));
 					AActor* KillerActor = SourceYogASC->GetAvatarActor();
@@ -230,6 +286,38 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetCharacter, DeathTag, DeathPayload);
 					}
 				}
+			}
+		}
+	}
+
+	// ── DamageBuff：状态效果伤害，绕过护甲，不能击杀（中毒类），不重播 Damaged 事件 ──
+	if (Data.EvaluatedData.Attribute == GetDamageBuffAttribute())
+	{
+		const float LocalDamageDone = GetDamageBuff();
+		SetDamageBuff(0.f);
+
+		static const FGameplayTag TAG_DashInvincible =
+			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.DashInvincible"), false);
+		UAbilitySystemComponent* TargetASC =
+			Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
+		if (TargetASC && TAG_DashInvincible.IsValid() && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible))
+		{
+			return;
+		}
+
+		if (LocalDamageDone > 0.f && TargetCharacter && TargetCharacter->BaseAttributeSet)
+		{
+			const float OldHealth = TargetCharacter->BaseAttributeSet->GetHealth();
+			// 不至死：Health 最低保留 1（GEExec_PoisonDamage 在输出前已Clamp，此处双重保险）
+			const float NewHealth = FMath::Max(1.f, OldHealth - LocalDamageDone);
+			TargetCharacter->BaseAttributeSet->SetHealth(NewHealth);
+
+			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
+			if (ASC)
+			{
+				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
+				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone);
+				TargetCharacter->OnCharacterHealthUpdate.Broadcast(NewHealth / TargetCharacter->BaseAttributeSet->GetMaxHealth());
 			}
 		}
 	}

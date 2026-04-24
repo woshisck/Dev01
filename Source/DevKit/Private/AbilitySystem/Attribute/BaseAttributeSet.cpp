@@ -40,6 +40,8 @@ void UBaseAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, Resist, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, Crit_Rate, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, Crit_Damage, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, ArmorHP, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UBaseAttributeSet, MaxArmorHP, COND_None, REPNOTIFY_Always);
 
 }
 
@@ -60,7 +62,22 @@ void UBaseAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, 
 
 	if (Attribute == GetMaxHealthAttribute())
 	{
-		AdjustAttributeForMaxChange(Health, MaxHealth, NewValue, GetHealthAttribute());
+		// 诅咒机制：MaxHP 下降时按比例缩放 HP；上升时（自然恢复）不缩放
+		// 净化时由净化 GE 额外补血
+		if (NewValue < MaxHealth.GetCurrentValue())
+		{
+			AdjustAttributeForMaxChange(Health, MaxHealth, NewValue, GetHealthAttribute());
+		}
+	}
+
+	if (Attribute == GetArmorHPAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxArmorHP());
+	}
+
+	if (Attribute == GetMaxArmorHPAttribute())
+	{
+		AdjustAttributeForMaxChange(ArmorHP, MaxArmorHP, NewValue, GetArmorHPAttribute());
 	}
 
 	if (Attribute == GetHeatAttribute())
@@ -277,6 +294,28 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 		}
 	}
 
+	// ArmorHP 变化时同步 Buff.Status.Armored Tag
+	if (Attribute == GetArmorHPAttribute())
+	{
+		static const FGameplayTag ArmoredTag =
+			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Armored"), false);
+		if (ArmoredTag.IsValid())
+		{
+			UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
+			if (ASC)
+			{
+				if (NewValue > 0.f && !ASC->HasMatchingGameplayTag(ArmoredTag))
+				{
+					ASC->AddLooseGameplayTag(ArmoredTag);
+				}
+				else if (NewValue <= 0.f && ASC->HasMatchingGameplayTag(ArmoredTag))
+				{
+					ASC->RemoveLooseGameplayTag(ArmoredTag);
+				}
+			}
+		}
+	}
+
 	// MoveSpeed 属性变化时同步到角色移动组件
 	if (Attribute == GetMoveSpeedAttribute())
 	{
@@ -396,6 +435,16 @@ void UBaseAttributeSet::OnRep_Heat(const FGameplayAttributeData& OldValue)
 void UBaseAttributeSet::OnRep_MaxHeat(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, MaxHeat, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_ArmorHP(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, ArmorHP, OldValue);
+}
+
+void UBaseAttributeSet::OnRep_MaxArmorHP(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UBaseAttributeSet, MaxArmorHP, OldValue);
 }
 
 void UBaseAttributeSet::AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty)
