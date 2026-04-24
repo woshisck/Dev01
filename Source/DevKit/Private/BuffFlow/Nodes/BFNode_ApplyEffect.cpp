@@ -28,7 +28,7 @@ void UBFNode_ApplyEffect::Cleanup()
 	Super::Cleanup();
 }
 
-void UBFNode_ApplyEffect::HandleGERemoved(const FActiveGameplayEffect& /*RemovedEffect*/)
+void UBFNode_ApplyEffect::HandleGERemoved(const FGameplayEffectRemovalInfo& /*RemovalInfo*/)
 {
 	if (!bCleaningUp)
 	{

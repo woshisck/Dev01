@@ -126,5 +126,5 @@ private:
 	bool bCleaningUp = false;
 
 	/** GE 被外部（时间到期/手动移除）撤销时的回调，触发 OnRemoved 执行引脚 */
-	void HandleGERemoved(const FActiveGameplayEffect& RemovedEffect);
+	void HandleGERemoved(const FGameplayEffectRemovalInfo& RemovalInfo);
 };
