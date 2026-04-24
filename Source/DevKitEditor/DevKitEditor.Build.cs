@@ -73,8 +73,14 @@ public class DevKitEditor : ModuleRules
 				"CollectionManager",
 				"SourceControl",
 				"Chaos",
-                "AIModule" // Add this line
-				
+                "AIModule", // Add this line
+				// 符文管理器工具依赖
+				"PropertyEditor",
+				"AssetRegistry",
+				"AssetTools",
+				"ContentBrowser",
+				"Blutility",
+				"UMG",
 			}
         );
 

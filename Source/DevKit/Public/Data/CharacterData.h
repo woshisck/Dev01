@@ -62,6 +62,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Crit_Damage = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxArmorHP = 0;
 };
 
 USTRUCT(BlueprintType)

@@ -349,6 +349,8 @@ void UBaseAttributeSet::Init(UCharacterData* data)
 	SetDmgTaken(YogBaseData->DmgTaken);
 	SetCrit_Rate(YogBaseData->Crit_Rate);
 	SetCrit_Damage(YogBaseData->Crit_Damage);
+	SetMaxArmorHP(YogBaseData->MaxArmorHP);
+	SetArmorHP(YogBaseData->MaxArmorHP);
 
 }
 

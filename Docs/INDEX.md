@@ -12,6 +12,7 @@
 | 我想要… | 对应功能 | 文档 |
 |---|---|---|
 | 角色有可叠加的增益效果 | BuffFlow + FA 节点系统 | [BuffFlow_NodeUsageGuide](Systems/Rune/BuffFlow_NodeUsageGuide.md) |
+| 符文逻辑全景（架构/节点/模式/敌人） | 符文完整指南 | [RuneLogic_Complete_Guide](Systems/Rune/RuneLogic_Complete_Guide.md) |
 | 设计一个新符文 | BuffFlow 符文工作流 | [BuffFlow_RuneWorkflow](Systems/Rune/BuffFlow_RuneWorkflow.md) |
 | 制作已规划的符文 1001–1016 | FA 制作指南 | [TestRune_CreationGuide](Systems/Rune/TestRune_CreationGuide.md) |
 | 制作高感知符文 1017–1021（P0） | FA 制作指南 | [TestRune_HighPerception_Guide](Systems/Rune/TestRune_HighPerception_Guide.md) |
