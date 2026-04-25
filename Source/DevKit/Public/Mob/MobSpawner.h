@@ -47,7 +47,7 @@ public:
 
 	// 预生成 FX 蓝图事件（可选扩展，C++ 已自动播 Niagara；此事件供 BP 叠加额外效果）
 	UFUNCTION(BlueprintImplementableEvent, Category = "Spawning")
-	void OnPreSpawnFX(FVector SpawnLocation, float FXDuration);
+	void OnPreSpawnFX(FVector SpawnLocation, float FXDuration, float FXScale);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool SingleSpawn = false;
@@ -62,6 +62,10 @@ public:
 	// 预生成 FX 时长随机浮动幅度（±秒），各 Spawner 可独立配置
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
 	float SpawnFXVariance = 0.1f;
+
+	// 预生成 FX 整体缩放（传给 Niagara User.Scale 变量）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
+	float SpawnFXScale = 1.0f;
 
 	FVector GetRandomReachablePoint();
 

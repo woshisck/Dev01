@@ -27,6 +27,7 @@
 #include "GameplayTagsManager.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Data/RuneDataAsset.h"
+#include "FlowAsset.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 
@@ -523,6 +524,7 @@ void AYogCharacterBase::InitializeStats(const FYogBaseAttributeData* attributeDa
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetAttackPowerAttribute(), attributeData->AttackPower);
 
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetMaxHealthAttribute(), attributeData->MaxHealth);
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetHealthAttribute(), attributeData->MaxHealth);
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetMaxHeatAttribute(), attributeData->MaxHeat);
 
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetShieldAttribute(), attributeData->Shield);
