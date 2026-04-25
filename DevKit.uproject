@@ -65,14 +65,6 @@
 			"Enabled": false
 		},
 		{
-			"Name": "GameFeatures",
-			"Enabled": true
-		},
-		{
-			"Name": "AbilitySystemGameFeatureActions",
-			"Enabled": true
-		},
-		{
 			"Name": "CountDownTime",
 			"Enabled": true
 		},
