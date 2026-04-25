@@ -1,4 +1,5 @@
 #include "LevelFlow/Nodes/LENode_ShowInfoPopup.h"
+#include "LevelFlow/LevelEventTrigger.h"
 #include "UI/YogHUD.h"
 #include "UI/InfoPopupWidget.h"
 #include "Data/LevelInfoPopupDA.h"
@@ -31,8 +32,8 @@ void ULENode_ShowInfoPopup::ExecuteInput(const FName& PinName)
 		return;
 	}
 
-	// 绑定关闭事件，弹窗关闭后触发 OnClosed 引脚
-	if (UInfoPopupWidget* Widget = HUD->GetInfoPopupWidget())
+	UInfoPopupWidget* Widget = HUD->GetInfoPopupWidget();
+	if (Widget)
 	{
 		ClosedHandle = Widget->OnClosed.AddLambda([this]()
 		{
@@ -42,7 +43,22 @@ void ULENode_ShowInfoPopup::ExecuteInput(const FName& PinName)
 
 	HUD->ShowInfoPopup(PopupDA);
 
-	// Out 立即触发（非阻塞）
+	if (Widget)
+	{
+		if (AActor* TriggerActor = TryGetRootFlowActorOwner())
+		{
+			if (ALevelEventTrigger* Trigger = Cast<ALevelEventTrigger>(TriggerActor))
+			{
+				TWeakObjectPtr<UInfoPopupWidget> WeakWidget(Widget);
+				Trigger->OnPlayerExited.AddLambda([WeakWidget]()
+				{
+					if (WeakWidget.IsValid())
+						WeakWidget->RequestClose();
+				});
+			}
+		}
+	}
+
 	TriggerOutput(TEXT("Out"), false);
 }
 

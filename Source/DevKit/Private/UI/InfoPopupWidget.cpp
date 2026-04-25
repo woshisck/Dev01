@@ -4,13 +4,13 @@
 #include "Components/Image.h"
 #include "Components/BackgroundBlur.h"
 #include "Components/Button.h"
-#include "Animation/WidgetAnimation.h"
 
 void UInfoPopupWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
 	SetVisibility(ESlateVisibility::Collapsed);
+	SetRenderOpacity(0.f);
 
 	if (BtnClose)
 		BtnClose->OnClicked.AddDynamic(this, &UInfoPopupWidget::OnBtnCloseClicked);
@@ -20,7 +20,6 @@ void UInfoPopupWidget::Show(const ULevelInfoPopupDA* DA)
 {
 	if (!DA) return;
 
-	// 填充文字
 	if (BodyText) BodyText->SetText(DA->Body);
 
 	if (TitleText)
@@ -31,11 +30,10 @@ void UInfoPopupWidget::Show(const ULevelInfoPopupDA* DA)
 	}
 
 	SetVisibility(ESlateVisibility::HitTestInvisible);
+	FadeAlpha = 0.f;
+	FadeDirection = 1.f;
+	SetRenderOpacity(0.f);
 
-	if (Anim_FadeIn)
-		PlayAnimation(Anim_FadeIn);
-
-	// 自动关闭计时
 	if (DA->DisplayDuration > 0.f)
 	{
 		GetWorld()->GetTimerManager().SetTimer(
@@ -47,17 +45,30 @@ void UInfoPopupWidget::Show(const ULevelInfoPopupDA* DA)
 
 void UInfoPopupWidget::RequestClose()
 {
+	UE_LOG(LogTemp, Log, TEXT("[InfoPopup] RequestClose() called, FadeDirection=%.1f FadeAlpha=%.2f"),
+		FadeDirection, FadeAlpha);
 	GetWorld()->GetTimerManager().ClearTimer(AutoCloseTimer);
 
-	if (Anim_FadeOut)
+	if (FadeDirection >= 0.f)
+		FadeDirection = -1.f;
+}
+
+void UInfoPopupWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (FadeDirection == 0.f) return;
+
+	FadeAlpha = FMath::Clamp(FadeAlpha + FadeDirection * (InDeltaTime / FadeDuration), 0.f, 1.f);
+	SetRenderOpacity(FadeAlpha);
+
+	if (FadeDirection > 0.f && FadeAlpha >= 1.f)
 	{
-		FWidgetAnimationDynamicEvent FinishEvent;
-		FinishEvent.BindDynamic(this, &UInfoPopupWidget::OnFadeOutFinished);
-		BindToAnimationFinished(Anim_FadeOut, FinishEvent);
-		PlayAnimation(Anim_FadeOut);
+		FadeDirection = 0.f;
 	}
-	else
+	else if (FadeDirection < 0.f && FadeAlpha <= 0.f)
 	{
+		FadeDirection = 0.f;
 		DoClose();
 	}
 }
@@ -65,12 +76,6 @@ void UInfoPopupWidget::RequestClose()
 void UInfoPopupWidget::OnBtnCloseClicked()
 {
 	RequestClose();
-}
-
-void UInfoPopupWidget::OnFadeOutFinished()
-{
-	UnbindAllFromAnimationFinished(Anim_FadeOut);
-	DoClose();
 }
 
 void UInfoPopupWidget::DoClose()

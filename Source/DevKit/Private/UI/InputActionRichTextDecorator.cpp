@@ -27,27 +27,56 @@ protected:
 	{
 		const FString* ActionName = RunInfo.MetaData.Find(TEXT("action"));
 		if (!ActionName || !Config)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[InputIcon] ActionName=%s Config=%s"),
+				ActionName ? **ActionName : TEXT("NULL"),
+				Config ? TEXT("OK") : TEXT("NULL"));
 			return nullptr;
+		}
 
-		const TSoftObjectPtr<UInputAction>* Found = Config->ActionMap.Find(FName(**ActionName));
-		if (!Found)
-			return nullptr;
+		UInputAction* IA = nullptr;
 
-		UInputAction* IA = Found->LoadSynchronous();
+		if (const TSoftObjectPtr<UInputAction>* Found = Config->ActionMap.Find(FName(**ActionName)))
+		{
+			IA = Found->LoadSynchronous();
+		}
+
+		if (!IA && !Config->AutoResolvePath.IsEmpty())
+		{
+			const FString AssetName = FString::Printf(TEXT("IA_%s"), **ActionName);
+			const FString FullPath = FString::Printf(TEXT("%s%s.%s"),
+				*Config->AutoResolvePath, *AssetName, *AssetName);
+			IA = LoadObject<UInputAction>(nullptr, *FullPath);
+		}
+
 		if (!IA)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[InputIcon] 未找到 InputAction '%s'（ActionMap=%d 条, AutoPath=%s）"),
+				**ActionName, Config->ActionMap.Num(), *Config->AutoResolvePath);
 			return nullptr;
+		}
 
 		const ULocalPlayer* LP = Owner->GetOwningLocalPlayer();
 		if (!LP)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[InputIcon] GetOwningLocalPlayer 返回 null"));
 			return nullptr;
+		}
 
 		const UCommonInputSubsystem* InputSub = UCommonInputSubsystem::Get(LP);
 		if (!InputSub)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[InputIcon] CommonInputSubsystem 为 null"));
 			return nullptr;
+		}
 
 		FSlateBrush IconBrush = CommonUI::GetIconForEnhancedInputAction(InputSub, IA);
 		if (!IconBrush.HasUObject() && IconBrush.GetResourceObject() == nullptr)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[InputIcon] 未获取到图标 — IA=%s InputType=%d"),
+				*IA->GetName(), (int32)InputSub->GetCurrentInputType());
 			return nullptr;
+		}
 
 		return SNew(SBox)
 			.WidthOverride(Config->IconSize.X)
