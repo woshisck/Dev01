@@ -24,6 +24,8 @@
 #include "Data/LevelEndEffectDA.h"
 #include "UI/LevelEndRevealWidget.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "UI/InfoPopupWidget.h"
+#include "Data/LevelInfoPopupDA.h"
 
 void AYogHUD::BeginPlay()
 {
@@ -135,6 +137,21 @@ void AYogHUD::ShowLootSelectionUI(const TArray<FLootOption>& Options)
 	}
 	if (LootSelectionWidget)
 		LootSelectionWidget->ShowLootUI(Options);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  信息提示浮窗
+// ─────────────────────────────────────────────────────────────────────────────
+
+UInfoPopupWidget* AYogHUD::GetInfoPopupWidget() const
+{
+	return MainHUDWidget ? MainHUDWidget->InfoPopup : nullptr;
+}
+
+void AYogHUD::ShowInfoPopup(const ULevelInfoPopupDA* DA)
+{
+	if (UInfoPopupWidget* W = GetInfoPopupWidget())
+		W->Show(DA);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

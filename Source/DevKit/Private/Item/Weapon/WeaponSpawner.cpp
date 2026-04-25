@@ -55,8 +55,6 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 
 	}
 
-	WeaponMeshRotationSpeed = 40.0f;
-
 	WeaponInfoWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("WeaponInfoWidgetComp"));
 	WeaponInfoWidgetComp->SetupAttachment(RootComponent);
 	WeaponInfoWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
@@ -102,8 +100,19 @@ void AWeaponSpawner::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	UWorld* World = GetWorld();
-	WeaponMesh->AddRelativeRotation(FRotator(0.0f, World->GetDeltaSeconds() * WeaponMeshRotationSpeed, 0.0f));
+	// 旋转
+	WeaponMesh->AddRelativeRotation(FRotator(
+		RotationRate.Pitch * DeltaTime,
+		RotationRate.Yaw   * DeltaTime,
+		RotationRate.Roll  * DeltaTime));
+
+	// 浮动偏移
+	if (BobAmplitude > 0.f)
+	{
+		BobTimer += DeltaTime;
+		const float BobOffset = FMath::Sin(BobTimer * BobFrequency * 2.f * PI) * BobAmplitude;
+		WeaponMesh->SetRelativeLocation(BaseMeshOffset + BobAxis.GetSafeNormal() * BobOffset);
+	}
 
 	// Tutorial 弹窗显示期间、或武器已被拾取后隐藏浮窗
 	if (bPickedUp)
@@ -174,6 +183,7 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 		WeaponMesh->SetStaticMesh(WeaponDefinition->DisplayMesh);
 		WeaponMesh->SetRelativeLocation(WeaponDefinition->WeaponMeshOffset);
 		WeaponMesh->SetRelativeScale3D(WeaponDefinition->WeaponMeshScale);
+		BaseMeshOffset = WeaponDefinition->WeaponMeshOffset;
 	}
 }
 

@@ -134,6 +134,13 @@ void UTutorialManager::DoShowPostCombatPopup(TWeakObjectPtr<AYogPlayerController
 	PopupWidget->ShowPopup(Pages);
 }
 
+void UTutorialManager::ShowInlinePages(const TArray<FTutorialPage>& Pages, APlayerController* PC, bool bPauseGame)
+{
+	if (!PopupWidget.IsValid() || Pages.IsEmpty()) return;
+	bPopupShowing = true;
+	PopupWidget->ShowPopup(Pages, bPauseGame);
+}
+
 void UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool bPauseGame)
 {
 	if (!PopupWidget.IsValid()) return;

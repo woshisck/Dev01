@@ -74,8 +74,21 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "ItemPickup")
 	TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "ItemPickup")
-	float WeaponMeshRotationSpeed;
+	// 各轴旋转速度（度/秒）。Pitch=X，Yaw=Z，Roll=Y
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "武器展示|旋转")
+	FRotator RotationRate = FRotator(0.f, 40.f, 0.f);
+
+	// 浮动偏移幅度（cm），0 = 不偏移
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "武器展示|浮动", meta = (ClampMin = "0"))
+	float BobAmplitude = 0.f;
+
+	// 浮动频率（Hz，完整周期数/秒）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "武器展示|浮动", meta = (ClampMin = "0.01"))
+	float BobFrequency = 1.f;
+
+	// 浮动方向（局部空间，默认 Z 轴上下浮动）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "武器展示|浮动")
+	FVector BobAxis = FVector(0.f, 0.f, 1.f);
 
 	// 玩家接近时登记 PendingWeaponSpawner，按 E 后调用 TryPickupWeapon
 	UFUNCTION()
@@ -119,4 +132,7 @@ private:
 	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
 
 	void ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data);
+
+	float BobTimer = 0.f;
+	FVector BaseMeshOffset = FVector::ZeroVector;
 };

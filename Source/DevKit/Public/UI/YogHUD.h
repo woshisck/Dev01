@@ -20,6 +20,8 @@ class ULevelEndRevealWidget;
 class UMaterialInstanceDynamic;
 class ULootSelectionWidget;
 class UYogHUDRootWidget;
+class UInfoPopupWidget;
+class ULevelInfoPopupDA;
 
 UCLASS()
 class DEVKIT_API AYogHUD : public AHUD
@@ -100,6 +102,14 @@ public:
 
 	// GameMode 直接调用（不走 delegate），Widget 被销毁时自动重建
 	void ShowLootSelectionUI(const TArray<FLootOption>& Options);
+
+	// ─────────────────────────────────────────
+	//  轻量信息提示浮窗（不暂停游戏，放在 WBP_HUDRoot 内）
+	// ─────────────────────────────────────────
+
+	void ShowInfoPopup(const ULevelInfoPopupDA* DA);
+
+	UInfoPopupWidget* GetInfoPopupWidget() const;
 
 	// ─────────────────────────────────────────
 	//  武器缩略图飞行 → 玻璃图标

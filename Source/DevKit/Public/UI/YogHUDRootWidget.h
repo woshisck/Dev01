@@ -8,6 +8,7 @@ class ULiquidHealthBarWidget;
 class UEnemyArrowWidget;
 class UWeaponGlassIconWidget;
 class UHeatBarWidget;
+class UInfoPopupWidget;
 
 /**
  * 主 HUD 容器 Widget（C++ 基类）
@@ -41,4 +42,8 @@ public:
     /** 热度条（WBP 控件变量名：HeatBar） */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UHeatBarWidget> HeatBar;
+
+    /** 轻量信息提示浮窗（WBP 控件变量名：InfoPopup） */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UInfoPopupWidget> InfoPopup;
 };

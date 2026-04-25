@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Tutorial/TutorialHintDataAsset.h"
+#include "UI/GameDialogWidget.h"
 #include "TutorialManager.generated.h"
 
 class UTutorialPopupWidget;
@@ -25,6 +26,9 @@ public:
 	// 供 LevelFlow 节点调用：按 EventID 直接显示教程弹窗（不检查 State）
 	// bPauseGame=false 用于纯信息提示（不暂停游戏）
 	void ShowByEventID(FName EventID, APlayerController* PC, bool bPauseGame = true);
+
+	// 供 LevelFlow 节点调用：直接传入页面内容显示弹窗（不依赖 DA，内联填写）
+	void ShowInlinePages(const TArray<FTutorialPage>& Pages, APlayerController* PC, bool bPauseGame = true);
 
 	ETutorialState GetState() const { return State; }
 
