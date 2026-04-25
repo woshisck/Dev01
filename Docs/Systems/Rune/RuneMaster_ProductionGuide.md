@@ -1,6 +1,7 @@
-# 符文制作主指南 v1.0
+# 符文制作主指南 v1.1
 
-> 版本：v1.0（2026-04-17）  
+> 版本：v1.1（2026-04-26）  
+> 变更：1019 燃烧印记改为纯 FA 方案；Section 十新增 TrackMovement/CheckDistance 节点  
 > 范围：符文 1001-1021 全量合并 + 制作优先级排列 + 表现层规格  
 > 前置文档：[TestRune_CreationGuide.md](TestRune_CreationGuide.md)（逻辑层详细 FA 流程）  
 >　　　　　[TestRune_HighPerception_Guide.md](TestRune_HighPerception_Guide.md)（1017-1021 高感知符文设计）  
@@ -15,7 +16,7 @@
 | **P0** | 1004 | 击退 | 命中 | ⭐⭐⭐⭐⭐ | FA+DA+C++GA | 逻辑已实现，表现待补 |
 | **P0** | 1017 | 击杀爆炸 | 击杀 | ⭐⭐⭐⭐⭐ | FA+DA+GE+GC | 待创建 |
 | **P0** | 1018 | 生命汲取 | 命中 | ⭐⭐⭐⭐⭐ | FA+DA+GC | 待创建 |
-| **P0** | 1019 | 燃烧印记 | 命中 | ⭐⭐⭐⭐⭐ | FA+DA+C++GA+GC | 待创建 |
+| **P0** | 1019 | 燃烧印记 | 命中 | ⭐⭐⭐⭐⭐ | FA+DA+GC | 待创建 |
 | **P1** | 1008 | 刀光波 | 命中×3 | ⭐⭐⭐⭐⭐ | FA+DA+GE+BP×2 | 逻辑已实现，GC待补 |
 | **P1** | 1013 | 震爆 | 暴击 | ⭐⭐⭐⭐ | FA+DA（复用GA） | 逻辑已实现，GC待补 |
 | **P1** | 1020 | 冲天一击 | 命中 | ⭐⭐⭐⭐⭐ | FA+DA+C++GA+GC | 待创建 |
@@ -252,34 +253,38 @@ UI 浮字（核心感知点）：
 
 #### 逻辑层
 
-FA：`FA_Rune_BurnMark`
+FA：`FA_Rune_BurnMark`（纯 FA，无需 GA/GE）
 
 ```
+[Start]
+  ↓
 [On Damage Dealt]
   ↓
-[Send Gameplay Event]
-  EventTag = Buff.Event.Burn
-  Target   = LastHitTarget
-  Payload  = 5.0           （每跳伤害量）
+[Apply Attribute Modifier]
+  Attribute              = DamageAttributeSet.DamageBuff
+  ModOp                  = Additive
+  Value                  = 5.0（每跳伤害）
+  DurationType           = Duration
+  Duration               = 3.0
+  Period                 = 0.5
+  bFireImmediately       = false
+  GrantedTagsToASC       = Buff.Status.Burning, GameplayCue.Rune.Burn
+  StackMode              = Unique
+  DurationRefreshPolicy  = RefreshOnSuccessfulApplication
+  Target                 = LastDamageTarget
 ```
 
-`GA_Burn`（C++，复用 GA_Bleed 结构）：
-- 监听 `Buff.Event.Burn` 事件
-- OwnedTagPresent = `Buff.Status.Burning`
-- 每 0.5s 造成 5 点伤害
-- 持续 3s（重复触发刷新计时）
-- 激活时 Spawn GameplayCue.Rune.Burn（Attached Loop），退出时 Remove GC
+> `GrantedTagsToASC` 中的 `GameplayCue.Rune.Burn` 在 GE 生效期间自动触发 Looping GC，GE 到期后自动 Remove。无需手动管理 GC 生命周期。
 
 **需要创建的资产：**
 
 | 资产 | 说明 |
 |------|------|
 | `FA_Rune_BurnMark` | 上述 Flow Graph |
-| `C++ GA_Burn` | 复制 GA_Bleed，改 Tag 为 `Buff.Status.Burning`，Interval=0.5，GC=`GameplayCue.Rune.Burn` |
 | `GameplayCue.Rune.Burn` | 持续火焰 GC（见表现层）|
 | `DA_Rune_BurnMark` | RuneID=1019，Shape=1×1 |
 
-**新增 Tag：** `Buff.Status.Burning`（BuffTag.ini）、`Buff.Event.Burn`（BuffTag.ini）
+**新增 Tag：** `Buff.Status.Burning`（BuffTag.ini）
 
 #### 表现层规格
 
@@ -950,7 +955,6 @@ SFX：
 | Tag | 文件 | 用途 | 优先级 |
 |-----|------|------|--------|
 | `Buff.Status.Burning` | BuffTag.ini | 燃烧状态守卫（1019）| P0 |
-| `Buff.Event.Burn` | BuffTag.ini | GA_Burn 触发信号（1019）| P0 |
 | `Buff.Status.Airborne` | BuffTag.ini | 空中状态守卫（1020）| P1 |
 | `Action.Uppercut` | PlayerGameplayTag.ini | 上弹事件（1020）| P1 |
 | `GameplayCue.Rune.*` | — | 各 GC 注册（全部）| 各级别 |
@@ -965,7 +969,7 @@ SFX：
 2. 创建 `FA_Rune_Knockback` + `DA_Rune_Knockback` + `GameplayCue.Rune.Knockback`（1004）
 3. 创建 `GE_RuneKillExplosionDamage` + `FA_Rune_KillExplosion` + `DA_Rune_KillExplosion` + `GameplayCue.Rune.KillExplosion`（1017）
 4. 创建 `FA_Rune_LifeSteal` + `DA_Rune_LifeSteal` + `GameplayCue.Rune.LifeSteal`（1018）
-5. 创建 `C++ GA_Burn` + `FA_Rune_BurnMark` + `DA_Rune_BurnMark` + `GameplayCue.Rune.Burn`（1019）
+5. 创建 `FA_Rune_BurnMark` + `DA_Rune_BurnMark` + `GameplayCue.Rune.Burn`（1019，纯 FA）
 6. 配置 `DA_Campaign` 引导 FallbackLootPool = [1017, 1018, 1019]
 
 ### 阶段二：扩大测试符文池（P1）
@@ -1017,7 +1021,8 @@ SFX：
 | `[On Health Changed]` | `UBFNode_OnHealthChanged` | 生命值变化时触发 |
 | `[On Buff Added]` | `UBFNode_OnBuffAdded` | Buff 添加时触发 |
 | `[On Buff Removed]` | `UBFNode_OnBuffRemoved` | Buff 移除时触发 |
-| `[Wait Gameplay Event]` | `UBFNode_WaitGameplayEvent` | 监听 ASC 上的 GameplayEvent |
+| `[Wait Gameplay Event]` | `UBFNode_WaitGameplayEvent` | 监听 ASC 上的 GameplayEvent（含 EventMagnitude 数据输出） |
+| `[Track Movement]` | `UBFNode_TrackMovement` | 追踪目标移动距离，每累计 N 单位触发（含静止超时） |
 
 ### 效果节点（Effect）
 
@@ -1067,6 +1072,7 @@ SFX：
 | `[Get Rune Info]` | `UBFNode_GetRuneInfo` | 读取符文数据 |
 | `[Check Target Type]` | `UBFNode_CheckTargetType` | 判断目标类型 |
 | `[Delay]` | `UBFNode_Delay` | 延迟执行 |
+| `[Check Distance]` | `UBFNode_CheckDistance` | 保存参考位置 + 检查目标是否逃离指定距离 |
 | `[Finish Buff]` | `UBFNode_FinishBuff` | 结束 Buff Flow |
 
 ### 热度阶段节点
@@ -1138,9 +1144,9 @@ BGC 行为：`Ability.Event.Kill` 到达时，`BFC->StartBuffFlow(FA, NewGuid, P
 
 ---
 
-### 1019 燃烧印记 — 改用 GE 生命周期驱动 GA 模式
+### 1019 燃烧印记 — 改用纯 FA（ApplyAttributeModifier 一体化）
 
-**变更说明：** 旧方案通过 `Send Gameplay Event(Buff.Event.Burn)` 启动 GA_Burn，GA_Burn 内部自行管理计时与刷新，触发逻辑分散在 FA 和 GA C++ 中。新方案改用 `BFNode_ApplyEffect.OnRemoved → BFNode_GrantGA.Revoke`，GA 的生命周期完全由 GE 驱动，FA 图中即可看到完整逻辑。
+**变更说明：** 旧方案（v1.0）通过 `Send Gameplay Event(Buff.Event.Burn)` 启动 GA_Burn，触发逻辑分散在 FA 和 GA C++ 中。中间方案（v1.1）改用 `ApplyEffect(GE_BurnMark) + GrantGA` 生命周期驱动，仍需 GE+GA 两个资产。最终方案改用 `ApplyAttributeModifier` 一个节点完成全部逻辑——周期伤害、持续时间、标签管理、GC 生命周期——不需要任何 GA 或 GE。
 
 **更新后 FA 逻辑（`FA_Rune_BurnMark`）：**
 
@@ -1149,35 +1155,30 @@ BGC 行为：`Ability.Event.Kill` 到达时，`BFC->StartBuffFlow(FA, NewGuid, P
   ↓
 [On Damage Dealt]
   ↓
-[Apply Gameplay Effect Class: GE_BurnMark]
-  StackMode = Unique（重复命中刷新 3s 计时）
-  Target    = LastDamageTarget
-  │
-  ├── Out ──────────────────→ [Grant GA: GA_Burn].Grant
-  │                              Target = LastDamageTarget
-  └── OnRemoved（GE 到期）──→ [Grant GA: GA_Burn].Revoke
+[Apply Attribute Modifier]
+  Attribute              = DamageAttributeSet.DamageBuff
+  ModOp                  = Additive
+  Value                  = 5.0
+  DurationType           = Duration
+  Duration               = 3.0
+  Period                 = 0.5
+  bFireImmediately       = false
+  GrantedTagsToASC       = Buff.Status.Burning, GameplayCue.Rune.Burn
+  StackMode              = Unique
+  DurationRefreshPolicy  = RefreshOnSuccessfulApplication
+  Target                 = LastDamageTarget
 ```
 
-**GE_BurnMark 配置：**
+> `GrantedTagsToASC` 中的 `GameplayCue.Rune.Burn` 在 GE 生效期间自动触发 Looping GC，GE 到期后自动 Remove。无需手动管理 GC 生命周期。
 
-| 字段 | 值 |
-|------|-----|
-| DurationType | `HasDuration` |
-| Duration | `3.0` |
-| StackingType | `AggregateBySource` |
-| StackDurationRefreshPolicy | `RefreshOnSuccessfulApplication` |
-| GrantedTags | `Buff.Status.Burning` |
+**方案演进对比：**
 
-**更新后 GA_Burn（简化）：**
+| 项目 | v1.0（FA+GA） | v1.1（FA+GE+GA） | 最终（纯 FA） |
+|------|--------------|-----------------|--------------|
+| 每 Tick 伤害 | GA_Burn 内部 Timer | GA_Burn 内部 Timer | Period=0.5 |
+| 持续时间 | GA_Burn 3s Timer | GE_BurnMark HasDuration 3s | Duration=3.0 |
+| 重复命中刷新 | GA_Burn 检测 Tag | GE Unique + Refresh | StackMode=Unique + Refresh |
+| GC 管理 | GA Activate/End | 手动 | GrantedTagsToASC 自动 |
+| 需要的资产 | FA + GA_Burn(C++) | FA + GE + GA | FA only |
 
-| 项目 | 旧方案 | 新方案 |
-|------|--------|--------|
-| 触发方式 | 监听 `Buff.Event.Burn` GameplayEvent | FA 通过 `Grant GA.Grant` 直接授予 |
-| 结束方式 | GA 内部 3s Timer 自行 EndAbility | FA 通过 `Grant GA.Revoke` 显式撤销 |
-| 重复命中刷新 | GA 内部检测 `Buff.Status.Burning` Tag 刷新 Timer | GE_BurnMark Unique 刷新，GA 不感知 |
-| 每 Tick 伤害 | 每 0.5s 施加伤害 GE | 不变 |
-| ActivationBlockedTags | `Buff.Status.Burning`（防重复激活） | 保留（多目标命中保护） |
-
-> **多目标说明：** 同一时间对多个敌人使用时，每个敌人的 GE 独立计时；`Grant GA.Grant` 节点含幂等保护，同一目标不会重复授予 GA_Burn（第一次 Grant 成功后，后续命中刷新 GE 但 GA 不重复授予）。对不同敌人的 GA 管理则靠各自 ASC 上的 `Buff.Status.Burning` 块标签隔离。
-
-**废弃的资产：** `Buff.Event.Burn` Tag 可移除；GA_Burn 中的 `WaitGameplayEvent` 监听逻辑可删除。
+**废弃的资产/Tag：** `Buff.Event.Burn` Tag、GA_Burn、GE_BurnMark 均不需要创建。
