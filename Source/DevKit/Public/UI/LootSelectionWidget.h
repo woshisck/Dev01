@@ -32,6 +32,7 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
 	virtual void NativeOnFocusLost(const FFocusEvent& InFocusEvent) override;
 
 	// ── CommonUI ────────────────────────────────────────────────
@@ -79,6 +80,6 @@ private:
 	UFUNCTION()
 	void HandlePhaseChanged(ELevelPhase NewPhase);
 
-	// 当前手柄高亮的选项下标（0/1/2）
 	int32 CurrentHighlightIndex = 0;
+	bool bStickNavHeld = false;
 };

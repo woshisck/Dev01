@@ -48,12 +48,17 @@ void ULootSelectionWidget::ShowLootUI(const TArray<FLootOption>& Options)
 			HUD->BeginPauseEffect();
 		PC->SetPause(true);
 		PC->SetShowMouseCursor(true);
-		PC->SetInputMode(FInputModeUIOnly());
+		FInputModeUIOnly InputMode;
+		InputMode.SetWidgetToFocus(GetCachedWidget());
+		PC->SetInputMode(InputMode);
 	}
 
 	SetUserFocus(GetOwningPlayer());
 	CurrentHighlightIndex = 0;
+	bStickNavHeld = false;
 	OnCardFocused(0);
+	UE_LOG(LogTemp, Log, TEXT("[LootSelection] ShowLootUI: HasFocus=%d, CachedWidget=%d"),
+		HasUserFocus(GetOwningPlayer()), GetCachedWidget().IsValid());
 }
 
 void ULootSelectionWidget::HandleLootGenerated(const TArray<FLootOption>& LootOptions)
@@ -109,7 +114,9 @@ void ULootSelectionWidget::NativeOnActivated()
 			HUD->BeginPauseEffect();
 		PC->SetPause(true);
 		PC->SetShowMouseCursor(true);
-		PC->SetInputMode(FInputModeUIOnly());
+		FInputModeUIOnly InputMode;
+		InputMode.SetWidgetToFocus(GetCachedWidget());
+		PC->SetInputMode(InputMode);
 	}
 
 	SetUserFocus(GetOwningPlayer());
@@ -142,28 +149,60 @@ void ULootSelectionWidget::NativeOnDeactivated()
 FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
+	UE_LOG(LogTemp, Log, TEXT("[LootSelection] NativeOnKeyDown: %s"), *Key.ToString());
 
-	if (Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Left)
+	if (Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Gamepad_LeftShoulder || Key == EKeys::Left)
 	{
 		CurrentHighlightIndex = FMath::Max(0, CurrentHighlightIndex - 1);
+		UE_LOG(LogTemp, Log, TEXT("[LootSelection] Navigate Left → Index=%d"), CurrentHighlightIndex);
 		OnNavigateSelection(-1);
 		OnCardFocused(CurrentHighlightIndex);
 		return FReply::Handled();
 	}
-	if (Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Right)
+	if (Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Gamepad_RightShoulder || Key == EKeys::Right)
 	{
 		CurrentHighlightIndex = FMath::Min(2, CurrentHighlightIndex + 1);
+		UE_LOG(LogTemp, Log, TEXT("[LootSelection] Navigate Right → Index=%d"), CurrentHighlightIndex);
 		OnNavigateSelection(1);
 		OnCardFocused(CurrentHighlightIndex);
 		return FReply::Handled();
 	}
 	if (Key == EKeys::Gamepad_FaceButton_Bottom || Key == EKeys::Enter)
 	{
+		UE_LOG(LogTemp, Log, TEXT("[LootSelection] Confirm → SelectRuneLoot(%d)"), CurrentHighlightIndex);
 		SelectRuneLoot(CurrentHighlightIndex);
 		return FReply::Handled();
 	}
 
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+FReply ULootSelectionWidget::NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent)
+{
+	if (GetVisibility() == ESlateVisibility::Collapsed)
+		return Super::NativeOnAnalogValueChanged(InGeometry, InAnalogInputEvent);
+
+	const FKey Key = InAnalogInputEvent.GetKey();
+	const float Value = InAnalogInputEvent.GetAnalogValue();
+
+	if (Key == EKeys::Gamepad_LeftX)
+	{
+		if (FMath::Abs(Value) > 0.5f && !bStickNavHeld)
+		{
+			bStickNavHeld = true;
+			const int32 Delta = (Value < 0.f) ? -1 : 1;
+			CurrentHighlightIndex = FMath::Clamp(CurrentHighlightIndex + Delta, 0, 2);
+			UE_LOG(LogTemp, Log, TEXT("[LootSelection] LeftStick X=%.2f → Navigate %s → Index=%d"),
+				Value, Delta < 0 ? TEXT("Left") : TEXT("Right"), CurrentHighlightIndex);
+			OnNavigateSelection(Delta);
+			OnCardFocused(CurrentHighlightIndex);
+			return FReply::Handled();
+		}
+		if (FMath::Abs(Value) < 0.3f)
+			bStickNavHeld = false;
+	}
+
+	return Super::NativeOnAnalogValueChanged(InGeometry, InAnalogInputEvent);
 }
 
 void ULootSelectionWidget::ConfirmAndTransition()
