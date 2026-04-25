@@ -73,9 +73,11 @@ void UBFNode_WaitGameplayEvent::HandleGameplayEvent(FGameplayTag Tag, const FGam
 		BFC->LastEventContext.EventTag = Tag;
 		if (Payload)
 		{
-			// UE5 中 Instigator / Target 为 TObjectPtr<const AActor>，const_cast 仅为弱引用存储
 			BFC->LastEventContext.DamageCauser   = const_cast<AActor*>(Payload->Instigator.Get());
 			BFC->LastEventContext.DamageReceiver = const_cast<AActor*>(Payload->Target.Get());
+			BFC->LastEventContext.DamageAmount   = Payload->EventMagnitude;
+
+			EventMagnitude = FFlowDataPinOutputProperty_Float(Payload->EventMagnitude);
 		}
 	}
 
