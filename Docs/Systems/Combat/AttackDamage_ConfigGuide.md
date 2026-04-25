@@ -77,6 +77,36 @@
 
 > ⚠️ 不要使用旧的 `AN_Dmg_GeneralAttack`（Blueprint 版本），否则 EventTag 不匹配。
 
+### AN_MeleeDamage 可选功能
+
+除攻击参数外，`AN_MeleeDamage` 还支持以下可选配置：
+
+#### HitStop（命中停顿）
+
+| 字段 | 说明 |
+|---|---|
+| **HitStopMode** | `None`（默认）/ `Freeze` / `Slow` — 选择后对应参数自动显示 |
+| **HitStopFrozenDuration** | Freeze 模式：冻结帧时长（默认 0.06s，上限 0.3s） |
+| **HitStopSlowDuration** | Slow 模式：延缓帧时长（默认 0.12s，上限 0.5s） |
+| **HitStopSlowRate** | Slow 模式：蒙太奇减速倍率（默认 0.3，越小越慢） |
+| **HitStopCatchUpRate** | Slow 模式：追帧加速倍率（默认 2.0） |
+
+> 配置 HitStopMode 后无需在 FA 中写 HitStop Tag，AN 自包含触发。详见 [HitStop 设计文档](../../Design/Combat/HitStop_Design.md)。
+
+#### OnHitEventTags（命中事件广播）
+
+| 字段 | 说明 |
+|---|---|
+| **OnHitEventTags** | 命中目标时向攻击者广播的 GameplayTag 数组 |
+
+典型用途：暴击镜头抖动、击退音效、重击屏幕特效等。下游系统通过 `WaitGameplayEvent` 监听对应 Tag 响应。
+
+#### AdditionalRuneEffects（附加符文效果）
+
+| 字段 | 说明 |
+|---|---|
+| **AdditionalRuneEffects** | 命中目标时额外触发的 `URuneDataAsset` 列表（施加到目标） |
+
 ---
 
 ## 四、GASTemplate 配置（将 GA 类赋给角色）

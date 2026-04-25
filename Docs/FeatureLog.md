@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-04-26
+
+### [COMBAT-009] AN_MeleeDamage HitStop 模式选择器 + 命中事件广播
+
+**状态**：C++ 完成已编译；AN_MeleeDamage 上直接配置即可使用
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Animation/AN_MeleeDamage.h/.cpp`、`BuffFlow/Nodes/BFNode_HitStop.cpp`、`Character/YogCharacterBase.h`、`AbilitySystem/Abilities/GA_MeleeAttack.cpp` |
+| 功能说明 | AN_MeleeDamage 新增 `EHitStopMode` 枚举选择器（None/Freeze/Slow），选择模式后对应参数自动显示/隐藏，无需在 FA 中写 HitStop Tag 即可自包含触发 |
+| HitStop 触发 | AN 选择 Freeze/Slow → Notify 时暂存到 `Character->PendingHitStopOverride` → `BFNode_HitStop` 读取并激活对应阶段 |
+| Tag 共存 | FA Tag 触发（暴击等特殊场景）与 AN 模式驱动可同时生效；AN 覆盖参数只作用于 AN 指定的模式，Tag 触发的模式使用节点默认值 |
+| 命中事件广播 | 新增 `OnHitEventTags`（`TArray<FGameplayTag>`）：命中目标时向攻击者 `SendGameplayEventToActor` 广播，供镜头抖动、音效、屏幕特效等系统监听 |
+| 安全清理 | `GA_MeleeAttack::EndAbility` 中清空 `PendingOnHitEventTags`，防止蒙太奇被打断后残留 |
+| 新增枚举 | `EHitStopMode`（None/Freeze/Slow），定义在 `AN_MeleeDamage.h`，`YogCharacterBase.h` 前向声明 |
+| 设计文档 | [HitStop_Design.md](Design/Combat/HitStop_Design.md) |
+
+---
+
 ## 2026-04-23
 
 ### [UI-007] 武器玻璃图标热度颜色 — WeaponGlassIconWidget 自订阅热度阶段

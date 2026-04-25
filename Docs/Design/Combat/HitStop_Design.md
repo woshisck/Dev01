@@ -1,13 +1,13 @@
 # HitStop 命中停顿系统设计文档
 
-> 最后更新：2026-04-23
+> 最后更新：2026-04-26
 
 ---
 
 ## 一、系统目标
 
 让玩家攻击命中时产生"冻结帧"或"延缓帧"效果，增强打击感。
-效果通过 **Tag 驱动**，由 FA（BuffFlow）控制触发条件，而非写死在蒙太奇 AnimNotify 上。
+支持两种触发方式：**AN 模式直接驱动**（在 `AN_MeleeDamage` 选择 HitStopMode）和 **Tag 驱动**（FA 写入 HitStop Tag）。两者可共存。
 
 ---
 
@@ -38,7 +38,21 @@ CatchUp（加速到 CatchUpRate，持续 = 丢失帧 / (CatchUpRate - 1)）
 
 ---
 
-## 三、Tag 设计
+## 三、触发方式
+
+### 3.1 AN 模式驱动（推荐，自包含）
+
+在蒙太奇的 `AN_MeleeDamage` Notify 上直接选择 `HitStopMode`：
+
+| 模式 | 效果 | 显示参数 |
+| --- | --- | --- |
+| `None` | 无 HitStop | 无额外参数 |
+| `Freeze` | 冻结帧 | `HitStopFrozenDuration`（默认 0.06s） |
+| `Slow` | 延缓帧 | `HitStopSlowDuration` / `HitStopSlowRate` / `HitStopCatchUpRate` |
+
+AN 选择模式后，Notify 触发时参数暂存到角色 `PendingHitStopOverride`，`BFNode_HitStop` 执行时直接读取激活对应阶段，**无需 FA 写 Tag**。
+
+### 3.2 Tag 驱动（特殊场景，如暴击 FA）
 
 位于 `Config/Tags/BuffTag.ini`，挂在**攻击方（玩家）** ASC：
 
@@ -49,6 +63,14 @@ CatchUp（加速到 CatchUpRate，持续 = 丢失帧 / (CatchUpRate - 1)）
 
 - 两个 Tag 可同时存在（先冻结再延缓）
 - `BFNode_HitStop` 执行时**消费**这两个 Tag（`RemoveLooseGameplayTag`），保证单次命中只触发一次
+
+### 3.3 共存规则
+
+AN 模式与 Tag 可同时生效。`BFNode_HitStop` 的判断逻辑：
+
+1. 先检查 FA Tag（`Buff.Status.HitStop.Freeze/Slow`）
+2. 再检查 AN 模式（`PendingHitStopOverride.bActive`），AN 指定的模式直接激活对应阶段
+3. AN 覆盖参数**只作用于 AN 指定的模式**，Tag 触发的模式使用 BFNode 节点默认值
 
 ---
 
@@ -68,7 +90,8 @@ CatchUp（加速到 CatchUpRate，持续 = 丢失帧 / (CatchUpRate - 1)）
   CatchUpRate    = 2.0
 ```
 
-默认情况下，FA 会因 ASC 上没有 HitStop Tag 而**直接跳过**（无效果）。
+当 AN 已配置 `HitStopMode` 时，BFNode 直接读取 AN 参数激活。
+当 AN 为 `None` 且无 Tag 时，FA 静默跳过。
 
 ### 4.2 暴击触发冻结帧（在暴击 FA 中写 Tag）
 
@@ -80,7 +103,7 @@ CatchUp（加速到 CatchUpRate，持续 = 丢失帧 / (CatchUpRate - 1)）
   Count  = 1
 ```
 
-> 暴击 FA 写入 Tag，命中停顿 FA 的 `BFNode_HitStop` 在 `OnDamageDealt` 时消费该 Tag，触发冻结。
+> 暴击 FA 写入 Tag，命中停顿 FA 的 `BFNode_HitStop` 在 `OnDamageDealt` 时消费该 Tag，触发冻结。此时使用 BFNode 节点的默认 FrozenDuration，不受 AN 覆盖参数影响。
 
 ### 4.3 特定攻击携带延缓帧（在攻击 GA 配套 FA 中写 Tag）
 
@@ -90,6 +113,8 @@ CatchUp（加速到 CatchUpRate，持续 = 丢失帧 / (CatchUpRate - 1)）
 [AddTag: Buff.Status.HitStop.Slow]
   Target = BuffOwner
 ```
+
+> 注意：若该攻击的 AN 已配置 `HitStopMode = Slow`，则无需在 FA 里再写 Tag。
 
 ---
 
@@ -103,18 +128,34 @@ CatchUp（加速到 CatchUpRate，持续 = 丢失帧 / (CatchUpRate - 1)）
 
 ---
 
-## 六、代码位置
+## 六、命中事件广播（OnHitEventTags）
+
+`AN_MeleeDamage` 新增 `OnHitEventTags` 数组（`TArray<FGameplayTag>`），命中目标时 `GA_MeleeAttack::OnEventReceived` 向攻击者广播这些事件 Tag。
+
+**典型用途**：
+- 暴击镜头抖动：Tag `Ability.Event.CritHit` → 摄像机 GA 监听触发抖动
+- 击退音效：Tag `Ability.Event.Knockback` → 音效系统监听播放
+- 重击屏幕闪烁：Tag `Ability.Event.HeavyHit` → UI 系统监听
+
+**生命周期**：AN Notify 时存入 `Character->PendingOnHitEventTags`，命中后广播并清空；蒙太奇被打断时 `EndAbility` 安全清空。
+
+---
+
+## 七、代码位置
 
 | 文件 | 职责 |
 | --- | --- |
 | `Source/DevKit/Public/Animation/HitStopManager.h` | 管理器头文件 |
 | `Source/DevKit/Private/Animation/HitStopManager.cpp` | 蒙太奇三阶段实现（Frozen/Slow/CatchUp） |
 | `Source/DevKit/Public/BuffFlow/Nodes/BFNode_HitStop.h` | FA 节点头文件 |
-| `Source/DevKit/Private/BuffFlow/Nodes/BFNode_HitStop.cpp` | FA 节点实现：读 Tag → 消费 → 调 Manager |
+| `Source/DevKit/Private/BuffFlow/Nodes/BFNode_HitStop.cpp` | FA 节点实现：读 AN 模式 + Tag → 消费 → 调 Manager |
+| `Source/DevKit/Public/Animation/AN_MeleeDamage.h` | AN 攻击参数配置（含 HitStopMode / OnHitEventTags） |
+| `Source/DevKit/Private/Animation/AN_MeleeDamage.cpp` | AN 触发时暂存 HitStop 覆盖参数和事件 Tag 到角色 |
+| `Source/DevKit/Public/Character/YogCharacterBase.h` | `PendingHitStopOverride` / `PendingOnHitEventTags` 暂存结构 |
 
 ---
 
-## 七、追帧计算
+## 八、追帧计算
 
 ```text
 丢失帧时长 = SlowDuration × (1 - SlowRate)

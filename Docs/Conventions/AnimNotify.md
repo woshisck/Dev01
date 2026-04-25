@@ -34,7 +34,7 @@
 | `UANS_AutoTarget` | ANS | 攻击吸附最近敌人，旋转角色朝向 | 攻击蒙太奇挥击区间 |
 | `UANS_AttackRotate` | ANS | 攻击期间持续朝摇杆方向旋转 | 攻击蒙太奇挥击区间 |
 | `UANS_PreAttackFlash` | ANS | 触发角色攻击前摇闪红 | 敌人蒙太奇**前摇帧**到命中帧 |
-| `UAN_HitStop` | AN | 触发命中停顿 + 时间缩放 | 玩家蒙太奇**命中帧**（单帧） |
+| `UAN_MeleeDamage` | AN | 攻击判定 + 伤害参数 + HitStop 模式 + 命中事件 | 攻击蒙太奇**命中帧**（单帧） |
 | `UAN_EnemyComboSection` | AN | 触发敌人下段连击 | 敌人蒙太奇段落衔接点 |
 
 ---

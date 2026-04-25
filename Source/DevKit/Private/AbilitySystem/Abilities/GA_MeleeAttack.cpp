@@ -148,10 +148,11 @@ void UGA_MeleeAttack::EndAbility(
 {
 	UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 
-	// 安全清理：技能结束时清空未消费的附加 Rune（蒙太奇被打断未触发 OnEventReceived 时保护用）
+	// 安全清理：技能结束时清空未消费的暂存数据（蒙太奇被打断未触发 OnEventReceived 时保护用）
 	if (AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo()))
 	{
 		Owner->PendingAdditionalHitRunes.Empty();
+		Owner->PendingOnHitEventTags.Empty();
 	}
 
 	// 移除攻击前摇 GE
@@ -272,11 +273,24 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 				}
 			}
 		}
+
+		// 广播来自 AN_MeleeDamage::OnHitEventTags 的命中事件（供镜头抖动、音效等系统监听）
+		for (const FGameplayTag& EvtTag : Owner->PendingOnHitEventTags)
+		{
+			for (AActor* HitActor : HitActors)
+			{
+				FGameplayEventData EvtPayload;
+				EvtPayload.Instigator = Owner;
+				EvtPayload.Target     = HitActor;
+				UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, EvtTag, EvtPayload);
+			}
+		}
 	}
 
-	// 消费附加 Rune 暂存（无论是否命中都清空，防止残留到下一次 Notify）
+	// 消费暂存数据（无论是否命中都清空，防止残留到下一次 Notify）
 	if (Owner)
 	{
 		Owner->PendingAdditionalHitRunes.Empty();
+		Owner->PendingOnHitEventTags.Empty();
 	}
 }
