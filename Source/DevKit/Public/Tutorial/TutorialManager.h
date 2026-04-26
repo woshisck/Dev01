@@ -7,7 +7,7 @@
 #include "TutorialManager.generated.h"
 
 class UTutorialPopupWidget;
-class UDialogContentDA;
+class UTutorialRegistryDA;
 class AYogPlayerControllerBase;
 class UYogSaveGame;
 
@@ -17,11 +17,21 @@ class DEVKIT_API UTutorialManager : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-	void Init(UTutorialPopupWidget* InWidget, UDialogContentDA* InContentDA);
+	void Init(UTutorialPopupWidget* InWidget, UTutorialRegistryDA* InRegistry);
 
 	void TryWeaponTutorial(AYogPlayerControllerBase* PC);
 	void TryPostCombatTutorial(AYogPlayerControllerBase* PC);
 	void LoadFromSave(UYogSaveGame* Save);
+
+	// 新四段教程流（① 武器拾取走 LevelFlow，②③④ 由各业务点调用）
+	UFUNCTION(BlueprintCallable, Category = "Tutorial")
+	void TryFirstRuneTutorial(APlayerController* PC);
+
+	UFUNCTION(BlueprintCallable, Category = "Tutorial")
+	void TryBackpackTutorial(APlayerController* PC);
+
+	UFUNCTION(BlueprintCallable, Category = "Tutorial")
+	void TryHeatPhaseTutorial(APlayerController* PC);
 
 	// 供 LevelFlow 节点调用：按 EventID 直接显示教程弹窗（不检查 State）
 	// bPauseGame=false 用于纯信息提示（不暂停游戏）
@@ -50,7 +60,7 @@ private:
 	TWeakObjectPtr<UTutorialPopupWidget> PopupWidget;
 
 	UPROPERTY()
-	TObjectPtr<UDialogContentDA> ContentDA;
+	TObjectPtr<UTutorialRegistryDA> Registry;
 
 	// 弹窗是否正在显示（由 DoShowWeaponPopup/DoShowPostCombatPopup 置 true，NotifyPopupClosed 置 false）
 	bool bPopupShowing = false;
