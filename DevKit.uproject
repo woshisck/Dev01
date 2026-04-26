@@ -119,10 +119,6 @@
 		{
 			"Name": "CommonUI",
 			"Enabled": true
-		},
-		{
-			"Name": "GameFeatures",
-			"Enabled": true
 		}
 	]
 }
