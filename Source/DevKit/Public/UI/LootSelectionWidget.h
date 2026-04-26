@@ -7,16 +7,35 @@
 #include "GameModes/LevelFlowTypes.h"
 #include "LootSelectionWidget.generated.h"
 
+class UHorizontalBox;
+class UButton;
+class URuneInfoCardWidget;
+class ARewardPickup;
+
 /**
- * 战利品三选一 Widget 基类
+ * 焦点段：DPad Up/Down 在两段间切换
+ *  Cards    — 在卡片间 Left/Right 切换
+ *  Buttons  — 在底部按钮（跳过 / 预览背包）间切换
+ */
+UENUM(BlueprintType)
+enum class ELootFocusSection : uint8
+{
+	Cards,
+	Buttons,
+};
+
+/**
+ * 战利品选择 Widget — 动态卡牌（N=1~5）+ 跳过 + 背包预览 + 鼠标点击
  *
- * 使用方法：
- * 1. 在 Content Browser 新建 Widget Blueprint，父类选 LootSelectionWidget
- * 2. 实现 OnLootOptionsReady 事件：根据 LootOptions 数组填充 3 张符文卡片
- * 3. 实现 OnPhaseChanged 事件：Arrangement 时显示面板，其他阶段隐藏
- * 4. 3 张卡片的按钮点击分别调用 SelectRuneLoot(0/1/2)
- * 5. "确认" 按钮调用 ConfirmAndTransition
- * 6. 在 PlayerController 或 HUD 的 BeginPlay 里创建本 Widget 并 AddToViewport
+ * WBP 制作步骤：
+ *   1. 新建 Widget Blueprint，父类选 LootSelectionWidget
+ *   2. Designer 放（命名必须一致）：
+ *        HorizontalBox  CardContainer        ← 卡片容器，运行时动态填充
+ *        Button         BtnSkip              ← 跳过按钮（OnClicked 绑 SkipSelection）
+ *        Button         BtnBackpackPreview   ← 预览背包按钮（OnClicked 绑 OpenBackpackPreview）
+ *   3. Class Defaults 配 RuneCardClass = WBP_RuneInfoCard
+ *
+ * 触发方式：由 RewardPickup 调 HUD->QueueLootSelection(Options, this)，HUD 内部决定立即弹/排队
  */
 UCLASS()
 class DEVKIT_API ULootSelectionWidget : public UCommonActivatableWidget
@@ -24,9 +43,41 @@ class DEVKIT_API ULootSelectionWidget : public UCommonActivatableWidget
 	GENERATED_BODY()
 
 public:
-	// 当前的三个战利品选项（UI 可直接读取符文名称和图标）
+	/** 当前的战利品选项（BP 可读） */
 	UPROPERTY(BlueprintReadOnly, Category = "Loot")
 	TArray<FLootOption> CurrentLootOptions;
+
+	/** 卡片数量上限（生成逻辑应保证不超过此值，UI 也强制 clamp） */
+	static constexpr int32 MaxCards = 5;
+
+	/** 由 HUD 调用：显示战利品 UI（带 SourcePickup 引用） */
+	void ShowLootUI(const TArray<FLootOption>& Options, ARewardPickup* InSourcePickup);
+
+	// ---- 公开操作（Button OnClicked 绑定 / 鼠标卡片点击）----
+
+	/** 选中第 Index 张符文：销毁 SourcePickup → 打开背包（整理）→ 通知 HUD */
+	UFUNCTION(BlueprintCallable, Category = "Loot")
+	void SelectRuneLoot(int32 Index);
+
+	/** 跳过选择：复位 SourcePickup → 通知 HUD（pickup 保留在关卡里，玩家可再按 E 重开） */
+	UFUNCTION(BlueprintCallable, Category = "Loot")
+	void SkipSelection();
+
+	/** 打开背包预览（只读模式），关闭后自动恢复 LootSelection */
+	UFUNCTION(BlueprintCallable, Category = "Loot")
+	void OpenBackpackPreview();
+
+	/**
+	 * 重掷某张卡（暂未实现，留作后续 UI 动画扩展用）
+	 * 后续可能支持选一张卡进行重新抽取（消耗资源、展示动画等）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Loot")
+	void RerollCard(int32 Index);
+
+	// ---- 已废弃的旧接口（保留以兼容关卡引用） ----
+
+	UFUNCTION(BlueprintCallable, Category = "Loot")
+	void ConfirmAndTransition();
 
 protected:
 	virtual void NativeConstruct() override;
@@ -40,46 +91,83 @@ protected:
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
 
-	// ---- Blueprint 实现这两个事件 ----
+	// ---- BP 可重写事件（高亮/动画等纯视觉表现） ----
 
-	// 收到战利品列表时触发，在 BP 里填充 3 张符文卡片的数据和图标
+	/** 选项就绪时调用：BP 可在此做整体淡入或自定义初始化（C++ 已处理 RebuildCards）*/
 	UFUNCTION(BlueprintImplementableEvent, Category = "Loot")
 	void OnLootOptionsReady(const TArray<FLootOption>& LootOptions);
 
-	// 关卡阶段变化时触发（Combat / Arrangement / Transitioning）
-	// 在 BP 里控制整个面板的 Show/Hide
-	UFUNCTION(BlueprintImplementableEvent, Category = "Loot")
-	void OnLevelPhaseChanged(ELevelPhase NewPhase);
-
-public:
-	// HUD 直接调用（不走 delegate，防止 Widget 被销毁后绑定断开）
-	void ShowLootUI(const TArray<FLootOption>& Options);
-
-	// ---- 按钮绑定的函数 ----
-
-	// 三张符文卡片的点击事件，Index = 0/1/2
-	UFUNCTION(BlueprintCallable, Category = "Loot")
-	void SelectRuneLoot(int32 Index);
-
-	// A/D键盘导航：Delta=-1(左) +1(右)，蓝图实现高亮逻辑
-	UFUNCTION(BlueprintImplementableEvent, Category = "Loot")
-	void OnNavigateSelection(int32 Delta);
-
-	// 手柄导航聚焦到某张卡片：蓝图实现显示选中卡片 / 隐藏其余两张
+	/** 卡片焦点变化：BP 可在此做高亮/缩放（C++ 已切换 GenericEffectList 显隐） */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Loot")
 	void OnCardFocused(int32 FocusedIndex);
 
-	// "确认整理" 按钮：锁背包并加载下一关
-	UFUNCTION(BlueprintCallable, Category = "Loot")
-	void ConfirmAndTransition();
+	/** A/D 导航：BP 可加音效（Delta=-1/+1）*/
+	UFUNCTION(BlueprintImplementableEvent, Category = "Loot")
+	void OnNavigateSelection(int32 Delta);
+
+	/** 段切换：BP 可调整按钮区/卡片区的高亮 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Loot")
+	void OnSectionFocused(ELootFocusSection NewSection, int32 IndexInSection);
+
+	/** 关卡阶段变化：BP 控制整体显隐 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Loot")
+	void OnLevelPhaseChanged(ELevelPhase NewPhase);
+
+	// ── BindWidget ──────────────────────────────────────────────
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UHorizontalBox> CardContainer;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> BtnSkip;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> BtnBackpackPreview;
+
+	// ── 配置 ────────────────────────────────────────────────────
+
+	/** 单张卡 WBP 类（Class Defaults 配 WBP_RuneInfoCard） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
+	TSubclassOf<URuneInfoCardWidget> RuneCardClass;
 
 private:
-	UFUNCTION()
-	void HandleLootGenerated(const TArray<FLootOption>& LootOptions);
+	void RebuildCards(const TArray<FLootOption>& Options);
+	void FocusCard(int32 Idx);
+	void FocusButton(int32 Idx);
+	void SetSection(ELootFocusSection NewSection);
+	void FinishAndNotifyHUD();
+	void ReactivateAfterPreview();
+	int32 ClampCardIndex(int32 Idx) const;
 
-	UFUNCTION()
-	void HandlePhaseChanged(ELevelPhase NewPhase);
+	// 5 个静态卡片点击回调（dynamic delegate 不支持 lambda/带参绑定）
+	UFUNCTION() void OnCardClicked0();
+	UFUNCTION() void OnCardClicked1();
+	UFUNCTION() void OnCardClicked2();
+	UFUNCTION() void OnCardClicked3();
+	UFUNCTION() void OnCardClicked4();
 
-	int32 CurrentHighlightIndex = 0;
+	UFUNCTION() void OnBtnSkipClicked();
+	UFUNCTION() void OnBtnBackpackPreviewClicked();
+
+	UFUNCTION() void HandlePhaseChanged(ELevelPhase NewPhase);
+
+	// 状态
+	TWeakObjectPtr<ARewardPickup> SourcePickup;
+
+	UPROPERTY()
+	TArray<TObjectPtr<URuneInfoCardWidget>> SpawnedCards;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UButton>> SpawnedCardButtons;
+
+	/** 卡片数组索引 → CurrentLootOptions 索引（无效项被跳过时映射不连续） */
+	TArray<int32> CardToOptionIndex;
+
+	ELootFocusSection CurrentSection = ELootFocusSection::Cards;
+	int32 CurrentCardIndex = 0;
+	int32 CurrentButtonIndex = 0; // 0 = Skip, 1 = BackpackPreview
 	bool bStickNavHeld = false;
+	bool bIsBackpackPreviewing = false;
+
+	static constexpr int32 NumBottomButtons = 2;
 };

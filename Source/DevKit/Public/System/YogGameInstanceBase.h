@@ -4,6 +4,7 @@
 #include "Engine/GameInstance.h"
 #include "Component/BackpackGridComponent.h"
 #include "Data/RoomDataAsset.h"
+#include "Data/EnemyData.h"   // FBuffEntry
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Data/SacrificeGraceDA.h"
 
@@ -139,6 +140,16 @@ public:
 	// 下一关要使用的房间配置（ActivatePortals 由传送门写入，StartLevelSpawning 读取）
 	UPROPERTY()
 	TObjectPtr<URoomDataAsset> PendingRoomData;
+
+	// 已预骰的关卡 Buff 列表（由 APortal::TryEnter 玩家确认进入时写入；下一关 StartLevelSpawning 读取）
+	// 注意：APortal::Open 不写本字段，避免被多门竞争覆盖（v3 修复）
+	// 空数组也是合法预骰结果（如商店/事件房 BuffCount=0）；判定预骰是否存在用 PendingRoomData 非空
+	UPROPERTY()
+	TArray<FBuffEntry> PendingRoomBuffs;
+
+	// 由 APortal::TryEnter 写入；下一关 AYogHUD::BeginPlay 检测后触发线性反向 PostProcess 淡入
+	UPROPERTY()
+	bool bPlayLevelIntroFadeIn = false;
 
 	// 清空跑局状态（玩家死亡时调用，使下一局从默认值开始）
 	void ClearRunState();

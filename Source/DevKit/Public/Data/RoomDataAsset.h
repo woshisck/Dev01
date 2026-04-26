@@ -58,6 +58,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
     FName RoomName;
 
+    // 玩家可见的房间显示名（用于传送门浮窗 / HUD 方位指引）。
+    // 留空则回退显示 RoomName.ToString()。
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
+    FText DisplayName;
+
     // 房间标签集（同时包含类型 + 层级，两个维度）
     // 类型示例：Room.Type.Normal / Room.Type.Elite / Room.Type.Shop / Room.Type.Event
     // 层级示例：Room.Layer.L1 / Room.Layer.L2 / Room.Layer.L3

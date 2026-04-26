@@ -3,6 +3,7 @@
 #include "Components/BillboardComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Component/BackpackGridComponent.h"
 #include "NiagaraComponent.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
@@ -10,6 +11,7 @@
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "Data/RoomDataAsset.h"
+#include "UI/YogHUD.h"
 
 APortal::APortal(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -23,6 +25,7 @@ APortal::APortal(const FObjectInitializer& ObjectInitializer)
 	CollisionVolume->InitBoxExtent(FVector(80, 80, 120));
 	CollisionVolume->SetupAttachment(RootComponent);
 	CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &APortal::OnOverlapBegin);
+	CollisionVolume->OnComponentEndOverlap.AddDynamic(this, &APortal::OnOverlapEnd);
 
 	PortalMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PortalMesh"));
 	PortalMesh->SetupAttachment(RootComponent);
@@ -43,12 +46,49 @@ void APortal::BeginPlay()
 	DisablePortal();
 }
 
-void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom)
+void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
+                   const TArray<FBuffEntry>& InPreRolledBuffs)
 {
-	SelectedLevel = InSelectedLevel;
-	SelectedRoom  = InSelectedRoom;
-	bIsOpen = true;
+	SelectedLevel   = InSelectedLevel;
+	SelectedRoom    = InSelectedRoom;
+	PreRolledBuffs  = InPreRolledBuffs;
+	bIsOpen         = true;
+
+	BuildPreviewInfo();
 	EnablePortal();
+}
+
+void APortal::BuildPreviewInfo()
+{
+	CachedPreviewInfo = FPortalPreviewInfo{};
+	CachedPreviewInfo.RoomLevelName  = SelectedLevel;
+	CachedPreviewInfo.PreRolledBuffs = PreRolledBuffs;
+	CachedPreviewInfo.LootCount      = 3;
+
+	if (!SelectedRoom)
+	{
+		// 兜底：玩家可见名直接拿关卡名
+		CachedPreviewInfo.RoomDisplayName = FText::FromName(SelectedLevel);
+		return;
+	}
+
+	// DisplayName 为空时回退用 RoomName
+	CachedPreviewInfo.RoomDisplayName = SelectedRoom->DisplayName.IsEmptyOrWhitespace()
+		? FText::FromName(SelectedRoom->RoomName)
+		: SelectedRoom->DisplayName;
+
+	// 提取首个 Room.Type.* Tag 作为类型徽章依据
+	static const FGameplayTag RoomTypeRoot = FGameplayTag::RequestGameplayTag(
+		FName("Room.Type"), false);
+	if (RoomTypeRoot.IsValid())
+	{
+		FGameplayTagContainer TypeTags = SelectedRoom->RoomTags.Filter(
+			FGameplayTagContainer(RoomTypeRoot));
+		if (TypeTags.Num() > 0)
+		{
+			CachedPreviewInfo.RoomTypeTag = TypeTags.First();
+		}
+	}
 }
 
 // =========================================================
@@ -136,19 +176,192 @@ void APortal::YogOpenLevel(FName LevelName)
 	UGameplayStatics::OpenLevel(GetWorld(), LevelName, true);
 }
 
+// v3：Overlap 不再自动切关，仅维护 PendingPortal + BP 视觉钩
 void APortal::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
 	bool bFromSweep, const FHitResult& SweepHitResult)
 {
 	if (!bIsOpen) return;
-
-	APlayerCharacterBase* OverlappingPawn = Cast<APlayerCharacterBase>(OtherActor);
-	if (!OverlappingPawn) return;
-
-	UYogSaveSubsystem* SaveSubsystem = UGameInstance::GetSubsystem<UYogSaveSubsystem>(GetGameInstance());
-	EnterPortal(OverlappingPawn, SaveSubsystem);
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
+	{
+		HandlePlayerEnterRange(Player);
+	}
 }
 
+void APortal::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
+	{
+		HandlePlayerExitRange(Player);
+	}
+}
+
+void APortal::HandlePlayerEnterRange(APlayerCharacterBase* Player)
+{
+	if (!Player) return;
+	Player->PendingPortal = this;
+
+	// TODO(Stage C)：调 HUD->NotifyPlayerInPortalRange(this) 切单例浮窗
+
+	K2_OnHighlightChanged(true);
+	K2_OnPortalRangeEntered();
+	UE_LOG(LogTemp, Log, TEXT("Portal[%d]: 玩家进入交互范围（按 E 进入）"), Index);
+}
+
+void APortal::HandlePlayerExitRange(APlayerCharacterBase* Player)
+{
+	if (!Player) return;
+	if (Player->PendingPortal == this)
+	{
+		Player->PendingPortal = nullptr;
+	}
+
+	// TODO(Stage C)：调 HUD->NotifyPlayerExitedPortalRange(this)
+
+	K2_OnHighlightChanged(false);
+	K2_OnPortalRangeExited();
+	UE_LOG(LogTemp, Log, TEXT("Portal[%d]: 玩家离开交互范围"), Index);
+}
+
+// v3 完整过场：Portal 主导业务流程；HUD 仅负责视觉 BlackoutFade
+void APortal::TryEnter(APlayerCharacterBase* Player)
+{
+	if (bEntryInProgress)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("Portal[%d]: TryEnter 重入被忽略"), Index);
+		return;
+	}
+
+	// 前置校验（任一失败 → log + return；此时尚未锁输入，无需恢复）
+	if (!bIsOpen || SelectedLevel.IsNone() || !Player || !SelectedRoom)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("Portal[%d]: TryEnter 前置失败 bIsOpen=%d Level=%s Room=%s Player=%s"),
+			Index, bIsOpen ? 1 : 0, *SelectedLevel.ToString(),
+			SelectedRoom ? *SelectedRoom->GetName() : TEXT("null"),
+			Player ? *Player->GetName() : TEXT("null"));
+		return;
+	}
+
+	APlayerController* PC = Player->GetController<APlayerController>();
+	AYogGameMode*      GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode());
+	if (!PC || !GM)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Portal[%d]: TryEnter 拿不到 PC=%s GM=%s"),
+			Index, PC ? TEXT("OK") : TEXT("null"), GM ? TEXT("OK") : TEXT("null"));
+		return;
+	}
+
+	bEntryInProgress = true;
+	EntryPlayer      = Player;
+	K2_OnEntrySequenceStart();
+
+	// 锁输入 + 锁背包，避免过场中玩家干扰
+	PC->DisableInput(PC);
+	if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
+	{
+		Backpack->SetLocked(true);
+	}
+
+	// 触发 HUD 渐黑（视觉接口；HUD 不感知业务流程）
+	if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+	{
+		HUD->HidePortalGuidance();   // 收起浮窗 + 箭头
+		HUD->BeginBlackoutFade(HUD->PortalBlackoutDuration);
+	}
+
+	// 启动每帧 AddMovementInput Tick + Walk 结束 Timer
+	GetWorld()->GetTimerManager().SetTimer(
+		EntryWalkTickTimer, this, &APortal::TickEntryMovement, 0.05f, true);
+
+	const float FinishDelay = PortalEntryWalkDuration + PortalEntryFailSafeBuffer;
+	GetWorld()->GetTimerManager().SetTimer(
+		EntryFinishTimer, this, &APortal::FinishEntry, FinishDelay, false);
+
+	UE_LOG(LogTemp, Log, TEXT("Portal[%d]: TryEnter 启动过场 walk=%.2fs failSafe=%.2fs"),
+		Index, PortalEntryWalkDuration, FinishDelay);
+}
+
+void APortal::TickEntryMovement()
+{
+	APlayerCharacterBase* Player = EntryPlayer.Get();
+	if (!Player) return;
+
+	const FVector ToDoor = (GetActorLocation() - Player->GetActorLocation()).GetSafeNormal2D();
+	if (!ToDoor.IsNearlyZero())
+	{
+		Player->AddMovementInput(ToDoor, 1.0f, false);
+	}
+}
+
+void APortal::FinishEntry()
+{
+	GetWorld()->GetTimerManager().ClearTimer(EntryWalkTickTimer);
+	GetWorld()->GetTimerManager().ClearTimer(EntryFinishTimer);
+
+	APlayerCharacterBase* Player = EntryPlayer.Get();
+	if (!Player) { AbortEntry(TEXT("Player 已失效")); return; }
+
+	AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode());
+	if (!GM)        { AbortEntry(TEXT("GameMode 失效")); return; }
+
+	if (SelectedLevel.IsNone() || !SelectedRoom)
+	{
+		AbortEntry(TEXT("SelectedLevel/Room 失效"));
+		return;
+	}
+
+	// v3：一次性同点写齐 GI 跨关字段，保证下一关数据一致
+	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	{
+		GI->PendingRoomBuffs      = PreRolledBuffs;
+		GI->bPlayLevelIntroFadeIn = true;
+		// PendingRoomData / PendingNextFloor / PendingRunState 由 TransitionToLevel 内同点写
+	}
+
+	// 写存档（可选，TransitionToLevel 内也会处理 RunState）
+	if (UYogSaveSubsystem* SaveSubsystem = UGameInstance::GetSubsystem<UYogSaveSubsystem>(GetGameInstance()))
+	{
+		SaveSubsystem->WriteSaveGame();
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Portal[%d]: FinishEntry → TransitionToLevel(%s)"),
+		Index, *SelectedLevel.ToString());
+
+	// 切关（OpenLevel 后本 actor 销毁，bEntryInProgress 不需要复位）
+	GM->TransitionToLevel(SelectedLevel, SelectedRoom);
+}
+
+void APortal::AbortEntry(const TCHAR* Reason)
+{
+	UE_LOG(LogTemp, Error, TEXT("Portal[%d]: AbortEntry — %s"), Index, Reason);
+
+	GetWorld()->GetTimerManager().ClearTimer(EntryWalkTickTimer);
+	GetWorld()->GetTimerManager().ClearTimer(EntryFinishTimer);
+
+	if (APlayerCharacterBase* Player = EntryPlayer.Get())
+	{
+		if (APlayerController* PC = Player->GetController<APlayerController>())
+		{
+			PC->EnableInput(PC);
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			{
+				HUD->EndBlackoutFade(0.2f);   // 快速恢复画面
+			}
+		}
+		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
+		{
+			Backpack->SetLocked(false);
+		}
+	}
+
+	EntryPlayer = nullptr;
+	bEntryInProgress = false;
+}
+
+// v3：保留 EnterPortal_Implementation 作为 BP override 钩子；新流程实际不调用
+// （旧调用方 OnOverlapBegin 已删除；外部 BP 若仍调 EnterPortal 仍能工作）
 void APortal::EnterPortal_Implementation(APlayerCharacterBase* ReceivingChar, UYogSaveSubsystem* SaveSubsystem)
 {
 	if (!bIsOpen || SelectedLevel.IsNone()) return;
@@ -158,7 +371,11 @@ void APortal::EnterPortal_Implementation(APlayerCharacterBase* ReceivingChar, UY
 		SaveSubsystem->WriteSaveGame();
 	}
 
-	// 通知 GameMode 保存跑局状态（含本门选定的房间配置）后切关
+	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	{
+		GI->PendingRoomBuffs      = PreRolledBuffs;
+		GI->bPlayLevelIntroFadeIn = true;
+	}
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
 	{
 		GM->TransitionToLevel(SelectedLevel, SelectedRoom);

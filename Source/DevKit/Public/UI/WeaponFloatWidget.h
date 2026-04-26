@@ -12,6 +12,7 @@ class UTextBlock;
 class UCanvasPanel;
 class UVerticalBox;
 class UWidget;
+class UCommonRichTextBlock;
 class UWeaponDefinition;
 struct FRuneShape;
 
@@ -27,6 +28,7 @@ struct FRuneShape;
  *   ZoneGrid1/2/3     CanvasPanel  激活区点阵（建议 60×60）
  *   Zone1Image/2/3    Image        激活区图像覆盖（提供时替代点阵）
  *   RuneListBox       VerticalBox  初始符文列表（C++ 动态填充）
+ *   PickupHintText    CommonRichTextBlock  按键拾取提示（如 `按 <input action="Interact"/> 拾取武器`）
  */
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UWeaponFloatWidget : public UUserWidget
@@ -87,6 +89,10 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UVerticalBox> RuneListBox;
+
+	/** 拾取按键提示文字（CommonRichTextBlock，DA 可写 <input action="Interact"/> 显示按键图标） */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UCommonRichTextBlock> PickupHintText;
 
 private:
 	void BuildZonePanel(UCanvasPanel* GridPanel, UImage* ImgWidget,

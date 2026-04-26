@@ -97,6 +97,7 @@
 | RUNE-UPG | 符文升级系统（Lv.I/II/III 自动合并） | 2026-04-14 |
 | HEAT-GLOW | 热度升阶发光 Phase1/2/3 颜色 DA 化 | 2026-04-17 |
 | COMBAT-005 | 韧性系统 Poise vs Resilience | 2026-04-16 |
+| LEVEL-006 | 传送门交互式选择 + HUD 双层预览 + 渐黑过场 | 2026-04-26 |
 | COMBAT-004 | 充能/CD 系统 SkillChargeComponent | 2026-04-15 |
 | COMBAT-003 | 三选一奖励 LootSelectionWidget | 2026-04-14 |
 | COMBAT-002 | 冲刺系统 GA_PlayerDash（越障/根运动/无敌帧） | 2026-04-12 |

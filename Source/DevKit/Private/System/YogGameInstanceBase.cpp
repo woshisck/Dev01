@@ -254,7 +254,14 @@ void UYogGameInstanceBase::SpawnMobInMap()
 void UYogGameInstanceBase::ClearRunState()
 {
 	PendingRunState = FRunState(); // 重置为默认值，bIsValid = false
-	UE_LOG(LogTemp, Log, TEXT("ClearRunState: 跑局状态已清空"));
+
+	// v3：传送门跨关字段同点清，避免下一局误读上一局的预骰数据
+	PendingRoomData = nullptr;
+	PendingRoomBuffs.Reset();
+	PendingNextFloor = 1;
+	bPlayLevelIntroFadeIn = false;
+
+	UE_LOG(LogTemp, Log, TEXT("ClearRunState: 跑局状态已清空（含传送门预骰）"));
 }
 
 

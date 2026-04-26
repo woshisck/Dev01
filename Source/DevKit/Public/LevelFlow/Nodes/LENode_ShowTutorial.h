@@ -7,12 +7,12 @@
 
 /**
  * 关卡事件节点：显示教程弹窗
- * In  → 显示弹窗（优先用 InlinePages，为空则查 EventID + DialogContentDA）
+ * In  → 显示弹窗（优先用 InlinePages，为空则查 EventID 在 TutorialRegistry 里的内容 DA）
  * OnClosed → 玩家关闭弹窗后触发（用于串联后续节点）
  *
  * 两种填写方式（互斥，InlinePages 优先）：
- *   A) InlinePages 里直接填写标题/正文 — 不依赖 DA，适合关卡内一次性提示
- *   B) EventID → DialogContentDA  — 内容复用，适合多处引用同一套文字
+ *   A) InlinePages 里直接填写标题/正文 — 不依赖任何 DA，适合关卡内一次性提示
+ *   B) EventID → 由 BP_HUD 上的 TutorialRegistry 查表获取内容 DA — 内容复用 / 集中管理
  */
 UCLASS(meta = (DisplayName = "Show Tutorial Popup"))
 class DEVKIT_API ULENode_ShowTutorial : public ULENode_Base
@@ -28,8 +28,8 @@ class DEVKIT_API ULENode_ShowTutorial : public ULENode_Base
 	TArray<FTutorialPage> InlinePages;
 
 	/**
-	 * DialogContentDA 里的 Key（InlinePages 为空时生效）。
-	 * 对应 DA 中 Pages Map 的 EventID 字段。
+	 * 在 TutorialRegistry 里查找内容 DA 的 Key（InlinePages 为空时生效）。
+	 * 对应 BP_HUD → TutorialRegistry → Entries 的 TMap Key。
 	 */
 	UPROPERTY(EditAnywhere, Category = "Tutorial|内容")
 	FName EventID = TEXT("WeaponTutorial");

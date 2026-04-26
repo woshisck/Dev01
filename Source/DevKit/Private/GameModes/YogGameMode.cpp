@@ -358,6 +358,11 @@ void AYogGameMode::EnterArrangementPhase()
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 			HUD->TriggerLevelEndEffect(LootSpawnLoc);
 
+	// Tutorial ②：第一次符文掉落时弹窗（slow-mo 期间，state guard 内部去重）
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
+			TM->TryFirstRuneTutorial(PC);
+
 	// 生成奖励拾取物
 	if (RewardPickupClass)
 	{
@@ -406,6 +411,18 @@ void AYogGameMode::EnterArrangementPhase()
 
 	// 开启传送门
 	ActivatePortals();
+
+	// v3：启用 HUD 传送门引导（单例浮窗 + 屏幕边缘方位箭头）。主城（HubRoom）跳过
+	if (!bIsHubRoom)
+	{
+		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		{
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			{
+				HUD->ShowPortalGuidance();
+			}
+		}
+	}
 }
 
 void AYogGameMode::SelectLoot(int32 LootIndex)
@@ -552,10 +569,12 @@ void AYogGameMode::StartLevelSpawning()
 	// ---- 确定本关使用的 DA_Room ----
 	// 优先读取 GI 中由传送门写入的 PendingRoomData（切关传递）
 	// 若为空（第一关或测试场景），直接按本关 FloorConfig 骰子选取
+	bool bUsedPendingRoomData = false;
 	if (GI && GI->PendingRoomData)
 	{
 		ActiveRoomData = GI->PendingRoomData;
 		GI->PendingRoomData = nullptr; // 清除，避免复用
+		bUsedPendingRoomData = true;
 		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 使用 Portal 传递的 RoomData = %s"), *ActiveRoomData->GetName());
 	}
 	else
@@ -653,8 +672,19 @@ void AYogGameMode::StartLevelSpawning()
 		Score <= LowDifficultyScoreMax ? TEXT("Low") : (Score >= HighDifficultyScoreMin ? TEXT("High") : TEXT("Medium")),
 		Tier.MaxWaveCount);
 
-	// 选取本关 Buff（进关时确定，新怪刷出时施加）
-	ActiveRoomBuffs = SelectRoomBuffs(*ActiveRoomData, ActiveBuffCount);
+	// v3：本次切关来自 Portal（PendingRoomData 非空）→ 直接用预骰好的 Buff，跳过现场抽
+	// 即使 PendingRoomBuffs 为空数组也是合法预骰结果（如商店/事件房 BuffCount=0）
+	if (bUsedPendingRoomData && GI)
+	{
+		ActiveRoomBuffs = GI->PendingRoomBuffs;
+		GI->PendingRoomBuffs.Reset();
+		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 使用 Portal 预骰 Buff，数=%d"), ActiveRoomBuffs.Num());
+	}
+	else
+	{
+		ActiveRoomBuffs = SelectRoomBuffs(*ActiveRoomData, ActiveBuffCount);
+		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 现场抽 Buff（无 Portal 预骰），数=%d"), ActiveRoomBuffs.Num());
+	}
 
 	// 生成波次计划
 	GenerateWavePlans(Score, Tier.MaxWaveCount, ActiveRoomData);
@@ -1655,10 +1685,31 @@ void AYogGameMode::ActivateHubPortals()
 			continue;
 		}
 
-		(*Found)->Open(ChosenRoom->RoomName, ChosenRoom);
-		UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: 门[%d] 开启 → 关卡=%s 房间=%s"),
-			Cfg.PortalIndex, *ChosenRoom->RoomName.ToString(), *ChosenRoom->GetName());
+		// 主城 → 第一关：用 FloorTable[0] 的难度分选下一关 Tier，预骰本门 Buff
+		const FFloorConfig* NextConfig = CampaignData->FloorTable.IsValidIndex(0)
+			? &CampaignData->FloorTable[0]
+			: nullptr;
+		const int32 NextScore = NextConfig ? NextConfig->TotalDifficultyScore : 30;
+		const FRoomDifficultyTier& NextTier = ResolveTier(
+			*ChosenRoom, NextScore, LowDifficultyScoreMax, HighDifficultyScoreMin);
+		const TArray<FBuffEntry> PreRolled = SelectRoomBuffs(*ChosenRoom, NextTier.BuffCount);
+
+		(*Found)->Open(ChosenRoom->RoomName, ChosenRoom, PreRolled);
+		UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: 门[%d] 开启 → 关卡=%s 房间=%s 预骰Buff数=%d"),
+			Cfg.PortalIndex, *ChosenRoom->RoomName.ToString(), *ChosenRoom->GetName(),
+			PreRolled.Num());
 	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 公共选档辅助（StartLevelSpawning 与 ActivatePortals 共用，避免漂移）
+// ─────────────────────────────────────────────────────────────────────────────
+const FRoomDifficultyTier& AYogGameMode::ResolveTier(const URoomDataAsset& Room, int32 TotalScore,
+                                                     int32 LowMax, int32 HighMin)
+{
+	if (TotalScore <= LowMax)        return Room.LowDifficulty;
+	if (TotalScore >= HighMin)       return Room.HighDifficulty;
+	return Room.MediumDifficulty;
 }
 
 void AYogGameMode::ActivatePortals()
@@ -1737,11 +1788,17 @@ void AYogGameMode::ActivatePortals()
 			continue;
 		}
 
-		(*Found)->Open(LevelName, ChosenRoom);
+		// 预骰下一关 Buff（每扇门各自缓存；玩家确认进入时由 Portal::TryEnter 写入 GI）
+		const int32 NextScore = NextConfig ? NextConfig->TotalDifficultyScore : 30;
+		const FRoomDifficultyTier& NextTier = ResolveTier(
+			*ChosenRoom, NextScore, LowDifficultyScoreMax, HighDifficultyScoreMin);
+		const TArray<FBuffEntry> PreRolled = SelectRoomBuffs(*ChosenRoom, NextTier.BuffCount);
+
+		(*Found)->Open(LevelName, ChosenRoom, PreRolled);
 		bAtLeastOneOpened = true;
 
-		UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 开启 → 关卡=%s 房间=%s"),
-			Cfg.PortalIndex, *LevelName.ToString(), *ChosenRoom->GetName());
+		UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 开启 → 关卡=%s 房间=%s 预骰Buff数=%d"),
+			Cfg.PortalIndex, *LevelName.ToString(), *ChosenRoom->GetName(), PreRolled.Num());
 	}
 }
 

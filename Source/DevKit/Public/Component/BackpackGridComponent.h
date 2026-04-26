@@ -276,6 +276,10 @@ public:
 protected:
     virtual void BeginPlay() override;
 
+    // Tutorial ④：监听 OnHeatBarUpdate，热度首次跨过 Phase >= 1 时触发激活区教程
+    UFUNCTION()
+    void HandleHeatTutorial(float NormalizedHeat, int32 NewPhase);
+
 private:
     // 懒初始化：确保 GridOccupancy 已分配（BeginPlay 前调用 TryPlaceRune 时触发）
     void EnsureGridInitialized();

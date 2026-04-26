@@ -1,13 +1,3 @@
 #include "UI/DialogContentDA.h"
 
-const TArray<FTutorialPage>* UDialogContentDA::FindPages(FName EventID) const
-{
-	for (const FDialogContent& Entry : Contents)
-	{
-		if (Entry.EventID == EventID)
-		{
-			return &Entry.Pages;
-		}
-	}
-	return nullptr;
-}
+// 内容 DA 不再持有 EventID / 多条目，FindPages 已迁移至 UTutorialRegistryDA。

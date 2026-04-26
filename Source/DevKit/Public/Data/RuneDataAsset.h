@@ -8,6 +8,7 @@
 
 class UFlowAsset;
 class URuneDataAsset;
+class UGenericRuneEffectDA;
 
 
 // ============================================================
@@ -207,6 +208,12 @@ struct DEVKIT_API FRuneConfig
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
     ERuneTriggerType TriggerType = ERuneTriggerType::Passive;
+
+    // ── 通用效果引用 ─────────────────────────────────────────────
+
+    /** 该符文携带的通用效果引用（如击退/燃烧等），由 RuneInfoCard 右侧子窗解释 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generic Effects")
+    TArray<TObjectPtr<UGenericRuneEffectDA>> GenericEffects;
 };
 
 

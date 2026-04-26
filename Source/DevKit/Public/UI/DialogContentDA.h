@@ -5,29 +5,20 @@
 #include "UI/GameDialogWidget.h"
 #include "DialogContentDA.generated.h"
 
-// 一条弹窗事件：EventID 为查找键，Pages 为多页内容
-USTRUCT(BlueprintType)
-struct FDialogContent
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Dialog")
-	FName EventID;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Dialog")
-	TArray<FTutorialPage> Pages;
-};
-
-// 全局弹窗内容 DA —— 在编辑器里填写所有弹窗事件，不改代码
+/**
+ * 单个弹窗的内容（一个资产 = 一个弹窗）。
+ * 只填 Pages（标题/正文/插图/副文）。
+ * EventID 在 UTutorialRegistryDA 的 TMap key 里登记，不在此 DA 重复填写。
+ *
+ * 命名建议：DA_Tutorial_<EventID>，例如 DA_Tutorial_WeaponPickup。
+ */
 UCLASS(BlueprintType)
 class DEVKIT_API UDialogContentDA : public UDataAsset
 {
 	GENERATED_BODY()
 
 public:
+	/** 多页内容；常规弹窗一页即可。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dialog")
-	TArray<FDialogContent> Contents;
-
-	// 按 EventID 查找页面数组，找不到返回 nullptr
-	const TArray<FTutorialPage>* FindPages(FName EventID) const;
+	TArray<FTutorialPage> Pages;
 };
