@@ -214,12 +214,7 @@ void AWeaponSpawner::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 	NearbyPlayer = Player;
 	bPlayerInRange = true;
 
-	if (UWidgetComponent* WC = Player->GetWidgetcomponent())
-	{
-		WC->SetVisibility(true);
-	}
-
-	// 武器教程由关卡中的 LevelEventTrigger + Flow 管理，不在此触发
+	// 拾取按键提示已迁移到 WeaponFloatWidget 内部的 PickupHintText，无需再切换玩家头顶的 WidgetComponent
 }
 
 void AWeaponSpawner::OnPlayerEndOverlap(APlayerCharacterBase* Player)
@@ -235,11 +230,6 @@ void AWeaponSpawner::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 		NearbyPlayer = nullptr;
 		bPlayerInRange = false;
 		if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
-	}
-
-	if (UWidgetComponent* WC = Player->GetWidgetcomponent())
-	{
-		WC->SetVisibility(false);
 	}
 }
 

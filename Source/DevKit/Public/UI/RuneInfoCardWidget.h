@@ -9,6 +9,8 @@ class UImage;
 class UTextBlock;
 class UCanvasPanel;
 class UCanvasPanelSlot;
+class UCommonRichTextBlock;
+class UGenericEffectListWidget;
 
 /**
  * 符文信息卡 Widget
@@ -43,7 +45,7 @@ public:
     TObjectPtr<UTextBlock> CardName;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UTextBlock> CardDesc;
+    TObjectPtr<UCommonRichTextBlock> CardDesc;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UTextBlock> CardUpgrade;
@@ -58,7 +60,11 @@ public:
 
     /** 效果描述（命名 "CardEffect"），与 CardDesc 区分显示 */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UTextBlock> CardEffect;
+    TObjectPtr<UCommonRichTextBlock> CardEffect;
+
+    /** 通用效果列表小窗（命名 "GenericEffectList"），FRuneConfig::GenericEffects 非空时自动显示 */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UGenericEffectListWidget> GenericEffectList;
 
     // =========================================================
     // 对外接口（BackpackScreenWidget 调用）
@@ -72,6 +78,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RuneInfoCard")
     void HideCard();
 
+    /**
+     * 切换右侧通用效果子窗的展开状态。
+     * - 默认 true（兼容背包等单卡场景，无需调用即可展开）
+     * - LootSelection 等多卡场景：RebuildCards 时全设 false，FocusCard 时只对聚焦卡设 true
+     */
+    UFUNCTION(BlueprintCallable, Category = "RuneInfoCard")
+    void SetGenericEffectsExpanded(bool bExpanded);
+
 protected:
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
@@ -79,7 +93,16 @@ private:
     /** 根据 FRuneShape 重建 ShapeGrid 子节点（点阵） */
     void BuildShapeGrid(const FRuneShape& Shape);
 
+    /** 按 bGenericEffectsExpanded + CachedEffects 同步子窗显示状态 */
+    void SyncGenericEffectListVisibility();
+
     float FadeAlpha = 1.f;
     bool  bFading   = false;
     static constexpr float FadeDuration = 0.15f;
+
+    // 默认 true：单卡场景（背包）开箱即用；多卡场景外部显式 SetGenericEffectsExpanded(false)
+    bool bGenericEffectsExpanded = true;
+
+    UPROPERTY()
+    TArray<TObjectPtr<UGenericRuneEffectDA>> CachedEffects;
 };

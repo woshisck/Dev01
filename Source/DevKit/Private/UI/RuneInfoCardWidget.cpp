@@ -3,6 +3,9 @@
 #include "Components/TextBlock.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "CommonRichTextBlock.h"
+#include "Data/GenericRuneEffectDA.h"
+#include "UI/GenericEffectListWidget.h"
 
 // ============================================================
 //  点阵颜色常量
@@ -76,10 +79,47 @@ void URuneInfoCardWidget::ShowRune(const FRuneInstance& Rune)
 
     BuildShapeGrid(Rune.Shape);
 
+    // 缓存通用效果到 CachedEffects，供 Expanded 切换时复用
+    CachedEffects.Reset();
+    for (const TObjectPtr<UGenericRuneEffectDA>& E : Rune.RuneConfig.GenericEffects)
+    {
+        if (E) CachedEffects.Add(E);
+    }
+    SyncGenericEffectListVisibility();
+
     // 触发淡入动画
     FadeAlpha = 0.f;
     bFading   = true;
     SetRenderOpacity(0.f);
+}
+
+void URuneInfoCardWidget::SetGenericEffectsExpanded(bool bExpanded)
+{
+    if (bGenericEffectsExpanded == bExpanded) return;
+    bGenericEffectsExpanded = bExpanded;
+    SyncGenericEffectListVisibility();
+}
+
+void URuneInfoCardWidget::SyncGenericEffectListVisibility()
+{
+    if (!GenericEffectList) return;
+
+    if (bGenericEffectsExpanded)
+    {
+        TArray<UGenericRuneEffectDA*> Effects;
+        Effects.Reserve(CachedEffects.Num());
+        for (const TObjectPtr<UGenericRuneEffectDA>& E : CachedEffects)
+        {
+            if (E) Effects.Add(E.Get());
+        }
+        // SetEffects 内部会按数组空/非空自动 Collapse / SelfHitTestInvisible
+        GenericEffectList->SetEffects(Effects);
+    }
+    else
+    {
+        // 折叠态：直接清空 + 隐藏，无视 CachedEffects
+        GenericEffectList->SetEffects(TArray<UGenericRuneEffectDA*>());
+    }
 }
 
 // ============================================================

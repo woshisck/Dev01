@@ -7,7 +7,7 @@
 #include "YogHUD.generated.h"
 
 class UTutorialPopupWidget;
-class UDialogContentDA;
+class UTutorialRegistryDA;
 class UYogSaveGame;
 class APostProcessVolume;
 class UWeaponGlassAnimDA;
@@ -22,6 +22,10 @@ class ULootSelectionWidget;
 class UYogHUDRootWidget;
 class UInfoPopupWidget;
 class ULevelInfoPopupDA;
+class UPortalPreviewWidget;
+class UPortalDirectionWidget;
+class APortal;
+class ARewardPickup;
 
 UCLASS()
 class DEVKIT_API AYogHUD : public AHUD
@@ -36,8 +40,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Tutorial")
 	TSubclassOf<UTutorialPopupWidget> TutorialPopupClass;
 
+	/** 教程注册表（项目级唯一，配置一次永不再动）。
+	 *  里面的 TMap<FName, UDialogContentDA*> 管理所有 EventID → 弹窗内容的映射。 */
 	UPROPERTY(EditDefaultsOnly, Category = "Tutorial")
-	TObjectPtr<UDialogContentDA> DialogContentDA;
+	TObjectPtr<UTutorialRegistryDA> TutorialRegistry;
 
 	// ─────────────────────────────────────────
 	//  主 HUD 容器
@@ -92,6 +98,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Backpack")
 	void OpenBackpack();
 
+	/**
+	 * 只读模式打开背包，关闭时回调 OnClosed。
+	 * 背包内拖拽/旋转等修改操作被禁用，玩家仅能查看。
+	 * 用于 LootSelection 期间的"预览"功能。
+	 */
+	void OpenBackpackForPreview(FSimpleDelegate OnClosed);
+
 	// ─────────────────────────────────────────
 	//  三选一 Loot
 	// ─────────────────────────────────────────
@@ -103,6 +116,15 @@ public:
 	// GameMode 直接调用（不走 delegate），Widget 被销毁时自动重建
 	void ShowLootSelectionUI(const TArray<FLootOption>& Options);
 
+	/**
+	 * 由 RewardPickup 调用入队。当前没活跃选择 → 立即弹；否则排队。
+	 * @param SourcePickup 选符文确认时由 LootSelection 销毁；跳过时复位
+	 */
+	void QueueLootSelection(const TArray<FLootOption>& Options, ARewardPickup* SourcePickup);
+
+	/** 由 LootSelectionWidget 在 Skip / Select 后调用，弹队列下一项 */
+	void OnLootSelectionFinished();
+
 	// ─────────────────────────────────────────
 	//  轻量信息提示浮窗（不暂停游戏，放在 WBP_HUDRoot 内）
 	// ─────────────────────────────────────────
@@ -110,6 +132,53 @@ public:
 	void ShowInfoPopup(const ULevelInfoPopupDA* DA);
 
 	UInfoPopupWidget* GetInfoPopupWidget() const;
+
+	// ─────────────────────────────────────────
+	//  Portal 引导（v3：单例浮窗 + 屏幕边缘方位箭头 + 进入过场 Blackout）
+	// ─────────────────────────────────────────
+
+	UPROPERTY(EditDefaultsOnly, Category = "Portal")
+	TSubclassOf<UPortalPreviewWidget> PortalPreviewClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Portal")
+	TSubclassOf<UPortalDirectionWidget> PortalDirectionClass;
+
+	/** 浮窗距门屏幕投影的水平避让偏移（仿 RewardPickup） */
+	UPROPERTY(EditDefaultsOnly, Category = "Portal")
+	float PortalWidgetSideOffset = 240.f;
+
+	/** 浮窗距门屏幕投影的 Z 偏移（向上抬，避免遮门） */
+	UPROPERTY(EditDefaultsOnly, Category = "Portal")
+	float PortalWidgetZOffset = 80.f;
+
+	/** 即使门在屏幕外，距玩家小于此距离也会被选为 Target */
+	UPROPERTY(EditDefaultsOnly, Category = "Portal", meta = (ClampMin = "0"))
+	float PortalForceShowDistance = 800.f;
+
+	/** Target 切换距离滞回（cm），防中点抖动 */
+	UPROPERTY(EditDefaultsOnly, Category = "Portal", meta = (ClampMin = "0"))
+	float PortalSwitchHysteresis = 100.f;
+
+	/** 进入过场渐黑时长（线性，秒） */
+	UPROPERTY(EditDefaultsOnly, Category = "Portal", meta = (ClampMin = "0.05"))
+	float PortalBlackoutDuration = 0.5f;
+
+	/** 关卡结算后启用引导（EnterArrangementPhase 末尾调；主城传送门跳过此调用） */
+	void ShowPortalGuidance();
+
+	/** 切关前 / 战斗开始时关闭引导 */
+	void HidePortalGuidance();
+
+	/** Portal 玩家进/出范围回调（v3 决策：当前实现仅由 TickPortalPreview 读 PendingPortal，
+	    本接口保留作为 BP 扩展或后续高级行为占位） */
+	void NotifyPlayerInPortalRange(APortal* Portal);
+	void NotifyPlayerExitedPortalRange(APortal* Portal);
+
+	/** 由 APortal::TryEnter 调用：线性渐黑（PostProcess Saturation/Gain 朝 LevelEndEffectDA 目标插值） */
+	void BeginBlackoutFade(float Duration);
+
+	/** 反向：从 Blackout 线性插回正常。下一关 BeginPlay 检测 GI->bPlayLevelIntroFadeIn 时调 */
+	void EndBlackoutFade(float Duration);
 
 	// ─────────────────────────────────────────
 	//  武器缩略图飞行 → 玻璃图标
@@ -190,8 +259,45 @@ private:
 	UPROPERTY()
 	TObjectPtr<ULootSelectionWidget> LootSelectionWidget;
 
+	// === LootSelection 队列管理（多个 RewardPickup 同时触发时按 FIFO 排队） ===
+	struct FQueuedLootRequest
+	{
+		TArray<FLootOption> Options;
+		TWeakObjectPtr<ARewardPickup> SourcePickup;
+	};
+	TArray<FQueuedLootRequest> LootQueue;
+	bool bLootSelectionActive = false;
+
+	// === 背包预览模式：关闭时触发的一次性回调 ===
+	FSimpleDelegate BackpackPreviewClosedCallback;
+	FDelegateHandle BackpackPreviewDeactivatedHandle;
+	void OnBackpackPreviewClosed();
+
 	UPROPERTY()
 	TObjectPtr<UWeaponTrailWidget> ActiveTrailWidget;
+
+	// === Portal 引导（私有运行时状态） ===
+	UPROPERTY()
+	TObjectPtr<UPortalPreviewWidget>   PortalPreviewWidget;
+
+	UPROPERTY()
+	TObjectPtr<UPortalDirectionWidget> PortalDirectionWidget;
+
+	TArray<TWeakObjectPtr<APortal>> CachedOpenPortals;
+	TWeakObjectPtr<APortal>         CurrentPreviewTarget;
+	bool bShowPortalGuidance = false;
+
+	// === Portal 进入过场 Blackout（独立 PP Volume，不与 Pause/LevelEnd 互扰） ===
+	UPROPERTY()
+	TObjectPtr<APostProcessVolume> BlackoutPPVolume;
+
+	float BlackoutAlpha          = 0.f;
+	float BlackoutTargetAlpha    = 0.f;
+	float BlackoutActiveDuration = 0.5f;
+
+	void TickPortalPreview(float DeltaSeconds);
+	void TickBlackoutFade(float DeltaSeconds);
+	void ApplyBlackoutPP();
 
 	void OnFlyProgressUpdate(FVector2D FlyStart, FVector2D CurrentPos, float Alpha);
 

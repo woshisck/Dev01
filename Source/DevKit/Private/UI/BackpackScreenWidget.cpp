@@ -19,6 +19,7 @@
 #include "InputCoreTypes.h"
 #include "UI/YogHUD.h"
 #include "GameModes/YogGameMode.h"
+#include "Tutorial/TutorialManager.h"
 
 // ============================================================
 //  内部辅助
@@ -524,13 +525,29 @@ void UBackpackScreenWidget::NativeOnActivated()
 
     OnGridNeedsRefresh();
     OnSelectionChanged();
+
+    // Tutorial ③：第一次打开背包时弹窗（state guard 内部去重）
+    if (APlayerController* PC = GetOwningPlayer())
+        if (UGameInstance* GI = GetGameInstance())
+            if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
+                TM->TryBackpackTutorial(PC);
 }
 
 void UBackpackScreenWidget::NativeOnDeactivated()
 {
     SetVisibility(ESlateVisibility::Collapsed);
 
-    SyncPendingToPlayer();
+    // 预览模式：跳过 SyncPendingToPlayer（背包只读，无需写回数据）
+    // 但 Pause/Input/PauseEffect 拆解必须执行：
+    //   - EndPauseEffect 必须配对 NativeOnActivated 里的 BeginPauseEffect，否则 PausePopupCount 泄漏
+    //   - SetPause(false) / SetInputMode(GameOnly) 由调用方（LootSelection.ReactivateAfterPreview）随后再恢复
+    const bool bSkipDataSync = bIsPreviewMode;
+
+    if (!bSkipDataSync)
+    {
+        SyncPendingToPlayer();
+    }
+
     bCursorInPendingArea = false;
     bGrabbingFromPending = false;
     PendingGrabbedIdx    = -1;
@@ -554,6 +571,15 @@ void UBackpackScreenWidget::NativeOnDeactivated()
             HUD->EndPauseEffect();
 
     Super::NativeOnDeactivated();
+
+    // 预览模式 flag 在此清掉（HUD 的 lambda 也会调一次 SetPreviewMode(false) 兜底）
+    bIsPreviewMode = false;
+}
+
+void UBackpackScreenWidget::SetPreviewMode(bool bReadOnly)
+{
+    bIsPreviewMode = bReadOnly;
+    UE_LOG(LogTemp, Log, TEXT("[Backpack] SetPreviewMode(%s)"), bReadOnly ? TEXT("true") : TEXT("false"));
 }
 
 // ============================================================
@@ -562,6 +588,7 @@ void UBackpackScreenWidget::NativeOnDeactivated()
 
 void UBackpackScreenWidget::OnSellButtonClicked()
 {
+    if (bIsPreviewMode) return;  // 只读预览模式：禁止出售
     if (SelectedCell == FIntPoint(-1, -1)) return;
     if (UBackpackGridComponent* Backpack = GetBackpack())
     {
@@ -824,6 +851,8 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
 
 void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
+    if (bIsPreviewMode) return;  // 只读预览模式：禁止拖拽
+
     // 拖拽接管：清除点击抓取状态和长按计时
     bGrabbingRune     = false;
     GrabbedFromCell   = FIntPoint(-1,-1);
@@ -920,6 +949,8 @@ bool UBackpackScreenWidget::NativeOnDragOver(const FGeometry& InGeometry, const 
 
 bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
+    if (bIsPreviewMode) return false;  // 只读预览模式：禁止 Drop
+
     bMouseDragging = false;
     MouseDragTex   = nullptr;
     HoverCol = HoverRow = -1;
@@ -1294,7 +1325,7 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
         else
         {
             LongPressHoldTime += InDeltaTime;
-            if (LongPressHoldTime >= LongPressDuration && !IsInCombatPhase())
+            if (LongPressHoldTime >= LongPressDuration && !IsInCombatPhase() && !bIsPreviewMode)
             {
                 bLongPressActive  = false;
                 LongPressHoldTime = 0.f;
@@ -1500,6 +1531,8 @@ void UBackpackScreenWidget::MoveGamepadCursor(int32 DCol, int32 DRow)
 
 void UBackpackScreenWidget::GamepadConfirm()
 {
+    if (bIsPreviewMode) return;  // 只读预览模式：禁止抓取/放置
+
     // 从待放置区抓起后，在主格子落点
     if (bGrabbingFromPending)
     {
@@ -1694,6 +1727,8 @@ void UBackpackScreenWidget::MovePendingCursor(int32 DCol, int32 DRow)
 
 void UBackpackScreenWidget::PendingGamepadConfirm()
 {
+    if (bIsPreviewMode) return;  // 只读预览模式：禁止操作
+
     // 主格子抓取状态下进入待放置区：A 键将符文送回待放置槽
     if (bGrabbingRune)
     {
@@ -1794,6 +1829,8 @@ void UBackpackScreenWidget::PendingGamepadCancel()
 
 void UBackpackScreenWidget::RotateSelectedRune()
 {
+    if (bIsPreviewMode) return;  // 只读预览模式：禁止旋转
+
     UBackpackGridComponent* Backpack = GetBackpack();
     if (!Backpack) return;
 

@@ -60,6 +60,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Backpack")
     TArray<TObjectPtr<URuneDataAsset>> AvailableRunes;
 
+    /**
+     * 切换只读预览模式：true = 禁止所有拖拽/旋转/抓取（用于 LootSelection 预览背包），
+     * false = 正常整理模式。
+     * NativeOnDeactivated 会自动复位为 false。
+     */
+    UFUNCTION(BlueprintCallable, Category = "Backpack")
+    void SetPreviewMode(bool bReadOnly);
+
+    UFUNCTION(BlueprintPure, Category = "Backpack")
+    bool IsPreviewMode() const { return bIsPreviewMode; }
+
     // =========================================================
     // 子 Widget 绑定
     // Designer 中放对应名称的 WBP 实例即可，C++ 自动绑定
@@ -306,6 +317,9 @@ private:
 
     // ── 旋转 ──────────────────────────────────────────────────────────────
     void RotateSelectedRune();
+
+    // ── 只读预览模式（LootSelection 期间预览背包用） ─────────────────────
+    bool bIsPreviewMode = false;
     void RotatePendingRune();
     void SendGrabbedRuneToPending();
 

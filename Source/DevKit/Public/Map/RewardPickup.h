@@ -25,8 +25,14 @@ class DEVKIT_API ARewardPickup : public AActor
 public:
 	ARewardPickup();
 
-	// 玩家进入范围后按 E 键调用，执行实际拾取逻辑
+	// 玩家进入范围后按 E 键调用，触发战利品 UI（不再立刻销毁自己）
 	void TryPickup(APlayerCharacterBase* Player);
+
+	/** 选符文确认后由 LootSelectionWidget 调用：销毁本拾取物 */
+	void ConsumeAndDestroy();
+
+	/** 跳过选择后由 LootSelectionWidget 调用：复位状态使玩家可再次按 E 重开 */
+	void ResetForSkip(APlayerCharacterBase* Player);
 
 	/**
 	 * 由 GameMode 在 Spawn 后立即调用，预分配本拾取物的三选一战利品。
