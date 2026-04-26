@@ -5,6 +5,10 @@
 #include "GameplayTagsManager.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "BuffFlow/BuffFlowComponent.h"
+#include "FlowAsset.h"
+#include "Tutorial/TutorialManager.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 
 // =========================================================
 // FActivationZoneConfig
@@ -130,6 +134,31 @@ void UBackpackGridComponent::BeginPlay()
 	if (HiddenPassiveRunes.Num() > 0)
 	{
 		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UBackpackGridComponent::ActivateHiddenPassiveRunes);
+	}
+
+	// Tutorial ④：监听热度阶段变化，首次入相 (Phase >= 1) 触发激活区教程
+	OnHeatBarUpdate.AddDynamic(this, &UBackpackGridComponent::HandleHeatTutorial);
+}
+
+void UBackpackGridComponent::HandleHeatTutorial(float NormalizedHeat, int32 NewPhase)
+{
+	if (NewPhase < 1) return;
+
+	// 一次性：触发后立刻解绑，避免后续 phase 变化重复尝试
+	OnHeatBarUpdate.RemoveDynamic(this, &UBackpackGridComponent::HandleHeatTutorial);
+
+	APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (!OwnerPawn) return;
+
+	APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
+	if (!PC) return;
+
+	UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	if (!GI) return;
+
+	if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
+	{
+		TM->TryHeatPhaseTutorial(PC);
 	}
 }
 
@@ -744,7 +773,9 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 		}
 
 		const FGuid RuneGuid          = Placed.Rune.RuneGuid;
-		TWeakObjectPtr<UFlowAsset> WeakFA(Placed.Rune.Flow.FlowAsset);
+		// 用 operator= 而非拷贝构造，绕开 UE5.4 TWeakObjectPtr 构造模板的 SFINAE 推导问题
+		TWeakObjectPtr<UFlowAsset> WeakFA;
+		WeakFA = static_cast<UFlowAsset*>(Placed.Rune.Flow.FlowAsset);
 
 		FDelegateHandle Handle = ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag)
 			.AddWeakLambda(this, [this, RuneGuid, WeakFA](const FGameplayEventData* Payload)

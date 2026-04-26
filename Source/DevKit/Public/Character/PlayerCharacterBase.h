@@ -16,6 +16,7 @@
 //class AAuraBase;
 class ARewardPickup;
 class AWeaponSpawner;
+class APortal;
 class AWeaponInstance;
 class UYogSaveGame;
 class UBackpackStyleDataAsset;
@@ -140,6 +141,11 @@ public:
 	// 当前在拾取范围内的 WeaponSpawner（按 E 键时触发武器拾取）
 	UPROPERTY()
 	TObjectPtr<AWeaponSpawner> PendingWeaponSpawner;
+
+	// 当前在交互范围内的传送门（按 E 键时触发 TryEnter）
+	// 设计约束保证多门 Box 不重叠，单值实现足够（v3 决策表）
+	UPROPERTY()
+	TObjectPtr<APortal> PendingPortal;
 
 	// 当前装备的武器 Actor（换武器时 Destroy）
 	UPROPERTY()

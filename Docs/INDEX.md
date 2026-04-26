@@ -1,7 +1,8 @@
 # 星骸降临 — 文档库总入口
 
-> 更新：2026-04-21  
-> **查任务** → [PM/TASKS.md](PM/TASKS.md) | **查已有功能** → [Systems/CodeCatalog.md](Systems/CodeCatalog.md)
+> 更新：2026-04-26
+> **已完成功能盘点（按玩家体验维度）** → [Survey/INDEX.md](Survey/INDEX.md)
+> **查任务** → [PM/TASKS.md](PM/TASKS.md) | **查模块代码索引** → [Systems/CodeCatalog.md](Systems/CodeCatalog.md) | **查功能时间线** → [FeatureLog.md](FeatureLog.md)
 
 ---
 
