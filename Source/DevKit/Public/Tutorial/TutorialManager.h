@@ -35,10 +35,11 @@ public:
 
 	// 供 LevelFlow 节点调用：按 EventID 直接显示教程弹窗（不检查 State）
 	// bPauseGame=false 用于纯信息提示（不暂停游戏）
-	void ShowByEventID(FName EventID, APlayerController* PC, bool bPauseGame = true);
+	// 返回 true 表示弹窗确实显示了（用于调用方决定是否推进状态机）
+	bool ShowByEventID(FName EventID, APlayerController* PC, bool bPauseGame = true);
 
 	// 供 LevelFlow 节点调用：直接传入页面内容显示弹窗（不依赖 DA，内联填写）
-	void ShowInlinePages(const TArray<FTutorialPage>& Pages, APlayerController* PC, bool bPauseGame = true);
+	bool ShowInlinePages(const TArray<FTutorialPage>& Pages, APlayerController* PC, bool bPauseGame = true);
 
 	ETutorialState GetState() const { return State; }
 
@@ -53,6 +54,13 @@ public:
 
 	// 弹窗关闭时广播（供 LENode_ShowTutorial 等节点等待）
 	FSimpleMulticastDelegate OnPopupClosed;
+
+	// Subsystem 销毁时兜底恢复全局时间膨胀，避免 ticker 来不及恢复造成全局慢动作
+	virtual void Deinitialize() override;
+
+	// 阶段顺序判断（不依赖枚举数值大小，新增状态时只需扩展 StageRank）
+	int32 StageRank(ETutorialState S) const;
+	bool HasPassedStage(ETutorialState Required) const;
 
 private:
 	ETutorialState State = ETutorialState::NeedWeaponTutorial;
