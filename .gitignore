@@ -1900,3 +1900,4 @@ Plugins/ElectronicNodes/Binaries/Win64/UnrealEditor-ElectronicNodes.dll
 
 # Obsidian 笔记软件本地配置（每个用户工作区不同，不入库）
 .obsidian/
+/Build
