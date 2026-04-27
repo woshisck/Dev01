@@ -7,6 +7,34 @@
 
 ## 2026-04-27
 
+### [UI-009] 背包系统 4 项改造：Bug A/B 修复 + 预览补强 + 操作提示浮窗
+
+**状态**：C++ 完成已编译并 push 到 origin/main；WBP_BackpackScreen 需在编辑器侧加 EndPreviewButton + OperationHintWidget
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/BackpackScreenWidget.h/.cpp`、`Content/UI/Playtest_UI/WBP_BackpackScreen.uasset` |
+| Bug A 修复 | 删除"长按 3s 自动退回 pending"机制（无视觉反馈、易误触）；删 `LongPressDuration/HoldTime/bLongPressActive/LongPressCell` 字段 + NativeTick 计时块 + MouseButtonDown 长按初始化；取回路径仅保留拖拽到 pending / 手柄 PendingGamepadConfirm |
+| Bug B 修复 | pending → 主背包拖拽显示完整 Shape + GrabOffset 校正；新增 `ShapePreviewCanvas` BindWidgetOptional + `ShowShapePreview/UpdateShapePreviewPosition/HideShapePreview` helpers；CellPx 改用 `GridGeometry.GetLocalSize().X / Backpack->GridWidth` 实际值（不再用 StyleDA->CellSize 数据字段） |
+| 预览模式补强 | `EndPreviewButton` BindWidgetOptional（与 CloseButton 互斥显隐 Visible/Collapsed）；`SetPreviewMode` 清理所有 grab/drag 中间状态；4 处精确 guard：NativeOnMouseButtonDown 占用/pending 分支、ClickCell 占用、RotatePendingRune、RemoveRuneAtSelectedCell；占用格在预览/战斗下：FlashAndShakeCell + 状态消息（与战斗一致） |
+| Pending 黄框残留 bug | 抽 `ClearPendingFocus(bool bClearSelection)` helper；鼠标点击主背包入口 + ClickCell 占用格 → `ClearPendingFocus(true)`；彻底清 `bCursorInPendingArea + PendingSelectedIdx`，避免按 R 仍旋转 pending（Codex 复审第二轮决策） |
+| 操作提示浮窗 | `OperationHintWidget` UWidget BindWidgetOptional（任意 Border/SizeBox/Canvas）；`UpdateOperationHintVisibility()` 在 NativeTick 调用，缓存 `bOperationHintVisible` 避免每帧 SetVisibility；触发：`bGrabbingRune && !bIsPreviewMode && !IsInCombatPhase()` |
+| 双重审查 | 经 Codex 双重审查：codex_plan_review（设计）+ codex_code_review（代码）双轮通过；用户确认决策（彻底清焦点 + 抽 helper + 缓存可见性） |
+| 用户编辑器操作 | (1) WBP_BackpackScreen 加 `OperationHintWidget`（建议右下角 Border 容器，内放 CommonRichTextBlock + BP_InputActionDecorator，文案如「按 `<input action="MoveCursor"/>` 移动 / `<input action="RotateRune"/>` 旋转」；初始 Visibility=Collapsed，C++ 接管显隐）；(2) `EndPreviewButton`（与 CloseButton 同位，纯字幕"按 Esc 退出预览"也可，C++ 接管显隐与点击） |
+
+### [MERGE-001] 撤回合作者 origin/main 大规模删除，保留本地 UI/Tutorial/Portal/Weapon/通用效果体系
+
+**状态**：merge commit `b8674ebd` 已 push；合作者 pull 后会拿回他删过的所有文件
+
+| 项目 | 内容 |
+|------|------|
+| 背景 | 合作者推送 10 commits 在 origin/main（-5130 行），删除大量本地正在用的 C++ 类与设计文档 |
+| 撤回的删除（C++） | `UYogCommonRichTextBlock` / `UInputActionRichTextDecorator` / `UInfoPopupWidget` / `UGenericRuneEffectDA` / `UGenericEffectListWidget` / `UGenericEffectEntryWidget` / `UPortalPreviewWidget` / `UPortalDirectionWidget` / `FPortalPreviewInfo` / `ULevelInfoPopupDA` / `ULENode_ShowInfoPopup` / `UTutorialRegistryDA` 等 |
+| 撤回的删除（文档） | `Docs/Survey/01-06_*.md`（玩家研究问卷依据）、`Docs/Systems/Rune/BackpackUI_Architecture.md`、`Docs/Systems/Level/WBP_PortalPreview_Layout.md`、`Docs/Systems/UI/WBP_LootSelection_Layout.md` 等 |
+| 撤回的重构 | YogHUD / TutorialManager / Portal / RewardPickup / WeaponSpawner / GameMode 等被部分回滚到 e7200ab2 状态 |
+| 决策依据 | 用户 2026-04-27 确认"全部本地"：本地仍在重构/使用这些类与文档，远程删除会破坏本地 UI 体系 |
+| 后续行动 | 需告知合作者：他 pull 后会发现"删过的东西又回来了"；建议沟通哪些是"过期清理"哪些是"误删"；过期清理的部分待协商后专门做一个清理 commit |
+
 ### [SYS-001] 关卡生命周期事件总线 + LootSelection 视觉高亮 C++ 化 + 卡片堆叠修复
 
 **状态**：C++ 完成已编译；用户需在编辑器侧加 SelectionBorder/HighlightBorder + 创建 LFA 配 BP_GameMode_Default 才能完整体验
