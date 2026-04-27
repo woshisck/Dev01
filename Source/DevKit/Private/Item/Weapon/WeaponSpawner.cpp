@@ -25,6 +25,7 @@
 #include "UI/WeaponFloatWidget.h"
 #include "UI/YogHUD.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "Data/LevelInfoPopupDA.h"
 
 // Sets default values
 AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
@@ -54,8 +55,6 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 		WeaponMesh->SetStaticMesh(WeaponDefinition->DisplayMesh);
 
 	}
-
-	WeaponMeshRotationSpeed = 40.0f;
 
 	WeaponInfoWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("WeaponInfoWidgetComp"));
 	WeaponInfoWidgetComp->SetupAttachment(RootComponent);
@@ -91,6 +90,14 @@ void AWeaponSpawner::BeginPlay()
 			FloatWidget->SetWeaponDefinition(WeaponDefinition);
 		}
 	}
+
+	// 缓存网格原始材质（BP Construction Script 之后运行，拿到的是最终设置值）
+	if (WeaponMesh)
+	{
+		CachedMeshMaterials.Reset();
+		for (int32 i = 0; i < WeaponMesh->GetNumMaterials(); ++i)
+			CachedMeshMaterials.Add(WeaponMesh->GetMaterial(i));
+	}
 }
 
 void AWeaponSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -102,8 +109,19 @@ void AWeaponSpawner::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	UWorld* World = GetWorld();
-	WeaponMesh->AddRelativeRotation(FRotator(0.0f, World->GetDeltaSeconds() * WeaponMeshRotationSpeed, 0.0f));
+	// 旋转
+	WeaponMesh->AddRelativeRotation(FRotator(
+		RotationRate.Pitch * DeltaTime,
+		RotationRate.Yaw   * DeltaTime,
+		RotationRate.Roll  * DeltaTime));
+
+	// 浮动偏移
+	if (BobAmplitude > 0.f)
+	{
+		BobTimer += DeltaTime;
+		const float BobOffset = FMath::Sin(BobTimer * BobFrequency * 2.f * PI) * BobAmplitude;
+		WeaponMesh->SetRelativeLocation(BaseMeshOffset + BobAxis.GetSafeNormal() * BobOffset);
+	}
 
 	// Tutorial 弹窗显示期间、或武器已被拾取后隐藏浮窗
 	if (bPickedUp)
@@ -174,6 +192,7 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 		WeaponMesh->SetStaticMesh(WeaponDefinition->DisplayMesh);
 		WeaponMesh->SetRelativeLocation(WeaponDefinition->WeaponMeshOffset);
 		WeaponMesh->SetRelativeScale3D(WeaponDefinition->WeaponMeshScale);
+		BaseMeshOffset = WeaponDefinition->WeaponMeshOffset;
 	}
 }
 
@@ -204,12 +223,7 @@ void AWeaponSpawner::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 	NearbyPlayer = Player;
 	bPlayerInRange = true;
 
-	if (UWidgetComponent* WC = Player->GetWidgetcomponent())
-	{
-		WC->SetVisibility(true);
-	}
-
-	// 武器教程由关卡中的 LevelEventTrigger + Flow 管理，不在此触发
+	// 拾取按键提示已迁移到 WeaponFloatWidget 内部的 PickupHintText，无需再切换玩家头顶的 WidgetComponent
 }
 
 void AWeaponSpawner::OnPlayerEndOverlap(APlayerCharacterBase* Player)
@@ -226,19 +240,53 @@ void AWeaponSpawner::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 		bPlayerInRange = false;
 		if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
 	}
+}
 
-	if (UWidgetComponent* WC = Player->GetWidgetcomponent())
+void AWeaponSpawner::ResetToAvailable()
+{
+	bPickedUp            = false;
+	bCollapsingForPickup = false;
+	bPlayerInRange       = false;
+	NearbyPlayer         = nullptr;
+
+	if (WeaponInfoWidgetComp)
+		WeaponInfoWidgetComp->SetVisibility(false);
+
+	// 还原网格材质
+	if (WeaponMesh)
 	{
-		WC->SetVisibility(false);
+		for (int32 i = 0; i < CachedMeshMaterials.Num(); ++i)
+			WeaponMesh->SetMaterial(i, CachedMeshMaterials[i]);
 	}
+
+	OnResetToAvailable();
 }
 
 void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 {
 	if (!Player || !WeaponDefinition) return;
 
+	// ── 预览模式：仅弹 LevelInfoPopup，不执行拾取 ──────────────────
+	if (WeaponDefinition->bPreviewOnly)
+	{
+		if (WeaponDefinition->PreviewPopup)
+		{
+			if (APlayerController* PC = Player->GetController<APlayerController>())
+				if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+					HUD->ShowInfoPopup(WeaponDefinition->PreviewPopup);
+		}
+		return;
+	}
+
 	// 拾取后浮窗永久隐藏
 	bPickedUp = true;
+
+	// 网格变黑
+	if (WeaponMesh && PickedUpMaterial)
+	{
+		for (int32 i = 0; i < WeaponMesh->GetNumMaterials(); ++i)
+			WeaponMesh->SetMaterial(i, PickedUpMaterial);
+	}
 
 	// 若教程弹窗仍在显示（玩家在弹窗期间按 E 拾取），强制关闭
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
@@ -247,6 +295,10 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	// ── 1. 处理旧武器 ────────────────────────────────────────────────
 	if (Player->EquippedWeaponInstance)
 	{
+		// 恢复旧武器来源的 Spawner（让它重新可交互、材质恢复）
+		if (Player->EquippedFromSpawner && Player->EquippedFromSpawner != this)
+			Player->EquippedFromSpawner->ResetToAvailable();
+
 		// 解绑热度委托，再销毁
 		Player->OnHeatPhaseChanged.RemoveDynamic(Player->EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
 		Player->EquippedWeaponInstance->Destroy();

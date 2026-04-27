@@ -64,6 +64,13 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void GrantWeapon(APlayerCharacterBase* ReceivingChar);
 
+	// 换武器时恢复旧 Spawner：重置 bPickedUp、浮窗状态，并通知 BP 恢复网格材质
+	void ResetToAvailable();
+
+	// BP 端恢复展示网格材质（在 ResetToAvailable 末尾调用）
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnResetToAvailable();
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ItemPickup")
 	TObjectPtr<UCapsuleComponent> PlayerInteractVolume;
 
@@ -74,8 +81,21 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "ItemPickup")
 	TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "ItemPickup")
-	float WeaponMeshRotationSpeed;
+	// 各轴旋转速度（度/秒）。Pitch=X，Yaw=Z，Roll=Y
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "武器展示|旋转")
+	FRotator RotationRate = FRotator(0.f, 40.f, 0.f);
+
+	// 浮动偏移幅度（cm），0 = 不偏移
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "武器展示|浮动", meta = (ClampMin = "0"))
+	float BobAmplitude = 0.f;
+
+	// 浮动频率（Hz，完整周期数/秒）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "武器展示|浮动", meta = (ClampMin = "0.01"))
+	float BobFrequency = 1.f;
+
+	// 浮动方向（局部空间，默认 Z 轴上下浮动）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "武器展示|浮动")
+	FVector BobAxis = FVector(0.f, 0.f, 1.f);
 
 	// 玩家接近时登记 PendingWeaponSpawner，按 E 后调用 TryPickupWeapon
 	UFUNCTION()
@@ -110,6 +130,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "浮窗", meta = (ClampMin = "0.05"))
 	float PickupCollapseDuration = 0.25f;
 
+	// 被拾取后替换的材质（通常为纯黑 MI），所有插槽统一使用
+	UPROPERTY(EditDefaultsOnly, Category = "武器展示|材质")
+	TObjectPtr<UMaterialInterface> PickedUpMaterial;
+
 private:
 
 	// 朝向检测：玩家在范围内时每帧判断是否应显示浮窗
@@ -118,5 +142,11 @@ private:
 	bool bCollapsingForPickup = false;  // 折叠动画进行中，保持 WidgetComp 可见
 	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
 
+	// BeginPlay 时缓存的网格原始材质，用于还原
+	TArray<TObjectPtr<UMaterialInterface>> CachedMeshMaterials;
+
 	void ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data);
+
+	float BobTimer = 0.f;
+	FVector BaseMeshOffset = FVector::ZeroVector;
 };
