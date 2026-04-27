@@ -561,6 +561,55 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 	}
 }
 
+void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
+{
+	if (bGameOverTriggered)
+	{
+		return;
+	}
+
+	bGameOverTriggered = true;
+	CurrentPhase = ELevelPhase::Transitioning;
+	OnPhaseChanged.Broadcast(CurrentPhase);
+
+	FTimerManager& TM = GetWorld()->GetTimerManager();
+	TM.ClearTimer(WaveTriggerTimer);
+	TM.ClearTimer(OneByOneTimer);
+	TM.ClearTimer(InitialSpawnDelayTimer);
+	TM.ClearTimer(DemandSpawnTimer);
+
+	TriggerLifecycleEvent(EGameLifecycleEvent::PlayerDeath);
+
+	if (APlayerController* PC = Player ? Cast<APlayerController>(Player->GetController()) : GetWorld()->GetFirstPlayerController())
+	{
+		PC->SetIgnoreMoveInput(true);
+		PC->SetIgnoreLookInput(true);
+		PC->SetShowMouseCursor(false);
+	}
+
+	TM.SetTimer(
+		PlayerDeathGameOverTimer,
+		this,
+		&AYogGameMode::FinishPlayerDeathGameOver,
+		FMath::Max(0.f, PlayerDeathGameOverDelay),
+		false);
+
+	UE_LOG(LogTemp, Warning, TEXT("[GameOver] Player died. Game over will finalize in %.2fs."), PlayerDeathGameOverDelay);
+}
+
+void AYogGameMode::FinishPlayerDeathGameOver()
+{
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	{
+		PC->SetIgnoreMoveInput(true);
+		PC->SetIgnoreLookInput(true);
+		PC->SetPause(true);
+		PC->SetShowMouseCursor(true);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GameOver] Game paused after player death."));
+}
+
 // =========================================================
 // 新刷怪系统实现
 // =========================================================
@@ -717,7 +766,14 @@ void AYogGameMode::StartLevelSpawning()
 	// 重置运行时状态
 	CurrentWaveIndex  = -1;
 	TotalAliveEnemies = 0;
+	PendingSpawnCount = 0;
 	bAllWavesSpawned  = false;
+
+	FTimerManager& TimerManager = GetWorld()->GetTimerManager();
+	TimerManager.ClearTimer(WaveTriggerTimer);
+	TimerManager.ClearTimer(OneByOneTimer);
+	TimerManager.ClearTimer(InitialSpawnDelayTimer);
+	TimerManager.ClearTimer(DemandSpawnTimer);
 
 	// ---- 标记本关永不开启的传送门 ----
 	// PortalDestinations 中未登记的门：关卡开始时即确定不会开启，调用 NeverOpen() 显示静态装饰

@@ -14,6 +14,7 @@
 #include "YogGameMode.generated.h"
 
 class AYogPlayerControllerBase;
+class APlayerCharacterBase;
 class UYogSaveGame;
 class AEnemyCharacterBase;
 class APortal;
@@ -222,6 +223,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom = nullptr);
 
+	UFUNCTION(BlueprintCallable, Category = "GameOver")
+	void HandlePlayerDeath(APlayerCharacterBase* Player);
+
 	// 从 LootPool 中随机生成战利品选项并广播（由 ARewardPickup 兜底路径触发）
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void GenerateLootOptions();
@@ -380,6 +384,7 @@ protected:
 	FTimerHandle OneByOneTimer;
 	FTimerHandle InitialSpawnDelayTimer;
 	FTimerHandle DemandSpawnTimer;
+	FTimerHandle PlayerDeathGameOverTimer;
 	TArray<FPlannedEnemy> OneByOneSpawnQueue;
 	int32 OneByOneSpawnIndex = 0;
 
@@ -399,6 +404,12 @@ protected:
 
 	// 本关激活的关卡 Buff（进关时骰子选好，新怪刷出时在其 BuffFlowComponent 上激活）
 	TArray<FBuffEntry> ActiveRoomBuffs;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameOver", meta = (AllowPrivateAccess = "true"))
+	float PlayerDeathGameOverDelay = 1.5f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameOver", meta = (AllowPrivateAccess = "true"))
+	bool bGameOverTriggered = false;
 
 	// 当前关卡的房间配置（StartLevelSpawning 时缓存，整理阶段使用）
 	UPROPERTY()
@@ -465,7 +476,7 @@ public:
 	 * 等映射，节点图里用 LENode_ShowTutorial / LENode_Delay 编排具体行为。
 	 * 没配映射的事件触发时不做任何事（沉默）。
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lifecycle Events")
+	UPROPERTY(Transient)
 	TMap<EGameLifecycleEvent, TObjectPtr<ULevelFlowAsset>> LifecycleEventFlows;
 
 	/**
@@ -491,6 +502,8 @@ private:
 	/** 尝试绑定 HUD 委托：HUD 由 PC->ClientRestart 异步创建，BeginPlay 时通常还没准备好 */
 	void TryBindHUDDelegates();
 	int32 HUDBindRetryCount = 0;
+
+	void FinishPlayerDeathGameOver();
 
 	/** 是否为一次性事件（FirstRune* / HeatPhase* / GameStart / PlayerDeath）*/
 	static bool IsOneShotEvent(EGameLifecycleEvent Event);

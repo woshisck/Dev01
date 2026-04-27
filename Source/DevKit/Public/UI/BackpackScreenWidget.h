@@ -336,6 +336,9 @@ private:
     /** 根据当前抓取/选中状态显隐 OperationHintWidget */
     void UpdateOperationHintVisibility();
 
+    /** Logs packaged-build layout sizes after the widget has opened. */
+    void LogLayoutDiagnostics();
+
     /** UpdateOperationHintVisibility 缓存：避免每帧重复 SetVisibility */
     bool bOperationHintVisible = false;
 

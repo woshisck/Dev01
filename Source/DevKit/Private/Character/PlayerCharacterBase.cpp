@@ -26,6 +26,7 @@
 #include "System/YogGameInstanceBase.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "GameModes/YogGameMode.h"
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -56,6 +57,11 @@ AYogCameraPawn* APlayerCharacterBase::GetOwnCamera()
 void APlayerCharacterBase::Die()
 {
 	Super::Die();
+
+	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		GM->HandlePlayerDeath(this);
+	}
 
 	// 死亡时清空跑局状态，下一局从默认值开始
 	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))

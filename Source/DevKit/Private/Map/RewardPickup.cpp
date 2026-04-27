@@ -26,6 +26,12 @@ ARewardPickup::ARewardPickup()
 void ARewardPickup::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (CollisionVolume)
+	{
+		CollisionVolume->SetGenerateOverlapEvents(IsPickupAllowed());
+	}
+	SetActorHiddenInGame(!IsPickupAllowed());
 }
 
 void ARewardPickup::Tick(float DeltaTime)
@@ -64,6 +70,8 @@ void ARewardPickup::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAc
 	bool bFromSweep, const FHitResult& SweepHitResult)
 {
 	if (bPickedUp) return;
+	if (!IsPickupAllowed()) return;
+
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
 	if (!Player) return;
 
@@ -115,6 +123,12 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 
 	// 先验证依赖链完整性，再修改自身状态
 	AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this));
+	if (!IsPickupAllowed())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] TryPickup ignored outside Arrangement phase."));
+		ClearNearbyPlayer();
+		return;
+	}
 	APlayerController* PC = Player->GetController<APlayerController>();
 	AYogHUD* HUD = PC ? Cast<AYogHUD>(PC->GetHUD()) : nullptr;
 
@@ -156,7 +170,37 @@ void ARewardPickup::ResetForSkip(APlayerCharacterBase* Player)
 	// 仅当玩家仍在范围内才重新挂回 PendingPickup + 显示浮窗
 	if (Player && bPlayerInRange && NearbyPlayer.Get() == Player)
 	{
+		if (!IsPickupAllowed()) return;
+
 		Player->PendingPickup = this;
 		if (RuneInfoWidgetComp) RuneInfoWidgetComp->SetVisibility(true);
+	}
+}
+
+bool ARewardPickup::IsPickupAllowed() const
+{
+	if (const AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this)))
+	{
+		return GM->CurrentPhase == ELevelPhase::Arrangement;
+	}
+
+	return false;
+}
+
+void ARewardPickup::ClearNearbyPlayer()
+{
+	if (APlayerCharacterBase* Player = NearbyPlayer.Get())
+	{
+		if (Player->PendingPickup == this)
+		{
+			Player->PendingPickup = nullptr;
+		}
+	}
+
+	NearbyPlayer = nullptr;
+	bPlayerInRange = false;
+	if (RuneInfoWidgetComp)
+	{
+		RuneInfoWidgetComp->SetVisibility(false);
 	}
 }

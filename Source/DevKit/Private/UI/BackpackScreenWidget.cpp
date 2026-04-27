@@ -16,12 +16,15 @@
 #include "Components/TextBlock.h"
 #include "Components/RichTextBlock.h"
 #include "Components/UniformGridPanel.h"
+#include "Components/SizeBox.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
 #include "InputCoreTypes.h"
 #include "UI/YogHUD.h"
 #include "GameModes/YogGameMode.h"
 #include "Tutorial/TutorialManager.h"
+#include "TimerManager.h"
 
 // ============================================================
 //  内部辅助
@@ -587,6 +590,63 @@ void UBackpackScreenWidget::NativeOnActivated()
         if (UGameInstance* GI = GetGameInstance())
             if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
                 TM->TryBackpackTutorial(PC);
+
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().SetTimerForNextTick(
+            FTimerDelegate::CreateUObject(this, &UBackpackScreenWidget::LogLayoutDiagnostics));
+    }
+}
+
+void UBackpackScreenWidget::LogLayoutDiagnostics()
+{
+    const FVector2D ViewportSize = UWidgetLayoutLibrary::GetViewportSize(this);
+    const float ViewportScale = UWidgetLayoutLibrary::GetViewportScale(this);
+
+    UE_LOG(LogTemp, Warning, TEXT("[BackpackUILayout] Viewport=%.0fx%.0f Scale=%.2f Pending=%dx%d PreviewPhase=%d SelectedCell=(%d,%d) PendingSelected=%d Grabbing=%d PreviewMode=%d"),
+        ViewportSize.X, ViewportSize.Y, ViewportScale,
+        PendingCols, PendingRows, PreviewPhase,
+        SelectedCell.X, SelectedCell.Y, PendingSelectedIdx,
+        bGrabbingRune ? 1 : 0,
+        bIsPreviewMode ? 1 : 0);
+
+    auto LogWidget = [](const TCHAR* Name, const UWidget* Widget)
+    {
+        if (!Widget)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[BackpackUILayout] %s=null"), Name);
+            return;
+        }
+
+        const FGeometry& Geo = Widget->GetCachedGeometry();
+        const FVector2D LocalSize = Geo.GetLocalSize();
+        const FVector2D AbsPos = Geo.GetAbsolutePosition();
+        UE_LOG(LogTemp, Warning, TEXT("[BackpackUILayout] %s Vis=%d Local=%.1fx%.1f Abs=(%.1f,%.1f)"),
+            Name,
+            static_cast<int32>(Widget->GetVisibility()),
+            LocalSize.X, LocalSize.Y,
+            AbsPos.X, AbsPos.Y);
+    };
+
+    LogWidget(TEXT("Screen"), this);
+    LogWidget(TEXT("BackpackGridWidget"), BackpackGridWidget);
+    LogWidget(TEXT("BackpackGridPanel"), BackpackGridWidget ? BackpackGridWidget->BackpackGrid.Get() : nullptr);
+    LogWidget(TEXT("BackpackGridSizeBox"), BackpackGridWidget ? BackpackGridWidget->GridSizeBox.Get() : nullptr);
+    LogWidget(TEXT("PendingGridWidget"), PendingGridWidget);
+    LogWidget(TEXT("PendingGridPanel"), PendingGridWidget ? PendingGridWidget->PendingRuneGrid.Get() : nullptr);
+    LogWidget(TEXT("PendingGridSizeBox"), PendingGridWidget ? PendingGridWidget->PendingGridSizeBox.Get() : nullptr);
+    LogWidget(TEXT("OperationHintWidget"), OperationHintWidget);
+    LogWidget(TEXT("RuneInfoCard"), RuneInfoCard);
+
+    const UBackpackStyleDataAsset* GridStyle = BackpackGridWidget ? BackpackGridWidget->StyleDA.Get() : nullptr;
+    const UBackpackStyleDataAsset* PendingStyle = PendingGridWidget ? PendingGridWidget->StyleDA.Get() : nullptr;
+    UE_LOG(LogTemp, Warning, TEXT("[BackpackUILayout] GridStyle=%s PendingStyle=%s GridCell=%.1f GridPadding=%.1f PendingCell=%.1f PendingPadding=%.1f"),
+        *GetNameSafe(GridStyle),
+        *GetNameSafe(PendingStyle),
+        GridStyle ? GridStyle->CellSize : -1.f,
+        GridStyle ? GridStyle->CellPadding : -1.f,
+        PendingStyle ? PendingStyle->CellSize : -1.f,
+        PendingStyle ? PendingStyle->CellPadding : -1.f);
 }
 
 void UBackpackScreenWidget::NativeOnDeactivated()

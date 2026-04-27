@@ -7,6 +7,9 @@
 #include "Component/CharacterDataComponent.h"
 #include "Data/CharacterData.h"
 #include "Data/AbilityData.h"
+#include "AIController.h"
+#include "Character/EnemyCharacterBase.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 UGA_HitReaction::UGA_HitReaction(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -83,6 +86,23 @@ void UGA_HitReaction::ActivateAbility(
     }
 
     // ---- 播放受击蒙太奇 ----
+    if (AEnemyCharacterBase* Enemy = Cast<AEnemyCharacterBase>(Character))
+    {
+        MovementLockedEnemy = Enemy;
+        if (UCharacterMovementComponent* MoveComp = Enemy->GetCharacterMovement())
+        {
+            PreviousMovementMode = MoveComp->MovementMode;
+            MoveComp->StopMovementImmediately();
+            MoveComp->DisableMovement();
+            bLockedEnemyMovement = true;
+        }
+
+        if (AAIController* AIController = Cast<AAIController>(Enemy->GetController()))
+        {
+            AIController->StopMovement();
+        }
+    }
+
     MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
         this, NAME_None, HitMontage, 1.0f);
 
@@ -124,6 +144,24 @@ void UGA_HitReaction::EndAbility(
     {
         MontageTask->EndTask();
         MontageTask = nullptr;
+    }
+
+    if (bLockedEnemyMovement)
+    {
+        if (AEnemyCharacterBase* Enemy = MovementLockedEnemy.Get())
+        {
+            if (Enemy->IsAlive())
+            {
+                if (UCharacterMovementComponent* MoveComp = Enemy->GetCharacterMovement())
+                {
+                    MoveComp->SetMovementMode(PreviousMovementMode);
+                }
+            }
+        }
+
+        MovementLockedEnemy.Reset();
+        PreviousMovementMode = MOVE_Walking;
+        bLockedEnemyMovement = false;
     }
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

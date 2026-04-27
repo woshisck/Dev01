@@ -106,7 +106,9 @@ void AEnemyCharacterBase::Die()
 
 	// 绝对兜底：正常死亡销毁由 GA_Dead 处理（有蒙太奇→动画结束销毁；无蒙太奇→2秒后销毁）
 	// 此处仅在 GA_Dead 完全未激活（配置遗漏）时作为最后保险，设置为足够长的时间
-	SetLifeSpan(30.0f);
+	// Fallback only: the normal path is GA_Dead -> montage/dissolve -> FinishDying().
+	// Keep this short enough that a missing cooked death ability cannot leave dead enemies in the room.
+	SetLifeSpan(8.0f);
 }
 
 void AEnemyCharacterBase::PostInitializeComponents()

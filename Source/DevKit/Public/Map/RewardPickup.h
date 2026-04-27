@@ -71,6 +71,9 @@ private:
 	bool bPlayerInRange = false;
 	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
 
+	bool IsPickupAllowed() const;
+	void ClearNearbyPlayer();
+
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,

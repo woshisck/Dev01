@@ -2,9 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GA_HitReaction.generated.h"
 
 class UAbilityTask_PlayMontageAndWait;
+class AEnemyCharacterBase;
 
 /**
  * GA_HitReaction
@@ -45,6 +47,10 @@ public:
 private:
     UPROPERTY()
     TObjectPtr<UAbilityTask_PlayMontageAndWait> MontageTask;
+
+    TWeakObjectPtr<AEnemyCharacterBase> MovementLockedEnemy;
+    TEnumAsByte<EMovementMode> PreviousMovementMode = MOVE_Walking;
+    bool bLockedEnemyMovement = false;
 
     UFUNCTION()
     void OnMontageCompleted();
