@@ -25,8 +25,14 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 
 	SetRenderTransform(FWidgetTransform());
 	SetRenderOpacity(1.f);
+	// 折叠动画把 InfoContainer 透明度降到 0、Visibility=Collapsed，必须两个都还原
+	bCollapsing   = false;
+	CollapseTimer = 0.f;
 	if (InfoContainer)
+	{
+		InfoContainer->SetRenderOpacity(1.f);
 		InfoContainer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
 
 	const UWeaponInfoDA* Info = Def->WeaponInfo;
 

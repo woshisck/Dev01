@@ -252,6 +252,14 @@ void AWeaponSpawner::ResetToAvailable()
 	if (WeaponInfoWidgetComp)
 		WeaponInfoWidgetComp->SetVisibility(false);
 
+	// 还原浮窗内部状态：折叠动画把 InfoContainer 透明度降到 0、Visibility=Collapsed，
+	// 必须重新调 SetWeaponDefinition 把 RenderOpacity/Visibility/RenderTransform 全部还原
+	if (WeaponInfoWidgetComp && WeaponDefinition)
+	{
+		if (UWeaponFloatWidget* FloatWidget = Cast<UWeaponFloatWidget>(WeaponInfoWidgetComp->GetWidget()))
+			FloatWidget->SetWeaponDefinition(WeaponDefinition);
+	}
+
 	// 还原网格材质
 	if (WeaponMesh)
 	{
