@@ -9,6 +9,7 @@ class UBackpackGridComponent;
 class APlayerCharacterBase;
 class UButton;
 class UImage;
+class UCanvasPanel;
 class UTextBlock;
 class URichTextBlock;
 class UDragDropOperation;
@@ -60,6 +61,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Backpack")
     TArray<TObjectPtr<URuneDataAsset>> AvailableRunes;
 
+    /**
+     * 切换只读预览模式：true = 禁止所有拖拽/旋转/抓取（用于 LootSelection 预览背包），
+     * false = 正常整理模式。
+     * NativeOnDeactivated 会自动复位为 false。
+     */
+    UFUNCTION(BlueprintCallable, Category = "Backpack")
+    void SetPreviewMode(bool bReadOnly);
+
+    UFUNCTION(BlueprintPure, Category = "Backpack")
+    bool IsPreviewMode() const { return bIsPreviewMode; }
+
     // =========================================================
     // 子 Widget 绑定
     // Designer 中放对应名称的 WBP 实例即可，C++ 自动绑定
@@ -85,6 +97,22 @@ public:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UImage> GrabbedRuneIcon;
 
+    /**
+     * 拖拽时显示完整 Shape 的画布（命名 "ShapePreviewCanvas"，UCanvasPanel 类型）。
+     * 若绑定，鼠标拖拽时会动态填充 N 个 cell UImage 显示完整 Shape，Pivot 跟随鼠标。
+     * 若未绑定，回退到 GrabbedRuneIcon 单图标显示（向后兼容）。
+     */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UCanvasPanel> ShapePreviewCanvas;
+
+    /**
+     * 操作提示浮窗（命名 "OperationHintWidget"，UWidget/Border/Canvas 任意类型）。
+     * 玩家抓起符文（bGrabbingRune=true）时显示；放下/取消/进入预览/战斗时隐藏。
+     * 内放 CommonRichTextBlock 提示按键，例：「<input action="..."/>移动 <input action="..."/>旋转」。
+     */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UWidget> OperationHintWidget;
+
     /** 出售按钮（命名 "SellButton"，C++ 自动绑定点击事件） */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UButton> SellButton;
@@ -92,6 +120,15 @@ public:
     /** 右上角关闭按钮（命名 "CloseButton"，点击关闭背包） */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UButton> CloseButton;
+
+    /**
+     * 结束预览按钮（命名 "EndPreviewButton"，UButton 类型）
+     * 仅在 bIsPreviewMode=true 时显示，与 CloseButton 互斥（同位置）。
+     * 点击 → DeactivateWidget → HUD 监听器回调 → LootSelection 恢复
+     */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UButton> EndPreviewButton;
+
 
     // ── 旧版详情面板（可选保留，新版统一用 RuneInfoCard） ──────────────
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -278,12 +315,6 @@ private:
     static constexpr float DirRepeatInitial = 0.30f;
     static constexpr float DirRepeatRate    = 0.10f;
 
-    // ── 长按计时（3s → 退回待放置区） ────────────────────────────────────
-    float     LongPressHoldTime = 0.f;
-    bool      bLongPressActive  = false;
-    FIntPoint LongPressCell     = FIntPoint(-1,-1);
-    static constexpr float LongPressDuration = 3.0f;
-
     // ── 坐标辅助（委托给子 Widget） ───────────────────────────────────────
     bool GetGridCellAtScreenPos(const FVector2D& AbsolutePos, int32& OutCol, int32& OutRow) const;
     bool GetPendingSlotAtScreenPos(const FVector2D& AbsPos, int32& OutIndex) const;
@@ -294,6 +325,20 @@ private:
     void SyncPendingFromPlayer();        // 打开时：Player->PendingRunes → PendingGrid
     void SyncPendingToPlayer();          // 关闭/修改后：PendingGrid → Player->PendingRunes
     void RefreshPendingGrid();           // 驱动 PendingGridWidget->RefreshSlots
+
+    /**
+     * 焦点切到主背包时清掉 pending 高亮 + 选择状态。
+     * @param bClearSelection true=同时清 PendingSelectedIdx（彻底转让焦点）。
+     *                        false=仅清光标视觉，保留待放置选择（用于 ClickCell 放置流程内部）。
+     */
+    void ClearPendingFocus(bool bClearSelection);
+
+    /** 根据当前抓取/选中状态显隐 OperationHintWidget */
+    void UpdateOperationHintVisibility();
+
+    /** UpdateOperationHintVisibility 缓存：避免每帧重复 SetVisibility */
+    bool bOperationHintVisible = false;
+
     void MovePendingCursor(int32 DCol, int32 DRow);
     void PendingGamepadConfirm();
     void PendingGamepadCancel();
@@ -306,8 +351,28 @@ private:
 
     // ── 旋转 ──────────────────────────────────────────────────────────────
     void RotateSelectedRune();
+
+    // ── 只读预览模式（LootSelection 期间预览背包用） ─────────────────────
+    bool bIsPreviewMode = false;
     void RotatePendingRune();
-    void SendGrabbedRuneToPending();
+
+    UFUNCTION()
+    void OnEndPreviewClicked();
+
+    // ── Shape 拖拽预览（Phase 2） ──────────────────────────────────────────
+    /** 拖拽开始：根据 Rune 构造 N 个 cell UImage 填充 ShapePreviewCanvas，AnchorCell 在旋转后 Shape 本地坐标 */
+    void ShowShapePreview(const FRuneInstance& Rune, FIntPoint AnchorCellInRotatedLocal,
+                          UTexture2D* IconTex, float CellPx);
+    /** 每帧调用：让 AnchorCell 中心对齐 ScreenAbsPos */
+    void UpdateShapePreviewPosition(const FGeometry& MyGeometry, FVector2D ScreenAbsPos);
+    /** 拖拽结束/取消：清掉所有 cell + 隐藏 */
+    void HideShapePreview();
+
+    UPROPERTY()
+    TArray<TObjectPtr<UImage>> ShapePreviewCells;
+    FIntPoint ShapePreviewAnchorCell = FIntPoint(0, 0);
+    float     ShapePreviewCellPx     = 64.f;
+    bool      bShapePreviewActive    = false;
 
     // ── 事件处理 ──────────────────────────────────────────────────────────
     UFUNCTION()

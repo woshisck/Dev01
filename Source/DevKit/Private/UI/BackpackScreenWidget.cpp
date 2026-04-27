@@ -16,9 +16,12 @@
 #include "Components/TextBlock.h"
 #include "Components/RichTextBlock.h"
 #include "Components/UniformGridPanel.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "InputCoreTypes.h"
 #include "UI/YogHUD.h"
 #include "GameModes/YogGameMode.h"
+#include "Tutorial/TutorialManager.h"
 
 // ============================================================
 //  内部辅助
@@ -80,6 +83,14 @@ void UBackpackScreenWidget::NativeConstruct()
 
     if (CloseButton)
         CloseButton->OnClicked.AddDynamic(this, &UBackpackScreenWidget::OnCloseButtonClicked);
+
+    if (EndPreviewButton)
+    {
+        EndPreviewButton->OnClicked.AddDynamic(this, &UBackpackScreenWidget::OnEndPreviewClicked);
+        EndPreviewButton->SetVisibility(ESlateVisibility::Collapsed);  // 默认隐藏，进入预览模式时由 SetPreviewMode 切到 Visible
+    }
+    // CloseButton 默认让 WBP Designer 设的 Visibility 生效（通常是 Visible），
+    // SetPreviewMode 会在切换时强制覆盖为 Visible/Collapsed
 
     if (BackpackGridWidget)
         BackpackGridWidget->OnHeatPhaseButtonClicked.AddDynamic(
@@ -340,9 +351,25 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
 
     if (RuneIdx >= 0)
     {
+        // 预览模式 / 战斗阶段：与战斗一致 — shake + 闪红光，不允许选中
+        if (IsInCombatPhase() || bIsPreviewMode)
+        {
+            if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
+            OnStatusMessage(bIsPreviewMode
+                ? NSLOCTEXT("Backpack", "PreviewLock", "预览模式：无法操作符文")
+                : NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
+            return;
+        }
         SelectedCell = Cell;
         SelectedRuneIndex = -1;
+        // 焦点彻底切到主背包：清 pending 黄框 + PendingSelectedIdx，避免 R 键仍旋转 pending
+        ClearPendingFocus(true);
         OnSelectionChanged();
+    }
+    else if (bIsPreviewMode)
+    {
+        // 预览模式：空格点击是"放置"操作（从 pending 放置 / 从列表放置），禁止
+        return;
     }
     else if (PendingSelectedIdx >= 0
         && PendingGrid.IsValidIndex(PendingSelectedIdx)
@@ -408,6 +435,7 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
 
 void UBackpackScreenWidget::RemoveRuneAtSelectedCell()
 {
+    if (bIsPreviewMode) return;  // 只读预览模式：禁止删除符文
     if (SelectedCell == FIntPoint(-1, -1)) return;
 
     UBackpackGridComponent* Backpack = GetBackpack();
@@ -479,6 +507,35 @@ void UBackpackScreenWidget::RefreshPendingGrid()
     PendingGridWidget->RefreshSlots(PendingGrid, CursorIdx, GrabbedIdx);
 }
 
+void UBackpackScreenWidget::ClearPendingFocus(bool bClearSelection)
+{
+    bool bDirty = false;
+    if (bCursorInPendingArea)
+    {
+        bCursorInPendingArea = false;
+        bDirty = true;
+    }
+    if (bClearSelection && PendingSelectedIdx >= 0)
+    {
+        PendingSelectedIdx = -1;
+        bDirty = true;
+    }
+    if (bDirty) RefreshPendingGrid();
+}
+
+void UBackpackScreenWidget::UpdateOperationHintVisibility()
+{
+    if (!OperationHintWidget) return;
+
+    // 抓取状态下显示按键提示；预览/战斗模式不应进入抓取状态，但保险起见再 guard 一次
+    const bool bShow = bGrabbingRune && !bIsPreviewMode && !IsInCombatPhase();
+    if (bShow == bOperationHintVisible) return;  // 缓存：避免每帧重复 SetVisibility
+    bOperationHintVisible = bShow;
+    OperationHintWidget->SetVisibility(bShow
+        ? ESlateVisibility::SelfHitTestInvisible
+        : ESlateVisibility::Collapsed);
+}
+
 // ============================================================
 //  CommonUI 生命周期
 // ============================================================
@@ -524,13 +581,29 @@ void UBackpackScreenWidget::NativeOnActivated()
 
     OnGridNeedsRefresh();
     OnSelectionChanged();
+
+    // Tutorial ③：第一次打开背包时弹窗（state guard 内部去重）
+    if (APlayerController* PC = GetOwningPlayer())
+        if (UGameInstance* GI = GetGameInstance())
+            if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
+                TM->TryBackpackTutorial(PC);
 }
 
 void UBackpackScreenWidget::NativeOnDeactivated()
 {
     SetVisibility(ESlateVisibility::Collapsed);
 
-    SyncPendingToPlayer();
+    // 预览模式：跳过 SyncPendingToPlayer（背包只读，无需写回数据）
+    // 但 Pause/Input/PauseEffect 拆解必须执行：
+    //   - EndPauseEffect 必须配对 NativeOnActivated 里的 BeginPauseEffect，否则 PausePopupCount 泄漏
+    //   - SetPause(false) / SetInputMode(GameOnly) 由调用方（LootSelection.ReactivateAfterPreview）随后再恢复
+    const bool bSkipDataSync = bIsPreviewMode;
+
+    if (!bSkipDataSync)
+    {
+        SyncPendingToPlayer();
+    }
+
     bCursorInPendingArea = false;
     bGrabbingFromPending = false;
     PendingGrabbedIdx    = -1;
@@ -554,6 +627,126 @@ void UBackpackScreenWidget::NativeOnDeactivated()
             HUD->EndPauseEffect();
 
     Super::NativeOnDeactivated();
+
+    // 统一走 SetPreviewMode(false) 触发 BP 事件 + 切换按钮显隐 + 清理状态
+    // 不再裸写 bIsPreviewMode = false（避免漏触发 OnPreviewModeChanged 和按钮复位）
+    SetPreviewMode(false);
+}
+
+void UBackpackScreenWidget::SetPreviewMode(bool bReadOnly)
+{
+    if (bIsPreviewMode == bReadOnly && !bReadOnly)
+    {
+        // 同状态切 false 时也允许执行（NativeOnDeactivated 兜底场景）
+    }
+    bIsPreviewMode = bReadOnly;
+    UE_LOG(LogTemp, Log, TEXT("[Backpack] SetPreviewMode(%s)"), bReadOnly ? TEXT("true") : TEXT("false"));
+
+    // 进入预览模式时清理所有可能导致"卡在抓取/拖拽中"的中间状态
+    if (bIsPreviewMode)
+    {
+        bGrabbingRune        = false;
+        bGrabbingFromPending = false;
+        bMouseDragging       = false;
+        GrabbedFromCell      = FIntPoint(-1, -1);
+        PendingGrabbedIdx    = -1;
+        PendingDragIndex     = -1;
+        PendingDragCol       = PendingDragRow = -1;
+        HoverCol = HoverRow  = -1;
+        MouseDragTex         = nullptr;
+        HideShapePreview();
+        ClearSelection();
+        OnGridNeedsRefresh();
+        RefreshPendingGrid();
+    }
+
+    // EndPreviewButton 与 CloseButton 互斥显隐 — 必须用 Visible 而非 SelfHitTestInvisible，
+    // 否则按钮本体不参与命中测试，OnClicked 不触发
+    if (EndPreviewButton)
+        EndPreviewButton->SetVisibility(bIsPreviewMode
+            ? ESlateVisibility::Visible
+            : ESlateVisibility::Collapsed);
+    if (CloseButton)
+        CloseButton->SetVisibility(bIsPreviewMode
+            ? ESlateVisibility::Collapsed
+            : ESlateVisibility::Visible);
+
+}
+
+void UBackpackScreenWidget::OnEndPreviewClicked()
+{
+    if (!bIsPreviewMode) return;
+    UE_LOG(LogTemp, Log, TEXT("[Backpack] OnEndPreviewClicked → DeactivateWidget"));
+    // DeactivateWidget → NativeOnDeactivated → HUD 监听器回调 LootSelection.ReactivateAfterPreview
+    DeactivateWidget();
+}
+
+// ============================================================
+//  Shape 拖拽预览（Phase 2）
+// ============================================================
+
+void UBackpackScreenWidget::ShowShapePreview(const FRuneInstance& Rune, FIntPoint AnchorCellInRotatedLocal,
+                                              UTexture2D* IconTex, float CellPx)
+{
+    if (!ShapePreviewCanvas) return;  // BindWidgetOptional：未绑定就回退到 GrabbedRuneIcon
+
+    HideShapePreview();
+
+    // 计算 N 次旋转后的 Shape（同 BackpackGridWidget 的渲染规约）
+    FRuneShape RotShape = Rune.Shape;
+    const int32 N = ((Rune.Rotation % 4) + 4) % 4;
+    for (int32 i = 0; i < N; i++)
+        RotShape = RotShape.Rotate90();
+
+    // 为每个 cell 创建 UImage
+    for (const FIntPoint& Cell : RotShape.Cells)
+    {
+        UImage* CellImg = NewObject<UImage>(this);
+        if (IconTex)
+            CellImg->SetBrushFromTexture(IconTex, false);
+        // pivot/anchor cell 不透明，其它 cell 半透明做视觉区分
+        const float Alpha = (Cell == AnchorCellInRotatedLocal) ? 1.0f : 0.65f;
+        CellImg->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, Alpha));
+
+        UPanelSlot* PSlot = ShapePreviewCanvas->AddChild(CellImg);
+        if (UCanvasPanelSlot* CSlot = Cast<UCanvasPanelSlot>(PSlot))
+        {
+            CSlot->SetAutoSize(false);
+            CSlot->SetPosition(FVector2D(Cell.X * CellPx, Cell.Y * CellPx));
+            CSlot->SetSize(FVector2D(CellPx, CellPx));
+        }
+        ShapePreviewCells.Add(CellImg);
+    }
+
+    ShapePreviewAnchorCell = AnchorCellInRotatedLocal;
+    ShapePreviewCellPx     = CellPx;
+    bShapePreviewActive    = true;
+    ShapePreviewCanvas->SetVisibility(ESlateVisibility::HitTestInvisible);
+}
+
+void UBackpackScreenWidget::UpdateShapePreviewPosition(const FGeometry& MyGeometry, FVector2D ScreenAbsPos)
+{
+    if (!bShapePreviewActive || !ShapePreviewCanvas) return;
+    const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(ScreenAbsPos);
+    // 让 anchor cell 的中心（不是左上角）对齐鼠标位置 — 视觉上 Pivot 跟手感觉更自然
+    const FVector2D AnchorOffset(
+        (ShapePreviewAnchorCell.X + 0.5f) * ShapePreviewCellPx,
+        (ShapePreviewAnchorCell.Y + 0.5f) * ShapePreviewCellPx);
+    FWidgetTransform T;
+    T.Translation = LocalPos - AnchorOffset;
+    ShapePreviewCanvas->SetRenderTransform(T);
+}
+
+void UBackpackScreenWidget::HideShapePreview()
+{
+    if (!ShapePreviewCanvas) return;
+    for (UImage* Img : ShapePreviewCells)
+    {
+        if (Img) ShapePreviewCanvas->RemoveChild(Img);
+    }
+    ShapePreviewCells.Reset();
+    ShapePreviewCanvas->SetVisibility(ESlateVisibility::Collapsed);
+    bShapePreviewActive = false;
 }
 
 // ============================================================
@@ -562,6 +755,7 @@ void UBackpackScreenWidget::NativeOnDeactivated()
 
 void UBackpackScreenWidget::OnSellButtonClicked()
 {
+    if (bIsPreviewMode) return;  // 只读预览模式：禁止出售
     if (SelectedCell == FIntPoint(-1, -1)) return;
     if (UBackpackGridComponent* Backpack = GetBackpack())
     {
@@ -620,8 +814,6 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
     {
         if (bGrabbingRune || bGrabbingFromPending)
         {
-            bLongPressActive  = false;
-            LongPressHoldTime = 0.f;
             GamepadCancel();
             return FReply::Handled();
         }
@@ -656,9 +848,12 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
                 RefreshPendingGrid();
                 OnSelectionChanged();
 
-                if (IsInCombatPhase())
+                // 预览模式 / 战斗阶段：弹消息 + 禁止 DetectDrag（pending 无 shake，主格子有）
+                if (IsInCombatPhase() || bIsPreviewMode)
                 {
-                    OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
+                    OnStatusMessage(bIsPreviewMode
+                        ? NSLOCTEXT("Backpack", "PreviewLock", "预览模式：无法操作符文")
+                        : NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
                     return FReply::Handled();
                 }
                 PendingDragIndex = PendingIdx;
@@ -668,6 +863,7 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
                 && PendingGrid.IsValidIndex(PendingSelectedIdx)
                 && PendingGrid[PendingSelectedIdx].RuneGuid.IsValid())
             {
+                if (bIsPreviewMode) return FReply::Handled();  // 预览模式：禁止 pending 内 swap
                 PendingGrid[PendingIdx]          = PendingGrid[PendingSelectedIdx];
                 PendingGrid[PendingSelectedIdx]  = FRuneInstance();
                 SyncPendingToPlayer();
@@ -691,12 +887,12 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
 
     const FIntPoint ClickCell(Col, Row);
 
+    // 焦点切到主背包：清 pending 黄框 + 待放置选择（鼠标路径不支持 click-to-place from pending）
+    ClearPendingFocus(true);
+
     // ── 已抓取状态下点击另一格：移动或互换 ──────────────────────────────────
     if (bGrabbingRune && ClickCell != GrabbedFromCell)
     {
-        bLongPressActive  = false;
-        LongPressHoldTime = 0.f;
-
         if (IsInCombatPhase())
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(GrabbedFromCell.X, GrabbedFromCell.Y);
@@ -772,8 +968,6 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
     {
         bGrabbingRune     = false;
         GrabbedFromCell   = FIntPoint(-1,-1);
-        bLongPressActive  = false;
-        LongPressHoldTime = 0.f;
         SelectedCell      = FIntPoint(-1,-1);
         OnSelectionChanged();
         return FReply::Handled();
@@ -785,23 +979,21 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         SelectedCell      = ClickCell;
         SelectedRuneIndex = -1;
         GamepadCursorCell = ClickCell;
+        OnSelectionChanged();
+
+        // 预览模式 / 战斗阶段：与战斗一致 — shake + 闪红光 + 状态提示，禁止抓取
+        if (IsInCombatPhase() || bIsPreviewMode)
+        {
+            if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
+            OnStatusMessage(bIsPreviewMode
+                ? NSLOCTEXT("Backpack", "PreviewLock", "预览模式：无法操作符文")
+                : NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
+            return FReply::Handled();
+        }
+
         bGrabbingRune     = true;
         GrabbedFromCell   = ClickCell;
         HoverCol = HoverRow = -1;
-        bLongPressActive  = true;
-        LongPressHoldTime = 0.f;
-        LongPressCell     = ClickCell;
-        OnSelectionChanged();
-
-        if (IsInCombatPhase())
-        {
-            bGrabbingRune    = false;
-            GrabbedFromCell  = FIntPoint(-1,-1);
-            bLongPressActive = false;
-            if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
-            OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
-            return FReply::Handled();
-        }
 
         PendingDragCol = Col;
         PendingDragRow = Row;
@@ -809,8 +1001,6 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
     }
     else
     {
-        bLongPressActive  = false;
-        LongPressHoldTime = 0.f;
         PendingDragCol    = PendingDragRow = -1;
         if (SelectedCell != FIntPoint(-1, -1) || SelectedRuneIndex >= 0)
         {
@@ -824,11 +1014,11 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
 
 void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
-    // 拖拽接管：清除点击抓取状态和长按计时
+    if (bIsPreviewMode) return;  // 只读预览模式：禁止拖拽
+
+    // 拖拽接管：清除点击抓取状态
     bGrabbingRune     = false;
     GrabbedFromCell   = FIntPoint(-1,-1);
-    bLongPressActive  = false;
-    LongPressHoldTime = 0.f;
 
     if (PendingDragIndex >= 0)
     {
@@ -853,6 +1043,18 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
             bMouseDragging  = true;
             MouseDragTex    = PendingRune.RuneConfig.RuneIcon;
             LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
+
+            // Phase 2: 显示完整 Shape 跟随鼠标，AnchorCell = Pivot 在旋转后 Shape 的位置
+            if (ShapePreviewCanvas && BackpackGridWidget)
+            {
+                const FIntPoint AnchorCell = PendingRune.Shape.GetPivotOffset(PendingRune.Rotation);
+                const FVector2D GridSize   = BackpackGridWidget->GetGridGeometry().GetLocalSize();
+                const int32 GW = (CachedBackpack.IsValid() && CachedBackpack->GridWidth > 0) ? CachedBackpack->GridWidth : 5;
+                const float CellPx = (GridSize.X > 0.f) ? (GridSize.X / GW) : 64.f;
+                ShowShapePreview(PendingRune, AnchorCell, MouseDragTex, CellPx);
+                // 首帧立即对位，避免出现在 (0,0) 一帧
+                UpdateShapePreviewPosition(InGeometry, InMouseEvent.GetScreenSpacePosition());
+            }
 
             PendingDragIndex = -1;
             OutOperation = DragOp;
@@ -888,6 +1090,19 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
     MouseDragTex    = PR.Rune.RuneConfig.RuneIcon;
     LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
 
+    // Phase 2: 主格子拖拽也显完整 Shape，AnchorCell = Pivot 在旋转后 Shape 的位置
+    // （与 pending 路径一致 — 用户决策 Q5：Pivot 原点对齐鼠标）
+    if (ShapePreviewCanvas && BackpackGridWidget)
+    {
+        const FIntPoint AnchorCell = PR.Rune.Shape.GetPivotOffset(PR.Rune.Rotation);
+        const FVector2D GridSize   = BackpackGridWidget->GetGridGeometry().GetLocalSize();
+        const int32 GW = (CachedBackpack.IsValid() && CachedBackpack->GridWidth > 0) ? CachedBackpack->GridWidth : 5;
+        const float CellPx = (GridSize.X > 0.f) ? (GridSize.X / GW) : 64.f;
+        ShowShapePreview(PR.Rune, AnchorCell, MouseDragTex, CellPx);
+        // 首帧立即对位，避免出现在 (0,0) 一帧
+        UpdateShapePreviewPosition(InGeometry, InMouseEvent.GetScreenSpacePosition());
+    }
+
     PendingDragCol = PendingDragRow = -1;
     OutOperation = DragOp;
 }
@@ -898,6 +1113,9 @@ bool UBackpackScreenWidget::NativeOnDragOver(const FGeometry& InGeometry, const 
         return false;
 
     LastMouseAbsPos = InDragDropEvent.GetScreenSpacePosition();
+
+    // Phase 2: 让完整 Shape 预览跟随鼠标
+    UpdateShapePreviewPosition(InGeometry, InDragDropEvent.GetScreenSpacePosition());
 
     int32 Col, Row;
     if (GetGridCellAtScreenPos(InDragDropEvent.GetScreenSpacePosition(), Col, Row))
@@ -920,9 +1138,16 @@ bool UBackpackScreenWidget::NativeOnDragOver(const FGeometry& InGeometry, const 
 
 bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
+    if (bIsPreviewMode)
+    {
+        HideShapePreview();  // 预览模式提早返回也要清理 Shape 预览
+        return false;
+    }
+
     bMouseDragging = false;
     MouseDragTex   = nullptr;
     HoverCol = HoverRow = -1;
+    HideShapePreview();  // Phase 2: 所有 Drop 路径统一在入口清掉 Shape 预览
 
     URuneDragDropOperation* RuneOp = Cast<URuneDragDropOperation>(InOperation);
     if (!RuneOp)
@@ -1139,6 +1364,7 @@ void UBackpackScreenWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDr
     MouseDragTex   = nullptr;
     HoverCol       = HoverRow       = -1;
     PendingDragCol = PendingDragRow = -1;
+    HideShapePreview();  // Phase 2: 拖拽取消（如 ESC / 右键）也清掉 Shape 预览
     OnGridNeedsRefresh();
 }
 
@@ -1192,6 +1418,8 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
 
+    UpdateOperationHintVisibility();
+
     if (GrabbedRuneIcon)
     {
         const UBackpackStyleDataAsset* Style = BackpackGridWidget ? BackpackGridWidget->StyleDA.Get() : nullptr;
@@ -1199,7 +1427,13 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
         const float HalfPx  = CellPx * 0.5f;
         const float FloatY  = FMath::Sin(GetWorld()->GetTimeSeconds() * 3.f) * 5.f;
 
-        if (bMouseDragging && MouseDragTex)
+        // Phase 2: 如果 ShapePreview 已激活（WBP 绑了 ShapePreviewCanvas），不再显示单图标 GrabbedRuneIcon，
+        // 避免拖拽时双图标叠加
+        if (bShapePreviewActive)
+        {
+            GrabbedRuneIcon->SetVisibility(ESlateVisibility::Collapsed);
+        }
+        else if (bMouseDragging && MouseDragTex)
         {
             GrabbedRuneIcon->SetBrushFromTexture(MouseDragTex, false);
             GrabbedRuneIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
@@ -1276,30 +1510,6 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
         else
         {
             GrabbedRuneIcon->SetVisibility(ESlateVisibility::Collapsed);
-        }
-    }
-
-    // ── 长按计时（3s → 符文退回待放置区） ───────────────────────────────────
-    if (bLongPressActive)
-    {
-        bool bMouseHeld = false;
-        if (APlayerController* PC = GetOwningPlayer())
-            bMouseHeld = PC->IsInputKeyDown(EKeys::LeftMouseButton);
-
-        if (!bMouseHeld || bMouseDragging)
-        {
-            bLongPressActive  = false;
-            LongPressHoldTime = 0.f;
-        }
-        else
-        {
-            LongPressHoldTime += InDeltaTime;
-            if (LongPressHoldTime >= LongPressDuration && !IsInCombatPhase())
-            {
-                bLongPressActive  = false;
-                LongPressHoldTime = 0.f;
-                SendGrabbedRuneToPending();
-            }
         }
     }
 
@@ -1500,6 +1710,8 @@ void UBackpackScreenWidget::MoveGamepadCursor(int32 DCol, int32 DRow)
 
 void UBackpackScreenWidget::GamepadConfirm()
 {
+    if (bIsPreviewMode) return;  // 只读预览模式：禁止抓取/放置
+
     // 从待放置区抓起后，在主格子落点
     if (bGrabbingFromPending)
     {
@@ -1694,6 +1906,8 @@ void UBackpackScreenWidget::MovePendingCursor(int32 DCol, int32 DRow)
 
 void UBackpackScreenWidget::PendingGamepadConfirm()
 {
+    if (bIsPreviewMode) return;  // 只读预览模式：禁止操作
+
     // 主格子抓取状态下进入待放置区：A 键将符文送回待放置槽
     if (bGrabbingRune)
     {
@@ -1794,6 +2008,8 @@ void UBackpackScreenWidget::PendingGamepadCancel()
 
 void UBackpackScreenWidget::RotateSelectedRune()
 {
+    if (bIsPreviewMode) return;  // 只读预览模式：禁止旋转
+
     UBackpackGridComponent* Backpack = GetBackpack();
     if (!Backpack) return;
 
@@ -1831,6 +2047,7 @@ void UBackpackScreenWidget::RotateSelectedRune()
 
 void UBackpackScreenWidget::RotatePendingRune()
 {
+    if (bIsPreviewMode) return;  // 只读预览模式：禁止旋转 pending 符文
     const int32 Idx = bCursorInPendingArea ? PendingCursorIdx : PendingSelectedIdx;
     if (!PendingGrid.IsValidIndex(Idx)) return;
     if (PendingGrid[Idx].RuneGuid == FGuid()) return; // 空格
@@ -1838,45 +2055,6 @@ void UBackpackScreenWidget::RotatePendingRune()
     PendingGrid[Idx].Rotation = (PendingGrid[Idx].Rotation + 1) % 4;
     SyncPendingToPlayer();
     RefreshPendingGrid();
-}
-
-void UBackpackScreenWidget::SendGrabbedRuneToPending()
-{
-    UBackpackGridComponent* Backpack = GetBackpack();
-    if (!Backpack) return;
-
-    const FIntPoint TargetCell = bGrabbingRune ? GrabbedFromCell : LongPressCell;
-    const int32 Idx = Backpack->GetRuneIndexAtCell(TargetCell);
-    if (Idx < 0) return;
-
-    const TArray<FPlacedRune>& Placed = Backpack->GetAllPlacedRunes();
-    if (!Placed.IsValidIndex(Idx)) return;
-    const FPlacedRune PR = Placed[Idx];
-
-    // 找第一个空格
-    int32 TargetSlot = -1;
-    for (int32 i = 0; i < PendingGrid.Num(); i++)
-        if (!PendingGrid[i].RuneGuid.IsValid()) { TargetSlot = i; break; }
-
-    if (TargetSlot < 0)
-    {
-        OnStatusMessage(NSLOCTEXT("Backpack", "PendingFull", "待放置区已满"));
-        return;
-    }
-
-    Backpack->RemoveRune(PR.Rune.RuneGuid);
-    PendingGrid[TargetSlot] = PR.Rune;
-    SyncPendingToPlayer();
-
-    bGrabbingRune      = false;
-    GrabbedFromCell    = FIntPoint(-1,-1);
-    SelectedCell       = FIntPoint(-1,-1);
-    PendingSelectedIdx = TargetSlot;
-    RefreshPendingGrid();
-    OnSelectionChanged();
-    OnStatusMessage(FText::Format(
-        NSLOCTEXT("Backpack", "UnplaceOK", "已取回：{0}"),
-        FText::FromName(PR.Rune.RuneConfig.RuneName)));
 }
 
 void UBackpackScreenWidget::UpdateTooltipForCell(int32 Col, int32 Row, const FVector2D& LocalPos)
