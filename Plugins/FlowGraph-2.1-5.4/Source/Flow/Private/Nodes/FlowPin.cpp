@@ -22,10 +22,25 @@
 // Pin Record
 
 #if !UE_BUILD_SHIPPING
-FString FPinRecord::NoActivations = TEXT("No activations");
-FString FPinRecord::PinActivations = TEXT("Pin activations");
-FString FPinRecord::ForcedActivation = TEXT(" (forced activation)");
-FString FPinRecord::PassThroughActivation = TEXT(" (pass-through activation)");
+FString FPinRecord::NoActivations()
+{
+	return FString(TEXT("No activations"));
+}
+
+FString FPinRecord::PinActivations()
+{
+	return FString(TEXT("Pin activations"));
+}
+
+FString FPinRecord::ForcedActivation()
+{
+	return FString(TEXT(" (forced activation)"));
+}
+
+FString FPinRecord::PassThroughActivation()
+{
+	return FString(TEXT(" (pass-through activation)"));
+}
 
 FPinRecord::FPinRecord()
 	: Time(0.0f)
@@ -54,14 +69,10 @@ FORCEINLINE FString FPinRecord::DoubleDigit(const int32 Number)
 //////////////////////////////////////////////////////////////////////////
 // Flow Pin
 
-TArray<FName> FFlowPin::FlowPinTypeEnumValuesWithoutSpaces;
-
-const FName FFlowPin::MetadataKey_SourceForOutputFlowPin = "SourceForOutputFlowPin";
-const FName FFlowPin::MetadataKey_DefaultForInputFlowPin = "DefaultForInputFlowPin";
-const FName FFlowPin::MetadataKey_FlowPinType = "FlowPinType";
-
 const TArray<FName>& FFlowPin::GetFlowPinTypeEnumValuesWithoutSpaces()
 {
+	static TArray<FName> FlowPinTypeEnumValuesWithoutSpaces;
+
 	if (FlowPinTypeEnumValuesWithoutSpaces.IsEmpty())
 	{
 		FlowPinTypeEnumValuesWithoutSpaces.Reserve(static_cast<int32>(EFlowPinType::Max));
@@ -201,35 +212,35 @@ void FFlowPin::TrySetStructSubCategoryObjectFromPinType()
 	}
 }
 
-const FName& FFlowPin::GetPinCategoryFromPinType(EFlowPinType FlowPinType)
+FName FFlowPin::GetPinCategoryFromPinType(EFlowPinType FlowPinType)
 {
 	FLOW_ASSERT_ENUM_MAX(EFlowPinType, 16);
 
 	switch (FlowPinType)
 	{
 		case EFlowPinType::Exec:
-			return FFlowPin::PC_Exec;
+			return FFlowPin::PC_Exec();
 
 		case EFlowPinType::Bool:
-			return FFlowPin::PC_Boolean;
+			return FFlowPin::PC_Boolean();
 
 		case EFlowPinType::Int:
-			return FFlowPin::PC_Int;
+			return FFlowPin::PC_Int();
 
 		case EFlowPinType::Float:
-			return FFlowPin::PC_Float;
+			return FFlowPin::PC_Float();
 
 		case EFlowPinType::Name:
-			return FFlowPin::PC_Name;
+			return FFlowPin::PC_Name();
 
 		case EFlowPinType::String:
-			return FFlowPin::PC_String;
+			return FFlowPin::PC_String();
 
 		case EFlowPinType::Text:
-			return FFlowPin::PC_Text;
+			return FFlowPin::PC_Text();
 
 		case EFlowPinType::Enum:
-			return FFlowPin::PC_Enum;
+			return FFlowPin::PC_Enum();
 
 		case EFlowPinType::Vector:
 		case EFlowPinType::Rotator:
@@ -237,13 +248,13 @@ const FName& FFlowPin::GetPinCategoryFromPinType(EFlowPinType FlowPinType)
 		case EFlowPinType::GameplayTag:
 		case EFlowPinType::GameplayTagContainer:
 		case EFlowPinType::InstancedStruct:
-			return FFlowPin::PC_Struct;
+			return FFlowPin::PC_Struct();
 
 		case EFlowPinType::Object:
-			return FFlowPin::PC_Object;
+			return FFlowPin::PC_Object();
 
 		case EFlowPinType::Class:
-			return FFlowPin::PC_Class;
+			return FFlowPin::PC_Class();
 
 		default:
 			{

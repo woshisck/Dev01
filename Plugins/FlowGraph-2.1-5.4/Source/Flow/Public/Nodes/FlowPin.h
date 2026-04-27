@@ -68,22 +68,22 @@ protected:
 public:
 
 	// PinCategory aliases for (a subset of) those defined in UEdGraphSchema_K2
-	static inline FName PC_Exec = TEXT("exec");
-	static inline FName PC_Boolean = TEXT("bool");
-	static inline FName PC_Byte = TEXT("byte");
-	static inline FName PC_Class = TEXT("class");
-	static inline FName PC_Int = TEXT("int");
-	static inline FName PC_Int64 = TEXT("int64");
-	static inline FName PC_Float = TEXT("float");
-	static inline FName PC_Double = TEXT("double");
-	static inline FName PC_Name = TEXT("name");
-	static inline FName PC_Object = TEXT("object");
-	static inline FName PC_String = TEXT("string");
-	static inline FName PC_Text = TEXT("text");
-	static inline FName PC_Struct = TEXT("struct");
-	static inline FName PC_Enum = TEXT("enum");
+	FORCEINLINE static FName PC_Exec() { return FName(TEXT("exec")); }
+	FORCEINLINE static FName PC_Boolean() { return FName(TEXT("bool")); }
+	FORCEINLINE static FName PC_Byte() { return FName(TEXT("byte")); }
+	FORCEINLINE static FName PC_Class() { return FName(TEXT("class")); }
+	FORCEINLINE static FName PC_Int() { return FName(TEXT("int")); }
+	FORCEINLINE static FName PC_Int64() { return FName(TEXT("int64")); }
+	FORCEINLINE static FName PC_Float() { return FName(TEXT("float")); }
+	FORCEINLINE static FName PC_Double() { return FName(TEXT("double")); }
+	FORCEINLINE static FName PC_Name() { return FName(TEXT("name")); }
+	FORCEINLINE static FName PC_Object() { return FName(TEXT("object")); }
+	FORCEINLINE static FName PC_String() { return FName(TEXT("string")); }
+	FORCEINLINE static FName PC_Text() { return FName(TEXT("text")); }
+	FORCEINLINE static FName PC_Struct() { return FName(TEXT("struct")); }
+	FORCEINLINE static FName PC_Enum() { return FName(TEXT("enum")); }
 
-	static inline FName AnyPinName = TEXT("AnyPinName");
+	FORCEINLINE static FName AnyPinName() { return FName(TEXT("AnyPinName")); }
 
 	FFlowPin()
 		: PinName(NAME_None)
@@ -208,7 +208,7 @@ public:
 
 	void SetPinType(const EFlowPinType InFlowPinType, UObject* SubCategoryObject = nullptr);
 	EFlowPinType GetPinType() const { return PinType; }
-	static const FName& GetPinCategoryFromPinType(EFlowPinType FlowPinType);
+	static FName GetPinCategoryFromPinType(EFlowPinType FlowPinType);
 	static const TArray<FName>& GetFlowPinTypeEnumValuesWithoutSpaces();
 
 	const TWeakObjectPtr<UObject>& GetPinSubCategoryObject() const { return PinSubCategoryObject; }
@@ -225,16 +225,16 @@ public:
 	// --
 
 	// PinCategory "trait" functions:
-	FORCEINLINE static bool IsExecPinCategory(const FName& PC) { return PC == PC_Exec; }
-	FORCEINLINE static bool IsDataPinCategory(const FName& PC) { return PC != PC_Exec; }
-	FORCEINLINE static bool IsBoolPinCategory(const FName& PC) { return PC == PC_Boolean; }
-	FORCEINLINE static bool IsIntPinCategory(const FName& PC) { return PC == PC_Byte || PC == PC_Int || PC == PC_Int64; }
-	FORCEINLINE static bool IsFloatPinCategory(const FName& PC) { return PC == PC_Double || PC == PC_Float; }
-	FORCEINLINE static bool IsEnumPinCategory(const FName& PC) { return PC == PC_Enum; }
-	FORCEINLINE static bool IsTextPinCategory(const FName& PC) { return PC == PC_Name || PC == PC_String || PC == PC_Text; }
-	FORCEINLINE static bool IsObjectPinCategory(const FName& PC) { return PC == PC_Object; }
-	FORCEINLINE static bool IsClassPinCategory(const FName& PC) { return PC == PC_Class; }	
-	FORCEINLINE static bool IsStructPinCategory(const FName& PC) { return PC == PC_Struct; }
+	FORCEINLINE static bool IsExecPinCategory(const FName& PC) { return PC == PC_Exec(); }
+	FORCEINLINE static bool IsDataPinCategory(const FName& PC) { return PC != PC_Exec(); }
+	FORCEINLINE static bool IsBoolPinCategory(const FName& PC) { return PC == PC_Boolean(); }
+	FORCEINLINE static bool IsIntPinCategory(const FName& PC) { return PC == PC_Byte() || PC == PC_Int() || PC == PC_Int64(); }
+	FORCEINLINE static bool IsFloatPinCategory(const FName& PC) { return PC == PC_Double() || PC == PC_Float(); }
+	FORCEINLINE static bool IsEnumPinCategory(const FName& PC) { return PC == PC_Enum(); }
+	FORCEINLINE static bool IsTextPinCategory(const FName& PC) { return PC == PC_Name() || PC == PC_String() || PC == PC_Text(); }
+	FORCEINLINE static bool IsObjectPinCategory(const FName& PC) { return PC == PC_Object(); }
+	FORCEINLINE static bool IsClassPinCategory(const FName& PC) { return PC == PC_Class(); }	
+	FORCEINLINE static bool IsStructPinCategory(const FName& PC) { return PC == PC_Struct(); }
 	// --
 
 	// IsConvertable trait functions:
@@ -257,7 +257,7 @@ public:
 	//   If a string value is given, it is interpreted as the Data Pin's name,
 	//   otherwise, the property's DisplayName (or lacking that, its authored name)
 	//   will be assumed to also be the Pin's name.
-	static const FName MetadataKey_SourceForOutputFlowPin;
+	FORCEINLINE static FName MetadataKey_SourceForOutputFlowPin() { return FName(TEXT("SourceForOutputFlowPin")); }
 
 	// DefaultForInputFlowPin
 	//   May be used on a non-FFlowDataPinProperty within a UFlowNode to bind the
@@ -272,7 +272,7 @@ public:
 	//   If a string value is given, it is interpreted as the Data Pin's name,
 	//   otherwise, the property's DisplayName (or lacking that, its authored name)
 	//   will be assumed to also be the Pin's name.
-	static const FName MetadataKey_DefaultForInputFlowPin;
+	FORCEINLINE static FName MetadataKey_DefaultForInputFlowPin() { return FName(TEXT("DefaultForInputFlowPin")); }
 
 	// FlowPinType
 	//   May be used on either a property (within a UFlowNode) or a USTRUCT declaration for
@@ -286,7 +286,7 @@ public:
 	//   that should be auto-generated when the struct is used as a property in a UFlowNode.
 	//
 	//   The string value of the metadata should exactly match a value in EFlowPinType
-	static const FName MetadataKey_FlowPinType;
+	FORCEINLINE static FName MetadataKey_FlowPinType() { return FName(TEXT("FlowPinType")); }
 	// --
 
 protected:
@@ -295,8 +295,6 @@ protected:
 
 private:
 
-	// Cached EFlowPinType values as FName, de-spaced, so they can be compared with FlowPinType metadata strings
-	static TArray<FName> FlowPinTypeEnumValuesWithoutSpaces;
 };
 
 USTRUCT()
@@ -390,10 +388,10 @@ struct FLOW_API FPinRecord
 	FString HumanReadableTime;
 	EFlowPinActivationType ActivationType;
 
-	static FString NoActivations;
-	static FString PinActivations;
-	static FString ForcedActivation;
-	static FString PassThroughActivation;
+	static FString NoActivations();
+	static FString PinActivations();
+	static FString ForcedActivation();
+	static FString PassThroughActivation();
 
 	FPinRecord();
 	FPinRecord(const double InTime, const EFlowPinActivationType InActivationType);

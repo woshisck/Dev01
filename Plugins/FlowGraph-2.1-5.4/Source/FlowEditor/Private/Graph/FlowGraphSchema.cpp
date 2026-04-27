@@ -395,7 +395,7 @@ bool UFlowGraphSchema::ArePinTypesCompatible(const FEdGraphPinType& Output, cons
 			return true;
 		}
 		
-		if ((Output.PinCategory == FFlowPin::PC_Object) || (Output.PinCategory == FFlowPin::PC_Struct) || (Output.PinCategory == FFlowPin::PC_Class))
+		if ((Output.PinCategory == FFlowPin::PC_Object()) || (Output.PinCategory == FFlowPin::PC_Struct()) || (Output.PinCategory == FFlowPin::PC_Class()))
 		{
 			// Subcategory mismatch, but the two could be castable
 			// Only allow a match if the input is a superclass of the output
@@ -405,7 +405,7 @@ bool UFlowGraphSchema::ArePinTypesCompatible(const FEdGraphPinType& Output, cons
 
 			if (OutputObject && InputObject)
 			{
-				if (Output.PinCategory == FFlowPin::PC_Struct)
+				if (Output.PinCategory == FFlowPin::PC_Struct())
 				{
 					return OutputObject->IsChildOf(InputObject) && FStructUtils::TheSameLayout(OutputObject, InputObject);
 				}
@@ -607,27 +607,27 @@ FLinearColor UFlowGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) c
 	{
 		return Settings->ExecutionPinTypeColor;
 	}
-	else if (PinCategory == FFlowPin::PC_Object)
+	else if (PinCategory == FFlowPin::PC_Object())
 	{
 		return Settings->ObjectPinTypeColor;
 	}
-	else if (PinCategory == FFlowPin::PC_Boolean)
+	else if (PinCategory == FFlowPin::PC_Boolean())
 	{
 		return Settings->BooleanPinTypeColor;
 	}
-	else if (PinCategory == FFlowPin::PC_Byte)
+	else if (PinCategory == FFlowPin::PC_Byte())
 	{
 		return Settings->BytePinTypeColor;
 	}
-	else if (PinCategory == FFlowPin::PC_Int)
+	else if (PinCategory == FFlowPin::PC_Int())
 	{
 		return Settings->IntPinTypeColor;
 	}
-	else if (PinCategory == FFlowPin::PC_Int64)
+	else if (PinCategory == FFlowPin::PC_Int64())
 	{
 		return Settings->Int64PinTypeColor;
 	}
-	else if (PinCategory == FFlowPin::PC_Struct)
+	else if (PinCategory == FFlowPin::PC_Struct())
 	{
 		if (PinType.PinSubCategoryObject == VectorStruct)
 		{
@@ -649,19 +649,19 @@ FLinearColor UFlowGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) c
 			return Settings->StructPinTypeColor;
 		}
 	}
-	else if (PinCategory == FFlowPin::PC_String)
+	else if (PinCategory == FFlowPin::PC_String())
 	{
 		return Settings->StringPinTypeColor;
 	}
-	else if (PinCategory == FFlowPin::PC_Text)
+	else if (PinCategory == FFlowPin::PC_Text())
 	{
 		return Settings->TextPinTypeColor;
 	}
-	else if (PinCategory == FFlowPin::PC_Name)
+	else if (PinCategory == FFlowPin::PC_Name())
 	{
 		return Settings->NamePinTypeColor;
 	}
-	else if (PinCategory == FFlowPin::PC_Class)
+	else if (PinCategory == FFlowPin::PC_Class())
 	{
 		return Settings->ClassPinTypeColor;
 	}

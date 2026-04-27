@@ -8,9 +8,13 @@
 #include "GameplayEffect.h"
 #include "TimerManager.h"
 
-// SetByCaller Tag：与现有伤害管线保持一致（GE_SlashWaveDamage 须配置同一 Tag 的 Modifier）
-static const FGameplayTag TAG_SlashActDamage =
-	FGameplayTag::RequestGameplayTag(FName("Attribute.ActDamage"));
+namespace
+{
+	FGameplayTag SlashActDamageTag()
+	{
+		return FGameplayTag::RequestGameplayTag(FName(TEXT("Attribute.ActDamage")));
+	}
+}
 
 ASlashWaveProjectile::ASlashWaveProjectile()
 {
@@ -105,7 +109,7 @@ void ASlashWaveProjectile::ApplyDamageTo(AActor* Target, const FVector& HitLocat
 	if (SpecHandle.IsValid())
 	{
 		// SetByCaller：GE_SlashWaveDamage 须配置 Attribute.ActDamage Modifier（Type=SetByCaller）
-		SpecHandle.Data->SetSetByCallerMagnitude(TAG_SlashActDamage, DamageMagnitude);
+		SpecHandle.Data->SetSetByCallerMagnitude(SlashActDamageTag(), DamageMagnitude);
 		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 	}
 

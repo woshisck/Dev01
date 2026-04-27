@@ -36,7 +36,9 @@ UFlowNodeBase::UFlowNodeBase(const FObjectInitializer& ObjectInitializer)
 	, bCanDelete(true)
 	, bCanDuplicate(true)
 	, bNodeDeprecated(false)
+#if WITH_EDITOR
 	, NodeDisplayStyle(FlowNodeStyle::Node)
+#endif
 	, NodeStyle(EFlowNodeStyle::Invalid)
 	, NodeColor(FLinearColor::Black)
 #endif

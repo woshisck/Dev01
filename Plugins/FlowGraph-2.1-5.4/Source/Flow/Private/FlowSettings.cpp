@@ -12,7 +12,7 @@ UFlowSettings::UFlowSettings(const FObjectInitializer& ObjectInitializer)
 	, bLogOnSignalDisabled(true)
 	, bLogOnSignalPassthrough(true)
 	, bUseAdaptiveNodeTitles(false)
-	, DefaultExpectedOwnerClass(UFlowComponent::StaticClass())
+	, DefaultExpectedOwnerClass(TEXT("/Script/Flow.FlowComponent"))
 {
 }
 

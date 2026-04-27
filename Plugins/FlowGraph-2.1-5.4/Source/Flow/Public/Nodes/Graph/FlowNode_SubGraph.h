@@ -18,8 +18,8 @@ class FLOW_API UFlowNode_SubGraph : public UFlowNode, public IFlowDataPinGenerat
 	friend class FFlowNode_SubGraphDetails;
 	friend class UFlowSubsystem;
 
-	static FFlowPin StartPin;
-	static FFlowPin FinishPin;
+	static FFlowPin StartPin();
+	static FFlowPin FinishPin();
 
 private:
 	UPROPERTY(EditAnywhere, Category = "Graph")

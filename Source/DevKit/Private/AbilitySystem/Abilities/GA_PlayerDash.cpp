@@ -26,8 +26,13 @@ static const ECollisionChannel EnemyChannel       = ECC_GameTraceChannel3;
 // ECC_GameTraceChannel5 = DashThrough（可穿越薄墙/家具，冲刺期间 Overlap）
 static const ECollisionChannel DashThroughChannel = ECC_GameTraceChannel5;
 
-// 充能系统注册键（与 PlayerCharacterBase::BeginPlay 的 RegisterSkill 保持一致）
-static const FName DashChargeTagName = TEXT("PlayerState.AbilityCast.Dash");
+namespace
+{
+	FGameplayTag DashChargeTag()
+	{
+		return FGameplayTag::RequestGameplayTag(FName(TEXT("PlayerState.AbilityCast.Dash")));
+	}
+}
 
 UGA_PlayerDash::UGA_PlayerDash()
 {
@@ -54,7 +59,7 @@ bool UGA_PlayerDash::CanActivateAbility(
 	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ActorInfo->AvatarActor.Get()))
 	{
 		if (Player->SkillChargeComponent &&
-			!Player->SkillChargeComponent->HasCharge(FGameplayTag::RequestGameplayTag(DashChargeTagName)))
+			!Player->SkillChargeComponent->HasCharge(DashChargeTag()))
 		{
 			return false;
 		}
@@ -122,7 +127,7 @@ void UGA_PlayerDash::ActivateAbility(
 	if (Player && Player->SkillChargeComponent)
 	{
 		Player->SkillChargeComponent->ConsumeCharge(
-			FGameplayTag::RequestGameplayTag(DashChargeTagName));
+			DashChargeTag());
 	}
 
 	// ── 2. 从 AbilityDA 读取蒙太奇（和 GA_MeleeAttack 一致的数据驱动方式）─────
@@ -478,7 +483,7 @@ void UGA_PlayerDash::PrintDashDebugInfo()
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActorFromActorInfo());
 	if (!Player || !Player->SkillChargeComponent) return;
 
-	const FGameplayTag DashTag  = FGameplayTag::RequestGameplayTag(DashChargeTagName);
+	const FGameplayTag DashTag  = DashChargeTag();
 	const int32 CurCharge       = Player->SkillChargeComponent->GetCurrentCharge(DashTag);
 	const int32 MaxCharge       = Player->SkillChargeComponent->GetMaxCharge(DashTag);
 	const float CDRemaining     = Player->SkillChargeComponent->GetCDRemaining(DashTag);

@@ -10,8 +10,13 @@
 #include "GameplayEffect.h"
 #include "TimerManager.h"
 
-static const FGameplayTag TAG_MusketActDamage =
-    FGameplayTag::RequestGameplayTag(FName("Attribute.ActDamage"));
+namespace
+{
+    FGameplayTag MusketActDamageTag()
+    {
+        return FGameplayTag::RequestGameplayTag(FName(TEXT("Attribute.ActDamage")));
+    }
+}
 
 AMusketBullet::AMusketBullet()
 {
@@ -97,7 +102,7 @@ void AMusketBullet::ApplyDamageTo(AActor* Target, const FVector& HitLocation)
 
     if (SpecHandle.IsValid())
     {
-        SpecHandle.Data->SetSetByCallerMagnitude(TAG_MusketActDamage, DamageMagnitude);
+        SpecHandle.Data->SetSetByCallerMagnitude(MusketActDamageTag(), DamageMagnitude);
         SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
     }
 

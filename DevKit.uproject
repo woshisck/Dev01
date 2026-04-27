@@ -77,16 +77,24 @@
 			"Enabled": true
 		},
 		{
+			"Name": "YogAnimSource",
+			"Enabled": true
+		},
+		{
+			"Name": "YogSFX",
+			"Enabled": true
+		},
+		{
 			"Name": "GameplayGraph",
 			"Enabled": true
 		},
 		{
 			"Name": "GameplayBehaviorSmartObjects",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "MassAI",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "MassEntity",
@@ -94,7 +102,7 @@
 		},
 		{
 			"Name": "MassGameplay",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "TargetingSystem",

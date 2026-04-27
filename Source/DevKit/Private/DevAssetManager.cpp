@@ -130,8 +130,6 @@ void UDevAssetManager::AddLoadedAsset(const UObject* Asset)
 
 void UDevAssetManager::StartInitialLoading()
 {
-	Super::StartInitialLoading();
-
 	SCOPED_BOOT_TIMING("UDevAssetManager::StartInitialLoading");
 
 	// This does all of the scanning, need to do this now even if loads are deferred

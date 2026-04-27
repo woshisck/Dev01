@@ -1,4 +1,5 @@
 #include "UI/WeaponFloatWidget.h"
+#include "UI/YogCommonRichTextBlock.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInfoDA.h"
 #include "Data/RuneDataAsset.h"
@@ -61,7 +62,11 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 	{
 		const bool bHas = Info && !Info->WeaponDescription.IsEmpty();
 		WeaponDescText->SetVisibility(bHas ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
-		if (bHas) WeaponDescText->SetText(Info->WeaponDescription);
+		if (bHas)
+		{
+			WeaponDescText->SetText(Info->WeaponDescription);
+			WeaponDescText->SetAutoWrapText(true);
+		}
 	}
 
 	// ── 子描述 ─────────────────────────────────
@@ -69,7 +74,11 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 	{
 		const bool bHas = Info && !Info->WeaponSubDescription.IsEmpty();
 		WeaponSubDescText->SetVisibility(bHas ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
-		if (bHas) WeaponSubDescText->SetText(Info->WeaponSubDescription);
+		if (bHas)
+		{
+			WeaponSubDescText->SetText(Info->WeaponSubDescription);
+			WeaponSubDescText->SetAutoWrapText(true);
+		}
 	}
 
 	// ── 激活区 ─────────────────────────────────

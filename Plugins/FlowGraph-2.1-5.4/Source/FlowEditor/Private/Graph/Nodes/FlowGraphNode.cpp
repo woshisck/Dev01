@@ -1043,11 +1043,11 @@ void UFlowGraphNode::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextO
 			const TArray<FPinRecord>& PinRecords = InspectedNodeInstance->GetPinRecords(Pin.PinName, Pin.Direction);
 			if (PinRecords.Num() == 0)
 			{
-				HoverTextOut.Append(FPinRecord::NoActivations);
+				HoverTextOut.Append(FPinRecord::NoActivations());
 			}
 			else
 			{
-				HoverTextOut.Append(FPinRecord::PinActivations);
+				HoverTextOut.Append(FPinRecord::PinActivations());
 				for (int32 i = 0; i < PinRecords.Num(); i++)
 				{
 					HoverTextOut.Append(LINE_TERMINATOR);
@@ -1058,10 +1058,10 @@ void UFlowGraphNode::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextO
 						case EFlowPinActivationType::Default:
 							break;
 						case EFlowPinActivationType::Forced:
-							HoverTextOut.Append(FPinRecord::ForcedActivation);
+							HoverTextOut.Append(FPinRecord::ForcedActivation());
 							break;
 						case EFlowPinActivationType::PassThrough:
-							HoverTextOut.Append(FPinRecord::PassThroughActivation);
+							HoverTextOut.Append(FPinRecord::PassThroughActivation());
 							break;
 						default: ;
 					}
@@ -1071,7 +1071,7 @@ void UFlowGraphNode::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextO
 	}
 }
 
-const FName& UFlowGraphNode::GetPinCategoryFromFlowPin(const FFlowPin& FlowPin)
+FName UFlowGraphNode::GetPinCategoryFromFlowPin(const FFlowPin& FlowPin)
 {
 	return FFlowPin::GetPinCategoryFromPinType(FlowPin.GetPinType());
 }

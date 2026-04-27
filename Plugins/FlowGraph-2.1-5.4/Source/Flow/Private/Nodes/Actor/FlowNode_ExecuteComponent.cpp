@@ -387,15 +387,17 @@ void UFlowNode_ExecuteComponent::RefreshPins()
 	if (const IFlowContextPinSupplierInterface* ContextPinSupplierInterface = Cast<IFlowContextPinSupplierInterface>(ExpectedComponent))
 	{
 		const TArray<FFlowPin> NewInputPins = ContextPinSupplierInterface->GetContextInputs();
-		bChangedPins = RebuildPinArray(NewInputPins, InputPins, DefaultInputPin) || bChangedPins;
+		bChangedPins = RebuildPinArray(NewInputPins, InputPins, DefaultInputPin()) || bChangedPins;
 
 		const TArray<FFlowPin> NewOutputPins = ContextPinSupplierInterface->GetContextOutputs();
-		bChangedPins = RebuildPinArray(NewOutputPins, OutputPins, DefaultOutputPin) || bChangedPins;
+		bChangedPins = RebuildPinArray(NewOutputPins, OutputPins, DefaultOutputPin()) || bChangedPins;
 	}
 	else
 	{
-		bChangedPins = RebuildPinArray(TArray<FName>(&DefaultInputPin.PinName, 1), InputPins, DefaultInputPin) || bChangedPins;
-		bChangedPins = RebuildPinArray(TArray<FName>(&DefaultOutputPin.PinName, 1), OutputPins, DefaultOutputPin) || bChangedPins;
+		const FFlowPin InputPin = DefaultInputPin();
+		const FFlowPin OutputPin = DefaultOutputPin();
+		bChangedPins = RebuildPinArray(TArray<FName>(&InputPin.PinName, 1), InputPins, InputPin) || bChangedPins;
+		bChangedPins = RebuildPinArray(TArray<FName>(&OutputPin.PinName, 1), OutputPins, OutputPin) || bChangedPins;
 	}
 
 	if (bChangedPins)

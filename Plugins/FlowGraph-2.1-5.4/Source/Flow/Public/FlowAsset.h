@@ -102,8 +102,8 @@ public:
 public:
 	FSimpleDelegate OnDetailsRefreshRequested;
 
-	static FString ValidationError_NodeClassNotAllowed;
-	static FString ValidationError_NullNodeInstance;
+	static FString ValidationError_NodeClassNotAllowed();
+	static FString ValidationError_NullNodeInstance();
 
 private:
 	UPROPERTY()
@@ -422,7 +422,7 @@ public:
 // Expected Owner Class support (for use with CallOwnerFunction nodes)
 
 public:
-	UClass* GetExpectedOwnerClass() const { return ExpectedOwnerClass; }
+	UClass* GetExpectedOwnerClass() const;
 
 protected:
 	// Expects to be owned (at runtime) by an object with this class (or one of its subclasses)

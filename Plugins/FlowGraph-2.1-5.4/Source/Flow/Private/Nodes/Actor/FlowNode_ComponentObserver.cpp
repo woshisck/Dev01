@@ -35,7 +35,7 @@ void UFlowNode_ComponentObserver::ExecuteInput(const FName& PinName)
 	}
 	else
 	{
-		LogError(MissingIdentityTag);
+		LogError(MissingIdentityTag());
 	}
 }
 
@@ -159,7 +159,7 @@ EDataValidationResult UFlowNode_ComponentObserver::ValidateNode()
 {
 	if (IdentityTags.IsEmpty())
 	{
-		ValidationLog.Error<UFlowNode>(*UFlowNode::MissingIdentityTag, this);
+		ValidationLog.Error<UFlowNode>(*UFlowNode::MissingIdentityTag(), this);
 		return EDataValidationResult::Invalid;
 	}
 
@@ -170,7 +170,7 @@ FString UFlowNode_ComponentObserver::GetStatusString() const
 {
 	if (ActivationState == EFlowNodeState::Active && RegisteredActors.Num() == 0)
 	{
-		return NoActorsFound;
+		return NoActorsFound();
 	}
 
 	return FString();

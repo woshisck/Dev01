@@ -24,7 +24,7 @@ UFlowNode_ExecutionMultiGate::UFlowNode_ExecutionMultiGate(const FObjectInitiali
 
 void UFlowNode_ExecutionMultiGate::ExecuteInput(const FName& PinName)
 {
-	if (PinName == DefaultInputPin.PinName)
+	if (PinName == DefaultInputPin().PinName)
 	{
 		if (Completed.Num() == 0)
 		{

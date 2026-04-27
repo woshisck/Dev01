@@ -62,9 +62,4 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, Category = "AimArc")
     TObjectPtr<UMaterialInstanceDynamic> DynMaterial;
-
-private:
-    static const FName ParamHalfAngle;
-    static const FName ParamArcRadius;
-    static const FName ParamColor;
 };

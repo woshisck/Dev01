@@ -19,13 +19,35 @@
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 
-FFlowPin UFlowNode::DefaultInputPin(TEXT("In"));
-FFlowPin UFlowNode::DefaultOutputPin(TEXT("Out"));
+FFlowPin UFlowNode::DefaultInputPin()
+{
+	return FFlowPin(FName(TEXT("In")));
+}
 
-FString UFlowNode::MissingIdentityTag = TEXT("Missing Identity Tag");
-FString UFlowNode::MissingNotifyTag = TEXT("Missing Notify Tag");
-FString UFlowNode::MissingClass = TEXT("Missing class");
-FString UFlowNode::NoActorsFound = TEXT("No actors found");
+FFlowPin UFlowNode::DefaultOutputPin()
+{
+	return FFlowPin(FName(TEXT("Out")));
+}
+
+FString UFlowNode::MissingIdentityTag()
+{
+	return FString(TEXT("Missing Identity Tag"));
+}
+
+FString UFlowNode::MissingNotifyTag()
+{
+	return FString(TEXT("Missing Notify Tag"));
+}
+
+FString UFlowNode::MissingClass()
+{
+	return FString(TEXT("Missing class"));
+}
+
+FString UFlowNode::NoActorsFound()
+{
+	return FString(TEXT("No actors found"));
+}
 
 UFlowNode::UFlowNode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -39,8 +61,8 @@ UFlowNode::UFlowNode(const FObjectInitializer& ObjectInitializer)
 	NodeDisplayStyle = FlowNodeStyle::Default;
 #endif
 
-	InputPins = {DefaultInputPin};
-	OutputPins = {DefaultOutputPin};
+	InputPins = {DefaultInputPin()};
+	OutputPins = {DefaultOutputPin()};
 }
 
 #if WITH_EDITOR
@@ -1019,22 +1041,22 @@ TArray<FPinRecord> UFlowNode::GetPinRecords(const FName& PinName, const EEdGraph
 
 FString UFlowNode::GetIdentityTagDescription(const FGameplayTag& Tag)
 {
-	return Tag.IsValid() ? Tag.ToString() : MissingIdentityTag;
+	return Tag.IsValid() ? Tag.ToString() : MissingIdentityTag();
 }
 
 FString UFlowNode::GetIdentityTagsDescription(const FGameplayTagContainer& Tags)
 {
-	return Tags.IsEmpty() ? MissingIdentityTag : FString::JoinBy(Tags, LINE_TERMINATOR, [](const FGameplayTag& Tag) { return Tag.ToString(); });
+	return Tags.IsEmpty() ? MissingIdentityTag() : FString::JoinBy(Tags, LINE_TERMINATOR, [](const FGameplayTag& Tag) { return Tag.ToString(); });
 }
 
 FString UFlowNode::GetNotifyTagsDescription(const FGameplayTagContainer& Tags)
 {
-	return Tags.IsEmpty() ? MissingNotifyTag : FString::JoinBy(Tags, LINE_TERMINATOR, [](const FGameplayTag& Tag) { return Tag.ToString(); });
+	return Tags.IsEmpty() ? MissingNotifyTag() : FString::JoinBy(Tags, LINE_TERMINATOR, [](const FGameplayTag& Tag) { return Tag.ToString(); });
 }
 
 FString UFlowNode::GetClassDescription(const TSubclassOf<UObject> Class)
 {
-	return Class ? Class->GetName() : MissingClass;
+	return Class ? Class->GetName() : MissingClass();
 }
 
 FString UFlowNode::GetProgressAsString(const float Value)

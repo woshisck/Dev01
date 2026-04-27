@@ -9,17 +9,13 @@
 
 #define LOCTEXT_NAMESPACE "Tutorial"
 
-// 旧两段流 EventID（保留兼容）
-static const FName EventID_WeaponTutorial    = "WeaponTutorial";
-static const FName EventID_PostCombatTutorial = "PostCombatTutorial";
-
-// 新四段流 EventID（与 UTutorialRegistryDA::Entries 的 Key 一字不差）
-// EventID_WeaponPickup 由 LevelFlow + LENode_ShowTutorial 直接引用裸字符串 "tutorial_weapon_pickup"，
-// 此处保留作为单点真相，避免拼写漂移
-static const FName EventID_WeaponPickup    = "tutorial_weapon_pickup";
-static const FName EventID_FirstRune       = "tutorial_first_rune";
-static const FName EventID_Backpack        = "tutorial_backpack";
-static const FName EventID_ActivationZone  = "tutorial_activation_zone";
+namespace
+{
+	FName TutorialEventID(const TCHAR* EventID)
+	{
+		return FName(EventID);
+	}
+}
 
 // ============================================================
 //  Subsystem 生命周期
@@ -164,7 +160,7 @@ void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase
 	TArray<FTutorialPage> PagesToShow;
 	if (Registry)
 	{
-		if (const TArray<FTutorialPage>* RegisteredPages = Registry->FindPages(EventID_WeaponTutorial))
+		if (const TArray<FTutorialPage>* RegisteredPages = Registry->FindPages(TutorialEventID(TEXT("WeaponTutorial"))))
 		{
 			PagesToShow = *RegisteredPages;
 		}
@@ -198,7 +194,7 @@ void UTutorialManager::DoShowPostCombatPopup(TWeakObjectPtr<AYogPlayerController
 	TArray<FTutorialPage> PagesToShow;
 	if (Registry)
 	{
-		if (const TArray<FTutorialPage>* RegisteredPages = Registry->FindPages(EventID_PostCombatTutorial))
+		if (const TArray<FTutorialPage>* RegisteredPages = Registry->FindPages(TutorialEventID(TEXT("PostCombatTutorial"))))
 		{
 			PagesToShow = *RegisteredPages;
 		}
@@ -234,7 +230,7 @@ void UTutorialManager::TryFirstRuneTutorial(APlayerController* PC)
 	if (!PopupWidget.IsValid() || !PC) return;
 
 	// slow-mo 期间触发，不强暂停（避免打断关卡结束运镜）
-	if (ShowByEventID(EventID_FirstRune, PC, /*bPauseGame=*/false))
+	if (ShowByEventID(TutorialEventID(TEXT("tutorial_first_rune")), PC, /*bPauseGame=*/false))
 	{
 		State = ETutorialState::NeedBackpackTutorial;
 		SaveState();
@@ -248,7 +244,7 @@ void UTutorialManager::TryBackpackTutorial(APlayerController* PC)
 	if (!PopupWidget.IsValid() || !PC) return;
 
 	// 玩家在看背包 UI（已是暂停状态），bPauseGame 影响不大；保持 true 与 UI 暂停一致
-	if (ShowByEventID(EventID_Backpack, PC, /*bPauseGame=*/true))
+	if (ShowByEventID(TutorialEventID(TEXT("tutorial_backpack")), PC, /*bPauseGame=*/true))
 	{
 		State = ETutorialState::NeedHeatPhaseTutorial;
 		SaveState();
@@ -262,7 +258,7 @@ void UTutorialManager::TryHeatPhaseTutorial(APlayerController* PC)
 	if (!PopupWidget.IsValid() || !PC) return;
 
 	// 战斗中触发，不暂停（信息浮窗）
-	if (ShowByEventID(EventID_ActivationZone, PC, /*bPauseGame=*/false))
+	if (ShowByEventID(TutorialEventID(TEXT("tutorial_activation_zone")), PC, /*bPauseGame=*/false))
 	{
 		State = ETutorialState::Completed;
 		SaveState();

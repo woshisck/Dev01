@@ -4,10 +4,6 @@
 #include "Components/DecalComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
-const FName AYogAimArcActor::ParamHalfAngle  = FName("HalfAngle");
-const FName AYogAimArcActor::ParamArcRadius  = FName("ArcRadius");
-const FName AYogAimArcActor::ParamColor      = FName("Color");
-
 AYogAimArcActor::AYogAimArcActor()
 {
     PrimaryActorTick.bCanEverTick = false;
@@ -38,15 +34,15 @@ void AYogAimArcActor::UpdateArc(float HalfAngleDeg, float RadiusCm)
     // 调整 Decal 大小以覆盖扇形范围（Y/Z = 半径）
     ArcDecal->DecalSize = FVector(128.f, RadiusCm, RadiusCm);
 
-    DynMaterial->SetScalarParameterValue(ParamHalfAngle, HalfAngleDeg);
-    DynMaterial->SetScalarParameterValue(ParamArcRadius, RadiusCm);
+    DynMaterial->SetScalarParameterValue(FName(TEXT("HalfAngle")), HalfAngleDeg);
+    DynMaterial->SetScalarParameterValue(FName(TEXT("ArcRadius")), RadiusCm);
 }
 
 void AYogAimArcActor::SetArcColor(FLinearColor Color)
 {
     if (DynMaterial)
     {
-        DynMaterial->SetVectorParameterValue(ParamColor, Color);
+        DynMaterial->SetVectorParameterValue(FName(TEXT("Color")), Color);
     }
 }
 

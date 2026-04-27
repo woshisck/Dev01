@@ -8,8 +8,13 @@
 #include "TimerManager.h"
 #include "Character/EnemyCharacterBase.h"
 
-static const FGameplayTag TAG_DataDamage =
-	FGameplayTag::RequestGameplayTag(FName("Data.Damage"), false);
+namespace
+{
+	FGameplayTag DataDamageTag()
+	{
+		return FGameplayTag::RequestGameplayTag(FName(TEXT("Data.Damage")), false);
+	}
+}
 
 ABFAreaDamageZone::ABFAreaDamageZone()
 {
@@ -114,9 +119,10 @@ void ABFAreaDamageZone::ApplyDamageTo(AActor* Target)
 	FGameplayEffectSpecHandle SpecHandle =
 		SourceASC->MakeOutgoingSpec(DamageEffectClass, 1.f, CtxHandle);
 
-	if (SpecHandle.IsValid() && TAG_DataDamage.IsValid())
+	const FGameplayTag DamageTag = DataDamageTag();
+	if (SpecHandle.IsValid() && DamageTag.IsValid())
 	{
-		SpecHandle.Data->SetSetByCallerMagnitude(TAG_DataDamage, -DamageMagnitude);
+		SpecHandle.Data->SetSetByCallerMagnitude(DamageTag, -DamageMagnitude);
 		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 	}
 }

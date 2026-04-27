@@ -2,6 +2,7 @@
 
 #include "FlowTags.h"
 
+#if WITH_EDITOR
 UE_DEFINE_GAMEPLAY_TAG(FlowNodeStyle::CategoryName, "Flow.NodeStyle");
 UE_DEFINE_GAMEPLAY_TAG(FlowNodeStyle::Custom, "Flow.NodeStyle.Custom");
 
@@ -20,3 +21,4 @@ UE_DEFINE_GAMEPLAY_TAG(FlowNodeStyle::AddOn, "Flow.NodeStyle.AddOn");
 UE_DEFINE_GAMEPLAY_TAG(FlowNodeStyle::AddOn_PerSpawnedActor, "Flow.NodeStyle.AddOn.PerSpawnedActor");
 UE_DEFINE_GAMEPLAY_TAG(FlowNodeStyle::AddOn_Predicate, "Flow.NodeStyle.AddOn.Predicate");
 UE_DEFINE_GAMEPLAY_TAG(FlowNodeStyle::AddOn_Predicate_Composite, "Flow.NodeStyle.AddOn.Predicate.Composite");
+#endif

@@ -13,6 +13,7 @@ class UCanvasPanel;
 class UVerticalBox;
 class UWidget;
 class UCommonRichTextBlock;
+class UYogCommonRichTextBlock;
 class UWeaponDefinition;
 struct FRuneShape;
 
@@ -20,15 +21,15 @@ struct FRuneShape;
  * 武器拾取浮窗 Widget — 纯信息展示，飞行动画由 WeaponThumbnailFlyWidget 负责。
  *
  * WBP 需命名以下控件（全部 BindWidgetOptional）：
- *   WeaponThumbnail   Image        武器缩略图
- *   InfoContainer     Widget       包裹名称/描述/符文的容器
- *   WeaponNameText    TextBlock    武器名称
- *   WeaponDescText    TextBlock    武器描述（空时自动隐藏）
- *   WeaponSubDescText TextBlock    武器子描述
- *   ZoneGrid1/2/3     CanvasPanel  激活区点阵（建议 60×60）
- *   Zone1Image/2/3    Image        激活区图像覆盖（提供时替代点阵）
- *   RuneListBox       VerticalBox  初始符文列表（C++ 动态填充）
- *   PickupHintText    CommonRichTextBlock  按键拾取提示（如 `按 <input action="Interact"/> 拾取武器`）
+ *   WeaponThumbnail   Image                  武器缩略图
+ *   InfoContainer     Widget                 包裹名称/描述/符文的容器
+ *   WeaponNameText    TextBlock              武器名称
+ *   WeaponDescText    YogCommonRichTextBlock 武器描述（空时自动隐藏；支持 <input action="X"/> 图标）
+ *   WeaponSubDescText YogCommonRichTextBlock 武器子描述（同上）
+ *   ZoneGrid1/2/3     CanvasPanel            激活区点阵（建议 60×60）
+ *   Zone1Image/2/3    Image                  激活区图像覆盖（提供时替代点阵）
+ *   RuneListBox       VerticalBox            初始符文列表（C++ 动态填充）
+ *   PickupHintText    YogCommonRichTextBlock 按键拾取提示（如 `按 <input action="Interact"/> 拾取武器`）
  */
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UWeaponFloatWidget : public UUserWidget
@@ -61,10 +62,10 @@ protected:
 	TObjectPtr<UTextBlock> WeaponNameText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> WeaponDescText;
+	TObjectPtr<UYogCommonRichTextBlock> WeaponDescText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> WeaponSubDescText;
+	TObjectPtr<UYogCommonRichTextBlock> WeaponSubDescText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponFloat", meta = (ClampMin = "20"))
 	float ZoneGridSize = 60.f;
@@ -90,7 +91,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UVerticalBox> RuneListBox;
 
-	/** 拾取按键提示文字（CommonRichTextBlock，DA 可写 <input action="Interact"/> 显示按键图标） */
+	/** 拾取按键提示文字（支持 <input action="Interact"/> 显示按键图标） */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UCommonRichTextBlock> PickupHintText;
 

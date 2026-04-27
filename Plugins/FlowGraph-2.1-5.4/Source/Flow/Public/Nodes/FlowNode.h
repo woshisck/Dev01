@@ -90,8 +90,8 @@ protected:
 // All created pins (default, class-specific and added by user)
 
 public:
-	static FFlowPin DefaultInputPin;
-	static FFlowPin DefaultOutputPin;
+	static FFlowPin DefaultInputPin();
+	static FFlowPin DefaultOutputPin();
 
 protected:
 	// Class-specific and user-added inputs
@@ -298,10 +298,10 @@ protected:
 // Debugger
 
 protected:
-	static FString MissingIdentityTag;
-	static FString MissingNotifyTag;
-	static FString MissingClass;
-	static FString NoActorsFound;
+	static FString MissingIdentityTag();
+	static FString MissingNotifyTag();
+	static FString MissingClass();
+	static FString NoActorsFound();
 
 //////////////////////////////////////////////////////////////////////////
 // Executing node instance

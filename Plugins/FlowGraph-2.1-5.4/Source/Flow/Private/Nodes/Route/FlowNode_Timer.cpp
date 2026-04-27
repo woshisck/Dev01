@@ -10,7 +10,10 @@
 
 #define LOCTEXT_NAMESPACE "FlowNode_Timer"
 
-FName UFlowNode_Timer::INPIN_CompletionTime;
+FName UFlowNode_Timer::CompletionTimePinName()
+{
+	return GET_MEMBER_NAME_CHECKED(UFlowNode_Timer, CompletionTime);
+}
 
 UFlowNode_Timer::UFlowNode_Timer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -34,7 +37,6 @@ UFlowNode_Timer::UFlowNode_Timer(const FObjectInitializer& ObjectInitializer)
 	OutputPins.Add(FFlowPin(TEXT("Step")));
 	OutputPins.Add(FFlowPin(TEXT("Skipped")));
 
-	INPIN_CompletionTime = GET_MEMBER_NAME_CHECKED(UFlowNode_Timer, CompletionTime);
 }
 
 void UFlowNode_Timer::InitializeInstance()
@@ -107,7 +109,7 @@ void UFlowNode_Timer::Restart()
 float UFlowNode_Timer::ResolveCompletionTime() const
 {
 	// Get the CompletionTime from either the default (property) or the data pin (if connected)
-	FFlowDataPinResult_Float CompletionTimeResult = TryResolveDataPinAsFloat(INPIN_CompletionTime);
+	FFlowDataPinResult_Float CompletionTimeResult = TryResolveDataPinAsFloat(CompletionTimePinName());
 
 	if (CompletionTimeResult.Result == EFlowDataPinResolveResult::FailedMissingPin)
 	{
@@ -196,7 +198,7 @@ void UFlowNode_Timer::OnLoad_Implementation()
 void UFlowNode_Timer::UpdateNodeConfigText_Implementation()
 {
 	constexpr bool bErrorIfInputPinNotFound = false;
-	const bool bIsInputConnected = IsInputConnected(INPIN_CompletionTime);
+	const bool bIsInputConnected = IsInputConnected(CompletionTimePinName());
 
 	if (bIsInputConnected)
 	{

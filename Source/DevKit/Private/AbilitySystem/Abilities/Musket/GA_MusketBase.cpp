@@ -13,9 +13,13 @@
 #include "GameFramework/Character.h"
 #include "AbilitySystemBlueprintLibrary.h"
 
-static const FGameplayTag TAG_CueMusketFire       = FGameplayTag::RequestGameplayTag(FName("GameplayCue.Musket.Fire"));
-static const FGameplayTag TAG_CueMusketReload     = FGameplayTag::RequestGameplayTag(FName("GameplayCue.Musket.Reload"));
-static const FGameplayTag TAG_CueMusketChargeFull = FGameplayTag::RequestGameplayTag(FName("GameplayCue.Musket.ChargeFull"));
+namespace
+{
+	FGameplayTag MusketCueTag(const TCHAR* TagName)
+	{
+		return FGameplayTag::RequestGameplayTag(FName(TagName));
+	}
+}
 
 UGA_MusketBase::UGA_MusketBase()
 {
@@ -164,7 +168,7 @@ void UGA_MusketBase::ExecuteFireCue()
     if (!ASC) return;
     FGameplayCueParameters P;
     P.Instigator = CachedCharacter;
-    ASC->ExecuteGameplayCue(TAG_CueMusketFire, P);
+    ASC->ExecuteGameplayCue(MusketCueTag(TEXT("GameplayCue.Musket.Fire")), P);
 }
 
 void UGA_MusketBase::ExecuteReloadCue()
@@ -173,7 +177,7 @@ void UGA_MusketBase::ExecuteReloadCue()
     if (!ASC) return;
     FGameplayCueParameters P;
     P.Instigator = CachedCharacter;
-    ASC->ExecuteGameplayCue(TAG_CueMusketReload, P);
+    ASC->ExecuteGameplayCue(MusketCueTag(TEXT("GameplayCue.Musket.Reload")), P);
 }
 
 void UGA_MusketBase::ExecuteChargeFullCue()
@@ -182,7 +186,7 @@ void UGA_MusketBase::ExecuteChargeFullCue()
     if (!ASC) return;
     FGameplayCueParameters P;
     P.Instigator = CachedCharacter;
-    ASC->ExecuteGameplayCue(TAG_CueMusketChargeFull, P);
+    ASC->ExecuteGameplayCue(MusketCueTag(TEXT("GameplayCue.Musket.ChargeFull")), P);
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────────

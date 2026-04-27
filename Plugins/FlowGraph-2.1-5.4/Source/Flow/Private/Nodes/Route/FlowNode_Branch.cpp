@@ -5,10 +5,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowNode_Branch)
 
-const FName UFlowNode_Branch::INPIN_Evaluate = TEXT("Evaluate");
-const FName UFlowNode_Branch::OUTPIN_True = TEXT("True");
-const FName UFlowNode_Branch::OUTPIN_False = TEXT("False");
-
 UFlowNode_Branch::UFlowNode_Branch(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -17,11 +13,11 @@ UFlowNode_Branch::UFlowNode_Branch(const FObjectInitializer& ObjectInitializer)
 	NodeDisplayStyle = FlowNodeStyle::Logic;
 #endif
 	InputPins.Empty();
-	InputPins.Add(FFlowPin(INPIN_Evaluate));
+	InputPins.Add(FFlowPin(FName(TEXT("Evaluate"))));
 
 	OutputPins.Empty();
-	OutputPins.Add(FFlowPin(OUTPIN_True));
-	OutputPins.Add(FFlowPin(OUTPIN_False));
+	OutputPins.Add(FFlowPin(FName(TEXT("True"))));
+	OutputPins.Add(FFlowPin(FName(TEXT("False"))));
 
 	AllowedSignalModes = {EFlowSignalMode::Enabled, EFlowSignalMode::Disabled};
 }
@@ -39,5 +35,5 @@ EFlowAddOnAcceptResult UFlowNode_Branch::AcceptFlowNodeAddOnChild_Implementation
 void UFlowNode_Branch::ExecuteInput(const FName& PinName)
 {
 	const bool bResult = UFlowNodeAddOn_PredicateAND::EvaluatePredicateAND(AddOns);
-	TriggerOutput(bResult ? OUTPIN_True : OUTPIN_False, true);
+	TriggerOutput(bResult ? FName(TEXT("True")) : FName(TEXT("False")), true);
 }

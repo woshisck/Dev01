@@ -22,8 +22,15 @@
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 
-FString UFlowAsset::ValidationError_NodeClassNotAllowed = TEXT("Node class {0} is not allowed in this asset.");
-FString UFlowAsset::ValidationError_NullNodeInstance = TEXT("Node with GUID {0} is NULL");
+FString UFlowAsset::ValidationError_NodeClassNotAllowed()
+{
+	return FString(TEXT("Node class {0} is not allowed in this asset."));
+}
+
+FString UFlowAsset::ValidationError_NullNodeInstance()
+{
+	return FString(TEXT("Node with GUID {0} is NULL"));
+}
 #endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowAsset)
@@ -34,8 +41,10 @@ UFlowAsset::UFlowAsset(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, FlowGraph(nullptr)
 #endif
+#if WITH_EDITOR
 	, AllowedNodeClasses({UFlowNodeBase::StaticClass()})
 	, AllowedInSubgraphNodeClasses({UFlowNode_SubGraph::StaticClass()})
+#endif
 	, bStartNodePlacedAsGhostNode(false)
 	, TemplateAsset(nullptr)
 	, FinishPolicy(EFlowFinishPolicy::Keep)
@@ -44,8 +53,11 @@ UFlowAsset::UFlowAsset(const FObjectInitializer& ObjectInitializer)
 	{
 		AssetGuid = FGuid::NewGuid();
 	}
+}
 
-	ExpectedOwnerClass = UFlowSettings::Get()->GetDefaultExpectedOwnerClass();
+UClass* UFlowAsset::GetExpectedOwnerClass() const
+{
+	return ExpectedOwnerClass ? ExpectedOwnerClass.Get() : UFlowSettings::Get()->GetDefaultExpectedOwnerClass();
 }
 
 #if WITH_EDITOR
@@ -115,7 +127,7 @@ EDataValidationResult UFlowAsset::ValidateAsset(FFlowMessageLog& MessageLog)
 			{
 				const FString ErrorMsg =
 					FailureReason.IsEmpty()
-						? FString::Format(*ValidationError_NodeClassNotAllowed, {*Node.Value->GetClass()->GetName()})
+						? FString::Format(*ValidationError_NodeClassNotAllowed(), {*Node.Value->GetClass()->GetName()})
 						: FailureReason.ToString();
 
 				MessageLog.Error(*ErrorMsg, Node.Value);
@@ -129,7 +141,7 @@ EDataValidationResult UFlowAsset::ValidateAsset(FFlowMessageLog& MessageLog)
 		}
 		else
 		{
-			const FString ErrorMsg = FString::Format(*ValidationError_NullNodeInstance, {*Node.Key.ToString()});
+			const FString ErrorMsg = FString::Format(*ValidationError_NullNodeInstance(), {*Node.Key.ToString()});
 			MessageLog.Error(*ErrorMsg, this);
 		}
 	}
@@ -508,15 +520,15 @@ void UFlowAsset::HarvestFlowPinMetadataForProperty(const FProperty* Property, FF
 	// because this is the most common case (the auto-generated input-pin-from-property case is only for defaulting)
 	TArray<FFlowPin>* FlowPinArray = &InOutData.AutoOutputDataPinsNext;
 
-	const FString* SourceForOutputFlowPinName = Property->FindMetaData(FFlowPin::MetadataKey_SourceForOutputFlowPin);
-	const FString* DefaultForInputFlowPinName = Property->FindMetaData(FFlowPin::MetadataKey_DefaultForInputFlowPin);
+	const FString* SourceForOutputFlowPinName = Property->FindMetaData(FFlowPin::MetadataKey_SourceForOutputFlowPin());
+	const FString* DefaultForInputFlowPinName = Property->FindMetaData(FFlowPin::MetadataKey_DefaultForInputFlowPin());
 
 	if (SourceForOutputFlowPinName && DefaultForInputFlowPinName)
 	{
 		LogError(
 			FString::Printf(TEXT("Error.  A property cannot be both a %s and %s"),
-			                *FFlowPin::MetadataKey_SourceForOutputFlowPin.ToString(),
-			                *FFlowPin::MetadataKey_DefaultForInputFlowPin.ToString()),
+			                *FFlowPin::MetadataKey_SourceForOutputFlowPin().ToString(),
+			                *FFlowPin::MetadataKey_DefaultForInputFlowPin().ToString()),
 			InOutData.FlowNode);
 
 		return;
@@ -554,7 +566,7 @@ void UFlowAsset::HarvestFlowPinMetadataForProperty(const FProperty* Property, FF
 		const UScriptStruct* ScriptStruct = StructProperty->Struct;
 
 		// We also look in the USTRUCT for DefaultForInputFlowPin
-		DefaultForInputFlowPinName = ScriptStruct->FindMetaData(FFlowPin::MetadataKey_DefaultForInputFlowPin);
+		DefaultForInputFlowPinName = ScriptStruct->FindMetaData(FFlowPin::MetadataKey_DefaultForInputFlowPin());
 		if (DefaultForInputFlowPinName)
 		{
 			// If the property is a Default Input for a data pin, then we need to generate the pin in the
@@ -562,14 +574,14 @@ void UFlowAsset::HarvestFlowPinMetadataForProperty(const FProperty* Property, FF
 			FlowPinArray = &InOutData.AutoInputDataPinsNext;
 		}
 
-		if (const FString* AutoPinType = ScriptStruct->FindMetaData(FFlowPin::MetadataKey_FlowPinType))
+		if (const FString* AutoPinType = ScriptStruct->FindMetaData(FFlowPin::MetadataKey_FlowPinType()))
 		{
 			const bool bIsInputPin = DefaultForInputFlowPinName != nullptr;
 
 			// Auto-generate the pin for this property
 			if (!TryCreateFlowDataPinFromMetadataValue(*AutoPinType, *InOutData.FlowNode, *Property, PinDisplayName, bIsInputPin, FlowPinArray))
 			{
-				LogError(FString::Printf(TEXT("Error.  Unknown value %s for metadata %s"), **AutoPinType, *FFlowPin::MetadataKey_FlowPinType.ToString()), InOutData.FlowNode);
+				LogError(FString::Printf(TEXT("Error.  Unknown value %s for metadata %s"), **AutoPinType, *FFlowPin::MetadataKey_FlowPinType().ToString()), InOutData.FlowNode);
 
 				return;
 			}
@@ -584,7 +596,7 @@ void UFlowAsset::HarvestFlowPinMetadataForProperty(const FProperty* Property, FF
 		}
 	}
 
-	const FString* AutoPinType = Property->FindMetaData(FFlowPin::MetadataKey_FlowPinType);
+	const FString* AutoPinType = Property->FindMetaData(FFlowPin::MetadataKey_FlowPinType());
 
 	if (!SourceForOutputFlowPinName && !DefaultForInputFlowPinName && !AutoPinType)
 	{
@@ -600,7 +612,7 @@ void UFlowAsset::HarvestFlowPinMetadataForProperty(const FProperty* Property, FF
 
 		if (!TryCreateFlowDataPinFromMetadataValue(*AutoPinType, *InOutData.FlowNode, *Property, PinDisplayName, bIsInputPin, FlowPinArray))
 		{
-			LogError(FString::Printf(TEXT("Unknown value %s for metadata %s"), **AutoPinType, *FFlowPin::MetadataKey_FlowPinType.ToString()), InOutData.FlowNode);
+			LogError(FString::Printf(TEXT("Unknown value %s for metadata %s"), **AutoPinType, *FFlowPin::MetadataKey_FlowPinType().ToString()), InOutData.FlowNode);
 
 			return;
 		}

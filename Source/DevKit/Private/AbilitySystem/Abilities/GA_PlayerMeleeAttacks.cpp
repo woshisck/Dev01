@@ -19,33 +19,22 @@ UGA_PlayerMeleeAttack::UGA_PlayerMeleeAttack()
 
 // ── 工具 ──────────────────────────────────────────────────────────────────
 
-static FORCEINLINE FGameplayTag GT(const FName& Name)
+static FORCEINLINE FGameplayTag GT(const TCHAR* Name)
 {
-	return FGameplayTag::RequestGameplayTag(Name);
+	return FGameplayTag::RequestGameplayTag(FName(Name));
 }
 
 // ── 常用 Tag ──────────────────────────────────────────────────────────────
 
-static const FName TAG_CanCombo (TEXT("PlayerState.AbilityCast.CanCombo"));
 
 // Light combo
-static const FName TAG_LC1(TEXT("PlayerState.AbilityCast.LightAtk.Combo1"));
-static const FName TAG_LC2(TEXT("PlayerState.AbilityCast.LightAtk.Combo2"));
-static const FName TAG_LC3(TEXT("PlayerState.AbilityCast.LightAtk.Combo3"));
-static const FName TAG_LC4(TEXT("PlayerState.AbilityCast.LightAtk.Combo4"));
 
 // Heavy combo
-static const FName TAG_HC1(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1"));
-static const FName TAG_HC2(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"));
-static const FName TAG_HC3(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3"));
-static const FName TAG_HC4(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"));
 
 // Dash attack
-static const FName TAG_DA       (TEXT("PlayerState.AbilityCast.DashAtk"));
 // NOTE: TAG_Dead 已在 GA_EnemyMeleeAttacks.cpp 定义，此处不重复定义
 //       避免 UE5 adaptive non-unity 批次编译时产生 C2374 重定义错误
 static const FName TAG_HitReact (TEXT("Buff.Status.HitReact"));
-static const FName TAG_Knockback(TEXT("Buff.Status.Knockback"));
 
 // ── Light Attack Combo ────────────────────────────────────────────────────
 //
@@ -58,57 +47,57 @@ static const FName TAG_Knockback(TEXT("Buff.Status.Knockback"));
 
 UGA_Player_LightAtk1::UGA_Player_LightAtk1()
 {
-	AbilityTags.AddTag(GT(TAG_LC1));
+	AbilityTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo1")));
 
-	ActivationOwnedTags.AddTag(GT(TAG_LC1));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo1")));
 
 	// 首段无 Required
-	ActivationBlockedTags.AddTag(GT(TAG_LC1));
+	ActivationBlockedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo1")));
 }
 
 UGA_Player_LightAtk2::UGA_Player_LightAtk2()
 {
-	AbilityTags.AddTag(GT(TAG_LC2));
+	AbilityTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo2")));
 
-	ActivationOwnedTags.AddTag(GT(TAG_LC1));
-	ActivationOwnedTags.AddTag(GT(TAG_LC2));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo1")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo2")));
 
-	ActivationRequiredTags.AddTag(GT(TAG_CanCombo));
-	ActivationRequiredTags.AddTag(GT(TAG_LC1));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.CanCombo")));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo1")));
 
-	ActivationBlockedTags.AddTag(GT(TAG_LC2));
+	ActivationBlockedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo2")));
 }
 
 UGA_Player_LightAtk3::UGA_Player_LightAtk3()
 {
-	AbilityTags.AddTag(GT(TAG_LC3));
+	AbilityTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo3")));
 
-	ActivationOwnedTags.AddTag(GT(TAG_LC1));
-	ActivationOwnedTags.AddTag(GT(TAG_LC2));
-	ActivationOwnedTags.AddTag(GT(TAG_LC3));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo1")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo2")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo3")));
 
-	ActivationRequiredTags.AddTag(GT(TAG_CanCombo));
-	ActivationRequiredTags.AddTag(GT(TAG_LC1));
-	ActivationRequiredTags.AddTag(GT(TAG_LC2));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.CanCombo")));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo1")));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo2")));
 
-	ActivationBlockedTags.AddTag(GT(TAG_LC3));
+	ActivationBlockedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo3")));
 }
 
 UGA_Player_LightAtk4::UGA_Player_LightAtk4()
 {
-	AbilityTags.AddTag(GT(TAG_LC4));
+	AbilityTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo4")));
 
-	ActivationOwnedTags.AddTag(GT(TAG_LC1));
-	ActivationOwnedTags.AddTag(GT(TAG_LC2));
-	ActivationOwnedTags.AddTag(GT(TAG_LC3));
-	ActivationOwnedTags.AddTag(GT(TAG_LC4));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo1")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo2")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo3")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo4")));
 
-	ActivationRequiredTags.AddTag(GT(TAG_CanCombo));
-	ActivationRequiredTags.AddTag(GT(TAG_LC1));
-	ActivationRequiredTags.AddTag(GT(TAG_LC2));
-	ActivationRequiredTags.AddTag(GT(TAG_LC3));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.CanCombo")));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo1")));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo2")));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo3")));
 
-	ActivationBlockedTags.AddTag(GT(TAG_LC4));
+	ActivationBlockedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.LightAtk.Combo4")));
 }
 
 void UGA_Player_LightAtk4::ActivateAbility(
@@ -130,56 +119,56 @@ void UGA_Player_LightAtk4::ActivateAbility(
 
 UGA_Player_HeavyAtk1::UGA_Player_HeavyAtk1()
 {
-	AbilityTags.AddTag(GT(TAG_HC1));
+	AbilityTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1")));
 
-	ActivationOwnedTags.AddTag(GT(TAG_HC1));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1")));
 
-	ActivationBlockedTags.AddTag(GT(TAG_HC1));
+	ActivationBlockedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1")));
 }
 
 UGA_Player_HeavyAtk2::UGA_Player_HeavyAtk2()
 {
-	AbilityTags.AddTag(GT(TAG_HC2));
+	AbilityTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2")));
 
-	ActivationOwnedTags.AddTag(GT(TAG_HC1));
-	ActivationOwnedTags.AddTag(GT(TAG_HC2));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2")));
 
-	ActivationRequiredTags.AddTag(GT(TAG_CanCombo));
-	ActivationRequiredTags.AddTag(GT(TAG_HC1));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.CanCombo")));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1")));
 
-	ActivationBlockedTags.AddTag(GT(TAG_HC2));
+	ActivationBlockedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2")));
 }
 
 UGA_Player_HeavyAtk3::UGA_Player_HeavyAtk3()
 {
-	AbilityTags.AddTag(GT(TAG_HC3));
+	AbilityTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3")));
 
-	ActivationOwnedTags.AddTag(GT(TAG_HC1));
-	ActivationOwnedTags.AddTag(GT(TAG_HC2));
-	ActivationOwnedTags.AddTag(GT(TAG_HC3));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3")));
 
-	ActivationRequiredTags.AddTag(GT(TAG_CanCombo));
-	ActivationRequiredTags.AddTag(GT(TAG_HC1));
-	ActivationRequiredTags.AddTag(GT(TAG_HC2));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.CanCombo")));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1")));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2")));
 
-	ActivationBlockedTags.AddTag(GT(TAG_HC3));
+	ActivationBlockedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3")));
 }
 
 UGA_Player_HeavyAtk4::UGA_Player_HeavyAtk4()
 {
-	AbilityTags.AddTag(GT(TAG_HC4));
+	AbilityTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4")));
 
-	ActivationOwnedTags.AddTag(GT(TAG_HC1));
-	ActivationOwnedTags.AddTag(GT(TAG_HC2));
-	ActivationOwnedTags.AddTag(GT(TAG_HC3));
-	ActivationOwnedTags.AddTag(GT(TAG_HC4));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4")));
 
-	ActivationRequiredTags.AddTag(GT(TAG_CanCombo));
-	ActivationRequiredTags.AddTag(GT(TAG_HC1));
-	ActivationRequiredTags.AddTag(GT(TAG_HC2));
-	ActivationRequiredTags.AddTag(GT(TAG_HC3));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.CanCombo")));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1")));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2")));
+	ActivationRequiredTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3")));
 
-	ActivationBlockedTags.AddTag(GT(TAG_HC4));
+	ActivationBlockedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4")));
 }
 
 void UGA_Player_HeavyAtk4::ActivateAbility(
@@ -202,10 +191,10 @@ void UGA_Player_HeavyAtk4::ActivateAbility(
 
 UGA_Player_DashAtk::UGA_Player_DashAtk()
 {
-	AbilityTags.AddTag(GT(TAG_DA));
-	ActivationOwnedTags.AddTag(GT(TAG_DA));
+	AbilityTags.AddTag(GT(TEXT("PlayerState.AbilityCast.DashAtk")));
+	ActivationOwnedTags.AddTag(GT(TEXT("PlayerState.AbilityCast.DashAtk")));
 
-	ActivationBlockedTags.AddTag(GT(FName(TEXT("Buff.Status.Dead"))));
-	ActivationBlockedTags.AddTag(GT(TAG_HitReact));
-	ActivationBlockedTags.AddTag(GT(TAG_Knockback));
+	ActivationBlockedTags.AddTag(GT(TEXT("Buff.Status.Dead")));
+	ActivationBlockedTags.AddTag(GT(TEXT("Buff.Status.HitReact")));
+	ActivationBlockedTags.AddTag(GT(TEXT("Buff.Status.Knockback")));
 }

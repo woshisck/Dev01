@@ -11,8 +11,15 @@
 
 #define LOCTEXT_NAMESPACE "FlowNode_SubGraph"
 
-FFlowPin UFlowNode_SubGraph::StartPin(TEXT("Start"));
-FFlowPin UFlowNode_SubGraph::FinishPin(TEXT("Finish"));
+FFlowPin UFlowNode_SubGraph::StartPin()
+{
+	return FFlowPin(FName(TEXT("Start")));
+}
+
+FFlowPin UFlowNode_SubGraph::FinishPin()
+{
+	return FFlowPin(FName(TEXT("Finish")));
+}
 
 UFlowNode_SubGraph::UFlowNode_SubGraph(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -25,8 +32,8 @@ UFlowNode_SubGraph::UFlowNode_SubGraph(const FObjectInitializer& ObjectInitializ
 	AllowedAssignedAssetClasses = {UFlowAsset::StaticClass()};
 #endif
 
-	InputPins = {StartPin};
-	OutputPins = {FinishPin};
+	InputPins = {StartPin()};
+	OutputPins = {FinishPin()};
 }
 
 bool UFlowNode_SubGraph::CanBeAssetInstanced() const
