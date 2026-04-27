@@ -362,6 +362,9 @@ void AYogHUD::TickLevelEndEffect()
 			}
 			RevealDynMat          = nullptr;
 			bLevelEndEffectActive = false;
+
+			// 广播揭幕完成（GameMode 监听后触发 LevelClearRevealed 生命周期事件）
+			OnLevelEndEffectFinished.Broadcast();
 		}
 	}
 }

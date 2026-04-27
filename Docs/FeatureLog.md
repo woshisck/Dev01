@@ -5,6 +5,99 @@
 
 ---
 
+## 2026-04-27
+
+### [SYS-001] 关卡生命周期事件总线 + LootSelection 视觉高亮 C++ 化 + 卡片堆叠修复
+
+**状态**：C++ 完成已编译；用户需在编辑器侧加 SelectionBorder/HighlightBorder + 创建 LFA 配 BP_GameMode_Default 才能完整体验
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `GameModes/GameLifecycleTypes.h`（新）、`GameModes/YogGameMode.h/cpp`、`UI/YogHUD.h/cpp`、`Component/BackpackGridComponent.cpp`、`UI/RuneInfoCardWidget.h/cpp`、`UI/LootSelectionWidget.h/cpp` |
+| **事件总线** | `EGameLifecycleEvent` 枚举（7 个事件：LevelClear / LevelClearRevealed / FirstRuneAcquired / FirstRunePlaced / HeatPhaseEntered / PlayerDeath / GameStart）；`AYogGameMode::LifecycleEventFlows` TMap 在 BP_GameMode_Default 配映射；`TriggerLifecycleEvent(Event)` 查表后启 `LifecycleFlowComponent` 跑 LevelFlowAsset；一次性事件用 `FiredOnceEvents` 去重，且**仅在成功启动 Flow 后才记录**（避免未配 LFA 时静默吞事件） |
+| HUD 解耦 | `YogHUD::OnLevelEndEffectFinished` FSimpleMulticastDelegate 在揭幕完成时广播；`GameMode::TryBindHUDDelegates` 延帧重试订阅（HUD 由 PC->ClientRestart 异步创建，最多重试 60 帧 ~1s）；HUD 不再直接调业务逻辑（如 TryFirstRuneTutorial），改广播给 GameMode |
+| 触发位重构 | `EnterArrangementPhase` 删除硬编码 `TM->TryFirstRuneTutorial` 改为 `TriggerLifecycleEvent(LevelClear)`；`BackpackGridComponent::HandleHeatTutorial` 删除 `TM->TryHeatPhaseTutorial` 改为 `TriggerLifecycleEvent(HeatPhaseEntered)` 且不再 RemoveDynamic（让 GameMode 一次性去重独自负责，便于运行时补配 LFA 后下次 phase 变化仍能触发） |
+| RuneInfoCard 选中态 | `SetSelected(bool)` + `BindWidgetOptional SelectionBorder`（UBorder）+ `SelectedRenderScale`（默认 1.06）；`NativeConstruct` 设 `RenderTransformPivot(0.5, 0.5)` 中心化；`NativeTick` 用 `FInterpTo` 平滑缩放；`ShowRune` 不主动清选中态，由调用方统一管理；通用接口可在背包/详情页复用 |
+| LootSelection 卡片堆叠修复 | `RebuildCards` 给每张卡套 `USizeBox`（MinDesired/MaxDesired，默认 280×380 ~ 420×560）兜底 — 解决 WBP_RuneInfoCard 没设 Desired Size 时 HBox 把所有卡按 0×0 排版重叠的问题；`MinCardSize/MaxCardSize/CardHorizontalPadding` UPROPERTY 暴露，BP 可调 |
+| LootSelection 视觉高亮 C++ 化 | `FocusCard` 遍历 SpawnedCards 调 `SetSelected(i==CurrentCardIndex)`；`FocusButton` 调 `ClearAllCardSelection() + UpdateButtonHighlight(SelectedIdx)`；按钮高亮通过外层 `BindWidgetOptional UBorder`（SkipHighlightBorder/PreviewHighlightBorder）显隐切换，不污染 Button.WidgetStyle |
+| 鼠标点击索引修复 | `OnCardClicked0..4` 通过 `CardToOptionIndex` 映射到原始 Options 索引；绑定时用**可见卡索引** `SpawnedCards.Num()`（非原始 Options 索引 i），避免无效项被 continue 跳过时第一张可见卡误绑到 OnCardClicked1 导致越界 |
+| 教程节奏修复 | First Rune 教程从 EnterArrangementPhase 同帧弹改为揭幕完成（`RevealProgress >= 1`）后才触发；ActivationZone 教程默认不出（用户没配 LFA = 沉默）；现有 `Anim_FadeIn` UMG 动画处理弹窗渐入，不必加 C++ 渐入 |
+| 已知 P3 限制 | (1) `UFlowComponent::StartRootFlow()` 返回 void，无法严格判定 Flow 是否真正启动；(2) `TryBindHUDDelegates` 60 帧上限，正常 ClientRestart 路径下 HUD 在 ~3 帧创建远低于 60 帧；(3) `HideCard` 没重置 `bSelected/CurrentRenderScale`（下次 ShowRune 会被覆盖，无副作用） |
+| 用户编辑器操作 | (1) WBP_RuneInfoCard 加 SelectionBorder（UBorder，DrawAs=Box，Margin=0.4，Tint=#FFD966 半透明）；(2) WBP_LootSelection 加 SkipHighlightBorder + PreviewHighlightBorder；(3) 创建 LFA_FirstRuneTutorial（节点：ShowTutorial EventID="tutorial_first_rune"）；(4) BP_GameMode_Default 配 `LifecycleEventFlows[LevelClearRevealed] = LFA_FirstRuneTutorial` |
+
+---
+
+## 2026-04-26
+
+### [UI-008] LootSelection 改造：动态卡牌 + 跳过/重掷/预览背包 + 通用效果聚焦 + RuneInfoCard RichText
+
+**状态**：C++ 完成已编译；WBP_LootSelection 需在编辑器按规格重做（CardContainer + BtnSkip + BtnBackpackPreview）
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/LootSelectionWidget.h/.cpp`（重写）、`UI/RuneInfoCardWidget.h/.cpp`、`UI/GenericEffectListWidget.h/.cpp`（新）、`UI/YogCommonRichTextBlock.h/.cpp`（新）、`UI/InputActionRichTextDecorator.h/.cpp`（新）、`Data/GenericRuneEffectDA.h/.cpp`（新）、`Data/RuneDataAsset.h`、`UI/YogHUD.h/.cpp`、`UI/BackpackScreenWidget.h/.cpp`、`UI/GameDialogWidget.h/.cpp`、`UI/WeaponFloatWidget.h`、`Map/RewardPickup.h/.cpp`、`Item/Weapon/WeaponSpawner.cpp` |
+| 功能说明 | 三选一战利品 UI 重构 — 卡片数量动态（N≤5）、底部跳过/预览背包按钮、聚焦时显示通用效果浮窗（如击退）、鼠标点击 + 完整手柄支持（DPad/LB/RB/Stick X/A/B/Y） |
+| 跳过流程 | RewardPickup 不再立刻 Destroy；选符文 → `ConsumeAndDestroy`；跳过 → `ResetForSkip(Player)` 复位 bPickedUp/PendingPickup/浮窗，玩家走开再回按 E 可重开 |
+| 选完→开背包 | 沿用现有行为：`SelectRuneLoot` 末尾调 `HUD->OpenBackpack()`（整理模式） |
+| 背包预览 | `HUD::OpenBackpackForPreview(OnClosed)` 封装；`UBackpackScreenWidget::SetPreviewMode(true)` 禁拖拽/旋转/出售/抓取/长按；NativeOnDeactivated 跳过 SyncPendingToPlayer 但保留 EndPauseEffect 配对 |
+| 多 pickup 排队 | `AYogHUD` 新增 `LootQueue` (FQueuedLootRequest 数组) FIFO；`bLootSelectionActive` 标记；`OnLootSelectionFinished` 弹下一项 |
+| 卡片→选项映射 | `CardToOptionIndex` 数组解决无效项（非 Rune / 空 RuneAsset）跳过后键盘选中错位问题 |
+| 通用效果子窗 | `URuneInfoCardWidget::SetGenericEffectsExpanded(bool)`；默认 true 兼容背包；LootSelection RebuildCards 全设 false，FocusCard 时仅给当前卡 true；底层 `UGenericEffectListWidget` + `UGenericEffectEntryWidget` 由 C++ 全自动填充（BindWidget 写控件名即可） |
+| 通用效果数据 | `UGenericRuneEffectDA`：DisplayName + Description + Icon + EffectFlow（仅信息归档不触发）；`FRuneConfig::GenericEffects` 数组引用 |
+| RichText 体系 | `UYogCommonRichTextBlock` 子类绕开引擎 EditCondition 锁，新增 FontStyleClass / OverrideFontSize / OverrideColor 三字段叠加；`UInputActionRichTextDecorator` 解析 `<input action="X"/>` 自动按当前输入设备显示按键图标 |
+| Tutorial RichText | `WBP_TutorialPopup` BodyText/BodySubText 改为 YogCommonRichTextBlock，DialogContent DA 文案中可写按键标签 |
+| Weapon 浮窗按键 | `WBP_WeaponFloat` 加 `PickupHintText`（CommonRichTextBlock）显示「按 [E] 拾取武器」；同时移除 `WeaponSpawner::OnPlayerBeginOverlap` 中头顶 WidgetComponent 切换 |
+| 待定决策 | [PendingDecisions.md](PM/PendingDecisions.md) DEC-001：背包详情卡通用效果默认展开（待玩家测试反馈再评审） |
+| 重掷接口 | `RerollCard(int32)` 留空实现 + 日志，本版本不做 UI 动画 |
+| HUD Tick 修复 | `AYogHUD::Tick` 把 `TickPortalPreview/TickBlackoutFade` 移到所有早返回之前（修复既有 bug：暂停 fade 完成后 Portal 引导/Blackout 卡死） |
+| 设计文档 | [current_plan.md](WorkSession/current_plan.md) v2 含完整方案、用户决策、Codex 4 轮审查迭代记录 |
+
+---
+
+### [LEVEL-006] 传送门交互式选择 + 双层预览（HUD 方位指引 / 单例浮窗）+ 渐黑过场
+
+**状态**：C++ 完成已编译；WBP_PortalPreview / WBP_PortalDirection 需在编辑器按规格搭建并赋到 BP_YogHUD
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Map/Portal.h/.cpp`、`Character/PlayerCharacterBase.h`、`Character/YogPlayerControllerBase.cpp`、`System/YogGameInstanceBase.h/.cpp`、`GameModes/YogGameMode.h/.cpp`、`Data/RoomDataAsset.h`、`UI/YogHUD.h/.cpp`、`UI/PortalPreviewWidget.h/.cpp`（新）、`UI/PortalDirectionWidget.h/.cpp`（新） |
+| 功能说明 | 关卡结算后玩家不再"踩进就走"；屏幕外门画方位箭头，屏幕内门显示单例浮窗（房间名/类型徽章/已确定 Buff/战利品摘要），按 E 触发渐黑过场后切关 |
+| 跨关 Buff 确定性 | Portal::Open 时按下一关 FloorConfig 难度档预骰 BuffPool；玩家确认进入时 TryEnter 把 PreRolledBuffs 写入 GI->PendingRoomBuffs；下一关 StartLevelSpawning 用 `bUsedPendingRoomData` 信号判定（即使 BuffCount=0 也合法）|
+| HUD 单例浮窗 | `AYogHUD::TickPortalPreview` 按"PendingPortal 优先 → 否则距玩家最近 + 屏幕内可见或<800cm"挑 Target，100cm 滞回防中点抖动；位置每帧跟门屏幕投影 + 相机右向量避让 |
+| 方位箭头 | `UPortalDirectionWidget` 仿 EnemyArrow，仅对屏幕外开启门画箭头 + 房间名标签；玩家进入任意 Box 时全隐 |
+| 渐黑过场 | `APortal::TryEnter` 主导：bEntryInProgress 防重入 → 锁输入/锁背包 → 启 Timer 每 0.05s AddMovementInput 朝门方向 0.7s（不必抵达）→ HUD::BeginBlackoutFade 复用 LevelEndEffectDA 的 Saturation/Gain 三参 → 切关；超时 +0.5s 兜底；任何前置失败走 AbortEntry 显式恢复输入 |
+| 下一关淡入 | 切关后 GI->bPlayLevelIntroFadeIn=true；下一关 HUD::BeginPlay 立即清标志 → 瞬时贴 Blackout → 调 EndBlackoutFade 反向插值（线性 PostProcess，不画圆形揭幕）|
+| Blackout PP 隔离 | 新增 `BlackoutPPVolume`（独立 Actor），不与 PausePPVolume 互扰；目标值复用 `LevelEndEffectDA.BlackoutSaturation/Gain` |
+| 类型徽章颜色 | `.cpp` 静态映射 `Room.Type.Normal/Elite/Shop/Event` → 灰/橙红/金/紫；徽章背景 + 标签字色统一 |
+| 主城（HubRoom）| `EnterArrangementPhase` 末尾按 `bIsHubRoom` 跳过 ShowPortalGuidance — 主城既不显示浮窗也不显示箭头 |
+| BP 视觉强化接口 | APortal: `K2_OnHighlightChanged(bool) / K2_OnPortalRangeEntered / K2_OnPortalRangeExited / K2_OnEntrySequenceStart`；UPortalPreviewWidget: `K2_OnPreviewShown / K2_OnPreviewHidden / K2_OnInteractHintShown`；C++ 不实现，BP_Portal/WBP 自由扩展 |
+| 新增 DA 字段 | `URoomDataAsset.DisplayName : FText` —— 玩家可见的房间显示名；空时回退 `RoomName.ToString()` |
+| 新增 GI 字段 | `PendingRoomBuffs : TArray<FBuffEntry>`、`bPlayLevelIntroFadeIn : bool`；`ClearRunState` 同点清这两项 + 已有的 PendingRoomData/PendingNextFloor/PendingRunState |
+| 新增 GameMode | 静态 `ResolveTier(Room, TotalScore, LowMax, HighMin)` —— ActivatePortals 预骰 Buff 与 StartLevelSpawning 共用，避免选档逻辑漂移 |
+| 行为变更 | 删除 `APortal::OnOverlapBegin` 自动调 EnterPortal 的路径；旧 `EnterPortal_Implementation` 保留作 BP override 钩，新流程不调它 |
+| 已知限制 | 浮窗"屏幕内可见"未做 LineTrace 遮挡检测（用户决策）；门 Box 单值 PendingPortal 假设关卡间距保证不重叠（用户决策）；EnterPortal_Implementation 旧路径残留供 BP override 兼容 |
+| 设计文档 | [WBP_PortalPreview_Layout.md](Systems/Level/WBP_PortalPreview_Layout.md)、[WBP_PortalDirection_Layout.md](Systems/Level/WBP_PortalDirection_Layout.md)、[Portal_ConfigGuide.md](Systems/Level/Portal_ConfigGuide.md)（已更新） |
+| WBP 待办 | 编辑器内：① 创建 WBP_PortalPreview（父类 UPortalPreviewWidget）按规格搭建 ② 创建 WBP_PortalDirection（父类 UPortalDirectionWidget，根 RootCanvas + ArrowTexture 字段）③ BP_YogHUD Details 填 PortalPreviewClass / PortalDirectionClass |
+
+---
+
+### [COMBAT-009] AN_MeleeDamage HitStop 模式选择器 + 命中事件广播
+
+**状态**：C++ 完成已编译；AN_MeleeDamage 上直接配置即可使用
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `Animation/AN_MeleeDamage.h/.cpp`、`BuffFlow/Nodes/BFNode_HitStop.cpp`、`Character/YogCharacterBase.h`、`AbilitySystem/Abilities/GA_MeleeAttack.cpp` |
+| 功能说明 | AN_MeleeDamage 新增 `EHitStopMode` 枚举选择器（None/Freeze/Slow），选择模式后对应参数自动显示/隐藏，无需在 FA 中写 HitStop Tag 即可自包含触发 |
+| HitStop 触发 | AN 选择 Freeze/Slow → Notify 时暂存到 `Character->PendingHitStopOverride` → `BFNode_HitStop` 读取并激活对应阶段 |
+| Tag 共存 | FA Tag 触发（暴击等特殊场景）与 AN 模式驱动可同时生效；AN 覆盖参数只作用于 AN 指定的模式，Tag 触发的模式使用节点默认值 |
+| 命中事件广播 | 新增 `OnHitEventTags`（`TArray<FGameplayTag>`）：命中目标时向攻击者 `SendGameplayEventToActor` 广播，供镜头抖动、音效、屏幕特效等系统监听 |
+| 安全清理 | `GA_MeleeAttack::EndAbility` 中清空 `PendingOnHitEventTags`，防止蒙太奇被打断后残留 |
+| 新增枚举 | `EHitStopMode`（None/Freeze/Slow），定义在 `AN_MeleeDamage.h`，`YogCharacterBase.h` 前向声明 |
+| 设计文档 | [HitStop_Design.md](Design/Combat/HitStop_Design.md) |
+
+---
+
 ## 2026-04-23
 
 ### [UI-007] 武器玻璃图标热度颜色 — WeaponGlassIconWidget 自订阅热度阶段

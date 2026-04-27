@@ -3,6 +3,10 @@
 #include "Components/TextBlock.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/Border.h"
+#include "CommonRichTextBlock.h"
+#include "Data/GenericRuneEffectDA.h"
+#include "UI/GenericEffectListWidget.h"
 
 // ============================================================
 //  点阵颜色常量
@@ -12,6 +16,22 @@ namespace ShapeGridColors
 {
     static const FLinearColor Filled (0.20f, 0.60f, 1.00f, 1.0f);  // 亮蓝：已占格
     static const FLinearColor Empty  (0.18f, 0.18f, 0.22f, 0.6f);  // 暗灰：空格
+}
+
+// ============================================================
+//  生命周期
+// ============================================================
+
+void URuneInfoCardWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    // 缩放围绕中心展开（默认 pivot 是左上角，会让选中态视觉偏移）
+    SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+
+    // 初始隐藏选中边框（C++ 控制显隐，WBP 不必显式设 Hidden）
+    if (SelectionBorder)
+        SelectionBorder->SetVisibility(ESlateVisibility::Hidden);
 }
 
 // ============================================================
@@ -76,24 +96,83 @@ void URuneInfoCardWidget::ShowRune(const FRuneInstance& Rune)
 
     BuildShapeGrid(Rune.Shape);
 
+    // 缓存通用效果到 CachedEffects，供 Expanded 切换时复用
+    CachedEffects.Reset();
+    for (const TObjectPtr<UGenericRuneEffectDA>& E : Rune.RuneConfig.GenericEffects)
+    {
+        if (E) CachedEffects.Add(E);
+    }
+    SyncGenericEffectListVisibility();
+
     // 触发淡入动画
     FadeAlpha = 0.f;
     bFading   = true;
     SetRenderOpacity(0.f);
 }
 
+void URuneInfoCardWidget::SetGenericEffectsExpanded(bool bExpanded)
+{
+    if (bGenericEffectsExpanded == bExpanded) return;
+    bGenericEffectsExpanded = bExpanded;
+    SyncGenericEffectListVisibility();
+}
+
 // ============================================================
-//  淡入 Tick
+//  选中态高亮
+// ============================================================
+
+void URuneInfoCardWidget::SetSelected(bool bInSelected)
+{
+    bSelected = bInSelected;
+    if (SelectionBorder)
+        SelectionBorder->SetVisibility(bInSelected ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+}
+
+void URuneInfoCardWidget::SyncGenericEffectListVisibility()
+{
+    if (!GenericEffectList) return;
+
+    if (bGenericEffectsExpanded)
+    {
+        TArray<UGenericRuneEffectDA*> Effects;
+        Effects.Reserve(CachedEffects.Num());
+        for (const TObjectPtr<UGenericRuneEffectDA>& E : CachedEffects)
+        {
+            if (E) Effects.Add(E.Get());
+        }
+        // SetEffects 内部会按数组空/非空自动 Collapse / SelfHitTestInvisible
+        GenericEffectList->SetEffects(Effects);
+    }
+    else
+    {
+        // 折叠态：直接清空 + 隐藏，无视 CachedEffects
+        GenericEffectList->SetEffects(TArray<UGenericRuneEffectDA*>());
+    }
+}
+
+// ============================================================
+//  Tick：淡入 + 选中缩放插值
 // ============================================================
 
 void URuneInfoCardWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
-    if (!bFading) return;
 
-    FadeAlpha = FMath::Min(FadeAlpha + InDeltaTime / FadeDuration, 1.f);
-    SetRenderOpacity(FadeAlpha);
-    if (FadeAlpha >= 1.f) bFading = false;
+    // 淡入（一次性，结束自动停止）
+    if (bFading)
+    {
+        FadeAlpha = FMath::Min(FadeAlpha + InDeltaTime / FadeDuration, 1.f);
+        SetRenderOpacity(FadeAlpha);
+        if (FadeAlpha >= 1.f) bFading = false;
+    }
+
+    // 选中缩放插值（持续 Tick；近似收敛后无明显开销）
+    const float TargetScale = bSelected ? SelectedRenderScale : 1.0f;
+    if (!FMath::IsNearlyEqual(CurrentRenderScale, TargetScale, 0.001f))
+    {
+        CurrentRenderScale = FMath::FInterpTo(CurrentRenderScale, TargetScale, InDeltaTime, ScaleInterpSpeed);
+        SetRenderScale(FVector2D(CurrentRenderScale));
+    }
 }
 
 // ============================================================

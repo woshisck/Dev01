@@ -9,6 +9,9 @@ class UImage;
 class UTextBlock;
 class UCanvasPanel;
 class UCanvasPanelSlot;
+class UCommonRichTextBlock;
+class UGenericEffectListWidget;
+class UBorder;
 
 /**
  * 符文信息卡 Widget
@@ -43,7 +46,7 @@ public:
     TObjectPtr<UTextBlock> CardName;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UTextBlock> CardDesc;
+    TObjectPtr<UCommonRichTextBlock> CardDesc;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UTextBlock> CardUpgrade;
@@ -58,7 +61,19 @@ public:
 
     /** 效果描述（命名 "CardEffect"），与 CardDesc 区分显示 */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UTextBlock> CardEffect;
+    TObjectPtr<UCommonRichTextBlock> CardEffect;
+
+    /** 通用效果列表小窗（命名 "GenericEffectList"），FRuneConfig::GenericEffects 非空时自动显示 */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UGenericEffectListWidget> GenericEffectList;
+
+    /**
+     * 选中态高亮边框（命名 "SelectionBorder"，UBorder 类型）。
+     * 默认 Hidden，由 SetSelected(true) 自动显示。
+     * WBP 端建议：UBorder 包卡片或叠在卡片之上，Brush.DrawAs=Box，Brush.Margin 用于 9-slice 描边效果。
+     */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UBorder> SelectionBorder;
 
     // =========================================================
     // 对外接口（BackpackScreenWidget 调用）
@@ -72,14 +87,55 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RuneInfoCard")
     void HideCard();
 
+    /**
+     * 切换右侧通用效果子窗的展开状态。
+     * - 默认 true（兼容背包等单卡场景，无需调用即可展开）
+     * - LootSelection 等多卡场景：RebuildCards 时全设 false，FocusCard 时只对聚焦卡设 true
+     */
+    UFUNCTION(BlueprintCallable, Category = "RuneInfoCard")
+    void SetGenericEffectsExpanded(bool bExpanded);
+
+    /**
+     * 设置选中态：显示 SelectionBorder + 缩放到 SelectedRenderScale。
+     * 由 LootSelection.FocusCard / 背包详情页等调用方主动管理；ShowRune 不会自动清除选中态，
+     * 调用方负责在重建/换卡时显式 SetSelected(false)。
+     */
+    UFUNCTION(BlueprintCallable, Category = "RuneInfoCard")
+    void SetSelected(bool bInSelected);
+
+    UFUNCTION(BlueprintPure, Category = "RuneInfoCard")
+    bool IsSelected() const { return bSelected; }
+
+    /** 选中时缩放比例（默认 1.06） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuneInfoCard|Visual")
+    float SelectedRenderScale = 1.06f;
+
+    /** 缩放插值速度（FInterpTo Speed） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuneInfoCard|Visual")
+    float ScaleInterpSpeed = 12.f;
+
 protected:
+    virtual void NativeConstruct() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
     /** 根据 FRuneShape 重建 ShapeGrid 子节点（点阵） */
     void BuildShapeGrid(const FRuneShape& Shape);
 
+    /** 按 bGenericEffectsExpanded + CachedEffects 同步子窗显示状态 */
+    void SyncGenericEffectListVisibility();
+
     float FadeAlpha = 1.f;
     bool  bFading   = false;
     static constexpr float FadeDuration = 0.15f;
+
+    // 默认 true：单卡场景（背包）开箱即用；多卡场景外部显式 SetGenericEffectsExpanded(false)
+    bool bGenericEffectsExpanded = true;
+
+    UPROPERTY()
+    TArray<TObjectPtr<UGenericRuneEffectDA>> CachedEffects;
+
+    // 选中态 + 缩放插值
+    bool  bSelected          = false;
+    float CurrentRenderScale = 1.0f;
 };

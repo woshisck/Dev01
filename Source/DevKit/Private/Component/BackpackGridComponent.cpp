@@ -5,6 +5,13 @@
 #include "GameplayTagsManager.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "BuffFlow/BuffFlowComponent.h"
+#include "FlowAsset.h"
+#include "Tutorial/TutorialManager.h"
+#include "GameModes/YogGameMode.h"
+#include "GameModes/GameLifecycleTypes.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
 
 // =========================================================
 // FActivationZoneConfig
@@ -130,6 +137,23 @@ void UBackpackGridComponent::BeginPlay()
 	if (HiddenPassiveRunes.Num() > 0)
 	{
 		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UBackpackGridComponent::ActivateHiddenPassiveRunes);
+	}
+
+	// Tutorial ④：监听热度阶段变化，首次入相 (Phase >= 1) 触发激活区教程
+	OnHeatBarUpdate.AddDynamic(this, &UBackpackGridComponent::HandleHeatTutorial);
+}
+
+void UBackpackGridComponent::HandleHeatTutorial(float NormalizedHeat, int32 NewPhase)
+{
+	if (NewPhase < 1) return;
+
+	// 改走事件总线：用户在 BP_GameMode_Default 配 LifecycleEventFlows[HeatPhaseEntered]
+	// 才会触发对应 Flow（默认未配 -> 沉默，解决"ActivationZone 教程不出"诉求）。
+	// 一次性去重交给 GameMode::FiredOnceEvents 处理，本组件不主动 RemoveDynamic —
+	// 这样用户运行时补配 LFA 后，下次 phase 变化仍能触发一次（成功后才写入去重集合）。
+	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this)))
+	{
+		GM->TriggerLifecycleEvent(EGameLifecycleEvent::HeatPhaseEntered);
 	}
 }
 
@@ -744,7 +768,9 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 		}
 
 		const FGuid RuneGuid          = Placed.Rune.RuneGuid;
-		TWeakObjectPtr<UFlowAsset> WeakFA(Placed.Rune.Flow.FlowAsset);
+		// 用 operator= 而非拷贝构造，绕开 UE5.4 TWeakObjectPtr 构造模板的 SFINAE 推导问题
+		TWeakObjectPtr<UFlowAsset> WeakFA;
+		WeakFA = static_cast<UFlowAsset*>(Placed.Rune.Flow.FlowAsset);
 
 		FDelegateHandle Handle = ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag)
 			.AddWeakLambda(this, [this, RuneGuid, WeakFA](const FGameplayEventData* Payload)

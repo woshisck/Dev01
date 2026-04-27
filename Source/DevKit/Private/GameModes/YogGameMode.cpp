@@ -23,16 +23,16 @@
 #include "UI/LootSelectionWidget.h"
 #include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
+#include "LevelFlow/LevelFlowAsset.h"
+#include "FlowComponent.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
 	bAutoSpawnPlayer = false;
 	DefaultPawnClass = nullptr;
 
-	//CurrentWaveIndex = 0;
-	//SpawnedInWave = 0;
-	//ActiveMobCount = 0;
-
+	// 事件总线统一使用的 FlowComponent，同时只跑一个 Flow（新触发停旧的）
+	LifecycleFlowComponent = CreateDefaultSubobject<UFlowComponent>(TEXT("LifecycleFlowComponent"));
 }
 
 
@@ -304,11 +304,37 @@ void AYogGameMode::UpdateFinishLevel(int count)
 void AYogGameMode::BeginPlay()
 {
 	Super::BeginPlay();
-	
 
+	// HUD 在 PC->ClientRestart 才创建（晚于 BeginPlay），用延帧+重试方式订阅
+	TryBindHUDDelegates();
+
+	// 触发游戏开始事件（一次性，跨 PIE 重启会重置 — 单机 Roguelite 行为可接受）
+	TriggerLifecycleEvent(EGameLifecycleEvent::GameStart);
+}
+
+void AYogGameMode::TryBindHUDDelegates()
+{
 	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	if (PC)
+	{
+		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+		{
+			HUD->OnLevelEndEffectFinished.AddUObject(this, &AYogGameMode::HandleLevelEndEffectFinished);
+			UE_LOG(LogTemp, Log, TEXT("[LifecycleEvents] 已订阅 HUD->OnLevelEndEffectFinished"));
+			return;
+		}
+	}
 
-
+	// HUD 还没创建，最多重试 ~1s（每帧一次）
+	if (HUDBindRetryCount++ < 60)
+	{
+		FTimerHandle TmpHandle;
+		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &AYogGameMode::TryBindHUDDelegates);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[LifecycleEvents] 60 帧内未拿到 AYogHUD，放弃订阅 OnLevelEndEffectFinished — LevelClearRevealed 事件将不会触发"));
+	}
 }
 
 // =========================================================
@@ -358,6 +384,10 @@ void AYogGameMode::EnterArrangementPhase()
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 			HUD->TriggerLevelEndEffect(LootSpawnLoc);
 
+	// 关卡完成事件（用户可在 BP_GameMode_Default 配 LFA 做"金币结算 UI"等表演，
+	// 教程类弹窗建议挂到 LevelClearRevealed 等揭幕完成后再触发，避免与黑屏过渡同帧冲突）
+	TriggerLifecycleEvent(EGameLifecycleEvent::LevelClear);
+
 	// 生成奖励拾取物
 	if (RewardPickupClass)
 	{
@@ -406,6 +436,18 @@ void AYogGameMode::EnterArrangementPhase()
 
 	// 开启传送门
 	ActivatePortals();
+
+	// v3：启用 HUD 传送门引导（单例浮窗 + 屏幕边缘方位箭头）。主城（HubRoom）跳过
+	if (!bIsHubRoom)
+	{
+		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		{
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			{
+				HUD->ShowPortalGuidance();
+			}
+		}
+	}
 }
 
 void AYogGameMode::SelectLoot(int32 LootIndex)
@@ -552,10 +594,12 @@ void AYogGameMode::StartLevelSpawning()
 	// ---- 确定本关使用的 DA_Room ----
 	// 优先读取 GI 中由传送门写入的 PendingRoomData（切关传递）
 	// 若为空（第一关或测试场景），直接按本关 FloorConfig 骰子选取
+	bool bUsedPendingRoomData = false;
 	if (GI && GI->PendingRoomData)
 	{
 		ActiveRoomData = GI->PendingRoomData;
 		GI->PendingRoomData = nullptr; // 清除，避免复用
+		bUsedPendingRoomData = true;
 		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 使用 Portal 传递的 RoomData = %s"), *ActiveRoomData->GetName());
 	}
 	else
@@ -653,8 +697,19 @@ void AYogGameMode::StartLevelSpawning()
 		Score <= LowDifficultyScoreMax ? TEXT("Low") : (Score >= HighDifficultyScoreMin ? TEXT("High") : TEXT("Medium")),
 		Tier.MaxWaveCount);
 
-	// 选取本关 Buff（进关时确定，新怪刷出时施加）
-	ActiveRoomBuffs = SelectRoomBuffs(*ActiveRoomData, ActiveBuffCount);
+	// v3：本次切关来自 Portal（PendingRoomData 非空）→ 直接用预骰好的 Buff，跳过现场抽
+	// 即使 PendingRoomBuffs 为空数组也是合法预骰结果（如商店/事件房 BuffCount=0）
+	if (bUsedPendingRoomData && GI)
+	{
+		ActiveRoomBuffs = GI->PendingRoomBuffs;
+		GI->PendingRoomBuffs.Reset();
+		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 使用 Portal 预骰 Buff，数=%d"), ActiveRoomBuffs.Num());
+	}
+	else
+	{
+		ActiveRoomBuffs = SelectRoomBuffs(*ActiveRoomData, ActiveBuffCount);
+		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 现场抽 Buff（无 Portal 预骰），数=%d"), ActiveRoomBuffs.Num());
+	}
 
 	// 生成波次计划
 	GenerateWavePlans(Score, Tier.MaxWaveCount, ActiveRoomData);
@@ -1655,10 +1710,31 @@ void AYogGameMode::ActivateHubPortals()
 			continue;
 		}
 
-		(*Found)->Open(ChosenRoom->RoomName, ChosenRoom);
-		UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: 门[%d] 开启 → 关卡=%s 房间=%s"),
-			Cfg.PortalIndex, *ChosenRoom->RoomName.ToString(), *ChosenRoom->GetName());
+		// 主城 → 第一关：用 FloorTable[0] 的难度分选下一关 Tier，预骰本门 Buff
+		const FFloorConfig* NextConfig = CampaignData->FloorTable.IsValidIndex(0)
+			? &CampaignData->FloorTable[0]
+			: nullptr;
+		const int32 NextScore = NextConfig ? NextConfig->TotalDifficultyScore : 30;
+		const FRoomDifficultyTier& NextTier = ResolveTier(
+			*ChosenRoom, NextScore, LowDifficultyScoreMax, HighDifficultyScoreMin);
+		const TArray<FBuffEntry> PreRolled = SelectRoomBuffs(*ChosenRoom, NextTier.BuffCount);
+
+		(*Found)->Open(ChosenRoom->RoomName, ChosenRoom, PreRolled);
+		UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: 门[%d] 开启 → 关卡=%s 房间=%s 预骰Buff数=%d"),
+			Cfg.PortalIndex, *ChosenRoom->RoomName.ToString(), *ChosenRoom->GetName(),
+			PreRolled.Num());
 	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 公共选档辅助（StartLevelSpawning 与 ActivatePortals 共用，避免漂移）
+// ─────────────────────────────────────────────────────────────────────────────
+const FRoomDifficultyTier& AYogGameMode::ResolveTier(const URoomDataAsset& Room, int32 TotalScore,
+                                                     int32 LowMax, int32 HighMin)
+{
+	if (TotalScore <= LowMax)        return Room.LowDifficulty;
+	if (TotalScore >= HighMin)       return Room.HighDifficulty;
+	return Room.MediumDifficulty;
 }
 
 void AYogGameMode::ActivatePortals()
@@ -1737,11 +1813,17 @@ void AYogGameMode::ActivatePortals()
 			continue;
 		}
 
-		(*Found)->Open(LevelName, ChosenRoom);
+		// 预骰下一关 Buff（每扇门各自缓存；玩家确认进入时由 Portal::TryEnter 写入 GI）
+		const int32 NextScore = NextConfig ? NextConfig->TotalDifficultyScore : 30;
+		const FRoomDifficultyTier& NextTier = ResolveTier(
+			*ChosenRoom, NextScore, LowDifficultyScoreMax, HighDifficultyScoreMin);
+		const TArray<FBuffEntry> PreRolled = SelectRoomBuffs(*ChosenRoom, NextTier.BuffCount);
+
+		(*Found)->Open(LevelName, ChosenRoom, PreRolled);
 		bAtLeastOneOpened = true;
 
-		UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 开启 → 关卡=%s 房间=%s"),
-			Cfg.PortalIndex, *LevelName.ToString(), *ChosenRoom->GetName());
+		UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 开启 → 关卡=%s 房间=%s 预骰Buff数=%d"),
+			Cfg.PortalIndex, *LevelName.ToString(), *ChosenRoom->GetName(), PreRolled.Num());
 	}
 }
 
@@ -1916,4 +1998,67 @@ FVector AYogGameMode::FindLootSpawnLocation(APawn* PlayerPawn, APlayerController
 	// 全部候选失败，退回玩家原位（极少发生）
 	UE_LOG(LogTemp, Warning, TEXT("[LootSpawn] 所有方向被遮挡，退回玩家位置"));
 	return PlayerLoc;
+}
+
+// =========================================================
+// 关卡生命周期事件总线
+// =========================================================
+
+bool AYogGameMode::IsOneShotEvent(EGameLifecycleEvent Event)
+{
+	switch (Event)
+	{
+	case EGameLifecycleEvent::FirstRuneAcquired:
+	case EGameLifecycleEvent::FirstRunePlaced:
+	case EGameLifecycleEvent::HeatPhaseEntered:
+	case EGameLifecycleEvent::PlayerDeath:
+	case EGameLifecycleEvent::GameStart:
+		return true;
+	default:
+		return false;
+	}
+}
+
+void AYogGameMode::TriggerLifecycleEvent(EGameLifecycleEvent Event)
+{
+	// 一次性事件去重（提前查询，但延后到"成功启动 Flow"才记录，
+	// 否则未配 LFA 时会永久吞掉事件，将来配了也不再触发）
+	const bool bIsOneShot = IsOneShotEvent(Event);
+	if (bIsOneShot && FiredOnceEvents.Contains(Event))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[LifecycleEvents] 事件 %d 已触发过，忽略"), (int32)Event);
+		return;
+	}
+
+	TObjectPtr<ULevelFlowAsset>* AssetPtr = LifecycleEventFlows.Find(Event);
+	if (!AssetPtr || !AssetPtr->Get())
+	{
+		// 没配映射 = 沉默（用户不想要这个事件的表演），且不写 FiredOnceEvents 留给后续配置生效
+		UE_LOG(LogTemp, Log, TEXT("[LifecycleEvents] TriggerLifecycleEvent(%d) 未配 LFA，跳过"), (int32)Event);
+		return;
+	}
+
+	if (!LifecycleFlowComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[LifecycleEvents] LifecycleFlowComponent 为空，无法跑 Flow"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[LifecycleEvents] TriggerLifecycleEvent(%d) -> %s"),
+		(int32)Event, *AssetPtr->Get()->GetName());
+
+	// 停旧 Flow 再启新 Flow（同一时间只跑一个）
+	LifecycleFlowComponent->FinishRootFlow(LifecycleFlowComponent->RootFlow, EFlowFinishPolicy::Keep);
+	LifecycleFlowComponent->RootFlow = AssetPtr->Get();
+	LifecycleFlowComponent->StartRootFlow();
+
+	// 成功启动 Flow 之后再记录，避免静默吞事件
+	if (bIsOneShot)
+		FiredOnceEvents.Add(Event);
+}
+
+void AYogGameMode::HandleLevelEndEffectFinished()
+{
+	// HUD 揭幕动画完成 = 玩家视觉回到正常 = 适合弹教程的时机
+	TriggerLifecycleEvent(EGameLifecycleEvent::LevelClearRevealed);
 }
