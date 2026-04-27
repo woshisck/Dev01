@@ -1,6 +1,7 @@
 #include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/UObjectBase.h"
 
 // ── 玩家近战公共基类 ──────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ UGA_PlayerMeleeAttack::UGA_PlayerMeleeAttack()
 
 static FORCEINLINE FGameplayTag GT(const TCHAR* Name)
 {
-	return FGameplayTag::RequestGameplayTag(FName(Name));
+	return UObjectInitialized() ? FGameplayTag::RequestGameplayTag(FName(Name)) : FGameplayTag();
 }
 
 // ── 常用 Tag ──────────────────────────────────────────────────────────────
@@ -34,7 +35,7 @@ static FORCEINLINE FGameplayTag GT(const TCHAR* Name)
 // Dash attack
 // NOTE: TAG_Dead 已在 GA_EnemyMeleeAttacks.cpp 定义，此处不重复定义
 //       避免 UE5 adaptive non-unity 批次编译时产生 C2374 重定义错误
-static const FName TAG_HitReact (TEXT("Buff.Status.HitReact"));
+// TAG_Dead is defined in GA_EnemyMeleeAttacks.cpp; keep tag constants local to call sites here.
 
 // ── Light Attack Combo ────────────────────────────────────────────────────
 //

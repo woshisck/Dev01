@@ -10,8 +10,15 @@
 
 namespace HitStopTags
 {
-	static const FGameplayTag Freeze = FGameplayTag::RequestGameplayTag("Buff.Status.HitStop.Freeze");
-	static const FGameplayTag Slow   = FGameplayTag::RequestGameplayTag("Buff.Status.HitStop.Slow");
+	static FGameplayTag Freeze()
+	{
+		return FGameplayTag::RequestGameplayTag("Buff.Status.HitStop.Freeze");
+	}
+
+	static FGameplayTag Slow()
+	{
+		return FGameplayTag::RequestGameplayTag("Buff.Status.HitStop.Slow");
+	}
 }
 
 UBFNode_HitStop::UBFNode_HitStop(const FObjectInitializer& OI) : Super(OI)
@@ -31,8 +38,10 @@ void UBFNode_HitStop::ExecuteInput(const FName& PinName)
 
 	auto& Override = Owner->PendingHitStopOverride;
 
-	bool bCanFreeze = ASC->HasMatchingGameplayTag(HitStopTags::Freeze);
-	bool bCanSlow   = ASC->HasMatchingGameplayTag(HitStopTags::Slow);
+	const FGameplayTag FreezeTag = HitStopTags::Freeze();
+	const FGameplayTag SlowTag = HitStopTags::Slow();
+	bool bCanFreeze = ASC->HasMatchingGameplayTag(FreezeTag);
+	bool bCanSlow   = ASC->HasMatchingGameplayTag(SlowTag);
 
 	// AN 配置的 HitStop 模式直接激活对应阶段（不依赖 FA 写 Tag）
 	if (Override.bActive)
@@ -57,8 +66,8 @@ void UBFNode_HitStop::ExecuteInput(const FName& PinName)
 	}
 
 	// 消费 Tag（先消费再触发，防止同帧重入）
-	if (bCanFreeze) ASC->RemoveLooseGameplayTag(HitStopTags::Freeze);
-	if (bCanSlow)   ASC->RemoveLooseGameplayTag(HitStopTags::Slow);
+	if (bCanFreeze) ASC->RemoveLooseGameplayTag(FreezeTag);
+	if (bCanSlow)   ASC->RemoveLooseGameplayTag(SlowTag);
 
 	// AN 覆盖参数只作用于 AN 指定的模式，Tag 触发的模式使用节点默认值
 	const bool bOverrideFreeze = Override.bActive && Override.Mode == EHitStopMode::Freeze;
