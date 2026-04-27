@@ -25,9 +25,13 @@ bool UBTDecorator_HasAbilityWithTag::CalculateRawConditionValue(UBehaviorTreeCom
     {
         if (Spec.Ability && Spec.Ability->AbilityTags.HasAny(AbilityTags))
         {
+            UE_LOG(LogTemp, Verbose, TEXT("[BTD_HasAbilityWithTag] PASS — Pawn=%s wants=%s found=%s"),
+                *AIC->GetPawn()->GetName(), *AbilityTags.ToStringSimple(), *Spec.Ability->GetName());
             return true;
         }
     }
+    UE_LOG(LogTemp, Warning, TEXT("[BTD_HasAbilityWithTag] FAIL — Pawn=%s wants=%s but no GA matches"),
+        *AIC->GetPawn()->GetName(), *AbilityTags.ToStringSimple());
     return false;
 }
 

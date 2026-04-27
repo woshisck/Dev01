@@ -6,6 +6,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Navigation/CrowdFollowingComponent.h"
 #include "Character/EnemyCharacterBase.h"
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BlackboardData.h"
 
 
 AYogAIController::AYogAIController()
@@ -14,9 +16,36 @@ AYogAIController::AYogAIController()
     BlackboardComponent = CreateDefaultSubobject<UBlackboardComponent>(TEXT("YogBB"));
 }
 
+bool AYogAIController::RunBTWithBlackboard(UBehaviorTree* BT, UBlackboardData* BB)
+{
+    if (!BT)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[YogAIController] RunBTWithBlackboard FAIL: BT is null"));
+        return false;
+    }
+    // 1) 先绑黑板（绕开 BT 内部 BlackboardAsset 断链）
+    if (BB && BlackboardComponent)
+    {
+        const bool bUsed = UseBlackboard(BB, BlackboardComponent);
+        UE_LOG(LogTemp, Warning, TEXT("[YogAIController] UseBlackboard(%s) -> %d"),
+            *BB->GetName(), bUsed ? 1 : 0);
+    }
+    // 2) 启动 BT（RunBehaviorTree 内部如果发现 BB 已绑会复用，不会覆盖）
+    const bool bRan = RunBehaviorTree(BT);
+    UE_LOG(LogTemp, Warning, TEXT("[YogAIController] RunBehaviorTree(%s) -> %d"),
+        *BT->GetName(), bRan ? 1 : 0);
+    return bRan;
+}
+
 void AYogAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
+
+	// 兜底启动：BT 内部 BlackboardAsset 断链时由 C++ 强制 UseBlackboard + RunBehaviorTree
+	if (bUseFallbackStartup && FallbackBehaviorTree)
+	{
+		RunBTWithBlackboard(FallbackBehaviorTree, FallbackBlackboard);
+	}
 
 
 

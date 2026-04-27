@@ -216,6 +216,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Effect")
 	static TArray<FYogApplyEffect> MergeApplyEffects(const TArray<FYogApplyEffect>& SourceArray);
 
+	/**
+	 * 在指定 AIController 上手动绑定黑板 + 启动行为树。
+	 * 用于 BT 内部 BlackboardAsset 引用断链的兜底场景：BP_AICon EventGraph 的 OnPossess
+	 * 直接调用此函数，绕开 BT 内置 BlackboardAsset 字段。
+	 *
+	 * @param AIC             目标 AIController（self）
+	 * @param BT              要启动的行为树
+	 * @param BB              要绑定的黑板（与 BT 内节点引用的 key 名字+类型必须匹配）
+	 * @param OutBlackboard   绑定后的 BB 组件输出（BP 可拖出当变量用，后续 SetValue 等节点直接接）
+	 * @return                RunBehaviorTree 是否成功
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	static bool RunBTWithBlackboard(class AAIController* AIC,
+	                                class UBehaviorTree* BT,
+	                                class UBlackboardData* BB,
+	                                class UBlackboardComponent*& OutBlackboard);
+
 	template<typename T>
 
 	static T* GetSubsystem(const UObject* WorldContextObject)

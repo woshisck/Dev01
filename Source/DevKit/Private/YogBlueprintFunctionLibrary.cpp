@@ -18,6 +18,11 @@
 
 #include "EngineUtils.h"
 
+#include "AIController.h"
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "BehaviorTree/BlackboardData.h"
+
 //UYogBlueprintFunctionLibrary::UYogBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 //	: Super(ObjectInitializer)
 //{
@@ -648,6 +653,70 @@ float UYogBlueprintFunctionLibrary::DistFromPointToAnnulus(UObject* WorldContext
 float UYogBlueprintFunctionLibrary::DistFromPointToSquare(UObject* WorldContextObject, FVector target_point, FYogCollisionSquare square)
 {
 	return 0.0f;
+}
+
+bool UYogBlueprintFunctionLibrary::RunBTWithBlackboard(AAIController* AIC,
+                                                        UBehaviorTree* BT,
+                                                        UBlackboardData* BB,
+                                                        UBlackboardComponent*& OutBlackboard)
+{
+	OutBlackboard = nullptr;
+
+	UE_LOG(LogTemp, Warning, TEXT("[RunBTWithBlackboard] === ENTER === AIC=%s BT=%s BB=%s"),
+		AIC ? *AIC->GetName() : TEXT("null"),
+		BT  ? *BT->GetName()  : TEXT("null"),
+		BB  ? *BB->GetName()  : TEXT("null"));
+
+	if (!AIC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RunBTWithBlackboard] FAIL: AIC is null"));
+		return false;
+	}
+	if (!BT)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RunBTWithBlackboard] FAIL: BT is null on %s"), *AIC->GetName());
+		return false;
+	}
+
+	// 状态 #1：UseBlackboard 之前
+	UBlackboardComponent* BBCompBefore = AIC->GetBlackboardComponent();
+	UE_LOG(LogTemp, Warning, TEXT("[RunBTWithBlackboard] [Pre]  AIC->GetBlackboardComponent()=%s"),
+		BBCompBefore ? *BBCompBefore->GetName() : TEXT("null"));
+
+	if (BB)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RunBTWithBlackboard] [Pre]  BB Keys.Num=%d"), BB->Keys.Num());
+	}
+
+	// 1) 绑黑板。注意：UseBlackboard 第二参数是 inout 引用 — 必须传可写左值，
+	//    传 GetBlackboardComponent() 临时返回值会被禁止（旧实现编译能过但语义不对）
+	UBlackboardComponent* BBComp = BBCompBefore;
+	if (BB)
+	{
+		const bool bUsed = AIC->UseBlackboard(BB, BBComp);
+		UE_LOG(LogTemp, Warning, TEXT("[RunBTWithBlackboard] [Use] UseBlackboard(%s) -> %d | BBComp(after)=%s"),
+			*BB->GetName(), bUsed ? 1 : 0,
+			BBComp ? *BBComp->GetName() : TEXT("null"));
+	}
+
+	// 状态 #2：UseBlackboard 之后
+	UBlackboardComponent* BBCompAfter = AIC->GetBlackboardComponent();
+	UE_LOG(LogTemp, Warning, TEXT("[RunBTWithBlackboard] [Post] AIC->GetBlackboardComponent()=%s | BBAsset=%s"),
+		BBCompAfter ? *BBCompAfter->GetName() : TEXT("null"),
+		(BBCompAfter && BBCompAfter->GetBlackboardAsset())
+			? *BBCompAfter->GetBlackboardAsset()->GetName() : TEXT("null"));
+
+	// 选优：优先 AIC 的内部 BBComp（标准来源），fallback 到 UseBlackboard 写回的 BBComp
+	OutBlackboard = BBCompAfter ? BBCompAfter : BBComp;
+
+	// 2) 启动 BT
+	const bool bRan = AIC->RunBehaviorTree(BT);
+	UE_LOG(LogTemp, Warning, TEXT("[RunBTWithBlackboard] [Run] RunBehaviorTree(%s) -> %d"),
+		*BT->GetName(), bRan ? 1 : 0);
+
+	UE_LOG(LogTemp, Warning, TEXT("[RunBTWithBlackboard] === EXIT === OutBlackboard=%s (this is what BP receives)"),
+		OutBlackboard ? *OutBlackboard->GetName() : TEXT("null"));
+	return bRan;
 }
 
 

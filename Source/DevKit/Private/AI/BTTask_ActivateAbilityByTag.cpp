@@ -19,17 +19,20 @@ UBTTask_ActivateAbilityByTag::UBTTask_ActivateAbilityByTag()
 EBTNodeResult::Type UBTTask_ActivateAbilityByTag::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	AAIController* AIC = OwnerComp.GetAIOwner();
-	if (!AIC) return EBTNodeResult::Failed;
+	APawn* Pawn = AIC ? AIC->GetPawn() : nullptr;
+	UE_LOG(LogTemp, Warning, TEXT("[BTT_ActivateAbilityByTag] Enter — Pawn=%s RequestedTags=%s"),
+		Pawn ? *Pawn->GetName() : TEXT("null"),
+		*AbilityTags.ToStringSimple());
 
-	APawn* Pawn = AIC->GetPawn();
-	if (!Pawn) return EBTNodeResult::Failed;
+	if (!AIC) { UE_LOG(LogTemp, Warning, TEXT("[BTT_ActivateAbilityByTag] FAIL: no AIController")); return EBTNodeResult::Failed; }
+	if (!Pawn) { UE_LOG(LogTemp, Warning, TEXT("[BTT_ActivateAbilityByTag] FAIL: no Pawn")); return EBTNodeResult::Failed; }
 
 	IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(Pawn);
 	UAbilitySystemComponent* ASC = ASCInterface ? ASCInterface->GetAbilitySystemComponent() : nullptr;
-	if (!ASC) return EBTNodeResult::Failed;
+	if (!ASC) { UE_LOG(LogTemp, Warning, TEXT("[BTT_ActivateAbilityByTag] FAIL: no ASC")); return EBTNodeResult::Failed; }
 
 	UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(ASC);
-	if (!YogASC) return EBTNodeResult::Failed;
+	if (!YogASC) { UE_LOG(LogTemp, Warning, TEXT("[BTT_ActivateAbilityByTag] FAIL: ASC not YogASC")); return EBTNodeResult::Failed; }
 
 	// 过滤掉没有蒙太奇数据的 Tag，只在敌人实际配置了蒙太奇的攻击中随机选
 	FGameplayTagContainer ValidTags;
@@ -43,16 +46,25 @@ EBTNodeResult::Type UBTTask_ActivateAbilityByTag::ExecuteTask(UBehaviorTreeCompo
 				{
 					for (const FGameplayTag& Tag : AbilityTags)
 					{
-						if (AD->HasAbility(Tag))
-						{
-							ValidTags.AddTag(Tag);
-						}
+						const bool bHas = AD->HasAbility(Tag);
+						UE_LOG(LogTemp, Warning, TEXT("[BTT_ActivateAbilityByTag]   Tag=%s | AD=%s HasAbility=%d"),
+							*Tag.ToString(), *AD->GetName(), bHas);
+						if (bHas) ValidTags.AddTag(Tag);
 					}
 				}
+				else { UE_LOG(LogTemp, Warning, TEXT("[BTT_ActivateAbilityByTag] FAIL: CD->AbilityData is null on %s"), *CD->GetName()); }
 			}
+			else { UE_LOG(LogTemp, Warning, TEXT("[BTT_ActivateAbilityByTag] FAIL: DC->GetCharacterData is null")); }
 		}
+		else { UE_LOG(LogTemp, Warning, TEXT("[BTT_ActivateAbilityByTag] FAIL: Char->GetCharacterDataComponent is null")); }
 	}
-	if (ValidTags.IsEmpty()) return EBTNodeResult::Failed;
+	else { UE_LOG(LogTemp, Warning, TEXT("[BTT_ActivateAbilityByTag] FAIL: Pawn not YogCharacterBase")); }
+
+	if (ValidTags.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BTT_ActivateAbilityByTag] FAIL: ValidTags empty (no matching ability for requested tags)"));
+		return EBTNodeResult::Failed;
+	}
 
 	// 攻击前摇红光（勾选 bPreAttackFlash 时，与技能同步开始）
 	auto* Memory = CastInstanceNodeMemory<FActivateAbilityMemory>(NodeMemory);
