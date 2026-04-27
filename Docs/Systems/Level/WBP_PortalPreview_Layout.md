@@ -29,7 +29,7 @@ CanvasPanel（根，Full Screen）
             │   │   └── TextBlock（RoomTypeText [BindWidgetOptional]，字号11 Bold，#FFFFFF）
             │   └── TextBlock（RoomNameText [BindWidgetOptional]，HFill，VCenter，PadL=8，字号15 Bold，#ECECEC）
             ├── TextBlock（"敌人将携带印记"，字号12，#888888，PadB=4）
-            ├── VerticalBox（BuffListBox [BindWidgetOptional]，HFill，C++ 动态填充每行）
+            ├── VerticalBox（BuffListBox [BindWidgetOptional]，HFill，C++ 动态填充每行；浮窗高度随内容自然撑开）
             ├── TextBlock（LootSummaryText [BindWidgetOptional]，HFill，字号12，#D0D0D0，PadT=8 PadB=4）
             └── HorizontalBox（InteractHintRoot [BindWidgetOptional]，HFill，VCenter，PadT=8，初始 Collapsed）
                 ├── Border（"E"键徽章，Pad=6/2/6/2，#3A3A4A）
@@ -142,14 +142,15 @@ CanvasPanel（根，Full Screen）
 
 ### VerticalBox（BuffListBox）
 
-#### Slot
+#### Slot（VBox Slot）
 | 属性 | 值 |
 |---|---|
 | Size Rule | Auto |
 | HAlign | Fill |
 
-> 内容由 C++ `SetPreviewInfo` 动态构造（每行 = HorizontalBox + Image 28×28 + TextBlock 字号13）。WBP 中保持空容器即可。
-> BuffPool 为空时（如商店/事件房 BuffCount=0）该容器无子控件，自动塌陷高度。
+> 内容由 C++ `SetPreviewInfo` 动态构造。每行 = `HorizontalBox[ Image 28×28(VAlign Top) | VerticalBox{ Name(13) / Description(11, AutoWrap) / GenericEffects×N(11, AutoWrap, "• 名：描"格式) } ]`，行间距 6px，子行间距 2px。
+> 颜色 / 字号 / 间距均在 [PortalPreviewWidget.cpp](../../../Source/DevKit/Private/UI/PortalPreviewWidget.cpp) 顶部 namespace 常量集中维护，需调整改 .cpp 即可。
+> 浮窗高度随符文条数和描述长度自然撑开（外层 SizeBox 不限制 MaxDesiredHeight）。BuffPool 为空时该容器无子控件，自动塌陷高度。
 
 ### TextBlock（LootSummaryText）
 

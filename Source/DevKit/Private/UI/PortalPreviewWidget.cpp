@@ -1,5 +1,6 @@
 #include "UI/PortalPreviewWidget.h"
 #include "Data/RuneDataAsset.h"
+#include "Data/GenericRuneEffectDA.h"
 #include "Components/TextBlock.h"
 #include "Components/Border.h"
 #include "Components/VerticalBox.h"
@@ -8,7 +9,8 @@
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/SizeBox.h"
-#include "Components/Widget.h"
+#include "UI/YogCommonRichTextBlock.h"
+#include "CommonInputSubsystem.h"
 
 namespace
 {
@@ -36,6 +38,108 @@ namespace
         if (Name == FName("Room.Type.Normal"))return Normal;
         return Unknown;
     }
+
+    // ── BuffListBox 行样式（v3 决策：.cpp 静态常量，不建 DA）──
+    constexpr int32   BuffNameFontSize     = 13;
+    constexpr int32   BuffDescFontSize     = 11;
+    constexpr int32   BuffEffectFontSize   = 11;
+    const FLinearColor BuffNameColor       = FLinearColor(0.93f, 0.93f, 0.93f, 1.0f); // #ECECEC
+    const FLinearColor BuffDescColor       = FLinearColor(0.78f, 0.78f, 0.80f, 1.0f); // 次级灰
+    const FLinearColor BuffEffectColor     = FLinearColor(0.65f, 0.65f, 0.70f, 1.0f); // 更淡
+    constexpr float   BuffRowSpacing       = 6.f;
+    constexpr float   BuffSubLineSpacing   = 2.f;
+
+    // 字号微调：保留原字体 / 字重，只改 Size，避免默认字体被覆盖
+    void SetTextSize(UTextBlock* TB, int32 Size)
+    {
+        if (!TB) return;
+        FSlateFontInfo Font = TB->GetFont();
+        Font.Size = Size;
+        TB->SetFont(Font);
+    }
+
+    // RuneName 漏配兜底：开发期暴露资产名定位漏配，Shipping 显示"未命名"
+    FText ResolveRuneDisplayName(const URuneDataAsset& RuneDA)
+    {
+        const FName RuneName = RuneDA.RuneInfo.RuneConfig.RuneName;
+        if (!RuneName.IsNone())
+        {
+            return FText::FromName(RuneName);
+        }
+#if !UE_BUILD_SHIPPING
+        UE_LOG(LogTemp, Warning,
+            TEXT("PortalPreview: RuneDA '%s' 缺少 RuneConfig.RuneName，临时显示资产名"),
+            *RuneDA.GetName());
+        return FText::FromString(RuneDA.GetName());
+#else
+        UE_LOG(LogTemp, Warning, TEXT("PortalPreview: RuneDA 缺少 RuneConfig.RuneName"));
+        return NSLOCTEXT("Portal", "UnnamedRune", "未命名符文");
+#endif
+    }
+
+    // GenericEffect 单条文本格式化（4 种情况降级，避免空冒号 / 空行）
+    FText FormatGenericEffectLine(const UGenericRuneEffectDA& Effect)
+    {
+        const bool bHasName = !Effect.DisplayName.IsEmptyOrWhitespace();
+        const bool bHasDesc = !Effect.Description.IsEmptyOrWhitespace();
+        if (bHasName && bHasDesc)
+        {
+            return FText::Format(
+                NSLOCTEXT("Portal", "BulletNameDesc", "• {0}：{1}"),
+                Effect.DisplayName, Effect.Description);
+        }
+        if (bHasName)
+        {
+            return FText::Format(
+                NSLOCTEXT("Portal", "BulletNameOnly", "• {0}"),
+                Effect.DisplayName);
+        }
+        if (bHasDesc)
+        {
+            return FText::Format(
+                NSLOCTEXT("Portal", "BulletDescOnly", "• {0}"),
+                Effect.Description);
+        }
+        return FText::GetEmpty();
+    }
+}
+
+void UPortalPreviewWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    // 写入初始提示文字
+    RefreshHintText(ECommonInputType::MouseAndKeyboard);
+
+    // 订阅输入设备切换，实时刷新图标（手柄↔键鼠）
+    if (UCommonInputSubsystem* InputSub =
+        ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(GetOwningLocalPlayer()))
+    {
+        InputSub->OnInputMethodChangedNative.AddUObject(
+            this, &UPortalPreviewWidget::RefreshHintText);
+    }
+
+    SetInteractHintVisible(false);
+}
+
+void UPortalPreviewWidget::NativeDestruct()
+{
+    if (UCommonInputSubsystem* InputSub =
+        ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(GetOwningLocalPlayer()))
+    {
+        InputSub->OnInputMethodChangedNative.RemoveAll(this);
+    }
+    Super::NativeDestruct();
+}
+
+void UPortalPreviewWidget::RefreshHintText(ECommonInputType /*NewInputType*/)
+{
+    if (InteractHintRoot)
+    {
+        // SetText 触发 RichText 重建，装饰器重新读 CommonInputSubsystem 获取当前设备图标
+        InteractHintRoot->SetText(
+            FText::FromString(TEXT("<input action=\"Interact\"/> 进入")));
+    }
 }
 
 void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
@@ -57,7 +161,7 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
         RoomTypeText->SetText(Style.DisplayName);
     }
 
-    // Buff 列表
+    // Buff 列表（每行 = HBox[Icon | VBox{Name / Desc / GenericEffects×N}]）
     if (BuffListBox)
     {
         BuffListBox->ClearChildren();
@@ -68,6 +172,7 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
 
             UHorizontalBox* Row = NewObject<UHorizontalBox>(this);
 
+            // ── 左：Icon 28×28，顶端对齐（多行时图标对第一行）──
             USizeBox* IconBox = NewObject<USizeBox>(this);
             IconBox->SetWidthOverride(28.f);
             IconBox->SetHeightOverride(28.f);
@@ -80,26 +185,63 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
 
             UHorizontalBoxSlot* IconSlot = Row->AddChildToHorizontalBox(IconBox);
             IconSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
-            IconSlot->SetVerticalAlignment(VAlign_Center);
+            IconSlot->SetVerticalAlignment(VAlign_Top);
             IconSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
+            // ── 右：VBox 名称 / 描述 / 通用效果列表 ──
+            UVerticalBox* RightVBox = NewObject<UVerticalBox>(this);
+
+            // 名称（漏配兜底见 ResolveRuneDisplayName；AutoWrap 防本地化/长资产名溢出）
             UTextBlock* NameTB = NewObject<UTextBlock>(this);
-            NameTB->SetText(FText::FromName(Cfg.RuneName));
-            UHorizontalBoxSlot* TextSlot = Row->AddChildToHorizontalBox(NameTB);
-            TextSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-            TextSlot->SetVerticalAlignment(VAlign_Center);
+            NameTB->SetText(ResolveRuneDisplayName(*Entry.RuneDA));
+            NameTB->SetColorAndOpacity(FSlateColor(BuffNameColor));
+            NameTB->SetAutoWrapText(true);
+            SetTextSize(NameTB, BuffNameFontSize);
+            RightVBox->AddChildToVerticalBox(NameTB);
+
+            // 描述（空则跳过，不留空行）
+            if (!Cfg.RuneDescription.IsEmptyOrWhitespace())
+            {
+                UTextBlock* DescTB = NewObject<UTextBlock>(this);
+                DescTB->SetText(Cfg.RuneDescription);
+                DescTB->SetColorAndOpacity(FSlateColor(BuffDescColor));
+                DescTB->SetAutoWrapText(true);
+                SetTextSize(DescTB, BuffDescFontSize);
+                UVerticalBoxSlot* DescSlot = RightVBox->AddChildToVerticalBox(DescTB);
+                DescSlot->SetPadding(FMargin(0.f, BuffSubLineSpacing, 0.f, 0.f));
+            }
+
+            // GenericEffects（每条按 4 种情况降级，全空则跳过）
+            for (const TObjectPtr<UGenericRuneEffectDA>& EffectPtr : Cfg.GenericEffects)
+            {
+                const UGenericRuneEffectDA* Effect = EffectPtr.Get();
+                if (!Effect) continue;
+                const FText Line = FormatGenericEffectLine(*Effect);
+                if (Line.IsEmptyOrWhitespace()) continue;
+
+                UTextBlock* EffTB = NewObject<UTextBlock>(this);
+                EffTB->SetText(Line);
+                EffTB->SetColorAndOpacity(FSlateColor(BuffEffectColor));
+                EffTB->SetAutoWrapText(true);
+                SetTextSize(EffTB, BuffEffectFontSize);
+                UVerticalBoxSlot* EffSlot = RightVBox->AddChildToVerticalBox(EffTB);
+                EffSlot->SetPadding(FMargin(0.f, BuffSubLineSpacing, 0.f, 0.f));
+            }
+
+            UHorizontalBoxSlot* RightSlot = Row->AddChildToHorizontalBox(RightVBox);
+            RightSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+            RightSlot->SetVerticalAlignment(VAlign_Center);
 
             UVerticalBoxSlot* RowSlot = BuffListBox->AddChildToVerticalBox(Row);
-            RowSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
+            RowSlot->SetPadding(FMargin(0.f, 0.f, 0.f, BuffRowSpacing));
         }
     }
 
-    // 战利品摘要
+    // 战利品摘要（仅列类型，不带数量）
     if (LootSummaryText)
     {
-        LootSummaryText->SetText(FText::Format(
-            NSLOCTEXT("Portal", "LootSummary", "战利品：符文 ×{0}"),
-            FText::AsNumber(Info.LootCount)));
+        LootSummaryText->SetText(
+            NSLOCTEXT("Portal", "LootSummary", "战利品：符文、金币"));
     }
 
     // 浮窗刚显示时默认隐藏交互提示，待 HUD 检测到 PendingPortal == this 再调 SetInteractHintVisible(true)

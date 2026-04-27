@@ -7,6 +7,22 @@
 
 ## 2026-04-27
 
+### [UI-010] 传送门浮窗符文行扩展：描述 + GenericEffects 内联展示
+
+**状态**：C++ 完成已编译；浮窗高度按内容自然撑开（用户决策不加 ScrollBox）
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `UI/PortalPreviewWidget.cpp`、`Docs/Systems/Level/WBP_PortalPreview_Layout.md` |
+| 行结构改造 | 每条预骰符文行从 `[Icon, Name]` 改为 `HorizontalBox[ Icon 28×28(VAlign Top) \| VerticalBox{ Name(13, AutoWrap) / Description(11, AutoWrap)? / GenericEffects×N(11, AutoWrap)? } ]`；行间距 6px、子行间距 2px |
+| 数据来源 | `URuneDataAsset.RuneInfo.RuneConfig` 的 `RuneDescription` + `GenericEffects[i]->{DisplayName, Description}` |
+| GenericEffect 行格式 | `FText::Format` "• 名：描"，按 4 种情况降级（名+描 / 只名 / 只描 / 全空跳过），避免空冒号 |
+| 样式集中维护 | cpp 顶部匿名 namespace 抽 `BuffNameFontSize/DescFontSize/EffectFontSize`、3 档颜色常量、`BuffRowSpacing/SubLineSpacing`、`SetTextSize` helper（保留原字体只改 Size） |
+| RuneName 漏配兜底 | `ResolveRuneDisplayName`：非 Shipping 显示资产名 + UE_LOG Warning 定位漏配；Shipping 显示"未命名符文" + Warning |
+| 浮窗高度策略 | 试过外包 ScrollBox + MaxDesiredHeight 但符文不显示（ScrollBox-VBox 双层结构疑似打断宽度链路），最终决策：不加 ScrollBox，浮窗高度随符文条数 / 描述长度自然撑高 |
+| 双重审查 | codex_plan_review（设计）+ codex_code_review（代码）双轮通过；用户根据审查补 NameTB 的 `SetAutoWrapText(true)` 防长资产名溢出 |
+| 已知限制 | 房间类型 Tag 仍走精确名比较（`Room.Type.Elite` 等），不支持子标签如 `Room.Type.Elite.Boss`；与 `PortalDirectionWidget` 房间类型样式重复维护，待后续统一抽 helper |
+
 ### [UI-009] 背包系统 4 项改造：Bug A/B 修复 + 预览补强 + 操作提示浮窗
 
 **状态**：C++ 完成已编译并 push 到 origin/main；WBP_BackpackScreen 需在编辑器侧加 EndPreviewButton + OperationHintWidget
