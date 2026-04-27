@@ -112,31 +112,51 @@ void ARewardPickup::AssignLoot(const TArray<FLootOption>& InLoot)
 void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 {
 	if (bPickedUp || !Player) return;
+
+	// 先验证依赖链完整性，再修改自身状态
+	AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this));
+	APlayerController* PC = Player->GetController<APlayerController>();
+	AYogHUD* HUD = PC ? Cast<AYogHUD>(PC->GetHUD()) : nullptr;
+
+	if (!GM || !PC || !HUD)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[RewardPickup] TryPickup 失败：GM=%s PC=%s HUD=%s"),
+			GM ? TEXT("OK") : TEXT("NULL"),
+			PC ? TEXT("OK") : TEXT("NULL"),
+			HUD ? TEXT("OK") : TEXT("NULL"));
+		return;  // 不修改任何状态，pickup 仍可被再次按 E
+	}
+
+	// 此时所有依赖都可用，安全修改自身状态
 	bPickedUp = true;
-
-	bPlayerInRange = false;
-	NearbyPlayer = nullptr;
 	if (RuneInfoWidgetComp) RuneInfoWidgetComp->SetVisibility(false);
+	if (Player->PendingPickup == this) Player->PendingPickup = nullptr;
 
-	Player->PendingPickup = nullptr;
+	TArray<FLootOption> Options = (AssignedLoot.Num() > 0)
+		? AssignedLoot
+		: GM->GenerateIndependentLootOptions();
 
-	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this)))
-	{
-		TArray<FLootOption> Options;
-		if (AssignedLoot.Num() > 0)
-			Options = AssignedLoot;
-		else
-			Options = GM->GenerateIndependentLootOptions();
+	// 入队到 HUD（HUD 内部决定立即弹还是排队），不再直接 Destroy 自己
+	HUD->QueueLootSelection(Options, this);
+}
 
-		// 拾取物直接驱动 UI，每次拾取独立触发一次
-		if (APlayerController* PC = Player->GetController<APlayerController>())
-			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-				HUD->ShowLootSelectionUI(Options);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("[RewardPickup] TryPickup: 无法获取 YogGameMode！"));
-	}
-
+void ARewardPickup::ConsumeAndDestroy()
+{
+	UE_LOG(LogTemp, Log, TEXT("[RewardPickup] ConsumeAndDestroy"));
 	Destroy();
+}
+
+void ARewardPickup::ResetForSkip(APlayerCharacterBase* Player)
+{
+	UE_LOG(LogTemp, Log, TEXT("[RewardPickup] ResetForSkip — Player=%s InRange=%d"),
+		Player ? *Player->GetName() : TEXT("null"), bPlayerInRange);
+
+	bPickedUp = false;
+
+	// 仅当玩家仍在范围内才重新挂回 PendingPickup + 显示浮窗
+	if (Player && bPlayerInRange && NearbyPlayer.Get() == Player)
+	{
+		Player->PendingPickup = this;
+		if (RuneInfoWidgetComp) RuneInfoWidgetComp->SetVisibility(true);
+	}
 }

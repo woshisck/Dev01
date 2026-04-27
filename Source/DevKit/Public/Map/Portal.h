@@ -2,7 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "GameplayTagContainer.h"
 #include "NiagaraSystem.h"
+#include "Data/EnemyData.h"   // FBuffEntry
 #include "Portal.generated.h"
 
 class APlayerCharacterBase;
@@ -12,6 +14,40 @@ class UNiagaraComponent;
 class UStaticMeshComponent;
 class UYogSaveSubsystem;
 class URoomDataAsset;
+class URuneDataAsset;
+
+/**
+ * FPortalPreviewInfo —— 单个传送门提供给 HUD 浮窗 / 方位指引的预览数据。
+ * 由 APortal::BuildPreviewInfo 在 Open() 时一次性构建并缓存。
+ *
+ * 注意：字段直接保存 FBuffEntry（而非 URuneDataAsset*），避免丢失 DifficultyScore 等元数据；
+ * 也使 TryEnter 时能直接拷贝 PreRolledBuffs 到 GI->PendingRoomBuffs，无需额外转换。
+ */
+USTRUCT(BlueprintType)
+struct DEVKIT_API FPortalPreviewInfo
+{
+    GENERATED_BODY()
+
+    /** 玩家可见的房间名（DisplayName 兜底为 RoomName.ToString()） */
+    UPROPERTY(BlueprintReadOnly)
+    FText RoomDisplayName;
+
+    /** 关卡资产名，用于调试与 fallback */
+    UPROPERTY(BlueprintReadOnly)
+    FName RoomLevelName;
+
+    /** 房间类型 Tag（Room.Type.Normal/Elite/Shop/Event），UI 用于徽章颜色 */
+    UPROPERTY(BlueprintReadOnly)
+    FGameplayTag RoomTypeTag;
+
+    /** 已确定要施加给下一关敌人的 Buff 列表（与 GI->PendingRoomBuffs 同型） */
+    UPROPERTY(BlueprintReadOnly)
+    TArray<FBuffEntry> PreRolledBuffs;
+
+    /** 战利品个数（当前固定 3） */
+    UPROPERTY(BlueprintReadOnly)
+    int32 LootCount = 3;
+};
 
 /**
  * 传送门单个状态的美术配置。
@@ -66,9 +102,11 @@ public:
 	void NeverOpen();
 	virtual void NeverOpen_Implementation();
 
-	// GameMode 在关卡结束时调用，分配目标关卡和房间配置并开启门
+	// GameMode 在关卡结束时调用，分配目标关卡 / 房间配置 / 已预骰的关卡 Buff 列表并开启门。
+	// PreRolledBuffs 与 GI->PendingRoomBuffs 同型；本门各自缓存，仅在玩家确认进入时由 TryEnter 写入 GI。
 	UFUNCTION(BlueprintCallable)
-	void Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom);
+	void Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
+	          const TArray<FBuffEntry>& InPreRolledBuffs);
 
 	// 直接通过名字切换关卡（保留旧接口，BP 可调）
 	UFUNCTION(BlueprintCallable)
@@ -82,10 +120,38 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	void EnterPortal(APlayerCharacterBase* ReceivingChar, UYogSaveSubsystem* SaveSubsystem);
 
+	/**
+	 * 玩家按 E 时由 PlayerController::Interact 调用。v3：替代旧的 Overlap 自动入门。
+	 * B 阶段最小实现：直接走 EnterPortal 流程；C 阶段升级为带角色自走 + 渐黑过场的完整序列。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Portal")
+	void TryEnter(APlayerCharacterBase* Player);
+
 	UFUNCTION()
 	virtual void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
 		bool bFromSweep, const FHitResult& SweepHitResult);
+
+	UFUNCTION()
+	virtual void OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	// =========================================================
+	// 视觉强化 BP 接口（C++ 不实现，BP_Portal 自由 override）
+	// 全部加 K2_ 前缀，避免与 C++ 内部函数命名冲突
+	// =========================================================
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Portal|FX", meta = (DisplayName = "On Highlight Changed"))
+	void K2_OnHighlightChanged(bool bHighlighted);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Portal|FX", meta = (DisplayName = "On Portal Range Entered"))
+	void K2_OnPortalRangeEntered();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Portal|FX", meta = (DisplayName = "On Portal Range Exited"))
+	void K2_OnPortalRangeExited();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Portal|FX", meta = (DisplayName = "On Entry Sequence Start"))
+	void K2_OnEntrySequenceStart();
 
 	// 场景中唯一标识（与 CampaignData.PortalDestinations[i].PortalIndex 对应）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal")
@@ -106,6 +172,17 @@ public:
 	// 关卡开始时确定永不开启（未登记在 PortalDestinations 中）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")
 	bool bWillNeverOpen = false;
+
+	// =========================================================
+	// 预骰子的关卡 Buff（玩家确认进入时由 TryEnter 拷贝到 GI->PendingRoomBuffs）
+	// =========================================================
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Preview")
+	TArray<FBuffEntry> PreRolledBuffs;
+
+	// HUD 单例浮窗 / 方位指引读取的预览数据（由 BuildPreviewInfo 在 Open 时构建）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Preview")
+	FPortalPreviewInfo CachedPreviewInfo;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TObjectPtr<UBoxComponent> CollisionVolume;
@@ -149,7 +226,37 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Art")
 	TMap<FName, FPortalArtConfig> DestinationArtMap;
 
+public:
+	// === 入门过场配置（在 BP_Portal Details 面板可调）===
+
+	/** 角色自走入门时长（秒）。0.7 默认；用户可调。不必抵达门位置 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Entry")
+	float PortalEntryWalkDuration = 0.7f;
+
+	/** 兜底超时余量（秒）。WalkDuration + 此值后强制切关，防卡墙 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Entry")
+	float PortalEntryFailSafeBuffer = 0.5f;
+
 private:
 	// 统一应用一套 FPortalArtConfig：切换网格、激活/停止特效
 	void ApplyArtConfig(const FPortalArtConfig& Config, bool bPlayOpenVFX = false);
+
+	// 根据 SelectedRoom + PreRolledBuffs 填充 CachedPreviewInfo（Open 时调用）
+	void BuildPreviewInfo();
+
+	// Overlap 内部处理函数（与 BP 钩 K2_* 区分命名）
+	void HandlePlayerEnterRange(APlayerCharacterBase* Player);
+	void HandlePlayerExitRange(APlayerCharacterBase* Player);
+
+	// === Entry 过场状态机 ===
+	void TickEntryMovement();   // Timer 回调：每帧驱动玩家走向门
+	void FinishEntry();         // Walk 结束 / 兜底超时：写 GI + TransitionToLevel
+	void AbortEntry(const TCHAR* Reason);  // 异常分支：恢复输入 + 解锁背包
+
+	// 防重入：TryEnter 触发后置 true，本 actor 销毁前不再接受第二次按 E
+	bool bEntryInProgress = false;
+
+	FTimerHandle EntryWalkTickTimer;
+	FTimerHandle EntryFinishTimer;
+	TWeakObjectPtr<APlayerCharacterBase> EntryPlayer;
 };

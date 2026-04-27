@@ -8,6 +8,8 @@
 #include "Components/Image.h"
 #include "GameDialogWidget.generated.h"
 
+class UCommonRichTextBlock;
+
 // 单页数据
 USTRUCT(BlueprintType)
 struct FTutorialPage
@@ -64,7 +66,7 @@ protected:
 	TObjectPtr<UTextBlock> TitleText;
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UTextBlock> BodyText;
+	TObjectPtr<UCommonRichTextBlock> BodyText;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> BtnConfirm;
@@ -76,7 +78,7 @@ protected:
 	TObjectPtr<UTextBlock> PageHint;
 
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> BodySubText;
+	TObjectPtr<UCommonRichTextBlock> BodySubText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UImage> IllustrationImage;

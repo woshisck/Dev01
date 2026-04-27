@@ -275,6 +275,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Spawning")
 	void StartLevelSpawning();
 
+	/**
+	 * 根据当前总难度分选取房间的难度档位（Low / Medium / High）。
+	 * 公共静态：StartLevelSpawning（当前关）和 ActivatePortals 预骰下一关 Buff 时共用，
+	 * 避免选档逻辑漂移。
+	 */
+	static const FRoomDifficultyTier& ResolveTier(const URoomDataAsset& Room, int32 TotalScore,
+	                                              int32 LowMax, int32 HighMin);
+
 protected:
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 

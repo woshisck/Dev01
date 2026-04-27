@@ -8,8 +8,8 @@
 #include "Data/RuneDataAsset.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Character/PlayerCharacterBase.h"
-#include "Components/HorizontalBox.h"
-#include "Components/HorizontalBoxSlot.h"
+#include "Components/WrapBox.h"
+#include "Components/WrapBoxSlot.h"
 #include "Components/Button.h"
 #include "Components/SizeBox.h"
 #include "Components/Border.h"
@@ -91,11 +91,17 @@ void ULootSelectionWidget::ShowLootUI(const TArray<FLootOption>& Options, ARewar
 	{
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 			HUD->BeginPauseEffect();
-		PC->SetPause(true);
+		const bool bPaused = PC->SetPause(true);
+		UE_LOG(LogTemp, Log, TEXT("[LootSelection] ShowLootUI: SetPause result=%d"), bPaused ? 1 : 0);
 		PC->SetShowMouseCursor(true);
 		FInputModeUIOnly InputMode;
 		InputMode.SetWidgetToFocus(GetCachedWidget());
 		PC->SetInputMode(InputMode);
+		// 兜底：SetPause + InputMode UIOnly 仍可能让 EnhancedInput 透传到 Pawn，
+		// 显式 DisableInput 关掉 Pawn/Controller 输入，确保不能跑/攻击
+		if (APawn* Pawn = PC->GetPawn())
+			Pawn->DisableInput(PC);
+		PC->DisableInput(PC);
 	}
 
 	SetUserFocus(GetOwningPlayer());
@@ -134,6 +140,33 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 			Options.Num(), MaxCards, N);
 	}
 
+	// 先统计有效卡数（非 Rune 或 RuneAsset=null 的项不算），避免无效项让 5/6 张全部缩小
+	int32 ValidCount = 0;
+	for (int32 i = 0; i < N; ++i)
+	{
+		const FLootOption& Opt = Options[i];
+		if (Opt.LootType == ELootType::Rune && Opt.RuneAsset)
+		{
+			++ValidCount;
+		}
+	}
+
+	// ValidCount <= 4: 单行大卡 320×420，不强制换行
+	// ValidCount >= 5: 缩成 240×360，WrapSize=820 强制 3 列（5 张 → 3+2，6 张 → 3+3）
+	const FVector2D CardSize = (ValidCount <= 4) ? LargeCardSize : SmallCardSize;
+	// WrapBox 整体水平居中（让换行后两行都居中，5 卡的 3+2 排列第二行不左对齐）
+	CardContainer->SetHorizontalAlignment(HAlign_Center);
+	if (ValidCount >= 5)
+	{
+		CardContainer->SetExplicitWrapSize(true);
+		CardContainer->SetWrapSize(WrapBoxWrapWidthFor3Plus);
+	}
+	else
+	{
+		// 不强制换行（让 WBP 默认行为生效）
+		CardContainer->SetExplicitWrapSize(false);
+	}
+
 	for (int32 i = 0; i < N; ++i)
 	{
 		const FLootOption& Opt = Options[i];
@@ -147,12 +180,10 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 		Card->SetGenericEffectsExpanded(false);  // 默认折叠，FocusCard 时按聚焦展开
 		Card->SetSelected(false);                 // 重建时清场，FocusCard 再统一设当前选中
 
-		// 套 SizeBox 兜底，避免 WBP_RuneInfoCard 没设 Desired Size 导致 HBox 把所有卡排成 0 宽完全重叠
+		// SizeBox 强制 Override 宽高（动态尺寸），避免 WBP_RuneInfoCard 自身 Desired Size 不一致
 		USizeBox* SizeBox = NewObject<USizeBox>(this);
-		SizeBox->SetMinDesiredWidth(MinCardSize.X);
-		SizeBox->SetMinDesiredHeight(MinCardSize.Y);
-		SizeBox->SetMaxDesiredWidth(MaxCardSize.X);
-		SizeBox->SetMaxDesiredHeight(MaxCardSize.Y);
+		SizeBox->SetWidthOverride(CardSize.X);
+		SizeBox->SetHeightOverride(CardSize.Y);
 		SizeBox->AddChild(Card);
 
 		// 外包 UButton 处理鼠标点击
@@ -168,26 +199,46 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 		Style.Disabled.TintColor = FSlateColor(FLinearColor(1, 1, 1, 0));
 		Wrapper->SetStyle(Style);
 
-		// 静态绑定（dynamic delegate 不支持 lambda/带参，所以预声明 5 个回调）。
+		// 静态绑定（dynamic delegate 不支持 lambda/带参，预声明 6 个回调与 MaxCards 对齐）。
 		// 注意：用"可见卡片索引"（SpawnedCards.Num() 当前值）而不是原始 Options 索引 i —
 		// 否则若 i=0 项无效被 continue 跳过，第一张可见卡会绑到 OnCardClicked1，
 		// 而 CardToOptionIndex 只有 1 个元素，导致 ResolveCardToOption 越界失败
 		const int32 VisibleIdx = SpawnedCards.Num();
 		switch (VisibleIdx)
 		{
-		case 0: Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked0); break;
-		case 1: Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked1); break;
-		case 2: Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked2); break;
-		case 3: Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked3); break;
-		case 4: Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked4); break;
+		case 0:
+			Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked0);
+			Wrapper->OnHovered.AddDynamic(this, &ULootSelectionWidget::OnCardHovered0);
+			break;
+		case 1:
+			Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked1);
+			Wrapper->OnHovered.AddDynamic(this, &ULootSelectionWidget::OnCardHovered1);
+			break;
+		case 2:
+			Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked2);
+			Wrapper->OnHovered.AddDynamic(this, &ULootSelectionWidget::OnCardHovered2);
+			break;
+		case 3:
+			Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked3);
+			Wrapper->OnHovered.AddDynamic(this, &ULootSelectionWidget::OnCardHovered3);
+			break;
+		case 4:
+			Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked4);
+			Wrapper->OnHovered.AddDynamic(this, &ULootSelectionWidget::OnCardHovered4);
+			break;
+		case 5:
+			Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked5);
+			Wrapper->OnHovered.AddDynamic(this, &ULootSelectionWidget::OnCardHovered5);
+			break;
 		default: break;
 		}
 
 		UPanelSlot* PSlot = CardContainer->AddChild(Wrapper);
-		if (UHorizontalBoxSlot* HSlot = Cast<UHorizontalBoxSlot>(PSlot))
+		if (UWrapBoxSlot* WSlot = Cast<UWrapBoxSlot>(PSlot))
 		{
-			HSlot->SetPadding(FMargin(CardHorizontalPadding, 0.f, CardHorizontalPadding, 0.f));
-			HSlot->SetVerticalAlignment(VAlign_Top);
+			WSlot->SetPadding(FMargin(CardHorizontalPadding));
+			WSlot->SetHorizontalAlignment(HAlign_Center);
+			WSlot->SetVerticalAlignment(VAlign_Top);
 		}
 
 		SpawnedCards.Add(Card);
@@ -253,9 +304,15 @@ void ULootSelectionWidget::SetSection(ELootFocusSection NewSection)
 
 void ULootSelectionWidget::ClearAllCardSelection()
 {
+	// 切到按钮段时同步折叠所有卡的 GenericEffectList，
+	// 避免最后选中那张卡的副窗仍然展开造成"按钮在焦点但卡详情还在"的状态残留
 	for (URuneInfoCardWidget* C : SpawnedCards)
 	{
-		if (C) C->SetSelected(false);
+		if (C)
+		{
+			C->SetSelected(false);
+			C->SetGenericEffectsExpanded(false);
+		}
 	}
 }
 
@@ -300,6 +357,10 @@ void ULootSelectionWidget::SelectRuneLoot(int32 Index)
 		PC->SetPause(false);
 		PC->SetShowMouseCursor(false);
 		PC->SetInputMode(FInputModeGameOnly());
+		// 配对 ShowLootUI 的 DisableInput
+		if (APawn* Pawn = PC->GetPawn())
+			Pawn->EnableInput(PC);
+		PC->EnableInput(PC);
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 		{
 			HUD->EndPauseEffect();
@@ -332,6 +393,10 @@ void ULootSelectionWidget::SkipSelection()
 		PC->SetPause(false);
 		PC->SetShowMouseCursor(false);
 		PC->SetInputMode(FInputModeGameOnly());
+		// 配对 ShowLootUI 的 DisableInput
+		if (APawn* Pawn = PC->GetPawn())
+			Pawn->EnableInput(PC);
+		PC->EnableInput(PC);
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 			HUD->EndPauseEffect();
 	}
@@ -441,6 +506,31 @@ void ULootSelectionWidget::OnCardClicked4()
 	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 4);
 	if (Idx >= 0) SelectRuneLoot(Idx);
 }
+void ULootSelectionWidget::OnCardClicked5()
+{
+	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 5);
+	if (Idx >= 0) SelectRuneLoot(Idx);
+}
+
+// 鼠标 hover 卡片：与手柄/键盘等价 — 切段到 Cards + FocusCard 那张
+// 鼠标移开后不主动复位，最后一次 hover/键盘选择保持高亮
+void ULootSelectionWidget::HandleCardHover(int32 VisibleIdx)
+{
+	if (!SpawnedCards.IsValidIndex(VisibleIdx)) return;
+	// 已是当前选中卡且已在 Cards 段则跳过，避免重复刷新
+	if (CurrentSection == ELootFocusSection::Cards && CurrentCardIndex == VisibleIdx) return;
+
+	CurrentSection = ELootFocusSection::Cards;
+	FocusCard(VisibleIdx);
+}
+
+void ULootSelectionWidget::OnCardHovered0() { HandleCardHover(0); }
+void ULootSelectionWidget::OnCardHovered1() { HandleCardHover(1); }
+void ULootSelectionWidget::OnCardHovered2() { HandleCardHover(2); }
+void ULootSelectionWidget::OnCardHovered3() { HandleCardHover(3); }
+void ULootSelectionWidget::OnCardHovered4() { HandleCardHover(4); }
+void ULootSelectionWidget::OnCardHovered5() { HandleCardHover(5); }
+
 void ULootSelectionWidget::OnBtnSkipClicked() { SkipSelection(); }
 void ULootSelectionWidget::OnBtnBackpackPreviewClicked() { OpenBackpackPreview(); }
 
@@ -468,6 +558,10 @@ void ULootSelectionWidget::NativeOnActivated()
 		FInputModeUIOnly InputMode;
 		InputMode.SetWidgetToFocus(GetCachedWidget());
 		PC->SetInputMode(InputMode);
+		// 兜底禁用 Pawn 输入，避免 EnhancedInput 透传
+		if (APawn* Pawn = PC->GetPawn())
+			Pawn->DisableInput(PC);
+		PC->DisableInput(PC);
 	}
 
 	SetUserFocus(GetOwningPlayer());
@@ -487,6 +581,10 @@ void ULootSelectionWidget::NativeOnDeactivated()
 		PC->SetPause(false);
 		PC->SetShowMouseCursor(false);
 		PC->SetInputMode(FInputModeGameOnly());
+		// 配对 NativeOnActivated 的 DisableInput
+		if (APawn* Pawn = PC->GetPawn())
+			Pawn->EnableInput(PC);
+		PC->EnableInput(PC);
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 			HUD->EndPauseEffect();
 	}

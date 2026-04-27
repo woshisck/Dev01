@@ -12,6 +12,7 @@ class UCanvasPanelSlot;
 class UCommonRichTextBlock;
 class UGenericEffectListWidget;
 class UBorder;
+class UGenericRuneEffectDA;
 
 /**
  * 符文信息卡 Widget
@@ -32,6 +33,8 @@ class DEVKIT_API URuneInfoCardWidget : public UUserWidget
     GENERATED_BODY()
 
 public:
+    URuneInfoCardWidget(const FObjectInitializer& ObjectInitializer);
+
     // =========================================================
     // Designer 绑定（名称必须完全一致）
     // =========================================================
@@ -68,12 +71,28 @@ public:
     TObjectPtr<UGenericEffectListWidget> GenericEffectList;
 
     /**
+     * 卡片背景暗化遮罩（命名 "ContentBlocker"，UBorder 类型，半透明黑）。
+     * 叠在 CardBG 之上、CardContent 之下，确保文字可读。
+     * 在 Overlay 中通过子控件添加顺序控制 Z-order：CardBG → ContentBlocker → CardContent → SelectionBorder。
+     */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UBorder> ContentBlocker;
+
+    /**
      * 选中态高亮边框（命名 "SelectionBorder"，UBorder 类型）。
      * 默认 Hidden，由 SetSelected(true) 自动显示。
      * WBP 端建议：UBorder 包卡片或叠在卡片之上，Brush.DrawAs=Box，Brush.Margin 用于 9-slice 描边效果。
      */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UBorder> SelectionBorder;
+
+    /** 金币图标（命名 "GoldCostIcon"）。GoldCost > 0 时可见，否则 Collapsed。 */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UImage> GoldCostIcon;
+
+    /** 金币数量文字（命名 "GoldCostText"）。GoldCost > 0 时显示 "N G"，否则 Collapsed。 */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UTextBlock> GoldCostText;
 
     // =========================================================
     // 对外接口（BackpackScreenWidget 调用）
@@ -106,6 +125,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "RuneInfoCard")
     bool IsSelected() const { return bSelected; }
 
+    /**
+     * CardBackground 留空时使用的默认背景笔刷。
+     * 默认值：DrawAs=Box, Color=#1A1A22 alpha=0.9（深暗灰）。
+     * 可在 WBP Class Defaults 中覆盖。
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuneInfoCard|Visual")
+    FSlateBrush DefaultCardBGBrush;
+
     /** 选中时缩放比例（默认 1.06） */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuneInfoCard|Visual")
     float SelectedRenderScale = 1.06f;
@@ -121,6 +148,9 @@ protected:
 private:
     /** 根据 FRuneShape 重建 ShapeGrid 子节点（点阵） */
     void BuildShapeGrid(const FRuneShape& Shape);
+
+    /** 将 GenericEffects 的 DisplayName 拼成 "击退 · 燃烧" 格式，供 CardEffect 显示 */
+    FText BuildEffectKeywords(const TArray<TObjectPtr<UGenericRuneEffectDA>>& Effects) const;
 
     /** 按 bGenericEffectsExpanded + CachedEffects 同步子窗显示状态 */
     void SyncGenericEffectListVisibility();

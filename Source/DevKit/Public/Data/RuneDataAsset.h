@@ -8,6 +8,7 @@
 
 class UFlowAsset;
 class URuneDataAsset;
+class UGenericRuneEffectDA;
 
 
 // ============================================================
@@ -100,6 +101,16 @@ enum class ERuneStackReduceType : uint8
     One UMETA(DisplayName = "逐一"),
 };
 
+/** 符文稀有度（仅影响掉落概率权重，不在 UI 中显示） */
+UENUM(BlueprintType)
+enum class ERuneRarity : uint8
+{
+    Common    UMETA(DisplayName = "普通"),
+    Rare      UMETA(DisplayName = "稀有"),
+    Epic      UMETA(DisplayName = "史诗"),
+    Legendary UMETA(DisplayName = "传说"),
+};
+
 /**
  * 符文触发时机
  *   Passive        — 进激活区立即生效，持续常驻（默认）
@@ -184,6 +195,10 @@ struct DEVKIT_API FRuneConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Economy")
     int32 GoldCost = 0;
 
+    /** 稀有度（影响掉落概率权重；UI 不显示此字段） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+    ERuneRarity Rarity = ERuneRarity::Common;
+
     // ── 链路系统 ──────────────────────────────────────────────────
 
     /** 链路角色：None=普通符文，Producer=可传导激活，Consumer=只能放外圈 */
@@ -207,6 +222,12 @@ struct DEVKIT_API FRuneConfig
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
     ERuneTriggerType TriggerType = ERuneTriggerType::Passive;
+
+    // ── 通用效果引用 ─────────────────────────────────────────────
+
+    /** 该符文携带的通用效果引用（如击退/燃烧等），由 RuneInfoCard 右侧子窗解释 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generic Effects")
+    TArray<TObjectPtr<UGenericRuneEffectDA>> GenericEffects;
 };
 
 

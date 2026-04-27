@@ -10,6 +10,14 @@
 
 class URuneDataAsset;
 
+UENUM(BlueprintType)
+enum class EHitStopMode : uint8
+{
+	None    UMETA(DisplayName = "None"),
+	Freeze  UMETA(DisplayName = "Freeze"),
+	Slow    UMETA(DisplayName = "Slow"),
+};
+
 /**
  * C++ AnimNotify：向角色 ASC 发送 GameplayEvent，触发 GA 里的 PlayMontageAndWaitForEvent。
  * 所有攻击参数（伤害、范围、命中框等）均在此处配置，不再依赖 AbilityData.FActionData。
@@ -57,6 +65,32 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox")
 	TArray<FYogHitboxType> HitboxTypes;
+
+	// ── 攻击停顿 ─────────────────────────────────────────────────────
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop")
+	EHitStopMode HitStopMode = EHitStopMode::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
+		meta = (EditCondition = "HitStopMode == EHitStopMode::Freeze", EditConditionHides, ClampMin = 0.0f, ClampMax = 0.3f))
+	float HitStopFrozenDuration = 0.06f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
+		meta = (EditCondition = "HitStopMode == EHitStopMode::Slow", EditConditionHides, ClampMin = 0.0f, ClampMax = 0.5f))
+	float HitStopSlowDuration = 0.12f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
+		meta = (EditCondition = "HitStopMode == EHitStopMode::Slow", EditConditionHides, ClampMin = 0.01f, ClampMax = 1.0f))
+	float HitStopSlowRate = 0.3f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
+		meta = (EditCondition = "HitStopMode == EHitStopMode::Slow", EditConditionHides, ClampMin = 1.01f, ClampMax = 5.0f))
+	float HitStopCatchUpRate = 2.0f;
+
+	// ── 命中事件 ─────────────────────────────────────────────────────
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Events")
+	TArray<FGameplayTag> OnHitEventTags;
 
 	// ── 附加效果 ───────────────────────────────────────────────────────────
 

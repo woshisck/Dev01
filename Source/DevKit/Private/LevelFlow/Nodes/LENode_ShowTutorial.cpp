@@ -26,7 +26,11 @@ void ULENode_ShowTutorial::ExecuteInput(const FName& PinName)
 		TriggerOutput(TEXT("OnClosed"), true);
 	});
 
-	TM->ShowByEventID(EventID, GetPlayerController(), bPauseGame);
+	// InlinePages 优先；为空则查 DialogContentDA
+	if (InlinePages.Num() > 0)
+		TM->ShowInlinePages(InlinePages, GetPlayerController(), bPauseGame);
+	else
+		TM->ShowByEventID(EventID, GetPlayerController(), bPauseGame);
 }
 
 void ULENode_ShowTutorial::Cleanup()

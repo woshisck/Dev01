@@ -6,7 +6,7 @@
 #include "UI/BackpackScreenWidget.h"
 #include "UI/LootSelectionWidget.h"
 #include "UI/GameDialogWidget.h"
-#include "UI/DialogContentDA.h"
+#include "UI/TutorialRegistryDA.h"
 #include "UI/WeaponThumbnailFlyWidget.h"
 #include "UI/WeaponGlassAnimDA.h"
 #include "UI/WeaponTrailWidget.h"
@@ -24,6 +24,16 @@
 #include "Data/LevelEndEffectDA.h"
 #include "UI/LevelEndRevealWidget.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "UI/InfoPopupWidget.h"
+#include "Data/LevelInfoPopupDA.h"
+#include "UI/PortalPreviewWidget.h"
+#include "UI/PortalDirectionWidget.h"
+#include "Map/RewardPickup.h"
+#include "Map/Portal.h"
+#include "System/YogGameInstanceBase.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Engine/GameViewportClient.h"
+#include "GameFramework/Pawn.h"
 
 void AYogHUD::BeginPlay()
 {
@@ -38,7 +48,7 @@ void AYogHUD::BeginPlay()
 			GetOwningPlayerController(), TutorialPopupClass);
 
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
-		TM->Init(TutorialPopupWidget, DialogContentDA);
+		TM->Init(TutorialPopupWidget, TutorialRegistry);
 
 	// ── Save Game ───────────────────────────────
 	if (UYogSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UYogSaveSubsystem>())
@@ -108,6 +118,36 @@ void AYogHUD::BeginPlay()
 		if (!ThumbnailFlyClass)
 			UE_LOG(LogTemp, Warning, TEXT("[YogHUD] WBP_WeaponThumbnailFly 未找到，请在 BP_YogHUD 手动赋值"));
 	}
+
+	// ── Portal 进入过场 Blackout PostProcess（独立 Volume，不与 Pause/LevelEnd 互扰）──
+	{
+		FActorSpawnParameters BParams;
+		BParams.Owner = this;
+		BlackoutPPVolume = GetWorld()->SpawnActor<APostProcessVolume>(
+			APostProcessVolume::StaticClass(), FTransform::Identity, BParams);
+		if (BlackoutPPVolume)
+		{
+			BlackoutPPVolume->bUnbound = true;
+			BlackoutPPVolume->BlendWeight = 0.f;
+			BlackoutPPVolume->Settings.bOverride_ColorSaturation = true;
+			BlackoutPPVolume->Settings.bOverride_ColorGain       = true;
+			BlackoutPPVolume->Settings.ColorSaturation = FVector4(1.f, 1.f, 1.f, 1.f);
+			BlackoutPPVolume->Settings.ColorGain       = FVector4(1.f, 1.f, 1.f, 1.f);
+		}
+	}
+
+	// ── v3 跨关淡入：检测 GI 标志，立即贴 Blackout 后线性反向插回 ──
+	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	{
+		if (GI->bPlayLevelIntroFadeIn)
+		{
+			GI->bPlayLevelIntroFadeIn = false;   // 立即清，避免重复触发
+			BlackoutAlpha = 1.f;
+			ApplyBlackoutPP();
+			EndBlackoutFade(PortalBlackoutDuration);
+			UE_LOG(LogTemp, Log, TEXT("[Portal] 触发下一关 fade-in（线性 PostProcess 反向插值）"));
+		}
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -122,6 +162,23 @@ void AYogHUD::OpenBackpack()
 
 void AYogHUD::ShowLootSelectionUI(const TArray<FLootOption>& Options)
 {
+	// 兼容旧路径（无 SourcePickup）：转发到队列入口
+	QueueLootSelection(Options, nullptr);
+}
+
+void AYogHUD::QueueLootSelection(const TArray<FLootOption>& Options, ARewardPickup* SourcePickup)
+{
+	// 已有活跃选择 → 入队，等当前选完再弹
+	if (bLootSelectionActive)
+	{
+		FQueuedLootRequest Req;
+		Req.Options = Options;
+		Req.SourcePickup = SourcePickup;
+		LootQueue.Add(MoveTemp(Req));
+		UE_LOG(LogTemp, Log, TEXT("[HUD] QueueLootSelection: 已有活跃选择，本次入队（队列长度=%d）"), LootQueue.Num());
+		return;
+	}
+
 	// Widget 可能被 CommonUI 框架销毁，重建后重新加入 Viewport
 	if (!LootSelectionWidget || !LootSelectionWidget->IsInViewport())
 	{
@@ -133,8 +190,73 @@ void AYogHUD::ShowLootSelectionUI(const TArray<FLootOption>& Options)
 				LootSelectionWidget->AddToViewport(15);
 		}
 	}
+
 	if (LootSelectionWidget)
-		LootSelectionWidget->ShowLootUI(Options);
+	{
+		bLootSelectionActive = true;
+		LootSelectionWidget->ShowLootUI(Options, SourcePickup);
+	}
+}
+
+void AYogHUD::OnLootSelectionFinished()
+{
+	bLootSelectionActive = false;
+
+	if (LootQueue.Num() == 0) return;
+
+	FQueuedLootRequest Next = MoveTemp(LootQueue[0]);
+	LootQueue.RemoveAt(0);
+	UE_LOG(LogTemp, Log, TEXT("[HUD] OnLootSelectionFinished: 弹出队列下一项（剩余=%d）"), LootQueue.Num());
+
+	// 复用 QueueLootSelection 流程（此时 bLootSelectionActive 已置 false，会立即弹）
+	QueueLootSelection(Next.Options, Next.SourcePickup.Get());
+}
+
+void AYogHUD::OpenBackpackForPreview(FSimpleDelegate OnClosed)
+{
+	if (!BackpackWidget) return;
+
+	// 切到只读模式
+	BackpackWidget->SetPreviewMode(true);
+
+	// 监听 OnDeactivated 多播：关闭时触发回调 + 复位 PreviewMode
+	BackpackPreviewClosedCallback = OnClosed;
+	BackpackPreviewDeactivatedHandle = BackpackWidget->OnDeactivated().AddUObject(
+		this, &AYogHUD::OnBackpackPreviewClosed);
+
+	BackpackWidget->ActivateWidget();
+}
+
+void AYogHUD::OnBackpackPreviewClosed()
+{
+	if (BackpackWidget)
+	{
+		BackpackWidget->SetPreviewMode(false);
+		BackpackWidget->OnDeactivated().Remove(BackpackPreviewDeactivatedHandle);
+	}
+	BackpackPreviewDeactivatedHandle.Reset();
+
+	if (BackpackPreviewClosedCallback.IsBound())
+	{
+		FSimpleDelegate Cb = BackpackPreviewClosedCallback;
+		BackpackPreviewClosedCallback.Unbind();
+		Cb.Execute();
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  信息提示浮窗
+// ─────────────────────────────────────────────────────────────────────────────
+
+UInfoPopupWidget* AYogHUD::GetInfoPopupWidget() const
+{
+	return MainHUDWidget ? MainHUDWidget->InfoPopup : nullptr;
+}
+
+void AYogHUD::ShowInfoPopup(const ULevelInfoPopupDA* DA)
+{
+	if (UInfoPopupWidget* W = GetInfoPopupWidget())
+		W->Show(DA);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -249,6 +371,11 @@ void AYogHUD::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	// Portal 引导 + Blackout 独立 Tick — 必须在所有早返回之前调用，
+	// 否则常规情况下（PauseEffectAlpha 已稳定 / LevelEndEffect 期间）不会更新
+	TickPortalPreview(DeltaSeconds);
+	TickBlackoutFade(DeltaSeconds);
+
 	// 关卡结束特效完全接管 PausePPVolume，与暂停菜单系统互不干扰
 	if (bLevelEndEffectActive)
 	{
@@ -275,6 +402,8 @@ void AYogHUD::Tick(float DeltaSeconds)
 	PausePPVolume->Settings.ColorSaturation = FVector4(1.f, 1.f, 1.f, Sat);
 	PausePPVolume->Settings.ColorGain       = FVector4(1.f, 1.f, 1.f, Gain);
 	PausePPVolume->BlendWeight = 1.f;
+
+	// Portal/Blackout Tick 已移到函数顶部统一调用，此处无需重复
 }
 
 void AYogHUD::BeginPauseEffect()
@@ -487,5 +616,232 @@ void AYogHUD::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
 			Data.NewValue, CurHP);
 		MainHUDWidget->PlayerHealthBar->SetHealthPercent(CurHP / Data.NewValue);
 	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  v3：Portal 引导（单例浮窗 + 方位箭头）+ 进入过场 Blackout
+// ─────────────────────────────────────────────────────────────────────────────
+
+void AYogHUD::ShowPortalGuidance()
+{
+	bShowPortalGuidance = true;
+
+	// 一次性扫描场景所有 bIsOpen 的 Portal，缓存弱指针避免每帧 GetAllActorsOfClass
+	CachedOpenPortals.Reset();
+	TArray<AActor*> All;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), All);
+	TArray<APortal*> OpenList;
+	for (AActor* A : All)
+	{
+		if (APortal* P = Cast<APortal>(A))
+		{
+			if (P->bIsOpen)
+			{
+				CachedOpenPortals.Add(P);
+				OpenList.Add(P);
+			}
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("[Portal] ShowPortalGuidance: 缓存开启门数=%d"), CachedOpenPortals.Num());
+
+	// 浮窗（按需创建，状态默认 collapsed，由 TickPortalPreview 选 Target 后再显示）
+	if (!PortalPreviewWidget && PortalPreviewClass)
+	{
+		PortalPreviewWidget = CreateWidget<UPortalPreviewWidget>(GetOwningPlayerController(), PortalPreviewClass);
+		if (PortalPreviewWidget) PortalPreviewWidget->AddToViewport(15);
+	}
+	if (PortalPreviewWidget)
+		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+	// 方位箭头（按需创建，启用并传入 Portal 列表）
+	if (!PortalDirectionWidget && PortalDirectionClass)
+	{
+		PortalDirectionWidget = CreateWidget<UPortalDirectionWidget>(GetOwningPlayerController(), PortalDirectionClass);
+		if (PortalDirectionWidget) PortalDirectionWidget->AddToViewport(14);
+	}
+	if (PortalDirectionWidget)
+		PortalDirectionWidget->SetActive(true, OpenList);
+}
+
+void AYogHUD::HidePortalGuidance()
+{
+	bShowPortalGuidance = false;
+	CurrentPreviewTarget = nullptr;
+	CachedOpenPortals.Reset();
+	if (PortalPreviewWidget)
+		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+	if (PortalDirectionWidget)
+		PortalDirectionWidget->SetActive(false, {});
+}
+
+void AYogHUD::NotifyPlayerInPortalRange(APortal* /*Portal*/)
+{
+	// 当前实现：TickPortalPreview 已通过读 Player->PendingPortal 自动优先选中
+	// 本接口保留作为后续扩展点（如立即加亮、播放进入提示音等）
+}
+
+void AYogHUD::NotifyPlayerExitedPortalRange(APortal* /*Portal*/)
+{
+	// 同上
+}
+
+void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
+{
+	if (!bShowPortalGuidance || !PortalPreviewWidget) return;
+
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC || !PC->GetPawn())
+	{
+		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(PC->GetPawn());
+	if (!Player)
+	{
+		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	APortal* Target = nullptr;
+
+	// 优先级 1：玩家在某门 Box 内 → 强制选中此门，保证"按 E"提示稳定
+	if (Player->PendingPortal)
+	{
+		Target = Player->PendingPortal;
+	}
+	else
+	{
+		// 扫描缓存：屏幕内可见 OR 距离 < ForceShowDistance，挑距玩家最近一个
+		const FVector PlayerPos = Player->GetActorLocation();
+		FVector CamLoc; FRotator CamRot;
+		PC->GetPlayerViewPoint(CamLoc, CamRot);
+
+		FVector2D ViewportSize;
+		if (UGameViewportClient* GVC = GetWorld()->GetGameViewport())
+			GVC->GetViewportSize(ViewportSize);
+
+		APortal* Closest = nullptr;
+		float    ClosestDistSq = FLT_MAX;
+		const float ForceDistSq = PortalForceShowDistance * PortalForceShowDistance;
+
+		for (const TWeakObjectPtr<APortal>& W : CachedOpenPortals)
+		{
+			APortal* P = W.Get();
+			if (!P || !P->bIsOpen) continue;
+
+			const FVector DoorPos = P->GetActorLocation();
+			const float   DistSq  = FVector::DistSquared(DoorPos, PlayerPos);
+
+			bool bVisible = false;
+			FVector2D SP;
+			const bool bInFront = FVector::DotProduct(CamRot.Vector(), DoorPos - CamLoc) > 0.f;
+			if (bInFront && PC->ProjectWorldLocationToScreen(DoorPos, SP, false))
+			{
+				bVisible = (SP.X >= 0.f && SP.X <= ViewportSize.X
+				         && SP.Y >= 0.f && SP.Y <= ViewportSize.Y);
+			}
+			const bool bForceShow = (DistSq < ForceDistSq);
+			if (!bVisible && !bForceShow) continue;
+
+			if (DistSq < ClosestDistSq)
+			{
+				ClosestDistSq = DistSq;
+				Closest = P;
+			}
+		}
+
+		// 滞回：当前 Target 仍合法且与新候选差距 < Hysteresis 时不切，防中点抖动
+		APortal* CurT = CurrentPreviewTarget.Get();
+		if (CurT && Closest && CurT != Closest)
+		{
+			const float CurDist = FVector::Dist(CurT->GetActorLocation(), PlayerPos);
+			const float NewDist = FMath::Sqrt(ClosestDistSq);
+			if ((CurDist - NewDist) < PortalSwitchHysteresis)
+				Closest = CurT;
+		}
+
+		Target = Closest;
+	}
+
+	if (!Target)
+	{
+		if (PortalPreviewWidget->GetVisibility() != ESlateVisibility::Collapsed)
+		{
+			PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		CurrentPreviewTarget = nullptr;
+		return;
+	}
+
+	// Target 切换 → 刷新数据 + 显示
+	if (CurrentPreviewTarget.Get() != Target)
+	{
+		CurrentPreviewTarget = Target;
+		PortalPreviewWidget->SetPreviewInfo(Target->CachedPreviewInfo);
+		PortalPreviewWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+
+	// 每帧位置跟随：投影 + 相机右侧避让（投影到屏幕右半→向左偏，反之向右）
+	FVector2D ScreenPos;
+	if (PC->ProjectWorldLocationToScreen(
+			Target->GetActorLocation() + FVector(0.f, 0.f, PortalWidgetZOffset),
+			ScreenPos, false))
+	{
+		FVector2D ViewportSize;
+		if (UGameViewportClient* GVC = GetWorld()->GetGameViewport())
+			GVC->GetViewportSize(ViewportSize);
+		const float SideX = (ScreenPos.X > ViewportSize.X * 0.5f)
+			? -PortalWidgetSideOffset : PortalWidgetSideOffset;
+		ScreenPos.X += SideX;
+
+		PortalPreviewWidget->SetPositionInViewport(ScreenPos, false);
+	}
+
+	// 交互提示：仅当玩家进入 Target 的 Box 时显示"按 E 进入"
+	PortalPreviewWidget->SetInteractHintVisible(Player->PendingPortal == Target);
+}
+
+void AYogHUD::BeginBlackoutFade(float Duration)
+{
+	BlackoutActiveDuration = FMath::Max(Duration, 0.05f);
+	BlackoutTargetAlpha    = 1.f;
+}
+
+void AYogHUD::EndBlackoutFade(float Duration)
+{
+	BlackoutActiveDuration = FMath::Max(Duration, 0.05f);
+	BlackoutTargetAlpha    = 0.f;
+}
+
+void AYogHUD::TickBlackoutFade(float DeltaSeconds)
+{
+	if (!BlackoutPPVolume) return;
+	if (FMath::IsNearlyEqual(BlackoutAlpha, BlackoutTargetAlpha, 0.001f)) return;
+
+	const float Step = DeltaSeconds / BlackoutActiveDuration;
+	BlackoutAlpha = FMath::Clamp(
+		BlackoutAlpha + (BlackoutTargetAlpha > BlackoutAlpha ? Step : -Step), 0.f, 1.f);
+	ApplyBlackoutPP();
+}
+
+void AYogHUD::ApplyBlackoutPP()
+{
+	if (!BlackoutPPVolume) return;
+
+	// 目标值复用 LevelEndEffectDA（Saturation/Gain）；DA 未配置时回退全黑全灰
+	float TargetSat  = 0.f;
+	float TargetGain = 0.f;
+	if (LevelEndEffectDA)
+	{
+		TargetSat  = LevelEndEffectDA->BlackoutSaturation;
+		TargetGain = LevelEndEffectDA->BlackoutGain;
+	}
+
+	const float Sat  = FMath::Lerp(1.f, TargetSat,  BlackoutAlpha);
+	const float Gain = FMath::Lerp(1.f, TargetGain, BlackoutAlpha);
+
+	BlackoutPPVolume->Settings.ColorSaturation = FVector4(1.f, 1.f, 1.f, Sat);
+	BlackoutPPVolume->Settings.ColorGain       = FVector4(1.f, 1.f, 1.f, Gain);
+	BlackoutPPVolume->BlendWeight              = (BlackoutAlpha > 0.001f) ? 1.f : 0.f;
 }
 

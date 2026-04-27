@@ -1,5 +1,6 @@
 #include "BuffFlow/Nodes/BFNode_HitStop.h"
 #include "Animation/HitStopManager.h"
+#include "Animation/AN_MeleeDamage.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
 #include "Animation/AnimInstance.h"
@@ -28,11 +29,21 @@ void UBFNode_HitStop::ExecuteInput(const FName& PinName)
 		return;
 	}
 
-	const bool bCanFreeze = ASC->HasMatchingGameplayTag(HitStopTags::Freeze);
-	const bool bCanSlow   = ASC->HasMatchingGameplayTag(HitStopTags::Slow);
+	auto& Override = Owner->PendingHitStopOverride;
+
+	bool bCanFreeze = ASC->HasMatchingGameplayTag(HitStopTags::Freeze);
+	bool bCanSlow   = ASC->HasMatchingGameplayTag(HitStopTags::Slow);
+
+	// AN 配置的 HitStop 模式直接激活对应阶段（不依赖 FA 写 Tag）
+	if (Override.bActive)
+	{
+		if (Override.Mode == EHitStopMode::Freeze) bCanFreeze = true;
+		else if (Override.Mode == EHitStopMode::Slow) bCanSlow = true;
+	}
 
 	if (!bCanFreeze && !bCanSlow)
 	{
+		Override.bActive = false;
 		TriggerFirstOutput(true);
 		return;
 	}
@@ -40,6 +51,7 @@ void UBFNode_HitStop::ExecuteInput(const FName& PinName)
 	UAnimInstance* AnimInst = Owner->GetMesh() ? Owner->GetMesh()->GetAnimInstance() : nullptr;
 	if (!AnimInst)
 	{
+		Override.bActive = false;
 		TriggerFirstOutput(true);
 		return;
 	}
@@ -48,12 +60,19 @@ void UBFNode_HitStop::ExecuteInput(const FName& PinName)
 	if (bCanFreeze) ASC->RemoveLooseGameplayTag(HitStopTags::Freeze);
 	if (bCanSlow)   ASC->RemoveLooseGameplayTag(HitStopTags::Slow);
 
-	const float EffectiveFrozen = bCanFreeze ? FrozenDuration : 0.f;
-	const float EffectiveSlow   = bCanSlow   ? SlowDuration   : 0.f;
+	// AN 覆盖参数只作用于 AN 指定的模式，Tag 触发的模式使用节点默认值
+	const bool bOverrideFreeze = Override.bActive && Override.Mode == EHitStopMode::Freeze;
+	const bool bOverrideSlow   = Override.bActive && Override.Mode == EHitStopMode::Slow;
+
+	const float UseFrozen   = bCanFreeze ? (bOverrideFreeze ? Override.FrozenDuration : FrozenDuration) : 0.f;
+	const float UseSlow     = bCanSlow   ? (bOverrideSlow   ? Override.SlowDuration   : SlowDuration)   : 0.f;
+	const float UseSlowRate = bOverrideSlow ? Override.SlowRate    : SlowRate;
+	const float UseCatchUp  = bOverrideSlow ? Override.CatchUpRate : CatchUpRate;
+	Override.bActive = false;
 
 	if (UHitStopManager* Mgr = Owner->GetWorld()->GetSubsystem<UHitStopManager>())
 	{
-		Mgr->RequestMontageHitStop(AnimInst, EffectiveFrozen, EffectiveSlow, SlowRate, CatchUpRate);
+		Mgr->RequestMontageHitStop(AnimInst, UseFrozen, UseSlow, UseSlowRate, UseCatchUp);
 	}
 
 	TriggerFirstOutput(true);

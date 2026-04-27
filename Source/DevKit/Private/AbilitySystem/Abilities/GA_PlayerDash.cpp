@@ -358,6 +358,15 @@ float UGA_PlayerDash::GetFurthestValidDashDistance(const FVector& Start, const F
 			return HitDist;
 	}
 
+	// ── DashThrough 可穿越物体（bAllowDashThrough AirWall）──────────────────────
+	// 冲刺期间 Capsule 对 DashThroughChannel 已设为 Overlap，物理层可直接穿透，
+	// 不需要 step 3 越障延伸。贴近时 bStartPenetrating 导致 HitDist=0 也在此统一处理。
+	if (UPrimitiveComponent* HitComp = ForwardHit.GetComponent())
+	{
+		if (HitComp->GetCollisionObjectType() == DashThroughChannel)
+			return DashMaxDistance;
+	}
+
 	// ── 2. 命中在终点附近（末端硬墙）→ 停在障碍前 ───────────────────────────
 	if (HitDist > Threshold)
 		return HitDist;

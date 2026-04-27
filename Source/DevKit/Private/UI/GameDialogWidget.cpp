@@ -1,4 +1,5 @@
 #include "UI/GameDialogWidget.h"
+#include "CommonRichTextBlock.h"
 #include "Kismet/GameplayStatics.h"
 #include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"

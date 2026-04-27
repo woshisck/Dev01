@@ -11,6 +11,8 @@
 
 #include "WeaponDefinition.generated.h"
 
+class ULevelInfoPopupDA;
+
 class UYogAbilitySet;
 class AWeaponInstance;
 class APlayerCharacterBase;
@@ -124,6 +126,14 @@ public:
 	// 初始符文列表：拾取武器时在浮窗展示，并预置到激活区起始格
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息")
 	TArray<TObjectPtr<URuneDataAsset>> InitialRunes;
+
+	// 勾选后武器仅作展示：玩家按 E 弹出 PreviewPopup 信息浮窗，不可实际拾取
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "预览模式")
+	bool bPreviewOnly = false;
+
+	// bPreviewOnly=true 时显示的 LevelInfoPopup DA（填标题/正文/自动关闭时长）
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "预览模式")
+	TObjectPtr<ULevelInfoPopupDA> PreviewPopup;
 
 	UFUNCTION(BlueprintCallable)
 	void SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar);

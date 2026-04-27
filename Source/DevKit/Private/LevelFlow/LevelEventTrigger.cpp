@@ -13,6 +13,7 @@ ALevelEventTrigger::ALevelEventTrigger()
 	TriggerVolume->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
 	TriggerVolume->SetGenerateOverlapEvents(true);
 	TriggerVolume->OnComponentBeginOverlap.AddDynamic(this, &ALevelEventTrigger::OnOverlapBegin);
+	TriggerVolume->OnComponentEndOverlap.AddDynamic(this, &ALevelEventTrigger::OnOverlapEnd);
 	RootComponent = TriggerVolume;
 
 	LevelFlowComp = CreateDefaultSubobject<UFlowComponent>(TEXT("LevelFlowComp"));
@@ -33,6 +34,14 @@ void ALevelEventTrigger::OnOverlapBegin(UPrimitiveComponent*, AActor* OtherActor
 	bTriggered = true;
 	UE_LOG(LogTemp, Log, TEXT("[LevelEventTrigger] 触发 Flow: %s"), *LevelFlow->GetName());
 
+	LevelFlowComp->FinishRootFlow(LevelFlow, EFlowFinishPolicy::Keep);
 	LevelFlowComp->RootFlow = LevelFlow;
 	LevelFlowComp->StartRootFlow();
+}
+
+void ALevelEventTrigger::OnOverlapEnd(UPrimitiveComponent*, AActor* OtherActor,
+	UPrimitiveComponent*, int32)
+{
+	if (!Cast<APlayerCharacterBase>(OtherActor)) return;
+	OnPlayerExited.Broadcast();
 }

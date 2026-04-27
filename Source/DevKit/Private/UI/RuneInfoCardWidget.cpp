@@ -7,6 +7,19 @@
 #include "CommonRichTextBlock.h"
 #include "Data/GenericRuneEffectDA.h"
 #include "UI/GenericEffectListWidget.h"
+#include "Styling/SlateBrush.h"
+
+// ============================================================
+//  构造函数
+// ============================================================
+
+URuneInfoCardWidget::URuneInfoCardWidget(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer)
+{
+    // 默认背景：深暗灰 #1A1A22 alpha=0.9（用户可在 WBP Class Defaults 覆盖）
+    DefaultCardBGBrush.DrawAs    = ESlateBrushDrawType::Box;
+    DefaultCardBGBrush.TintColor = FSlateColor(FLinearColor(0.102f, 0.102f, 0.133f, 0.9f));
+}
 
 // ============================================================
 //  点阵颜色常量
@@ -47,14 +60,12 @@ void URuneInfoCardWidget::ShowRune(const FRuneInstance& Rune)
         if (Rune.RuneConfig.CardBackground)
         {
             CardBG->SetBrushFromTexture(Rune.RuneConfig.CardBackground, false);
-            CardBG->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
         }
         else
         {
-            CardBG->SetBrush(FSlateBrush());
-            CardBG->SetColorAndOpacity(FLinearColor::Black);
-            CardBG->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+            CardBG->SetBrush(DefaultCardBGBrush);
         }
+        CardBG->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
     }
 
     if (CardName)
@@ -64,7 +75,39 @@ void URuneInfoCardWidget::ShowRune(const FRuneInstance& Rune)
         CardDesc->SetText(Rune.RuneConfig.RuneDescription);
 
     if (CardEffect)
-        CardEffect->SetText(Rune.RuneConfig.RuneDescription);
+    {
+        const FText Keywords = BuildEffectKeywords(Rune.RuneConfig.GenericEffects);
+        if (Keywords.IsEmpty())
+        {
+            CardEffect->SetVisibility(ESlateVisibility::Collapsed);
+        }
+        else
+        {
+            CardEffect->SetText(Keywords);
+            CardEffect->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+        }
+    }
+
+    if (GoldCostText)
+    {
+        if (Rune.RuneConfig.GoldCost > 0)
+        {
+            GoldCostText->SetText(FText::Format(
+                NSLOCTEXT("RuneInfoCard", "GoldCostFmt", "{0} G"),
+                FText::AsNumber(Rune.RuneConfig.GoldCost)));
+            GoldCostText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+        }
+        else
+        {
+            GoldCostText->SetVisibility(ESlateVisibility::Collapsed);
+        }
+    }
+    if (GoldCostIcon)
+    {
+        GoldCostIcon->SetVisibility(Rune.RuneConfig.GoldCost > 0
+            ? ESlateVisibility::SelfHitTestInvisible
+            : ESlateVisibility::Collapsed);
+    }
 
     if (CardIcon)
     {
@@ -182,6 +225,22 @@ void URuneInfoCardWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaT
 void URuneInfoCardWidget::HideCard()
 {
     SetVisibility(ESlateVisibility::Collapsed);
+}
+
+// ============================================================
+//  通用效果关键词拼接
+// ============================================================
+
+FText URuneInfoCardWidget::BuildEffectKeywords(const TArray<TObjectPtr<UGenericRuneEffectDA>>& Effects) const
+{
+    TArray<FString> Names;
+    Names.Reserve(Effects.Num());
+    for (const TObjectPtr<UGenericRuneEffectDA>& E : Effects)
+    {
+        if (E) Names.Add(E->DisplayName.ToString());
+    }
+    if (Names.IsEmpty()) return FText::GetEmpty();
+    return FText::FromString(FString::Join(Names, TEXT(" · ")));
 }
 
 // ============================================================

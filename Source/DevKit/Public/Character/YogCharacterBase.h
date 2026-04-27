@@ -18,6 +18,8 @@
 
 
 
+enum class EHitStopMode : uint8;
+
 class AYogPlayerControllerBase;
 class UGASTemplate;
 class UGameEffectComponent;
@@ -257,6 +259,21 @@ public:
 
 	// AN_MeleeDamage notify 存入的附加命中 Rune，GA_MeleeAttack::OnEventReceived 触发到命中目标后清空
 	TArray<TObjectPtr<URuneDataAsset>> PendingAdditionalHitRunes;
+
+	// AN_MeleeDamage 存入的 HitStop 覆盖参数，BFNode_HitStop 读取后清空
+	struct FPendingHitStopOverride
+	{
+		bool bActive = false;
+		EHitStopMode Mode{};
+		float FrozenDuration = 0.f;
+		float SlowDuration = 0.f;
+		float SlowRate = 0.3f;
+		float CatchUpRate = 2.0f;
+	};
+	FPendingHitStopOverride PendingHitStopOverride;
+
+	// AN_MeleeDamage 存入的命中事件 Tag，GA_MeleeAttack 命中目标时广播后清空
+	TArray<FGameplayTag> PendingOnHitEventTags;
 
 	/**
 	 * 命中目标时触发附加符文效果的入口（由 GA_MeleeAttack::OnEventReceived 调用）。

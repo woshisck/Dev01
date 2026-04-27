@@ -27,6 +27,22 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 		Character->PendingAdditionalHitRunes = AdditionalRuneEffects;
 	}
 
+	if (HitStopMode != EHitStopMode::None)
+	{
+		auto& Override = Character->PendingHitStopOverride;
+		Override.bActive = true;
+		Override.Mode = HitStopMode;
+		Override.FrozenDuration = HitStopFrozenDuration;
+		Override.SlowDuration = HitStopSlowDuration;
+		Override.SlowRate = HitStopSlowRate;
+		Override.CatchUpRate = HitStopCatchUpRate;
+	}
+
+	if (OnHitEventTags.Num() > 0)
+	{
+		Character->PendingOnHitEventTags = OnHitEventTags;
+	}
+
 	FGameplayEventData EventData;
 	EventData.Instigator   = Character;
 	EventData.EventTag     = EventTag;

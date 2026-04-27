@@ -7,7 +7,7 @@
 #include "GameModes/LevelFlowTypes.h"
 #include "LootSelectionWidget.generated.h"
 
-class UHorizontalBox;
+class UWrapBox;
 class UButton;
 class UBorder;
 class URuneInfoCardWidget;
@@ -26,14 +26,14 @@ enum class ELootFocusSection : uint8
 };
 
 /**
- * 战利品选择 Widget — 动态卡牌（N=1~5）+ 跳过 + 背包预览 + 鼠标点击
+ * 战利品选择 Widget — 动态卡牌（N=1~6）+ 跳过 + 背包预览 + 鼠标点击
  *
  * WBP 制作步骤：
  *   1. 新建 Widget Blueprint，父类选 LootSelectionWidget
  *   2. Designer 放（命名必须一致）：
- *        HorizontalBox  CardContainer        ← 卡片容器，运行时动态填充
- *        Button         BtnSkip              ← 跳过按钮（OnClicked 绑 SkipSelection）
- *        Button         BtnBackpackPreview   ← 预览背包按钮（OnClicked 绑 OpenBackpackPreview）
+ *        WrapBox  CardContainer        ← 卡片容器，运行时动态填充（注意：类型为 WrapBox 非 HorizontalBox）
+ *        Button   BtnSkip              ← 跳过按钮（OnClicked 绑 SkipSelection）
+ *        Button   BtnBackpackPreview   ← 预览背包按钮（OnClicked 绑 OpenBackpackPreview）
  *   3. Class Defaults 配 RuneCardClass = WBP_RuneInfoCard
  *
  * 触发方式：由 RewardPickup 调 HUD->QueueLootSelection(Options, this)，HUD 内部决定立即弹/排队
@@ -49,7 +49,7 @@ public:
 	TArray<FLootOption> CurrentLootOptions;
 
 	/** 卡片数量上限（生成逻辑应保证不超过此值，UI 也强制 clamp） */
-	static constexpr int32 MaxCards = 5;
+	static constexpr int32 MaxCards = 6;
 
 	/** 由 HUD 调用：显示战利品 UI（带 SourcePickup 引用） */
 	void ShowLootUI(const TArray<FLootOption>& Options, ARewardPickup* InSourcePickup);
@@ -117,7 +117,7 @@ protected:
 	// ── BindWidget ──────────────────────────────────────────────
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UHorizontalBox> CardContainer;
+	TObjectPtr<UWrapBox> CardContainer;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> BtnSkip;
@@ -142,19 +142,30 @@ protected:
 	TSubclassOf<URuneInfoCardWidget> RuneCardClass;
 
 	/**
-	 * 卡片的最小尺寸（C++ 套 SizeBox 兜底，避免 WBP_RuneInfoCard 没设 Desired Size 时被 HBox 排成 0 宽）。
-	 * 卡片内容大于这个尺寸时会自然撑大。
+	 * 卡片尺寸（N <= 4 时使用）。C++ 套 SizeBox 强制 Override Width/Height。
+	 * 默认 320×420 — 适合 1~4 张卡单行展示。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Layout")
-	FVector2D MinCardSize = FVector2D(280.f, 380.f);
+	FVector2D LargeCardSize = FVector2D(320.f, 420.f);
 
-	/** 卡片的最大尺寸（防止内容过长导致 HBox 被撑爆超屏） */
+	/**
+	 * 卡片尺寸（N >= 5 时使用，自动缩小避免 2x3 网格超屏）。
+	 * 默认 240×360。
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Layout")
-	FVector2D MaxCardSize = FVector2D(420.f, 560.f);
+	FVector2D SmallCardSize = FVector2D(240.f, 360.f);
 
-	/** 单卡左右各 Padding（HBox slot 间距） */
+	/** 单卡四周 Padding（WrapBox slot 间距） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Layout", meta = (ClampMin = "0"))
 	float CardHorizontalPadding = 16.f;
+
+	/**
+	 * N >= 5 时强制 3 列换行的 WrapSize（UWrapBox::SetWrapSize + SetExplicitWrapSize(true)）。
+	 * 计算：3 张卡 × (SmallCardSize.X + 2×Padding) = 3 × (240 + 32) = 816 → 设 820 留余量。
+	 * N <= 4 时设 SetExplicitWrapSize(false)，保留 WBP 默认行为（不强制换行）。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Layout", meta = (ClampMin = "0"))
+	float WrapBoxWrapWidthFor3Plus = 820.f;
 
 private:
 	void RebuildCards(const TArray<FLootOption>& Options);
@@ -170,12 +181,24 @@ private:
 	/** 清空所有卡片选中态（切到按钮段或重建时调用） */
 	void ClearAllCardSelection();
 
-	// 5 个静态卡片点击回调（dynamic delegate 不支持 lambda/带参绑定）
+	/** 鼠标 hover 卡片时统一入口：切段到 Cards + FocusCard，去重避免重复触发 */
+	void HandleCardHover(int32 VisibleIdx);
+
+	// 6 个静态卡片点击回调（dynamic delegate 不支持 lambda/带参绑定，与 MaxCards 对齐）
 	UFUNCTION() void OnCardClicked0();
 	UFUNCTION() void OnCardClicked1();
 	UFUNCTION() void OnCardClicked2();
 	UFUNCTION() void OnCardClicked3();
 	UFUNCTION() void OnCardClicked4();
+	UFUNCTION() void OnCardClicked5();
+
+	// 6 个静态卡片鼠标 hover 回调（与 OnCardClickedN 同位置绑定 Wrapper->OnHovered）
+	UFUNCTION() void OnCardHovered0();
+	UFUNCTION() void OnCardHovered1();
+	UFUNCTION() void OnCardHovered2();
+	UFUNCTION() void OnCardHovered3();
+	UFUNCTION() void OnCardHovered4();
+	UFUNCTION() void OnCardHovered5();
 
 	UFUNCTION() void OnBtnSkipClicked();
 	UFUNCTION() void OnBtnBackpackPreviewClicked();
