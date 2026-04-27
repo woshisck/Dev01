@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-04-27
+
+### [SYS-001] 关卡生命周期事件总线 + LootSelection 视觉高亮 C++ 化 + 卡片堆叠修复
+
+**状态**：C++ 完成已编译；用户需在编辑器侧加 SelectionBorder/HighlightBorder + 创建 LFA 配 BP_GameMode_Default 才能完整体验
+
+| 项目 | 内容 |
+|------|------|
+| 核心文件 | `GameModes/GameLifecycleTypes.h`（新）、`GameModes/YogGameMode.h/cpp`、`UI/YogHUD.h/cpp`、`Component/BackpackGridComponent.cpp`、`UI/RuneInfoCardWidget.h/cpp`、`UI/LootSelectionWidget.h/cpp` |
+| **事件总线** | `EGameLifecycleEvent` 枚举（7 个事件：LevelClear / LevelClearRevealed / FirstRuneAcquired / FirstRunePlaced / HeatPhaseEntered / PlayerDeath / GameStart）；`AYogGameMode::LifecycleEventFlows` TMap 在 BP_GameMode_Default 配映射；`TriggerLifecycleEvent(Event)` 查表后启 `LifecycleFlowComponent` 跑 LevelFlowAsset；一次性事件用 `FiredOnceEvents` 去重，且**仅在成功启动 Flow 后才记录**（避免未配 LFA 时静默吞事件） |
+| HUD 解耦 | `YogHUD::OnLevelEndEffectFinished` FSimpleMulticastDelegate 在揭幕完成时广播；`GameMode::TryBindHUDDelegates` 延帧重试订阅（HUD 由 PC->ClientRestart 异步创建，最多重试 60 帧 ~1s）；HUD 不再直接调业务逻辑（如 TryFirstRuneTutorial），改广播给 GameMode |
+| 触发位重构 | `EnterArrangementPhase` 删除硬编码 `TM->TryFirstRuneTutorial` 改为 `TriggerLifecycleEvent(LevelClear)`；`BackpackGridComponent::HandleHeatTutorial` 删除 `TM->TryHeatPhaseTutorial` 改为 `TriggerLifecycleEvent(HeatPhaseEntered)` 且不再 RemoveDynamic（让 GameMode 一次性去重独自负责，便于运行时补配 LFA 后下次 phase 变化仍能触发） |
+| RuneInfoCard 选中态 | `SetSelected(bool)` + `BindWidgetOptional SelectionBorder`（UBorder）+ `SelectedRenderScale`（默认 1.06）；`NativeConstruct` 设 `RenderTransformPivot(0.5, 0.5)` 中心化；`NativeTick` 用 `FInterpTo` 平滑缩放；`ShowRune` 不主动清选中态，由调用方统一管理；通用接口可在背包/详情页复用 |
+| LootSelection 卡片堆叠修复 | `RebuildCards` 给每张卡套 `USizeBox`（MinDesired/MaxDesired，默认 280×380 ~ 420×560）兜底 — 解决 WBP_RuneInfoCard 没设 Desired Size 时 HBox 把所有卡按 0×0 排版重叠的问题；`MinCardSize/MaxCardSize/CardHorizontalPadding` UPROPERTY 暴露，BP 可调 |
+| LootSelection 视觉高亮 C++ 化 | `FocusCard` 遍历 SpawnedCards 调 `SetSelected(i==CurrentCardIndex)`；`FocusButton` 调 `ClearAllCardSelection() + UpdateButtonHighlight(SelectedIdx)`；按钮高亮通过外层 `BindWidgetOptional UBorder`（SkipHighlightBorder/PreviewHighlightBorder）显隐切换，不污染 Button.WidgetStyle |
+| 鼠标点击索引修复 | `OnCardClicked0..4` 通过 `CardToOptionIndex` 映射到原始 Options 索引；绑定时用**可见卡索引** `SpawnedCards.Num()`（非原始 Options 索引 i），避免无效项被 continue 跳过时第一张可见卡误绑到 OnCardClicked1 导致越界 |
+| 教程节奏修复 | First Rune 教程从 EnterArrangementPhase 同帧弹改为揭幕完成（`RevealProgress >= 1`）后才触发；ActivationZone 教程默认不出（用户没配 LFA = 沉默）；现有 `Anim_FadeIn` UMG 动画处理弹窗渐入，不必加 C++ 渐入 |
+| 已知 P3 限制 | (1) `UFlowComponent::StartRootFlow()` 返回 void，无法严格判定 Flow 是否真正启动；(2) `TryBindHUDDelegates` 60 帧上限，正常 ClientRestart 路径下 HUD 在 ~3 帧创建远低于 60 帧；(3) `HideCard` 没重置 `bSelected/CurrentRenderScale`（下次 ShowRune 会被覆盖，无副作用） |
+| 用户编辑器操作 | (1) WBP_RuneInfoCard 加 SelectionBorder（UBorder，DrawAs=Box，Margin=0.4，Tint=#FFD966 半透明）；(2) WBP_LootSelection 加 SkipHighlightBorder + PreviewHighlightBorder；(3) 创建 LFA_FirstRuneTutorial（节点：ShowTutorial EventID="tutorial_first_rune"）；(4) BP_GameMode_Default 配 `LifecycleEventFlows[LevelClearRevealed] = LFA_FirstRuneTutorial` |
+
+---
+
 ## 2026-04-26
 
 ### [UI-008] LootSelection 改造：动态卡牌 + 跳过/重掷/预览背包 + 通用效果聚焦 + RuneInfoCard RichText

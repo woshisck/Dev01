@@ -88,6 +88,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelEndEffect")
 	void TriggerLevelEndEffect(FVector LootWorldPos);
 
+	/**
+	 * 揭幕动画完成（slow-mo + 黑屏退场全部走完）后广播一次。
+	 * GameMode::BeginPlay 监听此事件 -> TriggerLifecycleEvent(LevelClearRevealed)。
+	 * 设计：HUD 只负责"表演"和"广播表演完成"，不直接驱动业务逻辑（教程/UI）。
+	 */
+	FSimpleMulticastDelegate OnLevelEndEffectFinished;
+
 	// ─────────────────────────────────────────
 	//  背包
 	// ─────────────────────────────────────────

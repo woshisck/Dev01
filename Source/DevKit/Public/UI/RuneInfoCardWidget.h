@@ -11,6 +11,7 @@ class UCanvasPanel;
 class UCanvasPanelSlot;
 class UCommonRichTextBlock;
 class UGenericEffectListWidget;
+class UBorder;
 
 /**
  * 符文信息卡 Widget
@@ -66,6 +67,14 @@ public:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UGenericEffectListWidget> GenericEffectList;
 
+    /**
+     * 选中态高亮边框（命名 "SelectionBorder"，UBorder 类型）。
+     * 默认 Hidden，由 SetSelected(true) 自动显示。
+     * WBP 端建议：UBorder 包卡片或叠在卡片之上，Brush.DrawAs=Box，Brush.Margin 用于 9-slice 描边效果。
+     */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UBorder> SelectionBorder;
+
     // =========================================================
     // 对外接口（BackpackScreenWidget 调用）
     // =========================================================
@@ -86,7 +95,27 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RuneInfoCard")
     void SetGenericEffectsExpanded(bool bExpanded);
 
+    /**
+     * 设置选中态：显示 SelectionBorder + 缩放到 SelectedRenderScale。
+     * 由 LootSelection.FocusCard / 背包详情页等调用方主动管理；ShowRune 不会自动清除选中态，
+     * 调用方负责在重建/换卡时显式 SetSelected(false)。
+     */
+    UFUNCTION(BlueprintCallable, Category = "RuneInfoCard")
+    void SetSelected(bool bInSelected);
+
+    UFUNCTION(BlueprintPure, Category = "RuneInfoCard")
+    bool IsSelected() const { return bSelected; }
+
+    /** 选中时缩放比例（默认 1.06） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuneInfoCard|Visual")
+    float SelectedRenderScale = 1.06f;
+
+    /** 缩放插值速度（FInterpTo Speed） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuneInfoCard|Visual")
+    float ScaleInterpSpeed = 12.f;
+
 protected:
+    virtual void NativeConstruct() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
@@ -105,4 +134,8 @@ private:
 
     UPROPERTY()
     TArray<TObjectPtr<UGenericRuneEffectDA>> CachedEffects;
+
+    // 选中态 + 缩放插值
+    bool  bSelected          = false;
+    float CurrentRenderScale = 1.0f;
 };

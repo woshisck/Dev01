@@ -7,6 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "GameModes/SpawnTypes.h"
+#include "GameModes/GameLifecycleTypes.h"
 #include "Data/CampaignDataAsset.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/SacrificeGraceDA.h"
@@ -18,6 +19,8 @@ class AEnemyCharacterBase;
 class APortal;
 class ARewardPickup;
 class ULootSelectionWidget;
+class ULevelFlowAsset;
+class UFlowComponent;
 class AMobSpawner;
 class UNiagaraSystem;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
@@ -450,4 +453,45 @@ protected:
 	 * 全部失败时退回玩家原位。
 	 */
 	FVector FindLootSpawnLocation(APawn* PlayerPawn, APlayerController* PC) const;
+
+public:
+	// =========================================================
+	// 关卡生命周期事件总线
+	// =========================================================
+
+	/**
+	 * 编辑器内可配：事件 -> 跑哪个 LevelFlowAsset。
+	 * 在 BP_GameMode_Default Class Defaults 里配 EGameLifecycleEvent::LevelClearRevealed -> LFA_FirstRuneTutorial
+	 * 等映射，节点图里用 LENode_ShowTutorial / LENode_Delay 编排具体行为。
+	 * 没配映射的事件触发时不做任何事（沉默）。
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lifecycle Events")
+	TMap<EGameLifecycleEvent, TObjectPtr<ULevelFlowAsset>> LifecycleEventFlows;
+
+	/**
+	 * 触发一个生命周期事件 — 查 LifecycleEventFlows 拿 Flow Asset，跑节点图。
+	 * 一次性事件（FirstRune* / HeatPhase* / GameStart / PlayerDeath）内部自动去重。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Lifecycle Events")
+	void TriggerLifecycleEvent(EGameLifecycleEvent Event);
+
+protected:
+	/** 一次性事件去重集合（Transient，跨 PIE 不持久；存档恢复用 TutorialState 兜底）*/
+	UPROPERTY(Transient)
+	TSet<EGameLifecycleEvent> FiredOnceEvents;
+
+	/** 事件总线统一使用的 FlowComponent（同一时间只跑一个 Flow，新触发会停旧的）*/
+	UPROPERTY()
+	TObjectPtr<UFlowComponent> LifecycleFlowComponent;
+
+private:
+	/** HUD 揭幕动画完成的回调（GameMode::BeginPlay 里订阅 HUD->OnLevelEndEffectFinished）*/
+	void HandleLevelEndEffectFinished();
+
+	/** 尝试绑定 HUD 委托：HUD 由 PC->ClientRestart 异步创建，BeginPlay 时通常还没准备好 */
+	void TryBindHUDDelegates();
+	int32 HUDBindRetryCount = 0;
+
+	/** 是否为一次性事件（FirstRune* / HeatPhase* / GameStart / PlayerDeath）*/
+	static bool IsOneShotEvent(EGameLifecycleEvent Event);
 };

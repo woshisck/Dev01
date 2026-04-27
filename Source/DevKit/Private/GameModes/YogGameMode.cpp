@@ -23,16 +23,16 @@
 #include "UI/LootSelectionWidget.h"
 #include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
+#include "LevelFlow/LevelFlowAsset.h"
+#include "FlowComponent.h"
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
 	bAutoSpawnPlayer = false;
 	DefaultPawnClass = nullptr;
 
-	//CurrentWaveIndex = 0;
-	//SpawnedInWave = 0;
-	//ActiveMobCount = 0;
-
+	// 事件总线统一使用的 FlowComponent，同时只跑一个 Flow（新触发停旧的）
+	LifecycleFlowComponent = CreateDefaultSubobject<UFlowComponent>(TEXT("LifecycleFlowComponent"));
 }
 
 
@@ -304,11 +304,37 @@ void AYogGameMode::UpdateFinishLevel(int count)
 void AYogGameMode::BeginPlay()
 {
 	Super::BeginPlay();
-	
 
+	// HUD 在 PC->ClientRestart 才创建（晚于 BeginPlay），用延帧+重试方式订阅
+	TryBindHUDDelegates();
+
+	// 触发游戏开始事件（一次性，跨 PIE 重启会重置 — 单机 Roguelite 行为可接受）
+	TriggerLifecycleEvent(EGameLifecycleEvent::GameStart);
+}
+
+void AYogGameMode::TryBindHUDDelegates()
+{
 	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	if (PC)
+	{
+		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+		{
+			HUD->OnLevelEndEffectFinished.AddUObject(this, &AYogGameMode::HandleLevelEndEffectFinished);
+			UE_LOG(LogTemp, Log, TEXT("[LifecycleEvents] 已订阅 HUD->OnLevelEndEffectFinished"));
+			return;
+		}
+	}
 
-
+	// HUD 还没创建，最多重试 ~1s（每帧一次）
+	if (HUDBindRetryCount++ < 60)
+	{
+		FTimerHandle TmpHandle;
+		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &AYogGameMode::TryBindHUDDelegates);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[LifecycleEvents] 60 帧内未拿到 AYogHUD，放弃订阅 OnLevelEndEffectFinished — LevelClearRevealed 事件将不会触发"));
+	}
 }
 
 // =========================================================
@@ -358,10 +384,9 @@ void AYogGameMode::EnterArrangementPhase()
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 			HUD->TriggerLevelEndEffect(LootSpawnLoc);
 
-	// Tutorial ②：第一次符文掉落时弹窗（slow-mo 期间，state guard 内部去重）
-	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-		if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
-			TM->TryFirstRuneTutorial(PC);
+	// 关卡完成事件（用户可在 BP_GameMode_Default 配 LFA 做"金币结算 UI"等表演，
+	// 教程类弹窗建议挂到 LevelClearRevealed 等揭幕完成后再触发，避免与黑屏过渡同帧冲突）
+	TriggerLifecycleEvent(EGameLifecycleEvent::LevelClear);
 
 	// 生成奖励拾取物
 	if (RewardPickupClass)
@@ -1973,4 +1998,67 @@ FVector AYogGameMode::FindLootSpawnLocation(APawn* PlayerPawn, APlayerController
 	// 全部候选失败，退回玩家原位（极少发生）
 	UE_LOG(LogTemp, Warning, TEXT("[LootSpawn] 所有方向被遮挡，退回玩家位置"));
 	return PlayerLoc;
+}
+
+// =========================================================
+// 关卡生命周期事件总线
+// =========================================================
+
+bool AYogGameMode::IsOneShotEvent(EGameLifecycleEvent Event)
+{
+	switch (Event)
+	{
+	case EGameLifecycleEvent::FirstRuneAcquired:
+	case EGameLifecycleEvent::FirstRunePlaced:
+	case EGameLifecycleEvent::HeatPhaseEntered:
+	case EGameLifecycleEvent::PlayerDeath:
+	case EGameLifecycleEvent::GameStart:
+		return true;
+	default:
+		return false;
+	}
+}
+
+void AYogGameMode::TriggerLifecycleEvent(EGameLifecycleEvent Event)
+{
+	// 一次性事件去重（提前查询，但延后到"成功启动 Flow"才记录，
+	// 否则未配 LFA 时会永久吞掉事件，将来配了也不再触发）
+	const bool bIsOneShot = IsOneShotEvent(Event);
+	if (bIsOneShot && FiredOnceEvents.Contains(Event))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[LifecycleEvents] 事件 %d 已触发过，忽略"), (int32)Event);
+		return;
+	}
+
+	TObjectPtr<ULevelFlowAsset>* AssetPtr = LifecycleEventFlows.Find(Event);
+	if (!AssetPtr || !AssetPtr->Get())
+	{
+		// 没配映射 = 沉默（用户不想要这个事件的表演），且不写 FiredOnceEvents 留给后续配置生效
+		UE_LOG(LogTemp, Log, TEXT("[LifecycleEvents] TriggerLifecycleEvent(%d) 未配 LFA，跳过"), (int32)Event);
+		return;
+	}
+
+	if (!LifecycleFlowComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[LifecycleEvents] LifecycleFlowComponent 为空，无法跑 Flow"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[LifecycleEvents] TriggerLifecycleEvent(%d) -> %s"),
+		(int32)Event, *AssetPtr->Get()->GetName());
+
+	// 停旧 Flow 再启新 Flow（同一时间只跑一个）
+	LifecycleFlowComponent->FinishRootFlow(LifecycleFlowComponent->RootFlow, EFlowFinishPolicy::Keep);
+	LifecycleFlowComponent->RootFlow = AssetPtr->Get();
+	LifecycleFlowComponent->StartRootFlow();
+
+	// 成功启动 Flow 之后再记录，避免静默吞事件
+	if (bIsOneShot)
+		FiredOnceEvents.Add(Event);
+}
+
+void AYogGameMode::HandleLevelEndEffectFinished()
+{
+	// HUD 揭幕动画完成 = 玩家视觉回到正常 = 适合弹教程的时机
+	TriggerLifecycleEvent(EGameLifecycleEvent::LevelClearRevealed);
 }

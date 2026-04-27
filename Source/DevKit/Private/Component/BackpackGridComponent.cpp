@@ -7,8 +7,11 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "FlowAsset.h"
 #include "Tutorial/TutorialManager.h"
+#include "GameModes/YogGameMode.h"
+#include "GameModes/GameLifecycleTypes.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
 
 // =========================================================
 // FActivationZoneConfig
@@ -144,21 +147,13 @@ void UBackpackGridComponent::HandleHeatTutorial(float NormalizedHeat, int32 NewP
 {
 	if (NewPhase < 1) return;
 
-	// 一次性：触发后立刻解绑，避免后续 phase 变化重复尝试
-	OnHeatBarUpdate.RemoveDynamic(this, &UBackpackGridComponent::HandleHeatTutorial);
-
-	APawn* OwnerPawn = Cast<APawn>(GetOwner());
-	if (!OwnerPawn) return;
-
-	APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
-	if (!PC) return;
-
-	UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-	if (!GI) return;
-
-	if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
+	// 改走事件总线：用户在 BP_GameMode_Default 配 LifecycleEventFlows[HeatPhaseEntered]
+	// 才会触发对应 Flow（默认未配 -> 沉默，解决"ActivationZone 教程不出"诉求）。
+	// 一次性去重交给 GameMode::FiredOnceEvents 处理，本组件不主动 RemoveDynamic —
+	// 这样用户运行时补配 LFA 后，下次 phase 变化仍能触发一次（成功后才写入去重集合）。
+	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this)))
 	{
-		TM->TryHeatPhaseTutorial(PC);
+		GM->TriggerLifecycleEvent(EGameLifecycleEvent::HeatPhaseEntered);
 	}
 }
 

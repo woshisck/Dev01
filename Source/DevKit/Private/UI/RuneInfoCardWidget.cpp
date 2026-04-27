@@ -3,6 +3,7 @@
 #include "Components/TextBlock.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/Border.h"
 #include "CommonRichTextBlock.h"
 #include "Data/GenericRuneEffectDA.h"
 #include "UI/GenericEffectListWidget.h"
@@ -15,6 +16,22 @@ namespace ShapeGridColors
 {
     static const FLinearColor Filled (0.20f, 0.60f, 1.00f, 1.0f);  // 亮蓝：已占格
     static const FLinearColor Empty  (0.18f, 0.18f, 0.22f, 0.6f);  // 暗灰：空格
+}
+
+// ============================================================
+//  生命周期
+// ============================================================
+
+void URuneInfoCardWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    // 缩放围绕中心展开（默认 pivot 是左上角，会让选中态视觉偏移）
+    SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+
+    // 初始隐藏选中边框（C++ 控制显隐，WBP 不必显式设 Hidden）
+    if (SelectionBorder)
+        SelectionBorder->SetVisibility(ESlateVisibility::Hidden);
 }
 
 // ============================================================
@@ -100,6 +117,17 @@ void URuneInfoCardWidget::SetGenericEffectsExpanded(bool bExpanded)
     SyncGenericEffectListVisibility();
 }
 
+// ============================================================
+//  选中态高亮
+// ============================================================
+
+void URuneInfoCardWidget::SetSelected(bool bInSelected)
+{
+    bSelected = bInSelected;
+    if (SelectionBorder)
+        SelectionBorder->SetVisibility(bInSelected ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+}
+
 void URuneInfoCardWidget::SyncGenericEffectListVisibility()
 {
     if (!GenericEffectList) return;
@@ -123,17 +151,28 @@ void URuneInfoCardWidget::SyncGenericEffectListVisibility()
 }
 
 // ============================================================
-//  淡入 Tick
+//  Tick：淡入 + 选中缩放插值
 // ============================================================
 
 void URuneInfoCardWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
-    if (!bFading) return;
 
-    FadeAlpha = FMath::Min(FadeAlpha + InDeltaTime / FadeDuration, 1.f);
-    SetRenderOpacity(FadeAlpha);
-    if (FadeAlpha >= 1.f) bFading = false;
+    // 淡入（一次性，结束自动停止）
+    if (bFading)
+    {
+        FadeAlpha = FMath::Min(FadeAlpha + InDeltaTime / FadeDuration, 1.f);
+        SetRenderOpacity(FadeAlpha);
+        if (FadeAlpha >= 1.f) bFading = false;
+    }
+
+    // 选中缩放插值（持续 Tick；近似收敛后无明显开销）
+    const float TargetScale = bSelected ? SelectedRenderScale : 1.0f;
+    if (!FMath::IsNearlyEqual(CurrentRenderScale, TargetScale, 0.001f))
+    {
+        CurrentRenderScale = FMath::FInterpTo(CurrentRenderScale, TargetScale, InDeltaTime, ScaleInterpSpeed);
+        SetRenderScale(FVector2D(CurrentRenderScale));
+    }
 }
 
 // ============================================================

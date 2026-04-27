@@ -9,6 +9,7 @@
 
 class UHorizontalBox;
 class UButton;
+class UBorder;
 class URuneInfoCardWidget;
 class ARewardPickup;
 
@@ -124,11 +125,36 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> BtnBackpackPreview;
 
+	/**
+	 * 跳过按钮的高亮 Border（Optional）。命名 `SkipHighlightBorder`，UBorder 类型。
+	 * C++ 在按钮段焦点切换时切换显隐，避免直接改 Button.WidgetStyle.Normal.TintColor 污染状态。
+	 */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UBorder> SkipHighlightBorder;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UBorder> PreviewHighlightBorder;
+
 	// ── 配置 ────────────────────────────────────────────────────
 
 	/** 单张卡 WBP 类（Class Defaults 配 WBP_RuneInfoCard） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
 	TSubclassOf<URuneInfoCardWidget> RuneCardClass;
+
+	/**
+	 * 卡片的最小尺寸（C++ 套 SizeBox 兜底，避免 WBP_RuneInfoCard 没设 Desired Size 时被 HBox 排成 0 宽）。
+	 * 卡片内容大于这个尺寸时会自然撑大。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Layout")
+	FVector2D MinCardSize = FVector2D(280.f, 380.f);
+
+	/** 卡片的最大尺寸（防止内容过长导致 HBox 被撑爆超屏） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Layout")
+	FVector2D MaxCardSize = FVector2D(420.f, 560.f);
+
+	/** 单卡左右各 Padding（HBox slot 间距） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Layout", meta = (ClampMin = "0"))
+	float CardHorizontalPadding = 16.f;
 
 private:
 	void RebuildCards(const TArray<FLootOption>& Options);
@@ -138,6 +164,11 @@ private:
 	void FinishAndNotifyHUD();
 	void ReactivateAfterPreview();
 	int32 ClampCardIndex(int32 Idx) const;
+
+	/** 同步按钮高亮 Border 显隐（Buttons 段时只显示 SelectedIdx 对应的） */
+	void UpdateButtonHighlight(int32 SelectedIdx);
+	/** 清空所有卡片选中态（切到按钮段或重建时调用） */
+	void ClearAllCardSelection();
 
 	// 5 个静态卡片点击回调（dynamic delegate 不支持 lambda/带参绑定）
 	UFUNCTION() void OnCardClicked0();

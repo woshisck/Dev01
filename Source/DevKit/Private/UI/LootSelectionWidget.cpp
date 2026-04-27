@@ -11,6 +11,8 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Button.h"
+#include "Components/SizeBox.h"
+#include "Components/Border.h"
 #include "Kismet/GameplayStatics.h"
 #include "Input/CommonUIInputTypes.h"
 
@@ -143,11 +145,20 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 
 		Card->ShowRune(Opt.RuneAsset->RuneInfo);
 		Card->SetGenericEffectsExpanded(false);  // 默认折叠，FocusCard 时按聚焦展开
+		Card->SetSelected(false);                 // 重建时清场，FocusCard 再统一设当前选中
+
+		// 套 SizeBox 兜底，避免 WBP_RuneInfoCard 没设 Desired Size 导致 HBox 把所有卡排成 0 宽完全重叠
+		USizeBox* SizeBox = NewObject<USizeBox>(this);
+		SizeBox->SetMinDesiredWidth(MinCardSize.X);
+		SizeBox->SetMinDesiredHeight(MinCardSize.Y);
+		SizeBox->SetMaxDesiredWidth(MaxCardSize.X);
+		SizeBox->SetMaxDesiredHeight(MaxCardSize.Y);
+		SizeBox->AddChild(Card);
 
 		// 外包 UButton 处理鼠标点击
 		UButton* Wrapper = NewObject<UButton>(this);
 		Wrapper->SetVisibility(ESlateVisibility::Visible);
-		Wrapper->AddChild(Card);
+		Wrapper->AddChild(SizeBox);
 
 		// 全透明 ButtonStyle，避免盖住卡片视觉（Designer 可在 WBP 里覆盖此默认）
 		FButtonStyle Style = Wrapper->WidgetStyle;
@@ -157,8 +168,12 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 		Style.Disabled.TintColor = FSlateColor(FLinearColor(1, 1, 1, 0));
 		Wrapper->SetStyle(Style);
 
-		// 静态绑定（dynamic delegate 不支持 lambda/带参，所以预声明 5 个回调）
-		switch (i)
+		// 静态绑定（dynamic delegate 不支持 lambda/带参，所以预声明 5 个回调）。
+		// 注意：用"可见卡片索引"（SpawnedCards.Num() 当前值）而不是原始 Options 索引 i —
+		// 否则若 i=0 项无效被 continue 跳过，第一张可见卡会绑到 OnCardClicked1，
+		// 而 CardToOptionIndex 只有 1 个元素，导致 ResolveCardToOption 越界失败
+		const int32 VisibleIdx = SpawnedCards.Num();
+		switch (VisibleIdx)
 		{
 		case 0: Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked0); break;
 		case 1: Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked1); break;
@@ -171,7 +186,7 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 		UPanelSlot* PSlot = CardContainer->AddChild(Wrapper);
 		if (UHorizontalBoxSlot* HSlot = Cast<UHorizontalBoxSlot>(PSlot))
 		{
-			HSlot->SetPadding(FMargin(8.f, 0.f, 8.f, 0.f));
+			HSlot->SetPadding(FMargin(CardHorizontalPadding, 0.f, CardHorizontalPadding, 0.f));
 			HSlot->SetVerticalAlignment(VAlign_Top);
 		}
 
@@ -198,8 +213,15 @@ void ULootSelectionWidget::FocusCard(int32 Idx)
 	for (int32 i = 0; i < N; ++i)
 	{
 		if (URuneInfoCardWidget* C = SpawnedCards[i])
-			C->SetGenericEffectsExpanded(i == CurrentCardIndex);
+		{
+			const bool bIsCurrent = (i == CurrentCardIndex);
+			C->SetGenericEffectsExpanded(bIsCurrent);
+			C->SetSelected(bIsCurrent);   // C++ 自管视觉高亮（缩放 + 边框）
+		}
 	}
+
+	// 段切到 Cards 时按钮段不应继续高亮
+	UpdateButtonHighlight(-1);
 
 	OnCardFocused(CurrentCardIndex);
 	OnSectionFocused(ELootFocusSection::Cards, CurrentCardIndex);
@@ -208,6 +230,11 @@ void ULootSelectionWidget::FocusCard(int32 Idx)
 void ULootSelectionWidget::FocusButton(int32 Idx)
 {
 	CurrentButtonIndex = FMath::Clamp(Idx, 0, NumBottomButtons - 1);
+
+	// 切到按钮段：清掉所有卡片选中态，只在按钮 Border 上高亮
+	ClearAllCardSelection();
+	UpdateButtonHighlight(CurrentButtonIndex);
+
 	OnSectionFocused(ELootFocusSection::Buttons, CurrentButtonIndex);
 }
 
@@ -222,6 +249,23 @@ void ULootSelectionWidget::SetSection(ELootFocusSection NewSection)
 	{
 		FocusButton(CurrentButtonIndex);
 	}
+}
+
+void ULootSelectionWidget::ClearAllCardSelection()
+{
+	for (URuneInfoCardWidget* C : SpawnedCards)
+	{
+		if (C) C->SetSelected(false);
+	}
+}
+
+void ULootSelectionWidget::UpdateButtonHighlight(int32 SelectedIdx)
+{
+	// SelectedIdx == -1 表示按钮段当前不在焦点上 -> 全部隐藏
+	if (SkipHighlightBorder)
+		SkipHighlightBorder->SetVisibility(SelectedIdx == 0 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	if (PreviewHighlightBorder)
+		PreviewHighlightBorder->SetVisibility(SelectedIdx == 1 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
 }
 
 // ============================================================
@@ -362,11 +406,41 @@ void ULootSelectionWidget::FinishAndNotifyHUD()
 //  按钮 / 卡片回调
 // ============================================================
 
-void ULootSelectionWidget::OnCardClicked0() { SelectRuneLoot(0); }
-void ULootSelectionWidget::OnCardClicked1() { SelectRuneLoot(1); }
-void ULootSelectionWidget::OnCardClicked2() { SelectRuneLoot(2); }
-void ULootSelectionWidget::OnCardClicked3() { SelectRuneLoot(3); }
-void ULootSelectionWidget::OnCardClicked4() { SelectRuneLoot(4); }
+// 鼠标点击通过 CardToOptionIndex 映射到原始 Options 索引，
+// 与键盘/手柄确认路径一致 — 处理 Options 中含无效项被跳过时索引错位的情况
+namespace
+{
+	int32 ResolveCardToOption(const TArray<int32>& Map, int32 CardIdx)
+	{
+		return Map.IsValidIndex(CardIdx) ? Map[CardIdx] : -1;
+	}
+}
+
+void ULootSelectionWidget::OnCardClicked0()
+{
+	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 0);
+	if (Idx >= 0) SelectRuneLoot(Idx);
+}
+void ULootSelectionWidget::OnCardClicked1()
+{
+	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 1);
+	if (Idx >= 0) SelectRuneLoot(Idx);
+}
+void ULootSelectionWidget::OnCardClicked2()
+{
+	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 2);
+	if (Idx >= 0) SelectRuneLoot(Idx);
+}
+void ULootSelectionWidget::OnCardClicked3()
+{
+	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 3);
+	if (Idx >= 0) SelectRuneLoot(Idx);
+}
+void ULootSelectionWidget::OnCardClicked4()
+{
+	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 4);
+	if (Idx >= 0) SelectRuneLoot(Idx);
+}
 void ULootSelectionWidget::OnBtnSkipClicked() { SkipSelection(); }
 void ULootSelectionWidget::OnBtnBackpackPreviewClicked() { OpenBackpackPreview(); }
 
