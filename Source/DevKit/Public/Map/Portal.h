@@ -229,13 +229,13 @@ public:
 public:
 	// === 入门过场配置（在 BP_Portal Details 面板可调）===
 
-	/** 角色自走入门时长（秒）。0.7 默认；用户可调。不必抵达门位置 */
+	/** 角色自走入门时长（秒）。0 = 跳过自走，直接等 FailSafeBuffer 后切关 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Entry")
-	float PortalEntryWalkDuration = 0.7f;
+	float PortalEntryWalkDuration = 0.0f;
 
-	/** 兜底超时余量（秒）。WalkDuration + 此值后强制切关，防卡墙 */
+	/** 按 E 后到切关的总等待时长（秒）。应与 HUD BlackoutDuration 对齐 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Entry")
-	float PortalEntryFailSafeBuffer = 0.5f;
+	float PortalEntryFailSafeBuffer = 0.3f;
 
 private:
 	// 统一应用一套 FPortalArtConfig：切换网格、激活/停止特效

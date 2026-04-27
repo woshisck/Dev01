@@ -3,26 +3,28 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Map/Portal.h"   // FPortalPreviewInfo
+#include "CommonInputTypeEnum.h"
 #include "PortalPreviewWidget.generated.h"
 
 class UTextBlock;
 class UBorder;
 class UVerticalBox;
-class UWidget;
+class UYogCommonRichTextBlock;
 
 /**
  * 传送门下一关预览浮窗（HUD 单例）。
  *
  * 由 AYogHUD 管理生命周期，按"距玩家最近的开启 Portal"为目标显示；
- * 玩家进入 Box 时追加"按 E 进入"提示。
+ * 玩家进入 Box 时追加交互提示。
  *
  * WBP 控件（全部 BindWidgetOptional）：
- *   RoomNameText      TextBlock     房间显示名（DisplayName 或 RoomName 兜底）
- *   RoomTypeBadge     Border        类型徽章背景色（C++ 按 Tag 写入）
- *   RoomTypeText      TextBlock     类型文字（"普通/精英/商店/事件"）
- *   BuffListBox       VerticalBox   动态填充每个预骰 Buff 行（图标 + 名称）
- *   LootSummaryText   TextBlock     "战利品：符文 ×3"
- *   InteractHintRoot  Widget        "按 E 进入"容器（SetInteractHintVisible 控制）
+ *   RoomNameText      TextBlock      房间显示名（DisplayName 或 RoomName 兜底）
+ *   RoomTypeBadge     Border         类型徽章背景色（C++ 按 Tag 写入）
+ *   RoomTypeText      TextBlock      类型文字（"普通/精英/商店/事件"）
+ *   BuffListBox       VerticalBox    动态填充每个预骰 Buff 行（图标 + 名称）
+ *   LootSummaryText   TextBlock      "战利品：符文 ×3"
+ *   InteractHintRoot  RichTextBlock  "<input action="Interact"/> 进入"（C++ NativeConstruct 写入文字）
+ *                                    需在 WBP 中挂 BP_InputActionDecorator
  */
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UPortalPreviewWidget : public UUserWidget
@@ -53,6 +55,9 @@ public:
     void K2_OnInteractHintShown();
 
 protected:
+    virtual void NativeConstruct() override;
+    virtual void NativeDestruct() override;
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UTextBlock> RoomNameText;
 
@@ -69,8 +74,11 @@ protected:
     TObjectPtr<UTextBlock> LootSummaryText;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UWidget> InteractHintRoot;
+    TObjectPtr<UYogCommonRichTextBlock> InteractHintRoot;
 
 private:
     bool bInteractHintVisible = false;
+
+    // 输入设备切换时重建 RichText，令图标实时更新
+    void RefreshHintText(ECommonInputType NewInputType);
 };

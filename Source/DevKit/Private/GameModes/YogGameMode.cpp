@@ -1724,6 +1724,15 @@ void AYogGameMode::ActivateHubPortals()
 			Cfg.PortalIndex, *ChosenRoom->RoomName.ToString(), *ChosenRoom->GetName(),
 			PreRolled.Num());
 	}
+
+	// 主城无战斗 → EnterArrangementPhase 永不触发，需在此手动启用 HUD 引导
+	if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
+	{
+		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+		{
+			HUD->ShowPortalGuidance();
+		}
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

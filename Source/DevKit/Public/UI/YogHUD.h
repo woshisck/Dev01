@@ -166,9 +166,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Portal", meta = (ClampMin = "0"))
 	float PortalSwitchHysteresis = 100.f;
 
-	/** 进入过场渐黑时长（线性，秒） */
+	/** 进入过场渐黑时长（线性，秒）。应与 Portal::PortalEntryFailSafeBuffer 对齐 */
 	UPROPERTY(EditDefaultsOnly, Category = "Portal", meta = (ClampMin = "0.05"))
-	float PortalBlackoutDuration = 0.5f;
+	float PortalBlackoutDuration = 0.3f;
 
 	/** 关卡结算后启用引导（EnterArrangementPhase 末尾调；主城传送门跳过此调用） */
 	void ShowPortalGuidance();

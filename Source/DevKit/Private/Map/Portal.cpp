@@ -11,6 +11,7 @@
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "Data/RoomDataAsset.h"
+#include "Data/RuneDataAsset.h"
 #include "UI/YogHUD.h"
 
 APortal::APortal(const FObjectInitializer& ObjectInitializer)
@@ -24,6 +25,8 @@ APortal::APortal(const FObjectInitializer& ObjectInitializer)
 	CollisionVolume = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionVolume"));
 	CollisionVolume->InitBoxExtent(FVector(80, 80, 120));
 	CollisionVolume->SetupAttachment(RootComponent);
+	// 仅对 Pawn 产生 Overlap，不产生物理阻挡
+	CollisionVolume->SetCollisionProfileName(TEXT("OverlapOnlyPawn"));
 	CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &APortal::OnOverlapBegin);
 	CollisionVolume->OnComponentEndOverlap.AddDynamic(this, &APortal::OnOverlapEnd);
 
@@ -56,6 +59,17 @@ void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 
 	BuildPreviewInfo();
 	EnablePortal();
+
+	// 调试：列出每个 PreRolled Buff 的资产名 + RuneName，定位 RuneName 漏填
+	for (int32 i = 0; i < PreRolledBuffs.Num(); ++i)
+	{
+		const FBuffEntry& E = PreRolledBuffs[i];
+		const FName RuneName = E.RuneDA ? E.RuneDA->RuneInfo.RuneConfig.RuneName : NAME_None;
+		UE_LOG(LogTemp, Log, TEXT("Portal[%d] PreRolled[%d]: Asset=%s RuneName=%s"),
+			Index, i,
+			E.RuneDA ? *E.RuneDA->GetName() : TEXT("null"),
+			*RuneName.ToString());
+	}
 }
 
 void APortal::BuildPreviewInfo()
