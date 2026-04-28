@@ -12,8 +12,8 @@
 
 | 文件 | 改动 |
 |------|------|
-| `Config/Tags/BuffTag.ini` | 新增 `Buff.Status.Enraged`、`Buff.Status.Cursed` |
-| `Config/DefaultGameplayTags.ini` | 新增 `Ability.Event.DeathAnimComplete` |
+| `Config/Tags/BuffTag.ini` | 新增 `Buff.Status.SuperArmor`、`Buff.Status.Enraged`、`Buff.Status.Cursed` |
+| `Config/DefaultGameplayTags.ini` | 新增 `Ability.Event.DeathAnimComplete`、`Ability.Event.Attack.CritHit` |
 | `Source/.../DamageExecution.cpp` | 修复 DmgTaken clamp：capture 失败才用 1.0 兜底，允许 < 1.0 减伤 |
 | `Source/.../GA_Dead.cpp` | `StartDeathDelay()` 头部广播 `Ability.Event.DeathAnimComplete` |
 
@@ -109,16 +109,16 @@
 
 路径：`Content/Docs/BuffDocs/EnemyBuff/GE_PoisonSplash`
 
-| 字段 | 值 |
-|------|----|
-| Duration Policy | Has Duration |
-| Duration Magnitude | 6.0 |
-| Period | 2.0 |
-| Execute Periodic Effect on Application | false |
-| Modifier — Attribute | DamageAttributeSet.DamageBuff |
-| Modifier — Op | Additive |
-| Modifier — Magnitude | 5.0 |
-| Granted Tags | Buff.Status.Poisoned |
+| 字段                                     | 值                             |
+| -------------------------------------- | ----------------------------- |
+| Duration Policy                        | Has Duration                  |
+| Duration Magnitude                     | 6.0                           |
+| Period                                 | 2.0                           |
+| Execute Periodic Effect on Application | false                         |
+| Modifier — Attribute                   | DamageAttributeSet.DamageBuff |
+| Modifier — Op                          | Additive                      |
+| Modifier — Magnitude                   | 5.0                           |
+| Granted Tags                           | Buff.Status.Poisoned          |
 
 ### FA_EnemyBuff_DeathPoison — 节点连接
 
@@ -291,3 +291,23 @@ Content Browser 新建文件夹：`Content/Docs/BuffDocs/EnemyBuff/`
 | 死咒 | MaxHealth 倍率 / 叠层上限 | ② Value / ② MaxStacks |
 | 激怒 | 攻速倍率 | ② Value |
 | 铁甲 | 护甲初始值 | ① Value |
+## 特效总结
+
+**1. GE_PoisonSplash 配置** — ✅ 完全正确
+
+**2. SuperArmor 闪光衔接（已修复 + 编译通过）**
+
+- `YogAbilitySystemComponent::OnTagUpdated` 加了 SuperArmor 分支：tag 加/减自动调 `StartSuperArmorFlash`/`StopSuperArmorFlash`
+- 删除了 Poise 路径的手动调用，避免双触发
+- 现在 C++ Poise 自动霸体 ✅ 和 FA AddTag ✅ 两条路都有金色 Fresnel
+
+**3. 无畏 + 死咒的 VFX/UI 制作位置**
+
+|项目|实现方式|还需做|
+|---|---|---|
+|无畏 触发瞬间金色爆发|Niagara FX + GameplayCue Notify 资产|新建（路径建议 `Content/Effect/GameplayCue/GC_Fearless_Burst.uasset`），FA 加 `[Trigger Gameplay Cue]`|
+|无畏 持续金色 Fresnel|C++ Overlay Material（已有 `CharacterFlashMaterial`）|✅ 已自动衔接|
+|死咒 紫黑咒印飞向击杀者|Niagara FX + GC Notify|新建（`GC_DeathCurse_Cast.uasset`），FA 在 ApplyAttributeModifier 后加 `[Trigger Gameplay Cue]`，Source=BuffOwner，Target=LastDamageCauser|
+|死咒 血条紫色污染|UI 蓝图监听 `Buff.Status.Cursed` tag|WBP 健康条蓝图加 tag 监听 + 紫色 Overlay|
+
+要我把 ASC 这个改动 + SuperArmor tag 一起合一个 commit，然后 pull --rebase + push 吗？

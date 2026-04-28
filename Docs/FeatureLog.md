@@ -19,10 +19,11 @@
 | DmgTaken clamp 修复 | `DamageExecution.cpp:85` 由 `FMath::Max(x,1.f)` 改为 `(x<=0)?1.f:Max(x,0.01f)`：capture 失败兜底 1.0；成功则允许 < 1.0（无畏 ×0.8 减伤生效） |
 | DeathAnimComplete 事件 | `GA_Dead::StartDeathDelay` 在 IsValid 守卫后广播 `Ability.Event.DeathAnimComplete`（Payload.Instigator=Target=Avatar 自身），供 E002 监听 |
 | CritHit 事件 | `DamageExecution.cpp` 暴击时除 `OnCritHit` 委托外，额外发送 `Ability.Event.Attack.CritHit` 事件（Payload.Magnitude=FinalDamage） |
-| 新增 Tag | `Ability.Event.DeathAnimComplete`、`Ability.Event.Attack.CritHit`、`Buff.Status.Enraged`、`Buff.Status.Cursed` |
+| 新增 Tag | `Ability.Event.DeathAnimComplete`、`Ability.Event.Attack.CritHit`、`Buff.Status.SuperArmor`、`Buff.Status.Enraged`、`Buff.Status.Cursed` |
 | BuffGiver 语义修复 | `BackpackGridComponent.cpp` 触发型符文调度器：`GiverActor` 由 `Payload.Instigator??Owner` 改为永远 `GetOwner()`，避免 OnDamageReceived 时 BuffGiver 被错置成攻击者；事件来源走 `LastEventContext.DamageCauser` |
-| 双重审查 | codex_code_review 双轮通过：第一轮发现 P1（BuffGiver 语义）已修复；第二轮零 P1（仅 P2 提示 `Builds/` 目录不应入库） |
-| 已知待办 | 编辑器侧创建 5 FA + 5 DA + GE_PoisonSplash；如需跨关卡清除死咒可在 GameMode 关卡切换调用 `RemoveActiveEffectsWithGrantedTags(Buff.Status.Cursed)` |
+| SuperArmor Fresnel 自动衔接 | `YogAbilitySystemComponent::OnTagUpdated` 加 `Buff.Status.SuperArmor` 分支：tag 加/减自动调 `StartSuperArmorFlash`/`StopSuperArmorFlash`，覆盖 C++ Poise 自动霸体 + FA AddTag（无畏 E001）两条路径；删除 Poise 内的手动调用避免双触发 |
+| 双重审查 | codex_code_review 双轮通过：第一轮发现 P1（BuffGiver 语义）已修复；第二轮零 P1（仅 P2 提示 `Builds/` 目录不应入库，已加入 .gitignore） |
+| 已知待办 | 无畏触发 GC、死咒咒印 GC + 血条紫色 UI 仍需在编辑器制作 |
 
 ---
 

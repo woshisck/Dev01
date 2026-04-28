@@ -163,6 +163,25 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 	}
 
 	// =========================================================
+	// SuperArmor Fresnel 闪光：tag 加/减自动 Start/Stop，统一覆盖
+	// C++ Poise 自动霸体路径与 FA AddTag 路径（敌人无畏符文 E001）
+	// =========================================================
+	{
+		static const FGameplayTag SuperArmorTag =
+			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor"), false);
+		if (SuperArmorTag.IsValid() && Tag == SuperArmorTag)
+		{
+			if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(GetAvatarActor()))
+			{
+				if (TagExists)
+					Char->StartSuperArmorFlash();
+				else
+					Char->StopSuperArmorFlash();
+			}
+		}
+	}
+
+	// =========================================================
 	// 状态冲突：防递归，BlockAbilitiesWithTags 内部也会触发 OnTagUpdated
 	// =========================================================
 	if (bProcessingConflict)
@@ -376,12 +395,10 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		if (PoiseHitCount >= SuperArmorThreshold)
 		{
 			PoiseHitCount = 0;
+			// AddLooseGameplayTag 会触发 OnTagUpdated → 自动 StartSuperArmorFlash
 			AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
 			UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor ACTIVATED on %s (%.1fs)"),
 				*GetNameSafe(GetAvatarActor()), SuperArmorDuration);
-
-			if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(GetAvatarActor()))
-				Char->StartSuperArmorFlash();
 
 			if (UWorld* W = GetWorld())
 				W->GetTimerManager().SetTimer(
@@ -398,11 +415,9 @@ void UYogAbilitySystemComponent::OnPoiseResetTimerEnd()
 
 void UYogAbilitySystemComponent::OnSuperArmorTimerEnd()
 {
+	// RemoveLooseGameplayTag 会触发 OnTagUpdated → 自动 StopSuperArmorFlash
 	RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
 	UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor EXPIRED on %s"), *GetNameSafe(GetAvatarActor()));
-
-	if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(GetAvatarActor()))
-		Char->StopSuperArmorFlash();
 }
 
 // =========================================================
