@@ -456,10 +456,10 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		}
 	}
 
-	// Enemies only ignore hit reaction while C++ poise-triggered super armor is active.
-	// Passive rune tags such as Fearless may keep Buff.Status.SuperArmor for visuals,
-	// but they should not make the enemy permanently immune to hit reaction.
-	const bool bPoiseBlocksHitReact = !bEnemyDefender && AttackerPoise <= DefenderPoise;
+	// Hit reaction is blocked by active super armor, not by permanent Resilience alone.
+	// Permanent Resilience is still logged for balancing, but it should not make players
+	// or enemies permanently immune to hit reaction.
+	const bool bPoiseBlocksHitReact = false;
 	if (bPoiseBlocksHitReact || bBlockingSuperArmor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Poise] SkipHitReact Target=%s AttackerPoise=%.0f DefenderPoise=%.0f Enemy=%d PoiseBlocked=%d SuperArmorTag=%d BlockingSuperArmor=%d ActivatedSuperArmorNow=%d"),
