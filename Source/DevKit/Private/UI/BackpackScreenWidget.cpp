@@ -152,10 +152,16 @@ void UBackpackScreenWidget::OnGridNeedsRefresh_Implementation()
 {
     if (BackpackGridWidget)
     {
+        // 手柄模式下直接用 GamepadCursorCell 作为悬浮格，
+        // 不依赖 HoverCol/Row，防止合成鼠标事件将其清零后一帧内高亮消失。
+        const FIntPoint EffectiveHover = (bIsGamepadInputMode && !bGrabbingRune)
+            ? GamepadCursorCell
+            : FIntPoint(HoverCol, HoverRow);
+
         BackpackGridWidget->RefreshCells(
             GetBackpack(),
             SelectedCell,
-            FIntPoint(HoverCol, HoverRow),
+            EffectiveHover,
             GrabbedFromCell,
             bGrabbingRune,
             PreviewPhase);
@@ -561,6 +567,10 @@ void UBackpackScreenWidget::NativeOnActivated()
     {
         PC->SetPause(true);
         PC->SetShowMouseCursor(true);
+        // 记录当前光标位置，防止激活后合成鼠标事件被误判为真实移动而清除手柄高亮
+        float MouseX = 0.f, MouseY = 0.f;
+        PC->GetMousePosition(MouseX, MouseY);
+        LastMouseAbsPos = FVector2D(MouseX, MouseY);
     }
 
     SetUserFocus(GetOwningPlayer());
@@ -1434,20 +1444,24 @@ void UBackpackScreenWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDr
 
 FReply UBackpackScreenWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-    const bool bWasGamepadMode = bIsGamepadInputMode;
+    const FVector2D NewPos = InMouseEvent.GetScreenSpacePosition();
+    // 只有光标真实移动超过 2px 才算"真实移动"；零位移或极小偏移视为合成事件，
+    // 保持手柄模式，防止多次合成事件反复将 HoverCol/Row 清零导致高亮闪烁。
+    const bool bRealMove = (NewPos - LastMouseAbsPos).SizeSquared() > 4.f;
+
     if (bIsGamepadInputMode)
     {
+        LastMouseAbsPos = NewPos;
+        if (!bRealMove)
+            return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
         bIsGamepadInputMode = false;
         if (BackpackGridWidget)
             BackpackGridWidget->RefreshHeatPhaseButtons(PreviewPhase, false);
     }
-    LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
-
-    // DPad 触发后 Slate 会产生一次合成鼠标移动事件；若直接跑到下面的 Hover 追踪，
-    // 会把 MoveGamepadCursor 刚写入的 HoverCol/Row 覆盖成 -1，造成高亮一帧后消失（闪烁）。
-    // 跳过本次 Hover 更新，下一个真实鼠标事件再接管。
-    if (bWasGamepadMode)
-        return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
+    else
+    {
+        LastMouseAbsPos = NewPos;
+    }
 
     // 无抓取/拖拽时追踪主格子悬浮格，驱动绿框高亮
     if (!bGrabbingRune && !bMouseDragging)
