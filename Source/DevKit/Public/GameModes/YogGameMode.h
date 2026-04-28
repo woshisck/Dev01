@@ -365,7 +365,8 @@ protected:
 	bool SpawnEnemyFromPool(const FPlannedEnemy& Planned);
 
 	// 新路径：播放预生成 FX，FX 结束后才真正 SpawnActor
-	void BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned);
+	// 返回 false 表示找不到兼容 Spawner（调用方可立即跳过，不等 Timer）
+	bool BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned);
 	void FinishSpawnFromPool(FPlannedEnemy Planned,
 		TWeakObjectPtr<AMobSpawner> WeakSpawner, FVector Location, int32 WaveIdx);
 

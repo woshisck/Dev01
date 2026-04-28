@@ -1288,13 +1288,20 @@ void AYogGameMode::SpawnNextOneByOne()
 		return;
 	}
 
-	BeginSpawnEnemyFromPool(OneByOneSpawnQueue[OneByOneSpawnIndex]);
+	const bool bSpawned = BeginSpawnEnemyFromPool(OneByOneSpawnQueue[OneByOneSpawnIndex]);
 	OneByOneSpawnIndex++;
 
 	if (OneByOneSpawnIndex >= OneByOneSpawnQueue.Num())
 	{
 		// 队列已空，设置触发条件，不再重新调度
 		SetupWaveTrigger(Wave);
+		return;
+	}
+
+	// 找不到 Spawner 时立即处理下一只，不浪费等待时间
+	if (!bSpawned)
+	{
+		SpawnNextOneByOne();
 		return;
 	}
 
@@ -1476,7 +1483,12 @@ void AYogGameMode::FallbackToPreplacedEnemies()
 
 void AYogGameMode::CheckLevelComplete()
 {
-	if (!bAllWavesSpawned || TotalAliveEnemies > 0 || PendingSpawnCount > 0) return;
+	if (!bAllWavesSpawned || TotalAliveEnemies > 0 || PendingSpawnCount > 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CheckLevelComplete] 未通过: bAllWavesSpawned=%s TotalAlive=%d PendingSpawn=%d"),
+			bAllWavesSpawned ? TEXT("true") : TEXT("false"), TotalAliveEnemies, PendingSpawnCount);
+		return;
+	}
 
 	// 最后一波可能有按需补刷剩余，先补刷，待全部死亡后再结算
 	if (WavePlans.IsValidIndex(CurrentWaveIndex))
@@ -1547,9 +1559,9 @@ bool AYogGameMode::SpawnEnemyFromPool(const FPlannedEnemy& Planned)
 	return false;
 }
 
-void AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
+bool AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 {
-	if (!Planned.EnemyClass) return;
+	if (!Planned.EnemyClass) return false;
 
 	TArray<AActor*> OutActors;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), OutActors);
@@ -1562,13 +1574,13 @@ void AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 
 	if (ValidSpawners.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("BeginSpawnEnemyFromPool: 没有 Spawner 支持 %s"), *Planned.EnemyClass->GetName());
-		return;
+		UE_LOG(LogTemp, Warning, TEXT("BeginSpawnEnemyFromPool: 没有 Spawner 支持 %s，跳过"), *Planned.EnemyClass->GetName());
+		return false;
 	}
 
 	AMobSpawner* Spawner = ValidSpawners[FMath::RandRange(0, ValidSpawners.Num() - 1)];
 	FVector Location = Spawner->PrepareSpawnLocation();
-	if (Location == FVector::ZeroVector) return;
+	if (Location == FVector::ZeroVector) return false;
 
 	const float FXDuration = FMath::Max(0.f,
 		Planned.PreSpawnFXDuration + FMath::FRandRange(-Spawner->SpawnFXVariance, Spawner->SpawnFXVariance));
@@ -1585,7 +1597,7 @@ void AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 	if (FXDuration <= 0.f)
 	{
 		FinishSpawnFromPool(Planned, WeakSpawner, Location, WaveIdx);
-		return;
+		return true;
 	}
 
 	FTimerHandle SpawnHandle;
@@ -1596,6 +1608,7 @@ void AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 				WeakThis->FinishSpawnFromPool(Planned, WeakSpawner, Location, WaveIdx);
 		}),
 		FXDuration, false);
+	return true;
 }
 
 void AYogGameMode::FinishSpawnFromPool(FPlannedEnemy Planned,
@@ -1635,7 +1648,13 @@ TArray<FBuffEntry> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int
 {
 	TArray<FBuffEntry> Selected;
 	if (Room.BuffPool.IsEmpty() || BuffCount <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RoomBuff] Select none Room=%s BuffCount=%d Pool=%d"),
+			*GetNameSafe(&Room),
+			BuffCount,
+			Room.BuffPool.Num());
 		return Selected;
+	}
 
 	// 复制池子并洗牌（Fisher-Yates）
 	TArray<FBuffEntry> Pool = Room.BuffPool;
@@ -1648,8 +1667,29 @@ TArray<FBuffEntry> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int
 	const int32 Count = FMath::Min(BuffCount, Pool.Num());
 	for (int32 i = 0; i < Count; i++)
 	{
-		if (Pool[i].RuneDA) Selected.Add(Pool[i]);
+		if (Pool[i].RuneDA)
+		{
+			Selected.Add(Pool[i]);
+			UE_LOG(LogTemp, Warning, TEXT("[RoomBuff] Selected Room=%s Index=%d Rune=%s DA=%s Cost=%d"),
+				*GetNameSafe(&Room),
+				i,
+				*GetEnemyRuneDebugName(Pool[i].RuneDA.Get()),
+				*GetNameSafe(Pool[i].RuneDA.Get()),
+				Pool[i].DifficultyScore);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[RoomBuff] Selected null Room=%s Index=%d"),
+				*GetNameSafe(&Room),
+				i);
+		}
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[RoomBuff] Select result Room=%s Requested=%d Selected=%d Pool=%d"),
+		*GetNameSafe(&Room),
+		BuffCount,
+		Selected.Num(),
+		Room.BuffPool.Num());
 
 	return Selected;
 }

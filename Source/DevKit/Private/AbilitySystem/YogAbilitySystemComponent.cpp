@@ -379,8 +379,22 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		SourceASC->DealtDamage.Broadcast(this, Damage);
 	}
 
-	if (!HitReactEventTag.IsValid() || !IsValid(GetAvatarActor()))
+	if (!IsValid(GetAvatarActor()))
 		return;
+
+	static const FGameplayTag DefaultHitReactEventTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact"), false);
+	const FGameplayTag EffectiveHitReactEventTag = HitReactEventTag.IsValid()
+		? HitReactEventTag
+		: DefaultHitReactEventTag;
+	if (!EffectiveHitReactEventTag.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HitReact] Skip: invalid HitReactEventTag Target=%s Configured=%s Default=%s"),
+			*GetNameSafe(GetAvatarActor()),
+			*HitReactEventTag.ToString(),
+			*DefaultHitReactEventTag.ToString());
+		return;
+	}
 
 	// =========================================================
 	// 韧性（Poise）比较：决定是否触发受击动画
@@ -457,7 +471,12 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	EventData.Instigator     = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
 	EventData.EventMagnitude = Damage;
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
-		GetAvatarActor(), HitReactEventTag, EventData);
+		GetAvatarActor(), EffectiveHitReactEventTag, EventData);
+	UE_LOG(LogTemp, Warning, TEXT("[HitReact] Sent Target=%s Event=%s Damage=%.1f Instigator=%s"),
+		*GetNameSafe(GetAvatarActor()),
+		*EffectiveHitReactEventTag.ToString(),
+		Damage,
+		*GetNameSafe(EventData.Instigator.Get()));
 }
 
 void UYogAbilitySystemComponent::OnPoiseResetTimerEnd()
