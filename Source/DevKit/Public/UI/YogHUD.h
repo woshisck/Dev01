@@ -75,6 +75,10 @@ public:
 	void BeginPauseEffect();
 	void EndPauseEffect();
 
+	/** 主界面浮窗（Portal/WeaponGlass）淡入淡出时长（秒） */
+	UPROPERTY(EditDefaultsOnly, Category = "PauseEffect")
+	float MajorUIFadeDuration = 0.1f;
+
 	// ─────────────────────────────────────────
 	//  关卡结束视觉特效
 	// ─────────────────────────────────────────
@@ -287,10 +291,12 @@ private:
 
 	bool bHasWeapon = false;
 
-	// 主界面遮盖计数（private）
-	int32 MajorUICount = 0;
+	// 主界面遮盖计数 + fade（private）
+	int32 MajorUICount      = 0;
+	float MajorUIFadeAlpha  = 1.f;   // 当前 opacity（1=完全可见，0=完全隐藏）
+	float MajorUIFadeTarget = 1.f;   // 目标 opacity
 	FDelegateHandle SacrificeGraceMajorUIHandle;
-	void ApplyMajorUIVisibility(bool bHide);
+	void TickMajorUIFade(float DeltaSeconds);
 
 	UPROPERTY()
 	TObjectPtr<UBackpackScreenWidget> BackpackWidget;

@@ -364,11 +364,12 @@ void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Bleeding")));
 	if (Data.NewValue < Data.OldValue && IsAlive() && AbilitySystemComponent && !bIsBleeding)
 	{
-		FGameplayEventData HitEventData;
-		AbilitySystemComponent->HandleGameplayEvent(
-			FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact")), &HitEventData);
-
-		StartHitFlash();
+		// HitReact is driven by ReceiveDamage so poise and super-armor can gate it.
+		if (!AbilitySystemComponent->HasMatchingGameplayTag(
+			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor"), false)))
+		{
+			StartHitFlash();
+		}
 	}
 
 	if (!IsAlive() && !bIsDead)
@@ -544,6 +545,8 @@ void AYogCharacterBase::InitializeStats(const FYogBaseAttributeData* attributeDa
 
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetCrit_RateAttribute(), attributeData->Crit_Rate);
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetCrit_DamageAttribute(), attributeData->Crit_Damage);
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetMaxArmorHPAttribute(), attributeData->MaxArmorHP);
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetArmorHPAttribute(), attributeData->MaxArmorHP);
 
 	}
 

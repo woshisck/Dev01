@@ -104,6 +104,8 @@ private:
 	/** 当前累积计数 */
 	int32 CurrentCount = 0;
 
+	TWeakObjectPtr<AActor> PendingSlashWaveInitialTarget;
+
 	UPROPERTY()
 	TObjectPtr<UAbilityTask_WaitGameplayEvent> WaitEventTask;
 

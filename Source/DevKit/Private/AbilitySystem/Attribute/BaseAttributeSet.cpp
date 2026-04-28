@@ -316,6 +316,12 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 	// ArmorHP 变化时同步 Buff.Status.Armored Tag
 	if (Attribute == GetArmorHPAttribute())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Armor] ArmorHP %s %.1f -> %.1f / Max %.1f"),
+			*GetNameSafe(GetOwningActor()),
+			OldValue,
+			NewValue,
+			GetMaxArmorHP());
+
 		static const FGameplayTag ArmoredTag =
 			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Armored"), false);
 		if (ArmoredTag.IsValid())

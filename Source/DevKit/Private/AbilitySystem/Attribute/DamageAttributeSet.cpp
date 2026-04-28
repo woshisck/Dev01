@@ -113,6 +113,12 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 					const float ArmorAbsorbed = FMath::Min(LocalDamageDone, CurrentArmor);
 					TargetCharacter->BaseAttributeSet->SetArmorHP(FMath::Max(0.f, CurrentArmor - ArmorAbsorbed));
 					HealthDamage = LocalDamageDone - ArmorAbsorbed;
+					UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Armor] Absorb Target=%s Damage=%.1f Armor %.1f -> %.1f HealthDamage=%.1f"),
+						*GetNameSafe(TargetCharacter),
+						LocalDamageDone,
+						CurrentArmor,
+						FMath::Max(0.f, CurrentArmor - ArmorAbsorbed),
+						HealthDamage);
 				}
 			}
 
@@ -234,6 +240,12 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 					const float ArmorAbsorbed = FMath::Min(LocalDamageDone, CurrentArmor);
 					TargetCharacter->BaseAttributeSet->SetArmorHP(FMath::Max(0.f, CurrentArmor - ArmorAbsorbed));
 					HealthDamage = LocalDamageDone - ArmorAbsorbed;
+					UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Armor] Absorb Target=%s Damage=%.1f Armor %.1f -> %.1f HealthDamage=%.1f"),
+						*GetNameSafe(TargetCharacter),
+						LocalDamageDone,
+						CurrentArmor,
+						FMath::Max(0.f, CurrentArmor - ArmorAbsorbed),
+						HealthDamage);
 				}
 			}
 

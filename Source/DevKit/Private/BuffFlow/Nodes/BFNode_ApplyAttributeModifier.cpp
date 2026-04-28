@@ -1,5 +1,6 @@
 #include "BuffFlow/Nodes/BFNode_ApplyAttributeModifier.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Types/FlowDataPinResults.h"
 
@@ -70,6 +71,41 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 		if (PinResult.Result == EFlowDataPinResolveResult::Success)
 		{
 			ResolvedValue = PinResult.Value;
+		}
+	}
+
+	if (Attribute == UBaseAttributeSet::GetArmorHPAttribute())
+	{
+		if (const UBaseAttributeSet* BaseSet = ASC->GetSet<UBaseAttributeSet>())
+		{
+			const float CurrentArmor = BaseSet->GetArmorHP();
+			const float CurrentMaxArmor = BaseSet->GetMaxArmorHP();
+			float ExpectedArmor = CurrentArmor;
+
+			switch (ModOp)
+			{
+			case EGameplayModOp::Additive:
+				ExpectedArmor = CurrentArmor + ResolvedValue;
+				break;
+			case EGameplayModOp::Multiplicitive:
+				ExpectedArmor = CurrentArmor * ResolvedValue;
+				break;
+			case EGameplayModOp::Override:
+				ExpectedArmor = ResolvedValue;
+				break;
+			default:
+				break;
+			}
+
+			if (ExpectedArmor > CurrentMaxArmor)
+			{
+				const_cast<UBaseAttributeSet*>(BaseSet)->SetMaxArmorHP(ExpectedArmor);
+				UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Armor] Raise MaxArmorHP Target=%s %.1f -> %.1f before ArmorHP mod %.1f"),
+					*GetNameSafe(TargetActor),
+					CurrentMaxArmor,
+					ExpectedArmor,
+					ResolvedValue);
+			}
 		}
 	}
 

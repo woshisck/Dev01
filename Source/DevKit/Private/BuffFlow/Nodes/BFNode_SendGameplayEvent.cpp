@@ -39,9 +39,16 @@ void UBFNode_SendGameplayEvent::ExecuteInput(const FName& PinName)
 	}
 
 	AActor* InstigatorActor = ResolveTarget(Instigator);
-	UE_LOG(LogTemp, Warning, TEXT("[BFNode_SendGameplayEvent] 发送事件 Tag=%s → Target=%s | Instigator=%s"),
+	AActor* PayloadTargetActor = ResolveTarget(PayloadTarget);
+	if (!PayloadTargetActor)
+	{
+		PayloadTargetActor = TargetActor;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[BFNode_SendGameplayEvent] Send Event Tag=%s -> Receiver=%s | PayloadTarget=%s | Instigator=%s"),
 		*EventTag.ToString(),
 		*TargetActor->GetName(),
+		*GetNameSafe(PayloadTargetActor),
 		InstigatorActor ? *InstigatorActor->GetName() : TEXT("NULL"));
 
 	// Magnitude：优先读取连入的数据引脚，无连线则使用节点上的固定值
@@ -56,7 +63,7 @@ void UBFNode_SendGameplayEvent::ExecuteInput(const FName& PinName)
 	FGameplayEventData EventData;
 	EventData.EventTag        = EventTag;
 	EventData.Instigator      = InstigatorActor;
-	EventData.Target          = TargetActor;
+	EventData.Target          = PayloadTargetActor;
 	EventData.EventMagnitude  = ResolvedMagnitude;
 
 	// 直接调用已找到的 ASC，避免 SendGameplayEventToActor 内部再次通过

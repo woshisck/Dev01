@@ -447,6 +447,7 @@ void AYogHUD::Tick(float DeltaSeconds)
 	// 否则常规情况下（PauseEffectAlpha 已稳定 / LevelEndEffect 期间）不会更新
 	TickPortalPreview(DeltaSeconds);
 	TickBlackoutFade(DeltaSeconds);
+	TickMajorUIFade(DeltaSeconds);
 
 	// 关卡结束特效完全接管 PausePPVolume，与暂停菜单系统互不干扰
 	if (bLevelEndEffectActive)
@@ -475,7 +476,7 @@ void AYogHUD::Tick(float DeltaSeconds)
 	PausePPVolume->Settings.ColorGain       = FVector4(1.f, 1.f, 1.f, Gain);
 	PausePPVolume->BlendWeight = 1.f;
 
-	// Portal/Blackout Tick 已移到函数顶部统一调用，此处无需重复
+	// Portal/Blackout/MajorUIFade Tick 已移到函数顶部统一调用，此处无需重复
 }
 
 void AYogHUD::BeginPauseEffect()
@@ -910,47 +911,83 @@ void AYogHUD::TickBlackoutFade(float DeltaSeconds)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  主界面遮盖：浮窗自动隐藏 / 恢复
+//  主界面遮盖：浮窗 fade-out / fade-in（0.1 s，可在 BP_YogHUD 调整 MajorUIFadeDuration）
 // ─────────────────────────────────────────────────────────────────────────────
 
 void AYogHUD::PushMajorUI()
 {
 	if (MajorUICount++ == 0)
-		ApplyMajorUIVisibility(true);
+		MajorUIFadeTarget = 0.f;   // 开始 fade-out，Tick 驱动 opacity 逐帧递减
 }
 
 void AYogHUD::PopMajorUI()
 {
 	MajorUICount = FMath::Max(0, MajorUICount - 1);
-	if (MajorUICount == 0)
-		ApplyMajorUIVisibility(false);
-}
+	if (MajorUICount != 0) return;
 
-void AYogHUD::ApplyMajorUIVisibility(bool bHide)
-{
-	// 武器玻璃图标
+	// 重置 Portal 目标，强制 TickPortalPreview 重新判断并 SetVisible（否则 Target 未变会跳过）
+	CurrentPreviewTarget = nullptr;
+
+	// 恢复 Slate 可见性（opacity 从当前 alpha 继续 fade-in，避免闪现）
 	if (UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr)
 	{
-		GlassIcon->SetVisibility(bHide
-			? ESlateVisibility::Collapsed
-			: (bHasWeapon ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
+		if (bHasWeapon)
+		{
+			GlassIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+			GlassIcon->SetRenderOpacity(MajorUIFadeAlpha);
+		}
 	}
 
-	// 传送门预览浮窗（隐藏时 Collapse；恢复时由 TickPortalPreview 下帧自动决定）
-	if (PortalPreviewWidget && bHide)
-		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
-
-	// 传送门方位箭头
-	if (PortalDirectionWidget)
+	if (PortalDirectionWidget && bShowPortalGuidance)
 	{
-		PortalDirectionWidget->SetVisibility((!bHide && bShowPortalGuidance)
-			? ESlateVisibility::HitTestInvisible
-			: ESlateVisibility::Collapsed);
+		PortalDirectionWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+		PortalDirectionWidget->SetRenderOpacity(MajorUIFadeAlpha);
 	}
 
-	// 信息提示浮窗（一次性触发，关闭即消，不恢复）
-	if (bHide)
+	// PortalPreviewWidget：由 TickPortalPreview 下帧决定是否显示（CurrentPreviewTarget 已清空）
+	// InfoPopupWidget：关闭即消，不恢复
+
+	MajorUIFadeTarget = 1.f;   // 开始 fade-in
+}
+
+void AYogHUD::TickMajorUIFade(float DeltaSeconds)
+{
+	if (FMath::IsNearlyEqual(MajorUIFadeAlpha, MajorUIFadeTarget, 0.001f))
 	{
+		MajorUIFadeAlpha = MajorUIFadeTarget;
+		return;
+	}
+
+	const float FadeSpeed = 1.f / FMath::Max(MajorUIFadeDuration, 0.01f);
+	if (MajorUIFadeTarget > MajorUIFadeAlpha)
+		MajorUIFadeAlpha = FMath::Min(MajorUIFadeAlpha + DeltaSeconds * FadeSpeed, 1.f);
+	else
+		MajorUIFadeAlpha = FMath::Max(MajorUIFadeAlpha - DeltaSeconds * FadeSpeed, 0.f);
+
+	// 将当前 alpha 应用到所有受控浮窗（仅对非 Collapsed 的有效）
+	if (UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr)
+		if (GlassIcon->GetVisibility() != ESlateVisibility::Collapsed)
+			GlassIcon->SetRenderOpacity(MajorUIFadeAlpha);
+
+	if (PortalPreviewWidget && PortalPreviewWidget->GetVisibility() != ESlateVisibility::Collapsed)
+		PortalPreviewWidget->SetRenderOpacity(MajorUIFadeAlpha);
+
+	if (PortalDirectionWidget && PortalDirectionWidget->GetVisibility() != ESlateVisibility::Collapsed)
+		PortalDirectionWidget->SetRenderOpacity(MajorUIFadeAlpha);
+
+	if (UInfoPopupWidget* InfoPopup = GetInfoPopupWidget())
+		if (InfoPopup->GetVisibility() != ESlateVisibility::Collapsed)
+			InfoPopup->SetRenderOpacity(MajorUIFadeAlpha);
+
+	// alpha 归零：折叠所有浮窗（省渲染，屏蔽命中测试）
+	if (MajorUIFadeAlpha <= 0.f)
+	{
+		if (UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr)
+			GlassIcon->SetVisibility(ESlateVisibility::Collapsed);
+		if (PortalPreviewWidget)
+			PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+		if (PortalDirectionWidget)
+			PortalDirectionWidget->SetVisibility(ESlateVisibility::Collapsed);
 		if (UInfoPopupWidget* InfoPopup = GetInfoPopupWidget())
 			InfoPopup->SetVisibility(ESlateVisibility::Collapsed);
 	}
