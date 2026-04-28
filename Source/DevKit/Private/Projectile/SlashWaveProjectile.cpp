@@ -68,7 +68,7 @@ void ASlashWaveProjectile::BeginPlay()
 void ASlashWaveProjectile::OnOverlapBegin(
 	UPrimitiveComponent* /*OverlappedComponent*/, AActor* OtherActor,
 	UPrimitiveComponent* /*OtherComp*/, int32 /*OtherBodyIndex*/,
-	bool /*bFromSweep*/, const FHitResult& SweepHitResult)
+	bool /*bFromSweep*/, const FHitResult& /*SweepHitResult*/)
 {
 	if (!OtherActor || OtherActor == this || OtherActor == SourceCharacter)
 		return;
@@ -80,10 +80,7 @@ void ASlashWaveProjectile::OnOverlapBegin(
 	}
 	HitActors.Add(OtherActor);
 
-	const FVector HitLoc = SweepHitResult.ImpactPoint.IsNearlyZero()
-		? OtherActor->GetActorLocation()
-		: FVector(SweepHitResult.ImpactPoint);
-	ApplyDamageTo(OtherActor, HitLoc);
+	ApplyDamageTo(OtherActor, OtherActor->GetActorLocation());
 }
 
 void ASlashWaveProjectile::ApplyDamageTo(AActor* Target, const FVector& HitLocation)
