@@ -398,15 +398,16 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	const bool  bSuperArmor   = HasMatchingGameplayTag(
 		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
 	bool bActivatedSuperArmor = false;
+	APawn* DefenderPawn = Cast<APawn>(GetAvatarActor());
+	const bool bEnemyDefender = DefenderPawn && !DefenderPawn->IsPlayerControlled();
 
-	UE_LOG(LogTemp, Log, TEXT("[Poise] Attacker=%.0f Defender=%.0f SuperArmor=%d"),
-		AttackerPoise, DefenderPoise, (int32)bSuperArmor);
+	UE_LOG(LogTemp, Warning, TEXT("[Poise] Target=%s Attacker=%.0f Defender=%.0f SuperArmor=%d Enemy=%d"),
+		*GetNameSafe(GetAvatarActor()), AttackerPoise, DefenderPoise, (int32)bSuperArmor, (int32)bEnemyDefender);
 
 	// =========================================================
 	// 霸体计数（仅非玩家）：连续受到真实伤害 → 进入霸体
 	// =========================================================
-	APawn* DefenderPawn = Cast<APawn>(GetAvatarActor());
-	if (DefenderPawn && !DefenderPawn->IsPlayerControlled() && !bSuperArmor)
+	if (bEnemyDefender && !bSuperArmor)
 	{
 		PoiseHitCount++;
 
@@ -434,13 +435,16 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		}
 	}
 
-	// 攻击方韧性 <= 防御方韧性，或防御方处于霸体：不触发受击
-	if (AttackerPoise <= DefenderPoise || bSuperArmor || bActivatedSuperArmor)
+	// Enemies only ignore hit reaction while actual super armor is active.
+	const bool bPoiseBlocksHitReact = !bEnemyDefender && AttackerPoise <= DefenderPoise;
+	if (bPoiseBlocksHitReact || bSuperArmor || bActivatedSuperArmor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Poise] SkipHitReact Target=%s AttackerPoise=%.0f DefenderPoise=%.0f HadSuperArmor=%d ActivatedSuperArmorNow=%d"),
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Poise] SkipHitReact Target=%s AttackerPoise=%.0f DefenderPoise=%.0f Enemy=%d PoiseBlocked=%d HadSuperArmor=%d ActivatedSuperArmorNow=%d"),
 			*GetNameSafe(GetAvatarActor()),
 			AttackerPoise,
 			DefenderPoise,
+			bEnemyDefender ? 1 : 0,
+			bPoiseBlocksHitReact ? 1 : 0,
 			bSuperArmor ? 1 : 0,
 			bActivatedSuperArmor ? 1 : 0);
 		return;
