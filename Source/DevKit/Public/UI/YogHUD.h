@@ -29,6 +29,8 @@ class ARewardPickup;
 class ASacrificeGracePickup;
 class USacrificeGraceDA;
 class USacrificeGraceOptionWidget;
+class APlayerCharacterBase;
+
 
 UCLASS()
 class DEVKIT_API AYogHUD : public AHUD

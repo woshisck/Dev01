@@ -227,6 +227,30 @@ public:
     UFUNCTION(BlueprintPure, Category = "Backpack")
     int32 GetRuneIndexAtCell(FIntPoint Cell) const;
 
+    // =========================================================
+    // 格子禁用（BFNode_DisableCells 使用）
+    // =========================================================
+
+    /**
+     * 禁用指定格子：禁用后这些格子无法放置符文。
+     * X = 列（Column），Y = 行（Row），范围 0~GridWidth-1 / 0~GridHeight-1。
+     * 不影响格子中已有的符文。
+     */
+    UFUNCTION(BlueprintCallable, Category = "Backpack|Cells")
+    void DisableCells(const TArray<FIntPoint>& Cells);
+
+    /** 解除禁用，使格子恢复可放置状态（BFNode Cleanup 时调用） */
+    UFUNCTION(BlueprintCallable, Category = "Backpack|Cells")
+    void EnableCells(const TArray<FIntPoint>& Cells);
+
+    /** 查询某格是否被禁用 */
+    UFUNCTION(BlueprintPure, Category = "Backpack|Cells")
+    bool IsCellDisabled(FIntPoint Cell) const;
+
+    /** 返回当前所有被禁用格子的列表（UI 高亮用） */
+    UFUNCTION(BlueprintPure, Category = "Backpack|Cells")
+    TArray<FIntPoint> GetDisabledCells() const;
+
     // 初始化 ASC 引用（在 PlayerCharacterBase::BeginPlay 中调用）
     UFUNCTION(BlueprintCallable, Category = "Backpack")
     void InitWithASC(UAbilitySystemComponent* ASC);
@@ -305,6 +329,9 @@ private:
 
     // 是否锁定（战斗阶段 = true）
     bool bIsLocked = false;
+
+    // BFNode_DisableCells 禁用的格子集合（运行时状态，不持久化）
+    TSet<FIntPoint> DisabledCells;
 
     // ASC 弱引用（避免循环引用）
     TWeakObjectPtr<UAbilitySystemComponent> CachedASC;
