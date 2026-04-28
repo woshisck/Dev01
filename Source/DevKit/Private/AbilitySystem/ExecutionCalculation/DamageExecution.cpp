@@ -1,7 +1,49 @@
 #include "AbilitySystem/ExecutionCalculation/DamageExecution.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Animation/HitStopManager.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/Character.h"
 #include "GameplayEffectAggregator.h"
+
+namespace
+{
+	float NormalizeCritRate(float RawRate)
+	{
+		// Designers may enter either 0.2 or 20 for 20%.
+		const float Normalized = RawRate > 1.f ? RawRate / 100.f : RawRate;
+		return FMath::Clamp(Normalized, 0.f, 1.f);
+	}
+
+	float NormalizeCritMultiplier(float RawMultiplier)
+	{
+		// Crit_Damage is a final multiplier: 1 = no bonus, 1.5 = 150%, 2 = double.
+		return RawMultiplier > 0.f ? FMath::Max(RawMultiplier, 1.f) : 1.f;
+	}
+
+	void RequestPlayerCritFreeze(UYogAbilitySystemComponent* SourceASC)
+	{
+		if (!SourceASC) return;
+
+		AActor* SourceActor = SourceASC->GetAvatarActor();
+		APawn* SourcePawn = Cast<APawn>(SourceActor);
+		if (!SourcePawn || !SourcePawn->IsPlayerControlled()) return;
+
+		ACharacter* SourceCharacter = Cast<ACharacter>(SourceActor);
+		UAnimInstance* AnimInst = SourceCharacter && SourceCharacter->GetMesh()
+			? SourceCharacter->GetMesh()->GetAnimInstance()
+			: nullptr;
+		if (!AnimInst) return;
+
+		if (UWorld* World = SourceActor->GetWorld())
+		{
+			if (UHitStopManager* HitStop = World->GetSubsystem<UHitStopManager>())
+			{
+				HitStop->RequestMontageHitStop(AnimInst, 0.06f);
+			}
+		}
+	}
+}
 
 
 
@@ -89,17 +131,32 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().MaxHealthDef,   EvaluationParameters, TargetMaxHealth);
 
 	float FinalDamage = SourceAttackPower * SourceAttack * TargetDmgTaken;
+	const float CritRate = NormalizeCritRate(SourceCritRate);
+	const float CritMultiplier = NormalizeCritMultiplier(SourceCritDamage);
 
 	// ── ASC 引用 ──────────────────────────────────────────────────────
 	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
 	UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetSourceAbilitySystemComponent());
 
 	// ── 暴击计算 ──────────────────────────────────────────────────────
-	bool bIsCrit = FMath::FRand() < SourceCritRate;
+	bool bForceCrit = false;
+	if (SourceASC)
+	{
+		static const FGameplayTag NextHitCritTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.NextHitCrit"), false);
+		if (NextHitCritTag.IsValid() && SourceASC->HasMatchingGameplayTag(NextHitCritTag))
+		{
+			bForceCrit = true;
+			SourceASC->RemoveLooseGameplayTag(NextHitCritTag);
+		}
+	}
+
+	bool bIsCrit = bForceCrit || FMath::FRand() < CritRate;
 	if (bIsCrit)
 	{
-		FinalDamage *= (1.f + SourceCritDamage);
-		UE_LOG(LogTemp, Log, TEXT("DamageExecution: CRIT! FinalDamage=%f"), FinalDamage);
+		FinalDamage *= CritMultiplier;
+		UE_LOG(LogTemp, Log, TEXT("DamageExecution: CRIT! FinalDamage=%f Rate=%.3f Multiplier=%.2f Forced=%d"),
+			FinalDamage, CritRate, CritMultiplier, (int32)bForceCrit);
+		RequestPlayerCritFreeze(SourceASC);
 	}
 
 	// 诊断：对比聚合器捕获值 vs ASC 直接读值

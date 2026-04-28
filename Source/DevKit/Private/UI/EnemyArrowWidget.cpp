@@ -68,19 +68,25 @@ void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
     APlayerController* PC = GetOwningPlayer();
     if (!PC || !PC->GetPawn()) { HideAll(); return; }
 
+    UGameViewportClient* ViewportClient = GetWorld()->GetGameViewport();
+    if (!ViewportClient) { HideAll(); return; }
+
     FVector2D ViewportSize;
-    GetWorld()->GetGameViewport()->GetViewportSize(ViewportSize);
+    ViewportClient->GetViewportSize(ViewportSize);
+    if (ViewportSize.X <= 0.f || ViewportSize.Y <= 0.f) { HideAll(); return; }
     const FVector2D Center = ViewportSize * 0.5f;
 
     TArray<AEnemyCharacterBase*> AllEnemies = GM->GetAllAliveEnemies();
 
     bool bAnyOnScreen = false;
-    TArray<TPair<AEnemyCharacterBase*, FVector2D>> EnemyScreenData;
-    EnemyScreenData.Reserve(AllEnemies.Num());
+    TArray<TPair<AEnemyCharacterBase*, FVector2D>> OffScreenEnemyData;
+    OffScreenEnemyData.Reserve(AllEnemies.Num());
 
     const FVector PlayerPos = PC->GetPawn()->GetActorLocation();
     for (AEnemyCharacterBase* E : AllEnemies)
     {
+        if (!IsValid(E) || !E->IsAlive()) continue;
+
         FVector2D SP;
         // 抬高投影点到胶囊中段，修正斜视角下脚底投影偏差
         const FVector ProjectPoint = E->GetActorLocation() + FVector(0.f, 0.f, ArrowProjectionZOffset);
@@ -91,30 +97,34 @@ void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
             if (FVector::Dist(ProjectPoint, PlayerPos) > ForceOffScreenDistance)
                 bOn = false;
         }
-        EnemyScreenData.Add({ E, SP });
-        if (bOn) bAnyOnScreen = true;
+        if (bOn)
+        {
+            bAnyOnScreen = true;
+            continue;
+        }
+
+        OffScreenEnemyData.Add({ E, SP });
     }
 
     if (bAnyOnScreen)
         LastCombatEventTime = GetWorld()->GetTimeSeconds();
 
-    const float Now = GetWorld()->GetTimeSeconds();
-    if (bAnyOnScreen || (Now - LastCombatEventTime < AppearDelay))
+    if (OffScreenEnemyData.IsEmpty())
     {
         HideAll();
         return;
     }
 
     // 按距离排序，取最近的 MaxArrows 个
-    EnemyScreenData.Sort([&PlayerPos](const TPair<AEnemyCharacterBase*, FVector2D>& A,
-                                      const TPair<AEnemyCharacterBase*, FVector2D>& B)
+    OffScreenEnemyData.Sort([&PlayerPos](const TPair<AEnemyCharacterBase*, FVector2D>& A,
+                                         const TPair<AEnemyCharacterBase*, FVector2D>& B)
     {
         return FVector::DistSquared(A.Key->GetActorLocation(), PlayerPos)
              < FVector::DistSquared(B.Key->GetActorLocation(), PlayerPos);
     });
 
     int32 ArrowIdx = 0;
-    for (const TPair<AEnemyCharacterBase*, FVector2D>& Pair : EnemyScreenData)
+    for (const TPair<AEnemyCharacterBase*, FVector2D>& Pair : OffScreenEnemyData)
     {
         if (ArrowIdx >= MaxArrows) break;
 

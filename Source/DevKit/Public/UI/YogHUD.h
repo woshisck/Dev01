@@ -26,6 +26,7 @@ class UPortalPreviewWidget;
 class UPortalDirectionWidget;
 class APortal;
 class ARewardPickup;
+class APlayerCharacterBase;
 class ASacrificeGracePickup;
 class USacrificeGraceDA;
 class USacrificeGraceOptionWidget;
