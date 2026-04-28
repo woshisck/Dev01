@@ -409,19 +409,25 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	}
 
 	const float DefenderPoise = GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
-	const bool  bSuperArmor   = HasMatchingGameplayTag(
+	const bool bHasSuperArmorTag = HasMatchingGameplayTag(
 		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
+	const bool bBlockingSuperArmor = bPoiseSuperArmorActive;
 	bool bActivatedSuperArmor = false;
 	APawn* DefenderPawn = Cast<APawn>(GetAvatarActor());
 	const bool bEnemyDefender = DefenderPawn && !DefenderPawn->IsPlayerControlled();
 
-	UE_LOG(LogTemp, Warning, TEXT("[Poise] Target=%s Attacker=%.0f Defender=%.0f SuperArmor=%d Enemy=%d"),
-		*GetNameSafe(GetAvatarActor()), AttackerPoise, DefenderPoise, (int32)bSuperArmor, (int32)bEnemyDefender);
+	UE_LOG(LogTemp, Warning, TEXT("[Poise] Target=%s Attacker=%.0f Defender=%.0f SuperArmorTag=%d BlockingSuperArmor=%d Enemy=%d"),
+		*GetNameSafe(GetAvatarActor()),
+		AttackerPoise,
+		DefenderPoise,
+		(int32)bHasSuperArmorTag,
+		(int32)bBlockingSuperArmor,
+		(int32)bEnemyDefender);
 
 	// =========================================================
 	// 霸体计数（仅非玩家）：连续受到真实伤害 → 进入霸体
 	// =========================================================
-	if (bEnemyDefender && !bSuperArmor)
+	if (bEnemyDefender && !bBlockingSuperArmor)
 	{
 		PoiseHitCount++;
 
@@ -437,6 +443,7 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		{
 			PoiseHitCount = 0;
 			bActivatedSuperArmor = true;
+			bPoiseSuperArmorActive = true;
 			// AddLooseGameplayTag 会触发 OnTagUpdated → 自动 StartSuperArmorFlash
 			AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
 			UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor ACTIVATED on %s (%.1fs)"),
@@ -449,17 +456,20 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		}
 	}
 
-	// Enemies only ignore hit reaction while actual super armor is active.
+	// Enemies only ignore hit reaction while C++ poise-triggered super armor is active.
+	// Passive rune tags such as Fearless may keep Buff.Status.SuperArmor for visuals,
+	// but they should not make the enemy permanently immune to hit reaction.
 	const bool bPoiseBlocksHitReact = !bEnemyDefender && AttackerPoise <= DefenderPoise;
-	if (bPoiseBlocksHitReact || bSuperArmor || bActivatedSuperArmor)
+	if (bPoiseBlocksHitReact || bBlockingSuperArmor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Poise] SkipHitReact Target=%s AttackerPoise=%.0f DefenderPoise=%.0f Enemy=%d PoiseBlocked=%d HadSuperArmor=%d ActivatedSuperArmorNow=%d"),
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Poise] SkipHitReact Target=%s AttackerPoise=%.0f DefenderPoise=%.0f Enemy=%d PoiseBlocked=%d SuperArmorTag=%d BlockingSuperArmor=%d ActivatedSuperArmorNow=%d"),
 			*GetNameSafe(GetAvatarActor()),
 			AttackerPoise,
 			DefenderPoise,
 			bEnemyDefender ? 1 : 0,
 			bPoiseBlocksHitReact ? 1 : 0,
-			bSuperArmor ? 1 : 0,
+			bHasSuperArmorTag ? 1 : 0,
+			bBlockingSuperArmor ? 1 : 0,
 			bActivatedSuperArmor ? 1 : 0);
 		return;
 	}
@@ -534,6 +544,7 @@ void UYogAbilitySystemComponent::TriggerSuperArmorCounterAttack()
 
 void UYogAbilitySystemComponent::OnSuperArmorTimerEnd()
 {
+	bPoiseSuperArmorActive = false;
 	// RemoveLooseGameplayTag 会触发 OnTagUpdated → 自动 StopSuperArmorFlash
 	RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
 	UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor EXPIRED on %s"), *GetNameSafe(GetAvatarActor()));

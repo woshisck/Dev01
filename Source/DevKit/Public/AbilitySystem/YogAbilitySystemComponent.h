@@ -173,6 +173,7 @@ private:
 	int32 PoiseHitCount = 0;
 	FTimerHandle PoiseResetTimer;
 	FTimerHandle SuperArmorTimer;
+	bool bPoiseSuperArmorActive = false;
 
 	void TriggerSuperArmorCounterAttack();
 	void OnPoiseResetTimerEnd();

@@ -2,6 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "Types/FlowDataPinResults.h"
+#include "FlowTypes.h"
 
 UBFNode_SendGameplayEvent::UBFNode_SendGameplayEvent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -14,6 +15,10 @@ UBFNode_SendGameplayEvent::UBFNode_SendGameplayEvent(const FObjectInitializer& O
 
 void UBFNode_SendGameplayEvent::ExecuteInput(const FName& PinName)
 {
+	// 快速连击会导致同一 Flow 被重新启动（Abort 旧实例），此时节点不再 Active，直接退出
+	if (GetActivationState() != EFlowNodeState::Active)
+		return;
+
 	if (!EventTag.IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[BFNode_SendGameplayEvent] Failed: invalid EventTag"));
