@@ -430,6 +430,8 @@ bool UBackpackGridComponent::CanPlaceRune(const FRuneInstance& Rune, FIntPoint P
 	{
 		if (!IsCellValid(Cell))
 			return false;
+		if (DisabledCells.Contains(Cell))
+			return false;
 		if (GridOccupancy[CellToIndex(Cell)] != -1)
 			return false;
 	}
@@ -625,6 +627,31 @@ int32 UBackpackGridComponent::GetRuneIndexAtCell(FIntPoint Cell) const
 	if (!IsCellValid(Cell))
 		return -1;
 	return GridOccupancy[CellToIndex(Cell)];
+}
+
+void UBackpackGridComponent::DisableCells(const TArray<FIntPoint>& Cells)
+{
+	for (const FIntPoint Cell : Cells)
+	{
+		if (IsCellValid(Cell))
+			DisabledCells.Add(Cell);
+	}
+}
+
+void UBackpackGridComponent::EnableCells(const TArray<FIntPoint>& Cells)
+{
+	for (const FIntPoint Cell : Cells)
+		DisabledCells.Remove(Cell);
+}
+
+bool UBackpackGridComponent::IsCellDisabled(FIntPoint Cell) const
+{
+	return DisabledCells.Contains(Cell);
+}
+
+TArray<FIntPoint> UBackpackGridComponent::GetDisabledCells() const
+{
+	return DisabledCells.Array();
 }
 
 void UBackpackGridComponent::RestorePlacedRunes(const TArray<FPlacedRune>& SavedRunes, bool bIncludePermanentRunes)

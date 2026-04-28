@@ -1434,6 +1434,7 @@ void UBackpackScreenWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDr
 
 FReply UBackpackScreenWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
+    const bool bWasGamepadMode = bIsGamepadInputMode;
     if (bIsGamepadInputMode)
     {
         bIsGamepadInputMode = false;
@@ -1441,6 +1442,12 @@ FReply UBackpackScreenWidget::NativeOnMouseMove(const FGeometry& InGeometry, con
             BackpackGridWidget->RefreshHeatPhaseButtons(PreviewPhase, false);
     }
     LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
+
+    // DPad 触发后 Slate 会产生一次合成鼠标移动事件；若直接跑到下面的 Hover 追踪，
+    // 会把 MoveGamepadCursor 刚写入的 HoverCol/Row 覆盖成 -1，造成高亮一帧后消失（闪烁）。
+    // 跳过本次 Hover 更新，下一个真实鼠标事件再接管。
+    if (bWasGamepadMode)
+        return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 
     // 无抓取/拖拽时追踪主格子悬浮格，驱动绿框高亮
     if (!bGrabbingRune && !bMouseDragging)
