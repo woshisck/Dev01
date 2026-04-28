@@ -25,6 +25,7 @@
 #include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
 #include "LevelFlow/LevelFlowAsset.h"
+#include "FlowAsset.h"
 #include "FlowComponent.h"
 #include "Misc/PackageName.h"
 
@@ -904,6 +905,75 @@ static URuneDataAsset* PickEnemyBuff(UEnemyData* EnemyData)
 	return Entry.RuneDA.Get();
 }
 
+static FGameplayTag GetEnemyRuneEventTagForTriggerType(ERuneTriggerType Type)
+{
+	switch (Type)
+	{
+	case ERuneTriggerType::OnAttackHit:      return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
+	case ERuneTriggerType::OnDash:           return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Dash"));
+	case ERuneTriggerType::OnKill:           return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Kill"));
+	case ERuneTriggerType::OnCritHit:        return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.CritHit"));
+	case ERuneTriggerType::OnDamageReceived: return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Damaged"));
+	default:                                  return FGameplayTag();
+	}
+}
+
+static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA)
+{
+	if (!Enemy || !RuneDA || !RuneDA->RuneInfo.Flow.FlowAsset)
+		return;
+
+	UBuffFlowComponent* BFC = Enemy->BuffFlowComponent;
+	if (!BFC)
+		return;
+
+	UFlowAsset* FlowAsset = RuneDA->RuneInfo.Flow.FlowAsset;
+	const ERuneTriggerType TriggerType = RuneDA->RuneInfo.RuneConfig.TriggerType;
+	if (TriggerType == ERuneTriggerType::Passive)
+	{
+		BFC->StartBuffFlow(FlowAsset, FGuid::NewGuid(), Enemy);
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = Enemy->FindComponentByClass<UAbilitySystemComponent>();
+	if (!ASC)
+		return;
+
+	const FGameplayTag EventTag = GetEnemyRuneEventTagForTriggerType(TriggerType);
+	if (!EventTag.IsValid())
+		return;
+
+	TWeakObjectPtr<AEnemyCharacterBase> WeakEnemy = Enemy;
+	TWeakObjectPtr<UBuffFlowComponent> WeakBFC = BFC;
+	TWeakObjectPtr<UFlowAsset> WeakFlowAsset = FlowAsset;
+	ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag)
+		.AddWeakLambda(BFC, [WeakEnemy, WeakBFC, WeakFlowAsset, EventTag](const FGameplayEventData* Payload)
+		{
+			AEnemyCharacterBase* CapturedEnemy = WeakEnemy.Get();
+			UBuffFlowComponent* CapturedBFC = WeakBFC.Get();
+			UFlowAsset* CapturedFlow = WeakFlowAsset.Get();
+			if (!CapturedEnemy || !CapturedBFC || !CapturedFlow)
+				return;
+
+			const FGameplayTag EffectiveEventTag =
+				(Payload && Payload->EventTag.IsValid()) ? Payload->EventTag : EventTag;
+			AActor* InstigatorActor = Payload ? const_cast<AActor*>(Payload->Instigator.Get()) : nullptr;
+			AActor* TargetActor = Payload ? const_cast<AActor*>(Payload->Target.Get()) : nullptr;
+
+			CapturedBFC->LastEventContext.EventTag = EffectiveEventTag;
+			CapturedBFC->LastEventContext.DamageCauser = InstigatorActor ? InstigatorActor : CapturedEnemy;
+			CapturedBFC->LastEventContext.DamageReceiver = TargetActor ? TargetActor : CapturedEnemy;
+			CapturedBFC->LastEventContext.DamageAmount = Payload ? Payload->EventMagnitude : 0.f;
+			CapturedBFC->StartBuffFlow(CapturedFlow, FGuid::NewGuid(), CapturedEnemy);
+		});
+
+	UE_LOG(LogTemp, Log, TEXT("[EnemyRune] Registered listener TriggerType=%d Event=%s Rune=%s Enemy=%s"),
+		static_cast<int32>(TriggerType),
+		*EventTag.ToString(),
+		*GetNameSafe(RuneDA),
+		*GetNameSafe(Enemy));
+}
+
 // 辅助：计算关卡 Buff 对每只怪的额外扣分（所有激活关卡 Buff 的 DifficultyScore 之和）
 static int32 CalcRoomBuffCost(const TArray<FBuffEntry>& ActiveRoomBuffs)
 {
@@ -1291,23 +1361,15 @@ void AYogGameMode::FallbackToPreplacedEnemies()
 			{
 				AliveCount++;
 
-				if (UBuffFlowComponent* BFC = Enemy->BuffFlowComponent)
+				for (const FBuffEntry& Entry : ActiveRoomBuffs)
 				{
-					for (const FBuffEntry& Entry : ActiveRoomBuffs)
+					ActivateEnemyRune(Enemy, Entry.RuneDA.Get());
+				}
+				if (UCharacterDataComponent* CDC = Enemy->GetCharacterDataComponent())
+				{
+					if (UEnemyData* ED = Cast<UEnemyData>(CDC->GetCharacterData()))
 					{
-						if (!Entry.RuneDA || !Entry.RuneDA->RuneInfo.Flow.FlowAsset) continue;
-						BFC->StartBuffFlow(Entry.RuneDA->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), Enemy);
-					}
-					if (UCharacterDataComponent* CDC = Enemy->GetCharacterDataComponent())
-					{
-						if (UEnemyData* ED = Cast<UEnemyData>(CDC->GetCharacterData()))
-						{
-							if (URuneDataAsset* EnemyBuff = PickEnemyBuff(ED))
-							{
-								if (EnemyBuff->RuneInfo.Flow.FlowAsset)
-									BFC->StartBuffFlow(EnemyBuff->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), Enemy);
-							}
-						}
+						ActivateEnemyRune(Enemy, PickEnemyBuff(ED));
 					}
 				}
 			}
@@ -1387,21 +1449,13 @@ bool AYogGameMode::SpawnEnemyFromPool(const FPlannedEnemy& Planned)
 		AEnemyCharacterBase* SpawnedEnemy = Spawner->SpawnMob(Planned.EnemyClass);
 		if (SpawnedEnemy)
 		{
-			UBuffFlowComponent* BFC = SpawnedEnemy->BuffFlowComponent;
-			if (BFC)
+			// 施加关卡 Buff（进关时选好的，对所有怪生效）
+			for (const FBuffEntry& Entry : ActiveRoomBuffs)
 			{
-				// 施加关卡 Buff（进关时选好的，对所有怪生效）
-				for (const FBuffEntry& Entry : ActiveRoomBuffs)
-				{
-					if (!Entry.RuneDA || !Entry.RuneDA->RuneInfo.Flow.FlowAsset) continue;
-					BFC->StartBuffFlow(Entry.RuneDA->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), SpawnedEnemy);
-				}
-				// 施加敌人专属 Buff（BuildWavePlan 时选好的，只对此只怪生效）
-				if (Planned.SelectedEnemyBuff && Planned.SelectedEnemyBuff->RuneInfo.Flow.FlowAsset)
-				{
-					BFC->StartBuffFlow(Planned.SelectedEnemyBuff->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), SpawnedEnemy);
-				}
+				ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get());
 			}
+			// 施加敌人专属 Buff（BuildWavePlan 时选好的，只对此只怪生效）
+			ActivateEnemyRune(SpawnedEnemy, Planned.SelectedEnemyBuff);
 		}
 		return SpawnedEnemy != nullptr;
 	}
@@ -1473,17 +1527,11 @@ void AYogGameMode::FinishSpawnFromPool(FPlannedEnemy Planned,
 	AEnemyCharacterBase* SpawnedEnemy = WeakSpawner->SpawnMobAtLocation(Planned.EnemyClass, Location);
 	if (SpawnedEnemy)
 	{
-		UBuffFlowComponent* BFC = SpawnedEnemy->BuffFlowComponent;
-		if (BFC)
+		for (const FBuffEntry& Entry : ActiveRoomBuffs)
 		{
-			for (const FBuffEntry& Entry : ActiveRoomBuffs)
-			{
-				if (!Entry.RuneDA || !Entry.RuneDA->RuneInfo.Flow.FlowAsset) continue;
-				BFC->StartBuffFlow(Entry.RuneDA->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), SpawnedEnemy);
-			}
-			if (Planned.SelectedEnemyBuff && Planned.SelectedEnemyBuff->RuneInfo.Flow.FlowAsset)
-				BFC->StartBuffFlow(Planned.SelectedEnemyBuff->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), SpawnedEnemy);
+			ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get());
 		}
+		ActivateEnemyRune(SpawnedEnemy, Planned.SelectedEnemyBuff);
 
 		if (WavePlans.IsValidIndex(WaveIdx))
 			WavePlans[WaveIdx].TotalSpawnedInWave++;

@@ -58,6 +58,7 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 	virtual UWidget* NativeGetDesiredFocusTarget() const override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
 

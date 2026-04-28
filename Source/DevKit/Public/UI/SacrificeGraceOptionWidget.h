@@ -36,10 +36,14 @@ public:
 	/** 由 HUD 在 ActivateWidget 之前调用，注入 DA / 玩家 / 来源拾取物 */
 	void Setup(USacrificeGraceDA* InDA, APlayerCharacterBase* InPlayer, ASacrificeGracePickup* InPickup);
 
+	UFUNCTION(BlueprintCallable, Category = "SacrificeGrace")
+	void CancelChoice();
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 	virtual UWidget* NativeGetDesiredFocusTarget() const override;
 

@@ -397,28 +397,16 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	const float DefenderPoise = GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
 	const bool  bSuperArmor   = HasMatchingGameplayTag(
 		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
+	bool bActivatedSuperArmor = false;
 
 	UE_LOG(LogTemp, Log, TEXT("[Poise] Attacker=%.0f Defender=%.0f SuperArmor=%d"),
 		AttackerPoise, DefenderPoise, (int32)bSuperArmor);
 
-	// 攻击方韧性 <= 防御方韧性，或防御方处于霸体：不触发受击
-	if (AttackerPoise <= DefenderPoise || bSuperArmor)
-		return;
-
 	// =========================================================
-	// 触发受击事件（Action.HitReact.Front / .Back 等子级）
-	// =========================================================
-	FGameplayEventData EventData;
-	EventData.Instigator     = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
-	EventData.EventMagnitude = Damage;
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
-		GetAvatarActor(), HitReactEventTag, EventData);
-
-	// =========================================================
-	// 霸体计数（仅非玩家）：连续触发 SuperArmorThreshold 次受击 → 进入霸体
+	// 霸体计数（仅非玩家）：连续受到真实伤害 → 进入霸体
 	// =========================================================
 	APawn* DefenderPawn = Cast<APawn>(GetAvatarActor());
-	if (DefenderPawn && !DefenderPawn->IsPlayerControlled())
+	if (DefenderPawn && !DefenderPawn->IsPlayerControlled() && !bSuperArmor)
 	{
 		PoiseHitCount++;
 
@@ -433,6 +421,7 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		if (SuperArmorThreshold > 0 && PoiseHitCount >= SuperArmorThreshold)
 		{
 			PoiseHitCount = 0;
+			bActivatedSuperArmor = true;
 			// AddLooseGameplayTag 会触发 OnTagUpdated → 自动 StartSuperArmorFlash
 			AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
 			UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor ACTIVATED on %s (%.1fs)"),
@@ -444,6 +433,19 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 					SuperArmorTimer, this, &UYogAbilitySystemComponent::OnSuperArmorTimerEnd, SuperArmorDuration, false);
 		}
 	}
+
+	// 攻击方韧性 <= 防御方韧性，或防御方处于霸体：不触发受击
+	if (AttackerPoise <= DefenderPoise || bSuperArmor || bActivatedSuperArmor)
+		return;
+
+	// =========================================================
+	// 触发受击事件（Action.HitReact.Front / .Back 等子级）
+	// =========================================================
+	FGameplayEventData EventData;
+	EventData.Instigator     = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
+	EventData.EventMagnitude = Damage;
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+		GetAvatarActor(), HitReactEventTag, EventData);
 }
 
 void UYogAbilitySystemComponent::OnPoiseResetTimerEnd()

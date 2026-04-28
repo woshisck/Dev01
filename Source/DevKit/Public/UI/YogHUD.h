@@ -111,6 +111,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Backpack")
 	void OpenBackpack();
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	bool CloseTopMostOverlay();
+
 	/**
 	 * 只读模式打开背包，关闭时回调 OnClosed。
 	 * 背包内拖拽/旋转等修改操作被禁用，玩家仅能查看。

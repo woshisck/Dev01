@@ -33,6 +33,7 @@ public:
 	virtual void OnUnPossess() override;
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
+	virtual bool InputKey(const FInputKeyParams& Params) override;
 
 
 	//UFUNCTION(BlueprintCallable)
@@ -147,6 +148,8 @@ public:
 
 private:
 	/** UI 打开期间为 true，屏蔽移动/攻击/冲刺输入 */
+	bool HandleMenuBackInput(const FKey& Key);
+
 	bool bBlockGameInput = false;
 
 	int32 ActiveMenuCount = 0;
