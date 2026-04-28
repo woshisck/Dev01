@@ -24,6 +24,7 @@ class ULevelFlowAsset;
 class UFlowComponent;
 class AMobSpawner;
 class UNiagaraSystem;
+class URuneDataAsset;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMapClean);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, ELevelPhase, NewPhase);
@@ -308,8 +309,8 @@ protected:
 	struct FPlannedEnemy
 	{
 		TSubclassOf<AEnemyCharacterBase> EnemyClass;
-		// BuildWavePlan 时从 EnemyData.EnemyBuffPool 中随机选出（可为 nullptr）
-		TObjectPtr<URuneDataAsset> SelectedEnemyBuff = nullptr;
+		// Copied from EnemyData.EnemyBuffPool. All entries are granted to this enemy.
+		TArray<TObjectPtr<URuneDataAsset>> EnemyBuffs;
 		// 从 EnemyData 复制，运行时只读
 		TObjectPtr<UNiagaraSystem> PreSpawnFX;
 		float PreSpawnFXDuration = 0.f;

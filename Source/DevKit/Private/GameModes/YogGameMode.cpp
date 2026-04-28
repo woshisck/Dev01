@@ -897,12 +897,33 @@ void AYogGameMode::GenerateWavePlans(int32 TotalScore, int32 MaxWaveCount, URoom
 	}
 }
 
-// 辅助：从 EnemyData 的 EnemyBuffPool 中随机选一个 Buff（返回 nullptr 表示不选）
-static URuneDataAsset* PickEnemyBuff(UEnemyData* EnemyData)
+// EnemyData.EnemyBuffPool is the list of runes this enemy carries by default.
+static int32 CollectEnemyBuffs(UEnemyData* EnemyData, TArray<TObjectPtr<URuneDataAsset>>& OutBuffs)
 {
-	if (!EnemyData || EnemyData->EnemyBuffPool.IsEmpty()) return nullptr;
-	const FBuffEntry& Entry = EnemyData->EnemyBuffPool[FMath::RandRange(0, EnemyData->EnemyBuffPool.Num() - 1)];
-	return Entry.RuneDA.Get();
+	OutBuffs.Reset();
+	if (!EnemyData || EnemyData->EnemyBuffPool.IsEmpty())
+	{
+		return 0;
+	}
+
+	int32 TotalCost = 0;
+	for (const FBuffEntry& Entry : EnemyData->EnemyBuffPool)
+	{
+		if (!Entry.RuneDA)
+		{
+			continue;
+		}
+
+		OutBuffs.AddUnique(Entry.RuneDA);
+		TotalCost += Entry.DifficultyScore;
+	}
+	return TotalCost;
+}
+
+static int32 CalcEnemyBuffCost(UEnemyData* EnemyData)
+{
+	TArray<TObjectPtr<URuneDataAsset>> IgnoredBuffs;
+	return CollectEnemyBuffs(EnemyData, IgnoredBuffs);
 }
 
 static FGameplayTag GetEnemyRuneEventTagForTriggerType(ERuneTriggerType Type)
@@ -1059,6 +1080,28 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 		*EventTag.ToString());
 }
 
+static void ActivateEnemyRunes(AEnemyCharacterBase* Enemy, const TArray<TObjectPtr<URuneDataAsset>>& Runes, const TCHAR* Source)
+{
+	if (Runes.IsEmpty())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[EnemyRune] Skip: RuneList empty Enemy=%s Source=%s"),
+			*GetNameSafe(Enemy), Source);
+		return;
+	}
+
+	for (const TObjectPtr<URuneDataAsset>& Rune : Runes)
+	{
+		ActivateEnemyRune(Enemy, Rune.Get(), Source);
+	}
+}
+
+static void ActivateEnemyDataRunes(AEnemyCharacterBase* Enemy, UEnemyData* EnemyData, const TCHAR* Source)
+{
+	TArray<TObjectPtr<URuneDataAsset>> EnemyBuffs;
+	CollectEnemyBuffs(EnemyData, EnemyBuffs);
+	ActivateEnemyRunes(Enemy, EnemyBuffs, Source);
+}
+
 // 辅助：计算关卡 Buff 对每只怪的额外扣分（所有激活关卡 Buff 的 DifficultyScore 之和）
 static int32 CalcRoomBuffCost(const TArray<FBuffEntry>& ActiveRoomBuffs)
 {
@@ -1096,17 +1139,9 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 		{
 			if (!E.EnemyData || !E.EnemyData->EnemyClass) continue;
 
-			// 计算此敌人的有效成本（基础分 + 关卡Buff扣分 + 该敌人专属Buff中最低扣分）
-			// 敌人专属 Buff 在确认刷出时才选取，这里用最低可能成本做候选过滤
-			int32 MinEnemyBuffCost = 0;
-			if (!E.EnemyData->EnemyBuffPool.IsEmpty())
-			{
-				MinEnemyBuffCost = E.EnemyData->EnemyBuffPool[0].DifficultyScore;
-				for (const FBuffEntry& B : E.EnemyData->EnemyBuffPool)
-					MinEnemyBuffCost = FMath::Min(MinEnemyBuffCost, B.DifficultyScore);
-			}
-			const int32 EffectiveCostMin = E.EnemyData->DifficultyScore + RoomBuffCostPerEnemy;
-			(void)MinEnemyBuffCost; // 敌人专属Buff是可选的，候选时只用基础+房间Buff成本
+			// Cost includes the room runes applied to every enemy and this enemy's carried runes.
+			const int32 EnemyBuffCost = CalcEnemyBuffCost(E.EnemyData);
+			const int32 EffectiveCostMin = E.EnemyData->DifficultyScore + RoomBuffCostPerEnemy + EnemyBuffCost;
 
 			// 第一只不过滤预算（允许超出），后续必须在预算内
 			if (!bFirstEnemy && EffectiveCostMin > RemainingBudget) continue;
@@ -1140,32 +1175,17 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 		if (!Chosen)
 			Chosen = &Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
 
-		// 从敌人专属 Buff 池中选取一个（若有）；若会导致成本超出，则不选
-		URuneDataAsset* SelectedEnemyBuff = nullptr;
+		// Copy all self-carried runes from EnemyData.
+		TArray<TObjectPtr<URuneDataAsset>> SelectedEnemyBuffs;
 		int32 EnemyBuffCost = 0;
 		if (!Chosen->EnemyData->EnemyBuffPool.IsEmpty())
 		{
-			URuneDataAsset* Candidate = PickEnemyBuff(Chosen->EnemyData);
-			// 查找对应的 DifficultyScore
-			for (const FBuffEntry& B : Chosen->EnemyData->EnemyBuffPool)
-			{
-				if (B.RuneDA.Get() == Candidate)
-				{
-					EnemyBuffCost = B.DifficultyScore;
-					break;
-				}
-			}
-			// 预算足够或是第一只时才应用（第一只强制刷出，允许成本超出）
-			const int32 TotalCost = Chosen->EnemyData->DifficultyScore + RoomBuffCostPerEnemy + EnemyBuffCost;
-			if (bFirstEnemy || TotalCost <= RemainingBudget)
-				SelectedEnemyBuff = Candidate;
-			else
-				EnemyBuffCost = 0;
+			EnemyBuffCost = CollectEnemyBuffs(Chosen->EnemyData, SelectedEnemyBuffs);
 		}
 
 		FPlannedEnemy Planned;
 		Planned.EnemyClass         = Chosen->EnemyData->EnemyClass;
-		Planned.SelectedEnemyBuff  = SelectedEnemyBuff;
+		Planned.EnemyBuffs         = SelectedEnemyBuffs;
 		Planned.PreSpawnFX         = Chosen->EnemyData->PreSpawnFX;
 		Planned.PreSpawnFXDuration = Chosen->EnemyData->PreSpawnFXDuration;
 		Plan.EnemiesToSpawn.Add(Planned);
@@ -1187,12 +1207,12 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 		for (const FEnemyEntry& E : Room->EnemyPool)
 		{
 			if (!E.EnemyData || !E.EnemyData->EnemyClass) continue;
-			const int32 EffCost = E.EnemyData->DifficultyScore + RoomBuffCostPerEnemy;
+			const int32 EffCost = E.EnemyData->DifficultyScore + RoomBuffCostPerEnemy + CalcEnemyBuffCost(E.EnemyData);
 			if (EffCost <= RemainingBudget)
 			{
 				FPlannedEnemy Demand;
 				Demand.EnemyClass        = E.EnemyData->EnemyClass;
-				Demand.SelectedEnemyBuff = PickEnemyBuff(E.EnemyData);
+				CollectEnemyBuffs(E.EnemyData, Demand.EnemyBuffs);
 				Plan.DemandEnemyPool.Add(Demand);
 			}
 		}
@@ -1215,7 +1235,7 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 				{
 					if (E.EnemyData && E.EnemyData->EnemyClass == P.EnemyClass)
 					{
-						AvgCost += E.EnemyData->DifficultyScore + RoomBuffCostPerEnemy;
+						AvgCost += E.EnemyData->DifficultyScore + RoomBuffCostPerEnemy + CalcEnemyBuffCost(E.EnemyData);
 						break;
 					}
 				}
@@ -1461,7 +1481,7 @@ void AYogGameMode::FallbackToPreplacedEnemies()
 				{
 					if (UEnemyData* ED = Cast<UEnemyData>(CDC->GetCharacterData()))
 					{
-						ActivateEnemyRune(Enemy, PickEnemyBuff(ED), TEXT("EnemyBuff.Preplaced"));
+						ActivateEnemyDataRunes(Enemy, ED, TEXT("EnemyBuff.Preplaced"));
 					}
 				}
 			}
@@ -1552,7 +1572,7 @@ bool AYogGameMode::SpawnEnemyFromPool(const FPlannedEnemy& Planned)
 				ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get(), TEXT("RoomBuff.Spawn"));
 			}
 			// 施加敌人专属 Buff（BuildWavePlan 时选好的，只对此只怪生效）
-			ActivateEnemyRune(SpawnedEnemy, Planned.SelectedEnemyBuff, TEXT("EnemyBuff.Spawn"));
+			ActivateEnemyRunes(SpawnedEnemy, Planned.EnemyBuffs, TEXT("EnemyBuff.Spawn"));
 		}
 		return SpawnedEnemy != nullptr;
 	}
@@ -1629,7 +1649,7 @@ void AYogGameMode::FinishSpawnFromPool(FPlannedEnemy Planned,
 		{
 			ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get(), TEXT("RoomBuff.DelayedSpawn"));
 		}
-		ActivateEnemyRune(SpawnedEnemy, Planned.SelectedEnemyBuff, TEXT("EnemyBuff.DelayedSpawn"));
+		ActivateEnemyRunes(SpawnedEnemy, Planned.EnemyBuffs, TEXT("EnemyBuff.DelayedSpawn"));
 
 		if (WavePlans.IsValidIndex(WaveIdx))
 			WavePlans[WaveIdx].TotalSpawnedInWave++;

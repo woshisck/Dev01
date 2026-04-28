@@ -10,6 +10,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "DrawDebugHelpers.h"
+#include "GameFramework/Controller.h"
 
 // ── 命中框 Debug 绘制（仅 Development 构建） ─────────────────────────────
 #if ENABLE_DRAW_DEBUG
@@ -266,7 +267,11 @@ void UYogTargetType_Enemy::GetTargets_Implementation(
 
 	const FActionData ActionData = GetActionData(TargetingCharacter, EventData);
 	const FVector  CharLoc    = TargetingCharacter->GetActorLocation();
-	const float    CharYaw    = TargetingCharacter->GetActorRotation().Yaw;
+	float CharYaw = TargetingCharacter->GetActorRotation().Yaw;
+	if (const AController* Controller = TargetingCharacter->GetController())
+	{
+		CharYaw = Controller->GetControlRotation().Yaw;
+	}
 	const float    SearchRadius = ActionData.ActRange > 0.f ? ActionData.ActRange : 400.f;
 
 	TArray<AActor*> Overlapped;

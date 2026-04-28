@@ -1,4 +1,4 @@
-# BuffFlow 符文系统 — 程序指南
+hc# BuffFlow 符文系统 — 程序指南
 
 > 版本：Sprint 4.15（2026-04-08）
 
