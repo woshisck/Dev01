@@ -245,8 +245,10 @@ void UBackpackGridWidget::RefreshCells(UBackpackGridComponent* Backpack,
                                 State == EBackpackCellState::EmptyZone2) &&
                                (ZoneOpacity >= 1.0f - KINDA_SMALL_NUMBER);
 
+        const bool bCellDisabled = Backpack ? Backpack->IsCellDisabled(Cell) : false;
+
         RuneSlot->SetSlotState(State, bThisSelected, bThisHovered, bThisGrabbing,
-                               StyleDA.Get(), ZoneOpacity, bGlowZone);
+                               StyleDA.Get(), ZoneOpacity, bGlowZone, bCellDisabled);
 
         // ── 符文图标 ─────────────────────────────────────────────────────
         UTexture2D* Tex = nullptr;

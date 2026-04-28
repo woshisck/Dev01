@@ -27,7 +27,8 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
                                    bool bGrabbing,
                                    const UBackpackStyleDataAsset* Style,
                                    float ZoneOpacity,
-                                   bool bGlowZone)
+                                   bool bGlowZone,
+                                   bool bDisabled)
 {
     // ── 确定背景颜色和纹理 ────────────────────────────────────────────────
     FLinearColor BGColor;
@@ -129,6 +130,24 @@ void URuneSlotWidget::SetSlotState(EBackpackCellState State,
         else
         {
             SelectionBorder->SetVisibility(ESlateVisibility::Collapsed);
+        }
+    }
+
+    // ── 禁用格子叠加层（红色 X，BFNode_DisableCells 触发）────────────────
+    if (DisabledOverlay)
+    {
+        if (bDisabled)
+        {
+            static UTexture2D* CrossTex = LoadObject<UTexture2D>(
+                nullptr, TEXT("/Engine/EditorMaterials/Cross.Cross"));
+            if (CrossTex)
+                DisabledOverlay->SetBrushFromTexture(CrossTex, false);
+            DisabledOverlay->SetColorAndOpacity(FLinearColor(1.f, 0.15f, 0.15f, 0.85f));
+            DisabledOverlay->SetVisibility(ESlateVisibility::HitTestInvisible);
+        }
+        else
+        {
+            DisabledOverlay->SetVisibility(ESlateVisibility::Collapsed);
         }
     }
 

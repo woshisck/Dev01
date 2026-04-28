@@ -55,6 +55,13 @@ public:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UImage> SelectionBorder;
 
+    /**
+     * 禁用格子叠加层（命名 "DisabledOverlay"，置于最上层）。
+     * BFNode_DisableCells 禁用此格时显示红色 X 图标，格子恢复后 Collapsed。
+     */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UImage> DisabledOverlay;
+
     // =========================================================
     // C++ 驱动接口（由 BackpackGridWidget 调用）
     // =========================================================
@@ -69,7 +76,8 @@ public:
                       bool bGrabbing,
                       const UBackpackStyleDataAsset* Style,
                       float ZoneOpacity = 1.f,
-                      bool bGlowZone = false);
+                      bool bGlowZone = false,
+                      bool bDisabled = false);
 
     /**
      * 设置符文图标。Tex=null 时隐藏图标。
@@ -122,6 +130,7 @@ private:
     bool bPrevSelected  = false;
     bool bPrevHovered   = false;
     bool bPrevGrabbing  = false;
+    bool bPrevDisabled  = false;
 
     // 抖动状态
     bool  bShaking      = false;
