@@ -56,6 +56,10 @@ struct FRunState
 	// 献祭恩赐（全程跑局 Buff，None = 未获得）
 	UPROPERTY()
 	TObjectPtr<USacrificeGraceDA> ActiveSacrificeGrace;
+
+	// 运行时拾取的无形状符文（隐藏被动）：跨关恢复后由 BGC::RestoreRuntimeHiddenPassiveRunes 重新激活
+	UPROPERTY()
+	TArray<FRuneInstance> HiddenPassiveRuneInstances;
 };
 /**
  * Base class for GameInstance, should be blueprinted

@@ -1687,6 +1687,12 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 			// 保存整理阶段选出但尚未放入格子的符文
 			NewState.PendingRunes = Player->PendingRunes;
 
+			// 保存运行时隐藏被动符文（无形状、不进格子）
+			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
+			{
+				NewState.HiddenPassiveRuneInstances = Backpack->GetRuntimeHiddenPassiveRunes();
+			}
+
 			// 保存献祭恩赐
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 

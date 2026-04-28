@@ -156,6 +156,12 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 	{
 		AcquireSacrificeGrace(ActiveSacrificeGrace);
 	}
+
+	// 恢复运行时隐藏被动符文（无形状、跳过格子系统）
+	if (BackpackGridComponent && !State.HiddenPassiveRuneInstances.IsEmpty())
+	{
+		BackpackGridComponent->RestoreRuntimeHiddenPassiveRunes(State.HiddenPassiveRuneInstances);
+	}
 }
 
 void APlayerCharacterBase::ItemInteract(const AItemSpawner* item)
@@ -202,14 +208,21 @@ void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 				Existing->Rune.UpgradeLevel++;
 				UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 升级到 Lv.%d"),
 					*Rune.RuneConfig.RuneName.ToString(), Existing->Rune.UpgradeLevel + 1);
-				// 重启 BuffFlow 使新 UpgradeLevel 生效，并广播 UI 刷新事件
 				BackpackGridComponent->NotifyRuneUpgraded(Existing->Rune.RuneGuid);
 			}
-			// 满级（UpgradeLevel == 2）：GenerateLootBatch 已过滤，正常不会到达这里
 			return;
 		}
 
-		// 2. 新符文：直接进入待放置列表（玩家在背包UI手动拖入格子）
+		// 2. 无形状符文：跳过格子系统，直接作为隐藏被动激活
+		if (Rune.Shape.Cells.IsEmpty())
+		{
+			UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 无形状 → 隐藏被动激活"),
+				*Rune.RuneConfig.RuneName.ToString());
+			BackpackGridComponent->AddHiddenPassiveRune(Rune);
+			return;
+		}
+
+		// 3. 普通符文：进入待放置列表（玩家在背包 UI 手动拖入格子）
 		UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s → 待放置列表"),
 			*Rune.RuneConfig.RuneName.ToString());
 	}

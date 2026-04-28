@@ -245,6 +245,29 @@ void UBackpackGridComponent::DebugPlaceTestRunes()
 // 隐藏被动符文
 // =========================================================
 
+void UBackpackGridComponent::AddHiddenPassiveRune(const FRuneInstance& Rune)
+{
+	if (!Rune.Flow.FlowAsset) return;
+
+	RuntimeHiddenPassiveRunes.Add(Rune);
+
+	if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
+	{
+		BFC->StartBuffFlow(Rune.Flow.FlowAsset, Rune.RuneGuid, GetOwner());
+		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] RuntimeHiddenPassive activated: %s"),
+			*Rune.RuneConfig.RuneName.ToString());
+	}
+}
+
+void UBackpackGridComponent::RestoreRuntimeHiddenPassiveRunes(const TArray<FRuneInstance>& Runes)
+{
+	RuntimeHiddenPassiveRunes.Reset();
+	for (const FRuneInstance& Rune : Runes)
+	{
+		AddHiddenPassiveRune(Rune);
+	}
+}
+
 void UBackpackGridComponent::ActivateHiddenPassiveRunes()
 {
 	UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();

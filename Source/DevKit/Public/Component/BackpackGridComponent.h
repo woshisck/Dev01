@@ -284,6 +284,19 @@ public:
               meta = (DisplayName = "隐藏被动符文（不进背包格）"))
     TArray<TObjectPtr<URuneDataAsset>> HiddenPassiveRunes;
 
+    /**
+     * 运行时拾取的无形状（Cells 为空）符文将被自动归入此列表。
+     * 立即激活 BuffFlow，不占格子，不在背包 UI 显示。
+     * 跨关存档由 FRunState.HiddenPassiveRuneInstances 持久化。
+     */
+    void AddHiddenPassiveRune(const FRuneInstance& Rune);
+
+    /** 返回所有运行时隐藏被动符文实例（供 RunState 存档） */
+    const TArray<FRuneInstance>& GetRuntimeHiddenPassiveRunes() const { return RuntimeHiddenPassiveRunes; }
+
+    /** 切关恢复：重新激活运行时隐藏被动符文（同 AddHiddenPassiveRune，但批量） */
+    void RestoreRuntimeHiddenPassiveRunes(const TArray<FRuneInstance>& Runes);
+
     // =========================================================
     // Debug / Test
     // =========================================================
@@ -320,6 +333,9 @@ private:
 
     // 所有已放置符文
     TArray<FPlacedRune> PlacedRunes;
+
+    // 运行时拾取的无形状隐藏被动符文实例（不进格子）
+    TArray<FRuneInstance> RuntimeHiddenPassiveRunes;
 
     // 当前阶段（0=Phase1, 1=Phase2, 2=Phase3, 3=升华），最大3
     int32 CurrentPhase = 0;
