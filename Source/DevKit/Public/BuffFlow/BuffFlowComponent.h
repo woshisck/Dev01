@@ -30,7 +30,7 @@ public:
 
 	/** 符文激活时调用：启动一个 Flow 实例 */
 	UFUNCTION(BlueprintCallable, Category = "BuffFlow")
-	void StartBuffFlow(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver);
+	void StartBuffFlow(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow = false);
 
 	/** 符文卸下时调用：停止对应的 Flow 实例 */
 	UFUNCTION(BlueprintCallable, Category = "BuffFlow")

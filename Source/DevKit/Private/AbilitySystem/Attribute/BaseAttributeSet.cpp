@@ -129,7 +129,7 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	if (Data.EvaluatedData.Attribute == GetDmgTakenAttribute())
 	{
 		const UGameplayEffect* GEDef = Data.EffectSpec.Def;
-		UE_LOG(LogTemp, Warning,
+		UE_LOG(LogTemp, Verbose,
 			TEXT("[DmgTakenTrace] GE_EXEC on %s | GE=%s | Op=%d | Magnitude=%.4f | SourceTags=%s"),
 			*GetNameSafe(Data.Target.AbilityActorInfo->AvatarActor.Get()),
 			*GetNameSafe(GEDef),
@@ -297,10 +297,8 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 
 	if (Attribute == GetDmgTakenAttribute())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[DmgTakenTrace] CHANGE %s : %.2f -> %.2f"),
+		UE_LOG(LogTemp, Verbose, TEXT("[DmgTakenTrace] CHANGE %s : %.2f -> %.2f"),
 			*GetNameSafe(GetOwningActor()), OldValue, NewValue);
-		// 主动打印调用栈定位修改源
-		FDebug::DumpStackTraceToLog(TEXT("[DmgTakenTrace] CallStack"), ELogVerbosity::Warning);
 	}
 
 	if (Attribute == GetHeatAttribute())

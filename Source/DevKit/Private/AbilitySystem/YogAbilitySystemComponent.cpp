@@ -436,7 +436,15 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 
 	// 攻击方韧性 <= 防御方韧性，或防御方处于霸体：不触发受击
 	if (AttackerPoise <= DefenderPoise || bSuperArmor || bActivatedSuperArmor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Poise] SkipHitReact Target=%s AttackerPoise=%.0f DefenderPoise=%.0f HadSuperArmor=%d ActivatedSuperArmorNow=%d"),
+			*GetNameSafe(GetAvatarActor()),
+			AttackerPoise,
+			DefenderPoise,
+			bSuperArmor ? 1 : 0,
+			bActivatedSuperArmor ? 1 : 0);
 		return;
+	}
 
 	// =========================================================
 	// 触发受击事件（Action.HitReact.Front / .Back 等子级）

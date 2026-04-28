@@ -282,6 +282,13 @@ private:
 
 	bool bHasWeapon = false;
 
+	// ─── 主要 UI 遮盖计数（背包/三选一/献祭恩赐打开时隐藏关卡&武器浮窗）────
+	int32 MajorUICount = 0;
+	FDelegateHandle SacrificeGraceMajorUIHandle;
+	void PushMajorUI();
+	void PopMajorUI();
+	void ApplyMajorUIVisibility(bool bHide);
+
 	UPROPERTY()
 	TObjectPtr<UBackpackScreenWidget> BackpackWidget;
 

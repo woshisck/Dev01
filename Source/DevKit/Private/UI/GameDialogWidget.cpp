@@ -75,7 +75,11 @@ void UTutorialPopupWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	if (BtnConfirm)
+	{
+		// Widget Rebuild 时 NativeConstruct 会被二次调用，先 Remove 再 Add 防止重复注册
+		BtnConfirm->OnClicked.RemoveDynamic(this, &UTutorialPopupWidget::OnNextPressed);
 		BtnConfirm->OnClicked.AddDynamic(this, &UTutorialPopupWidget::OnNextPressed);
+	}
 }
 
 TOptional<FUIInputConfig> UTutorialPopupWidget::GetDesiredInputConfig() const

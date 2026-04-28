@@ -101,7 +101,10 @@ void AYogHUD::BeginPlay()
 		BackpackWidget = CreateWidget<UBackpackScreenWidget>(
 			GetOwningPlayerController(), BackpackScreenClass);
 		if (BackpackWidget)
+		{
 			BackpackWidget->AddToViewport(5);
+			BackpackWidget->OnDeactivated().AddLambda([this](){ PopMajorUI(); });
+		}
 	}
 
 	// ── Loot Selection（常驻，不走 CommonUI Stack，避免 DeactivateWidget 时被 destroy）
@@ -168,6 +171,7 @@ void AYogHUD::BeginPlay()
 
 void AYogHUD::OpenBackpack()
 {
+	PushMajorUI();
 	if (BackpackWidget)
 		BackpackWidget->ActivateWidget();
 }
@@ -235,6 +239,7 @@ void AYogHUD::QueueLootSelection(const TArray<FLootOption>& Options, ARewardPick
 	if (LootSelectionWidget)
 	{
 		bLootSelectionActive = true;
+		PushMajorUI();
 		LootSelectionWidget->ShowLootUI(Options, SourcePickup);
 	}
 }
@@ -242,6 +247,7 @@ void AYogHUD::QueueLootSelection(const TArray<FLootOption>& Options, ARewardPick
 void AYogHUD::OnLootSelectionFinished()
 {
 	bLootSelectionActive = false;
+	PopMajorUI();
 
 	if (LootQueue.Num() == 0) return;
 
@@ -268,6 +274,17 @@ void AYogHUD::ShowSacrificeGraceOption(USacrificeGraceDA* DA, APlayerCharacterBa
 	}
 
 	SacrificeGraceOptionWidget->Setup(DA, Player, Pickup);
+
+	// 每次（含重建后）重新注册 MajorUI 关闭监听，避免重复注册
+	if (SacrificeGraceMajorUIHandle.IsValid())
+	{
+		SacrificeGraceOptionWidget->OnDeactivated().Remove(SacrificeGraceMajorUIHandle);
+		SacrificeGraceMajorUIHandle.Reset();
+	}
+	SacrificeGraceMajorUIHandle = SacrificeGraceOptionWidget->OnDeactivated()
+		.AddLambda([this](){ PopMajorUI(); });
+
+	PushMajorUI();
 	SacrificeGraceOptionWidget->ActivateWidget();
 }
 
@@ -283,6 +300,7 @@ void AYogHUD::OpenBackpackForPreview(FSimpleDelegate OnClosed)
 	BackpackPreviewDeactivatedHandle = BackpackWidget->OnDeactivated().AddUObject(
 		this, &AYogHUD::OnBackpackPreviewClosed);
 
+	PushMajorUI();
 	BackpackWidget->ActivateWidget();
 }
 
@@ -754,6 +772,7 @@ void AYogHUD::NotifyPlayerExitedPortalRange(APortal* /*Portal*/)
 
 void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 {
+	if (MajorUICount > 0) return;
 	if (!bShowPortalGuidance || !PortalPreviewWidget) return;
 
 	APlayerController* PC = GetOwningPlayerController();
@@ -893,6 +912,53 @@ void AYogHUD::TickBlackoutFade(float DeltaSeconds)
 	BlackoutAlpha = FMath::Clamp(
 		BlackoutAlpha + (BlackoutTargetAlpha > BlackoutAlpha ? Step : -Step), 0.f, 1.f);
 	ApplyBlackoutPP();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  主界面遮盖：浮窗自动隐藏 / 恢复
+// ─────────────────────────────────────────────────────────────────────────────
+
+void AYogHUD::PushMajorUI()
+{
+	if (MajorUICount++ == 0)
+		ApplyMajorUIVisibility(true);
+}
+
+void AYogHUD::PopMajorUI()
+{
+	MajorUICount = FMath::Max(0, MajorUICount - 1);
+	if (MajorUICount == 0)
+		ApplyMajorUIVisibility(false);
+}
+
+void AYogHUD::ApplyMajorUIVisibility(bool bHide)
+{
+	// 武器玻璃图标
+	if (UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr)
+	{
+		GlassIcon->SetVisibility(bHide
+			? ESlateVisibility::Collapsed
+			: (bHasWeapon ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
+	}
+
+	// 传送门预览浮窗（隐藏时 Collapse；恢复时由 TickPortalPreview 下帧自动决定）
+	if (PortalPreviewWidget && bHide)
+		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+	// 传送门方位箭头
+	if (PortalDirectionWidget)
+	{
+		PortalDirectionWidget->SetVisibility((!bHide && bShowPortalGuidance)
+			? ESlateVisibility::HitTestInvisible
+			: ESlateVisibility::Collapsed);
+	}
+
+	// 信息提示浮窗（一次性触发，关闭即消，不恢复）
+	if (bHide)
+	{
+		if (UInfoPopupWidget* InfoPopup = GetInfoPopupWidget())
+			InfoPopup->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }
 
 void AYogHUD::ApplyBlackoutPP()

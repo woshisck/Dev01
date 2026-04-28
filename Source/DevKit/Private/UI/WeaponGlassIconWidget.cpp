@@ -12,6 +12,7 @@ void UWeaponGlassIconWidget::NativeConstruct()
 	// 订阅热度阶段变化，并立即同步当前相位
 	if (APlayerCharacterBase* PC = Cast<APlayerCharacterBase>(GetOwningPlayerPawn()))
 	{
+		PC->OnHeatPhaseChanged.RemoveDynamic(this, &UWeaponGlassIconWidget::OnHeatPhaseChanged);
 		PC->OnHeatPhaseChanged.AddDynamic(this, &UWeaponGlassIconWidget::OnHeatPhaseChanged);
 		RefreshHeatOverlay(PC->GetCurrentHeatPhase());
 	}
