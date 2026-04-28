@@ -6,6 +6,7 @@
 #include "Character/YogCharacterBase.h"
 #include "UI/BackpackScreenWidget.h"
 #include "UI/LootSelectionWidget.h"
+#include "UI/YogHUD.h"
 #include "Blueprint/UserWidget.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
@@ -23,6 +24,8 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "GameFramework/PlayerInput.h"
+#include "InputCoreTypes.h"
 
 #include "Component/BufferComponent.h"
 #include "AbilitySystemComponent.h"
@@ -209,6 +212,48 @@ void AYogPlayerControllerBase::SetupInputComponent()
 
 	}
 
+}
+
+bool AYogPlayerControllerBase::InputKey(const FInputKeyParams& Params)
+{
+	if (Params.Event == IE_Pressed && HandleMenuBackInput(Params.Key))
+	{
+		return true;
+	}
+
+	return Super::InputKey(Params);
+}
+
+bool AYogPlayerControllerBase::HandleMenuBackInput(const FKey& Key)
+{
+	const bool bBackKey = Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right;
+	const bool bMenuKey = Key == EKeys::Gamepad_Special_Right;
+	if (!bBackKey && !bMenuKey)
+	{
+		return false;
+	}
+
+	if (AYogHUD* HUD = Cast<AYogHUD>(GetHUD()))
+	{
+		if (HUD->CloseTopMostOverlay())
+		{
+			return true;
+		}
+	}
+
+	if (BackpackWidget && BackpackWidget->IsActivated())
+	{
+		BackpackWidget->DeactivateWidget();
+		return true;
+	}
+
+	if (bBackKey && LootSelectionWidget && LootSelectionWidget->GetVisibility() != ESlateVisibility::Collapsed)
+	{
+		LootSelectionWidget->SkipSelection();
+		return true;
+	}
+
+	return false;
 }
 
 AYogCharacterBase* AYogPlayerControllerBase::GetControlledCharacter()

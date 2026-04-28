@@ -40,6 +40,10 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
+	virtual void NativeOnActivated() override;
+	virtual void NativeOnDeactivated() override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Altar")
 	TObjectPtr<UAltarDataAsset> AltarData;

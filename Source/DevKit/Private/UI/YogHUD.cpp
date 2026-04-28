@@ -172,6 +172,35 @@ void AYogHUD::OpenBackpack()
 		BackpackWidget->ActivateWidget();
 }
 
+bool AYogHUD::CloseTopMostOverlay()
+{
+	if (TutorialPopupWidget && TutorialPopupWidget->IsActivated())
+	{
+		TutorialPopupWidget->DeactivateWidget();
+		return true;
+	}
+
+	if (SacrificeGraceOptionWidget && SacrificeGraceOptionWidget->IsActivated())
+	{
+		SacrificeGraceOptionWidget->CancelChoice();
+		return true;
+	}
+
+	if (BackpackWidget && BackpackWidget->IsActivated())
+	{
+		BackpackWidget->DeactivateWidget();
+		return true;
+	}
+
+	if (LootSelectionWidget && LootSelectionWidget->GetVisibility() != ESlateVisibility::Collapsed)
+	{
+		LootSelectionWidget->SkipSelection();
+		return true;
+	}
+
+	return false;
+}
+
 void AYogHUD::ShowLootSelectionUI(const TArray<FLootOption>& Options)
 {
 	// 兼容旧路径（无 SourcePickup）：转发到队列入口
@@ -439,11 +468,19 @@ void AYogHUD::Tick(float DeltaSeconds)
 void AYogHUD::BeginPauseEffect()
 {
 	PausePopupCount = FMath::Max(0, PausePopupCount) + 1;
+	if (APlayerController* PC = GetOwningPlayerController())
+	{
+		PC->SetPause(true);
+	}
 }
 
 void AYogHUD::EndPauseEffect()
 {
 	PausePopupCount = FMath::Max(0, PausePopupCount - 1);
+	if (APlayerController* PC = GetOwningPlayerController())
+	{
+		PC->SetPause(PausePopupCount > 0);
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

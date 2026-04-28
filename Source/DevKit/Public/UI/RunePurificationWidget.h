@@ -46,6 +46,11 @@ public:
 	void OnPurificationFinished(bool bSuccess);
 
 protected:
+	virtual void NativeOnActivated() override;
+	virtual void NativeOnDeactivated() override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
+
 	TWeakObjectPtr<APlayerCharacterBase> OwningPlayer;
 	FGuid     SelectedRuneGuid;
 	FIntPoint SelectedCell = FIntPoint(0, 0);

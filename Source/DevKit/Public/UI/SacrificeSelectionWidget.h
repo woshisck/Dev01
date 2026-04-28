@@ -41,6 +41,11 @@ public:
 	void OnSacrificeFinished(bool bConfirmed);
 
 protected:
+	virtual void NativeOnActivated() override;
+	virtual void NativeOnDeactivated() override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
+
 	TWeakObjectPtr<APlayerCharacterBase> OwningPlayer;
 	TObjectPtr<UAltarDataAsset>          AltarData;
 	TArray<FAltarSacrificeEntry>         CurrentOptions;

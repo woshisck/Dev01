@@ -3,6 +3,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
+#include "InputCoreTypes.h"
 
 #define LOCTEXT_NAMESPACE "TutorialPopup"
 
@@ -86,6 +87,20 @@ UWidget* UTutorialPopupWidget::NativeGetDesiredFocusTarget() const
 {
 	// Widget 激活时 CommonUI 自动把焦点给 BtnConfirm，手柄 A 键可直接点击
 	return BtnConfirm;
+}
+
+FReply UTutorialPopupWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey Key = InKeyEvent.GetKey();
+	if (Key == EKeys::Escape ||
+		Key == EKeys::Gamepad_FaceButton_Right ||
+		Key == EKeys::Gamepad_Special_Right)
+	{
+		ConfirmClose();
+		return FReply::Handled();
+	}
+
+	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
 void UTutorialPopupWidget::NativeOnActivated()

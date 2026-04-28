@@ -1650,7 +1650,10 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
     if (!bWasGamepad && BackpackGridWidget)
         BackpackGridWidget->RefreshHeatPhaseButtons(PreviewPhase, true);
 
-    if (Key == EKeys::Gamepad_Special_Left || Key == EKeys::Tab)
+    if (Key == EKeys::Gamepad_Special_Left ||
+        Key == EKeys::Gamepad_Special_Right ||
+        Key == EKeys::Escape ||
+        Key == EKeys::Tab)
     {
         DeactivateWidget();
         return FReply::Handled();
