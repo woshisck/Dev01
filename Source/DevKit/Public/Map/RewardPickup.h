@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "GameModes/LevelFlowTypes.h"
+#include "Map/PickupInteractable.h"
 #include "RewardPickup.generated.h"
 
 class UBoxComponent;
@@ -18,15 +19,17 @@ class APlayerCharacterBase;
  * 独立的三选一选项（AssignedLoot），互不干扰、不重复。
  */
 UCLASS()
-class DEVKIT_API ARewardPickup : public AActor
+class DEVKIT_API ARewardPickup : public AActor, public IPickupInteractable
 {
 	GENERATED_BODY()
 
 public:
 	ARewardPickup();
 
-	// 玩家进入范围后按 E 键调用，触发战利品 UI（不再立刻销毁自己）
-	void TryPickup(APlayerCharacterBase* Player);
+	// ~ IPickupInteractable
+	virtual void OnPlayerEnterRange(APlayerCharacterBase* Player) override;
+	virtual void OnPlayerLeaveRange(APlayerCharacterBase* Player) override;
+	virtual void TryPickup(APlayerCharacterBase* Player) override;
 
 	/** 选符文确认后由 LootSelectionWidget 调用：销毁本拾取物 */
 	void ConsumeAndDestroy();

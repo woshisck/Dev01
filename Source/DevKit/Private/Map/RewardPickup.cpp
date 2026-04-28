@@ -65,15 +65,10 @@ void ARewardPickup::Tick(float DeltaTime)
 	RuneInfoWidgetComp->SetRelativeLocation(Right * WidgetSideOffset + FVector(0.f, 0.f, WidgetZOffset));
 }
 
-void ARewardPickup::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
-	bool bFromSweep, const FHitResult& SweepHitResult)
+void ARewardPickup::OnPlayerEnterRange(APlayerCharacterBase* Player)
 {
-	if (bPickedUp) return;
+	if (bPickedUp || !Player) return;
 	if (!IsPickupAllowed()) return;
-
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
-	if (!Player) return;
 
 	Player->PendingPickup = this;
 	NearbyPlayer = Player;
@@ -82,10 +77,8 @@ void ARewardPickup::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAc
 	UE_LOG(LogTemp, Log, TEXT("RewardPickup: 玩家进入拾取范围，按 E 键拾取"));
 }
 
-void ARewardPickup::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+void ARewardPickup::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 {
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
 	if (!Player) return;
 
 	if (Player->PendingPickup == this)
@@ -98,6 +91,25 @@ void ARewardPickup::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActo
 		NearbyPlayer = nullptr;
 		bPlayerInRange = false;
 		if (RuneInfoWidgetComp) RuneInfoWidgetComp->SetVisibility(false);
+	}
+}
+
+void ARewardPickup::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
+	bool bFromSweep, const FHitResult& SweepHitResult)
+{
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
+	{
+		OnPlayerEnterRange(Player);
+	}
+}
+
+void ARewardPickup::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
+	{
+		OnPlayerLeaveRange(Player);
 	}
 }
 

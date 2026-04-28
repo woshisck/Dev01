@@ -215,18 +215,17 @@ void AWeaponSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AAct
 	}
 }
 
-void AWeaponSpawner::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
+void AWeaponSpawner::OnPlayerEnterRange(APlayerCharacterBase* Player)
 {
 	if (!Player || !WeaponDefinition) return;
 
 	Player->PendingWeaponSpawner = this;
 	NearbyPlayer = Player;
 	bPlayerInRange = true;
-
-	// 拾取按键提示已迁移到 WeaponFloatWidget 内部的 PickupHintText，无需再切换玩家头顶的 WidgetComponent
+	// 浮窗可见性由 Tick 根据朝向动态控制
 }
 
-void AWeaponSpawner::OnPlayerEndOverlap(APlayerCharacterBase* Player)
+void AWeaponSpawner::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 {
 	if (!Player) return;
 
@@ -240,6 +239,21 @@ void AWeaponSpawner::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 		bPlayerInRange = false;
 		if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
 	}
+}
+
+void AWeaponSpawner::TryPickup(APlayerCharacterBase* Player)
+{
+	TryPickupWeapon(Player);
+}
+
+void AWeaponSpawner::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
+{
+	OnPlayerEnterRange(Player);
+}
+
+void AWeaponSpawner::OnPlayerEndOverlap(APlayerCharacterBase* Player)
+{
+	OnPlayerLeaveRange(Player);
 }
 
 void AWeaponSpawner::ResetToAvailable()
