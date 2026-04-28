@@ -392,13 +392,14 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 			W->GetTimerManager().SetTimer(
 				PoiseResetTimer, this, &UYogAbilitySystemComponent::OnPoiseResetTimerEnd, 5.f, false);
 
-		if (PoiseHitCount >= SuperArmorThreshold)
+		if (SuperArmorThreshold > 0 && PoiseHitCount >= SuperArmorThreshold)
 		{
 			PoiseHitCount = 0;
 			// AddLooseGameplayTag 会触发 OnTagUpdated → 自动 StartSuperArmorFlash
 			AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
 			UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor ACTIVATED on %s (%.1fs)"),
 				*GetNameSafe(GetAvatarActor()), SuperArmorDuration);
+			TriggerSuperArmorCounterAttack();
 
 			if (UWorld* W = GetWorld())
 				W->GetTimerManager().SetTimer(
@@ -411,6 +412,53 @@ void UYogAbilitySystemComponent::OnPoiseResetTimerEnd()
 {
 	PoiseHitCount = 0;
 	UE_LOG(LogTemp, Log, TEXT("[Poise] PoiseHitCount reset on %s"), *GetNameSafe(GetAvatarActor()));
+}
+
+void UYogAbilitySystemComponent::TriggerSuperArmorCounterAttack()
+{
+	APawn* DefenderPawn = Cast<APawn>(GetAvatarActor());
+	if (!DefenderPawn || DefenderPawn->IsPlayerControlled())
+	{
+		return;
+	}
+
+	FGameplayTagContainer HitReactTags;
+	HitReactTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact"), false));
+	if (!HitReactTags.IsEmpty())
+	{
+		CancelAbilities(&HitReactTags);
+	}
+
+	if (AAIController* AI = Cast<AAIController>(DefenderPawn->GetController()))
+	{
+		AI->StopMovement();
+		if (UBrainComponent* Brain = AI->GetBrainComponent())
+		{
+			if (Brain->IsPaused())
+			{
+				Brain->ResumeLogic(TEXT("SuperArmorCounterAttack"));
+			}
+		}
+	}
+
+	FGameplayTagContainer AttackTags;
+	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk1"), false));
+	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk2"), false));
+	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk3"), false));
+	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk4"), false));
+	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk1"), false));
+	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk2"), false));
+	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk3"), false));
+	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk4"), false));
+
+	if (AttackTags.IsEmpty())
+	{
+		return;
+	}
+
+	const bool bActivated = TryActivateRandomAbilitiesByTag(AttackTags, false);
+	UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor counter attack on %s -> %d"),
+		*GetNameSafe(GetAvatarActor()), (int32)bActivated);
 }
 
 void UYogAbilitySystemComponent::OnSuperArmorTimerEnd()

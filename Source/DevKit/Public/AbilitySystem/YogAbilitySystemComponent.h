@@ -173,6 +173,7 @@ private:
 	FTimerHandle PoiseResetTimer;
 	FTimerHandle SuperArmorTimer;
 
+	void TriggerSuperArmorCounterAttack();
 	void OnPoiseResetTimerEnd();
 	void OnSuperArmorTimerEnd();
 
