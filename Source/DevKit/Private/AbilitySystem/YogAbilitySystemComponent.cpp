@@ -328,6 +328,44 @@ void UYogAbilitySystemComponent::AddGameplayTagWithCount(FGameplayTag Tag, int32
 	this->AddLooseGameplayTag(Tag, Count);
 }
 
+// ── 武器类型 Tag 守卫 ─────────────────────────────────────────────
+namespace
+{
+	FGameplayTag GetWeaponTypeTag(EWeaponType Type)
+	{
+		static const FGameplayTag MeleeTag  = FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Melee"),  false);
+		static const FGameplayTag RangedTag = FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Ranged"), false);
+		switch (Type)
+		{
+		case EWeaponType::Melee:  return MeleeTag;
+		case EWeaponType::Ranged: return RangedTag;
+		default:                  return FGameplayTag();
+		}
+	}
+}
+
+void UYogAbilitySystemComponent::ClearWeaponTypeTags()
+{
+	// 用 SetLooseGameplayTagCount(Tag, 0) 清零，避免 RemoveLooseGameplayTag 只减一次计数导致残留
+	static const FGameplayTag MeleeTag  = FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Melee"),  false);
+	static const FGameplayTag RangedTag = FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Ranged"), false);
+	if (MeleeTag.IsValid())  SetLooseGameplayTagCount(MeleeTag,  0);
+	if (RangedTag.IsValid()) SetLooseGameplayTagCount(RangedTag, 0);
+}
+
+void UYogAbilitySystemComponent::ApplyWeaponTypeTag(EWeaponType Type)
+{
+	// 先清零再设 1，确保任意时刻只持有当前武器类型 Tag（重复装备/恢复时无残留）
+	ClearWeaponTypeTags();
+	const FGameplayTag NewTag = GetWeaponTypeTag(Type);
+	if (NewTag.IsValid())
+	{
+		SetLooseGameplayTagCount(NewTag, 1);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[WeaponType] ApplyWeaponTypeTag: %s on %s"),
+		*NewTag.ToString(), *GetNameSafe(GetAvatarActor()));
+}
 
 void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage)
 {

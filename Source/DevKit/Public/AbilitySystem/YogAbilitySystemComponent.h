@@ -7,6 +7,7 @@
 #include "Data/AbilityData.h"
 #include "Data/RuneDataAsset.h"
 #include "Data/StateConflictDataAsset.h"
+#include "Item/Weapon/WeaponTypes.h"
 #include "YogAbilitySystemComponent.generated.h"
 
 class UYogAbilitySystemComponent;
@@ -202,7 +203,16 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AddGameplayTagWithCount(FGameplayTag Tag, int32 Count);
 
+	// ── 武器类型 Tag 守卫 ─────────────────────────────────────────────
+	// 装备时挂 Weapon.Type.Melee/Ranged LooseTag，使对应类型的攻击 GA 才能激活。
+	// 内部使用 SetLooseGameplayTagCount(Tag, 0) 清零避免计数残留；未来切多人时
+	// 把这两个函数内部从 LooseTag 改成 ReplicatedLooseTag 即可，调用方零改动。
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void ApplyWeaponTypeTag(EWeaponType Type);
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void ClearWeaponTypeTags();
 
 	////////////////////////////////////////////////////////////////////////////////
 

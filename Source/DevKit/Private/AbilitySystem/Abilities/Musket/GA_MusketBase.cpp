@@ -28,6 +28,10 @@ UGA_MusketBase::UGA_MusketBase()
     // C++ 默认值：无需 Blueprint 子类即可直接使用
     BulletClass             = AMusketBullet::StaticClass();
     BulletDamageEffectClass = UGE_MusketBullet_Damage::StaticClass();
+
+    // 武器类型守卫：只有 ASC 持有 Weapon.Type.Ranged LooseTag 时才能激活
+    // （装备远程武器时由 WeaponDefinition::SetupWeaponToCharacter 挂上）
+    ActivationRequiredTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Ranged")));
 }
 
 bool UGA_MusketBase::InitCharacterCache(const FGameplayAbilityActorInfo* ActorInfo)

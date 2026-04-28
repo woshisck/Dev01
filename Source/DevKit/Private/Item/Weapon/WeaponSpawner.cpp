@@ -5,6 +5,7 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
@@ -327,6 +328,12 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		Player->EquippedWeaponInstance = nullptr;
 	}
 
+	// ── 1.5 清旧武器类型 Tag（避免装备替换时残留导致两类 GA 都通过）────
+	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(Player->GetAbilitySystemComponent()))
+	{
+		YogASC->ClearWeaponTypeTags();
+	}
+
 	// ── 2. 生成并装备新武器 ──────────────────────────────────────────
 	AWeaponInstance* NewWeapon = nullptr;
 	for (const FWeaponSpawnData& WeaponSpawnData : WeaponDefinition->ActorsToSpawn)
@@ -406,6 +413,15 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	Player->EquippedWeaponDef    = WeaponDefinition;
 	Player->EquippedFromSpawner  = this;
 	Player->PendingWeaponSpawner = nullptr;
+
+	// ── 5.5 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────
+	// 让玩家专属攻击 GA 的 ActivationRequiredTags 能匹配通过；
+	// 注意：TryPickupWeapon 自己实现了装备流程未调 SetupWeaponToCharacter，
+	// 故此处必须手动 Apply（与 SetupWeaponToCharacter 装备完成段对应）
+	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(Player->GetAbilitySystemComponent()))
+	{
+		YogASC->ApplyWeaponTypeTag(WeaponDefinition->WeaponType);
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾取 [%s]"), *WeaponDefinition->GetName());
 

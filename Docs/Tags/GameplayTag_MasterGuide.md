@@ -18,6 +18,7 @@
 ├── PlayerState.*     【玩家状态层】  玩家 GA 身份 + 状态机
 ├── Room.*            【关卡房间层】  RoomDataAsset 房间类型分类，供刷怪系统匹配
 ├── State.*           【冲突管理层】  StateConflictDataAsset 使用的互斥/共存规则
+├── Weapon.*          【武器装备层】  武器类型 Tag 守卫（Config/Tags/Equip.ini）
 └── Event.*           【跨系统事件层】 跨命名空间通信（符文间/系统间）
 ```
 

@@ -125,6 +125,19 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 	UAbilitySystemComponent* Source = Context.GetOriginalInstigatorAbilitySystemComponent();
 	const FGameplayTagContainer& SourceTags = *Data.EffectSpec.CapturedSourceTags.GetAggregatedTags();
 
+	// 追踪 DmgTaken 的 GE 修改源（值/Op/GE 名/SourceTags）
+	if (Data.EvaluatedData.Attribute == GetDmgTakenAttribute())
+	{
+		const UGameplayEffect* GEDef = Data.EffectSpec.Def;
+		UE_LOG(LogTemp, Warning,
+			TEXT("[DmgTakenTrace] GE_EXEC on %s | GE=%s | Op=%d | Magnitude=%.4f | SourceTags=%s"),
+			*GetNameSafe(Data.Target.AbilityActorInfo->AvatarActor.Get()),
+			*GetNameSafe(GEDef),
+			(int32)Data.EvaluatedData.ModifierOp,
+			Data.EvaluatedData.Magnitude,
+			*SourceTags.ToString());
+	}
+
 
 	//// Compute the delta between old and new, if it is available
 	// DeltaValue = 0;
@@ -282,6 +295,14 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 {
 	Super::PostAttributeChange(Attribute, OldValue, NewValue);
 
+	if (Attribute == GetDmgTakenAttribute())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DmgTakenTrace] CHANGE %s : %.2f -> %.2f"),
+			*GetNameSafe(GetOwningActor()), OldValue, NewValue);
+		// 主动打印调用栈定位修改源
+		FDebug::DumpStackTraceToLog(TEXT("[DmgTakenTrace] CallStack"), ELogVerbosity::Warning);
+	}
+
 	if (Attribute == GetHeatAttribute())
 	{
 		// 通知背包组件更新热度等级（传绝对值）
@@ -347,6 +368,8 @@ void UBaseAttributeSet::Init(UCharacterData* data)
 	SetResilience(YogBaseData->Resilience);
 	SetResist(YogBaseData->Resist);
 	SetDmgTaken(YogBaseData->DmgTaken);
+	UE_LOG(LogTemp, Warning, TEXT("[DmgTakenTrace] INIT %s -> %.2f (from CharacterData %s)"),
+		*GetNameSafe(GetOwningActor()), YogBaseData->DmgTaken, *GetNameSafe(data));
 	SetCrit_Rate(YogBaseData->Crit_Rate);
 	SetCrit_Damage(YogBaseData->Crit_Damage);
 	SetMaxArmorHP(YogBaseData->MaxArmorHP);

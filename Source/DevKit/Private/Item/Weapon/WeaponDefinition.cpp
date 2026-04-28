@@ -5,6 +5,7 @@
 #include "Component/BackpackGridComponent.h"
 #include "Engine/AssetManager.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 
 void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar)
 {
@@ -15,6 +16,12 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 			ReceivingChar->EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
 		ReceivingChar->EquippedWeaponInstance->Destroy();
 		ReceivingChar->EquippedWeaponInstance = nullptr;
+	}
+
+	// ── 0.5 清理旧武器类型 Tag（避免装备替换时残留导致两类 GA 都通过）────
+	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(ReceivingChar->GetAbilitySystemComponent()))
+	{
+		YogASC->ClearWeaponTypeTags();
 	}
 
 	AWeaponInstance* LastSpawnedWeapon = nullptr;
@@ -87,6 +94,14 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] BackpackGridComponent is NULL — skipping ApplyBackpackConfig"));
+	}
+
+	// ── 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────────
+	// 让玩家专属攻击 GA 的 ActivationRequiredTags 能匹配通过；
+	// ClearWeaponTypeTags 已在函数顶部清理过旧 Tag，此处只需 Apply 新 Tag
+	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(ReceivingChar->GetAbilitySystemComponent()))
+	{
+		YogASC->ApplyWeaponTypeTag(WeaponType);
 	}
 
 	//TODO: DEPRECATED : for loop grant ability

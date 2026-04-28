@@ -1717,12 +1717,6 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
             else                      GamepadCancel();
             return FReply::Handled();
         }
-        if (Key == EKeys::Gamepad_FaceButton_Top && !bCursorInPendingArea)
-        {
-            SelectedCell = GamepadCursorCell;
-            RemoveRuneAtSelectedCell();
-            return FReply::Handled();
-        }
     }
 
     // ── 符文旋转 ────────────────────────────────────────────────────────

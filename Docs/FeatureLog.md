@@ -7,6 +7,23 @@
 
 ## 2026-04-28
 
+### [Weapon-TypeGuard] 武器类型守卫 — 自动隔离近战/远程 GA 激活
+
+**状态**：C++ 完成已编译；火枪 DA 需在编辑器把 `WeaponType` 字段设为 `Ranged`（近战默认 `Melee` 不需动）
+
+| 项目 | 内容 |
+|------|------|
+| 起因 | 日志显示装备近战时 LightAtk Combo1/2 仍触发了 `GE_MusketBullet_Damage` —— 玩家 ASC 同时持有近战 + 火枪 GA，TryActivateAbilitiesByTag 抢占无序 |
+| 涉及文件 | `Config/Tags/Equip.ini`、`Source/.../Item/Weapon/WeaponTypes.h`(新建)、`WeaponDefinition.{h,cpp}`、`YogAbilitySystemComponent.{h,cpp}`、`GA_PlayerMeleeAttacks.cpp`、`GA_MusketBase.cpp` |
+| 方案 | Tag 守卫：装备时 ASC 挂 `Weapon.Type.Melee/Ranged` LooseTag → 玩家近战/火枪 GA 父类构造函数加 ActivationRequiredTags → 装备什么类型只激活什么类型的 GA；通用 GA / 符文 / 敌人 GA 不动 |
+| WeaponType 字段 | `WeaponDefinition.h` 加 `EWeaponType WeaponType = Melee`（向后兼容默认值）|
+| Tag helper | `UYogAbilitySystemComponent::ApplyWeaponTypeTag(EWeaponType)` / `ClearWeaponTypeTags()`，内部用 `SetLooseGameplayTagCount(Tag, 0)` 清零避免计数残留（Codex P1 关键改进）|
+| GA 父类 | `UGA_PlayerMeleeAttack` ctor + `Weapon.Type.Melee`；`UGA_MusketBase` ctor + `Weapon.Type.Ranged`；零 BP 改动 |
+| 装备衔接 | `WeaponDefinition::SetupWeaponToCharacter` 函数顶部 ClearWeaponTypeTags、底部 ApplyWeaponTypeTag；含诊断日志 |
+| 多人扩展点 | helper 封装预留；未来切多人只需把 `AddLooseGameplayTag` 换成 `AddReplicatedLooseGameplayTag`，调用方零改动 |
+| Codex 审查 | v2 方案整合 6 项硬伤（计数残留 / BP CDO 序列化 / 卸装清理 / ini 格式 / 多人预留 / HeavyRelease 路径） |
+| 已知待办 | 编辑器侧把火枪 WeaponDefinition DA 的 `WeaponType` 设为 `Ranged`；测试装备切换时按 LMB 是否只激活当前类型 GA；确认 `B_PlayerOne` GASTemplate.AbilityMap 是否引用 `GA_WPN_*` BP 资产（如有需手动加 RequiredTag） |
+
 ### [Rune-EnemyBuff] 5 个敌人专属符文设计 + 必要 C++ 改动
 
 **状态**：C++ + ini 已完成编译；编辑器资产（5×FA / 5×DA / GE_PoisonSplash）按指南手工创建

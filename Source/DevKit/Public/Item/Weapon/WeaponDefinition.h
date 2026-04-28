@@ -8,6 +8,7 @@
 #include "Animation/YogAnimInstance.h"
 #include "Component/BackpackGridComponent.h"
 #include "Item/Weapon/WeaponInfoDA.h"
+#include "Item/Weapon/WeaponTypes.h"
 
 #include "WeaponDefinition.generated.h"
 
@@ -86,6 +87,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability")
 	TObjectPtr<UAbilityData> WeaponAbilityData;
+
+	// 武器类型：决定装备时挂在 ASC 上的 Weapon.Type.* LooseTag。
+	// 玩家专属攻击 GA 通过 ActivationRequiredTags 持有该 Tag → 自动隔离近战/远程激活路径。
+	// 默认 Melee 保持向后兼容（旧武器 DA 不需要重新配）。
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment")
+	EWeaponType WeaponType = EWeaponType::Melee;
 
 	// Actors to spawn on the pawn when this is equipped
 	UPROPERTY(EditDefaultsOnly, Category = "Equipment")

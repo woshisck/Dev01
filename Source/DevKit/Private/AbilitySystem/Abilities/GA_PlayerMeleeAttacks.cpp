@@ -16,6 +16,10 @@ UGA_PlayerMeleeAttack::UGA_PlayerMeleeAttack()
 		TEXT("/Game/Code/GAS/Abilities/Shared/GE_StatAfterATK"));
 	if (GEAfter.Succeeded())
 		StatAfterATKEffect = GEAfter.Class;
+
+	// 武器类型守卫：只有 ASC 持有 Weapon.Type.Melee LooseTag 时才能激活
+	// （装备近战武器时由 WeaponDefinition::SetupWeaponToCharacter 挂上）
+	ActivationRequiredTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Melee")));
 }
 
 // ── 工具 ──────────────────────────────────────────────────────────────────

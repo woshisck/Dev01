@@ -164,6 +164,73 @@ for (UMeshComponent* Mesh : Meshes)
 
 ---
 
+## 五·B、武器类型守卫（Tag 隔离 GA 激活）
+
+### 5B.1 设计目标
+装备近战时只激活近战 GA、装备远程时只激活火枪 GA。无武器时所有专属攻击 GA 都过滤掉（按 LMB 无反应）。
+
+### 5B.2 关键字段 — `WeaponDefinition.WeaponType`
+
+```cpp
+// Source/DevKit/Public/Item/Weapon/WeaponTypes.h
+UENUM(BlueprintType)
+enum class EWeaponType : uint8
+{
+    Melee   UMETA(DisplayName = "近战"),
+    Ranged  UMETA(DisplayName = "远程"),
+};
+
+// WeaponDefinition.h
+UPROPERTY(EditDefaultsOnly, Category = "Equipment")
+EWeaponType WeaponType = EWeaponType::Melee;  // 默认近战，向后兼容
+```
+
+### 5B.3 Tag 体系（Config/Tags/Equip.ini）
+
+| Tag | 用途 |
+|-----|------|
+| `Weapon.Type` | 父节点 |
+| `Weapon.Type.Melee` | 装备近战时挂在 ASC（LooseTag）|
+| `Weapon.Type.Ranged` | 装备远程时挂在 ASC（LooseTag）|
+
+### 5B.4 ASC helper
+
+```cpp
+UYogAbilitySystemComponent::ApplyWeaponTypeTag(EWeaponType)  // 先 Clear 再 Set Count=1
+UYogAbilitySystemComponent::ClearWeaponTypeTags()             // 用 SetLooseGameplayTagCount(Tag, 0)
+```
+
+> 用 `SetLooseGameplayTagCount(Tag, 0)` 清零，避免 `RemoveLooseGameplayTag` 只减一次计数导致残留。
+
+### 5B.5 GA 父类配置（C++，零 BP 改动）
+
+| 父类 | ActivationRequiredTags |
+|------|------------------------|
+| `UGA_PlayerMeleeAttack` | `Weapon.Type.Melee` |
+| `UGA_MusketBase` | `Weapon.Type.Ranged` |
+| `UGA_MeleeAttack`（敌人也用）| 不加 |
+| 通用 / 符文 GA | 不加 |
+
+### 5B.6 装备时机
+
+`WeaponDefinition::SetupWeaponToCharacter`：
+- 函数顶部清旧武器后：`YogASC->ClearWeaponTypeTags()`
+- 函数底部装备完成：`YogASC->ApplyWeaponTypeTag(WeaponType)`
+
+### 5B.7 多人扩展点
+
+未来切多人只需把 helper 内部 `AddLooseGameplayTag` 替换为 `AddReplicatedLooseGameplayTag`，调用方零改动。
+
+### 5B.8 排查
+
+| 现象 | 原因 |
+|------|------|
+| 装备武器后按 LMB 完全无反应 | 武器 DA 的 `WeaponType` 与 GA 父类不匹配；或 `Weapon.Type.*` Tag 注册失败（检查 `Equip.ini` 头部 `[/Script/GameplayTags.GameplayTagsList]`） |
+| 切武器后旧 GA 仍能激活 | 玩家近战 BP 父类不是 `UGA_PlayerMeleeAttack`（如直继 `UGA_MeleeAttack` 或 `UYogGameplayAbility`），需在 BP CDO 手动加 RequiredTag |
+| 同时持有两类 Tag | 用了 `RemoveLooseGameplayTag`（计数残留）而非 `SetLooseGameplayTagCount(Tag, 0)` |
+
+---
+
 ## 六、配置指南（编辑器）
 
 ### 6.1 创建 Overlay 材质
