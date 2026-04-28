@@ -266,12 +266,14 @@ void UYogTargetType_Enemy::GetTargets_Implementation(
 	if (!TargetingCharacter) return;
 
 	const FActionData ActionData = GetActionData(TargetingCharacter, EventData);
-	const FVector  CharLoc    = TargetingCharacter->GetActorLocation();
-	float CharYaw = TargetingCharacter->GetActorRotation().Yaw;
+	const FVector CharLoc = TargetingCharacter->GetActorLocation();
+	const float ActorYaw = TargetingCharacter->GetActorRotation().Yaw;
+	float ControlYaw = ActorYaw;
 	if (const AController* Controller = TargetingCharacter->GetController())
 	{
-		CharYaw = Controller->GetControlRotation().Yaw;
+		ControlYaw = Controller->GetControlRotation().Yaw;
 	}
+	const float CharYaw = ActorYaw;
 	const float    SearchRadius = ActionData.ActRange > 0.f ? ActionData.ActRange : 400.f;
 
 	TArray<AActor*> Overlapped;
@@ -284,15 +286,42 @@ void UYogTargetType_Enemy::GetTargets_Implementation(
 		TargetingCharacter->GetWorld(), CharLoc, SearchRadius,
 		ObjectTypes, APlayerCharacterBase::StaticClass(), Ignore, Overlapped);
 
+	int32 AlivePlayerCandidates = 0;
+	float ClosestAlivePlayerDist = TNumericLimits<float>::Max();
+	FString ClosestAlivePlayerName = TEXT("none");
+
 	for (AActor* Actor : Overlapped)
 	{
 		APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Actor);
 		if (!Player || !Player->IsAlive()) continue;
 
-		if (IsTargetHit(CharLoc, CharYaw, ActionData, Player->GetActorLocation()))
+		++AlivePlayerCandidates;
+		const float Dist2D = FVector::Dist2D(CharLoc, Player->GetActorLocation());
+		if (Dist2D < ClosestAlivePlayerDist)
+		{
+			ClosestAlivePlayerDist = Dist2D;
+			ClosestAlivePlayerName = Player->GetName();
+		}
+
+		const bool bHit = IsTargetHit(CharLoc, CharYaw, ActionData, Player->GetActorLocation());
+		UE_LOG(LogTemp, Warning,
+			TEXT("[EnemyAttackTrace] Candidate Enemy=%s Player=%s Dist=%.1f Range=%.1f ActorYaw=%.1f ControlYaw=%.1f Hit=%d HitboxTypes=%d"),
+			*GetNameSafe(TargetingCharacter), *GetNameSafe(Player), Dist2D, SearchRadius, ActorYaw, ControlYaw,
+			bHit ? 1 : 0, ActionData.hitboxTypes.Num());
+
+		if (bHit)
 		{
 			OutActors.Add(Player);
 		}
+	}
+
+	if (OutActors.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[EnemyAttackTrace] NoHit Enemy=%s Overlap=%d AliveCandidates=%d Closest=%s ClosestDist=%.1f Range=%.1f ActorYaw=%.1f ControlYaw=%.1f ActDamage=%.1f HitboxTypes=%d"),
+			*GetNameSafe(TargetingCharacter), Overlapped.Num(), AlivePlayerCandidates, *ClosestAlivePlayerName,
+			ClosestAlivePlayerDist == TNumericLimits<float>::Max() ? -1.f : ClosestAlivePlayerDist,
+			SearchRadius, ActorYaw, ControlYaw, ActionData.ActDamage, ActionData.hitboxTypes.Num());
 	}
 
 #if ENABLE_DRAW_DEBUG

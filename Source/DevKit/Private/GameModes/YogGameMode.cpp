@@ -1082,9 +1082,22 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 
 static void ActivateEnemyRunes(AEnemyCharacterBase* Enemy, const TArray<TObjectPtr<URuneDataAsset>>& Runes, const TCHAR* Source)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][GrantList] Enemy=%s Source=%s Count=%d"),
+		*GetNameSafe(Enemy),
+		Source,
+		Runes.Num());
+	for (int32 Index = 0; Index < Runes.Num(); ++Index)
+	{
+		URuneDataAsset* RuneDA = Runes[Index].Get();
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][GrantList]   Index=%d Rune=%s DA=%s"),
+			Index,
+			*GetEnemyRuneDebugName(RuneDA),
+			*GetNameSafe(RuneDA));
+	}
+
 	if (Runes.IsEmpty())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[EnemyRune] Skip: RuneList empty Enemy=%s Source=%s"),
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Skip: RuneList empty Enemy=%s Source=%s"),
 			*GetNameSafe(Enemy), Source);
 		return;
 	}
@@ -1099,6 +1112,24 @@ static void ActivateEnemyDataRunes(AEnemyCharacterBase* Enemy, UEnemyData* Enemy
 {
 	TArray<TObjectPtr<URuneDataAsset>> EnemyBuffs;
 	CollectEnemyBuffs(EnemyData, EnemyBuffs);
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][EnemyData] Enemy=%s EnemyData=%s Source=%s Pool=%d Collected=%d"),
+		*GetNameSafe(Enemy),
+		*GetNameSafe(EnemyData),
+		Source,
+		EnemyData ? EnemyData->EnemyBuffPool.Num() : 0,
+		EnemyBuffs.Num());
+	if (EnemyData)
+	{
+		for (int32 Index = 0; Index < EnemyData->EnemyBuffPool.Num(); ++Index)
+		{
+			const FBuffEntry& Entry = EnemyData->EnemyBuffPool[Index];
+			UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][EnemyData]   Entry=%d Rune=%s DA=%s Cost=%d"),
+				Index,
+				*GetEnemyRuneDebugName(Entry.RuneDA.Get()),
+				*GetNameSafe(Entry.RuneDA.Get()),
+				Entry.DifficultyScore);
+		}
+	}
 	ActivateEnemyRunes(Enemy, EnemyBuffs, Source);
 }
 

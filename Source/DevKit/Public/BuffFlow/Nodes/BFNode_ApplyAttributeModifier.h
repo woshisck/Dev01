@@ -5,6 +5,7 @@
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
 #include "Abilities/GameplayAbility.h"
+#include "UObject/ObjectKey.h"
 #include "Types/FlowDataPinProperties.h"
 #include "BuffFlow/Nodes/BFNode_Base.h"
 #include "BuffFlow/BuffFlowTypes.h"
@@ -182,8 +183,17 @@ protected:
     virtual void Cleanup() override;
 
 private:
+    struct FRuntimeGrantState
+    {
+        FActiveGameplayEffectHandle EffectHandle;
+        TArray<FGameplayAbilitySpecHandle> AbilityHandles;
+        FTimerHandle ExpiryTimer;
+        bool bManualGrantActive = false;
+    };
+
     FActiveGameplayEffectHandle GrantedHandle;
     TWeakObjectPtr<UAbilitySystemComponent> GrantedASC;
+    TMap<TObjectKey<UAbilitySystemComponent>, FRuntimeGrantState> RuntimeGrantStates;
 
     /** 缓存同一个 GE 对象供复用——GAS 堆叠规则依赖相同的 Def 指针 */
     UPROPERTY()

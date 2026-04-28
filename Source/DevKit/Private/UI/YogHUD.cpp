@@ -675,14 +675,34 @@ void AYogHUD::OnPawnPossessed(APawn* OldPawn, APawn* NewPawn)
 
 void AYogHUD::OnHealthChanged(const FOnAttributeChangeData& Data)
 {
-	if (!MainHUDWidget || !MainHUDWidget->PlayerHealthBar) return;
+	if (!MainHUDWidget || !MainHUDWidget->PlayerHealthBar)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HealthBar] OnHealthChanged skipped — Widget=%s PlayerHealthBar=%s Old=%.1f New=%.1f"),
+			MainHUDWidget ? TEXT("OK") : TEXT("NULL"),
+			(MainHUDWidget && MainHUDWidget->PlayerHealthBar) ? TEXT("OK") : TEXT("NULL"),
+			Data.OldValue,
+			Data.NewValue);
+		return;
+	}
 	if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(GetOwningPawn()))
 	{
 		const float MaxHP = Char->GetAbilitySystemComponent()
 			->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
 		const float Pct = (MaxHP > 0.f) ? (Data.NewValue / MaxHP) : 0.f;
+		UE_LOG(LogTemp, Warning, TEXT("[HealthBar] OnHealthChanged — HP %.1f -> %.1f / MaxHP=%.1f Pct=%.3f Pawn=%s"),
+			Data.OldValue,
+			Data.NewValue,
+			MaxHP,
+			Pct,
+			*GetNameSafe(Char));
 		if (MaxHP > 0.f)
 			MainHUDWidget->PlayerHealthBar->SetHealthPercent(Pct);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HealthBar] OnHealthChanged skipped — OwningPawn is not YogCharacter Old=%.1f New=%.1f"),
+			Data.OldValue,
+			Data.NewValue);
 	}
 }
 

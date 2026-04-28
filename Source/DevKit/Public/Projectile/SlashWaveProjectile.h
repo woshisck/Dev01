@@ -83,6 +83,8 @@ private:
 
 	float DamageMagnitude = 0.f;
 
+	bool bProjectileInitialized = false;
+
 	/** 已命中目标列表，用于穿透跳过 */
 	TArray<TWeakObjectPtr<AActor>> HitActors;
 
@@ -94,7 +96,7 @@ private:
 	    bool bFromSweep, const FHitResult& SweepHitResult);
 
 	/** 对目标施加 DamageEffect（SetByCaller Attribute.ActDamage = DamageMagnitude）*/
-	void ApplyDamageTo(AActor* Target, const FVector& HitLocation);
+	bool ApplyDamageTo(AActor* Target, const FVector& HitLocation);
 
 	/** 生存时间到期处理 */
 	void Expire();

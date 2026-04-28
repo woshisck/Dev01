@@ -1,32 +1,37 @@
-ain## Codex 审查结果
+## Codex 审查结果
 
 ### 发现的问题
-- `AddLooseGameplayTag/RemoveLooseGameplayTag` 默认不复制；当前输入在 `YogPlayerControllerBase::LightAtack/HeavyAtack` 中用 `TryActivateAbilitiesByTag(..., true)` 发起，若项目启用客户端预测或多人场景，客户端 ASC 没有同步的 `Weapon.Type.*` 会导致本地激活失败或预测不一致。
-- 方案只在 `SetupWeaponToCharacter` 中清理旧 `Weapon.Type.*`，没有覆盖“卸下武器但不立刻装备新武器”的路径；如果存在销毁、死亡、切关、调试清空、预览武器等非替换流程，旧武器类型 Tag 可能残留。
-- 直接 `RemoveLooseGameplayTag` 两个类型 Tag 只会减少一次计数；如果同一类型 Tag 因重复装备、恢复流程或调试命令被加了多次，仍可能残留，导致近战/远程 RequiredTag 同时通过。
-- “在 C++ 父类构造函数加 RequiredTag 后不需要改任何 BP”这个结论过强。已有 Blueprint GA 的 CDO 可能已经序列化了 `ActivationRequiredTags`，不一定自动继承新的 C++ 默认值，必须在编辑器中验证或批量重存/检查资产默认值。
-- 方案没有明确 `Config/Tags/Equip.ini` 的写入格式。该目录现有 Tag 文件使用 `[/Script/GameplayTags.GameplayTagsList]` + `GameplayTagList=(...)`，实现时若只写裸 Tag 名，GameplayTag 不会被注册。
-- `HeavyAttackReleased` 直接发送 `GameplayEvent.Musket.HeavyRelease`，不是通过 `TryActivateAbilitiesByTag`。虽然远程重攻击 GA 的初始激活会被 RequiredTag 拦住，但方案应明确“释放事件只影响已激活的火枪 GA”，避免误以为所有远程行为都统一由 RequiredTag 入口控制。
+- `YogTargetType_Melee` 不能“保持不变”：当前逻辑优先从 `EventData.OptionalObject` cast `UAN_MeleeDamage` 并调用 `BuildActionData()`；方案删除 `BuildActionData()` 后会编译失败或命中数据取不到。
+- `OnHitEventTags` 保留在 AN，但方案又删除 `PendingOnHitEventTags`，未说明新传递路径；当前广播逻辑依赖角色暂存数组，删除后镜头抖动、音效等命中事件会丢失。
+- `HitStopMode` 移到 DA 后没有完整执行链路；当前 `BFNode_HitStop` 读取的是 `Owner->PendingHitStopOverride`，该值由 AN 写入，方案删除 AN 字段后 HitStop 配置会变成未消费数据。
+- `StatAfterATKEffect` 未被完整纳入新数据模型；现有 `EndAbility` 使用 `LastFiredDamageNotify` 或 `CachedDamageNotify` 读取攻击后摇数值，方案移除 notify 数值后需要明确使用最后一次 `FMeleeHitConfig` 或首段 fallback。
+- `GetHit()` 设计存在空数组风险：说明写“越界返回 `Hits[0]` 避免 crash”，但 `Hits` 为空时仍会崩溃，需要默认配置或显式失败处理。
+- `ActivateAbility` 当前只监听硬编码 `GameplayEffect.DamageType.GeneralAttack`，方案保留 `AN_MeleeDamage.EventTag` 但不再扫描 notify；如果 AN 配了其他 `EventTag`，GA 不会收到事件。
+- `CurrentHitConfig` 只在 `OnEventReceived` 开头赋值，但方案未要求在激活时初始化为 `GetHit(0)`；无命中、fallback 路径、攻击后摇或调试读取时可能拿到默认构造值而非配置值。
+- `Ability.Event.Attack.Hit` payload 目前只携带 `Instigator` 和 `Target`，方案没有补充 `HitIndex`、攻击 Tag、配置引用或本次伤害上下文；符文想按“某次攻击/某段命中”触发时信息不足。
 
 ### 潜在风险
-- 如果后续需要多人或 Listen Server 以外的网络形态，武器类型状态最好使用 Replicated Loose Tag、持续 GameplayEffect、或可复制的装备状态驱动；单纯 LooseTag 只适合本地/服务器单点逻辑。
-- `UGA_PlayerMeleeAttack` 是玩家近战中间基类，但文档也显示 `UGA_MeleeAttack` 仍允许策划直接创建玩家 BP；若资产父类不统一，隔离会漏掉部分玩家近战 GA。
-- `UWeaponData` 与 `UWeaponDefinition` 双轨并存，方案只覆盖 `UWeaponDefinition`。只要还有旧武器、测试武器、掉落器或存档恢复路径使用 `UWeaponData`，就会绕过武器类型 Tag。
-- 无武器时禁止所有近战/远程 GA 会改变当前输入体验；Controller 仍会记录攻击输入 Buffer，可能产生“无武器输入被缓存，装备后异常连招/触发”的边缘行为。
-- `UGA_MusketBase` 统一加 `Weapon.Type.Ranged` 会影响火枪换弹、冲刺换弹等非伤害 GA；这符合“远程武器专属”的意图，但如果未来有通用换弹、弹药 UI 或调试 GA 继承该基类，会被一起限制。
-- 新增 `EWeaponType` 后，所有现有 `WeaponDefinition` 资产会默认近战；火枪 DA 若漏配为 Ranged，问题不会报错，只会表现为火枪 GA 全部无法激活。
+- 直接删除 AN 旧字段会让现有蒙太奇中的序列化配置不可逆丢失，不利于批量迁移和回滚。
+- `AttackConfig` 放在 GA Blueprint Class Defaults，而蒙太奇仍从 `CharacterData.AbilityData` 按 AbilityTag 获取，可能出现“GA 配置”和“蒙太奇配置”不一致。
+- 每次命中 remove/apply `StatBeforeATKEffect` 通常可接受，但如果 GE 有触发器、Cue、复制或依赖堆叠规则，可能产生额外副作用。
+- 将符文效果改成监听 `Ability.Event.Attack.Hit` 不自动保证 GAS 生命周期正确；grant GA 仍需要明确结束条件，Duration GE 也要确认施加对象和移除策略。
+- 存量 `NotifyRuneDataAsset` / `NotifyFlowAsset` 是专为 `AdditionalRuneEffects` 设计的资产类型，方案没有说明保留、废弃或迁移到普通 Rune/BuffFlow 的兼容策略。
+- 多段攻击如果多个 AN 使用相同 `HitIndex` 或 DA `Hits` 数量少于 AN 数量，方案目前只 fallback，不会暴露配置错误，容易产生静默错配。
 
 ### 改进建议
-- 把武器类型 Tag 维护封装成 helper，例如 `ClearWeaponTypeTags()` / `ApplyWeaponTypeTag()`，并使用 `SetLooseGameplayTagCount(Tag, 0)` 清零类型 Tag，避免计数残留。
-- 若考虑网络同步，优先使用 `AddReplicatedLooseGameplayTag/RemoveReplicatedLooseGameplayTag`，或用一个 Infinite GameplayEffect 持有 `Weapon.Type.*`。
-- 在 `SetupWeaponToCharacter` 之外补一个明确的卸武器/清武器入口，并在死亡、切关前清理、调试清空、无武器恢复等路径调用。
-- 实现后增加运行时日志或断言：装备完成后输出当前 `Weapon.Type.*` 计数；激活失败时能看到是缺少 `Weapon.Type.Melee/Ranged`。
-- 给火枪 DA、近战 DA 增加一次资产检查清单：确认 `WeaponType` 配置、玩家近战 GA 父类、火枪 GA RequiredTag 是否实际生效。
-- 文档步骤中补充 `Equip.ini` 的完整格式示例，避免 Tag 注册失败。
+- 明确修改 `YogTargetType_Melee::GetActionData`：当 OptionalObject 是 `UAN_MeleeDamage` 时只读取 `HitIndex`，再从当前 `UGA_MeleeAttack` 获取对应 `FMeleeHitConfig`。
+- 在 `OnEventReceived` 中维护 `CurrentHitConfig`、`LastHitConfig` 和可选 `FirstHitConfig`，分别服务命中检测、攻击后摇和无命中 fallback。
+- 将 `OnHitEventTags` 改为直接从 `FiredNotify->OnHitEventTags` 广播，或通过事件 payload 携带，避免继续依赖角色级暂存数组。
+- 为 HitStop 增加明确路径：`OnEventReceived` 读取 `CurrentHitConfig.HitStopMode` 后写入 `PendingHitStopOverride`，或重构 `BFNode_HitStop` 直接读取当前 GA/事件上下文。
+- `GetHit()` 建议返回指针/optional，或在 DA 中提供 `DefaultHitConfig`；空 `Hits` 应打印错误并终止本次攻击或使用显式默认值。
+- 给 `Ability.Event.Attack.Hit` payload 增加 `EventMagnitude` / `OptionalObject` / `OptionalObject2` 或自定义上下文，至少包含 `HitIndex`、攻击 AbilityTag、SourceAbility、Target。
+- 迁移期保留旧字段为 deprecated，并提供一次性迁移工具或编辑器检查；确认全部资产迁移后再删除字段。
+- 增加自动化/半自动化校验：检查每个近战 GA 是否配置 `AttackConfig`、每个蒙太奇 AN 的 `HitIndex` 是否越界、每个 DA 是否至少有一个 Hit。
 
 ### 需要向用户确认的问题
-- 是否需要支持多人/客户端预测？如果需要，不能只用普通 LooseTag。
-- 无武器时是否允许徒手攻击？如果允许，需要 `Weapon.Type.Unarmed` 或独立徒手 GA。
-- 当前所有玩家近战 GA 是否都继承 `UGA_PlayerMeleeAttack`？是否存在直接继承 `UGA_MeleeAttack` 的玩家 BP？
-- 是否还有武器走旧的 `UWeaponData` 流程？如果有，是否一起迁移或也补 Tag 守卫？
-- 未来是否会有主副武器、双持、临时召唤武器等场景？如果有，单一 `Weapon.Type.*` 可能需要扩展为槽位维度。
+- 是否接受迁移期保留 AN 旧字段一版，用于资产迁移和回滚？
+- `AttackConfig` 应配置在 GA Blueprint 上，还是放回 `AbilityData` 与蒙太奇同源管理？
+- 符文触发是否需要区分具体 `HitIndex`、攻击 AbilityTag、目标类型或伤害数值？
+- `OnHitEventTags` 只用于表现事件，还是也存在 gameplay 逻辑依赖？
+- `StatAfterATKEffect` 应使用最后一次命中的 Hit 配置，还是固定使用第一段/整套攻击的专用配置？
+- 敌人攻击、玩家攻击、派生攻击类是否都要统一迁移到同一套 `UMeleeAttackConfigDA`？
