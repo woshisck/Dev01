@@ -241,6 +241,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "WeaponGlass")
 	FVector2D GetWeaponGlassIconScreenCenter() const;
 
+	// 主界面（背包/三选一/献祭）打开/关闭时调用，隐藏或恢复关卡&武器浮窗
+	// 从 Widget 的 NativeOnActivated/NativeOnDeactivated 调用（因打开路径不全经过 HUD）
+	void PushMajorUI();
+	void PopMajorUI();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -282,11 +287,9 @@ private:
 
 	bool bHasWeapon = false;
 
-	// ─── 主要 UI 遮盖计数（背包/三选一/献祭恩赐打开时隐藏关卡&武器浮窗）────
+	// 主界面遮盖计数（private）
 	int32 MajorUICount = 0;
 	FDelegateHandle SacrificeGraceMajorUIHandle;
-	void PushMajorUI();
-	void PopMajorUI();
 	void ApplyMajorUIVisibility(bool bHide);
 
 	UPROPERTY()

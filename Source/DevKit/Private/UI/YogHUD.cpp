@@ -101,10 +101,7 @@ void AYogHUD::BeginPlay()
 		BackpackWidget = CreateWidget<UBackpackScreenWidget>(
 			GetOwningPlayerController(), BackpackScreenClass);
 		if (BackpackWidget)
-		{
 			BackpackWidget->AddToViewport(5);
-			BackpackWidget->OnDeactivated().AddLambda([this](){ PopMajorUI(); });
-		}
 	}
 
 	// ── Loot Selection（常驻，不走 CommonUI Stack，避免 DeactivateWidget 时被 destroy）
@@ -171,7 +168,6 @@ void AYogHUD::BeginPlay()
 
 void AYogHUD::OpenBackpack()
 {
-	PushMajorUI();
 	if (BackpackWidget)
 		BackpackWidget->ActivateWidget();
 }
@@ -300,7 +296,6 @@ void AYogHUD::OpenBackpackForPreview(FSimpleDelegate OnClosed)
 	BackpackPreviewDeactivatedHandle = BackpackWidget->OnDeactivated().AddUObject(
 		this, &AYogHUD::OnBackpackPreviewClosed);
 
-	PushMajorUI();
 	BackpackWidget->ActivateWidget();
 }
 

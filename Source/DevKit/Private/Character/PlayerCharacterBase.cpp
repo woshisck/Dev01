@@ -112,8 +112,8 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 
 	if (BackpackGridComponent)
 	{
-		BackpackGridComponent->RestorePhase(State.CurrentPhase);
 		BackpackGridComponent->RestorePlacedRunes(State.PlacedRunes);
+		BackpackGridComponent->RestorePhase(State.CurrentPhase);
 
 		if (UAbilitySystemComponent* HeatASC = GetAbilitySystemComponent())
 		{

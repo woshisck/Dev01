@@ -728,6 +728,28 @@ void UBackpackGridComponent::RestorePlacedRunes(const TArray<FPlacedRune>& Saved
 		}
 	}
 
+	if (UAbilitySystemComponent* ASC = GetOwner()->FindComponentByClass<UAbilitySystemComponent>())
+	{
+		const ERuneTriggerType TriggerTypes[] =
+		{
+			ERuneTriggerType::OnAttackHit,
+			ERuneTriggerType::OnDash,
+			ERuneTriggerType::OnKill,
+			ERuneTriggerType::OnCritHit,
+			ERuneTriggerType::OnDamageReceived
+		};
+		for (const TPair<FGuid, FDelegateHandle>& Pair : TriggeredRuneListeners)
+		{
+			for (const ERuneTriggerType TriggerType : TriggerTypes)
+			{
+				const FGameplayTag EventTag = GetEventTagForTriggerType(TriggerType);
+				if (EventTag.IsValid())
+				{
+					ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag).Remove(Pair.Value);
+				}
+			}
+		}
+	}
 	TriggeredRuneListeners.Empty();
 	PlacedRunes.Reset();
 	GridOccupancy.Init(-1, GridWidth * GridHeight);
@@ -980,6 +1002,27 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 		}
 
 		const FGuid RuneGuid          = Placed.Rune.RuneGuid;
+		if (FDelegateHandle* ExistingHandle = TriggeredRuneListeners.Find(RuneGuid))
+		{
+			const ERuneTriggerType TriggerTypes[] =
+			{
+				ERuneTriggerType::OnAttackHit,
+				ERuneTriggerType::OnDash,
+				ERuneTriggerType::OnKill,
+				ERuneTriggerType::OnCritHit,
+				ERuneTriggerType::OnDamageReceived
+			};
+			for (const ERuneTriggerType ExistingTriggerType : TriggerTypes)
+			{
+				const FGameplayTag ExistingEventTag = GetEventTagForTriggerType(ExistingTriggerType);
+				if (ExistingEventTag.IsValid())
+				{
+					ASC->GenericGameplayEventCallbacks.FindOrAdd(ExistingEventTag).Remove(*ExistingHandle);
+				}
+			}
+			TriggeredRuneListeners.Remove(RuneGuid);
+		}
+
 		// 用 operator= 而非拷贝构造，绕开 UE5.4 TWeakObjectPtr 构造模板的 SFINAE 推导问题
 		TWeakObjectPtr<UFlowAsset> WeakFA;
 		WeakFA = static_cast<UFlowAsset*>(Placed.Rune.Flow.FlowAsset);
