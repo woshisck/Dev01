@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-04-28
+
+### [Rune-EnemyBuff] 5 个敌人专属符文设计 + 必要 C++ 改动
+
+**状态**：C++ + ini 已完成编译；编辑器资产（5×FA / 5×DA / GE_PoisonSplash）按指南手工创建
+
+| 项目 | 内容 |
+|------|------|
+| 涉及文件 | `Source/.../DamageExecution.cpp`、`Source/.../GA_Dead.cpp`、`Source/.../BackpackGridComponent.cpp`、`Config/DefaultGameplayTags.ini`、`Config/Tags/BuffTag.ini`、`Docs/Systems/Rune/EnemyBuff_ProductionGuide.md` |
+| 5 个敌人符文 | E001 无畏（HP<75% 触发霸体+20%减伤）/ E002 死亡之毒（动画播完 AOE 毒液溅射）/ E003 死咒（死亡时给击杀者 MaxHealth×0.9 最多 3 层）/ E004 激怒（首次受击 AttackSpeed×1.4）/ E005 铁甲（Spawn 即激活 ArmorHP+80） |
+| FA 形态 | Category B Actor Ability Passive（`[Start]` 节点起步），`YogGameMode::SpawnEnemyFromPool` 自动启动，敌人销毁随 Actor Cleanup |
+| DmgTaken clamp 修复 | `DamageExecution.cpp:85` 由 `FMath::Max(x,1.f)` 改为 `(x<=0)?1.f:Max(x,0.01f)`：capture 失败兜底 1.0；成功则允许 < 1.0（无畏 ×0.8 减伤生效） |
+| DeathAnimComplete 事件 | `GA_Dead::StartDeathDelay` 在 IsValid 守卫后广播 `Ability.Event.DeathAnimComplete`（Payload.Instigator=Target=Avatar 自身），供 E002 监听 |
+| CritHit 事件 | `DamageExecution.cpp` 暴击时除 `OnCritHit` 委托外，额外发送 `Ability.Event.Attack.CritHit` 事件（Payload.Magnitude=FinalDamage） |
+| 新增 Tag | `Ability.Event.DeathAnimComplete`、`Ability.Event.Attack.CritHit`、`Buff.Status.Enraged`、`Buff.Status.Cursed` |
+| BuffGiver 语义修复 | `BackpackGridComponent.cpp` 触发型符文调度器：`GiverActor` 由 `Payload.Instigator??Owner` 改为永远 `GetOwner()`，避免 OnDamageReceived 时 BuffGiver 被错置成攻击者；事件来源走 `LastEventContext.DamageCauser` |
+| 双重审查 | codex_code_review 双轮通过：第一轮发现 P1（BuffGiver 语义）已修复；第二轮零 P1（仅 P2 提示 `Builds/` 目录不应入库） |
+| 已知待办 | 编辑器侧创建 5 FA + 5 DA + GE_PoisonSplash；如需跨关卡清除死咒可在 GameMode 关卡切换调用 `RemoveActiveEffectsWithGrantedTags(Buff.Status.Cursed)` |
+
+---
+
 ## 2026-04-27
 
 ### [UI-010] 传送门浮窗符文行扩展：描述 + GenericEffects 内联展示

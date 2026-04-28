@@ -1,5 +1,6 @@
 #include "AbilitySystem/ExecutionCalculation/DamageExecution.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffectAggregator.h"
 
 
@@ -80,7 +81,8 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, SourceAttackPower);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef,      EvaluationParameters, SourceAttack);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DmgTakenDef,    EvaluationParameters, TargetDmgTaken);
-	TargetDmgTaken = FMath::Max(TargetDmgTaken, 1.f); // capture 失败时默认 1，防止全场 0 伤害
+	// capture 失败（返回 0）时用 1.0 兜底；成功时允许 < 1.0（减伤符文/无畏符文）但不低于 0.01
+	TargetDmgTaken = (TargetDmgTaken <= 0.f) ? 1.f : FMath::Max(TargetDmgTaken, 0.01f);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_RateDef,   EvaluationParameters, SourceCritRate);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_DamageDef, EvaluationParameters, SourceCritDamage);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().HealthDef,      EvaluationParameters, TargetHealth);
@@ -117,6 +119,21 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	if (bIsCrit && SourceASC)
 	{
 		SourceASC->OnCritHit.Broadcast(TargetASC, FinalDamage);
+
+		AActor* CritSourceActor = SourceASC->GetAvatarActor();
+		if (CritSourceActor)
+		{
+			static const FGameplayTag CritHitTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.CritHit"), false);
+			if (CritHitTag.IsValid())
+			{
+				FGameplayEventData CritPayload;
+				CritPayload.EventTag = CritHitTag;
+				CritPayload.Instigator = CritSourceActor;
+				CritPayload.Target = TargetASC ? TargetASC->GetAvatarActor() : nullptr;
+				CritPayload.EventMagnitude = FinalDamage;
+				UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(CritSourceActor, CritHitTag, CritPayload);
+			}
+		}
 	}
 
 	// ── 伤害日志（仅玩家来源）────────────────────────────────────────────

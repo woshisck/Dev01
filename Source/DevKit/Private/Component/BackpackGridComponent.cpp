@@ -627,6 +627,99 @@ int32 UBackpackGridComponent::GetRuneIndexAtCell(FIntPoint Cell) const
 	return GridOccupancy[CellToIndex(Cell)];
 }
 
+void UBackpackGridComponent::RestorePlacedRunes(const TArray<FPlacedRune>& SavedRunes, bool bIncludePermanentRunes)
+{
+	EnsureGridInitialized();
+
+	TArray<FPlacedRune> ExistingPermanentRunes;
+	for (FPlacedRune& Placed : PlacedRunes)
+	{
+		DeactivateRune(Placed);
+		if (Placed.bIsPermanent && !bIncludePermanentRunes)
+		{
+			Placed.bIsActivated = false;
+			ExistingPermanentRunes.Add(Placed);
+		}
+	}
+
+	TriggeredRuneListeners.Empty();
+	PlacedRunes.Reset();
+	GridOccupancy.Init(-1, GridWidth * GridHeight);
+
+	TSet<FGuid> RestoredRuneGuids;
+	auto AddRestoredRune = [this, &RestoredRuneGuids](const FPlacedRune& SavedRune, const TCHAR* SourceLabel)
+	{
+		if (!SavedRune.Rune.RuneGuid.IsValid())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] RestorePlacedRunes skip invalid guid from %s"), SourceLabel);
+			return;
+		}
+
+		if (RestoredRuneGuids.Contains(SavedRune.Rune.RuneGuid))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] RestorePlacedRunes skip duplicate rune %s from %s"),
+				*SavedRune.Rune.RuneGuid.ToString(), SourceLabel);
+			return;
+		}
+
+		const TArray<FIntPoint> Cells = GetRuneCells(SavedRune.Rune, SavedRune.Pivot);
+		if (Cells.IsEmpty())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] RestorePlacedRunes skip %s: empty shape"),
+				*SavedRune.Rune.RuneConfig.RuneName.ToString());
+			return;
+		}
+
+		for (const FIntPoint Cell : Cells)
+		{
+			if (!IsCellValid(Cell))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] RestorePlacedRunes skip %s: cell (%d,%d) outside %dx%d grid"),
+					*SavedRune.Rune.RuneConfig.RuneName.ToString(), Cell.X, Cell.Y, GridWidth, GridHeight);
+				return;
+			}
+
+			if (GridOccupancy[CellToIndex(Cell)] != -1)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] RestorePlacedRunes skip %s: cell (%d,%d) already occupied"),
+					*SavedRune.Rune.RuneConfig.RuneName.ToString(), Cell.X, Cell.Y);
+				return;
+			}
+		}
+
+		FPlacedRune Restored = SavedRune;
+		Restored.bIsActivated = false;
+
+		const int32 NewIndex = PlacedRunes.Num();
+		PlacedRunes.Add(Restored);
+		RestoredRuneGuids.Add(Restored.Rune.RuneGuid);
+
+		for (const FIntPoint Cell : Cells)
+		{
+			GridOccupancy[CellToIndex(Cell)] = NewIndex;
+		}
+	};
+
+	for (const FPlacedRune& Permanent : ExistingPermanentRunes)
+	{
+		AddRestoredRune(Permanent, TEXT("existing permanent"));
+	}
+
+	for (const FPlacedRune& SavedRune : SavedRunes)
+	{
+		if (SavedRune.bIsPermanent && !bIncludePermanentRunes)
+		{
+			continue;
+		}
+		AddRestoredRune(SavedRune, TEXT("run state"));
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] RestorePlacedRunes rebuilt %d runes from %d saved runes"),
+		PlacedRunes.Num(), SavedRunes.Num());
+
+	RefreshAllActivations();
+}
+
 void UBackpackGridComponent::InitWithASC(UAbilitySystemComponent* ASC)
 {
 	CachedASC = ASC;
@@ -773,15 +866,28 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 		WeakFA = static_cast<UFlowAsset*>(Placed.Rune.Flow.FlowAsset);
 
 		FDelegateHandle Handle = ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag)
-			.AddWeakLambda(this, [this, RuneGuid, WeakFA](const FGameplayEventData* Payload)
+			.AddWeakLambda(this, [this, RuneGuid, WeakFA, EventTag](const FGameplayEventData* Payload)
 			{
 				UFlowAsset* FA = WeakFA.Get();
 				if (!FA || !Payload) return;
 				UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();
 				if (!BFC) return;
-				AActor* Target = const_cast<AActor*>(Cast<AActor>(Payload->Target.Get()));
-				UE_LOG(LogTemp, Verbose, TEXT("[BackpackGrid] TriggeredRune event fired: Rune=%s"), *RuneGuid.ToString());
-				BFC->StartBuffFlow(FA, FGuid::NewGuid(), Target ? Target : GetOwner());
+
+				AActor* InstigatorActor = const_cast<AActor*>(Payload->Instigator.Get());
+				AActor* TargetActor = const_cast<AActor*>(Payload->Target.Get());
+				// BuffGiver 永远是符文承载者（GetOwner），事件来源/受害者通过 LastEventContext 传递
+				// 否则 OnDamageReceived 触发时 Payload.Instigator=攻击者，会把 BuffGiver 错置成敌人
+				AActor* GiverActor = GetOwner();
+				const FGameplayTag EffectiveEventTag = Payload->EventTag.IsValid() ? Payload->EventTag : EventTag;
+
+				BFC->LastEventContext.EventTag = EffectiveEventTag;
+				BFC->LastEventContext.DamageCauser = InstigatorActor ? InstigatorActor : GiverActor;
+				BFC->LastEventContext.DamageReceiver = TargetActor;
+				BFC->LastEventContext.DamageAmount = Payload->EventMagnitude;
+
+				UE_LOG(LogTemp, Verbose, TEXT("[BackpackGrid] TriggeredRune event fired: Rune=%s Event=%s Target=%s Magnitude=%.2f"),
+					*RuneGuid.ToString(), *EffectiveEventTag.ToString(), *GetNameSafe(TargetActor), Payload->EventMagnitude);
+				BFC->StartBuffFlow(FA, FGuid::NewGuid(), GiverActor);
 			});
 
 		TriggeredRuneListeners.Add(RuneGuid, Handle);
@@ -839,7 +945,7 @@ FGameplayTag UBackpackGridComponent::GetEventTagForTriggerType(ERuneTriggerType 
 	case ERuneTriggerType::OnAttackHit:      return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
 	case ERuneTriggerType::OnDash:           return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Dash"));
 	case ERuneTriggerType::OnKill:           return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Kill"));
-	case ERuneTriggerType::OnCritHit:        return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
+	case ERuneTriggerType::OnCritHit:        return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.CritHit"));
 	case ERuneTriggerType::OnDamageReceived: return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Damaged"));
 	default:                                  return FGameplayTag();
 	}
