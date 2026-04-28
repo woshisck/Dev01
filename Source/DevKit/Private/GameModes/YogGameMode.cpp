@@ -1082,9 +1082,22 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 
 static void ActivateEnemyRunes(AEnemyCharacterBase* Enemy, const TArray<TObjectPtr<URuneDataAsset>>& Runes, const TCHAR* Source)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][GrantList] Enemy=%s Source=%s Count=%d"),
+		*GetNameSafe(Enemy),
+		Source,
+		Runes.Num());
+	for (int32 Index = 0; Index < Runes.Num(); ++Index)
+	{
+		URuneDataAsset* RuneDA = Runes[Index].Get();
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][GrantList]   Index=%d Rune=%s DA=%s"),
+			Index,
+			*GetEnemyRuneDebugName(RuneDA),
+			*GetNameSafe(RuneDA));
+	}
+
 	if (Runes.IsEmpty())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[EnemyRune] Skip: RuneList empty Enemy=%s Source=%s"),
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Skip: RuneList empty Enemy=%s Source=%s"),
 			*GetNameSafe(Enemy), Source);
 		return;
 	}

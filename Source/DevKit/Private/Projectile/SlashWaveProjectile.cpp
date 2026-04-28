@@ -35,6 +35,7 @@ void ASlashWaveProjectile::InitProjectile(ACharacter* InSource, float InDamage,
 	SourceCharacter = InSource;
 	DamageMagnitude = InDamage;
 	DamageEffectClass = InDamageEffect;
+	bProjectileInitialized = SourceCharacter != nullptr;
 
 	if (ProjectileMovement)
 	{
@@ -59,7 +60,7 @@ void ASlashWaveProjectile::OnOverlapBegin(
 	UPrimitiveComponent* /*OtherComp*/, int32 /*OtherBodyIndex*/,
 	bool /*bFromSweep*/, const FHitResult& /*SweepHitResult*/)
 {
-	if (!OtherActor || OtherActor == this || OtherActor == SourceCharacter)
+	if (!bProjectileInitialized || !OtherActor || OtherActor == this || OtherActor == SourceCharacter)
 	{
 		return;
 	}
@@ -72,13 +73,15 @@ void ASlashWaveProjectile::OnOverlapBegin(
 		}
 	}
 
-	HitActors.Add(OtherActor);
-	ApplyDamageTo(OtherActor, OtherActor->GetActorLocation());
+	if (ApplyDamageTo(OtherActor, OtherActor->GetActorLocation()))
+	{
+		HitActors.Add(OtherActor);
+	}
 }
 
 void ASlashWaveProjectile::ApplyImmediateHit(AActor* Target)
 {
-	if (!Target || Target == this || Target == SourceCharacter)
+	if (!bProjectileInitialized || !Target || Target == this || Target == SourceCharacter)
 	{
 		return;
 	}
@@ -91,15 +94,17 @@ void ASlashWaveProjectile::ApplyImmediateHit(AActor* Target)
 		}
 	}
 
-	HitActors.Add(Target);
-	ApplyDamageTo(Target, Target->GetActorLocation());
+	if (ApplyDamageTo(Target, Target->GetActorLocation()))
+	{
+		HitActors.Add(Target);
+	}
 }
 
-void ASlashWaveProjectile::ApplyDamageTo(AActor* Target, const FVector& HitLocation)
+bool ASlashWaveProjectile::ApplyDamageTo(AActor* Target, const FVector& HitLocation)
 {
 	if (!Target || !SourceCharacter)
 	{
-		return;
+		return false;
 	}
 
 	UAbilitySystemComponent* TargetASC =
@@ -109,7 +114,7 @@ void ASlashWaveProjectile::ApplyDamageTo(AActor* Target, const FVector& HitLocat
 
 	if (!TargetASC || !SourceASC)
 	{
-		return;
+		return false;
 	}
 
 	FGameplayEffectContextHandle CtxHandle = SourceASC->MakeEffectContext();
@@ -133,6 +138,7 @@ void ASlashWaveProjectile::ApplyDamageTo(AActor* Target, const FVector& HitLocat
 		DamageMagnitude);
 
 	BP_OnHitEnemy(Target, HitLocation);
+	return true;
 }
 
 void ASlashWaveProjectile::Expire()
