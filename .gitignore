@@ -1901,3 +1901,18 @@ Plugins/ElectronicNodes/Binaries/Win64/UnrealEditor-ElectronicNodes.dll
 # Obsidian 笔记软件本地配置（每个用户工作区不同，不入库）
 .obsidian/
 /Build
+Docs/copilot/copilot-custom-prompts/Clip Web Page.md
+Docs/copilot/copilot-custom-prompts/Clip YouTube Transcript.md
+Docs/copilot/copilot-custom-prompts/Emojify.md
+Docs/copilot/copilot-custom-prompts/Explain like I am 5.md
+Docs/copilot/copilot-custom-prompts/Fix grammar and spelling.md
+Docs/copilot/copilot-custom-prompts/Generate glossary.md
+Docs/copilot/copilot-custom-prompts/Generate table of contents.md
+Docs/copilot/copilot-custom-prompts/Make longer.md
+Docs/copilot/copilot-custom-prompts/Make shorter.md
+Docs/copilot/copilot-custom-prompts/Remove URLs.md
+Docs/copilot/copilot-custom-prompts/Rewrite as tweet thread.md
+Docs/copilot/copilot-custom-prompts/Rewrite as tweet.md
+Docs/copilot/copilot-custom-prompts/Simplify.md
+Docs/copilot/copilot-custom-prompts/Summarize.md
+Docs/copilot/copilot-custom-prompts/Translate to Chinese.md
