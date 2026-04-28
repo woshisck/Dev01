@@ -1099,6 +1099,24 @@ static void ActivateEnemyDataRunes(AEnemyCharacterBase* Enemy, UEnemyData* Enemy
 {
 	TArray<TObjectPtr<URuneDataAsset>> EnemyBuffs;
 	CollectEnemyBuffs(EnemyData, EnemyBuffs);
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][EnemyData] Enemy=%s EnemyData=%s Source=%s Pool=%d Collected=%d"),
+		*GetNameSafe(Enemy),
+		*GetNameSafe(EnemyData),
+		Source,
+		EnemyData ? EnemyData->EnemyBuffPool.Num() : 0,
+		EnemyBuffs.Num());
+	if (EnemyData)
+	{
+		for (int32 Index = 0; Index < EnemyData->EnemyBuffPool.Num(); ++Index)
+		{
+			const FBuffEntry& Entry = EnemyData->EnemyBuffPool[Index];
+			UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][EnemyData]   Entry=%d Rune=%s DA=%s Cost=%d"),
+				Index,
+				*GetEnemyRuneDebugName(Entry.RuneDA.Get()),
+				*GetNameSafe(Entry.RuneDA.Get()),
+				Entry.DifficultyScore);
+		}
+	}
 	ActivateEnemyRunes(Enemy, EnemyBuffs, Source);
 }
 

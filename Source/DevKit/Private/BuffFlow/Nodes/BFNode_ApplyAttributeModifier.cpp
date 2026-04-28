@@ -19,12 +19,45 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 	// Remove 引脚：主动移除当前持有的 GE（一次性 Buff 消耗用）
 	if (PinName == TEXT("Remove"))
 	{
-		if (GrantedASC.IsValid() && GrantedHandle.IsValid())
+		if (UWorld* World = GetWorld())
 		{
-			GrantedASC->RemoveActiveGameplayEffect(GrantedHandle);
-			GrantedHandle = FActiveGameplayEffectHandle();
-			GrantedASC.Reset();
+			for (TPair<TObjectKey<UAbilitySystemComponent>, FRuntimeGrantState>& Pair : RuntimeGrantStates)
+			{
+				World->GetTimerManager().ClearTimer(Pair.Value.ExpiryTimer);
+			}
 		}
+
+		for (TPair<TObjectKey<UAbilitySystemComponent>, FRuntimeGrantState>& Pair : RuntimeGrantStates)
+		{
+			UAbilitySystemComponent* StateASC = Pair.Key.ResolveObjectPtr();
+			if (!StateASC)
+			{
+				continue;
+			}
+
+			if (Pair.Value.EffectHandle.IsValid())
+			{
+				StateASC->RemoveActiveGameplayEffect(Pair.Value.EffectHandle);
+			}
+
+			if (!GrantedTagsToASC.IsEmpty() && Pair.Value.bManualGrantActive)
+			{
+				StateASC->RemoveLooseGameplayTags(GrantedTagsToASC);
+			}
+
+			for (const FGameplayAbilitySpecHandle& AbilHandle : Pair.Value.AbilityHandles)
+			{
+				if (AbilHandle.IsValid())
+				{
+					StateASC->ClearAbility(AbilHandle);
+				}
+			}
+		}
+
+		RuntimeGrantStates.Reset();
+		GrantedAbilityHandles.Empty();
+		GrantedHandle = FActiveGameplayEffectHandle();
+		GrantedASC.Reset();
 		TriggerOutput(TEXT("Out"), false);
 		return;
 	}
@@ -220,6 +253,14 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 	}
 
 	// 存储 handle 供 Cleanup 使用（Instant 无需存储）
+	TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
+	FRuntimeGrantState* GrantState = nullptr;
+	if (DurationType != ERuneDurationType::Instant)
+	{
+		GrantState = &RuntimeGrantStates.FindOrAdd(ASCKey);
+		GrantState->EffectHandle = Handle;
+	}
+
 	if (DurationType != ERuneDurationType::Instant)
 	{
 		GrantedHandle = Handle;
@@ -230,13 +271,14 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 	// UE5.4 对动态 NewObject GE 不支持 GE.GrantedAbilities / InheritableOwnedTagsContainer，
 	// 改为手动 AddLooseGameplayTags + GiveAbility，由 ExpiryTimer / Cleanup 负责撤销。
 	// 仅首次施加时授予（同一目标 ASC 且已有 handle = 堆叠刷新，跳过重复授予）。
-	const bool bFirstGrant = (GrantedASC.Get() != ASC) || GrantedAbilityHandles.IsEmpty();
+	const bool bFirstGrant = GrantState && !GrantState->bManualGrantActive;
 	if (bFirstGrant && DurationType != ERuneDurationType::Instant)
 	{
 		// 必须先 GiveAbility，再 AddLooseGameplayTags！
 		// OwnedTagPresent 触发器在 Tag 加入时扫描 ASC 已有的 AbilitySpec，
 		// 若 GA 尚未 Grant，Tag 加入时找不到触发器，GA 永远不会激活。
 		GrantedAbilityHandles.Empty();
+		GrantState->AbilityHandles.Empty();
 		for (const TSubclassOf<UGameplayAbility>& AbilityClass : GrantedAbilities)
 		{
 			if (AbilityClass)
@@ -245,6 +287,7 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 				if (AbilHandle.IsValid())
 				{
 					GrantedAbilityHandles.Add(AbilHandle);
+					GrantState->AbilityHandles.Add(AbilHandle);
 					UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] GiveAbility=%s → %s"),
 						*AbilityClass->GetName(), *TargetActor->GetName());
 				}
@@ -258,6 +301,7 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 			UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] AddLooseGameplayTags=%s → %s"),
 				*GrantedTagsToASC.ToStringSimple(), *TargetActor->GetName());
 		}
+		GrantState->bManualGrantActive = true;
 	}
 
 	// HasDuration 时启动过期计时器，到期触发 Expired 引脚并撤销手动授予的 Tag/GA
@@ -267,21 +311,34 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 		if (UWorld* World = GetWorld())
 		{
 			TWeakObjectPtr<UAbilitySystemComponent> WeakASC(ASC);
-			World->GetTimerManager().ClearTimer(ExpiryTimer);
-			World->GetTimerManager().SetTimer(ExpiryTimer, [this, WeakASC]()
+			TWeakObjectPtr<UBFNode_ApplyAttributeModifier> WeakThis(this);
+			FTimerHandle& TargetExpiryTimer = GrantState ? GrantState->ExpiryTimer : ExpiryTimer;
+			World->GetTimerManager().ClearTimer(TargetExpiryTimer);
+			World->GetTimerManager().SetTimer(TargetExpiryTimer, [WeakThis, WeakASC, ASCKey]()
 			{
-				if (WeakASC.IsValid())
+				UBFNode_ApplyAttributeModifier* Node = WeakThis.Get();
+				if (!Node)
 				{
-					if (!GrantedTagsToASC.IsEmpty())
-						WeakASC->RemoveLooseGameplayTags(GrantedTagsToASC);
-					for (const FGameplayAbilitySpecHandle& AbilHandle : GrantedAbilityHandles)
+					return;
+				}
+
+				FRuntimeGrantState* State = Node->RuntimeGrantStates.Find(ASCKey);
+				if (WeakASC.IsValid() && State)
+				{
+					if (!Node->GrantedTagsToASC.IsEmpty() && State->bManualGrantActive)
+					{
+						WeakASC->RemoveLooseGameplayTags(Node->GrantedTagsToASC);
+					}
+					for (const FGameplayAbilitySpecHandle& AbilHandle : State->AbilityHandles)
 					{
 						if (AbilHandle.IsValid())
+						{
 							WeakASC->ClearAbility(AbilHandle);
+						}
 					}
-					GrantedAbilityHandles.Empty();
 				}
-				TriggerOutput(TEXT("Expired"), true);
+				Node->RuntimeGrantStates.Remove(ASCKey);
+				Node->TriggerOutput(TEXT("Expired"), true);
 			}, Duration, false);
 		}
 	}
@@ -296,26 +353,37 @@ void UBFNode_ApplyAttributeModifier::Cleanup()
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(ExpiryTimer);
-	}
-
-	if (GrantedASC.IsValid())
-	{
-		// 移除 GE
-		if (GrantedHandle.IsValid())
-			GrantedASC->RemoveActiveGameplayEffect(GrantedHandle);
-
-		// 撤销手动授予的 Tag
-		if (!GrantedTagsToASC.IsEmpty())
-			GrantedASC->RemoveLooseGameplayTags(GrantedTagsToASC);
-
-		// 撤销手动授予的 GA
-		for (const FGameplayAbilitySpecHandle& AbilHandle : GrantedAbilityHandles)
+		for (TPair<TObjectKey<UAbilitySystemComponent>, FRuntimeGrantState>& Pair : RuntimeGrantStates)
 		{
-			if (AbilHandle.IsValid())
-				GrantedASC->ClearAbility(AbilHandle);
+			World->GetTimerManager().ClearTimer(Pair.Value.ExpiryTimer);
 		}
 	}
 
+	for (TPair<TObjectKey<UAbilitySystemComponent>, FRuntimeGrantState>& Pair : RuntimeGrantStates)
+	{
+		UAbilitySystemComponent* StateASC = Pair.Key.ResolveObjectPtr();
+		if (!StateASC)
+		{
+			continue;
+		}
+
+		// 移除 GE
+		if (Pair.Value.EffectHandle.IsValid())
+			StateASC->RemoveActiveGameplayEffect(Pair.Value.EffectHandle);
+
+		// 撤销手动授予的 Tag
+		if (!GrantedTagsToASC.IsEmpty() && Pair.Value.bManualGrantActive)
+			StateASC->RemoveLooseGameplayTags(GrantedTagsToASC);
+
+		// 撤销手动授予的 GA
+		for (const FGameplayAbilitySpecHandle& AbilHandle : Pair.Value.AbilityHandles)
+		{
+			if (AbilHandle.IsValid())
+				StateASC->ClearAbility(AbilHandle);
+		}
+	}
+
+	RuntimeGrantStates.Reset();
 	GrantedAbilityHandles.Empty();
 	GrantedHandle = FActiveGameplayEffectHandle();
 	GrantedASC.Reset();
