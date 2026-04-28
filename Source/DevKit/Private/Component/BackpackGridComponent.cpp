@@ -619,6 +619,15 @@ void UBackpackGridComponent::ResetHeatToPhaseFloor()
 		return;
 
 	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), 0.f);
+	for (int32 PhaseIndex = 1; PhaseIndex <= 3; ++PhaseIndex)
+	{
+		const FGameplayTag PhaseTag = FGameplayTag::RequestGameplayTag(
+			FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), PhaseIndex)), false);
+		if (PhaseTag.IsValid())
+		{
+			ASC->SetLooseGameplayTagCount(PhaseTag, 0);
+		}
+	}
 	CurrentPhase = 0;
 	RefreshAllActivations();
 	BroadcastHeatUI(0.f);
@@ -626,7 +635,34 @@ void UBackpackGridComponent::ResetHeatToPhaseFloor()
 
 void UBackpackGridComponent::RestorePhase(int32 Phase)
 {
+	UAbilitySystemComponent* ASC =
+		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+	if (ASC)
+	{
+		for (int32 PhaseIndex = 1; PhaseIndex <= 3; ++PhaseIndex)
+		{
+			const FGameplayTag PhaseTag = FGameplayTag::RequestGameplayTag(
+				FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), PhaseIndex)), false);
+			if (PhaseTag.IsValid())
+			{
+				ASC->SetLooseGameplayTagCount(PhaseTag, 0);
+			}
+		}
+	}
+
 	CurrentPhase = FMath::Clamp(Phase, 0, 3);
+	if (ASC && CurrentPhase > 0)
+	{
+		const FGameplayTag PhaseTag = FGameplayTag::RequestGameplayTag(
+			FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), CurrentPhase)), false);
+		if (PhaseTag.IsValid())
+		{
+			ASC->SetLooseGameplayTagCount(PhaseTag, 1);
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] RestorePhase Phase=%d Owner=%s"),
+		CurrentPhase, *GetNameSafe(GetOwner()));
 	RefreshAllActivations();
 	BroadcastHeatUI(0.f);
 }
@@ -692,6 +728,28 @@ void UBackpackGridComponent::RestorePlacedRunes(const TArray<FPlacedRune>& Saved
 		}
 	}
 
+	if (UAbilitySystemComponent* ASC = GetOwner()->FindComponentByClass<UAbilitySystemComponent>())
+	{
+		const ERuneTriggerType TriggerTypes[] =
+		{
+			ERuneTriggerType::OnAttackHit,
+			ERuneTriggerType::OnDash,
+			ERuneTriggerType::OnKill,
+			ERuneTriggerType::OnCritHit,
+			ERuneTriggerType::OnDamageReceived
+		};
+		for (const TPair<FGuid, FDelegateHandle>& Pair : TriggeredRuneListeners)
+		{
+			for (const ERuneTriggerType TriggerType : TriggerTypes)
+			{
+				const FGameplayTag EventTag = GetEventTagForTriggerType(TriggerType);
+				if (EventTag.IsValid())
+				{
+					ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag).Remove(Pair.Value);
+				}
+			}
+		}
+	}
 	TriggeredRuneListeners.Empty();
 	PlacedRunes.Reset();
 	GridOccupancy.Init(-1, GridWidth * GridHeight);
@@ -748,6 +806,23 @@ void UBackpackGridComponent::RestorePlacedRunes(const TArray<FPlacedRune>& Saved
 		{
 			GridOccupancy[CellToIndex(Cell)] = NewIndex;
 		}
+
+		const FString RuneName = Restored.Rune.RuneConfig.RuneName.IsNone()
+			? GetNameSafe(Restored.Rune.SourceDA)
+			: Restored.Rune.RuneConfig.RuneName.ToString();
+		UE_LOG(LogTemp, Warning, TEXT("[PlayerRune] Restored Owner=%s Source=%s Rune=%s Guid=%s DA=%s Flow=%s Trigger=%d Phase=%d Permanent=%d InZone=%d Pivot=(%d,%d)"),
+			*GetNameSafe(GetOwner()),
+			SourceLabel,
+			*RuneName,
+			*Restored.Rune.RuneGuid.ToString(),
+			*GetNameSafe(Restored.Rune.SourceDA),
+			*GetNameSafe(Restored.Rune.Flow.FlowAsset),
+			static_cast<int32>(Restored.Rune.RuneConfig.TriggerType),
+			CurrentPhase,
+			Restored.bIsPermanent ? 1 : 0,
+			IsRuneInActivationZone(Restored) ? 1 : 0,
+			Restored.Pivot.X,
+			Restored.Pivot.Y);
 	};
 
 	for (const FPlacedRune& Permanent : ExistingPermanentRunes)
@@ -858,7 +933,19 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 	if (Placed.bIsActivated)
 		return;
 
-	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] ActivateRune: %s"), *Placed.Rune.RuneConfig.RuneName.ToString());
+	const FString RuneName = Placed.Rune.RuneConfig.RuneName.IsNone()
+		? GetNameSafe(Placed.Rune.SourceDA)
+		: Placed.Rune.RuneConfig.RuneName.ToString();
+	UE_LOG(LogTemp, Warning, TEXT("[PlayerRune] Activate Owner=%s Rune=%s Guid=%s DA=%s Flow=%s Trigger=%d Phase=%d Permanent=%d InZone=%d"),
+		*GetNameSafe(GetOwner()),
+		*RuneName,
+		*Placed.Rune.RuneGuid.ToString(),
+		*GetNameSafe(Placed.Rune.SourceDA),
+		*GetNameSafe(Placed.Rune.Flow.FlowAsset),
+		static_cast<int32>(Placed.Rune.RuneConfig.TriggerType),
+		CurrentPhase,
+		Placed.bIsPermanent ? 1 : 0,
+		IsRuneInActivationZone(Placed) ? 1 : 0);
 
 	// Shape 空检查：没有 Cells 时符文仍可激活，但无法参与背包格子系统
 	if (Placed.Rune.Shape.Cells.IsEmpty())
@@ -890,7 +977,11 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 			UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune FAILED: BuffFlowComponent not found on %s"), *GetOwner()->GetName());
 			return;
 		}
-		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] StartBuffFlow (Passive) -> Rune: %s"), *Placed.Rune.RuneConfig.RuneName.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[PlayerRune] StartPassive Owner=%s Rune=%s Guid=%s Flow=%s"),
+			*GetNameSafe(GetOwner()),
+			*RuneName,
+			*Placed.Rune.RuneGuid.ToString(),
+			*GetNameSafe(Placed.Rune.Flow.FlowAsset));
 		BFC->StartBuffFlow(Placed.Rune.Flow.FlowAsset, Placed.Rune.RuneGuid, GetOwner());
 	}
 	else
@@ -911,12 +1002,35 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 		}
 
 		const FGuid RuneGuid          = Placed.Rune.RuneGuid;
+		if (FDelegateHandle* ExistingHandle = TriggeredRuneListeners.Find(RuneGuid))
+		{
+			const ERuneTriggerType TriggerTypes[] =
+			{
+				ERuneTriggerType::OnAttackHit,
+				ERuneTriggerType::OnDash,
+				ERuneTriggerType::OnKill,
+				ERuneTriggerType::OnCritHit,
+				ERuneTriggerType::OnDamageReceived
+			};
+			for (const ERuneTriggerType ExistingTriggerType : TriggerTypes)
+			{
+				const FGameplayTag ExistingEventTag = GetEventTagForTriggerType(ExistingTriggerType);
+				if (ExistingEventTag.IsValid())
+				{
+					ASC->GenericGameplayEventCallbacks.FindOrAdd(ExistingEventTag).Remove(*ExistingHandle);
+				}
+			}
+			TriggeredRuneListeners.Remove(RuneGuid);
+		}
+
 		// 用 operator= 而非拷贝构造，绕开 UE5.4 TWeakObjectPtr 构造模板的 SFINAE 推导问题
 		TWeakObjectPtr<UFlowAsset> WeakFA;
 		WeakFA = static_cast<UFlowAsset*>(Placed.Rune.Flow.FlowAsset);
 
+		const FString CapturedRuneName = RuneName;
+		const FString CapturedFlowName = GetNameSafe(Placed.Rune.Flow.FlowAsset);
 		FDelegateHandle Handle = ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag)
-			.AddWeakLambda(this, [this, RuneGuid, WeakFA, EventTag](const FGameplayEventData* Payload)
+			.AddWeakLambda(this, [this, RuneGuid, WeakFA, EventTag, CapturedRuneName, CapturedFlowName](const FGameplayEventData* Payload)
 			{
 				UFlowAsset* FA = WeakFA.Get();
 				if (!FA || !Payload) return;
@@ -935,14 +1049,26 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 				BFC->LastEventContext.DamageReceiver = TargetActor;
 				BFC->LastEventContext.DamageAmount = Payload->EventMagnitude;
 
-				UE_LOG(LogTemp, Verbose, TEXT("[BackpackGrid] TriggeredRune event fired: Rune=%s Event=%s Target=%s Magnitude=%.2f"),
-					*RuneGuid.ToString(), *EffectiveEventTag.ToString(), *GetNameSafe(TargetActor), Payload->EventMagnitude);
-				BFC->StartBuffFlow(FA, FGuid::NewGuid(), GiverActor);
+				UE_LOG(LogTemp, Warning, TEXT("[PlayerRune] EventFired Owner=%s Rune=%s Guid=%s Flow=%s Event=%s Instigator=%s Target=%s Magnitude=%.2f"),
+					*GetNameSafe(GiverActor),
+					*CapturedRuneName,
+					*RuneGuid.ToString(),
+					*CapturedFlowName,
+					*EffectiveEventTag.ToString(),
+					*GetNameSafe(InstigatorActor),
+					*GetNameSafe(TargetActor),
+					Payload->EventMagnitude);
+				BFC->StartBuffFlow(FA, FGuid::NewGuid(), GiverActor, true);
 			});
 
 		TriggeredRuneListeners.Add(RuneGuid, Handle);
-		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Registered listener (TriggerType=%d) for Rune: %s"),
-			static_cast<int32>(TriggerType), *Placed.Rune.RuneConfig.RuneName.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[PlayerRune] Registered Owner=%s Rune=%s Guid=%s Flow=%s Trigger=%d Event=%s"),
+			*GetNameSafe(GetOwner()),
+			*RuneName,
+			*Placed.Rune.RuneGuid.ToString(),
+			*GetNameSafe(Placed.Rune.Flow.FlowAsset),
+			static_cast<int32>(TriggerType),
+			*EventTag.ToString());
 	}
 
 	Placed.bIsActivated = true;
@@ -953,6 +1079,17 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 {
 	if (!Placed.bIsActivated)
 		return;
+
+	const FString RuneName = Placed.Rune.RuneConfig.RuneName.IsNone()
+		? GetNameSafe(Placed.Rune.SourceDA)
+		: Placed.Rune.RuneConfig.RuneName.ToString();
+	UE_LOG(LogTemp, Warning, TEXT("[PlayerRune] Deactivate Owner=%s Rune=%s Guid=%s Flow=%s Trigger=%d Phase=%d"),
+		*GetNameSafe(GetOwner()),
+		*RuneName,
+		*Placed.Rune.RuneGuid.ToString(),
+		*GetNameSafe(Placed.Rune.Flow.FlowAsset),
+		static_cast<int32>(Placed.Rune.RuneConfig.TriggerType),
+		CurrentPhase);
 
 	if (Placed.Rune.Flow.FlowAsset)
 	{

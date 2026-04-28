@@ -561,7 +561,10 @@ void UBackpackScreenWidget::NativeOnActivated()
 
     if (APlayerController* PC = GetOwningPlayer())
         if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+        {
             HUD->BeginPauseEffect();
+            HUD->PushMajorUI();
+        }
 
     if (APlayerController* PC = GetOwningPlayer())
     {
@@ -694,7 +697,10 @@ void UBackpackScreenWidget::NativeOnDeactivated()
 
     if (APlayerController* PC = GetOwningPlayer())
         if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+        {
             HUD->EndPauseEffect();
+            HUD->PopMajorUI();
+        }
 
     Super::NativeOnDeactivated();
 

@@ -918,36 +918,105 @@ static FGameplayTag GetEnemyRuneEventTagForTriggerType(ERuneTriggerType Type)
 	}
 }
 
-static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA)
+static const TCHAR* GetEnemyRuneTriggerName(ERuneTriggerType Type)
 {
-	if (!Enemy || !RuneDA || !RuneDA->RuneInfo.Flow.FlowAsset)
-		return;
+	switch (Type)
+	{
+	case ERuneTriggerType::Passive:          return TEXT("Passive");
+	case ERuneTriggerType::OnAttackHit:      return TEXT("OnAttackHit");
+	case ERuneTriggerType::OnDash:           return TEXT("OnDash");
+	case ERuneTriggerType::OnKill:           return TEXT("OnKill");
+	case ERuneTriggerType::OnCritHit:        return TEXT("OnCritHit");
+	case ERuneTriggerType::OnDamageReceived: return TEXT("OnDamageReceived");
+	default:                                  return TEXT("Unknown");
+	}
+}
 
-	UBuffFlowComponent* BFC = Enemy->BuffFlowComponent;
-	if (!BFC)
+static FString GetEnemyRuneDebugName(const URuneDataAsset* RuneDA)
+{
+	if (!RuneDA)
+		return TEXT("None");
+
+	const FName RuneName = RuneDA->RuneInfo.RuneConfig.RuneName;
+	return RuneName.IsNone() ? GetNameSafe(RuneDA) : RuneName.ToString();
+}
+
+static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA, const TCHAR* Source)
+{
+	if (!Enemy)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Skip: Enemy=null Source=%s"), Source);
 		return;
+	}
+
+	if (!RuneDA)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[EnemyRune] Skip: Rune=null Enemy=%s Source=%s"),
+			*GetNameSafe(Enemy), Source);
+		return;
+	}
 
 	UFlowAsset* FlowAsset = RuneDA->RuneInfo.Flow.FlowAsset;
 	const ERuneTriggerType TriggerType = RuneDA->RuneInfo.RuneConfig.TriggerType;
+	const FString RuneDebugName = GetEnemyRuneDebugName(RuneDA);
+
+	if (!FlowAsset)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Skip: Missing Flow Enemy=%s Source=%s Rune=%s DA=%s Trigger=%s"),
+			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(RuneDA), GetEnemyRuneTriggerName(TriggerType));
+		return;
+	}
+
+	UBuffFlowComponent* BFC = Enemy->BuffFlowComponent;
+	if (!BFC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Skip: Missing BuffFlowComponent Enemy=%s Source=%s Rune=%s DA=%s Flow=%s Trigger=%s"),
+			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(RuneDA), *GetNameSafe(FlowAsset), GetEnemyRuneTriggerName(TriggerType));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Granted Enemy=%s Source=%s Rune=%s DA=%s Flow=%s Trigger=%s"),
+		*GetNameSafe(Enemy),
+		Source,
+		*RuneDebugName,
+		*GetNameSafe(RuneDA),
+		*GetNameSafe(FlowAsset),
+		GetEnemyRuneTriggerName(TriggerType));
+
 	if (TriggerType == ERuneTriggerType::Passive)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] StartPassive Enemy=%s Source=%s Rune=%s Flow=%s"),
+			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(FlowAsset));
 		BFC->StartBuffFlow(FlowAsset, FGuid::NewGuid(), Enemy);
 		return;
 	}
 
 	UAbilitySystemComponent* ASC = Enemy->FindComponentByClass<UAbilitySystemComponent>();
 	if (!ASC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Skip: Missing ASC Enemy=%s Source=%s Rune=%s Flow=%s Trigger=%s"),
+			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(FlowAsset), GetEnemyRuneTriggerName(TriggerType));
 		return;
+	}
 
 	const FGameplayTag EventTag = GetEnemyRuneEventTagForTriggerType(TriggerType);
 	if (!EventTag.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Skip: Invalid EventTag Enemy=%s Source=%s Rune=%s Flow=%s Trigger=%s"),
+			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(FlowAsset), GetEnemyRuneTriggerName(TriggerType));
 		return;
+	}
 
 	TWeakObjectPtr<AEnemyCharacterBase> WeakEnemy = Enemy;
 	TWeakObjectPtr<UBuffFlowComponent> WeakBFC = BFC;
 	TWeakObjectPtr<UFlowAsset> WeakFlowAsset = FlowAsset;
+	const FString CapturedRuneName = RuneDebugName;
+	const FString CapturedRuneDAName = GetNameSafe(RuneDA);
+	const FString CapturedFlowName = GetNameSafe(FlowAsset);
+	const FString CapturedSource = Source;
+	const FString CapturedTriggerName = GetEnemyRuneTriggerName(TriggerType);
 	ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag)
-		.AddWeakLambda(BFC, [WeakEnemy, WeakBFC, WeakFlowAsset, EventTag](const FGameplayEventData* Payload)
+		.AddWeakLambda(BFC, [WeakEnemy, WeakBFC, WeakFlowAsset, EventTag, CapturedRuneName, CapturedRuneDAName, CapturedFlowName, CapturedSource, CapturedTriggerName](const FGameplayEventData* Payload)
 		{
 			AEnemyCharacterBase* CapturedEnemy = WeakEnemy.Get();
 			UBuffFlowComponent* CapturedBFC = WeakBFC.Get();
@@ -964,14 +1033,30 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 			CapturedBFC->LastEventContext.DamageCauser = InstigatorActor ? InstigatorActor : CapturedEnemy;
 			CapturedBFC->LastEventContext.DamageReceiver = TargetActor ? TargetActor : CapturedEnemy;
 			CapturedBFC->LastEventContext.DamageAmount = Payload ? Payload->EventMagnitude : 0.f;
-			CapturedBFC->StartBuffFlow(CapturedFlow, FGuid::NewGuid(), CapturedEnemy);
+
+			UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] EventFired Enemy=%s Source=%s Rune=%s DA=%s Flow=%s Trigger=%s Event=%s Instigator=%s Target=%s Magnitude=%.2f"),
+				*GetNameSafe(CapturedEnemy),
+				*CapturedSource,
+				*CapturedRuneName,
+				*CapturedRuneDAName,
+				*CapturedFlowName,
+				*CapturedTriggerName,
+				*EffectiveEventTag.ToString(),
+				*GetNameSafe(InstigatorActor),
+				*GetNameSafe(TargetActor),
+				Payload ? Payload->EventMagnitude : 0.f);
+
+			CapturedBFC->StartBuffFlow(CapturedFlow, FGuid::NewGuid(), CapturedEnemy, true);
 		});
 
-	UE_LOG(LogTemp, Log, TEXT("[EnemyRune] Registered listener TriggerType=%d Event=%s Rune=%s Enemy=%s"),
-		static_cast<int32>(TriggerType),
-		*EventTag.ToString(),
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Registered Enemy=%s Source=%s Rune=%s DA=%s Flow=%s Trigger=%s Event=%s"),
+		*GetNameSafe(Enemy),
+		Source,
+		*RuneDebugName,
 		*GetNameSafe(RuneDA),
-		*GetNameSafe(Enemy));
+		*GetNameSafe(FlowAsset),
+		GetEnemyRuneTriggerName(TriggerType),
+		*EventTag.ToString());
 }
 
 // 辅助：计算关卡 Buff 对每只怪的额外扣分（所有激活关卡 Buff 的 DifficultyScore 之和）
@@ -1203,13 +1288,20 @@ void AYogGameMode::SpawnNextOneByOne()
 		return;
 	}
 
-	BeginSpawnEnemyFromPool(OneByOneSpawnQueue[OneByOneSpawnIndex]);
+	const bool bSpawned = BeginSpawnEnemyFromPool(OneByOneSpawnQueue[OneByOneSpawnIndex]);
 	OneByOneSpawnIndex++;
 
 	if (OneByOneSpawnIndex >= OneByOneSpawnQueue.Num())
 	{
 		// 队列已空，设置触发条件，不再重新调度
 		SetupWaveTrigger(Wave);
+		return;
+	}
+
+	// 找不到 Spawner 时立即处理下一只，不浪费等待时间
+	if (!bSpawned)
+	{
+		SpawnNextOneByOne();
 		return;
 	}
 
@@ -1363,13 +1455,13 @@ void AYogGameMode::FallbackToPreplacedEnemies()
 
 				for (const FBuffEntry& Entry : ActiveRoomBuffs)
 				{
-					ActivateEnemyRune(Enemy, Entry.RuneDA.Get());
+					ActivateEnemyRune(Enemy, Entry.RuneDA.Get(), TEXT("RoomBuff.Preplaced"));
 				}
 				if (UCharacterDataComponent* CDC = Enemy->GetCharacterDataComponent())
 				{
 					if (UEnemyData* ED = Cast<UEnemyData>(CDC->GetCharacterData()))
 					{
-						ActivateEnemyRune(Enemy, PickEnemyBuff(ED));
+						ActivateEnemyRune(Enemy, PickEnemyBuff(ED), TEXT("EnemyBuff.Preplaced"));
 					}
 				}
 			}
@@ -1391,7 +1483,12 @@ void AYogGameMode::FallbackToPreplacedEnemies()
 
 void AYogGameMode::CheckLevelComplete()
 {
-	if (!bAllWavesSpawned || TotalAliveEnemies > 0 || PendingSpawnCount > 0) return;
+	if (!bAllWavesSpawned || TotalAliveEnemies > 0 || PendingSpawnCount > 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CheckLevelComplete] 未通过: bAllWavesSpawned=%s TotalAlive=%d PendingSpawn=%d"),
+			bAllWavesSpawned ? TEXT("true") : TEXT("false"), TotalAliveEnemies, PendingSpawnCount);
+		return;
+	}
 
 	// 最后一波可能有按需补刷剩余，先补刷，待全部死亡后再结算
 	if (WavePlans.IsValidIndex(CurrentWaveIndex))
@@ -1452,19 +1549,19 @@ bool AYogGameMode::SpawnEnemyFromPool(const FPlannedEnemy& Planned)
 			// 施加关卡 Buff（进关时选好的，对所有怪生效）
 			for (const FBuffEntry& Entry : ActiveRoomBuffs)
 			{
-				ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get());
+				ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get(), TEXT("RoomBuff.Spawn"));
 			}
 			// 施加敌人专属 Buff（BuildWavePlan 时选好的，只对此只怪生效）
-			ActivateEnemyRune(SpawnedEnemy, Planned.SelectedEnemyBuff);
+			ActivateEnemyRune(SpawnedEnemy, Planned.SelectedEnemyBuff, TEXT("EnemyBuff.Spawn"));
 		}
 		return SpawnedEnemy != nullptr;
 	}
 	return false;
 }
 
-void AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
+bool AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 {
-	if (!Planned.EnemyClass) return;
+	if (!Planned.EnemyClass) return false;
 
 	TArray<AActor*> OutActors;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), OutActors);
@@ -1477,13 +1574,13 @@ void AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 
 	if (ValidSpawners.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("BeginSpawnEnemyFromPool: 没有 Spawner 支持 %s"), *Planned.EnemyClass->GetName());
-		return;
+		UE_LOG(LogTemp, Warning, TEXT("BeginSpawnEnemyFromPool: 没有 Spawner 支持 %s，跳过"), *Planned.EnemyClass->GetName());
+		return false;
 	}
 
 	AMobSpawner* Spawner = ValidSpawners[FMath::RandRange(0, ValidSpawners.Num() - 1)];
 	FVector Location = Spawner->PrepareSpawnLocation();
-	if (Location == FVector::ZeroVector) return;
+	if (Location == FVector::ZeroVector) return false;
 
 	const float FXDuration = FMath::Max(0.f,
 		Planned.PreSpawnFXDuration + FMath::FRandRange(-Spawner->SpawnFXVariance, Spawner->SpawnFXVariance));
@@ -1500,7 +1597,7 @@ void AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 	if (FXDuration <= 0.f)
 	{
 		FinishSpawnFromPool(Planned, WeakSpawner, Location, WaveIdx);
-		return;
+		return true;
 	}
 
 	FTimerHandle SpawnHandle;
@@ -1511,6 +1608,7 @@ void AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 				WeakThis->FinishSpawnFromPool(Planned, WeakSpawner, Location, WaveIdx);
 		}),
 		FXDuration, false);
+	return true;
 }
 
 void AYogGameMode::FinishSpawnFromPool(FPlannedEnemy Planned,
@@ -1529,9 +1627,9 @@ void AYogGameMode::FinishSpawnFromPool(FPlannedEnemy Planned,
 	{
 		for (const FBuffEntry& Entry : ActiveRoomBuffs)
 		{
-			ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get());
+			ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get(), TEXT("RoomBuff.DelayedSpawn"));
 		}
-		ActivateEnemyRune(SpawnedEnemy, Planned.SelectedEnemyBuff);
+		ActivateEnemyRune(SpawnedEnemy, Planned.SelectedEnemyBuff, TEXT("EnemyBuff.DelayedSpawn"));
 
 		if (WavePlans.IsValidIndex(WaveIdx))
 			WavePlans[WaveIdx].TotalSpawnedInWave++;
@@ -1550,7 +1648,13 @@ TArray<FBuffEntry> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int
 {
 	TArray<FBuffEntry> Selected;
 	if (Room.BuffPool.IsEmpty() || BuffCount <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RoomBuff] Select none Room=%s BuffCount=%d Pool=%d"),
+			*GetNameSafe(&Room),
+			BuffCount,
+			Room.BuffPool.Num());
 		return Selected;
+	}
 
 	// 复制池子并洗牌（Fisher-Yates）
 	TArray<FBuffEntry> Pool = Room.BuffPool;
@@ -1563,8 +1667,29 @@ TArray<FBuffEntry> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int
 	const int32 Count = FMath::Min(BuffCount, Pool.Num());
 	for (int32 i = 0; i < Count; i++)
 	{
-		if (Pool[i].RuneDA) Selected.Add(Pool[i]);
+		if (Pool[i].RuneDA)
+		{
+			Selected.Add(Pool[i]);
+			UE_LOG(LogTemp, Warning, TEXT("[RoomBuff] Selected Room=%s Index=%d Rune=%s DA=%s Cost=%d"),
+				*GetNameSafe(&Room),
+				i,
+				*GetEnemyRuneDebugName(Pool[i].RuneDA.Get()),
+				*GetNameSafe(Pool[i].RuneDA.Get()),
+				Pool[i].DifficultyScore);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[RoomBuff] Selected null Room=%s Index=%d"),
+				*GetNameSafe(&Room),
+				i);
+		}
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[RoomBuff] Select result Room=%s Requested=%d Selected=%d Pool=%d"),
+		*GetNameSafe(&Room),
+		BuffCount,
+		Selected.Num(),
+		Room.BuffPool.Num());
 
 	return Selected;
 }

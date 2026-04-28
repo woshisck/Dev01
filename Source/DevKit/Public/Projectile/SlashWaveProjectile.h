@@ -40,6 +40,9 @@ public:
 	void InitProjectile(ACharacter* InSource, float InDamage,
 	                    TSubclassOf<UGameplayEffect> InDamageEffect);
 
+	UFUNCTION(BlueprintCallable, Category = "SlashWave")
+	void ApplyImmediateHit(AActor* Target);
+
 protected:
 	virtual void BeginPlay() override;
 

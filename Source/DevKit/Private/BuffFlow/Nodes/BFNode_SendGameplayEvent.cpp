@@ -1,6 +1,8 @@
 #include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
+
 #include "AbilitySystemComponent.h"
 #include "Types/FlowDataPinResults.h"
+#include "FlowTypes.h"
 
 UBFNode_SendGameplayEvent::UBFNode_SendGameplayEvent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -13,9 +15,13 @@ UBFNode_SendGameplayEvent::UBFNode_SendGameplayEvent(const FObjectInitializer& O
 
 void UBFNode_SendGameplayEvent::ExecuteInput(const FName& PinName)
 {
+	// 快速连击会导致同一 Flow 被重新启动（Abort 旧实例），此时节点不再 Active，直接退出
+	if (GetActivationState() != EFlowNodeState::Active)
+		return;
+
 	if (!EventTag.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[BFNode_SendGameplayEvent] Failed: EventTag 无效"));
+		UE_LOG(LogTemp, Warning, TEXT("[BFNode_SendGameplayEvent] Failed: invalid EventTag"));
 		TriggerOutput(TEXT("Failed"), true);
 		return;
 	}
@@ -23,7 +29,7 @@ void UBFNode_SendGameplayEvent::ExecuteInput(const FName& PinName)
 	AActor* TargetActor = ResolveTarget(Target);
 	if (!TargetActor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[BFNode_SendGameplayEvent] Failed: Target(%s) 解析为 null，LastDamageTarget 可能未设置"),
+		UE_LOG(LogTemp, Warning, TEXT("[BFNode_SendGameplayEvent] Failed: Target resolved null for %s"),
 			*EventTag.ToString());
 		TriggerOutput(TEXT("Failed"), true);
 		return;
@@ -32,19 +38,25 @@ void UBFNode_SendGameplayEvent::ExecuteInput(const FName& PinName)
 	UAbilitySystemComponent* TargetASC = TargetActor->FindComponentByClass<UAbilitySystemComponent>();
 	if (!TargetASC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[BFNode_SendGameplayEvent] Failed: Target(%s) 没有 ASC 组件"),
-			*TargetActor->GetName());
+		UE_LOG(LogTemp, Warning, TEXT("[BFNode_SendGameplayEvent] Failed: Target(%s) has no ASC"),
+			*GetNameSafe(TargetActor));
 		TriggerOutput(TEXT("Failed"), true);
 		return;
 	}
 
 	AActor* InstigatorActor = ResolveTarget(Instigator);
-	UE_LOG(LogTemp, Warning, TEXT("[BFNode_SendGameplayEvent] 发送事件 Tag=%s → Target=%s | Instigator=%s"),
-		*EventTag.ToString(),
-		*TargetActor->GetName(),
-		InstigatorActor ? *InstigatorActor->GetName() : TEXT("NULL"));
+	AActor* PayloadTargetActor = ResolveTarget(PayloadTarget);
+	if (!PayloadTargetActor)
+	{
+		PayloadTargetActor = TargetActor;
+	}
 
-	// Magnitude：优先读取连入的数据引脚，无连线则使用节点上的固定值
+	UE_LOG(LogTemp, Warning, TEXT("[BFNode_SendGameplayEvent] Send Event Tag=%s -> Receiver=%s | PayloadTarget=%s | Instigator=%s"),
+		*EventTag.ToString(),
+		*GetNameSafe(TargetActor),
+		*GetNameSafe(PayloadTargetActor),
+		*GetNameSafe(InstigatorActor));
+
 	float ResolvedMagnitude = Magnitude.Value;
 	FFlowDataPinResult_Float PinResult = TryResolveDataPinAsFloat(
 		GET_MEMBER_NAME_CHECKED(UBFNode_SendGameplayEvent, Magnitude));
@@ -54,14 +66,12 @@ void UBFNode_SendGameplayEvent::ExecuteInput(const FName& PinName)
 	}
 
 	FGameplayEventData EventData;
-	EventData.EventTag        = EventTag;
-	EventData.Instigator      = InstigatorActor;
-	EventData.Target          = TargetActor;
-	EventData.EventMagnitude  = ResolvedMagnitude;
+	EventData.EventTag = EventTag;
+	EventData.Instigator = InstigatorActor;
+	EventData.Target = PayloadTargetActor;
+	EventData.EventMagnitude = ResolvedMagnitude;
 
-	// 直接调用已找到的 ASC，避免 SendGameplayEventToActor 内部再次通过
-	// IAbilitySystemInterface 查找 ASC（若目标未实现该接口会悄悄返回 0）
-	TargetASC->HandleGameplayEvent(EventTag, &EventData);
-
+	// Finish this node before dispatching, because the event can synchronously restart this Flow.
 	TriggerOutput(TEXT("Out"), true);
+	TargetASC->HandleGameplayEvent(EventTag, &EventData);
 }

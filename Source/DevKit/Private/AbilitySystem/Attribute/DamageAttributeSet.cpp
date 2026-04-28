@@ -111,8 +111,22 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				if (CurrentArmor > 0.f)
 				{
 					const float ArmorAbsorbed = FMath::Min(LocalDamageDone, CurrentArmor);
-					TargetCharacter->BaseAttributeSet->SetArmorHP(FMath::Max(0.f, CurrentArmor - ArmorAbsorbed));
+					const float NewArmor = FMath::Max(0.f, CurrentArmor - ArmorAbsorbed);
+					if (UAbilitySystemComponent* ArmorASC = Data.Target.AbilityActorInfo->AbilitySystemComponent.Get())
+					{
+						ArmorASC->SetNumericAttributeBase(UBaseAttributeSet::GetArmorHPAttribute(), NewArmor);
+					}
+					else
+					{
+						TargetCharacter->BaseAttributeSet->SetArmorHP(NewArmor);
+					}
 					HealthDamage = LocalDamageDone - ArmorAbsorbed;
+					UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Armor] Absorb Target=%s Damage=%.1f Armor %.1f -> %.1f HealthDamage=%.1f"),
+						*GetNameSafe(TargetCharacter),
+						LocalDamageDone,
+						CurrentArmor,
+						NewArmor,
+						HealthDamage);
 				}
 			}
 
@@ -232,8 +246,22 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				if (CurrentArmor > 0.f)
 				{
 					const float ArmorAbsorbed = FMath::Min(LocalDamageDone, CurrentArmor);
-					TargetCharacter->BaseAttributeSet->SetArmorHP(FMath::Max(0.f, CurrentArmor - ArmorAbsorbed));
+					const float NewArmor = FMath::Max(0.f, CurrentArmor - ArmorAbsorbed);
+					if (UAbilitySystemComponent* ArmorASC = Data.Target.AbilityActorInfo->AbilitySystemComponent.Get())
+					{
+						ArmorASC->SetNumericAttributeBase(UBaseAttributeSet::GetArmorHPAttribute(), NewArmor);
+					}
+					else
+					{
+						TargetCharacter->BaseAttributeSet->SetArmorHP(NewArmor);
+					}
 					HealthDamage = LocalDamageDone - ArmorAbsorbed;
+					UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Armor] Absorb Target=%s Damage=%.1f Armor %.1f -> %.1f HealthDamage=%.1f"),
+						*GetNameSafe(TargetCharacter),
+						LocalDamageDone,
+						CurrentArmor,
+						NewArmor,
+						HealthDamage);
 				}
 			}
 

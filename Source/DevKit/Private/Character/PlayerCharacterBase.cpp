@@ -100,25 +100,26 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		BackpackGridComponent->OnGoldChanged.Broadcast(BackpackGridComponent->Gold);
 	}
 
-	// 恢复符文（仅非永久符文；永久符文由 BackpackGridComponent::BeginPlay 自动放置）
+	// 恢复整理阶段已选但尚未放置的符文
+	PendingRunes = State.PendingRunes;
+
+	// 先恢复武器，让背包尺寸/激活区配置稳定后，再统一恢复符文效果和监听。
+	if (State.EquippedWeaponDef)
+	{
+		State.EquippedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
+		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE Weapon - %s"), *State.EquippedWeaponDef->GetName());
+	}
+
 	if (BackpackGridComponent)
 	{
-		for (const FPlacedRune& PR : State.PlacedRunes)
-		{
-			if (!PR.bIsPermanent)
-			{
-				BackpackGridComponent->TryPlaceRune(PR.Rune, PR.Pivot);
-			}
-		}
-
-		// 恢复热度阶段 + 热度绝对值
+		BackpackGridComponent->RestorePlacedRunes(State.PlacedRunes);
 		BackpackGridComponent->RestorePhase(State.CurrentPhase);
+
 		if (UAbilitySystemComponent* HeatASC = GetAbilitySystemComponent())
 		{
 			const float MaxHeat = HeatASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
 			float HeatToSet = State.CurrentHeat;
 
-			// 两阶符文：CurrentHeat = MaxHeat*2，先升阶一次再取余
 			if (HeatToSet > MaxHeat && MaxHeat > KINDA_SMALL_NUMBER)
 			{
 				BackpackGridComponent->IncrementPhase();
@@ -129,25 +130,6 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 			HeatASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), HeatToSet);
 			BackpackGridComponent->OnHeatValueChanged(HeatToSet);
 		}
-	}
-
-	// 恢复整理阶段已选但尚未放置的符文
-	PendingRunes = State.PendingRunes;
-
-	if (!State.EquippedWeaponDef && BackpackGridComponent)
-	{
-		BackpackGridComponent->RestorePlacedRunes(State.PlacedRunes);
-	}
-
-	// 恢复武器装备
-	if (State.EquippedWeaponDef)
-	{
-		State.EquippedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
-		if (BackpackGridComponent)
-		{
-			BackpackGridComponent->RestorePlacedRunes(State.PlacedRunes);
-		}
-		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE Weapon — %s"), *State.EquippedWeaponDef->GetName());
 	}
 
 	// 恢复献祭恩赐

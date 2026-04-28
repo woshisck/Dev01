@@ -26,7 +26,7 @@ void UBuffFlowComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void UBuffFlowComponent::StartBuffFlow(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver)
+void UBuffFlowComponent::StartBuffFlow(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow)
 {
 	if (!FlowAsset)
 	{
@@ -40,6 +40,32 @@ void UBuffFlowComponent::StartBuffFlow(UFlowAsset* FlowAsset, FGuid RuneGuid, AA
 	{
 		UE_LOG(LogTemp, Warning, TEXT("BuffFlowComponent: FlowSubsystem not found"));
 		return;
+	}
+
+	TArray<FGuid> ExistingSameFlowGuids;
+	for (const TPair<FGuid, TWeakObjectPtr<UFlowAsset>>& Pair : ActiveRuneFlows)
+	{
+		if (Pair.Value.Get() == FlowAsset)
+		{
+			ExistingSameFlowGuids.Add(Pair.Key);
+		}
+	}
+
+	if (!ExistingSameFlowGuids.IsEmpty())
+	{
+		if (!bRestartExistingFlow)
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("BuffFlow skipped duplicate Flow=%s Owner=%s Rune=%s"),
+				*GetNameSafe(FlowAsset), *GetNameSafe(GetOwner()), *RuneGuid.ToString());
+			return;
+		}
+
+		FlowSubsystem->FinishRootFlow(this, FlowAsset, EFlowFinishPolicy::Abort);
+		for (const FGuid& ExistingGuid : ExistingSameFlowGuids)
+		{
+			ActiveRuneFlows.Remove(ExistingGuid);
+			OnBuffFlowStopped.Broadcast(ExistingGuid);
+		}
 	}
 
 	FlowSubsystem->StartRootFlow(this, FlowAsset, true);

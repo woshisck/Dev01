@@ -379,8 +379,22 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		SourceASC->DealtDamage.Broadcast(this, Damage);
 	}
 
-	if (!HitReactEventTag.IsValid() || !IsValid(GetAvatarActor()))
+	if (!IsValid(GetAvatarActor()))
 		return;
+
+	static const FGameplayTag DefaultHitReactEventTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact"), false);
+	const FGameplayTag EffectiveHitReactEventTag = HitReactEventTag.IsValid()
+		? HitReactEventTag
+		: DefaultHitReactEventTag;
+	if (!EffectiveHitReactEventTag.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HitReact] Skip: invalid HitReactEventTag Target=%s Configured=%s Default=%s"),
+			*GetNameSafe(GetAvatarActor()),
+			*HitReactEventTag.ToString(),
+			*DefaultHitReactEventTag.ToString());
+		return;
+	}
 
 	// =========================================================
 	// 韧性（Poise）比较：决定是否触发受击动画
@@ -395,18 +409,25 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	}
 
 	const float DefenderPoise = GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
-	const bool  bSuperArmor   = HasMatchingGameplayTag(
+	const bool bHasSuperArmorTag = HasMatchingGameplayTag(
 		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
+	const bool bBlockingSuperArmor = bPoiseSuperArmorActive;
 	bool bActivatedSuperArmor = false;
+	APawn* DefenderPawn = Cast<APawn>(GetAvatarActor());
+	const bool bEnemyDefender = DefenderPawn && !DefenderPawn->IsPlayerControlled();
 
-	UE_LOG(LogTemp, Log, TEXT("[Poise] Attacker=%.0f Defender=%.0f SuperArmor=%d"),
-		AttackerPoise, DefenderPoise, (int32)bSuperArmor);
+	UE_LOG(LogTemp, Warning, TEXT("[Poise] Target=%s Attacker=%.0f Defender=%.0f SuperArmorTag=%d BlockingSuperArmor=%d Enemy=%d"),
+		*GetNameSafe(GetAvatarActor()),
+		AttackerPoise,
+		DefenderPoise,
+		(int32)bHasSuperArmorTag,
+		(int32)bBlockingSuperArmor,
+		(int32)bEnemyDefender);
 
 	// =========================================================
 	// 霸体计数（仅非玩家）：连续受到真实伤害 → 进入霸体
 	// =========================================================
-	APawn* DefenderPawn = Cast<APawn>(GetAvatarActor());
-	if (DefenderPawn && !DefenderPawn->IsPlayerControlled() && !bSuperArmor)
+	if (bEnemyDefender && !bBlockingSuperArmor)
 	{
 		PoiseHitCount++;
 
@@ -422,6 +443,7 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		{
 			PoiseHitCount = 0;
 			bActivatedSuperArmor = true;
+			bPoiseSuperArmorActive = true;
 			// AddLooseGameplayTag 会触发 OnTagUpdated → 自动 StartSuperArmorFlash
 			AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
 			UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor ACTIVATED on %s (%.1fs)"),
@@ -434,9 +456,23 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		}
 	}
 
-	// 攻击方韧性 <= 防御方韧性，或防御方处于霸体：不触发受击
-	if (AttackerPoise <= DefenderPoise || bSuperArmor || bActivatedSuperArmor)
+	// Enemies only ignore hit reaction while C++ poise-triggered super armor is active.
+	// Passive rune tags such as Fearless may keep Buff.Status.SuperArmor for visuals,
+	// but they should not make the enemy permanently immune to hit reaction.
+	const bool bPoiseBlocksHitReact = !bEnemyDefender && AttackerPoise <= DefenderPoise;
+	if (bPoiseBlocksHitReact || bBlockingSuperArmor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Poise] SkipHitReact Target=%s AttackerPoise=%.0f DefenderPoise=%.0f Enemy=%d PoiseBlocked=%d SuperArmorTag=%d BlockingSuperArmor=%d ActivatedSuperArmorNow=%d"),
+			*GetNameSafe(GetAvatarActor()),
+			AttackerPoise,
+			DefenderPoise,
+			bEnemyDefender ? 1 : 0,
+			bPoiseBlocksHitReact ? 1 : 0,
+			bHasSuperArmorTag ? 1 : 0,
+			bBlockingSuperArmor ? 1 : 0,
+			bActivatedSuperArmor ? 1 : 0);
 		return;
+	}
 
 	// =========================================================
 	// 触发受击事件（Action.HitReact.Front / .Back 等子级）
@@ -445,7 +481,12 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	EventData.Instigator     = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
 	EventData.EventMagnitude = Damage;
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
-		GetAvatarActor(), HitReactEventTag, EventData);
+		GetAvatarActor(), EffectiveHitReactEventTag, EventData);
+	UE_LOG(LogTemp, Warning, TEXT("[HitReact] Sent Target=%s Event=%s Damage=%.1f Instigator=%s"),
+		*GetNameSafe(GetAvatarActor()),
+		*EffectiveHitReactEventTag.ToString(),
+		Damage,
+		*GetNameSafe(EventData.Instigator.Get()));
 }
 
 void UYogAbilitySystemComponent::OnPoiseResetTimerEnd()
@@ -503,6 +544,7 @@ void UYogAbilitySystemComponent::TriggerSuperArmorCounterAttack()
 
 void UYogAbilitySystemComponent::OnSuperArmorTimerEnd()
 {
+	bPoiseSuperArmorActive = false;
 	// RemoveLooseGameplayTag 会触发 OnTagUpdated → 自动 StopSuperArmorFlash
 	RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
 	UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor EXPIRED on %s"), *GetNameSafe(GetAvatarActor()));

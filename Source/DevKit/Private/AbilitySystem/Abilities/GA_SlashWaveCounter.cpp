@@ -72,9 +72,24 @@ void UGA_SlashWaveCounter::OnAttackEventReceived(FGameplayEventData Payload)
 		}
 	}
 
+	AActor* EventTarget = const_cast<AActor*>(Payload.Target.Get());
+	AActor* Owner = GetAvatarActorFromActorInfo();
+	if (EventTarget && EventTarget != Owner)
+	{
+		PendingSlashWaveInitialTarget = EventTarget;
+	}
+	else
+	{
+		PendingSlashWaveInitialTarget.Reset();
+	}
+
 	++CurrentCount;
 
-	UE_LOG(LogTemp, Verbose, TEXT("[GA_SlashWaveCounter] Count=%d/%d"), CurrentCount, HitsRequired);
+	UE_LOG(LogTemp, Warning, TEXT("[GA_SlashWaveCounter] Event Target=%s Instigator=%s Count=%d/%d"),
+		*GetNameSafe(EventTarget),
+		*GetNameSafe(Payload.Instigator.Get()),
+		CurrentCount,
+		HitsRequired);
 
 	if (CurrentCount >= HitsRequired)
 	{
@@ -88,12 +103,16 @@ void UGA_SlashWaveCounter::SpawnSlashWave()
 	if (!ProjectileClass)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GA_SlashWaveCounter] ProjectileClass 未配置，跳过生成"));
+		PendingSlashWaveInitialTarget.Reset();
 		return;
 	}
 
 	ACharacter* Owner = Cast<ACharacter>(GetAvatarActorFromActorInfo());
 	if (!Owner || !GetWorld())
+	{
+		PendingSlashWaveInitialTarget.Reset();
 		return;
+	}
 
 	// 在角色前方 SpawnOffset 处生成，旋转与角色一致（朝向由 ProjectileMovement 的初速度决定）
 	const FVector Forward  = Owner->GetActorForwardVector();
@@ -112,10 +131,14 @@ void UGA_SlashWaveCounter::SpawnSlashWave()
 	if (Projectile)
 	{
 		Projectile->InitProjectile(Owner, SlashDamage, SlashDamageEffect);
+		Projectile->ApplyImmediateHit(PendingSlashWaveInitialTarget.Get());
 
-		UE_LOG(LogTemp, Log, TEXT("[GA_SlashWaveCounter] SlashWave spawned at %s"),
-			*SpawnLoc.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[GA_SlashWaveCounter] SlashWave spawned at %s InitialTarget=%s"),
+			*SpawnLoc.ToString(),
+			*GetNameSafe(PendingSlashWaveInitialTarget.Get()));
 	}
+
+	PendingSlashWaveInitialTarget.Reset();
 }
 
 void UGA_SlashWaveCounter::EndAbility(
@@ -132,6 +155,7 @@ void UGA_SlashWaveCounter::EndAbility(
 	}
 
 	CurrentCount = 0;
+	PendingSlashWaveInitialTarget.Reset();
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

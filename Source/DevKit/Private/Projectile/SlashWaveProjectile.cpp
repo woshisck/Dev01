@@ -1,56 +1,46 @@
 #include "Projectile/SlashWaveProjectile.h"
 
-#include "Components/BoxComponent.h"
-#include "GameFramework/ProjectileMovementComponent.h"
-#include "GameFramework/Character.h"
-#include "AbilitySystemComponent.h"
+#include "AbilitySystem/Attribute/DamageAttributeSet.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
+#include "Components/BoxComponent.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 #include "GameplayEffect.h"
 #include "TimerManager.h"
-
-namespace
-{
-	FGameplayTag SlashActDamageTag()
-	{
-		return FGameplayTag::RequestGameplayTag(FName(TEXT("Attribute.ActDamage")));
-	}
-}
 
 ASlashWaveProjectile::ASlashWaveProjectile()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	// ── 碰撞体：扁平水平盒（刀光横截面），只与 Pawn 发生 Overlap ──
 	CollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
-	CollisionBox->InitBoxExtent(FVector(30.f, 60.f, 35.f)); // 前后30，左右60，高35
+	CollisionBox->InitBoxExtent(FVector(30.f, 60.f, 35.f));
 	CollisionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CollisionBox->SetCollisionObjectType(ECC_WorldDynamic);
 	CollisionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	CollisionBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	SetRootComponent(CollisionBox);
 
-	// ── 投射物移动：水平匀速，无重力，不弹射 ──────────────────────────────
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
-	ProjectileMovement->InitialSpeed             = 1400.f;
-	ProjectileMovement->MaxSpeed                 = 1400.f;
-	ProjectileMovement->ProjectileGravityScale   = 0.f;
-	ProjectileMovement->bShouldBounce            = false;
+	ProjectileMovement->InitialSpeed = 1400.f;
+	ProjectileMovement->MaxSpeed = 1400.f;
+	ProjectileMovement->ProjectileGravityScale = 0.f;
+	ProjectileMovement->bShouldBounce = false;
 	ProjectileMovement->bRotationFollowsVelocity = false;
 }
 
 void ASlashWaveProjectile::InitProjectile(ACharacter* InSource, float InDamage,
                                           TSubclassOf<UGameplayEffect> InDamageEffect)
 {
-	SourceCharacter   = InSource;
-	DamageMagnitude   = InDamage;
+	SourceCharacter = InSource;
+	DamageMagnitude = InDamage;
 	DamageEffectClass = InDamageEffect;
 
-	// 覆写默认速度（子类 BP 可在 Class Defaults 中调整 Speed，InitProjectile 后同步给 PM）
 	if (ProjectileMovement)
 	{
 		ProjectileMovement->InitialSpeed = Speed;
-		ProjectileMovement->MaxSpeed     = Speed;
-		ProjectileMovement->Velocity     = GetActorForwardVector() * Speed;
+		ProjectileMovement->MaxSpeed = Speed;
+		ProjectileMovement->Velocity = GetActorForwardVector() * Speed;
 	}
 }
 
@@ -60,7 +50,6 @@ void ASlashWaveProjectile::BeginPlay()
 
 	CollisionBox->OnComponentBeginOverlap.AddDynamic(this, &ASlashWaveProjectile::OnOverlapBegin);
 
-	// 生存计时器：到期后触发 Expire
 	GetWorld()->GetTimerManager().SetTimer(
 		LifetimeTimerHandle, this, &ASlashWaveProjectile::Expire, Lifetime, false);
 }
@@ -71,22 +60,47 @@ void ASlashWaveProjectile::OnOverlapBegin(
 	bool /*bFromSweep*/, const FHitResult& /*SweepHitResult*/)
 {
 	if (!OtherActor || OtherActor == this || OtherActor == SourceCharacter)
+	{
 		return;
+	}
 
-	// 穿透检测：已命中过的目标跳过
 	for (const TWeakObjectPtr<AActor>& Weak : HitActors)
 	{
-		if (Weak.Get() == OtherActor) return;
+		if (Weak.Get() == OtherActor)
+		{
+			return;
+		}
 	}
-	HitActors.Add(OtherActor);
 
+	HitActors.Add(OtherActor);
 	ApplyDamageTo(OtherActor, OtherActor->GetActorLocation());
+}
+
+void ASlashWaveProjectile::ApplyImmediateHit(AActor* Target)
+{
+	if (!Target || Target == this || Target == SourceCharacter)
+	{
+		return;
+	}
+
+	for (const TWeakObjectPtr<AActor>& Weak : HitActors)
+	{
+		if (Weak.Get() == Target)
+		{
+			return;
+		}
+	}
+
+	HitActors.Add(Target);
+	ApplyDamageTo(Target, Target->GetActorLocation());
 }
 
 void ASlashWaveProjectile::ApplyDamageTo(AActor* Target, const FVector& HitLocation)
 {
-	if (!Target || !DamageEffectClass || !SourceCharacter)
+	if (!Target || !SourceCharacter)
+	{
 		return;
+	}
 
 	UAbilitySystemComponent* TargetASC =
 		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
@@ -94,21 +108,29 @@ void ASlashWaveProjectile::ApplyDamageTo(AActor* Target, const FVector& HitLocat
 		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(SourceCharacter);
 
 	if (!TargetASC || !SourceASC)
+	{
 		return;
+	}
 
 	FGameplayEffectContextHandle CtxHandle = SourceASC->MakeEffectContext();
 	CtxHandle.AddInstigator(SourceCharacter, SourceCharacter);
 	CtxHandle.AddSourceObject(this);
 
-	FGameplayEffectSpecHandle SpecHandle =
-		SourceASC->MakeOutgoingSpec(DamageEffectClass, 1.f, CtxHandle);
+	UGameplayEffect* DamageGE = NewObject<UGameplayEffect>(GetTransientPackage(), NAME_None, RF_Transient);
+	DamageGE->DurationPolicy = EGameplayEffectDurationType::Instant;
 
-	if (SpecHandle.IsValid())
-	{
-		// SetByCaller：GE_SlashWaveDamage 须配置 Attribute.ActDamage Modifier（Type=SetByCaller）
-		SpecHandle.Data->SetSetByCallerMagnitude(SlashActDamageTag(), DamageMagnitude);
-		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
-	}
+	FGameplayModifierInfo ModInfo;
+	ModInfo.Attribute = UDamageAttributeSet::GetDamagePureAttribute();
+	ModInfo.ModifierOp = EGameplayModOp::Additive;
+	ModInfo.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(DamageMagnitude));
+	DamageGE->Modifiers.Add(ModInfo);
+
+	FGameplayEffectSpec Spec(DamageGE, CtxHandle, 1.f);
+	SourceASC->ApplyGameplayEffectSpecToTarget(Spec, TargetASC);
+
+	UE_LOG(LogTemp, Warning, TEXT("[GA_SlashWaveCounter] Damage Target=%s Amount=%.1f CanKill=1"),
+		*GetNameSafe(Target),
+		DamageMagnitude);
 
 	BP_OnHitEnemy(Target, HitLocation);
 }

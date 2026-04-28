@@ -32,6 +32,10 @@ class DEVKIT_API UBFNode_SendGameplayEvent : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "BuffFlow")
 	EBFTargetSelector Target = EBFTargetSelector::LastDamageTarget;
 
+	/** Actor stored in FGameplayEventData.Target. Falls back to Target if it cannot resolve. */
+	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	EBFTargetSelector PayloadTarget = EBFTargetSelector::LastDamageTarget;
+
 	/**
 	 * 事件发起者（GA 内部通过 TriggerEventData.Instigator 读取，用于计算方向等）
 	 * 通常为 DamageCauser（攻击者）
