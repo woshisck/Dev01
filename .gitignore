@@ -1901,3 +1901,51 @@ Plugins/ElectronicNodes/Binaries/Win64/UnrealEditor-ElectronicNodes.dll
 # Obsidian 笔记软件本地配置（每个用户工作区不同，不入库）
 .obsidian/
 /Build
+Docs/copilot/copilot-custom-prompts/Clip Web Page.md
+Docs/copilot/copilot-custom-prompts/Clip YouTube Transcript.md
+Docs/copilot/copilot-custom-prompts/Emojify.md
+Docs/copilot/copilot-custom-prompts/Explain like I am 5.md
+Docs/copilot/copilot-custom-prompts/Fix grammar and spelling.md
+Docs/copilot/copilot-custom-prompts/Generate glossary.md
+Docs/copilot/copilot-custom-prompts/Generate table of contents.md
+Docs/copilot/copilot-custom-prompts/Make longer.md
+Docs/copilot/copilot-custom-prompts/Make shorter.md
+Docs/copilot/copilot-custom-prompts/Remove URLs.md
+Docs/copilot/copilot-custom-prompts/Rewrite as tweet thread.md
+Docs/copilot/copilot-custom-prompts/Rewrite as tweet.md
+Docs/copilot/copilot-custom-prompts/Simplify.md
+Docs/copilot/copilot-custom-prompts/Summarize.md
+Docs/copilot/copilot-custom-prompts/Translate to Chinese.md
+Builds/WindowsPackage/RiskFixSmoke.log
+Builds/WindowsPackage/NoAutoStart.log
+Builds/WindowsPackage/Manifest_UFSFiles_Win64.txt
+Builds/WindowsPackage/Manifest_NonUFSFiles_Win64.txt
+Builds/WindowsPackage/Manifest_DebugFiles_Win64.txt
+Builds/WindowsPackage/Engine/Extras/GPUDumpViewer/OpenGPUDumpViewer.sh
+Builds/WindowsPackage/Engine/Extras/GPUDumpViewer/OpenGPUDumpViewer.bat
+Builds/WindowsPackage/Engine/Extras/GPUDumpViewer/GPUDumpViewer.html
+Builds/WindowsPackage/Engine/Content/SlateDebug/Fonts/LastResort.ttf
+Builds/WindowsPackage/Engine/Content/SlateDebug/Fonts/LastResort.tps
+Builds/WindowsPackage/Engine/Content/Slate/Cursor/invisible.cur
+Builds/WindowsPackage/Engine/Content/Renderer/TessellationTable.bin
+Builds/WindowsPackage/DevKit/Content/Paks/global.utoc
+Builds/WindowsPackage/DevKit/Content/Paks/global.ucas
+Builds/WindowsPackage/DevKit/Content/Paks/DevKit-Windows.utoc
+Builds/WindowsPackage/DevKit/Content/Paks/DevKit-Windows.ucas
+Builds/WindowsPackage/DevKit/Content/Paks/DevKit-Windows.pak
+Builds/WindowsPackage/AutoStart.log
+Builds/Windows/Manifest_UFSFiles_Win64.txt
+Builds/Windows/Manifest_NonUFSFiles_Win64.txt
+Builds/Windows/Manifest_DebugFiles_Win64.txt
+Builds/Windows/Engine/Extras/GPUDumpViewer/OpenGPUDumpViewer.sh
+Builds/Windows/Engine/Extras/GPUDumpViewer/OpenGPUDumpViewer.bat
+Builds/Windows/Engine/Extras/GPUDumpViewer/GPUDumpViewer.html
+Builds/Windows/Engine/Content/SlateDebug/Fonts/LastResort.ttf
+Builds/Windows/Engine/Content/SlateDebug/Fonts/LastResort.tps
+Builds/Windows/Engine/Content/Slate/Cursor/invisible.cur
+Builds/Windows/Engine/Content/Renderer/TessellationTable.bin
+Builds/Windows/DevKit/Content/Paks/global.utoc
+Builds/Windows/DevKit/Content/Paks/global.ucas
+Builds/Windows/DevKit/Content/Paks/DevKit-Windows.utoc
+Builds/Windows/DevKit/Content/Paks/DevKit-Windows.ucas
+Builds/Windows/DevKit/Content/Paks/DevKit-Windows.pak

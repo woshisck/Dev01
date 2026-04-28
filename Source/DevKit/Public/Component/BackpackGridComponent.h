@@ -202,6 +202,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Backpack")
     const TArray<FPlacedRune>& GetAllPlacedRunes() const { return PlacedRunes; }
 
+    // 切关恢复用：批量重建已放置符文，避免逐个 TryPlace 时被旧锁定状态、默认武器配置或临时激活区影响
+    void RestorePlacedRunes(const TArray<FPlacedRune>& SavedRunes, bool bIncludePermanentRunes = false);
+
     // 按 RuneName 查找已放置符文，返回指针（nullptr 表示未找到）；升级检查时使用
     FPlacedRune* FindRuneByName(FName RuneName);
 

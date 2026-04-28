@@ -4,7 +4,23 @@
 #include "Character/PlayerCharacterBase.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveSubsystem.h"
+#include "Engine/AssetManager.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/StreamableManager.h"
+#include "GameFramework/PlayerController.h"
+#include "HAL/PlatformTime.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "TimerManager.h"
+#include "Styling/CoreStyle.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
 
 
 
@@ -13,11 +29,11 @@ UYogGameInstanceBase::UYogGameInstanceBase()
 	, SaveUserIndex(0)
 {
 	bShouldLoadSaveAfterMap = false;
+	MainGameMap = FSoftObjectPath(TEXT("/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom.InitialRoom"));
 }
 
 APlayerCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
 {
-	APlayerCharacterBase* PlayerCharacterBase = NewObject<APlayerCharacterBase>();
 	UWorld* World = this->GetWorld();
 	if (World)
 	{
@@ -28,7 +44,7 @@ APlayerCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
 		}
 	}
 
-	return PlayerCharacterBase;
+	return nullptr;
 }
 
 ////////////// AI //////////////
@@ -126,12 +142,19 @@ void UYogGameInstanceBase::Init()
 	Super::Init();
 	UE_LOG(LogTemp, Warning, TEXT("UYogGameInstanceBase::Init()"));
 
+	FCoreUObjectDelegates::PreLoadMap.AddUObject(this, &UYogGameInstanceBase::OnPreLoadMap);
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UYogGameInstanceBase::OnPostLoadMap);
 
 }
 
 void UYogGameInstanceBase::Shutdown()
 {
+	if (FrontendMapLoadHandle.IsValid())
+	{
+		FrontendMapLoadHandle->CancelHandle();
+		FrontendMapLoadHandle.Reset();
+	}
+	FCoreUObjectDelegates::PreLoadMap.RemoveAll(this);
 	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 	Super::Shutdown();
 }
@@ -163,7 +186,16 @@ void UYogGameInstanceBase::OpenMapAndLoadSave(const TSoftObjectPtr<UWorld> Level
 
 void UYogGameInstanceBase::OnPostLoadMap(UWorld* World)
 {
-	
+	if (bFrontendLoadingGameplayMap)
+	{
+		bFrontendMapLoaded = true;
+		FinishFrontendLoadingIfReady();
+	}
+	else if (IsFrontendStartupWorld(World))
+	{
+		ShowMainMenu();
+	}
+
 	// If we are supposed to load a save after the map, do it
 	if (bShouldLoadSaveAfterMap && World)
 	{
@@ -181,9 +213,391 @@ void UYogGameInstanceBase::OnPostLoadMap(UWorld* World)
 		bShouldLoadSaveAfterMap = false;
 
 	}
+}
 
-	// Unbind the delegate to avoid multiple bindings
-	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
+void UYogGameInstanceBase::OnPreLoadMap(const FString& MapName)
+{
+	if (bFrontendLoadingGameplayMap)
+	{
+		ShowLoadingScreen(
+			NSLOCTEXT("DevKitFrontend", "LoadingTitle", "Loading"),
+			FText::FromString(MapName));
+	}
+}
+
+void UYogGameInstanceBase::ShowMainMenu()
+{
+	if (FrontendMapLoadHandle.IsValid() && FrontendMapLoadHandle->IsActive())
+	{
+		FrontendMapLoadHandle->CancelHandle();
+	}
+	FrontendMapLoadHandle.Reset();
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(FrontendLoadingTimerHandle);
+	}
+
+	RemoveFrontendWidget();
+	bFrontendLoadingGameplayMap = false;
+	bFrontendMapLoaded = false;
+	bFrontendMinLoadTimeElapsed = false;
+
+	TSharedRef<SWidget> Widget =
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor(0.02f, 0.018f, 0.015f, 1.f))
+			.Padding(0.f)
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBox)
+			.WidthOverride(520.f)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Center)
+				.Padding(0.f, 0.f, 0.f, 28.f)
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("DevKitFrontend", "GameTitle", "DevKit"))
+					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 54))
+					.ColorAndOpacity(FLinearColor(0.95f, 0.88f, 0.72f, 1.f))
+					.Justification(ETextJustify::Center)
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 0.f, 0.f, 16.f)
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FMargin(28.f, 14.f))
+					.OnClicked_UObject(this, &UYogGameInstanceBase::HandleStartClicked)
+					[
+						SNew(STextBlock)
+						.Text(NSLOCTEXT("DevKitFrontend", "StartGame", "Start Game"))
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 24))
+					]
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FMargin(28.f, 12.f))
+					.OnClicked_UObject(this, &UYogGameInstanceBase::HandleQuitClicked)
+					[
+						SNew(STextBlock)
+						.Text(NSLOCTEXT("DevKitFrontend", "QuitGame", "Quit"))
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 20))
+					]
+				]
+			]
+		];
+
+	FrontendWidget = Widget;
+	if (GEngine && GEngine->GameViewport)
+	{
+		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
+	}
+	ApplyFrontendInputMode(true);
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("AutoStart")))
+	{
+		StartNewRunFromFrontend();
+	}
+}
+
+void UYogGameInstanceBase::StartNewRunFromFrontend()
+{
+	if (bFrontendLoadingGameplayMap)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Frontend] Start ignored because the gameplay map is already loading."));
+		return;
+	}
+
+	ClearRunState();
+	BeginLoadMainGameMap();
+}
+
+void UYogGameInstanceBase::BeginLoadMainGameMap()
+{
+	if (!MainGameMap.IsValid())
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Frontend] MainGameMap is invalid."));
+		return;
+	}
+
+	ShowLoadingScreen(
+		NSLOCTEXT("DevKitFrontend", "PreparingTitle", "Preparing"),
+		NSLOCTEXT("DevKitFrontend", "PreparingSubtitle", "Loading the first level"));
+
+	bFrontendLoadingGameplayMap = true;
+	bFrontendMapLoaded = false;
+	bFrontendMinLoadTimeElapsed = MinimumLoadingScreenTime <= 0.f;
+	FrontendLoadingStartedSeconds = FPlatformTime::Seconds();
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(FrontendLoadingTimerHandle);
+	}
+
+	FrontendMapLoadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+		MainGameMap,
+		FStreamableDelegate::CreateUObject(this, &UYogGameInstanceBase::HandleMainGameMapPreloaded),
+		FStreamableManager::AsyncLoadHighPriority);
+}
+
+void UYogGameInstanceBase::HandleMainGameMapPreloaded()
+{
+	const FString PackageName = MainGameMap.GetLongPackageName();
+	if (PackageName.IsEmpty())
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Frontend] Could not resolve map package from %s"), *MainGameMap.ToString());
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[Frontend] Preloaded %s, opening level."), *PackageName);
+	UGameplayStatics::OpenLevel(this, FName(*PackageName), true);
+}
+
+void UYogGameInstanceBase::HandleMinimumLoadingScreenTimeElapsed()
+{
+	bFrontendMinLoadTimeElapsed = true;
+	FinishFrontendLoadingIfReady();
+}
+
+void UYogGameInstanceBase::FinishFrontendLoadingIfReady()
+{
+	if (!bFrontendLoadingGameplayMap || !bFrontendMapLoaded)
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		const float RemainingLoadScreenTime = FMath::Max(
+			0.f,
+			MinimumLoadingScreenTime - static_cast<float>(FPlatformTime::Seconds() - FrontendLoadingStartedSeconds));
+		if (!bFrontendMinLoadTimeElapsed && RemainingLoadScreenTime > 0.f)
+		{
+			if (!World->GetTimerManager().IsTimerActive(FrontendLoadingTimerHandle))
+			{
+				World->GetTimerManager().SetTimer(
+					FrontendLoadingTimerHandle,
+					FTimerDelegate::CreateUObject(this, &UYogGameInstanceBase::HandleMinimumLoadingScreenTimeElapsed),
+					RemainingLoadScreenTime,
+					false);
+			}
+			return;
+		}
+
+		World->GetTimerManager().ClearTimer(FrontendLoadingTimerHandle);
+	}
+
+	bFrontendMinLoadTimeElapsed = true;
+	bFrontendLoadingGameplayMap = false;
+	bFrontendMapLoaded = false;
+	FrontendMapLoadHandle.Reset();
+	UE_LOG(LogTemp, Log, TEXT("[Frontend] Gameplay map ready; loading screen removed."));
+	RemoveFrontendWidget();
+	ApplyFrontendInputMode(false);
+}
+
+void UYogGameInstanceBase::ShowLoadingScreen(const FText& Title, const FText& Subtitle)
+{
+	RemoveFrontendWidget();
+
+	TSharedRef<SWidget> Widget =
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor(0.01f, 0.012f, 0.016f, 1.f))
+			.Padding(0.f)
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Center)
+			.Padding(0.f, 0.f, 0.f, 14.f)
+			[
+				SNew(STextBlock)
+				.Text(Title)
+				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 38))
+				.ColorAndOpacity(FLinearColor(0.9f, 0.88f, 0.78f, 1.f))
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(Subtitle)
+				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
+				.ColorAndOpacity(FLinearColor(0.66f, 0.68f, 0.72f, 1.f))
+			]
+		];
+
+	FrontendWidget = Widget;
+	if (GEngine && GEngine->GameViewport)
+	{
+		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
+	}
+	ApplyFrontendInputMode(true);
+}
+
+void UYogGameInstanceBase::ShowGameOverScreen()
+{
+	RemoveFrontendWidget();
+
+	TSharedRef<SWidget> Widget =
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.82f))
+			.Padding(0.f)
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBox)
+			.WidthOverride(560.f)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Center)
+				.Padding(0.f, 0.f, 0.f, 26.f)
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("DevKitFrontend", "GameOver", "Game Over"))
+					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 50))
+					.ColorAndOpacity(FLinearColor(0.92f, 0.3f, 0.24f, 1.f))
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 0.f, 0.f, 12.f)
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FMargin(28.f, 12.f))
+					.OnClicked_UObject(this, &UYogGameInstanceBase::HandleRetryClicked)
+					[
+						SNew(STextBlock)
+						.Text(NSLOCTEXT("DevKitFrontend", "Retry", "Try Again"))
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 22))
+					]
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FMargin(28.f, 12.f))
+					.OnClicked_UObject(this, &UYogGameInstanceBase::HandleReturnToMenuClicked)
+					[
+						SNew(STextBlock)
+						.Text(NSLOCTEXT("DevKitFrontend", "ReturnToTitle", "Return to Title"))
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 20))
+					]
+				]
+			]
+		];
+
+	FrontendWidget = Widget;
+	if (GEngine && GEngine->GameViewport)
+	{
+		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
+	}
+	ApplyFrontendInputMode(true);
+}
+
+void UYogGameInstanceBase::ReturnToMainMenu()
+{
+	ClearRunState();
+	ShowLoadingScreen(
+		NSLOCTEXT("DevKitFrontend", "ReturningTitle", "Returning"),
+		NSLOCTEXT("DevKitFrontend", "ReturningSubtitle", "Opening title screen"));
+	UGameplayStatics::OpenLevel(this, FName(TEXT("/Engine/Maps/Entry")), true);
+}
+
+void UYogGameInstanceBase::RemoveFrontendWidget()
+{
+	if (FrontendWidget.IsValid() && GEngine && GEngine->GameViewport)
+	{
+		GEngine->GameViewport->RemoveViewportWidgetContent(FrontendWidget.ToSharedRef());
+	}
+	FrontendWidget.Reset();
+}
+
+void UYogGameInstanceBase::ApplyFrontendInputMode(bool bUIOnly)
+{
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	if (!PC) return;
+
+	PC->SetShowMouseCursor(bUIOnly);
+	if (bUIOnly)
+	{
+		FInputModeUIOnly Mode;
+		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		PC->SetInputMode(Mode);
+	}
+	else
+	{
+		PC->SetInputMode(FInputModeGameOnly());
+	}
+}
+
+bool UYogGameInstanceBase::IsFrontendStartupWorld(const UWorld* World) const
+{
+	if (!World) return false;
+
+	const FString PackageName = World->GetOutermost()->GetName();
+	return PackageName.Equals(TEXT("/Engine/Maps/Entry"), ESearchCase::IgnoreCase);
+}
+
+FReply UYogGameInstanceBase::HandleStartClicked()
+{
+	StartNewRunFromFrontend();
+	return FReply::Handled();
+}
+
+FReply UYogGameInstanceBase::HandleRetryClicked()
+{
+	if (UWorld* World = GetWorld())
+	{
+		UGameplayStatics::SetGamePaused(World, false);
+	}
+	StartNewRunFromFrontend();
+	return FReply::Handled();
+}
+
+FReply UYogGameInstanceBase::HandleReturnToMenuClicked()
+{
+	if (UWorld* World = GetWorld())
+	{
+		UGameplayStatics::SetGamePaused(World, false);
+	}
+	ReturnToMainMenu();
+	return FReply::Handled();
+}
+
+FReply UYogGameInstanceBase::HandleQuitClicked()
+{
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, false);
+	return FReply::Handled();
 }
 
 void UYogGameInstanceBase::SaveGame()
@@ -193,6 +607,11 @@ void UYogGameInstanceBase::SaveGame()
 		PersistentSaveData = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
 	}
 	APlayerCharacterBase* CurrentCharacter = GetPlayerCharacter();
+	if (!CurrentCharacter)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SaveGame skipped: no player character is currently possessed."));
+		return;
+	}
 	PersistentSaveData->SavedCharacterClass = CurrentCharacter->GetClass();
 
 	UGameplayStatics::SaveGameToSlot(PersistentSaveData, "Slot1", 0);
@@ -228,13 +647,19 @@ bool UYogGameInstanceBase::WriteSaveGame()
 {
 	if (bSavingEnabled)
 	{
+		USaveGame* currentSaveGame = Cast<USaveGame>(GetCurrentSaveGame());
+		if (!currentSaveGame)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("WriteSaveGame skipped: CurrentSaveGame is null."));
+			return false;
+		}
+
 		if (bCurrentlySaving)
 		{
 			bPendingSaveRequested = true;
 			return true;
 		}
 		bCurrentlySaving = true;
-		USaveGame* currentSaveGame = Cast<USaveGame>(GetCurrentSaveGame());
 		UGameplayStatics::AsyncSaveGameToSlot(currentSaveGame, SaveSlot, SaveUserIndex, FAsyncSaveGameToSlotDelegate::CreateUObject(this, &UYogGameInstanceBase::HandleAsyncSave));
 		return true;
 	}

@@ -168,7 +168,7 @@ public:
 
 	/** 浮窗距门屏幕投影的水平避让偏移（仿 RewardPickup） */
 	UPROPERTY(EditDefaultsOnly, Category = "Portal")
-	float PortalWidgetSideOffset = 240.f;
+	float PortalWidgetSideOffset = 32.f;
 
 	/** 浮窗距门屏幕投影的 Z 偏移（向上抬，避免遮门） */
 	UPROPERTY(EditDefaultsOnly, Category = "Portal")

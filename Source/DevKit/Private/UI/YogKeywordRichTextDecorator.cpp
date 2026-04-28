@@ -37,9 +37,23 @@ public:
         // 找不到时 fallback 到 FTextBlockStyle 的全局默认（避免使用 FCoreStyle 的 NormalText
         // 把项目中文字体重置成引擎默认）
         FTextBlockStyle TextStyle = FTextBlockStyle::GetDefault();
-        if (Style && Style->HasWidgetStyle<FTextBlockStyle>(FName(TEXT("NormalText"))))
+        if (Style)
         {
-            TextStyle = Style->GetWidgetStyle<FTextBlockStyle>(TEXT("NormalText"));
+            static const FName CandidateStyleNames[] =
+            {
+                FName(TEXT("NormalText")),
+                FName(TEXT("Default")),
+                FName(TEXT("RichTextBlock.Text"))
+            };
+
+            for (const FName& StyleName : CandidateStyleNames)
+            {
+                if (Style->HasWidgetStyle<FTextBlockStyle>(StyleName))
+                {
+                    TextStyle = Style->GetWidgetStyle<FTextBlockStyle>(StyleName);
+                    break;
+                }
+            }
         }
 
         if (Owner.IsValid())

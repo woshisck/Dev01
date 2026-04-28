@@ -25,6 +25,25 @@
 #include "UI/YogHUD.h"
 #include "LevelFlow/LevelFlowAsset.h"
 #include "FlowComponent.h"
+#include "Misc/PackageName.h"
+
+namespace
+{
+FName ResolveRoomLevelNameForOpen(FName RequestedLevel, const URoomDataAsset* Room)
+{
+	const FString Requested = RequestedLevel.ToString();
+	const FString RoomAssetName = GetNameSafe(Room);
+
+	if (Requested.Equals(TEXT("L1_CommonLevel_Corridor_01b"), ESearchCase::IgnoreCase)
+		|| RoomAssetName.Equals(TEXT("DA_Room_CL_corridor_01b"), ESearchCase::IgnoreCase)
+		|| RoomAssetName.Equals(TEXT("DA_CL_Corridor_01b"), ESearchCase::IgnoreCase))
+	{
+		return FName(TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon/L1_CommonLevel_corridor_01b"));
+	}
+
+	return RequestedLevel;
+}
+}
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
@@ -607,6 +626,11 @@ void AYogGameMode::FinishPlayerDeathGameOver()
 		PC->SetShowMouseCursor(true);
 	}
 
+	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	{
+		GI->ShowGameOverScreen();
+	}
+
 	UE_LOG(LogTemp, Warning, TEXT("[GameOver] Game paused after player death."));
 }
 
@@ -616,6 +640,14 @@ void AYogGameMode::FinishPlayerDeathGameOver()
 
 void AYogGameMode::StartLevelSpawning()
 {
+	const FString CurrentMapNameForFrontend = UGameplayStatics::GetCurrentLevelName(GetWorld(), true);
+	if (CurrentMapNameForFrontend.Equals(TEXT("Entry"), ESearchCase::IgnoreCase))
+	{
+		CurrentPhase = ELevelPhase::Transitioning;
+		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: Entry frontend map detected, gameplay spawning is skipped."));
+		return;
+	}
+
 	if (!CampaignData)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: CampaignData 未配置，跳过新刷怪系统"));
@@ -657,18 +689,19 @@ void AYogGameMode::StartLevelSpawning()
 		if (CurrentFloor == 1 && CampaignData->DefaultStartingRoom)
 		{
 			const FName DefaultRoomName = CampaignData->DefaultStartingRoom->RoomName;
-			if (!DefaultRoomName.IsNone())
+			const FName DefaultLevelName = ResolveRoomLevelNameForOpen(DefaultRoomName, CampaignData->DefaultStartingRoom);
+			if (!DefaultLevelName.IsNone())
 			{
 				// 检查当前加载的关卡是否已经是 DefaultStartingRoom 指定的关卡
 				// GetCurrentLevelName(true) 会去掉 PIE 前缀（如 "UEDPIE_0_"）
 				const FString CurrentMapName = UGameplayStatics::GetCurrentLevelName(GetWorld(), true);
-				if (!CurrentMapName.Equals(DefaultRoomName.ToString(), ESearchCase::IgnoreCase))
+				if (!CurrentMapName.Equals(FPackageName::GetShortName(DefaultLevelName.ToString()), ESearchCase::IgnoreCase))
 				{
 					// 当前关卡不匹配，重定向到 DefaultStartingRoom 的关卡
 					UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: 当前关卡 [%s] ≠ DefaultStartingRoom [%s]，重定向..."),
-						*CurrentMapName, *DefaultRoomName.ToString());
+						*CurrentMapName, *DefaultLevelName.ToString());
 					if (GI) GI->PendingRoomData = CampaignData->DefaultStartingRoom;
-					UGameplayStatics::OpenLevel(GetWorld(), DefaultRoomName);
+					UGameplayStatics::OpenLevel(GetWorld(), DefaultLevelName);
 					return;
 				}
 			}
@@ -1558,6 +1591,12 @@ void AYogGameMode::GenerateLootOptions()
 void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 {
 	if (NextLevel.IsNone()) return;
+	const FName ResolvedNextLevel = ResolveRoomLevelNameForOpen(NextLevel, NextRoom);
+	if (ResolvedNextLevel != NextLevel)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TransitionToLevel: resolved map [%s] -> [%s] for room [%s]"),
+			*NextLevel.ToString(), *ResolvedNextLevel.ToString(), *GetNameSafe(NextRoom));
+	}
 
 	CurrentPhase = ELevelPhase::Transitioning;
 	OnPhaseChanged.Broadcast(CurrentPhase);
@@ -1637,7 +1676,7 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 		}
 	}
 
-	UGameplayStatics::OpenLevel(GetWorld(), NextLevel);
+	UGameplayStatics::OpenLevel(GetWorld(), ResolvedNextLevel);
 }
 
 FGameplayTag AYogGameMode::RollRoomTypeForFloor(const FFloorConfig& Config)
@@ -1775,9 +1814,10 @@ void AYogGameMode::ActivateHubPortals()
 			*ChosenRoom, NextScore, LowDifficultyScoreMax, HighDifficultyScoreMin);
 		const TArray<FBuffEntry> PreRolled = SelectRoomBuffs(*ChosenRoom, NextTier.BuffCount);
 
-		(*Found)->Open(ChosenRoom->RoomName, ChosenRoom, PreRolled);
+		const FName LevelName = ResolveRoomLevelNameForOpen(ChosenRoom->RoomName, ChosenRoom);
+		(*Found)->Open(LevelName, ChosenRoom, PreRolled);
 		UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: 门[%d] 开启 → 关卡=%s 房间=%s 预骰Buff数=%d"),
-			Cfg.PortalIndex, *ChosenRoom->RoomName.ToString(), *ChosenRoom->GetName(),
+			Cfg.PortalIndex, *LevelName.ToString(), *ChosenRoom->GetName(),
 			PreRolled.Num());
 	}
 
@@ -1862,7 +1902,7 @@ void AYogGameMode::ActivatePortals()
 		}
 
 		// RoomName 即关卡文件名，直接使用
-		const FName LevelName = ChosenRoom->RoomName;
+		const FName LevelName = ResolveRoomLevelNameForOpen(ChosenRoom->RoomName, ChosenRoom);
 		if (LevelName.IsNone())
 		{
 			UE_LOG(LogTemp, Warning, TEXT("ActivatePortals: 门[%d] DA_Room [%s] 的 RoomName 为空，跳过"),

@@ -4,6 +4,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Border.h"
+#include "Blueprint/WidgetTree.h"
 #include "CommonRichTextBlock.h"
 #include "Data/GenericRuneEffectDA.h"
 #include "UI/GenericEffectListWidget.h"
@@ -233,14 +234,19 @@ void URuneInfoCardWidget::HideCard()
 
 FText URuneInfoCardWidget::BuildEffectKeywords(const TArray<TObjectPtr<UGenericRuneEffectDA>>& Effects) const
 {
-    TArray<FString> Names;
+    TArray<FText> Names;
     Names.Reserve(Effects.Num());
     for (const TObjectPtr<UGenericRuneEffectDA>& E : Effects)
     {
-        if (E) Names.Add(E->DisplayName.ToString());
+        if (E)
+        {
+            Names.Add(FText::Format(
+                NSLOCTEXT("RuneInfoCard", "EffectKeywordMarkupFmt", "<key>{0}</key>"),
+                E->DisplayName));
+        }
     }
     if (Names.IsEmpty()) return FText::GetEmpty();
-    return FText::FromString(FString::Join(Names, TEXT(" · ")));
+    return FText::Join(NSLOCTEXT("RuneInfoCard", "EffectKeywordSeparator", " · "), Names);
 }
 
 // ============================================================
@@ -292,7 +298,9 @@ void URuneInfoCardWidget::BuildShapeGrid(const FRuneShape& Shape)
             const FIntPoint AbsCell(Col + MinX, Row + MinY);
             const bool bFilled = Occupied.Contains(AbsCell);
 
-            UImage* Dot = NewObject<UImage>(this);
+            UImage* Dot = WidgetTree
+                ? WidgetTree->ConstructWidget<UImage>(UImage::StaticClass())
+                : NewObject<UImage>(this);
 
             FSlateBrush Brush;
             Brush.DrawAs = ESlateBrushDrawType::RoundedBox;

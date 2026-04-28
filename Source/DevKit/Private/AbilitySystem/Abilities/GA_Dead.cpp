@@ -133,6 +133,21 @@ void UGA_Dead::StartDeathDelay()
     UWorld* World = GetWorld();
     if (!World || DeathDelayTimer.IsValid()) return;
 
+    // 广播死亡动画完成事件（供 FA_EnemyBuff_DeathPoison 等监听毒液溅射时机）
+    if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
+    {
+        static const FGameplayTag TAG_DeathAnimComplete =
+            FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.DeathAnimComplete"), false);
+        if (TAG_DeathAnimComplete.IsValid())
+        {
+            AActor* Avatar = CurrentActorInfo->AvatarActor.Get();
+            FGameplayEventData DeathAnimPayload;
+            DeathAnimPayload.Instigator = Avatar;
+            DeathAnimPayload.Target     = Avatar;
+            UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Avatar, TAG_DeathAnimComplete, DeathAnimPayload);
+        }
+    }
+
     if (!CachedDissolveTag.IsValid())
     {
         // 无消解效果 → 等待 3 秒后销毁
