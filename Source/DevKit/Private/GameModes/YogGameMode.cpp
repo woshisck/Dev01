@@ -18,6 +18,7 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Data/RuneDataAsset.h"
 #include "BuffFlow/BuffFlowComponent.h"
+#include "Component/CharacterDataComponent.h"
 #include "Map/Portal.h"
 #include "Map/RewardPickup.h"
 #include "UI/LootSelectionWidget.h"
@@ -118,6 +119,12 @@ void AYogGameMode::StartPlay()
 	if (CampaignData)
 	{
 		StartLevelSpawning();
+	}
+	else
+	{
+		const FString MapName = UGameplayStatics::GetCurrentLevelName(GetWorld(), true);
+		if (!MapName.Equals(TEXT("Entry"), ESearchCase::IgnoreCase))
+			FallbackToPreplacedEnemies();
 	}
 }
 
@@ -1281,7 +1288,29 @@ void AYogGameMode::FallbackToPreplacedEnemies()
 		if (AEnemyCharacterBase* Enemy = Cast<AEnemyCharacterBase>(Actor))
 		{
 			if (!Enemy->bIsDead)
+			{
 				AliveCount++;
+
+				if (UBuffFlowComponent* BFC = Enemy->BuffFlowComponent)
+				{
+					for (const FBuffEntry& Entry : ActiveRoomBuffs)
+					{
+						if (!Entry.RuneDA || !Entry.RuneDA->RuneInfo.Flow.FlowAsset) continue;
+						BFC->StartBuffFlow(Entry.RuneDA->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), Enemy);
+					}
+					if (UCharacterDataComponent* CDC = Enemy->GetCharacterDataComponent())
+					{
+						if (UEnemyData* ED = Cast<UEnemyData>(CDC->GetCharacterData()))
+						{
+							if (URuneDataAsset* EnemyBuff = PickEnemyBuff(ED))
+							{
+								if (EnemyBuff->RuneInfo.Flow.FlowAsset)
+									BFC->StartBuffFlow(EnemyBuff->RuneInfo.Flow.FlowAsset, FGuid::NewGuid(), Enemy);
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 

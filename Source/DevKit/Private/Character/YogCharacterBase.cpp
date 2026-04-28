@@ -350,8 +350,9 @@ void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 	float Health = Data.NewValue;
 	float MaxHealth = AttributeStatsComponent->GetStat_MaxHealth();
 	float percent = (MaxHealth > 0.f) ? (Health / MaxHealth) : 0.f;
+	const float DamageTaken = FMath::Max(0.f, Data.OldValue - Data.NewValue);
 
-	OnCharacterHealthUpdate.Broadcast(percent);
+	OnCharacterHealthUpdate.Broadcast(percent, DamageTaken);
 	UE_LOG(LogTemp, Log, TEXT("Health Changed to: %f"), Health);
 
 	// 血量减少且角色存活 → 自动触发受击动画

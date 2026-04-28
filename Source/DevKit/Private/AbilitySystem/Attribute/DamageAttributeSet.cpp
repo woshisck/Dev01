@@ -128,7 +128,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
 				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone);
 				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
-				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
+				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);
 
 				// 广播 Ability.Event.Damaged 给受击目标（GA_Wound 等监听此事件）
 				{
@@ -249,7 +249,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
 				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone);
 				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
-				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent);
+				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);
 
 				// 广播 Ability.Event.Damaged（不在 DamageBuff 路径广播，防止 GA_Wound 递归）
 				{
@@ -317,7 +317,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			{
 				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
 				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone);
-				TargetCharacter->OnCharacterHealthUpdate.Broadcast(NewHealth / TargetCharacter->BaseAttributeSet->GetMaxHealth());
+				TargetCharacter->OnCharacterHealthUpdate.Broadcast(NewHealth / TargetCharacter->BaseAttributeSet->GetMaxHealth(), LocalDamageDone);
 			}
 		}
 	}
