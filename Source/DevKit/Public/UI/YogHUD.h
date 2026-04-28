@@ -26,6 +26,9 @@ class UPortalPreviewWidget;
 class UPortalDirectionWidget;
 class APortal;
 class ARewardPickup;
+class ASacrificeGracePickup;
+class USacrificeGraceDA;
+class USacrificeGraceOptionWidget;
 
 UCLASS()
 class DEVKIT_API AYogHUD : public AHUD
@@ -131,6 +134,19 @@ public:
 
 	/** 由 LootSelectionWidget 在 Skip / Select 后调用，弹队列下一项 */
 	void OnLootSelectionFinished();
+
+	// ─────────────────────────────────────────
+	//  献祭恩赐确认弹窗
+	// ─────────────────────────────────────────
+
+	UPROPERTY(EditDefaultsOnly, Category = "SacrificeGrace")
+	TSubclassOf<USacrificeGraceOptionWidget> SacrificeGraceOptionWidgetClass;
+
+	/**
+	 * 由 SacrificeGracePickup::TryPickup 调用：显示 Yes/No 确认弹窗。
+	 * Yes → AcquireSacrificeGrace → 销毁拾取物；No → 复位拾取物。
+	 */
+	void ShowSacrificeGraceOption(USacrificeGraceDA* DA, APlayerCharacterBase* Player, ASacrificeGracePickup* Pickup);
 
 	// ─────────────────────────────────────────
 	//  轻量信息提示浮窗（不暂停游戏，放在 WBP_HUDRoot 内）
@@ -265,6 +281,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<ULootSelectionWidget> LootSelectionWidget;
+
+	UPROPERTY()
+	TObjectPtr<USacrificeGraceOptionWidget> SacrificeGraceOptionWidget;
 
 	// === LootSelection 队列管理（多个 RewardPickup 同时触发时按 FIFO 排队） ===
 	struct FQueuedLootRequest

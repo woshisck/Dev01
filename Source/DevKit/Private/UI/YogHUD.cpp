@@ -30,6 +30,9 @@
 #include "UI/PortalDirectionWidget.h"
 #include "Map/RewardPickup.h"
 #include "Map/Portal.h"
+#include "Map/SacrificeGracePickup.h"
+#include "UI/SacrificeGraceOptionWidget.h"
+#include "Data/SacrificeGraceDA.h"
 #include "System/YogGameInstanceBase.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Engine/GameViewportClient.h"
@@ -108,6 +111,15 @@ void AYogHUD::BeginPlay()
 			GetOwningPlayerController(), LootSelectionWidgetClass);
 		if (LootSelectionWidget)
 			LootSelectionWidget->AddToViewport(15);
+	}
+
+	// ── SacrificeGrace 确认弹窗（常驻，默认隐藏，按需激活）──────────
+	if (SacrificeGraceOptionWidgetClass)
+	{
+		SacrificeGraceOptionWidget = CreateWidget<USacrificeGraceOptionWidget>(
+			GetOwningPlayerController(), SacrificeGraceOptionWidgetClass);
+		if (SacrificeGraceOptionWidget)
+			SacrificeGraceOptionWidget->AddToViewport(16);
 	}
 
 	// ── Weapon Thumbnail Fly（按需回退加载） ──────
@@ -210,6 +222,24 @@ void AYogHUD::OnLootSelectionFinished()
 
 	// 复用 QueueLootSelection 流程（此时 bLootSelectionActive 已置 false，会立即弹）
 	QueueLootSelection(Next.Options, Next.SourcePickup.Get());
+}
+
+void AYogHUD::ShowSacrificeGraceOption(USacrificeGraceDA* DA, APlayerCharacterBase* Player, ASacrificeGracePickup* Pickup)
+{
+	if (!DA) return;
+
+	// 按需重建（Widget 被 CommonUI 框架销毁时）
+	if (!SacrificeGraceOptionWidget || !SacrificeGraceOptionWidget->IsInViewport())
+	{
+		if (!SacrificeGraceOptionWidgetClass) return;
+		SacrificeGraceOptionWidget = CreateWidget<USacrificeGraceOptionWidget>(
+			GetOwningPlayerController(), SacrificeGraceOptionWidgetClass);
+		if (SacrificeGraceOptionWidget)
+			SacrificeGraceOptionWidget->AddToViewport(16);
+	}
+
+	SacrificeGraceOptionWidget->Setup(DA, Player, Pickup);
+	SacrificeGraceOptionWidget->ActivateWidget();
 }
 
 void AYogHUD::OpenBackpackForPreview(FSimpleDelegate OnClosed)

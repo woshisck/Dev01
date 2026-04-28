@@ -6,6 +6,7 @@
 #include "GameModes/YogGameMode.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "Kismet/GameplayStatics.h"
+#include "UI/YogHUD.h"
 
 ASacrificeGracePickup::ASacrificeGracePickup()
 {
@@ -92,15 +93,38 @@ void ASacrificeGracePickup::TryPickup(APlayerCharacterBase* Player)
 		return;
 	}
 
+	APlayerController* PC = Player->GetController<APlayerController>();
+	AYogHUD* HUD = PC ? Cast<AYogHUD>(PC->GetHUD()) : nullptr;
+	if (!HUD)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[SacrificeGracePickup] TryPickup 失败：HUD 不可用"));
+		return;
+	}
+
 	bPickedUp = true;
 	if (Player->PendingSacrificePickup == this)
-	{
 		Player->PendingSacrificePickup = nullptr;
-	}
 	if (PickupHintWidgetComp) PickupHintWidgetComp->SetVisibility(false);
 
-	Player->AcquireSacrificeGrace(SacrificeGraceDA);
+	HUD->ShowSacrificeGraceOption(SacrificeGraceDA, Player, this);
+}
+
+void ASacrificeGracePickup::ConsumeAndDestroy()
+{
+	UE_LOG(LogTemp, Log, TEXT("[SacrificeGracePickup] ConsumeAndDestroy"));
 	Destroy();
+}
+
+void ASacrificeGracePickup::ResetForSkip(APlayerCharacterBase* Player)
+{
+	bPickedUp = false;
+
+	if (Player && NearbyPlayer.Get() == Player)
+	{
+		if (!IsPickupAllowed()) return;
+		Player->PendingSacrificePickup = this;
+		if (PickupHintWidgetComp) PickupHintWidgetComp->SetVisibility(true);
+	}
 }
 
 bool ASacrificeGracePickup::IsPickupAllowed() const

@@ -35,6 +35,12 @@ public:
 	virtual void TryPickup(APlayerCharacterBase* Player) override;
 	// ~ End IPickupInteractable
 
+	/** Yes 确认后由 SacrificeGraceOptionWidget 调用：销毁本拾取物 */
+	void ConsumeAndDestroy();
+
+	/** No 放弃后由 SacrificeGraceOptionWidget 调用：复位状态使玩家可再次按 E */
+	void ResetForSkip(APlayerCharacterBase* Player);
+
 protected:
 	virtual void BeginPlay() override;
 
