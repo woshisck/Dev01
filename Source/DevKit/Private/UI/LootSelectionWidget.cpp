@@ -13,8 +13,11 @@
 #include "Components/Button.h"
 #include "Components/SizeBox.h"
 #include "Components/Border.h"
+#include "Blueprint/WidgetTree.h"
 #include "Kismet/GameplayStatics.h"
 #include "Input/CommonUIInputTypes.h"
+
+static_assert(ULootSelectionWidget::MaxCards == 6, "Card click/hover callbacks must match MaxCards.");
 
 // ============================================================
 //  生命周期
@@ -25,7 +28,7 @@ void ULootSelectionWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	SetVisibility(ESlateVisibility::Collapsed);
-	bIsFocusable = true;
+	SetIsFocusable(true);
 
 	// Phase 变化保留监听（控制整体显隐 BP 事件）；OnLootGenerated 已废弃
 	// 改由 RewardPickup 通过 HUD::QueueLootSelection 直接触发，确保 SourcePickup 不丢失
@@ -133,23 +136,32 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 
 	if (!RuneCardClass || !CardContainer) return;
 
-	const int32 N = FMath::Min(Options.Num(), MaxCards);
-	if (N < Options.Num())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[LootSelection] Options=%d 超过 MaxCards=%d，截断到 %d"),
-			Options.Num(), MaxCards, N);
-	}
-
-	// 先统计有效卡数（非 Rune 或 RuneAsset=null 的项不算），避免无效项让 5/6 张全部缩小
-	int32 ValidCount = 0;
-	for (int32 i = 0; i < N; ++i)
+	TArray<int32> ValidOptionIndices;
+	ValidOptionIndices.Reserve(FMath::Min(Options.Num(), MaxCards));
+	for (int32 i = 0; i < Options.Num() && ValidOptionIndices.Num() < MaxCards; ++i)
 	{
 		const FLootOption& Opt = Options[i];
 		if (Opt.LootType == ELootType::Rune && Opt.RuneAsset)
 		{
-			++ValidCount;
+			ValidOptionIndices.Add(i);
 		}
 	}
+
+	if (ValidOptionIndices.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[LootSelection] RebuildCards: no valid rune options to display."));
+		return;
+	}
+
+	const int32 N = ValidOptionIndices.Num();
+	if (N < Options.Num())
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[LootSelection] Options=%d, valid visible cards=%d, MaxCards=%d"),
+			Options.Num(), N, MaxCards);
+	}
+
+	// 先统计有效卡数（非 Rune 或 RuneAsset=null 的项不算），避免无效项让 5/6 张全部缩小
+	const int32 ValidCount = N;
 
 	// ValidCount <= 4: 单行大卡 320×420，不强制换行
 	// ValidCount >= 5: 缩成 240×360，WrapSize=820 强制 3 列（5 张 → 3+2，6 张 → 3+3）
@@ -159,7 +171,8 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 	if (ValidCount >= 5)
 	{
 		CardContainer->SetExplicitWrapSize(true);
-		CardContainer->SetWrapSize(WrapBoxWrapWidthFor3Plus);
+		const float ThreeColumnWidth = 3.f * (SmallCardSize.X * 1.06f + CardHorizontalPadding * 2.f) + 24.f;
+		CardContainer->SetWrapSize(FMath::Max(WrapBoxWrapWidthFor3Plus, ThreeColumnWidth));
 	}
 	else
 	{
@@ -169,8 +182,8 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 
 	for (int32 i = 0; i < N; ++i)
 	{
-		const FLootOption& Opt = Options[i];
-		if (Opt.LootType != ELootType::Rune || !Opt.RuneAsset) continue;
+		const int32 OptionIndex = ValidOptionIndices[i];
+		const FLootOption& Opt = Options[OptionIndex];
 
 		// 卡片本体
 		URuneInfoCardWidget* Card = CreateWidget<URuneInfoCardWidget>(this, RuneCardClass);
@@ -181,18 +194,24 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 		Card->SetSelected(false);                 // 重建时清场，FocusCard 再统一设当前选中
 
 		// SizeBox 强制 Override 宽高（动态尺寸），避免 WBP_RuneInfoCard 自身 Desired Size 不一致
-		USizeBox* SizeBox = NewObject<USizeBox>(this);
-		SizeBox->SetWidthOverride(CardSize.X);
-		SizeBox->SetHeightOverride(CardSize.Y);
+		USizeBox* SizeBox = WidgetTree
+			? WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass())
+			: NewObject<USizeBox>(this);
+		SizeBox->SetMinDesiredWidth(CardSize.X);
+		SizeBox->SetMaxDesiredWidth(CardSize.X);
+		SizeBox->SetMinDesiredHeight(CardSize.Y);
+		SizeBox->SetMaxDesiredHeight(CardSize.Y);
 		SizeBox->AddChild(Card);
 
 		// 外包 UButton 处理鼠标点击
-		UButton* Wrapper = NewObject<UButton>(this);
+		UButton* Wrapper = WidgetTree
+			? WidgetTree->ConstructWidget<UButton>(UButton::StaticClass())
+			: NewObject<UButton>(this);
 		Wrapper->SetVisibility(ESlateVisibility::Visible);
 		Wrapper->AddChild(SizeBox);
 
 		// 全透明 ButtonStyle，避免盖住卡片视觉（Designer 可在 WBP 里覆盖此默认）
-		FButtonStyle Style = Wrapper->WidgetStyle;
+		FButtonStyle Style = Wrapper->GetStyle();
 		Style.Normal.TintColor   = FSlateColor(FLinearColor(1, 1, 1, 0));
 		Style.Hovered.TintColor  = FSlateColor(FLinearColor(1, 1, 1, 0));
 		Style.Pressed.TintColor  = FSlateColor(FLinearColor(1, 1, 1, 0));
@@ -243,7 +262,7 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 
 		SpawnedCards.Add(Card);
 		SpawnedCardButtons.Add(Wrapper);
-		CardToOptionIndex.Add(i);  // 记录卡片→Options 映射，键盘选中时用
+		CardToOptionIndex.Add(OptionIndex);  // 记录卡片→Options 映射，键盘选中时用
 	}
 }
 

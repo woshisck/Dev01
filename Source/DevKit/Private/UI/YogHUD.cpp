@@ -790,10 +790,14 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 		FVector2D ViewportSize;
 		if (UGameViewportClient* GVC = GetWorld()->GetGameViewport())
 			GVC->GetViewportSize(ViewportSize);
+		const float EffectiveSideOffset = FMath::Clamp(PortalWidgetSideOffset, 0.f, 48.f);
 		const float SideX = (ScreenPos.X > ViewportSize.X * 0.5f)
-			? -PortalWidgetSideOffset : PortalWidgetSideOffset;
+			? -EffectiveSideOffset : EffectiveSideOffset;
 		ScreenPos.X += SideX;
+		ScreenPos.X = FMath::Clamp(ScreenPos.X, 24.f, ViewportSize.X - 24.f);
+		ScreenPos.Y = FMath::Clamp(ScreenPos.Y, 24.f, ViewportSize.Y - 24.f);
 
+		PortalPreviewWidget->SetAlignmentInViewport(FVector2D(0.5f, 1.0f));
 		PortalPreviewWidget->SetPositionInViewport(ScreenPos, false);
 	}
 

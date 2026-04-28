@@ -12,6 +12,7 @@
 
 
 class AYogCharacterBase;
+struct FStreamableHandle;
 class UYogSaveGame;
 
 // =========================================================
@@ -104,7 +105,7 @@ public:
 	};
 };
 
-UCLASS()
+UCLASS(Config=Game)
 class DEVKIT_API UYogGameInstanceBase : public UGameInstance
 {
 	GENERATED_BODY()
@@ -153,6 +154,28 @@ public:
 
 	// 清空跑局状态（玩家死亡时调用，使下一局从默认值开始）
 	void ClearRunState();
+
+	// =========================================================
+	// Frontend / packaged startup flow
+	// =========================================================
+
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
+	FSoftObjectPath MainGameMap;
+
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend", meta = (ClampMin = "0.0"))
+	float MinimumLoadingScreenTime = 0.35f;
+
+	UFUNCTION(BlueprintCallable, Category = "Frontend")
+	void ShowMainMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "Frontend")
+	void StartNewRunFromFrontend();
+
+	UFUNCTION(BlueprintCallable, Category = "Frontend")
+	void ShowGameOverScreen();
+
+	UFUNCTION(BlueprintCallable, Category = "Frontend")
+	void ReturnToMainMenu();
 
 	UPROPERTY(BlueprintAssignable, Category = "Level system")
 	FFinishLevel OnFinishLevel;
@@ -222,6 +245,8 @@ public:
 	// Function to be called when the map has been loaded, to load the save game
 	void OnPostLoadMap(UWorld* World);
 
+	void OnPreLoadMap(const FString& MapName);
+
 
 	UFUNCTION(BlueprintCallable, Category = Save)
 	void SaveGame();
@@ -262,6 +287,27 @@ private:
 
 	// Flag to indicate we want to load a save after the map is opened
 	bool bShouldLoadSaveAfterMap;
+
+	TSharedPtr<class SWidget> FrontendWidget;
+	TSharedPtr<FStreamableHandle> FrontendMapLoadHandle;
+	FTimerHandle FrontendLoadingTimerHandle;
+	bool bFrontendLoadingGameplayMap = false;
+	bool bFrontendMinLoadTimeElapsed = false;
+	bool bFrontendMapLoaded = false;
+	double FrontendLoadingStartedSeconds = 0.0;
+
+	void BeginLoadMainGameMap();
+	void HandleMainGameMapPreloaded();
+	void HandleMinimumLoadingScreenTimeElapsed();
+	void FinishFrontendLoadingIfReady();
+	void ShowLoadingScreen(const FText& Title, const FText& Subtitle);
+	void RemoveFrontendWidget();
+	void ApplyFrontendInputMode(bool bUIOnly);
+	bool IsFrontendStartupWorld(const UWorld* World) const;
+	FReply HandleStartClicked();
+	FReply HandleRetryClicked();
+	FReply HandleReturnToMenuClicked();
+	FReply HandleQuitClicked();
 
 protected:
 

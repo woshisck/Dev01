@@ -84,7 +84,7 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		GI->PendingRunState.CurrentHP, GI->PendingRunState.CurrentGold,
 		GI->PendingRunState.CurrentPhase, GI->PendingRunState.PlacedRunes.Num());
 
-	const FRunState& State = GI->PendingRunState;
+	const FRunState State = GI->PendingRunState;
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 
 	// 恢复 HP
@@ -134,15 +134,28 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 	// 恢复整理阶段已选但尚未放置的符文
 	PendingRunes = State.PendingRunes;
 
+	if (!State.EquippedWeaponDef && BackpackGridComponent)
+	{
+		BackpackGridComponent->RestorePlacedRunes(State.PlacedRunes);
+	}
+
 	// 恢复武器装备
 	if (State.EquippedWeaponDef)
 	{
 		State.EquippedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
+		if (BackpackGridComponent)
+		{
+			BackpackGridComponent->RestorePlacedRunes(State.PlacedRunes);
+		}
 		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE Weapon — %s"), *State.EquippedWeaponDef->GetName());
 	}
 
 	// 恢复献祭恩赐
 	ActiveSacrificeGrace = State.ActiveSacrificeGrace;
+	if (ActiveSacrificeGrace)
+	{
+		AcquireSacrificeGrace(ActiveSacrificeGrace);
+	}
 }
 
 void APlayerCharacterBase::ItemInteract(const AItemSpawner* item)
