@@ -414,6 +414,11 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	Player->EquippedFromSpawner  = this;
 	Player->PendingWeaponSpawner = nullptr;
 
+	if (AYogPlayerControllerBase* YogPC = Cast<AYogPlayerControllerBase>(Player->GetController()))
+	{
+		YogPC->ConfigureMeleeComboGraph(WeaponDefinition->WeaponComboGraph);
+	}
+
 	// ── 5.5 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────
 	// 让玩家专属攻击 GA 的 ActivationRequiredTags 能匹配通过；
 	// 注意：TryPickupWeapon 自己实现了装备流程未调 SetupWeaponToCharacter，

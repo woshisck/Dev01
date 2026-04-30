@@ -46,6 +46,7 @@ public class DevKit : ModuleRules
                 "AnimGraphRuntime",
                 "GameplayAbilities",
                 "Flow",
+                "ComboGraph",
 
             });
 

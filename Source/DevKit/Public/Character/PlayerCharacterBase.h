@@ -24,6 +24,7 @@ class UBackpackStyleDataAsset;
 class UBackpackGridComponent;
 class UCombatDeckComponent;
 class UBuffFlowComponent;
+class UComboGraphSystemComponent;
 class USkillChargeComponent;
 class UWeaponDefinition;
 class USacrificeGraceDA;
@@ -84,6 +85,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SkillCharge")
 	TObjectPtr<USkillChargeComponent> SkillChargeComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ComboGraph")
+	TObjectPtr<UComboGraphSystemComponent> ComboGraphSystemComponent;
 
 	
 

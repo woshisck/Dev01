@@ -29,6 +29,11 @@
 
 #include "Component/BufferComponent.h"
 #include "AbilitySystemComponent.h"
+#include "Abilities/ComboGraphNativeTags.h"
+#include "Abilities/Tasks/GameplayTask_StartComboGraph.h"
+#include "Components/ComboGraphGameplayTasksComponent.h"
+#include "Components/ComboGraphSystemComponent.h"
+#include "Graph/ComboGraph.h"
 
 
 
@@ -262,6 +267,115 @@ AYogCharacterBase* AYogPlayerControllerBase::GetControlledCharacter()
 	return MyCharacter;
 }
 
+UComboGraphSystemComponent* AYogPlayerControllerBase::GetComboGraphSystemComponent() const
+{
+	APawn* ControlledPawn = GetPawn();
+	return ControlledPawn ? ControlledPawn->FindComponentByClass<UComboGraphSystemComponent>() : nullptr;
+}
+
+UComboGraphGameplayTasksComponent* AYogPlayerControllerBase::GetComboGraphGameplayTasksComponent() const
+{
+	APawn* ControlledPawn = GetPawn();
+	return ControlledPawn ? ControlledPawn->FindComponentByClass<UComboGraphGameplayTasksComponent>() : nullptr;
+}
+
+void AYogPlayerControllerBase::TryActivateLegacyMeleeAttack(EInputCommandType InputType) const
+{
+	const APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn());
+	if (!PlayerCharacter || !PlayerCharacter->GetASC())
+	{
+		return;
+	}
+
+	FGameplayTagContainer TagContainer;
+	switch (InputType)
+	{
+	case EInputCommandType::LightAttack:
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk")));
+		break;
+	case EInputCommandType::HeavyAttack:
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk")));
+		break;
+	default:
+		return;
+	}
+
+	PlayerCharacter->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+}
+
+void AYogPlayerControllerBase::SendComboGraphInput(UInputAction* InputAction)
+{
+	if (!InputAction)
+	{
+		return;
+	}
+
+	UComboGraphGameplayTasksComponent* ComboTasksComponent = GetComboGraphGameplayTasksComponent();
+	if (!ComboTasksComponent)
+	{
+		return;
+	}
+
+	const FGameplayTag InputTag = FComboGraphNativeTags::Get().Input;
+	FGameplayEventData EventData;
+	EventData.EventTag = InputTag;
+	EventData.OptionalObject = InputAction;
+	ComboTasksComponent->SendGameplayEventReplicated(InputTag, EventData);
+}
+
+bool AYogPlayerControllerBase::TryHandleComboGraphAttack(UInputAction* InitialInputAction, EInputCommandType LegacyInputType)
+{
+	if (!bUseComboGraphForMeleeAttacks || !MeleeComboGraph || !InitialInputAction)
+	{
+		return false;
+	}
+
+	if (ActiveMeleeComboGraphTask)
+	{
+		SendComboGraphInput(InitialInputAction);
+		return true;
+	}
+
+	UComboGraphSystemComponent* ComboSystemComponent = GetComboGraphSystemComponent();
+	if (!ComboSystemComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ComboGraph] MeleeComboGraph is configured, but pawn has no ComboGraphSystemComponent. Falling back to legacy melee abilities."));
+		return false;
+	}
+
+	TScriptInterface<IGameplayTaskOwnerInterface> TaskOwner;
+	TaskOwner.SetObject(ComboSystemComponent);
+	TaskOwner.SetInterface(ComboSystemComponent);
+
+	PendingComboGraphInitialInput = LegacyInputType;
+	ActiveMeleeComboGraphTask = UGameplayTask_StartComboGraph::TaskStartComboGraph(
+		TaskOwner,
+		MeleeComboGraph,
+		InitialInputAction,
+		false);
+
+	if (!ActiveMeleeComboGraphTask)
+	{
+		return false;
+	}
+
+	ActiveMeleeComboGraphTask->OnActivationFailed.AddDynamic(this, &AYogPlayerControllerBase::OnComboGraphActivationFailed);
+	ActiveMeleeComboGraphTask->OnGraphEnd.AddDynamic(this, &AYogPlayerControllerBase::OnComboGraphEnded);
+	ActiveMeleeComboGraphTask->ReadyForActivation();
+	return true;
+}
+
+void AYogPlayerControllerBase::OnComboGraphActivationFailed(FGameplayTag EventTag, FGameplayEventData EventData)
+{
+	ActiveMeleeComboGraphTask = nullptr;
+	TryActivateLegacyMeleeAttack(PendingComboGraphInitialInput);
+}
+
+void AYogPlayerControllerBase::OnComboGraphEnded(FGameplayTag EventTag, FGameplayEventData EventData)
+{
+	ActiveMeleeComboGraphTask = nullptr;
+}
+
 void AYogPlayerControllerBase::OnInteractTriggered(const AItemSpawner* item)
 {
 	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn());
@@ -301,15 +415,22 @@ void AYogPlayerControllerBase::SetBlockGameInput(bool bBlock, bool bUIOnly)
 	}
 }
 
+void AYogPlayerControllerBase::ConfigureMeleeComboGraph(UComboGraph* ComboGraph)
+{
+	MeleeComboGraph = ComboGraph;
+	bUseComboGraphForMeleeAttacks = ComboGraph != nullptr;
+	ActiveMeleeComboGraphTask = nullptr;
+}
+
 void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 {
 	if (bBlockGameInput) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.LightAtk")));
-		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
-
+		if (!TryHandleComboGraphAttack(Input_LightAttack, EInputCommandType::LightAttack))
+		{
+			TryActivateLegacyMeleeAttack(EInputCommandType::LightAttack);
+		}
 
 		player->GetInputBufferComponent()->RecordLightAttack();
 	}
@@ -320,9 +441,10 @@ void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 	if (bBlockGameInput) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.HeavyAtk")));
-		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		if (!TryHandleComboGraphAttack(Input_HeavyAttack, EInputCommandType::HeavyAttack))
+		{
+			TryActivateLegacyMeleeAttack(EInputCommandType::HeavyAttack);
+		}
 
 		player->GetInputBufferComponent()->RecordHeavyAttack();
 	}
@@ -341,6 +463,16 @@ void AYogPlayerControllerBase::HeavyAttackReleased(const FInputActionValue& Valu
 		ASC->HandleGameplayEvent(
 			FGameplayTag::RequestGameplayTag(FName("GameplayEvent.Musket.HeavyRelease")),
 			&EventData);
+
+		FGameplayEventData GenericEventData;
+		ASC->HandleGameplayEvent(
+			FGameplayTag::RequestGameplayTag(FName("GameplayEvent.Attack.HeavyRelease")),
+			&GenericEventData);
+
+		if (ActiveMeleeComboGraphTask)
+		{
+			SendComboGraphInput(Input_HeavyAttack);
+		}
 	}
 }
 

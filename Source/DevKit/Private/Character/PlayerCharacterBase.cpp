@@ -20,6 +20,7 @@
 #include "Component/CombatDeckComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/SkillChargeComponent.h"
+#include "Components/ComboGraphSystemComponent.h"
 #include "Data/SacrificeGraceDA.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "AbilitySystem/Abilities/YogTargetType_Melee.h"
@@ -38,6 +39,7 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
 	SkillChargeComponent = CreateDefaultSubobject<USkillChargeComponent>(TEXT("SkillChargeComponent"));
+	ComboGraphSystemComponent = CreateDefaultSubobject<UComboGraphSystemComponent>(TEXT("ComboGraphSystemComponent"));
 
 	// 近战默认命中框：C++ 实现，无需在每个角色蓝图 Class Defaults 中单独配置
 	DefaultMeleeTargetType = UYogTargetType_Player::StaticClass();

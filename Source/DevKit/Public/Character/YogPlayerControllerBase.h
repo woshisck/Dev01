@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ModularPlayerController.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Component/BufferComponent.h"
 
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
@@ -15,6 +16,10 @@
 class AYogCameraPawn;
 class AYogCharacterBase;
 class AYogPlayerCameraManager;
+class UComboGraph;
+class UComboGraphGameplayTasksComponent;
+class UComboGraphSystemComponent;
+class UGameplayTask_StartComboGraph;
 class UInputMappingContext;
 
 
@@ -79,6 +84,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_CameraLook;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|ComboGraph")
+	bool bUseComboGraphForMeleeAttacks = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|ComboGraph", meta = (EditCondition = "bUseComboGraphForMeleeAttacks"))
+	TObjectPtr<UComboGraph> MeleeComboGraph;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<class UBackpackScreenWidget> BackpackWidgetClass;
 
@@ -141,6 +152,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void SetBlockGameInput(bool bBlock, bool bUIOnly = false);
 
+	UFUNCTION(BlueprintCallable, Category = "Combat|ComboGraph")
+	void ConfigureMeleeComboGraph(UComboGraph* ComboGraph);
+
 	// ── Push/Pull 菜单计数 ──────────────────────────────────────────
 	/** 当前有几个菜单层 widget 处于激活状态；归零时显示 CombatHUDWidget */
 	void OnMenuWidgetActivated();
@@ -149,6 +163,17 @@ public:
 private:
 	/** UI 打开期间为 true，屏蔽移动/攻击/冲刺输入 */
 	bool HandleMenuBackInput(const FKey& Key);
+	bool TryHandleComboGraphAttack(UInputAction* InitialInputAction, EInputCommandType LegacyInputType);
+	void SendComboGraphInput(UInputAction* InputAction);
+	UComboGraphSystemComponent* GetComboGraphSystemComponent() const;
+	UComboGraphGameplayTasksComponent* GetComboGraphGameplayTasksComponent() const;
+	void TryActivateLegacyMeleeAttack(EInputCommandType InputType) const;
+
+	UFUNCTION()
+	void OnComboGraphActivationFailed(FGameplayTag EventTag, FGameplayEventData EventData);
+
+	UFUNCTION()
+	void OnComboGraphEnded(FGameplayTag EventTag, FGameplayEventData EventData);
 
 	bool bBlockGameInput = false;
 
@@ -171,4 +196,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<class UBackpackScreenWidget> BackpackWidget;
+
+	UPROPERTY()
+	TObjectPtr<UGameplayTask_StartComboGraph> ActiveMeleeComboGraphTask;
+
+	EInputCommandType PendingComboGraphInitialInput = EInputCommandType::LightAttack;
 };

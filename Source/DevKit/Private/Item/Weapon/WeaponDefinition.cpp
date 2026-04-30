@@ -1,6 +1,7 @@
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Character/YogPlayerControllerBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
@@ -78,6 +79,11 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 
 	// 记录当前装备的武器 DA，供切关时写入 RunState
 	ReceivingChar->EquippedWeaponDef = this;
+
+	if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(ReceivingChar->GetController()))
+	{
+		PC->ConfigureMeleeComboGraph(WeaponComboGraph);
+	}
 
 	// ── 注入背包配置（格子尺寸 + 激活区） ───────────────────────────────
 	UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] SetupWeaponToCharacter reached end. BackpackConfig W=%d H=%d, Char=%s"),

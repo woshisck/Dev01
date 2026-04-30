@@ -13,6 +13,7 @@
 #include "WeaponDefinition.generated.h"
 
 class ULevelInfoPopupDA;
+class UComboGraph;
 
 class UYogAbilitySet;
 class AWeaponInstance;
@@ -87,6 +88,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability")
 	TObjectPtr<UAbilityData> WeaponAbilityData;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|ComboGraph")
+	TObjectPtr<UComboGraph> WeaponComboGraph;
 
 	// 武器类型：决定装备时挂在 ASC 上的 Weapon.Type.* LooseTag。
 	// 玩家专属攻击 GA 通过 ActivationRequiredTags 持有该 Tag → 自动隔离近战/远程激活路径。
