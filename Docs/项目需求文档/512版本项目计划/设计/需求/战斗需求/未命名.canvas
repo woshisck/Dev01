@@ -1,0 +1,20 @@
+{
+	"nodes":[
+		{"id":"f77c27fa559a5156","type":"text","text":"轻攻击2","x":-340,"y":-120,"width":250,"height":60},
+		{"id":"359396462e606ded","x":-340,"y":-280,"width":250,"height":60,"type":"text","text":"轻攻击1"},
+		{"id":"6ff9d192d8feaa9d","type":"text","text":"轻攻击3","x":-340,"y":20,"width":250,"height":60},
+		{"id":"ce1679901f4262bb","type":"text","text":"轻攻击4","x":-340,"y":160,"width":250,"height":60},
+		{"id":"77f71b36ddae8c56","type":"text","text":"重攻击1","x":-40,"y":-280,"width":250,"height":60},
+		{"id":"b52cf802f58e53e9","type":"text","text":"重攻击3","x":-40,"y":20,"width":250,"height":60},
+		{"id":"d9331a910f144785","type":"text","text":"重攻击3","x":-40,"y":160,"width":250,"height":60},
+		{"id":"106b9f9dba128b9a","type":"text","text":"重攻击2","x":-40,"y":-120,"width":250,"height":60}
+	],
+	"edges":[
+		{"id":"e5778b828bcf85f9","fromNode":"77f71b36ddae8c56","fromSide":"bottom","toNode":"106b9f9dba128b9a","toSide":"top"},
+		{"id":"f1bcc3953ae13e77","fromNode":"6ff9d192d8feaa9d","fromSide":"bottom","toNode":"ce1679901f4262bb","toSide":"top"},
+		{"id":"d8299faee4c5e012","fromNode":"106b9f9dba128b9a","fromSide":"bottom","toNode":"b52cf802f58e53e9","toSide":"top"},
+		{"id":"bfbca6530e69467c","fromNode":"b52cf802f58e53e9","fromSide":"bottom","toNode":"d9331a910f144785","toSide":"top"},
+		{"id":"6e28cf4a979f589f","fromNode":"359396462e606ded","fromSide":"bottom","toNode":"f77c27fa559a5156","toSide":"top"},
+		{"id":"9138f4bd456ed214","fromNode":"f77c27fa559a5156","fromSide":"bottom","toNode":"6ff9d192d8feaa9d","toSide":"top"}
+	]
+}
