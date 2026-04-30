@@ -372,7 +372,6 @@ void ULootSelectionWidget::SelectRuneLoot(int32 Index)
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{
-		// 先恢复游戏状态，再开背包（背包会自己设 UIOnly 输入模式）
 		PC->SetPause(false);
 		PC->SetShowMouseCursor(false);
 		PC->SetInputMode(FInputModeGameOnly());
@@ -383,7 +382,6 @@ void ULootSelectionWidget::SelectRuneLoot(int32 Index)
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 		{
 			HUD->EndPauseEffect();
-			HUD->OpenBackpack();
 		}
 	}
 

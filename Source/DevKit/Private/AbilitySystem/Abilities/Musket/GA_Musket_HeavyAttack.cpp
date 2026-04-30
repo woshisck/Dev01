@@ -6,6 +6,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Item/Weapon/AimArcActor.h"
 #include "Character/YogCharacterBase.h"
+#include "Projectile/MusketBullet.h"
 
 UGA_Musket_HeavyAttack::UGA_Musket_HeavyAttack()
 {
@@ -119,7 +120,10 @@ void UGA_Musket_HeavyAttack::DoFire()
     const float Multiplier = bFullCharge ? FullChargeMultiplier : BaseDamageMultiplier;
     const float Damage     = GetBaseAttack() * Multiplier;
     const float Angle      = FMath::RandRange(-CurrentHalfAngle, CurrentHalfAngle);
-    SpawnBullet(Angle, Damage);
+    if (AMusketBullet* Bullet = SpawnBullet(Angle, Damage))
+    {
+        Bullet->SetCombatDeckContext(ECardRequiredAction::Heavy, false, false);
+    }
     ConsumeOneAmmo();
     ExecuteFireCue();
 

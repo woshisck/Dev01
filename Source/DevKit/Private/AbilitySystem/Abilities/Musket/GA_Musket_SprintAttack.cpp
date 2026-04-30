@@ -47,6 +47,10 @@ void UGA_Musket_SprintAttack::ActivateAbility(
         }
 
         AMusketBullet* Bullet = SpawnBullet(Angle, Damage);
+        if (Bullet)
+        {
+            Bullet->SetCombatDeckContext(ECardRequiredAction::Light, false, false);
+        }
 
         // 为每颗子弹施加击退 GE（通过子弹命中时的目标，在 BP_MusketBullet.BP_OnHitEnemy 中处理）
         // 此处额外将击退 GE 存储供子弹引用——简单方案：子弹存 GE 类并在 OnHit 中施加

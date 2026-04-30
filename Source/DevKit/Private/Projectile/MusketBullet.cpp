@@ -7,6 +7,8 @@
 #include "GameFramework/Character.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Character/PlayerCharacterBase.h"
+#include "Component/CombatDeckComponent.h"
 #include "GameplayEffect.h"
 #include "TimerManager.h"
 
@@ -51,6 +53,13 @@ void AMusketBullet::InitBullet(ACharacter* InSource, float InDamage,
         ProjectileMovement->MaxSpeed     = Speed;
         ProjectileMovement->Velocity     = GetActorForwardVector() * Speed;
     }
+}
+
+void AMusketBullet::SetCombatDeckContext(ECardRequiredAction InActionType, bool bInComboFinisher, bool bInFromDashSave)
+{
+    CombatDeckActionType = InActionType;
+    bCombatDeckComboFinisher = bInComboFinisher;
+    bCombatDeckFromDashSave = bInFromDashSave;
 }
 
 void AMusketBullet::BeginPlay()
@@ -106,7 +115,28 @@ void AMusketBullet::ApplyDamageTo(AActor* Target, const FVector& HitLocation)
         SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
     }
 
+    ResolveCombatDeckOnHit();
     BP_OnHitEnemy(Target, HitLocation);
+}
+
+void AMusketBullet::ResolveCombatDeckOnHit()
+{
+    if (bCombatDeckResolved)
+    {
+        return;
+    }
+
+    APlayerCharacterBase* PlayerSource = Cast<APlayerCharacterBase>(SourceCharacter);
+    if (!PlayerSource || !PlayerSource->CombatDeckComponent)
+    {
+        return;
+    }
+
+    bCombatDeckResolved = true;
+    PlayerSource->CombatDeckComponent->ResolveAttackCard(
+        CombatDeckActionType,
+        bCombatDeckComboFinisher,
+        bCombatDeckFromDashSave);
 }
 
 void AMusketBullet::Expire()

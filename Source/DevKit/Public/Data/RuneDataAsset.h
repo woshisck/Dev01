@@ -131,6 +131,80 @@ enum class ERuneTriggerType : uint8
     OnDamageReceived UMETA(DisplayName = "自身受击时"),
 };
 
+UENUM(BlueprintType)
+enum class ECombatCardType : uint8
+{
+    Attack    UMETA(DisplayName = "Attack"),
+    Link      UMETA(DisplayName = "Link"),
+    Finisher  UMETA(DisplayName = "Finisher"),
+    Passive   UMETA(DisplayName = "Passive"),
+};
+
+UENUM(BlueprintType)
+enum class ECardRequiredAction : uint8
+{
+    Light UMETA(DisplayName = "Light"),
+    Heavy UMETA(DisplayName = "Heavy"),
+    Any   UMETA(DisplayName = "Any"),
+};
+
+UENUM(BlueprintType)
+enum class ECardLinkMode : uint8
+{
+    None         UMETA(DisplayName = "None"),
+    ReadPrevious UMETA(DisplayName = "Read Previous"),
+    PassToNext   UMETA(DisplayName = "Pass To Next"),
+};
+
+UENUM(BlueprintType)
+enum class EDeckState : uint8
+{
+    Ready          UMETA(DisplayName = "Ready"),
+    EmptyShuffling UMETA(DisplayName = "Empty Shuffling"),
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FCombatCardConfig
+{
+    GENERATED_BODY()
+
+    FCombatCardConfig() = default;
+
+    FCombatCardConfig(ECombatCardType InCardType, ECardRequiredAction InRequiredAction)
+        : bIsCombatCard(true)
+        , CardType(InCardType)
+        , RequiredAction(InRequiredAction)
+    {
+    }
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    bool bIsCombatCard = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    ECombatCardType CardType = ECombatCardType::Attack;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    ECardRequiredAction RequiredAction = ECardRequiredAction::Any;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    TObjectPtr<UFlowAsset> BaseFlow = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    TObjectPtr<UFlowAsset> MatchedFlow = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    ECardLinkMode LinkMode = ECardLinkMode::None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    bool bRequiresComboFinisher = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    FText DisplayName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    FText HUDReasonText;
+};
+
 
 // ============================================================
 //  FRuneShape — 背包格子形状
@@ -278,6 +352,9 @@ struct DEVKIT_API FRuneInstance
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FRuneFlowConfig Flow;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    FCombatCardConfig CombatCard;
 
     // ---- 运行时数据（不在 DA 里填写）----
 

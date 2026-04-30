@@ -282,6 +282,7 @@ private:
 	void StartRevealAnimation();
 
 	void BindHealthAttributes(APawn* Pawn);
+	void BindCombatDeckWidget(APawn* Pawn);
 
 	UFUNCTION()
 	void OnPawnPossessed(APawn* OldPawn, APawn* NewPawn);

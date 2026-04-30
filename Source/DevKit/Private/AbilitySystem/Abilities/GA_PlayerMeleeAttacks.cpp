@@ -115,7 +115,11 @@ void UGA_Player_LightAtk4::ActivateAbility(
 	if (UYogAbilitySystemComponent* YASC = Cast<UYogAbilitySystemComponent>(
 		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr))
 	{
-		YASC->ConsumeDashSave();
+		SetNextActivationFromDashSave(YASC->ConsumeDashSave());
+	}
+	else
+	{
+		SetNextActivationFromDashSave(false);
 	}
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 }
@@ -186,7 +190,11 @@ void UGA_Player_HeavyAtk4::ActivateAbility(
 	if (UYogAbilitySystemComponent* YASC = Cast<UYogAbilitySystemComponent>(
 		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr))
 	{
-		YASC->ConsumeDashSave();
+		SetNextActivationFromDashSave(YASC->ConsumeDashSave());
+	}
+	else
+	{
+		SetNextActivationFromDashSave(false);
 	}
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 }

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Animation/AN_MeleeDamage.h"
+#include "Data/RuneDataAsset.h"
 #include "GA_MeleeAttack.generated.h"
 
 /**
@@ -52,6 +53,12 @@ public:
 	/** 从缓存的 AN_MeleeDamage 读取当前技能的 ActionData（激活时缓存，结束时仍有效）*/
 	virtual FActionData GetAbilityActionData_Implementation() const override;
 
+	UFUNCTION(BlueprintPure, Category = "Combat|Deck")
+	ECardRequiredAction GetCombatDeckActionType() const;
+
+	UFUNCTION(BlueprintPure, Category = "Combat|Deck")
+	bool IsCombatDeckComboFinisher() const;
+
 protected:
 	virtual void ActivateAbility(
 		const FGameplayAbilitySpecHandle Handle,
@@ -65,6 +72,8 @@ protected:
 		const FGameplayAbilityActivationInfo ActivationInfo,
 		bool bReplicateEndAbility,
 		bool bWasCancelled) override;
+
+	void SetNextActivationFromDashSave(bool bFromDashSave);
 
 private:
 	/** GE_StatBeforeATK 的激活句柄，EndAbility 时自动移除 */
@@ -83,8 +92,14 @@ private:
 	 */
 	const UAN_MeleeDamage* LastFiredDamageNotify = nullptr;
 
+	bool bCombatDeckCardResolvedThisActivation = false;
+	bool bCombatDeckFromDashSave = false;
+	bool bNextActivationFromDashSave = false;
+
 	/** 扫描蒙太奇 Notifies 找到第一个 AN_MeleeDamage。*/
 	static UAN_MeleeDamage* GetFirstDamageNotify(UAnimMontage* Montage);
+
+	void TryResolveCombatDeckOnHit();
 
 	UFUNCTION()
 	void OnMontageCompleted(FGameplayTag EventTag, FGameplayEventData EventData);

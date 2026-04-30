@@ -22,6 +22,7 @@ class AWeaponInstance;
 class UYogSaveGame;
 class UBackpackStyleDataAsset;
 class UBackpackGridComponent;
+class UCombatDeckComponent;
 class UBuffFlowComponent;
 class USkillChargeComponent;
 class UWeaponDefinition;
@@ -74,6 +75,9 @@ public:
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	TObjectPtr<UBackpackGridComponent> BackpackGridComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	TObjectPtr<UCombatDeckComponent> CombatDeckComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BuffFlow")
 	TObjectPtr<UBuffFlowComponent> BuffFlowComponent;

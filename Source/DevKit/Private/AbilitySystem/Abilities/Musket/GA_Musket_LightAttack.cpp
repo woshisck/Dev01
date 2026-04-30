@@ -3,6 +3,7 @@
 #include "AbilitySystem/Abilities/Musket/GA_Musket_LightAttack.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "Character/YogCharacterBase.h"
+#include "Projectile/MusketBullet.h"
 
 UGA_Musket_LightAttack::UGA_Musket_LightAttack()
 {
@@ -84,7 +85,10 @@ void UGA_Musket_LightAttack::DoFire()
 
     const float Damage = GetBaseAttack() * DamageMultiplier;
     const float Angle  = FMath::RandRange(-HalfAngleDeg, HalfAngleDeg);
-    SpawnBullet(Angle, Damage);
+    if (AMusketBullet* Bullet = SpawnBullet(Angle, Damage))
+    {
+        Bullet->SetCombatDeckContext(ECardRequiredAction::Light, false, false);
+    }
     ConsumeOneAmmo();
     ExecuteFireCue();
 }

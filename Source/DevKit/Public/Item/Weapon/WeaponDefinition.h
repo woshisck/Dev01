@@ -134,6 +134,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息")
 	TArray<TObjectPtr<URuneDataAsset>> InitialRunes;
 
+	// 512 战斗卡组：优先使用此列表初始化 1D 攻击卡组；为空时从 InitialRunes 中筛选 CombatCard 配置
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck")
+	TArray<TObjectPtr<URuneDataAsset>> InitialCombatDeck;
+
+	// 卡组打空后的装填时间。V1 默认 1 秒，武器可覆盖。
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck", meta = (ClampMin = "0.0"))
+	float ShuffleCooldownDuration = 1.0f;
+
+	// 第一版默认展示完整卡组；大于 0 时限制 ActiveSequence 长度。
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck", meta = (ClampMin = "0"))
+	int32 MaxActiveSequenceSize = 0;
+
 	// 勾选后武器仅作展示：玩家按 E 弹出 PreviewPopup 信息浮窗，不可实际拾取
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "预览模式")
 	bool bPreviewOnly = false;

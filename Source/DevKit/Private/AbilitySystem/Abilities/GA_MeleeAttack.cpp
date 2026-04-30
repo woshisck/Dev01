@@ -4,6 +4,8 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Character/YogCharacterBase.h"
+#include "Character/PlayerCharacterBase.h"
+#include "Component/CombatDeckComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Data/CharacterData.h"
 #include "Data/AbilityData.h"
@@ -34,12 +36,72 @@ FActionData UGA_MeleeAttack::GetAbilityActionData_Implementation() const
 	return CachedDamageNotify ? CachedDamageNotify->BuildActionData() : FActionData();
 }
 
+ECardRequiredAction UGA_MeleeAttack::GetCombatDeckActionType() const
+{
+	const FGameplayTag HeavyAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk"));
+	const FGameplayTag LightAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk"));
+
+	if (AbilityTags.HasTag(HeavyAttackTag))
+	{
+		return ECardRequiredAction::Heavy;
+	}
+
+	if (AbilityTags.HasTag(LightAttackTag))
+	{
+		return ECardRequiredAction::Light;
+	}
+
+	return ECardRequiredAction::Any;
+}
+
+bool UGA_MeleeAttack::IsCombatDeckComboFinisher() const
+{
+	const FGameplayTag LightFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo4"));
+	const FGameplayTag HeavyFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"));
+
+	return AbilityTags.HasTagExact(LightFinisherTag) || AbilityTags.HasTagExact(HeavyFinisherTag);
+}
+
+void UGA_MeleeAttack::SetNextActivationFromDashSave(bool bFromDashSave)
+{
+	bNextActivationFromDashSave = bFromDashSave;
+}
+
+void UGA_MeleeAttack::TryResolveCombatDeckOnHit()
+{
+	if (bCombatDeckCardResolvedThisActivation)
+	{
+		return;
+	}
+
+	APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
+	if (!PlayerOwner)
+	{
+		PlayerOwner = Cast<APlayerCharacterBase>(GetOwningActorFromActorInfo());
+	}
+
+	if (!PlayerOwner || !PlayerOwner->CombatDeckComponent)
+	{
+		return;
+	}
+
+	bCombatDeckCardResolvedThisActivation = true;
+	PlayerOwner->CombatDeckComponent->ResolveAttackCard(
+		GetCombatDeckActionType(),
+		IsCombatDeckComboFinisher(),
+		bCombatDeckFromDashSave);
+}
+
 void UGA_MeleeAttack::ActivateAbility(
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
+	bCombatDeckCardResolvedThisActivation = false;
+	bCombatDeckFromDashSave = bNextActivationFromDashSave;
+	bNextActivationFromDashSave = false;
+
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	UE_LOG(LogTemp, Warning, TEXT("[GA_MeleeAttack] ActivateAbility: %s"), *GetName());
@@ -236,6 +298,7 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 	if (Handles.Num() > 0 && Owner)
 	{
 		Owner->bComboHitConnected = true;
+		TryResolveCombatDeckOnHit();
 
 		// 收集本次命中的所有目标（供 Ability.Event 广播和 AdditionalRuneEffects 共用）
 		TArray<AActor*> HitActors;

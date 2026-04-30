@@ -53,6 +53,16 @@ struct FRunState
 	UPROPERTY()
 	TArray<FRuneInstance> PendingRunes;
 
+	// 512 战斗卡组源资产顺序：切关后用于恢复奖励追加后的 DeckList
+	UPROPERTY()
+	TArray<TObjectPtr<URuneDataAsset>> CombatDeckCards;
+
+	UPROPERTY()
+	float CombatDeckShuffleCooldownDuration = 1.0f;
+
+	UPROPERTY()
+	int32 CombatDeckMaxActiveSequenceSize = 0;
+
 	// 献祭恩赐（全程跑局 Buff，None = 未获得）
 	UPROPERTY()
 	TObjectPtr<USacrificeGraceDA> ActiveSacrificeGrace;

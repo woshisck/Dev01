@@ -572,10 +572,10 @@ void UYogAbilitySystemComponent::ApplyDashSave(const FGameplayTagContainer& Tags
 		Tags.Num(), *GetNameSafe(GetAvatarActor()));
 }
 
-void UYogAbilitySystemComponent::ConsumeDashSave()
+bool UYogAbilitySystemComponent::ConsumeDashSave()
 {
 	if (DashSaveComboTags.IsEmpty())
-		return;
+		return false;
 
 	if (UWorld* W = GetWorld())
 		W->GetTimerManager().ClearTimer(DashSaveExpireTimer);
@@ -585,6 +585,7 @@ void UYogAbilitySystemComponent::ConsumeDashSave()
 
 	DashSaveComboTags.Reset();
 	UE_LOG(LogTemp, Log, TEXT("[DashSave] Consumed on %s"), *GetNameSafe(GetAvatarActor()));
+	return true;
 }
 
 void UYogAbilitySystemComponent::DashSaveExpired()

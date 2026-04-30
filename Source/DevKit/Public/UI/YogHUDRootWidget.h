@@ -9,6 +9,7 @@ class UEnemyArrowWidget;
 class UWeaponGlassIconWidget;
 class UHeatBarWidget;
 class UInfoPopupWidget;
+class UCombatDeckBarWidget;
 
 /**
  * 主 HUD 容器 Widget（C++ 基类）
@@ -46,4 +47,7 @@ public:
     /** 轻量信息提示浮窗（WBP 控件变量名：InfoPopup） */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UInfoPopupWidget> InfoPopup;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UCombatDeckBarWidget> CombatDeckBar;
 };

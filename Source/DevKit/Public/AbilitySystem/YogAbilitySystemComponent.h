@@ -354,6 +354,6 @@ public:
 	 * 消费（移除）之前注入的连招 Tag，并清除过期计时器。
 	 * LightAtk4 / HeavyAtk4 在 ActivateAbility 时调用。
 	 */
-	void ConsumeDashSave();
+	bool ConsumeDashSave();
 
 };

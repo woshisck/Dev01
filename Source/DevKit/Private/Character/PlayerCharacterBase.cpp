@@ -17,6 +17,7 @@
 #include "Data/GASTemplate.h"
 #include "Item/ItemSpawner.h"
 #include "Component/BackpackGridComponent.h"
+#include "Component/CombatDeckComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/SkillChargeComponent.h"
 #include "Data/SacrificeGraceDA.h"
@@ -33,6 +34,7 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	BackpackGridComponent = CreateDefaultSubobject<UBackpackGridComponent>(TEXT("BackpackGridComponent"));
+	CombatDeckComponent = CreateDefaultSubobject<UCombatDeckComponent>(TEXT("CombatDeckComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
 	SkillChargeComponent = CreateDefaultSubobject<USkillChargeComponent>(TEXT("SkillChargeComponent"));
@@ -108,6 +110,20 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 	{
 		State.EquippedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
 		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE Weapon - %s"), *State.EquippedWeaponDef->GetName());
+	}
+
+	if (CombatDeckComponent && !State.CombatDeckCards.IsEmpty())
+	{
+		TArray<URuneDataAsset*> RestoredDeckAssets;
+		RestoredDeckAssets.Reserve(State.CombatDeckCards.Num());
+		for (URuneDataAsset* SourceAsset : State.CombatDeckCards)
+		{
+			RestoredDeckAssets.Add(SourceAsset);
+		}
+		CombatDeckComponent->LoadDeckFromSourceAssets(
+			RestoredDeckAssets,
+			State.CombatDeckShuffleCooldownDuration,
+			State.CombatDeckMaxActiveSequenceSize);
 	}
 
 	if (BackpackGridComponent)

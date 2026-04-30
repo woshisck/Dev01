@@ -3,6 +3,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/BackpackGridComponent.h"
+#include "Component/CombatDeckComponent.h"
 #include "Engine/AssetManager.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
@@ -94,6 +95,11 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] BackpackGridComponent is NULL — skipping ApplyBackpackConfig"));
+	}
+
+	if (UCombatDeckComponent* CombatDeck = ReceivingChar ? ReceivingChar->CombatDeckComponent.Get() : nullptr)
+	{
+		CombatDeck->LoadDeckFromWeapon(this);
 	}
 
 	// ── 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────────

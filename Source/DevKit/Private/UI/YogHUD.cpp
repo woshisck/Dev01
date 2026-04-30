@@ -1,5 +1,6 @@
 #include "UI/YogHUD.h"
 #include "UI/YogHUDRootWidget.h"
+#include "UI/CombatDeckBarWidget.h"
 #include "UI/LiquidHealthBarWidget.h"
 #include "UI/EnemyArrowWidget.h"
 #include "UI/WeaponGlassIconWidget.h"
@@ -12,6 +13,7 @@
 #include "UI/WeaponTrailWidget.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Component/CombatDeckComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Tutorial/TutorialManager.h"
 #include "SaveGame/YogSaveSubsystem.h"
@@ -89,6 +91,7 @@ void AYogHUD::BeginPlay()
 	if (APawn* Pawn = GetOwningPawn())
 	{
 		BindHealthAttributes(Pawn);
+		BindCombatDeckWidget(Pawn);
 	}
 	else if (APlayerController* PC = GetOwningPlayerController())
 	{
@@ -665,12 +668,26 @@ void AYogHUD::BindHealthAttributes(APawn* Pawn)
 	}
 }
 
+void AYogHUD::BindCombatDeckWidget(APawn* Pawn)
+{
+	if (!MainHUDWidget || !MainHUDWidget->CombatDeckBar)
+	{
+		return;
+	}
+
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Pawn);
+	MainHUDWidget->CombatDeckBar->BindToCombatDeck(Player ? Player->CombatDeckComponent : nullptr);
+}
+
 void AYogHUD::OnPawnPossessed(APawn* OldPawn, APawn* NewPawn)
 {
 	UE_LOG(LogTemp, Warning, TEXT("[HealthBar] OnPawnPossessed — New=%s"),
 		NewPawn ? *NewPawn->GetName() : TEXT("NULL"));
 	if (NewPawn)
+	{
 		BindHealthAttributes(NewPawn);
+		BindCombatDeckWidget(NewPawn);
+	}
 }
 
 void AYogHUD::OnHealthChanged(const FOnAttributeChangeData& Data)

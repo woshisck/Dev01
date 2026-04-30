@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "GameplayTagContainer.h"
+#include "Data/RuneDataAsset.h"
 #include "MusketBullet.generated.h"
 
 class USphereComponent;
@@ -44,6 +45,9 @@ public:
     void InitBullet(ACharacter* InSource, float InDamage,
                     TSubclassOf<UGameplayEffect> InDamageEffect);
 
+    UFUNCTION(BlueprintCallable, Category = "Musket|Combat Deck")
+    void SetCombatDeckContext(ECardRequiredAction InActionType, bool bInComboFinisher, bool bInFromDashSave);
+
     /** 飞行速度（cm/s），蓄力完成子弹可配置更高速度 */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Projectile")
     float Speed = 2800.f;
@@ -78,6 +82,10 @@ private:
 
     float DamageMagnitude = 0.f;
     bool  bHasHit         = false;
+    bool  bCombatDeckResolved = false;
+    bool  bCombatDeckComboFinisher = false;
+    bool  bCombatDeckFromDashSave = false;
+    ECardRequiredAction CombatDeckActionType = ECardRequiredAction::Any;
 
     FTimerHandle LifetimeTimerHandle;
 
@@ -87,5 +95,6 @@ private:
         bool bFromSweep, const FHitResult& SweepHitResult);
 
     void ApplyDamageTo(AActor* Target, const FVector& HitLocation);
+    void ResolveCombatDeckOnHit();
     void Expire();
 };

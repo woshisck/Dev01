@@ -6,6 +6,7 @@
 #include "Character/YogPlayerControllerBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/BackpackGridComponent.h"
+#include "Component/CombatDeckComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Data/RoomDataAsset.h"
 #include <Kismet/GameplayStatics.h>
@@ -493,6 +494,10 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 	if (Chosen.LootType == ELootType::Rune && Chosen.RuneAsset)
 	{
 		Player->AddRuneToInventory(Chosen.RuneAsset->CreateInstance());
+		if (Player->CombatDeckComponent)
+		{
+			Player->CombatDeckComponent->AddCardFromRuneReward(Chosen.RuneAsset);
+		}
 	}
 
 	// 战斗后教程：符文选完后引导玩家配置背包
@@ -571,6 +576,16 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 							NewState.PlacedRunes.Add(PR);
 						}
 					}
+				}
+
+				if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent)
+				{
+					for (URuneDataAsset* SourceAsset : CombatDeck->GetDeckSourceAssets())
+					{
+						NewState.CombatDeckCards.Add(SourceAsset);
+					}
+					NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
+					NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
 				}
 
 				NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
@@ -1910,6 +1925,16 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 
 			// 保存整理阶段选出但尚未放入格子的符文
 			NewState.PendingRunes = Player->PendingRunes;
+
+			if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent)
+			{
+				for (URuneDataAsset* SourceAsset : CombatDeck->GetDeckSourceAssets())
+				{
+					NewState.CombatDeckCards.Add(SourceAsset);
+				}
+				NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
+				NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
+			}
 
 			// 保存运行时隐藏被动符文（无形状、不进格子）
 			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
