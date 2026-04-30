@@ -132,11 +132,15 @@ void AMusketBullet::ResolveCombatDeckOnHit()
         return;
     }
 
-    bCombatDeckResolved = true;
-    PlayerSource->CombatDeckComponent->ResolveAttackCard(
-        CombatDeckActionType,
-        bCombatDeckComboFinisher,
-        bCombatDeckFromDashSave);
+    FCombatDeckActionContext Context;
+    Context.ActionType = CombatDeckActionType;
+    Context.bIsComboFinisher = bCombatDeckComboFinisher;
+    Context.bFromDashSave = bCombatDeckFromDashSave;
+    Context.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+    Context.AttackInstanceGuid = FGuid::NewGuid();
+
+    const FCombatCardResolveResult Result = PlayerSource->CombatDeckComponent->ResolveAttackCardWithContext(Context);
+    bCombatDeckResolved = Result.bHadCard;
 }
 
 void AMusketBullet::Expire()

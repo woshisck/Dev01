@@ -9,6 +9,7 @@
 #include "AN_MeleeDamage.generated.h"
 
 class URuneDataAsset;
+class UMontageAttackDataAsset;
 
 UENUM(BlueprintType)
 enum class EHitStopMode : uint8
@@ -46,6 +47,14 @@ public:
 	/** 发送给 ASC 的事件 Tag，GA 的 PlayMontageAndWaitForEvent 需监听相同 Tag。*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage")
 	FGameplayTag EventTag;
+
+	/**
+	 * Optional external attack config.
+	 * When set, this DA overrides the numeric, hitbox, hit stop, hit event, and
+	 * extra rune fields below. The notify still decides the animation frame.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage")
+	TObjectPtr<UMontageAttackDataAsset> AttackDataOverride;
 
 	// ── 攻击参数（原 AbilityData.FActionData 迁移至此）─────────────────────
 

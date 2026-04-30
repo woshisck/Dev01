@@ -7,6 +7,37 @@
 #include "GameplayTagContainer.h"
 #include "MontageNotifyEntry.generated.h"
 
+class UMontageAttackDataAsset;
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FTaggedMontageAttackData
+{
+	GENERATED_BODY()
+
+	/** Tags that must be present on the attacker or current combo context. Empty means always allowed. */
+	UPROPERTY(EditAnywhere, Category = "Config")
+	FGameplayTagContainer RequiredTags;
+
+	/** Tags that reject this candidate when present. */
+	UPROPERTY(EditAnywhere, Category = "Config")
+	FGameplayTagContainer BlockedTags;
+
+	/** Priority used when multiple candidates match. Larger wins. */
+	UPROPERTY(EditAnywhere, Category = "Config")
+	int32 Priority = 0;
+
+	/** Attack numbers, hitboxes, hit stop, hit events, and extra rune effects. */
+	UPROPERTY(EditAnywhere, Category = "Config")
+	TObjectPtr<UMontageAttackDataAsset> AttackData;
+
+	bool Matches(const FGameplayTagContainer& ContextTags) const
+	{
+		const bool bRequiredOk = RequiredTags.IsEmpty() || ContextTags.HasAll(RequiredTags);
+		const bool bBlockedOk = BlockedTags.IsEmpty() || !ContextTags.HasAny(BlockedTags);
+		return bRequiredOk && bBlockedOk && AttackData != nullptr;
+	}
+};
+
 /**
  * 蒙太奇 Notify 条目基类
  *
@@ -105,6 +136,33 @@ public:
 	/** 判定结束帧 */
 	UPROPERTY(EditAnywhere, Category = "Config", meta = (ClampMin = "0"))
 	int32 EndFrame = 14;
+
+	/**
+	 * Optional DA candidates for this hit window.
+	 * V1 uses the first/best matching candidate as configuration data; the
+	 * montage notify can still be the actual frame trigger.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Config")
+	TArray<FTaggedMontageAttackData> AttackDataCandidates;
+
+	UMontageAttackDataAsset* ResolveAttackData(const FGameplayTagContainer& ContextTags) const
+	{
+		const FTaggedMontageAttackData* Best = nullptr;
+		for (const FTaggedMontageAttackData& Candidate : AttackDataCandidates)
+		{
+			if (!Candidate.Matches(ContextTags))
+			{
+				continue;
+			}
+
+			if (!Best || Candidate.Priority > Best->Priority)
+			{
+				Best = &Candidate;
+			}
+		}
+
+		return Best ? Best->AttackData.Get() : nullptr;
+	}
 };
 
 /**

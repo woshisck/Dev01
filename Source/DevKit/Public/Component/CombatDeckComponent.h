@@ -3,10 +3,63 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/RuneDataAsset.h"
+#include "Data/WeaponComboConfigDA.h"
 #include "CombatDeckComponent.generated.h"
 
 class UBuffFlowComponent;
 class UWeaponDefinition;
+
+UENUM(BlueprintType)
+enum class ECombatLinkBreakReason : uint8
+{
+	None            UMETA(DisplayName = "None"),
+	ComboStateExited UMETA(DisplayName = "Combo State Exited"),
+	ShuffleStarted UMETA(DisplayName = "Shuffle Started"),
+	WeaponChanged  UMETA(DisplayName = "Weapon Changed"),
+	ConditionFailed UMETA(DisplayName = "Condition Failed"),
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FCombatDeckActionContext
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	ECardRequiredAction ActionType = ECardRequiredAction::Any;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	int32 ComboIndex = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	FName ComboNodeId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	FGameplayTagContainer ComboTags;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	FGameplayTag AbilityTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	TObjectPtr<UWeaponDefinition> WeaponDef = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	bool bIsComboFinisher = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	bool bComboContinued = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	bool bExitedComboState = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	bool bFromDashSave = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	ECombatCardTriggerTiming TriggerTiming = ECombatCardTriggerTiming::OnHit;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	FGuid AttackInstanceGuid;
+};
 
 USTRUCT(BlueprintType)
 struct DEVKIT_API FCombatCardInstance
@@ -55,6 +108,18 @@ struct DEVKIT_API FCombatCardResolveResult
 	bool bTriggeredLink = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bTriggeredForwardLink = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bPendingBackwardLink = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bTriggeredBackwardLink = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bLinkBroken = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
 	bool bTriggeredFinisher = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
@@ -62,6 +127,21 @@ struct DEVKIT_API FCombatCardResolveResult
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
 	FCombatCardInstance ConsumedCard;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	ECombatLinkBreakReason LinkBreakReason = ECombatLinkBreakReason::None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	FCombatCardInstance LinkedSourceCard;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	FCombatCardInstance LinkedTargetCard;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	float AppliedMultiplier = 1.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	FText ReasonText;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeckLoaded, const TArray<FCombatCardInstance>&, ActiveSequence);
@@ -83,6 +163,14 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
 	FCombatCardResolveResult ResolveAttackCard(ECardRequiredAction ActionType, bool bIsComboFinisher, bool bFromDashSave);
+
+	FCombatCardResolveResult ResolveAttackCard(const FCombatDeckActionContext& Context);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
+	FCombatCardResolveResult ResolveAttackCardWithContext(const FCombatDeckActionContext& Context);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
+	void NotifyComboStateExited();
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
 	void LoadDeckFromWeapon(const UWeaponDefinition* WeaponDefinition);
@@ -120,6 +208,8 @@ public:
 
 	void SetDeckListForTest(const TArray<FCombatCardConfig>& InCards);
 	void AdvanceShuffleForTest(float DeltaTime);
+	void SavePendingLinkContextForDash();
+	bool RestorePendingLinkContextFromDash();
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
 	FOnDeckLoaded OnDeckLoaded;
@@ -131,7 +221,22 @@ public:
 	FOnCombatCardResult OnActionMatched;
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
+	FOnCombatCardResult OnCardReleased;
+
+	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
 	FOnCombatCardResult OnLinkTriggered;
+
+	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
+	FOnCombatCardResult OnForwardLinkTriggered;
+
+	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
+	FOnCombatCardResult OnBackwardLinkPending;
+
+	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
+	FOnCombatCardResult OnBackwardLinkTriggered;
+
+	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
+	FOnCombatCardResult OnLinkBroken;
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
 	FOnCombatCardResult OnFinisherTriggered;
@@ -176,10 +281,16 @@ private:
 	UPROPERTY()
 	FCombatCardInstance PendingLinkContext;
 
+	UPROPERTY()
+	FCombatCardInstance DashSavedLinkContext;
+
+	TSet<FGuid> ResolvedAttackGuids;
+
 	FCombatCardInstance MakeCardFromRune(URuneDataAsset* RuneAsset, FName OwnerSource) const;
 	void RefillActiveSequence();
 	void StartShuffle();
 	void AdvanceShuffle(float DeltaTime);
 	void ExecuteFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card) const;
 	bool DoesActionMatch(ECardRequiredAction RequiredAction, ECardRequiredAction ActionType) const;
+	void BreakPendingLink(ECombatLinkBreakReason Reason);
 };

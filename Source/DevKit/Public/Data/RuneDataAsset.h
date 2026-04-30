@@ -149,6 +149,13 @@ enum class ECardRequiredAction : uint8
 };
 
 UENUM(BlueprintType)
+enum class ECombatCardTriggerTiming : uint8
+{
+    OnHit    UMETA(DisplayName = "On Hit"),
+    OnCommit UMETA(DisplayName = "On Commit"),
+};
+
+UENUM(BlueprintType)
 enum class ECardLinkMode : uint8
 {
     None         UMETA(DisplayName = "None"),
@@ -185,6 +192,12 @@ struct DEVKIT_API FCombatCardConfig
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
     ECardRequiredAction RequiredAction = ECardRequiredAction::Any;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    ECombatCardTriggerTiming TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    FGameplayTagContainer CardTags;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
     TObjectPtr<UFlowAsset> BaseFlow = nullptr;

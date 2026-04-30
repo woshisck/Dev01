@@ -7,6 +7,8 @@
 #include "Data/MontageNotifyEntry.h"
 #include "MontageConfigDA.generated.h"
 
+class UMontageAttackDataAsset;
+
 /**
  * 单个蒙太奇的完整配置 DataAsset
  *
@@ -28,6 +30,10 @@ public:
 	/** 关联的蒙太奇资产 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Montage")
 	TObjectPtr<UAnimMontage> Montage;
+
+	/** Optional tags describing this montage config, for tools and branch selection. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Montage")
+	FGameplayTagContainer ConfigTags;
 
 	/**
 	 * 蒙太奇总帧数（与动画编辑器中的帧数一致）
@@ -80,4 +86,8 @@ public:
 	{
 		return FrameToNormalized(Frame) * MontageDuration;
 	}
+
+	/** Returns the best attack data referenced by the first Hit Window that has a matching candidate. */
+	UFUNCTION(BlueprintPure, Category = "MontageConfig")
+	UMontageAttackDataAsset* ResolveAttackData(const FGameplayTagContainer& ContextTags) const;
 };

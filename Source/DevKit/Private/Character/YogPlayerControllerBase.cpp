@@ -28,6 +28,8 @@
 #include "InputCoreTypes.h"
 
 #include "Component/BufferComponent.h"
+#include "Component/CombatDeckComponent.h"
+#include "Component/ComboRuntimeComponent.h"
 #include "AbilitySystemComponent.h"
 
 
@@ -306,6 +308,12 @@ void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 	if (bBlockGameInput) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
+		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Light, player))
+		{
+			player->GetInputBufferComponent()->RecordLightAttack();
+			return;
+		}
+
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.LightAtk")));
 		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
@@ -320,6 +328,12 @@ void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 	if (bBlockGameInput) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
+		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Heavy, player))
+		{
+			player->GetInputBufferComponent()->RecordHeavyAttack();
+			return;
+		}
+
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.HeavyAtk")));
 		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
@@ -366,6 +380,15 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 		{
 			const FRotator DashFacing(0.f, player->LastInputDirection.Rotation().Yaw, 0.f);
 			player->SetActorRotation(DashFacing);
+		}
+
+		if (player->ComboRuntimeComponent)
+		{
+			player->ComboRuntimeComponent->SaveCurrentNodeForDash();
+		}
+		if (player->CombatDeckComponent)
+		{
+			player->CombatDeckComponent->SavePendingLinkContextForDash();
 		}
 
 		FGameplayTagContainer TagContainer;

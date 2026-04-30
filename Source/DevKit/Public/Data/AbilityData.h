@@ -9,6 +9,7 @@
 
 
 class UYogGameplayAbility;
+class UMontageConfigDA;
 
 
 UENUM(BlueprintType)
@@ -322,6 +323,43 @@ public:
 	TArray<FYogHitboxType> hitboxTypes;
 };
 
+USTRUCT(BlueprintType)
+struct DEVKIT_API FTaggedMontageConfig
+{
+	GENERATED_BODY()
+
+	/** Tags that must be present on the ASC/current combo context. Empty means always allowed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage Config")
+	FGameplayTagContainer RequiredTags;
+
+	/** Tags that reject this candidate when present. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage Config")
+	FGameplayTagContainer BlockedTags;
+
+	/** Larger priority wins when more than one candidate matches. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage Config")
+	int32 Priority = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage Config")
+	TObjectPtr<UMontageConfigDA> MontageConfig;
+
+	bool Matches(const FGameplayTagContainer& ContextTags) const
+	{
+		const bool bRequiredOk = RequiredTags.IsEmpty() || ContextTags.HasAll(RequiredTags);
+		const bool bBlockedOk = BlockedTags.IsEmpty() || !ContextTags.HasAny(BlockedTags);
+		return bRequiredOk && bBlockedOk && MontageConfig != nullptr;
+	}
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FAbilityMontageConfigList
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage Config")
+	TArray<FTaggedMontageConfig> Configs;
+};
+
 
 
 
@@ -350,23 +388,27 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action", meta = (ForceInlineRow))
 	TMap<FGameplayTag, TObjectPtr<UAnimMontage>> MontageMap;
 
+	/**
+	 * Ability Tag -> selectable montage configs.
+	 *
+	 * This is the configurable combo path. Multiple configs can share one
+	 * montage but hold different Entries / AttackData lists, selected by tags.
+	 * MontageMap remains as a fallback for existing content.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Montage Config")
+	TMap<FGameplayTag, FAbilityMontageConfigList> MontageConfigMap;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow), Category = "Action|General")
 	TMap<FGameplayTag, FPassiveActionData> PassiveMap;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
-	UAnimMontage* GetMontage(const FGameplayTag& Key) const
-	{
-		TObjectPtr<UAnimMontage> const* Found = MontageMap.Find(Key);
-		return Found ? Found->Get() : nullptr;
-	}
+	UAnimMontage* GetMontage(const FGameplayTag& Key) const;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
-	bool HasAbility(const FGameplayTag& Key) const
-	{
-		// 只有 Key 存在且蒙太奇非空才算"拥有该技能"，避免预填空 Key 被当成有效能力
-		TObjectPtr<UAnimMontage> const* Found = MontageMap.Find(Key);
-		return Found && Found->Get() != nullptr;
-	}
+	UMontageConfigDA* GetMontageConfig(const FGameplayTag& Key, const FGameplayTagContainer& ContextTags) const;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
+	bool HasAbility(const FGameplayTag& Key) const;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
 	FPassiveActionData GetPassiveAbility(const FGameplayTag& Key) const

@@ -2,7 +2,10 @@
 
 #include "Animation/AN_MeleeDamage.h"
 #include "Character/YogCharacterBase.h"
+#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Data/MontageAttackDataAsset.h"
 #include "Data/RuneDataAsset.h"
 
 UAN_MeleeDamage::UAN_MeleeDamage()
@@ -21,35 +24,55 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 	AYogCharacterBase* Character = Cast<AYogCharacterBase>(Owner);
 	if (!Character) return;
 
-	// 将附加 Rune 暂存到角色，GA_MeleeAttack::OnEventReceived 会读取并触发到命中目标
-	if (AdditionalRuneEffects.Num() > 0)
+	const UMontageAttackDataAsset* EffectiveAttackData = AttackDataOverride;
+	if (UYogAbilitySystemComponent* ASC = Character->GetASC())
 	{
-		Character->PendingAdditionalHitRunes = AdditionalRuneEffects;
+		if (const UGA_MeleeAttack* MeleeGA = Cast<UGA_MeleeAttack>(ASC->GetCurrentAbilityInstance()))
+		{
+			if (MeleeGA->HasConfiguredAttackData())
+			{
+				EffectiveAttackData = MeleeGA->GetConfiguredAttackData();
+			}
+		}
 	}
 
-	if (HitStopMode != EHitStopMode::None)
+	const TArray<TObjectPtr<URuneDataAsset>>& EffectiveRuneEffects = EffectiveAttackData
+		? EffectiveAttackData->AdditionalRuneEffects
+		: AdditionalRuneEffects;
+
+	// 将附加 Rune 暂存到角色，GA_MeleeAttack::OnEventReceived 会读取并触发到命中目标
+	if (EffectiveRuneEffects.Num() > 0)
+	{
+		Character->PendingAdditionalHitRunes = EffectiveRuneEffects;
+	}
+
+	const EHitStopMode EffectiveHitStopMode = EffectiveAttackData ? EffectiveAttackData->HitStopMode : HitStopMode;
+	if (EffectiveHitStopMode != EHitStopMode::None)
 	{
 		auto& Override = Character->PendingHitStopOverride;
 		Override.bActive = true;
-		Override.Mode = HitStopMode;
-		Override.FrozenDuration = HitStopFrozenDuration;
-		Override.SlowDuration = HitStopSlowDuration;
-		Override.SlowRate = HitStopSlowRate;
-		Override.CatchUpRate = HitStopCatchUpRate;
+		Override.Mode = EffectiveHitStopMode;
+		Override.FrozenDuration = EffectiveAttackData ? EffectiveAttackData->HitStopFrozenDuration : HitStopFrozenDuration;
+		Override.SlowDuration = EffectiveAttackData ? EffectiveAttackData->HitStopSlowDuration : HitStopSlowDuration;
+		Override.SlowRate = EffectiveAttackData ? EffectiveAttackData->HitStopSlowRate : HitStopSlowRate;
+		Override.CatchUpRate = EffectiveAttackData ? EffectiveAttackData->HitStopCatchUpRate : HitStopCatchUpRate;
 	}
 
-	if (OnHitEventTags.Num() > 0)
+	const TArray<FGameplayTag>& EffectiveOnHitEventTags = EffectiveAttackData
+		? EffectiveAttackData->OnHitEventTags
+		: OnHitEventTags;
+	if (EffectiveOnHitEventTags.Num() > 0)
 	{
-		Character->PendingOnHitEventTags = OnHitEventTags;
+		Character->PendingOnHitEventTags = EffectiveOnHitEventTags;
 	}
 
 	FGameplayEventData EventData;
 	EventData.Instigator   = Character;
-	EventData.EventTag     = EventTag;
+	EventData.EventTag     = EffectiveAttackData && EffectiveAttackData->EventTag.IsValid() ? EffectiveAttackData->EventTag : EventTag;
 	// 将自身作为 OptionalObject 传递，TargetType 通过它直接读取 HitboxTypes / ActRange 等参数
 	EventData.OptionalObject = this;
 
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, EventTag, EventData);
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, EventData.EventTag, EventData);
 
 	// 挥刀模式刀光符文：每次攻击帧均发送 Action.Attack.Swing，供 GA_SlashWaveCounter 计数
 	// （无论是否命中敌人，只要动画播放到攻击帧就触发）
@@ -68,6 +91,11 @@ FString UAN_MeleeDamage::GetNotifyName_Implementation() const
 
 FActionData UAN_MeleeDamage::BuildActionData() const
 {
+	if (AttackDataOverride)
+	{
+		return AttackDataOverride->BuildActionData();
+	}
+
 	FActionData Out;
 	Out.ActDamage     = ActDamage;
 	Out.ActRange      = ActRange;

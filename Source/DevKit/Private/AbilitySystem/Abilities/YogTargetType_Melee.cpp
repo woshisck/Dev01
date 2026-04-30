@@ -8,6 +8,7 @@
 #include "Character/YogCharacterBase.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Data/MontageAttackDataAsset.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Controller.h"
@@ -110,6 +111,19 @@ static void DrawHitboxDebug(UWorld* World, const FVector& Loc, float Yaw,
 
 FActionData UYogTargetType_MeleeBase::GetActionData(AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData) const
 {
+	if (TargetingCharacter)
+	{
+		if (UYogAbilitySystemComponent* ASC = TargetingCharacter->GetASC())
+		{
+			if (const UGA_MeleeAttack* MeleeGA = Cast<UGA_MeleeAttack>(ASC->GetCurrentAbilityInstance()))
+			{
+				if (MeleeGA->HasConfiguredAttackData())
+				{
+					return MeleeGA->GetAbilityActionData();
+				}
+			}
+		}
+	}
 	// 优先从 OptionalObject 拿：AN_MeleeDamage::Notify 已将自身设置为 OptionalObject
 	if (const UAN_MeleeDamage* DmgNotify = Cast<UAN_MeleeDamage>(EventData.OptionalObject))
 	{
@@ -117,6 +131,11 @@ FActionData UYogTargetType_MeleeBase::GetActionData(AYogCharacterBase* Targeting
 		UE_LOG(LogTemp, Warning, TEXT("[TargetType] ActionData(from Notify): ActRange=%.1f, hitboxTypes=%d"),
 			Data.ActRange, Data.hitboxTypes.Num());
 		return Data;
+	}
+
+	if (const UMontageAttackDataAsset* AttackData = Cast<UMontageAttackDataAsset>(EventData.OptionalObject))
+	{
+		return AttackData->BuildActionData();
 	}
 
 	// 回退（旧路径兼容）：从 GA 读取

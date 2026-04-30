@@ -1,7 +1,69 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Data/AbilityData.h"
+#include "Data/MontageConfigDA.h"
 #include "GameplayTagsManager.h"
+
+UAnimMontage* UAbilityData::GetMontage(const FGameplayTag& Key) const
+{
+	if (UMontageConfigDA* Config = GetMontageConfig(Key, FGameplayTagContainer()))
+	{
+		return Config->Montage;
+	}
+
+	TObjectPtr<UAnimMontage> const* Found = MontageMap.Find(Key);
+	return Found ? Found->Get() : nullptr;
+}
+
+UMontageConfigDA* UAbilityData::GetMontageConfig(const FGameplayTag& Key, const FGameplayTagContainer& ContextTags) const
+{
+	const FAbilityMontageConfigList* ConfigList = MontageConfigMap.Find(Key);
+	if (!ConfigList)
+	{
+		return nullptr;
+	}
+
+	const FTaggedMontageConfig* Best = nullptr;
+	for (const FTaggedMontageConfig& Candidate : ConfigList->Configs)
+	{
+		if (!Candidate.Matches(ContextTags))
+		{
+			continue;
+		}
+
+		if (!Best || Candidate.Priority > Best->Priority)
+		{
+			Best = &Candidate;
+		}
+	}
+
+	return Best ? Best->MontageConfig.Get() : nullptr;
+}
+
+bool UAbilityData::HasAbility(const FGameplayTag& Key) const
+{
+	TObjectPtr<UAnimMontage> const* Found = MontageMap.Find(Key);
+	if (Found && Found->Get() != nullptr)
+	{
+		return true;
+	}
+
+	const FAbilityMontageConfigList* ConfigList = MontageConfigMap.Find(Key);
+	if (!ConfigList)
+	{
+		return false;
+	}
+
+	for (const FTaggedMontageConfig& Candidate : ConfigList->Configs)
+	{
+		if (Candidate.MontageConfig)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
 
 // ---------------------------------------------------------------
 // 公用填充函数
