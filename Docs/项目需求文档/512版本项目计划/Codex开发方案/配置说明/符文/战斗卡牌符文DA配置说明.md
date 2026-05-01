@@ -22,15 +22,16 @@
 | `CardType` | `Normal` / `Link` / `Finisher` | 新资产不要再用旧 `Attack`；旧 `Attack` 会兼容为普通卡 |
 | `CardIdTag` | 例如 `Card.ID.Moonlight` | 卡牌唯一 ID，用于连携配方查找 |
 | `CardEffectTags` | 例如 `Card.Effect.Attack` | 表示卡牌效果类型，攻击卡通过这里标记 |
-| `RequiredAction` | 普通卡填 `Any` | 旧动作筛选字段，普通卡不依赖 Light / Heavy |
-| `TriggerTiming` | 当前建议 `OnCommit` | 代码会在 `AN_MeleeDamage` 帧结算和消耗 |
+| `RequiredAction` | 普通卡填 `Any` | 高级字段；普通卡不依赖 Light / Heavy |
+| `TriggerTiming` | 当前建议 `OnCommit` | 高级字段；代码会在 `AN_MeleeDamage` 帧结算和消耗 |
 | `BaseFlow` | 普通释放 FA | 卡牌默认效果 |
-| `MatchedFlow` | 新资产留空 | 旧兼容字段，不建议继续用 |
-| `LinkMode` | 新资产留 `None` | 旧兼容字段，不建议继续用 |
 | `LinkRecipes` | 连携卡填写 | 新连携配方数组 |
 | `DefaultLinkOrientation` | 默认 `Forward` | 反向连携测试时可改为 `Reversed` |
+| `bRequiresComboFinisher` | 默认不勾 | 高级字段；终结技卡后续再系统整理 |
 | `DisplayName` | 卡牌名 | HUD 和信息卡显示 |
 | `HUDReasonText` | 简短说明 | 连携提示 fallback 文案 |
+
+旧字段 `CardTags / MatchedFlow / LinkMode / LinkConfig` 已从 DA 编辑界面隐藏，只保留给历史资源兼容。
 
 ## 示例
 

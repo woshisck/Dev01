@@ -200,27 +200,27 @@ struct DEVKIT_API FCombatCardLinkCondition
 {
     GENERATED_BODY()
 
-    /** Empty = any card type. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    /** Legacy compatibility only. New recipes should use RequiredNeighborIdTags / RequiredNeighborEffectTags. */
+    UPROPERTY()
     TArray<ECombatCardType> RequiredNeighborTypes;
 
-    /** Empty = no tag requirement. All configured tags must be present on the neighbor card. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    /** Legacy compatibility only. New recipes should use RequiredNeighborIdTags / RequiredNeighborEffectTags. */
+    UPROPERTY()
     FGameplayTagContainer RequiredNeighborTags;
 
     /** Empty = no card id requirement. Any configured tag may identify the neighbor card, such as Card.ID.Moonlight. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Condition")
     FGameplayTagContainer RequiredNeighborIdTags;
 
     /** Empty = no effect requirement. All configured tags must be present on the neighbor card's CardEffectTags. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Condition")
     FGameplayTagContainer RequiredNeighborEffectTags;
 
     /** Empty = no combo tag requirement. All configured tags must be present in the action context. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Condition", meta = (AdvancedDisplay))
     FGameplayTagContainer RequiredComboTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Condition", meta = (AdvancedDisplay))
     ECardRequiredAction RequiredAction = ECardRequiredAction::Any;
 };
 
@@ -300,56 +300,60 @@ struct DEVKIT_API FCombatCardConfig
     {
     }
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic")
     bool bIsCombatCard = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic")
     ECombatCardType CardType = ECombatCardType::Normal;
 
     /** GameplayTag ID for recipe lookup, for example Card.ID.Moonlight. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic")
     FGameplayTag CardIdTag;
 
     /** Effect tags used by link recipes, for example Card.Effect.Attack or Card.Effect.Moonlight. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic")
     FGameplayTagContainer CardEffectTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic", meta = (AdvancedDisplay))
     ECardRequiredAction RequiredAction = ECardRequiredAction::Any;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic", meta = (AdvancedDisplay))
     ECombatCardTriggerTiming TriggerTiming = ECombatCardTriggerTiming::OnCommit;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    /** Legacy compatibility only. New recipes should use CardIdTag / CardEffectTags. */
+    UPROPERTY()
     FGameplayTagContainer CardTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Flow")
     TObjectPtr<UFlowAsset> BaseFlow = nullptr;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    /** Legacy compatibility only. New cards should use BaseFlow or LinkRecipes. */
+    UPROPERTY()
     TObjectPtr<UFlowAsset> MatchedFlow = nullptr;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    /** Legacy compatibility only. New link cards should use LinkRecipes. */
+    UPROPERTY()
     ECardLinkMode LinkMode = ECardLinkMode::None;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    /** Legacy compatibility only. New link cards should use LinkRecipes. */
+    UPROPERTY()
     FCombatCardLinkConfig LinkConfig;
 
     /** New recipe list. When non-empty, link cards use this instead of the legacy LinkConfig Forward/Backward fields. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Recipe")
     TArray<FCombatCardLinkRecipe> LinkRecipes;
 
     /** Default runtime orientation for this card instance. Backpack UI can override this per instance later. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Recipe")
     ECombatCardLinkOrientation DefaultLinkOrientation = ECombatCardLinkOrientation::Forward;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic", meta = (AdvancedDisplay))
     bool bRequiresComboFinisher = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Display")
     FText DisplayName;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Display")
     FText HUDReasonText;
 };
 

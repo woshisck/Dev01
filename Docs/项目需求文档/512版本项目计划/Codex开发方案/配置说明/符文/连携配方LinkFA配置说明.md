@@ -15,12 +15,13 @@
 | `Direction` | `Forward` 或 `Reversed` | 正向读前一张，反向等后一张 |
 | `Condition.RequiredNeighborIdTags` | 例如 `Card.ID.Moonlight` | 要求邻卡是指定卡牌 ID |
 | `Condition.RequiredNeighborEffectTags` | 例如 `Card.Effect.Attack` | 要求邻卡有指定效果 Tag |
-| `Condition.RequiredNeighborTags` | 新资产尽量少用 | 旧 CardTags 条件，兼容保留 |
-| `Condition.RequiredNeighborTypes` | 可留空 | 新逻辑优先用 ID / Effect Tag |
-| `Condition.RequiredAction` | 通常 `Any` | 需要限制轻/重攻击时再填 |
+| `Condition.RequiredAction` | 通常 `Any` | 高级字段，需要限制轻/重攻击时再填 |
+| `Condition.RequiredComboTags` | 通常留空 | 高级字段，需要指定连招分支时再填 |
 | `LinkFlow` | 对应 LinkFA | 配方命中后执行 |
 | `Multiplier` | 默认 1.0 | 只作为结果参数/显示，不自动改伤害 |
 | `ReasonText` | 简短说明 | HUD 连携提示 |
+
+旧条件 `RequiredNeighborTypes / RequiredNeighborTags` 已隐藏，只保留历史资源兼容。新配方只用 `RequiredNeighborIdTags` 和 `RequiredNeighborEffectTags`。
 
 ## 月光示例
 
