@@ -9,6 +9,11 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 
+namespace
+{
+	constexpr bool bDisableLegacyHeatBackpackRuneForCardTest = true;
+}
+
 void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar)
 {
 	// ── 0. 清理旧武器（解绑委托 + 销毁） ────────────────────────────────
@@ -60,7 +65,7 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	}
 
 	// ── 热度委托绑定 + 阶段追赶同步 ─────────────────────────────────────
-	if (LastSpawnedWeapon)
+	if (LastSpawnedWeapon && !bDisableLegacyHeatBackpackRuneForCardTest)
 	{
 		LastSpawnedWeapon->HeatOverlayMaterial = HeatOverlayMaterial;
 		ReceivingChar->OnHeatPhaseChanged.AddDynamic(LastSpawnedWeapon, &AWeaponInstance::OnHeatPhaseChanged);
@@ -76,6 +81,11 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		}
 		ReceivingChar->OnHeatPhaseChanged.Broadcast(CurrentPhase);
 	}
+	else if (LastSpawnedWeapon)
+	{
+		ReceivingChar->EquippedWeaponInstance = LastSpawnedWeapon;
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] Legacy heat weapon overlay disabled for combat card test"));
+	}
 
 	// 记录当前装备的武器 DA，供切关时写入 RunState
 	ReceivingChar->EquippedWeaponDef = this;
@@ -85,8 +95,9 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		BackpackConfig.GridWidth, BackpackConfig.GridHeight,
 		ReceivingChar ? *ReceivingChar->GetName() : TEXT("null"));
 
-	if (UBackpackGridComponent* BG = ReceivingChar ? ReceivingChar->BackpackGridComponent.Get() : nullptr)
+	if (!bDisableLegacyHeatBackpackRuneForCardTest && (ReceivingChar ? ReceivingChar->BackpackGridComponent.Get() : nullptr))
 	{
+		UBackpackGridComponent* BG = ReceivingChar->BackpackGridComponent.Get();
 		UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] Calling ApplyBackpackConfig W=%d H=%d"), BackpackConfig.GridWidth, BackpackConfig.GridHeight);
 		BG->ApplyBackpackConfig(
 			BackpackConfig.GridWidth,
@@ -95,7 +106,7 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] BackpackGridComponent is NULL — skipping ApplyBackpackConfig"));
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] Legacy backpack/rune config disabled for combat card test"));
 	}
 
 	if (UCombatDeckComponent* CombatDeck = ReceivingChar ? ReceivingChar->CombatDeckComponent.Get() : nullptr)

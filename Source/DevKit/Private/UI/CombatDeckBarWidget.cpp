@@ -12,7 +12,25 @@ void UCombatDeckBarWidget::NativeConstruct()
 
 	CacheDesignerWidgets();
 	UpdateShuffleVisuals(0.0f, false);
+	if (ConsumedToastText)
+	{
+		ConsumedToastText->SetRenderOpacity(0.0f);
+		ConsumedToastText->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (RewardToastText)
+	{
+		RewardToastText->SetRenderOpacity(0.0f);
+		RewardToastText->SetVisibility(ESlateVisibility::Collapsed);
+	}
 	RefreshDeckSnapshot();
+}
+
+void UCombatDeckBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	TickToast(ConsumedToastText, ConsumedToastTimeRemaining, InDeltaTime);
+	TickToast(RewardToastText, RewardToastTimeRemaining, InDeltaTime);
 }
 
 void UCombatDeckBarWidget::BindToCombatDeck(UCombatDeckComponent* InCombatDeck)
@@ -172,6 +190,38 @@ void UCombatDeckBarWidget::SetTextIfBound(UWidget* TextWidget, const FText& Text
 	}
 }
 
+void UCombatDeckBarWidget::ShowToast(UWidget* ToastWidget, float& ToastTimeRemaining)
+{
+	if (!ToastWidget)
+	{
+		return;
+	}
+
+	ToastTimeRemaining = FMath::Max(0.0f, ToastVisibleDuration) + FMath::Max(0.01f, ToastFadeDuration);
+	ToastWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	ToastWidget->SetRenderOpacity(1.0f);
+}
+
+void UCombatDeckBarWidget::TickToast(UWidget* ToastWidget, float& ToastTimeRemaining, float DeltaTime)
+{
+	if (!ToastWidget || ToastTimeRemaining <= 0.0f)
+	{
+		return;
+	}
+
+	ToastTimeRemaining = FMath::Max(0.0f, ToastTimeRemaining - FMath::Max(0.0f, DeltaTime));
+	const float FadeDuration = FMath::Max(0.01f, ToastFadeDuration);
+	const float NewOpacity = ToastTimeRemaining <= FadeDuration
+		? FMath::Clamp(ToastTimeRemaining / FadeDuration, 0.0f, 1.0f)
+		: 1.0f;
+
+	ToastWidget->SetRenderOpacity(NewOpacity);
+	if (ToastTimeRemaining <= 0.0f)
+	{
+		ToastWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
 FText UCombatDeckBarWidget::GetCardDisplayName(const FCombatCardInstance& Card)
 {
 	if (!Card.Config.DisplayName.IsEmpty())
@@ -199,6 +249,7 @@ void UCombatDeckBarWidget::HandleCardConsumed(const FCombatCardInstance& Card, c
 	SetTextIfBound(
 		ConsumedToastText,
 		FText::Format(FText::FromString(TEXT("Consumed: {0}")), GetCardDisplayName(Card)));
+	ShowToast(ConsumedToastText, ConsumedToastTimeRemaining);
 	RefreshDeckSnapshot();
 	BP_OnCardConsumed(Card, Result);
 }
@@ -229,6 +280,7 @@ void UCombatDeckBarWidget::HandleRewardAddedToDeck(const FCombatCardInstance& Ca
 	SetTextIfBound(
 		RewardToastText,
 		FText::Format(FText::FromString(TEXT("Added: {0}")), GetCardDisplayName(Card)));
+	ShowToast(RewardToastText, RewardToastTimeRemaining);
 	BP_OnRewardAddedToDeck(Card);
 	RefreshDeckSnapshot();
 }

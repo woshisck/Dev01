@@ -20,6 +20,8 @@
 #include "YogBlueprintFunctionLibrary.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/BackpackGridComponent.h"
+#include "Component/CombatDeckComponent.h"
+#include "Component/ComboRuntimeComponent.h"
 #include "Tutorial/TutorialManager.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Engine/GameInstance.h"
@@ -27,6 +29,11 @@
 #include "UI/YogHUD.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Data/LevelInfoPopupDA.h"
+
+namespace
+{
+	constexpr bool bDisableLegacyHeatBackpackRuneForCardTest = true;
+}
 
 // Sets default values
 AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
@@ -357,7 +364,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	}
 
 	// ── 3. 传入热度材质 + 绑定热度委托 ──────────────────────────────
-	if (NewWeapon)
+	if (NewWeapon && !bDisableLegacyHeatBackpackRuneForCardTest)
 	{
 		// 从 DA 把 Overlay 材质传给武器实例，无需在 BP 里手动赋值
 		NewWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
@@ -375,6 +382,11 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		}
 		Player->OnHeatPhaseChanged.Broadcast(CurrentPhase);
 	}
+	else if (NewWeapon)
+	{
+		Player->EquippedWeaponInstance = NewWeapon;
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] Legacy heat weapon overlay disabled for combat card test"));
+	}
 	else
 	{
 		if (GEngine)
@@ -385,8 +397,9 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	}
 
 	// ── 4. 注入背包配置 ───────────────────────────────────────────────
-	if (UBackpackGridComponent* BG = Player->BackpackGridComponent)
+	if (!bDisableLegacyHeatBackpackRuneForCardTest && Player->BackpackGridComponent)
 	{
+		UBackpackGridComponent* BG = Player->BackpackGridComponent;
 		BG->ApplyBackpackConfig(
 			WeaponDefinition->BackpackConfig.GridWidth,
 			WeaponDefinition->BackpackConfig.GridHeight,
@@ -408,11 +421,28 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 			}
 		}
 	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] Legacy backpack/rune config disabled for combat card test"));
+	}
 
 	// ── 5. 记录状态 ──────────────────────────────────────────────────
 	Player->EquippedWeaponDef    = WeaponDefinition;
 	Player->EquippedFromSpawner  = this;
 	Player->PendingWeaponSpawner = nullptr;
+
+	// ── 5.25 注入战斗卡组与连招配置 ─────────────────────────────────
+	// TryPickupWeapon 自己实现了装备流程，不走 WeaponDefinition::SetupWeaponToCharacter。
+	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes 和 WeaponComboConfig。
+	if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent.Get())
+	{
+		CombatDeck->LoadDeckFromWeapon(WeaponDefinition);
+	}
+
+	if (UComboRuntimeComponent* ComboRuntime = Player->ComboRuntimeComponent.Get())
+	{
+		ComboRuntime->LoadComboConfig(WeaponDefinition->WeaponComboConfig);
+	}
 
 	// ── 5.5 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────
 	// 让玩家专属攻击 GA 的 ActivationRequiredTags 能匹配通过；

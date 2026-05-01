@@ -12,7 +12,10 @@
 #include "Component/BackpackGridComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
-
+namespace
+{
+	constexpr bool bDisableLegacyHeatRuntimeForCardTest = true;
+}
 
 UBaseAttributeSet::UBaseAttributeSet()
 {	
@@ -82,6 +85,12 @@ void UBaseAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, 
 
 	if (Attribute == GetHeatAttribute())
 	{
+		if (bDisableLegacyHeatRuntimeForCardTest)
+		{
+			NewValue = 0.f;
+			return;
+		}
+
 		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxHeat());
 	}
 
@@ -94,6 +103,11 @@ bool UBaseAttributeSet::PreGameplayEffectExecute(FGameplayEffectModCallbackData&
 
 	if (Data.EvaluatedData.Attribute == GetHeatAttribute())
 	{
+		if (bDisableLegacyHeatRuntimeForCardTest)
+		{
+			return false;
+		}
+
 		CachedPreEffectHeat = GetHeat();
 
 		// 热度减少时，以下任一 Tag 存在则阻断（return false = GE 不执行）：
@@ -161,6 +175,12 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 
 	if (Data.EvaluatedData.Attribute == GetHeatAttribute())
 	{
+		if (bDisableLegacyHeatRuntimeForCardTest)
+		{
+			SetHeat(0.f);
+			return;
+		}
+
 		float NewHeat = GetHeat();
 
 		// 先判断升阶条件：热度在本次 GE 施加【之前】就已满，且本次是 LastHit
@@ -303,6 +323,11 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 
 	if (Attribute == GetHeatAttribute())
 	{
+		if (bDisableLegacyHeatRuntimeForCardTest)
+		{
+			return;
+		}
+
 		// 通知背包组件更新热度等级（传绝对值）
 		if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor()))
 		{

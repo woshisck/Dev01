@@ -34,7 +34,14 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual void NativeDestruct() override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Toast", meta = (ClampMin = "0.0"))
+	float ToastVisibleDuration = 0.8f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Toast", meta = (ClampMin = "0.01"))
+	float ToastFadeDuration = 0.25f;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<class UCombatDeckCardSlotWidget> CardSlot_0;
@@ -91,8 +98,13 @@ private:
 	void UpdateStatusText(int32 RemainingCount, EDeckState DeckState);
 	void UpdateShuffleVisuals(float NormalizedProgress, bool bIsShuffling);
 	void SetTextIfBound(class UWidget* TextWidget, const FText& Text);
+	void ShowToast(class UWidget* ToastWidget, float& ToastTimeRemaining);
+	void TickToast(class UWidget* ToastWidget, float& ToastTimeRemaining, float DeltaTime);
 
 	static FText GetCardDisplayName(const FCombatCardInstance& Card);
+
+	float ConsumedToastTimeRemaining = 0.0f;
+	float RewardToastTimeRemaining = 0.0f;
 
 	UFUNCTION()
 	void HandleDeckLoaded(const TArray<FCombatCardInstance>& ActiveSequence);

@@ -30,6 +30,10 @@
 #include "FlowAsset.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
+namespace
+{
+	constexpr bool bDisableLegacyOnHitRuneRuntimeForCardTest = true;
+}
 
 
 AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer)
@@ -386,6 +390,11 @@ void AYogCharacterBase::MaxHealthChanged(const FOnAttributeChangeData& Data)
 
 void AYogCharacterBase::ReceiveOnHitRune_Implementation(URuneDataAsset* RuneDA, AActor* AttackInstigator)
 {
+	if (bDisableLegacyOnHitRuneRuntimeForCardTest)
+	{
+		return;
+	}
+
 	if (!RuneDA || !AttackInstigator) return;
 
 	UFlowAsset* FlowAsset = RuneDA->RuneInfo.Flow.FlowAsset;

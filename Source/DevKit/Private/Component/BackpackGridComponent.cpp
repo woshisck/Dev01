@@ -13,6 +13,11 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 
+namespace
+{
+	constexpr bool bDisableLegacyBackpackRuneRuntimeForCardTest = true;
+}
+
 // =========================================================
 // FActivationZoneConfig
 // =========================================================
@@ -128,19 +133,22 @@ void UBackpackGridComponent::BeginPlay()
 	EnsureGridInitialized();
 
 	// 自动放置符文（延迟一帧，确保 ASC 已初始化）
-	if (PermanentRunes.Num() > 0 || DebugTestRunes.Num() > 0)
+	if (!bDisableLegacyBackpackRuneRuntimeForCardTest && (PermanentRunes.Num() > 0 || DebugTestRunes.Num() > 0))
 	{
 		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UBackpackGridComponent::DebugPlaceTestRunes);
 	}
 
 	// 隐藏被动符文：延迟一帧启动 BuffFlow，不占格子，不进 UI
-	if (HiddenPassiveRunes.Num() > 0)
+	if (!bDisableLegacyBackpackRuneRuntimeForCardTest && HiddenPassiveRunes.Num() > 0)
 	{
 		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UBackpackGridComponent::ActivateHiddenPassiveRunes);
 	}
 
 	// Tutorial ④：监听热度阶段变化，首次入相 (Phase >= 1) 触发激活区教程
-	OnHeatBarUpdate.AddDynamic(this, &UBackpackGridComponent::HandleHeatTutorial);
+	if (!bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		OnHeatBarUpdate.AddDynamic(this, &UBackpackGridComponent::HandleHeatTutorial);
+	}
 }
 
 void UBackpackGridComponent::HandleHeatTutorial(float NormalizedHeat, int32 NewPhase)
@@ -247,6 +255,11 @@ void UBackpackGridComponent::DebugPlaceTestRunes()
 
 void UBackpackGridComponent::AddHiddenPassiveRune(const FRuneInstance& Rune)
 {
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		return;
+	}
+
 	if (!Rune.Flow.FlowAsset) return;
 
 	RuntimeHiddenPassiveRunes.Add(Rune);
@@ -261,6 +274,12 @@ void UBackpackGridComponent::AddHiddenPassiveRune(const FRuneInstance& Rune)
 
 void UBackpackGridComponent::RestoreRuntimeHiddenPassiveRunes(const TArray<FRuneInstance>& Runes)
 {
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		RuntimeHiddenPassiveRunes.Reset();
+		return;
+	}
+
 	RuntimeHiddenPassiveRunes.Reset();
 	for (const FRuneInstance& Rune : Runes)
 	{
@@ -270,6 +289,11 @@ void UBackpackGridComponent::RestoreRuntimeHiddenPassiveRunes(const TArray<FRune
 
 void UBackpackGridComponent::ActivateHiddenPassiveRunes()
 {
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		return;
+	}
+
 	UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();
 	if (!BFC)
 	{
@@ -484,6 +508,11 @@ void UBackpackGridComponent::SetLocked(bool bLocked)
 
 void UBackpackGridComponent::OnHeatValueChanged(float HeatValue)
 {
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		return;
+	}
+
 	// 边沿触发 + Phase>0 保护：
 	// 只在热度从 >0 跌落到 <=0、且当前已有阶段时广播，避免：
 	//   1. 游戏开始 Phase=0 时启动无意义的计时器
@@ -519,6 +548,11 @@ void UBackpackGridComponent::BroadcastHeatUI(float KnownHeatValue)
 
 void UBackpackGridComponent::IncrementPhase()
 {
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		return;
+	}
+
 	static constexpr int32 MaxPhase = 3;
 	if (CurrentPhase >= MaxPhase)
 		return;
@@ -567,6 +601,11 @@ void UBackpackGridComponent::IncrementPhase()
 
 void UBackpackGridComponent::DecrementPhase()
 {
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		return;
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] DecrementPhase called (CurrentPhase=%d)"), CurrentPhase);
 	if (CurrentPhase <= 0)
 	{
@@ -613,6 +652,12 @@ void UBackpackGridComponent::DecrementPhase()
 
 void UBackpackGridComponent::ResetHeatToPhaseFloor()
 {
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		CurrentPhase = 0;
+		return;
+	}
+
 	UAbilitySystemComponent* ASC =
 		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
 	if (!ASC)
@@ -635,6 +680,12 @@ void UBackpackGridComponent::ResetHeatToPhaseFloor()
 
 void UBackpackGridComponent::RestorePhase(int32 Phase)
 {
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		CurrentPhase = 0;
+		return;
+	}
+
 	UAbilitySystemComponent* ASC =
 		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
 	if (ASC)
@@ -853,6 +904,10 @@ void UBackpackGridComponent::InitWithASC(UAbilitySystemComponent* ASC)
 void UBackpackGridComponent::SetActivationZoneConfig(const FActivationZoneConfig& Config)
 {
 	ActivationZoneConfig = Config;
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		return;
+	}
 	RefreshAllActivations();
 }
 
@@ -877,6 +932,11 @@ void UBackpackGridComponent::ApplyBackpackConfig(int32 InGridWidth, int32 InGrid
 
 	UE_LOG(LogTemp, Warning, TEXT("[BackpackGridComponent] ApplyBackpackConfig: Grid=%dx%d, ZoneShapes=%d"),
 		GridWidth, GridHeight, ActivationZoneConfig.ZoneShapes.Num());
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BackpackGridComponent] Legacy activation refresh disabled for combat card test"));
+		return;
+	}
 	RefreshAllActivations();
 }
 
@@ -932,6 +992,12 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 {
 	if (Placed.bIsActivated)
 		return;
+
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] Legacy rune activation disabled for combat card test"));
+		return;
+	}
 
 	const FString RuneName = Placed.Rune.RuneConfig.RuneName.IsNone()
 		? GetNameSafe(Placed.Rune.SourceDA)
@@ -1140,6 +1206,18 @@ FGameplayTag UBackpackGridComponent::GetEventTagForTriggerType(ERuneTriggerType 
 
 void UBackpackGridComponent::RefreshAllActivations()
 {
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		for (FPlacedRune& Placed : PlacedRunes)
+		{
+			if (Placed.bIsActivated)
+			{
+				DeactivateRune(Placed);
+			}
+		}
+		return;
+	}
+
 	// 直接激活区
 	const TSet<FIntPoint> DirectZone = ComputeActivationZone();
 	// 链路传导扩展（BFS，Producer 向外传播）
