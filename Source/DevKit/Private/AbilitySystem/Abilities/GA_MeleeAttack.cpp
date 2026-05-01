@@ -497,6 +497,16 @@ void UGA_MeleeAttack::EndAbility(
 			}
 		}
 	}
+
+	if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
+	{
+		if (!bComboContinued && !bCombatDeckFromDashSave && PlayerOwner->CombatDeckComponent)
+		{
+			PlayerOwner->CombatDeckComponent->NotifyComboStateExited();
+			UE_LOG(LogTemp, Warning, TEXT("[CombatDeck] Combo ended without continuation; pending link cleared by %s"), *GetName());
+		}
+	}
+
 	CachedDamageNotify    = nullptr;
 	LastFiredDamageNotify = nullptr;
 	ActiveMontageConfig = nullptr;

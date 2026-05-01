@@ -369,6 +369,51 @@ TArray<FCombatCardInstance> UCombatDeckComponent::GetRemainingDeckSnapshot() con
 	return RemainingCards;
 }
 
+bool UCombatDeckComponent::MoveCardInDeck(int32 FromIndex, int32 InsertIndex)
+{
+	if (!DeckList.IsValidIndex(FromIndex) || InsertIndex < 0 || InsertIndex > DeckList.Num())
+	{
+		return false;
+	}
+
+	if (FromIndex == InsertIndex || FromIndex + 1 == InsertIndex)
+	{
+		return false;
+	}
+
+	FCombatCardInstance MovedCard = DeckList[FromIndex];
+	DeckList.RemoveAt(FromIndex);
+	const int32 AdjustedInsertIndex = FromIndex < InsertIndex ? InsertIndex - 1 : InsertIndex;
+	DeckList.Insert(MovedCard, FMath::Clamp(AdjustedInsertIndex, 0, DeckList.Num()));
+	ResetRuntimeStateAfterDeckEdit();
+	return true;
+}
+
+bool UCombatDeckComponent::SetCardLinkOrientationByIndex(int32 CardIndex, ECombatCardLinkOrientation Orientation)
+{
+	if (!DeckList.IsValidIndex(CardIndex) || !IsLinkCardType(DeckList[CardIndex].Config.CardType))
+	{
+		return false;
+	}
+
+	DeckList[CardIndex].LinkOrientation = Orientation;
+	ResetRuntimeStateAfterDeckEdit();
+	return true;
+}
+
+bool UCombatDeckComponent::ToggleCardLinkOrientationByIndex(int32 CardIndex)
+{
+	if (!DeckList.IsValidIndex(CardIndex) || !IsLinkCardType(DeckList[CardIndex].Config.CardType))
+	{
+		return false;
+	}
+
+	const ECombatCardLinkOrientation NewOrientation = DeckList[CardIndex].LinkOrientation == ECombatCardLinkOrientation::Forward
+		? ECombatCardLinkOrientation::Reversed
+		: ECombatCardLinkOrientation::Forward;
+	return SetCardLinkOrientationByIndex(CardIndex, NewOrientation);
+}
+
 int32 UCombatDeckComponent::GetRemainingCardCount() const
 {
 	return GetRemainingDeckSnapshot().Num();
@@ -481,6 +526,17 @@ void UCombatDeckComponent::RefillActiveSequence()
 	DeckState = EDeckState::Ready;
 	ShuffleCooldownRemaining = 0.0f;
 	OnDeckLoaded.Broadcast(ActiveSequence);
+}
+
+void UCombatDeckComponent::ResetRuntimeStateAfterDeckEdit()
+{
+	LastResolvedCard = FCombatCardInstance();
+	PendingLinkContext = FCombatCardInstance();
+	DashSavedLinkContext = FCombatCardInstance();
+	ResolvedAttackGuids.Reset();
+	DeckState = EDeckState::Ready;
+	ShuffleCooldownRemaining = 0.0f;
+	RefillActiveSequence();
 }
 
 void UCombatDeckComponent::StartShuffle()

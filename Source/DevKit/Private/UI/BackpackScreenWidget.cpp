@@ -4,6 +4,7 @@
 #include "UI/RuneDragDropOperation.h"
 #include "UI/RuneTooltipWidget.h"
 #include "UI/RuneInfoCardWidget.h"
+#include "UI/CombatDeckEditWidget.h"
 #include "UI/BackpackStyleDataAsset.h"
 #include "Component/BackpackGridComponent.h"
 #include "Character/PlayerCharacterBase.h"
@@ -77,6 +78,12 @@ void UBackpackScreenWidget::NativeConstruct()
         PendingGridWidget->BuildSlots();
         PendingCols = PendingGridWidget->PendingGridCols;
         PendingRows = PendingGridWidget->PendingGridRows;
+    }
+
+    if (CombatDeckEditWidget)
+    {
+        CombatDeckEditWidget->BindToOwningPlayerCombatDeck();
+        CombatDeckEditWidget->SetInteractionLocked(IsInCombatPhase() || bIsPreviewMode);
     }
 
     RefreshPendingRuneSlots();
@@ -595,6 +602,12 @@ void UBackpackScreenWidget::NativeOnActivated()
     if (UBackpackGridComponent* BG = GetBackpack())
         PreviewPhase = FMath::Clamp(BG->GetCurrentPhase(), 0, 2);
 
+    if (CombatDeckEditWidget)
+    {
+        CombatDeckEditWidget->BindToOwningPlayerCombatDeck();
+        CombatDeckEditWidget->SetInteractionLocked(IsInCombatPhase() || bIsPreviewMode);
+    }
+
     OnGridNeedsRefresh();
     OnSelectionChanged();
 
@@ -746,6 +759,11 @@ void UBackpackScreenWidget::SetPreviewMode(bool bReadOnly)
         CloseButton->SetVisibility(bIsPreviewMode
             ? ESlateVisibility::Collapsed
             : ESlateVisibility::Visible);
+
+    if (CombatDeckEditWidget)
+    {
+        CombatDeckEditWidget->SetInteractionLocked(IsInCombatPhase() || bIsPreviewMode);
+    }
 
 }
 

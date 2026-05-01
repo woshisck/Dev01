@@ -1,6 +1,7 @@
 #include "Projectile/SlashWaveProjectile.h"
 
 #include "AbilitySystem/Attribute/DamageAttributeSet.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Components/BoxComponent.h"
@@ -69,11 +70,13 @@ void ASlashWaveProjectile::InitProjectileAdvanced(
 	float InSpeed,
 	float InMaxDistance,
 	int32 InMaxHitCount,
-	FVector InCollisionBoxExtent)
+	FVector InCollisionBoxExtent,
+	FName InDamageLogType)
 {
 	Speed = FMath::Max(1.f, InSpeed);
 	MaxDistance = FMath::Max(0.f, InMaxDistance);
 	MaxHitCount = InMaxHitCount;
+	DamageLogType = InDamageLogType.IsNone() ? TEXT("Rune_SlashWave") : InDamageLogType;
 	CollisionBoxExtent = FVector(
 		FMath::Max(1.f, InCollisionBoxExtent.X),
 		FMath::Max(1.f, InCollisionBoxExtent.Y),
@@ -200,6 +203,11 @@ bool ASlashWaveProjectile::ApplyDamageTo(AActor* Target, const FVector& HitLocat
 	UE_LOG(LogTemp, Warning, TEXT("[GA_SlashWaveCounter] Damage Target=%s Amount=%.1f CanKill=1"),
 		*GetNameSafe(Target),
 		DamageMagnitude);
+
+	if (UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(SourceASC))
+	{
+		SourceYogASC->LogDamageDealt(Target, DamageMagnitude, DamageLogType);
+	}
 
 	BP_OnHitEnemy(Target, HitLocation);
 	return true;

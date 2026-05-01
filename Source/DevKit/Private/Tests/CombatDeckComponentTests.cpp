@@ -647,6 +647,71 @@ bool FCombatDeckRecipeReversedUsesEffectTagsTest::RunTest(const FString& Paramet
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRecipeReversedClearsOnComboExitTest,
+	"DevKit.CombatDeck.RecipeReversedClearsOnComboExit",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckRecipeReversedClearsOnComboExitTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag AttackEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Attack"));
+
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig MoonlightCard{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightCard.DefaultLinkOrientation = ECombatCardLinkOrientation::Reversed;
+
+	FCombatCardLinkRecipe Recipe;
+	Recipe.Direction = ECombatCardLinkOrientation::Reversed;
+	Recipe.LinkFlow = NewObject<UFlowAsset>();
+	Recipe.Condition.RequiredNeighborEffectTags.AddTag(AttackEffectTag);
+	MoonlightCard.LinkRecipes.Add(Recipe);
+
+	FCombatCardConfig AttackCard{ ECombatCardType::Normal, ECardRequiredAction::Any };
+	AttackCard.CardEffectTags.AddTag(AttackEffectTag);
+
+	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
+
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Reversed Moonlight opens a pending recipe link"), MoonlightResult.bPendingBackwardLink);
+
+	Deck->NotifyComboStateExited();
+
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Next attack card is still consumed"), AttackResult.bHadCard);
+	TestFalse(TEXT("Pending reversed link is cleared after combo exit"), AttackResult.bTriggeredBackwardLink);
+	TestTrue(TEXT("Attack card falls back to its own base flow"), AttackResult.bTriggeredBaseFlow);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckEditMovesAndReversesCardsTest,
+	"DevKit.CombatDeck.EditMovesAndReversesCards",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckEditMovesAndReversesCardsTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig First{ ECombatCardType::Normal, ECardRequiredAction::Any };
+	First.DisplayName = FText::FromString(TEXT("First"));
+
+	FCombatCardConfig Moonlight{ ECombatCardType::Link, ECardRequiredAction::Any };
+	Moonlight.DisplayName = FText::FromString(TEXT("Moonlight"));
+	Moonlight.DefaultLinkOrientation = ECombatCardLinkOrientation::Forward;
+
+	Deck->SetDeckListForTest({ First, Moonlight });
+
+	TestTrue(TEXT("Moving Moonlight to the first slot succeeds"), Deck->MoveCardInDeck(1, 0));
+	const TArray<FCombatCardInstance> MovedCards = Deck->GetFullDeckSnapshot();
+	TestEqual(TEXT("Moonlight is now first"), MovedCards[0].Config.DisplayName.ToString(), FString(TEXT("Moonlight")));
+
+	TestTrue(TEXT("Toggling link orientation succeeds"), Deck->ToggleCardLinkOrientationByIndex(0));
+	const TArray<FCombatCardInstance> ReversedCards = Deck->GetFullDeckSnapshot();
+	TestEqual(TEXT("Moonlight is reversed after toggle"), ReversedCards[0].LinkOrientation, ECombatCardLinkOrientation::Reversed);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRecipeDoesNotLinkToLinkCardsTest,
 	"DevKit.CombatDeck.RecipeDoesNotLinkToLinkCards",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

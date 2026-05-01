@@ -192,7 +192,19 @@ public:
 	TArray<FCombatCardInstance> GetDeckSnapshot() const { return ActiveSequence; }
 
 	UFUNCTION(BlueprintPure, Category = "Combat Deck")
+	TArray<FCombatCardInstance> GetFullDeckSnapshot() const { return DeckList; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat Deck")
 	TArray<FCombatCardInstance> GetRemainingDeckSnapshot() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
+	bool MoveCardInDeck(int32 FromIndex, int32 InsertIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
+	bool SetCardLinkOrientationByIndex(int32 CardIndex, ECombatCardLinkOrientation Orientation);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
+	bool ToggleCardLinkOrientationByIndex(int32 CardIndex);
 
 	UFUNCTION(BlueprintPure, Category = "Combat Deck")
 	int32 GetCurrentIndex() const { return CurrentIndex; }
@@ -294,6 +306,7 @@ private:
 
 	FCombatCardInstance MakeCardFromRune(URuneDataAsset* RuneAsset, FName OwnerSource) const;
 	void RefillActiveSequence();
+	void ResetRuntimeStateAfterDeckEdit();
 	void StartShuffle();
 	void AdvanceShuffle(float DeltaTime);
 	void ExecuteFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card) const;

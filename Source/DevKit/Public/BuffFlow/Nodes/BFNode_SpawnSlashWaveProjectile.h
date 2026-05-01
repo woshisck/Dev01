@@ -28,6 +28,9 @@ class DEVKIT_API UBFNode_SpawnSlashWaveProjectile : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Slash Wave")
 	float Damage = 10.f;
 
+	UPROPERTY(EditAnywhere, Category = "Slash Wave")
+	FName DamageLogType = TEXT("Rune_SlashWave");
+
 	UPROPERTY(EditAnywhere, Category = "Slash Wave", meta = (ClampMin = "1.0"))
 	float Speed = 1400.f;
 

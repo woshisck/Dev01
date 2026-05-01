@@ -48,7 +48,8 @@ public:
 		float InSpeed,
 		float InMaxDistance,
 		int32 InMaxHitCount,
-		FVector InCollisionBoxExtent);
+		FVector InCollisionBoxExtent,
+		FName InDamageLogType = NAME_None);
 
 	UFUNCTION(BlueprintCallable, Category = "SlashWave")
 	void ApplyImmediateHit(AActor* Target);
@@ -85,6 +86,9 @@ protected:
 	/** 运行时可覆盖碰撞盒半径。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	FVector CollisionBoxExtent = FVector(30.f, 60.f, 35.f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	FName DamageLogType = TEXT("Rune_SlashWave");
 
 	// ── Blueprint 表现层钩子 ────────────────────────────────────────────────
 	/** 命中新目标时触发（在此播放粒子/音效/贴花）*/

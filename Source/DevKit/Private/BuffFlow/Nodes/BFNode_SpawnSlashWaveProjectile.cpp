@@ -62,7 +62,8 @@ void UBFNode_SpawnSlashWaveProjectile::ExecuteInput(const FName& PinName)
 		Speed,
 		MaxDistance,
 		MaxHitCount,
-		CollisionBoxExtent);
+		CollisionBoxExtent,
+		DamageLogType);
 
 	TriggerOutput(TEXT("Out"), true);
 }

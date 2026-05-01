@@ -18,6 +18,7 @@ class URuneInfoCardWidget;
 class UBackpackGridWidget;
 class UBackpackStyleDataAsset;
 class UPendingGridWidget;
+class UCombatDeckEditWidget;
 struct FPlacedRune;
 
 // ============================================================
@@ -92,6 +93,10 @@ public:
     /** 符文 Tooltip（WBP_RuneTooltip，命名 "RuneTooltip"） */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<URuneTooltipWidget> RuneTooltip;
+
+    /** 战斗卡组编辑列表（可选，命名 "CombatDeckEditWidget"） */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UCombatDeckEditWidget> CombatDeckEditWidget;
 
     /** 手柄/鼠标拖拽浮空图标（根 CanvasPanel 里放一个 Image，命名 "GrabbedRuneIcon"） */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
