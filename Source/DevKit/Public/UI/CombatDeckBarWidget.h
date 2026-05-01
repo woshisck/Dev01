@@ -67,16 +67,16 @@ protected:
 	TObjectPtr<class UProgressBar> ShuffleProgressBar;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<class UTextBlock> ShuffleText;
+	TObjectPtr<class UWidget> ShuffleText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<class UTextBlock> StatusText;
+	TObjectPtr<class UWidget> StatusText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<class UTextBlock> ConsumedToastText;
+	TObjectPtr<class UWidget> ConsumedToastText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<class UTextBlock> RewardToastText;
+	TObjectPtr<class UWidget> RewardToastText;
 
 private:
 	UPROPERTY()
@@ -90,7 +90,7 @@ private:
 	void UpdateDeckVisuals(const TArray<FCombatCardInstance>& RemainingCards, EDeckState DeckState);
 	void UpdateStatusText(int32 RemainingCount, EDeckState DeckState);
 	void UpdateShuffleVisuals(float NormalizedProgress, bool bIsShuffling);
-	void SetTextIfBound(class UTextBlock* TextBlock, const FText& Text);
+	void SetTextIfBound(class UWidget* TextWidget, const FText& Text);
 
 	static FText GetCardDisplayName(const FCombatCardInstance& Card);
 

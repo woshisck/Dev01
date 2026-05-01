@@ -293,4 +293,7 @@ private:
 	void ExecuteFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card) const;
 	bool DoesActionMatch(ECardRequiredAction RequiredAction, ECardRequiredAction ActionType) const;
 	void BreakPendingLink(ECombatLinkBreakReason Reason);
+	bool DoesLinkConditionMatch(const FCombatCardLinkCondition& Condition, const FCombatCardInstance& NeighborCard, const FCombatDeckActionContext& Context) const;
+	bool WantsForwardLink(const FCombatCardConfig& Config) const;
+	bool WantsBackwardLink(const FCombatCardConfig& Config) const;
 };

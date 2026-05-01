@@ -5,6 +5,13 @@
 
 本功能逻辑已经写在 C++ 中，WBP 只需要在 Designer 中摆控件并按指定名称命名，不需要写蓝图 Graph。
 
+文字控件支持两类：
+
+- 普通 `TextBlock`
+- `Yog Common Rich Text Block`
+
+如果需要关键词高亮、效果解释、流血/月光等说明文本，优先使用 `Yog Common Rich Text Block`。
+
 ## 需要创建的 WBP
 ### 1. `WBP_CombatDeckCardSlot`
 父类选择：
@@ -70,6 +77,26 @@ Root: CanvasPanel
 - `StatusText`
 - `ConsumedToastText`
 - `RewardToastText`
+
+以上文字控件可以是普通 `TextBlock`，也可以替换为 `Yog Common Rich Text Block`。控件名字必须保持一致。
+
+## Yog Common Rich Text Block 推荐配置
+
+用于卡牌说明、浮窗、效果解释时建议配置：
+
+| 字段 | 推荐值 |
+| --- | --- |
+| `FontStyleClass` | 项目通用中文字体样式，例如 `BP_InfoPopupTextStyle` |
+| `OverrideFontSize` | 14 或 16 |
+| `OverrideColor` | 浅灰或白色，Alpha 必须大于 0 |
+| `Decorator Classes` | 需要关键词高亮时添加 `BP_KeywordDecorator` |
+
+文本示例：
+
+```text
+造成 5 点 <key>流血</key>，持续 3 秒。
+月光：前一张为 <key>攻击牌</key> 时触发 <key>月光斩</key>。
+```
 
 ### 3. 放入 `WBP_HUDRoot`
 打开 `WBP_HUDRoot`，把 `WBP_CombatDeckBar` 放进主 Canvas。

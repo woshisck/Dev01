@@ -10,6 +10,7 @@
 #include "Data/WeaponComboConfigDA.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
+#include "FlowAsset.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckConsumesFourCardsTest,
 	"DevKit.CombatDeck.ConsumesFourCardsThenShuffles",
@@ -430,6 +431,98 @@ bool FCombatDeckLinkReadPreviousTest::RunTest(const FString& Parameters)
 
 	const FCombatCardResolveResult LinkResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
 	TestTrue(TEXT("ReadPrevious sees the previous resolved card"), LinkResult.bTriggeredLink);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckLinkConfigForwardTest,
+	"DevKit.CombatDeck.LinkConfigForwardReadsPreviousAttackCard",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckLinkConfigForwardTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+
+	FCombatCardConfig MoonlightCard{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightCard.LinkConfig.Direction = ECombatCardLinkDirection::ForwardReadPrevious;
+	MoonlightCard.LinkConfig.ForwardEffect.Flow = NewObject<UFlowAsset>();
+	MoonlightCard.LinkConfig.ForwardEffect.Multiplier = 1.5f;
+	MoonlightCard.LinkConfig.ForwardEffect.Condition.RequiredNeighborTypes.Add(ECombatCardType::Attack);
+
+	Deck->SetDeckListForTest({ AttackCard, MoonlightCard });
+
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Attack card resolves before Moonlight"), AttackResult.bHadCard);
+
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Moonlight resolves as the second card"), MoonlightResult.bHadCard);
+	TestTrue(TEXT("Moonlight forward link reads the previous attack card"), MoonlightResult.bTriggeredForwardLink);
+	TestFalse(TEXT("Forward link does not also release the base flow"), MoonlightResult.bTriggeredBaseFlow);
+	TestEqual(TEXT("Forward link multiplier is reported"), MoonlightResult.AppliedMultiplier, 1.5f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckLinkConfigBackwardTest,
+	"DevKit.CombatDeck.LinkConfigBackwardEmpowersNextAttackCard",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckLinkConfigBackwardTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig MoonlightCard{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightCard.LinkConfig.Direction = ECombatCardLinkDirection::BackwardEmpowerNext;
+	MoonlightCard.LinkConfig.BackwardEffect.Flow = NewObject<UFlowAsset>();
+	MoonlightCard.LinkConfig.BackwardEffect.Multiplier = 1.25f;
+	MoonlightCard.LinkConfig.BackwardEffect.Condition.RequiredNeighborTypes.Add(ECombatCardType::Attack);
+
+	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+
+	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
+
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Moonlight is consumed first"), MoonlightResult.bHadCard);
+	TestTrue(TEXT("Moonlight opens a pending backward link"), MoonlightResult.bPendingBackwardLink);
+
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Next attack card is consumed"), AttackResult.bHadCard);
+	TestTrue(TEXT("Next attack triggers Moonlight backward link"), AttackResult.bTriggeredBackwardLink);
+	TestTrue(TEXT("Next attack still releases its own base flow"), AttackResult.bTriggeredBaseFlow);
+	TestEqual(TEXT("Backward link multiplier is reported"), AttackResult.AppliedMultiplier, 1.25f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckLinkConfigBothUsesForwardPriorityTest,
+	"DevKit.CombatDeck.LinkConfigBothUsesForwardPriority",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckLinkConfigBothUsesForwardPriorityTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+
+	FCombatCardConfig MoonlightCard{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightCard.LinkConfig.Direction = ECombatCardLinkDirection::Both;
+	MoonlightCard.LinkConfig.ForwardEffect.Flow = NewObject<UFlowAsset>();
+	MoonlightCard.LinkConfig.ForwardEffect.Condition.RequiredNeighborTypes.Add(ECombatCardType::Attack);
+	MoonlightCard.LinkConfig.BackwardEffect.Flow = NewObject<UFlowAsset>();
+	MoonlightCard.LinkConfig.BackwardEffect.Condition.RequiredNeighborTypes.Add(ECombatCardType::Attack);
+
+	Deck->SetDeckListForTest({ AttackCard, MoonlightCard, AttackCard });
+
+	Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Both-direction link triggers forward when previous attack matches"), MoonlightResult.bTriggeredForwardLink);
+	TestFalse(TEXT("Forward match does not also open a backward pending link"), MoonlightResult.bPendingBackwardLink);
+
+	const FCombatCardResolveResult FinalAttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestFalse(TEXT("Final attack does not receive a backward link from a forward-resolved Moonlight"), FinalAttackResult.bTriggeredBackwardLink);
 
 	return true;
 }

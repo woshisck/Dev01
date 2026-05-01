@@ -1,0 +1,85 @@
+# 月光刃 FA 节点配置说明
+
+## 作用
+
+`Spawn Slash Wave Projectile` 用于在 FA 中生成月光刃、刀光等水平飞行投射物。
+
+本节点用于卡牌出牌时立即发射月光刃。旧版 `GA_SlashWaveCounter` 仍用于“每 3 次命中触发一次月光刃”的被动符文，不建议直接拿来做本次月光卡牌连携。
+
+如果项目中已经有 `BP_SlashWaveProjectile` 和 `GE_SlashWaveDamage`，这里直接复用，不需要重新做投射物 BP。
+
+## 节点位置
+
+在 FA 中添加节点：
+
+```text
+Spawn Slash Wave Projectile
+```
+
+推荐连线：
+
+```text
+Start -> Spawn Slash Wave Projectile
+```
+
+## 字段说明
+
+| 字段 | 怎么填 | 影响 |
+| --- | --- | --- |
+| `Projectile Class` | 选择现有 `BP_SlashWaveProjectile`，父类为 `SlashWaveProjectile` | 决定表现和碰撞 Actor |
+| `Damage Effect` | 选择现有 `GE_SlashWaveDamage` | 使用旧版月光刃伤害 GE；需要支持 `Attribute.ActDamage` SetByCaller |
+| `Source Selector` | `BuffOwner` | 从玩家位置和朝向生成 |
+| `Damage` | 伤害数值 | 月光刃命中敌人造成的伤害 |
+| `Speed` | 飞行速度，单位 cm/s | 越大飞得越快 |
+| `Max Distance` | 最大距离，单位 cm | 会换算为生命周期 |
+| `Max Hit Count` | 最大命中目标数 | `2` 表示命中两个敌人后消失；`0` 表示不限 |
+| `Collision Box Extent` | 碰撞盒半径 | 越大越容易命中，也表示范围更大 |
+| `Spawn Offset` | 生成偏移 | X 是玩家前方距离，Z 是高度 |
+
+## 推荐参数
+
+普通月光刃：
+
+```text
+Projectile Class = BP_SlashWaveProjectile
+Damage Effect = GE_SlashWaveDamage
+Damage = 10
+Speed = 1400
+Max Distance = 800
+Max Hit Count = 2
+Collision Box Extent = (30, 60, 35)
+Spawn Offset = (80, 0, 45)
+```
+
+强化月光刃：
+
+```text
+Projectile Class = BP_SlashWaveProjectile
+Damage Effect = GE_SlashWaveDamage
+Damage = 20
+Speed = 1400
+Max Distance = 800
+Max Hit Count = 2
+Collision Box Extent = (45, 90, 45)
+Spawn Offset = (80, 0, 45)
+```
+
+反向连携慢速月光刃：
+
+```text
+Projectile Class = BP_SlashWaveProjectile
+Damage Effect = GE_SlashWaveDamage
+Damage = 10
+Speed = 200
+Max Distance = 200
+Max Hit Count = 0
+Collision Box Extent = (30, 60, 35)
+Spawn Offset = (80, 0, 45)
+```
+
+## 注意事项
+
+- `Max Hit Count = 0` 不是不能命中，而是不限命中目标数量。
+- 同一道月光刃对同一个敌人只会造成一次伤害。
+- 如果贴脸攻击看不到弹道，增大 `Spawn Offset.X`。
+- 如果月光刃太容易打中，降低 `Collision Box Extent.Y`。

@@ -164,10 +164,89 @@ enum class ECardLinkMode : uint8
 };
 
 UENUM(BlueprintType)
+enum class ECombatCardLinkDirection : uint8
+{
+    None                UMETA(DisplayName = "None"),
+    ForwardReadPrevious UMETA(DisplayName = "Forward: Read Previous"),
+    BackwardEmpowerNext UMETA(DisplayName = "Backward: Empower Next"),
+    Both                UMETA(DisplayName = "Both"),
+};
+
+UENUM(BlueprintType)
+enum class ECombatLinkBreakPolicy : uint8
+{
+    ReleaseBaseFlow  UMETA(DisplayName = "Release Base Flow"),
+    ReleaseBreakFlow UMETA(DisplayName = "Release Break Flow"),
+    Fizzle           UMETA(DisplayName = "Fizzle"),
+};
+
+UENUM(BlueprintType)
 enum class EDeckState : uint8
 {
     Ready          UMETA(DisplayName = "Ready"),
     EmptyShuffling UMETA(DisplayName = "Empty Shuffling"),
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FCombatCardLinkCondition
+{
+    GENERATED_BODY()
+
+    /** Empty = any card type. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    TArray<ECombatCardType> RequiredNeighborTypes;
+
+    /** Empty = no tag requirement. All configured tags must be present on the neighbor card. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    FGameplayTagContainer RequiredNeighborTags;
+
+    /** Empty = no combo tag requirement. All configured tags must be present in the action context. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    FGameplayTagContainer RequiredComboTags;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    ECardRequiredAction RequiredAction = ECardRequiredAction::Any;
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FCombatCardLinkEffect
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    FCombatCardLinkCondition Condition;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    TObjectPtr<UFlowAsset> Flow = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    float Multiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    FText ReasonText;
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FCombatCardLinkConfig
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    ECombatCardLinkDirection Direction = ECombatCardLinkDirection::None;
+
+    /** Current Link card reads the previous resolved card and executes this Flow. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    FCombatCardLinkEffect ForwardEffect;
+
+    /** Current Link card stores this effect and executes it when the next card satisfies the condition. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    FCombatCardLinkEffect BackwardEffect;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    TObjectPtr<UFlowAsset> BreakFlow = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    ECombatLinkBreakPolicy BreakPolicy = ECombatLinkBreakPolicy::ReleaseBaseFlow;
 };
 
 USTRUCT(BlueprintType)
@@ -207,6 +286,9 @@ struct DEVKIT_API FCombatCardConfig
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
     ECardLinkMode LinkMode = ECardLinkMode::None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    FCombatCardLinkConfig LinkConfig;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
     bool bRequiresComboFinisher = false;

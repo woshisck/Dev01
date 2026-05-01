@@ -135,6 +135,10 @@
 		{
 			"Name": "CommonUI",
 			"Enabled": true
+		},
+		{
+			"Name": "ComboGraph",
+			"Enabled": false
 		}
 	]
 }

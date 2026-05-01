@@ -3,6 +3,7 @@
 #include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
+#include "UI/YogCommonRichTextBlock.h"
 
 void UCombatDeckCardSlotWidget::NativePreConstruct()
 {
@@ -42,22 +43,22 @@ void UCombatDeckCardSlotWidget::SetCard(const FCombatCardInstance& InCard, bool 
 
 	if (CardNameText)
 	{
-		CardNameText->SetText(GetCardDisplayName(InCard));
+		SetTextIfSupported(CardNameText, GetCardDisplayName(InCard));
 	}
 
 	if (ActionText)
 	{
-		ActionText->SetText(GetActionText(InCard.Config.RequiredAction));
+		SetTextIfSupported(ActionText, GetActionText(InCard.Config.RequiredAction));
 	}
 
 	if (TypeText)
 	{
-		TypeText->SetText(GetTypeText(InCard.Config.CardType));
+		SetTextIfSupported(TypeText, GetTypeText(InCard.Config.CardType));
 	}
 
 	if (StateText)
 	{
-		StateText->SetText(bIsNextCard ? FText::FromString(TEXT("NEXT")) : FText::GetEmpty());
+		SetTextIfSupported(StateText, bIsNextCard ? FText::FromString(TEXT("NEXT")) : FText::GetEmpty());
 	}
 }
 
@@ -77,22 +78,22 @@ void UCombatDeckCardSlotWidget::ClearSlot()
 
 	if (CardNameText)
 	{
-		CardNameText->SetText(FText::GetEmpty());
+		SetTextIfSupported(CardNameText, FText::GetEmpty());
 	}
 
 	if (ActionText)
 	{
-		ActionText->SetText(FText::GetEmpty());
+		SetTextIfSupported(ActionText, FText::GetEmpty());
 	}
 
 	if (TypeText)
 	{
-		TypeText->SetText(FText::GetEmpty());
+		SetTextIfSupported(TypeText, FText::GetEmpty());
 	}
 
 	if (StateText)
 	{
-		StateText->SetText(FText::GetEmpty());
+		SetTextIfSupported(StateText, FText::GetEmpty());
 	}
 }
 
@@ -122,6 +123,20 @@ FText UCombatDeckCardSlotWidget::GetActionText(ECardRequiredAction RequiredActio
 	case ECardRequiredAction::Any:
 	default:
 		return FText::FromString(TEXT("Any"));
+	}
+}
+
+void UCombatDeckCardSlotWidget::SetTextIfSupported(UWidget* Widget, const FText& Text)
+{
+	if (UTextBlock* TextBlock = Cast<UTextBlock>(Widget))
+	{
+		TextBlock->SetText(Text);
+		return;
+	}
+
+	if (UYogCommonRichTextBlock* RichTextBlock = Cast<UYogCommonRichTextBlock>(Widget))
+	{
+		RichTextBlock->SetText(Text);
 	}
 }
 

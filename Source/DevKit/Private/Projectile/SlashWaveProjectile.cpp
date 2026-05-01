@@ -9,12 +9,20 @@
 #include "GameplayEffect.h"
 #include "TimerManager.h"
 
+namespace
+{
+	FGameplayTag SlashWaveActDamageTag()
+	{
+		return FGameplayTag::RequestGameplayTag(FName(TEXT("Attribute.ActDamage")));
+	}
+}
+
 ASlashWaveProjectile::ASlashWaveProjectile()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
 	CollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
-	CollisionBox->InitBoxExtent(FVector(30.f, 60.f, 35.f));
+	CollisionBox->InitBoxExtent(CollisionBoxExtent);
 	CollisionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CollisionBox->SetCollisionObjectType(ECC_WorldDynamic);
 	CollisionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
@@ -37,12 +45,46 @@ void ASlashWaveProjectile::InitProjectile(ACharacter* InSource, float InDamage,
 	DamageEffectClass = InDamageEffect;
 	bProjectileInitialized = SourceCharacter != nullptr;
 
+	RefreshLifetimeFromDistance();
+
 	if (ProjectileMovement)
 	{
 		ProjectileMovement->InitialSpeed = Speed;
 		ProjectileMovement->MaxSpeed = Speed;
 		ProjectileMovement->Velocity = GetActorForwardVector() * Speed;
 	}
+
+	if (HasActorBegunPlay() && GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(LifetimeTimerHandle);
+		GetWorld()->GetTimerManager().SetTimer(
+			LifetimeTimerHandle, this, &ASlashWaveProjectile::Expire, Lifetime, false);
+	}
+}
+
+void ASlashWaveProjectile::InitProjectileAdvanced(
+	ACharacter* InSource,
+	float InDamage,
+	TSubclassOf<UGameplayEffect> InDamageEffect,
+	float InSpeed,
+	float InMaxDistance,
+	int32 InMaxHitCount,
+	FVector InCollisionBoxExtent)
+{
+	Speed = FMath::Max(1.f, InSpeed);
+	MaxDistance = FMath::Max(0.f, InMaxDistance);
+	MaxHitCount = InMaxHitCount;
+	CollisionBoxExtent = FVector(
+		FMath::Max(1.f, InCollisionBoxExtent.X),
+		FMath::Max(1.f, InCollisionBoxExtent.Y),
+		FMath::Max(1.f, InCollisionBoxExtent.Z));
+
+	if (CollisionBox)
+	{
+		CollisionBox->SetBoxExtent(CollisionBoxExtent, true);
+	}
+
+	InitProjectile(InSource, InDamage, InDamageEffect);
 }
 
 void ASlashWaveProjectile::BeginPlay()
@@ -50,6 +92,8 @@ void ASlashWaveProjectile::BeginPlay()
 	Super::BeginPlay();
 
 	CollisionBox->OnComponentBeginOverlap.AddDynamic(this, &ASlashWaveProjectile::OnOverlapBegin);
+
+	RefreshLifetimeFromDistance();
 
 	GetWorld()->GetTimerManager().SetTimer(
 		LifetimeTimerHandle, this, &ASlashWaveProjectile::Expire, Lifetime, false);
@@ -76,6 +120,10 @@ void ASlashWaveProjectile::OnOverlapBegin(
 	if (ApplyDamageTo(OtherActor, OtherActor->GetActorLocation()))
 	{
 		HitActors.Add(OtherActor);
+		if (MaxHitCount > 0 && HitActors.Num() >= MaxHitCount)
+		{
+			Expire();
+		}
 	}
 }
 
@@ -97,6 +145,10 @@ void ASlashWaveProjectile::ApplyImmediateHit(AActor* Target)
 	if (ApplyDamageTo(Target, Target->GetActorLocation()))
 	{
 		HitActors.Add(Target);
+		if (MaxHitCount > 0 && HitActors.Num() >= MaxHitCount)
+		{
+			Expire();
+		}
 	}
 }
 
@@ -121,17 +173,29 @@ bool ASlashWaveProjectile::ApplyDamageTo(AActor* Target, const FVector& HitLocat
 	CtxHandle.AddInstigator(SourceCharacter, SourceCharacter);
 	CtxHandle.AddSourceObject(this);
 
-	UGameplayEffect* DamageGE = NewObject<UGameplayEffect>(GetTransientPackage(), NAME_None, RF_Transient);
-	DamageGE->DurationPolicy = EGameplayEffectDurationType::Instant;
+	if (DamageEffectClass)
+	{
+		FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(DamageEffectClass, 1.f, CtxHandle);
+		if (SpecHandle.IsValid())
+		{
+			SpecHandle.Data->SetSetByCallerMagnitude(SlashWaveActDamageTag(), DamageMagnitude);
+			SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+		}
+	}
+	else
+	{
+		UGameplayEffect* DamageGE = NewObject<UGameplayEffect>(GetTransientPackage(), NAME_None, RF_Transient);
+		DamageGE->DurationPolicy = EGameplayEffectDurationType::Instant;
 
-	FGameplayModifierInfo ModInfo;
-	ModInfo.Attribute = UDamageAttributeSet::GetDamagePureAttribute();
-	ModInfo.ModifierOp = EGameplayModOp::Additive;
-	ModInfo.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(DamageMagnitude));
-	DamageGE->Modifiers.Add(ModInfo);
+		FGameplayModifierInfo ModInfo;
+		ModInfo.Attribute = UDamageAttributeSet::GetDamagePureAttribute();
+		ModInfo.ModifierOp = EGameplayModOp::Additive;
+		ModInfo.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(DamageMagnitude));
+		DamageGE->Modifiers.Add(ModInfo);
 
-	FGameplayEffectSpec Spec(DamageGE, CtxHandle, 1.f);
-	SourceASC->ApplyGameplayEffectSpecToTarget(Spec, TargetASC);
+		FGameplayEffectSpec Spec(DamageGE, CtxHandle, 1.f);
+		SourceASC->ApplyGameplayEffectSpecToTarget(Spec, TargetASC);
+	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[GA_SlashWaveCounter] Damage Target=%s Amount=%.1f CanKill=1"),
 		*GetNameSafe(Target),
@@ -145,4 +209,12 @@ void ASlashWaveProjectile::Expire()
 {
 	BP_OnExpired();
 	Destroy();
+}
+
+void ASlashWaveProjectile::RefreshLifetimeFromDistance()
+{
+	if (MaxDistance > KINDA_SMALL_NUMBER && Speed > KINDA_SMALL_NUMBER)
+	{
+		Lifetime = MaxDistance / Speed;
+	}
 }

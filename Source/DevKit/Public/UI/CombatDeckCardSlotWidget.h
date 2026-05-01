@@ -8,6 +8,7 @@
 class UBorder;
 class UImage;
 class UTextBlock;
+class UWidget;
 
 UCLASS()
 class DEVKIT_API UCombatDeckCardSlotWidget : public UUserWidget
@@ -31,16 +32,16 @@ protected:
 	TObjectPtr<UImage> CardIcon;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> CardNameText;
+	TObjectPtr<UWidget> CardNameText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> ActionText;
+	TObjectPtr<UWidget> ActionText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> TypeText;
+	TObjectPtr<UWidget> TypeText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> StateText;
+	TObjectPtr<UWidget> StateText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Style")
 	FLinearColor NextCardFrameColor = FLinearColor(0.95f, 0.72f, 0.22f, 0.95f);
@@ -55,4 +56,5 @@ private:
 	static FText GetCardDisplayName(const FCombatCardInstance& Card);
 	static FText GetActionText(ECardRequiredAction RequiredAction);
 	static FText GetTypeText(ECombatCardType CardType);
+	static void SetTextIfSupported(UWidget* Widget, const FText& Text);
 };

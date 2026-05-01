@@ -41,6 +41,16 @@ public:
 	                    TSubclassOf<UGameplayEffect> InDamageEffect);
 
 	UFUNCTION(BlueprintCallable, Category = "SlashWave")
+	void InitProjectileAdvanced(
+		ACharacter* InSource,
+		float InDamage,
+		TSubclassOf<UGameplayEffect> InDamageEffect,
+		float InSpeed,
+		float InMaxDistance,
+		int32 InMaxHitCount,
+		FVector InCollisionBoxExtent);
+
+	UFUNCTION(BlueprintCallable, Category = "SlashWave")
 	void ApplyImmediateHit(AActor* Target);
 
 protected:
@@ -63,6 +73,18 @@ protected:
 	/** 飞行速度（cm/s）*/
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	float Speed = 1400.f;
+
+	/** 最大飞行距离（cm）。<= 0 时使用 Lifetime。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile", meta = (ClampMin = "0.0"))
+	float MaxDistance = 800.f;
+
+	/** 最大命中目标数量。<= 0 表示不限数量，仍会对同一目标只命中一次。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	int32 MaxHitCount = 0;
+
+	/** 运行时可覆盖碰撞盒半径。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	FVector CollisionBoxExtent = FVector(30.f, 60.f, 35.f);
 
 	// ── Blueprint 表现层钩子 ────────────────────────────────────────────────
 	/** 命中新目标时触发（在此播放粒子/音效/贴花）*/
@@ -100,4 +122,6 @@ private:
 
 	/** 生存时间到期处理 */
 	void Expire();
+
+	void RefreshLifetimeFromDistance();
 };

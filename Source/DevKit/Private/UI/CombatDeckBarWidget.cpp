@@ -4,6 +4,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "UI/CombatDeckCardSlotWidget.h"
+#include "UI/YogCommonRichTextBlock.h"
 
 void UCombatDeckBarWidget::NativeConstruct()
 {
@@ -151,20 +152,23 @@ void UCombatDeckBarWidget::UpdateShuffleVisuals(float NormalizedProgress, bool b
 		ShuffleProgressBar->SetPercent(FMath::Clamp(NormalizedProgress, 0.0f, 1.0f));
 	}
 
-	if (ShuffleText)
-	{
-		const FText ShuffleLabel = bIsShuffling
-			? FText::Format(FText::FromString(TEXT("Shuffling {0}")), FText::AsPercent(NormalizedProgress))
-			: FText::GetEmpty();
-		ShuffleText->SetText(ShuffleLabel);
-	}
+	const FText ShuffleLabel = bIsShuffling
+		? FText::Format(FText::FromString(TEXT("Shuffling {0}")), FText::AsPercent(NormalizedProgress))
+		: FText::GetEmpty();
+	SetTextIfBound(ShuffleText, ShuffleLabel);
 }
 
-void UCombatDeckBarWidget::SetTextIfBound(UTextBlock* TextBlock, const FText& Text)
+void UCombatDeckBarWidget::SetTextIfBound(UWidget* TextWidget, const FText& Text)
 {
-	if (TextBlock)
+	if (UTextBlock* TextBlock = Cast<UTextBlock>(TextWidget))
 	{
 		TextBlock->SetText(Text);
+		return;
+	}
+
+	if (UYogCommonRichTextBlock* RichTextBlock = Cast<UYogCommonRichTextBlock>(TextWidget))
+	{
+		RichTextBlock->SetText(Text);
 	}
 }
 

@@ -69,41 +69,112 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		return Result;
 	}
 
+	if (PendingLinkContext.IsValidCard())
+	{
+		if (DoesLinkConditionMatch(PendingLinkContext.Config.LinkConfig.BackwardEffect.Condition, Card, Context))
+		{
+			Result.bTriggeredLink = true;
+			Result.bTriggeredBackwardLink = true;
+			Result.LinkedSourceCard = PendingLinkContext;
+			Result.LinkedTargetCard = Card;
+			Result.AppliedMultiplier = PendingLinkContext.Config.LinkConfig.BackwardEffect.Multiplier;
+			Result.ReasonText = PendingLinkContext.Config.LinkConfig.BackwardEffect.ReasonText.IsEmpty()
+				? PendingLinkContext.Config.HUDReasonText
+				: PendingLinkContext.Config.LinkConfig.BackwardEffect.ReasonText;
+			ExecuteFlow(PendingLinkContext.Config.LinkConfig.BackwardEffect.Flow, PendingLinkContext);
+			PendingLinkContext = FCombatCardInstance();
+		}
+		else
+		{
+			BreakPendingLink(ECombatLinkBreakReason::ConditionFailed);
+		}
+	}
+
 	Result.bHadCard = true;
 	Result.ConsumedCard = Card;
 	Result.bActionMatched = Card.Config.CardType != ECombatCardType::Link
 		? true
 		: DoesActionMatch(Card.Config.RequiredAction, Context.ActionType);
-	Result.bTriggeredBaseFlow = true;
-	Result.AppliedMultiplier = 1.0f;
+	if (!Result.bTriggeredBackwardLink)
+	{
+		Result.AppliedMultiplier = 1.0f;
+	}
 	Result.ReasonText = Card.Config.HUDReasonText;
-
-	ExecuteFlow(Card.Config.BaseFlow, Card);
 
 	const bool bComboRequirementSatisfied = !Card.Config.bRequiresComboFinisher || Context.bIsComboFinisher;
 	if (Result.bActionMatched && bComboRequirementSatisfied)
 	{
-		Result.bTriggeredMatchedFlow = true;
-		ExecuteFlow(Card.Config.MatchedFlow, Card);
+		const bool bCanUseLinkConfig = Card.Config.CardType == ECombatCardType::Link
+			&& Card.Config.LinkConfig.Direction != ECombatCardLinkDirection::None;
 
-		if (Card.Config.LinkMode == ECardLinkMode::PassToNext)
+		if (bCanUseLinkConfig)
 		{
-			Result.bTriggeredLink = true;
-			Result.bPendingBackwardLink = true;
-			Result.LinkedSourceCard = Card;
-			PendingLinkContext = Card;
-		}
-		else if (Card.Config.LinkMode == ECardLinkMode::ReadPrevious)
-		{
-			Result.bTriggeredLink = LastResolvedCard.IsValidCard() || PendingLinkContext.IsValidCard();
-			Result.bTriggeredForwardLink = Result.bTriggeredLink;
-			Result.LinkedSourceCard = LastResolvedCard;
-			Result.LinkedTargetCard = Card;
-			PendingLinkContext = FCombatCardInstance();
-		}
+			const bool bForwardMatched = WantsForwardLink(Card.Config)
+				&& Card.Config.LinkConfig.ForwardEffect.Flow
+				&& LastResolvedCard.IsValidCard()
+				&& DoesLinkConditionMatch(Card.Config.LinkConfig.ForwardEffect.Condition, LastResolvedCard, Context);
 
-		Result.bTriggeredFinisher = Card.Config.CardType == ECombatCardType::Finisher;
+			if (bForwardMatched)
+			{
+				Result.bTriggeredMatchedFlow = true;
+				Result.bTriggeredLink = true;
+				Result.bTriggeredForwardLink = true;
+				Result.LinkedSourceCard = LastResolvedCard;
+				Result.LinkedTargetCard = Card;
+				Result.AppliedMultiplier = Card.Config.LinkConfig.ForwardEffect.Multiplier;
+				Result.ReasonText = Card.Config.LinkConfig.ForwardEffect.ReasonText.IsEmpty()
+					? Card.Config.HUDReasonText
+					: Card.Config.LinkConfig.ForwardEffect.ReasonText;
+				ExecuteFlow(Card.Config.LinkConfig.ForwardEffect.Flow, Card);
+			}
+			else
+			{
+				Result.bTriggeredBaseFlow = true;
+				ExecuteFlow(Card.Config.BaseFlow, Card);
+			}
+
+			if (!bForwardMatched && WantsBackwardLink(Card.Config) && Card.Config.LinkConfig.BackwardEffect.Flow)
+			{
+				Result.bTriggeredLink = true;
+				Result.bPendingBackwardLink = true;
+				Result.LinkedSourceCard = Card;
+				PendingLinkContext = Card;
+			}
+		}
+		else
+		{
+			Result.bTriggeredBaseFlow = true;
+			ExecuteFlow(Card.Config.BaseFlow, Card);
+
+			Result.bTriggeredMatchedFlow = true;
+			ExecuteFlow(Card.Config.MatchedFlow, Card);
+
+			if (Card.Config.LinkMode == ECardLinkMode::PassToNext)
+			{
+				Result.bTriggeredLink = true;
+				Result.bPendingBackwardLink = true;
+				Result.LinkedSourceCard = Card;
+				PendingLinkContext = Card;
+			}
+			else if (Card.Config.LinkMode == ECardLinkMode::ReadPrevious)
+			{
+				Result.bTriggeredLink = LastResolvedCard.IsValidCard() || PendingLinkContext.IsValidCard();
+				Result.bTriggeredForwardLink = Result.bTriggeredLink;
+				Result.LinkedSourceCard = LastResolvedCard;
+				Result.LinkedTargetCard = Card;
+				PendingLinkContext = FCombatCardInstance();
+			}
+		}
 	}
+	else
+	{
+		Result.bTriggeredBaseFlow = true;
+		ExecuteFlow(Card.Config.BaseFlow, Card);
+	}
+
+	Result.bTriggeredFinisher = Result.bActionMatched
+		&& bComboRequirementSatisfied
+		&& Card.Config.CardType == ECombatCardType::Finisher;
 
 	LastResolvedCard = Card;
 	if (Context.AttackInstanceGuid.IsValid())
@@ -419,4 +490,46 @@ void UCombatDeckComponent::BreakPendingLink(ECombatLinkBreakReason Reason)
 bool UCombatDeckComponent::DoesActionMatch(ECardRequiredAction RequiredAction, ECardRequiredAction ActionType) const
 {
 	return RequiredAction == ECardRequiredAction::Any || RequiredAction == ActionType;
+}
+
+bool UCombatDeckComponent::DoesLinkConditionMatch(const FCombatCardLinkCondition& Condition, const FCombatCardInstance& NeighborCard, const FCombatDeckActionContext& Context) const
+{
+	if (!NeighborCard.IsValidCard())
+	{
+		return false;
+	}
+
+	if (!DoesActionMatch(Condition.RequiredAction, Context.ActionType))
+	{
+		return false;
+	}
+
+	if (!Condition.RequiredNeighborTypes.IsEmpty() && !Condition.RequiredNeighborTypes.Contains(NeighborCard.Config.CardType))
+	{
+		return false;
+	}
+
+	if (!Condition.RequiredNeighborTags.IsEmpty() && !NeighborCard.Config.CardTags.HasAll(Condition.RequiredNeighborTags))
+	{
+		return false;
+	}
+
+	if (!Condition.RequiredComboTags.IsEmpty() && !Context.ComboTags.HasAll(Condition.RequiredComboTags))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool UCombatDeckComponent::WantsForwardLink(const FCombatCardConfig& Config) const
+{
+	return Config.LinkConfig.Direction == ECombatCardLinkDirection::ForwardReadPrevious
+		|| Config.LinkConfig.Direction == ECombatCardLinkDirection::Both;
+}
+
+bool UCombatDeckComponent::WantsBackwardLink(const FCombatCardConfig& Config) const
+{
+	return Config.LinkConfig.Direction == ECombatCardLinkDirection::BackwardEmpowerNext
+		|| Config.LinkConfig.Direction == ECombatCardLinkDirection::Both;
 }
