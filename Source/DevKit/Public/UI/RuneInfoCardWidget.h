@@ -66,6 +66,10 @@ public:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UCommonRichTextBlock> CardEffect;
 
+    /** 战斗卡牌信息（命名 "CardCombatInfo"），显示卡牌分类、ID、效果标签、方向和配方。 */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UCommonRichTextBlock> CardCombatInfo;
+
     /** 通用效果列表小窗（命名 "GenericEffectList"），FRuneConfig::GenericEffects 非空时自动显示 */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UGenericEffectListWidget> GenericEffectList;
@@ -151,6 +155,8 @@ private:
 
     /** 将 GenericEffects 的 DisplayName 拼成 "击退 · 燃烧" 格式，供 CardEffect 显示 */
     FText BuildEffectKeywords(const TArray<TObjectPtr<UGenericRuneEffectDA>>& Effects) const;
+
+    FText BuildCombatCardInfo(const FCombatCardConfig& Config) const;
 
     /** 按 bGenericEffectsExpanded + CachedEffects 同步子窗显示状态 */
     void SyncGenericEffectListVisibility();

@@ -527,4 +527,158 @@ bool FCombatDeckLinkConfigBothUsesForwardPriorityTest::RunTest(const FString& Pa
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMoonlightChainDefaultsWhenOnlyLinksTest,
+	"DevKit.CombatDeck.MoonlightLinksDoNotChainIntoEachOtherByDefault",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckMoonlightChainDefaultsWhenOnlyLinksTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig MoonlightCard{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightCard.LinkConfig.Direction = ECombatCardLinkDirection::Both;
+	MoonlightCard.LinkConfig.ForwardEffect.Flow = NewObject<UFlowAsset>();
+	MoonlightCard.LinkConfig.BackwardEffect.Flow = NewObject<UFlowAsset>();
+
+	Deck->SetDeckListForTest({ MoonlightCard, MoonlightCard, MoonlightCard, MoonlightCard });
+
+	for (int32 Index = 0; Index < 4; ++Index)
+	{
+		const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+		TestTrue(FString::Printf(TEXT("Moonlight %d is consumed"), Index + 1), Result.bHadCard);
+		TestTrue(FString::Printf(TEXT("Moonlight %d releases base flow"), Index + 1), Result.bTriggeredBaseFlow);
+		TestFalse(FString::Printf(TEXT("Moonlight %d does not forward-link to another Moonlight"), Index + 1), Result.bTriggeredForwardLink);
+		TestFalse(FString::Printf(TEXT("Moonlight %d does not backward-link to another Moonlight"), Index + 1), Result.bTriggeredBackwardLink);
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckNormalCardTriggersBaseFlowTest,
+	"DevKit.CombatDeck.NormalCardTriggersBaseFlow",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckNormalCardTriggersBaseFlowTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig NormalCard{ ECombatCardType::Normal, ECardRequiredAction::Any };
+	NormalCard.BaseFlow = NewObject<UFlowAsset>();
+
+	Deck->SetDeckListForTest({ NormalCard });
+
+	const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Normal card is consumed"), Result.bHadCard);
+	TestTrue(TEXT("Normal card triggers BaseFlow"), Result.bTriggeredBaseFlow);
+	TestFalse(TEXT("Normal card does not trigger link"), Result.bTriggeredLink);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRecipeForwardUsesEffectTagsTest,
+	"DevKit.CombatDeck.RecipeForwardUsesEffectTags",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckRecipeForwardUsesEffectTagsTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag AttackEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Attack"));
+	const FGameplayTag MoonlightIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"));
+
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig AttackCard{ ECombatCardType::Normal, ECardRequiredAction::Any };
+	AttackCard.CardEffectTags.AddTag(AttackEffectTag);
+
+	FCombatCardConfig MoonlightCard{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightCard.CardIdTag = MoonlightIdTag;
+	MoonlightCard.DefaultLinkOrientation = ECombatCardLinkOrientation::Forward;
+
+	FCombatCardLinkRecipe Recipe;
+	Recipe.Direction = ECombatCardLinkOrientation::Forward;
+	Recipe.LinkFlow = NewObject<UFlowAsset>();
+	Recipe.Multiplier = 1.5f;
+	Recipe.Condition.RequiredNeighborEffectTags.AddTag(AttackEffectTag);
+	MoonlightCard.LinkRecipes.Add(Recipe);
+
+	Deck->SetDeckListForTest({ AttackCard, MoonlightCard });
+
+	Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+
+	TestTrue(TEXT("Moonlight forward recipe is triggered by previous Card.Effect.Attack"), MoonlightResult.bTriggeredForwardLink);
+	TestFalse(TEXT("Forward recipe does not release base flow"), MoonlightResult.bTriggeredBaseFlow);
+	TestEqual(TEXT("Forward recipe multiplier is reported"), MoonlightResult.AppliedMultiplier, 1.5f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRecipeReversedUsesEffectTagsTest,
+	"DevKit.CombatDeck.RecipeReversedUsesEffectTags",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckRecipeReversedUsesEffectTagsTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag AttackEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Attack"));
+
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig MoonlightCard{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightCard.DefaultLinkOrientation = ECombatCardLinkOrientation::Reversed;
+
+	FCombatCardLinkRecipe Recipe;
+	Recipe.Direction = ECombatCardLinkOrientation::Reversed;
+	Recipe.LinkFlow = NewObject<UFlowAsset>();
+	Recipe.Multiplier = 1.25f;
+	Recipe.Condition.RequiredNeighborEffectTags.AddTag(AttackEffectTag);
+	MoonlightCard.LinkRecipes.Add(Recipe);
+
+	FCombatCardConfig AttackCard{ ECombatCardType::Normal, ECardRequiredAction::Any };
+	AttackCard.CardEffectTags.AddTag(AttackEffectTag);
+
+	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
+
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Reversed Moonlight opens a pending recipe link"), MoonlightResult.bPendingBackwardLink);
+
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Next Card.Effect.Attack triggers reversed Moonlight recipe"), AttackResult.bTriggeredBackwardLink);
+	TestEqual(TEXT("Reversed recipe multiplier is reported"), AttackResult.AppliedMultiplier, 1.25f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRecipeDoesNotLinkToLinkCardsTest,
+	"DevKit.CombatDeck.RecipeDoesNotLinkToLinkCards",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckRecipeDoesNotLinkToLinkCardsTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag MoonlightEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Moonlight"));
+
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig FirstLink{ ECombatCardType::Link, ECardRequiredAction::Any };
+	FirstLink.CardEffectTags.AddTag(MoonlightEffectTag);
+
+	FCombatCardConfig SecondLink{ ECombatCardType::Link, ECardRequiredAction::Any };
+	SecondLink.DefaultLinkOrientation = ECombatCardLinkOrientation::Forward;
+
+	FCombatCardLinkRecipe Recipe;
+	Recipe.Direction = ECombatCardLinkOrientation::Forward;
+	Recipe.LinkFlow = NewObject<UFlowAsset>();
+	Recipe.Condition.RequiredNeighborEffectTags.AddTag(MoonlightEffectTag);
+	SecondLink.LinkRecipes.Add(Recipe);
+
+	Deck->SetDeckListForTest({ FirstLink, SecondLink });
+
+	Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+
+	TestTrue(TEXT("Second link card is consumed"), Result.bHadCard);
+	TestFalse(TEXT("Recipe does not trigger against another link card"), Result.bTriggeredForwardLink);
+	TestTrue(TEXT("Second link card falls back to base flow"), Result.bTriggeredBaseFlow);
+
+	return true;
+}
+
 #endif

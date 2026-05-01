@@ -114,6 +114,12 @@ private:
 	bool bActiveComboNodeValid = false;
 	bool bComboContinued = true;
 	bool bExitedComboState = false;
+	int32 CombatDeckHitResolveCounter = 0;
+	bool bHasStatBeforeAttributeSnapshot = false;
+	float LocalPreStatBeforeAttack = 0.f;
+	float LocalPreStatBeforeAttackPower = 0.f;
+	float LocalStatBeforeAttackDelta = 0.f;
+	float LocalStatBeforeAttackPowerDelta = 0.f;
 
 	FGuid ActiveAttackGuid;
 	int32 ActiveComboIndex = 0;

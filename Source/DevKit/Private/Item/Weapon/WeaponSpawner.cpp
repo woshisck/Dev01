@@ -32,7 +32,7 @@
 
 namespace
 {
-	constexpr bool bDisableLegacyHeatBackpackRuneForCardTest = true;
+	constexpr bool bDisableLegacyHeatBackpackRuneForCardTestSpawner = true;
 }
 
 // Sets default values
@@ -364,7 +364,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	}
 
 	// ── 3. 传入热度材质 + 绑定热度委托 ──────────────────────────────
-	if (NewWeapon && !bDisableLegacyHeatBackpackRuneForCardTest)
+	if (NewWeapon && !bDisableLegacyHeatBackpackRuneForCardTestSpawner)
 	{
 		// 从 DA 把 Overlay 材质传给武器实例，无需在 BP 里手动赋值
 		NewWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
@@ -397,7 +397,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	}
 
 	// ── 4. 注入背包配置 ───────────────────────────────────────────────
-	if (!bDisableLegacyHeatBackpackRuneForCardTest && Player->BackpackGridComponent)
+	if (!bDisableLegacyHeatBackpackRuneForCardTestSpawner && Player->BackpackGridComponent)
 	{
 		UBackpackGridComponent* BG = Player->BackpackGridComponent;
 		BG->ApplyBackpackConfig(

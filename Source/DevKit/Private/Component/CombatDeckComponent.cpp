@@ -64,24 +64,31 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	}
 
 	FCombatCardInstance Card = ActiveSequence[CurrentIndex];
-	if (Card.Config.TriggerTiming != Context.TriggerTiming)
+	const bool bAllowOnCommitCardAtHitNotify =
+		Context.TriggerTiming == ECombatCardTriggerTiming::OnHit
+		&& Card.Config.TriggerTiming == ECombatCardTriggerTiming::OnCommit;
+	if (Card.Config.TriggerTiming != Context.TriggerTiming && !bAllowOnCommitCardAtHitNotify)
 	{
 		return Result;
 	}
 
 	if (PendingLinkContext.IsValidCard())
 	{
-		if (DoesLinkConditionMatch(PendingLinkContext.Config.LinkConfig.BackwardEffect.Condition, Card, Context))
+		const FCombatCardLinkRecipe* ReversedRecipe = FindMatchingLinkRecipe(PendingLinkContext, ECombatCardLinkOrientation::Reversed, Card, Context);
+		const bool bLegacyBackwardMatched = !ReversedRecipe && PendingLinkContext.Config.LinkRecipes.IsEmpty()
+			&& DoesLinkConditionMatch(PendingLinkContext.Config.LinkConfig.BackwardEffect.Condition, Card, Context);
+		if (ReversedRecipe || bLegacyBackwardMatched)
 		{
 			Result.bTriggeredLink = true;
 			Result.bTriggeredBackwardLink = true;
 			Result.LinkedSourceCard = PendingLinkContext;
 			Result.LinkedTargetCard = Card;
-			Result.AppliedMultiplier = PendingLinkContext.Config.LinkConfig.BackwardEffect.Multiplier;
-			Result.ReasonText = PendingLinkContext.Config.LinkConfig.BackwardEffect.ReasonText.IsEmpty()
+			Result.AppliedMultiplier = ReversedRecipe ? ReversedRecipe->Multiplier : PendingLinkContext.Config.LinkConfig.BackwardEffect.Multiplier;
+			const FText LinkReasonText = ReversedRecipe ? ReversedRecipe->ReasonText : PendingLinkContext.Config.LinkConfig.BackwardEffect.ReasonText;
+			Result.ReasonText = LinkReasonText.IsEmpty()
 				? PendingLinkContext.Config.HUDReasonText
-				: PendingLinkContext.Config.LinkConfig.BackwardEffect.ReasonText;
-			ExecuteFlow(PendingLinkContext.Config.LinkConfig.BackwardEffect.Flow, PendingLinkContext);
+				: LinkReasonText;
+			ExecuteFlow(ReversedRecipe ? ReversedRecipe->LinkFlow : PendingLinkContext.Config.LinkConfig.BackwardEffect.Flow, PendingLinkContext);
 			PendingLinkContext = FCombatCardInstance();
 		}
 		else
@@ -92,7 +99,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 
 	Result.bHadCard = true;
 	Result.ConsumedCard = Card;
-	Result.bActionMatched = Card.Config.CardType != ECombatCardType::Link
+	Result.bActionMatched = !IsLinkCardType(Card.Config.CardType)
 		? true
 		: DoesActionMatch(Card.Config.RequiredAction, Context.ActionType);
 	if (!Result.bTriggeredBackwardLink)
@@ -104,10 +111,50 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	const bool bComboRequirementSatisfied = !Card.Config.bRequiresComboFinisher || Context.bIsComboFinisher;
 	if (Result.bActionMatched && bComboRequirementSatisfied)
 	{
-		const bool bCanUseLinkConfig = Card.Config.CardType == ECombatCardType::Link
+		const bool bCanUseRecipeLinks = IsLinkCardType(Card.Config.CardType) && !Card.Config.LinkRecipes.IsEmpty();
+		const bool bCanUseLinkConfig = IsLinkCardType(Card.Config.CardType)
+			&& Card.Config.LinkRecipes.IsEmpty()
 			&& Card.Config.LinkConfig.Direction != ECombatCardLinkDirection::None;
 
-		if (bCanUseLinkConfig)
+		if (bCanUseRecipeLinks)
+		{
+			const FCombatCardLinkRecipe* ForwardRecipe = Card.LinkOrientation == ECombatCardLinkOrientation::Forward
+				? FindMatchingLinkRecipe(Card, ECombatCardLinkOrientation::Forward, LastResolvedCard, Context)
+				: nullptr;
+
+			if (ForwardRecipe)
+			{
+				Result.bTriggeredMatchedFlow = true;
+				Result.bTriggeredLink = true;
+				Result.bTriggeredForwardLink = true;
+				Result.LinkedSourceCard = LastResolvedCard;
+				Result.LinkedTargetCard = Card;
+				Result.AppliedMultiplier = ForwardRecipe->Multiplier;
+				Result.ReasonText = ForwardRecipe->ReasonText.IsEmpty()
+					? Card.Config.HUDReasonText
+					: ForwardRecipe->ReasonText;
+				ExecuteFlow(ForwardRecipe->LinkFlow, Card);
+			}
+			else
+			{
+				Result.bTriggeredBaseFlow = true;
+				ExecuteFlow(Card.Config.BaseFlow, Card);
+			}
+
+			const bool bHasReversedRecipe = Card.LinkOrientation == ECombatCardLinkOrientation::Reversed
+				&& Card.Config.LinkRecipes.ContainsByPredicate([](const FCombatCardLinkRecipe& Recipe)
+				{
+					return Recipe.Direction == ECombatCardLinkOrientation::Reversed && Recipe.LinkFlow;
+				});
+			if (bHasReversedRecipe)
+			{
+				Result.bTriggeredLink = true;
+				Result.bPendingBackwardLink = true;
+				Result.LinkedSourceCard = Card;
+				PendingLinkContext = Card;
+			}
+		}
+		else if (bCanUseLinkConfig)
 		{
 			const bool bForwardMatched = WantsForwardLink(Card.Config)
 				&& Card.Config.LinkConfig.ForwardEffect.Flow
@@ -228,6 +275,19 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	return Result;
 }
 
+void UCombatDeckComponent::StopCardFlow(const FCombatCardInstance& Card)
+{
+	if (!Card.IsValidCard())
+	{
+		return;
+	}
+
+	if (UBuffFlowComponent* BuffFlowComponent = GetOwner() ? GetOwner()->FindComponentByClass<UBuffFlowComponent>() : nullptr)
+	{
+		BuffFlowComponent->StopBuffFlow(Card.InstanceGuid);
+	}
+}
+
 void UCombatDeckComponent::NotifyComboStateExited()
 {
 	BreakPendingLink(ECombatLinkBreakReason::ComboStateExited);
@@ -346,6 +406,7 @@ void UCombatDeckComponent::SetDeckListForTest(const TArray<FCombatCardConfig>& I
 		FCombatCardInstance Card;
 		Card.InstanceGuid = FGuid::NewGuid();
 		Card.Config = Config;
+		Card.LinkOrientation = Config.DefaultLinkOrientation;
 		DeckList.Add(Card);
 	}
 
@@ -393,6 +454,7 @@ FCombatCardInstance UCombatDeckComponent::MakeCardFromRune(URuneDataAsset* RuneA
 	Card.Level = RuneAsset->RuneInfo.Level;
 	Card.OwnerSource = OwnerSource;
 	Card.Config = RuneAsset->RuneInfo.CombatCard;
+	Card.LinkOrientation = Card.Config.DefaultLinkOrientation;
 
 	if (Card.Config.DisplayName.IsEmpty())
 	{
@@ -499,17 +561,61 @@ bool UCombatDeckComponent::DoesLinkConditionMatch(const FCombatCardLinkCondition
 		return false;
 	}
 
+	if (IsLinkCardType(NeighborCard.Config.CardType))
+	{
+		return false;
+	}
+
+	if (Condition.RequiredNeighborTypes.IsEmpty()
+		&& Condition.RequiredNeighborTags.IsEmpty()
+		&& Condition.RequiredNeighborIdTags.IsEmpty()
+		&& Condition.RequiredNeighborEffectTags.IsEmpty()
+		&& IsLinkCardType(NeighborCard.Config.CardType))
+	{
+		return false;
+	}
+
 	if (!DoesActionMatch(Condition.RequiredAction, Context.ActionType))
 	{
 		return false;
 	}
 
-	if (!Condition.RequiredNeighborTypes.IsEmpty() && !Condition.RequiredNeighborTypes.Contains(NeighborCard.Config.CardType))
+	if (!Condition.RequiredNeighborTypes.IsEmpty())
+	{
+		bool bTypeMatched = false;
+		for (const ECombatCardType RequiredType : Condition.RequiredNeighborTypes)
+		{
+			if (IsCardTypeCompatible(RequiredType, NeighborCard.Config.CardType))
+			{
+				bTypeMatched = true;
+				break;
+			}
+		}
+		if (!bTypeMatched)
+		{
+			return false;
+		}
+	}
+
+	if (!Condition.RequiredNeighborTags.IsEmpty() && !NeighborCard.Config.CardTags.HasAll(Condition.RequiredNeighborTags))
 	{
 		return false;
 	}
 
-	if (!Condition.RequiredNeighborTags.IsEmpty() && !NeighborCard.Config.CardTags.HasAll(Condition.RequiredNeighborTags))
+	if (!Condition.RequiredNeighborIdTags.IsEmpty())
+	{
+		FGameplayTagContainer NeighborIdTags;
+		if (NeighborCard.Config.CardIdTag.IsValid())
+		{
+			NeighborIdTags.AddTag(NeighborCard.Config.CardIdTag);
+		}
+		if (!NeighborIdTags.HasAll(Condition.RequiredNeighborIdTags))
+		{
+			return false;
+		}
+	}
+
+	if (!Condition.RequiredNeighborEffectTags.IsEmpty() && !NeighborCard.Config.CardEffectTags.HasAll(Condition.RequiredNeighborEffectTags))
 	{
 		return false;
 	}
@@ -520,6 +626,43 @@ bool UCombatDeckComponent::DoesLinkConditionMatch(const FCombatCardLinkCondition
 	}
 
 	return true;
+}
+
+const FCombatCardLinkRecipe* UCombatDeckComponent::FindMatchingLinkRecipe(const FCombatCardInstance& LinkCard, ECombatCardLinkOrientation Direction, const FCombatCardInstance& NeighborCard, const FCombatDeckActionContext& Context) const
+{
+	if (!LinkCard.IsValidCard() || !IsLinkCardType(LinkCard.Config.CardType) || !NeighborCard.IsValidCard())
+	{
+		return nullptr;
+	}
+
+	for (const FCombatCardLinkRecipe& Recipe : LinkCard.Config.LinkRecipes)
+	{
+		if (Recipe.Direction == Direction
+			&& Recipe.LinkFlow
+			&& DoesLinkConditionMatch(Recipe.Condition, NeighborCard, Context))
+		{
+			return &Recipe;
+		}
+	}
+
+	return nullptr;
+}
+
+bool UCombatDeckComponent::IsLinkCardType(ECombatCardType CardType) const
+{
+	return CardType == ECombatCardType::Link;
+}
+
+bool UCombatDeckComponent::IsCardTypeCompatible(ECombatCardType RequiredType, ECombatCardType ActualType) const
+{
+	if (RequiredType == ActualType)
+	{
+		return true;
+	}
+
+	const bool bRequiredNormal = RequiredType == ECombatCardType::Normal || RequiredType == ECombatCardType::Attack;
+	const bool bActualNormal = ActualType == ECombatCardType::Normal || ActualType == ECombatCardType::Attack;
+	return bRequiredNormal && bActualNormal;
 }
 
 bool UCombatDeckComponent::WantsForwardLink(const FCombatCardConfig& Config) const

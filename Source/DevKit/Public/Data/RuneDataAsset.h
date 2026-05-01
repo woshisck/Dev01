@@ -134,10 +134,11 @@ enum class ERuneTriggerType : uint8
 UENUM(BlueprintType)
 enum class ECombatCardType : uint8
 {
-    Attack    UMETA(DisplayName = "Attack"),
-    Link      UMETA(DisplayName = "Link"),
-    Finisher  UMETA(DisplayName = "Finisher"),
-    Passive   UMETA(DisplayName = "Passive"),
+    Attack    = 0 UMETA(DisplayName = "Attack"),
+    Link      = 1 UMETA(DisplayName = "连携卡牌"),
+    Finisher  = 2 UMETA(DisplayName = "终结技卡牌"),
+    Passive   = 3 UMETA(DisplayName = "Passive"),
+    Normal    = 4 UMETA(DisplayName = "普通卡牌"),
 };
 
 UENUM(BlueprintType)
@@ -173,6 +174,13 @@ enum class ECombatCardLinkDirection : uint8
 };
 
 UENUM(BlueprintType)
+enum class ECombatCardLinkOrientation : uint8
+{
+    Forward  UMETA(DisplayName = "正向"),
+    Reversed UMETA(DisplayName = "反向"),
+};
+
+UENUM(BlueprintType)
 enum class ECombatLinkBreakPolicy : uint8
 {
     ReleaseBaseFlow  UMETA(DisplayName = "Release Base Flow"),
@@ -200,12 +208,41 @@ struct DEVKIT_API FCombatCardLinkCondition
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
     FGameplayTagContainer RequiredNeighborTags;
 
+    /** Empty = no card id requirement. Any configured tag may identify the neighbor card, such as Card.ID.Moonlight. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    FGameplayTagContainer RequiredNeighborIdTags;
+
+    /** Empty = no effect requirement. All configured tags must be present on the neighbor card's CardEffectTags. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
+    FGameplayTagContainer RequiredNeighborEffectTags;
+
     /** Empty = no combo tag requirement. All configured tags must be present in the action context. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
     FGameplayTagContainer RequiredComboTags;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link")
     ECardRequiredAction RequiredAction = ECardRequiredAction::Any;
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FCombatCardLinkRecipe
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Recipe")
+    ECombatCardLinkOrientation Direction = ECombatCardLinkOrientation::Forward;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Recipe")
+    FCombatCardLinkCondition Condition;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Recipe")
+    TObjectPtr<UFlowAsset> LinkFlow = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Recipe")
+    float Multiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Recipe")
+    FText ReasonText;
 };
 
 USTRUCT(BlueprintType)
@@ -267,7 +304,15 @@ struct DEVKIT_API FCombatCardConfig
     bool bIsCombatCard = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
-    ECombatCardType CardType = ECombatCardType::Attack;
+    ECombatCardType CardType = ECombatCardType::Normal;
+
+    /** GameplayTag ID for recipe lookup, for example Card.ID.Moonlight. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    FGameplayTag CardIdTag;
+
+    /** Effect tags used by link recipes, for example Card.Effect.Attack or Card.Effect.Moonlight. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    FGameplayTagContainer CardEffectTags;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
     ECardRequiredAction RequiredAction = ECardRequiredAction::Any;
@@ -289,6 +334,14 @@ struct DEVKIT_API FCombatCardConfig
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
     FCombatCardLinkConfig LinkConfig;
+
+    /** New recipe list. When non-empty, link cards use this instead of the legacy LinkConfig Forward/Backward fields. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    TArray<FCombatCardLinkRecipe> LinkRecipes;
+
+    /** Default runtime orientation for this card instance. Backpack UI can override this per instance later. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+    ECombatCardLinkOrientation DefaultLinkOrientation = ECombatCardLinkOrientation::Forward;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
     bool bRequiresComboFinisher = false;

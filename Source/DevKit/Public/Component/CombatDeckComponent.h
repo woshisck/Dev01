@@ -81,6 +81,9 @@ struct DEVKIT_API FCombatCardInstance
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
 	FCombatCardConfig Config;
 
+	UPROPERTY(BlueprintReadWrite, SaveGame, Category = "Combat Deck")
+	ECombatCardLinkOrientation LinkOrientation = ECombatCardLinkOrientation::Forward;
+
 	bool IsValidCard() const
 	{
 		return Config.bIsCombatCard;
@@ -168,6 +171,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
 	FCombatCardResolveResult ResolveAttackCardWithContext(const FCombatDeckActionContext& Context);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
+	void StopCardFlow(const FCombatCardInstance& Card);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
 	void NotifyComboStateExited();
@@ -294,6 +300,9 @@ private:
 	bool DoesActionMatch(ECardRequiredAction RequiredAction, ECardRequiredAction ActionType) const;
 	void BreakPendingLink(ECombatLinkBreakReason Reason);
 	bool DoesLinkConditionMatch(const FCombatCardLinkCondition& Condition, const FCombatCardInstance& NeighborCard, const FCombatDeckActionContext& Context) const;
+	const FCombatCardLinkRecipe* FindMatchingLinkRecipe(const FCombatCardInstance& LinkCard, ECombatCardLinkOrientation Direction, const FCombatCardInstance& NeighborCard, const FCombatDeckActionContext& Context) const;
+	bool IsLinkCardType(ECombatCardType CardType) const;
+	bool IsCardTypeCompatible(ECombatCardType RequiredType, ECombatCardType ActualType) const;
 	bool WantsForwardLink(const FCombatCardConfig& Config) const;
 	bool WantsBackwardLink(const FCombatCardConfig& Config) const;
 };

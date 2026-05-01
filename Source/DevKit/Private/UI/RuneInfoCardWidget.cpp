@@ -89,6 +89,20 @@ void URuneInfoCardWidget::ShowRune(const FRuneInstance& Rune)
         }
     }
 
+    if (CardCombatInfo)
+    {
+        const FText CombatInfo = BuildCombatCardInfo(Rune.CombatCard);
+        if (CombatInfo.IsEmpty())
+        {
+            CardCombatInfo->SetVisibility(ESlateVisibility::Collapsed);
+        }
+        else
+        {
+            CardCombatInfo->SetText(CombatInfo);
+            CardCombatInfo->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+        }
+    }
+
     if (GoldCostText)
     {
         if (Rune.RuneConfig.GoldCost > 0)
@@ -247,6 +261,63 @@ FText URuneInfoCardWidget::BuildEffectKeywords(const TArray<TObjectPtr<UGenericR
     }
     if (Names.IsEmpty()) return FText::GetEmpty();
     return FText::Join(NSLOCTEXT("RuneInfoCard", "EffectKeywordSeparator", " · "), Names);
+}
+
+FText URuneInfoCardWidget::BuildCombatCardInfo(const FCombatCardConfig& Config) const
+{
+    if (!Config.bIsCombatCard)
+    {
+        return FText::GetEmpty();
+    }
+
+    auto CardTypeToString = [](ECombatCardType Type) -> FString
+    {
+        switch (Type)
+        {
+        case ECombatCardType::Normal:
+        case ECombatCardType::Attack:
+            return TEXT("普通卡牌");
+        case ECombatCardType::Link:
+            return TEXT("连携卡牌");
+        case ECombatCardType::Finisher:
+            return TEXT("终结技卡牌");
+        case ECombatCardType::Passive:
+            return TEXT("被动卡牌");
+        default:
+            return TEXT("未知");
+        }
+    };
+
+    auto OrientationToString = [](ECombatCardLinkOrientation Orientation) -> FString
+    {
+        return Orientation == ECombatCardLinkOrientation::Reversed ? TEXT("反向") : TEXT("正向");
+    };
+
+    auto TagsToString = [](const FGameplayTagContainer& Tags) -> FString
+    {
+        TArray<FGameplayTag> TagArray;
+        Tags.GetGameplayTagArray(TagArray);
+        TArray<FString> Parts;
+        Parts.Reserve(TagArray.Num());
+        for (const FGameplayTag& Tag : TagArray)
+        {
+            Parts.Add(Tag.ToString());
+        }
+        return Parts.IsEmpty() ? TEXT("无") : FString::Join(Parts, TEXT(" / "));
+    };
+
+    TArray<FString> Lines;
+    Lines.Add(FString::Printf(TEXT("分类：%s"), *CardTypeToString(Config.CardType)));
+    Lines.Add(FString::Printf(TEXT("CardId：%s"), Config.CardIdTag.IsValid() ? *Config.CardIdTag.ToString() : TEXT("未配置")));
+    Lines.Add(FString::Printf(TEXT("效果Tag：%s"), *TagsToString(Config.CardEffectTags)));
+
+    if (Config.CardType == ECombatCardType::Link)
+    {
+        Lines.Add(FString::Printf(TEXT("当前方向：%s"), *OrientationToString(Config.DefaultLinkOrientation)));
+        Lines.Add(FString::Printf(TEXT("连携配方：%d 条"), Config.LinkRecipes.Num()));
+    }
+
+    return FText::FromString(FString::Join(Lines, TEXT("\n")));
 }
 
 // ============================================================

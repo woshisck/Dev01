@@ -13,6 +13,20 @@
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/MontageConfigDA.h"
 #include "Data/RuneDataAsset.h"
+#include "TimerManager.h"
+#include "UObject/ObjectKey.h"
+
+namespace
+{
+	struct FStatBeforeAttackSharedSnapshot
+	{
+		float Attack = 0.f;
+		float AttackPower = 1.f;
+		int32 ActiveCount = 0;
+	};
+
+	TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
+}
 
 UGA_MeleeAttack::UGA_MeleeAttack()
 {
@@ -112,10 +126,6 @@ void UGA_MeleeAttack::SetNextActivationFromDashSave(bool bFromDashSave)
 FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTiming TriggerTiming)
 {
 	FCombatCardResolveResult EmptyResult;
-	if (bCombatDeckCardResolvedThisActivation)
-	{
-		return EmptyResult;
-	}
 
 	APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
 	if (!PlayerOwner)
@@ -140,7 +150,7 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 	Context.bExitedComboState = bExitedComboState;
 	Context.bFromDashSave = bCombatDeckFromDashSave;
 	Context.TriggerTiming = TriggerTiming;
-	Context.AttackInstanceGuid = ActiveAttackGuid.IsValid() ? ActiveAttackGuid : FGuid::NewGuid();
+	Context.AttackInstanceGuid = FGuid::NewGuid();
 	if (!Context.AbilityTag.IsValid())
 	{
 		for (const FGameplayTag& Tag : AbilityTags)
@@ -175,6 +185,12 @@ void UGA_MeleeAttack::ActivateAbility(
 	bActiveComboNodeValid = false;
 	bComboContinued = true;
 	bExitedComboState = false;
+	CombatDeckHitResolveCounter = 0;
+	bHasStatBeforeAttributeSnapshot = false;
+	LocalPreStatBeforeAttack = 0.f;
+	LocalPreStatBeforeAttackPower = 0.f;
+	LocalStatBeforeAttackDelta = 0.f;
+	LocalStatBeforeAttackPowerDelta = 0.f;
 	ActiveComboNode = FWeaponComboNodeConfig();
 	ActiveComboAttackData = nullptr;
 	ActiveAttackGuid.Invalidate();
@@ -274,12 +290,45 @@ void UGA_MeleeAttack::ActivateAbility(
 			FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(StatBeforeATKEffect, GetAbilityLevel(), ContextHandle);
 			if (SpecHandle.IsValid())
 			{
+				LocalPreStatBeforeAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+				LocalPreStatBeforeAttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
+				bHasStatBeforeAttributeSnapshot = true;
+
+				const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
+				FStatBeforeAttackSharedSnapshot& SharedSnapshot = GStatBeforeAttackSnapshots.FindOrAdd(ASCKey);
+				if (SharedSnapshot.ActiveCount <= 0)
+				{
+					SharedSnapshot.Attack = LocalPreStatBeforeAttack;
+					SharedSnapshot.AttackPower = LocalPreStatBeforeAttackPower;
+					SharedSnapshot.ActiveCount = 0;
+				}
+				++SharedSnapshot.ActiveCount;
+
 				const FActionData ActionData = GetAbilityActionData();
 				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDamage,    ActionData.ActDamage);
 				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRange,     ActionData.ActRange);
 				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRes,       ActionData.ActResilience);
 				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDmgReduce, ActionData.ActDmgReduce);
 				StatBeforeATKHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+				const float PostStatBeforeAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+				const float PostStatBeforeAttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
+				LocalStatBeforeAttackDelta = FMath::Max(0.f, PostStatBeforeAttack - LocalPreStatBeforeAttack);
+				LocalStatBeforeAttackPowerDelta = FMath::Max(0.f, PostStatBeforeAttackPower - LocalPreStatBeforeAttackPower);
+				UE_LOG(LogTemp, Warning,
+					TEXT("[StatBeforeATKAttrSnapshot] Effect=%s Attack %.2f -> %.2f Delta=%.2f AttackPower %.2f -> %.2f Delta=%.2f Handle=%d"),
+					*GetNameSafe(StatBeforeATKEffect),
+					LocalPreStatBeforeAttack,
+					PostStatBeforeAttack,
+					LocalStatBeforeAttackDelta,
+					LocalPreStatBeforeAttackPower,
+					PostStatBeforeAttackPower,
+					LocalStatBeforeAttackPowerDelta,
+					StatBeforeATKHandle.IsValid() ? 1 : 0);
+				UE_LOG(LogTemp, Warning,
+					TEXT("[StatBeforeATKAttrSnapshot] SharedBaseline Attack=%.2f AttackPower=%.2f ActiveCount=%d"),
+					SharedSnapshot.Attack,
+					SharedSnapshot.AttackPower,
+					SharedSnapshot.ActiveCount);
 			}
 		}
 	}
@@ -298,8 +347,6 @@ void UGA_MeleeAttack::ActivateAbility(
 	}
 
 	// 鐩戝惉 AnimNotify 浼ゅ浜嬩欢锛氬繀椤绘槑纭紶鍏?Tag锛岀┖瀹瑰櫒涓嶄細娉ㄥ唽浠讳綍鐩戝惉
-	ResolveCombatDeck(ECombatCardTriggerTiming::OnCommit);
-
 	FGameplayTagContainer DamageEventTags;
 	DamageEventTags.AddTag(FGameplayTag::RequestGameplayTag(FName("GameplayEffect.DamageType.GeneralAttack")));
 
@@ -359,6 +406,45 @@ void UGA_MeleeAttack::EndAbility(
 		StatBeforeATKHandle = FActiveGameplayEffectHandle();
 	}
 
+	if (bHasStatBeforeAttributeSnapshot && ASC)
+	{
+		const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
+		FStatBeforeAttackSharedSnapshot* SharedSnapshot = GStatBeforeAttackSnapshots.Find(ASCKey);
+		if (SharedSnapshot)
+		{
+			SharedSnapshot->ActiveCount = FMath::Max(0, SharedSnapshot->ActiveCount - 1);
+		}
+
+		const float CurrentAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+		const float CurrentAttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
+		UE_LOG(LogTemp, Warning,
+			TEXT("[StatBeforeATKAttrSnapshot] EndRestoreCheck CurrentAttack=%.2f LocalPreAttack=%.2f CurrentAttackPower=%.2f LocalPreAttackPower=%.2f SharedAttack=%.2f SharedAttackPower=%.2f ActiveCount=%d"),
+			CurrentAttack,
+			LocalPreStatBeforeAttack,
+			CurrentAttackPower,
+			LocalPreStatBeforeAttackPower,
+			SharedSnapshot ? SharedSnapshot->Attack : 0.f,
+			SharedSnapshot ? SharedSnapshot->AttackPower : 0.f,
+			SharedSnapshot ? SharedSnapshot->ActiveCount : -1);
+
+		if (SharedSnapshot && SharedSnapshot->ActiveCount <= 0)
+		{
+			if (!FMath::IsNearlyEqual(CurrentAttack, SharedSnapshot->Attack, KINDA_SMALL_NUMBER))
+			{
+				ASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackAttribute(), SharedSnapshot->Attack);
+				UE_LOG(LogTemp, Warning, TEXT("[StatBeforeATKAttrSnapshot] Restored Shared Attack %.2f -> %.2f"),
+					CurrentAttack, SharedSnapshot->Attack);
+			}
+			if (!FMath::IsNearlyEqual(CurrentAttackPower, SharedSnapshot->AttackPower, KINDA_SMALL_NUMBER))
+			{
+				ASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackPowerAttribute(), SharedSnapshot->AttackPower);
+				UE_LOG(LogTemp, Warning, TEXT("[StatBeforeATKAttrSnapshot] Restored Shared AttackPower %.2f -> %.2f"),
+					CurrentAttackPower, SharedSnapshot->AttackPower);
+			}
+			GStatBeforeAttackSnapshots.Remove(ASCKey);
+		}
+	}
+
 	// 鏂藉姞鏀诲嚮鍚庢憞 GE锛堜粎姝ｅ父缁撴潫鏃讹紝Cancel/Interrupt 涓嶈Е鍙戯級
 	// 浼樺厛鐢ㄦ渶鍚庡懡涓殑 Notify 鏁版嵁锛堝娈靛懡涓唬琛ㄦ渶鍚庝竴鍑伙級锛屾湭鍛戒腑杩囧垯 fallback 鍒扮涓€涓?Notify銆?
 	if (!bWasCancelled && StatAfterATKEffect && ASC)
@@ -367,6 +453,9 @@ void UGA_MeleeAttack::EndAbility(
 		static const FGameplayTag TAG_ActRange     = FGameplayTag::RequestGameplayTag("Attribute.ActRange");
 		static const FGameplayTag TAG_ActRes       = FGameplayTag::RequestGameplayTag("Attribute.ActResilience");
 		static const FGameplayTag TAG_ActDmgReduce = FGameplayTag::RequestGameplayTag("Attribute.ActDmgReduce");
+
+		const float PreStatAfterAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+		const float PreStatAfterAttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
 
 		FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
 		Ctx.AddSourceObject(this);
@@ -383,6 +472,29 @@ void UGA_MeleeAttack::EndAbility(
 			Spec.Data->SetSetByCallerMagnitude(TAG_ActRes,       ActionData.ActResilience);
 			Spec.Data->SetSetByCallerMagnitude(TAG_ActDmgReduce, ActionData.ActDmgReduce);
 			ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+
+			const float PostStatAfterAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+			const float PostStatAfterAttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
+			UE_LOG(LogTemp, Warning,
+				TEXT("[StatAfterATKAttrSnapshot] Effect=%s Attack %.2f -> %.2f AttackPower %.2f -> %.2f"),
+				*GetNameSafe(StatAfterATKEffect),
+				PreStatAfterAttack,
+				PostStatAfterAttack,
+				PreStatAfterAttackPower,
+				PostStatAfterAttackPower);
+
+			if (PostStatAfterAttack > PreStatAfterAttack + KINDA_SMALL_NUMBER)
+			{
+				ASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackAttribute(), PreStatAfterAttack);
+				UE_LOG(LogTemp, Warning, TEXT("[StatAfterATKAttrSnapshot] Restored Attack %.2f -> %.2f"),
+					PostStatAfterAttack, PreStatAfterAttack);
+			}
+			if (PostStatAfterAttackPower > PreStatAfterAttackPower + KINDA_SMALL_NUMBER)
+			{
+				ASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackPowerAttribute(), PreStatAfterAttackPower);
+				UE_LOG(LogTemp, Warning, TEXT("[StatAfterATKAttrSnapshot] Restored AttackPower %.2f -> %.2f"),
+					PostStatAfterAttackPower, PreStatAfterAttackPower);
+			}
 		}
 	}
 	CachedDamageNotify    = nullptr;
@@ -393,6 +505,12 @@ void UGA_MeleeAttack::EndAbility(
 	bActiveComboNodeValid = false;
 	bComboContinued = true;
 	bExitedComboState = false;
+	CombatDeckHitResolveCounter = 0;
+	bHasStatBeforeAttributeSnapshot = false;
+	LocalPreStatBeforeAttack = 0.f;
+	LocalPreStatBeforeAttackPower = 0.f;
+	LocalStatBeforeAttackDelta = 0.f;
+	LocalStatBeforeAttackPowerDelta = 0.f;
 	ActiveAttackGuid.Invalidate();
 	ActiveComboIndex = 0;
 	ActiveComboTags.Reset();
@@ -423,6 +541,7 @@ void UGA_MeleeAttack::OnMontageCancelled(FGameplayTag EventTag, FGameplayEventDa
 void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData EventData)
 {
 	UE_LOG(LogTemp, Warning, TEXT("[GA_MeleeAttack] OnEventReceived: %s on %s"), *EventTag.ToString(), *GetName());
+	++CombatDeckHitResolveCounter;
 
 	// OptionalObject 宸茬敱 AN_MeleeDamage::Notify 璁剧疆涓哄彂灏勮浜嬩欢鐨?Notify 鏈韩锛?
 	// YogTargetType_Melee::GetActionData 浠庝腑璇诲彇 HitboxTypes / ActRange 绛夊弬鏁般€?
@@ -436,6 +555,101 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 			SourceASC->CurrentActionPoiseBonus = FiredNotify->ActResilience;
 	}
 
+	UAbilitySystemComponent* CombatCardASC = GetAbilitySystemComponentFromActorInfo();
+	bool bHasCombatCardAttributeSnapshot = false;
+	float PreCardAttack = 0.f;
+	float PreCardAttackPower = 0.f;
+	float IntendedPreCardAttack = 0.f;
+	float IntendedPreCardAttackPower = 0.f;
+	if (CombatCardASC)
+	{
+		bool bFoundAttack = false;
+		bool bFoundAttackPower = false;
+		PreCardAttack = CombatCardASC->GetGameplayAttributeValue(UBaseAttributeSet::GetAttackAttribute(), bFoundAttack);
+		PreCardAttackPower = CombatCardASC->GetGameplayAttributeValue(UBaseAttributeSet::GetAttackPowerAttribute(), bFoundAttackPower);
+		bHasCombatCardAttributeSnapshot = bFoundAttack && bFoundAttackPower;
+
+		IntendedPreCardAttack = PreCardAttack;
+		IntendedPreCardAttackPower = PreCardAttackPower;
+
+		if (bHasStatBeforeAttributeSnapshot)
+		{
+			float BaselineAttack = LocalPreStatBeforeAttack;
+			float BaselineAttackPower = LocalPreStatBeforeAttackPower;
+			const TObjectKey<UAbilitySystemComponent> ASCKey(CombatCardASC);
+			if (const FStatBeforeAttackSharedSnapshot* SharedSnapshot = GStatBeforeAttackSnapshots.Find(ASCKey))
+			{
+				BaselineAttack = SharedSnapshot->Attack;
+				BaselineAttackPower = SharedSnapshot->AttackPower;
+			}
+
+			IntendedPreCardAttack = BaselineAttack + LocalStatBeforeAttackDelta;
+			IntendedPreCardAttackPower = BaselineAttackPower + LocalStatBeforeAttackPowerDelta;
+
+			if (!FMath::IsNearlyEqual(PreCardAttack, IntendedPreCardAttack, KINDA_SMALL_NUMBER))
+			{
+				CombatCardASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackAttribute(), IntendedPreCardAttack);
+			}
+			if (!FMath::IsNearlyEqual(PreCardAttackPower, IntendedPreCardAttackPower, KINDA_SMALL_NUMBER))
+			{
+				CombatCardASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackPowerAttribute(), IntendedPreCardAttackPower);
+			}
+
+			UE_LOG(LogTemp, Warning,
+				TEXT("[CombatCardAttrNormalize] PreCard Attack %.2f -> %.2f AttackPower %.2f -> %.2f BaselineAttack=%.2f StatBeforeDelta=%.2f HitIndex=%d"),
+				PreCardAttack,
+				IntendedPreCardAttack,
+				PreCardAttackPower,
+				IntendedPreCardAttackPower,
+				BaselineAttack,
+				LocalStatBeforeAttackDelta,
+				CombatDeckHitResolveCounter);
+
+			PreCardAttack = IntendedPreCardAttack;
+			PreCardAttackPower = IntendedPreCardAttackPower;
+		}
+	}
+
+	const FCombatCardResolveResult CombatCardResult = ResolveCombatDeck(ECombatCardTriggerTiming::OnHit);
+	float CardAttackDelta = 0.f;
+	float CardAttackPowerDelta = 0.f;
+	if (bHasCombatCardAttributeSnapshot && CombatCardASC)
+	{
+		const float PostCardAttack = CombatCardASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+		const float PostCardAttackPower = CombatCardASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
+		CardAttackDelta = FMath::Max(0.f, PostCardAttack - PreCardAttack);
+		CardAttackPowerDelta = FMath::Max(0.f, PostCardAttackPower - PreCardAttackPower);
+
+		const float IntendedDamageAttack = IntendedPreCardAttack + CardAttackDelta;
+		const float IntendedDamageAttackPower = IntendedPreCardAttackPower + CardAttackPowerDelta;
+		if (!FMath::IsNearlyEqual(PostCardAttack, IntendedDamageAttack, KINDA_SMALL_NUMBER))
+		{
+			CombatCardASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackAttribute(), IntendedDamageAttack);
+		}
+		if (!FMath::IsNearlyEqual(PostCardAttackPower, IntendedDamageAttackPower, KINDA_SMALL_NUMBER))
+		{
+			CombatCardASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackPowerAttribute(), IntendedDamageAttackPower);
+		}
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[CombatCardAttrNormalize] Damage Attack %.2f -> %.2f CardDelta=%.2f AttackPower %.2f -> %.2f CardPowerDelta=%.2f"),
+			PostCardAttack,
+			IntendedDamageAttack,
+			CardAttackDelta,
+			PostCardAttackPower,
+			IntendedDamageAttackPower,
+			CardAttackPowerDelta);
+	}
+	UE_LOG(LogTemp, Warning,
+		TEXT("[CombatCardAttrSnapshot] Resolve Card=%s Had=%d Base=%d Link=%d PreAttack=%.2f PreAttackPower=%.2f ASC=%s"),
+		*CombatCardResult.ConsumedCard.Config.DisplayName.ToString(),
+		CombatCardResult.bHadCard ? 1 : 0,
+		CombatCardResult.bTriggeredBaseFlow ? 1 : 0,
+		CombatCardResult.bTriggeredLink ? 1 : 0,
+		PreCardAttack,
+		PreCardAttackPower,
+		*GetNameSafe(CombatCardASC));
+
 	// 鎷嗗垎涓轰袱姝ヤ互澶嶇敤 ContainerSpec锛堢洰鏍囨暟鎹?+ 闄勫姞 Effect 闇€瑕佸悓涓€鎵圭洰鏍囷級
 	FYogGameplayEffectContainerSpec ContainerSpec = MakeEffectContainerSpec(EventTag, EventData, -1);
 	TArray<FActiveGameplayEffectHandle> Handles = ApplyEffectContainerSpec(ContainerSpec);
@@ -446,8 +660,6 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 	if (Handles.Num() > 0 && Owner)
 	{
 		Owner->bComboHitConnected = true;
-		TryResolveCombatDeckOnHit();
-
 		// 鏀堕泦鏈鍛戒腑鐨勬墍鏈夌洰鏍囷紙渚?Ability.Event 骞挎挱鍜?AdditionalRuneEffects 鍏辩敤锛?
 		TArray<AActor*> HitActors;
 		for (const TSharedPtr<FGameplayAbilityTargetData>& Data : ContainerSpec.TargetData.Data)
@@ -503,5 +715,64 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 	{
 		Owner->PendingAdditionalHitRunes.Empty();
 		Owner->PendingOnHitEventTags.Empty();
+	}
+
+	if (CombatCardResult.bHadCard)
+	{
+		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
+		{
+			if (PlayerOwner->CombatDeckComponent)
+			{
+				PlayerOwner->CombatDeckComponent->StopCardFlow(CombatCardResult.ConsumedCard);
+				PlayerOwner->CombatDeckComponent->StopCardFlow(CombatCardResult.LinkedSourceCard);
+				PlayerOwner->CombatDeckComponent->StopCardFlow(CombatCardResult.LinkedTargetCard);
+			}
+		}
+
+		if (bHasCombatCardAttributeSnapshot && CombatCardASC)
+		{
+			TWeakObjectPtr<UAbilitySystemComponent> WeakASC(CombatCardASC);
+			const auto RestoreAttackSnapshot = [WeakASC, PreCardAttack, PreCardAttackPower](const TCHAR* Reason)
+			{
+				UAbilitySystemComponent* SnapshotASC = WeakASC.Get();
+				if (!SnapshotASC)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[CombatCardAttrSnapshot] Restore skipped ASC invalid Reason=%s"), Reason);
+					return;
+				}
+
+				const float CurrentAttack = SnapshotASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+				const float CurrentAttackPower = SnapshotASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
+				UE_LOG(LogTemp, Warning,
+					TEXT("[CombatCardAttrSnapshot] RestoreCheck Reason=%s CurrentAttack=%.2f PreAttack=%.2f CurrentAttackPower=%.2f PreAttackPower=%.2f"),
+					Reason,
+					CurrentAttack,
+					PreCardAttack,
+					CurrentAttackPower,
+					PreCardAttackPower);
+
+				if (CurrentAttack > PreCardAttack + KINDA_SMALL_NUMBER)
+				{
+					SnapshotASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackAttribute(), PreCardAttack);
+					UE_LOG(LogTemp, Warning, TEXT("[CombatCardAttrSnapshot] Restored Attack %.2f -> %.2f Reason=%s"),
+						CurrentAttack, PreCardAttack, Reason);
+				}
+				if (CurrentAttackPower > PreCardAttackPower + KINDA_SMALL_NUMBER)
+				{
+					SnapshotASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackPowerAttribute(), PreCardAttackPower);
+					UE_LOG(LogTemp, Warning, TEXT("[CombatCardAttrSnapshot] Restored AttackPower %.2f -> %.2f Reason=%s"),
+						CurrentAttackPower, PreCardAttackPower, Reason);
+				}
+			};
+
+			RestoreAttackSnapshot(TEXT("Immediate"));
+			if (UWorld* World = GetWorld())
+			{
+				World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([RestoreAttackSnapshot]()
+				{
+					RestoreAttackSnapshot(TEXT("NextTick"));
+				}));
+			}
+		}
 	}
 }

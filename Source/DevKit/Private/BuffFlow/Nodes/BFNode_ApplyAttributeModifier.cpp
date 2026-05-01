@@ -96,6 +96,10 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 
 
 	// Value：优先读取连入的数据引脚，无连线则使用节点上的固定值（Attribute 无效时忽略）
+	const float AttributeBeforeApply = Attribute.IsValid()
+		? ASC->GetNumericAttribute(Attribute)
+		: 0.f;
+
 	float ResolvedValue = Value.Value;
 	if (Attribute.IsValid())
 	{
@@ -239,10 +243,21 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 	}
 
 	FActiveGameplayEffectHandle Handle = ASC->ApplyGameplayEffectSpecToSelf(Spec);
+	const float AttributeAfterApply = Attribute.IsValid()
+		? ASC->GetNumericAttribute(Attribute)
+		: 0.f;
 
-	UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] ApplyGE → Handle.IsValid=%d | Target=%s | GrantedTags=%s | GrantedAbilities=%d"),
-		(int32)Handle.IsValid(), *TargetActor->GetName(),
-		*GrantedTagsToASC.ToStringSimple(), GrantedAbilities.Num());
+	UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] ApplyGE Handle.IsValid=%d Target=%s Attr=%s Before=%.2f Value=%.2f After=%.2f DurationType=%d ModOp=%d GrantedTags=%s GrantedAbilities=%d"),
+		(int32)Handle.IsValid(),
+		*TargetActor->GetName(),
+		Attribute.IsValid() ? *Attribute.GetName() : TEXT("(none)"),
+		AttributeBeforeApply,
+		ResolvedValue,
+		AttributeAfterApply,
+		static_cast<int32>(DurationType),
+		static_cast<int32>(ModOp.GetValue()),
+		*GrantedTagsToASC.ToStringSimple(),
+		GrantedAbilities.Num());
 
 	// Instant GE 应用后 handle 即失效，属正常现象；非瞬发 GE handle 无效视为失败
 	if (DurationType != ERuneDurationType::Instant && !Handle.IsValid())
