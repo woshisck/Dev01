@@ -917,10 +917,39 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
     if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
         return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 
+    bool bCommonInputGamepad = false;
+    if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+    {
+        if (UCommonInputSubsystem* CommonInput = LocalPlayer->GetSubsystem<UCommonInputSubsystem>())
+        {
+            bCommonInputGamepad = CommonInput->GetCurrentInputType() == ECommonInputType::Gamepad;
+        }
+    }
+
+    const bool bGamepadAIsDown = GetOwningPlayer()
+        && GetOwningPlayer()->IsInputKeyDown(EKeys::Gamepad_FaceButton_Bottom);
+    const bool bTreatAsGamepadSelect =
+        bIsGamepadInputMode || bCommonInputGamepad || bGamepadAIsDown || bDeckSelectButtonWasDown;
+
+    if (bTreatAsGamepadSelect && CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput())
+    {
+        bIsGamepadInputMode = true;
+        bDeckSelectFromVirtualMouse = true;
+        UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] VirtualMouseAsA Mode=%d Common=%d ADown=%d WasDown=%d"),
+            bIsGamepadInputMode ? 1 : 0,
+            bCommonInputGamepad ? 1 : 0,
+            bGamepadAIsDown ? 1 : 0,
+            bDeckSelectButtonWasDown ? 1 : 0);
+        return HandleCombatDeckSelectButtonState(true, TEXT("VirtualMouseDown")).CaptureMouse(TakeWidget());
+    }
+
     if (bIsGamepadInputMode)
     {
-        GamepadConfirm();
-        return FReply::Handled();
+        bIsGamepadInputMode = false;
+        if (BackpackGridWidget)
+        {
+            BackpackGridWidget->RefreshHeatPhaseButtons(PreviewPhase, false);
+        }
     }
 
     // 左侧待放置槽：优先于主格子
@@ -1104,6 +1133,32 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         }
         return FReply::Handled();
     }
+}
+
+FReply UBackpackScreenWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[BackpackScreen] MouseButtonUp button=%s pos=(%f,%f) VirtualDeck=%d"),
+        *InMouseEvent.GetEffectingButton().ToString(),
+        InMouseEvent.GetScreenSpacePosition().X,
+        InMouseEvent.GetScreenSpacePosition().Y,
+        bDeckSelectFromVirtualMouse ? 1 : 0);
+
+    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && bDeckSelectFromVirtualMouse)
+    {
+        bDeckSelectFromVirtualMouse = false;
+        return HandleCombatDeckSelectButtonState(false, TEXT("VirtualMouseUp")).ReleaseMouseCapture();
+    }
+
+    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton &&
+        bIsGamepadInputMode &&
+        bDeckSelectButtonWasDown &&
+        CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] VirtualMouseUpAsARelease"));
+        return HandleCombatDeckSelectButtonState(false, TEXT("VirtualMouseUpFallback")).ReleaseMouseCapture();
+    }
+
+    return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
 }
 
 void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
@@ -1510,6 +1565,17 @@ FReply UBackpackScreenWidget::NativeOnMouseMove(const FGeometry& InGeometry, con
 
 FReply UBackpackScreenWidget::NativeOnKeyUp(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackKeyUp] Key=%s HasDeckWidget=%d CanDeck=%d"),
+        *InKeyEvent.GetKey().ToString(),
+        CombatDeckEditWidget ? 1 : 0,
+        (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput()) ? 1 : 0);
+
+    if (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput() &&
+        InKeyEvent.GetKey() == EKeys::Gamepad_FaceButton_Bottom)
+    {
+        return HandleCombatDeckSelectButtonState(false, TEXT("KeyUp"));
+    }
+
     if (InKeyEvent.GetKey() == HeldDirKey)
     {
         bDirKeyHeld    = false;
@@ -1524,6 +1590,13 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
     Super::NativeTick(MyGeometry, InDeltaTime);
 
     UpdateOperationHintVisibility();
+
+    PollCombatDeckSelectButtonState();
+
+    if (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput())
+    {
+        CombatDeckEditWidget->TickDeckGamepadInput(InDeltaTime);
+    }
 
     if (GrabbedRuneIcon)
     {
@@ -1639,30 +1712,57 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 
     LastRepeatCount = TargetCount;
 
-    if (bCursorInPendingArea)
+    if (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput())
     {
-        if      (HeldDirKey == EKeys::Gamepad_DPad_Up)    MovePendingCursor( 0, -1);
-        else if (HeldDirKey == EKeys::Gamepad_DPad_Down)  MovePendingCursor( 0,  1);
+        UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRepeat] HeldKey=%s TargetCount=%d"),
+            *HeldDirKey.ToString(),
+            TargetCount);
+        if      (HeldDirKey == EKeys::Gamepad_DPad_Up || HeldDirKey == EKeys::Gamepad_LeftStick_Up)     CombatDeckEditWidget->HandleDeckDirectionalInput(-1);
+        else if (HeldDirKey == EKeys::Gamepad_DPad_Down || HeldDirKey == EKeys::Gamepad_LeftStick_Down) CombatDeckEditWidget->HandleDeckDirectionalInput(1);
+    }
+    else if (bCursorInPendingArea)
+    {
+        if      (HeldDirKey == EKeys::Gamepad_DPad_Up || HeldDirKey == EKeys::Gamepad_LeftStick_Up)     MovePendingCursor( 0, -1);
+        else if (HeldDirKey == EKeys::Gamepad_DPad_Down || HeldDirKey == EKeys::Gamepad_LeftStick_Down) MovePendingCursor( 0,  1);
         else if (HeldDirKey == EKeys::Gamepad_DPad_Left)  MovePendingCursor(-1,  0);
         else if (HeldDirKey == EKeys::Gamepad_DPad_Right) MovePendingCursor( 1,  0);
     }
     else
     {
-        if      (HeldDirKey == EKeys::Gamepad_DPad_Up)    MoveGamepadCursor( 0, -1);
-        else if (HeldDirKey == EKeys::Gamepad_DPad_Down)  MoveGamepadCursor( 0,  1);
+        if      (HeldDirKey == EKeys::Gamepad_DPad_Up || HeldDirKey == EKeys::Gamepad_LeftStick_Up)     MoveGamepadCursor( 0, -1);
+        else if (HeldDirKey == EKeys::Gamepad_DPad_Down || HeldDirKey == EKeys::Gamepad_LeftStick_Down) MoveGamepadCursor( 0,  1);
         else if (HeldDirKey == EKeys::Gamepad_DPad_Left)  MoveGamepadCursor(-1,  0);
         else if (HeldDirKey == EKeys::Gamepad_DPad_Right) MoveGamepadCursor( 1,  0);
     }
 }
 
+FReply UBackpackScreenWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+    const FKey Key = InKeyEvent.GetKey();
+    if (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput() &&
+        !InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Bottom)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackPreviewKeyDown] A Press"));
+        bIsGamepadInputMode = true;
+        bDeckSelectFromVirtualMouse = false;
+        return HandleCombatDeckSelectButtonState(true, TEXT("PreviewKeyDown"));
+    }
+
+    return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
+}
+
 FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
     const FKey Key = InKeyEvent.GetKey();
+    UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackKeyDown] Key=%s Repeat=%d HasDeckWidget=%d CanDeck=%d"),
+        *Key.ToString(),
+        InKeyEvent.IsRepeat() ? 1 : 0,
+        CombatDeckEditWidget ? 1 : 0,
+        (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput()) ? 1 : 0);
 
     // 摇杆轴事件不触发输入模式切换，直接忽略
     if (Key == EKeys::Gamepad_RightStick_Up   || Key == EKeys::Gamepad_RightStick_Down  ||
         Key == EKeys::Gamepad_RightStick_Left  || Key == EKeys::Gamepad_RightStick_Right ||
-        Key == EKeys::Gamepad_LeftStick_Up     || Key == EKeys::Gamepad_LeftStick_Down   ||
         Key == EKeys::Gamepad_LeftStick_Left   || Key == EKeys::Gamepad_LeftStick_Right)
     {
         return FReply::Handled();
@@ -1681,6 +1781,63 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
     {
         DeactivateWidget();
         return FReply::Handled();
+    }
+
+    if (CombatDeckEditWidget && CombatDeckEditWidget->IsVisible() && !InKeyEvent.IsRepeat() &&
+        (Key == EKeys::F || Key == EKeys::Gamepad_FaceButton_Top))
+    {
+        const bool bVisible = CombatDeckEditWidget->ToggleDetailPreview();
+        UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] DetailPreview Key=%s Visible=%d"),
+            *Key.ToString(),
+            bVisible ? 1 : 0);
+        return FReply::Handled();
+    }
+
+    if (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput())
+    {
+        auto StartDeckDirRepeat = [&](int32 Direction) -> FReply
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] DPad Direction=%d"), Direction);
+            CombatDeckEditWidget->HandleDeckDirectionalInput(Direction);
+            HeldDirKey      = Key;
+            bDirKeyHeld     = true;
+            HeldKeyTime     = 0.f;
+            LastRepeatCount = 0;
+            return FReply::Handled();
+        };
+
+        if (Key == EKeys::Gamepad_DPad_Up || Key == EKeys::Gamepad_LeftStick_Up)
+        {
+            if (InKeyEvent.IsRepeat())
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] IgnoreNativeRepeat Key=%s"), *Key.ToString());
+                return FReply::Handled();
+            }
+            return StartDeckDirRepeat(-1);
+        }
+        if (Key == EKeys::Gamepad_DPad_Down || Key == EKeys::Gamepad_LeftStick_Down)
+        {
+            if (InKeyEvent.IsRepeat())
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] IgnoreNativeRepeat Key=%s"), *Key.ToString());
+                return FReply::Handled();
+            }
+            return StartDeckDirRepeat(1);
+        }
+        if (!InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Bottom)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] A Press"));
+            return HandleCombatDeckSelectButtonState(true, TEXT("KeyDown"));
+        }
+        if (Key == EKeys::R || Key == EKeys::Gamepad_FaceButton_Left)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] Reverse Key=%s"), *Key.ToString());
+            return CombatDeckEditWidget->ToggleSelectedLinkOrientation() ? FReply::Handled() : FReply::Unhandled();
+        }
+    }
+    else if (CombatDeckEditWidget)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] Deck widget present but CanHandleDeckInput=false"));
     }
 
     // ── 热度阶段预览切换 ────────────────────────────────────────────────
@@ -1725,8 +1882,14 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         return FReply::Handled();
     };
 
-    if (Key == EKeys::Gamepad_DPad_Up)    return StartDirRepeat( 0, -1);
-    if (Key == EKeys::Gamepad_DPad_Down)  return StartDirRepeat( 0,  1);
+    if (Key == EKeys::Gamepad_DPad_Up || Key == EKeys::Gamepad_LeftStick_Up)
+    {
+        return InKeyEvent.IsRepeat() ? FReply::Handled() : StartDirRepeat(0, -1);
+    }
+    if (Key == EKeys::Gamepad_DPad_Down || Key == EKeys::Gamepad_LeftStick_Down)
+    {
+        return InKeyEvent.IsRepeat() ? FReply::Handled() : StartDirRepeat(0, 1);
+    }
     if (Key == EKeys::Gamepad_DPad_Left)  return StartDirRepeat(-1,  0);
     if (Key == EKeys::Gamepad_DPad_Right) return StartDirRepeat( 1,  0);
 
@@ -1765,6 +1928,63 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
     }
 
     return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+FReply UBackpackScreenWidget::HandleCombatDeckSelectButtonState(bool bPressed, const TCHAR* Source)
+{
+    const bool bCanDeck = CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput();
+    UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackAState] Source=%s Pressed=%d WasDown=%d CanDeck=%d"),
+        Source,
+        bPressed ? 1 : 0,
+        bDeckSelectButtonWasDown ? 1 : 0,
+        bCanDeck ? 1 : 0);
+
+    if (!bCanDeck)
+    {
+        bDeckSelectButtonWasDown = bPressed;
+        return FReply::Unhandled();
+    }
+
+    if (bPressed)
+    {
+        if (bDeckSelectButtonWasDown)
+        {
+            return FReply::Handled();
+        }
+
+        bDeckSelectButtonWasDown = true;
+        return CombatDeckEditWidget->HandleDeckSelectPressed() ? FReply::Handled() : FReply::Unhandled();
+    }
+
+    if (!bDeckSelectButtonWasDown)
+    {
+        return FReply::Handled();
+    }
+
+    bDeckSelectButtonWasDown = false;
+    return CombatDeckEditWidget->HandleDeckSelectReleased() ? FReply::Handled() : FReply::Unhandled();
+}
+
+void UBackpackScreenWidget::PollCombatDeckSelectButtonState()
+{
+    APlayerController* PC = GetOwningPlayer();
+    if (!PC)
+    {
+        return;
+    }
+
+    if (bDeckSelectFromVirtualMouse)
+    {
+        return;
+    }
+
+    const bool bPressed = PC->IsInputKeyDown(EKeys::Gamepad_FaceButton_Bottom);
+    if (bPressed == bDeckSelectButtonWasDown)
+    {
+        return;
+    }
+
+    HandleCombatDeckSelectButtonState(bPressed, TEXT("TickPoll"));
 }
 
 void UBackpackScreenWidget::MoveGamepadCursor(int32 DCol, int32 DRow)

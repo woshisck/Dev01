@@ -1,7 +1,6 @@
 #include "UI/CombatDeckEditCardSlotWidget.h"
 
 #include "Blueprint/DragDropOperation.h"
-#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -14,16 +13,19 @@
 
 namespace
 {
-constexpr float DragHoldSeconds = 0.18f;
 constexpr float BlockedFeedbackSeconds = 0.22f;
 constexpr float DragVisualOpacity = 0.72f;
 constexpr float DragVisualScale = 1.04f;
+constexpr float SelectedVisualScale = 1.03f;
+const FLinearColor SelectedColorAndOpacity(1.0f, 0.92f, 0.48f, 1.0f);
 const FVector2D BlockedFeedbackOffset(6.0f, 0.0f);
 }
 
 void UCombatDeckEditCardSlotWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetIsFocusable(true);
+	CaptureDefaultVisualState();
 
 	if (SelectButton)
 	{
@@ -81,6 +83,7 @@ void UCombatDeckEditCardSlotWidget::SetCard(UCombatDeckEditWidget* InOwnerWidget
 		SelectedMark->SetVisibility(bSelected ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
+	ApplySelectionVisual();
 	BP_OnCardChanged(Card, DeckIndex, bSelected);
 }
 
@@ -93,21 +96,50 @@ void UCombatDeckEditCardSlotWidget::ClearCard()
 	SetVisibility(ESlateVisibility::Collapsed);
 }
 
+FReply UCombatDeckEditCardSlotWidget::NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		if (IsPointerOverReverseButton(InMouseEvent))
+		{
+			return Super::NativeOnPreviewMouseButtonDown(InGeometry, InMouseEvent);
+		}
+
+		return HandleCardMouseButtonDown(InMouseEvent);
+	}
+
+	return Super::NativeOnPreviewMouseButtonDown(InGeometry, InMouseEvent);
+}
+
 FReply UCombatDeckEditCardSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		MouseDownTimeSeconds = FPlatformTime::Seconds();
-		SelectThisCard();
-		if (IsInteractionLocked())
-		{
-			TriggerBlockedFeedback();
-			return FReply::Handled();
-		}
-		return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
+		return HandleCardMouseButtonDown(InMouseEvent);
 	}
 
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
+FReply UCombatDeckEditCardSlotWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		return FReply::Handled().ReleaseMouseCapture();
+	}
+
+	return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
+}
+
+FReply UCombatDeckEditCardSlotWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey Key = InKeyEvent.GetKey();
+	if (Key == EKeys::R || Key == EKeys::Gamepad_FaceButton_Left)
+	{
+		return TryHandleReverseInput(Key);
+	}
+
+	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
 void UCombatDeckEditCardSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -119,7 +151,7 @@ void UCombatDeckEditCardSlotWidget::NativeOnMouseEnter(const FGeometry& InGeomet
 void UCombatDeckEditCardSlotWidget::NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent)
 {
 	Super::NativeOnAddedToFocusPath(InFocusEvent);
-	SelectThisCard();
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatDeckInput][CardFocusIgnored] DeckIndex=%d"), DeckIndex);
 }
 
 void UCombatDeckEditCardSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
@@ -130,18 +162,14 @@ void UCombatDeckEditCardSlotWidget::NativeOnDragDetected(const FGeometry& InGeom
 		return;
 	}
 
-	const double HeldSeconds = FPlatformTime::Seconds() - MouseDownTimeSeconds;
-	if (HeldSeconds < DragHoldSeconds)
-	{
-		return;
-	}
-
 	UCombatDeckEditDragDropOperation* Operation = NewObject<UCombatDeckEditDragDropOperation>();
 	Operation->SourceIndex = DeckIndex;
 	Operation->Payload = this;
-	Operation->DefaultDragVisual = this;
 	OutOperation = Operation;
-	StartDragVisual();
+	if (OwnerWidget)
+	{
+		OwnerWidget->BeginDragPreview(DeckIndex);
+	}
 	BP_OnDragStarted(Card, DeckIndex);
 }
 
@@ -153,6 +181,10 @@ bool UCombatDeckEditCardSlotWidget::NativeOnDragOver(const FGeometry& InGeometry
 	}
 
 	const int32 InsertIndex = CalculateDropInsertIndex(InGeometry, InDragDropEvent);
+	if (OwnerWidget)
+	{
+		OwnerWidget->UpdateDragPreview(InsertIndex);
+	}
 	BP_OnDragHovered(InsertIndex);
 	return true;
 }
@@ -170,20 +202,24 @@ bool UCombatDeckEditCardSlotWidget::NativeOnDrop(const FGeometry& InGeometry, co
 		SourceSlot->ResetVisualState();
 	}
 
-	const bool bMoved = OwnerWidget->MoveCard(Operation->SourceIndex, CalculateDropInsertIndex(InGeometry, InDragDropEvent));
+	const bool bMoved = OwnerWidget->CommitDragPreview(CalculateDropInsertIndex(InGeometry, InDragDropEvent));
 	ResetVisualState();
 	return bMoved;
 }
 
 void UCombatDeckEditCardSlotWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
+	if (OwnerWidget)
+	{
+		OwnerWidget->EndDragPreview();
+	}
 	ResetVisualState();
 	Super::NativeOnDragCancelled(InDragDropEvent, InOperation);
 }
 
 void UCombatDeckEditCardSlotWidget::HandleSelectClicked()
 {
-	SelectThisCard();
+	// Selection is driven by hover/focus. Clicks are reserved for drag pickup.
 }
 
 void UCombatDeckEditCardSlotWidget::HandleReverseClicked()
@@ -203,6 +239,11 @@ void UCombatDeckEditCardSlotWidget::HandleReverseClicked()
 
 void UCombatDeckEditCardSlotWidget::SelectThisCard()
 {
+	if (OwnerWidget && OwnerWidget->IsDragPreviewActive())
+	{
+		return;
+	}
+
 	if (OwnerWidget && DeckIndex != INDEX_NONE && OwnerWidget->GetSelectedCardIndex() != DeckIndex)
 	{
 		OwnerWidget->SelectCard(DeckIndex);
@@ -279,6 +320,70 @@ void UCombatDeckEditCardSlotWidget::CaptureDefaultVisualState()
 	DefaultRenderOpacity = GetRenderOpacity();
 	DefaultRenderTransform = GetRenderTransform();
 	bCapturedDefaultVisualState = true;
+}
+
+void UCombatDeckEditCardSlotWidget::ApplySelectionVisual()
+{
+	if (!bSelected)
+	{
+		return;
+	}
+
+	SetColorAndOpacity(SelectedColorAndOpacity);
+
+	FWidgetTransform SelectedTransform = DefaultRenderTransform;
+	SelectedTransform.Scale *= FVector2D(SelectedVisualScale, SelectedVisualScale);
+	SetRenderTransform(SelectedTransform);
+}
+
+FReply UCombatDeckEditCardSlotWidget::HandleCardMouseButtonDown(const FPointerEvent& InMouseEvent)
+{
+	MouseDownTimeSeconds = FPlatformTime::Seconds();
+	if (IsInteractionLocked())
+	{
+		TriggerBlockedFeedback();
+		return FReply::Handled();
+	}
+
+	if (OwnerWidget && DeckIndex != INDEX_NONE)
+	{
+		OwnerWidget->BeginDragPreview(DeckIndex);
+		BP_OnDragStarted(Card, DeckIndex);
+	}
+
+	return FReply::Handled();
+}
+
+FReply UCombatDeckEditCardSlotWidget::TryHandleReverseInput(const FKey& Key)
+{
+	if (Key != EKeys::R && Key != EKeys::Gamepad_FaceButton_Left)
+	{
+		return FReply::Unhandled();
+	}
+
+	SelectThisCard();
+	if (IsInteractionLocked())
+	{
+		TriggerBlockedFeedback();
+		return FReply::Handled();
+	}
+
+	if (OwnerWidget && OwnerWidget->ToggleLinkOrientation(DeckIndex))
+	{
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
+bool UCombatDeckEditCardSlotWidget::IsPointerOverReverseButton(const FPointerEvent& InMouseEvent) const
+{
+	if (!ReverseButton || ReverseButton->GetVisibility() == ESlateVisibility::Collapsed)
+	{
+		return false;
+	}
+
+	return ReverseButton->GetCachedGeometry().IsUnderLocation(InMouseEvent.GetScreenSpacePosition());
 }
 
 int32 UCombatDeckEditCardSlotWidget::CalculateDropInsertIndex(const FGeometry& InGeometry, const FPointerEvent& ScreenEvent) const

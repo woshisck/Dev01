@@ -307,6 +307,7 @@ private:
 	FCombatCardInstance MakeCardFromRune(URuneDataAsset* RuneAsset, FName OwnerSource) const;
 	void RefillActiveSequence();
 	void ResetRuntimeStateAfterDeckEdit();
+	void StartDeckEditReload();
 	void StartShuffle();
 	void AdvanceShuffle(float DeltaTime);
 	void ExecuteFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card) const;

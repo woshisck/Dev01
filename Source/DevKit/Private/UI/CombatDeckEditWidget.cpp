@@ -1,20 +1,102 @@
 #include "UI/CombatDeckEditWidget.h"
 
+#include "Blueprint/WidgetTree.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Components/Border.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
+#include "Components/SizeBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Components/VerticalBox.h"
+#include "InputCoreTypes.h"
+#include "Framework/Application/SlateApplication.h"
 #include "UI/CombatDeckEditCardSlotWidget.h"
+#include "UI/CombatDeckEditDragDropOperation.h"
 #include "UI/RuneInfoCardWidget.h"
+
+namespace
+{
+FString CombatDeckCardTypeToString(ECombatCardType CardType)
+{
+	switch (CardType)
+	{
+	case ECombatCardType::Link:
+		return TEXT("Link");
+	case ECombatCardType::Finisher:
+		return TEXT("Finisher");
+	case ECombatCardType::Normal:
+		return TEXT("Normal");
+	case ECombatCardType::Attack:
+		return TEXT("LegacyAttack");
+	default:
+		return TEXT("Unknown");
+	}
+}
+
+FString DescribeCombatDeckCard(const FCombatCardInstance& Card)
+{
+	FString DisplayName = Card.Config.DisplayName.IsEmpty() ? FString() : Card.Config.DisplayName.ToString();
+	if (DisplayName.IsEmpty() && Card.SourceData)
+	{
+		DisplayName = Card.SourceData->RuneInfo.RuneConfig.RuneName.ToString();
+	}
+	if (DisplayName.IsEmpty())
+	{
+		DisplayName = TEXT("<EmptyName>");
+	}
+
+	return FString::Printf(TEXT("Name=%s Type=%s Id=%s Guid=%s"),
+		*DisplayName,
+		*CombatDeckCardTypeToString(Card.Config.CardType),
+		*Card.Config.CardIdTag.ToString(),
+		*Card.InstanceGuid.ToString(EGuidFormats::Digits));
+}
+}
 
 void UCombatDeckEditWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetIsFocusable(true);
 	BindToOwningPlayerCombatDeck();
 }
 
 void UCombatDeckEditWidget::NativeDestruct()
 {
+	HideGamepadFloatingDragCard();
 	UnbindFromCurrentDeck();
 	Super::NativeDestruct();
+}
+
+void UCombatDeckEditWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (!bDragPreviewActive || bGamepadDragActive || !BoundCombatDeck || !CardListBox || !FSlateApplication::IsInitialized())
+	{
+		return;
+	}
+
+	const FVector2D CursorScreenPosition = FSlateApplication::Get().GetCursorPos();
+	UpdateDragPreview(GetDropInsertIndexFromListGeometry(MyGeometry, CursorScreenPosition));
+
+	if (!bDragPreviewActive)
+	{
+		return;
+	}
+
+	const bool bSlateLeftMouseDown = FSlateApplication::Get().GetPressedMouseButtons().Contains(EKeys::LeftMouseButton);
+	const bool bControllerLeftMouseDown = GetOwningPlayer() && GetOwningPlayer()->IsInputKeyDown(EKeys::LeftMouseButton);
+	if (!bSlateLeftMouseDown && !bControllerLeftMouseDown)
+	{
+		const int32 CommitInsertIndex = DragPreviewInsertIndex;
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][MouseReleaseFallback] Commit Insert=%d Source=%d Cursor=(%.1f,%.1f) SlateDown=%d ControllerDown=%d"),
+			CommitInsertIndex,
+			DragSourceIndex,
+			CursorScreenPosition.X,
+			CursorScreenPosition.Y,
+			bSlateLeftMouseDown ? 1 : 0,
+			bControllerLeftMouseDown ? 1 : 0);
+		CommitDragPreview(CommitInsertIndex);
+	}
 }
 
 void UCombatDeckEditWidget::BindToOwningPlayerCombatDeck()
@@ -25,6 +107,10 @@ void UCombatDeckEditWidget::BindToOwningPlayerCombatDeck()
 
 void UCombatDeckEditWidget::BindToCombatDeck(UCombatDeckComponent* InCombatDeck)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][Bind] OldDeck=%s NewDeck=%s"),
+		*GetNameSafe(BoundCombatDeck),
+		*GetNameSafe(InCombatDeck));
+
 	if (BoundCombatDeck == InCombatDeck)
 	{
 		RefreshDeckList();
@@ -62,8 +148,14 @@ void UCombatDeckEditWidget::UnbindFromCurrentDeck()
 
 void UCombatDeckEditWidget::RefreshDeckList()
 {
+	RefreshDeckListInternal(bDragPreviewActive);
+}
+
+void UCombatDeckEditWidget::RefreshDeckListInternal(bool bUseDragPreview)
+{
 	if (!CardListBox)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][Refresh] Failed: CardListBox=null"));
 		RefreshSelectedCardInfo();
 		return;
 	}
@@ -71,34 +163,89 @@ void UCombatDeckEditWidget::RefreshDeckList()
 	CardListBox->ClearChildren();
 	if (!BoundCombatDeck || !CardSlotClass)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][Refresh] Failed: BoundDeck=%s CardSlotClass=%s"),
+			*GetNameSafe(BoundCombatDeck),
+			*GetNameSafe(CardSlotClass));
 		RefreshSelectedCardInfo();
 		return;
 	}
 
 	const TArray<FCombatCardInstance> Cards = BoundCombatDeck->GetFullDeckSnapshot();
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][Refresh] Count=%d Selected=%d Preview=%d DragSource=%d Insert=%d Visible=%d"),
+		Cards.Num(),
+		SelectedCardIndex,
+		bUseDragPreview ? 1 : 0,
+		DragSourceIndex,
+		DragPreviewInsertIndex,
+		IsVisible() ? 1 : 0);
+
+	const bool bCanPreviewDrag = bUseDragPreview && Cards.IsValidIndex(DragSourceIndex);
+	const int32 VisualInsertIndex = bCanPreviewDrag ? GetPreviewVisualInsertIndex(DragPreviewInsertIndex) : INDEX_NONE;
 	if (!Cards.IsValidIndex(SelectedCardIndex))
 	{
 		SelectedCardIndex = Cards.IsEmpty() ? INDEX_NONE : 0;
 	}
 
+	int32 VisibleCardIndex = 0;
+	bool bAddedDragVisual = false;
 	for (int32 Index = 0; Index < Cards.Num(); ++Index)
 	{
+		if (bCanPreviewDrag && !bAddedDragVisual && VisualInsertIndex == VisibleCardIndex)
+		{
+			AddDropIndicatorToList();
+			AddInlineFloatingDragCardToList(Cards[DragSourceIndex], DragSourceIndex);
+			bAddedDragVisual = true;
+		}
+
+		if (bCanPreviewDrag && Index == DragSourceIndex)
+		{
+			continue;
+		}
+
 		UCombatDeckEditCardSlotWidget* CardSlotWidget = CreateWidget<UCombatDeckEditCardSlotWidget>(GetOwningPlayer(), CardSlotClass);
 		if (!CardSlotWidget)
 		{
 			continue;
 		}
 
-		CardSlotWidget->SetCard(this, Cards[Index], Index, Index == SelectedCardIndex);
+		const bool bShowSelectedState = !bCanPreviewDrag && Index == SelectedCardIndex;
+		CardSlotWidget->SetCard(this, Cards[Index], Index, bShowSelectedState);
 		CardListBox->AddChildToVerticalBox(CardSlotWidget);
+		++VisibleCardIndex;
+	}
+
+	if (bCanPreviewDrag && !bAddedDragVisual && VisualInsertIndex == VisibleCardIndex)
+	{
+		AddDropIndicatorToList();
+		AddInlineFloatingDragCardToList(Cards[DragSourceIndex], DragSourceIndex);
 	}
 
 	RefreshSelectedCardInfo();
 }
 
+FReply UCombatDeckEditWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey Key = InKeyEvent.GetKey();
+	if (Key == EKeys::R || Key == EKeys::Gamepad_FaceButton_Left)
+	{
+		if (ToggleSelectedLinkOrientation())
+		{
+			return FReply::Handled();
+		}
+	}
+	if (Key == EKeys::F || Key == EKeys::Gamepad_FaceButton_Top)
+	{
+		ToggleDetailPreview();
+		return FReply::Handled();
+	}
+
+	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
 void UCombatDeckEditWidget::SelectCard(int32 CardIndex)
 {
 	const TArray<FCombatCardInstance> Cards = BoundCombatDeck ? BoundCombatDeck->GetFullDeckSnapshot() : TArray<FCombatCardInstance>();
+	const int32 OldSelectedIndex = SelectedCardIndex;
 	if (!Cards.IsValidIndex(CardIndex))
 	{
 		SelectedCardIndex = INDEX_NONE;
@@ -108,7 +255,153 @@ void UCombatDeckEditWidget::SelectCard(int32 CardIndex)
 		SelectedCardIndex = CardIndex;
 	}
 
+	const FString CardDesc = Cards.IsValidIndex(SelectedCardIndex)
+		? DescribeCombatDeckCard(Cards[SelectedCardIndex])
+		: FString(TEXT("<Invalid>"));
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][SelectCard] Request=%d Old=%d New=%d Count=%d Card={%s}"),
+		CardIndex,
+		OldSelectedIndex,
+		SelectedCardIndex,
+		Cards.Num(),
+		*CardDesc);
+
 	RefreshDeckList();
+}
+
+bool UCombatDeckEditWidget::SelectAdjacentCard(int32 Direction)
+{
+	if (Direction == 0)
+	{
+		return CanHandleDeckInput();
+	}
+
+	const TArray<FCombatCardInstance> Cards = BoundCombatDeck ? BoundCombatDeck->GetFullDeckSnapshot() : TArray<FCombatCardInstance>();
+	if (Cards.IsEmpty())
+	{
+		return false;
+	}
+
+	const int32 CurrentIndex = Cards.IsValidIndex(SelectedCardIndex) ? SelectedCardIndex : 0;
+	const int32 NextIndex = FMath::Clamp(CurrentIndex + Direction, 0, Cards.Num() - 1);
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][SelectAdjacent] Dir=%d Current=%d Next=%d Count=%d CurrentCard={%s} NextCard={%s}"),
+		Direction,
+		CurrentIndex,
+		NextIndex,
+		Cards.Num(),
+		Cards.IsValidIndex(CurrentIndex) ? *DescribeCombatDeckCard(Cards[CurrentIndex]) : TEXT("<Invalid>"),
+		Cards.IsValidIndex(NextIndex) ? *DescribeCombatDeckCard(Cards[NextIndex]) : TEXT("<Invalid>"));
+	if (NextIndex == SelectedCardIndex)
+	{
+		return true;
+	}
+
+	SelectCard(NextIndex);
+	return true;
+}
+
+bool UCombatDeckEditWidget::HandleDeckDirectionalInput(int32 Direction)
+{
+	if (!CanHandleDeckInput())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][Directional] Rejected CanHandle=0 Direction=%d BoundDeck=%s Visible=%d"),
+			Direction,
+			*GetNameSafe(BoundCombatDeck),
+			IsVisible() ? 1 : 0);
+		return false;
+	}
+
+	if (bGamepadDragActive)
+	{
+		const TArray<FCombatCardInstance> Cards = BoundCombatDeck ? BoundCombatDeck->GetFullDeckSnapshot() : TArray<FCombatCardInstance>();
+		GamepadDragInsertIndex = FMath::Clamp(GamepadDragInsertIndex + Direction, 0, Cards.Num());
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][DirectionalDrag] Dir=%d NewInsert=%d Count=%d Source=%d"),
+			Direction,
+			GamepadDragInsertIndex,
+			Cards.Num(),
+			DragSourceIndex);
+		UpdateDragPreview(GamepadDragInsertIndex);
+		return true;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][DirectionalSelect] Dir=%d Selected=%d"), Direction, SelectedCardIndex);
+	return SelectAdjacentCard(Direction);
+}
+
+bool UCombatDeckEditWidget::HandleDeckSelectPressed()
+{
+	if (!CanHandleDeckInput() || bInteractionLocked)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_Pressed] Rejected CanHandle=%d Locked=%d BoundDeck=%s Visible=%d"),
+			CanHandleDeckInput() ? 1 : 0,
+			bInteractionLocked ? 1 : 0,
+			*GetNameSafe(BoundCombatDeck),
+			IsVisible() ? 1 : 0);
+		return false;
+	}
+
+	if (!EnsureValidSelection())
+	{
+		return false;
+	}
+
+	bGamepadSelectHeld = true;
+	GamepadSelectHeldTime = 0.0f;
+	GamepadDragInsertIndex = SelectedCardIndex;
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_PressedPickUp] Selected=%d Insert=%d"), SelectedCardIndex, GamepadDragInsertIndex);
+	BeginGamepadDrag();
+	return bGamepadDragActive;
+}
+
+bool UCombatDeckEditWidget::HandleDeckSelectReleased()
+{
+	if (!bGamepadSelectHeld && !bGamepadDragActive)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_Released] Ignored Held=0 Drag=0 Selected=%d"), SelectedCardIndex);
+		return false;
+	}
+
+	if (bGamepadDragActive)
+	{
+		const int32 CommitInsertIndex = GamepadDragInsertIndex;
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_ReleasedCommit] Source=%d Insert=%d HeldTime=%.3f"),
+			DragSourceIndex,
+			CommitInsertIndex,
+			GamepadSelectHeldTime);
+		ResetGamepadDragState();
+		return CommitDragPreview(CommitInsertIndex);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_ReleasedSelect] Selected=%d HeldTime=%.3f"), SelectedCardIndex, GamepadSelectHeldTime);
+	ResetGamepadDragState();
+	EnsureValidSelection();
+	return true;
+}
+
+void UCombatDeckEditWidget::TickDeckGamepadInput(float DeltaTime)
+{
+	if (bGamepadSelectHeld && bGamepadDragActive)
+	{
+		GamepadSelectHeldTime += DeltaTime;
+	}
+}
+
+bool UCombatDeckEditWidget::ToggleDetailPreview()
+{
+	SetDetailPreviewVisible(!bDetailPreviewVisible);
+	return bDetailPreviewVisible;
+}
+
+void UCombatDeckEditWidget::SetDetailPreviewVisible(bool bVisible)
+{
+	if (bDetailPreviewVisible == bVisible)
+	{
+		ApplyDetailPreviewVisibility();
+		return;
+	}
+
+	bDetailPreviewVisible = bVisible;
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][DetailPreview] Visible=%d"), bDetailPreviewVisible ? 1 : 0);
+	RefreshSelectedCardInfo();
 }
 
 bool UCombatDeckEditWidget::MoveCard(int32 FromIndex, int32 InsertIndex)
@@ -119,12 +412,107 @@ bool UCombatDeckEditWidget::MoveCard(int32 FromIndex, int32 InsertIndex)
 	}
 
 	const bool bMoved = BoundCombatDeck->MoveCardInDeck(FromIndex, InsertIndex);
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][MoveCard] From=%d Insert=%d Moved=%d"),
+		FromIndex,
+		InsertIndex,
+		bMoved ? 1 : 0);
 	if (bMoved)
 	{
 		SelectedCardIndex = FromIndex < InsertIndex ? InsertIndex - 1 : InsertIndex;
 		RefreshDeckList();
 	}
 	return bMoved;
+}
+
+void UCombatDeckEditWidget::BeginDragPreview(int32 SourceIndex)
+{
+	if (!BoundCombatDeck || bInteractionLocked)
+	{
+		return;
+	}
+
+	const TArray<FCombatCardInstance> Cards = BoundCombatDeck->GetFullDeckSnapshot();
+	if (!Cards.IsValidIndex(SourceIndex))
+	{
+		return;
+	}
+
+	bDragPreviewActive = true;
+	DragSourceIndex = SourceIndex;
+	DragPreviewInsertIndex = SourceIndex;
+	SelectedCardIndex = SourceIndex;
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BeginDragPreview] Source=%d Card={%s}"),
+		SourceIndex,
+		Cards.IsValidIndex(SourceIndex) ? *DescribeCombatDeckCard(Cards[SourceIndex]) : TEXT("<Invalid>"));
+	RefreshDeckListInternal(true);
+}
+
+void UCombatDeckEditWidget::UpdateDragPreview(int32 InsertIndex)
+{
+	if (!bDragPreviewActive || !BoundCombatDeck)
+	{
+		return;
+	}
+
+	const TArray<FCombatCardInstance> Cards = BoundCombatDeck->GetFullDeckSnapshot();
+	const int32 ClampedInsertIndex = FMath::Clamp(InsertIndex, 0, Cards.Num());
+	if (DragPreviewInsertIndex == ClampedInsertIndex)
+	{
+		return;
+	}
+
+	DragPreviewInsertIndex = ClampedInsertIndex;
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][UpdateDragPreview] Insert=%d Source=%d"), DragPreviewInsertIndex, DragSourceIndex);
+	RefreshDeckListInternal(true);
+}
+
+bool UCombatDeckEditWidget::CommitDragPreview(int32 InsertIndex)
+{
+	if (!bDragPreviewActive || !BoundCombatDeck || !BoundCombatDeck->GetFullDeckSnapshot().IsValidIndex(DragSourceIndex))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CommitDragPreview] Ignored Active=%d Deck=%s Source=%d Insert=%d"),
+			bDragPreviewActive ? 1 : 0,
+			*GetNameSafe(BoundCombatDeck),
+			DragSourceIndex,
+			InsertIndex);
+		return false;
+	}
+
+	const int32 SourceIndex = DragSourceIndex;
+	const int32 TargetInsertIndex = BoundCombatDeck
+		? FMath::Clamp(InsertIndex, 0, BoundCombatDeck->GetFullDeckSnapshot().Num())
+		: InsertIndex;
+	const bool bNoOpDrop = SourceIndex == TargetInsertIndex || SourceIndex + 1 == TargetInsertIndex;
+
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CommitDragPreview] Source=%d Insert=%d Target=%d"),
+		SourceIndex,
+		InsertIndex,
+		TargetInsertIndex);
+
+	if (bNoOpDrop)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CommitDragPreview] NoOpDrop Source=%d Target=%d"), SourceIndex, TargetInsertIndex);
+		EndDragPreview();
+		EnsureValidSelection();
+		return true;
+	}
+
+	EndDragPreview();
+	return MoveCard(SourceIndex, TargetInsertIndex);
+}
+
+void UCombatDeckEditWidget::EndDragPreview()
+{
+	if (!bDragPreviewActive)
+	{
+		return;
+	}
+
+	bDragPreviewActive = false;
+	DragSourceIndex = INDEX_NONE;
+	DragPreviewInsertIndex = INDEX_NONE;
+	HideGamepadFloatingDragCard();
+	RefreshDeckListInternal(false);
 }
 
 bool UCombatDeckEditWidget::ToggleLinkOrientation(int32 CardIndex)
@@ -148,6 +536,167 @@ bool UCombatDeckEditWidget::ToggleSelectedLinkOrientation()
 	return ToggleLinkOrientation(SelectedCardIndex);
 }
 
+bool UCombatDeckEditWidget::CanHandleDeckInput() const
+{
+	return IsVisible() && BoundCombatDeck && !BoundCombatDeck->GetFullDeckSnapshot().IsEmpty();
+}
+
+bool UCombatDeckEditWidget::EnsureValidSelection()
+{
+	const TArray<FCombatCardInstance> Cards = BoundCombatDeck ? BoundCombatDeck->GetFullDeckSnapshot() : TArray<FCombatCardInstance>();
+	if (Cards.IsEmpty())
+	{
+		SelectedCardIndex = INDEX_NONE;
+		return false;
+	}
+
+	if (!Cards.IsValidIndex(SelectedCardIndex))
+	{
+		SelectedCardIndex = 0;
+		RefreshDeckList();
+	}
+	return true;
+}
+
+void UCombatDeckEditWidget::BeginGamepadDrag()
+{
+	if (!EnsureValidSelection() || bInteractionLocked)
+	{
+		ResetGamepadDragState();
+		return;
+	}
+
+	bGamepadDragActive = true;
+	GamepadDragInsertIndex = SelectedCardIndex;
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BeginGamepadDrag] Selected=%d Insert=%d"), SelectedCardIndex, GamepadDragInsertIndex);
+	BeginDragPreview(SelectedCardIndex);
+	if (!bDragPreviewActive)
+	{
+		ResetGamepadDragState();
+	}
+}
+
+void UCombatDeckEditWidget::ResetGamepadDragState()
+{
+	bGamepadSelectHeld = false;
+	bGamepadDragActive = false;
+	GamepadSelectHeldTime = 0.0f;
+	GamepadDragInsertIndex = INDEX_NONE;
+}
+
+void UCombatDeckEditWidget::ShowGamepadFloatingDragCard(const FCombatCardInstance& Card, int32 CardIndex)
+{
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] ShowRequest Index=%d CardSlotClass=%s OwnerPlayer=%s Card={%s}"),
+		CardIndex,
+		*GetNameSafe(CardSlotClass),
+		*GetNameSafe(GetOwningPlayer()),
+		*DescribeCombatDeckCard(Card));
+
+	if (!CardSlotClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] ShowFailed Reason=CardSlotClassNull"));
+		return;
+	}
+
+	HideGamepadFloatingDragCard();
+
+	GamepadFloatingDragSlot = CreateWidget<UCombatDeckEditCardSlotWidget>(GetOwningPlayer(), CardSlotClass);
+	if (!GamepadFloatingDragSlot)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] ShowFailed Reason=CreateWidgetFailed Class=%s"),
+			*GetNameSafe(CardSlotClass));
+		return;
+	}
+
+	GamepadFloatingDragSlot->SetCard(this, Card, CardIndex, true);
+	GamepadFloatingDragSlot->SetVisibility(ESlateVisibility::HitTestInvisible);
+	GamepadFloatingDragSlot->SetRenderOpacity(GamepadFloatingDragOpacity);
+
+	FWidgetTransform FloatingTransform;
+	FloatingTransform.Scale = FVector2D(GamepadFloatingDragScale, GamepadFloatingDragScale);
+	GamepadFloatingDragSlot->SetRenderTransform(FloatingTransform);
+	GamepadFloatingDragSlot->SetAlignmentInViewport(FVector2D(0.0f, 0.5f));
+	GamepadFloatingDragSlot->AddToPlayerScreen(10000);
+	GamepadFloatingDragSlot->ForceLayoutPrepass();
+	UpdateGamepadFloatingDragCardPosition();
+
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] ShowSuccess Index=%d Slot=%s Visibility=%d Opacity=%.2f Scale=%.2f Desired=(%.1f,%.1f)"),
+		CardIndex,
+		*GetNameSafe(GamepadFloatingDragSlot),
+		static_cast<int32>(GamepadFloatingDragSlot->GetVisibility()),
+		GamepadFloatingDragOpacity,
+		GamepadFloatingDragScale,
+		GamepadFloatingDragSlot->GetDesiredSize().X,
+		GamepadFloatingDragSlot->GetDesiredSize().Y);
+}
+
+void UCombatDeckEditWidget::UpdateGamepadFloatingDragCardPosition()
+{
+	if (!GamepadFloatingDragSlot || !CardListBox || !BoundCombatDeck)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] PositionSkipped Slot=%s List=%s Deck=%s"),
+			*GetNameSafe(GamepadFloatingDragSlot),
+			*GetNameSafe(CardListBox),
+			*GetNameSafe(BoundCombatDeck));
+		return;
+	}
+
+	const TArray<FCombatCardInstance> Cards = BoundCombatDeck->GetFullDeckSnapshot();
+	const FGeometry ListGeometry = CardListBox->GetCachedGeometry();
+	const FVector2D ListAbsPosition = ListGeometry.GetAbsolutePosition();
+	const FVector2D ListAbsSize = ListGeometry.GetAbsoluteSize();
+	const int32 VisualInsertIndex = bDragPreviewActive ? GetPreviewVisualInsertIndex(DragPreviewInsertIndex) : SelectedCardIndex;
+	const int32 SlotCount = FMath::Max(1, Cards.Num());
+	const float SlotHeight = ListAbsSize.Y > 1.0f ? ListAbsSize.Y / static_cast<float>(SlotCount) : 52.0f;
+	const float ClampedY = ListAbsPosition.Y + FMath::Clamp(static_cast<float>(VisualInsertIndex), 0.0f, static_cast<float>(SlotCount - 1)) * SlotHeight + SlotHeight * 0.5f;
+	const FVector2D Position(
+		ListAbsPosition.X + GamepadFloatingDragOffset.X,
+		ClampedY + GamepadFloatingDragOffset.Y);
+	const FVector2D DesiredSize(
+		FMath::Max(220.0f, ListAbsSize.X),
+		FMath::Max(44.0f, SlotHeight * 0.92f));
+	const float ViewportScale = FMath::Max(0.01f, UWidgetLayoutLibrary::GetViewportScale(this));
+	const FVector2D ViewportPosition = Position / ViewportScale;
+	const FVector2D ViewportDesiredSize = DesiredSize / ViewportScale;
+
+	GamepadFloatingDragSlot->SetDesiredSizeInViewport(ViewportDesiredSize);
+	GamepadFloatingDragSlot->SetPositionInViewport(ViewportPosition, false);
+	GamepadFloatingDragSlot->ForceLayoutPrepass();
+
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] Position Index=%d VisualInsert=%d Source=%d ViewportScale=%.3f RemoveDPIScale=0 ListAbs=(%.1f,%.1f) ListSize=(%.1f,%.1f) SlotHeight=%.1f SlatePos=(%.1f,%.1f) ViewportPos=(%.1f,%.1f) Desired=(%.1f,%.1f) ViewportDesired=(%.1f,%.1f) Offset=(%.1f,%.1f)"),
+		SelectedCardIndex,
+		VisualInsertIndex,
+		DragSourceIndex,
+		ViewportScale,
+		ListAbsPosition.X,
+		ListAbsPosition.Y,
+		ListAbsSize.X,
+		ListAbsSize.Y,
+		SlotHeight,
+		Position.X,
+		Position.Y,
+		ViewportPosition.X,
+		ViewportPosition.Y,
+		DesiredSize.X,
+		DesiredSize.Y,
+		ViewportDesiredSize.X,
+		ViewportDesiredSize.Y,
+		GamepadFloatingDragOffset.X,
+		GamepadFloatingDragOffset.Y);
+}
+
+void UCombatDeckEditWidget::HideGamepadFloatingDragCard()
+{
+	if (!GamepadFloatingDragSlot)
+	{
+		return;
+	}
+
+	GamepadFloatingDragSlot->RemoveFromParent();
+	GamepadFloatingDragSlot = nullptr;
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] Hide"));
+}
+
 void UCombatDeckEditWidget::SetInteractionLocked(bool bLocked)
 {
 	bInteractionLocked = bLocked;
@@ -160,8 +709,14 @@ void UCombatDeckEditWidget::RefreshSelectedCardInfo()
 
 	if (RuneInfoCard)
 	{
-		if (SelectedCard.SourceData)
+		ApplyDetailPreviewVisibility();
+		if (!bDetailPreviewVisible)
 		{
+			RuneInfoCard->HideCard();
+		}
+		else if (SelectedCard.SourceData)
+		{
+			RuneInfoCard->SetVisibility(ESlateVisibility::Visible);
 			RuneInfoCard->ShowRune(SelectedCard.SourceData->RuneInfo);
 		}
 		else
@@ -171,6 +726,16 @@ void UCombatDeckEditWidget::RefreshSelectedCardInfo()
 	}
 
 	BP_OnSelectedCardChanged(SelectedCard, SelectedCardIndex);
+}
+
+void UCombatDeckEditWidget::ApplyDetailPreviewVisibility()
+{
+	if (!RuneInfoCard)
+	{
+		return;
+	}
+
+	RuneInfoCard->SetVisibility(bDetailPreviewVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 }
 
 void UCombatDeckEditWidget::HandleDeckChanged(const TArray<FCombatCardInstance>& ActiveSequence)
@@ -186,4 +751,131 @@ void UCombatDeckEditWidget::HandleCardConsumed(const FCombatCardInstance& Card, 
 void UCombatDeckEditWidget::HandleRewardAddedToDeck(const FCombatCardInstance& Card)
 {
 	RefreshDeckList();
+}
+
+bool UCombatDeckEditWidget::NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	if (!Cast<UCombatDeckEditDragDropOperation>(InOperation) || !BoundCombatDeck)
+	{
+		return Super::NativeOnDragOver(InGeometry, InDragDropEvent, InOperation);
+	}
+
+	UpdateDragPreview(GetDropInsertIndexFromListGeometry(InGeometry, InDragDropEvent.GetScreenSpacePosition()));
+	return true;
+}
+
+bool UCombatDeckEditWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	if (!Cast<UCombatDeckEditDragDropOperation>(InOperation) || !BoundCombatDeck)
+	{
+		return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
+	}
+
+	return CommitDragPreview(GetDropInsertIndexFromListGeometry(InGeometry, InDragDropEvent.GetScreenSpacePosition()));
+}
+
+void UCombatDeckEditWidget::AddDropIndicatorToList()
+{
+	if (!CardListBox || !WidgetTree)
+	{
+		return;
+	}
+
+	USizeBox* IndicatorBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+	UBorder* DropIndicator = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	if (!IndicatorBox || !DropIndicator)
+	{
+		return;
+	}
+
+	IndicatorBox->SetHeightOverride(DropIndicatorHeight);
+	DropIndicator->SetBrushColor(DropIndicatorColor);
+	IndicatorBox->AddChild(DropIndicator);
+
+	if (UVerticalBoxSlot* IndicatorSlot = CardListBox->AddChildToVerticalBox(IndicatorBox))
+	{
+		IndicatorSlot->SetPadding(FMargin(4.0f, 4.0f));
+		IndicatorSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+	}
+}
+
+void UCombatDeckEditWidget::AddInlineFloatingDragCardToList(const FCombatCardInstance& Card, int32 CardIndex)
+{
+	if (!CardListBox || !CardSlotClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][InlineFloatingDrag] Failed List=%s Class=%s"),
+			*GetNameSafe(CardListBox),
+			*GetNameSafe(CardSlotClass));
+		return;
+	}
+
+	UCombatDeckEditCardSlotWidget* FloatingSlot = CreateWidget<UCombatDeckEditCardSlotWidget>(GetOwningPlayer(), CardSlotClass);
+	if (!FloatingSlot)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][InlineFloatingDrag] Failed CreateWidget Class=%s"),
+			*GetNameSafe(CardSlotClass));
+		return;
+	}
+
+	FloatingSlot->SetCard(this, Card, CardIndex, true);
+	FloatingSlot->SetVisibility(ESlateVisibility::HitTestInvisible);
+	FloatingSlot->SetRenderOpacity(GamepadFloatingDragOpacity);
+
+	FWidgetTransform FloatingTransform;
+	const FVector2D InlineOffset(
+		FMath::Clamp(GamepadFloatingDragOffset.X * 0.35f, -8.0f, 8.0f),
+		FMath::Clamp(GamepadFloatingDragOffset.Y * 0.25f, -8.0f, 4.0f));
+	const float InlineScale = FMath::Clamp(GamepadFloatingDragScale, 1.0f, 1.04f);
+	FloatingTransform.Translation = InlineOffset;
+	FloatingTransform.Scale = FVector2D(InlineScale, InlineScale);
+	FloatingSlot->SetRenderTransform(FloatingTransform);
+
+	UVerticalBoxSlot* FloatingBoxSlot = CardListBox->AddChildToVerticalBox(FloatingSlot);
+	if (FloatingBoxSlot)
+	{
+		FloatingBoxSlot->SetPadding(FMargin(0.0f, 2.0f, 0.0f, 2.0f));
+		FloatingBoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][InlineFloatingDrag] Added Index=%d Opacity=%.2f Scale=%.2f Offset=(%.1f,%.1f) ConfigOffset=(%.1f,%.1f) Card={%s}"),
+		CardIndex,
+		GamepadFloatingDragOpacity,
+		InlineScale,
+		InlineOffset.X,
+		InlineOffset.Y,
+		GamepadFloatingDragOffset.X,
+		GamepadFloatingDragOffset.Y,
+		*DescribeCombatDeckCard(Card));
+}
+
+int32 UCombatDeckEditWidget::GetPreviewVisualInsertIndex(int32 InsertIndex) const
+{
+	if (DragSourceIndex == INDEX_NONE)
+	{
+		return InsertIndex;
+	}
+
+	return DragSourceIndex < InsertIndex
+		? FMath::Max(0, InsertIndex - 1)
+		: InsertIndex;
+}
+
+int32 UCombatDeckEditWidget::GetDropInsertIndexFromListGeometry(const FGeometry& InGeometry, const FVector2D& ScreenPosition) const
+{
+	const TArray<FCombatCardInstance> Cards = BoundCombatDeck ? BoundCombatDeck->GetFullDeckSnapshot() : TArray<FCombatCardInstance>();
+	if (Cards.IsEmpty())
+	{
+		return 0;
+	}
+
+	const FGeometry& ListGeometry = CardListBox ? CardListBox->GetCachedGeometry() : InGeometry;
+	const FVector2D LocalPosition = ListGeometry.AbsoluteToLocal(ScreenPosition);
+	const float RowHeight = 52.0f;
+	const int32 VisibleIndex = FMath::Clamp(FMath::RoundToInt(LocalPosition.Y / RowHeight), 0, FMath::Max(0, Cards.Num() - 1));
+	if (bDragPreviewActive && DragSourceIndex != INDEX_NONE && DragSourceIndex <= VisibleIndex)
+	{
+		return FMath::Clamp(VisibleIndex + 1, 0, Cards.Num());
+	}
+
+	return FMath::Clamp(VisibleIndex, 0, Cards.Num());
 }

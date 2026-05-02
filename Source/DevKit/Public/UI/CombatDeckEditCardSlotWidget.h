@@ -38,7 +38,10 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual FReply NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent) override;
 	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
@@ -93,6 +96,10 @@ private:
 	void StartDragVisual();
 	void ResetVisualState();
 	void CaptureDefaultVisualState();
+	void ApplySelectionVisual();
+	FReply HandleCardMouseButtonDown(const FPointerEvent& InMouseEvent);
+	FReply TryHandleReverseInput(const FKey& Key);
+	bool IsPointerOverReverseButton(const FPointerEvent& InMouseEvent) const;
 	int32 CalculateDropInsertIndex(const FGeometry& InGeometry, const FPointerEvent& ScreenEvent) const;
 
 	static FText GetCardDisplayName(const FCombatCardInstance& InCard);

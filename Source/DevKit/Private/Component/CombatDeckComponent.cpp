@@ -385,7 +385,7 @@ bool UCombatDeckComponent::MoveCardInDeck(int32 FromIndex, int32 InsertIndex)
 	DeckList.RemoveAt(FromIndex);
 	const int32 AdjustedInsertIndex = FromIndex < InsertIndex ? InsertIndex - 1 : InsertIndex;
 	DeckList.Insert(MovedCard, FMath::Clamp(AdjustedInsertIndex, 0, DeckList.Num()));
-	ResetRuntimeStateAfterDeckEdit();
+	StartDeckEditReload();
 	return true;
 }
 
@@ -537,6 +537,36 @@ void UCombatDeckComponent::ResetRuntimeStateAfterDeckEdit()
 	DeckState = EDeckState::Ready;
 	ShuffleCooldownRemaining = 0.0f;
 	RefillActiveSequence();
+}
+
+void UCombatDeckComponent::StartDeckEditReload()
+{
+	LastResolvedCard = FCombatCardInstance();
+	PendingLinkContext = FCombatCardInstance();
+	DashSavedLinkContext = FCombatCardInstance();
+	ResolvedAttackGuids.Reset();
+
+	DeckState = EDeckState::EmptyShuffling;
+	ShuffleCooldownRemaining = FMath::Max(0.0f, ShuffleCooldownDuration * 0.5f);
+	CurrentIndex = 0;
+	ActiveSequence.Reset();
+
+	FCombatCardResolveResult Result;
+	Result.bStartedShuffle = true;
+	Result.ReasonText = NSLOCTEXT("CombatDeck", "DeckEditReload", "Deck edited: reload started");
+	OnShuffleStarted.Broadcast(Result);
+	OnShuffleProgress.Broadcast(0.0f);
+
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckEdit] ReloadAfterMove Cooldown=%.3f FullCooldown=%.3f DeckCount=%d"),
+		ShuffleCooldownRemaining,
+		ShuffleCooldownDuration,
+		DeckList.Num());
+
+	if (ShuffleCooldownRemaining <= KINDA_SMALL_NUMBER)
+	{
+		RefillActiveSequence();
+		OnShuffleCompleted.Broadcast(ActiveSequence);
+	}
 }
 
 void UCombatDeckComponent::StartShuffle()

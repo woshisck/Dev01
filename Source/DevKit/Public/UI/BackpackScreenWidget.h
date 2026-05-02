@@ -266,12 +266,14 @@ protected:
 
     // ── 手柄 / 键盘输入 ─────────────────────────────────────────────────
     virtual void   NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+    virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
     virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
     virtual FReply NativeOnKeyUp(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
     virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
     // ── 拖拽输入 ────────────────────────────────────────────────────────
     virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+    virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
     virtual void   NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
     virtual bool   NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
     virtual bool   NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
@@ -313,6 +315,8 @@ private:
     float HeldKeyTime    = 0.f;
     int32 LastRepeatCount = 0;
     bool  bDirKeyHeld    = false;
+    bool  bDeckSelectButtonWasDown = false;
+    bool  bDeckSelectFromVirtualMouse = false;
 
     /** D-Pad 按过后置 true，鼠标移动后置 false */
     bool bIsGamepadInputMode = false;
@@ -355,6 +359,8 @@ private:
     void MoveGamepadCursor(int32 DCol, int32 DRow);
     void GamepadConfirm();
     void GamepadCancel();
+    FReply HandleCombatDeckSelectButtonState(bool bPressed, const TCHAR* Source);
+    void PollCombatDeckSelectButtonState();
     void UpdateTooltipForCell(int32 Col, int32 Row, const FVector2D& LocalPos);
 
     // ── 旋转 ──────────────────────────────────────────────────────────────
