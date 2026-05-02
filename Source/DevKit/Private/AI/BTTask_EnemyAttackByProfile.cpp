@@ -9,6 +9,7 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
+#include "Controller/YogAIController.h"
 #include "Data/AbilityData.h"
 #include "Data/EnemyData.h"
 #include "Kismet/GameplayStatics.h"
@@ -38,6 +39,11 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 	if (!AIC || !Pawn)
 	{
 		return EBTNodeResult::Failed;
+	}
+
+	if (AYogAIController* YogAI = Cast<AYogAIController>(AIC))
+	{
+		YogAI->EnterCombat(ResolveTargetActor(OwnerComp), false);
 	}
 
 	IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(Pawn);

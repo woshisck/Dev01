@@ -64,6 +64,31 @@ public:
 
 	UEnemyData* GetPossessedEnemyData() const;
 
+	UFUNCTION(BlueprintCallable, Category = "AI|State")
+	void SetEnemyAIState(EEnemyAIState NewState);
+
+	UFUNCTION(BlueprintCallable, Category = "AI|State")
+	EEnemyAIState GetEnemyAIState() const;
+
+	UFUNCTION(BlueprintCallable, Category = "AI|State")
+	void EnterCombat(AActor* TargetActor, bool bBroadcastAlert = true);
+
+	UFUNCTION(BlueprintCallable, Category = "AI|State")
+	void EnterAlert(AActor* TargetActor, FVector AlertLocation, bool bBroadcastAlert = false);
+
+	UFUNCTION(BlueprintCallable, Category = "AI|State")
+	void BroadcastAlert(AActor* TargetActor, FVector AlertLocation) const;
+
+	bool UpdateAwarenessBlackboard(
+		UBlackboardComponent* InBlackboard,
+		FName EnemyAIStateKeyName,
+		FName TargetActorKeyName,
+		FName LastKnownTargetLocationKeyName,
+		FName AlertExpireTimeKeyName,
+		FName LastSeenTargetTimeKeyName);
+
 private:
 	FVector ComputeCombatMoveTarget(const AActor& TargetActor, const FEnemyAIMovementTuning& Tuning) const;
+
+	UBlackboardComponent* ResolveBlackboardComponent() const;
 };

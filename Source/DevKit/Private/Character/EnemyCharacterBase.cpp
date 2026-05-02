@@ -62,6 +62,11 @@ void AEnemyCharacterBase::BeginPlay()
 		}
 	}
 
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->ReceivedDamage.AddDynamic(this, &AEnemyCharacterBase::OnReceivedDamageForAI);
+	}
+
 	// 注册到 GameMode 的敌人列表（供 CameraPawn 战斗感知使用）
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
 	{
@@ -85,6 +90,20 @@ void AEnemyCharacterBase::OnHealthChangedForDeath(float NewHealth)
 	if (NewHealth <= 0.f && !bIsDead)
 	{
 		Die();
+	}
+}
+
+void AEnemyCharacterBase::OnReceivedDamageForAI(UYogAbilitySystemComponent* SourceASC, float Damage)
+{
+	if (Damage <= 0.0f || !IsAlive())
+	{
+		return;
+	}
+
+	AActor* SourceActor = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
+	if (AYogAIController* YogAI = Cast<AYogAIController>(GetController()))
+	{
+		YogAI->EnterCombat(SourceActor, true);
 	}
 }
 

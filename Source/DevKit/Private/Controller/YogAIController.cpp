@@ -8,6 +8,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
+#include "GameModes/YogGameMode.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Navigation/CrowdFollowingComponent.h"
@@ -53,6 +54,7 @@ void AYogAIController::OnPossess(APawn* InPawn)
 		if (EnemyData->BehaviorTree)
 		{
 			RunBTWithBlackboard(EnemyData->BehaviorTree, EnemyData->BehaviorTree->BlackboardAsset);
+			SetEnemyAIState(EEnemyAIState::Patrol);
 			return;
 		}
 	}
@@ -61,6 +63,7 @@ void AYogAIController::OnPossess(APawn* InPawn)
 	if (bUseFallbackStartup && FallbackBehaviorTree)
 	{
 		RunBTWithBlackboard(FallbackBehaviorTree, FallbackBlackboard);
+		SetEnemyAIState(EEnemyAIState::Patrol);
 	}
 }
 
@@ -74,6 +77,120 @@ UEnemyData* AYogAIController::GetPossessedEnemyData() const
 
 	const UCharacterDataComponent* DataComponent = Enemy->GetCharacterDataComponent();
 	return DataComponent ? Cast<UEnemyData>(DataComponent->GetCharacterData()) : nullptr;
+}
+
+UBlackboardComponent* AYogAIController::ResolveBlackboardComponent() const
+{
+	if (BlackboardComponent)
+	{
+		return BlackboardComponent;
+	}
+
+	return const_cast<UBlackboardComponent*>(GetBlackboardComponent());
+}
+
+void AYogAIController::SetEnemyAIState(EEnemyAIState NewState)
+{
+	if (UBlackboardComponent* BB = ResolveBlackboardComponent())
+	{
+		BB->SetValueAsEnum(TEXT("EnemyAIState"), static_cast<uint8>(NewState));
+	}
+}
+
+EEnemyAIState AYogAIController::GetEnemyAIState() const
+{
+	if (const UBlackboardComponent* BB = ResolveBlackboardComponent())
+	{
+		return static_cast<EEnemyAIState>(BB->GetValueAsEnum(TEXT("EnemyAIState")));
+	}
+
+	return EEnemyAIState::Patrol;
+}
+
+void AYogAIController::EnterCombat(AActor* TargetActor, bool bBroadcastAlert)
+{
+	UBlackboardComponent* BB = ResolveBlackboardComponent();
+	if (!BB)
+	{
+		return;
+	}
+
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	const FVector TargetLocation = TargetActor ? TargetActor->GetActorLocation() : GetPawn() ? GetPawn()->GetActorLocation() : FVector::ZeroVector;
+
+	BB->SetValueAsEnum(TEXT("EnemyAIState"), static_cast<uint8>(EEnemyAIState::Combat));
+	BB->SetValueAsObject(TEXT("TargetActor"), TargetActor);
+	BB->SetValueAsVector(TEXT("LastKnownTargetLocation"), TargetLocation);
+	BB->SetValueAsFloat(TEXT("LastSeenTargetTime"), CurrentTime);
+	BB->SetValueAsFloat(TEXT("AlertExpireTime"), 0.0f);
+
+	if (bBroadcastAlert)
+	{
+		BroadcastAlert(TargetActor, TargetLocation);
+	}
+}
+
+void AYogAIController::EnterAlert(AActor* TargetActor, FVector AlertLocation, bool bBroadcastAlert)
+{
+	UBlackboardComponent* BB = ResolveBlackboardComponent();
+	if (!BB)
+	{
+		return;
+	}
+
+	const UEnemyData* EnemyData = GetPossessedEnemyData();
+	const FEnemyAIAwarenessTuning Tuning = EnemyData ? EnemyData->AwarenessTuning : FEnemyAIAwarenessTuning();
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+
+	if (AlertLocation.IsNearlyZero() && TargetActor)
+	{
+		AlertLocation = TargetActor->GetActorLocation();
+	}
+
+	BB->SetValueAsEnum(TEXT("EnemyAIState"), static_cast<uint8>(EEnemyAIState::Alert));
+	BB->SetValueAsObject(TEXT("TargetActor"), TargetActor);
+	BB->SetValueAsVector(TEXT("LastKnownTargetLocation"), AlertLocation);
+	BB->SetValueAsFloat(TEXT("AlertExpireTime"), CurrentTime + Tuning.AlertDuration);
+
+	if (bBroadcastAlert)
+	{
+		BroadcastAlert(TargetActor, AlertLocation);
+	}
+}
+
+void AYogAIController::BroadcastAlert(AActor* TargetActor, FVector AlertLocation) const
+{
+	const APawn* ControlledPawn = GetPawn();
+	const UWorld* World = GetWorld();
+	if (!ControlledPawn || !World)
+	{
+		return;
+	}
+
+	const UEnemyData* EnemyData = GetPossessedEnemyData();
+	const FEnemyAIAwarenessTuning Tuning = EnemyData ? EnemyData->AwarenessTuning : FEnemyAIAwarenessTuning();
+	AYogGameMode* GameMode = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(World));
+	if (!GameMode)
+	{
+		return;
+	}
+
+	const FVector Origin = ControlledPawn->GetActorLocation();
+	for (AEnemyCharacterBase* NearbyEnemy : GameMode->GetNearbyEnemies(Origin, Tuning.AlertBroadcastRadius))
+	{
+		if (!NearbyEnemy || NearbyEnemy == ControlledPawn)
+		{
+			continue;
+		}
+
+		AYogAIController* NearbyAI = Cast<AYogAIController>(NearbyEnemy->GetController());
+		if (!NearbyAI || NearbyAI->GetEnemyAIState() == EEnemyAIState::Combat)
+		{
+			continue;
+		}
+
+		NearbyAI->EnterAlert(TargetActor, AlertLocation, false);
+	}
 }
 
 void AYogAIController::ApplyCrowdTuningFromEnemyData()
@@ -186,6 +303,94 @@ FVector AYogAIController::ComputeCombatMoveTarget(const AActor& TargetActor, con
 	}
 
 	return DesiredLocation;
+}
+
+bool AYogAIController::UpdateAwarenessBlackboard(
+	UBlackboardComponent* InBlackboard,
+	FName EnemyAIStateKeyName,
+	FName TargetActorKeyName,
+	FName LastKnownTargetLocationKeyName,
+	FName AlertExpireTimeKeyName,
+	FName LastSeenTargetTimeKeyName)
+{
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn || !InBlackboard)
+	{
+		return false;
+	}
+
+	if (EnemyAIStateKeyName.IsNone())
+	{
+		EnemyAIStateKeyName = TEXT("EnemyAIState");
+	}
+	if (TargetActorKeyName.IsNone())
+	{
+		TargetActorKeyName = TEXT("TargetActor");
+	}
+	if (LastKnownTargetLocationKeyName.IsNone())
+	{
+		LastKnownTargetLocationKeyName = TEXT("LastKnownTargetLocation");
+	}
+	if (AlertExpireTimeKeyName.IsNone())
+	{
+		AlertExpireTimeKeyName = TEXT("AlertExpireTime");
+	}
+	if (LastSeenTargetTimeKeyName.IsNone())
+	{
+		LastSeenTargetTimeKeyName = TEXT("LastSeenTargetTime");
+	}
+
+	const UEnemyData* EnemyData = GetPossessedEnemyData();
+	const FEnemyAIAwarenessTuning Tuning = EnemyData ? EnemyData->AwarenessTuning : FEnemyAIAwarenessTuning();
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+
+	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
+	if (PlayerPawn)
+	{
+		const float DistanceToPlayer = FVector::Dist2D(ControlledPawn->GetActorLocation(), PlayerPawn->GetActorLocation());
+		const bool bCanSeePlayer = DistanceToPlayer <= Tuning.DetectionRadius && LineOfSightTo(PlayerPawn);
+		if (bCanSeePlayer)
+		{
+			InBlackboard->SetValueAsObject(TargetActorKeyName, PlayerPawn);
+			InBlackboard->SetValueAsVector(LastKnownTargetLocationKeyName, PlayerPawn->GetActorLocation());
+			InBlackboard->SetValueAsFloat(LastSeenTargetTimeKeyName, CurrentTime);
+
+			if (DistanceToPlayer <= Tuning.CombatEnterRadius)
+			{
+				EnterCombat(PlayerPawn, true);
+			}
+			else
+			{
+				EnterAlert(PlayerPawn, PlayerPawn->GetActorLocation(), true);
+			}
+
+			return true;
+		}
+	}
+
+	const EEnemyAIState CurrentState = static_cast<EEnemyAIState>(InBlackboard->GetValueAsEnum(EnemyAIStateKeyName));
+	if (CurrentState == EEnemyAIState::Combat)
+	{
+		const float LastSeenTargetTime = InBlackboard->GetValueAsFloat(LastSeenTargetTimeKeyName);
+		if (CurrentTime - LastSeenTargetTime >= Tuning.LoseTargetDelay)
+		{
+			AActor* TargetActor = Cast<AActor>(InBlackboard->GetValueAsObject(TargetActorKeyName));
+			const FVector LastKnownTargetLocation = InBlackboard->GetValueAsVector(LastKnownTargetLocationKeyName);
+			EnterAlert(TargetActor, LastKnownTargetLocation, false);
+		}
+	}
+	else if (CurrentState == EEnemyAIState::Alert)
+	{
+		const float AlertExpireTime = InBlackboard->GetValueAsFloat(AlertExpireTimeKeyName);
+		if (AlertExpireTime > 0.0f && CurrentTime >= AlertExpireTime)
+		{
+			InBlackboard->SetValueAsEnum(EnemyAIStateKeyName, static_cast<uint8>(EEnemyAIState::Patrol));
+			InBlackboard->ClearValue(TargetActorKeyName);
+			InBlackboard->SetValueAsFloat(AlertExpireTimeKeyName, 0.0f);
+		}
+	}
+
+	return true;
 }
 
 bool AYogAIController::UpdateCombatMoveBlackboard(

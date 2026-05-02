@@ -49,6 +49,14 @@ enum class EEnemyAIApproachStyle : uint8
 	BruiserHold UMETA(DisplayName = "Bruiser Hold"),
 };
 
+UENUM(BlueprintType)
+enum class EEnemyAIState : uint8
+{
+	Patrol UMETA(DisplayName = "Patrol"),
+	Alert  UMETA(DisplayName = "Alert"),
+	Combat UMETA(DisplayName = "Combat"),
+};
+
 USTRUCT(BlueprintType)
 struct DEVKIT_API FEnemyAIMovementTuning
 {
@@ -77,6 +85,36 @@ struct DEVKIT_API FEnemyAIMovementTuning
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement", meta = (ClampMin = "0.0"))
 	float CrowdSeparationWeight = 2.0f;
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FEnemyAIAwarenessTuning
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
+	float DetectionRadius = 900.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
+	float CombatEnterRadius = 650.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
+	float LoseTargetDelay = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
+	float AlertDuration = 4.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
+	float AlertBroadcastRadius = 1200.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
+	float PatrolRadius = 600.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
+	float PatrolWaitMin = 0.6f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
+	float PatrolWaitMax = 1.5f;
 };
 
 USTRUCT(BlueprintType)
@@ -159,6 +197,9 @@ public:
 	// YogAIController 使用的移动、寻路和避让调参。
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
 	FEnemyAIMovementTuning MovementTuning;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
+	FEnemyAIAwarenessTuning AwarenessTuning;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
 	FEnemyAIAttackProfile AttackProfile;

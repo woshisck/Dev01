@@ -12,6 +12,7 @@
 #include "EnemyCharacterBase.generated.h"
 
 class UBuffFlowComponent;
+class UYogAbilitySystemComponent;
 
 /**
  *
@@ -41,6 +42,9 @@ public:
 protected:
 	UFUNCTION()
 	void OnHealthChangedForDeath(float NewHealth);
+
+	UFUNCTION()
+	void OnReceivedDamageForAI(UYogAbilitySystemComponent* SourceASC, float Damage);
 	
 	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
