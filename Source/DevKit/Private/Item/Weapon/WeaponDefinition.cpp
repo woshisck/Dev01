@@ -116,7 +116,14 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 
 	if (UComboRuntimeComponent* ComboRuntime = ReceivingChar ? ReceivingChar->ComboRuntimeComponent.Get() : nullptr)
 	{
-		ComboRuntime->LoadComboConfig(WeaponComboConfig);
+		if (GameplayAbilityComboGraph)
+		{
+			ComboRuntime->LoadComboGraph(GameplayAbilityComboGraph);
+		}
+		else
+		{
+			ComboRuntime->LoadComboConfig(WeaponComboConfig);
+		}
 	}
 
 	// ── 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────────

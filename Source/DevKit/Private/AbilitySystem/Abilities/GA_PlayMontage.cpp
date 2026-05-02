@@ -5,8 +5,10 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/AbilityTask/YogTask_PlayMontageAbility.h"
 #include "Character/YogCharacterBase.h"
+#include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/BufferComponent.h"
+#include "Component/ComboRuntimeComponent.h"
 #include "Animation/AN_MeleeDamage.h"
 
 UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
@@ -245,9 +247,18 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	if (Buffer->HasBufferedInputSince(EInputCommandType::LightAttack, AbilityActivationTime))
 	{
 		Buffer->ClearBuffer();
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.LightAtk")));
-		const bool bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		bool bActivated = false;
+		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
+		{
+			bActivated = PlayerOwner->ComboRuntimeComponent
+				&& PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Light, PlayerOwner);
+		}
+		if (!bActivated)
+		{
+			FGameplayTagContainer TagContainer;
+			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.LightAtk")));
+			bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		}
 		// 没有下一段连招（已是最后一招），立刻清除 CanCombo
 		if (!bActivated && ASC)
 		{
@@ -259,9 +270,18 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	if (Buffer->HasBufferedInputSince(EInputCommandType::HeavyAttack, AbilityActivationTime))
 	{
 		Buffer->ClearBuffer();
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.HeavyAtk")));
-		const bool bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		bool bActivated = false;
+		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
+		{
+			bActivated = PlayerOwner->ComboRuntimeComponent
+				&& PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Heavy, PlayerOwner);
+		}
+		if (!bActivated)
+		{
+			FGameplayTagContainer TagContainer;
+			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.HeavyAtk")));
+			bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		}
 		if (!bActivated && ASC)
 		{
 			ASC->SetLooseGameplayTagCount(CanComboTag, 0);

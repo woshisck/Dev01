@@ -38,6 +38,18 @@ struct DEVKIT_API FWeaponComboNodeConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	bool bAllowDashSave = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window")
+	bool bOverrideComboWindow = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (EditCondition = "bOverrideComboWindow", ClampMin = "0"))
+	int32 ComboWindowStartFrame = 18;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (EditCondition = "bOverrideComboWindow", ClampMin = "0"))
+	int32 ComboWindowEndFrame = 27;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (EditCondition = "bOverrideComboWindow", ClampMin = "1"))
+	int32 ComboWindowTotalFrames = 30;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
 	ECombatCardTriggerTiming CardTriggerTiming = ECombatCardTriggerTiming::OnCommit;
 };

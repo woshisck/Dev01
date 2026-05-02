@@ -6,6 +6,7 @@
 #include "ComboRuntimeComponent.generated.h"
 
 class APlayerCharacterBase;
+class UGameplayAbilityComboGraph;
 struct FCombatDeckActionContext;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -18,6 +19,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	void LoadComboConfig(UWeaponComboConfigDA* InComboConfig);
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	void LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph);
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	bool TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner);
@@ -46,6 +50,9 @@ public:
 private:
 	UPROPERTY()
 	TObjectPtr<UWeaponComboConfigDA> ComboConfig = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UGameplayAbilityComboGraph> ComboGraph = nullptr;
 
 	UPROPERTY()
 	FName CurrentNodeId = NAME_None;

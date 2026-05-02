@@ -120,6 +120,8 @@ private:
 	float LocalPreStatBeforeAttackPower = 0.f;
 	float LocalStatBeforeAttackDelta = 0.f;
 	float LocalStatBeforeAttackPowerDelta = 0.f;
+	FTimerHandle ComboWindowOpenTimerHandle;
+	FTimerHandle ComboWindowCloseTimerHandle;
 
 	FGuid ActiveAttackGuid;
 	int32 ActiveComboIndex = 0;
@@ -127,6 +129,10 @@ private:
 
 	/** Finds the first AN_MeleeDamage notify on the selected montage. */
 	static UAN_MeleeDamage* GetFirstDamageNotify(UAnimMontage* Montage);
+
+	void ScheduleNodeComboWindow(UAnimMontage* Montage, float PlayRate);
+	void OpenNodeComboWindow();
+	void CloseNodeComboWindow();
 
 	void TryResolveCombatDeckOnHit();
 	FCombatCardResolveResult ResolveCombatDeck(ECombatCardTriggerTiming TriggerTiming);
