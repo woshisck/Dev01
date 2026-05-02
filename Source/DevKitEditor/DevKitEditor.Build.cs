@@ -46,6 +46,7 @@ public class DevKitEditor : ModuleRules
 				"PhysicsCore",
 				"GameplayTagsEditor",
 				"GameplayTasksEditor",
+				"GameplayTags",
 				"GameplayAbilities",
 				"GameplayAbilitiesEditor",
 				"Flow",

@@ -7,8 +7,100 @@
 
 class UBoxComponent;
 class UProjectileMovementComponent;
+class UAbilitySystemComponent;
 class UGameplayEffect;
 class ACharacter;
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FSlashWaveProjectileRuntimeConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave")
+	float Damage = 10.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave")
+	TSubclassOf<UGameplayEffect> DamageEffect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave", meta = (ClampMin = "1.0"))
+	float Speed = 1400.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave", meta = (ClampMin = "0.0"))
+	float MaxDistance = 800.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave")
+	int32 MaxHitCount = 2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave", meta = (ClampMin = "1", ClampMax = "20"))
+	int32 DamageApplicationsPerTarget = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave", meta = (ClampMin = "0.0"))
+	float DamageApplicationInterval = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave")
+	FVector CollisionBoxExtent = FVector(30.f, 60.f, 35.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Visual")
+	bool bScaleVisualWithCollisionExtent = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Visual")
+	FVector VisualScaleMultiplier = FVector(1.f, 1.f, 1.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave")
+	FName DamageLogType = TEXT("Rune_SlashWave");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Collision")
+	bool bDestroyOnWorldStaticHit = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Damage")
+	bool bForcePureDamage = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Damage", meta = (ClampMin = "0.0"))
+	float BonusArmorDamageMultiplier = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Damage")
+	TSubclassOf<UGameplayEffect> AdditionalHitEffect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Damage")
+	FGameplayTag AdditionalHitSetByCallerTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Damage")
+	float AdditionalHitSetByCallerValue = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split")
+	bool bSplitOnFirstHit = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split", meta = (ClampMin = "0"))
+	int32 ProjectileGeneration = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split", meta = (ClampMin = "0"))
+	int32 MaxSplitGenerations = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split", meta = (ClampMin = "1"))
+	int32 SplitProjectileCount = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split", meta = (ClampMin = "0.0", ClampMax = "180.0"))
+	float SplitConeAngleDegrees = 45.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split", meta = (ClampMin = "0.0"))
+	float SplitDamageMultiplier = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split", meta = (ClampMin = "0.01"))
+	float SplitSpeedMultiplier = 2.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split", meta = (ClampMin = "0.0"))
+	float SplitMaxDistanceMultiplier = 0.6f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split")
+	FVector SplitCollisionBoxExtentMultiplier = FVector(0.5f, 0.5f, 0.5f);
+};
+
+struct FSlashWaveHitRecord
+{
+	TWeakObjectPtr<AActor> Actor;
+	int32 AppliedCount = 0;
+	FTimerHandle RepeatTimerHandle;
+};
 
 /**
  * 刀光投射物 — 水平飞行，穿透多个敌人，Timer 到期后销毁。
@@ -17,7 +109,7 @@ class ACharacter;
  *   1. GA_SlashWaveCounter 调用 SpawnActor<ASlashWaveProjectile>，然后 InitProjectile
  *   2. 投射物沿发射方向飞行，CollisionBox 与 Pawn 发生 Overlap
  *   3. 每次命中新目标 → 施加 DamageEffect（SetByCaller Attribute.ActDamage）
- *   4. 已命中目标跳过（HitActors 穿透记录）
+ *   4. 已触发目标按 DamageApplicationsPerTarget 控制重复伤害次数
  *   5. 生存时间到期 → BP_OnExpired → Destroy
  *
  * 表现层（刀光形状/粒子/音效）由 Blueprint 子类实现 BP_OnHitEnemy / BP_OnExpired。
@@ -41,6 +133,9 @@ public:
 	                    TSubclassOf<UGameplayEffect> InDamageEffect);
 
 	UFUNCTION(BlueprintCallable, Category = "SlashWave")
+	void InitProjectileWithConfig(ACharacter* InSource, const FSlashWaveProjectileRuntimeConfig& InConfig);
+
+	UFUNCTION(BlueprintCallable, Category = "SlashWave")
 	void InitProjectileAdvanced(
 		ACharacter* InSource,
 		float InDamage,
@@ -48,14 +143,19 @@ public:
 		float InSpeed,
 		float InMaxDistance,
 		int32 InMaxHitCount,
+		int32 InDamageApplicationsPerTarget,
+		float InDamageApplicationInterval,
 		FVector InCollisionBoxExtent,
-		FName InDamageLogType = NAME_None);
+		FName InDamageLogType = NAME_None,
+		bool bInScaleVisualWithCollisionExtent = true,
+		FVector InVisualScaleMultiplier = FVector(1.f, 1.f, 1.f));
 
 	UFUNCTION(BlueprintCallable, Category = "SlashWave")
 	void ApplyImmediateHit(AActor* Target);
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// ── 碰撞体（水平刀光截面）──────────────────────────────────────────────
 	/** 扁平水平盒，默认 60x30x35（cm），子类可在构造函数里调整 */
@@ -79,16 +179,71 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile", meta = (ClampMin = "0.0"))
 	float MaxDistance = 800.f;
 
-	/** 最大命中目标数量。<= 0 表示不限数量，仍会对同一目标只命中一次。 */
+	/** 最大命中目标数量。<= 0 表示不限数量。每个目标可按 DamageApplicationsPerTarget 受到多次伤害。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	int32 MaxHitCount = 0;
+
+	/** 同一目标可被同一道刀光伤害的次数。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile", meta = (ClampMin = "1", ClampMax = "20"))
+	int32 DamageApplicationsPerTarget = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile", meta = (ClampMin = "0.0"))
+	float DamageApplicationInterval = 0.25f;
 
 	/** 运行时可覆盖碰撞盒半径。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	FVector CollisionBoxExtent = FVector(30.f, 60.f, 35.f);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	FVector VisualScaleMultiplier = FVector(1.f, 1.f, 1.f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	FName DamageLogType = TEXT("Rune_SlashWave");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	bool bDestroyOnWorldStaticHit = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	bool bForcePureDamage = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	float BonusArmorDamageMultiplier = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	TSubclassOf<UGameplayEffect> AdditionalHitEffectClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	FGameplayTag AdditionalHitSetByCallerTag;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	float AdditionalHitSetByCallerValue = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	bool bSplitOnFirstHit = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	int32 ProjectileGeneration = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	int32 MaxSplitGenerations = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	int32 SplitProjectileCount = 3;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	float SplitConeAngleDegrees = 45.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	float SplitDamageMultiplier = 0.5f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	float SplitSpeedMultiplier = 2.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	float SplitMaxDistanceMultiplier = 0.6f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	FVector SplitCollisionBoxExtentMultiplier = FVector(0.5f, 0.5f, 0.5f);
 
 	// ── Blueprint 表现层钩子 ────────────────────────────────────────────────
 	/** 命中新目标时触发（在此播放粒子/音效/贴花）*/
@@ -111,8 +266,10 @@ private:
 
 	bool bProjectileInitialized = false;
 
-	/** 已命中目标列表，用于穿透跳过 */
-	TArray<TWeakObjectPtr<AActor>> HitActors;
+	/** 已触发过的目标，用于限制目标数和重复伤害次数。 */
+	TArray<FSlashWaveHitRecord> HitRecords;
+
+	bool bHasSplit = false;
 
 	FTimerHandle LifetimeTimerHandle;
 
@@ -123,6 +280,14 @@ private:
 
 	/** 对目标施加 DamageEffect（SetByCaller Attribute.ActDamage = DamageMagnitude）*/
 	bool ApplyDamageTo(AActor* Target, const FVector& HitLocation);
+
+	bool TryStartDamageSequence(AActor* Target);
+	void ApplyDamageTickForRecord(int32 RecordIndex);
+	int32 FindHitRecordIndex(AActor* Target) const;
+	void ClearRepeatTimers();
+	void ApplyBonusArmorDamageTo(AActor* Target, UAbilitySystemComponent* TargetASC) const;
+	void ApplyAdditionalHitEffectTo(AActor* Target, UAbilitySystemComponent* SourceASC, UAbilitySystemComponent* TargetASC);
+	void TrySplitFromFirstHit(AActor* FirstHitTarget);
 
 	/** 生存时间到期处理 */
 	void Expire();

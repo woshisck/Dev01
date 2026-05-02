@@ -647,6 +647,77 @@ bool FCombatDeckRecipeReversedUsesEffectTagsTest::RunTest(const FString& Paramet
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMoonlightMultipleRecipesTest,
+	"DevKit.CombatDeck.MoonlightMultipleRecipesSelectByEffectTagAndDirection",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckMoonlightMultipleRecipesTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag BurnEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Burn"));
+	const FGameplayTag PoisonEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Poison"));
+	const FGameplayTag ShieldEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Shield"));
+
+	UFlowAsset* BurnForwardFlow = NewObject<UFlowAsset>();
+	UFlowAsset* PoisonForwardFlow = NewObject<UFlowAsset>();
+	UFlowAsset* ShieldReversedFlow = NewObject<UFlowAsset>();
+
+	FCombatCardConfig BurnCard{ ECombatCardType::Normal, ECardRequiredAction::Any };
+	BurnCard.CardEffectTags.AddTag(BurnEffectTag);
+
+	FCombatCardConfig PoisonCard{ ECombatCardType::Normal, ECardRequiredAction::Any };
+	PoisonCard.CardEffectTags.AddTag(PoisonEffectTag);
+
+	FCombatCardConfig ShieldCard{ ECombatCardType::Normal, ECardRequiredAction::Any };
+	ShieldCard.CardEffectTags.AddTag(ShieldEffectTag);
+
+	FCombatCardConfig MoonlightForward{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightForward.DefaultLinkOrientation = ECombatCardLinkOrientation::Forward;
+
+	FCombatCardLinkRecipe BurnForwardRecipe;
+	BurnForwardRecipe.Direction = ECombatCardLinkOrientation::Forward;
+	BurnForwardRecipe.LinkFlow = BurnForwardFlow;
+	BurnForwardRecipe.Multiplier = 1.2f;
+	BurnForwardRecipe.Condition.RequiredNeighborEffectTags.AddTag(BurnEffectTag);
+	MoonlightForward.LinkRecipes.Add(BurnForwardRecipe);
+
+	FCombatCardLinkRecipe PoisonForwardRecipe;
+	PoisonForwardRecipe.Direction = ECombatCardLinkOrientation::Forward;
+	PoisonForwardRecipe.LinkFlow = PoisonForwardFlow;
+	PoisonForwardRecipe.Multiplier = 1.4f;
+	PoisonForwardRecipe.Condition.RequiredNeighborEffectTags.AddTag(PoisonEffectTag);
+	MoonlightForward.LinkRecipes.Add(PoisonForwardRecipe);
+
+	FCombatCardLinkRecipe ShieldReversedRecipe;
+	ShieldReversedRecipe.Direction = ECombatCardLinkOrientation::Reversed;
+	ShieldReversedRecipe.LinkFlow = ShieldReversedFlow;
+	ShieldReversedRecipe.Multiplier = 1.6f;
+	ShieldReversedRecipe.Condition.RequiredNeighborEffectTags.AddTag(ShieldEffectTag);
+	MoonlightForward.LinkRecipes.Add(ShieldReversedRecipe);
+
+	UCombatDeckComponent* ForwardDeck = NewObject<UCombatDeckComponent>();
+	ForwardDeck->SetDeckListForTest({ PoisonCard, MoonlightForward });
+
+	ForwardDeck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult ForwardResult = ForwardDeck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Forward Moonlight recipe triggers on the matching poison card"), ForwardResult.bTriggeredForwardLink);
+	TestEqual(TEXT("Forward Moonlight selects the poison recipe multiplier"), ForwardResult.AppliedMultiplier, 1.4f);
+
+	FCombatCardConfig MoonlightReversed = MoonlightForward;
+	MoonlightReversed.DefaultLinkOrientation = ECombatCardLinkOrientation::Reversed;
+
+	UCombatDeckComponent* ReversedDeck = NewObject<UCombatDeckComponent>();
+	ReversedDeck->SetDeckListForTest({ MoonlightReversed, ShieldCard });
+
+	const FCombatCardResolveResult PendingResult = ReversedDeck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Reversed Moonlight opens pending link with the matching recipe list"), PendingResult.bPendingBackwardLink);
+
+	const FCombatCardResolveResult ReversedResult = ReversedDeck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Reversed Moonlight recipe triggers on the matching shield card"), ReversedResult.bTriggeredBackwardLink);
+	TestEqual(TEXT("Reversed Moonlight selects the shield recipe multiplier"), ReversedResult.AppliedMultiplier, 1.6f);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRecipeReversedClearsOnComboExitTest,
 	"DevKit.CombatDeck.RecipeReversedClearsOnComboExit",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
