@@ -441,7 +441,14 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	if (UComboRuntimeComponent* ComboRuntime = Player->ComboRuntimeComponent.Get())
 	{
-		ComboRuntime->LoadComboConfig(WeaponDefinition->WeaponComboConfig);
+		if (WeaponDefinition->GameplayAbilityComboGraph)
+		{
+			ComboRuntime->LoadComboGraph(WeaponDefinition->GameplayAbilityComboGraph);
+		}
+		else
+		{
+			ComboRuntime->LoadComboConfig(WeaponDefinition->WeaponComboConfig);
+		}
 	}
 
 	// ── 5.5 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────

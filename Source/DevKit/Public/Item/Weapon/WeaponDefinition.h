@@ -20,6 +20,7 @@ class APlayerCharacterBase;
 class UMaterialInterface;
 class URuneDataAsset;
 class UWeaponComboConfigDA;
+class UGameplayAbilityComboGraph;
 //class UYogAnimInstance;
 
 
@@ -91,6 +92,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UWeaponComboConfigDA> WeaponComboConfig;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
+	TObjectPtr<UGameplayAbilityComboGraph> GameplayAbilityComboGraph;
 
 	// 武器类型：决定装备时挂在 ASC 上的 Weapon.Type.* LooseTag。
 	// 玩家专属攻击 GA 通过 ActivationRequiredTags 持有该 Tag → 自动隔离近战/远程激活路径。

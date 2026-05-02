@@ -1,9 +1,21 @@
 #include "Component/ComboRuntimeComponent.h"
 
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
+#include "Data/GameplayAbilityComboGraph.h"
 #include "Item/Weapon/WeaponDefinition.h"
+
+namespace
+{
+	bool IsLegacyComboProgressTag(const FGameplayTag& Tag)
+	{
+		const FString TagName = Tag.ToString();
+		return TagName.StartsWith(TEXT("PlayerState.AbilityCast.LightAtk.Combo"))
+			|| TagName.StartsWith(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo"));
+	}
+}
 
 UComboRuntimeComponent::UComboRuntimeComponent()
 {
@@ -13,6 +25,7 @@ UComboRuntimeComponent::UComboRuntimeComponent()
 void UComboRuntimeComponent::LoadComboConfig(UWeaponComboConfigDA* InComboConfig)
 {
 	ComboConfig = InComboConfig;
+	ComboGraph = nullptr;
 	ResetCombo();
 
 	if (!ComboConfig)
@@ -28,9 +41,28 @@ void UComboRuntimeComponent::LoadComboConfig(UWeaponComboConfigDA* InComboConfig
 	}
 }
 
+void UComboRuntimeComponent::LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph)
+{
+	ComboGraph = InComboGraph;
+	ComboConfig = nullptr;
+	ResetCombo();
+
+	if (!ComboGraph)
+	{
+		return;
+	}
+
+	TArray<FText> Warnings;
+	ComboGraph->ValidateComboGraph(Warnings);
+	for (const FText& Warning : Warnings)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GameplayAbilityComboGraph] %s: %s"), *GetNameSafe(ComboGraph), *Warning.ToString());
+	}
+}
+
 bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner)
 {
-	if (!ComboConfig || !PlayerOwner)
+	if ((!ComboConfig && !ComboGraph) || !PlayerOwner)
 	{
 		return false;
 	}
@@ -44,11 +76,32 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	const bool bUseDashSavedNode = !SavedDashNodeId.IsNone();
 	const FName StartNodeId = bUseDashSavedNode ? SavedDashNodeId : CurrentNodeId;
 
-	const FWeaponComboNodeConfig* NextNode = ComboConfig->FindChildNode(StartNodeId, InputAction);
-	const bool bFoundChildNode = NextNode != nullptr;
-	if (!NextNode)
+	FWeaponComboNodeConfig GraphNodeConfig;
+	const FWeaponComboNodeConfig* NextNode = nullptr;
+	bool bFoundChildNode = false;
+
+	if (ComboGraph)
 	{
-		NextNode = ComboConfig->FindRootNode(InputAction);
+		const UGameplayAbilityComboGraphNode* NextGraphNode = ComboGraph->FindChildComboNode(StartNodeId, InputAction);
+		bFoundChildNode = NextGraphNode != nullptr;
+		if (!NextGraphNode)
+		{
+			NextGraphNode = ComboGraph->FindRootComboNode(InputAction);
+		}
+		if (NextGraphNode)
+		{
+			GraphNodeConfig = NextGraphNode->BuildRuntimeConfig(InputAction);
+			NextNode = &GraphNodeConfig;
+		}
+	}
+	else if (ComboConfig)
+	{
+		NextNode = ComboConfig->FindChildNode(StartNodeId, InputAction);
+		bFoundChildNode = NextNode != nullptr;
+		if (!NextNode)
+		{
+			NextNode = ComboConfig->FindRootNode(InputAction);
+		}
 	}
 
 	if (!NextNode || !NextNode->AbilityTag.IsValid())
@@ -75,7 +128,47 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	FGameplayTagContainer AbilityTags;
 	AbilityTags.AddTag(NextNode->AbilityTag);
 
+	TArray<FGameplayAbilitySpec*> MatchingSpecs;
+	ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(AbilityTags, MatchingSpecs);
+
+	FGameplayTagContainer TemporaryRequiredTags;
+	for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+	{
+		if (!Spec || !Spec->Ability)
+		{
+			continue;
+		}
+
+		UYogGameplayAbility* YogAbility = Cast<UYogGameplayAbility>(Spec->Ability);
+		if (!YogAbility)
+		{
+			continue;
+		}
+
+		for (const FGameplayTag& RequiredTag : YogAbility->GetActivationRequiredTags())
+		{
+			// The config chooses the branch now, so legacy "Light2 requires Light1"
+			// style progress tags are only compatibility gates. CanCombo/weapon/state
+			// requirements still come from the real ASC state.
+			if (IsLegacyComboProgressTag(RequiredTag) && ASC->GetTagCount(RequiredTag) <= 0)
+			{
+				TemporaryRequiredTags.AddTag(RequiredTag);
+			}
+		}
+	}
+
+	for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
+	{
+		ASC->AddLooseGameplayTag(TemporaryTag);
+	}
+
 	const bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags, true);
+
+	for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
+	{
+		ASC->RemoveLooseGameplayTag(TemporaryTag);
+	}
+
 	if (!bActivated)
 	{
 		bActiveNodeValid = false;
