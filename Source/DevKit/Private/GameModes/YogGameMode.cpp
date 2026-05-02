@@ -891,7 +891,7 @@ void AYogGameMode::GenerateWavePlans(int32 TotalScore, int32 MaxWaveCount, URoom
 	const int32 BasePerWave  = (WaveCount > 0) ? (TotalScore / WaveCount) : TotalScore;
 	const int32 Remainder    = (WaveCount > 0) ? (TotalScore % WaveCount)  : 0;
 
-	// 读取当前难度档位的 MaxEnemiesPerWave（GenerateWavePlans 调用前 ActiveRoomData 已缓存）
+	// 读取当前难度档位的刷怪上限（GenerateWavePlans 调用前 ActiveRoomData 已缓存）
 	const FRoomDifficultyTier& Tier = [&]() -> const FRoomDifficultyTier&
 	{
 		if (Room)
@@ -907,12 +907,23 @@ void AYogGameMode::GenerateWavePlans(int32 TotalScore, int32 MaxWaveCount, URoom
 
 	for (int32 i = 0; i < WaveCount; i++)
 	{
+		if (Tier.MaxEnemiesPerLevel > 0 && TotalLevelPlannedEnemies >= Tier.MaxEnemiesPerLevel)
+		{
+			UE_LOG(LogTemp, Log, TEXT("GenerateWavePlans: 已达到整关敌人上限 %d，后续波次为空"), Tier.MaxEnemiesPerLevel);
+			break;
+		}
+
 		const int32 Budget = BasePerWave + (i == 0 ? Remainder : 0);
-		WavePlans.Add(BuildWavePlan(Budget, Room, Tier.MaxEnemiesPerWave));
+		WavePlans.Add(BuildWavePlan(Budget, Room, Tier.MaxEnemiesPerWave, Tier.MaxEnemiesPerLevel));
 	}
 }
 
-// EnemyData.EnemyBuffPool is the list of runes this enemy carries by default.
+static bool ShouldApplyBuffEntry(const FBuffEntry& Entry)
+{
+	return Entry.ApplyChance >= 1.f || FMath::FRand() <= FMath::Clamp(Entry.ApplyChance, 0.f, 1.f);
+}
+
+// EnemyData.EnemyBuffPool is rolled per planned enemy. Only entries that pass ApplyChance are granted.
 static int32 CollectEnemyBuffs(UEnemyData* EnemyData, TArray<TObjectPtr<URuneDataAsset>>& OutBuffs)
 {
 	OutBuffs.Reset();
@@ -928,17 +939,15 @@ static int32 CollectEnemyBuffs(UEnemyData* EnemyData, TArray<TObjectPtr<URuneDat
 		{
 			continue;
 		}
+		if (!ShouldApplyBuffEntry(Entry))
+		{
+			continue;
+		}
 
 		OutBuffs.AddUnique(Entry.RuneDA);
 		TotalCost += Entry.DifficultyScore;
 	}
 	return TotalCost;
-}
-
-static int32 CalcEnemyBuffCost(UEnemyData* EnemyData)
-{
-	TArray<TObjectPtr<URuneDataAsset>> IgnoredBuffs;
-	return CollectEnemyBuffs(EnemyData, IgnoredBuffs);
 }
 
 static FGameplayTag GetEnemyRuneEventTagForTriggerType(ERuneTriggerType Type)
@@ -1138,11 +1147,12 @@ static void ActivateEnemyDataRunes(AEnemyCharacterBase* Enemy, UEnemyData* Enemy
 		for (int32 Index = 0; Index < EnemyData->EnemyBuffPool.Num(); ++Index)
 		{
 			const FBuffEntry& Entry = EnemyData->EnemyBuffPool[Index];
-			UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][EnemyData]   Entry=%d Rune=%s DA=%s Cost=%d"),
+			UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][EnemyData]   Entry=%d Rune=%s DA=%s Cost=%d Chance=%.2f"),
 				Index,
 				*GetEnemyRuneDebugName(Entry.RuneDA.Get()),
 				*GetNameSafe(Entry.RuneDA.Get()),
-				Entry.DifficultyScore);
+				Entry.DifficultyScore,
+				Entry.ApplyChance);
 		}
 	}
 	ActivateEnemyRunes(Enemy, EnemyBuffs, Source);
@@ -1157,10 +1167,15 @@ static int32 CalcRoomBuffCost(const TArray<FBuffEntry>& ActiveRoomBuffs)
 	return Cost;
 }
 
-AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset* Room, int32 MaxEnemies)
+AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset* Room, int32 MaxEnemiesPerWave, int32 MaxEnemiesPerLevel)
 {
 	FWavePlan Plan;
 	int32 RemainingBudget = Budget;
+
+	if (!Room)
+	{
+		return Plan;
+	}
 
 	// ---- Step 1: 程序决定触发条件（默认 AllEnemiesDead，最稳定）----
 	Plan.TriggerType = ESpawnTriggerType::AllEnemiesDead;
@@ -1172,126 +1187,117 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 	// 关卡 Buff 对每只怪的额外扣分（进关时已确定）
 	const int32 RoomBuffCostPerEnemy = CalcRoomBuffCost(ActiveRoomBuffs);
 
+	auto HasLevelSlot = [&]() -> bool
+	{
+		return MaxEnemiesPerLevel <= 0 || TotalLevelPlannedEnemies < MaxEnemiesPerLevel;
+	};
+
+	auto HasTypeCapacity = [&](const FEnemyEntry& Entry) -> bool
+	{
+		if (!Entry.EnemyData || !Entry.EnemyData->EnemyClass)
+		{
+			return false;
+		}
+		if (Entry.MaxCountPerLevel < 0)
+		{
+			return true;
+		}
+
+		const int32 ExistingCount = LevelTypeSpawnCounts.FindRef(Entry.EnemyData->EnemyClass);
+		return ExistingCount < Entry.MaxCountPerLevel;
+	};
+
+	auto GetBaseEffectiveCost = [&](const FEnemyEntry& Entry) -> int32
+	{
+		return Entry.EnemyData ? Entry.EnemyData->DifficultyScore + RoomBuffCostPerEnemy : MAX_int32;
+	};
+
+	auto BuildCandidates = [&](int32 CurrentBudget, bool bAllowBudgetOverflow)
+	{
+		TArray<FEnemyEntry> Candidates;
+		if (!HasLevelSlot())
+		{
+			return Candidates;
+		}
+
+		for (const FEnemyEntry& Entry : Room->EnemyPool)
+		{
+			if (!Entry.EnemyData || !Entry.EnemyData->EnemyClass) continue;
+			if (!HasTypeCapacity(Entry)) continue;
+
+			const int32 EffectiveCost = GetBaseEffectiveCost(Entry);
+			if (!bAllowBudgetOverflow && EffectiveCost > CurrentBudget) continue;
+
+			Candidates.Add(Entry);
+		}
+
+		Candidates.Sort([](const FEnemyEntry& A, const FEnemyEntry& B)
+		{
+			const int32 ScoreA = A.EnemyData ? A.EnemyData->DifficultyScore : -1;
+			const int32 ScoreB = B.EnemyData ? B.EnemyData->DifficultyScore : -1;
+			if (ScoreA != ScoreB)
+			{
+				return ScoreA > ScoreB;
+			}
+			return GetNameSafe(A.EnemyData.Get()) < GetNameSafe(B.EnemyData.Get());
+		});
+		return Candidates;
+	};
+
+	auto MakePlannedEnemy = [&](const FEnemyEntry& Chosen, FPlannedEnemy& OutPlanned) -> int32
+	{
+		TArray<TObjectPtr<URuneDataAsset>> SelectedEnemyBuffs;
+		const int32 EnemyBuffCost = CollectEnemyBuffs(Chosen.EnemyData, SelectedEnemyBuffs);
+
+		OutPlanned.EnemyClass         = Chosen.EnemyData->EnemyClass;
+		OutPlanned.EnemyBuffs         = SelectedEnemyBuffs;
+		OutPlanned.PreSpawnFX         = Chosen.EnemyData->PreSpawnFX;
+		OutPlanned.PreSpawnFXDuration = Chosen.EnemyData->PreSpawnFXDuration;
+
+		LevelTypeSpawnCounts.FindOrAdd(Chosen.EnemyData->EnemyClass)++;
+		TotalLevelPlannedEnemies++;
+
+		return Chosen.EnemyData->DifficultyScore + RoomBuffCostPerEnemy + EnemyBuffCost;
+	};
+
 	// ---- Step 3: 用预算填充敌人，遵守类型上限和每波上限 ----
 	bool bFirstEnemy = true;
 	while (true)
 	{
 		// MaxEnemiesPerWave == 0 表示不限制
-		if (MaxEnemies > 0 && Plan.EnemiesToSpawn.Num() >= MaxEnemies)
+		if (MaxEnemiesPerWave > 0 && Plan.EnemiesToSpawn.Num() >= MaxEnemiesPerWave)
+			break;
+		if (!HasLevelSlot())
 			break;
 
-		TArray<FEnemyEntry> Candidates;
-		for (const FEnemyEntry& E : Room->EnemyPool)
-		{
-			if (!E.EnemyData || !E.EnemyData->EnemyClass) continue;
-
-			// Cost includes the room runes applied to every enemy and this enemy's carried runes.
-			const int32 EnemyBuffCost = CalcEnemyBuffCost(E.EnemyData);
-			const int32 EffectiveCostMin = E.EnemyData->DifficultyScore + RoomBuffCostPerEnemy + EnemyBuffCost;
-
-			// 第一只不过滤预算（允许超出），后续必须在预算内
-			if (!bFirstEnemy && EffectiveCostMin > RemainingBudget) continue;
-			// 类型上限检查
-			if (E.MaxCountPerLevel >= 0)
-			{
-				const int32* ExistingCount = LevelTypeSpawnCounts.Find(E.EnemyData->EnemyClass);
-				if (ExistingCount && *ExistingCount >= E.MaxCountPerLevel) continue;
-			}
-			Candidates.Add(E);
-		}
-
+		TArray<FEnemyEntry> Candidates = BuildCandidates(RemainingBudget, bFirstEnemy);
 		if (Candidates.IsEmpty()) break;
 
-		// 若已达到每波上限且还有预算，优先选有效成本（基础分）最高的候选
-		// 否则随机选取
-		const FEnemyEntry* Chosen = nullptr;
-		if (MaxEnemies > 0 && Plan.EnemiesToSpawn.Num() == MaxEnemies - 1)
-		{
-			// 最后一个名额：选有效成本最高的（充分消耗预算）
-			int32 MaxScore = -1;
-			for (const FEnemyEntry& C : Candidates)
-			{
-				if (C.EnemyData->DifficultyScore > MaxScore)
-				{
-					MaxScore = C.EnemyData->DifficultyScore;
-					Chosen   = &C;
-				}
-			}
-		}
-		if (!Chosen)
-			Chosen = &Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
-
-		// Copy all self-carried runes from EnemyData.
-		TArray<TObjectPtr<URuneDataAsset>> SelectedEnemyBuffs;
-		int32 EnemyBuffCost = 0;
-		if (!Chosen->EnemyData->EnemyBuffPool.IsEmpty())
-		{
-			EnemyBuffCost = CollectEnemyBuffs(Chosen->EnemyData, SelectedEnemyBuffs);
-		}
-
 		FPlannedEnemy Planned;
-		Planned.EnemyClass         = Chosen->EnemyData->EnemyClass;
-		Planned.EnemyBuffs         = SelectedEnemyBuffs;
-		Planned.PreSpawnFX         = Chosen->EnemyData->PreSpawnFX;
-		Planned.PreSpawnFXDuration = Chosen->EnemyData->PreSpawnFXDuration;
+		const int32 ActualCost = MakePlannedEnemy(Candidates[0], Planned);
 		Plan.EnemiesToSpawn.Add(Planned);
 
-		const int32 ActualCost = Chosen->EnemyData->DifficultyScore + RoomBuffCostPerEnemy + EnemyBuffCost;
 		RemainingBudget -= ActualCost;
 		bFirstEnemy      = false;
-
-		// 更新跨波次计数
-		LevelTypeSpawnCounts.FindOrAdd(Chosen->EnemyData->EnemyClass)++;
-		TotalLevelPlannedEnemies++;
 
 		if (RemainingBudget <= 0) break;
 	}
 
-	// ---- Step 4: 剩余预算无法正常填充时，构建按需补刷池 ----
-	if (RemainingBudget > 0)
+	// ---- Step 4: 剩余预算无法正常填充时，构建具体按需补刷队列 ----
+	while (RemainingBudget > 0 && HasLevelSlot())
 	{
-		for (const FEnemyEntry& E : Room->EnemyPool)
+		TArray<FEnemyEntry> Candidates = BuildCandidates(RemainingBudget, false);
+		if (Candidates.IsEmpty())
 		{
-			if (!E.EnemyData || !E.EnemyData->EnemyClass) continue;
-			const int32 EffCost = E.EnemyData->DifficultyScore + RoomBuffCostPerEnemy + CalcEnemyBuffCost(E.EnemyData);
-			if (EffCost <= RemainingBudget)
-			{
-				FPlannedEnemy Demand;
-				Demand.EnemyClass        = E.EnemyData->EnemyClass;
-				CollectEnemyBuffs(E.EnemyData, Demand.EnemyBuffs);
-				Plan.DemandEnemyPool.Add(Demand);
-			}
+			break;
 		}
 
-		// 去重（同类型保留第一个）
-		TSet<TSubclassOf<AEnemyCharacterBase>> SeenClasses;
-		Plan.DemandEnemyPool = Plan.DemandEnemyPool.FilterByPredicate([&](const FPlannedEnemy& P)
-		{
-			bool bAlreadySeen = SeenClasses.Contains(P.EnemyClass);
-			SeenClasses.Add(P.EnemyClass);
-			return !bAlreadySeen;
-		});
-
-		if (!Plan.DemandEnemyPool.IsEmpty())
-		{
-			int32 AvgCost = 0;
-			for (const FPlannedEnemy& P : Plan.DemandEnemyPool)
-			{
-				for (const FEnemyEntry& E : Room->EnemyPool)
-				{
-					if (E.EnemyData && E.EnemyData->EnemyClass == P.EnemyClass)
-					{
-						AvgCost += E.EnemyData->DifficultyScore + RoomBuffCostPerEnemy + CalcEnemyBuffCost(E.EnemyData);
-						break;
-					}
-				}
-			}
-			AvgCost = FMath::Max(1, AvgCost / Plan.DemandEnemyPool.Num());
-			Plan.DemandCount = FMath::Max(1, RemainingBudget / AvgCost);
-			UE_LOG(LogTemp, Log, TEXT("BuildWavePlan: 剩余预算 %d → 按需补刷 %d 只"),
-				RemainingBudget, Plan.DemandCount);
-		}
+		FPlannedEnemy Demand;
+		const int32 ActualCost = MakePlannedEnemy(Candidates[0], Demand);
+		Plan.DemandEnemyPool.Add(Demand);
+		RemainingBudget -= FMath::Max(1, ActualCost);
 	}
+	Plan.DemandCount = Plan.DemandEnemyPool.Num();
 
 	UE_LOG(LogTemp, Log, TEXT("BuildWavePlan: 触发=%d 方式=%d 敌人数=%d 补刷=%d"),
 		(int32)Plan.TriggerType, (int32)Plan.SpawnMode,
@@ -1486,11 +1492,11 @@ void AYogGameMode::CheckDemandSpawn()
 
 	if (Wave.DemandCount <= 0 || Wave.DemandEnemyPool.IsEmpty()) return;
 
-	// 随机选一个补刷条目
-	const FPlannedEnemy& DemandPlanned =
-		Wave.DemandEnemyPool[FMath::RandRange(0, Wave.DemandEnemyPool.Num() - 1)];
-
-	Wave.DemandCount--;
+	// 从已规划好的补刷队列中取一只，避免整关上限和类型上限在运行时被突破。
+	const int32 DemandIndex = FMath::RandRange(0, Wave.DemandEnemyPool.Num() - 1);
+	const FPlannedEnemy DemandPlanned = Wave.DemandEnemyPool[DemandIndex];
+	Wave.DemandEnemyPool.RemoveAtSwap(DemandIndex);
+	Wave.DemandCount = Wave.DemandEnemyPool.Num();
 
 	if (SpawnEnemyFromPool(DemandPlanned))
 	{
@@ -1730,18 +1736,28 @@ TArray<FBuffEntry> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int
 		Pool.Swap(i, j);
 	}
 
-	const int32 Count = FMath::Min(BuffCount, Pool.Num());
-	for (int32 i = 0; i < Count; i++)
+	for (int32 i = 0; i < Pool.Num() && Selected.Num() < BuffCount; i++)
 	{
 		if (Pool[i].RuneDA)
 		{
+			if (!ShouldApplyBuffEntry(Pool[i]))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[RoomBuff] Chance failed Room=%s Index=%d Rune=%s Chance=%.2f"),
+					*GetNameSafe(&Room),
+					i,
+					*GetEnemyRuneDebugName(Pool[i].RuneDA.Get()),
+					Pool[i].ApplyChance);
+				continue;
+			}
+
 			Selected.Add(Pool[i]);
-			UE_LOG(LogTemp, Warning, TEXT("[RoomBuff] Selected Room=%s Index=%d Rune=%s DA=%s Cost=%d"),
+			UE_LOG(LogTemp, Warning, TEXT("[RoomBuff] Selected Room=%s Index=%d Rune=%s DA=%s Cost=%d Chance=%.2f"),
 				*GetNameSafe(&Room),
 				i,
 				*GetEnemyRuneDebugName(Pool[i].RuneDA.Get()),
 				*GetNameSafe(Pool[i].RuneDA.Get()),
-				Pool[i].DifficultyScore);
+				Pool[i].DifficultyScore,
+				Pool[i].ApplyChance);
 		}
 		else
 		{

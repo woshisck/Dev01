@@ -309,7 +309,7 @@ protected:
 	struct FPlannedEnemy
 	{
 		TSubclassOf<AEnemyCharacterBase> EnemyClass;
-		// Copied from EnemyData.EnemyBuffPool. All entries are granted to this enemy.
+		// Rolled from EnemyData.EnemyBuffPool. Only entries that pass ApplyChance are granted.
 		TArray<TObjectPtr<URuneDataAsset>> EnemyBuffs;
 		// 从 EnemyData 复制，运行时只读
 		TObjectPtr<UNiagaraSystem> PreSpawnFX;
@@ -326,7 +326,7 @@ protected:
 		int32 TotalSpawnedInWave = 0;
 		int32 TotalKilledInWave  = 0;
 
-		// 按需补刷池（预算剩余但类型上限已达时，每死一只补刷一只）
+		// 按需补刷队列（预算剩余且整关上限仍有空间时，每死一只补刷一只）
 		TArray<FPlannedEnemy> DemandEnemyPool;
 		// 剩余可按需补刷的次数（0 = 无补刷）
 		int32 DemandCount = 0;
@@ -339,7 +339,7 @@ protected:
 	void GenerateWavePlans(int32 TotalScore, int32 MaxWaveCount, URoomDataAsset* Room);
 
 	// 生成单波计划（程序自动决定触发条件和刷怪方式）
-	FWavePlan BuildWavePlan(int32 Budget, URoomDataAsset* Room, int32 MaxEnemies);
+	FWavePlan BuildWavePlan(int32 Budget, URoomDataAsset* Room, int32 MaxEnemiesPerWave, int32 MaxEnemiesPerLevel);
 
 	// 触发并执行下一波（下标推进）
 	void TriggerNextWave();

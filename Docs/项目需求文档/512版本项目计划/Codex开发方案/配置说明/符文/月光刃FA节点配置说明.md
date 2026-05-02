@@ -33,7 +33,11 @@ Start -> Spawn Slash Wave Projectile
 | `Speed` | 飞行速度，单位 cm/s | 越大飞得越快 |
 | `Max Distance` | 最大距离，单位 cm | 会换算为生命周期 |
 | `Max Hit Count` | 最大命中目标数 | `2` 表示命中两个敌人后消失；`0` 表示不限 |
+| `Damage Applications Per Target` | 同一目标伤害次数 | `1` 表示普通单次伤害；`3` 表示同一道月光对同一目标造成 3 次伤害 |
+| `Damage Application Interval` | 多次伤害间隔 | 例如 `0.25` 表示每 0.25 秒伤害一次 |
 | `Collision Box Extent` | 碰撞盒半径 | 越大越容易命中，也表示范围更大 |
+| `Scale Visual With Collision Extent` | 勾选 | 碰撞范围变大时，月光刃视觉也按比例变大 |
+| `Visual Scale Multiplier` | 默认 `(1,1,1)` | 额外视觉缩放倍率；不改变最终碰撞范围 |
 | `Spawn Offset` | 生成偏移 | X 是玩家前方距离，Z 是高度 |
 
 ## 推荐参数
@@ -47,7 +51,11 @@ Damage = 10
 Speed = 1400
 Max Distance = 800
 Max Hit Count = 2
+Damage Applications Per Target = 1
+Damage Application Interval = 0.25
 Collision Box Extent = (30, 60, 35)
+Scale Visual With Collision Extent = true
+Visual Scale Multiplier = (1, 1, 1)
 Spawn Offset = (80, 0, 45)
 ```
 
@@ -60,7 +68,11 @@ Damage = 20
 Speed = 1400
 Max Distance = 800
 Max Hit Count = 2
+Damage Applications Per Target = 1
+Damage Application Interval = 0.25
 Collision Box Extent = (45, 90, 45)
+Scale Visual With Collision Extent = true
+Visual Scale Multiplier = (1, 1, 1)
 Spawn Offset = (80, 0, 45)
 ```
 
@@ -70,16 +82,21 @@ Spawn Offset = (80, 0, 45)
 Projectile Class = BP_SlashWaveProjectile
 Damage Effect = GE_SlashWaveDamage
 Damage = 10
-Speed = 200
-Max Distance = 200
+Speed = 120
+Max Distance = 120
 Max Hit Count = 0
-Collision Box Extent = (30, 60, 35)
-Spawn Offset = (80, 0, 45)
+Damage Applications Per Target = 3
+Damage Application Interval = 0.25
+Collision Box Extent = (75, 150, 65)
+Scale Visual With Collision Extent = true
+Visual Scale Multiplier = (1, 1, 1)
+Spawn Offset = (100, 0, 45)
 ```
 
 ## 注意事项
 
 - `Max Hit Count = 0` 不是不能命中，而是不限命中目标数量。
-- 同一道月光刃对同一个敌人只会造成一次伤害。
+- 普通月光建议 `Damage Applications Per Target = 1`；反向连携巨大月光建议填 `3`。
+- `Collision Box Extent` 是最终碰撞范围；勾选 `Scale Visual With Collision Extent` 后，视觉会跟着范围比例变化，不需要再手动放大 BP。
 - 如果贴脸攻击看不到弹道，增大 `Spawn Offset.X`。
 - 如果月光刃太容易打中，降低 `Collision Box Extent.Y`。

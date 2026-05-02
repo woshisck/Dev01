@@ -83,6 +83,11 @@ struct DEVKIT_API FRoomDifficultyTier
         meta = (ClampMin = "0"))
     int32 MaxEnemiesPerWave = 0;
 
+    // 本关最多计划刷出的敌人数（0 = 不限制）。小房间建议 10，大房间建议 20。
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty",
+        meta = (ClampMin = "0"))
+    int32 MaxEnemiesPerLevel = 0;
+
     // ---- 关卡奖励（按档位配置，难度越高奖励越丰厚）----
 
     // 关卡结算金币范围

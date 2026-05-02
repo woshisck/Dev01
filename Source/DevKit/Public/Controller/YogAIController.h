@@ -6,6 +6,7 @@
 #include "ModularAIController.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "Data/EnemyData.h"
 #include "YogAIController.generated.h"
 
 /**
@@ -18,7 +19,7 @@ class DEVKIT_API AYogAIController : public AModularAIController
 	GENERATED_BODY()
 	
 public:
-	AYogAIController();
+	AYogAIController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void OnPossess(APawn* InPawn) override;
 
@@ -50,4 +51,19 @@ public:
 	/** 蓝图可调：手动启动 BT，使用指定 BB 兜底（不依赖 BT 内置 BlackboardAsset） */
 	UFUNCTION(BlueprintCallable, Category = "AI")
 	bool RunBTWithBlackboard(class UBehaviorTree* BT, class UBlackboardData* BB);
+
+	bool UpdateCombatMoveBlackboard(
+		UBlackboardComponent* InBlackboard,
+		FName TargetActorKeyName,
+		FName MoveTargetLocationKeyName,
+		FName DistanceToTargetKeyName,
+		FName bInAttackRangeKeyName,
+		FName AcceptanceRadiusKeyName);
+
+	void ApplyCrowdTuningFromEnemyData();
+
+	UEnemyData* GetPossessedEnemyData() const;
+
+private:
+	FVector ComputeCombatMoveTarget(const AActor& TargetActor, const FEnemyAIMovementTuning& Tuning) const;
 };
