@@ -166,7 +166,8 @@ const UGameplayAbilityComboGraphNode* UGameplayAbilityComboGraph::FindChildCombo
 
 		for (UGenericGraphNode* ChildNode : ParentComboNode->ChildrenNodes)
 		{
-			const UGameplayAbilityComboGraphEdge* Edge = Cast<UGameplayAbilityComboGraphEdge>(ParentComboNode->GetEdge(ChildNode));
+			UGenericGraphEdge* const* EdgePtr = ParentComboNode->Edges.Find(ChildNode);
+			const UGameplayAbilityComboGraphEdge* Edge = EdgePtr ? Cast<UGameplayAbilityComboGraphEdge>(*EdgePtr) : nullptr;
 			const UGameplayAbilityComboGraphNode* ChildComboNode = Cast<UGameplayAbilityComboGraphNode>(ChildNode);
 			if (ChildComboNode && Edge && DoesInputMatch(Edge->InputAction, InputAction))
 			{
