@@ -16,6 +16,13 @@ namespace
 	{
 		return Object ? FName(*Object->GetName()) : NAME_None;
 	}
+
+	FName GetRuntimeNodeId(const UGameplayAbilityComboGraphNode* Node)
+	{
+		return Node && !Node->NodeId.IsNone()
+			? Node->NodeId
+			: MakeStableNodeId(Node);
+	}
 }
 
 UGameplayAbilityComboGraphNode::UGameplayAbilityComboGraphNode()
@@ -51,7 +58,7 @@ FGameplayTag UGameplayAbilityComboGraphNode::ResolveAbilityTag() const
 FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(ECardRequiredAction InputAction) const
 {
 	FWeaponComboNodeConfig Config;
-	Config.NodeId = NodeId.IsNone() ? MakeStableNodeId(this) : NodeId;
+	Config.NodeId = GetRuntimeNodeId(this);
 	Config.InputAction = InputAction;
 	Config.AbilityTag = ResolveAbilityTag();
 	Config.MontageConfig = MontageConfig;
@@ -64,6 +71,22 @@ FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(ECardR
 	Config.ComboWindowTotalFrames = ComboWindowTotalFrames;
 	Config.CardTriggerTiming = CardTriggerTiming;
 	return Config;
+}
+
+FText UGameplayAbilityComboGraphNode::GetDescription_Implementation() const
+{
+	const FName RuntimeNodeId = GetRuntimeNodeId(this);
+	const FGameplayTag AbilityTag = ResolveAbilityTag();
+	const FString MontageName = GetNameSafe(MontageConfig);
+	return FText::FromString(FString::Printf(
+		TEXT("Node=%s\nAbility=%s\nMontage=%s\nComboWindow=%s [%d-%d / %d]"),
+		*RuntimeNodeId.ToString(),
+		AbilityTag.IsValid() ? *AbilityTag.ToString() : TEXT("None"),
+		MontageConfig ? *MontageName : TEXT("None"),
+		bUseNodeComboWindow ? TEXT("Node") : TEXT("Montage Notify"),
+		ComboWindowStartFrame,
+		ComboWindowEndFrame,
+		ComboWindowTotalFrames));
 }
 
 #if WITH_EDITOR
@@ -156,9 +179,7 @@ const UGameplayAbilityComboGraphNode* UGameplayAbilityComboGraph::FindChildCombo
 	for (const UGenericGraphNode* Node : AllNodes)
 	{
 		const UGameplayAbilityComboGraphNode* ParentComboNode = Cast<UGameplayAbilityComboGraphNode>(Node);
-		const FName CandidateId = ParentComboNode && !ParentComboNode->NodeId.IsNone()
-			? ParentComboNode->NodeId
-			: MakeStableNodeId(ParentComboNode);
+		const FName CandidateId = GetRuntimeNodeId(ParentComboNode);
 		if (!ParentComboNode || CandidateId != ParentNodeId)
 		{
 			continue;
@@ -184,6 +205,8 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 	OutWarnings.Reset();
 
 	TSet<FName> SeenNodeIds;
+	TMap<uint8, FName> RootInputs;
+	TMap<FString, FName> ChildInputsByParent;
 	for (const UGenericGraphNode* Node : AllNodes)
 	{
 		const UGameplayAbilityComboGraphNode* ComboNode = Cast<UGameplayAbilityComboGraphNode>(Node);
@@ -193,7 +216,7 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 			continue;
 		}
 
-		const FName RuntimeNodeId = ComboNode->NodeId.IsNone() ? MakeStableNodeId(ComboNode) : ComboNode->NodeId;
+		const FName RuntimeNodeId = GetRuntimeNodeId(ComboNode);
 		if (RuntimeNodeId.IsNone())
 		{
 			OutWarnings.Add(LOCTEXT("MissingNodeId", "Combo node has no runtime node id."));
@@ -222,6 +245,55 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 		if (ComboNode->bUseNodeComboWindow && ComboNode->ComboWindowEndFrame < ComboNode->ComboWindowStartFrame)
 		{
 			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has ComboWindowEndFrame before ComboWindowStartFrame."), *RuntimeNodeId.ToString())));
+		}
+
+		if (ComboNode->bUseNodeComboWindow && ComboNode->ComboWindowEndFrame > ComboNode->ComboWindowTotalFrames)
+		{
+			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has ComboWindowEndFrame after ComboWindowTotalFrames."), *RuntimeNodeId.ToString())));
+		}
+
+		if (ComboNode->ParentNodes.IsEmpty())
+		{
+			const uint8 RootInputKey = static_cast<uint8>(ComboNode->RootInputAction);
+			if (const FName* ExistingRoot = RootInputs.Find(RootInputKey))
+			{
+				OutWarnings.Add(FText::FromString(FString::Printf(
+					TEXT("Root nodes %s and %s use the same RootInputAction."),
+					*ExistingRoot->ToString(),
+					*RuntimeNodeId.ToString())));
+			}
+			else
+			{
+				RootInputs.Add(RootInputKey, RuntimeNodeId);
+			}
+		}
+
+		for (const UGenericGraphNode* ChildNode : ComboNode->ChildrenNodes)
+		{
+			const UGameplayAbilityComboGraphNode* ChildComboNode = Cast<UGameplayAbilityComboGraphNode>(ChildNode);
+			const UGenericGraphEdge* const* EdgePtr = ComboNode->Edges.Find(const_cast<UGenericGraphNode*>(ChildNode));
+			const UGameplayAbilityComboGraphEdge* ComboEdge = EdgePtr ? Cast<UGameplayAbilityComboGraphEdge>(*EdgePtr) : nullptr;
+			if (!ChildComboNode || !ComboEdge)
+			{
+				OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has a child connection without a combo edge."), *RuntimeNodeId.ToString())));
+				continue;
+			}
+
+			const FString ChildInputKey = FString::Printf(TEXT("%s:%d"), *RuntimeNodeId.ToString(), static_cast<int32>(ComboEdge->InputAction));
+			const FName ChildNodeId = GetRuntimeNodeId(ChildComboNode);
+			if (const FName* ExistingChild = ChildInputsByParent.Find(ChildInputKey))
+			{
+				OutWarnings.Add(FText::FromString(FString::Printf(
+					TEXT("Node %s has multiple children for input %s: %s and %s."),
+					*RuntimeNodeId.ToString(),
+					*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(ComboEdge->InputAction)),
+					*ExistingChild->ToString(),
+					*ChildNodeId.ToString())));
+			}
+			else
+			{
+				ChildInputsByParent.Add(ChildInputKey, ChildNodeId);
+			}
 		}
 	}
 }

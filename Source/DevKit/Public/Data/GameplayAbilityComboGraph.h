@@ -55,13 +55,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (EditCondition = "bUseNodeComboWindow", ClampMin = "1"))
 	int32 ComboWindowTotalFrames = 30;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card", meta = (AdvancedDisplay))
 	ECombatCardTriggerTiming CardTriggerTiming = ECombatCardTriggerTiming::OnCommit;
 
 	UFUNCTION(BlueprintPure, Category = "Combo")
 	FGameplayTag ResolveAbilityTag() const;
 
 	FWeaponComboNodeConfig BuildRuntimeConfig(ECardRequiredAction InputAction) const;
+	virtual FText GetDescription_Implementation() const override;
 
 #if WITH_EDITOR
 	virtual FText GetNodeTitle() const override;

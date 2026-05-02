@@ -123,6 +123,9 @@ private:
 	FTimerHandle ComboWindowOpenTimerHandle;
 	FTimerHandle ComboWindowCloseTimerHandle;
 
+	UPROPERTY()
+	FCombatCardResolveResult ActiveCombatCardResult;
+
 	FGuid ActiveAttackGuid;
 	int32 ActiveComboIndex = 0;
 	FGameplayTagContainer ActiveComboTags;

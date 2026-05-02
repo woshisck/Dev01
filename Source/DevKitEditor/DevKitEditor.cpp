@@ -3,6 +3,11 @@
 #include "DevKitEditor.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
+#include "IAssetTypeActions.h"
+#include "PropertyEditorModule.h"
+#include "ComboGraph/AssetTypeActions_GameplayAbilityComboGraph.h"
 #include "DevKitEditor/Util/YogEntryCustomization.h"
 
 #define LOCTEXT_NAMESPACE "DevKitEditor"
@@ -18,6 +23,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomPropertyTypeLayout("ShopEntry", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FYogEntryCustomization::MakeInstance));
 
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		const EAssetTypeCategories::Type CombatCategory = AssetTools.RegisterAdvancedAssetCategory(
+			TEXT("DevKitCombat"),
+			LOCTEXT("DevKitCombatAssetCategory", "DevKit Combat"));
+		RegisterAssetTypeAction(AssetTools, MakeShared<FAssetTypeActions_GameplayAbilityComboGraph>(CombatCategory));
 	}
 
 
@@ -36,9 +46,30 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			PropertyEditorModule->UnregisterCustomPropertyTypeLayout(TEXT("ActionData"));
 		}
 
+		if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
+		{
+			IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
+			for (const TSharedPtr<IAssetTypeActions>& Action : RegisteredAssetTypeActions)
+			{
+				if (Action.IsValid())
+				{
+					AssetTools.UnregisterAssetTypeActions(Action.ToSharedRef());
+				}
+			}
+		}
+		RegisteredAssetTypeActions.Reset();
 	}
 
 	void OnMapOpened(const FString& Filename, bool bAsTemplate);
+
+	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
+	{
+		AssetTools.RegisterAssetTypeActions(Action);
+		RegisteredAssetTypeActions.Add(Action);
+	}
+
+private:
+	TArray<TSharedPtr<IAssetTypeActions>> RegisteredAssetTypeActions;
 };
 
 

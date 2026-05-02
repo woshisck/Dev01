@@ -5,6 +5,7 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
 #include "Data/AbilityData.h"
+#include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/MontageConfigDA.h"
 #include "Data/WeaponComboConfigDA.h"
@@ -351,6 +352,82 @@ bool FWeaponComboConfigRoutesMixedFinisherTest::RunTest(const FString& Parameter
 	TestNotNull(TEXT("Heavy after L-L selects independent finisher node"), Finisher);
 	TestEqual(TEXT("Finisher node is L2H"), Finisher ? Finisher->NodeId : NAME_None, FName(TEXT("L2H")));
 	TestTrue(TEXT("L-L-H node is marked as finisher"), Finisher && Finisher->bIsComboFinisher);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphBuildsRuntimeWindowTest,
+	"DevKit.CombatDeck.ComboGraphBuildsRuntimeWindowConfig",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& Parameters)
+{
+	UGameplayAbilityComboGraphNode* Node = NewObject<UGameplayAbilityComboGraphNode>();
+	Node->NodeId = TEXT("L2H");
+	Node->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"));
+	Node->bUseNodeComboWindow = true;
+	Node->ComboWindowStartFrame = 12;
+	Node->ComboWindowEndFrame = 20;
+	Node->ComboWindowTotalFrames = 30;
+
+	const FWeaponComboNodeConfig RuntimeConfig = Node->BuildRuntimeConfig(ECardRequiredAction::Heavy);
+
+	TestEqual(TEXT("Graph node exports its NodeId"), RuntimeConfig.NodeId, FName(TEXT("L2H")));
+	TestEqual(TEXT("Graph edge input becomes runtime input"), RuntimeConfig.InputAction, ECardRequiredAction::Heavy);
+	TestTrue(TEXT("Graph node enables runtime combo window override"), RuntimeConfig.bOverrideComboWindow);
+	TestEqual(TEXT("Combo window start frame is exported"), RuntimeConfig.ComboWindowStartFrame, 12);
+	TestEqual(TEXT("Combo window end frame is exported"), RuntimeConfig.ComboWindowEndFrame, 20);
+	TestEqual(TEXT("Combo window total frames is exported"), RuntimeConfig.ComboWindowTotalFrames, 30);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphWarnsDuplicateChildInputTest,
+	"DevKit.CombatDeck.ComboGraphWarnsDuplicateChildInput",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGameplayAbilityComboGraphWarnsDuplicateChildInputTest::RunTest(const FString& Parameters)
+{
+	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
+	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
+	UGameplayAbilityComboGraphNode* FirstChild = NewObject<UGameplayAbilityComboGraphNode>(Graph);
+	UGameplayAbilityComboGraphNode* SecondChild = NewObject<UGameplayAbilityComboGraphNode>(Graph);
+	UGameplayAbilityComboGraphEdge* FirstEdge = NewObject<UGameplayAbilityComboGraphEdge>(Graph);
+	UGameplayAbilityComboGraphEdge* SecondEdge = NewObject<UGameplayAbilityComboGraphEdge>(Graph);
+
+	Root->Graph = Graph;
+	Root->NodeId = TEXT("Root");
+	Root->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo1"));
+	Root->MontageConfig = NewObject<UMontageConfigDA>(Graph);
+
+	FirstChild->Graph = Graph;
+	FirstChild->NodeId = TEXT("LightA");
+	FirstChild->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo2"));
+	FirstChild->MontageConfig = NewObject<UMontageConfigDA>(Graph);
+
+	SecondChild->Graph = Graph;
+	SecondChild->NodeId = TEXT("LightB");
+	SecondChild->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo3"));
+	SecondChild->MontageConfig = NewObject<UMontageConfigDA>(Graph);
+
+	FirstEdge->InputAction = ECardRequiredAction::Light;
+	SecondEdge->InputAction = ECardRequiredAction::Light;
+	Root->ChildrenNodes = { FirstChild, SecondChild };
+	FirstChild->ParentNodes = { Root };
+	SecondChild->ParentNodes = { Root };
+	Root->Edges.Add(FirstChild, FirstEdge);
+	Root->Edges.Add(SecondChild, SecondEdge);
+	Graph->AllNodes = { Root, FirstChild, SecondChild };
+	Graph->RootNodes = { Root };
+
+	TArray<FText> Warnings;
+	Graph->ValidateComboGraph(Warnings);
+
+	const bool bHasDuplicateInputWarning = Warnings.ContainsByPredicate([](const FText& Warning)
+	{
+		return Warning.ToString().Contains(TEXT("multiple children for input"));
+	});
+	TestTrue(TEXT("Graph validation reports duplicate child input under the same parent"), bHasDuplicateInputWarning);
 
 	return true;
 }

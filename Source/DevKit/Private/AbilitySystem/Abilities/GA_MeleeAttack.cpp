@@ -126,6 +126,10 @@ void UGA_MeleeAttack::SetNextActivationFromDashSave(bool bFromDashSave)
 FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTiming TriggerTiming)
 {
 	FCombatCardResolveResult EmptyResult;
+	if (bCombatDeckCardResolvedThisActivation)
+	{
+		return EmptyResult;
+	}
 
 	APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
 	if (!PlayerOwner)
@@ -150,7 +154,7 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 	Context.bExitedComboState = bExitedComboState;
 	Context.bFromDashSave = bCombatDeckFromDashSave;
 	Context.TriggerTiming = TriggerTiming;
-	Context.AttackInstanceGuid = FGuid::NewGuid();
+	Context.AttackInstanceGuid = ActiveAttackGuid.IsValid() ? ActiveAttackGuid : FGuid::NewGuid();
 	if (!Context.AbilityTag.IsValid())
 	{
 		for (const FGameplayTag& Tag : AbilityTags)
@@ -164,6 +168,7 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 	if (Result.bHadCard)
 	{
 		bCombatDeckCardResolvedThisActivation = true;
+		ActiveCombatCardResult = Result;
 	}
 	return Result;
 }
@@ -171,6 +176,75 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 void UGA_MeleeAttack::TryResolveCombatDeckOnHit()
 {
 	ResolveCombatDeck(ECombatCardTriggerTiming::OnHit);
+}
+
+void UGA_MeleeAttack::ScheduleNodeComboWindow(UAnimMontage* Montage, float PlayRate)
+{
+	if (!bActiveComboNodeValid || !ActiveComboNode.bOverrideComboWindow || !Montage)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const int32 TotalFrames = FMath::Max(1, ActiveComboNode.ComboWindowTotalFrames);
+	const float SafePlayRate = FMath::Max(0.01f, PlayRate);
+	const float MontageDuration = Montage->GetPlayLength() / SafePlayRate;
+	const float OpenDelay = FMath::Clamp(static_cast<float>(ActiveComboNode.ComboWindowStartFrame) / static_cast<float>(TotalFrames), 0.f, 1.f) * MontageDuration;
+	const float CloseDelay = FMath::Clamp(static_cast<float>(ActiveComboNode.ComboWindowEndFrame) / static_cast<float>(TotalFrames), 0.f, 1.f) * MontageDuration;
+
+	World->GetTimerManager().ClearTimer(ComboWindowOpenTimerHandle);
+	World->GetTimerManager().ClearTimer(ComboWindowCloseTimerHandle);
+
+	if (OpenDelay <= KINDA_SMALL_NUMBER)
+	{
+		OpenNodeComboWindow();
+	}
+	else
+	{
+		World->GetTimerManager().SetTimer(ComboWindowOpenTimerHandle, this, &UGA_MeleeAttack::OpenNodeComboWindow, OpenDelay, false);
+	}
+
+	if (CloseDelay <= KINDA_SMALL_NUMBER)
+	{
+		CloseNodeComboWindow();
+	}
+	else
+	{
+		World->GetTimerManager().SetTimer(ComboWindowCloseTimerHandle, this, &UGA_MeleeAttack::CloseNodeComboWindow, FMath::Max(OpenDelay, CloseDelay), false);
+	}
+}
+
+void UGA_MeleeAttack::OpenNodeComboWindow()
+{
+	if (!bActiveComboNodeValid || !ActiveComboNode.bOverrideComboWindow)
+	{
+		return;
+	}
+
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+		ASC->SetLooseGameplayTagCount(CanComboTag, 1);
+	}
+}
+
+void UGA_MeleeAttack::CloseNodeComboWindow()
+{
+	if (!bActiveComboNodeValid || !ActiveComboNode.bOverrideComboWindow)
+	{
+		return;
+	}
+
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+		ASC->SetLooseGameplayTagCount(CanComboTag, 0);
+	}
 }
 
 void UGA_MeleeAttack::ActivateAbility(
@@ -191,6 +265,7 @@ void UGA_MeleeAttack::ActivateAbility(
 	LocalPreStatBeforeAttackPower = 0.f;
 	LocalStatBeforeAttackDelta = 0.f;
 	LocalStatBeforeAttackPowerDelta = 0.f;
+	ActiveCombatCardResult = FCombatCardResolveResult();
 	ActiveComboNode = FWeaponComboNodeConfig();
 	ActiveComboAttackData = nullptr;
 	ActiveAttackGuid.Invalidate();
@@ -347,6 +422,8 @@ void UGA_MeleeAttack::ActivateAbility(
 	}
 
 	// 鐩戝惉 AnimNotify 浼ゅ浜嬩欢锛氬繀椤绘槑纭紶鍏?Tag锛岀┖瀹瑰櫒涓嶄細娉ㄥ唽浠讳綍鐩戝惉
+	ResolveCombatDeck(ECombatCardTriggerTiming::OnCommit);
+
 	FGameplayTagContainer DamageEventTags;
 	DamageEventTags.AddTag(FGameplayTag::RequestGameplayTag(FName("GameplayEffect.DamageType.GeneralAttack")));
 
@@ -381,6 +458,7 @@ void UGA_MeleeAttack::ActivateAbility(
 	Task->EventReceived.AddDynamic(this, &UGA_MeleeAttack::OnEventReceived);
 
 	Task->ReadyForActivation();
+	ScheduleNodeComboWindow(Montage, AttackSpeedRate);
 }
 
 void UGA_MeleeAttack::EndAbility(
@@ -391,6 +469,12 @@ void UGA_MeleeAttack::EndAbility(
 	bool bWasCancelled)
 {
 	UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ComboWindowOpenTimerHandle);
+		World->GetTimerManager().ClearTimer(ComboWindowCloseTimerHandle);
+	}
+	CloseNodeComboWindow();
 
 	// 瀹夊叏娓呯悊锛氭妧鑳界粨鏉熸椂娓呯┖鏈秷璐圭殑鏆傚瓨鏁版嵁锛堣挋澶琚墦鏂湭瑙﹀彂 OnEventReceived 鏃朵繚鎶ょ敤锛?
 	if (AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo()))
@@ -505,6 +589,13 @@ void UGA_MeleeAttack::EndAbility(
 			PlayerOwner->CombatDeckComponent->NotifyComboStateExited();
 			UE_LOG(LogTemp, Warning, TEXT("[CombatDeck] Combo ended without continuation; pending link cleared by %s"), *GetName());
 		}
+
+		if (ActiveCombatCardResult.bHadCard && PlayerOwner->CombatDeckComponent)
+		{
+			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.ConsumedCard);
+			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedSourceCard);
+			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedTargetCard);
+		}
 	}
 
 	CachedDamageNotify    = nullptr;
@@ -521,6 +612,7 @@ void UGA_MeleeAttack::EndAbility(
 	LocalPreStatBeforeAttackPower = 0.f;
 	LocalStatBeforeAttackDelta = 0.f;
 	LocalStatBeforeAttackPowerDelta = 0.f;
+	ActiveCombatCardResult = FCombatCardResolveResult();
 	ActiveAttackGuid.Invalidate();
 	ActiveComboIndex = 0;
 	ActiveComboTags.Reset();
