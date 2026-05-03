@@ -243,6 +243,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
 	void EnableMovement();
 
+	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
+	void BlockMovementControl();
+
+	UFUNCTION(BlueprintCallable, Category = "Character|Movement")
+	void UnblockMovementControl();
+
 	UFUNCTION(BlueprintCallable, Category = "Character|State")
 	void UpdateCharacterState(EYogCharacterState newState);
 

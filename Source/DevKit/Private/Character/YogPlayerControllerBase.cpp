@@ -434,6 +434,13 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 {
 	if (bBlockGameInput) return;
+	if (const AYogCharacterBase* YogPawn = Cast<AYogCharacterBase>(GetPawn()))
+	{
+		if (!YogPawn->bMovable)
+		{
+			return;
+		}
+	}
 	// Get the movement vector (2D: X = forward/back, Y = right/left)
 	FVector2D Input = Value.Get<FVector2D>();
 	FVector2D Rotated = Input.GetRotated(-45.0f);

@@ -374,7 +374,14 @@ bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputActio
 	AbilityTags.AddTag(NextNode->AbilityTag);
 
 	TArray<FGameplayAbilitySpec*> MatchingSpecs;
-	ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(AbilityTags, MatchingSpecs);
+	ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(AbilityTags, MatchingSpecs, false);
+	if (MatchingSpecs.IsEmpty() && NextNode->GameplayAbilityClass)
+	{
+		if (FGameplayAbilitySpec* ClassSpec = ASC->FindAbilitySpecFromClass(NextNode->GameplayAbilityClass))
+		{
+			MatchingSpecs.Add(ClassSpec);
+		}
+	}
 
 	bool bCancelledPreviousAbilityForTransition = false;
 	if (bFoundChildNode && !bUseDashSavedNode && PreviousAbilitySpecHandle.IsValid() && MatchingSpecs.Num() > 0)
@@ -404,8 +411,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputActio
 			// transition, the previous montage is cancelled before activation, so
 			// preserve CanCombo for old GA RequiredTags on this activation frame.
 			const bool bNeedsTransitionCanCombo =
-				bFoundChildNode &&
-				!bUseDashSavedNode &&
+				(bFoundChildNode || bUseDashSavedNode) &&
 				CanComboTag.IsValid() &&
 				RequiredTag == CanComboTag;
 			if ((IsLegacyComboProgressTag(RequiredTag) || bNeedsTransitionCanCombo) && ASC->GetTagCount(RequiredTag) <= 0)
@@ -421,7 +427,22 @@ bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputActio
 		TrackRuntimeCombatLooseTag(TemporaryTag);
 	}
 
-	const bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags, true);
+	bool bActivated = false;
+	if (!MatchingSpecs.IsEmpty())
+	{
+		for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+		{
+			if (Spec && ASC->TryActivateAbility(Spec->Handle, true))
+			{
+				bActivated = true;
+				break;
+			}
+		}
+	}
+	else
+	{
+		bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags, true);
+	}
 
 	for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
 	{

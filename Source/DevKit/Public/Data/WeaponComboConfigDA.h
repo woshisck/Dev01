@@ -8,6 +8,7 @@
 
 class UMontageAttackDataAsset;
 class UMontageConfigDA;
+class UGameplayAbility;
 
 UENUM(BlueprintType)
 enum class ECombatGraphInputAction : uint8
@@ -42,6 +43,9 @@ struct DEVKIT_API FWeaponComboNodeConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	FGameplayTag AbilityTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo", meta = (AdvancedDisplay))
+	TSubclassOf<UGameplayAbility> GameplayAbilityClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	TObjectPtr<UMontageConfigDA> MontageConfig = nullptr;

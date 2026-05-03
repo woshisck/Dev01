@@ -15,7 +15,41 @@
 #include "Data/StateConflictDataAsset.h"
 #include "DevAssetManager.h"
 
+namespace
+{
+	bool IsDefaultMovementBlockStateTag(const FGameplayTag& Tag)
+	{
+		static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HitReact"), false);
+		static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"), false);
+		static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Knockback"), false);
 
+		return (HitReactTag.IsValid() && Tag.MatchesTagExact(HitReactTag)) ||
+			(DeadTag.IsValid() && Tag.MatchesTagExact(DeadTag)) ||
+			(KnockbackTag.IsValid() && Tag.MatchesTagExact(KnockbackTag));
+	}
+
+	bool IsHitReactStateTag(const FGameplayTag& Tag)
+	{
+		static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HitReact"), false);
+		return HitReactTag.IsValid() && Tag.MatchesTagExact(HitReactTag);
+	}
+
+	bool HasAnyDefaultMovementBlockStateTag(const UAbilitySystemComponent* ASC)
+	{
+		if (!ASC)
+		{
+			return false;
+		}
+
+		static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HitReact"), false);
+		static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"), false);
+		static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Knockback"), false);
+
+		return (HitReactTag.IsValid() && ASC->HasMatchingGameplayTag(HitReactTag)) ||
+			(DeadTag.IsValid() && ASC->HasMatchingGameplayTag(DeadTag)) ||
+			(KnockbackTag.IsValid() && ASC->HasMatchingGameplayTag(KnockbackTag));
+	}
+}
 
 // Sets default values
 UYogAbilitySystemComponent::UYogAbilitySystemComponent(const FObjectInitializer& ObjectInitializer)
@@ -91,21 +125,33 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 	// =========================================================
 	// 阻断分类：Tag 出现/消失时按 BlockCategoryMap 执行对应阻断
 	// =========================================================
-	if (const TArray<FGameplayTag>* Categories = StateToBlockCategories.Find(Tag))
+	const TArray<FGameplayTag>* Categories = StateToBlockCategories.Find(Tag);
+	const bool bDefaultMovementBlockState = IsDefaultMovementBlockStateTag(Tag);
+	if (Categories || bDefaultMovementBlockState)
 	{
+		const int32 CategoryCount = Categories ? Categories->Num() : 0;
 		UE_LOG(LogTemp, Warning, TEXT("[StateConflict] Tag=%s matched %d block categories on %s"),
-			*Tag.ToString(), Categories->Num(), *GetNameSafe(GetOwner()));
+			*Tag.ToString(), CategoryCount, *GetNameSafe(GetOwner()));
 		static const FGameplayTag MovementCategory = FGameplayTag::RequestGameplayTag(TEXT("Block.Movement"));
 		static const FGameplayTag AICategory       = FGameplayTag::RequestGameplayTag(TEXT("Block.AI"));
 
 		AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetOwner());
 
 		// ---- Block.Movement ----
-		if (Owner && Categories->Contains(MovementCategory))
+		const bool bBlocksMovement = bDefaultMovementBlockState || (Categories && Categories->Contains(MovementCategory));
+		if (Owner && bBlocksMovement)
 		{
 			if (TagExists)
 			{
-				Owner->DisableMovement();
+				if (IsHitReactStateTag(Tag))
+				{
+					// HitReact should block player/AI control while still allowing montage root motion.
+					Owner->BlockMovementControl();
+				}
+				else
+				{
+					Owner->DisableMovement();
+				}
 				if (AAIController* AI = Cast<AAIController>(Owner->GetController()))
 					AI->StopMovement();
 			}
@@ -120,13 +166,26 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 						if (HasMatchingGameplayTag(BlockTag)) { bStillBlocked = true; break; }
 					}
 				}
+				if (!bStillBlocked)
+				{
+					bStillBlocked = HasAnyDefaultMovementBlockStateTag(this);
+				}
 				if (!bStillBlocked && Owner->IsAlive())
-					Owner->EnableMovement();
+				{
+					if (IsHitReactStateTag(Tag))
+					{
+						Owner->UnblockMovementControl();
+					}
+					else
+					{
+						Owner->EnableMovement();
+					}
+				}
 			}
 		}
 
 		// ---- Block.AI ----
-		if (Categories->Contains(AICategory))
+		if (Categories && Categories->Contains(AICategory))
 		{
 			AAIController* AI = Owner ? Cast<AAIController>(Owner->GetController()) : nullptr;
 			UE_LOG(LogTemp, Warning, TEXT("[Block.AI] Tag=%s Exists=%d Owner=%s AI=%s"),

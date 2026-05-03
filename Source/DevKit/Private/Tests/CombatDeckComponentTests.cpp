@@ -20,7 +20,9 @@
 #include "Data/MontageConfigDA.h"
 #include "Data/RuneDataAsset.h"
 #include "Data/WeaponComboConfigDA.h"
+#include "Character/YogCharacterBase.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/World.h"
 #include "FlowAsset.h"
 #include "GameplayEffect.h"
@@ -225,6 +227,55 @@ bool FCombatDeckDashSaveConsumeResultTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStateConflictHitReactBlocksMovementControlTest,
+	"DevKit.CombatDeck.HitReactBlocksMovementControlWithoutConfig",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStateConflictHitReactBlocksMovementControlTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for HitReact movement test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	AYogCharacterBase* Character = World->SpawnActor<AYogCharacterBase>();
+	TestNotNull(TEXT("Character spawned for HitReact movement test"), Character);
+	if (!Character)
+	{
+		return false;
+	}
+
+	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(Character->GetAbilitySystemComponent());
+	TestNotNull(TEXT("Character has Yog ASC"), ASC);
+	if (!ASC)
+	{
+		Character->Destroy();
+		return false;
+	}
+
+	ASC->InitAbilityActorInfo(Character, Character);
+	Character->bMovable = true;
+	if (UCharacterMovementComponent* MoveComp = Character->GetCharacterMovement())
+	{
+		MoveComp->SetMovementMode(MOVE_Walking);
+	}
+
+	const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HitReact"));
+	ASC->AddLooseGameplayTag(HitReactTag);
+
+	TestFalse(TEXT("HitReact blocks player/enemy movement control even without StateConflict data config"), Character->bMovable);
+	if (const UCharacterMovementComponent* MoveComp = Character->GetCharacterMovement())
+	{
+		TestTrue(TEXT("HitReact keeps movement mode available for montage root motion"), MoveComp->MovementMode != MOVE_None);
+	}
+
+	Character->Destroy();
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMeleeActionMappingTest,
 	"DevKit.CombatDeck.MeleeAbilitiesMapToCombatDeckActionContext",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -376,6 +427,7 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 {
 	UGameplayAbilityComboGraphNode* Node = NewObject<UGameplayAbilityComboGraphNode>();
 	Node->NodeId = TEXT("L2H");
+	Node->GameplayAbilityClass = UGA_Player_LightAtk2::StaticClass();
 	Node->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"));
 	Node->bUseNodeComboWindow = true;
 	Node->ComboWindowStartFrame = 12;
@@ -386,6 +438,7 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 
 	TestEqual(TEXT("Graph node exports its NodeId"), RuntimeConfig.NodeId, FName(TEXT("L2H")));
 	TestEqual(TEXT("Graph edge input becomes runtime input"), RuntimeConfig.InputAction, ECardRequiredAction::Heavy);
+	TestEqual(TEXT("Graph node exports gameplay ability class fallback"), RuntimeConfig.GameplayAbilityClass, Node->GameplayAbilityClass);
 	TestTrue(TEXT("Graph node enables runtime combo window override"), RuntimeConfig.bOverrideComboWindow);
 	TestEqual(TEXT("Combo window start frame is exported"), RuntimeConfig.ComboWindowStartFrame, 12);
 	TestEqual(TEXT("Combo window end frame is exported"), RuntimeConfig.ComboWindowEndFrame, 20);

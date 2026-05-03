@@ -76,6 +76,7 @@ FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(EComba
 	Config.NodeId = GetRuntimeNodeId(this);
 	Config.InputAction = ToCardAction(InputAction);
 	Config.AbilityTag = ResolveAbilityTag();
+	Config.GameplayAbilityClass = GameplayAbilityClass;
 	Config.MontageConfig = MontageConfig;
 	Config.AttackDataOverride = AttackDataOverride;
 	Config.bIsComboFinisher = bIsComboFinisher;

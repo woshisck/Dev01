@@ -17,7 +17,8 @@
 
 - `RootInputAction`：根节点输入，轻击填 `Light`，重击填 `Heavy`。
 - 边 `InputAction`：从当前节点接到下一节点的输入，填 `Light` / `Heavy`。
-- `GameplayAbilityClass` 或 `AbilityTagOverride`：选择要激活的旧 GA。
+- `GameplayAbilityClass`：选择要激活的旧 GA，推荐填写。
+- `AbilityTagOverride`：需要覆盖 GA 自带 AbilityTag 时填写；运行时会先按 Tag 找 GA，找不到时用 `GameplayAbilityClass` 兜底。
 - `MontageConfig`：选择本节点播放的蒙太奇配置。
 - `AttackDataOverride`：需要覆盖攻击参数时填写。
 - `bIsComboFinisher`：该节点是否是终结击。
@@ -32,6 +33,8 @@
 - GAS BlockTag
 
 这些由运行时自动兼容旧 GA，并在攻击结束、冲刺结束或连击重置时清理。
+
+如果使用旧 `WeaponComboConfigDA` 而不是 Graph，也可以在节点高级字段里填写 `GameplayAbilityClass`。该字段只用于旧 GA 激活兜底，策划正常配置仍以 Graph 节点为主。
 
 ## Dash 节点
 

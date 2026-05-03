@@ -69,6 +69,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	PreviousState = EYogCharacterState::Idle;
 
 	CurrentWeaponState = EWeaponState::Unequipped;
+	bMovable = true;
 
 	UE_LOG(LogTemp, Log, TEXT("Constructor: AbilitySystemComponent = %p"), AbilitySystemComponent.Get());
 
@@ -296,16 +297,11 @@ void AYogCharacterBase::PrintAllGameplayTags(const FGameplayTagContainer& TagCon
 
 void AYogCharacterBase::DisableMovement()
 {
+	BlockMovementControl();
+
 	UYogCharacterMovementComponent* LyraMoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
 	LyraMoveComp->StopMovementImmediately();
 	LyraMoveComp->DisableMovement();
-
-
-	if (Controller)
-	{
-		Controller->SetIgnoreMoveInput(true);
-	}
-
 }
 
 void AYogCharacterBase::EnableMovement()
@@ -313,10 +309,32 @@ void AYogCharacterBase::EnableMovement()
 	UYogCharacterMovementComponent* MoveComp = CastChecked<UYogCharacterMovementComponent>(GetCharacterMovement());
 	MoveComp->SetMovementMode(EMovementMode::MOVE_Walking);
 
+	UnblockMovementControl();
+}
+
+void AYogCharacterBase::BlockMovementControl()
+{
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->StopMovementImmediately();
+	}
+
+	if (Controller)
+	{
+		Controller->SetIgnoreMoveInput(true);
+	}
+
+	UpdateCharacterMovement(false);
+}
+
+void AYogCharacterBase::UnblockMovementControl()
+{
 	if (Controller)
 	{
 		Controller->ResetIgnoreMoveInput();
 	}
+
+	UpdateCharacterMovement(true);
 }
 
 
