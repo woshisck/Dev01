@@ -248,12 +248,14 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	{
 		Buffer->ClearBuffer();
 		bool bActivated = false;
+		bool bHasComboSource = false;
 		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
 		{
-			bActivated = PlayerOwner->ComboRuntimeComponent
+			bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
+			bActivated = bHasComboSource
 				&& PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Light, PlayerOwner);
 		}
-		if (!bActivated)
+		if (!bActivated && !bHasComboSource)
 		{
 			FGameplayTagContainer TagContainer;
 			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.LightAtk")));
@@ -271,12 +273,14 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	{
 		Buffer->ClearBuffer();
 		bool bActivated = false;
+		bool bHasComboSource = false;
 		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
 		{
-			bActivated = PlayerOwner->ComboRuntimeComponent
+			bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
+			bActivated = bHasComboSource
 				&& PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Heavy, PlayerOwner);
 		}
-		if (!bActivated)
+		if (!bActivated && !bHasComboSource)
 		{
 			FGameplayTagContainer TagContainer;
 			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.HeavyAtk")));

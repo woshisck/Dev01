@@ -7,6 +7,7 @@
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "Data/RuneDataAsset.h"
 #include "GameFramework/ForceFeedbackEffect.h"
+#include "Containers/Ticker.h"
 
 #include "PlayerCharacterBase.generated.h"
 
@@ -28,6 +29,8 @@ class UBuffFlowComponent;
 class USkillChargeComponent;
 class UWeaponDefinition;
 class USacrificeGraceDA;
+class UYogAbilitySystemComponent;
+class UDamageEdgeFlashWidget;
 UENUM()
 enum class EPlayerState : uint8
 {
@@ -53,6 +56,7 @@ class DEVKIT_API APlayerCharacterBase : public AYogCharacterBase
 public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void OnRep_PlayerState() override;
 
 
@@ -139,6 +143,51 @@ public:
 	/** 炫彩强度（玩家边缘 Fresnel 极强处的彩虹光，0=关闭，推荐 0.2–0.35） */
 	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0", ClampMax = "1"))
 	float GlowIridIntensity = 0.28f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback")
+	bool bEnableDamageReceivedFeedback = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Screen")
+	FLinearColor DamageScreenFlashColor = FLinearColor(1.f, 0.f, 0.f, 1.f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Screen", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float DamageScreenFlashAlpha = 0.28f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Screen", meta = (ClampMin = "0.01"))
+	float DamageScreenFlashDuration = 0.12f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Screen", meta = (ClampMin = "1.0"))
+	float DamageScreenEdgeThickness = 120.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Player Glow")
+	TObjectPtr<UMaterialInterface> DamagePlayerOverlayMaterial;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Player Glow")
+	FLinearColor DamagePlayerGlowColor = FLinearColor(6.f, 6.f, 6.f, 1.f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Player Glow", meta = (ClampMin = "0.01"))
+	float DamagePlayerGlowDuration = 0.16f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Player Glow", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float DamagePlayerGlowIridIntensity = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Controller")
+	TObjectPtr<UForceFeedbackEffect> DamageReceivedForceFeedback;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Controller", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float DamageDynamicForceFeedbackIntensity = 0.7f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Controller", meta = (ClampMin = "0.0"))
+	float DamageDynamicForceFeedbackDuration = 0.12f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Time Dilation")
+	bool bEnableDamageTimeDilation = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Time Dilation", meta = (ClampMin = "0.01", ClampMax = "1.0"))
+	float DamageTimeDilationScale = 0.08f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Time Dilation", meta = (ClampMin = "0.0"))
+	float DamageTimeDilationDuration = 0.15f;
 
 	UPROPERTY()
 	TObjectPtr<AItemSpawner> OverlappingSpawner;
@@ -228,8 +277,22 @@ private:
 	/** Tick 内逐帧更新材质参数 */
 	void TickPlayerPhaseGlow(float DeltaTime);
 
+	UFUNCTION()
+	void HandleDamageReceivedFeedback(UYogAbilitySystemComponent* SourceASC, float Damage);
+
+	void PlayDamageScreenFlash();
+	void StartDamagePlayerGlow();
+	void TickDamagePlayerGlow(float DeltaTime);
+	void StartDamageTimeDilation();
+	void RestoreDamageTimeDilation();
+
 	int32 CurrentHeatPhase = 0;
 	float PhaseGlowElapsed = -1.f;
+	float DamageGlowElapsed = -1.f;
+	float PreviousDamageGlobalTimeDilation = 1.f;
+	FTSTicker::FDelegateHandle DamageTimeDilationTickerHandle;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> PlayerOverlayDynMat;
+	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> DamageOverlayDynMat;
+	UPROPERTY() TObjectPtr<UDamageEdgeFlashWidget> DamageEdgeFlashWidget;
 
 };

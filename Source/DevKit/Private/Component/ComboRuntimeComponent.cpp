@@ -5,6 +5,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
 #include "Data/GameplayAbilityComboGraph.h"
+#include "Data/MontageConfigDA.h"
 #include "Item/Weapon/WeaponDefinition.h"
 
 namespace
@@ -14,6 +15,53 @@ namespace
 		const FString TagName = Tag.ToString();
 		return TagName.StartsWith(TEXT("PlayerState.AbilityCast.LightAtk.Combo"))
 			|| TagName.StartsWith(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo"));
+	}
+
+	void AddLegacyComboProgressTags(FGameplayTagContainer& OutTags)
+	{
+		static const FName KnownComboTagNames[] = {
+			TEXT("PlayerState.AbilityCast.LightAtk.Combo1"),
+			TEXT("PlayerState.AbilityCast.LightAtk.Combo2"),
+			TEXT("PlayerState.AbilityCast.LightAtk.Combo3"),
+			TEXT("PlayerState.AbilityCast.LightAtk.Combo4"),
+			TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1"),
+			TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"),
+			TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3"),
+			TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"),
+		};
+
+		for (const FName& TagName : KnownComboTagNames)
+		{
+			const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+			if (Tag.IsValid())
+			{
+				OutTags.AddTag(Tag);
+			}
+		}
+	}
+
+	void ClearComboWindowAndProgressLooseTags(UAbilitySystemComponent* ASC)
+	{
+		if (!ASC)
+		{
+			return;
+		}
+
+		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
+		if (CanComboTag.IsValid())
+		{
+			ASC->SetLooseGameplayTagCount(CanComboTag, 0);
+		}
+
+		FGameplayTagContainer ProgressTags;
+		AddLegacyComboProgressTags(ProgressTags);
+		for (const FGameplayTag& Tag : ProgressTags)
+		{
+			if (ASC->GetTagCount(Tag) > 0)
+			{
+				ASC->SetLooseGameplayTagCount(Tag, 0);
+			}
+		}
 	}
 }
 
@@ -106,6 +154,12 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 
 	if (!NextNode || !NextNode->AbilityTag.IsValid())
 	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[ComboRuntime] No combo node for input=%s current=%s graph=%s config=%s"),
+			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
+			*CurrentNodeId.ToString(),
+			*GetNameSafe(ComboGraph),
+			*GetNameSafe(ComboConfig));
 		if (!CurrentNodeId.IsNone() && PlayerOwner->CombatDeckComponent)
 		{
 			PlayerOwner->CombatDeckComponent->NotifyComboStateExited();
@@ -124,6 +178,19 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	bComboContinued = bFoundChildNode || bUseDashSavedNode;
 	bExitedComboState = !CurrentNodeId.IsNone() && !bFoundChildNode && !bUseDashSavedNode;
 	ActiveAttackGuid = FGuid::NewGuid();
+
+	const bool bRestartingFromRoot = bExitedComboState;
+	if (bRestartingFromRoot)
+	{
+		FGameplayTagContainer TagsToCancel;
+		AddLegacyComboProgressTags(TagsToCancel);
+		if (ActiveNode.AbilityTag.IsValid())
+		{
+			TagsToCancel.AddTag(ActiveNode.AbilityTag);
+		}
+		ASC->CancelAbilities(&TagsToCancel);
+		ClearComboWindowAndProgressLooseTags(ASC);
+	}
 
 	FGameplayTagContainer AbilityTags;
 	AbilityTags.AddTag(NextNode->AbilityTag);
@@ -171,6 +238,13 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 
 	if (!bActivated)
 	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[ComboRuntime] Failed to activate node=%s ability=%s input=%s current=%s montageConfig=%s"),
+			*NextNode->NodeId.ToString(),
+			*NextNode->AbilityTag.ToString(),
+			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
+			*CurrentNodeId.ToString(),
+			*GetNameSafe(NextNode->MontageConfig.Get()));
 		bActiveNodeValid = false;
 		ActiveNode = FWeaponComboNodeConfig();
 		ActiveAttackGuid.Invalidate();

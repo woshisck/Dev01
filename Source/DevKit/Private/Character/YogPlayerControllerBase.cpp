@@ -308,8 +308,9 @@ void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 	if (bBlockGameInput) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
-		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Light, player))
+		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasComboSource())
 		{
+			player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Light, player);
 			player->GetInputBufferComponent()->RecordLightAttack();
 			return;
 		}
@@ -328,8 +329,9 @@ void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 	if (bBlockGameInput) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
-		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Heavy, player))
+		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasComboSource())
 		{
+			player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Heavy, player);
 			player->GetInputBufferComponent()->RecordHeavyAttack();
 			return;
 		}

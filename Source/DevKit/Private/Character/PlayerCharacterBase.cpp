@@ -3,6 +3,7 @@
 
 #include "Character/PlayerCharacterBase.h"
 #include "UI/BackpackStyleDataAsset.h"
+#include "UI/DamageEdgeFlashWidget.h"
 #include "Character/YogCharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Item/ItemInstance.h"
@@ -27,7 +28,9 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "System/YogGameInstanceBase.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "GameFramework/PlayerController.h"
 #include "GameModes/YogGameMode.h"
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
@@ -279,6 +282,11 @@ void APlayerCharacterBase::BeginPlay()
 	}
 
 	// 初始化技能充能系统
+	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
+	{
+		YogASC->ReceivedDamage.AddUniqueDynamic(this, &APlayerCharacterBase::HandleDamageReceivedFeedback);
+	}
+
 	if (SkillChargeComponent && GetAbilitySystemComponent() && PlayerAttributeSet)
 	{
 		SkillChargeComponent->InitWithASC(GetAbilitySystemComponent());
@@ -334,10 +342,211 @@ void APlayerCharacterBase::BeginPlay()
 	//}
 }
 
+void APlayerCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
+	{
+		YogASC->ReceivedDamage.RemoveDynamic(this, &APlayerCharacterBase::HandleDamageReceivedFeedback);
+	}
+
+	RestoreDamageTimeDilation();
+	Super::EndPlay(EndPlayReason);
+}
+
 void APlayerCharacterBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	TickPlayerPhaseGlow(DeltaSeconds);
+	if (DamageGlowElapsed >= 0.f)
+	{
+		TickDamagePlayerGlow(DeltaSeconds);
+	}
+	else
+	{
+		TickPlayerPhaseGlow(DeltaSeconds);
+	}
+}
+
+void APlayerCharacterBase::HandleDamageReceivedFeedback(UYogAbilitySystemComponent* SourceASC, float Damage)
+{
+	(void)SourceASC;
+
+	if (!bEnableDamageReceivedFeedback || Damage <= 0.f)
+	{
+		return;
+	}
+
+	PlayDamageScreenFlash();
+	StartDamagePlayerGlow();
+
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		if (PC->IsLocalController())
+		{
+			if (DamageReceivedForceFeedback)
+			{
+				PC->ClientPlayForceFeedback(DamageReceivedForceFeedback);
+			}
+			else if (DamageDynamicForceFeedbackIntensity > 0.f && DamageDynamicForceFeedbackDuration > 0.f)
+			{
+				PC->PlayDynamicForceFeedback(
+					DamageDynamicForceFeedbackIntensity,
+					DamageDynamicForceFeedbackDuration,
+					true,
+					true,
+					true,
+					true,
+					EDynamicForceFeedbackAction::Start);
+			}
+		}
+	}
+
+	StartDamageTimeDilation();
+}
+
+void APlayerCharacterBase::PlayDamageScreenFlash()
+{
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC || !PC->IsLocalController())
+	{
+		return;
+	}
+
+	if (!DamageEdgeFlashWidget)
+	{
+		DamageEdgeFlashWidget = CreateWidget<UDamageEdgeFlashWidget>(PC, UDamageEdgeFlashWidget::StaticClass());
+		if (DamageEdgeFlashWidget)
+		{
+			DamageEdgeFlashWidget->AddToViewport(100);
+			DamageEdgeFlashWidget->SetAnchorsInViewport(FAnchors(0.f, 0.f, 1.f, 1.f));
+			DamageEdgeFlashWidget->SetAlignmentInViewport(FVector2D::ZeroVector);
+			DamageEdgeFlashWidget->SetPositionInViewport(FVector2D::ZeroVector, false);
+		}
+	}
+
+	if (DamageEdgeFlashWidget)
+	{
+		DamageEdgeFlashWidget->PlayEdgeFlash(
+			DamageScreenFlashColor,
+			DamageScreenFlashAlpha,
+			DamageScreenFlashDuration,
+			DamageScreenEdgeThickness);
+	}
+}
+
+void APlayerCharacterBase::StartDamagePlayerGlow()
+{
+	UMaterialInterface* OverlayMaterial = DamagePlayerOverlayMaterial.Get();
+	if (!OverlayMaterial)
+	{
+		OverlayMaterial = PhaseUpPlayerOverlayMaterial.Get();
+	}
+	if (!OverlayMaterial || !GetMesh())
+	{
+		return;
+	}
+
+	DamageOverlayDynMat = UMaterialInstanceDynamic::Create(OverlayMaterial, this);
+	if (!DamageOverlayDynMat)
+	{
+		return;
+	}
+
+	DamageOverlayDynMat->SetVectorParameterValue(TEXT("EmissiveColor"), DamagePlayerGlowColor);
+	DamageOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), 1.f);
+	DamageOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), 1.f);
+	DamageOverlayDynMat->SetScalarParameterValue(TEXT("IridIntensity"), DamagePlayerGlowIridIntensity);
+	GetMesh()->SetOverlayMaterial(DamageOverlayDynMat);
+	DamageGlowElapsed = 0.f;
+}
+
+void APlayerCharacterBase::TickDamagePlayerGlow(float DeltaTime)
+{
+	if (DamageGlowElapsed < 0.f)
+	{
+		return;
+	}
+
+	DamageGlowElapsed += DeltaTime;
+	const float Duration = FMath::Max(0.01f, DamagePlayerGlowDuration);
+	const float GlowAlpha = 1.f - FMath::Clamp(DamageGlowElapsed / Duration, 0.f, 1.f);
+
+	if (DamageOverlayDynMat)
+	{
+		DamageOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), 1.f);
+		DamageOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), GlowAlpha);
+	}
+
+	if (DamageGlowElapsed >= Duration)
+	{
+		DamageGlowElapsed = -1.f;
+		if (GetMesh())
+		{
+			if (PhaseGlowElapsed >= 0.f && PlayerOverlayDynMat)
+			{
+				GetMesh()->SetOverlayMaterial(PlayerOverlayDynMat);
+			}
+			else
+			{
+				GetMesh()->SetOverlayMaterial(nullptr);
+			}
+		}
+	}
+}
+
+void APlayerCharacterBase::StartDamageTimeDilation()
+{
+	if (!bEnableDamageTimeDilation || DamageTimeDilationDuration <= 0.f || DamageTimeDilationScale >= 1.f)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	if (DamageTimeDilationTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(DamageTimeDilationTickerHandle);
+		DamageTimeDilationTickerHandle.Reset();
+	}
+	else
+	{
+		PreviousDamageGlobalTimeDilation = UGameplayStatics::GetGlobalTimeDilation(World);
+	}
+
+	UGameplayStatics::SetGlobalTimeDilation(World, DamageTimeDilationScale);
+
+	TWeakObjectPtr<APlayerCharacterBase> WeakThis = this;
+	DamageTimeDilationTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateLambda([WeakThis](float) -> bool
+		{
+			if (WeakThis.IsValid())
+			{
+				WeakThis->RestoreDamageTimeDilation();
+			}
+			return false;
+		}),
+		DamageTimeDilationDuration);
+}
+
+void APlayerCharacterBase::RestoreDamageTimeDilation()
+{
+	const bool bHadActiveDilation = DamageTimeDilationTickerHandle.IsValid();
+	if (bHadActiveDilation)
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(DamageTimeDilationTickerHandle);
+		DamageTimeDilationTickerHandle.Reset();
+	}
+
+	if (bHadActiveDilation)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			UGameplayStatics::SetGlobalTimeDilation(World, PreviousDamageGlobalTimeDilation);
+		}
+	}
 }
 
 void APlayerCharacterBase::RelinkWeaponAnimLayer()
@@ -452,7 +661,10 @@ void APlayerCharacterBase::StartPlayerPhaseGlow(int32 Phase)
 	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), 0.f);
 	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), 1.f);
 	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("IridIntensity"), GlowIridIntensity);
-	GetMesh()->SetOverlayMaterial(PlayerOverlayDynMat);
+	if (DamageGlowElapsed < 0.f)
+	{
+		GetMesh()->SetOverlayMaterial(PlayerOverlayDynMat);
+	}
 	PhaseGlowElapsed = 0.f;
 }
 
