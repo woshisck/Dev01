@@ -12,6 +12,7 @@
 #include "EnemyData.generated.h"
 
 class AEnemyCharacterBase;
+class AActor;
 class URuneDataAsset;
 
 // =========================================================
@@ -57,6 +58,21 @@ enum class EEnemyAIState : uint8
 	Combat UMETA(DisplayName = "Combat"),
 };
 
+UENUM(BlueprintType)
+enum class EEnemyAIAttackMovementMode : uint8
+{
+	None        UMETA(DisplayName = "None"),
+	RadialLunge UMETA(DisplayName = "Radial Lunge"),
+};
+
+UENUM(BlueprintType)
+enum class EEnemyAIAttackRole : uint8
+{
+	CloseMelee      UMETA(DisplayName = "Close Melee"),
+	SpecialMovement UMETA(DisplayName = "Special Movement"),
+	Skill           UMETA(DisplayName = "Skill"),
+};
+
 USTRUCT(BlueprintType)
 struct DEVKIT_API FEnemyAIMovementTuning
 {
@@ -85,6 +101,30 @@ struct DEVKIT_API FEnemyAIMovementTuning
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement", meta = (ClampMin = "0.0"))
 	float CrowdSeparationWeight = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement|Forward Steering")
+	bool bUseForwardSteering = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement|Forward Steering", meta = (ClampMin = "0.0"))
+	float ForwardTurnLeadDistance = 220.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement|Forward Steering", meta = (ClampMin = "0.0"))
+	float MaxTurnYawSpeed = 360.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement|Forward Steering", meta = (ClampMin = "0.0"))
+	float MoveTargetSmoothingSpeed = 8.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement|Forward Steering", meta = (ClampMin = "0.0", ClampMax = "180.0"))
+	float SharpTurnAngle = 120.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement", meta = (ClampMin = "0.0"))
+	float MaxWalkSpeedOverride = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement|Combat Slot", meta = (ClampMin = "0.0"))
+	float CombatSlotLockDuration = 1.2f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement|Combat Slot", meta = (ClampMin = "0.0"))
+	float AttackRangeExitBuffer = 40.f;
 };
 
 USTRUCT(BlueprintType)
@@ -97,6 +137,9 @@ struct DEVKIT_API FEnemyAIAwarenessTuning
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
 	float CombatEnterRadius = 650.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
+	float CombatExitRadius = 1200.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
 	float LoseTargetDelay = 2.0f;
@@ -143,6 +186,30 @@ struct DEVKIT_API FEnemyAIAttackOption
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack")
 	bool bPreAttackFlash = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack")
+	EEnemyAIAttackRole AttackRole = EEnemyAIAttackRole::CloseMelee;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement")
+	EEnemyAIAttackMovementMode AttackMovementMode = EEnemyAIAttackMovementMode::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
+	float LungeStartRange = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
+	float LungeDistance = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
+	float LungeDuration = 0.35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
+	float LungeStopDistance = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
+	float MovementAttackRangeMultiplier = 2.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
+	float MovementAttackCooldown = 10.0f;
 };
 
 USTRUCT(BlueprintType)
@@ -152,6 +219,30 @@ struct DEVKIT_API FEnemyAIAttackProfile
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack")
 	TArray<FEnemyAIAttackOption> Attacks;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Selection", meta = (ClampMin = "0.0"))
+	float RecentAttackMemoryDuration = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Selection", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float RepeatAttackWeightMultiplier = 0.25f;
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FEnemyAIAttackRuntimeContext
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI|Attack")
+	bool bValid = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI|Attack")
+	FEnemyAIAttackOption AttackOption;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI|Attack")
+	TObjectPtr<AActor> TargetActor = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI|Attack")
+	float DistanceToTarget = 0.f;
 };
 
 

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "BehaviorTree/BTTaskNode.h"
 #include "BehaviorTree/BehaviorTreeTypes.h"
+#include "Data/EnemyData.h"
 #include "GameplayTagContainer.h"
 #include "BTTask_EnemyAttackByProfile.generated.h"
 
@@ -17,6 +18,9 @@ class DEVKIT_API UBTTask_EnemyAttackByProfile : public UBTTaskNode
 public:
 	UBTTask_EnemyAttackByProfile();
 
+	void SetRequiredAttackRole(EEnemyAIAttackRole InRole) { RequiredAttackRole = InRole; }
+	EEnemyAIAttackRole GetRequiredAttackRole() const { return RequiredAttackRole; }
+
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult) override;
 	virtual FString GetStaticDescription() const override;
@@ -27,6 +31,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Blackboard")
 	FBlackboardKeySelector DistanceToTargetKey;
+
+	UPROPERTY(EditAnywhere, Category = "Blackboard")
+	FBlackboardKeySelector bInAttackRangeKey;
+
+	UPROPERTY(EditAnywhere, Category = "Attack")
+	EEnemyAIAttackRole RequiredAttackRole = EEnemyAIAttackRole::CloseMelee;
 
 private:
 	struct FAttackCandidate

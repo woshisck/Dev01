@@ -14,6 +14,7 @@ public:
 	UBTService_UpdateEnemyAwareness();
 
 protected:
+	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 
 	UPROPERTY(EditAnywhere, Category = "Blackboard")
@@ -30,4 +31,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Blackboard")
 	FBlackboardKeySelector LastSeenTargetTimeKey;
+
+private:
+	void RefreshAwareness(UBehaviorTreeComponent& OwnerComp) const;
 };

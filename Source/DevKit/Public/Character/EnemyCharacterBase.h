@@ -39,6 +39,10 @@ public:
 
 	void PostInitializeComponents() override;
 
+	void SetAIAttackRuntimeContext(const FEnemyAIAttackOption& AttackOption, AActor* TargetActor, float DistanceToTarget);
+	bool ConsumeAIAttackRuntimeContext(FEnemyAIAttackRuntimeContext& OutContext);
+	void ClearAIAttackRuntimeContext();
+
 protected:
 	UFUNCTION()
 	void OnHealthChangedForDeath(float NewHealth);
@@ -48,6 +52,9 @@ protected:
 	
 	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
+
+	UPROPERTY(Transient)
+	FEnemyAIAttackRuntimeContext PendingAIAttackContext;
 
 
 	friend UEnemyAttributeSet;

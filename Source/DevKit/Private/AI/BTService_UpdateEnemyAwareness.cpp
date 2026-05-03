@@ -10,6 +10,7 @@
 UBTService_UpdateEnemyAwareness::UBTService_UpdateEnemyAwareness()
 {
 	NodeName = TEXT("Update Enemy Awareness");
+	bNotifyBecomeRelevant = true;
 	bNotifyTick = true;
 	Interval = 0.2f;
 	RandomDeviation = 0.05f;
@@ -27,10 +28,20 @@ UBTService_UpdateEnemyAwareness::UBTService_UpdateEnemyAwareness()
 	LastSeenTargetTimeKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_UpdateEnemyAwareness, LastSeenTargetTimeKey));
 }
 
+void UBTService_UpdateEnemyAwareness::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+{
+	Super::OnBecomeRelevant(OwnerComp, NodeMemory);
+	RefreshAwareness(OwnerComp);
+}
+
 void UBTService_UpdateEnemyAwareness::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
 	Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
+	RefreshAwareness(OwnerComp);
+}
 
+void UBTService_UpdateEnemyAwareness::RefreshAwareness(UBehaviorTreeComponent& OwnerComp) const
+{
 	AYogAIController* YogAI = Cast<AYogAIController>(OwnerComp.GetAIOwner());
 	if (!YogAI)
 	{

@@ -3,6 +3,8 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
+#include "Character/EnemyCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
@@ -13,6 +15,7 @@
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/MontageConfigDA.h"
 #include "Data/RuneDataAsset.h"
+#include "GameFramework/Controller.h"
 #include "TimerManager.h"
 #include "UObject/ObjectKey.h"
 
@@ -219,6 +222,72 @@ void UGA_MeleeAttack::ScheduleNodeComboWindow(UAnimMontage* Montage, float PlayR
 	}
 }
 
+void UGA_MeleeAttack::TryStartEnemyRadialLunge()
+{
+	if (!ActiveEnemyAttackContext.bValid
+		|| ActiveEnemyAttackContext.AttackOption.AttackMovementMode != EEnemyAIAttackMovementMode::RadialLunge)
+	{
+		return;
+	}
+
+	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	AActor* TargetActor = ActiveEnemyAttackContext.TargetActor.Get();
+	if (!Character || !TargetActor)
+	{
+		return;
+	}
+
+	const FEnemyAIAttackOption& AttackOption = ActiveEnemyAttackContext.AttackOption;
+	const float CurrentDistance = FVector::Dist2D(Character->GetActorLocation(), TargetActor->GetActorLocation());
+	if (CurrentDistance < AttackOption.LungeStartRange
+		|| AttackOption.LungeDistance <= 0.0f
+		|| AttackOption.LungeDuration <= 0.0f)
+	{
+		return;
+	}
+
+	FVector Direction = TargetActor->GetActorLocation() - Character->GetActorLocation();
+	Direction.Z = 0.0f;
+	if (Direction.IsNearlyZero())
+	{
+		return;
+	}
+
+	Direction = Direction.GetSafeNormal();
+	const FRotator FaceTargetRotation(0.0f, Direction.Rotation().Yaw, 0.0f);
+	Character->SetActorRotation(FaceTargetRotation);
+	if (AController* Controller = Character->GetController())
+	{
+		Controller->SetControlRotation(FaceTargetRotation);
+	}
+
+	const float MaxUsefulDistance = FMath::Max(CurrentDistance - AttackOption.LungeStopDistance, 0.0f);
+	const float MoveDistance = FMath::Min(AttackOption.LungeDistance, MaxUsefulDistance);
+	if (MoveDistance <= 0.0f)
+	{
+		return;
+	}
+
+	const FVector TargetLocation = Character->GetActorLocation() + Direction * MoveDistance;
+	EnemyLungeTask = UAbilityTask_ApplyRootMotionMoveToForce::ApplyRootMotionMoveToForce(
+		this,
+		FName(TEXT("EnemyRadialLunge")),
+		TargetLocation,
+		AttackOption.LungeDuration,
+		false,
+		EMovementMode::MOVE_Walking,
+		true,
+		nullptr,
+		ERootMotionFinishVelocityMode::MaintainLastRootMotionVelocity,
+		FVector::ZeroVector,
+		0.0f);
+
+	if (EnemyLungeTask)
+	{
+		EnemyLungeTask->ReadyForActivation();
+	}
+}
+
 void UGA_MeleeAttack::OpenNodeComboWindow()
 {
 	if (!bActiveComboNodeValid || !ActiveComboNode.bOverrideComboWindow)
@@ -268,6 +337,8 @@ void UGA_MeleeAttack::ActivateAbility(
 	ActiveCombatCardResult = FCombatCardResolveResult();
 	ActiveComboNode = FWeaponComboNodeConfig();
 	ActiveComboAttackData = nullptr;
+	EnemyLungeTask = nullptr;
+	ActiveEnemyAttackContext = FEnemyAIAttackRuntimeContext();
 	ActiveAttackGuid.Invalidate();
 	ActiveComboIndex = 0;
 	ActiveComboTags.Reset();
@@ -285,6 +356,11 @@ void UGA_MeleeAttack::ActivateAbility(
 
 	// Read montage from combo config first, then fall back to the legacy MontageMap.
 	AYogCharacterBase* ActivateOwner = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo());
+	if (AEnemyCharacterBase* EnemyOwner = Cast<AEnemyCharacterBase>(ActivateOwner))
+	{
+		EnemyOwner->ConsumeAIAttackRuntimeContext(ActiveEnemyAttackContext);
+	}
+
 	APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
 	if (!PlayerOwner)
 	{
@@ -457,6 +533,7 @@ void UGA_MeleeAttack::ActivateAbility(
 	Task->OnCancelled.AddDynamic(this, &UGA_MeleeAttack::OnMontageCancelled);
 	Task->EventReceived.AddDynamic(this, &UGA_MeleeAttack::OnEventReceived);
 
+	TryStartEnemyRadialLunge();
 	Task->ReadyForActivation();
 	ScheduleNodeComboWindow(Montage, AttackSpeedRate);
 }
@@ -475,6 +552,12 @@ void UGA_MeleeAttack::EndAbility(
 		World->GetTimerManager().ClearTimer(ComboWindowCloseTimerHandle);
 	}
 	CloseNodeComboWindow();
+
+	if (EnemyLungeTask)
+	{
+		EnemyLungeTask->EndTask();
+		EnemyLungeTask = nullptr;
+	}
 
 	// 瀹夊叏娓呯悊锛氭妧鑳界粨鏉熸椂娓呯┖鏈秷璐圭殑鏆傚瓨鏁版嵁锛堣挋澶琚墦鏂湭瑙﹀彂 OnEventReceived 鏃朵繚鎶ょ敤锛?
 	if (AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo()))
@@ -603,6 +686,7 @@ void UGA_MeleeAttack::EndAbility(
 	ActiveMontageConfig = nullptr;
 	ActiveComboNode = FWeaponComboNodeConfig();
 	ActiveComboAttackData = nullptr;
+	ActiveEnemyAttackContext = FEnemyAIAttackRuntimeContext();
 	bActiveComboNodeValid = false;
 	bComboContinued = true;
 	bExitedComboState = false;

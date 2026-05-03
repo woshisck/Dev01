@@ -4,12 +4,14 @@
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Animation/AN_MeleeDamage.h"
 #include "Component/CombatDeckComponent.h"
+#include "Data/EnemyData.h"
 #include "Data/RuneDataAsset.h"
 #include "Data/WeaponComboConfigDA.h"
 #include "GA_MeleeAttack.generated.h"
 
 class UMontageConfigDA;
 class UMontageAttackDataAsset;
+class UAbilityTask_ApplyRootMotionMoveToForce;
 
 /**
  * 閫氱敤杩戞垬鏀诲嚮 GA锛堟晫浜?+ 鐜╁鍧囧彲浣跨敤锛夈€?
@@ -102,6 +104,12 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMontageAttackDataAsset> ActiveComboAttackData;
 
+	UPROPERTY()
+	TObjectPtr<UAbilityTask_ApplyRootMotionMoveToForce> EnemyLungeTask;
+
+	UPROPERTY()
+	FEnemyAIAttackRuntimeContext ActiveEnemyAttackContext;
+
 	/**
 	 * StatAfterATK 浼樺厛鐢ㄦ鍊硷紙浠ｈ〃鏈€鍚庝竴鍑伙級锛屾湭鍛戒腑杩囨椂 fallback 鍒?CachedDamageNotify銆?
 	 * EventData.OptionalObject 鏄?const UObject*锛屾晠鐢ㄥ師濮?const 鎸囬拡锛汚nimNotify 涓嶅弬涓?GC銆?
@@ -134,6 +142,7 @@ private:
 	static UAN_MeleeDamage* GetFirstDamageNotify(UAnimMontage* Montage);
 
 	void ScheduleNodeComboWindow(UAnimMontage* Montage, float PlayRate);
+	void TryStartEnemyRadialLunge();
 	void OpenNodeComboWindow();
 	void CloseNodeComboWindow();
 

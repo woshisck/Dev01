@@ -12,6 +12,7 @@
 #include "Data/GASTemplate.h"
 #include "GameModes/YogGameMode.h"
 #include "BuffFlow/BuffFlowComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -59,6 +60,10 @@ void AEnemyCharacterBase::BeginPlay()
 		{
 			AbilitySystemComponent->SuperArmorThreshold = ED->SuperArmorThreshold;
 			AbilitySystemComponent->SuperArmorDuration  = ED->SuperArmorDuration;
+			if (ED->MovementTuning.MaxWalkSpeedOverride > 0.0f)
+			{
+				GetCharacterMovement()->MaxWalkSpeed = ED->MovementTuning.MaxWalkSpeedOverride;
+			}
 		}
 	}
 
@@ -83,6 +88,31 @@ bool AEnemyCharacterBase::IsAlive() const
 {
 	if (!AttributeStatsComponent) return true;
 	return AttributeStatsComponent->GetStat_Health() > 0.f;
+}
+
+void AEnemyCharacterBase::SetAIAttackRuntimeContext(const FEnemyAIAttackOption& AttackOption, AActor* TargetActor, float DistanceToTarget)
+{
+	PendingAIAttackContext.bValid = true;
+	PendingAIAttackContext.AttackOption = AttackOption;
+	PendingAIAttackContext.TargetActor = TargetActor;
+	PendingAIAttackContext.DistanceToTarget = DistanceToTarget;
+}
+
+bool AEnemyCharacterBase::ConsumeAIAttackRuntimeContext(FEnemyAIAttackRuntimeContext& OutContext)
+{
+	if (!PendingAIAttackContext.bValid)
+	{
+		return false;
+	}
+
+	OutContext = PendingAIAttackContext;
+	ClearAIAttackRuntimeContext();
+	return true;
+}
+
+void AEnemyCharacterBase::ClearAIAttackRuntimeContext()
+{
+	PendingAIAttackContext = FEnemyAIAttackRuntimeContext();
 }
 
 void AEnemyCharacterBase::OnHealthChangedForDeath(float NewHealth)
