@@ -25,7 +25,7 @@ namespace
 {
 	TAutoConsoleVariable<int32> CVarEnemyMoveSmoothLog(
 		TEXT("DevKit.EnemyAI.MoveSmoothLog"),
-		1,
+		0,
 		TEXT("0=off, 1=summary, 2=summary plus MoveTo requests for enemy movement smoothing diagnostics."));
 
 	TAutoConsoleVariable<float> CVarEnemyMoveSmoothLogInterval(
@@ -50,7 +50,7 @@ namespace
 
 	TAutoConsoleVariable<int32> CVarEnemyAIStateLog(
 		TEXT("DevKit.EnemyAI.StateLog"),
-		1,
+		0,
 		TEXT("0=off, 1=state transitions, 2=state transitions plus awareness samples."));
 
 	TAutoConsoleVariable<float> CVarEnemyAIStateLogInterval(
@@ -60,7 +60,7 @@ namespace
 
 	TAutoConsoleVariable<int32> CVarEnemyMovementAttackLog(
 		TEXT("DevKit.EnemyAI.MovementAttackLog"),
-		1,
+		0,
 		TEXT("0=off, 1=log movement attack cooldown activation, reset, and range gating."));
 
 	const TCHAR* EnemyAIStateToString(EEnemyAIState State)

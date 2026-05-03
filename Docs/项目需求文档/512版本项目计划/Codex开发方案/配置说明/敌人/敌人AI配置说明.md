@@ -311,19 +311,19 @@ DevKit.EnemyAI.MovementAttackLog 1
 - 如果 `PreferredRange` 大于当前有效攻击距离，C++ 会按 `EffectiveAttackRange - AcceptanceRadius` 动态收缩战斗移动停距，避免死亡守卫停在 320 左右但只有 290 扫击范围可用。
 - 前向转弯移动时，`AcceptanceRadius` 仍作为攻击停距/动态停距计算参考，但 `Enemy Combat Move` 的实际 MoveTo 接受半径会临时收缩到约 `30-55`，避免过程引导点被过大的接受半径提前判定 `AlreadyAtGoal`。
 
-可调日志参数：
+敌人 AI 诊断日志默认关闭。需要排查时再临时打开这些参数：
 
 | CVar | 默认 | 用途 |
 |---|---:|---|
-| `DevKit.EnemyAI.MoveSmoothLog` | 1 | 0 关闭；1 输出汇总；2 额外输出每次 MoveTo 请求 |
+| `DevKit.EnemyAI.MoveSmoothLog` | 0 | 0 关闭；1 输出汇总；2 额外输出每次 MoveTo 请求 |
 | `DevKit.EnemyAI.MoveSmoothLogInterval` | 0.35 | 单个 AI 汇总日志间隔 |
 | `DevKit.EnemyAI.MoveSmoothWarnTargetJump` | 140 | `MoveTargetLocation` 单次跳变超过此值时标记 `Unstable` |
 | `DevKit.EnemyAI.MoveSmoothWarnYawDelta` | 75 | 期望转向角过大时标记 `Unstable` |
 | `DevKit.EnemyAI.MoveSmoothWarnYawRate` | 540 | Actor 实际转向角速度过高时标记 `Unstable` |
-| `DevKit.EnemyAI.StateLog` | 1 | 0 关闭；1 输出状态切换；2 额外输出感知采样 |
+| `DevKit.EnemyAI.StateLog` | 0 | 0 关闭；1 输出状态切换；2 额外输出感知采样 |
 | `DevKit.EnemyAI.StateLogInterval` | 0.5 | 单个 AI 感知采样日志间隔 |
-| `DevKit.EnemyAI.AttackDecisionLog` | 1 | 0 关闭；1 输出攻击选择和失败原因 |
-| `DevKit.EnemyAI.MovementAttackLog` | 1 | 0 关闭；1 输出远距位移攻击冷却启动和重置 |
+| `DevKit.EnemyAI.AttackDecisionLog` | 0 | 0 关闭；1 输出攻击选择和失败原因 |
+| `DevKit.EnemyAI.MovementAttackLog` | 0 | 0 关闭；1 输出远距位移攻击冷却启动和重置 |
 
 日志重点看这些字段：
 

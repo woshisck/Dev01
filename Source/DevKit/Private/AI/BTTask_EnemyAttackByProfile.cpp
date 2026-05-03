@@ -24,7 +24,7 @@ namespace
 {
 	TAutoConsoleVariable<int32> CVarEnemyAIAttackDecisionLog(
 		TEXT("DevKit.EnemyAI.AttackDecisionLog"),
-		1,
+		0,
 		TEXT("0=off, 1=attack task failure and selected attack logs."));
 
 	const TCHAR* AttackMovementModeToString(EEnemyAIAttackMovementMode Mode)
