@@ -2,6 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "AbilitySystem/Abilities/GA_PlayMontage.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
 #include "Data/GameplayAbilityComboGraph.h"
@@ -152,7 +153,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 		}
 	}
 
-	if (!NextNode || !NextNode->AbilityTag.IsValid())
+	if (!NextNode || (!NextNode->AbilityTag.IsValid() && !NextNode->MontageConfig))
 	{
 		UE_LOG(LogTemp, Warning,
 			TEXT("[ComboRuntime] No combo node for input=%s current=%s graph=%s config=%s"),
@@ -192,48 +193,57 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 		ClearComboWindowAndProgressLooseTags(ASC);
 	}
 
-	FGameplayTagContainer AbilityTags;
-	AbilityTags.AddTag(NextNode->AbilityTag);
-
-	TArray<FGameplayAbilitySpec*> MatchingSpecs;
-	ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(AbilityTags, MatchingSpecs);
-
-	FGameplayTagContainer TemporaryRequiredTags;
-	for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+	bool bActivated = false;
+	if (NextNode->AbilityTag.IsValid())
 	{
-		if (!Spec || !Spec->Ability)
-		{
-			continue;
-		}
+		FGameplayTagContainer AbilityTags;
+		AbilityTags.AddTag(NextNode->AbilityTag);
 
-		UYogGameplayAbility* YogAbility = Cast<UYogGameplayAbility>(Spec->Ability);
-		if (!YogAbility)
-		{
-			continue;
-		}
+		TArray<FGameplayAbilitySpec*> MatchingSpecs;
+		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(AbilityTags, MatchingSpecs);
 
-		for (const FGameplayTag& RequiredTag : YogAbility->GetActivationRequiredTags())
+		FGameplayTagContainer TemporaryRequiredTags;
+		for (FGameplayAbilitySpec* Spec : MatchingSpecs)
 		{
-			// The config chooses the branch now, so legacy "Light2 requires Light1"
-			// style progress tags are only compatibility gates. CanCombo/weapon/state
-			// requirements still come from the real ASC state.
-			if (IsLegacyComboProgressTag(RequiredTag) && ASC->GetTagCount(RequiredTag) <= 0)
+			if (!Spec || !Spec->Ability)
 			{
-				TemporaryRequiredTags.AddTag(RequiredTag);
+				continue;
+			}
+
+			UYogGameplayAbility* YogAbility = Cast<UYogGameplayAbility>(Spec->Ability);
+			if (!YogAbility)
+			{
+				continue;
+			}
+
+			for (const FGameplayTag& RequiredTag : YogAbility->GetActivationRequiredTags())
+			{
+				// The config chooses the branch now, so legacy "Light2 requires Light1"
+				// style progress tags are only compatibility gates. CanCombo/weapon/state
+				// requirements still come from the real ASC state.
+				if (IsLegacyComboProgressTag(RequiredTag) && ASC->GetTagCount(RequiredTag) <= 0)
+				{
+					TemporaryRequiredTags.AddTag(RequiredTag);
+				}
 			}
 		}
+
+		for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
+		{
+			ASC->AddLooseGameplayTag(TemporaryTag);
+		}
+
+		bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags, true);
+
+		for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
+		{
+			ASC->RemoveLooseGameplayTag(TemporaryTag);
+		}
 	}
-
-	for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
+	else
 	{
-		ASC->AddLooseGameplayTag(TemporaryTag);
-	}
-
-	const bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags, true);
-
-	for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
-	{
-		ASC->RemoveLooseGameplayTag(TemporaryTag);
+		// MontageConfig-only node: GA_PlayMontage reads the montage from the active node directly.
+		bActivated = ASC->TryActivateAbilityByClass(UGA_PlayMontage::StaticClass());
 	}
 
 	if (!bActivated)

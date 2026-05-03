@@ -10,29 +10,56 @@
 #include "Component/BufferComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "Animation/AN_MeleeDamage.h"
+#include "Data/MontageConfigDA.h"
 
 UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
 {
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-    //bRetriggerInstancedAbility = true;
+    bRetriggerInstancedAbility = true;
     //NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
 
 void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+    // On retrigger: silently kill the in-flight task before committing.
+    // EndTask() marks it as garbage so its pending delegate callbacks become no-ops.
+    if (ActivePlayMontageTask)
+    {
+        ActivePlayMontageTask->EndTask();
+        ActivePlayMontageTask = nullptr;
+    }
+
     if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
     {
-
         return;
     }
-   
+
     UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 
     AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
     FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
 
-    UAnimMontage* MontageToPlay = Owner->GetCharacterDataComponent()->GetCharacterData()->AbilityData->GetMontage(ability_tag);
+    // Prefer montage set directly on the active combo graph node; fall back to AbilityData lookup.
+    UAnimMontage* MontageToPlay = nullptr;
+    if (const APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
+    {
+        if (PlayerOwner->ComboRuntimeComponent)
+        {
+            if (const FWeaponComboNodeConfig* ActiveComboNode = PlayerOwner->ComboRuntimeComponent->GetActiveNode())
+            {
+                if (ActiveComboNode->MontageConfig)
+                {
+                    MontageToPlay = ActiveComboNode->MontageConfig->Montage;
+                }
+            }
+        }
+    }
+    if (!MontageToPlay && Owner)
+    {
+        MontageToPlay = Owner->GetCharacterDataComponent()->GetCharacterData()->AbilityData->GetMontage(ability_tag);
+    }
 	// 记录激活时刻，连击缓存只接受此时间之后的输入
 	AbilityActivationTime = GetWorld()->GetTimeSeconds();
 
@@ -95,16 +122,14 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
         UYogTask_PlayMontageAbility* PlayMontageTask = UYogTask_PlayMontageAbility::YogPlayMontageAbility(this, NAME_None, MontageToPlay, FGameplayTagContainer(), 1.0f, NAME_None);
         if (PlayMontageTask)
         {
-            //PlayMontageTask->OnBlendOut.AddDynamic(this, &UGA_PlayMontage::OnMontageBlendOut);
- 
             PlayMontageTask->OnBlendOut.AddDynamic(this, &UGA_PlayMontage::OnMontageBlendOut);
             PlayMontageTask->OnCompleted.AddDynamic(this, &UGA_PlayMontage::OnMontageCompleted);
             PlayMontageTask->OnInterrupted.AddDynamic(this, &UGA_PlayMontage::OnMontageInterrupted);
             PlayMontageTask->OnCancelled.AddDynamic(this, &UGA_PlayMontage::OnMontageCancelled);
             PlayMontageTask->OnEventReceived.AddDynamic(this, &UGA_PlayMontage::OnEventReceived);
-            
+
+            ActivePlayMontageTask = PlayMontageTask;
             PlayMontageTask->ReadyForActivation();
-            //PlayMontageTask->OnEventReceived.AddDynamic(this, &UGA_PlayMontage::OnEventReceived);
         }   
     }
     else
@@ -166,6 +191,7 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
+    ActivePlayMontageTask = nullptr;
 
     // remove related Gameplay Effects and gameplaytags(hardcode)
     if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())

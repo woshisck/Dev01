@@ -227,14 +227,14 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 		}
 		SeenNodeIds.Add(RuntimeNodeId);
 
-		if (!ComboNode->GameplayAbilityClass && !ComboNode->AbilityTagOverride.IsValid())
+		if (!ComboNode->GameplayAbilityClass && !ComboNode->AbilityTagOverride.IsValid() && !ComboNode->MontageConfig)
 		{
-			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no GameplayAbilityClass or AbilityTagOverride."), *RuntimeNodeId.ToString())));
+			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no GameplayAbilityClass, AbilityTagOverride, or MontageConfig."), *RuntimeNodeId.ToString())));
 		}
 
-		if (!ComboNode->ResolveAbilityTag().IsValid())
+		if (!ComboNode->ResolveAbilityTag().IsValid() && !ComboNode->MontageConfig)
 		{
-			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s cannot resolve an ability tag."), *RuntimeNodeId.ToString())));
+			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s cannot resolve an ability tag and has no MontageConfig."), *RuntimeNodeId.ToString())));
 		}
 
 		if (!ComboNode->MontageConfig)

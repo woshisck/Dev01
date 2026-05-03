@@ -6,8 +6,10 @@
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "GA_PlayMontage.generated.h"
 
+class UYogTask_PlayMontageAbility;
+
 /**
- * 
+ *
  */
 UCLASS()
 class DEVKIT_API UGA_PlayMontage : public UYogGameplayAbility
@@ -42,6 +44,9 @@ public:
 
 	UPROPERTY()
 	TArray<FActiveGameplayEffectHandle> ActiveEffectHandles;
+
+	UPROPERTY()
+	TObjectPtr<UYogTask_PlayMontageAbility> ActivePlayMontageTask;
 
 private:
 	// CanCombo tag 变化时的回调，检查输入缓存并触发连击
