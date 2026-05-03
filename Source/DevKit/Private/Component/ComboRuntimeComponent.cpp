@@ -1,7 +1,6 @@
 #include "Component/ComboRuntimeComponent.h"
 
 #include "AbilitySystemComponent.h"
-#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Abilities/GA_PlayMontage.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
@@ -153,7 +152,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 		}
 	}
 
-	if (!NextNode || (!NextNode->AbilityTag.IsValid() && !NextNode->MontageConfig))
+	if (!NextNode || !NextNode->MontageConfig)
 	{
 		UE_LOG(LogTemp, Warning,
 			TEXT("[ComboRuntime] No combo node for input=%s current=%s graph=%s config=%s"),
@@ -180,78 +179,21 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	bExitedComboState = !CurrentNodeId.IsNone() && !bFoundChildNode && !bUseDashSavedNode;
 	ActiveAttackGuid = FGuid::NewGuid();
 
-	const bool bRestartingFromRoot = bExitedComboState;
-	if (bRestartingFromRoot)
+	if (bExitedComboState)
 	{
 		FGameplayTagContainer TagsToCancel;
 		AddLegacyComboProgressTags(TagsToCancel);
-		if (ActiveNode.AbilityTag.IsValid())
-		{
-			TagsToCancel.AddTag(ActiveNode.AbilityTag);
-		}
 		ASC->CancelAbilities(&TagsToCancel);
 		ClearComboWindowAndProgressLooseTags(ASC);
 	}
 
-	bool bActivated = false;
-	if (NextNode->AbilityTag.IsValid())
-	{
-		FGameplayTagContainer AbilityTags;
-		AbilityTags.AddTag(NextNode->AbilityTag);
-
-		TArray<FGameplayAbilitySpec*> MatchingSpecs;
-		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(AbilityTags, MatchingSpecs);
-
-		FGameplayTagContainer TemporaryRequiredTags;
-		for (FGameplayAbilitySpec* Spec : MatchingSpecs)
-		{
-			if (!Spec || !Spec->Ability)
-			{
-				continue;
-			}
-
-			UYogGameplayAbility* YogAbility = Cast<UYogGameplayAbility>(Spec->Ability);
-			if (!YogAbility)
-			{
-				continue;
-			}
-
-			for (const FGameplayTag& RequiredTag : YogAbility->GetActivationRequiredTags())
-			{
-				// The config chooses the branch now, so legacy "Light2 requires Light1"
-				// style progress tags are only compatibility gates. CanCombo/weapon/state
-				// requirements still come from the real ASC state.
-				if (IsLegacyComboProgressTag(RequiredTag) && ASC->GetTagCount(RequiredTag) <= 0)
-				{
-					TemporaryRequiredTags.AddTag(RequiredTag);
-				}
-			}
-		}
-
-		for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
-		{
-			ASC->AddLooseGameplayTag(TemporaryTag);
-		}
-
-		bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags, true);
-
-		for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
-		{
-			ASC->RemoveLooseGameplayTag(TemporaryTag);
-		}
-	}
-	else
-	{
-		// MontageConfig-only node: GA_PlayMontage reads the montage from the active node directly.
-		bActivated = ASC->TryActivateAbilityByClass(UGA_PlayMontage::StaticClass());
-	}
+	const bool bActivated = ASC->TryActivateAbilityByClass(UGA_PlayMontage::StaticClass());
 
 	if (!bActivated)
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("[ComboRuntime] Failed to activate node=%s ability=%s input=%s current=%s montageConfig=%s"),
+			TEXT("[ComboRuntime] Failed to activate node=%s input=%s current=%s montageConfig=%s"),
 			*NextNode->NodeId.ToString(),
-			*NextNode->AbilityTag.ToString(),
 			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
 			*CurrentNodeId.ToString(),
 			*GetNameSafe(NextNode->MontageConfig.Get()));
@@ -267,10 +209,6 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 		? FMath::Max(1, ComboIndex + 1)
 		: 1;
 	ComboTags.Reset();
-	if (NextNode->AbilityTag.IsValid())
-	{
-		ComboTags.AddTag(NextNode->AbilityTag);
-	}
 
 	CurrentNodeId = NextNode->NodeId;
 	SavedDashNodeId = NAME_None;

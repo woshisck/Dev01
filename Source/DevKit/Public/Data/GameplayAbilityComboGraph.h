@@ -7,7 +7,6 @@
 #include "Data/WeaponComboConfigDA.h"
 #include "GameplayAbilityComboGraph.generated.h"
 
-class UGameplayAbility;
 class UMontageAttackDataAsset;
 class UMontageConfigDA;
 
@@ -24,12 +23,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	ECardRequiredAction RootInputAction = ECardRequiredAction::Any;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
-	TSubclassOf<UGameplayAbility> GameplayAbilityClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
-	FGameplayTag AbilityTagOverride;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
 	TObjectPtr<UMontageConfigDA> MontageConfig = nullptr;
@@ -57,9 +50,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card", meta = (AdvancedDisplay))
 	ECombatCardTriggerTiming CardTriggerTiming = ECombatCardTriggerTiming::OnCommit;
-
-	UFUNCTION(BlueprintPure, Category = "Combo")
-	FGameplayTag ResolveAbilityTag() const;
 
 	FWeaponComboNodeConfig BuildRuntimeConfig(ECardRequiredAction InputAction) const;
 	virtual FText GetDescription_Implementation() const override;

@@ -364,7 +364,6 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 {
 	UGameplayAbilityComboGraphNode* Node = NewObject<UGameplayAbilityComboGraphNode>();
 	Node->NodeId = TEXT("L2H");
-	Node->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"));
 	Node->bUseNodeComboWindow = true;
 	Node->ComboWindowStartFrame = 12;
 	Node->ComboWindowEndFrame = 20;
@@ -397,17 +396,14 @@ bool FGameplayAbilityComboGraphWarnsDuplicateChildInputTest::RunTest(const FStri
 
 	Root->Graph = Graph;
 	Root->NodeId = TEXT("Root");
-	Root->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo1"));
 	Root->MontageConfig = NewObject<UMontageConfigDA>(Graph);
 
 	FirstChild->Graph = Graph;
 	FirstChild->NodeId = TEXT("LightA");
-	FirstChild->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo2"));
 	FirstChild->MontageConfig = NewObject<UMontageConfigDA>(Graph);
 
 	SecondChild->Graph = Graph;
 	SecondChild->NodeId = TEXT("LightB");
-	SecondChild->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo3"));
 	SecondChild->MontageConfig = NewObject<UMontageConfigDA>(Graph);
 
 	FirstEdge->InputAction = ECardRequiredAction::Light;

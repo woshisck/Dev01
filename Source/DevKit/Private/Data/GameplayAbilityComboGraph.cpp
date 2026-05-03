@@ -1,6 +1,5 @@
 #include "Data/GameplayAbilityComboGraph.h"
 
-#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Data/MontageConfigDA.h"
 
 #define LOCTEXT_NAMESPACE "GameplayAbilityComboGraph"
@@ -34,33 +33,11 @@ UGameplayAbilityComboGraphNode::UGameplayAbilityComboGraphNode()
 #endif
 }
 
-FGameplayTag UGameplayAbilityComboGraphNode::ResolveAbilityTag() const
-{
-	if (AbilityTagOverride.IsValid())
-	{
-		return AbilityTagOverride;
-	}
-
-	if (!GameplayAbilityClass)
-	{
-		return FGameplayTag();
-	}
-
-	UYogGameplayAbility* AbilityCDO = Cast<UYogGameplayAbility>(GameplayAbilityClass->GetDefaultObject());
-	if (!AbilityCDO)
-	{
-		return FGameplayTag();
-	}
-
-	return AbilityCDO->GetFirstTagFromContainer(AbilityCDO->GetAbilityTags());
-}
-
 FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(ECardRequiredAction InputAction) const
 {
 	FWeaponComboNodeConfig Config;
 	Config.NodeId = GetRuntimeNodeId(this);
 	Config.InputAction = InputAction;
-	Config.AbilityTag = ResolveAbilityTag();
 	Config.MontageConfig = MontageConfig;
 	Config.AttackDataOverride = AttackDataOverride;
 	Config.bIsComboFinisher = bIsComboFinisher;
@@ -76,12 +53,10 @@ FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(ECardR
 FText UGameplayAbilityComboGraphNode::GetDescription_Implementation() const
 {
 	const FName RuntimeNodeId = GetRuntimeNodeId(this);
-	const FGameplayTag AbilityTag = ResolveAbilityTag();
 	const FString MontageName = GetNameSafe(MontageConfig);
 	return FText::FromString(FString::Printf(
-		TEXT("Node=%s\nAbility=%s\nMontage=%s\nComboWindow=%s [%d-%d / %d]"),
+		TEXT("Node=%s\nMontage=%s\nComboWindow=%s [%d-%d / %d]"),
 		*RuntimeNodeId.ToString(),
-		AbilityTag.IsValid() ? *AbilityTag.ToString() : TEXT("None"),
 		MontageConfig ? *MontageName : TEXT("None"),
 		bUseNodeComboWindow ? TEXT("Node") : TEXT("Montage Notify"),
 		ComboWindowStartFrame,
@@ -95,11 +70,6 @@ FText UGameplayAbilityComboGraphNode::GetNodeTitle() const
 	if (!NodeId.IsNone())
 	{
 		return FText::FromName(NodeId);
-	}
-
-	if (GameplayAbilityClass)
-	{
-		return GameplayAbilityClass->GetDisplayNameText();
 	}
 
 	return LOCTEXT("UntitledComboNode", "Combo Ability");
@@ -226,16 +196,6 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Duplicate combo node id: %s."), *RuntimeNodeId.ToString())));
 		}
 		SeenNodeIds.Add(RuntimeNodeId);
-
-		if (!ComboNode->GameplayAbilityClass && !ComboNode->AbilityTagOverride.IsValid() && !ComboNode->MontageConfig)
-		{
-			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no GameplayAbilityClass, AbilityTagOverride, or MontageConfig."), *RuntimeNodeId.ToString())));
-		}
-
-		if (!ComboNode->ResolveAbilityTag().IsValid() && !ComboNode->MontageConfig)
-		{
-			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s cannot resolve an ability tag and has no MontageConfig."), *RuntimeNodeId.ToString())));
-		}
 
 		if (!ComboNode->MontageConfig)
 		{
