@@ -10,6 +10,7 @@ class UWeaponGlassIconWidget;
 class UHeatBarWidget;
 class UInfoPopupWidget;
 class UCombatDeckBarWidget;
+class UCurrentRoomBuffWidget;
 
 /**
  * 主 HUD 容器 Widget（C++ 基类）
@@ -50,4 +51,8 @@ public:
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UCombatDeckBarWidget> CombatDeckBar;
+
+    /** Current room enemy rune/buff panel. WBP control variable name: CurrentRoomBuffPanel */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UCurrentRoomBuffWidget> CurrentRoomBuffPanel;
 };

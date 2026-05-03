@@ -4,6 +4,7 @@
 #include "GameFramework/HUD.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "GameplayEffectTypes.h"
+#include "Data/EnemyData.h"
 #include "YogHUD.generated.h"
 
 class UTutorialPopupWidget;
@@ -31,6 +32,8 @@ class ASacrificeGracePickup;
 class USacrificeGraceDA;
 class USacrificeGraceOptionWidget;
 class APlayerCharacterBase;
+class UCurrentRoomBuffWidget;
+class URoomDataAsset;
 
 
 UCLASS()
@@ -165,6 +168,19 @@ public:
 	void ShowInfoPopup(const ULevelInfoPopupDA* DA);
 
 	UInfoPopupWidget* GetInfoPopupWidget() const;
+
+	// Current room enemy rune/buff HUD.
+	UPROPERTY(EditDefaultsOnly, Category = "Room Buff")
+	TSubclassOf<UCurrentRoomBuffWidget> CurrentRoomBuffWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Room Buff")
+	FVector2D CurrentRoomBuffFallbackPosition = FVector2D(24.f, 96.f);
+
+	UFUNCTION(BlueprintCallable, Category = "Room Buff")
+	void ShowCurrentRoomBuffs(URoomDataAsset* RoomData, const TArray<FBuffEntry>& Buffs);
+
+	UFUNCTION(BlueprintCallable, Category = "Room Buff")
+	void HideCurrentRoomBuffs();
 
 	// ─────────────────────────────────────────
 	//  Portal 引导（v3：单例浮窗 + 屏幕边缘方位箭头 + 进入过场 Blackout）
@@ -308,6 +324,9 @@ private:
 	UPROPERTY()
 	TObjectPtr<USacrificeGraceOptionWidget> SacrificeGraceOptionWidget;
 
+	UPROPERTY()
+	TObjectPtr<UCurrentRoomBuffWidget> CurrentRoomBuffWidget;
+
 	// === LootSelection 队列管理（多个 RewardPickup 同时触发时按 FIFO 排队） ===
 	struct FQueuedLootRequest
 	{
@@ -321,6 +340,9 @@ private:
 	FSimpleDelegate BackpackPreviewClosedCallback;
 	FDelegateHandle BackpackPreviewDeactivatedHandle;
 	void OnBackpackPreviewClosed();
+
+	void EnsureCurrentRoomBuffWidget();
+	void RefreshCurrentRoomBuffsFromGameMode();
 
 	UPROPERTY()
 	TObjectPtr<UWeaponTrailWidget> ActiveTrailWidget;

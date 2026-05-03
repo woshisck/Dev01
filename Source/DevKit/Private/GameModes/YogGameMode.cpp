@@ -757,6 +757,14 @@ void AYogGameMode::StartLevelSpawning()
 		CurrentFloor = 0;
 		CurrentPhase = ELevelPhase::Arrangement; // 跳过战斗阶段
 
+		if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
+		{
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			{
+				HUD->HideCurrentRoomBuffs();
+			}
+		}
+
 		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [HubRoom] %s — 跳过刷怪，立即开启传送门"), *ActiveRoomData->GetName());
 
 		// 标记场景中未登记的门为 NeverOpen
@@ -814,6 +822,14 @@ void AYogGameMode::StartLevelSpawning()
 	{
 		ActiveRoomBuffs = SelectRoomBuffs(*ActiveRoomData, ActiveBuffCount);
 		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 现场抽 Buff（无 Portal 预骰），数=%d"), ActiveRoomBuffs.Num());
+	}
+
+	if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
+	{
+		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+		{
+			HUD->ShowCurrentRoomBuffs(ActiveRoomData, ActiveRoomBuffs);
+		}
 	}
 
 	// 生成波次计划

@@ -1,6 +1,7 @@
 #include "UI/YogHUD.h"
 #include "UI/YogHUDRootWidget.h"
 #include "UI/CombatDeckBarWidget.h"
+#include "UI/CurrentRoomBuffWidget.h"
 #include "UI/LiquidHealthBarWidget.h"
 #include "UI/EnemyArrowWidget.h"
 #include "UI/WeaponGlassIconWidget.h"
@@ -36,6 +37,7 @@
 #include "UI/SacrificeGraceOptionWidget.h"
 #include "Data/SacrificeGraceDA.h"
 #include "System/YogGameInstanceBase.h"
+#include "GameModes/YogGameMode.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Engine/GameViewportClient.h"
 #include "GameFramework/Pawn.h"
@@ -86,6 +88,9 @@ void AYogHUD::BeginPlay()
 		if (MainHUDWidget)
 			MainHUDWidget->AddToViewport(1);
 	}
+
+	EnsureCurrentRoomBuffWidget();
+	RefreshCurrentRoomBuffsFromGameMode();
 
 	// Attribute 绑定：若 Pawn 已就绪则立即绑；否则等 OnPossessedPawnChanged
 	if (APawn* Pawn = GetOwningPawn())
@@ -337,6 +342,74 @@ void AYogHUD::ShowInfoPopup(const ULevelInfoPopupDA* DA)
 // ─────────────────────────────────────────────────────────────────────────────
 //  武器拾取：缩略图飞行
 // ─────────────────────────────────────────────────────────────────────────────
+
+void AYogHUD::ShowCurrentRoomBuffs(URoomDataAsset* RoomData, const TArray<FBuffEntry>& Buffs)
+{
+	EnsureCurrentRoomBuffWidget();
+	if (CurrentRoomBuffWidget)
+	{
+		CurrentRoomBuffWidget->ShowRoomBuffs(RoomData, Buffs);
+	}
+}
+
+void AYogHUD::HideCurrentRoomBuffs()
+{
+	if (CurrentRoomBuffWidget)
+	{
+		CurrentRoomBuffWidget->HideRoomBuffs();
+	}
+}
+
+void AYogHUD::EnsureCurrentRoomBuffWidget()
+{
+	if (CurrentRoomBuffWidget)
+	{
+		return;
+	}
+
+	if (MainHUDWidget && MainHUDWidget->CurrentRoomBuffPanel)
+	{
+		CurrentRoomBuffWidget = MainHUDWidget->CurrentRoomBuffPanel;
+		return;
+	}
+
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC)
+	{
+		return;
+	}
+
+	TSubclassOf<UCurrentRoomBuffWidget> WidgetClass = CurrentRoomBuffWidgetClass;
+	if (!WidgetClass)
+	{
+		WidgetClass = LoadClass<UCurrentRoomBuffWidget>(
+			nullptr,
+			TEXT("/Game/UI/Playtest_UI/HUD/WBP_CurrentRoomBuffPanel.WBP_CurrentRoomBuffPanel_C"));
+		if (!WidgetClass)
+		{
+			WidgetClass = UCurrentRoomBuffWidget::StaticClass();
+		}
+	}
+
+	CurrentRoomBuffWidget = CreateWidget<UCurrentRoomBuffWidget>(PC, WidgetClass);
+	if (CurrentRoomBuffWidget)
+	{
+		CurrentRoomBuffWidget->AddToViewport(2);
+		CurrentRoomBuffWidget->SetAlignmentInViewport(FVector2D(0.f, 0.f));
+		CurrentRoomBuffWidget->SetPositionInViewport(CurrentRoomBuffFallbackPosition, false);
+	}
+}
+
+void AYogHUD::RefreshCurrentRoomBuffsFromGameMode()
+{
+	AYogGameMode* GM = GetWorld() ? Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()) : nullptr;
+	if (!GM)
+	{
+		return;
+	}
+
+	ShowCurrentRoomBuffs(GM->GetActiveRoomData(), GM->GetActiveRoomBuffs());
+}
 
 void AYogHUD::TriggerWeaponPickup(const UWeaponDefinition* Def, FVector2D StartScreenPos)
 {
