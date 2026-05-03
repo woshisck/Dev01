@@ -350,6 +350,18 @@ struct DEVKIT_API FCombatCardConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic", meta = (AdvancedDisplay))
     bool bRequiresComboFinisher = false;
 
+    /** Opt-in only. When true, CombatDeck scales this card's effect multiplier from the current combo index. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Combo Scaling")
+    bool bUseComboEffectScaling = false;
+
+    /** Additive scalar per combo stack. Combo stacks are max(0, ComboIndex - 1). Example: 0.25 gives Combo2 x1.25. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Combo Scaling", meta = (ClampMin = "0.0", EditCondition = "bUseComboEffectScaling", EditConditionHides))
+    float ComboScalarPerIndex = 0.0f;
+
+    /** Maximum additive combo scalar applied by this card. Example: 0.5 caps the combo contribution at +50%. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Combo Scaling", meta = (ClampMin = "0.0", EditCondition = "bUseComboEffectScaling", EditConditionHides))
+    float MaxComboScalar = 0.0f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Display")
     FText DisplayName;
 

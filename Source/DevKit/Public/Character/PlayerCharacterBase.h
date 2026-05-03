@@ -151,13 +151,13 @@ public:
 	FLinearColor DamageScreenFlashColor = FLinearColor(1.f, 0.f, 0.f, 1.f);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Screen", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float DamageScreenFlashAlpha = 0.28f;
+	float DamageScreenFlashAlpha = 0.85f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Screen", meta = (ClampMin = "0.01"))
-	float DamageScreenFlashDuration = 0.12f;
+	float DamageScreenFlashDuration = 0.32f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Screen", meta = (ClampMin = "1.0"))
-	float DamageScreenEdgeThickness = 120.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Screen", meta = (ClampMin = "0.01", ClampMax = "0.45"))
+	float DamageScreenEdgeWidthRatio = 0.12f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback|Player Glow")
 	TObjectPtr<UMaterialInterface> DamagePlayerOverlayMaterial;

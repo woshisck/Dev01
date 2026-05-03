@@ -9,6 +9,7 @@
 class ASlashWaveProjectile;
 class ACharacter;
 class UGameplayEffect;
+class UNiagaraSystem;
 
 /**
  * Spawns a configurable slash-wave projectile. Used by combat cards such as Moonlight.
@@ -62,8 +63,47 @@ class DEVKIT_API UBFNode_SpawnSlashWaveProjectile : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Slash Wave|Visual")
 	FVector VisualScaleMultiplier = FVector(1.f, 1.f, 1.f);
 
+	/** Optional Niagara used as the projectile's main blade visual. */
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Visual")
+	TObjectPtr<UNiagaraSystem> ProjectileVisualNiagaraSystem = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Visual")
+	FVector ProjectileVisualNiagaraScale = FVector(1.f, 1.f, 1.f);
+
+	/** Hide mesh/old BP visual components so only ProjectileVisualNiagaraSystem is visible. */
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Visual")
+	bool bHideDefaultProjectileVisuals = false;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Visual")
+	TObjectPtr<UNiagaraSystem> HitNiagaraSystem = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Visual")
+	FVector HitNiagaraScale = FVector(1.f, 1.f, 1.f);
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Visual")
+	TObjectPtr<UNiagaraSystem> ExpireNiagaraSystem = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Visual")
+	FVector ExpireNiagaraScale = FVector(1.f, 1.f, 1.f);
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Events")
+	FGameplayTag HitGameplayEventTag;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Events")
+	FGameplayTag ExpireGameplayEventTag;
+
 	UPROPERTY(EditAnywhere, Category = "Slash Wave|Pattern", meta = (ClampMin = "1"))
 	int32 ProjectileCount = 1;
+
+	/** Adds projectiles from the combat-card combo stacks when this Flow was started by CombatDeck. */
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Combat Card", meta = (DisplayName = "Add Combo Stacks To Projectile Count"))
+	bool bAddComboStacksToProjectileCount = false;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Combat Card", meta = (ClampMin = "0", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides))
+	int32 ProjectilesPerComboStack = 1;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Combat Card", meta = (ClampMin = "0", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides))
+	int32 MaxBonusProjectiles = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Slash Wave|Pattern", meta = (ClampMin = "0.0", ClampMax = "180.0"))
 	float ProjectileConeAngleDegrees = 0.f;
@@ -125,10 +165,33 @@ class DEVKIT_API UBFNode_SpawnSlashWaveProjectile : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Slash Wave")
 	FVector SpawnOffset = FVector(80.f, 0.f, 45.f);
 
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|VFX")
+	TObjectPtr<UNiagaraSystem> LaunchNiagaraSystem = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|VFX")
+	FName LaunchNiagaraEffectName = NAME_None;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|VFX")
+	bool bAttachLaunchNiagaraToSource = false;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|VFX")
+	FVector LaunchNiagaraOffset = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|VFX")
+	FRotator LaunchNiagaraRotationOffset = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|VFX")
+	FVector LaunchNiagaraScale = FVector(1.f, 1.f, 1.f);
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|VFX")
+	bool bDestroyLaunchNiagaraWithFlow = false;
+
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void Cleanup() override;
 
 private:
 	float ResolveDamage(ACharacter* SourceCharacter) const;
 	void ConsumeSourceArmor(ACharacter* SourceCharacter) const;
+	void SpawnLaunchNiagara(ACharacter* SourceCharacter, const FVector& SpawnLocation, const FRotator& SpawnRotation) const;
 };

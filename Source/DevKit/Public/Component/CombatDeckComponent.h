@@ -147,6 +147,45 @@ struct DEVKIT_API FCombatCardResolveResult
 	FText ReasonText;
 };
 
+USTRUCT(BlueprintType)
+struct DEVKIT_API FCombatCardEffectContext
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	FCombatDeckActionContext ActionContext;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	FCombatCardInstance SourceCard;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	FCombatCardResolveResult ResolveResult;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	int32 ComboIndex = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	FName ComboNodeId = NAME_None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	FGameplayTagContainer ComboTags;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	FGameplayTag AbilityTag;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	float EffectMultiplier = 1.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	int32 ComboBonusStacks = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bFromLink = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bIsComboFinisher = false;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeckLoaded, const TArray<FCombatCardInstance>&, ActiveSequence);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCardConsumed, const FCombatCardInstance&, Card, const FCombatCardResolveResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatCardResult, const FCombatCardResolveResult&, Result);
@@ -228,6 +267,7 @@ public:
 	void AdvanceShuffleForTest(float DeltaTime);
 	void SavePendingLinkContextForDash();
 	bool RestorePendingLinkContextFromDash();
+	void ClearDashSavedLinkContext();
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
 	FOnDeckLoaded OnDeckLoaded;
@@ -310,9 +350,13 @@ private:
 	void StartDeckEditReload();
 	void StartShuffle();
 	void AdvanceShuffle(float DeltaTime);
-	void ExecuteFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card) const;
+	void ExecuteFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card, const FCombatDeckActionContext& Context, const FCombatCardResolveResult& Result) const;
 	bool DoesActionMatch(ECardRequiredAction RequiredAction, ECardRequiredAction ActionType) const;
 	void BreakPendingLink(ECombatLinkBreakReason Reason);
+	int32 GetComboBonusStacks(const FCombatDeckActionContext& Context) const;
+	float GetComboEffectMultiplier(const FCombatCardConfig& Config, const FCombatDeckActionContext& Context) const;
+	void SetAppliedMultiplier(FCombatCardResolveResult& Result, float LinkMultiplier, float ComboMultiplier) const;
+	FCombatCardEffectContext BuildCombatCardEffectContext(const FCombatCardInstance& Card, const FCombatDeckActionContext& Context, const FCombatCardResolveResult& Result) const;
 	bool DoesLinkConditionMatch(const FCombatCardLinkCondition& Condition, const FCombatCardInstance& NeighborCard, const FCombatDeckActionContext& Context) const;
 	const FCombatCardLinkRecipe* FindMatchingLinkRecipe(const FCombatCardInstance& LinkCard, ECombatCardLinkOrientation Direction, const FCombatCardInstance& NeighborCard, const FCombatDeckActionContext& Context) const;
 	bool IsLinkCardType(ECombatCardType CardType) const;

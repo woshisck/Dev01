@@ -69,6 +69,18 @@ class DEVKIT_API UBFNode_ApplyGEInRadius : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Filter")
 	bool bExcludeSelf = true;
 
+	/** Exclude the actor used as LocationSource. Useful when the center target already receives a primary effect. */
+	UPROPERTY(EditAnywhere, Category = "Filter")
+	bool bExcludeLocationSourceActor = false;
+
+	/** Maximum number of targets affected. <= 0 means unlimited. */
+	UPROPERTY(EditAnywhere, Category = "Filter")
+	int32 MaxTargets = 0;
+
+	/** Number of GE applications per target. Useful for poison stacks. */
+	UPROPERTY(EditAnywhere, Category = "Effect", meta = (ClampMin = "1", ClampMax = "20"))
+	int32 ApplicationCount = 1;
+
 	// ─── SetByCaller 槽位 ─────────────────────────────────────────
 
 	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "Slot 1 Tag"))

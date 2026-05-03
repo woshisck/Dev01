@@ -5,17 +5,22 @@
 #include "GEExec_PoisonDamage.generated.h"
 
 /**
- * 中毒伤害执行计算
+ * Periodic poison execution.
  *
- * 每次周期性执行：
- *   1. 对 Health 造成 MaxHealth × 7% 的伤害（不至死，最低保留 1HP）
- *   2. 若目标有护甲（Buff.Status.Armored）：额外对 ArmorHP 造成 MaxHealth × 25% 的伤害
+ * Per tick:
+ *   HealthDamage = MaxHealth * PercentPerStack * StackCount + Data.Damage.
+ *   ArmorDamage  = MaxHealth * ArmorPercentPerStack * StackCount when target has Buff.Status.Armored.
  *
- * 输出到 DamageBuff（绕过护甲吸收，由 DamageAttributeSet 直接扣血）
- * 和 ArmorHP（直接扣护甲）。
+ * Defaults:
+ *   PercentPerStack = 0.02 (2% max health per poison stack).
+ *   ArmorPercentPerStack = 0.08.
  *
- * 在 GE_Poison 的 ExecutionCalculations 数组里引用此类。
- * GE_Poison：HasDuration, Period=1s, GrantedTags=Buff.Status.Poisoned
+ * Optional SetByCaller inputs:
+ *   Data.Damage: flat extra poison damage for this tick.
+ *   Data.Poison.PercentPerStack: override health percent per stack.
+ *   Data.Poison.ArmorPercentPerStack: override armor percent per stack.
+ *
+ * GE_Poison should be HasDuration, Period=1s, GrantedTags=Buff.Status.Poisoned.
  */
 UCLASS()
 class DEVKIT_API UGEExec_PoisonDamage : public UGameplayEffectExecutionCalculation

@@ -1,8 +1,9 @@
 #include "BuffFlow/Nodes/BFNode_PlayNiagara.h"
+
 #include "BuffFlow/BuffFlowComponent.h"
-#include "NiagaraFunctionLibrary.h"
-#include "NiagaraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 
 UBFNode_PlayNiagara::UBFNode_PlayNiagara(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -18,6 +19,7 @@ void UBFNode_PlayNiagara::ExecuteInput(const FName& PinName)
 {
 	if (!NiagaraSystem)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[PlayNiagara] Skip: NiagaraSystem is null Effect=%s"), *EffectName.ToString());
 		TriggerOutput(TEXT("Out"), true);
 		return;
 	}
@@ -25,6 +27,9 @@ void UBFNode_PlayNiagara::ExecuteInput(const FName& PinName)
 	UBuffFlowComponent* BFC = GetBuffFlowComponent();
 	if (!BFC)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[PlayNiagara] Skip: BuffFlowComponent is null Effect=%s System=%s"),
+			*EffectName.ToString(),
+			*GetNameSafe(NiagaraSystem));
 		TriggerOutput(TEXT("Out"), true);
 		return;
 	}
@@ -32,32 +37,106 @@ void UBFNode_PlayNiagara::ExecuteInput(const FName& PinName)
 	AActor* TargetActor = ResolveTarget(AttachTarget);
 	if (!TargetActor)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[PlayNiagara] Skip: target is null Effect=%s System=%s TargetSelector=%d"),
+			*EffectName.ToString(),
+			*GetNameSafe(NiagaraSystem),
+			static_cast<int32>(AttachTarget));
 		TriggerOutput(TEXT("Out"), true);
 		return;
 	}
 
-	// 找到 SkeletalMeshComponent 以支持挂点
-	USceneComponent* AttachComp = TargetActor->GetRootComponent();
-	if (USkeletalMeshComponent* SkelMesh = TargetActor->FindComponentByClass<USkeletalMeshComponent>())
+	UNiagaraComponent* NiagaraComp = nullptr;
+	FName SpawnedSocketName = NAME_None;
+	if (bAttachToTarget)
 	{
-		AttachComp = SkelMesh;
+		USceneComponent* AttachComp = TargetActor->GetRootComponent();
+		FName ResolvedAttachSocketName = AttachSocketName;
+		if (USkeletalMeshComponent* SkelMesh = TargetActor->FindComponentByClass<USkeletalMeshComponent>())
+		{
+			AttachComp = SkelMesh;
+			auto HasSocketOrBone = [SkelMesh](const FName& CandidateName)
+			{
+				return CandidateName != NAME_None
+					&& (SkelMesh->DoesSocketExist(CandidateName) || SkelMesh->GetBoneIndex(CandidateName) != INDEX_NONE);
+			};
+
+			if (!HasSocketOrBone(ResolvedAttachSocketName))
+			{
+				const FName RequestedSocketName = ResolvedAttachSocketName;
+				ResolvedAttachSocketName = NAME_None;
+				for (const FName& FallbackName : AttachSocketFallbackNames)
+				{
+					if (HasSocketOrBone(FallbackName))
+					{
+						ResolvedAttachSocketName = FallbackName;
+						break;
+					}
+				}
+
+				if (RequestedSocketName != NAME_None || ResolvedAttachSocketName != NAME_None)
+				{
+					UE_LOG(LogTemp, Warning,
+						TEXT("[PlayNiagara] Attach socket resolved Effect=%s Target=%s Requested=%s Resolved=%s"),
+						*EffectName.ToString(),
+						*GetNameSafe(TargetActor),
+						*RequestedSocketName.ToString(),
+						*ResolvedAttachSocketName.ToString());
+				}
+			}
+		}
+		if (!AttachComp)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[PlayNiagara] Skip: no attach component Target=%s Effect=%s"),
+				*GetNameSafe(TargetActor),
+				*EffectName.ToString());
+			TriggerOutput(TEXT("Out"), true);
+			return;
+		}
+
+		SpawnedSocketName = ResolvedAttachSocketName;
+		NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
+			NiagaraSystem,
+			AttachComp,
+			ResolvedAttachSocketName,
+			LocationOffset,
+			RotationOffset,
+			EAttachLocation::KeepRelativeOffset,
+			true);
+		if (NiagaraComp)
+		{
+			NiagaraComp->SetRelativeScale3D(Scale);
+		}
+	}
+	else if (UWorld* World = TargetActor->GetWorld())
+	{
+		const FTransform TargetTransform = TargetActor->GetActorTransform();
+		const FVector SpawnLocation = TargetTransform.TransformPosition(LocationOffset);
+		const FRotator SpawnRotation = (TargetActor->GetActorRotation() + RotationOffset).GetNormalized();
+		NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			World,
+			NiagaraSystem,
+			SpawnLocation,
+			SpawnRotation,
+			Scale,
+			true);
+		if (NiagaraComp)
+		{
+			NiagaraComp->SetWorldScale3D(Scale);
+		}
 	}
 
-	UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
-		NiagaraSystem,
-		AttachComp,
-		AttachSocketName,
-		FVector::ZeroVector,
-		FRotator::ZeroRotator,
-		EAttachLocation::SnapToTarget,
-		true  // bAutoDestroy — 若不跟随 Flow 生命周期时自动销毁
-	);
-
-	// 存入 BFC 供 DestroyNiagara 或 Cleanup 使用
 	if (NiagaraComp && EffectName != NAME_None)
 	{
 		BFC->ActiveNiagaraEffects.Add(EffectName, NiagaraComp);
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[PlayNiagara] Spawned Effect=%s System=%s Target=%s Attach=%d Socket=%s Scale=%s"),
+		*EffectName.ToString(),
+		*GetNameSafe(NiagaraSystem),
+		*GetNameSafe(TargetActor),
+		bAttachToTarget ? 1 : 0,
+		*SpawnedSocketName.ToString(),
+		*Scale.ToString());
 
 	TriggerOutput(TEXT("Out"), true);
 }

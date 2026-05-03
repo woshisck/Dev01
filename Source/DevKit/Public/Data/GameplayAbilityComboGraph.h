@@ -23,7 +23,7 @@ public:
 	FName NodeId = NAME_None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
-	ECardRequiredAction RootInputAction = ECardRequiredAction::Any;
+	ECombatGraphInputAction RootInputAction = ECombatGraphInputAction::Any;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
 	TSubclassOf<UGameplayAbility> GameplayAbilityClass;
@@ -43,6 +43,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	bool bAllowDashSave = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
+	EComboDashSaveMode DashSaveMode = EComboDashSaveMode::PreserveIfSourceAllows;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash", meta = (ClampMin = "0.0"))
+	float DashSaveExpireSeconds = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
+	bool bSavePendingLinkContext = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
+	bool bClearCombatTagsOnDashEnd = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
+	bool bBreakComboOnDashCancel = true;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window")
 	bool bUseNodeComboWindow = true;
 
@@ -61,7 +76,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combo")
 	FGameplayTag ResolveAbilityTag() const;
 
-	FWeaponComboNodeConfig BuildRuntimeConfig(ECardRequiredAction InputAction) const;
+	FWeaponComboNodeConfig BuildRuntimeConfig(ECombatGraphInputAction InputAction) const;
 	virtual FText GetDescription_Implementation() const override;
 
 #if WITH_EDITOR
@@ -79,7 +94,7 @@ public:
 	UGameplayAbilityComboGraphEdge();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
-	ECardRequiredAction InputAction = ECardRequiredAction::Any;
+	ECombatGraphInputAction InputAction = ECombatGraphInputAction::Any;
 
 #if WITH_EDITOR
 	virtual FText GetNodeTitle() const override;
@@ -94,8 +109,8 @@ class DEVKIT_API UGameplayAbilityComboGraph : public UGenericGraph
 public:
 	UGameplayAbilityComboGraph();
 
-	const UGameplayAbilityComboGraphNode* FindRootComboNode(ECardRequiredAction InputAction) const;
-	const UGameplayAbilityComboGraphNode* FindChildComboNode(FName ParentNodeId, ECardRequiredAction InputAction) const;
+	const UGameplayAbilityComboGraphNode* FindRootComboNode(ECombatGraphInputAction InputAction) const;
+	const UGameplayAbilityComboGraphNode* FindChildComboNode(FName ParentNodeId, ECombatGraphInputAction InputAction) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	void ValidateComboGraph(TArray<FText>& OutWarnings) const;

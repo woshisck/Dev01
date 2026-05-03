@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "FlowComponent.h"
 #include "BuffFlow/BuffFlowTypes.h"
+#include "Component/CombatDeckComponent.h"
 #include "BuffFlowComponent.generated.h"
 
 class UYogAbilitySystemComponent;
@@ -31,6 +32,8 @@ public:
 	/** 符文激活时调用：启动一个 Flow 实例 */
 	UFUNCTION(BlueprintCallable, Category = "BuffFlow")
 	void StartBuffFlow(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow = false);
+
+	void StartCombatCardFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card, const FCombatDeckActionContext& ActionContext, const FCombatCardResolveResult& ResolveResult, AActor* Giver, bool bRestartExistingFlow = true);
 
 	/** 符文卸下时调用：停止对应的 Flow 实例 */
 	UFUNCTION(BlueprintCallable, Category = "BuffFlow")
@@ -61,6 +64,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "BuffFlow")
 	AActor* GetBuffGiver() const;
 
+	UFUNCTION(BlueprintPure, Category = "BuffFlow|Combat Card")
+	bool HasCombatCardEffectContext() const { return bHasCombatCardEffectContext; }
+
+	const FCombatCardEffectContext& GetLastCombatCardEffectContext() const { return LastCombatCardEffectContext; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -69,6 +77,9 @@ public:
 	/** 最近一次伤害事件的上下文（由 OnDamageDealt / OnDamageReceived 写入，供后续节点读取） */
 	UPROPERTY()
 	FBFEventContext LastEventContext;
+
+	UPROPERTY()
+	FCombatCardEffectContext LastCombatCardEffectContext;
 
 	/** 由 PlayNiagara 节点写入，DestroyNiagara 节点读取，key = 策划自定义名称 */
 	UPROPERTY()
@@ -79,6 +90,11 @@ public:
 	FVector LastKillLocation = FVector::ZeroVector;
 
 private:
+	void StartBuffFlowInternal(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow);
+
+	UPROPERTY()
+	bool bHasCombatCardEffectContext = false;
+
 	UPROPERTY()
 	TWeakObjectPtr<UYogAbilitySystemComponent> CachedASC;
 

@@ -1,14 +1,17 @@
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
+#include "AbilitySystem/Abilities/YogTargetType.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
+#include "BuffFlow/BuffFlowComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
+#include "Component/BufferComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Data/CharacterData.h"
 #include "Data/AbilityData.h"
@@ -126,6 +129,68 @@ void UGA_MeleeAttack::SetNextActivationFromDashSave(bool bFromDashSave)
 	bNextActivationFromDashSave = bFromDashSave;
 }
 
+AActor* UGA_MeleeAttack::PreviewFirstCombatDeckHitTarget(const FGameplayEventData& EventData) const
+{
+	AYogCharacterBase* OwnerCharacter = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo());
+	if (!OwnerCharacter || !OwnerCharacter->DefaultMeleeTargetType)
+	{
+		return nullptr;
+	}
+
+	const UYogTargetType* TargetTypeCDO = OwnerCharacter->DefaultMeleeTargetType.GetDefaultObject();
+	if (!TargetTypeCDO)
+	{
+		return nullptr;
+	}
+
+	TArray<FHitResult> HitResults;
+	TArray<AActor*> TargetActors;
+	TargetTypeCDO->GetTargets(OwnerCharacter, GetAvatarActorFromActorInfo(), EventData, HitResults, TargetActors);
+	for (AActor* TargetActor : TargetActors)
+	{
+		if (IsValid(TargetActor))
+		{
+			return TargetActor;
+		}
+	}
+
+	for (const FHitResult& HitResult : HitResults)
+	{
+		if (AActor* HitActor = HitResult.GetActor())
+		{
+			return HitActor;
+		}
+	}
+
+	return nullptr;
+}
+
+void UGA_MeleeAttack::PrimeCombatDeckHitContext(const FGameplayEventData& EventData)
+{
+	AYogCharacterBase* OwnerCharacter = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo());
+	if (!OwnerCharacter)
+	{
+		return;
+	}
+
+	UBuffFlowComponent* BuffFlowComponent = OwnerCharacter->FindComponentByClass<UBuffFlowComponent>();
+	if (!BuffFlowComponent)
+	{
+		return;
+	}
+
+	AActor* HitTarget = PreviewFirstCombatDeckHitTarget(EventData);
+	BuffFlowComponent->LastEventContext.DamageCauser = OwnerCharacter;
+	BuffFlowComponent->LastEventContext.DamageReceiver = HitTarget;
+	BuffFlowComponent->LastEventContext.DamageAmount = 0.f;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[CombatDeckHitContext] Prime Target=%s Owner=%s Event=%s"),
+		*GetNameSafe(HitTarget),
+		*GetNameSafe(OwnerCharacter),
+		*EventData.EventTag.ToString());
+}
+
 FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTiming TriggerTiming)
 {
 	FCombatCardResolveResult EmptyResult;
@@ -146,18 +211,30 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 	}
 
 	FCombatDeckActionContext Context;
-	Context.ActionType = GetCombatDeckActionType();
-	Context.ComboIndex = ActiveComboIndex;
-	Context.ComboNodeId = bActiveComboNodeValid ? ActiveComboNode.NodeId : NAME_None;
-	Context.ComboTags = ActiveComboTags;
-	Context.AbilityTag = bActiveComboNodeValid ? ActiveComboNode.AbilityTag : FGameplayTag();
-	Context.WeaponDef = PlayerOwner->EquippedWeaponDef;
-	Context.bIsComboFinisher = IsCombatDeckComboFinisher();
-	Context.bComboContinued = bComboContinued;
-	Context.bExitedComboState = bExitedComboState;
-	Context.bFromDashSave = bCombatDeckFromDashSave;
+	bool bUsedComboRuntimeContext = false;
+	if (PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->GetActiveNode())
+	{
+		Context = PlayerOwner->ComboRuntimeComponent->BuildAttackContext(TriggerTiming, PlayerOwner);
+		bUsedComboRuntimeContext = Context.ComboNodeId != NAME_None || Context.AbilityTag.IsValid();
+	}
+
+	if (!bUsedComboRuntimeContext)
+	{
+		Context.ActionType = GetCombatDeckActionType();
+		Context.ComboIndex = ActiveComboIndex;
+		Context.ComboNodeId = bActiveComboNodeValid ? ActiveComboNode.NodeId : NAME_None;
+		Context.ComboTags = ActiveComboTags;
+		Context.AbilityTag = bActiveComboNodeValid ? ActiveComboNode.AbilityTag : FGameplayTag();
+		Context.WeaponDef = PlayerOwner->EquippedWeaponDef;
+		Context.bIsComboFinisher = IsCombatDeckComboFinisher();
+		Context.bComboContinued = bComboContinued;
+		Context.bExitedComboState = bExitedComboState;
+		Context.bFromDashSave = bCombatDeckFromDashSave;
+	}
 	Context.TriggerTiming = TriggerTiming;
-	Context.AttackInstanceGuid = ActiveAttackGuid.IsValid() ? ActiveAttackGuid : FGuid::NewGuid();
+	Context.AttackInstanceGuid = Context.AttackInstanceGuid.IsValid()
+		? Context.AttackInstanceGuid
+		: (ActiveAttackGuid.IsValid() ? ActiveAttackGuid : FGuid::NewGuid());
 	if (!Context.AbilityTag.IsValid())
 	{
 		for (const FGameplayTag& Tag : AbilityTags)
@@ -166,6 +243,18 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 			break;
 		}
 	}
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[CombatDeckContext] Runtime=%d Action=%s ComboIndex=%d Node=%s Continued=%d Exited=%d Trigger=%d Ability=%s Guid=%s"),
+		bUsedComboRuntimeContext ? 1 : 0,
+		*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(Context.ActionType)),
+		Context.ComboIndex,
+		*Context.ComboNodeId.ToString(),
+		Context.bComboContinued ? 1 : 0,
+		Context.bExitedComboState ? 1 : 0,
+		static_cast<int32>(Context.TriggerTiming),
+		Context.AbilityTag.IsValid() ? *Context.AbilityTag.ToString() : TEXT("(none)"),
+		*Context.AttackInstanceGuid.ToString());
 
 	const FCombatCardResolveResult Result = PlayerOwner->CombatDeckComponent->ResolveAttackCardWithContext(Context);
 	if (Result.bHadCard)
@@ -179,6 +268,74 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 void UGA_MeleeAttack::TryResolveCombatDeckOnHit()
 {
 	ResolveCombatDeck(ECombatCardTriggerTiming::OnHit);
+}
+
+void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	if (NewCount <= 0)
+	{
+		return;
+	}
+
+	APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
+	if (!PlayerOwner)
+	{
+		PlayerOwner = Cast<APlayerCharacterBase>(GetOwningActorFromActorInfo());
+	}
+	if (!PlayerOwner)
+	{
+		return;
+	}
+
+	if (PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource())
+	{
+		const FGuid RuntimeAttackGuid = PlayerOwner->ComboRuntimeComponent->GetActiveAttackGuid();
+		if (RuntimeAttackGuid.IsValid() && ActiveAttackGuid.IsValid() && RuntimeAttackGuid != ActiveAttackGuid)
+		{
+			return;
+		}
+	}
+
+	UBufferComponent* Buffer = PlayerOwner->GetInputBufferComponent();
+	if (!Buffer)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	auto TryBufferedAttack = [&](EInputCommandType CommandType, ECardRequiredAction ActionType, const TCHAR* FallbackTagName) -> bool
+	{
+		if (!Buffer->ConsumeBufferedInputSince(CommandType, AbilityActivationTime))
+		{
+			return false;
+		}
+
+		bool bActivated = false;
+		const bool bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
+		if (bHasComboSource)
+		{
+			bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ActionType, PlayerOwner);
+		}
+		else if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
+		{
+			FGameplayTagContainer TagContainer;
+			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
+			bActivated = PlayerASC->TryActivateAbilitiesByTag(TagContainer, true);
+		}
+
+		if (!bActivated && ASC && Tag.IsValid())
+		{
+			ASC->SetLooseGameplayTagCount(Tag, 0);
+		}
+		return true;
+	};
+
+	if (TryBufferedAttack(EInputCommandType::LightAttack, ECardRequiredAction::Light, TEXT("PlayerState.AbilityCast.LightAtk")))
+	{
+		return;
+	}
+
+	TryBufferedAttack(EInputCommandType::HeavyAttack, ECardRequiredAction::Heavy, TEXT("PlayerState.AbilityCast.HeavyAtk"));
 }
 
 void UGA_MeleeAttack::ScheduleNodeComboWindow(UAnimMontage* Montage, float PlayRate)
@@ -295,6 +452,18 @@ void UGA_MeleeAttack::OpenNodeComboWindow()
 		return;
 	}
 
+	if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
+	{
+		if (PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource())
+		{
+			const FGuid RuntimeAttackGuid = PlayerOwner->ComboRuntimeComponent->GetActiveAttackGuid();
+			if (RuntimeAttackGuid.IsValid() && ActiveAttackGuid.IsValid() && RuntimeAttackGuid != ActiveAttackGuid)
+			{
+				return;
+			}
+		}
+	}
+
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
 		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
@@ -307,6 +476,18 @@ void UGA_MeleeAttack::CloseNodeComboWindow()
 	if (!bActiveComboNodeValid || !ActiveComboNode.bOverrideComboWindow)
 	{
 		return;
+	}
+
+	if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
+	{
+		if (PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource())
+		{
+			const FGuid RuntimeAttackGuid = PlayerOwner->ComboRuntimeComponent->GetActiveAttackGuid();
+			if (RuntimeAttackGuid.IsValid() && ActiveAttackGuid.IsValid() && RuntimeAttackGuid != ActiveAttackGuid)
+			{
+				return;
+			}
+		}
 	}
 
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
@@ -326,7 +507,7 @@ void UGA_MeleeAttack::ActivateAbility(
 	bCombatDeckFromDashSave = bNextActivationFromDashSave;
 	bNextActivationFromDashSave = false;
 	bActiveComboNodeValid = false;
-	bComboContinued = true;
+	bComboContinued = false;
 	bExitedComboState = false;
 	CombatDeckHitResolveCounter = 0;
 	bHasStatBeforeAttributeSnapshot = false;
@@ -346,6 +527,24 @@ void UGA_MeleeAttack::ActivateAbility(
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	UE_LOG(LogTemp, Warning, TEXT("[GA_MeleeAttack] ActivateAbility: %s"), *GetName());
+	AbilityActivationTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+
+	if (UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr)
+	{
+		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+		if (ASC->GetTagCount(CanComboTag) > 0)
+		{
+			ASC->SetLooseGameplayTagCount(CanComboTag, 0);
+		}
+
+		if (CanComboTagHandle.IsValid())
+		{
+			ASC->UnregisterGameplayTagEvent(CanComboTagHandle, CanComboTag, EGameplayTagEventType::NewOrRemoved);
+			CanComboTagHandle.Reset();
+		}
+		CanComboTagHandle = ASC->RegisterGameplayTagEvent(CanComboTag, EGameplayTagEventType::NewOrRemoved)
+			.AddUObject(this, &UGA_MeleeAttack::OnCanComboTagChanged);
+	}
 
 	// 鐜╁ GA锛氭鏌ユ秷鑰?鍐峰嵈
 	if (bRequireCommit && !CommitAbility(Handle, ActorInfo, ActivationInfo))
@@ -379,6 +578,7 @@ void UGA_MeleeAttack::ActivateAbility(
 			bExitedComboState = PlayerOwner->ComboRuntimeComponent->DidExitComboState();
 			bCombatDeckFromDashSave = bCombatDeckFromDashSave || PlayerOwner->ComboRuntimeComponent->ConsumeActivationFromDashSave();
 			bActiveComboNodeValid = true;
+			PlayerOwner->ComboRuntimeComponent->RegisterActiveAttackAbility(ActiveAttackGuid, Handle);
 		}
 	}
 	if (!ActiveAttackGuid.IsValid())
@@ -498,7 +698,8 @@ void UGA_MeleeAttack::ActivateAbility(
 	}
 
 	// 鐩戝惉 AnimNotify 浼ゅ浜嬩欢锛氬繀椤绘槑纭紶鍏?Tag锛岀┖瀹瑰櫒涓嶄細娉ㄥ唽浠讳綍鐩戝惉
-	ResolveCombatDeck(ECombatCardTriggerTiming::OnCommit);
+	// Combat cards resolve from AN_MeleeDamage, so effects and UI consumption
+	// happen on the actual attack notify frame instead of montage start.
 
 	FGameplayTagContainer DamageEventTags;
 	DamageEventTags.AddTag(FGameplayTag::RequestGameplayTag(FName("GameplayEffect.DamageType.GeneralAttack")));
@@ -535,7 +736,9 @@ void UGA_MeleeAttack::ActivateAbility(
 
 	TryStartEnemyRadialLunge();
 	Task->ReadyForActivation();
-	ScheduleNodeComboWindow(Montage, AttackSpeedRate);
+	// Combo windows are temporarily driven by montage notifies
+	// (ANS_AddGameplayTag: PlayerState.AbilityCast.CanCombo).
+	// Graph node frame windows stay as config data but are not applied here.
 }
 
 void UGA_MeleeAttack::EndAbility(
@@ -552,6 +755,12 @@ void UGA_MeleeAttack::EndAbility(
 		World->GetTimerManager().ClearTimer(ComboWindowCloseTimerHandle);
 	}
 	CloseNodeComboWindow();
+	if (ASC && CanComboTagHandle.IsValid())
+	{
+		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+		ASC->UnregisterGameplayTagEvent(CanComboTagHandle, CanComboTag, EGameplayTagEventType::NewOrRemoved);
+		CanComboTagHandle.Reset();
+	}
 
 	if (EnemyLungeTask)
 	{
@@ -667,7 +876,19 @@ void UGA_MeleeAttack::EndAbility(
 
 	if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
 	{
-		if (!bComboContinued && !bCombatDeckFromDashSave && PlayerOwner->CombatDeckComponent)
+		bool bComboRuntimeAdvanced = false;
+		bool bComboRuntimeEndedActiveNode = false;
+		if (PlayerOwner->ComboRuntimeComponent && ActiveAttackGuid.IsValid())
+		{
+			const FGuid RuntimeAttackGuid = PlayerOwner->ComboRuntimeComponent->GetActiveAttackGuid();
+			bComboRuntimeAdvanced = RuntimeAttackGuid.IsValid() && RuntimeAttackGuid != ActiveAttackGuid;
+			if (!bComboRuntimeAdvanced)
+			{
+				bComboRuntimeEndedActiveNode = PlayerOwner->ComboRuntimeComponent->HandleAttackAbilityEnded(ActiveAttackGuid);
+			}
+		}
+
+		if (!bComboRuntimeAdvanced && !bComboRuntimeEndedActiveNode && !bComboContinued && !bCombatDeckFromDashSave && PlayerOwner->CombatDeckComponent)
 		{
 			PlayerOwner->CombatDeckComponent->NotifyComboStateExited();
 			UE_LOG(LogTemp, Warning, TEXT("[CombatDeck] Combo ended without continuation; pending link cleared by %s"), *GetName());
@@ -796,6 +1017,7 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 		}
 	}
 
+	PrimeCombatDeckHitContext(EventData);
 	const FCombatCardResolveResult CombatCardResult = ResolveCombatDeck(ECombatCardTriggerTiming::OnHit);
 	float CardAttackDelta = 0.f;
 	float CardAttackPowerDelta = 0.f;

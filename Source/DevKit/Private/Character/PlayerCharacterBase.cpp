@@ -425,11 +425,20 @@ void APlayerCharacterBase::PlayDamageScreenFlash()
 
 	if (DamageEdgeFlashWidget)
 	{
+		int32 ViewportX = 0;
+		int32 ViewportY = 0;
+		PC->GetViewportSize(ViewportX, ViewportY);
+		if (ViewportX > 0 && ViewportY > 0)
+		{
+			DamageEdgeFlashWidget->SetDesiredSizeInViewport(FVector2D(ViewportX, ViewportY));
+			DamageEdgeFlashWidget->SetPositionInViewport(FVector2D::ZeroVector, false);
+		}
+
 		DamageEdgeFlashWidget->PlayEdgeFlash(
 			DamageScreenFlashColor,
 			DamageScreenFlashAlpha,
 			DamageScreenFlashDuration,
-			DamageScreenEdgeThickness);
+			DamageScreenEdgeWidthRatio);
 	}
 }
 

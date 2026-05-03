@@ -9,6 +9,8 @@ class UBoxComponent;
 class UProjectileMovementComponent;
 class UAbilitySystemComponent;
 class UGameplayEffect;
+class UNiagaraComponent;
+class UNiagaraSystem;
 class ACharacter;
 
 USTRUCT(BlueprintType)
@@ -45,6 +47,33 @@ struct DEVKIT_API FSlashWaveProjectileRuntimeConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Visual")
 	FVector VisualScaleMultiplier = FVector(1.f, 1.f, 1.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Visual")
+	TObjectPtr<UNiagaraSystem> ProjectileVisualNiagaraSystem = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Visual")
+	FVector ProjectileVisualNiagaraScale = FVector(1.f, 1.f, 1.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Visual")
+	bool bHideDefaultProjectileVisuals = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Visual")
+	TObjectPtr<UNiagaraSystem> HitNiagaraSystem = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Visual")
+	FVector HitNiagaraScale = FVector(1.f, 1.f, 1.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Visual")
+	TObjectPtr<UNiagaraSystem> ExpireNiagaraSystem = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Visual")
+	FVector ExpireNiagaraScale = FVector(1.f, 1.f, 1.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Events")
+	FGameplayTag HitGameplayEventTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Events")
+	FGameplayTag ExpireGameplayEventTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave")
 	FName DamageLogType = TEXT("Rune_SlashWave");
@@ -197,6 +226,36 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	FVector VisualScaleMultiplier = FVector(1.f, 1.f, 1.f);
 
+	UPROPERTY()
+	TObjectPtr<UNiagaraComponent> RuntimeVisualNiagaraComponent;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraSystem> RuntimeVisualNiagaraSystem;
+
+	UPROPERTY()
+	FVector RuntimeVisualNiagaraScale = FVector(1.f, 1.f, 1.f);
+
+	UPROPERTY()
+	bool bRuntimeHideDefaultProjectileVisuals = false;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraSystem> RuntimeHitNiagaraSystem;
+
+	UPROPERTY()
+	FVector RuntimeHitNiagaraScale = FVector(1.f, 1.f, 1.f);
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraSystem> RuntimeExpireNiagaraSystem;
+
+	UPROPERTY()
+	FVector RuntimeExpireNiagaraScale = FVector(1.f, 1.f, 1.f);
+
+	UPROPERTY()
+	FGameplayTag RuntimeHitGameplayEventTag;
+
+	UPROPERTY()
+	FGameplayTag RuntimeExpireGameplayEventTag;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	FName DamageLogType = TEXT("Rune_SlashWave");
 
@@ -287,10 +346,14 @@ private:
 	void ClearRepeatTimers();
 	void ApplyBonusArmorDamageTo(AActor* Target, UAbilitySystemComponent* TargetASC) const;
 	void ApplyAdditionalHitEffectTo(AActor* Target, UAbilitySystemComponent* SourceASC, UAbilitySystemComponent* TargetASC);
+	void SendHitGameplayEvent(AActor* Target) const;
+	void SendExpireGameplayEvent() const;
 	void TrySplitFromFirstHit(AActor* FirstHitTarget);
 
 	/** 生存时间到期处理 */
 	void Expire();
 
 	void RefreshLifetimeFromDistance();
+	void ApplyRuntimeVisualConfig(const FSlashWaveProjectileRuntimeConfig& InConfig);
+	void HideDefaultProjectileVisualComponents();
 };

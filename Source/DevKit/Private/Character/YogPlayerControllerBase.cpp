@@ -173,12 +173,12 @@ void AYogPlayerControllerBase::SetupInputComponent()
 		}
 		if (Input_LightAttack)
 		{
-			const FEnhancedInputActionEventBinding& lightAttackBinding = EnhancedInputComp->BindAction(Input_LightAttack, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::LightAtack);
+			const FEnhancedInputActionEventBinding& lightAttackBinding = EnhancedInputComp->BindAction(Input_LightAttack, ETriggerEvent::Started, this, &AYogPlayerControllerBase::LightAtack);
 			LightAttackInputHandle = lightAttackBinding.GetHandle();
 		}
 		if (Input_HeavyAttack)
 		{
-			const FEnhancedInputActionEventBinding& heavyAttackBinding = EnhancedInputComp->BindAction(Input_HeavyAttack, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::HeavyAtack);
+			const FEnhancedInputActionEventBinding& heavyAttackBinding = EnhancedInputComp->BindAction(Input_HeavyAttack, ETriggerEvent::Started, this, &AYogPlayerControllerBase::HeavyAtack);
 			HeavyAttackInputHandle = heavyAttackBinding.GetHandle();
 			// Completed fires when the key is released — sends GameplayEvent so WaitGameplayEvent in GA can fire
 			EnhancedInputComp->BindAction(Input_HeavyAttack, ETriggerEvent::Completed, this, &AYogPlayerControllerBase::HeavyAttackReleased);
@@ -308,19 +308,20 @@ void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 	if (bBlockGameInput) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
+		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
+		{
+			Buffer->RecordLightAttack();
+		}
+
 		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasComboSource())
 		{
 			player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Light, player);
-			player->GetInputBufferComponent()->RecordLightAttack();
 			return;
 		}
 
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.LightAtk")));
 		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
-
-
-		player->GetInputBufferComponent()->RecordLightAttack();
 	}
 	//UE_LOG(LogTemp, Log, TEXT("LightAtack"));
 }
@@ -329,18 +330,20 @@ void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 	if (bBlockGameInput) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
+		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
+		{
+			Buffer->RecordHeavyAttack();
+		}
+
 		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasComboSource())
 		{
 			player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Heavy, player);
-			player->GetInputBufferComponent()->RecordHeavyAttack();
 			return;
 		}
 
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.HeavyAtk")));
 		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
-
-		player->GetInputBufferComponent()->RecordHeavyAttack();
 	}
 	//UE_LOG(LogTemp, Log, TEXT("HeavyAtack"));
 }
@@ -384,18 +387,39 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 			player->SetActorRotation(DashFacing);
 		}
 
-		if (player->ComboRuntimeComponent)
+		bool bActivated = false;
+		const bool bHasGraphDash = player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasDashInputNode();
+		if (bHasGraphDash)
 		{
-			player->ComboRuntimeComponent->SaveCurrentNodeForDash();
+			bActivated = player->ComboRuntimeComponent->TryActivateDash(player);
 		}
-		if (player->CombatDeckComponent)
+		else
 		{
-			player->CombatDeckComponent->SavePendingLinkContextForDash();
-		}
+			bool bSavedDashCombo = false;
+			if (player->ComboRuntimeComponent)
+			{
+				bSavedDashCombo = player->ComboRuntimeComponent->SaveCurrentNodeForDash();
+			}
+			if (bSavedDashCombo && player->CombatDeckComponent)
+			{
+				player->CombatDeckComponent->SavePendingLinkContextForDash();
+			}
 
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
-		bool bActivated = player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+			FGameplayTagContainer TagContainer;
+			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
+			bActivated = player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+			if (!bActivated)
+			{
+				if (player->ComboRuntimeComponent)
+				{
+					player->ComboRuntimeComponent->ClearSavedDashNode();
+				}
+				if (player->CombatDeckComponent)
+				{
+					player->CombatDeckComponent->ClearDashSavedLinkContext();
+				}
+			}
+		}
 
 		player->GetInputBufferComponent()->RecordDash();
 

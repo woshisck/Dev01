@@ -3,12 +3,16 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Attribute/DamageAttributeSet.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Abilities/GameplayAbilityTypes.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Components/BoxComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GameplayEffect.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
 
 namespace
@@ -145,8 +149,10 @@ void ASlashWaveProjectile::InitProjectileWithConfig(ACharacter* InSource, const 
 		CollisionBox->SetBoxExtent(LocalBoxExtent, true);
 	}
 
+	ApplyRuntimeVisualConfig(InConfig);
+
 	UE_LOG(LogTemp, Warning,
-		TEXT("[SlashWaveProjectile] InitConfig Damage=%.1f Speed=%.1f Distance=%.1f HitCount=%d DamageApps=%d DamageInterval=%.2f Split=%d Generation=%d CollisionExtent=%s ActorScale=%s"),
+		TEXT("[SlashWaveProjectile] InitConfig Damage=%.1f Speed=%.1f Distance=%.1f HitCount=%d DamageApps=%d DamageInterval=%.2f Split=%d Generation=%d CollisionExtent=%s ActorScale=%s VisualNiagara=%s HideDefault=%d"),
 		InConfig.Damage,
 		Speed,
 		MaxDistance,
@@ -156,7 +162,9 @@ void ASlashWaveProjectile::InitProjectileWithConfig(ACharacter* InSource, const 
 		bSplitOnFirstHit ? 1 : 0,
 		ProjectileGeneration,
 		*CollisionBoxExtent.ToString(),
-		*FinalVisualScale.ToString());
+		*FinalVisualScale.ToString(),
+		*GetNameSafe(InConfig.ProjectileVisualNiagaraSystem),
+		InConfig.bHideDefaultProjectileVisuals ? 1 : 0);
 
 	InitProjectile(InSource, InConfig.Damage, InConfig.DamageEffect);
 }
@@ -205,6 +213,12 @@ void ASlashWaveProjectile::BeginPlay()
 void ASlashWaveProjectile::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	ClearRepeatTimers();
+	if (RuntimeVisualNiagaraComponent)
+	{
+		RuntimeVisualNiagaraComponent->DeactivateImmediate();
+		RuntimeVisualNiagaraComponent = nullptr;
+	}
+	RuntimeVisualNiagaraSystem = nullptr;
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -407,6 +421,17 @@ bool ASlashWaveProjectile::ApplyDamageTo(AActor* Target, const FVector& HitLocat
 	}
 
 	BP_OnHitEnemy(Target, HitLocation);
+	SendHitGameplayEvent(Target);
+	if (RuntimeHitNiagaraSystem && GetWorld())
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			RuntimeHitNiagaraSystem,
+			HitLocation,
+			GetActorRotation(),
+			RuntimeHitNiagaraScale,
+			true);
+	}
 	return true;
 }
 
@@ -460,6 +485,49 @@ void ASlashWaveProjectile::ApplyAdditionalHitEffectTo(AActor* Target, UAbilitySy
 	SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 }
 
+void ASlashWaveProjectile::SendHitGameplayEvent(AActor* Target) const
+{
+	if (!RuntimeHitGameplayEventTag.IsValid() || !SourceCharacter || !Target)
+	{
+		return;
+	}
+
+	FGameplayEventData EventData;
+	EventData.EventTag = RuntimeHitGameplayEventTag;
+	EventData.Instigator = SourceCharacter;
+	EventData.Target = Target;
+	EventData.OptionalObject = const_cast<ASlashWaveProjectile*>(this);
+	EventData.EventMagnitude = DamageMagnitude;
+
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(SourceCharacter, RuntimeHitGameplayEventTag, EventData);
+	UE_LOG(LogTemp, Warning, TEXT("[SlashWaveProjectile] SentHitEvent Tag=%s Source=%s Target=%s Damage=%.1f"),
+		*RuntimeHitGameplayEventTag.ToString(),
+		*GetNameSafe(SourceCharacter),
+		*GetNameSafe(Target),
+		DamageMagnitude);
+}
+
+void ASlashWaveProjectile::SendExpireGameplayEvent() const
+{
+	if (!RuntimeExpireGameplayEventTag.IsValid() || !SourceCharacter)
+	{
+		return;
+	}
+
+	FGameplayEventData EventData;
+	EventData.EventTag = RuntimeExpireGameplayEventTag;
+	EventData.Instigator = SourceCharacter;
+	EventData.Target = SourceCharacter;
+	EventData.OptionalObject = const_cast<ASlashWaveProjectile*>(this);
+	EventData.EventMagnitude = DamageMagnitude;
+
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(SourceCharacter, RuntimeExpireGameplayEventTag, EventData);
+	UE_LOG(LogTemp, Warning, TEXT("[SlashWaveProjectile] SentExpireEvent Tag=%s Source=%s Damage=%.1f"),
+		*RuntimeExpireGameplayEventTag.ToString(),
+		*GetNameSafe(SourceCharacter),
+		DamageMagnitude);
+}
+
 void ASlashWaveProjectile::TrySplitFromFirstHit(AActor* FirstHitTarget)
 {
 	if (!bSplitOnFirstHit
@@ -511,6 +579,15 @@ void ASlashWaveProjectile::TrySplitFromFirstHit(AActor* FirstHitTarget)
 	ChildConfig.SplitSpeedMultiplier = SplitSpeedMultiplier;
 	ChildConfig.SplitMaxDistanceMultiplier = SplitMaxDistanceMultiplier;
 	ChildConfig.SplitCollisionBoxExtentMultiplier = SplitCollisionBoxExtentMultiplier;
+	ChildConfig.ProjectileVisualNiagaraSystem = RuntimeVisualNiagaraSystem;
+	ChildConfig.ProjectileVisualNiagaraScale = RuntimeVisualNiagaraScale;
+	ChildConfig.bHideDefaultProjectileVisuals = bRuntimeHideDefaultProjectileVisuals;
+	ChildConfig.HitNiagaraSystem = RuntimeHitNiagaraSystem;
+	ChildConfig.HitNiagaraScale = RuntimeHitNiagaraScale;
+	ChildConfig.ExpireNiagaraSystem = RuntimeExpireNiagaraSystem;
+	ChildConfig.ExpireNiagaraScale = RuntimeExpireNiagaraScale;
+	ChildConfig.HitGameplayEventTag = RuntimeHitGameplayEventTag;
+	ChildConfig.ExpireGameplayEventTag = RuntimeExpireGameplayEventTag;
 
 	for (int32 Index = 0; Index < SplitProjectileCount; ++Index)
 	{
@@ -538,7 +615,18 @@ void ASlashWaveProjectile::TrySplitFromFirstHit(AActor* FirstHitTarget)
 void ASlashWaveProjectile::Expire()
 {
 	ClearRepeatTimers();
+	SendExpireGameplayEvent();
 	BP_OnExpired();
+	if (RuntimeExpireNiagaraSystem && GetWorld())
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			RuntimeExpireNiagaraSystem,
+			GetActorLocation(),
+			GetActorRotation(),
+			RuntimeExpireNiagaraScale,
+			true);
+	}
 	Destroy();
 }
 
@@ -547,5 +635,74 @@ void ASlashWaveProjectile::RefreshLifetimeFromDistance()
 	if (MaxDistance > KINDA_SMALL_NUMBER && Speed > KINDA_SMALL_NUMBER)
 	{
 		Lifetime = MaxDistance / Speed;
+	}
+}
+
+void ASlashWaveProjectile::ApplyRuntimeVisualConfig(const FSlashWaveProjectileRuntimeConfig& InConfig)
+{
+	RuntimeVisualNiagaraSystem = InConfig.ProjectileVisualNiagaraSystem;
+	RuntimeVisualNiagaraScale = SafePositiveScale(InConfig.ProjectileVisualNiagaraScale);
+	bRuntimeHideDefaultProjectileVisuals = InConfig.bHideDefaultProjectileVisuals;
+	RuntimeHitNiagaraSystem = InConfig.HitNiagaraSystem;
+	RuntimeHitNiagaraScale = SafePositiveScale(InConfig.HitNiagaraScale);
+	RuntimeExpireNiagaraSystem = InConfig.ExpireNiagaraSystem;
+	RuntimeExpireNiagaraScale = SafePositiveScale(InConfig.ExpireNiagaraScale);
+	RuntimeHitGameplayEventTag = InConfig.HitGameplayEventTag;
+	RuntimeExpireGameplayEventTag = InConfig.ExpireGameplayEventTag;
+
+	if (InConfig.bHideDefaultProjectileVisuals)
+	{
+		HideDefaultProjectileVisualComponents();
+	}
+
+	if (RuntimeVisualNiagaraComponent)
+	{
+		RuntimeVisualNiagaraComponent->DeactivateImmediate();
+		RuntimeVisualNiagaraComponent->DestroyComponent();
+		RuntimeVisualNiagaraComponent = nullptr;
+	}
+
+	if (!InConfig.ProjectileVisualNiagaraSystem)
+	{
+		return;
+	}
+
+	USceneComponent* AttachComponent = CollisionBox ? Cast<USceneComponent>(CollisionBox) : GetRootComponent();
+	if (!AttachComponent)
+	{
+		return;
+	}
+
+	RuntimeVisualNiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+		InConfig.ProjectileVisualNiagaraSystem,
+		AttachComponent,
+		NAME_None,
+		FVector::ZeroVector,
+		FRotator::ZeroRotator,
+		EAttachLocation::KeepRelativeOffset,
+		true);
+
+	if (RuntimeVisualNiagaraComponent)
+	{
+		RuntimeVisualNiagaraComponent->SetRelativeScale3D(RuntimeVisualNiagaraScale);
+	}
+}
+
+void ASlashWaveProjectile::HideDefaultProjectileVisualComponents()
+{
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+	{
+		if (!PrimitiveComponent
+			|| PrimitiveComponent == CollisionBox.Get()
+			|| PrimitiveComponent == RuntimeVisualNiagaraComponent.Get())
+		{
+			continue;
+		}
+
+		PrimitiveComponent->SetVisibility(false, true);
+		PrimitiveComponent->SetHiddenInGame(true, true);
+		PrimitiveComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 }

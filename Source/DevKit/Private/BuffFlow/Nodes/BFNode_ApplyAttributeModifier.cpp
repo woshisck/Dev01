@@ -2,6 +2,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "BuffFlow/BuffFlowComponent.h"
 #include "Types/FlowDataPinResults.h"
 
 UBFNode_ApplyAttributeModifier::UBFNode_ApplyAttributeModifier(const FObjectInitializer& ObjectInitializer)
@@ -108,6 +109,18 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 		if (PinResult.Result == EFlowDataPinResolveResult::Success)
 		{
 			ResolvedValue = PinResult.Value;
+		}
+	}
+
+	if (bUseCombatCardEffectMultiplier)
+	{
+		if (UBuffFlowComponent* BFC = GetBuffFlowComponent())
+		{
+			if (BFC->HasCombatCardEffectContext())
+			{
+				const FCombatCardEffectContext& CombatCardContext = BFC->GetLastCombatCardEffectContext();
+				ResolvedValue *= FMath::Max(0.0f, CombatCardContext.EffectMultiplier);
+			}
 		}
 	}
 

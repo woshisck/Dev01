@@ -52,7 +52,8 @@ public class DevKitEditor : ModuleRules
 				"GenericGraphRuntime",
 				"GenericGraphEditor",
 				"Flow",
-				"FlowEditor"
+				"FlowEditor",
+				"Niagara"
 				//"StudioTelemetry"
 
 
@@ -86,6 +87,8 @@ public class DevKitEditor : ModuleRules
 				"ContentBrowser",
 				"Blutility",
 				"UMG",
+				"UMGEditor",
+				"AnimationBlueprintLibrary",
 			}
         );
 

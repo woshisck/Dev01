@@ -123,7 +123,12 @@ void UBFNode_ApplyEffect::ExecuteInput(const FName& PinName)
 	ApplySetByCaller(SetByCallerTag2, GET_MEMBER_NAME_CHECKED(UBFNode_ApplyEffect, SetByCallerValue2), SetByCallerValue2);
 	ApplySetByCaller(SetByCallerTag3, GET_MEMBER_NAME_CHECKED(UBFNode_ApplyEffect, SetByCallerValue3), SetByCallerValue3);
 
-	FActiveGameplayEffectHandle Handle = TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	FActiveGameplayEffectHandle Handle;
+	const int32 ResolvedApplicationCount = FMath::Clamp(ApplicationCount, 1, 20);
+	for (int32 ApplyIndex = 0; ApplyIndex < ResolvedApplicationCount; ++ApplyIndex)
+	{
+		Handle = TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	}
 
 	// 仅存储首次有效 handle（Unique/Stackable GE 始终是同一实例，Instant GE handle 无效）
 	if (!GrantedHandle.IsValid() && Handle.IsValid())

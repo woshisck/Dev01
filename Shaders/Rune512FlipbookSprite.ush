@@ -1,0 +1,29 @@
+#pragma once
+
+float4 Rune512FlipbookSpriteMain(
+	Texture2D FlipbookTexture,
+	SamplerState FlipbookTextureSampler,
+	float2 UV,
+	float Time,
+	float Rows,
+	float Columns,
+	float Duration,
+	float3 EmissiveColor,
+	float AlphaScale)
+{
+	float SafeRows = max(Rows, 1.0);
+	float SafeColumns = max(Columns, 1.0);
+	float SafeDuration = max(Duration, 0.001);
+	float FrameCount = SafeRows * SafeColumns;
+	float AnimAlpha = saturate(Time / SafeDuration);
+	float Frame = min(floor(AnimAlpha * FrameCount), FrameCount - 1.0);
+	float Column = fmod(Frame, SafeColumns);
+	float Row = floor(Frame / SafeColumns);
+	float2 CellSize = float2(1.0 / SafeColumns, 1.0 / SafeRows);
+	float2 AtlasUV = float2(Column, Row) * CellSize + UV * CellSize;
+
+	float4 Sample = FlipbookTexture.Sample(FlipbookTextureSampler, AtlasUV);
+	Sample.rgb *= EmissiveColor;
+	Sample.a *= AlphaScale;
+	return Sample;
+}

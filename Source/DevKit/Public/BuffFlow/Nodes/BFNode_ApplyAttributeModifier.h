@@ -57,6 +57,10 @@ class DEVKIT_API UBFNode_ApplyAttributeModifier : public UBFNode_Base
     UPROPERTY(EditAnywhere, Category = "BuffFlow")
     FFlowDataPinInputProperty_Float Value;
 
+    /** Multiplies Value by the current combat-card effect multiplier when this Flow was started by CombatDeck. */
+    UPROPERTY(EditAnywhere, Category = "BuffFlow|Combat Card", meta = (DisplayName = "Use Combat Card Effect Multiplier"))
+    bool bUseCombatCardEffectMultiplier = false;
+
     /** 持续时间类型 */
     UPROPERTY(EditAnywhere, Category = "BuffFlow")
     ERuneDurationType DurationType = ERuneDurationType::Instant;
@@ -212,4 +216,5 @@ private:
      * ExpiryTimer 到期或 Cleanup() 时调用 ClearAbility 撤销。
      */
     TArray<FGameplayAbilitySpecHandle> GrantedAbilityHandles;
+
 };

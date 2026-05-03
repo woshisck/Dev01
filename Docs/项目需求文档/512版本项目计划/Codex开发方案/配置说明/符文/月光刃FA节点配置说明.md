@@ -38,6 +38,10 @@ Start -> Spawn Slash Wave Projectile
 | `Collision Box Extent` | 碰撞盒半径 | 越大越容易命中，也表示范围更大 |
 | `Scale Visual With Collision Extent` | 勾选 | 碰撞范围变大时，月光刃视觉也按比例变大 |
 | `Visual Scale Multiplier` | 默认 `(1,1,1)` | 额外视觉缩放倍率；不改变最终碰撞范围 |
+| `Projectile Visual Niagara System` | 选择月光刀光 Niagara | 作为飞行投射物的主视觉 |
+| `Projectile Visual Niagara Scale` | 默认 `(1,1,1)` | 只缩放 Niagara 主视觉 |
+| `bHideDefaultProjectileVisuals` | 勾选 | 隐藏 `BP_SlashWaveProjectile` 旧视觉，避免两个刀光同时出现 |
+| `Launch Niagara System` | 一般留空 | 只用于额外的一次性发射闪光，不作为月光主体 |
 | `Spawn Offset` | 生成偏移 | X 是玩家前方距离，Z 是高度 |
 
 ## 推荐参数
@@ -57,6 +61,10 @@ Collision Box Extent = (30, 60, 35)
 Scale Visual With Collision Extent = true
 Visual Scale Multiplier = (1, 1, 1)
 Spawn Offset = (80, 0, 45)
+Projectile Visual Niagara System = NS_Free_Magic_Slash
+Projectile Visual Niagara Scale = (0.85, 0.85, 0.85)
+bHideDefaultProjectileVisuals = true
+Launch Niagara System = None
 ```
 
 强化月光刃：
@@ -74,6 +82,10 @@ Collision Box Extent = (45, 90, 45)
 Scale Visual With Collision Extent = true
 Visual Scale Multiplier = (1, 1, 1)
 Spawn Offset = (80, 0, 45)
+Projectile Visual Niagara System = NS_Free_Magic_Slash2
+Projectile Visual Niagara Scale = (1.35, 1.35, 1.2)
+bHideDefaultProjectileVisuals = true
+Launch Niagara System = None
 ```
 
 反向连携慢速月光刃：
@@ -91,6 +103,10 @@ Collision Box Extent = (75, 150, 65)
 Scale Visual With Collision Extent = true
 Visual Scale Multiplier = (1, 1, 1)
 Spawn Offset = (100, 0, 45)
+Projectile Visual Niagara System = NS_Free_Magic_Area2
+Projectile Visual Niagara Scale = (2.2, 2.2, 1.6)
+bHideDefaultProjectileVisuals = true
+Launch Niagara System = None
 ```
 
 ## 注意事项
@@ -100,3 +116,4 @@ Spawn Offset = (100, 0, 45)
 - `Collision Box Extent` 是最终碰撞范围；勾选 `Scale Visual With Collision Extent` 后，视觉会跟着范围比例变化，不需要再手动放大 BP。
 - 如果贴脸攻击看不到弹道，增大 `Spawn Offset.X`。
 - 如果月光刃太容易打中，降低 `Collision Box Extent.Y`。
+- 月光主体不要同时配置旧 BP 视觉和 `Launch Niagara System`。当前推荐做法是 `Projectile Visual Niagara System` 负责刀光主体，`bHideDefaultProjectileVisuals=true`。

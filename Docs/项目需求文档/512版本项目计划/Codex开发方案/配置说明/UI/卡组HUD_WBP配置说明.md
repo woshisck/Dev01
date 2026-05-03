@@ -4,11 +4,11 @@
 
 卡组 HUD 由 3 个 WBP 组成：
 
-| WBP | 作用 | 配置文档 |
-| --- | --- | --- |
-| `WBP_CombatDeckCardSlot` | 单张战斗卡牌槽位 | `WBP_CombatDeckCardSlot配置说明.md` |
-| `WBP_CombatDeckBar` | 卡组条，管理多个卡牌槽、洗牌进度和提示文本 | `WBP_CombatDeckBar配置说明.md` |
-| `WBP_HUDRoot` | 主 HUD 容器，把卡组条挂到屏幕上 | `WBP_HUDRoot_卡组HUD挂载说明.md` |
+| WBP                      | 作用                    | 配置文档                            |
+| ------------------------ | --------------------- | ------------------------------- |
+| `WBP_CombatDeckCardSlot` | 单张战斗卡牌槽位              | `WBP_CombatDeckCardSlot配置说明.md` |
+| `WBP_CombatDeckBar`      | 卡组条，管理多个卡牌槽、洗牌进度和提示文本 | `WBP_CombatDeckBar配置说明.md`      |
+| `WBP_HUDRoot`            | 主 HUD 容器，把卡组条挂到屏幕上    | `WBP_HUDRoot_卡组HUD挂载说明.md`      |
 
 ## 配置顺序
 

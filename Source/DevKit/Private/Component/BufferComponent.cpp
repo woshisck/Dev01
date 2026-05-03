@@ -63,13 +63,26 @@ bool UBufferComponent::HasBufferedInputSince(EInputCommandType Type, float Since
 
 bool UBufferComponent::ConsumeBufferedInput(EInputCommandType Type)
 {
-	const float Now = GetWorld()->GetTimeSeconds();
 	for (int32 i = InputCommandHistory.Num() - 1; i >= 0; --i)
 	{
 		FInputCommand& Cmd = InputCommandHistory[i];
 		if (Cmd.CommandType == Type)
 		{
 			// 标记为极旧时间戳使其在时间窗口外，等效"消耗"
+			Cmd.Timestamp = -9999.0f;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UBufferComponent::ConsumeBufferedInputSince(EInputCommandType Type, float SinceTime)
+{
+	for (int32 i = InputCommandHistory.Num() - 1; i >= 0; --i)
+	{
+		FInputCommand& Cmd = InputCommandHistory[i];
+		if (Cmd.CommandType == Type && Cmd.Timestamp > SinceTime)
+		{
 			Cmd.Timestamp = -9999.0f;
 			return true;
 		}

@@ -1,17 +1,29 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Misc/PackageName.h"
 #include "Component/CombatDeckComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
+#include "AbilitySystem/Execution/GEExec_PoisonDamage.h"
+#include "BuffFlow/BuffFlowComponent.h"
+#include "BuffFlow/Nodes/BFNode_ApplyAttributeModifier.h"
+#include "BuffFlow/Nodes/BFNode_ApplyEffect.h"
+#include "BuffFlow/Nodes/BFNode_ApplyGEInRadius.h"
+#include "BuffFlow/Nodes/BFNode_PlayFlipbookVFX.h"
+#include "BuffFlow/Nodes/BFNode_PlayNiagara.h"
+#include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
+#include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "Data/AbilityData.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/MontageConfigDA.h"
+#include "Data/RuneDataAsset.h"
 #include "Data/WeaponComboConfigDA.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 #include "FlowAsset.h"
+#include "GameplayEffect.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckConsumesFourCardsTest,
 	"DevKit.CombatDeck.ConsumesFourCardsThenShuffles",
@@ -370,7 +382,7 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 	Node->ComboWindowEndFrame = 20;
 	Node->ComboWindowTotalFrames = 30;
 
-	const FWeaponComboNodeConfig RuntimeConfig = Node->BuildRuntimeConfig(ECardRequiredAction::Heavy);
+	const FWeaponComboNodeConfig RuntimeConfig = Node->BuildRuntimeConfig(ECombatGraphInputAction::Heavy);
 
 	TestEqual(TEXT("Graph node exports its NodeId"), RuntimeConfig.NodeId, FName(TEXT("L2H")));
 	TestEqual(TEXT("Graph edge input becomes runtime input"), RuntimeConfig.InputAction, ECardRequiredAction::Heavy);
@@ -378,6 +390,45 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 	TestEqual(TEXT("Combo window start frame is exported"), RuntimeConfig.ComboWindowStartFrame, 12);
 	TestEqual(TEXT("Combo window end frame is exported"), RuntimeConfig.ComboWindowEndFrame, 20);
 	TestEqual(TEXT("Combo window total frames is exported"), RuntimeConfig.ComboWindowTotalFrames, 30);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphDashNodeExportsRuntimeConfigTest,
+	"DevKit.CombatDeck.ComboGraphDashNodeExportsRuntimeConfig",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGameplayAbilityComboGraphDashNodeExportsRuntimeConfigTest::RunTest(const FString& Parameters)
+{
+	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
+	UGameplayAbilityComboGraphNode* DashNode = NewObject<UGameplayAbilityComboGraphNode>(Graph);
+	DashNode->Graph = Graph;
+	DashNode->NodeId = TEXT("Dash");
+	DashNode->RootInputAction = ECombatGraphInputAction::Dash;
+	DashNode->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"));
+	DashNode->DashSaveMode = EComboDashSaveMode::ForcePreserve;
+	DashNode->DashSaveExpireSeconds = 0.75f;
+	DashNode->bSavePendingLinkContext = false;
+	DashNode->bClearCombatTagsOnDashEnd = true;
+	DashNode->bBreakComboOnDashCancel = false;
+	Graph->AllNodes = { DashNode };
+	Graph->RootNodes = { DashNode };
+
+	TArray<FText> Warnings;
+	Graph->ValidateComboGraph(Warnings);
+	const bool bHasMontageWarning = Warnings.ContainsByPredicate([](const FText& Warning)
+	{
+		return Warning.ToString().Contains(TEXT("has no MontageConfig"));
+	});
+	TestFalse(TEXT("Dash graph node does not require MontageConfig"), bHasMontageWarning);
+
+	const FWeaponComboNodeConfig RuntimeConfig = DashNode->BuildRuntimeConfig(ECombatGraphInputAction::Dash);
+	TestEqual(TEXT("Dash node maps to card-neutral runtime action"), RuntimeConfig.InputAction, ECardRequiredAction::Any);
+	TestEqual(TEXT("Dash node exports save mode"), RuntimeConfig.DashSaveMode, EComboDashSaveMode::ForcePreserve);
+	TestEqual(TEXT("Dash node exports save expiry"), RuntimeConfig.DashSaveExpireSeconds, 0.75f);
+	TestFalse(TEXT("Dash node can disable pending link save"), RuntimeConfig.bSavePendingLinkContext);
+	TestTrue(TEXT("Dash node exports combat tag cleanup"), RuntimeConfig.bClearCombatTagsOnDashEnd);
+	TestFalse(TEXT("Dash node can keep save on cancel"), RuntimeConfig.bBreakComboOnDashCancel);
 
 	return true;
 }
@@ -410,8 +461,8 @@ bool FGameplayAbilityComboGraphWarnsDuplicateChildInputTest::RunTest(const FStri
 	SecondChild->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo3"));
 	SecondChild->MontageConfig = NewObject<UMontageConfigDA>(Graph);
 
-	FirstEdge->InputAction = ECardRequiredAction::Light;
-	SecondEdge->InputAction = ECardRequiredAction::Light;
+	FirstEdge->InputAction = ECombatGraphInputAction::Light;
+	SecondEdge->InputAction = ECombatGraphInputAction::Light;
 	Root->ChildrenNodes = { FirstChild, SecondChild };
 	FirstChild->ParentNodes = { Root };
 	SecondChild->ParentNodes = { Root };
@@ -485,6 +536,140 @@ bool FCombatDeckOnHitCardIgnoresCommitTest::RunTest(const FString& Parameters)
 	const FCombatCardResolveResult HitResult = Deck->ResolveAttackCardWithContext(Context);
 	TestTrue(TEXT("OnHit card is consumed by OnHit"), HitResult.bHadCard);
 	TestTrue(TEXT("OnHit card triggers base release"), HitResult.bTriggeredBaseFlow);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckComboEffectScalingDefaultsOffTest,
+	"DevKit.CombatDeck.ComboEffectScalingDefaultsOff",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckComboEffectScalingDefaultsOffTest::RunTest(const FString& Parameters)
+{
+	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+	Deck->SetDeckListForTest({ AttackCard });
+
+	FCombatDeckActionContext Context;
+	Context.ActionType = ECardRequiredAction::Light;
+	Context.ComboIndex = 3;
+	Context.AttackInstanceGuid = FGuid::NewGuid();
+
+	const FCombatCardResolveResult Result = Deck->ResolveAttackCardWithContext(Context);
+	TestTrue(TEXT("Default card consumes"), Result.bHadCard);
+	TestEqual(TEXT("Default card does not receive combo scaling"), Result.AppliedMultiplier, 1.0f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckComboEffectScalingAppliesAndCapsTest,
+	"DevKit.CombatDeck.ComboEffectScalingAppliesAndCaps",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckComboEffectScalingAppliesAndCapsTest::RunTest(const FString& Parameters)
+{
+	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	AttackCard.bUseComboEffectScaling = true;
+	AttackCard.ComboScalarPerIndex = 0.25f;
+	AttackCard.MaxComboScalar = 0.5f;
+
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+	Deck->SetDeckListForTest({ AttackCard, AttackCard, AttackCard });
+
+	FCombatDeckActionContext Context;
+	Context.ActionType = ECardRequiredAction::Light;
+
+	Context.ComboIndex = 1;
+	Context.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult FirstResult = Deck->ResolveAttackCardWithContext(Context);
+	TestEqual(TEXT("Combo1 multiplier is unchanged"), FirstResult.AppliedMultiplier, 1.0f);
+
+	Context.ComboIndex = 2;
+	Context.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult SecondResult = Deck->ResolveAttackCardWithContext(Context);
+	TestEqual(TEXT("Combo2 receives one stack"), SecondResult.AppliedMultiplier, 1.25f);
+
+	Context.ComboIndex = 4;
+	Context.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult CappedResult = Deck->ResolveAttackCardWithContext(Context);
+	TestEqual(TEXT("Combo scaling respects max scalar"), CappedResult.AppliedMultiplier, 1.5f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckLinkMultiplierCombinesWithComboScalingTest,
+	"DevKit.CombatDeck.LinkMultiplierCombinesWithComboScaling",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckLinkMultiplierCombinesWithComboScalingTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag AttackEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Attack"));
+
+	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	AttackCard.CardEffectTags.AddTag(AttackEffectTag);
+
+	FCombatCardConfig LinkCard{ ECombatCardType::Link, ECardRequiredAction::Any };
+	LinkCard.DefaultLinkOrientation = ECombatCardLinkOrientation::Forward;
+	LinkCard.bUseComboEffectScaling = true;
+	LinkCard.ComboScalarPerIndex = 0.25f;
+	LinkCard.MaxComboScalar = 0.5f;
+
+	FCombatCardLinkRecipe Recipe;
+	Recipe.Direction = ECombatCardLinkOrientation::Forward;
+	Recipe.LinkFlow = NewObject<UFlowAsset>();
+	Recipe.Multiplier = 1.5f;
+	Recipe.Condition.RequiredNeighborEffectTags.AddTag(AttackEffectTag);
+	LinkCard.LinkRecipes.Add(Recipe);
+
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+	Deck->SetDeckListForTest({ AttackCard, LinkCard });
+
+	FCombatDeckActionContext Context;
+	Context.ActionType = ECardRequiredAction::Light;
+	Context.ComboIndex = 1;
+	Context.AttackInstanceGuid = FGuid::NewGuid();
+	Deck->ResolveAttackCardWithContext(Context);
+
+	Context.ComboIndex = 3;
+	Context.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult LinkResult = Deck->ResolveAttackCardWithContext(Context);
+	TestTrue(TEXT("Forward link triggers"), LinkResult.bTriggeredForwardLink);
+	TestEqual(TEXT("Link multiplier combines with combo multiplier"), LinkResult.AppliedMultiplier, 2.25f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBuffFlowCombatCardEffectContextStoresResolveDataTest,
+	"DevKit.CombatDeck.BuffFlowStoresCombatCardEffectContext",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FBuffFlowCombatCardEffectContextStoresResolveDataTest::RunTest(const FString& Parameters)
+{
+	FCombatCardConfig AttackCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	FCombatCardInstance AttackCard;
+	AttackCard.InstanceGuid = FGuid::NewGuid();
+	AttackCard.Config = AttackCardConfig;
+
+	FCombatDeckActionContext ActionContext;
+	ActionContext.ComboIndex = 3;
+	ActionContext.ComboNodeId = TEXT("L3");
+	ActionContext.bIsComboFinisher = true;
+
+	FCombatCardResolveResult ResolveResult;
+	ResolveResult.bHadCard = true;
+	ResolveResult.ConsumedCard = AttackCard;
+	ResolveResult.AppliedMultiplier = 1.5f;
+
+	UBuffFlowComponent* BuffFlowComponent = NewObject<UBuffFlowComponent>();
+	BuffFlowComponent->StartCombatCardFlow(nullptr, AttackCard, ActionContext, ResolveResult, nullptr, true);
+
+	TestTrue(TEXT("Combat-card context is marked available"), BuffFlowComponent->HasCombatCardEffectContext());
+	const FCombatCardEffectContext& StoredContext = BuffFlowComponent->GetLastCombatCardEffectContext();
+	TestEqual(TEXT("Stored combo index"), StoredContext.ComboIndex, 3);
+	TestEqual(TEXT("Stored combo bonus stacks"), StoredContext.ComboBonusStacks, 2);
+	TestEqual(TEXT("Stored multiplier"), StoredContext.EffectMultiplier, 1.5f);
+	TestTrue(TEXT("Stored finisher flag"), StoredContext.bIsComboFinisher);
 
 	return true;
 }
@@ -832,6 +1017,51 @@ bool FCombatDeckRecipeReversedClearsOnComboExitTest::RunTest(const FString& Para
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRecipeReversedRequiresComboContinuationTest,
+	"DevKit.CombatDeck.RecipeReversedRequiresComboContinuation",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckRecipeReversedRequiresComboContinuationTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag AttackEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Attack"));
+
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig MoonlightCard{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightCard.DefaultLinkOrientation = ECombatCardLinkOrientation::Reversed;
+
+	FCombatCardLinkRecipe Recipe;
+	Recipe.Direction = ECombatCardLinkOrientation::Reversed;
+	Recipe.LinkFlow = NewObject<UFlowAsset>();
+	Recipe.Condition.RequiredNeighborEffectTags.AddTag(AttackEffectTag);
+	MoonlightCard.LinkRecipes.Add(Recipe);
+
+	FCombatCardConfig AttackCard{ ECombatCardType::Normal, ECardRequiredAction::Any };
+	AttackCard.CardEffectTags.AddTag(AttackEffectTag);
+
+	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
+
+	FCombatDeckActionContext MoonlightContext;
+	MoonlightContext.ActionType = ECardRequiredAction::Light;
+	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.bComboContinued = true;
+	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
+
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
+	TestTrue(TEXT("Reversed Moonlight opens a pending recipe link during a valid combo"), MoonlightResult.bPendingBackwardLink);
+
+	FCombatDeckActionContext RestartedAttackContext = MoonlightContext;
+	RestartedAttackContext.AttackInstanceGuid = FGuid::NewGuid();
+	RestartedAttackContext.bComboContinued = false;
+
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCardWithContext(RestartedAttackContext);
+	TestTrue(TEXT("Restarted attack card is still consumed"), AttackResult.bHadCard);
+	TestFalse(TEXT("Pending reversed link is cleared when the next attack is not a combo continuation"), AttackResult.bTriggeredBackwardLink);
+	TestTrue(TEXT("Restarted attack falls back to its own base flow"), AttackResult.bTriggeredBaseFlow);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckEditMovesAndReversesCardsTest,
 	"DevKit.CombatDeck.EditMovesAndReversesCards",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -892,6 +1122,445 @@ bool FCombatDeckRecipeDoesNotLinkToLinkCardsTest::RunTest(const FString& Paramet
 	TestTrue(TEXT("Second link card falls back to base flow"), Result.bTriggeredBaseFlow);
 
 	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedMoonlightRecipesTriggerAllEffectsTest,
+	"DevKit.CombatDeck.GeneratedMoonlightRecipesTriggerAllConfiguredEffects",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckGeneratedMoonlightRecipesTriggerAllEffectsTest::RunTest(const FString& Parameters)
+{
+	URuneDataAsset* MoonlightForwardDA = LoadObject<URuneDataAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward"));
+	URuneDataAsset* MoonlightReversedDA = LoadObject<URuneDataAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Reversed.DA_Rune512_Moonlight_Reversed"));
+
+	TestNotNull(TEXT("Generated forward Moonlight DA exists"), MoonlightForwardDA);
+	TestNotNull(TEXT("Generated reversed Moonlight DA exists"), MoonlightReversedDA);
+	if (!MoonlightForwardDA || !MoonlightReversedDA)
+	{
+		return false;
+	}
+
+	const TArray<FName> EffectTagNames = {
+		TEXT("Card.Effect.Burn"),
+		TEXT("Card.Effect.Poison"),
+		TEXT("Card.Effect.Split"),
+		TEXT("Card.Effect.Shield"),
+		TEXT("Card.Effect.Pierce"),
+		TEXT("Card.Effect.Attack"),
+		TEXT("Card.Effect.Defense.ReduceDamage"),
+	};
+
+	const FCombatCardConfig& ForwardMoonlightConfig = MoonlightForwardDA->RuneInfo.CombatCard;
+	const FCombatCardConfig& ReversedMoonlightConfig = MoonlightReversedDA->RuneInfo.CombatCard;
+	TestEqual(TEXT("Forward Moonlight has all forward and reversed generated recipes"), ForwardMoonlightConfig.LinkRecipes.Num(), 14);
+	TestEqual(TEXT("Reversed Moonlight has all forward and reversed generated recipes"), ReversedMoonlightConfig.LinkRecipes.Num(), 14);
+
+	for (const FName& EffectTagName : EffectTagNames)
+	{
+		const FGameplayTag EffectTag = FGameplayTag::RequestGameplayTag(EffectTagName, false);
+		TestTrue(FString::Printf(TEXT("Effect tag exists: %s"), *EffectTagName.ToString()), EffectTag.IsValid());
+		if (!EffectTag.IsValid())
+		{
+			continue;
+		}
+
+		FCombatCardConfig NeighborCard{ ECombatCardType::Normal, ECardRequiredAction::Any };
+		NeighborCard.CardEffectTags.AddTag(EffectTag);
+
+		UCombatDeckComponent* ForwardDeck = NewObject<UCombatDeckComponent>();
+		ForwardDeck->SetDeckListForTest({ NeighborCard, ForwardMoonlightConfig });
+
+		FCombatDeckActionContext ForwardNeighborContext;
+		ForwardNeighborContext.ActionType = ECardRequiredAction::Light;
+		ForwardNeighborContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+		ForwardNeighborContext.bComboContinued = true;
+		ForwardNeighborContext.AttackInstanceGuid = FGuid::NewGuid();
+		ForwardDeck->ResolveAttackCardWithContext(ForwardNeighborContext);
+
+		FCombatDeckActionContext ForwardMoonlightContext = ForwardNeighborContext;
+		ForwardMoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
+		const FCombatCardResolveResult ForwardResult = ForwardDeck->ResolveAttackCardWithContext(ForwardMoonlightContext);
+		TestTrue(FString::Printf(TEXT("Generated forward Moonlight recipe triggers for %s"), *EffectTagName.ToString()),
+			ForwardResult.bTriggeredForwardLink);
+		TestTrue(FString::Printf(TEXT("Generated forward Moonlight recipe has LinkFlow for %s"), *EffectTagName.ToString()),
+			ForwardResult.LinkedTargetCard.Config.LinkRecipes.ContainsByPredicate([EffectTag](const FCombatCardLinkRecipe& Recipe)
+			{
+				return Recipe.Direction == ECombatCardLinkOrientation::Forward
+					&& Recipe.Condition.RequiredNeighborEffectTags.HasTagExact(EffectTag)
+					&& Recipe.LinkFlow != nullptr;
+			}));
+
+		UCombatDeckComponent* ReversedDeck = NewObject<UCombatDeckComponent>();
+		ReversedDeck->SetDeckListForTest({ ReversedMoonlightConfig, NeighborCard });
+
+		FCombatDeckActionContext ReversedMoonlightContext;
+		ReversedMoonlightContext.ActionType = ECardRequiredAction::Light;
+		ReversedMoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+		ReversedMoonlightContext.bComboContinued = true;
+		ReversedMoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
+		const FCombatCardResolveResult PendingResult = ReversedDeck->ResolveAttackCardWithContext(ReversedMoonlightContext);
+		TestTrue(FString::Printf(TEXT("Generated reversed Moonlight opens pending link for %s"), *EffectTagName.ToString()),
+			PendingResult.bPendingBackwardLink);
+
+		FCombatDeckActionContext ReversedNeighborContext = ReversedMoonlightContext;
+		ReversedNeighborContext.AttackInstanceGuid = FGuid::NewGuid();
+		const FCombatCardResolveResult ReversedResult = ReversedDeck->ResolveAttackCardWithContext(ReversedNeighborContext);
+		TestTrue(FString::Printf(TEXT("Generated reversed Moonlight recipe triggers for %s"), *EffectTagName.ToString()),
+			ReversedResult.bTriggeredBackwardLink);
+		TestTrue(FString::Printf(TEXT("Generated reversed Moonlight recipe has LinkFlow for %s"), *EffectTagName.ToString()),
+			ReversedResult.LinkedSourceCard.Config.LinkRecipes.ContainsByPredicate([EffectTag](const FCombatCardLinkRecipe& Recipe)
+			{
+				return Recipe.Direction == ECombatCardLinkOrientation::Reversed
+					&& Recipe.Condition.RequiredNeighborEffectTags.HasTagExact(EffectTag)
+					&& Recipe.LinkFlow != nullptr;
+			}));
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedComboDrivenAssetsConfiguredTest,
+	"DevKit.CombatDeck.GeneratedComboDrivenAssetsConfigured",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckGeneratedComboDrivenAssetsConfiguredTest::RunTest(const FString& Parameters)
+{
+	URuneDataAsset* AttackDA = LoadObject<URuneDataAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Attack.DA_Rune512_Attack"));
+	TestNotNull(TEXT("Generated attack DA exists"), AttackDA);
+	if (!AttackDA)
+	{
+		return false;
+	}
+
+	const FCombatCardConfig& AttackCard = AttackDA->RuneInfo.CombatCard;
+	TestTrue(TEXT("Attack card uses combo effect scaling"), AttackCard.bUseComboEffectScaling);
+	TestEqual(TEXT("Attack card combo scalar per index"), AttackCard.ComboScalarPerIndex, 0.25f);
+	TestEqual(TEXT("Attack card max combo scalar"), AttackCard.MaxComboScalar, 0.5f);
+
+	UFlowAsset* AttackFlow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Attack_Base.FA_Rune512_Attack_Base"));
+	TestNotNull(TEXT("Generated attack base flow exists"), AttackFlow);
+	if (!AttackFlow)
+	{
+		return false;
+	}
+
+	int32 ApplyAttributeNodeCount = 0;
+	for (const TPair<FGuid, UFlowNode*>& Pair : AttackFlow->GetNodes())
+	{
+		if (const UBFNode_ApplyAttributeModifier* ApplyNode = Cast<UBFNode_ApplyAttributeModifier>(Pair.Value))
+		{
+			++ApplyAttributeNodeCount;
+			TestTrue(TEXT("Attack apply-attribute node uses combat-card multiplier"), ApplyNode->bUseCombatCardEffectMultiplier);
+		}
+	}
+	TestTrue(TEXT("Attack flow has apply-attribute node"), ApplyAttributeNodeCount > 0);
+
+	UFlowAsset* MoonlightBaseFlow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Base.FA_Rune512_Moonlight_Base"));
+	TestNotNull(TEXT("Generated moonlight base flow exists"), MoonlightBaseFlow);
+	if (!MoonlightBaseFlow)
+	{
+		return false;
+	}
+
+	UBFNode_SpawnSlashWaveProjectile* SlashNode = nullptr;
+	for (const TPair<FGuid, UFlowNode*>& Pair : MoonlightBaseFlow->GetNodes())
+	{
+		SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
+		if (SlashNode)
+		{
+			break;
+		}
+	}
+
+	TestNotNull(TEXT("Moonlight base flow has slash-wave node"), SlashNode);
+	if (!SlashNode)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Moonlight base projectile count"), SlashNode->ProjectileCount, 1);
+	TestTrue(TEXT("Moonlight base adds combo stacks to projectile count"), SlashNode->bAddComboStacksToProjectileCount);
+	TestEqual(TEXT("Moonlight base projectiles per combo stack"), SlashNode->ProjectilesPerComboStack, 1);
+	TestEqual(TEXT("Moonlight base max bonus projectiles"), SlashNode->MaxBonusProjectiles, 2);
+	TestEqual(TEXT("Moonlight base combo cone angle"), SlashNode->ProjectileConeAngleDegrees, 15.f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedVfxClearsLegacyNiagaraTest,
+	"DevKit.CombatDeck.GeneratedVfxClearsLegacyNiagara",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckGeneratedVfxClearsLegacyNiagaraTest::RunTest(const FString& Parameters)
+{
+	auto ValidateMoonlightFlow = [this](const TCHAR* FlowPath, const TCHAR* Label) -> bool
+	{
+		UFlowAsset* Flow = LoadObject<UFlowAsset>(nullptr, FlowPath);
+		TestNotNull(FString::Printf(TEXT("%s flow exists"), Label), Flow);
+		if (!Flow)
+		{
+			return false;
+		}
+
+		int32 SlashNodeCount = 0;
+		for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
+		{
+			if (const UBFNode_SpawnSlashWaveProjectile* SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value))
+			{
+				++SlashNodeCount;
+				TestNull(FString::Printf(TEXT("%s projectile visual Niagara is cleared"), Label), SlashNode->ProjectileVisualNiagaraSystem);
+				TestFalse(FString::Printf(TEXT("%s keeps default projectile visuals visible"), Label), SlashNode->bHideDefaultProjectileVisuals);
+				TestNull(FString::Printf(TEXT("%s launch Niagara is cleared"), Label), SlashNode->LaunchNiagaraSystem);
+				TestNull(FString::Printf(TEXT("%s hit Niagara is cleared"), Label), SlashNode->HitNiagaraSystem);
+				TestNull(FString::Printf(TEXT("%s expire Niagara is cleared"), Label), SlashNode->ExpireNiagaraSystem);
+			}
+		}
+
+		TestTrue(FString::Printf(TEXT("%s has slash-wave projectile node"), Label), SlashNodeCount > 0);
+		return SlashNodeCount > 0;
+	};
+
+	auto ValidateStandaloneFlipbookFlow = [this](const TCHAR* FlowPath, const TCHAR* Label, const TCHAR* ExpectedTextureName) -> bool
+	{
+		UFlowAsset* Flow = LoadObject<UFlowAsset>(nullptr, FlowPath);
+		TestNotNull(FString::Printf(TEXT("%s flow exists"), Label), Flow);
+		if (!Flow)
+		{
+			return false;
+		}
+
+		int32 ActiveLegacyNiagaraCount = 0;
+		bool bHasExpectedFlipbook = false;
+		for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
+		{
+			if (const UBFNode_PlayNiagara* NiagaraNode = Cast<UBFNode_PlayNiagara>(Pair.Value))
+			{
+				if (NiagaraNode->NiagaraSystem)
+				{
+					++ActiveLegacyNiagaraCount;
+				}
+			}
+			if (const UBFNode_PlayFlipbookVFX* FlipbookNode = Cast<UBFNode_PlayFlipbookVFX>(Pair.Value))
+			{
+				const FString TextureName = GetNameSafe(FlipbookNode->Texture);
+				bHasExpectedFlipbook |= TextureName.Contains(ExpectedTextureName);
+				TestNotNull(FString::Printf(TEXT("%s flipbook material assigned"), Label), FlipbookNode->Material.Get());
+				TestEqual(FString::Printf(TEXT("%s flipbook targets last damage target"), Label), FlipbookNode->Target, EBFTargetSelector::LastDamageTarget);
+				TestTrue(FString::Printf(TEXT("%s flipbook size is compact"), Label), FlipbookNode->Size <= 90.f);
+			}
+		}
+
+		TestEqual(FString::Printf(TEXT("%s has no active legacy Niagara nodes"), Label), ActiveLegacyNiagaraCount, 0);
+		TestTrue(FString::Printf(TEXT("%s has expected flipbook texture"), Label), bHasExpectedFlipbook);
+		return ActiveLegacyNiagaraCount == 0 && bHasExpectedFlipbook;
+	};
+
+	bool bAllValid = true;
+	bAllValid &= ValidateMoonlightFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Base.FA_Rune512_Moonlight_Base"),
+		TEXT("Moonlight base"));
+	bAllValid &= ValidateMoonlightFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Attack.FA_Rune512_Moonlight_Forward_Attack"),
+		TEXT("Moonlight forward attack"));
+	bAllValid &= ValidateMoonlightFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Attack.FA_Rune512_Moonlight_Reversed_Attack"),
+		TEXT("Moonlight reversed attack"));
+	bAllValid &= ValidateMoonlightFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Poison.FA_Rune512_Moonlight_Forward_Poison"),
+		TEXT("Moonlight forward poison"));
+	bAllValid &= ValidateMoonlightFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Poison.FA_Rune512_Moonlight_Reversed_Poison"),
+		TEXT("Moonlight reversed poison"));
+	bAllValid &= ValidateStandaloneFlipbookFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Burn_Base.FA_Rune512_Burn_Base"),
+		TEXT("Burn base"),
+		TEXT("Burn_Hit"));
+	bAllValid &= ValidateStandaloneFlipbookFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Poison_Base.FA_Rune512_Poison_Base"),
+		TEXT("Poison base"),
+		TEXT("Poison_Hit"));
+
+	return bAllValid;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest,
+	"DevKit.CombatDeck.MoonlightPoisonFlowUsesAtomicVfxNodes",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag PoisonHitTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Rune.MoonlightPoisonHit"), false);
+	const FGameplayTag DamageTag = FGameplayTag::RequestGameplayTag(TEXT("Data.Damage"), false);
+	TestTrue(TEXT("Moonlight poison hit event tag exists"), PoisonHitTag.IsValid());
+	TestTrue(TEXT("Data.Damage set-by-caller tag exists"), DamageTag.IsValid());
+
+	auto ValidatePoisonFlow = [this, PoisonHitTag, DamageTag](const TCHAR* FlowPath, const TCHAR* Label) -> bool
+	{
+		UFlowAsset* Flow = LoadObject<UFlowAsset>(nullptr, FlowPath);
+		TestNotNull(FString::Printf(TEXT("%s Flow exists"), Label), Flow);
+		if (!Flow)
+		{
+			return false;
+		}
+
+		UBFNode_SpawnSlashWaveProjectile* SlashNode = nullptr;
+		UBFNode_WaitGameplayEvent* WaitNode = nullptr;
+		TArray<UBFNode_PlayFlipbookVFX*> FlipbookNodes;
+		UBFNode_ApplyEffect* PrimaryPoisonNode = nullptr;
+		UBFNode_ApplyGEInRadius* RadiusPoisonNode = nullptr;
+
+		for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
+		{
+			if (!SlashNode)
+			{
+				SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
+			}
+			if (!WaitNode)
+			{
+				WaitNode = Cast<UBFNode_WaitGameplayEvent>(Pair.Value);
+			}
+			if (UBFNode_PlayFlipbookVFX* FlipbookNode = Cast<UBFNode_PlayFlipbookVFX>(Pair.Value))
+			{
+				FlipbookNodes.Add(FlipbookNode);
+			}
+			if (!PrimaryPoisonNode)
+			{
+				PrimaryPoisonNode = Cast<UBFNode_ApplyEffect>(Pair.Value);
+			}
+			if (!RadiusPoisonNode)
+			{
+				RadiusPoisonNode = Cast<UBFNode_ApplyGEInRadius>(Pair.Value);
+			}
+		}
+
+		TestNotNull(FString::Printf(TEXT("%s has slash-wave projectile node"), Label), SlashNode);
+		TestNotNull(FString::Printf(TEXT("%s has wait gameplay event node"), Label), WaitNode);
+		TestEqual(FString::Printf(TEXT("%s has two flipbook VFX nodes"), Label), FlipbookNodes.Num(), 2);
+		TestNotNull(FString::Printf(TEXT("%s has primary poison node"), Label), PrimaryPoisonNode);
+		TestNotNull(FString::Printf(TEXT("%s has radius poison node"), Label), RadiusPoisonNode);
+		if (!SlashNode || !WaitNode || FlipbookNodes.Num() < 2 || !PrimaryPoisonNode || !RadiusPoisonNode)
+		{
+			return false;
+		}
+
+		TestEqual(FString::Printf(TEXT("%s slash-wave sends poison hit event"), Label), SlashNode->HitGameplayEventTag, PoisonHitTag);
+		TestNull(FString::Printf(TEXT("%s slash-wave does not use inline hit Niagara"), Label), SlashNode->HitNiagaraSystem);
+		TestNull(FString::Printf(TEXT("%s slash-wave does not use inline expire Niagara"), Label), SlashNode->ExpireNiagaraSystem);
+		TestNull(FString::Printf(TEXT("%s slash-wave does not use inline additional hit GE"), Label), SlashNode->AdditionalHitEffect);
+
+		TestEqual(FString::Printf(TEXT("%s wait node listens to poison hit event"), Label), WaitNode->EventTag, PoisonHitTag);
+		TestEqual(FString::Printf(TEXT("%s wait node listens on BuffOwner"), Label), WaitNode->Target, EBFTargetSelector::BuffOwner);
+
+		bool bHasPoisonHitFlipbook = false;
+		bool bHasPoisonSpreadFlipbook = false;
+		for (const UBFNode_PlayFlipbookVFX* FlipbookNode : FlipbookNodes)
+		{
+			TestNotNull(FString::Printf(TEXT("%s flipbook node has texture"), Label), FlipbookNode->Texture.Get());
+			TestNotNull(FString::Printf(TEXT("%s flipbook node has material"), Label), FlipbookNode->Material.Get());
+			const FString TextureName = GetNameSafe(FlipbookNode->Texture);
+			bHasPoisonHitFlipbook |= TextureName.Contains(TEXT("Poison_Hit"));
+			bHasPoisonSpreadFlipbook |= TextureName.Contains(TEXT("Poison_Spread"));
+		}
+		TestTrue(FString::Printf(TEXT("%s includes poison hit flipbook"), Label), bHasPoisonHitFlipbook);
+		TestTrue(FString::Printf(TEXT("%s includes poison spread flipbook"), Label), bHasPoisonSpreadFlipbook);
+
+		TestTrue(FString::Printf(TEXT("%s primary poison GE is assigned"), Label),
+			PrimaryPoisonNode->Effect != nullptr && PrimaryPoisonNode->Effect->GetName().Contains(TEXT("GE_Poison")));
+		TestEqual(FString::Printf(TEXT("%s applies three poison stacks to primary target"), Label), PrimaryPoisonNode->ApplicationCount, 3);
+		TestEqual(FString::Printf(TEXT("%s primary poison targets last damage target"), Label), PrimaryPoisonNode->Target, EBFTargetSelector::LastDamageTarget);
+
+		TestTrue(FString::Printf(TEXT("%s radius poison GE is assigned"), Label), RadiusPoisonNode->Effect != nullptr);
+		TestEqual(FString::Printf(TEXT("%s radius is 300cm"), Label), RadiusPoisonNode->Radius.Value, 300.f);
+		TestEqual(FString::Printf(TEXT("%s radius source is last damage target"), Label), RadiusPoisonNode->LocationSource, EBFTargetSelector::LastDamageTarget);
+		TestTrue(FString::Printf(TEXT("%s excludes the primary target from radius spread"), Label), RadiusPoisonNode->bExcludeLocationSourceActor);
+		TestEqual(FString::Printf(TEXT("%s limits secondary targets"), Label), RadiusPoisonNode->MaxTargets, 3);
+		TestEqual(FString::Printf(TEXT("%s applies one stack to each secondary target"), Label), RadiusPoisonNode->ApplicationCount, 1);
+		TestEqual(FString::Printf(TEXT("%s uses Data.Damage set-by-caller"), Label), RadiusPoisonNode->SetByCallerTag1, DamageTag);
+		TestEqual(FString::Printf(TEXT("%s secondary poison damage is small"), Label), RadiusPoisonNode->SetByCallerValue1.Value, 5.f);
+
+		return true;
+	};
+
+	const bool bForwardValid = ValidatePoisonFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Poison.FA_Rune512_Moonlight_Forward_Poison"),
+		TEXT("Forward poison Moonlight"));
+	const bool bReversedValid = ValidatePoisonFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Poison.FA_Rune512_Moonlight_Reversed_Poison"),
+		TEXT("Reversed poison Moonlight"));
+
+	return bForwardValid && bReversedValid;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckPoisonGameplayEffectsConfiguredTest,
+	"DevKit.CombatDeck.PoisonGameplayEffectsConfigured",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckPoisonGameplayEffectsConfiguredTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag PoisonedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Poisoned"), false);
+	const FGameplayTag PoisonPercentTag = FGameplayTag::RequestGameplayTag(TEXT("Data.Poison.PercentPerStack"), false);
+	const FGameplayTag PoisonArmorPercentTag = FGameplayTag::RequestGameplayTag(TEXT("Data.Poison.ArmorPercentPerStack"), false);
+	TestTrue(TEXT("Buff.Status.Poisoned tag exists"), PoisonedTag.IsValid());
+	TestTrue(TEXT("Data.Poison.PercentPerStack tag exists"), PoisonPercentTag.IsValid());
+	TestTrue(TEXT("Data.Poison.ArmorPercentPerStack tag exists"), PoisonArmorPercentTag.IsValid());
+
+	auto ValidatePoisonGE = [this, PoisonedTag](const TCHAR* PackagePath, const TCHAR* Label, const bool bExpectedExecuteOnApply, const int32 MinStackLimit) -> bool
+	{
+		UGameplayEffect* Effect = nullptr;
+		{
+			const FString Package(PackagePath);
+			const FString AssetName = FPackageName::GetLongPackageAssetName(Package);
+			const FString ClassPath = Package + TEXT(".") + AssetName + TEXT("_C");
+			UClass* EffectClass = Cast<UClass>(StaticLoadObject(UClass::StaticClass(), nullptr, *ClassPath));
+			Effect = EffectClass ? EffectClass->GetDefaultObject<UGameplayEffect>() : nullptr;
+		}
+
+		TestNotNull(FString::Printf(TEXT("%s GE exists"), Label), Effect);
+		if (!Effect)
+		{
+			return false;
+		}
+
+		TestEqual(FString::Printf(TEXT("%s uses duration"), Label), Effect->DurationPolicy, EGameplayEffectDurationType::HasDuration);
+		TestEqual(FString::Printf(TEXT("%s period is 1s"), Label), Effect->Period.GetValueAtLevel(1.f), 1.f);
+		TestEqual(FString::Printf(TEXT("%s execute-on-apply flag"), Label), Effect->bExecutePeriodicEffectOnApplication, bExpectedExecuteOnApply);
+		TestEqual(FString::Printf(TEXT("%s has no legacy modifiers"), Label), Effect->Modifiers.Num(), 0);
+		TestTrue(FString::Printf(TEXT("%s grants poisoned tag"), Label),
+			PoisonedTag.IsValid() && Effect->GetGrantedTags().HasTagExact(PoisonedTag));
+		TestEqual(FString::Printf(TEXT("%s stacks by target"), Label), Effect->StackingType, EGameplayEffectStackingType::AggregateByTarget);
+		TestTrue(FString::Printf(TEXT("%s stack limit"), Label), Effect->StackLimitCount >= MinStackLimit);
+
+		const bool bHasPoisonExecution = Effect->Executions.ContainsByPredicate([](const FGameplayEffectExecutionDefinition& ExecDef)
+		{
+			return ExecDef.CalculationClass == UGEExec_PoisonDamage::StaticClass();
+		});
+		TestTrue(FString::Printf(TEXT("%s uses GEExec_PoisonDamage"), Label), bHasPoisonExecution);
+
+		return bHasPoisonExecution;
+	};
+
+	const bool bPrimaryValid = ValidatePoisonGE(
+		TEXT("/Game/Code/GAS/Abilities/Shared/GE_Poison"),
+		TEXT("GE_Poison"),
+		false,
+		20);
+	const bool bSplashValid = ValidatePoisonGE(
+		TEXT("/Game/Docs/BuffDocs/Playtest_GA/DeathPoison/GE_PoisonSplash"),
+		TEXT("GE_PoisonSplash"),
+		true,
+		10);
+
+	return bPrimaryValid && bSplashValid;
 }
 
 #endif

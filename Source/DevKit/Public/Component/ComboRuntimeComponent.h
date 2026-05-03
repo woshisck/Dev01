@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/WeaponComboConfigDA.h"
+#include "GameplayAbilitySpec.h"
 #include "ComboRuntimeComponent.generated.h"
 
 class APlayerCharacterBase;
@@ -29,11 +30,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	bool TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner);
 
+	bool TryActivateCombo(ECombatGraphInputAction InputAction, APlayerCharacterBase* PlayerOwner);
+
+	UFUNCTION(BlueprintPure, Category = "Combo")
+	bool HasDashInputNode() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	bool TryActivateDash(APlayerCharacterBase* PlayerOwner);
+
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	void ResetCombo();
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
-	void SaveCurrentNodeForDash();
+	bool SaveCurrentNodeForDash(EComboDashSaveMode SaveMode = EComboDashSaveMode::PreserveIfSourceAllows, float ExpireSeconds = 2.0f);
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	void ClearSavedDashNode();
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	void NotifyDashEnded(bool bWasCancelled);
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	void ClearRuntimeCombatLooseTags();
 
 	UFUNCTION(BlueprintPure, Category = "Combo")
 	FName GetCurrentNodeId() const { return CurrentNodeId; }
@@ -43,6 +61,8 @@ public:
 
 	const FWeaponComboNodeConfig* GetActiveNode() const;
 	FGuid GetActiveAttackGuid() const { return ActiveAttackGuid; }
+	void RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle);
+	bool HandleAttackAbilityEnded(const FGuid& EndedAttackGuid);
 	int32 GetComboIndex() const { return ComboIndex; }
 	const FGameplayTagContainer& GetComboTags() const { return ComboTags; }
 	bool DidComboContinue() const { return bComboContinued; }
@@ -67,7 +87,14 @@ private:
 	FWeaponComboNodeConfig ActiveNode;
 
 	UPROPERTY()
+	FWeaponComboNodeConfig ActiveDashNode;
+
+	UPROPERTY()
 	FGuid ActiveAttackGuid;
+
+	FGameplayAbilitySpecHandle ActiveAbilitySpecHandle;
+
+	FTimerHandle DashSaveExpireTimerHandle;
 
 	UPROPERTY()
 	int32 ComboIndex = 0;
@@ -76,7 +103,14 @@ private:
 	FGameplayTagContainer ComboTags;
 
 	bool bActiveNodeValid = false;
+	bool bActiveDashNodeValid = false;
 	bool bActivationFromDashSave = false;
 	bool bComboContinued = true;
 	bool bExitedComboState = false;
+
+	UPROPERTY()
+	FGameplayTagContainer RuntimeCombatLooseTags;
+
+	void TrackRuntimeCombatLooseTag(const FGameplayTag& Tag);
+	void ExpireSavedDashNode();
 };

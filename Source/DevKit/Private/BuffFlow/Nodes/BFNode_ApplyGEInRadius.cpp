@@ -42,6 +42,7 @@ void UBFNode_ApplyGEInRadius::ExecuteInput(const FName& PinName)
 
 	// ── 解析中心位置 ──────────────────────────────────────────────
 	FVector Center = LocationOffset;
+	AActor* LocationSourceActor = nullptr;
 
 	if (bUseKillLocation)
 	{
@@ -60,6 +61,7 @@ void UBFNode_ApplyGEInRadius::ExecuteInput(const FName& PinName)
 			TriggerOutput(TEXT("Failed"), true);
 			return;
 		}
+		LocationSourceActor = SourceActor;
 		Center = SourceActor->GetActorLocation() + LocationOffset;
 	}
 
@@ -92,6 +94,10 @@ void UBFNode_ApplyGEInRadius::ExecuteInput(const FName& PinName)
 	{
 		QueryParams.AddIgnoredActor(Owner);
 	}
+	if (bExcludeLocationSourceActor && LocationSourceActor)
+	{
+		QueryParams.AddIgnoredActor(LocationSourceActor);
+	}
 
 	World->OverlapMultiByObjectType(
 		Overlaps, Center, FQuat::Identity, ObjectParams,
@@ -120,7 +126,8 @@ void UBFNode_ApplyGEInRadius::ExecuteInput(const FName& PinName)
 
 	// ── 对每个有效目标施加 GE ────────────────────────────────────
 	TSet<AActor*> ProcessedActors;
-	int32 Count = 0;
+	TArray<TPair<float, AActor*>> CandidateActors;
+	CandidateActors.Reserve(Overlaps.Num());
 
 	for (const FOverlapResult& Overlap : Overlaps)
 	{
@@ -130,6 +137,11 @@ void UBFNode_ApplyGEInRadius::ExecuteInput(const FName& PinName)
 			continue;
 		}
 		ProcessedActors.Add(HitActor);
+
+		if (bExcludeLocationSourceActor && HitActor == LocationSourceActor)
+		{
+			continue;
+		}
 
 		if (bEnemyOnly && !Cast<AEnemyCharacterBase>(HitActor))
 		{
@@ -143,7 +155,37 @@ void UBFNode_ApplyGEInRadius::ExecuteInput(const FName& PinName)
 			continue;
 		}
 
-		TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+		CandidateActors.Add(TPair<float, AActor*>(FVector::DistSquared(Center, HitActor->GetActorLocation()), HitActor));
+	}
+
+	CandidateActors.Sort([](const TPair<float, AActor*>& A, const TPair<float, AActor*>& B)
+	{
+		return A.Key < B.Key;
+	});
+
+	int32 Count = 0;
+	const int32 MaxResolvedTargets = MaxTargets > 0 ? MaxTargets : MAX_int32;
+	const int32 ResolvedApplicationCount = FMath::Clamp(ApplicationCount, 1, 20);
+
+	for (const TPair<float, AActor*>& Candidate : CandidateActors)
+	{
+		if (Count >= MaxResolvedTargets)
+		{
+			break;
+		}
+
+		AActor* HitActor = Candidate.Value;
+		IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(HitActor);
+		UAbilitySystemComponent* TargetASC = ASI ? ASI->GetAbilitySystemComponent() : nullptr;
+		if (!TargetASC)
+		{
+			continue;
+		}
+
+		for (int32 ApplyIndex = 0; ApplyIndex < ResolvedApplicationCount; ++ApplyIndex)
+		{
+			TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+		}
 		++Count;
 	}
 

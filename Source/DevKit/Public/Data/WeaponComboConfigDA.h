@@ -9,6 +9,23 @@
 class UMontageAttackDataAsset;
 class UMontageConfigDA;
 
+UENUM(BlueprintType)
+enum class ECombatGraphInputAction : uint8
+{
+	Light UMETA(DisplayName = "Light"),
+	Heavy UMETA(DisplayName = "Heavy"),
+	Dash UMETA(DisplayName = "Dash"),
+	Any UMETA(DisplayName = "Any")
+};
+
+UENUM(BlueprintType)
+enum class EComboDashSaveMode : uint8
+{
+	None UMETA(DisplayName = "None"),
+	PreserveIfSourceAllows UMETA(DisplayName = "Preserve If Source Allows"),
+	ForcePreserve UMETA(DisplayName = "Force Preserve")
+};
+
 USTRUCT(BlueprintType)
 struct DEVKIT_API FWeaponComboNodeConfig
 {
@@ -37,6 +54,21 @@ struct DEVKIT_API FWeaponComboNodeConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	bool bAllowDashSave = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
+	EComboDashSaveMode DashSaveMode = EComboDashSaveMode::PreserveIfSourceAllows;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash", meta = (ClampMin = "0.0"))
+	float DashSaveExpireSeconds = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
+	bool bSavePendingLinkContext = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
+	bool bClearCombatTagsOnDashEnd = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
+	bool bBreakComboOnDashCancel = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window")
 	bool bOverrideComboWindow = false;

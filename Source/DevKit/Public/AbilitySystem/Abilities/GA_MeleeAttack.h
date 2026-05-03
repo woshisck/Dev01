@@ -130,6 +130,8 @@ private:
 	float LocalStatBeforeAttackPowerDelta = 0.f;
 	FTimerHandle ComboWindowOpenTimerHandle;
 	FTimerHandle ComboWindowCloseTimerHandle;
+	FDelegateHandle CanComboTagHandle;
+	float AbilityActivationTime = 0.f;
 
 	UPROPERTY()
 	FCombatCardResolveResult ActiveCombatCardResult;
@@ -146,8 +148,14 @@ private:
 	void OpenNodeComboWindow();
 	void CloseNodeComboWindow();
 
+	AActor* PreviewFirstCombatDeckHitTarget(const FGameplayEventData& EventData) const;
+	void PrimeCombatDeckHitContext(const FGameplayEventData& EventData);
+
 	void TryResolveCombatDeckOnHit();
 	FCombatCardResolveResult ResolveCombatDeck(ECombatCardTriggerTiming TriggerTiming);
+
+	UFUNCTION()
+	void OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount);
 
 	UFUNCTION()
 	void OnMontageCompleted(FGameplayTag EventTag, FGameplayEventData EventData);

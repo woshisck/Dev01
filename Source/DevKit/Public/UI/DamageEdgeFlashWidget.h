@@ -11,7 +11,7 @@ class DEVKIT_API UDamageEdgeFlashWidget : public UUserWidget
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Damage Feedback")
-	void PlayEdgeFlash(FLinearColor InColor, float InMaxAlpha, float InDuration, float InEdgeThickness);
+	void PlayEdgeFlash(FLinearColor InColor, float InMaxAlpha, float InDuration, float InEdgeWidthRatio);
 
 protected:
 	virtual void NativeConstruct() override;
@@ -30,6 +30,6 @@ private:
 	float MaxAlpha = 0.f;
 	float Duration = 0.f;
 	float Elapsed = 0.f;
-	float EdgeThickness = 120.f;
+	float EdgeWidthRatio = 0.1f;
 	bool bActive = false;
 };

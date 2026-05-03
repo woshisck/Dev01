@@ -28,6 +28,37 @@ void UBuffFlowComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void UBuffFlowComponent::StartBuffFlow(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow)
 {
+	bHasCombatCardEffectContext = false;
+	LastCombatCardEffectContext = FCombatCardEffectContext();
+	StartBuffFlowInternal(FlowAsset, RuneGuid, Giver, bRestartExistingFlow);
+}
+
+void UBuffFlowComponent::StartCombatCardFlow(
+	UFlowAsset* FlowAsset,
+	const FCombatCardInstance& Card,
+	const FCombatDeckActionContext& ActionContext,
+	const FCombatCardResolveResult& ResolveResult,
+	AActor* Giver,
+	bool bRestartExistingFlow)
+{
+	LastCombatCardEffectContext.ActionContext = ActionContext;
+	LastCombatCardEffectContext.SourceCard = Card;
+	LastCombatCardEffectContext.ResolveResult = ResolveResult;
+	LastCombatCardEffectContext.ComboIndex = ActionContext.ComboIndex;
+	LastCombatCardEffectContext.ComboNodeId = ActionContext.ComboNodeId;
+	LastCombatCardEffectContext.ComboTags = ActionContext.ComboTags;
+	LastCombatCardEffectContext.AbilityTag = ActionContext.AbilityTag;
+	LastCombatCardEffectContext.EffectMultiplier = ResolveResult.AppliedMultiplier;
+	LastCombatCardEffectContext.ComboBonusStacks = FMath::Max(0, ActionContext.ComboIndex - 1);
+	LastCombatCardEffectContext.bFromLink = ResolveResult.bTriggeredLink || ResolveResult.bTriggeredForwardLink || ResolveResult.bTriggeredBackwardLink;
+	LastCombatCardEffectContext.bIsComboFinisher = ActionContext.bIsComboFinisher;
+	bHasCombatCardEffectContext = true;
+
+	StartBuffFlowInternal(FlowAsset, Card.InstanceGuid, Giver, bRestartExistingFlow);
+}
+
+void UBuffFlowComponent::StartBuffFlowInternal(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow)
+{
 	if (!FlowAsset)
 	{
 		return;

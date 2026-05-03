@@ -597,7 +597,7 @@ bool UYogAbilitySystemComponent::ConsumeDashSave()
 		W->GetTimerManager().ClearTimer(DashSaveExpireTimer);
 
 	for (const FGameplayTag& Tag : DashSaveComboTags)
-		RemoveLooseGameplayTag(Tag);
+		SetLooseGameplayTagCount(Tag, 0);
 
 	DashSaveComboTags.Reset();
 	UE_LOG(LogTemp, Log, TEXT("[DashSave] Consumed on %s"), *GetNameSafe(GetAvatarActor()));

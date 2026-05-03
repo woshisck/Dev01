@@ -7,9 +7,24 @@
 
 namespace
 {
-	bool DoesInputMatch(ECardRequiredAction RequiredAction, ECardRequiredAction InputAction)
+	bool DoesInputMatch(ECombatGraphInputAction RequiredAction, ECombatGraphInputAction InputAction)
 	{
-		return RequiredAction == ECardRequiredAction::Any || RequiredAction == InputAction;
+		return RequiredAction == ECombatGraphInputAction::Any || RequiredAction == InputAction;
+	}
+
+	ECardRequiredAction ToCardAction(ECombatGraphInputAction InputAction)
+	{
+		switch (InputAction)
+		{
+		case ECombatGraphInputAction::Light:
+			return ECardRequiredAction::Light;
+		case ECombatGraphInputAction::Heavy:
+			return ECardRequiredAction::Heavy;
+		case ECombatGraphInputAction::Dash:
+		case ECombatGraphInputAction::Any:
+		default:
+			return ECardRequiredAction::Any;
+		}
 	}
 
 	FName MakeStableNodeId(const UObject* Object)
@@ -55,16 +70,21 @@ FGameplayTag UGameplayAbilityComboGraphNode::ResolveAbilityTag() const
 	return AbilityCDO->GetFirstTagFromContainer(AbilityCDO->GetAbilityTags());
 }
 
-FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(ECardRequiredAction InputAction) const
+FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(ECombatGraphInputAction InputAction) const
 {
 	FWeaponComboNodeConfig Config;
 	Config.NodeId = GetRuntimeNodeId(this);
-	Config.InputAction = InputAction;
+	Config.InputAction = ToCardAction(InputAction);
 	Config.AbilityTag = ResolveAbilityTag();
 	Config.MontageConfig = MontageConfig;
 	Config.AttackDataOverride = AttackDataOverride;
 	Config.bIsComboFinisher = bIsComboFinisher;
 	Config.bAllowDashSave = bAllowDashSave;
+	Config.DashSaveMode = DashSaveMode;
+	Config.DashSaveExpireSeconds = DashSaveExpireSeconds;
+	Config.bSavePendingLinkContext = bSavePendingLinkContext;
+	Config.bClearCombatTagsOnDashEnd = bClearCombatTagsOnDashEnd;
+	Config.bBreakComboOnDashCancel = bBreakComboOnDashCancel;
 	Config.bOverrideComboWindow = bUseNodeComboWindow;
 	Config.ComboWindowStartFrame = ComboWindowStartFrame;
 	Config.ComboWindowEndFrame = ComboWindowEndFrame;
@@ -128,8 +148,8 @@ UGameplayAbilityComboGraphEdge::UGameplayAbilityComboGraphEdge()
 #if WITH_EDITOR
 FText UGameplayAbilityComboGraphEdge::GetNodeTitle() const
 {
-	return StaticEnum<ECardRequiredAction>()
-		? StaticEnum<ECardRequiredAction>()->GetDisplayNameTextByValue(static_cast<int64>(InputAction))
+	return StaticEnum<ECombatGraphInputAction>()
+		? StaticEnum<ECombatGraphInputAction>()->GetDisplayNameTextByValue(static_cast<int64>(InputAction))
 		: FText::FromString(TEXT("Input"));
 }
 #endif
@@ -146,7 +166,7 @@ UGameplayAbilityComboGraph::UGameplayAbilityComboGraph()
 #endif
 }
 
-const UGameplayAbilityComboGraphNode* UGameplayAbilityComboGraph::FindRootComboNode(ECardRequiredAction InputAction) const
+const UGameplayAbilityComboGraphNode* UGameplayAbilityComboGraph::FindRootComboNode(ECombatGraphInputAction InputAction) const
 {
 	for (const UGenericGraphNode* RootNode : RootNodes)
 	{
@@ -169,7 +189,7 @@ const UGameplayAbilityComboGraphNode* UGameplayAbilityComboGraph::FindRootComboN
 	return nullptr;
 }
 
-const UGameplayAbilityComboGraphNode* UGameplayAbilityComboGraph::FindChildComboNode(FName ParentNodeId, ECardRequiredAction InputAction) const
+const UGameplayAbilityComboGraphNode* UGameplayAbilityComboGraph::FindChildComboNode(FName ParentNodeId, ECombatGraphInputAction InputAction) const
 {
 	if (ParentNodeId.IsNone())
 	{
@@ -237,7 +257,7 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s cannot resolve an ability tag."), *RuntimeNodeId.ToString())));
 		}
 
-		if (!ComboNode->MontageConfig)
+		if (ComboNode->RootInputAction != ECombatGraphInputAction::Dash && !ComboNode->MontageConfig)
 		{
 			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no MontageConfig."), *RuntimeNodeId.ToString())));
 		}
@@ -286,7 +306,7 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 				OutWarnings.Add(FText::FromString(FString::Printf(
 					TEXT("Node %s has multiple children for input %s: %s and %s."),
 					*RuntimeNodeId.ToString(),
-					*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(ComboEdge->InputAction)),
+					*StaticEnum<ECombatGraphInputAction>()->GetNameStringByValue(static_cast<int64>(ComboEdge->InputAction)),
 					*ExistingChild->ToString(),
 					*ChildNodeId.ToString())));
 			}
