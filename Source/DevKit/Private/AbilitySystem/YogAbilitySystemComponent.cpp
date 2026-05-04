@@ -14,6 +14,10 @@
 #include "Data/YogGameData.h"
 #include "Data/StateConflictDataAsset.h"
 #include "DevAssetManager.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 
 namespace
 {
@@ -49,6 +53,7 @@ namespace
 			(DeadTag.IsValid() && ASC->HasMatchingGameplayTag(DeadTag)) ||
 			(KnockbackTag.IsValid() && ASC->HasMatchingGameplayTag(KnockbackTag));
 	}
+
 }
 
 // Sets default values
@@ -115,12 +120,190 @@ void UYogAbilitySystemComponent::SetConflictTable(UStateConflictDataAsset* NewTa
 	InitConflictTable();
 }
 
+bool UYogAbilitySystemComponent::HasActiveStatusNiagaraForTag(FGameplayTag Tag) const
+{
+	const TObjectPtr<UNiagaraComponent>* FoundComponent = ActiveStatusNiagaraEffects.Find(Tag);
+	return FoundComponent && IsValid(FoundComponent->Get());
+}
+
+UNiagaraSystem* UYogAbilitySystemComponent::GetStatusNiagaraSystemForTag(FGameplayTag Tag) const
+{
+	static const FGameplayTag BurningTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Burning"), false);
+
+	if (BurningTag.IsValid() && Tag == BurningTag)
+	{
+		return LoadObject<UNiagaraSystem>(
+			nullptr,
+			TEXT("/Game/Art/EnvironmentAsset/VFX/Niagara/Fire/NS_Fire_Floor.NS_Fire_Floor"));
+	}
+
+	return nullptr;
+}
+
+void UYogAbilitySystemComponent::HandleStatusNiagaraTag(const FGameplayTag& Tag, bool bTagExists)
+{
+	static const FGameplayTag BurningTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Burning"), false);
+
+	if (!BurningTag.IsValid() || Tag != BurningTag)
+	{
+		return;
+	}
+
+	if (bTagExists)
+	{
+		UNiagaraSystem* BurnSystem = GetStatusNiagaraSystemForTag(Tag);
+		StartStatusNiagara(
+			Tag,
+			BurnSystem,
+			FName(TEXT("spine_03")),
+			{ FName(TEXT("spine_02")), FName(TEXT("pelvis")), FName(TEXT("root")) },
+			FVector(0.f, 0.f, 6.f),
+			FRotator::ZeroRotator,
+			FVector(0.28f));
+	}
+	else
+	{
+		StopStatusNiagara(Tag);
+	}
+}
+
+void UYogAbilitySystemComponent::StartStatusNiagara(const FGameplayTag& Tag, UNiagaraSystem* NiagaraSystem,
+	FName AttachSocketName, const TArray<FName>& FallbackSocketNames, FVector LocationOffset,
+	FRotator RotationOffset, FVector Scale)
+{
+	if (!Tag.IsValid())
+	{
+		return;
+	}
+
+	if (const TObjectPtr<UNiagaraComponent>* ExistingComponent = ActiveStatusNiagaraEffects.Find(Tag))
+	{
+		if (IsValid(ExistingComponent->Get()))
+		{
+			return;
+		}
+		ActiveStatusNiagaraEffects.Remove(Tag);
+	}
+
+	if (!NiagaraSystem)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StatusNiagara] Skip: NiagaraSystem is null Tag=%s Owner=%s"),
+			*Tag.ToString(), *GetNameSafe(GetOwner()));
+		return;
+	}
+
+	AActor* TargetActor = GetAvatarActor();
+	if (!TargetActor)
+	{
+		TargetActor = GetOwner();
+	}
+
+	if (!TargetActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StatusNiagara] Skip: target actor is null Tag=%s"), *Tag.ToString());
+		return;
+	}
+
+	USceneComponent* AttachComponent = TargetActor->GetRootComponent();
+	FName ResolvedSocket = NAME_None;
+	if (USkeletalMeshComponent* MeshComponent = TargetActor->FindComponentByClass<USkeletalMeshComponent>())
+	{
+		AttachComponent = MeshComponent;
+		if (AttachSocketName != NAME_None && MeshComponent->DoesSocketExist(AttachSocketName))
+		{
+			ResolvedSocket = AttachSocketName;
+		}
+		else
+		{
+			for (const FName& FallbackSocketName : FallbackSocketNames)
+			{
+				if (FallbackSocketName != NAME_None && MeshComponent->DoesSocketExist(FallbackSocketName))
+				{
+					ResolvedSocket = FallbackSocketName;
+					break;
+				}
+			}
+		}
+	}
+
+	UNiagaraComponent* NiagaraComponent = nullptr;
+	if (AttachComponent)
+	{
+		NiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+			NiagaraSystem,
+			AttachComponent,
+			ResolvedSocket,
+			LocationOffset,
+			RotationOffset,
+			EAttachLocation::KeepRelativeOffset,
+			false,
+			true,
+			ENCPoolMethod::None,
+			false);
+		if (NiagaraComponent)
+		{
+			NiagaraComponent->SetRelativeScale3D(Scale);
+		}
+	}
+	else if (UWorld* World = GetWorld())
+	{
+		NiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			World,
+			NiagaraSystem,
+			TargetActor->GetActorLocation() + LocationOffset,
+			TargetActor->GetActorRotation() + RotationOffset,
+			Scale,
+			false,
+			true,
+			ENCPoolMethod::None,
+			false);
+	}
+
+	if (!NiagaraComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StatusNiagara] Spawn failed Tag=%s Owner=%s System=%s"),
+			*Tag.ToString(), *GetNameSafe(TargetActor), *GetNameSafe(NiagaraSystem));
+		return;
+	}
+
+	NiagaraComponent->SetAutoDestroy(false);
+	ActiveStatusNiagaraEffects.Add(Tag, NiagaraComponent);
+	UE_LOG(LogTemp, Warning, TEXT("[StatusNiagara] Started Tag=%s Owner=%s System=%s Socket=%s Scale=%s"),
+		*Tag.ToString(),
+		*GetNameSafe(TargetActor),
+		*GetNameSafe(NiagaraSystem),
+		*ResolvedSocket.ToString(),
+		*Scale.ToString());
+}
+
+void UYogAbilitySystemComponent::StopStatusNiagara(const FGameplayTag& Tag)
+{
+	TObjectPtr<UNiagaraComponent> NiagaraComponent = nullptr;
+	if (!ActiveStatusNiagaraEffects.RemoveAndCopyValue(Tag, NiagaraComponent))
+	{
+		return;
+	}
+
+	if (NiagaraComponent)
+	{
+		NiagaraComponent->Deactivate();
+		NiagaraComponent->DestroyComponent();
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[StatusNiagara] Stopped Tag=%s Owner=%s"),
+		*Tag.ToString(), *GetNameSafe(GetOwner()));
+}
+
 void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagExists)
 {
 	Super::OnTagUpdated(Tag, TagExists);
 
 	UE_LOG(LogTemp, Log, TEXT("[OnTagUpdated] Tag=%s Exists=%d Owner=%s"),
 		*Tag.ToString(), (int32)TagExists, *GetNameSafe(GetOwner()));
+
+	HandleStatusNiagaraTag(Tag, TagExists);
 
 	// =========================================================
 	// 阻断分类：Tag 出现/消失时按 BlockCategoryMap 执行对应阻断
@@ -436,7 +619,19 @@ void UYogAbilitySystemComponent::ApplyWeaponTypeTag(EWeaponType Type)
 		*NewTag.ToString(), *GetNameSafe(GetAvatarActor()));
 }
 
-void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage)
+void UYogAbilitySystemComponent::SuppressNextDamageFeedback()
+{
+	bSuppressNextDamageFeedback = true;
+}
+
+bool UYogAbilitySystemComponent::ConsumeSuppressNextDamageFeedback()
+{
+	const bool bSuppress = bSuppressNextDamageFeedback;
+	bSuppressNextDamageFeedback = false;
+	return bSuppress;
+}
+
+void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage, const bool bSuppressHitReact)
 {
 	ReceivedDamage.Broadcast(SourceASC, Damage);
 
@@ -450,6 +645,14 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 
 	if (!IsValid(GetAvatarActor()))
 		return;
+
+	if (bSuppressHitReact)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HitReact] Skip DoT damage Target=%s Damage=%.1f"),
+			*GetNameSafe(GetAvatarActor()),
+			Damage);
+		return;
+	}
 
 	static const FGameplayTag DefaultHitReactEventTag =
 		FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact"), false);

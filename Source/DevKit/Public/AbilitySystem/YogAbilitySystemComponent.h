@@ -79,6 +79,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FKilledTargetDelegate, AActor*, Tar
 
 
 class UYogGameplayAbility;
+class UNiagaraComponent;
+class UNiagaraSystem;
 struct FGameplayTag;
 struct FWeaponSaveData;
 
@@ -151,6 +153,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "StateConflict")
 	void SetConflictTable(UStateConflictDataAsset* NewTable);
 
+	UFUNCTION(BlueprintPure, Category = "Status VFX")
+	bool HasActiveStatusNiagaraForTag(FGameplayTag Tag) const;
+
+	UFUNCTION(BlueprintPure, Category = "Status VFX")
+	UNiagaraSystem* GetStatusNiagaraSystemForTag(FGameplayTag Tag) const;
+
 protected:
 	// OnTagUpdated override：tag 变化时自动查表执行 block / cancel
 	virtual void OnTagUpdated(const FGameplayTag& Tag, bool TagExists) override;
@@ -167,6 +175,15 @@ private:
 
 	// 防止 OnTagUpdated 递归（BlockAbilitiesWithTags 内部也会触发 tag 变化）
 	bool bProcessingConflict = false;
+	bool bSuppressNextDamageFeedback = false;
+
+	UPROPERTY(Transient)
+	TMap<FGameplayTag, TObjectPtr<UNiagaraComponent>> ActiveStatusNiagaraEffects;
+
+	void HandleStatusNiagaraTag(const FGameplayTag& Tag, bool bTagExists);
+	void StartStatusNiagara(const FGameplayTag& Tag, UNiagaraSystem* NiagaraSystem, FName AttachSocketName,
+		const TArray<FName>& FallbackSocketNames, FVector LocationOffset, FRotator RotationOffset, FVector Scale);
+	void StopStatusNiagara(const FGameplayTag& Tag);
 
 	// ── 韧性系统内部状态 ──────────────────────────────────────────────
 	/** 连续触发受击次数（5s 无受击后归零，达到 SuperArmorThreshold 时触发霸体） */
@@ -264,7 +281,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FKilledTargetDelegate OnKilledTarget;
 
-	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage);
+	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage, bool bSuppressHitReact = false);
+	void SuppressNextDamageFeedback();
+	bool ConsumeSuppressNextDamageFeedback();
 
 	/**
 	 * 玩家伤害日志（基础版，向后兼容）。

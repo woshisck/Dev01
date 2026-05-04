@@ -7,8 +7,10 @@
 #include "BuffFlow/Nodes/BFNode_ApplyAttributeModifier.h"
 #include "BuffFlow/Nodes/BFNode_ApplyEffect.h"
 #include "BuffFlow/Nodes/BFNode_ApplyGEInRadius.h"
+#include "BuffFlow/Nodes/BFNode_CalcRuneGroundPathTransform.h"
 #include "BuffFlow/Nodes/BFNode_PlayFlipbookVFX.h"
 #include "BuffFlow/Nodes/BFNode_PlayNiagara.h"
+#include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "Data/GameplayAbilityComboGraph.h"
@@ -37,6 +39,7 @@
 #include "Materials/MaterialExpressionTextureObjectParameter.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialInterface.h"
+#include "MaterialDomain.h"
 #include "NiagaraSystem.h"
 #include "Nodes/FlowNode.h"
 #include "UObject/Package.h"
@@ -61,6 +64,8 @@ namespace Rune512Batch
 	const FString MoonlightPoisonExpireEventTag = TEXT("Action.Rune.MoonlightPoisonExpired");
 	const FString PoisonEffectPath = TEXT("/Game/Code/GAS/Abilities/Shared/GE_Poison");
 	const FString PoisonSplashEffectPath = TEXT("/Game/Docs/BuffDocs/Playtest_GA/DeathPoison/GE_PoisonSplash");
+	const FString PoisonGroundPathDecalMaterialPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Materials/M_Rune512_GroundPath_Poison_Decal");
+	const FString BurnGroundPathDecalMaterialPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Materials/M_Rune512_GroundPath_Burn_Fan_Decal");
 	const FString AttackTemplateDA = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/GenericRune/DA_Rune_AttackUp_01");
 	const FString MoonlightTemplateDA = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/GenericRune/DA_Rune_MoonBlade_01");
 	const FString MoonlightBaseTemplateFlow = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/GenericRune/FA_Moonlight_Base");
@@ -458,6 +463,134 @@ namespace Rune512Batch
 		return Parameter;
 	}
 
+	UMaterial* EnsureGroundPathDecalMaterial(
+		const FString& MaterialPath,
+		const FLinearColor& DefaultColor,
+		float DefaultOpacity,
+		float DefaultEdgeSoftness,
+		float DefaultFanMask,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		if (UMaterial* ExistingMaterial = LoadAssetByPackagePath<UMaterial>(MaterialPath))
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Found ground path decal material `%s`."), *MaterialPath));
+			return ExistingMaterial;
+		}
+
+		ReportLines.Add(FString::Printf(
+			TEXT("- %s ground path decal material `%s`."),
+			bDryRun ? TEXT("Would create") : TEXT("Created"),
+			*MaterialPath));
+		if (bDryRun)
+		{
+			return nullptr;
+		}
+
+		const FString AssetName = FPackageName::GetLongPackageAssetName(MaterialPath);
+		UPackage* Package = CreatePackage(*MaterialPath);
+		UMaterial* Material = NewObject<UMaterial>(Package, *AssetName, RF_Public | RF_Standalone | RF_Transactional);
+		if (!Material || !Material->GetEditorOnlyData())
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Failed to create ground path decal material `%s`: material editor data unavailable."), *MaterialPath));
+			return nullptr;
+		}
+
+		Material->MaterialDomain = MD_DeferredDecal;
+		Material->BlendMode = BLEND_Translucent;
+		Material->DecalBlendMode = DBM_Translucent;
+		Material->SetShadingModel(MSM_Unlit);
+		Material->TwoSided = false;
+
+		UMaterialExpressionTextureCoordinate* UV = AddMaterialExpression<UMaterialExpressionTextureCoordinate>(Material, -760, -80);
+		if (UV)
+		{
+			UV->UTiling = 1.f;
+			UV->VTiling = 1.f;
+		}
+
+		UMaterialExpressionVectorParameter* ColorParam =
+			AddMaterialExpression<UMaterialExpressionVectorParameter>(Material, -760, -300);
+		if (ColorParam)
+		{
+			ColorParam->ParameterName = TEXT("Color");
+			ColorParam->DefaultValue = DefaultColor;
+			ColorParam->Group = TEXT("Rune512 Ground Path");
+		}
+
+		UMaterialExpressionScalarParameter* OpacityParam =
+			AddScalarParameter(Material, TEXT("Opacity"), DefaultOpacity, -760, 90);
+		if (OpacityParam)
+		{
+			OpacityParam->Group = TEXT("Rune512 Ground Path");
+		}
+
+		UMaterialExpressionScalarParameter* EdgeSoftnessParam =
+			AddScalarParameter(Material, TEXT("EdgeSoftness"), DefaultEdgeSoftness, -520, 90);
+		if (EdgeSoftnessParam)
+		{
+			EdgeSoftnessParam->Group = TEXT("Rune512 Ground Path");
+		}
+		UMaterialExpressionScalarParameter* FanMaskParam =
+			AddScalarParameter(Material, TEXT("FanMask"), DefaultFanMask, -280, 90);
+		if (FanMaskParam)
+		{
+			FanMaskParam->Group = TEXT("Rune512 Ground Path");
+		}
+
+		UMaterialExpressionCustom* MaskNode = AddMaterialExpression<UMaterialExpressionCustom>(Material, -260, 0);
+		if (MaskNode)
+		{
+			MaskNode->Description = TEXT("Rune512 Ground Path Mask");
+			MaskNode->OutputType = CMOT_Float1;
+			MaskNode->Code = TEXT(
+				"float2 p = abs(UV - 0.5) * 2.0;\n"
+				"float edge = min(1.0 - p.x, 1.0 - p.y);\n"
+				"float rect = saturate(edge / max(EdgeSoftness, 0.001));\n"
+				"float y = saturate(UV.y);\n"
+				"float fanHalfWidth = lerp(0.10, 1.0, y);\n"
+				"float fanSide = 1.0 - smoothstep(fanHalfWidth, saturate(fanHalfWidth + max(EdgeSoftness, 0.001) * 0.45), p.x);\n"
+				"float fanLength = smoothstep(0.02, max(EdgeSoftness, 0.001), y) * (1.0 - smoothstep(1.0 - max(EdgeSoftness, 0.001), 0.995, y));\n"
+				"float soft = lerp(rect, saturate(fanSide * fanLength), saturate(FanMask));\n"
+				"float vein = 0.5 + 0.5 * sin((UV.y * 7.0 + UV.x * 2.5) * 6.2831853);\n"
+				"float core = saturate(1.0 - abs(UV.x - 0.5) * 2.0);\n"
+				"return saturate(Opacity * soft * lerp(0.55, 1.0, vein) * lerp(0.75, 1.0, core));");
+
+			auto AddCustomInput = [MaskNode](const FName InputName, UMaterialExpression* InputExpression)
+			{
+				FCustomInput& Input = MaskNode->Inputs.AddDefaulted_GetRef();
+				Input.InputName = InputName;
+				if (InputExpression)
+				{
+					Input.Input.Connect(0, InputExpression);
+				}
+			};
+
+			AddCustomInput(TEXT("UV"), UV);
+			AddCustomInput(TEXT("Opacity"), OpacityParam);
+			AddCustomInput(TEXT("EdgeSoftness"), EdgeSoftnessParam);
+			AddCustomInput(TEXT("FanMask"), FanMaskParam);
+		}
+
+		UMaterialEditorOnlyData* EditorOnlyData = Material->GetEditorOnlyData();
+		if (ColorParam)
+		{
+			EditorOnlyData->BaseColor.Connect(0, ColorParam);
+			EditorOnlyData->EmissiveColor.Connect(0, ColorParam);
+		}
+		if (MaskNode)
+		{
+			EditorOnlyData->Opacity.Connect(0, MaskNode);
+		}
+
+		FAssetRegistryModule::AssetCreated(Material);
+		Material->PostEditChange();
+		Material->MarkPackageDirty();
+		DirtyPackages.AddUnique(Material->GetPackage());
+		return Material;
+	}
+
 	UMaterial* EnsureFlipbookMaterial(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
 	{
 		if (UMaterial* ExistingMaterial = LoadAssetByPackagePath<UMaterial>(FlipbookMaterialPath))
@@ -611,6 +744,24 @@ namespace Rune512Batch
 		}
 
 		EnsureFlipbookMaterial(bDryRun, ReportLines, DirtyPackages);
+		EnsureGroundPathDecalMaterial(
+			PoisonGroundPathDecalMaterialPath,
+			FLinearColor(0.04f, 0.9f, 0.22f, 1.0f),
+			0.58f,
+			0.38f,
+			0.0f,
+			bDryRun,
+			ReportLines,
+			DirtyPackages);
+		EnsureGroundPathDecalMaterial(
+			BurnGroundPathDecalMaterialPath,
+			FLinearColor(1.0f, 0.22f, 0.04f, 1.0f),
+			0.66f,
+			0.22f,
+			1.0f,
+			bDryRun,
+			ReportLines,
+			DirtyPackages);
 	}
 
 	TArray<FLinkRecipeSpec> MakeMoonlightRecipes(ECombatCardLinkOrientation Direction)
@@ -694,6 +845,102 @@ namespace Rune512Batch
 			TEXT("FA_Rune512_Poison_Base"),
 			ERuneType::Debuff,
 			{ TEXT("补毒液路径碰撞体与 3 秒爆发 Execution；命中表现使用小尺寸 Play Niagara 节点。") }));
+
+		Specs.Add(MakeNormalCard(
+			TEXT("Bleed"),
+			TEXT("流血"),
+			TEXT("命中敌人后赋予流血。流血每秒造成固定伤害；目标有护甲时不应触发。"),
+			TEXT("Card.ID.Bleed"),
+			{ TEXT("Card.Effect.Bleed") },
+			TEXT("T_Rune512_Burn"),
+			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Bleed"),
+			TEXT("FA_Rune512_Bleed_Base"),
+			ERuneType::Debuff,
+			{ TEXT("护甲目标不触发流血：如 FA_Effect_Bleed 内未做判断，需要在触发前增加 HasTag(Buff.Status.Armored) 阻断。") }));
+
+		Specs.Add(MakeNormalCard(
+			TEXT("Rend"),
+			TEXT("撕裂"),
+			TEXT("命中敌人后赋予撕裂。目标移动时按移动距离持续掉血，原地 2 秒后自动消失。"),
+			TEXT("Card.ID.Rend"),
+			{ TEXT("Card.Effect.Rend") },
+			TEXT("T_Rune512_Pierce"),
+			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Rend"),
+			TEXT("FA_Rune512_Rend_Base"),
+			ERuneType::Debuff,
+			{ TEXT("护甲目标触发概率下降 25%：基础 GA_Rend 已处理移动掉血和静止消失，概率门槛应在 FA 触发前配置。") }));
+
+		Specs.Add(MakeNormalCard(
+			TEXT("Wound"),
+			TEXT("伤口"),
+			TEXT("命中敌人后赋予伤口。目标再次受到攻击时额外扣血。"),
+			TEXT("Card.ID.Wound"),
+			{ TEXT("Card.Effect.Wound") },
+			TEXT("T_Rune512_Attack"),
+			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Wound"),
+			TEXT("FA_Rune512_Wound_Base"),
+			ERuneType::Debuff,
+			{ TEXT("护甲目标触发概率下降 25%；伤口额外伤害由 GA_Wound 监听 Ability.Event.Damaged。") }));
+
+		Specs.Add(MakeNormalCard(
+			TEXT("Knockback"),
+			TEXT("击退"),
+			TEXT("命中敌人后赋予击退状态。目标受到攻击时会被击退；有护甲时额外造成护甲伤害。"),
+			TEXT("Card.ID.Knockback"),
+			{ TEXT("Card.Effect.Knockback") },
+			TEXT("T_Rune512_Split"),
+			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Knockback"),
+			TEXT("FA_Rune512_Knockback_Base"),
+			ERuneType::Debuff,
+			{ TEXT("已有 GA_KnockbackDebuff 处理 15% 额外护甲伤害；护甲时击退距离减少需要在 GA_Knockback 或专用节点中参数化。") }));
+
+		Specs.Add(MakeNormalCard(
+			TEXT("Fear"),
+			TEXT("恐惧"),
+			TEXT("命中敌人后赋予恐惧。敌人逃离触发点；2 秒内未离开 800 单位时受到惩罚伤害。"),
+			TEXT("Card.ID.Fear"),
+			{ TEXT("Card.Effect.Fear") },
+			TEXT("T_Rune512_ReduceDamage"),
+			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Fear"),
+			TEXT("FA_Rune512_Fear_Base"),
+			ERuneType::Debuff,
+			{ TEXT("玩家不应获得恐惧：确认 FA_Effect_Fear 的目标筛选为敌人，或在卡牌触发层排除玩家。") }));
+
+		Specs.Add(MakeNormalCard(
+			TEXT("Freeze"),
+			TEXT("冻结"),
+			TEXT("命中敌人后赋予冻结预警。3 秒内未离开 800 单位时进入冻结眩晕并受到伤害。"),
+			TEXT("Card.ID.Freeze"),
+			{ TEXT("Card.Effect.Freeze") },
+			TEXT("T_Rune512_Shield"),
+			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Freeze"),
+			TEXT("FA_Rune512_Freeze_Base"),
+			ERuneType::Debuff,
+			{ TEXT("确认 FrozenStunEffect 已授予 Buff.Status.Frozen 和 Character.State.Stunned。") }));
+
+		Specs.Add(MakeNormalCard(
+			TEXT("Stun"),
+			TEXT("眩晕"),
+			TEXT("命中敌人后尝试赋予眩晕。眩晕期间不能主动移动和攻击；霸体目标免疫。"),
+			TEXT("Card.ID.Stun"),
+			{ TEXT("Card.Effect.Stun") },
+			TEXT("T_Rune512_Shield"),
+			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Stun"),
+			TEXT("FA_Rune512_Stun_Base"),
+			ERuneType::Debuff,
+			{ TEXT("需要重点验收霸体交互：霸体免疫眩晕，获得霸体时驱散已有眩晕。") }));
+
+		Specs.Add(MakeNormalCard(
+			TEXT("Curse"),
+			TEXT("诅咒"),
+			TEXT("命中敌人后赋予诅咒。每个负面效果降低最大生命值。"),
+			TEXT("Card.ID.Curse"),
+			{ TEXT("Card.Effect.Curse") },
+			TEXT("T_Rune512_Poison"),
+			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Curse"),
+			TEXT("FA_Rune512_Curse_Base"),
+			ERuneType::Debuff,
+			{ TEXT("当前 Generic Curse 需要确认是否为“每个负面效果 -7% MaxHealth”；若仍是死亡诅咒版本，需要补负面状态计数逻辑。") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Split"),
@@ -897,6 +1144,11 @@ namespace Rune512Batch
 		const EMoonlightFlowProfile Profile = ResolveMoonlightFlowProfile(FlowName);
 		if (Profile == EMoonlightFlowProfile::None)
 		{
+			return;
+		}
+		if (Profile == EMoonlightFlowProfile::ReversedBurn || Profile == EMoonlightFlowProfile::ReversedPoison)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- `%s` uses Rune Ground Path; slash-wave projectile configuration is bypassed."), *FlowName));
 			return;
 		}
 
@@ -1297,6 +1549,71 @@ namespace Rune512Batch
 		FromPin->MakeLinkTo(ToPin);
 	}
 
+	UEdGraphPin* FindGraphPinByName(UFlowNode* Node, const FName PinName, const EEdGraphPinDirection Direction)
+	{
+		UFlowGraphNode* GraphNode = Node ? Cast<UFlowGraphNode>(Node->GetGraphNode()) : nullptr;
+		if (!GraphNode)
+		{
+			return nullptr;
+		}
+
+		for (UEdGraphPin* Pin : GraphNode->Pins)
+		{
+			if (Pin && Pin->PinName == PinName && Pin->Direction == Direction)
+			{
+				return Pin;
+			}
+		}
+
+		return nullptr;
+	}
+
+	void RefreshGraphNodePins(UFlowNode* Node)
+	{
+		if (UFlowGraphNode* GraphNode = Node ? Cast<UFlowGraphNode>(Node->GetGraphNode()) : nullptr)
+		{
+			GraphNode->ReconstructNode();
+		}
+	}
+
+	bool LinkDataPins(UFlowNode* FromNode, const FName FromPinName, UFlowNode* ToNode, const FName ToPinName)
+	{
+		UEdGraphPin* FromPin = FindGraphPinByName(FromNode, FromPinName, EGPD_Output);
+		UEdGraphPin* ToPin = FindGraphPinByName(ToNode, ToPinName, EGPD_Input);
+		if (!FromPin || !ToPin)
+		{
+			return false;
+		}
+
+		ToPin->BreakAllPinLinks();
+		FromPin->MakeLinkTo(ToPin);
+		return true;
+	}
+
+	UFlowNode* FindPreviousFlowNode(UFlowNode* Node)
+	{
+		UEdGraphPin* InputPin = GetFirstInputPin(Node);
+		if (!InputPin)
+		{
+			return nullptr;
+		}
+
+		for (UEdGraphPin* LinkedPin : InputPin->LinkedTo)
+		{
+			if (!LinkedPin)
+			{
+				continue;
+			}
+
+			if (UFlowGraphNode* GraphNode = Cast<UFlowGraphNode>(LinkedPin->GetOwningNode()))
+			{
+				return Cast<UFlowNode>(GraphNode->GetFlowNodeBase());
+			}
+		}
+
+		return nullptr;
+	}
+
 	UFlowNode* CreateFlowNodeAfter(UFlowGraph* FlowGraph, UFlowNode* FromNode, UClass* NodeClass, const FVector2D& NodeLocation)
 	{
 		UEdGraphPin* FromPin = GetFirstOutputPin(FromNode);
@@ -1437,6 +1754,203 @@ namespace Rune512Batch
 		ApplyNode->SetByCallerValue3 = FFlowDataPinInputProperty_Float(0.f);
 	}
 
+	void ConfigureMoonlightReversedGroundPathFlow(
+		UFlowAsset* FlowAsset,
+		const FString& FlowName,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		const EMoonlightFlowProfile Profile = ResolveMoonlightFlowProfile(FlowName);
+		if (Profile != EMoonlightFlowProfile::ReversedBurn
+			&& Profile != EMoonlightFlowProfile::ReversedPoison)
+		{
+			return;
+		}
+
+		if (bDryRun)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Would configure `%s` as Moonlight reversed ground path."), *FlowName));
+			return;
+		}
+
+		if (!FlowAsset)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure ground path `%s`: asset not loaded."), *FlowName));
+			return;
+		}
+
+		UFlowGraph* FlowGraph = Cast<UFlowGraph>(FlowAsset->GetGraph());
+		if (!FlowGraph)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: missing FlowGraph."), *FlowName));
+			return;
+		}
+
+		UBFNode_SpawnSlashWaveProjectile* SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_SpawnSlashWaveProjectile>(Node) != nullptr; }));
+		UFlowNode* PreviousNode = SlashNode ? FindPreviousFlowNode(SlashNode) : nullptr;
+		UFlowNode* EntryNode = FlowAsset->GetDefaultEntryNode();
+		UFlowNode* ChainStartNode = PreviousNode ? PreviousNode : EntryNode;
+
+		UBFNode_SpawnRuneGroundPathEffect* GroundPathNode = Cast<UBFNode_SpawnRuneGroundPathEffect>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_SpawnRuneGroundPathEffect>(Node) != nullptr; }));
+		UBFNode_CalcRuneGroundPathTransform* CalcTransformNode = Cast<UBFNode_CalcRuneGroundPathTransform>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_CalcRuneGroundPathTransform>(Node) != nullptr; }));
+
+		UFlowGraphNode* SlashGraphNode = SlashNode ? Cast<UFlowGraphNode>(SlashNode->GetGraphNode()) : nullptr;
+		const FVector2D NodeLocation(
+			SlashGraphNode ? static_cast<float>(SlashGraphNode->NodePosX) : 320.f,
+			SlashGraphNode ? static_cast<float>(SlashGraphNode->NodePosY) : 0.f);
+
+		const FVector2D CalcNodeLocation(NodeLocation.X - 260.0f, NodeLocation.Y);
+
+		if (!CalcTransformNode)
+		{
+			if (!ChainStartNode)
+			{
+				ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: no entry node found for rebuilt ground path chain."), *FlowName));
+				return;
+			}
+
+			CalcTransformNode = Cast<UBFNode_CalcRuneGroundPathTransform>(CreateFlowNodeAfter(
+				FlowGraph,
+				ChainStartNode,
+				UBFNode_CalcRuneGroundPathTransform::StaticClass(),
+				CalcNodeLocation));
+		}
+		else if (ChainStartNode && ChainStartNode != CalcTransformNode)
+		{
+			LinkFlowNodes(ChainStartNode, CalcTransformNode);
+		}
+
+		if (!GroundPathNode)
+		{
+			if (!CalcTransformNode)
+			{
+				ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: no calc transform node found."), *FlowName));
+				return;
+			}
+
+			GroundPathNode = Cast<UBFNode_SpawnRuneGroundPathEffect>(CreateFlowNodeAfter(
+				FlowGraph,
+				CalcTransformNode,
+				UBFNode_SpawnRuneGroundPathEffect::StaticClass(),
+				NodeLocation));
+		}
+		else if (CalcTransformNode && static_cast<UFlowNode*>(CalcTransformNode) != static_cast<UFlowNode*>(GroundPathNode))
+		{
+			LinkFlowNodes(CalcTransformNode, GroundPathNode);
+		}
+
+		if (!GroundPathNode || !CalcTransformNode)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Failed to create Rune Ground Path node for `%s`."), *FlowName));
+			return;
+		}
+
+		RefreshGraphNodePins(CalcTransformNode);
+		RefreshGraphNodePins(GroundPathNode);
+		if (ChainStartNode && ChainStartNode != CalcTransformNode)
+		{
+			LinkFlowNodes(ChainStartNode, CalcTransformNode);
+		}
+		if (static_cast<UFlowNode*>(CalcTransformNode) != static_cast<UFlowNode*>(GroundPathNode))
+		{
+			LinkFlowNodes(CalcTransformNode, GroundPathNode);
+		}
+
+		if (SlashNode)
+		{
+			if (UEdGraphPin* SlashInput = GetFirstInputPin(SlashNode))
+			{
+				SlashInput->BreakAllPinLinks();
+			}
+		}
+		if (UEdGraphPin* GroundOut = GetFirstOutputPin(GroundPathNode))
+		{
+			GroundOut->BreakAllPinLinks();
+		}
+
+		const bool bIsBurn = Profile == EMoonlightFlowProfile::ReversedBurn;
+		UNiagaraSystem* NiagaraSystem = LoadAssetByPackagePath<UNiagaraSystem>(bIsBurn ? BurnNiagaraPath : PoisonHitNiagaraPath);
+		UMaterialInterface* DecalMaterial = LoadAssetByPackagePath<UMaterialInterface>(bIsBurn ? BurnGroundPathDecalMaterialPath : PoisonGroundPathDecalMaterialPath);
+		TSubclassOf<UGameplayEffect> PoisonEffect = LoadBlueprintClassByPackagePath<UGameplayEffect>(PoisonEffectPath);
+		const FGameplayTag BurnDamageTag = RequestTag(TEXT("Data.Damage.Burn"), ReportLines);
+
+		CalcTransformNode->Modify();
+		CalcTransformNode->Source = EBFTargetSelector::BuffOwner;
+		CalcTransformNode->FacingMode = ERuneGroundPathFacingMode::ToLastDamageTarget;
+		CalcTransformNode->Length = FFlowDataPinInputProperty_Float(bIsBurn ? 520.0f : 560.0f);
+		CalcTransformNode->SpawnOffset = FVector(45.0f, 0.0f, 6.0f);
+		CalcTransformNode->bCenterOnPathLength = true;
+		CalcTransformNode->RotationYawOffset = 0.0f;
+		CalcTransformNode->bProjectToGround = true;
+		CalcTransformNode->GroundTraceUp = 240.0f;
+		CalcTransformNode->GroundTraceDown = 900.0f;
+
+		GroundPathNode->Modify();
+		GroundPathNode->Effect = bIsBurn ? TSubclassOf<UGameplayEffect>(UGE_RuneBurn::StaticClass()) : PoisonEffect;
+		GroundPathNode->TargetPolicy = ERuneGroundPathTargetPolicy::EnemiesOnly;
+		GroundPathNode->Shape = bIsBurn ? ERuneGroundPathShape::Fan : ERuneGroundPathShape::Rectangle;
+		GroundPathNode->FacingMode = ERuneGroundPathFacingMode::ToLastDamageTarget;
+		GroundPathNode->bCenterOnPathLength = true;
+		GroundPathNode->RotationYawOffset = 0.0f;
+		GroundPathNode->Duration = bIsBurn ? 4.0f : 4.5f;
+		GroundPathNode->TickInterval = bIsBurn ? 0.5f : 1.0f;
+		GroundPathNode->Length = bIsBurn ? 520.0f : 560.0f;
+		GroundPathNode->Width = bIsBurn ? 230.0f : 210.0f;
+		GroundPathNode->Height = 120.0f;
+		GroundPathNode->DecalProjectionDepth = bIsBurn ? 18.0f : 18.0f;
+		GroundPathNode->DecalPlaneRotationDegrees = 0.0f;
+		GroundPathNode->SpawnOffset = FVector(45.0f, 0.0f, 6.0f);
+		GroundPathNode->Source = EBFTargetSelector::BuffOwner;
+		GroundPathNode->DecalMaterial = DecalMaterial;
+		GroundPathNode->NiagaraSystem = NiagaraSystem;
+		GroundPathNode->NiagaraScale = bIsBurn ? FVector(0.38f, 0.38f, 0.16f) : FVector(0.30f, 0.30f, 0.16f);
+		GroundPathNode->NiagaraInstanceCount = bIsBurn ? 7 : 1;
+		GroundPathNode->ApplicationCount = 1;
+		GroundPathNode->SetByCallerTag1 = bIsBurn ? BurnDamageTag : FGameplayTag();
+		GroundPathNode->SetByCallerValue1 = FFlowDataPinInputProperty_Float(bIsBurn ? 6.0f : 0.0f);
+		GroundPathNode->SetByCallerTag2 = FGameplayTag();
+		GroundPathNode->SetByCallerValue2 = FFlowDataPinInputProperty_Float(0.0f);
+		GroundPathNode->bApplyOncePerTarget = bIsBurn;
+
+		const bool bLocationPinLinked = LinkDataPins(
+			CalcTransformNode,
+			GET_MEMBER_NAME_CHECKED(UBFNode_CalcRuneGroundPathTransform, SpawnLocation),
+			GroundPathNode,
+			GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneGroundPathEffect, SpawnLocationOverride));
+		const bool bRotationPinLinked = LinkDataPins(
+			CalcTransformNode,
+			GET_MEMBER_NAME_CHECKED(UBFNode_CalcRuneGroundPathTransform, SpawnRotation),
+			GroundPathNode,
+			GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneGroundPathEffect, SpawnRotationOverride));
+
+		FlowAsset->HarvestNodeConnections();
+		FlowAsset->MarkPackageDirty();
+		DirtyPackages.AddUnique(FlowAsset->GetPackage());
+		FlowGraph->Modify();
+		FlowGraph->NotifyGraphChanged();
+
+		ReportLines.Add(FString::Printf(
+			TEXT("- Configured `%s`: Start -> Calc Rune Ground Path Transform -> Spawn Rune Ground Path Effect, Facing=ToLastDamageTarget, Policy=EnemiesOnly, Shape=%s, Effect=%s, Length=%.0f, Width=%.0f, Duration=%.1f, Tick=%.1f, Damage=%.1f, DecalPlaneRot=%.0f, LocationPin=%d, RotationPin=%d; legacy slash-wave disconnected."),
+			*FlowName,
+			bIsBurn ? TEXT("Fan") : TEXT("Rectangle"),
+			*GetNameSafe(GroundPathNode->Effect),
+			GroundPathNode->Length,
+			GroundPathNode->Width,
+			GroundPathNode->Duration,
+			GroundPathNode->TickInterval,
+			GroundPathNode->SetByCallerValue1.Value,
+			GroundPathNode->DecalPlaneRotationDegrees,
+			bLocationPinLinked ? 1 : 0,
+			bRotationPinLinked ? 1 : 0));
+	}
+
 	void ConfigureMoonlightBurnHitVfxFlow(
 		UFlowAsset* FlowAsset,
 		const FString& FlowName,
@@ -1445,8 +1959,7 @@ namespace Rune512Batch
 		TArray<UPackage*>& DirtyPackages)
 	{
 		const EMoonlightFlowProfile Profile = ResolveMoonlightFlowProfile(FlowName);
-		if (Profile != EMoonlightFlowProfile::ForwardBurn
-			&& Profile != EMoonlightFlowProfile::ReversedBurn)
+		if (Profile != EMoonlightFlowProfile::ForwardBurn)
 		{
 			return;
 		}
@@ -1594,8 +2107,7 @@ namespace Rune512Batch
 		TArray<UPackage*>& DirtyPackages)
 	{
 		const EMoonlightFlowProfile Profile = ResolveMoonlightFlowProfile(FlowName);
-		if (Profile != EMoonlightFlowProfile::ForwardPoison
-			&& Profile != EMoonlightFlowProfile::ReversedPoison)
+		if (Profile != EMoonlightFlowProfile::ForwardPoison)
 		{
 			return;
 		}
@@ -2224,6 +2736,7 @@ namespace Rune512Batch
 			const FString FlowName = TEXT("FA_Rune512_Moonlight_") + LinkSpec.Suffix;
 			UFlowAsset* LinkFlow = EnsureFlowAsset(TemplateFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
 			ConfigureMoonlightSlashWaveFlow(LinkFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
+			ConfigureMoonlightReversedGroundPathFlow(LinkFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
 			ConfigureMoonlightBurnHitVfxFlow(LinkFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
 			ConfigureMoonlightPoisonAtomicFlow(LinkFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
 
@@ -2295,14 +2808,17 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 	ConfigureProductionWeaponComboAssets(bDryRun, ReportLines, DirtyPackages);
 	ReportLines.Add(TEXT(""));
 
-	ReportLines.Add(TEXT("## Skipped design-only items"));
-	ReportLines.Add(TEXT("- Bleed(X), Rend(X), Bloodvine(X): documented only; no assets generated in this pass."));
+	ReportLines.Add(TEXT("## Generic Rune status card integration"));
+	ReportLines.Add(TEXT("- Bleed, Rend, Wound, Knockback, Fear, Freeze, Stun, and Curse are generated as Normal combat cards."));
+	ReportLines.Add(TEXT("- These cards reuse Playtest_GA/RuneBaseEffect FA templates. Tune the underlying Generic Rune GA/GE when the status rule itself needs to change."));
+	ReportLines.Add(TEXT("- Bloodvine remains design-only; no dedicated 512 card is generated in this pass."));
 	ReportLines.Add(TEXT(""));
 	ReportLines.Add(TEXT("## FA VFX todos"));
 	ReportLines.Add(TEXT("- Card VFX is configured in each BaseFlow/LinkFlow, not on CombatCard data."));
 	ReportLines.Add(TEXT("- Moonlight generated slash-wave nodes clear inline Niagara fields and use BP/default projectile visuals; hit/status visuals should be atomic Play Niagara nodes."));
-	ReportLines.Add(TEXT("- Moonlight poison LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara -> ApplyEffect -> Play Niagara -> ApplyGEInRadius."));
-	ReportLines.Add(TEXT("- Moonlight burn LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara attached to enemy bone -> persistent UGE_RuneBurn."));
+	ReportLines.Add(TEXT("- Moonlight forward poison LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara -> ApplyEffect -> Play Niagara -> ApplyGEInRadius."));
+	ReportLines.Add(TEXT("- Moonlight forward burn LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara attached to enemy bone -> persistent UGE_RuneBurn."));
+	ReportLines.Add(TEXT("- Moonlight reversed poison/burn LinkFlows use Spawn Rune Ground Path Effect and disconnect legacy slash-wave execution."));
 	ReportLines.Add(TEXT("- Burn/Poison base VFX use compact Play Niagara nodes; old Flipbook node payloads are cleared when found."));
 	ReportLines.Add(TEXT("- Projectile inline Niagara fields remain empty. Link/status VFX must live in independent FA Play Niagara nodes."));
 	ReportLines.Add(TEXT("- Projectile visuals stay on projectile-spawn nodes; hit/status visuals should use separate visual nodes."));

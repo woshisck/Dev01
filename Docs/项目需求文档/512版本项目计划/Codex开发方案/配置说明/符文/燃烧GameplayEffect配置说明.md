@@ -2,9 +2,9 @@
 
 ## 1. 用途
 
-燃烧不是一次性命中特效。卡牌或月光连携命中敌人后，应给敌人施加 `UGE_RuneBurn`，由 GE 自己按周期持续扣血。
+燃烧是持续状态，不是一帧命中特效。卡牌、月光火区域或其他系统命中敌人后，只需要给目标施加 `UGE_RuneBurn`。
 
-表现使用独立 `Play Niagara` 节点，持续伤害使用独立 `Apply Gameplay Effect Class` 节点。不要把燃烧逻辑写进投射物节点。
+目标获得 `Buff.Status.Burning` 后，`UYogAbilitySystemComponent` 会自动在目标身上挂载通用燃烧 Niagara；燃烧 tag 移除时自动清理特效。这样月光火区域、普通燃烧卡、后续怪物技能都复用同一套携带特效。
 
 ## 2. 资产位置
 
@@ -12,8 +12,9 @@
 | --- | --- |
 | GE 类 | `UGE_RuneBurn` |
 | C++ 路径 | `Source/DevKit/Public/AbilitySystem/GameplayEffect/GE_RuneBurn.h` |
-| 使用 Flow | `FA_Rune512_Burn_Base`、`FA_Rune512_Moonlight_Forward_Burn`、`FA_Rune512_Moonlight_Reversed_Burn` |
-| 自动配置工具 | `RuneCardBatchGenerator -Apply` |
+| 状态 Tag | `Buff.Status.Burning` |
+| 身上携带特效 | `/Game/Art/EnvironmentAsset/VFX/Niagara/Fire/NS_Fire_Floor` |
+| 自动挂载代码 | `UYogAbilitySystemComponent::HandleStatusNiagaraTag` |
 
 ## 3. GE 固定逻辑
 
@@ -26,48 +27,49 @@
 | Execute Periodic Effect On Application | `false` |
 | Granted Tag | `Buff.Status.Burning` |
 | Execution | `GEExec_BurnDamage` |
-| Stack Mode | 目标身上唯一燃烧，重复应用刷新持续时间/周期 |
+| Stack Mode | 目标身上唯一燃烧，重复应用刷新持续时间 |
 | Damage Source | `SetByCaller: Data.Damage.Burn` |
 
-## 4. FA 节点配置
+## 4. FA 配置方式
+
+FA 不需要再额外接“身上燃烧 Niagara”节点，只负责施加燃烧 GE。
 
 ### 普通燃烧卡
 
 ```text
 Start
-  -> Play Niagara(Rune.Burn.ApplyNiagara, NS_Fire_Floor)
-  -> Apply Gameplay Effect Class(UGE_RuneBurn, Data.Damage.Burn=8)
+  -> Apply Gameplay Effect Class(UGE_RuneBurn, Target=LastDamageTarget, Data.Damage.Burn=8)
 ```
 
-### 月光 + 燃烧连携
+### 月光反向火区域
 
 ```text
-Spawn Slash Wave Projectile
-  -> Wait Gameplay Event(Action.Rune.MoonlightBurnHit)
-  -> Play Niagara(Rune.Moonlight.BurnHitNiagara, NS_Fire_Floor)
-  -> Apply Gameplay Effect Class(UGE_RuneBurn, Data.Damage.Burn=6)
+Start
+  -> Spawn Rune Ground Path Effect
+       Effect=UGE_RuneBurn
+       TargetPolicy=EnemiesOnly
+       Shape=Fan
+       SetByCallerTag1=Data.Damage.Burn
+       SetByCallerValue1=6
 ```
 
-| 节点 | 字段 | 普通燃烧卡 | 月光燃烧连携 |
-| --- | --- | --- | --- |
-| `Play Niagara` | `Niagara System` | `NS_Fire_Floor` | `NS_Fire_Floor` |
-| `Play Niagara` | `Attach Target` | `LastDamageTarget` | `LastDamageTarget` |
-| `Play Niagara` | `Attach Socket Name` | `spine_03` | `spine_03` |
-| `Play Niagara` | `Scale` | `(0.28,0.28,0.28)` | `(0.28,0.28,0.28)` |
-| `Play Niagara` | `Lifetime` | `3.2` | `3.2` |
-| `Apply Gameplay Effect Class` | `Effect` | `UGE_RuneBurn` | `UGE_RuneBurn` |
-| `Apply Gameplay Effect Class` | `Target` | `LastDamageTarget` | `LastDamageTarget` |
-| `Apply Gameplay Effect Class` | `ApplicationCount` | `1` | `1` |
-| `Apply Gameplay Effect Class` | `bRemoveEffectOnCleanup` | 不勾选 | 不勾选 |
-| `Apply Gameplay Effect Class` | `SetByCallerTag1` | `Data.Damage.Burn` | `Data.Damage.Burn` |
-| `Apply Gameplay Effect Class` | `SetByCallerValue1` | `8` | `6` |
+地面火焰和地面贴花仍由 `Spawn Rune Ground Path Effect` 配置；敌人进入区域后获得 `UGE_RuneBurn`，身上的燃烧表现由 `Buff.Status.Burning` 自动触发。
 
-`bRemoveEffectOnCleanup` 必须不勾选。否则 FA 停止时会清掉 GE，燃烧只出现一下就结束。
+## 5. 可调参数
 
-## 5. 验收
+| 调整目标 | 配置位置 |
+| --- | --- |
+| 每秒燃烧伤害 | FA 节点的 `SetByCallerValue1`，Tag 必须是 `Data.Damage.Burn` |
+| 燃烧持续时间 | `UGE_RuneBurn` C++ 中的 Duration |
+| 燃烧 tick 间隔 | `UGE_RuneBurn` C++ 中的 Period |
+| 身上燃烧特效大小 | `UYogAbilitySystemComponent::StartStatusNiagara` 中 Burning 配置的 Scale，当前 `(0.28,0.28,0.28)` |
+| 身上燃烧挂点 | `spine_03`， fallback 为 `spine_02`、`pelvis`、`root` |
+| 月光火区域范围 | `FA_Rune512_Moonlight_Reversed_Burn` 的 `Length / Width / Shape` |
 
-1. 命中敌人后出现 `NS_Fire_Floor`，位置跟随敌人骨骼。
-2. 敌人获得 `Buff.Status.Burning`。
-3. 伤害日志能看到燃烧周期伤害。
-4. FA 停止后，燃烧仍持续到 `UGE_RuneBurn` 自己到期。
-5. 如果表现过大，调整 `Play Niagara.Scale`，不要改 `UGE_RuneBurn`。
+## 6. 验收
+
+1. 敌人进入月光火区域后获得 `Buff.Status.Burning`。
+2. 敌人身上出现并跟随通用燃烧 Niagara。
+3. 敌人离开火区域后，燃烧仍持续到 `UGE_RuneBurn` 到期。
+4. 燃烧 tick 掉血不触发受击状态。
+5. `Buff.Status.Burning` 移除后，身上燃烧特效消失。

@@ -12,8 +12,10 @@
 #include "BuffFlow/Nodes/BFNode_ApplyAttributeModifier.h"
 #include "BuffFlow/Nodes/BFNode_ApplyEffect.h"
 #include "BuffFlow/Nodes/BFNode_ApplyGEInRadius.h"
+#include "BuffFlow/Nodes/BFNode_CalcRuneGroundPathTransform.h"
 #include "BuffFlow/Nodes/BFNode_PlayFlipbookVFX.h"
 #include "BuffFlow/Nodes/BFNode_PlayNiagara.h"
+#include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "Data/AbilityData.h"
@@ -28,6 +30,7 @@
 #include "Engine/World.h"
 #include "FlowAsset.h"
 #include "GameplayEffect.h"
+#include "NiagaraSystem.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckConsumesFourCardsTest,
 	"DevKit.CombatDeck.ConsumesFourCardsThenShuffles",
@@ -800,11 +803,18 @@ bool FCombatDeckLinkConfigBackwardTest::RunTest(const FString& Parameters)
 
 	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
 
-	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	FCombatDeckActionContext MoonlightContext;
+	MoonlightContext.ActionType = ECardRequiredAction::Light;
+	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.bComboContinued = true;
+	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
 	TestTrue(TEXT("Moonlight is consumed first"), MoonlightResult.bHadCard);
 	TestTrue(TEXT("Moonlight opens a pending backward link"), MoonlightResult.bPendingBackwardLink);
 
-	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	FCombatDeckActionContext AttackContext = MoonlightContext;
+	AttackContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCardWithContext(AttackContext);
 	TestTrue(TEXT("Next attack card is consumed"), AttackResult.bHadCard);
 	TestTrue(TEXT("Next attack triggers Moonlight backward link"), AttackResult.bTriggeredBackwardLink);
 	TestTrue(TEXT("Next attack still releases its own base flow"), AttackResult.bTriggeredBaseFlow);
@@ -954,10 +964,18 @@ bool FCombatDeckRecipeReversedUsesEffectTagsTest::RunTest(const FString& Paramet
 
 	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
 
-	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	FCombatDeckActionContext MoonlightContext;
+	MoonlightContext.ActionType = ECardRequiredAction::Light;
+	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.bComboContinued = true;
+	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
 	TestTrue(TEXT("Reversed Moonlight opens a pending recipe link"), MoonlightResult.bPendingBackwardLink);
+	TestFalse(TEXT("Reversed Moonlight does not release base flow while pending"), MoonlightResult.bTriggeredBaseFlow);
 
-	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	FCombatDeckActionContext AttackContext = MoonlightContext;
+	AttackContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCardWithContext(AttackContext);
 	TestTrue(TEXT("Next Card.Effect.Attack triggers reversed Moonlight recipe"), AttackResult.bTriggeredBackwardLink);
 	TestEqual(TEXT("Reversed recipe multiplier is reported"), AttackResult.AppliedMultiplier, 1.25f);
 
@@ -1025,10 +1043,19 @@ bool FCombatDeckMoonlightMultipleRecipesTest::RunTest(const FString& Parameters)
 	UCombatDeckComponent* ReversedDeck = NewObject<UCombatDeckComponent>();
 	ReversedDeck->SetDeckListForTest({ MoonlightReversed, ShieldCard });
 
-	const FCombatCardResolveResult PendingResult = ReversedDeck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("Reversed Moonlight opens pending link with the matching recipe list"), PendingResult.bPendingBackwardLink);
+	FCombatDeckActionContext ReversedMoonlightContext;
+	ReversedMoonlightContext.ActionType = ECardRequiredAction::Light;
+	ReversedMoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	ReversedMoonlightContext.bComboContinued = true;
+	ReversedMoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 
-	const FCombatCardResolveResult ReversedResult = ReversedDeck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult PendingResult = ReversedDeck->ResolveAttackCardWithContext(ReversedMoonlightContext);
+	TestTrue(TEXT("Reversed Moonlight opens pending link with the matching recipe list"), PendingResult.bPendingBackwardLink);
+	TestFalse(TEXT("Reversed Moonlight does not release base flow while waiting for the next card"), PendingResult.bTriggeredBaseFlow);
+
+	FCombatDeckActionContext ReversedShieldContext = ReversedMoonlightContext;
+	ReversedShieldContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult ReversedResult = ReversedDeck->ResolveAttackCardWithContext(ReversedShieldContext);
 	TestTrue(TEXT("Reversed Moonlight recipe triggers on the matching shield card"), ReversedResult.bTriggeredBackwardLink);
 	TestEqual(TEXT("Reversed Moonlight selects the shield recipe multiplier"), ReversedResult.AppliedMultiplier, 1.6f);
 
@@ -1059,7 +1086,13 @@ bool FCombatDeckRecipeReversedClearsOnComboExitTest::RunTest(const FString& Para
 
 	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
 
-	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	FCombatDeckActionContext MoonlightContext;
+	MoonlightContext.ActionType = ECardRequiredAction::Light;
+	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.bComboContinued = true;
+	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
+
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
 	TestTrue(TEXT("Reversed Moonlight opens a pending recipe link"), MoonlightResult.bPendingBackwardLink);
 
 	Deck->NotifyComboStateExited();
@@ -1352,6 +1385,73 @@ bool FCombatDeckGeneratedComboDrivenAssetsConfiguredTest::RunTest(const FString&
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedGenericStatusCardsConfiguredTest,
+	"DevKit.CombatDeck.GeneratedGenericStatusCardsConfigured",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckGeneratedGenericStatusCardsConfiguredTest::RunTest(const FString& Parameters)
+{
+	struct FExpectedStatusCard
+	{
+		const TCHAR* Key;
+		const TCHAR* CardIdTag;
+		const TCHAR* CardEffectTag;
+	};
+
+	const FExpectedStatusCard ExpectedCards[] = {
+		{ TEXT("Burn"), TEXT("Card.ID.Burn"), TEXT("Card.Effect.Burn") },
+		{ TEXT("Poison"), TEXT("Card.ID.Poison"), TEXT("Card.Effect.Poison") },
+		{ TEXT("Bleed"), TEXT("Card.ID.Bleed"), TEXT("Card.Effect.Bleed") },
+		{ TEXT("Rend"), TEXT("Card.ID.Rend"), TEXT("Card.Effect.Rend") },
+		{ TEXT("Wound"), TEXT("Card.ID.Wound"), TEXT("Card.Effect.Wound") },
+		{ TEXT("Knockback"), TEXT("Card.ID.Knockback"), TEXT("Card.Effect.Knockback") },
+		{ TEXT("Fear"), TEXT("Card.ID.Fear"), TEXT("Card.Effect.Fear") },
+		{ TEXT("Freeze"), TEXT("Card.ID.Freeze"), TEXT("Card.Effect.Freeze") },
+		{ TEXT("Stun"), TEXT("Card.ID.Stun"), TEXT("Card.Effect.Stun") },
+		{ TEXT("Curse"), TEXT("Card.ID.Curse"), TEXT("Card.Effect.Curse") },
+	};
+
+	bool bAllValid = true;
+	for (const FExpectedStatusCard& ExpectedCard : ExpectedCards)
+	{
+		const FString Key(ExpectedCard.Key);
+		const FString DAPath = FString::Printf(
+			TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_%s.DA_Rune512_%s"),
+			*Key,
+			*Key);
+		URuneDataAsset* CardDA = LoadObject<URuneDataAsset>(nullptr, *DAPath);
+		bAllValid &= TestNotNull(FString::Printf(TEXT("Generated %s DA exists"), *Key), CardDA);
+		if (!CardDA)
+		{
+			continue;
+		}
+
+		const FCombatCardConfig& CardConfig = CardDA->RuneInfo.CombatCard;
+		const FGameplayTag ExpectedIdTag = FGameplayTag::RequestGameplayTag(FName(ExpectedCard.CardIdTag), false);
+		const FGameplayTag ExpectedEffectTag = FGameplayTag::RequestGameplayTag(FName(ExpectedCard.CardEffectTag), false);
+
+		bAllValid &= TestTrue(FString::Printf(TEXT("%s is combat card"), *Key), CardConfig.bIsCombatCard);
+		bAllValid &= TestEqual(FString::Printf(TEXT("%s is normal card"), *Key), CardConfig.CardType, ECombatCardType::Normal);
+		bAllValid &= TestEqual(FString::Printf(TEXT("%s triggers on hit"), *Key), CardConfig.TriggerTiming, ECombatCardTriggerTiming::OnHit);
+		bAllValid &= TestTrue(FString::Printf(TEXT("%s CardIdTag exists"), *Key), ExpectedIdTag.IsValid());
+		bAllValid &= TestTrue(FString::Printf(TEXT("%s CardEffectTag exists"), *Key), ExpectedEffectTag.IsValid());
+		bAllValid &= TestEqual(FString::Printf(TEXT("%s CardIdTag configured"), *Key), CardConfig.CardIdTag, ExpectedIdTag);
+		bAllValid &= TestTrue(FString::Printf(TEXT("%s effect tag configured"), *Key), CardConfig.CardEffectTags.HasTagExact(ExpectedEffectTag));
+
+		const FString FlowPath = FString::Printf(
+			TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_%s_Base.FA_Rune512_%s_Base"),
+			*Key,
+			*Key);
+		UFlowAsset* ExpectedFlow = LoadObject<UFlowAsset>(nullptr, *FlowPath);
+		bAllValid &= TestNotNull(FString::Printf(TEXT("Generated %s BaseFlow exists"), *Key), ExpectedFlow);
+		bAllValid &= TestTrue(FString::Printf(TEXT("%s DA uses generated BaseFlow"), *Key), CardConfig.BaseFlow.Get() == ExpectedFlow);
+		bAllValid &= TestTrue(FString::Printf(TEXT("%s RuneInfo Flow uses generated BaseFlow"), *Key), CardDA->RuneInfo.Flow.FlowAsset.Get() == ExpectedFlow);
+		bAllValid &= TestEqual(FString::Printf(TEXT("%s has no link recipes"), *Key), CardConfig.LinkRecipes.Num(), 0);
+	}
+
+	return bAllValid;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedVfxUsesAtomicNiagaraTest,
 	"DevKit.CombatDeck.GeneratedVfxUsesAtomicNiagara",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -1476,9 +1576,6 @@ bool FCombatDeckGeneratedVfxUsesAtomicNiagaraTest::RunTest(const FString& Parame
 	bAllValid &= ValidateMoonlightFlow(
 		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Poison.FA_Rune512_Moonlight_Forward_Poison"),
 		TEXT("Moonlight forward poison"));
-	bAllValid &= ValidateMoonlightFlow(
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Poison.FA_Rune512_Moonlight_Reversed_Poison"),
-		TEXT("Moonlight reversed poison"));
 	bAllValid &= ValidateStandaloneNiagaraFlow(
 		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Burn_Base.FA_Rune512_Burn_Base"),
 		TEXT("Burn base"),
@@ -1583,11 +1680,8 @@ bool FCombatDeckMoonlightBurnFlowUsesAtomicVfxNodesTest::RunTest(const FString& 
 	const bool bForwardValid = ValidateBurnFlow(
 		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Burn.FA_Rune512_Moonlight_Forward_Burn"),
 		TEXT("Forward burn Moonlight"));
-	const bool bReversedValid = ValidateBurnFlow(
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Burn.FA_Rune512_Moonlight_Reversed_Burn"),
-		TEXT("Reversed burn Moonlight"));
 
-	return bForwardValid && bReversedValid;
+	return bForwardValid;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest,
@@ -1715,11 +1809,125 @@ bool FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest::RunTest(const FString
 	const bool bForwardValid = ValidatePoisonFlow(
 		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Poison.FA_Rune512_Moonlight_Forward_Poison"),
 		TEXT("Forward poison Moonlight"));
-	const bool bReversedValid = ValidatePoisonFlow(
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Poison.FA_Rune512_Moonlight_Reversed_Poison"),
-		TEXT("Reversed poison Moonlight"));
 
-	return bForwardValid && bReversedValid;
+	return bForwardValid;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMoonlightReversedGroundPathFlowTest,
+	"DevKit.CombatDeck.MoonlightReversedGroundPathFlow",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckMoonlightReversedGroundPathFlowTest::RunTest(const FString& Parameters)
+{
+	auto ValidateGroundPathFlow = [this](const TCHAR* FlowPath, const TCHAR* Label, const bool bBurn) -> bool
+	{
+		UFlowAsset* Flow = LoadObject<UFlowAsset>(nullptr, FlowPath);
+		TestNotNull(FString::Printf(TEXT("%s Flow exists"), Label), Flow);
+		if (!Flow)
+		{
+			return false;
+		}
+
+		UBFNode_CalcRuneGroundPathTransform* CalcTransformNode = nullptr;
+		UBFNode_SpawnRuneGroundPathEffect* GroundPathNode = nullptr;
+		for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
+		{
+			if (!CalcTransformNode)
+			{
+				CalcTransformNode = Cast<UBFNode_CalcRuneGroundPathTransform>(Pair.Value);
+			}
+			if (!GroundPathNode)
+			{
+				GroundPathNode = Cast<UBFNode_SpawnRuneGroundPathEffect>(Pair.Value);
+			}
+		}
+
+		TestNotNull(FString::Printf(TEXT("%s has Calc Rune Ground Path Transform node"), Label), CalcTransformNode);
+		TestNotNull(FString::Printf(TEXT("%s has Rune Ground Path node"), Label), GroundPathNode);
+		if (!GroundPathNode || !CalcTransformNode)
+		{
+			return false;
+		}
+
+		UFlowNode* EntryNode = Flow->GetDefaultEntryNode();
+		TestNotNull(FString::Printf(TEXT("%s has default entry node"), Label), EntryNode);
+		if (EntryNode)
+		{
+			const FConnectedPin EntryConnection = EntryNode->GetConnection(TEXT("Out"));
+			TestEqual(FString::Printf(TEXT("%s entry executes calc transform first"), Label), EntryConnection.NodeGuid, CalcTransformNode->GetGuid());
+		}
+
+		const FConnectedPin CalcExecConnection = CalcTransformNode->GetConnection(TEXT("Out"));
+		TestEqual(FString::Printf(TEXT("%s calc executes ground path spawn"), Label), CalcExecConnection.NodeGuid, GroundPathNode->GetGuid());
+
+		const FConnectedPin LocationConnection = GroundPathNode->GetConnection(GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneGroundPathEffect, SpawnLocationOverride));
+		TestEqual(FString::Printf(TEXT("%s spawn location comes from calc node"), Label), LocationConnection.NodeGuid, CalcTransformNode->GetGuid());
+		TestEqual(FString::Printf(TEXT("%s spawn location uses calc SpawnLocation output"), Label),
+			LocationConnection.PinName,
+			GET_MEMBER_NAME_CHECKED(UBFNode_CalcRuneGroundPathTransform, SpawnLocation));
+
+		const FConnectedPin RotationConnection = GroundPathNode->GetConnection(GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneGroundPathEffect, SpawnRotationOverride));
+		TestEqual(FString::Printf(TEXT("%s spawn rotation comes from calc node"), Label), RotationConnection.NodeGuid, CalcTransformNode->GetGuid());
+		TestEqual(FString::Printf(TEXT("%s spawn rotation uses calc SpawnRotation output"), Label),
+			RotationConnection.PinName,
+			GET_MEMBER_NAME_CHECKED(UBFNode_CalcRuneGroundPathTransform, SpawnRotation));
+
+		TestEqual(FString::Printf(TEXT("%s calc source selector"), Label), CalcTransformNode->Source, EBFTargetSelector::BuffOwner);
+		TestEqual(FString::Printf(TEXT("%s calc faces last damage target"), Label), CalcTransformNode->FacingMode, ERuneGroundPathFacingMode::ToLastDamageTarget);
+		TestTrue(FString::Printf(TEXT("%s calc centers path on length"), Label), CalcTransformNode->bCenterOnPathLength);
+		TestEqual(FString::Printf(TEXT("%s spawn fallback faces last damage target"), Label), GroundPathNode->FacingMode, ERuneGroundPathFacingMode::ToLastDamageTarget);
+		TestEqual(FString::Printf(TEXT("%s targets enemies only"), Label), GroundPathNode->TargetPolicy, ERuneGroundPathTargetPolicy::EnemiesOnly);
+		TestEqual(FString::Printf(TEXT("%s source selector"), Label), GroundPathNode->Source, EBFTargetSelector::BuffOwner);
+		TestNotNull(FString::Printf(TEXT("%s has path decal material"), Label), GroundPathNode->DecalMaterial.Get());
+		TestEqual(FString::Printf(TEXT("%s decal plane rotation aligns visual forward"), Label), GroundPathNode->DecalPlaneRotationDegrees, 0.0f);
+		TestTrue(FString::Printf(TEXT("%s has path Niagara"), Label), GroundPathNode->NiagaraSystem != nullptr);
+
+		if (bBurn)
+		{
+			TestEqual(FString::Printf(TEXT("%s burn shape"), Label), GroundPathNode->Shape, ERuneGroundPathShape::Fan);
+			TestEqual(FString::Printf(TEXT("%s burn duration"), Label), GroundPathNode->Duration, 4.0f);
+			TestEqual(FString::Printf(TEXT("%s burn scan interval"), Label), GroundPathNode->TickInterval, 0.5f);
+			TestEqual(FString::Printf(TEXT("%s burn length"), Label), GroundPathNode->Length, 520.0f);
+			TestEqual(FString::Printf(TEXT("%s burn width"), Label), GroundPathNode->Width, 230.0f);
+			TestEqual(FString::Printf(TEXT("%s burn decal projection depth"), Label), GroundPathNode->DecalProjectionDepth, 18.0f);
+			TestEqual(FString::Printf(TEXT("%s burn ground fire instances"), Label), GroundPathNode->NiagaraInstanceCount, 7);
+			TestTrue(FString::Printf(TEXT("%s burn applies once per path target"), Label), GroundPathNode->bApplyOncePerTarget);
+			TestTrue(FString::Printf(TEXT("%s uses burn ground path decal"), Label),
+				GroundPathNode->DecalMaterial != nullptr
+				&& GroundPathNode->DecalMaterial->GetName().Contains(TEXT("GroundPath_Burn_Fan_Decal")));
+			TestTrue(FString::Printf(TEXT("%s applies UGE_RuneBurn"), Label), GroundPathNode->Effect.Get() == UGE_RuneBurn::StaticClass());
+			TestEqual(FString::Printf(TEXT("%s burn uses Data.Damage.Burn"), Label), GroundPathNode->SetByCallerTag1.GetTagName(), FName(TEXT("Data.Damage.Burn")));
+			TestEqual(FString::Printf(TEXT("%s burn damage per tick"), Label), GroundPathNode->SetByCallerValue1.Value, 6.0f);
+		}
+		else
+		{
+			TestEqual(FString::Printf(TEXT("%s poison shape"), Label), GroundPathNode->Shape, ERuneGroundPathShape::Rectangle);
+			TestEqual(FString::Printf(TEXT("%s poison duration"), Label), GroundPathNode->Duration, 4.5f);
+			TestEqual(FString::Printf(TEXT("%s poison tick interval"), Label), GroundPathNode->TickInterval, 1.0f);
+			TestEqual(FString::Printf(TEXT("%s poison length"), Label), GroundPathNode->Length, 560.0f);
+			TestEqual(FString::Printf(TEXT("%s poison width"), Label), GroundPathNode->Width, 210.0f);
+			TestEqual(FString::Printf(TEXT("%s poison decal projection depth"), Label), GroundPathNode->DecalProjectionDepth, 18.0f);
+			TestEqual(FString::Printf(TEXT("%s poison ground VFX instances"), Label), GroundPathNode->NiagaraInstanceCount, 1);
+			TestFalse(FString::Printf(TEXT("%s poison can reapply per scan"), Label), GroundPathNode->bApplyOncePerTarget);
+			TestTrue(FString::Printf(TEXT("%s uses poison ground path decal"), Label),
+				GroundPathNode->DecalMaterial != nullptr
+				&& GroundPathNode->DecalMaterial->GetName().Contains(TEXT("GroundPath_Poison_Decal")));
+			TestTrue(FString::Printf(TEXT("%s applies GE_Poison"), Label), GroundPathNode->Effect != nullptr && GroundPathNode->Effect->GetName().Contains(TEXT("GE_Poison")));
+		}
+
+		return true;
+	};
+
+	const bool bBurnValid = ValidateGroundPathFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Burn.FA_Rune512_Moonlight_Reversed_Burn"),
+		TEXT("Reversed burn Moonlight"),
+		true);
+	const bool bPoisonValid = ValidateGroundPathFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Poison.FA_Rune512_Moonlight_Reversed_Poison"),
+		TEXT("Reversed poison Moonlight"),
+		false);
+
+	return bBurnValid && bPoisonValid;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckPoisonGameplayEffectsConfiguredTest,
@@ -1815,6 +2023,34 @@ bool FCombatDeckBurnGameplayEffectConfiguredTest::RunTest(const FString& Paramet
 	});
 	TestTrue(TEXT("Burn uses GEExec_BurnDamage"), bHasBurnExecution);
 	return bHasBurnExecution;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckBurnStatusNiagaraBoundToTagTest,
+	"DevKit.CombatDeck.BurnStatusNiagaraBoundToBurningTag",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckBurnStatusNiagaraBoundToTagTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag BurningTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Burning"), false);
+	TestTrue(TEXT("Buff.Status.Burning tag exists"), BurningTag.IsValid());
+
+	UYogAbilitySystemComponent* ASC = NewObject<UYogAbilitySystemComponent>();
+	TestNotNull(TEXT("Yog ASC exists for burn status VFX binding test"), ASC);
+	if (!ASC)
+	{
+		return false;
+	}
+
+	UNiagaraSystem* BurnSystem = ASC->GetStatusNiagaraSystemForTag(BurningTag);
+	TestNotNull(TEXT("Burning tag resolves shared burn status Niagara"), BurnSystem);
+	if (!BurnSystem)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Burning tag uses NS_Fire_Floor"), BurnSystem->GetName(), FString(TEXT("NS_Fire_Floor")));
+
+	return true;
 }
 
 #endif

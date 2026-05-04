@@ -12,6 +12,22 @@
 #include "GameplayEffectExtension.h"
 #include "AbilitySystemBlueprintLibrary.h"
 
+namespace
+{
+	bool EffectGrantsTag(const FGameplayEffectSpec& Spec, const TCHAR* TagName)
+	{
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+		return Tag.IsValid() && Spec.Def && Spec.Def->GetGrantedTags().HasTagExact(Tag);
+	}
+
+	bool ShouldSuppressDamageFeedbackForEffect(const FGameplayEffectSpec& Spec)
+	{
+		return EffectGrantsTag(Spec, TEXT("Buff.Status.Burning")) ||
+			EffectGrantsTag(Spec, TEXT("Buff.Status.Poisoned")) ||
+			EffectGrantsTag(Spec, TEXT("Buff.Status.Bleeding"));
+	}
+}
+
 
 
 
@@ -130,17 +146,23 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				}
 			}
 
+			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
+			const bool bSuppressDamageFeedback = ShouldSuppressDamageFeedbackForEffect(Data.EffectSpec);
+			if (HealthDamage > 0.f && bSuppressDamageFeedback && ASC)
+			{
+				ASC->SuppressNextDamageFeedback();
+			}
+
 			if (HealthDamage > 0.f)
 			{
 				const float OldHealth = TargetCharacter->BaseAttributeSet->GetHealth();
 				TargetCharacter->BaseAttributeSet->SetHealth(FMath::Clamp(OldHealth - HealthDamage, 0.0f, TargetCharacter->BaseAttributeSet->GetMaxHealth()));
 			}
 
-			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
 			if (ASC)
 			{
 				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
-				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone);
+				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone, bSuppressDamageFeedback);
 				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);
 
@@ -335,16 +357,21 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 
 		if (LocalDamageDone > 0.f && TargetCharacter && TargetCharacter->BaseAttributeSet)
 		{
+			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
+			if (ASC)
+			{
+				ASC->SuppressNextDamageFeedback();
+			}
+
 			const float OldHealth = TargetCharacter->BaseAttributeSet->GetHealth();
 			// 不至死：Health 最低保留 1（GEExec_PoisonDamage 在输出前已Clamp，此处双重保险）
 			const float NewHealth = FMath::Max(1.f, OldHealth - LocalDamageDone);
 			TargetCharacter->BaseAttributeSet->SetHealth(NewHealth);
 
-			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
 			if (ASC)
 			{
 				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
-				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone);
+				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone, true);
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(NewHealth / TargetCharacter->BaseAttributeSet->GetMaxHealth(), LocalDamageDone);
 			}
 		}

@@ -340,7 +340,13 @@ private:
 	FCombatCardInstance PendingLinkContext;
 
 	UPROPERTY()
+	FCombatDeckActionContext PendingLinkActionContext;
+
+	UPROPERTY()
 	FCombatCardInstance DashSavedLinkContext;
+
+	UPROPERTY()
+	FCombatDeckActionContext DashSavedLinkActionContext;
 
 	TSet<FGuid> ResolvedAttackGuids;
 
@@ -352,7 +358,7 @@ private:
 	void AdvanceShuffle(float DeltaTime);
 	void ExecuteFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card, const FCombatDeckActionContext& Context, const FCombatCardResolveResult& Result) const;
 	bool DoesActionMatch(ECardRequiredAction RequiredAction, ECardRequiredAction ActionType) const;
-	void BreakPendingLink(ECombatLinkBreakReason Reason);
+	void BreakPendingLink(ECombatLinkBreakReason Reason, const FCombatDeckActionContext* BreakContext = nullptr);
 	int32 GetComboBonusStacks(const FCombatDeckActionContext& Context) const;
 	float GetComboEffectMultiplier(const FCombatCardConfig& Config, const FCombatDeckActionContext& Context) const;
 	void SetAppliedMultiplier(FCombatCardResolveResult& Result, float LinkMultiplier, float ComboMultiplier) const;

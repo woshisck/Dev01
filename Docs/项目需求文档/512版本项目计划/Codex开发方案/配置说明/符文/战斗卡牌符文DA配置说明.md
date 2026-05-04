@@ -23,7 +23,7 @@
 | `CardIdTag` | 例如 `Card.ID.Moonlight` | 卡牌唯一 ID，用于连携配方查找 |
 | `CardEffectTags` | 例如 `Card.Effect.Attack` | 表示卡牌效果类型，攻击卡通过这里标记 |
 | `RequiredAction` | 普通卡填 `Any` | 高级字段；普通卡不依赖 Light / Heavy |
-| `TriggerTiming` | 当前建议 `OnCommit` | 高级字段；代码会在 `AN_MeleeDamage` 帧结算和消耗 |
+| `TriggerTiming` | 当前建议 `OnHit` | 高级字段；卡牌会在 `AN_MeleeDamage` 命中帧结算和消耗 |
 | `BaseFlow` | 普通释放 FA | 卡牌默认效果 |
 | `LinkRecipes` | 连携卡填写 | 新连携配方数组 |
 | `DefaultLinkOrientation` | 默认 `Forward` | 反向连携测试时可改为 `Reversed` |
