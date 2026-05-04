@@ -19,7 +19,7 @@ UBFNode_ApplyEffect::UBFNode_ApplyEffect(const FObjectInitializer& ObjectInitial
 void UBFNode_ApplyEffect::Cleanup()
 {
 	bCleaningUp = true;
-	if (GrantedASC.IsValid() && GrantedHandle.IsValid())
+	if (bRemoveEffectOnCleanup && GrantedASC.IsValid() && GrantedHandle.IsValid())
 	{
 		GrantedASC->RemoveActiveGameplayEffect(GrantedHandle);
 	}

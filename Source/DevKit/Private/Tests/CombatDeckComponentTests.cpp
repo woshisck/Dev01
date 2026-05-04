@@ -5,6 +5,8 @@
 #include "Component/CombatDeckComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
+#include "AbilitySystem/GameplayEffect/GE_RuneBurn.h"
+#include "AbilitySystem/Execution/GEExec_BurnDamage.h"
 #include "AbilitySystem/Execution/GEExec_PoisonDamage.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "BuffFlow/Nodes/BFNode_ApplyAttributeModifier.h"
@@ -439,7 +441,7 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 	TestEqual(TEXT("Graph node exports its NodeId"), RuntimeConfig.NodeId, FName(TEXT("L2H")));
 	TestEqual(TEXT("Graph edge input becomes runtime input"), RuntimeConfig.InputAction, ECardRequiredAction::Heavy);
 	TestEqual(TEXT("Graph node exports gameplay ability class fallback"), RuntimeConfig.GameplayAbilityClass, Node->GameplayAbilityClass);
-	TestTrue(TEXT("Graph node enables runtime combo window override"), RuntimeConfig.bOverrideComboWindow);
+	TestFalse(TEXT("Graph node frame window is ignored by runtime while montage notifies drive combo windows"), RuntimeConfig.bOverrideComboWindow);
 	TestEqual(TEXT("Combo window start frame is exported"), RuntimeConfig.ComboWindowStartFrame, 12);
 	TestEqual(TEXT("Combo window end frame is exported"), RuntimeConfig.ComboWindowEndFrame, 20);
 	TestEqual(TEXT("Combo window total frames is exported"), RuntimeConfig.ComboWindowTotalFrames, 30);
@@ -1350,11 +1352,11 @@ bool FCombatDeckGeneratedComboDrivenAssetsConfiguredTest::RunTest(const FString&
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedVfxClearsLegacyNiagaraTest,
-	"DevKit.CombatDeck.GeneratedVfxClearsLegacyNiagara",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedVfxUsesAtomicNiagaraTest,
+	"DevKit.CombatDeck.GeneratedVfxUsesAtomicNiagara",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckGeneratedVfxClearsLegacyNiagaraTest::RunTest(const FString& Parameters)
+bool FCombatDeckGeneratedVfxUsesAtomicNiagaraTest::RunTest(const FString& Parameters)
 {
 	auto ValidateMoonlightFlow = [this](const TCHAR* FlowPath, const TCHAR* Label) -> bool
 	{
@@ -1383,7 +1385,12 @@ bool FCombatDeckGeneratedVfxClearsLegacyNiagaraTest::RunTest(const FString& Para
 		return SlashNodeCount > 0;
 	};
 
-	auto ValidateStandaloneFlipbookFlow = [this](const TCHAR* FlowPath, const TCHAR* Label, const TCHAR* ExpectedTextureName) -> bool
+	auto ValidateStandaloneNiagaraFlow = [this](
+		const TCHAR* FlowPath,
+		const TCHAR* Label,
+		const TCHAR* ExpectedEffectName,
+		const TCHAR* ExpectedSystemName,
+		const bool bExpectBurnDot) -> bool
 	{
 		UFlowAsset* Flow = LoadObject<UFlowAsset>(nullptr, FlowPath);
 		TestNotNull(FString::Printf(TEXT("%s flow exists"), Label), Flow);
@@ -1392,30 +1399,68 @@ bool FCombatDeckGeneratedVfxClearsLegacyNiagaraTest::RunTest(const FString& Para
 			return false;
 		}
 
-		int32 ActiveLegacyNiagaraCount = 0;
-		bool bHasExpectedFlipbook = false;
+		int32 ActiveUnexpectedNiagaraCount = 0;
+		int32 ActiveFlipbookCount = 0;
+		const UBFNode_PlayNiagara* ExpectedNiagaraNode = nullptr;
+		UBFNode_ApplyEffect* BurnEffectNode = nullptr;
+		const FName ExpectedEffectFName(ExpectedEffectName);
 		for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
 		{
 			if (const UBFNode_PlayNiagara* NiagaraNode = Cast<UBFNode_PlayNiagara>(Pair.Value))
 			{
-				if (NiagaraNode->NiagaraSystem)
+				if (NiagaraNode->NiagaraSystem && NiagaraNode->EffectName == ExpectedEffectFName)
 				{
-					++ActiveLegacyNiagaraCount;
+					ExpectedNiagaraNode = NiagaraNode;
+				}
+				else if (NiagaraNode->NiagaraSystem)
+				{
+					++ActiveUnexpectedNiagaraCount;
 				}
 			}
 			if (const UBFNode_PlayFlipbookVFX* FlipbookNode = Cast<UBFNode_PlayFlipbookVFX>(Pair.Value))
 			{
-				const FString TextureName = GetNameSafe(FlipbookNode->Texture);
-				bHasExpectedFlipbook |= TextureName.Contains(ExpectedTextureName);
-				TestNotNull(FString::Printf(TEXT("%s flipbook material assigned"), Label), FlipbookNode->Material.Get());
-				TestEqual(FString::Printf(TEXT("%s flipbook targets last damage target"), Label), FlipbookNode->Target, EBFTargetSelector::LastDamageTarget);
-				TestTrue(FString::Printf(TEXT("%s flipbook size is compact"), Label), FlipbookNode->Size <= 90.f);
+				if (FlipbookNode->Texture || FlipbookNode->Material || FlipbookNode->PlaneMesh || FlipbookNode->EffectName != NAME_None)
+				{
+					++ActiveFlipbookCount;
+				}
+			}
+			if (UBFNode_ApplyEffect* ApplyNode = Cast<UBFNode_ApplyEffect>(Pair.Value))
+			{
+				if (ApplyNode->Effect == UGE_RuneBurn::StaticClass())
+				{
+					BurnEffectNode = ApplyNode;
+				}
 			}
 		}
 
-		TestEqual(FString::Printf(TEXT("%s has no active legacy Niagara nodes"), Label), ActiveLegacyNiagaraCount, 0);
-		TestTrue(FString::Printf(TEXT("%s has expected flipbook texture"), Label), bHasExpectedFlipbook);
-		return ActiveLegacyNiagaraCount == 0 && bHasExpectedFlipbook;
+		TestEqual(FString::Printf(TEXT("%s has no unexpected active Niagara nodes"), Label), ActiveUnexpectedNiagaraCount, 0);
+		TestEqual(FString::Printf(TEXT("%s has no active flipbook nodes"), Label), ActiveFlipbookCount, 0);
+		TestNotNull(FString::Printf(TEXT("%s has expected Play Niagara node"), Label), ExpectedNiagaraNode);
+		if (ExpectedNiagaraNode)
+		{
+			TestTrue(FString::Printf(TEXT("%s Niagara system matches expected asset"), Label),
+				GetNameSafe(ExpectedNiagaraNode->NiagaraSystem).Contains(ExpectedSystemName));
+			TestEqual(FString::Printf(TEXT("%s Niagara targets last damage target"), Label),
+				ExpectedNiagaraNode->AttachTarget,
+				EBFTargetSelector::LastDamageTarget);
+			TestTrue(FString::Printf(TEXT("%s Niagara attaches to target mesh"), Label), ExpectedNiagaraNode->bAttachToTarget);
+			TestTrue(FString::Printf(TEXT("%s Niagara scale is compact"), Label),
+				ExpectedNiagaraNode->Scale.X <= 0.5f && ExpectedNiagaraNode->Scale.Y <= 0.5f && ExpectedNiagaraNode->Scale.Z <= 0.5f);
+			TestTrue(FString::Printf(TEXT("%s Niagara has explicit lifetime"), Label), ExpectedNiagaraNode->Lifetime > 0.f);
+			TestFalse(FString::Printf(TEXT("%s Niagara survives Flow cleanup until lifetime"), Label), ExpectedNiagaraNode->bDestroyWithFlow);
+		}
+
+		if (bExpectBurnDot)
+		{
+			TestNotNull(FString::Printf(TEXT("%s applies persistent burn DOT"), Label), BurnEffectNode);
+			if (BurnEffectNode)
+			{
+				TestEqual(FString::Printf(TEXT("%s burn targets last damage target"), Label), BurnEffectNode->Target, EBFTargetSelector::LastDamageTarget);
+				TestFalse(FString::Printf(TEXT("%s burn GE survives Flow cleanup"), Label), BurnEffectNode->bRemoveEffectOnCleanup);
+			}
+		}
+
+		return ExpectedNiagaraNode && ActiveUnexpectedNiagaraCount == 0 && ActiveFlipbookCount == 0;
 	};
 
 	bool bAllValid = true;
@@ -1434,16 +1479,115 @@ bool FCombatDeckGeneratedVfxClearsLegacyNiagaraTest::RunTest(const FString& Para
 	bAllValid &= ValidateMoonlightFlow(
 		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Poison.FA_Rune512_Moonlight_Reversed_Poison"),
 		TEXT("Moonlight reversed poison"));
-	bAllValid &= ValidateStandaloneFlipbookFlow(
+	bAllValid &= ValidateStandaloneNiagaraFlow(
 		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Burn_Base.FA_Rune512_Burn_Base"),
 		TEXT("Burn base"),
-		TEXT("Burn_Hit"));
-	bAllValid &= ValidateStandaloneFlipbookFlow(
+		TEXT("Rune.Burn.ApplyNiagara"),
+		TEXT("NS_Fire_Floor"),
+		true);
+	bAllValid &= ValidateStandaloneNiagaraFlow(
 		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Poison_Base.FA_Rune512_Poison_Base"),
 		TEXT("Poison base"),
-		TEXT("Poison_Hit"));
+		TEXT("Rune.Poison.ApplyNiagara"),
+		TEXT("NS_Smoke_7_acid"),
+		false);
 
 	return bAllValid;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMoonlightBurnFlowUsesAtomicVfxNodesTest,
+	"DevKit.CombatDeck.MoonlightBurnFlowUsesAtomicVfxNodes",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckMoonlightBurnFlowUsesAtomicVfxNodesTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag BurnHitTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Rune.MoonlightBurnHit"), false);
+	TestTrue(TEXT("Moonlight burn hit event tag exists"), BurnHitTag.IsValid());
+
+	auto ValidateBurnFlow = [this, BurnHitTag](const TCHAR* FlowPath, const TCHAR* Label) -> bool
+	{
+		UFlowAsset* Flow = LoadObject<UFlowAsset>(nullptr, FlowPath);
+		TestNotNull(FString::Printf(TEXT("%s Flow exists"), Label), Flow);
+		if (!Flow)
+		{
+			return false;
+		}
+
+		UBFNode_SpawnSlashWaveProjectile* SlashNode = nullptr;
+		UBFNode_WaitGameplayEvent* WaitNode = nullptr;
+		UBFNode_PlayNiagara* BurnVfxNode = nullptr;
+		UBFNode_ApplyEffect* BurnEffectNode = nullptr;
+		int32 ActiveFlipbookCount = 0;
+		for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
+		{
+			if (!SlashNode)
+			{
+				SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
+			}
+			if (!WaitNode)
+			{
+				WaitNode = Cast<UBFNode_WaitGameplayEvent>(Pair.Value);
+			}
+			if (UBFNode_PlayNiagara* NiagaraNode = Cast<UBFNode_PlayNiagara>(Pair.Value))
+			{
+				if (NiagaraNode->EffectName == FName(TEXT("Rune.Moonlight.BurnHitNiagara")))
+				{
+					BurnVfxNode = NiagaraNode;
+				}
+			}
+			if (const UBFNode_PlayFlipbookVFX* FlipbookNode = Cast<UBFNode_PlayFlipbookVFX>(Pair.Value))
+			{
+				if (FlipbookNode->Texture || FlipbookNode->Material || FlipbookNode->PlaneMesh || FlipbookNode->EffectName != NAME_None)
+				{
+					++ActiveFlipbookCount;
+				}
+			}
+			if (UBFNode_ApplyEffect* ApplyNode = Cast<UBFNode_ApplyEffect>(Pair.Value))
+			{
+				if (ApplyNode->Effect == UGE_RuneBurn::StaticClass())
+				{
+					BurnEffectNode = ApplyNode;
+				}
+			}
+		}
+
+		TestNotNull(FString::Printf(TEXT("%s has slash-wave projectile node"), Label), SlashNode);
+		TestNotNull(FString::Printf(TEXT("%s has wait gameplay event node"), Label), WaitNode);
+		TestNotNull(FString::Printf(TEXT("%s has burn Niagara node"), Label), BurnVfxNode);
+		TestNotNull(FString::Printf(TEXT("%s has persistent burn DOT node"), Label), BurnEffectNode);
+		if (!SlashNode || !WaitNode || !BurnVfxNode || !BurnEffectNode)
+		{
+			return false;
+		}
+
+		TestEqual(FString::Printf(TEXT("%s slash-wave sends burn hit event"), Label), SlashNode->HitGameplayEventTag, BurnHitTag);
+		TestNull(FString::Printf(TEXT("%s slash-wave does not use inline hit Niagara"), Label), SlashNode->HitNiagaraSystem);
+		TestNull(FString::Printf(TEXT("%s slash-wave does not use inline expire Niagara"), Label), SlashNode->ExpireNiagaraSystem);
+		TestEqual(FString::Printf(TEXT("%s wait node listens to burn hit event"), Label), WaitNode->EventTag, BurnHitTag);
+		TestEqual(FString::Printf(TEXT("%s wait node listens on BuffOwner"), Label), WaitNode->Target, EBFTargetSelector::BuffOwner);
+		TestEqual(FString::Printf(TEXT("%s burn VFX targets last damage target"), Label), BurnVfxNode->AttachTarget, EBFTargetSelector::LastDamageTarget);
+		TestTrue(FString::Printf(TEXT("%s burn VFX uses NS_Fire_Floor"), Label), GetNameSafe(BurnVfxNode->NiagaraSystem).Contains(TEXT("NS_Fire_Floor")));
+		TestTrue(FString::Printf(TEXT("%s burn VFX attaches to target"), Label), BurnVfxNode->bAttachToTarget);
+		TestTrue(FString::Printf(TEXT("%s burn VFX remains compact"), Label),
+			BurnVfxNode->Scale.X <= 0.5f && BurnVfxNode->Scale.Y <= 0.5f && BurnVfxNode->Scale.Z <= 0.5f);
+		TestTrue(FString::Printf(TEXT("%s burn VFX lifetime covers DOT preview"), Label), BurnVfxNode->Lifetime >= 3.f);
+		TestFalse(FString::Printf(TEXT("%s burn VFX is not destroyed by short Flow cleanup"), Label), BurnVfxNode->bDestroyWithFlow);
+		TestEqual(FString::Printf(TEXT("%s has no active flipbook nodes"), Label), ActiveFlipbookCount, 0);
+		TestEqual(FString::Printf(TEXT("%s burn DOT targets last damage target"), Label), BurnEffectNode->Target, EBFTargetSelector::LastDamageTarget);
+		TestFalse(FString::Printf(TEXT("%s burn DOT survives Flow cleanup"), Label), BurnEffectNode->bRemoveEffectOnCleanup);
+		TestEqual(FString::Printf(TEXT("%s burn DOT uses Data.Damage.Burn"), Label), BurnEffectNode->SetByCallerTag1.GetTagName(), FName(TEXT("Data.Damage.Burn")));
+
+		return true;
+	};
+
+	const bool bForwardValid = ValidateBurnFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Burn.FA_Rune512_Moonlight_Forward_Burn"),
+		TEXT("Forward burn Moonlight"));
+	const bool bReversedValid = ValidateBurnFlow(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Burn.FA_Rune512_Moonlight_Reversed_Burn"),
+		TEXT("Reversed burn Moonlight"));
+
+	return bForwardValid && bReversedValid;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest,
@@ -1468,7 +1612,9 @@ bool FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest::RunTest(const FString
 
 		UBFNode_SpawnSlashWaveProjectile* SlashNode = nullptr;
 		UBFNode_WaitGameplayEvent* WaitNode = nullptr;
-		TArray<UBFNode_PlayFlipbookVFX*> FlipbookNodes;
+		UBFNode_PlayNiagara* PoisonHitVfxNode = nullptr;
+		UBFNode_PlayNiagara* PoisonSpreadVfxNode = nullptr;
+		int32 ActiveFlipbookCount = 0;
 		UBFNode_ApplyEffect* PrimaryPoisonNode = nullptr;
 		UBFNode_ApplyGEInRadius* RadiusPoisonNode = nullptr;
 
@@ -1482,9 +1628,23 @@ bool FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest::RunTest(const FString
 			{
 				WaitNode = Cast<UBFNode_WaitGameplayEvent>(Pair.Value);
 			}
-			if (UBFNode_PlayFlipbookVFX* FlipbookNode = Cast<UBFNode_PlayFlipbookVFX>(Pair.Value))
+			if (UBFNode_PlayNiagara* NiagaraNode = Cast<UBFNode_PlayNiagara>(Pair.Value))
 			{
-				FlipbookNodes.Add(FlipbookNode);
+				if (NiagaraNode->EffectName == FName(TEXT("Rune.Moonlight.PoisonHitNiagara")))
+				{
+					PoisonHitVfxNode = NiagaraNode;
+				}
+				else if (NiagaraNode->EffectName == FName(TEXT("Rune.Moonlight.PoisonSpreadNiagara")))
+				{
+					PoisonSpreadVfxNode = NiagaraNode;
+				}
+			}
+			if (const UBFNode_PlayFlipbookVFX* FlipbookNode = Cast<UBFNode_PlayFlipbookVFX>(Pair.Value))
+			{
+				if (FlipbookNode->Texture || FlipbookNode->Material || FlipbookNode->PlaneMesh || FlipbookNode->EffectName != NAME_None)
+				{
+					++ActiveFlipbookCount;
+				}
 			}
 			if (!PrimaryPoisonNode)
 			{
@@ -1498,10 +1658,12 @@ bool FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest::RunTest(const FString
 
 		TestNotNull(FString::Printf(TEXT("%s has slash-wave projectile node"), Label), SlashNode);
 		TestNotNull(FString::Printf(TEXT("%s has wait gameplay event node"), Label), WaitNode);
-		TestEqual(FString::Printf(TEXT("%s has two flipbook VFX nodes"), Label), FlipbookNodes.Num(), 2);
+		TestNotNull(FString::Printf(TEXT("%s has poison hit Niagara node"), Label), PoisonHitVfxNode);
+		TestNotNull(FString::Printf(TEXT("%s has poison spread Niagara node"), Label), PoisonSpreadVfxNode);
+		TestEqual(FString::Printf(TEXT("%s has no active flipbook nodes"), Label), ActiveFlipbookCount, 0);
 		TestNotNull(FString::Printf(TEXT("%s has primary poison node"), Label), PrimaryPoisonNode);
 		TestNotNull(FString::Printf(TEXT("%s has radius poison node"), Label), RadiusPoisonNode);
-		if (!SlashNode || !WaitNode || FlipbookNodes.Num() < 2 || !PrimaryPoisonNode || !RadiusPoisonNode)
+		if (!SlashNode || !WaitNode || !PoisonHitVfxNode || !PoisonSpreadVfxNode || !PrimaryPoisonNode || !RadiusPoisonNode)
 		{
 			return false;
 		}
@@ -1514,18 +1676,24 @@ bool FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest::RunTest(const FString
 		TestEqual(FString::Printf(TEXT("%s wait node listens to poison hit event"), Label), WaitNode->EventTag, PoisonHitTag);
 		TestEqual(FString::Printf(TEXT("%s wait node listens on BuffOwner"), Label), WaitNode->Target, EBFTargetSelector::BuffOwner);
 
-		bool bHasPoisonHitFlipbook = false;
-		bool bHasPoisonSpreadFlipbook = false;
-		for (const UBFNode_PlayFlipbookVFX* FlipbookNode : FlipbookNodes)
-		{
-			TestNotNull(FString::Printf(TEXT("%s flipbook node has texture"), Label), FlipbookNode->Texture.Get());
-			TestNotNull(FString::Printf(TEXT("%s flipbook node has material"), Label), FlipbookNode->Material.Get());
-			const FString TextureName = GetNameSafe(FlipbookNode->Texture);
-			bHasPoisonHitFlipbook |= TextureName.Contains(TEXT("Poison_Hit"));
-			bHasPoisonSpreadFlipbook |= TextureName.Contains(TEXT("Poison_Spread"));
-		}
-		TestTrue(FString::Printf(TEXT("%s includes poison hit flipbook"), Label), bHasPoisonHitFlipbook);
-		TestTrue(FString::Printf(TEXT("%s includes poison spread flipbook"), Label), bHasPoisonSpreadFlipbook);
+		TestTrue(FString::Printf(TEXT("%s poison hit VFX uses acid smoke Niagara"), Label),
+			GetNameSafe(PoisonHitVfxNode->NiagaraSystem).Contains(TEXT("NS_Smoke_7_acid")));
+		TestTrue(FString::Printf(TEXT("%s poison spread VFX uses acid smoke Niagara"), Label),
+			GetNameSafe(PoisonSpreadVfxNode->NiagaraSystem).Contains(TEXT("NS_Smoke_7_acid")));
+		TestEqual(FString::Printf(TEXT("%s poison hit VFX targets last damage target"), Label),
+			PoisonHitVfxNode->AttachTarget,
+			EBFTargetSelector::LastDamageTarget);
+		TestEqual(FString::Printf(TEXT("%s poison spread VFX targets last damage target"), Label),
+			PoisonSpreadVfxNode->AttachTarget,
+			EBFTargetSelector::LastDamageTarget);
+		TestTrue(FString::Printf(TEXT("%s poison hit VFX attaches to target"), Label), PoisonHitVfxNode->bAttachToTarget);
+		TestFalse(FString::Printf(TEXT("%s poison spread VFX spawns at target location"), Label), PoisonSpreadVfxNode->bAttachToTarget);
+		TestTrue(FString::Printf(TEXT("%s poison hit VFX remains compact"), Label),
+			PoisonHitVfxNode->Scale.X <= 0.5f && PoisonHitVfxNode->Scale.Y <= 0.5f && PoisonHitVfxNode->Scale.Z <= 0.5f);
+		TestTrue(FString::Printf(TEXT("%s poison spread VFX remains compact"), Label),
+			PoisonSpreadVfxNode->Scale.X <= 0.6f && PoisonSpreadVfxNode->Scale.Y <= 0.6f && PoisonSpreadVfxNode->Scale.Z <= 0.6f);
+		TestTrue(FString::Printf(TEXT("%s poison hit VFX has explicit lifetime"), Label), PoisonHitVfxNode->Lifetime > 0.f);
+		TestTrue(FString::Printf(TEXT("%s poison spread VFX has explicit lifetime"), Label), PoisonSpreadVfxNode->Lifetime > 0.f);
 
 		TestTrue(FString::Printf(TEXT("%s primary poison GE is assigned"), Label),
 			PrimaryPoisonNode->Effect != nullptr && PrimaryPoisonNode->Effect->GetName().Contains(TEXT("GE_Poison")));
@@ -1614,6 +1782,39 @@ bool FCombatDeckPoisonGameplayEffectsConfiguredTest::RunTest(const FString& Para
 		10);
 
 	return bPrimaryValid && bSplashValid;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckBurnGameplayEffectConfiguredTest,
+	"DevKit.CombatDeck.BurnGameplayEffectConfigured",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckBurnGameplayEffectConfiguredTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag BurningTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Burning"), false);
+	const FGameplayTag BurnDamageTag = FGameplayTag::RequestGameplayTag(TEXT("Data.Damage.Burn"), false);
+	TestTrue(TEXT("Buff.Status.Burning tag exists"), BurningTag.IsValid());
+	TestTrue(TEXT("Data.Damage.Burn tag exists"), BurnDamageTag.IsValid());
+
+	const UGameplayEffect* Effect = UGE_RuneBurn::StaticClass()->GetDefaultObject<UGameplayEffect>();
+	TestNotNull(TEXT("UGE_RuneBurn CDO exists"), Effect);
+	if (!Effect)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Burn uses duration"), Effect->DurationPolicy, EGameplayEffectDurationType::HasDuration);
+	TestEqual(TEXT("Burn period is 1s"), Effect->Period.GetValueAtLevel(1.f), 1.f);
+	TestEqual(TEXT("Burn does not tick on application"), Effect->bExecutePeriodicEffectOnApplication, false);
+	TestTrue(TEXT("Burn grants burning tag"), BurningTag.IsValid() && Effect->GetGrantedTags().HasTagExact(BurningTag));
+	TestEqual(TEXT("Burn is unique by target"), Effect->StackingType, EGameplayEffectStackingType::AggregateByTarget);
+	TestEqual(TEXT("Burn stack limit is 1"), Effect->StackLimitCount, 1);
+
+	const bool bHasBurnExecution = Effect->Executions.ContainsByPredicate([](const FGameplayEffectExecutionDefinition& ExecDef)
+	{
+		return ExecDef.CalculationClass == UGEExec_BurnDamage::StaticClass();
+	});
+	TestTrue(TEXT("Burn uses GEExec_BurnDamage"), bHasBurnExecution);
+	return bHasBurnExecution;
 }
 
 #endif

@@ -1,116 +1,93 @@
 # 月光毒素连携 FA 配置说明
 
-月光毒素连携采用“月刃命中事件 + 毒素命中表现 + 主目标毒层 + 次级目标扩散”的原子节点链。不要把毒素逻辑继续写进 `Spawn Slash Wave Projectile` 的单个字段里。
+## 1. 目标
 
-## 1. 适用 Flow
+月光毒素连携采用原子节点组合，不把毒素命中、扩散、次级伤害塞进投射物节点。
 
-| Flow | 用途 |
-| --- | --- |
-| `FA_Rune512_Moonlight_Forward_Poison` | 正向月光 + 毒素 |
-| `FA_Rune512_Moonlight_Reversed_Poison` | 反向月光 + 毒素 |
+当前默认效果：
 
-## 2. 节点链
+1. 月刃命中主目标。
+2. 主目标播放小尺寸中毒 Niagara。
+3. 主目标获得 3 层 `GE_Poison`。
+4. 主目标位置播放一次毒素扩散 Niagara。
+5. 半径 300 内最多 3 个次级敌人获得小额毒伤/毒层，排除主目标。
+
+## 2. 推荐节点链
 
 ```text
-Start
-  -> Spawn Slash Wave Projectile
+Spawn Slash Wave Projectile
   -> Wait Gameplay Event(Action.Rune.MoonlightPoisonHit)
-  -> Play Flipbook VFX(毒素命中)
-  -> ApplyEffect(GE_Poison, 主目标 x3)
-  -> Play Flipbook VFX(毒素扩散)
-  -> ApplyGEInRadius(GE_PoisonSplash/GE_Poison, 排除主目标)
+  -> Play Niagara(Rune.Moonlight.PoisonHitNiagara)
+  -> Apply Gameplay Effect Class(GE_Poison)
+  -> Play Niagara(Rune.Moonlight.PoisonSpreadNiagara)
+  -> ApplyGEInRadius(GE_PoisonSplash/GE_Poison)
 ```
 
-## 3. Spawn Slash Wave Projectile
-
-| 字段 | 正向推荐值 | 反向推荐值 |
-| --- | --- | --- |
-| `Damage` | `25` | `12` |
-| `Speed` | `900` | `280` |
-| `Max Distance` | `800` | `220` |
-| `Max Hit Count` | `3` | `0` |
-| `Projectile Count` | `1` | `3` |
-| `Damage Applications Per Target` | `1` | `3` |
-| `Damage Application Interval` | `0.25` | `0.2` |
-| `Projectile Visual Niagara System` | `None` | `None` |
-| `Hit Gameplay Event Tag` | `Action.Rune.MoonlightPoisonHit` | `Action.Rune.MoonlightPoisonHit` |
-| `Expire Gameplay Event Tag` | `Action.Rune.MoonlightPoisonExpired` | `Action.Rune.MoonlightPoisonExpired` |
-| `Hit Niagara System` | `None` | `None` |
-| `Expire Niagara System` | `None` | `None` |
-| `Additional Hit Effect` | `None` | `None` |
-
-说明：月刃命中时只发事件，毒素命中特效和扩散效果由后面的节点处理。512 当前验收版不再使用旧 `NS_Free_Magic_*` 投射物 Niagara，月刃主体使用 BP/投射物默认可视，避免旧特效过大或和月刃重复显示。
-
-## 4. Wait Gameplay Event
+## 3. 投射物节点
 
 | 字段 | 值 |
 | --- | --- |
-| `Event Tag` | `Action.Rune.MoonlightPoisonHit` |
-| `Target` | `BuffOwner` |
+| `Hit Gameplay Event Tag` | `Action.Rune.MoonlightPoisonHit` |
+| `Launch Niagara System` | `None` |
+| `Hit Niagara System` | `None` |
+| `Expire Niagara System` | `None` |
+| `AdditionalHitEffect` | `None` |
 
-该节点等待月刃命中事件。连携没有成功或月刃没有命中时，后续毒素节点不会执行。
-
-## 5. Play Flipbook VFX
-
-毒素命中：
+## 4. 命中 Niagara
 
 | 字段 | 值 |
 | --- | --- |
-| `Texture` | `T_Rune512_VFX_Poison_Hit` |
-| `Material` | `M_Rune512_FlipbookSprite` |
-| `Duration` | `0.38` |
-| `Size` | `72` |
+| `Niagara System` | `NS_Smoke_7_acid` |
+| `Effect Name` | `Rune.Moonlight.PoisonHitNiagara` |
+| `Attach Target` | `LastDamageTarget` |
+| `Attach Socket Name` | `spine_02` |
+| `Attach Socket Fallback Names` | `spine_03, spine_02, spine_01, pelvis, root` |
+| `bAttachToTarget` | 勾选 |
+| `Location Offset` | `(0,0,8)` |
+| `Scale` | `(0.32,0.32,0.32)` |
+| `Lifetime` | `1.2` |
+| `bDestroyWithFlow` | 不勾选 |
+
+## 5. 主目标中毒
+
+| 字段 | 值 |
+| --- | --- |
+| 节点 | `Apply Gameplay Effect Class` |
+| `Effect` | `GE_Poison` |
 | `Target` | `LastDamageTarget` |
-| `Socket` | `spine_02` |
-| `Offset` | `(0,0,8)` |
+| `ApplicationCount` | `3` |
+| `bRemoveEffectOnCleanup` | 不勾选 |
 
-毒素扩散：
-
-| 字段 | 值 |
-| --- | --- |
-| `Texture` | `T_Rune512_VFX_Poison_Spread` |
-| `Material` | `M_Rune512_FlipbookSprite` |
-| `Duration` | `0.45` |
-| `Size` | `180` |
-| `Target` | `LastDamageTarget` |
-| `Socket` | 留空 |
-| `Offset` | `(0,0,18)` |
-
-## 6. ApplyEffect
-
-主目标中毒：
+## 6. 扩散 Niagara
 
 | 字段 | 值 |
 | --- | --- |
-| `Effect` | `/Game/Code/GAS/Abilities/Shared/GE_Poison` |
-| `Target` | `LastDamageTarget` |
-| `Application Count` | `3` |
+| `Niagara System` | `NS_Smoke_7_acid` |
+| `Effect Name` | `Rune.Moonlight.PoisonSpreadNiagara` |
+| `Attach Target` | `LastDamageTarget` |
+| `bAttachToTarget` | 不勾选 |
+| `Location Offset` | `(0,0,18)` |
+| `Scale` | `(0.45,0.45,0.45)` |
+| `Lifetime` | `1.4` |
 
-## 7. ApplyGEInRadius
-
-次级敌人扩散：
+## 7. 次级目标传播
 
 | 字段 | 值 |
 | --- | --- |
-| `Effect` | 优先 `GE_PoisonSplash`，没有时用 `GE_Poison` |
+| 节点 | `ApplyGEInRadius` |
+| `Effect` | `GE_PoisonSplash`，没有时可用 `GE_Poison` |
 | `Radius` | `300` |
-| `Location Source` | `LastDamageTarget` |
-| `Exclude Location Source Actor` | 勾选 |
-| `Max Targets` | `3` |
-| `Application Count` | `1` |
-| `SetByCallerTag1` | `Data.Damage` |
-| `SetByCallerValue1` | `5` |
+| `LocationSource` | `LastDamageTarget` |
+| `bEnemyOnly` | 勾选 |
+| `bExcludeLocationSourceActor` | 勾选 |
+| `MaxTargets` | `3` |
+| `ApplicationCount` | `1` |
+| `SetByCallerTag1 / Value1` | `Data.Damage / 5` |
 
 ## 8. 验收
 
-1. 月光毒素连携成功时，命中敌人身上出现小毒素命中序列帧。
-2. 主目标获得毒层。
-3. 半径 300cm 内最多 3 个次级敌人获得扩散毒层/小伤害。
+1. 月光毒素连携成功时，命中主目标后出现 `[PlayNiagara] Spawned Effect=Rune.Moonlight.PoisonHitNiagara`。
+2. 主目标获得 `Buff.Status.Poisoned`。
+3. 两个敌人靠近时，次级敌人能受到小额毒伤/毒层。
 4. 半径外敌人不受影响。
-5. 连携失败、断链、没有命中时不播放毒素 LinkFlow 特效。
-
-## 9. 关联 GE
-
-中毒本身由 `GEExec_PoisonDamage` 计算，不再使用旧的 `B_MaxHealthDamage` Modifier。配置参考同目录：
-
-`中毒GameplayEffect配置说明.md`
+5. 连携失败或连招断开时，不播放毒素 LinkFlow。

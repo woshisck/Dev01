@@ -39,6 +39,10 @@ class DEVKIT_API UBFNode_PlayNiagara : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Niagara")
 	FVector Scale = FVector(1.0f, 1.0f, 1.0f);
 
+	/** Optional lifetime for spawned Niagara. 0 lets the Niagara system auto-complete normally. */
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (ClampMin = "0.0"))
+	float Lifetime = 0.f;
+
 	UPROPERTY(EditAnywhere, Category = "Niagara")
 	bool bDestroyWithFlow = false;
 

@@ -25,6 +25,8 @@ public:
 		int32 InRows,
 		int32 InColumns,
 		float InDuration,
+		float InLifetime,
+		bool bInLoop,
 		float InSize,
 		bool bInFaceCamera,
 		const FLinearColor& InEmissiveColor,
@@ -47,5 +49,7 @@ private:
 
 	float StartWorldTime = 0.f;
 	float Duration = 0.45f;
+	float Lifetime = 0.45f;
+	bool bLoop = false;
 	bool bFaceCamera = true;
 };

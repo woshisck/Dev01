@@ -86,7 +86,9 @@ FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(EComba
 	Config.bSavePendingLinkContext = bSavePendingLinkContext;
 	Config.bClearCombatTagsOnDashEnd = bClearCombatTagsOnDashEnd;
 	Config.bBreakComboOnDashCancel = bBreakComboOnDashCancel;
-	Config.bOverrideComboWindow = bUseNodeComboWindow;
+	// 512 temporary simplification: combo windows are driven by montage notifies.
+	// Keep node frame fields as display/tool data only.
+	Config.bOverrideComboWindow = false;
 	Config.ComboWindowStartFrame = ComboWindowStartFrame;
 	Config.ComboWindowEndFrame = ComboWindowEndFrame;
 	Config.ComboWindowTotalFrames = ComboWindowTotalFrames;
@@ -100,11 +102,10 @@ FText UGameplayAbilityComboGraphNode::GetDescription_Implementation() const
 	const FGameplayTag AbilityTag = ResolveAbilityTag();
 	const FString MontageName = GetNameSafe(MontageConfig);
 	return FText::FromString(FString::Printf(
-		TEXT("Node=%s\nAbility=%s\nMontage=%s\nComboWindow=%s [%d-%d / %d]"),
+		TEXT("Node=%s\nAbility=%s\nMontage=%s\nComboWindow=Montage Notify [%d-%d / %d display only]"),
 		*RuntimeNodeId.ToString(),
 		AbilityTag.IsValid() ? *AbilityTag.ToString() : TEXT("None"),
 		MontageConfig ? *MontageName : TEXT("None"),
-		bUseNodeComboWindow ? TEXT("Node") : TEXT("Montage Notify"),
 		ComboWindowStartFrame,
 		ComboWindowEndFrame,
 		ComboWindowTotalFrames));
@@ -261,16 +262,6 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 		if (ComboNode->RootInputAction != ECombatGraphInputAction::Dash && !ComboNode->MontageConfig)
 		{
 			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no MontageConfig."), *RuntimeNodeId.ToString())));
-		}
-
-		if (ComboNode->bUseNodeComboWindow && ComboNode->ComboWindowEndFrame < ComboNode->ComboWindowStartFrame)
-		{
-			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has ComboWindowEndFrame before ComboWindowStartFrame."), *RuntimeNodeId.ToString())));
-		}
-
-		if (ComboNode->bUseNodeComboWindow && ComboNode->ComboWindowEndFrame > ComboNode->ComboWindowTotalFrames)
-		{
-			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has ComboWindowEndFrame after ComboWindowTotalFrames."), *RuntimeNodeId.ToString())));
 		}
 
 		if (ComboNode->ParentNodes.IsEmpty())

@@ -58,8 +58,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
 	bool bBreakComboOnDashCancel = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window")
-	bool bUseNodeComboWindow = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (AdvancedDisplay, ToolTip = "Temporary display-only field. Runtime combo windows are driven by montage Combo Window notifies."))
+	bool bUseNodeComboWindow = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (EditCondition = "bUseNodeComboWindow", ClampMin = "0"))
 	int32 ComboWindowStartFrame = 18;

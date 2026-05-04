@@ -4,6 +4,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
+#include "TimerManager.h"
 
 UBFNode_PlayNiagara::UBFNode_PlayNiagara(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -130,13 +131,43 @@ void UBFNode_PlayNiagara::ExecuteInput(const FName& PinName)
 		BFC->ActiveNiagaraEffects.Add(EffectName, NiagaraComp);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[PlayNiagara] Spawned Effect=%s System=%s Target=%s Attach=%d Socket=%s Scale=%s"),
+	if (NiagaraComp && Lifetime > 0.f)
+	{
+		TWeakObjectPtr<UNiagaraComponent> WeakNiagaraComp = NiagaraComp;
+		TWeakObjectPtr<UBuffFlowComponent> WeakBFC = BFC;
+		const FName CapturedEffectName = EffectName;
+		FTimerHandle LifetimeTimerHandle;
+		TargetActor->GetWorldTimerManager().SetTimer(
+			LifetimeTimerHandle,
+			FTimerDelegate::CreateLambda([WeakNiagaraComp, WeakBFC, CapturedEffectName]()
+			{
+				if (UBuffFlowComponent* FlowComponent = WeakBFC.Get())
+				{
+					if (TObjectPtr<UNiagaraComponent>* Found = FlowComponent->ActiveNiagaraEffects.Find(CapturedEffectName);
+						Found && *Found == WeakNiagaraComp.Get())
+					{
+						FlowComponent->ActiveNiagaraEffects.Remove(CapturedEffectName);
+					}
+				}
+
+				if (UNiagaraComponent* Component = WeakNiagaraComp.Get())
+				{
+					Component->Deactivate();
+					Component->DestroyComponent();
+				}
+			}),
+			Lifetime,
+			false);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[PlayNiagara] Spawned Effect=%s System=%s Target=%s Attach=%d Socket=%s Scale=%s Lifetime=%.2f"),
 		*EffectName.ToString(),
 		*GetNameSafe(NiagaraSystem),
 		*GetNameSafe(TargetActor),
 		bAttachToTarget ? 1 : 0,
 		*SpawnedSocketName.ToString(),
-		*Scale.ToString());
+		*Scale.ToString(),
+		Lifetime);
 
 	TriggerOutput(TEXT("Out"), true);
 }

@@ -23,6 +23,7 @@
 - `AttackDataOverride`：需要覆盖攻击参数时填写。
 - `bIsComboFinisher`：该节点是否是终结击。
 - `bAllowDashSave`：该攻击节点是否允许被冲刺保存连击。
+- `ComboWindowStartFrame / EndFrame / TotalFrames`：当前只作为展示数据，不驱动运行时开窗。
 
 不用配置：
 
@@ -35,6 +36,8 @@
 这些由运行时自动兼容旧 GA，并在攻击结束、冲刺结束或连击重置时清理。
 
 如果使用旧 `WeaponComboConfigDA` 而不是 Graph，也可以在节点高级字段里填写 `GameplayAbilityClass`。该字段只用于旧 GA 激活兜底，策划正常配置仍以 Graph 节点为主。
+
+连招输入窗口请直接在实际攻击 `AnimMontage` 上放 `Combo Window` NotifyState。旧的 `ANS_AddGameplayTag` 手填 `PlayerState.AbilityCast.CanCombo` 仍兼容，但新内容不推荐继续手填这类系统 Tag。
 
 ## Dash 节点
 

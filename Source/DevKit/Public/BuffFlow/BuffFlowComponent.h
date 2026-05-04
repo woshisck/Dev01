@@ -43,6 +43,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BuffFlow")
 	void StopAllBuffFlows();
 
+	UFlowAsset* GetActiveBuffFlowAsset(FGuid RuneGuid) const;
+
 	// ─── Buff 事件委托 ─────────────────────────────────────
 
 	/** 有新 BuffFlow 启动时广播 */

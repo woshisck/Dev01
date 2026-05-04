@@ -58,6 +58,10 @@ class DEVKIT_API UBFNode_ApplyEffect : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Effect", meta = (ClampMin = "1", ClampMax = "20"))
 	int32 ApplicationCount = 1;
 
+	/** If false, the GE remains on the target until its own duration expires. Use this for DOT/status effects. */
+	UPROPERTY(EditAnywhere, Category = "Effect|Lifecycle")
+	bool bRemoveEffectOnCleanup = true;
+
 	// ─── SetByCaller 槽位 ─────────────────────────────────────────
 	// GE 中用对应 Tag 声明 SetByCaller 数值槽，FA 节点在此处填写实际值。
 	// Tag 留空 → 该槽位自动跳过。

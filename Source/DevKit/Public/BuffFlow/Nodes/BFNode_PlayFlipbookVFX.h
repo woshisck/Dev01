@@ -33,6 +33,13 @@ class DEVKIT_API UBFNode_PlayFlipbookVFX : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Flipbook", meta = (ClampMin = "0.01"))
 	float Duration = 0.45f;
 
+	/** Actor lifetime. 0 uses Duration. Use a longer lifetime with bLoop for status effects. */
+	UPROPERTY(EditAnywhere, Category = "Flipbook", meta = (ClampMin = "0.0"))
+	float Lifetime = 0.f;
+
+	UPROPERTY(EditAnywhere, Category = "Flipbook")
+	bool bLoop = false;
+
 	UPROPERTY(EditAnywhere, Category = "Flipbook", meta = (ClampMin = "1.0"))
 	float Size = 80.f;
 
@@ -47,6 +54,19 @@ class DEVKIT_API UBFNode_PlayFlipbookVFX : public UBFNode_Base
 
 	UPROPERTY(EditAnywhere, Category = "Flipbook")
 	FVector Offset = FVector::ZeroVector;
+
+	/** Moves the spawned sprite from the socket/bone center toward the camera-facing surface of the target. */
+	UPROPERTY(EditAnywhere, Category = "Flipbook|Surface")
+	bool bProjectToVisibleSurface = false;
+
+	UPROPERTY(EditAnywhere, Category = "Flipbook|Surface", meta = (ClampMin = "0.0"))
+	float SurfaceOffset = 6.f;
+
+	UPROPERTY(EditAnywhere, Category = "Flipbook|Surface", meta = (ClampMin = "0.0"))
+	float SurfaceFallbackRadiusScale = 0.45f;
+
+	UPROPERTY(EditAnywhere, Category = "Flipbook|Surface", meta = (ClampMin = "1.0"))
+	float SurfaceTraceExtraDistance = 120.f;
 
 	UPROPERTY(EditAnywhere, Category = "Flipbook")
 	bool bFaceCamera = true;
@@ -68,6 +88,8 @@ protected:
 	virtual void Cleanup() override;
 
 private:
+	FVector ProjectToVisibleSurface(AActor* TargetActor, USceneComponent* AttachComp, const FVector& BaseLocation) const;
+
 	UPROPERTY()
 	TArray<TObjectPtr<ARune512FlipbookVFXActor>> ActiveActors;
 };

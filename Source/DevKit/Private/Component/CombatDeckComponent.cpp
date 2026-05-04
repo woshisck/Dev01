@@ -1,6 +1,8 @@
 #include "Component/CombatDeckComponent.h"
 
 #include "BuffFlow/BuffFlowComponent.h"
+#include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
+#include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "FlowAsset.h"
 #include "Item/Weapon/WeaponDefinition.h"
 
@@ -8,6 +10,46 @@ namespace
 {
 	const FName CombatDeckOwnerSourceWeapon(TEXT("Weapon"));
 	const FName CombatDeckOwnerSourceReward(TEXT("Reward"));
+
+	float GetProjectileEventFlowStopDelay(const UFlowAsset* FlowAsset)
+	{
+		if (!FlowAsset)
+		{
+			return 0.f;
+		}
+
+		bool bHasWaitEventNode = false;
+		float MaxProjectileLifetime = 0.f;
+		for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
+		{
+			if (const UBFNode_WaitGameplayEvent* WaitNode = Cast<UBFNode_WaitGameplayEvent>(Pair.Value))
+			{
+				bHasWaitEventNode = bHasWaitEventNode || WaitNode->EventTag.IsValid();
+			}
+
+			const UBFNode_SpawnSlashWaveProjectile* ProjectileNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
+			if (!ProjectileNode)
+			{
+				continue;
+			}
+
+			if (!ProjectileNode->HitGameplayEventTag.IsValid() && !ProjectileNode->ExpireGameplayEventTag.IsValid())
+			{
+				continue;
+			}
+
+			const float Speed = FMath::Max(1.f, ProjectileNode->Speed);
+			const float Lifetime = FMath::Max(0.f, ProjectileNode->MaxDistance) / Speed;
+			MaxProjectileLifetime = FMath::Max(MaxProjectileLifetime, Lifetime);
+		}
+
+		if (!bHasWaitEventNode || MaxProjectileLifetime <= 0.f)
+		{
+			return 0.f;
+		}
+
+		return FMath::Clamp(MaxProjectileLifetime + 0.35f, 0.25f, 5.0f);
+	}
 }
 
 UCombatDeckComponent::UCombatDeckComponent()
@@ -290,6 +332,30 @@ void UCombatDeckComponent::StopCardFlow(const FCombatCardInstance& Card)
 
 	if (UBuffFlowComponent* BuffFlowComponent = GetOwner() ? GetOwner()->FindComponentByClass<UBuffFlowComponent>() : nullptr)
 	{
+		if (UFlowAsset* ActiveFlow = BuffFlowComponent->GetActiveBuffFlowAsset(Card.InstanceGuid))
+		{
+			const float DeferredStopDelay = GetProjectileEventFlowStopDelay(ActiveFlow);
+			if (DeferredStopDelay > 0.f && GetWorld())
+			{
+				const FGuid CardGuid = Card.InstanceGuid;
+				FTimerHandle TimerHandle;
+				GetWorld()->GetTimerManager().SetTimer(
+					TimerHandle,
+					FTimerDelegate::CreateWeakLambda(BuffFlowComponent, [BuffFlowComponent, CardGuid]()
+					{
+						BuffFlowComponent->StopBuffFlow(CardGuid);
+					}),
+					DeferredStopDelay,
+					false);
+
+				UE_LOG(LogTemp, Warning, TEXT("[CombatDeckFlow] Deferred StopCardFlow Guid=%s Flow=%s Delay=%.2f"),
+					*Card.InstanceGuid.ToString(),
+					*GetNameSafe(ActiveFlow),
+					DeferredStopDelay);
+				return;
+			}
+		}
+
 		BuffFlowComponent->StopBuffFlow(Card.InstanceGuid);
 	}
 }

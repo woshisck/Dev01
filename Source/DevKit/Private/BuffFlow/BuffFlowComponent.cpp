@@ -151,6 +151,12 @@ void UBuffFlowComponent::StopAllBuffFlows()
 	ActiveRuneFlows.Empty();
 }
 
+UFlowAsset* UBuffFlowComponent::GetActiveBuffFlowAsset(FGuid RuneGuid) const
+{
+	const TWeakObjectPtr<UFlowAsset>* FoundAsset = ActiveRuneFlows.Find(RuneGuid);
+	return FoundAsset ? FoundAsset->Get() : nullptr;
+}
+
 UYogAbilitySystemComponent* UBuffFlowComponent::GetASC() const
 {
 	return CachedASC.Get();

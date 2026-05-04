@@ -2,6 +2,7 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "AbilitySystem/GameplayEffect/GE_RuneBurn.h"
 #include "AbilitySystem/Execution/GEExec_PoisonDamage.h"
 #include "BuffFlow/Nodes/BFNode_ApplyAttributeModifier.h"
 #include "BuffFlow/Nodes/BFNode_ApplyEffect.h"
@@ -52,6 +53,10 @@ namespace Rune512Batch
 	const FString PoisonHitTexturePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures/T_Rune512_VFX_Poison_Hit");
 	const FString PoisonSpreadTexturePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures/T_Rune512_VFX_Poison_Spread");
 	const FString BurnHitTexturePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures/T_Rune512_VFX_Burn_Hit");
+	const FString BurnNiagaraPath = TEXT("/Game/Art/EnvironmentAsset/VFX/Niagara/Fire/NS_Fire_Floor");
+	const FString PoisonHitNiagaraPath = TEXT("/Game/Art/EnvironmentAsset/VFX/Niagara/Smoke/NS_Smoke_7_acid");
+	const FString PoisonSpreadNiagaraPath = TEXT("/Game/Art/EnvironmentAsset/VFX/Niagara/Smoke/NS_Smoke_7_acid");
+	const FString MoonlightBurnHitEventTag = TEXT("Action.Rune.MoonlightBurnHit");
 	const FString MoonlightPoisonHitEventTag = TEXT("Action.Rune.MoonlightPoisonHit");
 	const FString MoonlightPoisonExpireEventTag = TEXT("Action.Rune.MoonlightPoisonExpired");
 	const FString PoisonEffectPath = TEXT("/Game/Code/GAS/Abilities/Shared/GE_Poison");
@@ -688,7 +693,7 @@ namespace Rune512Batch
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Poison"),
 			TEXT("FA_Rune512_Poison_Base"),
 			ERuneType::Debuff,
-			{ TEXT("补毒液路径碰撞体与 3 秒爆发 Execution；命中表现使用小尺寸 Flipbook VFX。") }));
+			{ TEXT("补毒液路径碰撞体与 3 秒爆发 Execution；命中表现使用小尺寸 Play Niagara 节点。") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Split"),
@@ -766,7 +771,7 @@ namespace Rune512Batch
 		MoonlightForward.LinkRecipes.Append(MakeMoonlightRecipes(ECombatCardLinkOrientation::Forward));
 		MoonlightForward.LinkRecipes.Append(MakeMoonlightRecipes(ECombatCardLinkOrientation::Reversed));
 		MoonlightForward.ManualTodos = {
-			TEXT("Forward/Reversed 配方 Flow 已按模板复制，复杂节点连接与 Flipbook VFX 参数需要按配置文档检查。")
+			TEXT("Forward/Reversed 配方 Flow 已按模板复制，复杂节点连接与 Play Niagara 参数需要按配置文档检查。")
 		};
 		Specs.Add(MoonlightForward);
 
@@ -907,7 +912,7 @@ namespace Rune512Batch
 			return;
 		}
 
-		const TCHAR* CleanVfxPolicy = TEXT("legacy Niagara cleared; projectile uses BP/default visuals; hit/status uses atomic Flipbook VFX nodes");
+		const TCHAR* CleanVfxPolicy = TEXT("projectile inline Niagara cleared; projectile uses BP/default visuals; hit/status uses atomic Play Niagara nodes");
 
 		int32 UpdatedNodeCount = 0;
 		for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
@@ -1190,6 +1195,9 @@ namespace Rune512Batch
 			const bool bIsPoisonLinkProfile =
 				Profile == EMoonlightFlowProfile::ForwardPoison
 				|| Profile == EMoonlightFlowProfile::ReversedPoison;
+			const bool bIsBurnLinkProfile =
+				Profile == EMoonlightFlowProfile::ForwardBurn
+				|| Profile == EMoonlightFlowProfile::ReversedBurn;
 			if (bIsPoisonLinkProfile)
 			{
 				SlashNode->HitGameplayEventTag = RequestTag(MoonlightPoisonHitEventTag, ReportLines);
@@ -1199,6 +1207,13 @@ namespace Rune512Batch
 				SlashNode->AdditionalHitEffect = nullptr;
 				SlashNode->AdditionalHitSetByCallerTag = FGameplayTag();
 				SlashNode->AdditionalHitSetByCallerValue = 0.f;
+			}
+			else if (bIsBurnLinkProfile)
+			{
+				SlashNode->HitGameplayEventTag = RequestTag(MoonlightBurnHitEventTag, ReportLines);
+				SlashNode->ExpireGameplayEventTag = FGameplayTag();
+				SlashNode->HitNiagaraSystem = nullptr;
+				SlashNode->ExpireNiagaraSystem = nullptr;
 			}
 			else
 			{
@@ -1216,6 +1231,9 @@ namespace Rune512Batch
 			const bool bIsPoisonLinkProfile =
 				Profile == EMoonlightFlowProfile::ForwardPoison
 				|| Profile == EMoonlightFlowProfile::ReversedPoison;
+			const bool bIsBurnLinkProfile =
+				Profile == EMoonlightFlowProfile::ForwardBurn
+				|| Profile == EMoonlightFlowProfile::ReversedBurn;
 			if (bIsPoisonLinkProfile)
 			{
 				ReportLines.Add(FString::Printf(
@@ -1224,6 +1242,15 @@ namespace Rune512Batch
 					UpdatedNodeCount,
 					CleanVfxPolicy,
 					*MoonlightPoisonHitEventTag));
+			}
+			else if (bIsBurnLinkProfile)
+			{
+				ReportLines.Add(FString::Printf(
+					TEXT("- Configured `%s`: Moonlight slash-wave nodes=%d, %s, HitEvent=`%s`."),
+					*FlowName,
+					UpdatedNodeCount,
+					CleanVfxPolicy,
+					*MoonlightBurnHitEventTag));
 			}
 			else
 			{
@@ -1306,6 +1333,259 @@ namespace Rune512Batch
 		return nullptr;
 	}
 
+	UBFNode_ApplyEffect* FindBurnApplyEffectNode(UFlowAsset* FlowAsset)
+	{
+		return Cast<UBFNode_ApplyEffect>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node)
+			{
+				UBFNode_ApplyEffect* ApplyNode = Cast<UBFNode_ApplyEffect>(Node);
+				return ApplyNode && ApplyNode->Effect == UGE_RuneBurn::StaticClass();
+			}));
+	}
+
+	UBFNode_PlayNiagara* FindNiagaraNodeByEffectName(UFlowAsset* FlowAsset, const FName EffectName)
+	{
+		return Cast<UBFNode_PlayNiagara>(FindFirstNode(
+			FlowAsset,
+			[EffectName](UFlowNode* Node)
+			{
+				const UBFNode_PlayNiagara* PlayNode = Cast<UBFNode_PlayNiagara>(Node);
+				return PlayNode && PlayNode->EffectName == EffectName;
+			}));
+	}
+
+	int32 ClearFlipbookVfxNodes(UFlowAsset* FlowAsset)
+	{
+		if (!FlowAsset)
+		{
+			return 0;
+		}
+
+		int32 ClearedCount = 0;
+		for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
+		{
+			if (UBFNode_PlayFlipbookVFX* FlipbookNode = Cast<UBFNode_PlayFlipbookVFX>(Pair.Value))
+			{
+				FlipbookNode->Modify();
+				FlipbookNode->Texture = nullptr;
+				FlipbookNode->Material = nullptr;
+				FlipbookNode->PlaneMesh = nullptr;
+				FlipbookNode->EffectName = NAME_None;
+				FlipbookNode->bDestroyWithFlow = false;
+				++ClearedCount;
+			}
+		}
+		return ClearedCount;
+	}
+
+	void ConfigureNiagaraNode(
+		UBFNode_PlayNiagara* NiagaraNode,
+		UNiagaraSystem* NiagaraSystem,
+		const FName EffectName,
+		const EBFTargetSelector Target,
+		const FName SocketName,
+		const TArray<FName>& SocketFallbackNames,
+		const bool bAttachToTarget,
+		const FVector& LocationOffset,
+		const FRotator& RotationOffset,
+		const FVector& Scale,
+		const float Lifetime,
+		const bool bDestroyWithFlow)
+	{
+		if (!NiagaraNode)
+		{
+			return;
+		}
+
+		NiagaraNode->Modify();
+		NiagaraNode->NiagaraSystem = NiagaraSystem;
+		NiagaraNode->EffectName = EffectName;
+		NiagaraNode->AttachTarget = Target;
+		NiagaraNode->AttachSocketName = SocketName;
+		NiagaraNode->AttachSocketFallbackNames = SocketFallbackNames;
+		NiagaraNode->bAttachToTarget = bAttachToTarget;
+		NiagaraNode->LocationOffset = LocationOffset;
+		NiagaraNode->RotationOffset = RotationOffset;
+		NiagaraNode->Scale = Scale;
+		NiagaraNode->Lifetime = Lifetime;
+		NiagaraNode->bDestroyWithFlow = bDestroyWithFlow;
+	}
+
+	void ConfigureBurnApplyEffectNode(
+		UBFNode_ApplyEffect* ApplyNode,
+		float DamagePerTick,
+		TArray<FString>& ReportLines)
+	{
+		if (!ApplyNode)
+		{
+			return;
+		}
+
+		const FGameplayTag BurnDamageTag = RequestTag(TEXT("Data.Damage.Burn"), ReportLines);
+		ApplyNode->Modify();
+		ApplyNode->Effect = UGE_RuneBurn::StaticClass();
+		ApplyNode->Level = FFlowDataPinInputProperty_Float(1.f);
+		ApplyNode->Target = EBFTargetSelector::LastDamageTarget;
+		ApplyNode->ApplicationCount = 1;
+		ApplyNode->bRemoveEffectOnCleanup = false;
+		ApplyNode->SetByCallerTag1 = BurnDamageTag;
+		ApplyNode->SetByCallerValue1 = FFlowDataPinInputProperty_Float(DamagePerTick);
+		ApplyNode->SetByCallerTag2 = FGameplayTag();
+		ApplyNode->SetByCallerValue2 = FFlowDataPinInputProperty_Float(0.f);
+		ApplyNode->SetByCallerTag3 = FGameplayTag();
+		ApplyNode->SetByCallerValue3 = FFlowDataPinInputProperty_Float(0.f);
+	}
+
+	void ConfigureMoonlightBurnHitVfxFlow(
+		UFlowAsset* FlowAsset,
+		const FString& FlowName,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		const EMoonlightFlowProfile Profile = ResolveMoonlightFlowProfile(FlowName);
+		if (Profile != EMoonlightFlowProfile::ForwardBurn
+			&& Profile != EMoonlightFlowProfile::ReversedBurn)
+		{
+			return;
+		}
+
+		if (bDryRun)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Would configure Moonlight burn hit VFX nodes in `%s`."), *FlowName));
+			return;
+		}
+
+		if (!FlowAsset)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure Moonlight burn VFX `%s`: asset not loaded."), *FlowName));
+			return;
+		}
+
+		UFlowGraph* FlowGraph = Cast<UFlowGraph>(FlowAsset->GetGraph());
+		if (!FlowGraph)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: missing FlowGraph."), *FlowName));
+			return;
+		}
+
+		UBFNode_SpawnSlashWaveProjectile* SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_SpawnSlashWaveProjectile>(Node) != nullptr; }));
+		if (!SlashNode)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: missing Spawn Slash Wave Projectile node."), *FlowName));
+			return;
+		}
+
+		const FGameplayTag HitEventTag = RequestTag(MoonlightBurnHitEventTag, ReportLines);
+		UNiagaraSystem* BurnNiagara = LoadAssetByPackagePath<UNiagaraSystem>(BurnNiagaraPath);
+		if (!BurnNiagara)
+		{
+			ReportLines.Add(FString::Printf(
+				TEXT("- Missing burn Niagara dependency for `%s`: `%s`."),
+				*FlowName,
+				*BurnNiagaraPath));
+		}
+
+		UFlowGraphNode* SlashGraphNode = Cast<UFlowGraphNode>(SlashNode->GetGraphNode());
+		const int32 BaseX = SlashGraphNode ? SlashGraphNode->NodePosX : 320;
+		const int32 BaseY = SlashGraphNode ? SlashGraphNode->NodePosY : 0;
+
+		UBFNode_WaitGameplayEvent* WaitNode = Cast<UBFNode_WaitGameplayEvent>(FindFirstNode(
+			FlowAsset,
+			[HitEventTag](UFlowNode* Node)
+			{
+				UBFNode_WaitGameplayEvent* Wait = Cast<UBFNode_WaitGameplayEvent>(Node);
+				return Wait && Wait->EventTag == HitEventTag;
+			}));
+		if (!WaitNode)
+		{
+			WaitNode = Cast<UBFNode_WaitGameplayEvent>(CreateFlowNodeAfter(
+				FlowGraph,
+				SlashNode,
+				UBFNode_WaitGameplayEvent::StaticClass(),
+				FVector2D(BaseX + 320.f, BaseY)));
+		}
+
+		const FName BurnNiagaraEffectName = TEXT("Rune.Moonlight.BurnHitNiagara");
+		UBFNode_PlayNiagara* HitVfxNode = FindNiagaraNodeByEffectName(FlowAsset, BurnNiagaraEffectName);
+		if (!HitVfxNode)
+		{
+			HitVfxNode = Cast<UBFNode_PlayNiagara>(CreateFlowNodeAfter(
+				FlowGraph,
+				WaitNode,
+				UBFNode_PlayNiagara::StaticClass(),
+				FVector2D(BaseX + 640.f, BaseY)));
+		}
+
+		if (!WaitNode || !HitVfxNode)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Failed to create burn hit Niagara nodes for `%s`."), *FlowName));
+			return;
+		}
+
+		UBFNode_ApplyEffect* BurnEffectNode = FindBurnApplyEffectNode(FlowAsset);
+		if (!BurnEffectNode)
+		{
+			BurnEffectNode = Cast<UBFNode_ApplyEffect>(CreateFlowNodeAfter(
+				FlowGraph,
+				HitVfxNode,
+				UBFNode_ApplyEffect::StaticClass(),
+				FVector2D(BaseX + 960.f, BaseY)));
+		}
+
+		if (!BurnEffectNode)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Failed to create burn hit VFX/DOT nodes for `%s`."), *FlowName));
+			return;
+		}
+
+		LinkFlowNodes(SlashNode, WaitNode);
+		LinkFlowNodes(WaitNode, HitVfxNode);
+		LinkFlowNodes(HitVfxNode, BurnEffectNode);
+
+		SlashNode->Modify();
+		SlashNode->HitGameplayEventTag = HitEventTag;
+		SlashNode->HitNiagaraSystem = nullptr;
+		SlashNode->ExpireNiagaraSystem = nullptr;
+
+		WaitNode->Modify();
+		WaitNode->EventTag = HitEventTag;
+		WaitNode->Target = EBFTargetSelector::BuffOwner;
+
+		ConfigureNiagaraNode(
+			HitVfxNode,
+			BurnNiagara,
+			BurnNiagaraEffectName,
+			EBFTargetSelector::LastDamageTarget,
+			TEXT("spine_03"),
+			{ TEXT("spine_03"), TEXT("spine_02"), TEXT("spine_01"), TEXT("spine"), TEXT("pelvis"), TEXT("body"), TEXT("root") },
+			true,
+			FVector(0.f, 0.f, 4.f),
+			FRotator::ZeroRotator,
+			FVector(0.28f, 0.28f, 0.28f),
+			3.2f,
+			false);
+
+		ConfigureBurnApplyEffectNode(BurnEffectNode, 6.f, ReportLines);
+		const int32 ClearedFlipbookCount = ClearFlipbookVfxNodes(FlowAsset);
+
+		FlowAsset->HarvestNodeConnections();
+		FlowAsset->MarkPackageDirty();
+		DirtyPackages.AddUnique(FlowAsset->GetPackage());
+		FlowGraph->Modify();
+		FlowGraph->NotifyGraphChanged();
+
+		ReportLines.Add(FString::Printf(
+			TEXT("- Configured `%s`: SpawnSlashWave -> Wait `%s` -> Play Niagara `%s` -> persistent UGE_RuneBurn DOT; cleared Flipbook nodes=%d."),
+			*FlowName,
+			*MoonlightBurnHitEventTag,
+			*BurnNiagaraPath,
+			ClearedFlipbookCount));
+	}
+
 	void ConfigureMoonlightPoisonAtomicFlow(
 		UFlowAsset* FlowAsset,
 		const FString& FlowName,
@@ -1357,21 +1637,19 @@ namespace Rune512Batch
 			PoisonSplashEffect = PoisonEffect;
 		}
 
-		UTexture2D* PoisonHitTexture = LoadAssetByPackagePath<UTexture2D>(PoisonHitTexturePath);
-		UTexture2D* PoisonSpreadTexture = LoadAssetByPackagePath<UTexture2D>(PoisonSpreadTexturePath);
-		UMaterialInterface* FlipbookMaterial = LoadAssetByPackagePath<UMaterialInterface>(FlipbookMaterialPath);
+		UNiagaraSystem* PoisonHitNiagara = LoadAssetByPackagePath<UNiagaraSystem>(PoisonHitNiagaraPath);
+		UNiagaraSystem* PoisonSpreadNiagara = LoadAssetByPackagePath<UNiagaraSystem>(PoisonSpreadNiagaraPath);
 		if (!PoisonEffect)
 		{
 			ReportLines.Add(FString::Printf(TEXT("- Missing poison GE class `%s`; ApplyEffect node still created but Effect is empty."), *PoisonEffectPath));
 		}
-		if (!PoisonHitTexture || !PoisonSpreadTexture || !FlipbookMaterial)
+		if (!PoisonHitNiagara || !PoisonSpreadNiagara)
 		{
 			ReportLines.Add(FString::Printf(
-				TEXT("- Missing poison flipbook dependencies for `%s`: HitTexture=%s SpreadTexture=%s Material=%s."),
+				TEXT("- Missing poison Niagara dependencies for `%s`: Hit=%s Spread=%s."),
 				*FlowName,
-				*GetNameSafe(PoisonHitTexture),
-				*GetNameSafe(PoisonSpreadTexture),
-				*GetNameSafe(FlipbookMaterial)));
+				*PoisonHitNiagaraPath,
+				*PoisonSpreadNiagaraPath));
 		}
 
 		UFlowGraphNode* SlashGraphNode = Cast<UFlowGraphNode>(SlashNode->GetGraphNode());
@@ -1394,19 +1672,14 @@ namespace Rune512Batch
 				FVector2D(BaseX + 320.f, BaseY)));
 		}
 
-		UBFNode_PlayFlipbookVFX* HitVfxNode = Cast<UBFNode_PlayFlipbookVFX>(FindFirstNode(
-			FlowAsset,
-			[](UFlowNode* Node)
-			{
-				UBFNode_PlayFlipbookVFX* PlayNode = Cast<UBFNode_PlayFlipbookVFX>(Node);
-				return PlayNode && PlayNode->EffectName == FName(TEXT("Rune.Moonlight.PoisonHitVFX"));
-			}));
+		const FName PoisonHitEffectName = TEXT("Rune.Moonlight.PoisonHitNiagara");
+		UBFNode_PlayNiagara* HitVfxNode = FindNiagaraNodeByEffectName(FlowAsset, PoisonHitEffectName);
 		if (!HitVfxNode)
 		{
-			HitVfxNode = Cast<UBFNode_PlayFlipbookVFX>(CreateFlowNodeAfter(
+			HitVfxNode = Cast<UBFNode_PlayNiagara>(CreateFlowNodeAfter(
 				FlowGraph,
 				WaitNode,
-				UBFNode_PlayFlipbookVFX::StaticClass(),
+				UBFNode_PlayNiagara::StaticClass(),
 				FVector2D(BaseX + 640.f, BaseY)));
 		}
 
@@ -1426,19 +1699,14 @@ namespace Rune512Batch
 				FVector2D(BaseX + 960.f, BaseY)));
 		}
 
-		UBFNode_PlayFlipbookVFX* SpreadVfxNode = Cast<UBFNode_PlayFlipbookVFX>(FindFirstNode(
-			FlowAsset,
-			[](UFlowNode* Node)
-			{
-				UBFNode_PlayFlipbookVFX* PlayNode = Cast<UBFNode_PlayFlipbookVFX>(Node);
-				return PlayNode && PlayNode->EffectName == FName(TEXT("Rune.Moonlight.PoisonSpreadVFX"));
-			}));
+		const FName PoisonSpreadEffectName = TEXT("Rune.Moonlight.PoisonSpreadNiagara");
+		UBFNode_PlayNiagara* SpreadVfxNode = FindNiagaraNodeByEffectName(FlowAsset, PoisonSpreadEffectName);
 		if (!SpreadVfxNode)
 		{
-			SpreadVfxNode = Cast<UBFNode_PlayFlipbookVFX>(CreateFlowNodeAfter(
+			SpreadVfxNode = Cast<UBFNode_PlayNiagara>(CreateFlowNodeAfter(
 				FlowGraph,
 				PrimaryPoisonNode,
-				UBFNode_PlayFlipbookVFX::StaticClass(),
+				UBFNode_PlayNiagara::StaticClass(),
 				FVector2D(BaseX + 1280.f, BaseY)));
 		}
 
@@ -1474,44 +1742,39 @@ namespace Rune512Batch
 		WaitNode->EventTag = HitEventTag;
 		WaitNode->Target = EBFTargetSelector::BuffOwner;
 
-		HitVfxNode->Modify();
-		HitVfxNode->Texture = PoisonHitTexture;
-		HitVfxNode->Material = FlipbookMaterial;
-		HitVfxNode->Rows = 4;
-		HitVfxNode->Columns = 4;
-		HitVfxNode->Duration = 0.38f;
-		HitVfxNode->Size = 72.f;
-		HitVfxNode->Target = EBFTargetSelector::LastDamageTarget;
-		HitVfxNode->Socket = TEXT("spine_02");
-		HitVfxNode->SocketFallbackNames = { TEXT("spine_03"), TEXT("spine_01"), TEXT("pelvis"), TEXT("root") };
-		HitVfxNode->Offset = FVector(0.f, 0.f, 8.f);
-		HitVfxNode->bFaceCamera = true;
-		HitVfxNode->bDestroyWithFlow = false;
-		HitVfxNode->EmissiveColor = FLinearColor(0.55f, 1.0f, 0.35f, 1.f);
-		HitVfxNode->AlphaScale = 1.f;
-		HitVfxNode->EffectName = TEXT("Rune.Moonlight.PoisonHitVFX");
+		ConfigureNiagaraNode(
+			HitVfxNode,
+			PoisonHitNiagara,
+			PoisonHitEffectName,
+			EBFTargetSelector::LastDamageTarget,
+			TEXT("spine_02"),
+			{ TEXT("spine_03"), TEXT("spine_02"), TEXT("spine_01"), TEXT("pelvis"), TEXT("root") },
+			true,
+			FVector(0.f, 0.f, 8.f),
+			FRotator::ZeroRotator,
+			FVector(0.32f, 0.32f, 0.32f),
+			1.2f,
+			false);
 
 		PrimaryPoisonNode->Modify();
 		PrimaryPoisonNode->Effect = PoisonEffect;
 		PrimaryPoisonNode->Target = EBFTargetSelector::LastDamageTarget;
 		PrimaryPoisonNode->ApplicationCount = 3;
+		PrimaryPoisonNode->bRemoveEffectOnCleanup = false;
 
-		SpreadVfxNode->Modify();
-		SpreadVfxNode->Texture = PoisonSpreadTexture;
-		SpreadVfxNode->Material = FlipbookMaterial;
-		SpreadVfxNode->Rows = 4;
-		SpreadVfxNode->Columns = 4;
-		SpreadVfxNode->Duration = 0.45f;
-		SpreadVfxNode->Size = 180.f;
-		SpreadVfxNode->Target = EBFTargetSelector::LastDamageTarget;
-		SpreadVfxNode->Socket = NAME_None;
-		SpreadVfxNode->SocketFallbackNames.Reset();
-		SpreadVfxNode->Offset = FVector(0.f, 0.f, 18.f);
-		SpreadVfxNode->bFaceCamera = true;
-		SpreadVfxNode->bDestroyWithFlow = false;
-		SpreadVfxNode->EmissiveColor = FLinearColor(0.55f, 1.0f, 0.35f, 1.f);
-		SpreadVfxNode->AlphaScale = 0.85f;
-		SpreadVfxNode->EffectName = TEXT("Rune.Moonlight.PoisonSpreadVFX");
+		ConfigureNiagaraNode(
+			SpreadVfxNode,
+			PoisonSpreadNiagara,
+			PoisonSpreadEffectName,
+			EBFTargetSelector::LastDamageTarget,
+			NAME_None,
+			{},
+			false,
+			FVector(0.f, 0.f, 18.f),
+			FRotator::ZeroRotator,
+			FVector(0.45f, 0.45f, 0.45f),
+			1.4f,
+			false);
 
 		RadiusPoisonNode->Modify();
 		RadiusPoisonNode->Effect = PoisonSplashEffect;
@@ -1526,6 +1789,7 @@ namespace Rune512Batch
 		RadiusPoisonNode->ApplicationCount = 1;
 		RadiusPoisonNode->SetByCallerTag1 = DamageSetByCallerTag;
 		RadiusPoisonNode->SetByCallerValue1 = FFlowDataPinInputProperty_Float(5.f);
+		const int32 ClearedFlipbookCount = ClearFlipbookVfxNodes(FlowAsset);
 
 		FlowAsset->HarvestNodeConnections();
 		FlowAsset->MarkPackageDirty();
@@ -1534,12 +1798,13 @@ namespace Rune512Batch
 		FlowGraph->NotifyGraphChanged();
 
 		ReportLines.Add(FString::Printf(
-			TEXT("- Configured `%s`: SpawnSlashWave -> Wait `%s` -> PlayFlipbook hit -> Apply GE_Poison x3 -> PlayFlipbook spread -> ApplyGEInRadius radius=300 max=3."),
+			TEXT("- Configured `%s`: SpawnSlashWave -> Wait `%s` -> Play Niagara hit -> Apply GE_Poison x3 -> Play Niagara spread -> ApplyGEInRadius radius=300 max=3; cleared Flipbook nodes=%d."),
 			*FlowName,
-			*MoonlightPoisonHitEventTag));
+			*MoonlightPoisonHitEventTag,
+			ClearedFlipbookCount));
 	}
 
-	void ConfigureStandaloneFlipbookVfxFlow(
+	void ConfigureStandaloneNiagaraVfxFlow(
 		UFlowAsset* FlowAsset,
 		const FString& FlowName,
 		bool bDryRun,
@@ -1555,56 +1820,41 @@ namespace Rune512Batch
 
 		if (bDryRun)
 		{
-			ReportLines.Add(FString::Printf(TEXT("- Would configure standalone Play Flipbook VFX node in `%s`."), *FlowName));
+			ReportLines.Add(FString::Printf(TEXT("- Would configure standalone Play Niagara VFX node in `%s`."), *FlowName));
 			return;
 		}
 
 		if (!FlowAsset)
 		{
-			ReportLines.Add(FString::Printf(TEXT("- Cannot configure standalone Flipbook VFX `%s`: asset not loaded."), *FlowName));
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure standalone Niagara VFX `%s`: asset not loaded."), *FlowName));
 			return;
 		}
 
-		const FString TexturePath = bIsBurnFlow ? BurnHitTexturePath : PoisonHitTexturePath;
-		UTexture2D* Texture = LoadAssetByPackagePath<UTexture2D>(TexturePath);
-		UMaterialInterface* FlipbookMaterial = LoadAssetByPackagePath<UMaterialInterface>(FlipbookMaterialPath);
-		if (!Texture || !FlipbookMaterial)
+		const FString NiagaraPath = bIsBurnFlow ? BurnNiagaraPath : PoisonHitNiagaraPath;
+		UNiagaraSystem* NiagaraSystem = LoadAssetByPackagePath<UNiagaraSystem>(NiagaraPath);
+		if (!NiagaraSystem)
 		{
 			ReportLines.Add(FString::Printf(
-				TEXT("- Missing standalone Flipbook VFX asset for `%s`: Texture=`%s` Loaded=%d Material=`%s` Loaded=%d."),
+				TEXT("- Missing standalone Niagara asset for `%s`: `%s`."),
 				*FlowName,
-				*TexturePath,
-				Texture ? 1 : 0,
-				*FlipbookMaterialPath,
-				FlipbookMaterial ? 1 : 0));
+				*NiagaraPath));
 			return;
 		}
 
-		const FName EffectName = bIsBurnFlow ? TEXT("Rune.Burn.ApplyFlipbookVFX") : TEXT("Rune.Poison.ApplyFlipbookVFX");
-		int32 ClearedLegacyNiagaraCount = 0;
-		UBFNode_PlayFlipbookVFX* ExistingVfxNode = nullptr;
+		const FName EffectName = bIsBurnFlow ? TEXT("Rune.Burn.ApplyNiagara") : TEXT("Rune.Poison.ApplyNiagara");
+		const int32 ClearedFlipbookCount = ClearFlipbookVfxNodes(FlowAsset);
+		UBFNode_PlayNiagara* ExistingVfxNode = FindNiagaraNodeByEffectName(FlowAsset, EffectName);
 		for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
 		{
 			if (UBFNode_PlayNiagara* PlayNode = Cast<UBFNode_PlayNiagara>(Pair.Value))
 			{
-				PlayNode->Modify();
-				PlayNode->NiagaraSystem = nullptr;
-				PlayNode->EffectName = NAME_None;
-				PlayNode->AttachSocketName = NAME_None;
-				PlayNode->AttachSocketFallbackNames.Reset();
-				PlayNode->AttachTarget = EBFTargetSelector::BuffOwner;
-				PlayNode->bAttachToTarget = false;
-				PlayNode->LocationOffset = FVector::ZeroVector;
-				PlayNode->RotationOffset = FRotator::ZeroRotator;
-				PlayNode->Scale = FVector(1.f, 1.f, 1.f);
-				PlayNode->bDestroyWithFlow = false;
-				++ClearedLegacyNiagaraCount;
-			}
-			if (UBFNode_PlayFlipbookVFX* FlipbookNode = Cast<UBFNode_PlayFlipbookVFX>(Pair.Value))
-			{
-				if (FlipbookNode->EffectName == EffectName)
+				if (PlayNode->EffectName != EffectName)
 				{
-					ExistingVfxNode = FlipbookNode;
+					PlayNode->Modify();
+					PlayNode->NiagaraSystem = nullptr;
+					PlayNode->EffectName = NAME_None;
+					PlayNode->Lifetime = 0.f;
+					PlayNode->bDestroyWithFlow = false;
 				}
 			}
 		}
@@ -1619,7 +1869,7 @@ namespace Rune512Batch
 			return;
 		}
 
-		UBFNode_PlayFlipbookVFX* VfxNode = ExistingVfxNode;
+		UBFNode_PlayNiagara* VfxNode = ExistingVfxNode;
 		const FConnectedPin EntryConnection = EntryNode->GetConnection(TEXT("Out"));
 		const bool bEntryAlreadyTargetsVfx = VfxNode && EntryConnection.NodeGuid == VfxNode->GetGuid();
 		bool bInsertedNode = false;
@@ -1631,45 +1881,59 @@ namespace Rune512Batch
 			UFlowGraphNode* NewGraphNode = FFlowGraphSchemaAction_NewNode::CreateNode(
 				FlowGraph,
 				EntryOutputPin,
-				UBFNode_PlayFlipbookVFX::StaticClass(),
+				UBFNode_PlayNiagara::StaticClass(),
 				NodeLocation,
 				false);
-			VfxNode = NewGraphNode ? Cast<UBFNode_PlayFlipbookVFX>(NewGraphNode->GetFlowNodeBase()) : nullptr;
+			VfxNode = NewGraphNode ? Cast<UBFNode_PlayNiagara>(NewGraphNode->GetFlowNodeBase()) : nullptr;
 			bInsertedNode = VfxNode != nullptr;
 		}
 
 		if (!VfxNode)
 		{
-			ReportLines.Add(FString::Printf(TEXT("- Failed to create Play Flipbook VFX node for `%s`."), *FlowName));
+			ReportLines.Add(FString::Printf(TEXT("- Failed to create Play Niagara node for `%s`."), *FlowName));
 			return;
 		}
 
-		VfxNode->Modify();
-		VfxNode->Texture = Texture;
-		VfxNode->Material = FlipbookMaterial;
-		VfxNode->PlaneMesh = nullptr;
-		VfxNode->Rows = 4;
-		VfxNode->Columns = 4;
-		VfxNode->Duration = bIsBurnFlow ? 0.42f : 0.38f;
-		VfxNode->Size = bIsBurnFlow ? 78.f : 72.f;
-		VfxNode->Target = EBFTargetSelector::LastDamageTarget;
-		VfxNode->Socket = bIsBurnFlow ? FName(TEXT("spine_03")) : FName(TEXT("spine_02"));
-		VfxNode->SocketFallbackNames.Reset();
-		VfxNode->SocketFallbackNames.Add(TEXT("spine_03"));
-		VfxNode->SocketFallbackNames.Add(TEXT("spine_02"));
-		VfxNode->SocketFallbackNames.Add(TEXT("spine_01"));
-		VfxNode->SocketFallbackNames.Add(TEXT("spine"));
-		VfxNode->SocketFallbackNames.Add(TEXT("pelvis"));
-		VfxNode->SocketFallbackNames.Add(TEXT("body"));
-		VfxNode->SocketFallbackNames.Add(TEXT("root"));
-		VfxNode->Offset = bIsBurnFlow ? FVector(0.f, 0.f, 6.f) : FVector(0.f, 0.f, 8.f);
-		VfxNode->bFaceCamera = true;
-		VfxNode->bDestroyWithFlow = false;
-		VfxNode->EmissiveColor = bIsBurnFlow
-			? FLinearColor(1.f, 0.36f, 0.1f, 1.f)
-			: FLinearColor(0.45f, 1.f, 0.25f, 1.f);
-		VfxNode->AlphaScale = 0.95f;
-		VfxNode->EffectName = EffectName;
+		ConfigureNiagaraNode(
+			VfxNode,
+			NiagaraSystem,
+			EffectName,
+			EBFTargetSelector::LastDamageTarget,
+			bIsBurnFlow ? FName(TEXT("spine_03")) : FName(TEXT("spine_02")),
+			{ TEXT("spine_03"), TEXT("spine_02"), TEXT("spine_01"), TEXT("spine"), TEXT("pelvis"), TEXT("body"), TEXT("root") },
+			true,
+			bIsBurnFlow ? FVector(0.f, 0.f, 6.f) : FVector(0.f, 0.f, 8.f),
+			FRotator::ZeroRotator,
+			bIsBurnFlow ? FVector(0.28f, 0.28f, 0.28f) : FVector(0.32f, 0.32f, 0.32f),
+			bIsBurnFlow ? 3.2f : 1.2f,
+			false);
+
+		UBFNode_ApplyEffect* BurnEffectNode = nullptr;
+		if (bIsBurnFlow)
+		{
+			BurnEffectNode = FindBurnApplyEffectNode(FlowAsset);
+			if (!BurnEffectNode)
+			{
+				const FVector2D NodeLocation(
+					static_cast<float>(EntryGraphNode->NodePosX + 640),
+					static_cast<float>(EntryGraphNode->NodePosY));
+				BurnEffectNode = Cast<UBFNode_ApplyEffect>(CreateFlowNodeAfter(
+					FlowGraph,
+					VfxNode,
+					UBFNode_ApplyEffect::StaticClass(),
+					NodeLocation));
+			}
+
+			if (BurnEffectNode)
+			{
+				ConfigureBurnApplyEffectNode(BurnEffectNode, 8.f, ReportLines);
+				LinkFlowNodes(VfxNode, BurnEffectNode);
+			}
+			else
+			{
+				ReportLines.Add(FString::Printf(TEXT("- Failed to create persistent burn DOT node for `%s`."), *FlowName));
+			}
+		}
 
 		FlowAsset->HarvestNodeConnections();
 		FlowAsset->MarkPackageDirty();
@@ -1681,14 +1945,16 @@ namespace Rune512Batch
 		}
 
 		ReportLines.Add(FString::Printf(
-			TEXT("- Configured `%s`: Play Flipbook VFX node `%s` -> `%s`, Socket=%s, Offset=%s, Size=%.1f, cleared legacy Niagara nodes=%d (%s)."),
+			TEXT("- Configured `%s`: Play Niagara node `%s` -> `%s`, Socket=%s, Offset=%s, Scale=%s, lifetime=%.1f, burnDOT=%d, cleared Flipbook nodes=%d (%s)."),
 			*FlowName,
 			*EffectName.ToString(),
-			*TexturePath,
-			*VfxNode->Socket.ToString(),
-			*VfxNode->Offset.ToString(),
-			VfxNode->Size,
-			ClearedLegacyNiagaraCount,
+			*NiagaraPath,
+			*VfxNode->AttachSocketName.ToString(),
+			*VfxNode->LocationOffset.ToString(),
+			*VfxNode->Scale.ToString(),
+			VfxNode->Lifetime,
+			BurnEffectNode ? 1 : 0,
+			ClearedFlipbookCount,
 			bInsertedNode ? TEXT("inserted after Start") : TEXT("updated existing node")));
 	}
 
@@ -1871,7 +2137,7 @@ namespace Rune512Batch
 			ReportLines,
 			DirtyPackages);
 		ConfigureMoonlightSlashWaveFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
-		ConfigureStandaloneFlipbookVfxFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
+		ConfigureStandaloneNiagaraVfxFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		StripApplyAttributeInlineVfx(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		ConfigureCombatCardAttributeMultiplierFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 
@@ -1958,6 +2224,7 @@ namespace Rune512Batch
 			const FString FlowName = TEXT("FA_Rune512_Moonlight_") + LinkSpec.Suffix;
 			UFlowAsset* LinkFlow = EnsureFlowAsset(TemplateFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
 			ConfigureMoonlightSlashWaveFlow(LinkFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
+			ConfigureMoonlightBurnHitVfxFlow(LinkFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
 			ConfigureMoonlightPoisonAtomicFlow(LinkFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
 
 			FCombatCardLinkRecipe Recipe;
@@ -2033,9 +2300,11 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 	ReportLines.Add(TEXT(""));
 	ReportLines.Add(TEXT("## FA VFX todos"));
 	ReportLines.Add(TEXT("- Card VFX is configured in each BaseFlow/LinkFlow, not on CombatCard data."));
-	ReportLines.Add(TEXT("- Moonlight generated slash-wave nodes clear legacy Niagara fields and use BP/default projectile visuals; hit/status visuals should be atomic Flipbook nodes."));
-	ReportLines.Add(TEXT("- Moonlight poison LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Flipbook VFX -> ApplyEffect -> ApplyGEInRadius."));
-	ReportLines.Add(TEXT("- Burn/Poison base VFX use small Play Flipbook VFX nodes; legacy Play Niagara nodes are cleared when found."));
+	ReportLines.Add(TEXT("- Moonlight generated slash-wave nodes clear inline Niagara fields and use BP/default projectile visuals; hit/status visuals should be atomic Play Niagara nodes."));
+	ReportLines.Add(TEXT("- Moonlight poison LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara -> ApplyEffect -> Play Niagara -> ApplyGEInRadius."));
+	ReportLines.Add(TEXT("- Moonlight burn LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara attached to enemy bone -> persistent UGE_RuneBurn."));
+	ReportLines.Add(TEXT("- Burn/Poison base VFX use compact Play Niagara nodes; old Flipbook node payloads are cleared when found."));
+	ReportLines.Add(TEXT("- Projectile inline Niagara fields remain empty. Link/status VFX must live in independent FA Play Niagara nodes."));
 	ReportLines.Add(TEXT("- Projectile visuals stay on projectile-spawn nodes; hit/status visuals should use separate visual nodes."));
 	ReportLines.Add(TEXT("- Any Flow copied from a template must be opened once and checked against the 512 design doc before gameplay signoff."));
 

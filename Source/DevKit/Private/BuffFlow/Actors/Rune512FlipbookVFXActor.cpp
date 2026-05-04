@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Math/RotationMatrix.h"
 #include "UObject/ConstructorHelpers.h"
 
 ARune512FlipbookVFXActor::ARune512FlipbookVFXActor()
@@ -19,20 +20,11 @@ ARune512FlipbookVFXActor::ARune512FlipbookVFXActor()
 	PlaneComponent->SetReceivesDecals(false);
 	SetRootComponent(PlaneComponent);
 
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> ProjectPlaneMesh(
-		TEXT("/Game/Free_Magic/Mesh/SM_Free_Magic_Plane1.SM_Free_Magic_Plane1"));
-	if (ProjectPlaneMesh.Succeeded())
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> EnginePlaneMesh(
+		TEXT("/Engine/BasicShapes/Plane.Plane"));
+	if (EnginePlaneMesh.Succeeded())
 	{
-		PlaneComponent->SetStaticMesh(ProjectPlaneMesh.Object);
-	}
-	else
-	{
-		static ConstructorHelpers::FObjectFinder<UStaticMesh> EnginePlaneMesh(
-			TEXT("/Engine/BasicShapes/Plane.Plane"));
-		if (EnginePlaneMesh.Succeeded())
-		{
-			PlaneComponent->SetStaticMesh(EnginePlaneMesh.Object);
-		}
+		PlaneComponent->SetStaticMesh(EnginePlaneMesh.Object);
 	}
 }
 
@@ -50,6 +42,8 @@ void ARune512FlipbookVFXActor::InitializeFlipbook(
 	int32 InRows,
 	int32 InColumns,
 	float InDuration,
+	float InLifetime,
+	bool bInLoop,
 	float InSize,
 	bool bInFaceCamera,
 	const FLinearColor& InEmissiveColor,
@@ -71,6 +65,8 @@ void ARune512FlipbookVFXActor::InitializeFlipbook(
 	PlaneComponent->SetRelativeScale3D(FVector(Scale));
 
 	Duration = FMath::Max(0.01f, InDuration);
+	Lifetime = InLifetime > 0.f ? FMath::Max(0.01f, InLifetime) : Duration;
+	bLoop = bInLoop;
 	bFaceCamera = bInFaceCamera;
 	StartWorldTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 
@@ -86,7 +82,7 @@ void ARune512FlipbookVFXActor::InitializeFlipbook(
 
 	UpdateMaterialTime();
 	FaceCamera();
-	SetLifeSpan(Duration);
+	SetLifeSpan(Lifetime);
 }
 
 void ARune512FlipbookVFXActor::Tick(float DeltaSeconds)
@@ -108,7 +104,9 @@ void ARune512FlipbookVFXActor::UpdateMaterialTime()
 
 	DynamicMaterial->SetScalarParameterValue(
 		TEXT("Time"),
-		FMath::Max(0.f, GetWorld()->GetTimeSeconds() - StartWorldTime));
+		bLoop
+			? FMath::Fmod(FMath::Max(0.f, GetWorld()->GetTimeSeconds() - StartWorldTime), Duration)
+			: FMath::Max(0.f, GetWorld()->GetTimeSeconds() - StartWorldTime));
 }
 
 void ARune512FlipbookVFXActor::FaceCamera()
@@ -128,6 +126,6 @@ void ARune512FlipbookVFXActor::FaceCamera()
 	const FVector ToCamera = CameraManager->GetCameraLocation() - GetActorLocation();
 	if (!ToCamera.IsNearlyZero())
 	{
-		SetActorRotation(ToCamera.Rotation());
+		SetActorRotation(FRotationMatrix::MakeFromZY(ToCamera.GetSafeNormal(), FVector::UpVector).Rotator());
 	}
 }
