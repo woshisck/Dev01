@@ -1949,3 +1949,4 @@ Builds/Windows/DevKit/Content/Paks/global.ucas
 Builds/Windows/DevKit/Content/Paks/DevKit-Windows.utoc
 Builds/Windows/DevKit/Content/Paks/DevKit-Windows.ucas
 Builds/Windows/DevKit/Content/Paks/DevKit-Windows.pak
+CompileAndOpen.bat

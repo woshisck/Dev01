@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
-#include "Engine/TimerManager.h"
+#include "TimerManager.h"
 #include "GA_PlayMontage.generated.h"
 
 class UYogTask_PlayMontageAbility;
