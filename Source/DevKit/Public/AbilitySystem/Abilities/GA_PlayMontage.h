@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "Engine/TimerManager.h"
 #include "GA_PlayMontage.generated.h"
 
 class UYogTask_PlayMontageAbility;
@@ -56,4 +57,8 @@ private:
 
 	// ActivateAbility 时记录的世界时间，OnCanComboTagChanged 只接受此时间之后的输入
 	float AbilityActivationTime = 0.0f;
+
+	// Timers that open and close the CanCombo window when bOverrideComboWindow is set on the active node
+	FTimerHandle ComboWindowOpenHandle;
+	FTimerHandle ComboWindowCloseHandle;
 };

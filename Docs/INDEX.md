@@ -68,6 +68,15 @@
 
 ---
 
+### 调试工具类
+
+| 我想要… | 对应功能 | 文档 |
+|---|---|---|
+| 游戏内实时看 Warning / Error 日志 | ImGui 悬浮日志窗 | [ImGuiDebugLog_Guide](Systems/Debug/ImGuiDebugLog_Guide.md) |
+| 快速调试热度 / 符文 / 血量 / 敌人 | GM CheatManager 命令 | [GMCommands_Guide](Systems/GMCommands_Guide.md) |
+
+---
+
 ### UI / 视觉类
 
 | 我想要… | 对应功能 | 文档 |
