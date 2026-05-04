@@ -23,13 +23,8 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-    // On retrigger: clear pending combo window timers and silently kill the in-flight task.
-    // EndTask() marks the task as garbage so its pending delegate callbacks become no-ops.
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().ClearTimer(ComboWindowOpenHandle);
-        World->GetTimerManager().ClearTimer(ComboWindowCloseHandle);
-    }
+    // On retrigger: silently kill the in-flight task before committing.
+    // EndTask() marks it as garbage so its pending delegate callbacks become no-ops.
     if (ActivePlayMontageTask)
     {
         ActivePlayMontageTask->EndTask();
@@ -48,15 +43,16 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
     // Prefer montage set directly on the active combo graph node; fall back to AbilityData lookup.
     UAnimMontage* MontageToPlay = nullptr;
-    const FWeaponComboNodeConfig* ActiveComboNode = nullptr;
     if (const APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
     {
         if (PlayerOwner->ComboRuntimeComponent)
         {
-            ActiveComboNode = PlayerOwner->ComboRuntimeComponent->GetActiveNode();
-            if (ActiveComboNode && ActiveComboNode->MontageConfig)
+            if (const FWeaponComboNodeConfig* ActiveComboNode = PlayerOwner->ComboRuntimeComponent->GetActiveNode())
             {
-                MontageToPlay = ActiveComboNode->MontageConfig->Montage;
+                if (ActiveComboNode->MontageConfig)
+                {
+                    MontageToPlay = ActiveComboNode->MontageConfig->Montage;
+                }
             }
         }
     }
@@ -134,33 +130,6 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
             ActivePlayMontageTask = PlayMontageTask;
             PlayMontageTask->ReadyForActivation();
-
-            // When the node defines its own combo window, drive CanCombo via world timers
-            // instead of relying on AnimNotifyState in the montage.
-            if (ActiveComboNode && ActiveComboNode->bOverrideComboWindow)
-            {
-                const float Duration  = MontageToPlay->GetPlayLength();
-                const float OpenTime  = (ActiveComboNode->ComboWindowStartFrame / (float)ActiveComboNode->ComboWindowTotalFrames) * Duration;
-                const float CloseTime = (ActiveComboNode->ComboWindowEndFrame   / (float)ActiveComboNode->ComboWindowTotalFrames) * Duration;
-                const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
-
-                TWeakObjectPtr<UGA_PlayMontage> WeakThis(this);
-                GetWorld()->GetTimerManager().SetTimer(ComboWindowOpenHandle,
-                    [WeakThis, CanComboTag]()
-                    {
-                        if (WeakThis.IsValid())
-                            if (UAbilitySystemComponent* ASCLocal = WeakThis->GetAbilitySystemComponentFromActorInfo())
-                                ASCLocal->AddLooseGameplayTag(CanComboTag);
-                    }, OpenTime, false);
-
-                GetWorld()->GetTimerManager().SetTimer(ComboWindowCloseHandle,
-                    [WeakThis, CanComboTag]()
-                    {
-                        if (WeakThis.IsValid())
-                            if (UAbilitySystemComponent* ASCLocal = WeakThis->GetAbilitySystemComponentFromActorInfo())
-                                ASCLocal->SetLooseGameplayTagCount(CanComboTag, 0);
-                    }, CloseTime, false);
-            }
         }
     }
     else
@@ -223,13 +192,6 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
     ActivePlayMontageTask = nullptr;
-
-    // Clear combo window timers so they cannot fire after the ability ends
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().ClearTimer(ComboWindowOpenHandle);
-        World->GetTimerManager().ClearTimer(ComboWindowCloseHandle);
-    }
 
     // remove related Gameplay Effects and gameplaytags(hardcode)
     if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
