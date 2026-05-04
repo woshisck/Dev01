@@ -40,17 +40,17 @@ namespace
     }
 
     // ── BuffListBox 行样式（v3 决策：.cpp 静态常量，不建 DA）──
-    constexpr int32   BuffNameFontSize     = 13;
-    constexpr int32   BuffDescFontSize     = 11;
-    constexpr int32   BuffEffectFontSize   = 11;
-    const FLinearColor BuffNameColor       = FLinearColor(0.93f, 0.93f, 0.93f, 1.0f); // #ECECEC
-    const FLinearColor BuffDescColor       = FLinearColor(0.78f, 0.78f, 0.80f, 1.0f); // 次级灰
-    const FLinearColor BuffEffectColor     = FLinearColor(0.65f, 0.65f, 0.70f, 1.0f); // 更淡
+    constexpr int32   PortalBuffNameFontSize     = 13;
+    constexpr int32   PortalBuffDescFontSize     = 11;
+    constexpr int32   PortalBuffEffectFontSize   = 11;
+    const FLinearColor PortalBuffNameColor       = FLinearColor(0.93f, 0.93f, 0.93f, 1.0f); // #ECECEC
+    const FLinearColor PortalBuffDescColor       = FLinearColor(0.78f, 0.78f, 0.80f, 1.0f); // 次级灰
+    const FLinearColor PortalBuffEffectColor     = FLinearColor(0.65f, 0.65f, 0.70f, 1.0f); // 更淡
     constexpr float   BuffRowSpacing       = 6.f;
     constexpr float   BuffSubLineSpacing   = 2.f;
 
     // 字号微调：保留原字体 / 字重，只改 Size，避免默认字体被覆盖
-    void SetTextSize(UTextBlock* TB, int32 Size)
+    void SetPortalTextSize(UTextBlock* TB, int32 Size)
     {
         if (!TB) return;
         FSlateFontInfo Font = TB->GetFont();
@@ -59,7 +59,7 @@ namespace
     }
 
     // RuneName 漏配兜底：开发期暴露资产名定位漏配，Shipping 显示"未命名"
-    FText ResolveRuneDisplayName(const URuneDataAsset& RuneDA)
+    FText ResolvePortalRuneDisplayName(const URuneDataAsset& RuneDA)
     {
         const FName RuneName = RuneDA.RuneInfo.RuneConfig.RuneName;
         if (!RuneName.IsNone())
@@ -78,7 +78,7 @@ namespace
     }
 
     // GenericEffect 单条文本格式化（4 种情况降级，避免空冒号 / 空行）
-    FText FormatGenericEffectLine(const UGenericRuneEffectDA& Effect)
+    FText FormatPortalGenericEffectLine(const UGenericRuneEffectDA& Effect)
     {
         const bool bHasName = !Effect.DisplayName.IsEmptyOrWhitespace();
         const bool bHasDesc = !Effect.Description.IsEmptyOrWhitespace();
@@ -193,10 +193,10 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
 
             // 名称（漏配兜底见 ResolveRuneDisplayName；AutoWrap 防本地化/长资产名溢出）
             UTextBlock* NameTB = NewObject<UTextBlock>(this);
-            NameTB->SetText(ResolveRuneDisplayName(*Entry.RuneDA));
-            NameTB->SetColorAndOpacity(FSlateColor(BuffNameColor));
+            NameTB->SetText(ResolvePortalRuneDisplayName(*Entry.RuneDA));
+            NameTB->SetColorAndOpacity(FSlateColor(PortalBuffNameColor));
             NameTB->SetAutoWrapText(true);
-            SetTextSize(NameTB, BuffNameFontSize);
+            SetPortalTextSize(NameTB, PortalBuffNameFontSize);
             RightVBox->AddChildToVerticalBox(NameTB);
 
             // 描述（空则跳过，不留空行）
@@ -204,9 +204,9 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
             {
                 UTextBlock* DescTB = NewObject<UTextBlock>(this);
                 DescTB->SetText(Cfg.RuneDescription);
-                DescTB->SetColorAndOpacity(FSlateColor(BuffDescColor));
+                DescTB->SetColorAndOpacity(FSlateColor(PortalBuffDescColor));
                 DescTB->SetAutoWrapText(true);
-                SetTextSize(DescTB, BuffDescFontSize);
+                SetPortalTextSize(DescTB, PortalBuffDescFontSize);
                 UVerticalBoxSlot* DescSlot = RightVBox->AddChildToVerticalBox(DescTB);
                 DescSlot->SetPadding(FMargin(0.f, BuffSubLineSpacing, 0.f, 0.f));
             }
@@ -216,14 +216,14 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
             {
                 const UGenericRuneEffectDA* Effect = EffectPtr.Get();
                 if (!Effect) continue;
-                const FText Line = FormatGenericEffectLine(*Effect);
+                const FText Line = FormatPortalGenericEffectLine(*Effect);
                 if (Line.IsEmptyOrWhitespace()) continue;
 
                 UTextBlock* EffTB = NewObject<UTextBlock>(this);
                 EffTB->SetText(Line);
-                EffTB->SetColorAndOpacity(FSlateColor(BuffEffectColor));
+                EffTB->SetColorAndOpacity(FSlateColor(PortalBuffEffectColor));
                 EffTB->SetAutoWrapText(true);
-                SetTextSize(EffTB, BuffEffectFontSize);
+                SetPortalTextSize(EffTB, PortalBuffEffectFontSize);
                 UVerticalBoxSlot* EffSlot = RightVBox->AddChildToVerticalBox(EffTB);
                 EffSlot->SetPadding(FMargin(0.f, BuffSubLineSpacing, 0.f, 0.f));
             }
