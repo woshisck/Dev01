@@ -15,6 +15,9 @@
 #include "BuffFlow/Nodes/BFNode_CalcRuneGroundPathTransform.h"
 #include "BuffFlow/Nodes/BFNode_PlayFlipbookVFX.h"
 #include "BuffFlow/Nodes/BFNode_PlayNiagara.h"
+#include "BuffFlow/Nodes/BFNode_MathFloat.h"
+#include "BuffFlow/Nodes/BFNode_OnDamageDealt.h"
+#include "BuffFlow/Nodes/BFNode_SpawnRangedProjectiles.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
@@ -1232,22 +1235,23 @@ bool FCombatDeckGeneratedMoonlightRecipesTriggerAllEffectsTest::RunTest(const FS
 		return false;
 	}
 
-	const TArray<FName> EffectTagNames = {
+	const TArray<FName> ForwardEffectTagNames = {
 		TEXT("Card.Effect.Burn"),
 		TEXT("Card.Effect.Poison"),
-		TEXT("Card.Effect.Split"),
 		TEXT("Card.Effect.Shield"),
 		TEXT("Card.Effect.Pierce"),
 		TEXT("Card.Effect.Attack"),
 		TEXT("Card.Effect.Defense.ReduceDamage"),
 	};
+	TArray<FName> ReversedEffectTagNames = ForwardEffectTagNames;
+	ReversedEffectTagNames.Add(TEXT("Card.Effect.Split"));
 
 	const FCombatCardConfig& ForwardMoonlightConfig = MoonlightForwardDA->RuneInfo.CombatCard;
 	const FCombatCardConfig& ReversedMoonlightConfig = MoonlightReversedDA->RuneInfo.CombatCard;
-	TestEqual(TEXT("Forward Moonlight has all forward and reversed generated recipes"), ForwardMoonlightConfig.LinkRecipes.Num(), 14);
-	TestEqual(TEXT("Reversed Moonlight has all forward and reversed generated recipes"), ReversedMoonlightConfig.LinkRecipes.Num(), 14);
+	TestEqual(TEXT("Forward Moonlight has forward recipes without Split and reversed recipes with Split"), ForwardMoonlightConfig.LinkRecipes.Num(), 13);
+	TestEqual(TEXT("Reversed Moonlight has forward recipes without Split and reversed recipes with Split"), ReversedMoonlightConfig.LinkRecipes.Num(), 13);
 
-	for (const FName& EffectTagName : EffectTagNames)
+	for (const FName& EffectTagName : ForwardEffectTagNames)
 	{
 		const FGameplayTag EffectTag = FGameplayTag::RequestGameplayTag(EffectTagName, false);
 		TestTrue(FString::Printf(TEXT("Effect tag exists: %s"), *EffectTagName.ToString()), EffectTag.IsValid());
@@ -1281,6 +1285,44 @@ bool FCombatDeckGeneratedMoonlightRecipesTriggerAllEffectsTest::RunTest(const FS
 					&& Recipe.Condition.RequiredNeighborEffectTags.HasTagExact(EffectTag)
 					&& Recipe.LinkFlow != nullptr;
 			}));
+
+		UCombatDeckComponent* ReversedDeck = NewObject<UCombatDeckComponent>();
+		ReversedDeck->SetDeckListForTest({ ReversedMoonlightConfig, NeighborCard });
+
+		FCombatDeckActionContext ReversedMoonlightContext;
+		ReversedMoonlightContext.ActionType = ECardRequiredAction::Light;
+		ReversedMoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+		ReversedMoonlightContext.bComboContinued = true;
+		ReversedMoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
+		const FCombatCardResolveResult PendingResult = ReversedDeck->ResolveAttackCardWithContext(ReversedMoonlightContext);
+		TestTrue(FString::Printf(TEXT("Generated reversed Moonlight opens pending link for %s"), *EffectTagName.ToString()),
+			PendingResult.bPendingBackwardLink);
+
+		FCombatDeckActionContext ReversedNeighborContext = ReversedMoonlightContext;
+		ReversedNeighborContext.AttackInstanceGuid = FGuid::NewGuid();
+		const FCombatCardResolveResult ReversedResult = ReversedDeck->ResolveAttackCardWithContext(ReversedNeighborContext);
+		TestTrue(FString::Printf(TEXT("Generated reversed Moonlight recipe triggers for %s"), *EffectTagName.ToString()),
+			ReversedResult.bTriggeredBackwardLink);
+		TestTrue(FString::Printf(TEXT("Generated reversed Moonlight recipe has LinkFlow for %s"), *EffectTagName.ToString()),
+			ReversedResult.LinkedSourceCard.Config.LinkRecipes.ContainsByPredicate([EffectTag](const FCombatCardLinkRecipe& Recipe)
+			{
+				return Recipe.Direction == ECombatCardLinkOrientation::Reversed
+					&& Recipe.Condition.RequiredNeighborEffectTags.HasTagExact(EffectTag)
+					&& Recipe.LinkFlow != nullptr;
+			}));
+	}
+
+	for (const FName& EffectTagName : ReversedEffectTagNames)
+	{
+		const FGameplayTag EffectTag = FGameplayTag::RequestGameplayTag(EffectTagName, false);
+		TestTrue(FString::Printf(TEXT("Reversed effect tag exists: %s"), *EffectTagName.ToString()), EffectTag.IsValid());
+		if (!EffectTag.IsValid())
+		{
+			continue;
+		}
+
+		FCombatCardConfig NeighborCard{ ECombatCardType::Normal, ECardRequiredAction::Any };
+		NeighborCard.CardEffectTags.AddTag(EffectTag);
 
 		UCombatDeckComponent* ReversedDeck = NewObject<UCombatDeckComponent>();
 		ReversedDeck->SetDeckListForTest({ ReversedMoonlightConfig, NeighborCard });
@@ -1380,7 +1422,212 @@ bool FCombatDeckGeneratedComboDrivenAssetsConfiguredTest::RunTest(const FString&
 	TestTrue(TEXT("Moonlight base adds combo stacks to projectile count"), SlashNode->bAddComboStacksToProjectileCount);
 	TestEqual(TEXT("Moonlight base projectiles per combo stack"), SlashNode->ProjectilesPerComboStack, 1);
 	TestEqual(TEXT("Moonlight base max bonus projectiles"), SlashNode->MaxBonusProjectiles, 2);
-	TestEqual(TEXT("Moonlight base combo cone angle"), SlashNode->ProjectileConeAngleDegrees, 15.f);
+	TestEqual(TEXT("Moonlight base combo cone angle"), SlashNode->ProjectileConeAngleDegrees, 0.f);
+	TestTrue(TEXT("Moonlight base fires combo projectiles sequentially"), SlashNode->bSpawnProjectilesSequentially);
+	TestEqual(TEXT("Moonlight base sequential projectile interval"), SlashNode->SequentialProjectileSpawnInterval, 0.12f);
+
+	auto ValidateForwardMoonlightComboProjectiles = [this](const TCHAR* FlowPath, const TCHAR* Label, const bool bShouldUseComboProjectiles) -> bool
+	{
+		UFlowAsset* Flow = LoadObject<UFlowAsset>(nullptr, FlowPath);
+		TestNotNull(FString::Printf(TEXT("%s flow exists"), Label), Flow);
+		if (!Flow)
+		{
+			return false;
+		}
+
+		UBFNode_SpawnSlashWaveProjectile* FlowSlashNode = nullptr;
+		for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
+		{
+			FlowSlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
+			if (FlowSlashNode)
+			{
+				break;
+			}
+		}
+
+		TestNotNull(FString::Printf(TEXT("%s has slash-wave node"), Label), FlowSlashNode);
+		if (!FlowSlashNode)
+		{
+			return false;
+		}
+
+		if (bShouldUseComboProjectiles)
+		{
+			TestEqual(FString::Printf(TEXT("%s base projectile count"), Label), FlowSlashNode->ProjectileCount, 1);
+			TestTrue(FString::Printf(TEXT("%s adds combo stacks to projectile count"), Label), FlowSlashNode->bAddComboStacksToProjectileCount);
+			TestEqual(FString::Printf(TEXT("%s projectiles per combo stack"), Label), FlowSlashNode->ProjectilesPerComboStack, 1);
+			TestEqual(FString::Printf(TEXT("%s max bonus projectiles"), Label), FlowSlashNode->MaxBonusProjectiles, 2);
+			TestEqual(FString::Printf(TEXT("%s keeps one path"), Label), FlowSlashNode->ProjectileConeAngleDegrees, 0.f);
+			TestTrue(FString::Printf(TEXT("%s fires combo projectiles sequentially"), Label), FlowSlashNode->bSpawnProjectilesSequentially);
+			TestEqual(FString::Printf(TEXT("%s sequential projectile interval"), Label), FlowSlashNode->SequentialProjectileSpawnInterval, 0.12f);
+		}
+		else
+		{
+			TestFalse(FString::Printf(TEXT("%s does not use combo projectile count"), Label), FlowSlashNode->bAddComboStacksToProjectileCount);
+			TestFalse(FString::Printf(TEXT("%s does not use sequential combo projectiles"), Label), FlowSlashNode->bSpawnProjectilesSequentially);
+		}
+
+		return true;
+	};
+
+	bool bForwardMoonlightComboConfigValid = true;
+	bForwardMoonlightComboConfigValid &= ValidateForwardMoonlightComboProjectiles(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Attack.FA_Rune512_Moonlight_Forward_Attack"),
+		TEXT("Moonlight forward attack"),
+		true);
+	bForwardMoonlightComboConfigValid &= ValidateForwardMoonlightComboProjectiles(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Burn.FA_Rune512_Moonlight_Forward_Burn"),
+		TEXT("Moonlight forward burn"),
+		true);
+	bForwardMoonlightComboConfigValid &= ValidateForwardMoonlightComboProjectiles(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Poison.FA_Rune512_Moonlight_Forward_Poison"),
+		TEXT("Moonlight forward poison"),
+		true);
+	bForwardMoonlightComboConfigValid &= ValidateForwardMoonlightComboProjectiles(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Pierce.FA_Rune512_Moonlight_Forward_Pierce"),
+		TEXT("Moonlight forward pierce"),
+		true);
+	bForwardMoonlightComboConfigValid &= ValidateForwardMoonlightComboProjectiles(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Shield.FA_Rune512_Moonlight_Forward_Shield"),
+		TEXT("Moonlight forward shield"),
+		true);
+	bForwardMoonlightComboConfigValid &= ValidateForwardMoonlightComboProjectiles(
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_ReduceDamage.FA_Rune512_Moonlight_Forward_ReduceDamage"),
+		TEXT("Moonlight forward reduce damage"),
+		true);
+	return bForwardMoonlightComboConfigValid;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedSplashSplitConfiguredTest,
+	"DevKit.CombatDeck.GeneratedSplashSplitConfigured",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckGeneratedSplashSplitConfiguredTest::RunTest(const FString& Parameters)
+{
+	URuneDataAsset* SplashDA = LoadObject<URuneDataAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Splash.DA_Rune512_Splash"));
+	URuneDataAsset* SplitDA = LoadObject<URuneDataAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split.DA_Rune512_Split"));
+	TestNotNull(TEXT("Generated splash DA exists"), SplashDA);
+	TestNotNull(TEXT("Generated split DA exists"), SplitDA);
+	if (!SplashDA || !SplitDA)
+	{
+		return false;
+	}
+
+	const FGameplayTag SplashEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Splash"), false);
+	const FGameplayTag SplitEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Split"), false);
+	TestTrue(TEXT("Card.Effect.Splash tag exists"), SplashEffectTag.IsValid());
+	TestTrue(TEXT("Card.Effect.Split tag exists"), SplitEffectTag.IsValid());
+
+	const FCombatCardConfig& SplashCard = SplashDA->RuneInfo.CombatCard;
+	TestEqual(TEXT("Splash card is normal"), SplashCard.CardType, ECombatCardType::Normal);
+	TestEqual(TEXT("Splash card triggers on hit"), SplashCard.TriggerTiming, ECombatCardTriggerTiming::OnHit);
+	TestTrue(TEXT("Splash card has splash effect tag"), SplashCard.CardEffectTags.HasTagExact(SplashEffectTag));
+
+	const FCombatCardConfig& SplitCard = SplitDA->RuneInfo.CombatCard;
+	TestEqual(TEXT("Split card is normal"), SplitCard.CardType, ECombatCardType::Normal);
+	TestEqual(TEXT("Split card triggers on commit"), SplitCard.TriggerTiming, ECombatCardTriggerTiming::OnCommit);
+	TestTrue(TEXT("Split card has split effect tag"), SplitCard.CardEffectTags.HasTagExact(SplitEffectTag));
+
+	UFlowAsset* SplashFlow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Splash_Base.FA_Rune512_Splash_Base"));
+	UFlowAsset* SplitFlow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Split_Base.FA_Rune512_Split_Base"));
+	TestNotNull(TEXT("Generated splash base flow exists"), SplashFlow);
+	TestNotNull(TEXT("Generated split base flow exists"), SplitFlow);
+	if (!SplashFlow || !SplitFlow)
+	{
+		return false;
+	}
+
+	UBFNode_OnDamageDealt* SplashOnDamageNode = nullptr;
+	UBFNode_MathFloat* SplashMathNode = nullptr;
+	UBFNode_ApplyGEInRadius* SplashRadiusNode = nullptr;
+	for (const TPair<FGuid, UFlowNode*>& Pair : SplashFlow->GetNodes())
+	{
+		if (!SplashOnDamageNode)
+		{
+			SplashOnDamageNode = Cast<UBFNode_OnDamageDealt>(Pair.Value);
+		}
+		if (!SplashMathNode)
+		{
+			SplashMathNode = Cast<UBFNode_MathFloat>(Pair.Value);
+		}
+		if (!SplashRadiusNode)
+		{
+			SplashRadiusNode = Cast<UBFNode_ApplyGEInRadius>(Pair.Value);
+		}
+	}
+	TestNotNull(TEXT("Splash flow has OnDamageDealt"), SplashOnDamageNode);
+	TestNotNull(TEXT("Splash flow has MathFloat"), SplashMathNode);
+	TestNotNull(TEXT("Splash flow has ApplyGEInRadius"), SplashRadiusNode);
+	if (SplashMathNode)
+	{
+		TestEqual(TEXT("Splash math uses multiply"), SplashMathNode->Operator, EBFMathOp::Multiply);
+		TestEqual(TEXT("Splash math multiplier is 20 percent"), SplashMathNode->B.Value, 0.2f);
+	}
+	if (SplashRadiusNode)
+	{
+		TestEqual(TEXT("Splash radius is 300"), SplashRadiusNode->Radius.Value, 300.f);
+		TestTrue(TEXT("Splash excludes primary target"), SplashRadiusNode->bExcludeLocationSourceActor);
+		TestTrue(TEXT("Splash is enemy only"), SplashRadiusNode->bEnemyOnly);
+		TestEqual(TEXT("Splash applies once per target"), SplashRadiusNode->ApplicationCount, 1);
+	}
+
+	UBFNode_SpawnRangedProjectiles* SplitProjectileNode = nullptr;
+	bool bSplitFlowHasSlashWave = false;
+	for (const TPair<FGuid, UFlowNode*>& Pair : SplitFlow->GetNodes())
+	{
+		if (!SplitProjectileNode)
+		{
+			SplitProjectileNode = Cast<UBFNode_SpawnRangedProjectiles>(Pair.Value);
+		}
+		bSplitFlowHasSlashWave |= Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value) != nullptr;
+	}
+	TestNotNull(TEXT("Split flow has Spawn Ranged Projectiles"), SplitProjectileNode);
+	TestFalse(TEXT("Split flow does not spawn moonblade slash waves"), bSplitFlowHasSlashWave);
+	if (SplitProjectileNode)
+	{
+		TestEqual(TEXT("Split spawns two extra projectiles"), SplitProjectileNode->YawOffsets.Num(), 2);
+		if (SplitProjectileNode->YawOffsets.Num() == 2)
+		{
+			TestEqual(TEXT("Split left projectile angle"), SplitProjectileNode->YawOffsets[0], -8.f);
+			TestEqual(TEXT("Split right projectile angle"), SplitProjectileNode->YawOffsets[1], 8.f);
+		}
+		TestTrue(TEXT("Split uses combat card attack damage"), SplitProjectileNode->bUseCombatCardAttackDamage);
+		TestTrue(TEXT("Split projectiles share attack instance guid"), SplitProjectileNode->bShareAttackInstanceGuid);
+	}
+
+	UFlowAsset* MoonlightReversedSplitFlow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Split.FA_Rune512_Moonlight_Reversed_Split"));
+	TestNotNull(TEXT("Moonlight reversed split flow exists"), MoonlightReversedSplitFlow);
+	if (MoonlightReversedSplitFlow)
+	{
+		UBFNode_SpawnSlashWaveProjectile* ReversedSplitSlashNode = nullptr;
+		for (const TPair<FGuid, UFlowNode*>& Pair : MoonlightReversedSplitFlow->GetNodes())
+		{
+			ReversedSplitSlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
+			if (ReversedSplitSlashNode)
+			{
+				break;
+			}
+		}
+		TestNotNull(TEXT("Moonlight reversed split uses slash wave"), ReversedSplitSlashNode);
+		if (ReversedSplitSlashNode)
+		{
+			TestTrue(TEXT("Moonlight reversed split splits on first impact"), ReversedSplitSlashNode->bSplitOnFirstHit);
+			TestTrue(TEXT("Moonlight reversed split reacts to world collision"), ReversedSplitSlashNode->bDestroyOnWorldStaticHit);
+			TestEqual(TEXT("Moonlight reversed split child count"), ReversedSplitSlashNode->SplitProjectileCount, 4);
+			TestEqual(TEXT("Moonlight reversed split max generation"), ReversedSplitSlashNode->MaxSplitGenerations, 1);
+			TestEqual(TEXT("Moonlight reversed split cone"), ReversedSplitSlashNode->SplitConeAngleDegrees, 70.f);
+		}
+	}
 
 	return true;
 }
@@ -1452,11 +1699,11 @@ bool FCombatDeckGeneratedGenericStatusCardsConfiguredTest::RunTest(const FString
 	return bAllValid;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedVfxUsesAtomicNiagaraTest,
-	"DevKit.CombatDeck.GeneratedVfxUsesAtomicNiagara",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedVfxUsesAtomicVfxNodesTest,
+	"DevKit.CombatDeck.GeneratedVfxUsesAtomicVfxNodes",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckGeneratedVfxUsesAtomicNiagaraTest::RunTest(const FString& Parameters)
+bool FCombatDeckGeneratedVfxUsesAtomicVfxNodesTest::RunTest(const FString& Parameters)
 {
 	auto ValidateMoonlightFlow = [this](const TCHAR* FlowPath, const TCHAR* Label) -> bool
 	{
@@ -1615,6 +1862,7 @@ bool FCombatDeckMoonlightBurnFlowUsesAtomicVfxNodesTest::RunTest(const FString& 
 		UBFNode_PlayNiagara* BurnVfxNode = nullptr;
 		UBFNode_ApplyEffect* BurnEffectNode = nullptr;
 		int32 ActiveFlipbookCount = 0;
+		int32 UnexpectedNiagaraCount = 0;
 		for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
 		{
 			if (!SlashNode)
@@ -1627,9 +1875,13 @@ bool FCombatDeckMoonlightBurnFlowUsesAtomicVfxNodesTest::RunTest(const FString& 
 			}
 			if (UBFNode_PlayNiagara* NiagaraNode = Cast<UBFNode_PlayNiagara>(Pair.Value))
 			{
-				if (NiagaraNode->EffectName == FName(TEXT("Rune.Moonlight.BurnHitNiagara")))
+				if (NiagaraNode->NiagaraSystem && NiagaraNode->EffectName == FName(TEXT("Rune.Moonlight.BurnHitNiagara")))
 				{
 					BurnVfxNode = NiagaraNode;
+				}
+				else if (NiagaraNode->NiagaraSystem)
+				{
+					++UnexpectedNiagaraCount;
 				}
 			}
 			if (const UBFNode_PlayFlipbookVFX* FlipbookNode = Cast<UBFNode_PlayFlipbookVFX>(Pair.Value))
@@ -1650,7 +1902,7 @@ bool FCombatDeckMoonlightBurnFlowUsesAtomicVfxNodesTest::RunTest(const FString& 
 
 		TestNotNull(FString::Printf(TEXT("%s has slash-wave projectile node"), Label), SlashNode);
 		TestNotNull(FString::Printf(TEXT("%s has wait gameplay event node"), Label), WaitNode);
-		TestNotNull(FString::Printf(TEXT("%s has burn Niagara node"), Label), BurnVfxNode);
+		TestNotNull(FString::Printf(TEXT("%s has burn Niagara VFX node"), Label), BurnVfxNode);
 		TestNotNull(FString::Printf(TEXT("%s has persistent burn DOT node"), Label), BurnEffectNode);
 		if (!SlashNode || !WaitNode || !BurnVfxNode || !BurnEffectNode)
 		{
@@ -1663,13 +1915,15 @@ bool FCombatDeckMoonlightBurnFlowUsesAtomicVfxNodesTest::RunTest(const FString& 
 		TestEqual(FString::Printf(TEXT("%s wait node listens to burn hit event"), Label), WaitNode->EventTag, BurnHitTag);
 		TestEqual(FString::Printf(TEXT("%s wait node listens on BuffOwner"), Label), WaitNode->Target, EBFTargetSelector::BuffOwner);
 		TestEqual(FString::Printf(TEXT("%s burn VFX targets last damage target"), Label), BurnVfxNode->AttachTarget, EBFTargetSelector::LastDamageTarget);
-		TestTrue(FString::Printf(TEXT("%s burn VFX uses NS_Fire_Floor"), Label), GetNameSafe(BurnVfxNode->NiagaraSystem).Contains(TEXT("NS_Fire_Floor")));
-		TestTrue(FString::Printf(TEXT("%s burn VFX attaches to target"), Label), BurnVfxNode->bAttachToTarget);
-		TestTrue(FString::Printf(TEXT("%s burn VFX remains compact"), Label),
+		TestTrue(FString::Printf(TEXT("%s burn VFX uses fire Niagara"), Label),
+			GetNameSafe(BurnVfxNode->NiagaraSystem).Contains(TEXT("NS_Fire_Floor")));
+		TestTrue(FString::Printf(TEXT("%s burn Niagara attaches to target mesh"), Label), BurnVfxNode->bAttachToTarget);
+		TestTrue(FString::Printf(TEXT("%s burn Niagara remains compact"), Label),
 			BurnVfxNode->Scale.X <= 0.5f && BurnVfxNode->Scale.Y <= 0.5f && BurnVfxNode->Scale.Z <= 0.5f);
-		TestTrue(FString::Printf(TEXT("%s burn VFX lifetime covers DOT preview"), Label), BurnVfxNode->Lifetime >= 3.f);
+		TestTrue(FString::Printf(TEXT("%s burn Niagara lifetime covers DOT preview"), Label), BurnVfxNode->Lifetime >= 3.f);
 		TestFalse(FString::Printf(TEXT("%s burn VFX is not destroyed by short Flow cleanup"), Label), BurnVfxNode->bDestroyWithFlow);
-		TestEqual(FString::Printf(TEXT("%s has no active flipbook nodes"), Label), ActiveFlipbookCount, 0);
+		TestEqual(FString::Printf(TEXT("%s has no unexpected active Niagara nodes"), Label), UnexpectedNiagaraCount, 0);
+		TestEqual(FString::Printf(TEXT("%s has no active Flipbook nodes"), Label), ActiveFlipbookCount, 0);
 		TestEqual(FString::Printf(TEXT("%s burn DOT targets last damage target"), Label), BurnEffectNode->Target, EBFTargetSelector::LastDamageTarget);
 		TestFalse(FString::Printf(TEXT("%s burn DOT survives Flow cleanup"), Label), BurnEffectNode->bRemoveEffectOnCleanup);
 		TestEqual(FString::Printf(TEXT("%s burn DOT uses Data.Damage.Burn"), Label), BurnEffectNode->SetByCallerTag1.GetTagName(), FName(TEXT("Data.Damage.Burn")));

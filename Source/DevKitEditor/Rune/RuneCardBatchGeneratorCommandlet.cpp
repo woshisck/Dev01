@@ -2,14 +2,18 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "AbilitySystem/GameplayEffect/GE_MusketBullet_Damage.h"
 #include "AbilitySystem/GameplayEffect/GE_RuneBurn.h"
 #include "AbilitySystem/Execution/GEExec_PoisonDamage.h"
 #include "BuffFlow/Nodes/BFNode_ApplyAttributeModifier.h"
 #include "BuffFlow/Nodes/BFNode_ApplyEffect.h"
 #include "BuffFlow/Nodes/BFNode_ApplyGEInRadius.h"
 #include "BuffFlow/Nodes/BFNode_CalcRuneGroundPathTransform.h"
+#include "BuffFlow/Nodes/BFNode_MathFloat.h"
+#include "BuffFlow/Nodes/BFNode_OnDamageDealt.h"
 #include "BuffFlow/Nodes/BFNode_PlayFlipbookVFX.h"
 #include "BuffFlow/Nodes/BFNode_PlayNiagara.h"
+#include "BuffFlow/Nodes/BFNode_SpawnRangedProjectiles.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
@@ -42,6 +46,7 @@
 #include "MaterialDomain.h"
 #include "NiagaraSystem.h"
 #include "Nodes/FlowNode.h"
+#include "Projectile/MusketBullet.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 
@@ -55,7 +60,6 @@ namespace Rune512Batch
 	const FString FlipbookMaterialPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Materials/M_Rune512_FlipbookSprite");
 	const FString PoisonHitTexturePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures/T_Rune512_VFX_Poison_Hit");
 	const FString PoisonSpreadTexturePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures/T_Rune512_VFX_Poison_Spread");
-	const FString BurnHitTexturePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures/T_Rune512_VFX_Burn_Hit");
 	const FString BurnNiagaraPath = TEXT("/Game/Art/EnvironmentAsset/VFX/Niagara/Fire/NS_Fire_Floor");
 	const FString PoisonHitNiagaraPath = TEXT("/Game/Art/EnvironmentAsset/VFX/Niagara/Smoke/NS_Smoke_7_acid");
 	const FString PoisonSpreadNiagaraPath = TEXT("/Game/Art/EnvironmentAsset/VFX/Niagara/Smoke/NS_Smoke_7_acid");
@@ -74,7 +78,10 @@ namespace Rune512Batch
 	const FString AttackTemplateFlow = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/GenericRune/FA_Rune_AttackUp_01");
 	const FString ProductionTHSwordWeapon = TEXT("/Game/Code/Weapon/TwoHandedSword/DA_WPN_THSword");
 	const FString ProductionRedSwordWeapon = TEXT("/Game/Code/Weapon/GreatSword/DA_WPN_RedSword");
+	const FString ProductionHarquebusWeapon = TEXT("/Game/Code/Weapon/Harquebus/DA_WPN_Harquebus");
 	const FString THSwordComboGraph = TEXT("/Game/Docs/Combat/TwoHandedSword/CG_THSword_Test");
+	const FString MusketBulletBlueprintPath = TEXT("/Game/Code/Weapon/BP_MusketBullet");
+	const FString DamageBasicSetByCallerPath = TEXT("/Game/Code/GAS/GameplayEffects/GE_Damage_Basic_SetByCaller");
 
 	struct FIconImportSpec
 	{
@@ -98,6 +105,7 @@ namespace Rune512Batch
 		FString CardIdTag;
 		TArray<FString> EffectTags;
 		ECombatCardType CardType = ECombatCardType::Normal;
+		ECombatCardTriggerTiming TriggerTiming = ECombatCardTriggerTiming::OnHit;
 		ECombatCardLinkOrientation DefaultLinkOrientation = ECombatCardLinkOrientation::Forward;
 		ERuneType RuneType = ERuneType::Buff;
 		FString TargetAssetName;
@@ -361,6 +369,7 @@ namespace Rune512Batch
 			{ TEXT("T_Rune512_Burn"), TEXT("T_Rune512_Burn.png") },
 			{ TEXT("T_Rune512_Poison"), TEXT("T_Rune512_Poison.png") },
 			{ TEXT("T_Rune512_Moonlight"), TEXT("T_Rune512_Moonlight.png") },
+			{ TEXT("T_Rune512_Splash"), TEXT("T_Rune512_Splash.png") },
 			{ TEXT("T_Rune512_Split"), TEXT("T_Rune512_Split.png") },
 			{ TEXT("T_Rune512_Shield"), TEXT("T_Rune512_Shield.png") },
 			{ TEXT("T_Rune512_Pierce"), TEXT("T_Rune512_Pierce.png") },
@@ -385,15 +394,9 @@ namespace Rune512Batch
 				continue;
 			}
 
-			if (LoadAssetByPackagePath<UTexture2D>(IconPackagePath))
-			{
-				ReportLines.Add(FString::Printf(TEXT("- Found icon `%s`."), *IconPackagePath));
-				continue;
-			}
-
 			ReportLines.Add(FString::Printf(
 				TEXT("- %s `%s` -> `%s`."),
-				bDryRun ? TEXT("Would import") : TEXT("Imported"),
+				bDryRun ? TEXT("Would import/reimport") : TEXT("Imported/reimported"),
 				*SourceFile,
 				*IconRoot));
 
@@ -711,15 +714,9 @@ namespace Rune512Batch
 				continue;
 			}
 
-			if (LoadAssetByPackagePath<UTexture2D>(TexturePackagePath))
-			{
-				ReportLines.Add(FString::Printf(TEXT("- Found VFX texture `%s`."), *TexturePackagePath));
-				continue;
-			}
-
 			ReportLines.Add(FString::Printf(
 				TEXT("- %s `%s` -> `%s`."),
-				bDryRun ? TEXT("Would import") : TEXT("Imported"),
+				bDryRun ? TEXT("Would import/reimport") : TEXT("Imported/reimported"),
 				*SourceFile,
 				*VfxTextureRoot));
 
@@ -767,15 +764,18 @@ namespace Rune512Batch
 	TArray<FLinkRecipeSpec> MakeMoonlightRecipes(ECombatCardLinkOrientation Direction)
 	{
 		const FString DirectionPrefix = Direction == ECombatCardLinkOrientation::Forward ? TEXT("Forward") : TEXT("Reversed");
-		const TArray<TPair<FString, FString>> Effects = {
+		TArray<TPair<FString, FString>> Effects = {
 			{ TEXT("Card.Effect.Burn"), TEXT("Burn") },
 			{ TEXT("Card.Effect.Poison"), TEXT("Poison") },
-			{ TEXT("Card.Effect.Split"), TEXT("Split") },
 			{ TEXT("Card.Effect.Shield"), TEXT("Shield") },
 			{ TEXT("Card.Effect.Pierce"), TEXT("Pierce") },
 			{ TEXT("Card.Effect.Attack"), TEXT("Attack") },
 			{ TEXT("Card.Effect.Defense.ReduceDamage"), TEXT("ReduceDamage") },
 		};
+		if (Direction == ECombatCardLinkOrientation::Reversed)
+		{
+			Effects.Emplace(TEXT("Card.Effect.Split"), TEXT("Split"));
+		}
 
 		TArray<FLinkRecipeSpec> Recipes;
 		for (const TPair<FString, FString>& Effect : Effects)
@@ -816,6 +816,16 @@ namespace Rune512Batch
 		Spec.BaseFlowTemplatePath = BaseFlowTemplatePath;
 		Spec.BaseFlowTargetName = BaseFlowTargetName;
 		Spec.ManualTodos = ManualTodos;
+		if (Key == TEXT("Split"))
+		{
+			Spec.DisplayName = TEXT("\u5206\u88c2");
+			Spec.Description = TEXT("\u8fdc\u7a0b\u6b66\u5668\u5361\u3002\u5f00\u706b\u65f6\u989d\u5916\u53d1\u5c04 2 \u4e2a\u72ec\u7acb\u5f39\u9053\uff0c\u9ed8\u8ba4\u89d2\u5ea6\u4e3a -8/+8 \u5ea6\uff0c\u4e0d\u4f1a\u751f\u6210\u6708\u5203\u3002");
+			Spec.BaseFlowTemplatePath = AttackTemplateFlow;
+			Spec.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+			Spec.ManualTodos = {
+				TEXT("Ranged weapon reward/deck pools should use Split. Split base flow only spawns extra musket projectiles; Moonlight split exists only as Moonlight reversed LinkFlow.")
+			};
+		}
 		return Spec;
 	}
 
@@ -942,6 +952,20 @@ namespace Rune512Batch
 			ERuneType::Debuff,
 			{ TEXT("当前 Generic Curse 需要确认是否为“每个负面效果 -7% MaxHealth”；若仍是死亡诅咒版本，需要补负面状态计数逻辑。") }));
 
+		FCardSpec Splash = MakeNormalCard(
+			TEXT("Splash"),
+			TEXT("\u6e85\u5c04"),
+			TEXT("\u8fd1\u6218\u6b66\u5668\u5361\u3002\u653b\u51fb\u547d\u4e2d\u65f6\uff0c\u5bf9\u53d7\u4f24\u654c\u4eba\u5468\u56f4 300cm \u5185\u5176\u4ed6\u654c\u4eba\u9020\u6210\u672c\u6b21\u653b\u51fb 20% \u7684\u6e85\u5c04\u4f24\u5bb3\uff1b\u4e3b\u76ee\u6807\u4e0d\u91cd\u590d\u53d7\u5230\u6e85\u5c04\u3002"),
+			TEXT("Card.ID.Splash"),
+			{ TEXT("Card.Effect.Splash") },
+			TEXT("T_Rune512_Splash"),
+			AttackTemplateFlow,
+			TEXT("FA_Rune512_Splash_Base"),
+			ERuneType::Buff,
+			{ TEXT("Melee weapon reward/deck pools should use Splash instead of Split. Splash flow uses OnDamageDealt -> MathFloat(0.2) -> ApplyGEInRadius.") });
+		Splash.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+		Specs.Add(Splash);
+
 		Specs.Add(MakeNormalCard(
 			TEXT("Split"),
 			TEXT("溅射/分裂"),
@@ -1018,7 +1042,7 @@ namespace Rune512Batch
 		MoonlightForward.LinkRecipes.Append(MakeMoonlightRecipes(ECombatCardLinkOrientation::Forward));
 		MoonlightForward.LinkRecipes.Append(MakeMoonlightRecipes(ECombatCardLinkOrientation::Reversed));
 		MoonlightForward.ManualTodos = {
-			TEXT("Forward/Reversed 配方 Flow 已按模板复制，复杂节点连接与 Play Niagara 参数需要按配置文档检查。")
+			TEXT("Forward/Reversed 配方 Flow 已按模板复制，复杂节点连接与表现节点参数需要按配置文档检查。")
 		};
 		Specs.Add(MoonlightForward);
 
@@ -1164,7 +1188,7 @@ namespace Rune512Batch
 			return;
 		}
 
-		const TCHAR* CleanVfxPolicy = TEXT("projectile inline Niagara cleared; projectile uses BP/default visuals; hit/status uses atomic Play Niagara nodes");
+		const TCHAR* CleanVfxPolicy = TEXT("projectile inline Niagara cleared; projectile uses BP/default visuals; hit/status uses independent atomic VFX nodes");
 
 		int32 UpdatedNodeCount = 0;
 		for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
@@ -1189,6 +1213,8 @@ namespace Rune512Batch
 			SlashNode->bScaleVisualWithCollisionExtent = true;
 			SlashNode->ProjectileCount = 1;
 			SlashNode->ProjectileConeAngleDegrees = 0.f;
+			SlashNode->bSpawnProjectilesSequentially = false;
+			SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 			SlashNode->bAddComboStacksToProjectileCount = false;
 			SlashNode->ProjectilesPerComboStack = 1;
 			SlashNode->MaxBonusProjectiles = 0;
@@ -1231,7 +1257,9 @@ namespace Rune512Batch
 				SlashNode->bAddComboStacksToProjectileCount = true;
 				SlashNode->ProjectilesPerComboStack = 1;
 				SlashNode->MaxBonusProjectiles = 2;
-				SlashNode->ProjectileConeAngleDegrees = 15.f;
+				SlashNode->ProjectileConeAngleDegrees = 0.f;
+				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
 			case EMoonlightFlowProfile::ForwardAttack:
@@ -1245,6 +1273,12 @@ namespace Rune512Batch
 				SlashNode->CollisionBoxExtent = FVector(60.f, 120.f, 55.f);
 				SlashNode->VisualScaleMultiplier = FVector(1.35f, 1.35f, 1.2f);
 				SlashNode->ProjectileVisualNiagaraScale = FVector(1.35f, 1.35f, 1.2f);
+				SlashNode->bAddComboStacksToProjectileCount = true;
+				SlashNode->ProjectilesPerComboStack = 1;
+				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->ProjectileConeAngleDegrees = 0.f;
+				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
 			case EMoonlightFlowProfile::ForwardBurn:
@@ -1260,6 +1294,12 @@ namespace Rune512Batch
 				SlashNode->ProjectileVisualNiagaraScale = FVector(1.2f, 1.2f, 1.1f);
 				SlashNode->HitNiagaraScale = FVector(0.3f, 0.3f, 0.3f);
 				SlashNode->ExpireNiagaraScale = FVector(0.3f, 0.3f, 0.3f);
+				SlashNode->bAddComboStacksToProjectileCount = true;
+				SlashNode->ProjectilesPerComboStack = 1;
+				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->ProjectileConeAngleDegrees = 0.f;
+				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
 			case EMoonlightFlowProfile::ForwardPoison:
@@ -1275,6 +1315,12 @@ namespace Rune512Batch
 				SlashNode->ProjectileVisualNiagaraScale = FVector(1.f, 1.f, 1.f);
 				SlashNode->HitNiagaraScale = FVector(0.65f, 0.65f, 0.65f);
 				SlashNode->ExpireNiagaraScale = FVector(0.5f, 0.5f, 0.5f);
+				SlashNode->bAddComboStacksToProjectileCount = true;
+				SlashNode->ProjectilesPerComboStack = 1;
+				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->ProjectileConeAngleDegrees = 0.f;
+				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
 			case EMoonlightFlowProfile::ForwardSplit:
@@ -1303,6 +1349,12 @@ namespace Rune512Batch
 				SlashNode->CollisionBoxExtent = FVector(70.f, 130.f, 60.f);
 				SlashNode->VisualScaleMultiplier = FVector(1.4f, 1.4f, 1.2f);
 				SlashNode->ProjectileVisualNiagaraScale = FVector(1.2f, 1.2f, 1.1f);
+				SlashNode->bAddComboStacksToProjectileCount = true;
+				SlashNode->ProjectilesPerComboStack = 1;
+				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->ProjectileConeAngleDegrees = 0.f;
+				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
 			case EMoonlightFlowProfile::ForwardPierce:
@@ -1317,6 +1369,12 @@ namespace Rune512Batch
 				SlashNode->CollisionBoxExtent = FVector(36.f, 80.f, 35.f);
 				SlashNode->VisualScaleMultiplier = FVector(1.05f, 1.05f, 1.f);
 				SlashNode->ProjectileVisualNiagaraScale = FVector(1.05f, 1.05f, 1.f);
+				SlashNode->bAddComboStacksToProjectileCount = true;
+				SlashNode->ProjectilesPerComboStack = 1;
+				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->ProjectileConeAngleDegrees = 0.f;
+				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
 			case EMoonlightFlowProfile::ForwardReduceDamage:
@@ -1329,6 +1387,12 @@ namespace Rune512Batch
 				SlashNode->CollisionBoxExtent = FVector(75.f, 135.f, 70.f);
 				SlashNode->VisualScaleMultiplier = FVector(1.35f, 1.35f, 1.25f);
 				SlashNode->ProjectileVisualNiagaraScale = FVector(1.f, 1.f, 1.f);
+				SlashNode->bAddComboStacksToProjectileCount = true;
+				SlashNode->ProjectilesPerComboStack = 1;
+				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->ProjectileConeAngleDegrees = 0.f;
+				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
 			case EMoonlightFlowProfile::ReversedAttack:
@@ -1382,8 +1446,9 @@ namespace Rune512Batch
 				SlashNode->MaxDistance = 700.f;
 				SlashNode->MaxHitCount = 2;
 				SlashNode->bSplitOnFirstHit = true;
+				SlashNode->bDestroyOnWorldStaticHit = true;
 				SlashNode->MaxSplitGenerations = 1;
-				SlashNode->SplitProjectileCount = 5;
+				SlashNode->SplitProjectileCount = 4;
 				SlashNode->SplitConeAngleDegrees = 70.f;
 				SlashNode->SplitDamageMultiplier = 0.5f;
 				SlashNode->SplitSpeedMultiplier = 1.6f;
@@ -1672,6 +1737,40 @@ namespace Rune512Batch
 			}));
 	}
 
+	UBFNode_PlayFlipbookVFX* FindFlipbookNodeByEffectName(UFlowAsset* FlowAsset, const FName EffectName)
+	{
+		return Cast<UBFNode_PlayFlipbookVFX>(FindFirstNode(
+			FlowAsset,
+			[EffectName](UFlowNode* Node)
+			{
+				const UBFNode_PlayFlipbookVFX* PlayNode = Cast<UBFNode_PlayFlipbookVFX>(Node);
+				return PlayNode && PlayNode->EffectName == EffectName;
+			}));
+	}
+
+	int32 ClearNiagaraVfxNodes(UFlowAsset* FlowAsset)
+	{
+		if (!FlowAsset)
+		{
+			return 0;
+		}
+
+		int32 ClearedCount = 0;
+		for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
+		{
+			if (UBFNode_PlayNiagara* NiagaraNode = Cast<UBFNode_PlayNiagara>(Pair.Value))
+			{
+				NiagaraNode->Modify();
+				NiagaraNode->NiagaraSystem = nullptr;
+				NiagaraNode->EffectName = NAME_None;
+				NiagaraNode->Lifetime = 0.f;
+				NiagaraNode->bDestroyWithFlow = false;
+				++ClearedCount;
+			}
+		}
+		return ClearedCount;
+	}
+
 	int32 ClearFlipbookVfxNodes(UFlowAsset* FlowAsset)
 	{
 		if (!FlowAsset)
@@ -1694,6 +1793,37 @@ namespace Rune512Batch
 			}
 		}
 		return ClearedCount;
+	}
+
+	template <typename TPredicate>
+	int32 RemoveFlowNodesWhere(UFlowAsset* FlowAsset, UFlowGraph* FlowGraph, TPredicate Predicate)
+	{
+		if (!FlowAsset || !FlowGraph)
+		{
+			return 0;
+		}
+
+		TArray<TPair<FGuid, UFlowNode*>> NodesToRemove;
+		for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
+		{
+			if (Pair.Value && Predicate(Pair.Value))
+			{
+				NodesToRemove.Emplace(Pair.Key, Pair.Value);
+			}
+		}
+
+		for (const TPair<FGuid, UFlowNode*>& Pair : NodesToRemove)
+		{
+			if (UFlowGraphNode* GraphNode = Cast<UFlowGraphNode>(Pair.Value->GetGraphNode()))
+			{
+				FlowGraph->GetSchema()->BreakNodeLinks(*GraphNode);
+				GraphNode->DestroyNode();
+			}
+
+			FlowAsset->UnregisterNode(Pair.Key);
+		}
+
+		return NodesToRemove.Num();
 	}
 
 	void ConfigureNiagaraNode(
@@ -1727,6 +1857,52 @@ namespace Rune512Batch
 		NiagaraNode->Scale = Scale;
 		NiagaraNode->Lifetime = Lifetime;
 		NiagaraNode->bDestroyWithFlow = bDestroyWithFlow;
+	}
+
+	void ConfigureFlipbookNode(
+		UBFNode_PlayFlipbookVFX* FlipbookNode,
+		UTexture2D* Texture,
+		UMaterialInterface* Material,
+		const FName EffectName,
+		const EBFTargetSelector Target,
+		const FName SocketName,
+		const TArray<FName>& SocketFallbackNames,
+		const FVector& Offset,
+		const float Size,
+		const float Duration,
+		const float Lifetime,
+		const bool bLoop,
+		const bool bDestroyWithFlow,
+		const bool bProjectToVisibleSurface)
+	{
+		if (!FlipbookNode)
+		{
+			return;
+		}
+
+		FlipbookNode->Modify();
+		FlipbookNode->Texture = Texture;
+		FlipbookNode->Material = Material;
+		FlipbookNode->PlaneMesh = nullptr;
+		FlipbookNode->Rows = 4;
+		FlipbookNode->Columns = 4;
+		FlipbookNode->Duration = Duration;
+		FlipbookNode->Lifetime = Lifetime;
+		FlipbookNode->bLoop = bLoop;
+		FlipbookNode->Size = Size;
+		FlipbookNode->Target = Target;
+		FlipbookNode->Socket = SocketName;
+		FlipbookNode->SocketFallbackNames = SocketFallbackNames;
+		FlipbookNode->Offset = Offset;
+		FlipbookNode->bProjectToVisibleSurface = bProjectToVisibleSurface;
+		FlipbookNode->SurfaceOffset = 8.f;
+		FlipbookNode->SurfaceFallbackRadiusScale = 0.45f;
+		FlipbookNode->SurfaceTraceExtraDistance = 140.f;
+		FlipbookNode->bFaceCamera = true;
+		FlipbookNode->bDestroyWithFlow = bDestroyWithFlow;
+		FlipbookNode->EmissiveColor = FLinearColor(1.25f, 0.78f, 0.36f, 1.f);
+		FlipbookNode->AlphaScale = 1.f;
+		FlipbookNode->EffectName = EffectName;
 	}
 
 	void ConfigureBurnApplyEffectNode(
@@ -2076,7 +2252,7 @@ namespace Rune512Batch
 			TEXT("spine_03"),
 			{ TEXT("spine_03"), TEXT("spine_02"), TEXT("spine_01"), TEXT("spine"), TEXT("pelvis"), TEXT("body"), TEXT("root") },
 			true,
-			FVector(0.f, 0.f, 4.f),
+			FVector(0.f, 0.f, 6.f),
 			FRotator::ZeroRotator,
 			FVector(0.28f, 0.28f, 0.28f),
 			3.2f,
@@ -2382,10 +2558,8 @@ namespace Rune512Batch
 		}
 
 		UBFNode_PlayNiagara* VfxNode = ExistingVfxNode;
-		const FConnectedPin EntryConnection = EntryNode->GetConnection(TEXT("Out"));
-		const bool bEntryAlreadyTargetsVfx = VfxNode && EntryConnection.NodeGuid == VfxNode->GetGuid();
 		bool bInsertedNode = false;
-		if (!bEntryAlreadyTargetsVfx)
+		if (!VfxNode)
 		{
 			const FVector2D NodeLocation(
 				static_cast<float>(EntryGraphNode->NodePosX + 320),
@@ -2405,6 +2579,7 @@ namespace Rune512Batch
 			ReportLines.Add(FString::Printf(TEXT("- Failed to create Play Niagara node for `%s`."), *FlowName));
 			return;
 		}
+		LinkFlowNodes(EntryNode, VfxNode);
 
 		ConfigureNiagaraNode(
 			VfxNode,
@@ -2568,6 +2743,224 @@ namespace Rune512Batch
 		}
 	}
 
+	void ConfigureSplitBaseFlow(
+		UFlowAsset* FlowAsset,
+		const FString& FlowName,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		if (FlowName != TEXT("FA_Rune512_Split_Base"))
+		{
+			return;
+		}
+
+		if (bDryRun)
+		{
+			ReportLines.Add(TEXT("- Would configure `FA_Rune512_Split_Base`: Start -> Spawn Ranged Projectiles, YawOffsets=-8/+8, no slash-wave node."));
+			return;
+		}
+
+		if (!FlowAsset)
+		{
+			ReportLines.Add(TEXT("- Cannot configure `FA_Rune512_Split_Base`: Flow asset was not loaded."));
+			return;
+		}
+
+		UFlowGraph* FlowGraph = Cast<UFlowGraph>(FlowAsset->GetGraph());
+		UFlowNode* EntryNode = FlowAsset->GetDefaultEntryNode();
+		if (!FlowGraph || !EntryNode)
+		{
+			ReportLines.Add(TEXT("- Cannot configure `FA_Rune512_Split_Base`: missing FlowGraph or Entry node."));
+			return;
+		}
+
+		UBFNode_SpawnRangedProjectiles* ExistingSpawnNode = Cast<UBFNode_SpawnRangedProjectiles>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_SpawnRangedProjectiles>(Node) != nullptr; }));
+
+		const int32 RemovedLegacyNodes = RemoveFlowNodesWhere(
+			FlowAsset,
+			FlowGraph,
+			[EntryNode, ExistingSpawnNode](UFlowNode* Node)
+			{
+				return Node != EntryNode && Node != ExistingSpawnNode;
+			});
+
+		UBFNode_SpawnRangedProjectiles* SpawnNode = Cast<UBFNode_SpawnRangedProjectiles>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_SpawnRangedProjectiles>(Node) != nullptr; }));
+
+		if (!SpawnNode)
+		{
+			SpawnNode = Cast<UBFNode_SpawnRangedProjectiles>(CreateFlowNodeAfter(
+				FlowGraph,
+				EntryNode,
+				UBFNode_SpawnRangedProjectiles::StaticClass(),
+				FVector2D(320.f, 0.f)));
+		}
+		else
+		{
+			LinkFlowNodes(EntryNode, SpawnNode);
+		}
+
+		if (!SpawnNode)
+		{
+			ReportLines.Add(TEXT("- Failed to create Spawn Ranged Projectiles node for `FA_Rune512_Split_Base`."));
+			return;
+		}
+
+		SpawnNode->Modify();
+		SpawnNode->SourceSelector = EBFTargetSelector::BuffOwner;
+		SpawnNode->BulletClass = LoadBlueprintClassByPackagePath<AMusketBullet>(MusketBulletBlueprintPath);
+		if (!SpawnNode->BulletClass)
+		{
+			SpawnNode->BulletClass = AMusketBullet::StaticClass();
+		}
+		SpawnNode->DamageEffectClass = UGE_MusketBullet_Damage::StaticClass();
+		SpawnNode->YawOffsets = { -8.f, 8.f };
+		SpawnNode->bUseCombatCardAttackDamage = true;
+		SpawnNode->Damage = FFlowDataPinInputProperty_Float(0.f);
+		SpawnNode->bShareAttackInstanceGuid = true;
+		RefreshGraphNodePins(SpawnNode);
+		LinkFlowNodes(EntryNode, SpawnNode);
+
+		FlowAsset->MarkPackageDirty();
+		DirtyPackages.AddUnique(FlowAsset->GetPackage());
+		ReportLines.Add(FString::Printf(
+			TEXT("- Configured `FA_Rune512_Split_Base`: Start -> Spawn Ranged Projectiles, YawOffsets=-8/+8, shared AttackInstanceGuid, removed %d legacy nodes, no moonblade."),
+			RemovedLegacyNodes));
+	}
+
+	void ConfigureSplashBaseFlow(
+		UFlowAsset* FlowAsset,
+		const FString& FlowName,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		if (FlowName != TEXT("FA_Rune512_Splash_Base"))
+		{
+			return;
+		}
+
+		if (bDryRun)
+		{
+			ReportLines.Add(TEXT("- Would configure `FA_Rune512_Splash_Base`: OnDamageDealt -> MathFloat(*0.2) -> ApplyGEInRadius radius=300."));
+			return;
+		}
+
+		if (!FlowAsset)
+		{
+			ReportLines.Add(TEXT("- Cannot configure `FA_Rune512_Splash_Base`: Flow asset was not loaded."));
+			return;
+		}
+
+		UFlowGraph* FlowGraph = Cast<UFlowGraph>(FlowAsset->GetGraph());
+		UFlowNode* EntryNode = FlowAsset->GetDefaultEntryNode();
+		if (!FlowGraph || !EntryNode)
+		{
+			ReportLines.Add(TEXT("- Cannot configure `FA_Rune512_Splash_Base`: missing FlowGraph or Entry node."));
+			return;
+		}
+
+		UBFNode_OnDamageDealt* OnDamageNode = Cast<UBFNode_OnDamageDealt>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_OnDamageDealt>(Node) != nullptr; }));
+		if (!OnDamageNode)
+		{
+			OnDamageNode = Cast<UBFNode_OnDamageDealt>(CreateFlowNodeAfter(
+				FlowGraph,
+				EntryNode,
+				UBFNode_OnDamageDealt::StaticClass(),
+				FVector2D(320.f, 0.f)));
+		}
+		else
+		{
+			LinkFlowNodes(EntryNode, OnDamageNode);
+		}
+
+		UBFNode_MathFloat* MathNode = Cast<UBFNode_MathFloat>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_MathFloat>(Node) != nullptr; }));
+		if (!MathNode)
+		{
+			MathNode = Cast<UBFNode_MathFloat>(CreateFlowNodeAfter(
+				FlowGraph,
+				OnDamageNode,
+				UBFNode_MathFloat::StaticClass(),
+				FVector2D(640.f, 0.f)));
+		}
+		else
+		{
+			LinkFlowNodes(OnDamageNode, MathNode);
+		}
+
+		UBFNode_ApplyGEInRadius* RadiusNode = Cast<UBFNode_ApplyGEInRadius>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_ApplyGEInRadius>(Node) != nullptr; }));
+		if (!RadiusNode)
+		{
+			RadiusNode = Cast<UBFNode_ApplyGEInRadius>(CreateFlowNodeAfter(
+				FlowGraph,
+				MathNode,
+				UBFNode_ApplyGEInRadius::StaticClass(),
+				FVector2D(960.f, 0.f)));
+		}
+		else
+		{
+			LinkFlowNodes(MathNode, RadiusNode);
+		}
+
+		if (!OnDamageNode || !MathNode || !RadiusNode)
+		{
+			ReportLines.Add(TEXT("- Failed to configure `FA_Rune512_Splash_Base`: missing generated nodes."));
+			return;
+		}
+
+		const FGameplayTag DamageTag = RequestTag(TEXT("Attribute.ActDamage"), ReportLines);
+		OnDamageNode->Modify();
+		OnDamageNode->bOncePerSwing = false;
+
+		MathNode->Modify();
+		MathNode->A = FFlowDataPinInputProperty_Float(0.f);
+		MathNode->Operator = EBFMathOp::Multiply;
+		MathNode->B = FFlowDataPinInputProperty_Float(0.2f);
+
+		RadiusNode->Modify();
+		RadiusNode->Effect = LoadBlueprintClassByPackagePath<UGameplayEffect>(DamageBasicSetByCallerPath);
+		if (!RadiusNode->Effect)
+		{
+			RadiusNode->Effect = UGE_MusketBullet_Damage::StaticClass();
+		}
+		RadiusNode->Radius = FFlowDataPinInputProperty_Float(300.f);
+		RadiusNode->LocationSource = EBFTargetSelector::LastDamageTarget;
+		RadiusNode->bUseKillLocation = false;
+		RadiusNode->LocationOffset = FVector::ZeroVector;
+		RadiusNode->bEnemyOnly = true;
+		RadiusNode->bExcludeSelf = true;
+		RadiusNode->bExcludeLocationSourceActor = true;
+		RadiusNode->MaxTargets = 0;
+		RadiusNode->ApplicationCount = 1;
+		RadiusNode->SetByCallerTag1 = DamageTag;
+		RadiusNode->SetByCallerValue1 = FFlowDataPinInputProperty_Float(0.f);
+		RadiusNode->SetByCallerTag2 = FGameplayTag();
+		RadiusNode->SetByCallerValue2 = FFlowDataPinInputProperty_Float(0.f);
+
+		RefreshGraphNodePins(OnDamageNode);
+		RefreshGraphNodePins(MathNode);
+		RefreshGraphNodePins(RadiusNode);
+		LinkFlowNodes(EntryNode, OnDamageNode);
+		LinkFlowNodes(OnDamageNode, MathNode);
+		LinkFlowNodes(MathNode, RadiusNode);
+		LinkDataPins(OnDamageNode, TEXT("LastDamageOutput"), MathNode, TEXT("A"));
+		LinkDataPins(MathNode, TEXT("Result"), RadiusNode, TEXT("SetByCallerValue1"));
+
+		FlowAsset->MarkPackageDirty();
+		DirtyPackages.AddUnique(FlowAsset->GetPackage());
+		ReportLines.Add(TEXT("- Configured `FA_Rune512_Splash_Base`: OnDamageDealt -> MathFloat(*0.2) -> ApplyGEInRadius radius=300, exclude main target."));
+	}
+
 	void ConfigureProductionWeaponComboAssets(
 		bool bDryRun,
 		TArray<FString>& ReportLines,
@@ -2624,6 +3017,89 @@ namespace Rune512Batch
 			Weapon->MarkPackageDirty();
 			DirtyPackages.AddUnique(Weapon->GetPackage());
 		}
+
+		ReportLines.Add(TEXT("## Production weapon combat card pool config"));
+		URuneDataAsset* SplashCard = LoadAssetByPackagePath<URuneDataAsset>(GeneratedRoot + TEXT("/DA_Rune512_Splash"));
+		URuneDataAsset* SplitCard = LoadAssetByPackagePath<URuneDataAsset>(GeneratedRoot + TEXT("/DA_Rune512_Split"));
+		if (!SplashCard || !SplitCard)
+		{
+			ReportLines.Add(TEXT("- Missing generated Splash/Split DA; weapon combat deck replacement skipped."));
+			return;
+		}
+
+		auto ReplaceCardInObjectArray = [](UObject* Owner, const FName PropertyName, URuneDataAsset* FromCard, URuneDataAsset* ToCard)
+		{
+			if (!Owner || !FromCard || !ToCard)
+			{
+				return 0;
+			}
+
+			FArrayProperty* ArrayProperty = FindFProperty<FArrayProperty>(Owner->GetClass(), PropertyName);
+			if (!ArrayProperty)
+			{
+				return 0;
+			}
+
+			FObjectPropertyBase* ObjectInner = CastField<FObjectPropertyBase>(ArrayProperty->Inner);
+			if (!ObjectInner)
+			{
+				return 0;
+			}
+
+			void* ArrayValuePtr = ArrayProperty->ContainerPtrToValuePtr<void>(Owner);
+			FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayValuePtr);
+			int32 ReplacedCount = 0;
+			for (int32 Index = 0; Index < ArrayHelper.Num(); ++Index)
+			{
+				void* ItemPtr = ArrayHelper.GetRawPtr(Index);
+				if (ObjectInner->GetObjectPropertyValue(ItemPtr) == FromCard)
+				{
+					ObjectInner->SetObjectPropertyValue(ItemPtr, ToCard);
+					++ReplacedCount;
+				}
+			}
+			return ReplacedCount;
+		};
+
+		auto ReplaceWeaponCard = [&](const FString& WeaponPath, URuneDataAsset* FromCard, URuneDataAsset* ToCard, const TCHAR* Label)
+		{
+			UObject* WeaponDef = LoadAssetByPackagePath<UObject>(WeaponPath);
+			if (!WeaponDef)
+			{
+				ReportLines.Add(FString::Printf(TEXT("- Missing weapon DA `%s` for %s card pool replacement."), *WeaponPath, Label));
+				return;
+			}
+
+			ReportLines.Add(FString::Printf(
+				TEXT("- %s `%s`: replace %s -> `%s` in InitialCombatDeck/InitialRunes."),
+				bDryRun ? TEXT("Would update") : TEXT("Updated"),
+				*WeaponPath,
+				Label,
+				*GetNameSafe(ToCard)));
+
+			if (bDryRun)
+			{
+				return;
+			}
+
+			WeaponDef->Modify();
+			const int32 CombatDeckReplaced = ReplaceCardInObjectArray(WeaponDef, TEXT("InitialCombatDeck"), FromCard, ToCard);
+			const int32 RuneListReplaced = ReplaceCardInObjectArray(WeaponDef, TEXT("InitialRunes"), FromCard, ToCard);
+			if (CombatDeckReplaced + RuneListReplaced > 0)
+			{
+				ReportLines.Add(FString::Printf(
+					TEXT("- `%s` replaced cards: InitialCombatDeck=%d, InitialRunes=%d."),
+					*WeaponPath,
+					CombatDeckReplaced,
+					RuneListReplaced));
+				WeaponDef->MarkPackageDirty();
+				DirtyPackages.AddUnique(WeaponDef->GetPackage());
+			}
+		};
+
+		ReplaceWeaponCard(ProductionTHSwordWeapon, SplitCard, SplashCard, TEXT("melee Split"));
+		ReplaceWeaponCard(ProductionRedSwordWeapon, SplitCard, SplashCard, TEXT("melee Split"));
+		ReplaceWeaponCard(ProductionHarquebusWeapon, SplashCard, SplitCard, TEXT("ranged Splash"));
 	}
 
 	void ApplyCardSpec(
@@ -2652,6 +3128,8 @@ namespace Rune512Batch
 		ConfigureStandaloneNiagaraVfxFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		StripApplyAttributeInlineVfx(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		ConfigureCombatCardAttributeMultiplierFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
+		ConfigureSplitBaseFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
+		ConfigureSplashBaseFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 
 		URuneDataAsset* RuneDA = Cast<URuneDataAsset>(DuplicateAssetIfMissing(
 			Spec.TemplateDAPath,
@@ -2712,7 +3190,7 @@ namespace Rune512Batch
 			}
 		}
 		CombatCard.RequiredAction = ECardRequiredAction::Any;
-		CombatCard.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+		CombatCard.TriggerTiming = Spec.TriggerTiming;
 		CombatCard.BaseFlow = BaseFlow;
 		CombatCard.LinkRecipes.Reset();
 		CombatCard.DefaultLinkOrientation = Spec.DefaultLinkOrientation;
@@ -2815,13 +3293,15 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 	ReportLines.Add(TEXT(""));
 	ReportLines.Add(TEXT("## FA VFX todos"));
 	ReportLines.Add(TEXT("- Card VFX is configured in each BaseFlow/LinkFlow, not on CombatCard data."));
-	ReportLines.Add(TEXT("- Moonlight generated slash-wave nodes clear inline Niagara fields and use BP/default projectile visuals; hit/status visuals should be atomic Play Niagara nodes."));
+	ReportLines.Add(TEXT("- Moonlight generated slash-wave nodes clear inline Niagara fields and use BP/default projectile visuals; hit/status visuals should be independent atomic VFX nodes."));
+	ReportLines.Add(TEXT("- Moonlight base and forward LinkFlows use combo projectiles as sequential same-path shots: Cone=0, Sequential=true, Interval=0.12, MaxBonus=2."));
 	ReportLines.Add(TEXT("- Moonlight forward poison LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara -> ApplyEffect -> Play Niagara -> ApplyGEInRadius."));
-	ReportLines.Add(TEXT("- Moonlight forward burn LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara attached to enemy bone -> persistent UGE_RuneBurn."));
+	ReportLines.Add(TEXT("- Moonlight forward burn LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara attached to enemy socket -> persistent UGE_RuneBurn."));
 	ReportLines.Add(TEXT("- Moonlight reversed poison/burn LinkFlows use Spawn Rune Ground Path Effect and disconnect legacy slash-wave execution."));
-	ReportLines.Add(TEXT("- Burn/Poison base VFX use compact Play Niagara nodes; old Flipbook node payloads are cleared when found."));
-	ReportLines.Add(TEXT("- Projectile inline Niagara fields remain empty. Link/status VFX must live in independent FA Play Niagara nodes."));
+	ReportLines.Add(TEXT("- Burn/Poison base VFX use compact Play Niagara nodes; stale Flipbook nodes are cleared when found."));
+	ReportLines.Add(TEXT("- Projectile inline Niagara fields remain empty. Link/status VFX must live in independent FA visual nodes."));
 	ReportLines.Add(TEXT("- Projectile visuals stay on projectile-spawn nodes; hit/status visuals should use separate visual nodes."));
+	ReportLines.Add(TEXT("- Splash/Split are separated: melee Splash uses OnHit radius damage; ranged Split uses OnCommit extra musket projectiles; Moonlight Split only exists as reversed LinkFlow."));
 	ReportLines.Add(TEXT("- Any Flow copied from a template must be opened once and checked against the 512 design doc before gameplay signoff."));
 
 	if (!bDryRun && DirtyPackages.Num() > 0)
