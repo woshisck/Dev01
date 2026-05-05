@@ -44,13 +44,13 @@ protected:
 	TObjectPtr<UWidget> StateText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Style")
-	FLinearColor NextCardFrameColor = FLinearColor(0.95f, 0.72f, 0.22f, 0.95f);
+	FLinearColor NextCardFrameColor = FLinearColor(0.78f, 0.82f, 0.90f, 0.96f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Style")
-	FLinearColor NormalCardFrameColor = FLinearColor(0.12f, 0.16f, 0.22f, 0.85f);
+	FLinearColor NormalCardFrameColor = FLinearColor(0.050f, 0.055f, 0.065f, 0.94f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Style")
-	FLinearColor EmptyCardFrameColor = FLinearColor(0.04f, 0.05f, 0.07f, 0.45f);
+	FLinearColor EmptyCardFrameColor = FLinearColor(0.020f, 0.022f, 0.026f, 0.46f);
 
 private:
 	static FText GetCardDisplayName(const FCombatCardInstance& Card);

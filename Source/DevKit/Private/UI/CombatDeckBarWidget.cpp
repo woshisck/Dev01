@@ -172,7 +172,7 @@ void UCombatDeckBarWidget::UpdateShuffleVisuals(float NormalizedProgress, bool b
 
 	const FText ShuffleLabel = bIsShuffling
 		? FText::Format(
-			FText::FromString(TEXT("卡组装填中：这段空窗仍可攻击，但暂时不会触发卡牌效果。 {0}")),
+			FText::FromString(TEXT("卡组装填中：可继续攻击，但暂时不会触发卡牌效果。 {0}")),
 			FText::AsPercent(NormalizedProgress))
 		: FText::GetEmpty();
 	SetTextIfBound(ShuffleText, ShuffleLabel);

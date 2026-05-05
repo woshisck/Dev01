@@ -17,7 +17,7 @@ constexpr float BlockedFeedbackSeconds = 0.22f;
 constexpr float DragVisualOpacity = 0.72f;
 constexpr float DragVisualScale = 1.04f;
 constexpr float SelectedVisualScale = 1.03f;
-const FLinearColor SelectedColorAndOpacity(1.0f, 0.92f, 0.48f, 1.0f);
+const FLinearColor SelectedColorAndOpacity(0.84f, 0.88f, 0.96f, 1.0f);
 const FVector2D BlockedFeedbackOffset(6.0f, 0.0f);
 }
 
@@ -410,6 +410,8 @@ FText UCombatDeckEditCardSlotWidget::GetCardTypeText(ECombatCardType CardType)
 		return FText::FromString(TEXT("连携"));
 	case ECombatCardType::Finisher:
 		return FText::FromString(TEXT("终结技"));
+	case ECombatCardType::Passive:
+		return FText::FromString(TEXT("被动"));
 	case ECombatCardType::Normal:
 	case ECombatCardType::Attack:
 	default:
@@ -425,8 +427,8 @@ FText UCombatDeckEditCardSlotWidget::GetDirectionText(const FCombatCardInstance&
 	}
 
 	return InCard.LinkOrientation == ECombatCardLinkOrientation::Reversed
-		? FText::FromString(TEXT("↓"))
-		: FText::FromString(TEXT("↑"));
+		? FText::FromString(TEXT("<-"))
+		: FText::FromString(TEXT("->"));
 }
 
 void UCombatDeckEditCardSlotWidget::SetTextIfSupported(UWidget* Widget, const FText& Text)
