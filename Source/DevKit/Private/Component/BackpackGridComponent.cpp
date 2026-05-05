@@ -139,7 +139,7 @@ void UBackpackGridComponent::BeginPlay()
 	}
 
 	// 隐藏被动符文：延迟一帧启动 BuffFlow，不占格子，不进 UI
-	if (!bDisableLegacyBackpackRuneRuntimeForCardTest && HiddenPassiveRunes.Num() > 0)
+	if (HiddenPassiveRunes.Num() > 0)
 	{
 		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UBackpackGridComponent::ActivateHiddenPassiveRunes);
 	}
@@ -255,11 +255,6 @@ void UBackpackGridComponent::DebugPlaceTestRunes()
 
 void UBackpackGridComponent::AddHiddenPassiveRune(const FRuneInstance& Rune)
 {
-	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
-	{
-		return;
-	}
-
 	if (!Rune.Flow.FlowAsset) return;
 
 	RuntimeHiddenPassiveRunes.Add(Rune);
@@ -274,12 +269,6 @@ void UBackpackGridComponent::AddHiddenPassiveRune(const FRuneInstance& Rune)
 
 void UBackpackGridComponent::RestoreRuntimeHiddenPassiveRunes(const TArray<FRuneInstance>& Runes)
 {
-	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
-	{
-		RuntimeHiddenPassiveRunes.Reset();
-		return;
-	}
-
 	RuntimeHiddenPassiveRunes.Reset();
 	for (const FRuneInstance& Rune : Runes)
 	{
@@ -289,11 +278,6 @@ void UBackpackGridComponent::RestoreRuntimeHiddenPassiveRunes(const TArray<FRune
 
 void UBackpackGridComponent::ActivateHiddenPassiveRunes()
 {
-	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
-	{
-		return;
-	}
-
 	UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();
 	if (!BFC)
 	{

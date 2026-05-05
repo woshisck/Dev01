@@ -13,6 +13,7 @@
 #include "BuffFlow/Nodes/BFNode_ApplyEffect.h"
 #include "BuffFlow/Nodes/BFNode_ApplyGEInRadius.h"
 #include "BuffFlow/Nodes/BFNode_CalcRuneGroundPathTransform.h"
+#include "BuffFlow/Nodes/BFNode_GrantSacrificePassive.h"
 #include "BuffFlow/Nodes/BFNode_PlayFlipbookVFX.h"
 #include "BuffFlow/Nodes/BFNode_PlayNiagara.h"
 #include "BuffFlow/Nodes/BFNode_MathFloat.h"
@@ -1244,12 +1245,12 @@ bool FCombatDeckGeneratedMoonlightRecipesTriggerAllEffectsTest::RunTest(const FS
 		TEXT("Card.Effect.Defense.ReduceDamage"),
 	};
 	TArray<FName> ReversedEffectTagNames = ForwardEffectTagNames;
-	ReversedEffectTagNames.Add(TEXT("Card.Effect.Split"));
+	ReversedEffectTagNames.Add(TEXT("Card.Effect.SplashSplit"));
 
 	const FCombatCardConfig& ForwardMoonlightConfig = MoonlightForwardDA->RuneInfo.CombatCard;
 	const FCombatCardConfig& ReversedMoonlightConfig = MoonlightReversedDA->RuneInfo.CombatCard;
-	TestEqual(TEXT("Forward Moonlight has forward recipes without Split and reversed recipes with Split"), ForwardMoonlightConfig.LinkRecipes.Num(), 13);
-	TestEqual(TEXT("Reversed Moonlight has forward recipes without Split and reversed recipes with Split"), ReversedMoonlightConfig.LinkRecipes.Num(), 13);
+	TestEqual(TEXT("Forward Moonlight has forward recipes and one reversed Splash/Split family recipe"), ForwardMoonlightConfig.LinkRecipes.Num(), 13);
+	TestEqual(TEXT("Reversed Moonlight has forward recipes and one reversed Splash/Split family recipe"), ReversedMoonlightConfig.LinkRecipes.Num(), 13);
 
 	for (const FName& EffectTagName : ForwardEffectTagNames)
 	{
@@ -1519,17 +1520,25 @@ bool FCombatDeckGeneratedSplashSplitConfiguredTest::RunTest(const FString& Param
 
 	const FGameplayTag SplashEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Splash"), false);
 	const FGameplayTag SplitEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Split"), false);
+	const FGameplayTag SplashSplitIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.SplashSplit"), false);
+	const FGameplayTag SplashSplitEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.SplashSplit"), false);
 	TestTrue(TEXT("Card.Effect.Splash tag exists"), SplashEffectTag.IsValid());
 	TestTrue(TEXT("Card.Effect.Split tag exists"), SplitEffectTag.IsValid());
+	TestTrue(TEXT("Card.ID.SplashSplit tag exists"), SplashSplitIdTag.IsValid());
+	TestTrue(TEXT("Card.Effect.SplashSplit tag exists"), SplashSplitEffectTag.IsValid());
 
 	const FCombatCardConfig& SplashCard = SplashDA->RuneInfo.CombatCard;
 	TestEqual(TEXT("Splash card is normal"), SplashCard.CardType, ECombatCardType::Normal);
 	TestEqual(TEXT("Splash card triggers on hit"), SplashCard.TriggerTiming, ECombatCardTriggerTiming::OnHit);
+	TestEqual(TEXT("Splash card uses shared Splash/Split id"), SplashCard.CardIdTag, SplashSplitIdTag);
+	TestTrue(TEXT("Splash card has shared Splash/Split effect tag"), SplashCard.CardEffectTags.HasTagExact(SplashSplitEffectTag));
 	TestTrue(TEXT("Splash card has splash effect tag"), SplashCard.CardEffectTags.HasTagExact(SplashEffectTag));
 
 	const FCombatCardConfig& SplitCard = SplitDA->RuneInfo.CombatCard;
 	TestEqual(TEXT("Split card is normal"), SplitCard.CardType, ECombatCardType::Normal);
 	TestEqual(TEXT("Split card triggers on commit"), SplitCard.TriggerTiming, ECombatCardTriggerTiming::OnCommit);
+	TestEqual(TEXT("Split card uses shared Splash/Split id"), SplitCard.CardIdTag, SplashSplitIdTag);
+	TestTrue(TEXT("Split card has shared Splash/Split effect tag"), SplitCard.CardEffectTags.HasTagExact(SplashSplitEffectTag));
 	TestTrue(TEXT("Split card has split effect tag"), SplitCard.CardEffectTags.HasTagExact(SplitEffectTag));
 
 	UFlowAsset* SplashFlow = LoadObject<UFlowAsset>(
@@ -1625,11 +1634,82 @@ bool FCombatDeckGeneratedSplashSplitConfiguredTest::RunTest(const FString& Param
 			TestTrue(TEXT("Moonlight reversed split reacts to world collision"), ReversedSplitSlashNode->bDestroyOnWorldStaticHit);
 			TestEqual(TEXT("Moonlight reversed split child count"), ReversedSplitSlashNode->SplitProjectileCount, 4);
 			TestEqual(TEXT("Moonlight reversed split max generation"), ReversedSplitSlashNode->MaxSplitGenerations, 1);
-			TestEqual(TEXT("Moonlight reversed split cone"), ReversedSplitSlashNode->SplitConeAngleDegrees, 70.f);
+			TestEqual(TEXT("Moonlight reversed split cone"), ReversedSplitSlashNode->SplitConeAngleDegrees, 100.f);
+			TestTrue(TEXT("Moonlight reversed split randomizes child directions"), ReversedSplitSlashNode->bRandomizeSplitDirections);
+			TestEqual(TEXT("Moonlight reversed split yaw jitter"), ReversedSplitSlashNode->SplitRandomYawJitterDegrees, 22.f);
+			TestEqual(TEXT("Moonlight reversed split pitch jitter"), ReversedSplitSlashNode->SplitRandomPitchDegrees, 0.f);
+			TestEqual(TEXT("Moonlight reversed split child distance multiplier"), ReversedSplitSlashNode->SplitMaxDistanceMultiplier, 1.25f);
+			TestTrue(TEXT("Moonlight reversed split child bounces on enemy hit"), ReversedSplitSlashNode->bBounceSplitChildrenOnEnemyHit);
+			TestEqual(TEXT("Moonlight reversed split child max enemy bounces"), ReversedSplitSlashNode->SplitChildMaxEnemyBounces, 1);
 		}
 	}
 
 	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedSacrificePassivesConfiguredTest,
+	"DevKit.CombatDeck.GeneratedSacrificePassivesConfigured",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckGeneratedSacrificePassivesConfiguredTest::RunTest(const FString& Parameters)
+{
+	struct FExpectedSacrificePassive
+	{
+		const TCHAR* Key;
+		ESacrificeRunePassiveType PassiveType;
+	};
+
+	const FExpectedSacrificePassive ExpectedPassives[] = {
+		{ TEXT("MoonlightShadow"), ESacrificeRunePassiveType::MoonlightShadow },
+		{ TEXT("ShadowMark"), ESacrificeRunePassiveType::ShadowMark },
+		{ TEXT("GiantSwing"), ESacrificeRunePassiveType::GiantSwing },
+	};
+
+	bool bAllValid = true;
+	for (const FExpectedSacrificePassive& ExpectedPassive : ExpectedPassives)
+	{
+		const FString Key(ExpectedPassive.Key);
+		const FString DAPath = FString::Printf(
+			TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/DA_Rune512_Sacrifice_%s.DA_Rune512_Sacrifice_%s"),
+			*Key,
+			*Key);
+		const FString FlowPath = FString::Printf(
+			TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/Flow/FA_Rune512_Sacrifice_%s.FA_Rune512_Sacrifice_%s"),
+			*Key,
+			*Key);
+
+		URuneDataAsset* RuneDA = LoadObject<URuneDataAsset>(nullptr, *DAPath);
+		UFlowAsset* Flow = LoadObject<UFlowAsset>(nullptr, *FlowPath);
+		bAllValid &= TestNotNull(FString::Printf(TEXT("Sacrifice %s DA exists"), *Key), RuneDA);
+		bAllValid &= TestNotNull(FString::Printf(TEXT("Sacrifice %s Flow exists"), *Key), Flow);
+		if (!RuneDA || !Flow)
+		{
+			continue;
+		}
+
+		bAllValid &= TestEqual(FString::Printf(TEXT("%s is passive trigger"), *Key), RuneDA->RuneInfo.RuneConfig.TriggerType, ERuneTriggerType::Passive);
+		bAllValid &= TestEqual(FString::Printf(TEXT("%s has empty shape"), *Key), RuneDA->RuneInfo.Shape.Cells.Num(), 0);
+		bAllValid &= TestFalse(FString::Printf(TEXT("%s does not enter combat deck"), *Key), RuneDA->RuneInfo.CombatCard.bIsCombatCard);
+		bAllValid &= TestEqual(FString::Printf(TEXT("%s has no link recipes"), *Key), RuneDA->RuneInfo.CombatCard.LinkRecipes.Num(), 0);
+		bAllValid &= TestTrue(FString::Printf(TEXT("%s RuneInfo uses sacrifice flow"), *Key), RuneDA->RuneInfo.Flow.FlowAsset.Get() == Flow);
+
+		int32 GrantNodeCount = 0;
+		for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
+		{
+			if (const UBFNode_GrantSacrificePassive* GrantNode = Cast<UBFNode_GrantSacrificePassive>(Pair.Value))
+			{
+				++GrantNodeCount;
+				bAllValid &= TestEqual(FString::Printf(TEXT("%s grant node passive type"), *Key), GrantNode->Config.PassiveType, ExpectedPassive.PassiveType);
+			}
+			else if (Pair.Value != Flow->GetDefaultEntryNode())
+			{
+				bAllValid &= TestTrue(FString::Printf(TEXT("%s flow only contains entry plus grant node"), *Key), false);
+			}
+		}
+		bAllValid &= TestEqual(FString::Printf(TEXT("%s has one grant node"), *Key), GrantNodeCount, 1);
+	}
+
+	return bAllValid;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedGenericStatusCardsConfiguredTest,

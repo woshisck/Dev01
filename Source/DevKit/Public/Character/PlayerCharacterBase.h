@@ -6,6 +6,7 @@
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "Data/RuneDataAsset.h"
+#include "Data/AltarDataAsset.h"
 #include "GameFramework/ForceFeedbackEffect.h"
 #include "Containers/Ticker.h"
 
@@ -16,7 +17,9 @@
  */
 //class AAuraBase;
 class ARewardPickup;
+class APlayerCharacterBase;
 class ASacrificeGracePickup;
+class AAltarActor;
 class AShopActor;
 class AWeaponSpawner;
 class APortal;
@@ -25,8 +28,10 @@ class UYogSaveGame;
 class UBackpackStyleDataAsset;
 class UBackpackGridComponent;
 class UCombatDeckComponent;
+class UCombatItemComponent;
 class UComboRuntimeComponent;
 class UBuffFlowComponent;
+class USacrificeRuneComponent;
 class USkillChargeComponent;
 class UWeaponDefinition;
 class USacrificeGraceDA;
@@ -85,11 +90,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	TObjectPtr<UCombatDeckComponent> CombatDeckComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat Item")
+	TObjectPtr<UCombatItemComponent> CombatItemComponent;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UComboRuntimeComponent> ComboRuntimeComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BuffFlow")
 	TObjectPtr<UBuffFlowComponent> BuffFlowComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Sacrifice Rune")
+	TObjectPtr<USacrificeRuneComponent> SacrificeRuneComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SkillCharge")
 	TObjectPtr<USkillChargeComponent> SkillChargeComponent;
@@ -202,6 +213,9 @@ public:
 	TObjectPtr<ASacrificeGracePickup> PendingSacrificePickup;
 
 	UPROPERTY()
+	TObjectPtr<AAltarActor> PendingAltar;
+
+	UPROPERTY()
 	TObjectPtr<AShopActor> PendingShop;
 
 	// 当前在拾取范围内的 WeaponSpawner（按 E 键时触发武器拾取）
@@ -255,6 +269,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SacrificeGrace")
 	void AcquireSacrificeGrace(USacrificeGraceDA* DA);
 
+	UFUNCTION(BlueprintCallable, Category = "Sacrifice")
+	bool ApplySacrificeOfferingCost(const FAltarSacrificeEntry& CostEntry, int32 DeckCardIndex = -1);
+
+	void RestoreSacrificeOfferingCosts(const TArray<FSacrificeOfferingCostState>& Costs);
+
+	const TArray<FSacrificeOfferingCostState>& GetSacrificeOfferingCosts() const { return ActiveSacrificeOfferingCosts; }
+
 	// ─── 最后输入方向（冲刺朝向使用）────────────────────────────────
 	// 由 Controller.Move() 在每次非零输入时更新，世界空间单位向量
 	UPROPERTY(BlueprintReadOnly, Category = "Input")
@@ -291,6 +312,8 @@ private:
 	void RestoreDamageTimeDilation();
 
 	int32 CurrentHeatPhase = 0;
+	UPROPERTY()
+	TArray<FSacrificeOfferingCostState> ActiveSacrificeOfferingCosts;
 	float PhaseGlowElapsed = -1.f;
 	float DamageGlowElapsed = -1.f;
 	float PreviousDamageGlobalTimeDilation = 1.f;

@@ -13,6 +13,7 @@
 #include "BuffFlow/Nodes/BFNode_OnDamageDealt.h"
 #include "BuffFlow/Nodes/BFNode_PlayFlipbookVFX.h"
 #include "BuffFlow/Nodes/BFNode_PlayNiagara.h"
+#include "BuffFlow/Nodes/BFNode_GrantSacrificePassive.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRangedProjectiles.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
@@ -54,6 +55,8 @@ namespace Rune512Batch
 {
 	const FString GeneratedRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated");
 	const FString GeneratedFlowRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow");
+	const FString SacrificeGeneratedRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice");
+	const FString SacrificeGeneratedFlowRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/Flow");
 	const FString IconRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/Icons");
 	const FString VfxTextureRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures");
 	const FString VfxMaterialRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Materials");
@@ -115,6 +118,17 @@ namespace Rune512Batch
 		FString BaseFlowTargetName;
 		TArray<FLinkRecipeSpec> LinkRecipes;
 		TArray<FString> ManualTodos;
+	};
+
+	struct FSacrificeSpec
+	{
+		FString Key;
+		FString DisplayName;
+		FString Description;
+		FString TargetAssetName;
+		FString FlowTargetName;
+		FString IconAssetName;
+		FSacrificeRunePassiveConfig Config;
 	};
 
 	FString ToObjectPath(const FString& PackagePath)
@@ -375,6 +389,9 @@ namespace Rune512Batch
 			{ TEXT("T_Rune512_Pierce"), TEXT("T_Rune512_Pierce.png") },
 			{ TEXT("T_Rune512_Attack"), TEXT("T_Rune512_Attack.png") },
 			{ TEXT("T_Rune512_ReduceDamage"), TEXT("T_Rune512_ReduceDamage.png") },
+			{ TEXT("T_Rune512_Sacrifice_MoonlightShadow"), TEXT("T_Rune512_Sacrifice_MoonlightShadow.png") },
+			{ TEXT("T_Rune512_Sacrifice_ShadowMark"), TEXT("T_Rune512_Sacrifice_ShadowMark.png") },
+			{ TEXT("T_Rune512_Sacrifice_GiantSwing"), TEXT("T_Rune512_Sacrifice_GiantSwing.png") },
 		};
 	}
 
@@ -774,7 +791,7 @@ namespace Rune512Batch
 		};
 		if (Direction == ECombatCardLinkOrientation::Reversed)
 		{
-			Effects.Emplace(TEXT("Card.Effect.Split"), TEXT("Split"));
+			Effects.Emplace(TEXT("Card.Effect.SplashSplit"), TEXT("Split"));
 		}
 
 		TArray<FLinkRecipeSpec> Recipes;
@@ -956,8 +973,8 @@ namespace Rune512Batch
 			TEXT("Splash"),
 			TEXT("\u6e85\u5c04"),
 			TEXT("\u8fd1\u6218\u6b66\u5668\u5361\u3002\u653b\u51fb\u547d\u4e2d\u65f6\uff0c\u5bf9\u53d7\u4f24\u654c\u4eba\u5468\u56f4 300cm \u5185\u5176\u4ed6\u654c\u4eba\u9020\u6210\u672c\u6b21\u653b\u51fb 20% \u7684\u6e85\u5c04\u4f24\u5bb3\uff1b\u4e3b\u76ee\u6807\u4e0d\u91cd\u590d\u53d7\u5230\u6e85\u5c04\u3002"),
-			TEXT("Card.ID.Splash"),
-			{ TEXT("Card.Effect.Splash") },
+			TEXT("Card.ID.SplashSplit"),
+			{ TEXT("Card.Effect.SplashSplit"), TEXT("Card.Effect.Splash") },
 			TEXT("T_Rune512_Splash"),
 			AttackTemplateFlow,
 			TEXT("FA_Rune512_Splash_Base"),
@@ -970,8 +987,8 @@ namespace Rune512Batch
 			TEXT("Split"),
 			TEXT("溅射/分裂"),
 			TEXT("近战武器为溅射，攻击时对受伤敌人周围目标造成本次攻击 20% 伤害；远程武器为分裂，额外发射 2 个独立弹道。"),
-			TEXT("Card.ID.Split"),
-			{ TEXT("Card.Effect.Split") },
+			TEXT("Card.ID.SplashSplit"),
+			{ TEXT("Card.Effect.SplashSplit"), TEXT("Card.Effect.Split") },
 			TEXT("T_Rune512_Split"),
 			MoonlightBaseTemplateFlow,
 			TEXT("FA_Rune512_Split_Base"),
@@ -1053,6 +1070,58 @@ namespace Rune512Batch
 		MoonlightReversed.DefaultLinkOrientation = ECombatCardLinkOrientation::Reversed;
 		MoonlightReversed.TargetAssetName = TEXT("DA_Rune512_Moonlight_Reversed");
 		Specs.Add(MoonlightReversed);
+
+		return Specs;
+	}
+
+	TArray<FSacrificeSpec> MakeSacrificeSpecs()
+	{
+		TArray<FSacrificeSpec> Specs;
+
+		FSacrificeSpec MoonlightShadow;
+		MoonlightShadow.Key = TEXT("MoonlightShadow");
+		MoonlightShadow.DisplayName = TEXT("\u6708\u5149\u4e4b\u5f71");
+		MoonlightShadow.Description = TEXT("\u732e\u796d\u88ab\u52a8\u7b26\u6587\u3002\u51b2\u523a\u540e\u5728\u539f\u5730\u7559\u4e0b\u6697\u5f71\uff1b\u6697\u5f71\u4e0d\u79fb\u52a8\uff0c\u4f1a\u6a21\u4eff\u73a9\u5bb6\u653b\u51fb\u5e76\u540c\u6b65\u6708\u5149\u7b49\u5361\u724c\u589e\u5f3a\uff0c\u9ed8\u8ba4 4 \u6b21\u653b\u51fb\u540e\u6d88\u5931\u3002");
+		MoonlightShadow.TargetAssetName = TEXT("DA_Rune512_Sacrifice_MoonlightShadow");
+		MoonlightShadow.FlowTargetName = TEXT("FA_Rune512_Sacrifice_MoonlightShadow");
+		MoonlightShadow.IconAssetName = TEXT("T_Rune512_Sacrifice_MoonlightShadow");
+		MoonlightShadow.Config.PassiveType = ESacrificeRunePassiveType::MoonlightShadow;
+		MoonlightShadow.Config.ShadowAttackCharges = 4;
+		MoonlightShadow.Config.ShadowLifetime = 10.0f;
+		MoonlightShadow.Config.ShadowDamageMultiplier = 0.45f;
+		MoonlightShadow.Config.ShadowAttackRange = 380.0f;
+		MoonlightShadow.Config.ShadowAttackConeDegrees = 90.0f;
+		Specs.Add(MoonlightShadow);
+
+		FSacrificeSpec ShadowMark;
+		ShadowMark.Key = TEXT("ShadowMark");
+		ShadowMark.DisplayName = TEXT("\u6697\u5f71\u5370\u8bb0");
+		ShadowMark.Description = TEXT("\u732e\u796d\u88ab\u52a8\u7b26\u6587\u3002\u51b2\u523a\u6b21\u6570 +1\uff1b\u51b2\u523a\u8def\u5f84\u4e0a\u78b0\u5230\u7684\u654c\u4eba\u83b7\u5f97\u6697\u5f71\u5370\u8bb0\uff0c\u88ab\u73a9\u5bb6\u653b\u51fb\u540e\u5f15\u7206\u5e76\u9020\u6210\u8303\u56f4\u4f24\u5bb3\u3002");
+		ShadowMark.TargetAssetName = TEXT("DA_Rune512_Sacrifice_ShadowMark");
+		ShadowMark.FlowTargetName = TEXT("FA_Rune512_Sacrifice_ShadowMark");
+		ShadowMark.IconAssetName = TEXT("T_Rune512_Sacrifice_ShadowMark");
+		ShadowMark.Config.PassiveType = ESacrificeRunePassiveType::ShadowMark;
+		ShadowMark.Config.DashChargeBonus = 1.0f;
+		ShadowMark.Config.DashMarkRadius = 95.0f;
+		ShadowMark.Config.MarkDuration = 8.0f;
+		ShadowMark.Config.MarkExplosionDamage = 35.0f;
+		ShadowMark.Config.MarkExplosionRadius = 260.0f;
+		Specs.Add(ShadowMark);
+
+		FSacrificeSpec GiantSwing;
+		GiantSwing.Key = TEXT("GiantSwing");
+		GiantSwing.DisplayName = TEXT("\u5de8\u529b\u6325\u821e");
+		GiantSwing.Description = TEXT("\u732e\u796d\u88ab\u52a8\u7b26\u6587\u3002\u73a9\u5bb6\u6240\u6709\u653b\u51fb\u90fd\u4f1a\u51fb\u9000\u654c\u4eba\uff1b\u654c\u4eba\u88ab\u51fb\u9000\u8fc7\u7a0b\u4e2d\u78b0\u5230\u5176\u4ed6\u5355\u4f4d\u65f6\uff0c\u5bf9\u88ab\u78b0\u5355\u4f4d\u9020\u6210\u4e00\u6b21\u78b0\u649e\u4f24\u5bb3\u3002");
+		GiantSwing.TargetAssetName = TEXT("DA_Rune512_Sacrifice_GiantSwing");
+		GiantSwing.FlowTargetName = TEXT("FA_Rune512_Sacrifice_GiantSwing");
+		GiantSwing.IconAssetName = TEXT("T_Rune512_Sacrifice_GiantSwing");
+		GiantSwing.Config.PassiveType = ESacrificeRunePassiveType::GiantSwing;
+		GiantSwing.Config.KnockbackDistance = 520.0f;
+		GiantSwing.Config.KnockbackCollisionDamage = 22.0f;
+		GiantSwing.Config.KnockbackCollisionRadius = 120.0f;
+		GiantSwing.Config.KnockbackCollisionDuration = 0.35f;
+		GiantSwing.Config.KnockbackCollisionTickInterval = 0.05f;
+		Specs.Add(GiantSwing);
 
 		return Specs;
 	}
@@ -1236,6 +1305,8 @@ namespace Rune512Batch
 			SlashNode->SplitSpeedMultiplier = 2.f;
 			SlashNode->SplitMaxDistanceMultiplier = 0.6f;
 			SlashNode->SplitCollisionBoxExtentMultiplier = FVector(0.5f, 0.5f, 0.5f);
+			SlashNode->bBounceSplitChildrenOnEnemyHit = false;
+			SlashNode->SplitChildMaxEnemyBounces = 0;
 			SlashNode->HitNiagaraSystem = nullptr;
 			SlashNode->HitNiagaraScale = FVector(0.75f, 0.75f, 0.75f);
 			SlashNode->ExpireNiagaraSystem = nullptr;
@@ -1449,11 +1520,16 @@ namespace Rune512Batch
 				SlashNode->bDestroyOnWorldStaticHit = true;
 				SlashNode->MaxSplitGenerations = 1;
 				SlashNode->SplitProjectileCount = 4;
-				SlashNode->SplitConeAngleDegrees = 70.f;
+				SlashNode->SplitConeAngleDegrees = 100.f;
+				SlashNode->bRandomizeSplitDirections = true;
+				SlashNode->SplitRandomYawJitterDegrees = 22.f;
+				SlashNode->SplitRandomPitchDegrees = 0.f;
 				SlashNode->SplitDamageMultiplier = 0.5f;
 				SlashNode->SplitSpeedMultiplier = 1.6f;
-				SlashNode->SplitMaxDistanceMultiplier = 0.55f;
+				SlashNode->SplitMaxDistanceMultiplier = 1.25f;
 				SlashNode->SplitCollisionBoxExtentMultiplier = FVector(0.5f, 0.5f, 0.5f);
+				SlashNode->bBounceSplitChildrenOnEnemyHit = true;
+				SlashNode->SplitChildMaxEnemyBounces = 1;
 				SlashNode->CollisionBoxExtent = FVector(45.f, 95.f, 45.f);
 				SlashNode->VisualScaleMultiplier = FVector(1.1f, 1.1f, 1.f);
 				SlashNode->ProjectileVisualNiagaraScale = FVector(0.9f, 0.9f, 0.9f);
@@ -3102,6 +3178,162 @@ namespace Rune512Batch
 		ReplaceWeaponCard(ProductionHarquebusWeapon, SplashCard, SplitCard, TEXT("ranged Splash"));
 	}
 
+	UFlowAsset* EnsureFlowAssetAtPath(
+		const FString& TemplatePath,
+		const FString& TargetPath,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		UObject* FlowObject = DuplicateAssetIfMissing(TemplatePath, TargetPath, bDryRun, ReportLines, DirtyPackages);
+		return Cast<UFlowAsset>(FlowObject);
+	}
+
+	void ConfigureSacrificePassiveFlow(
+		UFlowAsset* FlowAsset,
+		const FSacrificeSpec& Spec,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		if (bDryRun)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Would configure `%s`: Start -> Grant Sacrifice Passive(%s)."), *Spec.FlowTargetName, *Spec.Key));
+			return;
+		}
+
+		if (!FlowAsset)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: Flow asset was not loaded."), *Spec.FlowTargetName));
+			return;
+		}
+
+		UFlowGraph* FlowGraph = Cast<UFlowGraph>(FlowAsset->GetGraph());
+		UFlowNode* EntryNode = FlowAsset->GetDefaultEntryNode();
+		if (!FlowGraph || !EntryNode)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: missing FlowGraph or Entry node."), *Spec.FlowTargetName));
+			return;
+		}
+
+		UBFNode_GrantSacrificePassive* ExistingGrantNode = Cast<UBFNode_GrantSacrificePassive>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node)
+			{
+				return Cast<UBFNode_GrantSacrificePassive>(Node) != nullptr;
+			}));
+
+		const int32 RemovedNodes = RemoveFlowNodesWhere(
+			FlowAsset,
+			FlowGraph,
+			[EntryNode, ExistingGrantNode](UFlowNode* Node)
+			{
+				return Node != EntryNode && Node != ExistingGrantNode;
+			});
+
+		UBFNode_GrantSacrificePassive* GrantNode = Cast<UBFNode_GrantSacrificePassive>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node)
+			{
+				return Cast<UBFNode_GrantSacrificePassive>(Node) != nullptr;
+			}));
+		if (!GrantNode)
+		{
+			GrantNode = Cast<UBFNode_GrantSacrificePassive>(CreateFlowNodeAfter(
+				FlowGraph,
+				EntryNode,
+				UBFNode_GrantSacrificePassive::StaticClass(),
+				FVector2D(320.f, 0.f)));
+		}
+		else
+		{
+			LinkFlowNodes(EntryNode, GrantNode);
+		}
+
+		if (!GrantNode)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Failed to create Grant Sacrifice Passive node for `%s`."), *Spec.FlowTargetName));
+			return;
+		}
+
+		GrantNode->Modify();
+		GrantNode->Config = Spec.Config;
+		if (GrantNode->Config.PassiveType == ESacrificeRunePassiveType::ShadowMark)
+		{
+			GrantNode->Config.ShadowMarkTag = RequestTag(TEXT("Buff.Status.ShadowMark"), ReportLines);
+		}
+		RefreshGraphNodePins(GrantNode);
+		LinkFlowNodes(EntryNode, GrantNode);
+
+		FlowAsset->MarkPackageDirty();
+		DirtyPackages.AddUnique(FlowAsset->GetPackage());
+		ReportLines.Add(FString::Printf(
+			TEXT("- Configured `%s`: hidden passive grant node `%s`, removed %d template nodes."),
+			*Spec.FlowTargetName,
+			*Spec.Key,
+			RemovedNodes));
+	}
+
+	void ApplySacrificeSpec(
+		const FSacrificeSpec& Spec,
+		int32 RuneId,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		const FString TargetPath = SacrificeGeneratedRoot + TEXT("/") + Spec.TargetAssetName;
+		const FString FlowPath = SacrificeGeneratedFlowRoot + TEXT("/") + Spec.FlowTargetName;
+		ReportLines.Add(FString::Printf(TEXT("## Sacrifice passive `%s`"), *Spec.TargetAssetName));
+
+		RequestTag(FString(TEXT("Rune.Sacrifice.")) + Spec.Key, ReportLines);
+		if (Spec.Config.PassiveType == ESacrificeRunePassiveType::ShadowMark)
+		{
+			RequestTag(TEXT("Buff.Status.ShadowMark"), ReportLines);
+		}
+
+		UFlowAsset* FlowAsset = EnsureFlowAssetAtPath(AttackTemplateFlow, FlowPath, bDryRun, ReportLines, DirtyPackages);
+		ConfigureSacrificePassiveFlow(FlowAsset, Spec, bDryRun, ReportLines, DirtyPackages);
+
+		URuneDataAsset* RuneDA = Cast<URuneDataAsset>(DuplicateAssetIfMissing(
+			AttackTemplateDA,
+			TargetPath,
+			bDryRun,
+			ReportLines,
+			DirtyPackages));
+		if (bDryRun)
+		{
+			ReportLines.Add(TEXT("- Dry run: no sacrifice DA fields were changed."));
+			return;
+		}
+		if (!RuneDA)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Cannot update sacrifice DA `%s`: asset not loaded or created."), *Spec.TargetAssetName));
+			return;
+		}
+
+		UTexture2D* Icon = LoadAssetByPackagePath<UTexture2D>(IconRoot + TEXT("/") + Spec.IconAssetName);
+		if (!Icon)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Missing sacrifice icon `%s/%s`."), *IconRoot, *Spec.IconAssetName));
+		}
+
+		FRuneInstance& RuneInfo = RuneDA->RuneInfo;
+		RuneInfo.RuneConfig.RuneName = FName(*Spec.DisplayName);
+		RuneInfo.RuneConfig.RuneDescription = FText::FromString(Spec.Description);
+		RuneInfo.RuneConfig.RuneIcon = Icon;
+		RuneInfo.RuneConfig.RuneID = RuneId;
+		RuneInfo.RuneConfig.RuneType = ERuneType::Buff;
+		RuneInfo.RuneConfig.TriggerType = ERuneTriggerType::Passive;
+		RuneInfo.RuneConfig.GenericEffects.Reset();
+		RuneInfo.Shape.Cells.Reset();
+		RuneInfo.Flow.FlowAsset = FlowAsset;
+		RuneInfo.CombatCard = FCombatCardConfig();
+
+		RuneDA->MarkPackageDirty();
+		DirtyPackages.AddUnique(RuneDA->GetPackage());
+		ReportLines.Add(TEXT("- Updated sacrifice RuneInfo: empty Shape, passive TriggerType, non-combat-card."));
+	}
+
 	void ApplyCardSpec(
 		const FCardSpec& Spec,
 		int32 RuneId,
@@ -3263,6 +3495,7 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
 	ReportLines.Add(FString::Printf(TEXT("- Generated DA root: `%s`"), *GeneratedRoot));
 	ReportLines.Add(FString::Printf(TEXT("- Generated Flow root: `%s`"), *GeneratedFlowRoot));
+	ReportLines.Add(FString::Printf(TEXT("- Generated sacrifice root: `%s`"), *SacrificeGeneratedRoot));
 	ReportLines.Add(TEXT(""));
 
 	if (bImportIcons)
@@ -3280,6 +3513,12 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 	for (const FCardSpec& Spec : MakeCardSpecs())
 	{
 		ApplyCardSpec(Spec, RuneId++, bDryRun, ReportLines, DirtyPackages);
+		ReportLines.Add(TEXT(""));
+	}
+
+	for (const FSacrificeSpec& Spec : MakeSacrificeSpecs())
+	{
+		ApplySacrificeSpec(Spec, RuneId++, bDryRun, ReportLines, DirtyPackages);
 		ReportLines.Add(TEXT(""));
 	}
 
@@ -3301,7 +3540,7 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 	ReportLines.Add(TEXT("- Burn/Poison base VFX use compact Play Niagara nodes; stale Flipbook nodes are cleared when found."));
 	ReportLines.Add(TEXT("- Projectile inline Niagara fields remain empty. Link/status VFX must live in independent FA visual nodes."));
 	ReportLines.Add(TEXT("- Projectile visuals stay on projectile-spawn nodes; hit/status visuals should use separate visual nodes."));
-	ReportLines.Add(TEXT("- Splash/Split are separated: melee Splash uses OnHit radius damage; ranged Split uses OnCommit extra musket projectiles; Moonlight Split only exists as reversed LinkFlow."));
+	ReportLines.Add(TEXT("- Splash/Split are one weapon-adaptive card family: both variants share Card.ID.SplashSplit and Card.Effect.SplashSplit; melee uses Splash BaseFlow, ranged uses Split BaseFlow; Moonlight Split only exists as reversed LinkFlow."));
 	ReportLines.Add(TEXT("- Any Flow copied from a template must be opened once and checked against the 512 design doc before gameplay signoff."));
 
 	if (!bDryRun && DirtyPackages.Num() > 0)

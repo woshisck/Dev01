@@ -157,6 +157,15 @@ class DEVKIT_API UBFNode_SpawnSlashWaveProjectile : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Slash Wave|Split", meta = (ClampMin = "0.0", ClampMax = "180.0"))
 	float SplitConeAngleDegrees = 45.f;
 
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Split", meta = (EditCondition = "bSplitOnFirstHit", EditConditionHides))
+	bool bRandomizeSplitDirections = false;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Split", meta = (ClampMin = "0.0", ClampMax = "180.0", EditCondition = "bSplitOnFirstHit && bRandomizeSplitDirections", EditConditionHides))
+	float SplitRandomYawJitterDegrees = 0.f;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Split", meta = (ClampMin = "0.0", ClampMax = "45.0", EditCondition = "bSplitOnFirstHit && bRandomizeSplitDirections", EditConditionHides))
+	float SplitRandomPitchDegrees = 0.f;
+
 	UPROPERTY(EditAnywhere, Category = "Slash Wave|Split", meta = (ClampMin = "0.0"))
 	float SplitDamageMultiplier = 0.5f;
 
@@ -168,6 +177,13 @@ class DEVKIT_API UBFNode_SpawnSlashWaveProjectile : public UBFNode_Base
 
 	UPROPERTY(EditAnywhere, Category = "Slash Wave|Split")
 	FVector SplitCollisionBoxExtentMultiplier = FVector(0.5f, 0.5f, 0.5f);
+
+	/** Enables one or more enemy-hit bounces only for split child projectiles. The parent projectile still only splits. */
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Split|Bounce", meta = (EditCondition = "bSplitOnFirstHit", EditConditionHides))
+	bool bBounceSplitChildrenOnEnemyHit = false;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Split|Bounce", meta = (ClampMin = "0", EditCondition = "bSplitOnFirstHit && bBounceSplitChildrenOnEnemyHit", EditConditionHides))
+	int32 SplitChildMaxEnemyBounces = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Slash Wave")
 	FVector SpawnOffset = FVector(80.f, 0.f, 45.f);

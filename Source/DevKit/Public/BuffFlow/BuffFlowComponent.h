@@ -35,6 +35,17 @@ public:
 
 	void StartCombatCardFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card, const FCombatDeckActionContext& ActionContext, const FCombatCardResolveResult& ResolveResult, AActor* Giver, bool bRestartExistingFlow = true);
 
+	void StartCombatCardFlowWithSourceTransform(
+		UFlowAsset* FlowAsset,
+		const FCombatCardInstance& Card,
+		const FCombatDeckActionContext& ActionContext,
+		const FCombatCardResolveResult& ResolveResult,
+		AActor* Giver,
+		const FTransform& SourceTransform,
+		bool bRestartExistingFlow = true);
+
+	bool GetActiveSourceTransformOverride(FTransform& OutTransform) const;
+
 	/** 符文卸下时调用：停止对应的 Flow 实例 */
 	UFUNCTION(BlueprintCallable, Category = "BuffFlow")
 	void StopBuffFlow(FGuid RuneGuid);
@@ -92,7 +103,7 @@ public:
 	FVector LastKillLocation = FVector::ZeroVector;
 
 private:
-	void StartBuffFlowInternal(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow);
+	void StartBuffFlowInternal(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow, bool bAllowParallelSameFlow = false);
 
 	UPROPERTY()
 	bool bHasCombatCardEffectContext = false;
@@ -102,6 +113,9 @@ private:
 
 	UPROPERTY()
 	TWeakObjectPtr<AActor> CurrentBuffGiver;
+
+	bool bHasSourceTransformOverride = false;
+	FTransform SourceTransformOverride = FTransform::Identity;
 
 	/** RuneGuid → 活跃的 Flow 实例（用于停止） */
 	TMap<FGuid, TWeakObjectPtr<UFlowAsset>> ActiveRuneFlows;

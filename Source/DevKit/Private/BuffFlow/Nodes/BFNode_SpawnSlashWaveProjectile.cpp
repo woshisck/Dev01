@@ -40,10 +40,32 @@ void UBFNode_SpawnSlashWaveProjectile::ExecuteInput(const FName& PinName)
 	const float ResolvedDamage = ResolveDamage(SourceCharacter);
 	ConsumeSourceArmor(SourceCharacter);
 
-	const FVector Forward = SourceCharacter->GetActorForwardVector();
-	const FVector Right = SourceCharacter->GetActorRightVector();
+	FTransform SourceTransformOverride;
+	const bool bUseSourceTransformOverride = GetBuffFlowComponent()
+		&& GetBuffFlowComponent()->GetActiveSourceTransformOverride(SourceTransformOverride);
+	FVector Forward = bUseSourceTransformOverride
+		? SourceTransformOverride.GetRotation().GetForwardVector()
+		: SourceCharacter->GetActorForwardVector();
+	Forward.Z = 0.0f;
+	Forward = Forward.GetSafeNormal();
+	if (Forward.IsNearlyZero())
+	{
+		Forward = SourceCharacter->GetActorForwardVector();
+	}
+	FVector Right = bUseSourceTransformOverride
+		? SourceTransformOverride.GetRotation().GetRightVector()
+		: SourceCharacter->GetActorRightVector();
+	Right.Z = 0.0f;
+	Right = Right.GetSafeNormal();
+	if (Right.IsNearlyZero())
+	{
+		Right = SourceCharacter->GetActorRightVector();
+	}
+	const FVector SourceLocation = bUseSourceTransformOverride
+		? SourceTransformOverride.GetLocation()
+		: SourceCharacter->GetActorLocation();
 	const FVector Up = FVector::UpVector;
-	const FVector SpawnLocation = SourceCharacter->GetActorLocation()
+	const FVector SpawnLocation = SourceLocation
 		+ Forward * SpawnOffset.X
 		+ Right * SpawnOffset.Y
 		+ Up * SpawnOffset.Z;
@@ -87,10 +109,15 @@ void UBFNode_SpawnSlashWaveProjectile::ExecuteInput(const FName& PinName)
 	Config.MaxSplitGenerations = MaxSplitGenerations;
 	Config.SplitProjectileCount = SplitProjectileCount;
 	Config.SplitConeAngleDegrees = SplitConeAngleDegrees;
+	Config.bRandomizeSplitDirections = bRandomizeSplitDirections;
+	Config.SplitRandomYawJitterDegrees = SplitRandomYawJitterDegrees;
+	Config.SplitRandomPitchDegrees = SplitRandomPitchDegrees;
 	Config.SplitDamageMultiplier = SplitDamageMultiplier;
 	Config.SplitSpeedMultiplier = SplitSpeedMultiplier;
 	Config.SplitMaxDistanceMultiplier = SplitMaxDistanceMultiplier;
 	Config.SplitCollisionBoxExtentMultiplier = SplitCollisionBoxExtentMultiplier;
+	Config.bBounceOnEnemyHit = bBounceSplitChildrenOnEnemyHit;
+	Config.MaxEnemyBounces = SplitChildMaxEnemyBounces;
 
 	int32 ComboBonusProjectiles = 0;
 	if (bAddComboStacksToProjectileCount)

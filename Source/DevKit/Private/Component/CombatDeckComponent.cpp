@@ -99,6 +99,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCard(const FCombatDe
 FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(const FCombatDeckActionContext& Context)
 {
 	FCombatCardResolveResult Result;
+	Result.ActionContext = Context;
 
 	if (Context.bExitedComboState)
 	{
@@ -553,6 +554,18 @@ bool UCombatDeckComponent::AddCardFromRuneShop(URuneDataAsset* RuneAsset)
 	return true;
 }
 
+bool UCombatDeckComponent::RemoveCardAtIndex(int32 CardIndex)
+{
+	if (!DeckList.IsValidIndex(CardIndex))
+	{
+		return false;
+	}
+
+	DeckList.RemoveAt(CardIndex);
+	StartDeckEditReload();
+	return true;
+}
+
 void UCombatDeckComponent::SetShuffleCooldownDuration(float InDuration)
 {
 	ShuffleCooldownDuration = FMath::Max(0.0f, InDuration);
@@ -741,13 +754,14 @@ void UCombatDeckComponent::ExecuteFlow(
 	UFlowAsset* FlowAsset,
 	const FCombatCardInstance& Card,
 	const FCombatDeckActionContext& Context,
-	const FCombatCardResolveResult& Result) const
+	FCombatCardResolveResult& Result) const
 {
 	if (!FlowAsset)
 	{
 		return;
 	}
 
+	Result.ExecutedFlows.Add(FlowAsset);
 	if (UBuffFlowComponent* BuffFlowComponent = GetOwner() ? GetOwner()->FindComponentByClass<UBuffFlowComponent>() : nullptr)
 	{
 		BuffFlowComponent->StartCombatCardFlow(FlowAsset, Card, Context, Result, GetOwner(), true);
@@ -809,6 +823,7 @@ void UCombatDeckComponent::BreakPendingLink(ECombatLinkBreakReason Reason, const
 	const FCombatDeckActionContext ResolvedBreakContext = BreakContext ? *BreakContext : PendingLinkActionContext;
 
 	FCombatCardResolveResult Result;
+	Result.ActionContext = ResolvedBreakContext;
 	Result.bLinkBroken = true;
 	Result.LinkBreakReason = Reason;
 	Result.ConsumedCard = BrokenCard;

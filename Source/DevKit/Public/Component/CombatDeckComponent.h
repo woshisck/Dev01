@@ -10,6 +10,7 @@ class UBuffFlowComponent;
 class UWeaponDefinition;
 class AMusketBullet;
 class UGameplayEffect;
+class UFlowAsset;
 
 UENUM(BlueprintType)
 enum class ECombatLinkBreakReason : uint8
@@ -146,6 +147,12 @@ struct DEVKIT_API FCombatCardResolveResult
 	FCombatCardInstance ConsumedCard;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	FCombatDeckActionContext ActionContext;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	TArray<TObjectPtr<UFlowAsset>> ExecutedFlows;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
 	ECombatLinkBreakReason LinkBreakReason = ECombatLinkBreakReason::None;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
@@ -243,6 +250,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
 	bool AddCardFromRuneShop(URuneDataAsset* RuneAsset);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
+	bool RemoveCardAtIndex(int32 CardIndex);
 
 	UFUNCTION(BlueprintPure, Category = "Combat Deck")
 	TArray<FCombatCardInstance> GetDeckSnapshot() const { return ActiveSequence; }
@@ -373,7 +383,7 @@ private:
 	void StartDeckEditReload();
 	void StartShuffle();
 	void AdvanceShuffle(float DeltaTime);
-	void ExecuteFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card, const FCombatDeckActionContext& Context, const FCombatCardResolveResult& Result) const;
+	void ExecuteFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card, const FCombatDeckActionContext& Context, FCombatCardResolveResult& Result) const;
 	bool DoesActionMatch(ECardRequiredAction RequiredAction, ECardRequiredAction ActionType) const;
 	void BreakPendingLink(ECombatLinkBreakReason Reason, const FCombatDeckActionContext* BreakContext = nullptr);
 	int32 GetComboBonusStacks(const FCombatDeckActionContext& Context) const;

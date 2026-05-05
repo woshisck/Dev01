@@ -3,6 +3,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "BuffFlow/BuffFlowComponent.h"
 #include "Engine/World.h"
 #include "FlowAsset.h"
 #include "GameFramework/Controller.h"
@@ -67,9 +68,33 @@ void UBFNode_SpawnRuneGroundPathEffect::ExecuteInput(const FName& PinName)
 		return;
 	}
 
+	FTransform SourceTransformOverride;
+	FVector SourceLocation = SourceActor->GetActorLocation();
+	if (UBuffFlowComponent* BFC = GetBuffFlowComponent())
+	{
+		if (BFC->GetActiveSourceTransformOverride(SourceTransformOverride))
+		{
+			SourceLocation = SourceTransformOverride.GetLocation();
+			Forward = SourceTransformOverride.GetRotation().GetForwardVector();
+			Forward.Z = 0.0f;
+			Forward = Forward.GetSafeNormal();
+			Right = SourceTransformOverride.GetRotation().GetRightVector();
+			Right.Z = 0.0f;
+			Right = Right.GetSafeNormal();
+			if (Forward.IsNearlyZero())
+			{
+				Forward = SourceActor->GetActorForwardVector();
+			}
+			if (Right.IsNearlyZero())
+			{
+				Right = SourceActor->GetActorRightVector();
+			}
+		}
+	}
+
 	const float SafeLength = FMath::Max(1.0f, Length);
 	const float CenterOffset = bCenterOnPathLength ? SafeLength * 0.5f : 0.0f;
-	FVector SpawnLocation = SourceActor->GetActorLocation()
+	FVector SpawnLocation = SourceLocation
 		+ Forward * (SpawnOffset.X + CenterOffset)
 		+ Right * SpawnOffset.Y
 		+ FVector::UpVector * SpawnOffset.Z;

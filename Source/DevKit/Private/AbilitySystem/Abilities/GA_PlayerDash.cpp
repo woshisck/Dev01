@@ -5,6 +5,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/ComboRuntimeComponent.h"
+#include "Component/SacrificeRuneComponent.h"
 #include "Component/SkillChargeComponent.h"
 #include "Data/CharacterData.h"
 #include "Data/AbilityData.h"
@@ -12,8 +13,10 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/OverlapResult.h"
 #include "Kismet/GameplayStatics.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Map/AirWall.h"
 
 static TAutoConsoleVariable<int32> CVarDashDebugTrace(
 	TEXT("Dash.DebugTrace"),
@@ -29,9 +32,81 @@ static const ECollisionChannel DashThroughChannel = ECC_GameTraceChannel5;
 
 namespace
 {
+	constexpr float DashStopPadding = 10.f;
+	constexpr int32 MaxDashAirWallPasses = 8;
+
 	FGameplayTag DashChargeTag()
 	{
 		return FGameplayTag::RequestGameplayTag(FName(TEXT("PlayerState.AbilityCast.Dash")));
+	}
+
+	bool IsEnemyOrPawnDashHit(const FHitResult& Hit)
+	{
+		if (Cast<APawn>(Hit.GetActor()))
+		{
+			return true;
+		}
+
+		const UPrimitiveComponent* Comp = Hit.GetComponent();
+		return Comp && (Comp->GetCollisionObjectType() == ECC_Pawn ||
+			Comp->GetCollisionObjectType() == EnemyChannel);
+	}
+
+	bool IsDashTraceBlockingHit(const FHitResult& Hit)
+	{
+		const UPrimitiveComponent* Comp = Hit.GetComponent();
+		if (!Comp || !Hit.GetActor() || IsEnemyOrPawnDashHit(Hit))
+		{
+			return false;
+		}
+
+		return Hit.bBlockingHit || Comp->GetCollisionResponseToChannel(DashTraceChannel) == ECR_Block;
+	}
+
+	bool RayAabbDistanceRange(const FBox& Box, const FVector& RayStart, const FVector& RayDir, float& OutEnter, float& OutExit)
+	{
+		float TMin = -BIG_NUMBER;
+		float TMax = BIG_NUMBER;
+
+		for (int32 Axis = 0; Axis < 3; ++Axis)
+		{
+			const float StartValue = RayStart[Axis];
+			const float DirValue = RayDir[Axis];
+			const float MinValue = Box.Min[Axis];
+			const float MaxValue = Box.Max[Axis];
+
+			if (FMath::Abs(DirValue) <= KINDA_SMALL_NUMBER)
+			{
+				if (StartValue < MinValue || StartValue > MaxValue)
+				{
+					return false;
+				}
+				continue;
+			}
+
+			float T1 = (MinValue - StartValue) / DirValue;
+			float T2 = (MaxValue - StartValue) / DirValue;
+			if (T1 > T2)
+			{
+				Swap(T1, T2);
+			}
+
+			TMin = FMath::Max(TMin, T1);
+			TMax = FMath::Min(TMax, T2);
+			if (TMin > TMax)
+			{
+				return false;
+			}
+		}
+
+		if (TMax < 0.f)
+		{
+			return false;
+		}
+
+		OutEnter = FMath::Max(0.f, TMin);
+		OutExit = FMath::Max(0.f, TMax);
+		return true;
 	}
 }
 
@@ -158,6 +233,7 @@ void UGA_PlayerDash::ActivateAbility(
 
 	// ── 3. 确定冲刺方向（Controller 已在激活前旋转好角色，直接用 ForwardVector）─
 	const FVector DashDirection = Character->GetActorForwardVector();
+	LastDashDirection = DashDirection.GetSafeNormal2D();
 
 	// ── 4. 计算实际冲刺距离（越障检测：终点延伸逐步法）──────────────────────
 	const FVector StartLocation = Character->GetActorLocation();
@@ -169,6 +245,7 @@ void UGA_PlayerDash::ActivateAbility(
 	DashAnimScale = AnimScale; // 记录供 EndAbility Z 下沉诊断
 
 	// ── 5. 修改碰撞：穿敌人 + 穿可穿越几何（全程无刚体阻挡，由根运动驱动）───
+	ApplyDashMoveIgnores(Character);
 	SetDashCollision(Character, ECR_Overlap);
 
 	// ── 6. 播放冲刺蒙太奇（AnimRootMotionTranslationScale 控制位移距离）───────
@@ -201,6 +278,14 @@ void UGA_PlayerDash::ActivateAbility(
 	}
 
 	// ── 7. 通知相机进入冲刺模式（1:1 无延迟跟随）────────────────────────────
+	if (Player && Player->SacrificeRuneComponent)
+	{
+		Player->SacrificeRuneComponent->NotifyDashExecuted(
+			StartLocation,
+			StartLocation + DashDirection * EffectiveDist,
+			DashDirection);
+	}
+
 	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(
 		UGameplayStatics::GetPlayerCameraManager(this, 0)))
 	{
@@ -220,6 +305,7 @@ void UGA_PlayerDash::EndAbility(
 	// 恢复碰撞（必须在 Super 之前，此时 ActorInfo 仍有效）
 	if (Character)
 	{
+		ResolveEnemyOverlapAfterDash(Character);
 		SetDashCollision(Character, ECR_Block);
 	}
 
@@ -293,6 +379,12 @@ void UGA_PlayerDash::EndAbility(
 		DashDebugStartLocation = FVector::ZeroVector;
 	}
 
+	if (Character)
+	{
+		ClearDashMoveIgnores(Character);
+	}
+	LastDashDirection = FVector::ZeroVector;
+
 	// ── 连招保存：从桥接位冲刺时为下一击注入 LooseGameplayTags ─────────────
 	if (!bWasCancelled && !PendingSaveComboTags.IsEmpty())
 	{
@@ -315,132 +407,157 @@ void UGA_PlayerDash::EndAbility(
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
-float UGA_PlayerDash::GetFurthestValidDashDistance(const FVector& Start, const FVector& End) const
+float UGA_PlayerDash::GetFurthestValidDashDistance(const FVector& Start, const FVector& End)
 {
 	UWorld* World = GetWorld();
-	if (!World) return DashMaxDistance;
+		if (!World) return DashMaxDistance;
 
-	// ── 台阶偏移：抬高 Sweep 使其从台阶竖面上方通过，CMC Step-Up 在根运动中照常生效 ──
-	float StepOffset = 0.f;
-	if (ACharacter* Owner = Cast<ACharacter>(GetOwningActorFromActorInfo()))
-	{
-		if (UCharacterMovementComponent* CMC = Owner->GetCharacterMovement())
-			StepOffset = CMC->MaxStepHeight;
-	}
-	const FVector SweepStart = Start + FVector(0.f, 0.f, StepOffset);
-	const FVector SweepEnd   = End   + FVector(0.f, 0.f, StepOffset);
+		DashIgnoredActors.Reset();
 
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(DashTrace), false);
-	if (AActor* Owner = GetOwningActorFromActorInfo())
-		Params.AddIgnoredActor(Owner);
-	const FCollisionShape Sphere = FCollisionShape::MakeSphere(DashCapsuleRadius);
-
-	// ── 1. 前向扫描（抬高 StepOffset，跳过台阶竖面）─────────────────────────
-	FHitResult ForwardHit;
-	const bool bHit = World->SweepSingleByChannel(
-		ForwardHit, SweepStart, SweepEnd, FQuat::Identity, DashTraceChannel, Sphere, Params);
-
-	const bool bDebugTrace = CVarDashDebugTrace.GetValueOnGameThread() != 0;
-	if (bDebugTrace)
-	{
-		// 绿线 = 扫描路径；命中时在碰撞点画红球 + 白法线
-		const FColor LineColor = bHit ? FColor::Red : FColor::Green;
-		DrawDebugLine(World, SweepStart, bHit ? ForwardHit.ImpactPoint : SweepEnd, LineColor, false, 3.f, 0, 2.f);
-		DrawDebugSphere(World, SweepStart, DashCapsuleRadius, 12, FColor::Yellow, false, 3.f);
-		if (bHit)
+		float StepOffset = 0.f;
+		if (ACharacter* Owner = Cast<ACharacter>(GetOwningActorFromActorInfo()))
 		{
-			DrawDebugSphere(World, ForwardHit.ImpactPoint, DashCapsuleRadius, 12, FColor::Red, false, 3.f);
-			DrawDebugLine(World, ForwardHit.ImpactPoint, ForwardHit.ImpactPoint + ForwardHit.ImpactNormal * 60.f,
-				FColor::White, false, 3.f, 0, 2.f);
-			const FString HitMsg = FString::Printf(
-				TEXT("[DashTrace] 命中: %s | 组件: %s | Dist=%.0f | StepOffset=%.0f"),
-				ForwardHit.GetActor() ? *ForwardHit.GetActor()->GetName() : TEXT("None"),
-				ForwardHit.GetComponent() ? *ForwardHit.GetComponent()->GetName() : TEXT("None"),
-				ForwardHit.Distance, StepOffset);
-			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, HitMsg);
-			UE_LOG(LogTemp, Warning, TEXT("%s"), *HitMsg);
-		}
-		else
-		{
-			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
-				FString::Printf(TEXT("[DashTrace] 无阻挡，满距 %.0f cm"), DashMaxDistance));
-		}
-	}
-
-	if (!bHit)
-		return DashMaxDistance;
-
-	const float HitDist   = ForwardHit.Distance;
-	const float Threshold = DashMaxDistance - 2.f * DashCapsuleRadius;
-
-	// ── 空气墙（DashBarrier）：标记了 DashBarrier Tag 的 Actor 直接停住，不做越障延伸 ──
-	if (AActor* HitActor = ForwardHit.GetActor())
-	{
-		if (HitActor->ActorHasTag(TEXT("DashBarrier")))
-			return HitDist;
-	}
-
-	// ── DashThrough 可穿越物体（bAllowDashThrough AirWall）──────────────────────
-	// 冲刺期间 Capsule 对 DashThroughChannel 已设为 Overlap，物理层可直接穿透，
-	// 不需要 step 3 越障延伸。贴近时 bStartPenetrating 导致 HitDist=0 也在此统一处理。
-	if (UPrimitiveComponent* HitComp = ForwardHit.GetComponent())
-	{
-		if (HitComp->GetCollisionObjectType() == DashThroughChannel)
-			return DashMaxDistance;
-	}
-
-	// ── 2. 命中在终点附近（末端硬墙）→ 停在障碍前 ───────────────────────────
-	if (HitDist > Threshold)
-		return HitDist;
-
-	// ── 3. 前段阻挡 → 从满距终点逐步向前延伸，寻找越障落点 ──────────────────
-	const FVector DashDir    = (SweepEnd - SweepStart).GetSafeNormal();
-	const FVector StepOrigin = SweepEnd; // 满距终点（已含 StepOffset）
-
-	constexpr int32 StepCount = 6;
-	constexpr float StepSize  = 50.f;
-
-	for (int32 i = 1; i <= StepCount; ++i)
-	{
-		const FVector SegStart = StepOrigin + DashDir * (StepSize * (i - 1));
-		const FVector SegEnd   = StepOrigin + DashDir * (StepSize * i);
-
-		TArray<FHitResult> StepHits;
-		World->SweepMultiByChannel(
-			StepHits, SegStart, SegEnd, FQuat::Identity, DashTraceChannel, Sphere, Params);
-
-		if (bDebugTrace)
-		{
-			const bool bSegClear = IsValidDashLocation(StepHits);
-			DrawDebugSphere(World, SegEnd, DashCapsuleRadius * 0.5f, 8,
-				bSegClear ? FColor::Green : FColor::Orange, false, 3.f);
+			if (UCharacterMovementComponent* CMC = Owner->GetCharacterMovement())
+			{
+				StepOffset = CMC->MaxStepHeight;
+			}
 		}
 
-		if (IsValidDashLocation(StepHits))
-			return FVector::Dist2D(Start, SegEnd); // 水平距离，忽略 StepOffset Z 分量
-	}
+		const FVector SweepStart = Start + FVector(0.f, 0.f, StepOffset);
+		const FVector SweepEnd = End + FVector(0.f, 0.f, StepOffset);
+		const FVector DashDir = (SweepEnd - SweepStart).GetSafeNormal();
+		const float MaxDistance = FMath::Max(0.f, FVector::Dist2D(Start, End));
+		if (MaxDistance <= KINDA_SMALL_NUMBER || DashDir.IsNearlyZero())
+		{
+			return 0.f;
+		}
 
-	if (bDebugTrace && GEngine)
-		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("[DashTrace] 延伸6步均被阻挡，停在障碍前"));
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(DashTrace), false);
+		if (AActor* Owner = GetOwningActorFromActorInfo())
+		{
+			Params.AddIgnoredActor(Owner);
+		}
 
-	// ── 4. 无有效落点 → 停在最初障碍前 ──────────────────────────────────────
-	return HitDist;
+		const FCollisionShape Sphere = FCollisionShape::MakeSphere(DashCapsuleRadius);
+		const bool bDebugTrace = CVarDashDebugTrace.GetValueOnGameThread() != 0;
+
+		for (int32 Pass = 0; Pass < MaxDashAirWallPasses; ++Pass)
+		{
+			FHitResult BlockingHit;
+			const bool bHasBlockingHit = FindFirstDashBlockingHit(SweepStart, SweepEnd, Sphere, Params, BlockingHit);
+			if (bDebugTrace)
+			{
+				DrawDebugLine(World, SweepStart, bHasBlockingHit ? BlockingHit.ImpactPoint : SweepEnd,
+					bHasBlockingHit ? FColor::Red : FColor::Green, false, 3.f, 0, 2.f);
+				DrawDebugSphere(World, SweepStart, DashCapsuleRadius, 12, FColor::Yellow, false, 3.f);
+			}
+
+			if (!bHasBlockingHit)
+			{
+				return MaxDistance;
+			}
+
+			AActor* HitActor = BlockingHit.GetActor();
+			UPrimitiveComponent* HitComp = BlockingHit.GetComponent();
+			const float StopDistance = GetDashStopDistance(BlockingHit.Distance);
+
+			if (bDebugTrace)
+			{
+				DrawDebugSphere(World, BlockingHit.ImpactPoint, DashCapsuleRadius, 12, FColor::Red, false, 3.f);
+				DrawDebugLine(World, BlockingHit.ImpactPoint, BlockingHit.ImpactPoint + BlockingHit.ImpactNormal * 60.f,
+					FColor::White, false, 3.f, 0, 2.f);
+				UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Hit=%s Comp=%s Dist=%.0f Pass=%d"),
+					*GetNameSafe(HitActor), *GetNameSafe(HitComp), BlockingHit.Distance, Pass);
+			}
+
+			if (!HitActor || HitActor->ActorHasTag(TEXT("DashBarrier")))
+			{
+				return StopDistance;
+			}
+
+			AAirWall* AirWall = Cast<AAirWall>(HitActor);
+			if (!AirWall || !AirWall->bAllowDashThrough)
+			{
+				return StopDistance;
+			}
+
+			if (BlockingHit.Distance > MaxDistance * (2.f / 3.f))
+			{
+				return StopDistance;
+			}
+
+			const float ExitDistance = FindAirWallExitDistance(SweepStart, DashDir, HitComp);
+			if (ExitDistance < 0.f || ExitDistance > MaxDistance)
+			{
+				return StopDistance;
+			}
+
+			DashIgnoredActors.AddUnique(AirWall);
+			Params.AddIgnoredActor(AirWall);
+		}
+
+	return MaxDistance;
+
 }
 
-bool UGA_PlayerDash::IsValidDashLocation(const TArray<FHitResult>& Hits) const
+bool UGA_PlayerDash::FindFirstDashBlockingHit(
+	const FVector& SweepStart,
+	const FVector& SweepEnd,
+	const FCollisionShape& Shape,
+	const FCollisionQueryParams& Params,
+	FHitResult& OutHit) const
 {
-	if (Hits.IsEmpty()) return true;
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	TArray<FHitResult> Hits;
+	World->SweepMultiByChannel(Hits, SweepStart, SweepEnd, FQuat::Identity, DashTraceChannel, Shape, Params);
+	Hits.Sort([](const FHitResult& A, const FHitResult& B)
+	{
+		return A.Distance < B.Distance;
+	});
 
 	for (const FHitResult& Hit : Hits)
 	{
-		UPrimitiveComponent* Comp = Hit.GetComponent();
-		if (Comp && Comp->GetCollisionResponseToChannel(DashTraceChannel) == ECR_Block)
+		if (IsDashTraceBlockingHit(Hit))
 		{
-			return false;
+			OutHit = Hit;
+			return true;
 		}
 	}
-	return true;
+
+	return false;
 }
+
+float UGA_PlayerDash::FindAirWallExitDistance(
+	const FVector& SweepStart,
+	const FVector& DashDirection,
+	const UPrimitiveComponent* AirWallComponent) const
+{
+	if (!AirWallComponent || DashDirection.IsNearlyZero())
+	{
+		return -1.f;
+	}
+
+	const FBox ExpandedBounds = AirWallComponent->Bounds.GetBox().ExpandBy(DashCapsuleRadius + DashStopPadding);
+	float EnterDistance = 0.f;
+	float ExitDistance = 0.f;
+	if (!RayAabbDistanceRange(ExpandedBounds, SweepStart, DashDirection.GetSafeNormal(), EnterDistance, ExitDistance))
+	{
+		return -1.f;
+	}
+
+	return ExitDistance;
+}
+
+float UGA_PlayerDash::GetDashStopDistance(float HitDistance) const
+{
+	return FMath::Max(0.f, HitDistance - DashStopPadding);
+}
+
 
 void UGA_PlayerDash::SetDashCollision(ACharacter* Character, ECollisionResponse Response) const
 {
@@ -451,7 +568,124 @@ void UGA_PlayerDash::SetDashCollision(ACharacter* Character, ECollisionResponse 
 	// 如需某物体可被穿越，在该 Mesh 的 Collision Profile 里手动将 DashThrough 设为 Overlap 即可。
 	Capsule->SetCollisionResponseToChannel(ECC_Pawn,           Response); // 穿透其他 Pawn
 	Capsule->SetCollisionResponseToChannel(EnemyChannel,       Response); // 穿透敌人（自定义通道）
-	Capsule->SetCollisionResponseToChannel(DashThroughChannel, Response); // 穿透指定可穿越几何体
+	if (Response == ECR_Block)
+	{
+		Capsule->SetCollisionResponseToChannel(DashThroughChannel, ECR_Block);
+	}
+}
+
+void UGA_PlayerDash::ApplyDashMoveIgnores(ACharacter* Character)
+{
+	UCapsuleComponent* Capsule = Character ? Character->GetCapsuleComponent() : nullptr;
+	if (!Character || !Capsule)
+	{
+		return;
+	}
+
+	for (const TWeakObjectPtr<AActor>& WeakActor : DashIgnoredActors)
+	{
+		if (AActor* Actor = WeakActor.Get())
+		{
+			Character->MoveIgnoreActorAdd(Actor);
+			Capsule->IgnoreActorWhenMoving(Actor, true);
+		}
+	}
+}
+
+void UGA_PlayerDash::ClearDashMoveIgnores(ACharacter* Character)
+{
+	UCapsuleComponent* Capsule = Character ? Character->GetCapsuleComponent() : nullptr;
+	if (!Character || !Capsule)
+	{
+		DashIgnoredActors.Reset();
+		return;
+	}
+
+	for (const TWeakObjectPtr<AActor>& WeakActor : DashIgnoredActors)
+	{
+		if (AActor* Actor = WeakActor.Get())
+		{
+			Character->MoveIgnoreActorRemove(Actor);
+			Capsule->IgnoreActorWhenMoving(Actor, false);
+		}
+	}
+	DashIgnoredActors.Reset();
+}
+
+bool UGA_PlayerDash::HasEnemyOverlapAt(ACharacter* Character, const FVector& Location) const
+{
+	UWorld* World = GetWorld();
+	const UCapsuleComponent* Capsule = Character ? Character->GetCapsuleComponent() : nullptr;
+	if (!World || !Character || !Capsule)
+	{
+		return false;
+	}
+
+	FCollisionObjectQueryParams ObjectParams;
+	ObjectParams.AddObjectTypesToQuery(ECC_Pawn);
+	ObjectParams.AddObjectTypesToQuery(EnemyChannel);
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(DashEnemyOverlap), false);
+	QueryParams.AddIgnoredActor(Character);
+
+	const FCollisionShape CapsuleShape = FCollisionShape::MakeCapsule(
+		Capsule->GetScaledCapsuleRadius(),
+		Capsule->GetScaledCapsuleHalfHeight());
+
+	TArray<FOverlapResult> Overlaps;
+	World->OverlapMultiByObjectType(Overlaps, Location, FQuat::Identity, ObjectParams, CapsuleShape, QueryParams);
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		const AActor* Actor = Overlap.GetActor();
+		const UPrimitiveComponent* Comp = Overlap.GetComponent();
+		if (!Actor || Actor == Character)
+		{
+			continue;
+		}
+
+		if (Cast<APawn>(Actor) || (Comp && Comp->GetCollisionObjectType() == EnemyChannel))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UGA_PlayerDash::ResolveEnemyOverlapAfterDash(ACharacter* Character) const
+{
+	if (!Character || !HasEnemyOverlapAt(Character, Character->GetActorLocation()))
+	{
+		return;
+	}
+
+	FVector BackDirection = LastDashDirection.IsNearlyZero()
+		? -Character->GetActorForwardVector().GetSafeNormal2D()
+		: -LastDashDirection.GetSafeNormal2D();
+	if (BackDirection.IsNearlyZero())
+	{
+		return;
+	}
+
+	const FVector StartLocation = Character->GetActorLocation();
+	constexpr int32 MaxSteps = 12;
+	constexpr float StepSize = 20.f;
+	for (int32 Step = 1; Step <= MaxSteps; ++Step)
+	{
+		const FVector Candidate = StartLocation + BackDirection * (StepSize * Step);
+		if (!HasEnemyOverlapAt(Character, Candidate))
+		{
+			FHitResult MoveHit;
+			Character->SetActorLocation(Candidate, true, &MoveHit, ETeleportType::TeleportPhysics);
+			if (!HasEnemyOverlapAt(Character, Character->GetActorLocation()))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[Dash] EnemyOverlapCorrect: moved back %.0f cm"), StepSize * Step);
+				return;
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[Dash] EnemyOverlapCorrect: no safe backward point found"));
 }
 
 void UGA_PlayerDash::OnMontageCompleted(FGameplayTag EventTag, FGameplayEventData EventData)

@@ -69,8 +69,12 @@ void UGA_Knockback::ActivateAbility(
     }
 
     // ---- 计算目标位置 ----
+    const float EffectiveKnockbackDistance =
+        (TriggerEventData && TriggerEventData->EventMagnitude > KINDA_SMALL_NUMBER)
+            ? TriggerEventData->EventMagnitude
+            : KnockbackDistance;
     const FVector StartLocation  = TargetChar->GetActorLocation();
-    const FVector TargetLocation = StartLocation + KnockbackDir * KnockbackDistance;
+    const FVector TargetLocation = StartLocation + KnockbackDir * EffectiveKnockbackDistance;
 
     // ---- 创建 Root Motion Task ----
     // MoveToForce 直接指定目标位置，距离精确可控（单位 cm）

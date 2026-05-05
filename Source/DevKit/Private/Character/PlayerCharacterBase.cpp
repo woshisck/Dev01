@@ -19,7 +19,9 @@
 #include "Item/ItemSpawner.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
+#include "Component/CombatItemComponent.h"
 #include "Component/ComboRuntimeComponent.h"
+#include "Component/SacrificeRuneComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/SkillChargeComponent.h"
 #include "Data/SacrificeGraceDA.h"
@@ -32,6 +34,53 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "GameFramework/PlayerController.h"
 #include "GameModes/YogGameMode.h"
+#include "GameplayEffect.h"
+
+namespace
+{
+void AddSacrificeCostModifier(UGameplayEffect* Effect, const FGameplayAttribute& Attribute, float Delta)
+{
+	if (!Effect || FMath::IsNearlyZero(Delta))
+	{
+		return;
+	}
+
+	FGameplayModifierInfo Modifier;
+	Modifier.Attribute = Attribute;
+	Modifier.ModifierOp = EGameplayModOp::Additive;
+	Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(Delta));
+	Effect->Modifiers.Add(Modifier);
+}
+
+bool ApplySacrificeCostStateToASC(UAbilitySystemComponent* ASC, const FSacrificeOfferingCostState& State, UObject* SourceObject)
+{
+	if (!ASC)
+	{
+		return false;
+	}
+
+	UGameplayEffect* Effect = NewObject<UGameplayEffect>(GetTransientPackage(), NAME_None, RF_Transient);
+	Effect->DurationPolicy = EGameplayEffectDurationType::Infinite;
+	AddSacrificeCostModifier(Effect, UBaseAttributeSet::GetAttackAttribute(), State.AttackDelta);
+	AddSacrificeCostModifier(Effect, UBaseAttributeSet::GetDmgTakenAttribute(), State.DmgTakenDelta);
+	AddSacrificeCostModifier(Effect, UBaseAttributeSet::GetCrit_RateAttribute(), State.CritRateDelta);
+	AddSacrificeCostModifier(Effect, UBaseAttributeSet::GetCrit_DamageAttribute(), State.CritDamageDelta);
+
+	if (Effect->Modifiers.IsEmpty())
+	{
+		return true;
+	}
+
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	if (AActor* SourceActor = Cast<AActor>(SourceObject))
+	{
+		Context.AddInstigator(SourceActor, SourceActor);
+	}
+	Context.AddSourceObject(SourceObject);
+	FGameplayEffectSpec Spec(Effect, Context, 1.0f);
+	return ASC->ApplyGameplayEffectSpecToSelf(Spec).IsValid();
+}
+}
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -39,9 +88,11 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 {
 	BackpackGridComponent = CreateDefaultSubobject<UBackpackGridComponent>(TEXT("BackpackGridComponent"));
 	CombatDeckComponent = CreateDefaultSubobject<UCombatDeckComponent>(TEXT("CombatDeckComponent"));
+	CombatItemComponent = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
 	ComboRuntimeComponent = CreateDefaultSubobject<UComboRuntimeComponent>(TEXT("ComboRuntimeComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
+	SacrificeRuneComponent = CreateDefaultSubobject<USacrificeRuneComponent>(TEXT("SacrificeRuneComponent"));
 	SkillChargeComponent = CreateDefaultSubobject<USkillChargeComponent>(TEXT("SkillChargeComponent"));
 
 	// 近战默认命中框：C++ 实现，无需在每个角色蓝图 Class Defaults 中单独配置
@@ -165,6 +216,8 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 	{
 		BackpackGridComponent->RestoreRuntimeHiddenPassiveRunes(State.HiddenPassiveRuneInstances);
 	}
+
+	RestoreSacrificeOfferingCosts(State.SacrificeOfferingCosts);
 }
 
 void APlayerCharacterBase::ItemInteract(const AItemSpawner* item)
@@ -268,6 +321,87 @@ void APlayerCharacterBase::AcquireSacrificeGrace(USacrificeGraceDA* DA)
 	if (DA->FlowAsset)
 	{
 		BuffFlowComponent->StartBuffFlow(DA->FlowAsset, FGuid::NewGuid(), this);
+	}
+}
+
+bool APlayerCharacterBase::ApplySacrificeOfferingCost(const FAltarSacrificeEntry& CostEntry, int32 DeckCardIndex)
+{
+	switch (CostEntry.CostType)
+	{
+	case ESacrificeOfferingCostType::SacrificeDeckCard:
+		if (!CombatDeckComponent || DeckCardIndex == INDEX_NONE)
+		{
+			return false;
+		}
+		return CombatDeckComponent->RemoveCardAtIndex(DeckCardIndex);
+
+	case ESacrificeOfferingCostType::AttackUpDamageTakenUp:
+		{
+			UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+			if (!ASC)
+			{
+				return false;
+			}
+
+			const float AttackIncreaseRatio = CostEntry.PrimaryMagnitude > 0.f ? CostEntry.PrimaryMagnitude : 0.15f;
+			const float DamageTakenDelta = CostEntry.SecondaryMagnitude > 0.f ? CostEntry.SecondaryMagnitude : 0.20f;
+
+			FSacrificeOfferingCostState State;
+			State.CostType = CostEntry.CostType;
+			State.AttackDelta = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute()) * AttackIncreaseRatio;
+			State.DmgTakenDelta = DamageTakenDelta;
+
+			if (!ApplySacrificeCostStateToASC(ASC, State, this))
+			{
+				return false;
+			}
+			ActiveSacrificeOfferingCosts.Add(State);
+			return true;
+		}
+
+	case ESacrificeOfferingCostType::CritRateDownCritDamageUp:
+		{
+			UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+			if (!ASC)
+			{
+				return false;
+			}
+
+			const float CritRateLossRatio = CostEntry.PrimaryMagnitude > 0.f ? CostEntry.PrimaryMagnitude : 0.50f;
+			const float CritDamageDelta = CostEntry.SecondaryMagnitude > 0.f ? CostEntry.SecondaryMagnitude : 0.50f;
+
+			FSacrificeOfferingCostState State;
+			State.CostType = CostEntry.CostType;
+			State.CritRateDelta = -ASC->GetNumericAttribute(UBaseAttributeSet::GetCrit_RateAttribute()) * CritRateLossRatio;
+			State.CritDamageDelta = CritDamageDelta;
+
+			if (!ApplySacrificeCostStateToASC(ASC, State, this))
+			{
+				return false;
+			}
+			ActiveSacrificeOfferingCosts.Add(State);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void APlayerCharacterBase::RestoreSacrificeOfferingCosts(const TArray<FSacrificeOfferingCostState>& Costs)
+{
+	ActiveSacrificeOfferingCosts.Reset();
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC)
+	{
+		return;
+	}
+
+	for (const FSacrificeOfferingCostState& State : Costs)
+	{
+		if (ApplySacrificeCostStateToASC(ASC, State, this))
+		{
+			ActiveSacrificeOfferingCosts.Add(State);
+		}
 	}
 }
 

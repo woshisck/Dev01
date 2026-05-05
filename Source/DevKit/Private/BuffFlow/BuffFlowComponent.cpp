@@ -57,7 +57,46 @@ void UBuffFlowComponent::StartCombatCardFlow(
 	StartBuffFlowInternal(FlowAsset, Card.InstanceGuid, Giver, bRestartExistingFlow);
 }
 
-void UBuffFlowComponent::StartBuffFlowInternal(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow)
+void UBuffFlowComponent::StartCombatCardFlowWithSourceTransform(
+	UFlowAsset* FlowAsset,
+	const FCombatCardInstance& Card,
+	const FCombatDeckActionContext& ActionContext,
+	const FCombatCardResolveResult& ResolveResult,
+	AActor* Giver,
+	const FTransform& SourceTransform,
+	bool bRestartExistingFlow)
+{
+	bHasSourceTransformOverride = true;
+	SourceTransformOverride = SourceTransform;
+	LastCombatCardEffectContext.ActionContext = ActionContext;
+	LastCombatCardEffectContext.SourceCard = Card;
+	LastCombatCardEffectContext.ResolveResult = ResolveResult;
+	LastCombatCardEffectContext.ComboIndex = ActionContext.ComboIndex;
+	LastCombatCardEffectContext.ComboNodeId = ActionContext.ComboNodeId;
+	LastCombatCardEffectContext.ComboTags = ActionContext.ComboTags;
+	LastCombatCardEffectContext.AbilityTag = ActionContext.AbilityTag;
+	LastCombatCardEffectContext.EffectMultiplier = ResolveResult.AppliedMultiplier;
+	LastCombatCardEffectContext.ComboBonusStacks = FMath::Max(0, ActionContext.ComboIndex - 1);
+	LastCombatCardEffectContext.bFromLink = ResolveResult.bTriggeredLink || ResolveResult.bTriggeredForwardLink || ResolveResult.bTriggeredBackwardLink;
+	LastCombatCardEffectContext.bIsComboFinisher = ActionContext.bIsComboFinisher;
+	bHasCombatCardEffectContext = true;
+	StartBuffFlowInternal(FlowAsset, FGuid::NewGuid(), Giver, bRestartExistingFlow, true);
+	bHasSourceTransformOverride = false;
+	SourceTransformOverride = FTransform::Identity;
+}
+
+bool UBuffFlowComponent::GetActiveSourceTransformOverride(FTransform& OutTransform) const
+{
+	if (!bHasSourceTransformOverride)
+	{
+		return false;
+	}
+
+	OutTransform = SourceTransformOverride;
+	return true;
+}
+
+void UBuffFlowComponent::StartBuffFlowInternal(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow, bool bAllowParallelSameFlow)
 {
 	if (!FlowAsset)
 	{
@@ -82,7 +121,7 @@ void UBuffFlowComponent::StartBuffFlowInternal(UFlowAsset* FlowAsset, FGuid Rune
 		}
 	}
 
-	if (!ExistingSameFlowGuids.IsEmpty())
+	if (!bAllowParallelSameFlow && !ExistingSameFlowGuids.IsEmpty())
 	{
 		if (!bRestartExistingFlow)
 		{
