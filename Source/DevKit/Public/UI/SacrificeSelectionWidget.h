@@ -2,53 +2,157 @@
 
 #include "CoreMinimal.h"
 #include "CommonActivatableWidget.h"
+#include "Component/CombatDeckComponent.h"
 #include "Data/AltarDataAsset.h"
 #include "SacrificeSelectionWidget.generated.h"
 
 class APlayerCharacterBase;
+class AAltarActor;
+class UButton;
+class UTextBlock;
+class UVerticalBox;
 
-UCLASS(Abstract, Blueprintable)
+UCLASS(Blueprintable)
 class DEVKIT_API USacrificeSelectionWidget : public UCommonActivatableWidget
 {
 	GENERATED_BODY()
 
 public:
-	// 打开前调用，随机抽取三个献祭选项并展示 Phase 0
-	void Setup(UAltarDataAsset* InData, APlayerCharacterBase* InPlayer);
+	void Setup(UAltarDataAsset* InData, APlayerCharacterBase* InPlayer, AAltarActor* InSourceAltar = nullptr);
 
-	// Phase 0：选中三选一中的某项（0-2）
 	UFUNCTION(BlueprintCallable, Category = "Sacrifice")
 	void SelectSacrificeOption(int32 OptionIndex);
 
-	// Phase 1：确认代价，授予符文并激活 FA 代价逻辑
+	UFUNCTION(BlueprintCallable, Category = "Sacrifice")
+	void SelectDeckCardForSacrifice(int32 CardIndex);
+
 	UFUNCTION(BlueprintCallable, Category = "Sacrifice")
 	void ConfirmSacrifice();
 
-	// 取消（任意阶段）：Phase 1 取消时回到 Phase 0 重新选，Phase 0 取消时关闭
 	UFUNCTION(BlueprintCallable, Category = "Sacrifice")
 	void CancelSacrifice();
 
-	// BP 事件：展示三个献祭选项（Phase 0）
 	UFUNCTION(BlueprintImplementableEvent, Category = "Sacrifice")
 	void OnShowSacrificeOptions(const TArray<FAltarSacrificeEntry>& Options);
 
-	// BP 事件：展示代价确认面板（Phase 1）
 	UFUNCTION(BlueprintImplementableEvent, Category = "Sacrifice")
 	void OnShowCostConfirmation(const FAltarSacrificeEntry& SelectedEntry);
 
-	// BP 事件：献祭结束（bConfirmed = 用户确认 or 取消）
+	UFUNCTION(BlueprintImplementableEvent, Category = "Sacrifice")
+	void OnShowDeckCardSelection(const TArray<FCombatCardInstance>& DeckCards);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Sacrifice")
+	void OnSacrificeFailed(const FText& Reason);
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "Sacrifice")
 	void OnSacrificeFinished(bool bConfirmed);
 
 protected:
+	virtual void NativeConstruct() override;
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> TitleText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> DescriptionText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> CostText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UVerticalBox> OptionBox;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UVerticalBox> DeckCardBox;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> OptionButton0;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> OptionButton1;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> OptionButton2;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> DeckButton0;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> DeckButton1;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> DeckButton2;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> DeckButton3;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> DeckButton4;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> DeckButton5;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> DeckButton6;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> DeckButton7;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> BtnConfirm;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> BtnCancel;
+
 	TWeakObjectPtr<APlayerCharacterBase> OwningPlayer;
-	TObjectPtr<UAltarDataAsset>          AltarData;
-	TArray<FAltarSacrificeEntry>         CurrentOptions;
-	int32                                SelectedOptionIndex = -1;
-	int32                                Phase              = 0; // 0 = 选选项，1 = 确认代价
+	TWeakObjectPtr<AAltarActor> SourceAltar;
+	TObjectPtr<UAltarDataAsset> AltarData;
+	TArray<FAltarSacrificeEntry> CurrentOptions;
+	int32 SelectedOptionIndex = INDEX_NONE;
+	int32 SelectedDeckCardIndex = INDEX_NONE;
+	int32 Phase = 0;
+
+private:
+	void BuildFallbackLayout();
+	void RefreshNativeView();
+	void RefreshOptionButtons();
+	void RefreshDeckButtons();
+	void SetButtonLabel(UButton* Button, const FText& Text) const;
+	TArray<UButton*> GetOptionButtons() const;
+	TArray<UButton*> GetDeckButtons() const;
+	TArray<FCombatCardInstance> GetDeckCards() const;
+	bool PaySelectedCost();
+	bool GrantSelectedRune();
+	void FailSacrifice(const FText& Reason);
+
+	UFUNCTION()
+	void OnOption0Clicked();
+	UFUNCTION()
+	void OnOption1Clicked();
+	UFUNCTION()
+	void OnOption2Clicked();
+	UFUNCTION()
+	void OnDeck0Clicked();
+	UFUNCTION()
+	void OnDeck1Clicked();
+	UFUNCTION()
+	void OnDeck2Clicked();
+	UFUNCTION()
+	void OnDeck3Clicked();
+	UFUNCTION()
+	void OnDeck4Clicked();
+	UFUNCTION()
+	void OnDeck5Clicked();
+	UFUNCTION()
+	void OnDeck6Clicked();
+	UFUNCTION()
+	void OnDeck7Clicked();
+	UFUNCTION()
+	void OnConfirmClicked();
+	UFUNCTION()
+	void OnCancelClicked();
 };

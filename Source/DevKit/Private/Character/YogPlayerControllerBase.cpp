@@ -19,6 +19,7 @@
 #include "Item/ItemSpawner.h"
 #include "Map/RewardPickup.h"
 #include "Map/SacrificeGracePickup.h"
+#include "Map/AltarActor.h"
 #include "Map/ShopActor.h"
 #include "Map/Portal.h"
 #include "Item/Weapon/WeaponSpawner.h"
@@ -623,6 +624,10 @@ void AYogPlayerControllerBase::Interact(const FInputActionValue& Value)
 		else if (player->PendingSacrificePickup)
 		{
 			player->PendingSacrificePickup->TryPickup(player);
+		}
+		else if (player->PendingAltar)
+		{
+			player->PendingAltar->TryInteract(player);
 		}
 		else if (player->PendingShop)
 		{

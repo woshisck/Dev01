@@ -19,6 +19,7 @@ class UYogSaveGame;
 class AEnemyCharacterBase;
 class APortal;
 class ARewardPickup;
+class AAltarActor;
 class AShopActor;
 class ULootSelectionWidget;
 class ULevelFlowAsset;
@@ -365,6 +366,9 @@ protected:
 
 	// 检查关卡是否完成（所有波次结束 + 场内清空）
 	void CheckLevelComplete();
+	void HandleTimedClearObjectiveExpired();
+	void SpawnSacrificeEventAltar(const FVector& LootSpawnLoc);
+	bool IsSacrificeEventRoom() const;
 	void SpawnShopActorForRoom();
 	bool IsShopRoom() const;
 
@@ -395,6 +399,9 @@ protected:
 	FTimerHandle OneByOneTimer;
 	FTimerHandle InitialSpawnDelayTimer;
 	FTimerHandle DemandSpawnTimer;
+	FTimerHandle TimedClearObjectiveTimer;
+	bool bTimedClearObjectiveActive = false;
+	bool bTimedClearObjectiveExpired = false;
 	FTimerHandle PlayerDeathGameOverTimer;
 	TArray<FPlannedEnemy> OneByOneSpawnQueue;
 	int32 OneByOneSpawnIndex = 0;

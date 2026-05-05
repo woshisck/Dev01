@@ -9,7 +9,9 @@
 
 class APlayerCharacterBase;
 class UAltarMenuWidget;
+class USacrificeSelectionWidget;
 class UBoxComponent;
+class UStaticMeshComponent;
 
 UCLASS()
 class DEVKIT_API AAltarActor : public AActor, public IPlayerInteraction
@@ -34,6 +36,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Altar")
 	TSubclassOf<UAltarMenuWidget> AltarMenuWidgetClass;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Altar|Sacrifice")
+	TSubclassOf<USacrificeSelectionWidget> SacrificeWidgetClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Altar|Sacrifice")
+	bool bOpenSacrificeDirectly = false;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Altar|Sacrifice")
+	bool bSacrificeRewardConsumed = false;
+
+	UFUNCTION(BlueprintCallable, Category = "Altar")
+	void SetAltarData(UAltarDataAsset* InData) { AltarData = InData; }
+
+	UFUNCTION(BlueprintCallable, Category = "Altar")
+	void SetSacrificeWidgetClass(TSubclassOf<USacrificeSelectionWidget> InClass) { SacrificeWidgetClass = InClass; }
+
+	UFUNCTION(BlueprintCallable, Category = "Altar")
+	void SetOpenSacrificeDirectly(bool bInOpenDirectly) { bOpenSacrificeDirectly = bInOpenDirectly; }
+
+	UFUNCTION(BlueprintCallable, Category = "Altar")
+	void SetAltarActive(bool bInActive);
+
+	UFUNCTION(BlueprintCallable, Category = "Altar|Sacrifice")
+	void ConsumeSacrificeReward();
+
 protected:
 	// 只在整理阶段（ELevelPhase::Arrangement）为 true
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Altar")
@@ -42,8 +68,16 @@ protected:
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UBoxComponent> InteractBox;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Altar")
+	TObjectPtr<UStaticMeshComponent> AltarMesh;
+
 	UPROPERTY()
 	TObjectPtr<UAltarMenuWidget> AltarMenuWidget;
+
+	UPROPERTY()
+	TObjectPtr<USacrificeSelectionWidget> SacrificeWidget;
+
+	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
 
 	UFUNCTION()
 	void OnPhaseChanged(ELevelPhase NewPhase);

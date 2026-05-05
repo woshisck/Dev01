@@ -12,7 +12,10 @@
 
 // 前向声明（FPortalDestConfig.RoomPool 需要引用本类）
 class URoomDataAsset;
+class AAltarActor;
 class AShopActor;
+class UAltarDataAsset;
+class USacrificeSelectionWidget;
 class UShopDataAsset;
 class UShopSelectionWidget;
 
@@ -99,6 +102,24 @@ public:
     // 关卡结算时从此池随机抽 3 个供玩家选择
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
     TArray<TObjectPtr<URuneDataAsset>> LootPool;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Event|TimedClear")
+    bool bEnableTimedClearObjective = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Event|TimedClear", meta = (ClampMin = "1.0"))
+    float TimedClearSeconds = 90.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Event|Sacrifice")
+    TObjectPtr<UAltarDataAsset> SacrificeEventAltarData;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Event|Sacrifice")
+    TSubclassOf<AAltarActor> SacrificeEventAltarClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Event|Sacrifice")
+    TSubclassOf<USacrificeSelectionWidget> SacrificeEventWidgetClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Event|Sacrifice")
+    FVector SacrificeEventAltarSpawnOffset = FVector(250.0f, 0.0f, 0.0f);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
     TObjectPtr<UShopDataAsset> ShopData;

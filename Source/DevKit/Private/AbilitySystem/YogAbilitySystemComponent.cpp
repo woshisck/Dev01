@@ -6,6 +6,7 @@
 #include "GameplayEffect.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemGlobals.h"
+#include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "AIController.h"
 #include "BrainComponent.h"
@@ -52,6 +53,25 @@ namespace
 		return (HitReactTag.IsValid() && ASC->HasMatchingGameplayTag(HitReactTag)) ||
 			(DeadTag.IsValid() && ASC->HasMatchingGameplayTag(DeadTag)) ||
 			(KnockbackTag.IsValid() && ASC->HasMatchingGameplayTag(KnockbackTag));
+	}
+
+	bool HasPlayerAttackStateTag(const UAbilitySystemComponent* ASC)
+	{
+		if (!ASC)
+		{
+			return false;
+		}
+
+		static const FGameplayTag LightAttackTag =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk"), false);
+		static const FGameplayTag HeavyAttackTag =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk"), false);
+		static const FGameplayTag DashAttackTag =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.DashAtk"), false);
+
+		return (LightAttackTag.IsValid() && ASC->HasMatchingGameplayTag(LightAttackTag)) ||
+			(HeavyAttackTag.IsValid() && ASC->HasMatchingGameplayTag(HeavyAttackTag)) ||
+			(DashAttackTag.IsValid() && ASC->HasMatchingGameplayTag(DashAttackTag));
 	}
 
 }
@@ -680,7 +700,12 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		SourceASC->CurrentActionPoiseBonus = 0.f; // 读取后立即清零，避免跨帧残留
 	}
 
-	const float DefenderPoise = GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
+	const bool bPlayerAttackHitReactImmune = Cast<APlayerCharacterBase>(GetAvatarActor()) && HasPlayerAttackStateTag(this);
+	const float DefenderBasePoise = GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
+	constexpr float PlayerAttackUninterruptiblePoise = 9999.f;
+	const float DefenderPoise = bPlayerAttackHitReactImmune
+		? FMath::Max(DefenderBasePoise, PlayerAttackUninterruptiblePoise)
+		: DefenderBasePoise;
 	static const FGameplayTag SuperArmorTag =
 		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor"), false);
 	const bool bHasSuperArmorTag = SuperArmorTag.IsValid() && HasMatchingGameplayTag(SuperArmorTag);
@@ -689,10 +714,12 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	APawn* DefenderPawn = Cast<APawn>(GetAvatarActor());
 	const bool bEnemyDefender = DefenderPawn && !DefenderPawn->IsPlayerControlled();
 
-	UE_LOG(LogTemp, Warning, TEXT("[Poise] Target=%s Attacker=%.0f Defender=%.0f SuperArmorTag=%d BlockingSuperArmor=%d Enemy=%d"),
+	UE_LOG(LogTemp, Warning, TEXT("[Poise] Target=%s Attacker=%.0f Defender=%.0f BaseDefender=%.0f PlayerAttackImmune=%d SuperArmorTag=%d BlockingSuperArmor=%d Enemy=%d"),
 		*GetNameSafe(GetAvatarActor()),
 		AttackerPoise,
 		DefenderPoise,
+		DefenderBasePoise,
+		bPlayerAttackHitReactImmune ? 1 : 0,
 		(int32)bHasSuperArmorTag,
 		(int32)bHadBlockingSuperArmor,
 		(int32)bEnemyDefender);
@@ -732,15 +759,15 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 		}
 	}
 
-	// Hit reaction is blocked by active super armor, not by permanent Resilience alone.
 	// Permanent Resilience is still logged for balancing, but it should not make players
-	// or enemies permanently immune to hit reaction.
-	const bool bPoiseBlocksHitReact = false;
+	// or enemies permanently immune to hit reaction. Player attack state is the explicit
+	// uninterruptible case; enemy super armor is handled below.
+	const bool bPoiseBlocksHitReact = bPlayerAttackHitReactImmune;
 	const bool bBlockingSuperArmor = bHadBlockingSuperArmor || bActivatedSuperArmor ||
 		(SuperArmorTag.IsValid() && HasMatchingGameplayTag(SuperArmorTag));
 	if (bPoiseBlocksHitReact || bBlockingSuperArmor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Poise] SkipHitReact Target=%s AttackerPoise=%.0f DefenderPoise=%.0f Enemy=%d PoiseBlocked=%d SuperArmorTag=%d BlockingSuperArmor=%d ActivatedSuperArmorNow=%d"),
+		UE_LOG(LogTemp, Warning, TEXT("[HitReact][Poise] SkipHitReact Target=%s AttackerPoise=%.0f DefenderPoise=%.0f Enemy=%d PoiseBlocked=%d SuperArmorTag=%d BlockingSuperArmor=%d ActivatedSuperArmorNow=%d"),
 			*GetNameSafe(GetAvatarActor()),
 			AttackerPoise,
 			DefenderPoise,

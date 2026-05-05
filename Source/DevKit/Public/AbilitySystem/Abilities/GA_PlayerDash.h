@@ -4,6 +4,12 @@
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "GA_PlayerDash.generated.h"
 
+class AActor;
+class ACharacter;
+class UPrimitiveComponent;
+struct FCollisionQueryParams;
+struct FCollisionShape;
+
 /**
  * 玩家冲刺 GA（C++ 实现）。
  *
@@ -78,15 +84,32 @@ private:
 	 * 计算实际冲刺距离。从满距终点向前逐步延伸寻找可落点（越障），
 	 * 或在终点附近遇硬墙时返回停止距离。返回值用于计算 AnimScale。
 	 */
-	float GetFurthestValidDashDistance(const FVector& Start, const FVector& End) const;
+	float GetFurthestValidDashDistance(const FVector& Start, const FVector& End);
+
+	bool FindFirstDashBlockingHit(
+		const FVector& SweepStart,
+		const FVector& SweepEnd,
+		const FCollisionShape& Shape,
+		const FCollisionQueryParams& Params,
+		FHitResult& OutHit) const;
+
+	float FindAirWallExitDistance(
+		const FVector& SweepStart,
+		const FVector& DashDirection,
+		const UPrimitiveComponent* AirWallComponent) const;
+
+	float GetDashStopDistance(float HitDistance) const;
 
 	/**
 	 * 判断该位置是否为有效冲刺落点：命中列表为空，或所有命中体对 DashTrace 均非 Block。
 	 */
-	bool IsValidDashLocation(const TArray<FHitResult>& Hits) const;
-
 	/** 修改/恢复 Capsule 对 Enemy 和 DashThrough 通道的碰撞响应。*/
 	void SetDashCollision(ACharacter* Character, ECollisionResponse Response) const;
+
+	void ApplyDashMoveIgnores(ACharacter* Character);
+	void ClearDashMoveIgnores(ACharacter* Character);
+	bool HasEnemyOverlapAt(ACharacter* Character, const FVector& Location) const;
+	void ResolveEnemyOverlapAfterDash(ACharacter* Character) const;
 
 	/** 每 0.1s 打印冲刺充能/CD 调试信息到屏幕 */
 	void PrintDashDebugInfo();
@@ -98,6 +121,9 @@ private:
 
 	/** ActivateAbility 时记录 AnimScale，EndAbility 时用于 Z 下沉诊断 */
 	float DashAnimScale = 1.f;
+
+	FVector LastDashDirection = FVector::ZeroVector;
+	TArray<TWeakObjectPtr<AActor>> DashIgnoredActors;
 
 	/**
 	 * CanActivateAbility 检测到处于 X-1 招位时缓存应注入的连招 Tag。

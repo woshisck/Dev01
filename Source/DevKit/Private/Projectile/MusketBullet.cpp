@@ -53,6 +53,8 @@ void AMusketBullet::InitBullet(ACharacter* InSource, float InDamage,
         ProjectileMovement->MaxSpeed     = Speed;
         ProjectileMovement->Velocity     = GetActorForwardVector() * Speed;
     }
+
+    ScheduleInitialOverlapCheck();
 }
 
 void AMusketBullet::SetCombatDeckContext(ECardRequiredAction InActionType, bool bInComboFinisher, bool bInFromDashSave)
@@ -82,6 +84,8 @@ void AMusketBullet::BeginPlay()
 
     GetWorld()->GetTimerManager().SetTimer(
         LifetimeTimerHandle, this, &AMusketBullet::Expire, Lifetime, false);
+
+    ScheduleInitialOverlapCheck();
 }
 
 void AMusketBullet::OnOverlapBegin(
@@ -92,6 +96,9 @@ void AMusketBullet::OnOverlapBegin(
     if (bHasHit || !OtherActor || OtherActor == this || OtherActor == SourceCharacter)
         return;
 
+    if (!UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OtherActor))
+        return;
+
     bHasHit = true;
     GetWorld()->GetTimerManager().ClearTimer(LifetimeTimerHandle);
 
@@ -100,6 +107,77 @@ void AMusketBullet::OnOverlapBegin(
         : FVector(SweepHitResult.ImpactPoint);
 
     ApplyDamageTo(OtherActor, HitLoc);
+    Destroy();
+}
+
+void AMusketBullet::ScheduleInitialOverlapCheck()
+{
+    if (bInitialOverlapCheckScheduled || bHasHit || !SourceCharacter || !HasActorBegunPlay() || !GetWorld())
+    {
+        return;
+    }
+
+    bInitialOverlapCheckScheduled = true;
+    HandleInitialOverlaps();
+
+    if (!bHasHit && !IsActorBeingDestroyed() && GetWorld())
+    {
+        GetWorld()->GetTimerManager().SetTimerForNextTick(
+            FTimerDelegate::CreateUObject(this, &AMusketBullet::HandleInitialOverlaps));
+    }
+}
+
+void AMusketBullet::HandleInitialOverlaps()
+{
+    if (bHasHit || !CollisionSphere || !SourceCharacter || IsActorBeingDestroyed())
+    {
+        return;
+    }
+
+    CollisionSphere->UpdateOverlaps();
+
+    TArray<AActor*> OverlappingActors;
+    CollisionSphere->GetOverlappingActors(OverlappingActors);
+
+    AActor* BestTarget = nullptr;
+    float BestDistanceSq = TNumericLimits<float>::Max();
+    const FVector Origin = GetActorLocation();
+
+    for (AActor* OverlappingActor : OverlappingActors)
+    {
+        if (!OverlappingActor || OverlappingActor == this || OverlappingActor == SourceCharacter)
+        {
+            continue;
+        }
+
+        if (!UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OverlappingActor))
+        {
+            continue;
+        }
+
+        const float DistanceSq = FVector::DistSquared(Origin, OverlappingActor->GetActorLocation());
+        if (DistanceSq < BestDistanceSq)
+        {
+            BestDistanceSq = DistanceSq;
+            BestTarget = OverlappingActor;
+        }
+    }
+
+    if (!BestTarget)
+    {
+        return;
+    }
+
+    bHasHit = true;
+    if (GetWorld())
+    {
+        GetWorld()->GetTimerManager().ClearTimer(LifetimeTimerHandle);
+    }
+
+    const FVector HitLoc = BestTarget->GetActorLocation();
+    UE_LOG(LogTemp, Warning, TEXT("[MusketBullet] InitialOverlapHit Target=%s"),
+        *GetNameSafe(BestTarget));
+    ApplyDamageTo(BestTarget, HitLoc);
     Destroy();
 }
 

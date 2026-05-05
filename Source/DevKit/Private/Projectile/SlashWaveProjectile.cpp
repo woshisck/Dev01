@@ -84,6 +84,8 @@ void ASlashWaveProjectile::InitProjectile(ACharacter* InSource, float InDamage,
 		GetWorld()->GetTimerManager().SetTimer(
 			LifetimeTimerHandle, this, &ASlashWaveProjectile::Expire, Lifetime, false);
 	}
+
+	ScheduleInitialOverlapCheck();
 }
 
 void ASlashWaveProjectile::InitProjectileWithConfig(ACharacter* InSource, const FSlashWaveProjectileRuntimeConfig& InConfig)
@@ -115,10 +117,15 @@ void ASlashWaveProjectile::InitProjectileWithConfig(ACharacter* InSource, const 
 	MaxSplitGenerations = FMath::Max(0, InConfig.MaxSplitGenerations);
 	SplitProjectileCount = FMath::Max(1, InConfig.SplitProjectileCount);
 	SplitConeAngleDegrees = FMath::Clamp(InConfig.SplitConeAngleDegrees, 0.f, 180.f);
+	bRandomizeSplitDirections = InConfig.bRandomizeSplitDirections;
+	SplitRandomYawJitterDegrees = FMath::Clamp(InConfig.SplitRandomYawJitterDegrees, 0.f, 180.f);
+	SplitRandomPitchDegrees = FMath::Clamp(InConfig.SplitRandomPitchDegrees, 0.f, 45.f);
 	SplitDamageMultiplier = FMath::Max(0.f, InConfig.SplitDamageMultiplier);
 	SplitSpeedMultiplier = FMath::Max(0.01f, InConfig.SplitSpeedMultiplier);
 	SplitMaxDistanceMultiplier = FMath::Max(0.f, InConfig.SplitMaxDistanceMultiplier);
 	SplitCollisionBoxExtentMultiplier = SafePositiveScale(InConfig.SplitCollisionBoxExtentMultiplier);
+	bBounceOnEnemyHit = InConfig.bBounceOnEnemyHit;
+	MaxEnemyBounces = FMath::Max(0, InConfig.MaxEnemyBounces);
 
 	if (CollisionBox)
 	{
@@ -152,7 +159,7 @@ void ASlashWaveProjectile::InitProjectileWithConfig(ACharacter* InSource, const 
 	ApplyRuntimeVisualConfig(InConfig);
 
 	UE_LOG(LogTemp, Warning,
-		TEXT("[SlashWaveProjectile] InitConfig Damage=%.1f Speed=%.1f Distance=%.1f HitCount=%d DamageApps=%d DamageInterval=%.2f Split=%d Generation=%d CollisionExtent=%s ActorScale=%s VisualNiagara=%s HideDefault=%d"),
+		TEXT("[SlashWaveProjectile] InitConfig Damage=%.1f Speed=%.1f Distance=%.1f HitCount=%d DamageApps=%d DamageInterval=%.2f Split=%d Generation=%d SplitRandom=%d SplitYawJitter=%.1f SplitPitch=%.1f Bounce=%d BounceMax=%d CollisionExtent=%s ActorScale=%s VisualNiagara=%s HideDefault=%d"),
 		InConfig.Damage,
 		Speed,
 		MaxDistance,
@@ -161,6 +168,11 @@ void ASlashWaveProjectile::InitProjectileWithConfig(ACharacter* InSource, const 
 		DamageApplicationInterval,
 		bSplitOnFirstHit ? 1 : 0,
 		ProjectileGeneration,
+		bRandomizeSplitDirections ? 1 : 0,
+		SplitRandomYawJitterDegrees,
+		SplitRandomPitchDegrees,
+		bBounceOnEnemyHit ? 1 : 0,
+		MaxEnemyBounces,
 		*CollisionBoxExtent.ToString(),
 		*FinalVisualScale.ToString(),
 		*GetNameSafe(InConfig.ProjectileVisualNiagaraSystem),
@@ -208,6 +220,7 @@ void ASlashWaveProjectile::BeginPlay()
 
 	GetWorld()->GetTimerManager().SetTimer(
 		LifetimeTimerHandle, this, &ASlashWaveProjectile::Expire, Lifetime, false);
+	ScheduleInitialOverlapCheck();
 }
 
 void ASlashWaveProjectile::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -247,7 +260,66 @@ void ASlashWaveProjectile::OnOverlapBegin(
 	const FVector HitLocation = SweepHitResult.ImpactPoint.IsNearlyZero()
 		? OtherActor->GetActorLocation()
 		: FVector(SweepHitResult.ImpactPoint);
-	TryStartDamageSequence(OtherActor, HitLocation);
+	if (!UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OtherActor))
+	{
+		return;
+	}
+
+	TryStartDamageSequence(OtherActor, HitLocation, &SweepHitResult);
+}
+
+void ASlashWaveProjectile::ScheduleInitialOverlapCheck()
+{
+	if (bInitialOverlapCheckScheduled || !bProjectileInitialized || !HasActorBegunPlay() || !GetWorld())
+	{
+		return;
+	}
+
+	bInitialOverlapCheckScheduled = true;
+	HandleInitialOverlaps();
+
+	if (!IsActorBeingDestroyed() && GetWorld())
+	{
+		GetWorld()->GetTimerManager().SetTimerForNextTick(
+			FTimerDelegate::CreateUObject(this, &ASlashWaveProjectile::HandleInitialOverlaps));
+	}
+}
+
+void ASlashWaveProjectile::HandleInitialOverlaps()
+{
+	if (!bProjectileInitialized || !CollisionBox || IsActorBeingDestroyed())
+	{
+		return;
+	}
+
+	CollisionBox->UpdateOverlaps();
+
+	TArray<AActor*> OverlappingActors;
+	CollisionBox->GetOverlappingActors(OverlappingActors);
+	for (AActor* OverlappingActor : OverlappingActors)
+	{
+		if (!OverlappingActor || OverlappingActor == this || OverlappingActor == SourceCharacter)
+		{
+			continue;
+		}
+
+		if (!UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OverlappingActor))
+		{
+			continue;
+		}
+
+		const FVector HitLocation = GetActorLocation();
+		if (TryStartDamageSequence(OverlappingActor, HitLocation))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SlashWaveProjectile] InitialOverlapHit Target=%s"),
+				*GetNameSafe(OverlappingActor));
+		}
+
+		if (IsActorBeingDestroyed() || (MaxHitCount > 0 && HitRecords.Num() >= MaxHitCount))
+		{
+			break;
+		}
+	}
 }
 
 void ASlashWaveProjectile::ApplyImmediateHit(AActor* Target)
@@ -260,7 +332,7 @@ void ASlashWaveProjectile::ApplyImmediateHit(AActor* Target)
 	TryStartDamageSequence(Target, Target->GetActorLocation());
 }
 
-bool ASlashWaveProjectile::TryStartDamageSequence(AActor* Target, const FVector& HitLocation)
+bool ASlashWaveProjectile::TryStartDamageSequence(AActor* Target, const FVector& HitLocation, const FHitResult* HitResult)
 {
 	if (!bProjectileInitialized || !Target || Target == this || Target == SourceCharacter)
 	{
@@ -285,6 +357,10 @@ bool ASlashWaveProjectile::TryStartDamageSequence(AActor* Target, const FVector&
 	if (Record.AppliedCount > 0 && HitRecords.Num() == 1)
 	{
 		TrySplitFromImpact(Target, HitLocation);
+	}
+	if (Record.AppliedCount > 0)
+	{
+		TryBounceFromEnemyHit(Target, HitLocation, HitResult);
 	}
 	return true;
 }
@@ -535,6 +611,86 @@ void ASlashWaveProjectile::SendExpireGameplayEvent() const
 		DamageMagnitude);
 }
 
+void ASlashWaveProjectile::TryBounceFromEnemyHit(AActor* ImpactActor, const FVector& HitLocation, const FHitResult* HitResult)
+{
+	if (!bBounceOnEnemyHit
+		|| ProjectileGeneration <= 0
+		|| MaxEnemyBounces <= 0
+		|| EnemyBounceCount >= MaxEnemyBounces
+		|| !ImpactActor
+		|| !ProjectileMovement
+		|| !GetWorld()
+		|| IsActorBeingDestroyed())
+	{
+		return;
+	}
+
+	if (MaxHitCount > 0 && HitRecords.Num() >= MaxHitCount)
+	{
+		return;
+	}
+
+	FVector IncomingDirection = ProjectileMovement->Velocity.GetSafeNormal();
+	if (IncomingDirection.IsNearlyZero())
+	{
+		IncomingDirection = GetActorForwardVector().GetSafeNormal();
+	}
+	IncomingDirection.Z = 0.f;
+	IncomingDirection = IncomingDirection.GetSafeNormal();
+	if (IncomingDirection.IsNearlyZero())
+	{
+		return;
+	}
+
+	FVector HitNormal = FVector::ZeroVector;
+	if (HitResult)
+	{
+		HitNormal = HitResult->ImpactNormal.GetSafeNormal();
+		if (HitNormal.IsNearlyZero())
+		{
+			HitNormal = HitResult->Normal.GetSafeNormal();
+		}
+	}
+	if (HitNormal.IsNearlyZero())
+	{
+		HitNormal = (HitLocation - ImpactActor->GetActorLocation()).GetSafeNormal();
+	}
+	HitNormal.Z = 0.f;
+	HitNormal = HitNormal.GetSafeNormal();
+	if (HitNormal.IsNearlyZero())
+	{
+		HitNormal = -IncomingDirection;
+	}
+
+	FVector ReflectedDirection = IncomingDirection - 2.f * FVector::DotProduct(IncomingDirection, HitNormal) * HitNormal;
+	ReflectedDirection.Z = 0.f;
+	ReflectedDirection = ReflectedDirection.GetSafeNormal();
+	if (ReflectedDirection.IsNearlyZero())
+	{
+		ReflectedDirection = -IncomingDirection;
+	}
+
+	++EnemyBounceCount;
+	const FVector BounceOffset = ReflectedDirection * FMath::Max(20.f, CollisionBoxExtent.X * 0.5f);
+	SetActorLocation(GetActorLocation() + BounceOffset, false);
+	SetActorRotation(ReflectedDirection.Rotation());
+	ProjectileMovement->Velocity = ReflectedDirection * Speed;
+	ProjectileMovement->UpdateComponentVelocity();
+
+	GetWorld()->GetTimerManager().ClearTimer(LifetimeTimerHandle);
+	GetWorld()->GetTimerManager().SetTimer(
+		LifetimeTimerHandle, this, &ASlashWaveProjectile::Expire, Lifetime, false);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[SlashWaveProjectile] EnemyBounce Target=%s Count=%d/%d Incoming=%s Normal=%s Reflected=%s"),
+		*GetNameSafe(ImpactActor),
+		EnemyBounceCount,
+		MaxEnemyBounces,
+		*IncomingDirection.ToString(),
+		*HitNormal.ToString(),
+		*ReflectedDirection.ToString());
+}
+
 void ASlashWaveProjectile::TrySplitFromImpact(AActor* ImpactActor, const FVector& ImpactLocation)
 {
 	if (!bSplitOnFirstHit
@@ -584,10 +740,15 @@ void ASlashWaveProjectile::TrySplitFromImpact(AActor* ImpactActor, const FVector
 	ChildConfig.MaxSplitGenerations = MaxSplitGenerations;
 	ChildConfig.SplitProjectileCount = SplitProjectileCount;
 	ChildConfig.SplitConeAngleDegrees = SplitConeAngleDegrees;
+	ChildConfig.bRandomizeSplitDirections = bRandomizeSplitDirections;
+	ChildConfig.SplitRandomYawJitterDegrees = SplitRandomYawJitterDegrees;
+	ChildConfig.SplitRandomPitchDegrees = SplitRandomPitchDegrees;
 	ChildConfig.SplitDamageMultiplier = SplitDamageMultiplier;
 	ChildConfig.SplitSpeedMultiplier = SplitSpeedMultiplier;
 	ChildConfig.SplitMaxDistanceMultiplier = SplitMaxDistanceMultiplier;
 	ChildConfig.SplitCollisionBoxExtentMultiplier = SplitCollisionBoxExtentMultiplier;
+	ChildConfig.bBounceOnEnemyHit = bBounceOnEnemyHit;
+	ChildConfig.MaxEnemyBounces = MaxEnemyBounces;
 	ChildConfig.ProjectileVisualNiagaraSystem = RuntimeVisualNiagaraSystem;
 	ChildConfig.ProjectileVisualNiagaraScale = RuntimeVisualNiagaraScale;
 	ChildConfig.bHideDefaultProjectileVisuals = bRuntimeHideDefaultProjectileVisuals;
@@ -600,9 +761,49 @@ void ASlashWaveProjectile::TrySplitFromImpact(AActor* ImpactActor, const FVector
 
 	for (int32 Index = 0; Index < SplitProjectileCount; ++Index)
 	{
-		const float YawOffset = StartYaw + Step * Index;
-		const FVector Direction = Forward.RotateAngleAxis(YawOffset, FVector::UpVector);
+		float YawOffset = StartYaw + Step * Index;
+		float PitchOffset = 0.f;
+		if (bRandomizeSplitDirections)
+		{
+			if (SplitProjectileCount > 1)
+			{
+				const float SegmentWidth = SplitConeAngleDegrees / static_cast<float>(SplitProjectileCount);
+				const float SegmentMinYaw = -SplitConeAngleDegrees * 0.5f + SegmentWidth * Index;
+				YawOffset = FMath::FRandRange(SegmentMinYaw, SegmentMinYaw + SegmentWidth);
+			}
+			else
+			{
+				YawOffset = FMath::FRandRange(-SplitConeAngleDegrees * 0.5f, SplitConeAngleDegrees * 0.5f);
+			}
+
+			if (SplitRandomYawJitterDegrees > KINDA_SMALL_NUMBER)
+			{
+				YawOffset += FMath::FRandRange(-SplitRandomYawJitterDegrees, SplitRandomYawJitterDegrees);
+			}
+			if (SplitRandomPitchDegrees > KINDA_SMALL_NUMBER)
+			{
+				PitchOffset = FMath::FRandRange(-SplitRandomPitchDegrees, SplitRandomPitchDegrees);
+			}
+		}
+
+		FVector Direction = Forward.RotateAngleAxis(YawOffset, FVector::UpVector).GetSafeNormal();
+		if (FMath::Abs(PitchOffset) > KINDA_SMALL_NUMBER)
+		{
+			const FVector PitchAxis = FVector::CrossProduct(FVector::UpVector, Direction).GetSafeNormal();
+			if (!PitchAxis.IsNearlyZero())
+			{
+				Direction = Direction.RotateAngleAxis(PitchOffset, PitchAxis).GetSafeNormal();
+			}
+		}
 		const FRotator SpawnRotation = Direction.Rotation();
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[SlashWaveProjectile] SplitChild Index=%d/%d Yaw=%.1f Pitch=%.1f Random=%d"),
+			Index + 1,
+			SplitProjectileCount,
+			YawOffset,
+			PitchOffset,
+			bRandomizeSplitDirections ? 1 : 0);
 
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Owner = SourceCharacter;

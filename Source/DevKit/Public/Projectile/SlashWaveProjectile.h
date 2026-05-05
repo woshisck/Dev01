@@ -111,6 +111,15 @@ struct DEVKIT_API FSlashWaveProjectileRuntimeConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split", meta = (ClampMin = "0.0", ClampMax = "180.0"))
 	float SplitConeAngleDegrees = 45.f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split")
+	bool bRandomizeSplitDirections = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split", meta = (ClampMin = "0.0", ClampMax = "180.0", EditCondition = "bRandomizeSplitDirections"))
+	float SplitRandomYawJitterDegrees = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split", meta = (ClampMin = "0.0", ClampMax = "45.0", EditCondition = "bRandomizeSplitDirections"))
+	float SplitRandomPitchDegrees = 0.f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split", meta = (ClampMin = "0.0"))
 	float SplitDamageMultiplier = 0.5f;
 
@@ -122,6 +131,12 @@ struct DEVKIT_API FSlashWaveProjectileRuntimeConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split")
 	FVector SplitCollisionBoxExtentMultiplier = FVector(0.5f, 0.5f, 0.5f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split|Bounce")
+	bool bBounceOnEnemyHit = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split|Bounce", meta = (ClampMin = "0"))
+	int32 MaxEnemyBounces = 0;
 };
 
 struct FSlashWaveHitRecord
@@ -293,6 +308,15 @@ protected:
 	float SplitConeAngleDegrees = 45.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	bool bRandomizeSplitDirections = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	float SplitRandomYawJitterDegrees = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	float SplitRandomPitchDegrees = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	float SplitDamageMultiplier = 0.5f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
@@ -303,6 +327,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	FVector SplitCollisionBoxExtentMultiplier = FVector(0.5f, 0.5f, 0.5f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	bool bBounceOnEnemyHit = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	int32 MaxEnemyBounces = 0;
 
 	// ── Blueprint 表现层钩子 ────────────────────────────────────────────────
 	/** 命中新目标时触发（在此播放粒子/音效/贴花）*/
@@ -329,6 +359,8 @@ private:
 	TArray<FSlashWaveHitRecord> HitRecords;
 
 	bool bHasSplit = false;
+	bool bInitialOverlapCheckScheduled = false;
+	int32 EnemyBounceCount = 0;
 
 	FTimerHandle LifetimeTimerHandle;
 
@@ -340,7 +372,9 @@ private:
 	/** 对目标施加 DamageEffect（SetByCaller Attribute.ActDamage = DamageMagnitude）*/
 	bool ApplyDamageTo(AActor* Target, const FVector& HitLocation);
 
-	bool TryStartDamageSequence(AActor* Target, const FVector& HitLocation);
+	bool TryStartDamageSequence(AActor* Target, const FVector& HitLocation, const FHitResult* HitResult = nullptr);
+	void ScheduleInitialOverlapCheck();
+	void HandleInitialOverlaps();
 	void ApplyDamageTickForRecord(int32 RecordIndex);
 	int32 FindHitRecordIndex(AActor* Target) const;
 	void ClearRepeatTimers();
@@ -349,6 +383,7 @@ private:
 	void SendHitGameplayEvent(AActor* Target) const;
 	void SendExpireGameplayEvent() const;
 	void TrySplitFromImpact(AActor* ImpactActor, const FVector& ImpactLocation);
+	void TryBounceFromEnemyHit(AActor* ImpactActor, const FVector& HitLocation, const FHitResult* HitResult);
 
 	/** 生存时间到期处理 */
 	void Expire();

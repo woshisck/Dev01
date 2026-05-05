@@ -1,12 +1,33 @@
 #include "Map/AltarActor.h"
 #include "Components/BoxComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "GameModes/YogGameMode.h"
 #include "UI/AltarMenuWidget.h"
+#include "UI/SacrificeSelectionWidget.h"
+#include "Character/PlayerCharacterBase.h"
+#include "UObject/ConstructorHelpers.h"
 
 AAltarActor::AAltarActor()
 {
 	InteractBox = CreateDefaultSubobject<UBoxComponent>(TEXT("InteractBox"));
 	RootComponent = InteractBox;
+	InteractBox->InitBoxExtent(FVector(110.f, 110.f, 110.f));
+	InteractBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	InteractBox->SetCollisionObjectType(ECC_WorldDynamic);
+	InteractBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	InteractBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	InteractBox->SetGenerateOverlapEvents(true);
+
+	AltarMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AltarMesh"));
+	AltarMesh->SetupAttachment(RootComponent);
+	AltarMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> DefaultAltarMesh(
+		TEXT("/Game/Art/EnvironmentAsset/Prox_Box/SM_GothicAltar01.SM_GothicAltar01"));
+	if (DefaultAltarMesh.Succeeded())
+	{
+		AltarMesh->SetStaticMesh(DefaultAltarMesh.Object);
+	}
 }
 
 void AAltarActor::BeginPlay()
@@ -27,26 +48,90 @@ void AAltarActor::BeginPlay()
 
 void AAltarActor::OnPhaseChanged(ELevelPhase NewPhase)
 {
-	bIsActive = (NewPhase == ELevelPhase::Arrangement);
+	SetAltarActive(NewPhase == ELevelPhase::Arrangement);
+}
+
+void AAltarActor::SetAltarActive(bool bInActive)
+{
+	bIsActive = bInActive && !bSacrificeRewardConsumed;
 	if (!bIsActive && AltarMenuWidget && AltarMenuWidget->IsActivated())
 		AltarMenuWidget->DeactivateWidget();
+	if (!bIsActive && SacrificeWidget && SacrificeWidget->IsActivated())
+		SacrificeWidget->DeactivateWidget();
+
+	if (NearbyPlayer.IsValid())
+	{
+		NearbyPlayer->PendingAltar = bIsActive ? this : nullptr;
+	}
+}
+
+void AAltarActor::ConsumeSacrificeReward()
+{
+	bSacrificeRewardConsumed = true;
+	SetAltarActive(false);
 }
 
 void AAltarActor::TryInteract(APlayerCharacterBase* Player)
 {
-	if (!bIsActive || !AltarMenuWidget) return;
+	if (!bIsActive || bSacrificeRewardConsumed || !Player || !AltarData) return;
+
+	if (bOpenSacrificeDirectly)
+	{
+		if (!SacrificeWidget || !SacrificeWidget->IsInViewport())
+		{
+			TSubclassOf<USacrificeSelectionWidget> WidgetClass = SacrificeWidgetClass;
+			if (!WidgetClass)
+			{
+				WidgetClass = USacrificeSelectionWidget::StaticClass();
+			}
+			if (APlayerController* PC = Player->GetController<APlayerController>())
+			{
+				SacrificeWidget = CreateWidget<USacrificeSelectionWidget>(PC, WidgetClass);
+				if (SacrificeWidget)
+				{
+					SacrificeWidget->AddToViewport(16);
+				}
+			}
+		}
+
+		if (!SacrificeWidget)
+		{
+			return;
+		}
+
+		SacrificeWidget->Setup(AltarData, Player, this);
+		SacrificeWidget->ActivateWidget();
+		return;
+	}
+
+	if (!AltarMenuWidget) return;
 	AltarMenuWidget->SetupAltar(AltarData, Player);
 	AltarMenuWidget->ActivateWidget();
 }
 
 void AAltarActor::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 {
+	NearbyPlayer = Player;
+	if (Player && bIsActive)
+	{
+		Player->PendingAltar = this;
+	}
 	OnPlayerNearby(Player, true);
 }
 
 void AAltarActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 {
+	if (Player && Player->PendingAltar == this)
+	{
+		Player->PendingAltar = nullptr;
+	}
+	if (NearbyPlayer.Get() == Player)
+	{
+		NearbyPlayer.Reset();
+	}
 	OnPlayerNearby(Player, false);
 	if (AltarMenuWidget && AltarMenuWidget->IsActivated())
 		AltarMenuWidget->DeactivateWidget();
+	if (SacrificeWidget && SacrificeWidget->IsActivated())
+		SacrificeWidget->DeactivateWidget();
 }

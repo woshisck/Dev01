@@ -22,6 +22,7 @@
 #include "Component/CharacterDataComponent.h"
 #include "Map/Portal.h"
 #include "Map/RewardPickup.h"
+#include "Map/AltarActor.h"
 #include "Map/ShopActor.h"
 #include "UI/LootSelectionWidget.h"
 #include "Tutorial/TutorialManager.h"
@@ -43,6 +44,14 @@ FName ResolveRoomLevelNameForOpen(FName RequestedLevel, const URoomDataAsset* Ro
 		|| RoomAssetName.Equals(TEXT("DA_CL_Corridor_01b"), ESearchCase::IgnoreCase))
 	{
 		return FName(TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon/L1_CommonLevel_corridor_01b"));
+	}
+
+	if (Requested.Equals(TEXT("PrayRoom"), ESearchCase::IgnoreCase)
+		|| Requested.Equals(TEXT("L1_CommonLevel_PrayRoom"), ESearchCase::IgnoreCase)
+		|| RoomAssetName.Equals(TEXT("DA_PrayRoom"), ESearchCase::IgnoreCase)
+		|| RoomAssetName.Equals(TEXT("DA_CL_PrayRoom"), ESearchCase::IgnoreCase))
+	{
+		return FName(TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/L1_CommonLevel_PrayRoom"));
 	}
 
 	if (Requested.Equals(TEXT("ShopRoom"), ESearchCase::IgnoreCase)
@@ -381,6 +390,8 @@ void AYogGameMode::EnterArrangementPhase()
 	if (CurrentPhase != ELevelPhase::Combat)
 		return;
 
+	GetWorldTimerManager().ClearTimer(TimedClearObjectiveTimer);
+
 	CurrentPhase = ELevelPhase::Arrangement;
 	OnPhaseChanged.Broadcast(CurrentPhase);
 
@@ -443,8 +454,10 @@ void AYogGameMode::EnterArrangementPhase()
 	}
 
 	// 献祭恩赐额外掉落（非主城关卡，15% 概率）
+	SpawnSacrificeEventAltar(LootSpawnLoc);
+
 	const bool bIsHubRoom = ActiveRoomData && ActiveRoomData->bIsHubRoom;
-	if (!bIsHubRoom && SacrificePickupClass && SacrificeGracePool.Num() > 0
+	if (!bIsHubRoom && !IsSacrificeEventRoom() && SacrificePickupClass && SacrificeGracePool.Num() > 0
 		&& FMath::FRand() < SacrificeDropChance)
 	{
 		const int32 ChosenIdx = FMath::RandRange(0, SacrificeGracePool.Num() - 1);
@@ -523,6 +536,23 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 
 	// 通知 LevelFlow 节点：玩家已选符文
 	OnLootSelected.Broadcast();
+}
+
+void AYogGameMode::HandleTimedClearObjectiveExpired()
+{
+	if (!bTimedClearObjectiveActive || CurrentPhase != ELevelPhase::Combat)
+	{
+		return;
+	}
+
+	bTimedClearObjectiveExpired = true;
+	UE_LOG(LogTemp, Warning, TEXT("[RoomEvent] Timed clear objective expired: Room=%s"),
+		*GetNameSafe(ActiveRoomData));
+}
+
+bool AYogGameMode::IsSacrificeEventRoom() const
+{
+	return ActiveRoomData && ActiveRoomData->SacrificeEventAltarData != nullptr;
 }
 
 bool AYogGameMode::IsShopRoom() const
@@ -618,6 +648,59 @@ void AYogGameMode::SpawnShopActorForRoom()
 		*SpawnLoc.ToCompactString());
 }
 
+void AYogGameMode::SpawnSacrificeEventAltar(const FVector& LootSpawnLoc)
+{
+	if (!IsSacrificeEventRoom())
+	{
+		return;
+	}
+
+	if (bTimedClearObjectiveActive && bTimedClearObjectiveExpired)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RoomEvent] Sacrifice altar skipped because timed clear failed: Room=%s"),
+			*GetNameSafe(ActiveRoomData));
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	TSubclassOf<AAltarActor> AltarClass = ActiveRoomData->SacrificeEventAltarClass;
+	if (!AltarClass)
+	{
+		AltarClass = AAltarActor::StaticClass();
+	}
+
+	const FVector SpawnLoc = LootSpawnLoc + ActiveRoomData->SacrificeEventAltarSpawnOffset;
+	AAltarActor* Altar = World->SpawnActor<AAltarActor>(AltarClass, SpawnLoc, FRotator::ZeroRotator);
+	if (!Altar)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RoomEvent] Failed to spawn sacrifice altar: Room=%s"),
+			*GetNameSafe(ActiveRoomData));
+		return;
+	}
+
+	Altar->SetAltarData(ActiveRoomData->SacrificeEventAltarData);
+	Altar->SetSacrificeWidgetClass(ActiveRoomData->SacrificeEventWidgetClass);
+	Altar->SetOpenSacrificeDirectly(true);
+	Altar->SetAltarActive(true);
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(World, 0)))
+	{
+		constexpr float ImmediateInteractRadiusSq = 260.0f * 260.0f;
+		if (FVector::DistSquared(Player->GetActorLocation(), Altar->GetActorLocation()) <= ImmediateInteractRadiusSq)
+		{
+			Player->PendingAltar = Altar;
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("[RoomEvent] Sacrifice altar spawned: Room=%s Altar=%s Location=%s"),
+		*GetNameSafe(ActiveRoomData),
+		*GetNameSafe(Altar),
+		*SpawnLoc.ToCompactString());
+}
+
 void AYogGameMode::ConfirmArrangementAndTransition()
 {
 	if (CurrentPhase != ELevelPhase::Arrangement)
@@ -693,6 +776,7 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 				}
 
 				NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
+				NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
 
 				GI->PendingRunState = NewState;
 				UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE — HP=%.1f Gold=%d Phase=%d Heat=%.0f Runes=%d"),
@@ -854,6 +938,22 @@ void AYogGameMode::StartLevelSpawning()
 	}
 
 	// ── 主城/枢纽房间：无战斗，立即全开传送门 ──────────────────────────────
+	bTimedClearObjectiveActive = ActiveRoomData->bEnableTimedClearObjective && ActiveRoomData->TimedClearSeconds > 0.0f;
+	bTimedClearObjectiveExpired = false;
+	GetWorldTimerManager().ClearTimer(TimedClearObjectiveTimer);
+	if (bTimedClearObjectiveActive)
+	{
+		GetWorldTimerManager().SetTimer(
+			TimedClearObjectiveTimer,
+			this,
+			&AYogGameMode::HandleTimedClearObjectiveExpired,
+			ActiveRoomData->TimedClearSeconds,
+			false);
+		UE_LOG(LogTemp, Log, TEXT("[RoomEvent] Timed clear objective started: Room=%s Seconds=%.1f"),
+			*GetNameSafe(ActiveRoomData),
+			ActiveRoomData->TimedClearSeconds);
+	}
+
 	if (ActiveRoomData->bIsHubRoom)
 	{
 		// Hub 视为第 0 关，TransitionToLevel 写入 PendingNextFloor = 0+1 = 1
@@ -922,8 +1022,8 @@ void AYogGameMode::StartLevelSpawning()
 				{
 					if (Dest.PortalIndex == Portal->Index)
 					{
-						 bCanOpen = true;
-						 break;
+						bCanOpen = true;
+						break;
 					}
 				}
 
@@ -2135,6 +2235,7 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 
 			// 保存献祭恩赐
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
+			NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
 
 			GI->PendingRunState = NewState;
 			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Gold=%d Phase=%d Runes=%d Weapon=%s Room=%s"),

@@ -89,6 +89,7 @@ private:
 
     float DamageMagnitude = 0.f;
     bool  bHasHit         = false;
+    bool  bInitialOverlapCheckScheduled = false;
     bool  bCombatDeckResolved = false;
     bool  bCombatDeckComboFinisher = false;
     bool  bCombatDeckFromDashSave = false;
@@ -104,6 +105,8 @@ private:
         bool bFromSweep, const FHitResult& SweepHitResult);
 
     void ApplyDamageTo(AActor* Target, const FVector& HitLocation);
+    void ScheduleInitialOverlapCheck();
+    void HandleInitialOverlaps();
     void ResolveCombatDeckOnHit();
     void Expire();
 };

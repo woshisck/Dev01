@@ -218,3 +218,6 @@ if (TargetASC && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible))
 - **SetDashCollision 必须在 EndAbility 还原**：`ActivateAbility` 里改 Capsule 碰撞为 Overlap，`EndAbility` 里无论成功/取消都必须还原，否则角色永远穿透敌人
 - **调试用 CVar，不用 UPROPERTY**：GA 是纯 C++ 无 Blueprint 子类，开关调试信息用 `CVarDashDebugTrace`（`Dash.DebugTrace 1`）
 - **`PendingSaveComboTags` 是 mutable**：CanActivateAbility 是 const，需要缓存连招桥接 Tag 时只能用 mutable 成员
+# 2026-05-05 更新：空气墙冲刺硬上限
+
+本版冲刺规则以 `DashMaxDistance` 作为硬上限，不再使用旧的“命中 DashThrough 后满距穿越并继续向前延伸找落点”逻辑。只有 `AAirWall` 且 `bAllowDashThrough=true` 的空气墙会进入穿越判定；`DashBarrier`、普通阻挡体、`bAllowDashThrough=false` 的空气墙都会停在碰撞前。空气墙命中距离大于 `DashMaxDistance * 2 / 3` 时停在墙前；命中距离小于等于该阈值时，只有出口仍在本次 `DashMaxDistance` 内才允许穿越。穿越成功时最终位移仍最多为 `DashMaxDistance`，不会额外延伸。敌人和 Pawn 不参与空气墙距离/厚度判定；Dash 结束前会做一次敌人重叠回退修正，避免恢复 Block 后卡住。
