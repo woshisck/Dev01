@@ -1,7 +1,11 @@
 #include "UI/Tutorial512SetupCommandlet.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetToolsModule.h"
+#include "AutomatedAssetImportData.h"
+#include "Engine/Texture2D.h"
 #include "FileHelpers.h"
+#include "IAssetTools.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "UI/DialogContentDA.h"
@@ -11,6 +15,7 @@
 namespace Tutorial512Setup
 {
 	const FString TutorialRoot = TEXT("/Game/Docs/UI/Tutorial");
+	const FString IllustrationRoot = TEXT("/Game/Docs/UI/TutorialTex/512");
 	const FString RegistryPackagePath = TutorialRoot + TEXT("/DA_TutorialRegistry");
 	const FString ReportFileName = TEXT("512TutorialSetupReport.md");
 
@@ -26,6 +31,12 @@ namespace Tutorial512Setup
 		FName EventID;
 		FString AssetName;
 		TArray<FTutorial512PageSpec> Pages;
+	};
+
+	struct FTutorial512IllustrationSpec
+	{
+		FString AssetName;
+		FString FileName;
 	};
 
 	FString ToObjectPath(const FString& PackagePath)
@@ -64,6 +75,111 @@ namespace Tutorial512Setup
 		Page.Body = FText::FromString(Spec.Body);
 		Page.SubText = FText::FromString(Spec.SubText);
 		return Page;
+	}
+
+	TArray<FTutorial512IllustrationSpec> MakeIllustrationSpecs()
+	{
+		return {
+			{ TEXT("T_Tutorial512_WeaponPickup"), TEXT("T_Tutorial512_WeaponPickup.png") },
+			{ TEXT("T_Tutorial512_WeaponCards"), TEXT("T_Tutorial512_WeaponCards.png") },
+			{ TEXT("T_Tutorial512_RewardCard"), TEXT("T_Tutorial512_RewardCard.png") },
+			{ TEXT("T_Tutorial512_CardSort"), TEXT("T_Tutorial512_CardSort.png") },
+			{ TEXT("T_Tutorial512_LinkCard"), TEXT("T_Tutorial512_LinkCard.png") },
+			{ TEXT("T_Tutorial512_DeckReload"), TEXT("T_Tutorial512_DeckReload.png") },
+		};
+	}
+
+	FString GetIllustrationAssetName(FName EventID, int32 PageIndex)
+	{
+		if (EventID == TEXT("tutorial_weapon_pickup"))
+		{
+			return PageIndex == 0 ? TEXT("T_Tutorial512_WeaponPickup") : TEXT("T_Tutorial512_WeaponCards");
+		}
+		if (EventID == TEXT("tutorial_first_rune"))
+		{
+			return TEXT("T_Tutorial512_RewardCard");
+		}
+		if (EventID == TEXT("tutorial_backpack"))
+		{
+			return PageIndex == 0 ? TEXT("T_Tutorial512_CardSort") : TEXT("T_Tutorial512_LinkCard");
+		}
+		if (EventID == TEXT("tutorial_card_link"))
+		{
+			return TEXT("T_Tutorial512_LinkCard");
+		}
+		if (EventID == TEXT("tutorial_shuffle_hint"))
+		{
+			return TEXT("T_Tutorial512_DeckReload");
+		}
+		return FString();
+	}
+
+	UTexture2D* LoadIllustrationTexture(const FString& AssetName)
+	{
+		return LoadAssetByPackagePath<UTexture2D>(IllustrationRoot + TEXT("/") + AssetName);
+	}
+
+	void ConfigureImportedTexture(UTexture2D* Texture)
+	{
+		if (!Texture)
+		{
+			return;
+		}
+
+		Texture->Modify();
+		Texture->CompressionSettings = TC_EditorIcon;
+		Texture->LODGroup = TEXTUREGROUP_UI;
+		Texture->MipGenSettings = TMGS_NoMipmaps;
+		Texture->NeverStream = true;
+		Texture->SRGB = true;
+		Texture->PostEditChange();
+	}
+
+	void ImportIllustrations(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	{
+		const FString SourceDir = FPaths::Combine(FPaths::ProjectDir(), TEXT("SourceArt/UI/Tutorial512"));
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+		ReportLines.Add(TEXT("## Illustration import"));
+		for (const FTutorial512IllustrationSpec& IllustrationSpec : MakeIllustrationSpecs())
+		{
+			const FString SourceFile = FPaths::Combine(SourceDir, IllustrationSpec.FileName);
+			if (!FPaths::FileExists(SourceFile))
+			{
+				ReportLines.Add(FString::Printf(TEXT("- Missing source PNG `%s`."), *SourceFile));
+				continue;
+			}
+
+			ReportLines.Add(FString::Printf(
+				TEXT("- %s `%s` -> `%s`."),
+				bDryRun ? TEXT("Would import/reimport") : TEXT("Imported/reimported"),
+				*SourceFile,
+				*IllustrationRoot));
+			if (bDryRun)
+			{
+				continue;
+			}
+
+			UAutomatedAssetImportData* ImportData = NewObject<UAutomatedAssetImportData>();
+			ImportData->DestinationPath = IllustrationRoot;
+			ImportData->Filenames.Add(SourceFile);
+			ImportData->bReplaceExisting = true;
+
+			const TArray<UObject*> ImportedAssets = AssetTools.ImportAssetsAutomated(ImportData);
+			for (UObject* ImportedAsset : ImportedAssets)
+			{
+				if (UTexture2D* Texture = Cast<UTexture2D>(ImportedAsset))
+				{
+					ConfigureImportedTexture(Texture);
+				}
+				if (ImportedAsset)
+				{
+					ImportedAsset->MarkPackageDirty();
+					DirtyPackages.AddUnique(ImportedAsset->GetPackage());
+				}
+			}
+		}
+		ReportLines.Add(TEXT(""));
 	}
 
 	TArray<FTutorial512EntrySpec> MakeSpecs()
@@ -120,6 +236,17 @@ namespace Tutorial512Setup
 						TEXT("连携卡"),
 						TEXT("Link 卡会读取相邻卡牌的标签和方向。条件满足时，它会触发连携效果；HUD 会显示连携原因，让你知道为什么这次攻击被强化。"),
 						TEXT("例：月光放在不同方向，可以选择不同连携效果。")
+					},
+				}
+			},
+			{
+				TEXT("tutorial_shuffle_hint"),
+				TEXT("DA_Tutorial_ShuffleHint"),
+				{
+					{
+						TEXT("卡组装填中"),
+						TEXT("这段空窗仍可攻击，但暂时不会触发卡牌效果。"),
+						TEXT("")
 					},
 				}
 			},
@@ -223,6 +350,17 @@ namespace Tutorial512Setup
 		if (bDryRun)
 		{
 			ReportLines.Add(FString::Printf(TEXT("- Would write %d page(s) to `%s`."), Spec.Pages.Num(), *PackagePath));
+			for (int32 PageIndex = 0; PageIndex < Spec.Pages.Num(); ++PageIndex)
+			{
+				const FString IllustrationAssetName = GetIllustrationAssetName(Spec.EventID, PageIndex);
+				if (!IllustrationAssetName.IsEmpty())
+				{
+					ReportLines.Add(FString::Printf(
+						TEXT("- Would set page %d illustration to `%s`."),
+						PageIndex + 1,
+						*IllustrationAssetName));
+				}
+			}
 			OutContentByEvent.Add(Spec.EventID, nullptr);
 			return;
 		}
@@ -239,6 +377,33 @@ namespace Tutorial512Setup
 		{
 			DialogContent->Pages.Add(MakePage(PageSpec));
 		}
+
+		for (int32 PageIndex = 0; PageIndex < DialogContent->Pages.Num(); ++PageIndex)
+		{
+			const FString IllustrationAssetName = GetIllustrationAssetName(Spec.EventID, PageIndex);
+			if (IllustrationAssetName.IsEmpty())
+			{
+				continue;
+			}
+
+			UTexture2D* Illustration = LoadIllustrationTexture(IllustrationAssetName);
+			if (Illustration)
+			{
+				DialogContent->Pages[PageIndex].Illustration = Illustration;
+				ReportLines.Add(FString::Printf(
+					TEXT("- Page %d illustration set to `%s`."),
+					PageIndex + 1,
+					*IllustrationAssetName));
+			}
+			else
+			{
+				ReportLines.Add(FString::Printf(
+					TEXT("- Page %d missing illustration `%s`."),
+					PageIndex + 1,
+					*IllustrationAssetName));
+			}
+		}
+
 		DialogContent->MarkPackageDirty();
 		DirtyPackages.AddUnique(DialogContent->GetPackage());
 		OutContentByEvent.Add(Spec.EventID, DialogContent);
@@ -306,7 +471,10 @@ int32 UTutorial512SetupCommandlet::Main(const FString& Params)
 	ReportLines.Add(TEXT("# 512 Tutorial Setup Report"));
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
 	ReportLines.Add(FString::Printf(TEXT("- Tutorial root: `%s`"), *TutorialRoot));
+	ReportLines.Add(FString::Printf(TEXT("- Illustration root: `%s`"), *IllustrationRoot));
 	ReportLines.Add(TEXT(""));
+
+	ImportIllustrations(bDryRun, ReportLines, DirtyPackages);
 
 	const TArray<FTutorial512EntrySpec> Specs = MakeSpecs();
 	for (const FTutorial512EntrySpec& Spec : Specs)
