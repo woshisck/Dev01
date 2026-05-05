@@ -22,6 +22,7 @@
 #include "Component/CharacterDataComponent.h"
 #include "Map/Portal.h"
 #include "Map/RewardPickup.h"
+#include "Map/ShopActor.h"
 #include "UI/LootSelectionWidget.h"
 #include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
@@ -42,6 +43,12 @@ FName ResolveRoomLevelNameForOpen(FName RequestedLevel, const URoomDataAsset* Ro
 		|| RoomAssetName.Equals(TEXT("DA_CL_Corridor_01b"), ESearchCase::IgnoreCase))
 	{
 		return FName(TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon/L1_CommonLevel_corridor_01b"));
+	}
+
+	if (Requested.Equals(TEXT("ShopRoom"), ESearchCase::IgnoreCase)
+		|| RoomAssetName.Equals(TEXT("DA_Room_512_Shop"), ESearchCase::IgnoreCase))
+	{
+		return FName(TEXT("/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom"));
 	}
 
 	return RequestedLevel;
@@ -518,6 +525,99 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 	OnLootSelected.Broadcast();
 }
 
+bool AYogGameMode::IsShopRoom() const
+{
+	if (!ActiveRoomData)
+	{
+		return false;
+	}
+
+	if (ActiveRoomData->ShopData)
+	{
+		return true;
+	}
+
+	const FGameplayTag ShopTag = FGameplayTag::RequestGameplayTag(FName("Room.Type.Shop"), false);
+	return ShopTag.IsValid() && ActiveRoomData->RoomTags.HasTagExact(ShopTag);
+}
+
+void AYogGameMode::SpawnShopActorForRoom()
+{
+	if (!IsShopRoom() || !ActiveRoomData || !ActiveRoomData->ShopData)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(World, 0));
+	auto ConfigureShop = [this, Player](AShopActor* Shop)
+	{
+		if (!Shop || !ActiveRoomData)
+		{
+			return;
+		}
+
+		Shop->SetShopData(ActiveRoomData->ShopData);
+		Shop->SetShopWidgetClass(ActiveRoomData->ShopWidgetClass);
+
+		if (Player)
+		{
+			constexpr float ImmediateInteractRadiusSq = 320.0f * 320.0f;
+			if (FVector::DistSquared(Player->GetActorLocation(), Shop->GetActorLocation()) <= ImmediateInteractRadiusSq)
+			{
+				Player->PendingShop = Shop;
+			}
+		}
+	};
+
+	TArray<AActor*> ExistingShopActors;
+	UGameplayStatics::GetAllActorsOfClass(World, AShopActor::StaticClass(), ExistingShopActors);
+	if (!ExistingShopActors.IsEmpty())
+	{
+		for (AActor* Actor : ExistingShopActors)
+		{
+			ConfigureShop(Cast<AShopActor>(Actor));
+		}
+		UE_LOG(LogTemp, Log, TEXT("[ShopRoom] Configured %d preplaced shop actor(s): Room=%s"),
+			ExistingShopActors.Num(),
+			*GetNameSafe(ActiveRoomData));
+		return;
+	}
+
+	TSubclassOf<AShopActor> ShopClass = ActiveRoomData->ShopActorClass;
+	if (!ShopClass)
+	{
+		ShopClass = AShopActor::StaticClass();
+	}
+
+	FVector SpawnLoc = ActiveRoomData->ShopSpawnOffset;
+	FRotator SpawnRot = FRotator::ZeroRotator;
+	if (Player)
+	{
+		SpawnLoc = Player->GetActorLocation() + Player->GetActorRotation().RotateVector(ActiveRoomData->ShopSpawnOffset);
+		SpawnRot = Player->GetActorRotation();
+	}
+
+	AShopActor* Shop = World->SpawnActor<AShopActor>(ShopClass, SpawnLoc, SpawnRot);
+	if (!Shop)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ShopRoom] Failed to spawn shop actor: Room=%s"),
+			*GetNameSafe(ActiveRoomData));
+		return;
+	}
+
+	ConfigureShop(Shop);
+	UE_LOG(LogTemp, Log, TEXT("[ShopRoom] Shop actor spawned: Room=%s Shop=%s Location=%s"),
+		*GetNameSafe(ActiveRoomData),
+		*GetNameSafe(Shop),
+		*SpawnLoc.ToCompactString());
+}
+
 void AYogGameMode::ConfirmArrangementAndTransition()
 {
 	if (CurrentPhase != ELevelPhase::Arrangement)
@@ -793,6 +893,61 @@ void AYogGameMode::StartLevelSpawning()
 		}
 
 		ActivateHubPortals();
+		return;
+	}
+
+	if (IsShopRoom())
+	{
+		CurrentPhase = ELevelPhase::Arrangement;
+		OnPhaseChanged.Broadcast(CurrentPhase);
+
+		if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
+		{
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			{
+				HUD->HideCurrentRoomBuffs();
+			}
+		}
+
+		{
+			TArray<AActor*> AllPortalActors;
+			UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), AllPortalActors);
+			for (AActor* PortalActor : AllPortalActors)
+			{
+				APortal* Portal = Cast<APortal>(PortalActor);
+				if (!Portal) continue;
+
+				bool bCanOpen = false;
+				for (const FPortalDestConfig& Dest : ActiveRoomData->PortalDestinations)
+				{
+					if (Dest.PortalIndex == Portal->Index)
+					{
+						 bCanOpen = true;
+						 break;
+					}
+				}
+
+				if (!bCanOpen)
+				{
+					Portal->bWillNeverOpen = true;
+					Portal->NeverOpen();
+				}
+			}
+		}
+
+		SpawnShopActorForRoom();
+		ActivatePortals();
+
+		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		{
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			{
+				HUD->ShowPortalGuidance();
+			}
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [ShopRoom] %s - skip combat and open shop"),
+			*GetNameSafe(ActiveRoomData));
 		return;
 	}
 

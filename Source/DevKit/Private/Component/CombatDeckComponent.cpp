@@ -10,6 +10,7 @@ namespace
 {
 	const FName CombatDeckOwnerSourceWeapon(TEXT("Weapon"));
 	const FName CombatDeckOwnerSourceReward(TEXT("Reward"));
+	const FName CombatDeckOwnerSourceShop(TEXT("Shop"));
 
 	float GetProjectileEventFlowStopDelay(const UFlowAsset* FlowAsset)
 	{
@@ -517,6 +518,25 @@ int32 UCombatDeckComponent::GetRemainingCardCount() const
 bool UCombatDeckComponent::AddCardFromRuneReward(URuneDataAsset* RuneAsset)
 {
 	const FCombatCardInstance Card = MakeCardFromRune(RuneAsset, CombatDeckOwnerSourceReward);
+	if (!Card.IsValidCard())
+	{
+		return false;
+	}
+
+	DeckList.Add(Card);
+	OnRewardAddedToDeck.Broadcast(Card);
+
+	if (DeckState == EDeckState::Ready && ActiveSequence.IsEmpty())
+	{
+		RefillActiveSequence();
+	}
+
+	return true;
+}
+
+bool UCombatDeckComponent::AddCardFromRuneShop(URuneDataAsset* RuneAsset)
+{
+	const FCombatCardInstance Card = MakeCardFromRune(RuneAsset, CombatDeckOwnerSourceShop);
 	if (!Card.IsValidCard())
 	{
 		return false;

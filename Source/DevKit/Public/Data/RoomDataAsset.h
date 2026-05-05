@@ -12,6 +12,9 @@
 
 // 前向声明（FPortalDestConfig.RoomPool 需要引用本类）
 class URoomDataAsset;
+class AShopActor;
+class UShopDataAsset;
+class UShopSelectionWidget;
 
 /**
  * FPortalDestConfig — 单个传送门的目标关卡配置
@@ -96,6 +99,18 @@ public:
     // 关卡结算时从此池随机抽 3 个供玩家选择
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
     TArray<TObjectPtr<URuneDataAsset>> LootPool;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
+    TObjectPtr<UShopDataAsset> ShopData;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
+    TSubclassOf<AShopActor> ShopActorClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
+    TSubclassOf<UShopSelectionWidget> ShopWidgetClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
+    FVector ShopSpawnOffset = FVector(250.0f, 0.0f, 0.0f);
 
     // =========================================================
     // 主城 / 枢纽房间

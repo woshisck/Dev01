@@ -241,6 +241,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
 	bool AddCardFromRuneReward(URuneDataAsset* RuneAsset);
 
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
+	bool AddCardFromRuneShop(URuneDataAsset* RuneAsset);
+
 	UFUNCTION(BlueprintPure, Category = "Combat Deck")
 	TArray<FCombatCardInstance> GetDeckSnapshot() const { return ActiveSequence; }
 

@@ -17,6 +17,7 @@
 //class AAuraBase;
 class ARewardPickup;
 class ASacrificeGracePickup;
+class AShopActor;
 class AWeaponSpawner;
 class APortal;
 class AWeaponInstance;
@@ -199,6 +200,9 @@ public:
 	// 当前在拾取范围内的 SacrificeGracePickup（按 E 键时触发献祭恩赐获取）
 	UPROPERTY()
 	TObjectPtr<ASacrificeGracePickup> PendingSacrificePickup;
+
+	UPROPERTY()
+	TObjectPtr<AShopActor> PendingShop;
 
 	// 当前在拾取范围内的 WeaponSpawner（按 E 键时触发武器拾取）
 	UPROPERTY()

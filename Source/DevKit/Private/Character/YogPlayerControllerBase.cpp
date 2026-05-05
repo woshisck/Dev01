@@ -19,6 +19,7 @@
 #include "Item/ItemSpawner.h"
 #include "Map/RewardPickup.h"
 #include "Map/SacrificeGracePickup.h"
+#include "Map/ShopActor.h"
 #include "Map/Portal.h"
 #include "Item/Weapon/WeaponSpawner.h"
 #include "SaveGame/YogSaveSubsystem.h"
@@ -529,6 +530,10 @@ void AYogPlayerControllerBase::Interact(const FInputActionValue& Value)
 		else if (player->PendingSacrificePickup)
 		{
 			player->PendingSacrificePickup->TryPickup(player);
+		}
+		else if (player->PendingShop)
+		{
+			player->PendingShop->TryInteract(player);
 		}
 		// 范围内有可进入的传送门 → 按 E 触发进入（v3 替代 Overlap 自动入门）
 		// 设计约束：门与拾取物不会同范围，所以放在拾取物之后即可

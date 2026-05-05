@@ -19,6 +19,7 @@ class UYogSaveGame;
 class AEnemyCharacterBase;
 class APortal;
 class ARewardPickup;
+class AShopActor;
 class ULootSelectionWidget;
 class ULevelFlowAsset;
 class UFlowComponent;
@@ -364,6 +365,8 @@ protected:
 
 	// 检查关卡是否完成（所有波次结束 + 场内清空）
 	void CheckLevelComplete();
+	void SpawnShopActorForRoom();
+	bool IsShopRoom() const;
 
 	// 波次系统未能初始化时，降级统计场景内预放置敌人数量
 	void FallbackToPreplacedEnemies();
