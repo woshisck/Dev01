@@ -113,6 +113,14 @@ namespace
 		}
 		return true;
 	}
+
+	bool TargetHasSmokeAttackBlock(const AActor* TargetActor)
+	{
+		const IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(TargetActor);
+		const UAbilitySystemComponent* TargetASC = ASCInterface ? ASCInterface->GetAbilitySystemComponent() : nullptr;
+		const FGameplayTag InSmokeTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.InSmoke"), false);
+		return TargetASC && InSmokeTag.IsValid() && TargetASC->HasMatchingGameplayTag(InSmokeTag);
+	}
 }
 
 UBTTask_EnemyAttackByProfile::UBTTask_EnemyAttackByProfile()
@@ -162,6 +170,22 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 			}
 			return EBTNodeResult::Failed;
 		}
+	}
+
+	AActor* TargetActorForBlock = ResolveTargetActor(OwnerComp);
+	if (TargetHasSmokeAttackBlock(TargetActorForBlock))
+	{
+		if (CVarEnemyAIAttackDecisionLog.GetValueOnGameThread() > 0)
+		{
+			UE_LOG(LogEnemyAIAttackDecision, Log,
+				TEXT("[EnemyAIAttack] Enemy=%s Result=%s Reason=TargetInSmoke Role=%s Target=%s Distance=%.1f"),
+				*GetNameSafe(Pawn),
+				AttackRoleBlockedResult(RequiredAttackRole),
+				AttackRoleToString(RequiredAttackRole),
+				*GetNameSafe(TargetActorForBlock),
+				ResolveDistanceToTarget(OwnerComp, *Pawn));
+		}
+		return EBTNodeResult::Failed;
 	}
 
 	IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(Pawn);

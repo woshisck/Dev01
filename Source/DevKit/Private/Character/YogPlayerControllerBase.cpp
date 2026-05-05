@@ -30,6 +30,7 @@
 
 #include "Component/BufferComponent.h"
 #include "Component/CombatDeckComponent.h"
+#include "Component/CombatItemComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "AbilitySystemComponent.h"
 
@@ -189,6 +190,21 @@ void AYogPlayerControllerBase::SetupInputComponent()
 			const FEnhancedInputActionEventBinding& reloadBinding = EnhancedInputComp->BindAction(Input_Reload, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::MusketReload);
 			ReloadInputHandle = reloadBinding.GetHandle();
 		}
+		if (Input_UseCombatItem)
+		{
+			const FEnhancedInputActionEventBinding& itemBinding = EnhancedInputComp->BindAction(Input_UseCombatItem, ETriggerEvent::Started, this, &AYogPlayerControllerBase::UseCombatItem);
+			UseCombatItemInputHandle = itemBinding.GetHandle();
+		}
+		if (Input_SwitchCombatItem)
+		{
+			const FEnhancedInputActionEventBinding& switchItemBinding = EnhancedInputComp->BindAction(Input_SwitchCombatItem, ETriggerEvent::Started, this, &AYogPlayerControllerBase::SwitchCombatItem);
+			SwitchCombatItemInputHandle = switchItemBinding.GetHandle();
+		}
+		if (Input_SwitchCombatItemPrevious)
+		{
+			const FEnhancedInputActionEventBinding& switchPrevItemBinding = EnhancedInputComp->BindAction(Input_SwitchCombatItemPrevious, ETriggerEvent::Started, this, &AYogPlayerControllerBase::SwitchCombatItemPrevious);
+			SwitchCombatItemPreviousInputHandle = switchPrevItemBinding.GetHandle();
+		}
 		if (Input_Dash)
 		{
 			const FEnhancedInputActionEventBinding& dashBinding = EnhancedInputComp->BindAction(Input_Dash, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::Dash);
@@ -222,6 +238,47 @@ bool AYogPlayerControllerBase::InputKey(const FInputKeyParams& Params)
 	if (Params.Event == IE_Pressed && HandleMenuBackInput(Params.Key))
 	{
 		return true;
+	}
+
+	if (Params.Event == IE_Pressed && !bBlockGameInput)
+	{
+		if (Params.Key == EKeys::F
+			|| Params.Key == EKeys::Gamepad_FaceButton_Top
+			|| Params.Key == EKeys::Gamepad_LeftShoulder
+			|| Params.Key == EKeys::Gamepad_RightShoulder
+			|| Params.Key == EKeys::Gamepad_LeftTrigger
+			|| Params.Key == EKeys::Gamepad_RightTrigger)
+		{
+			if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
+			{
+				if (PlayerCharacter->CombatItemComponent && PlayerCharacter->CombatItemComponent->UseActiveItem())
+				{
+					return true;
+				}
+			}
+		}
+		else if (Params.Key == EKeys::Q || Params.Key == EKeys::Gamepad_DPad_Right)
+		{
+			if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
+			{
+				if (PlayerCharacter->CombatItemComponent)
+				{
+					PlayerCharacter->CombatItemComponent->SelectNextItem();
+					return true;
+				}
+			}
+		}
+		else if (Params.Key == EKeys::Gamepad_DPad_Left)
+		{
+			if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
+			{
+				if (PlayerCharacter->CombatItemComponent)
+				{
+					PlayerCharacter->CombatItemComponent->SelectPreviousItem();
+					return true;
+				}
+			}
+		}
 	}
 
 	return Super::InputKey(Params);
@@ -381,6 +438,42 @@ void AYogPlayerControllerBase::MusketReload(const FInputActionValue& Value)
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Reload")));
 		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+	}
+}
+
+void AYogPlayerControllerBase::UseCombatItem(const FInputActionValue& Value)
+{
+	if (bBlockGameInput) return;
+	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
+	{
+		if (PlayerCharacter->CombatItemComponent)
+		{
+			PlayerCharacter->CombatItemComponent->UseActiveItem();
+		}
+	}
+}
+
+void AYogPlayerControllerBase::SwitchCombatItem(const FInputActionValue& Value)
+{
+	if (bBlockGameInput) return;
+	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
+	{
+		if (PlayerCharacter->CombatItemComponent)
+		{
+			PlayerCharacter->CombatItemComponent->SelectNextItem();
+		}
+	}
+}
+
+void AYogPlayerControllerBase::SwitchCombatItemPrevious(const FInputActionValue& Value)
+{
+	if (bBlockGameInput) return;
+	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
+	{
+		if (PlayerCharacter->CombatItemComponent)
+		{
+			PlayerCharacter->CombatItemComponent->SelectPreviousItem();
+		}
 	}
 }
 

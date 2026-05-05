@@ -1,4 +1,5 @@
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
+#include "Component/CombatItemComponent.h"
 #include "AbilitySystem/Abilities/YogTargetType.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
@@ -1013,6 +1014,17 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 			Payload.Instigator = Owner;
 			Payload.Target     = HitActor;
 			UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, HitTag, Payload);
+		}
+
+		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
+		{
+			if (PlayerOwner->CombatItemComponent)
+			{
+				for (AActor* HitActor : HitActors)
+				{
+					PlayerOwner->CombatItemComponent->ApplyOilBladeHitToTarget(HitActor);
+				}
+			}
 		}
 
 		// 瑙﹀彂鏉ヨ嚜 AN_MeleeDamage::AdditionalRuneEffects 鐨勯檮鍔犵鏂囷紙澶嶇敤鍚屾壒鐩爣锛?

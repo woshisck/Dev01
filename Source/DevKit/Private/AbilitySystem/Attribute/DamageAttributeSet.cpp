@@ -8,6 +8,7 @@
 #include "Net/UnrealNetwork.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
+#include "Component/CombatItemComponent.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectExtension.h"
 #include "AbilitySystemBlueprintLibrary.h"
@@ -22,7 +23,8 @@ namespace
 
 	bool ShouldSuppressDamageFeedbackForEffect(const FGameplayEffectSpec& Spec)
 	{
-		return EffectGrantsTag(Spec, TEXT("Buff.Status.Burning")) ||
+		return UCombatItemComponent::IsNoHitReactItemDamage(Spec) ||
+			EffectGrantsTag(Spec, TEXT("Buff.Status.Burning")) ||
 			EffectGrantsTag(Spec, TEXT("Buff.Status.Poisoned")) ||
 			EffectGrantsTag(Spec, TEXT("Buff.Status.Bleeding"));
 	}
@@ -163,6 +165,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			{
 				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
 				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone, bSuppressDamageFeedback);
+				UCombatItemComponent::TryApplyOilFireBonus(SourceYogASC, ASC, Data.EffectSpec);
 				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);
 
@@ -298,6 +301,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			{
 				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
 				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone);
+				UCombatItemComponent::TryApplyOilFireBonus(SourceYogASC, ASC, Data.EffectSpec);
 				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);
 

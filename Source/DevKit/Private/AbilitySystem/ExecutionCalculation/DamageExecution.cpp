@@ -118,6 +118,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	// ── 基础属性捕获 ────────────────────────────────────────────────
 	float SourceAttackPower = 0.f, SourceAttack = 0.f, TargetDmgTaken = 0.f;
 	float SourceCritRate = 0.f, SourceCritDamage = 0.f;
+	float TargetDodge = 0.f;
 	float TargetHealth = 0.f, TargetMaxHealth = 0.f;
 
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, SourceAttackPower);
@@ -127,6 +128,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	TargetDmgTaken = (TargetDmgTaken <= 0.f) ? 1.f : FMath::Max(TargetDmgTaken, 0.01f);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_RateDef,   EvaluationParameters, SourceCritRate);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_DamageDef, EvaluationParameters, SourceCritDamage);
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DodgeDef,       EvaluationParameters, TargetDodge);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().HealthDef,      EvaluationParameters, TargetHealth);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().MaxHealthDef,   EvaluationParameters, TargetMaxHealth);
 
@@ -137,6 +139,17 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	// ── ASC 引用 ──────────────────────────────────────────────────────
 	UYogAbilitySystemComponent* TargetASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
 	UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(ExecutionParams.GetSourceAbilitySystemComponent());
+
+	const float DodgeRate = NormalizeCritRate(TargetDodge);
+	if (DodgeRate > 0.0f && FMath::FRand() < DodgeRate)
+	{
+		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Override, 0.0f));
+		UE_LOG(LogTemp, Log, TEXT("DamageExecution: DODGE! DodgeRate=%.3f Source=%s Target=%s"),
+			DodgeRate,
+			*GetNameSafe(SourceASC ? SourceASC->GetAvatarActor() : nullptr),
+			*GetNameSafe(TargetASC ? TargetASC->GetAvatarActor() : nullptr));
+		return;
+	}
 
 	// ── 暴击计算 ──────────────────────────────────────────────────────
 	bool bForceCrit = false;

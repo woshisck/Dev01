@@ -47,6 +47,9 @@ public:
 	void HeavyAtack(const FInputActionValue& Value);
 	void HeavyAttackReleased(const FInputActionValue& Value);
 	void MusketReload(const FInputActionValue& Value);
+	void UseCombatItem(const FInputActionValue& Value);
+	void SwitchCombatItem(const FInputActionValue& Value);
+	void SwitchCombatItemPrevious(const FInputActionValue& Value);
 	void Dash(const FInputActionValue& Value);
 	void Move(const FInputActionValue& Value);
 	void Interact(const FInputActionValue& Value);
@@ -74,6 +77,15 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_Reload;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_UseCombatItem;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_SwitchCombatItem;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_SwitchCombatItemPrevious;
 
 	/** 手柄右摇杆 — 驱动相机微偏移（Vector2D InputAction） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
@@ -164,6 +176,9 @@ private:
 	uint32 LightAttackInputHandle = INDEX_NONE;
 	uint32 HeavyAttackInputHandle = INDEX_NONE;
 	uint32 ReloadInputHandle = INDEX_NONE;
+	uint32 UseCombatItemInputHandle = INDEX_NONE;
+	uint32 SwitchCombatItemInputHandle = INDEX_NONE;
+	uint32 SwitchCombatItemPreviousInputHandle = INDEX_NONE;
 	uint32 DashInputHandle = INDEX_NONE;
 	uint32 InteractInputHandle = INDEX_NONE;
 	uint32 OpenBackpackInputHandle = INDEX_NONE;
