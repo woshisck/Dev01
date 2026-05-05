@@ -1,132 +1,191 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "UI/WBP_AmmoCounter.h"
+
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
-#include "Styling/SlateBrush.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "Styling/SlateBrush.h"
 
 void UWBP_AmmoCounter::NativeConstruct()
 {
-    Super::NativeConstruct();
-    BindToASC();
+	Super::NativeConstruct();
+	SetVisibility(ESlateVisibility::Collapsed);
+	BindToASC();
 }
 
 void UWBP_AmmoCounter::NativeDestruct()
 {
-    UnbindFromASC();
-    Super::NativeDestruct();
+	UnbindFromASC();
+	Super::NativeDestruct();
 }
 
 void UWBP_AmmoCounter::BindToASC()
 {
-    APlayerController* PC = GetOwningPlayer();
-    if (!PC) return;
+	APlayerController* PC = GetOwningPlayer();
+	if (!PC)
+	{
+		RefreshVisibility();
+		return;
+	}
 
-    APawn* Pawn = PC->GetPawn();
-    if (!Pawn) return;
+	APawn* Pawn = PC->GetPawn();
+	if (!Pawn)
+	{
+		RefreshVisibility();
+		return;
+	}
 
-    UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Pawn);
-    if (!ASC) return;
+	BoundASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Pawn);
+	if (!BoundASC)
+	{
+		RefreshVisibility();
+		return;
+	}
 
-    // 获取初始值
-    bool bFound = false;
-    CachedCurrent = FMath::RoundToInt(
-        ASC->GetGameplayAttributeValue(UPlayerAttributeSet::GetCurrentAmmoAttribute(), bFound));
-    CachedMax = FMath::RoundToInt(
-        ASC->GetGameplayAttributeValue(UPlayerAttributeSet::GetMaxAmmoAttribute(), bFound));
+	bool bFoundCurrent = false;
+	bool bFoundMax = false;
+	CachedCurrent = FMath::RoundToInt(
+		BoundASC->GetGameplayAttributeValue(UPlayerAttributeSet::GetCurrentAmmoAttribute(), bFoundCurrent));
+	CachedMax = FMath::RoundToInt(
+		BoundASC->GetGameplayAttributeValue(UPlayerAttributeSet::GetMaxAmmoAttribute(), bFoundMax));
 
-    // 绑定属性变化委托
-    CurrentAmmoHandle = ASC->GetGameplayAttributeValueChangeDelegate(
-        UPlayerAttributeSet::GetCurrentAmmoAttribute())
-        .AddUObject(this, &UWBP_AmmoCounter::OnCurrentAmmoChanged);
+	CurrentAmmoHandle = BoundASC->GetGameplayAttributeValueChangeDelegate(
+		UPlayerAttributeSet::GetCurrentAmmoAttribute())
+		.AddUObject(this, &UWBP_AmmoCounter::OnCurrentAmmoChanged);
 
-    MaxAmmoHandle = ASC->GetGameplayAttributeValueChangeDelegate(
-        UPlayerAttributeSet::GetMaxAmmoAttribute())
-        .AddUObject(this, &UWBP_AmmoCounter::OnMaxAmmoChanged);
+	MaxAmmoHandle = BoundASC->GetGameplayAttributeValueChangeDelegate(
+		UPlayerAttributeSet::GetMaxAmmoAttribute())
+		.AddUObject(this, &UWBP_AmmoCounter::OnMaxAmmoChanged);
 
-    RebuildIcons(CachedMax);
-    RefreshIconColors(CachedCurrent, CachedMax);
+	const FGameplayTag RangedWeaponTag = GetRangedWeaponTag();
+	if (RangedWeaponTag.IsValid())
+	{
+		bHasRangedWeaponTag = BoundASC->HasMatchingGameplayTag(RangedWeaponTag);
+		RangedWeaponTagHandle = BoundASC->RegisterGameplayTagEvent(
+			RangedWeaponTag,
+			EGameplayTagEventType::NewOrRemoved)
+			.AddUObject(this, &UWBP_AmmoCounter::OnRangedWeaponTagChanged);
+	}
+	else
+	{
+		bHasRangedWeaponTag = false;
+	}
+
+	RebuildIcons(CachedMax);
+	RefreshIconColors(CachedCurrent, CachedMax);
+	RefreshVisibility();
 }
 
 void UWBP_AmmoCounter::UnbindFromASC()
 {
-    APlayerController* PC = GetOwningPlayer();
-    if (!PC) return;
+	if (!BoundASC)
+	{
+		return;
+	}
 
-    APawn* Pawn = PC->GetPawn();
-    if (!Pawn) return;
+	if (CurrentAmmoHandle.IsValid())
+	{
+		BoundASC->GetGameplayAttributeValueChangeDelegate(
+			UPlayerAttributeSet::GetCurrentAmmoAttribute()).Remove(CurrentAmmoHandle);
+		CurrentAmmoHandle.Reset();
+	}
 
-    UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Pawn);
-    if (!ASC) return;
+	if (MaxAmmoHandle.IsValid())
+	{
+		BoundASC->GetGameplayAttributeValueChangeDelegate(
+			UPlayerAttributeSet::GetMaxAmmoAttribute()).Remove(MaxAmmoHandle);
+		MaxAmmoHandle.Reset();
+	}
 
-    if (CurrentAmmoHandle.IsValid())
-        ASC->GetGameplayAttributeValueChangeDelegate(
-            UPlayerAttributeSet::GetCurrentAmmoAttribute()).Remove(CurrentAmmoHandle);
+	const FGameplayTag RangedWeaponTag = GetRangedWeaponTag();
+	if (RangedWeaponTagHandle.IsValid() && RangedWeaponTag.IsValid())
+	{
+		BoundASC->RegisterGameplayTagEvent(
+			RangedWeaponTag,
+			EGameplayTagEventType::NewOrRemoved).Remove(RangedWeaponTagHandle);
+		RangedWeaponTagHandle.Reset();
+	}
 
-    if (MaxAmmoHandle.IsValid())
-        ASC->GetGameplayAttributeValueChangeDelegate(
-            UPlayerAttributeSet::GetMaxAmmoAttribute()).Remove(MaxAmmoHandle);
+	BoundASC = nullptr;
+	bHasRangedWeaponTag = false;
 }
 
 void UWBP_AmmoCounter::OnCurrentAmmoChanged(const FOnAttributeChangeData& Data)
 {
-    CachedCurrent = FMath::RoundToInt(Data.NewValue);
-    RefreshIconColors(CachedCurrent, CachedMax);
+	CachedCurrent = FMath::RoundToInt(Data.NewValue);
+	RefreshIconColors(CachedCurrent, CachedMax);
+	RefreshVisibility();
 }
 
 void UWBP_AmmoCounter::OnMaxAmmoChanged(const FOnAttributeChangeData& Data)
 {
-    CachedMax = FMath::RoundToInt(Data.NewValue);
-    RebuildIcons(CachedMax);
-    RefreshIconColors(CachedCurrent, CachedMax);
+	CachedMax = FMath::RoundToInt(Data.NewValue);
+	RebuildIcons(CachedMax);
+	RefreshIconColors(CachedCurrent, CachedMax);
+	RefreshVisibility();
+}
+
+void UWBP_AmmoCounter::OnRangedWeaponTagChanged(const FGameplayTag /*CallbackTag*/, int32 NewCount)
+{
+	bHasRangedWeaponTag = NewCount > 0;
+	RefreshVisibility();
 }
 
 void UWBP_AmmoCounter::RebuildIcons(int32 Max)
 {
-    if (!BulletIconBox) return;
+	if (!BulletIconBox)
+	{
+		return;
+	}
 
-    BulletIconBox->ClearChildren();
-    BulletIcons.Reset();
+	BulletIconBox->ClearChildren();
+	BulletIcons.Reset();
 
-    // 纯色 Brush（无纹理，用 Tint 区分有弹/空仓）
-    FSlateBrush Brush;
-    Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
-    Brush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
-    Brush.OutlineSettings.CornerRadii  = FVector4(3.f, 3.f, 3.f, 3.f);
+	FSlateBrush Brush;
+	Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
+	Brush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+	Brush.OutlineSettings.CornerRadii = FVector4(3.f, 3.f, 3.f, 3.f);
 
-    for (int32 i = 0; i < Max; ++i)
-    {
-        UImage* Icon = NewObject<UImage>(this);
-        Icon->SetBrush(Brush);
-        Icon->SetColorAndOpacity(FilledColor);
+	for (int32 i = 0; i < Max; ++i)
+	{
+		UImage* Icon = NewObject<UImage>(this);
+		Icon->SetBrush(Brush);
+		Icon->SetColorAndOpacity(FilledColor);
+		Icon->SetDesiredSizeOverride(IconSize);
 
-        UHorizontalBoxSlot* IconSlot = BulletIconBox->AddChildToHorizontalBox(Icon);
-        if (IconSlot)
-        {
-            IconSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
-            IconSlot->SetPadding(FMargin(i == 0 ? 0.f : IconPadding, 0.f, 0.f, 0.f));
-        }
+		if (UHorizontalBoxSlot* IconSlot = BulletIconBox->AddChildToHorizontalBox(Icon))
+		{
+			IconSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			IconSlot->SetPadding(FMargin(i == 0 ? 0.f : IconPadding, 0.f, 0.f, 0.f));
+		}
 
-        // 手动设置图标大小
-        Icon->SetDesiredSizeOverride(IconSize);
-
-        BulletIcons.Add(Icon);
-    }
+		BulletIcons.Add(Icon);
+	}
 }
 
 void UWBP_AmmoCounter::RefreshIconColors(int32 Current, int32 Max)
 {
-    for (int32 i = 0; i < BulletIcons.Num(); ++i)
-    {
-        if (BulletIcons[i])
-        {
-            BulletIcons[i]->SetColorAndOpacity(i < Current ? FilledColor : EmptyColor);
-        }
-    }
+	for (int32 i = 0; i < BulletIcons.Num(); ++i)
+	{
+		if (BulletIcons[i])
+		{
+			BulletIcons[i]->SetColorAndOpacity(i < Current ? FilledColor : EmptyColor);
+		}
+	}
+}
+
+void UWBP_AmmoCounter::RefreshVisibility()
+{
+	const bool bHasAmmoCapacity = CachedMax > 0;
+	const bool bShouldShow = bHasAmmoCapacity && (!bOnlyShowWithRangedWeaponTag || bHasRangedWeaponTag);
+	SetVisibility(bShouldShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+}
+
+FGameplayTag UWBP_AmmoCounter::GetRangedWeaponTag() const
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Ranged"), false);
 }

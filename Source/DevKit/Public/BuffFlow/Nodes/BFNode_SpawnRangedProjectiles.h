@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "BuffFlow/BuffFlowTypes.h"
 #include "BuffFlow/Nodes/BFNode_Base.h"
+#include "GameplayTagContainer.h"
 #include "Types/FlowDataPinProperties.h"
 #include "BFNode_SpawnRangedProjectiles.generated.h"
 
@@ -41,6 +42,12 @@ class DEVKIT_API UBFNode_SpawnRangedProjectiles : public UBFNode_Base
 
 	UPROPERTY(EditAnywhere, Category = "Ranged Projectile")
 	bool bShareAttackInstanceGuid = true;
+
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile")
+	bool bRequireRangedWeaponTag = true;
+
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile", meta = (EditCondition = "bRequireRangedWeaponTag"))
+	FGameplayTag RequiredWeaponTag;
 
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;

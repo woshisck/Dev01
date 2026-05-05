@@ -1610,6 +1610,11 @@ bool FCombatDeckGeneratedSplashSplitConfiguredTest::RunTest(const FString& Param
 		}
 		TestTrue(TEXT("Split uses combat card attack damage"), SplitProjectileNode->bUseCombatCardAttackDamage);
 		TestTrue(TEXT("Split projectiles share attack instance guid"), SplitProjectileNode->bShareAttackInstanceGuid);
+		TestTrue(TEXT("Split projectiles require ranged weapon tag"), SplitProjectileNode->bRequireRangedWeaponTag);
+		TestEqual(
+			TEXT("Split projectile required weapon tag"),
+			SplitProjectileNode->RequiredWeaponTag,
+			FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Ranged"), false));
 	}
 
 	UFlowAsset* MoonlightReversedSplitFlow = LoadObject<UFlowAsset>(

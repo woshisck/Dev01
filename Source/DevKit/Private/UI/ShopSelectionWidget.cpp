@@ -16,7 +16,7 @@
 
 namespace
 {
-UTextBlock* MakeText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
+UTextBlock* MakeShopText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
 {
 	UTextBlock* TextBlock = Tree ? Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name) : nullptr;
 	if (!TextBlock)
@@ -31,7 +31,7 @@ UTextBlock* MakeText(UWidgetTree* Tree, const FName Name, const FText& Text, int
 	return TextBlock;
 }
 
-UButton* MakeTextButton(UWidgetTree* Tree, const FName Name, const FText& Text)
+UButton* MakeShopTextButton(UWidgetTree* Tree, const FName Name, const FText& Text)
 {
 	UButton* Button = Tree ? Tree->ConstructWidget<UButton>(UButton::StaticClass(), Name) : nullptr;
 	if (!Button)
@@ -40,7 +40,7 @@ UButton* MakeTextButton(UWidgetTree* Tree, const FName Name, const FText& Text)
 	}
 
 	const FName LabelName(*FString::Printf(TEXT("%s_Label"), *Name.ToString()));
-	UTextBlock* Label = MakeText(Tree, LabelName, Text, 18);
+	UTextBlock* Label = MakeShopText(Tree, LabelName, Text, 18);
 	if (Label)
 	{
 		Label->SetJustification(ETextJustify::Center);
@@ -234,30 +234,30 @@ void UShopSelectionWidget::BuildFallbackLayout()
 	UVerticalBox* Root = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ShopRoot"));
 	WidgetTree->RootWidget = Root;
 
-	TitleText = MakeText(WidgetTree, TEXT("TitleText"), NSLOCTEXT("ShopSelection", "Title", "\u5546\u5e97"), 24);
+	TitleText = MakeShopText(WidgetTree, TEXT("TitleText"), NSLOCTEXT("ShopSelection", "Title", "\u5546\u5e97"), 24);
 	Root->AddChildToVerticalBox(TitleText);
 
-	GoldText = MakeText(WidgetTree, TEXT("GoldText"), FText::GetEmpty(), 16);
+	GoldText = MakeShopText(WidgetTree, TEXT("GoldText"), FText::GetEmpty(), 16);
 	Root->AddChildToVerticalBox(GoldText);
 
-	StatusText = MakeText(WidgetTree, TEXT("StatusText"), FText::GetEmpty(), 15);
+	StatusText = MakeShopText(WidgetTree, TEXT("StatusText"), FText::GetEmpty(), 15);
 	Root->AddChildToVerticalBox(StatusText);
 
 	ItemBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ItemBox"));
 	Root->AddChildToVerticalBox(ItemBox);
 
-	ItemButton0 = MakeTextButton(WidgetTree, TEXT("ItemButton0"), FText::GetEmpty());
-	ItemButton1 = MakeTextButton(WidgetTree, TEXT("ItemButton1"), FText::GetEmpty());
-	ItemButton2 = MakeTextButton(WidgetTree, TEXT("ItemButton2"), FText::GetEmpty());
-	ItemButton3 = MakeTextButton(WidgetTree, TEXT("ItemButton3"), FText::GetEmpty());
-	ItemButton4 = MakeTextButton(WidgetTree, TEXT("ItemButton4"), FText::GetEmpty());
-	ItemButton5 = MakeTextButton(WidgetTree, TEXT("ItemButton5"), FText::GetEmpty());
+	ItemButton0 = MakeShopTextButton(WidgetTree, TEXT("ItemButton0"), FText::GetEmpty());
+	ItemButton1 = MakeShopTextButton(WidgetTree, TEXT("ItemButton1"), FText::GetEmpty());
+	ItemButton2 = MakeShopTextButton(WidgetTree, TEXT("ItemButton2"), FText::GetEmpty());
+	ItemButton3 = MakeShopTextButton(WidgetTree, TEXT("ItemButton3"), FText::GetEmpty());
+	ItemButton4 = MakeShopTextButton(WidgetTree, TEXT("ItemButton4"), FText::GetEmpty());
+	ItemButton5 = MakeShopTextButton(WidgetTree, TEXT("ItemButton5"), FText::GetEmpty());
 	for (UButton* Button : GetItemButtons())
 	{
 		ItemBox->AddChildToVerticalBox(Button);
 	}
 
-	BtnClose = MakeTextButton(WidgetTree, TEXT("BtnClose"), NSLOCTEXT("ShopSelection", "Close", "\u5173\u95ed"));
+	BtnClose = MakeShopTextButton(WidgetTree, TEXT("BtnClose"), NSLOCTEXT("ShopSelection", "Close", "\u5173\u95ed"));
 	Root->AddChildToVerticalBox(BtnClose);
 }
 

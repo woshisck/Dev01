@@ -10,6 +10,7 @@ class UWeaponGlassIconWidget;
 class UHeatBarWidget;
 class UInfoPopupWidget;
 class UCombatDeckBarWidget;
+class UPlayerCommonInfoWidget;
 class UCurrentRoomBuffWidget;
 class UOverlay;
 
@@ -78,6 +79,10 @@ public:
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UCombatDeckBarWidget> CombatDeckBar;
+
+    /** Player common resource display. WBP control variable name: PlayerCommonInfoHud */
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UPlayerCommonInfoWidget> PlayerCommonInfoHud;
 
     /** Current room enemy rune/buff panel. WBP control variable name: CurrentRoomBuffPanel */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))

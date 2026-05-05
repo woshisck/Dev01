@@ -1,6 +1,8 @@
 #include "BuffFlow/Nodes/BFNode_SpawnRangedProjectiles.h"
 
 #include "AbilitySystem/GameplayEffect/GE_MusketBullet_Damage.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -19,6 +21,7 @@ UBFNode_SpawnRangedProjectiles::UBFNode_SpawnRangedProjectiles(const FObjectInit
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 	YawOffsets = { -8.f, 8.f };
 	Damage = FFlowDataPinInputProperty_Float(0.f);
+	RequiredWeaponTag = FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Ranged"), false);
 }
 
 void UBFNode_SpawnRangedProjectiles::ExecuteInput(const FName& PinName)
@@ -28,6 +31,23 @@ void UBFNode_SpawnRangedProjectiles::ExecuteInput(const FName& PinName)
 	{
 		TriggerOutput(TEXT("Failed"), true);
 		return;
+	}
+
+	if (bRequireRangedWeaponTag)
+	{
+		UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(SourceCharacter);
+		const FGameplayTag RangedTag = RequiredWeaponTag.IsValid()
+			? RequiredWeaponTag
+			: FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Ranged"), false);
+		if (!ASC || !RangedTag.IsValid() || !ASC->HasMatchingGameplayTag(RangedTag))
+		{
+			UE_LOG(LogTemp, Verbose,
+				TEXT("[SpawnRangedProjectiles] Skip: Source=%s missing required weapon tag %s."),
+				*GetNameSafe(SourceCharacter),
+				*RangedTag.ToString());
+			TriggerOutput(TEXT("Failed"), true);
+			return;
+		}
 	}
 
 	UBuffFlowComponent* BFC = GetBuffFlowComponent();

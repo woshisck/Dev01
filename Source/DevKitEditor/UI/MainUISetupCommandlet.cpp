@@ -8,6 +8,8 @@
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
@@ -26,6 +28,7 @@
 #include "UI/CurrentRoomBuffWidget.h"
 #include "UI/LiquidHealthBarWidget.h"
 #include "UI/PauseMenuWidget.h"
+#include "UI/PlayerCommonInfoWidget.h"
 #include "UI/YogHUD.h"
 #include "UI/YogHUDRootWidget.h"
 #include "WidgetBlueprint.h"
@@ -34,6 +37,7 @@
 namespace MainUISetup
 {
 	const FString HudWidgetPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_HUDRoot");
+	const FString PlayerCommonInfoWidgetPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_PlayerCommonInfoHud");
 	const FString PauseWidgetPath = TEXT("/Game/UI/Playtest_UI/Pause/WBP_PauseMenu");
 	const FString PauseTextureRoot = TEXT("/Game/UI/Playtest_UI/UI_Tex/Pause");
 	const FString HudTextureRoot = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD");
@@ -47,10 +51,12 @@ namespace MainUISetup
 	const TCHAR* InfoPopupClassPath = TEXT("/Game/UI/Playtest_UI/Tutorial/WBP_InfoPopup.WBP_InfoPopup_C");
 	const TCHAR* CombatDeckClassPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_CombatDeckBar.WBP_CombatDeckBar_C");
 	const TCHAR* CurrentRoomBuffClassPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_CurrentRoomBuffPanel.WBP_CurrentRoomBuffPanel_C");
+	const TCHAR* PlayerCommonInfoClassPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_PlayerCommonInfoHud.WBP_PlayerCommonInfoHud_C");
 
 	const TCHAR* PanelFrameTexturePath = TEXT("/Game/UI/Playtest_UI/UI_Tex/Pause/T_PausePanel_OrnateFrame.T_PausePanel_OrnateFrame");
 	const TCHAR* DividerTexturePath = TEXT("/Game/UI/Playtest_UI/UI_Tex/Pause/T_PauseDivider_Ornate.T_PauseDivider_Ornate");
 	const TCHAR* FocusTexturePath = TEXT("/Game/UI/Playtest_UI/UI_Tex/Pause/T_PauseFocusGlow.T_PauseFocusGlow");
+	const TCHAR* GoldIconTexturePath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon");
 
 	FString ToObjectPath(const FString& PackagePath)
 	{
@@ -188,6 +194,70 @@ namespace MainUISetup
 		}
 	}
 
+	void BuildPlayerCommonInfoTree(UWidgetBlueprint* WidgetBlueprint, TArray<FString>& ReportLines)
+	{
+		if (!WidgetBlueprint || !WidgetBlueprint->WidgetTree)
+		{
+			return;
+		}
+
+		ResetWidgetTree(WidgetBlueprint);
+		UWidgetTree* WidgetTree = WidgetBlueprint->WidgetTree;
+
+		USizeBox* RootSizeBox = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("RootSizeBox"), false);
+		UVerticalBox* CommonInfoList = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("CommonInfoList"));
+		UHorizontalBox* GoldRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("GoldRow"));
+		USizeBox* GoldIconBox = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("GoldIconBox"), false);
+		UImage* GoldIcon = ConstructNamedWidget<UImage>(WidgetTree, TEXT("GoldIcon"));
+		UTextBlock* GoldText = ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("GoldText"));
+
+		if (!RootSizeBox || !CommonInfoList || !GoldRow || !GoldIconBox || !GoldIcon || !GoldText)
+		{
+			return;
+		}
+
+		RootSizeBox->SetWidthOverride(180.0f);
+		RootSizeBox->SetVisibility(ESlateVisibility::HitTestInvisible);
+		WidgetTree->RootWidget = RootSizeBox;
+		RootSizeBox->AddChild(CommonInfoList);
+
+		GoldRow->SetVisibility(ESlateVisibility::HitTestInvisible);
+		if (UVerticalBoxSlot* GoldRowSlot = CommonInfoList->AddChildToVerticalBox(GoldRow))
+		{
+			GoldRowSlot->SetHorizontalAlignment(HAlign_Right);
+			GoldRowSlot->SetPadding(FMargin(0.0f, 2.0f));
+		}
+
+		GoldIconBox->SetWidthOverride(24.0f);
+		GoldIconBox->SetHeightOverride(24.0f);
+		GoldIconBox->AddChild(GoldIcon);
+		if (UHorizontalBoxSlot* IconSlot = GoldRow->AddChildToHorizontalBox(GoldIconBox))
+		{
+			IconSlot->SetVerticalAlignment(VAlign_Center);
+			IconSlot->SetPadding(FMargin(0.0f, 0.0f, 6.0f, 0.0f));
+		}
+
+		if (UTexture2D* GoldTexture = LoadTexture(GoldIconTexturePath))
+		{
+			FSlateBrush GoldBrush;
+			GoldBrush.SetResourceObject(GoldTexture);
+			GoldBrush.ImageSize = FVector2D(24.0f, 24.0f);
+			GoldBrush.DrawAs = ESlateBrushDrawType::Image;
+			GoldIcon->SetBrush(GoldBrush);
+		}
+		GoldIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+		ConfigureText(GoldText, TEXT("0"), FLinearColor(0.95f, 0.83f, 0.42f, 1.0f), 18, false);
+		GoldText->SetShadowOffset(FVector2D(1.0f, 1.0f));
+		GoldText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.8f));
+		if (UHorizontalBoxSlot* TextSlot = GoldRow->AddChildToHorizontalBox(GoldText))
+		{
+			TextSlot->SetVerticalAlignment(VAlign_Center);
+		}
+
+		ReportLines.Add(TEXT("- Player common info HUD designer tree refreshed with gold row and extensible entry list."));
+	}
+
 	void BuildHudTree(UWidgetBlueprint* WidgetBlueprint, TArray<FString>& ReportLines)
 	{
 		if (!WidgetBlueprint || !WidgetBlueprint->WidgetTree)
@@ -243,6 +313,14 @@ namespace MainUISetup
 			BottomRight->SetVisibility(ESlateVisibility::HitTestInvisible);
 		}
 
+		UWidget* PlayerCommonInfo = ConstructWidgetFromPath(
+			WidgetTree,
+			PlayerCommonInfoClassPath,
+			TEXT("PlayerCommonInfoHud"),
+			ReportLines,
+			UPlayerCommonInfoWidget::StaticClass());
+		AddWidgetToOverlay(BottomRight, PlayerCommonInfo, HAlign_Right, VAlign_Top, FMargin(0.0f, 8.0f, 8.0f, 0.0f));
+
 		USizeBox* PlayerHealthHost = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("PlayerHealthHost"), false);
 		PlayerHealthHost->SetWidthOverride(420.f);
 		PlayerHealthHost->SetHeightOverride(82.f);
@@ -279,7 +357,7 @@ namespace MainUISetup
 		if (UWidget* InfoPopup = ConstructWidgetFromPath(WidgetTree, InfoPopupClassPath, TEXT("InfoPopup"), ReportLines))
 		{
 			InfoPopup->SetVisibility(ESlateVisibility::HitTestInvisible);
-			ConfigureCanvasSlot(RootCanvas->AddChildToCanvas(InfoPopup), FAnchors(0.5f, 0.5f), FVector2D::ZeroVector, FVector2D(600.f, 220.f), FVector2D(0.5f, 0.5f), 20);
+			ConfigureCanvasSlot(RootCanvas->AddChildToCanvas(InfoPopup), FAnchors(0.5f, 0.5f), FVector2D(0.f, 360.f), FVector2D(600.f, 50.f), FVector2D(0.5f, 0.5f), 20);
 		}
 
 		ReportLines.Add(TEXT("- HUD designer tree refreshed with named regions and existing HUD widgets."));
@@ -506,7 +584,17 @@ namespace MainUISetup
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BottomRightPlayerInfoRegion"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("PlayerHealthBar"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CombatDeckBar"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("PlayerCommonInfoHud"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CurrentRoomBuffPanel"));
+	}
+
+	bool PlayerCommonInfoNeedsRefresh(UWidgetBlueprint* WidgetBlueprint)
+	{
+		return !WidgetBlueprint || !WidgetBlueprint->WidgetTree
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CommonInfoList"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("GoldRow"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("GoldIcon"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("GoldText"));
 	}
 
 	bool PauseNeedsRefresh(UWidgetBlueprint* WidgetBlueprint)
@@ -702,7 +790,7 @@ int32 UMainUISetupCommandlet::Main(const FString& Params)
 		ReportLines.Add(TEXT(""));
 	}
 
-	if (bFrontendOnly || bHudOnly)
+	if (bFrontendOnly)
 	{
 		if (!bDryRun && DirtyPackages.Num() > 0)
 		{
@@ -719,6 +807,25 @@ int32 UMainUISetupCommandlet::Main(const FString& Params)
 		return 0;
 	}
 
+	bool bPlayerCommonInfoCreated = false;
+	UWidgetBlueprint* PlayerCommonInfoWidget = CreateWidgetBlueprint(
+		PlayerCommonInfoWidgetPath,
+		UPlayerCommonInfoWidget::StaticClass(),
+		bDryRun,
+		ReportLines,
+		bPlayerCommonInfoCreated);
+	if (PlayerCommonInfoWidget && !bDryRun && (bPlayerCommonInfoCreated || bForceLayout || PlayerCommonInfoNeedsRefresh(PlayerCommonInfoWidget)))
+	{
+		BuildPlayerCommonInfoTree(PlayerCommonInfoWidget, ReportLines);
+		FKismetEditorUtilities::CompileBlueprint(PlayerCommonInfoWidget);
+		PlayerCommonInfoWidget->MarkPackageDirty();
+		DirtyPackages.AddUnique(PlayerCommonInfoWidget->GetPackage());
+	}
+	else if (PlayerCommonInfoWidget && !bDryRun)
+	{
+		ReportLines.Add(TEXT("- Existing player common info HUD designer tree kept unchanged."));
+	}
+
 	bool bHudCreated = false;
 	UWidgetBlueprint* HudWidget = CreateWidgetBlueprint(HudWidgetPath, UYogHUDRootWidget::StaticClass(), bDryRun, ReportLines, bHudCreated);
 	if (HudWidget && !bDryRun && (bHudCreated || bForceLayout || HudNeedsRefresh(HudWidget)))
@@ -733,18 +840,22 @@ int32 UMainUISetupCommandlet::Main(const FString& Params)
 		ReportLines.Add(TEXT("- Existing HUD designer tree kept unchanged."));
 	}
 
-	bool bPauseCreated = false;
-	UWidgetBlueprint* PauseWidget = CreateWidgetBlueprint(PauseWidgetPath, UPauseMenuWidget::StaticClass(), bDryRun, ReportLines, bPauseCreated);
-	if (PauseWidget && !bDryRun && (bPauseCreated || bForceLayout || PauseNeedsRefresh(PauseWidget)))
+	UWidgetBlueprint* PauseWidget = nullptr;
+	if (!bHudOnly)
 	{
-		BuildPauseTree(PauseWidget, ReportLines);
-		FKismetEditorUtilities::CompileBlueprint(PauseWidget);
-		PauseWidget->MarkPackageDirty();
-		DirtyPackages.AddUnique(PauseWidget->GetPackage());
-	}
-	else if (PauseWidget && !bDryRun)
-	{
-		ReportLines.Add(TEXT("- Existing pause designer tree kept unchanged."));
+		bool bPauseCreated = false;
+		PauseWidget = CreateWidgetBlueprint(PauseWidgetPath, UPauseMenuWidget::StaticClass(), bDryRun, ReportLines, bPauseCreated);
+		if (PauseWidget && !bDryRun && (bPauseCreated || bForceLayout || PauseNeedsRefresh(PauseWidget)))
+		{
+			BuildPauseTree(PauseWidget, ReportLines);
+			FKismetEditorUtilities::CompileBlueprint(PauseWidget);
+			PauseWidget->MarkPackageDirty();
+			DirtyPackages.AddUnique(PauseWidget->GetPackage());
+		}
+		else if (PauseWidget && !bDryRun)
+		{
+			ReportLines.Add(TEXT("- Existing pause designer tree kept unchanged."));
+		}
 	}
 
 	if (!bDryRun)
