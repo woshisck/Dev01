@@ -2,6 +2,7 @@
 #include "UI/YogHUDRootWidget.h"
 #include "UI/CombatDeckBarWidget.h"
 #include "UI/CurrentRoomBuffWidget.h"
+#include "UI/PauseMenuWidget.h"
 #include "UI/LiquidHealthBarWidget.h"
 #include "UI/EnemyArrowWidget.h"
 #include "UI/WeaponGlassIconWidget.h"
@@ -182,6 +183,12 @@ void AYogHUD::OpenBackpack()
 
 bool AYogHUD::CloseTopMostOverlay()
 {
+	if (IsPauseMenuOpen())
+	{
+		ClosePauseMenu();
+		return true;
+	}
+
 	if (TutorialPopupWidget && TutorialPopupWidget->IsActivated())
 	{
 		TutorialPopupWidget->DeactivateWidget();
@@ -207,6 +214,61 @@ bool AYogHUD::CloseTopMostOverlay()
 	}
 
 	return false;
+}
+
+void AYogHUD::OpenPauseMenu()
+{
+	if (IsPauseMenuOpen())
+	{
+		return;
+	}
+
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC)
+	{
+		return;
+	}
+
+	if (!PauseMenuWidget || !PauseMenuWidget->IsInViewport())
+	{
+		TSubclassOf<UPauseMenuWidget> WidgetClass = PauseMenuClass;
+		if (!WidgetClass)
+		{
+			WidgetClass = LoadClass<UPauseMenuWidget>(
+				nullptr,
+				TEXT("/Game/UI/Playtest_UI/Pause/WBP_PauseMenu.WBP_PauseMenu_C"));
+		}
+
+		if (!WidgetClass)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[YogHUD] Pause menu class is missing."));
+			return;
+		}
+
+		PauseMenuWidget = CreateWidget<UPauseMenuWidget>(PC, WidgetClass);
+		if (PauseMenuWidget)
+		{
+			PauseMenuWidget->AddToViewport(100);
+		}
+	}
+
+	if (PauseMenuWidget)
+	{
+		PauseMenuWidget->ActivateWidget();
+	}
+}
+
+void AYogHUD::ClosePauseMenu()
+{
+	if (PauseMenuWidget && PauseMenuWidget->IsActivated())
+	{
+		PauseMenuWidget->DeactivateWidget();
+	}
+}
+
+bool AYogHUD::IsPauseMenuOpen() const
+{
+	return PauseMenuWidget && PauseMenuWidget->IsActivated();
 }
 
 void AYogHUD::ShowLootSelectionUI(const TArray<FLootOption>& Options)

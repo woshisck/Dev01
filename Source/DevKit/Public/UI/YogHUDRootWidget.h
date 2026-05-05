@@ -11,6 +11,7 @@ class UHeatBarWidget;
 class UInfoPopupWidget;
 class UCombatDeckBarWidget;
 class UCurrentRoomBuffWidget;
+class UOverlay;
 
 /**
  * 主 HUD 容器 Widget（C++ 基类）
@@ -29,6 +30,32 @@ class DEVKIT_API UYogHUDRootWidget : public UUserWidget
     GENERATED_BODY()
 
 public:
+    // Stable layout regions used by WBP_HUDRoot. These are optional so older
+    // HUD blueprints keep loading while generated layouts catch up.
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UOverlay> TopLeftPlayerInfoRegion;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UOverlay> TopRightPlayerInfoRegion;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UOverlay> BossInfoRegion;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UOverlay> LeftLevelInfoRegion;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UOverlay> RightLevelInfoRegion;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UOverlay> BottomLeftPlayerInfoRegion;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UOverlay> BottomCenterCombatRegion;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UOverlay> BottomRightPlayerInfoRegion;
+
     /** 玩家液态血条（WBP 控件变量名：PlayerHealthBar） */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     TObjectPtr<ULiquidHealthBarWidget> PlayerHealthBar;

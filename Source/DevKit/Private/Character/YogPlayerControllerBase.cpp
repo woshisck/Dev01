@@ -255,6 +255,15 @@ bool AYogPlayerControllerBase::HandleMenuBackInput(const FKey& Key)
 		return true;
 	}
 
+	if (Key == EKeys::Escape || bMenuKey)
+	{
+		if (AYogHUD* HUD = Cast<AYogHUD>(GetHUD()))
+		{
+			HUD->OpenPauseMenu();
+			return true;
+		}
+	}
+
 	return false;
 }
 

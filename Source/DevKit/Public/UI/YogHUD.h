@@ -21,6 +21,7 @@ class ULevelEndRevealWidget;
 class UMaterialInstanceDynamic;
 class ULootSelectionWidget;
 class UYogHUDRootWidget;
+class UPauseMenuWidget;
 class UInfoPopupWidget;
 class ULevelInfoPopupDA;
 class UPortalPreviewWidget;
@@ -61,6 +62,18 @@ public:
 	/** 主 HUD 容器 WBP（WBP_HUDRoot，内含血条/箭头/武器图标等常驻元素） */
 	UPROPERTY(EditDefaultsOnly, Category = "HUD")
 	TSubclassOf<UYogHUDRootWidget> MainHUDClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Pause")
+	TSubclassOf<UPauseMenuWidget> PauseMenuClass;
+
+	UFUNCTION(BlueprintCallable, Category = "HUD|Pause")
+	void OpenPauseMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "HUD|Pause")
+	void ClosePauseMenu();
+
+	UFUNCTION(BlueprintPure, Category = "HUD|Pause")
+	bool IsPauseMenuOpen() const;
 
 	// ─────────────────────────────────────────
 	//  暂停遮罩后处理
@@ -273,6 +286,9 @@ protected:
 private:
 	UPROPERTY()
 	TObjectPtr<UYogHUDRootWidget> MainHUDWidget;
+
+	UPROPERTY()
+	TObjectPtr<UPauseMenuWidget> PauseMenuWidget;
 
 	UPROPERTY()
 	TObjectPtr<UTutorialPopupWidget> TutorialPopupWidget;
