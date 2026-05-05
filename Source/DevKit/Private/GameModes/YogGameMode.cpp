@@ -491,22 +491,26 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 	bLootOptionsPending = false;
 
 	const FLootOption& Chosen = CurrentLootOptions[LootIndex];
+	bool bAddedCombatCardToDeck = false;
 	if (Chosen.LootType == ELootType::Rune && Chosen.RuneAsset)
 	{
 		Player->AddRuneToInventory(Chosen.RuneAsset->CreateInstance());
 		if (Player->CombatDeckComponent)
 		{
-			Player->CombatDeckComponent->AddCardFromRuneReward(Chosen.RuneAsset);
+			bAddedCombatCardToDeck = Player->CombatDeckComponent->AddCardFromRuneReward(Chosen.RuneAsset);
 		}
 	}
 
-	// 战斗后教程：符文选完后引导玩家配置背包
-	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
+	// 512 reward-card tutorial: only trigger when the reward actually entered the combat deck.
+	if (bAddedCombatCardToDeck)
 	{
-		if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(
-			UGameplayStatics::GetPlayerController(GetWorld(), 0)))
+		if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
 		{
-			TM->TryPostCombatTutorial(PC);
+			if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(
+				UGameplayStatics::GetPlayerController(GetWorld(), 0)))
+			{
+				TM->TryPostCombatTutorial(PC);
+			}
 		}
 	}
 

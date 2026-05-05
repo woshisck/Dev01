@@ -1,13 +1,12 @@
 #include "Tutorial/TutorialManager.h"
-#include "UI/GameDialogWidget.h"
-#include "UI/TutorialRegistryDA.h"
+
+#include "Character/YogPlayerControllerBase.h"
+#include "Containers/Ticker.h"
+#include "Kismet/GameplayStatics.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveSubsystem.h"
-#include "Character/YogPlayerControllerBase.h"
-#include "Kismet/GameplayStatics.h"
-#include "Containers/Ticker.h"
-
-#define LOCTEXT_NAMESPACE "Tutorial"
+#include "UI/GameDialogWidget.h"
+#include "UI/TutorialRegistryDA.h"
 
 namespace
 {
@@ -15,22 +14,24 @@ namespace
 	{
 		return FName(EventID);
 	}
-}
 
-// ============================================================
-//  Subsystem 生命周期
-// ============================================================
+	FTutorialPage MakeTutorialPage(const TCHAR* Title, const TCHAR* Body, const TCHAR* SubText = TEXT(""))
+	{
+		FTutorialPage Page;
+		Page.Title = FText::FromString(Title);
+		Page.Body = FText::FromString(Body);
+		Page.SubText = FText::FromString(SubText);
+		return Page;
+	}
+}
 
 void UTutorialManager::Deinitialize()
 {
-	// 兜底：Subsystem 销毁时强制恢复全局时间膨胀，
-	// 防止 0.08 ticker 因玩家死亡/切关等原因来不及恢复，导致整个游戏世界永久慢动作
 	if (UGameInstance* GI = GetGameInstance())
 	{
 		UGameplayStatics::SetGlobalTimeDilation(GI, 1.0f);
 	}
 
-	// 清掉 ticker，防止野指针回调
 	if (DilationTickerHandle.IsValid())
 	{
 		FTSTicker::GetCoreTicker().RemoveTicker(DilationTickerHandle);
@@ -43,36 +44,36 @@ void UTutorialManager::Deinitialize()
 void UTutorialManager::Init(UTutorialPopupWidget* InWidget, UTutorialRegistryDA* InRegistry)
 {
 	PopupWidget = InWidget;
-	Registry    = InRegistry;
+	Registry = InRegistry;
 
 	UE_LOG(LogTemp, Log, TEXT("[Tutorial] Init: PopupWidget=%s, Registry=%s"),
-		InWidget    ? *InWidget->GetClass()->GetName()  : TEXT("NULL — TutorialPopupClass 未在 BP_HUD 设置!"),
-		InRegistry  ? *InRegistry->GetName()            : TEXT("NULL — TutorialRegistry 未在 BP_HUD 设置!"));
+		InWidget ? *InWidget->GetClass()->GetName() : TEXT("NULL - TutorialPopupClass is not set on BP_HUD"),
+		InRegistry ? *InRegistry->GetName() : TEXT("NULL - TutorialRegistry is not set on BP_HUD"));
 }
 
 void UTutorialManager::LoadFromSave(UYogSaveGame* Save)
 {
-	if (!Save) return;
+	if (!Save)
+	{
+		return;
+	}
+
 	State = Save->TutorialState;
 }
-
-// ============================================================
-//  阶段顺序判断（不依赖 enum 数值大小）
-// ============================================================
 
 int32 UTutorialManager::StageRank(ETutorialState S) const
 {
 	switch (S)
 	{
-	case ETutorialState::None:                   return -1;  // 未初始化 / 禁用
+	case ETutorialState::None:                   return -1;
 	case ETutorialState::NeedWeaponTutorial:     return 0;
 	case ETutorialState::WeaponTutorialDone:     return 1;
-	case ETutorialState::NeedPostCombatTutorial: return 1;   // 旧/废弃，与 WeaponTutorialDone 同级
-	case ETutorialState::NeedFirstRuneTutorial:  return 2;
-	case ETutorialState::NeedBackpackTutorial:   return 3;
-	case ETutorialState::NeedHeatPhaseTutorial:  return 4;
+	case ETutorialState::NeedPostCombatTutorial: return 1; // Legacy alias for the post-loot reward-card step.
+	case ETutorialState::NeedFirstRuneTutorial:  return 2; // 512: first reward card has entered the combat deck.
+	case ETutorialState::NeedBackpackTutorial:   return 3; // 512: first deck arrangement tutorial.
+	case ETutorialState::NeedHeatPhaseTutorial:  return 4; // 512: first Link-card tutorial.
 	case ETutorialState::Completed:              return 5;
-	default:                                     return -2;  // 未识别状态
+	default:                                     return -2;
 	}
 }
 
@@ -83,28 +84,28 @@ bool UTutorialManager::HasPassedStage(ETutorialState Required) const
 	return Cur >= 0 && Req >= 0 && Cur > Req;
 }
 
-// ============================================================
-//  旧两段流（保留兼容；状态推进改到弹窗显示之后）
-// ============================================================
-
 void UTutorialManager::TryWeaponTutorial(AYogPlayerControllerBase* PC)
 {
 	UE_LOG(LogTemp, Log, TEXT("[Tutorial] TryWeaponTutorial: State=%d, PopupValid=%d, PC=%s"),
 		(int32)State, PopupWidget.IsValid() ? 1 : 0, PC ? *PC->GetName() : TEXT("null"));
 
-	if (State != ETutorialState::NeedWeaponTutorial) return;
-	if (!PopupWidget.IsValid() || !PC) return;
-	if (bPopupShowing) return;
-	// 防 0.35s 窗口期重入：状态推进延后到 DoShowWeaponPopup，期间多次调用会通过 State guard
-	if (DilationTickerHandle.IsValid()) return;
+	if (State != ETutorialState::NeedWeaponTutorial)
+	{
+		return;
+	}
+	if (!PopupWidget.IsValid() || !PC || bPopupShowing || DilationTickerHandle.IsValid())
+	{
+		return;
+	}
 
 	UGameInstance* GI = GetGameInstance();
-	if (!GI) return;
+	if (!GI)
+	{
+		return;
+	}
 
-	// 1. 时间膨胀降速，营造"世界停顿"氛围
 	UGameplayStatics::SetGlobalTimeDilation(GI, 0.08f);
 
-	// 2. FTSTicker 基于真实时间计时（不受 TimeDilation 影响），0.35s 后显示弹窗
 	TWeakObjectPtr<AYogPlayerControllerBase> WeakPC = PC;
 	TWeakObjectPtr<UTutorialManager> WeakThis = this;
 	TWeakObjectPtr<UGameInstance> WeakGI = GI;
@@ -112,7 +113,6 @@ void UTutorialManager::TryWeaponTutorial(AYogPlayerControllerBase* PC)
 	DilationTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
 		FTickerDelegate::CreateLambda([WeakThis, WeakPC, WeakGI](float) -> bool
 		{
-			// 兜底：无论 WeakThis 是否还在，都先恢复全局时间膨胀
 			if (WeakGI.IsValid())
 			{
 				UGameplayStatics::SetGlobalTimeDilation(WeakGI.Get(), 1.0f);
@@ -122,60 +122,66 @@ void UTutorialManager::TryWeaponTutorial(AYogPlayerControllerBase* PC)
 				WeakThis->DilationTickerHandle.Reset();
 				WeakThis->DoShowWeaponPopup(WeakPC);
 			}
-			return false; // 只触发一次
+			return false;
 		}),
 		0.35f);
 }
 
 void UTutorialManager::TryPostCombatTutorial(AYogPlayerControllerBase* PC)
 {
-	if (State != ETutorialState::WeaponTutorialDone) return;
-	if (!PopupWidget.IsValid() || !PC) return;
-	if (bPopupShowing) return;
+	if (State == ETutorialState::None)
+	{
+		return;
+	}
+	if (State == ETutorialState::NeedWeaponTutorial || HasPassedStage(ETutorialState::NeedFirstRuneTutorial))
+	{
+		return;
+	}
+	if (!PopupWidget.IsValid() || !PC || bPopupShowing)
+	{
+		return;
+	}
 
-	UGameInstance* GI = GetGameInstance();
-	UWorld* World = GI ? GI->GetWorld() : nullptr;
-	if (!World) return;
-
-	State = ETutorialState::NeedPostCombatTutorial;
-
-	TWeakObjectPtr<AYogPlayerControllerBase> WeakPC = PC;
-	TWeakObjectPtr<UTutorialManager> WeakThis = this;
-
-	World->GetTimerManager().SetTimer(
-		DelayHandle,
-		[WeakThis, WeakPC]()
-		{
-			if (WeakThis.IsValid()) WeakThis->DoShowPostCombatPopup(WeakPC);
-		},
-		0.2f, false);
+	// 512 keeps this old function name as the loot-selection compatibility entry.
+	// It no longer opens the old backpack grid; it only explains that the reward card entered the deck.
+	if (ShowByEventID(TutorialEventID(TEXT("tutorial_first_rune")), PC, /*bPauseGame=*/true))
+	{
+		State = ETutorialState::NeedBackpackTutorial;
+		SaveState();
+	}
 }
 
 void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC)
 {
 	UE_LOG(LogTemp, Log, TEXT("[Tutorial] DoShowWeaponPopup fired"));
-	if (!WeakPC.IsValid() || !PopupWidget.IsValid()) return;
+	if (!WeakPC.IsValid() || !PopupWidget.IsValid())
+	{
+		return;
+	}
 
-	// 选取页面（注册表 → 兜底文本）
 	TArray<FTutorialPage> PagesToShow;
 	if (Registry)
 	{
-		if (const TArray<FTutorialPage>* RegisteredPages = Registry->FindPages(TutorialEventID(TEXT("WeaponTutorial"))))
+		if (const TArray<FTutorialPage>* RegisteredPages = Registry->FindPages(TutorialEventID(TEXT("tutorial_weapon_pickup"))))
 		{
 			PagesToShow = *RegisteredPages;
 		}
-		else
+		else if (const TArray<FTutorialPage>* LegacyPages = Registry->FindPages(TutorialEventID(TEXT("WeaponTutorial"))))
 		{
-			UE_LOG(LogTemp, Log, TEXT("[Tutorial] Registry 中未找到 EventID='WeaponTutorial'，使用兜底文字"));
+			PagesToShow = *LegacyPages;
 		}
 	}
+
 	if (PagesToShow.Num() == 0)
 	{
-		PagesToShow.Add({ LOCTEXT("WeaponTitle", "配置你的符文"),
-		                  LOCTEXT("WeaponBody", "激活区内的符文才会在战斗中生效。\n你可以拖动符文调整位置。") });
+		PagesToShow.Add(MakeTutorialPage(
+			TEXT("拾起武器"),
+			TEXT("靠近发光武器，按 [E] 拾取。武器会装备到角色身上，并把它自带的初始卡牌装入下方 1D 卡组。")));
+		PagesToShow.Add(MakeTutorialPage(
+			TEXT("武器自带初始卡牌"),
+			TEXT("每把武器都有一组起始卡。拾取后，卡组会按武器配置顺序显示；轻/重攻击不会被卡组阻止，但命中会按顺序消耗卡牌并触发效果。")));
 	}
 
-	// ShowPopup 真正调用之后才推进 + 持久化
 	bPopupShowing = true;
 	PopupWidget->ShowPopup(PagesToShow);
 
@@ -185,52 +191,31 @@ void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase
 
 void UTutorialManager::DoShowPostCombatPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC)
 {
-	UE_LOG(LogTemp, Log, TEXT("[Tutorial] DoShowPostCombatPopup fired"));
-	if (!WeakPC.IsValid() || !PopupWidget.IsValid()) return;
-
-	// 先 OpenBackpack（这是教程的一部分），再 ShowPopup
-	WeakPC->OpenBackpack();
-
-	TArray<FTutorialPage> PagesToShow;
-	if (Registry)
+	UE_LOG(LogTemp, Log, TEXT("[Tutorial] DoShowPostCombatPopup fired through legacy path"));
+	if (!WeakPC.IsValid())
 	{
-		if (const TArray<FTutorialPage>* RegisteredPages = Registry->FindPages(TutorialEventID(TEXT("PostCombatTutorial"))))
-		{
-			PagesToShow = *RegisteredPages;
-		}
-		else
-		{
-			UE_LOG(LogTemp, Log, TEXT("[Tutorial] Registry 中未找到 EventID='PostCombatTutorial'，使用兜底文字"));
-		}
-	}
-	if (PagesToShow.Num() == 0)
-	{
-		PagesToShow.Add({ LOCTEXT("PostCombatTitle", "放置你的新符文"),
-		                  LOCTEXT("PostCombatBody", "把新符文移动到你想要的位置。\n进入下一关后，战斗中将无法调整。") });
+		return;
 	}
 
-	bPopupShowing = true;
-	PopupWidget->ShowPopup(PagesToShow);
-
-	// 旧路径推进到 NeedFirstRuneTutorial（让新四段流接管），不再直接 Completed
-	// 这样旧调用者也能逐步过渡到新流程
-	State = ETutorialState::NeedFirstRuneTutorial;
-	SaveState();
+	TryPostCombatTutorial(WeakPC.Get());
 }
-
-// =========================================================
-// 新四段教程流 ②③④（① 武器拾取走 LevelFlow + LENode_ShowTutorial）
-// 状态推进策略：仅在 ShowByEventID 实际显示弹窗后才 SaveState，且使用 StageRank 判断阶段
-// =========================================================
 
 void UTutorialManager::TryFirstRuneTutorial(APlayerController* PC)
 {
-	if (State == ETutorialState::None) return;                     // 未初始化拦
-	if (HasPassedStage(ETutorialState::NeedFirstRuneTutorial)) return;  // 已通过此阶段
-	if (!PopupWidget.IsValid() || !PC) return;
+	if (State == ETutorialState::None)
+	{
+		return;
+	}
+	if (State == ETutorialState::NeedWeaponTutorial || HasPassedStage(ETutorialState::NeedFirstRuneTutorial))
+	{
+		return;
+	}
+	if (!PopupWidget.IsValid() || !PC || bPopupShowing)
+	{
+		return;
+	}
 
-	// slow-mo 期间触发，不强暂停（避免打断关卡结束运镜）
-	if (ShowByEventID(TutorialEventID(TEXT("tutorial_first_rune")), PC, /*bPauseGame=*/false))
+	if (ShowByEventID(TutorialEventID(TEXT("tutorial_first_rune")), PC, /*bPauseGame=*/true))
 	{
 		State = ETutorialState::NeedBackpackTutorial;
 		SaveState();
@@ -239,11 +224,25 @@ void UTutorialManager::TryFirstRuneTutorial(APlayerController* PC)
 
 void UTutorialManager::TryBackpackTutorial(APlayerController* PC)
 {
-	if (State == ETutorialState::None) return;
-	if (HasPassedStage(ETutorialState::NeedBackpackTutorial)) return;
-	if (!PopupWidget.IsValid() || !PC) return;
+	if (State == ETutorialState::NeedHeatPhaseTutorial)
+	{
+		TryCardLinkTutorial(PC);
+		return;
+	}
 
-	// 玩家在看背包 UI（已是暂停状态），bPauseGame 影响不大；保持 true 与 UI 暂停一致
+	if (State == ETutorialState::None)
+	{
+		return;
+	}
+	if (HasPassedStage(ETutorialState::NeedBackpackTutorial))
+	{
+		return;
+	}
+	if (!PopupWidget.IsValid() || !PC || bPopupShowing)
+	{
+		return;
+	}
+
 	if (ShowByEventID(TutorialEventID(TEXT("tutorial_backpack")), PC, /*bPauseGame=*/true))
 	{
 		State = ETutorialState::NeedHeatPhaseTutorial;
@@ -253,12 +252,40 @@ void UTutorialManager::TryBackpackTutorial(APlayerController* PC)
 
 void UTutorialManager::TryHeatPhaseTutorial(APlayerController* PC)
 {
-	if (State == ETutorialState::None) return;
-	if (HasPassedStage(ETutorialState::NeedHeatPhaseTutorial)) return;
-	if (!PopupWidget.IsValid() || !PC) return;
+	if (!PC)
+	{
+		return;
+	}
 
-	// 战斗中触发，不暂停（信息浮窗）
-	if (ShowByEventID(TutorialEventID(TEXT("tutorial_activation_zone")), PC, /*bPauseGame=*/false))
+	if (UGameplayStatics::IsGamePaused(PC))
+	{
+		TryCardLinkTutorial(PC);
+		return;
+	}
+
+	UE_LOG(LogTemp, Verbose, TEXT("[Tutorial] Deprecated heat tutorial skipped outside a safe paused UI state"));
+}
+
+void UTutorialManager::TryCardLinkTutorial(APlayerController* PC)
+{
+	if (State == ETutorialState::None)
+	{
+		return;
+	}
+	if (StageRank(State) < StageRank(ETutorialState::NeedHeatPhaseTutorial))
+	{
+		return;
+	}
+	if (HasPassedStage(ETutorialState::NeedHeatPhaseTutorial))
+	{
+		return;
+	}
+	if (!PopupWidget.IsValid() || !PC || bPopupShowing)
+	{
+		return;
+	}
+
+	if (ShowByEventID(TutorialEventID(TEXT("tutorial_card_link")), PC, /*bPauseGame=*/true))
 	{
 		State = ETutorialState::Completed;
 		SaveState();
@@ -269,14 +296,12 @@ bool UTutorialManager::ShowInlinePages(const TArray<FTutorialPage>& Pages, APlay
 {
 	if (!PopupWidget.IsValid() || Pages.IsEmpty())
 	{
-		// 防 LevelFlow 节点 hang：失败时也广播一次，让等待 OnPopupClosed 的节点立即继续
-		// 已知副作用：若期间还有别的弹窗的等待者，会被一并触发 — 重复调用本身就罕见，可接受
 		OnPopupClosed.Broadcast();
 		return false;
 	}
 	if (bPopupShowing)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Tutorial] ShowInlinePages 被忽略：当前已有教程弹窗"));
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] ShowInlinePages ignored because a tutorial popup is already showing"));
 		OnPopupClosed.Broadcast();
 		return false;
 	}
@@ -290,13 +315,13 @@ bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* /*PC*/, b
 {
 	if (!PopupWidget.IsValid())
 	{
-		OnPopupClosed.Broadcast();  // 防 LevelFlow 节点 hang
+		OnPopupClosed.Broadcast();
 		return false;
 	}
 	if (bPopupShowing)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Tutorial] ShowByEventID(%s) 被忽略：当前已有教程弹窗"), *EventID.ToString());
-		OnPopupClosed.Broadcast();  // 防 LevelFlow 节点 hang
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] ShowByEventID(%s) ignored because a tutorial popup is already showing"), *EventID.ToString());
+		OnPopupClosed.Broadcast();
 		return false;
 	}
 
@@ -309,18 +334,17 @@ bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* /*PC*/, b
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[Tutorial] Registry 中未找到 EventID='%s'，使用兜底文字"), *EventID.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("[Tutorial] Registry does not contain EventID='%s'; using fallback text"), *EventID.ToString());
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Tutorial] Registry 未配置，EventID='%s' 使用兜底文字"), *EventID.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[Tutorial] Registry is not configured; EventID='%s' uses fallback text"), *EventID.ToString());
 	}
 
-	// 兜底：单页显示 EventID 本身
 	if (PagesToShow.Num() == 0)
 	{
-		PagesToShow.Add({ FText::FromName(EventID), FText::GetEmpty() });
+		PagesToShow.Add(MakeTutorialPage(*EventID.ToString(), TEXT("")));
 	}
 
 	bPopupShowing = true;
@@ -331,11 +355,6 @@ bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* /*PC*/, b
 void UTutorialManager::NotifyPopupClosed()
 {
 	bPopupShowing = false;
-
-	// 注意：不在此处恢复 GlobalTimeDilation。
-	// - 武器教程 ticker 内部已无条件恢复（即使 WeakThis 失效）
-	// - Subsystem Deinitialize 是最后兜底
-	// - FirstRune 等教程在关卡结束 slow-mo 期间触发，关闭弹窗时 slow-mo 应继续，由 HUD::TickLevelEndEffect 控制
 	OnPopupClosed.Broadcast();
 }
 
@@ -350,16 +369,23 @@ void UTutorialManager::ForceClosePopup()
 void UTutorialManager::SaveState()
 {
 	UGameInstance* GI = GetGameInstance();
-	if (!GI) return;
+	if (!GI)
+	{
+		return;
+	}
 
 	UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>();
-	if (!SaveSys) return;
+	if (!SaveSys)
+	{
+		return;
+	}
 
 	UYogSaveGame* Save = SaveSys->GetCurrentSave();
-	if (!Save) return;
+	if (!Save)
+	{
+		return;
+	}
 
 	Save->TutorialState = State;
 	SaveSys->WriteSaveGame();
 }
-
-#undef LOCTEXT_NAMESPACE

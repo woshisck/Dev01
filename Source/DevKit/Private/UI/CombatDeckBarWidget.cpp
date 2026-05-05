@@ -149,13 +149,13 @@ void UCombatDeckBarWidget::UpdateStatusText(int32 RemainingCount, EDeckState Dec
 {
 	if (DeckState == EDeckState::EmptyShuffling)
 	{
-		SetTextIfBound(StatusText, FText::FromString(TEXT("Deck: Shuffling")));
+		SetTextIfBound(StatusText, FText::FromString(TEXT("卡组装填中")));
 		return;
 	}
 
 	SetTextIfBound(
 		StatusText,
-		FText::Format(FText::FromString(TEXT("Deck: {0}")), FText::AsNumber(RemainingCount)));
+		FText::Format(FText::FromString(TEXT("卡组: {0}")), FText::AsNumber(RemainingCount)));
 }
 
 void UCombatDeckBarWidget::UpdateShuffleVisuals(float NormalizedProgress, bool bIsShuffling)
@@ -171,7 +171,9 @@ void UCombatDeckBarWidget::UpdateShuffleVisuals(float NormalizedProgress, bool b
 	}
 
 	const FText ShuffleLabel = bIsShuffling
-		? FText::Format(FText::FromString(TEXT("Shuffling {0}")), FText::AsPercent(NormalizedProgress))
+		? FText::Format(
+			FText::FromString(TEXT("卡组装填中：这段空窗仍可攻击，但暂时不会触发卡牌效果。 {0}")),
+			FText::AsPercent(NormalizedProgress))
 		: FText::GetEmpty();
 	SetTextIfBound(ShuffleText, ShuffleLabel);
 }
@@ -248,7 +250,7 @@ void UCombatDeckBarWidget::HandleCardConsumed(const FCombatCardInstance& Card, c
 {
 	SetTextIfBound(
 		ConsumedToastText,
-		FText::Format(FText::FromString(TEXT("Consumed: {0}")), GetCardDisplayName(Card)));
+		FText::Format(FText::FromString(TEXT("消耗: {0}")), GetCardDisplayName(Card)));
 	ShowToast(ConsumedToastText, ConsumedToastTimeRemaining);
 	RefreshDeckSnapshot();
 	BP_OnCardConsumed(Card, Result);
@@ -279,7 +281,7 @@ void UCombatDeckBarWidget::HandleRewardAddedToDeck(const FCombatCardInstance& Ca
 {
 	SetTextIfBound(
 		RewardToastText,
-		FText::Format(FText::FromString(TEXT("Added: {0}")), GetCardDisplayName(Card)));
+		FText::Format(FText::FromString(TEXT("已入组: {0}")), GetCardDisplayName(Card)));
 	ShowToast(RewardToastText, RewardToastTimeRemaining);
 	BP_OnRewardAddedToDeck(Card);
 	RefreshDeckSnapshot();
