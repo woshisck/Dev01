@@ -19,6 +19,8 @@ class UBackpackGridWidget;
 class UBackpackStyleDataAsset;
 class UPendingGridWidget;
 class UCombatDeckEditWidget;
+class UTexture2D;
+class UWeaponDefinition;
 struct FPlacedRune;
 
 // ============================================================
@@ -118,9 +120,27 @@ public:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UWidget> OperationHintWidget;
 
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UWidget> OperationHintText;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UImage> WeaponIcon;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UWidget> WeaponNameText;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UWidget> WeaponDescText;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UWidget> ComboHintText;
+
     /** 出售按钮（命名 "SellButton"，C++ 自动绑定点击事件） */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UButton> SellButton;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UButton> ConfirmButton;
 
     /** 右上角关闭按钮（命名 "CloseButton"，点击关闭背包） */
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -329,6 +349,10 @@ private:
     bool GetPendingSlotAtScreenPos(const FVector2D& AbsPos, int32& OutIndex) const;
 
     bool IsInCombatPhase() const;
+    void RefreshWeaponAndComboInfo();
+    void SetTextIfSupported(UWidget* Widget, const FText& Text) const;
+    FText BuildOperationHintText() const;
+    FText BuildComboHintText(const UWeaponDefinition* WeaponDefinition) const;
 
     // ── 待放置区辅助 ──────────────────────────────────────────────────────
     void SyncPendingFromPlayer();        // 打开时：Player->PendingRunes → PendingGrid
@@ -403,6 +427,9 @@ private:
 
     UFUNCTION()
     void OnCloseButtonClicked();
+
+    UFUNCTION()
+    void OnConfirmButtonClicked();
 
     UFUNCTION()
     void HandleHeatPhaseButtonClicked(int32 Phase);

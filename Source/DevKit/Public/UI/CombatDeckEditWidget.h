@@ -5,7 +5,7 @@
 #include "Component/CombatDeckComponent.h"
 #include "CombatDeckEditWidget.generated.h"
 
-class UVerticalBox;
+class UPanelWidget;
 class UBorder;
 class URuneInfoCardWidget;
 class UCombatDeckEditCardSlotWidget;
@@ -107,7 +107,7 @@ protected:
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UVerticalBox> CardListBox;
+	TObjectPtr<UPanelWidget> CardListBox;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<URuneInfoCardWidget> RuneInfoCard;
@@ -165,6 +165,8 @@ private:
 	void HideGamepadFloatingDragCard();
 	int32 GetPreviewVisualInsertIndex(int32 InsertIndex) const;
 	int32 GetDropInsertIndexFromListGeometry(const FGeometry& InGeometry, const FVector2D& ScreenPosition) const;
+	bool IsCardListHorizontal() const;
+	void AddWidgetToCardList(UWidget* Child, const FMargin& SlotPadding, ESlateSizeRule::Type SizeRule = ESlateSizeRule::Automatic);
 
 	UFUNCTION()
 	void HandleDeckChanged(const TArray<FCombatCardInstance>& ActiveSequence);

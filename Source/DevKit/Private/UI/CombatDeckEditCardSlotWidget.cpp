@@ -389,7 +389,7 @@ bool UCombatDeckEditCardSlotWidget::IsPointerOverReverseButton(const FPointerEve
 int32 UCombatDeckEditCardSlotWidget::CalculateDropInsertIndex(const FGeometry& InGeometry, const FPointerEvent& ScreenEvent) const
 {
 	const FVector2D LocalPosition = InGeometry.AbsoluteToLocal(ScreenEvent.GetScreenSpacePosition());
-	const bool bInsertAfter = LocalPosition.Y >= InGeometry.GetLocalSize().Y * 0.5f;
+	const bool bInsertAfter = LocalPosition.X >= InGeometry.GetLocalSize().X * 0.5f;
 	return DeckIndex + (bInsertAfter ? 1 : 0);
 }
 

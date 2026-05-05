@@ -4,6 +4,9 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Components/Border.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/PanelWidget.h"
 #include "Components/SizeBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/VerticalBox.h"
@@ -210,7 +213,7 @@ void UCombatDeckEditWidget::RefreshDeckListInternal(bool bUseDragPreview)
 
 		const bool bShowSelectedState = !bCanPreviewDrag && Index == SelectedCardIndex;
 		CardSlotWidget->SetCard(this, Cards[Index], Index, bShowSelectedState);
-		CardListBox->AddChildToVerticalBox(CardSlotWidget);
+		AddWidgetToCardList(CardSlotWidget, IsCardListHorizontal() ? FMargin(0.0f, 0.0f, 8.0f, 0.0f) : FMargin());
 		++VisibleCardIndex;
 	}
 
@@ -647,14 +650,17 @@ void UCombatDeckEditWidget::UpdateGamepadFloatingDragCardPosition()
 	const FVector2D ListAbsSize = ListGeometry.GetAbsoluteSize();
 	const int32 VisualInsertIndex = bDragPreviewActive ? GetPreviewVisualInsertIndex(DragPreviewInsertIndex) : SelectedCardIndex;
 	const int32 SlotCount = FMath::Max(1, Cards.Num());
-	const float SlotHeight = ListAbsSize.Y > 1.0f ? ListAbsSize.Y / static_cast<float>(SlotCount) : 52.0f;
-	const float ClampedY = ListAbsPosition.Y + FMath::Clamp(static_cast<float>(VisualInsertIndex), 0.0f, static_cast<float>(SlotCount - 1)) * SlotHeight + SlotHeight * 0.5f;
-	const FVector2D Position(
-		ListAbsPosition.X + GamepadFloatingDragOffset.X,
-		ClampedY + GamepadFloatingDragOffset.Y);
-	const FVector2D DesiredSize(
-		FMath::Max(220.0f, ListAbsSize.X),
-		FMath::Max(44.0f, SlotHeight * 0.92f));
+	const bool bHorizontal = IsCardListHorizontal();
+	const float SlotExtent = bHorizontal
+		? (ListAbsSize.X > 1.0f ? ListAbsSize.X / static_cast<float>(SlotCount) : 190.0f)
+		: (ListAbsSize.Y > 1.0f ? ListAbsSize.Y / static_cast<float>(SlotCount) : 52.0f);
+	const float ClampedPrimary = FMath::Clamp(static_cast<float>(VisualInsertIndex), 0.0f, static_cast<float>(SlotCount - 1)) * SlotExtent + SlotExtent * 0.5f;
+	const FVector2D Position = bHorizontal
+		? FVector2D(ListAbsPosition.X + ClampedPrimary + GamepadFloatingDragOffset.X, ListAbsPosition.Y + ListAbsSize.Y * 0.5f + GamepadFloatingDragOffset.Y)
+		: FVector2D(ListAbsPosition.X + GamepadFloatingDragOffset.X, ListAbsPosition.Y + ClampedPrimary + GamepadFloatingDragOffset.Y);
+	const FVector2D DesiredSize = bHorizontal
+		? FVector2D(FMath::Max(160.0f, SlotExtent * 0.92f), FMath::Max(78.0f, ListAbsSize.Y * 0.82f))
+		: FVector2D(FMath::Max(220.0f, ListAbsSize.X), FMath::Max(44.0f, SlotExtent * 0.92f));
 	const float ViewportScale = FMath::Max(0.01f, UWidgetLayoutLibrary::GetViewportScale(this));
 	const FVector2D ViewportPosition = Position / ViewportScale;
 	const FVector2D ViewportDesiredSize = DesiredSize / ViewportScale;
@@ -663,16 +669,17 @@ void UCombatDeckEditWidget::UpdateGamepadFloatingDragCardPosition()
 	GamepadFloatingDragSlot->SetPositionInViewport(ViewportPosition, false);
 	GamepadFloatingDragSlot->ForceLayoutPrepass();
 
-	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] Position Index=%d VisualInsert=%d Source=%d ViewportScale=%.3f RemoveDPIScale=0 ListAbs=(%.1f,%.1f) ListSize=(%.1f,%.1f) SlotHeight=%.1f SlatePos=(%.1f,%.1f) ViewportPos=(%.1f,%.1f) Desired=(%.1f,%.1f) ViewportDesired=(%.1f,%.1f) Offset=(%.1f,%.1f)"),
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] Position Index=%d VisualInsert=%d Source=%d Horizontal=%d ViewportScale=%.3f RemoveDPIScale=0 ListAbs=(%.1f,%.1f) ListSize=(%.1f,%.1f) SlotExtent=%.1f SlatePos=(%.1f,%.1f) ViewportPos=(%.1f,%.1f) Desired=(%.1f,%.1f) ViewportDesired=(%.1f,%.1f) Offset=(%.1f,%.1f)"),
 		SelectedCardIndex,
 		VisualInsertIndex,
 		DragSourceIndex,
+		bHorizontal ? 1 : 0,
 		ViewportScale,
 		ListAbsPosition.X,
 		ListAbsPosition.Y,
 		ListAbsSize.X,
 		ListAbsSize.Y,
-		SlotHeight,
+		SlotExtent,
 		Position.X,
 		Position.Y,
 		ViewportPosition.X,
@@ -788,15 +795,18 @@ void UCombatDeckEditWidget::AddDropIndicatorToList()
 		return;
 	}
 
-	IndicatorBox->SetHeightOverride(DropIndicatorHeight);
+	if (IsCardListHorizontal())
+	{
+		IndicatorBox->SetWidthOverride(DropIndicatorHeight);
+		IndicatorBox->SetHeightOverride(190.0f);
+	}
+	else
+	{
+		IndicatorBox->SetHeightOverride(DropIndicatorHeight);
+	}
 	DropIndicator->SetBrushColor(DropIndicatorColor);
 	IndicatorBox->AddChild(DropIndicator);
-
-	if (UVerticalBoxSlot* IndicatorSlot = CardListBox->AddChildToVerticalBox(IndicatorBox))
-	{
-		IndicatorSlot->SetPadding(FMargin(4.0f, 4.0f));
-		IndicatorSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
-	}
+	AddWidgetToCardList(IndicatorBox, IsCardListHorizontal() ? FMargin(2.0f, 4.0f, 8.0f, 4.0f) : FMargin(4.0f, 4.0f));
 }
 
 void UCombatDeckEditWidget::AddInlineFloatingDragCardToList(const FCombatCardInstance& Card, int32 CardIndex)
@@ -830,12 +840,7 @@ void UCombatDeckEditWidget::AddInlineFloatingDragCardToList(const FCombatCardIns
 	FloatingTransform.Scale = FVector2D(InlineScale, InlineScale);
 	FloatingSlot->SetRenderTransform(FloatingTransform);
 
-	UVerticalBoxSlot* FloatingBoxSlot = CardListBox->AddChildToVerticalBox(FloatingSlot);
-	if (FloatingBoxSlot)
-	{
-		FloatingBoxSlot->SetPadding(FMargin(0.0f, 2.0f, 0.0f, 2.0f));
-		FloatingBoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
-	}
+	AddWidgetToCardList(FloatingSlot, IsCardListHorizontal() ? FMargin(0.0f, 0.0f, 8.0f, 0.0f) : FMargin(0.0f, 2.0f, 0.0f, 2.0f));
 
 	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][InlineFloatingDrag] Added Index=%d Opacity=%.2f Scale=%.2f Offset=(%.1f,%.1f) ConfigOffset=(%.1f,%.1f) Card={%s}"),
 		CardIndex,
@@ -870,12 +875,54 @@ int32 UCombatDeckEditWidget::GetDropInsertIndexFromListGeometry(const FGeometry&
 
 	const FGeometry& ListGeometry = CardListBox ? CardListBox->GetCachedGeometry() : InGeometry;
 	const FVector2D LocalPosition = ListGeometry.AbsoluteToLocal(ScreenPosition);
-	const float RowHeight = 52.0f;
-	const int32 VisibleIndex = FMath::Clamp(FMath::RoundToInt(LocalPosition.Y / RowHeight), 0, FMath::Max(0, Cards.Num() - 1));
+	const bool bHorizontal = IsCardListHorizontal();
+	const FVector2D ListSize = ListGeometry.GetLocalSize();
+	const float SlotExtent = bHorizontal
+		? (ListSize.X > 1.0f ? ListSize.X / static_cast<float>(FMath::Max(1, Cards.Num())) : 190.0f)
+		: 52.0f;
+	const float LocalAxisPosition = bHorizontal ? LocalPosition.X : LocalPosition.Y;
+	const int32 VisibleIndex = FMath::Clamp(FMath::RoundToInt(LocalAxisPosition / SlotExtent), 0, FMath::Max(0, Cards.Num() - 1));
 	if (bDragPreviewActive && DragSourceIndex != INDEX_NONE && DragSourceIndex <= VisibleIndex)
 	{
 		return FMath::Clamp(VisibleIndex + 1, 0, Cards.Num());
 	}
 
 	return FMath::Clamp(VisibleIndex, 0, Cards.Num());
+}
+
+bool UCombatDeckEditWidget::IsCardListHorizontal() const
+{
+	return Cast<UHorizontalBox>(CardListBox) != nullptr;
+}
+
+void UCombatDeckEditWidget::AddWidgetToCardList(UWidget* Child, const FMargin& SlotPadding, ESlateSizeRule::Type SizeRule)
+{
+	if (!CardListBox || !Child)
+	{
+		return;
+	}
+
+	if (UHorizontalBox* HorizontalBox = Cast<UHorizontalBox>(CardListBox))
+	{
+		if (UHorizontalBoxSlot* AddedHorizontalSlot = HorizontalBox->AddChildToHorizontalBox(Child))
+		{
+			AddedHorizontalSlot->SetVerticalAlignment(VAlign_Center);
+			AddedHorizontalSlot->SetPadding(SlotPadding);
+			AddedHorizontalSlot->SetSize(FSlateChildSize(SizeRule));
+		}
+		return;
+	}
+
+	if (UVerticalBox* VerticalBox = Cast<UVerticalBox>(CardListBox))
+	{
+		if (UVerticalBoxSlot* AddedVerticalSlot = VerticalBox->AddChildToVerticalBox(Child))
+		{
+			AddedVerticalSlot->SetHorizontalAlignment(HAlign_Fill);
+			AddedVerticalSlot->SetPadding(SlotPadding);
+			AddedVerticalSlot->SetSize(FSlateChildSize(SizeRule));
+		}
+		return;
+	}
+
+	CardListBox->AddChild(Child);
 }

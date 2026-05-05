@@ -9,6 +9,7 @@
 #include "Component/BackpackGridComponent.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogPlayerControllerBase.h"
+#include "Data/GameplayAbilityComboGraph.h"
 #include "CommonInputSubsystem.h"
 #include "Input/CommonUIInputTypes.h"
 #include "GameFramework/Pawn.h"
@@ -23,6 +24,8 @@
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "InputCoreTypes.h"
 #include "UI/YogHUD.h"
+#include "Item/Weapon/WeaponDefinition.h"
+#include "Item/Weapon/WeaponInfoDA.h"
 #include "GameModes/YogGameMode.h"
 #include "Tutorial/TutorialManager.h"
 #include "TimerManager.h"
@@ -30,6 +33,106 @@
 // ============================================================
 //  内部辅助
 // ============================================================
+
+namespace
+{
+    FString ComboInputActionToMoveToken(ECombatGraphInputAction Action)
+    {
+        switch (Action)
+        {
+        case ECombatGraphInputAction::Light:
+            return TEXT("L");
+        case ECombatGraphInputAction::Heavy:
+            return TEXT("H");
+        case ECombatGraphInputAction::Dash:
+        case ECombatGraphInputAction::Any:
+        default:
+            return FString();
+        }
+    }
+
+    void GatherComboMoveListsFromNode(
+        const UGameplayAbilityComboGraphNode* Node,
+        TArray<FString> CurrentTokens,
+        TSet<const UGameplayAbilityComboGraphNode*>& Visiting,
+        TArray<FString>& OutSequences)
+    {
+        if (!Node || CurrentTokens.IsEmpty() || Visiting.Contains(Node))
+        {
+            return;
+        }
+
+        Visiting.Add(Node);
+
+        bool bHasDisplayableChild = false;
+        for (UGenericGraphNode* ChildGenericNode : Node->ChildrenNodes)
+        {
+            const UGameplayAbilityComboGraphNode* ChildNode = Cast<UGameplayAbilityComboGraphNode>(ChildGenericNode);
+            UGenericGraphEdge* const* EdgePtr = Node->Edges.Find(ChildGenericNode);
+            const UGameplayAbilityComboGraphEdge* Edge = EdgePtr ? Cast<UGameplayAbilityComboGraphEdge>(*EdgePtr) : nullptr;
+            const FString Token = Edge ? ComboInputActionToMoveToken(Edge->InputAction) : FString();
+            if (!ChildNode || Token.IsEmpty())
+            {
+                continue;
+            }
+
+            bHasDisplayableChild = true;
+            TArray<FString> NextTokens = CurrentTokens;
+            NextTokens.Add(Token);
+            GatherComboMoveListsFromNode(ChildNode, MoveTemp(NextTokens), Visiting, OutSequences);
+        }
+
+        if (Node->bIsComboFinisher || !bHasDisplayableChild)
+        {
+            OutSequences.Add(FString::Join(CurrentTokens, TEXT(" - ")));
+        }
+
+        Visiting.Remove(Node);
+    }
+
+    void GatherComboMoveLists(const UGameplayAbilityComboGraph* ComboGraph, TArray<FString>& OutSequences)
+    {
+        if (!ComboGraph)
+        {
+            return;
+        }
+
+        TArray<const UGameplayAbilityComboGraphNode*> RootComboNodes;
+        for (const UGenericGraphNode* RootNode : ComboGraph->RootNodes)
+        {
+            if (const UGameplayAbilityComboGraphNode* ComboNode = Cast<UGameplayAbilityComboGraphNode>(RootNode))
+            {
+                RootComboNodes.Add(ComboNode);
+            }
+        }
+
+        if (RootComboNodes.IsEmpty())
+        {
+            for (const UGenericGraphNode* Node : ComboGraph->AllNodes)
+            {
+                const UGameplayAbilityComboGraphNode* ComboNode = Cast<UGameplayAbilityComboGraphNode>(Node);
+                if (ComboNode && ComboNode->ParentNodes.IsEmpty())
+                {
+                    RootComboNodes.Add(ComboNode);
+                }
+            }
+        }
+
+        for (const UGameplayAbilityComboGraphNode* RootNode : RootComboNodes)
+        {
+            const FString RootToken = RootNode ? ComboInputActionToMoveToken(RootNode->RootInputAction) : FString();
+            if (RootToken.IsEmpty())
+            {
+                continue;
+            }
+
+            TArray<FString> Tokens;
+            Tokens.Add(RootToken);
+            TSet<const UGameplayAbilityComboGraphNode*> Visiting;
+            GatherComboMoveListsFromNode(RootNode, MoveTemp(Tokens), Visiting, OutSequences);
+        }
+    }
+}
 
 UBackpackGridComponent* UBackpackScreenWidget::GetBackpack() const
 {
@@ -40,6 +143,126 @@ UBackpackGridComponent* UBackpackScreenWidget::GetBackpack() const
     if (!Pawn) return nullptr;
 
     return Pawn->FindComponentByClass<UBackpackGridComponent>();
+}
+
+void UBackpackScreenWidget::SetTextIfSupported(UWidget* Widget, const FText& Text) const
+{
+    if (UTextBlock* TextBlock = Cast<UTextBlock>(Widget))
+    {
+        TextBlock->SetText(Text);
+        return;
+    }
+
+    if (URichTextBlock* RichTextBlock = Cast<URichTextBlock>(Widget))
+    {
+        RichTextBlock->SetText(Text);
+    }
+}
+
+FText UBackpackScreenWidget::BuildOperationHintText() const
+{
+    if (bIsPreviewMode)
+    {
+        return FText::FromString(TEXT("预览模式：只能查看持有武器与卡组预览。"));
+    }
+
+    if (bIsGamepadInputMode)
+    {
+        if (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput())
+        {
+            return FText::FromString(TEXT("左右选择卡牌  A 拿起/放下排序  X 反转 Link  B 退出"));
+        }
+
+        return FText::FromString(TEXT("A 确认  B 退出"));
+    }
+
+    return FText::FromString(TEXT("拖拽卡牌调整顺序  R 反转 Link"));
+}
+
+FText UBackpackScreenWidget::BuildComboHintText(const UWeaponDefinition* WeaponDefinition) const
+{
+    if (!WeaponDefinition)
+    {
+        return FText::FromString(TEXT("装备武器后显示出招表。"));
+    }
+
+    TArray<FString> Sequences;
+    GatherComboMoveLists(WeaponDefinition->GameplayAbilityComboGraph, Sequences);
+
+    TSet<FString> UniqueSequences;
+    TArray<FString> MoveListLines;
+    for (const FString& Sequence : Sequences)
+    {
+        if (Sequence.IsEmpty() || UniqueSequences.Contains(Sequence))
+        {
+            continue;
+        }
+
+        UniqueSequences.Add(Sequence);
+        MoveListLines.Add(FString::Printf(TEXT("%d、%s"), MoveListLines.Num() + 1, *Sequence));
+        if (MoveListLines.Num() >= 8)
+        {
+            break;
+        }
+    }
+
+    if (MoveListLines.IsEmpty())
+    {
+        MoveListLines.Add(TEXT("1、L - L - L"));
+        MoveListLines.Add(TEXT("2、L - L - H"));
+    }
+
+    return FText::FromString(FString::Join(MoveListLines, TEXT("\n")));
+}
+
+void UBackpackScreenWidget::RefreshWeaponAndComboInfo()
+{
+    const APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
+    const UWeaponDefinition* WeaponDefinition = Player ? Player->EquippedWeaponDef.Get() : nullptr;
+    const UWeaponInfoDA* WeaponInfo = WeaponDefinition ? WeaponDefinition->WeaponInfo.Get() : nullptr;
+
+    FText WeaponName = FText::FromString(TEXT("未装备武器"));
+    FText WeaponDesc = FText::FromString(TEXT("拾取武器后，这里会显示武器说明和初始卡组方向。"));
+    UTexture2D* Thumbnail = nullptr;
+
+    if (WeaponDefinition)
+    {
+        WeaponName = WeaponInfo && !WeaponInfo->WeaponName.IsEmpty()
+            ? WeaponInfo->WeaponName
+            : FText::FromString(WeaponDefinition->GetName());
+        if (WeaponInfo)
+        {
+            if (!WeaponInfo->WeaponDescription.IsEmpty())
+            {
+                WeaponDesc = WeaponInfo->WeaponDescription;
+            }
+            if (!WeaponInfo->WeaponSubDescription.IsEmpty())
+            {
+                const FString MainDesc = WeaponDesc.ToString();
+                WeaponDesc = FText::FromString(MainDesc.IsEmpty()
+                    ? WeaponInfo->WeaponSubDescription.ToString()
+                    : FString::Printf(TEXT("%s\n%s"), *MainDesc, *WeaponInfo->WeaponSubDescription.ToString()));
+            }
+            Thumbnail = WeaponInfo->Thumbnail.Get();
+        }
+    }
+
+    if (WeaponIcon)
+    {
+        if (Thumbnail)
+        {
+            WeaponIcon->SetBrushFromTexture(Thumbnail, true);
+            WeaponIcon->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+        }
+        else
+        {
+            WeaponIcon->SetVisibility(ESlateVisibility::Hidden);
+        }
+    }
+
+    SetTextIfSupported(WeaponNameText, WeaponName);
+    SetTextIfSupported(WeaponDescText, WeaponDesc);
+    SetTextIfSupported(ComboHintText, BuildComboHintText(WeaponDefinition));
 }
 
 // ============================================================
@@ -94,6 +317,9 @@ void UBackpackScreenWidget::NativeConstruct()
     if (CloseButton)
         CloseButton->OnClicked.AddDynamic(this, &UBackpackScreenWidget::OnCloseButtonClicked);
 
+    if (ConfirmButton)
+        ConfirmButton->OnClicked.AddDynamic(this, &UBackpackScreenWidget::OnConfirmButtonClicked);
+
     if (EndPreviewButton)
     {
         EndPreviewButton->OnClicked.AddDynamic(this, &UBackpackScreenWidget::OnEndPreviewClicked);
@@ -108,6 +334,9 @@ void UBackpackScreenWidget::NativeConstruct()
 
     if (HintText)
         HintText->SetVisibility(ESlateVisibility::Collapsed);
+
+    RefreshWeaponAndComboInfo();
+    UpdateOperationHintVisibility();
 }
 
 void UBackpackScreenWidget::NativeDestruct()
@@ -544,7 +773,8 @@ void UBackpackScreenWidget::UpdateOperationHintVisibility()
     if (!OperationHintWidget) return;
 
     // 抓取状态下显示按键提示；预览/战斗模式不应进入抓取状态，但保险起见再 guard 一次
-    const bool bShow = bGrabbingRune && !bIsPreviewMode && !IsInCombatPhase();
+    const bool bShow = true;
+    SetTextIfSupported(OperationHintText, BuildOperationHintText());
     if (bShow == bOperationHintVisible) return;  // 缓存：避免每帧重复 SetVisibility
     bOperationHintVisible = bShow;
     OperationHintWidget->SetVisibility(bShow
@@ -607,6 +837,9 @@ void UBackpackScreenWidget::NativeOnActivated()
         CombatDeckEditWidget->BindToOwningPlayerCombatDeck();
         CombatDeckEditWidget->SetInteractionLocked(IsInCombatPhase() || bIsPreviewMode);
     }
+
+    RefreshWeaponAndComboInfo();
+    UpdateOperationHintVisibility();
 
     OnGridNeedsRefresh();
     OnSelectionChanged();
@@ -861,6 +1094,23 @@ void UBackpackScreenWidget::OnSellButtonClicked()
 
 void UBackpackScreenWidget::OnCloseButtonClicked()
 {
+    DeactivateWidget();
+}
+
+void UBackpackScreenWidget::OnConfirmButtonClicked()
+{
+    if (bCursorInPendingArea)
+    {
+        PendingGamepadConfirm();
+        return;
+    }
+
+    if (bGrabbingRune || bGrabbingFromPending)
+    {
+        GamepadConfirm();
+        return;
+    }
+
     DeactivateWidget();
 }
 
@@ -1717,8 +1967,8 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
         UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRepeat] HeldKey=%s TargetCount=%d"),
             *HeldDirKey.ToString(),
             TargetCount);
-        if      (HeldDirKey == EKeys::Gamepad_DPad_Up || HeldDirKey == EKeys::Gamepad_LeftStick_Up)     CombatDeckEditWidget->HandleDeckDirectionalInput(-1);
-        else if (HeldDirKey == EKeys::Gamepad_DPad_Down || HeldDirKey == EKeys::Gamepad_LeftStick_Down) CombatDeckEditWidget->HandleDeckDirectionalInput(1);
+        if      (HeldDirKey == EKeys::Gamepad_DPad_Left || HeldDirKey == EKeys::Gamepad_LeftStick_Left)   CombatDeckEditWidget->HandleDeckDirectionalInput(-1);
+        else if (HeldDirKey == EKeys::Gamepad_DPad_Right || HeldDirKey == EKeys::Gamepad_LeftStick_Right) CombatDeckEditWidget->HandleDeckDirectionalInput(1);
     }
     else if (bCursorInPendingArea)
     {
@@ -1762,8 +2012,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
 
     // 摇杆轴事件不触发输入模式切换，直接忽略
     if (Key == EKeys::Gamepad_RightStick_Up   || Key == EKeys::Gamepad_RightStick_Down  ||
-        Key == EKeys::Gamepad_RightStick_Left  || Key == EKeys::Gamepad_RightStick_Right ||
-        Key == EKeys::Gamepad_LeftStick_Left   || Key == EKeys::Gamepad_LeftStick_Right)
+        Key == EKeys::Gamepad_RightStick_Left  || Key == EKeys::Gamepad_RightStick_Right)
     {
         return FReply::Handled();
     }
@@ -1806,7 +2055,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
             return FReply::Handled();
         };
 
-        if (Key == EKeys::Gamepad_DPad_Up || Key == EKeys::Gamepad_LeftStick_Up)
+        if (Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Gamepad_LeftStick_Left)
         {
             if (InKeyEvent.IsRepeat())
             {
@@ -1815,7 +2064,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
             }
             return StartDeckDirRepeat(-1);
         }
-        if (Key == EKeys::Gamepad_DPad_Down || Key == EKeys::Gamepad_LeftStick_Down)
+        if (Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Gamepad_LeftStick_Right)
         {
             if (InKeyEvent.IsRepeat())
             {
@@ -1838,6 +2087,22 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
     else if (CombatDeckEditWidget)
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] Deck widget present but CanHandleDeckInput=false"));
+    }
+
+    if (!BackpackGridWidget && !PendingGridWidget)
+    {
+        if (!InKeyEvent.IsRepeat() && (Key == EKeys::Gamepad_FaceButton_Bottom || Key == EKeys::Enter || Key == EKeys::Virtual_Accept))
+        {
+            DeactivateWidget();
+            return FReply::Handled();
+        }
+        if (!InKeyEvent.IsRepeat() && (Key == EKeys::Gamepad_FaceButton_Right || Key == EKeys::Escape || Key == EKeys::Virtual_Back))
+        {
+            DeactivateWidget();
+            return FReply::Handled();
+        }
+
+        return FReply::Handled();
     }
 
     // ── 热度阶段预览切换 ────────────────────────────────────────────────

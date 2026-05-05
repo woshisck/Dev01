@@ -7,6 +7,7 @@
 #include "Data/AbilityData.h"
 #include "Animation/YogAnimInstance.h"
 #include "Component/BackpackGridComponent.h"
+#include "GameplayTagContainer.h"
 #include "Item/Weapon/WeaponInfoDA.h"
 #include "Item/Weapon/WeaponTypes.h"
 
@@ -67,9 +68,6 @@ struct FWeaponSpawnData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bShouldSaveToGame = false;
 };
-
-
-
 
 UCLASS(Blueprintable, BlueprintType, Const)
 class UWeaponDefinition : public UPrimaryDataAsset
