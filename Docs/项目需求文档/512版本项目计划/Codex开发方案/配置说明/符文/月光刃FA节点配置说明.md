@@ -48,6 +48,11 @@ Start -> Spawn Slash Wave Projectile
 | `Projectile Cone Angle Degrees` | 基础月光和正向连携填 `0` | 分裂月光才使用扇形角度 |
 | `Spawn Projectiles Sequentially` | 基础月光和正向连携勾选 | 多道月光沿同一路径连续发射 |
 | `Sequential Projectile Spawn Interval` | `0.12` | 连续月光发射间隔 |
+| `SplitProjectileCount` | 普通月光填 `0`；月光分裂填 `4` | 主月刃碰撞后生成小月刃数量 |
+| `MaxSplitGenerations` | 月光分裂填 `1` | 限制只分裂一次，避免无限分裂 |
+| `SplitMaxDistanceMultiplier` | 月光分裂填 `1.25` | 小月刃飞行距离倍率；数值越大，小月刃存在越久 |
+| `BounceSplitChildrenOnEnemyHit` | 月光分裂勾选 | 小月刃命中敌人后允许弹射 |
+| `SplitChildMaxEnemyBounces` | 月光分裂填 `1` | 每个小月刃最多按入射角弹射 1 次 |
 | `Launch Niagara System` | 一般留空 | 只用于额外的一次性发射闪光，不作为月光主体 |
 | `Spawn Offset` | 生成偏移 | X 是玩家前方距离，Z 是高度 |
 
@@ -122,6 +127,38 @@ Projectile Visual Niagara Scale = (2.2, 2.2, 1.6)
 bHideDefaultProjectileVisuals = true
 Launch Niagara System = None
 ```
+
+月光反向分裂：
+
+```text
+Projectile Class = BP_SlashWaveProjectile
+Damage Effect = GE_SlashWaveDamage
+Damage = 20
+Speed = 900
+Max Distance = 800
+Max Hit Count = 3
+Damage Applications Per Target = 1
+Damage Application Interval = 0.25
+Collision Box Extent = (45, 95, 45)
+Scale Visual With Collision Extent = true
+Spawn Offset = (80, 0, 45)
+Projectile Visual Niagara System = NS_Free_Magic_Slash
+bHideDefaultProjectileVisuals = true
+SplitProjectileCount = 4
+MaxSplitGenerations = 1
+SplitConeAngle = 100
+RandomizeSplitDirections = true
+SplitRandomYawJitter = 22
+SplitDamageMultiplier = 0.5
+SplitSpeedMultiplier = 1.6
+SplitMaxDistanceMultiplier = 1.25
+SplitCollisionExtentMultiplier = (0.5, 0.5, 0.5)
+BounceSplitChildrenOnEnemyHit = true
+SplitChildMaxEnemyBounces = 1
+Destroy On World Static Hit = true
+```
+
+效果：主月刃第一次碰到敌人或场景后分裂成 4 个小月刃。小月刃飞行距离更长，命中敌人后会根据入射角反射弹射 1 次，并刷新自身剩余生存时间。
 
 ## 注意事项
 
