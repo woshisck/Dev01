@@ -11,6 +11,7 @@
 #include "Component/ComboRuntimeComponent.h"
 #include "Animation/AN_MeleeDamage.h"
 #include "Data/MontageConfigDA.h"
+#include "Engine/World.h"
 
 UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
 {
@@ -29,6 +30,13 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
     {
         ActivePlayMontageTask->EndTask();
         ActivePlayMontageTask = nullptr;
+    }
+
+    // Clear any node-driven combo window timers from a previous activation.
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(ComboWindowOpenHandle);
+        World->GetTimerManager().ClearTimer(ComboWindowCloseHandle);
     }
 
     if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
@@ -130,6 +138,27 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
             ActivePlayMontageTask = PlayMontageTask;
             PlayMontageTask->ReadyForActivation();
+
+            // Node-driven combo window: schedule CanCombo tag add/remove via timers.
+            // Only when the node explicitly overrides the window (bOverrideComboWindow = true).
+            const FWeaponComboNodeConfig* ActiveComboNode = nullptr;
+            if (const APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
+            {
+                if (PlayerOwner->ComboRuntimeComponent)
+                    ActiveComboNode = PlayerOwner->ComboRuntimeComponent->GetActiveNode();
+            }
+            if (ActiveComboNode && ActiveComboNode->bOverrideComboWindow && ActiveComboNode->MontageConfig)
+            {
+                const float MontageDuration = MontageToPlay->GetPlayLength();
+                const float StartTime = ActiveComboNode->MontageConfig->FrameToNormalized(ActiveComboNode->ComboWindowStartFrame) * MontageDuration;
+                const float EndTime   = ActiveComboNode->MontageConfig->FrameToNormalized(ActiveComboNode->ComboWindowEndFrame)   * MontageDuration;
+
+                if (UWorld* World = GetWorld())
+                {
+                    World->GetTimerManager().SetTimer(ComboWindowOpenHandle,  this, &UGA_PlayMontage::OnComboWindowOpen,  FMath::Max(StartTime, 0.01f), false);
+                    World->GetTimerManager().SetTimer(ComboWindowCloseHandle, this, &UGA_PlayMontage::OnComboWindowClose, FMath::Max(EndTime,   0.01f), false);
+                }
+            }
         }
     }
     else
@@ -193,6 +222,13 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 {
     ActivePlayMontageTask = nullptr;
 
+    // Clear node-driven combo window timers.
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(ComboWindowOpenHandle);
+        World->GetTimerManager().ClearTimer(ComboWindowCloseHandle);
+    }
+
     // remove related Gameplay Effects and gameplaytags(hardcode)
     if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
     {
@@ -217,6 +253,17 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 		if (ASCLocal->GetTagCount(CanComboTag2) > 0)
 		{
 			ASCLocal->SetLooseGameplayTagCount(CanComboTag2, 0);
+		}
+	}
+
+	// Reset combo state to root so the next attack starts fresh from the root node.
+	// EndAbility fires only when the last montage in a combo chain ends naturally (or the
+	// ability is cancelled) — not during retrigger — so this is always the right time to reset.
+	if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
+	{
+		if (PlayerOwner->ComboRuntimeComponent)
+		{
+			PlayerOwner->ComboRuntimeComponent->ResetCombo();
 		}
 	}
 
@@ -250,6 +297,22 @@ void UGA_PlayMontage::OnMontageCancelled()
 void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEventData& EventData)
 {
     ApplyEffectContainer(EventTag, EventData, -1);
+}
+
+void UGA_PlayMontage::OnComboWindowOpen()
+{
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")));
+	}
+}
+
+void UGA_PlayMontage::OnComboWindowClose()
+{
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")), 0);
+	}
 }
 
 void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount)

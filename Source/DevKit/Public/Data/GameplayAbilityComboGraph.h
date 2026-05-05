@@ -45,16 +45,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (EditCondition = "bUseNodeComboWindow", ClampMin = "0"))
 	int32 ComboWindowEndFrame = 27;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (EditCondition = "bUseNodeComboWindow", ClampMin = "1"))
-	int32 ComboWindowTotalFrames = 30;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card", meta = (AdvancedDisplay))
 	ECombatCardTriggerTiming CardTriggerTiming = ECombatCardTriggerTiming::OnCommit;
 
 	FWeaponComboNodeConfig BuildRuntimeConfig(ECardRequiredAction InputAction) const;
 	virtual FText GetDescription_Implementation() const override;
 
+#if WITH_EDITORONLY_DATA
+	bool bDebugActive = false;
+#endif
+
 #if WITH_EDITOR
+	virtual FLinearColor GetBackgroundColor() const override;
 	virtual FText GetNodeTitle() const override;
 	virtual bool CanCreateConnectionTo(UGenericGraphNode* Other, int32 NumberOfChildrenNodes, FText& ErrorMessage) override;
 #endif

@@ -26,6 +26,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combo")
 	bool HasComboSource() const { return ComboConfig != nullptr || ComboGraph != nullptr; }
 
+	UFUNCTION(BlueprintPure, Category = "Combo")
+	UGameplayAbilityComboGraph* GetComboGraph() const { return ComboGraph; }
+
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	bool TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner);
 
