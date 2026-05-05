@@ -83,6 +83,21 @@ protected:
      */
     AMusketBullet* SpawnBullet(float YawOffsetDeg, float Damage);
 
+    FGuid ResolveCombatDeckOnFire(
+        ECardRequiredAction ActionType,
+        bool bIsComboFinisher,
+        bool bFromDashSave,
+        float Damage,
+        float BaseYawOffsetDeg);
+
+    void ApplyCombatDeckContextToBullet(
+        AMusketBullet* Bullet,
+        ECardRequiredAction ActionType,
+        bool bIsComboFinisher,
+        bool bFromDashSave,
+        const FGuid& AttackGuid,
+        float Damage) const;
+
     // ── GameplayCue 工具 ─────────────────────────────────────────────────────────
 
     void ExecuteFireCue();

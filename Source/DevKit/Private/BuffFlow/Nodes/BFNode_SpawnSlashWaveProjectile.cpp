@@ -9,6 +9,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Projectile/SlashWaveProjectile.h"
+#include "TimerManager.h"
 
 UBFNode_SpawnSlashWaveProjectile::UBFNode_SpawnSlashWaveProjectile(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -106,41 +107,80 @@ void UBFNode_SpawnSlashWaveProjectile::ExecuteInput(const FName& PinName)
 	}
 
 	const int32 SpawnCount = FMath::Max(1, ProjectileCount + ComboBonusProjectiles);
-	const float ClampedCone = FMath::Clamp(ProjectileConeAngleDegrees, 0.f, 180.f);
+	const bool bUseSequentialSpawn = bSpawnProjectilesSequentially && SpawnCount > 1;
+	const float ClampedCone = bUseSequentialSpawn ? 0.f : FMath::Clamp(ProjectileConeAngleDegrees, 0.f, 180.f);
 	const float Step = SpawnCount > 1 ? ClampedCone / static_cast<float>(SpawnCount - 1) : 0.f;
 	const float StartYaw = SpawnCount > 1 ? -ClampedCone * 0.5f : 0.f;
+	const float SequentialInterval = FMath::Max(0.f, SequentialProjectileSpawnInterval);
 
-	int32 SpawnedCount = 0;
+	TWeakObjectPtr<ACharacter> WeakSourceCharacter(SourceCharacter);
+	const TSubclassOf<ASlashWaveProjectile> SpawnProjectileClass = ProjectileClass;
+	const FSlashWaveProjectileRuntimeConfig SpawnConfig = Config;
+	const FActorSpawnParameters BaseSpawnParams = SpawnParams;
+	auto SpawnProjectileAtRotation = [WeakSourceCharacter, SpawnProjectileClass, SpawnConfig, BaseSpawnParams, SpawnLocation](const FRotator& SpawnRotation) -> bool
+	{
+		ACharacter* Source = WeakSourceCharacter.Get();
+		if (!Source || !Source->GetWorld() || !SpawnProjectileClass)
+		{
+			return false;
+		}
+
+		ASlashWaveProjectile* Projectile = Source->GetWorld()->SpawnActor<ASlashWaveProjectile>(
+			SpawnProjectileClass,
+			SpawnLocation,
+			SpawnRotation,
+			BaseSpawnParams);
+
+		if (Projectile)
+		{
+			Projectile->InitProjectileWithConfig(Source, SpawnConfig);
+			return true;
+		}
+		return false;
+	};
+
+	int32 SpawnedOrScheduledCount = 0;
 	for (int32 Index = 0; Index < SpawnCount; ++Index)
 	{
 		const float YawOffset = StartYaw + Step * Index;
 		const FVector Direction = Forward.RotateAngleAxis(YawOffset, FVector::UpVector);
-		const FRotator SpawnRotation = Direction.Rotation();
+		const FRotator SpawnRotation = bUseSequentialSpawn ? BaseSpawnRotation : Direction.Rotation();
 
-		ASlashWaveProjectile* Projectile = SourceCharacter->GetWorld()->SpawnActor<ASlashWaveProjectile>(
-			ProjectileClass,
-			SpawnLocation,
-			SpawnRotation,
-			SpawnParams);
-
-		if (Projectile)
+		if (bUseSequentialSpawn && Index > 0 && SequentialInterval > KINDA_SMALL_NUMBER)
 		{
-			Projectile->InitProjectileWithConfig(SourceCharacter, Config);
-			++SpawnedCount;
+			FTimerHandle TimerHandle;
+			SourceCharacter->GetWorld()->GetTimerManager().SetTimer(
+				TimerHandle,
+				FTimerDelegate::CreateLambda([SpawnProjectileAtRotation, SpawnRotation]()
+				{
+					SpawnProjectileAtRotation(SpawnRotation);
+				}),
+				SequentialInterval * static_cast<float>(Index),
+				false);
+			++SpawnedOrScheduledCount;
+			continue;
+		}
+
+		if (SpawnProjectileAtRotation(SpawnRotation))
+		{
+			++SpawnedOrScheduledCount;
 		}
 	}
 
-	if (SpawnedCount <= 0)
+	if (SpawnedOrScheduledCount <= 0)
 	{
 		TriggerOutput(TEXT("Failed"), true);
 		return;
 	}
 
 	UE_LOG(LogTemp, Warning,
-		TEXT("[SpawnSlashWaveProjectile] Class=%s Count=%d ComboBonus=%d Damage=%.1f Speed=%.1f Distance=%.1f HitCount=%d DamageApps=%d DamageInterval=%.2f CollisionExtent=%s VisualWithCollision=%d VisualMultiplier=%s ProjectileVisual=%s HideDefault=%d"),
+		TEXT("[SpawnSlashWaveProjectile] Class=%s Count=%d ComboBonus=%d Sequential=%d SequentialInterval=%.2f Cone=%.1f Damage=%.1f Speed=%.1f Distance=%.1f HitCount=%d DamageApps=%d DamageInterval=%.2f CollisionExtent=%s VisualWithCollision=%d VisualMultiplier=%s ProjectileVisual=%s HideDefault=%d"),
 		*GetNameSafe(ProjectileClass),
-		SpawnedCount,
+		SpawnedOrScheduledCount,
 		ComboBonusProjectiles,
+		bUseSequentialSpawn ? 1 : 0,
+		SequentialInterval,
+		ClampedCone,
 		ResolvedDamage,
 		Speed,
 		MaxDistance,

@@ -41,6 +41,13 @@ Start -> Spawn Slash Wave Projectile
 | `Projectile Visual Niagara System` | 选择月光刀光 Niagara | 作为飞行投射物的主视觉 |
 | `Projectile Visual Niagara Scale` | 默认 `(1,1,1)` | 只缩放 Niagara 主视觉 |
 | `bHideDefaultProjectileVisuals` | 勾选 | 隐藏 `BP_SlashWaveProjectile` 旧视觉，避免两个刀光同时出现 |
+| `Projectile Count` | 普通月光填 `1` | 一次基础生成数量；分裂类才直接填多发 |
+| `Add Combo Stacks To Projectile Count` | 基础月光和正向连携月光勾选 | 根据连招层数增加月光数量 |
+| `Projectiles Per Combo Stack` | `1` | 每层连招多一道月光 |
+| `Max Bonus Projectiles` | `2` | 最多额外两道月光 |
+| `Projectile Cone Angle Degrees` | 基础月光和正向连携填 `0` | 分裂月光才使用扇形角度 |
+| `Spawn Projectiles Sequentially` | 基础月光和正向连携勾选 | 多道月光沿同一路径连续发射 |
+| `Sequential Projectile Spawn Interval` | `0.12` | 连续月光发射间隔 |
 | `Launch Niagara System` | 一般留空 | 只用于额外的一次性发射闪光，不作为月光主体 |
 | `Spawn Offset` | 生成偏移 | X 是玩家前方距离，Z 是高度 |
 
@@ -64,6 +71,13 @@ Spawn Offset = (80, 0, 45)
 Projectile Visual Niagara System = NS_Free_Magic_Slash
 Projectile Visual Niagara Scale = (0.85, 0.85, 0.85)
 bHideDefaultProjectileVisuals = true
+Projectile Count = 1
+Add Combo Stacks To Projectile Count = true
+Projectiles Per Combo Stack = 1
+Max Bonus Projectiles = 2
+Projectile Cone Angle Degrees = 0
+Spawn Projectiles Sequentially = true
+Sequential Projectile Spawn Interval = 0.12
 Launch Niagara System = None
 ```
 
@@ -117,3 +131,4 @@ Launch Niagara System = None
 - 如果贴脸攻击看不到弹道，增大 `Spawn Offset.X`。
 - 如果月光刃太容易打中，降低 `Collision Box Extent.Y`。
 - 月光主体不要同时配置旧 BP 视觉和 `Launch Niagara System`。当前推荐做法是 `Projectile Visual Niagara System` 负责刀光主体，`bHideDefaultProjectileVisuals=true`。
+- 基础月光和正向连携月光的连招数量加成必须使用连续同路径发射，不要用扇形角度。分裂月光才使用多方向弹道。

@@ -340,7 +340,7 @@ private:
 	/** 对目标施加 DamageEffect（SetByCaller Attribute.ActDamage = DamageMagnitude）*/
 	bool ApplyDamageTo(AActor* Target, const FVector& HitLocation);
 
-	bool TryStartDamageSequence(AActor* Target);
+	bool TryStartDamageSequence(AActor* Target, const FVector& HitLocation);
 	void ApplyDamageTickForRecord(int32 RecordIndex);
 	int32 FindHitRecordIndex(AActor* Target) const;
 	void ClearRepeatTimers();
@@ -348,7 +348,7 @@ private:
 	void ApplyAdditionalHitEffectTo(AActor* Target, UAbilitySystemComponent* SourceASC, UAbilitySystemComponent* TargetASC);
 	void SendHitGameplayEvent(AActor* Target) const;
 	void SendExpireGameplayEvent() const;
-	void TrySplitFromFirstHit(AActor* FirstHitTarget);
+	void TrySplitFromImpact(AActor* ImpactActor, const FVector& ImpactLocation);
 
 	/** 生存时间到期处理 */
 	void Expire();

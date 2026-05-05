@@ -225,7 +225,7 @@ void ASlashWaveProjectile::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ASlashWaveProjectile::OnOverlapBegin(
 	UPrimitiveComponent* /*OverlappedComponent*/, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 /*OtherBodyIndex*/,
-	bool /*bFromSweep*/, const FHitResult& /*SweepHitResult*/)
+	bool /*bFromSweep*/, const FHitResult& SweepHitResult)
 {
 	if (!bProjectileInitialized || !OtherActor || OtherActor == this || OtherActor == SourceCharacter)
 	{
@@ -236,11 +236,18 @@ void ASlashWaveProjectile::OnOverlapBegin(
 		&& OtherComp
 		&& OtherComp->GetCollisionObjectType() == ECC_WorldStatic)
 	{
+		const FVector ImpactLocation = SweepHitResult.ImpactPoint.IsNearlyZero()
+			? GetActorLocation()
+			: FVector(SweepHitResult.ImpactPoint);
+		TrySplitFromImpact(nullptr, ImpactLocation);
 		Expire();
 		return;
 	}
 
-	TryStartDamageSequence(OtherActor);
+	const FVector HitLocation = SweepHitResult.ImpactPoint.IsNearlyZero()
+		? OtherActor->GetActorLocation()
+		: FVector(SweepHitResult.ImpactPoint);
+	TryStartDamageSequence(OtherActor, HitLocation);
 }
 
 void ASlashWaveProjectile::ApplyImmediateHit(AActor* Target)
@@ -250,10 +257,10 @@ void ASlashWaveProjectile::ApplyImmediateHit(AActor* Target)
 		return;
 	}
 
-	TryStartDamageSequence(Target);
+	TryStartDamageSequence(Target, Target->GetActorLocation());
 }
 
-bool ASlashWaveProjectile::TryStartDamageSequence(AActor* Target)
+bool ASlashWaveProjectile::TryStartDamageSequence(AActor* Target, const FVector& HitLocation)
 {
 	if (!bProjectileInitialized || !Target || Target == this || Target == SourceCharacter)
 	{
@@ -277,7 +284,7 @@ bool ASlashWaveProjectile::TryStartDamageSequence(AActor* Target)
 	ApplyDamageTickForRecord(RecordIndex);
 	if (Record.AppliedCount > 0 && HitRecords.Num() == 1)
 	{
-		TrySplitFromFirstHit(Target);
+		TrySplitFromImpact(Target, HitLocation);
 	}
 	return true;
 }
@@ -528,13 +535,12 @@ void ASlashWaveProjectile::SendExpireGameplayEvent() const
 		DamageMagnitude);
 }
 
-void ASlashWaveProjectile::TrySplitFromFirstHit(AActor* FirstHitTarget)
+void ASlashWaveProjectile::TrySplitFromImpact(AActor* ImpactActor, const FVector& ImpactLocation)
 {
 	if (!bSplitOnFirstHit
 		|| bHasSplit
 		|| ProjectileGeneration >= MaxSplitGenerations
 		|| SplitProjectileCount <= 0
-		|| !FirstHitTarget
 		|| !SourceCharacter
 		|| !GetWorld()
 		|| !GetClass())
@@ -545,7 +551,10 @@ void ASlashWaveProjectile::TrySplitFromFirstHit(AActor* FirstHitTarget)
 	bHasSplit = true;
 
 	const FVector Forward = GetActorForwardVector();
-	const FVector SpawnOrigin = FirstHitTarget->GetActorLocation() + Forward * 35.f + FVector(0.f, 0.f, 35.f);
+	const FVector SafeImpactLocation = ImpactLocation.IsNearlyZero() && ImpactActor
+		? ImpactActor->GetActorLocation()
+		: ImpactLocation;
+	const FVector SpawnOrigin = SafeImpactLocation + Forward * 35.f + FVector(0.f, 0.f, 35.f);
 	const float Step = SplitProjectileCount > 1 ? SplitConeAngleDegrees / static_cast<float>(SplitProjectileCount - 1) : 0.f;
 	const float StartYaw = SplitProjectileCount > 1 ? -SplitConeAngleDegrees * 0.5f : 0.f;
 
@@ -563,7 +572,7 @@ void ASlashWaveProjectile::TrySplitFromFirstHit(AActor* FirstHitTarget)
 		FMath::Max(1.f, CollisionBoxExtent.Z * SplitCollisionBoxExtentMultiplier.Z));
 	ChildConfig.bScaleVisualWithCollisionExtent = true;
 	ChildConfig.VisualScaleMultiplier = VisualScaleMultiplier;
-	ChildConfig.DamageLogType = TEXT("Rune_SlashWave_Split");
+	ChildConfig.DamageLogType = TEXT("Rune_Moonlight_Split_Child");
 	ChildConfig.bDestroyOnWorldStaticHit = bDestroyOnWorldStaticHit;
 	ChildConfig.bForcePureDamage = bForcePureDamage;
 	ChildConfig.BonusArmorDamageMultiplier = BonusArmorDamageMultiplier;

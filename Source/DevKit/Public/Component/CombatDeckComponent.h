@@ -8,6 +8,8 @@
 
 class UBuffFlowComponent;
 class UWeaponDefinition;
+class AMusketBullet;
+class UGameplayEffect;
 
 UENUM(BlueprintType)
 enum class ECombatLinkBreakReason : uint8
@@ -59,6 +61,18 @@ struct DEVKIT_API FCombatDeckActionContext
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
 	FGuid AttackInstanceGuid;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	float AttackDamage = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	float RangedBaseYawOffsetDeg = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	TSubclassOf<AMusketBullet> RangedProjectileClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	TSubclassOf<UGameplayEffect> RangedDamageEffectClass;
 };
 
 USTRUCT(BlueprintType)

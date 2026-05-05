@@ -48,6 +48,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Musket|Combat Deck")
     void SetCombatDeckContext(ECardRequiredAction InActionType, bool bInComboFinisher, bool bInFromDashSave);
 
+    void SetCombatDeckContextWithGuid(
+        ECardRequiredAction InActionType,
+        bool bInComboFinisher,
+        bool bInFromDashSave,
+        const FGuid& InAttackInstanceGuid,
+        float InAttackDamage);
+
     /** 飞行速度（cm/s），蓄力完成子弹可配置更高速度 */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Projectile")
     float Speed = 2800.f;
@@ -86,6 +93,8 @@ private:
     bool  bCombatDeckComboFinisher = false;
     bool  bCombatDeckFromDashSave = false;
     ECardRequiredAction CombatDeckActionType = ECardRequiredAction::Any;
+    FGuid CombatDeckAttackInstanceGuid;
+    float CombatDeckAttackDamage = 0.f;
 
     FTimerHandle LifetimeTimerHandle;
 

@@ -39,7 +39,16 @@ namespace
 			}
 
 			const float Speed = FMath::Max(1.f, ProjectileNode->Speed);
-			const float Lifetime = FMath::Max(0.f, ProjectileNode->MaxDistance) / Speed;
+			int32 MaxSpawnCount = FMath::Max(1, ProjectileNode->ProjectileCount);
+			if (ProjectileNode->bAddComboStacksToProjectileCount)
+			{
+				MaxSpawnCount += FMath::Max(0, ProjectileNode->MaxBonusProjectiles);
+			}
+
+			const float SequentialDelay = ProjectileNode->bSpawnProjectilesSequentially
+				? FMath::Max(0.f, ProjectileNode->SequentialProjectileSpawnInterval) * static_cast<float>(FMath::Max(0, MaxSpawnCount - 1))
+				: 0.f;
+			const float Lifetime = SequentialDelay + FMath::Max(0.f, ProjectileNode->MaxDistance) / Speed;
 			MaxProjectileLifetime = FMath::Max(MaxProjectileLifetime, Lifetime);
 		}
 

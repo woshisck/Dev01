@@ -12,6 +12,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Component/CombatDeckComponent.h"
 
 namespace
 {
@@ -162,6 +163,55 @@ AMusketBullet* UGA_MusketBase::SpawnBullet(float YawOffsetDeg, float Damage)
         Bullet->InitBullet(Cast<ACharacter>(CachedCharacter), Damage, BulletDamageEffectClass);
     }
     return Bullet;
+}
+
+FGuid UGA_MusketBase::ResolveCombatDeckOnFire(
+    ECardRequiredAction ActionType,
+    bool bIsComboFinisher,
+    bool bFromDashSave,
+    float Damage,
+    float BaseYawOffsetDeg)
+{
+    const FGuid AttackGuid = FGuid::NewGuid();
+    APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(CachedCharacter);
+    if (!Player || !Player->CombatDeckComponent)
+    {
+        return AttackGuid;
+    }
+
+    FCombatDeckActionContext Context;
+    Context.ActionType = ActionType;
+    Context.bIsComboFinisher = bIsComboFinisher;
+    Context.bFromDashSave = bFromDashSave;
+    Context.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+    Context.AttackInstanceGuid = AttackGuid;
+    Context.AttackDamage = Damage;
+    Context.RangedBaseYawOffsetDeg = BaseYawOffsetDeg;
+    Context.RangedProjectileClass = BulletClass;
+    Context.RangedDamageEffectClass = BulletDamageEffectClass;
+    Player->CombatDeckComponent->ResolveAttackCardWithContext(Context);
+    return AttackGuid;
+}
+
+void UGA_MusketBase::ApplyCombatDeckContextToBullet(
+    AMusketBullet* Bullet,
+    ECardRequiredAction ActionType,
+    bool bIsComboFinisher,
+    bool bFromDashSave,
+    const FGuid& AttackGuid,
+    float Damage) const
+{
+    if (!Bullet)
+    {
+        return;
+    }
+
+    Bullet->SetCombatDeckContextWithGuid(
+        ActionType,
+        bIsComboFinisher,
+        bFromDashSave,
+        AttackGuid,
+        Damage);
 }
 
 // ── Cues ──────────────────────────────────────────────────────────────────────

@@ -85,9 +85,10 @@ void UGA_Musket_LightAttack::DoFire()
 
     const float Damage = GetBaseAttack() * DamageMultiplier;
     const float Angle  = FMath::RandRange(-HalfAngleDeg, HalfAngleDeg);
+    const FGuid AttackGuid = ResolveCombatDeckOnFire(ECardRequiredAction::Light, false, false, Damage, Angle);
     if (AMusketBullet* Bullet = SpawnBullet(Angle, Damage))
     {
-        Bullet->SetCombatDeckContext(ECardRequiredAction::Light, false, false);
+        ApplyCombatDeckContextToBullet(Bullet, ECardRequiredAction::Light, false, false, AttackGuid, Damage);
     }
     ConsumeOneAmmo();
     ExecuteFireCue();

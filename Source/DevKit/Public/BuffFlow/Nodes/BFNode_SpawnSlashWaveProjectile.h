@@ -108,6 +108,13 @@ class DEVKIT_API UBFNode_SpawnSlashWaveProjectile : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Slash Wave|Pattern", meta = (ClampMin = "0.0", ClampMax = "180.0"))
 	float ProjectileConeAngleDegrees = 0.f;
 
+	/** When true, extra projectiles are fired one after another along the same path instead of fanning out. */
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Pattern", meta = (DisplayName = "Spawn Projectiles Sequentially"))
+	bool bSpawnProjectilesSequentially = false;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Pattern", meta = (ClampMin = "0.0", EditCondition = "bSpawnProjectilesSequentially", EditConditionHides))
+	float SequentialProjectileSpawnInterval = 0.12f;
+
 	UPROPERTY(EditAnywhere, Category = "Slash Wave|Collision")
 	bool bDestroyOnWorldStaticHit = false;
 

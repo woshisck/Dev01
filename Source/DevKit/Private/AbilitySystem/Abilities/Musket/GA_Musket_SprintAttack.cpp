@@ -35,6 +35,7 @@ void UGA_Musket_SprintAttack::ActivateAbility(
 
     const int32   BulletCount = FMath::RoundToInt(GetCurrentAmmo());
     const float   Damage      = GetBaseAttack() * DamageMultiplier;
+    const FGuid   AttackGuid  = ResolveCombatDeckOnFire(ECardRequiredAction::Light, false, false, Damage, 0.f);
 
     // 均匀扇形射出全部子弹
     for (int32 i = 0; i < BulletCount; ++i)
@@ -49,7 +50,7 @@ void UGA_Musket_SprintAttack::ActivateAbility(
         AMusketBullet* Bullet = SpawnBullet(Angle, Damage);
         if (Bullet)
         {
-            Bullet->SetCombatDeckContext(ECardRequiredAction::Light, false, false);
+            ApplyCombatDeckContextToBullet(Bullet, ECardRequiredAction::Light, false, false, AttackGuid, Damage);
         }
 
         // 为每颗子弹施加击退 GE（通过子弹命中时的目标，在 BP_MusketBullet.BP_OnHitEnemy 中处理）

@@ -120,9 +120,10 @@ void UGA_Musket_HeavyAttack::DoFire()
     const float Multiplier = bFullCharge ? FullChargeMultiplier : BaseDamageMultiplier;
     const float Damage     = GetBaseAttack() * Multiplier;
     const float Angle      = FMath::RandRange(-CurrentHalfAngle, CurrentHalfAngle);
+    const FGuid AttackGuid = ResolveCombatDeckOnFire(ECardRequiredAction::Heavy, false, false, Damage, Angle);
     if (AMusketBullet* Bullet = SpawnBullet(Angle, Damage))
     {
-        Bullet->SetCombatDeckContext(ECardRequiredAction::Heavy, false, false);
+        ApplyCombatDeckContextToBullet(Bullet, ECardRequiredAction::Heavy, false, false, AttackGuid, Damage);
     }
     ConsumeOneAmmo();
     ExecuteFireCue();

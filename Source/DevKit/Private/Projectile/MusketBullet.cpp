@@ -57,9 +57,21 @@ void AMusketBullet::InitBullet(ACharacter* InSource, float InDamage,
 
 void AMusketBullet::SetCombatDeckContext(ECardRequiredAction InActionType, bool bInComboFinisher, bool bInFromDashSave)
 {
+    SetCombatDeckContextWithGuid(InActionType, bInComboFinisher, bInFromDashSave, FGuid(), 0.f);
+}
+
+void AMusketBullet::SetCombatDeckContextWithGuid(
+    ECardRequiredAction InActionType,
+    bool bInComboFinisher,
+    bool bInFromDashSave,
+    const FGuid& InAttackInstanceGuid,
+    float InAttackDamage)
+{
     CombatDeckActionType = InActionType;
     bCombatDeckComboFinisher = bInComboFinisher;
     bCombatDeckFromDashSave = bInFromDashSave;
+    CombatDeckAttackInstanceGuid = InAttackInstanceGuid;
+    CombatDeckAttackDamage = InAttackDamage;
 }
 
 void AMusketBullet::BeginPlay()
@@ -137,7 +149,10 @@ void AMusketBullet::ResolveCombatDeckOnHit()
     Context.bIsComboFinisher = bCombatDeckComboFinisher;
     Context.bFromDashSave = bCombatDeckFromDashSave;
     Context.TriggerTiming = ECombatCardTriggerTiming::OnHit;
-    Context.AttackInstanceGuid = FGuid::NewGuid();
+    Context.AttackInstanceGuid = CombatDeckAttackInstanceGuid.IsValid()
+        ? CombatDeckAttackInstanceGuid
+        : FGuid::NewGuid();
+    Context.AttackDamage = CombatDeckAttackDamage > 0.f ? CombatDeckAttackDamage : DamageMagnitude;
 
     const FCombatCardResolveResult Result = PlayerSource->CombatDeckComponent->ResolveAttackCardWithContext(Context);
     bCombatDeckResolved = Result.bHadCard;
