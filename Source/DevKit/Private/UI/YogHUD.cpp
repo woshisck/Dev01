@@ -1,6 +1,7 @@
 #include "UI/YogHUD.h"
 #include "UI/YogHUDRootWidget.h"
 #include "UI/CombatDeckBarWidget.h"
+#include "UI/CombatItemBarWidget.h"
 #include "UI/CurrentRoomBuffWidget.h"
 #include "UI/PauseMenuWidget.h"
 #include "UI/LiquidHealthBarWidget.h"
@@ -15,7 +16,9 @@
 #include "UI/WeaponTrailWidget.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
+#include "Component/CombatItemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Tutorial/TutorialManager.h"
 #include "SaveGame/YogSaveSubsystem.h"
@@ -40,6 +43,13 @@
 #include "System/YogGameInstanceBase.h"
 #include "GameModes/YogGameMode.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
+#include "Components/TextBlock.h"
+#include "Engine/Texture2D.h"
 #include "Engine/GameViewportClient.h"
 #include "GameFramework/Pawn.h"
 
@@ -87,7 +97,11 @@ void AYogHUD::BeginPlay()
 		MainHUDWidget = CreateWidget<UYogHUDRootWidget>(
 			GetOwningPlayerController(), MainHUDClass);
 		if (MainHUDWidget)
+		{
 			MainHUDWidget->AddToViewport(1);
+			EnsureGoldWidget();
+			EnsureCombatItemWidget();
+		}
 	}
 
 	EnsureCurrentRoomBuffWidget();
@@ -98,6 +112,8 @@ void AYogHUD::BeginPlay()
 	{
 		BindHealthAttributes(Pawn);
 		BindCombatDeckWidget(Pawn);
+		BindCombatItemWidget(Pawn);
+		BindGoldWidget(Pawn);
 	}
 	else if (APlayerController* PC = GetOwningPlayerController())
 	{
@@ -814,14 +830,184 @@ void AYogHUD::BindCombatDeckWidget(APawn* Pawn)
 	MainHUDWidget->CombatDeckBar->BindToCombatDeck(Player ? Player->CombatDeckComponent : nullptr);
 }
 
+void AYogHUD::EnsureCombatItemWidget()
+{
+	if (CombatItemBarWidget || !MainHUDWidget || !MainHUDWidget->BottomRightPlayerInfoRegion)
+	{
+		return;
+	}
+
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC)
+	{
+		return;
+	}
+
+	CombatItemBarWidget = CreateWidget<UCombatItemBarWidget>(PC, UCombatItemBarWidget::StaticClass());
+	if (!CombatItemBarWidget)
+	{
+		return;
+	}
+
+	if (UOverlaySlot* ItemSlot = MainHUDWidget->BottomRightPlayerInfoRegion->AddChildToOverlay(CombatItemBarWidget))
+	{
+		ItemSlot->SetHorizontalAlignment(HAlign_Right);
+		ItemSlot->SetVerticalAlignment(VAlign_Bottom);
+		ItemSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 8.0f));
+	}
+}
+
+void AYogHUD::BindCombatItemWidget(APawn* Pawn)
+{
+	EnsureCombatItemWidget();
+	if (!CombatItemBarWidget)
+	{
+		return;
+	}
+
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Pawn);
+	CombatItemBarWidget->BindToCombatItemComponent(Player ? Player->CombatItemComponent : nullptr);
+}
+
+void AYogHUD::EnsureGoldWidget()
+{
+	if (GoldPanel || !MainHUDWidget || !MainHUDWidget->BottomLeftPlayerInfoRegion)
+	{
+		return;
+	}
+
+	GoldPanel = NewObject<UHorizontalBox>(MainHUDWidget, TEXT("GoldPanelRuntime"));
+	GoldIcon = NewObject<UImage>(GoldPanel, TEXT("GoldIconRuntime"));
+	GoldText = NewObject<UTextBlock>(GoldPanel, TEXT("GoldTextRuntime"));
+	if (!GoldPanel || !GoldText)
+	{
+		return;
+	}
+
+	GoldPanel->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	if (GoldIcon)
+	{
+		if (UTexture2D* IconTexture = GetGoldIconTexture())
+		{
+			GoldIcon->SetBrushFromTexture(IconTexture, true);
+			GoldIcon->SetDesiredSizeOverride(FVector2D(28.0f, 28.0f));
+			GoldIcon->SetColorAndOpacity(FLinearColor::White);
+			GoldIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+		else
+		{
+			GoldIcon->SetVisibility(ESlateVisibility::Collapsed);
+		}
+
+		if (UHorizontalBoxSlot* IconSlot = GoldPanel->AddChildToHorizontalBox(GoldIcon))
+		{
+			IconSlot->SetHorizontalAlignment(HAlign_Left);
+			IconSlot->SetVerticalAlignment(VAlign_Center);
+			IconSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+		}
+	}
+
+	FSlateFontInfo FontInfo = GoldText->GetFont();
+	FontInfo.Size = 20;
+	FontInfo.TypefaceFontName = FName(TEXT("Bold"));
+	GoldText->SetFont(FontInfo);
+	GoldText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.74f, 0.24f, 1.0f)));
+	GoldText->SetShadowOffset(FVector2D(1.5f, 1.5f));
+	GoldText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.82f));
+	GoldText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	SetGoldText(0);
+
+	if (UHorizontalBoxSlot* TextSlot = GoldPanel->AddChildToHorizontalBox(GoldText))
+	{
+		TextSlot->SetHorizontalAlignment(HAlign_Left);
+		TextSlot->SetVerticalAlignment(VAlign_Center);
+	}
+
+	if (UOverlaySlot* GoldSlot = MainHUDWidget->BottomLeftPlayerInfoRegion->AddChildToOverlay(GoldPanel))
+	{
+		GoldSlot->SetHorizontalAlignment(HAlign_Left);
+		GoldSlot->SetVerticalAlignment(VAlign_Top);
+		GoldSlot->SetPadding(FMargin(16.0f, 8.0f, 0.0f, 0.0f));
+	}
+}
+
+void AYogHUD::BindGoldWidget(APawn* Pawn)
+{
+	EnsureGoldWidget();
+
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Pawn);
+	UBackpackGridComponent* Backpack = Player ? Player->BackpackGridComponent : nullptr;
+	if (BoundGoldBackpack == Backpack)
+	{
+		SetGoldText(Backpack ? Backpack->Gold : 0);
+		return;
+	}
+
+	UnbindGoldWidget();
+	BoundGoldBackpack = Backpack;
+
+	if (BoundGoldBackpack)
+	{
+		BoundGoldBackpack->OnGoldChanged.RemoveDynamic(this, &AYogHUD::HandleGoldChanged);
+		BoundGoldBackpack->OnGoldChanged.AddDynamic(this, &AYogHUD::HandleGoldChanged);
+		SetGoldText(BoundGoldBackpack->Gold);
+	}
+	else
+	{
+		SetGoldText(0);
+	}
+}
+
+void AYogHUD::UnbindGoldWidget()
+{
+	if (BoundGoldBackpack)
+	{
+		BoundGoldBackpack->OnGoldChanged.RemoveDynamic(this, &AYogHUD::HandleGoldChanged);
+		BoundGoldBackpack = nullptr;
+	}
+}
+
+void AYogHUD::SetGoldText(int32 Gold)
+{
+	if (!GoldText)
+	{
+		return;
+	}
+
+	GoldText->SetText(FText::Format(
+		NSLOCTEXT("YogHUD", "GoldHudFormat", "{0} G"),
+		FText::AsNumber(FMath::Max(0, Gold))));
+}
+
+UTexture2D* AYogHUD::GetGoldIconTexture()
+{
+	if (!GoldIconTexture)
+	{
+		GoldIconTexture = Cast<UTexture2D>(StaticLoadObject(
+			UTexture2D::StaticClass(),
+			nullptr,
+			TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon")));
+	}
+
+	return GoldIconTexture;
+}
+
+void AYogHUD::HandleGoldChanged(int32 NewGold)
+{
+	SetGoldText(NewGold);
+}
+
 void AYogHUD::OnPawnPossessed(APawn* OldPawn, APawn* NewPawn)
 {
 	UE_LOG(LogTemp, Warning, TEXT("[HealthBar] OnPawnPossessed — New=%s"),
 		NewPawn ? *NewPawn->GetName() : TEXT("NULL"));
+	BindGoldWidget(NewPawn);
 	if (NewPawn)
 	{
 		BindHealthAttributes(NewPawn);
 		BindCombatDeckWidget(NewPawn);
+		BindCombatItemWidget(NewPawn);
 	}
 }
 

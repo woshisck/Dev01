@@ -7,12 +7,17 @@
 #include "Data/EnemyData.h"   // FBuffEntry
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Data/SacrificeGraceDA.h"
+#include "Data/AltarDataAsset.h"
 
 #include "YogGameInstanceBase.generated.h"
 
 
 class AYogCharacterBase;
 struct FStreamableHandle;
+struct FSlateBrush;
+class SButton;
+class SWidget;
+class UTexture2D;
 class UYogSaveGame;
 
 // =========================================================
@@ -70,6 +75,9 @@ struct FRunState
 	// 运行时拾取的无形状符文（隐藏被动）：跨关恢复后由 BGC::RestoreRuntimeHiddenPassiveRunes 重新激活
 	UPROPERTY()
 	TArray<FRuneInstance> HiddenPassiveRuneInstances;
+
+	UPROPERTY()
+	TArray<FSacrificeOfferingCostState> SacrificeOfferingCosts;
 };
 /**
  * Base class for GameInstance, should be blueprinted
@@ -303,6 +311,8 @@ private:
 	bool bShouldLoadSaveAfterMap;
 
 	TSharedPtr<class SWidget> FrontendWidget;
+	TSharedPtr<SButton> FrontendStartButton;
+	TSharedPtr<FSlateBrush> FrontendMainMenuBrush;
 	TSharedPtr<FStreamableHandle> FrontendMapLoadHandle;
 	FTimerHandle FrontendLoadingTimerHandle;
 	bool bFrontendLoadingGameplayMap = false;
@@ -310,15 +320,21 @@ private:
 	bool bFrontendMapLoaded = false;
 	double FrontendLoadingStartedSeconds = 0.0;
 
+	UPROPERTY()
+	TObjectPtr<UTexture2D> FrontendMainMenuTexture;
+
+	const FSlateBrush* GetFrontendMainMenuBackgroundBrush();
 	void BeginLoadMainGameMap();
 	void HandleMainGameMapPreloaded();
 	void HandleMinimumLoadingScreenTimeElapsed();
 	void FinishFrontendLoadingIfReady();
 	void ShowLoadingScreen(const FText& Title, const FText& Subtitle);
 	void RemoveFrontendWidget();
-	void ApplyFrontendInputMode(bool bUIOnly);
+	void ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidget> WidgetToFocus = nullptr);
 	bool IsFrontendStartupWorld(const UWorld* World) const;
 	FReply HandleStartClicked();
+	FReply HandleContinueClicked();
+	FReply HandleOptionsClicked();
 	FReply HandleRetryClicked();
 	FReply HandleReturnToMenuClicked();
 	FReply HandleQuitClicked();

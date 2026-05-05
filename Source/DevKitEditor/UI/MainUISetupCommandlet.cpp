@@ -35,7 +35,9 @@ namespace MainUISetup
 {
 	const FString HudWidgetPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_HUDRoot");
 	const FString PauseWidgetPath = TEXT("/Game/UI/Playtest_UI/Pause/WBP_PauseMenu");
-	const FString TextureRoot = TEXT("/Game/UI/Playtest_UI/UI_Tex/Pause");
+	const FString PauseTextureRoot = TEXT("/Game/UI/Playtest_UI/UI_Tex/Pause");
+	const FString HudTextureRoot = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD");
+	const FString FrontendTextureRoot = TEXT("/Game/UI/Playtest_UI/UI_Tex/Frontend");
 	const FString ReportFileName = TEXT("MainUISetupReport.md");
 
 	const TCHAR* PlayerHealthClassPath = TEXT("/Game/UI/WB_PlayerHealthBar.WB_PlayerHealthBar_C");
@@ -518,16 +520,11 @@ namespace MainUISetup
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("DescriptionText"));
 	}
 
-	void ImportPauseTextures(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	void ImportTextures(const FString& SectionTitle, const FString& SourceSubdir, const FString& DestinationPath, const TArray<FString>& FileNames, bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
 	{
-		const FString SourceDir = FPaths::Combine(FPaths::ProjectDir(), TEXT("SourceArt/UI/Pause"));
-		const TArray<FString> FileNames = {
-			TEXT("T_PausePanel_OrnateFrame.png"),
-			TEXT("T_PauseDivider_Ornate.png"),
-			TEXT("T_PauseFocusGlow.png")
-		};
+		const FString SourceDir = FPaths::Combine(FPaths::ProjectDir(), SourceSubdir);
 
-		ReportLines.Add(TEXT("## Pause texture import"));
+		ReportLines.Add(SectionTitle);
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 		for (const FString& FileName : FileNames)
 		{
@@ -538,14 +535,14 @@ namespace MainUISetup
 				continue;
 			}
 
-			ReportLines.Add(FString::Printf(TEXT("- %s `%s` -> `%s`."), bDryRun ? TEXT("Would import/reimport") : TEXT("Imported/reimported"), *SourceFile, *TextureRoot));
+			ReportLines.Add(FString::Printf(TEXT("- %s `%s` -> `%s`."), bDryRun ? TEXT("Would import/reimport") : TEXT("Imported/reimported"), *SourceFile, *DestinationPath));
 			if (bDryRun)
 			{
 				continue;
 			}
 
 			UAutomatedAssetImportData* ImportData = NewObject<UAutomatedAssetImportData>();
-			ImportData->DestinationPath = TextureRoot;
+			ImportData->DestinationPath = DestinationPath;
 			ImportData->Filenames.Add(SourceFile);
 			ImportData->bReplaceExisting = true;
 
@@ -554,11 +551,65 @@ namespace MainUISetup
 			{
 				if (ImportedAsset)
 				{
+					if (UTexture2D* Texture = Cast<UTexture2D>(ImportedAsset))
+					{
+						Texture->Modify();
+						Texture->CompressionSettings = TC_EditorIcon;
+						Texture->LODGroup = TEXTUREGROUP_UI;
+						Texture->MipGenSettings = TMGS_NoMipmaps;
+						Texture->NeverStream = true;
+						Texture->SRGB = true;
+						Texture->PostEditChange();
+					}
 					ImportedAsset->MarkPackageDirty();
 					DirtyPackages.AddUnique(ImportedAsset->GetPackage());
 				}
 			}
 		}
+	}
+
+	void ImportPauseTextures(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	{
+		ImportTextures(
+			TEXT("## Pause texture import"),
+			TEXT("SourceArt/UI/Pause"),
+			PauseTextureRoot,
+			{
+				TEXT("T_PausePanel_OrnateFrame.png"),
+				TEXT("T_PauseDivider_Ornate.png"),
+				TEXT("T_PauseFocusGlow.png")
+			},
+			bDryRun,
+			ReportLines,
+			DirtyPackages);
+	}
+
+	void ImportHudTextures(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	{
+		ImportTextures(
+			TEXT("## HUD texture import"),
+			TEXT("SourceArt/UI/HUD"),
+			HudTextureRoot,
+			{
+				TEXT("T_GoldCoinIcon.png")
+			},
+			bDryRun,
+			ReportLines,
+			DirtyPackages);
+	}
+
+	void ImportFrontendTextures(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	{
+		ImportTextures(
+			TEXT("## Frontend texture import"),
+			TEXT("SourceArt/UI/Frontend"),
+			FrontendTextureRoot,
+			{
+				TEXT("T_MainMenu_Dungeon.png")
+			},
+			bDryRun,
+			ReportLines,
+			DirtyPackages);
 	}
 
 	void AssignHudBlueprintDefaults(UWidgetBlueprint* HudWidget, UWidgetBlueprint* PauseWidget, bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
@@ -623,16 +674,50 @@ int32 UMainUISetupCommandlet::Main(const FString& Params)
 	const bool bApply = Params.Contains(TEXT("Apply"), ESearchCase::IgnoreCase);
 	const bool bDryRun = !bApply;
 	const bool bForceLayout = Params.Contains(TEXT("ForceLayout"), ESearchCase::IgnoreCase);
+	const bool bFrontendOnly = Params.Contains(TEXT("FrontendOnly"), ESearchCase::IgnoreCase);
+	const bool bHudOnly = Params.Contains(TEXT("HudOnly"), ESearchCase::IgnoreCase);
 
 	TArray<FString> ReportLines;
 	TArray<UPackage*> DirtyPackages;
 	ReportLines.Add(TEXT("# Main UI Setup Report"));
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
 	ReportLines.Add(FString::Printf(TEXT("- ForceLayout: %s"), bForceLayout ? TEXT("true") : TEXT("false")));
+	ReportLines.Add(FString::Printf(TEXT("- FrontendOnly: %s"), bFrontendOnly ? TEXT("true") : TEXT("false")));
+	ReportLines.Add(FString::Printf(TEXT("- HudOnly: %s"), bHudOnly ? TEXT("true") : TEXT("false")));
 	ReportLines.Add(TEXT(""));
 
-	ImportPauseTextures(bDryRun, ReportLines, DirtyPackages);
-	ReportLines.Add(TEXT(""));
+	if (!bFrontendOnly && !bHudOnly)
+	{
+		ImportPauseTextures(bDryRun, ReportLines, DirtyPackages);
+		ReportLines.Add(TEXT(""));
+	}
+	if (!bFrontendOnly)
+	{
+		ImportHudTextures(bDryRun, ReportLines, DirtyPackages);
+		ReportLines.Add(TEXT(""));
+	}
+	if (!bHudOnly)
+	{
+		ImportFrontendTextures(bDryRun, ReportLines, DirtyPackages);
+		ReportLines.Add(TEXT(""));
+	}
+
+	if (bFrontendOnly || bHudOnly)
+	{
+		if (!bDryRun && DirtyPackages.Num() > 0)
+		{
+			UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
+		}
+
+		const FString TextureOnlyReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), ReportFileName);
+		FFileHelper::SaveStringToFile(
+			FString::Join(ReportLines, LINE_TERMINATOR),
+			*TextureOnlyReportPath,
+			FFileHelper::EEncodingOptions::ForceUTF8);
+
+		UE_LOG(LogTemp, Display, TEXT("Main UI setup finished. Report: %s"), *TextureOnlyReportPath);
+		return 0;
+	}
 
 	bool bHudCreated = false;
 	UWidgetBlueprint* HudWidget = CreateWidgetBlueprint(HudWidgetPath, UYogHUDRootWidget::StaticClass(), bDryRun, ReportLines, bHudCreated);

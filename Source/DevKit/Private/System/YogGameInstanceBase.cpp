@@ -7,16 +7,21 @@
 #include "Engine/AssetManager.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/StreamableManager.h"
+#include "Engine/Texture2D.h"
+#include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/PlatformTime.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "Styling/SlateBrush.h"
 #include "TimerManager.h"
 #include "Styling/CoreStyle.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Input/SButton.h"
@@ -243,6 +248,17 @@ void UYogGameInstanceBase::ShowMainMenu()
 	bFrontendMapLoaded = false;
 	bFrontendMinLoadTimeElapsed = false;
 
+	const FSlateBrush* BackgroundBrush = GetFrontendMainMenuBackgroundBrush();
+	const FSlateFontInfo MenuFont = FCoreStyle::GetDefaultFontStyle("Regular", 26);
+	const FSlateColor MenuTextColor(FLinearColor(0.80f, 0.82f, 0.84f, 1.f));
+	auto BuildMenuText = [&](const FText& Label)
+	{
+		return SNew(STextBlock)
+			.Text(Label)
+			.Font(MenuFont)
+			.ColorAndOpacity(MenuTextColor);
+	};
+
 	TSharedRef<SWidget> Widget =
 		SNew(SOverlay)
 		+ SOverlay::Slot()
@@ -252,51 +268,101 @@ void UYogGameInstanceBase::ShowMainMenu()
 			.Padding(0.f)
 		]
 		+ SOverlay::Slot()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
 		[
-			SNew(SBox)
-			.WidthOverride(520.f)
+			SNew(SScaleBox)
+			.Stretch(EStretch::ScaleToFill)
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.HAlign(HAlign_Center)
-				.Padding(0.f, 0.f, 0.f, 28.f)
+				SNew(SImage)
+				.Image(BackgroundBrush)
+				.ColorAndOpacity(FLinearColor::White)
+			]
+		]
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.16f))
+			.Padding(0.f)
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Bottom)
+		.Padding(FMargin(96.f, 0.f, 0.f, 132.f))
+		[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor(0.005f, 0.007f, 0.009f, 0.58f))
+			.Padding(FMargin(24.f, 18.f))
+			[
+				SNew(SBox)
+				.WidthOverride(260.f)
 				[
-					SNew(STextBlock)
-					.Text(NSLOCTEXT("DevKitFrontend", "GameTitle", "DevKit"))
-					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 54))
-					.ColorAndOpacity(FLinearColor(0.95f, 0.88f, 0.72f, 1.f))
-					.Justification(ETextJustify::Center)
-				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.f, 0.f, 0.f, 16.f)
-				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.ContentPadding(FMargin(28.f, 14.f))
-					.OnClicked_UObject(this, &UYogGameInstanceBase::HandleStartClicked)
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(0.f, 0.f, 0.f, 8.f)
 					[
-						SNew(STextBlock)
-						.Text(NSLOCTEXT("DevKitFrontend", "StartGame", "Start Game"))
-						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 24))
+						SAssignNew(FrontendStartButton, SButton)
+						.HAlign(HAlign_Left)
+						.ContentPadding(FMargin(20.f, 8.f))
+						.ButtonColorAndOpacity(FLinearColor(0.04f, 0.08f, 0.12f, 0.42f))
+						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleStartClicked)
+						[
+							BuildMenuText(NSLOCTEXT("DevKitFrontend", "StartGame", "Start"))
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(0.f, 0.f, 0.f, 8.f)
+					[
+						SNew(SButton)
+						.HAlign(HAlign_Left)
+						.ContentPadding(FMargin(20.f, 8.f))
+						.ButtonColorAndOpacity(FLinearColor(0.04f, 0.08f, 0.12f, 0.34f))
+						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleContinueClicked)
+						[
+							BuildMenuText(NSLOCTEXT("DevKitFrontend", "ContinueGame", "Continue"))
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(0.f, 0.f, 0.f, 8.f)
+					[
+						SNew(SButton)
+						.HAlign(HAlign_Left)
+						.ContentPadding(FMargin(20.f, 8.f))
+						.ButtonColorAndOpacity(FLinearColor(0.04f, 0.08f, 0.12f, 0.34f))
+						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleOptionsClicked)
+						[
+							BuildMenuText(NSLOCTEXT("DevKitFrontend", "Options", "Options"))
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SButton)
+						.HAlign(HAlign_Left)
+						.ContentPadding(FMargin(20.f, 8.f))
+						.ButtonColorAndOpacity(FLinearColor(0.04f, 0.08f, 0.12f, 0.34f))
+						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleQuitClicked)
+						[
+							BuildMenuText(NSLOCTEXT("DevKitFrontend", "QuitGame", "Quit"))
+						]
 					]
 				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.ContentPadding(FMargin(28.f, 12.f))
-					.OnClicked_UObject(this, &UYogGameInstanceBase::HandleQuitClicked)
-					[
-						SNew(STextBlock)
-						.Text(NSLOCTEXT("DevKitFrontend", "QuitGame", "Quit"))
-						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 20))
-					]
-				]
+			]
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Bottom)
+		.Padding(FMargin(34.f, 0.f, 0.f, 28.f))
+		[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor(0.f, 0.01f, 0.015f, 0.52f))
+			.Padding(FMargin(14.f, 7.f))
+			[
+				SNew(STextBlock)
+				.Text(NSLOCTEXT("DevKitFrontend", "MainMenuInputPrompt", "A Select    D-Pad / Left Stick Navigate"))
+				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 15))
+				.ColorAndOpacity(FLinearColor(0.68f, 0.78f, 0.86f, 0.92f))
 			]
 		];
 
@@ -305,12 +371,38 @@ void UYogGameInstanceBase::ShowMainMenu()
 	{
 		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
 	}
-	ApplyFrontendInputMode(true);
+	ApplyFrontendInputMode(true, FrontendStartButton);
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("AutoStart")))
 	{
 		StartNewRunFromFrontend();
 	}
+}
+
+const FSlateBrush* UYogGameInstanceBase::GetFrontendMainMenuBackgroundBrush()
+{
+	if (!FrontendMainMenuTexture)
+	{
+		FrontendMainMenuTexture = Cast<UTexture2D>(StaticLoadObject(
+			UTexture2D::StaticClass(),
+			nullptr,
+			TEXT("/Game/UI/Playtest_UI/UI_Tex/Frontend/T_MainMenu_Dungeon.T_MainMenu_Dungeon")));
+	}
+
+	if (!FrontendMainMenuTexture)
+	{
+		return nullptr;
+	}
+
+	if (!FrontendMainMenuBrush.IsValid())
+	{
+		FrontendMainMenuBrush = MakeShared<FSlateBrush>();
+		FrontendMainMenuBrush->SetResourceObject(FrontendMainMenuTexture);
+		FrontendMainMenuBrush->ImageSize = FVector2D(FrontendMainMenuTexture->GetSizeX(), FrontendMainMenuTexture->GetSizeY());
+		FrontendMainMenuBrush->DrawAs = ESlateBrushDrawType::Image;
+	}
+
+	return FrontendMainMenuBrush.Get();
 }
 
 void UYogGameInstanceBase::StartNewRunFromFrontend()
@@ -539,9 +631,10 @@ void UYogGameInstanceBase::RemoveFrontendWidget()
 		GEngine->GameViewport->RemoveViewportWidgetContent(FrontendWidget.ToSharedRef());
 	}
 	FrontendWidget.Reset();
+	FrontendStartButton.Reset();
 }
 
-void UYogGameInstanceBase::ApplyFrontendInputMode(bool bUIOnly)
+void UYogGameInstanceBase::ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidget> WidgetToFocus)
 {
 	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
 	if (!PC) return;
@@ -550,8 +643,16 @@ void UYogGameInstanceBase::ApplyFrontendInputMode(bool bUIOnly)
 	if (bUIOnly)
 	{
 		FInputModeUIOnly Mode;
+		if (WidgetToFocus.IsValid())
+		{
+			Mode.SetWidgetToFocus(WidgetToFocus);
+		}
 		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		PC->SetInputMode(Mode);
+		if (WidgetToFocus.IsValid())
+		{
+			FSlateApplication::Get().SetKeyboardFocus(WidgetToFocus, EFocusCause::SetDirectly);
+		}
 	}
 	else
 	{
@@ -570,6 +671,18 @@ bool UYogGameInstanceBase::IsFrontendStartupWorld(const UWorld* World) const
 FReply UYogGameInstanceBase::HandleStartClicked()
 {
 	StartNewRunFromFrontend();
+	return FReply::Handled();
+}
+
+FReply UYogGameInstanceBase::HandleContinueClicked()
+{
+	StartNewRunFromFrontend();
+	return FReply::Handled();
+}
+
+FReply UYogGameInstanceBase::HandleOptionsClicked()
+{
+	UE_LOG(LogTemp, Log, TEXT("[Frontend] Options clicked; settings screen is not implemented yet."));
 	return FReply::Handled();
 }
 

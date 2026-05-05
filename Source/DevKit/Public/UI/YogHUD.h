@@ -33,8 +33,14 @@ class ASacrificeGracePickup;
 class USacrificeGraceDA;
 class USacrificeGraceOptionWidget;
 class APlayerCharacterBase;
+class UBackpackGridComponent;
+class UCombatItemBarWidget;
 class UCurrentRoomBuffWidget;
 class URoomDataAsset;
+class UHorizontalBox;
+class UImage;
+class UTextBlock;
+class UTexture2D;
 
 
 UCLASS()
@@ -315,9 +321,19 @@ private:
 
 	void BindHealthAttributes(APawn* Pawn);
 	void BindCombatDeckWidget(APawn* Pawn);
+	void BindCombatItemWidget(APawn* Pawn);
+	void BindGoldWidget(APawn* Pawn);
+	void EnsureGoldWidget();
+	void EnsureCombatItemWidget();
+	void UnbindGoldWidget();
+	void SetGoldText(int32 Gold);
+	UTexture2D* GetGoldIconTexture();
 
 	UFUNCTION()
 	void OnPawnPossessed(APawn* OldPawn, APawn* NewPawn);
+
+	UFUNCTION()
+	void HandleGoldChanged(int32 NewGold);
 
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
 	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
@@ -342,6 +358,24 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UCurrentRoomBuffWidget> CurrentRoomBuffWidget;
+
+	UPROPERTY()
+	TObjectPtr<UHorizontalBox> GoldPanel;
+
+	UPROPERTY()
+	TObjectPtr<UImage> GoldIcon;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> GoldText;
+
+	UPROPERTY()
+	TObjectPtr<UCombatItemBarWidget> CombatItemBarWidget;
+
+	UPROPERTY()
+	TObjectPtr<UTexture2D> GoldIconTexture;
+
+	UPROPERTY()
+	TObjectPtr<UBackpackGridComponent> BoundGoldBackpack;
 
 	// === LootSelection 队列管理（多个 RewardPickup 同时触发时按 FIFO 排队） ===
 	struct FQueuedLootRequest
