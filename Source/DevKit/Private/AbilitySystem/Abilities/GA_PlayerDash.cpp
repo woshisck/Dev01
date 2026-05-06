@@ -11,6 +11,7 @@
 #include "Data/AbilityData.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
@@ -410,94 +411,168 @@ void UGA_PlayerDash::EndAbility(
 float UGA_PlayerDash::GetFurthestValidDashDistance(const FVector& Start, const FVector& End)
 {
 	UWorld* World = GetWorld();
-		if (!World) return DashMaxDistance;
+	if (!World) return DashMaxDistance;
 
-		DashIgnoredActors.Reset();
+	DashIgnoredActors.Reset();
 
-		float StepOffset = 0.f;
-		if (ACharacter* Owner = Cast<ACharacter>(GetOwningActorFromActorInfo()))
+	float StepOffset = 0.f;
+	if (ACharacter* Owner = Cast<ACharacter>(GetOwningActorFromActorInfo()))
+	{
+		if (UCharacterMovementComponent* CMC = Owner->GetCharacterMovement())
 		{
-			if (UCharacterMovementComponent* CMC = Owner->GetCharacterMovement())
-			{
-				StepOffset = CMC->MaxStepHeight;
-			}
+			StepOffset = CMC->MaxStepHeight;
+		}
+	}
+
+	const FVector SweepStart = Start + FVector(0.f, 0.f, StepOffset);
+	const FVector SweepEnd = End + FVector(0.f, 0.f, StepOffset);
+	const FVector DashDir = (SweepEnd - SweepStart).GetSafeNormal();
+	const float MaxDistance = FMath::Max(0.f, FVector::Dist2D(Start, End));
+	if (MaxDistance <= KINDA_SMALL_NUMBER || DashDir.IsNearlyZero())
+	{
+		return 0.f;
+	}
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(DashTrace), false);
+	if (AActor* Owner = GetOwningActorFromActorInfo())
+	{
+		Params.AddIgnoredActor(Owner);
+	}
+
+	const FCollisionShape Sphere = FCollisionShape::MakeSphere(DashCapsuleRadius);
+	const bool bDebugTrace = CVarDashDebugTrace.GetValueOnGameThread() != 0;
+	const float TwoThirdsDistance = MaxDistance * (2.f / 3.f);
+
+	for (int32 Pass = 0; Pass < MaxDashAirWallPasses; ++Pass)
+	{
+		FHitResult BlockingHit;
+		const bool bHasBlockingHit = FindFirstDashBlockingHit(SweepStart, SweepEnd, Sphere, Params, BlockingHit);
+		if (bDebugTrace)
+		{
+			DrawDebugLine(World, SweepStart, bHasBlockingHit ? BlockingHit.ImpactPoint : SweepEnd,
+				bHasBlockingHit ? FColor::Red : FColor::Green, false, 3.f, 0, 2.f);
+			DrawDebugSphere(World, SweepStart, DashCapsuleRadius, 12, FColor::Yellow, false, 3.f);
 		}
 
-		const FVector SweepStart = Start + FVector(0.f, 0.f, StepOffset);
-		const FVector SweepEnd = End + FVector(0.f, 0.f, StepOffset);
-		const FVector DashDir = (SweepEnd - SweepStart).GetSafeNormal();
-		const float MaxDistance = FMath::Max(0.f, FVector::Dist2D(Start, End));
-		if (MaxDistance <= KINDA_SMALL_NUMBER || DashDir.IsNearlyZero())
+		if (!bHasBlockingHit)
 		{
-			return 0.f;
-		}
-
-		FCollisionQueryParams Params(SCENE_QUERY_STAT(DashTrace), false);
-		if (AActor* Owner = GetOwningActorFromActorInfo())
-		{
-			Params.AddIgnoredActor(Owner);
-		}
-
-		const FCollisionShape Sphere = FCollisionShape::MakeSphere(DashCapsuleRadius);
-		const bool bDebugTrace = CVarDashDebugTrace.GetValueOnGameThread() != 0;
-
-		for (int32 Pass = 0; Pass < MaxDashAirWallPasses; ++Pass)
-		{
-			FHitResult BlockingHit;
-			const bool bHasBlockingHit = FindFirstDashBlockingHit(SweepStart, SweepEnd, Sphere, Params, BlockingHit);
 			if (bDebugTrace)
 			{
-				DrawDebugLine(World, SweepStart, bHasBlockingHit ? BlockingHit.ImpactPoint : SweepEnd,
-					bHasBlockingHit ? FColor::Red : FColor::Green, false, 3.f, 0, 2.f);
-				DrawDebugSphere(World, SweepStart, DashCapsuleRadius, 12, FColor::Yellow, false, 3.f);
+				UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Result=Clear Max=%.0f Pass=%d"), MaxDistance, Pass);
 			}
-
-			if (!bHasBlockingHit)
-			{
-				return MaxDistance;
-			}
-
-			AActor* HitActor = BlockingHit.GetActor();
-			UPrimitiveComponent* HitComp = BlockingHit.GetComponent();
-			const float StopDistance = GetDashStopDistance(BlockingHit.Distance);
-
-			if (bDebugTrace)
-			{
-				DrawDebugSphere(World, BlockingHit.ImpactPoint, DashCapsuleRadius, 12, FColor::Red, false, 3.f);
-				DrawDebugLine(World, BlockingHit.ImpactPoint, BlockingHit.ImpactPoint + BlockingHit.ImpactNormal * 60.f,
-					FColor::White, false, 3.f, 0, 2.f);
-				UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Hit=%s Comp=%s Dist=%.0f Pass=%d"),
-					*GetNameSafe(HitActor), *GetNameSafe(HitComp), BlockingHit.Distance, Pass);
-			}
-
-			if (!HitActor || HitActor->ActorHasTag(TEXT("DashBarrier")))
-			{
-				return StopDistance;
-			}
-
-			AAirWall* AirWall = Cast<AAirWall>(HitActor);
-			if (!AirWall || !AirWall->bAllowDashThrough)
-			{
-				return StopDistance;
-			}
-
-			if (BlockingHit.Distance > MaxDistance * (2.f / 3.f))
-			{
-				return StopDistance;
-			}
-
-			const float ExitDistance = FindAirWallExitDistance(SweepStart, DashDir, HitComp);
-			if (ExitDistance < 0.f || ExitDistance > MaxDistance)
-			{
-				return StopDistance;
-			}
-
-			DashIgnoredActors.AddUnique(AirWall);
-			Params.AddIgnoredActor(AirWall);
+			return MaxDistance;
 		}
 
+		AActor* HitActor = BlockingHit.GetActor();
+		UPrimitiveComponent* HitComp = BlockingHit.GetComponent();
+		const float StopDistance = GetDashStopDistance(BlockingHit.Distance);
+
+		if (bDebugTrace)
+		{
+			DrawDebugSphere(World, BlockingHit.ImpactPoint, DashCapsuleRadius, 12, FColor::Red, false, 3.f);
+			DrawDebugLine(World, BlockingHit.ImpactPoint, BlockingHit.ImpactPoint + BlockingHit.ImpactNormal * 60.f,
+				FColor::White, false, 3.f, 0, 2.f);
+			UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Hit=%s Class=%s Comp=%s Dist=%.0f Stop=%.0f Max=%.0f TwoThirds=%.0f Pass=%d ObjType=%d DashResp=%d"),
+				*GetNameSafe(HitActor),
+				HitActor ? *GetNameSafe(HitActor->GetClass()) : TEXT("None"),
+				*GetNameSafe(HitComp),
+				BlockingHit.Distance,
+				StopDistance,
+				MaxDistance,
+				TwoThirdsDistance,
+				Pass,
+				HitComp ? static_cast<int32>(HitComp->GetCollisionObjectType()) : -1,
+				HitComp ? static_cast<int32>(HitComp->GetCollisionResponseToChannel(DashTraceChannel)) : -1);
+		}
+
+		if (!HitActor)
+		{
+			if (bDebugTrace)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Result=Blocked Reason=NoHitActor Stop=%.0f"), StopDistance);
+			}
+			return StopDistance;
+		}
+
+		if (HitActor->ActorHasTag(TEXT("DashBarrier")))
+		{
+			if (bDebugTrace)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Result=Blocked Reason=DashBarrier Actor=%s Stop=%.0f"),
+					*GetNameSafe(HitActor), StopDistance);
+			}
+			return StopDistance;
+		}
+
+		AAirWall* AirWall = Cast<AAirWall>(HitActor);
+		if (!AirWall)
+		{
+			if (bDebugTrace)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Result=Blocked Reason=NotAirWall Actor=%s Class=%s Stop=%.0f"),
+					*GetNameSafe(HitActor), *GetNameSafe(HitActor->GetClass()), StopDistance);
+			}
+			return StopDistance;
+		}
+
+		if (!AirWall->bAllowDashThrough)
+		{
+			if (bDebugTrace)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Result=Blocked Reason=AirWallNotDashThrough Actor=%s Stop=%.0f"),
+					*GetNameSafe(HitActor), StopDistance);
+			}
+			return StopDistance;
+		}
+
+		if (BlockingHit.Distance > TwoThirdsDistance)
+		{
+			if (bDebugTrace)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Result=Blocked Reason=AirWallHitBeyondTwoThirds Actor=%s Dist=%.0f TwoThirds=%.0f Stop=%.0f"),
+					*GetNameSafe(HitActor), BlockingHit.Distance, TwoThirdsDistance, StopDistance);
+			}
+			return StopDistance;
+		}
+
+		const float ExitDistance = FindAirWallExitDistance(SweepStart, DashDir, HitComp);
+		if (ExitDistance < 0.f)
+		{
+			if (bDebugTrace)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Result=Blocked Reason=AirWallExitNotFound Actor=%s Stop=%.0f"),
+					*GetNameSafe(HitActor), StopDistance);
+			}
+			return StopDistance;
+		}
+
+		if (ExitDistance > MaxDistance)
+		{
+			if (bDebugTrace)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Result=Blocked Reason=AirWallExitBeyondDash Actor=%s Exit=%.0f Max=%.0f Stop=%.0f"),
+					*GetNameSafe(HitActor), ExitDistance, MaxDistance, StopDistance);
+			}
+			return StopDistance;
+		}
+
+		if (bDebugTrace)
+		{
+			const FVector ExitPoint = SweepStart + DashDir * ExitDistance;
+			DrawDebugSphere(World, ExitPoint, DashCapsuleRadius, 12, FColor::Blue, false, 3.f);
+			UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Result=AllowAirWallThrough Actor=%s Exit=%.0f Final=%.0f Pass=%d"),
+				*GetNameSafe(HitActor), ExitDistance, MaxDistance, Pass);
+		}
+
+		DashIgnoredActors.AddUnique(AirWall);
+		Params.AddIgnoredActor(AirWall);
+	}
+
+	if (bDebugTrace)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DashTrace] Result=MaxAirWallPassesReached Final=%.0f"), MaxDistance);
+	}
 	return MaxDistance;
-
 }
 
 bool UGA_PlayerDash::FindFirstDashBlockingHit(
@@ -542,7 +617,27 @@ float UGA_PlayerDash::FindAirWallExitDistance(
 		return -1.f;
 	}
 
-	const FBox ExpandedBounds = AirWallComponent->Bounds.GetBox().ExpandBy(DashCapsuleRadius + DashStopPadding);
+	const float Padding = DashCapsuleRadius + DashStopPadding;
+
+	if (const UBoxComponent* BoxComponent = Cast<UBoxComponent>(AirWallComponent))
+	{
+		const FQuat ComponentRotation = BoxComponent->GetComponentQuat();
+		const FTransform RotationOnlyTransform(ComponentRotation, BoxComponent->GetComponentLocation(), FVector::OneVector);
+		const FVector LocalStart = RotationOnlyTransform.InverseTransformPosition(SweepStart);
+		const FVector LocalDirection = RotationOnlyTransform.InverseTransformVectorNoScale(DashDirection.GetSafeNormal());
+		const FVector LocalExtent = BoxComponent->GetScaledBoxExtent() + FVector(Padding);
+
+		float EnterDistance = 0.f;
+		float ExitDistance = 0.f;
+		if (!RayAabbDistanceRange(FBox(-LocalExtent, LocalExtent), LocalStart, LocalDirection, EnterDistance, ExitDistance))
+		{
+			return -1.f;
+		}
+
+		return ExitDistance;
+	}
+
+	const FBox ExpandedBounds = AirWallComponent->Bounds.GetBox().ExpandBy(Padding);
 	float EnterDistance = 0.f;
 	float ExitDistance = 0.f;
 	if (!RayAabbDistanceRange(ExpandedBounds, SweepStart, DashDirection.GetSafeNormal(), EnterDistance, ExitDistance))
