@@ -125,6 +125,19 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	const bool bUseDashSavedNode = !SavedDashNodeId.IsNone();
 	const FName StartNodeId = bUseDashSavedNode ? SavedDashNodeId : CurrentNodeId;
 
+	// Combo window gate: while a combo is already in progress, only allow advancing
+	// to the next node when the active node's window is open (CanCombo tag is set by
+	// either ANS_ComboWindow or the node-driven timers in GA_PlayMontage).
+	// Fresh combo starts (CurrentNodeId is None) and dash-save re-entries skip the gate.
+	if (!CurrentNodeId.IsNone() && !bUseDashSavedNode)
+	{
+		static const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+		if (ASC->GetTagCount(CanComboTag) <= 0)
+		{
+			return false;
+		}
+	}
+
 	FWeaponComboNodeConfig GraphNodeConfig;
 	const FWeaponComboNodeConfig* NextNode = nullptr;
 	bool bFoundChildNode = false;
