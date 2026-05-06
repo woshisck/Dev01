@@ -33,6 +33,7 @@
 namespace
 {
 	constexpr bool bDisableLegacyOnHitRuneRuntimeForCardTest = true;
+	static const ECollisionChannel DashThroughChannel = ECC_GameTraceChannel5;
 }
 
 
@@ -60,6 +61,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
 	check(CapsuleComp);
 	CapsuleComp->InitCapsuleSize(40.0f, 90.0f);
+	CapsuleComp->SetCollisionResponseToChannel(DashThroughChannel, ECR_Block);
 
 
 	//MovementComponent setup
@@ -152,6 +154,11 @@ void AYogCharacterBase::Tick(float DeltaSeconds)
 void AYogCharacterBase::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
+
+	if (UCapsuleComponent* CapsuleComp = GetCapsuleComponent())
+	{
+		CapsuleComp->SetCollisionResponseToChannel(DashThroughChannel, ECR_Block);
+	}
 
 	// 蓝图序列化可能导致 UPROPERTY 指针为 null，组件本身仍在 actor 上，自动修复
 	if (!AttributeStatsComponent)
