@@ -25,6 +25,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "内容", meta = (MultiLine = true))
 	FText Body;
 
+	/** HUD 简短摘要。用于底部信息区等紧凑浮窗；建议控制在 1-2 行，留空时继续显示 Body。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "内容", meta = (MultiLine = true))
+	FText HUDSummaryText;
+
 	/**
 	 * 自动关闭时长（秒）。
 	 * 0 = 不自动关闭，需玩家点击关闭按钮（WBP 里需有 BtnClose 控件）。

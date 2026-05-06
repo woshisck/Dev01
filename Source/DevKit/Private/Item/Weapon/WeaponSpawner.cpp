@@ -27,12 +27,22 @@
 #include "Engine/GameInstance.h"
 #include "UI/WeaponFloatWidget.h"
 #include "UI/YogHUD.h"
-#include "Blueprint/WidgetLayoutLibrary.h"
 #include "Data/LevelInfoPopupDA.h"
 
 namespace
 {
 	constexpr bool bDisableLegacyHeatBackpackRuneForCardTestSpawner = true;
+
+	AYogHUD* GetYogHUDForPlayer(APlayerCharacterBase* Player)
+	{
+		if (!Player)
+		{
+			return nullptr;
+		}
+
+		APlayerController* PC = Player->GetController<APlayerController>();
+		return PC ? Cast<AYogHUD>(PC->GetHUD()) : nullptr;
+	}
 }
 
 // Sets default values
@@ -134,9 +144,11 @@ void AWeaponSpawner::Tick(float DeltaTime)
 	// Tutorial 弹窗显示期间、或武器已被拾取后隐藏浮窗
 	if (bPickedUp)
 	{
-		// 折叠动画进行中时保持可见，动画结束后由回调隐藏
-		if (!bCollapsingForPickup && WeaponInfoWidgetComp)
+		if (WeaponInfoWidgetComp)
 			WeaponInfoWidgetComp->SetVisibility(false);
+		if (!bCollapsingForPickup)
+			if (AYogHUD* HUD = GetYogHUDForPlayer(NearbyPlayer.Get()))
+				HUD->HideWeaponFloatInfo(WeaponDefinition);
 		return;
 	}
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
@@ -144,12 +156,14 @@ void AWeaponSpawner::Tick(float DeltaTime)
 		if (TM->IsPopupShowing())
 		{
 			if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
+			if (AYogHUD* HUD = GetYogHUDForPlayer(NearbyPlayer.Get()))
+				HUD->HideWeaponFloatInfo(WeaponDefinition);
 			return;
 		}
 	}
 
-	// 朝向判断 + 动态偏移：浮窗始终在武器右侧，不遮挡玩家和武器
-	if (bPlayerInRange && NearbyPlayer.IsValid() && WeaponInfoWidgetComp)
+	// 朝向判断：武器信息由 HUD 固定显示在关卡信息区，避免世界投影浮窗越界。
+	if (bPlayerInRange && NearbyPlayer.IsValid())
 	{
 		FVector ToWeapon = GetActorLocation() - NearbyPlayer->GetActorLocation();
 		ToWeapon.Z = 0.f;
@@ -159,36 +173,19 @@ void AWeaponSpawner::Tick(float DeltaTime)
 		Forward.Normalize();
 
 		const bool bShouldShow = FVector::DotProduct(Forward, ToWeapon) > -0.3f;
-		WeaponInfoWidgetComp->SetVisibility(bShouldShow);
-
-		if (bShouldShow)
+		if (WeaponInfoWidgetComp)
 		{
-			// 45°斜视角：用摄像机 Right 向量投影到水平面，确保偏移与屏幕对齐
-			FVector Right = FVector(0.f, 1.f, 0.f); // 兜底：世界 Y
-			if (APlayerController* PC = NearbyPlayer->GetController<APlayerController>())
-			{
-				if (PC->PlayerCameraManager)
-				{
-					FVector CamRight = FRotationMatrix(PC->PlayerCameraManager->GetCameraRotation())
-						.GetScaledAxis(EAxis::Y);
-					CamRight.Z = 0.f;
-					if (!CamRight.IsNearlyZero())
-						Right = CamRight.GetSafeNormal();
-				}
+			WeaponInfoWidgetComp->SetVisibility(false);
+		}
 
-				// 根据武器在屏幕上的位置决定偏移方向：屏幕右半则向左偏，左半则向右偏
-				FVector2D WeaponScreenPos;
-				if (PC->ProjectWorldLocationToScreen(GetActorLocation(), WeaponScreenPos, false))
-				{
-					FVector2D ViewportSize;
-					if (GEngine && GEngine->GameViewport)
-						GEngine->GameViewport->GetViewportSize(ViewportSize);
-					if (WeaponScreenPos.X > ViewportSize.X * 0.5f)
-						Right = -Right;
-				}
-			}
-			WeaponInfoWidgetComp->SetRelativeLocation(
-				Right * WidgetSideOffset + FVector(0.f, 0.f, WidgetZOffset));
+		if (AYogHUD* HUD = GetYogHUDForPlayer(NearbyPlayer.Get()))
+		{
+			if (bShouldShow)
+				HUD->ShowWeaponFloatInfoAtLocation(
+					WeaponDefinition,
+					GetActorLocation() + FVector(0.f, 0.f, WidgetZOffset));
+			else
+				HUD->HideWeaponFloatInfo(WeaponDefinition);
 		}
 	}
 }
@@ -243,6 +240,13 @@ void AWeaponSpawner::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 	}
 	if (NearbyPlayer.Get() == Player)
 	{
+		if (!bCollapsingForPickup)
+		{
+			if (AYogHUD* HUD = GetYogHUDForPlayer(Player))
+			{
+				HUD->HideWeaponFloatInfo(WeaponDefinition);
+			}
+		}
 		NearbyPlayer = nullptr;
 		bPlayerInRange = false;
 		if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
@@ -266,6 +270,8 @@ void AWeaponSpawner::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 
 void AWeaponSpawner::ResetToAvailable()
 {
+	APlayerCharacterBase* PreviousNearbyPlayer = NearbyPlayer.Get();
+
 	bPickedUp            = false;
 	bCollapsingForPickup = false;
 	bPlayerInRange       = false;
@@ -273,6 +279,11 @@ void AWeaponSpawner::ResetToAvailable()
 
 	if (WeaponInfoWidgetComp)
 		WeaponInfoWidgetComp->SetVisibility(false);
+
+	if (AYogHUD* HUD = GetYogHUDForPlayer(PreviousNearbyPlayer))
+	{
+		HUD->HideWeaponFloatInfo(WeaponDefinition);
+	}
 
 	// 还原浮窗内部状态：折叠动画把 InfoContainer 透明度降到 0、Visibility=Collapsed，
 	// 必须重新调 SetWeaponDefinition 把 RenderOpacity/Visibility/RenderTransform 全部还原
@@ -462,71 +473,33 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾取 [%s]"), *WeaponDefinition->GetName());
 
-	// 浮窗折叠动画 → 完成后以缩略图屏幕坐标触发飞行
-	if (APlayerController* PC = Player->GetController<APlayerController>())
+	// HUD 信息区内折叠浮窗 → 缩略图飞向左下角武器图标
+	if (AYogHUD* HUD = GetYogHUDForPlayer(Player))
 	{
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-		{
-			UWeaponFloatWidget* FloatWidget = Cast<UWeaponFloatWidget>(WeaponInfoWidgetComp->GetWidget());
-			if (FloatWidget)
+		bCollapsingForPickup = true;
+		const bool bStartedHudCollapse = HUD->StartWeaponFloatPickup(
+			WeaponDefinition,
+			GetActorLocation() + FVector(0.f, 0.f, 80.f),
+			PickupCollapseDuration,
+			FSimpleDelegate::CreateWeakLambda(this, [this]()
 			{
-				bCollapsingForPickup = true;
-
-				TWeakObjectPtr<AWeaponSpawner>     WeakThis(this);
-				TWeakObjectPtr<APlayerController>  WeakPC(PC);
-				TWeakObjectPtr<AYogHUD>            WeakHUD(HUD);
-				UWeaponDefinition*                 CapturedDef = WeaponDefinition;
-
-				FloatWidget->OnCollapseComplete.BindLambda(
-					[WeakThis, WeakPC, WeakHUD, CapturedDef](FVector2D /*ThumbnailPos*/)
+				bCollapsingForPickup = false;
+				if (WeaponInfoWidgetComp)
 				{
-					if (WeakThis.IsValid())
-					{
-						WeakThis->bCollapsingForPickup = false;
-						if (WeakThis->WeaponInfoWidgetComp)
-							WeakThis->WeaponInfoWidgetComp->SetVisibility(false);
-					}
-					if (WeakHUD.IsValid() && CapturedDef && WeakPC.IsValid() && WeakThis.IsValid())
-					{
-						// ProjectWorldLocationToScreen 返回像素坐标，除以 DPI 转为 Slate/UMG 单位
-						FVector2D ScreenPos(0.f, 0.f);
-						WeakPC->ProjectWorldLocationToScreen(
-							WeakThis->GetActorLocation() + FVector(0.f, 0.f, 80.f),
-							ScreenPos, false);
-						const float DPI = UWidgetLayoutLibrary::GetViewportScale(WeakThis.Get());
-						if (DPI > 0.f) ScreenPos /= DPI;
+					WeaponInfoWidgetComp->SetVisibility(false);
+				}
+			}));
 
-						UE_LOG(LogTemp, Warning,
-							TEXT("[WeaponPickup] 折叠完成 → TriggerWeaponPickup Pos=(%.0f,%.0f)"),
-							ScreenPos.X, ScreenPos.Y);
-						WeakHUD->TriggerWeaponPickup(CapturedDef, ScreenPos);
-					}
-				});
-
-				FloatWidget->StartCollapse(PickupCollapseDuration);
-			}
-			else
-			{
-				// 浮窗未就绪，直接用 Spawner 世界坐标投影兜底
-				FVector2D FallbackPos(0.f, 0.f);
-				PC->ProjectWorldLocationToScreen(
-					GetActorLocation() + FVector(0.f, 0.f, 80.f), FallbackPos, false);
-				const float DPI = UWidgetLayoutLibrary::GetViewportScale(this);
-				if (DPI > 0.f) FallbackPos /= DPI;
-				UE_LOG(LogTemp, Warning,
-					TEXT("[WeaponPickup] FloatWidget=NULL，使用兜底坐标 (%.0f,%.0f)"),
-					FallbackPos.X, FallbackPos.Y);
-				HUD->TriggerWeaponPickup(WeaponDefinition, FallbackPos);
-			}
-		}
-		else
+		if (!bStartedHudCollapse)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] HUD=NULL — 动画不会触发"));
+			bCollapsingForPickup = false;
+			UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] HUD weapon float collapse fallback used."));
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] PC=NULL — 动画不会触发"));
+		bCollapsingForPickup = false;
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] HUD=NULL — 动画不会触发"));
 	}
 }
 

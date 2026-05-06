@@ -1,5 +1,6 @@
 #include "UI/InfoPopupWidget.h"
 #include "Data/LevelInfoPopupDA.h"
+#include "RuneHudTextUtils.h"
 #include "CommonRichTextBlock.h"
 #include "Components/Image.h"
 #include "Components/BackgroundBlur.h"
@@ -20,7 +21,7 @@ void UInfoPopupWidget::Show(const ULevelInfoPopupDA* DA)
 {
 	if (!DA) return;
 
-	if (BodyText) BodyText->SetText(DA->Body);
+	if (BodyText) BodyText->SetText(RuneHudTextUtils::GetLevelInfoHudSummary(*DA, 58));
 
 	if (TitleText)
 	{

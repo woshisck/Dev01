@@ -29,6 +29,7 @@
 | `DefaultLinkOrientation` | 默认 `Forward` | 反向连携测试时可改为 `Reversed` |
 | `bRequiresComboFinisher` | 默认不勾 | 高级字段；终结技卡后续再系统整理 |
 | `DisplayName` | 卡牌名 | HUD 和信息卡显示 |
+| `HUDSummaryText` | 1-2 行摘要 | 武器浮窗等紧凑 UI 优先显示；建议手写短句 |
 | `HUDReasonText` | 简短说明 | 连携提示 fallback 文案 |
 
 旧字段 `CardTags / MatchedFlow / LinkMode / LinkConfig` 已从 DA 编辑界面隐藏，只保留给历史资源兼容。

@@ -38,7 +38,9 @@ RootCanvas
 | `BuffListBox` | VerticalBox | C++ 动态填充符文行 |
 | `EmptyText` | TextBlock | 无 Buff 时提示 |
 
-这些控件都是 `BindWidgetOptional`。如果后续重做样式，只要保留 `BuffListBox`，C++ 就会继续填充符文图标、名称、描述和通用效果文本。
+这些控件都是 `BindWidgetOptional`。如果后续重做样式，只要保留 `BuffListBox`，C++ 就会继续填充符文图标、名称、摘要和通用效果文本。
+
+符文摘要优先读取 `RuneInfo -> RuneConfig -> HUDSummaryText`。该字段用于当前关卡面板和传送门关卡预览，建议手写 1-2 行；为空时会从 `RuneDescription` 自动截取短摘要，完整描述仍保留给背包详情、符文信息卡等大面板使用。
 
 ## 挂载方式
 

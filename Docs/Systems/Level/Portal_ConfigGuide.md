@@ -74,6 +74,18 @@ FloorTable[0]（第 1 关）
 
 ---
 
+## 传送门预览文案
+
+传送门的下一关预览会显示预骰到的敌人符文。每个符文的短描述优先读取：
+
+```text
+RuneInfo -> RuneConfig -> HUDSummaryText
+```
+
+该字段建议填写 1-2 行摘要。完整机制说明仍写在 `RuneDescription`，供背包详情、符文信息卡等大面板使用。`HUDSummaryText` 留空时，UI 会从 `RuneDescription` 自动截取短摘要。
+
+---
+
 ## 永不开启门（NeverOpen）的蓝图配置
 
 场景中放置的传送门，如果没有在 `PortalDestinations` 中登记，关卡开始时系统会自动调用 `NeverOpen()` 事件。

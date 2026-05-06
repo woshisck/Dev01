@@ -10,6 +10,7 @@ DECLARE_DELEGATE_OneParam(FOnWeaponFloatCollapseComplete, FVector2D /*ThumbnailS
 class UImage;
 class UTextBlock;
 class UCanvasPanel;
+class UScrollBox;
 class UVerticalBox;
 class UWidget;
 class UCommonRichTextBlock;
@@ -28,7 +29,7 @@ struct FRuneShape;
  *   WeaponSubDescText YogCommonRichTextBlock 武器子描述（同上）
  *   ZoneGrid1/2/3     CanvasPanel            激活区点阵（建议 60×60）
  *   Zone1Image/2/3    Image                  激活区图像覆盖（提供时替代点阵）
- *   RuneListBox       VerticalBox            初始符文列表（C++ 动态填充）
+ *   RuneListBox       VerticalBox            初始卡牌列表（C++ 动态填充，优先读取 WeaponDefinition.InitialCombatDeck）
  *   PickupHintText    YogCommonRichTextBlock 按键拾取提示（如 `按 <input action="Interact"/> 拾取武器`）
  */
 UCLASS(Blueprintable, BlueprintType)
@@ -47,11 +48,17 @@ public:
 	/** 折叠动画：InfoContainer 淡出，完成后广播缩略图屏幕中心坐标 */
 	void StartCollapse(float InDuration = 0.25f);
 
+	bool ScrollCardList(float Direction);
+
 	/** 折叠完成时触发（传入 WeaponThumbnail 的屏幕绝对中心坐标） */
 	FOnWeaponFloatCollapseComplete OnCollapseComplete;
 
 protected:
+	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	virtual FReply NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UImage> WeaponThumbnail;
 
@@ -91,16 +98,27 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UVerticalBox> RuneListBox;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UScrollBox> CardScrollBox;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponFloat|Cards", meta = (ClampMin = "8"))
+	float CardScrollStep = 72.f;
+
 	/** 拾取按键提示文字（支持 <input action="Interact"/> 显示按键图标） */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UCommonRichTextBlock> PickupHintText;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UCommonRichTextBlock> ScrollHintText;
 
 private:
 	void BuildZonePanel(UCanvasPanel* GridPanel, UImage* ImgWidget,
 	                    UTexture2D* ZoneTexture, const FRuneShape* Shape,
 	                    int32 GW, int32 GH);
 
-	void BuildRuneList(const TArray<TObjectPtr<URuneDataAsset>>& Runes);
+	void BuildCombatCardList(const TArray<TObjectPtr<URuneDataAsset>>& Cards);
+	void EnsureRuntimeCardScrollBox();
+	void RefreshOperationHints();
 
 	UPROPERTY()
 	TObjectPtr<UTexture2D> CachedThumbnail;

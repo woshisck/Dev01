@@ -21,6 +21,7 @@
 - `PlayerHealthBar` 放在底部左侧玩家信息区。
 - `CombatDeckBar` 放在底部中央战斗信息区。
 - `CurrentRoomBuffPanel` 放在左侧关卡信息区，数据来自 `YogGameMode.ActiveRoomBuffs`。
+- 关卡 Buff 摘要优先读取 `RuneInfo -> RuneConfig -> HUDSummaryText`；为空时从完整 `RuneDescription` 自动压缩，避免左侧关卡信息区文本过长。
 - `PlayerCommonInfoHud` 放在底部右侧玩家信息区的上沿，当前显示金币，后续用于关键道具、非战斗资源等通用数量信息。
 - `UCombatItemBarWidget` 运行时放在底部右侧玩家信息区的下沿，与 `PlayerCommonInfoHud` 分层管理，避免资源信息和战斗道具混在一起。
 - `BossInfoRegion` 默认隐藏，后续 Boss 血条或阶段信息放入该区域。

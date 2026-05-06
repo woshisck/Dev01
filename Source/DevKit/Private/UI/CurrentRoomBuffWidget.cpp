@@ -14,6 +14,7 @@
 #include "Data/GenericRuneEffectDA.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/RuneDataAsset.h"
+#include "RuneHudTextUtils.h"
 
 namespace
 {
@@ -22,6 +23,7 @@ constexpr int32 RoomNameFontSize = 12;
 constexpr int32 BuffNameFontSize = 13;
 constexpr int32 BuffDescFontSize = 11;
 constexpr int32 BuffEffectFontSize = 11;
+constexpr int32 BuffSummaryMaxChars = 34;
 
 const FLinearColor PanelColor(0.015f, 0.017f, 0.020f, 0.78f);
 const FLinearColor TitleColor(0.96f, 0.93f, 0.82f, 1.0f);
@@ -268,10 +270,11 @@ void UCurrentRoomBuffWidget::RebuildBuffList(const TArray<FBuffEntry>& Buffs)
 		SetTextSize(NameText, BuffNameFontSize);
 		TextBox->AddChildToVerticalBox(NameText);
 
-		if (!Config.RuneDescription.IsEmptyOrWhitespace())
+		const FText SummaryText = RuneHudTextUtils::GetRuneHudSummary(Config, BuffSummaryMaxChars);
+		if (!SummaryText.IsEmptyOrWhitespace())
 		{
 			UTextBlock* DescText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-			DescText->SetText(Config.RuneDescription);
+			DescText->SetText(SummaryText);
 			DescText->SetColorAndOpacity(FSlateColor(BuffDescColor));
 			DescText->SetAutoWrapText(true);
 			SetTextSize(DescText, BuffDescFontSize);

@@ -1,26 +1,26 @@
 # 武器拾取 HUD 动画系统 — 技术文档
 
-> 更新：2026-04-20
+> 更新：2026-05-06
 
 ## 概述
 
-武器拾取后，世界空间浮窗消失，HUD 层接管动画：
-**武器卡片** 折叠 → 缩小 → 飞向左下角 **液态玻璃图标**，飞行过程中带**流光拖尾**。
+玩家靠近武器时，武器信息浮窗由 HUD 层创建并加入视口；`WeaponSpawner`
+每帧提供武器世界位置，`AYogHUD` 将其投影到屏幕并夹在可视范围内，让浮窗保持在武器旁边且不会越过屏幕边界。武器浮窗显示期间会隐藏关卡/Portal 预览浮窗，避免两个浮窗重叠。
+
+拾取武器后，HUD 信息区内的 **武器卡片** 折叠，然后缩略图飞向左下角 **液态玻璃图标**，飞行过程中带**流光拖尾**。
 
 ```
 WeaponSpawner::TryPickupWeapon()
-  └─ YogHUD::TriggerWeaponPickup(Def)      ← 显示浮窗，设折叠计时器
-       └─ [AutoCollapseDelay 秒后]
-            YogHUD::TriggerWeaponCollapse() ← 创建 Trail，启动动画
-              ├─ WeaponFloatWidget::StartCollapseAndFly()
-              │    Phase 1 Collapsing  → InfoContainer Collapsed
-              │    Phase 2 Shrinking   → Scale 1 → TargetShrinkScale
-              │    Phase 3 Flying      → Translation → 左下角
-              │         └─ OnFlyProgress.Broadcast() ← 每帧
-              │                └─ WeaponTrailWidget::SetTrailEndpoints()
-              └─ OnFlyComplete.Broadcast()
-                   ├─ WeaponTrailWidget::StartFadeOut()
-                   └─ WeaponGlassIconWidget::ShowForWeapon()
+  └─ YogHUD::StartWeaponFloatPickup(Def)
+       ├─ WeaponFloatWidget::StartCollapse()
+       └─ OnCollapseComplete
+            └─ YogHUD::TriggerWeaponPickup(Def, ThumbnailScreenCenter)
+                 ├─ WeaponThumbnailFlyWidget::StartFly()
+                 │    └─ OnFlyProgress.Broadcast() ← 每帧
+                 │         └─ WeaponTrailWidget::SetTrailEndpoints()
+                 └─ OnFlyComplete.Broadcast()
+                      ├─ WeaponTrailWidget::StartFadeOut()
+                      └─ WeaponGlassIconWidget::Show()
 ```
 
 ---
@@ -60,7 +60,8 @@ WBP 命名要求（BindWidgetOptional）：
 | `WeaponSubDescText` | TextBlock | 子描述 |
 | `ZoneGrid1/2/3` | CanvasPanel | 激活区点阵（60×60 px）|
 | `Zone1/2/3Image` | Image | 激活区覆盖图（优先于点阵）|
-| `RuneListBox` | VerticalBox | 初始符文列表 |
+| `RuneListBox` | VerticalBox | 初始卡牌列表，优先显示 `WeaponDefinition.InitialCombatDeck` |
+| `CardScrollBox` | ScrollBox | 可选；若 WBP 未提供，C++ 会运行时把 `RuneListBox` 包进 ScrollBox |
 
 主要接口：
 
@@ -68,19 +69,26 @@ WBP 命名要求（BindWidgetOptional）：
 // 设置武器数据（显示阶段调用）
 void SetWeaponDefinition(const UWeaponDefinition* Def);
 
-// 开始折叠→缩小→飞行
-void StartCollapseAndFly(FVector2D TargetScreenCenter, const UWeaponGlassAnimDA* InAnimDA);
+// 开始折叠；完成后由 HUD 根据缩略图位置触发飞行动画
+void StartCollapse(float InDuration = 0.25f);
 
-// 飞行完成广播（参数：缩略图贴图）
-FOnWeaponFlyComplete OnFlyComplete;
-
-// 飞行中每帧广播 (FlyAbsStart, CurrentAbsPos, Alpha 0-1)
-FOnWeaponFlyProgress OnFlyProgress;
+// 折叠完成广播（参数：缩略图屏幕中心）
+FOnWeaponFloatCollapseComplete OnCollapseComplete;
 ```
 
 **WBP 布局关键规则**：
 - Root Canvas Panel：Fill Screen，**无不透明背景**（透明叠层）
 - 卡片背景 Image 必须放在 `InfoContainer` 内部，否则折叠后留白
+- 运行时 HUD 会用 360×560 的 `SizeBox` 包住本 Widget，并启用 ClipToBoundsAlways；文本必须开启自动换行。
+
+**卡牌数据来源**：
+- 优先读取 `WeaponDefinition.InitialCombatDeck`。
+- `InitialCombatDeck` 为空时，从旧字段 `InitialRunes` 兼容回退。
+- 只显示 `RuneInfo.CombatCard.bIsCombatCard = true` 的条目。
+- 卡牌名优先用 `CombatCard.DisplayName`。
+- 卡牌摘要优先用 `CombatCard.HUDSummaryText`；为空时从 `HUDReasonText` / 符文描述自动裁成短摘要。
+- 卡牌列表只显示图标、名称和 1-2 行摘要，不显示 CardId、效果 Tag、连携配方等调试信息。
+- 鼠标滚轮可滚动卡牌列表；手柄十字键/左摇杆上下由 `YogPlayerControllerBase` 转发到 `YogHUD::ScrollWeaponFloatCards`。
 
 ### WeaponTrailWidget
 
@@ -153,8 +161,9 @@ void StartExpandAndHide();
 
 | 属性 | 值 |
 |------|----|
-| `WeaponFloatClass` | WBP_WeaponFloat |
-| `WeaponGlassIconClass` | WBP_WeaponGlassIcon |
+| `MainHUDClass` | WBP_HUDRoot |
+| `WeaponFloatWidgetClass` | WBP_WeaponFloat（可空，C++ 会按默认路径兜底加载） |
+| `ThumbnailFlyClass` | WBP_WeaponThumbnailFly |
 | `TrailWidgetClass` | WBP_WeaponTrail |
 | `WeaponGlassAnimDA` | DA_WeaponGlassAnim |
 
@@ -184,8 +193,9 @@ void StartExpandAndHide();
 
 ## ⚠️ Claude 编写注意事项
 
-- **WeaponFloatWidget 是 World Space Widget**：浮动拾取动画用 `UWidgetComponent`（WorldSpace），不用 Screen Space，位置跟随 WeaponSpawner Actor 的 3D 位置
-- **动画走 WidgetAnimation 不走 Tick**：拾取动画（浮动、光晕脉冲）用 UMG 内置的 WidgetAnimation，C++ 里调 `PlayAnimation`，不在 `NativeTick` 里手动插值
-- **拾取触发时序**：玩家拾取后，先调 `WeaponPickupWidget::PlayPickupAnimation()`（播放消失动画），动画结束回调里才 `RemoveFromParent()`，不要立即 RemoveFromParent
+- **WeaponFloatWidget 不再作为世界 WidgetComponent 主显示**：主显示由 `AYogHUD` 创建并加入视口，位置来自武器世界点的屏幕投影。
+- **武器浮窗位置由 HUD 统一夹取**：`WeaponSpawner` 只判断玩家是否看向武器，然后调用 `ShowWeaponFloatInfoAtLocation` / `HideWeaponFloatInfo`；不要在 `WeaponSpawner` 里直接改 UI 坐标。
+- **浮窗冲突处理**：武器浮窗显示或淡出期间，`TickPortalPreview` 会隐藏 Portal/关卡预览浮窗，避免右侧信息重叠。
+- **拾取触发时序**：玩家拾取后调用 `YogHUD::StartWeaponFloatPickup()`，折叠完成后再触发缩略图飞行。
 - **WeaponTrailWidget 用 CustomPaint**：拖尾效果继承 `UWidget` 并重写 `OnPaint`，用 `FPaintGeometry` + `FSlateDrawElement::MakeLines` 绘制，不用 Canvas Panel 拼接多个 Image
 - **颜色从 DA 读**：拾取光效颜色从 `UWeaponDefinition` 里的 `PickupGlowColor`（`FLinearColor`）字段读，不硬编码

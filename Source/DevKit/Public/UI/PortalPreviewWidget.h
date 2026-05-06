@@ -18,6 +18,7 @@ class UYogCommonRichTextBlock;
  * 玩家进入 Box 时追加交互提示。
  *
  * WBP 控件（全部 BindWidgetOptional）：
+ *   BG                Border         外层背景与描边（C++ 设置半透明底色 + 细边框）
  *   RoomNameText      TextBlock      房间显示名（DisplayName 或 RoomName 兜底）
  *   RoomTypeBadge     Border         类型徽章背景色（C++ 按 Tag 写入）
  *   RoomTypeText      TextBlock      类型文字（"普通/精英/商店/事件"）
@@ -57,6 +58,9 @@ public:
 protected:
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UBorder> BG;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UTextBlock> RoomNameText;

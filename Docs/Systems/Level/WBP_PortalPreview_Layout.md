@@ -22,7 +22,7 @@
 ```
 CanvasPanel（根，Full Screen）
 └── SizeBox（Root，左上锚 0/0，Auto尺寸）
-    └── Border（BG，#1A1A2E α=0.92，Pad=14/12/14/12，圆角不需要）
+    └── Border（BG [BindWidgetOptional]，运行时由 C++ 设置暗底 + 浅色描边，Pad=16/14）
         └── VerticalBox（VStack，HFill）
             ├── HorizontalBox（HeaderBox，HFill，PadB=8）
             │   ├── Border（RoomTypeBadge [BindWidgetOptional]，纯色背景，Pad=8/2/8/2，自动大小）
@@ -69,9 +69,11 @@ CanvasPanel（根，Full Screen）
 
 | 属性 | 值 |
 |---|---|
-| Brush → Tint | #1A1A2E A=0.92（线性 (0.10,0.10,0.18,0.92)） |
-| Brush → Draw As | Box |
-| Padding | 14/12/14/12 |
+| Brush | 运行时由 C++ 覆盖为 `RoundedBox` |
+| Fill Color | 运行时 #06080A α≈0.84 |
+| Outline Color / Width | 运行时暖灰描边 α≈0.86 / 2px |
+| Corner Radius | 运行时 3px |
+| Padding | 16/14/16/14 |
 | HAlign / VAlign | Fill / Fill |
 
 ### VerticalBox（VStack）
@@ -148,7 +150,8 @@ CanvasPanel（根，Full Screen）
 | Size Rule | Auto |
 | HAlign | Fill |
 
-> 内容由 C++ `SetPreviewInfo` 动态构造。每行 = `HorizontalBox[ Image 28×28(VAlign Top) | VerticalBox{ Name(13) / Description(11, AutoWrap) / GenericEffects×N(11, AutoWrap, "• 名：描"格式) } ]`，行间距 6px，子行间距 2px。
+> 内容由 C++ `SetPreviewInfo` 动态构造。每行 = `HorizontalBox[ Image 28×28(VAlign Top) | VerticalBox{ Name(13) / Summary(11, AutoWrap) / GenericEffects×N(11, AutoWrap, "• 名：描"格式) } ]`，行间距 6px，子行间距 2px。
+> Summary 优先读取 `RuneInfo -> RuneConfig -> HUDSummaryText`；为空时从 `RuneDescription` 自动压缩为 1-2 行，避免关卡信息浮窗撑高或与其他 HUD 重叠。
 > 颜色 / 字号 / 间距均在 [PortalPreviewWidget.cpp](../../../Source/DevKit/Private/UI/PortalPreviewWidget.cpp) 顶部 namespace 常量集中维护，需调整改 .cpp 即可。
 > 浮窗高度随符文条数和描述长度自然撑开（外层 SizeBox 不限制 MaxDesiredHeight）。BuffPool 为空时该容器无子控件，自动塌陷高度。
 
@@ -212,6 +215,7 @@ CanvasPanel（根，Full Screen）
 
 | C++ 变量名 | 控件类型 | WBP 控件名 | 缺失行为 |
 |---|---|---|---|
+| `BG` | Border | `BG` | 不应用运行时暗底描边，仍使用 WBP 自身样式 |
 | `RoomNameText` | TextBlock | `RoomNameText` | 不显示房间名 |
 | `RoomTypeBadge` | Border | `RoomTypeBadge` | 类型背景色不变 |
 | `RoomTypeText` | TextBlock | `RoomTypeText` | 不显示类型文字 |

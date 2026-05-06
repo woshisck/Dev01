@@ -146,7 +146,7 @@ private:
 	// 朝向检测：玩家在范围内时每帧判断是否应显示浮窗
 	bool bPlayerInRange       = false;
 	bool bPickedUp            = false;  // 拾取后浮窗永久隐藏
-	bool bCollapsingForPickup = false;  // 折叠动画进行中，保持 WidgetComp 可见
+	bool bCollapsingForPickup = false;  // 拾取折叠流程状态标记，HUD 负责实际浮窗动画
 	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
 
 	// BeginPlay 时缓存的网格原始材质，用于还原

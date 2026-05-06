@@ -13,6 +13,7 @@
 #include "UI/GameDialogWidget.h"
 #include "UI/TutorialRegistryDA.h"
 #include "UI/WeaponThumbnailFlyWidget.h"
+#include "UI/WeaponFloatWidget.h"
 #include "UI/WeaponGlassAnimDA.h"
 #include "UI/WeaponTrailWidget.h"
 #include "Character/YogCharacterBase.h"
@@ -412,6 +413,225 @@ void AYogHUD::ShowInfoPopup(const ULevelInfoPopupDA* DA)
 		W->Show(DA);
 }
 
+bool AYogHUD::EnsureWeaponFloatWidget()
+{
+	if (WeaponFloatWidget)
+	{
+		return true;
+	}
+
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC)
+	{
+		return false;
+	}
+
+	TSubclassOf<UWeaponFloatWidget> WidgetClass = WeaponFloatWidgetClass;
+	if (!WidgetClass)
+	{
+		WidgetClass = LoadClass<UWeaponFloatWidget>(
+			nullptr,
+			TEXT("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponFloat.WBP_WeaponFloat_C"));
+	}
+
+	if (!WidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponFloat] WBP_WeaponFloat missing."));
+		return false;
+	}
+
+	WeaponFloatWidget = CreateWidget<UWeaponFloatWidget>(PC, WidgetClass);
+	if (!WeaponFloatWidget)
+	{
+		return false;
+	}
+
+	WeaponFloatWidget->AddToViewport(13);
+	WeaponFloatWidget->SetDesiredSizeInViewport(WeaponFloatViewportSize);
+	WeaponFloatWidget->SetAlignmentInViewport(FVector2D(0.5f, 0.5f));
+	WeaponFloatWidget->SetClipping(EWidgetClipping::ClipToBoundsAlways);
+	WeaponFloatWidget->SetRenderOpacity(0.f);
+	WeaponFloatWidget->SetVisibility(ESlateVisibility::Collapsed);
+	return true;
+}
+
+void AYogHUD::ShowWeaponFloatInfo(const UWeaponDefinition* Def)
+{
+	FVector WorldLocation = FVector::ZeroVector;
+	if (APlayerController* PC = GetOwningPlayerController())
+	{
+		if (APawn* Pawn = PC->GetPawn())
+		{
+			WorldLocation = Pawn->GetActorLocation() + FVector(0.f, 0.f, 80.f);
+		}
+	}
+	ShowWeaponFloatInfoAtLocation(Def, WorldLocation);
+}
+
+void AYogHUD::ShowWeaponFloatInfoAtLocation(const UWeaponDefinition* Def, FVector WorldLocation)
+{
+	if (!Def || MajorUICount > 0 || !EnsureWeaponFloatWidget())
+	{
+		return;
+	}
+
+	const bool bNeedsRefresh = ActiveWeaponFloatDefinition != Def
+		|| WeaponFloatWidget->GetVisibility() == ESlateVisibility::Collapsed;
+	if (bNeedsRefresh)
+	{
+		WeaponFloatWidget->SetWeaponDefinition(Def);
+	}
+
+	ActiveWeaponFloatDefinition = Def;
+	WeaponFloatWidget->SetDesiredSizeInViewport(WeaponFloatViewportSize);
+	WeaponFloatWidget->SetAlignmentInViewport(FVector2D(0.5f, 0.5f));
+	WeaponFloatWidget->SetPositionInViewport(ResolveWeaponFloatViewportPosition(WorldLocation), false);
+	WeaponFloatWidget->SetVisibility(ESlateVisibility::Visible);
+	WeaponFloatFadeTarget = 1.f;
+
+	if (WeaponFloatFadeAlpha <= 0.001f)
+	{
+		WeaponFloatWidget->SetRenderOpacity(0.f);
+	}
+	if (PortalPreviewWidget)
+	{
+		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+		CurrentPreviewTarget = nullptr;
+	}
+	WeaponFloatWidget->SetUserFocus(GetOwningPlayerController());
+}
+
+void AYogHUD::HideWeaponFloatInfo(const UWeaponDefinition* Def)
+{
+	if (Def && ActiveWeaponFloatDefinition && ActiveWeaponFloatDefinition != Def)
+	{
+		return;
+	}
+
+	ActiveWeaponFloatDefinition = nullptr;
+	WeaponFloatFadeTarget = 0.f;
+	if (WeaponFloatWidget)
+	{
+		WeaponFloatWidget->OnCollapseComplete.Unbind();
+	}
+}
+
+bool AYogHUD::ScrollWeaponFloatCards(float Direction)
+{
+	return IsWeaponFloatInfoVisible() && WeaponFloatWidget && WeaponFloatWidget->ScrollCardList(Direction);
+}
+
+bool AYogHUD::IsWeaponFloatInfoVisible() const
+{
+	return WeaponFloatWidget
+		&& (WeaponFloatWidget->GetVisibility() != ESlateVisibility::Collapsed
+			|| WeaponFloatFadeTarget > 0.f
+			|| WeaponFloatFadeAlpha > 0.001f);
+}
+
+FVector2D AYogHUD::ProjectWorldToViewportSlate(FVector WorldLocation) const
+{
+	FVector2D ScreenPos(0.f, 0.f);
+	if (APlayerController* PC = GetOwningPlayerController())
+	{
+		PC->ProjectWorldLocationToScreen(WorldLocation, ScreenPos, false);
+	}
+
+	const float DPI = UWidgetLayoutLibrary::GetViewportScale(GetWorld());
+	if (DPI > 0.f)
+	{
+		ScreenPos /= DPI;
+	}
+
+	return ScreenPos;
+}
+
+FVector2D AYogHUD::ResolveWeaponFloatViewportPosition(FVector WorldLocation) const
+{
+	FVector2D ViewportSize(1920.f, 1080.f);
+	if (UGameViewportClient* GVC = GetWorld() ? GetWorld()->GetGameViewport() : nullptr)
+	{
+		GVC->GetViewportSize(ViewportSize);
+	}
+
+	const float DPI = UWidgetLayoutLibrary::GetViewportScale(GetWorld());
+	if (DPI > 0.f)
+	{
+		ViewportSize /= DPI;
+	}
+
+	FVector2D Projected = ProjectWorldToViewportSlate(WorldLocation);
+	if (Projected.IsNearlyZero())
+	{
+		Projected = ViewportSize * 0.5f;
+	}
+
+	const FVector2D PanelSize(
+		FMath::Max(WeaponFloatViewportSize.X, 1.f),
+		FMath::Max(WeaponFloatViewportSize.Y, 1.f));
+	const float Side = (Projected.X > ViewportSize.X * 0.5f) ? -1.f : 1.f;
+	FVector2D Position = Projected + FVector2D(
+		Side * (PanelSize.X * 0.5f + WeaponFloatScreenOffset.X),
+		WeaponFloatScreenOffset.Y);
+
+	const float Pad = FMath::Max(WeaponFloatViewportPadding, 0.f);
+	const FVector2D MinPos(Pad + PanelSize.X * 0.5f, Pad + PanelSize.Y * 0.5f);
+	const FVector2D MaxPos(
+		FMath::Max(MinPos.X, ViewportSize.X - Pad - PanelSize.X * 0.5f),
+		FMath::Max(MinPos.Y, ViewportSize.Y - Pad - PanelSize.Y * 0.5f));
+
+	Position.X = FMath::Clamp(Position.X, MinPos.X, MaxPos.X);
+	Position.Y = FMath::Clamp(Position.Y, MinPos.Y, MaxPos.Y);
+	return Position;
+}
+
+bool AYogHUD::StartWeaponFloatPickup(
+	const UWeaponDefinition* Def,
+	FVector WorldFallbackLocation,
+	float CollapseDuration,
+	FSimpleDelegate OnCollapseComplete)
+{
+	if (!Def)
+	{
+		return false;
+	}
+
+	if (!EnsureWeaponFloatWidget() || !WeaponFloatWidget)
+	{
+		TriggerWeaponPickup(Def, ProjectWorldToViewportSlate(WorldFallbackLocation));
+		return false;
+	}
+
+	ShowWeaponFloatInfoAtLocation(Def, WorldFallbackLocation);
+
+	TWeakObjectPtr<AYogHUD> WeakThis(this);
+	const UWeaponDefinition* CapturedDef = Def;
+	const FVector CapturedFallbackLocation = WorldFallbackLocation;
+	WeaponFloatWidget->OnCollapseComplete.BindLambda(
+		[WeakThis, CapturedDef, CapturedFallbackLocation, OnCollapseComplete](FVector2D ThumbnailScreenCenter) mutable
+		{
+			if (!WeakThis.IsValid())
+			{
+				return;
+			}
+
+			if (ThumbnailScreenCenter.IsNearlyZero())
+			{
+				ThumbnailScreenCenter = WeakThis->ProjectWorldToViewportSlate(CapturedFallbackLocation);
+			}
+
+			WeakThis->HideWeaponFloatInfo(CapturedDef);
+			WeakThis->TriggerWeaponPickup(CapturedDef, ThumbnailScreenCenter);
+			if (OnCollapseComplete.IsBound())
+			{
+				OnCollapseComplete.Execute();
+			}
+		});
+
+	WeaponFloatWidget->StartCollapse(CollapseDuration);
+	return true;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  武器拾取：缩略图飞行
 // ─────────────────────────────────────────────────────────────────────────────
@@ -597,6 +817,7 @@ void AYogHUD::Tick(float DeltaSeconds)
 	TickPortalPreview(DeltaSeconds);
 	TickBlackoutFade(DeltaSeconds);
 	TickMajorUIFade(DeltaSeconds);
+	TickWeaponFloatFade(DeltaSeconds);
 
 	// 关卡结束特效完全接管 PausePPVolume，与暂停菜单系统互不干扰
 	if (bLevelEndEffectActive)
@@ -1005,6 +1226,12 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 {
 	if (MajorUICount > 0) return;
 	if (!bShowPortalGuidance || !PortalPreviewWidget) return;
+	if (IsWeaponFloatInfoVisible())
+	{
+		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+		CurrentPreviewTarget = nullptr;
+		return;
+	}
 
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC || !PC->GetPawn())
@@ -1225,6 +1452,45 @@ void AYogHUD::TickMajorUIFade(float DeltaSeconds)
 			PortalDirectionWidget->SetVisibility(ESlateVisibility::Collapsed);
 		if (UInfoPopupWidget* InfoPopup = GetInfoPopupWidget())
 			InfoPopup->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void AYogHUD::TickWeaponFloatFade(float DeltaSeconds)
+{
+	if (!WeaponFloatWidget)
+	{
+		return;
+	}
+
+	if (WeaponFloatFadeTarget > 0.f && WeaponFloatWidget->GetVisibility() == ESlateVisibility::Collapsed)
+	{
+		WeaponFloatWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+
+	if (!FMath::IsNearlyEqual(WeaponFloatFadeAlpha, WeaponFloatFadeTarget, 0.001f))
+	{
+		const float FadeSpeed = 1.f / FMath::Max(WeaponFloatFadeDuration, 0.01f);
+		if (WeaponFloatFadeTarget > WeaponFloatFadeAlpha)
+		{
+			WeaponFloatFadeAlpha = FMath::Min(WeaponFloatFadeAlpha + DeltaSeconds * FadeSpeed, 1.f);
+		}
+		else
+		{
+			WeaponFloatFadeAlpha = FMath::Max(WeaponFloatFadeAlpha - DeltaSeconds * FadeSpeed, 0.f);
+		}
+	}
+	else
+	{
+		WeaponFloatFadeAlpha = WeaponFloatFadeTarget;
+	}
+
+	WeaponFloatWidget->SetRenderOpacity(WeaponFloatFadeAlpha * MajorUIFadeAlpha);
+
+	if (WeaponFloatFadeTarget <= 0.f && WeaponFloatFadeAlpha <= 0.001f)
+	{
+		WeaponFloatFadeAlpha = 0.f;
+		WeaponFloatWidget->SetVisibility(ESlateVisibility::Collapsed);
+		WeaponFloatWidget->SetRenderOpacity(0.f);
 	}
 }
 

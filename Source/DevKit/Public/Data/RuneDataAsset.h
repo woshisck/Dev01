@@ -365,6 +365,10 @@ struct DEVKIT_API FCombatCardConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Display")
     FText DisplayName;
 
+    /** Short player-facing summary for compact HUD surfaces such as the weapon pickup popup. Keep it to 1-2 lines. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Display", meta = (MultiLine = true))
+    FText HUDSummaryText;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Display")
     FText HUDReasonText;
 };
@@ -416,6 +420,10 @@ struct DEVKIT_API FRuneConfig
     /** 符文描述文本 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FText RuneDescription;
+
+    /** Short player-facing summary for compact HUD surfaces such as room/portal buff panels. Keep it to 1-2 lines. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (MultiLine = true))
+    FText HUDSummaryText;
 
     // ── 分类元数据 ────────────────────────────────────────────
 

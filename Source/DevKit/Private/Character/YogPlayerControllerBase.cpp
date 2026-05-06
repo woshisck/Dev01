@@ -241,6 +241,58 @@ bool AYogPlayerControllerBase::InputKey(const FInputKeyParams& Params)
 		return true;
 	}
 
+	if (!bBlockGameInput)
+	{
+		float WeaponFloatScrollDirection = 0.f;
+		if (Params.Key == EKeys::MouseWheelAxis && !FMath::IsNearlyZero(Params.Delta.X))
+		{
+			WeaponFloatScrollDirection = -FMath::Sign(Params.Delta.X);
+		}
+		else if (Params.Event == IE_Pressed && Params.Key == EKeys::MouseScrollUp)
+		{
+			WeaponFloatScrollDirection = -1.f;
+		}
+		else if (Params.Event == IE_Pressed && Params.Key == EKeys::MouseScrollDown)
+		{
+			WeaponFloatScrollDirection = 1.f;
+		}
+
+		if (!FMath::IsNearlyZero(WeaponFloatScrollDirection))
+		{
+			if (AYogHUD* HUD = Cast<AYogHUD>(GetHUD()))
+			{
+				if (HUD->ScrollWeaponFloatCards(WeaponFloatScrollDirection))
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	if ((Params.Event == IE_Pressed || Params.Event == IE_Repeat) && !bBlockGameInput)
+	{
+		if (Params.Key == EKeys::Gamepad_DPad_Up || Params.Key == EKeys::Gamepad_LeftStick_Up)
+		{
+			if (AYogHUD* HUD = Cast<AYogHUD>(GetHUD()))
+			{
+				if (HUD->ScrollWeaponFloatCards(-1.f))
+				{
+					return true;
+				}
+			}
+		}
+		else if (Params.Key == EKeys::Gamepad_DPad_Down || Params.Key == EKeys::Gamepad_LeftStick_Down)
+		{
+			if (AYogHUD* HUD = Cast<AYogHUD>(GetHUD()))
+			{
+				if (HUD->ScrollWeaponFloatCards(1.f))
+				{
+					return true;
+				}
+			}
+		}
+	}
+
 	if (Params.Event == IE_Pressed && !bBlockGameInput)
 	{
 		if (Params.Key == EKeys::F

@@ -1,6 +1,7 @@
 #include "UI/PortalPreviewWidget.h"
 #include "Data/RuneDataAsset.h"
 #include "Data/GenericRuneEffectDA.h"
+#include "RuneHudTextUtils.h"
 #include "Components/TextBlock.h"
 #include "Components/Border.h"
 #include "Components/VerticalBox.h"
@@ -11,6 +12,7 @@
 #include "Components/SizeBox.h"
 #include "UI/YogCommonRichTextBlock.h"
 #include "CommonInputSubsystem.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 
 namespace
 {
@@ -43,9 +45,14 @@ namespace
     constexpr int32   PortalBuffNameFontSize     = 13;
     constexpr int32   PortalBuffDescFontSize     = 11;
     constexpr int32   PortalBuffEffectFontSize   = 11;
+    constexpr int32   PortalBuffSummaryMaxChars  = 34;
     const FLinearColor PortalBuffNameColor       = FLinearColor(0.93f, 0.93f, 0.93f, 1.0f); // #ECECEC
     const FLinearColor PortalBuffDescColor       = FLinearColor(0.78f, 0.78f, 0.80f, 1.0f); // 次级灰
     const FLinearColor PortalBuffEffectColor     = FLinearColor(0.65f, 0.65f, 0.70f, 1.0f); // 更淡
+    const FLinearColor PortalPanelFillColor      = FLinearColor(0.025f, 0.030f, 0.038f, 0.84f);
+    const FLinearColor PortalPanelBorderColor    = FLinearColor(0.74f, 0.70f, 0.58f, 0.86f);
+    constexpr float   PortalPanelCornerRadius   = 3.f;
+    constexpr float   PortalPanelBorderWidth    = 2.f;
     constexpr float   BuffRowSpacing       = 6.f;
     constexpr float   BuffSubLineSpacing   = 2.f;
 
@@ -56,6 +63,21 @@ namespace
         FSlateFontInfo Font = TB->GetFont();
         Font.Size = Size;
         TB->SetFont(Font);
+    }
+
+    void ConfigurePortalPanelBorder(UBorder* Border)
+    {
+        if (!Border)
+        {
+            return;
+        }
+
+        Border->SetBrush(FSlateRoundedBoxBrush(
+            PortalPanelFillColor,
+            PortalPanelCornerRadius,
+            PortalPanelBorderColor,
+            PortalPanelBorderWidth));
+        Border->SetPadding(FMargin(16.f, 14.f));
     }
 
     // RuneName 漏配兜底：开发期暴露资产名定位漏配，Shipping 显示"未命名"
@@ -107,6 +129,8 @@ namespace
 void UPortalPreviewWidget::NativeConstruct()
 {
     Super::NativeConstruct();
+
+    ConfigurePortalPanelBorder(BG);
 
     // 写入初始提示文字
     RefreshHintText(ECommonInputType::MouseAndKeyboard);
@@ -199,11 +223,12 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
             SetPortalTextSize(NameTB, PortalBuffNameFontSize);
             RightVBox->AddChildToVerticalBox(NameTB);
 
-            // 描述（空则跳过，不留空行）
-            if (!Cfg.RuneDescription.IsEmptyOrWhitespace())
+            // HUD 摘要优先，未配置时从完整描述自动压成 1-2 行。
+            const FText SummaryText = RuneHudTextUtils::GetRuneHudSummary(Cfg, PortalBuffSummaryMaxChars);
+            if (!SummaryText.IsEmptyOrWhitespace())
             {
                 UTextBlock* DescTB = NewObject<UTextBlock>(this);
-                DescTB->SetText(Cfg.RuneDescription);
+                DescTB->SetText(SummaryText);
                 DescTB->SetColorAndOpacity(FSlateColor(PortalBuffDescColor));
                 DescTB->SetAutoWrapText(true);
                 SetPortalTextSize(DescTB, PortalBuffDescFontSize);

@@ -16,6 +16,7 @@ class UWeaponDefinition;
 class UBackpackScreenWidget;
 class UWeaponTrailWidget;
 class UWeaponThumbnailFlyWidget;
+class UWeaponFloatWidget;
 class ULevelEndEffectDA;
 class ULevelEndRevealWidget;
 class UMaterialInstanceDynamic;
@@ -184,6 +185,40 @@ public:
 
 	UInfoPopupWidget* GetInfoPopupWidget() const;
 
+	// Weapon pickup info is HUD-hosted, but positioned from the weapon's
+	// screen projection so it stays beside the pickup without drifting offscreen.
+	UPROPERTY(EditDefaultsOnly, Category = "WeaponFloat")
+	TSubclassOf<UWeaponFloatWidget> WeaponFloatWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "WeaponFloat")
+	FVector2D WeaponFloatViewportSize = FVector2D(360.f, 560.f);
+
+	UPROPERTY(EditDefaultsOnly, Category = "WeaponFloat")
+	FVector2D WeaponFloatScreenOffset = FVector2D(36.f, -64.f);
+
+	UPROPERTY(EditDefaultsOnly, Category = "WeaponFloat", meta = (ClampMin = "0"))
+	float WeaponFloatViewportPadding = 24.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "WeaponFloat", meta = (ClampMin = "0.01"))
+	float WeaponFloatFadeDuration = 0.15f;
+
+	UFUNCTION(BlueprintCallable, Category = "WeaponFloat")
+	void ShowWeaponFloatInfo(const UWeaponDefinition* Def);
+
+	void ShowWeaponFloatInfoAtLocation(const UWeaponDefinition* Def, FVector WorldLocation);
+
+	UFUNCTION(BlueprintCallable, Category = "WeaponFloat")
+	void HideWeaponFloatInfo(const UWeaponDefinition* Def = nullptr);
+
+	bool ScrollWeaponFloatCards(float Direction);
+	bool IsWeaponFloatInfoVisible() const;
+
+	bool StartWeaponFloatPickup(
+		const UWeaponDefinition* Def,
+		FVector WorldFallbackLocation,
+		float CollapseDuration,
+		FSimpleDelegate OnCollapseComplete = FSimpleDelegate());
+
 	// Current room enemy rune/buff HUD.
 	UPROPERTY(EditDefaultsOnly, Category = "Room Buff")
 	TSubclassOf<UCurrentRoomBuffWidget> CurrentRoomBuffWidgetClass;
@@ -320,6 +355,9 @@ private:
 	void BindCombatItemWidget(APawn* Pawn);
 	void BindPlayerCommonInfoWidget(APawn* Pawn);
 	void EnsureCombatItemWidget();
+	bool EnsureWeaponFloatWidget();
+	FVector2D ProjectWorldToViewportSlate(FVector WorldLocation) const;
+	FVector2D ResolveWeaponFloatViewportPosition(FVector WorldLocation) const;
 
 	UFUNCTION()
 	void OnPawnPossessed(APawn* OldPawn, APawn* NewPawn);
@@ -335,9 +373,17 @@ private:
 	float MajorUIFadeTarget = 1.f;   // 目标 opacity
 	FDelegateHandle SacrificeGraceMajorUIHandle;
 	void TickMajorUIFade(float DeltaSeconds);
+	void TickWeaponFloatFade(float DeltaSeconds);
 
 	UPROPERTY()
 	TObjectPtr<UBackpackScreenWidget> BackpackWidget;
+
+	UPROPERTY()
+	TObjectPtr<UWeaponFloatWidget> WeaponFloatWidget;
+
+	const UWeaponDefinition* ActiveWeaponFloatDefinition = nullptr;
+	float WeaponFloatFadeAlpha = 0.f;
+	float WeaponFloatFadeTarget = 0.f;
 
 	UPROPERTY()
 	TObjectPtr<ULootSelectionWidget> LootSelectionWidget;
