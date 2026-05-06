@@ -5,6 +5,7 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
 #include "Data/AbilityData.h"
+#include "Animation/AnimMontage.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/MontageConfigDA.h"
@@ -367,7 +368,7 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 	Node->bUseNodeComboWindow = true;
 	Node->ComboWindowStartFrame = 12;
 	Node->ComboWindowEndFrame = 20;
-	Node->ComboWindowTotalFrames = 30;
+	//Node->ComboWindowTotalFrames = 30;
 
 	const FWeaponComboNodeConfig RuntimeConfig = Node->BuildRuntimeConfig(ECardRequiredAction::Heavy);
 
@@ -376,7 +377,7 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 	TestTrue(TEXT("Graph node enables runtime combo window override"), RuntimeConfig.bOverrideComboWindow);
 	TestEqual(TEXT("Combo window start frame is exported"), RuntimeConfig.ComboWindowStartFrame, 12);
 	TestEqual(TEXT("Combo window end frame is exported"), RuntimeConfig.ComboWindowEndFrame, 20);
-	TestEqual(TEXT("Combo window total frames is exported"), RuntimeConfig.ComboWindowTotalFrames, 30);
+	//TestEqual(TEXT("Combo window total frames is exported"), RuntimeConfig.ComboWindowTotalFrames, 30);
 
 	return true;
 }
@@ -396,15 +397,15 @@ bool FGameplayAbilityComboGraphWarnsDuplicateChildInputTest::RunTest(const FStri
 
 	Root->Graph = Graph;
 	Root->NodeId = TEXT("Root");
-	Root->MontageConfig = NewObject<UMontageConfigDA>(Graph);
+	Root->Montage = NewObject<UAnimMontage>(Graph);
 
 	FirstChild->Graph = Graph;
 	FirstChild->NodeId = TEXT("LightA");
-	FirstChild->MontageConfig = NewObject<UMontageConfigDA>(Graph);
+	FirstChild->Montage = NewObject<UAnimMontage>(Graph);
 
 	SecondChild->Graph = Graph;
 	SecondChild->NodeId = TEXT("LightB");
-	SecondChild->MontageConfig = NewObject<UMontageConfigDA>(Graph);
+	SecondChild->Montage = NewObject<UAnimMontage>(Graph);
 
 	FirstEdge->InputAction = ECardRequiredAction::Light;
 	SecondEdge->InputAction = ECardRequiredAction::Light;

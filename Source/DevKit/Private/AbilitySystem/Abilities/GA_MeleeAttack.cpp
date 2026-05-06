@@ -396,7 +396,11 @@ void UGA_MeleeAttack::ActivateAbility(
 		? CD->AbilityData->GetMontage(FirstTag) : nullptr;
 
 	ActiveMontageConfig = nullptr;
-	if (bActiveComboNodeValid && ActiveComboNode.MontageConfig)
+	if (bActiveComboNodeValid && ActiveComboNode.Montage)
+	{
+		Montage = ActiveComboNode.Montage;
+	}
+	else if (bActiveComboNodeValid && ActiveComboNode.MontageConfig)
 	{
 		ActiveMontageConfig = ActiveComboNode.MontageConfig;
 		if (ActiveMontageConfig->Montage)

@@ -7,8 +7,8 @@
 #include "Data/WeaponComboConfigDA.h"
 #include "GameplayAbilityComboGraph.generated.h"
 
+class UAnimMontage;
 class UMontageAttackDataAsset;
-class UMontageConfigDA;
 
 UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UGameplayAbilityComboGraphNode : public UGenericGraphNode
@@ -25,7 +25,10 @@ public:
 	ECardRequiredAction RootInputAction = ECardRequiredAction::Any;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
-	TObjectPtr<UMontageConfigDA> MontageConfig = nullptr;
+	TObjectPtr<UAnimMontage> Montage = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage", meta = (ClampMin = "1"))
+	int32 TotalFrames = 30;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
 	TObjectPtr<UMontageAttackDataAsset> AttackDataOverride = nullptr;

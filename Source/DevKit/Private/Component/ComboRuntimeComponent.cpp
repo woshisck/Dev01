@@ -3,6 +3,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_PlayMontage.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Animation/AnimMontage.h"
 #include "Component/CombatDeckComponent.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageConfigDA.h"
@@ -152,7 +153,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 		}
 	}
 
-	if (!NextNode || !NextNode->MontageConfig)
+	if (!NextNode || (!NextNode->Montage && !NextNode->MontageConfig))
 	{
 		UE_LOG(LogTemp, Warning,
 			TEXT("[ComboRuntime] No combo node for input=%s current=%s graph=%s config=%s"),
@@ -192,10 +193,11 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	if (!bActivated)
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("[ComboRuntime] Failed to activate node=%s input=%s current=%s montageConfig=%s"),
+			TEXT("[ComboRuntime] Failed to activate node=%s input=%s current=%s montage=%s montageConfig=%s"),
 			*NextNode->NodeId.ToString(),
 			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
 			*CurrentNodeId.ToString(),
+			*GetNameSafe(NextNode->Montage.Get()),
 			*GetNameSafe(NextNode->MontageConfig.Get()));
 		bActiveNodeValid = false;
 		ActiveNode = FWeaponComboNodeConfig();

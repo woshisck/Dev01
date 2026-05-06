@@ -1,6 +1,6 @@
 #include "Data/GameplayAbilityComboGraph.h"
 
-#include "Data/MontageConfigDA.h"
+#include "Animation/AnimMontage.h"
 
 #define LOCTEXT_NAMESPACE "GameplayAbilityComboGraph"
 
@@ -38,14 +38,14 @@ FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(ECardR
 	FWeaponComboNodeConfig Config;
 	Config.NodeId = GetRuntimeNodeId(this);
 	Config.InputAction = InputAction;
-	Config.MontageConfig = MontageConfig;
+	Config.Montage = Montage;
 	Config.AttackDataOverride = AttackDataOverride;
 	Config.bIsComboFinisher = bIsComboFinisher;
 	Config.bAllowDashSave = bAllowDashSave;
 	Config.bOverrideComboWindow = bUseNodeComboWindow;
 	Config.ComboWindowStartFrame = ComboWindowStartFrame;
 	Config.ComboWindowEndFrame = ComboWindowEndFrame;
-	Config.ComboWindowTotalFrames = MontageConfig ? MontageConfig->TotalFrames : 30;
+	Config.ComboWindowTotalFrames = TotalFrames > 0 ? TotalFrames : 30;
 	Config.CardTriggerTiming = CardTriggerTiming;
 	return Config;
 }
@@ -53,12 +53,11 @@ FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(ECardR
 FText UGameplayAbilityComboGraphNode::GetDescription_Implementation() const
 {
 	const FName RuntimeNodeId = GetRuntimeNodeId(this);
-	const FString MontageName = GetNameSafe(MontageConfig);
-	const int32 TotalFrames = MontageConfig ? MontageConfig->TotalFrames : 0;
+	const FString MontageName = GetNameSafe(Montage);
 	return FText::FromString(FString::Printf(
 		TEXT("Node=%s\nMontage=%s\nComboWindow=%s [%d-%d / %d]"),
 		*RuntimeNodeId.ToString(),
-		MontageConfig ? *MontageName : TEXT("None"),
+		Montage ? *MontageName : TEXT("None"),
 		bUseNodeComboWindow ? TEXT("Node") : TEXT("Montage Notify"),
 		ComboWindowStartFrame,
 		ComboWindowEndFrame,
@@ -207,9 +206,9 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 		}
 		SeenNodeIds.Add(RuntimeNodeId);
 
-		if (!ComboNode->MontageConfig)
+		if (!ComboNode->Montage)
 		{
-			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no MontageConfig."), *RuntimeNodeId.ToString())));
+			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no Montage."), *RuntimeNodeId.ToString())));
 		}
 
 		if (ComboNode->bUseNodeComboWindow && ComboNode->ComboWindowEndFrame < ComboNode->ComboWindowStartFrame)
@@ -217,10 +216,10 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has ComboWindowEndFrame before ComboWindowStartFrame."), *RuntimeNodeId.ToString())));
 		}
 
-		if (ComboNode->bUseNodeComboWindow && ComboNode->MontageConfig &&
-			ComboNode->ComboWindowEndFrame > ComboNode->MontageConfig->TotalFrames)
+		if (ComboNode->bUseNodeComboWindow && ComboNode->TotalFrames > 0 &&
+			ComboNode->ComboWindowEndFrame > ComboNode->TotalFrames)
 		{
-			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has ComboWindowEndFrame after MontageConfig TotalFrames."), *RuntimeNodeId.ToString())));
+			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has ComboWindowEndFrame after TotalFrames."), *RuntimeNodeId.ToString())));
 		}
 
 		if (ComboNode->ParentNodes.IsEmpty())

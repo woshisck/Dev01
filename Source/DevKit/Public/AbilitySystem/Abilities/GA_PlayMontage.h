@@ -57,6 +57,10 @@ private:
 	void OnComboWindowOpen();
 	void OnComboWindowClose();
 
+	// Wipe ComboRuntimeComponent state back to root. Only called from montage-end callbacks,
+	// never from EndAbility, so it cannot collide with bRetriggerInstancedAbility flow.
+	void ResetComboToRoot();
+
 	FDelegateHandle CanComboTagHandle;
 
 	// ActivateAbility 时记录的世界时间，OnCanComboTagChanged 只接受此时间之后的输入
