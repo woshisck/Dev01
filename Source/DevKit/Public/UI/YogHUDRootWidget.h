@@ -7,7 +7,6 @@
 class ULiquidHealthBarWidget;
 class UEnemyArrowWidget;
 class UWeaponGlassIconWidget;
-class UHeatBarWidget;
 class UInfoPopupWidget;
 class UCombatDeckBarWidget;
 class UPlayerCommonInfoWidget;
@@ -15,76 +14,67 @@ class UCurrentRoomBuffWidget;
 class UOverlay;
 
 /**
- * 主 HUD 容器 Widget（C++ 基类）
+ * Main HUD container widget.
  *
- * 对应 WBP_HUDRoot：内含 Canvas Panel + 所有常驻 HUD 子控件。
- * 子控件名称必须与 BindWidget 字段名完全一致。
- *
- * 新增 HUD 元素时：
- *   1. 在 WBP_HUDRoot Canvas Panel 里拖入目标控件，重命名（Is Variable 勾选）
- *   2. 在此处加一行 BindWidgetOptional UPROPERTY
- *   3. 在 YogHUD.cpp 里通过 MainHUDWidget->NewWidget 访问
+ * WBP_HUDRoot keeps stable named regions so gameplay widgets can be placed
+ * without hard-coding screen positions in gameplay code.
  */
 UCLASS()
 class DEVKIT_API UYogHUDRootWidget : public UUserWidget
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    // Stable layout regions used by WBP_HUDRoot. These are optional so older
-    // HUD blueprints keep loading while generated layouts catch up.
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UOverlay> TopLeftPlayerInfoRegion;
+	// Stable layout regions used by WBP_HUDRoot. These are optional so older
+	// HUD blueprints keep loading while generated layouts catch up.
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> TopLeftPlayerInfoRegion;
 
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UOverlay> TopRightPlayerInfoRegion;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> TopRightPlayerInfoRegion;
 
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UOverlay> BossInfoRegion;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> BossInfoRegion;
 
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UOverlay> LeftLevelInfoRegion;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> LeftLevelInfoRegion;
 
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UOverlay> RightLevelInfoRegion;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> RightLevelInfoRegion;
 
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UOverlay> BottomLeftPlayerInfoRegion;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> BottomLeftPlayerInfoRegion;
 
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UOverlay> BottomCenterCombatRegion;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> BottomCenterCombatRegion;
 
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UOverlay> BottomRightPlayerInfoRegion;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UOverlay> BottomRightPlayerInfoRegion;
 
-    /** 玩家液态血条（WBP 控件变量名：PlayerHealthBar） */
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-    TObjectPtr<ULiquidHealthBarWidget> PlayerHealthBar;
+	/** WBP control variable name: PlayerHealthBar */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	TObjectPtr<ULiquidHealthBarWidget> PlayerHealthBar;
 
-    /** 敌人方向指示箭头 - 全屏覆盖（WBP 控件变量名：EnemyArrow） */
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UEnemyArrowWidget> EnemyArrow;
+	/** WBP control variable name: EnemyArrow */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UEnemyArrowWidget> EnemyArrow;
 
-    /** 武器玻璃图标（WBP 控件变量名：WeaponGlassIcon） */
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UWeaponGlassIconWidget> WeaponGlassIcon;
+	/** WBP control variable name: WeaponGlassIcon */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWeaponGlassIconWidget> WeaponGlassIcon;
 
-    /** 热度条（WBP 控件变量名：HeatBar） */
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UHeatBarWidget> HeatBar;
+	/** WBP control variable name: InfoPopup */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UInfoPopupWidget> InfoPopup;
 
-    /** 轻量信息提示浮窗（WBP 控件变量名：InfoPopup） */
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UInfoPopupWidget> InfoPopup;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UCombatDeckBarWidget> CombatDeckBar;
 
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UCombatDeckBarWidget> CombatDeckBar;
+	/** Player common resource display. WBP control variable name: PlayerCommonInfoHud */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UPlayerCommonInfoWidget> PlayerCommonInfoHud;
 
-    /** Player common resource display. WBP control variable name: PlayerCommonInfoHud */
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UPlayerCommonInfoWidget> PlayerCommonInfoHud;
-
-    /** Current room enemy rune/buff panel. WBP control variable name: CurrentRoomBuffPanel */
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UCurrentRoomBuffWidget> CurrentRoomBuffPanel;
+	/** Current room enemy rune/buff panel. WBP control variable name: CurrentRoomBuffPanel */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UCurrentRoomBuffWidget> CurrentRoomBuffPanel;
 };

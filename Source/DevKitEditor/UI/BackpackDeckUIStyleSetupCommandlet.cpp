@@ -703,14 +703,9 @@ namespace BackpackDeckUIStyleSetup
 		UWidget* PanelContent = nullptr;
 		UOverlay* RootPanel = MakeFramedPanel(WidgetTree, TEXT("BackpackGridPanel"), PanelContent, DeepPanel, FMargin(14.0f));
 		UVerticalBox* Stack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("GridStack"), false);
-		UHorizontalBox* HeatRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("HeatPhaseRow"), false);
-		UButton* HeatPhaseDot0 = ConstructNamedWidget<UButton>(WidgetTree, TEXT("HeatPhaseDot0"));
-		UButton* HeatPhaseDot1 = ConstructNamedWidget<UButton>(WidgetTree, TEXT("HeatPhaseDot1"));
-		UButton* HeatPhaseDot2 = ConstructNamedWidget<UButton>(WidgetTree, TEXT("HeatPhaseDot2"));
-		UTextBlock* GamepadHintLabel = MakeLabel(WidgetTree, TEXT("GamepadHintLabel"), TEXT("L1 / R1"), 14, MutedSilver);
 		USizeBox* GridSizeBox = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("GridSizeBox"));
 		UUniformGridPanel* BackpackGrid = ConstructNamedWidget<UUniformGridPanel>(WidgetTree, TEXT("BackpackGrid"));
-		if (!RootPanel || !PanelContent || !Stack || !HeatRow || !HeatPhaseDot0 || !HeatPhaseDot1 || !HeatPhaseDot2 || !GamepadHintLabel || !GridSizeBox || !BackpackGrid)
+		if (!RootPanel || !PanelContent || !Stack || !GridSizeBox || !BackpackGrid)
 		{
 			return;
 		}
@@ -718,23 +713,10 @@ namespace BackpackDeckUIStyleSetup
 		WidgetBlueprint->WidgetTree->RootWidget = RootPanel;
 		Cast<UBorder>(PanelContent)->SetContent(Stack);
 
-		ConfigureButton(HeatPhaseDot0, FLinearColor(0.32f, 0.34f, 0.38f, 0.80f), FLinearColor(0.60f, 0.66f, 0.75f, 0.90f), FLinearColor(0.76f, 0.80f, 0.88f, 1.0f));
-		ConfigureButton(HeatPhaseDot1, FLinearColor(0.32f, 0.34f, 0.38f, 0.80f), FLinearColor(0.60f, 0.66f, 0.75f, 0.90f), FLinearColor(0.76f, 0.80f, 0.88f, 1.0f));
-		ConfigureButton(HeatPhaseDot2, FLinearColor(0.32f, 0.34f, 0.38f, 0.80f), FLinearColor(0.60f, 0.66f, 0.75f, 0.90f), FLinearColor(0.76f, 0.80f, 0.88f, 1.0f));
-
-		HeatPhaseDot0->SetContent(MakeLabel(WidgetTree, TEXT("HeatDot0Text"), TEXT("I"), 13, SilverText));
-		AddHorizontalChild(HeatRow, HeatPhaseDot0, VAlign_Center, FMargin(0.0f, 0.0f, 4.0f, 0.0f));
-		HeatPhaseDot1->SetContent(MakeLabel(WidgetTree, TEXT("HeatDot1Text"), TEXT("II"), 13, SilverText));
-		AddHorizontalChild(HeatRow, HeatPhaseDot1, VAlign_Center, FMargin(0.0f, 0.0f, 4.0f, 0.0f));
-		HeatPhaseDot2->SetContent(MakeLabel(WidgetTree, TEXT("HeatDot2Text"), TEXT("III"), 13, SilverText));
-		AddHorizontalChild(HeatRow, HeatPhaseDot2, VAlign_Center);
-		AddHorizontalChild(HeatRow, GamepadHintLabel, VAlign_Center, FMargin(12.0f, 0.0f, 0.0f, 0.0f), ESlateSizeRule::Fill);
-
-		AddVerticalChild(Stack, HeatRow, HAlign_Fill, FMargin(0.0f, 2.0f, 0.0f, 10.0f));
 		GridSizeBox->AddChild(BackpackGrid);
 		AddVerticalChild(Stack, GridSizeBox, HAlign_Center);
 
-		ReportLines.Add(TEXT("- Backpack grid wrapper rebuilt with compact silver phase controls."));
+		ReportLines.Add(TEXT("- Backpack grid wrapper rebuilt without legacy heat phase controls."));
 	}
 
 	void BuildPendingGridTree(UWidgetBlueprint* WidgetBlueprint, TArray<FString>& ReportLines)
@@ -1162,9 +1144,6 @@ namespace BackpackDeckUIStyleSetup
 				ExistingStyle->GrabbedSourceColor = FLinearColor(0.34f, 0.035f, 0.045f, 1.0f);
 				ExistingStyle->PendingHasRuneColor = FLinearColor(0.18f, 0.045f, 0.055f, 0.96f);
 				ExistingStyle->PendingEmptyColor = FLinearColor(0.08f, 0.08f, 0.095f, 0.82f);
-				ExistingStyle->HeatZone0Color = FLinearColor(0.68f, 0.74f, 0.80f, 1.0f);
-				ExistingStyle->HeatZone1Color = FLinearColor(0.46f, 0.12f, 0.13f, 1.0f);
-				ExistingStyle->HeatZone2Color = FLinearColor(0.84f, 0.80f, 0.68f, 1.0f);
 				ExistingStyle->ActiveZoneOverlayOpacity = 0.22f;
 				ExistingStyle->InactiveZoneOpacity = 0.48f;
 				ExistingStyle->ZoneGlowOpacity = 0.18f;
@@ -1221,21 +1200,32 @@ int32 UBackpackDeckUIStyleSetupCommandlet::Main(const FString& Params)
 
 	const bool bApply = Params.Contains(TEXT("Apply"), ESearchCase::IgnoreCase);
 	const bool bDryRun = !bApply;
+	const bool bBackpackGridOnly = Params.Contains(TEXT("BackpackGridOnly"), ESearchCase::IgnoreCase);
 
 	TArray<FString> ReportLines;
 	TArray<UPackage*> DirtyPackages;
 	ReportLines.Add(TEXT("# Backpack Deck UI Style Setup Report"));
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
+	ReportLines.Add(FString::Printf(TEXT("- BackpackGridOnly: %s"), bBackpackGridOnly ? TEXT("true") : TEXT("false")));
 	ReportLines.Add(TEXT("- Style target: bright silver gothic card UI, aligned with 512 tutorial illustrations."));
 	ReportLines.Add(TEXT(""));
 
-	if (!bDryRun)
+	if (!bDryRun && !bBackpackGridOnly)
 	{
 		ImportBackpackInspectTextures(ReportLines, DirtyPackages);
 	}
-	EnsureInputActionDecoratorMappings(bDryRun, ReportLines, DirtyPackages);
+	if (!bBackpackGridOnly)
+	{
+		EnsureInputActionDecoratorMappings(bDryRun, ReportLines, DirtyPackages);
+	}
 
-	UBackpackStyleDataAsset* BackpackStyle = LoadOrCreateBackpackStyle(bDryRun, ReportLines, DirtyPackages);
+	UBackpackStyleDataAsset* BackpackStyle = bBackpackGridOnly
+		? Cast<UBackpackStyleDataAsset>(LoadObjectByPackagePath(BackpackStylePath, UBackpackStyleDataAsset::StaticClass()))
+		: LoadOrCreateBackpackStyle(bDryRun, ReportLines, DirtyPackages);
+	if (bBackpackGridOnly)
+	{
+		ReportLines.Add(FString::Printf(TEXT("- %s `%s` without rewriting style settings."), BackpackStyle ? TEXT("Found") : TEXT("Missing"), *BackpackStylePath));
+	}
 
 	struct FWidgetBuildSpec
 	{
@@ -1244,16 +1234,24 @@ int32 UBackpackDeckUIStyleSetupCommandlet::Main(const FString& Params)
 		void (*BuildTree)(UWidgetBlueprint*, TArray<FString>&);
 	};
 
-	TArray<FWidgetBuildSpec> Specs = {
-		{ RuneSlotPath, URuneSlotWidget::StaticClass(), &BuildRuneSlotTree },
-		{ BackpackGridPath, UBackpackGridWidget::StaticClass(), &BuildBackpackGridTree },
-		{ PendingGridPath, UPendingGridWidget::StaticClass(), &BuildPendingGridTree },
-		{ CombatDeckCardSlotPath, UCombatDeckCardSlotWidget::StaticClass(), &BuildCombatDeckCardSlotTree },
-		{ CombatDeckBarPath, UCombatDeckBarWidget::StaticClass(), &BuildCombatDeckBarTree },
-		{ CombatDeckEditCardSlotPath, UCombatDeckEditCardSlotWidget::StaticClass(), &BuildCombatDeckEditCardSlotTree },
-		{ CombatDeckEditPath, UCombatDeckEditWidget::StaticClass(), &BuildCombatDeckEditWidgetTree },
-		{ BackpackScreenPath, UBackpackScreenWidget::StaticClass(), &BuildBackpackScreenTree },
-	};
+	TArray<FWidgetBuildSpec> Specs;
+	if (bBackpackGridOnly)
+	{
+		Specs.Add({ BackpackGridPath, UBackpackGridWidget::StaticClass(), &BuildBackpackGridTree });
+	}
+	else
+	{
+		Specs = {
+			{ RuneSlotPath, URuneSlotWidget::StaticClass(), &BuildRuneSlotTree },
+			{ BackpackGridPath, UBackpackGridWidget::StaticClass(), &BuildBackpackGridTree },
+			{ PendingGridPath, UPendingGridWidget::StaticClass(), &BuildPendingGridTree },
+			{ CombatDeckCardSlotPath, UCombatDeckCardSlotWidget::StaticClass(), &BuildCombatDeckCardSlotTree },
+			{ CombatDeckBarPath, UCombatDeckBarWidget::StaticClass(), &BuildCombatDeckBarTree },
+			{ CombatDeckEditCardSlotPath, UCombatDeckEditCardSlotWidget::StaticClass(), &BuildCombatDeckEditCardSlotTree },
+			{ CombatDeckEditPath, UCombatDeckEditWidget::StaticClass(), &BuildCombatDeckEditWidgetTree },
+			{ BackpackScreenPath, UBackpackScreenWidget::StaticClass(), &BuildBackpackScreenTree },
+		};
+	}
 
 	for (const FWidgetBuildSpec& Spec : Specs)
 	{
