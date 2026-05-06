@@ -407,10 +407,6 @@ void UBackpackScreenWidget::NativeConstruct()
     // CloseButton 默认让 WBP Designer 设的 Visibility 生效（通常是 Visible），
     // SetPreviewMode 会在切换时强制覆盖为 Visible/Collapsed
 
-    if (BackpackGridWidget)
-        BackpackGridWidget->OnHeatPhaseButtonClicked.AddDynamic(
-            this, &UBackpackScreenWidget::HandleHeatPhaseButtonClicked);
-
     if (HintText)
         HintText->SetVisibility(ESlateVisibility::Collapsed);
 
@@ -507,7 +503,6 @@ void UBackpackScreenWidget::OnGridNeedsRefresh_Implementation()
             GrabbedFromCell,
             bGrabbingRune,
             PreviewPhase);
-        BackpackGridWidget->RefreshHeatPhaseButtons(PreviewPhase, bIsGamepadInputMode);
     }
 }
 
@@ -1240,12 +1235,6 @@ bool UBackpackScreenWidget::IsInCombatPhase() const
     return false;
 }
 
-void UBackpackScreenWidget::HandleHeatPhaseButtonClicked(int32 Phase)
-{
-    PreviewPhase = (PreviewPhase == Phase) ? -1 : Phase;
-    OnGridNeedsRefresh();
-}
-
 // ============================================================
 //  坐标辅助（委托给子 Widget）
 // ============================================================
@@ -1315,10 +1304,6 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
     if (bIsGamepadInputMode)
     {
         bIsGamepadInputMode = false;
-        if (BackpackGridWidget)
-        {
-            BackpackGridWidget->RefreshHeatPhaseButtons(PreviewPhase, false);
-        }
     }
 
     // 左侧待放置槽：优先于主格子
@@ -1903,8 +1888,6 @@ FReply UBackpackScreenWidget::NativeOnMouseMove(const FGeometry& InGeometry, con
         if (!bRealMove)
             return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
         bIsGamepadInputMode = false;
-        if (BackpackGridWidget)
-            BackpackGridWidget->RefreshHeatPhaseButtons(PreviewPhase, false);
     }
     else
     {
@@ -2138,11 +2121,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
     }
 
     // 首次切换到手柄模式时立刻显示操作提示
-    const bool bWasGamepad = bIsGamepadInputMode;
     bIsGamepadInputMode = true;
-    if (!bWasGamepad && BackpackGridWidget)
-        BackpackGridWidget->RefreshHeatPhaseButtons(PreviewPhase, true);
-
     if (Key == EKeys::Gamepad_Special_Left ||
         Key == EKeys::Gamepad_Special_Right ||
         Key == EKeys::Escape ||
@@ -2225,37 +2204,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         return FReply::Handled();
     }
 
-    // ── 热度阶段预览切换 ────────────────────────────────────────────────
-    {
-        const int32 MaxPhase = GetBackpack()
-            ? GetBackpack()->ActivationZoneConfig.ZoneShapes.Num() - 1
-            : 2;
-
-        auto TogglePreview = [&](int32 Phase) -> FReply
-        {
-            PreviewPhase = (PreviewPhase == Phase) ? -1 : Phase;
-            OnGridNeedsRefresh();
-            return FReply::Handled();
-        };
-
-        if (Key == EKeys::One)   return TogglePreview(0);
-        if (Key == EKeys::Two)   return TogglePreview(1);
-        if (Key == EKeys::Three) return TogglePreview(2);
-
-        if (Key == EKeys::Gamepad_LeftShoulder)
-        {
-            PreviewPhase = (PreviewPhase < 0) ? MaxPhase : PreviewPhase - 1;
-            OnGridNeedsRefresh();
-            return FReply::Handled();
-        }
-        if (Key == EKeys::Gamepad_RightShoulder)
-        {
-            PreviewPhase = (PreviewPhase >= MaxPhase) ? -1 : PreviewPhase + 1;
-            OnGridNeedsRefresh();
-            return FReply::Handled();
-        }
-    }
-
+    // ── Gamepad grid navigation ───────────────────────────────────────
     auto StartDirRepeat = [&](int32 DC, int32 DR) -> FReply
     {
         if (bCursorInPendingArea) MovePendingCursor(DC, DR);

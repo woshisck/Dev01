@@ -441,6 +441,4 @@ private:
     UFUNCTION()
     void OnConfirmButtonClicked();
 
-    UFUNCTION()
-    void HandleHeatPhaseButtonClicked(int32 Phase);
 };

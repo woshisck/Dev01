@@ -14,7 +14,7 @@
 `WBP_HUDRoot` 的父类必须是 `YogHUDRootWidget`。以下控件需要保持 `Is Variable` 并使用固定名称：
 
 - 区域容器：`TopLeftPlayerInfoRegion`、`TopRightPlayerInfoRegion`、`BossInfoRegion`、`LeftLevelInfoRegion`、`RightLevelInfoRegion`、`BottomLeftPlayerInfoRegion`、`BottomCenterCombatRegion`、`BottomRightPlayerInfoRegion`
-- HUD 子控件：`PlayerHealthBar`、`EnemyArrow`、`WeaponGlassIcon`、`HeatBar`、`InfoPopup`、`CombatDeckBar`、`CurrentRoomBuffPanel`、`PlayerCommonInfoHud`
+- HUD 子控件：`PlayerHealthBar`、`EnemyArrow`、`WeaponGlassIcon`、`InfoPopup`、`CombatDeckBar`、`CurrentRoomBuffPanel`、`PlayerCommonInfoHud`
 
 布局约定：
 

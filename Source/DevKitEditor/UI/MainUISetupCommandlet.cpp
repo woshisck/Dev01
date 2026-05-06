@@ -47,7 +47,6 @@ namespace MainUISetup
 	const TCHAR* PlayerHealthClassPath = TEXT("/Game/UI/WB_PlayerHealthBar.WB_PlayerHealthBar_C");
 	const TCHAR* EnemyArrowClassPath = TEXT("/Game/UI/Playtest_UI/CombatInfo/WBP_EnemyArrow.WBP_EnemyArrow_C");
 	const TCHAR* WeaponGlassClassPath = TEXT("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponGlassIcon.WBP_WeaponGlassIcon_C");
-	const TCHAR* HeatBarClassPath = TEXT("/Game/UI/Playtest_UI/WBP_HeatBar.WBP_HeatBar_C");
 	const TCHAR* InfoPopupClassPath = TEXT("/Game/UI/Playtest_UI/Tutorial/WBP_InfoPopup.WBP_InfoPopup_C");
 	const TCHAR* CombatDeckClassPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_CombatDeckBar.WBP_CombatDeckBar_C");
 	const TCHAR* CurrentRoomBuffClassPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_CurrentRoomBuffPanel.WBP_CurrentRoomBuffPanel_C");
@@ -332,9 +331,6 @@ namespace MainUISetup
 
 		UWidget* WeaponGlass = ConstructWidgetFromPath(WidgetTree, WeaponGlassClassPath, TEXT("WeaponGlassIcon"), ReportLines);
 		AddWidgetToOverlay(BottomLeft, WeaponGlass, HAlign_Left, VAlign_Bottom, FMargin(0.f, 0.f, 0.f, 28.f));
-
-		UWidget* HeatBar = ConstructWidgetFromPath(WidgetTree, HeatBarClassPath, TEXT("HeatBar"), ReportLines);
-		AddWidgetToOverlay(BottomLeft, HeatBar, HAlign_Left, VAlign_Bottom, FMargin(0.f, 0.f, 0.f, 4.f));
 
 		USizeBox* CombatDeckHost = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("CombatDeckHost"), false);
 		CombatDeckHost->SetWidthOverride(900.f);
@@ -764,6 +760,7 @@ int32 UMainUISetupCommandlet::Main(const FString& Params)
 	const bool bForceLayout = Params.Contains(TEXT("ForceLayout"), ESearchCase::IgnoreCase);
 	const bool bFrontendOnly = Params.Contains(TEXT("FrontendOnly"), ESearchCase::IgnoreCase);
 	const bool bHudOnly = Params.Contains(TEXT("HudOnly"), ESearchCase::IgnoreCase);
+	const bool bHudRootOnly = Params.Contains(TEXT("HudRootOnly"), ESearchCase::IgnoreCase);
 
 	TArray<FString> ReportLines;
 	TArray<UPackage*> DirtyPackages;
@@ -772,19 +769,20 @@ int32 UMainUISetupCommandlet::Main(const FString& Params)
 	ReportLines.Add(FString::Printf(TEXT("- ForceLayout: %s"), bForceLayout ? TEXT("true") : TEXT("false")));
 	ReportLines.Add(FString::Printf(TEXT("- FrontendOnly: %s"), bFrontendOnly ? TEXT("true") : TEXT("false")));
 	ReportLines.Add(FString::Printf(TEXT("- HudOnly: %s"), bHudOnly ? TEXT("true") : TEXT("false")));
+	ReportLines.Add(FString::Printf(TEXT("- HudRootOnly: %s"), bHudRootOnly ? TEXT("true") : TEXT("false")));
 	ReportLines.Add(TEXT(""));
 
-	if (!bFrontendOnly && !bHudOnly)
+	if (!bFrontendOnly && !bHudOnly && !bHudRootOnly)
 	{
 		ImportPauseTextures(bDryRun, ReportLines, DirtyPackages);
 		ReportLines.Add(TEXT(""));
 	}
-	if (!bFrontendOnly)
+	if (!bFrontendOnly && !bHudRootOnly)
 	{
 		ImportHudTextures(bDryRun, ReportLines, DirtyPackages);
 		ReportLines.Add(TEXT(""));
 	}
-	if (!bHudOnly)
+	if (!bHudOnly && !bHudRootOnly)
 	{
 		ImportFrontendTextures(bDryRun, ReportLines, DirtyPackages);
 		ReportLines.Add(TEXT(""));
@@ -807,23 +805,26 @@ int32 UMainUISetupCommandlet::Main(const FString& Params)
 		return 0;
 	}
 
-	bool bPlayerCommonInfoCreated = false;
-	UWidgetBlueprint* PlayerCommonInfoWidget = CreateWidgetBlueprint(
-		PlayerCommonInfoWidgetPath,
-		UPlayerCommonInfoWidget::StaticClass(),
-		bDryRun,
-		ReportLines,
-		bPlayerCommonInfoCreated);
-	if (PlayerCommonInfoWidget && !bDryRun && (bPlayerCommonInfoCreated || bForceLayout || PlayerCommonInfoNeedsRefresh(PlayerCommonInfoWidget)))
+	if (!bHudRootOnly)
 	{
-		BuildPlayerCommonInfoTree(PlayerCommonInfoWidget, ReportLines);
-		FKismetEditorUtilities::CompileBlueprint(PlayerCommonInfoWidget);
-		PlayerCommonInfoWidget->MarkPackageDirty();
-		DirtyPackages.AddUnique(PlayerCommonInfoWidget->GetPackage());
-	}
-	else if (PlayerCommonInfoWidget && !bDryRun)
-	{
-		ReportLines.Add(TEXT("- Existing player common info HUD designer tree kept unchanged."));
+		bool bPlayerCommonInfoCreated = false;
+		UWidgetBlueprint* PlayerCommonInfoWidget = CreateWidgetBlueprint(
+			PlayerCommonInfoWidgetPath,
+			UPlayerCommonInfoWidget::StaticClass(),
+			bDryRun,
+			ReportLines,
+			bPlayerCommonInfoCreated);
+		if (PlayerCommonInfoWidget && !bDryRun && (bPlayerCommonInfoCreated || bForceLayout || PlayerCommonInfoNeedsRefresh(PlayerCommonInfoWidget)))
+		{
+			BuildPlayerCommonInfoTree(PlayerCommonInfoWidget, ReportLines);
+			FKismetEditorUtilities::CompileBlueprint(PlayerCommonInfoWidget);
+			PlayerCommonInfoWidget->MarkPackageDirty();
+			DirtyPackages.AddUnique(PlayerCommonInfoWidget->GetPackage());
+		}
+		else if (PlayerCommonInfoWidget && !bDryRun)
+		{
+			ReportLines.Add(TEXT("- Existing player common info HUD designer tree kept unchanged."));
+		}
 	}
 
 	bool bHudCreated = false;
@@ -841,7 +842,7 @@ int32 UMainUISetupCommandlet::Main(const FString& Params)
 	}
 
 	UWidgetBlueprint* PauseWidget = nullptr;
-	if (!bHudOnly)
+	if (!bHudOnly && !bHudRootOnly)
 	{
 		bool bPauseCreated = false;
 		PauseWidget = CreateWidgetBlueprint(PauseWidgetPath, UPauseMenuWidget::StaticClass(), bDryRun, ReportLines, bPauseCreated);
@@ -858,7 +859,12 @@ int32 UMainUISetupCommandlet::Main(const FString& Params)
 		}
 	}
 
-	if (!bDryRun)
+	if (bHudRootOnly)
+	{
+		ReportLines.Add(TEXT("## HUD blueprint defaults"));
+		ReportLines.Add(TEXT("- Skipped because HudRootOnly was requested."));
+	}
+	else if (!bDryRun)
 	{
 		AssignHudBlueprintDefaults(HudWidget, PauseWidget, bDryRun, ReportLines, DirtyPackages);
 	}

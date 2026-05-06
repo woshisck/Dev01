@@ -1,13 +1,10 @@
 #include "UI/BackpackGridWidget.h"
 #include "UI/RuneSlotWidget.h"
 #include "UI/BackpackStyleDataAsset.h"
-#include "UI/BackpackScreenWidget.h"
 #include "Component/BackpackGridComponent.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 #include "Components/SizeBox.h"
-#include "Components/Button.h"
-#include "Components/TextBlock.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Blueprint/WidgetTree.h"
 #include "Rendering/DrawElements.h"
@@ -20,39 +17,9 @@ void UBackpackGridWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    if (HeatPhaseDot0) HeatPhaseDot0->OnClicked.AddDynamic(this, &UBackpackGridWidget::OnHeatPhaseDot0Clicked);
-    if (HeatPhaseDot1) HeatPhaseDot1->OnClicked.AddDynamic(this, &UBackpackGridWidget::OnHeatPhaseDot1Clicked);
-    if (HeatPhaseDot2) HeatPhaseDot2->OnClicked.AddDynamic(this, &UBackpackGridWidget::OnHeatPhaseDot2Clicked);
 
-    if (GamepadHintLabel)
-    {
-        GamepadHintLabel->SetText(NSLOCTEXT("Backpack", "GamepadHeat", "L1 / R1   切换热度显示"));
-        GamepadHintLabel->SetVisibility(ESlateVisibility::Collapsed);
-    }
 }
 
-void UBackpackGridWidget::RefreshHeatPhaseButtons(int32 PreviewPhase, bool bIsGamepadMode)
-{
-    static const FLinearColor DotActive  (1.00f, 0.80f, 0.10f, 1.f);
-    static const FLinearColor DotInactive(0.28f, 0.28f, 0.32f, 1.f);
-
-    auto ApplyTint = [](UButton* Btn, bool bOn)
-    {
-        if (Btn) Btn->SetColorAndOpacity(bOn ? DotActive : DotInactive);
-    };
-    ApplyTint(HeatPhaseDot0, PreviewPhase == 0);
-    ApplyTint(HeatPhaseDot1, PreviewPhase == 1);
-    ApplyTint(HeatPhaseDot2, PreviewPhase == 2);
-
-    if (GamepadHintLabel)
-        GamepadHintLabel->SetVisibility(
-            bIsGamepadMode ? ESlateVisibility::SelfHitTestInvisible
-                           : ESlateVisibility::Collapsed);
-}
-
-void UBackpackGridWidget::OnHeatPhaseDot0Clicked() { OnHeatPhaseButtonClicked.Broadcast(0); }
-void UBackpackGridWidget::OnHeatPhaseDot1Clicked() { OnHeatPhaseButtonClicked.Broadcast(1); }
-void UBackpackGridWidget::OnHeatPhaseDot2Clicked() { OnHeatPhaseButtonClicked.Broadcast(2); }
 
 // ============================================================
 //  格子创建

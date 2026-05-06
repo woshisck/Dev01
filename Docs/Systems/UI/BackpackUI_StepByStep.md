@@ -32,10 +32,6 @@ WBP_BackpackScreen      ← 主界面（BackpackScreenWidget）
 ├── WBP_BackpackGrid    ← 主格子（BackpackGridWidget），变量名: BackpackGridWidget
 │   ├── SizeBox         ← 变量名: GridSizeBox（固定格子像素尺寸）
 │   │   └── UniformGridPanel ← 变量名: BackpackGrid ★（C++ 在此生成格子）
-│   ├── Button          ← 变量名: HeatPhaseDot0（可选，热度按钮）
-│   ├── Button          ← 变量名: HeatPhaseDot1（可选）
-│   ├── Button          ← 变量名: HeatPhaseDot2（可选）
-│   └── TextBlock       ← 变量名: GamepadHintLabel（可选，手柄提示）
 │
 ├── WBP_PendingGrid     ← 待放置区（PendingGridWidget），变量名: PendingGridWidget
 │   └── SizeBox         ← 变量名: PendingGridSizeBox（固定格子像素尺寸）
@@ -134,10 +130,6 @@ Canvas Panel（根节点，或 Overlay 亦可）
 ├── SizeBox                     ← 变量名: GridSizeBox ★
 │   └── UniformGridPanel        ← 变量名: BackpackGrid ★
 │
-├── Button                      ← 变量名: HeatPhaseDot0（可选）
-├── Button                      ← 变量名: HeatPhaseDot1（可选）
-├── Button                      ← 变量名: HeatPhaseDot2（可选）
-└── Text Block                  ← 变量名: GamepadHintLabel（可选）
 ```
 
 ### 3.3 GridSizeBox 设置
@@ -160,28 +152,7 @@ Slot（位于 SizeBox 内）：
 | Horizontal Alignment | **Fill** |
 | Vertical Alignment | **Fill** |
 
-### 3.5 热度阶段点按钮（可选）
-
-在 Canvas Panel 根层放三个 **Button**：
-
-| 控件 | 变量名 | 说明 |
-|------|--------|------|
-| Button | `HeatPhaseDot0` | 热度阶段 1 |
-| Button | `HeatPhaseDot1` | 热度阶段 2 |
-| Button | `HeatPhaseDot2` | 热度阶段 3 |
-
-建议做成小圆点样式（Size 16×16，圆角 Box），水平排列在格子右上方或下方。  
-C++ 会自动绑定点击事件（不需要蓝图节点），点击时切换该阶段的单阶聚焦视图。
-
-### 3.6 GamepadHintLabel（可选）
-
-放一个 **Text Block**：
-
-- 变量名：**`GamepadHintLabel`**
-- Details → Behavior → Visibility：**Collapsed**（手柄模式时 C++ 自动显示）
-- 内容由 C++ 写入，Designer 留空即可
-
-### 3.7 填写 Details 配置
+### 3.5 填写 Details 配置
 
 打开 WBP_BackpackGrid → 右上角 Details（非控件 Details）：
 
@@ -366,16 +337,6 @@ Content Browser → `+ Add → Miscellaneous → Data Asset` → 选 **`Backpack
 | Hover Color | 绿 | 拖拽悬浮目标格 |
 | Grabbed Source Color | 亮黄 | 被抓起的源格 |
 
-**热度阶段颜色（自填，三色叠加显示区域）：**
-
-| 参数 | 说明 |
-|------|------|
-| Heat Zone 0 Color | 热度阶段 1 的区域颜色（最内层，优先级最高） |
-| Heat Zone 1 Color | 热度阶段 2 的区域颜色 |
-| Heat Zone 2 Color | 热度阶段 3 的区域颜色（最外层） |
-
-> 三色建议从亮到暗渐进（如亮蓝→中蓝→暗蓝），视觉上体现热度由内向外递减。
-
 **格子尺寸：**
 
 | 参数 | 默认 | 说明 |
@@ -410,10 +371,7 @@ Content Browser → `+ Add → Miscellaneous → Data Asset` → 选 **`Backpack
 | 检查 | 正常现象 |
 |------|---------|
 | 主格子出现 | 灰色/彩色格子填满背包区，格子 1:1 正方形 |
-| 激活区颜色 | 三个热度阶段各自不同颜色叠加显示，热度1最亮 |
-| 热度切换 | 键盘 1/2/3 → 单阶聚焦显示；再按同键 → 恢复叠加；手柄 L1/R1 循环 |
-| 热度按钮 | 鼠标点击 HeatPhaseDot0/1/2 与键盘 1/2/3 效果相同 |
-| 手柄提示 | 手柄输入时 GamepadHintLabel 出现"L1/R1 切换热度显示" |
+| 激活区颜色 | 激活区按当前武器配置叠加显示，颜色清晰可读 |
 | 单击抓取 | 单击有符文的格子 → 符文立即进入抓取（GrabbedRuneIcon 浮空图标出现，该符文黄框高亮，右侧信息卡弹出） |
 | 移动放置 | 抓取中点击空格 → 符文移入目标格，抓取结束 |
 | 换格自动拾起 | 抓取中点击已有符文的格子（swap）→ 两格互换后，被替换出来的符文自动抓取（黄框立即转移） |
@@ -433,7 +391,6 @@ Content Browser → `+ Add → Miscellaneous → Data Asset` → 选 **`Backpack
 | 格子没出现 | 检查 `BackpackGrid` / `PendingRuneGrid` 变量名（大小写）；UniformGridPanel 里不要手放子控件 |
 | 格子不是正方形 | 检查 SizeBox（`GridSizeBox` / `PendingGridSizeBox`）是否放且命名正确；子控件 Slot 是否为 Fill/Fill |
 | 子 Widget 绑定失败 | BackpackGridWidget / PendingGridWidget 的变量名是否精确（大小写）；父类选择是否正确 |
-| 热度按钮无反应 | 确认按钮在 **WBP_BackpackGrid** 的 Designer 里（不在 WBP_BackpackScreen 里）；变量名精确匹配 |
 | 激活区颜色没变 | DA_BackpackStyle 是否填入 WBP_BackpackGrid 的 Style DA 字段；武器 DA 的 Zone Shapes 是否填写 |
 | RuneInfoCard 没出现 | 变量名 `RuneInfoCard`；确认它是 WBP_RuneInfoCard 实例；确认它是 HorizontalBox 最后一个子控件 |
 | GrabbedRuneIcon 不跟鼠标 | 确认 Image 在 Canvas Panel 根层（不在 Border 里）；变量名精确为 `GrabbedRuneIcon` |
