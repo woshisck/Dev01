@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "CommonActivatableWidget.h"
 #include "Data/RuneDataAsset.h"
+#include "CommonInputTypeEnum.h"
 #include "BackpackScreenWidget.generated.h"
 
 class UBackpackGridComponent;
@@ -302,6 +303,7 @@ protected:
 private:
     TWeakObjectPtr<UBackpackGridComponent> CachedBackpack;
     UBackpackGridComponent* GetBackpack() const;
+    void HandleCommonInputMethodChanged(ECommonInputType NewInputType);
 
     // ── 待放置区稀疏格子（本地，开关背包时与 Player->PendingRunes 同步） ──────
     TArray<FRuneInstance> PendingGrid;  // 平铺数组 PendingCols×PendingRows，无效 GUID = 空
@@ -352,6 +354,11 @@ private:
     void RefreshWeaponAndComboInfo();
     void SetTextIfSupported(UWidget* Widget, const FText& Text) const;
     FText BuildOperationHintText() const;
+    FText BuildConfirmButtonText() const;
+    FText BuildCancelButtonText() const;
+    FText BuildEndPreviewButtonText() const;
+    void SetButtonContentText(UButton* Button, const FText& Text) const;
+    void RefreshActionButtonHints();
     FText BuildComboHintText(const UWeaponDefinition* WeaponDefinition) const;
 
     // ── 待放置区辅助 ──────────────────────────────────────────────────────
@@ -374,6 +381,9 @@ private:
 
     /** UpdateOperationHintVisibility 缓存：避免每帧重复 SetVisibility */
     bool bOperationHintVisible = false;
+    bool bActionButtonHintsInitialized = false;
+    bool bLastActionButtonHintsGamepad = false;
+    bool bLastActionButtonHintsPreviewMode = false;
 
     void MovePendingCursor(int32 DCol, int32 DRow);
     void PendingGamepadConfirm();

@@ -76,6 +76,7 @@ public class DevKitEditor : ModuleRules
 				"DeveloperToolSettings",
 				"CollectionManager",
 				"SourceControl",
+				"CommonUI",
 				"Chaos",
                 "AIModule", // Add this line
 				"BehaviorTreeEditor",

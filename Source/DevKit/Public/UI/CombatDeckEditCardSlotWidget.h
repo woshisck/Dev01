@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Component/CombatDeckComponent.h"
+#include "UI/CombatDeckEditTypes.h"
 #include "CombatDeckEditCardSlotWidget.generated.h"
 
 class UButton;
@@ -10,6 +11,7 @@ class UImage;
 class UWidget;
 class UDragDropOperation;
 class UCombatDeckEditWidget;
+class UTexture2D;
 
 UCLASS()
 class DEVKIT_API UCombatDeckEditCardSlotWidget : public UUserWidget
@@ -19,6 +21,9 @@ class DEVKIT_API UCombatDeckEditCardSlotWidget : public UUserWidget
 public:
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
 	void SetCard(UCombatDeckEditWidget* InOwnerWidget, const FCombatCardInstance& InCard, int32 InDeckIndex, bool bInSelected);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
+	void SetLinkHintState(ECombatDeckEditCardLinkHintState InHintState);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
 	void ClearCard();
@@ -50,7 +55,16 @@ protected:
 	virtual void NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UImage> CardBG;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UImage> CardIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Visual")
+	TObjectPtr<UTexture2D> DefaultCardFrameTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Visual")
+	FLinearColor DefaultCardFrameTint = FLinearColor(0.84f, 0.88f, 0.92f, 1.0f);
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> CardNameText;
@@ -65,6 +79,18 @@ protected:
 	TObjectPtr<UWidget> SelectedMark;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> LinkHintOverlay;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> LinkGemPanel;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> LinkGemGlow;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> LinkGemCore;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> SelectButton;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -77,6 +103,7 @@ private:
 	FCombatCardInstance Card;
 	int32 DeckIndex = INDEX_NONE;
 	bool bSelected = false;
+	ECombatDeckEditCardLinkHintState LinkHintState = ECombatDeckEditCardLinkHintState::None;
 	double MouseDownTimeSeconds = 0.0;
 	bool bCapturedDefaultVisualState = false;
 	FLinearColor DefaultColorAndOpacity = FLinearColor::White;
@@ -97,6 +124,7 @@ private:
 	void ResetVisualState();
 	void CaptureDefaultVisualState();
 	void ApplySelectionVisual();
+	void ApplyLinkHintVisual();
 	FReply HandleCardMouseButtonDown(const FPointerEvent& InMouseEvent);
 	FReply TryHandleReverseInput(const FKey& Key);
 	bool IsPointerOverReverseButton(const FPointerEvent& InMouseEvent) const;
@@ -104,6 +132,5 @@ private:
 
 	static FText GetCardDisplayName(const FCombatCardInstance& InCard);
 	static FText GetCardTypeText(ECombatCardType CardType);
-	static FText GetDirectionText(const FCombatCardInstance& InCard);
 	static void SetTextIfSupported(UWidget* Widget, const FText& Text);
 };

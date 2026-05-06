@@ -15,6 +15,7 @@
 #include "UI/CombatDeckEditCardSlotWidget.h"
 #include "UI/CombatDeckEditDragDropOperation.h"
 #include "UI/RuneInfoCardWidget.h"
+#include "UI/BackpackStyleDataAsset.h"
 
 namespace
 {
@@ -154,6 +155,64 @@ void UCombatDeckEditWidget::RefreshDeckList()
 	RefreshDeckListInternal(bDragPreviewActive);
 }
 
+TArray<ECombatDeckEditCardLinkHintState> UCombatDeckEditWidget::BuildLinkHintStatesForDeck(const TArray<FCombatCardInstance>& Cards)
+{
+	TArray<ECombatDeckEditCardLinkHintState> HintStates;
+	HintStates.Init(ECombatDeckEditCardLinkHintState::None, Cards.Num());
+
+	auto AssignHintState = [&HintStates](const int32 CardIndex, const ECombatDeckEditCardLinkHintState NewState)
+	{
+		if (!HintStates.IsValidIndex(CardIndex))
+		{
+			return;
+		}
+
+		const bool bReversedHint =
+			NewState == ECombatDeckEditCardLinkHintState::ReversedLink ||
+			NewState == ECombatDeckEditCardLinkHintState::ReversedTarget;
+		if (HintStates[CardIndex] == ECombatDeckEditCardLinkHintState::None || bReversedHint)
+		{
+			HintStates[CardIndex] = NewState;
+		}
+	};
+
+	for (int32 Index = 0; Index < Cards.Num(); ++Index)
+	{
+		const FCombatCardInstance& Card = Cards[Index];
+		if (Card.Config.CardType != ECombatCardType::Link)
+		{
+			continue;
+		}
+
+		const bool bReversed = Card.LinkOrientation == ECombatCardLinkOrientation::Reversed;
+		const int32 TargetIndex = bReversed ? Index + 1 : Index - 1;
+		if (!Cards.IsValidIndex(TargetIndex))
+		{
+			continue;
+		}
+
+		AssignHintState(Index, bReversed
+			? ECombatDeckEditCardLinkHintState::ReversedLink
+			: ECombatDeckEditCardLinkHintState::ForwardLink);
+		AssignHintState(TargetIndex, bReversed
+			? ECombatDeckEditCardLinkHintState::ReversedTarget
+			: ECombatDeckEditCardLinkHintState::ForwardTarget);
+	}
+
+	return HintStates;
+}
+
+void UCombatDeckEditWidget::SetExternalDetailInfoCard(URuneInfoCardWidget* InInfoCard)
+{
+	ExternalDetailInfoCard = InInfoCard;
+	RefreshSelectedCardInfo();
+}
+
+bool UCombatDeckEditWidget::IsUsingExternalDetailInfoCard(const URuneInfoCardWidget* InInfoCard) const
+{
+	return InInfoCard && ExternalDetailInfoCard.Get() == InInfoCard;
+}
+
 void UCombatDeckEditWidget::RefreshDeckListInternal(bool bUseDragPreview)
 {
 	if (!CardListBox)
@@ -184,6 +243,7 @@ void UCombatDeckEditWidget::RefreshDeckListInternal(bool bUseDragPreview)
 
 	const bool bCanPreviewDrag = bUseDragPreview && Cards.IsValidIndex(DragSourceIndex);
 	const int32 VisualInsertIndex = bCanPreviewDrag ? GetPreviewVisualInsertIndex(DragPreviewInsertIndex) : INDEX_NONE;
+	const TArray<ECombatDeckEditCardLinkHintState> LinkHintStates = BuildLinkHintStatesForDeck(Cards);
 	if (!Cards.IsValidIndex(SelectedCardIndex))
 	{
 		SelectedCardIndex = Cards.IsEmpty() ? INDEX_NONE : 0;
@@ -213,7 +273,11 @@ void UCombatDeckEditWidget::RefreshDeckListInternal(bool bUseDragPreview)
 
 		const bool bShowSelectedState = !bCanPreviewDrag && Index == SelectedCardIndex;
 		CardSlotWidget->SetCard(this, Cards[Index], Index, bShowSelectedState);
-		AddWidgetToCardList(CardSlotWidget, IsCardListHorizontal() ? FMargin(0.0f, 0.0f, 8.0f, 0.0f) : FMargin());
+		CardSlotWidget->SetLinkHintState(LinkHintStates.IsValidIndex(Index)
+			? LinkHintStates[Index]
+			: ECombatDeckEditCardLinkHintState::None);
+		AddWidgetToCardList(WrapDeckCardWidget(CardSlotWidget),
+			IsCardListHorizontal() ? FMargin(0.0f, 0.0f, GetDeckCardSpacing(), 0.0f) : FMargin());
 		++VisibleCardIndex;
 	}
 
@@ -659,7 +723,7 @@ void UCombatDeckEditWidget::UpdateGamepadFloatingDragCardPosition()
 		? FVector2D(ListAbsPosition.X + ClampedPrimary + GamepadFloatingDragOffset.X, ListAbsPosition.Y + ListAbsSize.Y * 0.5f + GamepadFloatingDragOffset.Y)
 		: FVector2D(ListAbsPosition.X + GamepadFloatingDragOffset.X, ListAbsPosition.Y + ClampedPrimary + GamepadFloatingDragOffset.Y);
 	const FVector2D DesiredSize = bHorizontal
-		? FVector2D(FMath::Max(160.0f, SlotExtent * 0.92f), FMath::Max(78.0f, ListAbsSize.Y * 0.82f))
+		? FVector2D(GetDeckCardWidth(), GetDeckCardHeight())
 		: FVector2D(FMath::Max(220.0f, ListAbsSize.X), FMath::Max(44.0f, SlotExtent * 0.92f));
 	const float ViewportScale = FMath::Max(0.01f, UWidgetLayoutLibrary::GetViewportScale(this));
 	const FVector2D ViewportPosition = Position / ViewportScale;
@@ -714,21 +778,21 @@ void UCombatDeckEditWidget::RefreshSelectedCardInfo()
 	const TArray<FCombatCardInstance> Cards = BoundCombatDeck ? BoundCombatDeck->GetFullDeckSnapshot() : TArray<FCombatCardInstance>();
 	const FCombatCardInstance SelectedCard = Cards.IsValidIndex(SelectedCardIndex) ? Cards[SelectedCardIndex] : FCombatCardInstance();
 
-	if (RuneInfoCard)
+	if (URuneInfoCardWidget* DetailInfoCard = GetActiveDetailInfoCard())
 	{
 		ApplyDetailPreviewVisibility();
 		if (!bDetailPreviewVisible)
 		{
-			RuneInfoCard->HideCard();
+			DetailInfoCard->HideCard();
 		}
 		else if (SelectedCard.SourceData)
 		{
-			RuneInfoCard->SetVisibility(ESlateVisibility::Visible);
-			RuneInfoCard->ShowRune(SelectedCard.SourceData->RuneInfo);
+			DetailInfoCard->SetVisibility(ESlateVisibility::Visible);
+			DetailInfoCard->ShowRune(SelectedCard.SourceData->RuneInfo);
 		}
 		else
 		{
-			RuneInfoCard->HideCard();
+			DetailInfoCard->HideCard();
 		}
 	}
 
@@ -737,12 +801,18 @@ void UCombatDeckEditWidget::RefreshSelectedCardInfo()
 
 void UCombatDeckEditWidget::ApplyDetailPreviewVisibility()
 {
-	if (!RuneInfoCard)
+	URuneInfoCardWidget* DetailInfoCard = GetActiveDetailInfoCard();
+	if (!DetailInfoCard)
 	{
 		return;
 	}
 
-	RuneInfoCard->SetVisibility(bDetailPreviewVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	DetailInfoCard->SetVisibility(bDetailPreviewVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+}
+
+URuneInfoCardWidget* UCombatDeckEditWidget::GetActiveDetailInfoCard() const
+{
+	return ExternalDetailInfoCard ? ExternalDetailInfoCard.Get() : RuneInfoCard.Get();
 }
 
 void UCombatDeckEditWidget::HandleDeckChanged(const TArray<FCombatCardInstance>& ActiveSequence)
@@ -798,7 +868,7 @@ void UCombatDeckEditWidget::AddDropIndicatorToList()
 	if (IsCardListHorizontal())
 	{
 		IndicatorBox->SetWidthOverride(DropIndicatorHeight);
-		IndicatorBox->SetHeightOverride(190.0f);
+		IndicatorBox->SetHeightOverride(GetDeckCardHeight());
 	}
 	else
 	{
@@ -840,7 +910,8 @@ void UCombatDeckEditWidget::AddInlineFloatingDragCardToList(const FCombatCardIns
 	FloatingTransform.Scale = FVector2D(InlineScale, InlineScale);
 	FloatingSlot->SetRenderTransform(FloatingTransform);
 
-	AddWidgetToCardList(FloatingSlot, IsCardListHorizontal() ? FMargin(0.0f, 0.0f, 8.0f, 0.0f) : FMargin(0.0f, 2.0f, 0.0f, 2.0f));
+	AddWidgetToCardList(WrapDeckCardWidget(FloatingSlot),
+		IsCardListHorizontal() ? FMargin(0.0f, 0.0f, GetDeckCardSpacing(), 0.0f) : FMargin(0.0f, 2.0f, 0.0f, 2.0f));
 
 	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][InlineFloatingDrag] Added Index=%d Opacity=%.2f Scale=%.2f Offset=(%.1f,%.1f) ConfigOffset=(%.1f,%.1f) Card={%s}"),
 		CardIndex,
@@ -893,6 +964,40 @@ int32 UCombatDeckEditWidget::GetDropInsertIndexFromListGeometry(const FGeometry&
 bool UCombatDeckEditWidget::IsCardListHorizontal() const
 {
 	return Cast<UHorizontalBox>(CardListBox) != nullptr;
+}
+
+float UCombatDeckEditWidget::GetDeckCardWidth() const
+{
+	return StyleDA ? StyleDA->DeckCardWidth : FallbackDeckCardWidth;
+}
+
+float UCombatDeckEditWidget::GetDeckCardHeight() const
+{
+	return StyleDA ? StyleDA->DeckCardHeight : FallbackDeckCardHeight;
+}
+
+float UCombatDeckEditWidget::GetDeckCardSpacing() const
+{
+	return StyleDA ? StyleDA->DeckCardSpacing : FallbackDeckCardSpacing;
+}
+
+UWidget* UCombatDeckEditWidget::WrapDeckCardWidget(UWidget* Child)
+{
+	if (!Child || !bUseFixedTarotCardSize || !WidgetTree)
+	{
+		return Child;
+	}
+
+	USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+	if (!SizeBox)
+	{
+		return Child;
+	}
+
+	SizeBox->SetWidthOverride(GetDeckCardWidth());
+	SizeBox->SetHeightOverride(GetDeckCardHeight());
+	SizeBox->AddChild(Child);
+	return SizeBox;
 }
 
 void UCombatDeckEditWidget::AddWidgetToCardList(UWidget* Child, const FMargin& SlotPadding, ESlateSizeRule::Type SizeRule)

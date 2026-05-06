@@ -17,29 +17,63 @@ class DEVKIT_API UBackpackStyleDataAsset : public UDataAsset
 
 public:
     // =========================================================
+    // Inspect panel gothic theme
+    // =========================================================
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inspect Panel")
+    TObjectPtr<UTexture2D> MainPanelFrameTexture;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inspect Panel")
+    TObjectPtr<UTexture2D> DeckCardFrameTexture;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inspect Panel")
+    TObjectPtr<UTexture2D> DefaultWeaponIconTexture;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inspect Panel")
+    FLinearColor PanelBackgroundTint = FLinearColor(0.025f, 0.024f, 0.028f, 0.94f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inspect Panel")
+    FLinearColor MoonlitIronTint = FLinearColor(0.78f, 0.84f, 0.88f, 1.0f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inspect Panel")
+    FLinearColor OxbloodAccentTint = FLinearColor(0.34f, 0.035f, 0.045f, 1.0f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inspect Panel",
+              meta = (ClampMin = "48", ClampMax = "180"))
+    float DeckCardWidth = 88.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inspect Panel",
+              meta = (ClampMin = "144", ClampMax = "420"))
+    float DeckCardHeight = 264.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inspect Panel",
+              meta = (ClampMin = "0", ClampMax = "40"))
+    float DeckCardSpacing = 12.f;
+
+    // =========================================================
     // 格子颜色（无纹理时使用）
     // =========================================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
-    FLinearColor EmptyColor = FLinearColor(0.40f, 0.40f, 0.42f, 1.f);
+    FLinearColor EmptyColor = FLinearColor(0.09f, 0.09f, 0.105f, 0.82f);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
-    FLinearColor EmptyActiveColor = FLinearColor(0.15f, 0.35f, 0.75f, 1.f);
+    FLinearColor EmptyActiveColor = FLinearColor(0.46f, 0.54f, 0.62f, 0.92f);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
-    FLinearColor OccupiedActiveColor = FLinearColor(0.10f, 0.65f, 1.00f, 1.f);
+    FLinearColor OccupiedActiveColor = FLinearColor(0.74f, 0.80f, 0.84f, 1.f);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
-    FLinearColor OccupiedInactiveColor = FLinearColor(0.18f, 0.10f, 0.25f, 1.f);
+    FLinearColor OccupiedInactiveColor = FLinearColor(0.20f, 0.18f, 0.19f, 0.96f);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
-    FLinearColor SelectedColor = FLinearColor(1.00f, 0.82f, 0.10f, 1.f);
+    FLinearColor SelectedColor = FLinearColor(0.84f, 0.88f, 0.92f, 1.f);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
-    FLinearColor HoverColor = FLinearColor(0.10f, 0.80f, 0.20f, 1.f);
+    FLinearColor HoverColor = FLinearColor(0.62f, 0.70f, 0.74f, 1.f);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
-    FLinearColor GrabbedSourceColor = FLinearColor(1.00f, 0.85f, 0.10f, 1.f);
+    FLinearColor GrabbedSourceColor = FLinearColor(0.34f, 0.035f, 0.045f, 1.f);
 
     // =========================================================
     // 格子背景纹理（有纹理时覆盖颜色，颜色作为 Tint 叠加）
@@ -114,13 +148,13 @@ public:
 
     // Phase 1=冷白/淡蓝  Phase 2=暖橙  Phase 3=金色
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度阶段颜色")
-    FLinearColor HeatZone0Color = FLinearColor(0.45f, 0.60f, 1.00f, 1.f);  // Phase1 冷白/淡蓝
+    FLinearColor HeatZone0Color = FLinearColor(0.68f, 0.74f, 0.80f, 1.f);  // Phase1 moonlit silver
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度阶段颜色")
-    FLinearColor HeatZone1Color = FLinearColor(1.00f, 0.50f, 0.08f, 1.f);  // Phase2 暖橙
+    FLinearColor HeatZone1Color = FLinearColor(0.46f, 0.12f, 0.13f, 1.f);  // Phase2 oxblood
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度阶段颜色")
-    FLinearColor HeatZone2Color = FLinearColor(1.00f, 0.82f, 0.10f, 1.f);  // Phase3 金色
+    FLinearColor HeatZone2Color = FLinearColor(0.84f, 0.80f, 0.68f, 1.f);  // Phase3 pale metal
 
     // =========================================================
     // 热度升阶发光颜色（角色/武器 Overlay 材质 EmissiveColor，HDR 线性空间）
@@ -141,10 +175,10 @@ public:
     // =========================================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "待放置区颜色")
-    FLinearColor PendingHasRuneColor = FLinearColor(0.12f, 0.08f, 0.22f, 1.f);
+    FLinearColor PendingHasRuneColor = FLinearColor(0.18f, 0.045f, 0.055f, 0.96f);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "待放置区颜色")
-    FLinearColor PendingEmptyColor = FLinearColor(0.40f, 0.40f, 0.42f, 1.f);
+    FLinearColor PendingEmptyColor = FLinearColor(0.08f, 0.08f, 0.095f, 0.82f);
 
     // =========================================================
     // 格子尺寸

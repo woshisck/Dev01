@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Component/CombatDeckComponent.h"
+#include "UI/CombatDeckEditTypes.h"
 #include "CombatDeckEditWidget.generated.h"
 
 class UPanelWidget;
@@ -10,6 +11,7 @@ class UBorder;
 class URuneInfoCardWidget;
 class UCombatDeckEditCardSlotWidget;
 class UDragDropOperation;
+class UBackpackStyleDataAsset;
 
 UCLASS()
 class DEVKIT_API UCombatDeckEditWidget : public UUserWidget
@@ -25,6 +27,16 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
 	void RefreshDeckList();
+
+	static TArray<ECombatDeckEditCardLinkHintState> BuildLinkHintStatesForDeck(const TArray<FCombatCardInstance>& Cards);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
+	void RefreshSelectedCardInfo();
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
+	void SetExternalDetailInfoCard(URuneInfoCardWidget* InInfoCard);
+
+	bool IsUsingExternalDetailInfoCard(const URuneInfoCardWidget* InInfoCard) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
 	void SelectCard(int32 CardIndex);
@@ -115,6 +127,21 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Edit")
 	TSubclassOf<UCombatDeckEditCardSlotWidget> CardSlotClass;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Edit|Style")
+	TObjectPtr<UBackpackStyleDataAsset> StyleDA;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Edit|Style")
+	bool bUseFixedTarotCardSize = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Edit|Style", meta = (ClampMin = "48", ClampMax = "180"))
+	float FallbackDeckCardWidth = 88.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Edit|Style", meta = (ClampMin = "144", ClampMax = "420"))
+	float FallbackDeckCardHeight = 264.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Edit|Style", meta = (ClampMin = "0", ClampMax = "40"))
+	float FallbackDeckCardSpacing = 12.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Edit|Drag Preview")
 	float DropIndicatorHeight = 8.0f;
 
@@ -140,6 +167,9 @@ private:
 	UPROPERTY()
 	TObjectPtr<UCombatDeckEditCardSlotWidget> GamepadFloatingDragSlot;
 
+	UPROPERTY()
+	TObjectPtr<URuneInfoCardWidget> ExternalDetailInfoCard;
+
 	int32 SelectedCardIndex = INDEX_NONE;
 	bool bInteractionLocked = false;
 	bool bDragPreviewActive = false;
@@ -152,8 +182,8 @@ private:
 	bool bDetailPreviewVisible = true;
 
 	void UnbindFromCurrentDeck();
-	void RefreshSelectedCardInfo();
 	void ApplyDetailPreviewVisibility();
+	URuneInfoCardWidget* GetActiveDetailInfoCard() const;
 	void RefreshDeckListInternal(bool bUseDragPreview);
 	void AddDropIndicatorToList();
 	void AddInlineFloatingDragCardToList(const FCombatCardInstance& Card, int32 CardIndex);
@@ -167,6 +197,10 @@ private:
 	int32 GetDropInsertIndexFromListGeometry(const FGeometry& InGeometry, const FVector2D& ScreenPosition) const;
 	bool IsCardListHorizontal() const;
 	void AddWidgetToCardList(UWidget* Child, const FMargin& SlotPadding, ESlateSizeRule::Type SizeRule = ESlateSizeRule::Automatic);
+	UWidget* WrapDeckCardWidget(UWidget* Child);
+	float GetDeckCardWidth() const;
+	float GetDeckCardHeight() const;
+	float GetDeckCardSpacing() const;
 
 	UFUNCTION()
 	void HandleDeckChanged(const TArray<FCombatCardInstance>& ActiveSequence);

@@ -1,6 +1,7 @@
 #include "UI/CombatDeckEditCardSlotWidget.h"
 
 #include "Blueprint/DragDropOperation.h"
+#include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -18,6 +19,18 @@ constexpr float DragVisualOpacity = 0.72f;
 constexpr float DragVisualScale = 1.04f;
 constexpr float SelectedVisualScale = 1.03f;
 const FLinearColor SelectedColorAndOpacity(0.84f, 0.88f, 0.96f, 1.0f);
+const FLinearColor ForwardLinkHintColor(0.62f, 0.78f, 0.90f, 0.20f);
+const FLinearColor ForwardTargetHintColor(0.62f, 0.78f, 0.90f, 0.13f);
+const FLinearColor ReversedLinkHintColor(0.90f, 0.62f, 0.36f, 0.22f);
+const FLinearColor ReversedTargetHintColor(0.90f, 0.62f, 0.36f, 0.14f);
+const FLinearColor ForwardGemGlowColor(0.48f, 0.82f, 1.00f, 0.58f);
+const FLinearColor ForwardGemCoreColor(0.82f, 0.95f, 1.00f, 0.92f);
+const FLinearColor ForwardGemIdleGlowColor(0.48f, 0.82f, 1.00f, 0.34f);
+const FLinearColor ForwardGemIdleCoreColor(0.72f, 0.88f, 0.96f, 0.76f);
+const FLinearColor ReversedGemGlowColor(1.00f, 0.50f, 0.30f, 0.62f);
+const FLinearColor ReversedGemCoreColor(1.00f, 0.76f, 0.42f, 0.94f);
+const FLinearColor ReversedGemIdleGlowColor(0.90f, 0.45f, 0.28f, 0.36f);
+const FLinearColor ReversedGemIdleCoreColor(0.92f, 0.66f, 0.42f, 0.78f);
 const FVector2D BlockedFeedbackOffset(6.0f, 0.0f);
 }
 
@@ -50,7 +63,18 @@ void UCombatDeckEditCardSlotWidget::SetCard(UCombatDeckEditWidget* InOwnerWidget
 	Card = InCard;
 	DeckIndex = InDeckIndex;
 	bSelected = bInSelected;
+	LinkHintState = ECombatDeckEditCardLinkHintState::None;
 	SetVisibility(ESlateVisibility::Visible);
+
+	if (CardBG)
+	{
+		if (DefaultCardFrameTexture)
+		{
+			CardBG->SetBrushFromTexture(DefaultCardFrameTexture, false);
+		}
+		CardBG->SetColorAndOpacity(DefaultCardFrameTint);
+		CardBG->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
 
 	if (CardIcon)
 	{
@@ -64,13 +88,10 @@ void UCombatDeckEditCardSlotWidget::SetCard(UCombatDeckEditWidget* InOwnerWidget
 
 	SetTextIfSupported(CardNameText, GetCardDisplayName(Card));
 	SetTextIfSupported(TypeText, GetCardTypeText(Card.Config.CardType));
-	SetTextIfSupported(DirectionText, GetDirectionText(Card));
 
 	if (DirectionText)
 	{
-		DirectionText->SetVisibility(Card.Config.CardType == ECombatCardType::Link
-			? ESlateVisibility::Visible
-			: ESlateVisibility::Collapsed);
+		DirectionText->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	if (ReverseButton)
 	{
@@ -83,8 +104,15 @@ void UCombatDeckEditCardSlotWidget::SetCard(UCombatDeckEditWidget* InOwnerWidget
 		SelectedMark->SetVisibility(bSelected ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
+	ApplyLinkHintVisual();
 	ApplySelectionVisual();
 	BP_OnCardChanged(Card, DeckIndex, bSelected);
+}
+
+void UCombatDeckEditCardSlotWidget::SetLinkHintState(ECombatDeckEditCardLinkHintState InHintState)
+{
+	LinkHintState = InHintState;
+	ApplyLinkHintVisual();
 }
 
 void UCombatDeckEditCardSlotWidget::ClearCard()
@@ -93,6 +121,8 @@ void UCombatDeckEditCardSlotWidget::ClearCard()
 	Card = FCombatCardInstance();
 	DeckIndex = INDEX_NONE;
 	bSelected = false;
+	LinkHintState = ECombatDeckEditCardLinkHintState::None;
+	ApplyLinkHintVisual();
 	SetVisibility(ESlateVisibility::Collapsed);
 }
 
@@ -336,6 +366,94 @@ void UCombatDeckEditCardSlotWidget::ApplySelectionVisual()
 	SetRenderTransform(SelectedTransform);
 }
 
+void UCombatDeckEditCardSlotWidget::ApplyLinkHintVisual()
+{
+	if (LinkHintOverlay && LinkHintState == ECombatDeckEditCardLinkHintState::None)
+	{
+		LinkHintOverlay->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	else if (LinkHintOverlay)
+	{
+		FLinearColor HintColor = ForwardTargetHintColor;
+		switch (LinkHintState)
+		{
+		case ECombatDeckEditCardLinkHintState::ForwardLink:
+			HintColor = ForwardLinkHintColor;
+			break;
+		case ECombatDeckEditCardLinkHintState::ForwardTarget:
+			HintColor = ForwardTargetHintColor;
+			break;
+		case ECombatDeckEditCardLinkHintState::ReversedLink:
+			HintColor = ReversedLinkHintColor;
+			break;
+		case ECombatDeckEditCardLinkHintState::ReversedTarget:
+			HintColor = ReversedTargetHintColor;
+			break;
+		case ECombatDeckEditCardLinkHintState::None:
+		default:
+			break;
+		}
+
+		if (UBorder* HintBorder = Cast<UBorder>(LinkHintOverlay))
+		{
+			HintBorder->SetBrushColor(HintColor);
+		}
+		else if (UImage* HintImage = Cast<UImage>(LinkHintOverlay))
+		{
+			HintImage->SetColorAndOpacity(HintColor);
+		}
+
+		LinkHintOverlay->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+
+	const bool bIsLinkCard = Card.Config.CardType == ECombatCardType::Link;
+	if (LinkGemPanel)
+	{
+		LinkGemPanel->SetVisibility(bIsLinkCard ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (LinkGemGlow)
+	{
+		LinkGemGlow->SetVisibility(bIsLinkCard ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (LinkGemCore)
+	{
+		LinkGemCore->SetVisibility(bIsLinkCard ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
+	if (!bIsLinkCard)
+	{
+		return;
+	}
+
+	const bool bReversed = Card.LinkOrientation == ECombatCardLinkOrientation::Reversed;
+	const bool bActiveLink = LinkHintState == ECombatDeckEditCardLinkHintState::ForwardLink ||
+		LinkHintState == ECombatDeckEditCardLinkHintState::ReversedLink;
+	const FLinearColor GlowColor = bReversed
+		? (bActiveLink ? ReversedGemGlowColor : ReversedGemIdleGlowColor)
+		: (bActiveLink ? ForwardGemGlowColor : ForwardGemIdleGlowColor);
+	const FLinearColor CoreColor = bReversed
+		? (bActiveLink ? ReversedGemCoreColor : ReversedGemIdleCoreColor)
+		: (bActiveLink ? ForwardGemCoreColor : ForwardGemIdleCoreColor);
+
+	if (UBorder* GlowBorder = Cast<UBorder>(LinkGemGlow))
+	{
+		GlowBorder->SetBrushColor(GlowColor);
+	}
+	else if (UImage* GlowImage = Cast<UImage>(LinkGemGlow))
+	{
+		GlowImage->SetColorAndOpacity(GlowColor);
+	}
+
+	if (UBorder* CoreBorder = Cast<UBorder>(LinkGemCore))
+	{
+		CoreBorder->SetBrushColor(CoreColor);
+	}
+	else if (UImage* CoreImage = Cast<UImage>(LinkGemCore))
+	{
+		CoreImage->SetColorAndOpacity(CoreColor);
+	}
+}
+
 FReply UCombatDeckEditCardSlotWidget::HandleCardMouseButtonDown(const FPointerEvent& InMouseEvent)
 {
 	MouseDownTimeSeconds = FPlatformTime::Seconds();
@@ -417,18 +535,6 @@ FText UCombatDeckEditCardSlotWidget::GetCardTypeText(ECombatCardType CardType)
 	default:
 		return FText::FromString(TEXT("普通"));
 	}
-}
-
-FText UCombatDeckEditCardSlotWidget::GetDirectionText(const FCombatCardInstance& InCard)
-{
-	if (InCard.Config.CardType != ECombatCardType::Link)
-	{
-		return FText::GetEmpty();
-	}
-
-	return InCard.LinkOrientation == ECombatCardLinkOrientation::Reversed
-		? FText::FromString(TEXT("<-"))
-		: FText::FromString(TEXT("->"));
 }
 
 void UCombatDeckEditCardSlotWidget::SetTextIfSupported(UWidget* Widget, const FText& Text)

@@ -13,17 +13,22 @@
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
+#include "Components/RichTextBlockDecorator.h"
 #include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Engine/Blueprint.h"
 #include "FileHelpers.h"
 #include "IAssetTools.h"
+#include "AutomatedAssetImportData.h"
+#include "Engine/Texture2D.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
+#include "CommonTextBlock.h"
 #include "Styling/SlateBrush.h"
 #include "UObject/UnrealType.h"
 #include "UI/BackpackGridWidget.h"
@@ -33,9 +38,11 @@
 #include "UI/CombatDeckCardSlotWidget.h"
 #include "UI/CombatDeckEditCardSlotWidget.h"
 #include "UI/CombatDeckEditWidget.h"
+#include "UI/InputActionRichTextDecorator.h"
 #include "UI/PendingGridWidget.h"
 #include "UI/RuneInfoCardWidget.h"
 #include "UI/RuneSlotWidget.h"
+#include "UI/YogCommonRichTextBlock.h"
 #include "UI/YogCommonUITextBlock.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintFactory.h"
@@ -53,6 +60,19 @@ namespace BackpackDeckUIStyleSetup
 	const FString CombatDeckEditPath = TEXT("/Game/UI/Playtest_UI/CombatInfo/WBP_CombatDeckEditWidget");
 	const FString CombatDeckEditCardSlotPath = TEXT("/Game/UI/Playtest_UI/CombatInfo/WBP_CombatDeckEditCardSlot");
 	const FString BackpackStylePath = TEXT("/Game/Docs/UI/RunCard/GlobalSet/DA_BackpackStyle");
+	const FString BackpackInspectTextureDir = TEXT("/Game/Docs/UI/RunCard/BackpackInspect");
+	const FString SourceArtBackpackInspectDir = TEXT("SourceArt/UI/BackpackInspect");
+	const FString MainPanelFrameTexturePath = TEXT("/Game/Docs/UI/RunCard/BackpackInspect/T_BackpackInspect_MainPanelFrame");
+	const FString CellFrameTexturePath = TEXT("/Game/Docs/UI/RunCard/BackpackInspect/T_BackpackInspect_CellFrame");
+	const FString TarotCardFrameTexturePath = TEXT("/Game/Docs/UI/RunCard/BackpackInspect/T_BackpackInspect_TarotCardFrame");
+	const FString WeaponIconTexturePath = TEXT("/Game/Docs/UI/RunCard/BackpackInspect/T_BackpackInspect_WeaponIcon_TrickBlade");
+	const FString InputActionDecoratorPath = TEXT("/Game/Docs/UI/Tutorial/BP_InputActionDecorator");
+	const FString InputActionDecoratorClassPath = TEXT("/Game/Docs/UI/Tutorial/BP_InputActionDecorator.BP_InputActionDecorator_C");
+	const FString KeywordDecoratorClassPath = TEXT("/Game/Docs/UI/Tutorial/BP_KeywordDecorator.BP_KeywordDecorator_C");
+	const FString InfoPopupTextStyleClassPath = TEXT("/Game/Docs/UI/Tutorial/BP_InfoPopupTextStyle.BP_InfoPopupTextStyle_C");
+	const FString InteractInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_Interact.IA_Interact");
+	const FString EscInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_Esc.IA_Esc");
+	const FString MouseClickInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_MouseClick.IA_MouseClick");
 
 	const FLinearColor SilverText(0.86f, 0.88f, 0.90f, 1.0f);
 	const FLinearColor MutedSilver(0.58f, 0.62f, 0.66f, 1.0f);
@@ -99,6 +119,131 @@ namespace BackpackDeckUIStyleSetup
 	UObject* LoadObjectByPackagePath(const FString& PackagePath, UClass* ObjectClass)
 	{
 		return StaticLoadObject(ObjectClass, nullptr, *ToObjectPath(PackagePath));
+	}
+
+	UTexture2D* LoadTextureByPackagePath(const FString& PackagePath)
+	{
+		return Cast<UTexture2D>(LoadObjectByPackagePath(PackagePath, UTexture2D::StaticClass()));
+	}
+
+	UTexture2D* ImportTextureIfNeeded(const FString& SourceFileName, const FString& PackagePath, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	{
+		if (UTexture2D* ExistingTexture = LoadTextureByPackagePath(PackagePath))
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Found texture `%s`."), *PackagePath));
+			return ExistingTexture;
+		}
+
+		const FString SourcePath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir(), SourceArtBackpackInspectDir / SourceFileName);
+		if (!FPaths::FileExists(SourcePath))
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Missing source texture `%s`."), *SourcePath));
+			return nullptr;
+		}
+
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		TArray<FString> ImportFiles;
+		ImportFiles.Add(SourcePath);
+		UAutomatedAssetImportData* ImportData = NewObject<UAutomatedAssetImportData>();
+		ImportData->GroupName = TEXT("BackpackInspectUI");
+		ImportData->Filenames = ImportFiles;
+		ImportData->DestinationPath = BackpackInspectTextureDir;
+		ImportData->bReplaceExisting = true;
+		ImportData->bSkipReadOnly = true;
+		TArray<UObject*> ImportedObjects = AssetTools.ImportAssetsAutomated(ImportData);
+
+		UTexture2D* ImportedTexture = LoadTextureByPackagePath(PackagePath);
+		if (!ImportedTexture)
+		{
+			for (UObject* ImportedObject : ImportedObjects)
+			{
+				if (UTexture2D* Candidate = Cast<UTexture2D>(ImportedObject))
+				{
+					ImportedTexture = Candidate;
+					break;
+				}
+			}
+		}
+
+		ReportLines.Add(FString::Printf(TEXT("- Imported `%s` -> `%s`: %s."),
+			*SourcePath,
+			*PackagePath,
+			ImportedTexture ? TEXT("ok") : TEXT("failed")));
+		if (ImportedTexture)
+		{
+			ImportedTexture->MarkPackageDirty();
+			DirtyPackages.AddUnique(ImportedTexture->GetPackage());
+		}
+		return ImportedTexture;
+	}
+
+	void ImportBackpackInspectTextures(TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	{
+		ImportTextureIfNeeded(TEXT("T_BackpackInspect_MainPanelFrame.png"), MainPanelFrameTexturePath, ReportLines, DirtyPackages);
+		ImportTextureIfNeeded(TEXT("T_BackpackInspect_CellFrame.png"), CellFrameTexturePath, ReportLines, DirtyPackages);
+		ImportTextureIfNeeded(TEXT("T_BackpackInspect_TarotCardFrame.png"), TarotCardFrameTexturePath, ReportLines, DirtyPackages);
+		ImportTextureIfNeeded(TEXT("T_BackpackInspect_WeaponIcon_TrickBlade.png"), WeaponIconTexturePath, ReportLines, DirtyPackages);
+	}
+
+	void EnsureInputActionDecoratorMappings(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	{
+		UBlueprint* DecoratorBlueprint = Cast<UBlueprint>(LoadObjectByPackagePath(InputActionDecoratorPath, UBlueprint::StaticClass()));
+		UClass* DecoratorClass = DecoratorBlueprint ? DecoratorBlueprint->GeneratedClass.Get() : nullptr;
+		if (!DecoratorClass)
+		{
+			DecoratorClass = LoadClass<UInputActionRichTextDecorator>(nullptr, *InputActionDecoratorClassPath);
+		}
+		UInputActionRichTextDecorator* DecoratorCDO = DecoratorClass ? Cast<UInputActionRichTextDecorator>(DecoratorClass->GetDefaultObject()) : nullptr;
+		if (!DecoratorCDO)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Missing input action decorator `%s`; CommonUI icon mappings were not updated."), *InputActionDecoratorPath));
+			return;
+		}
+
+		auto EnsureActionMapping = [DecoratorCDO](const FName ActionName, const FString& ActionObjectPath) -> bool
+		{
+			const TSoftObjectPtr<UInputAction> DesiredAction{ FSoftObjectPath(ActionObjectPath) };
+			const TSoftObjectPtr<UInputAction>* ExistingAction = DecoratorCDO->ActionMap.Find(ActionName);
+			if (ExistingAction && ExistingAction->ToSoftObjectPath() == DesiredAction.ToSoftObjectPath())
+			{
+				return false;
+			}
+
+			DecoratorCDO->ActionMap.Add(ActionName, DesiredAction);
+			return true;
+		};
+
+		bool bChanged = false;
+		if (!bDryRun)
+		{
+			DecoratorCDO->Modify();
+			bChanged |= EnsureActionMapping(TEXT("Interact"), InteractInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("Esc"), EscInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("MouseClick"), MouseClickInputActionObjectPath);
+			if (DecoratorCDO->AutoResolvePath != TEXT("/Game/Code/Core/Input/Actions/"))
+			{
+				DecoratorCDO->AutoResolvePath = TEXT("/Game/Code/Core/Input/Actions/");
+				bChanged = true;
+			}
+
+			if (bChanged)
+			{
+				if (DecoratorBlueprint)
+				{
+					DecoratorBlueprint->Modify();
+					DecoratorBlueprint->MarkPackageDirty();
+					DirtyPackages.AddUnique(DecoratorBlueprint->GetPackage());
+				}
+				else
+				{
+					DecoratorCDO->MarkPackageDirty();
+					DirtyPackages.AddUnique(DecoratorCDO->GetOutermost());
+				}
+			}
+		}
+
+		ReportLines.Add(FString::Printf(TEXT("- BP_InputActionDecorator ActionMap includes Interact, Esc, and MouseClick mappings%s."),
+			bChanged ? TEXT(" (updated)") : TEXT("")));
 	}
 
 	template <typename TWidget>
@@ -231,6 +376,63 @@ namespace BackpackDeckUIStyleSetup
 		FSlateFontInfo FontInfo = TextBlock->GetFont();
 		FontInfo.Size = Size;
 		TextBlock->SetFont(FontInfo);
+	}
+
+	void SetClassArrayProperty(UObject* Object, const FName PropertyName, const TArray<UClass*>& Values)
+	{
+		if (!Object)
+		{
+			return;
+		}
+
+		if (FArrayProperty* ArrayProperty = FindFProperty<FArrayProperty>(Object->GetClass(), PropertyName))
+		{
+			if (FClassProperty* ClassProperty = CastField<FClassProperty>(ArrayProperty->Inner))
+			{
+				Object->Modify();
+				FScriptArrayHelper Helper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(Object));
+				Helper.EmptyValues();
+
+				for (UClass* Value : Values)
+				{
+					if (!Value)
+					{
+						continue;
+					}
+
+					const int32 Index = Helper.AddValue();
+					ClassProperty->SetPropertyValue(Helper.GetRawPtr(Index), Value);
+				}
+			}
+		}
+	}
+
+	void ConfigureComboRichText(UYogCommonRichTextBlock* RichTextBlock, const FString& Text, const FLinearColor& Color, int32 Size)
+	{
+		if (!RichTextBlock)
+		{
+			return;
+		}
+
+		RichTextBlock->SetText(FText::FromString(Text));
+		RichTextBlock->SetAutoWrapText(true);
+		RichTextBlock->SetJustification(ETextJustify::Left);
+		RichTextBlock->SetClipping(EWidgetClipping::ClipToBounds);
+		RichTextBlock->FontStyleClass = LoadClass<UCommonTextStyle>(nullptr, *InfoPopupTextStyleClassPath);
+		RichTextBlock->OverrideFontSize = Size;
+		RichTextBlock->OverrideColor = Color;
+
+		TArray<UClass*> DecoratorClasses;
+		if (UClass* InputActionDecoratorClass = LoadClass<URichTextBlockDecorator>(nullptr, *InputActionDecoratorClassPath))
+		{
+			DecoratorClasses.Add(InputActionDecoratorClass);
+		}
+
+		if (UClass* KeywordDecoratorClass = LoadClass<URichTextBlockDecorator>(nullptr, *KeywordDecoratorClassPath))
+		{
+			DecoratorClasses.Add(KeywordDecoratorClass);
+		}
+		SetClassArrayProperty(RichTextBlock, TEXT("DecoratorClasses"), DecoratorClasses);
 	}
 
 	void ConfigureBorder(UBorder* Border, const FLinearColor& Color, const FMargin& Padding = FMargin())
@@ -381,10 +583,45 @@ namespace BackpackDeckUIStyleSetup
 		}
 	}
 
+	void SetFloatProperty(UObject* Object, const FName PropertyName, float Value)
+	{
+		if (!Object)
+		{
+			return;
+		}
+
+		if (FFloatProperty* FloatProperty = FindFProperty<FFloatProperty>(Object->GetClass(), PropertyName))
+		{
+			Object->Modify();
+			FloatProperty->SetPropertyValue_InContainer(Object, Value);
+		}
+	}
+
+	void SetBoolProperty(UObject* Object, const FName PropertyName, bool Value)
+	{
+		if (!Object)
+		{
+			return;
+		}
+
+		if (FBoolProperty* BoolProperty = FindFProperty<FBoolProperty>(Object->GetClass(), PropertyName))
+		{
+			Object->Modify();
+			BoolProperty->SetPropertyValue_InContainer(Object, Value);
+		}
+	}
+
 	UTextBlock* MakeLabel(UWidgetTree* WidgetTree, const FName Name, const FString& Text, int32 Size, const FLinearColor& Color = SilverText, ETextJustify::Type Justification = ETextJustify::Center)
 	{
 		UTextBlock* Label = ConstructNamedWidget<UYogCommonUITextBlock>(WidgetTree, Name);
 		ConfigureText(Label, Text, Color, Size, Justification);
+		return Label;
+	}
+
+	UYogCommonRichTextBlock* MakeComboRichLabel(UWidgetTree* WidgetTree, const FName Name, const FString& Text, int32 Size, const FLinearColor& Color = SilverText)
+	{
+		UYogCommonRichTextBlock* Label = ConstructNamedWidget<UYogCommonRichTextBlock>(WidgetTree, Name);
+		ConfigureComboRichText(Label, Text, Color, Size);
 		return Label;
 	}
 
@@ -639,57 +876,87 @@ namespace BackpackDeckUIStyleSetup
 
 		USizeBox* RootSize = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("RootSize"), false);
 		UOverlay* Root = ConstructNamedWidget<UOverlay>(WidgetTree, TEXT("Root"));
+		UImage* CardBG = ConstructNamedWidget<UImage>(WidgetTree, TEXT("CardBG"));
 		UBorder* CardBack = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("CardBack"), false);
 		UVerticalBox* CardStack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("CardStack"), false);
 		USizeBox* IconBox = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("IconBox"), false);
 		UImage* CardIcon = ConstructNamedWidget<UImage>(WidgetTree, TEXT("CardIcon"));
 		UTextBlock* CardNameText = MakeLabel(WidgetTree, TEXT("CardNameText"), TEXT("Card"), 15, BrightSilver, ETextJustify::Center);
+		USizeBox* CardNameBox = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("CardNameBox"), false);
 		UTextBlock* TypeText = MakeLabel(WidgetTree, TEXT("TypeText"), TEXT("Attack"), 12, MutedSilver, ETextJustify::Center);
-		UHorizontalBox* LinkRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("LinkRow"), false);
-		UTextBlock* DirectionText = MakeLabel(WidgetTree, TEXT("DirectionText"), TEXT("->"), 16, AccentGold, ETextJustify::Center);
 		UButton* ReverseButton = ConstructNamedWidget<UButton>(WidgetTree, TEXT("ReverseButton"));
-		UTextBlock* ReverseText = MakeLabel(WidgetTree, TEXT("ReverseButtonText"), TEXT("R"), 14, BrightSilver);
+		UTextBlock* ReverseText = MakeLabel(WidgetTree, TEXT("ReverseButtonText"), TEXT(""), 1, BrightSilver);
+		UBorder* LinkHintOverlay = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("LinkHintOverlay"));
+		UOverlay* LinkGemPanel = ConstructNamedWidget<UOverlay>(WidgetTree, TEXT("LinkGemPanel"), false);
+		UImage* LinkGemGlow = ConstructNamedWidget<UImage>(WidgetTree, TEXT("LinkGemGlow"));
+		UImage* LinkGemCore = ConstructNamedWidget<UImage>(WidgetTree, TEXT("LinkGemCore"));
 		UBorder* SelectedMark = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("SelectedMark"));
 		UBorder* TopLine = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("TopSilverLine"), false);
 		USizeBox* TopLineSize = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("TopSilverLineSize"), false);
-		if (!RootSize || !Root || !CardBack || !CardStack || !IconBox || !CardIcon || !CardNameText || !TypeText || !LinkRow || !DirectionText || !ReverseButton || !ReverseText || !SelectedMark || !TopLine || !TopLineSize)
+		if (!RootSize || !Root || !CardBG || !CardBack || !CardStack || !IconBox || !CardIcon || !CardNameText || !CardNameBox || !TypeText || !ReverseButton || !ReverseText || !LinkHintOverlay || !LinkGemPanel || !LinkGemGlow || !LinkGemCore || !SelectedMark || !TopLine || !TopLineSize)
 		{
 			return;
 		}
 
-		RootSize->SetWidthOverride(132.0f);
-		RootSize->SetHeightOverride(190.0f);
+		RootSize->SetWidthOverride(124.0f);
+		RootSize->SetHeightOverride(300.0f);
 		RootSize->AddChild(Root);
 		WidgetTree->RootWidget = RootSize;
 
-		ConfigureBorder(CardBack, CardFill, FMargin(10.0f, 12.0f, 10.0f, 10.0f));
+		if (UTexture2D* TarotFrame = LoadTextureByPackagePath(TarotCardFrameTexturePath))
+		{
+			CardBG->SetBrushFromTexture(TarotFrame, false);
+		}
+		CardBG->SetColorAndOpacity(FLinearColor(0.84f, 0.88f, 0.92f, 1.0f));
+		AddOverlayChild(Root, CardBG, HAlign_Fill, VAlign_Fill);
+
+		ConfigureBorder(CardBack, FLinearColor(0.010f, 0.012f, 0.016f, 0.34f), FMargin(10.0f, 20.0f, 10.0f, 18.0f));
 		CardBack->SetContent(CardStack);
-		AddOverlayChild(Root, CardBack, HAlign_Fill, VAlign_Fill, FMargin(1.0f));
+		AddOverlayChild(Root, CardBack, HAlign_Fill, VAlign_Fill, FMargin(4.0f));
+
+		ConfigureBorder(LinkHintOverlay, FLinearColor(0.62f, 0.78f, 0.90f, 0.13f), FMargin());
+		LinkHintOverlay->SetVisibility(ESlateVisibility::Collapsed);
+		AddOverlayChild(Root, LinkHintOverlay, HAlign_Fill, VAlign_Fill, FMargin(5.0f));
 
 		ConfigureBorder(SelectedMark, FLinearColor(0.88f, 0.90f, 0.94f, 0.22f), FMargin());
 		SelectedMark->SetVisibility(ESlateVisibility::Collapsed);
 		AddOverlayChild(Root, SelectedMark, HAlign_Fill, VAlign_Fill);
 
+		LinkGemGlow->SetBrush(MakeColorBrush(FLinearColor(0.48f, 0.82f, 1.00f, 0.34f), FVector2D(58.0f, 20.0f)));
+		LinkGemCore->SetBrush(MakeColorBrush(FLinearColor(0.72f, 0.88f, 0.96f, 0.76f), FVector2D(18.0f, 18.0f)));
+		FWidgetTransform GemCoreTransform;
+		GemCoreTransform.Angle = 45.0f;
+		LinkGemCore->SetRenderTransform(GemCoreTransform);
+		LinkGemCore->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+		LinkGemPanel->SetVisibility(ESlateVisibility::Collapsed);
+		AddOverlayChild(LinkGemPanel, LinkGemGlow, HAlign_Fill, VAlign_Center, FMargin(4.0f, 8.0f));
+		AddOverlayChild(LinkGemPanel, LinkGemCore, HAlign_Center, VAlign_Center);
+		ConfigureButton(ReverseButton, FLinearColor(1.0f, 1.0f, 1.0f, 0.0f), FLinearColor(0.80f, 0.88f, 0.96f, 0.08f), FLinearColor(0.95f, 0.92f, 0.76f, 0.14f));
+		ReverseButton->SetContent(ReverseText);
+		AddOverlayChild(LinkGemPanel, ReverseButton, HAlign_Fill, VAlign_Fill);
+		AddOverlayChild(Root, WrapSize(WidgetTree, LinkGemPanel, TEXT("LinkGemPanelSize"), 66.0f, 34.0f), HAlign_Center, VAlign_Bottom, FMargin(0.0f, 0.0f, 0.0f, 20.0f));
+
 		ConfigureBorder(TopLine, SilverLine, FMargin());
 		TopLineSize->SetHeightOverride(2.0f);
 		TopLineSize->AddChild(TopLine);
-		AddOverlayChild(Root, TopLineSize, HAlign_Fill, VAlign_Top, FMargin(14.0f, 9.0f, 14.0f, 0.0f));
+		AddOverlayChild(Root, TopLineSize, HAlign_Fill, VAlign_Top, FMargin(18.0f, 15.0f, 18.0f, 0.0f));
 
-		IconBox->SetWidthOverride(82.0f);
-		IconBox->SetHeightOverride(82.0f);
+		IconBox->SetWidthOverride(60.0f);
+		IconBox->SetHeightOverride(60.0f);
 		IconBox->AddChild(CardIcon);
-		AddVerticalChild(CardStack, IconBox, HAlign_Center, FMargin(0.0f, 6.0f, 0.0f, 10.0f));
+		AddVerticalChild(CardStack, IconBox, HAlign_Center, FMargin(0.0f, 24.0f, 0.0f, 24.0f));
 
-		AddVerticalChild(CardStack, CardNameText, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 4.0f));
-		AddVerticalChild(CardStack, TypeText, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
-		AddHorizontalChild(LinkRow, DirectionText, VAlign_Center, FMargin(), ESlateSizeRule::Fill);
+		CardNameText->SetAutoWrapText(true);
+		CardNameText->SetWrapTextAt(96.0f);
+		CardNameText->SetMinDesiredWidth(96.0f);
+		CardNameBox->SetWidthOverride(98.0f);
+		CardNameBox->SetHeightOverride(54.0f);
+		CardNameBox->AddChild(CardNameText);
+		AddVerticalChild(CardStack, CardNameBox, HAlign_Center, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		TypeText->SetAutoWrapText(false);
+		AddVerticalChild(CardStack, TypeText, HAlign_Fill);
 
-		ConfigureButton(ReverseButton, FLinearColor(0.12f, 0.13f, 0.15f, 0.82f), FLinearColor(0.34f, 0.36f, 0.40f, 0.90f), FLinearColor(0.48f, 0.50f, 0.55f, 1.0f));
-		ReverseButton->SetContent(ReverseText);
-		AddHorizontalChild(LinkRow, WrapSize(WidgetTree, ReverseButton, TEXT("ReverseButtonSize"), 34.0f, 30.0f), VAlign_Center);
-		AddVerticalChild(CardStack, LinkRow, HAlign_Fill);
-
-		ReportLines.Add(TEXT("- Combat deck edit card slot rebuilt as a vertical tarot-style card."));
+		ReportLines.Add(TEXT("- Combat deck edit card slot rebuilt larger with wrapped title text and a bottom glass-gem Link orientation indicator."));
 	}
 
 	void BuildCombatDeckEditWidgetTree(UWidgetBlueprint* WidgetBlueprint, TArray<FString>& ReportLines)
@@ -728,11 +995,14 @@ namespace BackpackDeckUIStyleSetup
 		USizeBox* PanelSize = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("PanelSize"), false);
 		UOverlay* MainPanel = ConstructNamedWidget<UOverlay>(WidgetTree, TEXT("MainPanel"), false);
 		UBorder* MainBack = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("MainBack"), false);
+		UVerticalBox* MainStack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("MainStack"), false);
 		UHorizontalBox* Columns = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("Columns"), false);
 		UVerticalBox* LeftColumn = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("LeftColumn"), false);
 		UVerticalBox* CenterColumn = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("CenterColumn"), false);
+		UVerticalBox* RightColumn = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("RightColumn"), false);
 		UTextBlock* LeftTitle = MakeLabel(WidgetTree, TEXT("MainBackpackTitle"), TEXT("持有武器"), 20, BrightSilver, ETextJustify::Left);
 		UTextBlock* CenterTitle = MakeLabel(WidgetTree, TEXT("DeckOrderTitle"), TEXT("卡组预览"), 20, BrightSilver, ETextJustify::Left);
+		UTextBlock* RightTitle = MakeLabel(WidgetTree, TEXT("CardDetailTitle"), TEXT("CARD DETAIL"), 20, BrightSilver, ETextJustify::Left);
 		UBorder* WeaponInfoPanel = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("WeaponInfoPanel"), false);
 		UVerticalBox* WeaponInfoStack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("WeaponInfoStack"), false);
 		UHorizontalBox* WeaponInfoRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("WeaponInfoRow"), false);
@@ -742,22 +1012,30 @@ namespace BackpackDeckUIStyleSetup
 		UTextBlock* WeaponNameText = MakeLabel(WidgetTree, TEXT("WeaponNameText"), TEXT("未装备武器"), 17, BrightSilver, ETextJustify::Left);
 		UTextBlock* WeaponDescText = MakeLabel(WidgetTree, TEXT("WeaponDescText"), TEXT("拾取武器后显示武器说明。"), 12, MutedSilver, ETextJustify::Left);
 		UWidget* CombatDeckEditWidget = ConstructWidgetFromClassPath(WidgetTree, ToClassPath(CombatDeckEditPath), TEXT("CombatDeckEditWidget"), UCombatDeckEditWidget::StaticClass(), ReportLines);
+		UWidget* RuneInfoCard = ConstructWidgetFromClassPath(WidgetTree, RuneInfoCardClassPath, TEXT("RuneInfoCard"), URuneInfoCardWidget::StaticClass(), ReportLines);
 		UBorder* OperationHintWidget = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("OperationHintWidget"));
-		UTextBlock* OperationHintText = MakeLabel(WidgetTree, TEXT("OperationHintText"), TEXT("拖拽卡牌调整顺序  R 反转 Link"), 12, BrightSilver, ETextJustify::Left);
+		UYogCommonRichTextBlock* OperationHintText = MakeComboRichLabel(WidgetTree, TEXT("OperationHintText"), TEXT("<input action=\"MouseClick\"/> 拖拽卡牌调整顺序  R 反转 Link"), 12, BrightSilver);
+		UBorder* BottomActionBar = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("BottomActionBar"), false);
+		USizeBox* ButtonRowSize = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("ButtonRowSize"), false);
 		UHorizontalBox* ButtonRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("ButtonRow"), false);
 		UButton* ConfirmButton = ConstructNamedWidget<UButton>(WidgetTree, TEXT("ConfirmButton"));
 		UButton* CloseButton = ConstructNamedWidget<UButton>(WidgetTree, TEXT("CloseButton"));
 		UButton* EndPreviewButton = ConstructNamedWidget<UButton>(WidgetTree, TEXT("EndPreviewButton"));
-		UTextBlock* ConfirmText = MakeLabel(WidgetTree, TEXT("ConfirmText"), TEXT("确认"), 15, BrightSilver);
-		UTextBlock* CloseText = MakeLabel(WidgetTree, TEXT("CloseText"), TEXT("退出"), 15, BrightSilver);
-		UTextBlock* EndPreviewText = MakeLabel(WidgetTree, TEXT("EndPreviewText"), TEXT("结束预览"), 15, BrightSilver);
+		UYogCommonRichTextBlock* ConfirmText = MakeComboRichLabel(WidgetTree, TEXT("ConfirmText"), TEXT("<input action=\"MouseClick\"/> 选择"), 14, BrightSilver);
+		UYogCommonRichTextBlock* CloseText = MakeComboRichLabel(WidgetTree, TEXT("CloseText"), TEXT("<input action=\"Esc\"/> 取消"), 14, BrightSilver);
+		UYogCommonRichTextBlock* EndPreviewText = MakeComboRichLabel(WidgetTree, TEXT("EndPreviewText"), TEXT("<input action=\"Esc\"/> 结束预览"), 14, BrightSilver);
 		UBorder* ComboHintWidget = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("ComboHintWidget"), false);
 		UVerticalBox* ComboHintStack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("ComboHintStack"), false);
 		UTextBlock* ComboHintTitle = MakeLabel(WidgetTree, TEXT("ComboHintTitle"), TEXT("出招表"), 15, BrightSilver, ETextJustify::Left);
-		UTextBlock* ComboHintText = MakeLabel(WidgetTree, TEXT("ComboHintText"), TEXT("1、L - L - L\n2、L - L - H"), 14, SilverText, ETextJustify::Left);
+		UYogCommonRichTextBlock* ComboHintText = MakeComboRichLabel(
+			WidgetTree,
+			TEXT("ComboHintText"),
+			TEXT("连段 01   <input action=\"LightAttack\"/> -> <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"),
+			13,
+			SilverText);
 		UImage* GrabbedRuneIcon = ConstructNamedWidget<UImage>(WidgetTree, TEXT("GrabbedRuneIcon"));
 		UCanvasPanel* ShapePreviewCanvas = ConstructNamedWidget<UCanvasPanel>(WidgetTree, TEXT("ShapePreviewCanvas"));
-		if (!Root || !BackgroundDim || !PanelSize || !MainPanel || !MainBack || !Columns || !LeftColumn || !CenterColumn || !LeftTitle || !CenterTitle || !WeaponInfoPanel || !WeaponInfoStack || !WeaponInfoRow || !WeaponIconBox || !WeaponIcon || !WeaponTextStack || !WeaponNameText || !WeaponDescText || !CombatDeckEditWidget || !OperationHintWidget || !OperationHintText || !ButtonRow || !ConfirmButton || !CloseButton || !EndPreviewButton || !ConfirmText || !CloseText || !EndPreviewText || !ComboHintWidget || !ComboHintStack || !ComboHintTitle || !ComboHintText || !GrabbedRuneIcon || !ShapePreviewCanvas)
+		if (!Root || !BackgroundDim || !PanelSize || !MainPanel || !MainBack || !MainStack || !Columns || !LeftColumn || !CenterColumn || !RightColumn || !LeftTitle || !CenterTitle || !RightTitle || !WeaponInfoPanel || !WeaponInfoStack || !WeaponInfoRow || !WeaponIconBox || !WeaponIcon || !WeaponTextStack || !WeaponNameText || !WeaponDescText || !CombatDeckEditWidget || !RuneInfoCard || !OperationHintWidget || !OperationHintText || !BottomActionBar || !ButtonRowSize || !ButtonRow || !ConfirmButton || !CloseButton || !EndPreviewButton || !ConfirmText || !CloseText || !EndPreviewText || !ComboHintWidget || !ComboHintStack || !ComboHintTitle || !ComboHintText || !GrabbedRuneIcon || !ShapePreviewCanvas)
 		{
 			return;
 		}
@@ -766,13 +1044,13 @@ namespace BackpackDeckUIStyleSetup
 		ConfigureBorder(BackgroundDim, FLinearColor(0.0f, 0.0f, 0.0f, 0.42f));
 		ConfigureCanvasSlot(Root->AddChildToCanvas(BackgroundDim), FAnchors(0.0f, 0.0f, 1.0f, 1.0f), FVector2D::ZeroVector, FVector2D::ZeroVector, FVector2D::ZeroVector, 0);
 
-		PanelSize->SetWidthOverride(1280.0f);
-		PanelSize->SetHeightOverride(620.0f);
+		PanelSize->SetWidthOverride(1440.0f);
+		PanelSize->SetHeightOverride(810.0f);
 		PanelSize->AddChild(MainPanel);
-		ConfigureCanvasSlot(Root->AddChildToCanvas(PanelSize), FAnchors(0.5f, 0.5f), FVector2D::ZeroVector, FVector2D(1280.0f, 620.0f), FVector2D(0.5f, 0.5f), 1);
+		ConfigureCanvasSlot(Root->AddChildToCanvas(PanelSize), FAnchors(0.5f, 0.5f), FVector2D::ZeroVector, FVector2D(1440.0f, 810.0f), FVector2D(0.5f, 0.5f), 1);
 
-		ConfigureBorder(MainBack, DarkPanel, FMargin(22.0f));
-		MainBack->SetContent(Columns);
+		ConfigureBorder(MainBack, FLinearColor(0.008f, 0.009f, 0.012f, 0.58f), FMargin(28.0f));
+		MainBack->SetContent(MainStack);
 		AddOverlayChild(MainPanel, MainBack, HAlign_Fill, VAlign_Fill);
 
 		AddVerticalChild(LeftColumn, LeftTitle, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 10.0f));
@@ -780,6 +1058,10 @@ namespace BackpackDeckUIStyleSetup
 		WeaponInfoPanel->SetContent(WeaponInfoStack);
 		WeaponIconBox->SetWidthOverride(82.0f);
 		WeaponIconBox->SetHeightOverride(82.0f);
+		if (UTexture2D* WeaponIconTexture = LoadTextureByPackagePath(WeaponIconTexturePath))
+		{
+			WeaponIcon->SetBrushFromTexture(WeaponIconTexture, false);
+		}
 		WeaponIconBox->AddChild(WeaponIcon);
 		AddHorizontalChild(WeaponInfoRow, WeaponIconBox, VAlign_Top, FMargin(0.0f, 0.0f, 12.0f, 0.0f));
 		WeaponDescText->SetAutoWrapText(true);
@@ -789,43 +1071,61 @@ namespace BackpackDeckUIStyleSetup
 		AddVerticalChild(WeaponInfoStack, WeaponInfoRow, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 10.0f));
 
 		ComboHintTitle->SetText(FText::FromString(TEXT("出招表")));
-		ComboHintText->SetText(FText::FromString(TEXT("1、L - L - L\n2、L - L - H")));
+		ConfigureComboRichText(
+			ComboHintText,
+			TEXT("连段 01   <input action=\"LightAttack\"/> -> <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>\n连段 02   <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"),
+			SilverText,
+			13);
 		ConfigureBorder(ComboHintWidget, FLinearColor(0.038f, 0.050f, 0.075f, 0.90f), FMargin(10.0f, 8.0f));
 		ComboHintWidget->SetContent(ComboHintStack);
-		ComboHintText->SetAutoWrapText(true);
 		AddVerticalChild(ComboHintStack, ComboHintTitle, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 6.0f));
 		AddVerticalChild(ComboHintStack, ComboHintText, HAlign_Fill);
 		AddVerticalChild(WeaponInfoStack, ComboHintWidget, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 10.0f));
 
-		ConfigureBorder(OperationHintWidget, FLinearColor(0.055f, 0.058f, 0.065f, 0.92f), FMargin(10.0f, 8.0f));
-		OperationHintText->SetAutoWrapText(true);
+		ConfigureBorder(OperationHintWidget, FLinearColor(0.055f, 0.058f, 0.065f, 0.92f), FMargin(12.0f, 4.0f));
+		OperationHintText->SetAutoWrapText(false);
 		OperationHintWidget->SetContent(OperationHintText);
-		AddVerticalChild(WeaponInfoStack, OperationHintWidget, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 10.0f));
 
 		ConfigureButton(ConfirmButton, FLinearColor(0.12f, 0.13f, 0.15f, 0.88f), FLinearColor(0.34f, 0.36f, 0.40f, 0.94f), FLinearColor(0.52f, 0.54f, 0.58f, 1.0f));
+		ConfirmText->SetAutoWrapText(false);
 		ConfirmButton->SetContent(ConfirmText);
 		ConfigureButton(CloseButton, FLinearColor(0.10f, 0.11f, 0.13f, 0.85f), FLinearColor(0.32f, 0.34f, 0.38f, 0.92f), FLinearColor(0.48f, 0.50f, 0.55f, 1.0f));
+		CloseText->SetAutoWrapText(false);
 		CloseButton->SetContent(CloseText);
 		ConfigureButton(EndPreviewButton, FLinearColor(0.10f, 0.11f, 0.13f, 0.85f), FLinearColor(0.32f, 0.34f, 0.38f, 0.92f), FLinearColor(0.48f, 0.50f, 0.55f, 1.0f));
+		EndPreviewText->SetAutoWrapText(false);
 		EndPreviewButton->SetContent(EndPreviewText);
 		AddHorizontalChild(ButtonRow, ConfirmButton, VAlign_Fill, FMargin(0.0f, 0.0f, 8.0f, 0.0f), ESlateSizeRule::Fill);
 		AddHorizontalChild(ButtonRow, CloseButton, VAlign_Fill, FMargin(0.0f, 0.0f, 8.0f, 0.0f), ESlateSizeRule::Fill);
 		AddHorizontalChild(ButtonRow, EndPreviewButton, VAlign_Fill, FMargin(), ESlateSizeRule::Fill);
-		AddVerticalChild(WeaponInfoStack, ButtonRow, HAlign_Fill);
-		AddVerticalChild(LeftColumn, WeaponInfoPanel, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 14.0f));
+		ConfigureBorder(BottomActionBar, FLinearColor(0.018f, 0.020f, 0.026f, 0.72f), FMargin(8.0f, 6.0f));
+		ButtonRowSize->SetWidthOverride(430.0f);
+		ButtonRowSize->SetHeightOverride(38.0f);
+		ButtonRowSize->AddChild(ButtonRow);
+		BottomActionBar->SetContent(ButtonRowSize);
+		AddVerticalChild(LeftColumn, WeaponInfoPanel, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 14.0f), ESlateSizeRule::Fill);
 
 		AddVerticalChild(CenterColumn, CenterTitle, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 10.0f));
-		AddVerticalChild(CenterColumn, WrapSize(WidgetTree, CombatDeckEditWidget, TEXT("DeckPreviewSize"), 720.0f, 226.0f), HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 14.0f));
+		AddVerticalChild(CenterColumn, WrapSize(WidgetTree, CombatDeckEditWidget, TEXT("DeckPreviewSize"), 668.0f, 548.0f), HAlign_Fill);
+		AddVerticalChild(CenterColumn, WrapSize(WidgetTree, OperationHintWidget, TEXT("DeckOperationHintSize"), 668.0f, 64.0f), HAlign_Fill, FMargin(0.0f, 8.0f, 0.0f, 0.0f));
 
-		AddHorizontalChild(Columns, WrapSize(WidgetTree, LeftColumn, TEXT("LeftColumnSize"), 420.0f, 560.0f), VAlign_Top, FMargin(0.0f, 0.0f, 18.0f, 0.0f));
+		AddVerticalChild(RightColumn, RightTitle, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+		AddVerticalChild(RightColumn, WrapSize(WidgetTree, RuneInfoCard, TEXT("RuneInfoCardSize"), 340.0f, 622.0f), HAlign_Fill);
+
+		AddHorizontalChild(Columns, WrapSize(WidgetTree, LeftColumn, TEXT("LeftColumnSize"), 340.0f, 656.0f), VAlign_Fill, FMargin(0.0f, 0.0f, 18.0f, 0.0f));
 		AddHorizontalChild(Columns, CenterColumn, VAlign_Fill, FMargin(), ESlateSizeRule::Fill);
+		AddHorizontalChild(Columns, WrapSize(WidgetTree, RightColumn, TEXT("RightColumnSize"), 340.0f, 656.0f), VAlign_Fill, FMargin(18.0f, 0.0f, 0.0f, 0.0f));
+		AddVerticalChild(MainStack, Columns, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 18.0f), ESlateSizeRule::Fill);
+		AddVerticalChild(MainStack, BottomActionBar, HAlign_Center);
 
 		GrabbedRuneIcon->SetVisibility(ESlateVisibility::Collapsed);
 		ShapePreviewCanvas->SetVisibility(ESlateVisibility::Collapsed);
 		ConfigureCanvasSlot(Root->AddChildToCanvas(GrabbedRuneIcon), FAnchors(0.0f, 0.0f), FVector2D::ZeroVector, FVector2D(72.0f, 72.0f), FVector2D(0.5f, 0.5f), 20);
 		ConfigureCanvasSlot(Root->AddChildToCanvas(ShapePreviewCanvas), FAnchors(0.0f, 0.0f), FVector2D::ZeroVector, FVector2D(400.0f, 400.0f), FVector2D::ZeroVector, 21);
 
-		ReportLines.Add(TEXT("- Backpack screen rebuilt without the 2D backpack grid; move-list combos now sit under weapon info while the center column keeps the tarot-style card preview."));
+		ReportLines.Add(TEXT("- Backpack screen rebuilt as a 16:9 inspect panel using live widgets only: 25% weapon inspection, 50% tarot deck conveyor, 25% card details; no full-screen art overlay."));
+		ReportLines.Add(TEXT("- Weapon combo list now uses YogCommonRichTextBlock with BP_InputActionDecorator/BP_KeywordDecorator for CommonUI adaptive input icons."));
+		ReportLines.Add(TEXT("- Deck operation hints now live in a 64px reserved row under the deck preview, separated from the global bottom confirm/cancel action bar."));
 	}
 
 	UBackpackStyleDataAsset* LoadOrCreateBackpackStyle(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
@@ -836,18 +1136,35 @@ namespace BackpackDeckUIStyleSetup
 			if (!bDryRun)
 			{
 				ExistingStyle->Modify();
-				ExistingStyle->EmptyColor = FLinearColor(0.060f, 0.065f, 0.075f, 1.0f);
-				ExistingStyle->EmptyActiveColor = FLinearColor(0.35f, 0.40f, 0.50f, 1.0f);
-				ExistingStyle->OccupiedActiveColor = FLinearColor(0.80f, 0.84f, 0.88f, 1.0f);
-				ExistingStyle->OccupiedInactiveColor = FLinearColor(0.12f, 0.13f, 0.15f, 1.0f);
-				ExistingStyle->SelectedColor = FLinearColor(0.92f, 0.94f, 0.98f, 1.0f);
-				ExistingStyle->HoverColor = FLinearColor(0.62f, 0.68f, 0.74f, 1.0f);
-				ExistingStyle->GrabbedSourceColor = FLinearColor(0.82f, 0.76f, 0.60f, 1.0f);
-				ExistingStyle->PendingHasRuneColor = FLinearColor(0.14f, 0.15f, 0.17f, 1.0f);
-				ExistingStyle->PendingEmptyColor = FLinearColor(0.050f, 0.055f, 0.065f, 1.0f);
-				ExistingStyle->HeatZone0Color = FLinearColor(0.42f, 0.46f, 0.54f, 1.0f);
-				ExistingStyle->HeatZone1Color = FLinearColor(0.58f, 0.52f, 0.40f, 1.0f);
-				ExistingStyle->HeatZone2Color = FLinearColor(0.78f, 0.74f, 0.64f, 1.0f);
+				ExistingStyle->MainPanelFrameTexture = LoadTextureByPackagePath(MainPanelFrameTexturePath);
+				ExistingStyle->DeckCardFrameTexture = LoadTextureByPackagePath(TarotCardFrameTexturePath);
+				ExistingStyle->DefaultWeaponIconTexture = LoadTextureByPackagePath(WeaponIconTexturePath);
+				ExistingStyle->PanelBackgroundTint = FLinearColor(0.025f, 0.024f, 0.028f, 0.94f);
+				ExistingStyle->MoonlitIronTint = FLinearColor(0.78f, 0.84f, 0.88f, 1.0f);
+				ExistingStyle->OxbloodAccentTint = FLinearColor(0.34f, 0.035f, 0.045f, 1.0f);
+				ExistingStyle->DeckCardWidth = 124.0f;
+				ExistingStyle->DeckCardHeight = 300.0f;
+				ExistingStyle->DeckCardSpacing = 14.0f;
+				UTexture2D* CellFrameTexture = LoadTextureByPackagePath(CellFrameTexturePath);
+				ExistingStyle->CellEmptyTexture = CellFrameTexture;
+				ExistingStyle->CellActiveTexture = CellFrameTexture;
+				ExistingStyle->CellOccupiedActiveTexture = CellFrameTexture;
+				ExistingStyle->CellOccupiedInactiveTexture = CellFrameTexture;
+				ExistingStyle->CellSelectedTexture = CellFrameTexture;
+				ExistingStyle->CellHoverTexture = CellFrameTexture;
+				ExistingStyle->CellGrabbedSourceTexture = CellFrameTexture;
+				ExistingStyle->EmptyColor = FLinearColor(0.09f, 0.09f, 0.105f, 0.82f);
+				ExistingStyle->EmptyActiveColor = FLinearColor(0.46f, 0.54f, 0.62f, 0.92f);
+				ExistingStyle->OccupiedActiveColor = FLinearColor(0.74f, 0.80f, 0.84f, 1.0f);
+				ExistingStyle->OccupiedInactiveColor = FLinearColor(0.20f, 0.18f, 0.19f, 0.96f);
+				ExistingStyle->SelectedColor = FLinearColor(0.84f, 0.88f, 0.92f, 1.0f);
+				ExistingStyle->HoverColor = FLinearColor(0.62f, 0.70f, 0.74f, 1.0f);
+				ExistingStyle->GrabbedSourceColor = FLinearColor(0.34f, 0.035f, 0.045f, 1.0f);
+				ExistingStyle->PendingHasRuneColor = FLinearColor(0.18f, 0.045f, 0.055f, 0.96f);
+				ExistingStyle->PendingEmptyColor = FLinearColor(0.08f, 0.08f, 0.095f, 0.82f);
+				ExistingStyle->HeatZone0Color = FLinearColor(0.68f, 0.74f, 0.80f, 1.0f);
+				ExistingStyle->HeatZone1Color = FLinearColor(0.46f, 0.12f, 0.13f, 1.0f);
+				ExistingStyle->HeatZone2Color = FLinearColor(0.84f, 0.80f, 0.68f, 1.0f);
 				ExistingStyle->ActiveZoneOverlayOpacity = 0.22f;
 				ExistingStyle->InactiveZoneOpacity = 0.48f;
 				ExistingStyle->ZoneGlowOpacity = 0.18f;
@@ -876,6 +1193,12 @@ namespace BackpackDeckUIStyleSetup
 		SetObjectProperty(CDO, TEXT("StyleDA"), StyleDA);
 		SetClassProperty(CDO, TEXT("RuneSlotClass"), RuneSlotClass);
 		SetClassProperty(CDO, TEXT("CardSlotClass"), EditCardSlotClass);
+		SetObjectProperty(CDO, TEXT("DefaultCardFrameTexture"), LoadTextureByPackagePath(TarotCardFrameTexturePath));
+		SetLinearColorProperty(CDO, TEXT("DefaultCardFrameTint"), FLinearColor(0.84f, 0.88f, 0.92f, 1.0f));
+		SetBoolProperty(CDO, TEXT("bUseFixedTarotCardSize"), true);
+		SetFloatProperty(CDO, TEXT("FallbackDeckCardWidth"), 124.0f);
+		SetFloatProperty(CDO, TEXT("FallbackDeckCardHeight"), 300.0f);
+		SetFloatProperty(CDO, TEXT("FallbackDeckCardSpacing"), 14.0f);
 		SetLinearColorProperty(CDO, TEXT("NextCardFrameColor"), FLinearColor(0.78f, 0.82f, 0.90f, 0.96f));
 		SetLinearColorProperty(CDO, TEXT("NormalCardFrameColor"), FLinearColor(0.050f, 0.055f, 0.065f, 0.94f));
 		SetLinearColorProperty(CDO, TEXT("EmptyCardFrameColor"), FLinearColor(0.020f, 0.022f, 0.026f, 0.46f));
@@ -905,6 +1228,12 @@ int32 UBackpackDeckUIStyleSetupCommandlet::Main(const FString& Params)
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
 	ReportLines.Add(TEXT("- Style target: bright silver gothic card UI, aligned with 512 tutorial illustrations."));
 	ReportLines.Add(TEXT(""));
+
+	if (!bDryRun)
+	{
+		ImportBackpackInspectTextures(ReportLines, DirtyPackages);
+	}
+	EnsureInputActionDecoratorMappings(bDryRun, ReportLines, DirtyPackages);
 
 	UBackpackStyleDataAsset* BackpackStyle = LoadOrCreateBackpackStyle(bDryRun, ReportLines, DirtyPackages);
 

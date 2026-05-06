@@ -51,6 +51,36 @@ namespace
         }
     }
 
+    FString MoveTokenToInputActionMarkup(const FString& Token)
+    {
+        if (Token == TEXT("L"))
+        {
+            return TEXT("<input action=\"LightAttack\"/>");
+        }
+
+        if (Token == TEXT("H"))
+        {
+            return TEXT("<input action=\"HeavyAttack\"/>");
+        }
+
+        return TEXT("[Input]");
+    }
+
+    FString FormatComboForCommonUI(const FString& Sequence)
+    {
+        TArray<FString> Tokens;
+        Sequence.ParseIntoArray(Tokens, TEXT(" - "), true);
+
+        TArray<FString> DisplayTokens;
+        DisplayTokens.Reserve(Tokens.Num());
+        for (const FString& Token : Tokens)
+        {
+            DisplayTokens.Add(MoveTokenToInputActionMarkup(Token));
+        }
+
+        return FString::Join(DisplayTokens, TEXT(" -> "));
+    }
+
     void GatherComboMoveListsFromNode(
         const UGameplayAbilityComboGraphNode* Node,
         TArray<FString> CurrentTokens,
@@ -163,27 +193,68 @@ FText UBackpackScreenWidget::BuildOperationHintText() const
 {
     if (bIsPreviewMode)
     {
-        return FText::FromString(TEXT("预览模式：只能查看持有武器与卡组预览。"));
+        return FText::FromString(TEXT("预览模式：卡组只读"));
     }
 
     if (bIsGamepadInputMode)
     {
-        if (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput())
-        {
-            return FText::FromString(TEXT("左右选择卡牌  A 拿起/放下排序  X 反转 Link  B 退出"));
-        }
-
-        return FText::FromString(TEXT("A 确认  B 退出"));
+        return FText::FromString(TEXT("左右选择卡牌  <input action=\"Interact\"/> 拿起/放下排序  X 反转 Link"));
     }
 
-    return FText::FromString(TEXT("拖拽卡牌调整顺序  R 反转 Link"));
+    return FText::FromString(TEXT("<input action=\"MouseClick\"/> 拖拽卡牌调整顺序  R 反转 Link"));
+}
+
+FText UBackpackScreenWidget::BuildConfirmButtonText() const
+{
+    return bIsGamepadInputMode
+        ? FText::FromString(TEXT("<input action=\"Interact\"/> 选择"))
+        : FText::FromString(TEXT("<input action=\"MouseClick\"/> 选择"));
+}
+
+FText UBackpackScreenWidget::BuildCancelButtonText() const
+{
+    return FText::FromString(TEXT("<input action=\"Esc\"/> 取消"));
+}
+
+FText UBackpackScreenWidget::BuildEndPreviewButtonText() const
+{
+    return FText::FromString(TEXT("<input action=\"Esc\"/> 结束预览"));
+}
+
+void UBackpackScreenWidget::SetButtonContentText(UButton* Button, const FText& Text) const
+{
+    if (!Button)
+    {
+        return;
+    }
+
+    SetTextIfSupported(Button->GetContent(), Text);
+}
+
+void UBackpackScreenWidget::RefreshActionButtonHints()
+{
+    const bool bCurrentGamepad = bIsGamepadInputMode;
+    if (bActionButtonHintsInitialized &&
+        bLastActionButtonHintsGamepad == bCurrentGamepad &&
+        bLastActionButtonHintsPreviewMode == bIsPreviewMode)
+    {
+        return;
+    }
+
+    bActionButtonHintsInitialized = true;
+    bLastActionButtonHintsGamepad = bCurrentGamepad;
+    bLastActionButtonHintsPreviewMode = bIsPreviewMode;
+
+    SetButtonContentText(ConfirmButton, BuildConfirmButtonText());
+    SetButtonContentText(CloseButton, BuildCancelButtonText());
+    SetButtonContentText(EndPreviewButton, BuildEndPreviewButtonText());
 }
 
 FText UBackpackScreenWidget::BuildComboHintText(const UWeaponDefinition* WeaponDefinition) const
 {
     if (!WeaponDefinition)
     {
-        return FText::FromString(TEXT("装备武器后显示出招表。"));
+        return FText::FromString(TEXT("拾取武器后显示出招表。"));
     }
 
     TArray<FString> Sequences;
@@ -199,8 +270,10 @@ FText UBackpackScreenWidget::BuildComboHintText(const UWeaponDefinition* WeaponD
         }
 
         UniqueSequences.Add(Sequence);
-        MoveListLines.Add(FString::Printf(TEXT("%d、%s"), MoveListLines.Num() + 1, *Sequence));
-        if (MoveListLines.Num() >= 8)
+        MoveListLines.Add(FString::Printf(TEXT("连段 %02d   %s"),
+            MoveListLines.Num() + 1,
+            *FormatComboForCommonUI(Sequence)));
+        if (MoveListLines.Num() >= 4)
         {
             break;
         }
@@ -208,11 +281,11 @@ FText UBackpackScreenWidget::BuildComboHintText(const UWeaponDefinition* WeaponD
 
     if (MoveListLines.IsEmpty())
     {
-        MoveListLines.Add(TEXT("1、L - L - L"));
-        MoveListLines.Add(TEXT("2、L - L - H"));
+        MoveListLines.Add(TEXT("连段 01   <input action=\"LightAttack\"/> -> <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"));
+        MoveListLines.Add(TEXT("连段 02   <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"));
     }
 
-    return FText::FromString(FString::Join(MoveListLines, TEXT("\n")));
+    return FText::FromString(FString::Join(MoveListLines, TEXT("\n\n")));
 }
 
 void UBackpackScreenWidget::RefreshWeaponAndComboInfo()
@@ -249,6 +322,11 @@ void UBackpackScreenWidget::RefreshWeaponAndComboInfo()
 
     if (WeaponIcon)
     {
+        if (!Thumbnail && BackpackGridWidget && BackpackGridWidget->StyleDA)
+        {
+            Thumbnail = BackpackGridWidget->StyleDA->DefaultWeaponIconTexture.Get();
+        }
+
         if (Thumbnail)
         {
             WeaponIcon->SetBrushFromTexture(Thumbnail, true);
@@ -305,6 +383,7 @@ void UBackpackScreenWidget::NativeConstruct()
 
     if (CombatDeckEditWidget)
     {
+        CombatDeckEditWidget->SetExternalDetailInfoCard(RuneInfoCard);
         CombatDeckEditWidget->BindToOwningPlayerCombatDeck();
         CombatDeckEditWidget->SetInteractionLocked(IsInCombatPhase() || bIsPreviewMode);
     }
@@ -335,7 +414,17 @@ void UBackpackScreenWidget::NativeConstruct()
     if (HintText)
         HintText->SetVisibility(ESlateVisibility::Collapsed);
 
+    if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+    {
+        if (UCommonInputSubsystem* CommonInput = ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(LocalPlayer))
+        {
+            CommonInput->OnInputMethodChangedNative.AddUObject(
+                this, &UBackpackScreenWidget::HandleCommonInputMethodChanged);
+        }
+    }
+
     RefreshWeaponAndComboInfo();
+    RefreshActionButtonHints();
     UpdateOperationHintVisibility();
 }
 
@@ -347,7 +436,24 @@ void UBackpackScreenWidget::NativeDestruct()
         Backpack->OnRuneRemoved.RemoveDynamic(this, &UBackpackScreenWidget::HandleRuneRemoved);
         Backpack->OnRuneActivationChanged.RemoveDynamic(this, &UBackpackScreenWidget::HandleRuneActivationChanged);
     }
+
+    if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+    {
+        if (UCommonInputSubsystem* CommonInput = ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(LocalPlayer))
+        {
+            CommonInput->OnInputMethodChangedNative.RemoveAll(this);
+        }
+    }
+
     Super::NativeDestruct();
+}
+
+void UBackpackScreenWidget::HandleCommonInputMethodChanged(ECommonInputType NewInputType)
+{
+    bIsGamepadInputMode = NewInputType == ECommonInputType::Gamepad;
+    RefreshWeaponAndComboInfo();
+    RefreshActionButtonHints();
+    UpdateOperationHintVisibility();
 }
 
 // ============================================================
@@ -461,10 +567,19 @@ void UBackpackScreenWidget::OnSelectionChanged_Implementation()
 
     if (RuneInfoCard)
     {
+        const bool bDeckOwnsDetailCard = CombatDeckEditWidget && CombatDeckEditWidget->IsUsingExternalDetailInfoCard(RuneInfoCard);
         if (bHasSelection)
+        {
             RuneInfoCard->ShowRune(Info);
+        }
+        else if (bDeckOwnsDetailCard)
+        {
+            CombatDeckEditWidget->RefreshSelectedCardInfo();
+        }
         else
+        {
             RuneInfoCard->HideCard();
+        }
     }
 
     OnGridNeedsRefresh();
@@ -772,8 +887,7 @@ void UBackpackScreenWidget::UpdateOperationHintVisibility()
 {
     if (!OperationHintWidget) return;
 
-    // 抓取状态下显示按键提示；预览/战斗模式不应进入抓取状态，但保险起见再 guard 一次
-    const bool bShow = true;
+    const bool bShow = CombatDeckEditWidget && (bIsPreviewMode || CombatDeckEditWidget->CanHandleDeckInput());
     SetTextIfSupported(OperationHintText, BuildOperationHintText());
     if (bShow == bOperationHintVisible) return;  // 缓存：避免每帧重复 SetVisibility
     bOperationHintVisible = bShow;
@@ -834,11 +948,13 @@ void UBackpackScreenWidget::NativeOnActivated()
 
     if (CombatDeckEditWidget)
     {
+        CombatDeckEditWidget->SetExternalDetailInfoCard(RuneInfoCard);
         CombatDeckEditWidget->BindToOwningPlayerCombatDeck();
         CombatDeckEditWidget->SetInteractionLocked(IsInCombatPhase() || bIsPreviewMode);
     }
 
     RefreshWeaponAndComboInfo();
+    RefreshActionButtonHints();
     UpdateOperationHintVisibility();
 
     OnGridNeedsRefresh();
@@ -992,6 +1108,9 @@ void UBackpackScreenWidget::SetPreviewMode(bool bReadOnly)
         CloseButton->SetVisibility(bIsPreviewMode
             ? ESlateVisibility::Collapsed
             : ESlateVisibility::Visible);
+
+    bActionButtonHintsInitialized = false;
+    RefreshActionButtonHints();
 
     if (CombatDeckEditWidget)
     {
@@ -1839,6 +1958,7 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
 
+    RefreshActionButtonHints();
     UpdateOperationHintVisibility();
 
     PollCombatDeckSelectButtonState();
