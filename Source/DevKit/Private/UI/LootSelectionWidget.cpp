@@ -16,6 +16,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Kismet/GameplayStatics.h"
 #include "Input/CommonUIInputTypes.h"
+#include "UI/YogInputKeyUtils.h"
 
 static_assert(ULootSelectionWidget::MaxCards == 6, "Card click/hover callbacks must match MaxCards.");
 
@@ -619,7 +620,7 @@ FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 
 	// ── 全局快捷键 ─────────────────────────────────────────
 	// B / Circle / Esc → 跳过
-	if (Key == EKeys::Gamepad_FaceButton_Right || Key == EKeys::Escape)
+	if (YogInputKeys::IsBackKey(Key) || YogInputKeys::IsMenuKey(Key))
 	{
 		SkipSelection();
 		return FReply::Handled();
@@ -632,12 +633,13 @@ FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 	}
 
 	// ── 段切换 ─────────────────────────────────────────────
-	if (Key == EKeys::Gamepad_DPad_Up || Key == EKeys::Up)
+	const int32 VerticalDirection = YogInputKeys::GetVerticalNavigationDirection(Key);
+	if (VerticalDirection < 0)
 	{
 		SetSection(ELootFocusSection::Cards);
 		return FReply::Handled();
 	}
-	if (Key == EKeys::Gamepad_DPad_Down || Key == EKeys::Down)
+	if (VerticalDirection > 0)
 	{
 		SetSection(ELootFocusSection::Buttons);
 		return FReply::Handled();
@@ -647,7 +649,8 @@ FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 	const int32 MaxCardIdx = SpawnedCards.Num() - 1;
 	const int32 MaxButtonIdx = NumBottomButtons - 1;
 
-	if (Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Gamepad_LeftShoulder || Key == EKeys::Left)
+	const int32 HorizontalDirection = YogInputKeys::GetHorizontalNavigationDirection(Key);
+	if (HorizontalDirection < 0)
 	{
 		if (CurrentSection == ELootFocusSection::Cards && MaxCardIdx >= 0)
 		{
@@ -662,7 +665,7 @@ FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 		}
 		return FReply::Handled();
 	}
-	if (Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Gamepad_RightShoulder || Key == EKeys::Right)
+	if (HorizontalDirection > 0)
 	{
 		if (CurrentSection == ELootFocusSection::Cards && MaxCardIdx >= 0)
 		{
@@ -678,7 +681,7 @@ FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 		return FReply::Handled();
 	}
 
-	if (Key == EKeys::Gamepad_FaceButton_Bottom || Key == EKeys::Enter)
+	if (YogInputKeys::IsAcceptKey(Key))
 	{
 		if (CurrentSection == ELootFocusSection::Cards && MaxCardIdx >= 0)
 		{
@@ -730,6 +733,19 @@ FReply ULootSelectionWidget::NativeOnAnalogValueChanged(const FGeometry& InGeome
 		}
 		if (FMath::Abs(Value) < 0.3f)
 			bStickNavHeld = false;
+	}
+	else if (Key == EKeys::Gamepad_LeftY)
+	{
+		if (FMath::Abs(Value) > 0.5f && !bStickNavHeld)
+		{
+			bStickNavHeld = true;
+			SetSection(Value > 0.f ? ELootFocusSection::Cards : ELootFocusSection::Buttons);
+			return FReply::Handled();
+		}
+		if (FMath::Abs(Value) < 0.3f)
+		{
+			bStickNavHeld = false;
+		}
 	}
 
 	return Super::NativeOnAnalogValueChanged(InGeometry, InAnalogInputEvent);

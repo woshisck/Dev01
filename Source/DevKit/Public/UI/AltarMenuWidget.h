@@ -8,6 +8,7 @@
 class APlayerCharacterBase;
 class URunePurificationWidget;
 class USacrificeSelectionWidget;
+class UButton;
 
 UCLASS(Abstract, Blueprintable)
 class DEVKIT_API UAltarMenuWidget : public UCommonActivatableWidget
@@ -43,6 +44,7 @@ protected:
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Altar")
@@ -56,4 +58,31 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<USacrificeSelectionWidget> SacrificeWidget;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> BtnPurification;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> BtnSacrifice;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> BtnClose;
+
+private:
+	TArray<UButton*> GetFocusableButtons() const;
+	void FocusButton(int32 NewIndex);
+	void MoveFocus(int32 Direction);
+	void ActivateFocusedButton();
+
+	UFUNCTION()
+	void OnPurificationClicked();
+
+	UFUNCTION()
+	void OnSacrificeClicked();
+
+	UFUNCTION()
+	void OnCloseClicked();
+
+	int32 FocusedButtonIndex = 0;
+	float LastAnalogNavigationTime = 0.f;
 };

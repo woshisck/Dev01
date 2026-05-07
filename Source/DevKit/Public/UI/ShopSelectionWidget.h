@@ -36,6 +36,7 @@ protected:
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -86,6 +87,13 @@ private:
 	FText GetEntryName(const FShopRuneEntry& Entry) const;
 	void SetButtonLabel(UButton* Button, const FText& Text) const;
 	TArray<UButton*> GetItemButtons() const;
+	TArray<UButton*> GetFocusableButtons() const;
+	void FocusButton(int32 NewIndex);
+	void MoveFocus(int32 Direction);
+	void ActivateFocusedButton();
+
+	int32 FocusedButtonIndex = 0;
+	float LastAnalogNavigationTime = 0.f;
 
 	UFUNCTION()
 	void OnItem0Clicked();

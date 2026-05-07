@@ -9,11 +9,62 @@
 class UYogAbilitySystemComponent;
 class AYogCharacterBase;
 class UFlowAsset;
+class UFlowNode;
 class UNiagaraComponent;
 class URuneDataAsset;
 
 /** Buff Flow 启动/停止事件：携带 RuneGuid 供监听节点过滤 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuffFlowEvent, FGuid, RuneGuid);
+
+UENUM(BlueprintType)
+enum class EBuffFlowTraceResult : uint8
+{
+	Success UMETA(DisplayName = "Success"),
+	Failed UMETA(DisplayName = "Failed"),
+	Skipped UMETA(DisplayName = "Skipped")
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FBuffFlowTraceEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Trace")
+	float TimeSeconds = 0.f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Trace")
+	FName FlowName = NAME_None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Trace")
+	FName NodeName = NAME_None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Trace")
+	FName NodeClass = NAME_None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Trace")
+	FName ProfileName = NAME_None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Trace")
+	FName OwnerName = NAME_None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Trace")
+	FName TargetName = NAME_None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Trace")
+	FName CardName = NAME_None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Trace")
+	FGameplayTag CardIdTag;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Trace")
+	EBuffFlowTraceResult Result = EBuffFlowTraceResult::Success;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Trace")
+	FString Message;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Trace")
+	FString Values;
+};
 
 /**
  * 挂在角色上的 BuffFlow 管理组件
@@ -65,6 +116,17 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "BuffFlow")
 	float GetRuneTuningValueForFlow(UFlowAsset* FlowAsset, FName Key, float DefaultValue = 0.f) const;
+
+	UFUNCTION(BlueprintCallable, Category = "BuffFlow|Trace")
+	void ClearTraceEntries();
+
+	UFUNCTION(BlueprintPure, Category = "BuffFlow|Trace")
+	TArray<FBuffFlowTraceEntry> GetTraceEntries() const { return TraceEntries; }
+
+	void RecordTrace(UFlowNode* Node, UObject* Profile, AActor* Target, EBuffFlowTraceResult Result, const FString& Message, const FString& Values);
+
+	static bool IsTraceEnabled();
+	static bool IsVerboseTraceEnabled();
 
 	// ─── Buff 事件委托 ─────────────────────────────────────
 
@@ -131,5 +193,11 @@ private:
 	TMap<FGuid, TWeakObjectPtr<UFlowAsset>> ActiveRuneFlows;
 
 	TMap<FGuid, TWeakObjectPtr<URuneDataAsset>> ActiveRuneSources;
+
+	UPROPERTY()
+	TArray<FBuffFlowTraceEntry> TraceEntries;
+
+	UPROPERTY(EditAnywhere, Category = "BuffFlow|Trace", meta = (ClampMin = "16", ClampMax = "1000"))
+	int32 MaxTraceEntries = 200;
 
 };

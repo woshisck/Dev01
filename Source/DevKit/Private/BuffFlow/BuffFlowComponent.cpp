@@ -2,8 +2,80 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
 #include "Data/RuneDataAsset.h"
+#include "Engine/World.h"
 #include "FlowSubsystem.h"
 #include "FlowAsset.h"
+#include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
+#include "Nodes/FlowNode.h"
+
+namespace
+{
+	TAutoConsoleVariable<int32> CVarBuffFlowTrace(
+		TEXT("BuffFlow.Trace"),
+		0,
+		TEXT("Enable compact BuffFlow node execution trace logging and retention."));
+
+	TAutoConsoleVariable<int32> CVarBuffFlowTraceVerbose(
+		TEXT("BuffFlow.TraceVerbose"),
+		0,
+		TEXT("Enable verbose BuffFlow trace log values."));
+
+	const TCHAR* TraceResultToString(EBuffFlowTraceResult Result)
+	{
+		switch (Result)
+		{
+		case EBuffFlowTraceResult::Success:
+			return TEXT("Success");
+		case EBuffFlowTraceResult::Failed:
+			return TEXT("Failed");
+		case EBuffFlowTraceResult::Skipped:
+			return TEXT("Skipped");
+		default:
+			return TEXT("Unknown");
+		}
+	}
+
+	void DumpBuffFlowTrace(UWorld* World)
+	{
+		if (!World)
+		{
+			return;
+		}
+
+		APlayerController* PC = World->GetFirstPlayerController();
+		AActor* TraceOwner = PC ? Cast<AActor>(PC->GetPawn()) : nullptr;
+		UBuffFlowComponent* BFC = TraceOwner ? TraceOwner->FindComponentByClass<UBuffFlowComponent>() : nullptr;
+		if (!BFC)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BuffFlowTrace] Dump failed: no player BuffFlowComponent."));
+			return;
+		}
+
+		const TArray<FBuffFlowTraceEntry> Entries = BFC->GetTraceEntries();
+		UE_LOG(LogTemp, Warning, TEXT("[BuffFlowTrace] Dump Count=%d Owner=%s"), Entries.Num(), *GetNameSafe(TraceOwner));
+		for (const FBuffFlowTraceEntry& Entry : Entries)
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("[BuffFlowTrace] t=%.2f Result=%s Flow=%s Node=%s Profile=%s Target=%s Card=%s CardId=%s Msg=%s Values=%s"),
+				Entry.TimeSeconds,
+				TraceResultToString(Entry.Result),
+				*Entry.FlowName.ToString(),
+				*Entry.NodeName.ToString(),
+				*Entry.ProfileName.ToString(),
+				*Entry.TargetName.ToString(),
+				*Entry.CardName.ToString(),
+				*Entry.CardIdTag.ToString(),
+				*Entry.Message,
+				*Entry.Values);
+		}
+	}
+
+	FAutoConsoleCommandWithWorld CmdDumpBuffFlowTrace(
+		TEXT("Yog_DumpBuffFlowTrace"),
+		TEXT("Dump recent BuffFlow trace entries from the current player."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&DumpBuffFlowTrace));
+}
 
 UBuffFlowComponent::UBuffFlowComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -240,6 +312,72 @@ float UBuffFlowComponent::GetRuneTuningValueForFlow(UFlowAsset* FlowAsset, FName
 {
 	URuneDataAsset* Rune = GetActiveSourceRuneData(FlowAsset);
 	return Rune ? Rune->GetRuneTuningValue(Key, DefaultValue) : DefaultValue;
+}
+
+void UBuffFlowComponent::ClearTraceEntries()
+{
+	TraceEntries.Reset();
+}
+
+bool UBuffFlowComponent::IsTraceEnabled()
+{
+	return CVarBuffFlowTrace.GetValueOnGameThread() != 0 || CVarBuffFlowTraceVerbose.GetValueOnGameThread() != 0;
+}
+
+bool UBuffFlowComponent::IsVerboseTraceEnabled()
+{
+	return CVarBuffFlowTraceVerbose.GetValueOnGameThread() != 0;
+}
+
+void UBuffFlowComponent::RecordTrace(
+	UFlowNode* Node,
+	UObject* Profile,
+	AActor* Target,
+	EBuffFlowTraceResult Result,
+	const FString& Message,
+	const FString& Values)
+{
+	const bool bTraceEnabled = IsTraceEnabled();
+	FBuffFlowTraceEntry Entry;
+	Entry.TimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	UFlowAsset* FlowAsset = Node ? Node->GetFlowAsset() : nullptr;
+	Entry.FlowName = FlowAsset ? FName(*FlowAsset->GetName()) : NAME_None;
+	Entry.NodeName = Node ? FName(*Node->GetName()) : NAME_None;
+	Entry.NodeClass = Node ? Node->GetClass()->GetFName() : NAME_None;
+	Entry.ProfileName = Profile ? FName(*Profile->GetName()) : NAME_None;
+	Entry.OwnerName = GetOwner() ? FName(*GetOwner()->GetName()) : NAME_None;
+	Entry.TargetName = Target ? FName(*Target->GetName()) : NAME_None;
+	if (bHasCombatCardEffectContext)
+	{
+		const FCombatCardConfig& CardConfig = LastCombatCardEffectContext.SourceCard.Config;
+		Entry.CardName = FName(*CardConfig.DisplayName.ToString());
+		Entry.CardIdTag = CardConfig.CardIdTag;
+	}
+	Entry.Result = Result;
+	Entry.Message = Message;
+	Entry.Values = Values;
+
+	TraceEntries.Add(Entry);
+	while (TraceEntries.Num() > FMath::Clamp(MaxTraceEntries, 16, 1000))
+	{
+		TraceEntries.RemoveAt(0);
+	}
+
+	if (bTraceEnabled)
+	{
+		const bool bVerbose = IsVerboseTraceEnabled();
+		UE_LOG(LogTemp, Warning,
+			TEXT("[BuffFlowTrace] Result=%s Flow=%s Node=%s Profile=%s Target=%s Card=%s Msg=%s%s%s"),
+			TraceResultToString(Result),
+			*Entry.FlowName.ToString(),
+			*Entry.NodeName.ToString(),
+			*Entry.ProfileName.ToString(),
+			*Entry.TargetName.ToString(),
+			*Entry.CardName.ToString(),
+			*Message,
+			bVerbose && !Values.IsEmpty() ? TEXT(" Values=") : TEXT(""),
+			bVerbose ? *Values : TEXT(""));
+	}
 }
 
 UYogAbilitySystemComponent* UBuffFlowComponent::GetASC() const

@@ -339,6 +339,7 @@ private:
     bool  bDirKeyHeld    = false;
     bool  bDeckSelectButtonWasDown = false;
     bool  bDeckSelectFromVirtualMouse = false;
+    float SuppressDeckVirtualMouseSelectUntilTime = 0.0f;
 
     /** D-Pad 按过后置 true，鼠标移动后置 false */
     bool bIsGamepadInputMode = false;

@@ -8,6 +8,7 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "UI/YogHUD.h"
+#include "UI/YogInputKeyUtils.h"
 
 void UPauseMenuWidget::NativeConstruct()
 {
@@ -95,30 +96,28 @@ void UPauseMenuWidget::NativeOnDeactivated()
 	Super::NativeOnDeactivated();
 }
 
+UWidget* UPauseMenuWidget::NativeGetDesiredFocusTarget() const
+{
+	return MenuButtons.IsValidIndex(FocusedButtonIndex) ? MenuButtons[FocusedButtonIndex].Get() : BtnControl.Get();
+}
+
 FReply UPauseMenuWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
-	if (Key == EKeys::Escape ||
-		Key == EKeys::Gamepad_FaceButton_Right ||
-		Key == EKeys::Gamepad_Special_Right)
+	if (YogInputKeys::IsBackKey(Key) || YogInputKeys::IsMenuKey(Key))
 	{
 		CloseMenu();
 		return FReply::Handled();
 	}
 
-	if (Key == EKeys::Up || Key == EKeys::Gamepad_DPad_Up)
+	const int32 VerticalDirection = YogInputKeys::GetVerticalNavigationDirection(Key);
+	if (VerticalDirection != 0)
 	{
-		FocusButton(FocusedButtonIndex - 1);
+		FocusButton(FocusedButtonIndex + VerticalDirection);
 		return FReply::Handled();
 	}
 
-	if (Key == EKeys::Down || Key == EKeys::Gamepad_DPad_Down)
-	{
-		FocusButton(FocusedButtonIndex + 1);
-		return FReply::Handled();
-	}
-
-	if (Key == EKeys::Enter || Key == EKeys::Virtual_Accept || Key == EKeys::Gamepad_FaceButton_Bottom)
+	if (YogInputKeys::IsAcceptKey(Key))
 	{
 		ActivateFocusedButton();
 		return FReply::Handled();

@@ -1291,6 +1291,25 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
 
     if (bTreatAsGamepadSelect && CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput())
     {
+        const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+        if (!bGamepadAIsDown && CurrentTime < SuppressDeckVirtualMouseSelectUntilTime)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] SuppressVirtualMouseAsA Until=%.3f Now=%.3f"),
+                SuppressDeckVirtualMouseSelectUntilTime,
+                CurrentTime);
+            bIsGamepadInputMode = true;
+            bDeckSelectFromVirtualMouse = false;
+            CombatDeckEditWidget->NotifyGamepadNavigationInput();
+            if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+            {
+                if (UCommonInputSubsystem* CommonInput = LocalPlayer->GetSubsystem<UCommonInputSubsystem>())
+                {
+                    CommonInput->SetCurrentInputType(ECommonInputType::Gamepad);
+                }
+            }
+            return FReply::Handled().SetUserFocus(TakeWidget());
+        }
+
         bIsGamepadInputMode = true;
         bDeckSelectFromVirtualMouse = true;
         UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] VirtualMouseAsA Mode=%d Common=%d ADown=%d WasDown=%d"),
@@ -1505,6 +1524,25 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry,
     {
         bDeckSelectFromVirtualMouse = false;
         return HandleCombatDeckSelectButtonState(false, TEXT("VirtualMouseUp")).ReleaseMouseCapture();
+    }
+
+    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton &&
+        bIsGamepadInputMode &&
+        (GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f) < SuppressDeckVirtualMouseSelectUntilTime)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] SuppressVirtualMouseUpAsA"));
+        if (CombatDeckEditWidget)
+        {
+            CombatDeckEditWidget->NotifyGamepadNavigationInput();
+        }
+        if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+        {
+            if (UCommonInputSubsystem* CommonInput = LocalPlayer->GetSubsystem<UCommonInputSubsystem>())
+            {
+                CommonInput->SetCurrentInputType(ECommonInputType::Gamepad);
+            }
+        }
+        return FReply::Handled().ReleaseMouseCapture().SetUserFocus(TakeWidget());
     }
 
     if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton &&
@@ -1937,6 +1975,7 @@ FReply UBackpackScreenWidget::NativeOnKeyUp(const FGeometry& InGeometry, const F
     if (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput() &&
         InKeyEvent.GetKey() == EKeys::Gamepad_FaceButton_Bottom)
     {
+        SuppressDeckVirtualMouseSelectUntilTime = (GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f) + 0.25f;
         return HandleCombatDeckSelectButtonState(false, TEXT("KeyUp"));
     }
 
@@ -2123,13 +2162,60 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 FReply UBackpackScreenWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
     const FKey Key = InKeyEvent.GetKey();
-    if (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput() &&
-        !InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Bottom)
+    if (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackPreviewKeyDown] A Press"));
-        bIsGamepadInputMode = true;
-        bDeckSelectFromVirtualMouse = false;
-        return HandleCombatDeckSelectButtonState(true, TEXT("PreviewKeyDown"));
+        auto StartDeckDirRepeat = [&](int32 Direction) -> FReply
+        {
+            bIsGamepadInputMode = true;
+            bDeckSelectFromVirtualMouse = false;
+            CombatDeckEditWidget->NotifyGamepadNavigationInput();
+            if (!InKeyEvent.IsRepeat())
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackPreviewKeyDown] DPad Direction=%d"), Direction);
+                CombatDeckEditWidget->HandleDeckDirectionalInput(Direction);
+                HeldDirKey      = Key;
+                bDirKeyHeld     = true;
+                HeldKeyTime     = 0.f;
+                LastRepeatCount = 0;
+            }
+            return FReply::Handled();
+        };
+
+        if (Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Gamepad_LeftStick_Left)
+        {
+            return StartDeckDirRepeat(-1);
+        }
+        if (Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Gamepad_LeftStick_Right)
+        {
+            return StartDeckDirRepeat(1);
+        }
+
+        if (!InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Bottom)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackPreviewKeyDown] A Press"));
+            bIsGamepadInputMode = true;
+            bDeckSelectFromVirtualMouse = false;
+            SuppressDeckVirtualMouseSelectUntilTime = (GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f) + 0.25f;
+            return HandleCombatDeckSelectButtonState(true, TEXT("PreviewKeyDown"));
+        }
+
+        if (!InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Right)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackPreviewKeyDown] B Press"));
+            bIsGamepadInputMode = true;
+            bDeckSelectFromVirtualMouse = false;
+            if (CombatDeckEditWidget->CancelDeckGamepadDrag())
+            {
+                return FReply::Handled();
+            }
+        }
+
+        if (!InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Left)
+        {
+            bIsGamepadInputMode = true;
+            bDeckSelectFromVirtualMouse = false;
+            return CombatDeckEditWidget->ToggleSelectedLinkOrientation() ? FReply::Handled() : FReply::Unhandled();
+        }
     }
 
     return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
@@ -2207,6 +2293,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         if (!InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Bottom)
         {
             UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] A Press"));
+            SuppressDeckVirtualMouseSelectUntilTime = (GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f) + 0.25f;
             return HandleCombatDeckSelectButtonState(true, TEXT("KeyDown"));
         }
         if (!InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Right)
@@ -2336,6 +2423,11 @@ FReply UBackpackScreenWidget::HandleCombatDeckSelectButtonState(bool bPressed, c
 
     if (!bDeckSelectButtonWasDown)
     {
+        if (CombatDeckEditWidget && CombatDeckEditWidget->IsGamepadDragActive())
+        {
+            return CombatDeckEditWidget->HandleDeckSelectReleased() ? FReply::Handled() : FReply::Unhandled();
+        }
+
         return FReply::Handled();
     }
 

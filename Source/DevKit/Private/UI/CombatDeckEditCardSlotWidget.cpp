@@ -32,6 +32,19 @@ const FLinearColor ReversedGemCoreColor(1.00f, 0.76f, 0.42f, 0.94f);
 const FLinearColor ReversedGemIdleGlowColor(0.90f, 0.45f, 0.28f, 0.36f);
 const FLinearColor ReversedGemIdleCoreColor(0.92f, 0.66f, 0.42f, 0.78f);
 const FVector2D BlockedFeedbackOffset(6.0f, 0.0f);
+
+int32 GetDeckDirectionFromKey(const FKey& Key)
+{
+	if (Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Gamepad_LeftStick_Left)
+	{
+		return -1;
+	}
+	if (Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Gamepad_LeftStick_Right)
+	{
+		return 1;
+	}
+	return 0;
+}
 }
 
 void UCombatDeckEditCardSlotWidget::NativeConstruct()
@@ -130,6 +143,13 @@ FReply UCombatDeckEditCardSlotWidget::NativeOnPreviewMouseButtonDown(const FGeom
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
+		if (OwnerWidget && OwnerWidget->IsSuppressingPointerInput())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardRoute] SuppressVirtualPointerDown DeckIndex=%d"), DeckIndex);
+			OwnerWidget->NotifyGamepadNavigationInput();
+			return FReply::Handled();
+		}
+
 		if (OwnerWidget && !OwnerWidget->ShouldSelectCardsOnPointerHover())
 		{
 			return HandleCardMouseButtonDown(InMouseEvent);
@@ -150,6 +170,13 @@ FReply UCombatDeckEditCardSlotWidget::NativeOnMouseButtonDown(const FGeometry& I
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
+		if (OwnerWidget && OwnerWidget->IsSuppressingPointerInput())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardRoute] SuppressVirtualPointerDown DeckIndex=%d"), DeckIndex);
+			OwnerWidget->NotifyGamepadNavigationInput();
+			return FReply::Handled();
+		}
+
 		return HandleCardMouseButtonDown(InMouseEvent);
 	}
 
@@ -160,6 +187,13 @@ FReply UCombatDeckEditCardSlotWidget::NativeOnMouseButtonUp(const FGeometry& InG
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
+		if (OwnerWidget && OwnerWidget->IsSuppressingPointerInput())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardRoute] SuppressVirtualPointerUp DeckIndex=%d"), DeckIndex);
+			OwnerWidget->NotifyGamepadNavigationInput();
+			return FReply::Handled().ReleaseMouseCapture();
+		}
+
 		if (OwnerWidget && !OwnerWidget->ShouldSelectCardsOnPointerHover())
 		{
 			OwnerWidget->HandleDeckSelectReleased();
@@ -171,15 +205,102 @@ FReply UCombatDeckEditCardSlotWidget::NativeOnMouseButtonUp(const FGeometry& InG
 	return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
 }
 
+FReply UCombatDeckEditCardSlotWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey Key = InKeyEvent.GetKey();
+	if (OwnerWidget && !OwnerWidget->ShouldSelectCardsOnPointerHover())
+	{
+		if (const int32 Direction = GetDeckDirectionFromKey(Key); Direction != 0)
+		{
+			OwnerWidget->NotifyGamepadNavigationInput();
+			UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardPreviewRoute] DPad Direction=%d Repeat=%d DeckIndex=%d"),
+				Direction,
+				InKeyEvent.IsRepeat() ? 1 : 0,
+				DeckIndex);
+			return OwnerWidget->HandleDeckDirectionalInput(Direction) ? FReply::Handled() : FReply::Unhandled();
+		}
+
+		if (!InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Bottom)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardPreviewRoute] A Press DeckIndex=%d"), DeckIndex);
+			return OwnerWidget->HandleDeckSelectPressed() ? FReply::Handled() : FReply::Unhandled();
+		}
+
+		if (!InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Right)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardPreviewRoute] B Press DeckIndex=%d"), DeckIndex);
+			if (OwnerWidget->CancelDeckGamepadDrag())
+			{
+				return FReply::Handled();
+			}
+		}
+
+		if (!InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Left)
+		{
+			return TryHandleReverseInput(Key);
+		}
+	}
+
+	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
+}
+
 FReply UCombatDeckEditCardSlotWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
+	if (OwnerWidget && !OwnerWidget->ShouldSelectCardsOnPointerHover())
+	{
+		if (const int32 Direction = GetDeckDirectionFromKey(Key); Direction != 0)
+		{
+			OwnerWidget->NotifyGamepadNavigationInput();
+			UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardRoute] DPad Direction=%d Repeat=%d DeckIndex=%d"),
+				Direction,
+				InKeyEvent.IsRepeat() ? 1 : 0,
+				DeckIndex);
+			return OwnerWidget->HandleDeckDirectionalInput(Direction) ? FReply::Handled() : FReply::Unhandled();
+		}
+
+		if (!InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Bottom)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardRoute] A Press DeckIndex=%d"), DeckIndex);
+			return OwnerWidget->HandleDeckSelectPressed() ? FReply::Handled() : FReply::Unhandled();
+		}
+
+		if (!InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Right && OwnerWidget->CancelDeckGamepadDrag())
+		{
+			return FReply::Handled();
+		}
+	}
+
 	if (Key == EKeys::R || Key == EKeys::Gamepad_FaceButton_Left)
 	{
 		return TryHandleReverseInput(Key);
 	}
 
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+FReply UCombatDeckEditCardSlotWidget::NativeOnKeyUp(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey Key = InKeyEvent.GetKey();
+	if (OwnerWidget && !OwnerWidget->ShouldSelectCardsOnPointerHover())
+	{
+		if (Key == EKeys::Gamepad_FaceButton_Bottom)
+		{
+			OwnerWidget->HandleDeckSelectReleased();
+			return FReply::Handled();
+		}
+
+		if (GetDeckDirectionFromKey(Key) != 0 ||
+			Key == EKeys::Gamepad_DPad_Up ||
+			Key == EKeys::Gamepad_DPad_Down ||
+			Key == EKeys::Gamepad_LeftStick_Up ||
+			Key == EKeys::Gamepad_LeftStick_Down)
+		{
+			return FReply::Handled();
+		}
+	}
+
+	return Super::NativeOnKeyUp(InGeometry, InKeyEvent);
 }
 
 void UCombatDeckEditCardSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -475,6 +596,13 @@ void UCombatDeckEditCardSlotWidget::ApplyLinkHintVisual()
 FReply UCombatDeckEditCardSlotWidget::HandleCardMouseButtonDown(const FPointerEvent& InMouseEvent)
 {
 	MouseDownTimeSeconds = FPlatformTime::Seconds();
+	if (OwnerWidget && OwnerWidget->IsSuppressingPointerInput())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardRoute] SuppressVirtualPointerDown DeckIndex=%d"), DeckIndex);
+		OwnerWidget->NotifyGamepadNavigationInput();
+		return FReply::Handled();
+	}
+
 	if (IsInteractionLocked())
 	{
 		TriggerBlockedFeedback();

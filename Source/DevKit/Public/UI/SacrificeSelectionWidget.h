@@ -52,6 +52,7 @@ protected:
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -124,10 +125,17 @@ private:
 	void SetButtonLabel(UButton* Button, const FText& Text) const;
 	TArray<UButton*> GetOptionButtons() const;
 	TArray<UButton*> GetDeckButtons() const;
+	TArray<UButton*> GetFocusableButtons() const;
 	TArray<FCombatCardInstance> GetDeckCards() const;
 	bool PaySelectedCost();
 	bool GrantSelectedRune();
 	void FailSacrifice(const FText& Reason);
+	void FocusButton(int32 NewIndex);
+	void MoveFocus(int32 Direction);
+	void ActivateFocusedButton();
+
+	int32 FocusedButtonIndex = 0;
+	float LastAnalogNavigationTime = 0.f;
 
 	UFUNCTION()
 	void OnOption0Clicked();

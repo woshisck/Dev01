@@ -6,6 +6,7 @@
 
 class UButton;
 class UTextBlock;
+class UWidget;
 
 UCLASS(Abstract, Blueprintable)
 class DEVKIT_API UPauseMenuWidget : public UCommonActivatableWidget
@@ -21,6 +22,7 @@ protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
+	virtual UWidget* NativeGetDesiredFocusTarget() const override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;

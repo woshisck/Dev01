@@ -92,6 +92,7 @@ public class DevKitEditor : ModuleRules
 				"AnimationBlueprintLibrary",
 				// 数值编辑工具依赖：FPlatformApplicationMisc::ClipboardCopy
 				"ApplicationCore",
+				"EnhancedInput",
 			}
         );
 

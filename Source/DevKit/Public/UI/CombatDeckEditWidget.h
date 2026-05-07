@@ -56,6 +56,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
 	bool CancelDeckGamepadDrag();
 
+	UFUNCTION(BlueprintPure, Category = "Combat Deck|Edit")
+	bool IsGamepadDragActive() const { return bGamepadDragActive; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat Deck|Edit")
+	bool IsSuppressingPointerInput() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
 	void TickDeckGamepadInput(float DeltaTime);
 
@@ -188,6 +194,7 @@ private:
 	int32 GamepadDragInsertIndex = INDEX_NONE;
 	bool bDetailPreviewVisible = true;
 	bool bPointerHoverSelectionEnabled = true;
+	float GamepadNavigationSuppressPointerUntilTime = 0.0f;
 
 	void UnbindFromCurrentDeck();
 	void ApplyDetailPreviewVisibility();

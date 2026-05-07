@@ -4,6 +4,7 @@
 #include "UI/YogHUD.h"
 #include "Input/CommonUIInputTypes.h"
 #include "InputCoreTypes.h"
+#include "UI/YogInputKeyUtils.h"
 
 TOptional<FUIInputConfig> URunePurificationWidget::GetDesiredInputConfig() const
 {
@@ -45,15 +46,49 @@ void URunePurificationWidget::NativeOnDeactivated()
 FReply URunePurificationWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
-	if (Key == EKeys::Escape ||
-		Key == EKeys::Gamepad_FaceButton_Right ||
-		Key == EKeys::Gamepad_Special_Right)
+	if (YogInputKeys::IsBackKey(Key) || YogInputKeys::IsMenuKey(Key))
 	{
 		CancelPurification();
 		return FReply::Handled();
 	}
 
+	const int32 NavDirection = YogInputKeys::GetVerticalNavigationDirection(Key) != 0
+		? YogInputKeys::GetVerticalNavigationDirection(Key)
+		: YogInputKeys::GetHorizontalNavigationDirection(Key);
+	if (NavDirection != 0)
+	{
+		MoveFocus(NavDirection);
+		return FReply::Handled();
+	}
+
+	if (YogInputKeys::IsAcceptKey(Key))
+	{
+		ActivateFocusedEntry();
+		return FReply::Handled();
+	}
+
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+FReply URunePurificationWidget::NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent)
+{
+	const FKey Key = InAnalogInputEvent.GetKey();
+	const float Value = InAnalogInputEvent.GetAnalogValue();
+	if ((Key == EKeys::Gamepad_LeftY || Key == EKeys::Gamepad_LeftX) && FMath::Abs(Value) >= 0.65f)
+	{
+		const float Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.f;
+		if (Now - LastAnalogNavigationTime >= 0.18f)
+		{
+			LastAnalogNavigationTime = Now;
+			const int32 Direction = (Key == EKeys::Gamepad_LeftY)
+				? (Value > 0.f ? -1 : 1)
+				: (Value < 0.f ? -1 : 1);
+			MoveFocus(Direction);
+			return FReply::Handled();
+		}
+	}
+
+	return Super::NativeOnAnalogValueChanged(InGeometry, InAnalogInputEvent);
 }
 
 void URunePurificationWidget::Setup(APlayerCharacterBase* InPlayer)
@@ -62,10 +97,17 @@ void URunePurificationWidget::Setup(APlayerCharacterBase* InPlayer)
 	Phase          = 0;
 	SelectedRuneGuid = FGuid();
 	SelectedCell   = FIntPoint(0, 0);
+	CachedPlacedRunes.Reset();
+	CachedSelectableCells.Reset();
+	FocusedIndex = 0;
 
 	if (!InPlayer) return;
 	if (UBackpackGridComponent* Grid = InPlayer->FindComponentByClass<UBackpackGridComponent>())
-		OnShowRuneList(Grid->GetAllPlacedRunes());
+	{
+		CachedPlacedRunes = Grid->GetAllPlacedRunes();
+		OnShowRuneList(CachedPlacedRunes);
+		OnNativeFocusIndexChanged(Phase, FocusedIndex);
+	}
 }
 
 void URunePurificationWidget::SelectRune(FGuid RuneGuid)
@@ -79,10 +121,12 @@ void URunePurificationWidget::SelectRune(FGuid RuneGuid)
 		if (PR.Rune.RuneGuid != RuneGuid) continue;
 		SelectedRuneGuid = RuneGuid;
 		Phase = 1;
+		FocusedIndex = 0;
 
-		TArray<FIntPoint> Selectable = PR.Rune.Shape.Cells.FilterByPredicate(
+		CachedSelectableCells = PR.Rune.Shape.Cells.FilterByPredicate(
 			[](const FIntPoint& P) { return P != FIntPoint(0, 0); });
-		OnShowCellSelection(RuneGuid, Selectable);
+		OnShowCellSelection(RuneGuid, CachedSelectableCells);
+		OnNativeFocusIndexChanged(Phase, FocusedIndex);
 		return;
 	}
 }
@@ -106,6 +150,66 @@ void URunePurificationWidget::ConfirmPurification()
 
 void URunePurificationWidget::CancelPurification()
 {
+	if (Phase == 1)
+	{
+		Phase = 0;
+		SelectedRuneGuid = FGuid();
+		SelectedCell = FIntPoint(0, 0);
+		CachedSelectableCells.Reset();
+		FocusedIndex = 0;
+		OnShowRuneList(CachedPlacedRunes);
+		OnNativeFocusIndexChanged(Phase, FocusedIndex);
+		return;
+	}
+
 	OnPurificationFinished(false);
 	DeactivateWidget();
+}
+
+void URunePurificationWidget::MoveFocus(int32 Direction)
+{
+	const int32 Count = GetCurrentFocusCount();
+	if (Count <= 0)
+	{
+		return;
+	}
+
+	FocusedIndex = (FocusedIndex + Direction) % Count;
+	if (FocusedIndex < 0)
+	{
+		FocusedIndex += Count;
+	}
+	OnNativeFocusIndexChanged(Phase, FocusedIndex);
+}
+
+void URunePurificationWidget::ActivateFocusedEntry()
+{
+	if (Phase == 0)
+	{
+		if (CachedPlacedRunes.IsValidIndex(FocusedIndex))
+		{
+			SelectRune(CachedPlacedRunes[FocusedIndex].Rune.RuneGuid);
+		}
+		return;
+	}
+
+	if (Phase == 1)
+	{
+		if (SelectedCell == FIntPoint(0, 0))
+		{
+			if (CachedSelectableCells.IsValidIndex(FocusedIndex))
+			{
+				SelectCell(CachedSelectableCells[FocusedIndex]);
+				OnNativeFocusIndexChanged(Phase, FocusedIndex);
+			}
+			return;
+		}
+
+		ConfirmPurification();
+	}
+}
+
+int32 URunePurificationWidget::GetCurrentFocusCount() const
+{
+	return Phase == 0 ? CachedPlacedRunes.Num() : CachedSelectableCells.Num();
 }

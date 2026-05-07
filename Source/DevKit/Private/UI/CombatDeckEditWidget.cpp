@@ -439,10 +439,20 @@ bool UCombatDeckEditWidget::HandleDeckSelectReleased()
 {
 	if (bGamepadDragActive)
 	{
+		const int32 CommitInsertIndex = GamepadDragInsertIndex;
+		const bool bInsertMoved = CommitInsertIndex != DragSourceIndex;
 		bGamepadSelectHeld = false;
-		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_ReleasedKeepDrag] Source=%d Insert=%d"),
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_ReleasedDrag] Source=%d Insert=%d Moved=%d"),
 			DragSourceIndex,
-			GamepadDragInsertIndex);
+			CommitInsertIndex,
+			bInsertMoved ? 1 : 0);
+
+		if (bInsertMoved)
+		{
+			ResetGamepadDragState();
+			return CommitDragPreview(CommitInsertIndex);
+		}
+
 		return true;
 	}
 
@@ -641,10 +651,23 @@ bool UCombatDeckEditWidget::CanHandleDeckInput() const
 void UCombatDeckEditWidget::NotifyGamepadNavigationInput()
 {
 	bPointerHoverSelectionEnabled = false;
+	GamepadNavigationSuppressPointerUntilTime = (GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f) + 0.75f;
+	if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+	{
+		if (UCommonInputSubsystem* CommonInput = LocalPlayer->GetSubsystem<UCommonInputSubsystem>())
+		{
+			CommonInput->SetCurrentInputType(ECommonInputType::Gamepad);
+		}
+	}
 }
 
 void UCombatDeckEditWidget::NotifyPointerNavigationInput()
 {
+	if (IsSuppressingPointerInput())
+	{
+		return;
+	}
+
 	if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
 	{
 		if (UCommonInputSubsystem* CommonInput = LocalPlayer->GetSubsystem<UCommonInputSubsystem>())
@@ -661,6 +684,11 @@ void UCombatDeckEditWidget::NotifyPointerNavigationInput()
 
 bool UCombatDeckEditWidget::ShouldSelectCardsOnPointerHover() const
 {
+	if (IsSuppressingPointerInput())
+	{
+		return false;
+	}
+
 	if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
 	{
 		if (UCommonInputSubsystem* CommonInput = LocalPlayer->GetSubsystem<UCommonInputSubsystem>())
@@ -673,6 +701,12 @@ bool UCombatDeckEditWidget::ShouldSelectCardsOnPointerHover() const
 	}
 
 	return bPointerHoverSelectionEnabled && !bGamepadDragActive;
+}
+
+bool UCombatDeckEditWidget::IsSuppressingPointerInput() const
+{
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	return CurrentTime < GamepadNavigationSuppressPointerUntilTime;
 }
 
 bool UCombatDeckEditWidget::EnsureValidSelection()

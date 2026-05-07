@@ -25,6 +25,7 @@
 #include "Item/Weapon/WeaponSpawner.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
+#include "UI/YogInputKeyUtils.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "GameFramework/PlayerInput.h"
 #include "InputCoreTypes.h"
@@ -221,6 +222,11 @@ void AYogPlayerControllerBase::SetupInputComponent()
 			const FEnhancedInputActionEventBinding& backpackBinding = EnhancedInputComp->BindAction(Input_OpenBackpack, ETriggerEvent::Started, this, &AYogPlayerControllerBase::ToggleBackpack);
 			OpenBackpackInputHandle = backpackBinding.GetHandle();
 		}
+		if (Input_PauseAction)
+		{
+			const FEnhancedInputActionEventBinding& pauseBinding = EnhancedInputComp->BindAction(Input_PauseAction, ETriggerEvent::Started, this, &AYogPlayerControllerBase::HandlePauseInput);
+			PauseInputHandle = pauseBinding.GetHandle();
+		}
 		if (Input_CameraLook)
 		{
 			// Triggered: 右摇杆拨动时持续更新轴值
@@ -293,54 +299,13 @@ bool AYogPlayerControllerBase::InputKey(const FInputKeyParams& Params)
 		}
 	}
 
-	if (Params.Event == IE_Pressed && !bBlockGameInput)
-	{
-		if (Params.Key == EKeys::F
-			|| Params.Key == EKeys::Gamepad_FaceButton_Top
-			|| Params.Key == EKeys::Gamepad_LeftShoulder
-			|| Params.Key == EKeys::Gamepad_RightShoulder
-			|| Params.Key == EKeys::Gamepad_LeftTrigger
-			|| Params.Key == EKeys::Gamepad_RightTrigger)
-		{
-			if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
-			{
-				if (PlayerCharacter->CombatItemComponent && PlayerCharacter->CombatItemComponent->UseActiveItem())
-				{
-					return true;
-				}
-			}
-		}
-		else if (Params.Key == EKeys::Q || Params.Key == EKeys::Gamepad_DPad_Right)
-		{
-			if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
-			{
-				if (PlayerCharacter->CombatItemComponent)
-				{
-					PlayerCharacter->CombatItemComponent->SelectNextItem();
-					return true;
-				}
-			}
-		}
-		else if (Params.Key == EKeys::Gamepad_DPad_Left)
-		{
-			if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
-			{
-				if (PlayerCharacter->CombatItemComponent)
-				{
-					PlayerCharacter->CombatItemComponent->SelectPreviousItem();
-					return true;
-				}
-			}
-		}
-	}
-
 	return Super::InputKey(Params);
 }
 
 bool AYogPlayerControllerBase::HandleMenuBackInput(const FKey& Key)
 {
-	const bool bBackKey = Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right;
-	const bool bMenuKey = Key == EKeys::Gamepad_Special_Right;
+	const bool bBackKey = YogInputKeys::IsBackKey(Key);
+	const bool bMenuKey = YogInputKeys::IsMenuKey(Key);
 	if (!bBackKey && !bMenuKey)
 	{
 		return false;
@@ -530,6 +495,11 @@ void AYogPlayerControllerBase::SwitchCombatItemPrevious(const FInputActionValue&
 	}
 }
 
+void AYogPlayerControllerBase::HandlePauseInput(const FInputActionValue& Value)
+{
+	HandleMenuBackInput(EKeys::Gamepad_Special_Right);
+}
+
 void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 {
 	if (bBlockGameInput) return;
@@ -653,6 +623,7 @@ void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 
 void AYogPlayerControllerBase::Interact(const FInputActionValue& Value)
 {
+	if (bBlockGameInput) return;
 	UE_LOG(LogTemp, Log, TEXT("Interact"));
 
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
@@ -709,6 +680,10 @@ void AYogPlayerControllerBase::ToggleBackpack(const FInputActionValue& Value)
 	else
 	{
 		// NativeOnActivated 处理：SetPause(true) + GameAndUI 输入 + 刷新网格
+		if (bBlockGameInput)
+		{
+			return;
+		}
 		BackpackWidget->ActivateWidget();
 	}
 }

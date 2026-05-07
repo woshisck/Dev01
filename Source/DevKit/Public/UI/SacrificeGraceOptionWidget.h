@@ -44,6 +44,7 @@ protected:
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 	virtual UWidget* NativeGetDesiredFocusTarget() const override;
 
@@ -77,4 +78,10 @@ private:
 
 	UFUNCTION()
 	void OnNoClicked();
+
+	void FocusButton(int32 NewIndex);
+	void ActivateFocusedButton();
+
+	int32 FocusedButtonIndex = 0;
+	float LastAnalogNavigationTime = 0.f;
 };

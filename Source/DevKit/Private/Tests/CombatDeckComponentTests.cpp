@@ -12,14 +12,18 @@
 #include "BuffFlow/Nodes/BFNode_ApplyAttributeModifier.h"
 #include "BuffFlow/Nodes/BFNode_ApplyEffect.h"
 #include "BuffFlow/Nodes/BFNode_ApplyGEInRadius.h"
+#include "BuffFlow/Nodes/BFNode_ApplyRuneEffectProfile.h"
 #include "BuffFlow/Nodes/BFNode_CalcRuneGroundPathTransform.h"
 #include "BuffFlow/Nodes/BFNode_GrantSacrificePassive.h"
 #include "BuffFlow/Nodes/BFNode_PlayFlipbookVFX.h"
 #include "BuffFlow/Nodes/BFNode_PlayNiagara.h"
+#include "BuffFlow/Nodes/BFNode_PlayRuneVFXProfile.h"
 #include "BuffFlow/Nodes/BFNode_MathFloat.h"
 #include "BuffFlow/Nodes/BFNode_OnDamageDealt.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRangedProjectiles.h"
+#include "BuffFlow/Nodes/BFNode_SpawnRuneAreaProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
+#include "BuffFlow/Nodes/BFNode_SpawnRuneProjectileProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "Data/AbilityData.h"
@@ -27,6 +31,7 @@
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/MontageConfigDA.h"
 #include "Data/RuneDataAsset.h"
+#include "Data/RuneCardEffectProfileDA.h"
 #include "Data/WeaponComboConfigDA.h"
 #include "Character/YogCharacterBase.h"
 #include "GameFramework/Actor.h"
@@ -2169,6 +2174,7 @@ bool FCombatDeckMoonlightReversedGroundPathFlowTest::RunTest(const FString& Para
 
 		UBFNode_CalcRuneGroundPathTransform* CalcTransformNode = nullptr;
 		UBFNode_SpawnRuneGroundPathEffect* GroundPathNode = nullptr;
+		UBFNode_SpawnRuneAreaProfile* AreaProfileNode = nullptr;
 		for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
 		{
 			if (!CalcTransformNode)
@@ -2179,11 +2185,21 @@ bool FCombatDeckMoonlightReversedGroundPathFlowTest::RunTest(const FString& Para
 			{
 				GroundPathNode = Cast<UBFNode_SpawnRuneGroundPathEffect>(Pair.Value);
 			}
+			if (!AreaProfileNode)
+			{
+				AreaProfileNode = Cast<UBFNode_SpawnRuneAreaProfile>(Pair.Value);
+			}
 		}
 
 		TestNotNull(FString::Printf(TEXT("%s has Calc Rune Ground Path Transform node"), Label), CalcTransformNode);
-		TestNotNull(FString::Printf(TEXT("%s has Rune Ground Path node"), Label), GroundPathNode);
-		if (!GroundPathNode || !CalcTransformNode)
+		TestNotNull(FString::Printf(TEXT("%s keeps legacy Rune Ground Path node for reference"), Label), GroundPathNode);
+		TestNotNull(FString::Printf(TEXT("%s has Spawn Rune Area Profile node"), Label), AreaProfileNode);
+		if (!AreaProfileNode || !CalcTransformNode)
+		{
+			return false;
+		}
+		TestNotNull(FString::Printf(TEXT("%s area profile is assigned"), Label), AreaProfileNode->Profile.Get());
+		if (!AreaProfileNode->Profile)
 		{
 			return false;
 		}
@@ -2197,61 +2213,62 @@ bool FCombatDeckMoonlightReversedGroundPathFlowTest::RunTest(const FString& Para
 		}
 
 		const FConnectedPin CalcExecConnection = CalcTransformNode->GetConnection(TEXT("Out"));
-		TestEqual(FString::Printf(TEXT("%s calc executes ground path spawn"), Label), CalcExecConnection.NodeGuid, GroundPathNode->GetGuid());
+		TestEqual(FString::Printf(TEXT("%s calc executes area profile spawn"), Label), CalcExecConnection.NodeGuid, AreaProfileNode->GetGuid());
 
-		const FConnectedPin LocationConnection = GroundPathNode->GetConnection(GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneGroundPathEffect, SpawnLocationOverride));
+		const FConnectedPin LocationConnection = AreaProfileNode->GetConnection(GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneAreaProfile, SpawnLocationOverride));
 		TestEqual(FString::Printf(TEXT("%s spawn location comes from calc node"), Label), LocationConnection.NodeGuid, CalcTransformNode->GetGuid());
 		TestEqual(FString::Printf(TEXT("%s spawn location uses calc SpawnLocation output"), Label),
 			LocationConnection.PinName,
 			GET_MEMBER_NAME_CHECKED(UBFNode_CalcRuneGroundPathTransform, SpawnLocation));
 
-		const FConnectedPin RotationConnection = GroundPathNode->GetConnection(GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneGroundPathEffect, SpawnRotationOverride));
+		const FConnectedPin RotationConnection = AreaProfileNode->GetConnection(GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneAreaProfile, SpawnRotationOverride));
 		TestEqual(FString::Printf(TEXT("%s spawn rotation comes from calc node"), Label), RotationConnection.NodeGuid, CalcTransformNode->GetGuid());
 		TestEqual(FString::Printf(TEXT("%s spawn rotation uses calc SpawnRotation output"), Label),
 			RotationConnection.PinName,
 			GET_MEMBER_NAME_CHECKED(UBFNode_CalcRuneGroundPathTransform, SpawnRotation));
 
+		const FRuneCardProfileAreaConfig& Area = AreaProfileNode->Profile->Area;
 		TestEqual(FString::Printf(TEXT("%s calc source selector"), Label), CalcTransformNode->Source, EBFTargetSelector::BuffOwner);
 		TestEqual(FString::Printf(TEXT("%s calc faces last damage target"), Label), CalcTransformNode->FacingMode, ERuneGroundPathFacingMode::ToLastDamageTarget);
 		TestTrue(FString::Printf(TEXT("%s calc centers path on length"), Label), CalcTransformNode->bCenterOnPathLength);
-		TestEqual(FString::Printf(TEXT("%s spawn fallback faces last damage target"), Label), GroundPathNode->FacingMode, ERuneGroundPathFacingMode::ToLastDamageTarget);
-		TestEqual(FString::Printf(TEXT("%s targets enemies only"), Label), GroundPathNode->TargetPolicy, ERuneGroundPathTargetPolicy::EnemiesOnly);
-		TestEqual(FString::Printf(TEXT("%s source selector"), Label), GroundPathNode->Source, EBFTargetSelector::BuffOwner);
-		TestNotNull(FString::Printf(TEXT("%s has path decal material"), Label), GroundPathNode->DecalMaterial.Get());
-		TestEqual(FString::Printf(TEXT("%s decal plane rotation aligns visual forward"), Label), GroundPathNode->DecalPlaneRotationDegrees, 0.0f);
-		TestTrue(FString::Printf(TEXT("%s has path Niagara"), Label), GroundPathNode->NiagaraSystem != nullptr);
+		TestEqual(FString::Printf(TEXT("%s spawn fallback faces last damage target"), Label), Area.FacingMode, ERuneGroundPathFacingMode::ToLastDamageTarget);
+		TestEqual(FString::Printf(TEXT("%s targets enemies only"), Label), Area.TargetPolicy, ERuneGroundPathTargetPolicy::EnemiesOnly);
+		TestEqual(FString::Printf(TEXT("%s source selector"), Label), Area.Source, EBFTargetSelector::BuffOwner);
+		TestNotNull(FString::Printf(TEXT("%s has path decal material"), Label), Area.DecalMaterial.Get());
+		TestEqual(FString::Printf(TEXT("%s decal plane rotation aligns visual forward"), Label), Area.DecalPlaneRotationDegrees, 0.0f);
+		TestTrue(FString::Printf(TEXT("%s has path Niagara"), Label), Area.NiagaraSystem != nullptr);
 
 		if (bBurn)
 		{
-			TestEqual(FString::Printf(TEXT("%s burn shape"), Label), GroundPathNode->Shape, ERuneGroundPathShape::Fan);
-			TestEqual(FString::Printf(TEXT("%s burn duration"), Label), GroundPathNode->Duration, 4.0f);
-			TestEqual(FString::Printf(TEXT("%s burn scan interval"), Label), GroundPathNode->TickInterval, 0.5f);
-			TestEqual(FString::Printf(TEXT("%s burn length"), Label), GroundPathNode->Length, 520.0f);
-			TestEqual(FString::Printf(TEXT("%s burn width"), Label), GroundPathNode->Width, 230.0f);
-			TestEqual(FString::Printf(TEXT("%s burn decal projection depth"), Label), GroundPathNode->DecalProjectionDepth, 18.0f);
-			TestEqual(FString::Printf(TEXT("%s burn ground fire instances"), Label), GroundPathNode->NiagaraInstanceCount, 7);
-			TestTrue(FString::Printf(TEXT("%s burn applies once per path target"), Label), GroundPathNode->bApplyOncePerTarget);
+			TestEqual(FString::Printf(TEXT("%s burn shape"), Label), Area.Shape, ERuneGroundPathShape::Fan);
+			TestEqual(FString::Printf(TEXT("%s burn duration"), Label), Area.Duration, 4.0f);
+			TestEqual(FString::Printf(TEXT("%s burn scan interval"), Label), Area.TickInterval, 0.5f);
+			TestEqual(FString::Printf(TEXT("%s burn length"), Label), Area.Length, 520.0f);
+			TestEqual(FString::Printf(TEXT("%s burn width"), Label), Area.Width, 230.0f);
+			TestEqual(FString::Printf(TEXT("%s burn decal projection depth"), Label), Area.DecalProjectionDepth, 18.0f);
+			TestEqual(FString::Printf(TEXT("%s burn ground fire instances"), Label), Area.NiagaraInstanceCount, 7);
+			TestTrue(FString::Printf(TEXT("%s burn applies once per path target"), Label), Area.bApplyOncePerTarget);
 			TestTrue(FString::Printf(TEXT("%s uses burn ground path decal"), Label),
-				GroundPathNode->DecalMaterial != nullptr
-				&& GroundPathNode->DecalMaterial->GetName().Contains(TEXT("GroundPath_Burn_Fan_Decal")));
-			TestTrue(FString::Printf(TEXT("%s applies UGE_RuneBurn"), Label), GroundPathNode->Effect.Get() == UGE_RuneBurn::StaticClass());
-			TestEqual(FString::Printf(TEXT("%s burn uses Data.Damage.Burn"), Label), GroundPathNode->SetByCallerTag1.GetTagName(), FName(TEXT("Data.Damage.Burn")));
-			TestEqual(FString::Printf(TEXT("%s burn damage per tick"), Label), GroundPathNode->SetByCallerValue1.Value, 6.0f);
+				Area.DecalMaterial != nullptr
+				&& Area.DecalMaterial->GetName().Contains(TEXT("GroundPath_Burn_Fan_Decal")));
+			TestTrue(FString::Printf(TEXT("%s applies UGE_RuneBurn"), Label), Area.Effect.Get() == UGE_RuneBurn::StaticClass());
+			TestEqual(FString::Printf(TEXT("%s burn uses Data.Damage.Burn"), Label), Area.SetByCallerTag1.GetTagName(), FName(TEXT("Data.Damage.Burn")));
+			TestEqual(FString::Printf(TEXT("%s burn damage per tick"), Label), Area.SetByCallerValue1, 6.0f);
 		}
 		else
 		{
-			TestEqual(FString::Printf(TEXT("%s poison shape"), Label), GroundPathNode->Shape, ERuneGroundPathShape::Rectangle);
-			TestEqual(FString::Printf(TEXT("%s poison duration"), Label), GroundPathNode->Duration, 4.5f);
-			TestEqual(FString::Printf(TEXT("%s poison tick interval"), Label), GroundPathNode->TickInterval, 1.0f);
-			TestEqual(FString::Printf(TEXT("%s poison length"), Label), GroundPathNode->Length, 560.0f);
-			TestEqual(FString::Printf(TEXT("%s poison width"), Label), GroundPathNode->Width, 210.0f);
-			TestEqual(FString::Printf(TEXT("%s poison decal projection depth"), Label), GroundPathNode->DecalProjectionDepth, 18.0f);
-			TestEqual(FString::Printf(TEXT("%s poison ground VFX instances"), Label), GroundPathNode->NiagaraInstanceCount, 1);
-			TestFalse(FString::Printf(TEXT("%s poison can reapply per scan"), Label), GroundPathNode->bApplyOncePerTarget);
+			TestEqual(FString::Printf(TEXT("%s poison shape"), Label), Area.Shape, ERuneGroundPathShape::Rectangle);
+			TestEqual(FString::Printf(TEXT("%s poison duration"), Label), Area.Duration, 4.5f);
+			TestEqual(FString::Printf(TEXT("%s poison tick interval"), Label), Area.TickInterval, 1.0f);
+			TestEqual(FString::Printf(TEXT("%s poison length"), Label), Area.Length, 560.0f);
+			TestEqual(FString::Printf(TEXT("%s poison width"), Label), Area.Width, 210.0f);
+			TestEqual(FString::Printf(TEXT("%s poison decal projection depth"), Label), Area.DecalProjectionDepth, 18.0f);
+			TestEqual(FString::Printf(TEXT("%s poison ground VFX instances"), Label), Area.NiagaraInstanceCount, 1);
+			TestFalse(FString::Printf(TEXT("%s poison can reapply per scan"), Label), Area.bApplyOncePerTarget);
 			TestTrue(FString::Printf(TEXT("%s uses poison ground path decal"), Label),
-				GroundPathNode->DecalMaterial != nullptr
-				&& GroundPathNode->DecalMaterial->GetName().Contains(TEXT("GroundPath_Poison_Decal")));
-			TestTrue(FString::Printf(TEXT("%s applies GE_Poison"), Label), GroundPathNode->Effect != nullptr && GroundPathNode->Effect->GetName().Contains(TEXT("GE_Poison")));
+				Area.DecalMaterial != nullptr
+				&& Area.DecalMaterial->GetName().Contains(TEXT("GroundPath_Poison_Decal")));
+			TestTrue(FString::Printf(TEXT("%s applies GE_Poison"), Label), Area.Effect != nullptr && Area.Effect->GetName().Contains(TEXT("GE_Poison")));
 		}
 
 		return true;
@@ -2389,6 +2406,98 @@ bool FCombatDeckBurnStatusNiagaraBoundToTagTest::RunTest(const FString& Paramete
 
 	TestEqual(TEXT("Burning tag uses NS_Fire_Floor"), BurnSystem->GetName(), FString(TEXT("NS_Fire_Floor")));
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRuneEffectProfileDefaultsTest,
+	"DevKit.CombatDeck.RuneEffectProfileDefaults",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckRuneEffectProfileDefaultsTest::RunTest(const FString& Parameters)
+{
+	const FName ProfileObjectName = MakeUniqueObjectName(GetTransientPackage(), URuneCardEffectProfileDA::StaticClass(), TEXT("EP_Test_Profile"));
+	URuneCardEffectProfileDA* Profile = NewObject<URuneCardEffectProfileDA>(GetTransientPackage(), URuneCardEffectProfileDA::StaticClass(), ProfileObjectName);
+	TestNotNull(TEXT("Profile can be constructed"), Profile);
+	if (!Profile)
+	{
+		return false;
+	}
+
+	Profile->DebugName = TEXT("TestMoonlightBurn");
+	Profile->DamageMode = ERuneCardProfileDamageMode::Fixed;
+	Profile->DamageValue = 35.0f;
+	Profile->DamageLogType = TEXT("Rune_Profile_Test");
+	Profile->Effect.ApplicationCount = 2;
+	Profile->Effect.bRemoveEffectOnCleanup = false;
+	Profile->Projectile.Speed = 1100.0f;
+	Profile->Projectile.MaxDistance = 800.0f;
+	Profile->Projectile.ProjectileCount = 3;
+	Profile->Projectile.bSpawnProjectilesSequentially = true;
+	Profile->Area.Duration = 4.0f;
+	Profile->Area.TickInterval = 0.5f;
+	Profile->Area.Length = 520.0f;
+	Profile->Area.Width = 230.0f;
+	Profile->VFX.EffectName = TEXT("Rune.Profile.TestVFX");
+	Profile->VFX.Scale = FVector(0.4f, 0.4f, 0.4f);
+
+	TestEqual(TEXT("Trace name uses DebugName"), Profile->GetTraceName(), FName(TEXT("TestMoonlightBurn")));
+	TestEqual(TEXT("Damage value is editable on profile"), Profile->DamageValue, 35.0f);
+	TestEqual(TEXT("Effect application count is editable on profile"), Profile->Effect.ApplicationCount, 2);
+	TestEqual(TEXT("Projectile speed is editable on profile"), Profile->Projectile.Speed, 1100.0f);
+	TestEqual(TEXT("Projectile count supports sequential moonlight tuning"), Profile->Projectile.ProjectileCount, 3);
+	TestTrue(TEXT("Projectile sequential flag is profile-owned"), Profile->Projectile.bSpawnProjectilesSequentially);
+	TestEqual(TEXT("Area duration is profile-owned"), Profile->Area.Duration, 4.0f);
+	TestEqual(TEXT("Area tick interval is profile-owned"), Profile->Area.TickInterval, 0.5f);
+	TestEqual(TEXT("VFX scale is profile-owned"), Profile->VFX.Scale, FVector(0.4f, 0.4f, 0.4f));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRuneEffectProfileNodesConstructTest,
+	"DevKit.CombatDeck.RuneEffectProfileNodesConstruct",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckRuneEffectProfileNodesConstructTest::RunTest(const FString& Parameters)
+{
+	TestNotNull(TEXT("Apply Rune Effect Profile node constructs"), NewObject<UBFNode_ApplyRuneEffectProfile>());
+	TestNotNull(TEXT("Spawn Rune Projectile Profile node constructs"), NewObject<UBFNode_SpawnRuneProjectileProfile>());
+	TestNotNull(TEXT("Spawn Rune Area Profile node constructs"), NewObject<UBFNode_SpawnRuneAreaProfile>());
+	TestNotNull(TEXT("Play Rune VFX Profile node constructs"), NewObject<UBFNode_PlayRuneVFXProfile>());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckBuffFlowTraceRecordsProfileTest,
+	"DevKit.CombatDeck.BuffFlowTraceRecordsProfile",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckBuffFlowTraceRecordsProfileTest::RunTest(const FString& Parameters)
+{
+	UBuffFlowComponent* BFC = NewObject<UBuffFlowComponent>();
+	const FName ProfileObjectName = MakeUniqueObjectName(GetTransientPackage(), URuneCardEffectProfileDA::StaticClass(), TEXT("EP_Trace_Profile"));
+	URuneCardEffectProfileDA* Profile = NewObject<URuneCardEffectProfileDA>(GetTransientPackage(), URuneCardEffectProfileDA::StaticClass(), ProfileObjectName);
+	TestNotNull(TEXT("BuffFlowComponent constructs"), BFC);
+	TestNotNull(TEXT("Profile constructs"), Profile);
+	if (!BFC || !Profile)
+	{
+		return false;
+	}
+
+	BFC->RecordTrace(nullptr, Profile, nullptr, EBuffFlowTraceResult::Success, TEXT("Applied"), TEXT("Damage=35 Duration=4"));
+
+	const TArray<FBuffFlowTraceEntry> Entries = BFC->GetTraceEntries();
+	TestEqual(TEXT("Trace stores one entry"), Entries.Num(), 1);
+	if (Entries.Num() != 1)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Trace records profile asset name"), Entries[0].ProfileName, ProfileObjectName);
+	TestEqual(TEXT("Trace records result"), Entries[0].Result, EBuffFlowTraceResult::Success);
+	TestEqual(TEXT("Trace records message"), Entries[0].Message, FString(TEXT("Applied")));
+	TestEqual(TEXT("Trace records values"), Entries[0].Values, FString(TEXT("Damage=35 Duration=4")));
+
+	BFC->ClearTraceEntries();
+	TestEqual(TEXT("Trace clears entries"), BFC->GetTraceEntries().Num(), 0);
 	return true;
 }
 

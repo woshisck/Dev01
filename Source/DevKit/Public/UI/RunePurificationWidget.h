@@ -45,14 +45,27 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Purification")
 	void OnPurificationFinished(bool bSuccess);
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "Purification")
+	void OnNativeFocusIndexChanged(int32 FocusPhase, int32 FocusIndex);
+
 protected:
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 
 	TWeakObjectPtr<APlayerCharacterBase> OwningPlayer;
 	FGuid     SelectedRuneGuid;
 	FIntPoint SelectedCell = FIntPoint(0, 0);
 	int32     Phase        = 0; // 0 = 选符文，1 = 选格子
+	TArray<FPlacedRune> CachedPlacedRunes;
+	TArray<FIntPoint> CachedSelectableCells;
+	int32 FocusedIndex = 0;
+	float LastAnalogNavigationTime = 0.f;
+
+private:
+	void MoveFocus(int32 Direction);
+	void ActivateFocusedEntry();
+	int32 GetCurrentFocusCount() const;
 };

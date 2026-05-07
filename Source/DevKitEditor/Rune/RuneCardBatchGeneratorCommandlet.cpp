@@ -13,12 +13,17 @@
 #include "BuffFlow/Nodes/BFNode_OnDamageDealt.h"
 #include "BuffFlow/Nodes/BFNode_PlayFlipbookVFX.h"
 #include "BuffFlow/Nodes/BFNode_PlayNiagara.h"
+#include "BuffFlow/Nodes/BFNode_PlayRuneVFXProfile.h"
 #include "BuffFlow/Nodes/BFNode_GrantSacrificePassive.h"
+#include "BuffFlow/Nodes/BFNode_ApplyRuneEffectProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRangedProjectiles.h"
+#include "BuffFlow/Nodes/BFNode_SpawnRuneAreaProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
+#include "BuffFlow/Nodes/BFNode_SpawnRuneProjectileProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "Data/GameplayAbilityComboGraph.h"
+#include "Data/RuneCardEffectProfileDA.h"
 #include "Data/RuneDataAsset.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
@@ -55,6 +60,7 @@ namespace Rune512Batch
 {
 	const FString GeneratedRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated");
 	const FString GeneratedFlowRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow");
+	const FString GeneratedProfileRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile");
 	const FString SacrificeGeneratedRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice");
 	const FString SacrificeGeneratedFlowRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/Flow");
 	const FString IconRoot = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/Icons");
@@ -1871,6 +1877,489 @@ namespace Rune512Batch
 		return ClearedCount;
 	}
 
+	FString MakeEffectProfileNameForFlow(const FString& FlowName)
+	{
+		FString ProfileName = FlowName;
+		ProfileName.RemoveFromStart(TEXT("FA_"));
+		return TEXT("EP_") + ProfileName;
+	}
+
+	FString GetProfileEffectTagName(EMoonlightFlowProfile Profile)
+	{
+		switch (Profile)
+		{
+		case EMoonlightFlowProfile::Base:
+		case EMoonlightFlowProfile::ForwardAttack:
+		case EMoonlightFlowProfile::ReversedAttack:
+			return TEXT("Card.Effect.Moonlight");
+		case EMoonlightFlowProfile::ForwardBurn:
+		case EMoonlightFlowProfile::ReversedBurn:
+			return TEXT("Card.Effect.Burn");
+		case EMoonlightFlowProfile::ForwardPoison:
+		case EMoonlightFlowProfile::ReversedPoison:
+			return TEXT("Card.Effect.Poison");
+		case EMoonlightFlowProfile::ForwardSplit:
+		case EMoonlightFlowProfile::ReversedSplit:
+			return TEXT("Card.Effect.SplashSplit");
+		case EMoonlightFlowProfile::ForwardShield:
+		case EMoonlightFlowProfile::ReversedShield:
+			return TEXT("Card.Effect.Shield");
+		case EMoonlightFlowProfile::ForwardPierce:
+		case EMoonlightFlowProfile::ReversedPierce:
+			return TEXT("Card.Effect.Pierce");
+		case EMoonlightFlowProfile::ForwardReduceDamage:
+		case EMoonlightFlowProfile::ReversedReduceDamage:
+			return TEXT("Card.Effect.Defense.ReduceDamage");
+		default:
+			return FString();
+		}
+	}
+
+	URuneCardEffectProfileDA* EnsureEffectProfileAsset(
+		const FString& ProfileName,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		if (ProfileName.IsEmpty())
+		{
+			return nullptr;
+		}
+
+		const FString TargetPath = GeneratedProfileRoot + TEXT("/") + ProfileName;
+		if (URuneCardEffectProfileDA* Existing = LoadAssetByPackagePath<URuneCardEffectProfileDA>(TargetPath))
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Found existing EffectProfile `%s`."), *TargetPath));
+			return Existing;
+		}
+
+		if (bDryRun)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Would create EffectProfile `%s`."), *TargetPath));
+			return nullptr;
+		}
+
+		UPackage* Package = CreatePackage(*TargetPath);
+		if (!Package)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Failed to create EffectProfile package `%s`."), *TargetPath));
+			return nullptr;
+		}
+
+		const FString AssetName = FPackageName::GetLongPackageAssetName(TargetPath);
+		URuneCardEffectProfileDA* Profile = NewObject<URuneCardEffectProfileDA>(
+			Package,
+			URuneCardEffectProfileDA::StaticClass(),
+			*AssetName,
+			RF_Public | RF_Standalone | RF_Transactional);
+		if (!Profile)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Failed to create EffectProfile asset `%s`."), *TargetPath));
+			return nullptr;
+		}
+
+		FAssetRegistryModule::AssetCreated(Profile);
+		Profile->MarkPackageDirty();
+		DirtyPackages.AddUnique(Profile->GetPackage());
+		ReportLines.Add(FString::Printf(TEXT("- Created EffectProfile `%s`."), *TargetPath));
+		return Profile;
+	}
+
+	void CopySlashWaveNodeToProfile(
+		const UBFNode_SpawnSlashWaveProjectile* SlashNode,
+		URuneCardEffectProfileDA* Profile)
+	{
+		if (!SlashNode || !Profile)
+		{
+			return;
+		}
+
+		Profile->DamageMode = ERuneCardProfileDamageMode::Fixed;
+		Profile->DamageValue = SlashNode->Damage;
+		Profile->DamageLogType = SlashNode->DamageLogType;
+
+		FRuneCardProfileProjectileConfig& Projectile = Profile->Projectile;
+		Projectile.ProjectileClass = SlashNode->ProjectileClass;
+		Projectile.DamageEffect = SlashNode->DamageEffect;
+		Projectile.SourceSelector = SlashNode->SourceSelector;
+		Projectile.Speed = SlashNode->Speed;
+		Projectile.MaxDistance = SlashNode->MaxDistance;
+		Projectile.MaxHitCount = SlashNode->MaxHitCount;
+		Projectile.DamageApplicationsPerTarget = SlashNode->DamageApplicationsPerTarget;
+		Projectile.DamageApplicationInterval = SlashNode->DamageApplicationInterval;
+		Projectile.CollisionBoxExtent = SlashNode->CollisionBoxExtent;
+		Projectile.bScaleVisualWithCollisionExtent = SlashNode->bScaleVisualWithCollisionExtent;
+		Projectile.VisualScaleMultiplier = SlashNode->VisualScaleMultiplier;
+		Projectile.ProjectileVisualNiagaraSystem = SlashNode->ProjectileVisualNiagaraSystem;
+		Projectile.ProjectileVisualNiagaraScale = SlashNode->ProjectileVisualNiagaraScale;
+		Projectile.bHideDefaultProjectileVisuals = SlashNode->bHideDefaultProjectileVisuals;
+		Projectile.HitNiagaraSystem = SlashNode->HitNiagaraSystem;
+		Projectile.HitNiagaraScale = SlashNode->HitNiagaraScale;
+		Projectile.ExpireNiagaraSystem = SlashNode->ExpireNiagaraSystem;
+		Projectile.ExpireNiagaraScale = SlashNode->ExpireNiagaraScale;
+		Projectile.HitGameplayEventTag = SlashNode->HitGameplayEventTag;
+		Projectile.ExpireGameplayEventTag = SlashNode->ExpireGameplayEventTag;
+		Projectile.ProjectileCount = SlashNode->ProjectileCount;
+		Projectile.bAddComboStacksToProjectileCount = SlashNode->bAddComboStacksToProjectileCount;
+		Projectile.ProjectilesPerComboStack = SlashNode->ProjectilesPerComboStack;
+		Projectile.MaxBonusProjectiles = SlashNode->MaxBonusProjectiles;
+		Projectile.ProjectileConeAngleDegrees = SlashNode->ProjectileConeAngleDegrees;
+		Projectile.bSpawnProjectilesSequentially = SlashNode->bSpawnProjectilesSequentially;
+		Projectile.SequentialProjectileSpawnInterval = SlashNode->SequentialProjectileSpawnInterval;
+		Projectile.bDestroyOnWorldStaticHit = SlashNode->bDestroyOnWorldStaticHit;
+		Projectile.bForcePureDamage = SlashNode->bForcePureDamage;
+		Projectile.BonusArmorDamageMultiplier = SlashNode->BonusArmorDamageMultiplier;
+		Projectile.bAddSourceArmorToDamage = SlashNode->bAddSourceArmorToDamage;
+		Projectile.SourceArmorToDamageMultiplier = SlashNode->SourceArmorToDamageMultiplier;
+		Projectile.bConsumeSourceArmorOnSpawn = SlashNode->bConsumeSourceArmorOnSpawn;
+		Projectile.SourceArmorConsumeMultiplier = SlashNode->SourceArmorConsumeMultiplier;
+		Projectile.AdditionalHitEffect = SlashNode->AdditionalHitEffect;
+		Projectile.AdditionalHitSetByCallerTag = SlashNode->AdditionalHitSetByCallerTag;
+		Projectile.AdditionalHitSetByCallerValue = SlashNode->AdditionalHitSetByCallerValue;
+		Projectile.bSplitOnFirstHit = SlashNode->bSplitOnFirstHit;
+		Projectile.MaxSplitGenerations = SlashNode->MaxSplitGenerations;
+		Projectile.SplitProjectileCount = SlashNode->SplitProjectileCount;
+		Projectile.SplitConeAngleDegrees = SlashNode->SplitConeAngleDegrees;
+		Projectile.bRandomizeSplitDirections = SlashNode->bRandomizeSplitDirections;
+		Projectile.SplitRandomYawJitterDegrees = SlashNode->SplitRandomYawJitterDegrees;
+		Projectile.SplitRandomPitchDegrees = SlashNode->SplitRandomPitchDegrees;
+		Projectile.SplitDamageMultiplier = SlashNode->SplitDamageMultiplier;
+		Projectile.SplitSpeedMultiplier = SlashNode->SplitSpeedMultiplier;
+		Projectile.SplitMaxDistanceMultiplier = SlashNode->SplitMaxDistanceMultiplier;
+		Projectile.SplitCollisionBoxExtentMultiplier = SlashNode->SplitCollisionBoxExtentMultiplier;
+		Projectile.bBounceSplitChildrenOnEnemyHit = SlashNode->bBounceSplitChildrenOnEnemyHit;
+		Projectile.SplitChildMaxEnemyBounces = SlashNode->SplitChildMaxEnemyBounces;
+		Projectile.SpawnOffset = SlashNode->SpawnOffset;
+		Projectile.LaunchNiagaraSystem = SlashNode->LaunchNiagaraSystem;
+		Projectile.LaunchNiagaraEffectName = SlashNode->LaunchNiagaraEffectName;
+		Projectile.bAttachLaunchNiagaraToSource = SlashNode->bAttachLaunchNiagaraToSource;
+		Projectile.LaunchNiagaraOffset = SlashNode->LaunchNiagaraOffset;
+		Projectile.LaunchNiagaraRotationOffset = SlashNode->LaunchNiagaraRotationOffset;
+		Projectile.LaunchNiagaraScale = SlashNode->LaunchNiagaraScale;
+		Projectile.bDestroyLaunchNiagaraWithFlow = SlashNode->bDestroyLaunchNiagaraWithFlow;
+	}
+
+	void CopyGroundPathNodeToProfile(
+		const UBFNode_SpawnRuneGroundPathEffect* GroundPathNode,
+		URuneCardEffectProfileDA* Profile)
+	{
+		if (!GroundPathNode || !Profile)
+		{
+			return;
+		}
+
+		FRuneCardProfileAreaConfig& Area = Profile->Area;
+		Area.Effect = GroundPathNode->Effect;
+		Area.TargetPolicy = GroundPathNode->TargetPolicy;
+		Area.Shape = GroundPathNode->Shape;
+		Area.FacingMode = GroundPathNode->FacingMode;
+		Area.bCenterOnPathLength = GroundPathNode->bCenterOnPathLength;
+		Area.RotationYawOffset = GroundPathNode->RotationYawOffset;
+		Area.Duration = GroundPathNode->Duration;
+		Area.TickInterval = GroundPathNode->TickInterval;
+		Area.Length = GroundPathNode->Length;
+		Area.Width = GroundPathNode->Width;
+		Area.Height = GroundPathNode->Height;
+		Area.DecalProjectionDepth = GroundPathNode->DecalProjectionDepth;
+		Area.DecalPlaneRotationDegrees = GroundPathNode->DecalPlaneRotationDegrees;
+		Area.SpawnOffset = GroundPathNode->SpawnOffset;
+		Area.Source = GroundPathNode->Source;
+		Area.DecalMaterial = GroundPathNode->DecalMaterial;
+		Area.NiagaraSystem = GroundPathNode->NiagaraSystem;
+		Area.NiagaraScale = GroundPathNode->NiagaraScale;
+		Area.NiagaraInstanceCount = GroundPathNode->NiagaraInstanceCount;
+		Area.SetByCallerTag1 = GroundPathNode->SetByCallerTag1;
+		Area.SetByCallerValue1 = GroundPathNode->SetByCallerValue1.Value;
+		Area.SetByCallerTag2 = GroundPathNode->SetByCallerTag2;
+		Area.SetByCallerValue2 = GroundPathNode->SetByCallerValue2.Value;
+		Area.ApplicationCount = GroundPathNode->ApplicationCount;
+		Area.bApplyOncePerTarget = GroundPathNode->bApplyOncePerTarget;
+	}
+
+	URuneCardEffectProfileDA* ConfigureMoonlightEffectProfile(
+		UFlowAsset* FlowAsset,
+		const FString& FlowName,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		const EMoonlightFlowProfile FlowProfile = ResolveMoonlightFlowProfile(FlowName);
+		if (FlowProfile == EMoonlightFlowProfile::None)
+		{
+			return nullptr;
+		}
+
+		const FString ProfileName = MakeEffectProfileNameForFlow(FlowName);
+		URuneCardEffectProfileDA* Profile = EnsureEffectProfileAsset(ProfileName, bDryRun, ReportLines, DirtyPackages);
+		if (bDryRun)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Would update EffectProfile `%s` from `%s`."), *ProfileName, *FlowName));
+			return Profile;
+		}
+		if (!Profile)
+		{
+			return nullptr;
+		}
+
+		Profile->Modify();
+		Profile->DebugName = FName(*ProfileName);
+		Profile->DebugColor = FLinearColor(0.55f, 0.72f, 1.0f, 1.0f);
+		const FString EffectTagName = GetProfileEffectTagName(FlowProfile);
+		if (!EffectTagName.IsEmpty())
+		{
+			Profile->EffectIdTag = RequestTag(EffectTagName, ReportLines);
+		}
+
+		bool bCopied = false;
+		if (FlowProfile == EMoonlightFlowProfile::ReversedBurn || FlowProfile == EMoonlightFlowProfile::ReversedPoison)
+		{
+			UBFNode_SpawnRuneGroundPathEffect* GroundPathNode = Cast<UBFNode_SpawnRuneGroundPathEffect>(FindFirstNode(
+				FlowAsset,
+				[](UFlowNode* Node) { return Cast<UBFNode_SpawnRuneGroundPathEffect>(Node) != nullptr; }));
+			if (GroundPathNode)
+			{
+				CopyGroundPathNodeToProfile(GroundPathNode, Profile);
+				bCopied = true;
+			}
+		}
+		else
+		{
+			UBFNode_SpawnSlashWaveProjectile* SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(FindFirstNode(
+				FlowAsset,
+				[](UFlowNode* Node) { return Cast<UBFNode_SpawnSlashWaveProjectile>(Node) != nullptr; }));
+			if (SlashNode)
+			{
+				CopySlashWaveNodeToProfile(SlashNode, Profile);
+				bCopied = true;
+			}
+		}
+
+		Profile->MarkPackageDirty();
+		DirtyPackages.AddUnique(Profile->GetPackage());
+		ReportLines.Add(FString::Printf(
+			TEXT("- Updated EffectProfile `%s` from `%s` (%s)."),
+			*ProfileName,
+			*FlowName,
+			bCopied ? TEXT("copied node parameters") : TEXT("no matching legacy node found")));
+		return Profile;
+	}
+
+	void ConfigureMoonlightProjectileProfileNode(
+		UFlowAsset* FlowAsset,
+		const FString& FlowName,
+		URuneCardEffectProfileDA* Profile,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		const EMoonlightFlowProfile FlowProfile = ResolveMoonlightFlowProfile(FlowName);
+		if (FlowProfile == EMoonlightFlowProfile::None
+			|| FlowProfile == EMoonlightFlowProfile::ReversedBurn
+			|| FlowProfile == EMoonlightFlowProfile::ReversedPoison)
+		{
+			return;
+		}
+		if (bDryRun)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Would connect `%s` to Spawn Rune Projectile Profile."), *FlowName));
+			return;
+		}
+		if (!FlowAsset || !Profile)
+		{
+			return;
+		}
+
+		UFlowGraph* FlowGraph = Cast<UFlowGraph>(FlowAsset->GetGraph());
+		if (!FlowGraph)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Cannot profile-migrate `%s`: missing FlowGraph."), *FlowName));
+			return;
+		}
+
+		UBFNode_SpawnSlashWaveProjectile* SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_SpawnSlashWaveProjectile>(Node) != nullptr; }));
+		if (!SlashNode)
+		{
+			return;
+		}
+
+		UFlowNode* PreviousNode = FindPreviousFlowNode(SlashNode);
+		if (!PreviousNode)
+		{
+			PreviousNode = FlowAsset->GetDefaultEntryNode();
+		}
+		if (!PreviousNode)
+		{
+			return;
+		}
+
+		TArray<UEdGraphPin*> OldNextPins;
+		if (UEdGraphPin* SlashOutput = GetFirstOutputPin(SlashNode))
+		{
+			OldNextPins = SlashOutput->LinkedTo;
+		}
+
+		UBFNode_SpawnRuneProjectileProfile* ProfileNode = Cast<UBFNode_SpawnRuneProjectileProfile>(FindFirstNode(
+			FlowAsset,
+			[Profile](UFlowNode* Node)
+			{
+				const UBFNode_SpawnRuneProjectileProfile* Candidate = Cast<UBFNode_SpawnRuneProjectileProfile>(Node);
+				return Candidate && Candidate->Profile == Profile;
+			}));
+
+		if (!ProfileNode)
+		{
+			const UFlowGraphNode* SlashGraphNode = Cast<UFlowGraphNode>(SlashNode->GetGraphNode());
+			const FVector2D NodeLocation(
+				SlashGraphNode ? static_cast<float>(SlashGraphNode->NodePosX) : 320.f,
+				SlashGraphNode ? static_cast<float>(SlashGraphNode->NodePosY + 160) : 160.f);
+			ProfileNode = Cast<UBFNode_SpawnRuneProjectileProfile>(CreateFlowNodeAfter(
+				FlowGraph,
+				PreviousNode,
+				UBFNode_SpawnRuneProjectileProfile::StaticClass(),
+				NodeLocation));
+		}
+
+		if (!ProfileNode)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Failed to create Spawn Rune Projectile Profile node for `%s`."), *FlowName));
+			return;
+		}
+
+		ProfileNode->Modify();
+		ProfileNode->Profile = Profile;
+		RefreshGraphNodePins(ProfileNode);
+
+		if (UEdGraphPin* SlashInput = GetFirstInputPin(SlashNode))
+		{
+			SlashInput->BreakAllPinLinks();
+		}
+		if (UEdGraphPin* SlashOutput = GetFirstOutputPin(SlashNode))
+		{
+			SlashOutput->BreakAllPinLinks();
+		}
+		LinkFlowNodes(PreviousNode, ProfileNode);
+		if (UEdGraphPin* ProfileOutput = GetFirstOutputPin(ProfileNode); ProfileOutput && OldNextPins.Num() > 0)
+		{
+			ProfileOutput->BreakAllPinLinks();
+			for (UEdGraphPin* NextPin : OldNextPins)
+			{
+				if (NextPin)
+				{
+					NextPin->BreakAllPinLinks();
+					ProfileOutput->MakeLinkTo(NextPin);
+				}
+			}
+		}
+
+		FlowAsset->HarvestNodeConnections();
+		FlowAsset->MarkPackageDirty();
+		DirtyPackages.AddUnique(FlowAsset->GetPackage());
+		FlowGraph->Modify();
+		FlowGraph->NotifyGraphChanged();
+		ReportLines.Add(FString::Printf(TEXT("- `%s` now executes Spawn Rune Projectile Profile `%s`; legacy slash-wave node is retained but disconnected."), *FlowName, *GetNameSafe(Profile)));
+	}
+
+	void ConfigureMoonlightAreaProfileNode(
+		UFlowAsset* FlowAsset,
+		const FString& FlowName,
+		URuneCardEffectProfileDA* Profile,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		const EMoonlightFlowProfile FlowProfile = ResolveMoonlightFlowProfile(FlowName);
+		if (FlowProfile != EMoonlightFlowProfile::ReversedBurn
+			&& FlowProfile != EMoonlightFlowProfile::ReversedPoison)
+		{
+			return;
+		}
+		if (bDryRun)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Would connect `%s` to Spawn Rune Area Profile."), *FlowName));
+			return;
+		}
+		if (!FlowAsset || !Profile)
+		{
+			return;
+		}
+
+		UFlowGraph* FlowGraph = Cast<UFlowGraph>(FlowAsset->GetGraph());
+		UBFNode_CalcRuneGroundPathTransform* CalcNode = Cast<UBFNode_CalcRuneGroundPathTransform>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_CalcRuneGroundPathTransform>(Node) != nullptr; }));
+		UBFNode_SpawnRuneGroundPathEffect* GroundPathNode = Cast<UBFNode_SpawnRuneGroundPathEffect>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_SpawnRuneGroundPathEffect>(Node) != nullptr; }));
+		if (!FlowGraph || !CalcNode)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Cannot profile-migrate `%s`: missing FlowGraph or Calc Rune Ground Path Transform."), *FlowName));
+			return;
+		}
+
+		UBFNode_SpawnRuneAreaProfile* ProfileNode = Cast<UBFNode_SpawnRuneAreaProfile>(FindFirstNode(
+			FlowAsset,
+			[Profile](UFlowNode* Node)
+			{
+				const UBFNode_SpawnRuneAreaProfile* Candidate = Cast<UBFNode_SpawnRuneAreaProfile>(Node);
+				return Candidate && Candidate->Profile == Profile;
+			}));
+
+		if (!ProfileNode)
+		{
+			const UFlowGraphNode* GroundGraphNode = GroundPathNode ? Cast<UFlowGraphNode>(GroundPathNode->GetGraphNode()) : nullptr;
+			const FVector2D NodeLocation(
+				GroundGraphNode ? static_cast<float>(GroundGraphNode->NodePosX) : 560.f,
+				GroundGraphNode ? static_cast<float>(GroundGraphNode->NodePosY + 160) : 160.f);
+			ProfileNode = Cast<UBFNode_SpawnRuneAreaProfile>(CreateFlowNodeAfter(
+				FlowGraph,
+				CalcNode,
+				UBFNode_SpawnRuneAreaProfile::StaticClass(),
+				NodeLocation));
+		}
+
+		if (!ProfileNode)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Failed to create Spawn Rune Area Profile node for `%s`."), *FlowName));
+			return;
+		}
+
+		ProfileNode->Modify();
+		ProfileNode->Profile = Profile;
+		RefreshGraphNodePins(ProfileNode);
+		LinkFlowNodes(CalcNode, ProfileNode);
+		const bool bLocationLinked = LinkDataPins(
+			CalcNode,
+			GET_MEMBER_NAME_CHECKED(UBFNode_CalcRuneGroundPathTransform, SpawnLocation),
+			ProfileNode,
+			GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneAreaProfile, SpawnLocationOverride));
+		const bool bRotationLinked = LinkDataPins(
+			CalcNode,
+			GET_MEMBER_NAME_CHECKED(UBFNode_CalcRuneGroundPathTransform, SpawnRotation),
+			ProfileNode,
+			GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneAreaProfile, SpawnRotationOverride));
+		if (GroundPathNode)
+		{
+			if (UEdGraphPin* GroundInput = GetFirstInputPin(GroundPathNode))
+			{
+				GroundInput->BreakAllPinLinks();
+			}
+		}
+
+		FlowAsset->HarvestNodeConnections();
+		FlowAsset->MarkPackageDirty();
+		DirtyPackages.AddUnique(FlowAsset->GetPackage());
+		FlowGraph->Modify();
+		FlowGraph->NotifyGraphChanged();
+		ReportLines.Add(FString::Printf(
+			TEXT("- `%s` now executes Spawn Rune Area Profile `%s`; LocationPin=%d RotationPin=%d, legacy ground-path node retained but disconnected."),
+			*FlowName,
+			*GetNameSafe(Profile),
+			bLocationLinked ? 1 : 0,
+			bRotationLinked ? 1 : 0));
+	}
+
 	template <typename TPredicate>
 	int32 RemoveFlowNodesWhere(UFlowAsset* FlowAsset, UFlowGraph* FlowGraph, TPredicate Predicate)
 	{
@@ -3362,6 +3851,9 @@ namespace Rune512Batch
 		ConfigureCombatCardAttributeMultiplierFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		ConfigureSplitBaseFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		ConfigureSplashBaseFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
+		URuneCardEffectProfileDA* BaseProfile = ConfigureMoonlightEffectProfile(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
+		ConfigureMoonlightProjectileProfileNode(BaseFlow, Spec.BaseFlowTargetName, BaseProfile, bDryRun, ReportLines, DirtyPackages);
+		ConfigureMoonlightAreaProfileNode(BaseFlow, Spec.BaseFlowTargetName, BaseProfile, bDryRun, ReportLines, DirtyPackages);
 
 		URuneDataAsset* RuneDA = Cast<URuneDataAsset>(DuplicateAssetIfMissing(
 			Spec.TemplateDAPath,
@@ -3449,6 +3941,9 @@ namespace Rune512Batch
 			ConfigureMoonlightReversedGroundPathFlow(LinkFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
 			ConfigureMoonlightBurnHitVfxFlow(LinkFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
 			ConfigureMoonlightPoisonAtomicFlow(LinkFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
+			URuneCardEffectProfileDA* LinkProfile = ConfigureMoonlightEffectProfile(LinkFlow, FlowName, bDryRun, ReportLines, DirtyPackages);
+			ConfigureMoonlightProjectileProfileNode(LinkFlow, FlowName, LinkProfile, bDryRun, ReportLines, DirtyPackages);
+			ConfigureMoonlightAreaProfileNode(LinkFlow, FlowName, LinkProfile, bDryRun, ReportLines, DirtyPackages);
 
 			FCombatCardLinkRecipe Recipe;
 			Recipe.Direction = LinkSpec.Direction;
@@ -3495,6 +3990,7 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
 	ReportLines.Add(FString::Printf(TEXT("- Generated DA root: `%s`"), *GeneratedRoot));
 	ReportLines.Add(FString::Printf(TEXT("- Generated Flow root: `%s`"), *GeneratedFlowRoot));
+	ReportLines.Add(FString::Printf(TEXT("- Generated EffectProfile root: `%s`"), *GeneratedProfileRoot));
 	ReportLines.Add(FString::Printf(TEXT("- Generated sacrifice root: `%s`"), *SacrificeGeneratedRoot));
 	ReportLines.Add(TEXT(""));
 
@@ -3534,6 +4030,7 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 	ReportLines.Add(TEXT("- Card VFX is configured in each BaseFlow/LinkFlow, not on CombatCard data."));
 	ReportLines.Add(TEXT("- Moonlight generated slash-wave nodes clear inline Niagara fields and use BP/default projectile visuals; hit/status visuals should be independent atomic VFX nodes."));
 	ReportLines.Add(TEXT("- Moonlight base and forward LinkFlows use combo projectiles as sequential same-path shots: Cone=0, Sequential=true, Interval=0.12, MaxBonus=2."));
+	ReportLines.Add(TEXT("- Moonlight projectile/area tuning is mirrored into EffectProfile assets; new profile nodes execute the copied profile while legacy nodes are retained for parameter comparison."));
 	ReportLines.Add(TEXT("- Moonlight forward poison LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara -> ApplyEffect -> Play Niagara -> ApplyGEInRadius."));
 	ReportLines.Add(TEXT("- Moonlight forward burn LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara attached to enemy socket -> persistent UGE_RuneBurn."));
 	ReportLines.Add(TEXT("- Moonlight reversed poison/burn LinkFlows use Spawn Rune Ground Path Effect and disconnect legacy slash-wave execution."));

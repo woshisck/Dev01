@@ -50,6 +50,7 @@ public:
 	void UseCombatItem(const FInputActionValue& Value);
 	void SwitchCombatItem(const FInputActionValue& Value);
 	void SwitchCombatItemPrevious(const FInputActionValue& Value);
+	void HandlePauseInput(const FInputActionValue& Value);
 	void Dash(const FInputActionValue& Value);
 	void Move(const FInputActionValue& Value);
 	void Interact(const FInputActionValue& Value);
@@ -74,6 +75,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_OpenBackpack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_PauseAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_Reload;
@@ -179,6 +183,7 @@ private:
 	uint32 UseCombatItemInputHandle = INDEX_NONE;
 	uint32 SwitchCombatItemInputHandle = INDEX_NONE;
 	uint32 SwitchCombatItemPreviousInputHandle = INDEX_NONE;
+	uint32 PauseInputHandle = INDEX_NONE;
 	uint32 DashInputHandle = INDEX_NONE;
 	uint32 InteractInputHandle = INDEX_NONE;
 	uint32 OpenBackpackInputHandle = INDEX_NONE;

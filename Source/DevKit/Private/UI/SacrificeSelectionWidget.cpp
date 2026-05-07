@@ -12,6 +12,7 @@
 #include "InputCoreTypes.h"
 #include "Map/AltarActor.h"
 #include "UI/YogHUD.h"
+#include "UI/YogInputKeyUtils.h"
 
 namespace
 {
@@ -115,6 +116,7 @@ void USacrificeSelectionWidget::NativeOnActivated()
 		PC->SetInputMode(InputMode);
 	}
 	SetUserFocus(GetOwningPlayer());
+	FocusButton(FocusedButtonIndex);
 }
 
 void USacrificeSelectionWidget::NativeOnDeactivated()
@@ -135,13 +137,49 @@ void USacrificeSelectionWidget::NativeOnDeactivated()
 FReply USacrificeSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
-	if (Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right || Key == EKeys::Gamepad_Special_Right)
+	if (YogInputKeys::IsBackKey(Key) || YogInputKeys::IsMenuKey(Key))
 	{
 		CancelSacrifice();
 		return FReply::Handled();
 	}
 
+	const int32 NavDirection = YogInputKeys::GetVerticalNavigationDirection(Key) != 0
+		? YogInputKeys::GetVerticalNavigationDirection(Key)
+		: YogInputKeys::GetHorizontalNavigationDirection(Key);
+	if (NavDirection != 0)
+	{
+		MoveFocus(NavDirection);
+		return FReply::Handled();
+	}
+
+	if (YogInputKeys::IsAcceptKey(Key))
+	{
+		ActivateFocusedButton();
+		return FReply::Handled();
+	}
+
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+FReply USacrificeSelectionWidget::NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent)
+{
+	const FKey Key = InAnalogInputEvent.GetKey();
+	const float Value = InAnalogInputEvent.GetAnalogValue();
+	if ((Key == EKeys::Gamepad_LeftY || Key == EKeys::Gamepad_LeftX) && FMath::Abs(Value) >= 0.65f)
+	{
+		const float Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.f;
+		if (Now - LastAnalogNavigationTime >= 0.18f)
+		{
+			LastAnalogNavigationTime = Now;
+			const int32 Direction = (Key == EKeys::Gamepad_LeftY)
+				? (Value > 0.f ? -1 : 1)
+				: (Value < 0.f ? -1 : 1);
+			MoveFocus(Direction);
+			return FReply::Handled();
+		}
+	}
+
+	return Super::NativeOnAnalogValueChanged(InGeometry, InAnalogInputEvent);
 }
 
 void USacrificeSelectionWidget::Setup(UAltarDataAsset* InData, APlayerCharacterBase* InPlayer, AAltarActor* InSourceAltar)
@@ -153,6 +191,7 @@ void USacrificeSelectionWidget::Setup(UAltarDataAsset* InData, APlayerCharacterB
 	SelectedOptionIndex = INDEX_NONE;
 	SelectedDeckCardIndex = INDEX_NONE;
 	CurrentOptions.Reset();
+	FocusedButtonIndex = 0;
 
 	if (!InData || !InData->bSacrificeEnabled)
 	{
@@ -189,6 +228,7 @@ void USacrificeSelectionWidget::Setup(UAltarDataAsset* InData, APlayerCharacterB
 
 	OnShowSacrificeOptions(CurrentOptions);
 	RefreshNativeView();
+	FocusButton(FocusedButtonIndex);
 }
 
 void USacrificeSelectionWidget::SelectSacrificeOption(int32 OptionIndex)
@@ -212,11 +252,13 @@ void USacrificeSelectionWidget::SelectSacrificeOption(int32 OptionIndex)
 		}
 
 		Phase = 2;
+		FocusedButtonIndex = 0;
 		OnShowDeckCardSelection(DeckCards);
 	}
 	else
 	{
 		Phase = 1;
+		FocusedButtonIndex = 0;
 		OnShowCostConfirmation(Entry);
 	}
 
@@ -238,6 +280,7 @@ void USacrificeSelectionWidget::SelectDeckCardForSacrifice(int32 CardIndex)
 
 	SelectedDeckCardIndex = CardIndex;
 	Phase = 1;
+	FocusedButtonIndex = 0;
 	OnShowCostConfirmation(CurrentOptions[SelectedOptionIndex]);
 	RefreshNativeView();
 }
@@ -276,6 +319,7 @@ void USacrificeSelectionWidget::CancelSacrifice()
 		Phase = 0;
 		SelectedOptionIndex = INDEX_NONE;
 		SelectedDeckCardIndex = INDEX_NONE;
+		FocusedButtonIndex = 0;
 		OnShowSacrificeOptions(CurrentOptions);
 		RefreshNativeView();
 		return;
@@ -286,6 +330,7 @@ void USacrificeSelectionWidget::CancelSacrifice()
 		Phase = 0;
 		SelectedOptionIndex = INDEX_NONE;
 		SelectedDeckCardIndex = INDEX_NONE;
+		FocusedButtonIndex = 0;
 		OnShowSacrificeOptions(CurrentOptions);
 		RefreshNativeView();
 	}
@@ -402,6 +447,8 @@ void USacrificeSelectionWidget::RefreshNativeView()
 	{
 		BtnConfirm->SetVisibility(Phase == 1 ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
+
+	FocusButton(FocusedButtonIndex);
 }
 
 void USacrificeSelectionWidget::RefreshOptionButtons()
@@ -473,6 +520,41 @@ TArray<UButton*> USacrificeSelectionWidget::GetDeckButtons() const
 	return { DeckButton0, DeckButton1, DeckButton2, DeckButton3, DeckButton4, DeckButton5, DeckButton6, DeckButton7 };
 }
 
+TArray<UButton*> USacrificeSelectionWidget::GetFocusableButtons() const
+{
+	TArray<UButton*> Buttons;
+	if (Phase == 0)
+	{
+		for (UButton* Button : GetOptionButtons())
+		{
+			if (Button && Button->GetVisibility() != ESlateVisibility::Collapsed)
+			{
+				Buttons.Add(Button);
+			}
+		}
+	}
+	else if (Phase == 2)
+	{
+		for (UButton* Button : GetDeckButtons())
+		{
+			if (Button && Button->GetVisibility() != ESlateVisibility::Collapsed)
+			{
+				Buttons.Add(Button);
+			}
+		}
+	}
+	else if (Phase == 1 && BtnConfirm && BtnConfirm->GetVisibility() != ESlateVisibility::Collapsed)
+	{
+		Buttons.Add(BtnConfirm);
+	}
+
+	if (BtnCancel && BtnCancel->GetVisibility() != ESlateVisibility::Collapsed)
+	{
+		Buttons.Add(BtnCancel);
+	}
+	return Buttons;
+}
+
 TArray<FCombatCardInstance> USacrificeSelectionWidget::GetDeckCards() const
 {
 	APlayerCharacterBase* Player = OwningPlayer.Get();
@@ -521,6 +603,38 @@ void USacrificeSelectionWidget::FailSacrifice(const FText& Reason)
 	{
 		CostText->SetText(Reason);
 		CostText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void USacrificeSelectionWidget::FocusButton(int32 NewIndex)
+{
+	TArray<UButton*> Buttons = GetFocusableButtons();
+	if (Buttons.IsEmpty())
+	{
+		return;
+	}
+
+	FocusedButtonIndex = (NewIndex % Buttons.Num() + Buttons.Num()) % Buttons.Num();
+	for (int32 Index = 0; Index < Buttons.Num(); ++Index)
+	{
+		Buttons[Index]->SetBackgroundColor(Index == FocusedButtonIndex
+			? FLinearColor(0.16f, 0.42f, 0.82f, 0.85f)
+			: FLinearColor::White);
+	}
+	Buttons[FocusedButtonIndex]->SetKeyboardFocus();
+}
+
+void USacrificeSelectionWidget::MoveFocus(int32 Direction)
+{
+	FocusButton(FocusedButtonIndex + Direction);
+}
+
+void USacrificeSelectionWidget::ActivateFocusedButton()
+{
+	TArray<UButton*> Buttons = GetFocusableButtons();
+	if (Buttons.IsValidIndex(FocusedButtonIndex) && Buttons[FocusedButtonIndex])
+	{
+		Buttons[FocusedButtonIndex]->OnClicked.Broadcast();
 	}
 }
 

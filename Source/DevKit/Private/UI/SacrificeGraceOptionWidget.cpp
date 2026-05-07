@@ -7,6 +7,7 @@
 #include "Map/SacrificeGracePickup.h"
 #include "UI/YogHUD.h"
 #include "InputCoreTypes.h"
+#include "UI/YogInputKeyUtils.h"
 
 void USacrificeGraceOptionWidget::Setup(USacrificeGraceDA* InDA, APlayerCharacterBase* InPlayer, ASacrificeGracePickup* InPickup)
 {
@@ -47,6 +48,7 @@ void USacrificeGraceOptionWidget::NativeOnActivated()
 		PC->SetInputMode(InputMode);
 	}
 	SetUserFocus(GetOwningPlayer());
+	FocusButton(FocusedButtonIndex);
 }
 
 void USacrificeGraceOptionWidget::NativeOnDeactivated()
@@ -75,14 +77,46 @@ UWidget* USacrificeGraceOptionWidget::NativeGetDesiredFocusTarget() const
 FReply USacrificeGraceOptionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
-	if (Key == EKeys::Escape ||
-		Key == EKeys::Gamepad_FaceButton_Right ||
-		Key == EKeys::Gamepad_Special_Right)
+	if (YogInputKeys::IsBackKey(Key) || YogInputKeys::IsMenuKey(Key))
 	{
 		CancelChoice();
 		return FReply::Handled();
 	}
+	const int32 NavDirection = YogInputKeys::GetHorizontalNavigationDirection(Key) != 0
+		? YogInputKeys::GetHorizontalNavigationDirection(Key)
+		: YogInputKeys::GetVerticalNavigationDirection(Key);
+	if (NavDirection != 0)
+	{
+		FocusButton(FocusedButtonIndex + NavDirection);
+		return FReply::Handled();
+	}
+	if (YogInputKeys::IsAcceptKey(Key))
+	{
+		ActivateFocusedButton();
+		return FReply::Handled();
+	}
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+FReply USacrificeGraceOptionWidget::NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent)
+{
+	const FKey Key = InAnalogInputEvent.GetKey();
+	const float Value = InAnalogInputEvent.GetAnalogValue();
+	if ((Key == EKeys::Gamepad_LeftY || Key == EKeys::Gamepad_LeftX) && FMath::Abs(Value) >= 0.65f)
+	{
+		const float Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.f;
+		if (Now - LastAnalogNavigationTime >= 0.18f)
+		{
+			LastAnalogNavigationTime = Now;
+			const int32 Direction = (Key == EKeys::Gamepad_LeftY)
+				? (Value > 0.f ? -1 : 1)
+				: (Value < 0.f ? -1 : 1);
+			FocusButton(FocusedButtonIndex + Direction);
+			return FReply::Handled();
+		}
+	}
+
+	return Super::NativeOnAnalogValueChanged(InGeometry, InAnalogInputEvent);
 }
 
 void USacrificeGraceOptionWidget::OnYesClicked()
@@ -107,4 +141,36 @@ void USacrificeGraceOptionWidget::OnNoClicked()
 void USacrificeGraceOptionWidget::CancelChoice()
 {
 	OnNoClicked();
+}
+
+void USacrificeGraceOptionWidget::FocusButton(int32 NewIndex)
+{
+	TArray<UButton*> Buttons;
+	if (BtnYes) Buttons.Add(BtnYes);
+	if (BtnNo) Buttons.Add(BtnNo);
+	if (Buttons.IsEmpty())
+	{
+		return;
+	}
+
+	FocusedButtonIndex = (NewIndex % Buttons.Num() + Buttons.Num()) % Buttons.Num();
+	for (int32 Index = 0; Index < Buttons.Num(); ++Index)
+	{
+		Buttons[Index]->SetBackgroundColor(Index == FocusedButtonIndex
+			? FLinearColor(0.16f, 0.42f, 0.82f, 0.85f)
+			: FLinearColor::White);
+	}
+	Buttons[FocusedButtonIndex]->SetKeyboardFocus();
+}
+
+void USacrificeGraceOptionWidget::ActivateFocusedButton()
+{
+	if (FocusedButtonIndex <= 0)
+	{
+		OnYesClicked();
+	}
+	else
+	{
+		OnNoClicked();
+	}
 }

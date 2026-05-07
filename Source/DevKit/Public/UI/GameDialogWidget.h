@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "CommonActivatableWidget.h"
+#include "CommonInputTypeEnum.h"
 #include "Animation/WidgetAnimation.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -61,6 +62,7 @@ protected:
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
+	virtual void NativeDestruct() override;
 
 	// ——— BindWidget 控件（名字必须与 WBP 中完全一致）———
 	UPROPERTY(meta = (BindWidget))
@@ -74,6 +76,9 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> BtnConfirmLabel;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UYogCommonRichTextBlock> BtnConfirmInputHint;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> PageHint;
@@ -96,6 +101,7 @@ private:
 	bool bIsInteractable = false; // FadeIn 完成前禁止翻页/关闭，防止幽灵输入
 	bool bPauseMe = true;         // ShowPopup 时传入，控制 NativeOnActivated 是否暂停游戏
 	void RefreshPage();
+	void RefreshConfirmInputHint(ECommonInputType NewInputType);
 
 	UFUNCTION()
 	void OnFadeInAnimFinished();

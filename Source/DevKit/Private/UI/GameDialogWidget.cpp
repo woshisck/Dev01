@@ -1,9 +1,11 @@
 #include "UI/GameDialogWidget.h"
 #include "UI/YogCommonRichTextBlock.h"
+#include "CommonInputSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
 #include "InputCoreTypes.h"
+#include "UI/YogInputKeyUtils.h"
 
 #define LOCTEXT_NAMESPACE "TutorialPopup"
 
@@ -80,6 +82,15 @@ void UTutorialPopupWidget::NativeConstruct()
 		BtnConfirm->OnClicked.RemoveDynamic(this, &UTutorialPopupWidget::OnNextPressed);
 		BtnConfirm->OnClicked.AddDynamic(this, &UTutorialPopupWidget::OnNextPressed);
 	}
+
+	RefreshConfirmInputHint(ECommonInputType::MouseAndKeyboard);
+	if (UCommonInputSubsystem* InputSub =
+		ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(GetOwningLocalPlayer()))
+	{
+		InputSub->OnInputMethodChangedNative.RemoveAll(this);
+		InputSub->OnInputMethodChangedNative.AddUObject(
+			this, &UTutorialPopupWidget::RefreshConfirmInputHint);
+	}
 }
 
 TOptional<FUIInputConfig> UTutorialPopupWidget::GetDesiredInputConfig() const
@@ -96,11 +107,14 @@ UWidget* UTutorialPopupWidget::NativeGetDesiredFocusTarget() const
 FReply UTutorialPopupWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
-	if (Key == EKeys::Escape ||
-		Key == EKeys::Gamepad_FaceButton_Right ||
-		Key == EKeys::Gamepad_Special_Right)
+	if (YogInputKeys::IsBackKey(Key) || YogInputKeys::IsMenuKey(Key))
 	{
 		ConfirmClose();
+		return FReply::Handled();
+	}
+	if (YogInputKeys::IsAcceptKey(Key))
+	{
+		OnNextPressed();
 		return FReply::Handled();
 	}
 
@@ -178,6 +192,17 @@ void UTutorialPopupWidget::NativeOnDeactivated()
 // 私有
 // ————————————————————————————————————————————————————
 
+void UTutorialPopupWidget::NativeDestruct()
+{
+	if (UCommonInputSubsystem* InputSub =
+		ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(GetOwningLocalPlayer()))
+	{
+		InputSub->OnInputMethodChangedNative.RemoveAll(this);
+	}
+
+	Super::NativeDestruct();
+}
+
 void UTutorialPopupWidget::OnFadeInAnimFinished()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] OnFadeInAnimFinished — FadeOut already playing=%s"),
@@ -192,6 +217,15 @@ void UTutorialPopupWidget::OnFadeOutAnimFinished()
 	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] OnFadeOutAnimFinished — calling ConfirmClose"));
 	UnbindAllFromAnimationFinished(Anim_FadeOut);
 	ConfirmClose();
+}
+
+void UTutorialPopupWidget::RefreshConfirmInputHint(ECommonInputType /*NewInputType*/)
+{
+	if (BtnConfirmInputHint)
+	{
+		BtnConfirmInputHint->SetVisibility(ESlateVisibility::HitTestInvisible);
+		BtnConfirmInputHint->SetText(FText::FromString(TEXT("<input action=\"Interact\"/>")));
+	}
 }
 
 void UTutorialPopupWidget::RefreshPage()
@@ -209,6 +243,8 @@ void UTutorialPopupWidget::RefreshPage()
 			? LOCTEXT("Close", "知道了")
 			: LOCTEXT("Next",  "下一页"));
 	}
+
+	RefreshConfirmInputHint(ECommonInputType::MouseAndKeyboard);
 
 	if (IllustrationImage)
 	{
