@@ -98,6 +98,15 @@ void UBFNode_ApplyRuneEffectProfile::ExecuteInput(const FName& PinName)
 		return;
 	}
 
+	if (Profile->Effect.bOverrideDuration)
+	{
+		Spec->SetDuration(FMath::Max(0.01f, Profile->Effect.Duration), true);
+	}
+	if (Profile->Effect.bOverridePeriod)
+	{
+		Spec->Period = FMath::Max(0.0f, Profile->Effect.Period);
+	}
+
 	TArray<FString> ValueStrings;
 	for (const FRuneCardProfileSetByCaller& SetByCaller : Profile->Effect.SetByCallerValues)
 	{
@@ -145,10 +154,12 @@ void UBFNode_ApplyRuneEffectProfile::ExecuteInput(const FName& PinName)
 			EBuffFlowTraceResult::Success,
 			TEXT("Applied effect profile"),
 			FString::Printf(
-				TEXT("EffectClass=%s EffectDA=%s Count=%d HandleValid=%d %s"),
+				TEXT("EffectClass=%s EffectDA=%s Count=%d Duration=%.2f Period=%.2f HandleValid=%d %s"),
 				*GetNameSafe(Profile->Effect.GameplayEffectClass.Get()),
 				*GetNameSafe(Profile->Effect.EffectDataAsset),
 				ApplicationCount,
+				Spec->GetDuration(),
+				Spec->Period,
 				LastHandle.IsValid() ? 1 : 0,
 				*FString::Join(ValueStrings, TEXT(","))));
 	}

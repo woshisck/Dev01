@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "NiagaraSystem.h"
 #include "Types/FlowDataPinResults.h"
 
 UBFNode_SpawnRuneAreaProfile::UBFNode_SpawnRuneAreaProfile(const FObjectInitializer& ObjectInitializer)
@@ -181,6 +182,16 @@ void UBFNode_SpawnRuneAreaProfile::ExecuteInput(const FName& PinName)
 	Config.SetByCallerValue2 = Area.SetByCallerValue2;
 	Config.ApplicationCount = Area.ApplicationCount;
 	Config.bApplyOncePerTarget = Area.bApplyOncePerTarget;
+	Config.bPlayTargetVFXOnApply = Profile->VFX.NiagaraSystem != nullptr;
+	Config.TargetNiagaraSystem = Profile->VFX.NiagaraSystem;
+	Config.TargetAttachSocketName = Profile->VFX.AttachSocketName;
+	Config.TargetAttachSocketFallbackNames = Profile->VFX.AttachSocketFallbackNames;
+	Config.bAttachTargetVFXToTarget = Profile->VFX.bAttachToTarget;
+	Config.TargetVFXLocationOffset = Profile->VFX.LocationOffset;
+	Config.TargetVFXRotationOffset = Profile->VFX.RotationOffset;
+	Config.TargetVFXScale = Profile->VFX.Scale;
+	Config.TargetVFXLifetime = Profile->VFX.Lifetime;
+	Config.bDestroyTargetVFXWithArea = Profile->VFX.bDestroyWithFlow;
 	PathActor->InitializeGroundPath(SourceActor, SourceASC, Config);
 
 	if (BFC)
@@ -191,7 +202,7 @@ void UBFNode_SpawnRuneAreaProfile::ExecuteInput(const FName& PinName)
 			SourceActor,
 			EBuffFlowTraceResult::Success,
 			TEXT("Spawned area profile"),
-			FString::Printf(TEXT("Effect=%s Shape=%d Policy=%d Loc=%s Rot=%s Length=%.1f Width=%.1f Duration=%.2f Tick=%.2f Value1=%.2f"),
+			FString::Printf(TEXT("Effect=%s Shape=%d Policy=%d Loc=%s Rot=%s Length=%.1f Width=%.1f Duration=%.2f Tick=%.2f Value1=%.2f TargetVFX=%s"),
 				*GetNameSafe(Area.Effect.Get()),
 				static_cast<int32>(Area.Shape),
 				static_cast<int32>(Area.TargetPolicy),
@@ -201,7 +212,8 @@ void UBFNode_SpawnRuneAreaProfile::ExecuteInput(const FName& PinName)
 				Area.Width,
 				Area.Duration,
 				Area.TickInterval,
-				Area.SetByCallerValue1));
+				Area.SetByCallerValue1,
+				*GetNameSafe(Profile->VFX.NiagaraSystem.Get())));
 	}
 
 	TriggerOutput(TEXT("Out"), true);

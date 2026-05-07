@@ -5,6 +5,7 @@
 #include "Character/EnemyCharacterBase.h"
 #include "Components/BoxComponent.h"
 #include "Components/DecalComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/OverlapResult.h"
 #include "GameplayEffect.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -118,6 +119,19 @@ void ARuneGroundPathEffectActor::EndPlay(const EEndPlayReason::Type EndPlayReaso
 		}
 	}
 	NiagaraComponents.Reset();
+
+	for (UNiagaraComponent* NiagaraComponent : TargetNiagaraComponents)
+	{
+		if (NiagaraComponent)
+		{
+			NiagaraComponent->Deactivate();
+			if (Config.bDestroyTargetVFXWithArea)
+			{
+				NiagaraComponent->DestroyComponent();
+			}
+		}
+	}
+	TargetNiagaraComponents.Reset();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -295,11 +309,113 @@ bool ARuneGroundPathEffectActor::ApplyEffectToActor(AActor* TargetActor)
 		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 	}
 
+	SpawnTargetNiagara(TargetActor);
+
 	UE_LOG(LogTemp, Warning, TEXT("[RuneGroundPath] Applied Effect=%s Target=%s Count=%d"),
 		*GetNameSafe(Config.Effect),
 		*GetNameSafe(TargetActor),
 		FMath::Max(1, Config.ApplicationCount));
 	return true;
+}
+
+void ARuneGroundPathEffectActor::SpawnTargetNiagara(AActor* TargetActor)
+{
+	if (!Config.bPlayTargetVFXOnApply || !Config.TargetNiagaraSystem || !TargetActor)
+	{
+		return;
+	}
+
+	USceneComponent* AttachComponent = TargetActor->GetRootComponent();
+	FName ResolvedSocket = NAME_None;
+	if (USkeletalMeshComponent* MeshComponent = TargetActor->FindComponentByClass<USkeletalMeshComponent>())
+	{
+		AttachComponent = MeshComponent;
+		if (Config.TargetAttachSocketName != NAME_None && MeshComponent->DoesSocketExist(Config.TargetAttachSocketName))
+		{
+			ResolvedSocket = Config.TargetAttachSocketName;
+		}
+		else
+		{
+			for (const FName& FallbackSocketName : Config.TargetAttachSocketFallbackNames)
+			{
+				if (FallbackSocketName != NAME_None && MeshComponent->DoesSocketExist(FallbackSocketName))
+				{
+					ResolvedSocket = FallbackSocketName;
+					break;
+				}
+			}
+		}
+	}
+
+	UNiagaraComponent* SpawnedComponent = nullptr;
+	if (Config.bAttachTargetVFXToTarget && AttachComponent)
+	{
+		SpawnedComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+			Config.TargetNiagaraSystem,
+			AttachComponent,
+			ResolvedSocket,
+			Config.TargetVFXLocationOffset,
+			Config.TargetVFXRotationOffset,
+			EAttachLocation::KeepRelativeOffset,
+			false,
+			true,
+			ENCPoolMethod::None,
+			false);
+		if (SpawnedComponent)
+		{
+			SpawnedComponent->SetRelativeScale3D(Config.TargetVFXScale);
+		}
+	}
+	else if (UWorld* World = GetWorld())
+	{
+		SpawnedComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			World,
+			Config.TargetNiagaraSystem,
+			TargetActor->GetActorLocation() + Config.TargetVFXLocationOffset,
+			TargetActor->GetActorRotation() + Config.TargetVFXRotationOffset,
+			Config.TargetVFXScale,
+			false,
+			true,
+			ENCPoolMethod::None,
+			false);
+	}
+
+	if (!SpawnedComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RuneGroundPath] TargetVFX spawn failed Target=%s System=%s"),
+			*GetNameSafe(TargetActor),
+			*GetNameSafe(Config.TargetNiagaraSystem));
+		return;
+	}
+
+	TargetNiagaraComponents.Add(SpawnedComponent);
+	if (Config.TargetVFXLifetime > 0.0f)
+	{
+		FTimerHandle LifetimeTimerHandle;
+		TWeakObjectPtr<UNiagaraComponent> WeakComponent(SpawnedComponent);
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().SetTimer(
+				LifetimeTimerHandle,
+				FTimerDelegate::CreateWeakLambda(this, [WeakComponent]()
+				{
+					if (UNiagaraComponent* Component = WeakComponent.Get())
+					{
+						Component->Deactivate();
+						Component->DestroyComponent();
+					}
+				}),
+				Config.TargetVFXLifetime,
+				false);
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[RuneGroundPath] TargetVFX Target=%s System=%s Socket=%s Lifetime=%.2f Scale=%s"),
+		*GetNameSafe(TargetActor),
+		*GetNameSafe(Config.TargetNiagaraSystem),
+		*ResolvedSocket.ToString(),
+		Config.TargetVFXLifetime,
+		*Config.TargetVFXScale.ToCompactString());
 }
 
 FVector ARuneGroundPathEffectActor::FindGroundLocation(const FVector& DesiredLocation) const

@@ -59,6 +59,18 @@ struct DEVKIT_API FRuneCardProfileEffectConfig
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effect")
 	bool bRemoveEffectOnCleanup = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effect|Duration")
+	bool bOverrideDuration = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effect|Duration", meta = (EditCondition = "bOverrideDuration", ClampMin = "0.01"))
+	float Duration = 4.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effect|Duration")
+	bool bOverridePeriod = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effect|Duration", meta = (EditCondition = "bOverridePeriod", ClampMin = "0.0"))
+	float Period = 1.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effect")
 	TArray<FRuneCardProfileSetByCaller> SetByCallerValues;
 };

@@ -148,42 +148,15 @@ bool UYogAbilitySystemComponent::HasActiveStatusNiagaraForTag(FGameplayTag Tag) 
 
 UNiagaraSystem* UYogAbilitySystemComponent::GetStatusNiagaraSystemForTag(FGameplayTag Tag) const
 {
-	static const FGameplayTag BurningTag =
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Burning"), false);
-
-	if (BurningTag.IsValid() && Tag == BurningTag)
-	{
-		return LoadObject<UNiagaraSystem>(
-			nullptr,
-			TEXT("/Game/Art/EnvironmentAsset/VFX/Niagara/Fire/NS_Fire_Floor.NS_Fire_Floor"));
-	}
-
+	// Status visuals are configured by rune FA/Profile nodes. Tags such as
+	// Buff.Status.Burning should not auto-spawn Niagara here, otherwise the
+	// same effect can be played both by GE status and the calling FA.
 	return nullptr;
 }
 
 void UYogAbilitySystemComponent::HandleStatusNiagaraTag(const FGameplayTag& Tag, bool bTagExists)
 {
-	static const FGameplayTag BurningTag =
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Burning"), false);
-
-	if (!BurningTag.IsValid() || Tag != BurningTag)
-	{
-		return;
-	}
-
-	if (bTagExists)
-	{
-		UNiagaraSystem* BurnSystem = GetStatusNiagaraSystemForTag(Tag);
-		StartStatusNiagara(
-			Tag,
-			BurnSystem,
-			FName(TEXT("spine_03")),
-			{ FName(TEXT("spine_02")), FName(TEXT("pelvis")), FName(TEXT("root")) },
-			FVector(0.f, 0.f, 6.f),
-			FRotator::ZeroRotator,
-			FVector(0.28f));
-	}
-	else
+	if (!bTagExists)
 	{
 		StopStatusNiagara(Tag);
 	}

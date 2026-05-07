@@ -103,6 +103,36 @@ struct DEVKIT_API FRuneGroundPathEffectConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ground Path|Effect")
 	bool bApplyOncePerTarget = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ground Path|Target VFX")
+	bool bPlayTargetVFXOnApply = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ground Path|Target VFX")
+	TObjectPtr<UNiagaraSystem> TargetNiagaraSystem = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ground Path|Target VFX")
+	FName TargetAttachSocketName = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ground Path|Target VFX")
+	TArray<FName> TargetAttachSocketFallbackNames;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ground Path|Target VFX")
+	bool bAttachTargetVFXToTarget = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ground Path|Target VFX")
+	FVector TargetVFXLocationOffset = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ground Path|Target VFX")
+	FRotator TargetVFXRotationOffset = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ground Path|Target VFX")
+	FVector TargetVFXScale = FVector(1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ground Path|Target VFX", meta = (ClampMin = "0.0"))
+	float TargetVFXLifetime = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ground Path|Target VFX")
+	bool bDestroyTargetVFXWithArea = false;
 };
 
 UCLASS()
@@ -129,6 +159,9 @@ private:
 	TArray<TObjectPtr<UNiagaraComponent>> NiagaraComponents;
 
 	UPROPERTY(Transient)
+	TArray<TObjectPtr<UNiagaraComponent>> TargetNiagaraComponents;
+
+	UPROPERTY(Transient)
 	TObjectPtr<AActor> SourceActor;
 
 	UPROPERTY(Transient)
@@ -144,5 +177,6 @@ private:
 	bool ShouldAffectActor(AActor* Candidate) const;
 	bool IsActorInsidePathShape(AActor* TargetActor) const;
 	bool ApplyEffectToActor(AActor* TargetActor);
+	void SpawnTargetNiagara(AActor* TargetActor);
 	FVector FindGroundLocation(const FVector& DesiredLocation) const;
 };

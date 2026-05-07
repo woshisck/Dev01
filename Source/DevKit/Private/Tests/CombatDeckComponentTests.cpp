@@ -2254,6 +2254,12 @@ bool FCombatDeckMoonlightReversedGroundPathFlowTest::RunTest(const FString& Para
 			TestTrue(FString::Printf(TEXT("%s applies UGE_RuneBurn"), Label), Area.Effect.Get() == UGE_RuneBurn::StaticClass());
 			TestEqual(FString::Printf(TEXT("%s burn uses Data.Damage.Burn"), Label), Area.SetByCallerTag1.GetTagName(), FName(TEXT("Data.Damage.Burn")));
 			TestEqual(FString::Printf(TEXT("%s burn damage per tick"), Label), Area.SetByCallerValue1, 6.0f);
+			TestTrue(FString::Printf(TEXT("%s burn profile owns status GE duration"), Label), AreaProfileNode->Profile->Effect.bOverrideDuration);
+			TestEqual(FString::Printf(TEXT("%s burn profile duration matches burn area"), Label), AreaProfileNode->Profile->Effect.Duration, Area.Duration);
+			TestTrue(FString::Printf(TEXT("%s burn profile owns status GE period"), Label), AreaProfileNode->Profile->Effect.bOverridePeriod);
+			TestEqual(FString::Printf(TEXT("%s burn profile period"), Label), AreaProfileNode->Profile->Effect.Period, 1.0f);
+			TestNotNull(FString::Printf(TEXT("%s burn target VFX is profile-owned"), Label), AreaProfileNode->Profile->VFX.NiagaraSystem.Get());
+			TestEqual(FString::Printf(TEXT("%s burn target VFX socket"), Label), AreaProfileNode->Profile->VFX.AttachSocketName, FName(TEXT("spine_03")));
 		}
 		else
 		{
@@ -2381,11 +2387,11 @@ bool FCombatDeckBurnGameplayEffectConfiguredTest::RunTest(const FString& Paramet
 	return bHasBurnExecution;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckBurnStatusNiagaraBoundToTagTest,
-	"DevKit.CombatDeck.BurnStatusNiagaraBoundToBurningTag",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckBurnStatusNiagaraNotAutoBoundToTagTest,
+	"DevKit.CombatDeck.BurnStatusNiagaraNotAutoBoundToBurningTag",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckBurnStatusNiagaraBoundToTagTest::RunTest(const FString& Parameters)
+bool FCombatDeckBurnStatusNiagaraNotAutoBoundToTagTest::RunTest(const FString& Parameters)
 {
 	const FGameplayTag BurningTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Burning"), false);
 	TestTrue(TEXT("Buff.Status.Burning tag exists"), BurningTag.IsValid());
@@ -2398,13 +2404,7 @@ bool FCombatDeckBurnStatusNiagaraBoundToTagTest::RunTest(const FString& Paramete
 	}
 
 	UNiagaraSystem* BurnSystem = ASC->GetStatusNiagaraSystemForTag(BurningTag);
-	TestNotNull(TEXT("Burning tag resolves shared burn status Niagara"), BurnSystem);
-	if (!BurnSystem)
-	{
-		return false;
-	}
-
-	TestEqual(TEXT("Burning tag uses NS_Fire_Floor"), BurnSystem->GetName(), FString(TEXT("NS_Fire_Floor")));
+	TestNull(TEXT("Burning tag does not auto resolve Niagara; burn VFX is FA/Profile-driven"), BurnSystem);
 
 	return true;
 }
@@ -2429,6 +2429,10 @@ bool FCombatDeckRuneEffectProfileDefaultsTest::RunTest(const FString& Parameters
 	Profile->DamageLogType = TEXT("Rune_Profile_Test");
 	Profile->Effect.ApplicationCount = 2;
 	Profile->Effect.bRemoveEffectOnCleanup = false;
+	Profile->Effect.bOverrideDuration = true;
+	Profile->Effect.Duration = 5.0f;
+	Profile->Effect.bOverridePeriod = true;
+	Profile->Effect.Period = 0.75f;
 	Profile->Projectile.Speed = 1100.0f;
 	Profile->Projectile.MaxDistance = 800.0f;
 	Profile->Projectile.ProjectileCount = 3;
@@ -2443,6 +2447,10 @@ bool FCombatDeckRuneEffectProfileDefaultsTest::RunTest(const FString& Parameters
 	TestEqual(TEXT("Trace name uses DebugName"), Profile->GetTraceName(), FName(TEXT("TestMoonlightBurn")));
 	TestEqual(TEXT("Damage value is editable on profile"), Profile->DamageValue, 35.0f);
 	TestEqual(TEXT("Effect application count is editable on profile"), Profile->Effect.ApplicationCount, 2);
+	TestTrue(TEXT("Effect duration override is profile-owned"), Profile->Effect.bOverrideDuration);
+	TestEqual(TEXT("Effect duration is editable on profile"), Profile->Effect.Duration, 5.0f);
+	TestTrue(TEXT("Effect period override is profile-owned"), Profile->Effect.bOverridePeriod);
+	TestEqual(TEXT("Effect period is editable on profile"), Profile->Effect.Period, 0.75f);
 	TestEqual(TEXT("Projectile speed is editable on profile"), Profile->Projectile.Speed, 1100.0f);
 	TestEqual(TEXT("Projectile count supports sequential moonlight tuning"), Profile->Projectile.ProjectileCount, 3);
 	TestTrue(TEXT("Projectile sequential flag is profile-owned"), Profile->Projectile.bSpawnProjectilesSequentially);

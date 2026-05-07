@@ -2135,6 +2135,41 @@ namespace Rune512Batch
 			}
 		}
 
+		const bool bIsBurnProfile = FlowProfile == EMoonlightFlowProfile::ForwardBurn || FlowProfile == EMoonlightFlowProfile::ReversedBurn;
+		if (bIsBurnProfile)
+		{
+			const FGameplayTag BurnDamageTag = RequestTag(TEXT("Data.Damage.Burn"), ReportLines);
+			Profile->Effect.GameplayEffectClass = UGE_RuneBurn::StaticClass();
+			Profile->Effect.EffectDataAsset = nullptr;
+			Profile->Effect.ApplicationCount = 1;
+			Profile->Effect.bRemoveEffectOnCleanup = false;
+			Profile->Effect.bOverrideDuration = true;
+			Profile->Effect.Duration = FlowProfile == EMoonlightFlowProfile::ReversedBurn ? Profile->Area.Duration : 4.0f;
+			Profile->Effect.bOverridePeriod = true;
+			Profile->Effect.Period = 1.0f;
+			Profile->Effect.SetByCallerValues.Reset();
+			if (BurnDamageTag.IsValid())
+			{
+				FRuneCardProfileSetByCaller BurnDamage;
+				BurnDamage.Tag = BurnDamageTag;
+				BurnDamage.Value = FlowProfile == EMoonlightFlowProfile::ReversedBurn ? Profile->Area.SetByCallerValue1 : 6.0f;
+				BurnDamage.bUseCombatCardEffectMultiplier = false;
+				Profile->Effect.SetByCallerValues.Add(BurnDamage);
+			}
+
+			Profile->VFX.NiagaraSystem = LoadAssetByPackagePath<UNiagaraSystem>(BurnNiagaraPath);
+			Profile->VFX.EffectName = FName(TEXT("Rune.Burn.ProfileNiagara"));
+			Profile->VFX.AttachSocketName = FName(TEXT("spine_03"));
+			Profile->VFX.AttachSocketFallbackNames = { FName(TEXT("spine_02")), FName(TEXT("pelvis")), FName(TEXT("root")) };
+			Profile->VFX.AttachTarget = EBFTargetSelector::LastDamageTarget;
+			Profile->VFX.bAttachToTarget = true;
+			Profile->VFX.LocationOffset = FVector(0.0f, 0.0f, 6.0f);
+			Profile->VFX.RotationOffset = FRotator::ZeroRotator;
+			Profile->VFX.Scale = FVector(0.28f);
+			Profile->VFX.Lifetime = Profile->Effect.Duration;
+			Profile->VFX.bDestroyWithFlow = false;
+		}
+
 		Profile->MarkPackageDirty();
 		DirtyPackages.AddUnique(Profile->GetPackage());
 		ReportLines.Add(FString::Printf(
