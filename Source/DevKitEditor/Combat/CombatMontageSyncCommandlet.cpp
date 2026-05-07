@@ -1,6 +1,7 @@
 #include "DevKitEditor/Combat/CombatMontageSyncCommandlet.h"
 
 #include "Animation/AnimMontage.h"
+#include "Commandlets/CommandletReportUtils.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimNotifyState_AddGameplayTag.h"
@@ -597,13 +598,15 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 		UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, true);
 	}
 
-	const FString ReportPath = FPaths::ProjectSavedDir() / TEXT("CombatMontageSyncReport.md");
-	FFileHelper::SaveStringArrayToFile(ReportLines, *ReportPath);
-	UE_LOG(LogTemp, Display, TEXT("[CombatMontageSync] Requests=%d ChangedMontages=%d ReassignedConfigs=%d Report=%s"),
+	FString ReportPath;
+	FString SharedReportPath;
+	DevKitEditorCommandletReports::SaveReportLines(TEXT("CombatMontageSyncReport.md"), ReportLines, ReportPath, SharedReportPath);
+	UE_LOG(LogTemp, Display, TEXT("[CombatMontageSync] Requests=%d ChangedMontages=%d ReassignedConfigs=%d Report=%s Shared=%s"),
 		Requests.Num(),
 		ChangedMontages,
 		ReassignedMontageConfigs,
-		*ReportPath);
+		*ReportPath,
+		*SharedReportPath);
 
 	return 0;
 }

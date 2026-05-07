@@ -1,6 +1,7 @@
 #include "Level/PrayRoomSacrificeEventSetupCommandlet.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Commandlets/CommandletReportUtils.h"
 #include "AssetToolsModule.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -529,12 +530,10 @@ int32 UPrayRoomSacrificeEventSetupCommandlet::Main(const FString& Params)
 		UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 	}
 
-	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), ReportFileName);
-	FFileHelper::SaveStringToFile(
-		FString::Join(ReportLines, LINE_TERMINATOR),
-		*ReportPath,
-		FFileHelper::EEncodingOptions::ForceUTF8);
+	FString ReportPath;
+	FString SharedReportPath;
+	DevKitEditorCommandletReports::SaveReportLines(PrayRoomSacrificeEventSetup::ReportFileName, ReportLines, ReportPath, SharedReportPath);
 
-	UE_LOG(LogTemp, Display, TEXT("PrayRoom sacrifice event setup finished. Report: %s"), *ReportPath);
+	UE_LOG(LogTemp, Display, TEXT("PrayRoom sacrifice event setup finished. Report: %s Shared: %s"), *ReportPath, *SharedReportPath);
 	return SacrificeRune ? 0 : 1;
 }

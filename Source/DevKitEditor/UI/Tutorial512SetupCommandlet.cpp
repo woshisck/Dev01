@@ -3,6 +3,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "AutomatedAssetImportData.h"
+#include "Commandlets/CommandletReportUtils.h"
 #include "Engine/Texture2D.h"
 #include "FileHelpers.h"
 #include "IAssetTools.h"
@@ -491,12 +492,10 @@ int32 UTutorial512SetupCommandlet::Main(const FString& Params)
 		UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 	}
 
-	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), Tutorial512Setup::ReportFileName);
-	FFileHelper::SaveStringToFile(
-		FString::Join(ReportLines, LINE_TERMINATOR),
-		*ReportPath,
-		FFileHelper::EEncodingOptions::ForceUTF8);
+	FString ReportPath;
+	FString SharedReportPath;
+	DevKitEditorCommandletReports::SaveReportLines(Tutorial512Setup::ReportFileName, ReportLines, ReportPath, SharedReportPath);
 
-	UE_LOG(LogTemp, Display, TEXT("512 tutorial setup finished. Report: %s"), *ReportPath);
+	UE_LOG(LogTemp, Display, TEXT("512 tutorial setup finished. Report: %s Shared: %s"), *ReportPath, *SharedReportPath);
 	return 0;
 }

@@ -2,6 +2,7 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "CommonTextBlock.h"
+#include "Commandlets/CommandletReportUtils.h"
 #include "Components/Button.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
@@ -258,12 +259,10 @@ int32 UTutorialPopupButtonHintSetupCommandlet::Main(const FString& Params)
 		UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 	}
 
-	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), TutorialPopupButtonHintSetup::ReportFileName);
-	FFileHelper::SaveStringToFile(
-		FString::Join(ReportLines, LINE_TERMINATOR),
-		*ReportPath,
-		FFileHelper::EEncodingOptions::ForceUTF8);
+	FString ReportPath;
+	FString SharedReportPath;
+	DevKitEditorCommandletReports::SaveReportLines(TutorialPopupButtonHintSetup::ReportFileName, ReportLines, ReportPath, SharedReportPath);
 
-	UE_LOG(LogTemp, Display, TEXT("Tutorial popup button hint setup finished. Report: %s"), *ReportPath);
+	UE_LOG(LogTemp, Display, TEXT("Tutorial popup button hint setup finished. Report: %s Shared: %s"), *ReportPath, *SharedReportPath);
 	return WidgetBlueprint ? 0 : 1;
 }

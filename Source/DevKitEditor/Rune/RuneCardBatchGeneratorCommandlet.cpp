@@ -2,6 +2,7 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "Commandlets/CommandletReportUtils.h"
 #include "AbilitySystem/GameplayEffect/GE_MusketBullet_Damage.h"
 #include "AbilitySystem/GameplayEffect/GE_RuneBurn.h"
 #include "AbilitySystem/Execution/GEExec_PoisonDamage.h"
@@ -4045,12 +4046,10 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 		UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 	}
 
-	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("512RuneCardBatchReport.md"));
-	FFileHelper::SaveStringToFile(
-		FString::Join(ReportLines, LINE_TERMINATOR),
-		*ReportPath,
-		FFileHelper::EEncodingOptions::ForceUTF8);
+	FString ReportPath;
+	FString SharedReportPath;
+	DevKitEditorCommandletReports::SaveReportLines(TEXT("512RuneCardBatchReport.md"), ReportLines, ReportPath, SharedReportPath);
 
-	UE_LOG(LogTemp, Display, TEXT("512 rune card batch finished. Report: %s"), *ReportPath);
+	UE_LOG(LogTemp, Display, TEXT("512 rune card batch finished. Report: %s Shared: %s"), *ReportPath, *SharedReportPath);
 	return 0;
 }

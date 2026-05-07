@@ -1,6 +1,7 @@
 #include "UI/GamepadInputSetupCommandlet.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Commandlets/CommandletReportUtils.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Engine/Blueprint.h"
 #include "FileHelpers.h"
@@ -19,7 +20,7 @@ namespace
 	const FString ControllerClassPath = TEXT("/Game/Code/Core/Controller/B_YogPlayerControllerBase.B_YogPlayerControllerBase_C");
 	const FString InputActionDecoratorPath = TEXT("/Game/Docs/UI/Tutorial/BP_InputActionDecorator");
 	const FString InputActionDecoratorClassPath = TEXT("/Game/Docs/UI/Tutorial/BP_InputActionDecorator.BP_InputActionDecorator_C");
-	const FString ReportFileName = TEXT("GamepadInputSetupReport.md");
+	const FString GamepadInputReportFileName = TEXT("GamepadInputSetupReport.md");
 
 	FString ToObjectPath(const FString& PackagePath)
 	{
@@ -310,8 +311,9 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 	if (!MappingContext)
 	{
 		ReportLines.Add(FString::Printf(TEXT("- Missing input mapping context `%s`; setup aborted."), *MappingContextPath));
-		const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), ReportFileName);
-		FFileHelper::SaveStringToFile(FString::Join(ReportLines, LINE_TERMINATOR), *ReportPath, FFileHelper::EEncodingOptions::ForceUTF8);
+		FString ReportPath;
+		FString SharedReportPath;
+		DevKitEditorCommandletReports::SaveReportLines(GamepadInputReportFileName, ReportLines, ReportPath, SharedReportPath);
 		return 1;
 	}
 
@@ -370,12 +372,10 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 		UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 	}
 
-	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), ReportFileName);
-	FFileHelper::SaveStringToFile(
-		FString::Join(ReportLines, LINE_TERMINATOR),
-		*ReportPath,
-		FFileHelper::EEncodingOptions::ForceUTF8);
+	FString ReportPath;
+	FString SharedReportPath;
+	DevKitEditorCommandletReports::SaveReportLines(GamepadInputReportFileName, ReportLines, ReportPath, SharedReportPath);
 
-	UE_LOG(LogTemp, Display, TEXT("Gamepad input setup finished. Report: %s"), *ReportPath);
+	UE_LOG(LogTemp, Display, TEXT("Gamepad input setup finished. Report: %s Shared: %s"), *ReportPath, *SharedReportPath);
 	return 0;
 }

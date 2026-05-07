@@ -3,6 +3,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "Blueprint/WidgetTree.h"
+#include "Commandlets/CommandletReportUtils.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -244,12 +245,10 @@ int32 UCurrentRoomBuffWidgetSetupCommandlet::Main(const FString& Params)
 		UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 	}
 
-	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), CurrentRoomBuffWBPSetup::ReportFileName);
-	FFileHelper::SaveStringToFile(
-		FString::Join(ReportLines, LINE_TERMINATOR),
-		*ReportPath,
-		FFileHelper::EEncodingOptions::ForceUTF8);
+	FString ReportPath;
+	FString SharedReportPath;
+	DevKitEditorCommandletReports::SaveReportLines(CurrentRoomBuffWBPSetup::ReportFileName, ReportLines, ReportPath, SharedReportPath);
 
-	UE_LOG(LogTemp, Display, TEXT("Current room buff widget setup finished. Report: %s"), *ReportPath);
+	UE_LOG(LogTemp, Display, TEXT("Current room buff widget setup finished. Report: %s Shared: %s"), *ReportPath, *SharedReportPath);
 	return 0;
 }

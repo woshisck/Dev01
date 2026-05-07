@@ -2,6 +2,7 @@
 
 #include "AI/BTDecorator_EnemyAIState.h"
 #include "AI/BTService_UpdateEnemyAwareness.h"
+#include "Commandlets/CommandletReportUtils.h"
 #include "AI/BTService_UpdateEnemyCombatMove.h"
 #include "AI/BTTask_EnemyCombatMove.h"
 #include "AI/BTTask_EnemyAttackByProfile.h"
@@ -709,12 +710,10 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 		UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 	}
 
-	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("EnemyAITemplateGeneratorReport.md"));
-	FFileHelper::SaveStringToFile(
-		FString::Join(ReportLines, LINE_TERMINATOR),
-		*ReportPath,
-		FFileHelper::EEncodingOptions::ForceUTF8);
+	FString ReportPath;
+	FString SharedReportPath;
+	DevKitEditorCommandletReports::SaveReportLines(TEXT("EnemyAITemplateGeneratorReport.md"), ReportLines, ReportPath, SharedReportPath);
 
-	UE_LOG(LogTemp, Display, TEXT("Enemy AI template generator finished. Report: %s"), *ReportPath);
+	UE_LOG(LogTemp, Display, TEXT("Enemy AI template generator finished. Report: %s Shared: %s"), *ReportPath, *SharedReportPath);
 	return bPresetDefaultMelee ? 0 : 1;
 }

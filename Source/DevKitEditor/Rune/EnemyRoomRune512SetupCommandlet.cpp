@@ -2,6 +2,7 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "Commandlets/CommandletReportUtils.h"
 #include "Data/EnemyData.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/RuneDataAsset.h"
@@ -427,12 +428,10 @@ int32 UEnemyRoomRune512SetupCommandlet::Main(const FString& Params)
 		UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 	}
 
-	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), ReportFileName);
-	FFileHelper::SaveStringToFile(
-		FString::Join(ReportLines, LINE_TERMINATOR),
-		*ReportPath,
-		FFileHelper::EEncodingOptions::ForceUTF8);
+	FString ReportPath;
+	FString SharedReportPath;
+	DevKitEditorCommandletReports::SaveReportLines(EnemyRoomRune512Setup::ReportFileName, ReportLines, ReportPath, SharedReportPath);
 
-	UE_LOG(LogTemp, Display, TEXT("512 enemy/room rune setup finished. Report: %s"), *ReportPath);
+	UE_LOG(LogTemp, Display, TEXT("512 enemy/room rune setup finished. Report: %s Shared: %s"), *ReportPath, *SharedReportPath);
 	return 0;
 }

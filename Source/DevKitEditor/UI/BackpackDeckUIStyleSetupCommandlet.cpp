@@ -3,6 +3,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "Blueprint/WidgetTree.h"
+#include "Commandlets/CommandletReportUtils.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -1291,12 +1292,10 @@ int32 UBackpackDeckUIStyleSetupCommandlet::Main(const FString& Params)
 		}
 	}
 
-	// const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), BackpackDeckUIStyleSetup::ReportFileName);
-	// FFileHelper::SaveStringToFile(
-	// 	FString::Join(ReportLines, LINE_TERMINATOR),
-	// 	*ReportPath,
-	// 	FFileHelper::EEncodingOptions::ForceUTF8);
+	FString ReportPath;
+	FString SharedReportPath;
+	DevKitEditorCommandletReports::SaveReportLines(TEXT("BackpackDeckUIStyleSetupReport.md"), ReportLines, ReportPath, SharedReportPath);
 
-	// UE_LOG(LogTemp, Display, TEXT("Backpack deck UI style setup finished. Report: %s"), *ReportPath);
+	UE_LOG(LogTemp, Display, TEXT("Backpack deck UI style setup finished. Report: %s Shared: %s"), *ReportPath, *SharedReportPath);
 	return 0;
 }
