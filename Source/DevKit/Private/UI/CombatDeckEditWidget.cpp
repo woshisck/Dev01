@@ -10,7 +10,9 @@
 #include "Components/SizeBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/VerticalBox.h"
+#include "CommonInputSubsystem.h"
 #include "InputCoreTypes.h"
+#include "Input/CommonUIInputTypes.h"
 #include "Framework/Application/SlateApplication.h"
 #include "UI/CombatDeckEditCardSlotWidget.h"
 #include "UI/CombatDeckEditDragDropOperation.h"
@@ -368,6 +370,8 @@ bool UCombatDeckEditWidget::SelectAdjacentCard(int32 Direction)
 
 bool UCombatDeckEditWidget::HandleDeckDirectionalInput(int32 Direction)
 {
+	NotifyGamepadNavigationInput();
+
 	if (!CanHandleDeckInput())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][Directional] Rejected CanHandle=0 Direction=%d BoundDeck=%s Visible=%d"),
@@ -396,6 +400,8 @@ bool UCombatDeckEditWidget::HandleDeckDirectionalInput(int32 Direction)
 
 bool UCombatDeckEditWidget::HandleDeckSelectPressed()
 {
+	NotifyGamepadNavigationInput();
+
 	if (!CanHandleDeckInput() || bInteractionLocked)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_Pressed] Rejected CanHandle=%d Locked=%d BoundDeck=%s Visible=%d"),
@@ -404,6 +410,16 @@ bool UCombatDeckEditWidget::HandleDeckSelectPressed()
 			*GetNameSafe(BoundCombatDeck),
 			IsVisible() ? 1 : 0);
 		return false;
+	}
+
+	if (bGamepadDragActive)
+	{
+		const int32 CommitInsertIndex = GamepadDragInsertIndex;
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_PressedCommit] Source=%d Insert=%d"),
+			DragSourceIndex,
+			CommitInsertIndex);
+		ResetGamepadDragState();
+		return CommitDragPreview(CommitInsertIndex);
 	}
 
 	if (!EnsureValidSelection())
@@ -421,25 +437,39 @@ bool UCombatDeckEditWidget::HandleDeckSelectPressed()
 
 bool UCombatDeckEditWidget::HandleDeckSelectReleased()
 {
+	if (bGamepadDragActive)
+	{
+		bGamepadSelectHeld = false;
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_ReleasedKeepDrag] Source=%d Insert=%d"),
+			DragSourceIndex,
+			GamepadDragInsertIndex);
+		return true;
+	}
+
 	if (!bGamepadSelectHeld && !bGamepadDragActive)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_Released] Ignored Held=0 Drag=0 Selected=%d"), SelectedCardIndex);
-		return false;
-	}
-
-	if (bGamepadDragActive)
-	{
-		const int32 CommitInsertIndex = GamepadDragInsertIndex;
-		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_ReleasedCommit] Source=%d Insert=%d HeldTime=%.3f"),
-			DragSourceIndex,
-			CommitInsertIndex,
-			GamepadSelectHeldTime);
-		ResetGamepadDragState();
-		return CommitDragPreview(CommitInsertIndex);
+		return true;
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_ReleasedSelect] Selected=%d HeldTime=%.3f"), SelectedCardIndex, GamepadSelectHeldTime);
 	ResetGamepadDragState();
+	EnsureValidSelection();
+	return true;
+}
+
+bool UCombatDeckEditWidget::CancelDeckGamepadDrag()
+{
+	if (!bGamepadDragActive && !bDragPreviewActive)
+	{
+		return false;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CancelGamepadDrag] Source=%d Insert=%d"),
+		DragSourceIndex,
+		GamepadDragInsertIndex);
+	ResetGamepadDragState();
+	EndDragPreview();
 	EnsureValidSelection();
 	return true;
 }
@@ -606,6 +636,43 @@ bool UCombatDeckEditWidget::ToggleSelectedLinkOrientation()
 bool UCombatDeckEditWidget::CanHandleDeckInput() const
 {
 	return IsVisible() && BoundCombatDeck && !BoundCombatDeck->GetFullDeckSnapshot().IsEmpty();
+}
+
+void UCombatDeckEditWidget::NotifyGamepadNavigationInput()
+{
+	bPointerHoverSelectionEnabled = false;
+}
+
+void UCombatDeckEditWidget::NotifyPointerNavigationInput()
+{
+	if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+	{
+		if (UCommonInputSubsystem* CommonInput = LocalPlayer->GetSubsystem<UCommonInputSubsystem>())
+		{
+			if (CommonInput->GetCurrentInputType() == ECommonInputType::Gamepad)
+			{
+				return;
+			}
+		}
+	}
+
+	bPointerHoverSelectionEnabled = true;
+}
+
+bool UCombatDeckEditWidget::ShouldSelectCardsOnPointerHover() const
+{
+	if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
+	{
+		if (UCommonInputSubsystem* CommonInput = LocalPlayer->GetSubsystem<UCommonInputSubsystem>())
+		{
+			if (CommonInput->GetCurrentInputType() == ECommonInputType::Gamepad)
+			{
+				return false;
+			}
+		}
+	}
+
+	return bPointerHoverSelectionEnabled && !bGamepadDragActive;
 }
 
 bool UCombatDeckEditWidget::EnsureValidSelection()

@@ -1305,6 +1305,10 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
     {
         bIsGamepadInputMode = false;
     }
+    if (CombatDeckEditWidget)
+    {
+        CombatDeckEditWidget->NotifyPointerNavigationInput();
+    }
 
     // 左侧待放置槽：优先于主格子
     {
@@ -1888,10 +1892,18 @@ FReply UBackpackScreenWidget::NativeOnMouseMove(const FGeometry& InGeometry, con
         if (!bRealMove)
             return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
         bIsGamepadInputMode = false;
+        if (CombatDeckEditWidget)
+        {
+            CombatDeckEditWidget->NotifyPointerNavigationInput();
+        }
     }
     else
     {
         LastMouseAbsPos = NewPos;
+        if (bRealMove && CombatDeckEditWidget)
+        {
+            CombatDeckEditWidget->NotifyPointerNavigationInput();
+        }
     }
 
     // 无抓取/拖拽时追踪主格子悬浮格，驱动绿框高亮
@@ -1926,6 +1938,25 @@ FReply UBackpackScreenWidget::NativeOnKeyUp(const FGeometry& InGeometry, const F
         InKeyEvent.GetKey() == EKeys::Gamepad_FaceButton_Bottom)
     {
         return HandleCombatDeckSelectButtonState(false, TEXT("KeyUp"));
+    }
+
+    if (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput() &&
+        (InKeyEvent.GetKey() == EKeys::Gamepad_DPad_Left ||
+         InKeyEvent.GetKey() == EKeys::Gamepad_DPad_Right ||
+         InKeyEvent.GetKey() == EKeys::Gamepad_DPad_Up ||
+         InKeyEvent.GetKey() == EKeys::Gamepad_DPad_Down ||
+         InKeyEvent.GetKey() == EKeys::Gamepad_LeftStick_Left ||
+         InKeyEvent.GetKey() == EKeys::Gamepad_LeftStick_Right ||
+         InKeyEvent.GetKey() == EKeys::Gamepad_LeftStick_Up ||
+         InKeyEvent.GetKey() == EKeys::Gamepad_LeftStick_Down))
+    {
+        if (InKeyEvent.GetKey() == HeldDirKey)
+        {
+            bDirKeyHeld    = false;
+            HeldKeyTime    = 0.f;
+            LastRepeatCount = 0;
+        }
+        return FReply::Handled();
     }
 
     if (InKeyEvent.GetKey() == HeldDirKey)
@@ -2145,6 +2176,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
     {
         auto StartDeckDirRepeat = [&](int32 Direction) -> FReply
         {
+            CombatDeckEditWidget->NotifyGamepadNavigationInput();
             UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] DPad Direction=%d"), Direction);
             CombatDeckEditWidget->HandleDeckDirectionalInput(Direction);
             HeldDirKey      = Key;
@@ -2177,8 +2209,20 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
             UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] A Press"));
             return HandleCombatDeckSelectButtonState(true, TEXT("KeyDown"));
         }
+        if (!InKeyEvent.IsRepeat() && Key == EKeys::Gamepad_FaceButton_Right)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] B Press"));
+            if (CombatDeckEditWidget->CancelDeckGamepadDrag())
+            {
+                return FReply::Handled();
+            }
+        }
         if (Key == EKeys::R || Key == EKeys::Gamepad_FaceButton_Left)
         {
+            if (Key == EKeys::Gamepad_FaceButton_Left)
+            {
+                CombatDeckEditWidget->NotifyGamepadNavigationInput();
+            }
             UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] Reverse Key=%s"), *Key.ToString());
             return CombatDeckEditWidget->ToggleSelectedLinkOrientation() ? FReply::Handled() : FReply::Unhandled();
         }

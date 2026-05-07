@@ -5,10 +5,20 @@ $ErrorActionPreference = "Stop"
 
 $ProjectRoot = (Resolve-Path "$PSScriptRoot/../..").Path
 $UProject    = Join-Path $ProjectRoot "DevKit.uproject"
-$UEEditorCmd = "D:/UE/UE_5.4/Engine/Binaries/Win64/UnrealEditor-Cmd.exe"
+$EditorCmdCandidates = @()
+if ($env:UE_EDITOR_CMD) {
+    $EditorCmdCandidates += $env:UE_EDITOR_CMD
+}
+$EditorCmdCandidates += @(
+    "Z:/GZA_Software/RealityCapture/UE_5.4/Engine/Binaries/Win64/UnrealEditor-Cmd.exe",
+    "D:/UE/UE_5.4/Engine/Binaries/Win64/UnrealEditor-Cmd.exe"
+)
+$UEEditorCmd = $EditorCmdCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 
 if (-not (Test-Path $UProject))   { throw "Project not found: $UProject" }
-if (-not (Test-Path $UEEditorCmd)) { throw "Editor not found: $UEEditorCmd" }
+if (-not $UEEditorCmd) {
+    throw "Editor not found. Set UE_EDITOR_CMD or update Tools/DataEditor/_common.ps1. Tried: $($EditorCmdCandidates -join ', ')"
+}
 
 function Get-RunningUnrealEditors {
     @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like "UnrealEditor*" })

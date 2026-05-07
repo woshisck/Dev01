@@ -30,7 +30,7 @@
 namespace
 {
 	template <typename T>
-	TArray<T*> CollectAssetsOfClass()
+	TArray<T*> CollectActionBalanceAssetsOfClass()
 	{
 		TArray<T*> Out;
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
@@ -264,7 +264,7 @@ namespace
 		return true;
 	}
 
-	TSharedRef<SWidget> MakeTextCell(const FString& Text, const FString& ToolTip = FString())
+	TSharedRef<SWidget> MakeActionBalanceTextCell(const FString& Text, const FString& ToolTip = FString())
 	{
 		return SNew(STextBlock)
 			.Text(FText::FromString(Text))
@@ -293,32 +293,32 @@ public:
 	{
 		if (!Item.IsValid())
 		{
-			return MakeTextCell(TEXT("-"));
+			return MakeActionBalanceTextCell(TEXT("-"));
 		}
 
 		if (ColumnName == TEXT("Source"))
 		{
-			return MakeTextCell(PrimaryName(*Item), Item->PrimaryObject.IsValid() ? Item->PrimaryObject->GetPathName() : FString());
+			return MakeActionBalanceTextCell(PrimaryName(*Item), Item->PrimaryObject.IsValid() ? Item->PrimaryObject->GetPathName() : FString());
 		}
 		if (ColumnName == TEXT("Type"))
 		{
-			return MakeTextCell(RowTypeToString(Item->Type));
+			return MakeActionBalanceTextCell(RowTypeToString(Item->Type));
 		}
 		if (ColumnName == TEXT("Tuning"))
 		{
 			if (UMusketActionTuningDataAsset* Tuning = GetTuning(*Item))
 			{
-				return MakeTextCell(Tuning->GetName(), Tuning->GetPathName());
+				return MakeActionBalanceTextCell(Tuning->GetName(), Tuning->GetPathName());
 			}
 			if (Item->MusketCDO.IsValid())
 			{
-				return MakeTextCell(TEXT("Class Defaults"));
+				return MakeActionBalanceTextCell(TEXT("Class Defaults"));
 			}
 			if (UMNE_HitWindow* HitWindow = Cast<UMNE_HitWindow>(Item->MontageEntry.Get()))
 			{
-				return MakeTextCell(FString::Printf(TEXT("%d AttackData"), HitWindow->AttackDataCandidates.Num()));
+				return MakeActionBalanceTextCell(FString::Printf(TEXT("%d AttackData"), HitWindow->AttackDataCandidates.Num()));
 			}
-			return MakeTextCell(TEXT("-"));
+			return MakeActionBalanceTextCell(TEXT("-"));
 		}
 		if (ColumnName == TEXT("Actions"))
 		{
@@ -445,7 +445,7 @@ void SActionBalanceWidget::RefreshData(const FText& NewStatus)
 	Rows.Reset();
 	MusketBlueprintCount = 0;
 
-	TArray<UMontageAttackDataAsset*> AttackDataAssets = CollectAssetsOfClass<UMontageAttackDataAsset>();
+	TArray<UMontageAttackDataAsset*> AttackDataAssets = CollectActionBalanceAssetsOfClass<UMontageAttackDataAsset>();
 	AttackDataCount = AttackDataAssets.Num();
 	for (UMontageAttackDataAsset* AttackData : AttackDataAssets)
 	{
@@ -455,7 +455,7 @@ void SActionBalanceWidget::RefreshData(const FText& NewStatus)
 		Rows.Add(Row);
 	}
 
-	TArray<UMontageConfigDA*> MontageConfigs = CollectAssetsOfClass<UMontageConfigDA>();
+	TArray<UMontageConfigDA*> MontageConfigs = CollectActionBalanceAssetsOfClass<UMontageConfigDA>();
 	MontageConfigCount = MontageConfigs.Num();
 	for (UMontageConfigDA* Config : MontageConfigs)
 	{

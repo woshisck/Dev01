@@ -22,7 +22,7 @@
 
 namespace
 {
-	FString RarityToString(ERuneRarity Rarity)
+	FString DataEditorWidgetRarityToString(ERuneRarity Rarity)
 	{
 		switch (Rarity)
 		{
@@ -34,7 +34,7 @@ namespace
 		return TEXT("Unknown");
 	}
 
-	FString TriggerTypeToString(ERuneTriggerType TriggerType)
+	FString DataEditorWidgetTriggerTypeToString(ERuneTriggerType TriggerType)
 	{
 		switch (TriggerType)
 		{
@@ -142,11 +142,11 @@ public:
 		}
 		if (ColumnName == TEXT("Rarity"))
 		{
-			return MakeCellText(RarityToString(Rune->GetRarity()));
+			return MakeCellText(DataEditorWidgetRarityToString(Rune->GetRarity()));
 		}
 		if (ColumnName == TEXT("TriggerType"))
 		{
-			return MakeCellText(TriggerTypeToString(Rune->GetTriggerType()));
+			return MakeCellText(DataEditorWidgetTriggerTypeToString(Rune->GetTriggerType()));
 		}
 		if (ColumnName == TEXT("GoldCost"))
 		{
@@ -625,7 +625,7 @@ FReply SDataEditorWidget::OnBatchRarityClicked()
 	UDataEditorLibrary::BatchSetRuneRarity(SelectedRunes, NewRarity);
 	RefreshData(FText::Format(
 		LOCTEXT("BatchRarityStatus", "Set Rarity={0} on {1} selected RuneDA assets. Assets are dirty, not auto-saved."),
-		FText::FromString(RarityToString(NewRarity)),
+		FText::FromString(DataEditorWidgetRarityToString(NewRarity)),
 		FText::AsNumber(SelectedRunes.Num())));
 	return FReply::Handled();
 }
@@ -637,7 +637,7 @@ FReply SDataEditorWidget::OnBatchTriggerTypeClicked()
 	UDataEditorLibrary::BatchSetRuneTriggerType(SelectedRunes, NewType);
 	RefreshData(FText::Format(
 		LOCTEXT("BatchTriggerStatus", "Set TriggerType={0} on {1} selected RuneDA assets. Assets are dirty, not auto-saved."),
-		FText::FromString(TriggerTypeToString(NewType)),
+		FText::FromString(DataEditorWidgetTriggerTypeToString(NewType)),
 		FText::AsNumber(SelectedRunes.Num())));
 	return FReply::Handled();
 }

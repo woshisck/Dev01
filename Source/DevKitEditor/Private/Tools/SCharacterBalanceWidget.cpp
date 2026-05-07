@@ -22,7 +22,7 @@
 namespace
 {
 	template <typename T>
-	TArray<T*> CollectAssetsOfClass()
+	TArray<T*> CollectCharacterBalanceAssetsOfClass()
 	{
 		TArray<T*> Out;
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
@@ -180,7 +180,7 @@ namespace
 		return false;
 	}
 
-	TSharedRef<SWidget> MakeTextCell(const FString& Text, const FString& ToolTip = FString())
+	TSharedRef<SWidget> MakeCharacterBalanceTextCell(const FString& Text, const FString& ToolTip = FString())
 	{
 		return SNew(STextBlock)
 			.Text(FText::FromString(Text))
@@ -210,20 +210,20 @@ public:
 		UCharacterData* Character = Item.IsValid() ? Item->Asset.Get() : nullptr;
 		if (!Character)
 		{
-			return MakeTextCell(TEXT("-"));
+			return MakeCharacterBalanceTextCell(TEXT("-"));
 		}
 
 		if (ColumnName == TEXT("Asset"))
 		{
-			return MakeTextCell(Character->GetName(), Character->GetPathName());
+			return MakeCharacterBalanceTextCell(Character->GetName(), Character->GetPathName());
 		}
 		if (ColumnName == TEXT("BaseRow"))
 		{
-			return MakeTextCell(RowNameToString(Character->YogBaseAttributeDataRow), GetNameSafe(GetBaseTable(Character)));
+			return MakeCharacterBalanceTextCell(RowNameToString(Character->YogBaseAttributeDataRow), GetNameSafe(GetBaseTable(Character)));
 		}
 		if (ColumnName == TEXT("MoveRow"))
 		{
-			return MakeTextCell(RowNameToString(Character->MovementDataRow), GetNameSafe(GetMovementTable(Character)));
+			return MakeCharacterBalanceTextCell(RowNameToString(Character->MovementDataRow), GetNameSafe(GetMovementTable(Character)));
 		}
 		if (ColumnName == TEXT("Actions"))
 		{
@@ -353,7 +353,7 @@ void SCharacterBalanceWidget::Construct(const FArguments& InArgs)
 
 void SCharacterBalanceWidget::RefreshData(const FText& NewStatus)
 {
-	TArray<UCharacterData*> Characters = CollectAssetsOfClass<UCharacterData>();
+	TArray<UCharacterData*> Characters = CollectCharacterBalanceAssetsOfClass<UCharacterData>();
 	Characters.Sort([](const UCharacterData& A, const UCharacterData& B)
 	{
 		return A.GetName() < B.GetName();

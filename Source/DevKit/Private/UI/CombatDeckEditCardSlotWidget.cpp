@@ -130,6 +130,11 @@ FReply UCombatDeckEditCardSlotWidget::NativeOnPreviewMouseButtonDown(const FGeom
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
+		if (OwnerWidget && !OwnerWidget->ShouldSelectCardsOnPointerHover())
+		{
+			return HandleCardMouseButtonDown(InMouseEvent);
+		}
+
 		if (IsPointerOverReverseButton(InMouseEvent))
 		{
 			return Super::NativeOnPreviewMouseButtonDown(InGeometry, InMouseEvent);
@@ -155,6 +160,11 @@ FReply UCombatDeckEditCardSlotWidget::NativeOnMouseButtonUp(const FGeometry& InG
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
+		if (OwnerWidget && !OwnerWidget->ShouldSelectCardsOnPointerHover())
+		{
+			OwnerWidget->HandleDeckSelectReleased();
+		}
+
 		return FReply::Handled().ReleaseMouseCapture();
 	}
 
@@ -175,7 +185,15 @@ FReply UCombatDeckEditCardSlotWidget::NativeOnKeyDown(const FGeometry& InGeometr
 void UCombatDeckEditCardSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
 	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
-	SelectThisCard();
+	if (OwnerWidget && InMouseEvent.GetCursorDelta().SizeSquared() > 0.0f)
+	{
+		OwnerWidget->NotifyPointerNavigationInput();
+	}
+
+	if (!OwnerWidget || OwnerWidget->ShouldSelectCardsOnPointerHover())
+	{
+		SelectThisCard();
+	}
 }
 
 void UCombatDeckEditCardSlotWidget::NativeOnAddedToFocusPath(const FFocusEvent& InFocusEvent)
@@ -463,8 +481,17 @@ FReply UCombatDeckEditCardSlotWidget::HandleCardMouseButtonDown(const FPointerEv
 		return FReply::Handled();
 	}
 
+	if (OwnerWidget && !OwnerWidget->ShouldSelectCardsOnPointerHover())
+	{
+		OwnerWidget->NotifyGamepadNavigationInput();
+		return OwnerWidget->HandleDeckSelectPressed()
+			? FReply::Handled().CaptureMouse(TakeWidget())
+			: FReply::Handled();
+	}
+
 	if (OwnerWidget && DeckIndex != INDEX_NONE)
 	{
+		OwnerWidget->NotifyPointerNavigationInput();
 		OwnerWidget->BeginDragPreview(DeckIndex);
 		BP_OnDragStarted(Card, DeckIndex);
 	}

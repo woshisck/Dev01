@@ -54,6 +54,9 @@ public:
 	bool HandleDeckSelectReleased();
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
+	bool CancelDeckGamepadDrag();
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
 	void TickDeckGamepadInput(float DeltaTime);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
@@ -103,6 +106,10 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Combat Deck|Edit")
 	bool CanHandleDeckInput() const;
+
+	void NotifyGamepadNavigationInput();
+	void NotifyPointerNavigationInput();
+	bool ShouldSelectCardsOnPointerHover() const;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Combat Deck|Edit")
 	void BP_OnSelectedCardChanged(const FCombatCardInstance& SelectedCard, int32 CardIndex);
@@ -180,6 +187,7 @@ private:
 	float GamepadSelectHeldTime = 0.0f;
 	int32 GamepadDragInsertIndex = INDEX_NONE;
 	bool bDetailPreviewVisible = true;
+	bool bPointerHoverSelectionEnabled = true;
 
 	void UnbindFromCurrentDeck();
 	void ApplyDetailPreviewVisibility();
