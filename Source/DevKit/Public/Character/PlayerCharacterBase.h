@@ -22,7 +22,6 @@ class APortal;
 class AWeaponInstance;
 class UYogSaveGame;
 class UBackpackStyleDataAsset;
-class UBackpackGridComponent;
 class UCombatDeckComponent;
 class UComboRuntimeComponent;
 class UBuffFlowComponent;
@@ -78,9 +77,6 @@ public:
 	virtual void NotifyActorEndOverlap(AActor* OtherActor) override;
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-	TObjectPtr<UBackpackGridComponent> BackpackGridComponent;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	TObjectPtr<UCombatDeckComponent> CombatDeckComponent;
 
@@ -216,9 +212,6 @@ public:
 	// 提供当前武器的 Spawner（换武器时恢复其展示网格颜色）
 	UPROPERTY()
 	TObjectPtr<AWeaponSpawner> EquippedFromSpawner;
-
-	UFUNCTION(BlueprintPure, Category = "Backpack")
-	UBackpackGridComponent* GetBackpackGridComponent();
 
 	// 将符文加入待放置列表（由 GameMode 的 SelectLoot 调用）
 	UFUNCTION(BlueprintCallable, Category = "Backpack")

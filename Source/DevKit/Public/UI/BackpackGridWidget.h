@@ -7,7 +7,6 @@
 class UUniformGridPanel;
 class USizeBox;
 class URuneSlotWidget;
-class UBackpackGridComponent;
 class UBackpackStyleDataAsset;
 class UButton;
 class UTextBlock;
@@ -71,7 +70,7 @@ public:
      * 动态创建格子并实例化 RuneSlotWidget。
      * 由 BackpackScreenWidget.NativeConstruct 调用一次。
      */
-    void BuildGrid(UBackpackGridComponent* InBackpack);
+    void BuildGrid();
 
     /** 刷新三个点按钮颜色和手柄提示可见性，由 BackpackScreenWidget 调用 */
     void RefreshHeatPhaseButtons(int32 PreviewPhase, bool bIsGamepadMode);
@@ -80,8 +79,7 @@ public:
      * 刷新全部格子的视觉状态和符文图标。
      * BackpackScreenWidget.OnGridNeedsRefresh 调用此函数。
      */
-    void RefreshCells(UBackpackGridComponent* Backpack,
-                      FIntPoint SelectedCell,
+    void RefreshCells(FIntPoint SelectedCell,
                       FIntPoint HoverCell,
                       FIntPoint GrabbedFromCell,
                       bool bGrabbing,
@@ -90,8 +88,7 @@ public:
     /**
      * 屏幕绝对坐标 → 格子坐标。失败返回 false。
      */
-    bool GetCellAtScreenPos(const FVector2D& AbsPos, UBackpackGridComponent* Backpack,
-                            int32& OutCol, int32& OutRow) const;
+    bool GetCellAtScreenPos(const FVector2D& AbsPos, int32& OutCol, int32& OutRow) const;
 
     /** 放置失败反馈：指定格子红闪+抖动 */
     void FlashAndShakeCell(int32 Col, int32 Row);
@@ -115,7 +112,6 @@ private:
     TArray<TObjectPtr<URuneSlotWidget>> CachedSlots;
 
     /** NativePaint 绘制所需缓存数据（RefreshCells 更新） */
-    TWeakObjectPtr<UBackpackGridComponent> CachedBackpackRef;
     FGuid  CachedSelectedGuid;
     FGuid  CachedHoverGuid;
     bool   CachedBGrabbing    = false;

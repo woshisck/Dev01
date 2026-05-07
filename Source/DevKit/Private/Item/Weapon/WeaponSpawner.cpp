@@ -19,7 +19,6 @@
 #include "Character/PlayerCharacterBase.h"
 #include "YogBlueprintFunctionLibrary.h"
 #include "Component/CharacterDataComponent.h"
-#include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "Tutorial/TutorialManager.h"
@@ -394,36 +393,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
 				TEXT("[WeaponSpawner] 武器生成失败，NewWeapon 为空"));
 		}
-	}
-
-	// ── 4. 注入背包配置 ───────────────────────────────────────────────
-	if (!bDisableLegacyHeatBackpackRuneForCardTestSpawner && Player->BackpackGridComponent)
-	{
-		UBackpackGridComponent* BG = Player->BackpackGridComponent;
-		BG->ApplyBackpackConfig(
-			WeaponDefinition->BackpackConfig.GridWidth,
-			WeaponDefinition->BackpackConfig.GridHeight,
-			WeaponDefinition->BackpackConfig.ActivationZoneConfig);
-
-		// ── 4b. 放置武器初始符文到热度一激活区 ──────────────────────────
-		if (WeaponDefinition->InitialRunes.Num() > 0)
-		{
-			TArray<FIntPoint> Phase1Cells = BG->GetActivationZoneCellsForPhase(0);
-			for (URuneDataAsset* RuneDA : WeaponDefinition->InitialRunes)
-			{
-				if (!RuneDA) continue;
-				FRuneInstance RuneInst = RuneDA->CreateInstance();
-				for (const FIntPoint& Cell : Phase1Cells)
-				{
-					if (BG->TryPlaceRune(RuneInst, Cell))
-						break;
-				}
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] Legacy backpack/rune config disabled for combat card test"));
 	}
 
 	// ── 5. 记录状态 ──────────────────────────────────────────────────

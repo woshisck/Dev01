@@ -81,19 +81,19 @@ public:
 	EHitStopMode HitStopMode = EHitStopMode::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
-		meta = (EditCondition = "HitStopMode == EHitStopMode::Freeze", EditConditionHides, ClampMin = 0.0f, ClampMax = 0.3f))
+		meta = (EditCondition = "HitStopMode == EHitStopMode::Freeze", EditConditionHides, ClampMin = 0.0f))
 	float HitStopFrozenDuration = 0.06f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
-		meta = (EditCondition = "HitStopMode == EHitStopMode::Slow", EditConditionHides, ClampMin = 0.0f, ClampMax = 0.5f))
+		meta = (EditCondition = "HitStopMode == EHitStopMode::Slow", EditConditionHides, ClampMin = 0.0f))
 	float HitStopSlowDuration = 0.12f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
-		meta = (EditCondition = "HitStopMode == EHitStopMode::Slow", EditConditionHides, ClampMin = 0.01f, ClampMax = 1.0f))
+		meta = (EditCondition = "HitStopMode == EHitStopMode::Slow", EditConditionHides, ClampMin = 0.01f))
 	float HitStopSlowRate = 0.3f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
-		meta = (EditCondition = "HitStopMode == EHitStopMode::Slow", EditConditionHides, ClampMin = 1.01f, ClampMax = 5.0f))
+		meta = (EditCondition = "HitStopMode == EHitStopMode::Slow", EditConditionHides, ClampMin = 1.01f))
 	float HitStopCatchUpRate = 2.0f;
 
 	// ── 命中事件 ─────────────────────────────────────────────────────
@@ -110,6 +110,12 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
 	TArray<TObjectPtr<URuneDataAsset>> AdditionalRuneEffects;
+
+	// ── 调试 ───────────────────────────────────────────────────────────────
+
+	/** 是否在开发版本中绘制命中框调试线框。*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
+	bool DrawDebug = true;
 
 	// ── 工具 ───────────────────────────────────────────────────────────────
 

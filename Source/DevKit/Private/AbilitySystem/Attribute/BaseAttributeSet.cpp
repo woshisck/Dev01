@@ -9,7 +9,6 @@
 #include "GameplayEffect.h"
 #include "GameplayEffectExtension.h"
 #include "Character/PlayerCharacterBase.h"
-#include "Component/BackpackGridComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 namespace
@@ -196,34 +195,7 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 			const bool bHasTagInDynamic = Data.EffectSpec.GetDynamicAssetTags().HasTag(CanPhaseUpTag);
 			const bool bCanPhaseUp      = CanPhaseUpTag.IsValid() && (bHasTagInAsset || bHasTagInDynamic);
 
-			if (bCanPhaseUp && bWasAlreadyFull)
-			{
-				// 热度已满 + LastHit → 升阶（最高阶段时卡住热度）
-				APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor());
-				if (Player)
-				{
-					UBackpackGridComponent* BGC = Player->GetBackpackGridComponent();
-					if (BGC)
-					{
-						if (BGC->GetCurrentPhase() >= 3)
-						{
-							// 已是最高阶段，热度卡在上限，不触发升阶
-							SetHeat(GetMaxHeat());
-						}
-						else
-						{
-							UE_LOG(LogTemp, Warning, TEXT("[Heat] 升阶触发 | Heat=%.0f/%.0f | bWasAlreadyFull=%d | Owner=%s"),
-								CachedPreEffectHeat, GetMaxHeat(), (int32)bWasAlreadyFull, *GetNameSafe(GetOwningActor()));
-							if (GEngine)
-								GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Orange,
-									FString::Printf(TEXT("[热度升阶] 热度满额触发 → Phase+1")));
-							BGC->OnPhaseUpReady.Broadcast();
-							SetHeat(0.f);
-						}
-					}
-				}
-			}
-			else
+			if (!bCanPhaseUp || !bWasAlreadyFull)
 			{
 				// 热度不足（LastHit 打过来但还没满）或普通攻击：卡在上限
 				SetHeat(GetMaxHeat());
@@ -319,23 +291,6 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 	{
 		UE_LOG(LogTemp, Verbose, TEXT("[DmgTakenTrace] CHANGE %s : %.2f -> %.2f"),
 			*GetNameSafe(GetOwningActor()), OldValue, NewValue);
-	}
-
-	if (Attribute == GetHeatAttribute())
-	{
-		if (bDisableLegacyHeatRuntimeForCardTest)
-		{
-			return;
-		}
-
-		// 通知背包组件更新热度等级（传绝对值）
-		if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor()))
-		{
-			if (UBackpackGridComponent* BGC = Player->GetBackpackGridComponent())
-			{
-				BGC->OnHeatValueChanged(NewValue);
-			}
-		}
 	}
 
 	// ArmorHP 变化时同步 Buff.Status.Armored Tag

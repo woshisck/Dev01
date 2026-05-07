@@ -17,7 +17,6 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Data/GASTemplate.h"
 #include "Item/ItemSpawner.h"
-#include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
@@ -37,7 +36,6 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 	: Super(ObjectInitializer)
 {
-	BackpackGridComponent = CreateDefaultSubobject<UBackpackGridComponent>(TEXT("BackpackGridComponent"));
 	CombatDeckComponent = CreateDefaultSubobject<UCombatDeckComponent>(TEXT("CombatDeckComponent"));
 	ComboRuntimeComponent = CreateDefaultSubobject<UComboRuntimeComponent>(TEXT("ComboRuntimeComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
@@ -100,13 +98,6 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute(), State.CurrentHP);
 	}
 
-	// 恢复金币（现在由 BackpackGridComponent 持有）
-	if (BackpackGridComponent)
-	{
-		BackpackGridComponent->Gold = FMath::Max(0, State.CurrentGold);
-		BackpackGridComponent->OnGoldChanged.Broadcast(BackpackGridComponent->Gold);
-	}
-
 	// 恢复整理阶段已选但尚未放置的符文
 	PendingRunes = State.PendingRunes;
 
@@ -131,28 +122,6 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 			State.CombatDeckMaxActiveSequenceSize);
 	}
 
-	if (BackpackGridComponent)
-	{
-		BackpackGridComponent->RestorePlacedRunes(State.PlacedRunes);
-		BackpackGridComponent->RestorePhase(State.CurrentPhase);
-
-		if (UAbilitySystemComponent* HeatASC = GetAbilitySystemComponent())
-		{
-			const float MaxHeat = HeatASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
-			float HeatToSet = State.CurrentHeat;
-
-			if (HeatToSet > MaxHeat && MaxHeat > KINDA_SMALL_NUMBER)
-			{
-				BackpackGridComponent->IncrementPhase();
-				HeatToSet = FMath::Max(0.f, HeatToSet - MaxHeat);
-			}
-
-			HeatToSet = FMath::Clamp(HeatToSet, 0.f, MaxHeat);
-			HeatASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), HeatToSet);
-			BackpackGridComponent->OnHeatValueChanged(HeatToSet);
-		}
-	}
-
 	// 恢复献祭恩赐
 	ActiveSacrificeGrace = State.ActiveSacrificeGrace;
 	if (ActiveSacrificeGrace)
@@ -160,11 +129,6 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		AcquireSacrificeGrace(ActiveSacrificeGrace);
 	}
 
-	// 恢复运行时隐藏被动符文（无形状、跳过格子系统）
-	if (BackpackGridComponent && !State.HiddenPassiveRuneInstances.IsEmpty())
-	{
-		BackpackGridComponent->RestoreRuntimeHiddenPassiveRunes(State.HiddenPassiveRuneInstances);
-	}
 }
 
 void APlayerCharacterBase::ItemInteract(const AItemSpawner* item)
@@ -193,43 +157,8 @@ void APlayerCharacterBase::NotifyActorEndOverlap(AActor* OtherActor)
 	Super::NotifyActorEndOverlap(OtherActor);
 }
 
-UBackpackGridComponent* APlayerCharacterBase::GetBackpackGridComponent()
-{
-	return BackpackGridComponent;
-}
-
 void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 {
-	if (BackpackGridComponent)
-	{
-		// 1. 升级检查：背包已有同名符文 → 升级而非新占格子
-		FPlacedRune* Existing = BackpackGridComponent->FindRuneByName(Rune.RuneConfig.RuneName);
-		if (Existing)
-		{
-			if (Existing->Rune.UpgradeLevel < 2)
-			{
-				Existing->Rune.UpgradeLevel++;
-				UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 升级到 Lv.%d"),
-					*Rune.RuneConfig.RuneName.ToString(), Existing->Rune.UpgradeLevel + 1);
-				BackpackGridComponent->NotifyRuneUpgraded(Existing->Rune.RuneGuid);
-			}
-			return;
-		}
-
-		// 2. 无形状符文：跳过格子系统，直接作为隐藏被动激活
-		if (Rune.Shape.Cells.IsEmpty())
-		{
-			UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 无形状 → 隐藏被动激活"),
-				*Rune.RuneConfig.RuneName.ToString());
-			BackpackGridComponent->AddHiddenPassiveRune(Rune);
-			return;
-		}
-
-		// 3. 普通符文：进入待放置列表（玩家在背包 UI 手动拖入格子）
-		UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s → 待放置列表"),
-			*Rune.RuneConfig.RuneName.ToString());
-	}
-
 	PendingRunes.Add(Rune);
 }
 
@@ -274,12 +203,6 @@ void APlayerCharacterBase::AcquireSacrificeGrace(USacrificeGraceDA* DA)
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// 将 BackpackGridComponent 与 ASC 关联，使符文激活时可施加 GE
-	if (BackpackGridComponent && GetAbilitySystemComponent())
-	{
-		BackpackGridComponent->InitWithASC(GetAbilitySystemComponent());
-	}
 
 	// 初始化技能充能系统
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))

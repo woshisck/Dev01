@@ -6,7 +6,6 @@
 
 class UProgressBar;
 class UImage;
-class UBackpackGridComponent;
 
 /**
  * Heat bar widget.
@@ -47,9 +46,6 @@ protected:
     virtual void NativeDestruct() override;
 
 private:
-    TWeakObjectPtr<UBackpackGridComponent> CachedBackpack;
-    UBackpackGridComponent* GetBackpack() const;
-
     UFUNCTION()
     void OnHeatBarUpdateReceived(float NormalizedHeat, int32 NewPhase);
 

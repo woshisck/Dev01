@@ -2,7 +2,6 @@
 
 #include "DevKit.h"
 #include "Engine/GameInstance.h"
-#include "Component/BackpackGridComponent.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/EnemyData.h"   // FBuffEntry
 #include "Item/Weapon/WeaponDefinition.h"
@@ -30,20 +29,9 @@ struct FRunState
 	UPROPERTY()
 	float CurrentHP = 0.f;
 
-	UPROPERTY()
-	int32 CurrentGold = 0;
-
-	// BackpackGridComponent 的热度阶段（0-3）
-	UPROPERTY()
-	int32 CurrentPhase = 0;
-
-	// 切关时的热度绝对值（配合 CurrentPhase 恢复热度条进度）
+	// 切关时的热度绝对值
 	UPROPERTY()
 	float CurrentHeat = 0.f;
-
-	// 非永久符文（永久符文由 BGC::BeginPlay 重新放置，无需保存）
-	UPROPERTY()
-	TArray<FPlacedRune> PlacedRunes;
 
 	// 切关前装备的武器 DA（新关卡恢复时重新装备）
 	UPROPERTY()
@@ -66,10 +54,6 @@ struct FRunState
 	// 献祭恩赐（全程跑局 Buff，None = 未获得）
 	UPROPERTY()
 	TObjectPtr<USacrificeGraceDA> ActiveSacrificeGrace;
-
-	// 运行时拾取的无形状符文（隐藏被动）：跨关恢复后由 BGC::RestoreRuntimeHiddenPassiveRunes 重新激活
-	UPROPERTY()
-	TArray<FRuneInstance> HiddenPassiveRuneInstances;
 };
 /**
  * Base class for GameInstance, should be blueprinted

@@ -82,14 +82,6 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 	}
 
 	// ── 激活区 ─────────────────────────────────
-	const FActivationZoneConfig& ZoneCfg = Def->BackpackConfig.ActivationZoneConfig;
-	const int32 GW = Def->BackpackConfig.GridWidth;
-	const int32 GH = Def->BackpackConfig.GridHeight;
-
-	auto GetShape   = [&](int32 Idx) -> const FRuneShape*
-	{
-		return ZoneCfg.ZoneShapes.IsValidIndex(Idx) ? &ZoneCfg.ZoneShapes[Idx] : nullptr;
-	};
 	auto GetZoneImg = [&](int32 Idx) -> UTexture2D*
 	{
 		if (!Info) return nullptr;
@@ -101,9 +93,9 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 		return nullptr;
 	};
 
-	BuildZonePanel(ZoneGrid1, Zone1Image, GetZoneImg(0), GetShape(0), GW, GH);
-	BuildZonePanel(ZoneGrid2, Zone2Image, GetZoneImg(1), GetShape(1), GW, GH);
-	BuildZonePanel(ZoneGrid3, Zone3Image, GetZoneImg(2), GetShape(2), GW, GH);
+	BuildZonePanel(ZoneGrid1, Zone1Image, GetZoneImg(0), nullptr, 5, 5);
+	BuildZonePanel(ZoneGrid2, Zone2Image, GetZoneImg(1), nullptr, 5, 5);
+	BuildZonePanel(ZoneGrid3, Zone3Image, GetZoneImg(2), nullptr, 5, 5);
 
 	// ── 初始符文列表 ───────────────────────────
 	BuildRuneList(Def->InitialRunes);

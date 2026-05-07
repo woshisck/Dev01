@@ -2,7 +2,6 @@
 #include "Item/Weapon/WeaponInstance.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
-#include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "Engine/AssetManager.h"
@@ -89,25 +88,6 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 
 	// 记录当前装备的武器 DA，供切关时写入 RunState
 	ReceivingChar->EquippedWeaponDef = this;
-
-	// ── 注入背包配置（格子尺寸 + 激活区） ───────────────────────────────
-	UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] SetupWeaponToCharacter reached end. BackpackConfig W=%d H=%d, Char=%s"),
-		BackpackConfig.GridWidth, BackpackConfig.GridHeight,
-		ReceivingChar ? *ReceivingChar->GetName() : TEXT("null"));
-
-	if (!bDisableLegacyHeatBackpackRuneForCardTest && (ReceivingChar ? ReceivingChar->BackpackGridComponent.Get() : nullptr))
-	{
-		UBackpackGridComponent* BG = ReceivingChar->BackpackGridComponent.Get();
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] Calling ApplyBackpackConfig W=%d H=%d"), BackpackConfig.GridWidth, BackpackConfig.GridHeight);
-		BG->ApplyBackpackConfig(
-			BackpackConfig.GridWidth,
-			BackpackConfig.GridHeight,
-			BackpackConfig.ActivationZoneConfig);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] Legacy backpack/rune config disabled for combat card test"));
-	}
 
 	if (UCombatDeckComponent* CombatDeck = ReceivingChar ? ReceivingChar->CombatDeckComponent.Get() : nullptr)
 	{
