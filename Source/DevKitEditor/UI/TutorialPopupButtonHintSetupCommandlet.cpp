@@ -258,7 +258,7 @@ int32 UTutorialPopupButtonHintSetupCommandlet::Main(const FString& Params)
 		UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 	}
 
-	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), ReportFileName);
+	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), TutorialPopupButtonHintSetup::ReportFileName);
 	FFileHelper::SaveStringToFile(
 		FString::Join(ReportLines, LINE_TERMINATOR),
 		*ReportPath,

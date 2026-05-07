@@ -440,20 +440,13 @@ bool UCombatDeckEditWidget::HandleDeckSelectReleased()
 	if (bGamepadDragActive)
 	{
 		const int32 CommitInsertIndex = GamepadDragInsertIndex;
-		const bool bInsertMoved = CommitInsertIndex != DragSourceIndex;
 		bGamepadSelectHeld = false;
-		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_ReleasedDrag] Source=%d Insert=%d Moved=%d"),
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][A_ReleasedDrag] Source=%d Insert=%d"),
 			DragSourceIndex,
-			CommitInsertIndex,
-			bInsertMoved ? 1 : 0);
+			CommitInsertIndex);
 
-		if (bInsertMoved)
-		{
-			ResetGamepadDragState();
-			return CommitDragPreview(CommitInsertIndex);
-		}
-
-		return true;
+		ResetGamepadDragState();
+		return CommitDragPreview(CommitInsertIndex);
 	}
 
 	if (!bGamepadSelectHeld && !bGamepadDragActive)

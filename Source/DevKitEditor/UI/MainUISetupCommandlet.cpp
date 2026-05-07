@@ -795,7 +795,7 @@ int32 UMainUISetupCommandlet::Main(const FString& Params)
 			UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 		}
 
-		const FString TextureOnlyReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), ReportFileName);
+		const FString TextureOnlyReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), MainUISetup::ReportFileName);
 		FFileHelper::SaveStringToFile(
 			FString::Join(ReportLines, LINE_TERMINATOR),
 			*TextureOnlyReportPath,
@@ -878,7 +878,7 @@ int32 UMainUISetupCommandlet::Main(const FString& Params)
 		UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 	}
 
-	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), ReportFileName);
+	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), MainUISetup::ReportFileName);
 	FFileHelper::SaveStringToFile(
 		FString::Join(ReportLines, LINE_TERMINATOR),
 		*ReportPath,

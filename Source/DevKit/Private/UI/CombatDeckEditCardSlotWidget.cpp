@@ -145,9 +145,7 @@ FReply UCombatDeckEditCardSlotWidget::NativeOnPreviewMouseButtonDown(const FGeom
 	{
 		if (OwnerWidget && OwnerWidget->IsSuppressingPointerInput())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardRoute] SuppressVirtualPointerDown DeckIndex=%d"), DeckIndex);
-			OwnerWidget->NotifyGamepadNavigationInput();
-			return FReply::Handled();
+			return HandleSuppressedVirtualPointerDown();
 		}
 
 		if (OwnerWidget && !OwnerWidget->ShouldSelectCardsOnPointerHover())
@@ -172,9 +170,7 @@ FReply UCombatDeckEditCardSlotWidget::NativeOnMouseButtonDown(const FGeometry& I
 	{
 		if (OwnerWidget && OwnerWidget->IsSuppressingPointerInput())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardRoute] SuppressVirtualPointerDown DeckIndex=%d"), DeckIndex);
-			OwnerWidget->NotifyGamepadNavigationInput();
-			return FReply::Handled();
+			return HandleSuppressedVirtualPointerDown();
 		}
 
 		return HandleCardMouseButtonDown(InMouseEvent);
@@ -189,9 +185,7 @@ FReply UCombatDeckEditCardSlotWidget::NativeOnMouseButtonUp(const FGeometry& InG
 	{
 		if (OwnerWidget && OwnerWidget->IsSuppressingPointerInput())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardRoute] SuppressVirtualPointerUp DeckIndex=%d"), DeckIndex);
-			OwnerWidget->NotifyGamepadNavigationInput();
-			return FReply::Handled().ReleaseMouseCapture();
+			return HandleSuppressedVirtualPointerUp();
 		}
 
 		if (OwnerWidget && !OwnerWidget->ShouldSelectCardsOnPointerHover())
@@ -598,9 +592,7 @@ FReply UCombatDeckEditCardSlotWidget::HandleCardMouseButtonDown(const FPointerEv
 	MouseDownTimeSeconds = FPlatformTime::Seconds();
 	if (OwnerWidget && OwnerWidget->IsSuppressingPointerInput())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardRoute] SuppressVirtualPointerDown DeckIndex=%d"), DeckIndex);
-		OwnerWidget->NotifyGamepadNavigationInput();
-		return FReply::Handled();
+		return HandleSuppressedVirtualPointerDown();
 	}
 
 	if (IsInteractionLocked())
@@ -625,6 +617,40 @@ FReply UCombatDeckEditCardSlotWidget::HandleCardMouseButtonDown(const FPointerEv
 	}
 
 	return FReply::Handled();
+}
+
+FReply UCombatDeckEditCardSlotWidget::HandleSuppressedVirtualPointerDown()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardRoute] SuppressVirtualPointerDown DeckIndex=%d"), DeckIndex);
+	if (!OwnerWidget)
+	{
+		return FReply::Handled();
+	}
+
+	OwnerWidget->NotifyGamepadNavigationInput();
+	if (!OwnerWidget->ShouldSelectCardsOnPointerHover())
+	{
+		return OwnerWidget->HandleDeckSelectPressed()
+			? FReply::Handled().CaptureMouse(TakeWidget())
+			: FReply::Handled();
+	}
+
+	return FReply::Handled();
+}
+
+FReply UCombatDeckEditCardSlotWidget::HandleSuppressedVirtualPointerUp()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][CardRoute] SuppressVirtualPointerUp DeckIndex=%d"), DeckIndex);
+	if (OwnerWidget)
+	{
+		OwnerWidget->NotifyGamepadNavigationInput();
+		if (!OwnerWidget->ShouldSelectCardsOnPointerHover())
+		{
+			OwnerWidget->HandleDeckSelectReleased();
+		}
+	}
+
+	return FReply::Handled().ReleaseMouseCapture();
 }
 
 FReply UCombatDeckEditCardSlotWidget::TryHandleReverseInput(const FKey& Key)

@@ -128,6 +128,8 @@ private:
 	void ApplySelectionVisual();
 	void ApplyLinkHintVisual();
 	FReply HandleCardMouseButtonDown(const FPointerEvent& InMouseEvent);
+	FReply HandleSuppressedVirtualPointerDown();
+	FReply HandleSuppressedVirtualPointerUp();
 	FReply TryHandleReverseInput(const FKey& Key);
 	bool IsPointerOverReverseButton(const FPointerEvent& InMouseEvent) const;
 	int32 CalculateDropInsertIndex(const FGeometry& InGeometry, const FPointerEvent& ScreenEvent) const;

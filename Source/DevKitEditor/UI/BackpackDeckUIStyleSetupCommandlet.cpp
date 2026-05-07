@@ -49,7 +49,7 @@
 
 namespace BackpackDeckUIStyleSetup
 {
-	const FString ReportFileName = TEXT("BackpackDeckUIStyleSetupReport.md");
+	//const FString ReportFileName = TEXT("BackpackDeckUIStyleSetupReport.md");
 	const FString BackpackScreenPath = TEXT("/Game/UI/Playtest_UI/WBP_BackpackScreen");
 	const FString BackpackGridPath = TEXT("/Game/UI/Playtest_UI/BackpackGrid/WBP_BackpackGrid");
 	const FString PendingGridPath = TEXT("/Game/UI/Playtest_UI/BackpackGrid/WBP_PendingGrid");
@@ -1291,12 +1291,12 @@ int32 UBackpackDeckUIStyleSetupCommandlet::Main(const FString& Params)
 		}
 	}
 
-	const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), ReportFileName);
-	FFileHelper::SaveStringToFile(
-		FString::Join(ReportLines, LINE_TERMINATOR),
-		*ReportPath,
-		FFileHelper::EEncodingOptions::ForceUTF8);
+	// const FString ReportPath = FPaths::Combine(FPaths::ProjectSavedDir(), BackpackDeckUIStyleSetup::ReportFileName);
+	// FFileHelper::SaveStringToFile(
+	// 	FString::Join(ReportLines, LINE_TERMINATOR),
+	// 	*ReportPath,
+	// 	FFileHelper::EEncodingOptions::ForceUTF8);
 
-	UE_LOG(LogTemp, Display, TEXT("Backpack deck UI style setup finished. Report: %s"), *ReportPath);
+	// UE_LOG(LogTemp, Display, TEXT("Backpack deck UI style setup finished. Report: %s"), *ReportPath);
 	return 0;
 }
