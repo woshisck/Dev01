@@ -274,6 +274,10 @@ void UCombatDeckEditWidget::RefreshDeckListInternal(bool bUseDragPreview)
 		}
 
 		const bool bShowSelectedState = !bCanPreviewDrag && Index == SelectedCardIndex;
+		if (bShowSelectedState && PendingSelectionAnimationDirection != 0)
+		{
+			CardSlotWidget->SetSelectionAnimationHint(PendingSelectionAnimationDirection);
+		}
 		CardSlotWidget->SetCard(this, Cards[Index], Index, bShowSelectedState);
 		CardSlotWidget->SetLinkHintState(LinkHintStates.IsValidIndex(Index)
 			? LinkHintStates[Index]
@@ -289,6 +293,7 @@ void UCombatDeckEditWidget::RefreshDeckListInternal(bool bUseDragPreview)
 		AddInlineFloatingDragCardToList(Cards[DragSourceIndex], DragSourceIndex);
 	}
 
+	PendingSelectionAnimationDirection = 0;
 	RefreshSelectedCardInfo();
 }
 
@@ -364,6 +369,7 @@ bool UCombatDeckEditWidget::SelectAdjacentCard(int32 Direction)
 		return true;
 	}
 
+	PendingSelectionAnimationDirection = Direction;
 	SelectCard(NextIndex);
 	return true;
 }

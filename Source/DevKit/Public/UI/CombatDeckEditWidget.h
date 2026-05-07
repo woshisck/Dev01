@@ -195,6 +195,7 @@ private:
 	bool bDetailPreviewVisible = true;
 	bool bPointerHoverSelectionEnabled = true;
 	float GamepadNavigationSuppressPointerUntilTime = 0.0f;
+	int32 PendingSelectionAnimationDirection = 0;
 
 	void UnbindFromCurrentDeck();
 	void ApplyDetailPreviewVisibility();

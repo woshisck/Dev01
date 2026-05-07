@@ -23,6 +23,9 @@ public:
 	void SetCard(UCombatDeckEditWidget* InOwnerWidget, const FCombatCardInstance& InCard, int32 InDeckIndex, bool bInSelected);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
+	void SetSelectionAnimationHint(int32 Direction);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
 	void SetLinkHintState(ECombatDeckEditCardLinkHintState InHintState);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
@@ -43,6 +46,7 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual FReply NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
@@ -67,6 +71,15 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Visual")
 	FLinearColor DefaultCardFrameTint = FLinearColor(0.84f, 0.88f, 0.92f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Visual|Selection", meta = (ClampMin = "1.0", ClampMax = "1.5"))
+	float SelectedCardScale = 1.12f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Visual|Selection", meta = (ClampMin = "0.0", ClampMax = "128.0"))
+	float SelectionSwipeOffset = 28.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Visual|Selection", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float SelectionSwipeDuration = 0.12f;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> CardNameText;
@@ -111,6 +124,11 @@ private:
 	FLinearColor DefaultColorAndOpacity = FLinearColor::White;
 	float DefaultRenderOpacity = 1.0f;
 	FWidgetTransform DefaultRenderTransform;
+	int32 PendingSelectionAnimationDirection = 0;
+	bool bSelectionAnimationActive = false;
+	float SelectionAnimationElapsed = 0.0f;
+	FWidgetTransform SelectionAnimationStartTransform;
+	FWidgetTransform SelectionAnimationTargetTransform;
 	FTimerHandle BlockedFeedbackTimerHandle;
 
 	UFUNCTION()
@@ -126,6 +144,8 @@ private:
 	void ResetVisualState();
 	void CaptureDefaultVisualState();
 	void ApplySelectionVisual();
+	void StartSelectionSwipeAnimation(int32 Direction, const FWidgetTransform& TargetTransform);
+	FWidgetTransform BuildSelectedRenderTransform() const;
 	void ApplyLinkHintVisual();
 	FReply HandleCardMouseButtonDown(const FPointerEvent& InMouseEvent);
 	FReply HandleSuppressedVirtualPointerDown();

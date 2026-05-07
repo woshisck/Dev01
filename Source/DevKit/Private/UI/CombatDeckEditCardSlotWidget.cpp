@@ -17,7 +17,6 @@ namespace
 constexpr float BlockedFeedbackSeconds = 0.22f;
 constexpr float DragVisualOpacity = 0.72f;
 constexpr float DragVisualScale = 1.04f;
-constexpr float SelectedVisualScale = 1.03f;
 const FLinearColor SelectedColorAndOpacity(0.84f, 0.88f, 0.96f, 1.0f);
 const FLinearColor ForwardLinkHintColor(0.62f, 0.78f, 0.90f, 0.20f);
 const FLinearColor ForwardTargetHintColor(0.62f, 0.78f, 0.90f, 0.13f);
@@ -67,6 +66,46 @@ void UCombatDeckEditCardSlotWidget::NativeDestruct()
 {
 	ResetVisualState();
 	Super::NativeDestruct();
+}
+
+void UCombatDeckEditCardSlotWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (!bSelectionAnimationActive)
+	{
+		return;
+	}
+
+	const float Duration = FMath::Max(SelectionSwipeDuration, KINDA_SMALL_NUMBER);
+	SelectionAnimationElapsed = FMath::Min(SelectionAnimationElapsed + InDeltaTime, Duration);
+	const float Alpha = SelectionAnimationElapsed / Duration;
+	const float EasedAlpha = FMath::InterpEaseOut(0.0f, 1.0f, Alpha, 3.0f);
+
+	FWidgetTransform AnimatedTransform = SelectionAnimationTargetTransform;
+	AnimatedTransform.Translation = FMath::Lerp(
+		SelectionAnimationStartTransform.Translation,
+		SelectionAnimationTargetTransform.Translation,
+		EasedAlpha);
+	AnimatedTransform.Scale = FMath::Lerp(
+		SelectionAnimationStartTransform.Scale,
+		SelectionAnimationTargetTransform.Scale,
+		EasedAlpha);
+	AnimatedTransform.Shear = FMath::Lerp(
+		SelectionAnimationStartTransform.Shear,
+		SelectionAnimationTargetTransform.Shear,
+		EasedAlpha);
+	AnimatedTransform.Angle = FMath::Lerp(
+		SelectionAnimationStartTransform.Angle,
+		SelectionAnimationTargetTransform.Angle,
+		EasedAlpha);
+	SetRenderTransform(AnimatedTransform);
+
+	if (SelectionAnimationElapsed >= Duration)
+	{
+		bSelectionAnimationActive = false;
+		SetRenderTransform(SelectionAnimationTargetTransform);
+	}
 }
 
 void UCombatDeckEditCardSlotWidget::SetCard(UCombatDeckEditWidget* InOwnerWidget, const FCombatCardInstance& InCard, int32 InDeckIndex, bool bInSelected)
@@ -122,6 +161,11 @@ void UCombatDeckEditCardSlotWidget::SetCard(UCombatDeckEditWidget* InOwnerWidget
 	BP_OnCardChanged(Card, DeckIndex, bSelected);
 }
 
+void UCombatDeckEditCardSlotWidget::SetSelectionAnimationHint(int32 Direction)
+{
+	PendingSelectionAnimationDirection = FMath::Clamp(Direction, -1, 1);
+}
+
 void UCombatDeckEditCardSlotWidget::SetLinkHintState(ECombatDeckEditCardLinkHintState InHintState)
 {
 	LinkHintState = InHintState;
@@ -135,6 +179,8 @@ void UCombatDeckEditCardSlotWidget::ClearCard()
 	DeckIndex = INDEX_NONE;
 	bSelected = false;
 	LinkHintState = ECombatDeckEditCardLinkHintState::None;
+	PendingSelectionAnimationDirection = 0;
+	bSelectionAnimationActive = false;
 	ApplyLinkHintVisual();
 	SetVisibility(ESlateVisibility::Collapsed);
 }
@@ -457,6 +503,8 @@ void UCombatDeckEditCardSlotWidget::StartDragVisual()
 
 void UCombatDeckEditCardSlotWidget::ResetVisualState()
 {
+	bSelectionAnimationActive = false;
+
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(BlockedFeedbackTimerHandle);
@@ -494,9 +542,41 @@ void UCombatDeckEditCardSlotWidget::ApplySelectionVisual()
 
 	SetColorAndOpacity(SelectedColorAndOpacity);
 
+	const FWidgetTransform SelectedTransform = BuildSelectedRenderTransform();
+	if (PendingSelectionAnimationDirection != 0 && SelectionSwipeDuration > 0.0f)
+	{
+		StartSelectionSwipeAnimation(PendingSelectionAnimationDirection, SelectedTransform);
+	}
+	else
+	{
+		SetRenderTransform(SelectedTransform);
+	}
+	PendingSelectionAnimationDirection = 0;
+}
+
+void UCombatDeckEditCardSlotWidget::StartSelectionSwipeAnimation(int32 Direction, const FWidgetTransform& TargetTransform)
+{
+	const int32 ClampedDirection = FMath::Clamp(Direction, -1, 1);
+	if (ClampedDirection == 0)
+	{
+		SetRenderTransform(TargetTransform);
+		return;
+	}
+
+	SelectionAnimationElapsed = 0.0f;
+	SelectionAnimationTargetTransform = TargetTransform;
+	SelectionAnimationStartTransform = DefaultRenderTransform;
+	SelectionAnimationStartTransform.Translation.X -= static_cast<float>(ClampedDirection) * SelectionSwipeOffset;
+	SelectionAnimationStartTransform.Scale = DefaultRenderTransform.Scale;
+	bSelectionAnimationActive = true;
+	SetRenderTransform(SelectionAnimationStartTransform);
+}
+
+FWidgetTransform UCombatDeckEditCardSlotWidget::BuildSelectedRenderTransform() const
+{
 	FWidgetTransform SelectedTransform = DefaultRenderTransform;
-	SelectedTransform.Scale *= FVector2D(SelectedVisualScale, SelectedVisualScale);
-	SetRenderTransform(SelectedTransform);
+	SelectedTransform.Scale *= FVector2D(SelectedCardScale, SelectedCardScale);
+	return SelectedTransform;
 }
 
 void UCombatDeckEditCardSlotWidget::ApplyLinkHintVisual()
