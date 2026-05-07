@@ -48,6 +48,8 @@ public:
 	/** 折叠动画：InfoContainer 淡出，完成后广播缩略图屏幕中心坐标 */
 	void StartCollapse(float InDuration = 0.25f);
 
+	void BroadcastCollapseComplete(FVector2D ThumbnailScreenCenter);
+
 	bool ScrollCardList(float Direction);
 
 	/** 折叠完成时触发（传入 WeaponThumbnail 的屏幕绝对中心坐标） */

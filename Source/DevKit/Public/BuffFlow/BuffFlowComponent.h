@@ -10,6 +10,7 @@ class UYogAbilitySystemComponent;
 class AYogCharacterBase;
 class UFlowAsset;
 class UNiagaraComponent;
+class URuneDataAsset;
 
 /** Buff Flow 启动/停止事件：携带 RuneGuid 供监听节点过滤 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuffFlowEvent, FGuid, RuneGuid);
@@ -33,6 +34,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BuffFlow")
 	void StartBuffFlow(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow = false);
 
+	UFUNCTION(BlueprintCallable, Category = "BuffFlow")
+	void StartBuffFlowWithRune(UFlowAsset* FlowAsset, FGuid RuneGuid, URuneDataAsset* SourceRune, AActor* Giver, bool bRestartExistingFlow = false);
+
 	void StartCombatCardFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card, const FCombatDeckActionContext& ActionContext, const FCombatCardResolveResult& ResolveResult, AActor* Giver, bool bRestartExistingFlow = true);
 
 	void StartCombatCardFlowWithSourceTransform(
@@ -55,6 +59,12 @@ public:
 	void StopAllBuffFlows();
 
 	UFlowAsset* GetActiveBuffFlowAsset(FGuid RuneGuid) const;
+
+	UFUNCTION(BlueprintPure, Category = "BuffFlow")
+	URuneDataAsset* GetActiveSourceRuneData(UFlowAsset* FlowAsset) const;
+
+	UFUNCTION(BlueprintPure, Category = "BuffFlow")
+	float GetRuneTuningValueForFlow(UFlowAsset* FlowAsset, FName Key, float DefaultValue = 0.f) const;
 
 	// ─── Buff 事件委托 ─────────────────────────────────────
 
@@ -103,7 +113,7 @@ public:
 	FVector LastKillLocation = FVector::ZeroVector;
 
 private:
-	void StartBuffFlowInternal(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow, bool bAllowParallelSameFlow = false);
+	void StartBuffFlowInternal(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow, bool bAllowParallelSameFlow = false, URuneDataAsset* SourceRune = nullptr);
 
 	UPROPERTY()
 	bool bHasCombatCardEffectContext = false;
@@ -119,5 +129,7 @@ private:
 
 	/** RuneGuid → 活跃的 Flow 实例（用于停止） */
 	TMap<FGuid, TWeakObjectPtr<UFlowAsset>> ActiveRuneFlows;
+
+	TMap<FGuid, TWeakObjectPtr<URuneDataAsset>> ActiveRuneSources;
 
 };

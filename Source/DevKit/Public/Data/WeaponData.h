@@ -77,6 +77,26 @@ public:
 	UFUNCTION(BlueprintPure)
 	const FWeaponAttributeData& GetWeaponData() const;
 
+	// ── 细粒度访问器（业务代码请使用，避免重复 GetWeaponData() 后再读字段）──
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Accessor")
+	float GetWeaponAtk() const { return GetWeaponData().WeaponAtk; }
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Accessor")
+	float GetWeaponAtkPower() const { return GetWeaponData().WeaponAtkPower; }
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Accessor")
+	float GetWeaponAtkRange() const { return GetWeaponData().WeaponAtkRange; }
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Accessor")
+	float GetWeaponCritRate() const { return GetWeaponData().Weapon_CritRate; }
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Accessor")
+	float GetWeaponCritDmg() const { return GetWeaponData().Weapon_CritDmg; }
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Accessor")
+	float GetDashDistance() const { return GetWeaponData().DashDistance; }
+
 
 	UFUNCTION(BlueprintCallable)
 	void GrantAbilityToOwner(AYogCharacterBase* Owner);

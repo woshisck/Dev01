@@ -328,7 +328,7 @@ int32 UShopSelectionWidget::GetEntryCost(const FShopRuneEntry& Entry) const
 	{
 		return Entry.OverrideGoldCost;
 	}
-	return Entry.RuneAsset ? FMath::Max(0, Entry.RuneAsset->RuneInfo.RuneConfig.GoldCost) : 0;
+	return Entry.RuneAsset ? FMath::Max(0, Entry.RuneAsset->GetGoldCost()) : 0;
 }
 
 FText UShopSelectionWidget::GetEntryName(const FShopRuneEntry& Entry) const
@@ -337,7 +337,7 @@ FText UShopSelectionWidget::GetEntryName(const FShopRuneEntry& Entry) const
 	{
 		return NSLOCTEXT("ShopSelection", "MissingRune", "\u672a\u77e5\u7b26\u6587");
 	}
-	return FText::FromName(Entry.RuneAsset->RuneInfo.RuneConfig.RuneName);
+	return FText::FromName(Entry.RuneAsset->GetRuneName());
 }
 
 void UShopSelectionWidget::SetButtonLabel(UButton* Button, const FText& Text) const

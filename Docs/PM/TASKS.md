@@ -29,6 +29,10 @@
 | HEAT-CARRY-001 | FA_Rune_余烬：热度携带符文，低热度时触发周期性弱爆炸（参见 HeatCarry 设计） | 用户 | [FeatureLog](../FeatureLog.md) | - |
 | HEAT-CARRY-002 | FA_Rune_炽核：热度携带符文，高热度时强化攻击 | 用户 | 同上 | - |
 | FIX-009 | BP_CelesPointLight → SphereVolume → Collision → DashTrace = Ignore | 用户 | 已用 `Dash.DebugTrace 1` 确认 | - |
+| DATA-P0-DONE | 数值统一访问器 + RuneIdTag 字段 + `Tools > DataEditor` C++菜单面板 + DataEditor 脚本工具 + Tag .ini ✅ 已完成 | Claude/Codex | [DataAuthoring](../Conventions/DataAuthoring.md) · [DataEditor测试说明](../项目需求文档/512版本项目计划/Codex开发方案/配置说明/编辑器工具/DataEditor数值编辑器测试说明.md) | - |
+| DATA-P0-1 | 跑 `pwsh Tools/DataEditor/run_migration.ps1 -Phase prepare`，重启后跑 `-Phase apply`，给有旧 `RuneID` 的 RuneDA 生成 `RuneIdTag` | 用户 | 同上 | DATA-P0-DONE |
+| DATA-P0-2 | 跑 `pwsh Tools/DataEditor/run_smoke_test.ps1`，查看 `Saved/Balance/SmokeTest_*/report.txt`，修复 Error 项 | 用户 | 同上 | DATA-P0-DONE |
+| DATA-P1-EFFECT | 当项目中创建 EffectDA 后，扩展 `Tools > DataEditor` 的 Effect 表格和 Effect 批量编辑测试 | 用户/Codex | 同上 | DATA-P0-DONE |
 
 ---
 
@@ -122,3 +126,7 @@
 | Slate 崩溃（三选一 C++ 化回滚） | `BuildShapeGrid` 运行时 NewObject 与 Slate 冲突 | 待排查，现用蓝图方案绕过 |
 | GAS deprecated API 警告 | InheritableGameplayEffectTags 等旧 API | 不影响运行，后期迁移 |
 | WBP_WeaponFloat 白屏 Bug | 背景不在 InfoContainer 内时折叠留白 | 已知修复方案（P1: FIX-010） |
+# DataEditor Update
+
+- `DATA-P0-DONE` now includes the multi-panel menu: `Tools > DevKit Data > Character Balance / Action Balance / Rune Balance`.
+- Existing `Tools > DataEditor` remains as the Rune Balance compatibility entry.

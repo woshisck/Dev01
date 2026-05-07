@@ -3,6 +3,7 @@
 #include "AbilitySystem/Abilities/Musket/GA_Musket_LightAttack.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "Character/YogCharacterBase.h"
+#include "Data/MusketActionTuningDataAsset.h"
 #include "Projectile/MusketBullet.h"
 
 UGA_Musket_LightAttack::UGA_Musket_LightAttack()
@@ -83,8 +84,10 @@ void UGA_Musket_LightAttack::DoFire()
     if (bFired) return;
     bFired = true;
 
-    const float Damage = GetBaseAttack() * DamageMultiplier;
-    const float Angle  = FMath::RandRange(-HalfAngleDeg, HalfAngleDeg);
+    const float TunedDamageMultiplier = TuningData ? TuningData->LightDamageMultiplier : DamageMultiplier;
+    const float TunedHalfAngleDeg = TuningData ? TuningData->LightHalfAngleDeg : HalfAngleDeg;
+    const float Damage = GetBaseAttack() * TunedDamageMultiplier;
+    const float Angle  = FMath::RandRange(-TunedHalfAngleDeg, TunedHalfAngleDeg);
     const FGuid AttackGuid = ResolveCombatDeckOnFire(ECardRequiredAction::Light, false, false, Damage, Angle);
     if (AMusketBullet* Bullet = SpawnBullet(Angle, Damage))
     {

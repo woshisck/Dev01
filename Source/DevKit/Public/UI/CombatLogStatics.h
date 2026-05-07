@@ -6,17 +6,34 @@
 #include "CombatLogStatics.generated.h"
 
 // ============================================================
-//  过滤器枚举（DamageBreakdownWidget 和 EUWCombatLog 共用）
+//  过滤器枚举（EUW_CombatLog 使用）
 // ============================================================
 
 UENUM(BlueprintType)
 enum class ECombatLogFilter : uint8
 {
-	All    UMETA(DisplayName = "全部"),
-	Normal UMETA(DisplayName = "普通"),
-	Crit   UMETA(DisplayName = "暴击"),
-	Rune   UMETA(DisplayName = "符文"),
-	Bleed  UMETA(DisplayName = "流血"),
+	All      UMETA(DisplayName = "全部"),
+	Normal   UMETA(DisplayName = "普通"),
+	Crit     UMETA(DisplayName = "暴击"),
+	Rune     UMETA(DisplayName = "符文"),
+	Bleed    UMETA(DisplayName = "流血"),
+	// 512版本新增（追加到末尾，勿插入中间，否则蓝图枚举值错位）
+	Card     UMETA(DisplayName = "卡牌"),
+	Finisher UMETA(DisplayName = "终结技"),
+	Link     UMETA(DisplayName = "连携"),
+	Shuffle  UMETA(DisplayName = "洗牌"),
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FCombatLogTextSegment
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "CombatLog")
+	FString Text;
+
+	UPROPERTY(BlueprintReadOnly, Category = "CombatLog")
+	FLinearColor Color = FLinearColor::White;
 };
 
 /**
@@ -84,6 +101,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "CombatLog")
 	static FString GetEntryText(const FDamageBreakdown& Entry);
 
+	/** 格式化单条记录为分段上色文本，供 Dota2 风格日志行使用 */
+	UFUNCTION(BlueprintPure, Category = "CombatLog")
+	static TArray<FCombatLogTextSegment> GetEntryTextSegments(const FDamageBreakdown& Entry, bool bDebugMode = false);
+
 	/** 返回单条记录的颜色（普通=白，暴击=黄，符文=紫，流血=红） */
 	UFUNCTION(BlueprintPure, Category = "CombatLog")
 	static FLinearColor GetEntryColor(const FDamageBreakdown& Entry);
@@ -91,6 +112,20 @@ public:
 	/** 判断单条记录是否通过过滤器 */
 	UFUNCTION(BlueprintPure, Category = "CombatLog")
 	static bool PassesFilter(const FDamageBreakdown& Entry, ECombatLogFilter Filter);
+
+	/** 判断记录是否通过类型、攻击者、目标和时间窗口组合过滤 */
+	UFUNCTION(BlueprintPure, Category = "CombatLog")
+	static bool PassesAdvancedFilter(
+		const FDamageBreakdown& Entry,
+		ECombatLogFilter Filter,
+		const FString& SourceFilter,
+		const FString& TargetFilter,
+		float CurrentTime,
+		float TimeWindowSeconds);
+
+	/** 清理蓝图生成名，转换为更适合日志阅读的显示名 */
+	UFUNCTION(BlueprintPure, Category = "CombatLog")
+	static FString GetDisplayActorName(const FString& RawName);
 
 	/** 单次会话最多保留的记录数（超出后移除最旧的） */
 	static constexpr int32 MaxEntries = 500;

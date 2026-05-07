@@ -1152,7 +1152,7 @@ void UYogAbilitySystemComponent::LogDamageDealt(AActor* Target, float Damage, FN
 	UE_LOG(LogTemp, Log, TEXT("[DmgLog] %s → %s | %.1f | %s"),
 		*SourceName, *TargetName, Damage, *DamageType.ToString());
 
-	// 向 DamageBreakdownWidget 广播（简化形式，无动作系数分解）
+	// 简化形式广播（无动作系数分解）
 	FDamageBreakdown Simple;
 	Simple.FinalDamage   = Damage;
 	Simple.DamageType    = DamageType;
@@ -1193,7 +1193,6 @@ void UYogAbilitySystemComponent::LogDamageDealtDetailed(AActor* Target, const FD
 	UE_LOG(LogTemp, Log, TEXT("[DmgLog] %s → %s | %.1f | %s"),
 		*GetNameSafe(GetAvatarActor()), *Breakdown.TargetName, Breakdown.FinalDamage, *Breakdown.DamageType.ToString());
 
-	// 广播给 DamageBreakdownWidget + 静态编辑器桥
 	OnDamageBreakdown.Broadcast(Breakdown);
 	UCombatLogStatics::PushEntry(Breakdown);
 }

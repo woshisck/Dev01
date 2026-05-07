@@ -112,11 +112,11 @@ void UYogCheatManager::Yog_GiveRune(int32 RuneID)
 		URuneDataAsset* DA = *It;
 		if (!IsValid(DA) || DA->HasAnyFlags(RF_ClassDefaultObject)) continue;
 
-		if (DA->RuneInfo.RuneConfig.RuneID == RuneID)
+		if (DA->GetLegacyRuneID() == RuneID)
 		{
 			FRuneInstance Instance = DA->CreateInstance();
 			Char->AddRuneToInventory(Instance);
-			UE_LOG(LogTemp, Log, TEXT("[GM] 已给予符文 %s（ID=%d），加入待放置列表"), *DA->RuneInfo.RuneConfig.RuneName.ToString(), RuneID);
+			UE_LOG(LogTemp, Log, TEXT("[GM] 已给予符文 %s（ID=%d），加入待放置列表"), *DA->GetRuneName().ToString(), RuneID);
 			return;
 		}
 	}

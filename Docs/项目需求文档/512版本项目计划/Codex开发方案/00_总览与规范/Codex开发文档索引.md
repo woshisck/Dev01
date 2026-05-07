@@ -42,15 +42,19 @@
 | `配置说明/符文/` | 符文、卡牌、BuffFlow、连携卡相关配置说明 |
 | `配置说明/武器/` | 武器 DA、初始卡组、武器连招相关配置说明 |
 | `配置说明/UI/` | WBP、HUD、菜单、界面绑定相关配置说明 |
+| `配置说明/编辑器工具/` | DataEditor 菜单面板、批量生成工具、自动化测试脚本相关说明 |
 | `配置说明/奖励/` | 三选一、奖励池、掉落池相关配置说明 |
 | `配置说明/敌人/` | 敌人 BP、EnemyData、AI 行为树、动作命中相关配置说明 |
 | `配置说明/关卡/` | 刷怪难度分、房间敌人上限、关卡节奏相关配置说明 |
+
+UI 配置说明中，`配置说明/UI/EUW_CombatLog配置说明.md` 记录战斗日志编辑器的当前功能、Dota2 风格控制栏、WBP 控件命名、Class Defaults 和验收方式。
 
 新增配置文档时，必须先按功能种类进入对应文件夹，再按配置对象拆文件，例如：
 
 ```text
 配置说明/符文/战斗卡牌符文DA配置说明.md
 配置说明/符文/符文WBP配置说明.md
+配置说明/编辑器工具/DataEditor数值编辑器测试说明.md
 配置说明/战斗手感/FreezeHitStop配置说明.md
 配置说明/表现/命中特效Niagara配置说明.md
 ```
@@ -85,3 +89,8 @@
 2. `配置说明/<功能种类>/<配置对象>配置说明.md`
 
 如果涉及 WBP、材质 Custom Node、Niagara、DataTable，必须按对象拆分配置说明。
+# DataEditor Entry Update
+
+- Manual balance panels: `Tools > DevKit Data > Character Balance / Action Balance / Rune Balance`.
+- Test guide: `配置说明/编辑器工具/DataEditor数值编辑器测试说明.md`.
+- Script guide: `Tools/DataEditor/README.md`.

@@ -1257,7 +1257,7 @@ static FString GetEnemyRuneDebugName(const URuneDataAsset* RuneDA)
 	if (!RuneDA)
 		return TEXT("None");
 
-	const FName RuneName = RuneDA->RuneInfo.RuneConfig.RuneName;
+	const FName RuneName = RuneDA->GetRuneName();
 	return RuneName.IsNone() ? GetNameSafe(RuneDA) : RuneName.ToString();
 }
 
@@ -1276,8 +1276,8 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 		return;
 	}
 
-	UFlowAsset* FlowAsset = RuneDA->RuneInfo.Flow.FlowAsset;
-	const ERuneTriggerType TriggerType = RuneDA->RuneInfo.RuneConfig.TriggerType;
+	UFlowAsset* FlowAsset = RuneDA->GetFlowAsset();
+	const ERuneTriggerType TriggerType = RuneDA->GetTriggerType();
 	const FString RuneDebugName = GetEnemyRuneDebugName(RuneDA);
 
 	if (!FlowAsset)
@@ -1307,7 +1307,7 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] StartPassive Enemy=%s Source=%s Rune=%s Flow=%s"),
 			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(FlowAsset));
-		BFC->StartBuffFlow(FlowAsset, FGuid::NewGuid(), Enemy);
+		BFC->StartBuffFlowWithRune(FlowAsset, FGuid::NewGuid(), RuneDA, Enemy);
 		return;
 	}
 
@@ -1330,13 +1330,14 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 	TWeakObjectPtr<AEnemyCharacterBase> WeakEnemy = Enemy;
 	TWeakObjectPtr<UBuffFlowComponent> WeakBFC = BFC;
 	TWeakObjectPtr<UFlowAsset> WeakFlowAsset = FlowAsset;
+	TWeakObjectPtr<URuneDataAsset> WeakRuneDA = RuneDA;
 	const FString CapturedRuneName = RuneDebugName;
 	const FString CapturedRuneDAName = GetNameSafe(RuneDA);
 	const FString CapturedFlowName = GetNameSafe(FlowAsset);
 	const FString CapturedSource = Source;
 	const FString CapturedTriggerName = GetEnemyRuneTriggerName(TriggerType);
 	ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag)
-		.AddWeakLambda(BFC, [WeakEnemy, WeakBFC, WeakFlowAsset, EventTag, CapturedRuneName, CapturedRuneDAName, CapturedFlowName, CapturedSource, CapturedTriggerName](const FGameplayEventData* Payload)
+		.AddWeakLambda(BFC, [WeakEnemy, WeakBFC, WeakFlowAsset, WeakRuneDA, EventTag, CapturedRuneName, CapturedRuneDAName, CapturedFlowName, CapturedSource, CapturedTriggerName](const FGameplayEventData* Payload)
 		{
 			AEnemyCharacterBase* CapturedEnemy = WeakEnemy.Get();
 			UBuffFlowComponent* CapturedBFC = WeakBFC.Get();
@@ -1366,7 +1367,7 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 				*GetNameSafe(TargetActor),
 				Payload ? Payload->EventMagnitude : 0.f);
 
-			CapturedBFC->StartBuffFlow(CapturedFlow, FGuid::NewGuid(), CapturedEnemy, true);
+			CapturedBFC->StartBuffFlowWithRune(CapturedFlow, FGuid::NewGuid(), WeakRuneDA.Get(), CapturedEnemy, true);
 		});
 
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Registered Enemy=%s Source=%s Rune=%s DA=%s Flow=%s Trigger=%s Event=%s"),
@@ -2100,7 +2101,7 @@ TArray<FLootOption> AYogGameMode::GenerateLootBatch(TSet<URuneDataAsset*>& Alrea
 				TSet<FName> MaxLevelSet(MaxLevelNames);
 				Pool = Pool.FilterByPredicate([&](URuneDataAsset* DA)
 				{
-					return DA && !MaxLevelSet.Contains(DA->RuneInfo.RuneConfig.RuneName);
+					return DA && !MaxLevelSet.Contains(DA->GetRuneName());
 				});
 			}
 		}

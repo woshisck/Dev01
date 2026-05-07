@@ -1,5 +1,6 @@
 #include "Component/CombatDeckComponent.h"
 
+#include "UI/CombatLogStatics.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
@@ -343,6 +344,29 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		OnShuffleStarted.Broadcast(Result);
 	}
 
+	// ── 512版本：推卡牌消耗行到战斗日志 ────────────────────────────────
+	if (Result.ConsumedCard.IsValidCard())
+	{
+		FDamageBreakdown Consume;
+		Consume.bIsCardEventOnly  = true;
+		Consume.bHadCard          = true;
+		Consume.bConsumedCard     = true;
+		Consume.bActionMatched    = Result.bActionMatched;
+		Consume.bTriggeredMatchedFlow = Result.bTriggeredMatchedFlow;
+		Consume.bTriggeredLink    = Result.bTriggeredLink || Result.bTriggeredForwardLink || Result.bTriggeredBackwardLink;
+		Consume.bTriggeredFinisher = Result.bTriggeredFinisher;
+		Consume.bStartedShuffle   = Result.bStartedShuffle;
+		Consume.CardDisplayName   = Result.ConsumedCard.SourceData
+			? Result.ConsumedCard.SourceData->GetRuneName()
+			: Result.ConsumedCard.Config.CardIdTag.GetTagName();
+		Consume.CardConsumeTiming = Result.ConsumedCard.Config.TriggerTiming == ECombatCardTriggerTiming::OnCommit
+			? FName("OnCommit") : FName("OnHit");
+		Consume.SourceName        = GetNameSafe(GetOwner());
+		Consume.GameTime          = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+		Consume.DamageType        = Result.bStartedShuffle ? FName("Card_Shuffle") : FName("Card_Consume");
+		UCombatLogStatics::PushEntry(Consume);
+	}
+
 	return Result;
 }
 
@@ -642,7 +666,7 @@ FCombatCardInstance UCombatDeckComponent::MakeCardFromRune(URuneDataAsset* RuneA
 
 	if (Card.Config.DisplayName.IsEmpty())
 	{
-		Card.Config.DisplayName = FText::FromName(RuneAsset->RuneInfo.RuneConfig.RuneName);
+		Card.Config.DisplayName = FText::FromName(RuneAsset->GetRuneName());
 	}
 
 	return Card;

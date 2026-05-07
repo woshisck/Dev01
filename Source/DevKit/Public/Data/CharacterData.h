@@ -128,6 +128,57 @@ public:
 
 	const TArray<TSubclassOf<UAnimInstance>> GetDefaultAnimeLayers() const;
 
+	// ── 细粒度访问器（业务代码请使用，避免重复 GetBaseAttributeData() 后再读字段）──
+	// 数值缺失时返回 FYogBaseAttributeData 默认值。
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetMaxHealth() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetMaxHeat() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetShield() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetAttack() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetAttackPower() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetAttackSpeed() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetAttackRange() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetMoveSpeed() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetCritRate() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetCritDamage() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetMaxArmorHP() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetDodge() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetResilience() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetResist() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetDmgTaken() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character|Accessor")
+	float GetSanity() const;
+
 	inline static const FMovementData DefaultMovementData;
 
 	inline static const FYogBaseAttributeData DefaultCharacterData;

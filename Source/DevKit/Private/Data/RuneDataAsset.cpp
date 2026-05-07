@@ -55,3 +55,28 @@ FRuneInstance URuneDataAsset::CreateInstance() const
 	return Instance;
 }
 
+bool URuneDataAsset::GetRuneTuningScalar(FName Key, FRuneTuningScalar& OutScalar) const
+{
+	if (Key.IsNone())
+	{
+		return false;
+	}
+
+	for (const FRuneTuningScalar& Scalar : RuneInfo.RuneConfig.TuningScalars)
+	{
+		if (Scalar.Key == Key)
+		{
+			OutScalar = Scalar;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+float URuneDataAsset::GetRuneTuningValue(FName Key, float DefaultValue) const
+{
+	FRuneTuningScalar Scalar;
+	return GetRuneTuningScalar(Key, Scalar) ? Scalar.Value : DefaultValue;
+}
+

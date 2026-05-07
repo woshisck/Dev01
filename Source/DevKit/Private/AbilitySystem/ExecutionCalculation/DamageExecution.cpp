@@ -5,6 +5,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "GameplayEffectAggregator.h"
+#include "BuffFlow/BuffFlowComponent.h"
+#include "Character/PlayerCharacterBase.h"
 
 namespace
 {
@@ -238,15 +240,68 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 		}
 
 		FDamageBreakdown Breakdown;
-		Breakdown.BaseAttack      = SourceAttack;
+		Breakdown.BaseAttack       = SourceAttack;
 		Breakdown.ActionMultiplier = SourceAttackPower;
-		Breakdown.DmgTakenMult    = TargetDmgTaken;
-		Breakdown.FinalDamage     = FinalDamage;
-		Breakdown.bIsCrit         = bIsCrit;
-		Breakdown.ActionName      = ActionName;
-		Breakdown.DamageType      = bIsCrit ? FName("Attack_Crit") : FName("Attack");
-		Breakdown.TargetName      = GetNameSafe(TargetASC ? TargetASC->GetAvatarActor() : nullptr);
-		Breakdown.SourceName      = GetNameSafe(SourceActor);
+		Breakdown.DmgTakenMult     = TargetDmgTaken;
+		Breakdown.FinalDamage      = FinalDamage;
+		Breakdown.bIsCrit          = bIsCrit;
+		Breakdown.ActionName       = ActionName;
+		Breakdown.DamageType       = bIsCrit ? FName("Attack_Crit") : FName("Attack");
+		Breakdown.TargetName       = GetNameSafe(TargetASC ? TargetASC->GetAvatarActor() : nullptr);
+		Breakdown.SourceName       = GetNameSafe(SourceActor);
+		Breakdown.bHasTargetVitals = TargetMaxHealth > 0.f;
+		if (Breakdown.bHasTargetVitals)
+		{
+			const float TargetArmorBefore = TargetASC
+				? FMath::Max(0.f, TargetASC->GetNumericAttribute(UBaseAttributeSet::GetArmorHPAttribute()))
+				: 0.f;
+			const float TargetArmorAfter = FMath::Max(0.f, TargetArmorBefore - FinalDamage);
+			const float EstimatedHealthDamage = FMath::Max(0.f, FinalDamage - TargetArmorBefore);
+
+			Breakdown.TargetHealthBefore = FMath::Clamp(TargetHealth, 0.f, TargetMaxHealth);
+			Breakdown.TargetHealthAfter = FMath::Clamp(TargetHealth - EstimatedHealthDamage, 0.f, TargetMaxHealth);
+			Breakdown.TargetArmorBefore = TargetArmorBefore;
+			Breakdown.TargetArmorAfter = TargetArmorAfter;
+		}
+
+		// ── 512版本：从 BuffFlowComponent 读取卡牌上下文 ──────────────────
+		if (APlayerCharacterBase* PlayerChar = Cast<APlayerCharacterBase>(SourceActor))
+		{
+			if (UBuffFlowComponent* BFC = PlayerChar->BuffFlowComponent)
+			{
+				if (BFC->HasCombatCardEffectContext())
+				{
+					const FCombatCardEffectContext& Ctx = BFC->GetLastCombatCardEffectContext();
+					const FCombatCardResolveResult& Res = Ctx.ResolveResult;
+
+					Breakdown.bHadCard              = true;
+					Breakdown.bConsumedCard         = Res.ConsumedCard.IsValidCard();
+					Breakdown.bActionMatched        = Res.bActionMatched;
+					Breakdown.bTriggeredMatchedFlow = Res.bTriggeredMatchedFlow;
+					Breakdown.bTriggeredLink        = Res.bTriggeredLink
+					                               || Res.bTriggeredForwardLink
+					                               || Res.bTriggeredBackwardLink;
+					Breakdown.bTriggeredFinisher    = Res.bTriggeredFinisher;
+
+					if (Res.ConsumedCard.IsValidCard())
+					{
+						Breakdown.CardDisplayName = Res.ConsumedCard.SourceData
+							? Res.ConsumedCard.SourceData->GetRuneName()
+							: Res.ConsumedCard.Config.CardIdTag.GetTagName();
+					}
+
+					// DamageType 按卡牌结果升级（优先级：终结技 > 连携 > 匹配 > 普通卡牌命中）
+					if (Breakdown.bTriggeredFinisher)
+						Breakdown.DamageType = FName("Card_Finisher");
+					else if (Breakdown.bTriggeredLink)
+						Breakdown.DamageType = FName("Card_Link");
+					else if (Breakdown.bTriggeredMatchedFlow)
+						Breakdown.DamageType = FName("Card_Matched");
+					else if (Breakdown.bHadCard)
+						Breakdown.DamageType = FName("Card_Hit");
+				}
+			}
+		}
 
 		SourceASC->LogDamageDealtDetailed(TargetASC ? TargetASC->GetAvatarActor() : nullptr, Breakdown);
 	}

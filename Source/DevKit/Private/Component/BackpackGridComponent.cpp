@@ -84,13 +84,13 @@ bool UBackpackGridComponent::SpendGold(int32 Amount)
 bool UBackpackGridComponent::CanAffordRune(const URuneDataAsset* DA) const
 {
 	if (!DA) return false;
-	return Gold >= DA->RuneInfo.RuneConfig.GoldCost;
+	return Gold >= DA->GetGoldCost();
 }
 
 bool UBackpackGridComponent::BuyRune(URuneDataAsset* DA)
 {
 	if (!DA) return false;
-	return SpendGold(DA->RuneInfo.RuneConfig.GoldCost);
+	return SpendGold(DA->GetGoldCost());
 }
 
 bool UBackpackGridComponent::SellRune(FGuid RuneGuid)
@@ -261,7 +261,7 @@ void UBackpackGridComponent::AddHiddenPassiveRune(const FRuneInstance& Rune)
 
 	if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
 	{
-		BFC->StartBuffFlow(Rune.Flow.FlowAsset, Rune.RuneGuid, GetOwner());
+		BFC->StartBuffFlowWithRune(Rune.Flow.FlowAsset, Rune.RuneGuid, Rune.SourceDA, GetOwner());
 		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] RuntimeHiddenPassive activated: %s"),
 			*Rune.RuneConfig.RuneName.ToString());
 	}
@@ -290,7 +290,7 @@ void UBackpackGridComponent::ActivateHiddenPassiveRunes()
 		if (!DA || !DA->RuneInfo.Flow.FlowAsset) continue;
 
 		FRuneInstance Instance = DA->CreateInstance();
-		BFC->StartBuffFlow(Instance.Flow.FlowAsset, Instance.RuneGuid, GetOwner());
+		BFC->StartBuffFlowWithRune(Instance.Flow.FlowAsset, Instance.RuneGuid, DA, GetOwner());
 
 		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] HiddenPassive activated: %s"),
 			*Instance.RuneConfig.RuneName.ToString());
@@ -1032,7 +1032,7 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 			*RuneName,
 			*Placed.Rune.RuneGuid.ToString(),
 			*GetNameSafe(Placed.Rune.Flow.FlowAsset));
-		BFC->StartBuffFlow(Placed.Rune.Flow.FlowAsset, Placed.Rune.RuneGuid, GetOwner());
+		BFC->StartBuffFlowWithRune(Placed.Rune.Flow.FlowAsset, Placed.Rune.RuneGuid, Placed.Rune.SourceDA, GetOwner());
 	}
 	else
 	{
@@ -1076,11 +1076,12 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 		// 用 operator= 而非拷贝构造，绕开 UE5.4 TWeakObjectPtr 构造模板的 SFINAE 推导问题
 		TWeakObjectPtr<UFlowAsset> WeakFA;
 		WeakFA = static_cast<UFlowAsset*>(Placed.Rune.Flow.FlowAsset);
+		TWeakObjectPtr<URuneDataAsset> WeakSourceRune = Placed.Rune.SourceDA;
 
 		const FString CapturedRuneName = RuneName;
 		const FString CapturedFlowName = GetNameSafe(Placed.Rune.Flow.FlowAsset);
 		FDelegateHandle Handle = ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag)
-			.AddWeakLambda(this, [this, RuneGuid, WeakFA, EventTag, CapturedRuneName, CapturedFlowName](const FGameplayEventData* Payload)
+			.AddWeakLambda(this, [this, RuneGuid, WeakFA, WeakSourceRune, EventTag, CapturedRuneName, CapturedFlowName](const FGameplayEventData* Payload)
 			{
 				UFlowAsset* FA = WeakFA.Get();
 				if (!FA || !Payload) return;
@@ -1108,7 +1109,7 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 					*GetNameSafe(InstigatorActor),
 					*GetNameSafe(TargetActor),
 					Payload->EventMagnitude);
-				BFC->StartBuffFlow(FA, FGuid::NewGuid(), GiverActor, true);
+				BFC->StartBuffFlowWithRune(FA, FGuid::NewGuid(), WeakSourceRune.Get(), GiverActor, true);
 			});
 
 		TriggeredRuneListeners.Add(RuneGuid, Handle);

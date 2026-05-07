@@ -41,7 +41,7 @@ namespace WeaponZoneColors
 			return Card.DisplayName;
 		}
 
-		return FText::FromName(RuneDA->RuneInfo.RuneConfig.RuneName);
+		return FText::FromName(RuneDA->GetRuneName());
 	}
 
 	FString NormalizeCardSummaryText(FString Text)
@@ -143,7 +143,7 @@ namespace WeaponZoneColors
 		}
 
 		FString Source = Card.HUDReasonText.IsEmpty()
-			? RuneDA->RuneInfo.RuneConfig.RuneDescription.ToString()
+			? RuneDA->GetRuneDescription().ToString()
 			: Card.HUDReasonText.ToString();
 		Source = NormalizeCardSummaryText(Source);
 
@@ -615,6 +615,17 @@ void UWeaponFloatWidget::StartCollapse(float InDuration)
 	bCollapsing      = true;
 }
 
+void UWeaponFloatWidget::BroadcastCollapseComplete(FVector2D ThumbnailScreenCenter)
+{
+	FOnWeaponFloatCollapseComplete CompletionCallback = OnCollapseComplete;
+	OnCollapseComplete.Unbind();
+
+	if (CompletionCallback.IsBound())
+	{
+		CompletionCallback.Execute(ThumbnailScreenCenter);
+	}
+}
+
 void UWeaponFloatWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
@@ -642,7 +653,6 @@ void UWeaponFloatWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 			ThumbnailCenter = G.LocalToAbsolute(G.GetLocalSize() * 0.5f);
 		}
 
-		if (OnCollapseComplete.IsBound())
-			OnCollapseComplete.Execute(ThumbnailCenter);
+		BroadcastCollapseComplete(ThumbnailCenter);
 	}
 }

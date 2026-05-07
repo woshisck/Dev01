@@ -83,7 +83,7 @@ namespace
     // RuneName 漏配兜底：开发期暴露资产名定位漏配，Shipping 显示"未命名"
     FText ResolvePortalRuneDisplayName(const URuneDataAsset& RuneDA)
     {
-        const FName RuneName = RuneDA.RuneInfo.RuneConfig.RuneName;
+        const FName RuneName = RuneDA.GetRuneName();
         if (!RuneName.IsNone())
         {
             return FText::FromName(RuneName);

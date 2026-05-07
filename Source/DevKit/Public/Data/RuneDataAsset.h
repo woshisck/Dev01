@@ -391,6 +391,30 @@ struct DEVKIT_API FRuneShape
     FIntPoint  GetPivotOffset(int32 NumRotations) const;
 };
 
+USTRUCT(BlueprintType)
+struct DEVKIT_API FRuneTuningScalar
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
+    FName Key;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
+    FText DisplayName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
+    float Value = 0.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
+    float MinValue = 0.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
+    float MaxValue = 0.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning", meta = (Categories = "Data"))
+    FGameplayTag ValueTag;
+};
+
 
 // ============================================================
 //  FRuneConfig — 符文完整配置（展示信息 + 分类元数据）
@@ -431,7 +455,15 @@ struct DEVKIT_API FRuneConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     ERuneType RuneType = ERuneType::Buff;
 
-    /** 数值 ID，供策划表引用 */
+    /**
+     * 符文身份 Tag（推荐使用，命名空间 Rune.ID.*，如 Rune.ID.BurningEdge）
+     * 替代 int32 RuneID，提供稳定且可读的身份标识。
+     * 业务代码请通过 URuneDataAsset::GetRuneIdTag() 读取，避免直接访问字段。
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Categories = "Rune.ID"))
+    FGameplayTag RuneIdTag;
+
+    /** 数值 ID（已弃用：迁移期 fallback，新代码请用 RuneIdTag）*/
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 RuneID = 0;
 
@@ -474,6 +506,9 @@ struct DEVKIT_API FRuneConfig
     /** 该符文携带的通用效果引用（如击退/燃烧等），由 RuneInfoCard 右侧子窗解释 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generic Effects")
     TArray<TObjectPtr<UGenericRuneEffectDA>> GenericEffects;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
+    TArray<FRuneTuningScalar> TuningScalars;
 };
 
 
@@ -567,4 +602,88 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Rune")
     FRuneInstance CreateInstance() const;
+
+    // ── 统一访问器（业务代码请使用，禁止直接访问 RuneInfo.RuneConfig.*）──
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    FGameplayTag GetRuneIdTag() const { return RuneInfo.RuneConfig.RuneIdTag; }
+
+    /** 仅迁移期使用，业务代码请改用 GetRuneIdTag() */
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    int32 GetLegacyRuneID() const { return RuneInfo.RuneConfig.RuneID; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    FName GetRuneName() const { return RuneInfo.RuneConfig.RuneName; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    UTexture2D* GetRuneIcon() const { return RuneInfo.RuneConfig.RuneIcon; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    UTexture2D* GetCardBackground() const { return RuneInfo.RuneConfig.CardBackground; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    FText GetRuneDescription() const { return RuneInfo.RuneConfig.RuneDescription; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    FText GetHUDSummaryText() const { return RuneInfo.RuneConfig.HUDSummaryText; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    ERuneType GetRuneType() const { return RuneInfo.RuneConfig.RuneType; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    int32 GetGoldCost() const { return RuneInfo.RuneConfig.GoldCost; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    int32 GetSellPrice() const { return RuneInfo.RuneConfig.GoldCost / 2; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    ERuneRarity GetRarity() const { return RuneInfo.RuneConfig.Rarity; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    ERuneChainRole GetChainRole() const { return RuneInfo.RuneConfig.ChainRole; }
+
+    /** C++ 引用访问（无封送拷贝；蓝图请用 GetChainDirectionsArray） */
+    const TSet<EChainDirection>& GetChainDirections() const { return RuneInfo.RuneConfig.ChainDirections; }
+
+    /** Blueprint 友好版本：返回数组拷贝 */
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor", DisplayName = "Get Chain Directions")
+    TArray<EChainDirection> GetChainDirectionsArray() const { return RuneInfo.RuneConfig.ChainDirections.Array(); }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    ERuneTriggerType GetTriggerType() const { return RuneInfo.RuneConfig.TriggerType; }
+
+    /** C++ 引用访问 */
+    const TArray<TObjectPtr<UGenericRuneEffectDA>>& GetGenericEffects() const { return RuneInfo.RuneConfig.GenericEffects; }
+
+    /** Blueprint 友好版本：返回裸指针数组拷贝 */
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor", DisplayName = "Get Generic Effects")
+    TArray<UGenericRuneEffectDA*> GetGenericEffectsArray() const
+    {
+        TArray<UGenericRuneEffectDA*> Out;
+        Out.Reserve(RuneInfo.RuneConfig.GenericEffects.Num());
+        for (const TObjectPtr<UGenericRuneEffectDA>& E : RuneInfo.RuneConfig.GenericEffects)
+        {
+            Out.Add(E.Get());
+        }
+        return Out;
+    }
+
+    /** C++ 引用访问 */
+    const FRuneShape& GetShape() const { return RuneInfo.Shape; }
+
+    /** Blueprint 友好版本：返回结构体拷贝 */
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor", DisplayName = "Get Shape")
+    FRuneShape GetShapeCopy() const { return RuneInfo.Shape; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    UFlowAsset* GetFlowAsset() const { return RuneInfo.Flow.FlowAsset; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    const TArray<FRuneTuningScalar>& GetTuningScalars() const { return RuneInfo.RuneConfig.TuningScalars; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    bool GetRuneTuningScalar(FName Key, FRuneTuningScalar& OutScalar) const;
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    float GetRuneTuningValue(FName Key, float DefaultValue = 0.f) const;
 };

@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-05-07
+
+### [CombatLog-512] 战斗日志系统 512 版本升级
+
+**状态**：C++ 完成已编译（3.8s 零错误）；EUW_CombatLog Blueprint 的 `FilterButtonBox` / `LogScrollBox` / `SummaryText` 控件需在编辑器手动绑定以获得精确布局。
+
+| 项目 | 内容 |
+|------|------|
+| 涉及文件 | `Source/.../AbilitySystem/YogAbilitySystemComponent.h`（FDamageBreakdown）、`Source/.../UI/CombatLogStatics.{h,cpp}`、`Source/.../UI/CombatLogWidget.{h,cpp}`、`Source/.../Component/CombatDeckComponent.cpp`、`Source/.../ExecutionCalculation/DamageExecution.cpp` |
+| FDamageBreakdown 扩展 | 新增 11 个卡牌字段：bHadCard / bConsumedCard / bActionMatched / bTriggeredMatchedFlow / bTriggeredLink / bTriggeredFinisher / bStartedShuffle / bIsCardEventOnly / CardDisplayName / CardConsumeTiming；均有默认值，向后兼容 |
+| ECombatLogFilter 扩展 | 末尾追加 4 个枚举值：Card / Finisher / Link / Shuffle |
+| 卡牌消耗行 | `CombatDeckComponent::ResolveAttackCard` 成功消耗后，推入 `DamageType="Card_Consume"/"Card_Shuffle"` 的零伤害事件行 |
+| 卡牌字段填充 | `DamageExecution` 从 `SourceASC->BuffFlowComponent->LastCombatCardEffectContext` 读取，升级 DamageType 为 Card_Hit / Card_Matched / Card_Link / Card_Finisher |
+| 过滤按钮自动生成 | `UCombatFilterProxy`（UObject 代理）+ `BuildFilterButtons()` 在 NativeConstruct 里为 9 个过滤器自动生成按钮，无需 Blueprint 手动放置 |
+| FilterButtonBox 自动创建 | 若 Blueprint 未绑定 FilterButtonBox，NativeConstruct 自动在根 Canvas 顶部 36px 区域创建 WrapBox |
+| 摘要统计 | RefreshSummary 输出卡牌统计行（消耗/命中/匹配/连携/终结技/洗牌）+ 伤害统计行 + 总计 |
+| 移除 | `DamageBreakdownWidget.{h,cpp}` 已删除（HUD 不再需要内嵌面板）；`OnDamageBreakdown` 委托保留 |
+| 技术文档 | [EUW_CombatLog_Technical.md](Systems/UI/EUW_CombatLog_Technical.md)、[WBP_EUW_CombatLog_Layout.md](Systems/UI/WBP_EUW_CombatLog_Layout.md) |
+| 已知限制 | 按钮无选中态高亮；FilterButtonBox 自动创建时可能覆盖 Canvas 其他控件，推荐手动绑定 |
+
+---
+
 ## 2026-04-28
 
 ### [Weapon-TypeGuard] 武器类型守卫 — 自动隔离近战/远程 GA 激活

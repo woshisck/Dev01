@@ -78,11 +78,12 @@ public:
 	// ─── 3. Identity ──────────────────────────────────────────
 
 	/**
-	 * 效果身份 Tag（可选）
+	 * 效果身份 Tag（推荐使用，命名空间 Effect.ID.* 或既有 Buff.Effect.*）
 	 * 设置后可通过 GetActiveEffectsWithAllTags / HasTag 等节点按此 Tag 查询或移除效果。
 	 * 不设置则效果匿名，无法通过 Tag 精确查找。
+	 * 业务代码请通过 UEffectDataAsset::GetEffectIdTag() 读取。
 	 */
-	UPROPERTY(EditAnywhere, Category = "3. Identity")
+	UPROPERTY(EditAnywhere, Category = "3. Identity", meta = (Categories = "Effect.ID,Buff.Effect"))
 	FGameplayTag EffectTag;
 
 	// ─── 4. Effects ───────────────────────────────────────────
@@ -126,4 +127,32 @@ public:
 		UAbilitySystemComponent* SourceASC,
 		UAbilitySystemComponent* TargetASC,
 		float Level = 1.f) const;
+
+	// ── 统一访问器（业务代码请使用，禁止直接访问字段）──
+
+	UFUNCTION(BlueprintPure, Category = "Effect|Accessor")
+	FGameplayTag GetEffectIdTag() const { return EffectTag; }
+
+	UFUNCTION(BlueprintPure, Category = "Effect|Accessor")
+	ERuneDurationType GetDurationType() const { return DurationType; }
+
+	UFUNCTION(BlueprintPure, Category = "Effect|Accessor")
+	float GetDuration() const { return Duration; }
+
+	UFUNCTION(BlueprintPure, Category = "Effect|Accessor")
+	float GetPeriod() const { return Period; }
+
+	UFUNCTION(BlueprintPure, Category = "Effect|Accessor")
+	ERuneUniqueType GetUniqueType() const { return UniqueType; }
+
+	UFUNCTION(BlueprintPure, Category = "Effect|Accessor")
+	ERuneStackType GetStackType() const { return StackType; }
+
+	UFUNCTION(BlueprintPure, Category = "Effect|Accessor")
+	int32 GetMaxStack() const { return MaxStack; }
+
+	UFUNCTION(BlueprintPure, Category = "Effect|Accessor")
+	ERuneStackReduceType GetStackReduceType() const { return StackReduceType; }
+
+	const TArray<TObjectPtr<URuneEffectFragment>>& GetFragments() const { return Effects; }
 };

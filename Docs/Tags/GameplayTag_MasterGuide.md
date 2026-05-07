@@ -13,10 +13,12 @@
 ├── Action.*          【动作信号层】  战斗/交互中发生了什么（瞬时事件）
 ├── Attribute.*       【属性引用层】  AttributeSet 字段的 Tag 化映射
 ├── Buff.*            【符文效果层】  符文/Buff 系统专属（5层模型）
+├── Effect.ID.*       【效果身份层】  EffectDataAsset 身份 Tag（与 Buff.Effect.* 并存，新 EffectDA 推荐）
 ├── Enemy.*           【敌人技能层】  敌人 GA 身份标签
 ├── Enemy_Behavior.*  【敌人AI层】   敌人行为状态机
 ├── PlayerState.*     【玩家状态层】  玩家 GA 身份 + 状态机
 ├── Room.*            【关卡房间层】  RoomDataAsset 房间类型分类，供刷怪系统匹配
+├── Rune.ID.*         【符文身份层】  RuneDataAsset 身份 Tag（替代 int32 RuneID，配 Conventions/DataAuthoring.md）
 ├── State.*           【冲突管理层】  StateConflictDataAsset 使用的互斥/共存规则
 ├── Weapon.*          【武器装备层】  武器类型 Tag 守卫（Config/Tags/Equip.ini）
 └── Event.*           【跨系统事件层】 跨命名空间通信（符文间/系统间）

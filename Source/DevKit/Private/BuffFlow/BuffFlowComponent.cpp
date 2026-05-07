@@ -1,6 +1,7 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
+#include "Data/RuneDataAsset.h"
 #include "FlowSubsystem.h"
 #include "FlowAsset.h"
 
@@ -31,6 +32,13 @@ void UBuffFlowComponent::StartBuffFlow(UFlowAsset* FlowAsset, FGuid RuneGuid, AA
 	bHasCombatCardEffectContext = false;
 	LastCombatCardEffectContext = FCombatCardEffectContext();
 	StartBuffFlowInternal(FlowAsset, RuneGuid, Giver, bRestartExistingFlow);
+}
+
+void UBuffFlowComponent::StartBuffFlowWithRune(UFlowAsset* FlowAsset, FGuid RuneGuid, URuneDataAsset* SourceRune, AActor* Giver, bool bRestartExistingFlow)
+{
+	bHasCombatCardEffectContext = false;
+	LastCombatCardEffectContext = FCombatCardEffectContext();
+	StartBuffFlowInternal(FlowAsset, RuneGuid, Giver, bRestartExistingFlow, false, SourceRune);
 }
 
 void UBuffFlowComponent::StartCombatCardFlow(
@@ -96,7 +104,7 @@ bool UBuffFlowComponent::GetActiveSourceTransformOverride(FTransform& OutTransfo
 	return true;
 }
 
-void UBuffFlowComponent::StartBuffFlowInternal(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow, bool bAllowParallelSameFlow)
+void UBuffFlowComponent::StartBuffFlowInternal(UFlowAsset* FlowAsset, FGuid RuneGuid, AActor* Giver, bool bRestartExistingFlow, bool bAllowParallelSameFlow, URuneDataAsset* SourceRune)
 {
 	if (!FlowAsset)
 	{
@@ -134,12 +142,21 @@ void UBuffFlowComponent::StartBuffFlowInternal(UFlowAsset* FlowAsset, FGuid Rune
 		for (const FGuid& ExistingGuid : ExistingSameFlowGuids)
 		{
 			ActiveRuneFlows.Remove(ExistingGuid);
+			ActiveRuneSources.Remove(ExistingGuid);
 			OnBuffFlowStopped.Broadcast(ExistingGuid);
 		}
 	}
 
 	FlowSubsystem->StartRootFlow(this, FlowAsset, true);
 	ActiveRuneFlows.Add(RuneGuid, FlowAsset);
+	if (SourceRune)
+	{
+		ActiveRuneSources.Add(RuneGuid, SourceRune);
+	}
+	else
+	{
+		ActiveRuneSources.Remove(RuneGuid);
+	}
 
 	OnBuffFlowStarted.Broadcast(RuneGuid);
 	UE_LOG(LogTemp, Log, TEXT("BuffFlow started for rune %s"), *RuneGuid.ToString());
@@ -164,6 +181,7 @@ void UBuffFlowComponent::StopBuffFlow(FGuid RuneGuid)
 	}
 
 	ActiveRuneFlows.Remove(RuneGuid);
+	ActiveRuneSources.Remove(RuneGuid);
 	OnBuffFlowStopped.Broadcast(RuneGuid);
 	UE_LOG(LogTemp, Log, TEXT("BuffFlow stopped for rune %s"), *RuneGuid.ToString());
 }
@@ -188,12 +206,40 @@ void UBuffFlowComponent::StopAllBuffFlows()
 	}
 
 	ActiveRuneFlows.Empty();
+	ActiveRuneSources.Empty();
 }
 
 UFlowAsset* UBuffFlowComponent::GetActiveBuffFlowAsset(FGuid RuneGuid) const
 {
 	const TWeakObjectPtr<UFlowAsset>* FoundAsset = ActiveRuneFlows.Find(RuneGuid);
 	return FoundAsset ? FoundAsset->Get() : nullptr;
+}
+
+URuneDataAsset* UBuffFlowComponent::GetActiveSourceRuneData(UFlowAsset* FlowAsset) const
+{
+	if (!FlowAsset)
+	{
+		return nullptr;
+	}
+
+	for (const TPair<FGuid, TWeakObjectPtr<UFlowAsset>>& Pair : ActiveRuneFlows)
+	{
+		if (Pair.Value.Get() == FlowAsset)
+		{
+			if (const TWeakObjectPtr<URuneDataAsset>* FoundRune = ActiveRuneSources.Find(Pair.Key))
+			{
+				return FoundRune->Get();
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+float UBuffFlowComponent::GetRuneTuningValueForFlow(UFlowAsset* FlowAsset, FName Key, float DefaultValue) const
+{
+	URuneDataAsset* Rune = GetActiveSourceRuneData(FlowAsset);
+	return Rune ? Rune->GetRuneTuningValue(Key, DefaultValue) : DefaultValue;
 }
 
 UYogAbilitySystemComponent* UBuffFlowComponent::GetASC() const

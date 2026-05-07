@@ -6,6 +6,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Item/Weapon/AimArcActor.h"
 #include "Character/YogCharacterBase.h"
+#include "Data/MusketActionTuningDataAsset.h"
 #include "Projectile/MusketBullet.h"
 
 UGA_Musket_HeavyAttack::UGA_Musket_HeavyAttack()
@@ -37,7 +38,13 @@ void UGA_Musket_HeavyAttack::ActivateAbility(
         return;
     }
 
-    CurrentHalfAngle = StartHalfAngle;
+    const float TunedStartHalfAngle = TuningData ? TuningData->HeavyStartHalfAngle : StartHalfAngle;
+    const float TunedStartRadius = TuningData ? TuningData->HeavyStartRadius : StartRadius;
+    const float TunedChargeTime = TuningData ? TuningData->HeavyChargeTime : ChargeTime;
+    const float TunedEndHalfAngle = TuningData ? TuningData->HeavyEndHalfAngle : EndHalfAngle;
+    const float TunedEndRadius = TuningData ? TuningData->HeavyEndRadius : EndRadius;
+
+    CurrentHalfAngle = TunedStartHalfAngle;
     bFullCharge      = false;
     bFired           = false;
 
@@ -58,7 +65,7 @@ void UGA_Musket_HeavyAttack::ActivateAbility(
 
         if (AimArcActor)
         {
-            AimArcActor->UpdateArc(StartHalfAngle, StartRadius);
+            AimArcActor->UpdateArc(TunedStartHalfAngle, TunedStartRadius);
             AimArcActor->SetArcColor(NormalArcColor);
             AimArcActor->ShowArc();
         }
@@ -66,7 +73,7 @@ void UGA_Musket_HeavyAttack::ActivateAbility(
 
     // 启动蓄力 Tick 任务（bTickingTask=true，每帧调用 TickTask）
     ChargeTask = UAbilityTask_MusketCharge::CreateMusketCharge(
-        this, ChargeTime, StartHalfAngle, EndHalfAngle, StartRadius, EndRadius);
+        this, TunedChargeTime, TunedStartHalfAngle, TunedEndHalfAngle, TunedStartRadius, TunedEndRadius);
     ChargeTask->OnChargeTick.AddDynamic(this, &UGA_Musket_HeavyAttack::OnChargeTick);
     ChargeTask->OnChargeFull.AddDynamic(this, &UGA_Musket_HeavyAttack::OnChargeFullNotify);
     ChargeTask->ReadyForActivation();
@@ -117,7 +124,9 @@ void UGA_Musket_HeavyAttack::DoFire()
     }
     CleanupArc();
 
-    const float Multiplier = bFullCharge ? FullChargeMultiplier : BaseDamageMultiplier;
+    const float TunedBaseMultiplier = TuningData ? TuningData->HeavyBaseDamageMultiplier : BaseDamageMultiplier;
+    const float TunedFullMultiplier = TuningData ? TuningData->HeavyFullChargeMultiplier : FullChargeMultiplier;
+    const float Multiplier = bFullCharge ? TunedFullMultiplier : TunedBaseMultiplier;
     const float Damage     = GetBaseAttack() * Multiplier;
     const float Angle      = FMath::RandRange(-CurrentHalfAngle, CurrentHalfAngle);
     const FGuid AttackGuid = ResolveCombatDeckOnFire(ECardRequiredAction::Heavy, false, false, Damage, Angle);

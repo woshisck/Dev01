@@ -14,12 +14,12 @@ class UYogAbilitySystemComponent;
 
 
 // =========================================================
-// 伤害明细结构体（DamageBreakdownWidget 使用）
+// 伤害明细结构体（CombatLogStatics 使用）
 // =========================================================
 
 /**
- * 一次伤害命中的完整构成数据。
- * DamageExecution 填充后通过 OnDamageBreakdown 广播给 Widget。
+ * 一次伤害命中（或卡牌消耗事件）的完整构成数据。
+ * DamageExecution 或 CombatDeckComponent 填充后推入 CombatLogStatics 静态桥。
  */
 USTRUCT(BlueprintType)
 struct DEVKIT_API FDamageBreakdown
@@ -35,7 +35,7 @@ struct DEVKIT_API FDamageBreakdown
 	/** 目标减伤系数（DmgTaken，>1 表示易伤，<1 表示减伤） */
 	UPROPERTY(BlueprintReadOnly) float DmgTakenMult = 1.f;
 
-	/** 最终伤害（含暴击加成） */
+	/** 最终伤害（含暴击加成；卡牌消耗行为 0） */
 	UPROPERTY(BlueprintReadOnly) float FinalDamage = 0.f;
 
 	/** 是否暴击 */
@@ -44,7 +44,11 @@ struct DEVKIT_API FDamageBreakdown
 	/** 动作名称，如 "轻击1"、"重击2"；流血/符文时为对应名称 */
 	UPROPERTY(BlueprintReadOnly) FName ActionName;
 
-	/** 伤害类型："Attack"、"Attack_Crit"、"Bleed"、"Rune_XXX" */
+	/**
+	 * 伤害类型："Attack"、"Attack_Crit"、"Bleed"、"Rune_XXX"
+	 * 512版本新增："Card_Consume"、"Card_Shuffle"、"Card_Hit"、
+	 *               "Card_Matched"、"Card_Link"、"Card_Finisher"
+	 */
 	UPROPERTY(BlueprintReadOnly) FName DamageType;
 
 	/** 目标名称（调试用） */
@@ -53,8 +57,55 @@ struct DEVKIT_API FDamageBreakdown
 	/** 来源Actor名称（调试用） */
 	UPROPERTY(BlueprintReadOnly) FString SourceName;
 
-	/** 伤害发生时的游戏时间（秒），由 Widget 在 HandleDamageEntry 时填入 */
+	/** 伤害发生时的游戏时间（秒） */
 	UPROPERTY(BlueprintReadOnly) float GameTime = 0.f;
+
+	// ── 512版本：卡牌字段（默认值均为 false/空，向后兼容） ────────────
+
+	/** 本次攻击时有可用卡牌 */
+	UPROPERTY(BlueprintReadOnly) bool bHadCard = false;
+
+	/** 卡牌已被消耗（ConsumedCard.IsValidCard()） */
+	UPROPERTY(BlueprintReadOnly) bool bConsumedCard = false;
+
+	/** 动作类型与卡牌 RequiredAction 匹配 */
+	UPROPERTY(BlueprintReadOnly) bool bActionMatched = false;
+
+	/** 匹配奖励 Flow 实际触发 */
+	UPROPERTY(BlueprintReadOnly) bool bTriggeredMatchedFlow = false;
+
+	/** 连携触发（含正向/反向） */
+	UPROPERTY(BlueprintReadOnly) bool bTriggeredLink = false;
+
+	/** 终结技触发 */
+	UPROPERTY(BlueprintReadOnly) bool bTriggeredFinisher = false;
+
+	/** 本次消耗后进入洗牌（仅 Card_Consume/Card_Shuffle 行有效） */
+	UPROPERTY(BlueprintReadOnly) bool bStartedShuffle = false;
+
+	/** 是否为纯卡牌消耗行（FinalDamage=0，无目标） */
+	UPROPERTY(BlueprintReadOnly) bool bIsCardEventOnly = false;
+
+	/** 卡牌显示名称（来自 SourceData->RuneConfig.RuneName） */
+	UPROPERTY(BlueprintReadOnly) FName CardDisplayName;
+
+	/** 消耗时机（"OnCommit" / "OnHit"，调试用） */
+	UPROPERTY(BlueprintReadOnly) FName CardConsumeTiming;
+
+	/** 是否携带目标生命/护甲快照（仅用于战斗日志展示，不参与结算） */
+	UPROPERTY(BlueprintReadOnly) bool bHasTargetVitals = false;
+
+	/** 本次伤害结算前的目标生命值估算 */
+	UPROPERTY(BlueprintReadOnly) float TargetHealthBefore = 0.f;
+
+	/** 本次伤害结算后的目标生命值估算 */
+	UPROPERTY(BlueprintReadOnly) float TargetHealthAfter = 0.f;
+
+	/** 本次伤害结算前的目标护甲值估算 */
+	UPROPERTY(BlueprintReadOnly) float TargetArmorBefore = 0.f;
+
+	/** 本次伤害结算后的目标护甲值估算 */
+	UPROPERTY(BlueprintReadOnly) float TargetArmorAfter = 0.f;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageBreakdown, FDamageBreakdown, Entry);
@@ -287,19 +338,19 @@ public:
 
 	/**
 	 * 玩家伤害日志（基础版，向后兼容）。
-	 * 屏幕上滚动显示最近 30 条，同时写入 Output Log，并广播 OnDamageBreakdown。
+	 * 写入 Output Log，推入 CombatLogStatics，并广播 OnDamageBreakdown。
 	 */
 	UFUNCTION(BlueprintCallable, Category = "DamageLog")
 	void LogDamageDealt(AActor* Target, float Damage, FName DamageType);
 
 	/**
 	 * 玩家伤害日志（详细版，DamageExecution 调用）。
-	 * 携带完整的伤害构成数据，广播给 DamageBreakdownWidget。
+	 * 携带完整的伤害构成数据，广播 OnDamageBreakdown 并推入 CombatLogStatics。
 	 */
 	UFUNCTION(BlueprintCallable, Category = "DamageLog")
 	void LogDamageDealtDetailed(AActor* Target, const FDamageBreakdown& Breakdown);
 
-	/** 伤害明细事件，DamageBreakdownWidget 订阅此委托刷新显示 */
+	/** 伤害明细事件（保留供外部系统订阅） */
 	UPROPERTY(BlueprintAssignable, Category = "DamageLog")
 	FOnDamageBreakdown OnDamageBreakdown;
 

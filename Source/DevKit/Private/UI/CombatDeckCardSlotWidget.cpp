@@ -33,7 +33,7 @@ void UCombatDeckCardSlotWidget::SetCard(const FCombatCardInstance& InCard, bool 
 
 	if (CardIcon)
 	{
-		UTexture2D* RuneIcon = InCard.SourceData ? InCard.SourceData->RuneInfo.RuneConfig.RuneIcon : nullptr;
+		UTexture2D* RuneIcon = InCard.SourceData ? InCard.SourceData->GetRuneIcon() : nullptr;
 		CardIcon->SetVisibility(RuneIcon ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 		if (RuneIcon)
 		{

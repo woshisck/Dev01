@@ -78,7 +78,7 @@ void UCombatDeckEditCardSlotWidget::SetCard(UCombatDeckEditWidget* InOwnerWidget
 
 	if (CardIcon)
 	{
-		UTexture2D* Icon = Card.SourceData ? Card.SourceData->RuneInfo.RuneConfig.RuneIcon : nullptr;
+		UTexture2D* Icon = Card.SourceData ? Card.SourceData->GetRuneIcon() : nullptr;
 		CardIcon->SetVisibility(Icon ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 		if (Icon)
 		{
@@ -517,7 +517,7 @@ FText UCombatDeckEditCardSlotWidget::GetCardDisplayName(const FCombatCardInstanc
 	{
 		return InCard.Config.DisplayName;
 	}
-	return InCard.SourceData ? FText::FromName(InCard.SourceData->RuneInfo.RuneConfig.RuneName) : FText::FromString(TEXT("Card"));
+	return InCard.SourceData ? FText::FromName(InCard.SourceData->GetRuneName()) : FText::FromString(TEXT("Card"));
 }
 
 FText UCombatDeckEditCardSlotWidget::GetCardTypeText(ECombatCardType CardType)

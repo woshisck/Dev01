@@ -90,6 +90,8 @@ public class DevKitEditor : ModuleRules
 				"UMG",
 				"UMGEditor",
 				"AnimationBlueprintLibrary",
+				// 数值编辑工具依赖：FPlatformApplicationMisc::ClipboardCopy
+				"ApplicationCore",
 			}
         );
 

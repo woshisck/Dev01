@@ -9,6 +9,7 @@
 #include "GA_MusketBase.generated.h"
 
 class AYogCharacterBase;
+class UMusketActionTuningDataAsset;
 
 /**
  * 火绳枪 GA 基类。
@@ -46,6 +47,9 @@ public:
      */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Musket|Config")
     FName MuzzleSocketName = FName("Muzzle");
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Musket|Tuning")
+    TObjectPtr<UMusketActionTuningDataAsset> TuningData;
 
 protected:
     // ── 弹药工具 ────────────────────────────────────────────────────────────────

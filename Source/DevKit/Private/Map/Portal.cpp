@@ -64,7 +64,7 @@ void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 	for (int32 i = 0; i < PreRolledBuffs.Num(); ++i)
 	{
 		const FBuffEntry& E = PreRolledBuffs[i];
-		const FName RuneName = E.RuneDA ? E.RuneDA->RuneInfo.RuneConfig.RuneName : NAME_None;
+		const FName RuneName = E.RuneDA ? E.RuneDA->GetRuneName() : NAME_None;
 		UE_LOG(LogTemp, Log, TEXT("Portal[%d] PreRolled[%d]: Asset=%s RuneName=%s"),
 			Index, i,
 			E.RuneDA ? *E.RuneDA->GetName() : TEXT("null"),

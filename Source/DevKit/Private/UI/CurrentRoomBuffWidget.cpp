@@ -43,7 +43,7 @@ void SetTextSize(UTextBlock* TextBlock, int32 Size)
 
 FText ResolveRuneDisplayName(const URuneDataAsset& RuneDA)
 {
-	const FName RuneName = RuneDA.RuneInfo.RuneConfig.RuneName;
+	const FName RuneName = RuneDA.GetRuneName();
 	if (!RuneName.IsNone())
 	{
 		return FText::FromName(RuneName);

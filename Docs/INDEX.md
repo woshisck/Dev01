@@ -117,6 +117,16 @@
 | [Conventions/Widget.md](Conventions/Widget.md) | UI Widget / WBP 布局规格 |
 | [Conventions/AnimNotify.md](Conventions/AnimNotify.md) | AN / ANS 类 |
 | [Conventions/DataAsset.md](Conventions/DataAsset.md) | DA 类设计 |
+| [Conventions/DataAuthoring.md](Conventions/DataAuthoring.md) | 数值访问器/Rune.ID Tag/EUW 工具用法 |
+
+---
+
+## 🧪 测试与验收入口
+
+| 文档 | 内容 |
+|---|---|
+| [DataEditor数值编辑器测试说明](项目需求文档/512版本项目计划/Codex开发方案/配置说明/编辑器工具/DataEditor数值编辑器测试说明.md) | `Tools > DataEditor` 菜单面板、smoke test、RuneID 迁移、批量操作和编辑器回归清单 |
+| [DataEditor README](../Tools/DataEditor/README.md) | UE 菜单面板日常入口 + PowerShell / UE Python 自动化脚本入口 |
 
 ---
 
@@ -168,3 +178,8 @@
 | [Conventions/](Conventions/) | 编码规范（Claude编码前必读） |
 | [TODO/](TODO/) | 待完成编辑器配置 + P2 内容 |
 | [Research/](Research/) | 玩家调研报告 |
+# DataEditor Entry Update
+
+- Manual balance panels: `Tools > DevKit Data > Character Balance / Action Balance / Rune Balance`.
+- Test guide: `Docs/项目需求文档/512版本项目计划/Codex开发方案/配置说明/编辑器工具/DataEditor数值编辑器测试说明.md`.
+- Script guide: `Tools/DataEditor/README.md`.

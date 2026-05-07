@@ -41,7 +41,7 @@ FString DescribeCombatDeckCard(const FCombatCardInstance& Card)
 	FString DisplayName = Card.Config.DisplayName.IsEmpty() ? FString() : Card.Config.DisplayName.ToString();
 	if (DisplayName.IsEmpty() && Card.SourceData)
 	{
-		DisplayName = Card.SourceData->RuneInfo.RuneConfig.RuneName.ToString();
+		DisplayName = Card.SourceData->GetRuneName().ToString();
 	}
 	if (DisplayName.IsEmpty())
 	{

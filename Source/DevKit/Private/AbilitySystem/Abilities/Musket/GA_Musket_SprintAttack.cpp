@@ -4,6 +4,7 @@
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Character/YogCharacterBase.h"
+#include "Data/MusketActionTuningDataAsset.h"
 #include "Projectile/MusketBullet.h"
 
 UGA_Musket_SprintAttack::UGA_Musket_SprintAttack()
@@ -34,7 +35,9 @@ void UGA_Musket_SprintAttack::ActivateAbility(
     }
 
     const int32   BulletCount = FMath::RoundToInt(GetCurrentAmmo());
-    const float   Damage      = GetBaseAttack() * DamageMultiplier;
+    const float   TunedDamageMultiplier = TuningData ? TuningData->SprintDamageMultiplier : DamageMultiplier;
+    const float   TunedHalfFanAngle = TuningData ? TuningData->SprintHalfFanAngle : HalfFanAngle;
+    const float   Damage      = GetBaseAttack() * TunedDamageMultiplier;
     const FGuid   AttackGuid  = ResolveCombatDeckOnFire(ECardRequiredAction::Light, false, false, Damage, 0.f);
 
     // 均匀扇形射出全部子弹
@@ -43,7 +46,7 @@ void UGA_Musket_SprintAttack::ActivateAbility(
         float Angle = 0.f;
         if (BulletCount > 1)
         {
-            Angle = FMath::Lerp(-HalfFanAngle, HalfFanAngle,
+            Angle = FMath::Lerp(-TunedHalfFanAngle, TunedHalfFanAngle,
                                 static_cast<float>(i) / static_cast<float>(BulletCount - 1));
         }
 

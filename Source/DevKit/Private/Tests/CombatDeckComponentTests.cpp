@@ -1692,7 +1692,7 @@ bool FCombatDeckGeneratedSacrificePassivesConfiguredTest::RunTest(const FString&
 			continue;
 		}
 
-		bAllValid &= TestEqual(FString::Printf(TEXT("%s is passive trigger"), *Key), RuneDA->RuneInfo.RuneConfig.TriggerType, ERuneTriggerType::Passive);
+		bAllValid &= TestEqual(FString::Printf(TEXT("%s is passive trigger"), *Key), RuneDA->GetTriggerType(), ERuneTriggerType::Passive);
 		bAllValid &= TestEqual(FString::Printf(TEXT("%s has empty shape"), *Key), RuneDA->RuneInfo.Shape.Cells.Num(), 0);
 		bAllValid &= TestFalse(FString::Printf(TEXT("%s does not enter combat deck"), *Key), RuneDA->RuneInfo.CombatCard.bIsCombatCard);
 		bAllValid &= TestEqual(FString::Printf(TEXT("%s has no link recipes"), *Key), RuneDA->RuneInfo.CombatCard.LinkRecipes.Num(), 0);

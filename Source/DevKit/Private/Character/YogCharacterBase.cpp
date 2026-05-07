@@ -444,7 +444,7 @@ void AYogCharacterBase::ReceiveOnHitRune_Implementation(URuneDataAsset* RuneDA, 
 		*GetName(),
 		*RuneGuid.ToString());
 
-	BFC->StartBuffFlow(FlowAsset, RuneGuid, this);
+	BFC->StartBuffFlowWithRune(FlowAsset, RuneGuid, RuneDA, this);
 }
 
 void AYogCharacterBase::FinishDying()

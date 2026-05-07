@@ -21,7 +21,7 @@ FText GetSacrificeRuneName(const FAltarSacrificeEntry& Entry)
 	{
 		return NSLOCTEXT("SacrificeSelection", "MissingRune", "献祭符文");
 	}
-	return FText::FromName(Entry.GrantedRune->RuneInfo.RuneConfig.RuneName);
+	return FText::FromName(Entry.GrantedRune->GetRuneName());
 }
 
 FText GetCardDisplayName(const FCombatCardInstance& Card)
@@ -30,7 +30,7 @@ FText GetCardDisplayName(const FCombatCardInstance& Card)
 	{
 		return NSLOCTEXT("SacrificeSelection", "MissingCard", "未知卡牌");
 	}
-	return FText::FromName(Card.SourceData->RuneInfo.RuneConfig.RuneName);
+	return FText::FromName(Card.SourceData->GetRuneName());
 }
 
 FText GetCostFallbackText(ESacrificeOfferingCostType CostType)
@@ -362,7 +362,7 @@ void USacrificeSelectionWidget::RefreshNativeView()
 		}
 		else if (AltarData && AltarData->EventSacrificeRune)
 		{
-			DescriptionText->SetText(FText::FromName(AltarData->EventSacrificeRune->RuneInfo.RuneConfig.RuneName));
+			DescriptionText->SetText(FText::FromName(AltarData->EventSacrificeRune->GetRuneName()));
 		}
 		else
 		{
