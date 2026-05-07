@@ -2,6 +2,7 @@
 #include "System/YogWorldSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveGameArchive.h"
+#include "System/YogGameInstanceBase.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameModes/YogGameMode.h"
@@ -328,6 +329,10 @@ void UYogSaveSubsystem::LoadMap(UYogSaveGame* SaveGame)
 void UYogSaveSubsystem::SaveMap(UYogSaveGame* SaveGame)
 {
 	SaveGame->MapStateData.LevelName = FName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
+	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	{
+		SaveGame->CurrentGold = GI->CurrentGold;
+	}
 }
 
 FAbilitySaveData UYogSaveSubsystem::ConvertAbilitySpecToSaveData(const FGameplayAbilitySpec& Spec)
@@ -450,6 +455,10 @@ void UYogSaveSubsystem::LoadSaveGame(UYogSaveGame* SaveGame)
 {
 	//UGameplayStatics::OpenLevel(GetWorld(), FName(CurrentSaveGame->MapStateData.LevelName));
 		
+	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	{
+		GI->CurrentGold = SaveGame ? SaveGame->CurrentGold : 0;
+	}
 	
 	LoadPlayer(SaveGame);
 

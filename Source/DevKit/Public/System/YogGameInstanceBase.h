@@ -218,6 +218,9 @@ public:
 	UPROPERTY()
 	int32 CurrentMapScore = 0;
 
+	UPROPERTY(BlueprintReadWrite, Category = "Run")
+	int32 CurrentGold = 0;
+
 	UPROPERTY()
 	int32 CurrentMapKills = 0;
 

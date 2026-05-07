@@ -85,9 +85,9 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE — HP=%.1f Gold=%d Phase=%d Runes=%d"),
-		GI->PendingRunState.CurrentHP, GI->PendingRunState.CurrentGold,
-		GI->PendingRunState.CurrentPhase, GI->PendingRunState.PlacedRunes.Num());
+	UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE - HP=%.1f Heat=%.0f PendingRunes=%d DeckCards=%d"),
+		GI->PendingRunState.CurrentHP, GI->PendingRunState.CurrentHeat,
+		GI->PendingRunState.PendingRunes.Num(), GI->PendingRunState.CombatDeckCards.Num());
 
 	const FRunState State = GI->PendingRunState;
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();

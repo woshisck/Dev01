@@ -212,6 +212,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void EnterArrangementPhase();
 
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
+	int32 AwardLevelGold();
+
 	// 玩家选择一个战利品（0-2）
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void SelectLoot(int32 LootIndex);

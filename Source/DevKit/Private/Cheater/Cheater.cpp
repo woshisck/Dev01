@@ -8,6 +8,7 @@
 #include "Data/RuneDataAsset.h"
 #include "GameplayTagContainer.h"
 #include "GameFramework/PlayerController.h"
+#include "System/YogGameInstanceBase.h"
 #include "EngineUtils.h"
 
 // ─── 内部辅助 ─────────────────────────────────────────────────────────────────
@@ -108,7 +109,17 @@ void UYogCheatManager::Yog_ClearRunes()
 
 void UYogCheatManager::Yog_SetGold(int32 Amount)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetGold: BackpackGridComponent has been removed"));
+	if (APlayerController* PC = GetOuterAPlayerController())
+	{
+		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(PC->GetGameInstance()))
+		{
+			GI->CurrentGold = FMath::Max(0, Amount);
+			UE_LOG(LogTemp, Log, TEXT("[GM] CurrentGold set to %d"), GI->CurrentGold);
+			return;
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetGold: GameInstance not found"));
 }
 
 // ─── 玩家属性 ─────────────────────────────────────────────────────────────────

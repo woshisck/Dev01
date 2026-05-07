@@ -1,9 +1,6 @@
 #include "AbilitySystem/ExecutionCalculation/DamageExecution.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
-#include "Animation/HitStopManager.h"
 #include "AbilitySystemBlueprintLibrary.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "GameFramework/Character.h"
 #include "GameplayEffectAggregator.h"
 
 namespace
@@ -21,28 +18,6 @@ namespace
 		return RawMultiplier > 0.f ? FMath::Max(RawMultiplier, 1.f) : 1.f;
 	}
 
-	void RequestPlayerCritFreeze(UYogAbilitySystemComponent* SourceASC)
-	{
-		if (!SourceASC) return;
-
-		AActor* SourceActor = SourceASC->GetAvatarActor();
-		APawn* SourcePawn = Cast<APawn>(SourceActor);
-		if (!SourcePawn || !SourcePawn->IsPlayerControlled()) return;
-
-		ACharacter* SourceCharacter = Cast<ACharacter>(SourceActor);
-		UAnimInstance* AnimInst = SourceCharacter && SourceCharacter->GetMesh()
-			? SourceCharacter->GetMesh()->GetAnimInstance()
-			: nullptr;
-		if (!AnimInst) return;
-
-		if (UWorld* World = SourceActor->GetWorld())
-		{
-			if (UHitStopManager* HitStop = World->GetSubsystem<UHitStopManager>())
-			{
-				HitStop->RequestMontageHitStop(AnimInst, 0.06f);
-			}
-		}
-	}
 }
 
 
@@ -156,7 +131,6 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 		FinalDamage *= CritMultiplier;
 		UE_LOG(LogTemp, Log, TEXT("DamageExecution: CRIT! FinalDamage=%f Rate=%.3f Multiplier=%.2f Forced=%d"),
 			FinalDamage, CritRate, CritMultiplier, (int32)bForceCrit);
-		RequestPlayerCritFreeze(SourceASC);
 	}
 
 	// 诊断：对比聚合器捕获值 vs ASC 直接读值

@@ -375,6 +375,7 @@ void AYogGameMode::EnterArrangementPhase()
 
 	CurrentPhase = ELevelPhase::Arrangement;
 	OnPhaseChanged.Broadcast(CurrentPhase);
+	AwardLevelGold();
 
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
 		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
@@ -1767,6 +1768,29 @@ void AYogGameMode::GenerateLootOptions()
 	ShowLootOptions(GenerateIndependentLootOptions());
 }
 
+int32 AYogGameMode::AwardLevelGold()
+{
+	const int32 MinGold = FMath::Min(ActiveGoldMin, ActiveGoldMax);
+	const int32 MaxGold = FMath::Max(ActiveGoldMin, ActiveGoldMax);
+	const int32 AwardedGold = FMath::RandRange(MinGold, MaxGold);
+
+	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	{
+		GI->CurrentGold += AwardedGold;
+		UE_LOG(LogTemp, Log, TEXT("[Gold] Level reward +%d, CurrentGold=%d"), AwardedGold, GI->CurrentGold);
+	}
+
+	if (UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
+	{
+		if (UYogSaveSubsystem* SaveSubsystem = UGameInstance::GetSubsystem<UYogSaveSubsystem>(GetGameInstance()))
+		{
+			SaveSubsystem->WriteSaveGame();
+		}
+	}
+
+	return AwardedGold;
+}
+
 void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 {
 	if (NextLevel.IsNone()) return;
@@ -1843,6 +1867,7 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 				GI->PersistentSaveData = NewObject<UYogSaveGame>(GI);
 			}
 			GI->PersistentSaveData->SavedCharacterClass = Player->GetClass();
+			GI->PersistentSaveData->CurrentGold = GI->CurrentGold;
 		}
 	}
 

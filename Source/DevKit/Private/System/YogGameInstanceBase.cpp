@@ -613,6 +613,7 @@ void UYogGameInstanceBase::SaveGame()
 		return;
 	}
 	PersistentSaveData->SavedCharacterClass = CurrentCharacter->GetClass();
+	PersistentSaveData->CurrentGold = CurrentGold;
 
 	UGameplayStatics::SaveGameToSlot(PersistentSaveData, "Slot1", 0);
 }
@@ -653,6 +654,10 @@ bool UYogGameInstanceBase::WriteSaveGame()
 			UE_LOG(LogTemp, Warning, TEXT("WriteSaveGame skipped: CurrentSaveGame is null."));
 			return false;
 		}
+		if (UYogSaveGame* YogSaveGame = Cast<UYogSaveGame>(currentSaveGame))
+		{
+			YogSaveGame->CurrentGold = CurrentGold;
+		}
 
 		if (bCurrentlySaving)
 		{
@@ -679,6 +684,7 @@ void UYogGameInstanceBase::SpawnMobInMap()
 void UYogGameInstanceBase::ClearRunState()
 {
 	PendingRunState = FRunState(); // 重置为默认值，bIsValid = false
+	CurrentGold = 0;
 
 	// v3：传送门跨关字段同点清，避免下一局误读上一局的预骰数据
 	PendingRoomData = nullptr;
