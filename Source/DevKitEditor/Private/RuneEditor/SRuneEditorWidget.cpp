@@ -34,6 +34,9 @@
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/STableRow.h"
 
@@ -280,6 +283,7 @@ void SRuneEditorWidget::Construct(const FArguments& InArgs)
 	RequiredActionOptions = { MakeShared<FString>(TEXT("轻击")), MakeShared<FString>(TEXT("重击")), MakeShared<FString>(TEXT("任意")) };
 	TriggerTimingOptions  = { MakeShared<FString>(TEXT("命中时 (OnHit)")), MakeShared<FString>(TEXT("提交时 (OnCommit)")) };
 
+	RefreshFlowAssetOptions();
 	RefreshData(LOCTEXT("InitialStatus", "符文流程编辑器已就绪。"));
 	RunFeedbackText = LOCTEXT("RunFeedbackInitial", "本次编辑器会话尚未运行符文。");
 
@@ -1250,6 +1254,12 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildDetailsPanel()
 				[
 					BuildDetailsPanelTabButton(LOCTEXT("CombatCardTab", "卡牌配置"), EDetailsPanelTab::CombatCard)
 				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(6.f, 0.f, 0.f, 0.f)
+				[
+					BuildDetailsPanelTabButton(LOCTEXT("ComboRecipeTab", "连携配方"), EDetailsPanelTab::ComboRecipe)
+				]
 			]
 			+ SVerticalBox::Slot()
 			.FillHeight(1.f)
@@ -1527,6 +1537,10 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildDetailsPanel()
 				+ SWidgetSwitcher::Slot()
 				[
 					BuildCombatCardPanel()
+				]
+				+ SWidgetSwitcher::Slot()
+				[
+					BuildComboRecipePanel()
 				]
 			]
 		];
@@ -3141,6 +3155,8 @@ void SRuneEditorWidget::SyncSelectedRuneEditorFields()
 		SyncCombo(RequiredActionCombo, RequiredActionOptions, CardRequiredActionToString(Rune->RuneInfo.CombatCard.RequiredAction));
 		SyncCombo(TriggerTimingCombo,  TriggerTimingOptions,  CardTriggerTimingToString(Rune->RuneInfo.CombatCard.TriggerTiming));
 	}
+
+	RefreshComboRecipeRows();
 }
 
 void SRuneEditorWidget::SyncNodeInspector()

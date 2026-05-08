@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AssetRegistry/AssetData.h"
 #include "Data/RuneDataAsset.h"
 #include "GameplayTagContainer.h"
 #include "RuneEditor/RuneEditorFlowAuthoring.h"
@@ -50,6 +51,21 @@ struct FRuneEditorTuningRow
 	int32 Index = INDEX_NONE;
 };
 
+struct FComboRecipeEditorRow
+{
+	FString NeighborTagString;
+
+	bool bHasForward = false;
+	int32 ForwardFlowIdx = 0;
+	float ForwardMultiplier = 1.0f;
+	FString ForwardReason;
+
+	bool bHasBackward = false;
+	int32 BackwardFlowIdx = 0;
+	float BackwardMultiplier = 1.0f;
+	FString BackwardReason;
+};
+
 class SRuneEditorWidget : public SCompoundWidget
 {
 public:
@@ -62,6 +78,7 @@ private:
 	using FRuneRowPtr = TSharedPtr<FRuneEditorRuneRow>;
 	using FFlowNodeRowPtr = TSharedPtr<FRuneEditorFlowNodeRow>;
 	using FTuningRowPtr = TSharedPtr<FRuneEditorTuningRow>;
+	using FComboRecipeRowPtr = TSharedPtr<FComboRecipeEditorRow>;
 
 	enum class ECenterPanelTab : uint8
 	{
@@ -80,7 +97,8 @@ private:
 	enum class EDetailsPanelTab : uint8
 	{
 		BasicInfo,
-		CombatCard
+		CombatCard,
+		ComboRecipe
 	};
 
 	enum class ENodeLibraryFilter : uint8
@@ -123,14 +141,18 @@ private:
 	TSharedRef<SWidget> BuildRunLogPanel();
 	TSharedRef<SWidget> BuildSelectedNodePanel();
 	TSharedRef<SWidget> BuildCombatCardPanel();
+	TSharedRef<SWidget> BuildComboRecipePanel();
 	TSharedRef<SWidget> BuildDetailsPanelTabButton(const FText& Label, EDetailsPanelTab Tab);
 	TSharedRef<SWidget> BuildNodeLibraryItem(ENodeLibraryFilter Filter, UClass* NodeClass, const FText& DisplayName, const FText& Description);
 	TSharedRef<ITableRow> GenerateRuneRow(FRuneRowPtr Row, const TSharedRef<STableViewBase>& OwnerTable);
 	TSharedRef<ITableRow> BuildTuningRow(FTuningRowPtr Row, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> BuildComboRecipeRow(FComboRecipeRowPtr Row, const TSharedRef<STableViewBase>& OwnerTable);
 
 	void RefreshData(const FText& NewStatus = FText::GetEmpty());
 	void RefreshFlowNodes();
 	void RefreshTuningRows();
+	void RefreshComboRecipeRows();
+	void RefreshFlowAssetOptions();
 	void BindGraphEditorCommands();
 	void RebuildGraphEditor();
 	void OnSearchTextChanged(const FText& NewText);
@@ -157,6 +179,8 @@ private:
 	FReply OnTuningSourceClicked(int32 RowIndex);
 	FReply OnDetailsPanelTabSelected(EDetailsPanelTab Tab);
 	FReply OnSaveCardInfoClicked();
+	FReply OnAddComboRecipeRowClicked();
+	FReply OnSaveComboRecipesClicked();
 	FReply OnToggleIsCombatCardClicked();
 	FReply OnToggleComboScalingClicked();
 	FReply OnRunRuneClicked();
@@ -202,8 +226,10 @@ private:
 	TArray<FRuneRowPtr> RuneRows;
 	TArray<FFlowNodeRowPtr> FlowNodeRows;
 	TArray<FTuningRowPtr> TuningRows;
+	TArray<FComboRecipeRowPtr> ComboRecipeRows;
 	TSharedPtr<SListView<FRuneRowPtr>> RuneListView;
 	TSharedPtr<SListView<FTuningRowPtr>> TuningListView;
+	TSharedPtr<SListView<FComboRecipeRowPtr>> ComboRecipeListView;
 	TSharedPtr<SBox> GraphEditorContainer;
 	TSharedPtr<SWidgetSwitcher> CenterPanelSwitcher;
 	TSharedPtr<SWidgetSwitcher> BottomPanelSwitcher;
@@ -238,6 +264,9 @@ private:
 	ERuneType CreateRuneType = ERuneType::Buff;
 	ERuneRarity CreateRarity = ERuneRarity::Common;
 	ERuneTriggerType CreateTriggerType = ERuneTriggerType::Passive;
+
+	TArray<FAssetData> FlowAssetDataList;
+	TArray<TSharedPtr<FString>> FlowAssetNames;
 
 	using FStringCombo = SComboBox<TSharedPtr<FString>>;
 	TArray<TSharedPtr<FString>> RuneTypeOptions;
