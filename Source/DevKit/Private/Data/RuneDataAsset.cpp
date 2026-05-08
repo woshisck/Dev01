@@ -1,5 +1,34 @@
 #include "Data/RuneDataAsset.h"
 
+#include "Math/BasicMathExpressionEvaluator.h"
+
+namespace
+{
+	float EvaluateRuneTuningFormula(const URuneDataAsset* Rune, const FRuneTuningScalar& Scalar)
+	{
+		FString Expression = Scalar.FormulaExpression;
+		if (Expression.IsEmpty())
+		{
+			return Scalar.Value;
+		}
+
+		const float Level = Rune ? static_cast<float>(Rune->RuneInfo.Level) : 1.f;
+		const float UpgradeLevel = Rune ? static_cast<float>(Rune->RuneInfo.UpgradeLevel) : 0.f;
+		Expression.ReplaceInline(TEXT("UpgradeLevel"), *FString::SanitizeFloat(UpgradeLevel), ESearchCase::IgnoreCase);
+		Expression.ReplaceInline(TEXT("Level"), *FString::SanitizeFloat(Level), ESearchCase::IgnoreCase);
+		Expression.ReplaceInline(TEXT("Value"), *FString::SanitizeFloat(Scalar.Value), ESearchCase::IgnoreCase);
+
+		const FBasicMathExpressionEvaluator Evaluator;
+		const TValueOrError<double, FExpressionError> Result = Evaluator.Evaluate(*Expression, Scalar.Value);
+		return Result.IsValid() ? static_cast<float>(Result.GetValue()) : Scalar.Value;
+	}
+}
+
+float URuneValueCalculation::CalculateValue_Implementation(const URuneDataAsset* Rune, FName Key, float DefaultValue) const
+{
+	return DefaultValue;
+}
+
 FRuneShape FRuneShape::Rotate90() const
 {
 	FRuneShape Result;
@@ -77,6 +106,25 @@ bool URuneDataAsset::GetRuneTuningScalar(FName Key, FRuneTuningScalar& OutScalar
 float URuneDataAsset::GetRuneTuningValue(FName Key, float DefaultValue) const
 {
 	FRuneTuningScalar Scalar;
-	return GetRuneTuningScalar(Key, Scalar) ? Scalar.Value : DefaultValue;
+	if (!GetRuneTuningScalar(Key, Scalar))
+	{
+		return DefaultValue;
+	}
+
+	if (Scalar.ValueSource == ERuneTuningValueSource::MMC && Scalar.MagnitudeCalculationClass)
+	{
+		if (const URuneValueCalculation* Calculation = Scalar.MagnitudeCalculationClass->GetDefaultObject<URuneValueCalculation>())
+		{
+			return Calculation->CalculateValue(this, Key, Scalar.Value);
+		}
+	}
+
+	if (Scalar.ValueSource == ERuneTuningValueSource::Formula)
+	{
+		return EvaluateRuneTuningFormula(this, Scalar);
+	}
+
+	// Context rows keep Value as their editor fallback until runtime context is supplied.
+	return Scalar.Value;
 }
 

@@ -44,7 +44,9 @@ void UBFNode_GetRuneTuningValue::ExecuteInput(const FName& PinName)
 		return;
 	}
 
-	Value = FFlowDataPinOutputProperty_Float(Scalar.Value);
+	// Use GetRuneTuningValue so Formula / MMC / Context sources are evaluated correctly,
+	// not just the raw Scalar.Value which only works for Literal source.
+	Value = FFlowDataPinOutputProperty_Float(SourceRune->GetRuneTuningValue(Key, DefaultValue));
 	bFound = FFlowDataPinOutputProperty_Bool(true);
 	TriggerOutput(TEXT("Found"), true);
 }

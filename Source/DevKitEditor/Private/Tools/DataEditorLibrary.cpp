@@ -6,8 +6,10 @@
 #include "Data/MontageConfigDA.h"
 #include "Data/MusketActionTuningDataAsset.h"
 #include "FlowAsset.h"
+#include "AssetRegistry/AssetRegistryHelpers.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Engine/DataAsset.h"
 #include "ScopedTransaction.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -32,10 +34,21 @@ namespace
 		}
 
 		TArray<FAssetData> Assets;
-		AR.GetAssetsByClass(T::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/ true);
+		const UClass* TargetClass = T::StaticClass();
+		const UClass* QueryClass = TargetClass->IsChildOf(UDataAsset::StaticClass())
+			? UDataAsset::StaticClass()
+			: TargetClass;
+		AR.GetAssetsByClass(QueryClass->GetClassPathName(), Assets, /*bSearchSubClasses=*/ true);
 		Out.Reserve(Assets.Num());
 		for (const FAssetData& A : Assets)
 		{
+			const UClass* NativeClass = UAssetRegistryHelpers::FindAssetNativeClass(A);
+			if (!A.IsInstanceOf(TargetClass, EResolveClass::Yes)
+				&& (!NativeClass || !NativeClass->IsChildOf(T::StaticClass())))
+			{
+				continue;
+			}
+
 			if (T* Loaded = Cast<T>(A.GetAsset()))
 			{
 				Out.Add(Loaded);

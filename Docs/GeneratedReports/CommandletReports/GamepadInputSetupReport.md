@@ -1,4 +1,4 @@
-﻿# Gamepad Input Setup Report
+# Gamepad Input Setup Report
 - Mode: DryRun
 - Layout: A=Interact/Accept, B=Dash/Back, X=Light/Secondary, Y=Heavy/Details, Menu=Pause, View=Backpack.
 

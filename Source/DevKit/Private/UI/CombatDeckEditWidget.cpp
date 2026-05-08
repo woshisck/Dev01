@@ -619,6 +619,11 @@ void UCombatDeckEditWidget::EndDragPreview()
 	DragPreviewInsertIndex = INDEX_NONE;
 	HideGamepadFloatingDragCard();
 	RefreshDeckListInternal(false);
+
+	// ClearChildren 销毁了所有旧卡槽 Widget，Slate 焦点随之丢失。
+	// 主动把焦点收回本 Widget，确保它仍在 BackpackScreenWidget 的焦点路径内，
+	// 否则 BackpackScreenWidget 的 NativeOnPreviewKeyDown 收不到后续手柄按键。
+	SetKeyboardFocus();
 }
 
 bool UCombatDeckEditWidget::ToggleLinkOrientation(int32 CardIndex)

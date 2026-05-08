@@ -12,6 +12,7 @@
 #include "Customization/RuneDataAssetDetails.h"
 #include "Data/RuneDataAsset.h"
 #include "Editor.h"
+#include "RuneEditor/SRuneEditorWidget.h"
 #include "ToolMenus.h"
 #include "Tools/SActionBalanceWidget.h"
 #include "Tools/SCharacterBalanceWidget.h"
@@ -26,6 +27,7 @@
 namespace
 {
 	const FName RuneBalanceTabName(TEXT("DevKitRuneBalance"));
+	const FName RuneEditorTabName(TEXT("DevKitRuneEditor"));
 	const FName CharacterBalanceTabName(TEXT("DevKitCharacterBalance"));
 	const FName ActionBalanceTabName(TEXT("DevKitActionBalance"));
 	const FName CombatLogTabName(TEXT("DevKitCombatLog"));
@@ -57,6 +59,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnRuneBalanceTab))
 			.SetDisplayName(LOCTEXT("RuneBalanceTabTitle", "Rune Balance"))
 			.SetTooltipText(LOCTEXT("RuneBalanceTabTooltip", "Open the DevKit Rune Balance panel."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			RuneEditorTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnRuneEditorTab))
+			.SetDisplayName(LOCTEXT("RuneEditorTabTitle", "Rune Editor"))
+			.SetTooltipText(LOCTEXT("RuneEditorTabTooltip", "Open the DevKit Rune Editor panel."))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
@@ -92,6 +101,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			UToolMenus::UnregisterOwner(this);
 		}
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuneBalanceTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuneEditorTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CharacterBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ActionBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CombatLogTabName);
@@ -135,6 +145,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.Label(LOCTEXT("RuneBalanceTabLabel", "Rune Balance"))
 			[
 				SNew(SDataEditorWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnRuneEditorTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("RuneEditorTabLabel", "Rune Editor"))
+			[
+				SNew(SRuneEditorWidget)
 			];
 	}
 
@@ -221,6 +241,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	{
 		FToolMenuSection& Section = Menu->FindOrAddSection(TEXT("DevKitDataBalance"), LOCTEXT("DevKitDataBalanceSection", "Balance Editors"));
 		Section.AddMenuEntry(
+			TEXT("OpenRuneEditor"),
+			LOCTEXT("OpenRuneEditorLabel", "Rune Editor"),
+			LOCTEXT("OpenRuneEditorTooltip", "Open the Yog Rune Flow editor for rune assets, graph authoring, and validation work."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenRuneEditorTab)));
+		Section.AddMenuEntry(
 			TEXT("OpenCharacterBalance"),
 			LOCTEXT("OpenCharacterBalanceLabel", "Character Balance"),
 			LOCTEXT("OpenCharacterBalanceTooltip", "Edit character base and movement values."),
@@ -243,6 +269,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenRuneBalanceTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(RuneBalanceTabName);
+	}
+
+	void OpenRuneEditorTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(RuneEditorTabName);
 	}
 
 	void OpenCharacterBalanceTab()

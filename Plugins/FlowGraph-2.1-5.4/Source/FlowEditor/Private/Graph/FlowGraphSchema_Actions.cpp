@@ -280,7 +280,11 @@ UEdGraphNode* FFlowGraphSchemaAction_Paste::PerformAction(class UEdGraph* Parent
 	// prevent adding new nodes while playing
 	if (GEditor->PlayWorld == nullptr)
 	{
-		FFlowGraphUtils::GetFlowGraphEditor(ParentGraph)->PasteNodesHere(Location);
+		const TSharedPtr<SFlowGraphEditor> FlowGraphEditor = FFlowGraphUtils::GetFlowGraphEditor(ParentGraph);
+		if (FlowGraphEditor.IsValid())
+		{
+			FlowGraphEditor->PasteNodesHere(Location);
+		}
 	}
 
 	return nullptr;
