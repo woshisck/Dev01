@@ -119,7 +119,13 @@ FActionData UYogTargetType_MeleeBase::GetActionData(AYogCharacterBase* Targeting
 			{
 				if (MeleeGA->HasConfiguredAttackData())
 				{
-					return MeleeGA->GetAbilityActionData();
+					FActionData Data = MeleeGA->GetAbilityActionData();
+					if (Data.hitboxTypes.IsEmpty())
+					{
+						if (const UAN_MeleeDamage* Notify = Cast<UAN_MeleeDamage>(EventData.OptionalObject))
+							Data.hitboxTypes = Notify->BuildActionData().hitboxTypes;
+					}
+					return Data;
 				}
 			}
 		}
