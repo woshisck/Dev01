@@ -252,6 +252,42 @@ namespace
 		return ECombatCardTriggerTiming::OnHit;
 	}
 
+	FString ComboBonusModeToString(ERuneComboBonusMode Mode)
+	{
+		switch (Mode)
+		{
+		case ERuneComboBonusMode::Add:      return TEXT("加算");
+		case ERuneComboBonusMode::Multiply: return TEXT("乘算");
+		default:                            return TEXT("无");
+		}
+	}
+
+	ERuneComboBonusMode ComboBonusModeFromString(const FString& S)
+	{
+		if (S == TEXT("加算"))  return ERuneComboBonusMode::Add;
+		if (S == TEXT("乘算"))  return ERuneComboBonusMode::Multiply;
+		return ERuneComboBonusMode::None;
+	}
+
+	FString RoundModeToString(ERuneTuningRoundMode Mode)
+	{
+		switch (Mode)
+		{
+		case ERuneTuningRoundMode::Floor: return TEXT("Floor");
+		case ERuneTuningRoundMode::Round: return TEXT("Round");
+		case ERuneTuningRoundMode::Ceil:  return TEXT("Ceil");
+		default:                          return TEXT("—");
+		}
+	}
+
+	ERuneTuningRoundMode RoundModeFromString(const FString& S)
+	{
+		if (S == TEXT("Floor")) return ERuneTuningRoundMode::Floor;
+		if (S == TEXT("Round")) return ERuneTuningRoundMode::Round;
+		if (S == TEXT("Ceil"))  return ERuneTuningRoundMode::Ceil;
+		return ERuneTuningRoundMode::None;
+	}
+
 	FString LibraryCategoryToString(const FGameplayTagContainer& Tags)
 	{
 		TArray<FString> Labels;
@@ -282,6 +318,9 @@ void SRuneEditorWidget::Construct(const FArguments& InArgs)
 	CardTypeOptions       = { MakeShared<FString>(TEXT("Attack")), MakeShared<FString>(TEXT("连携")), MakeShared<FString>(TEXT("终结技")), MakeShared<FString>(TEXT("被动")), MakeShared<FString>(TEXT("普通")) };
 	RequiredActionOptions = { MakeShared<FString>(TEXT("轻击")), MakeShared<FString>(TEXT("重击")), MakeShared<FString>(TEXT("任意")) };
 	TriggerTimingOptions  = { MakeShared<FString>(TEXT("命中时 (OnHit)")), MakeShared<FString>(TEXT("提交时 (OnCommit)")) };
+
+	ComboBonusModeOptions = { MakeShared<FString>(TEXT("无")), MakeShared<FString>(TEXT("加算")), MakeShared<FString>(TEXT("乘算")) };
+	RoundModeOptions      = { MakeShared<FString>(TEXT("—")), MakeShared<FString>(TEXT("Floor")), MakeShared<FString>(TEXT("Round")), MakeShared<FString>(TEXT("Ceil")) };
 
 	RefreshFlowAssetOptions();
 	RefreshData(LOCTEXT("InitialStatus", "符文流程编辑器已就绪。"));
@@ -753,8 +792,14 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildCenterPanel()
 					]
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
+					.Padding(0.f, 0.f, 6.f, 0.f)
 					[
 						BuildCenterTabButton(LOCTEXT("FlowGraphCenterTab", "流程图"), ECenterPanelTab::FlowGraph)
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						BuildCenterTabButton(LOCTEXT("ComboRecipeCenterTab", "连携配方"), ECenterPanelTab::ComboRecipe)
 					]
 				]
 				+ SVerticalBox::Slot()
@@ -780,6 +825,10 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildCenterPanel()
 						[
 							BuildBottomDiagnosticsPanel()
 						]
+					]
+					+ SWidgetSwitcher::Slot()
+					[
+						BuildComboRecipePanel()
 					]
 				]
 			]
@@ -878,6 +927,12 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildValueTablePanel()
 			]
 		]
 		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0.f, 0.f, 0.f, 4.f)
+		[
+			BuildTuningCategoryFilterBar()
+		]
+		+ SVerticalBox::Slot()
 		.FillHeight(1.f)
 		[
 			SAssignNew(TuningListView, SListView<FTuningRowPtr>)
@@ -898,6 +953,10 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildValueTablePanel()
 				+ SHeaderRow::Column(TEXT("ValueTag")).DefaultLabel(LOCTEXT("TuningColumnValueTag", "ValueTag")).FillWidth(0.9f)
 				+ SHeaderRow::Column(TEXT("Unit")).DefaultLabel(LOCTEXT("TuningColumnUnit", "单位")).FillWidth(0.55f)
 				+ SHeaderRow::Column(TEXT("Description")).DefaultLabel(LOCTEXT("TuningColumnDescription", "说明")).FillWidth(1.2f)
+				+ SHeaderRow::Column(TEXT("ComboMode")).DefaultLabel(LOCTEXT("TuningColumnComboMode", "连招模式")).FillWidth(0.65f)
+				+ SHeaderRow::Column(TEXT("BonusPerStack")).DefaultLabel(LOCTEXT("TuningColumnBonusPerStack", "每段奖励")).FillWidth(0.6f)
+				+ SHeaderRow::Column(TEXT("MaxBonus")).DefaultLabel(LOCTEXT("TuningColumnMaxBonus", "奖励上限")).FillWidth(0.6f)
+				+ SHeaderRow::Column(TEXT("RoundMode")).DefaultLabel(LOCTEXT("TuningColumnRoundMode", "取整")).FillWidth(0.55f)
 				+ SHeaderRow::Column(TEXT("Actions")).DefaultLabel(LOCTEXT("TuningColumnActions", "操作")).FixedWidth(64.f))
 		]);
 }
@@ -1254,12 +1313,6 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildDetailsPanel()
 				[
 					BuildDetailsPanelTabButton(LOCTEXT("CombatCardTab", "卡牌配置"), EDetailsPanelTab::CombatCard)
 				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(6.f, 0.f, 0.f, 0.f)
-				[
-					BuildDetailsPanelTabButton(LOCTEXT("ComboRecipeTab", "连携配方"), EDetailsPanelTab::ComboRecipe)
-				]
 			]
 			+ SVerticalBox::Slot()
 			.FillHeight(1.f)
@@ -1538,12 +1591,404 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildDetailsPanel()
 				[
 					BuildCombatCardPanel()
 				]
-				+ SWidgetSwitcher::Slot()
-				[
-					BuildComboRecipePanel()
-				]
 			]
 		];
+}
+
+TSharedRef<SWidget> SRuneEditorWidget::BuildComboRecipePanel()
+{
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(8.f, 6.f, 8.f, 0.f)
+		[
+			SNew(SBorder)
+			.BorderImage(FAppStyle::GetBrush(TEXT("DetailsView.CategoryTop")))
+			.Padding(FMargin(6.f, 4.f))
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(0.22f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ColNeighborTag", "邻接卡 ID 标签"))
+					.Font(FAppStyle::GetFontStyle(TEXT("SmallFont")))
+				]
+				+ SHorizontalBox::Slot()
+				.FillWidth(0.37f)
+				.Padding(4.f, 0.f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ColForward", "正向 (Forward)"))
+					.Font(FAppStyle::GetFontStyle(TEXT("SmallFont")))
+				]
+				+ SHorizontalBox::Slot()
+				.FillWidth(0.37f)
+				.Padding(4.f, 0.f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ColBackward", "反向 (Backward)"))
+					.Font(FAppStyle::GetFontStyle(TEXT("SmallFont")))
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SBox).WidthOverride(28.f)
+				]
+			]
+		]
+		+ SVerticalBox::Slot()
+		.FillHeight(1.f)
+		.Padding(8.f, 2.f)
+		[
+			SAssignNew(ComboRecipeListView, SListView<FComboRecipeRowPtr>)
+			.ListItemsSource(&ComboRecipeRows)
+			.OnGenerateRow(this, &SRuneEditorWidget::BuildComboRecipeRow)
+			.SelectionMode(ESelectionMode::None)
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(8.f, 4.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.f, 0.f, 6.f, 0.f)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("AddRecipeRow", "+ 添加行"))
+				.IsEnabled_Lambda([this]() { return GetSelectedRune() != nullptr; })
+				.OnClicked(this, &SRuneEditorWidget::OnAddComboRecipeRowClicked)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("SaveRecipeTable", "保存配方表"))
+				.IsEnabled_Lambda([this]() { return GetSelectedRune() != nullptr; })
+				.OnClicked(this, &SRuneEditorWidget::OnSaveComboRecipesClicked)
+			]
+		];
+}
+
+TSharedRef<ITableRow> SRuneEditorWidget::BuildComboRecipeRow(FComboRecipeRowPtr Row, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	auto MakeDirectionCell = [this, Row](bool bForward) -> TSharedRef<SWidget>
+	{
+		return SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.f, 0.f, 0.f, 2.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(0.f, 0.f, 4.f, 0.f)
+				[
+					SNew(SCheckBox)
+					.IsChecked_Lambda([Row, bForward]()
+					{
+						return (bForward ? Row->bHasForward : Row->bHasBackward)
+							? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+					})
+					.OnCheckStateChanged_Lambda([Row, bForward](ECheckBoxState NewState)
+					{
+						(bForward ? Row->bHasForward : Row->bHasBackward) = (NewState == ECheckBoxState::Checked);
+					})
+				]
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				[
+					SNew(SComboBox<TSharedPtr<FString>>)
+					.OptionsSource(&FlowAssetNames)
+					.IsEnabled_Lambda([Row, bForward]() { return bForward ? Row->bHasForward : Row->bHasBackward; })
+					.OnSelectionChanged_Lambda([this, Row, bForward](TSharedPtr<FString> Item, ESelectInfo::Type)
+					{
+						if (!Item.IsValid()) return;
+						const int32 Idx = FlowAssetNames.IndexOfByKey(Item);
+						(bForward ? Row->ForwardFlowIdx : Row->BackwardFlowIdx) = FMath::Max(0, Idx);
+					})
+					.OnGenerateWidget_Lambda([](TSharedPtr<FString> Item)
+					{
+						return SNew(STextBlock).Text(FText::FromString(*Item)).Margin(FMargin(4.f, 2.f));
+					})
+					[
+						SNew(STextBlock)
+						.Text_Lambda([this, Row, bForward]()
+						{
+							const int32 Idx = bForward ? Row->ForwardFlowIdx : Row->BackwardFlowIdx;
+							return FlowAssetNames.IsValidIndex(Idx)
+								? FText::FromString(*FlowAssetNames[Idx])
+								: FText::FromString(TEXT("无"));
+						})
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4.f, 0.f, 0.f, 0.f)
+				[
+					SNew(SBox)
+					.WidthOverride(64.f)
+					[
+						SNew(SNumericEntryBox<float>)
+						.AllowSpin(true)
+						.MinValue(0.f)
+						.MaxValue(10.f)
+						.MinSliderValue(0.f)
+						.MaxSliderValue(5.f)
+						.IsEnabled_Lambda([Row, bForward]() { return bForward ? Row->bHasForward : Row->bHasBackward; })
+						.Value_Lambda([Row, bForward]()
+						{
+							return TOptional<float>(bForward ? Row->ForwardMultiplier : Row->BackwardMultiplier);
+						})
+						.OnValueChanged_Lambda([Row, bForward](float NewVal)
+						{
+							(bForward ? Row->ForwardMultiplier : Row->BackwardMultiplier) = NewVal;
+						})
+					]
+				]
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SEditableTextBox)
+				.HintText(LOCTEXT("ReasonHint", "文案"))
+				.IsEnabled_Lambda([Row, bForward]() { return bForward ? Row->bHasForward : Row->bHasBackward; })
+				.Text_Lambda([Row, bForward]()
+				{
+					return FText::FromString(bForward ? Row->ForwardReason : Row->BackwardReason);
+				})
+				.OnTextCommitted_Lambda([Row, bForward](const FText& NewText, ETextCommit::Type)
+				{
+					(bForward ? Row->ForwardReason : Row->BackwardReason) = NewText.ToString();
+				})
+			];
+	};
+
+	return SNew(STableRow<FComboRecipeRowPtr>, OwnerTable)
+		.Padding(FMargin(4.f, 3.f))
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.22f)
+			.VAlign(VAlign_Top)
+			.Padding(0.f, 0.f, 4.f, 0.f)
+			[
+				SNew(SEditableTextBox)
+				.HintText(LOCTEXT("NeighborTagHint", "Card.ID.XXX"))
+				.Text_Lambda([Row]() { return FText::FromString(Row->NeighborTagString); })
+				.OnTextCommitted_Lambda([Row](const FText& NewText, ETextCommit::Type)
+				{
+					Row->NeighborTagString = NewText.ToString();
+				})
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.37f)
+			.Padding(0.f, 0.f, 4.f, 0.f)
+			[
+				MakeDirectionCell(true)
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.37f)
+			.Padding(0.f, 0.f, 4.f, 0.f)
+			[
+				MakeDirectionCell(false)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("DeleteRecipeRow", "✕"))
+				.ToolTipText(LOCTEXT("DeleteRecipeRowTip", "删除此行"))
+				.OnClicked_Lambda([this, Row]()
+				{
+					ComboRecipeRows.Remove(Row);
+					if (ComboRecipeListView.IsValid())
+					{
+						ComboRecipeListView->RequestListRefresh();
+					}
+					return FReply::Handled();
+				})
+			]
+		];
+}
+
+void SRuneEditorWidget::RefreshFlowAssetOptions()
+{
+	FlowAssetDataList.Empty();
+	FlowAssetNames.Empty();
+	FlowAssetNames.Add(MakeShared<FString>(TEXT("无")));
+
+	if (!FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry")))
+	{
+		return;
+	}
+
+	IAssetRegistry& Reg = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
+	TArray<FAssetData> AllAssets;
+	FARFilter Filter;
+	Filter.ClassPaths.Add(UFlowAsset::StaticClass()->GetClassPathName());
+	Filter.bRecursiveClasses = true;
+	Filter.PackagePaths.Add(FName(TEXT("/Game/YogRuneEditor/Flows")));
+	Filter.bRecursivePaths = true;
+	Reg.GetAssets(Filter, AllAssets);
+
+	AllAssets.Sort([](const FAssetData& A, const FAssetData& B)
+	{
+		return A.AssetName.LexicalLess(B.AssetName);
+	});
+
+	for (const FAssetData& AD : AllAssets)
+	{
+		FlowAssetDataList.Add(AD);
+		FlowAssetNames.Add(MakeShared<FString>(AD.AssetName.ToString()));
+	}
+}
+
+void SRuneEditorWidget::RefreshComboRecipeRows()
+{
+	ComboRecipeRows.Empty();
+
+	const URuneDataAsset* Rune = GetSelectedRune();
+	if (!Rune)
+	{
+		if (ComboRecipeListView.IsValid())
+		{
+			ComboRecipeListView->RequestListRefresh();
+		}
+		return;
+	}
+
+	auto FindOrAddRow = [this](const FString& TagStr) -> FComboRecipeRowPtr
+	{
+		for (const FComboRecipeRowPtr& Row : ComboRecipeRows)
+		{
+			if (Row->NeighborTagString == TagStr)
+			{
+				return Row;
+			}
+		}
+		FComboRecipeRowPtr NewRow = MakeShared<FComboRecipeEditorRow>();
+		NewRow->NeighborTagString = TagStr;
+		ComboRecipeRows.Add(NewRow);
+		return NewRow;
+	};
+
+	auto FindFlowIdx = [this](const UFlowAsset* FA) -> int32
+	{
+		if (!FA)
+		{
+			return 0;
+		}
+		const FName TargetName(*FA->GetName());
+		for (int32 i = 0; i < FlowAssetDataList.Num(); i++)
+		{
+			if (FlowAssetDataList[i].AssetName == TargetName)
+			{
+				return i + 1;
+			}
+		}
+		return 0;
+	};
+
+	for (const FCombatCardLinkRecipe& Recipe : Rune->RuneInfo.CombatCard.LinkRecipes)
+	{
+		FString TagStr;
+		if (!Recipe.Condition.RequiredNeighborIdTags.IsEmpty())
+		{
+			TagStr = Recipe.Condition.RequiredNeighborIdTags.First().ToString();
+		}
+
+		FComboRecipeRowPtr Row = FindOrAddRow(TagStr);
+
+		if (Recipe.Direction == ECombatCardLinkOrientation::Forward)
+		{
+			Row->bHasForward = true;
+			Row->ForwardFlowIdx = FindFlowIdx(Recipe.LinkFlow.Get());
+			Row->ForwardMultiplier = Recipe.Multiplier;
+			Row->ForwardReason = Recipe.ReasonText.ToString();
+		}
+		else
+		{
+			Row->bHasBackward = true;
+			Row->BackwardFlowIdx = FindFlowIdx(Recipe.LinkFlow.Get());
+			Row->BackwardMultiplier = Recipe.Multiplier;
+			Row->BackwardReason = Recipe.ReasonText.ToString();
+		}
+	}
+
+	if (ComboRecipeListView.IsValid())
+	{
+		ComboRecipeListView->RequestListRefresh();
+	}
+}
+
+FReply SRuneEditorWidget::OnAddComboRecipeRowClicked()
+{
+	ComboRecipeRows.Add(MakeShared<FComboRecipeEditorRow>());
+	if (ComboRecipeListView.IsValid())
+	{
+		ComboRecipeListView->RequestListRefresh();
+	}
+	return FReply::Handled();
+}
+
+FReply SRuneEditorWidget::OnSaveComboRecipesClicked()
+{
+	URuneDataAsset* Rune = GetSelectedRune();
+	if (!Rune)
+	{
+		return FReply::Handled();
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("SaveComboRecipes", "Save Combo Recipes"));
+	Rune->Modify();
+	Rune->RuneInfo.CombatCard.LinkRecipes.Empty();
+
+	for (const FComboRecipeRowPtr& Row : ComboRecipeRows)
+	{
+		auto MakeRecipe = [this, &Row](bool bForward) -> FCombatCardLinkRecipe
+		{
+			FCombatCardLinkRecipe Recipe;
+			Recipe.Direction = bForward ? ECombatCardLinkOrientation::Forward : ECombatCardLinkOrientation::Reversed;
+
+			if (!Row->NeighborTagString.IsEmpty())
+			{
+				const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*Row->NeighborTagString), false);
+				if (Tag.IsValid())
+				{
+					Recipe.Condition.RequiredNeighborIdTags.AddTag(Tag);
+				}
+			}
+
+			const int32 FlowIdx = bForward ? Row->ForwardFlowIdx : Row->BackwardFlowIdx;
+			if (FlowIdx > 0 && FlowAssetDataList.IsValidIndex(FlowIdx - 1))
+			{
+				Recipe.LinkFlow = Cast<UFlowAsset>(FlowAssetDataList[FlowIdx - 1].GetAsset());
+			}
+
+			Recipe.Multiplier = bForward ? Row->ForwardMultiplier : Row->BackwardMultiplier;
+			Recipe.ReasonText = FText::FromString(bForward ? Row->ForwardReason : Row->BackwardReason);
+			return Recipe;
+		};
+
+		if (Row->bHasForward)
+		{
+			Rune->RuneInfo.CombatCard.LinkRecipes.Add(MakeRecipe(true));
+		}
+		if (Row->bHasBackward)
+		{
+			Rune->RuneInfo.CombatCard.LinkRecipes.Add(MakeRecipe(false));
+		}
+	}
+
+	Rune->MarkPackageDirty();
+	StatusText = FText::Format(
+		LOCTEXT("ComboRecipesSaved", "已保存 {0} 条连携配方。"),
+		FText::AsNumber(Rune->RuneInfo.CombatCard.LinkRecipes.Num()));
+	return FReply::Handled();
 }
 
 TSharedRef<SWidget> SRuneEditorWidget::BuildDetailsPanelTabButton(const FText& Label, EDetailsPanelTab Tab)
@@ -2196,6 +2641,131 @@ TSharedRef<ITableRow> SRuneEditorWidget::BuildTuningRow(FTuningRowPtr Row, const
 						});
 					}))
 			]
+			// Combo Bonus: Mode
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.65f)
+			.Padding(0.f, 0.f, 4.f, 0.f)
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+				.BorderBackgroundColor_Lambda([this, RowIndex]()
+				{
+					const FRuneTuningScalar* S = GetTuningScalar(GetSelectedRune(), RowIndex);
+					return (S && S->ComboBonus.IsEnabled())
+						? FLinearColor(0.25f, 0.1f, 0.4f, 1.f)
+						: FLinearColor(0.08f, 0.08f, 0.08f, 0.5f);
+				})
+				.Padding(2.f)
+				[
+					SNew(SComboBox<TSharedPtr<FString>>)
+					.OptionsSource(&ComboBonusModeOptions)
+					.OnSelectionChanged_Lambda([EditScalar, this](TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo)
+					{
+						if (SelectInfo == ESelectInfo::Direct || !Item.IsValid()) return;
+						EditScalar([Item](FRuneTuningScalar& Scalar)
+						{
+							Scalar.ComboBonus.Mode = ComboBonusModeFromString(*Item);
+						});
+					})
+					.OnGenerateWidget_Lambda([](TSharedPtr<FString> Item)
+					{
+						return SNew(STextBlock).Text(FText::FromString(*Item)).Margin(FMargin(4.f, 2.f));
+					})
+					[
+						SNew(STextBlock)
+						.Text_Lambda([GetScalarText]()
+						{
+							return GetScalarText([](const FRuneTuningScalar& Scalar)
+							{
+								return FText::FromString(ComboBonusModeToString(Scalar.ComboBonus.Mode));
+							});
+						})
+					]
+				]
+			]
+			// Combo Bonus: BonusPerStack
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.6f)
+			.Padding(0.f, 0.f, 4.f, 0.f)
+			[
+				SNew(SNumericEntryBox<float>)
+				.IsEnabled_Lambda([this, RowIndex]()
+				{
+					const FRuneTuningScalar* S = GetTuningScalar(GetSelectedRune(), RowIndex);
+					return S && S->ComboBonus.IsEnabled();
+				})
+				.Value_Lambda([this, RowIndex]() -> TOptional<float>
+				{
+					const FRuneTuningScalar* Scalar = GetTuningScalar(GetSelectedRune(), RowIndex);
+					return Scalar ? TOptional<float>(Scalar->ComboBonus.BonusPerStack) : TOptional<float>();
+				})
+				.OnValueCommitted_Lambda([EditScalar](float NewValue, ETextCommit::Type)
+				{
+					EditScalar([NewValue](FRuneTuningScalar& Scalar)
+					{
+						Scalar.ComboBonus.BonusPerStack = NewValue;
+					});
+				})
+			]
+			// Combo Bonus: MaxBonus
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.6f)
+			.Padding(0.f, 0.f, 4.f, 0.f)
+			[
+				SNew(SNumericEntryBox<float>)
+				.IsEnabled_Lambda([this, RowIndex]()
+				{
+					const FRuneTuningScalar* S = GetTuningScalar(GetSelectedRune(), RowIndex);
+					return S && S->ComboBonus.IsEnabled();
+				})
+				.Value_Lambda([this, RowIndex]() -> TOptional<float>
+				{
+					const FRuneTuningScalar* Scalar = GetTuningScalar(GetSelectedRune(), RowIndex);
+					return Scalar ? TOptional<float>(Scalar->ComboBonus.MaxBonus) : TOptional<float>();
+				})
+				.OnValueCommitted_Lambda([EditScalar](float NewValue, ETextCommit::Type)
+				{
+					EditScalar([NewValue](FRuneTuningScalar& Scalar)
+					{
+						Scalar.ComboBonus.MaxBonus = NewValue;
+					});
+				})
+			]
+			// Combo Bonus: RoundMode
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.55f)
+			.Padding(0.f, 0.f, 4.f, 0.f)
+			[
+				SNew(SComboBox<TSharedPtr<FString>>)
+				.OptionsSource(&RoundModeOptions)
+				.IsEnabled_Lambda([this, RowIndex]()
+				{
+					const FRuneTuningScalar* S = GetTuningScalar(GetSelectedRune(), RowIndex);
+					return S && S->ComboBonus.IsEnabled();
+				})
+				.OnSelectionChanged_Lambda([EditScalar](TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo)
+				{
+					if (SelectInfo == ESelectInfo::Direct || !Item.IsValid()) return;
+					EditScalar([Item](FRuneTuningScalar& Scalar)
+					{
+						Scalar.ComboBonus.RoundMode = RoundModeFromString(*Item);
+					});
+				})
+				.OnGenerateWidget_Lambda([](TSharedPtr<FString> Item)
+				{
+					return SNew(STextBlock).Text(FText::FromString(*Item)).Margin(FMargin(4.f, 2.f));
+				})
+				[
+					SNew(STextBlock)
+					.Text_Lambda([GetScalarText]()
+					{
+						return GetScalarText([](const FRuneTuningScalar& Scalar)
+						{
+							return FText::FromString(RoundModeToString(Scalar.ComboBonus.RoundMode));
+						});
+					})
+				]
+			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
@@ -2298,11 +2868,25 @@ void SRuneEditorWidget::RefreshTuningRows()
 {
 	TuningRows.Reset();
 
+	static const FName ComboOnlyFilter(TEXT("##ComboBonus"));
+
 	if (const URuneDataAsset* Rune = GetSelectedRune())
 	{
 		const TArray<FRuneTuningScalar>& Scalars = Rune->GetTuningScalars();
 		for (int32 Index = 0; Index < Scalars.Num(); ++Index)
 		{
+			const FRuneTuningScalar& Scalar = Scalars[Index];
+			if (!TuningCategoryFilter.IsNone())
+			{
+				if (TuningCategoryFilter == ComboOnlyFilter)
+				{
+					if (!Scalar.ComboBonus.IsEnabled()) continue;
+				}
+				else if (Scalar.Category != TuningCategoryFilter)
+				{
+					continue;
+				}
+			}
 			TuningRows.Add(MakeShared<FRuneEditorTuningRow>(Index));
 		}
 	}
@@ -2311,6 +2895,47 @@ void SRuneEditorWidget::RefreshTuningRows()
 	{
 		TuningListView->RequestListRefresh();
 	}
+}
+
+TSharedRef<SWidget> SRuneEditorWidget::BuildTuningCategoryFilterBar()
+{
+	struct FFilterEntry { FText Label; FName Category; };
+	static const FFilterEntry Entries[] = {
+		{ LOCTEXT("TuningFilterAll",      "全部"),     NAME_None              },
+		{ LOCTEXT("TuningFilterDamage",   "伤害"),     FName("Damage")        },
+		{ LOCTEXT("TuningFilterProjectile","飞行物"),  FName("Projectile")    },
+		{ LOCTEXT("TuningFilterStack",    "层数"),     FName("Stack")         },
+		{ LOCTEXT("TuningFilterDuration", "持续时间"), FName("Duration")      },
+		{ LOCTEXT("TuningFilterCombo",    "连招奖励"), FName("##ComboBonus")  },
+	};
+
+	TSharedRef<SHorizontalBox> Bar = SNew(SHorizontalBox);
+	for (const FFilterEntry& E : Entries)
+	{
+		const FName Cat = E.Category;
+		const FText Lbl = E.Label;
+		Bar->AddSlot()
+			.AutoWidth()
+			.Padding(0.f, 0.f, 4.f, 0.f)
+			[
+				SNew(SButton)
+				.Text_Lambda([this, Cat, Lbl]()
+				{
+					return TuningCategoryFilter == Cat
+						? FText::Format(LOCTEXT("ActiveTuningFilter", "● {0}"), Lbl)
+						: Lbl;
+				})
+				.OnClicked(this, &SRuneEditorWidget::OnTuningCategoryFilterClicked, Cat)
+			];
+	}
+	return Bar;
+}
+
+FReply SRuneEditorWidget::OnTuningCategoryFilterClicked(FName Category)
+{
+	TuningCategoryFilter = Category;
+	RefreshTuningRows();
+	return FReply::Handled();
 }
 
 void SRuneEditorWidget::BindGraphEditorCommands()

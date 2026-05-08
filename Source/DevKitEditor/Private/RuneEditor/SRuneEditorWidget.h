@@ -83,7 +83,8 @@ private:
 	enum class ECenterPanelTab : uint8
 	{
 		ValueTable,
-		FlowGraph
+		FlowGraph,
+		ComboRecipe
 	};
 
 	enum class EBottomPanelTab : uint8
@@ -98,7 +99,6 @@ private:
 	{
 		BasicInfo,
 		CombatCard,
-		ComboRecipe
 	};
 
 	enum class ENodeLibraryFilter : uint8
@@ -153,6 +153,7 @@ private:
 	void RefreshTuningRows();
 	void RefreshComboRecipeRows();
 	void RefreshFlowAssetOptions();
+	TSharedRef<SWidget> BuildTuningCategoryFilterBar();
 	void BindGraphEditorCommands();
 	void RebuildGraphEditor();
 	void OnSearchTextChanged(const FText& NewText);
@@ -179,6 +180,7 @@ private:
 	FReply OnTuningSourceClicked(int32 RowIndex);
 	FReply OnDetailsPanelTabSelected(EDetailsPanelTab Tab);
 	FReply OnSaveCardInfoClicked();
+	FReply OnTuningCategoryFilterClicked(FName Category);
 	FReply OnAddComboRecipeRowClicked();
 	FReply OnSaveComboRecipesClicked();
 	FReply OnToggleIsCombatCardClicked();
@@ -267,8 +269,11 @@ private:
 
 	TArray<FAssetData> FlowAssetDataList;
 	TArray<TSharedPtr<FString>> FlowAssetNames;
+	FName TuningCategoryFilter;
 
 	using FStringCombo = SComboBox<TSharedPtr<FString>>;
+	TArray<TSharedPtr<FString>> ComboBonusModeOptions;
+	TArray<TSharedPtr<FString>> RoundModeOptions;
 	TArray<TSharedPtr<FString>> RuneTypeOptions;
 	TArray<TSharedPtr<FString>> RarityOptions;
 	TArray<TSharedPtr<FString>> TriggerTypeOptions;
