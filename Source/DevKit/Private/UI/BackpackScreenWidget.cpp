@@ -2414,6 +2414,11 @@ FReply UBackpackScreenWidget::HandleCombatDeckSelectButtonState(bool bPressed, c
     {
         if (bDeckSelectButtonWasDown)
         {
+            // 拖拽进行中时允许第二次 A 按下直接提交，否则必须等到松键才能放下卡牌
+            if (CombatDeckEditWidget && CombatDeckEditWidget->IsGamepadDragActive())
+            {
+                return CombatDeckEditWidget->HandleDeckSelectPressed() ? FReply::Handled() : FReply::Unhandled();
+            }
             return FReply::Handled();
         }
 

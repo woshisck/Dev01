@@ -241,7 +241,10 @@ void UFlowGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextM
 	GetFlowNodeActions(ContextMenuBuilder, GetEditedAssetOrClassDefault(ContextMenuBuilder.CurrentGraph), FString());
 	GetCommentAction(ContextMenuBuilder, ContextMenuBuilder.CurrentGraph);
 
-	if (!ContextMenuBuilder.FromPin && FFlowGraphUtils::GetFlowGraphEditor(ContextMenuBuilder.CurrentGraph)->CanPasteNodes())
+	const TSharedPtr<SFlowGraphEditor> FlowGraphEditor = ContextMenuBuilder.CurrentGraph
+		? FFlowGraphUtils::GetFlowGraphEditor(ContextMenuBuilder.CurrentGraph)
+		: nullptr;
+	if (!ContextMenuBuilder.FromPin && FlowGraphEditor.IsValid() && FlowGraphEditor->CanPasteNodes())
 	{
 		const TSharedPtr<FFlowGraphSchemaAction_Paste> NewAction(new FFlowGraphSchemaAction_Paste(FText::GetEmpty(), LOCTEXT("PasteHereAction", "Paste here"), FText::GetEmpty(), 0));
 		ContextMenuBuilder.AddAction(NewAction);
@@ -808,7 +811,13 @@ void UFlowGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNoti
 
 int32 UFlowGraphSchema::GetNodeSelectionCount(const UEdGraph* Graph) const
 {
-	return FFlowGraphUtils::GetFlowGraphEditor(Graph)->GetNumberOfSelectedNodes();
+	if (!Graph)
+	{
+		return 0;
+	}
+
+	const TSharedPtr<SFlowGraphEditor> FlowGraphEditor = FFlowGraphUtils::GetFlowGraphEditor(Graph);
+	return FlowGraphEditor.IsValid() ? FlowGraphEditor->GetNumberOfSelectedNodes() : 0;
 }
 
 TSharedPtr<FEdGraphSchemaAction> UFlowGraphSchema::GetCreateCommentAction() const
@@ -1178,7 +1187,10 @@ void UFlowGraphSchema::GetCommentAction(FGraphActionMenuBuilder& ActionMenuBuild
 {
 	if (!ActionMenuBuilder.FromPin)
 	{
-		const bool bIsManyNodesSelected = CurrentGraph ? (FFlowGraphUtils::GetFlowGraphEditor(CurrentGraph)->GetNumberOfSelectedNodes() > 0) : false;
+		const TSharedPtr<SFlowGraphEditor> FlowGraphEditor = CurrentGraph
+			? FFlowGraphUtils::GetFlowGraphEditor(CurrentGraph)
+			: nullptr;
+		const bool bIsManyNodesSelected = FlowGraphEditor.IsValid() && FlowGraphEditor->GetNumberOfSelectedNodes() > 0;
 		const FText MenuDescription = bIsManyNodesSelected ? LOCTEXT("CreateCommentAction", "Create Comment from Selection") : LOCTEXT("AddCommentAction", "Add Comment...");
 		const FText ToolTip = LOCTEXT("CreateCommentToolTip", "Creates a comment.");
 

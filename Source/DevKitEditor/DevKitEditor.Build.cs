@@ -89,6 +89,7 @@ public class DevKitEditor : ModuleRules
 				"Blutility",
 				"UMG",
 				"UMGEditor",
+				"GraphEditor",
 				"AnimationBlueprintLibrary",
 				// 数值编辑工具依赖：FPlatformApplicationMisc::ClipboardCopy
 				"ApplicationCore",

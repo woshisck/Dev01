@@ -391,6 +391,25 @@ struct DEVKIT_API FRuneShape
     FIntPoint  GetPivotOffset(int32 NumRotations) const;
 };
 
+UENUM(BlueprintType)
+enum class ERuneTuningValueSource : uint8
+{
+    Literal UMETA(DisplayName = "具体值"),
+    Formula UMETA(DisplayName = "公式"),
+    MMC     UMETA(DisplayName = "MMC"),
+    Context UMETA(DisplayName = "上下文"),
+};
+
+UCLASS(Abstract, Blueprintable, EditInlineNew)
+class DEVKIT_API URuneValueCalculation : public UObject
+{
+    GENERATED_BODY()
+
+public:
+    UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category = "Rune|Tuning")
+    float CalculateValue(const URuneDataAsset* Rune, FName Key, float DefaultValue) const;
+};
+
 USTRUCT(BlueprintType)
 struct DEVKIT_API FRuneTuningScalar
 {
@@ -403,13 +422,34 @@ struct DEVKIT_API FRuneTuningScalar
     FText DisplayName;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
+    FName Category;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
+    ERuneTuningValueSource ValueSource = ERuneTuningValueSource::Literal;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
     float Value = 0.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning", meta = (EditCondition = "ValueSource == ERuneTuningValueSource::Formula", EditConditionHides))
+    FString FormulaExpression;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning", meta = (EditCondition = "ValueSource == ERuneTuningValueSource::Context", EditConditionHides))
+    FName ContextKey;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning", meta = (EditCondition = "ValueSource == ERuneTuningValueSource::MMC", EditConditionHides))
+    TSubclassOf<URuneValueCalculation> MagnitudeCalculationClass;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
     float MinValue = 0.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
     float MaxValue = 0.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
+    FText UnitText;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning", meta = (MultiLine = true))
+    FText Description;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning", meta = (Categories = "Data"))
     FGameplayTag ValueTag;
@@ -462,6 +502,10 @@ struct DEVKIT_API FRuneConfig
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Categories = "Rune.ID"))
     FGameplayTag RuneIdTag;
+
+    /** 编辑器资源栏分类标签，例如 Rune.Library.Base / Rune.Library.Enemy。 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Categories = "Rune.Library"))
+    FGameplayTagContainer LibraryTags;
 
     /** 数值 ID（已弃用：迁移期 fallback，新代码请用 RuneIdTag）*/
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -607,6 +651,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
     FGameplayTag GetRuneIdTag() const { return RuneInfo.RuneConfig.RuneIdTag; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
+    FGameplayTagContainer GetLibraryTags() const { return RuneInfo.RuneConfig.LibraryTags; }
 
     /** 仅迁移期使用，业务代码请改用 GetRuneIdTag() */
     UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
