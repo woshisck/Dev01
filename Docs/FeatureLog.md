@@ -5,6 +5,42 @@
 
 ---
 
+## 2026-05-08
+
+### [RUNE-EDITOR-003] 连携配方表 — ComboRecipe 编辑器页
+
+**状态**：C++ 完整，已编译（零错误）
+
+| 项目 | 内容 |
+|------|------|
+| 涉及文件 | `Source/DevKitEditor/Private/RuneEditor/SRuneEditorWidget.{h,cpp}` |
+| 数据结构 | `FCombatCardLinkRecipe`（已有）；新增编辑器侧 `FComboRecipeEditorRow`（含 ForwardFlowIdx/Multiplier/Reason + Backward 对称字段） |
+| 入口 | Rune Editor → 右侧详情面板 → 第三个 Tab "连携配方" |
+| 行结构 | 每行 = 一个邻接卡 ID Tag；列 = 正向 / 反向；每格 = 启用复选框 + Flow 下拉 + 倍率 + 原因文案 |
+| Flow 来源 | `IAssetRegistry` 扫描 `/Game/YogRuneEditor/Flows`，共享 `FlowAssetNames` 数组，惰性加载（`GetAsset()` 仅在保存时调用） |
+| 保存逻辑 | `OnSaveComboRecipesClicked`：清空旧 `LinkRecipes`，从 `ComboRecipeRows` 重建，`FScopedTransaction` 包装 |
+| 已知限制 | Flow 路径硬编码为 `/Game/YogRuneEditor/Flows`；邻接 Tag 字段为自由文本，不校验格式 |
+
+---
+
+### [RUNE-EDITOR-004] 连招奖励数值表 — ComboBonus 行级配置
+
+**状态**：C++ 完整，已编译（零错误）
+
+| 项目 | 内容 |
+|------|------|
+| 涉及文件 | `Source/DevKit/Public/Data/RuneDataAsset.h`、`Source/DevKit/Private/Data/RuneDataAsset.cpp`、`Source/DevKitEditor/Private/RuneEditor/SRuneEditorWidget.{h,cpp}` |
+| 新枚举 | `ERuneComboBonusMode`（None/Add/Multiply）、`ERuneTuningRoundMode`（None/Floor/Round/Ceil） |
+| 新结构 | `FRuneComboBonusConfig`（Mode/BonusPerStack/MaxBonus/RoundMode + `IsEnabled()`）、`FRuneTuningResolveContext`（`int32 ComboIndex = 1`） |
+| 数据扩展 | `FRuneTuningScalar` 追加 `FRuneComboBonusConfig ComboBonus` 字段 |
+| 运行时接口 | `URuneDataAsset::GetRuneTuningValue(FName, const FRuneTuningResolveContext&, float)` 重载：先解析基础值（Literal/Formula/MMC），再叠加连招奖励 |
+| 编辑器 UI | 数值表新增 4 列（连招模式 / 每段奖励 / 奖励上限 / 取整）；分类筛选栏（全部 / 伤害 / 飞行物 / 层数 / 持续时间 / 连招奖励） |
+| 特殊过滤键 | `FName("##ComboBonus")` = 只显示已启用连招奖励的行 |
+| 兼容性 | 旧 `CombatCard.bUseComboEffectScaling` 字段保留；未配置 ComboBonus 的行行为完全不变 |
+| 已知限制 | Flow 节点尚未统一调用 `GetRuneTuningValue(Key, Context)` 重载，需逐节点接入 ComboIndex 上下文 |
+
+---
+
 ## 2026-05-07
 
 ### [CombatLog-512] 战斗日志系统 512 版本升级

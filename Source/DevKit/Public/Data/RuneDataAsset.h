@@ -410,6 +410,59 @@ public:
     float CalculateValue(const URuneDataAsset* Rune, FName Key, float DefaultValue) const;
 };
 
+// ============================================================
+//  连招奖励：每个数值行独立配置随 ComboIndex 变化的奖励方式
+// ============================================================
+
+UENUM(BlueprintType)
+enum class ERuneComboBonusMode : uint8
+{
+    None     UMETA(DisplayName = "不受连招影响"),
+    Add      UMETA(DisplayName = "加算"),
+    Multiply UMETA(DisplayName = "乘算"),
+};
+
+UENUM(BlueprintType)
+enum class ERuneTuningRoundMode : uint8
+{
+    None  UMETA(DisplayName = "不取整"),
+    Floor UMETA(DisplayName = "向下取整"),
+    Round UMETA(DisplayName = "四舍五入"),
+    Ceil  UMETA(DisplayName = "向上取整"),
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FRuneComboBonusConfig
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo Bonus")
+    ERuneComboBonusMode Mode = ERuneComboBonusMode::None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo Bonus",
+        meta = (EditCondition = "Mode != ERuneComboBonusMode::None", EditConditionHides))
+    float BonusPerStack = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo Bonus",
+        meta = (EditCondition = "Mode != ERuneComboBonusMode::None", EditConditionHides))
+    float MaxBonus = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo Bonus",
+        meta = (EditCondition = "Mode != ERuneComboBonusMode::None", EditConditionHides))
+    ERuneTuningRoundMode RoundMode = ERuneTuningRoundMode::None;
+
+    bool IsEnabled() const { return Mode != ERuneComboBonusMode::None; }
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FRuneTuningResolveContext
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = "Tuning")
+    int32 ComboIndex = 1;
+};
+
 USTRUCT(BlueprintType)
 struct DEVKIT_API FRuneTuningScalar
 {
@@ -453,8 +506,10 @@ struct DEVKIT_API FRuneTuningScalar
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning", meta = (Categories = "Data"))
     FGameplayTag ValueTag;
-};
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Combo Bonus")
+    FRuneComboBonusConfig ComboBonus;
+};
 
 // ============================================================
 //  FRuneConfig — 符文完整配置（展示信息 + 分类元数据）
@@ -733,4 +788,6 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Rune|Accessor")
     float GetRuneTuningValue(FName Key, float DefaultValue = 0.f) const;
+
+    float GetRuneTuningValue(FName Key, const FRuneTuningResolveContext& Context, float DefaultValue = 0.f) const;
 };

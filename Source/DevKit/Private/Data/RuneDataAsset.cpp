@@ -128,3 +128,61 @@ float URuneDataAsset::GetRuneTuningValue(FName Key, float DefaultValue) const
 	return Scalar.Value;
 }
 
+float URuneDataAsset::GetRuneTuningValue(FName Key, const FRuneTuningResolveContext& Context, float DefaultValue) const
+{
+	FRuneTuningScalar Scalar;
+	if (!GetRuneTuningScalar(Key, Scalar))
+	{
+		return DefaultValue;
+	}
+
+	float BaseValue = DefaultValue;
+	if (Scalar.ValueSource == ERuneTuningValueSource::MMC && Scalar.MagnitudeCalculationClass)
+	{
+		if (const URuneValueCalculation* Calc = Scalar.MagnitudeCalculationClass->GetDefaultObject<URuneValueCalculation>())
+		{
+			BaseValue = Calc->CalculateValue(this, Key, Scalar.Value);
+		}
+		else
+		{
+			BaseValue = Scalar.Value;
+		}
+	}
+	else if (Scalar.ValueSource == ERuneTuningValueSource::Formula)
+	{
+		BaseValue = EvaluateRuneTuningFormula(this, Scalar);
+	}
+	else
+	{
+		BaseValue = Scalar.Value;
+	}
+
+	const FRuneComboBonusConfig& CB = Scalar.ComboBonus;
+	if (CB.IsEnabled())
+	{
+		const int32 ComboStacks = FMath::Max(0, Context.ComboIndex - 1);
+		const float Bonus = (CB.MaxBonus > 0.f)
+			? FMath::Min(CB.MaxBonus, ComboStacks * CB.BonusPerStack)
+			: ComboStacks * CB.BonusPerStack;
+
+		if (CB.Mode == ERuneComboBonusMode::Add)
+		{
+			BaseValue += Bonus;
+		}
+		else if (CB.Mode == ERuneComboBonusMode::Multiply)
+		{
+			BaseValue *= (1.f + Bonus);
+		}
+
+		switch (CB.RoundMode)
+		{
+		case ERuneTuningRoundMode::Floor: BaseValue = FMath::FloorToFloat(BaseValue); break;
+		case ERuneTuningRoundMode::Round: BaseValue = FMath::RoundToFloat(BaseValue); break;
+		case ERuneTuningRoundMode::Ceil:  BaseValue = FMath::CeilToFloat(BaseValue);  break;
+		default: break;
+		}
+	}
+
+	return BaseValue;
+}
+
