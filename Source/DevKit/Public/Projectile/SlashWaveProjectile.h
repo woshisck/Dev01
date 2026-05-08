@@ -150,7 +150,7 @@ struct FSlashWaveHitRecord
  * 刀光投射物 — 水平飞行，穿透多个敌人，Timer 到期后销毁。
  *
  * 工作流：
- *   1. GA_SlashWaveCounter 调用 SpawnActor<ASlashWaveProjectile>，然后 InitProjectile
+ *   1. GA_SlashWaveCounter / BuffFlow deferred-spawns ASlashWaveProjectile, sets SourceCharacter, then initializes it.
  *   2. 投射物沿发射方向飞行，CollisionBox 与 Pawn 发生 Overlap
  *   3. 每次命中新目标 → 施加 DamageEffect（SetByCaller Attribute.ActDamage）
  *   4. 已触发目标按 DamageApplicationsPerTarget 控制重复伤害次数
@@ -178,6 +178,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SlashWave")
 	void InitProjectileWithConfig(ACharacter* InSource, const FSlashWaveProjectileRuntimeConfig& InConfig);
+
+	UFUNCTION(BlueprintCallable, Category = "SlashWave")
+	void SetSourceCharacterForSpawn(ACharacter* InSource);
+
+	UFUNCTION(BlueprintPure, Category = "SlashWave")
+	ACharacter* GetSourceCharacter() const;
+
+	UFUNCTION(BlueprintPure, Category = "SlashWave")
+	AActor* GetCreatorActor() const;
 
 	UFUNCTION(BlueprintCallable, Category = "SlashWave")
 	void InitProjectileAdvanced(
@@ -345,7 +354,7 @@ protected:
 
 private:
 	// 运行时数据（InitProjectile 填入）
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "SlashWave", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ACharacter> SourceCharacter;
 
 	UPROPERTY()
@@ -384,6 +393,8 @@ private:
 	void SendExpireGameplayEvent() const;
 	void TrySplitFromImpact(AActor* ImpactActor, const FVector& ImpactLocation);
 	void TryBounceFromEnemyHit(AActor* ImpactActor, const FVector& HitLocation, const FHitResult* HitResult);
+	ACharacter* ResolveFallbackSourceCharacter() const;
+	void CacheSourceCharacterFromSpawnReferences();
 
 	/** 生存时间到期处理 */
 	void Expire();

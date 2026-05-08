@@ -64,7 +64,7 @@ ASlashWaveProjectile::ASlashWaveProjectile()
 void ASlashWaveProjectile::InitProjectile(ACharacter* InSource, float InDamage,
                                           TSubclassOf<UGameplayEffect> InDamageEffect)
 {
-	SourceCharacter = InSource;
+	SetSourceCharacterForSpawn(InSource);
 	DamageMagnitude = InDamage;
 	DamageEffectClass = InDamageEffect;
 	bProjectileInitialized = SourceCharacter != nullptr;
@@ -86,6 +86,38 @@ void ASlashWaveProjectile::InitProjectile(ACharacter* InSource, float InDamage,
 	}
 
 	ScheduleInitialOverlapCheck();
+}
+
+void ASlashWaveProjectile::SetSourceCharacterForSpawn(ACharacter* InSource)
+{
+	SourceCharacter = InSource;
+
+	if (SourceCharacter)
+	{
+		if (!GetOwner())
+		{
+			SetOwner(SourceCharacter);
+		}
+		if (!GetInstigator())
+		{
+			SetInstigator(SourceCharacter);
+		}
+	}
+}
+
+ACharacter* ASlashWaveProjectile::GetSourceCharacter() const
+{
+	return SourceCharacter ? SourceCharacter.Get() : ResolveFallbackSourceCharacter();
+}
+
+AActor* ASlashWaveProjectile::GetCreatorActor() const
+{
+	if (ACharacter* ResolvedSourceCharacter = GetSourceCharacter())
+	{
+		return ResolvedSourceCharacter;
+	}
+
+	return GetOwner();
 }
 
 void ASlashWaveProjectile::InitProjectileWithConfig(ACharacter* InSource, const FSlashWaveProjectileRuntimeConfig& InConfig)
@@ -212,6 +244,8 @@ void ASlashWaveProjectile::InitProjectileAdvanced(
 
 void ASlashWaveProjectile::BeginPlay()
 {
+	CacheSourceCharacterFromSpawnReferences();
+
 	Super::BeginPlay();
 
 	CollisionBox->OnComponentBeginOverlap.AddDynamic(this, &ASlashWaveProjectile::OnOverlapBegin);
@@ -691,6 +725,34 @@ void ASlashWaveProjectile::TryBounceFromEnemyHit(AActor* ImpactActor, const FVec
 		*ReflectedDirection.ToString());
 }
 
+ACharacter* ASlashWaveProjectile::ResolveFallbackSourceCharacter() const
+{
+	if (ACharacter* InstigatorCharacter = Cast<ACharacter>(GetInstigator()))
+	{
+		return InstigatorCharacter;
+	}
+
+	if (ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner()))
+	{
+		return OwnerCharacter;
+	}
+
+	if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
+	{
+		return Cast<ACharacter>(OwnerPawn);
+	}
+
+	return nullptr;
+}
+
+void ASlashWaveProjectile::CacheSourceCharacterFromSpawnReferences()
+{
+	if (!SourceCharacter)
+	{
+		SourceCharacter = ResolveFallbackSourceCharacter();
+	}
+}
+
 void ASlashWaveProjectile::TrySplitFromImpact(AActor* ImpactActor, const FVector& ImpactLocation)
 {
 	if (!bSplitOnFirstHit
@@ -810,13 +872,17 @@ void ASlashWaveProjectile::TrySplitFromImpact(AActor* ImpactActor, const FVector
 		SpawnParams.Instigator = SourceCharacter;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-		ASlashWaveProjectile* Child = GetWorld()->SpawnActor<ASlashWaveProjectile>(
+		const FTransform SpawnTransform(SpawnRotation, SpawnOrigin);
+		ASlashWaveProjectile* Child = GetWorld()->SpawnActorDeferred<ASlashWaveProjectile>(
 			GetClass(),
-			SpawnOrigin,
-			SpawnRotation,
-			SpawnParams);
+			SpawnTransform,
+			SpawnParams.Owner,
+			SpawnParams.Instigator,
+			SpawnParams.SpawnCollisionHandlingOverride);
 		if (Child)
 		{
+			Child->SetSourceCharacterForSpawn(SourceCharacter);
+			Child->FinishSpawning(SpawnTransform);
 			Child->InitProjectileWithConfig(SourceCharacter, ChildConfig);
 		}
 	}

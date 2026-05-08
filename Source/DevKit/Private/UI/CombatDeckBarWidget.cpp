@@ -248,6 +248,11 @@ void UCombatDeckBarWidget::HandleDeckLoaded(const TArray<FCombatCardInstance>& A
 
 void UCombatDeckBarWidget::HandleCardConsumed(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result)
 {
+	if (Result.ActionContext.ActionType == ECardRequiredAction::Light && CachedCardSlots.IsValidIndex(0) && CachedCardSlots[0])
+	{
+		CachedCardSlots[0]->PlayUseFlipAnimation();
+	}
+
 	SetTextIfBound(
 		ConsumedToastText,
 		FText::Format(FText::FromString(TEXT("消耗: {0}")), GetCardDisplayName(Card)));

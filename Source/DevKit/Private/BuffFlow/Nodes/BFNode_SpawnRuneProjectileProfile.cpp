@@ -150,13 +150,17 @@ void UBFNode_SpawnRuneProjectileProfile::ExecuteInput(const FName& PinName)
 			return false;
 		}
 
-		ASlashWaveProjectile* SpawnedProjectile = Source->GetWorld()->SpawnActor<ASlashWaveProjectile>(
+		const FTransform SpawnTransform(SpawnRotation, SpawnLocation);
+		ASlashWaveProjectile* SpawnedProjectile = Source->GetWorld()->SpawnActorDeferred<ASlashWaveProjectile>(
 			SpawnProjectileClass,
-			SpawnLocation,
-			SpawnRotation,
-			BaseSpawnParams);
+			SpawnTransform,
+			BaseSpawnParams.Owner,
+			BaseSpawnParams.Instigator,
+			BaseSpawnParams.SpawnCollisionHandlingOverride);
 		if (SpawnedProjectile)
 		{
+			SpawnedProjectile->SetSourceCharacterForSpawn(Source);
+			SpawnedProjectile->FinishSpawning(SpawnTransform);
 			SpawnedProjectile->InitProjectileWithConfig(Source, SpawnConfig);
 			return true;
 		}

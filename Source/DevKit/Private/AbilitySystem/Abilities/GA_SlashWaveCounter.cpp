@@ -125,11 +125,18 @@ void UGA_SlashWaveCounter::SpawnSlashWave()
 	SpawnParams.SpawnCollisionHandlingOverride =
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	ASlashWaveProjectile* Projectile = GetWorld()->SpawnActor<ASlashWaveProjectile>(
-		ProjectileClass, SpawnLoc, SpawnRot, SpawnParams);
+	const FTransform SpawnTransform(SpawnRot, SpawnLoc);
+	ASlashWaveProjectile* Projectile = GetWorld()->SpawnActorDeferred<ASlashWaveProjectile>(
+		ProjectileClass,
+		SpawnTransform,
+		SpawnParams.Owner,
+		SpawnParams.Instigator,
+		SpawnParams.SpawnCollisionHandlingOverride);
 
 	if (Projectile)
 	{
+		Projectile->SetSourceCharacterForSpawn(Owner);
+		Projectile->FinishSpawning(SpawnTransform);
 		Projectile->InitProjectile(Owner, SlashDamage, SlashDamageEffect);
 		Projectile->ApplyImmediateHit(PendingSlashWaveInitialTarget.Get());
 

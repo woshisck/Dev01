@@ -5,6 +5,14 @@
 #include "Components/TextBlock.h"
 #include "UI/YogCommonRichTextBlock.h"
 
+void UCombatDeckCardSlotWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+	ResetUseFlipTransform();
+}
+
 void UCombatDeckCardSlotWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
@@ -20,6 +28,26 @@ void UCombatDeckCardSlotWidget::NativePreConstruct()
 	PreviewCard.Config.RequiredAction = ECardRequiredAction::Light;
 	PreviewCard.Config.CardType = ECombatCardType::Attack;
 	SetCard(PreviewCard, true);
+}
+
+void UCombatDeckCardSlotWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (!bUseFlipAnimating)
+	{
+		return;
+	}
+
+	const float SafeDuration = FMath::Max(0.01f, UseFlipDuration);
+	UseFlipElapsed = FMath::Min(UseFlipElapsed + FMath::Max(0.0f, InDeltaTime), SafeDuration);
+	ApplyUseFlipTransform(UseFlipElapsed / SafeDuration);
+
+	if (UseFlipElapsed >= SafeDuration)
+	{
+		bUseFlipAnimating = false;
+		ResetUseFlipTransform();
+	}
 }
 
 void UCombatDeckCardSlotWidget::SetCard(const FCombatCardInstance& InCard, bool bIsNextCard)
@@ -65,6 +93,8 @@ void UCombatDeckCardSlotWidget::SetCard(const FCombatCardInstance& InCard, bool 
 void UCombatDeckCardSlotWidget::ClearSlot()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
+	bUseFlipAnimating = false;
+	ResetUseFlipTransform();
 
 	if (CardFrame)
 	{
@@ -95,6 +125,20 @@ void UCombatDeckCardSlotWidget::ClearSlot()
 	{
 		SetTextIfSupported(StateText, FText::GetEmpty());
 	}
+}
+
+void UCombatDeckCardSlotWidget::PlayUseFlipAnimation()
+{
+	if (IsDesignTime())
+	{
+		return;
+	}
+
+	SetVisibility(ESlateVisibility::Visible);
+	SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+	UseFlipElapsed = 0.0f;
+	bUseFlipAnimating = true;
+	ApplyUseFlipTransform(0.0f);
 }
 
 FText UCombatDeckCardSlotWidget::GetCardDisplayName(const FCombatCardInstance& Card)
@@ -138,6 +182,24 @@ void UCombatDeckCardSlotWidget::SetTextIfSupported(UWidget* Widget, const FText&
 	{
 		RichTextBlock->SetText(Text);
 	}
+}
+
+void UCombatDeckCardSlotWidget::ApplyUseFlipTransform(float NormalizedAlpha)
+{
+	const float Alpha = FMath::Clamp(NormalizedAlpha, 0.0f, 1.0f);
+	const float FoldAlpha = Alpha < 0.5f
+		? Alpha * 2.0f
+		: (1.0f - Alpha) * 2.0f;
+	const float SmoothFoldAlpha = FMath::InterpEaseInOut(0.0f, 1.0f, FoldAlpha, 2.0f);
+	const float ScaleX = FMath::Lerp(1.0f, FMath::Clamp(UseFlipMinScaleX, 0.0f, 1.0f), SmoothFoldAlpha);
+	const float ScaleY = FMath::Lerp(1.0f, FMath::Max(1.0f, UseFlipPeakScaleY), SmoothFoldAlpha);
+
+	SetRenderScale(FVector2D(ScaleX, ScaleY));
+}
+
+void UCombatDeckCardSlotWidget::ResetUseFlipTransform()
+{
+	SetRenderScale(FVector2D(1.0f, 1.0f));
 }
 
 FText UCombatDeckCardSlotWidget::GetTypeText(ECombatCardType CardType)

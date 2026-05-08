@@ -22,8 +22,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
 	void ClearSlot();
 
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Animation")
+	void PlayUseFlipAnimation();
+
 protected:
+	virtual void NativeConstruct() override;
 	virtual void NativePreConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UBorder> CardFrame;
@@ -52,9 +57,24 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Style")
 	FLinearColor EmptyCardFrameColor = FLinearColor(0.020f, 0.022f, 0.026f, 0.46f);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Animation", meta = (ClampMin = "0.01"))
+	float UseFlipDuration = 0.18f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Animation", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float UseFlipMinScaleX = 0.04f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Animation", meta = (ClampMin = "1.0"))
+	float UseFlipPeakScaleY = 1.06f;
+
 private:
 	static FText GetCardDisplayName(const FCombatCardInstance& Card);
 	static FText GetActionText(ECardRequiredAction RequiredAction);
 	static FText GetTypeText(ECombatCardType CardType);
 	static void SetTextIfSupported(UWidget* Widget, const FText& Text);
+
+	void ApplyUseFlipTransform(float NormalizedAlpha);
+	void ResetUseFlipTransform();
+
+	float UseFlipElapsed = 0.0f;
+	bool bUseFlipAnimating = false;
 };
