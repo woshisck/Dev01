@@ -213,12 +213,19 @@ FText UBackpackScreenWidget::BuildConfirmButtonText() const
 
 FText UBackpackScreenWidget::BuildCancelButtonText() const
 {
-    return FText::FromString(TEXT("<input action=\"Esc\"/> 取消"));
+    // Gamepad close uses B (Gamepad_FaceButton_Right). The "Back" decorator action resolves
+    // to IA_Dash on gamepad (B icon); "Esc" resolves to IA_Esc which is mapped to the Start
+    // button glyph on gamepad — the wrong icon for this button.
+    return bIsGamepadInputMode
+        ? FText::FromString(TEXT("<input action=\"Back\"/> 取消"))
+        : FText::FromString(TEXT("<input action=\"Esc\"/> 取消"));
 }
 
 FText UBackpackScreenWidget::BuildEndPreviewButtonText() const
 {
-    return FText::FromString(TEXT("<input action=\"Esc\"/> 结束预览"));
+    return bIsGamepadInputMode
+        ? FText::FromString(TEXT("<input action=\"Back\"/> 结束预览"))
+        : FText::FromString(TEXT("<input action=\"Esc\"/> 结束预览"));
 }
 
 void UBackpackScreenWidget::SetButtonContentText(UButton* Button, const FText& Text) const
@@ -2157,16 +2164,13 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
     }
     else if (bCursorInPendingArea)
     {
-        if      (HeldDirKey == EKeys::Gamepad_DPad_Up || HeldDirKey == EKeys::Gamepad_LeftStick_Up)     MovePendingCursor( 0, -1);
-        else if (HeldDirKey == EKeys::Gamepad_DPad_Down || HeldDirKey == EKeys::Gamepad_LeftStick_Down) MovePendingCursor( 0,  1);
-        else if (HeldDirKey == EKeys::Gamepad_DPad_Left)  MovePendingCursor(-1,  0);
+        // Up/Down navigation is disabled in the backpack — only horizontal repeats are honored.
+        if      (HeldDirKey == EKeys::Gamepad_DPad_Left)  MovePendingCursor(-1,  0);
         else if (HeldDirKey == EKeys::Gamepad_DPad_Right) MovePendingCursor( 1,  0);
     }
     else
     {
-        if      (HeldDirKey == EKeys::Gamepad_DPad_Up || HeldDirKey == EKeys::Gamepad_LeftStick_Up)     MoveGamepadCursor( 0, -1);
-        else if (HeldDirKey == EKeys::Gamepad_DPad_Down || HeldDirKey == EKeys::Gamepad_LeftStick_Down) MoveGamepadCursor( 0,  1);
-        else if (HeldDirKey == EKeys::Gamepad_DPad_Left)  MoveGamepadCursor(-1,  0);
+        if      (HeldDirKey == EKeys::Gamepad_DPad_Left)  MoveGamepadCursor(-1,  0);
         else if (HeldDirKey == EKeys::Gamepad_DPad_Right) MoveGamepadCursor( 1,  0);
     }
 }
@@ -2359,13 +2363,12 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         return FReply::Handled();
     };
 
-    if (Key == EKeys::Gamepad_DPad_Up || Key == EKeys::Gamepad_LeftStick_Up)
+    // DPad / left-stick up & down are intentionally inert in the backpack screen — swallow
+    // the event so it doesn't trigger CommonUI focus navigation, but don't move the cursor.
+    if (Key == EKeys::Gamepad_DPad_Up   || Key == EKeys::Gamepad_LeftStick_Up   ||
+        Key == EKeys::Gamepad_DPad_Down || Key == EKeys::Gamepad_LeftStick_Down)
     {
-        return InKeyEvent.IsRepeat() ? FReply::Handled() : StartDirRepeat(0, -1);
-    }
-    if (Key == EKeys::Gamepad_DPad_Down || Key == EKeys::Gamepad_LeftStick_Down)
-    {
-        return InKeyEvent.IsRepeat() ? FReply::Handled() : StartDirRepeat(0, 1);
+        return FReply::Handled();
     }
     if (Key == EKeys::Gamepad_DPad_Left)  return StartDirRepeat(-1,  0);
     if (Key == EKeys::Gamepad_DPad_Right) return StartDirRepeat( 1,  0);

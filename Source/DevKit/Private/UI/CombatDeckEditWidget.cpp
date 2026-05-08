@@ -390,7 +390,21 @@ bool UCombatDeckEditWidget::HandleDeckDirectionalInput(int32 Direction)
 	if (bGamepadDragActive)
 	{
 		const TArray<FCombatCardInstance> Cards = BoundCombatDeck ? BoundCombatDeck->GetFullDeckSnapshot() : TArray<FCombatCardInstance>();
-		GamepadDragInsertIndex = FMath::Clamp(GamepadDragInsertIndex + Direction, 0, Cards.Num());
+		const int32 OldVisual = GetPreviewVisualInsertIndex(GamepadDragInsertIndex);
+		int32 NewInsert = FMath::Clamp(GamepadDragInsertIndex + Direction, 0, Cards.Num());
+		// Insert positions Source and Source+1 both map to the same visual slot, so the very
+		// first directional step out of rest would otherwise produce no visible movement.
+		// Skip past that dead zone by taking one more step in the same direction when the
+		// visual index hasn't actually changed.
+		if (NewInsert != GamepadDragInsertIndex && GetPreviewVisualInsertIndex(NewInsert) == OldVisual)
+		{
+			const int32 ExtraInsert = FMath::Clamp(NewInsert + Direction, 0, Cards.Num());
+			if (ExtraInsert != NewInsert)
+			{
+				NewInsert = ExtraInsert;
+			}
+		}
+		GamepadDragInsertIndex = NewInsert;
 		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][DirectionalDrag] Dir=%d NewInsert=%d Count=%d Source=%d"),
 			Direction,
 			GamepadDragInsertIndex,
