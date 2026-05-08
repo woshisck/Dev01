@@ -8,6 +8,7 @@
 #include "GA_PlayMontage.generated.h"
 
 class UYogTask_PlayMontageAbility;
+class UMontageAttackDataAsset;
 
 /**
  *
@@ -23,6 +24,9 @@ public:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+
+	bool HasConfiguredAttackData() const { return ActiveComboAttackData != nullptr; }
+	const UMontageAttackDataAsset* GetConfiguredAttackData() const { return ActiveComboAttackData; }
 
 
     UFUNCTION()
@@ -48,6 +52,9 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UYogTask_PlayMontageAbility> ActivePlayMontageTask;
+
+	UPROPERTY()
+	TObjectPtr<UMontageAttackDataAsset> ActiveComboAttackData;
 
 private:
 	// CanCombo tag 变化时的回调，检查输入缓存并触发连击
