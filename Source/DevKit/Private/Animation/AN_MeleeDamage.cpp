@@ -64,6 +64,7 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 		auto& Override = Character->PendingHitStopOverride;
 		Override.bActive = true;
 		Override.Mode = EffectiveHitStopMode;
+		Override.Scope = EffectiveAttackData ? EffectiveAttackData->HitStopScope : HitStopScope;
 		Override.FrozenDuration = EffectiveAttackData ? EffectiveAttackData->HitStopFrozenDuration : HitStopFrozenDuration;
 		Override.SlowDuration = EffectiveAttackData ? EffectiveAttackData->HitStopSlowDuration : HitStopSlowDuration;
 		Override.SlowRate = EffectiveAttackData ? EffectiveAttackData->HitStopSlowRate : HitStopSlowRate;

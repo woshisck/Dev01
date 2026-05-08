@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
+#include "Animation/HitStopManager.h"
 #include "GameplayTagContainer.h"
 #include "Data/AbilityData.h"
 #include "AN_MeleeDamage.generated.h"
@@ -79,6 +80,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop")
 	EHitStopMode HitStopMode = EHitStopMode::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
+		meta = (EditCondition = "HitStopMode != EHitStopMode::None", EditConditionHides))
+	EHitStopScope HitStopScope = EHitStopScope::SelfMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
 		meta = (EditCondition = "HitStopMode == EHitStopMode::Freeze", EditConditionHides, ClampMin = 0.0f))

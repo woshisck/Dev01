@@ -20,77 +20,14 @@
 #include "TimerManager.h"
 #include "UObject/ObjectKey.h"
 
-namespace
+struct FStatBeforeAttackSharedSnapshot
 {
-	struct FStatBeforeAttackSharedSnapshot
-	{
-		float Attack = 0.f;
-		float AttackPower = 1.f;
-		int32 ActiveCount = 0;
-	};
+	float Attack = 0.f;
+	float AttackPower = 1.f;
+	int32 ActiveCount = 0;
+};
 
-	TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
-
-	void ConsumePendingHitStopOnEnemyHit(AYogCharacterBase* Owner, const TArray<AActor*>& HitActors)
-	{
-		if (!Owner)
-		{
-			return;
-		}
-
-		auto& Override = Owner->PendingHitStopOverride;
-		if (!Override.bActive)
-		{
-			return;
-		}
-
-		bool bHitEnemy = false;
-		for (AActor* HitActor : HitActors)
-		{
-			if (Cast<AEnemyCharacterBase>(HitActor))
-			{
-				bHitEnemy = true;
-				break;
-			}
-		}
-
-		if (bHitEnemy)
-		{
-			UAnimInstance* AnimInst = Owner->GetMesh() ? Owner->GetMesh()->GetAnimInstance() : nullptr;
-			if (AnimInst)
-			{
-				float UseFrozenDuration = 0.f;
-				float UseSlowDuration = 0.f;
-				float UseSlowRate = Override.SlowRate;
-				float UseCatchUpRate = Override.CatchUpRate;
-
-				if (Override.Mode == EHitStopMode::Freeze)
-				{
-					UseFrozenDuration = Override.FrozenDuration;
-				}
-				else if (Override.Mode == EHitStopMode::Slow)
-				{
-					UseSlowDuration = Override.SlowDuration;
-				}
-
-				if ((UseFrozenDuration > 0.f || UseSlowDuration > 0.f) && Owner->GetWorld())
-				{
-					if (UHitStopManager* HitStopManager = Owner->GetWorld()->GetSubsystem<UHitStopManager>())
-					{
-						HitStopManager->RequestMontageHitStop(
-							AnimInst,
-							UseFrozenDuration,
-							UseSlowDuration,
-							UseSlowRate,
-							UseCatchUpRate);
-					}
-				}
-			}
-		}
-
-		Override = AYogCharacterBase::FPendingHitStopOverride();
-	}
-}
+static TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
 
 UGA_MeleeAttack::UGA_MeleeAttack()
 {
@@ -927,7 +864,7 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 		}
 
 		// 骞挎挱 Ability.Event.Attack.Hit 缁欐敾鍑昏€咃紙BGC 浜嬩欢椹卞姩鍨嬬鏂囩洃鍚浜嬩欢锛?
-		ConsumePendingHitStopOnEnemyHit(Owner, HitActors);
+		Owner->ConsumePendingHitStop(HitActors);
 
 		static const FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
 		for (AActor* HitActor : HitActors)

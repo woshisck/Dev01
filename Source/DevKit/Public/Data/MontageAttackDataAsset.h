@@ -47,6 +47,10 @@ public:
 	EHitStopMode HitStopMode = EHitStopMode::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
+		meta = (EditCondition = "HitStopMode != EHitStopMode::None", EditConditionHides))
+	EHitStopScope HitStopScope = EHitStopScope::SelfMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
 		meta = (EditCondition = "HitStopMode == EHitStopMode::Freeze", EditConditionHides, ClampMin = 0.0f, ClampMax = 0.3f))
 	float HitStopFrozenDuration = 0.06f;
 

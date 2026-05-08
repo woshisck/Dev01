@@ -29,11 +29,12 @@
 #include "Data/RuneDataAsset.h"
 #include "FlowAsset.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Character/EnemyCharacterBase.h"
+#include "Animation/HitStopManager.h"
+#include "Animation/AN_MeleeDamage.h"
+#include "Animation/AnimInstance.h"
 
-namespace
-{
-	constexpr bool bDisableLegacyOnHitRuneRuntimeForCardTest = true;
-}
+static constexpr bool bDisableLegacyOnHitRuneRuntimeForCardTest = true;
 
 
 AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer)
@@ -694,4 +695,72 @@ void AYogCharacterBase::TickCharacterFlash(float DeltaTime)
 		FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(3.f, 0.f, 0.f));
 		FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), Alpha * PreAttackMaxAlpha);
 	}
+}
+
+void AYogCharacterBase::ConsumePendingHitStop(const TArray<AActor*>& HitActors)
+{
+	if (!PendingHitStopOverride.bActive)
+	{
+		return;
+	}
+
+	bool bHitEnemy = false;
+	for (AActor* HitActor : HitActors)
+	{
+		if (Cast<AEnemyCharacterBase>(HitActor))
+		{
+			bHitEnemy = true;
+			break;
+		}
+	}
+
+	if (bHitEnemy)
+	{
+		UAnimInstance* AnimInst = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
+		if (AnimInst)
+		{
+			float UseFrozenDuration = 0.f;
+			float UseSlowDuration = 0.f;
+
+			if (PendingHitStopOverride.Mode == EHitStopMode::Freeze)
+			{
+				UseFrozenDuration = PendingHitStopOverride.FrozenDuration;
+			}
+			else if (PendingHitStopOverride.Mode == EHitStopMode::Slow)
+			{
+				UseSlowDuration = PendingHitStopOverride.SlowDuration;
+			}
+
+			if ((UseFrozenDuration > 0.f || UseSlowDuration > 0.f) && GetWorld())
+			{
+				if (UHitStopManager* HitStopManager = GetWorld()->GetSubsystem<UHitStopManager>())
+				{
+					HitStopManager->RequestMontageHitStop(
+						AnimInst,
+						UseFrozenDuration,
+						UseSlowDuration,
+						PendingHitStopOverride.SlowRate,
+						PendingHitStopOverride.CatchUpRate,
+						PendingHitStopOverride.Scope);
+				}
+
+				// Movement freeze is only needed for SelfMontage scope.
+				// GlobalDilation reduces DeltaTime to ~0 world-wide, naturally stopping movement.
+				if (UseFrozenDuration > 0.f && PendingHitStopOverride.Scope == EHitStopScope::SelfMontage)
+				{
+					DisableMovement();
+					GetWorld()->GetTimerManager().SetTimer(
+						HitStopMovementRestoreHandle,
+						FTimerDelegate::CreateWeakLambda(this, [this]()
+						{
+							EnableMovement();
+						}),
+						UseFrozenDuration,
+						false);
+				}
+			}
+		}
+	}
+
+	PendingHitStopOverride = FPendingHitStopOverride();
 }

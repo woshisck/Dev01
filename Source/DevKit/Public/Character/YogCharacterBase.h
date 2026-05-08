@@ -19,6 +19,7 @@
 
 
 enum class EHitStopMode : uint8;
+enum class EHitStopScope : uint8;
 
 class AYogPlayerControllerBase;
 class UGASTemplate;
@@ -265,12 +266,14 @@ public:
 	{
 		bool bActive = false;
 		EHitStopMode Mode{};
+		EHitStopScope Scope{};
 		float FrozenDuration = 0.f;
 		float SlowDuration = 0.f;
 		float SlowRate = 0.3f;
 		float CatchUpRate = 2.0f;
 	};
 	FPendingHitStopOverride PendingHitStopOverride;
+	void ConsumePendingHitStop(const TArray<AActor*>& HitActors);
 
 	// AN_MeleeDamage 存入的命中事件 Tag，GA_MeleeAttack 命中目标时广播后清空
 	TArray<FGameplayTag> PendingOnHitEventTags;
@@ -392,6 +395,8 @@ private:
 	float PreAttackElapsed      = 0.f;
 	bool  bSuperArmorFlashActive = false;
 	float SuperArmorFlashElapsed = 0.f;
+
+	FTimerHandle HitStopMovementRestoreHandle;
 };
 
 

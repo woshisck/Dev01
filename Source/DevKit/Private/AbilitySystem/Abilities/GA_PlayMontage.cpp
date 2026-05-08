@@ -17,110 +17,57 @@
 #include "Data/MontageAttackDataAsset.h"
 #include "Engine/World.h"
 
-namespace
+static AYogCharacterBase* ResolveAttackOwner(const UGameplayAbility* Ability, const FGameplayEventData& EventData)
 {
-	AYogCharacterBase* ResolveAttackOwner(const UGameplayAbility* Ability, const FGameplayEventData& EventData)
+	if (const AActor* EventInstigatorActor = EventData.Instigator.Get())
 	{
-		if (const AActor* EventInstigatorActor = EventData.Instigator.Get())
+		if (AYogCharacterBase* EventInstigator = Cast<AYogCharacterBase>(const_cast<AActor*>(EventInstigatorActor)))
 		{
-			if (AYogCharacterBase* EventInstigator = Cast<AYogCharacterBase>(const_cast<AActor*>(EventInstigatorActor)))
-			{
-				return EventInstigator;
-			}
+			return EventInstigator;
 		}
-
-		if (Ability)
-		{
-			if (AYogCharacterBase* AvatarOwner = Cast<AYogCharacterBase>(Ability->GetAvatarActorFromActorInfo()))
-			{
-				return AvatarOwner;
-			}
-
-			return Cast<AYogCharacterBase>(Ability->GetOwningActorFromActorInfo());
-		}
-
-		return nullptr;
 	}
 
-	void CollectHitActors(const FYogGameplayEffectContainerSpec& ContainerSpec, TArray<AActor*>& OutHitActors)
+	if (Ability)
 	{
-		for (const TSharedPtr<FGameplayAbilityTargetData>& Data : ContainerSpec.TargetData.Data)
+		if (AYogCharacterBase* AvatarOwner = Cast<AYogCharacterBase>(Ability->GetAvatarActorFromActorInfo()))
 		{
-			if (Data.IsValid())
+			return AvatarOwner;
+		}
+
+		return Cast<AYogCharacterBase>(Ability->GetOwningActorFromActorInfo());
+	}
+
+	return nullptr;
+}
+
+static void CollectHitActors(const FYogGameplayEffectContainerSpec& ContainerSpec, TArray<AActor*>& OutHitActors)
+{
+	for (const TSharedPtr<FGameplayAbilityTargetData>& Data : ContainerSpec.TargetData.Data)
+	{
+		if (Data.IsValid())
+		{
+			for (TWeakObjectPtr<AActor> WeakActor : Data->GetActors())
 			{
-				for (TWeakObjectPtr<AActor> WeakActor : Data->GetActors())
+				if (AActor* Actor = WeakActor.Get())
 				{
-					if (AActor* Actor = WeakActor.Get())
-					{
-						OutHitActors.AddUnique(Actor);
-					}
+					OutHitActors.AddUnique(Actor);
 				}
 			}
 		}
 	}
+}
 
-	bool HasEnemyHit(const TArray<AActor*>& HitActors)
+static bool HasEnemyHit(const TArray<AActor*>& HitActors)
+{
+	for (AActor* HitActor : HitActors)
 	{
-		for (AActor* HitActor : HitActors)
+		if (Cast<AEnemyCharacterBase>(HitActor))
 		{
-			if (Cast<AEnemyCharacterBase>(HitActor))
-			{
-				return true;
-			}
+			return true;
 		}
-
-		return false;
 	}
 
-	void ConsumePendingHitStopOnEnemyHit(AYogCharacterBase* Owner, const TArray<AActor*>& HitActors)
-	{
-		if (!Owner)
-		{
-			return;
-		}
-
-		auto& Override = Owner->PendingHitStopOverride;
-		if (!Override.bActive)
-		{
-			return;
-		}
-
-		if (HasEnemyHit(HitActors))
-		{
-			UAnimInstance* AnimInst = Owner->GetMesh() ? Owner->GetMesh()->GetAnimInstance() : nullptr;
-			if (AnimInst)
-			{
-				float UseFrozenDuration = 0.f;
-				float UseSlowDuration = 0.f;
-				float UseSlowRate = Override.SlowRate;
-				float UseCatchUpRate = Override.CatchUpRate;
-
-				if (Override.Mode == EHitStopMode::Freeze)
-				{
-					UseFrozenDuration = Override.FrozenDuration;
-				}
-				else if (Override.Mode == EHitStopMode::Slow)
-				{
-					UseSlowDuration = Override.SlowDuration;
-				}
-
-				if ((UseFrozenDuration > 0.f || UseSlowDuration > 0.f) && Owner->GetWorld())
-				{
-					if (UHitStopManager* HitStopManager = Owner->GetWorld()->GetSubsystem<UHitStopManager>())
-					{
-						HitStopManager->RequestMontageHitStop(
-							AnimInst,
-							UseFrozenDuration,
-							UseSlowDuration,
-							UseSlowRate,
-							UseCatchUpRate);
-					}
-				}
-			}
-		}
-
-		Override = AYogCharacterBase::FPendingHitStopOverride();
-	}
+	return false;
 }
 
 UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
@@ -434,7 +381,7 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 	if (bEnemyHit && Owner)
 	{
 		Owner->bComboHitConnected = true;
-		ConsumePendingHitStopOnEnemyHit(Owner, HitActors);
+		Owner->ConsumePendingHitStop(HitActors);
 	}
 
 	if (Owner)
