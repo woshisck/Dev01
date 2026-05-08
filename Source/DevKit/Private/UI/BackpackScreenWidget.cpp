@@ -1310,6 +1310,18 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
             return FReply::Handled().SetUserFocus(TakeWidget());
         }
 
+        // A is physically held AND NativeOnPreviewKeyDown already started the drag.
+        // The LMB down here is the virtual click CommonUI generates from that same A press.
+        // Calling HandleDeckSelectPressed again would immediately commit the drag (no-op at same
+        // position) before the user can move the card — skip this duplicate event entirely.
+        if (bGamepadAIsDown && bDeckSelectButtonWasDown)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] SkipVirtualMouseDuplicate ADown=1 WasDown=1"));
+            bIsGamepadInputMode = true;
+            bDeckSelectFromVirtualMouse = false;
+            return FReply::Handled().SetUserFocus(TakeWidget());
+        }
+
         bIsGamepadInputMode = true;
         bDeckSelectFromVirtualMouse = true;
         UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] VirtualMouseAsA Mode=%d Common=%d ADown=%d WasDown=%d"),

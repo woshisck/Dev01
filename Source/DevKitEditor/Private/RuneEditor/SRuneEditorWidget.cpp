@@ -55,7 +55,7 @@ namespace
 		return TEXT("未知");
 	}
 
-	FString RarityToString(ERuneRarity Rarity)
+	FString RarityToDisplayString(ERuneRarity Rarity)
 	{
 		switch (Rarity)
 		{
@@ -511,7 +511,7 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildResourceManagerPanel()
 							})
 							[
 								SNew(STextBlock)
-								.Text_Lambda([this]() { return FText::FromString(RarityToString(CreateRarity)); })
+								.Text_Lambda([this]() { return FText::FromString(RarityToDisplayString(CreateRarity)); })
 							]
 						]
 					]
@@ -1398,7 +1398,7 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildDetailsPanel()
 										.Text_Lambda([this]()
 										{
 											const URuneDataAsset* Rune = GetSelectedRune();
-											return Rune ? FText::FromString(RarityToString(Rune->GetRarity())) : FText::GetEmpty();
+											return Rune ? FText::FromString(RarityToDisplayString(Rune->GetRarity())) : FText::GetEmpty();
 										})
 									]
 								]
@@ -1856,7 +1856,7 @@ TSharedRef<ITableRow> SRuneEditorWidget::GenerateRuneRow(FRuneRowPtr Row, const 
 	const FText Meta = Rune
 		? FText::Format(LOCTEXT("RuneRowMeta", "{0} | {1} | {2} | {3}"),
 			FText::FromString(RuneTypeToString(Rune->GetRuneType())),
-			FText::FromString(RarityToString(Rune->GetRarity())),
+			FText::FromString(RarityToDisplayString(Rune->GetRarity())),
 			FText::FromString(TriggerToString(Rune->GetTriggerType())),
 			FText::FromString(LibraryCategoryToString(Rune->GetLibraryTags())))
 		: FText::GetEmpty();
@@ -3149,7 +3149,7 @@ void SRuneEditorWidget::SyncSelectedRuneEditorFields()
 	if (Rune)
 	{
 		SyncCombo(RuneTypeCombo,    RuneTypeOptions,    RuneTypeToString(Rune->GetRuneType()));
-		SyncCombo(RarityCombo,      RarityOptions,      RarityToString(Rune->GetRarity()));
+		SyncCombo(RarityCombo,      RarityOptions,      RarityToDisplayString(Rune->GetRarity()));
 		SyncCombo(TriggerTypeCombo, TriggerTypeOptions, TriggerToString(Rune->GetTriggerType()));
 		SyncCombo(CardTypeCombo,       CardTypeOptions,       CombatCardTypeToString(Rune->RuneInfo.CombatCard.CardType));
 		SyncCombo(RequiredActionCombo, RequiredActionOptions, CardRequiredActionToString(Rune->RuneInfo.CombatCard.RequiredAction));
@@ -3413,6 +3413,337 @@ FText SRuneEditorWidget::GetSelectedCardComboScalingText() const
 	return Rune->RuneInfo.CombatCard.bUseComboEffectScaling
 		? LOCTEXT("ComboScalingYes", "已启用")
 		: LOCTEXT("ComboScalingNo", "已禁用");
+}
+
+// ============================================================
+//  连携配方面板（ComboRecipe）
+// ============================================================
+
+void SRuneEditorWidget::RefreshFlowAssetOptions()
+{
+	FlowAssetDataList.Reset();
+	FlowAssetNames.Reset();
+
+	IAssetRegistry& AR = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
+	if (AR.IsLoadingAssets())
+	{
+		AR.SearchAllAssets(true);
+	}
+	AR.GetAssetsByClass(UFlowAsset::StaticClass()->GetClassPathName(), FlowAssetDataList, true);
+
+	for (const FAssetData& AD : FlowAssetDataList)
+	{
+		FlowAssetNames.Add(MakeShared<FString>(AD.AssetName.ToString()));
+	}
+}
+
+void SRuneEditorWidget::RefreshComboRecipeRows()
+{
+	ComboRecipeRows.Reset();
+
+	const URuneDataAsset* Rune = GetSelectedRune();
+	if (Rune)
+	{
+		TMap<FString, FComboRecipeRowPtr> RowByTag;
+
+		for (const FCombatCardLinkRecipe& Recipe : Rune->RuneInfo.CombatCard.LinkRecipes)
+		{
+			FString TagKey = TEXT("(Any)");
+			if (!Recipe.Condition.RequiredNeighborIdTags.IsEmpty())
+			{
+				TagKey = Recipe.Condition.RequiredNeighborIdTags.First().ToString();
+			}
+
+			FComboRecipeRowPtr& Row = RowByTag.FindOrAdd(TagKey);
+			if (!Row.IsValid())
+			{
+				Row = MakeShared<FComboRecipeEditorRow>();
+				Row->NeighborTagString = TagKey;
+			}
+
+			int32 FlowIdx = 0;
+			if (Recipe.LinkFlow)
+			{
+				const FString FlowName = Recipe.LinkFlow->GetName();
+				for (int32 FIdx = 0; FIdx < FlowAssetNames.Num(); ++FIdx)
+				{
+					if (FlowAssetNames[FIdx].IsValid() && *FlowAssetNames[FIdx] == FlowName)
+					{
+						FlowIdx = FIdx;
+						break;
+					}
+				}
+			}
+
+			if (Recipe.Direction == ECombatCardLinkOrientation::Forward)
+			{
+				Row->bHasForward = true;
+				Row->ForwardFlowIdx = FlowIdx;
+				Row->ForwardMultiplier = Recipe.Multiplier;
+				Row->ForwardReason = Recipe.ReasonText.ToString();
+			}
+			else
+			{
+				Row->bHasBackward = true;
+				Row->BackwardFlowIdx = FlowIdx;
+				Row->BackwardMultiplier = Recipe.Multiplier;
+				Row->BackwardReason = Recipe.ReasonText.ToString();
+			}
+		}
+
+		for (auto& Pair : RowByTag)
+		{
+			ComboRecipeRows.Add(Pair.Value);
+		}
+	}
+
+	if (ComboRecipeListView.IsValid())
+	{
+		ComboRecipeListView->RequestListRefresh();
+	}
+}
+
+TSharedRef<SWidget> SRuneEditorWidget::BuildComboRecipePanel()
+{
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0.f, 0.f, 0.f, 6.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.f, 0.f, 6.f, 0.f)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("AddComboRecipeRow", "+ 新增配方行"))
+				.IsEnabled_Lambda([this]() { return GetSelectedRune() != nullptr; })
+				.OnClicked(this, &SRuneEditorWidget::OnAddComboRecipeRowClicked)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("SaveComboRecipes", "保存连携配方"))
+				.IsEnabled_Lambda([this]() { return GetSelectedRune() != nullptr; })
+				.OnClicked(this, &SRuneEditorWidget::OnSaveComboRecipesClicked)
+			]
+		]
+		+ SVerticalBox::Slot()
+		.FillHeight(1.f)
+		[
+			SAssignNew(ComboRecipeListView, SListView<FComboRecipeRowPtr>)
+			.ListItemsSource(&ComboRecipeRows)
+			.SelectionMode(ESelectionMode::None)
+			.OnGenerateRow(this, &SRuneEditorWidget::BuildComboRecipeRow)
+			.HeaderRow(
+				SNew(SHeaderRow)
+				+ SHeaderRow::Column(TEXT("NeighborTag"))
+					.DefaultLabel(LOCTEXT("ComboNeighborTagCol", "邻近卡牌Tag"))
+					.FillWidth(1.2f)
+				+ SHeaderRow::Column(TEXT("ForwardFlow"))
+					.DefaultLabel(LOCTEXT("ComboForwardFlowCol", "正向流程"))
+					.FillWidth(1.5f)
+				+ SHeaderRow::Column(TEXT("ForwardMult"))
+					.DefaultLabel(LOCTEXT("ComboForwardMultCol", "正向倍率"))
+					.FillWidth(0.6f)
+				+ SHeaderRow::Column(TEXT("BackwardFlow"))
+					.DefaultLabel(LOCTEXT("ComboBackwardFlowCol", "反向流程"))
+					.FillWidth(1.5f)
+				+ SHeaderRow::Column(TEXT("BackwardMult"))
+					.DefaultLabel(LOCTEXT("ComboBackwardMultCol", "反向倍率"))
+					.FillWidth(0.6f)
+			)
+		];
+}
+
+TSharedRef<ITableRow> SRuneEditorWidget::BuildComboRecipeRow(FComboRecipeRowPtr Row, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	if (!Row.IsValid())
+	{
+		return SNew(STableRow<FComboRecipeRowPtr>, OwnerTable);
+	}
+
+	FComboRecipeEditorRow* RowPtr = Row.Get();
+
+	return SNew(STableRow<FComboRecipeRowPtr>, OwnerTable)
+		.Padding(FMargin(2.f, 1.f))
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.2f)
+			.Padding(2.f, 0.f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(RowPtr->NeighborTagString))
+				.ToolTipText(FText::FromString(RowPtr->NeighborTagString))
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.5f)
+			.Padding(2.f, 0.f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SComboBox<TSharedPtr<FString>>)
+				.OptionsSource(&FlowAssetNames)
+				.IsEnabled_Lambda([this]() { return GetSelectedRune() != nullptr && !FlowAssetNames.IsEmpty(); })
+				.InitiallySelectedItem(FlowAssetNames.IsValidIndex(RowPtr->ForwardFlowIdx) ? FlowAssetNames[RowPtr->ForwardFlowIdx] : nullptr)
+				.OnSelectionChanged_Lambda([this, RowPtr](TSharedPtr<FString> Value, ESelectInfo::Type SelectType)
+				{
+					if (SelectType == ESelectInfo::Direct || !Value.IsValid()) return;
+					for (int32 Idx = 0; Idx < FlowAssetNames.Num(); ++Idx)
+					{
+						if (FlowAssetNames[Idx].IsValid() && *FlowAssetNames[Idx] == *Value)
+						{
+							RowPtr->ForwardFlowIdx = Idx;
+							break;
+						}
+					}
+				})
+				.OnGenerateWidget_Lambda([](TSharedPtr<FString> Value)
+				{
+					return SNew(STextBlock).Text(FText::FromString(Value.IsValid() ? *Value : TEXT(""))).Margin(FMargin(4.f, 2.f));
+				})
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this, RowPtr]()
+					{
+						return FlowAssetNames.IsValidIndex(RowPtr->ForwardFlowIdx)
+							? FText::FromString(*FlowAssetNames[RowPtr->ForwardFlowIdx])
+							: LOCTEXT("NoForwardFlow", "（无）");
+					})
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.6f)
+			.Padding(2.f, 0.f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SNumericEntryBox<float>)
+				.Value_Lambda([RowPtr]() { return TOptional<float>(RowPtr->ForwardMultiplier); })
+				.OnValueChanged_Lambda([RowPtr](float Val) { RowPtr->ForwardMultiplier = Val; })
+				.AllowSpin(true)
+				.MinValue(0.f)
+				.MaxValue(10.f)
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.5f)
+			.Padding(2.f, 0.f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SComboBox<TSharedPtr<FString>>)
+				.OptionsSource(&FlowAssetNames)
+				.IsEnabled_Lambda([this]() { return GetSelectedRune() != nullptr && !FlowAssetNames.IsEmpty(); })
+				.InitiallySelectedItem(FlowAssetNames.IsValidIndex(RowPtr->BackwardFlowIdx) ? FlowAssetNames[RowPtr->BackwardFlowIdx] : nullptr)
+				.OnSelectionChanged_Lambda([this, RowPtr](TSharedPtr<FString> Value, ESelectInfo::Type SelectType)
+				{
+					if (SelectType == ESelectInfo::Direct || !Value.IsValid()) return;
+					for (int32 Idx = 0; Idx < FlowAssetNames.Num(); ++Idx)
+					{
+						if (FlowAssetNames[Idx].IsValid() && *FlowAssetNames[Idx] == *Value)
+						{
+							RowPtr->BackwardFlowIdx = Idx;
+							break;
+						}
+					}
+				})
+				.OnGenerateWidget_Lambda([](TSharedPtr<FString> Value)
+				{
+					return SNew(STextBlock).Text(FText::FromString(Value.IsValid() ? *Value : TEXT(""))).Margin(FMargin(4.f, 2.f));
+				})
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this, RowPtr]()
+					{
+						return FlowAssetNames.IsValidIndex(RowPtr->BackwardFlowIdx)
+							? FText::FromString(*FlowAssetNames[RowPtr->BackwardFlowIdx])
+							: LOCTEXT("NoBackwardFlow", "（无）");
+					})
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.6f)
+			.Padding(2.f, 0.f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SNumericEntryBox<float>)
+				.Value_Lambda([RowPtr]() { return TOptional<float>(RowPtr->BackwardMultiplier); })
+				.OnValueChanged_Lambda([RowPtr](float Val) { RowPtr->BackwardMultiplier = Val; })
+				.AllowSpin(true)
+				.MinValue(0.f)
+				.MaxValue(10.f)
+			]
+		];
+}
+
+FReply SRuneEditorWidget::OnAddComboRecipeRowClicked()
+{
+	FComboRecipeRowPtr NewRow = MakeShared<FComboRecipeEditorRow>();
+	NewRow->NeighborTagString = TEXT("Card.ID.Unknown");
+	NewRow->bHasForward = true;
+	NewRow->ForwardMultiplier = 1.0f;
+	NewRow->BackwardMultiplier = 1.0f;
+	ComboRecipeRows.Add(NewRow);
+
+	if (ComboRecipeListView.IsValid())
+	{
+		ComboRecipeListView->RequestListRefresh();
+	}
+
+	StatusText = LOCTEXT("AddComboRecipeRowStatus", "已新增连携配方行，请编辑后保存。");
+	return FReply::Handled();
+}
+
+FReply SRuneEditorWidget::OnSaveComboRecipesClicked()
+{
+	URuneDataAsset* Rune = GetSelectedRune();
+	if (!Rune)
+	{
+		return FReply::Handled();
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("SaveComboRecipes", "Save Combo Recipes"));
+	Rune->Modify();
+
+	TArray<FCombatCardLinkRecipe>& LinkRecipes = Rune->RuneInfo.CombatCard.LinkRecipes;
+	LinkRecipes.Reset();
+
+	for (const FComboRecipeRowPtr& RowPtr : ComboRecipeRows)
+	{
+		if (!RowPtr.IsValid()) continue;
+
+		auto AppendRecipe = [&](bool bHas, ECombatCardLinkOrientation Dir, int32 FlowIdx, float Mult, const FString& Reason)
+		{
+			if (!bHas) return;
+			FCombatCardLinkRecipe Recipe;
+			Recipe.Direction = Dir;
+			if (!RowPtr->NeighborTagString.IsEmpty() && RowPtr->NeighborTagString != TEXT("(Any)"))
+			{
+				const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(*RowPtr->NeighborTagString, false);
+				if (Tag.IsValid())
+				{
+					Recipe.Condition.RequiredNeighborIdTags.AddTag(Tag);
+				}
+			}
+			if (FlowAssetDataList.IsValidIndex(FlowIdx))
+			{
+				Recipe.LinkFlow = Cast<UFlowAsset>(FlowAssetDataList[FlowIdx].GetAsset());
+			}
+			Recipe.Multiplier = Mult;
+			Recipe.ReasonText = FText::FromString(Reason);
+			LinkRecipes.Add(Recipe);
+		};
+
+		AppendRecipe(RowPtr->bHasForward,  ECombatCardLinkOrientation::Forward,  RowPtr->ForwardFlowIdx,  RowPtr->ForwardMultiplier,  RowPtr->ForwardReason);
+		AppendRecipe(RowPtr->bHasBackward, ECombatCardLinkOrientation::Reversed, RowPtr->BackwardFlowIdx, RowPtr->BackwardMultiplier, RowPtr->BackwardReason);
+	}
+
+	Rune->MarkPackageDirty();
+	StatusText = FText::Format(
+		LOCTEXT("SaveComboRecipesStatus", "已保存 {0} 条连携配方。"),
+		FText::AsNumber(LinkRecipes.Num()));
+
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE
