@@ -13,6 +13,8 @@
 
 
 class AYogCharacterBase;
+class SDevKitFrontendMenuRoot;
+struct FKey;
 struct FStreamableHandle;
 struct FSlateBrush;
 class SButton;
@@ -304,6 +306,8 @@ public:
 
 
 private:
+	friend class SDevKitFrontendMenuRoot;
+
 	// The save slot to load after the map is opened
 	FString PendingSaveSlot;
 
@@ -312,9 +316,11 @@ private:
 
 	TSharedPtr<class SWidget> FrontendWidget;
 	TSharedPtr<SButton> FrontendStartButton;
+	TArray<TSharedPtr<SButton>> FrontendMenuButtons;
 	TSharedPtr<FSlateBrush> FrontendMainMenuBrush;
 	TSharedPtr<FStreamableHandle> FrontendMapLoadHandle;
 	FTimerHandle FrontendLoadingTimerHandle;
+	int32 FrontendFocusedMenuIndex = 0;
 	bool bFrontendLoadingGameplayMap = false;
 	bool bFrontendMinLoadTimeElapsed = false;
 	bool bFrontendMapLoaded = false;
@@ -332,6 +338,9 @@ private:
 	void RemoveFrontendWidget();
 	void ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidget> WidgetToFocus = nullptr);
 	bool IsFrontendStartupWorld(const UWorld* World) const;
+	bool HandleFrontendMenuKey(const FKey& Key);
+	void MoveFrontendMenuFocus(int32 Direction);
+	FReply ActivateFrontendMenuSelection();
 	FReply HandleStartClicked();
 	FReply HandleContinueClicked();
 	FReply HandleOptionsClicked();

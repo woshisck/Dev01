@@ -7,9 +7,19 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/SizeBox.h"
+#include "Components/Widget.h"
+#include "UI/YogCommonRichTextBlock.h"
+
+void URuneRewardFloatWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	RefreshPickupHint();
+}
 
 void URuneRewardFloatWidget::SetLootOptions(const TArray<FLootOption>& Options)
 {
+	RefreshPickupHint();
+
 	if (!RuneListBox) return;
 	RuneListBox->ClearChildren();
 
@@ -45,5 +55,24 @@ void URuneRewardFloatWidget::SetLootOptions(const TArray<FLootOption>& Options)
 
 		UVerticalBoxSlot* RowSlot = RuneListBox->AddChildToVerticalBox(Row);
 		RowSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+	}
+}
+
+void URuneRewardFloatWidget::RefreshPickupHint()
+{
+	if (!PickupHintText)
+	{
+		return;
+	}
+
+	if (UYogCommonRichTextBlock* RichHint = Cast<UYogCommonRichTextBlock>(PickupHintText))
+	{
+		RichHint->SetText(FText::FromString(TEXT("<input action=\"Interact\"/> 拾取")));
+		return;
+	}
+
+	if (UTextBlock* PlainHint = Cast<UTextBlock>(PickupHintText))
+	{
+		PlainHint->SetText(NSLOCTEXT("RuneRewardFloat", "PickupHintAE", "按 A / E 拾取"));
 	}
 }

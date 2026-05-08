@@ -7,6 +7,7 @@
 
 class UVerticalBox;
 class UTextBlock;
+class UWidget;
 
 /**
  * 符文奖励拾取浮窗 — 玩家靠近 ARewardPickup 时自动显示可选符文列表。
@@ -25,9 +26,13 @@ public:
 	void SetLootOptions(const TArray<FLootOption>& Options);
 
 protected:
+	virtual void NativeConstruct() override;
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UVerticalBox> RuneListBox;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> PickupHintText;
+	TObjectPtr<UWidget> PickupHintText;
+
+	void RefreshPickupHint();
 };

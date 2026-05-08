@@ -690,7 +690,8 @@ namespace MainUISetup
 			TEXT("SourceArt/UI/Frontend"),
 			FrontendTextureRoot,
 			{
-				TEXT("T_MainMenu_Dungeon.png")
+				TEXT("T_MainMenu_Dungeon.png"),
+				TEXT("T_MainMenu_GothicDungeon_20260509.png")
 			},
 			bDryRun,
 			ReportLines,
