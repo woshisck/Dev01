@@ -674,6 +674,53 @@ void AYogGameMode::SpawnSacrificeEventAltar(const FVector& LootSpawnLoc)
 		AltarClass = AAltarActor::StaticClass();
 	}
 
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(World, 0));
+	auto ConfigureSacrificeAltar = [this, Player](AAltarActor* Altar)
+	{
+		if (!Altar || !ActiveRoomData)
+		{
+			return;
+		}
+
+		Altar->SetAltarData(ActiveRoomData->SacrificeEventAltarData);
+		Altar->SetSacrificeWidgetClass(ActiveRoomData->SacrificeEventWidgetClass);
+		Altar->SetOpenSacrificeDirectly(true);
+		Altar->SetAltarActive(true);
+
+		if (Player)
+		{
+			constexpr float ImmediateInteractRadiusSq = 260.0f * 260.0f;
+			if (FVector::DistSquared(Player->GetActorLocation(), Altar->GetActorLocation()) <= ImmediateInteractRadiusSq)
+			{
+				Player->PendingAltar = Altar;
+			}
+		}
+	};
+
+	TArray<AActor*> ExistingAltarActors;
+	UGameplayStatics::GetAllActorsOfClass(World, AAltarActor::StaticClass(), ExistingAltarActors);
+	int32 ConfiguredPreplacedCount = 0;
+	for (AActor* Actor : ExistingAltarActors)
+	{
+		AAltarActor* ExistingAltar = Cast<AAltarActor>(Actor);
+		if (!ExistingAltar || !ExistingAltar->IsA(AltarClass))
+		{
+			continue;
+		}
+
+		ConfigureSacrificeAltar(ExistingAltar);
+		++ConfiguredPreplacedCount;
+	}
+
+	if (ConfiguredPreplacedCount > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[RoomEvent] Configured %d preplaced sacrifice altar actor(s): Room=%s Class=%s"),
+			ConfiguredPreplacedCount,
+			*GetNameSafe(ActiveRoomData),
+			*GetNameSafe(AltarClass));
+		return;
+	}
+
 	const FVector SpawnLoc = LootSpawnLoc + ActiveRoomData->SacrificeEventAltarSpawnOffset;
 	AAltarActor* Altar = World->SpawnActor<AAltarActor>(AltarClass, SpawnLoc, FRotator::ZeroRotator);
 	if (!Altar)
@@ -683,18 +730,7 @@ void AYogGameMode::SpawnSacrificeEventAltar(const FVector& LootSpawnLoc)
 		return;
 	}
 
-	Altar->SetAltarData(ActiveRoomData->SacrificeEventAltarData);
-	Altar->SetSacrificeWidgetClass(ActiveRoomData->SacrificeEventWidgetClass);
-	Altar->SetOpenSacrificeDirectly(true);
-	Altar->SetAltarActive(true);
-	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(World, 0)))
-	{
-		constexpr float ImmediateInteractRadiusSq = 260.0f * 260.0f;
-		if (FVector::DistSquared(Player->GetActorLocation(), Altar->GetActorLocation()) <= ImmediateInteractRadiusSq)
-		{
-			Player->PendingAltar = Altar;
-		}
-	}
+	ConfigureSacrificeAltar(Altar);
 	UE_LOG(LogTemp, Log, TEXT("[RoomEvent] Sacrifice altar spawned: Room=%s Altar=%s Location=%s"),
 		*GetNameSafe(ActiveRoomData),
 		*GetNameSafe(Altar),

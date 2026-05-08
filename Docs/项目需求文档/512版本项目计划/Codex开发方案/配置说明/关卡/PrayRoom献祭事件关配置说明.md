@@ -9,7 +9,7 @@
 1. 进入 `PrayRoom` 后按常规房间刷怪并进入战斗阶段。
 2. 玩家在 `TimedClearSeconds` 内清空所有敌人后，关卡进入整理阶段。
 3. 常规奖励拾取物照常掉落。
-4. 献祭圣坛在奖励点附近生成，并切到可交互状态。
+4. 献祭圣坛优先使用场景内预放的 `BP_Altar_PrayerSacrifice`，如果场景内没有才在奖励点附近自动生成，并切到可交互状态。
 5. 玩家交互圣坛后打开 `WBP_SacrificeSelection`，选择一个献祭代价。
 6. 支付代价成功后，直接获得献祭符文被动。该符文作为全局隐藏被动立即启动，不进入背包拖拽卡牌列表，也不加入战斗卡组。
 7. 献祭成功后，圣坛关闭交互并标记为已领取，不能重复获得同一次事件奖励。
@@ -34,8 +34,21 @@
 | `bEnableTimedClearObjective` | `true` |
 | `TimedClearSeconds` | `90` |
 | `SacrificeEventAltarData` | `DA_Altar_PrayRoom_SacrificeEvent` |
+| `SacrificeEventAltarClass` | `BP_Altar_PrayerSacrifice` |
 | `SacrificeEventWidgetClass` | `WBP_SacrificeSelection` |
 | `SacrificeEventAltarSpawnOffset` | `(250, 0, 0)` |
+
+## 场景内手工放置祭坛
+
+现在祈祷室支持和商店一致的放置方式：
+
+1. 美术可以直接在 `L1_CommonLevel_PrayRoom` 场景内放置 `BP_Altar_PrayerSacrifice`。
+2. 运行时清房成功后，GameMode 会优先查找场景中已经放置的 `SacrificeEventAltarClass` 类型祭坛。
+3. 如果找到了预放祭坛，会把 `DA_Altar_PrayRoom_SacrificeEvent` 和 `WBP_SacrificeSelection` 注入这个祭坛，并激活交互。
+4. 如果场景里没有预放祭坛，才会使用 `SacrificeEventAltarSpawnOffset` 在奖励掉落点附近自动生成。
+5. 建议一个祈祷室只放置一个 `BP_Altar_PrayerSacrifice`；如果放多个同类祭坛，当前都会被配置成可交互献祭祭坛。
+
+`BP_Altar_PrayerSacrifice` 的 `Altar Menu Widget Class` 不需要填写。献祭事件直接使用 `DA_PrayRoom.SacrificeEventWidgetClass` 打开 `WBP_SacrificeSelection`。
 
 `PrayRoom` 也加入了 C++ 地图名解析：当 RoomName 写 `PrayRoom` 或资源名为 `DA_PrayRoom` 时，会打开 `/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/L1_CommonLevel_PrayRoom`。
 
