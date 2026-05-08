@@ -16,6 +16,7 @@
 #include "Nodes/FlowNode.h"
 
 #include "Misc/App.h"
+#include "SGraphPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowGraphConnectionDrawingPolicy)
 
@@ -224,7 +225,18 @@ void FFlowGraphConnectionDrawingPolicy::Draw(TMap<TSharedRef<SWidget>, FArranged
 {
 	BuildPaths();
 
-	FConnectionDrawingPolicy::Draw(InPinGeometries, ArrangedNodes);
+	TMap<TSharedRef<SWidget>, FArrangedWidget> ValidPinGeometries;
+	ValidPinGeometries.Reserve(InPinGeometries.Num());
+	for (const TPair<TSharedRef<SWidget>, FArrangedWidget>& PinGeometry : InPinGeometries)
+	{
+		const SGraphPin& PinWidget = static_cast<const SGraphPin&>(PinGeometry.Key.Get());
+		if (PinWidget.GetPinObj())
+		{
+			ValidPinGeometries.Add(PinGeometry.Key, PinGeometry.Value);
+		}
+	}
+
+	FConnectionDrawingPolicy::Draw(ValidPinGeometries, ArrangedNodes);
 }
 
 void FFlowGraphConnectionDrawingPolicy::DrawCircuitSpline(const int32& LayerId, const FVector2f& Start, const FVector2f& End, const FConnectionParams& Params) const

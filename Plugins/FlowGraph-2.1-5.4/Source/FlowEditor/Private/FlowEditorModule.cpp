@@ -1,6 +1,7 @@
 // Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
 
 #include "FlowEditorModule.h"
+#include "FlowEditorCommands.h"
 #include "FlowEditorStyle.h"
 
 #include "Asset/FlowAssetEditor.h"
@@ -63,6 +64,7 @@ void FFlowEditorModule::StartupModule()
 	ToolBarExtensibilityManager = MakeShared<FExtensibilityManager>();
 	
 	FFlowEditorStyle::Initialize();
+	FFlowGraphCommands::Register();
 
 	TrySetFlowNodeDisplayStyleDefaults();
 
@@ -107,6 +109,7 @@ void FFlowEditorModule::ShutdownModule()
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();
 	
+	FFlowGraphCommands::Unregister();
 	FFlowEditorStyle::Shutdown();
 
 	UnregisterDetailCustomizations();
