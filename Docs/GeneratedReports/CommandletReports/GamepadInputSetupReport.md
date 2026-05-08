@@ -1,5 +1,5 @@
-# Gamepad Input Setup Report
-- Mode: DryRun
+﻿# Gamepad Input Setup Report
+- Mode: Apply
 - Layout: A=Interact/Accept, B=Dash/Back, X=Light/Secondary, Y=Heavy/Details, Menu=Pause, View=Backpack.
 
 - Found input action `/Game/Code/Core/Input/Actions/IA_UseCombatItem`.

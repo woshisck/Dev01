@@ -11,6 +11,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/PlatformTime.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Misc/CommandLine.h"
@@ -22,11 +24,110 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 
+
+namespace
+{
+	bool IsFrontendAcceptKey(const FKey& Key)
+	{
+		return Key == EKeys::Enter
+			|| Key == EKeys::SpaceBar
+			|| Key == EKeys::Virtual_Accept
+			|| Key == EKeys::Gamepad_FaceButton_Bottom;
+	}
+
+	bool IsFrontendBackKey(const FKey& Key)
+	{
+		return Key == EKeys::Escape
+			|| Key == EKeys::Virtual_Back
+			|| Key == EKeys::Gamepad_FaceButton_Right;
+	}
+
+	bool IsFrontendMenuUpKey(const FKey& Key)
+	{
+		return Key == EKeys::Up
+			|| Key == EKeys::Gamepad_DPad_Up;
+	}
+
+	bool IsFrontendMenuDownKey(const FKey& Key)
+	{
+		return Key == EKeys::Down
+			|| Key == EKeys::Gamepad_DPad_Down;
+	}
+}
+
+class SDevKitFrontendMenuRoot : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SDevKitFrontendMenuRoot) {}
+		SLATE_ARGUMENT(UYogGameInstanceBase*, Owner)
+		SLATE_DEFAULT_SLOT(FArguments, Content)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs)
+	{
+		Owner = InArgs._Owner;
+		ChildSlot
+		[
+			InArgs._Content.Widget
+		];
+	}
+
+	virtual bool SupportsKeyboardFocus() const override
+	{
+		return true;
+	}
+
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
+	{
+		if (UYogGameInstanceBase* GameInstance = Owner.Get())
+		{
+			if (GameInstance->HandleFrontendMenuKey(InKeyEvent.GetKey()))
+			{
+				return FReply::Handled();
+			}
+		}
+
+		return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+	}
+
+	virtual FReply OnAnalogValueChanged(const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent) override
+	{
+		const FKey Key = InAnalogInputEvent.GetKey();
+		if (Key == EKeys::Gamepad_LeftY)
+		{
+			const float Value = InAnalogInputEvent.GetAnalogValue();
+			const int32 Direction = Value > 0.65f ? -1 : (Value < -0.65f ? 1 : 0);
+			const double NowSeconds = FPlatformTime::Seconds();
+			if (Direction != 0 && (Direction != LastAnalogDirection || NowSeconds - LastAnalogNavigationSeconds >= 0.24))
+			{
+				LastAnalogDirection = Direction;
+				LastAnalogNavigationSeconds = NowSeconds;
+				if (UYogGameInstanceBase* GameInstance = Owner.Get())
+				{
+					GameInstance->MoveFrontendMenuFocus(Direction);
+					return FReply::Handled();
+				}
+			}
+			else if (Direction == 0)
+			{
+				LastAnalogDirection = 0;
+			}
+		}
+
+		return SCompoundWidget::OnAnalogValueChanged(MyGeometry, InAnalogInputEvent);
+	}
+
+private:
+	TWeakObjectPtr<UYogGameInstanceBase> Owner;
+	double LastAnalogNavigationSeconds = 0.0;
+	int32 LastAnalogDirection = 0;
+};
 
 
 UYogGameInstanceBase::UYogGameInstanceBase()
@@ -247,19 +348,36 @@ void UYogGameInstanceBase::ShowMainMenu()
 	bFrontendLoadingGameplayMap = false;
 	bFrontendMapLoaded = false;
 	bFrontendMinLoadTimeElapsed = false;
+	FrontendFocusedMenuIndex = 0;
+	FrontendMenuButtons.Reset();
 
 	const FSlateBrush* BackgroundBrush = GetFrontendMainMenuBackgroundBrush();
 	const FSlateFontInfo MenuFont = FCoreStyle::GetDefaultFontStyle("Regular", 26);
-	const FSlateColor MenuTextColor(FLinearColor(0.80f, 0.82f, 0.84f, 1.f));
-	auto BuildMenuText = [&](const FText& Label)
+	auto BuildButtonColor = [this](int32 Index) -> FSlateColor
+	{
+		return FSlateColor(FrontendFocusedMenuIndex == Index
+			? FLinearColor(0.32f, 0.47f, 0.58f, 0.74f)
+			: FLinearColor(0.04f, 0.08f, 0.12f, 0.36f));
+	};
+	auto BuildMenuText = [&](const FText& Label, int32 Index)
 	{
 		return SNew(STextBlock)
 			.Text(Label)
 			.Font(MenuFont)
-			.ColorAndOpacity(MenuTextColor);
+			.ColorAndOpacity_Lambda([this, Index]()
+			{
+				return FSlateColor(FrontendFocusedMenuIndex == Index
+					? FLinearColor(0.94f, 0.94f, 0.88f, 1.f)
+					: FLinearColor(0.80f, 0.82f, 0.84f, 1.f));
+			});
 	};
 
-	TSharedRef<SWidget> Widget =
+	TSharedPtr<SButton> StartButton;
+	TSharedPtr<SButton> ContinueButton;
+	TSharedPtr<SButton> OptionsButton;
+	TSharedPtr<SButton> QuitButton;
+
+	TSharedRef<SWidget> MenuContent =
 		SNew(SOverlay)
 		+ SOverlay::Slot()
 		[
@@ -300,51 +418,51 @@ void UYogGameInstanceBase::ShowMainMenu()
 					.AutoHeight()
 					.Padding(0.f, 0.f, 0.f, 8.f)
 					[
-						SAssignNew(FrontendStartButton, SButton)
+						SAssignNew(StartButton, SButton)
 						.HAlign(HAlign_Left)
 						.ContentPadding(FMargin(20.f, 8.f))
-						.ButtonColorAndOpacity(FLinearColor(0.04f, 0.08f, 0.12f, 0.42f))
+						.ButtonColorAndOpacity_Lambda([BuildButtonColor]() { return BuildButtonColor(0); })
 						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleStartClicked)
 						[
-							BuildMenuText(NSLOCTEXT("DevKitFrontend", "StartGame", "Start"))
+							BuildMenuText(NSLOCTEXT("DevKitFrontend", "StartGame", "Start"), 0)
 						]
 					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					.Padding(0.f, 0.f, 0.f, 8.f)
 					[
-						SNew(SButton)
+						SAssignNew(ContinueButton, SButton)
 						.HAlign(HAlign_Left)
 						.ContentPadding(FMargin(20.f, 8.f))
-						.ButtonColorAndOpacity(FLinearColor(0.04f, 0.08f, 0.12f, 0.34f))
+						.ButtonColorAndOpacity_Lambda([BuildButtonColor]() { return BuildButtonColor(1); })
 						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleContinueClicked)
 						[
-							BuildMenuText(NSLOCTEXT("DevKitFrontend", "ContinueGame", "Continue"))
+							BuildMenuText(NSLOCTEXT("DevKitFrontend", "ContinueGame", "Continue"), 1)
 						]
 					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					.Padding(0.f, 0.f, 0.f, 8.f)
 					[
-						SNew(SButton)
+						SAssignNew(OptionsButton, SButton)
 						.HAlign(HAlign_Left)
 						.ContentPadding(FMargin(20.f, 8.f))
-						.ButtonColorAndOpacity(FLinearColor(0.04f, 0.08f, 0.12f, 0.34f))
+						.ButtonColorAndOpacity_Lambda([BuildButtonColor]() { return BuildButtonColor(2); })
 						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleOptionsClicked)
 						[
-							BuildMenuText(NSLOCTEXT("DevKitFrontend", "Options", "Options"))
+							BuildMenuText(NSLOCTEXT("DevKitFrontend", "Options", "Options"), 2)
 						]
 					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
-						SNew(SButton)
+						SAssignNew(QuitButton, SButton)
 						.HAlign(HAlign_Left)
 						.ContentPadding(FMargin(20.f, 8.f))
-						.ButtonColorAndOpacity(FLinearColor(0.04f, 0.08f, 0.12f, 0.34f))
+						.ButtonColorAndOpacity_Lambda([BuildButtonColor]() { return BuildButtonColor(3); })
 						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleQuitClicked)
 						[
-							BuildMenuText(NSLOCTEXT("DevKitFrontend", "QuitGame", "Quit"))
+							BuildMenuText(NSLOCTEXT("DevKitFrontend", "QuitGame", "Quit"), 3)
 						]
 					]
 				]
@@ -366,12 +484,21 @@ void UYogGameInstanceBase::ShowMainMenu()
 			]
 		];
 
+	TSharedRef<SWidget> Widget =
+		SNew(SDevKitFrontendMenuRoot)
+		.Owner(this)
+		[
+			MenuContent
+		];
+
+	FrontendStartButton = StartButton;
+	FrontendMenuButtons = { StartButton, ContinueButton, OptionsButton, QuitButton };
 	FrontendWidget = Widget;
 	if (GEngine && GEngine->GameViewport)
 	{
 		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
 	}
-	ApplyFrontendInputMode(true, FrontendStartButton);
+	ApplyFrontendInputMode(true, FrontendWidget);
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("AutoStart")))
 	{
@@ -383,10 +510,22 @@ const FSlateBrush* UYogGameInstanceBase::GetFrontendMainMenuBackgroundBrush()
 {
 	if (!FrontendMainMenuTexture)
 	{
-		FrontendMainMenuTexture = Cast<UTexture2D>(StaticLoadObject(
-			UTexture2D::StaticClass(),
-			nullptr,
-			TEXT("/Game/UI/Playtest_UI/UI_Tex/Frontend/T_MainMenu_Dungeon.T_MainMenu_Dungeon")));
+		static const TCHAR* CandidateTexturePaths[] =
+		{
+			TEXT("/Game/UI/Playtest_UI/UI_Tex/Frontend/T_MainMenu_GothicDungeon_20260509.T_MainMenu_GothicDungeon_20260509"),
+			TEXT("/Game/UI/Playtest_UI/UI_Tex/Frontend/T_MainMenu_Dungeon.T_MainMenu_Dungeon")
+		};
+		for (const TCHAR* TexturePath : CandidateTexturePaths)
+		{
+			FrontendMainMenuTexture = Cast<UTexture2D>(StaticLoadObject(
+				UTexture2D::StaticClass(),
+				nullptr,
+				TexturePath));
+			if (FrontendMainMenuTexture)
+			{
+				break;
+			}
+		}
 	}
 
 	if (!FrontendMainMenuTexture)
@@ -632,6 +771,8 @@ void UYogGameInstanceBase::RemoveFrontendWidget()
 	}
 	FrontendWidget.Reset();
 	FrontendStartButton.Reset();
+	FrontendMenuButtons.Reset();
+	FrontendFocusedMenuIndex = 0;
 }
 
 void UYogGameInstanceBase::ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidget> WidgetToFocus)
@@ -666,6 +807,81 @@ bool UYogGameInstanceBase::IsFrontendStartupWorld(const UWorld* World) const
 
 	const FString PackageName = World->GetOutermost()->GetName();
 	return PackageName.Equals(TEXT("/Engine/Maps/Entry"), ESearchCase::IgnoreCase);
+}
+
+bool UYogGameInstanceBase::HandleFrontendMenuKey(const FKey& Key)
+{
+	if (IsFrontendMenuUpKey(Key))
+	{
+		MoveFrontendMenuFocus(-1);
+		return true;
+	}
+
+	if (IsFrontendMenuDownKey(Key))
+	{
+		MoveFrontendMenuFocus(1);
+		return true;
+	}
+
+	if (IsFrontendAcceptKey(Key))
+	{
+		ActivateFrontendMenuSelection();
+		return true;
+	}
+
+	if (IsFrontendBackKey(Key))
+	{
+		const int32 QuitIndex = FrontendMenuButtons.Num() - 1;
+		if (FrontendMenuButtons.IsValidIndex(QuitIndex) && FrontendFocusedMenuIndex != QuitIndex)
+		{
+			FrontendFocusedMenuIndex = QuitIndex;
+			if (FrontendWidget.IsValid())
+			{
+				FrontendWidget->Invalidate(EInvalidateWidgetReason::Paint);
+				FSlateApplication::Get().SetKeyboardFocus(FrontendWidget, EFocusCause::Navigation);
+			}
+		}
+		else
+		{
+			HandleQuitClicked();
+		}
+		return true;
+	}
+
+	return false;
+}
+
+void UYogGameInstanceBase::MoveFrontendMenuFocus(int32 Direction)
+{
+	if (Direction == 0 || FrontendMenuButtons.Num() == 0)
+	{
+		return;
+	}
+
+	const int32 ButtonCount = FrontendMenuButtons.Num();
+	FrontendFocusedMenuIndex = (FrontendFocusedMenuIndex + Direction + ButtonCount) % ButtonCount;
+	if (FrontendWidget.IsValid())
+	{
+		FrontendWidget->Invalidate(EInvalidateWidgetReason::Paint);
+		FSlateApplication::Get().SetKeyboardFocus(FrontendWidget, EFocusCause::Navigation);
+	}
+}
+
+FReply UYogGameInstanceBase::ActivateFrontendMenuSelection()
+{
+	switch (FrontendFocusedMenuIndex)
+	{
+	case 0:
+		return HandleStartClicked();
+	case 1:
+		return HandleContinueClicked();
+	case 2:
+		return HandleOptionsClicked();
+	case 3:
+		return HandleQuitClicked();
+	default:
+		return FReply::Handled();
+	}
 }
 
 FReply UYogGameInstanceBase::HandleStartClicked()

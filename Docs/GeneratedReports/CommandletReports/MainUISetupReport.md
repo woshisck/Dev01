@@ -1,11 +1,10 @@
 ﻿# Main UI Setup Report
 - Mode: Apply
-- ForceLayout: true
-- FrontendOnly: false
+- ForceLayout: false
+- FrontendOnly: true
 - HudOnly: false
-- HudRootOnly: true
+- HudRootOnly: false
 
-- Found existing `/Game/UI/Playtest_UI/HUD/WBP_HUDRoot`.
-- HUD designer tree refreshed with named regions and existing HUD widgets.
-## HUD blueprint defaults
-- Skipped because HudRootOnly was requested.
+## Frontend texture import
+- Imported/reimported `X:/Project/Dev01/SourceArt/UI/Frontend/T_MainMenu_Dungeon.png` -> `/Game/UI/Playtest_UI/UI_Tex/Frontend`.
+- Imported/reimported `X:/Project/Dev01/SourceArt/UI/Frontend/T_MainMenu_GothicDungeon_20260509.png` -> `/Game/UI/Playtest_UI/UI_Tex/Frontend`.
