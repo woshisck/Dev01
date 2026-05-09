@@ -82,6 +82,14 @@ UYogFlowNode_TriggerGameplayEvent::UYogFlowNode_TriggerGameplayEvent(const FObje
 #endif
 }
 
+UYogFlowNode_EffectSendGameplayEvent::UYogFlowNode_EffectSendGameplayEvent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITOR
+	Category = TriggerCategory;
+#endif
+}
+
 UYogFlowNode_EffectDamage::UYogFlowNode_EffectDamage(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -236,6 +244,14 @@ UYogFlowNode_ConditionAttributeCompare::UYogFlowNode_ConditionAttributeCompare(c
 #endif
 }
 
+UYogFlowNode_ConditionCompareFloat::UYogFlowNode_ConditionCompareFloat(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITOR
+	Category = ConditionCategory;
+#endif
+}
+
 UYogFlowNode_ConditionHasTag::UYogFlowNode_ConditionHasTag(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -321,6 +337,22 @@ UYogFlowNode_LifecycleFinishBuff::UYogFlowNode_LifecycleFinishBuff(const FObject
 {
 #if WITH_EDITOR
 	Category = LifecycleCategory;
+#endif
+}
+
+UYogFlowNode_RuneTuningValue::UYogFlowNode_RuneTuningValue(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITOR
+	Category = TEXT("Pure");
+#endif
+}
+
+UYogFlowNode_MathFloat::UYogFlowNode_MathFloat(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITOR
+	Category = TEXT("Pure");
 #endif
 }
 

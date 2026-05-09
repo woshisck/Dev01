@@ -15,7 +15,7 @@ static const FGameplayTag TAG_Action_FinisherCharge_ChargeConsumed =
 static const FGameplayTag TAG_Buff_Status_FinisherCharge =
 	FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherCharge"));
 
-static const FGameplayTag TAG_Buff_Status_Mark_Finisher =
+static const FGameplayTag TAG_FinisherCharge_Buff_Status_Mark_Finisher =
 	FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Mark.Finisher"));
 
 static const FGameplayTag TAG_Buff_Status_FinisherWindowOpen =
@@ -180,9 +180,9 @@ void UGA_FinisherCharge::ClearAllMarks()
 			continue;
 		}
 
-		if (Character->GetASC()->HasMatchingGameplayTag(TAG_Buff_Status_Mark_Finisher))
+		if (Character->GetASC()->HasMatchingGameplayTag(TAG_FinisherCharge_Buff_Status_Mark_Finisher))
 		{
-			Character->GetASC()->RemoveActiveEffectsWithGrantedTags(FGameplayTagContainer(TAG_Buff_Status_Mark_Finisher));
+			Character->GetASC()->RemoveActiveEffectsWithGrantedTags(FGameplayTagContainer(TAG_FinisherCharge_Buff_Status_Mark_Finisher));
 		}
 	}
 }

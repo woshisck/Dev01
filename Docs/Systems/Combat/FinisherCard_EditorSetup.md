@@ -6,6 +6,22 @@
 
 ---
 
+## 节点名称速查
+
+| 编辑器中文名 | 类名（英文） | 分类 |
+|---|---|---|
+| 等待事件 | `BFNode_WaitGameplayEvent` | BuffFlow\|Tag |
+| 发送事件 | `BFNode_SendGameplayEvent` | BuffFlow\|Tag |
+| 施加状态 | `BFNode_ApplyEffect` | BuffFlow\|Effect |
+| 造成伤害 | `BFNode_DoDamage` | BuffFlow\|Effect |
+| 读取调参数值 | `BFNode_GetRuneTuningValue` | BuffFlow\|Rune |
+| 浮点运算 | `BFNode_MathFloat` | BuffFlow\|Math |
+| 比较数值 | `BFNode_CompareFloat` | BuffFlow\|Condition |
+| 结束符文 | `BFNode_FinishBuff` | BuffFlow\|Effect |
+| 添加标签 | `BFNode_AddTag` | BuffFlow\|Tag |
+
+---
+
 ## 概览
 
 | 资产名 | 类型 | 路径 | 用途 |
@@ -182,18 +198,18 @@
 [Start]
   │
   ▼
-[Apply Gameplay Effect Class]   ← 施加充能 GE（5次，不自动移除）
+[施加状态]      ← GE_FinisherCharge，施加5次，FA结束时不移除
   │ Out
   ▼
-[Send Gameplay Event]           ← 激活充能 GA
+[发送事件]      ← Action.FinisherCharge.Activate，目标 BuffOwner
   │ Out
   ▼
-[Finish Buff]                   ← FA 结束
+[结束符文]
 ```
 
 ### 节点配置
 
-#### 节点 A：Apply Gameplay Effect Class
+#### 节点 A：施加状态（BFNode_ApplyEffect）
 
 | 字段 | 值 |
 |---|---|
@@ -204,7 +220,7 @@
 
 - **Out** → 节点 B
 
-#### 节点 B：Send Gameplay Event
+#### 节点 B：发送事件（BFNode_SendGameplayEvent）
 
 | 字段 | 值 |
 |---|---|
@@ -215,7 +231,7 @@
 
 - **Out** → 节点 C
 
-#### 节点 C：Finish Buff
+#### 节点 C：结束符文（BFNode_FinishBuff）
 
 无配置，终止 FA。
 
@@ -236,41 +252,41 @@
 ### 节点图
 
 ```
-┌─ [Wait Gameplay Event]  ←─────────────────────────────────────────────┐
-│    事件 Tag = Action.FinisherCharge.ChargeConsumed                     │（每次触发后循环）
+┌─ [等待事件] ←──────────────────────────────────────────────────────────┐
+│    事件 Tag = Action.FinisherCharge.ChargeConsumed                     │（循环）
 │    监听目标 = BuffOwner                                                 │
 │    │ Out                                                               │
 │    ▼                                                                   │
-│  [Get Rune Tuning Value]                                               │
+│  [读取调参数值]                                                         │
 │    Key = KnockbackDistance                                             │
-│    数值（输出）─────────────────────────┐（数据连线）                   │
-│    │ Found                             │                               │
-│    ▼                                   ▼                               │
-│  [Send Gameplay Event（击退）]          └──→ 事件强度值                  │
-│    事件 Tag = Action.Knockback                                          │
+│    数值（输出）─────────────────┐（数据连线）                           │
+│    │ Found                     │                                       │
+│    ▼                           ▼                                       │
+│  [发送事件（击退）]          事件强度值                                  │
+│    事件 Tag = Action.Knockback                                         │
 │    事件接收目标 = LastDamageTarget                                      │
 │    │ Out                                                               │
 │    ▼                                                                   │
-│  [Send Gameplay Event（施加印记）]──────────────────────────────────────┘
-│    事件 Tag = Action.Mark.Apply.Finisher
-│    事件接收目标 = LastDamageTarget
-│    （Out 不连接，自动回到 WaitGameplayEvent 等待下一次事件）
+│  [发送事件（施加印记）] ────────────────────────────────────────────────┘
+     事件 Tag = Action.Mark.Apply.Finisher
+     事件接收目标 = LastDamageTarget
+     （Out 不连接，FA 循环等待下一次等待事件触发）
 ```
 
 ### 节点配置
 
-#### 节点 A：Wait Gameplay Event（循环节点）
+#### 节点 A：等待事件（BFNode_WaitGameplayEvent，循环节点）
 
 | 字段 | 值 |
 |---|---|
 | 事件 Tag | `Action.FinisherCharge.ChargeConsumed` |
 | 监听目标 | `BuffOwner`（玩家） |
-| 事件强度（输出） | （不连线，此事件无附加 Magnitude） |
+| 事件强度（输出） | 不连线（此事件无附加 Magnitude） |
 
 - **Out** → 节点 B
 - 事件触发时，`EventData.Target`（被命中敌人）自动写入 `BFC.LastEventContext`，下游节点通过 `LastDamageTarget` 选择器读取。
 
-#### 节点 B：Get Rune Tuning Value
+#### 节点 B：读取调参数值（BFNode_GetRuneTuningValue）
 
 | 字段 | 值 |
 |---|---|
@@ -280,7 +296,7 @@
 
 - **Found** → 节点 C
 
-#### 节点 C：Send Gameplay Event（击退）
+#### 节点 C：发送事件（BFNode_SendGameplayEvent，击退）
 
 | 字段 | 值 |
 |---|---|
@@ -288,11 +304,11 @@
 | 事件接收目标 | `LastDamageTarget` |
 | Payload 目标 | `LastDamageTarget` |
 | 发起者 | `DamageCauser` |
-| 事件强度值 | **[数据引脚]** ←── 连接自节点 B 的**数值（输出）** |
+| 事件强度值 | **[数据引脚]** ←── 节点 B 的**数值（输出）** |
 
 - **Out** → 节点 D
 
-#### 节点 D：Send Gameplay Event（施加印记）
+#### 节点 D：发送事件（BFNode_SendGameplayEvent，施加印记）
 
 | 字段 | 值 |
 |---|---|
@@ -301,7 +317,7 @@
 | Payload 目标 | `LastDamageTarget` |
 | 发起者 | `DamageCauser` |
 
-- **Out** → （不连接，FA 循环等待下一次 WaitGameplayEvent 触发）
+- **Out** → （不连接，FA 循环等待下一次等待事件触发）
 
 > `BGA_ApplyMark_Finisher` 在 `LastDamageTarget` 的 ASC 上收到此事件后，检查目标是否已有 `Buff.Status.Mark.Finisher`（有则跳过），无则施加 `GE_Mark_Finisher`。
 
@@ -312,8 +328,8 @@
 ### 定位
 
 **持续运行的循环流**。`GA_Player_FinisherAttack` 在蒙太奇攻击判定帧扫描所有带 `Buff.Status.Mark.Finisher` 的目标，向玩家 ASC 逐一派发 `Action.Mark.Detonate.Finisher`（`EventMagnitude` = 1.0 未确认 / 2.0 已确认）。本 FA 每次收到后执行：
-1. 读取 `DetonationDamage`，乘以确认倍率
-2. 对目标造成最终伤害
+1. 读取 `DetonationDamage`，乘以确认倍率，得到最终伤害
+2. 对目标造成伤害
 3. 向目标发送割裂事件
 4. 若倍率 ≥ 2.0（已确认）→ 额外发送击退事件
 
@@ -324,48 +340,42 @@
 ### 节点图
 
 ```
-┌─ [Wait Gameplay Event]  ←────────────────────────────────────────────────────────────┐
-│    事件 Tag = Action.Mark.Detonate.Finisher                                           │（循环）
-│    监听目标 = BuffOwner                                                               │
-│    事件强度（输出）─────────────────────────────────────┐（确认倍率 1.0/2.0）         │
-│    │ Out                                               │                              │
-│    ▼                                                   │                              │
-│  [Get Rune Tuning Value]                               │                              │
-│    Key = DetonationDamage                              │                              │
-│    数值（输出）──→ A ─┐                                │                              │
-│    │ Found            │（数据连线）                    │                              │
-│    ▼                  ▼                                ▼                              │
-│  [Math Float: ×]   A = 数值（输出）              B = 事件强度（输出）                  │
-│    Result（输出）──→ 固定伤害值（数据连线）                                            │
-│    │ Out                                                                              │
-│    ▼                                                                                  │
-│  [Do Damage]                                                                          │
-│    伤害目标 = LastDamageTarget                                                         │
-│    固定伤害值 ←── Result（数据引脚）                                                   │
-│    伤害效果类 = GE_FinisherDamage                                                     │
-│    │ Out                                                                              │
-│    ▼                                                                                  │
-│  [Send Gameplay Event（割裂）]                                                         │
-│    事件 Tag = Action.Slash                                                             │
-│    事件接收目标 = LastDamageTarget                                                     │
-│    │ Out                                                                              │
-│    ▼                                                                                  │
-│  [Compare Float]                                                                      │
-│    A ←── 事件强度（输出）（数据引脚）                                                  │
-│    B = 2.0                                                                            │
-│    Operator = ≥ (GreaterOrEqual)                                                      │
-│    │ True                              │ False                                        │
-│    ▼                                   ▼                                              │
-│  [Send Gameplay Event（击退）]          └────────────────────────────────────────────┘
-│    事件 Tag = Action.Knockback
-│    事件接收目标 = LastDamageTarget
-│    发起者 = DamageCauser
-│    │ Out ──────────────────────────────────────────────────────────────────────────────┘
+┌─ [等待事件] ←─────────────────────────────────────────────────────────────────┐
+│    事件 Tag = Action.Mark.Detonate.Finisher                                   │（循环）
+│    监听目标 = BuffOwner                                                        │
+│    事件强度（输出）─────────────────────────────┐（确认倍率 1.0/2.0）          │
+│    │ Out                                       │                              │
+│    ▼                                           │                              │
+│  [读取调参数值]                                 │                              │
+│    Key = DetonationDamage                      │                              │
+│    数值（输出）→ A ─┐                           │                              │
+│    │ Found         │（数据连线）                │                              │
+│    ▼               ▼                           ▼                              │
+│  [浮点运算: ×]   A=数值（输出）           B=事件强度（输出）                   │
+│    Result（输出）→ 固定伤害值                                                  │
+│    │ Out                                                                      │
+│    ▼                                                                          │
+│  [造成伤害]                                                                    │
+│    伤害目标 = LastDamageTarget                                                 │
+│    固定伤害值 ←── Result（数据引脚）                                            │
+│    │ Out                                                                      │
+│    ▼                                                                          │
+│  [发送事件（割裂）]                                                             │
+│    事件 Tag = Action.Slash                                                     │
+│    │ Out                                                                      │
+│    ▼                                                                          │
+│  [比较数值]                                                                    │
+│    A ←── 事件强度（输出）   B = 2.0   运算符 = ≥                              │
+│    │ True                         │ False                                     │
+│    ▼                               └──────────────────────────────────────────┘
+│  [发送事件（击退）] ────────────────────────────────────────────────────────────┘
+     事件 Tag = Action.Knockback
+     事件接收目标 = LastDamageTarget
 ```
 
 ### 节点配置
 
-#### 节点 A：Wait Gameplay Event（循环节点）
+#### 节点 A：等待事件（BFNode_WaitGameplayEvent，循环节点）
 
 | 字段 | 值 |
 |---|---|
@@ -376,7 +386,7 @@
 - **Out** → 节点 B
 - 事件触发时，`EventData.Target`（被引爆敌人）写入 `BFC.LastEventContext`，下游节点通过 `LastDamageTarget` 读取。
 
-#### 节点 B：Get Rune Tuning Value
+#### 节点 B：读取调参数值（BFNode_GetRuneTuningValue）
 
 | 字段 | 值 |
 |---|---|
@@ -386,7 +396,7 @@
 
 - **Found** → 节点 C
 
-#### 节点 C：Math Float（乘法）
+#### 节点 C：浮点运算（BFNode_MathFloat，乘法）
 
 | 字段 | 值 |
 |---|---|
@@ -397,7 +407,7 @@
 
 - **Out** → 节点 D
 
-#### 节点 D：Do Damage
+#### 节点 D：造成伤害（BFNode_DoDamage）
 
 | 字段 | 值 |
 |---|---|
@@ -408,7 +418,7 @@
 
 - **Out** → 节点 E
 
-#### 节点 E：Send Gameplay Event（割裂）
+#### 节点 E：发送事件（BFNode_SendGameplayEvent，割裂）
 
 | 字段 | 值 |
 |---|---|
@@ -419,7 +429,7 @@
 
 - **Out** → 节点 F
 
-#### 节点 F：Compare Float（确认路径判断）
+#### 节点 F：比较数值（BFNode_CompareFloat，确认路径判断）
 
 | 字段 | 值 |
 |---|---|
@@ -430,7 +440,7 @@
 - **True** → 节点 G（已确认，额外击退）
 - **False** → （不连接，结束本次引爆，FA 循环等待下一次事件）
 
-#### 节点 G：Send Gameplay Event（击退，仅确认路径）
+#### 节点 G：发送事件（BFNode_SendGameplayEvent，击退，仅确认路径）
 
 | 字段 | 值 |
 |---|---|
@@ -440,7 +450,7 @@
 
 - **Out** → （不连接，结束本次引爆，FA 循环等待下一次事件）
 
-> **印记清理**：`GE_Mark_Finisher` 由 12 秒 Duration 自然过期，或在 `GA_FinisherCharge.EndAbility` 的 `ClearAllMarks` 中清理（仅当 `Buff.Status.FinisherExecuting` 不存在时执行）。如需立即清理，可在节点 G 之后添加一个 `Apply Gameplay Effect Class`，向 `LastDamageTarget` 施加 Instant GE 并通过 `RemoveEffectsWithGrantedTag` 移除 `GE_Mark_Finisher`。
+> **印记清理**：`GE_Mark_Finisher` 由 12 秒 Duration 自然过期，或在 `GA_FinisherCharge.EndAbility` 的 `ClearAllMarks` 中清理（仅当 `Buff.Status.FinisherExecuting` 不存在时执行）。如需立即清理，可在节点 G 之后添加**施加状态**，向 `LastDamageTarget` 施加 Instant GE 移除 `GE_Mark_Finisher`。
 
 ---
 
@@ -462,27 +472,27 @@
 ### FA 创建
 
 - [ ] `FA_FinisherCard_BaseEffect`（BaseFlow 槽）
-  - 节点 A: Apply Gameplay Effect Class（GE_FinisherCharge，目标 BuffOwner，5次，**FA结束时移除效果 = 关闭**）
-  - 节点 B: Send Gameplay Event（`Action.FinisherCharge.Activate`，目标 BuffOwner）
-  - 节点 C: Finish Buff
+  - 节点 A：**施加状态**（GE_FinisherCharge，目标 BuffOwner，5次，**FA结束时移除效果 = 关闭**）
+  - 节点 B：**发送事件**（`Action.FinisherCharge.Activate`，目标 BuffOwner）
+  - 节点 C：**结束符文**
   - 连线：Start → A → B → C
 
 - [ ] `FA_FinisherCard_ChargeHit`（PassiveFlow 槽，绑定符文永久 GE）
-  - 节点 A: Wait Gameplay Event（`Action.FinisherCharge.ChargeConsumed`，监听 BuffOwner）
-  - 节点 B: Get Rune Tuning Value（Key = `KnockbackDistance`，默认 400）
-  - 节点 C: Send Gameplay Event（`Action.Knockback`，LastDamageTarget，Magnitude 数据连线自 B）
-  - 节点 D: Send Gameplay Event（`Action.Mark.Apply.Finisher`，LastDamageTarget）
-  - 连线：A.Out → B.Found → C.Out → D.Out（不连，循环）；B.数值 → C.事件强度值
+  - 节点 A：**等待事件**（`Action.FinisherCharge.ChargeConsumed`，监听 BuffOwner）
+  - 节点 B：**读取调参数值**（Key = `KnockbackDistance`，默认 400）
+  - 节点 C：**发送事件**（`Action.Knockback`，LastDamageTarget，事件强度值 ← B.数值）
+  - 节点 D：**发送事件**（`Action.Mark.Apply.Finisher`，LastDamageTarget）
+  - 连线：A.Out → B.Found → C.Out → D（Out 不连，循环）
 
 - [ ] `FA_FinisherCard_Detonate`（PassiveFlow 槽，绑定符文永久 GE）
-  - 节点 A: Wait Gameplay Event（`Action.Mark.Detonate.Finisher`，监听 BuffOwner）
-  - 节点 B: Get Rune Tuning Value（Key = `DetonationDamage`，默认 80）
-  - 节点 C: Math Float（×，A←B.数值，B←A.事件强度）
-  - 节点 D: Do Damage（LastDamageTarget，固定伤害值←C.Result，GE_FinisherDamage）
-  - 节点 E: Send Gameplay Event（`Action.Slash`，LastDamageTarget）
-  - 节点 F: Compare Float（A←A.事件强度，B=2.0，≥）
-  - 节点 G: Send Gameplay Event（`Action.Knockback`，LastDamageTarget）[True 路径]
-  - 连线：A.Out → B.Found → C.Out → D.Out → E.Out → F.True → G.Out（不连，循环）；F.False → （不连）
+  - 节点 A：**等待事件**（`Action.Mark.Detonate.Finisher`，监听 BuffOwner）
+  - 节点 B：**读取调参数值**（Key = `DetonationDamage`，默认 80）
+  - 节点 C：**浮点运算**（×，A ← B.数值，B ← A.事件强度）
+  - 节点 D：**造成伤害**（LastDamageTarget，固定伤害值 ← C.Result，GE_FinisherDamage）
+  - 节点 E：**发送事件**（`Action.Slash`，LastDamageTarget）
+  - 节点 F：**比较数值**（A ← A.事件强度，B = 2.0，≥）
+  - 节点 G：**发送事件**（`Action.Knockback`，LastDamageTarget）[True 路径]
+  - 连线：A.Out → B.Found → C.Out → D.Out → E.Out → F.True → G（Out 不连，循环）；F.False 不连
 
 ### DA 配置
 
@@ -497,24 +507,24 @@
 ```
 卡牌打出
   → FA_FinisherCard_BaseEffect:
-      ApplyEffect(GE_FinisherCharge, 5次, 不自动移除)
-      + SendEvent(Action.FinisherCharge.Activate → GA_FinisherCharge 激活)
-      + FinishBuff（FA结束，GE和GA继续）
+      施加状态(GE_FinisherCharge, 5次, 不自动移除)
+      + 发送事件(Action.FinisherCharge.Activate → GA_FinisherCharge 激活)
+      + 结束符文（FA结束，GE和GA继续）
 
 每次攻击命中（Ability.Event.Attack.Hit）
   → GA_FinisherCharge:
-      SendEvent(Action.FinisherCharge.ChargeConsumed, Target=被命中敌人)
+      发送 Action.FinisherCharge.ChargeConsumed(Target=被命中敌人)
       + 移除1层 GE_FinisherCharge
-    → FA_FinisherCard_ChargeHit (WaitGameplayEvent 触发):
-        GetTuning(KnockbackDistance=400)
-        → SendEvent(Action.Knockback, 敌人, Magnitude=400)  → GA_Knockback 执行击退
-        + SendEvent(Action.Mark.Apply.Finisher, 敌人)
+    → FA_FinisherCard_ChargeHit（等待事件触发）:
+        读取调参数值(KnockbackDistance=400)
+        → 发送事件(Action.Knockback, 敌人, Magnitude=400)  → GA_Knockback 执行击退
+        + 发送事件(Action.Mark.Apply.Finisher, 敌人)
           → BGA_ApplyMark_Finisher: 无印记则施加 GE_Mark_Finisher(12s)
 
 最后一层消耗完（Buff.Status.FinisherCharge Tag 消失）
   → GA_FinisherCharge: 停止 WaitHitTask + 延迟1帧 EndAbility
   → 同帧: AN_TriggerFinisherAbility 检测 Buff.Status.FinisherWindowOpen（还在！）
-         → SendEvent(Action.Player.FinisherAttack)
+         → 发送 Action.Player.FinisherAttack
            → GA_Player_FinisherAttack 激活（Buff.Status.FinisherExecuting 出现，时间膨胀）
   → 下1帧: GA_FinisherCharge.EndAbility → ClearAllMarks（跳过，FinisherExecuting 存在）
 
@@ -524,15 +534,14 @@
 蒙太奇 HitFrame（Ability.Event.Finisher.HitFrame）
   → GA_Player_FinisherAttack.DetonateMarks:
       遍历所有 Buff.Status.Mark.Finisher 目标
-      → 对每个目标: SendEvent(Action.Mark.Detonate.Finisher, Target=敌人, Magnitude=1.0或2.0)
-        → FA_FinisherCard_Detonate (WaitGameplayEvent 触发):
-            GetTuning(DetonationDamage=80) × Magnitude → DoDamage(敌人)
-            + SendEvent(Action.Slash, 敌人)
-            + [Magnitude≥2.0] SendEvent(Action.Knockback, 敌人)
+      → 对每个目标: 发送 Action.Mark.Detonate.Finisher(Target=敌人, Magnitude=1.0或2.0)
+        → FA_FinisherCard_Detonate（等待事件触发）:
+            读取调参数值(DetonationDamage=80) × Magnitude → 造成伤害(敌人)
+            + 发送事件(Action.Slash, 敌人)
+            + [Magnitude≥2.0] 发送事件(Action.Knockback, 敌人)
 
 蒙太奇完成
   → GA_Player_FinisherAttack.EndAbility:
       恢复时间流速
       Buff.Status.FinisherExecuting 自动移除
-      (印记由 GE 自然过期，或下次 GA_FinisherCharge 启动时 ClearAllMarks 清理)
 ```

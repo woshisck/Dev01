@@ -16,7 +16,7 @@ static const FGameplayTag TAG_Action_Finisher_Confirm =
 static const FGameplayTag TAG_Ability_Event_Finisher_HitFrame =
 	FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Finisher.HitFrame"));
 
-static const FGameplayTag TAG_Buff_Status_Mark_Finisher =
+static const FGameplayTag TAG_PlayerFinisherAttack_Buff_Status_Mark_Finisher =
 	FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Mark.Finisher"));
 
 static const FGameplayTag TAG_Buff_Status_Dead =
@@ -136,7 +136,7 @@ void UGA_Player_FinisherAttack::DetonateMarks(bool bConfirmed)
 		{
 			continue;
 		}
-		if (!Target->GetASC()->HasMatchingGameplayTag(TAG_Buff_Status_Mark_Finisher))
+		if (!Target->GetASC()->HasMatchingGameplayTag(TAG_PlayerFinisherAttack_Buff_Status_Mark_Finisher))
 		{
 			continue;
 		}

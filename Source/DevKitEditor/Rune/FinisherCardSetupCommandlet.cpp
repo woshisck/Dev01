@@ -8,11 +8,13 @@
 #include "AssetToolsModule.h"
 #include "BuffFlow/Nodes/BFNode_ApplyEffect.h"
 #include "BuffFlow/Nodes/BFNode_CompareFloat.h"
+#include "BuffFlow/Nodes/BFNode_DoDamage.h"
 #include "BuffFlow/Nodes/BFNode_FinishBuff.h"
 #include "BuffFlow/Nodes/BFNode_GetRuneTuningValue.h"
 #include "BuffFlow/Nodes/BFNode_MathFloat.h"
 #include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
+#include "BuffFlow/Nodes/YogFlowNodes.h"
 #include "BuffFlow/YogRuneFlowAsset.h"
 #include "Commandlets/CommandletReportUtils.h"
 #include "Data/RuneDataAsset.h"
@@ -37,7 +39,8 @@ namespace FinisherCardSetup
 
 	const FString BGA_FinisherChargePath = TEXT("/Game/Code/GAS/Abilities/Finisher/BGA_FinisherCharge");
 	const FString BGA_PlayerFinisherAttackPath = TEXT("/Game/Code/GAS/Abilities/Finisher/BGA_Player_FinisherAttack");
-	const FString BGA_ApplyFinisherMarkPath = TEXT("/Game/Code/GAS/Abilities/Finisher/BGA_ApplyFinisherMark");
+	const FString BGA_ApplyMarkFinisherPath = TEXT("/Game/Code/GAS/Abilities/Finisher/BGA_ApplyMark_Finisher");
+	const FString LegacyBGA_ApplyFinisherMarkPath = TEXT("/Game/Code/GAS/Abilities/Finisher/BGA_ApplyFinisherMark");
 	const FString GE_FinisherChargePath = TEXT("/Game/Code/GAS/Abilities/Finisher/GE_FinisherCharge");
 	const FString GE_FinisherDamagePath = TEXT("/Game/Code/GAS/Abilities/Finisher/GE_FinisherDamage");
 	const FString GE_MarkFinisherPath = TEXT("/Game/Code/GAS/Abilities/Finisher/GE_Mark_Finisher");
@@ -49,8 +52,10 @@ namespace FinisherCardSetup
 
 	const FString RunePath = TEXT("/Game/YogRuneEditor/Runes/DA_Rune_Finisher");
 	const FString BaseFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_FinisherCard_BaseEffect");
-	const FString ChargeHitFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_Finisher_ChargeHit");
-	const FString DetonateFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_Finisher_Detonate");
+	const FString ChargeHitFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_FinisherCard_ChargeHit");
+	const FString DetonateFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_FinisherCard_Detonate");
+	const FString LegacyChargeHitFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_Finisher_ChargeHit");
+	const FString LegacyDetonateFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_Finisher_Detonate");
 	const FString AbilitySetPath = TEXT("/Game/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial");
 
 	FString ToObjectPath(const FString& PackagePath)
@@ -199,6 +204,41 @@ namespace FinisherCardSetup
 			*GetNameSafe(Object),
 			*PropertyName.ToString()));
 		return true;
+	}
+
+	bool RemoveNullClassEntriesFromClassArrayProperty(UObject* Object, FName PropertyName, TArray<FString>& ReportLines)
+	{
+		if (!Object)
+		{
+			return false;
+		}
+
+		FArrayProperty* ArrayProperty = FindFProperty<FArrayProperty>(Object->GetClass(), PropertyName);
+		FClassProperty* ClassProperty = ArrayProperty ? CastField<FClassProperty>(ArrayProperty->Inner) : nullptr;
+		if (!ArrayProperty || !ClassProperty)
+		{
+			return false;
+		}
+
+		bool bRemovedAny = false;
+		FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(Object));
+		for (int32 Index = ArrayHelper.Num() - 1; Index >= 0; --Index)
+		{
+			if (!ClassProperty->GetPropertyValue(ArrayHelper.GetRawPtr(Index)))
+			{
+				ArrayHelper.RemoveValues(Index);
+				bRemovedAny = true;
+			}
+		}
+
+		if (bRemovedAny)
+		{
+			ReportLines.Add(FString::Printf(
+				TEXT("- Removed null legacy entries from `%s.%s`."),
+				*GetNameSafe(Object),
+				*PropertyName.ToString()));
+		}
+		return bRemovedAny;
 	}
 
 	bool AddAbilityClassToGrantedStructArray(UObject* AbilitySet, UClass* AbilityClass, TArray<FString>& ReportLines)
@@ -644,10 +684,11 @@ namespace FinisherCardSetup
 	void ConfigureAbilityBlueprints(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
 	{
 		ReportLines.Add(TEXT("## GameplayAbility Blueprints"));
+		RenameAssetIfNeeded(LegacyBGA_ApplyFinisherMarkPath, BGA_ApplyMarkFinisherPath, bDryRun, ReportLines, DirtyPackages);
 
 		UBlueprint* ChargeBP = CreateBlueprintAsset(BGA_FinisherChargePath, UGA_FinisherCharge::StaticClass(), bDryRun, ReportLines, DirtyPackages);
 		UBlueprint* AttackBP = CreateBlueprintAsset(BGA_PlayerFinisherAttackPath, UGA_Player_FinisherAttack::StaticClass(), bDryRun, ReportLines, DirtyPackages);
-		UBlueprint* MarkBP = CreateBlueprintAsset(BGA_ApplyFinisherMarkPath, UGA_ApplyFinisherMark::StaticClass(), bDryRun, ReportLines, DirtyPackages);
+		UBlueprint* MarkBP = CreateBlueprintAsset(BGA_ApplyMarkFinisherPath, UGA_ApplyFinisherMark::StaticClass(), bDryRun, ReportLines, DirtyPackages);
 
 		if (bDryRun)
 		{
@@ -715,7 +756,7 @@ namespace FinisherCardSetup
 				CDO->FinisherMarkGEClass = MarkGEClass;
 				MarkBP->MarkPackageDirty();
 				DirtyPackages.AddUnique(MarkBP->GetPackage());
-				ReportLines.Add(TEXT("- Configured `BGA_ApplyFinisherMark`: trigger Action.Mark.Apply.Finisher -> `GE_Mark_Finisher`."));
+				ReportLines.Add(TEXT("- Configured `BGA_ApplyMark_Finisher`: trigger Action.Mark.Apply.Finisher -> `GE_Mark_Finisher`."));
 			}
 		}
 	}
@@ -737,9 +778,9 @@ namespace FinisherCardSetup
 			return;
 		}
 
-		UBFNode_ApplyEffect* Apply = Cast<UBFNode_ApplyEffect>(CreateNode(Graph, Entry, UBFNode_ApplyEffect::StaticClass(), FVector2D(320.f, 0.f)));
-		UBFNode_SendGameplayEvent* Activate = Cast<UBFNode_SendGameplayEvent>(CreateNode(Graph, Apply, UBFNode_SendGameplayEvent::StaticClass(), FVector2D(660.f, 0.f)));
-		UBFNode_FinishBuff* Finish = Cast<UBFNode_FinishBuff>(CreateNode(Graph, Activate, UBFNode_FinishBuff::StaticClass(), FVector2D(1000.f, 0.f)));
+		UBFNode_ApplyEffect* Apply = Cast<UBFNode_ApplyEffect>(CreateNode(Graph, Entry, UYogFlowNode_EffectApplyState::StaticClass(), FVector2D(320.f, 0.f)));
+		UBFNode_SendGameplayEvent* Activate = Cast<UBFNode_SendGameplayEvent>(CreateNode(Graph, Apply, UYogFlowNode_EffectSendGameplayEvent::StaticClass(), FVector2D(660.f, 0.f)));
+		UBFNode_FinishBuff* Finish = Cast<UBFNode_FinishBuff>(CreateNode(Graph, Activate, UYogFlowNode_LifecycleFinishBuff::StaticClass(), FVector2D(1000.f, 0.f)));
 		if (!Apply || !Activate || !Finish)
 		{
 			ReportLines.Add(TEXT("- Failed to create base flow nodes."));
@@ -769,7 +810,7 @@ namespace FinisherCardSetup
 	{
 		if (bDryRun || !Flow)
 		{
-			ReportLines.Add(TEXT("- Would configure `FA_Finisher_ChargeHit`: Wait ChargeConsumed -> tuning KnockbackDistance -> Knockback -> Action.Mark.Apply.Finisher."));
+			ReportLines.Add(TEXT("- Would configure `FA_FinisherCard_ChargeHit`: Wait ChargeConsumed -> tuning KnockbackDistance -> Knockback -> Action.Mark.Apply.Finisher."));
 			return;
 		}
 
@@ -782,10 +823,10 @@ namespace FinisherCardSetup
 			return;
 		}
 
-		UBFNode_WaitGameplayEvent* Wait = Cast<UBFNode_WaitGameplayEvent>(CreateNode(Graph, Entry, UBFNode_WaitGameplayEvent::StaticClass(), FVector2D(320.f, 0.f)));
-		UBFNode_GetRuneTuningValue* Tuning = Cast<UBFNode_GetRuneTuningValue>(CreateNode(Graph, Wait, UBFNode_GetRuneTuningValue::StaticClass(), FVector2D(660.f, 0.f)));
-		UBFNode_SendGameplayEvent* Knockback = Cast<UBFNode_SendGameplayEvent>(CreateNode(Graph, Tuning, UBFNode_SendGameplayEvent::StaticClass(), FVector2D(1000.f, 0.f)));
-		UBFNode_SendGameplayEvent* Mark = Cast<UBFNode_SendGameplayEvent>(CreateNode(Graph, Knockback, UBFNode_SendGameplayEvent::StaticClass(), FVector2D(1340.f, 0.f)));
+		UBFNode_WaitGameplayEvent* Wait = Cast<UBFNode_WaitGameplayEvent>(CreateNode(Graph, Entry, UYogFlowNode_TriggerGameplayEvent::StaticClass(), FVector2D(320.f, 0.f)));
+		UBFNode_GetRuneTuningValue* Tuning = Cast<UBFNode_GetRuneTuningValue>(CreateNode(Graph, Wait, UYogFlowNode_RuneTuningValue::StaticClass(), FVector2D(660.f, 0.f)));
+		UBFNode_SendGameplayEvent* Knockback = Cast<UBFNode_SendGameplayEvent>(CreateNode(Graph, Tuning, UYogFlowNode_EffectSendGameplayEvent::StaticClass(), FVector2D(1000.f, 0.f)));
+		UBFNode_SendGameplayEvent* Mark = Cast<UBFNode_SendGameplayEvent>(CreateNode(Graph, Knockback, UYogFlowNode_EffectSendGameplayEvent::StaticClass(), FVector2D(1340.f, 0.f)));
 		if (!Wait || !Tuning || !Knockback || !Mark)
 		{
 			ReportLines.Add(TEXT("- Failed to create charge hit nodes."));
@@ -816,14 +857,14 @@ namespace FinisherCardSetup
 		LinkExec(Knockback, TEXT("Out"), Mark);
 		LinkData(Tuning, TEXT("Value"), Knockback, TEXT("Magnitude"));
 		FinalizeFlow(Flow, DirtyPackages);
-		ReportLines.Add(TEXT("- Configured `FA_Finisher_ChargeHit`."));
+		ReportLines.Add(TEXT("- Configured `FA_FinisherCard_ChargeHit`."));
 	}
 
 	void ConfigureDetonateFlow(UFlowAsset* Flow, bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
 	{
 		if (bDryRun || !Flow)
 		{
-			ReportLines.Add(TEXT("- Would configure `FA_Finisher_Detonate`: Wait Action.Mark.Detonate.Finisher -> damage math -> GE -> Slash -> conditional Knockback."));
+			ReportLines.Add(TEXT("- Would configure `FA_FinisherCard_Detonate`: Wait Action.Mark.Detonate.Finisher -> damage math -> DoDamage -> Slash -> conditional Knockback."));
 			return;
 		}
 
@@ -836,13 +877,13 @@ namespace FinisherCardSetup
 			return;
 		}
 
-		UBFNode_WaitGameplayEvent* Wait = Cast<UBFNode_WaitGameplayEvent>(CreateNode(Graph, Entry, UBFNode_WaitGameplayEvent::StaticClass(), FVector2D(320.f, 0.f)));
-		UBFNode_GetRuneTuningValue* Tuning = Cast<UBFNode_GetRuneTuningValue>(CreateNode(Graph, Wait, UBFNode_GetRuneTuningValue::StaticClass(), FVector2D(660.f, 0.f)));
-		UBFNode_MathFloat* Math = Cast<UBFNode_MathFloat>(CreateNode(Graph, Tuning, UBFNode_MathFloat::StaticClass(), FVector2D(1000.f, 0.f)));
-		UBFNode_ApplyEffect* Damage = Cast<UBFNode_ApplyEffect>(CreateNode(Graph, Math, UBFNode_ApplyEffect::StaticClass(), FVector2D(1340.f, 0.f)));
-		UBFNode_SendGameplayEvent* Slash = Cast<UBFNode_SendGameplayEvent>(CreateNode(Graph, Damage, UBFNode_SendGameplayEvent::StaticClass(), FVector2D(1680.f, 0.f)));
-		UBFNode_CompareFloat* Compare = Cast<UBFNode_CompareFloat>(CreateNode(Graph, Slash, UBFNode_CompareFloat::StaticClass(), FVector2D(2020.f, 0.f)));
-		UBFNode_SendGameplayEvent* Knockback = Cast<UBFNode_SendGameplayEvent>(CreateNode(Graph, Compare, UBFNode_SendGameplayEvent::StaticClass(), FVector2D(2360.f, -100.f)));
+		UBFNode_WaitGameplayEvent* Wait = Cast<UBFNode_WaitGameplayEvent>(CreateNode(Graph, Entry, UYogFlowNode_TriggerGameplayEvent::StaticClass(), FVector2D(320.f, 0.f)));
+		UBFNode_GetRuneTuningValue* Tuning = Cast<UBFNode_GetRuneTuningValue>(CreateNode(Graph, Wait, UYogFlowNode_RuneTuningValue::StaticClass(), FVector2D(660.f, 0.f)));
+		UBFNode_MathFloat* Math = Cast<UBFNode_MathFloat>(CreateNode(Graph, Tuning, UYogFlowNode_MathFloat::StaticClass(), FVector2D(1000.f, 0.f)));
+		UBFNode_DoDamage* Damage = Cast<UBFNode_DoDamage>(CreateNode(Graph, Math, UYogFlowNode_EffectDamage::StaticClass(), FVector2D(1340.f, 0.f)));
+		UBFNode_SendGameplayEvent* Slash = Cast<UBFNode_SendGameplayEvent>(CreateNode(Graph, Damage, UYogFlowNode_EffectSendGameplayEvent::StaticClass(), FVector2D(1680.f, 0.f)));
+		UBFNode_CompareFloat* Compare = Cast<UBFNode_CompareFloat>(CreateNode(Graph, Slash, UYogFlowNode_ConditionCompareFloat::StaticClass(), FVector2D(2020.f, 0.f)));
+		UBFNode_SendGameplayEvent* Knockback = Cast<UBFNode_SendGameplayEvent>(CreateNode(Graph, Compare, UYogFlowNode_EffectSendGameplayEvent::StaticClass(), FVector2D(2360.f, -100.f)));
 		if (!Wait || !Tuning || !Math || !Damage || !Slash || !Compare || !Knockback)
 		{
 			ReportLines.Add(TEXT("- Failed to create detonate nodes."));
@@ -854,10 +895,9 @@ namespace FinisherCardSetup
 		Tuning->Key = TEXT("DetonationDamage");
 		Tuning->DefaultValue = 80.f;
 		Math->Operator = EBFMathOp::Multiply;
-		Damage->Effect = LoadBlueprintClass<UGameplayEffect>(GE_FinisherDamagePath);
-		Damage->Target = EBFTargetSelector::LastDamageTarget;
-		Damage->SetByCallerTag1 = RequestTag(TEXT("Data.Damage"), ReportLines);
-		Damage->bRemoveEffectOnCleanup = false;
+		Damage->DamageEffect = LoadBlueprintClass<UGameplayEffect>(GE_FinisherDamagePath);
+		Damage->TargetSelector = EBFTargetSelector::LastDamageTarget;
+		Damage->DamageMultiplier.Value = 1.f;
 		Slash->EventTag = RequestTag(TEXT("Action.Slash"), ReportLines);
 		Slash->Target = EBFTargetSelector::LastDamageTarget;
 		Slash->PayloadTarget = EBFTargetSelector::LastDamageTarget;
@@ -886,15 +926,18 @@ namespace FinisherCardSetup
 		LinkExec(Compare, TEXT("True"), Knockback);
 		LinkData(Tuning, TEXT("Value"), Math, TEXT("A"));
 		LinkData(Wait, TEXT("EventMagnitude"), Math, TEXT("B"));
-		LinkData(Math, TEXT("Result"), Damage, TEXT("SetByCallerValue1"));
+		LinkData(Math, TEXT("Result"), Damage, TEXT("FlatDamage"));
 		LinkData(Wait, TEXT("EventMagnitude"), Compare, TEXT("A"));
 		FinalizeFlow(Flow, DirtyPackages);
-		ReportLines.Add(TEXT("- Configured `FA_Finisher_Detonate`."));
+		ReportLines.Add(TEXT("- Configured `FA_FinisherCard_Detonate`."));
 	}
 
 	void ConfigureRuneAndFlows(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
 	{
 		ReportLines.Add(TEXT("## Rune and Flow assets"));
+		RenameAssetIfNeeded(LegacyChargeHitFlowPath, ChargeHitFlowPath, bDryRun, ReportLines, DirtyPackages);
+		RenameAssetIfNeeded(LegacyDetonateFlowPath, DetonateFlowPath, bDryRun, ReportLines, DirtyPackages);
+
 		UFlowAsset* BaseFlow = CreateFlowAsset(BaseFlowPath, bDryRun, ReportLines, DirtyPackages);
 		UFlowAsset* ChargeHitFlow = CreateFlowAsset(ChargeHitFlowPath, bDryRun, ReportLines, DirtyPackages);
 		UFlowAsset* DetonateFlow = CreateFlowAsset(DetonateFlowPath, bDryRun, ReportLines, DirtyPackages);
@@ -975,9 +1018,10 @@ namespace FinisherCardSetup
 		TArray<TSubclassOf<UYogGameplayAbility>> AbilityClasses;
 		AbilityClasses.Add(LoadBlueprintClass<UYogGameplayAbility>(BGA_FinisherChargePath));
 		AbilityClasses.Add(LoadBlueprintClass<UYogGameplayAbility>(BGA_PlayerFinisherAttackPath));
-		AbilityClasses.Add(LoadBlueprintClass<UYogGameplayAbility>(BGA_ApplyFinisherMarkPath));
+		AbilityClasses.Add(LoadBlueprintClass<UYogGameplayAbility>(BGA_ApplyMarkFinisherPath));
 
 		AbilitySet->Modify();
+		RemoveNullClassEntriesFromClassArrayProperty(AbilitySet, TEXT("AbilityMap"), ReportLines);
 		for (const TSubclassOf<UYogGameplayAbility>& AbilityClass : AbilityClasses)
 		{
 			AddAbilityClassToAbilitySet(AbilitySet, AbilityClass.Get(), ReportLines);

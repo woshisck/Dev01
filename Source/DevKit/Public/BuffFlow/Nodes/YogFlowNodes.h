@@ -16,7 +16,9 @@
 #include "BuffFlow/Nodes/BFNode_DoOnce.h"
 #include "BuffFlow/Nodes/BFNode_FinishBuff.h"
 #include "BuffFlow/Nodes/BFNode_GrantGA.h"
+#include "BuffFlow/Nodes/BFNode_GetRuneTuningValue.h"
 #include "BuffFlow/Nodes/BFNode_HasTag.h"
+#include "BuffFlow/Nodes/BFNode_MathFloat.h"
 #include "BuffFlow/Nodes/BFNode_OnCritHit.h"
 #include "BuffFlow/Nodes/BFNode_OnDamageDealt.h"
 #include "BuffFlow/Nodes/BFNode_OnDamageReceived.h"
@@ -28,6 +30,7 @@
 #include "BuffFlow/Nodes/BFNode_PlayRuneVFXProfile.h"
 #include "BuffFlow/Nodes/BFNode_Probability.h"
 #include "BuffFlow/Nodes/BFNode_RemoveTag.h"
+#include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
 #include "BuffFlow/Nodes/BFNode_SpawnGameplayCueAtLocation.h"
 #include "BuffFlow/Nodes/BFNode_SpawnGameplayCueOnActor.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRangedProjectiles.h"
@@ -104,6 +107,15 @@ class DEVKIT_API UYogFlowNode_TriggerGameplayEvent : public UBFNode_WaitGameplay
 
 public:
 	UYogFlowNode_TriggerGameplayEvent(const FObjectInitializer& ObjectInitializer);
+};
+
+UCLASS(NotBlueprintable, meta = (DisplayName = "发送事件", Category = "技能|触发"))
+class DEVKIT_API UYogFlowNode_EffectSendGameplayEvent : public UBFNode_SendGameplayEvent
+{
+	GENERATED_BODY()
+
+public:
+	UYogFlowNode_EffectSendGameplayEvent(const FObjectInitializer& ObjectInitializer);
 };
 
 UCLASS(NotBlueprintable, meta = (DisplayName = "伤害", Category = "效果节点|瞬时效果"))
@@ -277,6 +289,15 @@ public:
 	UYogFlowNode_ConditionAttributeCompare(const FObjectInitializer& ObjectInitializer);
 };
 
+UCLASS(NotBlueprintable, meta = (DisplayName = "比较数值", Category = "条件节点"))
+class DEVKIT_API UYogFlowNode_ConditionCompareFloat : public UBFNode_CompareFloat
+{
+	GENERATED_BODY()
+
+public:
+	UYogFlowNode_ConditionCompareFloat(const FObjectInitializer& ObjectInitializer);
+};
+
 UCLASS(NotBlueprintable, meta = (DisplayName = "拥有Tag", Category = "条件节点"))
 class DEVKIT_API UYogFlowNode_ConditionHasTag : public UBFNode_HasTag
 {
@@ -374,6 +395,24 @@ class DEVKIT_API UYogFlowNode_LifecycleFinishBuff : public UBFNode_FinishBuff
 
 public:
 	UYogFlowNode_LifecycleFinishBuff(const FObjectInitializer& ObjectInitializer);
+};
+
+UCLASS(NotBlueprintable, meta = (DisplayName = "读取调参数值", Category = "Pure"))
+class DEVKIT_API UYogFlowNode_RuneTuningValue : public UBFNode_GetRuneTuningValue
+{
+	GENERATED_BODY()
+
+public:
+	UYogFlowNode_RuneTuningValue(const FObjectInitializer& ObjectInitializer);
+};
+
+UCLASS(NotBlueprintable, meta = (DisplayName = "浮点运算", Category = "Pure"))
+class DEVKIT_API UYogFlowNode_MathFloat : public UBFNode_MathFloat
+{
+	GENERATED_BODY()
+
+public:
+	UYogFlowNode_MathFloat(const FObjectInitializer& ObjectInitializer);
 };
 
 // ---------------------------------------------------------------------------
