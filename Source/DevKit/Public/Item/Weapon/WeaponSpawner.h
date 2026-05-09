@@ -20,8 +20,6 @@ class APlayerCharacterBase;
 class UObject;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
-class UWidgetComponent;
-class UWeaponFloatWidget;
 
 class UWeaponDefinition;
 
@@ -71,7 +69,7 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void GrantWeapon(APlayerCharacterBase* ReceivingChar);
 
-	// 换武器时恢复旧 Spawner：重置 bPickedUp、浮窗状态，并通知 BP 恢复网格材质
+	// 换武器时恢复旧 Spawner：重置 bPickedUp，并通知 BP 恢复网格材质
 	void ResetToAvailable();
 
 	// BP 端恢复展示网格材质（在 ResetToAvailable 末尾调用）
@@ -117,36 +115,14 @@ public:
 	UFUNCTION()
 	AWeaponInstance* SpawnWeaponDeferred(UWorld* World, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData);
 
-	// 武器信息浮窗 WidgetComponent（Screen Space，自动跟随武器位置）
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "浮窗", meta = (AllowPrivateAccess = true))
-	TObjectPtr<UWidgetComponent> WeaponInfoWidgetComp;
-
-	// 在 BP_WeaponSpawner 里指定浮窗 WBP 类
-	UPROPERTY(EditDefaultsOnly, Category = "浮窗")
-	TSubclassOf<UWeaponFloatWidget> WeaponFloatWidgetClass;
-
-	// 浮窗水平偏移（cm，武器屏幕位置左/右侧偏移量）
-	UPROPERTY(EditDefaultsOnly, Category = "浮窗", meta = (ClampMin = "0"))
-	float WidgetSideOffset = 300.f;
-
-	// 浮窗垂直偏移（cm，沿 Z 轴抬升）
-	UPROPERTY(EditDefaultsOnly, Category = "浮窗", meta = (ClampMin = "0"))
-	float WidgetZOffset = 50.f;
-
-	// 拾取时浮窗折叠动画时长（秒），增大可预览效果
-	UPROPERTY(EditDefaultsOnly, Category = "浮窗", meta = (ClampMin = "0.05"))
-	float PickupCollapseDuration = 0.25f;
-
 	// 被拾取后替换的材质（通常为纯黑 MI），所有插槽统一使用
 	UPROPERTY(EditDefaultsOnly, Category = "武器展示|材质")
 	TObjectPtr<UMaterialInterface> PickedUpMaterial;
 
 private:
 
-	// 朝向检测：玩家在范围内时每帧判断是否应显示浮窗
-	bool bPlayerInRange       = false;
-	bool bPickedUp            = false;  // 拾取后浮窗永久隐藏
-	bool bCollapsingForPickup = false;  // 折叠动画进行中，保持 WidgetComp 可见
+	bool bPlayerInRange = false;
+	bool bPickedUp      = false;
 	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
 
 	// BeginPlay 时缓存的网格原始材质，用于还原

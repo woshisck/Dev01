@@ -35,7 +35,8 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 		InfoContainer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
 
-	const UWeaponInfoDA* Info = Def->WeaponInfo;
+	// WeaponInfo 已从 WeaponDefinition 移除，浮窗不再展示武器名/描述/激活区
+	const UWeaponInfoDA* Info = nullptr;
 
 	// ── 缩略图 ─────────────────────────────────
 	CachedThumbnail = nullptr;

@@ -1,7 +1,6 @@
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "Character/PlayerCharacterBase.h"
-#include "Component/CharacterDataComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "Engine/AssetManager.h"
@@ -49,17 +48,6 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 
 		NewActor->EquipWeaponToCharacter(ReceivingChar);
 
-		{
-			UCharacterData* CD = ReceivingChar->GetCharacterDataComponent()->GetCharacterData();
-			UE_LOG(LogTemp, Warning, TEXT("[WeaponSetup][WeaponDefinition] Owner=%s | CD=%s IsCDO=%d IsTransient=%d | NewAbilityData=%s"),
-				*ReceivingChar->GetName(),
-				CD ? *CD->GetName() : TEXT("null"),
-				CD ? (int32)CD->HasAnyFlags(RF_ClassDefaultObject) : -1,
-				CD ? (int32)CD->HasAnyFlags(RF_Transient) : -1,
-				WeaponAbilityData ? *WeaponAbilityData->GetName() : TEXT("null"));
-			CD->AbilityData = WeaponAbilityData;
-		}
-
 		LastSpawnedWeapon = NewActor;
 	}
 
@@ -96,14 +84,7 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 
 	if (UComboRuntimeComponent* ComboRuntime = ReceivingChar ? ReceivingChar->ComboRuntimeComponent.Get() : nullptr)
 	{
-		if (GameplayAbilityComboGraph)
-		{
-			ComboRuntime->LoadComboGraph(GameplayAbilityComboGraph);
-		}
-		else
-		{
-			ComboRuntime->LoadComboConfig(WeaponComboConfig);
-		}
+		ComboRuntime->LoadComboGraph(GameplayAbilityComboGraph);
 	}
 
 	// ── 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────────

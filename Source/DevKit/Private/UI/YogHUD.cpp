@@ -19,7 +19,6 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Item/Weapon/WeaponInfoDA.h"
 #include "Engine/PostProcessVolume.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Kismet/GameplayStatics.h"
@@ -348,10 +347,9 @@ void AYogHUD::TriggerWeaponPickup(const UWeaponDefinition* Def, FVector2D StartS
 		return;
 	}
 
-	UTexture2D* Thumbnail = (Def->WeaponInfo) ? Def->WeaponInfo->Thumbnail : nullptr;
-	UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] TriggerWeaponPickup — Def=%s Thumbnail=%s Start=(%.0f,%.0f)"),
+	UTexture2D* Thumbnail = nullptr;
+	UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] TriggerWeaponPickup — Def=%s Start=(%.0f,%.0f)"),
 		*Def->GetName(),
-		Thumbnail ? *Thumbnail->GetName() : TEXT("NULL"),
 		StartScreenPos.X, StartScreenPos.Y);
 
 	// 清理上次残留的飞行 Widget

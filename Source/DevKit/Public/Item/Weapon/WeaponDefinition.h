@@ -6,7 +6,6 @@
 #include "AbilitySystem/Abilities/YogAbilitySet.h"
 #include "Data/AbilityData.h"
 #include "Animation/YogAnimInstance.h"
-#include "Item/Weapon/WeaponInfoDA.h"
 #include "Item/Weapon/WeaponTypes.h"
 
 #include "WeaponDefinition.generated.h"
@@ -18,7 +17,6 @@ class AWeaponInstance;
 class APlayerCharacterBase;
 class UMaterialInterface;
 class URuneDataAsset;
-class UWeaponComboConfigDA;
 class UGameplayAbilityComboGraph;
 //class UYogAnimInstance;
 
@@ -72,12 +70,6 @@ public:
 	//TArray<TObjectPtr<UYogAbilitySet>> AbilitySetsToGrant;
 	UWeaponDefinition(){};
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability")
-	TObjectPtr<UAbilityData> WeaponAbilityData;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
-	TObjectPtr<UWeaponComboConfigDA> WeaponComboConfig;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UGameplayAbilityComboGraph> GameplayAbilityComboGraph;
 
@@ -115,11 +107,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Heat")
 	TObjectPtr<UMaterialInterface> HeatOverlayMaterial;
 
-	// 武器展示信息（名称/描述/缩略图/激活区图像），驱动武器浮窗
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息")
-	TObjectPtr<UWeaponInfoDA> WeaponInfo;
-
-	// 初始符文列表：拾取武器时在浮窗展示，并预置到激活区起始格
+	// 初始符文列表：拾取武器时预置到激活区起始格
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息")
 	TArray<TObjectPtr<URuneDataAsset>> InitialRunes;
 
