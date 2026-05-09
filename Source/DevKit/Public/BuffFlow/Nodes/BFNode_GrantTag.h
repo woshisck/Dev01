@@ -24,33 +24,23 @@ class UAbilitySystemComponent;
  *   Expired — Duration 倒计时结束，Tag 自动移除后触发
  *   Removed — Remove 引脚手动移除后触发
  *   Failed  — 目标无效或无 ASC 时触发
- *
- * 典型用途：
- *   受伤后添加 HeatInhibit Tag 5 秒，配合 GE OngoingTagRequirements 自动暂停热度积累：
- *   [OnDamageReceived] → [GrantTag: Buff.Status.HeatInhibit, Duration=5s, BuffOwner]
- *                             Out → [继续逻辑...]
- *                             Expired → （Tag 自动移除，热度恢复积累）
  */
 UCLASS(NotBlueprintable, meta = (DisplayName = "Grant Tag (Timed)", Category = "BuffFlow|Tag"))
 class DEVKIT_API UBFNode_GrantTag : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 要授予的 Tag */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 要授予的 Tag — FA 停止或 Duration 到期时自动移除
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "授予 Tag"))
 	FGameplayTag Tag;
 
-	/**
-	 * 持续时间（秒）。
-	 *   0  = 不自动到期，只在 FA 停止（Cleanup）或手动 Remove 时移除
-	 *   > 0 = 倒计时结束后自动移除，同时触发 Expired 输出引脚
-	 */
+	// 持续时间（秒）— 0 = 不自动到期；> 0 = N 秒后自动移除并触发 Expired 引脚
 	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (ClampMin = "0.0",
-		ToolTip = "0 = 不自动到期（只在 FA 停止时移除）；> 0 = N 秒后自动到期"))
+		ToolTip = "0 = 不自动到期（只在 FA 停止时移除）；> 0 = N 秒后自动到期", DisplayName = "持续时间（秒）"))
 	float Duration = 5.0f;
 
-	/** 施加目标 */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 授予目标 — 将 Tag 添加到哪个 Actor 的 ASC，默认 BuffOwner
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "授予目标"))
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
 protected:

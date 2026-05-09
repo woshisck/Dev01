@@ -517,6 +517,14 @@ bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputActio
 	{
 		PlayerOwner->CombatDeckComponent->RestorePendingLinkContextFromDash();
 	}
+
+	static const FGameplayTag ChainActiveTag = FGameplayTag::RequestGameplayTag(TEXT("State.Combo.ChainActive"), false);
+	if (ChainActiveTag.IsValid() && ASC->GetTagCount(ChainActiveTag) <= 0)
+	{
+		ASC->AddLooseGameplayTag(ChainActiveTag);
+		TrackRuntimeCombatLooseTag(ChainActiveTag);
+	}
+
 	return true;
 }
 

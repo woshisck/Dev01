@@ -34,9 +34,10 @@
 #include "BuffFlow/Nodes/BFNode_SpawnRuneAreaProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneProjectileProfile.h"
-#include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
+#include "BuffFlow/Nodes/BFNode_PureData.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "Nodes/Graph/FlowNode_Finish.h"
+#include "Types/FlowDataPinResults.h"
 #include "YogFlowNodes.generated.h"
 
 UCLASS(NotBlueprintable, meta = (DisplayName = "流程控制", Category = "技能"))
@@ -267,15 +268,6 @@ public:
 	UYogFlowNode_SpawnRangedProjectiles(const FObjectInitializer& ObjectInitializer);
 };
 
-UCLASS(NotBlueprintable, meta = (DisplayName = "生成斩击波", Category = "任务节点|生成"))
-class DEVKIT_API UYogFlowNode_SpawnSlashWave : public UBFNode_SpawnSlashWaveProjectile
-{
-	GENERATED_BODY()
-
-public:
-	UYogFlowNode_SpawnSlashWave(const FObjectInitializer& ObjectInitializer);
-};
-
 UCLASS(NotBlueprintable, meta = (DisplayName = "属性比较", Category = "条件节点"))
 class DEVKIT_API UYogFlowNode_ConditionAttributeCompare : public UBFNode_CompareFloat
 {
@@ -382,4 +374,30 @@ class DEVKIT_API UYogFlowNode_LifecycleFinishBuff : public UBFNode_FinishBuff
 
 public:
 	UYogFlowNode_LifecycleFinishBuff(const FObjectInitializer& ObjectInitializer);
+};
+
+// ---------------------------------------------------------------------------
+// Pure 数据节点 — 无执行引脚，仅供输出数值
+// ---------------------------------------------------------------------------
+
+UCLASS(NotBlueprintable, meta = (DisplayName = "读取数值（Pure）", Category = "Pure"))
+class DEVKIT_API UBFNode_Pure_TuningValue : public UBFNode_PureData
+{
+	GENERATED_UCLASS_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Pure", meta = (ToolTip = "数值表中的 Key 名称"))
+	FName TuningKey;
+
+	UPROPERTY(EditAnywhere, Category = "Pure", meta = (ToolTip = "Key 不存在时的回退值"))
+	float DefaultValue = 0.f;
+
+	virtual FFlowDataPinResult_Float TrySupplyDataPinAsFloat_Implementation(const FName& PinName) const override;
+};
+
+UCLASS(NotBlueprintable, meta = (DisplayName = "连击段数（Pure）", Category = "Pure"))
+class DEVKIT_API UBFNode_Pure_ComboIndex : public UBFNode_PureData
+{
+	GENERATED_UCLASS_BODY()
+
+	virtual FFlowDataPinResult_Int TrySupplyDataPinAsInt_Implementation(const FName& PinName) const override;
 };

@@ -14,21 +14,19 @@
  *
  * 使用 EGameplayTagEventType::NewOrRemoved，仅在 0↔非零边沿触发。
  */
-
 class UAbilitySystemComponent;
-
 
 UCLASS(NotBlueprintable, meta = (DisplayName = "On Tag Removed", Category = "BuffFlow|Tag"))
 class DEVKIT_API UBFNode_OnTagRemoved : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 要监听的 Gameplay Tag */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 要监听的 Gameplay Tag — 当此 Tag 从有到无（≥1→0）时触发 Out
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "监听 Tag"))
 	FGameplayTag Tag;
 
-	/** 监听哪个 Actor 的 ASC，默认 BuffOwner */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 监听目标 — 在哪个 Actor 的 ASC 上监听此 Tag，默认为 BuffOwner
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "监听目标"))
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
 protected:

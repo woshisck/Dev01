@@ -22,12 +22,12 @@ class DEVKIT_API UBFNode_OnTagAdded : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 要监听的 Gameplay Tag */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 要监听的 Gameplay Tag — 当此 Tag 从无到有（0→≥1）时触发 Out
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "监听 Tag"))
 	FGameplayTag Tag;
 
-	/** 监听哪个 Actor 的 ASC，默认 BuffOwner */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 监听目标 — 在哪个 Actor 的 ASC 上监听此 Tag，默认为 BuffOwner
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "监听目标"))
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
 protected:

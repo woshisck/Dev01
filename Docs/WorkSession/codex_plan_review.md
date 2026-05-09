@@ -1,35 +1,37 @@
 ## Codex 审查结果
 
 ### 发现的问题
-- 方案把“卡牌匹配奖励”定义为 `bActionMatched + bTriggeredMatchedFlow`，但 `FDamageBreakdown` 只计划新增 `bActionMatched`，没有新增 `bTriggeredMatchedFlow`。这会把普通动作匹配误判为匹配奖励，导致颜色、过滤和统计失真。
-- `CombatDeckComponent` 的 `FCombatCardResolveResult` 没有 `bConsumedCard` 字段，当前更接近“已消耗卡牌”的字段是 `bHadCard` / `ConsumedCard`。方案中的字段映射不完整。
-- 方案要求 GE Execution 写入伤害行并携带 `CardId`，但当前 `DamageExecution.cpp` 构造 `FDamageBreakdown` 时没有卡牌上下文来源；方案缺少从 `ResolveAttackCard` 结果传递到 GE Execution 的数据通道。
-- “卡牌额外 / 终结技 / 连携”伤害统计缺少可计算依据。若卡牌事件行 `FinalDamage=0`，仅靠现有伤害行无法拆分基础伤害与卡牌增益伤害。
-- 方案声称伤害行与卡牌事件行会相邻展示，但若在 `ResolveAttackCard` 后立即 `PushEntry`，OnHit 流程中卡牌事件可能出现在 GE 伤害行之前；OnCommit 流程还可能早于命中，甚至未命中也会记录卡牌事件。
-- `SignatureTrait` 的来源没有定义。当前可见结构中有 `CardIdTag`、`CardEffectTags`、`ReasonText`、`ExecutedFlows` 等信息，但方案未说明 12 种标志性特征如何映射到单个 `FName`。
-- `CombatLogStatics` 和 `CombatLogWidget` 各自有过滤、格式化、颜色和统计逻辑，方案同时修改两处，容易产生行为分叉。
-- 计划决定移除 `DamageBreakdownWidget.h/cpp`，但“涉及文件”没有列出删除这两个文件，也没有明确清理 `OnDamageBreakdown` 注释、蓝图父类、Content 资产引用和构建残留。
+- **首次命中链路不可靠**：方案要求“含本次命中”，但 BaseFlow 在命中后才施加 GE 并激活 `GA_FinisherCharge`，后续 `WaitGameplayEvent(Ability.Event.Attack.Hit)` 通常无法捕获已经发生的本次命中。
+- **最后一层充能可能丢失效果**：`GA_FinisherCharge` 先移除 GE 层数、再派发 `ChargeConsumed`；最后一层被移除时，绑定 GE 生命周期的 FA 可能已停止，导致最后一次击退/印记不执行。
+- **H3 触发终结技存在边界漏洞**：`AN_TriggerFinisherAbility` 放在 H3 伤害帧之后检查 `FinisherCharge`。如果 H3 命中消耗了最后一层，Tag 已消失，终结技不会触发。
+- **重复激活阻断配置不完整**：`GA_FinisherCharge` 只写了 `AbilityTags` 和 `ActivationBlockedTags`，但缺少 `ActivationOwnedTags`；按项目 GAS 规范，`ActivationBlockedTags` 检查的是 ASC 当前持有 Tag，不能靠 `AbilityTags` 自阻断。
+- **终结技 GA 可能取消充能 GA**：`GA_Player_FinisherAttack` 的 `CancelAbilitiesWithTag = PlayerState.AbilityCast` 可能匹配并取消 `PlayerState.AbilityCast.FinisherCharge`，从而提前清除 GE、印记或停止 `FA_Finisher_Detonate`。
+- **印记缺少归属范围**：`DetonateMarks` 和清理方案按全场 `Buff.Status.FinisherMark` 扫描，未区分是哪名玩家、哪次窗口施加的印记，容易误引爆或误清除其他来源的印记。
+- **印记清除链路未闭环**：方案声明通过 `Action.ClearFinisherMark` 清除印记，但未定义接收该事件并移除 `GE_FinisherMark` 的 GA/FA；引爆后也没有明确消费印记，可能重复引爆。
+- **数值表与 FA 流程不一致**：`KnockbackDistance` 写入数值表，但 `FA_Finisher_ChargeHit` 和确认击退流程没有读取并传递该值；“所有伤害/效果逻辑在 FA 中完成”的目标也需要确保 B-1/B-2 不再保留 C++ 直接击退/伤害逻辑。
 
 ### 潜在风险
-- 新增 `ECombatLogFilter` 枚举值若插入到旧枚举中间，可能导致已保存蓝图枚举值错位；应追加到末尾。
-- 使用 `◆ / ▲ / ⬡ / ── / → / ×` 等特殊字符，可能在 UE 源码编码、Slate 字体或日志输出中出现乱码或缺字。
-- 每次攻击拆成“伤害行 + 卡牌事件行”后，多目标命中、投射物命中、未命中、OnCommit 卡牌都会让日志语义变复杂。
-- `MaxEntries` 扩容到 1000 只是缓解容量问题，不解决事件倍增后的阅读密度和性能问题。
-- 删除 `DamageBreakdownWidget` 可能破坏仍以它为父类的 Widget Blueprint，尤其是二进制 Content 引用不容易通过文本搜索完整发现。
-- 仅编译验证不足，过滤、颜色优先级、摘要统计、空字段格式化和卡牌事件顺序都容易出现逻辑回归。
+- **Category C FA 绑定 GE 生命周期是核心依赖**，但方案仍把它列为待确认；若项目 FA 系统不支持该机制，当前架构需要整体调整。
+- **`BFC.LastEventContext` 语义风险较高**：多次事件同帧或连续目标事件可能覆盖上下文，导致 `LastDamageTarget` 指向错误目标。
+- **全局时间膨胀会影响整个 World**：直接恢复到 `1.0` 可能覆盖其他慢动作、暂停、HitStop 或多人场景中的时间控制。
+- **GE 持续时间与终结技时机耦合**：`FA_Finisher_Detonate` 绑定 `GE_FinisherCharge`，如果 GE 在终结技蒙太奇命中帧前过期或被取消，引爆事件会无人处理。
+- **事件接收方依赖预授予 GA**：`Action.Knockback`、`Action.Slash`、`Action.ApplyFinisherMark`、`Action.ClearFinisherMark` 若目标未预授予对应 GA，会静默失败。
+- **全场扫描成本与正确性风险**：频繁 `GetAllActorsOfClass` 扫描所有角色在敌人多时成本较高，也需要处理死亡、销毁、无 ASC、友军目标等过滤。
 
 ### 改进建议
-- 明确新增字段：至少补充 `bTriggeredMatchedFlow`，并定义 `bConsumedCard = Result.bHadCard && Result.ConsumedCard.IsValidCard()` 的映射规则。
-- 增加关联字段，例如 `AttackInstanceGuid`、`CardDisplayName`、`CardIdTag`、`bIsCardEventOnly`，用于排序、分组和区分零伤害状态行。
-- 不建议在 `CombatDeckComponent` 底层直接写日志；更适合在拥有攻击上下文和目标上下文的调用层组装日志，或先缓存卡牌结果，再由伤害日志消费。
-- 把格式化、过滤、颜色和统计逻辑集中到 `CombatLogStatics`，`CombatLogWidget` 只负责展示，避免两套规则维护。
-- 先定义统计口径：卡牌统计只计次数，还是要估算增益伤害；若要统计增益伤害，需要在伤害结算前后保留 baseline。
-- 为 `DamageBreakdownWidget` 移除增加独立清理步骤：C++ 文件删除、include 清理、委托注释更新、蓝图父类检查、Content 引用检查。
-- 增加自动化测试或最小验证用例：过滤器匹配、颜色优先级、`NAME_None` 空字段、摘要统计、卡牌事件与伤害行顺序、多目标命中。
+- 将“本次命中”目标通过 `TriggerEventData` 或 BaseFlow 上下文显式传入，或者由 BaseFlow 对当前目标直接派发一次 `ChargeConsumed`。
+- 调整消耗顺序：先派发并完成 `ChargeConsumed` 效果，再移除 GE 层数；或者让 FA 在最后一层事件处理完成后再停止。
+- 为 `GA_FinisherCharge` 增加 `ActivationOwnedTags = PlayerState.AbilityCast.FinisherCharge`，并明确重复打出卡牌时是叠层、拒绝、刷新窗口还是合并剩余次数。
+- 终结技启动时不要取消充能 GA，或把 `CancelAbilitiesWithTag` 收窄到普通攻击 GA；也可在终结技开始时显式冻结窗口并启动独立的 Detonate FA。
+- 给 `GE_FinisherMark` 增加来源标识，例如 SourceASC、WindowId 或 SetByCaller 标记；引爆和清理只处理当前窗口的印记。
+- 明确实现 `Action.ClearFinisherMark` 的接收方，并在引爆完成后消费或清除对应印记，避免重复引爆。
+- 将 `KnockbackDistance`、确认击退距离、确认倍率等规则参数统一到 FA 数值表，或在方案中标明哪些是固定机制常量。
+- 增加验收用例：首次命中、最后一层命中、H3 消耗最后一层、窗口超时、终结技取消、确认/未确认、重复打出卡牌、多目标印记、多玩家或多来源印记。
 
 ### 需要向用户确认的问题
-- 卡牌事件是记录“消耗发生”还是只记录“命中后产生效果”？未命中时是否要显示？
-- 多目标命中时，一张卡牌应显示一条从属事件，还是每个目标伤害行下都显示一条？
-- `SignatureTrait` 是否必须支持多特征？若 12 种特征可能同次触发，单个 `FName` 会丢信息。
-- “卡牌额外伤害”是否必须精确统计？如果必须，需要确认基准伤害计算规则。
-- 是否确定本期删除 `DamageBreakdownWidget`，而不是先废弃但保留一版兼容过渡？
+- 充能窗口内再次打出终结技卡牌时，期望行为是增加层数、拒绝、重开窗口，还是只保留原窗口？
+- H3 命中如果消耗最后一层，是否仍应触发终结技？
+- 印记在引爆后是否必须立即移除，还是允许保留到 8 秒窗口结束？
+- 项目是否只考虑单人场景？如果存在多人或召唤物，需要明确印记归属和全局慢动作策略。
+- 项目 FA 系统是否已经支持 Category C 与 GE 同生共死，以及 `WaitGameplayEvent` 将 `EventData.Target` 写入 `LastEventContext` 的目标语义？
+- `Action.ClearFinisherMark`、`Action.Slash`、`Action.Knockback` 的接收 GA 是否已在所有可能目标上预授予？

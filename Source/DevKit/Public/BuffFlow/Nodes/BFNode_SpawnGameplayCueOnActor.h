@@ -9,10 +9,6 @@
 /**
  * 在目标 Actor 身上触发一次性 GameplayCue（Execute 语义）。
  *
- * 典型用法：FA_Rune_LifeSteal 在回血后播放绿色光效
- *   CueTag = GameplayCue.Rune.LifeSteal
- *   Target = BuffOwner
- *
  * Out    — 执行成功
  * Failed — CueTag 无效或目标无 ASC
  */
@@ -21,12 +17,12 @@ class DEVKIT_API UBFNode_SpawnGameplayCueOnActor : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** GameplayCue Tag（GC 资产需在 GC Manager 中注册此 Tag） */
-	UPROPERTY(EditAnywhere, Category = "GameplayCue")
+	// GameplayCue Tag — 要触发的 GC Tag（GC 资产需在 GC Manager 中注册此 Tag）
+	UPROPERTY(EditAnywhere, Category = "GameplayCue", meta = (DisplayName = "Cue Tag"))
 	FGameplayTag CueTag;
 
-	/** Cue 附着的目标 Actor（GC 在此 Actor 的 ASC 上执行） */
-	UPROPERTY(EditAnywhere, Category = "GameplayCue")
+	// 附着目标 — GC 在此 Actor 的 ASC 上执行
+	UPROPERTY(EditAnywhere, Category = "GameplayCue", meta = (DisplayName = "附着目标"))
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
 protected:

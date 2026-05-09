@@ -150,7 +150,7 @@
 |---|---|
 | **[PM/TASKS.md](PM/TASKS.md)** | 任务看板 P0/P1/P2，唯一任务源 |
 | [FeatureLog.md](FeatureLog.md) | 功能完成详细记录 |
-| [PM/CurrentProgress_20260421.md](PM/CurrentProgress_20260421.md) | 完成度快照 |
+| [PM/CurrentProgress_20260508.md](PM/CurrentProgress_20260508.md) | 完成度快照 |
 
 ---
 

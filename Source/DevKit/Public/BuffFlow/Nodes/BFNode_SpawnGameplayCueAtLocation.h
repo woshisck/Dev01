@@ -13,12 +13,6 @@
  *  · bUseKillLocation = true  → BFC->LastKillLocation + LocationOffset
  *  · bUseKillLocation = false → LocationSource 指定 Actor 的位置 + LocationOffset
  *
- * 典型用法：
- *  · FA_Rune_KillExplosion：在死亡位置播放爆炸 GC
- *      LocationSource=LastDamageTarget, CueTag=GameplayCue.Rune.KillExplosion
- *  · FA_Rune_Aftershock：在击退落点播放震荡 GC
- *      LocationSource=LastDamageTarget, CueTag=GameplayCue.Rune.Aftershock
- *
  * Out    — 执行成功
  * Failed — CueTag 无效或位置解析失败
  */
@@ -27,24 +21,20 @@ class DEVKIT_API UBFNode_SpawnGameplayCueAtLocation : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** GameplayCue Tag */
-	UPROPERTY(EditAnywhere, Category = "GameplayCue")
+	// GameplayCue Tag — 要触发的 GC Tag（GC 资产需注册此 Tag）
+	UPROPERTY(EditAnywhere, Category = "GameplayCue", meta = (DisplayName = "Cue Tag"))
 	FGameplayTag CueTag;
 
-	/**
-	 * 位置来源 Actor（取其 GetActorLocation()）。
-	 * 仅在 bUseKillLocation = false 时生效。
-	 */
-	UPROPERTY(EditAnywhere, Category = "GameplayCue",
-		meta = (EditCondition = "!bUseKillLocation"))
+	// 位置来源 — 取此 Actor 的位置作为 GC 触发点（不使用击杀位置时生效）
+	UPROPERTY(EditAnywhere, Category = "GameplayCue", meta = (EditCondition = "!bUseKillLocation", DisplayName = "位置来源"))
 	EBFTargetSelector LocationSource = EBFTargetSelector::LastDamageTarget;
 
-	/** 使用 BFC->LastKillLocation 作为基准位置（由 BFNode_OnKill 写入） */
-	UPROPERTY(EditAnywhere, Category = "GameplayCue")
+	// 使用击杀位置 — 勾选后使用 BFC->LastKillLocation（由击杀时节点写入）
+	UPROPERTY(EditAnywhere, Category = "GameplayCue", meta = (DisplayName = "使用击杀位置"))
 	bool bUseKillLocation = false;
 
-	/** 在基准位置上的额外偏移 */
-	UPROPERTY(EditAnywhere, Category = "GameplayCue")
+	// 位置偏移 — 在基准位置上的额外世界坐标偏移
+	UPROPERTY(EditAnywhere, Category = "GameplayCue", meta = (DisplayName = "位置偏移"))
 	FVector LocationOffset = FVector::ZeroVector;
 
 protected:

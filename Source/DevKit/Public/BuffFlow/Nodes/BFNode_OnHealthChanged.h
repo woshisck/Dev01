@@ -23,9 +23,8 @@ class DEVKIT_API UBFNode_OnHealthChanged : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 变化后的生命值（数据输出引脚） */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow",
-		meta = (DisplayName = "New HP"))
+	// 变化后的生命值（数据输出引脚）— 可连线到 MathFloat / CompareFloat 节点
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "当前生命值（输出）"))
 	FFlowDataPinOutputProperty_Float NewHealthOutput;
 
 protected:

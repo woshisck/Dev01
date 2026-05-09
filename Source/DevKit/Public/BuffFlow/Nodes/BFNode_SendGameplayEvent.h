@@ -24,34 +24,24 @@ class DEVKIT_API UBFNode_SendGameplayEvent : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 要发送的事件 Tag（目标 GA 的 AbilityTriggers 需监听此 Tag） */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 要发送的事件 Tag — 目标 GA 的 AbilityTriggers 需监听此 Tag
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "事件 Tag"))
 	FGameplayTag EventTag;
 
-	/** 接收事件的目标（GA 在此 Actor 的 ASC 上被触发，通常为 LastDamageTarget） */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 事件接收目标 — GA 在此 Actor 的 ASC 上被触发（通常为 LastDamageTarget）
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "事件接收目标"))
 	EBFTargetSelector Target = EBFTargetSelector::LastDamageTarget;
 
-	/** Actor stored in FGameplayEventData.Target. Falls back to Target if it cannot resolve. */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// Payload 目标 — FGameplayEventData.Target 字段（无特殊需求时与 Target 保持一致）
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "Payload 目标"))
 	EBFTargetSelector PayloadTarget = EBFTargetSelector::LastDamageTarget;
 
-	/**
-	 * 事件发起者（GA 内部通过 TriggerEventData.Instigator 读取，用于计算方向等）
-	 * 通常为 DamageCauser（攻击者）
-	 */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 事件发起者 — GA 内部通过 TriggerEventData.Instigator 读取（通常为 DamageCauser）
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "发起者"))
 	EBFTargetSelector Instigator = EBFTargetSelector::DamageCauser;
 
-	/**
-	 * 事件携带的数值（写入 FGameplayEventData.EventMagnitude）。
-	 * · 无连线：使用节点上直接填写的固定值
-	 * · 连线：使用连入的数据引脚值（如 GetAttribute.CachedValue、MathFloat 结果）
-	 *
-	 * 典型用途：传递流血每秒伤害（GA_Bleed 在 ActivateAbility 里读取此值）
-	 */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow",
-		meta = (DisplayName = "Magnitude"))
+	// 事件强度值 — 写入 FGameplayEventData.EventMagnitude；可连接 Pure 数据节点输出
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "事件强度值"))
 	FFlowDataPinInputProperty_Float Magnitude;
 
 protected:

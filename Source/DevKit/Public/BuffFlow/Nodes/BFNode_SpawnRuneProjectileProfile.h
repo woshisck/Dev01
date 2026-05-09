@@ -12,7 +12,8 @@ class DEVKIT_API UBFNode_SpawnRuneProjectileProfile : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Profile")
+	// 投射物效果配置文件 — 包含投射物类、伤害和表现的 DA 资产
+	UPROPERTY(EditAnywhere, Category = "Profile", meta = (DisplayName = "投射物配置文件"))
 	TObjectPtr<URuneCardEffectProfileDA> Profile = nullptr;
 
 protected:

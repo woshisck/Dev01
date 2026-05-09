@@ -1,4 +1,7 @@
 #include "BuffFlow/Nodes/YogFlowNodes.h"
+#include "Character/PlayerCharacterBase.h"
+#include "Component/ComboRuntimeComponent.h"
+#include "BuffFlow/BuffFlowComponent.h"
 
 namespace
 {
@@ -225,14 +228,6 @@ UYogFlowNode_SpawnRangedProjectiles::UYogFlowNode_SpawnRangedProjectiles(const F
 #endif
 }
 
-UYogFlowNode_SpawnSlashWave::UYogFlowNode_SpawnSlashWave(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-#if WITH_EDITOR
-	Category = SpawnCategory;
-#endif
-}
-
 UYogFlowNode_ConditionAttributeCompare::UYogFlowNode_ConditionAttributeCompare(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -327,4 +322,53 @@ UYogFlowNode_LifecycleFinishBuff::UYogFlowNode_LifecycleFinishBuff(const FObject
 #if WITH_EDITOR
 	Category = LifecycleCategory;
 #endif
+}
+
+// ---------------------------------------------------------------------------
+// Pure 数据节点实现
+// ---------------------------------------------------------------------------
+
+UBFNode_Pure_TuningValue::UBFNode_Pure_TuningValue(const FObjectInitializer& OI) : Super(OI)
+{
+#if WITH_EDITOR
+	Category = TEXT("Pure");
+#endif
+	OutputPins = { FFlowPin(FName("Value"), EFlowPinType::Float) };
+}
+
+FFlowDataPinResult_Float UBFNode_Pure_TuningValue::TrySupplyDataPinAsFloat_Implementation(const FName& PinName) const
+{
+	if (PinName == FName("Value"))
+	{
+		if (UBuffFlowComponent* BFC = GetBuffFlowComponent())
+		{
+			return FFlowDataPinResult_Float(BFC->GetRuneTuningValueForFlow(GetFlowAsset(), TuningKey, DefaultValue));
+		}
+		return FFlowDataPinResult_Float(DefaultValue);
+	}
+	return FFlowDataPinResult_Float();
+}
+
+UBFNode_Pure_ComboIndex::UBFNode_Pure_ComboIndex(const FObjectInitializer& OI) : Super(OI)
+{
+#if WITH_EDITOR
+	Category = TEXT("Pure");
+#endif
+	OutputPins = { FFlowPin(FName("ComboIndex"), EFlowPinType::Int) };
+}
+
+FFlowDataPinResult_Int UBFNode_Pure_ComboIndex::TrySupplyDataPinAsInt_Implementation(const FName& PinName) const
+{
+	if (PinName == FName("ComboIndex"))
+	{
+		if (APlayerCharacterBase* PC = Cast<APlayerCharacterBase>(GetBuffOwner()))
+		{
+			if (PC->ComboRuntimeComponent)
+			{
+				return FFlowDataPinResult_Int(PC->ComboRuntimeComponent->GetComboIndex());
+			}
+		}
+		return FFlowDataPinResult_Int(1);
+	}
+	return FFlowDataPinResult_Int();
 }

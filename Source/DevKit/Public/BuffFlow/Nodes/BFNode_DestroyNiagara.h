@@ -12,8 +12,8 @@ class DEVKIT_API UBFNode_DestroyNiagara : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 与 PlayNiagara 节点填写相同的 EffectName */
-	UPROPERTY(EditAnywhere, Category = "Niagara")
+	// 效果名称 — 与 PlayNiagara 节点填写相同的 EffectName，按名称查找并销毁
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "效果名称"))
 	FName EffectName = NAME_None;
 
 protected:

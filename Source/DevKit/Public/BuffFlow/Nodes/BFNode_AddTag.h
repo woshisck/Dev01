@@ -13,13 +13,16 @@ class DEVKIT_API UBFNode_AddTag : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 要添加的 Gameplay Tag — FA 停止时由 Cleanup() 自动移除
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "添加 Tag"))
 	FGameplayTag Tag;
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 添加层数 — 每次触发 In 引脚时添加几层此 Tag
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "层数"))
 	int32 Count = 1;
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 目标 — 在哪个 Actor 的 ASC 上添加 Tag，默认 BuffOwner
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "目标"))
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
 protected:

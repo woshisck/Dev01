@@ -39,84 +39,84 @@ class DEVKIT_API UBFNode_ApplyEffect : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 要施加的 GameplayEffect 类 */
-	UPROPERTY(EditAnywhere, Category = "Effect")
+	// 要施加的 GameplayEffect 类
+	UPROPERTY(EditAnywhere, Category = "Effect", meta = (DisplayName = "要施加的效果类"))
 	TSubclassOf<UGameplayEffect> Effect;
 
-	/**
-	 * 效果等级（数据引脚）
-	 * 可直接填写固定值，也可连接上游数据引脚（如 GetRuneInfo.Level）动态驱动。
-	 */
-	UPROPERTY(EditAnywhere, Category = "Effect")
+	// 效果等级（数据引脚）— 可直接填写固定值，也可连接上游数据引脚动态驱动
+	UPROPERTY(EditAnywhere, Category = "Effect", meta = (DisplayName = "效果等级"))
 	FFlowDataPinInputProperty_Float Level;
 
-	/** 施加目标（默认：上次伤害目标） */
-	UPROPERTY(EditAnywhere, Category = "Effect")
+	// 施加目标（默认：上次伤害目标）
+	UPROPERTY(EditAnywhere, Category = "Effect", meta = (DisplayName = "施加目标"))
 	EBFTargetSelector Target = EBFTargetSelector::LastDamageTarget;
 
-	/** Number of GE applications on the target. Useful for status stacks such as poison. */
-	UPROPERTY(EditAnywhere, Category = "Effect", meta = (ClampMin = "1", ClampMax = "20"))
+	// 施加次数 — 对目标连续施加 GE 的次数，适用于叠层毒/燃等状态效果
+	UPROPERTY(EditAnywhere, Category = "Effect", meta = (ClampMin = "1", ClampMax = "20", DisplayName = "施加次数"))
 	int32 ApplicationCount = 1;
 
-	/** If false, the GE remains on the target until its own duration expires. Use this for DOT/status effects. */
-	UPROPERTY(EditAnywhere, Category = "Effect|Lifecycle")
+	// FA结束时移除效果 — 关闭后 GE 在 FA 停止后仍保持自身持续时间，适用于 DOT/状态效果
+	UPROPERTY(EditAnywhere, Category = "Effect|Lifecycle", meta = (DisplayName = "FA结束时移除效果"))
 	bool bRemoveEffectOnCleanup = true;
 
 	// ─── SetByCaller 槽位 ─────────────────────────────────────────
 	// GE 中用对应 Tag 声明 SetByCaller 数值槽，FA 节点在此处填写实际值。
 	// Tag 留空 → 该槽位自动跳过。
 
-	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "Slot 1 Tag"))
+	// 槽位1 Tag — GE 中声明的 SetByCaller Tag
+	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "槽位1 Tag"))
 	FGameplayTag SetByCallerTag1;
 
-	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "Slot 1 Value",
+	// 槽位1 数值 — 传入 SetByCallerTag1 对应槽的实际值（可连接数据引脚）
+	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "槽位1 数值",
 		EditCondition = "SetByCallerTag1.IsValid()", EditConditionHides))
 	FFlowDataPinInputProperty_Float SetByCallerValue1;
 
-	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "Slot 2 Tag"))
+	// 槽位2 Tag
+	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "槽位2 Tag"))
 	FGameplayTag SetByCallerTag2;
 
-	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "Slot 2 Value",
+	// 槽位2 数值
+	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "槽位2 数值",
 		EditCondition = "SetByCallerTag2.IsValid()", EditConditionHides))
 	FFlowDataPinInputProperty_Float SetByCallerValue2;
 
-	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "Slot 3 Tag"))
+	// 槽位3 Tag
+	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "槽位3 Tag"))
 	FGameplayTag SetByCallerTag3;
 
-	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "Slot 3 Value",
+	// 槽位3 数值
+	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "槽位3 数值",
 		EditCondition = "SetByCallerTag3.IsValid()", EditConditionHides))
 	FFlowDataPinInputProperty_Float SetByCallerValue3;
 
 	// ─── Remove 配置 ─────────────────────────────────────────────────
 
-	/** Remove 引脚触发时的移除模式 */
-	UPROPERTY(EditAnywhere, Category = "Remove")
+	// 移除模式 — Remove引脚触发时按此模式清除GE层数
+	UPROPERTY(EditAnywhere, Category = "Remove", meta = (DisplayName = "移除模式"))
 	EBFRemoveMode RemoveMode = EBFRemoveMode::AllStacks;
 
-	/** CustomCount 模式下移除的层数（数据引脚可连线覆盖） */
-	UPROPERTY(EditAnywhere, Category = "Remove", meta = (
+	// 移除层数 — CustomCount模式下指定移除的层数（可连接数据引脚）
+	UPROPERTY(EditAnywhere, Category = "Remove", meta = (DisplayName = "移除层数",
 		EditCondition = "RemoveMode == EBFRemoveMode::CustomCount", EditConditionHides))
 	FFlowDataPinInputProperty_Int32 StacksToRemove;
 
 	// ─── 输出数据引脚（施加时写入） ───────────────────────────────────
 
-	/** 是否成功施加（Instant GE 也会返回 true） */
-	UPROPERTY(EditAnywhere, Category = "Output|GEInfo")
+	// 是否成功施加（输出）— Instant GE 也会返回 true
+	UPROPERTY(EditAnywhere, Category = "Output|GEInfo", meta = (DisplayName = "是否成功施加（输出）"))
 	FFlowDataPinOutputProperty_Bool bGEApplied;
 
-	/** 施加后的 GE 层数（非堆叠 GE 固定为 1） */
-	UPROPERTY(EditAnywhere, Category = "Output|GEInfo")
+	// 当前层数（输出）— 施加后的 GE 层数，非堆叠 GE 固定为 1
+	UPROPERTY(EditAnywhere, Category = "Output|GEInfo", meta = (DisplayName = "当前层数（输出）"))
 	FFlowDataPinOutputProperty_Int32 GEStackCount;
 
-	/** GE 等级 */
-	UPROPERTY(EditAnywhere, Category = "Output|GEInfo")
+	// GE等级（输出）
+	UPROPERTY(EditAnywhere, Category = "Output|GEInfo", meta = (DisplayName = "GE等级（输出）"))
 	FFlowDataPinOutputProperty_Float GELevel;
 
-	/**
-	 * 施加时的剩余持续时间（秒）。
-	 * Infinite GE → -1；Instant GE → 0；HasDuration → 完整 Duration 值。
-	 */
-	UPROPERTY(EditAnywhere, Category = "Output|GEInfo")
+	// 剩余时间（输出）— Infinite GE 返回 -1；Instant GE 返回 0；HasDuration 返回完整时长
+	UPROPERTY(EditAnywhere, Category = "Output|GEInfo", meta = (DisplayName = "剩余时间（输出）"))
 	FFlowDataPinOutputProperty_Float GETimeRemaining;
 
 protected:

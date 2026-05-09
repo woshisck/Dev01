@@ -11,6 +11,9 @@
 class USphereComponent;
 class UProjectileMovementComponent;
 class UGameplayEffect;
+class UAbilitySystemComponent;
+class UNiagaraComponent;
+class UNiagaraSystem;
 class ACharacter;
 
 /**
@@ -55,6 +58,20 @@ public:
         const FGuid& InAttackInstanceGuid,
         float InAttackDamage);
 
+    void SetHitGameplayEvent(
+        FGameplayTag InEventTag,
+        bool bInSendToSourceASC,
+        bool bInUseDamageAsMagnitude,
+        float InEventMagnitude);
+
+    void SetProjectileNiagara(
+        UNiagaraSystem* InProjectileVisualNiagaraSystem,
+        FVector InProjectileVisualNiagaraScale,
+        UNiagaraSystem* InHitNiagaraSystem,
+        FVector InHitNiagaraScale,
+        UNiagaraSystem* InExpireNiagaraSystem,
+        FVector InExpireNiagaraScale);
+
     /** 飞行速度（cm/s），蓄力完成子弹可配置更高速度 */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Projectile")
     float Speed = 2800.f;
@@ -96,6 +113,26 @@ private:
     ECardRequiredAction CombatDeckActionType = ECardRequiredAction::Any;
     FGuid CombatDeckAttackInstanceGuid;
     float CombatDeckAttackDamage = 0.f;
+    FGameplayTag HitGameplayEventTag;
+    bool bSendHitGameplayEventToSourceASC = true;
+    bool bUseDamageAsHitGameplayEventMagnitude = true;
+    float HitGameplayEventMagnitude = 0.f;
+
+    UPROPERTY()
+    TObjectPtr<UNiagaraSystem> ProjectileVisualNiagaraSystem;
+
+    UPROPERTY()
+    TObjectPtr<UNiagaraSystem> HitNiagaraSystem;
+
+    UPROPERTY()
+    TObjectPtr<UNiagaraSystem> ExpireNiagaraSystem;
+
+    UPROPERTY()
+    TObjectPtr<UNiagaraComponent> ProjectileVisualNiagaraComponent;
+
+    FVector ProjectileVisualNiagaraScale = FVector(1.f, 1.f, 1.f);
+    FVector HitNiagaraScale = FVector(1.f, 1.f, 1.f);
+    FVector ExpireNiagaraScale = FVector(1.f, 1.f, 1.f);
 
     FTimerHandle LifetimeTimerHandle;
 
@@ -105,6 +142,9 @@ private:
         bool bFromSweep, const FHitResult& SweepHitResult);
 
     void ApplyDamageTo(AActor* Target, const FVector& HitLocation);
+    void SendHitGameplayEvent(AActor* Target, UAbilitySystemComponent* SourceASC);
+    void SpawnProjectileVisualNiagara();
+    void SpawnBurstNiagara(UNiagaraSystem* NiagaraSystem, const FVector& WorldLocation, const FVector& Scale) const;
     void ScheduleInitialOverlapCheck();
     void HandleInitialOverlaps();
     void ResolveCombatDeckOnHit();

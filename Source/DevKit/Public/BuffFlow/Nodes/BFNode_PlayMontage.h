@@ -16,16 +16,16 @@ class DEVKIT_API UBFNode_PlayMontage : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 要播放的蒙太奇 */
-	UPROPERTY(EditAnywhere, Category = "Montage")
+	// 蒙太奇资产 — 要播放的动画 Montage
+	UPROPERTY(EditAnywhere, Category = "Montage", meta = (DisplayName = "蒙太奇资产"))
 	TObjectPtr<UAnimMontage> Montage;
 
-	/** 播放速率 */
-	UPROPERTY(EditAnywhere, Category = "Montage", meta = (ClampMin = "0.1"))
+	// 播放速率 — 蒙太奇播放速率倍数（1.0 = 正常速度）
+	UPROPERTY(EditAnywhere, Category = "Montage", meta = (ClampMin = "0.1", DisplayName = "播放速率"))
 	float PlayRate = 1.f;
 
-	/** 在哪个角色上播放 */
-	UPROPERTY(EditAnywhere, Category = "Montage")
+	// 播放目标 — 在哪个角色上播放此蒙太奇，默认 BuffOwner
+	UPROPERTY(EditAnywhere, Category = "Montage", meta = (DisplayName = "播放目标"))
 	EBFTargetSelector TargetSelector = EBFTargetSelector::BuffOwner;
 
 protected:

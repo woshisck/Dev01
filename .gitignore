@@ -1,6 +1,9 @@
 # Prerequisites
 *.d
 
+# Build logs
+build_log.txt
+
 # Claude Code local settings
 .claude/
 

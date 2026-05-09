@@ -12,38 +12,48 @@ class DEVKIT_API UBFNode_PlayNiagara : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Niagara")
+	// Niagara 系统资产 — 要播放的粒子效果
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "Niagara 资产"))
 	TObjectPtr<UNiagaraSystem> NiagaraSystem;
 
-	UPROPERTY(EditAnywhere, Category = "Niagara")
+	// 效果名称 — 唯一标识符，供 DestroyNiagara 节点按名称销毁此效果
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "效果名称"))
 	FName EffectName = NAME_None;
 
-	UPROPERTY(EditAnywhere, Category = "Niagara")
+	// 挂载插槽名 — 挂载到目标骨骼的哪个插槽上（留空 = 挂到根节点）
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "挂载插槽名"))
 	FName AttachSocketName = NAME_None;
 
-	UPROPERTY(EditAnywhere, Category = "Niagara")
+	// 插槽备选列表 — 主插槽不存在时依次尝试的备选插槽名列表
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "插槽备选列表"))
 	TArray<FName> AttachSocketFallbackNames;
 
-	UPROPERTY(EditAnywhere, Category = "Niagara")
+	// 挂载目标 — 将 Niagara 效果挂载到哪个 Actor 上
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "挂载目标"))
 	EBFTargetSelector AttachTarget = EBFTargetSelector::BuffOwner;
 
-	UPROPERTY(EditAnywhere, Category = "Niagara")
+	// 挂载到目标 — 勾选后跟随目标移动；取消勾选则在目标位置生成后脱离
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "挂载到目标"))
 	bool bAttachToTarget = true;
 
-	UPROPERTY(EditAnywhere, Category = "Niagara")
+	// 位置偏移 — 相对于挂载点的本地坐标偏移
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "位置偏移"))
 	FVector LocationOffset = FVector::ZeroVector;
 
-	UPROPERTY(EditAnywhere, Category = "Niagara")
+	// 旋转偏移 — 相对于挂载点的本地旋转偏移
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "旋转偏移"))
 	FRotator RotationOffset = FRotator::ZeroRotator;
 
-	UPROPERTY(EditAnywhere, Category = "Niagara")
+	// 缩放 — Niagara 效果的整体缩放值
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "缩放"))
 	FVector Scale = FVector(1.0f, 1.0f, 1.0f);
 
-	/** Optional lifetime for spawned Niagara. 0 lets the Niagara system auto-complete normally. */
-	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (ClampMin = "0.0"))
+	// 生命时间（秒）— 0 = 由 Niagara 系统自动完成；> 0 = 强制在 N 秒后停止
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (ClampMin = "0.0", DisplayName = "生命时间（秒）"))
 	float Lifetime = 0.f;
 
-	UPROPERTY(EditAnywhere, Category = "Niagara")
+	// FA停止时销毁 — 勾选后 FA 停止时立即销毁此 Niagara 效果
+	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "FA停止时销毁"))
 	bool bDestroyWithFlow = false;
 
 protected:

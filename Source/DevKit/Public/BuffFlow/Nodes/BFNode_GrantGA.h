@@ -27,29 +27,24 @@ class DEVKIT_API UBFNode_GrantGA : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 要授予的 GA 类（应继承自 RuneGameplayAbility） */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 要授予的 GA 类 — 应继承自 RuneGameplayAbility
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "GA 类"))
 	TSubclassOf<UGameplayAbility> AbilityClass;
 
-	/** GA 授予目标（通常为 BuffOwner） */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 授予目标 — 将 GA 授予给哪个 Actor 的 ASC，通常为 BuffOwner
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "授予目标"))
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
-	/**
-	 * GA 等级（数据引脚）
-	 * 可直接填写固定值，也可连接上游数据引脚动态驱动。
-	 */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// GA 等级 — 可直接填写固定值，也可连接上游数据引脚动态驱动
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "GA 等级"))
 	FFlowDataPinInputProperty_Int32 AbilityLevel;
 
-	// ─── 输出数据引脚（授予时写入） ───────────────────────────────────
-
-	/** 是否成功授予 GA */
-	UPROPERTY(EditAnywhere, Category = "Output|GAInfo")
+	// 是否成功授予（数据输出引脚）
+	UPROPERTY(EditAnywhere, Category = "Output|GAInfo", meta = (DisplayName = "是否成功授予"))
 	FFlowDataPinOutputProperty_Bool bGAGranted;
 
-	/** 授予时的 GA 等级 */
-	UPROPERTY(EditAnywhere, Category = "Output|GAInfo")
+	// 授予时的 GA 等级（数据输出引脚）
+	UPROPERTY(EditAnywhere, Category = "Output|GAInfo", meta = (DisplayName = "GA 等级（输出）"))
 	FFlowDataPinOutputProperty_Int32 GALevel;
 
 protected:

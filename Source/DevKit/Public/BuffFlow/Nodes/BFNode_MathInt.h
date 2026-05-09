@@ -18,17 +18,20 @@ class DEVKIT_API UBFNode_MathInt : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 操作数 A — 整数输入，可连接上游数据引脚（如 GetRuneInfo.StackCount）
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "操作数 A"))
 	FFlowDataPinInputProperty_Int32 A;
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 运算符 — 选择 A 和 B 之间的数学运算（+、-、×、÷）
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "运算符"))
 	EBFMathOp Operator = EBFMathOp::Add;
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 操作数 B — 整数输入，通常直接填写固定值，也可连接数据引脚
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "操作数 B"))
 	FFlowDataPinInputProperty_Int32 B;
 
-	/** 运算结果（数据输出引脚） */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 运算结果（数据输出引脚）— 可连线到 CompareInt / GrantGA.AbilityLevel 等
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "结果（输出）"))
 	FFlowDataPinOutputProperty_Int32 Result;
 
 protected:

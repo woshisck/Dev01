@@ -17,12 +17,12 @@ class DEVKIT_API UBFNode_OnPeriodic : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 触发间隔（秒） */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (ClampMin = "0.1"))
+	// 触发间隔（秒）— 每隔多少秒触发一次 Tick 输出
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (ClampMin = "0.1", DisplayName = "触发间隔（秒）"))
 	float Interval = 1.0f;
 
-	/** 是否在 In 触发时立即执行第一次 Tick（true=立即，false=等待第一个 Interval） */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 立即触发第一次 — true=In 触发时立即执行一次，false=等待第一个间隔后再执行
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "立即触发第一次"))
 	bool bFireImmediately = false;
 
 protected:

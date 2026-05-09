@@ -29,21 +29,16 @@ class DEVKIT_API UBFNode_WaitGameplayEvent : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 要监听的 GameplayEvent Tag */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 要监听的事件 Tag — 收到此 Tag 的 GameplayEvent 时触发 Out 引脚
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "事件 Tag"))
 	FGameplayTag EventTag;
 
-	/**
-	 * 监听哪个 Actor 的 ASC 上的事件。
-	 * 默认 BuffOwner（当前角色本身）—— 适合跨符文通信场景：
-	 *   符文A 通过 Send Gameplay Event（Target=BuffOwner）发送，
-	 *   符文B 用本节点在 BuffOwner 上监听。
-	 */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 监听目标 — 在哪个 Actor 的 ASC 上监听事件，默认 BuffOwner（玩家自身）
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "监听目标"))
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
-	/** 事件携带的 Magnitude 值（数据输出引脚，每次事件触发时更新） */
-	UPROPERTY(EditAnywhere, Category = "Output|Data")
+	// 事件强度（数据输出引脚）— 每次事件触发时写入 Magnitude 值，可连线到下游节点
+	UPROPERTY(EditAnywhere, Category = "Output|Data", meta = (DisplayName = "事件强度（输出）"))
 	FFlowDataPinOutputProperty_Float EventMagnitude;
 
 protected:
