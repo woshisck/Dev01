@@ -149,15 +149,27 @@ void UBFNode_SpawnRuneGroundPathEffect::ExecuteInput(const FName& PinName)
 		return;
 	}
 
+	// 解析尺寸/时间数据引脚（若已连线则覆盖节点字段值）
+	auto ResolveFloatPin = [this](const FName& PinName, float FallbackValue) -> float
+	{
+		const FFlowDataPinResult_Float Res = TryResolveDataPinAsFloat(PinName);
+		return (Res.Result == EFlowDataPinResolveResult::Success && Res.Value > 0.f) ? Res.Value : FallbackValue;
+	};
+	const float ResolvedLength      = ResolveFloatPin(GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneGroundPathEffect, LengthPin),      Length);
+	const float ResolvedWidth       = ResolveFloatPin(GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneGroundPathEffect, WidthPin),       Width);
+	const float ResolvedHeight      = ResolveFloatPin(GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneGroundPathEffect, HeightPin),      Height);
+	const float ResolvedDuration    = ResolveFloatPin(GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneGroundPathEffect, DurationPin),    Duration);
+	const float ResolvedTickInterval= ResolveFloatPin(GET_MEMBER_NAME_CHECKED(UBFNode_SpawnRuneGroundPathEffect, TickIntervalPin),TickInterval);
+
 	FRuneGroundPathEffectConfig Config;
 	Config.Effect = Effect;
 	Config.TargetPolicy = TargetPolicy;
 	Config.Shape = Shape;
-	Config.Duration = Duration;
-	Config.TickInterval = TickInterval;
-	Config.Length = Length;
-	Config.Width = Width;
-	Config.Height = Height;
+	Config.Duration = ResolvedDuration;
+	Config.TickInterval = ResolvedTickInterval;
+	Config.Length = ResolvedLength;
+	Config.Width = ResolvedWidth;
+	Config.Height = ResolvedHeight;
 	Config.DecalProjectionDepth = DecalProjectionDepth;
 	Config.DecalPlaneRotationDegrees = DecalPlaneRotationDegrees;
 	Config.SpawnOffset = SpawnOffset;

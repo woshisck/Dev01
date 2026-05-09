@@ -5,11 +5,14 @@
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GameFramework/Character.h"
+#include "Abilities/GameplayAbilityTypes.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
 #include "GameplayEffect.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
 
 namespace
@@ -76,6 +79,39 @@ void AMusketBullet::SetCombatDeckContextWithGuid(
     CombatDeckAttackDamage = InAttackDamage;
 }
 
+void AMusketBullet::SetHitGameplayEvent(
+    FGameplayTag InEventTag,
+    bool bInSendToSourceASC,
+    bool bInUseDamageAsMagnitude,
+    float InEventMagnitude)
+{
+    HitGameplayEventTag = InEventTag;
+    bSendHitGameplayEventToSourceASC = bInSendToSourceASC;
+    bUseDamageAsHitGameplayEventMagnitude = bInUseDamageAsMagnitude;
+    HitGameplayEventMagnitude = InEventMagnitude;
+}
+
+void AMusketBullet::SetProjectileNiagara(
+    UNiagaraSystem* InProjectileVisualNiagaraSystem,
+    FVector InProjectileVisualNiagaraScale,
+    UNiagaraSystem* InHitNiagaraSystem,
+    FVector InHitNiagaraScale,
+    UNiagaraSystem* InExpireNiagaraSystem,
+    FVector InExpireNiagaraScale)
+{
+    ProjectileVisualNiagaraSystem = InProjectileVisualNiagaraSystem;
+    ProjectileVisualNiagaraScale = InProjectileVisualNiagaraScale;
+    HitNiagaraSystem = InHitNiagaraSystem;
+    HitNiagaraScale = InHitNiagaraScale;
+    ExpireNiagaraSystem = InExpireNiagaraSystem;
+    ExpireNiagaraScale = InExpireNiagaraScale;
+
+    if (HasActorBegunPlay())
+    {
+        SpawnProjectileVisualNiagara();
+    }
+}
+
 void AMusketBullet::BeginPlay()
 {
     Super::BeginPlay();
@@ -86,6 +122,7 @@ void AMusketBullet::BeginPlay()
         LifetimeTimerHandle, this, &AMusketBullet::Expire, Lifetime, false);
 
     ScheduleInitialOverlapCheck();
+    SpawnProjectileVisualNiagara();
 }
 
 void AMusketBullet::OnOverlapBegin(
@@ -205,8 +242,79 @@ void AMusketBullet::ApplyDamageTo(AActor* Target, const FVector& HitLocation)
         SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
     }
 
+    SendHitGameplayEvent(Target, SourceASC);
     ResolveCombatDeckOnHit();
+    SpawnBurstNiagara(HitNiagaraSystem, HitLocation, HitNiagaraScale);
     BP_OnHitEnemy(Target, HitLocation);
+}
+
+void AMusketBullet::SendHitGameplayEvent(AActor* Target, UAbilitySystemComponent* SourceASC)
+{
+    if (!HitGameplayEventTag.IsValid() || !Target || !SourceASC || !SourceCharacter)
+    {
+        return;
+    }
+
+    UAbilitySystemComponent* EventASC = bSendHitGameplayEventToSourceASC
+        ? SourceASC
+        : UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
+    if (!EventASC)
+    {
+        return;
+    }
+
+    FGameplayEventData Payload;
+    Payload.EventTag = HitGameplayEventTag;
+    Payload.Instigator = SourceCharacter;
+    Payload.Target = Target;
+    Payload.EventMagnitude = bUseDamageAsHitGameplayEventMagnitude
+        ? DamageMagnitude
+        : HitGameplayEventMagnitude;
+    Payload.ContextHandle = SourceASC->MakeEffectContext();
+    Payload.ContextHandle.AddInstigator(SourceCharacter, SourceCharacter);
+    Payload.OptionalObject = this;
+
+    EventASC->HandleGameplayEvent(HitGameplayEventTag, &Payload);
+}
+
+void AMusketBullet::SpawnProjectileVisualNiagara()
+{
+    if (!ProjectileVisualNiagaraSystem || ProjectileVisualNiagaraComponent)
+    {
+        return;
+    }
+
+    ProjectileVisualNiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+        ProjectileVisualNiagaraSystem,
+        GetRootComponent(),
+        NAME_None,
+        FVector::ZeroVector,
+        FRotator::ZeroRotator,
+        EAttachLocation::KeepRelativeOffset,
+        true,
+        true);
+
+    if (ProjectileVisualNiagaraComponent)
+    {
+        ProjectileVisualNiagaraComponent->SetRelativeScale3D(ProjectileVisualNiagaraScale);
+    }
+}
+
+void AMusketBullet::SpawnBurstNiagara(UNiagaraSystem* NiagaraSystem, const FVector& WorldLocation, const FVector& Scale) const
+{
+    if (!NiagaraSystem || !GetWorld())
+    {
+        return;
+    }
+
+    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        GetWorld(),
+        NiagaraSystem,
+        WorldLocation,
+        GetActorRotation(),
+        Scale,
+        true,
+        true);
 }
 
 void AMusketBullet::ResolveCombatDeckOnHit()
@@ -238,6 +346,7 @@ void AMusketBullet::ResolveCombatDeckOnHit()
 
 void AMusketBullet::Expire()
 {
+    SpawnBurstNiagara(ExpireNiagaraSystem, GetActorLocation(), ExpireNiagaraScale);
     BP_OnMiss();
     Destroy();
 }

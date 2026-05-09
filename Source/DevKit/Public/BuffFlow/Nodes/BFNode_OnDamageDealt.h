@@ -16,15 +16,14 @@ class DEVKIT_API UBFNode_OnDamageDealt : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 开启后：同一帧内多次命中只触发一次（适合AOE攻击只算一次热度）
-	 *  关闭后：每次命中独立触发（默认，命中几个敌人算几次） */
+	// 每次挥击只触发一次 — 同一帧内多次命中只算一次（适合AOE攻击只算一次热度）
 	UPROPERTY(EditAnywhere, Category = "BuffFlow",
-		meta = (DisplayName = "Once Per Swing"))
+		meta = (DisplayName = "每次挥击只触发一次"))
 	bool bOncePerSwing = false;
 
-	/** 本次伤害量（数据输出引脚，可连线到 Math Float / Compare Float 等节点） */
+	// 伤害量（数据输出引脚）— 可连线到 MathFloat / CompareFloat 等节点
 	UPROPERTY(EditAnywhere, Category = "BuffFlow",
-		meta = (DisplayName = "Last Damage Amount"))
+		meta = (DisplayName = "伤害量（输出）"))
 	FFlowDataPinOutputProperty_Float LastDamageOutput;
 
 protected:

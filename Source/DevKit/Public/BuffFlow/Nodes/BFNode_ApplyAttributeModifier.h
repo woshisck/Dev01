@@ -41,140 +41,90 @@ class DEVKIT_API UBFNode_ApplyAttributeModifier : public UBFNode_Base
 {
     GENERATED_UCLASS_BODY()
 
-    /** 要修改的属性（下拉选择，来自各 AttributeSet） */
-    UPROPERTY(EditAnywhere, Category = "BuffFlow")
+    // 修改属性 — 下拉选择目标属性（来自各 AttributeSet）
+    UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "修改属性"))
     FGameplayAttribute Attribute;
 
-    /** 运算类型：Additive（加）/ Multiplicative（乘）/ Override（覆盖） */
-    UPROPERTY(EditAnywhere, Category = "BuffFlow")
+    // 运算类型 — Additive（加）/ Multiplicative（乘）/ Override（覆盖）
+    UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "运算类型"))
     TEnumAsByte<EGameplayModOp::Type> ModOp = EGameplayModOp::Additive;
 
-    /**
-     * 修改数值
-     * · 无连线：使用节点上直接填写的值
-     * · 连线：使用连入的数据引脚值（如 GetAttribute.CachedValue、GetRuneInfo.StackCount）
-     */
-    UPROPERTY(EditAnywhere, Category = "BuffFlow")
+    // 修改数值 — 无连线时使用直接填写的值；连线时使用数据引脚值
+    UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "修改数值"))
     FFlowDataPinInputProperty_Float Value;
 
-    /** Multiplies Value by the current combat-card effect multiplier when this Flow was started by CombatDeck. */
-    UPROPERTY(EditAnywhere, Category = "BuffFlow|Combat Card", meta = (DisplayName = "Use Combat Card Effect Multiplier"))
+    // 使用卡牌效果倍率 — 勾选后将数值乘以战斗卡 DA 的 EffectMultiplier
+    UPROPERTY(EditAnywhere, Category = "BuffFlow|Combat Card", meta = (DisplayName = "使用卡牌效果倍率"))
     bool bUseCombatCardEffectMultiplier = false;
 
-    /** 持续时间类型 */
-    UPROPERTY(EditAnywhere, Category = "BuffFlow")
+    // 持续时间类型 — Instant/Infinite/HasDuration 三种生命周期
+    UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "持续时间类型"))
     ERuneDurationType DurationType = ERuneDurationType::Instant;
 
-    /**
-     * 持续秒数（仅 HasDuration 时生效）
-     * Instant / Infinite 时忽略此字段
-     */
+    // 持续秒数 — 仅 HasDuration 时生效；Instant/Infinite 时忽略
     UPROPERTY(EditAnywhere, Category = "BuffFlow",
-        meta = (EditCondition = "DurationType == ERuneDurationType::Duration",
+        meta = (DisplayName = "持续秒数",
+                EditCondition = "DurationType == ERuneDurationType::Duration",
                 EditConditionHides, ClampMin = "0.01"))
     float Duration = 1.0f;
 
-    /**
-     * 周期触发间隔（秒）。
-     *   0   = 不启用，Modifier 持续生效（普通 GE 行为）
-     *   > 0 = 每隔 N 秒执行一次 Modifier（GAS Period 功能）
-     *
-     * 仅在 DurationType = Infinite 或 HasDuration 时有意义。
-     * 典型用途：每秒 +1 热度（Period=1.0，DurationType=Infinite）。
-     */
+    // 周期间隔（秒）— 0=关闭；>0 则每隔N秒触发一次（仅 Infinite/HasDuration 时有意义）
     UPROPERTY(EditAnywhere, Category = "BuffFlow",
-        meta = (EditCondition = "DurationType != ERuneDurationType::Instant",
-                EditConditionHides, ClampMin = "0.0",
-                DisplayName = "Period (0=Off)"))
+        meta = (DisplayName = "周期间隔（0=关闭）",
+                EditCondition = "DurationType != ERuneDurationType::Instant",
+                EditConditionHides, ClampMin = "0.0"))
     float Period = 0.f;
 
-    /**
-     * 首次施加时立即触发一次 Period Modifier（Period > 0 时有效）。
-     * false = 等待第一个间隔才触发；true = 施加时立刻执行一次
-     */
+    // 立即触发首次 — Period>0 时，施加时立刻执行一次，而非等待第一个间隔
     UPROPERTY(EditAnywhere, Category = "BuffFlow",
-        meta = (EditCondition = "Period > 0.0", EditConditionHides,
-                DisplayName = "Fire Immediately"))
+        meta = (DisplayName = "立即触发首次",
+                EditCondition = "Period > 0.0", EditConditionHides))
     bool bFireImmediately = false;
 
-    /** 施加目标 */
-    UPROPERTY(EditAnywhere, Category = "BuffFlow")
+    // 施加目标
+    UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "施加目标"))
     EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
-    /** 动态 Asset Tags（添加到 GE Spec，用于触发特殊逻辑，如 Action.Combo.LastHit 升阶） */
-    UPROPERTY(EditAnywhere, Category = "BuffFlow",
-        meta = (DisplayName = "Dynamic Asset Tags"))
+    // 动态资产Tags — 添加到 GE Spec 中，可触发特殊逻辑（如连击升阶）
+    UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "动态资产Tags"))
     FGameplayTagContainer DynamicAssetTags;
 
-    /**
-     * 透传 Owner 标签：运行时检测 BuffOwner 身上是否有这些 Tag，
-     * 若有则自动添加到 GE Spec 的 DynamicAssetTags。
-     * 典型用途：配置 Action.Combo.LastHit，无需额外分支节点。
-     */
-    UPROPERTY(EditAnywhere, Category = "BuffFlow",
-        meta = (DisplayName = "Pass Through Owner Tags"))
+    // 透传来源Tags — 若 BuffOwner 身上有这些Tag则自动加入GE Spec（无需额外分支节点）
+    UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "透传来源Tags"))
     FGameplayTagContainer PassThroughOwnerTags;
 
-    /**
-     * GE 生效期间授予目标 ASC 的 Tag（等价于 GE 编辑器里的 Granted Tags）。
-     * GE 到期 / 被移除时，GAS 自动从 ASC 撤销这些 Tag。
-     * 典型用途：授予 Buff.Status.Bleeding，供 GA_Bleed 的 OwnedTagPresent 触发器使用。
-     */
-    UPROPERTY(EditAnywhere, Category = "BuffFlow|Granted",
-        meta = (DisplayName = "Granted Tags To ASC"))
+    // 授予目标ASC的Tags — GE生效期间授予目标ASC的Tag；GE到期时GAS自动撤销
+    UPROPERTY(EditAnywhere, Category = "BuffFlow|Granted", meta = (DisplayName = "授予目标ASC的Tags"))
     FGameplayTagContainer GrantedTagsToASC;
 
-    /**
-     * GE 生效期间动态授予目标 ASC 的 GA（等价于 GE 编辑器里的 Granted Abilities）。
-     * GE 到期 / 被移除时，GAS 自动从 ASC 撤销这些 GA。
-     * 无需预授予到角色蓝图，由 GE 生命周期完全管理。
-     * 典型用途：授予 GA_Bleed，让其在流血 GE 存活期间运行。
-     */
-    UPROPERTY(EditAnywhere, Category = "BuffFlow|Granted",
-        meta = (DisplayName = "Granted Abilities"))
+    // 授予GA列表 — GE生效期间动态授予目标ASC的GA；GE到期时自动撤销，无需预授予到角色蓝图
+    UPROPERTY(EditAnywhere, Category = "BuffFlow|Granted", meta = (DisplayName = "授予GA列表"))
     TArray<TSubclassOf<UGameplayAbility>> GrantedAbilities;
 
     // ── 堆叠控制 ──
 
-    /**
-     * 堆叠模式
-     *   None      — 每次命中独立一个 GE，不去重
-     *   Unique    — 同目标唯一一个实例，重复命中刷新持续时间
-     *   Stackable — 同目标共享实例，可叠加层数（配合 Max Stacks）
-     */
-    UPROPERTY(EditAnywhere, Category = "BuffFlow|Stacking",
-        meta = (DisplayName = "Stack Mode"))
+    // 堆叠模式 — None/Unique/Stackable 三种堆叠策略
+    UPROPERTY(EditAnywhere, Category = "BuffFlow|Stacking", meta = (DisplayName = "堆叠模式"))
     EBFGEStackMode StackMode = EBFGEStackMode::None;
 
-    /**
-     * 最大堆叠层数（仅 Stackable 时生效）
-     * 0 = 不限层数
-     */
+    // 最大堆叠层数 — 仅 Stackable 时生效；0=不限层数
     UPROPERTY(EditAnywhere, Category = "BuffFlow|Stacking",
-        meta = (DisplayName = "Max Stacks",
+        meta = (DisplayName = "最大堆叠层数",
                 EditCondition = "StackMode == EBFGEStackMode::Stackable",
                 EditConditionHides, ClampMin = "0"))
     int32 StackLimitCount = 3;
 
-    /**
-     * 重复命中时是否重置持续时间（Unique / Stackable + Duration 时有效）
-     * RefreshOnSuccessfulApplication = 每次命中刷新整体倒计时
-     * NeverRefresh                   = 保持首次应用的剩余时间
-     */
+    // 时间刷新策略 — 重复命中时是否重置持续时间（Unique/Stackable+Duration 时有效）
     UPROPERTY(EditAnywhere, Category = "BuffFlow|Stacking",
-        meta = (DisplayName = "Duration Refresh",
+        meta = (DisplayName = "时间刷新策略",
                 EditCondition = "StackMode != EBFGEStackMode::None",
                 EditConditionHides))
     EGameplayEffectStackingDurationPolicy StackDurationRefreshPolicy =
         EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 
-    /**
-     * 层数到期时的处理策略（Stackable 时有效）
-     * ClearEntireStack                    = 一次清空所有层
-     * RemoveSingleStackAndRefreshDuration = 每次只减一层，剩余层重置时间
-     */
+    // 到期清除策略 — 层数到期时一次清空还是逐层减少（Stackable 时有效）
     UPROPERTY(EditAnywhere, Category = "BuffFlow|Stacking",
-        meta = (DisplayName = "Expiration Policy",
+        meta = (DisplayName = "到期清除策略",
                 EditCondition = "StackMode == EBFGEStackMode::Stackable",
                 EditConditionHides))
     EGameplayEffectStackingExpirationPolicy StackExpirationPolicy =

@@ -11,10 +11,12 @@ class DEVKIT_API UBFNode_CheckDistance : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Distance")
+	// 目标 — 检测 BuffOwner 到哪个 Actor 的距离
+	UPROPERTY(EditAnywhere, Category = "Distance", meta = (DisplayName = "目标"))
 	EBFTargetSelector Target = EBFTargetSelector::LastDamageTarget;
 
-	UPROPERTY(EditAnywhere, Category = "Distance")
+	// 所需距离（cm）— 达到此距离时触发 Out 引脚；可接数据引脚连线
+	UPROPERTY(EditAnywhere, Category = "Distance", meta = (DisplayName = "所需距离（cm）"))
 	FFlowDataPinInputProperty_Float RequiredDistance;
 
 protected:

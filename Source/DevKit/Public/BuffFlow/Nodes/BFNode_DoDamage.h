@@ -16,26 +16,20 @@ class DEVKIT_API UBFNode_DoDamage : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 伤害目标 */
-	UPROPERTY(EditAnywhere, Category = "DoDamage")
+	// 伤害目标 — 对哪个 Actor 施加伤害
+	UPROPERTY(EditAnywhere, Category = "DoDamage", meta = (DisplayName = "伤害目标"))
 	EBFTargetSelector TargetSelector = EBFTargetSelector::LastDamageTarget;
 
-	/**
-	 * 固定伤害值（> 0 时使用，否则用 LastDamageAmount × DamageMultiplier）
-	 * 支持数据引脚连线（如 Math Float 计算结果 → FlatDamage）
-	 */
-	UPROPERTY(EditAnywhere, Category = "DoDamage")
+	// 固定伤害值 — > 0 时直接使用；否则用上次伤害量 × 伤害倍率；可接数据引脚连线
+	UPROPERTY(EditAnywhere, Category = "DoDamage", meta = (DisplayName = "固定伤害值"))
 	FFlowDataPinInputProperty_Float FlatDamage;
 
-	/**
-	 * 对上次伤害量的倍率（FlatDamage == 0 时生效，默认 1.0）
-	 * 支持数据引脚连线
-	 */
-	UPROPERTY(EditAnywhere, Category = "DoDamage")
+	// 伤害倍率 — 固定伤害值为 0 时生效（默认 1.0），对上次伤害量做乘算；可接数据引脚连线
+	UPROPERTY(EditAnywhere, Category = "DoDamage", meta = (DisplayName = "伤害倍率"))
 	FFlowDataPinInputProperty_Float DamageMultiplier;
 
-	/** 要施加的 GE（伤害 GE，需配置 Modifiers 扣减 Health） */
-	UPROPERTY(EditAnywhere, Category = "DoDamage")
+	// 伤害效果类 — 施加到目标 ASC 的 GE（需配置 Modifier 扣减 Health）
+	UPROPERTY(EditAnywhere, Category = "DoDamage", meta = (DisplayName = "伤害效果类"))
 	TSubclassOf<UGameplayEffect> DamageEffect;
 
 protected:

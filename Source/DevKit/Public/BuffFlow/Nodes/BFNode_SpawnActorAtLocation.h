@@ -13,16 +13,16 @@ class DEVKIT_API UBFNode_SpawnActorAtLocation : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 要生成的 Actor 类 */
-	UPROPERTY(EditAnywhere, Category = "SpawnActor")
+	// 要生成的 Actor 类
+	UPROPERTY(EditAnywhere, Category = "SpawnActor", meta = (DisplayName = "Actor 类"))
 	TSubclassOf<AActor> ActorClass;
 
-	/** 是否使用 BFC->LastKillLocation 作为生成位置 */
-	UPROPERTY(EditAnywhere, Category = "SpawnActor")
+	// 使用击杀位置 — 勾选后在 BFC->LastKillLocation 处生成，否则在拥有者位置 + 偏移处生成
+	UPROPERTY(EditAnywhere, Category = "SpawnActor", meta = (DisplayName = "使用击杀位置"))
 	bool bUseKillLocation = true;
 
-	/** 在基准位置上的额外偏移 */
-	UPROPERTY(EditAnywhere, Category = "SpawnActor")
+	// 位置偏移 — 在基准位置上的额外世界坐标偏移
+	UPROPERTY(EditAnywhere, Category = "SpawnActor", meta = (DisplayName = "位置偏移"))
 	FVector LocationOffset = FVector::ZeroVector;
 
 protected:

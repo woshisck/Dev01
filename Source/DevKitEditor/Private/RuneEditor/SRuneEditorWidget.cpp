@@ -1,6 +1,8 @@
 #include "RuneEditor/SRuneEditorWidget.h"
 
 #include "BuffFlow/Nodes/YogFlowNodes.h"
+#include "BuffFlow/Nodes/BFNode_GetProjectileModule.h"
+#include "BuffFlow/Nodes/BFNode_GetAuraModule.h"
 #include "Data/RuneDataAsset.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
@@ -37,8 +39,10 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/STableRow.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "SRuneEditorWidget"
 
@@ -104,6 +108,134 @@ namespace
 		}
 		return ERuneTuningValueSource::Literal;
 	}
+
+	ERuneTuningValueSource ValueSourceFromString(const FString& S)
+	{
+		if (S == TEXT("具体值")) return ERuneTuningValueSource::Literal;
+		if (S == TEXT("公式"))   return ERuneTuningValueSource::Formula;
+		if (S == TEXT("MMC"))    return ERuneTuningValueSource::MMC;
+		if (S == TEXT("上下文")) return ERuneTuningValueSource::Context;
+		return ERuneTuningValueSource::Literal;
+	}
+
+	// ── 数值表预设 ─────────────────────────────────────────────────────────
+	struct FTuningPresetRow
+	{
+		FName  Key;
+		FString DisplayName;
+		float  Value         = 0.f;
+		FName  Category;
+		FString Description;
+		ERuneComboBonusMode   ComboMode      = ERuneComboBonusMode::None;
+		float  BonusPerStack = 0.f;
+		float  MaxBonus      = 0.f;
+		ERuneTuningRoundMode  RoundMode      = ERuneTuningRoundMode::None;
+
+		FRuneTuningScalar ToScalar() const
+		{
+			FRuneTuningScalar S;
+			S.Key         = Key;
+			S.DisplayName = FText::FromString(DisplayName);
+			S.Value       = Value;
+			S.Category    = Category;
+			S.Description = FText::FromString(Description);
+			S.ValueSource = ERuneTuningValueSource::Literal;
+			S.ComboBonus.Mode          = ComboMode;
+			S.ComboBonus.BonusPerStack = BonusPerStack;
+			S.ComboBonus.MaxBonus      = MaxBonus;
+			S.ComboBonus.RoundMode     = RoundMode;
+			return S;
+		}
+	};
+
+	struct FTuningPresetGroup
+	{
+		FString               Name;
+		TArray<FTuningPresetRow> Rows;
+	};
+
+	const TArray<FTuningPresetGroup>& GetTuningPresets()
+	{
+		static TArray<FTuningPresetGroup> Presets;
+		if (!Presets.IsEmpty()) { return Presets; }
+
+		Presets = {
+			{
+				TEXT("攻击类"),
+				{
+					{ "Attack.Damage", TEXT("攻击伤害"), 15.f, "Damage", TEXT("攻击基础伤害；连招乘算，第N段 = 15×(1+0.1×(N-1))，封顶1.5倍"),
+					  ERuneComboBonusMode::Multiply, 0.1f, 0.5f },
+				}
+			},
+			{
+				TEXT("燃烧类"),
+				{
+					{ "Burn.Damage", TEXT("燃烧伤害/周期"), 20.f, "Damage", TEXT("燃烧DoT每次触发的伤害量；连招乘算，封顶+60%"),
+					  ERuneComboBonusMode::Multiply, 0.15f, 0.60f },
+					{ "Burn.Duration", TEXT("燃烧持续时间"), 3.f, "Duration", TEXT("燃烧效果持续秒数") },
+				}
+			},
+			{
+				TEXT("中毒类"),
+				{
+					{ "Poison.Stack", TEXT("中毒层数"), 3.f, "Stack", TEXT("附加的中毒层数；连招加算，第N段 = 3+(N-1)，封顶+4层"),
+					  ERuneComboBonusMode::Add, 1.f, 4.f, ERuneTuningRoundMode::Floor },
+					{ "Poison.Duration", TEXT("中毒持续时间"), 6.f, "Duration", TEXT("每层中毒持续秒数") },
+				}
+			},
+			{
+				TEXT("月光类"),
+				{
+					{ "Moonlight.ProjectileCount", TEXT("月光弹数"), 1.f, "Projectile", TEXT("发射的月光投射物数量；连招加算，第N段 = 1+(N-1)，封顶+3发"),
+					  ERuneComboBonusMode::Add, 1.f, 3.f, ERuneTuningRoundMode::Floor },
+					{ "Moonlight.ProjectileSpeed", TEXT("月光弹速"), 2000.f, "Projectile", TEXT("月光投射物飞行速度（cm/s）") },
+				}
+			},
+			{
+				TEXT("终结技类"),
+				{
+					{ "Finisher.Damage",    TEXT("终结技伤害"),    80.f,  "Damage", TEXT("终结技基础伤害，建议不受连招缩放") },
+					{ "Finisher.AOERadius", TEXT("终结技范围半径"), 300.f, "Radius", TEXT("终结技范围攻击半径（cm）") },
+				}
+			},
+		};
+		return Presets;
+	}
+	// ── Key 名称预定义枚举 ────────────────────────────────────────────────
+	struct FPredefinedKeyGroup
+	{
+		FString          SectionName;
+		TArray<FName>    Keys;
+	};
+
+	const TArray<FPredefinedKeyGroup>& GetPredefinedTuningKeyGroups()
+	{
+		static TArray<FPredefinedKeyGroup> Groups;
+		if (!Groups.IsEmpty()) { return Groups; }
+		Groups = {
+			{ TEXT("攻击"),  {
+				"Attack.Damage.01", "Attack.Damage.02", "Attack.Damage.03",
+			}},
+			{ TEXT("燃烧"),  {
+				"Burn.Damage.01",   "Burn.Damage.02",   "Burn.Damage.03",
+				"Burn.Duration.01", "Burn.Duration.02",
+			}},
+			{ TEXT("中毒"),  {
+				"Poison.Stack.01",    "Poison.Stack.02",
+				"Poison.Duration.01", "Poison.Duration.02",
+			}},
+			{ TEXT("月光"),  {
+				"Moonlight.ProjectileCount.01", "Moonlight.ProjectileCount.02",
+				"Moonlight.ProjectileSpeed.01",
+			}},
+			{ TEXT("终结技"), {
+				"Finisher.Damage.01",    "Finisher.Damage.02",
+				"Finisher.AOERadius.01",
+			}},
+		};
+		return Groups;
+	}
+	// ──────────────────────────────────────────────────────────────────────
 
 	ERuneType RuneTypeFromString(const FString& S)
 	{
@@ -321,6 +453,12 @@ void SRuneEditorWidget::Construct(const FArguments& InArgs)
 
 	ComboBonusModeOptions = { MakeShared<FString>(TEXT("无")), MakeShared<FString>(TEXT("加算")), MakeShared<FString>(TEXT("乘算")) };
 	RoundModeOptions      = { MakeShared<FString>(TEXT("—")), MakeShared<FString>(TEXT("Floor")), MakeShared<FString>(TEXT("Round")), MakeShared<FString>(TEXT("Ceil")) };
+	ValueSourceOptions    = { MakeShared<FString>(TEXT("具体值")), MakeShared<FString>(TEXT("公式")), MakeShared<FString>(TEXT("MMC")), MakeShared<FString>(TEXT("上下文")) };
+
+	for (const FTuningPresetGroup& Group : GetTuningPresets())
+	{
+		TuningPresetGroupNames.Add(MakeShared<FString>(Group.Name));
+	}
 
 	RefreshFlowAssetOptions();
 	RefreshData(LOCTEXT("InitialStatus", "符文流程编辑器已就绪。"));
@@ -801,6 +939,12 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildCenterPanel()
 					[
 						BuildCenterTabButton(LOCTEXT("ComboRecipeCenterTab", "连携配方"), ECenterPanelTab::ComboRecipe)
 					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(6.f, 0.f, 0.f, 0.f)
+					[
+						BuildCenterTabButton(LOCTEXT("ModulesCenterTab", "模块配置"), ECenterPanelTab::Modules)
+					]
 				]
 				+ SVerticalBox::Slot()
 				.FillHeight(1.f)
@@ -829,6 +973,10 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildCenterPanel()
 					+ SWidgetSwitcher::Slot()
 					[
 						BuildComboRecipePanel()
+					]
+					+ SWidgetSwitcher::Slot()
+					[
+						BuildModulesPanel()
 					]
 				]
 			]
@@ -904,6 +1052,28 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildValueTablePanel()
 			.AutoWidth()
 			.Padding(0.f, 0.f, 6.f, 0.f)
 			[
+				SAssignNew(TuningPresetCombo, FStringCombo)
+				.OptionsSource(&TuningPresetGroupNames)
+				.IsEnabled_Lambda([this]() { return GetSelectedRune() != nullptr; })
+				.ToolTipText(LOCTEXT("InsertPresetTip", "选择符文类型，批量插入对应的预设数值行（含连招加成配置）"))
+				.OnSelectionChanged_Lambda([this](TSharedPtr<FString> Item, ESelectInfo::Type SelectType)
+				{
+					if (SelectType == ESelectInfo::Direct || !Item.IsValid()) { return; }
+					OnInsertTuningPresetClicked(*Item);
+					TuningPresetCombo->ClearSelection();
+				})
+				.OnGenerateWidget_Lambda([](TSharedPtr<FString> Item)
+				{
+					return SNew(STextBlock).Text(FText::FromString(*Item)).Margin(FMargin(6.f, 3.f));
+				})
+				[
+					SNew(STextBlock).Text(LOCTEXT("InsertPresetLabel", "插入模板 ▼"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.f, 0.f, 6.f, 0.f)
+			[
 				SNew(SButton)
 				.Text(LOCTEXT("ExportTuning", "导出 CSV"))
 				.ToolTipText(LOCTEXT("ExportTuningTip", "将当前数值表复制为 CSV 到剪贴板"))
@@ -941,7 +1111,7 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildValueTablePanel()
 			.OnGenerateRow(this, &SRuneEditorWidget::BuildTuningRow)
 			.HeaderRow(
 				SNew(SHeaderRow)
-				+ SHeaderRow::Column(TEXT("Key")).DefaultLabel(LOCTEXT("TuningColumnKey", "Key")).FillWidth(0.9f)
+				+ SHeaderRow::Column(TEXT("Key")).DefaultLabel(LOCTEXT("TuningColumnKey", "Key")).FillWidth(1.8f)
 				+ SHeaderRow::Column(TEXT("Name")).DefaultLabel(LOCTEXT("TuningColumnName", "显示名")).FillWidth(1.0f)
 				+ SHeaderRow::Column(TEXT("Category")).DefaultLabel(LOCTEXT("TuningColumnCategory", "分类")).FillWidth(0.8f)
 				+ SHeaderRow::Column(TEXT("Source")).DefaultLabel(LOCTEXT("TuningColumnSource", "数值方式")).FillWidth(0.7f)
@@ -1095,6 +1265,7 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildNodeLibraryPanel()
 	AddFilter(LOCTEXT("NodeLibraryFilterCondition", "条件节点"), ENodeLibraryFilter::Condition);
 	AddFilter(LOCTEXT("NodeLibraryFilterPresentation", "表现节点"), ENodeLibraryFilter::Presentation);
 	AddFilter(LOCTEXT("NodeLibraryFilterLifecycle", "生命周期"), ENodeLibraryFilter::Lifecycle);
+	AddFilter(LOCTEXT("NodeLibraryFilterPure", "数据节点"), ENodeLibraryFilter::Pure);
 
 	TSharedRef<SWrapBox> NodeWrap = SNew(SWrapBox).UseAllottedSize(true);
 	auto AddNode = [this, &NodeWrap](ENodeLibraryFilter Filter, UClass* NodeClass, const FText& DisplayName, const FText& Description)
@@ -1119,7 +1290,6 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildNodeLibraryPanel()
 	AddNode(ENodeLibraryFilter::Effect, UYogFlowNode_EffectCost::StaticClass(), LOCTEXT("NodeEffectCostName", "消耗"), LOCTEXT("NodeEffectCostDescription", "扣除法力、能量、弹药等资源。"));
 	AddNode(ENodeLibraryFilter::Effect, UYogFlowNode_EffectAttributeModify::StaticClass(), LOCTEXT("NodeEffectAttributeModifyName", "属性修改"), LOCTEXT("NodeEffectAttributeModifyDescription", "修改属性数值，适合增益、减益、护盾等持续效果。"));
 	AddNode(ENodeLibraryFilter::Effect, UYogFlowNode_EffectApplyState::StaticClass(), LOCTEXT("NodeEffectApplyStateName", "施加状态"), LOCTEXT("NodeEffectApplyStateDescription", "施加燃烧、中毒、流血、撕裂、诅咒等 GameplayEffect。"));
-	AddNode(ENodeLibraryFilter::Effect, UYogFlowNode_EffectApplyProfile::StaticClass(), LOCTEXT("NodeEffectApplyProfileName", "效果配置"), LOCTEXT("NodeEffectApplyProfileDescription", "使用可复用 Rune Effect Profile 执行通用效果。"));
 	AddNode(ENodeLibraryFilter::Effect, UYogFlowNode_EffectApplyInRadius::StaticClass(), LOCTEXT("NodeEffectApplyInRadiusName", "范围施加GE"), LOCTEXT("NodeEffectApplyInRadiusDescription", "向半径内目标施加 GameplayEffect。"));
 	AddNode(ENodeLibraryFilter::Effect, UYogFlowNode_EffectAreaDamage::StaticClass(), LOCTEXT("NodeEffectAreaDamageName", "范围伤害"), LOCTEXT("NodeEffectAreaDamageDescription", "对范围目标造成伤害，适合燃烧地面、爆炸等。"));
 	AddNode(ENodeLibraryFilter::Effect, UYogFlowNode_EffectAddTag::StaticClass(), LOCTEXT("NodeEffectAddTagName", "添加Tag"), LOCTEXT("NodeEffectAddTagDescription", "给目标或拥有者添加状态 Tag。"));
@@ -1130,11 +1300,11 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildNodeLibraryPanel()
 	AddNode(ENodeLibraryFilter::Task, UYogFlowNode_TaskEndSkill::StaticClass(), LOCTEXT("NodeTaskEndSkillName", "结束技能"), LOCTEXT("NodeTaskEndSkillDescription", "结束当前技能流程。"));
 	AddNode(ENodeLibraryFilter::Task, UYogFlowNode_TaskPlayAnimation::StaticClass(), LOCTEXT("NodeTaskPlayAnimationName", "动画"), LOCTEXT("NodeTaskPlayAnimationDescription", "播放技能动作或蒙太奇。"));
 
-	AddNode(ENodeLibraryFilter::Spawn, UYogFlowNode_SpawnProjectileProfile::StaticClass(), LOCTEXT("NodeSpawnProjectileProfileName", "生成投射物配置"), LOCTEXT("NodeSpawnProjectileProfileDescription", "生成配置化投射物，适合月光、穿透、弹幕。"));
 	AddNode(ENodeLibraryFilter::Spawn, UYogFlowNode_SpawnAreaProfile::StaticClass(), LOCTEXT("NodeSpawnAreaProfileName", "生成区域配置"), LOCTEXT("NodeSpawnAreaProfileDescription", "生成可配置区域，适合燃烧圈、毒区、领域。"));
 	AddNode(ENodeLibraryFilter::Spawn, UYogFlowNode_SpawnGroundPath::StaticClass(), LOCTEXT("NodeSpawnGroundPathName", "生成地面路径"), LOCTEXT("NodeSpawnGroundPathDescription", "生成路径类地面效果，适合燃烧轨迹或月光路径。"));
-	AddNode(ENodeLibraryFilter::Spawn, UYogFlowNode_SpawnRangedProjectiles::StaticClass(), LOCTEXT("NodeSpawnRangedProjectilesName", "生成远程弹幕"), LOCTEXT("NodeSpawnRangedProjectilesDescription", "生成多枚远程投射物。"));
-	AddNode(ENodeLibraryFilter::Spawn, UYogFlowNode_SpawnSlashWave::StaticClass(), LOCTEXT("NodeSpawnSlashWaveName", "生成斩击波"), LOCTEXT("NodeSpawnSlashWaveDescription", "生成近战斩波，适合终结技或月光剑气。"));
+	AddNode(ENodeLibraryFilter::Spawn, UYogFlowNode_SpawnRangedProjectiles::StaticClass(), LOCTEXT("NodeSpawnRangedProjectilesName", "生成远程弹幕"), LOCTEXT("NodeSpawnRangedProjectilesDescription", "生成多枚远程投射物，支持连招增加数量和命中事件。"));
+	AddNode(ENodeLibraryFilter::Spawn, UBFNode_GetProjectileModule::StaticClass(), LOCTEXT("NodeGetProjectileModuleName", "读取飞行物模块"), LOCTEXT("NodeGetProjectileModuleDescription", "读取符文DA飞行物模块配置（数量/锥角/速度），输出数据引脚接到弹幕节点。"));
+	AddNode(ENodeLibraryFilter::Spawn, UBFNode_GetAuraModule::StaticClass(), LOCTEXT("NodeGetAuraModuleName", "读取光环模块"), LOCTEXT("NodeGetAuraModuleDescription", "读取符文DA光环/场地模块配置（长宽高/时间/间隔），输出数据引脚接到路径效果节点。"));
 
 	AddNode(ENodeLibraryFilter::Condition, UYogFlowNode_ConditionAttributeCompare::StaticClass(), LOCTEXT("NodeConditionAttributeCompareName", "属性比较"), LOCTEXT("NodeConditionAttributeCompareDescription", "比较属性数值，并按结果分支。"));
 	AddNode(ENodeLibraryFilter::Condition, UYogFlowNode_ConditionHasTag::StaticClass(), LOCTEXT("NodeConditionHasTagName", "拥有Tag"), LOCTEXT("NodeConditionHasTagDescription", "判断目标或拥有者是否有燃烧、中毒、月光等 Tag。"));
@@ -1145,11 +1315,12 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildNodeLibraryPanel()
 	AddNode(ENodeLibraryFilter::Presentation, UYogFlowNode_PresentationPlayVFX::StaticClass(), LOCTEXT("NodePresentationPlayVFXName", "Niagara特效"), LOCTEXT("NodePresentationPlayVFXDescription", "播放 Niagara 表现。"));
 	AddNode(ENodeLibraryFilter::Presentation, UYogFlowNode_PresentationCueOnActor::StaticClass(), LOCTEXT("NodePresentationCueOnActorName", "Cue到角色"), LOCTEXT("NodePresentationCueOnActorDescription", "在角色身上触发 GameplayCue。"));
 	AddNode(ENodeLibraryFilter::Presentation, UYogFlowNode_PresentationCueAtLocation::StaticClass(), LOCTEXT("NodePresentationCueAtLocationName", "Cue到位置"), LOCTEXT("NodePresentationCueAtLocationDescription", "在世界位置触发 GameplayCue。"));
-	AddNode(ENodeLibraryFilter::Presentation, UYogFlowNode_PresentationVFXProfile::StaticClass(), LOCTEXT("NodePresentationVFXProfileName", "VFX配置"), LOCTEXT("NodePresentationVFXProfileDescription", "使用可复用 VFX Profile 触发表现。"));
 	AddNode(ENodeLibraryFilter::Presentation, UYogFlowNode_PresentationFlipbook::StaticClass(), LOCTEXT("NodePresentationFlipbookName", "序列帧特效"), LOCTEXT("NodePresentationFlipbookDescription", "播放 Flipbook 类表现。"));
 
 	AddNode(ENodeLibraryFilter::Lifecycle, UYogFlowNode_LifecycleDelay::StaticClass(), LOCTEXT("NodeLifecycleDelayName", "延迟"), LOCTEXT("NodeLifecycleDelayDescription", "延迟后继续流程。"));
 	AddNode(ENodeLibraryFilter::Lifecycle, UYogFlowNode_LifecycleFinishBuff::StaticClass(), LOCTEXT("NodeLifecycleFinishBuffName", "结束符文"), LOCTEXT("NodeLifecycleFinishBuffDescription", "主动结束当前符文 Buff 生命周期。"));
+	AddNode(ENodeLibraryFilter::Pure, UBFNode_Pure_TuningValue::StaticClass(), LOCTEXT("NodePureTuningName", "读取数值"), LOCTEXT("NodePureTuningDesc", "输出数值表中某个 Key 的值，无执行引脚，拖线连接到效果节点的参数槽。"));
+	AddNode(ENodeLibraryFilter::Pure, UBFNode_Pure_ComboIndex::StaticClass(), LOCTEXT("NodePureComboName", "连击段数"), LOCTEXT("NodePureComboDesc", "输出当前连击段数，无执行引脚，可连接到伤害倍率等数值槽。"));
 
 	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
@@ -1611,7 +1782,7 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildComboRecipePanel()
 				.FillWidth(0.22f)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("ColNeighborTag", "邻接卡 ID 标签"))
+					.Text(LOCTEXT("ColNeighborTag", "邻接条件标签"))
 					.Font(FAppStyle::GetFontStyle(TEXT("SmallFont")))
 				]
 				+ SHorizontalBox::Slot()
@@ -1726,6 +1897,25 @@ TSharedRef<ITableRow> SRuneEditorWidget::BuildComboRecipeRow(FComboRecipeRowPtr 
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(2.f, 0.f, 0.f, 0.f)
+				[
+					SNew(SButton)
+					.Text(FText::FromString(TEXT("→")))
+					.ToolTipText(LOCTEXT("OpenLinkFlowTip", "在流程图面板中打开此连携 FA"))
+					.IsEnabled_Lambda([Row, bForward]()
+					{
+						const int32 Idx = bForward ? Row->ForwardFlowIdx : Row->BackwardFlowIdx;
+						return Idx > 0;
+					})
+					.OnClicked_Lambda([this, Row, bForward]()
+					{
+						const int32 Idx = bForward ? Row->ForwardFlowIdx : Row->BackwardFlowIdx;
+						return OnOpenComboLinkFlowClicked(Idx);
+					})
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
 				.Padding(4.f, 0.f, 0.f, 0.f)
 				[
 					SNew(SBox)
@@ -1775,13 +1965,52 @@ TSharedRef<ITableRow> SRuneEditorWidget::BuildComboRecipeRow(FComboRecipeRowPtr 
 			.VAlign(VAlign_Top)
 			.Padding(0.f, 0.f, 4.f, 0.f)
 			[
-				SNew(SEditableTextBox)
-				.HintText(LOCTEXT("NeighborTagHint", "Card.ID.XXX"))
-				.Text_Lambda([Row]() { return FText::FromString(Row->NeighborTagString); })
-				.OnTextCommitted_Lambda([Row](const FText& NewText, ETextCommit::Type)
-				{
-					Row->NeighborTagString = NewText.ToString();
-				})
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 0.f, 0.f, 3.f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(SCheckBox)
+						.IsChecked_Lambda([Row]()
+						{
+							return Row->bUseEffectTag ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+						})
+						.OnCheckStateChanged_Lambda([Row](ECheckBoxState NewState)
+						{
+							Row->bUseEffectTag = NewState == ECheckBoxState::Checked;
+						})
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(4.f, 0.f, 0.f, 0.f)
+					[
+						SNew(STextBlock)
+						.Text_Lambda([Row]()
+						{
+							return Row->bUseEffectTag
+								? LOCTEXT("NeighborEffectTagMode", "效果Tag")
+								: LOCTEXT("NeighborIdTagMode", "ID Tag");
+						})
+						.Font(FAppStyle::GetFontStyle(TEXT("SmallFont")))
+					]
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SEditableTextBox)
+					.HintText(LOCTEXT("NeighborTagHint", "Card.Effect.XXX / Card.ID.XXX"))
+					.Text_Lambda([Row]() { return FText::FromString(Row->NeighborTagString); })
+					.OnTextCommitted_Lambda([Row](const FText& NewText, ETextCommit::Type)
+					{
+						Row->NeighborTagString = NewText.ToString();
+					})
+				]
 			]
 			+ SHorizontalBox::Slot()
 			.FillWidth(0.37f)
@@ -1861,17 +2090,18 @@ void SRuneEditorWidget::RefreshComboRecipeRows()
 		return;
 	}
 
-	auto FindOrAddRow = [this](const FString& TagStr) -> FComboRecipeRowPtr
+	auto FindOrAddRow = [this](const FString& TagStr, bool bUseEffectTag) -> FComboRecipeRowPtr
 	{
 		for (const FComboRecipeRowPtr& Row : ComboRecipeRows)
 		{
-			if (Row->NeighborTagString == TagStr)
+			if (Row->NeighborTagString == TagStr && Row->bUseEffectTag == bUseEffectTag)
 			{
 				return Row;
 			}
 		}
 		FComboRecipeRowPtr NewRow = MakeShared<FComboRecipeEditorRow>();
 		NewRow->NeighborTagString = TagStr;
+		NewRow->bUseEffectTag = bUseEffectTag;
 		ComboRecipeRows.Add(NewRow);
 		return NewRow;
 	};
@@ -1896,12 +2126,19 @@ void SRuneEditorWidget::RefreshComboRecipeRows()
 	for (const FCombatCardLinkRecipe& Recipe : Rune->RuneInfo.CombatCard.LinkRecipes)
 	{
 		FString TagStr;
-		if (!Recipe.Condition.RequiredNeighborIdTags.IsEmpty())
+		bool bUseEffectTag = true;
+		if (!Recipe.Condition.RequiredNeighborEffectTags.IsEmpty())
+		{
+			TagStr = Recipe.Condition.RequiredNeighborEffectTags.First().ToString();
+			bUseEffectTag = true;
+		}
+		else if (!Recipe.Condition.RequiredNeighborIdTags.IsEmpty())
 		{
 			TagStr = Recipe.Condition.RequiredNeighborIdTags.First().ToString();
+			bUseEffectTag = false;
 		}
 
-		FComboRecipeRowPtr Row = FindOrAddRow(TagStr);
+		FComboRecipeRowPtr Row = FindOrAddRow(TagStr, bUseEffectTag);
 
 		if (Recipe.Direction == ECombatCardLinkOrientation::Forward)
 		{
@@ -1959,7 +2196,14 @@ FReply SRuneEditorWidget::OnSaveComboRecipesClicked()
 				const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*Row->NeighborTagString), false);
 				if (Tag.IsValid())
 				{
-					Recipe.Condition.RequiredNeighborIdTags.AddTag(Tag);
+					if (Row->bUseEffectTag)
+					{
+						Recipe.Condition.RequiredNeighborEffectTags.AddTag(Tag);
+					}
+					else
+					{
+						Recipe.Condition.RequiredNeighborIdTags.AddTag(Tag);
+					}
 				}
 			}
 
@@ -1988,6 +2232,82 @@ FReply SRuneEditorWidget::OnSaveComboRecipesClicked()
 	StatusText = FText::Format(
 		LOCTEXT("ComboRecipesSaved", "已保存 {0} 条连携配方。"),
 		FText::AsNumber(Rune->RuneInfo.CombatCard.LinkRecipes.Num()));
+	return FReply::Handled();
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Modules 面板
+// ─────────────────────────────────────────────────────────────────
+
+TSharedRef<SWidget> SRuneEditorWidget::BuildModulesPanel()
+{
+	// 创建过滤到 "Modules" Category 的 DetailsView
+	FDetailsViewArgs ModulesArgs;
+	ModulesArgs.bAllowSearch = false;
+	ModulesArgs.bHideSelectionTip = true;
+	ModulesArgs.bShowOptions = false;
+	ModulesArgs.bShowScrollBar = true;
+	ModulesArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+
+	FPropertyEditorModule& PropertyEditor = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+	ModulesDetailsView = PropertyEditor.CreateDetailView(ModulesArgs);
+
+	// 只显示 Category 为 "Modules" 的属性
+	ModulesDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateLambda(
+		[](const FPropertyAndParent& PropertyAndParent) -> bool
+		{
+			const FString Category = PropertyAndParent.Property.GetMetaData(TEXT("Category"));
+			return Category.StartsWith(TEXT("Modules"));
+		}));
+
+	// 若已有选中符文，立刻显示
+	if (URuneDataAsset* Rune = GetSelectedRune())
+	{
+		ModulesDetailsView->SetObject(Rune);
+	}
+
+	return SNew(SVerticalBox)
+		// 顶部说明栏
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(8.f, 6.f, 8.f, 4.f)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("ModulesPanelHint",
+				"勾选启用对应模块后填写参数。在 FA 流程图中可用 GetProjectileModule / GetAuraModule 节点读取这些值。"))
+			.AutoWrapText(true)
+			.ColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.f)))
+		]
+		// IDetailsView 主体
+		+ SVerticalBox::Slot()
+		.FillHeight(1.f)
+		[
+			ModulesDetailsView.ToSharedRef()
+		]
+		// 底部保存按钮
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(8.f, 4.f, 8.f, 8.f)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("SaveModules", "保存模块配置"))
+			.IsEnabled_Lambda([this]() { return GetSelectedRune() != nullptr; })
+			.OnClicked(this, &SRuneEditorWidget::OnSaveModulesClicked)
+		];
+}
+
+FReply SRuneEditorWidget::OnSaveModulesClicked()
+{
+	URuneDataAsset* Rune = GetSelectedRune();
+	if (!Rune)
+	{
+		return FReply::Handled();
+	}
+	// IDetailsView 已直接编辑 DA，这里只需标记脏
+	const FScopedTransaction Transaction(LOCTEXT("SaveModules", "Save Rune Modules"));
+	Rune->Modify();
+	Rune->MarkPackageDirty();
+	StatusText = LOCTEXT("ModulesSaved", "模块配置已保存。");
 	return FReply::Handled();
 }
 
@@ -2373,25 +2693,71 @@ TSharedRef<ITableRow> SRuneEditorWidget::BuildTuningRow(FTuningRowPtr Row, const
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.FillWidth(0.9f)
+			.FillWidth(1.8f)
 			.Padding(0.f, 0.f, 4.f, 0.f)
 			[
-				BuildTextCell(
-					SNew(SEditableTextBox)
-					.Text_Lambda([GetScalarText]()
-					{
-						return GetScalarText([](const FRuneTuningScalar& Scalar)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				[
+					BuildTextCell(
+						SNew(SEditableTextBox)
+						.Text_Lambda([GetScalarText]()
 						{
-							return FText::FromName(Scalar.Key);
-						});
+							return GetScalarText([](const FRuneTuningScalar& Scalar)
+							{
+								return FText::FromName(Scalar.Key);
+							});
+						})
+						.OnTextCommitted_Lambda([EditScalar](const FText& Text, ETextCommit::Type)
+						{
+							EditScalar([&Text](FRuneTuningScalar& Scalar)
+							{
+								Scalar.Key = FName(*Text.ToString());
+							});
+						}))
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(2.f, 0.f, 0.f, 0.f)
+				[
+					SNew(SComboButton)
+					.HasDownArrow(false)
+					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+					.ToolTipText(LOCTEXT("TuningKeyPickerTip", "从预定义 Key 列表中选择"))
+					.ButtonContent()
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(TEXT("▾")))
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
+					]
+					.OnGetMenuContent_Lambda([EditScalar, this]() -> TSharedRef<SWidget>
+					{
+						FMenuBuilder MenuBuilder(true, nullptr);
+						for (const FPredefinedKeyGroup& Group : GetPredefinedTuningKeyGroups())
+						{
+							MenuBuilder.BeginSection(NAME_None, FText::FromString(Group.SectionName));
+							for (const FName& Key : Group.Keys)
+							{
+								const FName KeyCopy = Key;
+								MenuBuilder.AddMenuEntry(
+									FText::FromName(KeyCopy),
+									FText::GetEmpty(),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([EditScalar, KeyCopy]()
+									{
+										EditScalar([KeyCopy](FRuneTuningScalar& Scalar)
+										{
+											Scalar.Key = KeyCopy;
+										});
+									})));
+							}
+							MenuBuilder.EndSection();
+						}
+						return MenuBuilder.MakeWidget();
 					})
-					.OnTextCommitted_Lambda([EditScalar](const FText& Text, ETextCommit::Type)
-					{
-						EditScalar([&Text](FRuneTuningScalar& Scalar)
-						{
-							Scalar.Key = FName(*Text.ToString());
-						});
-					}))
+				]
 			]
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
@@ -2439,15 +2805,30 @@ TSharedRef<ITableRow> SRuneEditorWidget::BuildTuningRow(FTuningRowPtr Row, const
 			.FillWidth(0.7f)
 			.Padding(0.f, 0.f, 4.f, 0.f)
 			[
-				SNew(SButton)
-				.Text_Lambda([GetScalarText]()
+				SNew(SComboBox<TSharedPtr<FString>>)
+				.OptionsSource(&ValueSourceOptions)
+				.OnSelectionChanged_Lambda([EditScalar, this](TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo)
 				{
-					return GetScalarText([](const FRuneTuningScalar& Scalar)
+					if (SelectInfo == ESelectInfo::Direct || !Item.IsValid()) return;
+					EditScalar([Item](FRuneTuningScalar& Scalar)
 					{
-						return TuningValueSourceToText(Scalar.ValueSource);
+						Scalar.ValueSource = ValueSourceFromString(*Item);
 					});
 				})
-				.OnClicked(this, &SRuneEditorWidget::OnTuningSourceClicked, RowIndex)
+				.OnGenerateWidget_Lambda([](TSharedPtr<FString> Item)
+				{
+					return SNew(STextBlock).Text(FText::FromString(*Item)).Margin(FMargin(4.f, 2.f));
+				})
+				[
+					SNew(STextBlock)
+					.Text_Lambda([GetScalarText]()
+					{
+						return GetScalarText([](const FRuneTuningScalar& Scalar)
+						{
+							return TuningValueSourceToText(Scalar.ValueSource);
+						});
+					})
+				]
 			]
 			+ SHorizontalBox::Slot()
 			.FillWidth(0.65f)
@@ -2953,14 +3334,15 @@ void SRuneEditorWidget::BindGraphEditorCommands()
 		FCanExecuteAction::CreateSP(this, &SRuneEditorWidget::CanDeleteSelectedGraphNodes));
 }
 
-void SRuneEditorWidget::RebuildGraphEditor()
+void SRuneEditorWidget::RebuildGraphEditor(UFlowAsset* OverrideFlow)
 {
 	if (!GraphEditorContainer.IsValid())
 	{
 		return;
 	}
 
-	UFlowAsset* FlowAsset = GetSelectedFlowAsset();
+	UFlowAsset* FlowAsset = OverrideFlow ? OverrideFlow : GetSelectedFlowAsset();
+	DisplayedFlowAsset = FlowAsset;
 	UEdGraph* GraphToEdit = FlowAsset ? FlowAsset->GetGraph() : nullptr;
 	if (!GraphToEdit)
 	{
@@ -3365,6 +3747,32 @@ FReply SRuneEditorWidget::OnAddTuningRowClicked()
 	return FReply::Handled();
 }
 
+FReply SRuneEditorWidget::OnInsertTuningPresetClicked(const FString& GroupName)
+{
+	URuneDataAsset* Rune = GetSelectedRune();
+	if (!Rune) { return FReply::Handled(); }
+
+	const TArray<FTuningPresetGroup>& Presets = GetTuningPresets();
+	const FTuningPresetGroup* Found = Presets.FindByPredicate([&GroupName](const FTuningPresetGroup& G)
+	{
+		return G.Name == GroupName;
+	});
+	if (!Found || Found->Rows.IsEmpty()) { return FReply::Handled(); }
+
+	const FScopedTransaction Transaction(LOCTEXT("InsertTuningPreset", "Insert Tuning Preset"));
+	Rune->Modify();
+	for (const FTuningPresetRow& PresetRow : Found->Rows)
+	{
+		Rune->RuneInfo.RuneConfig.TuningScalars.Add(PresetRow.ToScalar());
+	}
+	Rune->MarkPackageDirty();
+	RefreshTuningRows();
+	StatusText = FText::Format(LOCTEXT("InsertPresetStatus", "已插入「{0}」预设，共 {1} 行。"),
+		FText::FromString(GroupName),
+		FText::AsNumber(Found->Rows.Num()));
+	return FReply::Handled();
+}
+
 FReply SRuneEditorWidget::OnDeleteTuningRowClicked(int32 RowIndex)
 {
 	URuneDataAsset* Rune = GetSelectedRune();
@@ -3417,6 +3825,21 @@ FReply SRuneEditorWidget::OnOpenRuneClicked() const
 FReply SRuneEditorWidget::OnOpenFlowClicked() const
 {
 	OpenAsset(GetSelectedFlowAsset());
+	return FReply::Handled();
+}
+
+FReply SRuneEditorWidget::OnOpenComboLinkFlowClicked(int32 FlowIdx)
+{
+	if (FlowIdx <= 0 || !FlowAssetDataList.IsValidIndex(FlowIdx - 1))
+	{
+		return FReply::Handled();
+	}
+	UObject* Asset = FlowAssetDataList[FlowIdx - 1].GetAsset();
+	if (UFlowAsset* FA = Cast<UFlowAsset>(Asset))
+	{
+		OnCenterTabSelected(ECenterPanelTab::FlowGraph);
+		RebuildGraphEditor(FA);
+	}
 	return FReply::Handled();
 }
 
@@ -3789,6 +4212,10 @@ void SRuneEditorWidget::SyncNodeInspector()
 	if (NodeDetailsView.IsValid())
 	{
 		NodeDetailsView->SetObject(GetSelectedFlowNode());
+	}
+	if (ModulesDetailsView.IsValid())
+	{
+		ModulesDetailsView->SetObject(GetSelectedRune());
 	}
 }
 

@@ -14,8 +14,8 @@ class DEVKIT_API UBFNode_DoOnce : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** If true, the node starts already triggered and won't fire until reset. */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 初始关闭 — true = 节点从一开始就处于已触发状态，必须先 Reset 才能通过
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "初始关闭"))
 	bool bStartClosed = false;
 
 protected:

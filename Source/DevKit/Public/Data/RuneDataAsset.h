@@ -4,6 +4,7 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "CharacterData.h"
+#include "Data/RuneModules.h"
 #include "RuneDataAsset.generated.h"
 
 class UFlowAsset;
@@ -608,6 +609,28 @@ struct DEVKIT_API FRuneConfig
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning")
     TArray<FRuneTuningScalar> TuningScalars;
+
+    // ── 模块层 ───────────────────────────────────────────────
+    // 组件化开关：只勾选当前符文实际使用的模块，未启用的模块字段被 EditConditionHides 隐藏
+
+    /** 模块总开关 — 控制下方哪些扩展模块对此符文有效 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modules")
+    FRuneModuleFlags ActiveModules;
+
+    /** 飞行物模块（bProjectile = true 时显示）*/
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modules",
+        meta = (EditCondition = "ActiveModules.bProjectile", EditConditionHides))
+    FRuneProjectileModule ProjectileModule;
+
+    /** 光环/场地模块（bAura = true 时显示）*/
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modules",
+        meta = (EditCondition = "ActiveModules.bAura", EditConditionHides))
+    FRuneAuraModule AuraModule;
+
+    /** 状态效果模块（bStatus = true 时显示）*/
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modules",
+        meta = (EditCondition = "ActiveModules.bStatus", EditConditionHides))
+    FRuneStatusModule StatusModule;
 };
 
 
@@ -790,4 +813,18 @@ public:
     float GetRuneTuningValue(FName Key, float DefaultValue = 0.f) const;
 
     float GetRuneTuningValue(FName Key, const FRuneTuningResolveContext& Context, float DefaultValue = 0.f) const;
+
+    // ── 模块访问器 ──────────────────────────────────────────────
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Module")
+    const FRuneModuleFlags& GetActiveModules() const { return RuneInfo.RuneConfig.ActiveModules; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Module")
+    const FRuneProjectileModule& GetProjectileModule() const { return RuneInfo.RuneConfig.ProjectileModule; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Module")
+    const FRuneAuraModule& GetAuraModule() const { return RuneInfo.RuneConfig.AuraModule; }
+
+    UFUNCTION(BlueprintPure, Category = "Rune|Module")
+    const FRuneStatusModule& GetStatusModule() const { return RuneInfo.RuneConfig.StatusModule; }
 };

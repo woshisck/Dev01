@@ -191,7 +191,7 @@
 | 待定决策 | [PendingDecisions.md](PM/PendingDecisions.md) DEC-001：背包详情卡通用效果默认展开（待玩家测试反馈再评审） |
 | 重掷接口 | `RerollCard(int32)` 留空实现 + 日志，本版本不做 UI 动画 |
 | HUD Tick 修复 | `AYogHUD::Tick` 把 `TickPortalPreview/TickBlackoutFade` 移到所有早返回之前（修复既有 bug：暂停 fade 完成后 Portal 引导/Blackout 卡死） |
-| 设计文档 | [current_plan.md](WorkSession/current_plan.md) v2 含完整方案、用户决策、Codex 4 轮审查迭代记录 |
+| 设计文档 | current_plan.md v2（含完整方案、用户决策、Codex 4 轮审查迭代记录；WorkSession 已归档清理） |
 
 ---
 

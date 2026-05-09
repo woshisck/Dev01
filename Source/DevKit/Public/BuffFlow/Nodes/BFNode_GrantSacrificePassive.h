@@ -14,7 +14,8 @@ class DEVKIT_API UBFNode_GrantSacrificePassive : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sacrifice")
+	// 献祭被动配置 — 包含献祭被动的具体参数
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sacrifice", meta = (DisplayName = "被动配置"))
 	FSacrificeRunePassiveConfig Config;
 
 protected:

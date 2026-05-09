@@ -54,6 +54,7 @@ struct FRuneEditorTuningRow
 struct FComboRecipeEditorRow
 {
 	FString NeighborTagString;
+	bool bUseEffectTag = true;
 
 	bool bHasForward = false;
 	int32 ForwardFlowIdx = 0;
@@ -84,7 +85,8 @@ private:
 	{
 		ValueTable,
 		FlowGraph,
-		ComboRecipe
+		ComboRecipe,
+		Modules
 	};
 
 	enum class EBottomPanelTab : uint8
@@ -110,7 +112,8 @@ private:
 		Spawn,
 		Condition,
 		Presentation,
-		Lifecycle
+		Lifecycle,
+		Pure
 	};
 
 	enum class EResourceFilter : uint8
@@ -142,6 +145,7 @@ private:
 	TSharedRef<SWidget> BuildSelectedNodePanel();
 	TSharedRef<SWidget> BuildCombatCardPanel();
 	TSharedRef<SWidget> BuildComboRecipePanel();
+	TSharedRef<SWidget> BuildModulesPanel();
 	TSharedRef<SWidget> BuildDetailsPanelTabButton(const FText& Label, EDetailsPanelTab Tab);
 	TSharedRef<SWidget> BuildNodeLibraryItem(ENodeLibraryFilter Filter, UClass* NodeClass, const FText& DisplayName, const FText& Description);
 	TSharedRef<ITableRow> GenerateRuneRow(FRuneRowPtr Row, const TSharedRef<STableViewBase>& OwnerTable);
@@ -155,7 +159,7 @@ private:
 	void RefreshFlowAssetOptions();
 	TSharedRef<SWidget> BuildTuningCategoryFilterBar();
 	void BindGraphEditorCommands();
-	void RebuildGraphEditor();
+	void RebuildGraphEditor(UFlowAsset* OverrideFlow = nullptr);
 	void OnSearchTextChanged(const FText& NewText);
 	void OnRuneSelectionChanged(FRuneRowPtr Row, ESelectInfo::Type SelectInfo);
 	void OnGraphSelectionChanged(const TSet<UObject*>& Nodes);
@@ -176,6 +180,7 @@ private:
 	FReply OnExportTuningClicked();
 	FReply OnImportTuningClicked();
 	FReply OnAddTuningRowClicked();
+	FReply OnInsertTuningPresetClicked(const FString& GroupName);
 	FReply OnDeleteTuningRowClicked(int32 RowIndex);
 	FReply OnTuningSourceClicked(int32 RowIndex);
 	FReply OnDetailsPanelTabSelected(EDetailsPanelTab Tab);
@@ -183,11 +188,13 @@ private:
 	FReply OnTuningCategoryFilterClicked(FName Category);
 	FReply OnAddComboRecipeRowClicked();
 	FReply OnSaveComboRecipesClicked();
+	FReply OnSaveModulesClicked();
 	FReply OnToggleIsCombatCardClicked();
 	FReply OnToggleComboScalingClicked();
 	FReply OnRunRuneClicked();
 	FReply OnOpenRuneClicked() const;
 	FReply OnOpenFlowClicked() const;
+	FReply OnOpenComboLinkFlowClicked(int32 FlowIdx);
 	FReply SelectFlowNode(UFlowNode* FlowNode);
 	void DeleteSelectedGraphNodes();
 	bool CanDeleteSelectedGraphNodes() const;
@@ -251,10 +258,12 @@ private:
 	TSharedPtr<SEditableTextBox> CardHUDReasonTextBox;
 	TSharedPtr<SMultiLineEditableTextBox> CardHUDSummaryTextBox;
 	TSharedPtr<IDetailsView> NodeDetailsView;
+	TSharedPtr<IDetailsView> ModulesDetailsView;
 	TWeakObjectPtr<UObject> SelectedResource;
 	TWeakObjectPtr<UObject> CopiedResource;
 	TWeakObjectPtr<URuneDataAsset> SelectedRune;
 	TWeakObjectPtr<UFlowNode> SelectedFlowNode;
+	TWeakObjectPtr<UFlowAsset> DisplayedFlowAsset;
 	FString SearchText;
 	FText StatusText;
 	FText RunFeedbackText;
@@ -274,6 +283,9 @@ private:
 	using FStringCombo = SComboBox<TSharedPtr<FString>>;
 	TArray<TSharedPtr<FString>> ComboBonusModeOptions;
 	TArray<TSharedPtr<FString>> RoundModeOptions;
+	TArray<TSharedPtr<FString>> ValueSourceOptions;
+	TArray<TSharedPtr<FString>> TuningPresetGroupNames;
+	TSharedPtr<FStringCombo>    TuningPresetCombo;
 	TArray<TSharedPtr<FString>> RuneTypeOptions;
 	TArray<TSharedPtr<FString>> RarityOptions;
 	TArray<TSharedPtr<FString>> TriggerTypeOptions;

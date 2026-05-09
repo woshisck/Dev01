@@ -11,13 +11,16 @@ class DEVKIT_API UBFNode_RemoveTag : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 要移除的 Gameplay Tag
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "移除 Tag"))
 	FGameplayTag Tag;
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 移除层数 — 每次触发 In 引脚时移除几层此 Tag
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "层数"))
 	int32 Count = 1;
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 目标 — 在哪个 Actor 的 ASC 上移除 Tag，默认 BuffOwner
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "目标"))
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
 protected:

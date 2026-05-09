@@ -14,47 +14,34 @@
  * 执行输出引脚：
  *   Found    — 符文 GE 在目标上活跃（进入 Found 分支后可读取数据引脚）
  *   NotFound — 符文 GE 不在目标上
- *
- * 数据输出引脚（可连入 CompareFloat.A 等）：
- *   bIsActive     — 是否活跃
- *   StackCount    — 当前叠加层数（Stack 模式 >= 1，其余固定为 1）
- *   Level         — GE 等级
- *   TimeRemaining — 剩余持续时间（秒），-1 = 永久
- *
- * 典型用法（狂暴：超过 5 层触发额外效果）：
- *   GetRuneInfo(Target=Self, RuneTag=Buff.Berserk)
- *     ├─ Found → CompareFloat(StackCount >= 5) → True → AddEffect(+10% ATK)
- *     └─ NotFound → [skip]
  */
 UCLASS(NotBlueprintable, meta = (DisplayName = "Get Rune Info", Category = "BuffFlow|Condition"))
 class DEVKIT_API UBFNode_GetRuneInfo : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/** 要查询的目标 */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 查询目标 — 在哪个 Actor 的 ASC 上查询符文 GE 状态
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "查询目标"))
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
-	/** DA 中 RuneConfig.RuneTag 填写的 Tag */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 符文 Tag — DA 中 RuneConfig.RuneTag 填写的 Tag，用于定位对应 GE
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "符文 Tag"))
 	FGameplayTag RuneTag;
 
-	// ---- 数据输出引脚 ----
-
-	/** 符文 GE 是否活跃 */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 是否活跃（数据输出引脚）
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "是否活跃（输出）"))
 	FFlowDataPinOutputProperty_Bool bIsActive;
 
-	/** 当前叠加层数 */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 当前叠加层数（数据输出引脚）— 非堆叠 GE 固定为 1
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "层数（输出）"))
 	FFlowDataPinOutputProperty_Int32 StackCount;
 
-	/** GE 等级 */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// GE 等级（数据输出引脚）
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "等级（输出）"))
 	FFlowDataPinOutputProperty_Float Level;
 
-	/** 剩余时间（秒），-1 = 永久 */
-	UPROPERTY(EditAnywhere, Category = "BuffFlow")
+	// 剩余时间（数据输出引脚）— 秒；-1 = 永久；0 = 瞬发 GE
+	UPROPERTY(EditAnywhere, Category = "BuffFlow", meta = (DisplayName = "剩余时间（输出）"))
 	FFlowDataPinOutputProperty_Float TimeRemaining;
 
 protected:

@@ -26,59 +26,50 @@
  *   ExecCalc 内部通过 ExecutionParams.AttemptCalculateMagnitudeWithTags 读取，
  *   或者用 Spec.GetSetByCallerMagnitude(Tag) 读取节点传入的值。
  *   Tag 留空 → 该槽自动跳过。
- *
- * 示例：
- *   // 1. 我（程序）写好 C++ 类：
- *   class UYogExec_BleedDamage : public UGameplayEffectExecutionCalculation { ... }
- *
- *   // 2. 你在 FA 节点里配置：
- *   ExecCalcClass = UYogExec_BleedDamage
- *   SetByCallerTag1 = Buff.Data.Damage, SetByCallerValue1 = 50.0
- *   Target = LastDamageTarget
- *
- *   // 节点执行后，UYogExec_BleedDamage::Execute_Implementation 被 GAS 自动调用
  */
 UCLASS(NotBlueprintable, meta = (DisplayName = "Apply Execution Calculation", Category = "BuffFlow|Effect"))
 class DEVKIT_API UBFNode_ApplyExecution : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	/**
-	 * 要执行的 C++ ExecutionCalculation 类。
-	 * 由程序写好后，在此处下拉选择，无需创建 Blueprint GE 资产。
-	 */
-	UPROPERTY(EditAnywhere, Category = "Execution",
-		meta = (DisplayName = "Exec Calc Class"))
+	// 执行计算类 — 由程序写好的 C++ ExecutionCalculation 子类，无需创建 Blueprint GE 资产
+	UPROPERTY(EditAnywhere, Category = "Execution", meta = (DisplayName = "执行计算类"))
 	TSubclassOf<UGameplayEffectExecutionCalculation> ExecCalcClass;
 
-	/** 施加目标 */
-	UPROPERTY(EditAnywhere, Category = "Execution")
+	// 施加目标
+	UPROPERTY(EditAnywhere, Category = "Execution", meta = (DisplayName = "施加目标"))
 	EBFTargetSelector Target = EBFTargetSelector::LastDamageTarget;
 
 	// ── SetByCaller 槽（最多 3 个，向 ExecCalc 传入运行时浮点参数） ────────
 	// ExecCalc 内部通过 Spec.GetSetByCallerMagnitude(Tag) 读取这些值。
 
-	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "Slot 1 Tag"))
+	// 槽位1 Tag — ExecCalc 内部读取用的 SetByCaller Tag
+	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "槽位1 Tag"))
 	FGameplayTag SetByCallerTag1;
 
+	// 槽位1 数值 — 传入 SetByCallerTag1 对应槽的实际值（可连接数据引脚）
 	UPROPERTY(EditAnywhere, Category = "SetByCaller",
-		meta = (DisplayName = "Slot 1 Value",
+		meta = (DisplayName = "槽位1 数值",
 		        EditCondition = "SetByCallerTag1.IsValid()", EditConditionHides))
 	FFlowDataPinInputProperty_Float SetByCallerValue1;
 
-	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "Slot 2 Tag"))
+	// 槽位2 Tag
+	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "槽位2 Tag"))
 	FGameplayTag SetByCallerTag2;
 
+	// 槽位2 数值
 	UPROPERTY(EditAnywhere, Category = "SetByCaller",
-		meta = (DisplayName = "Slot 2 Value",
+		meta = (DisplayName = "槽位2 数值",
 		        EditCondition = "SetByCallerTag2.IsValid()", EditConditionHides))
 	FFlowDataPinInputProperty_Float SetByCallerValue2;
 
-	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "Slot 3 Tag"))
+	// 槽位3 Tag
+	UPROPERTY(EditAnywhere, Category = "SetByCaller", meta = (DisplayName = "槽位3 Tag"))
 	FGameplayTag SetByCallerTag3;
 
+	// 槽位3 数值
 	UPROPERTY(EditAnywhere, Category = "SetByCaller",
-		meta = (DisplayName = "Slot 3 Value",
+		meta = (DisplayName = "槽位3 数值",
 		        EditCondition = "SetByCallerTag3.IsValid()", EditConditionHides))
 	FFlowDataPinInputProperty_Float SetByCallerValue3;
 

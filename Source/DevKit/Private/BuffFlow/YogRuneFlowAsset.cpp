@@ -34,7 +34,6 @@ UYogRuneFlowAsset::UYogRuneFlowAsset(const FObjectInitializer& ObjectInitializer
 	AllowedNodeClasses.Add(UYogFlowNode_SpawnAreaProfile::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_SpawnGroundPath::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_SpawnRangedProjectiles::StaticClass());
-	AllowedNodeClasses.Add(UYogFlowNode_SpawnSlashWave::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_ConditionAttributeCompare::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_ConditionHasTag::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_ConditionProbability::StaticClass());
@@ -47,6 +46,8 @@ UYogRuneFlowAsset::UYogRuneFlowAsset(const FObjectInitializer& ObjectInitializer
 	AllowedNodeClasses.Add(UYogFlowNode_PresentationFlipbook::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_LifecycleDelay::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_LifecycleFinishBuff::StaticClass());
+	AllowedNodeClasses.Add(UBFNode_Pure_TuningValue::StaticClass());
+	AllowedNodeClasses.Add(UBFNode_Pure_ComboIndex::StaticClass());
 
 	AllowedInSubgraphNodeClasses.Reset();
 	DeniedNodeClasses.Reset();
