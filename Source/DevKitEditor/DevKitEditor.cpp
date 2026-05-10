@@ -15,6 +15,7 @@
 #include "RuneEditor/SRuneEditorWidget.h"
 #include "ToolMenus.h"
 #include "Tools/SActionBalanceWidget.h"
+#include "Tools/SBuffFlowDebugWidget.h"
 #include "Tools/SCharacterBalanceWidget.h"
 #include "Tools/SDataEditorWidget.h"
 #include "UI/CombatLogEditorUtilityWidget.h"
@@ -31,6 +32,7 @@ namespace
 	const FName CharacterBalanceTabName(TEXT("DevKitCharacterBalance"));
 	const FName ActionBalanceTabName(TEXT("DevKitActionBalance"));
 	const FName CombatLogTabName(TEXT("DevKitCombatLog"));
+	const FName BuffFlowDebugTabName(TEXT("DevKitBuffFlowDebug"));
 }
 
 class FDevKitEditorModule : public FDefaultGameModuleImpl {
@@ -89,6 +91,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetTooltipText(LOCTEXT("CombatLogTabTooltip", "Open the DevKit Combat Log panel."))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			BuffFlowDebugTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnBuffFlowDebugTab))
+			.SetDisplayName(LOCTEXT("BuffFlowDebugTabTitle", "BuffFlow Debug"))
+			.SetTooltipText(LOCTEXT("BuffFlowDebugTabTooltip", "Open the DevKit BuffFlow debug panel."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
 		UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FDevKitEditorModule::RegisterDataEditorMenus));
 	}
 
@@ -105,6 +114,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CharacterBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ActionBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CombatLogTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(BuffFlowDebugTabName);
 		CombatLogWidgetInstance.Reset();
 
 		FEditorDelegates::OnMapOpened.RemoveAll(this);
@@ -206,6 +216,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			];
 	}
 
+	TSharedRef<SDockTab> SpawnBuffFlowDebugTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("BuffFlowDebugTabLabel", "BuffFlow Debug"))
+			[
+				SNew(SBuffFlowDebugWidget)
+			];
+	}
+
 	void OnCombatLogTabClosed(TSharedRef<SDockTab> ClosedTab)
 	{
 		CombatLogWidgetInstance.Reset();
@@ -235,6 +255,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenCombatLogTooltip", "Open the DevKit Combat Log editor window."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenCombatLogTab)));
+
+		Section.AddMenuEntry(
+			TEXT("OpenBuffFlowDebug"),
+			LOCTEXT("OpenBuffFlowDebugLabel", "BuffFlow Debug"),
+			LOCTEXT("OpenBuffFlowDebugTooltip", "Open the DevKit BuffFlow debug editor window."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenBuffFlowDebugTab)));
 	}
 
 	void FillDevKitDataMenu(UToolMenu* Menu)
@@ -289,6 +316,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenCombatLogTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(CombatLogTabName);
+	}
+
+	void OpenBuffFlowDebugTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(BuffFlowDebugTabName);
 	}
 
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)

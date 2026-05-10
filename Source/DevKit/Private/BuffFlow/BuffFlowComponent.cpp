@@ -2,6 +2,7 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
 #include "Data/RuneDataAsset.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "FlowSubsystem.h"
 #include "FlowAsset.h"
@@ -325,6 +326,77 @@ float UBuffFlowComponent::GetRuneTuningValueForFlow(UFlowAsset* FlowAsset, FName
 void UBuffFlowComponent::ClearTraceEntries()
 {
 	TraceEntries.Reset();
+}
+
+int32 UBuffFlowComponent::GetActiveBuffFlowCount() const
+{
+	return ActiveRuneFlows.Num();
+}
+
+TArray<FBuffFlowActiveFlowDebugEntry> UBuffFlowComponent::GetActiveBuffFlowDebugEntries() const
+{
+	TArray<FBuffFlowActiveFlowDebugEntry> Entries;
+	Entries.Reserve(ActiveRuneFlows.Num());
+
+	UFlowSubsystem* FlowSubsystem = nullptr;
+	if (UWorld* World = GetWorld())
+	{
+		if (UGameInstance* GameInstance = World->GetGameInstance())
+		{
+			FlowSubsystem = GameInstance->GetSubsystem<UFlowSubsystem>();
+		}
+	}
+
+	for (const TPair<FGuid, TWeakObjectPtr<UFlowAsset>>& Pair : ActiveRuneFlows)
+	{
+		FBuffFlowActiveFlowDebugEntry& Entry = Entries.AddDefaulted_GetRef();
+		Entry.RuneGuid = Pair.Key;
+
+		UFlowAsset* FlowAsset = Pair.Value.Get();
+		Entry.bFlowAssetValid = FlowAsset != nullptr;
+		Entry.FlowName = FlowAsset ? FName(*FlowAsset->GetName()) : NAME_None;
+
+		if (const TWeakObjectPtr<URuneDataAsset>* SourceRune = ActiveRuneSources.Find(Pair.Key))
+		{
+			if (URuneDataAsset* RuneData = SourceRune->Get())
+			{
+				Entry.SourceRuneName = RuneData->GetRuneName();
+			}
+		}
+
+		if (FlowAsset && FlowSubsystem)
+		{
+			for (UFlowAsset* RuntimeInstance : FlowSubsystem->GetRootInstancesByOwner(this))
+			{
+				if (RuntimeInstance && RuntimeInstance->GetTemplateAsset() == FlowAsset)
+				{
+					Entry.bRuntimeInstanceActive = RuntimeInstance->IsActive();
+
+					const TArray<UFlowNode*>& ActiveNodes = RuntimeInstance->GetActiveNodes();
+					Entry.ActiveNodeCount = ActiveNodes.Num();
+					Entry.ActiveNodeNames.Reserve(ActiveNodes.Num());
+					Entry.ActiveNodeClasses.Reserve(ActiveNodes.Num());
+					for (const UFlowNode* ActiveNode : ActiveNodes)
+					{
+						Entry.ActiveNodeNames.Add(ActiveNode ? FName(*ActiveNode->GetName()) : NAME_None);
+						Entry.ActiveNodeClasses.Add(ActiveNode ? ActiveNode->GetClass()->GetFName() : NAME_None);
+					}
+
+					const TArray<UFlowNode*>& RecordedNodes = RuntimeInstance->GetRecordedNodes();
+					Entry.RecordedNodeCount = RecordedNodes.Num();
+					Entry.RecordedNodeNames.Reserve(RecordedNodes.Num());
+					for (const UFlowNode* RecordedNode : RecordedNodes)
+					{
+						Entry.RecordedNodeNames.Add(RecordedNode ? FName(*RecordedNode->GetName()) : NAME_None);
+					}
+
+					break;
+				}
+			}
+		}
+	}
+
+	return Entries;
 }
 
 bool UBuffFlowComponent::IsTraceEnabled()
