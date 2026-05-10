@@ -169,6 +169,10 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	}
 
 	const bool bComboRequirementSatisfied = !Card.Config.bRequiresComboFinisher || Context.bIsComboFinisher;
+	Result.bTriggeredFinisher = Result.bActionMatched
+		&& bComboRequirementSatisfied
+		&& Card.Config.CardType == ECombatCardType::Finisher;
+
 	if (Result.bActionMatched && bComboRequirementSatisfied)
 	{
 		const bool bCanUseRecipeLinks = IsLinkCardType(Card.Config.CardType) && !Card.Config.LinkRecipes.IsEmpty();
@@ -290,10 +294,6 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		Result.bTriggeredBaseFlow = true;
 		ExecuteFlow(Card.Config.BaseFlow, Card, Context, Result);
 	}
-
-	Result.bTriggeredFinisher = Result.bActionMatched
-		&& bComboRequirementSatisfied
-		&& Card.Config.CardType == ECombatCardType::Finisher;
 
 	LastResolvedCard = Card;
 	if (Context.AttackInstanceGuid.IsValid())
@@ -833,6 +833,10 @@ FCombatCardEffectContext UCombatDeckComponent::BuildCombatCardEffectContext(
 	EffectContext.ComboBonusStacks = GetComboBonusStacks(Context);
 	EffectContext.bFromLink = Result.bTriggeredLink || Result.bTriggeredForwardLink || Result.bTriggeredBackwardLink;
 	EffectContext.bIsComboFinisher = Context.bIsComboFinisher;
+	EffectContext.bSourceCardFinisher = Card.Config.CardType == ECombatCardType::Finisher;
+	EffectContext.bTriggeredFinisher = Result.bTriggeredFinisher;
+	EffectContext.bTriggeredForwardLink = Result.bTriggeredForwardLink;
+	EffectContext.bTriggeredBackwardLink = Result.bTriggeredBackwardLink;
 	return EffectContext;
 }
 

@@ -15,6 +15,7 @@
 #include "BuffFlow/Nodes/BFNode_DoDamage.h"
 #include "BuffFlow/Nodes/BFNode_DoOnce.h"
 #include "BuffFlow/Nodes/BFNode_FinishBuff.h"
+#include "BuffFlow/Nodes/BFNode_Fork.h"
 #include "BuffFlow/Nodes/BFNode_GrantGA.h"
 #include "BuffFlow/Nodes/BFNode_GetRuneTuningValue.h"
 #include "BuffFlow/Nodes/BFNode_HasTag.h"
@@ -53,6 +54,15 @@ public:
 
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;
+};
+
+UCLASS(NotBlueprintable, meta = (DisplayName = "分叉", Category = "技能|流程", Keywords = "Fork Branch Split Parallel Multi Output 分叉 并行 多输出 流程"))
+class DEVKIT_API UYogFlowNode_Fork : public UBFNode_Fork
+{
+	GENERATED_BODY()
+
+public:
+	UYogFlowNode_Fork(const FObjectInitializer& ObjectInitializer);
 };
 
 UCLASS(NotBlueprintable, meta = (DisplayName = "造成伤害时", Category = "技能|触发"))

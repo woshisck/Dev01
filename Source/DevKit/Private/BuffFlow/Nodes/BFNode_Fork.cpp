@@ -4,37 +4,17 @@ UBFNode_Fork::UBFNode_Fork(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITOR
-	Category = TEXT("BuffFlow|Flow");
+	Category = TEXT("Internal");
 #endif
 	InputPins = { FFlowPin(TEXT("In")) };
-	RebuildOutputPins();
-}
-
-void UBFNode_Fork::RebuildOutputPins()
-{
-	OutputPins.Reset();
-	for (int32 i = 0; i < OutputCount; ++i)
-	{
-		OutputPins.Add(FFlowPin(FName(*FString::Printf(TEXT("Out %d"), i + 1))));
-	}
+	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Out2")) };
 }
 
 void UBFNode_Fork::ExecuteInput(const FName& PinName)
 {
-	for (int32 i = 0; i < OutputCount; ++i)
+	for (int32 Index = 0; Index < OutputPins.Num(); ++Index)
 	{
-		const bool bFinish = (i == OutputCount - 1);
-		TriggerOutput(FName(*FString::Printf(TEXT("Out %d"), i + 1)), bFinish);
+		const bool bFinish = (Index == OutputPins.Num() - 1);
+		TriggerOutput(OutputPins[Index].PinName, bFinish);
 	}
 }
-
-#if WITH_EDITOR
-void UBFNode_Fork::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UBFNode_Fork, OutputCount))
-	{
-		RebuildOutputPins();
-	}
-}
-#endif

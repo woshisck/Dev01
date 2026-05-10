@@ -34,6 +34,14 @@ void UYogFlowNode_SkillPass::ExecuteInput(const FName& PinName)
 	TriggerOutput(TEXT("Out"), true);
 }
 
+UYogFlowNode_Fork::UYogFlowNode_Fork(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITOR
+	Category = TEXT("技能|流程");
+#endif
+}
+
 UYogFlowNode_TriggerDamageDealt::UYogFlowNode_TriggerDamageDealt(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

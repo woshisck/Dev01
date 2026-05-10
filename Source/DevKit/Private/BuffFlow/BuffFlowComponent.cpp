@@ -132,6 +132,10 @@ void UBuffFlowComponent::StartCombatCardFlow(
 	LastCombatCardEffectContext.ComboBonusStacks = FMath::Max(0, ActionContext.ComboIndex - 1);
 	LastCombatCardEffectContext.bFromLink = ResolveResult.bTriggeredLink || ResolveResult.bTriggeredForwardLink || ResolveResult.bTriggeredBackwardLink;
 	LastCombatCardEffectContext.bIsComboFinisher = ActionContext.bIsComboFinisher;
+	LastCombatCardEffectContext.bSourceCardFinisher = Card.Config.CardType == ECombatCardType::Finisher;
+	LastCombatCardEffectContext.bTriggeredFinisher = ResolveResult.bTriggeredFinisher;
+	LastCombatCardEffectContext.bTriggeredForwardLink = ResolveResult.bTriggeredForwardLink;
+	LastCombatCardEffectContext.bTriggeredBackwardLink = ResolveResult.bTriggeredBackwardLink;
 	bHasCombatCardEffectContext = true;
 
 	StartBuffFlowInternal(FlowAsset, Card.InstanceGuid, Giver, bRestartExistingFlow);
@@ -159,6 +163,10 @@ void UBuffFlowComponent::StartCombatCardFlowWithSourceTransform(
 	LastCombatCardEffectContext.ComboBonusStacks = FMath::Max(0, ActionContext.ComboIndex - 1);
 	LastCombatCardEffectContext.bFromLink = ResolveResult.bTriggeredLink || ResolveResult.bTriggeredForwardLink || ResolveResult.bTriggeredBackwardLink;
 	LastCombatCardEffectContext.bIsComboFinisher = ActionContext.bIsComboFinisher;
+	LastCombatCardEffectContext.bSourceCardFinisher = Card.Config.CardType == ECombatCardType::Finisher;
+	LastCombatCardEffectContext.bTriggeredFinisher = ResolveResult.bTriggeredFinisher;
+	LastCombatCardEffectContext.bTriggeredForwardLink = ResolveResult.bTriggeredForwardLink;
+	LastCombatCardEffectContext.bTriggeredBackwardLink = ResolveResult.bTriggeredBackwardLink;
 	bHasCombatCardEffectContext = true;
 	StartBuffFlowInternal(FlowAsset, FGuid::NewGuid(), Giver, bRestartExistingFlow, true);
 	bHasSourceTransformOverride = false;

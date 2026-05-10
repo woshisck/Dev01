@@ -3,6 +3,7 @@
 #include "BuffFlow/Nodes/YogFlowNodes.h"
 #include "BuffFlow/Nodes/BFNode_GetProjectileModule.h"
 #include "BuffFlow/Nodes/BFNode_GetAuraModule.h"
+#include "BuffFlow/Nodes/BFNode_CombatCardContext.h"
 #include "Data/RuneDataAsset.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
@@ -15,6 +16,7 @@
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
 #include "Nodes/FlowNode.h"
+#include "Nodes/Route/FlowNode_ExecutionSequence.h"
 #include "PropertyEditorModule.h"
 #include "RuneEditor/RuneEditorAuthoring.h"
 #include "RuneEditor/RuneEditorValidation.h"
@@ -1278,6 +1280,7 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildNodeLibraryPanel()
 	};
 
 	AddNode(ENodeLibraryFilter::Skill, UYogFlowNode_SkillPass::StaticClass(), LOCTEXT("NodeSkillPassName", "流程控制"), LOCTEXT("NodeSkillPassDescription", "串联技能或符文流程，默认直接触发下一节点。"));
+	AddNode(ENodeLibraryFilter::Skill, UFlowNode_ExecutionSequence::StaticClass(), LOCTEXT("NodeForkName", "分叉"), LOCTEXT("NodeForkDescription", "一个输入同时触发多个输出，适合从同一时机启动多条独立流程。"));
 	AddNode(ENodeLibraryFilter::Skill, UYogFlowNode_TriggerDamageDealt::StaticClass(), LOCTEXT("NodeTriggerDamageDealtName", "造成伤害时"), LOCTEXT("NodeTriggerDamageDealtDescription", "用于月光、穿透、攻击命中强化等命中后触发逻辑。"));
 	AddNode(ENodeLibraryFilter::Skill, UYogFlowNode_TriggerDamageReceived::StaticClass(), LOCTEXT("NodeTriggerDamageReceivedName", "受到伤害时"), LOCTEXT("NodeTriggerDamageReceivedDescription", "用于护盾、反击、受伤减伤等被击中触发逻辑。"));
 	AddNode(ENodeLibraryFilter::Skill, UYogFlowNode_TriggerCritHit::StaticClass(), LOCTEXT("NodeTriggerCritHitName", "暴击时"), LOCTEXT("NodeTriggerCritHitDescription", "用于暴击追加伤害、状态或表现。"));
@@ -1311,6 +1314,7 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildNodeLibraryPanel()
 	AddNode(ENodeLibraryFilter::Condition, UYogFlowNode_ConditionProbability::StaticClass(), LOCTEXT("NodeConditionProbabilityName", "概率判断"), LOCTEXT("NodeConditionProbabilityDescription", "按概率触发，可用于暴击追加、随机状态。"));
 	AddNode(ENodeLibraryFilter::Condition, UYogFlowNode_ConditionDoOnce::StaticClass(), LOCTEXT("NodeConditionDoOnceName", "只执行一次"), LOCTEXT("NodeConditionDoOnceDescription", "限制一次性触发，避免周期或连锁重复执行。"));
 	AddNode(ENodeLibraryFilter::Condition, UYogFlowNode_ConditionCheckDistance::StaticClass(), LOCTEXT("NodeConditionCheckDistanceName", "距离判断"), LOCTEXT("NodeConditionCheckDistanceDescription", "按距离筛选或分支，适合近远程差异效果。"));
+	AddNode(ENodeLibraryFilter::Condition, UBFNode_CombatCardContextBranch::StaticClass(), LOCTEXT("NodeConditionCombatCardContextName", "卡牌判断"), LOCTEXT("NodeConditionCombatCardContextDescription", "按卡牌类型、终结技、正反连携、Card.ID/Card.Effect 标签分支。"));
 
 	AddNode(ENodeLibraryFilter::Presentation, UYogFlowNode_PresentationPlayVFX::StaticClass(), LOCTEXT("NodePresentationPlayVFXName", "Niagara特效"), LOCTEXT("NodePresentationPlayVFXDescription", "播放 Niagara 表现。"));
 	AddNode(ENodeLibraryFilter::Presentation, UYogFlowNode_PresentationCueOnActor::StaticClass(), LOCTEXT("NodePresentationCueOnActorName", "Cue到角色"), LOCTEXT("NodePresentationCueOnActorDescription", "在角色身上触发 GameplayCue。"));
@@ -1319,6 +1323,7 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildNodeLibraryPanel()
 
 	AddNode(ENodeLibraryFilter::Lifecycle, UYogFlowNode_LifecycleDelay::StaticClass(), LOCTEXT("NodeLifecycleDelayName", "延迟"), LOCTEXT("NodeLifecycleDelayDescription", "延迟后继续流程。"));
 	AddNode(ENodeLibraryFilter::Lifecycle, UYogFlowNode_LifecycleFinishBuff::StaticClass(), LOCTEXT("NodeLifecycleFinishBuffName", "结束符文"), LOCTEXT("NodeLifecycleFinishBuffDescription", "主动结束当前符文 Buff 生命周期。"));
+	AddNode(ENodeLibraryFilter::Pure, UBFNode_Pure_CombatCardContext::StaticClass(), LOCTEXT("NodePureCombatCardContextName", "卡牌信息"), LOCTEXT("NodePureCombatCardContextDesc", "输出当前攻击卡、终结技、连携方向、倍率、Card.ID/Card.Effect 等数据。"));
 	AddNode(ENodeLibraryFilter::Pure, UBFNode_Pure_TuningValue::StaticClass(), LOCTEXT("NodePureTuningName", "读取数值"), LOCTEXT("NodePureTuningDesc", "输出数值表中某个 Key 的值，无执行引脚，拖线连接到效果节点的参数槽。"));
 	AddNode(ENodeLibraryFilter::Pure, UBFNode_Pure_ComboIndex::StaticClass(), LOCTEXT("NodePureComboName", "连击段数"), LOCTEXT("NodePureComboDesc", "输出当前连击段数，无执行引脚，可连接到伤害倍率等数值槽。"));
 

@@ -1,7 +1,12 @@
 #include "BuffFlow/YogRuneFlowAsset.h"
 
+#include "BuffFlow/Nodes/BFNode_GetAuraModule.h"
+#include "BuffFlow/Nodes/BFNode_GetProjectileModule.h"
+#include "BuffFlow/Nodes/BFNode_BlueprintBase.h"
+#include "BuffFlow/Nodes/BFNode_CombatCardContext.h"
 #include "BuffFlow/Nodes/YogFlowNodes.h"
 #include "Nodes/Graph/FlowNode_Start.h"
+#include "Nodes/Route/FlowNode_ExecutionSequence.h"
 
 UYogRuneFlowAsset::UYogRuneFlowAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -10,6 +15,9 @@ UYogRuneFlowAsset::UYogRuneFlowAsset(const FObjectInitializer& ObjectInitializer
 	AllowedNodeClasses.Reset();
 	AllowedNodeClasses.Add(UFlowNode_Start::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_SkillPass::StaticClass());
+	AllowedNodeClasses.Add(UFlowNode_ExecutionSequence::StaticClass());
+	AllowedNodeClasses.Add(UYogFlowNode_Fork::StaticClass());
+	AllowedNodeClasses.Add(UBFNode_BlueprintBase::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_TriggerDamageDealt::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_TriggerDamageReceived::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_TriggerCritHit::StaticClass());
@@ -30,6 +38,8 @@ UYogRuneFlowAsset::UYogRuneFlowAsset(const FObjectInitializer& ObjectInitializer
 	AllowedNodeClasses.Add(UYogFlowNode_TaskSearchTarget::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_TaskEndSkill::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_TaskPlayAnimation::StaticClass());
+	AllowedNodeClasses.Add(UBFNode_GetProjectileModule::StaticClass());
+	AllowedNodeClasses.Add(UBFNode_GetAuraModule::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_SpawnProjectileProfile::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_SpawnAreaProfile::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_SpawnGroundPath::StaticClass());
@@ -39,6 +49,7 @@ UYogRuneFlowAsset::UYogRuneFlowAsset(const FObjectInitializer& ObjectInitializer
 	AllowedNodeClasses.Add(UYogFlowNode_ConditionProbability::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_ConditionDoOnce::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_ConditionCheckDistance::StaticClass());
+	AllowedNodeClasses.Add(UBFNode_CombatCardContextBranch::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_PresentationPlayVFX::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_PresentationCueOnActor::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_PresentationCueAtLocation::StaticClass());
@@ -46,6 +57,7 @@ UYogRuneFlowAsset::UYogRuneFlowAsset(const FObjectInitializer& ObjectInitializer
 	AllowedNodeClasses.Add(UYogFlowNode_PresentationFlipbook::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_LifecycleDelay::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_LifecycleFinishBuff::StaticClass());
+	AllowedNodeClasses.Add(UBFNode_Pure_CombatCardContext::StaticClass());
 	AllowedNodeClasses.Add(UBFNode_Pure_TuningValue::StaticClass());
 	AllowedNodeClasses.Add(UBFNode_Pure_ComboIndex::StaticClass());
 

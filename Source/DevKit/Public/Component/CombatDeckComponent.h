@@ -205,6 +205,18 @@ struct DEVKIT_API FCombatCardEffectContext
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
 	bool bIsComboFinisher = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bSourceCardFinisher = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bTriggeredFinisher = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bTriggeredForwardLink = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bTriggeredBackwardLink = false;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeckLoaded, const TArray<FCombatCardInstance>&, ActiveSequence);
