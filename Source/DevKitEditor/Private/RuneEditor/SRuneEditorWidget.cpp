@@ -4,6 +4,8 @@
 #include "BuffFlow/Nodes/BFNode_GetProjectileModule.h"
 #include "BuffFlow/Nodes/BFNode_GetAuraModule.h"
 #include "BuffFlow/Nodes/BFNode_CombatCardContext.h"
+#include "BuffFlow/Nodes/BFNode_CompareFloat.h"
+#include "BuffFlow/Nodes/BFNode_MathFloat.h"
 #include "Data/RuneDataAsset.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
@@ -1286,7 +1288,8 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildNodeLibraryPanel()
 	AddNode(ENodeLibraryFilter::Skill, UYogFlowNode_TriggerCritHit::StaticClass(), LOCTEXT("NodeTriggerCritHitName", "暴击时"), LOCTEXT("NodeTriggerCritHitDescription", "用于暴击追加伤害、状态或表现。"));
 	AddNode(ENodeLibraryFilter::Skill, UYogFlowNode_TriggerKill::StaticClass(), LOCTEXT("NodeTriggerKillName", "击杀时"), LOCTEXT("NodeTriggerKillDescription", "用于击杀回血、爆炸、连锁触发。"));
 	AddNode(ENodeLibraryFilter::Skill, UYogFlowNode_TriggerDash::StaticClass(), LOCTEXT("NodeTriggerDashName", "冲刺时"), LOCTEXT("NodeTriggerDashDescription", "用于冲刺残影、月光影、冲刺施法等。"));
-	AddNode(ENodeLibraryFilter::Skill, UYogFlowNode_TriggerGameplayEvent::StaticClass(), LOCTEXT("NodeTriggerGameplayEventName", "等待事件"), LOCTEXT("NodeTriggerGameplayEventDescription", "监听自定义 Gameplay Event，适合后续扩展符文事件。"));
+	AddNode(ENodeLibraryFilter::Skill, UYogFlowNode_TriggerGameplayEvent::StaticClass(), LOCTEXT("NodeTriggerGameplayEventName", "等待事件"), LOCTEXT("NodeTriggerGameplayEventDescription", "持续监听 GameplayEvent，每次收到都触发 Out；用于充能命中、引爆等循环等待流程。"));
+	AddNode(ENodeLibraryFilter::Skill, UYogFlowNode_EffectSendGameplayEvent::StaticClass(), LOCTEXT("NodeEffectSendGameplayEventName", "发送事件"), LOCTEXT("NodeEffectSendGameplayEventDescription", "向目标 ASC 发送 GameplayEvent，触发监听该事件的 GA；支持事件强度数据引脚传值。"));
 
 	AddNode(ENodeLibraryFilter::Effect, UYogFlowNode_EffectDamage::StaticClass(), LOCTEXT("NodeEffectDamageName", "伤害"), LOCTEXT("NodeEffectDamageDescription", "对目标造成一次直接伤害。"));
 	AddNode(ENodeLibraryFilter::Effect, UYogFlowNode_EffectHeal::StaticClass(), LOCTEXT("NodeEffectHealName", "治疗"), LOCTEXT("NodeEffectHealDescription", "恢复目标属性值，可作为瞬时治疗效果。"));
@@ -1315,6 +1318,8 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildNodeLibraryPanel()
 	AddNode(ENodeLibraryFilter::Condition, UYogFlowNode_ConditionDoOnce::StaticClass(), LOCTEXT("NodeConditionDoOnceName", "只执行一次"), LOCTEXT("NodeConditionDoOnceDescription", "限制一次性触发，避免周期或连锁重复执行。"));
 	AddNode(ENodeLibraryFilter::Condition, UYogFlowNode_ConditionCheckDistance::StaticClass(), LOCTEXT("NodeConditionCheckDistanceName", "距离判断"), LOCTEXT("NodeConditionCheckDistanceDescription", "按距离筛选或分支，适合近远程差异效果。"));
 	AddNode(ENodeLibraryFilter::Condition, UBFNode_CombatCardContextBranch::StaticClass(), LOCTEXT("NodeConditionCombatCardContextName", "卡牌判断"), LOCTEXT("NodeConditionCombatCardContextDescription", "按卡牌类型、终结技、正反连携、Card.ID/Card.Effect 标签分支。"));
+	AddNode(ENodeLibraryFilter::Condition, UBFNode_CompareFloat::StaticClass(), LOCTEXT("NodeCompareFloatName", "比较数值"), LOCTEXT("NodeCompareFloatDescription", "比较两个浮点数（>、>=、==、<=、<、!=），结果分 True/False 两路；A 支持数据引脚连线。"));
+	AddNode(ENodeLibraryFilter::Condition, UBFNode_MathFloat::StaticClass(), LOCTEXT("NodeMathFloatName", "浮点运算"), LOCTEXT("NodeMathFloatDescription", "对两个浮点数做 +、-、×、÷ 运算，结果输出数据引脚，可接到伤害/倍率/阈值等字段。"));
 
 	AddNode(ENodeLibraryFilter::Presentation, UYogFlowNode_PresentationPlayVFX::StaticClass(), LOCTEXT("NodePresentationPlayVFXName", "Niagara特效"), LOCTEXT("NodePresentationPlayVFXDescription", "播放 Niagara 表现。"));
 	AddNode(ENodeLibraryFilter::Presentation, UYogFlowNode_PresentationCueOnActor::StaticClass(), LOCTEXT("NodePresentationCueOnActorName", "Cue到角色"), LOCTEXT("NodePresentationCueOnActorDescription", "在角色身上触发 GameplayCue。"));

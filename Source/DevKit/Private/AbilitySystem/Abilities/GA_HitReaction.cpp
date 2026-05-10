@@ -18,6 +18,9 @@ UGA_HitReaction::UGA_HitReaction(const FObjectInitializer& ObjectInitializer)
     // 受击硬直中，StateConflict 系统可据此 Tag 阻断低优先级技能
     ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HitReact")));
 
+    // 击退中不重复激活受击 GA（击退有自己的受击动画 + Root Motion）
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Knockback")));
+
     // 每次受击独立实例，并发受击各自播放各自的动画
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 

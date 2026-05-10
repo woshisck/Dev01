@@ -3,6 +3,7 @@
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayTagsManager.h"
 #include "Character/YogCharacterBase.h"
@@ -20,8 +21,10 @@ UGA_Knockback::UGA_Knockback(const FObjectInitializer& ObjectInitializer)
     // 实例化模式：每次激活一个独立实例
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 
+    // 击退激活时立即取消受击硬直 GA（GA_HitReaction），改为播放击退专用动画
+    CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact")));
+
     // 监听 Action.Knockback 事件自动激活（FA 的 Send Gameplay Event 节点发出此 Tag）
-    // 设置在 C++ 中后无需 Blueprint 子类配置 AbilityTriggers
     FAbilityTriggerData TriggerData;
     TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"));
     TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
@@ -81,13 +84,20 @@ void UGA_Knockback::ActivateAbility(
     // 函数签名：(OwningAbility, TaskName, TargetLocation, Duration,
     //            bSetNewMovementMode, NewMovementMode, bRestrictSpeedToExpected,
     //            PathOffsetCurve, VelocityOnFinishMode, SetVelocityOnFinish, ClampVelocityOnFinish)
+    {
+        UCharacterMovementComponent* CMC = TargetChar->GetCharacterMovement();
+        UE_LOG(LogTemp, Warning, TEXT("[GA_Knockback] KnockDir=%s TargetLoc=%s Distance=%.0f Duration=%.2f CMC_Mode=%d"),
+            *KnockbackDir.ToString(), *TargetLocation.ToString(),
+            EffectiveKnockbackDistance, KnockbackDuration,
+            CMC ? (int32)CMC->MovementMode : -1);
+    }
     KnockbackTask = UAbilityTask_ApplyRootMotionMoveToForce::ApplyRootMotionMoveToForce(
         this,
         NAME_None,
         TargetLocation,
         KnockbackDuration,
-        false,                      // bSetNewMovementMode
-        EMovementMode::MOVE_Walking,// NewMovementMode（bSetNewMovementMode=false 时忽略）
+        true,                       // bSetNewMovementMode — 强制切到 Walking，避免 MOVE_None 跳过 Root Motion
+        EMovementMode::MOVE_Walking,// NewMovementMode
         true,                       // bRestrictSpeedToExpected
         nullptr,                    // PathOffsetCurve
         bZeroVelocityOnFinish

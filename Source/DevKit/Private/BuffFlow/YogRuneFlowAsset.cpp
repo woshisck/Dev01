@@ -4,6 +4,9 @@
 #include "BuffFlow/Nodes/BFNode_GetProjectileModule.h"
 #include "BuffFlow/Nodes/BFNode_BlueprintBase.h"
 #include "BuffFlow/Nodes/BFNode_CombatCardContext.h"
+#include "BuffFlow/Nodes/BFNode_CompareFloat.h"
+#include "BuffFlow/Nodes/BFNode_GetRuneTuningValue.h"
+#include "BuffFlow/Nodes/BFNode_MathFloat.h"
 #include "BuffFlow/Nodes/YogFlowNodes.h"
 #include "Nodes/Graph/FlowNode_Start.h"
 #include "Nodes/Route/FlowNode_ExecutionSequence.h"
@@ -24,6 +27,7 @@ UYogRuneFlowAsset::UYogRuneFlowAsset(const FObjectInitializer& ObjectInitializer
 	AllowedNodeClasses.Add(UYogFlowNode_TriggerKill::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_TriggerDash::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_TriggerGameplayEvent::StaticClass());
+	AllowedNodeClasses.Add(UYogFlowNode_EffectSendGameplayEvent::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_EffectDamage::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_EffectHeal::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_EffectCost::StaticClass());
@@ -51,6 +55,9 @@ UYogRuneFlowAsset::UYogRuneFlowAsset(const FObjectInitializer& ObjectInitializer
 	AllowedNodeClasses.Add(UYogFlowNode_ConditionDoOnce::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_ConditionCheckDistance::StaticClass());
 	AllowedNodeClasses.Add(UBFNode_CombatCardContextBranch::StaticClass());
+	AllowedNodeClasses.Add(UBFNode_CompareFloat::StaticClass());
+	AllowedNodeClasses.Add(UBFNode_MathFloat::StaticClass());
+	AllowedNodeClasses.Add(UBFNode_GetRuneTuningValue::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_PresentationPlayVFX::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_PresentationCueOnActor::StaticClass());
 	AllowedNodeClasses.Add(UYogFlowNode_PresentationCueAtLocation::StaticClass());

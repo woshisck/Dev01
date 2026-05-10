@@ -36,6 +36,11 @@ UGA_FinisherCharge::UGA_FinisherCharge(const FObjectInitializer& ObjectInitializ
 	TriggerData.TriggerTag = TAG_Action_FinisherCharge_Activate;
 	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
 	AbilityTriggers.Add(TriggerData);
+
+	// 让 GA_PlayerDash::PreActivate 的豁免检查能看到这个 GA 的持续 buff 标签，
+	// 从而在冲刺时不取消此 GA（Buff.Status.* 被 DashCancelProtectedTags 保护）。
+	// GAS 会在技能激活时自动把此 tag 加到 ASC，EndAbility 时自动移除。
+	ActivationOwnedTags.AddTag(TAG_Buff_Status_FinisherWindowOpen);
 }
 
 void UGA_FinisherCharge::ActivateAbility(

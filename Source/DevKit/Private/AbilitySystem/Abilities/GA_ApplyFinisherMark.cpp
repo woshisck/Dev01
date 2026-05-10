@@ -1,5 +1,6 @@
 #include "AbilitySystem/Abilities/GA_ApplyFinisherMark.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 
 static const FGameplayTag TAG_Action_Mark_Apply_Finisher =
@@ -11,7 +12,8 @@ static const FGameplayTag TAG_Buff_Status_Mark_Finisher =
 UGA_ApplyFinisherMark::UGA_ApplyFinisherMark(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	InstancingPolicy = EGameplayAbilityInstancingPolicy::NonInstanced;
+	// InstancedPerExecution 避免 NonInstanced 共享 CurrentActorInfo 导致的断言崩溃
+	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 
 	FAbilityTriggerData TriggerData;
 	TriggerData.TriggerTag = TAG_Action_Mark_Apply_Finisher;
@@ -34,19 +36,26 @@ void UGA_ApplyFinisherMark::ActivateAbility(
 		return;
 	}
 
-	UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	if (!ASC)
+	// TriggerEventData.Target 是被命中的敌人（由 FA 发送事件时写入 Payload 目标）
+	AActor* TargetActor = TriggerEventData ? const_cast<AActor*>(TriggerEventData->Target.Get()) : nullptr;
+	UAbilitySystemComponent* TargetASC = TargetActor
+		? UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor)
+		: nullptr;
+
+	if (!TargetASC)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[GA_ApplyFinisherMark] Target has no ASC. Target=%s"), *GetNameSafe(TargetActor));
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	if (!ASC->HasMatchingGameplayTag(TAG_Buff_Status_Mark_Finisher))
+	if (!TargetASC->HasMatchingGameplayTag(TAG_Buff_Status_Mark_Finisher))
 	{
 		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(FinisherMarkGEClass, GetAbilityLevel());
 		if (SpecHandle.IsValid())
 		{
-			ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
+			// 将印记施加到敌人（Target），而非玩家自身
+			TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get(), FPredictionKey());
 		}
 	}
 

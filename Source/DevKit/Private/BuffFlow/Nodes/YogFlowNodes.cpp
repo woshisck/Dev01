@@ -376,6 +376,32 @@ UYogFlowNode_MathFloat::UYogFlowNode_MathFloat(const FObjectInitializer& ObjectI
 // Pure 数据节点实现
 // ---------------------------------------------------------------------------
 
+TArray<FString> UBFNode_Pure_TuningValue::GetPresetKeyNames()
+{
+	return {
+		TEXT("Attack.Damage"),
+		TEXT("Attack.Damage.01"), TEXT("Attack.Damage.02"), TEXT("Attack.Damage.03"),
+		TEXT("Burn.Damage"),
+		TEXT("Burn.Damage.01"), TEXT("Burn.Damage.02"), TEXT("Burn.Damage.03"),
+		TEXT("Burn.Duration"),
+		TEXT("Burn.Duration.01"), TEXT("Burn.Duration.02"),
+		TEXT("Poison.Stack"),
+		TEXT("Poison.Stack.01"), TEXT("Poison.Stack.02"),
+		TEXT("Poison.Duration"),
+		TEXT("Poison.Duration.01"), TEXT("Poison.Duration.02"),
+		TEXT("Moonlight.ProjectileCount"),
+		TEXT("Moonlight.ProjectileCount.01"), TEXT("Moonlight.ProjectileCount.02"),
+		TEXT("Moonlight.ProjectileSpeed"),
+		TEXT("Moonlight.ProjectileSpeed.01"),
+		TEXT("Finisher.Damage"),
+		TEXT("Finisher.Damage.01"), TEXT("Finisher.Damage.02"),
+		TEXT("Finisher.AOERadius"),
+		TEXT("Finisher.AOERadius.01"),
+		TEXT("DetonationDamage"),
+		TEXT("KnockbackDistance"),
+	};
+}
+
 UBFNode_Pure_TuningValue::UBFNode_Pure_TuningValue(const FObjectInitializer& OI) : Super(OI)
 {
 #if WITH_EDITOR
@@ -390,7 +416,7 @@ FFlowDataPinResult_Float UBFNode_Pure_TuningValue::TrySupplyDataPinAsFloat_Imple
 	{
 		if (UBuffFlowComponent* BFC = GetBuffFlowComponent())
 		{
-			return FFlowDataPinResult_Float(BFC->GetRuneTuningValueForFlow(GetFlowAsset(), TuningKey, DefaultValue));
+			return FFlowDataPinResult_Float(BFC->GetRuneTuningValueForFlow(GetFlowAsset(), GetActiveKey(), DefaultValue));
 		}
 		return FFlowDataPinResult_Float(DefaultValue);
 	}

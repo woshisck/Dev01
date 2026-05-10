@@ -444,11 +444,25 @@ class DEVKIT_API UBFNode_Pure_TuningValue : public UBFNode_PureData
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Pure", meta = (ToolTip = "数值表中的 Key 名称"))
+	// 打开后可手动输入任意 Key；关闭则从预设下拉选择
+	UPROPERTY(EditAnywhere, Category = "Pure", meta = (DisplayName = "自定义Key"))
+	bool bCustomKey = false;
+
+	// 预设下拉（bCustomKey = false 时显示）
+	UPROPERTY(EditAnywhere, Category = "Pure", meta = (ToolTip = "从预设列表选择数值 Key", GetOptions = "GetPresetKeyNames", EditCondition = "!bCustomKey", EditConditionHides))
 	FName TuningKey;
+
+	// 自由输入（bCustomKey = true 时显示）
+	UPROPERTY(EditAnywhere, Category = "Pure", meta = (DisplayName = "Key（自定义）", ToolTip = "手动输入数值表中的任意 Key 名称", EditCondition = "bCustomKey", EditConditionHides))
+	FName CustomTuningKey;
 
 	UPROPERTY(EditAnywhere, Category = "Pure", meta = (ToolTip = "Key 不存在时的回退值"))
 	float DefaultValue = 0.f;
+
+	UFUNCTION()
+	static TArray<FString> GetPresetKeyNames();
+
+	FName GetActiveKey() const { return bCustomKey ? CustomTuningKey : TuningKey; }
 
 	virtual FFlowDataPinResult_Float TrySupplyDataPinAsFloat_Implementation(const FName& PinName) const override;
 };
