@@ -9,26 +9,43 @@
 #include "Kismet/GameplayStatics.h"
 #include "UI/YogHUD.h"
 
-static const FGameplayTag TAG_Action_FinisherCharge_Activate =
-	FGameplayTag::RequestGameplayTag(TEXT("Action.FinisherCharge.Activate"));
+namespace
+{
+FGameplayTag GetGAFinisherChargeActivateTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Action.FinisherCharge.Activate"));
+}
 
-static const FGameplayTag TAG_Action_FinisherCharge_ChargeConsumed =
-	FGameplayTag::RequestGameplayTag(TEXT("Action.FinisherCharge.ChargeConsumed"));
+FGameplayTag GetGAFinisherChargeConsumedTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Action.FinisherCharge.ChargeConsumed"));
+}
 
-static const FGameplayTag TAG_Buff_Status_FinisherCharge =
-	FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherCharge"));
+FGameplayTag GetGAFinisherChargeBuffTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherCharge"));
+}
 
-static const FGameplayTag TAG_FinisherCharge_Buff_Status_Mark_Finisher =
-	FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Mark.Finisher"));
+FGameplayTag GetGAFinisherChargeMarkBuffTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Mark.Finisher"));
+}
 
-static const FGameplayTag TAG_Buff_Status_FinisherWindowOpen =
-	FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherWindowOpen"));
+FGameplayTag GetGAFinisherChargeWindowOpenTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherWindowOpen"));
+}
 
-static const FGameplayTag TAG_Ability_Event_Attack_Hit =
-	FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
+FGameplayTag GetGAFinisherChargeAttackHitEventTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
+}
 
-static const FGameplayTag TAG_Buff_Status_FinisherExecuting =
-	FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherExecuting"));
+FGameplayTag GetGAFinisherChargeExecutingTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherExecuting"));
+}
+}
 
 UGA_FinisherCharge::UGA_FinisherCharge(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -36,14 +53,14 @@ UGA_FinisherCharge::UGA_FinisherCharge(const FObjectInitializer& ObjectInitializ
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 
 	FAbilityTriggerData TriggerData;
-	TriggerData.TriggerTag = TAG_Action_FinisherCharge_Activate;
+	TriggerData.TriggerTag = GetGAFinisherChargeActivateTag();
 	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
 	AbilityTriggers.Add(TriggerData);
 
 	// 让 GA_PlayerDash::PreActivate 的豁免检查能看到这个 GA 的持续 buff 标签，
 	// 从而在冲刺时不取消此 GA（Buff.Status.* 被 DashCancelProtectedTags 保护）。
 	// GAS 会在技能激活时自动把此 tag 加到 ASC，EndAbility 时自动移除。
-	ActivationOwnedTags.AddTag(TAG_Buff_Status_FinisherWindowOpen);
+	ActivationOwnedTags.AddTag(GetGAFinisherChargeWindowOpenTag());
 	ComboHintTitle = FText::FromString(TEXT("终结技准备就绪"));
 	ComboHintBody = FText::FromString(TEXT("在强化时间内打出 H -> H -> H，最后一击后会自动触发终结技。"));
 }
@@ -86,16 +103,16 @@ void UGA_FinisherCharge::ActivateAbility(
 		RemainingCharges = MaxCharges;
 	}
 
-	ASC->AddLooseGameplayTag(TAG_Buff_Status_FinisherWindowOpen);
+	ASC->AddLooseGameplayTag(GetGAFinisherChargeWindowOpenTag());
 	ShowComboHint();
 
 	TagChangedHandle = ASC->RegisterGameplayTagEvent(
-		TAG_Buff_Status_FinisherCharge,
+		GetGAFinisherChargeBuffTag(),
 		EGameplayTagEventType::NewOrRemoved).AddUObject(this, &UGA_FinisherCharge::OnFinisherChargeTagChanged);
 
 	WaitHitTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
 		this,
-		TAG_Ability_Event_Attack_Hit,
+		GetGAFinisherChargeAttackHitEventTag(),
 		nullptr,
 		false,
 		true);
@@ -128,7 +145,7 @@ void UGA_FinisherCharge::OnAttackHit(FGameplayEventData EventData)
 	FGameplayEventData ChargeConsumedPayload;
 	ChargeConsumedPayload.Instigator = GetAvatarActorFromActorInfo();
 	ChargeConsumedPayload.Target = HitTarget;
-	PlayerASC->HandleGameplayEvent(TAG_Action_FinisherCharge_ChargeConsumed, &ChargeConsumedPayload);
+	PlayerASC->HandleGameplayEvent(GetGAFinisherChargeConsumedTag(), &ChargeConsumedPayload);
 
 	--RemainingCharges;
 
@@ -176,7 +193,7 @@ void UGA_FinisherCharge::ClearAllMarks()
 	}
 
 	UAbilitySystemComponent* ASC = CurrentActorInfo ? CurrentActorInfo->AbilitySystemComponent.Get() : nullptr;
-	if (ASC && ASC->HasMatchingGameplayTag(TAG_Buff_Status_FinisherExecuting))
+	if (ASC && ASC->HasMatchingGameplayTag(GetGAFinisherChargeExecutingTag()))
 	{
 		return;
 	}
@@ -191,9 +208,9 @@ void UGA_FinisherCharge::ClearAllMarks()
 			continue;
 		}
 
-		if (Character->GetASC()->HasMatchingGameplayTag(TAG_FinisherCharge_Buff_Status_Mark_Finisher))
+		if (Character->GetASC()->HasMatchingGameplayTag(GetGAFinisherChargeMarkBuffTag()))
 		{
-			Character->GetASC()->RemoveActiveEffectsWithGrantedTags(FGameplayTagContainer(TAG_FinisherCharge_Buff_Status_Mark_Finisher));
+			Character->GetASC()->RemoveActiveEffectsWithGrantedTags(FGameplayTagContainer(GetGAFinisherChargeMarkBuffTag()));
 		}
 	}
 }
@@ -258,16 +275,16 @@ void UGA_FinisherCharge::EndAbility(
 		if (TagChangedHandle.IsValid())
 		{
 			ASC->RegisterGameplayTagEvent(
-				TAG_Buff_Status_FinisherCharge,
+				GetGAFinisherChargeBuffTag(),
 				EGameplayTagEventType::NewOrRemoved).Remove(TagChangedHandle);
 			TagChangedHandle.Reset();
 		}
 
-		ASC->RemoveLooseGameplayTag(TAG_Buff_Status_FinisherWindowOpen);
+		ASC->RemoveLooseGameplayTag(GetGAFinisherChargeWindowOpenTag());
 
-		if (ASC->HasMatchingGameplayTag(TAG_Buff_Status_FinisherCharge))
+		if (ASC->HasMatchingGameplayTag(GetGAFinisherChargeBuffTag()))
 		{
-			ASC->RemoveActiveEffectsWithGrantedTags(FGameplayTagContainer(TAG_Buff_Status_FinisherCharge));
+			ASC->RemoveActiveEffectsWithGrantedTags(FGameplayTagContainer(GetGAFinisherChargeBuffTag()));
 		}
 	}
 

@@ -3,11 +3,18 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 
-static const FGameplayTag TAG_Action_Mark_Apply_Finisher =
-	FGameplayTag::RequestGameplayTag(TEXT("Action.Mark.Apply.Finisher"));
+namespace
+{
+FGameplayTag GetGAApplyFinisherMarkActionTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Action.Mark.Apply.Finisher"));
+}
 
-static const FGameplayTag TAG_Buff_Status_Mark_Finisher =
-	FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Mark.Finisher"));
+FGameplayTag GetGAApplyFinisherMarkBuffTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Mark.Finisher"));
+}
+}
 
 UGA_ApplyFinisherMark::UGA_ApplyFinisherMark(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -16,7 +23,7 @@ UGA_ApplyFinisherMark::UGA_ApplyFinisherMark(const FObjectInitializer& ObjectIni
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 
 	FAbilityTriggerData TriggerData;
-	TriggerData.TriggerTag = TAG_Action_Mark_Apply_Finisher;
+	TriggerData.TriggerTag = GetGAApplyFinisherMarkActionTag();
 	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
 	AbilityTriggers.Add(TriggerData);
 }
@@ -49,7 +56,7 @@ void UGA_ApplyFinisherMark::ActivateAbility(
 		return;
 	}
 
-	if (!TargetASC->HasMatchingGameplayTag(TAG_Buff_Status_Mark_Finisher))
+	if (!TargetASC->HasMatchingGameplayTag(GetGAApplyFinisherMarkBuffTag()))
 	{
 		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(FinisherMarkGEClass, GetAbilityLevel());
 		if (SpecHandle.IsValid())

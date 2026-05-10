@@ -18,26 +18,43 @@
 #include "UI/YogHUD.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 
-static const FGameplayTag TAG_Action_Player_FinisherAttack =
-	FGameplayTag::RequestGameplayTag(TEXT("Action.Player.FinisherAttack"));
+namespace
+{
+FGameplayTag GetGAPlayerFinisherAttackTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Action.Player.FinisherAttack"));
+}
 
-static const FGameplayTag TAG_Action_Finisher_Confirm =
-	FGameplayTag::RequestGameplayTag(TEXT("Action.Finisher.Confirm"));
+FGameplayTag GetGAPlayerFinisherConfirmTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Action.Finisher.Confirm"));
+}
 
-static const FGameplayTag TAG_Ability_Event_Finisher_HitFrame =
-	FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Finisher.HitFrame"));
+FGameplayTag GetGAPlayerFinisherHitFrameEventTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Finisher.HitFrame"));
+}
 
-static const FGameplayTag TAG_PlayerFinisherAttack_Buff_Status_Mark_Finisher =
-	FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Mark.Finisher"));
+FGameplayTag GetGAPlayerFinisherMarkBuffTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Mark.Finisher"));
+}
 
-static const FGameplayTag TAG_Buff_Status_Dead =
-	FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"));
+FGameplayTag GetGAPlayerFinisherDeadTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"));
+}
 
-static const FGameplayTag TAG_Action_Mark_Detonate_Finisher =
-	FGameplayTag::RequestGameplayTag(TEXT("Action.Mark.Detonate.Finisher"));
+FGameplayTag GetGAPlayerFinisherDetonateMarkTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Action.Mark.Detonate.Finisher"));
+}
 
-static const FGameplayTag TAG_Buff_Status_FinisherQTEOpen =
-	FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherQTEOpen"));
+FGameplayTag GetGAPlayerFinisherQTEOpenTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherQTEOpen"));
+}
+}
 
 UGA_Player_FinisherAttack::UGA_Player_FinisherAttack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -45,7 +62,7 @@ UGA_Player_FinisherAttack::UGA_Player_FinisherAttack(const FObjectInitializer& O
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 
 	FAbilityTriggerData TriggerData;
-	TriggerData.TriggerTag = TAG_Action_Player_FinisherAttack;
+	TriggerData.TriggerTag = GetGAPlayerFinisherAttackTag();
 	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
 	AbilityTriggers.Add(TriggerData);
 
@@ -87,8 +104,8 @@ void UGA_Player_FinisherAttack::ActivateAbility(
 	StartPreFinisherAura();
 
 	FGameplayTagContainer EventTags;
-	EventTags.AddTag(TAG_Action_Finisher_Confirm);
-	EventTags.AddTag(TAG_Ability_Event_Finisher_HitFrame);
+	EventTags.AddTag(GetGAPlayerFinisherConfirmTag());
+	EventTags.AddTag(GetGAPlayerFinisherHitFrameEventTag());
 
 	MontageTask = UYogAbilityTask_PlayMontageAndWaitForEvent::PlayMontageAndWaitForEvent(
 		this,
@@ -135,12 +152,12 @@ void UGA_Player_FinisherAttack::ActivateAbility(
 
 void UGA_Player_FinisherAttack::OnMontageEvent(FGameplayTag EventTag, FGameplayEventData EventData)
 {
-	if (EventTag == TAG_Action_Finisher_Confirm)
+	if (EventTag == GetGAPlayerFinisherConfirmTag())
 	{
 		if (!bPlayerConfirmed)
 		{
 			UAbilitySystemComponent* ASC = CurrentActorInfo ? CurrentActorInfo->AbilitySystemComponent.Get() : nullptr;
-			if (!ASC || !ASC->HasMatchingGameplayTag(TAG_Buff_Status_FinisherQTEOpen))
+			if (!ASC || !ASC->HasMatchingGameplayTag(GetGAPlayerFinisherQTEOpenTag()))
 			{
 				return;
 			}
@@ -148,7 +165,7 @@ void UGA_Player_FinisherAttack::OnMontageEvent(FGameplayTag EventTag, FGameplayE
 			bPlayerConfirmed = true;
 			bFallbackQTEOpened = false;
 			ClearTicker(FallbackQTEEndTickerHandle);
-			ASC->SetLooseGameplayTagCount(TAG_Buff_Status_FinisherQTEOpen, 0);
+			ASC->SetLooseGameplayTagCount(GetGAPlayerFinisherQTEOpenTag(), 0);
 			RestoreTimeDilation(true);
 
 			if (AYogCharacterBase* Character = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo()))
@@ -164,7 +181,7 @@ void UGA_Player_FinisherAttack::OnMontageEvent(FGameplayTag EventTag, FGameplayE
 			}
 		}
 	}
-	else if (EventTag == TAG_Ability_Event_Finisher_HitFrame)
+	else if (EventTag == GetGAPlayerFinisherHitFrameEventTag())
 	{
 		HandleFinisherHitFrame(EventData);
 	}
@@ -207,11 +224,11 @@ void UGA_Player_FinisherAttack::DetonateMarks(bool bConfirmed)
 		{
 			continue;
 		}
-		if (Target->GetASC()->HasMatchingGameplayTag(TAG_Buff_Status_Dead))
+		if (Target->GetASC()->HasMatchingGameplayTag(GetGAPlayerFinisherDeadTag()))
 		{
 			continue;
 		}
-		if (!Target->GetASC()->HasMatchingGameplayTag(TAG_PlayerFinisherAttack_Buff_Status_Mark_Finisher))
+		if (!Target->GetASC()->HasMatchingGameplayTag(GetGAPlayerFinisherMarkBuffTag()))
 		{
 			continue;
 		}
@@ -220,7 +237,7 @@ void UGA_Player_FinisherAttack::DetonateMarks(bool bConfirmed)
 		DetEvent.Instigator = PlayerActor;
 		DetEvent.Target = Target;
 		DetEvent.EventMagnitude = ConfirmMultiplier;
-		PlayerASC->HandleGameplayEvent(TAG_Action_Mark_Detonate_Finisher, &DetEvent);
+		PlayerASC->HandleGameplayEvent(GetGAPlayerFinisherDetonateMarkTag(), &DetEvent);
 	}
 }
 
@@ -237,7 +254,7 @@ void UGA_Player_FinisherAttack::ApplyFinisherHitbox(const FGameplayEventData& Ev
 		return;
 	}
 
-	FYogGameplayEffectContainerSpec ContainerSpec = MakeEffectContainerSpec(TAG_Ability_Event_Finisher_HitFrame, EventData, -1);
+	FYogGameplayEffectContainerSpec ContainerSpec = MakeEffectContainerSpec(GetGAPlayerFinisherHitFrameEventTag(), EventData, -1);
 	const TArray<FActiveGameplayEffectHandle> Handles = ApplyEffectContainerSpec(ContainerSpec);
 	if (Handles.IsEmpty())
 	{
@@ -331,7 +348,7 @@ void UGA_Player_FinisherAttack::OpenFallbackQTEWindow()
 	}
 
 	UAbilitySystemComponent* ASC = CurrentActorInfo ? CurrentActorInfo->AbilitySystemComponent.Get() : nullptr;
-	if (ASC && ASC->HasMatchingGameplayTag(TAG_Buff_Status_FinisherQTEOpen))
+	if (ASC && ASC->HasMatchingGameplayTag(GetGAPlayerFinisherQTEOpenTag()))
 	{
 		return;
 	}
@@ -356,7 +373,7 @@ void UGA_Player_FinisherAttack::OpenFallbackQTEWindow()
 
 	if (ASC)
 	{
-		ASC->SetLooseGameplayTagCount(TAG_Buff_Status_FinisherQTEOpen, 1);
+		ASC->SetLooseGameplayTagCount(GetGAPlayerFinisherQTEOpenTag(), 1);
 	}
 
 	if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
@@ -385,7 +402,7 @@ void UGA_Player_FinisherAttack::CloseFallbackQTEWindow()
 
 	if (UAbilitySystemComponent* ASC = CurrentActorInfo ? CurrentActorInfo->AbilitySystemComponent.Get() : nullptr)
 	{
-		ASC->SetLooseGameplayTagCount(TAG_Buff_Status_FinisherQTEOpen, 0);
+		ASC->SetLooseGameplayTagCount(GetGAPlayerFinisherQTEOpenTag(), 0);
 	}
 
 	if (AYogCharacterBase* Character = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo()))
@@ -489,7 +506,7 @@ bool UGA_Player_FinisherAttack::MontageHasFinisherHitFrameNotify() const
 		const FGameplayTag NotifyEventTag = DamageNotify->AttackDataOverride && DamageNotify->AttackDataOverride->EventTag.IsValid()
 			? DamageNotify->AttackDataOverride->EventTag
 			: DamageNotify->EventTag;
-		if (NotifyEventTag == TAG_Ability_Event_Finisher_HitFrame)
+		if (NotifyEventTag == GetGAPlayerFinisherHitFrameEventTag())
 		{
 			return true;
 		}
@@ -592,7 +609,7 @@ void UGA_Player_FinisherAttack::EndAbility(
 
 	if (UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr)
 	{
-		ASC->SetLooseGameplayTagCount(TAG_Buff_Status_FinisherQTEOpen, 0);
+		ASC->SetLooseGameplayTagCount(GetGAPlayerFinisherQTEOpenTag(), 0);
 	}
 
 	if (AYogCharacterBase* Character = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo()))

@@ -1958,3 +1958,4 @@ Builds/Windows/DevKit/Content/Paks/DevKit-Windows.ucas
 Builds/Windows/DevKit/Content/Paks/DevKit-Windows.pak
 CompileAndOpen.bat
 BuildAndOpen.bat
+Packaged_Check_*/
