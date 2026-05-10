@@ -1010,7 +1010,7 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 		}
 	}
 
-	if (!Placed.Rune.Flow.FlowAsset)
+	if (!Placed.Rune.Flow.FlowAsset && Placed.Rune.Flow.PassiveFlows.IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] ActivateRune SKIP: no FA on Rune %s"), *Placed.Rune.RuneConfig.RuneName.ToString());
 		return;
@@ -1122,6 +1122,22 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 			*EventTag.ToString());
 	}
 
+	if (!Placed.Rune.Flow.PassiveFlows.IsEmpty())
+	{
+		if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
+		{
+			for (int32 i = 0; i < Placed.Rune.Flow.PassiveFlows.Num(); ++i)
+			{
+				if (UFlowAsset* PassiveFA = Placed.Rune.Flow.PassiveFlows[i])
+				{
+					FGuid PassiveGuid(Placed.Rune.RuneGuid.A, Placed.Rune.RuneGuid.B,
+						Placed.Rune.RuneGuid.C, Placed.Rune.RuneGuid.D + static_cast<uint32>(i + 1));
+					BFC->StartBuffFlowWithRune(PassiveFA, PassiveGuid, Placed.Rune.SourceDA, GetOwner());
+				}
+			}
+		}
+	}
+
 	Placed.bIsActivated = true;
 	OnRuneActivationChanged.Broadcast(Placed.Rune.RuneGuid, true);
 }
@@ -1168,6 +1184,22 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 					}
 				}
 				TriggeredRuneListeners.Remove(Placed.Rune.RuneGuid);
+			}
+		}
+	}
+
+	if (!Placed.Rune.Flow.PassiveFlows.IsEmpty())
+	{
+		if (UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>())
+		{
+			for (int32 i = 0; i < Placed.Rune.Flow.PassiveFlows.Num(); ++i)
+			{
+				if (Placed.Rune.Flow.PassiveFlows[i])
+				{
+					FGuid PassiveGuid(Placed.Rune.RuneGuid.A, Placed.Rune.RuneGuid.B,
+						Placed.Rune.RuneGuid.C, Placed.Rune.RuneGuid.D + static_cast<uint32>(i + 1));
+					BFC->StopBuffFlow(PassiveGuid);
+				}
 			}
 		}
 	}

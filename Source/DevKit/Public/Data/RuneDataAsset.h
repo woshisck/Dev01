@@ -650,6 +650,10 @@ struct DEVKIT_API FRuneFlowConfig
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TObjectPtr<UFlowAsset> FlowAsset;
+
+    /** 符文在激活区期间始终持续运行的循环 FA 列表（不受 TriggerType 影响，随符文激活/停用） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<TObjectPtr<UFlowAsset>> PassiveFlows;
 };
 
 

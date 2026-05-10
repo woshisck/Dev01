@@ -10,9 +10,22 @@ class DEVKIT_API UBFNode_GetRuneTuningValue : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	// 数值表 Key — 在符文 DA 的调参表中查找此名称对应的值
-	UPROPERTY(EditAnywhere, Category = "BuffFlow|Rune", meta = (DisplayName = "数值表 Key"))
+	// 打开后可手动输入任意 Key；关闭则从预设下拉选择
+	UPROPERTY(EditAnywhere, Category = "BuffFlow|Rune", meta = (DisplayName = "自定义Key"))
+	bool bCustomKey = false;
+
+	// 预设下拉（bCustomKey = false 时显示）
+	UPROPERTY(EditAnywhere, Category = "BuffFlow|Rune", meta = (DisplayName = "数值表 Key", GetOptions = "GetPresetKeyNames", EditCondition = "!bCustomKey", EditConditionHides))
 	FName Key;
+
+	// 自由输入（bCustomKey = true 时显示）
+	UPROPERTY(EditAnywhere, Category = "BuffFlow|Rune", meta = (DisplayName = "数值表 Key（自定义）", EditCondition = "bCustomKey", EditConditionHides))
+	FName CustomKey;
+
+	UFUNCTION()
+	static TArray<FString> GetPresetKeyNames();
+
+	FName GetActiveKey() const { return bCustomKey ? CustomKey : Key; }
 
 	// 默认值 — Key 不存在时返回的兜底值
 	UPROPERTY(EditAnywhere, Category = "BuffFlow|Rune", meta = (DisplayName = "默认值"))

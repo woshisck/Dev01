@@ -46,6 +46,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash", meta = (ClampMin = "100.0", ClampMax = "2000.0"))
 	float DashMaxDistance = 600.f;
 
+	/**
+	 * 冲刺取消豁免标签。
+	 * 正在激活的 GA 若拥有这些标签（AbilityTags 或 ActivationOwnedTags），
+	 * 则不会被 CancelAbilitiesWithTag 取消，从而保留持续 buff 效果。
+	 * 默认包含 Buff.Status，覆盖所有持续 buff 类 GA。
+	 * 可在 Blueprint 子类 Class Defaults 中覆盖。
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash|Tag")
+	FGameplayTagContainer DashCancelProtectedTags;
+
 	/** SphereTrace 半径（应接近角色 Capsule 半径）。*/
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash", meta = (ClampMin = "10.0", ClampMax = "100.0"))
 	float DashCapsuleRadius = 35.f;
@@ -61,6 +71,13 @@ public:
 		const FGameplayTagContainer* SourceTags,
 		const FGameplayTagContainer* TargetTags,
 		FGameplayTagContainer* OptionalRelevantTags) const override;
+
+	virtual void PreActivate(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo,
+		FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate,
+		const FGameplayEventData* TriggerEventData = nullptr) override;
 
 protected:
 	virtual void ActivateAbility(

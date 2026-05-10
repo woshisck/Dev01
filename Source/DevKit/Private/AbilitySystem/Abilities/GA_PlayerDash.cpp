@@ -118,6 +118,71 @@ UGA_PlayerDash::UGA_PlayerDash()
 	// 受击硬直 / 击退期间不允许冲刺
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.HitReact"));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Knockback"));
+
+	// 持续 buff 类 GA（ActivationOwnedTags 含 Buff.Status.*）不被冲刺的 CancelAbilitiesWithTag 取消。
+	// 策划若需扩展豁免范围，可在 Blueprint 子类的 Class Defaults 中追加标签。
+	DashCancelProtectedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status"), false));
+}
+
+void UGA_PlayerDash::PreActivate(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate,
+	const FGameplayEventData* TriggerEventData)
+{
+	// 若没有配置豁免标签，或 CancelAbilitiesWithTag 为空，走默认逻辑
+	if (DashCancelProtectedTags.IsEmpty() || CancelAbilitiesWithTag.IsEmpty())
+	{
+		Super::PreActivate(Handle, ActorInfo, ActivationInfo, OnGameplayAbilityEndedDelegate, TriggerEventData);
+		return;
+	}
+
+	// 临时清空 CancelAbilitiesWithTag，阻止 Super::PreActivate 执行宽泛取消
+	const FGameplayTagContainer SavedCancelTags = CancelAbilitiesWithTag;
+	CancelAbilitiesWithTag.Reset();
+
+	Super::PreActivate(Handle, ActorInfo, ActivationInfo, OnGameplayAbilityEndedDelegate, TriggerEventData);
+
+	CancelAbilitiesWithTag = SavedCancelTags;
+
+	// 精细取消：手动遍历，同时检查 AbilityTags 与 ActivationOwnedTags。
+	// 注：GAS 的 CancelAbilities(WithTags, WithoutTags) 只对 AbilityTags 做 WithoutTags
+	// 过滤，不检查 ActivationOwnedTags，因此需要自行迭代来保护通过
+	// ActivationOwnedTags 提供持续 buff 的 GA（例如 GA_FinisherCharge）。
+	UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	if (!ASC || SavedCancelTags.IsEmpty())
+	{
+		return;
+	}
+
+	// 先收集 handle，再取消——避免迭代过程中修改列表导致指针失效
+	TArray<FGameplayAbilitySpecHandle> HandlesToCancel;
+	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	{
+		if (!Spec.IsActive() || !Spec.Ability) continue;
+		if (Spec.Handle == Handle) continue; // 不取消冲刺 GA 自身
+
+		// AbilityTags 是 public UPROPERTY，可直接访问
+		const FGameplayTagContainer& AbilityOwnedTags = Spec.Ability->AbilityTags;
+		if (!AbilityOwnedTags.HasAny(SavedCancelTags)) continue;
+
+		// 豁免：AbilityTags 含保护标签
+		if (AbilityOwnedTags.HasAny(DashCancelProtectedTags)) continue;
+
+		// 豁免：ActivationOwnedTags 含保护标签（通过 UYogGameplayAbility 公开接口访问）
+		if (UYogGameplayAbility* YogAbility = Cast<UYogGameplayAbility>(Spec.Ability))
+		{
+			if (YogAbility->GetActivationOwnedTags().HasAny(DashCancelProtectedTags)) continue;
+		}
+
+		HandlesToCancel.Add(Spec.Handle);
+	}
+
+	for (const FGameplayAbilitySpecHandle& CancelHandle : HandlesToCancel)
+	{
+		ASC->CancelAbilityHandle(CancelHandle);
+	}
 }
 
 bool UGA_PlayerDash::CanActivateAbility(
