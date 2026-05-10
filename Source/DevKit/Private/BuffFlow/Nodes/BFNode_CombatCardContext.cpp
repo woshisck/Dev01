@@ -282,7 +282,7 @@ UBFNode_CombatCardContextBranch::UBFNode_CombatCardContextBranch(const FObjectIn
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITOR
-	Category = TEXT("条件节点|卡牌");
+	Category = TEXT("BuffFlow|Combat Card");
 #endif
 	InputPins = { FFlowPin(TEXT("In")) };
 	OutputPins = { FFlowPin(TEXT("Pass")), FFlowPin(TEXT("Failed")) };

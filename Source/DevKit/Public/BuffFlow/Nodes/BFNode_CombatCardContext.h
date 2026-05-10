@@ -32,7 +32,7 @@ enum class EBFCombatCardLinkRequirement : uint8
  * This keeps attack, finisher, and link flows reading the same context values
  * instead of each feature reaching into CombatDeckComponent differently.
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "卡牌信息", Keywords = "卡牌 上下文 信息 终结技 连携 月光 正向 反向 Combat Card Context Link Finisher Moonlight"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Combat Card Context", Keywords = "Card Context Info Finisher Link Forward Backward Combat Card Context Link Finisher Moonlight"))
 class DEVKIT_API UBFNode_Pure_CombatCardContext : public UBFNode_PureData
 {
 	GENERATED_UCLASS_BODY()
@@ -54,7 +54,7 @@ private:
  * Use this for moonlight forward/reversed links, finisher-only payloads, or
  * effect-tag based card logic without hardcoding card names in C++.
  */
-UCLASS(NotBlueprintable, meta = (DisplayName = "卡牌判断", Keywords = "卡牌 上下文 判断 条件 终结技 连携 月光 正向 反向 Combat Card Context Branch Link Finisher Moonlight"))
+UCLASS(NotBlueprintable, meta = (DisplayName = "Combat Card Context Branch", Keywords = "Card Context Branch Condition Finisher Link Forward Backward Combat Card Context Branch Link Finisher Moonlight"))
 class DEVKIT_API UBFNode_CombatCardContextBranch : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()

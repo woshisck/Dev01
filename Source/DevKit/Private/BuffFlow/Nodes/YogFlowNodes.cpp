@@ -1,22 +1,23 @@
 #include "BuffFlow/Nodes/YogFlowNodes.h"
+
+#include "BuffFlow/BuffFlowComponent.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/ComboRuntimeComponent.h"
-#include "BuffFlow/BuffFlowComponent.h"
 
 namespace
 {
-	const TCHAR* SkillCategory = TEXT("技能");
-	const TCHAR* TriggerCategory = TEXT("技能|触发");
-	const TCHAR* LifecycleCategory = TEXT("技能|生命周期");
-	const TCHAR* InstantEffectCategory = TEXT("效果节点|瞬时效果");
-	const TCHAR* DurationEffectCategory = TEXT("效果节点|持续效果");
-	const TCHAR* StateEffectCategory = TEXT("效果节点|状态效果");
-	const TCHAR* ProfileEffectCategory = TEXT("效果节点|通用效果");
-	const TCHAR* RadiusEffectCategory = TEXT("效果节点|范围效果");
-	const TCHAR* TaskCategory = TEXT("任务节点");
-	const TCHAR* SpawnCategory = TEXT("任务节点|生成");
-	const TCHAR* ConditionCategory = TEXT("条件节点");
-	const TCHAR* PresentationCategory = TEXT("表现节点");
+	const TCHAR* SkillCategory = TEXT("Skill");
+	const TCHAR* TriggerCategory = TEXT("Skill|Trigger");
+	const TCHAR* LifecycleCategory = TEXT("Skill|Lifecycle");
+	const TCHAR* InstantEffectCategory = TEXT("Effect|Instant");
+	const TCHAR* DurationEffectCategory = TEXT("Effect|Duration");
+	const TCHAR* StateEffectCategory = TEXT("Effect|State");
+	const TCHAR* ProfileEffectCategory = TEXT("Effect|Profile");
+	const TCHAR* RadiusEffectCategory = TEXT("Effect|Radius");
+	const TCHAR* TaskCategory = TEXT("Task");
+	const TCHAR* SpawnCategory = TEXT("Task|Spawn");
+	const TCHAR* ConditionCategory = TEXT("Condition");
+	const TCHAR* PresentationCategory = TEXT("Presentation");
 }
 
 UYogFlowNode_SkillPass::UYogFlowNode_SkillPass(const FObjectInitializer& ObjectInitializer)
@@ -38,7 +39,7 @@ UYogFlowNode_Fork::UYogFlowNode_Fork(const FObjectInitializer& ObjectInitializer
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITOR
-	Category = TEXT("技能|流程");
+	Category = TEXT("Skill|Flow");
 #endif
 }
 
@@ -268,6 +269,14 @@ UYogFlowNode_ConditionCompareFloat::UYogFlowNode_ConditionCompareFloat(const FOb
 #endif
 }
 
+UYogFlowNode_ConditionCompareBool::UYogFlowNode_ConditionCompareBool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITOR
+	Category = ConditionCategory;
+#endif
+}
+
 UYogFlowNode_ConditionHasTag::UYogFlowNode_ConditionHasTag(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -372,10 +381,6 @@ UYogFlowNode_MathFloat::UYogFlowNode_MathFloat(const FObjectInitializer& ObjectI
 #endif
 }
 
-// ---------------------------------------------------------------------------
-// Pure 数据节点实现
-// ---------------------------------------------------------------------------
-
 TArray<FString> UBFNode_Pure_TuningValue::GetPresetKeyNames()
 {
 	return {
@@ -402,7 +407,8 @@ TArray<FString> UBFNode_Pure_TuningValue::GetPresetKeyNames()
 	};
 }
 
-UBFNode_Pure_TuningValue::UBFNode_Pure_TuningValue(const FObjectInitializer& OI) : Super(OI)
+UBFNode_Pure_TuningValue::UBFNode_Pure_TuningValue(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 #if WITH_EDITOR
 	Category = TEXT("Pure");
@@ -423,7 +429,8 @@ FFlowDataPinResult_Float UBFNode_Pure_TuningValue::TrySupplyDataPinAsFloat_Imple
 	return FFlowDataPinResult_Float();
 }
 
-UBFNode_Pure_ComboIndex::UBFNode_Pure_ComboIndex(const FObjectInitializer& OI) : Super(OI)
+UBFNode_Pure_ComboIndex::UBFNode_Pure_ComboIndex(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 #if WITH_EDITOR
 	Category = TEXT("Pure");
