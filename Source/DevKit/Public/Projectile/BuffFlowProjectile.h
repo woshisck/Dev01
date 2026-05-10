@@ -8,7 +8,8 @@
 class UCurveFloat;
 class UGameplayEffect;
 class UProjectileMovementComponent;
-class USphereComponent;
+class UCapsuleComponent;
+class USceneComponent;
 
 UENUM(BlueprintType)
 enum class EBuffFlowProjectileTriggerMode : uint8
@@ -97,7 +98,10 @@ struct DEVKIT_API FBuffFlowProjectileRuntimeConfig
 	EBuffFlowProjectileSpeedCurveMode SpeedCurveMode = EBuffFlowProjectileSpeedCurveMode::AbsoluteSpeed;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Projectile", meta = (ClampMin = "1.0"))
-	float CollisionRadius = 24.f;
+	float CollisionCapsuleRadius = 24.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Projectile", meta = (ClampMin = "1.0"))
+	float CollisionCapsuleHalfHeight = 48.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Projectile")
 	bool bDestroyOnHitTrigger = true;
@@ -168,13 +172,13 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<USphereComponent> CollisionSphere;
+	TObjectPtr<USceneComponent> SceneRoot;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UCapsuleComponent> CollisionCapsule;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UProjectileMovementComponent> ProjectileMovement;
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "BuffFlow|Projectile")
-	void BP_OnEffectTriggered(AActor* Target, FVector TriggerLocation);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "BuffFlow|Projectile")
 	void BP_OnExpired();

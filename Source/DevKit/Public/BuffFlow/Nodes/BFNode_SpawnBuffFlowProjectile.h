@@ -8,6 +8,7 @@
 
 class UCurveFloat;
 class UGameplayEffect;
+class UBuffFlowComponent;
 
 UCLASS(NotBlueprintable, meta = (DisplayName = "Spawn BuffFlow Projectile", Category = "BuffFlow|Projectile"))
 class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
@@ -22,6 +23,18 @@ class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile", meta = (DisplayName = "Spawn Offset"))
 	FVector SpawnOffset = FVector(80.f, 0.f, 45.f);
+
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Pattern", meta = (ClampMin = "1", DisplayName = "Projectile Count"))
+	int32 ProjectileCount = 1;
+
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Combat Card", meta = (DisplayName = "Add Combo Stacks To Projectile Count"))
+	bool bAddComboStacksToProjectileCount = false;
+
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Combat Card", meta = (ClampMin = "0", DisplayName = "Projectiles Per Combo Stack", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides))
+	int32 ProjectilesPerComboStack = 1;
+
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Combat Card", meta = (ClampMin = "0", DisplayName = "Max Bonus Projectiles", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides))
+	int32 MaxBonusProjectiles = 0;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile", meta = (DisplayName = "Trigger Mode"))
 	EBuffFlowProjectileTriggerMode TriggerMode = EBuffFlowProjectileTriggerMode::HitOnce;
@@ -50,8 +63,11 @@ class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Movement", meta = (DisplayName = "Speed Curve Mode", EditCondition = "SpeedOverLifeCurve != nullptr", EditConditionHides))
 	EBuffFlowProjectileSpeedCurveMode SpeedCurveMode = EBuffFlowProjectileSpeedCurveMode::AbsoluteSpeed;
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Collision", meta = (ClampMin = "1.0", DisplayName = "Collision Radius"))
-	float CollisionRadius = 24.f;
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Collision", meta = (ClampMin = "1.0", DisplayName = "Collision Capsule Radius"))
+	float CollisionCapsuleRadius = 24.f;
+
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Collision", meta = (ClampMin = "1.0", DisplayName = "Collision Capsule Half Height"))
+	float CollisionCapsuleHalfHeight = 48.f;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Collision", meta = (DisplayName = "Destroy On Hit Trigger"))
 	bool bDestroyOnHitTrigger = true;
@@ -97,5 +113,6 @@ protected:
 
 private:
 	FTransform ResolveSpawnTransform(AActor* SourceActor) const;
+	int32 ResolveSpawnCount(const UBuffFlowComponent* BuffFlowComponent, int32& OutComboBonusProjectiles) const;
 	FBuffFlowProjectileRuntimeConfig BuildRuntimeConfig() const;
 };

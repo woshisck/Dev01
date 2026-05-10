@@ -14,10 +14,11 @@ UBFNode_SpawnBuffFlowProjectile::UBFNode_SpawnBuffFlowProjectile(const FObjectIn
 
 void UBFNode_SpawnBuffFlowProjectile::ExecuteInput(const FName& PinName)
 {
+	UBuffFlowComponent* BFC = GetBuffFlowComponent();
 	AActor* SourceActor = ResolveTarget(SourceSelector);
 	if (!SourceActor || !SourceActor->GetWorld())
 	{
-		if (UBuffFlowComponent* BFC = GetBuffFlowComponent())
+		if (BFC)
 		{
 			BFC->RecordTrace(this, nullptr, nullptr, EBuffFlowTraceResult::Failed, TEXT("Source actor is null"), TEXT(""));
 		}
@@ -31,22 +32,39 @@ void UBFNode_SpawnBuffFlowProjectile::ExecuteInput(const FName& PinName)
 		ResolvedProjectileClass = ABuffFlowProjectile::StaticClass();
 	}
 	const FTransform SpawnTransform = ResolveSpawnTransform(SourceActor);
+	int32 ComboBonusProjectiles = 0;
+	const int32 SpawnCount = ResolveSpawnCount(BFC, ComboBonusProjectiles);
+	const FBuffFlowProjectileRuntimeConfig RuntimeProjectileConfig = BuildRuntimeConfig();
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = SourceActor;
 	SpawnParams.Instigator = Cast<APawn>(SourceActor);
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	ABuffFlowProjectile* Projectile = SourceActor->GetWorld()->SpawnActorDeferred<ABuffFlowProjectile>(
-		ResolvedProjectileClass,
-		SpawnTransform,
-		SpawnParams.Owner,
-		SpawnParams.Instigator,
-		SpawnParams.SpawnCollisionHandlingOverride);
-
-	if (!Projectile)
+	int32 SpawnedCount = 0;
+	for (int32 Index = 0; Index < SpawnCount; ++Index)
 	{
-		if (UBuffFlowComponent* BFC = GetBuffFlowComponent())
+		ABuffFlowProjectile* Projectile = SourceActor->GetWorld()->SpawnActorDeferred<ABuffFlowProjectile>(
+			ResolvedProjectileClass,
+			SpawnTransform,
+			SpawnParams.Owner,
+			SpawnParams.Instigator,
+			SpawnParams.SpawnCollisionHandlingOverride);
+
+		if (!Projectile)
+		{
+			continue;
+		}
+
+		Projectile->SetCreatorForSpawn(SourceActor);
+		Projectile->FinishSpawning(SpawnTransform);
+		Projectile->InitBuffFlowProjectile(SourceActor, RuntimeProjectileConfig);
+		++SpawnedCount;
+	}
+
+	if (SpawnedCount <= 0)
+	{
+		if (BFC)
 		{
 			BFC->RecordTrace(this, nullptr, SourceActor, EBuffFlowTraceResult::Failed, TEXT("SpawnActor failed"), *GetNameSafe(ResolvedProjectileClass.Get()));
 		}
@@ -54,11 +72,7 @@ void UBFNode_SpawnBuffFlowProjectile::ExecuteInput(const FName& PinName)
 		return;
 	}
 
-	Projectile->SetCreatorForSpawn(SourceActor);
-	Projectile->FinishSpawning(SpawnTransform);
-	Projectile->InitBuffFlowProjectile(SourceActor, BuildRuntimeConfig());
-
-	if (UBuffFlowComponent* BFC = GetBuffFlowComponent())
+	if (BFC)
 	{
 		BFC->RecordTrace(
 			this,
@@ -67,12 +81,16 @@ void UBFNode_SpawnBuffFlowProjectile::ExecuteInput(const FName& PinName)
 			EBuffFlowTraceResult::Success,
 			TEXT("Spawned BuffFlow projectile"),
 			FString::Printf(
-				TEXT("Class=%s TriggerMode=%d Interval=%.2f Lifetime=%.2f Speed=%.1f Effect=%s"),
+				TEXT("Class=%s Count=%d ComboBonus=%d TriggerMode=%d Interval=%.2f Lifetime=%.2f Speed=%.1f Capsule=(R=%.1f HH=%.1f) Effect=%s"),
 				*GetNameSafe(ResolvedProjectileClass.Get()),
+				SpawnedCount,
+				ComboBonusProjectiles,
 				static_cast<int32>(TriggerMode),
 				TriggerInterval,
 				Lifetime,
 				Speed,
+				CollisionCapsuleRadius,
+				CollisionCapsuleHalfHeight,
 				*GetNameSafe(EffectClass.Get())));
 	}
 
@@ -121,6 +139,19 @@ FTransform UBFNode_SpawnBuffFlowProjectile::ResolveSpawnTransform(AActor* Source
 	return FTransform(Forward.Rotation(), Location);
 }
 
+int32 UBFNode_SpawnBuffFlowProjectile::ResolveSpawnCount(const UBuffFlowComponent* BuffFlowComponent, int32& OutComboBonusProjectiles) const
+{
+	OutComboBonusProjectiles = 0;
+	if (bAddComboStacksToProjectileCount && BuffFlowComponent && BuffFlowComponent->HasCombatCardEffectContext())
+	{
+		const FCombatCardEffectContext& CombatCardContext = BuffFlowComponent->GetLastCombatCardEffectContext();
+		OutComboBonusProjectiles = CombatCardContext.ComboBonusStacks * FMath::Max(0, ProjectilesPerComboStack);
+		OutComboBonusProjectiles = FMath::Min(FMath::Max(0, MaxBonusProjectiles), OutComboBonusProjectiles);
+	}
+
+	return FMath::Max(1, FMath::Max(1, ProjectileCount) + OutComboBonusProjectiles);
+}
+
 FBuffFlowProjectileRuntimeConfig UBFNode_SpawnBuffFlowProjectile::BuildRuntimeConfig() const
 {
 	FBuffFlowProjectileRuntimeConfig Config;
@@ -133,7 +164,8 @@ FBuffFlowProjectileRuntimeConfig UBFNode_SpawnBuffFlowProjectile::BuildRuntimeCo
 	Config.Speed = Speed;
 	Config.SpeedOverLifeCurve = SpeedOverLifeCurve;
 	Config.SpeedCurveMode = SpeedCurveMode;
-	Config.CollisionRadius = CollisionRadius;
+	Config.CollisionCapsuleRadius = CollisionCapsuleRadius;
+	Config.CollisionCapsuleHalfHeight = CollisionCapsuleHalfHeight;
 	Config.bDestroyOnHitTrigger = bDestroyOnHitTrigger;
 	Config.bDestroyOnWorldStaticHit = bDestroyOnWorldStaticHit;
 	Config.EffectClass = EffectClass;
