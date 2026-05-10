@@ -73,6 +73,6 @@ void URuneRewardFloatWidget::RefreshPickupHint()
 
 	if (UTextBlock* PlainHint = Cast<UTextBlock>(PickupHintText))
 	{
-		PlainHint->SetText(NSLOCTEXT("RuneRewardFloat", "PickupHintAE", "按 A / E 拾取"));
+		PlainHint->SetText(NSLOCTEXT("RuneRewardFloat", "PickupHintGamepadA", "按 A 拾取"));
 	}
 }

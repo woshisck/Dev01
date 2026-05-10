@@ -102,6 +102,7 @@ private:
 	void TickToast(class UWidget* ToastWidget, float& ToastTimeRemaining, float DeltaTime);
 
 	static FText GetCardDisplayName(const FCombatCardInstance& Card);
+	static FText GetConsumedToastText(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);
 
 	float ConsumedToastTimeRemaining = 0.0f;
 	float RewardToastTimeRemaining = 0.0f;

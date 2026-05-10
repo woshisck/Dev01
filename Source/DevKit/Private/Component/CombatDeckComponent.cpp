@@ -6,7 +6,9 @@
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "FlowAsset.h"
+#include "GameModes/YogGameMode.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "Kismet/GameplayStatics.h"
 
 namespace
 {
@@ -84,6 +86,9 @@ UCombatDeckComponent::UCombatDeckComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = true;
+	TemporaryInitialFinisherRune = TSoftObjectPtr<URuneDataAsset>(
+		FSoftObjectPath(TEXT("/Game/YogRuneEditor/Runes/DA_Rune_Finisher.DA_Rune_Finisher")));
+	TemporaryFinisherLockedReasonText = FText::FromString(TEXT("Finisher unlocks after 3 completed battles"));
 }
 
 void UCombatDeckComponent::BeginPlay()
@@ -163,6 +168,36 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		: DoesActionMatch(Card.Config.RequiredAction, Context.ActionType);
 	SetAppliedMultiplier(Result, 1.0f, CurrentCardComboMultiplier);
 	Result.ReasonText = Card.Config.HUDReasonText;
+
+	int32 RequiredBattles = 0;
+	int32 CurrentBattles = 0;
+	if (IsTemporaryFinisherLocked(Card, RequiredBattles, CurrentBattles))
+	{
+		BreakPendingLink(ECombatLinkBreakReason::ConditionFailed, &Context);
+		Result.bActionMatched = false;
+		Result.bCardTemporarilyLocked = true;
+		Result.TemporaryUnlockRequiredCompletedBattles = RequiredBattles;
+		Result.TemporaryUnlockCurrentCompletedBattles = CurrentBattles;
+		Result.ReasonText = TemporaryFinisherLockedReasonText;
+
+		if (Context.AttackInstanceGuid.IsValid())
+		{
+			ResolvedAttackGuids.Add(Context.AttackInstanceGuid);
+		}
+
+		CurrentIndex++;
+		Result.bStartedShuffle = CurrentIndex >= ActiveSequence.Num();
+
+		OnCardConsumed.Broadcast(Card, Result);
+		if (Result.bStartedShuffle)
+		{
+			StartShuffle();
+			OnShuffleStarted.Broadcast(Result);
+		}
+
+		PushCombatCardConsumeLog(Result);
+		return Result;
+	}
 
 	if (PendingLinkContext.IsValidCard())
 	{
@@ -369,27 +404,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	}
 
 	// ── 512版本：推卡牌消耗行到战斗日志 ────────────────────────────────
-	if (Result.ConsumedCard.IsValidCard())
-	{
-		FDamageBreakdown Consume;
-		Consume.bIsCardEventOnly  = true;
-		Consume.bHadCard          = true;
-		Consume.bConsumedCard     = true;
-		Consume.bActionMatched    = Result.bActionMatched;
-		Consume.bTriggeredMatchedFlow = Result.bTriggeredMatchedFlow;
-		Consume.bTriggeredLink    = Result.bTriggeredLink || Result.bTriggeredForwardLink || Result.bTriggeredBackwardLink;
-		Consume.bTriggeredFinisher = Result.bTriggeredFinisher;
-		Consume.bStartedShuffle   = Result.bStartedShuffle;
-		Consume.CardDisplayName   = Result.ConsumedCard.SourceData
-			? Result.ConsumedCard.SourceData->GetRuneName()
-			: Result.ConsumedCard.Config.CardIdTag.GetTagName();
-		Consume.CardConsumeTiming = Result.ConsumedCard.Config.TriggerTiming == ECombatCardTriggerTiming::OnCommit
-			? FName("OnCommit") : FName("OnHit");
-		Consume.SourceName        = GetNameSafe(GetOwner());
-		Consume.GameTime          = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-		Consume.DamageType        = Result.bStartedShuffle ? FName("Card_Shuffle") : FName("Card_Consume");
-		UCombatLogStatics::PushEntry(Consume);
-	}
+	PushCombatCardConsumeLog(Result);
 
 	return Result;
 }
@@ -466,7 +481,10 @@ void UCombatDeckComponent::LoadDeckFromSourceAssets(const TArray<URuneDataAsset*
 	ShuffleCooldownDuration = FMath::Max(0.0f, InShuffleCooldownDuration);
 	MaxActiveSequenceSize = FMath::Max(0, InMaxActiveSequenceSize);
 
-	for (URuneDataAsset* RuneAsset : SourceAssets)
+	TArray<URuneDataAsset*> EffectiveSourceAssets = SourceAssets;
+	AppendTemporaryInitialFinisherCard(EffectiveSourceAssets);
+
+	for (URuneDataAsset* RuneAsset : EffectiveSourceAssets)
 	{
 		const FCombatCardInstance Card = MakeCardFromRune(RuneAsset, CombatDeckOwnerSourceWeapon);
 		if (Card.IsValidCard())
@@ -501,6 +519,11 @@ TArray<URuneDataAsset*> UCombatDeckComponent::GetDeckSourceAssets() const
 	return SourceAssets;
 }
 
+TArray<FCombatCardInstance> UCombatDeckComponent::GetFullDeckSnapshot() const
+{
+	return BuildTemporaryLockViewCards(DeckList);
+}
+
 TArray<FCombatCardInstance> UCombatDeckComponent::GetRemainingDeckSnapshot() const
 {
 	TArray<FCombatCardInstance> RemainingCards;
@@ -511,10 +534,20 @@ TArray<FCombatCardInstance> UCombatDeckComponent::GetRemainingDeckSnapshot() con
 
 	for (int32 Index = CurrentIndex; Index < ActiveSequence.Num(); ++Index)
 	{
-		RemainingCards.Add(ActiveSequence[Index]);
+		RemainingCards.Add(BuildTemporaryLockViewCard(ActiveSequence[Index]));
 	}
 
 	return RemainingCards;
+}
+
+void UCombatDeckComponent::RefreshDeckView()
+{
+	if (DeckState != EDeckState::Ready)
+	{
+		return;
+	}
+
+	OnDeckLoaded.Broadcast(GetRemainingDeckSnapshot());
 }
 
 bool UCombatDeckComponent::MoveCardInDeck(int32 FromIndex, int32 InsertIndex)
@@ -704,6 +737,101 @@ FCombatCardInstance UCombatDeckComponent::MakeCardFromRune(URuneDataAsset* RuneA
 	return Card;
 }
 
+void UCombatDeckComponent::AppendTemporaryInitialFinisherCard(TArray<URuneDataAsset*>& SourceAssets) const
+{
+	if (!bGrantTemporaryInitialFinisherCard)
+	{
+		return;
+	}
+
+	URuneDataAsset* FinisherRune = TemporaryInitialFinisherRune.LoadSynchronous();
+	if (!FinisherRune || !FinisherRune->RuneInfo.CombatCard.bIsCombatCard
+		|| FinisherRune->RuneInfo.CombatCard.CardType != ECombatCardType::Finisher)
+	{
+		return;
+	}
+
+	SourceAssets.RemoveAll([FinisherRune](const URuneDataAsset* RuneAsset)
+	{
+		return RuneAsset == FinisherRune;
+	});
+
+	const int32 InsertIndex = MaxActiveSequenceSize > 0
+		? FMath::Clamp(MaxActiveSequenceSize - 1, 0, SourceAssets.Num())
+		: SourceAssets.Num();
+	SourceAssets.Insert(FinisherRune, InsertIndex);
+}
+
+bool UCombatDeckComponent::IsTemporaryFinisherLocked(
+	const FCombatCardInstance& Card,
+	int32& OutRequiredBattles,
+	int32& OutCurrentBattles) const
+{
+	OutRequiredBattles = FMath::Max(0, TemporaryFinisherUnlockCompletedBattles);
+	OutCurrentBattles = 0;
+
+	if (!Card.IsValidCard() || Card.Config.CardType != ECombatCardType::Finisher || OutRequiredBattles <= 0)
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	const AYogGameMode* GameMode = World ? Cast<AYogGameMode>(UGameplayStatics::GetGameMode(World)) : nullptr;
+	OutCurrentBattles = GameMode ? FMath::Max(0, GameMode->GetCompletedCombatBattleCount()) : 0;
+	return OutCurrentBattles < OutRequiredBattles;
+}
+
+FCombatCardInstance UCombatDeckComponent::BuildTemporaryLockViewCard(const FCombatCardInstance& Card) const
+{
+	FCombatCardInstance ViewCard = Card;
+	int32 RequiredBattles = 0;
+	int32 CurrentBattles = 0;
+	ViewCard.bTemporarilyLocked = IsTemporaryFinisherLocked(Card, RequiredBattles, CurrentBattles);
+	ViewCard.TemporaryUnlockRequiredCompletedBattles = RequiredBattles;
+	ViewCard.TemporaryUnlockCurrentCompletedBattles = CurrentBattles;
+	return ViewCard;
+}
+
+TArray<FCombatCardInstance> UCombatDeckComponent::BuildTemporaryLockViewCards(const TArray<FCombatCardInstance>& Cards) const
+{
+	TArray<FCombatCardInstance> ViewCards;
+	ViewCards.Reserve(Cards.Num());
+	for (const FCombatCardInstance& Card : Cards)
+	{
+		ViewCards.Add(BuildTemporaryLockViewCard(Card));
+	}
+	return ViewCards;
+}
+
+void UCombatDeckComponent::PushCombatCardConsumeLog(const FCombatCardResolveResult& Result) const
+{
+	if (!Result.ConsumedCard.IsValidCard())
+	{
+		return;
+	}
+
+	FDamageBreakdown Consume;
+	Consume.bIsCardEventOnly = true;
+	Consume.bHadCard = true;
+	Consume.bConsumedCard = true;
+	Consume.bActionMatched = Result.bActionMatched;
+	Consume.bTriggeredMatchedFlow = Result.bTriggeredMatchedFlow;
+	Consume.bTriggeredLink = Result.bTriggeredLink || Result.bTriggeredForwardLink || Result.bTriggeredBackwardLink;
+	Consume.bTriggeredFinisher = Result.bTriggeredFinisher;
+	Consume.bStartedShuffle = Result.bStartedShuffle;
+	Consume.CardDisplayName = Result.ConsumedCard.SourceData
+		? Result.ConsumedCard.SourceData->GetRuneName()
+		: Result.ConsumedCard.Config.CardIdTag.GetTagName();
+	Consume.CardConsumeTiming = Result.ConsumedCard.Config.TriggerTiming == ECombatCardTriggerTiming::OnCommit
+		? FName("OnCommit") : FName("OnHit");
+	Consume.SourceName = GetNameSafe(GetOwner());
+	Consume.GameTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	Consume.DamageType = Result.bCardTemporarilyLocked
+		? FName("Card_Locked")
+		: (Result.bStartedShuffle ? FName("Card_Shuffle") : FName("Card_Consume"));
+	UCombatLogStatics::PushEntry(Consume);
+}
+
 void UCombatDeckComponent::RefillActiveSequence()
 {
 	ActiveSequence.Reset();
@@ -720,7 +848,7 @@ void UCombatDeckComponent::RefillActiveSequence()
 
 	DeckState = EDeckState::Ready;
 	ShuffleCooldownRemaining = 0.0f;
-	OnDeckLoaded.Broadcast(ActiveSequence);
+	OnDeckLoaded.Broadcast(BuildTemporaryLockViewCards(ActiveSequence));
 }
 
 void UCombatDeckComponent::RefreshCardPassiveFlows()
@@ -859,7 +987,7 @@ void UCombatDeckComponent::StartDeckEditReload()
 	if (ShuffleCooldownRemaining <= KINDA_SMALL_NUMBER)
 	{
 		RefillActiveSequence();
-		OnShuffleCompleted.Broadcast(ActiveSequence);
+		OnShuffleCompleted.Broadcast(BuildTemporaryLockViewCards(ActiveSequence));
 	}
 }
 
@@ -877,6 +1005,7 @@ void UCombatDeckComponent::StartShuffle()
 	if (ShuffleCooldownDuration <= KINDA_SMALL_NUMBER)
 	{
 		RefillActiveSequence();
+		OnShuffleCompleted.Broadcast(BuildTemporaryLockViewCards(ActiveSequence));
 	}
 }
 
@@ -897,7 +1026,7 @@ void UCombatDeckComponent::AdvanceShuffle(float DeltaTime)
 	if (ShuffleCooldownRemaining <= KINDA_SMALL_NUMBER)
 	{
 		RefillActiveSequence();
-		OnShuffleCompleted.Broadcast(ActiveSequence);
+		OnShuffleCompleted.Broadcast(BuildTemporaryLockViewCards(ActiveSequence));
 	}
 }
 

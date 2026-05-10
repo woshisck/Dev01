@@ -907,7 +907,7 @@ void UCombatDeckEditWidget::RefreshSelectedCardInfo()
 		else if (SelectedCard.SourceData)
 		{
 			DetailInfoCard->SetVisibility(ESlateVisibility::Visible);
-			DetailInfoCard->ShowRune(SelectedCard.SourceData->RuneInfo);
+			DetailInfoCard->ShowCombatCard(SelectedCard);
 		}
 		else
 		{

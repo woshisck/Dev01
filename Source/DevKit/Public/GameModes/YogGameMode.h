@@ -195,6 +195,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow", meta = (ClampMin = "0.0"))
 	float InitialSpawnDelay = 1.5f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow|Temporary Finisher")
+	bool bCountCombatClearsForTemporaryFinisherUnlock = true;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow|Temporary Finisher")
+	int32 CompletedCombatBattleCount = 0;
+
+	UFUNCTION(BlueprintPure, Category = "LevelFlow|Temporary Finisher")
+	int32 GetCompletedCombatBattleCount() const { return CompletedCombatBattleCount; }
+
 	// 阶段变化事件
 	UPROPERTY(BlueprintAssignable, Category = "LevelFlow|Events")
 	FOnPhaseChanged OnPhaseChanged;

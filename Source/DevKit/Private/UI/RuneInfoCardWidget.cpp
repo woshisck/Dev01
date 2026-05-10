@@ -20,6 +20,10 @@ URuneInfoCardWidget::URuneInfoCardWidget(const FObjectInitializer& ObjectInitial
     // 默认背景：深暗灰 #1A1A22 alpha=0.9（用户可在 WBP Class Defaults 覆盖）
     DefaultCardBGBrush.DrawAs    = ESlateBrushDrawType::Box;
     DefaultCardBGBrush.TintColor = FSlateColor(FLinearColor(0.102f, 0.102f, 0.133f, 0.9f));
+    TemporaryLockWarningFormat = NSLOCTEXT(
+        "RuneInfoCard",
+        "TemporaryFinisherLockWarningFmt",
+        "<key>终结技未解锁：{0}/{1}</key>\n还需完成 {2} 场战斗。锁定期间消耗此牌不会触发终结技。");
 }
 
 // ============================================================
@@ -168,6 +172,44 @@ void URuneInfoCardWidget::ShowRune(const FRuneInstance& Rune)
     SetRenderOpacity(0.f);
 }
 
+void URuneInfoCardWidget::ShowCombatCard(const FCombatCardInstance& Card)
+{
+    if (!Card.SourceData)
+    {
+        HideCard();
+        return;
+    }
+
+    ShowRune(Card.SourceData->RuneInfo);
+
+    const FText LockWarning = BuildTemporaryLockWarning(Card);
+    if (CardEffect && !LockWarning.IsEmpty())
+    {
+        const FText Keywords = BuildEffectKeywords(Card.SourceData->RuneInfo.RuneConfig.GenericEffects);
+        CardEffect->SetText(Keywords.IsEmpty()
+            ? LockWarning
+            : FText::Format(
+                NSLOCTEXT("RuneInfoCard", "TemporaryLockWarningWithKeywordsFmt", "{0}\n\n{1}"),
+                LockWarning,
+                Keywords));
+        CardEffect->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+    }
+
+    if (CardCombatInfo)
+    {
+        const FText CombatInfo = BuildCombatCardInfo(Card);
+        if (CombatInfo.IsEmpty())
+        {
+            CardCombatInfo->SetVisibility(ESlateVisibility::Collapsed);
+        }
+        else
+        {
+            CardCombatInfo->SetText(CombatInfo);
+            CardCombatInfo->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+        }
+    }
+}
+
 void URuneInfoCardWidget::SetGenericEffectsExpanded(bool bExpanded)
 {
     if (bGenericEffectsExpanded == bExpanded) return;
@@ -265,6 +307,15 @@ FText URuneInfoCardWidget::BuildEffectKeywords(const TArray<TObjectPtr<UGenericR
 
 FText URuneInfoCardWidget::BuildCombatCardInfo(const FCombatCardConfig& Config) const
 {
+    FCombatCardInstance Card;
+    Card.Config = Config;
+    Card.LinkOrientation = Config.DefaultLinkOrientation;
+    return BuildCombatCardInfo(Card);
+}
+
+FText URuneInfoCardWidget::BuildCombatCardInfo(const FCombatCardInstance& Card) const
+{
+    const FCombatCardConfig& Config = Card.Config;
     if (!Config.bIsCombatCard)
     {
         return FText::GetEmpty();
@@ -307,17 +358,42 @@ FText URuneInfoCardWidget::BuildCombatCardInfo(const FCombatCardConfig& Config) 
     };
 
     TArray<FString> Lines;
+    if (Card.bTemporarilyLocked)
+    {
+        Lines.Add(FString::Printf(
+            TEXT("锁定状态：未解锁（%d/%d）"),
+            FMath::Max(0, Card.TemporaryUnlockCurrentCompletedBattles),
+            FMath::Max(0, Card.TemporaryUnlockRequiredCompletedBattles)));
+    }
     Lines.Add(FString::Printf(TEXT("分类：%s"), *CardTypeToString(Config.CardType)));
     Lines.Add(FString::Printf(TEXT("CardId：%s"), Config.CardIdTag.IsValid() ? *Config.CardIdTag.ToString() : TEXT("未配置")));
     Lines.Add(FString::Printf(TEXT("效果Tag：%s"), *TagsToString(Config.CardEffectTags)));
 
     if (Config.CardType == ECombatCardType::Link)
     {
-        Lines.Add(FString::Printf(TEXT("当前方向：%s"), *OrientationToString(Config.DefaultLinkOrientation)));
+        Lines.Add(FString::Printf(TEXT("当前方向：%s"), *OrientationToString(Card.LinkOrientation)));
         Lines.Add(FString::Printf(TEXT("连携配方：%d 条"), Config.LinkRecipes.Num()));
     }
 
     return FText::FromString(FString::Join(Lines, TEXT("\n")));
+}
+
+FText URuneInfoCardWidget::BuildTemporaryLockWarning(const FCombatCardInstance& Card) const
+{
+    if (!bShowTemporaryLockWarning || !Card.bTemporarilyLocked || Card.TemporaryUnlockRequiredCompletedBattles <= 0)
+    {
+        return FText::GetEmpty();
+    }
+
+    const int32 CurrentBattles = FMath::Max(0, Card.TemporaryUnlockCurrentCompletedBattles);
+    const int32 RequiredBattles = FMath::Max(0, Card.TemporaryUnlockRequiredCompletedBattles);
+    const int32 RemainingBattles = FMath::Max(0, RequiredBattles - CurrentBattles);
+
+    return FText::Format(
+        TemporaryLockWarningFormat,
+        FText::AsNumber(CurrentBattles),
+        FText::AsNumber(RequiredBattles),
+        FText::AsNumber(RemainingBattles));
 }
 
 // ============================================================

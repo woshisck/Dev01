@@ -6,6 +6,7 @@
 #include "Asset/FlowAssetFactory.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "AutomatedAssetImportData.h"
 #include "BuffFlow/Nodes/BFNode_ApplyEffect.h"
 #include "BuffFlow/Nodes/BFNode_CompareFloat.h"
 #include "BuffFlow/Nodes/BFNode_DoDamage.h"
@@ -18,6 +19,7 @@
 #include "BuffFlow/YogRuneFlowAsset.h"
 #include "Commandlets/CommandletReportUtils.h"
 #include "Data/RuneDataAsset.h"
+#include "Engine/Texture2D.h"
 #include "FileHelpers.h"
 #include "Factories/BlueprintFactory.h"
 #include "Factories/DataAssetFactory.h"
@@ -28,8 +30,10 @@
 #include "Graph/FlowGraph.h"
 #include "Graph/FlowGraphSchema_Actions.h"
 #include "Graph/Nodes/FlowGraphNode.h"
+#include "IAssetTools.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/PackageName.h"
+#include "Misc/Paths.h"
 #include "NiagaraSystem.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
@@ -52,6 +56,8 @@ namespace FinisherCardSetup
 	const FString DamageTemplatePath = TEXT("/Game/Code/GAS/GameplayEffects/GE_Damage_Basic_SetByCaller");
 
 	const FString RunePath = TEXT("/Game/YogRuneEditor/Runes/DA_Rune_Finisher");
+	const FString RuneIconPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/Icons/T_Rune512_THSword_Finisher");
+	const FString RuneIconSourceRelativePath = TEXT("SourceArt/512RuneIcons/T_Rune512_THSword_Finisher.png");
 	const FString BaseFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_FinisherCard_BaseEffect");
 	const FString ChargeHitFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_FinisherCard_ChargeHit");
 	const FString DetonateFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_FinisherCard_Detonate");
@@ -87,6 +93,46 @@ namespace FinisherCardSetup
 			return nullptr;
 		}
 		return Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, *ToObjectPath(PackagePath)));
+	}
+
+	UTexture2D* ImportOrLoadFinisherIcon(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	{
+		if (bDryRun)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Would import finisher card icon `%s`."), *RuneIconSourceRelativePath));
+			return nullptr;
+		}
+
+		const FString SourcePath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir(), RuneIconSourceRelativePath);
+		if (FPaths::FileExists(SourcePath))
+		{
+			IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+			UAutomatedAssetImportData* ImportData = NewObject<UAutomatedAssetImportData>();
+			ImportData->GroupName = TEXT("FinisherCardIcon");
+			ImportData->Filenames.Add(SourcePath);
+			ImportData->DestinationPath = FPackageName::GetLongPackagePath(RuneIconPath);
+			ImportData->bReplaceExisting = true;
+			ImportData->bSkipReadOnly = true;
+			AssetTools.ImportAssetsAutomated(ImportData);
+		}
+		else
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Missing source finisher icon `%s`; using existing texture if available."), *SourcePath));
+		}
+
+		UTexture2D* Icon = LoadAsset<UTexture2D>(RuneIconPath);
+		if (Icon)
+		{
+			Icon->Modify();
+			Icon->MarkPackageDirty();
+			DirtyPackages.AddUnique(Icon->GetPackage());
+			ReportLines.Add(FString::Printf(TEXT("- Configured finisher card icon `%s`."), *RuneIconPath));
+		}
+		else
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Missing finisher card icon texture `%s`."), *RuneIconPath));
+		}
+		return Icon;
 	}
 
 	template <typename T>
@@ -979,12 +1025,16 @@ namespace FinisherCardSetup
 			return;
 		}
 
+		UTexture2D* FinisherIcon = ImportOrLoadFinisherIcon(bDryRun, ReportLines, DirtyPackages);
+
 		Rune->Modify();
 		FRuneInstance& RuneInfo = Rune->RuneInfo;
-		RuneInfo.RuneConfig.RuneName = TEXT("Finisher");
-		RuneInfo.RuneConfig.RuneDescription = FText::FromString(TEXT("Finisher card: opens a charge window, marks targets, then detonates marked enemies."));
-		RuneInfo.RuneConfig.HUDSummaryText = FText::FromString(TEXT("Charge hits mark enemies; the finisher detonates marks."));
+		RuneInfo.RuneConfig.RuneName = TEXT("双手剑终结技");
+		RuneInfo.RuneConfig.RuneIcon = FinisherIcon;
+		RuneInfo.RuneConfig.RuneDescription = FText::FromString(TEXT("打出后进入终结技准备窗口。窗口内命中会施加终结印记，完成重攻击连段最后一击时触发终结技并引爆印记。"));
+		RuneInfo.RuneConfig.HUDSummaryText = FText::FromString(TEXT("进入终结技准备窗口，命中施加印记，终结击引爆。"));
 		RuneInfo.RuneConfig.RuneType = ERuneType::Buff;
+		RuneInfo.RuneConfig.RuneIdTag = RequestTag(TEXT("Rune.ID.Finisher"), ReportLines);
 		RuneInfo.RuneConfig.TriggerType = ERuneTriggerType::OnAttackHit;
 		RuneInfo.RuneConfig.TuningScalars.Reset();
 
@@ -1021,13 +1071,20 @@ namespace FinisherCardSetup
 		CombatCard.RequiredAction = ECardRequiredAction::Any;
 		CombatCard.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 		CombatCard.BaseFlow = BaseFlow;
-		CombatCard.DisplayName = FText::FromString(TEXT("Finisher"));
-		CombatCard.HUDSummaryText = FText::FromString(TEXT("Opens a finisher charge window."));
-		CombatCard.HUDReasonText = FText::FromString(TEXT("Charge, mark, detonate."));
+		CombatCard.DisplayName = FText::FromString(TEXT("双手剑终结技"));
+		CombatCard.HUDSummaryText = FText::FromString(TEXT("准备终结技窗口；命中施加印记，终结击引爆。"));
+		CombatCard.HUDReasonText = FText::FromString(TEXT("终结技准备：标记并引爆目标。"));
+		CombatCard.CardIdTag = RequestTag(TEXT("Card.ID.Finisher"), ReportLines);
+		CombatCard.CardEffectTags.Reset();
+		const FGameplayTag FinisherEffectTag = RequestTag(TEXT("Card.Effect.Finisher"), ReportLines);
+		if (FinisherEffectTag.IsValid())
+		{
+			CombatCard.CardEffectTags.AddTag(FinisherEffectTag);
+		}
 
 		Rune->MarkPackageDirty();
 		DirtyPackages.AddUnique(Rune->GetPackage());
-		ReportLines.Add(TEXT("- Configured `DA_Rune_Finisher` tuning rows, CombatCard BaseFlow, and PassiveFlows."));
+		ReportLines.Add(TEXT("- Configured `DA_Rune_Finisher` icon, Chinese text, tags, tuning rows, CombatCard BaseFlow, and PassiveFlows."));
 	}
 
 	void ConfigureAbilitySet(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)

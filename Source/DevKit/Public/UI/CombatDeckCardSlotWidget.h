@@ -57,6 +57,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Style")
 	FLinearColor EmptyCardFrameColor = FLinearColor(0.020f, 0.022f, 0.026f, 0.46f);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Style")
+	FLinearColor LockedCardFrameColor = FLinearColor(0.94f, 0.68f, 0.20f, 0.92f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Style", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float LockedCardOpacity = 0.58f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Animation", meta = (ClampMin = "0.01"))
 	float UseFlipDuration = 0.18f;
 
@@ -70,6 +76,7 @@ private:
 	static FText GetCardDisplayName(const FCombatCardInstance& Card);
 	static FText GetActionText(ECardRequiredAction RequiredAction);
 	static FText GetTypeText(ECombatCardType CardType);
+	static FText GetStateText(const FCombatCardInstance& Card, bool bIsNextCard);
 	static void SetTextIfSupported(UWidget* Widget, const FText& Text);
 
 	void ApplyUseFlipTransform(float NormalizedAlpha);

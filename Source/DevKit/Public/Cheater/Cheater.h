@@ -49,6 +49,10 @@ public:
 	/** 冻结/解冻所有敌人（CustomTimeDilation = 0/1） */
 	UFUNCTION(Exec) void Yog_FreezeEnemies(bool bFreeze);
 
+#if WITH_EDITOR
+	UFUNCTION(Exec) void Yog_UnlockFinisher();
+#endif
+
 	// ── Debug 打印 ────────────────────────────────────────────────────────────
 	/** 打印当前热度值、MaxHeat、热度阶段 */
 	UFUNCTION(Exec) void Yog_PrintHeat();

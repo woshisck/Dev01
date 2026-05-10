@@ -99,6 +99,15 @@ struct DEVKIT_API FCombatCardInstance
 	UPROPERTY(BlueprintReadWrite, SaveGame, Category = "Combat Deck")
 	ECombatCardLinkOrientation LinkOrientation = ECombatCardLinkOrientation::Forward;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck|Temporary")
+	bool bTemporarilyLocked = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck|Temporary")
+	int32 TemporaryUnlockRequiredCompletedBattles = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck|Temporary")
+	int32 TemporaryUnlockCurrentCompletedBattles = 0;
+
 	bool IsValidCard() const
 	{
 		return Config.bIsCombatCard;
@@ -142,6 +151,15 @@ struct DEVKIT_API FCombatCardResolveResult
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
 	bool bStartedShuffle = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck|Temporary")
+	bool bCardTemporarilyLocked = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck|Temporary")
+	int32 TemporaryUnlockRequiredCompletedBattles = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck|Temporary")
+	int32 TemporaryUnlockCurrentCompletedBattles = 0;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
 	FCombatCardInstance ConsumedCard;
@@ -271,7 +289,7 @@ public:
 	TArray<FCombatCardInstance> GetDeckSnapshot() const { return ActiveSequence; }
 
 	UFUNCTION(BlueprintPure, Category = "Combat Deck")
-	TArray<FCombatCardInstance> GetFullDeckSnapshot() const { return DeckList; }
+	TArray<FCombatCardInstance> GetFullDeckSnapshot() const;
 
 	UFUNCTION(BlueprintPure, Category = "Combat Deck")
 	TArray<FCombatCardInstance> GetRemainingDeckSnapshot() const;
@@ -302,6 +320,21 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Combat Deck")
 	int32 GetMaxActiveSequenceSize() const { return MaxActiveSequenceSize; }
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
+	void RefreshDeckView();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Temporary Finisher")
+	bool bGrantTemporaryInitialFinisherCard = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Temporary Finisher")
+	TSoftObjectPtr<URuneDataAsset> TemporaryInitialFinisherRune;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Temporary Finisher", meta = (ClampMin = "0"))
+	int32 TemporaryFinisherUnlockCompletedBattles = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Temporary Finisher")
+	FText TemporaryFinisherLockedReasonText;
 
 	void SetDeckListForTest(const TArray<FCombatCardConfig>& InCards);
 	void AdvanceShuffleForTest(float DeltaTime);
@@ -393,6 +426,11 @@ private:
 	TSet<FGuid> ResolvedAttackGuids;
 
 	FCombatCardInstance MakeCardFromRune(URuneDataAsset* RuneAsset, FName OwnerSource) const;
+	void AppendTemporaryInitialFinisherCard(TArray<URuneDataAsset*>& SourceAssets) const;
+	bool IsTemporaryFinisherLocked(const FCombatCardInstance& Card, int32& OutRequiredBattles, int32& OutCurrentBattles) const;
+	FCombatCardInstance BuildTemporaryLockViewCard(const FCombatCardInstance& Card) const;
+	TArray<FCombatCardInstance> BuildTemporaryLockViewCards(const TArray<FCombatCardInstance>& Cards) const;
+	void PushCombatCardConsumeLog(const FCombatCardResolveResult& Result) const;
 	void RefillActiveSequence();
 	void RefreshCardPassiveFlows();
 	void StartPassiveFlowsForCard(const FCombatCardInstance& Card);

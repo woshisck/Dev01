@@ -395,6 +395,14 @@ void AYogGameMode::EnterArrangementPhase()
 	CurrentPhase = ELevelPhase::Arrangement;
 	OnPhaseChanged.Broadcast(CurrentPhase);
 
+	bool bRefreshTemporaryFinisherLockView = false;
+	if (bCountCombatClearsForTemporaryFinisherUnlock)
+	{
+		++CompletedCombatBattleCount;
+		bRefreshTemporaryFinisherLockView = true;
+		UE_LOG(LogTemp, Log, TEXT("[TemporaryFinisher] Completed combat battles: %d"), CompletedCombatBattleCount);
+	}
+
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
 		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 
@@ -417,6 +425,11 @@ void AYogGameMode::EnterArrangementPhase()
 	}
 
 	// 重置本关已分配符文的追踪集合（多拾取物去重用）
+	if (Player && bRefreshTemporaryFinisherLockView && Player->CombatDeckComponent)
+	{
+		Player->CombatDeckComponent->RefreshDeckView();
+	}
+
 	LootAssignedThisLevel.Empty();
 
 	// Loot 落点：优先玩家前方，被墙阻挡/角落时自动选相机可见方向
@@ -810,6 +823,7 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 					NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
 					NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
 				}
+				NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 
 				NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 				NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
@@ -907,6 +921,9 @@ void AYogGameMode::StartLevelSpawning()
 	{
 		CurrentFloor = GI->PendingNextFloor;
 	}
+	CompletedCombatBattleCount = (GI && GI->PendingRunState.bIsValid)
+		? FMath::Max(0, GI->PendingRunState.CompletedCombatBattleCount)
+		: 0;
 
 	// FloorTable 下标从 0 开始，CurrentFloor 从 1 开始
 	const int32 TableIndex = CurrentFloor - 1;
@@ -1542,18 +1559,58 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 
 			Candidates.Add(Entry);
 		}
-
-		Candidates.Sort([](const FEnemyEntry& A, const FEnemyEntry& B)
-		{
-			const int32 ScoreA = A.EnemyData ? A.EnemyData->DifficultyScore : -1;
-			const int32 ScoreB = B.EnemyData ? B.EnemyData->DifficultyScore : -1;
-			if (ScoreA != ScoreB)
-			{
-				return ScoreA > ScoreB;
-			}
-			return GetNameSafe(A.EnemyData.Get()) < GetNameSafe(B.EnemyData.Get());
-		});
 		return Candidates;
+	};
+
+	auto BuildCandidatesWithFallback = [&](int32 CurrentBudget, bool bAllowBudgetFallback)
+	{
+		TArray<FEnemyEntry> Candidates = BuildCandidates(CurrentBudget, false);
+		if (Candidates.IsEmpty() && bAllowBudgetFallback)
+		{
+			Candidates = BuildCandidates(CurrentBudget, true);
+		}
+		return Candidates;
+	};
+
+	TMap<TSubclassOf<AEnemyCharacterBase>, int32> WaveTypeSpawnCounts;
+	auto GetCandidateWeight = [&](const FEnemyEntry& Entry) -> int32
+	{
+		if (!Entry.EnemyData || !Entry.EnemyData->EnemyClass)
+		{
+			return 0;
+		}
+
+		const int32 BaseScore = FMath::Max(1, Entry.EnemyData->DifficultyScore);
+		const int32 LevelCount = LevelTypeSpawnCounts.FindRef(Entry.EnemyData->EnemyClass);
+		const int32 WaveCount = WaveTypeSpawnCounts.FindRef(Entry.EnemyData->EnemyClass);
+		const int32 RepeatPenalty = 100 + LevelCount * 75 + WaveCount * 125;
+		return FMath::Max(1, (BaseScore * 100) / RepeatPenalty);
+	};
+
+	auto PickCandidate = [&](const TArray<FEnemyEntry>& Candidates) -> const FEnemyEntry&
+	{
+		int32 TotalWeight = 0;
+		for (const FEnemyEntry& Candidate : Candidates)
+		{
+			TotalWeight += GetCandidateWeight(Candidate);
+		}
+
+		if (TotalWeight <= 0)
+		{
+			return Candidates[0];
+		}
+
+		int32 Roll = FMath::RandRange(1, TotalWeight);
+		for (const FEnemyEntry& Candidate : Candidates)
+		{
+			Roll -= GetCandidateWeight(Candidate);
+			if (Roll <= 0)
+			{
+				return Candidate;
+			}
+		}
+
+		return Candidates.Last();
 	};
 
 	auto MakePlannedEnemy = [&](const FEnemyEntry& Chosen, FPlannedEnemy& OutPlanned) -> int32
@@ -1567,6 +1624,7 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 		OutPlanned.PreSpawnFXDuration = Chosen.EnemyData->PreSpawnFXDuration;
 
 		LevelTypeSpawnCounts.FindOrAdd(Chosen.EnemyData->EnemyClass)++;
+		WaveTypeSpawnCounts.FindOrAdd(Chosen.EnemyData->EnemyClass)++;
 		TotalLevelPlannedEnemies++;
 
 		return Chosen.EnemyData->DifficultyScore + RoomBuffCostPerEnemy + EnemyBuffCost;
@@ -1582,11 +1640,11 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 		if (!HasLevelSlot())
 			break;
 
-		TArray<FEnemyEntry> Candidates = BuildCandidates(RemainingBudget, bFirstEnemy);
+		TArray<FEnemyEntry> Candidates = BuildCandidatesWithFallback(RemainingBudget, bFirstEnemy);
 		if (Candidates.IsEmpty()) break;
 
 		FPlannedEnemy Planned;
-		const int32 ActualCost = MakePlannedEnemy(Candidates[0], Planned);
+		const int32 ActualCost = MakePlannedEnemy(PickCandidate(Candidates), Planned);
 		Plan.EnemiesToSpawn.Add(Planned);
 
 		RemainingBudget -= ActualCost;
@@ -1605,7 +1663,7 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 		}
 
 		FPlannedEnemy Demand;
-		const int32 ActualCost = MakePlannedEnemy(Candidates[0], Demand);
+		const int32 ActualCost = MakePlannedEnemy(PickCandidate(Candidates), Demand);
 		Plan.DemandEnemyPool.Add(Demand);
 		RemainingBudget -= FMath::Max(1, ActualCost);
 	}
@@ -2263,6 +2321,7 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 				NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
 				NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
 			}
+			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 
 			// 保存运行时隐藏被动符文（无形状、不进格子）
 			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())

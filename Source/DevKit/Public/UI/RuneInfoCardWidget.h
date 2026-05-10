@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Component/CombatDeckComponent.h"
 #include "Data/RuneDataAsset.h"
 #include "RuneInfoCardWidget.generated.h"
 
@@ -106,6 +107,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RuneInfoCard")
     void ShowRune(const FRuneInstance& Rune);
 
+    /** 显示战斗卡牌信息；会额外显示临时锁定进度。 */
+    UFUNCTION(BlueprintCallable, Category = "RuneInfoCard")
+    void ShowCombatCard(const FCombatCardInstance& Card);
+
     /** 隐藏卡片 */
     UFUNCTION(BlueprintCallable, Category = "RuneInfoCard")
     void HideCard();
@@ -145,6 +150,14 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuneInfoCard|Visual")
     float ScaleInterpSpeed = 12.f;
 
+    /** 战斗卡详情里显示临时锁定提示。 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuneInfoCard|Temporary Lock")
+    bool bShowTemporaryLockWarning = true;
+
+    /** 终结技临时锁定时显示在详情里的显眼提示文案。{0}=当前进度，{1}=所需进度，{2}=剩余场数。 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuneInfoCard|Temporary Lock", meta = (MultiLine = true))
+    FText TemporaryLockWarningFormat;
+
 protected:
     virtual void NativeConstruct() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -157,6 +170,8 @@ private:
     FText BuildEffectKeywords(const TArray<TObjectPtr<UGenericRuneEffectDA>>& Effects) const;
 
     FText BuildCombatCardInfo(const FCombatCardConfig& Config) const;
+    FText BuildCombatCardInfo(const FCombatCardInstance& Card) const;
+    FText BuildTemporaryLockWarning(const FCombatCardInstance& Card) const;
 
     /** 按 bGenericEffectsExpanded + CachedEffects 同步子窗显示状态 */
     void SyncGenericEffectListVisibility();
