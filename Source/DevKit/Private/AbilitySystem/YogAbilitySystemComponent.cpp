@@ -410,7 +410,8 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 			{
 				if (TagExists)
 				{
-					Char->StartSuperArmorFlash();
+					// Poise counter armor is short and punchy; externally granted armor should read as stable.
+					Char->StartSuperArmorFlashWithMode(bPoiseSuperArmorActive);
 					FGameplayTagContainer HitReactTags;
 					HitReactTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact"), false));
 					if (!HitReactTags.IsEmpty())

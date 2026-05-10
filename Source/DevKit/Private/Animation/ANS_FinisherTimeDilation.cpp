@@ -1,8 +1,16 @@
 #include "Animation/ANS_FinisherTimeDilation.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
+#include "UI/YogHUD.h"
+#include "Visual/TimeDilationVisualSubsystem.h"
+
+static const FGameplayTag TAG_Buff_Status_FinisherQTEOpen =
+    FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherQTEOpen"));
 
 void UANS_FinisherTimeDilation::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
     float TotalDuration, const FAnimNotifyEventReference& EventReference)
@@ -33,9 +41,23 @@ void UANS_FinisherTimeDilation::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
     {
         WS->SetTimeDilation(SafeDilation);
     }
+    UTimeDilationVisualSubsystem::BeginTimeDilationVisual(Character);
 
     // 玩家自身用倒数抵消，维持正常速度（"子弹时间"效果）
     Character->CustomTimeDilation = 1.0f / SafeDilation;
+
+    if (UYogAbilitySystemComponent* ASC = Character->GetASC())
+    {
+        ASC->SetLooseGameplayTagCount(TAG_Buff_Status_FinisherQTEOpen, 1);
+    }
+
+    if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
+    {
+        if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+        {
+            HUD->ShowFinisherQTEPrompt(TotalDuration);
+        }
+    }
 
     // 通知 UI 显示输入提示
     if (PromptShowEventTag.IsValid() && Character->GetASC())
@@ -84,6 +106,21 @@ void UANS_FinisherTimeDilation::NotifyEnd(USkeletalMeshComponent* MeshComp, UAni
     }
 
     // 通知 UI 隐藏输入提示
+    UTimeDilationVisualSubsystem::EndTimeDilationVisual(Character);
+
+    if (UYogAbilitySystemComponent* ASC = Character->GetASC())
+    {
+        ASC->SetLooseGameplayTagCount(TAG_Buff_Status_FinisherQTEOpen, 0);
+    }
+
+    if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
+    {
+        if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+        {
+            HUD->HideFinisherQTEPrompt();
+        }
+    }
+
     if (PromptHideEventTag.IsValid() && Character->GetASC())
     {
         FGameplayEventData UIPayload;

@@ -4,7 +4,10 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Character/YogCharacterBase.h"
+#include "Data/LevelInfoPopupDA.h"
+#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "UI/YogHUD.h"
 
 static const FGameplayTag TAG_Action_FinisherCharge_Activate =
 	FGameplayTag::RequestGameplayTag(TEXT("Action.FinisherCharge.Activate"));
@@ -41,6 +44,8 @@ UGA_FinisherCharge::UGA_FinisherCharge(const FObjectInitializer& ObjectInitializ
 	// 从而在冲刺时不取消此 GA（Buff.Status.* 被 DashCancelProtectedTags 保护）。
 	// GAS 会在技能激活时自动把此 tag 加到 ASC，EndAbility 时自动移除。
 	ActivationOwnedTags.AddTag(TAG_Buff_Status_FinisherWindowOpen);
+	ComboHintTitle = FText::FromString(TEXT("终结技准备就绪"));
+	ComboHintBody = FText::FromString(TEXT("在强化时间内打出 H -> H -> H，最后一击后会自动触发终结技。"));
 }
 
 void UGA_FinisherCharge::ActivateAbility(
@@ -82,6 +87,7 @@ void UGA_FinisherCharge::ActivateAbility(
 	}
 
 	ASC->AddLooseGameplayTag(TAG_Buff_Status_FinisherWindowOpen);
+	ShowComboHint();
 
 	TagChangedHandle = ASC->RegisterGameplayTagEvent(
 		TAG_Buff_Status_FinisherCharge,
@@ -190,6 +196,45 @@ void UGA_FinisherCharge::ClearAllMarks()
 			Character->GetASC()->RemoveActiveEffectsWithGrantedTags(FGameplayTagContainer(TAG_FinisherCharge_Buff_Status_Mark_Finisher));
 		}
 	}
+}
+
+void UGA_FinisherCharge::ShowComboHint()
+{
+	if (!bShowComboHintOnActivate)
+	{
+		return;
+	}
+
+	AYogCharacterBase* Character = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo());
+	if (!Character)
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(Character->GetController());
+	if (!PC)
+	{
+		return;
+	}
+
+	AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD());
+	if (!HUD)
+	{
+		return;
+	}
+
+	if (ComboHintPopup)
+	{
+		HUD->ShowInfoPopup(ComboHintPopup);
+		return;
+	}
+
+	ULevelInfoPopupDA* TransientPopup = NewObject<ULevelInfoPopupDA>(this);
+	TransientPopup->Title = ComboHintTitle;
+	TransientPopup->Body = ComboHintBody;
+	TransientPopup->HUDSummaryText = ComboHintBody;
+	TransientPopup->DisplayDuration = ComboHintDuration;
+	HUD->ShowInfoPopup(TransientPopup);
 }
 
 void UGA_FinisherCharge::EndAbility(

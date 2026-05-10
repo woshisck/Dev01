@@ -36,6 +36,7 @@ class USacrificeGraceOptionWidget;
 class UBackpackGridComponent;
 class UCombatItemBarWidget;
 class UCurrentRoomBuffWidget;
+class UFinisherQTEWidget;
 class URoomDataAsset;
 class UTexture2D;
 
@@ -69,6 +70,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Pause")
 	TSubclassOf<UPauseMenuWidget> PauseMenuClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|Finisher QTE")
+	TSubclassOf<UFinisherQTEWidget> FinisherQTEWidgetClass;
+
 	UFUNCTION(BlueprintCallable, Category = "HUD|Pause")
 	void OpenPauseMenu();
 
@@ -77,6 +81,15 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "HUD|Pause")
 	bool IsPauseMenuOpen() const;
+
+	UFUNCTION(BlueprintCallable, Category = "HUD|Finisher QTE")
+	void ShowFinisherQTEPrompt(float WindowDuration);
+
+	UFUNCTION(BlueprintCallable, Category = "HUD|Finisher QTE")
+	void HideFinisherQTEPrompt();
+
+	UFUNCTION(BlueprintCallable, Category = "HUD|Finisher QTE")
+	void MarkFinisherQTEConfirmed();
 
 	// ─────────────────────────────────────────
 	//  暂停遮罩后处理
@@ -338,6 +351,7 @@ private:
 
 	bool    bLevelEndEffectActive     = false;
 	bool    bSlowMoPhaseEnded         = false;
+	bool    bLevelEndDilationVisualActive = false;
 	float   LevelEndEffectStartRealTime = 0.f;
 	FVector CachedLootWorldPos        = FVector::ZeroVector;
 
@@ -355,6 +369,7 @@ private:
 	void BindCombatItemWidget(APawn* Pawn);
 	void BindPlayerCommonInfoWidget(APawn* Pawn);
 	void EnsureCombatItemWidget();
+	bool EnsureFinisherQTEWidget();
 	bool EnsureWeaponFloatWidget();
 	FVector2D ProjectWorldToViewportSlate(FVector WorldLocation) const;
 	FVector2D ResolveWeaponFloatViewportPosition(FVector WorldLocation) const;
@@ -396,6 +411,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UCombatItemBarWidget> CombatItemBarWidget;
+
+	UPROPERTY()
+	TObjectPtr<UFinisherQTEWidget> FinisherQTEWidget;
 
 	// === LootSelection 队列管理（多个 RewardPickup 同时触发时按 FIFO 排队） ===
 	struct FQueuedLootRequest

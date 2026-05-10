@@ -7,6 +7,7 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "UI/GameDialogWidget.h"
 #include "UI/TutorialRegistryDA.h"
+#include "Visual/TimeDilationVisualSubsystem.h"
 
 namespace
 {
@@ -37,6 +38,7 @@ void UTutorialManager::Deinitialize()
 		FTSTicker::GetCoreTicker().RemoveTicker(DilationTickerHandle);
 		DilationTickerHandle.Reset();
 	}
+	EndDilationVisualIfActive();
 
 	Super::Deinitialize();
 }
@@ -105,6 +107,8 @@ void UTutorialManager::TryWeaponTutorial(AYogPlayerControllerBase* PC)
 	}
 
 	UGameplayStatics::SetGlobalTimeDilation(GI, 0.08f);
+	UTimeDilationVisualSubsystem::BeginTimeDilationVisual(GI);
+	bDilationVisualActive = true;
 
 	TWeakObjectPtr<AYogPlayerControllerBase> WeakPC = PC;
 	TWeakObjectPtr<UTutorialManager> WeakThis = this;
@@ -120,6 +124,7 @@ void UTutorialManager::TryWeaponTutorial(AYogPlayerControllerBase* PC)
 			if (WeakThis.IsValid())
 			{
 				WeakThis->DilationTickerHandle.Reset();
+				WeakThis->EndDilationVisualIfActive();
 				WeakThis->DoShowWeaponPopup(WeakPC);
 			}
 			return false;
@@ -364,6 +369,17 @@ void UTutorialManager::ForceClosePopup()
 	{
 		PopupWidget->ConfirmClose();
 	}
+}
+
+void UTutorialManager::EndDilationVisualIfActive()
+{
+	if (!bDilationVisualActive)
+	{
+		return;
+	}
+
+	UTimeDilationVisualSubsystem::EndTimeDilationVisual(GetGameInstance());
+	bDilationVisualActive = false;
 }
 
 void UTutorialManager::SaveState()

@@ -70,9 +70,11 @@ private:
 
 	FTimerHandle DelayHandle;
 	FTSTicker::FDelegateHandle DilationTickerHandle;
+	bool bDilationVisualActive = false;
 
 	void DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC);
 	void DoShowPostCombatPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC);
+	void EndDilationVisualIfActive();
 
 	void SaveState();
 };

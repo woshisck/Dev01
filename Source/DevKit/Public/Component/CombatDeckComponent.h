@@ -234,6 +234,7 @@ public:
 	UCombatDeckComponent();
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
@@ -387,10 +388,16 @@ private:
 	UPROPERTY()
 	FCombatDeckActionContext DashSavedLinkActionContext;
 
+	TMap<FGuid, TArray<FGuid>> ActiveCardPassiveFlowGuids;
+
 	TSet<FGuid> ResolvedAttackGuids;
 
 	FCombatCardInstance MakeCardFromRune(URuneDataAsset* RuneAsset, FName OwnerSource) const;
 	void RefillActiveSequence();
+	void RefreshCardPassiveFlows();
+	void StartPassiveFlowsForCard(const FCombatCardInstance& Card);
+	void StopPassiveFlowsForCard(const FGuid& CardGuid);
+	void StopAllCardPassiveFlows();
 	void ResetRuntimeStateAfterDeckEdit();
 	void StartDeckEditReload();
 	void StartShuffle();

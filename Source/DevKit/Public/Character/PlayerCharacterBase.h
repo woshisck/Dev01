@@ -318,6 +318,7 @@ private:
 	float DamageGlowElapsed = -1.f;
 	float PreviousDamageGlobalTimeDilation = 1.f;
 	FTSTicker::FDelegateHandle DamageTimeDilationTickerHandle;
+	bool bDamageTimeDilationVisualActive = false;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> PlayerOverlayDynMat;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> DamageOverlayDynMat;
 	UPROPERTY() TObjectPtr<UDamageEdgeFlashWidget> DamageEdgeFlashWidget;

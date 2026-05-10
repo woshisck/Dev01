@@ -35,6 +35,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameModes/YogGameMode.h"
 #include "GameplayEffect.h"
+#include "Visual/TimeDilationVisualSubsystem.h"
 
 namespace
 {
@@ -660,6 +661,11 @@ void APlayerCharacterBase::StartDamageTimeDilation()
 	}
 
 	UGameplayStatics::SetGlobalTimeDilation(World, DamageTimeDilationScale);
+	if (!bDamageTimeDilationVisualActive)
+	{
+		UTimeDilationVisualSubsystem::BeginTimeDilationVisual(this);
+		bDamageTimeDilationVisualActive = true;
+	}
 
 	TWeakObjectPtr<APlayerCharacterBase> WeakThis = this;
 	DamageTimeDilationTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
@@ -689,6 +695,12 @@ void APlayerCharacterBase::RestoreDamageTimeDilation()
 		{
 			UGameplayStatics::SetGlobalTimeDilation(World, PreviousDamageGlobalTimeDilation);
 		}
+	}
+
+	if (bDamageTimeDilationVisualActive)
+	{
+		UTimeDilationVisualSubsystem::EndTimeDilationVisual(this);
+		bDamageTimeDilationVisualActive = false;
 	}
 }
 

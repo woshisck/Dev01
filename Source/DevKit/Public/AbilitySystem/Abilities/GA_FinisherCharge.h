@@ -6,6 +6,7 @@
 
 class UAbilityTask_WaitGameplayEvent;
 class AYogCharacterBase;
+class ULevelInfoPopupDA;
 
 /**
  * 终结技充能窗口管理 GA
@@ -48,6 +49,23 @@ public:
     UPROPERTY(EditDefaultsOnly, Category = "Finisher")
     TSubclassOf<UGameplayEffect> FinisherChargeGEClass;
 
+    /** 使用终结技卡牌后显示轻提示，提示玩家需要 H -> H -> H。 */
+    UPROPERTY(EditDefaultsOnly, Category = "Finisher|Hint")
+    bool bShowComboHintOnActivate = true;
+
+    /** 可选：使用现有 InfoPopup DA 资产；为空时使用下面的内置文案。 */
+    UPROPERTY(EditDefaultsOnly, Category = "Finisher|Hint")
+    TObjectPtr<ULevelInfoPopupDA> ComboHintPopup;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Finisher|Hint")
+    FText ComboHintTitle;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Finisher|Hint", meta = (MultiLine = true))
+    FText ComboHintBody;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Finisher|Hint", meta = (ClampMin = "0.1"))
+    float ComboHintDuration = 3.0f;
+
 private:
     UFUNCTION()
     void OnAttackHit(FGameplayEventData EventData);
@@ -58,6 +76,7 @@ private:
     void EndAbilityDeferred();
 
     void ClearAllMarks();
+    void ShowComboHint();
 
     int32 RemainingCharges = 0;
 

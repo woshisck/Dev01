@@ -364,10 +364,10 @@
 |------|------|
 | 核心文件 | `Data/EnemyData.h`、`Character/EnemyCharacterBase.cpp`、`Character/YogCharacterBase.h/.cpp`、`AbilitySystem/YogAbilitySystemComponent.cpp` |
 | DA 新字段 | `SuperArmorThreshold`（默认 3）/ `SuperArmorDuration`（默认 2s）——`EnemyCharacterBase::BeginPlay` 自动推到 ASC |
-| 金光触发 | 连续受击 ≥ Threshold → ASC 调 `StartSuperArmorFlash()` → Tick 以 `SuperArmorPulseFreq`（默认 6Hz）驱动金黄正弦脉冲（`FLinearColor(5,3,0)`） |
+| 金光触发 | 连续受击 ≥ Threshold 的短暂霸体 → 金黄正弦脉冲；关卡/自身/FA/AnimNotify/GE 直接授予 `Buff.Status.SuperArmor` → 稳定金光 |
 | 金光结束 | `SuperArmorDuration` 到期 → ASC 调 `StopSuperArmorFlash()` → Overlay 移除 |
 | 优先级 | 命中白闪 > 霸体金光 > 攻击前红光；白闪结束后金光自动恢复 |
-| 可调参数 | `SuperArmorPulseFreq`（蓝图 Details → Combat\|Visual，默认 6）/ `SuperArmorThreshold` / `SuperArmorDuration`（DA） |
+| 可调参数 | `SuperArmorPulseFreq`（短暂霸体闪烁频率）/ `SuperArmorStableAlpha`（稳定金光强度）/ `SuperArmorThreshold` / `SuperArmorDuration`（DA） |
 | 技术文档 | [CharacterFlash_Technical](../Systems/VFX/CharacterFlash_Technical.md) |
 
 ---

@@ -3,6 +3,7 @@
 #include "UI/CombatDeckBarWidget.h"
 #include "UI/CombatItemBarWidget.h"
 #include "UI/CurrentRoomBuffWidget.h"
+#include "UI/FinisherQTEWidget.h"
 #include "UI/PlayerCommonInfoWidget.h"
 #include "UI/PauseMenuWidget.h"
 #include "UI/LiquidHealthBarWidget.h"
@@ -42,6 +43,7 @@
 #include "Map/SacrificeGracePickup.h"
 #include "UI/SacrificeGraceOptionWidget.h"
 #include "Data/SacrificeGraceDA.h"
+#include "Visual/TimeDilationVisualSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "GameModes/YogGameMode.h"
 #include "Components/CanvasPanelSlot.h"
@@ -100,6 +102,7 @@ void AYogHUD::BeginPlay()
 		}
 	}
 
+	EnsureFinisherQTEWidget();
 	EnsureCurrentRoomBuffWidget();
 	RefreshCurrentRoomBuffsFromGameMode();
 
@@ -881,6 +884,8 @@ void AYogHUD::TriggerLevelEndEffect(FVector LootWorldPos)
 	CachedLootWorldPos          = LootWorldPos;
 
 	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), LevelEndEffectDA->SlowMoScale);
+	UTimeDilationVisualSubsystem::BeginTimeDilationVisual(this);
+	bLevelEndDilationVisualActive = true;
 
 	// 直接接管 PausePPVolume，确保从当前状态开始（不叠加暂停计数）
 	if (PausePPVolume)
@@ -918,6 +923,11 @@ void AYogHUD::TickLevelEndEffect()
 	{
 		bSlowMoPhaseEnded = true;
 		UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.0f);
+		if (bLevelEndDilationVisualActive)
+		{
+			UTimeDilationVisualSubsystem::EndTimeDilationVisual(this);
+			bLevelEndDilationVisualActive = false;
+		}
 		StartRevealAnimation();
 	}
 
@@ -1070,6 +1080,66 @@ void AYogHUD::EnsureCombatItemWidget()
 		ItemSlot->SetHorizontalAlignment(HAlign_Right);
 		ItemSlot->SetVerticalAlignment(VAlign_Bottom);
 		ItemSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 8.0f));
+	}
+}
+
+bool AYogHUD::EnsureFinisherQTEWidget()
+{
+	if (FinisherQTEWidget)
+	{
+		return true;
+	}
+
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC)
+	{
+		return false;
+	}
+
+	TSubclassOf<UFinisherQTEWidget> WidgetClass = FinisherQTEWidgetClass;
+	if (!WidgetClass)
+	{
+		WidgetClass = LoadClass<UFinisherQTEWidget>(
+			nullptr,
+			TEXT("/Game/UI/Playtest_UI/HUD/WBP_FinisherQTEPrompt.WBP_FinisherQTEPrompt_C"));
+	}
+	if (!WidgetClass)
+	{
+		WidgetClass = UFinisherQTEWidget::StaticClass();
+	}
+
+	FinisherQTEWidget = CreateWidget<UFinisherQTEWidget>(PC, WidgetClass);
+	if (!FinisherQTEWidget)
+	{
+		return false;
+	}
+
+	FinisherQTEWidget->AddToViewport(30);
+	FinisherQTEWidget->HidePrompt();
+	return true;
+}
+
+void AYogHUD::ShowFinisherQTEPrompt(float WindowDuration)
+{
+	if (EnsureFinisherQTEWidget() && FinisherQTEWidget)
+	{
+		FinisherQTEWidget->ShowPrompt(WindowDuration);
+	}
+}
+
+void AYogHUD::HideFinisherQTEPrompt()
+{
+	if (FinisherQTEWidget)
+	{
+		FinisherQTEWidget->HidePrompt();
+	}
+}
+
+void AYogHUD::MarkFinisherQTEConfirmed()
+{
+	if (EnsureFinisherQTEWidget() && FinisherQTEWidget)
+	{
+		FinisherQTEWidget->MarkConfirmed();
 	}
 }
 

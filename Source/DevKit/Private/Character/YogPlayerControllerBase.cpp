@@ -423,15 +423,20 @@ void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 		// 终结技执行期间：将重攻击路由到确认事件，不驱动 ComboRuntime
 		static const FGameplayTag TAG_FinisherExecuting =
 			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherExecuting"));
+		static const FGameplayTag TAG_FinisherQTEOpen =
+			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherQTEOpen"));
 		if (UAbilitySystemComponent* ASC = player->GetASC())
 		{
 			if (ASC->HasMatchingGameplayTag(TAG_FinisherExecuting))
 			{
-				FGameplayEventData EventData;
-				EventData.Instigator = player;
-				ASC->HandleGameplayEvent(
-					FGameplayTag::RequestGameplayTag(TEXT("Action.Finisher.Confirm")),
-					&EventData);
+				if (ASC->HasMatchingGameplayTag(TAG_FinisherQTEOpen))
+				{
+					FGameplayEventData EventData;
+					EventData.Instigator = player;
+					ASC->HandleGameplayEvent(
+						FGameplayTag::RequestGameplayTag(TEXT("Action.Finisher.Confirm")),
+						&EventData);
+				}
 				return;
 			}
 		}

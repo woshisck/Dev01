@@ -30,6 +30,7 @@
 #include "Graph/Nodes/FlowGraphNode.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/PackageName.h"
+#include "NiagaraSystem.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 
@@ -56,6 +57,7 @@ namespace FinisherCardSetup
 	const FString DetonateFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_FinisherCard_Detonate");
 	const FString LegacyChargeHitFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_Finisher_ChargeHit");
 	const FString LegacyDetonateFlowPath = TEXT("/Game/YogRuneEditor/Flows/FA_Finisher_Detonate");
+	const FString DefaultPreFinisherAuraNiagaraPath = TEXT("/Game/CharacterStatus/NS/Vfx_AttachChargeLightning");
 	const FString AbilitySetPath = TEXT("/Game/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial");
 
 	FString ToObjectPath(const FString& PackagePath)
@@ -721,9 +723,13 @@ namespace FinisherCardSetup
 				SetTagContainerProperty(CDO, TEXT("ActivationBlockedTags"), { TagCharge }, ReportLines);
 				CDO->MaxCharges = 5;
 				CDO->FinisherChargeGEClass = ChargeGEClass;
+				CDO->bShowComboHintOnActivate = true;
+				CDO->ComboHintTitle = FText::FromString(TEXT("终结技准备就绪"));
+				CDO->ComboHintBody = FText::FromString(TEXT("在强化时间内打出 H -> H -> H，最后一击后会自动触发终结技。"));
+				CDO->ComboHintDuration = 3.f;
 				ChargeBP->MarkPackageDirty();
 				DirtyPackages.AddUnique(ChargeBP->GetPackage());
-				ReportLines.Add(TEXT("- Configured `BGA_FinisherCharge`."));
+				ReportLines.Add(TEXT("- Configured `BGA_FinisherCharge`; combo hint uses InfoPopup after the finisher card is played."));
 			}
 		}
 
@@ -740,9 +746,30 @@ namespace FinisherCardSetup
 				SetTagContainerProperty(CDO, TEXT("CancelAbilitiesWithTag"), { TagLight, TagHeavy, TagDash }, ReportLines);
 				CDO->FinisherMontage = FinisherMontage;
 				CDO->ConfirmedDamageMultiplier = 2.f;
+				CDO->bEnableFallbackTimeDilationWindow = true;
+				CDO->FallbackQTEWindowStartTime = 0.35f;
+				CDO->FallbackQTEWindowDuration = 0.45f;
+				CDO->FallbackQTESlowDilation = 0.15f;
+				CDO->bEnableFallbackHitFrame = true;
+				CDO->FallbackHitFrameTime = 0.65f;
+				CDO->FallbackFinisherActionData = FActionData();
+				CDO->FallbackFinisherActionData.ActDamage = 60.f;
+				CDO->FallbackFinisherActionData.ActRange = 480.f;
+				CDO->FallbackFinisherActionData.ActResilience = 40.f;
+				FYogHitboxType DefaultHitbox;
+				DefaultHitbox.hitboxType = EHitBoxType::Annulus;
+				DefaultHitbox.AnnulusHitbox.inner_radius = 0.f;
+				DefaultHitbox.AnnulusHitbox.degree = 115.f;
+				DefaultHitbox.AnnulusHitbox.bAutoOffset = true;
+				CDO->FallbackFinisherActionData.hitboxTypes.Add(DefaultHitbox);
+				CDO->PreFinisherAuraNiagara = LoadAsset<UNiagaraSystem>(DefaultPreFinisherAuraNiagaraPath);
+				CDO->PreFinisherAuraLocationOffset = FVector(0.f, 0.f, 45.f);
+				CDO->PreFinisherAuraScale = FVector(1.2f, 1.2f, 1.2f);
+				CDO->PreFinisherAuraDuration = 0.85f;
+				CDO->bDestroyPreFinisherAuraOnAbilityEnd = true;
 				AttackBP->MarkPackageDirty();
 				DirtyPackages.AddUnique(AttackBP->GetPackage());
-				ReportLines.Add(TEXT("- Configured `BGA_Player_FinisherAttack`; CancelAbilitiesWithTag excludes FinisherCharge."));
+				ReportLines.Add(TEXT("- Configured `BGA_Player_FinisherAttack`; added fallback QTE/HitFrame and pre-finisher gold aura VFX interface."));
 			}
 		}
 
@@ -984,6 +1011,10 @@ namespace FinisherCardSetup
 		RuneInfo.RuneConfig.TuningScalars.Add(KnockbackDistance);
 
 		RuneInfo.Flow.FlowAsset = BaseFlow;
+		RuneInfo.Flow.PassiveFlows.Reset();
+		RuneInfo.Flow.PassiveFlows.Add(ChargeHitFlow);
+		RuneInfo.Flow.PassiveFlows.Add(DetonateFlow);
+
 		FCombatCardConfig& CombatCard = RuneInfo.CombatCard;
 		CombatCard.bIsCombatCard = true;
 		CombatCard.CardType = ECombatCardType::Finisher;
@@ -996,7 +1027,7 @@ namespace FinisherCardSetup
 
 		Rune->MarkPackageDirty();
 		DirtyPackages.AddUnique(Rune->GetPackage());
-		ReportLines.Add(TEXT("- Configured `DA_Rune_Finisher` tuning rows and CombatCard BaseFlow."));
+		ReportLines.Add(TEXT("- Configured `DA_Rune_Finisher` tuning rows, CombatCard BaseFlow, and PassiveFlows."));
 	}
 
 	void ConfigureAbilitySet(bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
