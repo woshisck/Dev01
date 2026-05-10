@@ -644,12 +644,29 @@ void UYogGameInstanceBase::ShowLoadingScreen(const FText& Title, const FText& Su
 {
 	RemoveFrontendWidget();
 
+	const FSlateBrush* BackgroundBrush = GetFrontendMainMenuBackgroundBrush();
 	TSharedRef<SWidget> Widget =
 		SNew(SOverlay)
 		+ SOverlay::Slot()
 		[
 			SNew(SBorder)
 			.BorderBackgroundColor(FLinearColor(0.01f, 0.012f, 0.016f, 1.f))
+			.Padding(0.f)
+		]
+		+ SOverlay::Slot()
+		[
+			SNew(SScaleBox)
+			.Stretch(EStretch::ScaleToFill)
+			[
+				SNew(SImage)
+				.Image(BackgroundBrush)
+				.ColorAndOpacity(FLinearColor::White)
+			]
+		]
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.58f))
 			.Padding(0.f)
 		]
 		+ SOverlay::Slot()

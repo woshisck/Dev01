@@ -9,7 +9,7 @@
 #include "UI/YogHUD.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 
-static const FGameplayTag TAG_Buff_Status_FinisherQTEOpen =
+static const FGameplayTag TAG_ANS_FinisherTimeDilation_QTEOpen =
     FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherQTEOpen"));
 
 void UANS_FinisherTimeDilation::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
@@ -48,7 +48,7 @@ void UANS_FinisherTimeDilation::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
 
     if (UYogAbilitySystemComponent* ASC = Character->GetASC())
     {
-        ASC->SetLooseGameplayTagCount(TAG_Buff_Status_FinisherQTEOpen, 1);
+        ASC->SetLooseGameplayTagCount(TAG_ANS_FinisherTimeDilation_QTEOpen, 1);
     }
 
     if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
@@ -110,7 +110,7 @@ void UANS_FinisherTimeDilation::NotifyEnd(USkeletalMeshComponent* MeshComp, UAni
 
     if (UYogAbilitySystemComponent* ASC = Character->GetASC())
     {
-        ASC->SetLooseGameplayTagCount(TAG_Buff_Status_FinisherQTEOpen, 0);
+        ASC->SetLooseGameplayTagCount(TAG_ANS_FinisherTimeDilation_QTEOpen, 0);
     }
 
     if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
