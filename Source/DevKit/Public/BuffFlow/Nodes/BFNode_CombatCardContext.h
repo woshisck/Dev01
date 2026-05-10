@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "BuffFlow/Nodes/BFNode_Base.h"
 #include "BuffFlow/Nodes/BFNode_PureData.h"
+#include "Component/CombatDeckComponent.h"
 #include "Data/RuneDataAsset.h"
 #include "Types/FlowDataPinResults.h"
 #include "BFNode_CombatCardContext.generated.h"

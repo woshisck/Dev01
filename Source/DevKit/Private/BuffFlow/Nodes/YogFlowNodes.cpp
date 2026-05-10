@@ -244,6 +244,14 @@ UYogFlowNode_SpawnRangedProjectiles::UYogFlowNode_SpawnRangedProjectiles(const F
 #endif
 }
 
+UYogFlowNode_SpawnBuffFlowProjectile::UYogFlowNode_SpawnBuffFlowProjectile(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITOR
+	Category = SpawnCategory;
+#endif
+}
+
 UYogFlowNode_ConditionAttributeCompare::UYogFlowNode_ConditionAttributeCompare(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
