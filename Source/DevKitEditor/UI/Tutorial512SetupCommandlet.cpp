@@ -102,7 +102,15 @@ namespace Tutorial512Setup
 		}
 		if (EventID == TEXT("tutorial_backpack"))
 		{
-			return PageIndex == 0 ? TEXT("T_Tutorial512_CardSort") : TEXT("T_Tutorial512_LinkCard");
+			if (PageIndex == 0)
+			{
+				return TEXT("T_Tutorial512_CardSort");
+			}
+			if (PageIndex == 1)
+			{
+				return TEXT("T_Tutorial512_LinkCard");
+			}
+			return TEXT("T_Tutorial512_WeaponCards");
 		}
 		if (EventID == TEXT("tutorial_card_link"))
 		{
@@ -226,6 +234,11 @@ namespace Tutorial512Setup
 						TEXT("切换连携方向"),
 						TEXT("Link 卡可以正向读取前一张，也可以反向赋能下一张。选中 Link 卡按 R 或手柄左键切换方向。"),
 						TEXT("")
+					},
+					{
+						TEXT("双手剑终结技卡牌"),
+						TEXT("卡组中的 Finisher 是德式双手剑的终结技准备牌。打出后会进入短暂强化窗口；在窗口内用重攻击连段完成最后一击，会触发终结技并引爆此前命中的终结印记。"),
+						TEXT("若卡牌显示锁定进度，先完成 3 场战斗解锁；普通攻击消耗它时只会获得准备效果，不会立刻打出终结技。")
 					},
 				}
 			},

@@ -53,18 +53,18 @@ Root: CanvasPanel
 
 | 控件 | 关键属性 |
 | --- | --- |
-| `Root` | `CanvasPanel -> Anchors=Bottom Center; Alignment=(0.5,1.0); Position=(0,-72); Size=(880,170)` |
-| `SizeBox 或 Border` | `Width Override=880; Height Override=170; Brush Color=(0.02,0.02,0.025,0.55)` |
+| `Root` | `CanvasPanel -> Anchors=Bottom Center; Alignment=(0.5,1.0); Position=(0,0); Size=(900,120)` |
+| `SizeBox 或 Border` | `Width Override=900; Height Override=112; Brush Color=(0.012,0.014,0.018,0.78)` |
 | `VerticalBox` | `Slot -> Fill/Fill; Padding=10` |
 | `CardRow` | `HorizontalBox; Slot -> Auto; Padding=(0,0,0,6)` |
-| `CardSlot_0` | `Size=(96,132); Padding=(0,0,6,0); Is Variable=true` |
-| `CardSlot_1` | `Size=(96,132); Padding=(0,0,6,0); Is Variable=true` |
-| `CardSlot_2` | `Size=(96,132); Padding=(0,0,6,0); Is Variable=true` |
-| `CardSlot_3` | `Size=(96,132); Padding=(0,0,6,0); Is Variable=true` |
-| `CardSlot_4` | `Size=(96,132); Padding=(0,0,6,0); Is Variable=true` |
-| `CardSlot_5` | `Size=(96,132); Padding=(0,0,6,0); Is Variable=true` |
-| `CardSlot_6` | `Size=(96,132); Padding=(0,0,6,0); Is Variable=true` |
-| `CardSlot_7` | `Size=(96,132); Padding=(0,0,0,0); Is Variable=true` |
+| `CardSlot_0` | `Size=(72,86); Padding=(2,0,2,0); Is Variable=true` |
+| `CardSlot_1` | `Size=(72,86); Padding=(2,0,2,0); Is Variable=true` |
+| `CardSlot_2` | `Size=(72,86); Padding=(2,0,2,0); Is Variable=true` |
+| `CardSlot_3` | `Size=(72,86); Padding=(2,0,2,0); Is Variable=true` |
+| `CardSlot_4` | `Size=(72,86); Padding=(2,0,2,0); Is Variable=true` |
+| `CardSlot_5` | `Size=(72,86); Padding=(2,0,2,0); Is Variable=true` |
+| `CardSlot_6` | `Size=(72,86); Padding=(2,0,2,0); Is Variable=true` |
+| `CardSlot_7` | `Size=(72,86); Padding=(2,0,2,0); Is Variable=true` |
 | `ShufflePanel` | `Visibility=Collapsed; Slot -> Fill/Auto; Padding=(0,4,0,0); Brush Color=(0.05,0.05,0.07,0.82)` |
 | `ShuffleProgressBar` | `Percent=0; Fill Color=(0.95,0.72,0.22,1); Size Height=8` |
 | `ShuffleText` | `FontStyleClass=BP_InfoPopupTextStyle; OverrideFontSize=12; OverrideColor=(1,0.86,0.45,1); Justification=Center` |
@@ -95,4 +95,3 @@ Root: CanvasPanel
 - `ShufflePanel / ShuffleProgressBar / ShuffleText / StatusText / ConsumedToastText / RewardToastText` 都勾选 `Is Variable`。
 - 所有文字控件推荐使用 `Yog Common Rich Text Block`。
 - 不需要手写绑定逻辑和提示动画，HUD 会自动调用 `BindToCombatDeck`，C++ 会自动处理提示淡出。
-

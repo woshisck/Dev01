@@ -335,7 +335,7 @@ namespace MainUISetup
 
 		USizeBox* CombatDeckHost = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("CombatDeckHost"), false);
 		CombatDeckHost->SetWidthOverride(900.f);
-		CombatDeckHost->SetHeightOverride(180.f);
+		CombatDeckHost->SetHeightOverride(120.f);
 		if (UWidget* CombatDeck = ConstructWidgetFromPath(WidgetTree, CombatDeckClassPath, TEXT("CombatDeckBar"), ReportLines))
 		{
 			CombatDeckHost->AddChild(CombatDeck);

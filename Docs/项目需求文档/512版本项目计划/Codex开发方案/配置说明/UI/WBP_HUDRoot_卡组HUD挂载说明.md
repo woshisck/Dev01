@@ -33,8 +33,8 @@ CombatDeckBar: WBP_CombatDeckBar
 | 控件 | 关键属性 |
 | --- | --- |
 | `CombatDeckBar` | `Class=WBP_CombatDeckBar; Name=CombatDeckBar; Is Variable=true` |
-| `CombatDeckBar` | `Slot -> Anchors=Bottom Center; Alignment=(0.5,1.0); Position X=0; Position Y=-72` |
-| `CombatDeckBar` | `Size X=880; Size Y=170; ZOrder=20` |
+| `CombatDeckBar` | `Slot -> Anchors=Bottom Center; Alignment=(0.5,1.0); Position X=0; Position Y=0` |
+| `CombatDeckBar` | `Size X=900; Size Y=120; ZOrder=20` |
 | `CombatDeckBar` | `Visibility=Hit Test Invisible` |
 | `CombatDeckBar` | `Render Opacity=1.0` |
 
@@ -42,10 +42,10 @@ CombatDeckBar: WBP_CombatDeckBar
 
 | 分辨率情况 | 参数 |
 | --- | --- |
-| 16:9 桌面默认 | `Position Y=-72; Size=(880,170)` |
-| UI 挡住玩家血条 | `Position Y=-120` |
-| 卡牌太大 | `WBP_CombatDeckBar Size X=760; CardSlot Size=84x116` |
-| 卡牌太小 | `WBP_CombatDeckBar Size X=960; CardSlot Size=104x144` |
+| 16:9 桌面默认 | `Position Y=0; Size=(900,120)` |
+| UI 挡住玩家血条 | `Position Y=-40` |
+| 卡牌太大 | `WBP_CombatDeckBar Size X=760; Host Size Y=112` |
+| 卡牌太小 | `WBP_CombatDeckBar Size X=960; Host Size Y=140` |
 
 ## 必须检查
 
@@ -53,4 +53,3 @@ CombatDeckBar: WBP_CombatDeckBar
 - 子控件变量名必须是 `CombatDeckBar`。
 - `CombatDeckBar` 必须勾选 `Is Variable`。
 - 玩家角色需要有 `CombatDeckComponent`，否则卡组 HUD 会显示为空。
-
