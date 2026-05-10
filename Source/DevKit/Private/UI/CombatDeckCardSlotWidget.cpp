@@ -53,10 +53,14 @@ void UCombatDeckCardSlotWidget::NativeTick(const FGeometry& MyGeometry, float In
 void UCombatDeckCardSlotWidget::SetCard(const FCombatCardInstance& InCard, bool bIsNextCard)
 {
 	SetVisibility(ESlateVisibility::Visible);
+	SetRenderOpacity(InCard.bTemporarilyLocked ? LockedCardOpacity : 1.0f);
 
 	if (CardFrame)
 	{
-		CardFrame->SetBrushColor(bIsNextCard ? NextCardFrameColor : NormalCardFrameColor);
+		const FLinearColor FrameColor = InCard.bTemporarilyLocked
+			? LockedCardFrameColor
+			: (bIsNextCard ? NextCardFrameColor : NormalCardFrameColor);
+		CardFrame->SetBrushColor(FrameColor);
 	}
 
 	if (CardIcon)
@@ -86,13 +90,14 @@ void UCombatDeckCardSlotWidget::SetCard(const FCombatCardInstance& InCard, bool 
 
 	if (StateText)
 	{
-		SetTextIfSupported(StateText, bIsNextCard ? FText::FromString(TEXT("NEXT")) : FText::GetEmpty());
+		SetTextIfSupported(StateText, GetStateText(InCard, bIsNextCard));
 	}
 }
 
 void UCombatDeckCardSlotWidget::ClearSlot()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
+	SetRenderOpacity(1.0f);
 	bUseFlipAnimating = false;
 	ResetUseFlipTransform();
 
@@ -168,6 +173,19 @@ FText UCombatDeckCardSlotWidget::GetActionText(ECardRequiredAction RequiredActio
 	default:
 		return FText::FromString(TEXT("Any"));
 	}
+}
+
+FText UCombatDeckCardSlotWidget::GetStateText(const FCombatCardInstance& Card, bool bIsNextCard)
+{
+	if (Card.bTemporarilyLocked)
+	{
+		return FText::Format(
+			FText::FromString(TEXT("LOCK {0}/{1}")),
+			FText::AsNumber(Card.TemporaryUnlockCurrentCompletedBattles),
+			FText::AsNumber(Card.TemporaryUnlockRequiredCompletedBattles));
+	}
+
+	return bIsNextCard ? FText::FromString(TEXT("NEXT")) : FText::GetEmpty();
 }
 
 void UCombatDeckCardSlotWidget::SetTextIfSupported(UWidget* Widget, const FText& Text)

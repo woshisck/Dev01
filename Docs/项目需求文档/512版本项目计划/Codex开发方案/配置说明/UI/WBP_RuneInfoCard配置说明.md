@@ -16,7 +16,7 @@
 | `CardIcon`          | `Image`                                        | Size `80x80`                    | 显示 `RuneConfig.RuneIcon`                   |
 | `CardName`          | `TextBlock`                                    | Font Size 16, Bold              | 显示 `RuneConfig.RuneName`                   |
 | `CardDesc`          | `Yog/Common Rich Text` 或 `CommonRichTextBlock` | Auto Wrap Text 开启               | 显示 `RuneConfig.RuneDescription`            |
-| `CardEffect`        | `Yog/Common Rich Text` 或 `CommonRichTextBlock` | Font Size 12                    | 显示 `GenericEffects` 关键词                    |
+| `CardEffect`        | `Yog/Common Rich Text` 或 `CommonRichTextBlock` | Font Size 12                    | 显示 `GenericEffects` 关键词；战斗卡详情中也用于显示终结技临时锁定提示 |
 | `CardCombatInfo`    | `Yog/Common Rich Text` 或 `CommonRichTextBlock` | Font Size 11, Auto Wrap Text 开启 | 显示 CombatCard 信息                           |
 | `ShapeGrid`         | `CanvasPanel`                                  | Size `120x120`                  | C++ 动态生成符文形状点阵                             |
 | `GenericEffectList` | `GenericEffectListWidget`                      | 默认 Collapsed                    | 显示流血等关键词说明浮窗                               |
@@ -38,9 +38,20 @@ CardId：Card.ID.Moonlight
 
 如果不放 `CardCombatInfo` 控件，不会报错，只是不显示战斗卡牌详情。
 
+## 终结技临时锁提示
+
+`CombatDeckEditWidget` 选中战斗卡牌时会调用 `RuneInfoCardWidget::ShowCombatCard`。如果该卡是临时锁定的终结技卡：
+
+- `CardEffect` 会显示显眼提示：`终结技未解锁：当前/所需`，并说明锁定期间消耗此牌不会触发终结技。
+- `CardCombatInfo` 会额外显示 `锁定状态：未解锁（当前/所需）`。
+- 文案可在 `WBP_RuneInfoCard` 的 Class Defaults -> `RuneInfoCard|Temporary Lock` 中调整：
+  - `bShowTemporaryLockWarning`：是否在详情显示锁定提示。
+  - `TemporaryLockWarningFormat`：提示文案，`{0}`=当前完成战斗数，`{1}`=解锁所需战斗数，`{2}`=剩余战斗数。
+
 ## 验收
 
 1. 打开背包。
 2. 选中一张战斗卡牌符文。
 3. 右侧信息卡能看到分类、CardId、效果 Tag。
 4. 选中月光时能看到当前方向和配方数量。
+5. 在终结技未解锁时，选中终结技卡牌，右侧信息卡顶部能看到醒目的未解锁进度提示。

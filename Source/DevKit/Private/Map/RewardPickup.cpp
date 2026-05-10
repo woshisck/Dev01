@@ -74,7 +74,7 @@ void ARewardPickup::OnPlayerEnterRange(APlayerCharacterBase* Player)
 	NearbyPlayer = Player;
 	bPlayerInRange = true;
 	if (RuneInfoWidgetComp) RuneInfoWidgetComp->SetVisibility(true);
-	UE_LOG(LogTemp, Log, TEXT("RewardPickup: 玩家进入拾取范围，按 E 键拾取"));
+	UE_LOG(LogTemp, Log, TEXT("RewardPickup: 玩家进入拾取范围，按 A 键（手柄）拾取"));
 }
 
 void ARewardPickup::OnPlayerLeaveRange(APlayerCharacterBase* Player)
@@ -150,7 +150,7 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 			GM ? TEXT("OK") : TEXT("NULL"),
 			PC ? TEXT("OK") : TEXT("NULL"),
 			HUD ? TEXT("OK") : TEXT("NULL"));
-		return;  // 不修改任何状态，pickup 仍可被再次按 E
+		return;  // 不修改任何状态，pickup 仍可被再次按 A（手柄）
 	}
 
 	// 此时所有依赖都可用，安全修改自身状态

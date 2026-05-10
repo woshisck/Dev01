@@ -70,6 +70,9 @@ struct FRunState
 	UPROPERTY()
 	int32 CombatDeckMaxActiveSequenceSize = 0;
 
+	UPROPERTY()
+	int32 CompletedCombatBattleCount = 0;
+
 	// 献祭恩赐（全程跑局 Buff，None = 未获得）
 	UPROPERTY()
 	TObjectPtr<USacrificeGraceDA> ActiveSacrificeGrace;

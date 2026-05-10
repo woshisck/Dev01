@@ -4,11 +4,14 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Component/BackpackGridComponent.h"
+#include "Component/CombatDeckComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Data/RuneDataAsset.h"
 #include "GameplayTagContainer.h"
+#include "GameModes/YogGameMode.h"
 #include "GameFramework/PlayerController.h"
+#include "System/YogGameInstanceBase.h"
 #include "EngineUtils.h"
 
 // ─── 内部辅助 ─────────────────────────────────────────────────────────────────
@@ -271,6 +274,49 @@ void UYogCheatManager::Yog_FreezeEnemies(bool bFreeze)
 }
 
 // ─── Debug 打印 ───────────────────────────────────────────────────────────────
+
+#if WITH_EDITOR
+void UYogCheatManager::Yog_UnlockFinisher()
+{
+	UWorld* World = GetWorld();
+	AYogGameMode* GameMode = World ? World->GetAuthGameMode<AYogGameMode>() : nullptr;
+	if (!GameMode)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_UnlockFinisher: GameMode not found"));
+		return;
+	}
+
+	APlayerCharacterBase* Char = GetPlayerChar();
+	UCombatDeckComponent* CombatDeck = Char ? Char->CombatDeckComponent : nullptr;
+	const int32 RequiredBattles = CombatDeck
+		? FMath::Max(0, CombatDeck->TemporaryFinisherUnlockCompletedBattles)
+		: 3;
+	GameMode->CompletedCombatBattleCount = FMath::Max(GameMode->CompletedCombatBattleCount, RequiredBattles);
+
+	if (UYogGameInstanceBase* GI = World ? Cast<UYogGameInstanceBase>(World->GetGameInstance()) : nullptr)
+	{
+		if (GI->PendingRunState.bIsValid)
+		{
+			GI->PendingRunState.CompletedCombatBattleCount = GameMode->CompletedCombatBattleCount;
+		}
+	}
+
+	if (CombatDeck)
+	{
+		CombatDeck->RefreshDeckView();
+	}
+
+	const FString Message = FString::Printf(
+		TEXT("[GM] Finisher unlocked (%d/%d)"),
+		GameMode->CompletedCombatBattleCount,
+		RequiredBattles);
+	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, Message);
+	}
+}
+#endif
 
 void UYogCheatManager::Yog_PrintHeat()
 {

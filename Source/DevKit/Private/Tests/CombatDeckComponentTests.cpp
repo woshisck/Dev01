@@ -1187,6 +1187,29 @@ bool FCombatDeckEditMovesAndReversesCardsTest::RunTest(const FString& Parameters
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckFullSnapshotShowsTemporaryFinisherLockTest,
+	"DevKit.CombatDeck.FullSnapshotShowsTemporaryFinisherLock",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckFullSnapshotShowsTemporaryFinisherLockTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+	Deck->TemporaryFinisherUnlockCompletedBattles = 3;
+
+	FCombatCardConfig FinisherCard{ ECombatCardType::Finisher, ECardRequiredAction::Any };
+	FinisherCard.DisplayName = FText::FromString(TEXT("Finisher"));
+
+	Deck->SetDeckListForTest({ FinisherCard });
+
+	const TArray<FCombatCardInstance> Cards = Deck->GetFullDeckSnapshot();
+	TestEqual(TEXT("Full deck snapshot keeps the finisher card"), Cards.Num(), 1);
+	TestTrue(TEXT("Full deck snapshot marks temporary finisher as locked"), Cards[0].bTemporarilyLocked);
+	TestEqual(TEXT("Full deck snapshot reports required battles"), Cards[0].TemporaryUnlockRequiredCompletedBattles, 3);
+	TestEqual(TEXT("Full deck snapshot reports current battles"), Cards[0].TemporaryUnlockCurrentCompletedBattles, 0);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRecipeDoesNotLinkToLinkCardsTest,
 	"DevKit.CombatDeck.RecipeDoesNotLinkToLinkCards",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

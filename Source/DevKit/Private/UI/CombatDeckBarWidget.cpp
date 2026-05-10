@@ -239,6 +239,19 @@ FText UCombatDeckBarWidget::GetCardDisplayName(const FCombatCardInstance& Card)
 	return FText::FromString(TEXT("Card"));
 }
 
+FText UCombatDeckBarWidget::GetConsumedToastText(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result)
+{
+	if (Result.bCardTemporarilyLocked)
+	{
+		return FText::Format(
+			FText::FromString(TEXT("Finisher locked {0}/{1}")),
+			FText::AsNumber(Result.TemporaryUnlockCurrentCompletedBattles),
+			FText::AsNumber(Result.TemporaryUnlockRequiredCompletedBattles));
+	}
+
+	return FText::Format(FText::FromString(TEXT("Used {0}")), GetCardDisplayName(Card));
+}
+
 void UCombatDeckBarWidget::HandleDeckLoaded(const TArray<FCombatCardInstance>& ActiveSequence)
 {
 	UpdateShuffleVisuals(0.0f, false);
@@ -251,6 +264,15 @@ void UCombatDeckBarWidget::HandleCardConsumed(const FCombatCardInstance& Card, c
 	if (Result.ActionContext.ActionType == ECardRequiredAction::Light && CachedCardSlots.IsValidIndex(0) && CachedCardSlots[0])
 	{
 		CachedCardSlots[0]->PlayUseFlipAnimation();
+	}
+
+	if (Result.bCardTemporarilyLocked)
+	{
+		SetTextIfBound(ConsumedToastText, GetConsumedToastText(Card, Result));
+		ShowToast(ConsumedToastText, ConsumedToastTimeRemaining);
+		RefreshDeckSnapshot();
+		BP_OnCardConsumed(Card, Result);
+		return;
 	}
 
 	SetTextIfBound(
