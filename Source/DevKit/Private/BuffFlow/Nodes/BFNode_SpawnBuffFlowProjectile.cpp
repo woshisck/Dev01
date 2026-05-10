@@ -1,6 +1,7 @@
 #include "BuffFlow/Nodes/BFNode_SpawnBuffFlowProjectile.h"
 
 #include "BuffFlow/BuffFlowComponent.h"
+#include "NiagaraSystem.h"
 #include "TimerManager.h"
 
 UBFNode_SpawnBuffFlowProjectile::UBFNode_SpawnBuffFlowProjectile(const FObjectInitializer& ObjectInitializer)
@@ -213,6 +214,10 @@ FBuffFlowProjectileRuntimeConfig UBFNode_SpawnBuffFlowProjectile::BuildRuntimeCo
 	Config.Speed = Speed;
 	Config.SpeedOverLifeCurve = SpeedOverLifeCurve;
 	Config.SpeedCurveMode = SpeedCurveMode;
+	Config.VisualCoefficient = VisualCoefficient;
+	Config.ProjectileVisualColor = ProjectileVisualColor;
+	Config.ProjectileVisualNiagaraSystem = ProjectileVisualNiagaraSystem;
+	Config.ProjectileVisualNiagaraScale = ProjectileVisualNiagaraScale;
 	Config.CollisionCapsuleRadius = CollisionCapsuleRadius;
 	Config.CollisionCapsuleHalfHeight = CollisionCapsuleHalfHeight;
 	Config.bDestroyOnHitTrigger = bDestroyOnHitTrigger;

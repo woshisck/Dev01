@@ -92,6 +92,7 @@ void ABuffFlowProjectile::InitBuffFlowProjectile(AActor* InCreator, const FBuffF
 		+ CreatorAttributes.AttackPower * RuntimeConfig.CreatorAttackPowerMagnitudeScale;
 	bInitialized = CreatorActor.IsValid();
 
+	BP_OnConfigured(RuntimeConfig, EffectMagnitude, CreatorAttributes);
 	ApplyResolvedSpeed();
 	StartRuntimeTimers();
 	ScheduleInitialOverlapCheck();

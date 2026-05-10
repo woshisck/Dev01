@@ -11,6 +11,7 @@ class UProjectileMovementComponent;
 class UCapsuleComponent;
 class USceneComponent;
 class ACharacter;
+class UNiagaraSystem;
 
 UENUM(BlueprintType)
 enum class EBuffFlowProjectileTriggerMode : uint8
@@ -98,6 +99,18 @@ struct DEVKIT_API FBuffFlowProjectileRuntimeConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Projectile", meta = (EditCondition = "SpeedOverLifeCurve != nullptr", EditConditionHides))
 	EBuffFlowProjectileSpeedCurveMode SpeedCurveMode = EBuffFlowProjectileSpeedCurveMode::AbsoluteSpeed;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Visual")
+	float VisualCoefficient = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Visual")
+	FLinearColor ProjectileVisualColor = FLinearColor::White;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Visual")
+	TObjectPtr<UNiagaraSystem> ProjectileVisualNiagaraSystem = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Visual")
+	FVector ProjectileVisualNiagaraScale = FVector(1.f, 1.f, 1.f);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Projectile", meta = (ClampMin = "1.0"))
 	float CollisionCapsuleRadius = 24.f;
 
@@ -165,6 +178,9 @@ public:
 	const FBuffFlowProjectileAttributeSnapshot& GetCreatorAttributeSnapshot() const { return CreatorAttributes; }
 
 	UFUNCTION(BlueprintPure, Category = "BuffFlow|Projectile")
+	FBuffFlowProjectileRuntimeConfig GetRuntimeConfig() const { return RuntimeConfig; }
+
+	UFUNCTION(BlueprintPure, Category = "BuffFlow|Projectile")
 	float GetEffectMagnitude() const { return EffectMagnitude; }
 
 protected:
@@ -189,6 +205,9 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "BuffFlow|Projectile")
 	void BP_OnWorldHit(FVector HitLocation);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "BuffFlow|Projectile", meta = (DisplayName = "On Configured"))
+	void BP_OnConfigured(const FBuffFlowProjectileRuntimeConfig& Config, float Magnitude, const FBuffFlowProjectileAttributeSnapshot& CreatorSnapshot);
 
 private:
 	UPROPERTY()

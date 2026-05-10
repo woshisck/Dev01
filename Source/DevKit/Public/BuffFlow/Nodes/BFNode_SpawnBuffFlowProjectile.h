@@ -9,6 +9,7 @@
 class UCurveFloat;
 class UGameplayEffect;
 class UBuffFlowComponent;
+class UNiagaraSystem;
 
 UCLASS(NotBlueprintable, meta = (DisplayName = "Spawn BuffFlow Projectile", Category = "BuffFlow|Projectile"))
 class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
@@ -65,6 +66,18 @@ class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Movement", meta = (DisplayName = "Speed Curve Mode", EditCondition = "SpeedOverLifeCurve != nullptr", EditConditionHides))
 	EBuffFlowProjectileSpeedCurveMode SpeedCurveMode = EBuffFlowProjectileSpeedCurveMode::AbsoluteSpeed;
+
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Visual", meta = (DisplayName = "Visual Coefficient"))
+	float VisualCoefficient = 1.f;
+
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Visual", meta = (DisplayName = "Projectile Visual Color"))
+	FLinearColor ProjectileVisualColor = FLinearColor::White;
+
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Visual", meta = (DisplayName = "Projectile Visual Niagara"))
+	TObjectPtr<UNiagaraSystem> ProjectileVisualNiagaraSystem = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Visual", meta = (DisplayName = "Projectile Visual Niagara Scale"))
+	FVector ProjectileVisualNiagaraScale = FVector(1.f, 1.f, 1.f);
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Collision", meta = (ClampMin = "1.0", DisplayName = "Collision Capsule Radius"))
 	float CollisionCapsuleRadius = 24.f;
