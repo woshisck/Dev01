@@ -2,6 +2,7 @@
 
 #include "UI/CombatLogStatics.h"
 #include "BuffFlow/BuffFlowComponent.h"
+#include "BuffFlow/Nodes/BFNode_SpawnBuffFlowProjectile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "FlowAsset.h"
@@ -29,29 +30,45 @@ namespace
 				bHasWaitEventNode = bHasWaitEventNode || WaitNode->EventTag.IsValid();
 			}
 
-			const UBFNode_SpawnSlashWaveProjectile* ProjectileNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
-			if (!ProjectileNode)
+			if (const UBFNode_SpawnSlashWaveProjectile* ProjectileNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value))
 			{
+				if (!ProjectileNode->HitGameplayEventTag.IsValid() && !ProjectileNode->ExpireGameplayEventTag.IsValid())
+				{
+					continue;
+				}
+
+				const float Speed = FMath::Max(1.f, ProjectileNode->Speed);
+				int32 MaxSpawnCount = FMath::Max(1, ProjectileNode->ProjectileCount);
+				if (ProjectileNode->bAddComboStacksToProjectileCount)
+				{
+					MaxSpawnCount += FMath::Max(0, ProjectileNode->MaxBonusProjectiles);
+				}
+
+				const float SequentialDelay = ProjectileNode->bSpawnProjectilesSequentially
+					? FMath::Max(0.f, ProjectileNode->SequentialProjectileSpawnInterval) * static_cast<float>(FMath::Max(0, MaxSpawnCount - 1))
+					: 0.f;
+				const float Lifetime = SequentialDelay + FMath::Max(0.f, ProjectileNode->MaxDistance) / Speed;
+				MaxProjectileLifetime = FMath::Max(MaxProjectileLifetime, Lifetime);
 				continue;
 			}
 
-			if (!ProjectileNode->HitGameplayEventTag.IsValid() && !ProjectileNode->ExpireGameplayEventTag.IsValid())
+			if (const UBFNode_SpawnBuffFlowProjectile* BuffFlowProjectileNode = Cast<UBFNode_SpawnBuffFlowProjectile>(Pair.Value))
 			{
-				continue;
-			}
+				if (!BuffFlowProjectileNode->TriggerGameplayEventTag.IsValid() && !BuffFlowProjectileNode->ExpireGameplayEventTag.IsValid())
+				{
+					continue;
+				}
 
-			const float Speed = FMath::Max(1.f, ProjectileNode->Speed);
-			int32 MaxSpawnCount = FMath::Max(1, ProjectileNode->ProjectileCount);
-			if (ProjectileNode->bAddComboStacksToProjectileCount)
-			{
-				MaxSpawnCount += FMath::Max(0, ProjectileNode->MaxBonusProjectiles);
-			}
+				int32 MaxSpawnCount = FMath::Max(1, BuffFlowProjectileNode->ProjectileCount);
+				if (BuffFlowProjectileNode->bAddComboStacksToProjectileCount)
+				{
+					MaxSpawnCount += FMath::Max(0, BuffFlowProjectileNode->MaxBonusProjectiles);
+				}
 
-			const float SequentialDelay = ProjectileNode->bSpawnProjectilesSequentially
-				? FMath::Max(0.f, ProjectileNode->SequentialProjectileSpawnInterval) * static_cast<float>(FMath::Max(0, MaxSpawnCount - 1))
-				: 0.f;
-			const float Lifetime = SequentialDelay + FMath::Max(0.f, ProjectileNode->MaxDistance) / Speed;
-			MaxProjectileLifetime = FMath::Max(MaxProjectileLifetime, Lifetime);
+				const float SpawnDelay = FMath::Max(0.f, BuffFlowProjectileNode->SpawnInterval) * static_cast<float>(FMath::Max(0, MaxSpawnCount - 1));
+				const float Lifetime = SpawnDelay + FMath::Max(0.f, BuffFlowProjectileNode->Lifetime);
+				MaxProjectileLifetime = FMath::Max(MaxProjectileLifetime, Lifetime);
+			}
 		}
 
 		if (!bHasWaitEventNode || MaxProjectileLifetime <= 0.f)

@@ -27,13 +27,16 @@ class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Pattern", meta = (ClampMin = "1", DisplayName = "Projectile Count"))
 	int32 ProjectileCount = 1;
 
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Pattern", meta = (ClampMin = "0.0", DisplayName = "Spawn Interval", ToolTip = "Delay between each projectile spawn when Projectile Count is greater than 1. 0 spawns all projectiles immediately."))
+	float SpawnInterval = 0.f;
+
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Combat Card", meta = (DisplayName = "Add Combo Stacks To Projectile Count"))
 	bool bAddComboStacksToProjectileCount = false;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Combat Card", meta = (ClampMin = "0", DisplayName = "Projectiles Per Combo Stack", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides))
 	int32 ProjectilesPerComboStack = 1;
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Combat Card", meta = (ClampMin = "0", DisplayName = "Max Bonus Projectiles", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Combat Card", meta = (ClampMin = "0", DisplayName = "Max Bonus Projectiles", ToolTip = "Maximum extra projectiles from combo stacks. 0 means no cap.", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides))
 	int32 MaxBonusProjectiles = 0;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile", meta = (DisplayName = "Trigger Mode"))
@@ -113,6 +116,6 @@ protected:
 
 private:
 	FTransform ResolveSpawnTransform(AActor* SourceActor) const;
-	int32 ResolveSpawnCount(const UBuffFlowComponent* BuffFlowComponent, int32& OutComboBonusProjectiles) const;
+	int32 ResolveSpawnCount(const UBuffFlowComponent* BuffFlowComponent, int32& OutComboBonusProjectiles, int32& OutComboBonusStacks) const;
 	FBuffFlowProjectileRuntimeConfig BuildRuntimeConfig() const;
 };

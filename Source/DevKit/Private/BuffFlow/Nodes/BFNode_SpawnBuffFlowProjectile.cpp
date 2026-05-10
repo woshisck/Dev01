@@ -1,6 +1,7 @@
 #include "BuffFlow/Nodes/BFNode_SpawnBuffFlowProjectile.h"
 
 #include "BuffFlow/BuffFlowComponent.h"
+#include "TimerManager.h"
 
 UBFNode_SpawnBuffFlowProjectile::UBFNode_SpawnBuffFlowProjectile(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -33,36 +34,70 @@ void UBFNode_SpawnBuffFlowProjectile::ExecuteInput(const FName& PinName)
 	}
 	const FTransform SpawnTransform = ResolveSpawnTransform(SourceActor);
 	int32 ComboBonusProjectiles = 0;
-	const int32 SpawnCount = ResolveSpawnCount(BFC, ComboBonusProjectiles);
+	int32 ComboBonusStacks = 0;
+	const int32 SpawnCount = ResolveSpawnCount(BFC, ComboBonusProjectiles, ComboBonusStacks);
 	const FBuffFlowProjectileRuntimeConfig RuntimeProjectileConfig = BuildRuntimeConfig();
+	const float ResolvedSpawnInterval = FMath::Max(0.f, SpawnInterval);
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = SourceActor;
 	SpawnParams.Instigator = Cast<APawn>(SourceActor);
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	int32 SpawnedCount = 0;
-	for (int32 Index = 0; Index < SpawnCount; ++Index)
+	TWeakObjectPtr<AActor> WeakSourceActor(SourceActor);
+	const TSubclassOf<ABuffFlowProjectile> SpawnProjectileClass = ResolvedProjectileClass;
+	const FActorSpawnParameters BaseSpawnParams = SpawnParams;
+	auto SpawnProjectile = [WeakSourceActor, SpawnProjectileClass, SpawnTransform, BaseSpawnParams, RuntimeProjectileConfig]() -> bool
 	{
-		ABuffFlowProjectile* Projectile = SourceActor->GetWorld()->SpawnActorDeferred<ABuffFlowProjectile>(
-			ResolvedProjectileClass,
+		AActor* Source = WeakSourceActor.Get();
+		if (!Source || !Source->GetWorld() || !SpawnProjectileClass)
+		{
+			return false;
+		}
+
+		ABuffFlowProjectile* Projectile = Source->GetWorld()->SpawnActorDeferred<ABuffFlowProjectile>(
+			SpawnProjectileClass,
 			SpawnTransform,
-			SpawnParams.Owner,
-			SpawnParams.Instigator,
-			SpawnParams.SpawnCollisionHandlingOverride);
+			BaseSpawnParams.Owner,
+			BaseSpawnParams.Instigator,
+			BaseSpawnParams.SpawnCollisionHandlingOverride);
 
 		if (!Projectile)
 		{
+			return false;
+		}
+
+		Projectile->SetCreatorForSpawn(Source);
+		Projectile->FinishSpawning(SpawnTransform);
+		Projectile->InitBuffFlowProjectile(Source, RuntimeProjectileConfig);
+		return true;
+	};
+
+	int32 SpawnedOrScheduledCount = 0;
+	for (int32 Index = 0; Index < SpawnCount; ++Index)
+	{
+		if (Index > 0 && ResolvedSpawnInterval > KINDA_SMALL_NUMBER)
+		{
+			FTimerHandle TimerHandle;
+			SourceActor->GetWorld()->GetTimerManager().SetTimer(
+				TimerHandle,
+				FTimerDelegate::CreateLambda([SpawnProjectile]()
+				{
+					SpawnProjectile();
+				}),
+				ResolvedSpawnInterval * static_cast<float>(Index),
+				false);
+			++SpawnedOrScheduledCount;
 			continue;
 		}
 
-		Projectile->SetCreatorForSpawn(SourceActor);
-		Projectile->FinishSpawning(SpawnTransform);
-		Projectile->InitBuffFlowProjectile(SourceActor, RuntimeProjectileConfig);
-		++SpawnedCount;
+		if (SpawnProjectile())
+		{
+			++SpawnedOrScheduledCount;
+		}
 	}
 
-	if (SpawnedCount <= 0)
+	if (SpawnedOrScheduledCount <= 0)
 	{
 		if (BFC)
 		{
@@ -81,9 +116,16 @@ void UBFNode_SpawnBuffFlowProjectile::ExecuteInput(const FName& PinName)
 			EBuffFlowTraceResult::Success,
 			TEXT("Spawned BuffFlow projectile"),
 			FString::Printf(
-				TEXT("Class=%s Count=%d ComboBonus=%d TriggerMode=%d Interval=%.2f Lifetime=%.2f Speed=%.1f Capsule=(R=%.1f HH=%.1f) Effect=%s"),
+				TEXT("Class=%s Count=%d BaseCount=%d SpawnInterval=%.2f AddCombo=%d HasCardContext=%d ComboStacks=%d PerStack=%d MaxBonus=%d ComboBonus=%d TriggerMode=%d TriggerInterval=%.2f Lifetime=%.2f Speed=%.1f Capsule=(R=%.1f HH=%.1f) Effect=%s"),
 				*GetNameSafe(ResolvedProjectileClass.Get()),
-				SpawnedCount,
+				SpawnedOrScheduledCount,
+				FMath::Max(1, ProjectileCount),
+				ResolvedSpawnInterval,
+				bAddComboStacksToProjectileCount ? 1 : 0,
+				BFC && BFC->HasCombatCardEffectContext() ? 1 : 0,
+				ComboBonusStacks,
+				FMath::Max(0, ProjectilesPerComboStack),
+				FMath::Max(0, MaxBonusProjectiles),
 				ComboBonusProjectiles,
 				static_cast<int32>(TriggerMode),
 				TriggerInterval,
@@ -139,14 +181,21 @@ FTransform UBFNode_SpawnBuffFlowProjectile::ResolveSpawnTransform(AActor* Source
 	return FTransform(Forward.Rotation(), Location);
 }
 
-int32 UBFNode_SpawnBuffFlowProjectile::ResolveSpawnCount(const UBuffFlowComponent* BuffFlowComponent, int32& OutComboBonusProjectiles) const
+int32 UBFNode_SpawnBuffFlowProjectile::ResolveSpawnCount(
+	const UBuffFlowComponent* BuffFlowComponent,
+	int32& OutComboBonusProjectiles,
+	int32& OutComboBonusStacks) const
 {
 	OutComboBonusProjectiles = 0;
+	OutComboBonusStacks = 0;
 	if (bAddComboStacksToProjectileCount && BuffFlowComponent && BuffFlowComponent->HasCombatCardEffectContext())
 	{
 		const FCombatCardEffectContext& CombatCardContext = BuffFlowComponent->GetLastCombatCardEffectContext();
-		OutComboBonusProjectiles = CombatCardContext.ComboBonusStacks * FMath::Max(0, ProjectilesPerComboStack);
-		OutComboBonusProjectiles = FMath::Min(FMath::Max(0, MaxBonusProjectiles), OutComboBonusProjectiles);
+		OutComboBonusStacks = FMath::Max(0, CombatCardContext.ComboBonusStacks);
+		const int32 UncappedBonusProjectiles = OutComboBonusStacks * FMath::Max(0, ProjectilesPerComboStack);
+		OutComboBonusProjectiles = MaxBonusProjectiles > 0
+			? FMath::Min(FMath::Max(0, MaxBonusProjectiles), UncappedBonusProjectiles)
+			: UncappedBonusProjectiles;
 	}
 
 	return FMath::Max(1, FMath::Max(1, ProjectileCount) + OutComboBonusProjectiles);

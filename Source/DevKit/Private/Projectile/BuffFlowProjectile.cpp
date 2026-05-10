@@ -9,6 +9,7 @@
 #include "Curves/CurveFloat.h"
 #include "Abilities/GameplayAbilityTypes.h"
 #include "Engine/OverlapResult.h"
+#include "GameFramework/Character.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GameplayEffect.h"
 #include "TimerManager.h"
@@ -443,6 +444,10 @@ void ABuffFlowProjectile::TriggerEffectForTargets(const TArray<AActor*>& Targets
 		{
 			int32& TriggerCount = TriggerCountsByActor.FindOrAdd(TWeakObjectPtr<AActor>(Target));
 			++TriggerCount;
+			if (ACharacter* HitCharacter = Cast<ACharacter>(Target))
+			{
+				BP_OnEnemyCharacterHit(HitCharacter, TriggerLocation, EffectMagnitude);
+			}
 			SendTriggerGameplayEvent(Target, TriggerLocation);
 		}
 	}

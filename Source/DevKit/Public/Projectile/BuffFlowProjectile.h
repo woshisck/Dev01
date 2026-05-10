@@ -10,6 +10,7 @@ class UGameplayEffect;
 class UProjectileMovementComponent;
 class UCapsuleComponent;
 class USceneComponent;
+class ACharacter;
 
 UENUM(BlueprintType)
 enum class EBuffFlowProjectileTriggerMode : uint8
@@ -182,6 +183,9 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "BuffFlow|Projectile")
 	void BP_OnExpired();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "BuffFlow|Projectile", meta = (DisplayName = "On Enemy Character Hit"))
+	void BP_OnEnemyCharacterHit(ACharacter* HitCharacter, FVector HitLocation, float Magnitude);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "BuffFlow|Projectile")
 	void BP_OnWorldHit(FVector HitLocation);
