@@ -352,6 +352,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Visual", meta = (ClampMin = "0.5"))
 	float SuperArmorPulseFreq = 6.f;
 
+	/** 关卡/自身霸体的稳定金光强度（不闪烁） */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Visual", meta = (ClampMin = "0.1", ClampMax = "1.0"))
+	float SuperArmorStableAlpha = 0.85f;
+
+	/** 终结技前金色周身提示脉冲频率（次/秒） */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Visual", meta = (ClampMin = "0.5"))
+	float FinisherAuraPulseFreq = 7.f;
+
+	/** 终结技前金色周身提示最大强度 */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Visual", meta = (ClampMin = "0.1", ClampMax = "1.0"))
+	float FinisherAuraMaxAlpha = 0.95f;
+
 	/** 由 HealthChanged 自动调用；也可蓝图手动触发 */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
 	void StartHitFlash();
@@ -368,9 +380,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
 	void StartSuperArmorFlash();
 
+	void StartSuperArmorFlashWithMode(bool bShouldPulse);
+
 	/** 霸体结束时调用 */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
 	void StopSuperArmorFlash();
+
+	/** 终结技动作前的金色周身提示；和霸体金光分离，避免互相覆盖状态。 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
+	void StartFinisherAuraFlash();
+
+	/** 关闭终结技金色周身提示。 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Visual")
+	void StopFinisherAuraFlash();
 
 private:
 	UPROPERTY()
@@ -397,7 +419,10 @@ private:
 	bool  bPreAttackActive      = false;
 	float PreAttackElapsed      = 0.f;
 	bool  bSuperArmorFlashActive = false;
+	bool  bSuperArmorFlashPulsing = true;
 	float SuperArmorFlashElapsed = 0.f;
+	bool  bFinisherAuraFlashActive = false;
+	float FinisherAuraFlashElapsed = 0.f;
 };
 
 

@@ -73,6 +73,13 @@ void UCombatDeckComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	RefillActiveSequence();
+	RefreshCardPassiveFlows();
+}
+
+void UCombatDeckComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	StopAllCardPassiveFlows();
+	Super::EndPlay(EndPlayReason);
 }
 
 void UCombatDeckComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -436,6 +443,8 @@ void UCombatDeckComponent::LoadDeckFromWeapon(const UWeaponDefinition* WeaponDef
 
 void UCombatDeckComponent::LoadDeckFromSourceAssets(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize)
 {
+	StopAllCardPassiveFlows();
+
 	DeckList.Reset();
 	ShuffleCooldownDuration = FMath::Max(0.0f, InShuffleCooldownDuration);
 	MaxActiveSequenceSize = FMath::Max(0, InMaxActiveSequenceSize);
@@ -458,6 +467,7 @@ void UCombatDeckComponent::LoadDeckFromSourceAssets(const TArray<URuneDataAsset*
 	DashSavedLinkActionContext = FCombatDeckActionContext();
 	ResolvedAttackGuids.Reset();
 	RefillActiveSequence();
+	RefreshCardPassiveFlows();
 }
 
 TArray<URuneDataAsset*> UCombatDeckComponent::GetDeckSourceAssets() const
@@ -550,6 +560,7 @@ bool UCombatDeckComponent::AddCardFromRuneReward(URuneDataAsset* RuneAsset)
 
 	DeckList.Add(Card);
 	OnRewardAddedToDeck.Broadcast(Card);
+	StartPassiveFlowsForCard(Card);
 
 	if (DeckState == EDeckState::Ready && ActiveSequence.IsEmpty())
 	{
@@ -569,6 +580,7 @@ bool UCombatDeckComponent::AddCardFromRuneShop(URuneDataAsset* RuneAsset)
 
 	DeckList.Add(Card);
 	OnRewardAddedToDeck.Broadcast(Card);
+	StartPassiveFlowsForCard(Card);
 
 	if (DeckState == EDeckState::Ready && ActiveSequence.IsEmpty())
 	{
@@ -585,6 +597,7 @@ bool UCombatDeckComponent::RemoveCardAtIndex(int32 CardIndex)
 		return false;
 	}
 
+	StopPassiveFlowsForCard(DeckList[CardIndex].InstanceGuid);
 	DeckList.RemoveAt(CardIndex);
 	StartDeckEditReload();
 	return true;
@@ -597,6 +610,8 @@ void UCombatDeckComponent::SetShuffleCooldownDuration(float InDuration)
 
 void UCombatDeckComponent::SetDeckListForTest(const TArray<FCombatCardConfig>& InCards)
 {
+	StopAllCardPassiveFlows();
+
 	DeckList.Reset();
 	for (const FCombatCardConfig& Config : InCards)
 	{
@@ -689,6 +704,101 @@ void UCombatDeckComponent::RefillActiveSequence()
 	DeckState = EDeckState::Ready;
 	ShuffleCooldownRemaining = 0.0f;
 	OnDeckLoaded.Broadcast(ActiveSequence);
+}
+
+void UCombatDeckComponent::RefreshCardPassiveFlows()
+{
+	StopAllCardPassiveFlows();
+
+	for (const FCombatCardInstance& Card : DeckList)
+	{
+		StartPassiveFlowsForCard(Card);
+	}
+}
+
+void UCombatDeckComponent::StartPassiveFlowsForCard(const FCombatCardInstance& Card)
+{
+	if (!Card.IsValidCard() || !Card.SourceData)
+	{
+		return;
+	}
+
+	const TArray<TObjectPtr<UFlowAsset>>& PassiveFlows = Card.SourceData->RuneInfo.Flow.PassiveFlows;
+	if (PassiveFlows.IsEmpty())
+	{
+		return;
+	}
+
+	UBuffFlowComponent* BuffFlowComponent = GetOwner() ? GetOwner()->FindComponentByClass<UBuffFlowComponent>() : nullptr;
+	if (!BuffFlowComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckPassiveFlow] Start skipped: Owner=%s Card=%s has no BuffFlowComponent"),
+			*GetNameSafe(GetOwner()),
+			*Card.Config.DisplayName.ToString());
+		return;
+	}
+
+	TArray<FGuid>& FlowGuids = ActiveCardPassiveFlowGuids.FindOrAdd(Card.InstanceGuid);
+	for (UFlowAsset* PassiveFlow : PassiveFlows)
+	{
+		if (!PassiveFlow)
+		{
+			continue;
+		}
+
+		const FGuid FlowGuid = FGuid::NewGuid();
+		FlowGuids.Add(FlowGuid);
+		BuffFlowComponent->StartBuffFlowWithRune(PassiveFlow, FlowGuid, Card.SourceData, GetOwner(), true);
+
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckPassiveFlow] Start Owner=%s Card=%s Flow=%s CardGuid=%s FlowGuid=%s"),
+			*GetNameSafe(GetOwner()),
+			*Card.Config.DisplayName.ToString(),
+			*GetNameSafe(PassiveFlow),
+			*Card.InstanceGuid.ToString(),
+			*FlowGuid.ToString());
+	}
+
+	if (FlowGuids.IsEmpty())
+	{
+		ActiveCardPassiveFlowGuids.Remove(Card.InstanceGuid);
+	}
+}
+
+void UCombatDeckComponent::StopPassiveFlowsForCard(const FGuid& CardGuid)
+{
+	TArray<FGuid> FlowGuids;
+	if (!ActiveCardPassiveFlowGuids.RemoveAndCopyValue(CardGuid, FlowGuids))
+	{
+		return;
+	}
+
+	UBuffFlowComponent* BuffFlowComponent = GetOwner() ? GetOwner()->FindComponentByClass<UBuffFlowComponent>() : nullptr;
+	if (!BuffFlowComponent)
+	{
+		return;
+	}
+
+	for (const FGuid& FlowGuid : FlowGuids)
+	{
+		BuffFlowComponent->StopBuffFlow(FlowGuid);
+	}
+}
+
+void UCombatDeckComponent::StopAllCardPassiveFlows()
+{
+	UBuffFlowComponent* BuffFlowComponent = GetOwner() ? GetOwner()->FindComponentByClass<UBuffFlowComponent>() : nullptr;
+	if (BuffFlowComponent)
+	{
+		for (const TPair<FGuid, TArray<FGuid>>& Pair : ActiveCardPassiveFlowGuids)
+		{
+			for (const FGuid& FlowGuid : Pair.Value)
+			{
+				BuffFlowComponent->StopBuffFlow(FlowGuid);
+			}
+		}
+	}
+
+	ActiveCardPassiveFlowGuids.Reset();
 }
 
 void UCombatDeckComponent::ResetRuntimeStateAfterDeckEdit()

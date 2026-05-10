@@ -1,6 +1,6 @@
 # 角色闪光特效系统 — 技术文档
 
-> 更新：2026-04-23  
+> 更新：2026-05-10
 > 涵盖：命中闪白 / 攻击前闪红 / 霸体金光 / 热度升阶发光
 
 ---
@@ -14,7 +14,7 @@
 |---|---|---|---|
 | 命中闪白 | 敌人 / 任意角色 | 血量减少时自动触发 | 线性淡出（0.12s） |
 | 攻击前闪红 | 敌人 | 蓝图调用 `StartPreAttackFlash()` | 正弦脉冲，持续到 `StopPreAttackFlash()` |
-| **霸体金光** | **敌人** | **连续被击 ≥ `SuperArmorThreshold` 次时 ASC 自动触发** | **正弦脉冲，持续 `SuperArmorDuration` 秒后自动停止** |
+| **霸体金光** | **敌人** | **`Buff.Status.SuperArmor` Tag 激活** | **受击计数触发为正弦脉冲；关卡/自身授予为稳定金光** |
 | 热度升阶发光 | 玩家 | GAS Tag `Buff.Status.Heat.Phase.*` | 扫射(0.5s) + 保持(3s) + 淡出(0.5s) |
 
 ### 优先级链
@@ -25,7 +25,7 @@
 命中闪白（白）> 霸体金光（金）> 攻击前摇（红）
 ```
 
-命中白闪结束后，若霸体金光仍激活则无缝恢复金色脉冲。
+命中白闪结束后，若霸体金光仍激活则无缝恢复当前霸体金光模式。
 
 ---
 
@@ -68,7 +68,15 @@ void StopSuperArmorFlash();
 | `CharacterFlashMaterial` | UMaterialInterface | — | 角色闪光 Overlay 材质（三种特效共用） |
 | `HitFlashDuration` | float | 0.12 | 命中闪白淡出时长（秒） |
 | `PreAttackPulseFreq` | float | 4.0 | 攻击前红光脉冲频率（次/秒） |
-| `SuperArmorPulseFreq` | float | 6.0 | 霸体金光脉冲频率（次/秒） |
+| `SuperArmorPulseFreq` | float | 6.0 | 受击计数触发的短暂霸体金光脉冲频率（次/秒） |
+| `SuperArmorStableAlpha` | float | 0.85 | 关卡/自身授予的长时间霸体稳定金光强度 |
+
+### 霸体金光模式
+
+| 来源 | 表现 |
+|---|---|
+| 连续受到玩家攻击后由 Poise 计数触发的短暂霸体 | 闪烁金光，使用 `SuperArmorPulseFreq` |
+| 关卡提供、自身携带、FA/AnimNotify/GE 直接授予的 `Buff.Status.SuperArmor` | 稳定金光，使用 `SuperArmorStableAlpha` |
 
 ### 霸体触发参数（DA_Enemy_* → Enemy — Poise 分类）
 

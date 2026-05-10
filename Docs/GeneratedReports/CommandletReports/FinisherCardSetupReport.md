@@ -16,8 +16,8 @@
 - Found `/Game/Code/GAS/Abilities/Finisher/BGA_Player_FinisherAttack`.
 - Found `/Game/Code/GAS/Abilities/Finisher/BGA_ApplyMark_Finisher`.
 - Found `/Game/Code/GAS/Abilities/Finisher/AM_Player_FinisherAttack`.
-- Configured `BGA_FinisherCharge`.
-- Configured `BGA_Player_FinisherAttack`; CancelAbilitiesWithTag excludes FinisherCharge.
+- Configured `BGA_FinisherCharge`; combo hint uses InfoPopup after the finisher card is played.
+- Configured `BGA_Player_FinisherAttack`; added fallback QTE/HitFrame and pre-finisher gold aura VFX interface.
 - Configured `BGA_ApplyMark_Finisher`: trigger Action.Mark.Apply.Finisher -> `GE_Mark_Finisher`.
 
 ## Rune and Flow assets
@@ -30,7 +30,7 @@
 - Configured `FA_FinisherCard_ChargeHit`.
 - Configured `FA_FinisherCard_Detonate`.
 - Found `/Game/YogRuneEditor/Runes/DA_Rune_Finisher`.
-- Configured `DA_Rune_Finisher` tuning rows and CombatCard BaseFlow.
+- Configured `DA_Rune_Finisher` tuning rows, CombatCard BaseFlow, and PassiveFlows.
 
 ## Ability set
 - `DA_Base_AbilitySet_Initial` already has `BGA_FinisherCharge_C`, or no supported ability list was found.

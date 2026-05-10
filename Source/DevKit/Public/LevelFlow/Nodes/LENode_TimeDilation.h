@@ -27,4 +27,5 @@ protected:
 
 private:
 	FTSTicker::FDelegateHandle TickerHandle;
+	bool bTimeDilationVisualActive = false;
 };

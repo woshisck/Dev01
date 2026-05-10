@@ -642,13 +642,18 @@ void AYogCharacterBase::StopPreAttackFlash()
 {
 	bPreAttackActive = false;
 
-	if (HitFlashElapsed < 0.f && !bSuperArmorFlashActive)
+	if (HitFlashElapsed < 0.f && !bSuperArmorFlashActive && !bFinisherAuraFlashActive)
 	{
 		GetMesh()->SetOverlayMaterial(nullptr);
 	}
 }
 
 void AYogCharacterBase::StartSuperArmorFlash()
+{
+	StartSuperArmorFlashWithMode(true);
+}
+
+void AYogCharacterBase::StartSuperArmorFlashWithMode(bool bShouldPulse)
 {
 	if (!CharacterFlashMaterial) return;
 
@@ -657,18 +662,55 @@ void AYogCharacterBase::StartSuperArmorFlash()
 
 	GetMesh()->SetOverlayMaterial(FlashDynMat);
 	bSuperArmorFlashActive  = true;
+	bSuperArmorFlashPulsing = bShouldPulse;
 	SuperArmorFlashElapsed  = 0.f;
+
+	if (!bShouldPulse)
+	{
+		FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(5.f, 3.f, 0.f));
+		FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), SuperArmorStableAlpha);
+	}
 }
 
 void AYogCharacterBase::StopSuperArmorFlash()
 {
 	bSuperArmorFlashActive = false;
+	bSuperArmorFlashPulsing = true;
 	SuperArmorFlashElapsed = 0.f;
 
-	if (HitFlashElapsed < 0.f && !bPreAttackActive)
+	if (HitFlashElapsed < 0.f && !bPreAttackActive && !bFinisherAuraFlashActive)
 	{
 		if (FlashDynMat)
 			FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), 0.f);
+		GetMesh()->SetOverlayMaterial(nullptr);
+	}
+}
+
+void AYogCharacterBase::StartFinisherAuraFlash()
+{
+	if (!CharacterFlashMaterial) return;
+
+	if (!FlashDynMat)
+	{
+		FlashDynMat = UMaterialInstanceDynamic::Create(CharacterFlashMaterial, this);
+	}
+
+	GetMesh()->SetOverlayMaterial(FlashDynMat);
+	bFinisherAuraFlashActive = true;
+	FinisherAuraFlashElapsed = 0.f;
+}
+
+void AYogCharacterBase::StopFinisherAuraFlash()
+{
+	bFinisherAuraFlashActive = false;
+	FinisherAuraFlashElapsed = 0.f;
+
+	if (HitFlashElapsed < 0.f && !bSuperArmorFlashActive && !bPreAttackActive)
+	{
+		if (FlashDynMat)
+		{
+			FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), 0.f);
+		}
 		GetMesh()->SetOverlayMaterial(nullptr);
 	}
 }
@@ -691,17 +733,32 @@ void AYogCharacterBase::TickCharacterFlash(float DeltaTime)
 		{
 			HitFlashElapsed = -1.f;
 
-			if (!bSuperArmorFlashActive && !bPreAttackActive)
+			if (!bSuperArmorFlashActive && !bPreAttackActive && !bFinisherAuraFlashActive)
 				GetMesh()->SetOverlayMaterial(nullptr);
 		}
 		return;
 	}
 
 	// ── 霸体金光脉冲（第二优先级）────────────────────────────────────────────
+	if (bFinisherAuraFlashActive && FlashDynMat)
+	{
+		FinisherAuraFlashElapsed += DeltaTime;
+		const float Alpha = FMath::Abs(FMath::Sin(FinisherAuraFlashElapsed * FinisherAuraPulseFreq * PI));
+
+		FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(6.f, 4.f, 0.35f));
+		FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), Alpha * FinisherAuraMaxAlpha);
+		return;
+	}
+
 	if (bSuperArmorFlashActive && FlashDynMat)
 	{
-		SuperArmorFlashElapsed += DeltaTime;
-		const float Alpha = FMath::Abs(FMath::Sin(SuperArmorFlashElapsed * SuperArmorPulseFreq * PI));
+		if (bSuperArmorFlashPulsing)
+		{
+			SuperArmorFlashElapsed += DeltaTime;
+		}
+		const float Alpha = bSuperArmorFlashPulsing
+			? FMath::Abs(FMath::Sin(SuperArmorFlashElapsed * SuperArmorPulseFreq * PI))
+			: SuperArmorStableAlpha;
 
 		FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(5.f, 3.f, 0.f));
 		FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), Alpha);

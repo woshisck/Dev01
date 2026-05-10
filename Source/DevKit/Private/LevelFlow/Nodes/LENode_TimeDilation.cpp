@@ -1,6 +1,7 @@
 #include "LevelFlow/Nodes/LENode_TimeDilation.h"
 #include "Kismet/GameplayStatics.h"
 #include "Containers/Ticker.h"
+#include "Visual/TimeDilationVisualSubsystem.h"
 
 ULENode_TimeDilation::ULENode_TimeDilation(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -15,11 +16,18 @@ ULENode_TimeDilation::ULENode_TimeDilation(const FObjectInitializer& ObjectIniti
 void ULENode_TimeDilation::ExecuteInput(const FName& PinName)
 {
 	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), DilationScale);
+	UTimeDilationVisualSubsystem::BeginTimeDilationVisual(this);
+	bTimeDilationVisualActive = true;
 
 	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(
 		FTickerDelegate::CreateWeakLambda(this, [this](float) -> bool
 		{
 			UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.0f);
+			if (bTimeDilationVisualActive)
+			{
+				UTimeDilationVisualSubsystem::EndTimeDilationVisual(this);
+				bTimeDilationVisualActive = false;
+			}
 			TriggerOutput(TEXT("Out"), true);
 			return false;
 		}),
@@ -34,5 +42,10 @@ void ULENode_TimeDilation::Cleanup()
 		TickerHandle.Reset();
 	}
 	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.0f);
+	if (bTimeDilationVisualActive)
+	{
+		UTimeDilationVisualSubsystem::EndTimeDilationVisual(this);
+		bTimeDilationVisualActive = false;
+	}
 	Super::Cleanup();
 }
