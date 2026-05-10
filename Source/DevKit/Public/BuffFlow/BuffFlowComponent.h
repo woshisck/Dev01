@@ -66,6 +66,42 @@ struct DEVKIT_API FBuffFlowTraceEntry
 	FString Values;
 };
 
+USTRUCT(BlueprintType)
+struct DEVKIT_API FBuffFlowActiveFlowDebugEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Debug")
+	FGuid RuneGuid;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Debug")
+	FName FlowName = NAME_None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Debug")
+	FName SourceRuneName = NAME_None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Debug")
+	bool bFlowAssetValid = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Debug")
+	bool bRuntimeInstanceActive = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Debug")
+	int32 ActiveNodeCount = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Debug")
+	int32 RecordedNodeCount = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Debug")
+	TArray<FName> ActiveNodeNames;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Debug")
+	TArray<FName> ActiveNodeClasses;
+
+	UPROPERTY(BlueprintReadOnly, Category = "BuffFlow|Debug")
+	TArray<FName> RecordedNodeNames;
+};
+
 /**
  * 挂在角色上的 BuffFlow 管理组件
  * - 管理 FlowAsset 实例的生命周期（符文激活→启动 / 卸下→停止）
@@ -122,6 +158,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "BuffFlow|Trace")
 	TArray<FBuffFlowTraceEntry> GetTraceEntries() const { return TraceEntries; }
+
+	UFUNCTION(BlueprintPure, Category = "BuffFlow|Debug")
+	int32 GetActiveBuffFlowCount() const;
+
+	UFUNCTION(BlueprintPure, Category = "BuffFlow|Debug")
+	TArray<FBuffFlowActiveFlowDebugEntry> GetActiveBuffFlowDebugEntries() const;
 
 	void RecordTrace(UFlowNode* Node, UObject* Profile, AActor* Target, EBuffFlowTraceResult Result, const FString& Message, const FString& Values);
 
