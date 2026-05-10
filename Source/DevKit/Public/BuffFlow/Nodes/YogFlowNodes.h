@@ -34,6 +34,7 @@
 #include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
 #include "BuffFlow/Nodes/BFNode_SpawnGameplayCueAtLocation.h"
 #include "BuffFlow/Nodes/BFNode_SpawnGameplayCueOnActor.h"
+#include "BuffFlow/Nodes/BFNode_SpawnBuffFlowProjectile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRangedProjectiles.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneAreaProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
@@ -288,6 +289,15 @@ class DEVKIT_API UYogFlowNode_SpawnRangedProjectiles : public UBFNode_SpawnRange
 
 public:
 	UYogFlowNode_SpawnRangedProjectiles(const FObjectInitializer& ObjectInitializer);
+};
+
+UCLASS(NotBlueprintable, meta = (DisplayName = "Spawn BuffFlow Projectile", Category = "任务节点|生成"))
+class DEVKIT_API UYogFlowNode_SpawnBuffFlowProjectile : public UBFNode_SpawnBuffFlowProjectile
+{
+	GENERATED_BODY()
+
+public:
+	UYogFlowNode_SpawnBuffFlowProjectile(const FObjectInitializer& ObjectInitializer);
 };
 
 UCLASS(NotBlueprintable, meta = (DisplayName = "属性比较", Category = "条件节点"))
