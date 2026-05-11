@@ -824,9 +824,13 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 
 				if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent)
 				{
-					for (URuneDataAsset* SourceAsset : CombatDeck->GetDeckSourceAssets())
+					for (const FCombatCardInstance& Card : CombatDeck->GetFullDeckSnapshot())
 					{
-						NewState.CombatDeckCards.Add(SourceAsset);
+						if (Card.SourceData)
+						{
+							NewState.CombatDeckCards.Add(Card.SourceData);
+							NewState.CombatDeckCardOrientations.Add(Card.LinkOrientation);
+						}
 					}
 					NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
 					NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
@@ -2554,9 +2558,13 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 
 			if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent)
 			{
-				for (URuneDataAsset* SourceAsset : CombatDeck->GetDeckSourceAssets())
+				for (const FCombatCardInstance& Card : CombatDeck->GetFullDeckSnapshot())
 				{
-					NewState.CombatDeckCards.Add(SourceAsset);
+					if (Card.SourceData)
+					{
+						NewState.CombatDeckCards.Add(Card.SourceData);
+						NewState.CombatDeckCardOrientations.Add(Card.LinkOrientation);
+					}
 				}
 				NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
 				NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();

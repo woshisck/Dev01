@@ -12,6 +12,7 @@ class URuneInfoCardWidget;
 class UCombatDeckEditCardSlotWidget;
 class UDragDropOperation;
 class UBackpackStyleDataAsset;
+class UScrollBox;
 
 UCLASS()
 class DEVKIT_API UCombatDeckEditWidget : public UUserWidget
@@ -134,6 +135,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UPanelWidget> CardListBox;
 
+	// 可选：绑定一个 ScrollBox，使手柄导航时自动滚动到选中卡牌
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UScrollBox> CardScrollBox;
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<URuneInfoCardWidget> RuneInfoCard;
 
@@ -198,6 +203,7 @@ private:
 	int32 PendingSelectionAnimationDirection = 0;
 
 	void UnbindFromCurrentDeck();
+	void ScrollToSelectedCard();
 	void ApplyDetailPreviewVisibility();
 	URuneInfoCardWidget* GetActiveDetailInfoCard() const;
 	void RefreshDeckListInternal(bool bUseDragPreview);

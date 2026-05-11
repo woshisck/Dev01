@@ -64,6 +64,10 @@ struct FRunState
 	UPROPERTY()
 	TArray<TObjectPtr<URuneDataAsset>> CombatDeckCards;
 
+	// 与 CombatDeckCards 并行：每张牌的连携方向（正向/反向），切关时保存玩家改动
+	UPROPERTY()
+	TArray<ECombatCardLinkOrientation> CombatDeckCardOrientations;
+
 	UPROPERTY()
 	float CombatDeckShuffleCooldownDuration = 1.0f;
 

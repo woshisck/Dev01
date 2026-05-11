@@ -7,6 +7,7 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/PanelWidget.h"
+#include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/VerticalBox.h"
@@ -136,6 +137,26 @@ void UCombatDeckEditWidget::BindToCombatDeck(UCombatDeckComponent* InCombatDeck)
 
 	SelectedCardIndex = INDEX_NONE;
 	RefreshDeckList();
+}
+
+void UCombatDeckEditWidget::ScrollToSelectedCard()
+{
+	if (!CardScrollBox || !CardListBox || bDragPreviewActive || SelectedCardIndex < 0)
+	{
+		return;
+	}
+
+	const int32 ChildCount = CardListBox->GetChildrenCount();
+	if (SelectedCardIndex >= ChildCount)
+	{
+		return;
+	}
+
+	UWidget* SelectedChild = CardListBox->GetChildAt(SelectedCardIndex);
+	if (SelectedChild)
+	{
+		CardScrollBox->ScrollWidgetIntoView(SelectedChild, true, EDescendantScrollDestination::IntoView, 8.0f);
+	}
 }
 
 void UCombatDeckEditWidget::UnbindFromCurrentDeck()
@@ -340,6 +361,7 @@ void UCombatDeckEditWidget::SelectCard(int32 CardIndex)
 		*CardDesc);
 
 	RefreshDeckList();
+	ScrollToSelectedCard();
 }
 
 bool UCombatDeckEditWidget::SelectAdjacentCard(int32 Direction)
