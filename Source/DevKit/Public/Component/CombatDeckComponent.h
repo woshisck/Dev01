@@ -303,6 +303,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
 	bool ToggleCardLinkOrientationByIndex(int32 CardIndex);
 
+	// 切关恢复用：按索引顺序批量写入连携方向，仅在 LoadDeckFromSourceAssets 后立即调用
+	void ApplyDeckOrientations(const TArray<ECombatCardLinkOrientation>& Orientations);
+
 	UFUNCTION(BlueprintPure, Category = "Combat Deck")
 	int32 GetCurrentIndex() const { return CurrentIndex; }
 

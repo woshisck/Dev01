@@ -267,6 +267,11 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 			RestoredDeckAssets,
 			State.CombatDeckShuffleCooldownDuration,
 			State.CombatDeckMaxActiveSequenceSize);
+
+		if (!State.CombatDeckCardOrientations.IsEmpty())
+		{
+			CombatDeckComponent->ApplyDeckOrientations(State.CombatDeckCardOrientations);
+		}
 	}
 
 	if (BackpackGridComponent)

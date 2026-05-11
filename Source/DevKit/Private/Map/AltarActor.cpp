@@ -3,6 +3,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "GameModes/YogGameMode.h"
+#include "NiagaraComponent.h"
 #include "UI/AltarMenuWidget.h"
 #include "UI/InteractPromptWidget.h"
 #include "UI/SacrificeSelectionWidget.h"
@@ -38,6 +39,10 @@ AAltarActor::AAltarActor()
 	InteractPromptWidgetComp->SetDrawAtDesiredSize(true);
 	InteractPromptWidgetComp->SetVisibility(false);
 	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
+
+	IdleVFXComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("IdleVFXComponent"));
+	IdleVFXComponent->SetupAttachment(RootComponent);
+	IdleVFXComponent->SetAutoActivate(true);
 }
 
 void AAltarActor::BeginPlay()
@@ -85,6 +90,11 @@ void AAltarActor::SetAltarActive(bool bInActive)
 void AAltarActor::ConsumeSacrificeReward()
 {
 	bSacrificeRewardConsumed = true;
+	if (IdleVFXComponent)
+	{
+		IdleVFXComponent->Deactivate();
+		IdleVFXComponent->SetVisibility(false);
+	}
 	SetAltarActive(false);
 }
 

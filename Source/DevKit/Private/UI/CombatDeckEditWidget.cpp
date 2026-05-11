@@ -7,6 +7,7 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/PanelWidget.h"
+#include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/VerticalBox.h"
@@ -136,6 +137,47 @@ void UCombatDeckEditWidget::BindToCombatDeck(UCombatDeckComponent* InCombatDeck)
 
 	SelectedCardIndex = INDEX_NONE;
 	RefreshDeckList();
+}
+
+void UCombatDeckEditWidget::ScrollToSelectedCard()
+{
+	if (!CardListBox || bDragPreviewActive || SelectedCardIndex < 0)
+	{
+		return;
+	}
+
+	// 优先使用显式绑定的 CardScrollBox，没有则向上遍历父节点找第一个 ScrollBox
+	UScrollBox* ScrollBox = CardScrollBox;
+	if (!ScrollBox)
+	{
+		UWidget* Parent = CardListBox->GetParent();
+		while (Parent)
+		{
+			ScrollBox = Cast<UScrollBox>(Parent);
+			if (ScrollBox)
+			{
+				break;
+			}
+			Parent = Parent->GetParent();
+		}
+	}
+
+	if (!ScrollBox)
+	{
+		return;
+	}
+
+	const int32 ChildCount = CardListBox->GetChildrenCount();
+	if (SelectedCardIndex >= ChildCount)
+	{
+		return;
+	}
+
+	UWidget* SelectedChild = CardListBox->GetChildAt(SelectedCardIndex);
+	if (SelectedChild)
+	{
+		ScrollBox->ScrollWidgetIntoView(SelectedChild, true, EDescendantScrollDestination::IntoView, 8.0f);
+	}
 }
 
 void UCombatDeckEditWidget::UnbindFromCurrentDeck()
@@ -340,6 +382,7 @@ void UCombatDeckEditWidget::SelectCard(int32 CardIndex)
 		*CardDesc);
 
 	RefreshDeckList();
+	ScrollToSelectedCard();
 }
 
 bool UCombatDeckEditWidget::SelectAdjacentCard(int32 Direction)

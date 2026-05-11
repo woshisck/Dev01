@@ -595,6 +595,15 @@ bool UCombatDeckComponent::ToggleCardLinkOrientationByIndex(int32 CardIndex)
 	return SetCardLinkOrientationByIndex(CardIndex, NewOrientation);
 }
 
+void UCombatDeckComponent::ApplyDeckOrientations(const TArray<ECombatCardLinkOrientation>& Orientations)
+{
+	const int32 Count = FMath::Min(DeckList.Num(), Orientations.Num());
+	for (int32 i = 0; i < Count; ++i)
+	{
+		DeckList[i].LinkOrientation = Orientations[i];
+	}
+}
+
 int32 UCombatDeckComponent::GetRemainingCardCount() const
 {
 	return GetRemainingDeckSnapshot().Num();

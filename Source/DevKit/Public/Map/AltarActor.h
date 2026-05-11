@@ -13,6 +13,7 @@ class USacrificeSelectionWidget;
 class UBoxComponent;
 class UStaticMeshComponent;
 class UWidgetComponent;
+class UNiagaraComponent;
 
 UCLASS()
 class DEVKIT_API AAltarActor : public AActor, public IPlayerInteraction
@@ -66,7 +67,8 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Altar")
 	bool bIsActive = false;
 
-	UPROPERTY(VisibleAnywhere)
+	// 交互触发碰撞盒，可在细节面板调整 Box Extent 改变交互范围
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Altar|Interaction")
 	TObjectPtr<UBoxComponent> InteractBox;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Altar")
@@ -74,6 +76,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Altar|Prompt")
 	TObjectPtr<UWidgetComponent> InteractPromptWidgetComp;
+
+	// 未献祭时持续播放的待机特效，献祭完成后自动隐藏；可在细节面板指定 Niagara System 资产并调整位置
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Altar|VFX")
+	TObjectPtr<UNiagaraComponent> IdleVFXComponent;
 
 	UPROPERTY()
 	TObjectPtr<UAltarMenuWidget> AltarMenuWidget;
