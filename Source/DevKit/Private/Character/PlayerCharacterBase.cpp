@@ -33,8 +33,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameModes/YogGameMode.h"
 #include "GameplayEffect.h"
+#include "GameplayTagContainer.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 
 namespace
@@ -121,11 +123,95 @@ void APlayerCharacterBase::Die()
 	{
 		GM->HandlePlayerDeath(this);
 	}
+}
 
-	// 死亡时清空跑局状态，下一局从默认值开始
-	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+void APlayerCharacterBase::FinishDying()
+{
+	if (bWaitingForDeathReviveChoice)
 	{
-		GI->ClearRunState();
+		return;
+	}
+
+	Super::FinishDying();
+}
+
+void APlayerCharacterBase::PrepareForDeathReviveChoice()
+{
+	bWaitingForDeathReviveChoice = true;
+}
+
+void APlayerCharacterBase::ReviveFromDeath(float ReviveHealthPercent, float ProtectionDuration)
+{
+	UYogAbilitySystemComponent* ASC = GetASC();
+	if (!ASC)
+	{
+		return;
+	}
+
+	FGameplayTagContainer DeathTags;
+	DeathTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.Dead"), false));
+	ASC->CancelAbilities(&DeathTags);
+	ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"), false), 0);
+
+	bIsDead = false;
+	bWaitingForDeathReviveChoice = false;
+	CustomTimeDilation = 1.f;
+
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	}
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->bPauseAnims = false;
+	}
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->StopMovementImmediately();
+		Movement->SetMovementMode(MOVE_Walking);
+	}
+
+	const float MaxHealth = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
+	const float ReviveHealth = AYogGameMode::CalculatePlayerReviveHealth(MaxHealth, ReviveHealthPercent);
+	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute(), ReviveHealth);
+
+	static const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor"), false);
+	static const FGameplayTag InvulnerableTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Invulnerable"), false);
+	if (SuperArmorTag.IsValid())
+	{
+		ASC->AddLooseGameplayTag(SuperArmorTag);
+	}
+	if (InvulnerableTag.IsValid())
+	{
+		ASC->AddLooseGameplayTag(InvulnerableTag);
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ReviveProtectionTimerHandle);
+		World->GetTimerManager().SetTimer(
+			ReviveProtectionTimerHandle,
+			this,
+			&APlayerCharacterBase::EndReviveProtection,
+			FMath::Max(0.f, ProtectionDuration),
+			false);
+	}
+}
+
+void APlayerCharacterBase::EndReviveProtection()
+{
+	if (UYogAbilitySystemComponent* ASC = GetASC())
+	{
+		static const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor"), false);
+		static const FGameplayTag InvulnerableTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Invulnerable"), false);
+		if (SuperArmorTag.IsValid())
+		{
+			ASC->RemoveLooseGameplayTag(SuperArmorTag);
+		}
+		if (InvulnerableTag.IsValid())
+		{
+			ASC->RemoveLooseGameplayTag(InvulnerableTag);
+		}
 	}
 }
 

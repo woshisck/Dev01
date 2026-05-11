@@ -179,6 +179,17 @@ namespace EnemyRoomRune512Setup
 				TEXT("OnAttackHit; requires enemy hit events.")
 			},
 			{
+				TEXT("Bleed"),
+				TEXT("DA_Rune512_Bleed"),
+				TEXT("DA_Rune512_EnemyRoom_Bleed"),
+				TEXT("512 Enemy Bleed Attack"),
+				TEXT("Enemy/room buff: when the enemy hits a target, apply the 512 bleed effect to the hit target."),
+				ERuneTriggerType::OnAttackHit,
+				51260,
+				2,
+				TEXT("OnAttackHit; enemy-room wrapper for the 512 bleed combat-card flow.")
+			},
+			{
 				TEXT("Pierce"),
 				TEXT("DA_Rune512_Pierce"),
 				TEXT("DA_Rune512_EnemyRoom_Pierce"),

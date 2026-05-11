@@ -31,6 +31,7 @@
 #include "FlowAsset.h"
 #include "FlowComponent.h"
 #include "Misc/PackageName.h"
+#include "GameFramework/PlayerController.h"
 
 namespace
 {
@@ -71,6 +72,13 @@ AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 
 	// 事件总线统一使用的 FlowComponent，同时只跑一个 Flow（新触发停旧的）
 	LifecycleFlowComponent = CreateDefaultSubobject<UFlowComponent>(TEXT("LifecycleFlowComponent"));
+}
+
+bool AYogGameMode::ShouldSkipCombatForRoom(const URoomDataAsset* RoomData)
+{
+	return RoomData
+		&& RoomData->SacrificeEventAltarData != nullptr
+		&& RoomData->EnemyPool.IsEmpty();
 }
 
 
@@ -843,12 +851,13 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 
 void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 {
-	if (bGameOverTriggered)
+	if (bPlayerDeathPending || bGameOverTriggered)
 	{
 		return;
 	}
 
-	bGameOverTriggered = true;
+	bPlayerDeathPending = true;
+	PendingDeathPlayer = Player;
 	CurrentPhase = ELevelPhase::Transitioning;
 	OnPhaseChanged.Broadcast(CurrentPhase);
 
@@ -859,6 +868,7 @@ void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 	TM.ClearTimer(DemandSpawnTimer);
 
 	TriggerLifecycleEvent(EGameLifecycleEvent::PlayerDeath);
+	BeginPlayerDeathVisuals(Player);
 
 	if (APlayerController* PC = Player ? Cast<APlayerController>(Player->GetController()) : GetWorld()->GetFirstPlayerController())
 	{
@@ -867,18 +877,62 @@ void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 		PC->SetShowMouseCursor(false);
 	}
 
-	TM.SetTimer(
-		PlayerDeathGameOverTimer,
-		this,
-		&AYogGameMode::FinishPlayerDeathGameOver,
-		FMath::Max(0.f, PlayerDeathGameOverDelay),
-		false);
+	if (CanOfferPlayerDeathRevive(bGameOverTriggered, bPlayerDeathReviveUsed) && Player)
+	{
+		Player->PrepareForDeathReviveChoice();
+	}
+
+	ClearPlayerDeathGameOverTicker();
+	TWeakObjectPtr<AYogGameMode> WeakThis(this);
+	PlayerDeathGameOverTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateLambda([WeakThis](float)
+		{
+			if (WeakThis.IsValid())
+			{
+				WeakThis->FinishPlayerDeathGameOver();
+			}
+			return false;
+		}),
+		FMath::Max(0.f, PlayerDeathGameOverDelay));
 
 	UE_LOG(LogTemp, Warning, TEXT("[GameOver] Player died. Game over will finalize in %.2fs."), PlayerDeathGameOverDelay);
 }
 
+bool AYogGameMode::CanOfferPlayerDeathRevive(bool bInGameOverTriggered, bool bInPlayerDeathReviveUsed)
+{
+	return !bInGameOverTriggered && !bInPlayerDeathReviveUsed;
+}
+
+float AYogGameMode::CalculatePlayerReviveHealth(float MaxHealth, float ReviveHealthPercent)
+{
+	if (MaxHealth <= 0.f || ReviveHealthPercent <= 0.f)
+	{
+		return 0.f;
+	}
+	return FMath::Clamp(MaxHealth * ReviveHealthPercent, 1.f, MaxHealth);
+}
+
 void AYogGameMode::FinishPlayerDeathGameOver()
 {
+	ClearPlayerDeathGameOverTicker();
+	const bool bCanRevive = CanOfferPlayerDeathRevive(bGameOverTriggered, bPlayerDeathReviveUsed)
+		&& PendingDeathPlayer.IsValid();
+
+	if (!bCanRevive)
+	{
+		bGameOverTriggered = true;
+		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+		{
+			GI->ClearRunState();
+		}
+	}
+
+	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.f);
+	if (APlayerCharacterBase* Player = PendingDeathPlayer.Get())
+	{
+		Player->CustomTimeDilation = 1.f;
+	}
+
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
 	{
 		PC->SetIgnoreMoveInput(true);
@@ -889,10 +943,96 @@ void AYogGameMode::FinishPlayerDeathGameOver()
 
 	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
 	{
-		GI->ShowGameOverScreen();
+		GI->ShowGameOverScreen(bCanRevive);
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[GameOver] Game paused after player death."));
+}
+
+bool AYogGameMode::RevivePlayerFromDeath()
+{
+	APlayerCharacterBase* Player = PendingDeathPlayer.Get();
+	if (!bPlayerDeathPending || bPlayerDeathReviveUsed || !Player)
+	{
+		return false;
+	}
+
+	ClearPlayerDeathGameOverTicker();
+	bPlayerDeathPending = false;
+	bPlayerDeathReviveUsed = true;
+	PendingDeathPlayer.Reset();
+	CurrentPhase = ELevelPhase::Combat;
+	OnPhaseChanged.Broadcast(CurrentPhase);
+
+	EndPlayerDeathVisuals(Player);
+	UGameplayStatics::SetGamePaused(GetWorld(), false);
+	Player->ReviveFromDeath(PlayerReviveHealthPercent, PlayerReviveProtectionDuration);
+
+	if (APlayerController* PC = Cast<APlayerController>(Player->GetController()))
+	{
+		PC->SetIgnoreMoveInput(false);
+		PC->SetIgnoreLookInput(false);
+		PC->SetPause(false);
+		PC->SetShowMouseCursor(false);
+		PC->SetInputMode(FInputModeGameOnly());
+		if (AYogPlayerControllerBase* YogPC = Cast<AYogPlayerControllerBase>(PC))
+		{
+			YogPC->SetBlockGameInput(false);
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GameOver] Player revived at %.0f%% HP with %.1fs protection."),
+		PlayerReviveHealthPercent * 100.f, PlayerReviveProtectionDuration);
+	return true;
+}
+
+void AYogGameMode::ClearPlayerDeathGameOverTicker()
+{
+	if (PlayerDeathGameOverTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(PlayerDeathGameOverTickerHandle);
+		PlayerDeathGameOverTickerHandle.Reset();
+	}
+}
+
+void AYogGameMode::BeginPlayerDeathVisuals(APlayerCharacterBase* Player)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float DilationScale = FMath::Clamp(PlayerDeathTimeDilationScale, 0.01f, 1.f);
+	UGameplayStatics::SetGlobalTimeDilation(World, DilationScale);
+	if (Player)
+	{
+		Player->CustomTimeDilation = 1.f / DilationScale;
+	}
+	if (AYogHUD* HUD = Cast<AYogHUD>(UGameplayStatics::GetPlayerController(World, 0)
+		? UGameplayStatics::GetPlayerController(World, 0)->GetHUD()
+		: nullptr))
+	{
+		HUD->BeginDeathEffect();
+	}
+}
+
+void AYogGameMode::EndPlayerDeathVisuals(APlayerCharacterBase* Player)
+{
+	if (UWorld* World = GetWorld())
+	{
+		UGameplayStatics::SetGlobalTimeDilation(World, 1.f);
+		if (AYogHUD* HUD = Cast<AYogHUD>(UGameplayStatics::GetPlayerController(World, 0)
+			? UGameplayStatics::GetPlayerController(World, 0)->GetHUD()
+			: nullptr))
+		{
+			HUD->EndDeathEffect();
+		}
+	}
+	if (Player)
+	{
+		Player->CustomTimeDilation = 1.f;
+	}
 }
 
 // =========================================================
@@ -1104,6 +1244,70 @@ void AYogGameMode::StartLevelSpawning()
 		return;
 	}
 
+	if (ShouldSkipCombatForRoom(ActiveRoomData))
+	{
+		CurrentPhase = ELevelPhase::Arrangement;
+		OnPhaseChanged.Broadcast(CurrentPhase);
+
+		if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
+		{
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			{
+				HUD->HideCurrentRoomBuffs();
+			}
+		}
+
+		{
+			TArray<AActor*> AllPortalActors;
+			UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), AllPortalActors);
+			for (AActor* PortalActor : AllPortalActors)
+			{
+				APortal* Portal = Cast<APortal>(PortalActor);
+				if (!Portal) continue;
+
+				bool bCanOpen = false;
+				for (const FPortalDestConfig& Dest : ActiveRoomData->PortalDestinations)
+				{
+					if (Dest.PortalIndex == Portal->Index)
+					{
+						bCanOpen = true;
+						break;
+					}
+				}
+
+				if (!bCanOpen)
+				{
+					Portal->bWillNeverOpen = true;
+					Portal->NeverOpen();
+				}
+			}
+		}
+
+		FVector EventAnchorLoc = FVector::ZeroVector;
+		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		{
+			if (APawn* P = PC->GetPawn())
+			{
+				EventAnchorLoc = P->GetActorLocation();
+			}
+		}
+
+		SpawnSacrificeEventAltar(EventAnchorLoc);
+		ActivatePortals();
+
+		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		{
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			{
+				HUD->ShowPortalGuidance();
+			}
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [EventRoom] %s - skip combat reward flow and open event room"),
+			*GetNameSafe(ActiveRoomData));
+		return;
+	}
+
 	// 根据总难度分选取房间难度档位（决定最大波次数 + 奖励配置）
 	const int32 Score = Config.TotalDifficultyScore;
 	const FRoomDifficultyTier& Tier = (Score <= LowDifficultyScoreMax)
@@ -1305,6 +1509,25 @@ static const TCHAR* GetEnemyRuneTriggerName(ERuneTriggerType Type)
 	}
 }
 
+static ERuneTriggerType ResolveEnemyRuneTriggerType(const URuneDataAsset* RuneDA)
+{
+	if (!RuneDA)
+	{
+		return ERuneTriggerType::Passive;
+	}
+
+	const ERuneTriggerType ConfiguredTrigger = RuneDA->GetTriggerType();
+	const FCombatCardConfig& CombatCard = RuneDA->RuneInfo.CombatCard;
+	if (ConfiguredTrigger == ERuneTriggerType::Passive
+		&& CombatCard.bIsCombatCard
+		&& CombatCard.TriggerTiming == ECombatCardTriggerTiming::OnHit)
+	{
+		return ERuneTriggerType::OnAttackHit;
+	}
+
+	return ConfiguredTrigger;
+}
+
 static FString GetEnemyRuneDebugName(const URuneDataAsset* RuneDA)
 {
 	if (!RuneDA)
@@ -1330,7 +1553,8 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 	}
 
 	UFlowAsset* FlowAsset = RuneDA->GetFlowAsset();
-	const ERuneTriggerType TriggerType = RuneDA->GetTriggerType();
+	const ERuneTriggerType TriggerType = ResolveEnemyRuneTriggerType(RuneDA);
+	const ERuneTriggerType ConfiguredTriggerType = RuneDA->GetTriggerType();
 	const FString RuneDebugName = GetEnemyRuneDebugName(RuneDA);
 
 	if (!FlowAsset)
@@ -1355,6 +1579,14 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 		*GetNameSafe(RuneDA),
 		*GetNameSafe(FlowAsset),
 		GetEnemyRuneTriggerName(TriggerType));
+	if (TriggerType != ConfiguredTriggerType)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] TriggerOverride Enemy=%s Rune=%s Configured=%s Effective=%s Reason=CombatCardOnHit"),
+			*GetNameSafe(Enemy),
+			*RuneDebugName,
+			GetEnemyRuneTriggerName(ConfiguredTriggerType),
+			GetEnemyRuneTriggerName(TriggerType));
+	}
 
 	if (TriggerType == ERuneTriggerType::Passive)
 	{

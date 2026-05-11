@@ -831,7 +831,7 @@ void AYogHUD::Tick(float DeltaSeconds)
 
 	if (!PausePPVolume) return;
 
-	const float TargetAlpha = (PausePopupCount > 0) ? 1.f : 0.f;
+	const float TargetAlpha = (PausePopupCount > 0 || bDeathEffectActive) ? 1.f : 0.f;
 	if (FMath::IsNearlyEqual(PauseEffectAlpha, TargetAlpha, 0.001f))
 	{
 		PauseEffectAlpha = TargetAlpha;
@@ -842,8 +842,10 @@ void AYogHUD::Tick(float DeltaSeconds)
 	PauseEffectAlpha = FMath::Clamp(
 		PauseEffectAlpha + (TargetAlpha > PauseEffectAlpha ? Step : -Step), 0.f, 1.f);
 
-	const float Sat  = FMath::Lerp(1.f, PauseTargetSaturation, PauseEffectAlpha);
-	const float Gain = FMath::Lerp(1.f, PauseTargetGain,       PauseEffectAlpha);
+	const float TargetSat  = bDeathEffectActive ? DeathTargetSaturation : PauseTargetSaturation;
+	const float TargetGain = bDeathEffectActive ? DeathTargetGain       : PauseTargetGain;
+	const float Sat  = FMath::Lerp(1.f, TargetSat,  PauseEffectAlpha);
+	const float Gain = FMath::Lerp(1.f, TargetGain, PauseEffectAlpha);
 
 	PausePPVolume->Settings.ColorSaturation = FVector4(1.f, 1.f, 1.f, Sat);
 	PausePPVolume->Settings.ColorGain       = FVector4(1.f, 1.f, 1.f, Gain);
@@ -868,6 +870,16 @@ void AYogHUD::EndPauseEffect()
 	{
 		PC->SetPause(PausePopupCount > 0);
 	}
+}
+
+void AYogHUD::BeginDeathEffect()
+{
+	bDeathEffectActive = true;
+}
+
+void AYogHUD::EndDeathEffect()
+{
+	bDeathEffectActive = false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
