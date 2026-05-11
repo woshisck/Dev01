@@ -199,7 +199,7 @@ public:
 	void StartNewRunFromFrontend();
 
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
-	void ShowGameOverScreen();
+	void ShowGameOverScreen(bool bCanRevive = false);
 
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
 	void ReturnToMainMenu();
@@ -348,6 +348,7 @@ private:
 	FReply HandleContinueClicked();
 	FReply HandleOptionsClicked();
 	FReply HandleRetryClicked();
+	FReply HandleReviveClicked();
 	FReply HandleReturnToMenuClicked();
 	FReply HandleQuitClicked();
 

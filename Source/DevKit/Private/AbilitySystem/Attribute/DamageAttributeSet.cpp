@@ -28,6 +28,13 @@ namespace
 			EffectGrantsTag(Spec, TEXT("Buff.Status.Poisoned")) ||
 			EffectGrantsTag(Spec, TEXT("Buff.Status.Bleeding"));
 	}
+
+	bool HasInvulnerableTag(const UAbilitySystemComponent* ASC)
+	{
+		static const FGameplayTag InvulnerableTag =
+			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Invulnerable"), false);
+		return InvulnerableTag.IsValid() && ASC && ASC->HasMatchingGameplayTag(InvulnerableTag);
+	}
 }
 
 
@@ -113,7 +120,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.DashInvincible"));
 			UAbilitySystemComponent* TargetASC =
 				Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
-			if (TargetASC && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible))
+			if (HasInvulnerableTag(TargetASC) || (TargetASC && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible)))
 			{
 				return;
 			}
@@ -255,7 +262,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.DashInvincible"));
 			UAbilitySystemComponent* TargetASC =
 				Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
-			if (TargetASC && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible))
+			if (HasInvulnerableTag(TargetASC) || (TargetASC && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible)))
 			{
 				return;
 			}
@@ -354,7 +361,8 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.DashInvincible"), false);
 		UAbilitySystemComponent* TargetASC =
 			Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
-		if (TargetASC && TAG_DashInvincible.IsValid() && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible))
+		if (HasInvulnerableTag(TargetASC) ||
+			(TargetASC && TAG_DashInvincible.IsValid() && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible)))
 		{
 			return;
 		}
