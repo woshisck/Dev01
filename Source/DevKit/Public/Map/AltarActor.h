@@ -12,6 +12,7 @@ class UAltarMenuWidget;
 class USacrificeSelectionWidget;
 class UBoxComponent;
 class UStaticMeshComponent;
+class UPrimitiveComponent;
 class UWidgetComponent;
 class UNiagaraComponent;
 
@@ -91,6 +92,15 @@ protected:
 
 	UFUNCTION()
 	void OnPhaseChanged(ELevelPhase NewPhase);
+
+	UFUNCTION()
+	void OnInteractBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
+		bool bFromSweep, const FHitResult& SweepHitResult);
+
+	UFUNCTION()
+	void OnInteractBoxEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	// BP 重写：显示 / 隐藏交互提示（"按 F 交互"等）
 	void ConfigureInteractPrompt();

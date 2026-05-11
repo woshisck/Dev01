@@ -39,9 +39,15 @@ void ULootSelectionWidget::NativeConstruct()
 	}
 
 	if (BtnSkip)
+	{
+		BtnSkip->IsFocusable = false;
 		BtnSkip->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnBtnSkipClicked);
+	}
 	if (BtnBackpackPreview)
+	{
+		BtnBackpackPreview->IsFocusable = false;
 		BtnBackpackPreview->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnBtnBackpackPreviewClicked);
+	}
 }
 
 void ULootSelectionWidget::NativeDestruct()
@@ -109,6 +115,7 @@ void ULootSelectionWidget::ShowLootUI(const TArray<FLootOption>& Options, ARewar
 	}
 
 	SetUserFocus(GetOwningPlayer());
+	SetKeyboardFocus();
 
 	bStickNavHeld = false;
 	CurrentSection = ELootFocusSection::Cards;
@@ -209,6 +216,7 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 			? WidgetTree->ConstructWidget<UButton>(UButton::StaticClass())
 			: NewObject<UButton>(this);
 		Wrapper->SetVisibility(ESlateVisibility::Visible);
+		Wrapper->IsFocusable = false;
 		Wrapper->AddChild(SizeBox);
 
 		// 全透明 ButtonStyle，避免盖住卡片视觉（Designer 可在 WBP 里覆盖此默认）
@@ -464,6 +472,7 @@ void ULootSelectionWidget::ReactivateAfterPreview()
 	}
 
 	SetUserFocus(GetOwningPlayer());
+	SetKeyboardFocus();
 	SetSection(CurrentSection);
 }
 
@@ -583,6 +592,7 @@ void ULootSelectionWidget::NativeOnActivated()
 	}
 
 	SetUserFocus(GetOwningPlayer());
+	SetKeyboardFocus();
 }
 
 void ULootSelectionWidget::NativeOnFocusLost(const FFocusEvent& InFocusEvent)

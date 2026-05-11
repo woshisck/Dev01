@@ -349,6 +349,8 @@ void UYogGameInstanceBase::ShowMainMenu()
 	bFrontendLoadingGameplayMap = false;
 	bFrontendMapLoaded = false;
 	bFrontendMinLoadTimeElapsed = false;
+	bFrontendGameOverMenu = false;
+	bFrontendGameOverCanRevive = false;
 	FrontendFocusedMenuIndex = 0;
 	FrontendMenuButtons.Reset();
 
@@ -701,21 +703,27 @@ void UYogGameInstanceBase::ShowLoadingScreen(const FText& Title, const FText& Su
 	{
 		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
 	}
-	ApplyFrontendInputMode(true);
+	ApplyFrontendInputMode(true, FrontendWidget);
 }
 
 void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 {
 	RemoveFrontendWidget();
+	bFrontendGameOverMenu = true;
+	bFrontendGameOverCanRevive = bCanRevive;
+	FrontendFocusedMenuIndex = 0;
 
 	TSharedRef<SVerticalBox> ButtonBox = SNew(SVerticalBox);
+	TSharedPtr<SButton> ReviveButton;
+	TSharedPtr<SButton> RetryButton;
+	TSharedPtr<SButton> ReturnButton;
 	if (bCanRevive)
 	{
 		ButtonBox->AddSlot()
 		.AutoHeight()
 		.Padding(0.f, 0.f, 0.f, 12.f)
 		[
-			SNew(SButton)
+			SAssignNew(ReviveButton, SButton)
 			.HAlign(HAlign_Center)
 			.ContentPadding(FMargin(28.f, 12.f))
 			.OnClicked_UObject(this, &UYogGameInstanceBase::HandleReviveClicked)
@@ -730,7 +738,7 @@ void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 	.AutoHeight()
 	.Padding(0.f, 0.f, 0.f, 12.f)
 	[
-		SNew(SButton)
+		SAssignNew(RetryButton, SButton)
 		.HAlign(HAlign_Center)
 		.ContentPadding(FMargin(28.f, 12.f))
 		.OnClicked_UObject(this, &UYogGameInstanceBase::HandleRetryClicked)
@@ -743,7 +751,7 @@ void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 	ButtonBox->AddSlot()
 	.AutoHeight()
 	[
-		SNew(SButton)
+		SAssignNew(ReturnButton, SButton)
 		.HAlign(HAlign_Center)
 		.ContentPadding(FMargin(28.f, 12.f))
 		.OnClicked_UObject(this, &UYogGameInstanceBase::HandleReturnToMenuClicked)
@@ -754,7 +762,7 @@ void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 		]
 	];
 
-	TSharedRef<SWidget> Widget =
+	TSharedRef<SWidget> MenuContent =
 		SNew(SOverlay)
 		+ SOverlay::Slot()
 		[
@@ -788,12 +796,25 @@ void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 			]
 		];
 
+	TSharedRef<SWidget> Widget =
+		SNew(SDevKitFrontendMenuRoot)
+		.Owner(this)
+		[
+			MenuContent
+		];
+
+	if (ReviveButton.IsValid())
+	{
+		FrontendMenuButtons.Add(ReviveButton);
+	}
+	FrontendMenuButtons.Add(RetryButton);
+	FrontendMenuButtons.Add(ReturnButton);
 	FrontendWidget = Widget;
 	if (GEngine && GEngine->GameViewport)
 	{
 		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
 	}
-	ApplyFrontendInputMode(true);
+	ApplyFrontendInputMode(true, FrontendWidget);
 }
 
 void UYogGameInstanceBase::ReturnToMainMenu()
@@ -815,6 +836,8 @@ void UYogGameInstanceBase::RemoveFrontendWidget()
 	FrontendStartButton.Reset();
 	FrontendMenuButtons.Reset();
 	FrontendFocusedMenuIndex = 0;
+	bFrontendGameOverMenu = false;
+	bFrontendGameOverCanRevive = false;
 }
 
 void UYogGameInstanceBase::ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidget> WidgetToFocus)
@@ -835,10 +858,14 @@ void UYogGameInstanceBase::ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidg
 		if (WidgetToFocus.IsValid())
 		{
 			FSlateApplication::Get().SetKeyboardFocus(WidgetToFocus, EFocusCause::SetDirectly);
+			FSlateApplication::Get().SetAllUserFocus(WidgetToFocus, EFocusCause::SetDirectly);
 		}
 	}
 	else
 	{
+		PC->SetIgnoreMoveInput(false);
+		PC->SetIgnoreLookInput(false);
+		PC->EnableInput(PC);
 		PC->SetInputMode(FInputModeGameOnly());
 	}
 }
@@ -885,7 +912,14 @@ bool UYogGameInstanceBase::HandleFrontendMenuKey(const FKey& Key)
 		}
 		else
 		{
-			HandleQuitClicked();
+			if (bFrontendGameOverMenu)
+			{
+				HandleReturnToMenuClicked();
+			}
+			else
+			{
+				HandleQuitClicked();
+			}
 		}
 		return true;
 	}
@@ -911,6 +945,27 @@ void UYogGameInstanceBase::MoveFrontendMenuFocus(int32 Direction)
 
 FReply UYogGameInstanceBase::ActivateFrontendMenuSelection()
 {
+	if (bFrontendGameOverMenu)
+	{
+		if (bFrontendGameOverCanRevive)
+		{
+			switch (FrontendFocusedMenuIndex)
+			{
+			case 0: return HandleReviveClicked();
+			case 1: return HandleRetryClicked();
+			case 2: return HandleReturnToMenuClicked();
+			default: return FReply::Handled();
+			}
+		}
+
+		switch (FrontendFocusedMenuIndex)
+		{
+		case 0: return HandleRetryClicked();
+		case 1: return HandleReturnToMenuClicked();
+		default: return FReply::Handled();
+		}
+	}
+
 	switch (FrontendFocusedMenuIndex)
 	{
 	case 0:

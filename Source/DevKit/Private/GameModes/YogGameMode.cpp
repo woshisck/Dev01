@@ -1521,6 +1521,12 @@ static const TCHAR* GetEnemyRuneTriggerName(ERuneTriggerType Type)
 	}
 }
 
+static bool IsEnemyDeathPoisonRune(const URuneDataAsset* RuneDA)
+{
+	const FString RunePath = GetPathNameSafe(RuneDA);
+	return RunePath.Contains(TEXT("/DeathPoison/"));
+}
+
 static ERuneTriggerType ResolveEnemyRuneTriggerType(const URuneDataAsset* RuneDA)
 {
 	if (!RuneDA)
@@ -1567,12 +1573,16 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 	UFlowAsset* FlowAsset = RuneDA->GetFlowAsset();
 	const ERuneTriggerType TriggerType = ResolveEnemyRuneTriggerType(RuneDA);
 	const ERuneTriggerType ConfiguredTriggerType = RuneDA->GetTriggerType();
+	const bool bUseDeathAnimCompleteTrigger = IsEnemyDeathPoisonRune(RuneDA);
+	const FString EffectiveTriggerName = bUseDeathAnimCompleteTrigger
+		? FString(TEXT("DeathAnimComplete"))
+		: FString(GetEnemyRuneTriggerName(TriggerType));
 	const FString RuneDebugName = GetEnemyRuneDebugName(RuneDA);
 
 	if (!FlowAsset)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Skip: Missing Flow Enemy=%s Source=%s Rune=%s DA=%s Trigger=%s"),
-			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(RuneDA), GetEnemyRuneTriggerName(TriggerType));
+			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(RuneDA), *EffectiveTriggerName);
 		return;
 	}
 
@@ -1580,7 +1590,7 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 	if (!BFC)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Skip: Missing BuffFlowComponent Enemy=%s Source=%s Rune=%s DA=%s Flow=%s Trigger=%s"),
-			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(RuneDA), *GetNameSafe(FlowAsset), GetEnemyRuneTriggerName(TriggerType));
+			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(RuneDA), *GetNameSafe(FlowAsset), *EffectiveTriggerName);
 		return;
 	}
 
@@ -1590,7 +1600,15 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 		*RuneDebugName,
 		*GetNameSafe(RuneDA),
 		*GetNameSafe(FlowAsset),
-		GetEnemyRuneTriggerName(TriggerType));
+		*EffectiveTriggerName);
+	if (bUseDeathAnimCompleteTrigger && ConfiguredTriggerType == ERuneTriggerType::Passive)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] TriggerOverride Enemy=%s Rune=%s Configured=%s Effective=%s Reason=DeathPoisonWaitsForDeathAnimComplete"),
+			*GetNameSafe(Enemy),
+			*RuneDebugName,
+			GetEnemyRuneTriggerName(ConfiguredTriggerType),
+			*EffectiveTriggerName);
+	}
 	if (TriggerType != ConfiguredTriggerType)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] TriggerOverride Enemy=%s Rune=%s Configured=%s Effective=%s Reason=CombatCardOnHit"),
@@ -1600,7 +1618,7 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 			GetEnemyRuneTriggerName(TriggerType));
 	}
 
-	if (TriggerType == ERuneTriggerType::Passive)
+	if (TriggerType == ERuneTriggerType::Passive && !bUseDeathAnimCompleteTrigger)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] StartPassive Enemy=%s Source=%s Rune=%s Flow=%s"),
 			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(FlowAsset));
@@ -1612,15 +1630,17 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 	if (!ASC)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Skip: Missing ASC Enemy=%s Source=%s Rune=%s Flow=%s Trigger=%s"),
-			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(FlowAsset), GetEnemyRuneTriggerName(TriggerType));
+			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(FlowAsset), *EffectiveTriggerName);
 		return;
 	}
 
-	const FGameplayTag EventTag = GetEnemyRuneEventTagForTriggerType(TriggerType);
+	const FGameplayTag EventTag = bUseDeathAnimCompleteTrigger
+		? FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.DeathAnimComplete"), false)
+		: GetEnemyRuneEventTagForTriggerType(TriggerType);
 	if (!EventTag.IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] Skip: Invalid EventTag Enemy=%s Source=%s Rune=%s Flow=%s Trigger=%s"),
-			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(FlowAsset), GetEnemyRuneTriggerName(TriggerType));
+			*GetNameSafe(Enemy), Source, *RuneDebugName, *GetNameSafe(FlowAsset), *EffectiveTriggerName);
 		return;
 	}
 
@@ -1632,7 +1652,7 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 	const FString CapturedRuneDAName = GetNameSafe(RuneDA);
 	const FString CapturedFlowName = GetNameSafe(FlowAsset);
 	const FString CapturedSource = Source;
-	const FString CapturedTriggerName = GetEnemyRuneTriggerName(TriggerType);
+	const FString CapturedTriggerName = EffectiveTriggerName;
 	ASC->GenericGameplayEventCallbacks.FindOrAdd(EventTag)
 		.AddWeakLambda(BFC, [WeakEnemy, WeakBFC, WeakFlowAsset, WeakRuneDA, EventTag, CapturedRuneName, CapturedRuneDAName, CapturedFlowName, CapturedSource, CapturedTriggerName](const FGameplayEventData* Payload)
 		{
@@ -1673,7 +1693,7 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 		*RuneDebugName,
 		*GetNameSafe(RuneDA),
 		*GetNameSafe(FlowAsset),
-		GetEnemyRuneTriggerName(TriggerType),
+		*EffectiveTriggerName,
 		*EventTag.ToString());
 }
 

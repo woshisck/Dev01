@@ -103,6 +103,8 @@ class DEVKIT_API UBFNode_ApplyGEInRadius : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Output")
 	FFlowDataPinOutputProperty_Int32 HitCount;
 
+	bool ShouldRestrictTargetsToEnemiesForRuntime() const;
+
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;
 };

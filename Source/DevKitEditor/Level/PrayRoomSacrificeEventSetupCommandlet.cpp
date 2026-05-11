@@ -179,12 +179,14 @@ namespace PrayRoomSacrificeEventSetup
 		UVerticalBox* PanelStack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("PanelStack"));
 		UTextBlock* TitleText = ConstructNamedWidget<UYogCommonUITextBlock>(WidgetTree, TEXT("TitleText"));
 		UTextBlock* DescriptionText = ConstructNamedWidget<UYogCommonUITextBlock>(WidgetTree, TEXT("DescriptionText"));
+		UTextBlock* CardIntroText = ConstructNamedWidget<UYogCommonUITextBlock>(WidgetTree, TEXT("CardIntroText"));
+		UTextBlock* PassiveHintText = ConstructNamedWidget<UYogCommonUITextBlock>(WidgetTree, TEXT("PassiveHintText"));
 		UTextBlock* CostText = ConstructNamedWidget<UYogCommonUITextBlock>(WidgetTree, TEXT("CostText"));
 		UVerticalBox* OptionBox = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("OptionBox"));
 		UVerticalBox* DeckCardBox = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("DeckCardBox"));
 		UHorizontalBox* ActionRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("ActionRow"));
 
-		if (!RootCanvas || !PanelSizeBox || !OuterBorder || !PanelStack || !TitleText || !DescriptionText || !CostText || !OptionBox || !DeckCardBox || !ActionRow)
+		if (!RootCanvas || !PanelSizeBox || !OuterBorder || !PanelStack || !TitleText || !DescriptionText || !CardIntroText || !PassiveHintText || !CostText || !OptionBox || !DeckCardBox || !ActionRow)
 		{
 			return;
 		}
@@ -205,7 +207,9 @@ namespace PrayRoomSacrificeEventSetup
 		OuterBorder->SetContent(PanelStack);
 
 		ConfigureText(TitleText, TEXT("\u732e\u796d\u5723\u575b"), FLinearColor(0.95f, 0.72f, 0.34f, 1.0f), 24, false);
-		ConfigureText(DescriptionText, TEXT("\u9009\u62e9\u4ee3\u4ef7\uff0c\u83b7\u5f97\u732e\u796d\u7b26\u6587"), FLinearColor(0.80f, 0.82f, 0.86f, 1.0f), 16, true);
+		ConfigureText(DescriptionText, TEXT("\u732e\u796d\u5956\u52b1\uff1a\u6708\u5149\u4e4b\u5f71"), FLinearColor(0.80f, 0.82f, 0.86f, 1.0f), 16, true);
+		ConfigureText(CardIntroText, TEXT("\u6708\u5149\u4e4b\u5f71\n\u51b2\u523a\u540e\u5728\u539f\u5730\u7559\u4e0b\u6697\u5f71\uff1b\u6697\u5f71\u4f1a\u6a21\u4eff\u73a9\u5bb6\u653b\u51fb\uff0c\u5e76\u540c\u6b65\u6708\u5149\u7b49\u653b\u51fb\u5361\u724c\u589e\u5f3a\uff0c\u9ed8\u8ba4 4 \u6b21\u653b\u51fb\u540e\u6d88\u5931\u3002"), FLinearColor(0.92f, 0.90f, 0.84f, 1.0f), 15, true);
+		ConfigureText(PassiveHintText, TEXT("\u6559\u7a0b\u63d0\u793a\uff1a\u8fd9\u662f\u88ab\u52a8\u5361\u724c\u3002\u786e\u8ba4\u732e\u796d\u540e\u4f1a\u76f4\u63a5\u751f\u6548\uff0c\u4e0d\u9700\u8981\u653e\u8fdb\u653b\u51fb\u5361\u7ec4\uff0c\u4e5f\u4e0d\u9700\u8981\u624b\u52a8\u6253\u51fa\u3002"), FLinearColor(0.74f, 0.86f, 1.0f, 1.0f), 14, true);
 		ConfigureText(CostText, TEXT("\u4ee3\u4ef7"), FLinearColor(0.64f, 0.68f, 0.76f, 1.0f), 15, true);
 
 		if (UVerticalBoxSlot* TitleSlot = PanelStack->AddChildToVerticalBox(TitleText))
@@ -215,6 +219,14 @@ namespace PrayRoomSacrificeEventSetup
 		if (UVerticalBoxSlot* DescSlot = PanelStack->AddChildToVerticalBox(DescriptionText))
 		{
 			DescSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+		}
+		if (UVerticalBoxSlot* IntroSlot = PanelStack->AddChildToVerticalBox(CardIntroText))
+		{
+			IntroSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+		}
+		if (UVerticalBoxSlot* HintSlot = PanelStack->AddChildToVerticalBox(PassiveHintText))
+		{
+			HintSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 12.0f));
 		}
 		if (UVerticalBoxSlot* CostSlot = PanelStack->AddChildToVerticalBox(CostText))
 		{
@@ -392,6 +404,24 @@ namespace PrayRoomSacrificeEventSetup
 		return true;
 	}
 
+	void ConfigureSacrificeRuneText(URuneDataAsset* SacrificeRune, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	{
+		if (!SacrificeRune)
+		{
+			return;
+		}
+
+		SacrificeRune->Modify();
+		SacrificeRune->RuneInfo.RuneConfig.HUDSummaryText = FText::FromString(
+			TEXT("\u51b2\u523a\u540e\u7559\u4e0b\u6697\u5f71\uff1b\u6697\u5f71\u6a21\u4eff\u653b\u51fb\u5e76\u540c\u6b65\u6708\u5149\u7b49\u653b\u51fb\u5361\u589e\u5f3a\uff0c4 \u6b21\u653b\u51fb\u540e\u6d88\u5931\u3002"));
+		SacrificeRune->RuneInfo.RuneConfig.RuneDescription = FText::FromString(
+			TEXT("\u732e\u796d\u88ab\u52a8\u7b26\u6587\u3002\u51b2\u523a\u540e\u5728\u539f\u5730\u7559\u4e0b\u6697\u5f71\uff1b\u6697\u5f71\u4e0d\u79fb\u52a8\uff0c\u4f1a\u6a21\u4eff\u73a9\u5bb6\u653b\u51fb\u5e76\u540c\u6b65\u6708\u5149\u7b49\u5361\u724c\u589e\u5f3a\uff0c\u9ed8\u8ba4 4 \u6b21\u653b\u51fb\u540e\u6d88\u5931\u3002"));
+		SacrificeRune->RuneInfo.RuneConfig.TriggerType = ERuneTriggerType::Passive;
+		SacrificeRune->MarkPackageDirty();
+		DirtyPackages.AddUnique(SacrificeRune->GetPackage());
+		ReportLines.Add(TEXT("- Updated sacrifice rune player-facing summary and passive description."));
+	}
+
 	FGameplayTag RequestTagOrNone(const FName TagName, TArray<FString>& ReportLines)
 	{
 		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
@@ -516,6 +546,8 @@ int32 UPrayRoomSacrificeEventSetupCommandlet::Main(const FString& Params)
 		const bool bMissingDesignerBindings = !WidgetBlueprint->WidgetTree
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("TitleText"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("DescriptionText"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CardIntroText"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("PassiveHintText"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CostText"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("OptionBox"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("DeckCardBox"))
@@ -540,6 +572,7 @@ int32 UPrayRoomSacrificeEventSetupCommandlet::Main(const FString& Params)
 	UAltarDataAsset* AltarData = CreateAltarDataAsset(bDryRun, ReportLines, DirtyPackages);
 	if (!bDryRun && AltarData && SacrificeRune)
 	{
+		ConfigureSacrificeRuneText(SacrificeRune, ReportLines, DirtyPackages);
 		ConfigureAltarData(AltarData, SacrificeRune, ReportLines, DirtyPackages);
 	}
 	else if (bDryRun)

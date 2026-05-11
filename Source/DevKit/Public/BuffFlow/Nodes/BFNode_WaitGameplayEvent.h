@@ -41,6 +41,8 @@ class DEVKIT_API UBFNode_WaitGameplayEvent : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Output|Data", meta = (DisplayName = "事件强度（输出）"))
 	FFlowDataPinOutputProperty_Float EventMagnitude;
 
+	FGameplayTag GetRuntimeEventTag() const;
+
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;
 	virtual void Cleanup() override;

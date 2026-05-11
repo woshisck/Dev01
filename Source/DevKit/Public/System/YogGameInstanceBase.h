@@ -328,6 +328,8 @@ private:
 	TSharedPtr<FStreamableHandle> FrontendMapLoadHandle;
 	FTimerHandle FrontendLoadingTimerHandle;
 	int32 FrontendFocusedMenuIndex = 0;
+	bool bFrontendGameOverMenu = false;
+	bool bFrontendGameOverCanRevive = false;
 	bool bFrontendLoadingGameplayMap = false;
 	bool bFrontendMinLoadTimeElapsed = false;
 	bool bFrontendMapLoaded = false;

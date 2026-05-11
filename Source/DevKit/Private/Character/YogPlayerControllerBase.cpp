@@ -48,6 +48,22 @@ void AYogPlayerControllerBase::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
+	SetIgnoreMoveInput(false);
+	SetIgnoreLookInput(false);
+	SetBlockGameInput(false);
+
+	if (APlayerCharacterBase* PossessedPlayer = Cast<APlayerCharacterBase>(InPawn))
+	{
+		TWeakObjectPtr<APlayerCharacterBase> WeakPlayer(PossessedPlayer);
+		GetWorldTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakPlayer]()
+		{
+			if (APlayerCharacterBase* DeferredPlayer = WeakPlayer.Get())
+			{
+				DeferredPlayer->RestoreRunStateFromGI();
+			}
+		}));
+	}
+
 	//UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
 
 	//UGameInstance* GameInstancePtr = Cast<UGameInstance>(GetWorld()->GetGameInstance());

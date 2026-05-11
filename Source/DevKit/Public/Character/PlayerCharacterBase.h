@@ -332,6 +332,7 @@ private:
 	FTSTicker::FDelegateHandle DamageTimeDilationTickerHandle;
 	bool bDamageTimeDilationVisualActive = false;
 	bool bWaitingForDeathReviveChoice = false;
+	bool bRunStateRestoredFromGI = false;
 	FTimerHandle ReviveProtectionTimerHandle;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> PlayerOverlayDynMat;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> DamageOverlayDynMat;

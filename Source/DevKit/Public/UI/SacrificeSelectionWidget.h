@@ -64,6 +64,12 @@ protected:
 	TObjectPtr<UTextBlock> DescriptionText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> CardIntroText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> PassiveHintText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> CostText;
 
 	UPROPERTY(meta = (BindWidgetOptional))

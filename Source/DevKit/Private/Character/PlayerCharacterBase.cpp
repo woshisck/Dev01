@@ -218,12 +218,17 @@ void APlayerCharacterBase::EndReviveProtection()
 void APlayerCharacterBase::RestoreRunStateFromGI()
 {
 	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+	if (bRunStateRestoredFromGI)
+	{
+		return;
+	}
 	if (!GI || !GI->PendingRunState.bIsValid)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE skipped — no valid state (bIsValid=%d)"),
 			GI ? (int32)GI->PendingRunState.bIsValid : -1);
 		return;
 	}
+	bRunStateRestoredFromGI = true;
 
 	UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE — HP=%.1f Gold=%d Phase=%d Runes=%d"),
 		GI->PendingRunState.CurrentHP, GI->PendingRunState.CurrentGold,
@@ -235,7 +240,9 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 	// 恢复 HP
 	if (ASC && State.CurrentHP > 0.f)
 	{
-		ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute(), State.CurrentHP);
+		const float MaxHealth = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
+		const float RestoredHP = MaxHealth > 0.f ? FMath::Clamp(State.CurrentHP, 1.f, MaxHealth) : State.CurrentHP;
+		ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute(), RestoredHP);
 	}
 
 	// 恢复金币（现在由 BackpackGridComponent 持有）

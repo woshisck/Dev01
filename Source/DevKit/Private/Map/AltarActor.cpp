@@ -20,6 +20,8 @@ AAltarActor::AAltarActor()
 	InteractBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	InteractBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	InteractBox->SetGenerateOverlapEvents(true);
+	InteractBox->OnComponentBeginOverlap.AddDynamic(this, &AAltarActor::OnInteractBoxBeginOverlap);
+	InteractBox->OnComponentEndOverlap.AddDynamic(this, &AAltarActor::OnInteractBoxEndOverlap);
 
 	AltarMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AltarMesh"));
 	AltarMesh->SetupAttachment(RootComponent);
@@ -50,7 +52,11 @@ void AAltarActor::BeginPlay()
 	Super::BeginPlay();
 
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
+	{
 		GM->OnPhaseChanged.AddDynamic(this, &AAltarActor::OnPhaseChanged);
+		// Sync immediately in case OnPhaseChanged already fired before this actor's BeginPlay
+		OnPhaseChanged(GM->CurrentPhase);
+	}
 
 	if (AltarMenuWidgetClass)
 		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
@@ -80,6 +86,23 @@ void AAltarActor::SetAltarActive(bool bInActive)
 	{
 		NearbyPlayer->PendingAltar = bIsActive ? this : nullptr;
 		SetInteractPromptVisible(bIsActive);
+	}
+	else if (bIsActive && InteractBox)
+	{
+		// Player may already be inside the box when the altar becomes active (e.g. phase change
+		// fires after the player walked in). Re-trigger the overlap logic so PendingAltar is set.
+		TArray<AActor*> OverlappingActors;
+		InteractBox->GetOverlappingActors(OverlappingActors, APlayerCharacterBase::StaticClass());
+		for (AActor* Actor : OverlappingActors)
+		{
+			if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Actor))
+			{
+				OnPlayerBeginOverlap(Player);
+				break;
+			}
+		}
+		if (!NearbyPlayer.IsValid())
+			SetInteractPromptVisible(false);
 	}
 	else
 	{
@@ -176,6 +199,25 @@ void AAltarActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 		AltarMenuWidget->DeactivateWidget();
 	if (SacrificeWidget && SacrificeWidget->IsActivated())
 		SacrificeWidget->DeactivateWidget();
+}
+
+void AAltarActor::OnInteractBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
+	bool bFromSweep, const FHitResult& SweepHitResult)
+{
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
+	{
+		OnPlayerBeginOverlap(Player);
+	}
+}
+
+void AAltarActor::OnInteractBoxEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
+	{
+		OnPlayerEndOverlap(Player);
+	}
 }
 
 void AAltarActor::ConfigureInteractPrompt()
