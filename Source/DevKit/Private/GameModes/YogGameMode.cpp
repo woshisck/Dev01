@@ -74,6 +74,13 @@ AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 	LifecycleFlowComponent = CreateDefaultSubobject<UFlowComponent>(TEXT("LifecycleFlowComponent"));
 }
 
+bool AYogGameMode::ShouldSkipCombatForRoom(const URoomDataAsset* RoomData)
+{
+	return RoomData
+		&& RoomData->SacrificeEventAltarData != nullptr
+		&& RoomData->EnemyPool.IsEmpty();
+}
+
 
 void AYogGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
 {
@@ -1233,6 +1240,70 @@ void AYogGameMode::StartLevelSpawning()
 		}
 
 		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [ShopRoom] %s - skip combat and open shop"),
+			*GetNameSafe(ActiveRoomData));
+		return;
+	}
+
+	if (ShouldSkipCombatForRoom(ActiveRoomData))
+	{
+		CurrentPhase = ELevelPhase::Arrangement;
+		OnPhaseChanged.Broadcast(CurrentPhase);
+
+		if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
+		{
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			{
+				HUD->HideCurrentRoomBuffs();
+			}
+		}
+
+		{
+			TArray<AActor*> AllPortalActors;
+			UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), AllPortalActors);
+			for (AActor* PortalActor : AllPortalActors)
+			{
+				APortal* Portal = Cast<APortal>(PortalActor);
+				if (!Portal) continue;
+
+				bool bCanOpen = false;
+				for (const FPortalDestConfig& Dest : ActiveRoomData->PortalDestinations)
+				{
+					if (Dest.PortalIndex == Portal->Index)
+					{
+						bCanOpen = true;
+						break;
+					}
+				}
+
+				if (!bCanOpen)
+				{
+					Portal->bWillNeverOpen = true;
+					Portal->NeverOpen();
+				}
+			}
+		}
+
+		FVector EventAnchorLoc = FVector::ZeroVector;
+		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		{
+			if (APawn* P = PC->GetPawn())
+			{
+				EventAnchorLoc = P->GetActorLocation();
+			}
+		}
+
+		SpawnSacrificeEventAltar(EventAnchorLoc);
+		ActivatePortals();
+
+		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		{
+			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			{
+				HUD->ShowPortalGuidance();
+			}
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [EventRoom] %s - skip combat reward flow and open event room"),
 			*GetNameSafe(ActiveRoomData));
 		return;
 	}
