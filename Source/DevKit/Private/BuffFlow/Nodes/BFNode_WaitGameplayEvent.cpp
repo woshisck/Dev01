@@ -1,6 +1,7 @@
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "AbilitySystemComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
+#include "FlowAsset.h"
 
 UBFNode_WaitGameplayEvent::UBFNode_WaitGameplayEvent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -12,21 +13,39 @@ UBFNode_WaitGameplayEvent::UBFNode_WaitGameplayEvent(const FObjectInitializer& O
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
+FGameplayTag UBFNode_WaitGameplayEvent::GetRuntimeEventTag() const
+{
+	const UFlowAsset* FlowAsset = GetFlowAsset();
+	const FString FlowPath = GetPathNameSafe(FlowAsset);
+	if (FlowPath.Contains(TEXT("/DeathPoison/")))
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.DeathAnimComplete"), false);
+	}
+
+	if (EventTag.IsValid())
+	{
+		return EventTag;
+	}
+
+	return EventTag;
+}
+
 void UBFNode_WaitGameplayEvent::ExecuteInput(const FName& PinName)
 {
+	const FGameplayTag RuntimeEventTag = GetRuntimeEventTag();
 	if (PinName == TEXT("In"))
 	{
 		// 先解绑旧监听，防止重复绑定
 		if (BoundASC.IsValid() && EventDelegateHandle.IsValid())
 		{
 			FGameplayTagContainer TagContainer;
-			TagContainer.AddTag(EventTag);
+			TagContainer.AddTag(RuntimeEventTag);
 			BoundASC->RemoveGameplayEventTagContainerDelegate(TagContainer, EventDelegateHandle);
 			EventDelegateHandle.Reset();
 			BoundASC.Reset();
 		}
 
-		if (!EventTag.IsValid())
+		if (!RuntimeEventTag.IsValid())
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[BFNode_WaitGameplayEvent] EventTag 无效，无法监听"));
 			return;
@@ -48,7 +67,7 @@ void UBFNode_WaitGameplayEvent::ExecuteInput(const FName& PinName)
 		}
 
 		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(EventTag);
+		TagContainer.AddTag(RuntimeEventTag);
 
 		BoundASC = ASC;
 		EventDelegateHandle = ASC->AddGameplayEventTagContainerDelegate(
@@ -57,7 +76,7 @@ void UBFNode_WaitGameplayEvent::ExecuteInput(const FName& PinName)
 				this, &UBFNode_WaitGameplayEvent::HandleGameplayEvent));
 
 		UE_LOG(LogTemp, Verbose, TEXT("[BFNode_WaitGameplayEvent] 开始监听 Tag=%s 在 Actor=%s"),
-			*EventTag.ToString(), *TargetActor->GetName());
+			*RuntimeEventTag.ToString(), *TargetActor->GetName());
 	}
 	else if (PinName == TEXT("Stop"))
 	{
@@ -89,8 +108,9 @@ void UBFNode_WaitGameplayEvent::Cleanup()
 {
 	if (BoundASC.IsValid() && EventDelegateHandle.IsValid())
 	{
+		const FGameplayTag RuntimeEventTag = GetRuntimeEventTag();
 		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(EventTag);
+		TagContainer.AddTag(RuntimeEventTag);
 		BoundASC->RemoveGameplayEventTagContainerDelegate(TagContainer, EventDelegateHandle);
 		EventDelegateHandle.Reset();
 	}

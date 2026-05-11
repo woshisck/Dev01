@@ -6,6 +6,7 @@
 #include "GameModes/YogGameMode.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "Kismet/GameplayStatics.h"
+#include "UI/InteractPromptWidget.h"
 #include "UI/YogHUD.h"
 
 ASacrificeGracePickup::ASacrificeGracePickup()
@@ -21,12 +22,27 @@ ASacrificeGracePickup::ASacrificeGracePickup()
 	PickupHintWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("PickupHintWidgetComp"));
 	PickupHintWidgetComp->SetupAttachment(RootComponent);
 	PickupHintWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
+	PickupHintWidgetComp->SetDrawAtDesiredSize(true);
+	PickupHintWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
 	PickupHintWidgetComp->SetVisibility(false);
 }
 
 void ASacrificeGracePickup::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (PickupHintWidgetComp)
+	{
+		if (!PickupHintWidgetComp->GetWidgetClass())
+		{
+			PickupHintWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
+		}
+		PickupHintWidgetComp->InitWidget();
+		if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(PickupHintWidgetComp->GetWidget()))
+		{
+			PromptWidget->SetPromptLabel(NSLOCTEXT("InteractPrompt", "SacrificeGrace", "献祭恩赐"));
+		}
+	}
 }
 
 void ASacrificeGracePickup::SetSacrificeGraceDA(USacrificeGraceDA* DA)

@@ -26,6 +26,49 @@ FText GetSacrificeRuneName(const FAltarSacrificeEntry& Entry)
 	return FText::FromName(Entry.GrantedRune->GetRuneName());
 }
 
+FText GetSacrificeRuneEffectText(const URuneDataAsset* Rune)
+{
+	if (!Rune)
+	{
+		return FText::GetEmpty();
+	}
+
+	if (!Rune->GetHUDSummaryText().IsEmptyOrWhitespace())
+	{
+		return Rune->GetHUDSummaryText();
+	}
+
+	if (!Rune->GetRuneDescription().IsEmptyOrWhitespace())
+	{
+		return Rune->GetRuneDescription();
+	}
+
+	return NSLOCTEXT("SacrificeSelection", "MissingRuneEffect", "获得后立即生效。");
+}
+
+FText GetSacrificeRuneCardIntroText(const URuneDataAsset* Rune)
+{
+	if (!Rune)
+	{
+		return NSLOCTEXT("SacrificeSelection", "NoRuneIntro", "选择一个代价，获得献祭符文。");
+	}
+
+	return FText::Format(
+		NSLOCTEXT("SacrificeSelection", "RuneIntroFormat", "{0}\n{1}"),
+		FText::FromName(Rune->GetRuneName()),
+		GetSacrificeRuneEffectText(Rune));
+}
+
+FText GetSacrificePassiveHintText(const URuneDataAsset* Rune)
+{
+	if (Rune && (Rune->RuneInfo.CombatCard.CardType == ECombatCardType::Passive || Rune->GetTriggerType() == ERuneTriggerType::Passive))
+	{
+		return NSLOCTEXT("SacrificeSelection", "PassiveHint", "教程提示：这是被动卡牌。确认献祭后会直接生效，不需要放进攻击卡组，也不需要手动打出。");
+	}
+
+	return NSLOCTEXT("SacrificeSelection", "DefaultCardHint", "教程提示：确认前请先阅读卡牌效果和献祭代价。");
+}
+
 FText GetCardDisplayName(const FCombatCardInstance& Card)
 {
 	if (!Card.SourceData)
@@ -363,6 +406,12 @@ void USacrificeSelectionWidget::BuildFallbackLayout()
 	DescriptionText = MakeText(WidgetTree, TEXT("DescriptionText"), NSLOCTEXT("SacrificeSelection", "Desc", "选择一个代价，获得全局献祭符文。"), 16);
 	Root->AddChildToVerticalBox(DescriptionText);
 
+	CardIntroText = MakeText(WidgetTree, TEXT("CardIntroText"), FText::GetEmpty(), 15);
+	Root->AddChildToVerticalBox(CardIntroText);
+
+	PassiveHintText = MakeText(WidgetTree, TEXT("PassiveHintText"), FText::GetEmpty(), 14);
+	Root->AddChildToVerticalBox(PassiveHintText);
+
 	OptionBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("OptionBox"));
 	Root->AddChildToVerticalBox(OptionBox);
 
@@ -409,16 +458,42 @@ void USacrificeSelectionWidget::RefreshNativeView()
 	{
 		if (CurrentOptions.IsValidIndex(SelectedOptionIndex))
 		{
-			DescriptionText->SetText(GetSacrificeRuneName(CurrentOptions[SelectedOptionIndex]));
+			DescriptionText->SetText(FText::Format(
+				NSLOCTEXT("SacrificeSelection", "SelectedHeader", "将获得：{0}"),
+				GetSacrificeRuneName(CurrentOptions[SelectedOptionIndex])));
 		}
 		else if (AltarData && AltarData->EventSacrificeRune)
 		{
-			DescriptionText->SetText(FText::FromName(AltarData->EventSacrificeRune->GetRuneName()));
+			DescriptionText->SetText(FText::Format(
+				NSLOCTEXT("SacrificeSelection", "DefaultHeader", "献祭奖励：{0}"),
+				FText::FromName(AltarData->EventSacrificeRune->GetRuneName())));
 		}
 		else
 		{
 			DescriptionText->SetText(NSLOCTEXT("SacrificeSelection", "Desc", "选择一个代价，获得全局献祭符文。"));
 		}
+	}
+
+	URuneDataAsset* IntroRune = nullptr;
+	if (CurrentOptions.IsValidIndex(SelectedOptionIndex))
+	{
+		IntroRune = CurrentOptions[SelectedOptionIndex].GrantedRune;
+	}
+	else if (AltarData)
+	{
+		IntroRune = AltarData->EventSacrificeRune;
+	}
+
+	if (CardIntroText)
+	{
+		CardIntroText->SetText(GetSacrificeRuneCardIntroText(IntroRune));
+		CardIntroText->SetVisibility(IntroRune ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+
+	if (PassiveHintText)
+	{
+		PassiveHintText->SetText(GetSacrificePassiveHintText(IntroRune));
+		PassiveHintText->SetVisibility(IntroRune ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 
 	RefreshOptionButtons();

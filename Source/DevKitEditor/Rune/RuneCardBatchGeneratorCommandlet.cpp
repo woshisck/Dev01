@@ -132,6 +132,7 @@ namespace Rune512Batch
 		FString Key;
 		FString DisplayName;
 		FString Description;
+		FString Summary;
 		FString TargetAssetName;
 		FString FlowTargetName;
 		FString IconAssetName;
@@ -1089,6 +1090,7 @@ namespace Rune512Batch
 		MoonlightShadow.Key = TEXT("MoonlightShadow");
 		MoonlightShadow.DisplayName = TEXT("\u6708\u5149\u4e4b\u5f71");
 		MoonlightShadow.Description = TEXT("\u732e\u796d\u88ab\u52a8\u7b26\u6587\u3002\u51b2\u523a\u540e\u5728\u539f\u5730\u7559\u4e0b\u6697\u5f71\uff1b\u6697\u5f71\u4e0d\u79fb\u52a8\uff0c\u4f1a\u6a21\u4eff\u73a9\u5bb6\u653b\u51fb\u5e76\u540c\u6b65\u6708\u5149\u7b49\u5361\u724c\u589e\u5f3a\uff0c\u9ed8\u8ba4 4 \u6b21\u653b\u51fb\u540e\u6d88\u5931\u3002");
+		MoonlightShadow.Summary = TEXT("\u51b2\u523a\u540e\u7559\u4e0b\u6697\u5f71\uff1b\u6697\u5f71\u6a21\u4eff\u653b\u51fb\u5e76\u540c\u6b65\u6708\u5149\u7b49\u653b\u51fb\u5361\u589e\u5f3a\uff0c4 \u6b21\u653b\u51fb\u540e\u6d88\u5931\u3002");
 		MoonlightShadow.TargetAssetName = TEXT("DA_Rune512_Sacrifice_MoonlightShadow");
 		MoonlightShadow.FlowTargetName = TEXT("FA_Rune512_Sacrifice_MoonlightShadow");
 		MoonlightShadow.IconAssetName = TEXT("T_Rune512_Sacrifice_MoonlightShadow");
@@ -1104,6 +1106,7 @@ namespace Rune512Batch
 		ShadowMark.Key = TEXT("ShadowMark");
 		ShadowMark.DisplayName = TEXT("\u6697\u5f71\u5370\u8bb0");
 		ShadowMark.Description = TEXT("\u732e\u796d\u88ab\u52a8\u7b26\u6587\u3002\u51b2\u523a\u6b21\u6570 +1\uff1b\u51b2\u523a\u8def\u5f84\u4e0a\u78b0\u5230\u7684\u654c\u4eba\u83b7\u5f97\u6697\u5f71\u5370\u8bb0\uff0c\u88ab\u73a9\u5bb6\u653b\u51fb\u540e\u5f15\u7206\u5e76\u9020\u6210\u8303\u56f4\u4f24\u5bb3\u3002");
+		ShadowMark.Summary = TEXT("\u51b2\u523a\u6b21\u6570 +1\uff1b\u51b2\u523a\u78b0\u5230\u7684\u654c\u4eba\u88ab\u653b\u51fb\u540e\u5f15\u7206\u5e76\u9020\u6210\u8303\u56f4\u4f24\u5bb3\u3002");
 		ShadowMark.TargetAssetName = TEXT("DA_Rune512_Sacrifice_ShadowMark");
 		ShadowMark.FlowTargetName = TEXT("FA_Rune512_Sacrifice_ShadowMark");
 		ShadowMark.IconAssetName = TEXT("T_Rune512_Sacrifice_ShadowMark");
@@ -1119,6 +1122,7 @@ namespace Rune512Batch
 		GiantSwing.Key = TEXT("GiantSwing");
 		GiantSwing.DisplayName = TEXT("\u5de8\u529b\u6325\u821e");
 		GiantSwing.Description = TEXT("\u732e\u796d\u88ab\u52a8\u7b26\u6587\u3002\u73a9\u5bb6\u6240\u6709\u653b\u51fb\u90fd\u4f1a\u51fb\u9000\u654c\u4eba\uff1b\u654c\u4eba\u88ab\u51fb\u9000\u8fc7\u7a0b\u4e2d\u78b0\u5230\u5176\u4ed6\u5355\u4f4d\u65f6\uff0c\u5bf9\u88ab\u78b0\u5355\u4f4d\u9020\u6210\u4e00\u6b21\u78b0\u649e\u4f24\u5bb3\u3002");
+		GiantSwing.Summary = TEXT("\u6240\u6709\u653b\u51fb\u51fb\u9000\u654c\u4eba\uff1b\u88ab\u51fb\u9000\u7684\u654c\u4eba\u649e\u5230\u5176\u4ed6\u5355\u4f4d\u65f6\u9020\u6210\u78b0\u649e\u4f24\u5bb3\u3002");
 		GiantSwing.TargetAssetName = TEXT("DA_Rune512_Sacrifice_GiantSwing");
 		GiantSwing.FlowTargetName = TEXT("FA_Rune512_Sacrifice_GiantSwing");
 		GiantSwing.IconAssetName = TEXT("T_Rune512_Sacrifice_GiantSwing");
@@ -3845,6 +3849,7 @@ namespace Rune512Batch
 		FRuneInstance& RuneInfo = RuneDA->RuneInfo;
 		RuneInfo.RuneConfig.RuneName = FName(*Spec.DisplayName);
 		RuneInfo.RuneConfig.RuneDescription = FText::FromString(Spec.Description);
+		RuneInfo.RuneConfig.HUDSummaryText = FText::FromString(Spec.Summary.IsEmpty() ? Spec.Description : Spec.Summary);
 		RuneInfo.RuneConfig.RuneIcon = Icon;
 		RuneInfo.RuneConfig.RuneID = RuneId;
 		RuneInfo.RuneConfig.RuneType = ERuneType::Buff;

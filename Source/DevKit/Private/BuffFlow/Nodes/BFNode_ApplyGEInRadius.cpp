@@ -9,6 +9,26 @@
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
 #include "Engine/OverlapResult.h"
+#include "FlowAsset.h"
+
+bool UBFNode_ApplyGEInRadius::ShouldRestrictTargetsToEnemiesForRuntime() const
+{
+	if (!bEnemyOnly)
+	{
+		return false;
+	}
+
+	const UFlowAsset* FlowAsset = GetFlowAsset();
+	const FString FlowPath = GetPathNameSafe(FlowAsset);
+	if (FlowPath.Contains(TEXT("/DeathPoison/")))
+	{
+		// Legacy enemy death-poison assets were authored before bEnemyOnly existed.
+		// They intentionally poison nearby characters, including the player.
+		return false;
+	}
+
+	return true;
+}
 
 UBFNode_ApplyGEInRadius::UBFNode_ApplyGEInRadius(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -128,6 +148,7 @@ void UBFNode_ApplyGEInRadius::ExecuteInput(const FName& PinName)
 	TSet<AActor*> ProcessedActors;
 	TArray<TPair<float, AActor*>> CandidateActors;
 	CandidateActors.Reserve(Overlaps.Num());
+	const bool bRestrictTargetsToEnemies = ShouldRestrictTargetsToEnemiesForRuntime();
 
 	for (const FOverlapResult& Overlap : Overlaps)
 	{
@@ -143,7 +164,7 @@ void UBFNode_ApplyGEInRadius::ExecuteInput(const FName& PinName)
 			continue;
 		}
 
-		if (bEnemyOnly && !Cast<AEnemyCharacterBase>(HitActor))
+		if (bRestrictTargetsToEnemies && !Cast<AEnemyCharacterBase>(HitActor))
 		{
 			continue;
 		}

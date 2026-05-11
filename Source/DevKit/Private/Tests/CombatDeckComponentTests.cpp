@@ -2377,6 +2377,56 @@ bool FCombatDeckPoisonGameplayEffectsConfiguredTest::RunTest(const FString& Para
 	return bPrimaryValid && bSplashValid;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnemyDeathPoisonFlowTargetsNearbyCharactersTest,
+	"DevKit.CombatDeck.EnemyDeathPoisonFlowTargetsNearbyCharacters",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FEnemyDeathPoisonFlowTargetsNearbyCharactersTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag DeathAnimCompleteTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.DeathAnimComplete"), false);
+	TestTrue(TEXT("Death animation complete tag exists"), DeathAnimCompleteTag.IsValid());
+
+	UFlowAsset* Flow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/Playtest_GA/DeathPoison/FA_Rune_DeathPoison.FA_Rune_DeathPoison"));
+	TestNotNull(TEXT("Enemy death poison flow exists"), Flow);
+	if (!Flow)
+	{
+		return false;
+	}
+
+	UBFNode_WaitGameplayEvent* WaitNode = nullptr;
+	UBFNode_ApplyGEInRadius* RadiusNode = nullptr;
+	for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
+	{
+		if (!WaitNode)
+		{
+			WaitNode = Cast<UBFNode_WaitGameplayEvent>(Pair.Value);
+		}
+		if (!RadiusNode)
+		{
+			RadiusNode = Cast<UBFNode_ApplyGEInRadius>(Pair.Value);
+		}
+	}
+
+	TestNotNull(TEXT("Death poison waits for death animation completion"), WaitNode);
+	TestNotNull(TEXT("Death poison applies poison in radius"), RadiusNode);
+	if (!WaitNode || !RadiusNode)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Death poison listens on the dying enemy"), WaitNode->Target, EBFTargetSelector::BuffOwner);
+	TestEqual(TEXT("Death poison listens for DeathAnimComplete"), WaitNode->GetRuntimeEventTag(), DeathAnimCompleteTag);
+	TestTrue(TEXT("Death poison uses poison splash GE"),
+		RadiusNode->Effect != nullptr && RadiusNode->Effect->GetName().Contains(TEXT("GE_PoisonSplash")));
+	TestEqual(TEXT("Death poison radius centers on the dying enemy"), RadiusNode->LocationSource, EBFTargetSelector::BuffOwner);
+	TestFalse(TEXT("Death poison runtime filter includes nearby players"),
+		RadiusNode->ShouldRestrictTargetsToEnemiesForRuntime());
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckBurnGameplayEffectConfiguredTest,
 	"DevKit.CombatDeck.BurnGameplayEffectConfigured",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

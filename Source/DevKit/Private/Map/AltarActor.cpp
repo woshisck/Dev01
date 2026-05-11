@@ -20,6 +20,8 @@ AAltarActor::AAltarActor()
 	InteractBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	InteractBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	InteractBox->SetGenerateOverlapEvents(true);
+	InteractBox->OnComponentBeginOverlap.AddDynamic(this, &AAltarActor::OnInteractBoxBeginOverlap);
+	InteractBox->OnComponentEndOverlap.AddDynamic(this, &AAltarActor::OnInteractBoxEndOverlap);
 
 	AltarMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AltarMesh"));
 	AltarMesh->SetupAttachment(RootComponent);
@@ -197,6 +199,25 @@ void AAltarActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 		AltarMenuWidget->DeactivateWidget();
 	if (SacrificeWidget && SacrificeWidget->IsActivated())
 		SacrificeWidget->DeactivateWidget();
+}
+
+void AAltarActor::OnInteractBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
+	bool bFromSweep, const FHitResult& SweepHitResult)
+{
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
+	{
+		OnPlayerBeginOverlap(Player);
+	}
+}
+
+void AAltarActor::OnInteractBoxEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
+	{
+		OnPlayerEndOverlap(Player);
+	}
 }
 
 void AAltarActor::ConfigureInteractPrompt()
