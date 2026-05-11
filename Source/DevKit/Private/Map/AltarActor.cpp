@@ -50,7 +50,11 @@ void AAltarActor::BeginPlay()
 	Super::BeginPlay();
 
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
+	{
 		GM->OnPhaseChanged.AddDynamic(this, &AAltarActor::OnPhaseChanged);
+		// Sync immediately in case OnPhaseChanged already fired before this actor's BeginPlay
+		OnPhaseChanged(GM->CurrentPhase);
+	}
 
 	if (AltarMenuWidgetClass)
 		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
@@ -80,6 +84,23 @@ void AAltarActor::SetAltarActive(bool bInActive)
 	{
 		NearbyPlayer->PendingAltar = bIsActive ? this : nullptr;
 		SetInteractPromptVisible(bIsActive);
+	}
+	else if (bIsActive && InteractBox)
+	{
+		// Player may already be inside the box when the altar becomes active (e.g. phase change
+		// fires after the player walked in). Re-trigger the overlap logic so PendingAltar is set.
+		TArray<AActor*> OverlappingActors;
+		InteractBox->GetOverlappingActors(OverlappingActors, APlayerCharacterBase::StaticClass());
+		for (AActor* Actor : OverlappingActors)
+		{
+			if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Actor))
+			{
+				OnPlayerBeginOverlap(Player);
+				break;
+			}
+		}
+		if (!NearbyPlayer.IsValid())
+			SetInteractPromptVisible(false);
 	}
 	else
 	{
