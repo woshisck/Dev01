@@ -47,6 +47,7 @@ public:
 	FSimpleMulticastDelegate OnPlayerExited;
 
 private:
+	UPROPERTY(VisibleAnywhere, Category = "LevelFlow|Debug")
 	bool bTriggered = false;
 
 	UFUNCTION()

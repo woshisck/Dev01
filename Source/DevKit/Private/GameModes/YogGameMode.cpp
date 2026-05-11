@@ -961,8 +961,13 @@ bool AYogGameMode::RevivePlayerFromDeath()
 	bPlayerDeathPending = false;
 	bPlayerDeathReviveUsed = true;
 	PendingDeathPlayer.Reset();
-	CurrentPhase = ELevelPhase::Combat;
-	OnPhaseChanged.Broadcast(CurrentPhase);
+
+	// Hub 房间无战斗，保持 Arrangement Phase；仅在普通战斗房间里才切回 Combat
+	if (!ActiveRoomData || !ActiveRoomData->bIsHubRoom)
+	{
+		CurrentPhase = ELevelPhase::Combat;
+		OnPhaseChanged.Broadcast(CurrentPhase);
+	}
 
 	EndPlayerDeathVisuals(Player);
 	UGameplayStatics::SetGamePaused(GetWorld(), false);
@@ -1042,6 +1047,9 @@ void AYogGameMode::EndPlayerDeathVisuals(APlayerCharacterBase* Player)
 void AYogGameMode::StartLevelSpawning()
 {
 	const FString CurrentMapNameForFrontend = UGameplayStatics::GetCurrentLevelName(GetWorld(), true);
+	UE_LOG(LogTemp, Warning, TEXT("[StartLevelSpawning] Map=%s CampaignData=%s ActiveRoomData=%s"),
+		*CurrentMapNameForFrontend, *GetNameSafe(CampaignData), *GetNameSafe(ActiveRoomData));
+
 	if (CurrentMapNameForFrontend.Equals(TEXT("Entry"), ESearchCase::IgnoreCase))
 	{
 		CurrentPhase = ELevelPhase::Transitioning;
@@ -2672,6 +2680,12 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 
 void AYogGameMode::ActivateHubPortals()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[ActivateHubPortals] CampaignData=%s ActiveRoomData=%s IsHub=%d PortalDests=%d"),
+		*GetNameSafe(CampaignData),
+		*GetNameSafe(ActiveRoomData),
+		ActiveRoomData ? (int32)ActiveRoomData->bIsHubRoom : -1,
+		ActiveRoomData ? ActiveRoomData->PortalDestinations.Num() : -1);
+
 	if (!CampaignData || !ActiveRoomData) return;
 	if (ActiveRoomData->PortalDestinations.IsEmpty())
 	{
