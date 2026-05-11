@@ -1,5 +1,14 @@
 #include "UI/YogCommonRichTextBlock.h"
 #include "CommonTextBlock.h"
+#include "Components/RichTextBlockDecorator.h"
+
+void UYogCommonRichTextBlock::EnsureDecoratorClass(TSubclassOf<URichTextBlockDecorator> DecoratorClass)
+{
+	if (DecoratorClass && !DecoratorClasses.Contains(DecoratorClass))
+	{
+		DecoratorClasses.Add(DecoratorClass);
+	}
+}
 
 void UYogCommonRichTextBlock::SynchronizeProperties()
 {

@@ -1,8 +1,10 @@
 #include "Map/AltarActor.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/WidgetComponent.h"
 #include "GameModes/YogGameMode.h"
 #include "UI/AltarMenuWidget.h"
+#include "UI/InteractPromptWidget.h"
 #include "UI/SacrificeSelectionWidget.h"
 #include "Character/PlayerCharacterBase.h"
 #include "UObject/ConstructorHelpers.h"
@@ -28,6 +30,14 @@ AAltarActor::AAltarActor()
 	{
 		AltarMesh->SetStaticMesh(DefaultAltarMesh.Object);
 	}
+
+	InteractPromptWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("InteractPromptWidgetComp"));
+	InteractPromptWidgetComp->SetupAttachment(RootComponent);
+	InteractPromptWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 150.f));
+	InteractPromptWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
+	InteractPromptWidgetComp->SetDrawAtDesiredSize(true);
+	InteractPromptWidgetComp->SetVisibility(false);
+	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
 }
 
 void AAltarActor::BeginPlay()
@@ -44,6 +54,8 @@ void AAltarActor::BeginPlay()
 			if (AltarMenuWidget)
 				AltarMenuWidget->AddToViewport(10);
 		}
+
+	ConfigureInteractPrompt();
 }
 
 void AAltarActor::OnPhaseChanged(ELevelPhase NewPhase)
@@ -62,6 +74,11 @@ void AAltarActor::SetAltarActive(bool bInActive)
 	if (NearbyPlayer.IsValid())
 	{
 		NearbyPlayer->PendingAltar = bIsActive ? this : nullptr;
+		SetInteractPromptVisible(bIsActive);
+	}
+	else
+	{
+		SetInteractPromptVisible(false);
 	}
 }
 
@@ -69,6 +86,19 @@ void AAltarActor::ConsumeSacrificeReward()
 {
 	bSacrificeRewardConsumed = true;
 	SetAltarActive(false);
+}
+
+void AAltarActor::SetAltarData(UAltarDataAsset* InData)
+{
+	AltarData = InData;
+	ConfigureInteractPrompt();
+	SetInteractPromptVisible(NearbyPlayer.IsValid() && bIsActive);
+}
+
+void AAltarActor::SetOpenSacrificeDirectly(bool bInOpenDirectly)
+{
+	bOpenSacrificeDirectly = bInOpenDirectly;
+	ConfigureInteractPrompt();
 }
 
 void AAltarActor::TryInteract(APlayerCharacterBase* Player)
@@ -116,6 +146,7 @@ void AAltarActor::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 	{
 		Player->PendingAltar = this;
 	}
+	SetInteractPromptVisible(Player && bIsActive);
 	OnPlayerNearby(Player, true);
 }
 
@@ -129,9 +160,40 @@ void AAltarActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 	{
 		NearbyPlayer.Reset();
 	}
+	SetInteractPromptVisible(false);
 	OnPlayerNearby(Player, false);
 	if (AltarMenuWidget && AltarMenuWidget->IsActivated())
 		AltarMenuWidget->DeactivateWidget();
 	if (SacrificeWidget && SacrificeWidget->IsActivated())
 		SacrificeWidget->DeactivateWidget();
+}
+
+void AAltarActor::ConfigureInteractPrompt()
+{
+	if (!InteractPromptWidgetComp)
+	{
+		return;
+	}
+
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+	{
+		InteractPromptWidgetComp->SetOwnerPlayer(PC->GetLocalPlayer());
+	}
+
+	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
+	InteractPromptWidgetComp->InitWidget();
+	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
+	{
+		PromptWidget->SetPromptLabel(bOpenSacrificeDirectly
+			? NSLOCTEXT("InteractPrompt", "Sacrifice", "献祭")
+			: NSLOCTEXT("InteractPrompt", "UseAltar", "使用祭坛"));
+	}
+}
+
+void AAltarActor::SetInteractPromptVisible(bool bVisible)
+{
+	if (InteractPromptWidgetComp)
+	{
+		InteractPromptWidgetComp->SetVisibility(bVisible && bIsActive && !bSacrificeRewardConsumed);
+	}
 }

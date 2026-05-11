@@ -12,6 +12,7 @@ class UAltarMenuWidget;
 class USacrificeSelectionWidget;
 class UBoxComponent;
 class UStaticMeshComponent;
+class UWidgetComponent;
 
 UCLASS()
 class DEVKIT_API AAltarActor : public AActor, public IPlayerInteraction
@@ -46,13 +47,13 @@ public:
 	bool bSacrificeRewardConsumed = false;
 
 	UFUNCTION(BlueprintCallable, Category = "Altar")
-	void SetAltarData(UAltarDataAsset* InData) { AltarData = InData; }
+	void SetAltarData(UAltarDataAsset* InData);
 
 	UFUNCTION(BlueprintCallable, Category = "Altar")
 	void SetSacrificeWidgetClass(TSubclassOf<USacrificeSelectionWidget> InClass) { SacrificeWidgetClass = InClass; }
 
 	UFUNCTION(BlueprintCallable, Category = "Altar")
-	void SetOpenSacrificeDirectly(bool bInOpenDirectly) { bOpenSacrificeDirectly = bInOpenDirectly; }
+	void SetOpenSacrificeDirectly(bool bInOpenDirectly);
 
 	UFUNCTION(BlueprintCallable, Category = "Altar")
 	void SetAltarActive(bool bInActive);
@@ -71,6 +72,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Altar")
 	TObjectPtr<UStaticMeshComponent> AltarMesh;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Altar|Prompt")
+	TObjectPtr<UWidgetComponent> InteractPromptWidgetComp;
+
 	UPROPERTY()
 	TObjectPtr<UAltarMenuWidget> AltarMenuWidget;
 
@@ -83,6 +87,9 @@ protected:
 	void OnPhaseChanged(ELevelPhase NewPhase);
 
 	// BP 重写：显示 / 隐藏交互提示（"按 F 交互"等）
+	void ConfigureInteractPrompt();
+	void SetInteractPromptVisible(bool bVisible);
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "Altar")
 	void OnPlayerNearby(APlayerCharacterBase* Player, bool bNearby);
 };
