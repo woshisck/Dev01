@@ -25,6 +25,7 @@
 #include "Item/Weapon/WeaponSpawner.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
+#include "GameModes/YogGameMode.h"
 #include "UI/YogInputKeyUtils.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "GameFramework/PlayerInput.h"
@@ -247,7 +248,7 @@ bool AYogPlayerControllerBase::InputKey(const FInputKeyParams& Params)
 		return true;
 	}
 
-	if (!bBlockGameInput)
+	if (!IsGameplayInputBlocked())
 	{
 		float WeaponFloatScrollDirection = 0.f;
 		if (Params.Key == EKeys::MouseWheelAxis && !FMath::IsNearlyZero(Params.Delta.X))
@@ -275,7 +276,7 @@ bool AYogPlayerControllerBase::InputKey(const FInputKeyParams& Params)
 		}
 	}
 
-	if ((Params.Event == IE_Pressed || Params.Event == IE_Repeat) && !bBlockGameInput)
+	if ((Params.Event == IE_Pressed || Params.Event == IE_Repeat) && !IsGameplayInputBlocked())
 	{
 		if (Params.Key == EKeys::Gamepad_DPad_Up || Params.Key == EKeys::Gamepad_LeftStick_Up)
 		{
@@ -343,6 +344,27 @@ bool AYogPlayerControllerBase::HandleMenuBackInput(const FKey& Key)
 	return false;
 }
 
+bool AYogPlayerControllerBase::IsGameplayInputBlocked() const
+{
+	if (bBlockGameInput)
+	{
+		return true;
+	}
+
+	const APlayerCharacterBase* PlayerPawn = Cast<APlayerCharacterBase>(GetPawn());
+	if (PlayerPawn && (PlayerPawn->bIsDead || PlayerPawn->IsWaitingForDeathReviveChoice()))
+	{
+		return true;
+	}
+
+	if (const AYogGameMode* GM = GetWorld() ? Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()) : nullptr)
+	{
+		return GM->IsPlayerDeathPending();
+	}
+
+	return false;
+}
+
 AYogCharacterBase* AYogPlayerControllerBase::GetControlledCharacter()
 {
 	AYogCharacterBase* MyCharacter = Cast<AYogCharacterBase>(GetPawn());
@@ -390,7 +412,7 @@ void AYogPlayerControllerBase::SetBlockGameInput(bool bBlock, bool bUIOnly)
 
 void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 {
-	if (bBlockGameInput) return;
+	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
@@ -412,7 +434,7 @@ void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 }
 void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 {
-	if (bBlockGameInput) return;
+	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
@@ -457,7 +479,7 @@ void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 
 void AYogPlayerControllerBase::HeavyAttackReleased(const FInputActionValue& Value)
 {
-	if (bBlockGameInput) return;
+	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		UAbilitySystemComponent* ASC = player->GetASC();
@@ -471,7 +493,7 @@ void AYogPlayerControllerBase::HeavyAttackReleased(const FInputActionValue& Valu
 
 void AYogPlayerControllerBase::MusketReload(const FInputActionValue& Value)
 {
-	if (bBlockGameInput) return;
+	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		FGameplayTagContainer TagContainer;
@@ -482,7 +504,7 @@ void AYogPlayerControllerBase::MusketReload(const FInputActionValue& Value)
 
 void AYogPlayerControllerBase::UseCombatItem(const FInputActionValue& Value)
 {
-	if (bBlockGameInput) return;
+	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
 	{
 		if (PlayerCharacter->CombatItemComponent)
@@ -494,7 +516,7 @@ void AYogPlayerControllerBase::UseCombatItem(const FInputActionValue& Value)
 
 void AYogPlayerControllerBase::SwitchCombatItem(const FInputActionValue& Value)
 {
-	if (bBlockGameInput) return;
+	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
 	{
 		if (PlayerCharacter->CombatItemComponent)
@@ -506,7 +528,7 @@ void AYogPlayerControllerBase::SwitchCombatItem(const FInputActionValue& Value)
 
 void AYogPlayerControllerBase::SwitchCombatItemPrevious(const FInputActionValue& Value)
 {
-	if (bBlockGameInput) return;
+	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
 	{
 		if (PlayerCharacter->CombatItemComponent)
@@ -523,7 +545,7 @@ void AYogPlayerControllerBase::HandlePauseInput(const FInputActionValue& Value)
 
 void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 {
-	if (bBlockGameInput) return;
+	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		// 冲刺前先将角色朝向对齐最后一次移动输入方向
@@ -580,7 +602,7 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 
 void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 {
-	if (bBlockGameInput) return;
+	if (IsGameplayInputBlocked()) return;
 	if (const AYogCharacterBase* YogPawn = Cast<AYogCharacterBase>(GetPawn()))
 	{
 		if (!YogPawn->bMovable)
@@ -644,7 +666,7 @@ void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 
 void AYogPlayerControllerBase::Interact(const FInputActionValue& Value)
 {
-	if (bBlockGameInput) return;
+	if (IsGameplayInputBlocked()) return;
 	UE_LOG(LogTemp, Log, TEXT("Interact"));
 
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
@@ -701,7 +723,7 @@ void AYogPlayerControllerBase::ToggleBackpack(const FInputActionValue& Value)
 	else
 	{
 		// NativeOnActivated 处理：SetPause(true) + GameAndUI 输入 + 刷新网格
-		if (bBlockGameInput)
+		if (IsGameplayInputBlocked())
 		{
 			return;
 		}
@@ -738,7 +760,7 @@ void AYogPlayerControllerBase::OnMenuWidgetDeactivated()
 
 void AYogPlayerControllerBase::CameraLook(const FInputActionValue& Value)
 {
-	if (bBlockGameInput) return;
+	if (IsGameplayInputBlocked()) return;
 
 	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(PlayerCameraManager))
 	{

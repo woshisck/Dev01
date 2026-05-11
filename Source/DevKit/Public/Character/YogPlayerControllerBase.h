@@ -165,6 +165,7 @@ public:
 private:
 	/** UI 打开期间为 true，屏蔽移动/攻击/冲刺输入 */
 	bool HandleMenuBackInput(const FKey& Key);
+	bool IsGameplayInputBlocked() const;
 
 	bool bBlockGameInput = false;
 

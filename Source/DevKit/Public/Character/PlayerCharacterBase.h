@@ -77,6 +77,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void Die() override;
 
+	virtual void FinishDying() override;
+
+	UFUNCTION(BlueprintCallable, Category = "GameOver")
+	void PrepareForDeathReviveChoice();
+
+	UFUNCTION(BlueprintCallable, Category = "GameOver")
+	void ReviveFromDeath(float ReviveHealthPercent, float ProtectionDuration);
+
+	UFUNCTION(BlueprintPure, Category = "GameOver")
+	bool IsWaitingForDeathReviveChoice() const { return bWaitingForDeathReviveChoice; }
+
 	UFUNCTION(BlueprintCallable, Category = "Item")
 	void ItemInteract(const AItemSpawner* item);
 
@@ -310,6 +321,7 @@ private:
 	void TickDamagePlayerGlow(float DeltaTime);
 	void StartDamageTimeDilation();
 	void RestoreDamageTimeDilation();
+	void EndReviveProtection();
 
 	int32 CurrentHeatPhase = 0;
 	UPROPERTY()
@@ -319,6 +331,8 @@ private:
 	float PreviousDamageGlobalTimeDilation = 1.f;
 	FTSTicker::FDelegateHandle DamageTimeDilationTickerHandle;
 	bool bDamageTimeDilationVisualActive = false;
+	bool bWaitingForDeathReviveChoice = false;
+	FTimerHandle ReviveProtectionTimerHandle;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> PlayerOverlayDynMat;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> DamageOverlayDynMat;
 	UPROPERTY() TObjectPtr<UDamageEdgeFlashWidget> DamageEdgeFlashWidget;

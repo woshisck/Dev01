@@ -10,6 +10,7 @@
 #include "Engine/Texture2D.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
+#include "GameModes/YogGameMode.h"
 #include "HAL/PlatformTime.h"
 #include "Input/Events.h"
 #include "InputCoreTypes.h"
@@ -703,9 +704,55 @@ void UYogGameInstanceBase::ShowLoadingScreen(const FText& Title, const FText& Su
 	ApplyFrontendInputMode(true);
 }
 
-void UYogGameInstanceBase::ShowGameOverScreen()
+void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 {
 	RemoveFrontendWidget();
+
+	TSharedRef<SVerticalBox> ButtonBox = SNew(SVerticalBox);
+	if (bCanRevive)
+	{
+		ButtonBox->AddSlot()
+		.AutoHeight()
+		.Padding(0.f, 0.f, 0.f, 12.f)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.ContentPadding(FMargin(28.f, 12.f))
+			.OnClicked_UObject(this, &UYogGameInstanceBase::HandleReviveClicked)
+			[
+				SNew(STextBlock)
+				.Text(NSLOCTEXT("DevKitFrontend", "ReviveOnce", "Revive"))
+				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 22))
+			]
+		];
+	}
+	ButtonBox->AddSlot()
+	.AutoHeight()
+	.Padding(0.f, 0.f, 0.f, 12.f)
+	[
+		SNew(SButton)
+		.HAlign(HAlign_Center)
+		.ContentPadding(FMargin(28.f, 12.f))
+		.OnClicked_UObject(this, &UYogGameInstanceBase::HandleRetryClicked)
+		[
+			SNew(STextBlock)
+			.Text(NSLOCTEXT("DevKitFrontend", "Retry", "Try Again"))
+			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 22))
+		]
+	];
+	ButtonBox->AddSlot()
+	.AutoHeight()
+	[
+		SNew(SButton)
+		.HAlign(HAlign_Center)
+		.ContentPadding(FMargin(28.f, 12.f))
+		.OnClicked_UObject(this, &UYogGameInstanceBase::HandleReturnToMenuClicked)
+		[
+			SNew(STextBlock)
+			.Text(NSLOCTEXT("DevKitFrontend", "ReturnToTitle", "Return to Title"))
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 20))
+		]
+	];
 
 	TSharedRef<SWidget> Widget =
 		SNew(SOverlay)
@@ -735,30 +782,8 @@ void UYogGameInstanceBase::ShowGameOverScreen()
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(0.f, 0.f, 0.f, 12.f)
 				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.ContentPadding(FMargin(28.f, 12.f))
-					.OnClicked_UObject(this, &UYogGameInstanceBase::HandleRetryClicked)
-					[
-						SNew(STextBlock)
-						.Text(NSLOCTEXT("DevKitFrontend", "Retry", "Try Again"))
-						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 22))
-					]
-				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.ContentPadding(FMargin(28.f, 12.f))
-					.OnClicked_UObject(this, &UYogGameInstanceBase::HandleReturnToMenuClicked)
-					[
-						SNew(STextBlock)
-						.Text(NSLOCTEXT("DevKitFrontend", "ReturnToTitle", "Return to Title"))
-						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 20))
-					]
+					ButtonBox
 				]
 			]
 		];
@@ -926,6 +951,25 @@ FReply UYogGameInstanceBase::HandleRetryClicked()
 		UGameplayStatics::SetGamePaused(World, false);
 	}
 	StartNewRunFromFrontend();
+	return FReply::Handled();
+}
+
+FReply UYogGameInstanceBase::HandleReviveClicked()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return FReply::Handled();
+	}
+
+	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(World)))
+	{
+		if (GM->RevivePlayerFromDeath())
+		{
+			RemoveFrontendWidget();
+			ApplyFrontendInputMode(false);
+		}
+	}
 	return FReply::Handled();
 }
 

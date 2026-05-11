@@ -104,8 +104,20 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "PauseEffect")
 	float PauseTargetGain = 0.40f;
 
+	UPROPERTY(EditDefaultsOnly, Category = "DeathEffect")
+	float DeathTargetSaturation = 0.02f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "DeathEffect")
+	float DeathTargetGain = 0.25f;
+
 	void BeginPauseEffect();
 	void EndPauseEffect();
+
+	UFUNCTION(BlueprintCallable, Category = "HUD|Death")
+	void BeginDeathEffect();
+
+	UFUNCTION(BlueprintCallable, Category = "HUD|Death")
+	void EndDeathEffect();
 
 	/** 主界面浮窗（Portal/WeaponGlass）淡入淡出时长（秒） */
 	UPROPERTY(EditDefaultsOnly, Category = "PauseEffect")
@@ -348,6 +360,7 @@ private:
 
 	int32 PausePopupCount  = 0;
 	float PauseEffectAlpha = 0.f;
+	bool bDeathEffectActive = false;
 
 	bool    bLevelEndEffectActive     = false;
 	bool    bSlowMoPhaseEnded         = false;

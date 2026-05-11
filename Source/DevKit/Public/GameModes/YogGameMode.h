@@ -11,6 +11,7 @@
 #include "Data/CampaignDataAsset.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/SacrificeGraceDA.h"
+#include "Containers/Ticker.h"
 #include "YogGameMode.generated.h"
 
 class AYogPlayerControllerBase;
@@ -238,6 +239,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GameOver")
 	void HandlePlayerDeath(APlayerCharacterBase* Player);
 
+	UFUNCTION(BlueprintCallable, Category = "GameOver")
+	bool RevivePlayerFromDeath();
+
+	UFUNCTION(BlueprintPure, Category = "GameOver")
+	bool IsPlayerDeathPending() const { return bPlayerDeathPending; }
+
+	static bool CanOfferPlayerDeathRevive(bool bInGameOverTriggered, bool bInPlayerDeathReviveUsed);
+	static float CalculatePlayerReviveHealth(float MaxHealth, float ReviveHealthPercent);
+
 	// 从 LootPool 中随机生成战利品选项并广播（由 ARewardPickup 兜底路径触发）
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void GenerateLootOptions();
@@ -435,8 +445,28 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameOver", meta = (AllowPrivateAccess = "true"))
 	float PlayerDeathGameOverDelay = 1.5f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameOver", meta = (AllowPrivateAccess = "true", ClampMin = "0.01", ClampMax = "1.0"))
+	float PlayerReviveHealthPercent = 0.3f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameOver", meta = (AllowPrivateAccess = "true", ClampMin = "0.0"))
+	float PlayerReviveProtectionDuration = 3.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameOver", meta = (AllowPrivateAccess = "true", ClampMin = "0.01", ClampMax = "1.0"))
+	float PlayerDeathTimeDilationScale = 0.12f;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameOver", meta = (AllowPrivateAccess = "true"))
 	bool bGameOverTriggered = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameOver", meta = (AllowPrivateAccess = "true"))
+	bool bPlayerDeathReviveUsed = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameOver", meta = (AllowPrivateAccess = "true"))
+	bool bPlayerDeathPending = false;
+
+	UPROPERTY()
+	TWeakObjectPtr<APlayerCharacterBase> PendingDeathPlayer;
+
+	FTSTicker::FDelegateHandle PlayerDeathGameOverTickerHandle;
 
 	// 当前关卡的房间配置（StartLevelSpawning 时缓存，整理阶段使用）
 	UPROPERTY()
@@ -531,6 +561,9 @@ private:
 	int32 HUDBindRetryCount = 0;
 
 	void FinishPlayerDeathGameOver();
+	void ClearPlayerDeathGameOverTicker();
+	void BeginPlayerDeathVisuals(APlayerCharacterBase* Player);
+	void EndPlayerDeathVisuals(APlayerCharacterBase* Player);
 
 	/** 是否为一次性事件（FirstRune* / HeatPhase* / GameStart / PlayerDeath）*/
 	static bool IsOneShotEvent(EGameLifecycleEvent Event);
