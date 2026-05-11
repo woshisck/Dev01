@@ -1509,6 +1509,25 @@ static const TCHAR* GetEnemyRuneTriggerName(ERuneTriggerType Type)
 	}
 }
 
+static ERuneTriggerType ResolveEnemyRuneTriggerType(const URuneDataAsset* RuneDA)
+{
+	if (!RuneDA)
+	{
+		return ERuneTriggerType::Passive;
+	}
+
+	const ERuneTriggerType ConfiguredTrigger = RuneDA->GetTriggerType();
+	const FCombatCardConfig& CombatCard = RuneDA->RuneInfo.CombatCard;
+	if (ConfiguredTrigger == ERuneTriggerType::Passive
+		&& CombatCard.bIsCombatCard
+		&& CombatCard.TriggerTiming == ECombatCardTriggerTiming::OnHit)
+	{
+		return ERuneTriggerType::OnAttackHit;
+	}
+
+	return ConfiguredTrigger;
+}
+
 static FString GetEnemyRuneDebugName(const URuneDataAsset* RuneDA)
 {
 	if (!RuneDA)
@@ -1534,7 +1553,8 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 	}
 
 	UFlowAsset* FlowAsset = RuneDA->GetFlowAsset();
-	const ERuneTriggerType TriggerType = RuneDA->GetTriggerType();
+	const ERuneTriggerType TriggerType = ResolveEnemyRuneTriggerType(RuneDA);
+	const ERuneTriggerType ConfiguredTriggerType = RuneDA->GetTriggerType();
 	const FString RuneDebugName = GetEnemyRuneDebugName(RuneDA);
 
 	if (!FlowAsset)
@@ -1559,6 +1579,14 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 		*GetNameSafe(RuneDA),
 		*GetNameSafe(FlowAsset),
 		GetEnemyRuneTriggerName(TriggerType));
+	if (TriggerType != ConfiguredTriggerType)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] TriggerOverride Enemy=%s Rune=%s Configured=%s Effective=%s Reason=CombatCardOnHit"),
+			*GetNameSafe(Enemy),
+			*RuneDebugName,
+			GetEnemyRuneTriggerName(ConfiguredTriggerType),
+			GetEnemyRuneTriggerName(TriggerType));
+	}
 
 	if (TriggerType == ERuneTriggerType::Passive)
 	{

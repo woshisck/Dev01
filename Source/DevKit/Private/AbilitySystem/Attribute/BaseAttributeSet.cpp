@@ -16,7 +16,7 @@ namespace
 {
 	constexpr bool bDisableLegacyHeatRuntimeForCardTest = true;
 
-	bool HasBaseAttributeInvulnerableTag(const UAbilitySystemComponent* ASC)
+	bool BaseAttributeSetHasInvulnerableTag(const UAbilitySystemComponent* ASC)
 	{
 		static const FGameplayTag InvulnerableTag =
 			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Invulnerable"), false);
@@ -65,7 +65,7 @@ void UBaseAttributeSet::PreAttributeBaseChange(const FGameplayAttribute& attribu
 	Super::PreAttributeBaseChange(attribute, newValue);
 
 	if (attribute == GetHealthAttribute() && newValue < Health.GetCurrentValue() &&
-		HasBaseAttributeInvulnerableTag(GetOwningAbilitySystemComponent()))
+		BaseAttributeSetHasInvulnerableTag(GetOwningAbilitySystemComponent()))
 	{
 		newValue = Health.GetCurrentValue();
 	}
@@ -76,7 +76,7 @@ void UBaseAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, 
 	Super::PreAttributeChange(Attribute, NewValue);
 
 	if (Attribute == GetHealthAttribute() && NewValue < Health.GetCurrentValue() &&
-		HasBaseAttributeInvulnerableTag(GetOwningAbilitySystemComponent()))
+		BaseAttributeSetHasInvulnerableTag(GetOwningAbilitySystemComponent()))
 	{
 		NewValue = Health.GetCurrentValue();
 		return;
