@@ -9,6 +9,7 @@ class APlayerCharacterBase;
 class URunePurificationWidget;
 class USacrificeSelectionWidget;
 class UButton;
+class UTextBlock;
 
 UCLASS(Abstract, Blueprintable)
 class DEVKIT_API UAltarMenuWidget : public UCommonActivatableWidget
@@ -16,6 +17,8 @@ class DEVKIT_API UAltarMenuWidget : public UCommonActivatableWidget
 	GENERATED_BODY()
 
 public:
+	static TSubclassOf<UTextBlock> GetMenuTextBlockClassForTests();
+
 	// 打开菜单前调用，注入数据和玩家引用
 	UFUNCTION(BlueprintCallable, Category = "Altar")
 	void SetupAltar(UAltarDataAsset* InData, APlayerCharacterBase* InPlayer);

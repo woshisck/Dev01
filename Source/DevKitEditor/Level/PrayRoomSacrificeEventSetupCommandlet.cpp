@@ -23,6 +23,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "UI/SacrificeSelectionWidget.h"
+#include "UI/YogCommonUITextBlock.h"
 #include "UObject/Package.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintFactory.h"
@@ -101,7 +102,7 @@ namespace PrayRoomSacrificeEventSetup
 		}
 
 		const FName LabelName(*FString::Printf(TEXT("%s_Label"), *ButtonName.ToString()));
-		UTextBlock* Label = ConstructNamedWidget<UTextBlock>(WidgetTree, LabelName);
+		UTextBlock* Label = ConstructNamedWidget<UYogCommonUITextBlock>(WidgetTree, LabelName);
 		ConfigureText(Label, Text, FLinearColor(0.92f, 0.88f, 0.80f, 1.0f), 16, true);
 		if (Label)
 		{
@@ -140,19 +141,45 @@ namespace PrayRoomSacrificeEventSetup
 		UWidgetTree* WidgetTree = WidgetBlueprint->WidgetTree;
 		WidgetTree->Modify();
 
+		TArray<UWidget*> ExistingWidgets;
+		TArray<UObject*> ExistingObjects;
+		GetObjectsWithOuter(WidgetTree, ExistingObjects, true);
+		for (UObject* ExistingObject : ExistingObjects)
+		{
+			if (UWidget* ExistingWidget = Cast<UWidget>(ExistingObject))
+			{
+				ExistingWidgets.AddUnique(ExistingWidget);
+			}
+		}
+
 		if (WidgetTree->RootWidget)
 		{
 			WidgetTree->RemoveWidget(WidgetTree->RootWidget);
 			WidgetTree->RootWidget = nullptr;
 		}
 
+		for (UWidget* ExistingWidget : ExistingWidgets)
+		{
+			if (!ExistingWidget)
+			{
+				continue;
+			}
+
+			const FString OldName = FString::Printf(
+				TEXT("SacrificeOld_%s_%s"),
+				*ExistingWidget->GetName(),
+				*FGuid::NewGuid().ToString(EGuidFormats::Digits));
+			WidgetTree->RemoveWidget(ExistingWidget);
+			ExistingWidget->Rename(*OldName, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional);
+		}
+
 		UCanvasPanel* RootCanvas = ConstructNamedWidget<UCanvasPanel>(WidgetTree, TEXT("RootCanvas"));
 		USizeBox* PanelSizeBox = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("PanelSizeBox"));
 		UBorder* OuterBorder = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("OuterBorder"));
 		UVerticalBox* PanelStack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("PanelStack"));
-		UTextBlock* TitleText = ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("TitleText"));
-		UTextBlock* DescriptionText = ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("DescriptionText"));
-		UTextBlock* CostText = ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("CostText"));
+		UTextBlock* TitleText = ConstructNamedWidget<UYogCommonUITextBlock>(WidgetTree, TEXT("TitleText"));
+		UTextBlock* DescriptionText = ConstructNamedWidget<UYogCommonUITextBlock>(WidgetTree, TEXT("DescriptionText"));
+		UTextBlock* CostText = ConstructNamedWidget<UYogCommonUITextBlock>(WidgetTree, TEXT("CostText"));
 		UVerticalBox* OptionBox = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("OptionBox"));
 		UVerticalBox* DeckCardBox = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("DeckCardBox"));
 		UHorizontalBox* ActionRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("ActionRow"));

@@ -6,7 +6,13 @@
 #include "Components/Button.h"
 #include "Input/CommonUIInputTypes.h"
 #include "InputCoreTypes.h"
+#include "UI/YogCommonUITextBlock.h"
 #include "UI/YogInputKeyUtils.h"
+
+TSubclassOf<UTextBlock> UAltarMenuWidget::GetMenuTextBlockClassForTests()
+{
+	return UYogCommonUITextBlock::StaticClass();
+}
 
 void UAltarMenuWidget::NativeConstruct()
 {

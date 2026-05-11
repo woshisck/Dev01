@@ -18,6 +18,8 @@ class DEVKIT_API USacrificeSelectionWidget : public UCommonActivatableWidget
 	GENERATED_BODY()
 
 public:
+	static TSubclassOf<UTextBlock> GetMenuTextBlockClassForTests();
+
 	void Setup(UAltarDataAsset* InData, APlayerCharacterBase* InPlayer, AAltarActor* InSourceAltar = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "Sacrifice")

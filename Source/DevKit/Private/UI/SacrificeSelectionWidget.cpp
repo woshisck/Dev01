@@ -12,6 +12,7 @@
 #include "InputCoreTypes.h"
 #include "Map/AltarActor.h"
 #include "UI/YogHUD.h"
+#include "UI/YogCommonUITextBlock.h"
 #include "UI/YogInputKeyUtils.h"
 
 namespace
@@ -50,7 +51,7 @@ FText GetCostFallbackText(ESacrificeOfferingCostType CostType)
 
 UTextBlock* MakeText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
 {
-	UTextBlock* TextBlock = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
+	UTextBlock* TextBlock = Tree->ConstructWidget<UYogCommonUITextBlock>(UYogCommonUITextBlock::StaticClass(), Name);
 	TextBlock->SetText(Text);
 	FSlateFontInfo Font = TextBlock->GetFont();
 	Font.Size = FontSize;
@@ -68,6 +69,11 @@ UButton* MakeTextButton(UWidgetTree* Tree, const FName Name, const FText& Text)
 	Button->AddChild(Label);
 	return Button;
 }
+}
+
+TSubclassOf<UTextBlock> USacrificeSelectionWidget::GetMenuTextBlockClassForTests()
+{
+	return UYogCommonUITextBlock::StaticClass();
 }
 
 void USacrificeSelectionWidget::NativeConstruct()
