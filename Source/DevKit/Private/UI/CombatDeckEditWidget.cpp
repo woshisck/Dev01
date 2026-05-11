@@ -141,7 +141,28 @@ void UCombatDeckEditWidget::BindToCombatDeck(UCombatDeckComponent* InCombatDeck)
 
 void UCombatDeckEditWidget::ScrollToSelectedCard()
 {
-	if (!CardScrollBox || !CardListBox || bDragPreviewActive || SelectedCardIndex < 0)
+	if (!CardListBox || bDragPreviewActive || SelectedCardIndex < 0)
+	{
+		return;
+	}
+
+	// 优先使用显式绑定的 CardScrollBox，没有则向上遍历父节点找第一个 ScrollBox
+	UScrollBox* ScrollBox = CardScrollBox;
+	if (!ScrollBox)
+	{
+		UWidget* Parent = CardListBox->GetParent();
+		while (Parent)
+		{
+			ScrollBox = Cast<UScrollBox>(Parent);
+			if (ScrollBox)
+			{
+				break;
+			}
+			Parent = Parent->GetParent();
+		}
+	}
+
+	if (!ScrollBox)
 	{
 		return;
 	}
@@ -155,7 +176,7 @@ void UCombatDeckEditWidget::ScrollToSelectedCard()
 	UWidget* SelectedChild = CardListBox->GetChildAt(SelectedCardIndex);
 	if (SelectedChild)
 	{
-		CardScrollBox->ScrollWidgetIntoView(SelectedChild, true, EDescendantScrollDestination::IntoView, 8.0f);
+		ScrollBox->ScrollWidgetIntoView(SelectedChild, true, EDescendantScrollDestination::IntoView, 8.0f);
 	}
 }
 
