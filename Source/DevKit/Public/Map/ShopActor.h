@@ -10,6 +10,7 @@ class UBoxComponent;
 class UShopDataAsset;
 class UShopSelectionWidget;
 class UStaticMeshComponent;
+class UWidgetComponent;
 
 UCLASS()
 class DEVKIT_API AShopActor : public AActor, public IPlayerInteraction
@@ -27,7 +28,7 @@ public:
 	void TryInteract(APlayerCharacterBase* Player);
 
 	UFUNCTION(BlueprintCallable, Category = "Shop")
-	void SetShopData(UShopDataAsset* InData) { ShopData = InData; }
+	void SetShopData(UShopDataAsset* InData);
 
 	UFUNCTION(BlueprintCallable, Category = "Shop")
 	void SetShopWidgetClass(TSubclassOf<UShopSelectionWidget> InClass) { ShopWidgetClass = InClass; }
@@ -45,6 +46,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Shop")
 	TObjectPtr<UStaticMeshComponent> ShopMesh;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Shop|Prompt")
+	TObjectPtr<UWidgetComponent> InteractPromptWidgetComp;
+
 	UPROPERTY()
 	TObjectPtr<UShopSelectionWidget> ShopWidget;
 
@@ -52,4 +56,7 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Shop")
 	void OnPlayerNearby(APlayerCharacterBase* Player, bool bNearby);
+
+	void ConfigureInteractPrompt();
+	void SetInteractPromptVisible(bool bVisible);
 };

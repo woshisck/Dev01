@@ -3,6 +3,8 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/WidgetComponent.h"
+#include "UI/InteractPromptWidget.h"
 #include "UI/ShopSelectionWidget.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -27,11 +29,20 @@ AShopActor::AShopActor()
 	{
 		ShopMesh->SetStaticMesh(DefaultMesh.Object);
 	}
+
+	InteractPromptWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("InteractPromptWidgetComp"));
+	InteractPromptWidgetComp->SetupAttachment(RootComponent);
+	InteractPromptWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 150.f));
+	InteractPromptWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
+	InteractPromptWidgetComp->SetDrawAtDesiredSize(true);
+	InteractPromptWidgetComp->SetVisibility(false);
+	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
 }
 
 void AShopActor::BeginPlay()
 {
 	Super::BeginPlay();
+	ConfigureInteractPrompt();
 }
 
 void AShopActor::TryInteract(APlayerCharacterBase* Player)
@@ -68,6 +79,13 @@ void AShopActor::TryInteract(APlayerCharacterBase* Player)
 	ShopWidget->ActivateWidget();
 }
 
+void AShopActor::SetShopData(UShopDataAsset* InData)
+{
+	ShopData = InData;
+	ConfigureInteractPrompt();
+	SetInteractPromptVisible(NearbyPlayer.IsValid() && ShopData);
+}
+
 void AShopActor::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 {
 	NearbyPlayer = Player;
@@ -75,6 +93,7 @@ void AShopActor::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 	{
 		Player->PendingShop = this;
 	}
+	SetInteractPromptVisible(Player && ShopData);
 	OnPlayerNearby(Player, true);
 }
 
@@ -88,9 +107,38 @@ void AShopActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 	{
 		NearbyPlayer.Reset();
 	}
+	SetInteractPromptVisible(false);
 	OnPlayerNearby(Player, false);
 	if (ShopWidget && ShopWidget->IsActivated())
 	{
 		ShopWidget->DeactivateWidget();
+	}
+}
+
+void AShopActor::ConfigureInteractPrompt()
+{
+	if (!InteractPromptWidgetComp)
+	{
+		return;
+	}
+
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+	{
+		InteractPromptWidgetComp->SetOwnerPlayer(PC->GetLocalPlayer());
+	}
+
+	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
+	InteractPromptWidgetComp->InitWidget();
+	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
+	{
+		PromptWidget->SetPromptLabel(NSLOCTEXT("InteractPrompt", "OpenShop", "打开商店"));
+	}
+}
+
+void AShopActor::SetInteractPromptVisible(bool bVisible)
+{
+	if (InteractPromptWidgetComp)
+	{
+		InteractPromptWidgetComp->SetVisibility(bVisible && ShopData);
 	}
 }

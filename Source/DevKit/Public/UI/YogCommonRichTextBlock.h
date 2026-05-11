@@ -5,6 +5,7 @@
 #include "YogCommonRichTextBlock.generated.h"
 
 class UCommonTextStyle;
+class URichTextBlockDecorator;
 
 /**
  * 项目自定义的 CommonRichTextBlock：
@@ -35,6 +36,8 @@ public:
 	/** 颜色覆盖；Alpha = 0 视为不覆盖（用 FontStyleClass 默认颜色） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Yog Style Override")
 	FLinearColor OverrideColor = FLinearColor(1.f, 1.f, 1.f, 0.f);
+
+	void EnsureDecoratorClass(TSubclassOf<URichTextBlockDecorator> DecoratorClass);
 
 protected:
 	virtual void SynchronizeProperties() override;
