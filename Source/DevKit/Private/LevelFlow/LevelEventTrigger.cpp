@@ -22,6 +22,9 @@ ALevelEventTrigger::ALevelEventTrigger()
 void ALevelEventTrigger::BeginPlay()
 {
 	Super::BeginPlay();
+	bTriggered = false;
+	UE_LOG(LogTemp, Log, TEXT("[LevelEventTrigger] BeginPlay: %s bTriggerOnce=%d Flow=%s"),
+		*GetNameSafe(this), (int32)bTriggerOnce, *GetNameSafe(LevelFlow));
 }
 
 void ALevelEventTrigger::OnOverlapBegin(UPrimitiveComponent*, AActor* OtherActor,
