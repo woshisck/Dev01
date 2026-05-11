@@ -129,20 +129,7 @@ void UYogGameplayAbility::UpdateRetrigger(bool retriggerable)
 
 AYogCharacterBase* UYogGameplayAbility::GetOwnerCharacterInfo()
 {
-	AYogCharacterBase* OwningCharacter = NewObject<AYogCharacterBase>(this, AYogCharacterBase::StaticClass());
-	AActor* OwningActor = NewObject<AActor>(this, AActor::StaticClass());
-	OwningActor = GetOwningActorFromActorInfo();
-
-	if (OwningActor != NULL)
-	{
-		OwningCharacter = Cast<AYogCharacterBase>(OwningActor);
-		return OwningCharacter;
-	}
-	else
-	{
-		return OwningCharacter;
-	}
-
+	return Cast<AYogCharacterBase>(GetOwningActorFromActorInfo());
 }
 
 
