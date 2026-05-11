@@ -68,7 +68,7 @@ void UBFNode_SpawnBuffFlowProjectile::ExecuteInput(const FName& PinName)
 			return false;
 		}
 
-		Projectile->SetCreatorForSpawn(Source);
+		Projectile->SetRuntimeConfigForSpawn(Source, RuntimeProjectileConfig);
 		Projectile->FinishSpawning(SpawnTransform);
 		Projectile->InitBuffFlowProjectile(Source, RuntimeProjectileConfig);
 		return true;

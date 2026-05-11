@@ -68,9 +68,14 @@ void ABuffFlowProjectile::SetCreatorForSpawn(AActor* InCreator)
 	}
 }
 
-void ABuffFlowProjectile::InitBuffFlowProjectile(AActor* InCreator, const FBuffFlowProjectileRuntimeConfig& InConfig)
+void ABuffFlowProjectile::SetRuntimeConfigForSpawn(AActor* InCreator, const FBuffFlowProjectileRuntimeConfig& InConfig)
 {
 	SetCreatorForSpawn(InCreator);
+	ApplyRuntimeConfig(InConfig);
+}
+
+void ABuffFlowProjectile::ApplyRuntimeConfig(const FBuffFlowProjectileRuntimeConfig& InConfig)
+{
 	RuntimeConfig = InConfig;
 	RuntimeConfig.TriggerInterval = FMath::Max(0.01f, RuntimeConfig.TriggerInterval);
 	RuntimeConfig.CollisionCapsuleRadius = FMath::Max(1.f, RuntimeConfig.CollisionCapsuleRadius);
@@ -83,6 +88,11 @@ void ABuffFlowProjectile::InitBuffFlowProjectile(AActor* InCreator, const FBuffF
 			ECC_WorldStatic,
 			RuntimeConfig.bDestroyOnWorldStaticHit ? ECR_Overlap : ECR_Ignore);
 	}
+}
+
+void ABuffFlowProjectile::InitBuffFlowProjectile(AActor* InCreator, const FBuffFlowProjectileRuntimeConfig& InConfig)
+{
+	SetRuntimeConfigForSpawn(InCreator, InConfig);
 
 	SnapshotCreatorAttributes();
 	ResolvedLifetime = ResolveLifetime();

@@ -169,6 +169,9 @@ public:
 	void SetCreatorForSpawn(AActor* InCreator);
 
 	UFUNCTION(BlueprintCallable, Category = "BuffFlow|Projectile")
+	void SetRuntimeConfigForSpawn(AActor* InCreator, const FBuffFlowProjectileRuntimeConfig& InConfig);
+
+	UFUNCTION(BlueprintCallable, Category = "BuffFlow|Projectile")
 	void InitBuffFlowProjectile(AActor* InCreator, const FBuffFlowProjectileRuntimeConfig& InConfig);
 
 	UFUNCTION(BlueprintPure, Category = "BuffFlow|Projectile")
@@ -210,6 +213,8 @@ protected:
 	void BP_OnConfigured(const FBuffFlowProjectileRuntimeConfig& Config, float Magnitude, const FBuffFlowProjectileAttributeSnapshot& CreatorSnapshot);
 
 private:
+	void ApplyRuntimeConfig(const FBuffFlowProjectileRuntimeConfig& InConfig);
+
 	UPROPERTY()
 	TWeakObjectPtr<AActor> CreatorActor;
 
