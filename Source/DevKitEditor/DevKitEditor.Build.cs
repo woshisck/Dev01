@@ -16,7 +16,8 @@ public class DevKitEditor : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-                "DevKit"
+                "DevKit",
+                "DevKitEditor/Private"
                 //"AssetRegistry",
                 //"AssetTools",
                 //"ContentBrowser",

@@ -9,8 +9,17 @@
 #include "PropertyEditorModule.h"
 #include "ComboGraph/AssetTypeActions_GameplayAbilityComboGraph.h"
 #include "DevKitEditor/Util/YogEntryCustomization.h"
+#include "Framework/Docking/TabManager.h"
+#include "HAL/IConsoleManager.h"
+#include "Tools/SBuffFlowDebugWidget.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "DevKitEditor"
+
+namespace
+{
+	const FName BuffFlowDebugTabName(TEXT("DevKitBuffFlowDebug"));
+}
 
 
 class FDevKitEditorModule : public FDefaultGameModuleImpl {
@@ -28,12 +37,30 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			TEXT("DevKitCombat"),
 			LOCTEXT("DevKitCombatAssetCategory", "DevKit Combat"));
 		RegisterAssetTypeAction(AssetTools, MakeShared<FAssetTypeActions_GameplayAbilityComboGraph>(CombatCategory));
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			BuffFlowDebugTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnBuffFlowDebugTab))
+			.SetDisplayName(LOCTEXT("BuffFlowDebugTabTitle", "BuffFlow Debug"))
+			.SetTooltipText(LOCTEXT("BuffFlowDebugTabTooltip", "Open the DevKit BuffFlow debug panel."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		OpenBuffFlowDebugCommand = MakeUnique<FAutoConsoleCommand>(
+			TEXT("DevKit.OpenBuffFlowDebug"),
+			TEXT("Open the DevKit BuffFlow Debug panel."),
+			FConsoleCommandDelegate::CreateLambda([]
+			{
+				FGlobalTabmanager::Get()->TryInvokeTab(BuffFlowDebugTabName);
+			}));
 	}
 
 
 	virtual void ShutdownModule() override
 	{
 		FEditorDelegates::OnMapOpened.RemoveAll(this);
+
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(BuffFlowDebugTabName);
+		OpenBuffFlowDebugCommand.Reset();
 
 		FModuleManager::Get().OnModulesChanged().RemoveAll(this);
 
@@ -68,8 +95,19 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		RegisteredAssetTypeActions.Add(Action);
 	}
 
+	TSharedRef<SDockTab> SpawnBuffFlowDebugTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("BuffFlowDebugTabLabel", "BuffFlow Debug"))
+			[
+				SNew(SBuffFlowDebugWidget)
+			];
+	}
+
 private:
 	TArray<TSharedPtr<IAssetTypeActions>> RegisteredAssetTypeActions;
+	TUniquePtr<FAutoConsoleCommand> OpenBuffFlowDebugCommand;
 };
 
 
