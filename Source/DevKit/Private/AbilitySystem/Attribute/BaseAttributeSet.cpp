@@ -69,6 +69,7 @@ void UBaseAttributeSet::PreAttributeBaseChange(const FGameplayAttribute& attribu
 	{
 		newValue = Health.GetCurrentValue();
 	}
+
 }
 
 void UBaseAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -100,6 +101,11 @@ void UBaseAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, 
 	if (Attribute == GetMaxArmorHPAttribute())
 	{
 		AdjustAttributeForMaxChange(ArmorHP, MaxArmorHP, NewValue, GetArmorHPAttribute());
+	}
+
+	if (Attribute == GetShieldAttribute())
+	{
+		NewValue = FMath::Max(0.f, NewValue);
 	}
 
 	if (Attribute == GetHeatAttribute())
@@ -380,6 +386,27 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 				else if (NewValue <= 0.f && ASC->HasMatchingGameplayTag(ArmoredTag))
 				{
 					ASC->RemoveLooseGameplayTag(ArmoredTag);
+				}
+			}
+		}
+	}
+
+	if (Attribute == GetShieldAttribute())
+	{
+		static const FGameplayTag ShieldedTag =
+			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Shielded"), false);
+		if (ShieldedTag.IsValid())
+		{
+			UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
+			if (ASC)
+			{
+				if (NewValue > 0.f && !ASC->HasMatchingGameplayTag(ShieldedTag))
+				{
+					ASC->SetLooseGameplayTagCount(ShieldedTag, 1);
+				}
+				else if (NewValue <= 0.f && ASC->HasMatchingGameplayTag(ShieldedTag))
+				{
+					ASC->SetLooseGameplayTagCount(ShieldedTag, 0);
 				}
 			}
 		}

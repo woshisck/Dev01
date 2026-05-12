@@ -35,6 +35,132 @@ namespace
 			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Invulnerable"), false);
 		return InvulnerableTag.IsValid() && ASC && ASC->HasMatchingGameplayTag(InvulnerableTag);
 	}
+
+	void RemoveShieldGameplayEffects(UAbilitySystemComponent* ASC)
+	{
+		if (!ASC)
+		{
+			return;
+		}
+
+		FGameplayTagContainer ShieldStatusTags;
+		const FGameplayTag ShieldedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Shielded"), false);
+		if (ShieldedTag.IsValid())
+		{
+			ShieldStatusTags.AddTag(ShieldedTag);
+		}
+
+		if (!ShieldStatusTags.IsEmpty())
+		{
+			ASC->RemoveActiveEffectsWithGrantedTags(ShieldStatusTags);
+		}
+
+		FGameplayTagContainer ShieldEffectTags;
+		const FGameplayTag ShieldEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Effect.Shield"), false);
+		if (ShieldEffectTag.IsValid())
+		{
+			ShieldEffectTags.AddTag(ShieldEffectTag);
+		}
+
+		if (!ShieldEffectTags.IsEmpty())
+		{
+			ASC->RemoveActiveEffectsWithTags(ShieldEffectTags);
+		}
+	}
+
+	float AbsorbDamageWithShieldAndArmor(
+		const FGameplayEffectModCallbackData& Data,
+		AYogCharacterBase* TargetCharacter,
+		float DamageAmount,
+		bool bAllowArmorAbsorption)
+	{
+		if (DamageAmount <= 0.f || !TargetCharacter || !TargetCharacter->BaseAttributeSet)
+		{
+			return DamageAmount;
+		}
+
+		UAbilitySystemComponent* TargetASC = Data.Target.AbilityActorInfo.IsValid()
+			? Data.Target.AbilityActorInfo->AbilitySystemComponent.Get()
+			: nullptr;
+		UBaseAttributeSet* BaseSet = TargetCharacter->BaseAttributeSet;
+
+		float RemainingDamage = DamageAmount;
+
+		const float CurrentShield = FMath::Max(0.f, BaseSet->GetShield());
+		if (CurrentShield > 0.f)
+		{
+			const float ShieldAbsorbed = FMath::Min(RemainingDamage, CurrentShield);
+			if (TargetASC)
+			{
+				// Drain by changing the base value so active Infinite/Additive shield GEs are consumed too.
+				TargetASC->ApplyModToAttributeUnsafe(
+					UBaseAttributeSet::GetShieldAttribute(),
+					EGameplayModOp::Additive,
+					-ShieldAbsorbed);
+			}
+			else
+			{
+				BaseSet->SetShield(FMath::Max(0.f, CurrentShield - ShieldAbsorbed));
+			}
+
+			RemainingDamage -= ShieldAbsorbed;
+			const float NewShield = TargetASC
+				? FMath::Max(0.f, TargetASC->GetNumericAttribute(UBaseAttributeSet::GetShieldAttribute()))
+				: FMath::Max(0.f, BaseSet->GetShield());
+
+			UE_LOG(LogTemp, Warning, TEXT("[Shield] Absorb Target=%s Damage=%.1f Shield %.1f -> %.1f Remaining=%.1f"),
+				*GetNameSafe(TargetCharacter),
+				DamageAmount,
+				CurrentShield,
+				NewShield,
+				RemainingDamage);
+
+			if (NewShield <= KINDA_SMALL_NUMBER)
+			{
+				RemoveShieldGameplayEffects(TargetASC);
+				if (TargetASC)
+				{
+					TargetASC->SetNumericAttributeBase(UBaseAttributeSet::GetShieldAttribute(), 0.f);
+				}
+				else
+				{
+					BaseSet->SetShield(0.f);
+				}
+			}
+
+			if (RemainingDamage <= 0.f)
+			{
+				return 0.f;
+			}
+		}
+
+		if (bAllowArmorAbsorption)
+		{
+			const float CurrentArmor = BaseSet->GetArmorHP();
+			if (CurrentArmor > 0.f)
+			{
+				const float ArmorAbsorbed = FMath::Min(RemainingDamage, CurrentArmor);
+				const float NewArmor = FMath::Max(0.f, CurrentArmor - ArmorAbsorbed);
+				if (TargetASC)
+				{
+					TargetASC->SetNumericAttributeBase(UBaseAttributeSet::GetArmorHPAttribute(), NewArmor);
+				}
+				else
+				{
+					BaseSet->SetArmorHP(NewArmor);
+				}
+				RemainingDamage -= ArmorAbsorbed;
+				UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Armor] Absorb Target=%s Damage=%.1f Armor %.1f -> %.1f HealthDamage=%.1f"),
+					*GetNameSafe(TargetCharacter),
+					DamageAmount,
+					CurrentArmor,
+					NewArmor,
+					RemainingDamage);
+			}
+		}
+
+		return FMath::Max(0.f, RemainingDamage);
+	}
 }
 
 
@@ -129,31 +255,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 		if (LocalDamageDone > 0)
 		{
 			// ── 护甲拦截（护甲先吸收，溢出才扣血）─────────────────────────
-			float HealthDamage = LocalDamageDone;
-			if (TargetCharacter->BaseAttributeSet)
-			{
-				const float CurrentArmor = TargetCharacter->BaseAttributeSet->GetArmorHP();
-				if (CurrentArmor > 0.f)
-				{
-					const float ArmorAbsorbed = FMath::Min(LocalDamageDone, CurrentArmor);
-					const float NewArmor = FMath::Max(0.f, CurrentArmor - ArmorAbsorbed);
-					if (UAbilitySystemComponent* ArmorASC = Data.Target.AbilityActorInfo->AbilitySystemComponent.Get())
-					{
-						ArmorASC->SetNumericAttributeBase(UBaseAttributeSet::GetArmorHPAttribute(), NewArmor);
-					}
-					else
-					{
-						TargetCharacter->BaseAttributeSet->SetArmorHP(NewArmor);
-					}
-					HealthDamage = LocalDamageDone - ArmorAbsorbed;
-					UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Armor] Absorb Target=%s Damage=%.1f Armor %.1f -> %.1f HealthDamage=%.1f"),
-						*GetNameSafe(TargetCharacter),
-						LocalDamageDone,
-						CurrentArmor,
-						NewArmor,
-						HealthDamage);
-				}
-			}
+			const float HealthDamage = AbsorbDamageWithShieldAndArmor(Data, TargetCharacter, LocalDamageDone, true);
 
 			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
 			const bool bSuppressDamageFeedback = ShouldSuppressDamageFeedbackForEffect(Data.EffectSpec);
@@ -271,31 +373,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 		if (LocalDamageDone > 0)
 		{
 			// ── 护甲拦截 ─────────────────────────────────────────────────────
-			float HealthDamage = LocalDamageDone;
-			if (TargetCharacter->BaseAttributeSet)
-			{
-				const float CurrentArmor = TargetCharacter->BaseAttributeSet->GetArmorHP();
-				if (CurrentArmor > 0.f)
-				{
-					const float ArmorAbsorbed = FMath::Min(LocalDamageDone, CurrentArmor);
-					const float NewArmor = FMath::Max(0.f, CurrentArmor - ArmorAbsorbed);
-					if (UAbilitySystemComponent* ArmorASC = Data.Target.AbilityActorInfo->AbilitySystemComponent.Get())
-					{
-						ArmorASC->SetNumericAttributeBase(UBaseAttributeSet::GetArmorHPAttribute(), NewArmor);
-					}
-					else
-					{
-						TargetCharacter->BaseAttributeSet->SetArmorHP(NewArmor);
-					}
-					HealthDamage = LocalDamageDone - ArmorAbsorbed;
-					UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Armor] Absorb Target=%s Damage=%.1f Armor %.1f -> %.1f HealthDamage=%.1f"),
-						*GetNameSafe(TargetCharacter),
-						LocalDamageDone,
-						CurrentArmor,
-						NewArmor,
-						HealthDamage);
-				}
-			}
+			const float HealthDamage = AbsorbDamageWithShieldAndArmor(Data, TargetCharacter, LocalDamageDone, true);
 
 			if (HealthDamage > 0.f)
 			{
@@ -369,6 +447,12 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 
 		if (LocalDamageDone > 0.f && TargetCharacter && TargetCharacter->BaseAttributeSet)
 		{
+			const float HealthDamage = AbsorbDamageWithShieldAndArmor(Data, TargetCharacter, LocalDamageDone, false);
+			if (HealthDamage <= 0.f)
+			{
+				return;
+			}
+
 			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
 			if (ASC)
 			{
@@ -377,7 +461,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 
 			const float OldHealth = TargetCharacter->BaseAttributeSet->GetHealth();
 			// 不至死：Health 最低保留 1（GEExec_PoisonDamage 在输出前已Clamp，此处双重保险）
-			const float NewHealth = FMath::Max(1.f, OldHealth - LocalDamageDone);
+			const float NewHealth = FMath::Max(1.f, OldHealth - HealthDamage);
 			TargetCharacter->BaseAttributeSet->SetHealth(NewHealth);
 
 			if (ASC)
