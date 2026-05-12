@@ -8,6 +8,14 @@ class UNiagaraComponent;
 class UNiagaraSystem;
 class USceneComponent;
 class USkeletalMeshComponent;
+class AWeaponInstance;
+
+UENUM(BlueprintType)
+enum class EGCNAttachedNiagaraAttachTarget : uint8
+{
+	TargetActor UMETA(DisplayName = "Target Actor"),
+	EquippedWeapon UMETA(DisplayName = "Equipped Weapon"),
+};
 
 /**
  * GameplayCue notify actor that keeps a Niagara system attached to the target actor's mesh
@@ -31,6 +39,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Niagara")
 	TObjectPtr<UNiagaraSystem> NiagaraSystem;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Niagara|Attachment")
+	EGCNAttachedNiagaraAttachTarget AttachTarget = EGCNAttachedNiagaraAttachTarget::TargetActor;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Niagara")
 	bool bAttachToSkeletalMesh = true;
 
@@ -43,6 +54,18 @@ protected:
 		TEXT("pelvis"),
 		TEXT("root")
 	};
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Niagara|Weapon")
+	FName WeaponAttachSocketName = TEXT("VFX");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Niagara|Weapon")
+	TArray<FName> WeaponAttachSocketFallbackNames = {
+		TEXT("Muzzle"),
+		TEXT("FX")
+	};
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Niagara|Weapon")
+	bool bFallbackToTargetActorIfWeaponMissing = true;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Niagara")
 	FVector LocationOffset = FVector::ZeroVector;
@@ -66,5 +89,9 @@ private:
 	UNiagaraComponent* SpawnNiagara(AActor* Target, bool bAutoDestroy);
 	void StopNiagara();
 	USceneComponent* ResolveAttachComponent(AActor* Target, FName& OutSocketName) const;
-	bool HasSocketOrBone(const USkeletalMeshComponent* MeshComponent, const FName SocketOrBoneName) const;
+	USceneComponent* ResolveTargetActorAttachComponent(AActor* Target, FName& OutSocketName) const;
+	USceneComponent* ResolveWeaponAttachComponent(AActor* Target, FName& OutSocketName) const;
+	USceneComponent* FindNamedSceneComponent(AActor* OwnerActor, const FName ComponentName) const;
+	AWeaponInstance* ResolveEquippedWeapon(AActor* Target) const;
+	bool TryResolveSocketOrBone(USceneComponent* Component, const FName SocketOrBoneName, FName& OutSocketName) const;
 };

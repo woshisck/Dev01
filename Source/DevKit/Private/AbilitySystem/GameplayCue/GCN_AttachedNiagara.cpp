@@ -1,6 +1,9 @@
 #include "AbilitySystem/GameplayCue/GCN_AttachedNiagara.h"
 
+#include "Character/PlayerCharacterBase.h"
+#include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Item/Weapon/WeaponInstance.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
@@ -69,6 +72,12 @@ UNiagaraComponent* AGCN_AttachedNiagara::SpawnNiagara(AActor* Target, bool bAuto
 	FName ResolvedSocketName = NAME_None;
 	USceneComponent* AttachComponent = ResolveAttachComponent(Target, ResolvedSocketName);
 	UNiagaraComponent* SpawnedComponent = nullptr;
+	if (!AttachComponent
+		&& AttachTarget == EGCNAttachedNiagaraAttachTarget::EquippedWeapon
+		&& !bFallbackToTargetActorIfWeaponMissing)
+	{
+		return nullptr;
+	}
 
 	if (AttachComponent)
 	{
@@ -136,21 +145,40 @@ USceneComponent* AGCN_AttachedNiagara::ResolveAttachComponent(AActor* Target, FN
 		return nullptr;
 	}
 
+	if (AttachTarget == EGCNAttachedNiagaraAttachTarget::EquippedWeapon)
+	{
+		if (USceneComponent* WeaponAttachComponent = ResolveWeaponAttachComponent(Target, OutSocketName))
+		{
+			return WeaponAttachComponent;
+		}
+
+		if (!bFallbackToTargetActorIfWeaponMissing)
+		{
+			return nullptr;
+		}
+	}
+
+	return ResolveTargetActorAttachComponent(Target, OutSocketName);
+}
+
+USceneComponent* AGCN_AttachedNiagara::ResolveTargetActorAttachComponent(AActor* Target, FName& OutSocketName) const
+{
+	OutSocketName = NAME_None;
+	if (!Target)
+	{
+		return nullptr;
+	}
+
 	if (bAttachToSkeletalMesh)
 	{
 		if (USkeletalMeshComponent* MeshComponent = Target->FindComponentByClass<USkeletalMeshComponent>())
 		{
-			if (HasSocketOrBone(MeshComponent, AttachSocketName))
-			{
-				OutSocketName = AttachSocketName;
-			}
-			else
+			if (!TryResolveSocketOrBone(MeshComponent, AttachSocketName, OutSocketName))
 			{
 				for (const FName& FallbackSocketName : AttachSocketFallbackNames)
 				{
-					if (HasSocketOrBone(MeshComponent, FallbackSocketName))
+					if (TryResolveSocketOrBone(MeshComponent, FallbackSocketName, OutSocketName))
 					{
-						OutSocketName = FallbackSocketName;
 						break;
 					}
 				}
@@ -163,12 +191,125 @@ USceneComponent* AGCN_AttachedNiagara::ResolveAttachComponent(AActor* Target, FN
 	return Target->GetRootComponent();
 }
 
-bool AGCN_AttachedNiagara::HasSocketOrBone(
-	const USkeletalMeshComponent* MeshComponent,
-	const FName SocketOrBoneName) const
+USceneComponent* AGCN_AttachedNiagara::ResolveWeaponAttachComponent(AActor* Target, FName& OutSocketName) const
 {
-	return MeshComponent
-		&& SocketOrBoneName != NAME_None
-		&& (MeshComponent->DoesSocketExist(SocketOrBoneName) ||
-			MeshComponent->GetBoneIndex(SocketOrBoneName) != INDEX_NONE);
+	OutSocketName = NAME_None;
+
+	AWeaponInstance* Weapon = ResolveEquippedWeapon(Target);
+	if (!Weapon)
+	{
+		return nullptr;
+	}
+
+	if (USceneComponent* NamedComponent = FindNamedSceneComponent(Weapon, WeaponAttachSocketName))
+	{
+		return NamedComponent;
+	}
+
+	for (const FName& FallbackComponentName : WeaponAttachSocketFallbackNames)
+	{
+		if (USceneComponent* NamedComponent = FindNamedSceneComponent(Weapon, FallbackComponentName))
+		{
+			return NamedComponent;
+		}
+	}
+
+	TArray<UMeshComponent*> MeshComponents;
+	Weapon->GetComponents<UMeshComponent>(MeshComponents);
+	for (UMeshComponent* MeshComponent : MeshComponents)
+	{
+		if (!MeshComponent)
+		{
+			continue;
+		}
+
+		if (!TryResolveSocketOrBone(MeshComponent, WeaponAttachSocketName, OutSocketName))
+		{
+			for (const FName& FallbackSocketName : WeaponAttachSocketFallbackNames)
+			{
+				if (TryResolveSocketOrBone(MeshComponent, FallbackSocketName, OutSocketName))
+				{
+					break;
+				}
+			}
+		}
+
+		if (OutSocketName != NAME_None)
+		{
+			return MeshComponent;
+		}
+	}
+
+	return Weapon->GetRootComponent();
+}
+
+USceneComponent* AGCN_AttachedNiagara::FindNamedSceneComponent(AActor* OwnerActor, const FName ComponentName) const
+{
+	if (!OwnerActor || ComponentName == NAME_None)
+	{
+		return nullptr;
+	}
+
+	TArray<USceneComponent*> SceneComponents;
+	OwnerActor->GetComponents<USceneComponent>(SceneComponents);
+	for (USceneComponent* SceneComponent : SceneComponents)
+	{
+		if (SceneComponent && SceneComponent->GetFName() == ComponentName)
+		{
+			return SceneComponent;
+		}
+	}
+
+	return nullptr;
+}
+
+AWeaponInstance* AGCN_AttachedNiagara::ResolveEquippedWeapon(AActor* Target) const
+{
+	if (!Target)
+	{
+		return nullptr;
+	}
+
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Target))
+	{
+		return Player->EquippedWeaponInstance;
+	}
+
+	return nullptr;
+}
+
+bool AGCN_AttachedNiagara::TryResolveSocketOrBone(
+	USceneComponent* Component,
+	const FName SocketOrBoneName,
+	FName& OutSocketName) const
+{
+	if (!Component || SocketOrBoneName == NAME_None)
+	{
+		return false;
+	}
+
+	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Component))
+	{
+		if (SkeletalMeshComponent->DoesSocketExist(SocketOrBoneName) ||
+			SkeletalMeshComponent->GetBoneIndex(SocketOrBoneName) != INDEX_NONE)
+		{
+			OutSocketName = SocketOrBoneName;
+			return true;
+		}
+	}
+	else if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(Component))
+	{
+		if (MeshComponent->DoesSocketExist(SocketOrBoneName))
+		{
+			OutSocketName = SocketOrBoneName;
+			return true;
+		}
+	}
+	else if (Component->DoesSocketExist(SocketOrBoneName))
+	{
+		OutSocketName = SocketOrBoneName;
+		return true;
+	}
+
+	return false;
 }
