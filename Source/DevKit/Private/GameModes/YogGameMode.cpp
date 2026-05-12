@@ -979,8 +979,9 @@ bool AYogGameMode::RevivePlayerFromDeath()
 
 	if (APlayerController* PC = Cast<APlayerController>(Player->GetController()))
 	{
-		PC->SetIgnoreMoveInput(false);
-		PC->SetIgnoreLookInput(false);
+		PC->ResetIgnoreMoveInput();
+		PC->ResetIgnoreLookInput();
+		PC->EnableInput(PC);
 		PC->SetPause(false);
 		PC->SetShowMouseCursor(false);
 		PC->SetInputMode(FInputModeGameOnly());

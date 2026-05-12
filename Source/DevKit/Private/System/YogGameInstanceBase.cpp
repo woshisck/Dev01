@@ -13,6 +13,7 @@
 #include "GameModes/YogGameMode.h"
 #include "HAL/PlatformTime.h"
 #include "Input/Events.h"
+#include "Input/NavigationReply.h"
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -52,13 +53,15 @@ namespace
 	bool IsFrontendMenuUpKey(const FKey& Key)
 	{
 		return Key == EKeys::Up
-			|| Key == EKeys::Gamepad_DPad_Up;
+			|| Key == EKeys::Gamepad_DPad_Up
+			|| Key == EKeys::Gamepad_LeftStick_Up;
 	}
 
 	bool IsFrontendMenuDownKey(const FKey& Key)
 	{
 		return Key == EKeys::Down
-			|| Key == EKeys::Gamepad_DPad_Down;
+			|| Key == EKeys::Gamepad_DPad_Down
+			|| Key == EKeys::Gamepad_LeftStick_Down;
 	}
 }
 
@@ -95,6 +98,21 @@ public:
 		}
 
 		return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+	}
+
+	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override
+	{
+		const EUINavigation NavigationType = InNavigationEvent.GetNavigationType();
+		if (NavigationType == EUINavigation::Up || NavigationType == EUINavigation::Down)
+		{
+			if (UYogGameInstanceBase* GameInstance = Owner.Get())
+			{
+				GameInstance->MoveFrontendMenuFocus(NavigationType == EUINavigation::Up ? -1 : 1);
+				return FNavigationReply::Stop();
+			}
+		}
+
+		return SCompoundWidget::OnNavigation(MyGeometry, InNavigationEvent);
 	}
 
 	virtual FReply OnAnalogValueChanged(const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent) override
@@ -423,6 +441,7 @@ void UYogGameInstanceBase::ShowMainMenu()
 					[
 						SAssignNew(StartButton, SButton)
 						.HAlign(HAlign_Left)
+						.IsFocusable(false)
 						.ContentPadding(FMargin(20.f, 8.f))
 						.ButtonColorAndOpacity_Lambda([BuildButtonColor]() { return BuildButtonColor(0); })
 						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleStartClicked)
@@ -436,6 +455,7 @@ void UYogGameInstanceBase::ShowMainMenu()
 					[
 						SAssignNew(ContinueButton, SButton)
 						.HAlign(HAlign_Left)
+						.IsFocusable(false)
 						.ContentPadding(FMargin(20.f, 8.f))
 						.ButtonColorAndOpacity_Lambda([BuildButtonColor]() { return BuildButtonColor(1); })
 						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleContinueClicked)
@@ -449,6 +469,7 @@ void UYogGameInstanceBase::ShowMainMenu()
 					[
 						SAssignNew(OptionsButton, SButton)
 						.HAlign(HAlign_Left)
+						.IsFocusable(false)
 						.ContentPadding(FMargin(20.f, 8.f))
 						.ButtonColorAndOpacity_Lambda([BuildButtonColor]() { return BuildButtonColor(2); })
 						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleOptionsClicked)
@@ -461,6 +482,7 @@ void UYogGameInstanceBase::ShowMainMenu()
 					[
 						SAssignNew(QuitButton, SButton)
 						.HAlign(HAlign_Left)
+						.IsFocusable(false)
 						.ContentPadding(FMargin(20.f, 8.f))
 						.ButtonColorAndOpacity_Lambda([BuildButtonColor]() { return BuildButtonColor(3); })
 						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleQuitClicked)
@@ -502,6 +524,10 @@ void UYogGameInstanceBase::ShowMainMenu()
 		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
 	}
 	ApplyFrontendInputMode(true, FrontendWidget);
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(this, &UYogGameInstanceBase::RefocusFrontendWidget);
+	}
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("AutoStart")))
 	{
@@ -561,9 +587,10 @@ void UYogGameInstanceBase::StartNewRunFromFrontend()
 
 void UYogGameInstanceBase::BeginLoadMainGameMap()
 {
-	if (!MainGameMap.IsValid())
+	const FString PackageName = MainGameMap.GetLongPackageName();
+	if (PackageName.IsEmpty())
 	{
-		UE_LOG(LogTemp, Error, TEXT("[Frontend] MainGameMap is invalid."));
+		UE_LOG(LogTemp, Error, TEXT("[Frontend] Could not resolve map package from %s"), *MainGameMap.ToString());
 		return;
 	}
 
@@ -581,10 +608,8 @@ void UYogGameInstanceBase::BeginLoadMainGameMap()
 		World->GetTimerManager().ClearTimer(FrontendLoadingTimerHandle);
 	}
 
-	FrontendMapLoadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
-		MainGameMap,
-		FStreamableDelegate::CreateUObject(this, &UYogGameInstanceBase::HandleMainGameMapPreloaded),
-		FStreamableManager::AsyncLoadHighPriority);
+	UE_LOG(LogTemp, Log, TEXT("[Frontend] Opening gameplay map %s."), *PackageName);
+	UGameplayStatics::OpenLevel(this, FName(*PackageName), true);
 }
 
 void UYogGameInstanceBase::HandleMainGameMapPreloaded()
@@ -704,6 +729,10 @@ void UYogGameInstanceBase::ShowLoadingScreen(const FText& Title, const FText& Su
 		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
 	}
 	ApplyFrontendInputMode(true, FrontendWidget);
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(this, &UYogGameInstanceBase::RefocusFrontendWidget);
+	}
 }
 
 void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
@@ -725,6 +754,7 @@ void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 		[
 			SAssignNew(ReviveButton, SButton)
 			.HAlign(HAlign_Center)
+			.IsFocusable(false)
 			.ContentPadding(FMargin(28.f, 12.f))
 			.OnClicked_UObject(this, &UYogGameInstanceBase::HandleReviveClicked)
 			[
@@ -740,6 +770,7 @@ void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 	[
 		SAssignNew(RetryButton, SButton)
 		.HAlign(HAlign_Center)
+		.IsFocusable(false)
 		.ContentPadding(FMargin(28.f, 12.f))
 		.OnClicked_UObject(this, &UYogGameInstanceBase::HandleRetryClicked)
 		[
@@ -753,6 +784,7 @@ void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 	[
 		SAssignNew(ReturnButton, SButton)
 		.HAlign(HAlign_Center)
+		.IsFocusable(false)
 		.ContentPadding(FMargin(28.f, 12.f))
 		.OnClicked_UObject(this, &UYogGameInstanceBase::HandleReturnToMenuClicked)
 		[
@@ -815,6 +847,10 @@ void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
 	}
 	ApplyFrontendInputMode(true, FrontendWidget);
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(this, &UYogGameInstanceBase::RefocusFrontendWidget);
+	}
 }
 
 void UYogGameInstanceBase::ReturnToMainMenu()
@@ -863,11 +899,16 @@ void UYogGameInstanceBase::ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidg
 	}
 	else
 	{
-		PC->SetIgnoreMoveInput(false);
-		PC->SetIgnoreLookInput(false);
+		PC->ResetIgnoreMoveInput();
+		PC->ResetIgnoreLookInput();
 		PC->EnableInput(PC);
 		PC->SetInputMode(FInputModeGameOnly());
 	}
+}
+
+void UYogGameInstanceBase::RefocusFrontendWidget()
+{
+	ApplyFrontendInputMode(FrontendWidget.IsValid(), FrontendWidget);
 }
 
 bool UYogGameInstanceBase::IsFrontendStartupWorld(const UWorld* World) const

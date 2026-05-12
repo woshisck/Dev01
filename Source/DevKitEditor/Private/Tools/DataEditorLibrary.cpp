@@ -215,7 +215,7 @@ void UDataEditorLibrary::BatchSetEffectMaxStack(const TArray<UEffectDataAsset*>&
 
 int32 UDataEditorLibrary::PrepareRuneIdTagIni()
 {
-	const TArray<URuneDataAsset*> All = GetAllRuneDAs();
+	const TArray<URuneDataAsset*> All = UDataEditorLibrary::GetAllRuneDAs();
 
 	const FString IniPath = FPaths::ProjectConfigDir() / TEXT("Tags") / TEXT("RuneIDs.ini");
 
@@ -309,7 +309,7 @@ int32 UDataEditorLibrary::PrepareRuneIdTagIni()
 
 int32 UDataEditorLibrary::ApplyRuneIdTagsAfterRestart()
 {
-	const TArray<URuneDataAsset*> All = GetAllRuneDAs();
+	const TArray<URuneDataAsset*> All = UDataEditorLibrary::GetAllRuneDAs();
 	const FScopedTransaction Tx(LOCTEXT("ApplyRuneIdTags", "Apply Migrated RuneIdTag"));
 
 	int32 Applied = 0;
@@ -347,7 +347,7 @@ int32 UDataEditorLibrary::ApplyRuneIdTagsAfterRestart()
 
 int32 UDataEditorLibrary::VerifyAccessorParity()
 {
-	const TArray<URuneDataAsset*> All = GetAllRuneDAs();
+	const TArray<URuneDataAsset*> All = UDataEditorLibrary::GetAllRuneDAs();
 	int32 DiffCount = 0;
 	for (URuneDataAsset* DA : All)
 	{
@@ -372,7 +372,7 @@ int32 UDataEditorLibrary::VerifyAccessorParity()
 
 FString UDataEditorLibrary::ExportRuneDAsToCSV(const FString& OutFilePath)
 {
-	const TArray<URuneDataAsset*> All = GetAllRuneDAs();
+	const TArray<URuneDataAsset*> All = UDataEditorLibrary::GetAllRuneDAs();
 
 	FString Path = OutFilePath;
 	if (Path.IsEmpty())

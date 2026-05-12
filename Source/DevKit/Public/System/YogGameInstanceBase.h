@@ -346,6 +346,7 @@ private:
 	void ShowLoadingScreen(const FText& Title, const FText& Subtitle);
 	void RemoveFrontendWidget();
 	void ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidget> WidgetToFocus = nullptr);
+	void RefocusFrontendWidget();
 	bool IsFrontendStartupWorld(const UWorld* World) const;
 	bool HandleFrontendMenuKey(const FKey& Key);
 	void MoveFrontendMenuFocus(int32 Direction);

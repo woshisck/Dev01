@@ -7,6 +7,7 @@ public class DevKitEditor : ModuleRules
     public DevKitEditor(ReadOnlyTargetRules Target) : base(Target)
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+        bUseUnity = false;
 
 		PublicIncludePaths.AddRange(
 			new string[] {
