@@ -28,6 +28,22 @@ enum class EYogUIScreenId : uint8
 	DamageEdgeFlash
 };
 
+/**
+ * Visual + input layer. Higher value = "on top" semantically.
+ * Subsystem uses this to decide input mode + focus when a screen activates.
+ *
+ *  Game   : passive overlays (HUD, indicators, world-anchored popups). No focus, no input mode change.
+ *  Menu   : in-game UI that needs focus but does not pause the game (Backpack, Loot, SacrificeGrace, Tutorial).
+ *  Modal  : top-priority dialog/menu that owns input until dismissed (PauseMenu, system popups).
+ */
+UENUM(BlueprintType)
+enum class EYogUILayer : uint8
+{
+	Game   UMETA(DisplayName = "Game (overlay, no focus)"),
+	Menu   UMETA(DisplayName = "Menu (focusable, in-game)"),
+	Modal  UMETA(DisplayName = "Modal (top priority)")
+};
+
 USTRUCT(BlueprintType)
 struct DEVKIT_API FYogUIRegistryEntry
 {
@@ -42,8 +58,16 @@ struct DEVKIT_API FYogUIRegistryEntry
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	int32 ZOrder = 0;
 
+	/** 该 Screen 的逻辑层级。Subsystem 用它决定激活时是否切 InputMode、是否抢焦点。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	EYogUILayer Layer = EYogUILayer::Game;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	bool bCreateOnHUDStart = false;
+
+	/** 这条 Entry 的用途说明，给后来配 DA 的策划/程序看，不参与运行时逻辑。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (MultiLine = "true"))
+	FString Description;
 };
 
 UCLASS(BlueprintType)
