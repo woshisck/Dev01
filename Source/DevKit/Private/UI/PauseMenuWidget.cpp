@@ -9,6 +9,7 @@
 #include "System/YogGameInstanceBase.h"
 #include "UI/YogHUD.h"
 #include "UI/YogInputKeyUtils.h"
+#include "UI/YogUIManagerSubsystem.h"
 
 void UPauseMenuWidget::NativeConstruct()
 {
@@ -56,21 +57,6 @@ void UPauseMenuWidget::NativeOnActivated()
 	SetIsFocusable(true);
 	CacheButtons();
 
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-		{
-			HUD->BeginPauseEffect();
-			bPauseEffectActive = true;
-		}
-
-		PC->SetShowMouseCursor(true);
-		FInputModeGameAndUI InputMode;
-		InputMode.SetWidgetToFocus(GetCachedWidget());
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		PC->SetInputMode(InputMode);
-	}
-
 	// FocusButton handles per-button focus; SetUserFocus(player) was targeting the wrong root.
 	FocusButton(FocusedButtonIndex);
 }
@@ -79,20 +65,7 @@ void UPauseMenuWidget::NativeOnDeactivated()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
 
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		// Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
 		// Modal layer dropping returns top to Game → Subsystem applies GameOnly + hides cursor.
-		if (bPauseEffectActive)
-		{
-			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			{
-				HUD->EndPauseEffect();
-			}
-			bPauseEffectActive = false;
-		}
-	}
-
 	Super::NativeOnDeactivated();
 }
 
@@ -146,7 +119,10 @@ FReply UPauseMenuWidget::NativeOnAnalogValueChanged(const FGeometry& InGeometry,
 
 void UPauseMenuWidget::CloseMenu()
 {
-	DeactivateWidget();
+	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::PauseMenu))
+	{
+		DeactivateWidget();
+	}
 }
 
 void UPauseMenuWidget::HandleControl()

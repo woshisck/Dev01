@@ -14,6 +14,7 @@
 #include "Map/ShopActor.h"
 #include "UI/YogHUD.h"
 #include "UI/YogInputKeyUtils.h"
+#include "UI/YogUIManagerSubsystem.h"
 
 namespace
 {
@@ -77,20 +78,6 @@ void UShopSelectionWidget::NativeOnActivated()
 	Super::NativeOnActivated();
 	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	SetIsFocusable(true);
-
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-		{
-			HUD->BeginPauseEffect();
-		}
-
-		PC->SetShowMouseCursor(true);
-		FInputModeGameAndUI InputMode;
-		InputMode.SetWidgetToFocus(GetCachedWidget());
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		PC->SetInputMode(InputMode);
-	}
 	// FocusButton handles per-button focus; SetUserFocus(player) was targeting the wrong root.
 	FocusButton(FocusedButtonIndex);
 }
@@ -98,14 +85,6 @@ void UShopSelectionWidget::NativeOnActivated()
 void UShopSelectionWidget::NativeOnDeactivated()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		// Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-		{
-			HUD->EndPauseEffect();
-		}
-	}
 	Super::NativeOnDeactivated();
 }
 
@@ -260,7 +239,10 @@ void UShopSelectionWidget::BuyItem(int32 ItemIndex)
 
 void UShopSelectionWidget::CloseShop()
 {
-	DeactivateWidget();
+	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::ShopSelection))
+	{
+		DeactivateWidget();
+	}
 }
 
 void UShopSelectionWidget::BuildFallbackLayout()

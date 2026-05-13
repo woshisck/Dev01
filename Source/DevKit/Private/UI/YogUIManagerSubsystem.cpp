@@ -8,7 +8,32 @@
 #include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "UI/YogHUD.h"
+
+namespace
+{
+bool IsInteractiveManagedScreen(EYogUIScreenId ScreenId)
+{
+	switch (ScreenId)
+	{
+	case EYogUIScreenId::Backpack:
+	case EYogUIScreenId::LootSelection:
+	case EYogUIScreenId::PauseMenu:
+	case EYogUIScreenId::TutorialPopup:
+	case EYogUIScreenId::SacrificeGraceOption:
+	case EYogUIScreenId::ShopSelection:
+	case EYogUIScreenId::AltarMenu:
+	case EYogUIScreenId::SacrificeSelection:
+	case EYogUIScreenId::RunePurification:
+	case EYogUIScreenId::EntryMenu:
+		return true;
+	default:
+		return false;
+	}
+}
+}
 
 void UYogUIManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -28,10 +53,16 @@ void UYogUIManagerSubsystem::Deinitialize()
 	}
 	Instances.Reset();
 	LoadedWidgetClasses.Reset();
+	WidgetClassOverrides.Reset();
+	InputPolicyOverrides.Reset();
 	BoundActivationScreens.Reset();
 	ActivatedScreens.Reset();
+	ActivationStack.Reset();
 	PendingAsyncLoads.Reset();
 	TopActivatedLayer = EYogUILayer::Game;
+	bManagedPauseActive = false;
+	bManagedMajorUIActive = false;
+	bManagedPawnInputDisabled = false;
 
 	Super::Deinitialize();
 }
@@ -43,6 +74,11 @@ UYogUIRegistry* UYogUIManagerSubsystem::GetRegistry() const
 
 TSubclassOf<UUserWidget> UYogUIManagerSubsystem::GetWidgetClass(EYogUIScreenId ScreenId) const
 {
+	if (const TSubclassOf<UUserWidget>* OverrideClass = WidgetClassOverrides.Find(ScreenId))
+	{
+		return *OverrideClass;
+	}
+
 	if (const TSubclassOf<UUserWidget>* CachedClass = LoadedWidgetClasses.Find(ScreenId))
 	{
 		return *CachedClass;
@@ -73,6 +109,52 @@ int32 UYogUIManagerSubsystem::GetZOrder(EYogUIScreenId ScreenId, int32 FallbackZ
 	return CachedRegistry ? CachedRegistry->GetZOrder(ScreenId, FallbackZOrder) : FallbackZOrder;
 }
 
+void UYogUIManagerSubsystem::SetWidgetClassOverride(EYogUIScreenId ScreenId, TSubclassOf<UUserWidget> WidgetClass)
+{
+	if (WidgetClass)
+	{
+		WidgetClassOverrides.Add(ScreenId, WidgetClass);
+		LoadedWidgetClasses.Remove(ScreenId);
+		if (TObjectPtr<UUserWidget>* Existing = Instances.Find(ScreenId))
+		{
+			if (*Existing && !(*Existing)->IsA(WidgetClass))
+			{
+				(*Existing)->RemoveFromParent();
+				Instances.Remove(ScreenId);
+				BoundActivationScreens.Remove(ScreenId);
+				ActivatedScreens.Remove(ScreenId);
+				ActivationStack.Remove(ScreenId);
+				if (bAutoManageInputMode)
+				{
+					RecomputeTopLayer();
+				}
+			}
+		}
+	}
+	else
+	{
+		WidgetClassOverrides.Remove(ScreenId);
+	}
+}
+
+void UYogUIManagerSubsystem::SetInputPolicyOverride(EYogUIScreenId ScreenId, const FYogUIScreenInputPolicy& Policy)
+{
+	InputPolicyOverrides.Add(ScreenId, Policy);
+	if (ActivatedScreens.Contains(ScreenId) && bAutoManageInputMode)
+	{
+		RecomputeTopLayer();
+	}
+}
+
+void UYogUIManagerSubsystem::ClearInputPolicyOverride(EYogUIScreenId ScreenId)
+{
+	InputPolicyOverrides.Remove(ScreenId);
+	if (ActivatedScreens.Contains(ScreenId) && bAutoManageInputMode)
+	{
+		RecomputeTopLayer();
+	}
+}
+
 APlayerController* UYogUIManagerSubsystem::GetOwningPlayerController() const
 {
 	if (const ULocalPlayer* LP = GetLocalPlayer())
@@ -84,6 +166,11 @@ APlayerController* UYogUIManagerSubsystem::GetOwningPlayerController() const
 
 EYogUILayer UYogUIManagerSubsystem::GetLayerForScreen(EYogUIScreenId ScreenId) const
 {
+	if (IsInteractiveManagedScreen(ScreenId))
+	{
+		return ScreenId == EYogUIScreenId::PauseMenu ? EYogUILayer::Modal : EYogUILayer::Menu;
+	}
+
 	if (!CachedRegistry)
 	{
 		return EYogUILayer::Game;
@@ -97,6 +184,41 @@ EYogUILayer UYogUIManagerSubsystem::GetLayerForScreen(EYogUIScreenId ScreenId) c
 	return EYogUILayer::Game;
 }
 
+FYogUIScreenInputPolicy UYogUIManagerSubsystem::GetInputPolicyForScreen(EYogUIScreenId ScreenId) const
+{
+	if (const FYogUIScreenInputPolicy* OverridePolicy = InputPolicyOverrides.Find(ScreenId))
+	{
+		return *OverridePolicy;
+	}
+
+	FYogUIScreenInputPolicy Policy;
+	const EYogUILayer Layer = GetLayerForScreen(ScreenId);
+	if (Layer == EYogUILayer::Menu || Layer == EYogUILayer::Modal)
+	{
+		Policy.bShowMouseCursor = true;
+		Policy.bPauseGame = true;
+		Policy.bAffectsMajorUI = ScreenId != EYogUIScreenId::TutorialPopup && ScreenId != EYogUIScreenId::PauseMenu;
+	}
+	if (ScreenId == EYogUIScreenId::LootSelection)
+	{
+		Policy.bDisablePawnInput = true;
+	}
+
+	if (CachedRegistry)
+	{
+		FYogUIRegistryEntry Entry;
+		if (CachedRegistry->FindEntry(ScreenId, Entry) && Entry.bOverrideInputPolicy)
+		{
+			Policy.bShowMouseCursor = Entry.bShowMouseCursor;
+			Policy.bPauseGame = Entry.bPauseGame;
+			Policy.bDisablePawnInput = Entry.bDisablePawnInput;
+			Policy.bAffectsMajorUI = Entry.bAffectsMajorUI;
+		}
+	}
+
+	return Policy;
+}
+
 UUserWidget* UYogUIManagerSubsystem::EnsureWidget(EYogUIScreenId ScreenId)
 {
 	if (TObjectPtr<UUserWidget>* Existing = Instances.Find(ScreenId))
@@ -105,6 +227,10 @@ UUserWidget* UYogUIManagerSubsystem::EnsureWidget(EYogUIScreenId ScreenId)
 		{
 			return *Existing;
 		}
+		Instances.Remove(ScreenId);
+		BoundActivationScreens.Remove(ScreenId);
+		ActivatedScreens.Remove(ScreenId);
+		ActivationStack.Remove(ScreenId);
 	}
 
 	APlayerController* PC = GetOwningPlayerController();
@@ -175,6 +301,10 @@ UCommonActivatableWidget* UYogUIManagerSubsystem::PushScreen(EYogUIScreenId Scre
 	{
 		Activatable->ActivateWidget();
 	}
+	else
+	{
+		HandleScreenActivated(ScreenId);
+	}
 	return Activatable;
 }
 
@@ -242,6 +372,24 @@ void UYogUIManagerSubsystem::PopScreen(EYogUIScreenId ScreenId)
 	}
 }
 
+bool UYogUIManagerSubsystem::PopManagedScreen(UUserWidget* Widget, EYogUIScreenId ScreenId)
+{
+	if (!Widget)
+	{
+		return false;
+	}
+
+	if (ULocalPlayer* LocalPlayer = Widget->GetOwningLocalPlayer())
+	{
+		if (UYogUIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
+		{
+			UIManager->PopScreen(ScreenId);
+			return true;
+		}
+	}
+	return false;
+}
+
 UUserWidget* UYogUIManagerSubsystem::GetWidget(EYogUIScreenId ScreenId) const
 {
 	if (const TObjectPtr<UUserWidget>* Existing = Instances.Find(ScreenId))
@@ -283,12 +431,15 @@ void UYogUIManagerSubsystem::CreateAutoStartWidgets()
 void UYogUIManagerSubsystem::HandleScreenActivated(EYogUIScreenId ScreenId)
 {
 	ActivatedScreens.Add(ScreenId);
+	ActivationStack.Remove(ScreenId);
+	ActivationStack.Add(ScreenId);
 	RecomputeTopLayer();
 }
 
 void UYogUIManagerSubsystem::HandleScreenDeactivated(EYogUIScreenId ScreenId)
 {
 	ActivatedScreens.Remove(ScreenId);
+	ActivationStack.Remove(ScreenId);
 	RecomputeTopLayer();
 }
 
@@ -317,6 +468,96 @@ void UYogUIManagerSubsystem::RecomputeTopLayer()
 	}
 }
 
+EYogUIScreenId UYogUIManagerSubsystem::FindTopActiveScreen(EYogUILayer NewLayer) const
+{
+	for (int32 Index = ActivationStack.Num() - 1; Index >= 0; --Index)
+	{
+		const EYogUIScreenId ScreenId = ActivationStack[Index];
+		if (ActivatedScreens.Contains(ScreenId) && GetLayerForScreen(ScreenId) == NewLayer)
+		{
+			return ScreenId;
+		}
+	}
+	return EYogUIScreenId::MainHUD;
+}
+
+void UYogUIManagerSubsystem::ApplyPauseAndMajorUIState(const FYogUIScreenInputPolicy& Policy)
+{
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC)
+	{
+		return;
+	}
+
+	AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD());
+	if (Policy.bPauseGame != bManagedPauseActive)
+	{
+		if (Policy.bPauseGame)
+		{
+			if (HUD)
+			{
+				HUD->BeginPauseEffect();
+			}
+			else
+			{
+				PC->SetPause(true);
+			}
+		}
+		else
+		{
+			if (HUD)
+			{
+				HUD->EndPauseEffect();
+			}
+			else
+			{
+				PC->SetPause(false);
+			}
+		}
+		bManagedPauseActive = Policy.bPauseGame;
+	}
+
+	if (Policy.bAffectsMajorUI != bManagedMajorUIActive)
+	{
+		if (HUD)
+		{
+			if (Policy.bAffectsMajorUI)
+			{
+				HUD->PushMajorUI();
+			}
+			else
+			{
+				HUD->PopMajorUI();
+			}
+		}
+		bManagedMajorUIActive = Policy.bAffectsMajorUI;
+	}
+
+	if (Policy.bDisablePawnInput != bManagedPawnInputDisabled)
+	{
+		if (APawn* Pawn = PC->GetPawn())
+		{
+			if (Policy.bDisablePawnInput)
+			{
+				Pawn->DisableInput(PC);
+			}
+			else
+			{
+				Pawn->EnableInput(PC);
+			}
+		}
+		if (Policy.bDisablePawnInput)
+		{
+			PC->DisableInput(PC);
+		}
+		else
+		{
+			PC->EnableInput(PC);
+		}
+		bManagedPawnInputDisabled = Policy.bDisablePawnInput;
+	}
+}
+
 void UYogUIManagerSubsystem::ApplyInputModeForLayer(EYogUILayer NewLayer)
 {
 	APlayerController* PC = GetOwningPlayerController();
@@ -327,6 +568,7 @@ void UYogUIManagerSubsystem::ApplyInputModeForLayer(EYogUILayer NewLayer)
 
 	if (NewLayer == EYogUILayer::Game)
 	{
+		ApplyPauseAndMajorUIState(FYogUIScreenInputPolicy());
 		FInputModeGameOnly Mode;
 		PC->SetInputMode(Mode);
 		PC->bShowMouseCursor = false;
@@ -334,18 +576,14 @@ void UYogUIManagerSubsystem::ApplyInputModeForLayer(EYogUILayer NewLayer)
 	}
 
 	// Menu / Modal：找当前最高 Layer 中的一个 widget 作为焦点目标。
+	const EYogUIScreenId TopScreenId = FindTopActiveScreen(NewLayer);
+	const FYogUIScreenInputPolicy Policy = GetInputPolicyForScreen(TopScreenId);
+	ApplyPauseAndMajorUIState(Policy);
+
 	UCommonActivatableWidget* FocusTarget = nullptr;
-	for (EYogUIScreenId ScreenId : ActivatedScreens)
+	if (TopScreenId != EYogUIScreenId::MainHUD)
 	{
-		if (GetLayerForScreen(ScreenId) != NewLayer)
-		{
-			continue;
-		}
-		if (UCommonActivatableWidget* W = Cast<UCommonActivatableWidget>(GetWidget(ScreenId)))
-		{
-			FocusTarget = W;
-			break;
-		}
+		FocusTarget = Cast<UCommonActivatableWidget>(GetWidget(TopScreenId));
 	}
 
 	FInputModeGameAndUI Mode;
@@ -365,5 +603,5 @@ void UYogUIManagerSubsystem::ApplyInputModeForLayer(EYogUILayer NewLayer)
 	}
 
 	PC->SetInputMode(Mode);
-	PC->bShowMouseCursor = (NewLayer == EYogUILayer::Modal);
+	PC->bShowMouseCursor = Policy.bShowMouseCursor;
 }

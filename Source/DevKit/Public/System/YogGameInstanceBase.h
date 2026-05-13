@@ -19,6 +19,7 @@ struct FStreamableHandle;
 struct FSlateBrush;
 class SButton;
 class SWidget;
+class UYogEntryMenuWidget;
 class UTexture2D;
 class UYogSaveGame;
 
@@ -196,11 +197,20 @@ public:
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend", meta = (ClampMin = "0.0"))
 	float MinimumLoadingScreenTime = 0.35f;
 
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
+	TSubclassOf<UYogEntryMenuWidget> EntryMenuClass;
+
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
 	void ShowMainMenu();
 
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
 	void StartNewRunFromFrontend();
+
+	UFUNCTION(BlueprintCallable, Category = "Frontend")
+	void HandleEntryOptionsRequested();
+
+	UFUNCTION(BlueprintCallable, Category = "Frontend")
+	void QuitFromFrontend();
 
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
 	void ShowGameOverScreen(bool bCanRevive = false);
@@ -324,6 +334,8 @@ private:
 	TSharedPtr<class SWidget> FrontendWidget;
 	TSharedPtr<SButton> FrontendStartButton;
 	TArray<TSharedPtr<SButton>> FrontendMenuButtons;
+	UPROPERTY()
+	TObjectPtr<UYogEntryMenuWidget> EntryMenuWidget;
 	TSharedPtr<FSlateBrush> FrontendMainMenuBrush;
 	TSharedPtr<FStreamableHandle> FrontendMapLoadHandle;
 	FTimerHandle FrontendLoadingTimerHandle;
@@ -347,6 +359,7 @@ private:
 	void RemoveFrontendWidget();
 	void ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidget> WidgetToFocus = nullptr);
 	void RefocusFrontendWidget();
+	void RefocusEntryMenuWidget();
 	bool IsFrontendStartupWorld(const UWorld* World) const;
 	bool HandleFrontendMenuKey(const FKey& Key);
 	void MoveFrontendMenuFocus(int32 Direction);

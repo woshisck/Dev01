@@ -14,6 +14,7 @@
 #include "UI/YogHUD.h"
 #include "UI/YogCommonUITextBlock.h"
 #include "UI/YogInputKeyUtils.h"
+#include "UI/YogUIManagerSubsystem.h"
 
 namespace
 {
@@ -151,20 +152,6 @@ void USacrificeSelectionWidget::NativeOnActivated()
 	Super::NativeOnActivated();
 	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	SetIsFocusable(true);
-
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-		{
-			HUD->BeginPauseEffect();
-		}
-
-		PC->SetShowMouseCursor(true);
-		FInputModeGameAndUI InputMode;
-		InputMode.SetWidgetToFocus(GetCachedWidget());
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		PC->SetInputMode(InputMode);
-	}
 	// FocusButton handles per-button focus; SetUserFocus(player) was targeting the wrong root.
 	FocusButton(FocusedButtonIndex);
 }
@@ -172,14 +159,6 @@ void USacrificeSelectionWidget::NativeOnActivated()
 void USacrificeSelectionWidget::NativeOnDeactivated()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		// Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-		{
-			HUD->EndPauseEffect();
-		}
-	}
 	Super::NativeOnDeactivated();
 }
 
@@ -358,7 +337,10 @@ void USacrificeSelectionWidget::ConfirmSacrifice()
 	{
 		Altar->ConsumeSacrificeReward();
 	}
-	DeactivateWidget();
+	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::SacrificeSelection))
+	{
+		DeactivateWidget();
+	}
 }
 
 void USacrificeSelectionWidget::CancelSacrifice()
@@ -386,7 +368,10 @@ void USacrificeSelectionWidget::CancelSacrifice()
 	else
 	{
 		OnSacrificeFinished(false);
-		DeactivateWidget();
+		if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::SacrificeSelection))
+		{
+			DeactivateWidget();
+		}
 	}
 }
 

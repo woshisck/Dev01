@@ -4,9 +4,21 @@
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Engine/LocalPlayer.h"
 #include "UI/InteractPromptWidget.h"
 #include "UI/ShopSelectionWidget.h"
+#include "UI/YogUIManagerSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+UYogUIManagerSubsystem* GetUIManagerForPlayer(const APlayerCharacterBase* Player)
+{
+	const APlayerController* PC = Player ? Player->GetController<APlayerController>() : nullptr;
+	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
+	return LocalPlayer ? LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
+}
+}
 
 AShopActor::AShopActor()
 {
@@ -52,7 +64,7 @@ void AShopActor::TryInteract(APlayerCharacterBase* Player)
 		return;
 	}
 
-	if (!ShopWidget || !ShopWidget->IsInViewport())
+	if (APlayerController* PC = Player->GetController<APlayerController>())
 	{
 		TSubclassOf<UShopSelectionWidget> WidgetClass = ShopWidgetClass;
 		if (!WidgetClass)
@@ -60,12 +72,12 @@ void AShopActor::TryInteract(APlayerCharacterBase* Player)
 			WidgetClass = UShopSelectionWidget::StaticClass();
 		}
 
-		if (APlayerController* PC = Player->GetController<APlayerController>())
+		if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
 		{
-			ShopWidget = CreateWidget<UShopSelectionWidget>(PC, WidgetClass);
-			if (ShopWidget)
+			if (UYogUIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
 			{
-				ShopWidget->AddToViewport(15);
+				UIManager->SetWidgetClassOverride(EYogUIScreenId::ShopSelection, WidgetClass);
+				ShopWidget = Cast<UShopSelectionWidget>(UIManager->EnsureWidget(EYogUIScreenId::ShopSelection));
 			}
 		}
 	}
@@ -76,7 +88,17 @@ void AShopActor::TryInteract(APlayerCharacterBase* Player)
 	}
 
 	ShopWidget->Setup(ShopData, Player, this);
-	ShopWidget->ActivateWidget();
+	if (APlayerController* PC = Player->GetController<APlayerController>())
+	{
+		if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+		{
+			if (UYogUIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
+			{
+				UIManager->PushScreen(EYogUIScreenId::ShopSelection);
+				return;
+			}
+		}
+	}
 }
 
 void AShopActor::SetShopData(UShopDataAsset* InData)
@@ -111,7 +133,10 @@ void AShopActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 	OnPlayerNearby(Player, false);
 	if (ShopWidget && ShopWidget->IsActivated())
 	{
-		ShopWidget->DeactivateWidget();
+		if (UYogUIManagerSubsystem* UIManager = GetUIManagerForPlayer(Player))
+		{
+			UIManager->PopScreen(EYogUIScreenId::ShopSelection);
+		}
 	}
 }
 

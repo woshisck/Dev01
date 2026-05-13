@@ -8,6 +8,7 @@
 #include "UI/YogHUD.h"
 #include "InputCoreTypes.h"
 #include "UI/YogInputKeyUtils.h"
+#include "UI/YogUIManagerSubsystem.h"
 
 void USacrificeGraceOptionWidget::Setup(USacrificeGraceDA* InDA, APlayerCharacterBase* InPlayer, ASacrificeGracePickup* InPickup)
 {
@@ -36,18 +37,6 @@ void USacrificeGraceOptionWidget::NativeOnActivated()
 	Super::NativeOnActivated();
 	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	SetIsFocusable(true);
-
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			HUD->BeginPauseEffect();
-
-		PC->SetShowMouseCursor(true);
-		FInputModeGameAndUI InputMode;
-		InputMode.SetWidgetToFocus(GetCachedWidget());
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		PC->SetInputMode(InputMode);
-	}
 	// FocusButton handles per-button focus; SetUserFocus(player) was targeting the wrong root.
 	FocusButton(FocusedButtonIndex);
 }
@@ -55,12 +44,6 @@ void USacrificeGraceOptionWidget::NativeOnActivated()
 void USacrificeGraceOptionWidget::NativeOnDeactivated()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		// Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			HUD->EndPauseEffect();
-	}
 	Super::NativeOnDeactivated();
 }
 
@@ -127,7 +110,10 @@ void USacrificeGraceOptionWidget::OnYesClicked()
 	if (ASacrificeGracePickup* Pickup = SourcePickup.Get())
 		Pickup->ConsumeAndDestroy();
 
-	DeactivateWidget();
+	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::SacrificeGraceOption))
+	{
+		DeactivateWidget();
+	}
 }
 
 void USacrificeGraceOptionWidget::OnNoClicked()
@@ -135,7 +121,10 @@ void USacrificeGraceOptionWidget::OnNoClicked()
 	if (ASacrificeGracePickup* Pickup = SourcePickup.Get())
 		Pickup->ResetForSkip(OwningPlayer.Get());
 
-	DeactivateWidget();
+	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::SacrificeGraceOption))
+	{
+		DeactivateWidget();
+	}
 }
 
 void USacrificeGraceOptionWidget::CancelChoice()

@@ -69,5 +69,4 @@ private:
 	TArray<TObjectPtr<UButton>> MenuButtons;
 	int32 FocusedButtonIndex = 0;
 	float LastAnalogNavigationTime = 0.f;
-	bool bPauseEffectActive = false;
 };

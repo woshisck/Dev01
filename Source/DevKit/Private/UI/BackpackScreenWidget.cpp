@@ -915,14 +915,10 @@ void UBackpackScreenWidget::NativeOnActivated()
     if (APlayerController* PC = GetOwningPlayer())
         if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
         {
-            HUD->BeginPauseEffect();
-            HUD->PushMajorUI();
         }
 
     if (APlayerController* PC = GetOwningPlayer())
     {
-        PC->SetPause(true);
-        PC->SetShowMouseCursor(true);
         // 记录当前光标位置，防止激活后合成鼠标事件被误判为真实移动而清除手柄高亮
         float MouseX = 0.f, MouseY = 0.f;
         PC->GetMousePosition(MouseX, MouseY);
@@ -1054,7 +1050,6 @@ void UBackpackScreenWidget::NativeOnDeactivated()
 
     if (APlayerController* PC = GetOwningPlayer())
     {
-        PC->SetPause(false);
         // Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
         // UBackpackScreenWidget is a UCommonActivatableWidget opened via PushScreen, so the
         // Subsystem hears OnDeactivated and recomputes the top layer → restores GameOnly itself.
@@ -1065,8 +1060,6 @@ void UBackpackScreenWidget::NativeOnDeactivated()
     if (APlayerController* PC = GetOwningPlayer())
         if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
         {
-            HUD->EndPauseEffect();
-            HUD->PopMajorUI();
         }
 
     Super::NativeOnDeactivated();

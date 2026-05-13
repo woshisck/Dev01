@@ -21,6 +21,8 @@
 #include "Misc/Parse.h"
 #include "Styling/SlateBrush.h"
 #include "TimerManager.h"
+#include "UI/YogEntryMenuWidget.h"
+#include "UI/YogUIManagerSubsystem.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
@@ -370,163 +372,51 @@ void UYogGameInstanceBase::ShowMainMenu()
 	bFrontendGameOverMenu = false;
 	bFrontendGameOverCanRevive = false;
 	FrontendFocusedMenuIndex = 0;
-	FrontendMenuButtons.Reset();
 
-	const FSlateBrush* BackgroundBrush = GetFrontendMainMenuBackgroundBrush();
-	const FSlateFontInfo MenuFont = FCoreStyle::GetDefaultFontStyle("Regular", 26);
-	auto BuildButtonColor = [this](int32 Index) -> FSlateColor
+	GetFrontendMainMenuBackgroundBrush();
+
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
+	UYogUIManagerSubsystem* UIManager = LocalPlayer ? LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
+	if (!UIManager)
 	{
-		return FSlateColor(FrontendFocusedMenuIndex == Index
-			? FLinearColor(0.32f, 0.47f, 0.58f, 0.74f)
-			: FLinearColor(0.04f, 0.08f, 0.12f, 0.36f));
-	};
-	auto BuildMenuText = [&](const FText& Label, int32 Index)
-	{
-		return SNew(STextBlock)
-			.Text(Label)
-			.Font(MenuFont)
-			.ColorAndOpacity_Lambda([this, Index]()
-			{
-				return FSlateColor(FrontendFocusedMenuIndex == Index
-					? FLinearColor(0.94f, 0.94f, 0.88f, 1.f)
-					: FLinearColor(0.80f, 0.82f, 0.84f, 1.f));
-			});
-	};
-
-	TSharedPtr<SButton> StartButton;
-	TSharedPtr<SButton> ContinueButton;
-	TSharedPtr<SButton> OptionsButton;
-	TSharedPtr<SButton> QuitButton;
-
-	TSharedRef<SWidget> MenuContent =
-		SNew(SOverlay)
-		+ SOverlay::Slot()
-		[
-			SNew(SBorder)
-			.BorderBackgroundColor(FLinearColor(0.02f, 0.018f, 0.015f, 1.f))
-			.Padding(0.f)
-		]
-		+ SOverlay::Slot()
-		[
-			SNew(SScaleBox)
-			.Stretch(EStretch::ScaleToFill)
-			[
-				SNew(SImage)
-				.Image(BackgroundBrush)
-				.ColorAndOpacity(FLinearColor::White)
-			]
-		]
-		+ SOverlay::Slot()
-		[
-			SNew(SBorder)
-			.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.16f))
-			.Padding(0.f)
-		]
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Bottom)
-		.Padding(FMargin(96.f, 0.f, 0.f, 132.f))
-		[
-			SNew(SBorder)
-			.BorderBackgroundColor(FLinearColor(0.005f, 0.007f, 0.009f, 0.58f))
-			.Padding(FMargin(24.f, 18.f))
-			[
-				SNew(SBox)
-				.WidthOverride(260.f)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.f, 0.f, 0.f, 8.f)
-					[
-						SAssignNew(StartButton, SButton)
-						.HAlign(HAlign_Left)
-						.IsFocusable(false)
-						.ContentPadding(FMargin(20.f, 8.f))
-						.ButtonColorAndOpacity_Lambda([BuildButtonColor]() { return BuildButtonColor(0); })
-						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleStartClicked)
-						[
-							BuildMenuText(NSLOCTEXT("DevKitFrontend", "StartGame", "Start"), 0)
-						]
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.f, 0.f, 0.f, 8.f)
-					[
-						SAssignNew(ContinueButton, SButton)
-						.HAlign(HAlign_Left)
-						.IsFocusable(false)
-						.ContentPadding(FMargin(20.f, 8.f))
-						.ButtonColorAndOpacity_Lambda([BuildButtonColor]() { return BuildButtonColor(1); })
-						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleContinueClicked)
-						[
-							BuildMenuText(NSLOCTEXT("DevKitFrontend", "ContinueGame", "Continue"), 1)
-						]
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.f, 0.f, 0.f, 8.f)
-					[
-						SAssignNew(OptionsButton, SButton)
-						.HAlign(HAlign_Left)
-						.IsFocusable(false)
-						.ContentPadding(FMargin(20.f, 8.f))
-						.ButtonColorAndOpacity_Lambda([BuildButtonColor]() { return BuildButtonColor(2); })
-						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleOptionsClicked)
-						[
-							BuildMenuText(NSLOCTEXT("DevKitFrontend", "Options", "Options"), 2)
-						]
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SAssignNew(QuitButton, SButton)
-						.HAlign(HAlign_Left)
-						.IsFocusable(false)
-						.ContentPadding(FMargin(20.f, 8.f))
-						.ButtonColorAndOpacity_Lambda([BuildButtonColor]() { return BuildButtonColor(3); })
-						.OnClicked_UObject(this, &UYogGameInstanceBase::HandleQuitClicked)
-						[
-							BuildMenuText(NSLOCTEXT("DevKitFrontend", "QuitGame", "Quit"), 3)
-						]
-					]
-				]
-			]
-		]
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Bottom)
-		.Padding(FMargin(34.f, 0.f, 0.f, 28.f))
-		[
-			SNew(SBorder)
-			.BorderBackgroundColor(FLinearColor(0.f, 0.01f, 0.015f, 0.52f))
-			.Padding(FMargin(14.f, 7.f))
-			[
-				SNew(STextBlock)
-				.Text(NSLOCTEXT("DevKitFrontend", "MainMenuInputPrompt", "A Select    D-Pad / Left Stick Navigate"))
-				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 15))
-				.ColorAndOpacity(FLinearColor(0.68f, 0.78f, 0.86f, 0.92f))
-			]
-		];
-
-	TSharedRef<SWidget> Widget =
-		SNew(SDevKitFrontendMenuRoot)
-		.Owner(this)
-		[
-			MenuContent
-		];
-
-	FrontendStartButton = StartButton;
-	FrontendMenuButtons = { StartButton, ContinueButton, OptionsButton, QuitButton };
-	FrontendWidget = Widget;
-	if (GEngine && GEngine->GameViewport)
-	{
-		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
+		UE_LOG(LogTemp, Error, TEXT("[Frontend] Cannot show entry menu: UIManager is missing."));
+		return;
 	}
-	ApplyFrontendInputMode(true, FrontendWidget);
+
+	TSubclassOf<UYogEntryMenuWidget> WidgetClass = EntryMenuClass;
+	if (!WidgetClass)
+	{
+		WidgetClass = UYogEntryMenuWidget::StaticClass();
+	}
+	UIManager->SetWidgetClassOverride(EYogUIScreenId::EntryMenu, WidgetClass);
+	FYogUIScreenInputPolicy Policy;
+	Policy.bShowMouseCursor = true;
+	Policy.bPauseGame = false;
+	Policy.bDisablePawnInput = false;
+	Policy.bAffectsMajorUI = false;
+	UIManager->SetInputPolicyOverride(EYogUIScreenId::EntryMenu, Policy);
+	EntryMenuWidget = Cast<UYogEntryMenuWidget>(UIManager->EnsureWidget(EYogUIScreenId::EntryMenu));
+	if (!EntryMenuWidget)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Frontend] Cannot show entry menu: EntryMenu class is invalid."));
+		return;
+	}
+
+	EntryMenuWidget->SetBackgroundTexture(FrontendMainMenuTexture);
+	EntryMenuWidget->OnStartRequested.RemoveAll(this);
+	EntryMenuWidget->OnContinueRequested.RemoveAll(this);
+	EntryMenuWidget->OnOptionsRequested.RemoveAll(this);
+	EntryMenuWidget->OnQuitRequested.RemoveAll(this);
+	EntryMenuWidget->OnStartRequested.AddDynamic(this, &UYogGameInstanceBase::StartNewRunFromFrontend);
+	EntryMenuWidget->OnContinueRequested.AddDynamic(this, &UYogGameInstanceBase::StartNewRunFromFrontend);
+	EntryMenuWidget->OnOptionsRequested.AddDynamic(this, &UYogGameInstanceBase::HandleEntryOptionsRequested);
+	EntryMenuWidget->OnQuitRequested.AddDynamic(this, &UYogGameInstanceBase::QuitFromFrontend);
+	UIManager->PushScreen(EYogUIScreenId::EntryMenu);
+
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimerForNextTick(this, &UYogGameInstanceBase::RefocusFrontendWidget);
+		World->GetTimerManager().SetTimerForNextTick(this, &UYogGameInstanceBase::RefocusEntryMenuWidget);
 	}
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("AutoStart")))
@@ -581,8 +471,19 @@ void UYogGameInstanceBase::StartNewRunFromFrontend()
 		return;
 	}
 
+	RemoveFrontendWidget();
 	ClearRunState();
 	BeginLoadMainGameMap();
+}
+
+void UYogGameInstanceBase::HandleEntryOptionsRequested()
+{
+	HandleOptionsClicked();
+}
+
+void UYogGameInstanceBase::QuitFromFrontend()
+{
+	HandleQuitClicked();
 }
 
 void UYogGameInstanceBase::BeginLoadMainGameMap()
@@ -864,6 +765,22 @@ void UYogGameInstanceBase::ReturnToMainMenu()
 
 void UYogGameInstanceBase::RemoveFrontendWidget()
 {
+	if (EntryMenuWidget)
+	{
+		if (ULocalPlayer* LocalPlayer = EntryMenuWidget->GetOwningLocalPlayer())
+		{
+			if (UYogUIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
+			{
+				UIManager->PopScreen(EYogUIScreenId::EntryMenu);
+			}
+		}
+		EntryMenuWidget->OnStartRequested.RemoveAll(this);
+		EntryMenuWidget->OnContinueRequested.RemoveAll(this);
+		EntryMenuWidget->OnOptionsRequested.RemoveAll(this);
+		EntryMenuWidget->OnQuitRequested.RemoveAll(this);
+		EntryMenuWidget = nullptr;
+	}
+
 	if (FrontendWidget.IsValid() && GEngine && GEngine->GameViewport)
 	{
 		GEngine->GameViewport->RemoveViewportWidgetContent(FrontendWidget.ToSharedRef());
@@ -910,6 +827,14 @@ void UYogGameInstanceBase::ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidg
 void UYogGameInstanceBase::RefocusFrontendWidget()
 {
 	ApplyFrontendInputMode(FrontendWidget.IsValid(), FrontendWidget);
+}
+
+void UYogGameInstanceBase::RefocusEntryMenuWidget()
+{
+	if (EntryMenuWidget)
+	{
+		EntryMenuWidget->SetKeyboardFocus();
+	}
 }
 
 bool UYogGameInstanceBase::IsFrontendStartupWorld(const UWorld* World) const

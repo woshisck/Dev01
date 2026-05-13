@@ -25,7 +25,12 @@ enum class EYogUIScreenId : uint8
 	WeaponFloat,
 	WeaponThumbnailFly,
 	WeaponTrail,
-	DamageEdgeFlash
+	DamageEdgeFlash,
+	ShopSelection,
+	AltarMenu,
+	SacrificeSelection,
+	RunePurification,
+	EntryMenu
 };
 
 /**
@@ -64,6 +69,22 @@ struct DEVKIT_API FYogUIRegistryEntry
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	bool bCreateOnHUDStart = false;
+
+	/** Optional input policy override. If false, UYogUIManagerSubsystem derives sensible defaults from Layer. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	bool bOverrideInputPolicy = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	bool bShowMouseCursor = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	bool bPauseGame = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	bool bDisablePawnInput = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	bool bAffectsMajorUI = false;
 
 	/** 这条 Entry 的用途说明，给后来配 DA 的策划/程序看，不参与运行时逻辑。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (MultiLine = "true"))

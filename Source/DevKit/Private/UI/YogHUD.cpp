@@ -65,6 +65,19 @@ namespace
 		ULocalPlayer* LP = PC->GetLocalPlayer();
 		return LP ? LP->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
 	}
+
+	template<typename WidgetT>
+	void RegisterHUDWidgetClassOverride(const AHUD* HUD, EYogUIScreenId ScreenId, TSubclassOf<WidgetT> WidgetClass)
+	{
+		if (!WidgetClass)
+		{
+			return;
+		}
+		if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(HUD))
+		{
+			UIManager->SetWidgetClassOverride(ScreenId, WidgetClass);
+		}
+	}
 }
 
 template<typename WidgetT>
@@ -110,6 +123,13 @@ void AYogHUD::BeginPlay()
 	PrimaryActorTick.bCanEverTick       = true;
 	PrimaryActorTick.bTickEvenWhenPaused = true;
 
+	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::TutorialPopup, TutorialPopupClass);
+	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::MainHUD, MainHUDClass);
+	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::PauseMenu, PauseMenuClass);
+	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::Backpack, BackpackScreenClass);
+	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::LootSelection, LootSelectionWidgetClass);
+	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::SacrificeGraceOption, SacrificeGraceOptionWidgetClass);
+
 	// Registry-driven boot: any entry with bCreateOnHUDStart=true is created + AddToViewport here.
 	// Per-screen members below adopt the instance via Ensure*Widget() (idempotent).
 	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
@@ -122,8 +142,13 @@ void AYogHUD::BeginPlay()
 	if (!TutorialPopupWidget)
 	{
 		if (TSubclassOf<UTutorialPopupWidget> WidgetClass = ResolveManagedWidgetClass(EYogUIScreenId::TutorialPopup, TutorialPopupClass))
-			TutorialPopupWidget = CreateWidget<UTutorialPopupWidget>(
-				GetOwningPlayerController(), WidgetClass);
+		{
+			if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+			{
+				UIManager->SetWidgetClassOverride(EYogUIScreenId::TutorialPopup, WidgetClass);
+				TutorialPopupWidget = Cast<UTutorialPopupWidget>(UIManager->EnsureWidget(EYogUIScreenId::TutorialPopup));
+			}
+		}
 	}
 
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
@@ -253,6 +278,10 @@ void AYogHUD::OpenBackpack()
 {
 	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
 	{
+		if (BackpackScreenClass)
+		{
+			UIManager->SetWidgetClassOverride(EYogUIScreenId::Backpack, BackpackScreenClass);
+		}
 		if (UCommonActivatableWidget* W = UIManager->PushScreen(EYogUIScreenId::Backpack))
 		{
 			BackpackWidget = Cast<UBackpackScreenWidget>(W);
@@ -260,12 +289,7 @@ void AYogHUD::OpenBackpack()
 		}
 	}
 
-	// Fallback for registries that don't include Backpack
-	EnsureBackpackWidget();
-	if (BackpackWidget && !BackpackWidget->IsActivated())
-	{
-		BackpackWidget->ActivateWidget();
-	}
+	UE_LOG(LogTemp, Warning, TEXT("[YogHUD] OpenBackpack failed: UIManager or Backpack class is missing."));
 }
 
 bool AYogHUD::CloseTopMostOverlay()
@@ -278,7 +302,14 @@ bool AYogHUD::CloseTopMostOverlay()
 
 	if (TutorialPopupWidget && TutorialPopupWidget->IsActivated())
 	{
-		TutorialPopupWidget->DeactivateWidget();
+		if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+		{
+			UIManager->PopScreen(EYogUIScreenId::TutorialPopup);
+		}
+		else
+		{
+			TutorialPopupWidget->DeactivateWidget();
+		}
 		return true;
 	}
 
@@ -290,7 +321,14 @@ bool AYogHUD::CloseTopMostOverlay()
 
 	if (BackpackWidget && BackpackWidget->IsActivated())
 	{
-		BackpackWidget->DeactivateWidget();
+		if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+		{
+			UIManager->PopScreen(EYogUIScreenId::Backpack);
+		}
+		else
+		{
+			BackpackWidget->DeactivateWidget();
+		}
 		return true;
 	}
 
@@ -310,13 +348,7 @@ void AYogHUD::OpenPauseMenu()
 		return;
 	}
 
-	APlayerController* PC = GetOwningPlayerController();
-	if (!PC)
-	{
-		return;
-	}
-
-	if (!PauseMenuWidget || !PauseMenuWidget->IsInViewport())
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
 	{
 		TSubclassOf<UPauseMenuWidget> WidgetClass =
 			ResolveManagedWidgetClass(EYogUIScreenId::PauseMenu, PauseMenuClass);
@@ -326,28 +358,28 @@ void AYogHUD::OpenPauseMenu()
 				nullptr,
 				TEXT("/Game/UI/Playtest_UI/Pause/WBP_PauseMenu.WBP_PauseMenu_C"));
 		}
+		if (WidgetClass)
+		{
+			UIManager->SetWidgetClassOverride(EYogUIScreenId::PauseMenu, WidgetClass);
+		}
 
-		if (!WidgetClass)
+		PauseMenuWidget = UIManager->PushTypedScreen<UPauseMenuWidget>(EYogUIScreenId::PauseMenu);
+		if (!PauseMenuWidget)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[YogHUD] Pause menu class is missing."));
-			return;
 		}
-
-		PauseMenuWidget = CreateWidget<UPauseMenuWidget>(PC, WidgetClass);
-		if (PauseMenuWidget)
-		{
-			PauseMenuWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::PauseMenu, 100));
-		}
-	}
-
-	if (PauseMenuWidget)
-	{
-		PauseMenuWidget->ActivateWidget();
 	}
 }
 
 void AYogHUD::ClosePauseMenu()
 {
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		UIManager->PopScreen(EYogUIScreenId::PauseMenu);
+		PauseMenuWidget = UIManager->GetTypedWidget<UPauseMenuWidget>(EYogUIScreenId::PauseMenu);
+		return;
+	}
+
 	if (PauseMenuWidget && PauseMenuWidget->IsActivated())
 	{
 		PauseMenuWidget->DeactivateWidget();
@@ -356,6 +388,10 @@ void AYogHUD::ClosePauseMenu()
 
 bool AYogHUD::IsPauseMenuOpen() const
 {
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		return UIManager->IsScreenActive(EYogUIScreenId::PauseMenu);
+	}
 	return PauseMenuWidget && PauseMenuWidget->IsActivated();
 }
 
@@ -368,25 +404,15 @@ void AYogHUD::EnsureBackpackWidget()
 
 	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
 	{
+		if (BackpackScreenClass)
+		{
+			UIManager->SetWidgetClassOverride(EYogUIScreenId::Backpack, BackpackScreenClass);
+		}
 		BackpackWidget = Cast<UBackpackScreenWidget>(UIManager->EnsureWidget(EYogUIScreenId::Backpack));
 		if (BackpackWidget)
 		{
 			return;
 		}
-	}
-
-	// Fallback: inspector-assigned class (registry empty / unavailable)
-	TSubclassOf<UBackpackScreenWidget> WidgetClass =
-		ResolveManagedWidgetClass(EYogUIScreenId::Backpack, BackpackScreenClass);
-	if (!WidgetClass)
-	{
-		return;
-	}
-
-	BackpackWidget = CreateWidget<UBackpackScreenWidget>(GetOwningPlayerController(), WidgetClass);
-	if (BackpackWidget)
-	{
-		BackpackWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::Backpack, 5));
 	}
 }
 
@@ -399,24 +425,15 @@ void AYogHUD::EnsureLootSelectionWidget()
 
 	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
 	{
+		if (LootSelectionWidgetClass)
+		{
+			UIManager->SetWidgetClassOverride(EYogUIScreenId::LootSelection, LootSelectionWidgetClass);
+		}
 		LootSelectionWidget = Cast<ULootSelectionWidget>(UIManager->EnsureWidget(EYogUIScreenId::LootSelection));
 		if (LootSelectionWidget)
 		{
 			return;
 		}
-	}
-
-	TSubclassOf<ULootSelectionWidget> WidgetClass =
-		ResolveManagedWidgetClass(EYogUIScreenId::LootSelection, LootSelectionWidgetClass);
-	if (!WidgetClass)
-	{
-		return;
-	}
-
-	LootSelectionWidget = CreateWidget<ULootSelectionWidget>(GetOwningPlayerController(), WidgetClass);
-	if (LootSelectionWidget)
-	{
-		LootSelectionWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::LootSelection, 15));
 	}
 }
 
@@ -429,24 +446,15 @@ void AYogHUD::EnsureSacrificeGraceOptionWidget()
 
 	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
 	{
+		if (SacrificeGraceOptionWidgetClass)
+		{
+			UIManager->SetWidgetClassOverride(EYogUIScreenId::SacrificeGraceOption, SacrificeGraceOptionWidgetClass);
+		}
 		SacrificeGraceOptionWidget = Cast<USacrificeGraceOptionWidget>(UIManager->EnsureWidget(EYogUIScreenId::SacrificeGraceOption));
 		if (SacrificeGraceOptionWidget)
 		{
 			return;
 		}
-	}
-
-	TSubclassOf<USacrificeGraceOptionWidget> WidgetClass =
-		ResolveManagedWidgetClass(EYogUIScreenId::SacrificeGraceOption, SacrificeGraceOptionWidgetClass);
-	if (!WidgetClass)
-	{
-		return;
-	}
-
-	SacrificeGraceOptionWidget = CreateWidget<USacrificeGraceOptionWidget>(GetOwningPlayerController(), WidgetClass);
-	if (SacrificeGraceOptionWidget)
-	{
-		SacrificeGraceOptionWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::SacrificeGraceOption, 16));
 	}
 }
 
@@ -478,7 +486,10 @@ void AYogHUD::QueueLootSelection(const TArray<FLootOption>& Options, ARewardPick
 	if (LootSelectionWidget)
 	{
 		bLootSelectionActive = true;
-		PushMajorUI();
+		if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+		{
+			UIManager->PushScreen(EYogUIScreenId::LootSelection);
+		}
 		LootSelectionWidget->ShowLootUI(Options, SourcePickup);
 	}
 }
@@ -486,7 +497,6 @@ void AYogHUD::QueueLootSelection(const TArray<FLootOption>& Options, ARewardPick
 void AYogHUD::OnLootSelectionFinished()
 {
 	bLootSelectionActive = false;
-	PopMajorUI();
 
 	if (LootQueue.Num() == 0) return;
 
@@ -517,15 +527,22 @@ void AYogHUD::ShowSacrificeGraceOption(USacrificeGraceDA* DA, APlayerCharacterBa
 		SacrificeGraceOptionWidget->OnDeactivated().Remove(SacrificeGraceMajorUIHandle);
 		SacrificeGraceMajorUIHandle.Reset();
 	}
-	SacrificeGraceMajorUIHandle = SacrificeGraceOptionWidget->OnDeactivated()
-		.AddLambda([this](){ PopMajorUI(); });
 
-	PushMajorUI();
-	SacrificeGraceOptionWidget->ActivateWidget();
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		UIManager->PushScreen(EYogUIScreenId::SacrificeGraceOption);
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[YogHUD] ShowSacrificeGraceOption failed: UIManager is missing."));
 }
 
 void AYogHUD::OpenBackpackForPreview(FSimpleDelegate OnClosed)
 {
+	if (!BackpackWidget || !BackpackWidget->IsInViewport())
+	{
+		EnsureBackpackWidget();
+	}
 	if (!BackpackWidget) return;
 
 	// 切到只读模式
@@ -536,7 +553,10 @@ void AYogHUD::OpenBackpackForPreview(FSimpleDelegate OnClosed)
 	BackpackPreviewDeactivatedHandle = BackpackWidget->OnDeactivated().AddUObject(
 		this, &AYogHUD::OnBackpackPreviewClosed);
 
-	BackpackWidget->ActivateWidget();
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		UIManager->PushScreen(EYogUIScreenId::Backpack);
+	}
 }
 
 void AYogHUD::OnBackpackPreviewClosed()

@@ -9,6 +9,24 @@ class UUserWidget;
 class UCommonActivatableWidget;
 class UYogUIRegistry;
 
+USTRUCT(BlueprintType)
+struct DEVKIT_API FYogUIScreenInputPolicy
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	bool bShowMouseCursor = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	bool bPauseGame = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	bool bDisablePawnInput = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	bool bAffectsMajorUI = false;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTopLayerChanged, EYogUILayer, NewTopLayer);
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnAsyncScreenReady, EYogUIScreenId, ScreenId, UCommonActivatableWidget*, Widget);
 
@@ -29,6 +47,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	int32 GetZOrder(EYogUIScreenId ScreenId, int32 FallbackZOrder = 0) const;
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void SetWidgetClassOverride(EYogUIScreenId ScreenId, TSubclassOf<UUserWidget> WidgetClass);
+
+	UFUNCTION(BlueprintCallable, Category = "UI|Input")
+	void SetInputPolicyOverride(EYogUIScreenId ScreenId, const FYogUIScreenInputPolicy& Policy);
+
+	UFUNCTION(BlueprintCallable, Category = "UI|Input")
+	void ClearInputPolicyOverride(EYogUIScreenId ScreenId);
 
 	template<typename WidgetT>
 	TSubclassOf<WidgetT> GetTypedWidgetClass(EYogUIScreenId ScreenId) const
@@ -59,11 +86,19 @@ public:
 
 	UCommonActivatableWidget* PushScreen(EYogUIScreenId ScreenId);
 
+	template<typename WidgetT>
+	WidgetT* PushTypedScreen(EYogUIScreenId ScreenId)
+	{
+		return Cast<WidgetT>(PushScreen(ScreenId));
+	}
+
 	UFUNCTION(BlueprintCallable, Category = "UI", meta = (AutoCreateRefTerm = "OnReady"))
 	void PushScreenAsync(EYogUIScreenId ScreenId, const FOnAsyncScreenReady& OnReady);
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void PopScreen(EYogUIScreenId ScreenId);
+
+	static bool PopManagedScreen(UUserWidget* Widget, EYogUIScreenId ScreenId);
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	UUserWidget* GetWidget(EYogUIScreenId ScreenId) const;
@@ -113,12 +148,19 @@ private:
 	void RecomputeTopLayer();
 	void ApplyInputModeForLayer(EYogUILayer NewLayer);
 	EYogUILayer GetLayerForScreen(EYogUIScreenId ScreenId) const;
+	FYogUIScreenInputPolicy GetInputPolicyForScreen(EYogUIScreenId ScreenId) const;
+	EYogUIScreenId FindTopActiveScreen(EYogUILayer NewLayer) const;
 	void BindActivationDelegates(EYogUIScreenId ScreenId, UCommonActivatableWidget* Activatable);
+	void ApplyPauseAndMajorUIState(const FYogUIScreenInputPolicy& Policy);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UYogUIRegistry> CachedRegistry;
 
 	mutable TMap<EYogUIScreenId, TSubclassOf<UUserWidget>> LoadedWidgetClasses;
+
+	mutable TMap<EYogUIScreenId, TSubclassOf<UUserWidget>> WidgetClassOverrides;
+
+	TMap<EYogUIScreenId, FYogUIScreenInputPolicy> InputPolicyOverrides;
 
 	UPROPERTY(Transient)
 	TMap<EYogUIScreenId, TObjectPtr<UUserWidget>> Instances;
@@ -129,7 +171,12 @@ private:
 	/** 当前处于 Activated 状态的 ScreenId 集合（仅追踪 UCommonActivatableWidget）。 */
 	TSet<EYogUIScreenId> ActivatedScreens;
 
+	TArray<EYogUIScreenId> ActivationStack;
+
 	EYogUILayer TopActivatedLayer = EYogUILayer::Game;
+	bool bManagedPauseActive = false;
+	bool bManagedMajorUIActive = false;
+	bool bManagedPawnInputDisabled = false;
 
 	/** 正在异步加载中的 ScreenId → callback，避免重复发起。 */
 	TMap<EYogUIScreenId, FOnAsyncScreenReady> PendingAsyncLoads;
