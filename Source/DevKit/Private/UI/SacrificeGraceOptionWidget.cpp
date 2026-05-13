@@ -43,11 +43,12 @@ void USacrificeGraceOptionWidget::NativeOnActivated()
 			HUD->BeginPauseEffect();
 
 		PC->SetShowMouseCursor(true);
-		FInputModeUIOnly InputMode;
+		FInputModeGameAndUI InputMode;
 		InputMode.SetWidgetToFocus(GetCachedWidget());
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		PC->SetInputMode(InputMode);
 	}
-	SetUserFocus(GetOwningPlayer());
+	// FocusButton handles per-button focus; SetUserFocus(player) was targeting the wrong root.
 	FocusButton(FocusedButtonIndex);
 }
 
@@ -56,8 +57,7 @@ void USacrificeGraceOptionWidget::NativeOnDeactivated()
 	SetVisibility(ESlateVisibility::Collapsed);
 	if (APlayerController* PC = GetOwningPlayer())
 	{
-		PC->SetShowMouseCursor(false);
-		PC->SetInputMode(FInputModeGameOnly());
+		// Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 			HUD->EndPauseEffect();
 	}

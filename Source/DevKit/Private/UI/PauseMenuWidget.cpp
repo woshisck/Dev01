@@ -65,13 +65,14 @@ void UPauseMenuWidget::NativeOnActivated()
 		}
 
 		PC->SetShowMouseCursor(true);
-		FInputModeUIOnly InputMode;
+		FInputModeGameAndUI InputMode;
 		InputMode.SetWidgetToFocus(GetCachedWidget());
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		PC->SetInputMode(InputMode);
 	}
 
+	// FocusButton handles per-button focus; SetUserFocus(player) was targeting the wrong root.
 	FocusButton(FocusedButtonIndex);
-	SetUserFocus(GetOwningPlayer());
 }
 
 void UPauseMenuWidget::NativeOnDeactivated()
@@ -80,9 +81,8 @@ void UPauseMenuWidget::NativeOnDeactivated()
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{
-		PC->SetShowMouseCursor(false);
-		PC->SetInputMode(FInputModeGameOnly());
-
+		// Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
+		// Modal layer dropping returns top to Game → Subsystem applies GameOnly + hides cursor.
 		if (bPauseEffectActive)
 		{
 			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))

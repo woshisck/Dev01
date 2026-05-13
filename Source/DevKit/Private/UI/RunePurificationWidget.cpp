@@ -23,11 +23,12 @@ void URunePurificationWidget::NativeOnActivated()
 			HUD->BeginPauseEffect();
 
 		PC->SetShowMouseCursor(true);
-		FInputModeUIOnly InputMode;
+		FInputModeGameAndUI InputMode;
 		InputMode.SetWidgetToFocus(GetCachedWidget());
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		PC->SetInputMode(InputMode);
 	}
-	SetUserFocus(GetOwningPlayer());
+	// SetUserFocus(player) was targeting the wrong root — leave focus routing to GetDesiredFocusTarget.
 }
 
 void URunePurificationWidget::NativeOnDeactivated()
@@ -35,8 +36,7 @@ void URunePurificationWidget::NativeOnDeactivated()
 	SetVisibility(ESlateVisibility::Collapsed);
 	if (APlayerController* PC = GetOwningPlayer())
 	{
-		PC->SetShowMouseCursor(false);
-		PC->SetInputMode(FInputModeGameOnly());
+		// Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
 		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 			HUD->EndPauseEffect();
 	}

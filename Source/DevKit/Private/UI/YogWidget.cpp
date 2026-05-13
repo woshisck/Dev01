@@ -5,13 +5,7 @@
 
 void UYogWidget::CloseWidget()
 {
+	// InputMode + focus are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
+	// Closing a widget must not slam GameOnly — that stomped focus on still-active overlays.
 	RemoveFromParent();
-
-    if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-    {
-        PC->bShowMouseCursor = false;
-
-        FInputModeGameOnly InputMode;
-        PC->SetInputMode(InputMode);
-    }
 }

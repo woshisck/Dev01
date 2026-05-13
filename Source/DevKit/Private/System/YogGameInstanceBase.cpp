@@ -884,7 +884,8 @@ void UYogGameInstanceBase::ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidg
 	PC->SetShowMouseCursor(bUIOnly);
 	if (bUIOnly)
 	{
-		FInputModeUIOnly Mode;
+		// GameAndUI (not UIOnly): UIOnly killed D-pad navigation by blocking game-input routing.
+		FInputModeGameAndUI Mode;
 		if (WidgetToFocus.IsValid())
 		{
 			Mode.SetWidgetToFocus(WidgetToFocus);

@@ -168,9 +168,7 @@ void UTutorialPopupWidget::NativeOnDeactivated()
 		if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
 			TM->NotifyPopupClosed();
 
-	if (APlayerController* PC = GetOwningPlayer())
-		PC->SetShowMouseCursor(false);
-
+	// Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
 	if (bPauseMe)
 	{
 		UGameplayStatics::SetGamePaused(this, false);
@@ -180,10 +178,6 @@ void UTutorialPopupWidget::NativeOnDeactivated()
 	}
 
 	Super::NativeOnDeactivated();
-
-	// CommonUI 在 Super 里弹出 Menu 模式，但不会主动设回 Game 模式，需要显式恢复
-	if (APlayerController* PC = GetOwningPlayer())
-		PC->SetInputMode(FInputModeGameOnly());
 
 	RemoveFromParent();
 }

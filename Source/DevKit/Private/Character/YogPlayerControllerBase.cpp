@@ -358,19 +358,11 @@ void AYogPlayerControllerBase::SetBlockGameInput(bool bBlock, bool bUIOnly)
 	if (bBlock)
 	{
 		SetShowMouseCursor(true);
-		if (bUIOnly)
-		{
-			// 三选一：UIOnly 模式，LMB 完全给 Slate，不会被攻击 Enhanced Input 消耗
-			FInputModeUIOnly InputMode;
-			SetInputMode(InputMode);
-		}
-		else
-		{
-			// 背包：GameAndUI 模式，Tab 键仍可触发 Enhanced Input 关闭背包
-			FInputModeGameAndUI InputMode;
-			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-			SetInputMode(InputMode);
-		}
+		// Always use GameAndUI for in-game UI. UIOnly broke D-pad navigation by killing
+		// CommonUI's focus routing. Attacks are blocked by widget-side DisableInput, not by mode.
+		FInputModeGameAndUI InputMode;
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		SetInputMode(InputMode);
 	}
 	else
 	{
