@@ -39,6 +39,7 @@ class UCurrentRoomBuffWidget;
 class UFinisherQTEWidget;
 class URoomDataAsset;
 class UTexture2D;
+enum class EYogUIScreenId : uint8;
 
 
 UCLASS()
@@ -384,6 +385,12 @@ private:
 	void EnsureCombatItemWidget();
 	bool EnsureFinisherQTEWidget();
 	bool EnsureWeaponFloatWidget();
+	void EnsureBackpackWidget();
+	void EnsureLootSelectionWidget();
+	void EnsureSacrificeGraceOptionWidget();
+	template<typename WidgetT>
+	TSubclassOf<WidgetT> ResolveManagedWidgetClass(EYogUIScreenId ScreenId, TSubclassOf<WidgetT> FallbackClass) const;
+	int32 ResolveManagedZOrder(EYogUIScreenId ScreenId, int32 FallbackZOrder) const;
 	FVector2D ProjectWorldToViewportSlate(FVector WorldLocation) const;
 	FVector2D ResolveWeaponFloatViewportPosition(FVector WorldLocation) const;
 

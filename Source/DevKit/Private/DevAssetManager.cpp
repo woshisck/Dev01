@@ -5,6 +5,7 @@
 #include "AbilitySystemGlobals.h"
 #include "Data/GameplayTagRelation.h"
 #include "Data/StateConflictDataAsset.h"
+#include "UI/YogUIRegistry.h"
 
 UDevAssetManager::UDevAssetManager()
 {
@@ -36,6 +37,11 @@ const UGameplayTagRelation& UDevAssetManager::GetGameplayTagRelation()
 UStateConflictDataAsset* UDevAssetManager::GetStateConflictData()
 {
 	return GetAsset<UStateConflictDataAsset>(StateConflictData);
+}
+
+UYogUIRegistry* UDevAssetManager::GetUIRegistry()
+{
+	return GetAsset<UYogUIRegistry>(UIRegistry);
 }
 
 void UDevAssetManager::AsyncLoadAsset(FSoftObjectPath Path, FOnAsyncLoadFinished OnPackageLoaded) {

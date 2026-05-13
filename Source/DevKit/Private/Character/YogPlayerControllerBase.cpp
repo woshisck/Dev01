@@ -139,41 +139,7 @@ void AYogPlayerControllerBase::BeginPlay()
 		Subsystem->AddMappingContext(DefaultMappingContext, 0);
 	}
 
-	// 创建战斗 HUD（最底层，z=0）
-	if (CombatHUDClass && IsLocalController())
-	{
-		CombatHUDWidget = CreateWidget<UUserWidget>(this, CombatHUDClass);
-		if (CombatHUDWidget)
-			CombatHUDWidget->AddToViewport(0);
-	}
-
-	// 创建三选一 UI（在 GameMode 广播前必须存在，NativeConstruct 里完成事件绑定）
-	if (LootSelectionWidgetClass && IsLocalController())
-	{
-		LootSelectionWidget = CreateWidget<ULootSelectionWidget>(this, LootSelectionWidgetClass);
-		if (LootSelectionWidget)
-		{
-			LootSelectionWidget->AddToViewport(10);
-			// CommonUI 控制显隐，无需手动 SetVisibility
-			LootSelectionWidget->OnActivated().AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetActivated);
-			LootSelectionWidget->OnDeactivated().AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetDeactivated);
-		}
-	}
-
-	// 创建背包 UI
-	if (BackpackWidgetClass && IsLocalController())
-	{
-		BackpackWidget = CreateWidget<UBackpackScreenWidget>(this, BackpackWidgetClass);
-		if (BackpackWidget)
-		{
-			BackpackWidget->AddToViewport(10);
-			// CommonUI 控制显隐，无需手动 SetVisibility
-			BackpackWidget->OnActivated().AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetActivated);
-			BackpackWidget->OnDeactivated().AddUObject(this, &AYogPlayerControllerBase::OnMenuWidgetDeactivated);
-		}
-	}
-
-
+	// UI widget creation is owned by AYogHUD and UYogUIManagerSubsystem.
 	
 	//AYogCharacterBase* TargetCharacter = Cast<AYogCharacterBase>(UGameplayStatics::GetPlayerCharacter(this, 0));
 	
@@ -334,18 +300,6 @@ bool AYogPlayerControllerBase::HandleMenuBackInput(const FKey& Key)
 		{
 			return true;
 		}
-	}
-
-	if (BackpackWidget && BackpackWidget->IsActivated())
-	{
-		BackpackWidget->DeactivateWidget();
-		return true;
-	}
-
-	if (bBackKey && LootSelectionWidget && LootSelectionWidget->GetVisibility() != ESlateVisibility::Collapsed)
-	{
-		LootSelectionWidget->SkipSelection();
-		return true;
 	}
 
 	if (Key == EKeys::Escape || bMenuKey)
@@ -728,30 +682,25 @@ void AYogPlayerControllerBase::Interact(const FInputActionValue& Value)
 
 void AYogPlayerControllerBase::ToggleBackpack(const FInputActionValue& Value)
 {
-	if (!BackpackWidget) return;
-
-	// CommonUI：IsActivated() 判断是否当前激活
-	if (BackpackWidget->IsActivated())
+	if (AYogHUD* HUD = Cast<AYogHUD>(GetHUD()))
 	{
-		// NativeOnDeactivated 处理：SetPause(false) + 恢复输入 + 清除手柄状态
-		BackpackWidget->DeactivateWidget();
-	}
-	else
-	{
-		// NativeOnActivated 处理：SetPause(true) + GameAndUI 输入 + 刷新网格
-		if (IsGameplayInputBlocked())
+		if (HUD->CloseTopMostOverlay())
 		{
 			return;
 		}
-		BackpackWidget->ActivateWidget();
+
+		if (!IsGameplayInputBlocked())
+		{
+			HUD->OpenBackpack();
+		}
 	}
 }
 
 void AYogPlayerControllerBase::OpenBackpack()
 {
-	if (BackpackWidget && !BackpackWidget->IsActivated())
+	if (AYogHUD* HUD = Cast<AYogHUD>(GetHUD()))
 	{
-		BackpackWidget->ActivateWidget();
+		HUD->OpenBackpack();
 	}
 }
 
