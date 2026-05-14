@@ -73,6 +73,7 @@
 
 | 我想要… | 对应功能 | 文档 |
 |---|---|---|
+| 配置/打开任意 UI 屏幕（统一管理） | UYogUIManagerSubsystem + DA_YogUIRegistry | [UIManager_Guide](Systems/UI/UIManager_Guide.md) |
 | 磨砂玻璃感 UI 框 | GlassFrameWidget | [GlassFrame_Technical](Systems/UI/GlassFrame_Technical.md) |
 | 武器拾取有华丽动画 | WeaponFloatWidget + WeaponTrailWidget | [WeaponPickupAnim_Technical](Systems/UI/WeaponPickupAnim_Technical.md) |
 | 新手引导弹窗文案（5 条） | DA_TutorialStep 配置项 | [TutorialPopup_Copy](Systems/UI/TutorialPopup_Copy.md) |

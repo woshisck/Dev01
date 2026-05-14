@@ -12,6 +12,7 @@
 #include "UI/BackpackScreenWidget.h"
 #include "UI/LootSelectionWidget.h"
 #include "UI/GameDialogWidget.h"
+#include "UI/YogUIManagerSubsystem.h"
 #include "UI/TutorialRegistryDA.h"
 #include "UI/WeaponThumbnailFlyWidget.h"
 #include "UI/WeaponFloatWidget.h"
@@ -50,7 +51,70 @@
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Engine/GameViewportClient.h"
+#include "Engine/LocalPlayer.h"
+#include "CommonActivatableWidget.h"
 #include "GameFramework/Pawn.h"
+
+namespace
+{
+	UYogUIManagerSubsystem* GetUIManagerFromHUD(const AHUD* HUD)
+	{
+		if (!HUD) return nullptr;
+		const APlayerController* PC = HUD->GetOwningPlayerController();
+		if (!PC) return nullptr;
+		ULocalPlayer* LP = PC->GetLocalPlayer();
+		return LP ? LP->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
+	}
+
+	template<typename WidgetT>
+	void RegisterHUDWidgetClassOverride(const AHUD* HUD, EYogUIScreenId ScreenId, TSubclassOf<WidgetT> WidgetClass)
+	{
+		if (!WidgetClass)
+		{
+			return;
+		}
+		if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(HUD))
+		{
+			UIManager->SetWidgetClassOverride(ScreenId, WidgetClass);
+		}
+	}
+}
+
+template<typename WidgetT>
+TSubclassOf<WidgetT> AYogHUD::ResolveManagedWidgetClass(EYogUIScreenId ScreenId, TSubclassOf<WidgetT> FallbackClass) const
+{
+	if (const APlayerController* PC = GetOwningPlayerController())
+	{
+		if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+		{
+			if (UYogUIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
+			{
+				if (TSubclassOf<WidgetT> ManagedClass = UIManager->GetTypedWidgetClass<WidgetT>(ScreenId))
+				{
+					return ManagedClass;
+				}
+			}
+		}
+	}
+
+	return FallbackClass;
+}
+
+int32 AYogHUD::ResolveManagedZOrder(EYogUIScreenId ScreenId, int32 FallbackZOrder) const
+{
+	if (const APlayerController* PC = GetOwningPlayerController())
+	{
+		if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+		{
+			if (UYogUIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
+			{
+				return UIManager->GetZOrder(ScreenId, FallbackZOrder);
+			}
+		}
+	}
+
+	return FallbackZOrder;
+}
 
 void AYogHUD::BeginPlay()
 {
@@ -59,10 +123,33 @@ void AYogHUD::BeginPlay()
 	PrimaryActorTick.bCanEverTick       = true;
 	PrimaryActorTick.bTickEvenWhenPaused = true;
 
+	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::TutorialPopup, TutorialPopupClass);
+	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::MainHUD, MainHUDClass);
+	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::PauseMenu, PauseMenuClass);
+	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::Backpack, BackpackScreenClass);
+	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::LootSelection, LootSelectionWidgetClass);
+	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::SacrificeGraceOption, SacrificeGraceOptionWidgetClass);
+
+	// Registry-driven boot: any entry with bCreateOnHUDStart=true is created + AddToViewport here.
+	// Per-screen members below adopt the instance via Ensure*Widget() (idempotent).
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		UIManager->CreateAutoStartWidgets();
+		TutorialPopupWidget = UIManager->GetTypedWidget<UTutorialPopupWidget>(EYogUIScreenId::TutorialPopup);
+	}
+
 	// ── Tutorial Popup ──────────────────────────
-	if (TutorialPopupClass)
-		TutorialPopupWidget = CreateWidget<UTutorialPopupWidget>(
-			GetOwningPlayerController(), TutorialPopupClass);
+	if (!TutorialPopupWidget)
+	{
+		if (TSubclassOf<UTutorialPopupWidget> WidgetClass = ResolveManagedWidgetClass(EYogUIScreenId::TutorialPopup, TutorialPopupClass))
+		{
+			if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+			{
+				UIManager->SetWidgetClassOverride(EYogUIScreenId::TutorialPopup, WidgetClass);
+				TutorialPopupWidget = Cast<UTutorialPopupWidget>(UIManager->EnsureWidget(EYogUIScreenId::TutorialPopup));
+			}
+		}
+	}
 
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
 		TM->Init(TutorialPopupWidget, TutorialRegistry);
@@ -91,15 +178,26 @@ void AYogHUD::BeginPlay()
 	}
 
 	// ── 主 HUD 容器（血条 / 敌人箭头 / 武器图标 等常驻元素）────────
-	if (MainHUDClass)
+	// First try to adopt an instance the subsystem already created via bCreateOnHUDStart.
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
 	{
-		MainHUDWidget = CreateWidget<UYogHUDRootWidget>(
-			GetOwningPlayerController(), MainHUDClass);
-		if (MainHUDWidget)
+		MainHUDWidget = UIManager->GetTypedWidget<UYogHUDRootWidget>(EYogUIScreenId::MainHUD);
+	}
+	if (!MainHUDWidget)
+	{
+		if (TSubclassOf<UYogHUDRootWidget> WidgetClass = ResolveManagedWidgetClass(EYogUIScreenId::MainHUD, MainHUDClass))
 		{
-			MainHUDWidget->AddToViewport(1);
-			EnsureCombatItemWidget();
+			MainHUDWidget = CreateWidget<UYogHUDRootWidget>(
+				GetOwningPlayerController(), WidgetClass);
+			if (MainHUDWidget)
+			{
+				MainHUDWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::MainHUD, 1));
+			}
 		}
+	}
+	if (MainHUDWidget)
+	{
+		EnsureCombatItemWidget();
 	}
 
 	EnsureFinisherQTEWidget();
@@ -120,37 +218,23 @@ void AYogHUD::BeginPlay()
 	}
 
 	// ── Backpack ─────────────────────────────────
-	if (BackpackScreenClass)
-	{
-		BackpackWidget = CreateWidget<UBackpackScreenWidget>(
-			GetOwningPlayerController(), BackpackScreenClass);
-		if (BackpackWidget)
-			BackpackWidget->AddToViewport(5);
-	}
+	EnsureBackpackWidget();
 
 	// ── Loot Selection（常驻，不走 CommonUI Stack，避免 DeactivateWidget 时被 destroy）
-	if (LootSelectionWidgetClass)
-	{
-		LootSelectionWidget = CreateWidget<ULootSelectionWidget>(
-			GetOwningPlayerController(), LootSelectionWidgetClass);
-		if (LootSelectionWidget)
-			LootSelectionWidget->AddToViewport(15);
-	}
+	EnsureLootSelectionWidget();
 
 	// ── SacrificeGrace 确认弹窗（常驻，默认隐藏，按需激活）──────────
-	if (SacrificeGraceOptionWidgetClass)
-	{
-		SacrificeGraceOptionWidget = CreateWidget<USacrificeGraceOptionWidget>(
-			GetOwningPlayerController(), SacrificeGraceOptionWidgetClass);
-		if (SacrificeGraceOptionWidget)
-			SacrificeGraceOptionWidget->AddToViewport(16);
-	}
+	EnsureSacrificeGraceOptionWidget();
 
 	// ── Weapon Thumbnail Fly（按需回退加载） ──────
 	if (!ThumbnailFlyClass)
 	{
-		ThumbnailFlyClass = LoadClass<UWeaponThumbnailFlyWidget>(
-			nullptr, TEXT("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponThumbnailFly.WBP_WeaponThumbnailFly_C"));
+		ThumbnailFlyClass = ResolveManagedWidgetClass(EYogUIScreenId::WeaponThumbnailFly, ThumbnailFlyClass);
+		if (!ThumbnailFlyClass)
+		{
+			ThumbnailFlyClass = LoadClass<UWeaponThumbnailFlyWidget>(
+				nullptr, TEXT("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponThumbnailFly.WBP_WeaponThumbnailFly_C"));
+		}
 		if (!ThumbnailFlyClass)
 			UE_LOG(LogTemp, Warning, TEXT("[YogHUD] WBP_WeaponThumbnailFly 未找到，请在 BP_YogHUD 手动赋值"));
 	}
@@ -192,8 +276,20 @@ void AYogHUD::BeginPlay()
 
 void AYogHUD::OpenBackpack()
 {
-	if (BackpackWidget)
-		BackpackWidget->ActivateWidget();
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		if (BackpackScreenClass)
+		{
+			UIManager->SetWidgetClassOverride(EYogUIScreenId::Backpack, BackpackScreenClass);
+		}
+		if (UCommonActivatableWidget* W = UIManager->PushScreen(EYogUIScreenId::Backpack))
+		{
+			BackpackWidget = Cast<UBackpackScreenWidget>(W);
+			return;
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[YogHUD] OpenBackpack failed: UIManager or Backpack class is missing."));
 }
 
 bool AYogHUD::CloseTopMostOverlay()
@@ -206,7 +302,14 @@ bool AYogHUD::CloseTopMostOverlay()
 
 	if (TutorialPopupWidget && TutorialPopupWidget->IsActivated())
 	{
-		TutorialPopupWidget->DeactivateWidget();
+		if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+		{
+			UIManager->PopScreen(EYogUIScreenId::TutorialPopup);
+		}
+		else
+		{
+			TutorialPopupWidget->DeactivateWidget();
+		}
 		return true;
 	}
 
@@ -218,7 +321,14 @@ bool AYogHUD::CloseTopMostOverlay()
 
 	if (BackpackWidget && BackpackWidget->IsActivated())
 	{
-		BackpackWidget->DeactivateWidget();
+		if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+		{
+			UIManager->PopScreen(EYogUIScreenId::Backpack);
+		}
+		else
+		{
+			BackpackWidget->DeactivateWidget();
+		}
 		return true;
 	}
 
@@ -238,43 +348,38 @@ void AYogHUD::OpenPauseMenu()
 		return;
 	}
 
-	APlayerController* PC = GetOwningPlayerController();
-	if (!PC)
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
 	{
-		return;
-	}
-
-	if (!PauseMenuWidget || !PauseMenuWidget->IsInViewport())
-	{
-		TSubclassOf<UPauseMenuWidget> WidgetClass = PauseMenuClass;
+		TSubclassOf<UPauseMenuWidget> WidgetClass =
+			ResolveManagedWidgetClass(EYogUIScreenId::PauseMenu, PauseMenuClass);
 		if (!WidgetClass)
 		{
 			WidgetClass = LoadClass<UPauseMenuWidget>(
 				nullptr,
 				TEXT("/Game/UI/Playtest_UI/Pause/WBP_PauseMenu.WBP_PauseMenu_C"));
 		}
+		if (WidgetClass)
+		{
+			UIManager->SetWidgetClassOverride(EYogUIScreenId::PauseMenu, WidgetClass);
+		}
 
-		if (!WidgetClass)
+		PauseMenuWidget = UIManager->PushTypedScreen<UPauseMenuWidget>(EYogUIScreenId::PauseMenu);
+		if (!PauseMenuWidget)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[YogHUD] Pause menu class is missing."));
-			return;
 		}
-
-		PauseMenuWidget = CreateWidget<UPauseMenuWidget>(PC, WidgetClass);
-		if (PauseMenuWidget)
-		{
-			PauseMenuWidget->AddToViewport(100);
-		}
-	}
-
-	if (PauseMenuWidget)
-	{
-		PauseMenuWidget->ActivateWidget();
 	}
 }
 
 void AYogHUD::ClosePauseMenu()
 {
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		UIManager->PopScreen(EYogUIScreenId::PauseMenu);
+		PauseMenuWidget = UIManager->GetTypedWidget<UPauseMenuWidget>(EYogUIScreenId::PauseMenu);
+		return;
+	}
+
 	if (PauseMenuWidget && PauseMenuWidget->IsActivated())
 	{
 		PauseMenuWidget->DeactivateWidget();
@@ -283,7 +388,74 @@ void AYogHUD::ClosePauseMenu()
 
 bool AYogHUD::IsPauseMenuOpen() const
 {
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		return UIManager->IsScreenActive(EYogUIScreenId::PauseMenu);
+	}
 	return PauseMenuWidget && PauseMenuWidget->IsActivated();
+}
+
+void AYogHUD::EnsureBackpackWidget()
+{
+	if (BackpackWidget && BackpackWidget->IsInViewport())
+	{
+		return;
+	}
+
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		if (BackpackScreenClass)
+		{
+			UIManager->SetWidgetClassOverride(EYogUIScreenId::Backpack, BackpackScreenClass);
+		}
+		BackpackWidget = Cast<UBackpackScreenWidget>(UIManager->EnsureWidget(EYogUIScreenId::Backpack));
+		if (BackpackWidget)
+		{
+			return;
+		}
+	}
+}
+
+void AYogHUD::EnsureLootSelectionWidget()
+{
+	if (LootSelectionWidget && LootSelectionWidget->IsInViewport())
+	{
+		return;
+	}
+
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		if (LootSelectionWidgetClass)
+		{
+			UIManager->SetWidgetClassOverride(EYogUIScreenId::LootSelection, LootSelectionWidgetClass);
+		}
+		LootSelectionWidget = Cast<ULootSelectionWidget>(UIManager->EnsureWidget(EYogUIScreenId::LootSelection));
+		if (LootSelectionWidget)
+		{
+			return;
+		}
+	}
+}
+
+void AYogHUD::EnsureSacrificeGraceOptionWidget()
+{
+	if (SacrificeGraceOptionWidget && SacrificeGraceOptionWidget->IsInViewport())
+	{
+		return;
+	}
+
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		if (SacrificeGraceOptionWidgetClass)
+		{
+			UIManager->SetWidgetClassOverride(EYogUIScreenId::SacrificeGraceOption, SacrificeGraceOptionWidgetClass);
+		}
+		SacrificeGraceOptionWidget = Cast<USacrificeGraceOptionWidget>(UIManager->EnsureWidget(EYogUIScreenId::SacrificeGraceOption));
+		if (SacrificeGraceOptionWidget)
+		{
+			return;
+		}
+	}
 }
 
 void AYogHUD::ShowLootSelectionUI(const TArray<FLootOption>& Options)
@@ -308,19 +480,16 @@ void AYogHUD::QueueLootSelection(const TArray<FLootOption>& Options, ARewardPick
 	// Widget 可能被 CommonUI 框架销毁，重建后重新加入 Viewport
 	if (!LootSelectionWidget || !LootSelectionWidget->IsInViewport())
 	{
-		if (LootSelectionWidgetClass)
-		{
-			LootSelectionWidget = CreateWidget<ULootSelectionWidget>(
-				GetOwningPlayerController(), LootSelectionWidgetClass);
-			if (LootSelectionWidget)
-				LootSelectionWidget->AddToViewport(15);
-		}
+		EnsureLootSelectionWidget();
 	}
 
 	if (LootSelectionWidget)
 	{
 		bLootSelectionActive = true;
-		PushMajorUI();
+		if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+		{
+			UIManager->PushScreen(EYogUIScreenId::LootSelection);
+		}
 		LootSelectionWidget->ShowLootUI(Options, SourcePickup);
 	}
 }
@@ -328,7 +497,6 @@ void AYogHUD::QueueLootSelection(const TArray<FLootOption>& Options, ARewardPick
 void AYogHUD::OnLootSelectionFinished()
 {
 	bLootSelectionActive = false;
-	PopMajorUI();
 
 	if (LootQueue.Num() == 0) return;
 
@@ -347,11 +515,8 @@ void AYogHUD::ShowSacrificeGraceOption(USacrificeGraceDA* DA, APlayerCharacterBa
 	// 按需重建（Widget 被 CommonUI 框架销毁时）
 	if (!SacrificeGraceOptionWidget || !SacrificeGraceOptionWidget->IsInViewport())
 	{
-		if (!SacrificeGraceOptionWidgetClass) return;
-		SacrificeGraceOptionWidget = CreateWidget<USacrificeGraceOptionWidget>(
-			GetOwningPlayerController(), SacrificeGraceOptionWidgetClass);
-		if (SacrificeGraceOptionWidget)
-			SacrificeGraceOptionWidget->AddToViewport(16);
+		EnsureSacrificeGraceOptionWidget();
+		if (!SacrificeGraceOptionWidget) return;
 	}
 
 	SacrificeGraceOptionWidget->Setup(DA, Player, Pickup);
@@ -362,15 +527,22 @@ void AYogHUD::ShowSacrificeGraceOption(USacrificeGraceDA* DA, APlayerCharacterBa
 		SacrificeGraceOptionWidget->OnDeactivated().Remove(SacrificeGraceMajorUIHandle);
 		SacrificeGraceMajorUIHandle.Reset();
 	}
-	SacrificeGraceMajorUIHandle = SacrificeGraceOptionWidget->OnDeactivated()
-		.AddLambda([this](){ PopMajorUI(); });
 
-	PushMajorUI();
-	SacrificeGraceOptionWidget->ActivateWidget();
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		UIManager->PushScreen(EYogUIScreenId::SacrificeGraceOption);
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[YogHUD] ShowSacrificeGraceOption failed: UIManager is missing."));
 }
 
 void AYogHUD::OpenBackpackForPreview(FSimpleDelegate OnClosed)
 {
+	if (!BackpackWidget || !BackpackWidget->IsInViewport())
+	{
+		EnsureBackpackWidget();
+	}
 	if (!BackpackWidget) return;
 
 	// 切到只读模式
@@ -381,7 +553,10 @@ void AYogHUD::OpenBackpackForPreview(FSimpleDelegate OnClosed)
 	BackpackPreviewDeactivatedHandle = BackpackWidget->OnDeactivated().AddUObject(
 		this, &AYogHUD::OnBackpackPreviewClosed);
 
-	BackpackWidget->ActivateWidget();
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		UIManager->PushScreen(EYogUIScreenId::Backpack);
+	}
 }
 
 void AYogHUD::OnBackpackPreviewClosed()
@@ -429,7 +604,8 @@ bool AYogHUD::EnsureWeaponFloatWidget()
 		return false;
 	}
 
-	TSubclassOf<UWeaponFloatWidget> WidgetClass = WeaponFloatWidgetClass;
+	TSubclassOf<UWeaponFloatWidget> WidgetClass =
+		ResolveManagedWidgetClass(EYogUIScreenId::WeaponFloat, WeaponFloatWidgetClass);
 	if (!WidgetClass)
 	{
 		WidgetClass = LoadClass<UWeaponFloatWidget>(
@@ -449,7 +625,7 @@ bool AYogHUD::EnsureWeaponFloatWidget()
 		return false;
 	}
 
-	WeaponFloatWidget->AddToViewport(13);
+	WeaponFloatWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::WeaponFloat, 13));
 	WeaponFloatWidget->SetDesiredSizeInViewport(WeaponFloatViewportSize);
 	WeaponFloatWidget->SetAlignmentInViewport(FVector2D(0.5f, 0.5f));
 	WeaponFloatWidget->SetClipping(EWidgetClipping::ClipToBoundsAlways);
@@ -675,7 +851,8 @@ void AYogHUD::EnsureCurrentRoomBuffWidget()
 		return;
 	}
 
-	TSubclassOf<UCurrentRoomBuffWidget> WidgetClass = CurrentRoomBuffWidgetClass;
+	TSubclassOf<UCurrentRoomBuffWidget> WidgetClass =
+		ResolveManagedWidgetClass(EYogUIScreenId::CurrentRoomBuff, CurrentRoomBuffWidgetClass);
 	if (!WidgetClass)
 	{
 		WidgetClass = LoadClass<UCurrentRoomBuffWidget>(
@@ -690,7 +867,7 @@ void AYogHUD::EnsureCurrentRoomBuffWidget()
 	CurrentRoomBuffWidget = CreateWidget<UCurrentRoomBuffWidget>(PC, WidgetClass);
 	if (CurrentRoomBuffWidget)
 	{
-		CurrentRoomBuffWidget->AddToViewport(2);
+		CurrentRoomBuffWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::CurrentRoomBuff, 2));
 		CurrentRoomBuffWidget->SetAlignmentInViewport(FVector2D(0.f, 0.f));
 		CurrentRoomBuffWidget->SetPositionInViewport(CurrentRoomBuffFallbackPosition, false);
 	}
@@ -740,16 +917,16 @@ void AYogHUD::TriggerWeaponPickup(const UWeaponDefinition* Def, FVector2D StartS
 		GetOwningPlayerController(), ThumbnailFlyClass);
 	if (!FlyWidget) return;
 
-	FlyWidget->AddToViewport(10);
+	FlyWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::WeaponThumbnailFly, 10));
 
 	// 创建流光拖尾
-	if (TrailWidgetClass)
+	if (TSubclassOf<UWeaponTrailWidget> WidgetClass = ResolveManagedWidgetClass(EYogUIScreenId::WeaponTrail, TrailWidgetClass))
 	{
 		ActiveTrailWidget = CreateWidget<UWeaponTrailWidget>(
-			GetOwningPlayerController(), TrailWidgetClass);
+			GetOwningPlayerController(), WidgetClass);
 		if (ActiveTrailWidget)
 		{
-			ActiveTrailWidget->AddToViewport(9);
+			ActiveTrailWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::WeaponTrail, 9));
 			FlyWidget->OnFlyProgress.AddUObject(this, &AYogHUD::OnFlyProgressUpdate);
 		}
 	}
@@ -974,12 +1151,14 @@ void AYogHUD::TickLevelEndEffect()
 void AYogHUD::StartRevealAnimation()
 {
 	const ULevelEndEffectDA* DA = LevelEndEffectDA.Get();
-	if (!DA || !DA->RevealMaterial || !LevelEndRevealWidgetClass) return;
+	TSubclassOf<ULevelEndRevealWidget> WidgetClass =
+		ResolveManagedWidgetClass(EYogUIScreenId::LevelEndReveal, LevelEndRevealWidgetClass);
+	if (!DA || !DA->RevealMaterial || !WidgetClass) return;
 
 	ActiveRevealWidget = CreateWidget<ULevelEndRevealWidget>(
-		GetOwningPlayerController(), LevelEndRevealWidgetClass);
+		GetOwningPlayerController(), WidgetClass);
 	if (!ActiveRevealWidget) return;
-	ActiveRevealWidget->AddToViewport(20);
+	ActiveRevealWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::LevelEndReveal, 20));
 
 	// 将 Loot 世界坐标投影到屏幕 UV（0~1 范围）
 	FVector2D LootUV(0.5f, 0.5f);  // 默认屏幕中心
@@ -1081,7 +1260,9 @@ void AYogHUD::EnsureCombatItemWidget()
 		return;
 	}
 
-	CombatItemBarWidget = CreateWidget<UCombatItemBarWidget>(PC, UCombatItemBarWidget::StaticClass());
+	TSubclassOf<UCombatItemBarWidget> WidgetClass =
+		ResolveManagedWidgetClass(EYogUIScreenId::CombatItemBar, TSubclassOf<UCombatItemBarWidget>(UCombatItemBarWidget::StaticClass()));
+	CombatItemBarWidget = CreateWidget<UCombatItemBarWidget>(PC, WidgetClass);
 	if (!CombatItemBarWidget)
 	{
 		return;
@@ -1108,7 +1289,8 @@ bool AYogHUD::EnsureFinisherQTEWidget()
 		return false;
 	}
 
-	TSubclassOf<UFinisherQTEWidget> WidgetClass = FinisherQTEWidgetClass;
+	TSubclassOf<UFinisherQTEWidget> WidgetClass =
+		ResolveManagedWidgetClass(EYogUIScreenId::FinisherQTE, FinisherQTEWidgetClass);
 	if (!WidgetClass)
 	{
 		WidgetClass = LoadClass<UFinisherQTEWidget>(
@@ -1126,7 +1308,7 @@ bool AYogHUD::EnsureFinisherQTEWidget()
 		return false;
 	}
 
-	FinisherQTEWidget->AddToViewport(30);
+	FinisherQTEWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::FinisherQTE, 30));
 	FinisherQTEWidget->HidePrompt();
 	return true;
 }
@@ -1264,19 +1446,29 @@ void AYogHUD::ShowPortalGuidance()
 	UE_LOG(LogTemp, Log, TEXT("[Portal] ShowPortalGuidance: 缓存开启门数=%d"), CachedOpenPortals.Num());
 
 	// 浮窗（按需创建，状态默认 collapsed，由 TickPortalPreview 选 Target 后再显示）
-	if (!PortalPreviewWidget && PortalPreviewClass)
+	if (!PortalPreviewWidget)
 	{
-		PortalPreviewWidget = CreateWidget<UPortalPreviewWidget>(GetOwningPlayerController(), PortalPreviewClass);
-		if (PortalPreviewWidget) PortalPreviewWidget->AddToViewport(15);
+		TSubclassOf<UPortalPreviewWidget> WidgetClass =
+			ResolveManagedWidgetClass(EYogUIScreenId::PortalPreview, PortalPreviewClass);
+		if (WidgetClass)
+		{
+			PortalPreviewWidget = CreateWidget<UPortalPreviewWidget>(GetOwningPlayerController(), WidgetClass);
+			if (PortalPreviewWidget) PortalPreviewWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::PortalPreview, 15));
+		}
 	}
 	if (PortalPreviewWidget)
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
 
 	// 方位箭头（按需创建，启用并传入 Portal 列表）
-	if (!PortalDirectionWidget && PortalDirectionClass)
+	if (!PortalDirectionWidget)
 	{
-		PortalDirectionWidget = CreateWidget<UPortalDirectionWidget>(GetOwningPlayerController(), PortalDirectionClass);
-		if (PortalDirectionWidget) PortalDirectionWidget->AddToViewport(14);
+		TSubclassOf<UPortalDirectionWidget> WidgetClass =
+			ResolveManagedWidgetClass(EYogUIScreenId::PortalDirection, PortalDirectionClass);
+		if (WidgetClass)
+		{
+			PortalDirectionWidget = CreateWidget<UPortalDirectionWidget>(GetOwningPlayerController(), WidgetClass);
+			if (PortalDirectionWidget) PortalDirectionWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::PortalDirection, 14));
+		}
 	}
 	if (PortalDirectionWidget)
 		PortalDirectionWidget->SetActive(true, OpenList);

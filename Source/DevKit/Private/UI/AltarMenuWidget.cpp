@@ -4,10 +4,12 @@
 #include "UI/YogHUD.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Components/Button.h"
+#include "Engine/LocalPlayer.h"
 #include "Input/CommonUIInputTypes.h"
 #include "InputCoreTypes.h"
 #include "UI/YogCommonUITextBlock.h"
 #include "UI/YogInputKeyUtils.h"
+#include "UI/YogUIManagerSubsystem.h"
 
 TSubclassOf<UTextBlock> UAltarMenuWidget::GetMenuTextBlockClassForTests()
 {
@@ -33,31 +35,13 @@ void UAltarMenuWidget::NativeOnActivated()
 	Super::NativeOnActivated();
 	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	SetIsFocusable(true);
-
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			HUD->BeginPauseEffect();
-
-		PC->SetShowMouseCursor(true);
-		FInputModeUIOnly InputMode;
-		InputMode.SetWidgetToFocus(GetCachedWidget());
-		PC->SetInputMode(InputMode);
-	}
-	SetUserFocus(GetOwningPlayer());
+	// FocusButton handles per-button focus; SetUserFocus(player) was targeting the wrong root.
 	FocusButton(FocusedButtonIndex);
 }
 
 void UAltarMenuWidget::NativeOnDeactivated()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		PC->SetShowMouseCursor(false);
-		PC->SetInputMode(FInputModeGameOnly());
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			HUD->EndPauseEffect();
-	}
 	Super::NativeOnDeactivated();
 }
 
@@ -114,39 +98,83 @@ void UAltarMenuWidget::SetupAltar(UAltarDataAsset* InData, APlayerCharacterBase*
 	AltarData = InData;
 	OwningPlayer = InPlayer;
 
-	if (PurificationWidgetClass && !PurificationWidget)
+	if (APlayerController* PC = GetOwningPlayer())
 	{
-		PurificationWidget = CreateWidget<URunePurificationWidget>(GetOwningPlayer(), PurificationWidgetClass);
-		if (PurificationWidget)
-			PurificationWidget->AddToViewport(11);
-	}
-	if (SacrificeWidgetClass && !SacrificeWidget)
-	{
-		SacrificeWidget = CreateWidget<USacrificeSelectionWidget>(GetOwningPlayer(), SacrificeWidgetClass);
-		if (SacrificeWidget)
-			SacrificeWidget->AddToViewport(11);
+		if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+		{
+			if (UYogUIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
+			{
+				if (PurificationWidgetClass)
+				{
+					UIManager->SetWidgetClassOverride(EYogUIScreenId::RunePurification, PurificationWidgetClass);
+				}
+				if (SacrificeWidgetClass)
+				{
+					UIManager->SetWidgetClassOverride(EYogUIScreenId::SacrificeSelection, SacrificeWidgetClass);
+				}
+			}
+		}
 	}
 }
 
 void UAltarMenuWidget::OpenPurification()
 {
-	if (!PurificationWidget || !OwningPlayer.IsValid()) return;
-	DeactivateWidget();
-	PurificationWidget->Setup(OwningPlayer.Get());
-	PurificationWidget->ActivateWidget();
+	if (!OwningPlayer.IsValid()) return;
+
+	URunePurificationWidget* ManagedWidget = nullptr;
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+		{
+			if (UYogUIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
+			{
+				ManagedWidget = Cast<URunePurificationWidget>(UIManager->EnsureWidget(EYogUIScreenId::RunePurification));
+				if (ManagedWidget)
+				{
+					ManagedWidget->Setup(OwningPlayer.Get());
+					UIManager->PushScreen(EYogUIScreenId::RunePurification);
+					UIManager->PopScreen(EYogUIScreenId::AltarMenu);
+					return;
+				}
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[AltarMenu] RunePurification class is missing."));
 }
 
 void UAltarMenuWidget::OpenSacrifice()
 {
-	if (!SacrificeWidget || !AltarData || !OwningPlayer.IsValid()) return;
-	DeactivateWidget();
-	SacrificeWidget->Setup(AltarData, OwningPlayer.Get());
-	SacrificeWidget->ActivateWidget();
+	if (!AltarData || !OwningPlayer.IsValid()) return;
+
+	USacrificeSelectionWidget* ManagedWidget = nullptr;
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+		{
+			if (UYogUIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
+			{
+				ManagedWidget = Cast<USacrificeSelectionWidget>(UIManager->EnsureWidget(EYogUIScreenId::SacrificeSelection));
+				if (ManagedWidget)
+				{
+					ManagedWidget->Setup(AltarData, OwningPlayer.Get());
+					UIManager->PushScreen(EYogUIScreenId::SacrificeSelection);
+					UIManager->PopScreen(EYogUIScreenId::AltarMenu);
+					return;
+				}
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[AltarMenu] SacrificeSelection class is missing."));
 }
 
 void UAltarMenuWidget::CloseMenu()
 {
-	DeactivateWidget();
+	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::AltarMenu))
+	{
+		DeactivateWidget();
+	}
 }
 
 TArray<UButton*> UAltarMenuWidget::GetFocusableButtons() const

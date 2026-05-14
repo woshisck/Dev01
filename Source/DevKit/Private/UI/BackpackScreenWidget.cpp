@@ -915,21 +915,18 @@ void UBackpackScreenWidget::NativeOnActivated()
     if (APlayerController* PC = GetOwningPlayer())
         if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
         {
-            HUD->BeginPauseEffect();
-            HUD->PushMajorUI();
         }
 
     if (APlayerController* PC = GetOwningPlayer())
     {
-        PC->SetPause(true);
-        PC->SetShowMouseCursor(true);
         // 记录当前光标位置，防止激活后合成鼠标事件被误判为真实移动而清除手柄高亮
         float MouseX = 0.f, MouseY = 0.f;
         PC->GetMousePosition(MouseX, MouseY);
         LastMouseAbsPos = FVector2D(MouseX, MouseY);
     }
 
-    SetUserFocus(GetOwningPlayer());
+    // SetUserFocus(player) was targeting the wrong root — focus is routed via GetDesiredFocusTarget
+    // and the explicit ReleaseMouseCapture().SetUserFocus(TakeWidget()) calls in NativeOnKeyDown.
 
     // 每次打开时重建格子，确保武器切换后的 GridWidth/GridHeight 生效
     if (BackpackGridWidget)
@@ -1053,17 +1050,16 @@ void UBackpackScreenWidget::NativeOnDeactivated()
 
     if (APlayerController* PC = GetOwningPlayer())
     {
-        PC->SetPause(false);
-        PC->SetShowMouseCursor(false);
-        // AddToViewport 绕过 CommonUI Stack，输入模式不会自动还原，必须手动设回 GameOnly
-        PC->SetInputMode(FInputModeGameOnly());
+        // Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
+        // UBackpackScreenWidget is a UCommonActivatableWidget opened via PushScreen, so the
+        // Subsystem hears OnDeactivated and recomputes the top layer → restores GameOnly itself.
+        // Letting it run unimpeded also keeps focus correct when closing Backpack returns to
+        // an active LootSelection (preview flow).
     }
 
     if (APlayerController* PC = GetOwningPlayer())
         if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
         {
-            HUD->EndPauseEffect();
-            HUD->PopMajorUI();
         }
 
     Super::NativeOnDeactivated();

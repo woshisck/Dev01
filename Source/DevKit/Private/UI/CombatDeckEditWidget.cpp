@@ -19,6 +19,7 @@
 #include "UI/CombatDeckEditDragDropOperation.h"
 #include "UI/RuneInfoCardWidget.h"
 #include "UI/BackpackStyleDataAsset.h"
+#include "UI/YogUIManagerSubsystem.h"
 
 namespace
 {
@@ -827,12 +828,23 @@ void UCombatDeckEditWidget::ShowGamepadFloatingDragCard(const FCombatCardInstanc
 		return;
 	}
 
-	HideGamepadFloatingDragCard();
+	// Route the floating drag slot through UYogUIManagerSubsystem so the manager owns the
+	// widget's viewport lifecycle. The slot is a HitTestInvisible passive overlay (Game layer
+	// by default — no focus or input mode change), so registering it does not affect focus
+	// routing for the Backpack/CombatDeck input flow.
+	ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+	UYogUIManagerSubsystem* UIManager = LocalPlayer ? LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
+	if (!UIManager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] ShowFailed Reason=UIManagerNull"));
+		return;
+	}
 
-	GamepadFloatingDragSlot = CreateWidget<UCombatDeckEditCardSlotWidget>(GetOwningPlayer(), CardSlotClass);
+	UIManager->SetWidgetClassOverride(EYogUIScreenId::CombatDeckFloatingDrag, CardSlotClass);
+	GamepadFloatingDragSlot = Cast<UCombatDeckEditCardSlotWidget>(UIManager->EnsureWidget(EYogUIScreenId::CombatDeckFloatingDrag));
 	if (!GamepadFloatingDragSlot)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] ShowFailed Reason=CreateWidgetFailed Class=%s"),
+		UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] ShowFailed Reason=EnsureWidgetFailed Class=%s"),
 			*GetNameSafe(CardSlotClass));
 		return;
 	}
@@ -845,7 +857,6 @@ void UCombatDeckEditWidget::ShowGamepadFloatingDragCard(const FCombatCardInstanc
 	FloatingTransform.Scale = FVector2D(GamepadFloatingDragScale, GamepadFloatingDragScale);
 	GamepadFloatingDragSlot->SetRenderTransform(FloatingTransform);
 	GamepadFloatingDragSlot->SetAlignmentInViewport(FVector2D(0.0f, 0.5f));
-	GamepadFloatingDragSlot->AddToPlayerScreen(10000);
 	GamepadFloatingDragSlot->ForceLayoutPrepass();
 	UpdateGamepadFloatingDragCardPosition();
 
@@ -925,7 +936,11 @@ void UCombatDeckEditWidget::HideGamepadFloatingDragCard()
 		return;
 	}
 
-	GamepadFloatingDragSlot->RemoveFromParent();
+	// The slot is owned by UYogUIManagerSubsystem (registered as CombatDeckFloatingDrag).
+	// Collapse it rather than RemoveFromParent — keeping the instance alive lets the next
+	// drag reuse it without going through SetWidgetClassOverride + EnsureWidget again, and
+	// avoids fighting the manager's Instances cache.
+	GamepadFloatingDragSlot->SetVisibility(ESlateVisibility::Collapsed);
 	GamepadFloatingDragSlot = nullptr;
 	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][FloatingDrag] Hide"));
 }

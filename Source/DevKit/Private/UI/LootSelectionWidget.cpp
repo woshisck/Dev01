@@ -17,6 +17,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Input/CommonUIInputTypes.h"
 #include "UI/YogInputKeyUtils.h"
+#include "UI/YogUIManagerSubsystem.h"
 
 static_assert(ULootSelectionWidget::MaxCards == 6, "Card click/hover callbacks must match MaxCards.");
 
@@ -99,22 +100,11 @@ void ULootSelectionWidget::ShowLootUI(const TArray<FLootOption>& Options, ARewar
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			HUD->BeginPauseEffect();
-		const bool bPaused = PC->SetPause(true);
-		UE_LOG(LogTemp, Log, TEXT("[LootSelection] ShowLootUI: SetPause result=%d"), bPaused ? 1 : 0);
-		PC->SetShowMouseCursor(true);
-		FInputModeUIOnly InputMode;
-		InputMode.SetWidgetToFocus(GetCachedWidget());
-		PC->SetInputMode(InputMode);
-		// 兜底：SetPause + InputMode UIOnly 仍可能让 EnhancedInput 透传到 Pawn，
+		// 兜底：GameAndUI 下 EnhancedInput 仍会透传到 Pawn，
 		// 显式 DisableInput 关掉 Pawn/Controller 输入，确保不能跑/攻击
-		if (APawn* Pawn = PC->GetPawn())
-			Pawn->DisableInput(PC);
-		PC->DisableInput(PC);
 	}
 
-	SetUserFocus(GetOwningPlayer());
+	// SetUserFocus(player) was targeting the wrong root; SetKeyboardFocus on this widget is enough.
 	SetKeyboardFocus();
 
 	bStickNavHeld = false;
@@ -376,22 +366,11 @@ void ULootSelectionWidget::SelectRuneLoot(int32 Index)
 	}
 	SourcePickup.Reset();
 
-	// 关闭 UI
-	SetVisibility(ESlateVisibility::Collapsed);
-
-	if (APlayerController* PC = GetOwningPlayer())
+	// Close via the Activatable lifecycle: NativeOnDeactivated handles unpause / EnableInput /
+	// EndPauseEffect, and the Subsystem hears OnDeactivated to restore the input mode.
+	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::LootSelection))
 	{
-		PC->SetPause(false);
-		PC->SetShowMouseCursor(false);
-		PC->SetInputMode(FInputModeGameOnly());
-		// 配对 ShowLootUI 的 DisableInput
-		if (APawn* Pawn = PC->GetPawn())
-			Pawn->EnableInput(PC);
-		PC->EnableInput(PC);
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-		{
-			HUD->EndPauseEffect();
-		}
+		DeactivateWidget();
 	}
 
 	FinishAndNotifyHUD();
@@ -411,20 +390,11 @@ void ULootSelectionWidget::SkipSelection()
 	}
 	SourcePickup.Reset();
 
-	// 关闭 UI（不开背包）
-	SetVisibility(ESlateVisibility::Collapsed);
-
-	if (APlayerController* PC = GetOwningPlayer())
+	// Close via the Activatable lifecycle: NativeOnDeactivated handles unpause / EnableInput /
+	// EndPauseEffect, and the Subsystem hears OnDeactivated to restore the input mode.
+	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::LootSelection))
 	{
-		PC->SetPause(false);
-		PC->SetShowMouseCursor(false);
-		PC->SetInputMode(FInputModeGameOnly());
-		// 配对 ShowLootUI 的 DisableInput
-		if (APawn* Pawn = PC->GetPawn())
-			Pawn->EnableInput(PC);
-		PC->EnableInput(PC);
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			HUD->EndPauseEffect();
+		DeactivateWidget();
 	}
 
 	FinishAndNotifyHUD();
@@ -464,14 +434,9 @@ void ULootSelectionWidget::ReactivateAfterPreview()
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{
-		PC->SetPause(true);
-		PC->SetShowMouseCursor(true);
-		FInputModeUIOnly InputMode;
-		InputMode.SetWidgetToFocus(GetCachedWidget());
-		PC->SetInputMode(InputMode);
 	}
 
-	SetUserFocus(GetOwningPlayer());
+	// SetUserFocus(player) was targeting the wrong root; SetKeyboardFocus on this widget is enough.
 	SetKeyboardFocus();
 	SetSection(CurrentSection);
 }
@@ -578,20 +543,10 @@ void ULootSelectionWidget::NativeOnActivated()
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			HUD->BeginPauseEffect();
-		PC->SetPause(true);
-		PC->SetShowMouseCursor(true);
-		FInputModeUIOnly InputMode;
-		InputMode.SetWidgetToFocus(GetCachedWidget());
-		PC->SetInputMode(InputMode);
 		// 兜底禁用 Pawn 输入，避免 EnhancedInput 透传
-		if (APawn* Pawn = PC->GetPawn())
-			Pawn->DisableInput(PC);
-		PC->DisableInput(PC);
 	}
 
-	SetUserFocus(GetOwningPlayer());
+	// SetUserFocus(player) was targeting the wrong root; SetKeyboardFocus on this widget is enough.
 	SetKeyboardFocus();
 }
 
@@ -606,15 +561,8 @@ void ULootSelectionWidget::NativeOnDeactivated()
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{
-		PC->SetPause(false);
-		PC->SetShowMouseCursor(false);
-		PC->SetInputMode(FInputModeGameOnly());
+		// Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
 		// 配对 NativeOnActivated 的 DisableInput
-		if (APawn* Pawn = PC->GetPawn())
-			Pawn->EnableInput(PC);
-		PC->EnableInput(PC);
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			HUD->EndPauseEffect();
 	}
 
 	// 不调 Super：避免 CommonUI bDestroyOnDeactivation 造成本控件销毁

@@ -955,6 +955,9 @@ void AYogGameMode::FinishPlayerDeathGameOver()
 
 bool AYogGameMode::RevivePlayerFromDeath()
 {
+	// Gameplay-only revive: flip the death flags, unpause, restore time dilation, hand control
+	// back to the pawn. UI teardown (death menu, mouse cursor, InputMode, SetBlockGameInput) is
+	// owned by the death-menu widget that called this; do not touch UI state from here.
 	APlayerCharacterBase* Player = PendingDeathPlayer.Get();
 	if (!bPlayerDeathPending || bPlayerDeathReviveUsed || !Player)
 	{
@@ -973,7 +976,11 @@ bool AYogGameMode::RevivePlayerFromDeath()
 		OnPhaseChanged.Broadcast(CurrentPhase);
 	}
 
+	// Restore global time dilation and clear the per-pawn dilation override set in BeginPlayerDeathVisuals.
+	// (HUD->EndDeathEffect() inside this helper is the one UI bit still piggy-backing here — extract
+	// it to the death-menu widget's OnDeactivated next pass.)
 	EndPlayerDeathVisuals(Player);
+
 	UGameplayStatics::SetGamePaused(GetWorld(), false);
 	Player->ReviveFromDeath(PlayerReviveHealthPercent, PlayerReviveProtectionDuration);
 
@@ -983,12 +990,6 @@ bool AYogGameMode::RevivePlayerFromDeath()
 		PC->ResetIgnoreLookInput();
 		PC->EnableInput(PC);
 		PC->SetPause(false);
-		PC->SetShowMouseCursor(false);
-		PC->SetInputMode(FInputModeGameOnly());
-		if (AYogPlayerControllerBase* YogPC = Cast<AYogPlayerControllerBase>(PC))
-		{
-			YogPC->SetBlockGameInput(false);
-		}
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[GameOver] Player revived at %.0f%% HP with %.1fs protection."),

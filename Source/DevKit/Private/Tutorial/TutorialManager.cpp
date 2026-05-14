@@ -2,11 +2,13 @@
 
 #include "Character/YogPlayerControllerBase.h"
 #include "Containers/Ticker.h"
+#include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "UI/GameDialogWidget.h"
 #include "UI/TutorialRegistryDA.h"
+#include "UI/YogUIManagerSubsystem.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 
 namespace
@@ -23,6 +25,34 @@ namespace
 		Page.Body = FText::FromString(Body);
 		Page.SubText = FText::FromString(SubText);
 		return Page;
+	}
+
+	UYogUIManagerSubsystem* PrepareTutorialPopupManager(UTutorialPopupWidget* FallbackWidget, APlayerController* PC, bool bPauseGame)
+	{
+		if (!PC)
+		{
+			return nullptr;
+		}
+
+		ULocalPlayer* LocalPlayer = PC->GetLocalPlayer();
+		UYogUIManagerSubsystem* UIManager = LocalPlayer ? LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
+		if (!UIManager)
+		{
+			return nullptr;
+		}
+
+		FYogUIScreenInputPolicy Policy;
+		Policy.bShowMouseCursor = true;
+		Policy.bPauseGame = bPauseGame;
+		Policy.bAffectsMajorUI = false;
+		UIManager->SetInputPolicyOverride(EYogUIScreenId::TutorialPopup, Policy);
+
+		if (FallbackWidget)
+		{
+			UIManager->SetWidgetClassOverride(EYogUIScreenId::TutorialPopup, FallbackWidget->GetClass());
+		}
+
+		return UIManager;
 	}
 }
 
@@ -188,7 +218,19 @@ void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase
 	}
 
 	bPopupShowing = true;
-	PopupWidget->ShowPopup(PagesToShow);
+	UYogUIManagerSubsystem* UIManager = PrepareTutorialPopupManager(PopupWidget.Get(), WeakPC.Get(), true);
+	UTutorialPopupWidget* Widget = UIManager
+		? Cast<UTutorialPopupWidget>(UIManager->EnsureWidget(EYogUIScreenId::TutorialPopup))
+		: PopupWidget.Get();
+	PopupWidget = Widget;
+	if (Widget)
+	{
+		Widget->ShowPopup(PagesToShow);
+		if (UIManager)
+		{
+			UIManager->PushScreen(EYogUIScreenId::TutorialPopup);
+		}
+	}
 
 	State = ETutorialState::WeaponTutorialDone;
 	SaveState();
@@ -297,7 +339,7 @@ void UTutorialManager::TryCardLinkTutorial(APlayerController* PC)
 	}
 }
 
-bool UTutorialManager::ShowInlinePages(const TArray<FTutorialPage>& Pages, APlayerController* /*PC*/, bool bPauseGame)
+bool UTutorialManager::ShowInlinePages(const TArray<FTutorialPage>& Pages, APlayerController* PC, bool bPauseGame)
 {
 	if (!PopupWidget.IsValid() || Pages.IsEmpty())
 	{
@@ -312,11 +354,23 @@ bool UTutorialManager::ShowInlinePages(const TArray<FTutorialPage>& Pages, APlay
 	}
 
 	bPopupShowing = true;
-	PopupWidget->ShowPopup(Pages, bPauseGame);
+	UYogUIManagerSubsystem* UIManager = PrepareTutorialPopupManager(PopupWidget.Get(), PC, bPauseGame);
+	UTutorialPopupWidget* Widget = UIManager
+		? Cast<UTutorialPopupWidget>(UIManager->EnsureWidget(EYogUIScreenId::TutorialPopup))
+		: PopupWidget.Get();
+	PopupWidget = Widget;
+	if (Widget)
+	{
+		Widget->ShowPopup(Pages, bPauseGame);
+		if (UIManager)
+		{
+			UIManager->PushScreen(EYogUIScreenId::TutorialPopup);
+		}
+	}
 	return true;
 }
 
-bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* /*PC*/, bool bPauseGame)
+bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool bPauseGame)
 {
 	if (!PopupWidget.IsValid())
 	{
@@ -353,7 +407,19 @@ bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* /*PC*/, b
 	}
 
 	bPopupShowing = true;
-	PopupWidget->ShowPopup(PagesToShow, bPauseGame);
+	UYogUIManagerSubsystem* UIManager = PrepareTutorialPopupManager(PopupWidget.Get(), PC, bPauseGame);
+	UTutorialPopupWidget* Widget = UIManager
+		? Cast<UTutorialPopupWidget>(UIManager->EnsureWidget(EYogUIScreenId::TutorialPopup))
+		: PopupWidget.Get();
+	PopupWidget = Widget;
+	if (Widget)
+	{
+		Widget->ShowPopup(PagesToShow, bPauseGame);
+		if (UIManager)
+		{
+			UIManager->PushScreen(EYogUIScreenId::TutorialPopup);
+		}
+	}
 	return true;
 }
 

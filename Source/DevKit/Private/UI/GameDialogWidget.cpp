@@ -6,6 +6,7 @@
 #include "UI/YogHUD.h"
 #include "InputCoreTypes.h"
 #include "UI/YogInputKeyUtils.h"
+#include "UI/YogUIManagerSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "TutorialPopup"
 
@@ -21,11 +22,11 @@ void UTutorialPopupWidget::ShowPopup(const TArray<FTutorialPage>& InPages, bool 
 	TotalPages  = Pages.Num();
 	bPauseMe    = bPauseGame;
 
-	if (!IsInViewport())
-		AddToViewport(200);
-
 	if (IsActivated())
-		DeactivateWidget();
+	{
+		RefreshPage();
+		return;
+	}
 
 	ActivateWidget();
 }
@@ -66,7 +67,10 @@ void UTutorialPopupWidget::ConfirmClose()
 		if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
 			TM->NotifyPopupClosed();
 
-	DeactivateWidget();
+	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::TutorialPopup))
+	{
+		DeactivateWidget();
+	}
 }
 
 // ————————————————————————————————————————————————————
@@ -125,19 +129,8 @@ void UTutorialPopupWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
 	SetVisibility(ESlateVisibility::Visible);
-	if (bPauseMe)
-		UGameplayStatics::SetGamePaused(this, true);
-
-	if (bPauseMe)
-		if (APlayerController* PC = GetOwningPlayer())
-			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-				HUD->BeginPauseEffect();
-
 	// 只管光标，不手动设 InputMode —— CommonUI 通过 GetDesiredInputConfig() 自动处理
 	// 手动调 SetInputMode 会覆盖 CommonUI 的焦点路由，导致 NativeGetDesiredFocusTarget 失效
-	if (APlayerController* PC = GetOwningPlayer())
-		PC->SetShowMouseCursor(true);
-
 	RefreshPage();
 
 	bIsInteractable = false;
@@ -161,6 +154,7 @@ void UTutorialPopupWidget::NativeOnActivated()
 
 void UTutorialPopupWidget::NativeOnDeactivated()
 {
+	SetVisibility(ESlateVisibility::Collapsed);
 	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] NativeOnDeactivated — bIsInteractable=%s"),
 		bIsInteractable ? TEXT("true") : TEXT("false"));
 	// 安全网：无论何种关闭路径都清除 bPopupShowing
@@ -168,24 +162,8 @@ void UTutorialPopupWidget::NativeOnDeactivated()
 		if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
 			TM->NotifyPopupClosed();
 
-	if (APlayerController* PC = GetOwningPlayer())
-		PC->SetShowMouseCursor(false);
-
-	if (bPauseMe)
-	{
-		UGameplayStatics::SetGamePaused(this, false);
-		if (APlayerController* PC = GetOwningPlayer())
-			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-				HUD->EndPauseEffect();
-	}
-
+	// Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
 	Super::NativeOnDeactivated();
-
-	// CommonUI 在 Super 里弹出 Menu 模式，但不会主动设回 Game 模式，需要显式恢复
-	if (APlayerController* PC = GetOwningPlayer())
-		PC->SetInputMode(FInputModeGameOnly());
-
-	RemoveFromParent();
 }
 
 // ————————————————————————————————————————————————————

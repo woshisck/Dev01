@@ -5,6 +5,7 @@
 #include "Input/CommonUIInputTypes.h"
 #include "InputCoreTypes.h"
 #include "UI/YogInputKeyUtils.h"
+#include "UI/YogUIManagerSubsystem.h"
 
 TOptional<FUIInputConfig> URunePurificationWidget::GetDesiredInputConfig() const
 {
@@ -17,29 +18,12 @@ void URunePurificationWidget::NativeOnActivated()
 	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	SetIsFocusable(true);
 
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			HUD->BeginPauseEffect();
-
-		PC->SetShowMouseCursor(true);
-		FInputModeUIOnly InputMode;
-		InputMode.SetWidgetToFocus(GetCachedWidget());
-		PC->SetInputMode(InputMode);
-	}
-	SetUserFocus(GetOwningPlayer());
+	// SetUserFocus(player) was targeting the wrong root — leave focus routing to GetDesiredFocusTarget.
 }
 
 void URunePurificationWidget::NativeOnDeactivated()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		PC->SetShowMouseCursor(false);
-		PC->SetInputMode(FInputModeGameOnly());
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			HUD->EndPauseEffect();
-	}
 	Super::NativeOnDeactivated();
 }
 
@@ -145,7 +129,10 @@ void URunePurificationWidget::ConfirmPurification()
 	UBackpackGridComponent* Grid = OwningPlayer->FindComponentByClass<UBackpackGridComponent>();
 	bool bOk = Grid && Grid->TryRemoveRuneCell(SelectedRuneGuid, SelectedCell);
 	OnPurificationFinished(bOk);
-	DeactivateWidget();
+	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::RunePurification))
+	{
+		DeactivateWidget();
+	}
 }
 
 void URunePurificationWidget::CancelPurification()
@@ -163,7 +150,10 @@ void URunePurificationWidget::CancelPurification()
 	}
 
 	OnPurificationFinished(false);
-	DeactivateWidget();
+	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::RunePurification))
+	{
+		DeactivateWidget();
+	}
 }
 
 void URunePurificationWidget::MoveFocus(int32 Direction)

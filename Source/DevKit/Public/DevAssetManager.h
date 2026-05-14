@@ -19,6 +19,7 @@ DECLARE_DYNAMIC_DELEGATE(FOnAsyncLoadFinished);
 class UGameplayTagRelation;
 class UPrimaryDataAsset;
 class UStateConflictDataAsset;
+class UYogUIRegistry;
 
 
 UCLASS(Config = Game)
@@ -45,6 +46,8 @@ public:
 
 	/** 全局状态冲突 & 移动阻断配置表（路径在 DefaultGame.ini 中设置） */
 	UStateConflictDataAsset* GetStateConflictData();
+
+	UYogUIRegistry* GetUIRegistry();
 
 	//	TSoftObjectPtr<UGameplayTagRelation> GameplayTagRelation;
 
@@ -111,6 +114,9 @@ protected:
 	/** 全局状态冲突 & 移动阻断配置（DefaultGame.ini 中配置路径） */
 	UPROPERTY(Config)
 	TSoftObjectPtr<UStateConflictDataAsset> StateConflictData;
+
+	UPROPERTY(Config)
+	TSoftObjectPtr<UYogUIRegistry> UIRegistry;
 
 
 
