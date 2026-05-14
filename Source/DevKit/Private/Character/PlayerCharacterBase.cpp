@@ -170,6 +170,7 @@ void APlayerCharacterBase::ReviveFromDeath(float ReviveHealthPercent, float Prot
 		Movement->StopMovementImmediately();
 		Movement->SetMovementMode(MOVE_Walking);
 	}
+	UnblockMovementControl();
 
 	const float MaxHealth = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
 	const float ReviveHealth = AYogGameMode::CalculatePlayerReviveHealth(MaxHealth, ReviveHealthPercent);

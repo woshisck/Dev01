@@ -18,7 +18,6 @@
 #include <EnhancedInputSubsystems.h>
 #include "Item/ItemSpawner.h"
 #include "Map/RewardPickup.h"
-#include "Map/SacrificeGracePickup.h"
 #include "Map/AltarActor.h"
 #include "Map/ShopActor.h"
 #include "Map/Portal.h"
@@ -649,10 +648,6 @@ void AYogPlayerControllerBase::Interact(const FInputActionValue& Value)
 			player->PendingPickup->TryPickup(player);
 		}
 		// 范围内有献祭恩赐拾取物 → 按 E 触发获取
-		else if (player->PendingSacrificePickup)
-		{
-			player->PendingSacrificePickup->TryPickup(player);
-		}
 		else if (player->PendingAltar)
 		{
 			player->PendingAltar->TryInteract(player);

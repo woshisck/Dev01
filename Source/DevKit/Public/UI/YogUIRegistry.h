@@ -31,7 +31,8 @@ enum class EYogUIScreenId : uint8
 	SacrificeSelection,
 	RunePurification,
 	EntryMenu,
-	CombatDeckFloatingDrag
+	CombatDeckFloatingDrag,
+	GameOver
 };
 
 /**

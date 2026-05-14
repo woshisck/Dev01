@@ -13,13 +13,11 @@
 
 
 class AYogCharacterBase;
-class SDevKitFrontendMenuRoot;
-struct FKey;
 struct FStreamableHandle;
 struct FSlateBrush;
-class SButton;
 class SWidget;
 class UYogEntryMenuWidget;
+class UYogGameOverWidget;
 class UTexture2D;
 class UYogSaveGame;
 
@@ -194,11 +192,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
 	FSoftObjectPath MainGameMap;
 
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
+	FSoftObjectPath FrontendMap;
+
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend", meta = (ClampMin = "0.0"))
 	float MinimumLoadingScreenTime = 0.35f;
 
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
 	TSubclassOf<UYogEntryMenuWidget> EntryMenuClass;
+
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
+	TSubclassOf<UYogGameOverWidget> GameOverWidgetClass;
 
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
 	void ShowMainMenu();
@@ -323,8 +327,6 @@ public:
 
 
 private:
-	friend class SDevKitFrontendMenuRoot;
-
 	// The save slot to load after the map is opened
 	FString PendingSaveSlot;
 
@@ -332,16 +334,11 @@ private:
 	bool bShouldLoadSaveAfterMap;
 
 	TSharedPtr<class SWidget> FrontendWidget;
-	TSharedPtr<SButton> FrontendStartButton;
-	TArray<TSharedPtr<SButton>> FrontendMenuButtons;
 	UPROPERTY()
 	TObjectPtr<UYogEntryMenuWidget> EntryMenuWidget;
 	TSharedPtr<FSlateBrush> FrontendMainMenuBrush;
 	TSharedPtr<FStreamableHandle> FrontendMapLoadHandle;
 	FTimerHandle FrontendLoadingTimerHandle;
-	int32 FrontendFocusedMenuIndex = 0;
-	bool bFrontendGameOverMenu = false;
-	bool bFrontendGameOverCanRevive = false;
 	bool bFrontendLoadingGameplayMap = false;
 	bool bFrontendMinLoadTimeElapsed = false;
 	bool bFrontendMapLoaded = false;
@@ -360,16 +357,9 @@ private:
 	void ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidget> WidgetToFocus = nullptr);
 	void RefocusFrontendWidget();
 	void RefocusEntryMenuWidget();
-	bool IsFrontendStartupWorld(const UWorld* World) const;
-	bool HandleFrontendMenuKey(const FKey& Key);
-	void MoveFrontendMenuFocus(int32 Direction);
-	FReply ActivateFrontendMenuSelection();
 	FReply HandleStartClicked();
 	FReply HandleContinueClicked();
 	FReply HandleOptionsClicked();
-	FReply HandleRetryClicked();
-	FReply HandleReviveClicked();
-	FReply HandleReturnToMenuClicked();
 	FReply HandleQuitClicked();
 
 protected:

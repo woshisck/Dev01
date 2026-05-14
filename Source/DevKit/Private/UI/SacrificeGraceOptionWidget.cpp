@@ -3,25 +3,24 @@
 #include "Components/TextBlock.h"
 #include "Input/CommonUIInputTypes.h"
 #include "Data/SacrificeGraceDA.h"
-#include "Character/PlayerCharacterBase.h"
-#include "Map/SacrificeGracePickup.h"
-#include "UI/YogHUD.h"
 #include "InputCoreTypes.h"
 #include "UI/YogInputKeyUtils.h"
-#include "UI/YogUIManagerSubsystem.h"
 
-void USacrificeGraceOptionWidget::Setup(USacrificeGraceDA* InDA, APlayerCharacterBase* InPlayer, ASacrificeGracePickup* InPickup)
+void USacrificeGraceOptionWidget::Setup(USacrificeGraceDA* InDA, APlayerCharacterBase*, ASacrificeGracePickup*)
 {
 	SacrificeDA  = InDA;
-	OwningPlayer = InPlayer;
-	SourcePickup = InPickup;
 
 	if (TitleText && InDA)
+	{
 		TitleText->SetText(InDA->DisplayName);
+	}
 	if (DescriptionText && InDA)
+	{
 		DescriptionText->SetText(InDA->Description);
+	}
 
-	OnSetup(InDA);
+	// Retired compatibility widget: keep display fields assignable, but do not
+	// invoke old Blueprint-side setup behavior.
 }
 
 void USacrificeGraceOptionWidget::NativeConstruct()
@@ -104,27 +103,14 @@ FReply USacrificeGraceOptionWidget::NativeOnAnalogValueChanged(const FGeometry& 
 
 void USacrificeGraceOptionWidget::OnYesClicked()
 {
-	if (APlayerCharacterBase* Player = OwningPlayer.Get())
-		Player->AcquireSacrificeGrace(SacrificeDA);
-
-	if (ASacrificeGracePickup* Pickup = SourcePickup.Get())
-		Pickup->ConsumeAndDestroy();
-
-	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::SacrificeGraceOption))
-	{
-		DeactivateWidget();
-	}
+	UE_LOG(LogTemp, Warning, TEXT("[SacrificeGraceOptionWidget] Ignored accept: SacrificeGraceOption is retired."));
+	DeactivateWidget();
 }
 
 void USacrificeGraceOptionWidget::OnNoClicked()
 {
-	if (ASacrificeGracePickup* Pickup = SourcePickup.Get())
-		Pickup->ResetForSkip(OwningPlayer.Get());
-
-	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::SacrificeGraceOption))
-	{
-		DeactivateWidget();
-	}
+	UE_LOG(LogTemp, Warning, TEXT("[SacrificeGraceOptionWidget] Ignored cancel: SacrificeGraceOption is retired."));
+	DeactivateWidget();
 }
 
 void USacrificeGraceOptionWidget::CancelChoice()

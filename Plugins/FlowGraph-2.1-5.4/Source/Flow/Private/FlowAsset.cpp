@@ -1057,6 +1057,10 @@ int32 UFlowAsset::RemoveInstance(UFlowAsset* Instance)
 #endif
 
 	ActiveInstances.Remove(Instance);
+	ActiveInstances.RemoveAll([](const TWeakObjectPtr<UFlowAsset>& ActiveInstance)
+	{
+		return !ActiveInstance.IsValid();
+	});
 	return ActiveInstances.Num();
 }
 
@@ -1071,7 +1075,7 @@ void UFlowAsset::ClearInstances()
 
 	for (int32 i = ActiveInstances.Num() - 1; i >= 0; i--)
 	{
-		if (ActiveInstances.IsValidIndex(i) && ActiveInstances[i])
+		if (ActiveInstances.IsValidIndex(i) && ActiveInstances[i].IsValid())
 		{
 			ActiveInstances[i]->FinishFlow(EFlowFinishPolicy::Keep);
 		}
@@ -1083,9 +1087,12 @@ void UFlowAsset::ClearInstances()
 #if WITH_EDITOR
 void UFlowAsset::GetInstanceDisplayNames(TArray<TSharedPtr<FName>>& OutDisplayNames) const
 {
-	for (const UFlowAsset* Instance : ActiveInstances)
+	for (const TWeakObjectPtr<UFlowAsset>& Instance : ActiveInstances)
 	{
-		OutDisplayNames.Emplace(MakeShareable(new FName(Instance->GetDisplayName())));
+		if (Instance.IsValid())
+		{
+			OutDisplayNames.Emplace(MakeShareable(new FName(Instance->GetDisplayName())));
+		}
 	}
 }
 
@@ -1097,13 +1104,14 @@ void UFlowAsset::SetInspectedInstance(const FName& NewInspectedInstanceName)
 	}
 	else
 	{
-		for (UFlowAsset* ActiveInstance : ActiveInstances)
+		for (const TWeakObjectPtr<UFlowAsset>& ActiveInstance : ActiveInstances)
 		{
-			if (ActiveInstance && ActiveInstance->GetDisplayName() == NewInspectedInstanceName)
+			if (ActiveInstance.IsValid() && ActiveInstance->GetDisplayName() == NewInspectedInstanceName)
 			{
-				if (!InspectedInstance.IsValid() || InspectedInstance != ActiveInstance)
+				UFlowAsset* ActiveInstancePtr = ActiveInstance.Get();
+				if (!InspectedInstance.IsValid() || InspectedInstance != ActiveInstancePtr)
 				{
-					InspectedInstance = ActiveInstance;
+					InspectedInstance = ActiveInstancePtr;
 				}
 				break;
 			}
@@ -1176,6 +1184,11 @@ void UFlowAsset::PreStartFlow()
 
 #if WITH_EDITOR
 	check(IsInstanceInitialized());
+
+	TemplateAsset->ActiveInstances.RemoveAll([](const TWeakObjectPtr<UFlowAsset>& ActiveInstance)
+	{
+		return !ActiveInstance.IsValid();
+	});
 
 	if (TemplateAsset->ActiveInstances.Num() == 1)
 	{

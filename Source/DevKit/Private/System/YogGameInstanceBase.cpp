@@ -12,8 +12,6 @@
 #include "GameFramework/PlayerController.h"
 #include "GameModes/YogGameMode.h"
 #include "HAL/PlatformTime.h"
-#include "Input/Events.h"
-#include "Input/NavigationReply.h"
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -22,134 +20,16 @@
 #include "Styling/SlateBrush.h"
 #include "TimerManager.h"
 #include "UI/YogEntryMenuWidget.h"
+#include "UI/YogGameOverWidget.h"
 #include "UI/YogUIManagerSubsystem.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
-#include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
-
-
-namespace
-{
-	bool IsFrontendAcceptKey(const FKey& Key)
-	{
-		return Key == EKeys::Enter
-			|| Key == EKeys::SpaceBar
-			|| Key == EKeys::Virtual_Accept
-			|| Key == EKeys::Gamepad_FaceButton_Bottom;
-	}
-
-	bool IsFrontendBackKey(const FKey& Key)
-	{
-		return Key == EKeys::Escape
-			|| Key == EKeys::Virtual_Back
-			|| Key == EKeys::Gamepad_FaceButton_Right;
-	}
-
-	bool IsFrontendMenuUpKey(const FKey& Key)
-	{
-		return Key == EKeys::Up
-			|| Key == EKeys::Gamepad_DPad_Up
-			|| Key == EKeys::Gamepad_LeftStick_Up;
-	}
-
-	bool IsFrontendMenuDownKey(const FKey& Key)
-	{
-		return Key == EKeys::Down
-			|| Key == EKeys::Gamepad_DPad_Down
-			|| Key == EKeys::Gamepad_LeftStick_Down;
-	}
-}
-
-class SDevKitFrontendMenuRoot : public SCompoundWidget
-{
-public:
-	SLATE_BEGIN_ARGS(SDevKitFrontendMenuRoot) {}
-		SLATE_ARGUMENT(UYogGameInstanceBase*, Owner)
-		SLATE_DEFAULT_SLOT(FArguments, Content)
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs)
-	{
-		Owner = InArgs._Owner;
-		ChildSlot
-		[
-			InArgs._Content.Widget
-		];
-	}
-
-	virtual bool SupportsKeyboardFocus() const override
-	{
-		return true;
-	}
-
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
-	{
-		if (UYogGameInstanceBase* GameInstance = Owner.Get())
-		{
-			if (GameInstance->HandleFrontendMenuKey(InKeyEvent.GetKey()))
-			{
-				return FReply::Handled();
-			}
-		}
-
-		return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
-	}
-
-	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override
-	{
-		const EUINavigation NavigationType = InNavigationEvent.GetNavigationType();
-		if (NavigationType == EUINavigation::Up || NavigationType == EUINavigation::Down)
-		{
-			if (UYogGameInstanceBase* GameInstance = Owner.Get())
-			{
-				GameInstance->MoveFrontendMenuFocus(NavigationType == EUINavigation::Up ? -1 : 1);
-				return FNavigationReply::Stop();
-			}
-		}
-
-		return SCompoundWidget::OnNavigation(MyGeometry, InNavigationEvent);
-	}
-
-	virtual FReply OnAnalogValueChanged(const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent) override
-	{
-		const FKey Key = InAnalogInputEvent.GetKey();
-		if (Key == EKeys::Gamepad_LeftY)
-		{
-			const float Value = InAnalogInputEvent.GetAnalogValue();
-			const int32 Direction = Value > 0.65f ? -1 : (Value < -0.65f ? 1 : 0);
-			const double NowSeconds = FPlatformTime::Seconds();
-			if (Direction != 0 && (Direction != LastAnalogDirection || NowSeconds - LastAnalogNavigationSeconds >= 0.24))
-			{
-				LastAnalogDirection = Direction;
-				LastAnalogNavigationSeconds = NowSeconds;
-				if (UYogGameInstanceBase* GameInstance = Owner.Get())
-				{
-					GameInstance->MoveFrontendMenuFocus(Direction);
-					return FReply::Handled();
-				}
-			}
-			else if (Direction == 0)
-			{
-				LastAnalogDirection = 0;
-			}
-		}
-
-		return SCompoundWidget::OnAnalogValueChanged(MyGeometry, InAnalogInputEvent);
-	}
-
-private:
-	TWeakObjectPtr<UYogGameInstanceBase> Owner;
-	double LastAnalogNavigationSeconds = 0.0;
-	int32 LastAnalogDirection = 0;
-};
-
 
 UYogGameInstanceBase::UYogGameInstanceBase()
 	: SaveSlot(TEXT("SaveGame"))
@@ -157,6 +37,7 @@ UYogGameInstanceBase::UYogGameInstanceBase()
 {
 	bShouldLoadSaveAfterMap = false;
 	MainGameMap = FSoftObjectPath(TEXT("/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom.InitialRoom"));
+	FrontendMap = FSoftObjectPath(TEXT("/Game/Maps/L_EntryMenu.L_EntryMenu"));
 }
 
 APlayerCharacterBase* UYogGameInstanceBase::GetPlayerCharacter()
@@ -318,10 +199,6 @@ void UYogGameInstanceBase::OnPostLoadMap(UWorld* World)
 		bFrontendMapLoaded = true;
 		FinishFrontendLoadingIfReady();
 	}
-	else if (IsFrontendStartupWorld(World))
-	{
-		ShowMainMenu();
-	}
 
 	// If we are supposed to load a save after the map, do it
 	if (bShouldLoadSaveAfterMap && World)
@@ -369,9 +246,6 @@ void UYogGameInstanceBase::ShowMainMenu()
 	bFrontendLoadingGameplayMap = false;
 	bFrontendMapLoaded = false;
 	bFrontendMinLoadTimeElapsed = false;
-	bFrontendGameOverMenu = false;
-	bFrontendGameOverCanRevive = false;
-	FrontendFocusedMenuIndex = 0;
 
 	GetFrontendMainMenuBackgroundBrush();
 
@@ -639,118 +513,49 @@ void UYogGameInstanceBase::ShowLoadingScreen(const FText& Title, const FText& Su
 void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 {
 	RemoveFrontendWidget();
-	bFrontendGameOverMenu = true;
-	bFrontendGameOverCanRevive = bCanRevive;
-	FrontendFocusedMenuIndex = 0;
 
-	TSharedRef<SVerticalBox> ButtonBox = SNew(SVerticalBox);
-	TSharedPtr<SButton> ReviveButton;
-	TSharedPtr<SButton> RetryButton;
-	TSharedPtr<SButton> ReturnButton;
-	if (bCanRevive)
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
+	UYogUIManagerSubsystem* UIManager = LocalPlayer ? LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
+	if (!UIManager)
 	{
-		ButtonBox->AddSlot()
-		.AutoHeight()
-		.Padding(0.f, 0.f, 0.f, 12.f)
-		[
-			SAssignNew(ReviveButton, SButton)
-			.HAlign(HAlign_Center)
-			.IsFocusable(false)
-			.ContentPadding(FMargin(28.f, 12.f))
-			.OnClicked_UObject(this, &UYogGameInstanceBase::HandleReviveClicked)
-			[
-				SNew(STextBlock)
-				.Text(NSLOCTEXT("DevKitFrontend", "ReviveOnce", "Revive"))
-				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 22))
-			]
-		];
+		UE_LOG(LogTemp, Error, TEXT("[GameOver] Cannot show game over screen: UIManager is missing."));
+		return;
 	}
-	ButtonBox->AddSlot()
-	.AutoHeight()
-	.Padding(0.f, 0.f, 0.f, 12.f)
-	[
-		SAssignNew(RetryButton, SButton)
-		.HAlign(HAlign_Center)
-		.IsFocusable(false)
-		.ContentPadding(FMargin(28.f, 12.f))
-		.OnClicked_UObject(this, &UYogGameInstanceBase::HandleRetryClicked)
-		[
-			SNew(STextBlock)
-			.Text(NSLOCTEXT("DevKitFrontend", "Retry", "Try Again"))
-			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 22))
-		]
-	];
-	ButtonBox->AddSlot()
-	.AutoHeight()
-	[
-		SAssignNew(ReturnButton, SButton)
-		.HAlign(HAlign_Center)
-		.IsFocusable(false)
-		.ContentPadding(FMargin(28.f, 12.f))
-		.OnClicked_UObject(this, &UYogGameInstanceBase::HandleReturnToMenuClicked)
-		[
-			SNew(STextBlock)
-			.Text(NSLOCTEXT("DevKitFrontend", "ReturnToTitle", "Return to Title"))
-			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 20))
-		]
-	];
 
-	TSharedRef<SWidget> MenuContent =
-		SNew(SOverlay)
-		+ SOverlay::Slot()
-		[
-			SNew(SBorder)
-			.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.82f))
-			.Padding(0.f)
-		]
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SBox)
-			.WidthOverride(560.f)
-			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.HAlign(HAlign_Center)
-				.Padding(0.f, 0.f, 0.f, 26.f)
-				[
-					SNew(STextBlock)
-					.Text(NSLOCTEXT("DevKitFrontend", "GameOver", "Game Over"))
-					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 50))
-					.ColorAndOpacity(FLinearColor(0.92f, 0.3f, 0.24f, 1.f))
-				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					ButtonBox
-				]
-			]
-		];
-
-	TSharedRef<SWidget> Widget =
-		SNew(SDevKitFrontendMenuRoot)
-		.Owner(this)
-		[
-			MenuContent
-		];
-
-	if (ReviveButton.IsValid())
+	TSubclassOf<UYogGameOverWidget> WidgetClass = GameOverWidgetClass;
+	if (!WidgetClass)
 	{
-		FrontendMenuButtons.Add(ReviveButton);
+		WidgetClass = UYogGameOverWidget::StaticClass();
 	}
-	FrontendMenuButtons.Add(RetryButton);
-	FrontendMenuButtons.Add(ReturnButton);
-	FrontendWidget = Widget;
-	if (GEngine && GEngine->GameViewport)
+	UIManager->SetWidgetClassOverride(EYogUIScreenId::GameOver, WidgetClass);
+
+	FYogUIScreenInputPolicy Policy;
+	Policy.bShowMouseCursor = true;
+	Policy.bPauseGame = true;
+	Policy.bDisablePawnInput = true;
+	Policy.bAffectsMajorUI = false;
+	UIManager->SetInputPolicyOverride(EYogUIScreenId::GameOver, Policy);
+
+	UYogGameOverWidget* GameOverWidget = Cast<UYogGameOverWidget>(UIManager->EnsureWidget(EYogUIScreenId::GameOver));
+	if (!GameOverWidget)
 	{
-		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
+		UE_LOG(LogTemp, Error, TEXT("[GameOver] Cannot show game over screen: widget class is invalid."));
+		return;
 	}
-	ApplyFrontendInputMode(true, FrontendWidget);
+
+	GameOverWidget->Setup(bCanRevive);
+	UIManager->PushScreen(EYogUIScreenId::GameOver);
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimerForNextTick(this, &UYogGameInstanceBase::RefocusFrontendWidget);
+		TWeakObjectPtr<UYogGameOverWidget> WeakWidget(GameOverWidget);
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakWidget]()
+		{
+			if (UYogGameOverWidget* Widget = WeakWidget.Get())
+			{
+				Widget->SetKeyboardFocus();
+			}
+		}));
 	}
 }
 
@@ -760,7 +565,13 @@ void UYogGameInstanceBase::ReturnToMainMenu()
 	ShowLoadingScreen(
 		NSLOCTEXT("DevKitFrontend", "ReturningTitle", "Returning"),
 		NSLOCTEXT("DevKitFrontend", "ReturningSubtitle", "Opening title screen"));
-	UGameplayStatics::OpenLevel(this, FName(TEXT("/Engine/Maps/Entry")), true);
+	const FString PackageName = FrontendMap.GetLongPackageName();
+	if (PackageName.IsEmpty())
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Frontend] Could not resolve frontend map package from %s"), *FrontendMap.ToString());
+		return;
+	}
+	UGameplayStatics::OpenLevel(this, FName(*PackageName), true);
 }
 
 void UYogGameInstanceBase::RemoveFrontendWidget()
@@ -786,11 +597,6 @@ void UYogGameInstanceBase::RemoveFrontendWidget()
 		GEngine->GameViewport->RemoveViewportWidgetContent(FrontendWidget.ToSharedRef());
 	}
 	FrontendWidget.Reset();
-	FrontendStartButton.Reset();
-	FrontendMenuButtons.Reset();
-	FrontendFocusedMenuIndex = 0;
-	bFrontendGameOverMenu = false;
-	bFrontendGameOverCanRevive = false;
 }
 
 void UYogGameInstanceBase::ApplyFrontendInputMode(bool bUIOnly, TSharedPtr<SWidget> WidgetToFocus)
@@ -837,117 +643,6 @@ void UYogGameInstanceBase::RefocusEntryMenuWidget()
 	}
 }
 
-bool UYogGameInstanceBase::IsFrontendStartupWorld(const UWorld* World) const
-{
-	if (!World) return false;
-
-	const FString PackageName = World->GetOutermost()->GetName();
-	return PackageName.Equals(TEXT("/Engine/Maps/Entry"), ESearchCase::IgnoreCase);
-}
-
-bool UYogGameInstanceBase::HandleFrontendMenuKey(const FKey& Key)
-{
-	if (IsFrontendMenuUpKey(Key))
-	{
-		MoveFrontendMenuFocus(-1);
-		return true;
-	}
-
-	if (IsFrontendMenuDownKey(Key))
-	{
-		MoveFrontendMenuFocus(1);
-		return true;
-	}
-
-	if (IsFrontendAcceptKey(Key))
-	{
-		ActivateFrontendMenuSelection();
-		return true;
-	}
-
-	if (IsFrontendBackKey(Key))
-	{
-		const int32 QuitIndex = FrontendMenuButtons.Num() - 1;
-		if (FrontendMenuButtons.IsValidIndex(QuitIndex) && FrontendFocusedMenuIndex != QuitIndex)
-		{
-			FrontendFocusedMenuIndex = QuitIndex;
-			if (FrontendWidget.IsValid())
-			{
-				FrontendWidget->Invalidate(EInvalidateWidgetReason::Paint);
-				FSlateApplication::Get().SetKeyboardFocus(FrontendWidget, EFocusCause::Navigation);
-			}
-		}
-		else
-		{
-			if (bFrontendGameOverMenu)
-			{
-				HandleReturnToMenuClicked();
-			}
-			else
-			{
-				HandleQuitClicked();
-			}
-		}
-		return true;
-	}
-
-	return false;
-}
-
-void UYogGameInstanceBase::MoveFrontendMenuFocus(int32 Direction)
-{
-	if (Direction == 0 || FrontendMenuButtons.Num() == 0)
-	{
-		return;
-	}
-
-	const int32 ButtonCount = FrontendMenuButtons.Num();
-	FrontendFocusedMenuIndex = (FrontendFocusedMenuIndex + Direction + ButtonCount) % ButtonCount;
-	if (FrontendWidget.IsValid())
-	{
-		FrontendWidget->Invalidate(EInvalidateWidgetReason::Paint);
-		FSlateApplication::Get().SetKeyboardFocus(FrontendWidget, EFocusCause::Navigation);
-	}
-}
-
-FReply UYogGameInstanceBase::ActivateFrontendMenuSelection()
-{
-	if (bFrontendGameOverMenu)
-	{
-		if (bFrontendGameOverCanRevive)
-		{
-			switch (FrontendFocusedMenuIndex)
-			{
-			case 0: return HandleReviveClicked();
-			case 1: return HandleRetryClicked();
-			case 2: return HandleReturnToMenuClicked();
-			default: return FReply::Handled();
-			}
-		}
-
-		switch (FrontendFocusedMenuIndex)
-		{
-		case 0: return HandleRetryClicked();
-		case 1: return HandleReturnToMenuClicked();
-		default: return FReply::Handled();
-		}
-	}
-
-	switch (FrontendFocusedMenuIndex)
-	{
-	case 0:
-		return HandleStartClicked();
-	case 1:
-		return HandleContinueClicked();
-	case 2:
-		return HandleOptionsClicked();
-	case 3:
-		return HandleQuitClicked();
-	default:
-		return FReply::Handled();
-	}
-}
-
 FReply UYogGameInstanceBase::HandleStartClicked()
 {
 	StartNewRunFromFrontend();
@@ -963,45 +658,6 @@ FReply UYogGameInstanceBase::HandleContinueClicked()
 FReply UYogGameInstanceBase::HandleOptionsClicked()
 {
 	UE_LOG(LogTemp, Log, TEXT("[Frontend] Options clicked; settings screen is not implemented yet."));
-	return FReply::Handled();
-}
-
-FReply UYogGameInstanceBase::HandleRetryClicked()
-{
-	if (UWorld* World = GetWorld())
-	{
-		UGameplayStatics::SetGamePaused(World, false);
-	}
-	StartNewRunFromFrontend();
-	return FReply::Handled();
-}
-
-FReply UYogGameInstanceBase::HandleReviveClicked()
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return FReply::Handled();
-	}
-
-	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(World)))
-	{
-		if (GM->RevivePlayerFromDeath())
-		{
-			RemoveFrontendWidget();
-			ApplyFrontendInputMode(false);
-		}
-	}
-	return FReply::Handled();
-}
-
-FReply UYogGameInstanceBase::HandleReturnToMenuClicked()
-{
-	if (UWorld* World = GetWorld())
-	{
-		UGameplayStatics::SetGamePaused(World, false);
-	}
-	ReturnToMainMenu();
 	return FReply::Handled();
 }
 

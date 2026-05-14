@@ -17,6 +17,11 @@
 
 namespace
 {
+bool IsRetiredManagedScreen(EYogUIScreenId ScreenId)
+{
+	return ScreenId == EYogUIScreenId::SacrificeGraceOption;
+}
+
 bool IsInteractiveManagedScreen(EYogUIScreenId ScreenId)
 {
 	switch (ScreenId)
@@ -25,12 +30,12 @@ bool IsInteractiveManagedScreen(EYogUIScreenId ScreenId)
 	case EYogUIScreenId::LootSelection:
 	case EYogUIScreenId::PauseMenu:
 	case EYogUIScreenId::TutorialPopup:
-	case EYogUIScreenId::SacrificeGraceOption:
 	case EYogUIScreenId::ShopSelection:
 	case EYogUIScreenId::AltarMenu:
 	case EYogUIScreenId::SacrificeSelection:
 	case EYogUIScreenId::RunePurification:
 	case EYogUIScreenId::EntryMenu:
+	case EYogUIScreenId::GameOver:
 		return true;
 	default:
 		return false;
@@ -80,6 +85,11 @@ UYogUIRegistry* UYogUIManagerSubsystem::GetRegistry() const
 
 TSubclassOf<UUserWidget> UYogUIManagerSubsystem::GetWidgetClass(EYogUIScreenId ScreenId) const
 {
+	if (IsRetiredManagedScreen(ScreenId))
+	{
+		return nullptr;
+	}
+
 	if (const TSubclassOf<UUserWidget>* OverrideClass = WidgetClassOverrides.Find(ScreenId))
 	{
 		return *OverrideClass;
@@ -117,6 +127,11 @@ int32 UYogUIManagerSubsystem::GetZOrder(EYogUIScreenId ScreenId, int32 FallbackZ
 
 void UYogUIManagerSubsystem::SetWidgetClassOverride(EYogUIScreenId ScreenId, TSubclassOf<UUserWidget> WidgetClass)
 {
+	if (IsRetiredManagedScreen(ScreenId))
+	{
+		return;
+	}
+
 	if (WidgetClass)
 	{
 		WidgetClassOverrides.Add(ScreenId, WidgetClass);
@@ -174,7 +189,9 @@ EYogUILayer UYogUIManagerSubsystem::GetLayerForScreen(EYogUIScreenId ScreenId) c
 {
 	if (IsInteractiveManagedScreen(ScreenId))
 	{
-		return ScreenId == EYogUIScreenId::PauseMenu ? EYogUILayer::Modal : EYogUILayer::Menu;
+		return (ScreenId == EYogUIScreenId::PauseMenu || ScreenId == EYogUIScreenId::GameOver)
+			? EYogUILayer::Modal
+			: EYogUILayer::Menu;
 	}
 
 	if (!CachedRegistry)
@@ -203,7 +220,9 @@ FYogUIScreenInputPolicy UYogUIManagerSubsystem::GetInputPolicyForScreen(EYogUISc
 	{
 		Policy.bShowMouseCursor = true;
 		Policy.bPauseGame = true;
-		Policy.bAffectsMajorUI = ScreenId != EYogUIScreenId::TutorialPopup && ScreenId != EYogUIScreenId::PauseMenu;
+		Policy.bAffectsMajorUI = ScreenId != EYogUIScreenId::TutorialPopup
+			&& ScreenId != EYogUIScreenId::PauseMenu
+			&& ScreenId != EYogUIScreenId::GameOver;
 	}
 	if (ScreenId == EYogUIScreenId::LootSelection)
 	{
@@ -227,6 +246,11 @@ FYogUIScreenInputPolicy UYogUIManagerSubsystem::GetInputPolicyForScreen(EYogUISc
 
 UUserWidget* UYogUIManagerSubsystem::EnsureWidget(EYogUIScreenId ScreenId)
 {
+	if (IsRetiredManagedScreen(ScreenId))
+	{
+		return nullptr;
+	}
+
 	if (TObjectPtr<UUserWidget>* Existing = Instances.Find(ScreenId))
 	{
 		if (*Existing && (*Existing)->IsInViewport())
@@ -257,7 +281,10 @@ UUserWidget* UYogUIManagerSubsystem::EnsureWidget(EYogUIScreenId ScreenId)
 		return nullptr;
 	}
 
-	W->AddToViewport(GetZOrder(ScreenId, 0));
+	const int32 ZOrder = ScreenId == EYogUIScreenId::GameOver
+		? FMath::Max(GetZOrder(ScreenId, 10000), 10000)
+		: GetZOrder(ScreenId, 0);
+	W->AddToViewport(ZOrder);
 	Instances.Add(ScreenId, W);
 
 	if (UCommonActivatableWidget* Activatable = Cast<UCommonActivatableWidget>(W))
@@ -294,6 +321,11 @@ void UYogUIManagerSubsystem::BindActivationDelegates(EYogUIScreenId ScreenId, UC
 
 UCommonActivatableWidget* UYogUIManagerSubsystem::PushScreen(EYogUIScreenId ScreenId)
 {
+	if (IsRetiredManagedScreen(ScreenId))
+	{
+		return nullptr;
+	}
+
 	UUserWidget* W = EnsureWidget(ScreenId);
 	UCommonActivatableWidget* Activatable = Cast<UCommonActivatableWidget>(W);
 	if (!Activatable)
@@ -316,6 +348,12 @@ UCommonActivatableWidget* UYogUIManagerSubsystem::PushScreen(EYogUIScreenId Scre
 
 void UYogUIManagerSubsystem::PushScreenAsync(EYogUIScreenId ScreenId, const FOnAsyncScreenReady& OnReady)
 {
+	if (IsRetiredManagedScreen(ScreenId))
+	{
+		OnReady.ExecuteIfBound(ScreenId, nullptr);
+		return;
+	}
+
 	// 已经加载好：走同步路径
 	if (LoadedWidgetClasses.Contains(ScreenId))
 	{
@@ -593,6 +631,11 @@ void UYogUIManagerSubsystem::CreateAutoStartWidgets()
 
 	for (const FYogUIRegistryEntry& Entry : CachedRegistry->Entries)
 	{
+		if (IsRetiredManagedScreen(Entry.ScreenId))
+		{
+			continue;
+		}
+
 		if (!Entry.bCreateOnHUDStart)
 		{
 			continue;

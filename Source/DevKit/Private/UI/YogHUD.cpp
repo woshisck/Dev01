@@ -41,9 +41,6 @@
 #include "UI/PortalDirectionWidget.h"
 #include "Map/RewardPickup.h"
 #include "Map/Portal.h"
-#include "Map/SacrificeGracePickup.h"
-#include "UI/SacrificeGraceOptionWidget.h"
-#include "Data/SacrificeGraceDA.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "GameModes/YogGameMode.h"
@@ -128,7 +125,6 @@ void AYogHUD::BeginPlay()
 	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::PauseMenu, PauseMenuClass);
 	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::Backpack, BackpackScreenClass);
 	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::LootSelection, LootSelectionWidgetClass);
-	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::SacrificeGraceOption, SacrificeGraceOptionWidgetClass);
 
 	// Registry-driven boot: any entry with bCreateOnHUDStart=true is created + AddToViewport here.
 	// Per-screen members below adopt the instance via Ensure*Widget() (idempotent).
@@ -224,8 +220,6 @@ void AYogHUD::BeginPlay()
 	EnsureLootSelectionWidget();
 
 	// ── SacrificeGrace 确认弹窗（常驻，默认隐藏，按需激活）──────────
-	EnsureSacrificeGraceOptionWidget();
-
 	// ── Weapon Thumbnail Fly（按需回退加载） ──────
 	if (!ThumbnailFlyClass)
 	{
@@ -310,12 +304,6 @@ bool AYogHUD::CloseTopMostOverlay()
 		{
 			TutorialPopupWidget->DeactivateWidget();
 		}
-		return true;
-	}
-
-	if (SacrificeGraceOptionWidget && SacrificeGraceOptionWidget->IsActivated())
-	{
-		SacrificeGraceOptionWidget->CancelChoice();
 		return true;
 	}
 
@@ -437,27 +425,6 @@ void AYogHUD::EnsureLootSelectionWidget()
 	}
 }
 
-void AYogHUD::EnsureSacrificeGraceOptionWidget()
-{
-	if (SacrificeGraceOptionWidget && SacrificeGraceOptionWidget->IsInViewport())
-	{
-		return;
-	}
-
-	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
-	{
-		if (SacrificeGraceOptionWidgetClass)
-		{
-			UIManager->SetWidgetClassOverride(EYogUIScreenId::SacrificeGraceOption, SacrificeGraceOptionWidgetClass);
-		}
-		SacrificeGraceOptionWidget = Cast<USacrificeGraceOptionWidget>(UIManager->EnsureWidget(EYogUIScreenId::SacrificeGraceOption));
-		if (SacrificeGraceOptionWidget)
-		{
-			return;
-		}
-	}
-}
-
 void AYogHUD::ShowLootSelectionUI(const TArray<FLootOption>& Options)
 {
 	// 兼容旧路径（无 SourcePickup）：转发到队列入口
@@ -506,35 +473,6 @@ void AYogHUD::OnLootSelectionFinished()
 
 	// 复用 QueueLootSelection 流程（此时 bLootSelectionActive 已置 false，会立即弹）
 	QueueLootSelection(Next.Options, Next.SourcePickup.Get());
-}
-
-void AYogHUD::ShowSacrificeGraceOption(USacrificeGraceDA* DA, APlayerCharacterBase* Player, ASacrificeGracePickup* Pickup)
-{
-	if (!DA) return;
-
-	// 按需重建（Widget 被 CommonUI 框架销毁时）
-	if (!SacrificeGraceOptionWidget || !SacrificeGraceOptionWidget->IsInViewport())
-	{
-		EnsureSacrificeGraceOptionWidget();
-		if (!SacrificeGraceOptionWidget) return;
-	}
-
-	SacrificeGraceOptionWidget->Setup(DA, Player, Pickup);
-
-	// 每次（含重建后）重新注册 MajorUI 关闭监听，避免重复注册
-	if (SacrificeGraceMajorUIHandle.IsValid())
-	{
-		SacrificeGraceOptionWidget->OnDeactivated().Remove(SacrificeGraceMajorUIHandle);
-		SacrificeGraceMajorUIHandle.Reset();
-	}
-
-	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
-	{
-		UIManager->PushScreen(EYogUIScreenId::SacrificeGraceOption);
-		return;
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[YogHUD] ShowSacrificeGraceOption failed: UIManager is missing."));
 }
 
 void AYogHUD::OpenBackpackForPreview(FSimpleDelegate OnClosed)

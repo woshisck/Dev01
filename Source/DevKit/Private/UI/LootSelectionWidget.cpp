@@ -565,7 +565,7 @@ void ULootSelectionWidget::NativeOnDeactivated()
 		// 配对 NativeOnActivated 的 DisableInput
 	}
 
-	// 不调 Super：避免 CommonUI bDestroyOnDeactivation 造成本控件销毁
+	Super::NativeOnDeactivated();
 }
 
 // ============================================================

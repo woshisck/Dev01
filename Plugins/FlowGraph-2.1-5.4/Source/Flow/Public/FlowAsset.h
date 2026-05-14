@@ -272,8 +272,7 @@ protected:
 
 private:
 	// Original object holds references to instances
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UFlowAsset>> ActiveInstances;
+	TArray<TWeakObjectPtr<UFlowAsset>> ActiveInstances;
 
 #if WITH_EDITORONLY_DATA
 	TWeakObjectPtr<UFlowAsset> InspectedInstance;

@@ -30,9 +30,6 @@ class UPortalDirectionWidget;
 class APortal;
 class ARewardPickup;
 class APlayerCharacterBase;
-class ASacrificeGracePickup;
-class USacrificeGraceDA;
-class USacrificeGraceOptionWidget;
 class UBackpackGridComponent;
 class UCombatItemBarWidget;
 class UCurrentRoomBuffWidget;
@@ -189,19 +186,6 @@ public:
 
 	/** 由 LootSelectionWidget 在 Skip / Select 后调用，弹队列下一项 */
 	void OnLootSelectionFinished();
-
-	// ─────────────────────────────────────────
-	//  献祭恩赐确认弹窗
-	// ─────────────────────────────────────────
-
-	UPROPERTY(EditDefaultsOnly, Category = "SacrificeGrace")
-	TSubclassOf<USacrificeGraceOptionWidget> SacrificeGraceOptionWidgetClass;
-
-	/**
-	 * 由 SacrificeGracePickup::TryPickup 调用：显示 Yes/No 确认弹窗。
-	 * Yes → AcquireSacrificeGrace → 销毁拾取物；No → 复位拾取物。
-	 */
-	void ShowSacrificeGraceOption(USacrificeGraceDA* DA, APlayerCharacterBase* Player, ASacrificeGracePickup* Pickup);
 
 	// ─────────────────────────────────────────
 	//  轻量信息提示浮窗（不暂停游戏，放在 WBP_HUDRoot 内）
@@ -387,7 +371,6 @@ private:
 	bool EnsureWeaponFloatWidget();
 	void EnsureBackpackWidget();
 	void EnsureLootSelectionWidget();
-	void EnsureSacrificeGraceOptionWidget();
 	template<typename WidgetT>
 	TSubclassOf<WidgetT> ResolveManagedWidgetClass(EYogUIScreenId ScreenId, TSubclassOf<WidgetT> FallbackClass) const;
 	int32 ResolveManagedZOrder(EYogUIScreenId ScreenId, int32 FallbackZOrder) const;
@@ -406,7 +389,6 @@ private:
 	int32 MajorUICount      = 0;
 	float MajorUIFadeAlpha  = 1.f;   // 当前 opacity（1=完全可见，0=完全隐藏）
 	float MajorUIFadeTarget = 1.f;   // 目标 opacity
-	FDelegateHandle SacrificeGraceMajorUIHandle;
 	void TickMajorUIFade(float DeltaSeconds);
 	void TickWeaponFloatFade(float DeltaSeconds);
 
@@ -422,9 +404,6 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<ULootSelectionWidget> LootSelectionWidget;
-
-	UPROPERTY()
-	TObjectPtr<USacrificeGraceOptionWidget> SacrificeGraceOptionWidget;
 
 	UPROPERTY()
 	TObjectPtr<UCurrentRoomBuffWidget> CurrentRoomBuffWidget;

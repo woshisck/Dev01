@@ -148,9 +148,7 @@ void AYogGameMode::StartPlay()
 	}
 	else
 	{
-		const FString MapName = UGameplayStatics::GetCurrentLevelName(GetWorld(), true);
-		if (!MapName.Equals(TEXT("Entry"), ESearchCase::IgnoreCase))
-			FallbackToPreplacedEnemies();
+		FallbackToPreplacedEnemies();
 	}
 }
 
@@ -478,28 +476,27 @@ void AYogGameMode::EnterArrangementPhase()
 	SpawnSacrificeEventAltar(LootSpawnLoc);
 
 	const bool bIsHubRoom = ActiveRoomData && ActiveRoomData->bIsHubRoom;
-	if (!bIsHubRoom && !IsSacrificeEventRoom() && SacrificePickupClass && SacrificeGracePool.Num() > 0
+	if (!bIsHubRoom && !IsSacrificeEventRoom() && RewardPickupClass
 		&& FMath::FRand() < SacrificeDropChance)
 	{
-		const int32 ChosenIdx = FMath::RandRange(0, SacrificeGracePool.Num() - 1);
-		USacrificeGraceDA* ChosenDA = SacrificeGracePool[ChosenIdx];
-
-		// 在普通奖励旁边偏移 250cm 处生成
-		FVector SacrificeSpawnLoc = LootSpawnLoc + FVector(250.f, 0.f, 0.f);
-
-		AActor* SacrificePickup = GetWorld()->SpawnActor<AActor>(
-			SacrificePickupClass, SacrificeSpawnLoc, FRotator::ZeroRotator);
-
-		// 把选中的 DA 注入拾取物（拾取物需实现 SetSacrificeGraceDA BlueprintNativeEvent 或公开 UPROPERTY）
-		if (SacrificePickup)
+		TArray<FLootOption> ExtraBatch = GenerateLootBatch(LootAssignedThisLevel);
+		if (ExtraBatch.Num() <= 0)
 		{
-			if (UFunction* SetDA = SacrificePickup->FindFunction(TEXT("SetSacrificeGraceDA")))
+			UE_LOG(LogTemp, Warning, TEXT("EnterArrangementPhase: skipped extra RewardPickup because no extra rune options were available."));
+		}
+		else
+		{
+			// Spawn an extra rune reward beside the normal reward.
+			FVector ExtraRewardSpawnLoc = LootSpawnLoc + FVector(250.f, 0.f, 0.f);
+
+			ARewardPickup* ExtraPickup = GetWorld()->SpawnActor<ARewardPickup>(
+				RewardPickupClass, ExtraRewardSpawnLoc, FRotator::ZeroRotator);
+			if (ExtraPickup)
 			{
-				struct { USacrificeGraceDA* DA; } Params{ ChosenDA };
-				SacrificePickup->ProcessEvent(SetDA, &Params);
+				ExtraPickup->AssignLoot(ExtraBatch);
+				UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: spawned extra RewardPickup with %d rune options @ %s"),
+					ExtraBatch.Num(), *ExtraRewardSpawnLoc.ToString());
 			}
-			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 献祭恩赐掉落 [%s] @ %s"),
-				*ChosenDA->GetName(), *SacrificeSpawnLoc.ToString());
 		}
 	}
 
@@ -1055,13 +1052,6 @@ void AYogGameMode::StartLevelSpawning()
 	const FString CurrentMapNameForFrontend = UGameplayStatics::GetCurrentLevelName(GetWorld(), true);
 	UE_LOG(LogTemp, Warning, TEXT("[StartLevelSpawning] Map=%s CampaignData=%s ActiveRoomData=%s"),
 		*CurrentMapNameForFrontend, *GetNameSafe(CampaignData), *GetNameSafe(ActiveRoomData));
-
-	if (CurrentMapNameForFrontend.Equals(TEXT("Entry"), ESearchCase::IgnoreCase))
-	{
-		CurrentPhase = ELevelPhase::Transitioning;
-		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: Entry frontend map detected, gameplay spawning is skipped."));
-		return;
-	}
 
 	if (!CampaignData)
 	{

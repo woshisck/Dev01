@@ -11,11 +11,11 @@ class USacrificeGraceDA;
 class APlayerCharacterBase;
 
 /**
- * ASacrificeGracePickup — 献祭恩赐拾取物
+ * Retired compatibility pickup.
  *
- * 由 GameMode 在整理阶段随机生成，玩家走近后按 E 键获取献祭恩赐效果。
- * 实现 IPickupInteractable：进入范围显示 PickupHintWidgetComp，离开隐藏。
- * DA 由 GameMode 通过 SetSacrificeGraceDA 注入。
+ * SacrificeGraceOption drops were replaced by RewardPickup/LootSelection. This
+ * actor remains loadable for old assets, but it disables collision and does
+ * nothing when interacted with.
  */
 UCLASS()
 class DEVKIT_API ASacrificeGracePickup : public AActor, public IPickupInteractable
@@ -25,7 +25,7 @@ class DEVKIT_API ASacrificeGracePickup : public AActor, public IPickupInteractab
 public:
 	ASacrificeGracePickup();
 
-	/** 由 GameMode 在 Spawn 后立即调用，注入要赋予玩家的献祭 DA */
+	/** Legacy setter kept for old Blueprint references. */
 	UFUNCTION(BlueprintCallable, Category = "SacrificeGrace")
 	void SetSacrificeGraceDA(USacrificeGraceDA* DA);
 
@@ -35,10 +35,10 @@ public:
 	virtual void TryPickup(APlayerCharacterBase* Player) override;
 	// ~ End IPickupInteractable
 
-	/** Yes 确认后由 SacrificeGraceOptionWidget 调用：销毁本拾取物 */
+	/** Compatibility close path for old widget references. */
 	void ConsumeAndDestroy();
 
-	/** No 放弃后由 SacrificeGraceOptionWidget 调用：复位状态使玩家可再次按 E */
+	/** Compatibility reset path for old widget references. */
 	void ResetForSkip(APlayerCharacterBase* Player);
 
 protected:
@@ -47,7 +47,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup")
 	TObjectPtr<UBoxComponent> CollisionVolume;
 
-	/** 玩家进入范围时显示的交互提示 Widget（在 BP 中指定 WBP 类） */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Pickup")
 	TObjectPtr<UWidgetComponent> PickupHintWidgetComp;
 
