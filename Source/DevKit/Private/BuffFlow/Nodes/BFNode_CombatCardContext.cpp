@@ -288,7 +288,7 @@ UBFNode_CombatCardContextBranch::UBFNode_CombatCardContextBranch(const FObjectIn
 	OutputPins = { FFlowPin(TEXT("Pass")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_CombatCardContextBranch::ExecuteInput(const FName& PinName)
+void UBFNode_CombatCardContextBranch::ExecuteBuffFlowInput(const FName& PinName)
 {
 	const UBuffFlowComponent* BFC = GetBuffFlowComponent();
 	if (!BFC || !BFC->HasCombatCardEffectContext())

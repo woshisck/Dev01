@@ -26,7 +26,7 @@ UBFNode_HitStop::UBFNode_HitStop(const FObjectInitializer& OI) : Super(OI)
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_HitStop::ExecuteInput(const FName& PinName)
+void UBFNode_HitStop::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UYogAbilitySystemComponent* ASC = GetOwnerASC();
 	AYogCharacterBase* Owner = GetBuffOwner();

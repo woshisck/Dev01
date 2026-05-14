@@ -12,7 +12,7 @@ UBFNode_GrantSacrificePassive::UBFNode_GrantSacrificePassive(const FObjectInitia
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_GrantSacrificePassive::ExecuteInput(const FName& PinName)
+void UBFNode_GrantSacrificePassive::ExecuteBuffFlowInput(const FName& PinName)
 {
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetBuffOwner());
 	if (!Player || !Player->SacrificeRuneComponent)

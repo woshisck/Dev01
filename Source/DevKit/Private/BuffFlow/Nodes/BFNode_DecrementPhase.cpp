@@ -12,7 +12,7 @@ UBFNode_DecrementPhase::UBFNode_DecrementPhase(const FObjectInitializer& ObjectI
     OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_DecrementPhase::ExecuteInput(const FName& PinName)
+void UBFNode_DecrementPhase::ExecuteBuffFlowInput(const FName& PinName)
 {
     if (AYogCharacterBase* Owner = GetBuffOwner())
     {

@@ -13,7 +13,7 @@ UBFNode_CheckDistance::UBFNode_CheckDistance(const FObjectInitializer& ObjectIni
 	RequiredDistance.Value = 800.f;
 }
 
-void UBFNode_CheckDistance::ExecuteInput(const FName& PinName)
+void UBFNode_CheckDistance::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (PinName == TEXT("Save"))
 	{

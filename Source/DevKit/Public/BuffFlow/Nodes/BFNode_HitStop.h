@@ -40,5 +40,5 @@ class DEVKIT_API UBFNode_HitStop : public UBFNode_Base
 	float CatchUpRate = 2.0f;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

@@ -15,5 +15,5 @@ class DEVKIT_API UBFNode_IfStatement : public UBFNode_Base
 	FFlowDataPinInputProperty_Bool Condition;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

@@ -14,7 +14,7 @@ UBFNode_ApplyExecution::UBFNode_ApplyExecution(const FObjectInitializer& ObjectI
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_ApplyExecution::ExecuteInput(const FName& PinName)
+void UBFNode_ApplyExecution::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (!ExecCalcClass)
 	{

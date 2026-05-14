@@ -28,7 +28,7 @@ class DEVKIT_API UBFNode_TrackMovement : public UBFNode_Base
 	float StationaryTimeout = 0.f;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 	virtual void Cleanup() override;
 
 private:

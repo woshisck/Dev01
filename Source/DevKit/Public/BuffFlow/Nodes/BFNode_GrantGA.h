@@ -48,7 +48,7 @@ class DEVKIT_API UBFNode_GrantGA : public UBFNode_Base
 	FFlowDataPinOutputProperty_Int32 GALevel;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 
 	/** FA 停止时自动调用，撤销已授予的 GA */
 	virtual void Cleanup() override;

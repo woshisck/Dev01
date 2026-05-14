@@ -22,7 +22,7 @@ UBFNode_SpawnRuneAreaProfile::UBFNode_SpawnRuneAreaProfile(const FObjectInitiali
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_SpawnRuneAreaProfile::ExecuteInput(const FName& PinName)
+void UBFNode_SpawnRuneAreaProfile::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UBuffFlowComponent* BFC = GetBuffFlowComponent();
 	if (!Profile)

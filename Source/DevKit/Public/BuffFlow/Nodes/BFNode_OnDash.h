@@ -16,7 +16,7 @@ class DEVKIT_API UBFNode_OnDash : public UBFNode_Base
 	GENERATED_UCLASS_BODY()
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 	virtual void Cleanup() override;
 
 	UFUNCTION()

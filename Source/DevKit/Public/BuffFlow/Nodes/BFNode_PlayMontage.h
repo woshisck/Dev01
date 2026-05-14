@@ -29,5 +29,5 @@ class DEVKIT_API UBFNode_PlayMontage : public UBFNode_Base
 	EBFTargetSelector TargetSelector = EBFTargetSelector::BuffOwner;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

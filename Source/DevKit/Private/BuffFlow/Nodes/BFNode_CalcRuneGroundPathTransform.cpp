@@ -15,9 +15,9 @@ UBFNode_CalcRuneGroundPathTransform::UBFNode_CalcRuneGroundPathTransform(const F
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_CalcRuneGroundPathTransform::ExecuteInput(const FName& PinName)
+void UBFNode_CalcRuneGroundPathTransform::ExecuteBuffFlowInput(const FName& PinName)
 {
-	Super::ExecuteInput(PinName);
+	Super::ExecuteBuffFlowInput(PinName);
 
 	AActor* SourceActor = ResolveTarget(Source);
 	if (!SourceActor)

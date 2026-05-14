@@ -12,7 +12,7 @@ UBFNode_Delay::UBFNode_Delay(const FObjectInitializer& ObjectInitializer)
 	OutputPins = { FFlowPin(TEXT("Completed")), FFlowPin(TEXT("Cancelled")) };
 }
 
-void UBFNode_Delay::ExecuteInput(const FName& PinName)
+void UBFNode_Delay::ExecuteBuffFlowInput(const FName& PinName)
 {
 	// ── Cancel 引脚 ───────────────────────────────────────────────────────
 	if (PinName == TEXT("Cancel"))

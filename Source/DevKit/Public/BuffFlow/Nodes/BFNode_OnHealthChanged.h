@@ -28,7 +28,7 @@ class DEVKIT_API UBFNode_OnHealthChanged : public UBFNode_Base
 	FFlowDataPinOutputProperty_Float NewHealthOutput;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 	virtual void Cleanup() override;
 
 private:

@@ -13,7 +13,7 @@ UBFNode_SpawnGameplayCueAtLocation::UBFNode_SpawnGameplayCueAtLocation(const FOb
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_SpawnGameplayCueAtLocation::ExecuteInput(const FName& PinName)
+void UBFNode_SpawnGameplayCueAtLocation::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (!CueTag.IsValid())
 	{

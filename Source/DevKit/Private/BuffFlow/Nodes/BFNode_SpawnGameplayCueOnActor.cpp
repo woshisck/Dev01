@@ -11,7 +11,7 @@ UBFNode_SpawnGameplayCueOnActor::UBFNode_SpawnGameplayCueOnActor(const FObjectIn
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_SpawnGameplayCueOnActor::ExecuteInput(const FName& PinName)
+void UBFNode_SpawnGameplayCueOnActor::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (!CueTag.IsValid())
 	{

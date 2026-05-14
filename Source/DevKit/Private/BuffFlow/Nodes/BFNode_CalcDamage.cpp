@@ -15,7 +15,7 @@ UBFNode_CalcDamage::UBFNode_CalcDamage(const FObjectInitializer& ObjectInitializ
 	BaseValue = FFlowDataPinInputProperty_Float(20.f);
 }
 
-void UBFNode_CalcDamage::ExecuteInput(const FName& PinName)
+void UBFNode_CalcDamage::ExecuteBuffFlowInput(const FName& PinName)
 {
 	AActor* TargetActor = ResolveTarget(Target);
 	if (!TargetActor)

@@ -10,7 +10,7 @@ UBFNode_CompareFloat::UBFNode_CompareFloat(const FObjectInitializer& ObjectIniti
 	OutputPins = { FFlowPin(TEXT("True")), FFlowPin(TEXT("False")) };
 }
 
-void UBFNode_CompareFloat::ExecuteInput(const FName& PinName)
+void UBFNode_CompareFloat::ExecuteBuffFlowInput(const FName& PinName)
 {
 	// 优先从连接的数据引脚读取，若无连接则使用节点上直接编辑的值
 	auto ResolvePin = [this](const FName& MemberName, const FFlowDataPinInputProperty_Float& LocalValue) -> float

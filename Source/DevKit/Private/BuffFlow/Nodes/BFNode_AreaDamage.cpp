@@ -23,7 +23,7 @@ UBFNode_AreaDamage::UBFNode_AreaDamage(const FObjectInitializer& ObjectInitializ
 	               FFlowPin(TEXT("Cancelled")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_AreaDamage::ExecuteInput(const FName& PinName)
+void UBFNode_AreaDamage::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (PinName == TEXT("Cancel"))
 	{

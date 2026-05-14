@@ -74,7 +74,7 @@ class DEVKIT_API UBFNode_ApplyExecution : public UBFNode_Base
 	FFlowDataPinInputProperty_Float SetByCallerValue3;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 
 private:
 	/** 缓存动态构建的 GE（ExecCalc 类不变时复用，避免每帧 NewObject） */

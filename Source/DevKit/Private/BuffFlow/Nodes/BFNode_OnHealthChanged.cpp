@@ -13,7 +13,7 @@ UBFNode_OnHealthChanged::UBFNode_OnHealthChanged(const FObjectInitializer& Objec
 	OutputPins = { FFlowPin(TEXT("OnHealthChanged")) };
 }
 
-void UBFNode_OnHealthChanged::ExecuteInput(const FName& PinName)
+void UBFNode_OnHealthChanged::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (PinName == TEXT("In"))
 	{

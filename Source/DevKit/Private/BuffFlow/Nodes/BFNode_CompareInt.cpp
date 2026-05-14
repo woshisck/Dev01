@@ -10,7 +10,7 @@ UBFNode_CompareInt::UBFNode_CompareInt(const FObjectInitializer& ObjectInitializ
 	OutputPins = { FFlowPin(TEXT("True")), FFlowPin(TEXT("False")) };
 }
 
-void UBFNode_CompareInt::ExecuteInput(const FName& PinName)
+void UBFNode_CompareInt::ExecuteBuffFlowInput(const FName& PinName)
 {
 	auto ResolvePin = [this](const FName& MemberName, const FFlowDataPinInputProperty_Int32& LocalValue) -> int32
 	{

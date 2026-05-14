@@ -27,7 +27,7 @@ class DEVKIT_API UBFNode_OnDamageDealt : public UBFNode_Base
 	FFlowDataPinOutputProperty_Float LastDamageOutput;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 	virtual void Cleanup() override;
 
 	UFUNCTION()

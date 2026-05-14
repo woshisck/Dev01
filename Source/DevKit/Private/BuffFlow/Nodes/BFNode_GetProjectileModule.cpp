@@ -12,7 +12,7 @@ UBFNode_GetProjectileModule::UBFNode_GetProjectileModule(const FObjectInitialize
 #endif
 }
 
-void UBFNode_GetProjectileModule::ExecuteInput(const FName& PinName)
+void UBFNode_GetProjectileModule::ExecuteBuffFlowInput(const FName& PinName)
 {
 	Speed = FFlowDataPinOutputProperty_Float(1400.f);
 	Count = FFlowDataPinOutputProperty_Int32(1);

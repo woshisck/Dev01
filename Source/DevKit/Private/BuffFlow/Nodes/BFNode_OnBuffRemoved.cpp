@@ -11,7 +11,7 @@ UBFNode_OnBuffRemoved::UBFNode_OnBuffRemoved(const FObjectInitializer& ObjectIni
 	OutputPins = { FFlowPin(TEXT("OnRemoved")) };
 }
 
-void UBFNode_OnBuffRemoved::ExecuteInput(const FName& PinName)
+void UBFNode_OnBuffRemoved::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UBuffFlowComponent* BFC = GetBuffFlowComponent();
 	if (!BFC)

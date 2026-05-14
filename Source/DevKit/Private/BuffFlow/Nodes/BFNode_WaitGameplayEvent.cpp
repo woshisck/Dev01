@@ -30,7 +30,7 @@ FGameplayTag UBFNode_WaitGameplayEvent::GetRuntimeEventTag() const
 	return EventTag;
 }
 
-void UBFNode_WaitGameplayEvent::ExecuteInput(const FName& PinName)
+void UBFNode_WaitGameplayEvent::ExecuteBuffFlowInput(const FName& PinName)
 {
 	const FGameplayTag RuntimeEventTag = GetRuntimeEventTag();
 	if (PinName == TEXT("In"))

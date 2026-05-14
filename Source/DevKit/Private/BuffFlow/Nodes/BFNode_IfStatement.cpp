@@ -10,7 +10,7 @@ UBFNode_IfStatement::UBFNode_IfStatement(const FObjectInitializer& ObjectInitial
 	OutputPins = { FFlowPin(TEXT("True")), FFlowPin(TEXT("False")) };
 }
 
-void UBFNode_IfStatement::ExecuteInput(const FName& PinName)
+void UBFNode_IfStatement::ExecuteBuffFlowInput(const FName& PinName)
 {
 	FFlowDataPinResult_Bool Result = TryResolveDataPinAsBool(GET_MEMBER_NAME_CHECKED(UBFNode_IfStatement, Condition));
 

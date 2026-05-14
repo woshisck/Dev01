@@ -21,7 +21,7 @@ UBFNode_SpawnSlashWaveProjectile::UBFNode_SpawnSlashWaveProjectile(const FObject
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_SpawnSlashWaveProjectile::ExecuteInput(const FName& PinName)
+void UBFNode_SpawnSlashWaveProjectile::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (!ProjectileClass)
 	{

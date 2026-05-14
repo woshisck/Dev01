@@ -19,7 +19,7 @@ class DEVKIT_API UBFNode_GrantSacrificePassive : public UBFNode_Base
 	FSacrificeRunePassiveConfig Config;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 	virtual void Cleanup() override;
 
 private:

@@ -9,7 +9,7 @@ UBFNode_RemoveTag::UBFNode_RemoveTag(const FObjectInitializer& ObjectInitializer
 #endif
 }
 
-void UBFNode_RemoveTag::ExecuteInput(const FName& PinName)
+void UBFNode_RemoveTag::ExecuteBuffFlowInput(const FName& PinName)
 {
 	AActor* TargetActor = ResolveTarget(Target);
 	if (TargetActor)

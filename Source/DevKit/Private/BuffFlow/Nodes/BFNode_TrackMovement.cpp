@@ -15,7 +15,7 @@ UBFNode_TrackMovement::UBFNode_TrackMovement(const FObjectInitializer& ObjectIni
 	DistancePerTrigger.Value = 100.f;
 }
 
-void UBFNode_TrackMovement::ExecuteInput(const FName& PinName)
+void UBFNode_TrackMovement::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UWorld* World = GetWorld();
 	if (!World)

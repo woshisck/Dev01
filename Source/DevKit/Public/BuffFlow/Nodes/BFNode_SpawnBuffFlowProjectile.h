@@ -125,7 +125,7 @@ class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
 	FGameplayTag ExpireGameplayEventTag;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 
 private:
 	FTransform ResolveSpawnTransform(AActor* SourceActor) const;

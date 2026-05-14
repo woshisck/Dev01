@@ -12,7 +12,7 @@ UBFNode_OnPeriodic::UBFNode_OnPeriodic(const FObjectInitializer& ObjectInitializ
 	OutputPins = { FFlowPin(TEXT("Tick")) };
 }
 
-void UBFNode_OnPeriodic::ExecuteInput(const FName& PinName)
+void UBFNode_OnPeriodic::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UWorld* World = GetWorld();
 	if (!World)

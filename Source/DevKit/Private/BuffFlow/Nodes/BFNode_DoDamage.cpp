@@ -18,7 +18,7 @@ UBFNode_DoDamage::UBFNode_DoDamage(const FObjectInitializer& ObjectInitializer)
 	DamageMultiplier.Value = 1.f;
 }
 
-void UBFNode_DoDamage::ExecuteInput(const FName& PinName)
+void UBFNode_DoDamage::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (!DamageEffect.Get())
 	{

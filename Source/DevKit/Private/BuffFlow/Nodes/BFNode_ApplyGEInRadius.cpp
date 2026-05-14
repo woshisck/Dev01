@@ -42,7 +42,7 @@ UBFNode_ApplyGEInRadius::UBFNode_ApplyGEInRadius(const FObjectInitializer& Objec
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("NoHit")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_ApplyGEInRadius::ExecuteInput(const FName& PinName)
+void UBFNode_ApplyGEInRadius::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (!Effect)
 	{

@@ -10,7 +10,7 @@ UBFNode_HasTag::UBFNode_HasTag(const FObjectInitializer& ObjectInitializer)
 	OutputPins = { FFlowPin(TEXT("Yes")), FFlowPin(TEXT("No")) };
 }
 
-void UBFNode_HasTag::ExecuteInput(const FName& PinName)
+void UBFNode_HasTag::ExecuteBuffFlowInput(const FName& PinName)
 {
 	bool bHasTag = false;
 

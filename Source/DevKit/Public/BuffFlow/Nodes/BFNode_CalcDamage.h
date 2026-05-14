@@ -93,5 +93,5 @@ class DEVKIT_API UBFNode_CalcDamage : public UBFNode_Base
 	FFlowDataPinOutputProperty_Float FinalDamage;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

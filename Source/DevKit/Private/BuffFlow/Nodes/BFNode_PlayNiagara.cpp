@@ -16,7 +16,7 @@ UBFNode_PlayNiagara::UBFNode_PlayNiagara(const FObjectInitializer& ObjectInitial
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_PlayNiagara::ExecuteInput(const FName& PinName)
+void UBFNode_PlayNiagara::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (!NiagaraSystem)
 	{

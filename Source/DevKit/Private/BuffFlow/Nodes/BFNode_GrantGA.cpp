@@ -13,7 +13,7 @@ UBFNode_GrantGA::UBFNode_GrantGA(const FObjectInitializer& ObjectInitializer)
 	AbilityLevel = FFlowDataPinInputProperty_Int32(1);
 }
 
-void UBFNode_GrantGA::ExecuteInput(const FName& PinName)
+void UBFNode_GrantGA::ExecuteBuffFlowInput(const FName& PinName)
 {
 	// ── Revoke 引脚：撤销已授予的 GA ─────────────────────────────────
 	if (PinName == TEXT("Revoke"))
@@ -37,7 +37,7 @@ void UBFNode_GrantGA::ExecuteInput(const FName& PinName)
 		TriggerOutput(TEXT("Failed"), true);
 	};
 
-	UE_LOG(LogTemp, Warning, TEXT("[BFNode_GrantGA] ExecuteInput | AbilityClass=%s | TargetActor=%s"),
+	UE_LOG(LogTemp, Warning, TEXT("[BFNode_GrantGA] ExecuteBuffFlowInput | AbilityClass=%s | TargetActor=%s"),
 		*GetNameSafe(AbilityClass), *GetNameSafe(ResolveTarget(Target)));
 
 	if (!AbilityClass)     { UE_LOG(LogTemp, Warning, TEXT("[BFNode_GrantGA] SKIP: AbilityClass is null")); FailOut(); return; }

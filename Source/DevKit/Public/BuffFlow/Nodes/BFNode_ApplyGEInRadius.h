@@ -106,5 +106,5 @@ class DEVKIT_API UBFNode_ApplyGEInRadius : public UBFNode_Base
 	bool ShouldRestrictTargetsToEnemiesForRuntime() const;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

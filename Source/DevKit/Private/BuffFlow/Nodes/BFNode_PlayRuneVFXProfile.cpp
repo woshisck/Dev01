@@ -17,7 +17,7 @@ UBFNode_PlayRuneVFXProfile::UBFNode_PlayRuneVFXProfile(const FObjectInitializer&
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_PlayRuneVFXProfile::ExecuteInput(const FName& PinName)
+void UBFNode_PlayRuneVFXProfile::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UBuffFlowComponent* BFC = GetBuffFlowComponent();
 	if (!Profile)

@@ -12,7 +12,7 @@ UBFNode_OnHeatReachedZero::UBFNode_OnHeatReachedZero(const FObjectInitializer& O
     OutputPins = { FFlowPin(TEXT("OnReachedZero")), FFlowPin(TEXT("OnAboveZero")) };
 }
 
-void UBFNode_OnHeatReachedZero::ExecuteInput(const FName& PinName)
+void UBFNode_OnHeatReachedZero::ExecuteBuffFlowInput(const FName& PinName)
 {
     if (AYogCharacterBase* Owner = GetBuffOwner())
     {

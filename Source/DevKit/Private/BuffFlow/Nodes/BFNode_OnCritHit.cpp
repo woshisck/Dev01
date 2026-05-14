@@ -13,7 +13,7 @@ UBFNode_OnCritHit::UBFNode_OnCritHit(const FObjectInitializer& ObjectInitializer
 	OutputPins = { FFlowPin(TEXT("OnCrit")) };
 }
 
-void UBFNode_OnCritHit::ExecuteInput(const FName& PinName)
+void UBFNode_OnCritHit::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UYogAbilitySystemComponent* ASC = GetOwnerASC();
 

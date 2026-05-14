@@ -36,7 +36,7 @@ void UBFNode_ApplyEffect::HandleGERemoved(const FGameplayEffectRemovalInfo& /*Re
 	}
 }
 
-void UBFNode_ApplyEffect::ExecuteInput(const FName& PinName)
+void UBFNode_ApplyEffect::ExecuteBuffFlowInput(const FName& PinName)
 {
 	// ── Remove 引脚处理 ───────────────────────────────────────────────
 	if (PinName == TEXT("Remove"))

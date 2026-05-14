@@ -26,7 +26,7 @@ class DEVKIT_API UBFNode_AddTag : public UBFNode_Base
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 
 	/** FA 停止时自动移除此节点添加的所有 Tag（累计层数） */
 	virtual void Cleanup() override;

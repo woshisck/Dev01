@@ -10,7 +10,7 @@ UBFNode_MathFloat::UBFNode_MathFloat(const FObjectInitializer& ObjectInitializer
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_MathFloat::ExecuteInput(const FName& PinName)
+void UBFNode_MathFloat::ExecuteBuffFlowInput(const FName& PinName)
 {
 	auto ResolvePin = [this](const FName& MemberName, const FFlowDataPinInputProperty_Float& LocalValue) -> float
 	{

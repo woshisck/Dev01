@@ -11,7 +11,7 @@ UBFNode_OnTagAdded::UBFNode_OnTagAdded(const FObjectInitializer& ObjectInitializ
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_OnTagAdded::ExecuteInput(const FName& PinName)
+void UBFNode_OnTagAdded::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (PinName == TEXT("In"))
 	{

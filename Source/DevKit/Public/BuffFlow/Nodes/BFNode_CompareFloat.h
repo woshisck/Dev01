@@ -34,5 +34,5 @@ class DEVKIT_API UBFNode_CompareFloat : public UBFNode_Base
 	FFlowDataPinInputProperty_Float B;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

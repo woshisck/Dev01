@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Nodes/FlowNode.h"
+#include "BuffFlow/Nodes/BFNode_Base.h"
 #include "Types/FlowDataPinProperties.h"
 #include "BFNode_Delay.generated.h"
 
@@ -19,7 +19,7 @@
  * Duration 支持数据引脚连线（可从 GetAttribute、LiteralFloat 等节点动态传入）。
  */
 UCLASS(NotBlueprintable, meta = (DisplayName = "Delay", Category = "BuffFlow|Utility"))
-class DEVKIT_API UBFNode_Delay : public UFlowNode
+class DEVKIT_API UBFNode_Delay : public UBFNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
@@ -28,7 +28,7 @@ class DEVKIT_API UBFNode_Delay : public UFlowNode
 	FFlowDataPinInputProperty_Float Duration;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 	virtual void Cleanup() override;
 
 private:

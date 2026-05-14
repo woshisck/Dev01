@@ -24,6 +24,6 @@ class DEVKIT_API UBFNode_PlayRuneVFXProfile : public UBFNode_Base
 	bool bUseTargetOverride = false;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 	virtual void Cleanup() override;
 };

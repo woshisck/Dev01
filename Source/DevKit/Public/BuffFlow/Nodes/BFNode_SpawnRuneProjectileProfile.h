@@ -17,7 +17,7 @@ class DEVKIT_API UBFNode_SpawnRuneProjectileProfile : public UBFNode_Base
 	TObjectPtr<URuneCardEffectProfileDA> Profile = nullptr;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 	virtual void Cleanup() override;
 
 private:

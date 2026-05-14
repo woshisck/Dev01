@@ -11,7 +11,7 @@ UBFNode_GetRuneInfo::UBFNode_GetRuneInfo(const FObjectInitializer& ObjectInitial
 	OutputPins = { FFlowPin(TEXT("Found")), FFlowPin(TEXT("NotFound")) };
 }
 
-void UBFNode_GetRuneInfo::ExecuteInput(const FName& PinName)
+void UBFNode_GetRuneInfo::ExecuteBuffFlowInput(const FName& PinName)
 {
 	// 默认：未找到
 	bIsActive     = FFlowDataPinOutputProperty_Bool(false);

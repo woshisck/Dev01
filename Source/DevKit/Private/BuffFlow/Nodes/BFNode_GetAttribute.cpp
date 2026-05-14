@@ -9,7 +9,7 @@ UBFNode_GetAttribute::UBFNode_GetAttribute(const FObjectInitializer& ObjectIniti
 #endif
 }
 
-void UBFNode_GetAttribute::ExecuteInput(const FName& PinName)
+void UBFNode_GetAttribute::ExecuteBuffFlowInput(const FName& PinName)
 {
 	CachedValue.Value = 0.f;
 

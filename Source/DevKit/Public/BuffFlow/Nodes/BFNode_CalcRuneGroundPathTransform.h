@@ -63,7 +63,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output|Data", meta = (DisplayName = "前向量（输出）"))
 	FFlowDataPinOutputProperty_Vector ForwardVector;
 
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 
 private:
 	bool ResolveFacing(AActor* SourceActor, FVector& OutForward, FVector& OutRight) const;

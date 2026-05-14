@@ -13,7 +13,7 @@ UBFNode_SendGameplayEvent::UBFNode_SendGameplayEvent(const FObjectInitializer& O
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_SendGameplayEvent::ExecuteInput(const FName& PinName)
+void UBFNode_SendGameplayEvent::ExecuteBuffFlowInput(const FName& PinName)
 {
 	// 快速连击会导致同一 Flow 被重新启动（Abort 旧实例），此时节点不再 Active，直接退出
 	if (GetActivationState() != EFlowNodeState::Active)

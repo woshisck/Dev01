@@ -55,7 +55,7 @@ public:
 	UYogFlowNode_SkillPass(const FObjectInitializer& ObjectInitializer);
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };
 
 UCLASS(NotBlueprintable, meta = (DisplayName = "Fork", Category = "Skill|Flow", Keywords = "Fork Branch Split Parallel Multi Output Flow"))

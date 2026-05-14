@@ -13,6 +13,29 @@ UBFNode_Base::UBFNode_Base(const FObjectInitializer& ObjectInitializer)
 #endif
 }
 
+void UBFNode_Base::ExecuteInput(const FName& PinName)
+{
+	if (UBuffFlowComponent* BFC = GetBuffFlowComponent())
+	{
+		BFC->RecordTrace(
+			this,
+			nullptr,
+			nullptr,
+			EBuffFlowTraceResult::Success,
+			FString::Printf(TEXT("In:%s"), *PinName.ToString()),
+			FString());
+	}
+
+	ExecuteBuffFlowInput(PinName);
+}
+
+void UBFNode_Base::ExecuteBuffFlowInput(const FName& PinName)
+{
+	// Default: route to UFlowNode's ExecuteInput so Blueprint subclasses fire
+	// their K2_ExecuteInput event. C++ subclasses override this method instead.
+	Super::ExecuteInput(PinName);
+}
+
 UBuffFlowComponent* UBFNode_Base::GetBuffFlowComponent() const
 {
 	if (CachedComponent.IsValid())

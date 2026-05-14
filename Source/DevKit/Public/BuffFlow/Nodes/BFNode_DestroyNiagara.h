@@ -17,5 +17,5 @@ class DEVKIT_API UBFNode_DestroyNiagara : public UBFNode_Base
 	FName EffectName = NAME_None;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

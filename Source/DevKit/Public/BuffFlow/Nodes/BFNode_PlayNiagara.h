@@ -57,6 +57,6 @@ class DEVKIT_API UBFNode_PlayNiagara : public UBFNode_Base
 	bool bDestroyWithFlow = false;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 	virtual void Cleanup() override;
 };

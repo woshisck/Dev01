@@ -3,6 +3,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Character/YogCharacterBase.h"
 #include "Data/RuneDataAsset.h"
 #include "FlowAsset.h"
 #include "GameplayEffect.h"

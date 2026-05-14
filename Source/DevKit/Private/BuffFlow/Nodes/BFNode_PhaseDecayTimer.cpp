@@ -10,7 +10,7 @@ UBFNode_PhaseDecayTimer::UBFNode_PhaseDecayTimer(const FObjectInitializer& Objec
     OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_PhaseDecayTimer::ExecuteInput(const FName& PinName)
+void UBFNode_PhaseDecayTimer::ExecuteBuffFlowInput(const FName& PinName)
 {
     UWorld* World = GetWorld();
     if (!World) return;

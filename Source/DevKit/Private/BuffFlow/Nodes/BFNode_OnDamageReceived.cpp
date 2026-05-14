@@ -13,7 +13,7 @@ UBFNode_OnDamageReceived::UBFNode_OnDamageReceived(const FObjectInitializer& Obj
 	OutputPins = { FFlowPin(TEXT("OnDamage")) };
 }
 
-void UBFNode_OnDamageReceived::ExecuteInput(const FName& PinName)
+void UBFNode_OnDamageReceived::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UYogAbilitySystemComponent* ASC = GetOwnerASC();
 

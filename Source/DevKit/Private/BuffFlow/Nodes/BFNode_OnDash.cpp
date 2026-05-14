@@ -12,7 +12,7 @@ UBFNode_OnDash::UBFNode_OnDash(const FObjectInitializer& ObjectInitializer)
 	OutputPins = { FFlowPin(TEXT("OnDash")) };
 }
 
-void UBFNode_OnDash::ExecuteInput(const FName& PinName)
+void UBFNode_OnDash::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UYogAbilitySystemComponent* ASC = GetOwnerASC();
 

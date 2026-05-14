@@ -25,5 +25,5 @@ class DEVKIT_API UBFNode_GetAttribute : public UBFNode_Base
 	FFlowDataPinOutputProperty_Float CachedValue;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

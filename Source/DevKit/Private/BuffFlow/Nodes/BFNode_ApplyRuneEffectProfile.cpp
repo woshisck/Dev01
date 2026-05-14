@@ -30,7 +30,7 @@ void UBFNode_ApplyRuneEffectProfile::Cleanup()
 	Super::Cleanup();
 }
 
-void UBFNode_ApplyRuneEffectProfile::ExecuteInput(const FName& PinName)
+void UBFNode_ApplyRuneEffectProfile::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UBuffFlowComponent* BFC = GetBuffFlowComponent();
 	if (!Profile)

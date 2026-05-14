@@ -10,7 +10,7 @@ UBFNode_Fork::UBFNode_Fork(const FObjectInitializer& ObjectInitializer)
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Out2")) };
 }
 
-void UBFNode_Fork::ExecuteInput(const FName& PinName)
+void UBFNode_Fork::ExecuteBuffFlowInput(const FName& PinName)
 {
 	for (int32 Index = 0; Index < OutputPins.Num(); ++Index)
 	{

@@ -10,7 +10,7 @@ UBFNode_MathInt::UBFNode_MathInt(const FObjectInitializer& ObjectInitializer)
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_MathInt::ExecuteInput(const FName& PinName)
+void UBFNode_MathInt::ExecuteBuffFlowInput(const FName& PinName)
 {
 	auto ResolvePin = [this](const FName& MemberName, const FFlowDataPinInputProperty_Int32& LocalValue) -> int32
 	{

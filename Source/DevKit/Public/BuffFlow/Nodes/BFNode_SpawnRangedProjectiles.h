@@ -134,7 +134,7 @@ class DEVKIT_API UBFNode_SpawnRangedProjectiles : public UBFNode_Base
 	FFlowDataPinInputProperty_Float HitGameplayEventMagnitude;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 
 private:
 	TArray<float> BuildResolvedYawOffsets(int32 ComboBonusStacks, int32 OverrideCount, float OverrideConeAngle) const;

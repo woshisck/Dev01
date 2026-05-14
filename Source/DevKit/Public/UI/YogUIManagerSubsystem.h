@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "UI/YogUIRegistry.h"
 #include "YogUIManagerSubsystem.generated.h"
@@ -100,6 +101,35 @@ public:
 
 	static bool PopManagedScreen(UUserWidget* Widget, EYogUIScreenId ScreenId);
 
+	// ─── One-shot popups ─────────────────────────────────────
+	//
+	// 用法：用 FGameplayTag 标识一次性弹窗（教程提示、首拾道具说明、首次解锁机制…），
+	// 用 EPopupScope 控制去重周期。
+	//
+	//   if (UI->PushScreenOnce(EYogUIScreenId::TutorialPopup, Tag_Popup_FirstRune, EPopupScope::Save))
+	//   { /* 真正弹了；可以做附加埋点 */ }
+	//
+	// 已经展示过的同一 PopupKey 会直接跳过（返回 nullptr），不再触发 Push / 异步加载 / InputMode 切换。
+	// Save scope 会立即写入 UYogSaveGame.ShownPopupKeys 并调用 WriteSaveGame()。
+	// 异步路径见 PushScreenOnceAsync —— 命中已展示时回调当帧带 nullptr 触发。
+
+	UFUNCTION(BlueprintCallable, Category = "UI|Popup")
+	UCommonActivatableWidget* PushScreenOnce(EYogUIScreenId ScreenId, FGameplayTag PopupKey, EPopupScope Scope);
+
+	UFUNCTION(BlueprintCallable, Category = "UI|Popup", meta = (AutoCreateRefTerm = "OnReady"))
+	void PushScreenOnceAsync(EYogUIScreenId ScreenId, FGameplayTag PopupKey, EPopupScope Scope, const FOnAsyncScreenReady& OnReady);
+
+	UFUNCTION(BlueprintCallable, Category = "UI|Popup")
+	bool IsPopupShown(FGameplayTag PopupKey, EPopupScope Scope) const;
+
+	/** 手动标记（用于不走 PushScreenOnce 但仍需算"已展示"的场景，例如玩家从设置里跳过）。 */
+	UFUNCTION(BlueprintCallable, Category = "UI|Popup")
+	void MarkPopupShown(FGameplayTag PopupKey, EPopupScope Scope);
+
+	/** 清空指定 scope 的已展示集合。Run scope 应在 Run 开始时调用；Save scope 需要回看时调用。 */
+	UFUNCTION(BlueprintCallable, Category = "UI|Popup")
+	void ResetPopupsForScope(EPopupScope Scope);
+
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	UUserWidget* GetWidget(EYogUIScreenId ScreenId) const;
 
@@ -180,4 +210,23 @@ private:
 
 	/** 正在异步加载中的 ScreenId → callback，避免重复发起。 */
 	TMap<EYogUIScreenId, FOnAsyncScreenReady> PendingAsyncLoads;
+
+	/** Session / Run scope 的已展示弹窗集合（Save scope 走 UYogSaveGame.ShownPopupKeys）。 */
+	TSet<FGameplayTag> ShownPopups_Session;
+	TSet<FGameplayTag> ShownPopups_Run;
+
+	struct FPendingPopupOnce
+	{
+		FGameplayTag Key;
+		EPopupScope Scope = EPopupScope::Session;
+		FOnAsyncScreenReady UserCallback;
+	};
+
+	/** PushScreenOnceAsync 的待处理 metadata。回调命中后用于 MarkPopupShown + 转发给 caller。 */
+	TMap<EYogUIScreenId, FPendingPopupOnce> PendingPopupOnce;
+
+	UFUNCTION()
+	void HandlePushScreenOnceAsyncReady(EYogUIScreenId ScreenId, UCommonActivatableWidget* Widget);
+
+	class UYogSaveGame* GetCurrentSaveGame() const;
 };

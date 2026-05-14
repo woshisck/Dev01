@@ -21,7 +21,7 @@ UBFNode_PlayFlipbookVFX::UBFNode_PlayFlipbookVFX(const FObjectInitializer& Objec
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_PlayFlipbookVFX::ExecuteInput(const FName& PinName)
+void UBFNode_PlayFlipbookVFX::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (!Texture || !Material)
 	{

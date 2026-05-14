@@ -22,7 +22,7 @@ UBFNode_SpawnRuneProjectileProfile::UBFNode_SpawnRuneProjectileProfile(const FOb
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_SpawnRuneProjectileProfile::ExecuteInput(const FName& PinName)
+void UBFNode_SpawnRuneProjectileProfile::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UBuffFlowComponent* BFC = GetBuffFlowComponent();
 	if (!Profile || !Profile->Projectile.ProjectileClass)

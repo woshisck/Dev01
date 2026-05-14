@@ -11,7 +11,7 @@ UBFNode_CompareBool::UBFNode_CompareBool(const FObjectInitializer& ObjectInitial
 	OutputPins = { FFlowPin(TEXT("True")), FFlowPin(TEXT("False")) };
 }
 
-void UBFNode_CompareBool::ExecuteInput(const FName& PinName)
+void UBFNode_CompareBool::ExecuteBuffFlowInput(const FName& PinName)
 {
 	auto ResolvePin = [this](const FName& MemberName, const FFlowDataPinInputProperty_Bool& LocalValue) -> bool
 	{

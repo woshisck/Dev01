@@ -12,7 +12,7 @@ UBFNode_OnKill::UBFNode_OnKill(const FObjectInitializer& ObjectInitializer)
 	OutputPins = { FFlowPin(TEXT("OnKill")) };
 }
 
-void UBFNode_OnKill::ExecuteInput(const FName& PinName)
+void UBFNode_OnKill::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UYogAbilitySystemComponent* ASC = GetOwnerASC();
 

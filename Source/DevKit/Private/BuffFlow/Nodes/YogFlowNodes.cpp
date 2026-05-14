@@ -30,7 +30,7 @@ UYogFlowNode_SkillPass::UYogFlowNode_SkillPass(const FObjectInitializer& ObjectI
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UYogFlowNode_SkillPass::ExecuteInput(const FName& PinName)
+void UYogFlowNode_SkillPass::ExecuteBuffFlowInput(const FName& PinName)
 {
 	TriggerOutput(TEXT("Out"), true);
 }

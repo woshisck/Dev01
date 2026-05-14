@@ -50,6 +50,21 @@ enum class EYogUILayer : uint8
 	Modal  UMETA(DisplayName = "Modal (top priority)")
 };
 
+/**
+ * 控制 "PushScreenOnce" 类弹窗的去重周期。键由 caller 传入的 FGameplayTag 唯一标识。
+ *
+ *  Session : 仅在 LocalPlayerSubsystem 生命周期内（一次游戏进程）去重。退出游戏后重置。
+ *  Run     : 在一局 Run 内去重，需在 Run 开始/结束时调用 ResetPopupsForScope(Run)。
+ *  Save    : 持久化到 UYogSaveGame.ShownPopupKeys，跨进程保留（教程/首发提示）。
+ */
+UENUM(BlueprintType)
+enum class EPopupScope : uint8
+{
+	Session UMETA(DisplayName = "Session (process lifetime)"),
+	Run     UMETA(DisplayName = "Run (single roguelike run)"),
+	Save    UMETA(DisplayName = "Save (persisted across launches)")
+};
+
 USTRUCT(BlueprintType)
 struct DEVKIT_API FYogUIRegistryEntry
 {

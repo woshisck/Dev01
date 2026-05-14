@@ -12,7 +12,7 @@ UBFNode_GetAuraModule::UBFNode_GetAuraModule(const FObjectInitializer& ObjectIni
 #endif
 }
 
-void UBFNode_GetAuraModule::ExecuteInput(const FName& PinName)
+void UBFNode_GetAuraModule::ExecuteBuffFlowInput(const FName& PinName)
 {
 	Length = FFlowDataPinOutputProperty_Float(520.f);
 	Width = FFlowDataPinOutputProperty_Float(220.f);

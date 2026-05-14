@@ -11,7 +11,7 @@ UBFNode_OnBuffAdded::UBFNode_OnBuffAdded(const FObjectInitializer& ObjectInitial
 	OutputPins = { FFlowPin(TEXT("OnAdded")) };
 }
 
-void UBFNode_OnBuffAdded::ExecuteInput(const FName& PinName)
+void UBFNode_OnBuffAdded::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UBuffFlowComponent* BFC = GetBuffFlowComponent();
 	if (!BFC)

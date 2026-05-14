@@ -15,7 +15,7 @@ UBFNode_SacrificeDecay::UBFNode_SacrificeDecay(const FObjectInitializer& ObjectI
     OutputPins = {};
 }
 
-void UBFNode_SacrificeDecay::ExecuteInput(const FName& PinName)
+void UBFNode_SacrificeDecay::ExecuteBuffFlowInput(const FName& PinName)
 {
     UWorld* World = GetWorld();
     if (!World) return;

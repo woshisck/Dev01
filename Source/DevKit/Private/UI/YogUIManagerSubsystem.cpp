@@ -4,12 +4,15 @@
 #include "Blueprint/UserWidget.h"
 #include "CommonActivatableWidget.h"
 #include "Engine/AssetManager.h"
+#include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "SaveGame/YogSaveGame.h"
+#include "SaveGame/YogSaveSubsystem.h"
 #include "UI/YogHUD.h"
 
 namespace
@@ -59,6 +62,9 @@ void UYogUIManagerSubsystem::Deinitialize()
 	ActivatedScreens.Reset();
 	ActivationStack.Reset();
 	PendingAsyncLoads.Reset();
+	ShownPopups_Session.Reset();
+	ShownPopups_Run.Reset();
+	PendingPopupOnce.Reset();
 	TopActivatedLayer = EYogUILayer::Game;
 	bManagedPauseActive = false;
 	bManagedMajorUIActive = false;
@@ -356,6 +362,173 @@ void UYogUIManagerSubsystem::PushScreenAsync(EYogUIScreenId ScreenId, const FOnA
 			UCommonActivatableWidget* W = S->PushScreen(ScreenId);
 			Cb.ExecuteIfBound(ScreenId, W);
 		}));
+}
+
+UYogSaveGame* UYogUIManagerSubsystem::GetCurrentSaveGame() const
+{
+	const ULocalPlayer* LP = GetLocalPlayer();
+	if (!LP)
+	{
+		return nullptr;
+	}
+	const UGameInstance* GI = LP->GetGameInstance();
+	if (!GI)
+	{
+		return nullptr;
+	}
+	UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>();
+	return SaveSys ? SaveSys->GetCurrentSave() : nullptr;
+}
+
+bool UYogUIManagerSubsystem::IsPopupShown(FGameplayTag PopupKey, EPopupScope Scope) const
+{
+	if (!PopupKey.IsValid())
+	{
+		return false;
+	}
+
+	switch (Scope)
+	{
+	case EPopupScope::Session:
+		return ShownPopups_Session.Contains(PopupKey);
+	case EPopupScope::Run:
+		return ShownPopups_Run.Contains(PopupKey);
+	case EPopupScope::Save:
+		if (const UYogSaveGame* Save = GetCurrentSaveGame())
+		{
+			return Save->ShownPopupKeys.Contains(PopupKey);
+		}
+		return false;
+	}
+	return false;
+}
+
+void UYogUIManagerSubsystem::MarkPopupShown(FGameplayTag PopupKey, EPopupScope Scope)
+{
+	if (!PopupKey.IsValid())
+	{
+		return;
+	}
+
+	switch (Scope)
+	{
+	case EPopupScope::Session:
+		ShownPopups_Session.Add(PopupKey);
+		break;
+	case EPopupScope::Run:
+		ShownPopups_Run.Add(PopupKey);
+		break;
+	case EPopupScope::Save:
+		if (UYogSaveGame* Save = GetCurrentSaveGame())
+		{
+			bool bAlreadyShown = false;
+			Save->ShownPopupKeys.Add(PopupKey, &bAlreadyShown);
+			if (!bAlreadyShown)
+			{
+				if (const ULocalPlayer* LP = GetLocalPlayer())
+				{
+					if (const UGameInstance* GI = LP->GetGameInstance())
+					{
+						if (UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>())
+						{
+							SaveSys->WriteSaveGame();
+						}
+					}
+				}
+			}
+		}
+		break;
+	}
+}
+
+void UYogUIManagerSubsystem::ResetPopupsForScope(EPopupScope Scope)
+{
+	switch (Scope)
+	{
+	case EPopupScope::Session:
+		ShownPopups_Session.Reset();
+		break;
+	case EPopupScope::Run:
+		ShownPopups_Run.Reset();
+		break;
+	case EPopupScope::Save:
+		if (UYogSaveGame* Save = GetCurrentSaveGame())
+		{
+			Save->ShownPopupKeys.Reset();
+			if (const ULocalPlayer* LP = GetLocalPlayer())
+			{
+				if (const UGameInstance* GI = LP->GetGameInstance())
+				{
+					if (UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>())
+					{
+						SaveSys->WriteSaveGame();
+					}
+				}
+			}
+		}
+		break;
+	}
+}
+
+UCommonActivatableWidget* UYogUIManagerSubsystem::PushScreenOnce(EYogUIScreenId ScreenId, FGameplayTag PopupKey, EPopupScope Scope)
+{
+	if (!PopupKey.IsValid())
+	{
+		// 没 key 就退回到普通 PushScreen，避免悄悄把所有"忘了配 Tag"的弹窗都吞掉。
+		return PushScreen(ScreenId);
+	}
+
+	if (IsPopupShown(PopupKey, Scope))
+	{
+		return nullptr;
+	}
+
+	UCommonActivatableWidget* W = PushScreen(ScreenId);
+	if (W)
+	{
+		MarkPopupShown(PopupKey, Scope);
+	}
+	return W;
+}
+
+void UYogUIManagerSubsystem::PushScreenOnceAsync(EYogUIScreenId ScreenId, FGameplayTag PopupKey, EPopupScope Scope, const FOnAsyncScreenReady& OnReady)
+{
+	if (!PopupKey.IsValid())
+	{
+		PushScreenAsync(ScreenId, OnReady);
+		return;
+	}
+
+	if (IsPopupShown(PopupKey, Scope))
+	{
+		OnReady.ExecuteIfBound(ScreenId, nullptr);
+		return;
+	}
+
+	FPendingPopupOnce Pending;
+	Pending.Key = PopupKey;
+	Pending.Scope = Scope;
+	Pending.UserCallback = OnReady;
+	PendingPopupOnce.Add(ScreenId, MoveTemp(Pending));
+
+	FOnAsyncScreenReady Wrapped;
+	Wrapped.BindDynamic(this, &UYogUIManagerSubsystem::HandlePushScreenOnceAsyncReady);
+	PushScreenAsync(ScreenId, Wrapped);
+}
+
+void UYogUIManagerSubsystem::HandlePushScreenOnceAsyncReady(EYogUIScreenId ScreenId, UCommonActivatableWidget* Widget)
+{
+	FPendingPopupOnce Pending;
+	if (!PendingPopupOnce.RemoveAndCopyValue(ScreenId, Pending))
+	{
+		return;
+	}
+
+	if (Widget)
+	{
+		MarkPopupShown(Pending.Key, Pending.Scope);
+	}
+	Pending.UserCallback.ExecuteIfBound(ScreenId, Widget);
 }
 
 void UYogUIManagerSubsystem::PopScreen(EYogUIScreenId ScreenId)

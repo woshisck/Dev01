@@ -12,7 +12,7 @@ UBFNode_OnPhaseUpReady::UBFNode_OnPhaseUpReady(const FObjectInitializer& ObjectI
     OutputPins = { FFlowPin(TEXT("OnPhaseUp")) };
 }
 
-void UBFNode_OnPhaseUpReady::ExecuteInput(const FName& PinName)
+void UBFNode_OnPhaseUpReady::ExecuteBuffFlowInput(const FName& PinName)
 {
     if (AYogCharacterBase* Owner = GetBuffOwner())
     {

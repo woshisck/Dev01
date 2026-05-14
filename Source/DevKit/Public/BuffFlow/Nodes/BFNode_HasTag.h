@@ -20,5 +20,5 @@ class DEVKIT_API UBFNode_HasTag : public UBFNode_Base
 	EBFTargetSelector Target = EBFTargetSelector::BuffOwner;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

@@ -10,7 +10,7 @@ UBFNode_DoOnce::UBFNode_DoOnce(const FObjectInitializer& ObjectInitializer)
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_DoOnce::ExecuteInput(const FName& PinName)
+void UBFNode_DoOnce::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (PinName == TEXT("Reset"))
 	{

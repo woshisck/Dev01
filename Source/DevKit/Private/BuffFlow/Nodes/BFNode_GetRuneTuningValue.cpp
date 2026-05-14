@@ -44,7 +44,7 @@ UBFNode_GetRuneTuningValue::UBFNode_GetRuneTuningValue(const FObjectInitializer&
 	OutputPins = { FFlowPin(TEXT("Found")), FFlowPin(TEXT("NotFound")) };
 }
 
-void UBFNode_GetRuneTuningValue::ExecuteInput(const FName& PinName)
+void UBFNode_GetRuneTuningValue::ExecuteBuffFlowInput(const FName& PinName)
 {
 	Value = FFlowDataPinOutputProperty_Float(DefaultValue);
 	bFound = FFlowDataPinOutputProperty_Bool(false);

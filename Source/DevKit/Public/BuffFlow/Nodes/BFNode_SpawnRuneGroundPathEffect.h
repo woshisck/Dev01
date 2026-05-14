@@ -151,7 +151,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ground Path|Effect", meta = (DisplayName = "每目标只施加一次"))
 	bool bApplyOncePerTarget = false;
 
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 
 private:
 	bool ResolveFacing(AActor* SourceActor, FVector& OutForward, FVector& OutRight) const;

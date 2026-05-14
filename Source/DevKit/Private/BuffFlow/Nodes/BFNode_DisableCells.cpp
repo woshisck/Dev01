@@ -12,7 +12,7 @@ UBFNode_DisableCells::UBFNode_DisableCells(const FObjectInitializer& ObjectIniti
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_DisableCells::ExecuteInput(const FName& PinName)
+void UBFNode_DisableCells::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (PinName == TEXT("In"))
 	{

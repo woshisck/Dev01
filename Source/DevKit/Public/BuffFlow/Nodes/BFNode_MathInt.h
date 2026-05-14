@@ -35,5 +35,5 @@ class DEVKIT_API UBFNode_MathInt : public UBFNode_Base
 	FFlowDataPinOutputProperty_Int32 Result;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

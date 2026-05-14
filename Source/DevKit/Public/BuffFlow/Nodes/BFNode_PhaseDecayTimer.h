@@ -21,7 +21,7 @@ class DEVKIT_API UBFNode_PhaseDecayTimer : public UBFNode_Base
     float Duration = 10.f;
 
 protected:
-    virtual void ExecuteInput(const FName& PinName) override;
+    virtual void ExecuteBuffFlowInput(const FName& PinName) override;
     virtual void Cleanup() override;
 
 private:

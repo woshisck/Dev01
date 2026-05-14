@@ -15,7 +15,7 @@ UBFNode_ApplyAttributeModifier::UBFNode_ApplyAttributeModifier(const FObjectInit
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Expired")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
+void UBFNode_ApplyAttributeModifier::ExecuteBuffFlowInput(const FName& PinName)
 {
 	// Remove 引脚：主动移除当前持有的 GE（一次性 Buff 消耗用）
 	if (PinName == TEXT("Remove"))
@@ -63,7 +63,7 @@ void UBFNode_ApplyAttributeModifier::ExecuteInput(const FName& PinName)
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] ExecuteInput | Pin=%s | Attr=%s | GrantedTags=%s | GrantedAbilities=%d"),
+	UE_LOG(LogTemp, Warning, TEXT("[ApplyAttrMod] ExecuteBuffFlowInput | Pin=%s | Attr=%s | GrantedTags=%s | GrantedAbilities=%d"),
 		*PinName.ToString(),
 		Attribute.IsValid() ? *Attribute.GetName() : TEXT("(none)"),
 		*GrantedTagsToASC.ToStringSimple(),

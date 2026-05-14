@@ -12,7 +12,7 @@ UBFNode_DestroyNiagara::UBFNode_DestroyNiagara(const FObjectInitializer& ObjectI
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_DestroyNiagara::ExecuteInput(const FName& PinName)
+void UBFNode_DestroyNiagara::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UBuffFlowComponent* BFC = GetBuffFlowComponent();
 	if (BFC && EffectName != NAME_None)

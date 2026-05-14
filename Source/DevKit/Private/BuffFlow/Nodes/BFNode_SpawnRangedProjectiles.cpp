@@ -25,7 +25,7 @@ UBFNode_SpawnRangedProjectiles::UBFNode_SpawnRangedProjectiles(const FObjectInit
 	RequiredWeaponTag = FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Ranged"), false);
 }
 
-void UBFNode_SpawnRangedProjectiles::ExecuteInput(const FName& PinName)
+void UBFNode_SpawnRangedProjectiles::ExecuteBuffFlowInput(const FName& PinName)
 {
 	ACharacter* SourceCharacter = Cast<ACharacter>(ResolveTarget(SourceSelector));
 	if (!SourceCharacter || !SourceCharacter->GetWorld())

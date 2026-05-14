@@ -12,7 +12,7 @@ UBFNode_PlayMontage::UBFNode_PlayMontage(const FObjectInitializer& ObjectInitial
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_PlayMontage::ExecuteInput(const FName& PinName)
+void UBFNode_PlayMontage::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (!Montage)
 	{

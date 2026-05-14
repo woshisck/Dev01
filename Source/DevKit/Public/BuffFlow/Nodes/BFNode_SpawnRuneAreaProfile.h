@@ -25,7 +25,7 @@ class DEVKIT_API UBFNode_SpawnRuneAreaProfile : public UBFNode_Base
 	FFlowDataPinInputProperty_Rotator SpawnRotationOverride;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 
 private:
 	bool ResolveFacing(AActor* SourceActor, FVector& OutForward, FVector& OutRight) const;

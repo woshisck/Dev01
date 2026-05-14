@@ -44,7 +44,7 @@ class DEVKIT_API UBFNode_WaitGameplayEvent : public UBFNode_Base
 	FGameplayTag GetRuntimeEventTag() const;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 	virtual void Cleanup() override;
 
 private:

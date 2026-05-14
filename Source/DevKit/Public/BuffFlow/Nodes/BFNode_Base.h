@@ -18,7 +18,25 @@ class DEVKIT_API UBFNode_Base : public UFlowNode
 {
 	GENERATED_UCLASS_BODY()
 
+public:
+	/**
+	 * Sealed wrapper around UFlowNode::ExecuteInput.
+	 * Records a BuffFlow trace entry on every activation (so the editor debug
+	 * tool always shows the FA invocation), then dispatches to the subclass
+	 * via ExecuteBuffFlowInput. Subclasses MUST override ExecuteBuffFlowInput
+	 * instead of ExecuteInput — overriding ExecuteInput would silently bypass
+	 * the trace, which is the exact bug this wrapper fixes.
+	 */
+	virtual void ExecuteInput(const FName& PinName) override final;
+
 protected:
+	/**
+	 * Subclass override point. Default implementation routes to UFlowNode's
+	 * ExecuteInput so Blueprint-derived nodes (UBFNode_BlueprintBase) still
+	 * fire their K2_ExecuteInput event.
+	 */
+	virtual void ExecuteBuffFlowInput(const FName& PinName);
+
 	/** 获取挂在角色上的 BuffFlowComponent */
 	UBuffFlowComponent* GetBuffFlowComponent() const;
 

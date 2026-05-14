@@ -14,7 +14,7 @@ UBFNode_CheckTargetType::UBFNode_CheckTargetType(const FObjectInitializer& Objec
 	};
 }
 
-void UBFNode_CheckTargetType::ExecuteInput(const FName& PinName)
+void UBFNode_CheckTargetType::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UBuffFlowComponent* BFC = GetBuffFlowComponent();
 	if (!BFC)

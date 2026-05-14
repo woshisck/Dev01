@@ -21,9 +21,9 @@ UBFNode_SpawnRuneGroundPathEffect::UBFNode_SpawnRuneGroundPathEffect(const FObje
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_SpawnRuneGroundPathEffect::ExecuteInput(const FName& PinName)
+void UBFNode_SpawnRuneGroundPathEffect::ExecuteBuffFlowInput(const FName& PinName)
 {
-	Super::ExecuteInput(PinName);
+	Super::ExecuteBuffFlowInput(PinName);
 
 	AActor* SourceActor = ResolveTarget(Source);
 	if (!SourceActor)

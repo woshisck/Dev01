@@ -9,7 +9,7 @@ UBFNode_AddTag::UBFNode_AddTag(const FObjectInitializer& ObjectInitializer)
 #endif
 }
 
-void UBFNode_AddTag::ExecuteInput(const FName& PinName)
+void UBFNode_AddTag::ExecuteBuffFlowInput(const FName& PinName)
 {
 	AActor* TargetActor = ResolveTarget(Target);
 	if (TargetActor)

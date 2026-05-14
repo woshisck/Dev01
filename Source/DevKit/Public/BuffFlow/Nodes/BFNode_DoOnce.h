@@ -19,7 +19,7 @@ class DEVKIT_API UBFNode_DoOnce : public UBFNode_Base
 	bool bStartClosed = false;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 	virtual void Cleanup() override;
 
 private:

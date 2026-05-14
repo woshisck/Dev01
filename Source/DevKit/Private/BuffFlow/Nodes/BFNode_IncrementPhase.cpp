@@ -12,7 +12,7 @@ UBFNode_IncrementPhase::UBFNode_IncrementPhase(const FObjectInitializer& ObjectI
     OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_IncrementPhase::ExecuteInput(const FName& PinName)
+void UBFNode_IncrementPhase::ExecuteBuffFlowInput(const FName& PinName)
 {
     bool bActuallyIncremented = false;
     if (AYogCharacterBase* Owner = GetBuffOwner())

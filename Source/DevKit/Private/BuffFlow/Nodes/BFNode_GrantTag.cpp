@@ -13,7 +13,7 @@ UBFNode_GrantTag::UBFNode_GrantTag(const FObjectInitializer& ObjectInitializer)
 	               FFlowPin(TEXT("Removed")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_GrantTag::ExecuteInput(const FName& PinName)
+void UBFNode_GrantTag::ExecuteBuffFlowInput(const FName& PinName)
 {
 	// ── Remove 引脚：手动提前移除 ────────────────────────────────────────
 	if (PinName == TEXT("Remove"))

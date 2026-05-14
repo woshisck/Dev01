@@ -22,5 +22,5 @@ class DEVKIT_API UBFNode_Probability : public UBFNode_Base
 	FFlowDataPinInputProperty_Float Chance;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

@@ -120,7 +120,7 @@ class DEVKIT_API UBFNode_ApplyEffect : public UBFNode_Base
 	FFlowDataPinOutputProperty_Float GETimeRemaining;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 
 	/** FA 停止时自动调用，移除由此节点施加的 GE（Instant GE handle 无效，自动跳过） */
 	virtual void Cleanup() override;

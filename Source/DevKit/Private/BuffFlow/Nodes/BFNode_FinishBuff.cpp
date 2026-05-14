@@ -10,7 +10,7 @@ UBFNode_FinishBuff::UBFNode_FinishBuff(const FObjectInitializer& ObjectInitializ
 	OutputPins = {};
 }
 
-void UBFNode_FinishBuff::ExecuteInput(const FName& PinName)
+void UBFNode_FinishBuff::ExecuteBuffFlowInput(const FName& PinName)
 {
 	// Finish the entire flow (terminal node)
 	Finish();

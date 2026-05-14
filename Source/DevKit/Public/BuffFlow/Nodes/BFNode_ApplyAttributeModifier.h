@@ -131,7 +131,7 @@ class DEVKIT_API UBFNode_ApplyAttributeModifier : public UBFNode_Base
         EGameplayEffectStackingExpirationPolicy::ClearEntireStack;
 
 protected:
-    virtual void ExecuteInput(const FName& PinName) override;
+    virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 
     /** FA 停止时自动调用，移除非瞬发 GE，取消过期计时器 */
     virtual void Cleanup() override;

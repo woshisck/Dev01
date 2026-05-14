@@ -681,15 +681,31 @@ void AYogPlayerControllerBase::ToggleBackpack(const FInputActionValue& Value)
 			return;
 		}
 
-		if (!IsGameplayInputBlocked())
+		if (IsGameplayInputBlocked())
 		{
-			HUD->OpenBackpack();
+			return;
 		}
+
+		const APlayerCharacterBase* PC = Cast<APlayerCharacterBase>(GetPawn());
+		if (!PC || !PC->EquippedWeaponInstance)
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("[YogPlayerController] Backpack input ignored: no weapon equipped."));
+			return;
+		}
+
+		HUD->OpenBackpack();
 	}
 }
 
 void AYogPlayerControllerBase::OpenBackpack()
 {
+	const APlayerCharacterBase* PC = Cast<APlayerCharacterBase>(GetPawn());
+	if (!PC || !PC->EquippedWeaponInstance)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[YogPlayerController] OpenBackpack ignored: no weapon equipped."));
+		return;
+	}
+
 	if (AYogHUD* HUD = Cast<AYogHUD>(GetHUD()))
 	{
 		HUD->OpenBackpack();

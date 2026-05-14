@@ -11,7 +11,7 @@ UBFNode_Probability::UBFNode_Probability(const FObjectInitializer& ObjectInitial
 	OutputPins = { FFlowPin(TEXT("Pass")), FFlowPin(TEXT("Fail")) };
 }
 
-void UBFNode_Probability::ExecuteInput(const FName& PinName)
+void UBFNode_Probability::ExecuteBuffFlowInput(const FName& PinName)
 {
 	FFlowDataPinResult_Float Res = TryResolveDataPinAsFloat(
 		GET_MEMBER_NAME_CHECKED(UBFNode_Probability, Chance));

@@ -45,5 +45,5 @@ class DEVKIT_API UBFNode_GetRuneInfo : public UBFNode_Base
 	FFlowDataPinOutputProperty_Float TimeRemaining;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

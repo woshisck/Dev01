@@ -726,9 +726,11 @@ void SBuffFlowDebugWidget::RebuildSelectedRows()
 		FlowRows.Add(Row);
 	}
 
+	// TraceEntries is stored newest-first (see UBuffFlowComponent::RecordTrace),
+	// so iterate forward and the latest entry naturally appears on top.
 	const TArray<FBuffFlowTraceEntry> TraceEntries = BuffFlowComponent->GetTraceEntries();
-	const int32 FirstIndex = FMath::Max(0, TraceEntries.Num() - MaxTraceRows);
-	for (int32 Index = TraceEntries.Num() - 1; Index >= FirstIndex; --Index)
+	const int32 NumRows = FMath::Min(TraceEntries.Num(), MaxTraceRows);
+	for (int32 Index = 0; Index < NumRows; ++Index)
 	{
 		const FBuffFlowTraceEntry& Entry = TraceEntries[Index];
 		TSharedRef<FBuffFlowDebugTraceRow> Row = MakeShared<FBuffFlowDebugTraceRow>();

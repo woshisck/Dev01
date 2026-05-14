@@ -26,5 +26,5 @@ class DEVKIT_API UBFNode_SpawnActorAtLocation : public UBFNode_Base
 	FVector LocationOffset = FVector::ZeroVector;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

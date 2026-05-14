@@ -11,7 +11,7 @@ UBFNode_SpawnActorAtLocation::UBFNode_SpawnActorAtLocation(const FObjectInitiali
 	OutputPins = { FFlowPin(TEXT("Out")) };
 }
 
-void UBFNode_SpawnActorAtLocation::ExecuteInput(const FName& PinName)
+void UBFNode_SpawnActorAtLocation::ExecuteBuffFlowInput(const FName& PinName)
 {
 	if (PinName != TEXT("In"))
 	{

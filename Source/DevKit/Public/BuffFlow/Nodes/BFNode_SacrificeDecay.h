@@ -38,7 +38,7 @@ class DEVKIT_API UBFNode_SacrificeDecay : public UBFNode_Base
     float HPDrainPerSecond = 5.0f;
 
 protected:
-    virtual void ExecuteInput(const FName& PinName) override;
+    virtual void ExecuteBuffFlowInput(const FName& PinName) override;
     virtual void Cleanup() override;
 
 private:

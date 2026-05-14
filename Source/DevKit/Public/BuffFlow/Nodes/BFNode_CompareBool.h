@@ -27,5 +27,5 @@ class DEVKIT_API UBFNode_CompareBool : public UBFNode_Base
 	FFlowDataPinInputProperty_Bool B;
 
 protected:
-	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 };

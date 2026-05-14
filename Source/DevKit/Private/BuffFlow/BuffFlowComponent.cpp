@@ -55,8 +55,10 @@ namespace
 
 		const TArray<FBuffFlowTraceEntry> Entries = BFC->GetTraceEntries();
 		UE_LOG(LogTemp, Warning, TEXT("[BuffFlowTrace] Dump Count=%d Owner=%s"), Entries.Num(), *GetNameSafe(TraceOwner));
-		for (const FBuffFlowTraceEntry& Entry : Entries)
+		// Storage is newest-first; print in chronological order (oldest -> newest) for log readability.
+		for (int32 Idx = Entries.Num() - 1; Idx >= 0; --Idx)
 		{
+			const FBuffFlowTraceEntry& Entry = Entries[Idx];
 			UE_LOG(LogTemp, Warning,
 				TEXT("[BuffFlowTrace] t=%.2f Result=%s Flow=%s Node=%s Profile=%s Target=%s Card=%s CardId=%s Msg=%s Values=%s"),
 				Entry.TimeSeconds,
@@ -437,10 +439,12 @@ void UBuffFlowComponent::RecordTrace(
 	Entry.Message = Message;
 	Entry.Values = Values;
 
-	TraceEntries.Add(Entry);
-	while (TraceEntries.Num() > FMath::Clamp(MaxTraceEntries, 16, 1000))
+	// Newest-first ring buffer: insert at front, pop from back on overflow.
+	TraceEntries.Insert(Entry, 0);
+	const int32 Cap = FMath::Clamp(MaxTraceEntries, 16, 1000);
+	while (TraceEntries.Num() > Cap)
 	{
-		TraceEntries.RemoveAt(0);
+		TraceEntries.Pop(false);
 	}
 
 	if (bTraceEnabled)

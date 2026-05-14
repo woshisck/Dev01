@@ -14,7 +14,7 @@ UBFNode_SpawnBuffFlowProjectile::UBFNode_SpawnBuffFlowProjectile(const FObjectIn
 	OutputPins = { FFlowPin(TEXT("Out")), FFlowPin(TEXT("Failed")) };
 }
 
-void UBFNode_SpawnBuffFlowProjectile::ExecuteInput(const FName& PinName)
+void UBFNode_SpawnBuffFlowProjectile::ExecuteBuffFlowInput(const FName& PinName)
 {
 	UBuffFlowComponent* BFC = GetBuffFlowComponent();
 	AActor* SourceActor = ResolveTarget(SourceSelector);
