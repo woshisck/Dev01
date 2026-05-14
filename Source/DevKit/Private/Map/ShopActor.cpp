@@ -12,7 +12,7 @@
 
 namespace
 {
-UYogUIManagerSubsystem* GetUIManagerForPlayer(const APlayerCharacterBase* Player)
+UYogUIManagerSubsystem* GetShopUIManagerForPlayer(const APlayerCharacterBase* Player)
 {
 	const APlayerController* PC = Player ? Player->GetController<APlayerController>() : nullptr;
 	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
@@ -133,7 +133,7 @@ void AShopActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 	OnPlayerNearby(Player, false);
 	if (ShopWidget && ShopWidget->IsActivated())
 	{
-		if (UYogUIManagerSubsystem* UIManager = GetUIManagerForPlayer(Player))
+		if (UYogUIManagerSubsystem* UIManager = GetShopUIManagerForPlayer(Player))
 		{
 			UIManager->PopScreen(EYogUIScreenId::ShopSelection);
 		}

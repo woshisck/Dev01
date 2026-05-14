@@ -14,7 +14,7 @@
 
 namespace
 {
-UYogUIManagerSubsystem* GetUIManagerForPlayer(const APlayerCharacterBase* Player)
+UYogUIManagerSubsystem* GetAltarUIManagerForPlayer(const APlayerCharacterBase* Player)
 {
 	const APlayerController* PC = Player ? Player->GetController<APlayerController>() : nullptr;
 	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
@@ -83,14 +83,14 @@ void AAltarActor::SetAltarActive(bool bInActive)
 	bIsActive = bInActive && !bSacrificeRewardConsumed;
 	if (!bIsActive && AltarMenuWidget && AltarMenuWidget->IsActivated())
 	{
-		if (UYogUIManagerSubsystem* UIManager = GetUIManagerForPlayer(NearbyPlayer.Get()))
+		if (UYogUIManagerSubsystem* UIManager = GetAltarUIManagerForPlayer(NearbyPlayer.Get()))
 		{
 			UIManager->PopScreen(EYogUIScreenId::AltarMenu);
 		}
 	}
 	if (!bIsActive && SacrificeWidget && SacrificeWidget->IsActivated())
 	{
-		if (UYogUIManagerSubsystem* UIManager = GetUIManagerForPlayer(NearbyPlayer.Get()))
+		if (UYogUIManagerSubsystem* UIManager = GetAltarUIManagerForPlayer(NearbyPlayer.Get()))
 		{
 			UIManager->PopScreen(EYogUIScreenId::SacrificeSelection);
 		}
@@ -246,14 +246,14 @@ void AAltarActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 	OnPlayerNearby(Player, false);
 	if (AltarMenuWidget && AltarMenuWidget->IsActivated())
 	{
-		if (UYogUIManagerSubsystem* UIManager = GetUIManagerForPlayer(Player))
+		if (UYogUIManagerSubsystem* UIManager = GetAltarUIManagerForPlayer(Player))
 		{
 			UIManager->PopScreen(EYogUIScreenId::AltarMenu);
 		}
 	}
 	if (SacrificeWidget && SacrificeWidget->IsActivated())
 	{
-		if (UYogUIManagerSubsystem* UIManager = GetUIManagerForPlayer(Player))
+		if (UYogUIManagerSubsystem* UIManager = GetAltarUIManagerForPlayer(Player))
 		{
 			UIManager->PopScreen(EYogUIScreenId::SacrificeSelection);
 		}
