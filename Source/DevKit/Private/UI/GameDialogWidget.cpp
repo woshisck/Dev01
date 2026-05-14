@@ -154,6 +154,7 @@ void UTutorialPopupWidget::NativeOnActivated()
 
 void UTutorialPopupWidget::NativeOnDeactivated()
 {
+	SetVisibility(ESlateVisibility::Collapsed);
 	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] NativeOnDeactivated — bIsInteractable=%s"),
 		bIsInteractable ? TEXT("true") : TEXT("false"));
 	// 安全网：无论何种关闭路径都清除 bPopupShowing

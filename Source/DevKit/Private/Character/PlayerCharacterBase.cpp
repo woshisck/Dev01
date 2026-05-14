@@ -608,7 +608,8 @@ void APlayerCharacterBase::HandleDamageReceivedFeedback(UYogAbilitySystemCompone
 		return;
 	}
 
-	PlayDamageScreenFlash();
+	// [Disabled] DamageEdgeFlashWidget — kept for later use, do not delete.
+	// PlayDamageScreenFlash();
 	StartDamagePlayerGlow();
 
 	if (APlayerController* PC = Cast<APlayerController>(GetController()))
@@ -638,6 +639,11 @@ void APlayerCharacterBase::HandleDamageReceivedFeedback(UYogAbilitySystemCompone
 
 void APlayerCharacterBase::PlayDamageScreenFlash()
 {
+	// [Disabled] DamageEdgeFlashWidget — entire body commented out, kept for later use.
+	// To re-enable: uncomment this body AND the call site in TakeDamage (search for
+	// "[Disabled] DamageEdgeFlashWidget" above). Consider migrating creation through
+	// UYogUIManagerSubsystem rather than raw CreateWidget + AddToViewport.
+	/*
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	if (!PC || !PC->IsLocalController())
 	{
@@ -673,6 +679,7 @@ void APlayerCharacterBase::PlayDamageScreenFlash()
 			DamageScreenFlashDuration,
 			DamageScreenEdgeWidthRatio);
 	}
+	*/
 }
 
 void APlayerCharacterBase::StartDamagePlayerGlow()
