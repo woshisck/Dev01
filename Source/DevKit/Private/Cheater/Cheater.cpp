@@ -275,7 +275,7 @@ void UYogCheatManager::Yog_FreezeEnemies(bool bFreeze)
 
 // ─── Debug 打印 ───────────────────────────────────────────────────────────────
 
-#if WITH_EDITOR
+#if !UE_BUILD_SHIPPING
 void UYogCheatManager::Yog_UnlockFinisher()
 {
 	UWorld* World = GetWorld();

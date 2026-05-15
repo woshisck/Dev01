@@ -49,7 +49,7 @@ public:
 	/** 冻结/解冻所有敌人（CustomTimeDilation = 0/1） */
 	UFUNCTION(Exec) void Yog_FreezeEnemies(bool bFreeze);
 
-#if WITH_EDITOR
+#if !UE_BUILD_SHIPPING
 	UFUNCTION(Exec) void Yog_UnlockFinisher();
 #endif
 

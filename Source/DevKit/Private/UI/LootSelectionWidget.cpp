@@ -289,6 +289,18 @@ void ULootSelectionWidget::FocusCard(int32 Idx)
 		}
 	}
 
+	// Keep Slate keyboard focus on the matching card button so that the gamepad
+	// A press (Gamepad_FaceButton_Bottom), which CommonUI routes to the focused
+	// widget's OnClicked, fires the correct card — not whichever button held
+	// focus on activation.
+	if (SpawnedCardButtons.IsValidIndex(CurrentCardIndex))
+	{
+		if (UButton* FocusBtn = SpawnedCardButtons[CurrentCardIndex])
+		{
+			FocusBtn->SetKeyboardFocus();
+		}
+	}
+
 	// 段切到 Cards 时按钮段不应继续高亮
 	UpdateButtonHighlight(-1);
 

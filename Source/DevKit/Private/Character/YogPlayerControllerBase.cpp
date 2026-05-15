@@ -36,11 +36,19 @@
 #include "Component/ComboRuntimeComponent.h"
 #include "AbilitySystemComponent.h"
 
+#if !UE_BUILD_SHIPPING
+#include "Cheater/Cheater.h"
+#endif
+
 
 
 AYogPlayerControllerBase::AYogPlayerControllerBase()
 {
 	PlayerCameraManagerClass = AYogPlayerCameraManager::StaticClass();
+
+#if !UE_BUILD_SHIPPING
+	CheatClass = UYogCheatManager::StaticClass();
+#endif
 }
 
 void AYogPlayerControllerBase::OnPossess(APawn* InPawn)
@@ -132,6 +140,13 @@ void AYogPlayerControllerBase::SetPlayerState(EYogCharacterState newState)
 void AYogPlayerControllerBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+#if !UE_BUILD_SHIPPING
+	if (IsLocalController() && CheatManager == nullptr)
+	{
+		AddCheats(/*bForce=*/true);
+	}
+#endif
 
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
