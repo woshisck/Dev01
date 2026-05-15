@@ -1,0 +1,45 @@
+﻿# 符文 FA 调试说明
+
+## 1. 调试目标
+FA 现在只看触发链路：Start 后执行哪些节点、等待哪些事件、目标是否存在、Profile 是否成功执行。数值优先去 EffectProfile 调整。
+
+## 2. 控制台命令
+
+| 命令 | 用途 |
+| --- | --- |
+| `BuffFlow.Trace 1` | 打开简略节点执行日志。 |
+| `BuffFlow.TraceVerbose 1` | 打开详细数值日志，会显示伤害、范围、持续时间等 Values。 |
+| `Yog_DumpBuffFlowTrace` | 打印玩家最近的 BuffFlow Trace 记录。 |
+| `BuffFlow.Trace 0` | 关闭简略日志。 |
+| `BuffFlow.TraceVerbose 0` | 关闭详细日志。 |
+
+## 3. Trace 怎么看
+
+日志格式会包含：
+
+| 字段 | 含义 |
+| --- | --- |
+| `Flow` | 当前执行的 FA。 |
+| `Node` | 当前执行节点。 |
+| `Profile` | 节点读取的 EffectProfile。 |
+| `Target` | 节点作用目标。 |
+| `Card` | 触发这次 Flow 的卡牌。 |
+| `Result` | `Success / Failed / Skipped`。 |
+| `Msg` | 成功或失败原因。 |
+| `Values` | 详细数值，需打开 `BuffFlow.TraceVerbose 1`。 |
+
+## 4. 常见问题定位
+
+| 现象 | 检查 |
+| --- | --- |
+| 卡牌触发但没有效果 | 看 Trace 是否有 `Profile is null`、`Missing source or target ASC`、`No projectile spawned`。 |
+| 月光有投射物但伤害不对 | 改对应 `EP_Rune512_Moonlight_... -> DamageValue`，并看 `DamageLogType` 是否正确。 |
+| 火/毒区域出现但不掉血 | 检查 Profile 的 `Area.Effect`、`Area.SetByCallerTag1`、`Area.SetByCallerValue1`、`Area.TickInterval`。 |
+| Niagara 没出现 | 检查 `Play Rune VFX Profile` 的 Target 是否为正确目标，Profile 里 `VFX.NiagaraSystem` 是否为空。 |
+| 连携没有触发 | 先看 CombatDeck 日志确认 LinkFlow 是否被选中，再看 FA Trace 是否进入对应 Profile 节点。 |
+
+## 5. FA 调整原则
+
+- 需要改伤害、持续时间、层数、范围、投射物数量、VFX 缩放：改 Profile。
+- 需要改“先投射物再等待命中事件再施加 GE”：改 FA 连线。
+- 需要新增一种可复用行为：优先新增 Profile 型原子节点或独立 BuffFlow 节点，不要把多个效果继续塞进一个大节点。
