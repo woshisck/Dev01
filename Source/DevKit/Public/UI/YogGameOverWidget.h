@@ -52,6 +52,7 @@ private:
 	void ActivateFocusedButton();
 	void RefreshButtonVisuals();
 	void CloseManagedScreen();
+	bool IsAcceptInputLocked() const;
 
 	UFUNCTION()
 	void HandleReviveClicked();
@@ -75,4 +76,5 @@ private:
 	bool bCanRevive = false;
 	int32 FocusedButtonIndex = 0;
 	float LastAnalogNavigationTime = 0.f;
+	float AcceptInputUnlockTime = 0.f;
 };

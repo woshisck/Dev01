@@ -919,6 +919,11 @@ void AYogGameMode::FinishPlayerDeathGameOver()
 	const bool bCanRevive = CanOfferPlayerDeathRevive(bGameOverTriggered, bPlayerDeathReviveUsed)
 		&& PendingDeathPlayer.IsValid();
 
+	UE_LOG(LogTemp, Warning, TEXT("[GameOver] Finalize death. CanRevive=%d ReviveUsed=%d PendingPlayer=%s"),
+		(int32)bCanRevive,
+		(int32)bPlayerDeathReviveUsed,
+		*GetNameSafe(PendingDeathPlayer.Get()));
+
 	if (!bCanRevive)
 	{
 		bGameOverTriggered = true;

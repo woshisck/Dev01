@@ -105,6 +105,7 @@ void UYogGameOverWidget::NativeOnActivated()
 	Super::NativeOnActivated();
 	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	SetIsFocusable(true);
+	AcceptInputUnlockTime = GetWorld() ? GetWorld()->GetRealTimeSeconds() + 0.35f : 0.f;
 	CacheButtons();
 	FocusButton(FocusedButtonIndex);
 }
@@ -136,6 +137,10 @@ FReply UYogGameOverWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FK
 
 	if (YogInputKeys::IsAcceptKey(Key) || Key == EKeys::SpaceBar)
 	{
+		if (IsAcceptInputLocked())
+		{
+			return FReply::Handled();
+		}
 		ActivateFocusedButton();
 		return FReply::Handled();
 	}
@@ -277,6 +282,11 @@ void UYogGameOverWidget::FocusButton(int32 NewIndex)
 
 void UYogGameOverWidget::ActivateFocusedButton()
 {
+	if (IsAcceptInputLocked())
+	{
+		return;
+	}
+
 	if (MenuButtons.IsValidIndex(FocusedButtonIndex))
 	{
 		if (UButton* Button = MenuButtons[FocusedButtonIndex])
@@ -307,8 +317,18 @@ void UYogGameOverWidget::CloseManagedScreen()
 	}
 }
 
+bool UYogGameOverWidget::IsAcceptInputLocked() const
+{
+	return GetWorld() && GetWorld()->GetRealTimeSeconds() < AcceptInputUnlockTime;
+}
+
 void UYogGameOverWidget::HandleReviveClicked()
 {
+	if (IsAcceptInputLocked())
+	{
+		return;
+	}
+
 	if (!bCanRevive)
 	{
 		return;
@@ -342,6 +362,12 @@ void UYogGameOverWidget::HandleReviveHovered()
 
 void UYogGameOverWidget::HandleRetryClicked()
 {
+	if (IsAcceptInputLocked())
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GameOver] Retry selected."));
 	CloseManagedScreen();
 	if (UWorld* World = GetWorld())
 	{
@@ -364,6 +390,12 @@ void UYogGameOverWidget::HandleRetryHovered()
 
 void UYogGameOverWidget::HandleReturnToTitleClicked()
 {
+	if (IsAcceptInputLocked())
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GameOver] ReturnToTitle selected."));
 	CloseManagedScreen();
 	if (UWorld* World = GetWorld())
 	{

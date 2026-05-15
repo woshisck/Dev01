@@ -356,6 +356,13 @@ void ULootSelectionWidget::SelectRuneLoot(int32 Index)
 		return;
 	}
 
+	const FLootOption& SelectedOption = CurrentLootOptions[Index];
+	UE_LOG(LogTemp, Log, TEXT("[LootSelection] SelectRuneLoot: OptionIdx=%d CurrentCardIdx=%d Section=%d Rune=%s"),
+		Index,
+		CurrentCardIndex,
+		static_cast<int32>(CurrentSection),
+		*GetNameSafe(SelectedOption.RuneAsset));
+
 	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld())))
 		GM->SelectLoot(Index);
 
@@ -473,35 +480,56 @@ namespace
 	}
 }
 
+bool ULootSelectionWidget::ShouldUseFocusedCardForClick() const
+{
+	const APlayerController* PC = GetOwningPlayer();
+	return PC && PC->IsInputKeyDown(EKeys::Gamepad_FaceButton_Bottom);
+}
+
+void ULootSelectionWidget::SelectVisibleCard(int32 VisibleIdx)
+{
+	const int32 EffectiveVisibleIdx =
+		ShouldUseFocusedCardForClick() && CurrentSection == ELootFocusSection::Cards
+			? CurrentCardIndex
+			: VisibleIdx;
+	const int32 OptionIdx = ResolveCardToOption(CardToOptionIndex, EffectiveVisibleIdx);
+
+	UE_LOG(LogTemp, Log, TEXT("[LootSelection] SelectVisibleCard: ClickVisible=%d EffectiveVisible=%d OptionIdx=%d CurrentCard=%d Section=%d"),
+		VisibleIdx,
+		EffectiveVisibleIdx,
+		OptionIdx,
+		CurrentCardIndex,
+		static_cast<int32>(CurrentSection));
+
+	if (OptionIdx >= 0)
+	{
+		SelectRuneLoot(OptionIdx);
+	}
+}
+
 void ULootSelectionWidget::OnCardClicked0()
 {
-	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 0);
-	if (Idx >= 0) SelectRuneLoot(Idx);
+	SelectVisibleCard(0);
 }
 void ULootSelectionWidget::OnCardClicked1()
 {
-	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 1);
-	if (Idx >= 0) SelectRuneLoot(Idx);
+	SelectVisibleCard(1);
 }
 void ULootSelectionWidget::OnCardClicked2()
 {
-	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 2);
-	if (Idx >= 0) SelectRuneLoot(Idx);
+	SelectVisibleCard(2);
 }
 void ULootSelectionWidget::OnCardClicked3()
 {
-	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 3);
-	if (Idx >= 0) SelectRuneLoot(Idx);
+	SelectVisibleCard(3);
 }
 void ULootSelectionWidget::OnCardClicked4()
 {
-	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 4);
-	if (Idx >= 0) SelectRuneLoot(Idx);
+	SelectVisibleCard(4);
 }
 void ULootSelectionWidget::OnCardClicked5()
 {
-	const int32 Idx = ResolveCardToOption(CardToOptionIndex, 5);
-	if (Idx >= 0) SelectRuneLoot(Idx);
+	SelectVisibleCard(5);
 }
 
 // 鼠标 hover 卡片：与手柄/键盘等价 — 切段到 Cards + FocusCard 那张
@@ -572,22 +600,20 @@ void ULootSelectionWidget::NativeOnDeactivated()
 //  输入
 // ============================================================
 
-FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+bool ULootSelectionWidget::HandleLootInputKey(const FKey& Key)
 {
-	const FKey Key = InKeyEvent.GetKey();
-
 	// ── 全局快捷键 ─────────────────────────────────────────
 	// B / Circle / Esc → 跳过
 	if (YogInputKeys::IsBackKey(Key) || YogInputKeys::IsMenuKey(Key))
 	{
 		SkipSelection();
-		return FReply::Handled();
+		return true;
 	}
 	// Y / Triangle / Tab → 预览背包
 	if (Key == EKeys::Gamepad_FaceButton_Top || Key == EKeys::Tab)
 	{
 		OpenBackpackPreview();
-		return FReply::Handled();
+		return true;
 	}
 
 	// ── 段切换 ─────────────────────────────────────────────
@@ -595,12 +621,12 @@ FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 	if (VerticalDirection < 0)
 	{
 		SetSection(ELootFocusSection::Cards);
-		return FReply::Handled();
+		return true;
 	}
 	if (VerticalDirection > 0)
 	{
 		SetSection(ELootFocusSection::Buttons);
-		return FReply::Handled();
+		return true;
 	}
 
 	// ── 段内左右导航 + 确认 ─────────────────────────────────
@@ -621,7 +647,7 @@ FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 			CurrentButtonIndex = FMath::Max(0, CurrentButtonIndex - 1);
 			FocusButton(CurrentButtonIndex);
 		}
-		return FReply::Handled();
+		return true;
 	}
 	if (HorizontalDirection > 0)
 	{
@@ -636,7 +662,7 @@ FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 			CurrentButtonIndex = FMath::Min(MaxButtonIdx, CurrentButtonIndex + 1);
 			FocusButton(CurrentButtonIndex);
 		}
-		return FReply::Handled();
+		return true;
 	}
 
 	if (YogInputKeys::IsAcceptKey(Key))
@@ -653,6 +679,26 @@ FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 			if (CurrentButtonIndex == 0) SkipSelection();
 			else if (CurrentButtonIndex == 1) OpenBackpackPreview();
 		}
+		return true;
+	}
+
+	return false;
+}
+
+FReply ULootSelectionWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (GetVisibility() != ESlateVisibility::Collapsed && HandleLootInputKey(InKeyEvent.GetKey()))
+	{
+		return FReply::Handled();
+	}
+
+	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
+}
+
+FReply ULootSelectionWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (GetVisibility() != ESlateVisibility::Collapsed && HandleLootInputKey(InKeyEvent.GetKey()))
+	{
 		return FReply::Handled();
 	}
 

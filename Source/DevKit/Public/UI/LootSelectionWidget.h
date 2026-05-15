@@ -83,6 +83,7 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
 	virtual void NativeOnFocusLost(const FFocusEvent& InFocusEvent) override;
@@ -175,6 +176,9 @@ private:
 	void FinishAndNotifyHUD();
 	void ReactivateAfterPreview();
 	int32 ClampCardIndex(int32 Idx) const;
+	bool HandleLootInputKey(const FKey& Key);
+	bool ShouldUseFocusedCardForClick() const;
+	void SelectVisibleCard(int32 VisibleIdx);
 
 	/** 同步按钮高亮 Border 显隐（Buttons 段时只显示 SelectedIdx 对应的） */
 	void UpdateButtonHighlight(int32 SelectedIdx);
