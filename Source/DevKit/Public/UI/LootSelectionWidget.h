@@ -83,6 +83,7 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply NativeOnAnalogValueChanged(const FGeometry& InGeometry, const FAnalogInputEvent& InAnalogInputEvent) override;
@@ -188,21 +189,15 @@ private:
 	/** 鼠标 hover 卡片时统一入口：切段到 Cards + FocusCard，去重避免重复触发 */
 	void HandleCardHover(int32 VisibleIdx);
 
-	// 6 个静态卡片点击回调（dynamic delegate 不支持 lambda/带参绑定，与 MaxCards 对齐）
-	UFUNCTION() void OnCardClicked0();
-	UFUNCTION() void OnCardClicked1();
-	UFUNCTION() void OnCardClicked2();
-	UFUNCTION() void OnCardClicked3();
-	UFUNCTION() void OnCardClicked4();
-	UFUNCTION() void OnCardClicked5();
+	/**
+	 * Tick 时调用：Slate keyboard focus 是真实输入路由的目标，
+	 * 把 CurrentCardIndex 同步到当前持有焦点的 wrapper button，
+	 * 避免视觉高亮和实际确认目标错位。
+	 */
+	void SyncCardIndexFromSlateFocus();
 
-	// 6 个静态卡片鼠标 hover 回调（与 OnCardClickedN 同位置绑定 Wrapper->OnHovered）
-	UFUNCTION() void OnCardHovered0();
-	UFUNCTION() void OnCardHovered1();
-	UFUNCTION() void OnCardHovered2();
-	UFUNCTION() void OnCardHovered3();
-	UFUNCTION() void OnCardHovered4();
-	UFUNCTION() void OnCardHovered5();
+	// 点击 / hover 由 URuneInfoCardWidget 通过非动态多播回传 VisibleIndex —
+	// 单一数据源（卡片自身的 VisibleIndex），不再依赖每个槽位一个 UFUNCTION 的硬编码绑定。
 
 	UFUNCTION() void OnBtnSkipClicked();
 	UFUNCTION() void OnBtnBackpackPreviewClicked();

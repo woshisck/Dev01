@@ -19,8 +19,6 @@
 #include "UI/YogInputKeyUtils.h"
 #include "UI/YogUIManagerSubsystem.h"
 
-static_assert(ULootSelectionWidget::MaxCards == 6, "Card click/hover callbacks must match MaxCards.");
-
 // ============================================================
 //  生命周期
 // ============================================================
@@ -59,6 +57,38 @@ void ULootSelectionWidget::NativeDestruct()
 	}
 
 	Super::NativeDestruct();
+}
+
+void ULootSelectionWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (GetVisibility() == ESlateVisibility::Collapsed) return;
+	if (CurrentSection != ELootFocusSection::Cards) return;
+
+	SyncCardIndexFromSlateFocus();
+}
+
+void ULootSelectionWidget::SyncCardIndexFromSlateFocus()
+{
+	const int32 N = SpawnedCardButtons.Num();
+	if (N == 0) return;
+
+	// 查 Slate 上当前哪个 wrapper button 持有键盘焦点 —— 那就是真实的"已选中"卡。
+	// 不依赖输入事件回调，避免 NativeOnPreviewKeyDown / Slate 默认导航的竞争路径。
+	for (int32 i = 0; i < N; ++i)
+	{
+		const UButton* Btn = SpawnedCardButtons[i];
+		if (Btn && Btn->HasKeyboardFocus())
+		{
+			if (CurrentCardIndex != i)
+			{
+				// 同步：让视觉高亮和 IsAcceptKey 路径都跟着真实焦点走
+				FocusCard(i);
+			}
+			return;
+		}
+	}
 }
 
 void ULootSelectionWidget::HandlePhaseChanged(ELevelPhase NewPhase)
@@ -201,12 +231,15 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 		SizeBox->SetMaxDesiredHeight(CardSize.Y);
 		SizeBox->AddChild(Card);
 
-		// 外包 UButton 处理鼠标点击
+		// 外包 UButton 处理鼠标点击 + Slate 焦点目标。
+		// IsFocusable=true 让 DPad 自然在 wrapper 之间移动焦点（不再依赖 FocusCard
+		// 强行 SetKeyboardFocus），随后 Tick 把焦点同步到 CurrentCardIndex —
+		// 避免之前 Slate 焦点 / CurrentCardIndex 不同步导致确认时选错卡的 bug。
 		UButton* Wrapper = WidgetTree
 			? WidgetTree->ConstructWidget<UButton>(UButton::StaticClass())
 			: NewObject<UButton>(this);
 		Wrapper->SetVisibility(ESlateVisibility::Visible);
-		Wrapper->IsFocusable = false;
+		Wrapper->IsFocusable = true;
 		Wrapper->AddChild(SizeBox);
 
 		// 全透明 ButtonStyle，避免盖住卡片视觉（Designer 可在 WBP 里覆盖此默认）
@@ -217,39 +250,20 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 		Style.Disabled.TintColor = FSlateColor(FLinearColor(1, 1, 1, 0));
 		Wrapper->SetStyle(Style);
 
-		// 静态绑定（dynamic delegate 不支持 lambda/带参，预声明 6 个回调与 MaxCards 对齐）。
-		// 注意：用"可见卡片索引"（SpawnedCards.Num() 当前值）而不是原始 Options 索引 i —
-		// 否则若 i=0 项无效被 continue 跳过，第一张可见卡会绑到 OnCardClicked1，
-		// 而 CardToOptionIndex 只有 1 个元素，导致 ResolveCardToOption 越界失败
+		// 卡片自己持有 VisibleIndex 并通过非动态多播把它带回来，
+		// 这样监听端可以 capture-by-value 一个 lambda，避免每个槽位一个 UFUNCTION 的硬编码。
+		// "可见卡片索引" = SpawnedCards.Num() 当前值（无效项被 continue 跳过时映射不连续）。
 		const int32 VisibleIdx = SpawnedCards.Num();
-		switch (VisibleIdx)
+		Card->VisibleIndex = VisibleIdx;
+		Card->BindToWrapperButton(Wrapper);
+		Card->OnRuneCardClickedNative.AddWeakLambda(this, [this](int32 Idx)
 		{
-		case 0:
-			Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked0);
-			Wrapper->OnHovered.AddDynamic(this, &ULootSelectionWidget::OnCardHovered0);
-			break;
-		case 1:
-			Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked1);
-			Wrapper->OnHovered.AddDynamic(this, &ULootSelectionWidget::OnCardHovered1);
-			break;
-		case 2:
-			Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked2);
-			Wrapper->OnHovered.AddDynamic(this, &ULootSelectionWidget::OnCardHovered2);
-			break;
-		case 3:
-			Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked3);
-			Wrapper->OnHovered.AddDynamic(this, &ULootSelectionWidget::OnCardHovered3);
-			break;
-		case 4:
-			Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked4);
-			Wrapper->OnHovered.AddDynamic(this, &ULootSelectionWidget::OnCardHovered4);
-			break;
-		case 5:
-			Wrapper->OnClicked.AddDynamic(this, &ULootSelectionWidget::OnCardClicked5);
-			Wrapper->OnHovered.AddDynamic(this, &ULootSelectionWidget::OnCardHovered5);
-			break;
-		default: break;
-		}
+			SelectVisibleCard(Idx);
+		});
+		Card->OnRuneCardHoveredNative.AddWeakLambda(this, [this](int32 Idx)
+		{
+			HandleCardHover(Idx);
+		});
 
 		UPanelSlot* PSlot = CardContainer->AddChild(Wrapper);
 		if (UWrapBoxSlot* WSlot = Cast<UWrapBoxSlot>(PSlot))
@@ -519,31 +533,6 @@ void ULootSelectionWidget::SelectVisibleCard(int32 VisibleIdx)
 	}
 }
 
-void ULootSelectionWidget::OnCardClicked0()
-{
-	SelectVisibleCard(0);
-}
-void ULootSelectionWidget::OnCardClicked1()
-{
-	SelectVisibleCard(1);
-}
-void ULootSelectionWidget::OnCardClicked2()
-{
-	SelectVisibleCard(2);
-}
-void ULootSelectionWidget::OnCardClicked3()
-{
-	SelectVisibleCard(3);
-}
-void ULootSelectionWidget::OnCardClicked4()
-{
-	SelectVisibleCard(4);
-}
-void ULootSelectionWidget::OnCardClicked5()
-{
-	SelectVisibleCard(5);
-}
-
 // 鼠标 hover 卡片：与手柄/键盘等价 — 切段到 Cards + FocusCard 那张
 // 鼠标移开后不主动复位，最后一次 hover/键盘选择保持高亮
 void ULootSelectionWidget::HandleCardHover(int32 VisibleIdx)
@@ -555,13 +544,6 @@ void ULootSelectionWidget::HandleCardHover(int32 VisibleIdx)
 	CurrentSection = ELootFocusSection::Cards;
 	FocusCard(VisibleIdx);
 }
-
-void ULootSelectionWidget::OnCardHovered0() { HandleCardHover(0); }
-void ULootSelectionWidget::OnCardHovered1() { HandleCardHover(1); }
-void ULootSelectionWidget::OnCardHovered2() { HandleCardHover(2); }
-void ULootSelectionWidget::OnCardHovered3() { HandleCardHover(3); }
-void ULootSelectionWidget::OnCardHovered4() { HandleCardHover(4); }
-void ULootSelectionWidget::OnCardHovered5() { HandleCardHover(5); }
 
 void ULootSelectionWidget::OnBtnSkipClicked() { SkipSelection(); }
 void ULootSelectionWidget::OnBtnBackpackPreviewClicked() { OpenBackpackPreview(); }

@@ -4,6 +4,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Border.h"
+#include "Components/Button.h"
 #include "Blueprint/WidgetTree.h"
 #include "CommonRichTextBlock.h"
 #include "Data/GenericRuneEffectDA.h"
@@ -463,4 +464,33 @@ void URuneInfoCardWidget::BuildShapeGrid(const FRuneShape& Shape)
             DotSlot->SetSize(FVector2D(DotSize, DotSize));
         }
     }
+}
+
+// ============================================================
+//  Wrapper button 桥接（多卡场景，给外部的点击/悬停事件携带 VisibleIndex）
+// ============================================================
+
+void URuneInfoCardWidget::BindToWrapperButton(UButton* InWrapper)
+{
+    if (!InWrapper) return;
+
+    if (UButton* Prev = BoundWrapperButton.Get())
+    {
+        Prev->OnClicked.RemoveDynamic(this, &URuneInfoCardWidget::HandleWrapperClicked);
+        Prev->OnHovered.RemoveDynamic(this, &URuneInfoCardWidget::HandleWrapperHovered);
+    }
+
+    BoundWrapperButton = InWrapper;
+    InWrapper->OnClicked.AddDynamic(this, &URuneInfoCardWidget::HandleWrapperClicked);
+    InWrapper->OnHovered.AddDynamic(this, &URuneInfoCardWidget::HandleWrapperHovered);
+}
+
+void URuneInfoCardWidget::HandleWrapperClicked()
+{
+    OnRuneCardClickedNative.Broadcast(VisibleIndex);
+}
+
+void URuneInfoCardWidget::HandleWrapperHovered()
+{
+    OnRuneCardHoveredNative.Broadcast(VisibleIndex);
 }

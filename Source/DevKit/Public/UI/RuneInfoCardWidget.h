@@ -13,7 +13,17 @@ class UCanvasPanelSlot;
 class UCommonRichTextBlock;
 class UGenericEffectListWidget;
 class UBorder;
+class UButton;
 class UGenericRuneEffectDA;
+
+/**
+ * 非动态多播：携带 VisibleIndex 回到外部（如 LootSelectionWidget）。
+ * 走这条路是为了绕开 UButton::OnClicked 的 DYNAMIC delegate 限制
+ * （只能绑 UFUNCTION 无参版本，不支持 lambda / payload）—— 卡片内部
+ * 用 UFUNCTION 接住 wrapper button 的事件，再用 VisibleIndex 广播出去。
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnRuneCardClickedNative, int32 /*VisibleIndex*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnRuneCardHoveredNative, int32 /*VisibleIndex*/);
 
 /**
  * 符文信息卡 Widget
@@ -135,6 +145,21 @@ public:
     bool IsSelected() const { return bSelected; }
 
     /**
+     * 把外部 wrapper UButton 的 OnClicked / OnHovered 桥接到本卡的 native 多播。
+     * 调用前先设好 VisibleIndex —— 广播时会把该 index 回传给监听者。
+     * 安全重绑：若已绑过 wrapper，会先解绑旧的再接新的。
+     */
+    void BindToWrapperButton(UButton* InWrapper);
+
+    /** 由 LootSelection 等多卡场景在 RebuildCards 时写入，单卡场景留 INDEX_NONE 即可 */
+    UPROPERTY()
+    int32 VisibleIndex = INDEX_NONE;
+
+    /** Click / Hover 多播 —— 非动态，所以监听端可以用带捕获的 lambda。*/
+    FOnRuneCardClickedNative OnRuneCardClickedNative;
+    FOnRuneCardHoveredNative OnRuneCardHoveredNative;
+
+    /**
      * CardBackground 留空时使用的默认背景笔刷。
      * 默认值：DrawAs=Box, Color=#1A1A22 alpha=0.9（深暗灰）。
      * 可在 WBP Class Defaults 中覆盖。
@@ -163,6 +188,14 @@ protected:
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
+    /** Wrapper button click 桥接：广播 OnRuneCardClickedNative(VisibleIndex) */
+    UFUNCTION() void HandleWrapperClicked();
+    /** Wrapper button hover 桥接：广播 OnRuneCardHoveredNative(VisibleIndex) */
+    UFUNCTION() void HandleWrapperHovered();
+
+    /** 记一下当前绑定的 wrapper button，便于重绑时清理旧绑定 */
+    TWeakObjectPtr<UButton> BoundWrapperButton;
+
     /** 根据 FRuneShape 重建 ShapeGrid 子节点（点阵） */
     void BuildShapeGrid(const FRuneShape& Shape);
 
