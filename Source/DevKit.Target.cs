@@ -10,6 +10,11 @@ public class DevKitTarget : TargetRules
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.V5;
 
+		if (Configuration == UnrealTargetConfiguration.Shipping)
+		{
+			GlobalDefinitions.Add("DEVKIT_ENABLE_SHIPPING_CHEATS=1");
+		}
+
 		ExtraModuleNames.AddRange( new string[] { "DevKit" } );
 	}
 }

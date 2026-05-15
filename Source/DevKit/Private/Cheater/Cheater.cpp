@@ -275,9 +275,11 @@ void UYogCheatManager::Yog_FreezeEnemies(bool bFreeze)
 
 // ─── Debug 打印 ───────────────────────────────────────────────────────────────
 
-#if !UE_BUILD_SHIPPING
 void UYogCheatManager::Yog_UnlockFinisher()
 {
+#if UE_BUILD_SHIPPING && !DEVKIT_ENABLE_SHIPPING_CHEATS
+	return;
+#else
 	UWorld* World = GetWorld();
 	AYogGameMode* GameMode = World ? World->GetAuthGameMode<AYogGameMode>() : nullptr;
 	if (!GameMode)
@@ -315,8 +317,8 @@ void UYogCheatManager::Yog_UnlockFinisher()
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, Message);
 	}
-}
 #endif
+}
 
 void UYogCheatManager::Yog_PrintHeat()
 {
