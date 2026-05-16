@@ -73,8 +73,8 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			CharacterBalanceTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnCharacterBalanceTab))
-			.SetDisplayName(LOCTEXT("CharacterBalanceTabTitle", "Character Balance"))
-			.SetTooltipText(LOCTEXT("CharacterBalanceTabTooltip", "Open the DevKit Character Balance panel."))
+			.SetDisplayName(LOCTEXT("CharacterBalanceTabTitle", "Character Data Workbench"))
+			.SetTooltipText(LOCTEXT("CharacterBalanceTabTooltip", "Open the DevKit character, montage, and Act data workbench."))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
@@ -172,7 +172,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	{
 		return SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
-			.Label(LOCTEXT("CharacterBalanceTabLabel", "Character Balance"))
+			.Label(LOCTEXT("CharacterBalanceTabLabel", "Character Data Workbench"))
 			[
 				SNew(SCharacterBalanceWidget)
 			];
@@ -237,60 +237,49 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		UToolMenu* ToolsMenu = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.MainMenu.Tools"));
 		FToolMenuSection& Section = ToolsMenu->FindOrAddSection(TEXT("DevKitTools"), LOCTEXT("DevKitToolsSection", "DevKit"));
 		Section.AddSubMenu(
-			TEXT("DevKitDataMenu"),
-			LOCTEXT("DevKitDataMenuLabel", "DevKit Data"),
-			LOCTEXT("DevKitDataMenuTooltip", "Open DevKit balance data editor panels."),
+			TEXT("DevKitToolsMenu"),
+			LOCTEXT("DevKitToolsMenuLabel", "DevKit Tools"),
+			LOCTEXT("DevKitToolsMenuTooltip", "Open DevKit authoring, balance, and debug editor tools."),
 			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillDevKitDataMenu));
-
-		Section.AddMenuEntry(
-			TEXT("OpenDataEditor"),
-			LOCTEXT("OpenDataEditorLabel", "DataEditor"),
-			LOCTEXT("OpenDataEditorTooltip", "Open the DevKit Rune Balance panel. Kept for old DataEditor workflows."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenRuneBalanceTab)));
-
-		Section.AddMenuEntry(
-			TEXT("OpenCombatLog"),
-			LOCTEXT("OpenCombatLogLabel", "Combat Log"),
-			LOCTEXT("OpenCombatLogTooltip", "Open the DevKit Combat Log editor window."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenCombatLogTab)));
-
-		Section.AddMenuEntry(
-			TEXT("OpenBuffFlowDebug"),
-			LOCTEXT("OpenBuffFlowDebugLabel", "BuffFlow Debug"),
-			LOCTEXT("OpenBuffFlowDebugTooltip", "Open the DevKit BuffFlow debug editor window."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenBuffFlowDebugTab)));
 	}
 
 	void FillDevKitDataMenu(UToolMenu* Menu)
 	{
-		FToolMenuSection& Section = Menu->FindOrAddSection(TEXT("DevKitDataBalance"), LOCTEXT("DevKitDataBalanceSection", "Balance Editors"));
-		Section.AddMenuEntry(
+		FToolMenuSection& RuneSection = Menu->FindOrAddSection(TEXT("DevKitRuneTools"), LOCTEXT("DevKitRuneToolsSection", "Rune Tools"));
+		RuneSection.AddMenuEntry(
 			TEXT("OpenRuneEditor"),
 			LOCTEXT("OpenRuneEditorLabel", "Rune Editor"),
 			LOCTEXT("OpenRuneEditorTooltip", "Open the Yog Rune Flow editor for rune assets, graph authoring, and validation work."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenRuneEditorTab)));
-		Section.AddMenuEntry(
-			TEXT("OpenCharacterBalance"),
-			LOCTEXT("OpenCharacterBalanceLabel", "Character Balance"),
-			LOCTEXT("OpenCharacterBalanceTooltip", "Edit character base and movement values."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenCharacterBalanceTab)));
-		Section.AddMenuEntry(
-			TEXT("OpenActionBalance"),
-			LOCTEXT("OpenActionBalanceLabel", "Action Balance"),
-			LOCTEXT("OpenActionBalanceTooltip", "Edit melee and musket action values."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenActionBalanceTab)));
-		Section.AddMenuEntry(
+		RuneSection.AddMenuEntry(
 			TEXT("OpenRuneBalance"),
 			LOCTEXT("OpenRuneBalanceLabel", "Rune Balance"),
-			LOCTEXT("OpenRuneBalanceTooltip", "Edit rune economy, trigger, and tuning values."),
+			LOCTEXT("OpenRuneBalanceTooltip", "Open the legacy DataEditor panel for rune economy, trigger, migration, and tuning values."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenRuneBalanceTab)));
+
+		FToolMenuSection& BalanceSection = Menu->FindOrAddSection(TEXT("DevKitBalanceEditors"), LOCTEXT("DevKitBalanceEditorsSection", "Balance Editors"));
+		BalanceSection.AddMenuEntry(
+			TEXT("OpenCharacterBalance"),
+			LOCTEXT("OpenCharacterBalanceLabel", "Character Data Workbench"),
+			LOCTEXT("OpenCharacterBalanceTooltip", "Edit character attributes, DA references, montage chains, and Act values."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenCharacterBalanceTab)));
+
+		FToolMenuSection& DebugSection = Menu->FindOrAddSection(TEXT("DevKitDebugTools"), LOCTEXT("DevKitDebugToolsSection", "Debug Tools"));
+		DebugSection.AddMenuEntry(
+			TEXT("OpenCombatLog"),
+			LOCTEXT("OpenCombatLogLabel", "Combat Log"),
+			LOCTEXT("OpenCombatLogTooltip", "Open the DevKit Combat Log editor window."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenCombatLogTab)));
+		DebugSection.AddMenuEntry(
+			TEXT("OpenBuffFlowDebug"),
+			LOCTEXT("OpenBuffFlowDebugLabel", "BuffFlow Debug"),
+			LOCTEXT("OpenBuffFlowDebugTooltip", "Open the DevKit BuffFlow debug editor window."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenBuffFlowDebugTab)));
 	}
 
 	void OpenRuneBalanceTab()
