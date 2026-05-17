@@ -28,6 +28,7 @@
 #include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
 #include "LevelFlow/LevelFlowAsset.h"
+#include "Story/StoryEventManager.h"
 #include "FlowAsset.h"
 #include "FlowComponent.h"
 #include "Misc/PackageName.h"
@@ -1148,6 +1149,19 @@ void AYogGameMode::StartLevelSpawning()
 	ActiveGlobalStageTag = Config.GlobalStageTag;
 	ActiveStoryEventTags = Config.StoryEventTags;
 	OnCampaignStageEntered.Broadcast(CurrentFloor, ActiveGlobalStageTag, ActiveStoryEventTags, ActiveRoomData);
+	if (bDispatchStoryEventsFromCampaign)
+	{
+		if (UStoryEventManager* StoryEventManager = GetGameInstance()->GetSubsystem<UStoryEventManager>())
+		{
+			StoryEventManager->SetRegistry(StoryEventRegistry);
+			StoryEventManager->ProcessCampaignStage(
+				CurrentFloor,
+				ActiveGlobalStageTag,
+				ActiveStoryEventTags,
+				ActiveRoomData,
+				UGameplayStatics::GetPlayerController(this, 0));
+		}
+	}
 	UE_LOG(LogTemp, Log, TEXT("[CampaignStage] Floor=%d Stage=%s EventTags=%s Room=%s"),
 		CurrentFloor,
 		*ActiveGlobalStageTag.ToString(),

@@ -28,6 +28,7 @@ class UFlowComponent;
 class AMobSpawner;
 class UNiagaraSystem;
 class URuneDataAsset;
+class UStoryEventRegistryDA;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMapClean);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, ELevelPhase, NewPhase);
@@ -299,6 +300,12 @@ public:
 	// 本次局内的关卡序列配置（在 GameMode BP 或 World Settings 中指定）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign")
 	TObjectPtr<UCampaignDataAsset> CampaignData;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|StoryEvent")
+	TObjectPtr<UStoryEventRegistryDA> StoryEventRegistry;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|StoryEvent")
+	bool bDispatchStoryEventsFromCampaign = true;
 
 	// 当前是第几关（从 1 开始，对应 FloorTable 下标 0）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Campaign")
