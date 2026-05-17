@@ -5,12 +5,15 @@
 #include "StoryEventTypes.generated.h"
 
 class URoomDataAsset;
+class ULevelFlowAsset;
 
 UENUM(BlueprintType)
 enum class EStoryEventActionType : uint8
 {
 	None UMETA(DisplayName = "None"),
+	BroadcastOnly UMETA(DisplayName = "Broadcast Only"),
 	TutorialPopup UMETA(DisplayName = "Tutorial Popup"),
+	LevelFlow UMETA(DisplayName = "Level Flow"),
 };
 
 UENUM(BlueprintType)
@@ -39,6 +42,12 @@ struct DEVKIT_API FStoryEventEntry
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent", meta = (EditCondition = "ActionType == EStoryEventActionType::TutorialPopup"))
 	bool bPauseGame = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent", meta = (EditCondition = "ActionType == EStoryEventActionType::LevelFlow"))
+	TObjectPtr<ULevelFlowAsset> LevelFlow;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent", meta = (EditCondition = "ActionType == EStoryEventActionType::LevelFlow"))
+	bool bStopExistingStoryFlow = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent")
 	bool bOnlyWhenTutorialIncomplete = false;
@@ -75,4 +84,7 @@ struct DEVKIT_API FStoryEventRuntimeContext
 
 	UPROPERTY(BlueprintReadOnly, Category = "StoryEvent")
 	FName ResolvedTutorialEventID;
+
+	UPROPERTY(BlueprintReadOnly, Category = "StoryEvent")
+	TObjectPtr<ULevelFlowAsset> ResolvedLevelFlow = nullptr;
 };

@@ -1080,6 +1080,15 @@ void AYogGameMode::StartLevelSpawning()
 		? FMath::Max(0, GI->PendingRunState.CompletedCombatBattleCount)
 		: 0;
 
+	const bool bNewRunStart = CurrentFloor <= 1 && (!GI || !GI->PendingRunState.bIsValid);
+	if (bNewRunStart)
+	{
+		if (UStoryEventManager* StoryEventManager = GetGameInstance()->GetSubsystem<UStoryEventManager>())
+		{
+			StoryEventManager->ResetRunEvents();
+		}
+	}
+
 	// FloorTable 下标从 0 开始，CurrentFloor 从 1 开始
 	const int32 TableIndex = CurrentFloor - 1;
 	if (!CampaignData->FloorTable.IsValidIndex(TableIndex))
@@ -3131,6 +3140,30 @@ void AYogGameMode::TriggerLifecycleEvent(EGameLifecycleEvent Event)
 	// 成功启动 Flow 之后再记录，避免静默吞事件
 	if (bIsOneShot)
 		FiredOnceEvents.Add(Event);
+}
+
+bool AYogGameMode::RunStoryLevelFlow(ULevelFlowAsset* FlowAsset, bool bStopExistingFlow)
+{
+	if (!FlowAsset)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[StoryEvent] RunStoryLevelFlow skipped: FlowAsset is null"));
+		return false;
+	}
+
+	if (!LifecycleFlowComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StoryEvent] RunStoryLevelFlow failed: LifecycleFlowComponent is null"));
+		return false;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[StoryEvent] RunStoryLevelFlow -> %s"), *FlowAsset->GetName());
+	if (bStopExistingFlow)
+	{
+		LifecycleFlowComponent->FinishRootFlow(LifecycleFlowComponent->RootFlow, EFlowFinishPolicy::Keep);
+	}
+	LifecycleFlowComponent->RootFlow = FlowAsset;
+	LifecycleFlowComponent->StartRootFlow();
+	return true;
 }
 
 void AYogGameMode::HandleLevelEndEffectFinished()

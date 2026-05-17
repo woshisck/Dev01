@@ -1,5 +1,8 @@
 #include "Story/StoryEventManager.h"
 
+#include "GameModes/YogGameMode.h"
+#include "Kismet/GameplayStatics.h"
+#include "LevelFlow/LevelFlowAsset.h"
 #include "Story/StoryEventRegistryDA.h"
 #include "Tutorial/TutorialHintDataAsset.h"
 #include "Tutorial/TutorialManager.h"
@@ -30,6 +33,7 @@ void UStoryEventManager::ProcessCampaignStage(int32 FloorIndex, FGameplayTag Sta
 		Context.ResolvedTutorialEventID = Entry->TutorialEventID.IsNone()
 			? FName(*EventTag.ToString())
 			: Entry->TutorialEventID;
+		Context.ResolvedLevelFlow = Entry->LevelFlow;
 
 		if (Entry->bFireOncePerRun && FiredRunEventTags.HasTagExact(EventTag))
 		{
@@ -51,6 +55,10 @@ void UStoryEventManager::ProcessCampaignStage(int32 FloorIndex, FGameplayTag Sta
 		case EStoryEventActionType::TutorialPopup:
 			bHandled = DispatchTutorialPopup(*Entry, Context, PlayerController);
 			break;
+		case EStoryEventActionType::LevelFlow:
+			bHandled = DispatchLevelFlow(*Entry, Context);
+			break;
+		case EStoryEventActionType::BroadcastOnly:
 		case EStoryEventActionType::None:
 			bHandled = true;
 			break;
@@ -118,4 +126,21 @@ bool UStoryEventManager::DispatchTutorialPopup(const FStoryEventEntry& Entry, FS
 		: Entry.TutorialEventID;
 	Context.ResolvedTutorialEventID = TutorialEventID;
 	return TutorialManager->ShowByEventID(TutorialEventID, PlayerController, Entry.bPauseGame);
+}
+
+bool UStoryEventManager::DispatchLevelFlow(const FStoryEventEntry& Entry, FStoryEventRuntimeContext& Context) const
+{
+	if (!Entry.LevelFlow)
+	{
+		return false;
+	}
+
+	AYogGameMode* GameMode = GetWorld() ? Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld())) : nullptr;
+	if (!GameMode)
+	{
+		return false;
+	}
+
+	Context.ResolvedLevelFlow = Entry.LevelFlow;
+	return GameMode->RunStoryLevelFlow(Entry.LevelFlow, Entry.bStopExistingStoryFlow);
 }

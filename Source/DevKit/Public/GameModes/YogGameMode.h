@@ -572,6 +572,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lifecycle Events")
 	void TriggerLifecycleEvent(EGameLifecycleEvent Event);
 
+	UFUNCTION(BlueprintCallable, Category = "StoryEvent")
+	bool RunStoryLevelFlow(ULevelFlowAsset* FlowAsset, bool bStopExistingFlow = true);
+
 protected:
 	/** 一次性事件去重集合（Transient，跨 PIE 不持久；存档恢复用 TutorialState 兜底）*/
 	UPROPERTY(Transient)

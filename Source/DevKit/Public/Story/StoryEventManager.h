@@ -49,4 +49,5 @@ private:
 	bool ShouldSkipForTutorialState(const FStoryEventEntry& Entry) const;
 	bool DispatchTutorialPopup(const FStoryEventEntry& Entry, FStoryEventRuntimeContext& Context,
 		APlayerController* PlayerController);
+	bool DispatchLevelFlow(const FStoryEventEntry& Entry, FStoryEventRuntimeContext& Context) const;
 };
