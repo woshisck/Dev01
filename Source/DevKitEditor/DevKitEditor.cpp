@@ -19,6 +19,7 @@
 #include "Tools/SCharacterBalanceWidget.h"
 #include "Tools/SComboGraphManagerWidget.h"
 #include "Tools/SDataEditorWidget.h"
+#include "Tools/SLevelDataWorkbenchWidget.h"
 #include "Customization/GameplayAbilityComboGraphNodeDetails.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "UI/CombatLogEditorUtilityWidget.h"
@@ -34,6 +35,7 @@ namespace
 	const FName RuneEditorTabName(TEXT("DevKitRuneEditor"));
 	const FName CharacterBalanceTabName(TEXT("DevKitCharacterBalance"));
 	const FName ComboManagerTabName(TEXT("DevKitComboManager"));
+	const FName LevelDataWorkbenchTabName(TEXT("DevKitLevelDataWorkbench"));
 	const FName ActionBalanceTabName(TEXT("DevKitActionBalance"));
 	const FName CombatLogTabName(TEXT("DevKitCombatLog"));
 	const FName BuffFlowDebugTabName(TEXT("DevKitBuffFlowDebug"));
@@ -92,6 +94,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			LevelDataWorkbenchTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnLevelDataWorkbenchTab))
+			.SetDisplayName(LOCTEXT("LevelDataWorkbenchTabTitle", "Level Data Workbench"))
+			.SetTooltipText(LOCTEXT("LevelDataWorkbenchTabTooltip", "Open the campaign and room data workbench."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			ActionBalanceTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnActionBalanceTab))
 			.SetDisplayName(LOCTEXT("ActionBalanceTabTitle", "Action Balance"))
@@ -127,6 +136,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuneEditorTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CharacterBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ComboManagerTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LevelDataWorkbenchTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ActionBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CombatLogTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(BuffFlowDebugTabName);
@@ -201,6 +211,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.Label(LOCTEXT("ComboManagerTabLabel", "Combo Manager"))
 			[
 				SNew(SComboGraphManagerWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnLevelDataWorkbenchTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("LevelDataWorkbenchTabLabel", "Level Data Workbench"))
+			[
+				SNew(SLevelDataWorkbenchWidget)
 			];
 	}
 
@@ -298,6 +318,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenComboManagerTooltip", "Edit player weapon combo graphs and independent enemy combo graphs."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenComboManagerTab)));
+		BalanceSection.AddMenuEntry(
+			TEXT("OpenLevelDataWorkbench"),
+			LOCTEXT("OpenLevelDataWorkbenchLabel", "Level Data Workbench"),
+			LOCTEXT("OpenLevelDataWorkbenchTooltip", "Edit RoomData and CampaignData assets in one level data workbench."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenLevelDataWorkbenchTab)));
 
 		FToolMenuSection& DebugSection = Menu->FindOrAddSection(TEXT("DevKitDebugTools"), LOCTEXT("DevKitDebugToolsSection", "Debug Tools"));
 		DebugSection.AddMenuEntry(
@@ -332,6 +358,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenComboManagerTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(ComboManagerTabName);
+	}
+
+	void OpenLevelDataWorkbenchTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(LevelDataWorkbenchTabName);
 	}
 
 	void OpenActionBalanceTab()

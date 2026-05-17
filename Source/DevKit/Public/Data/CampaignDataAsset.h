@@ -48,6 +48,16 @@ struct DEVKIT_API FFloorConfig
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomType", meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float EventChance = 0.1f;
 
+    // 全局流程阶段标识。教程/故事事件系统只监听这个阶段，不依赖具体 RoomData 细则。
+    // 示例：Level.Stage.Hub / Level.Stage.FirstCombat / Level.Stage.RewardChoice
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent")
+    FGameplayTag GlobalStageTag;
+
+    // 此楼层可广播给教程/故事事件系统的接口标签。
+    // 示例：Story.Enter.MainHub / Tutorial.CardConsume.Enabled / Story.BossIntro.Allowed
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent")
+    FGameplayTagContainer StoryEventTags;
+
 };
 // 注意：GoldMin/GoldMax/BuffCount/CommonWeight/RareWeight/EpicWeight
 // 已移至 FRoomDifficultyTier（SpawnTypes.h），按 Low/Medium/High 档位分别配置。
