@@ -461,6 +461,35 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphExportsNodeAttackConfigTest,
+	"DevKit.CombatDeck.ComboGraphExportsNodeAttackConfig",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGameplayAbilityComboGraphExportsNodeAttackConfigTest::RunTest(const FString& Parameters)
+{
+	UGameplayAbilityComboGraphNode* Node = NewObject<UGameplayAbilityComboGraphNode>();
+	Node->NodeId = TEXT("L1");
+	Node->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo1"));
+	Node->NodeAttackConfig.bEnabled = true;
+	Node->NodeAttackConfig.ActDamage = 42.f;
+	Node->NodeAttackConfig.ActRange = 275.f;
+	Node->NodeAttackConfig.ActResilience = 18.f;
+	Node->NodeAttackConfig.ActDmgReduce = 0.25f;
+	Node->NodeAttackConfig.OnHitEventTags.Add(FGameplayTag::RequestGameplayTag(TEXT("Action.Attack.Swing")));
+
+	const FWeaponComboNodeConfig RuntimeConfig = Node->BuildRuntimeConfig(ECombatGraphInputAction::Light);
+	const FActionData ActionData = RuntimeConfig.NodeAttackConfig.BuildActionData();
+
+	TestTrue(TEXT("Graph node exports enabled node attack config"), RuntimeConfig.NodeAttackConfig.bEnabled);
+	TestEqual(TEXT("Node attack damage is exported"), ActionData.ActDamage, 42.f);
+	TestEqual(TEXT("Node attack range is exported"), ActionData.ActRange, 275.f);
+	TestEqual(TEXT("Node attack resilience is exported"), ActionData.ActResilience, 18.f);
+	TestEqual(TEXT("Node attack damage reduction is exported"), ActionData.ActDmgReduce, 0.25f);
+	TestEqual(TEXT("Node hit event tags are exported"), RuntimeConfig.NodeAttackConfig.OnHitEventTags.Num(), 1);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphDashNodeExportsRuntimeConfigTest,
 	"DevKit.CombatDeck.ComboGraphDashNodeExportsRuntimeConfig",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

@@ -17,7 +17,10 @@
 #include "Tools/SActionBalanceWidget.h"
 #include "Tools/SBuffFlowDebugWidget.h"
 #include "Tools/SCharacterBalanceWidget.h"
+#include "Tools/SComboGraphManagerWidget.h"
 #include "Tools/SDataEditorWidget.h"
+#include "Customization/GameplayAbilityComboGraphNodeDetails.h"
+#include "Data/GameplayAbilityComboGraph.h"
 #include "UI/CombatLogEditorUtilityWidget.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -30,6 +33,7 @@ namespace
 	const FName RuneBalanceTabName(TEXT("DevKitRuneBalance"));
 	const FName RuneEditorTabName(TEXT("DevKitRuneEditor"));
 	const FName CharacterBalanceTabName(TEXT("DevKitCharacterBalance"));
+	const FName ComboManagerTabName(TEXT("DevKitComboManager"));
 	const FName ActionBalanceTabName(TEXT("DevKitActionBalance"));
 	const FName CombatLogTabName(TEXT("DevKitCombatLog"));
 	const FName BuffFlowDebugTabName(TEXT("DevKitBuffFlowDebug"));
@@ -55,6 +59,9 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		PropertyModule.RegisterCustomClassLayout(
 			URuneDataAsset::StaticClass()->GetFName(),
 			FOnGetDetailCustomizationInstance::CreateStatic(&FRuneDataAssetDetails::MakeInstance));
+		PropertyModule.RegisterCustomClassLayout(
+			UGameplayAbilityComboGraphNode::StaticClass()->GetFName(),
+			FOnGetDetailCustomizationInstance::CreateStatic(&FGameplayAbilityComboGraphNodeDetails::MakeInstance));
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			RuneBalanceTabName,
@@ -75,6 +82,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnCharacterBalanceTab))
 			.SetDisplayName(LOCTEXT("CharacterBalanceTabTitle", "Character Data Workbench"))
 			.SetTooltipText(LOCTEXT("CharacterBalanceTabTooltip", "Open the DevKit character, montage, and Act data workbench."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			ComboManagerTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnComboManagerTab))
+			.SetDisplayName(LOCTEXT("ComboManagerTabTitle", "Combo Manager"))
+			.SetTooltipText(LOCTEXT("ComboManagerTabTooltip", "Open the weapon and independent enemy combo graph manager."))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
@@ -112,6 +126,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuneBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuneEditorTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CharacterBalanceTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ComboManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ActionBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CombatLogTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(BuffFlowDebugTabName);
@@ -129,6 +144,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			// 必须与 StartupModule() 中 Register 的名字一一对应
 			PropertyEditorModule->UnregisterCustomPropertyTypeLayout(TEXT("ShopEntry"));
 			PropertyEditorModule->UnregisterCustomClassLayout(URuneDataAsset::StaticClass()->GetFName());
+			PropertyEditorModule->UnregisterCustomClassLayout(UGameplayAbilityComboGraphNode::StaticClass()->GetFName());
 			PropertyEditorModule->NotifyCustomizationModuleChanged();
 		}
 
@@ -175,6 +191,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.Label(LOCTEXT("CharacterBalanceTabLabel", "Character Data Workbench"))
 			[
 				SNew(SCharacterBalanceWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnComboManagerTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("ComboManagerTabLabel", "Combo Manager"))
+			[
+				SNew(SComboGraphManagerWidget)
 			];
 	}
 
@@ -266,6 +292,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenCharacterBalanceTooltip", "Edit character attributes, DA references, montage chains, and Act values."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenCharacterBalanceTab)));
+		BalanceSection.AddMenuEntry(
+			TEXT("OpenComboManager"),
+			LOCTEXT("OpenComboManagerLabel", "Combo Manager"),
+			LOCTEXT("OpenComboManagerTooltip", "Edit player weapon combo graphs and independent enemy combo graphs."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenComboManagerTab)));
 
 		FToolMenuSection& DebugSection = Menu->FindOrAddSection(TEXT("DevKitDebugTools"), LOCTEXT("DevKitDebugToolsSection", "Debug Tools"));
 		DebugSection.AddMenuEntry(
@@ -295,6 +327,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenCharacterBalanceTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(CharacterBalanceTabName);
+	}
+
+	void OpenComboManagerTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(ComboManagerTabName);
 	}
 
 	void OpenActionBalanceTab()

@@ -8,6 +8,64 @@
 #include "MontageAttackDataAsset.generated.h"
 
 class URuneDataAsset;
+class UAN_MeleeDamage;
+class UMontageAttackDataAsset;
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FComboAttackConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
+	bool bEnabled = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage", meta = (EditCondition = "bEnabled"))
+	FGameplayTag EventTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack", meta = (EditCondition = "bEnabled"))
+	float ActDamage = 20.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack", meta = (EditCondition = "bEnabled"))
+	float ActRange = 400.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack", meta = (EditCondition = "bEnabled"))
+	float ActResilience = 20.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack", meta = (EditCondition = "bEnabled"))
+	float ActDmgReduce = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox", meta = (EditCondition = "bEnabled"))
+	TArray<FYogHitboxType> HitboxTypes;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop", meta = (EditCondition = "bEnabled"))
+	EHitStopMode HitStopMode = EHitStopMode::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
+		meta = (EditCondition = "bEnabled && HitStopMode == EHitStopMode::Freeze", EditConditionHides, ClampMin = 0.0f, ClampMax = 0.3f))
+	float HitStopFrozenDuration = 0.06f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
+		meta = (EditCondition = "bEnabled && HitStopMode == EHitStopMode::Slow", EditConditionHides, ClampMin = 0.0f, ClampMax = 0.5f))
+	float HitStopSlowDuration = 0.12f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
+		meta = (EditCondition = "bEnabled && HitStopMode == EHitStopMode::Slow", EditConditionHides, ClampMin = 0.01f, ClampMax = 1.0f))
+	float HitStopSlowRate = 0.3f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
+		meta = (EditCondition = "bEnabled && HitStopMode == EHitStopMode::Slow", EditConditionHides, ClampMin = 1.01f, ClampMax = 5.0f))
+	float HitStopCatchUpRate = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Events", meta = (EditCondition = "bEnabled"))
+	TArray<FGameplayTag> OnHitEventTags;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects", meta = (EditCondition = "bEnabled"))
+	TArray<TObjectPtr<URuneDataAsset>> AdditionalRuneEffects;
+
+	FActionData BuildActionData() const;
+	void CopyFromAttackData(const UMontageAttackDataAsset* AttackData);
+	void CopyFromNotify(const UAN_MeleeDamage* DamageNotify);
+};
 
 /**
  * Attack parameters that can be shared by montage notifies and combo configs.

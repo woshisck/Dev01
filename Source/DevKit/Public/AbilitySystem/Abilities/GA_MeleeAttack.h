@@ -69,6 +69,8 @@ public:
 	bool HasConfiguredAttackData() const;
 
 	const UMontageAttackDataAsset* GetConfiguredAttackData() const { return ActiveComboAttackData; }
+	const FComboAttackConfig* GetConfiguredAttackConfig() const { return bActiveComboAttackConfigValid ? &ActiveComboAttackConfig : nullptr; }
+	FGameplayTag GetConfiguredAttackEventTag(FGameplayTag FallbackTag) const;
 
 protected:
 	virtual void ActivateAbility(
@@ -105,6 +107,9 @@ private:
 	TObjectPtr<UMontageAttackDataAsset> ActiveComboAttackData;
 
 	UPROPERTY()
+	FComboAttackConfig ActiveComboAttackConfig;
+
+	UPROPERTY()
 	TObjectPtr<UAbilityTask_ApplyRootMotionMoveToForce> EnemyLungeTask;
 
 	UPROPERTY()
@@ -120,6 +125,7 @@ private:
 	bool bCombatDeckFromDashSave = false;
 	bool bNextActivationFromDashSave = false;
 	bool bActiveComboNodeValid = false;
+	bool bActiveComboAttackConfigValid = false;
 	bool bComboContinued = true;
 	bool bExitedComboState = false;
 	int32 CombatDeckHitResolveCounter = 0;

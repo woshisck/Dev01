@@ -70,7 +70,7 @@ struct FWeaponSpawnData
 };
 
 UCLASS(Blueprintable, BlueprintType, Const)
-class UWeaponDefinition : public UPrimaryDataAsset
+class DEVKIT_API UWeaponDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 

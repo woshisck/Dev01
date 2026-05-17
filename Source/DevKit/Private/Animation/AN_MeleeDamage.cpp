@@ -25,18 +25,25 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 	if (!Character) return;
 
 	const UMontageAttackDataAsset* EffectiveAttackData = AttackDataOverride;
+	const FComboAttackConfig* EffectiveNodeAttackConfig = nullptr;
 	if (UYogAbilitySystemComponent* ASC = Character->GetASC())
 	{
 		if (const UGA_MeleeAttack* MeleeGA = Cast<UGA_MeleeAttack>(ASC->GetCurrentAbilityInstance()))
 		{
-			if (MeleeGA->HasConfiguredAttackData())
+			if (const FComboAttackConfig* NodeAttackConfig = MeleeGA->GetConfiguredAttackConfig())
+			{
+				EffectiveNodeAttackConfig = NodeAttackConfig;
+			}
+			else if (MeleeGA->HasConfiguredAttackData())
 			{
 				EffectiveAttackData = MeleeGA->GetConfiguredAttackData();
 			}
 		}
 	}
 
-	const TArray<TObjectPtr<URuneDataAsset>>& EffectiveRuneEffects = EffectiveAttackData
+	const TArray<TObjectPtr<URuneDataAsset>>& EffectiveRuneEffects = EffectiveNodeAttackConfig
+		? EffectiveNodeAttackConfig->AdditionalRuneEffects
+		: EffectiveAttackData
 		? EffectiveAttackData->AdditionalRuneEffects
 		: AdditionalRuneEffects;
 
@@ -46,19 +53,25 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 		Character->PendingAdditionalHitRunes = EffectiveRuneEffects;
 	}
 
-	const EHitStopMode EffectiveHitStopMode = EffectiveAttackData ? EffectiveAttackData->HitStopMode : HitStopMode;
+	const EHitStopMode EffectiveHitStopMode = EffectiveNodeAttackConfig
+		? EffectiveNodeAttackConfig->HitStopMode
+		: EffectiveAttackData
+		? EffectiveAttackData->HitStopMode
+		: HitStopMode;
 	if (EffectiveHitStopMode != EHitStopMode::None)
 	{
 		auto& Override = Character->PendingHitStopOverride;
 		Override.bActive = true;
 		Override.Mode = EffectiveHitStopMode;
-		Override.FrozenDuration = EffectiveAttackData ? EffectiveAttackData->HitStopFrozenDuration : HitStopFrozenDuration;
-		Override.SlowDuration = EffectiveAttackData ? EffectiveAttackData->HitStopSlowDuration : HitStopSlowDuration;
-		Override.SlowRate = EffectiveAttackData ? EffectiveAttackData->HitStopSlowRate : HitStopSlowRate;
-		Override.CatchUpRate = EffectiveAttackData ? EffectiveAttackData->HitStopCatchUpRate : HitStopCatchUpRate;
+		Override.FrozenDuration = EffectiveNodeAttackConfig ? EffectiveNodeAttackConfig->HitStopFrozenDuration : EffectiveAttackData ? EffectiveAttackData->HitStopFrozenDuration : HitStopFrozenDuration;
+		Override.SlowDuration = EffectiveNodeAttackConfig ? EffectiveNodeAttackConfig->HitStopSlowDuration : EffectiveAttackData ? EffectiveAttackData->HitStopSlowDuration : HitStopSlowDuration;
+		Override.SlowRate = EffectiveNodeAttackConfig ? EffectiveNodeAttackConfig->HitStopSlowRate : EffectiveAttackData ? EffectiveAttackData->HitStopSlowRate : HitStopSlowRate;
+		Override.CatchUpRate = EffectiveNodeAttackConfig ? EffectiveNodeAttackConfig->HitStopCatchUpRate : EffectiveAttackData ? EffectiveAttackData->HitStopCatchUpRate : HitStopCatchUpRate;
 	}
 
-	const TArray<FGameplayTag>& EffectiveOnHitEventTags = EffectiveAttackData
+	const TArray<FGameplayTag>& EffectiveOnHitEventTags = EffectiveNodeAttackConfig
+		? EffectiveNodeAttackConfig->OnHitEventTags
+		: EffectiveAttackData
 		? EffectiveAttackData->OnHitEventTags
 		: OnHitEventTags;
 	if (EffectiveOnHitEventTags.Num() > 0)
@@ -68,7 +81,11 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 
 	FGameplayEventData EventData;
 	EventData.Instigator   = Character;
-	EventData.EventTag     = EffectiveAttackData && EffectiveAttackData->EventTag.IsValid() ? EffectiveAttackData->EventTag : EventTag;
+	EventData.EventTag     = EffectiveNodeAttackConfig && EffectiveNodeAttackConfig->EventTag.IsValid()
+		? EffectiveNodeAttackConfig->EventTag
+		: EffectiveAttackData && EffectiveAttackData->EventTag.IsValid()
+		? EffectiveAttackData->EventTag
+		: EventTag;
 	// 将自身作为 OptionalObject 传递，TargetType 通过它直接读取 HitboxTypes / ActRange 等参数
 	EventData.OptionalObject = this;
 

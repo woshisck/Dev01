@@ -3,10 +3,10 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
+#include "Data/MontageAttackDataAsset.h"
 #include "Data/RuneDataAsset.h"
 #include "WeaponComboConfigDA.generated.h"
 
-class UMontageAttackDataAsset;
 class UMontageConfigDA;
 class UGameplayAbility;
 
@@ -52,6 +52,9 @@ struct DEVKIT_API FWeaponComboNodeConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	TObjectPtr<UMontageAttackDataAsset> AttackDataOverride = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
+	FComboAttackConfig NodeAttackConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	bool bIsComboFinisher = false;

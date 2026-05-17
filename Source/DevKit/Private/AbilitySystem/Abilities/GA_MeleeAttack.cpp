@@ -57,6 +57,11 @@ UAN_MeleeDamage* UGA_MeleeAttack::GetFirstDamageNotify(UAnimMontage* Montage)
 
 FActionData UGA_MeleeAttack::GetAbilityActionData_Implementation() const
 {
+	if (bActiveComboAttackConfigValid)
+	{
+		return ActiveComboAttackConfig.BuildActionData();
+	}
+
 	if (ActiveComboAttackData)
 	{
 		return ActiveComboAttackData->BuildActionData();
@@ -122,7 +127,20 @@ bool UGA_MeleeAttack::IsCombatDeckComboFinisher() const
 
 bool UGA_MeleeAttack::HasConfiguredAttackData() const
 {
-	return ActiveComboAttackData != nullptr;
+	return bActiveComboAttackConfigValid || ActiveComboAttackData != nullptr;
+}
+
+FGameplayTag UGA_MeleeAttack::GetConfiguredAttackEventTag(FGameplayTag FallbackTag) const
+{
+	if (bActiveComboAttackConfigValid && ActiveComboAttackConfig.EventTag.IsValid())
+	{
+		return ActiveComboAttackConfig.EventTag;
+	}
+	if (ActiveComboAttackData && ActiveComboAttackData->EventTag.IsValid())
+	{
+		return ActiveComboAttackData->EventTag;
+	}
+	return FallbackTag;
 }
 
 void UGA_MeleeAttack::SetNextActivationFromDashSave(bool bFromDashSave)
@@ -448,6 +466,8 @@ void UGA_MeleeAttack::ActivateAbility(
 	ActiveCombatCardResult = FCombatCardResolveResult();
 	ActiveComboNode = FWeaponComboNodeConfig();
 	ActiveComboAttackData = nullptr;
+	ActiveComboAttackConfig = FComboAttackConfig();
+	bActiveComboAttackConfigValid = false;
 	EnemyLungeTask = nullptr;
 	ActiveEnemyAttackContext = FEnemyAIAttackRuntimeContext();
 	ActiveAttackGuid.Invalidate();
@@ -501,6 +521,8 @@ void UGA_MeleeAttack::ActivateAbility(
 		{
 			ActiveComboNode = *RuntimeNode;
 			ActiveComboAttackData = RuntimeNode->AttackDataOverride;
+			ActiveComboAttackConfig = RuntimeNode->NodeAttackConfig;
+			bActiveComboAttackConfigValid = ActiveComboAttackConfig.bEnabled;
 			ActiveAttackGuid = PlayerOwner->ComboRuntimeComponent->GetActiveAttackGuid();
 			ActiveComboIndex = PlayerOwner->ComboRuntimeComponent->GetComboIndex();
 			ActiveComboTags = PlayerOwner->ComboRuntimeComponent->GetComboTags();
@@ -762,7 +784,9 @@ void UGA_MeleeAttack::EndAbility(
 		FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(StatAfterATKEffect, GetAbilityLevel(), Ctx);
 		if (Spec.IsValid())
 		{
-			const FActionData ActionData = ActiveComboAttackData
+			const FActionData ActionData = bActiveComboAttackConfigValid
+				? ActiveComboAttackConfig.BuildActionData()
+				: ActiveComboAttackData
 				? ActiveComboAttackData->BuildActionData()
 				: LastFiredDamageNotify
 				? LastFiredDamageNotify->BuildActionData()
@@ -831,6 +855,8 @@ void UGA_MeleeAttack::EndAbility(
 	ActiveMontageConfig = nullptr;
 	ActiveComboNode = FWeaponComboNodeConfig();
 	ActiveComboAttackData = nullptr;
+	ActiveComboAttackConfig = FComboAttackConfig();
+	bActiveComboAttackConfigValid = false;
 	ActiveEnemyAttackContext = FEnemyAIAttackRuntimeContext();
 	bActiveComboNodeValid = false;
 	bComboContinued = true;
@@ -883,7 +909,9 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 
 		// 鍔ㄤ綔闊ф€э細鍛戒腑绐楀彛鏈熼棿鏀诲嚮鏂归煣鎬т复鏃舵彁鍗囷紝ReceiveDamage 璇诲彇鍚庤嚜鍔ㄦ竻闆?
 		if (UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo()))
-			SourceASC->CurrentActionPoiseBonus = FiredNotify->ActResilience;
+		{
+			SourceASC->CurrentActionPoiseBonus = GetAbilityActionData().ActResilience;
+		}
 	}
 
 	UAbilitySystemComponent* CombatCardASC = GetAbilitySystemComponentFromActorInfo();

@@ -79,6 +79,7 @@ FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(EComba
 	Config.GameplayAbilityClass = GameplayAbilityClass;
 	Config.MontageConfig = MontageConfig;
 	Config.AttackDataOverride = AttackDataOverride;
+	Config.NodeAttackConfig = NodeAttackConfig;
 	Config.bIsComboFinisher = bIsComboFinisher;
 	Config.bAllowDashSave = bAllowDashSave;
 	Config.DashSaveMode = DashSaveMode;
@@ -102,10 +103,14 @@ FText UGameplayAbilityComboGraphNode::GetDescription_Implementation() const
 	const FGameplayTag AbilityTag = ResolveAbilityTag();
 	const FString MontageName = GetNameSafe(MontageConfig);
 	return FText::FromString(FString::Printf(
-		TEXT("Node=%s\nAbility=%s\nMontage=%s\nComboWindow=Montage Notify [%d-%d / %d display only]"),
+		TEXT("Node=%s\nAbility=%s\nMontage=%s\nAttack=%s %.0f / R:%.0f / HitBoxes:%d\nComboWindow=Montage Notify [%d-%d / %d display only]"),
 		*RuntimeNodeId.ToString(),
 		AbilityTag.IsValid() ? *AbilityTag.ToString() : TEXT("None"),
 		MontageConfig ? *MontageName : TEXT("None"),
+		NodeAttackConfig.bEnabled ? TEXT("Node") : AttackDataOverride ? TEXT("AttackData") : TEXT("Notify"),
+		NodeAttackConfig.bEnabled ? NodeAttackConfig.ActDamage : 0.f,
+		NodeAttackConfig.bEnabled ? NodeAttackConfig.ActRange : 0.f,
+		NodeAttackConfig.bEnabled ? NodeAttackConfig.HitboxTypes.Num() : 0,
 		ComboWindowStartFrame,
 		ComboWindowEndFrame,
 		ComboWindowTotalFrames));
@@ -262,6 +267,13 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 		if (ComboNode->RootInputAction != ECombatGraphInputAction::Dash && !ComboNode->MontageConfig)
 		{
 			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no MontageConfig."), *RuntimeNodeId.ToString())));
+		}
+
+		if (ComboNode->RootInputAction != ECombatGraphInputAction::Dash
+			&& !ComboNode->NodeAttackConfig.bEnabled
+			&& !ComboNode->AttackDataOverride)
+		{
+			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no node attack config; runtime will fall back to AN_MeleeDamage."), *RuntimeNodeId.ToString())));
 		}
 
 		if (ComboNode->ParentNodes.IsEmpty())

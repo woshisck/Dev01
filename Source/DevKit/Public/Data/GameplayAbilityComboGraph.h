@@ -37,6 +37,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
 	TObjectPtr<UMontageAttackDataAsset> AttackDataOverride = nullptr;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
+	FComboAttackConfig NodeAttackConfig;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	bool bIsComboFinisher = false;
 
