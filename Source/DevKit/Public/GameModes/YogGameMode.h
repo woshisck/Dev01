@@ -32,6 +32,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMapClean);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, ELevelPhase, NewPhase);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLootGenerated, const TArray<FLootOption>&, LootOptions);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnCampaignStageEntered, int32, FloorIndex, FGameplayTag, StageTag, FGameplayTagContainer, EventTags, URoomDataAsset*, RoomData);
 DECLARE_MULTICAST_DELEGATE(FOnLootSelected);
 
 
@@ -218,6 +219,11 @@ public:
 	// 玩家选定符文后广播（供 LevelFlow LENode_WaitForLootSelected 等待）
 	FOnLootSelected OnLootSelected;
 
+	// Broadcast when a FloorTable entry becomes active. Tutorial/story systems can listen here
+	// without depending on the concrete RoomDataAsset selected for this floor.
+	UPROPERTY(BlueprintAssignable, Category = "Campaign|StoryEvent")
+	FOnCampaignStageEntered OnCampaignStageEntered;
+
 	// LootSelectionWidget 被 CommonUI 销毁后重建时，NativeConstruct 检查此标志自动激活
 	UPROPERTY(BlueprintReadOnly, Category = "LevelFlow")
 	bool bLootOptionsPending = false;
@@ -307,6 +313,15 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "LevelFlow|RoomBuff")
 	URoomDataAsset* GetActiveRoomData() const { return ActiveRoomData; }
+
+	UFUNCTION(BlueprintPure, Category = "Campaign|StoryEvent")
+	FGameplayTag GetActiveGlobalStageTag() const { return ActiveGlobalStageTag; }
+
+	UFUNCTION(BlueprintPure, Category = "Campaign|StoryEvent")
+	FGameplayTagContainer GetActiveStoryEventTags() const { return ActiveStoryEventTags; }
+
+	UFUNCTION(BlueprintPure, Category = "Campaign|StoryEvent")
+	bool HasActiveStoryEventTag(FGameplayTag EventTag) const;
 
 	/**
 	 * 根据当前总难度分选取房间的难度档位（Low / Medium / High）。
@@ -442,6 +457,12 @@ protected:
 
 	// 本关激活的关卡 Buff（进关时骰子选好，新怪刷出时在其 BuffFlowComponent 上激活）
 	TArray<FBuffEntry> ActiveRoomBuffs;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Campaign|StoryEvent", meta = (AllowPrivateAccess = "true"))
+	FGameplayTag ActiveGlobalStageTag;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Campaign|StoryEvent", meta = (AllowPrivateAccess = "true"))
+	FGameplayTagContainer ActiveStoryEventTags;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameOver", meta = (AllowPrivateAccess = "true"))
 	float PlayerDeathGameOverDelay = 1.5f;

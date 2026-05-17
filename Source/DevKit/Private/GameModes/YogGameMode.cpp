@@ -81,6 +81,11 @@ bool AYogGameMode::ShouldSkipCombatForRoom(const URoomDataAsset* RoomData)
 		&& RoomData->EnemyPool.IsEmpty();
 }
 
+bool AYogGameMode::HasActiveStoryEventTag(FGameplayTag EventTag) const
+{
+	return EventTag.IsValid() && ActiveStoryEventTags.HasTag(EventTag);
+}
+
 
 void AYogGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
 {
@@ -1140,6 +1145,15 @@ void AYogGameMode::StartLevelSpawning()
 	}
 
 	// ── 主城/枢纽房间：无战斗，立即全开传送门 ──────────────────────────────
+	ActiveGlobalStageTag = Config.GlobalStageTag;
+	ActiveStoryEventTags = Config.StoryEventTags;
+	OnCampaignStageEntered.Broadcast(CurrentFloor, ActiveGlobalStageTag, ActiveStoryEventTags, ActiveRoomData);
+	UE_LOG(LogTemp, Log, TEXT("[CampaignStage] Floor=%d Stage=%s EventTags=%s Room=%s"),
+		CurrentFloor,
+		*ActiveGlobalStageTag.ToString(),
+		*ActiveStoryEventTags.ToStringSimple(),
+		*GetNameSafe(ActiveRoomData));
+
 	bTimedClearObjectiveActive = ActiveRoomData->bEnableTimedClearObjective && ActiveRoomData->TimedClearSeconds > 0.0f;
 	bTimedClearObjectiveExpired = false;
 	GetWorldTimerManager().ClearTimer(TimedClearObjectiveTimer);
