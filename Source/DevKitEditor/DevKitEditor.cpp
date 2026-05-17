@@ -20,6 +20,7 @@
 #include "Tools/SComboGraphManagerWidget.h"
 #include "Tools/SDataEditorWidget.h"
 #include "Tools/SLevelDataWorkbenchWidget.h"
+#include "Tools/SStoryEventWorkbenchWidget.h"
 #include "Customization/GameplayAbilityComboGraphNodeDetails.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "UI/CombatLogEditorUtilityWidget.h"
@@ -36,6 +37,7 @@ namespace
 	const FName CharacterBalanceTabName(TEXT("DevKitCharacterBalance"));
 	const FName ComboManagerTabName(TEXT("DevKitComboManager"));
 	const FName LevelDataWorkbenchTabName(TEXT("DevKitLevelDataWorkbench"));
+	const FName StoryEventWorkbenchTabName(TEXT("DevKitStoryEventWorkbench"));
 	const FName ActionBalanceTabName(TEXT("DevKitActionBalance"));
 	const FName CombatLogTabName(TEXT("DevKitCombatLog"));
 	const FName BuffFlowDebugTabName(TEXT("DevKitBuffFlowDebug"));
@@ -101,6 +103,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			StoryEventWorkbenchTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnStoryEventWorkbenchTab))
+			.SetDisplayName(LOCTEXT("StoryEventWorkbenchTabTitle", "Story Event Workbench"))
+			.SetTooltipText(LOCTEXT("StoryEventWorkbenchTabTooltip", "Open the story event registry and campaign tag workbench."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			ActionBalanceTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnActionBalanceTab))
 			.SetDisplayName(LOCTEXT("ActionBalanceTabTitle", "Action Balance"))
@@ -137,6 +146,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CharacterBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ComboManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LevelDataWorkbenchTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(StoryEventWorkbenchTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ActionBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CombatLogTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(BuffFlowDebugTabName);
@@ -221,6 +231,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.Label(LOCTEXT("LevelDataWorkbenchTabLabel", "Level Data Workbench"))
 			[
 				SNew(SLevelDataWorkbenchWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnStoryEventWorkbenchTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("StoryEventWorkbenchTabLabel", "Story Event Workbench"))
+			[
+				SNew(SStoryEventWorkbenchWidget)
 			];
 	}
 
@@ -324,6 +344,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenLevelDataWorkbenchTooltip", "Edit RoomData and CampaignData assets in one level data workbench."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenLevelDataWorkbenchTab)));
+		BalanceSection.AddMenuEntry(
+			TEXT("OpenStoryEventWorkbench"),
+			LOCTEXT("OpenStoryEventWorkbenchLabel", "Story Event Workbench"),
+			LOCTEXT("OpenStoryEventWorkbenchTooltip", "Edit story event registries and compare Campaign StoryEventTags against configured story actions."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenStoryEventWorkbenchTab)));
 
 		FToolMenuSection& DebugSection = Menu->FindOrAddSection(TEXT("DevKitDebugTools"), LOCTEXT("DevKitDebugToolsSection", "Debug Tools"));
 		DebugSection.AddMenuEntry(
@@ -363,6 +389,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenLevelDataWorkbenchTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(LevelDataWorkbenchTabName);
+	}
+
+	void OpenStoryEventWorkbenchTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(StoryEventWorkbenchTabName);
 	}
 
 	void OpenActionBalanceTab()
