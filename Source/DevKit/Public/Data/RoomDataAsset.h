@@ -8,6 +8,7 @@
 #include "GameModes/SpawnTypes.h"   // FEnemyEntry, FRoomDifficultyTier
 #include "Data/EnemyData.h"         // FBuffEntry
 #include "Data/RuneDataAsset.h"     // URuneDataAsset (LootPool)
+#include "MetaProgression/MetaTypes.h" // FMetaCurrencyCost
 #include "RoomDataAsset.generated.h"
 
 // 前向声明（FPortalDestConfig.RoomPool 需要引用本类）
@@ -169,5 +170,14 @@ public:
     // 每个门可配置专属 DA_Room 候选池，找不到时回退到 Campaign 全局 RoomPool
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portals")
     TArray<FPortalDestConfig> PortalDestinations;
+
+    // =========================================================
+    // 局外成长货币奖励（战斗胜利时发放）
+    // =========================================================
+
+    // 清房后发放的局外成长货币（每条指定货币 Tag 与数量）
+    // Hub 房间通常留空；战斗房间按难度填写
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MetaCurrency")
+    TArray<FMetaCurrencyCost> MetaCurrencyRewards;
 
 };

@@ -23,6 +23,7 @@ class AShopActor;
 class AWeaponSpawner;
 class APortal;
 class AWeaponInstance;
+class AHubFacilityActor;
 class UYogSaveGame;
 class UBackpackStyleDataAsset;
 class UBackpackGridComponent;
@@ -232,6 +233,10 @@ public:
 	// 设计约束保证多门 Box 不重叠，单值实现足够（v3 决策表）
 	UPROPERTY()
 	TObjectPtr<APortal> PendingPortal;
+
+	// 当前在交互范围内的主城设施（按 E 键时触发 Interact）
+	UPROPERTY()
+	TObjectPtr<AHubFacilityActor> PendingFacility;
 
 	// 当前装备的武器 Actor（换武器时 Destroy）
 	UPROPERTY()

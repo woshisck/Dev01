@@ -29,6 +29,7 @@ enum class EMetaUpgradeEffectType : uint8
 	StatBoost     UMETA(DisplayName = "数值加成"),
 	FeatureUnlock UMETA(DisplayName = "功能解锁"),
 	SlotUnlock    UMETA(DisplayName = "槽位解锁"),
+	RuneGrant     UMETA(DisplayName = "授予起始符文"),
 };
 
 // ── 单种货币花费（Tag 驱动，新增货币不改此结构体）──────────────
@@ -93,6 +94,20 @@ struct DEVKIT_API FMetaUpgradeNodeRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effect",
 		meta = (EditCondition = "EffectType == EMetaUpgradeEffectType::FeatureUnlock", EditConditionHides))
 	FGameplayTag FeatureTag;
+
+	// 符文授予类：购买后将此符文 DA 加入 CraftedStarterRunes（每局 BeginPlay 时自动授予）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effect",
+		meta = (EditCondition = "EffectType == EMetaUpgradeEffectType::RuneGrant", EditConditionHides))
+	FPrimaryAssetId StarterRuneToGrant;
+
+#if WITH_EDITORONLY_DATA
+	// 编辑器升级树拓扑图节点坐标（仅供 SMetaProgressionWorkbenchWidget 使用）
+	UPROPERTY(EditAnywhere, Category = "Editor")
+	float EditorPositionX = 0.f;
+
+	UPROPERTY(EditAnywhere, Category = "Editor")
+	float EditorPositionY = 0.f;
+#endif
 };
 
 // ============================================================

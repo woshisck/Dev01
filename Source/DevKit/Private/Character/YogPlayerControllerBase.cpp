@@ -21,6 +21,7 @@
 #include "Map/AltarActor.h"
 #include "Map/ShopActor.h"
 #include "Map/Portal.h"
+#include "World/HubFacilityActor.h"
 #include "Item/Weapon/WeaponSpawner.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
@@ -677,6 +678,11 @@ void AYogPlayerControllerBase::Interact(const FInputActionValue& Value)
 		else if (player->PendingPortal)
 		{
 			player->PendingPortal->TryEnter(player);
+		}
+		// 范围内有主城设施 → 按 E 触发交互（打开对应 UI）
+		else if (player->PendingFacility)
+		{
+			player->PendingFacility->Interact(player);
 		}
 	}
 }

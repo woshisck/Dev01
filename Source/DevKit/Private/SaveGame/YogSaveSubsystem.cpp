@@ -1,4 +1,5 @@
 #include "SaveGame/YogSaveSubsystem.h"
+#include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "System/YogWorldSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "SaveGame/YogSaveGame.h"
@@ -578,6 +579,15 @@ void UYogSaveSubsystem::RecordRunStarted()
 	RunStartTime = FDateTime::Now();
 	if (!CurrentSaveGame) return;
 	CurrentSaveGame->Statistics.TotalRuns++;
+
+	// 清零本局货币累计器（新局/续局均执行）
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UYogMetaProgressionSubsystem* Meta = GI->GetSubsystem<UYogMetaProgressionSubsystem>())
+		{
+			Meta->ClearRunCurrencyAccumulator();
+		}
+	}
 }
 
 void UYogSaveSubsystem::RecordEnemyKilled(int32 Count)

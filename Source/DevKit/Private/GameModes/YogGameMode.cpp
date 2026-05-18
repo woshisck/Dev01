@@ -33,6 +33,7 @@
 #include "FlowComponent.h"
 #include "Misc/PackageName.h"
 #include "GameFramework/PlayerController.h"
+#include "MetaProgression/YogMetaProgressionSubsystem.h"
 
 namespace
 {
@@ -441,6 +442,22 @@ void AYogGameMode::EnterArrangementPhase()
 			if (Player->BackpackGridComponent)
 				Player->BackpackGridComponent->AddGold(GoldReward);
 			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 发放金币 %d"), GoldReward);
+		}
+
+		// 发放局外成长货币
+		if (ActiveRoomData && !ActiveRoomData->MetaCurrencyRewards.IsEmpty())
+		{
+			if (UYogMetaProgressionSubsystem* Meta = GetGameInstance()
+				? GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr)
+			{
+				for (const FMetaCurrencyCost& Reward : ActiveRoomData->MetaCurrencyRewards)
+				{
+					if (Reward.Amount > 0)
+					{
+						Meta->AddCurrency(Reward.CurrencyTag, Reward.Amount);
+					}
+				}
+			}
 		}
 	}
 
@@ -1002,6 +1019,14 @@ void AYogGameMode::FinishPlayerDeathGameOver()
 	if (!bCanRevive)
 	{
 		bGameOverTriggered = true;
+
+		// 广播本局结算数据（展示结算界面、触发成长货币结算存档）
+		if (UYogMetaProgressionSubsystem* Meta = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr)
+		{
+			Meta->BroadcastRunEnded(CurrentFloor, MonsterKillCount);
+		}
+
 		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
 		{
 			GI->ClearRunState();
