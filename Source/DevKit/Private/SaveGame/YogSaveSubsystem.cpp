@@ -34,6 +34,11 @@ void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	LoadSettings();
 
+	if (CurrentSettings && CurrentSettings->LastActiveSlot >= 0 && CurrentSettings->LastActiveSlot < GNumSaveSlots)
+	{
+		SelectSlot(CurrentSettings->LastActiveSlot);
+	}
+
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UYogSaveSubsystem::OnLevelLoaded);
 
 	if (UWorld* World = GetWorld())
@@ -325,7 +330,7 @@ void UYogSaveSubsystem::DoAsyncSave()
 
 	if (bAsyncSavePending)
 	{
-		// 前一次还未完成，跳过（下次触发时会带最新数据写入）
+		bSaveDirtyWhilePending = true;
 		return;
 	}
 
@@ -350,6 +355,12 @@ void UYogSaveSubsystem::OnAsyncSaveComplete(const FString& SlotName, const int32
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("[SaveSubsystem] Async save FAILED: %s"), *SlotName);
+	}
+
+	if (bSaveDirtyWhilePending)
+	{
+		bSaveDirtyWhilePending = false;
+		DoAsyncSave();
 	}
 }
 

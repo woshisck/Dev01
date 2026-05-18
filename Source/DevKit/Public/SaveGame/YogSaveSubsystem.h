@@ -172,6 +172,9 @@ private:
 	// 防止并发异步写盘的标志
 	bool bAsyncSavePending = false;
 
+	// pending 期间又触发了写盘请求，完成后补一次
+	bool bSaveDirtyWhilePending = false;
+
 	// 本局开始时间（用于计算 TotalPlayTimeSeconds）
 	FDateTime RunStartTime;
 
