@@ -1,4 +1,4 @@
-#include "ComboGraph/GameplayAbilityComboGraphFactory.h"
+#include "GameplayAbilityComboGraphFactory.h"
 
 #include "Data/GameplayAbilityComboGraph.h"
 

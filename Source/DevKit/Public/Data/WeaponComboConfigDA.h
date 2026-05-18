@@ -4,9 +4,11 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "Data/RuneDataAsset.h"
+#include "Data/GameplayAbilityComboGraph.h"
 #include "WeaponComboConfigDA.generated.h"
 
 class UAnimMontage;
+class UGameplayAbilityComboGraphNode;
 class UMontageAttackDataAsset;
 class UMontageConfigDA;
 
@@ -56,6 +58,19 @@ struct DEVKIT_API FWeaponComboNodeConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
 	ECombatCardTriggerTiming CardTriggerTiming = ECombatCardTriggerTiming::OnCommit;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|HitReaction")
+	FComboHitDilationSettings HitSuccessDilation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|FX")
+	FComboNodeFxBinding OnMontageStartFx;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|FX")
+	FComboNodeFxBinding OnHitSuccessFx;
+
+	/** Build a runtime combo node config from a YogComboGraph node. Resolves the loose-typed plugin payload
+	 *  into project types (UMontageAttackDataAsset) and maps TriggerTimingTag back to the project enum. */
+	static FWeaponComboNodeConfig FromComboGraphNode(const UGameplayAbilityComboGraphNode* Node, ECardRequiredAction InputAction);
 };
 
 UCLASS(BlueprintType, Blueprintable)

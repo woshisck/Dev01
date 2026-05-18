@@ -1,7 +1,7 @@
-#include "ComboGraph/AssetTypeActions_GameplayAbilityComboGraph.h"
+#include "AssetTypeActions_GameplayAbilityComboGraph.h"
 
+#include "AssetEditor_ComboGraph.h"
 #include "Data/GameplayAbilityComboGraph.h"
-#include "ComboGraph/AssetEditor_ComboGraph.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_GameplayAbilityComboGraph"
 

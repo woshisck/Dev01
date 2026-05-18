@@ -139,6 +139,10 @@
 		{
 			"Name": "ComboGraph",
 			"Enabled": false
+		},
+		{
+			"Name": "YogComboGraph",
+			"Enabled": true
 		}
 	]
 }

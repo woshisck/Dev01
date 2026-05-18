@@ -1,4 +1,6 @@
 #include "Debug/YogDebugLogWindow.h"
+#include "Debug/YogDebugMenuSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "ImGuiDelegates.h"
 #include "imgui.h"
 #include "Misc/OutputDeviceRedirector.h"
@@ -27,6 +29,9 @@ void UYogDebugLogWindow::FLogOutputDevice::Serialize(
 
 void UYogDebugLogWindow::Initialize(FSubsystemCollectionBase& Collection)
 {
+	// Make sure the menu subsystem exists first so RegisterWindow has somewhere to land.
+	Collection.InitializeDependency(UYogDebugMenuSubsystem::StaticClass());
+
 	Super::Initialize(Collection);
 
 	InitTime  = FPlatformTime::Seconds();
@@ -35,10 +40,20 @@ void UYogDebugLogWindow::Initialize(FSubsystemCollectionBase& Collection)
 
 	ImGuiHandle = FImGuiDelegates::OnMultiContextDebug().AddUObject(
 		this, &UYogDebugLogWindow::DrawImGui);
+
+	if (UYogDebugMenuSubsystem* Menu = GetGameInstance()->GetSubsystem<UYogDebugMenuSubsystem>())
+	{
+		Menu->RegisterWindow(TEXT("BattleLog"), TEXT("Battle Log"), &bVisible);
+	}
 }
 
 void UYogDebugLogWindow::Deinitialize()
 {
+	if (UYogDebugMenuSubsystem* Menu = GetGameInstance()->GetSubsystem<UYogDebugMenuSubsystem>())
+	{
+		Menu->UnregisterWindow(TEXT("BattleLog"));
+	}
+
 	FImGuiDelegates::OnMultiContextDebug().Remove(ImGuiHandle);
 
 	if (LogDevice)
@@ -54,11 +69,16 @@ void UYogDebugLogWindow::Deinitialize()
 
 void UYogDebugLogWindow::DrawImGui()
 {
+	if (!bVisible)
+	{
+		return;
+	}
+
 	ImGui::SetNextWindowSize(ImVec2(980.f, 440.f), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowPos(ImVec2(20.f, 20.f),    ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowBgAlpha(0.88f);
 
-	if (!ImGui::Begin("Yog Debug Log"))
+	if (!ImGui::Begin("Yog Battle Log", &bVisible))
 	{
 		ImGui::End();
 		return;

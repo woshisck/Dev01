@@ -5,7 +5,7 @@
 #include "GameplayAbilityComboGraphFactory.generated.h"
 
 UCLASS()
-class UGameplayAbilityComboGraphFactory : public UFactory
+class YOGCOMBOGRAPHEDITOR_API UGameplayAbilityComboGraphFactory : public UFactory
 {
 	GENERATED_BODY()
 

@@ -208,6 +208,12 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
             ActivePlayMontageTask = PlayMontageTask;
             PlayMontageTask->ReadyForActivation();
 
+            // Combo node's montage-start FX hook.
+            if (PlayerOwner && PlayerOwner->ComboRuntimeComponent)
+            {
+                PlayerOwner->ComboRuntimeComponent->NotifyMontageStarted();
+            }
+
             // Node-driven combo window: schedule CanCombo tag add/remove via timers.
             // Only when the node explicitly overrides the window (bOverrideComboWindow = true).
             const FWeaponComboNodeConfig* ActiveComboNode = PlayerOwner && PlayerOwner->ComboRuntimeComponent
@@ -382,6 +388,15 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 	{
 		Owner->bComboHitConnected = true;
 		Owner->ConsumePendingHitStop(HitActors);
+
+		// Combo node's hit-success FX + time-dilation hook.
+		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
+		{
+			if (PlayerOwner->ComboRuntimeComponent)
+			{
+				PlayerOwner->ComboRuntimeComponent->NotifyHitLanded();
+			}
+		}
 	}
 
 	if (Owner)

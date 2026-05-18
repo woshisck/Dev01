@@ -1,7 +1,7 @@
 #pragma once
 
-#include "AssetTypeActions_Base.h"
 #include "CoreMinimal.h"
+#include "AssetTypeActions_Base.h"
 
 class FAssetTypeActions_GameplayAbilityComboGraph : public FAssetTypeActions_Base
 {

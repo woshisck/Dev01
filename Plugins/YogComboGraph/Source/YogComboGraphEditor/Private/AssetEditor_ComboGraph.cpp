@@ -1,11 +1,11 @@
-#include "ComboGraph/AssetEditor_ComboGraph.h"
+#include "AssetEditor_ComboGraph.h"
 
+#include "Data/GameplayAbilityComboGraph.h"
 #include "Editor.h"
 #include "EngineUtils.h"
+#include "GameFramework/Actor.h"
 #include "GenericGraphNode.h"
-#include "Character/PlayerCharacterBase.h"
-#include "Component/ComboRuntimeComponent.h"
-#include "Data/GameplayAbilityComboGraph.h"
+#include "Interfaces/YogComboGraphActiveInstance.h"
 
 FAssetEditor_ComboGraph::FAssetEditor_ComboGraph()
 {
@@ -59,44 +59,61 @@ bool FAssetEditor_ComboGraph::TickDebugger(float /*DeltaTime*/)
 		}
 	}
 
-	// Find the active node from the PIE world.
 	if (!GEditor || !GEditor->PlayWorld)
 	{
 		return true;
 	}
 
-	for (TActorIterator<APlayerCharacterBase> It(GEditor->PlayWorld); It; ++It)
+	// Find any object in the PIE world that implements IYogComboGraphActiveInstance
+	// and is currently running this specific ComboGraph asset.
+	FName ActiveNodeId = NAME_None;
+	for (TActorIterator<AActor> ActorIt(GEditor->PlayWorld); ActorIt; ++ActorIt)
 	{
-		APlayerCharacterBase* Player = *It;
-		if (!Player || !Player->ComboRuntimeComponent)
-		{
-			continue;
-		}
-		if (Player->ComboRuntimeComponent->GetComboGraph() != ComboGraph)
+		AActor* Actor = *ActorIt;
+		if (!Actor)
 		{
 			continue;
 		}
 
-		const FName ActiveNodeId = Player->ComboRuntimeComponent->GetCurrentNodeId();
-		if (ActiveNodeId.IsNone())
+		for (UActorComponent* Component : Actor->GetComponents())
 		{
-			continue;
-		}
-
-		for (UGenericGraphNode* Node : ComboGraph->AllNodes)
-		{
-			UGameplayAbilityComboGraphNode* ComboNode = Cast<UGameplayAbilityComboGraphNode>(Node);
-			if (!ComboNode)
+			IYogComboGraphActiveInstance* Active = Cast<IYogComboGraphActiveInstance>(Component);
+			if (!Active || Active->GetActiveComboGraph() != ComboGraph)
 			{
 				continue;
 			}
-			// Match by NodeId; fall back to object name (mirrors GetRuntimeNodeId in .cpp).
-			const FName RuntimeId = ComboNode->NodeId.IsNone() ? FName(*ComboNode->GetName()) : ComboNode->NodeId;
-			if (RuntimeId == ActiveNodeId)
+			const FName CandidateId = Active->GetActiveComboNodeId();
+			if (!CandidateId.IsNone())
 			{
-				ComboNode->bDebugActive = true;
+				ActiveNodeId = CandidateId;
 				break;
 			}
+		}
+
+		if (!ActiveNodeId.IsNone())
+		{
+			break;
+		}
+	}
+
+	if (ActiveNodeId.IsNone())
+	{
+		return true;
+	}
+
+	for (UGenericGraphNode* Node : ComboGraph->AllNodes)
+	{
+		UGameplayAbilityComboGraphNode* ComboNode = Cast<UGameplayAbilityComboGraphNode>(Node);
+		if (!ComboNode)
+		{
+			continue;
+		}
+		// Match by NodeId; fall back to object name (mirrors GetRuntimeNodeId in .cpp).
+		const FName RuntimeId = ComboNode->NodeId.IsNone() ? FName(*ComboNode->GetName()) : ComboNode->NodeId;
+		if (RuntimeId == ActiveNodeId)
+		{
+			ComboNode->bDebugActive = true;
+			break;
 		}
 	}
 

@@ -1,5 +1,7 @@
 #include "Data/WeaponComboConfigDA.h"
 
+#include "Data/GameplayAbilityComboGraph.h"
+#include "Data/MontageAttackDataAsset.h"
 #include "Data/MontageConfigDA.h"
 
 namespace
@@ -8,6 +10,46 @@ namespace
 	{
 		return RequiredAction == ECardRequiredAction::Any || RequiredAction == InputAction;
 	}
+
+	ECombatCardTriggerTiming TriggerTimingTagToEnum(const FGameplayTag& Tag)
+	{
+		// Project convention: Combo.TriggerTiming.OnHit / Combo.TriggerTiming.OnCommit.
+		// Falls back to OnCommit when the tag is empty or unrecognised.
+		if (Tag.IsValid())
+		{
+			static const FName OnHitName(TEXT("Combo.TriggerTiming.OnHit"));
+			if (Tag.GetTagName() == OnHitName)
+			{
+				return ECombatCardTriggerTiming::OnHit;
+			}
+		}
+		return ECombatCardTriggerTiming::OnCommit;
+	}
+}
+
+FWeaponComboNodeConfig FWeaponComboNodeConfig::FromComboGraphNode(const UGameplayAbilityComboGraphNode* Node, ECardRequiredAction InputAction)
+{
+	FWeaponComboNodeConfig Config;
+	if (!Node)
+	{
+		return Config;
+	}
+
+	Config.NodeId = !Node->NodeId.IsNone() ? Node->NodeId : FName(*Node->GetName());
+	Config.InputAction = InputAction;
+	Config.Montage = Node->Montage;
+	Config.AttackDataOverride = Cast<UMontageAttackDataAsset>(Node->AttackDataOverride);
+	Config.bIsComboFinisher = Node->bIsComboFinisher;
+	Config.bAllowDashSave = Node->bAllowDashSave;
+	Config.bOverrideComboWindow = Node->bUseNodeComboWindow;
+	Config.ComboWindowStartFrame = Node->ComboWindowStartFrame;
+	Config.ComboWindowEndFrame = Node->ComboWindowEndFrame;
+	Config.ComboWindowTotalFrames = Node->TotalFrames > 0 ? Node->TotalFrames : 30;
+	Config.CardTriggerTiming = TriggerTimingTagToEnum(Node->TriggerTimingTag);
+	Config.HitSuccessDilation = Node->HitSuccessDilation;
+	Config.OnMontageStartFx = Node->OnMontageStartFx;
+	Config.OnHitSuccessFx = Node->OnHitSuccessFx;
+	return Config;
 }
 
 FWeaponComboNodeConfig UWeaponComboConfigDA::FindNodeChecked(FName NodeId) const

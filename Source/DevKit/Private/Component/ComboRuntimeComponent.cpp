@@ -8,9 +8,32 @@
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageConfigDA.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
+#include "NiagaraSystem.h"
+#include "NiagaraFunctionLibrary.h"
+#include "Particles/ParticleSystem.h"
+#include "GameFramework/Actor.h"
+#include "Components/SceneComponent.h"
 
 namespace
 {
+	FGameplayTag CardActionToInputTag(ECardRequiredAction Action)
+	{
+		// ECardRequiredAction::Any → invalid tag (matches anything per the plugin's convention).
+		static const FName LightName(TEXT("Combo.Input.Light"));
+		static const FName HeavyName(TEXT("Combo.Input.Heavy"));
+		switch (Action)
+		{
+			case ECardRequiredAction::Light: return FGameplayTag::RequestGameplayTag(LightName, false);
+			case ECardRequiredAction::Heavy: return FGameplayTag::RequestGameplayTag(HeavyName, false);
+			case ECardRequiredAction::Any:   return FGameplayTag();
+			default:                          return FGameplayTag();
+		}
+	}
+
 	bool IsLegacyComboProgressTag(const FGameplayTag& Tag)
 	{
 		const FString TagName = Tag.ToString();
@@ -144,15 +167,18 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 
 	if (ComboGraph)
 	{
-		const UGameplayAbilityComboGraphNode* NextGraphNode = ComboGraph->FindChildComboNode(StartNodeId, InputAction);
+		const FGameplayTag InputTag = CardActionToInputTag(InputAction);
+		FGameplayTagContainer OwnedTags;
+		ASC->GetOwnedGameplayTags(OwnedTags);
+		const UGameplayAbilityComboGraphNode* NextGraphNode = ComboGraph->FindChildComboNode(StartNodeId, InputTag, &OwnedTags);
 		bFoundChildNode = NextGraphNode != nullptr;
 		if (!NextGraphNode)
 		{
-			NextGraphNode = ComboGraph->FindRootComboNode(InputAction);
+			NextGraphNode = ComboGraph->FindRootComboNode(InputTag);
 		}
 		if (NextGraphNode)
 		{
-			GraphNodeConfig = NextGraphNode->BuildRuntimeConfig(InputAction);
+			GraphNodeConfig = FWeaponComboNodeConfig::FromComboGraphNode(NextGraphNode, InputAction);
 			NextNode = &GraphNodeConfig;
 		}
 	}
@@ -296,4 +322,133 @@ FCombatDeckActionContext UComboRuntimeComponent::BuildAttackContext(ECombatCardT
 	Context.TriggerTiming = TriggerTiming;
 	Context.AttackInstanceGuid = ActiveAttackGuid;
 	return Context;
+}
+
+void UComboRuntimeComponent::NotifyMontageStarted()
+{
+	if (!bActiveNodeValid)
+	{
+		return;
+	}
+	PlayFxBinding(ActiveNode.OnMontageStartFx);
+}
+
+void UComboRuntimeComponent::NotifyHitLanded()
+{
+	if (!bActiveNodeValid)
+	{
+		return;
+	}
+	PlayFxBinding(ActiveNode.OnHitSuccessFx);
+	ApplyHitDilation(ActiveNode.HitSuccessDilation);
+}
+
+void UComboRuntimeComponent::PlayFxBinding(const FComboNodeFxBinding& Binding)
+{
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor)
+	{
+		return;
+	}
+
+	if (Binding.Sound)
+	{
+		UGameplayStatics::SpawnSoundAtLocation(OwnerActor, Binding.Sound, OwnerActor->GetActorLocation());
+	}
+
+	if (UFXSystemAsset* FxAsset = Binding.ParticleSystem)
+	{
+		USceneComponent* AttachTo = OwnerActor->GetRootComponent();
+		const FName Socket = Binding.AttachSocket;
+
+		if (UNiagaraSystem* NiagaraSys = Cast<UNiagaraSystem>(FxAsset))
+		{
+			if (AttachTo)
+			{
+				UNiagaraFunctionLibrary::SpawnSystemAttached(
+					NiagaraSys, AttachTo, Socket,
+					FVector::ZeroVector, FRotator::ZeroRotator,
+					EAttachLocation::SnapToTarget, true);
+			}
+			else
+			{
+				UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+					OwnerActor, NiagaraSys, OwnerActor->GetActorLocation());
+			}
+		}
+		else if (UParticleSystem* LegacyParticle = Cast<UParticleSystem>(FxAsset))
+		{
+			if (AttachTo)
+			{
+				UGameplayStatics::SpawnEmitterAttached(
+					LegacyParticle, AttachTo, Socket,
+					FVector::ZeroVector, FRotator::ZeroRotator,
+					EAttachLocation::SnapToTarget, true);
+			}
+			else
+			{
+				UGameplayStatics::SpawnEmitterAtLocation(
+					OwnerActor, LegacyParticle, OwnerActor->GetActorLocation());
+			}
+		}
+	}
+}
+
+void UComboRuntimeComponent::ApplyHitDilation(const FComboHitDilationSettings& Settings)
+{
+	if (Settings.Scope == EComboHitDilationScope::None || Settings.DurationSeconds <= 0.f)
+	{
+		return;
+	}
+
+	AActor* OwnerActor = GetOwner();
+	UWorld* World = OwnerActor ? OwnerActor->GetWorld() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	// A new hit-dilation overrides an in-flight one. Restore any prior scope first so we don't leak state.
+	if (ActiveDilationScope != EComboHitDilationScope::None)
+	{
+		World->GetTimerManager().ClearTimer(DilationRestoreHandle);
+		RestoreTimeDilation();
+	}
+
+	const float Factor = FMath::Clamp(Settings.DilationFactor, 0.01f, 1.0f);
+	ActiveDilationScope = Settings.Scope;
+
+	float TimerDuration = Settings.DurationSeconds;
+	if (Settings.Scope == EComboHitDilationScope::Global)
+	{
+		UGameplayStatics::SetGlobalTimeDilation(World, Factor);
+		// World timers count game time, which now advances at Factor × real time.
+		// Multiply so the timer fires after DurationSeconds *real* seconds.
+		TimerDuration *= Factor;
+	}
+	else // Self
+	{
+		OwnerActor->CustomTimeDilation = Factor;
+	}
+
+	World->GetTimerManager().SetTimer(
+		DilationRestoreHandle, this, &UComboRuntimeComponent::RestoreTimeDilation,
+		FMath::Max(TimerDuration, 0.01f), false);
+}
+
+void UComboRuntimeComponent::RestoreTimeDilation()
+{
+	AActor* OwnerActor = GetOwner();
+	UWorld* World = OwnerActor ? OwnerActor->GetWorld() : nullptr;
+
+	if (ActiveDilationScope == EComboHitDilationScope::Global && World)
+	{
+		UGameplayStatics::SetGlobalTimeDilation(World, 1.f);
+	}
+	else if (ActiveDilationScope == EComboHitDilationScope::Self && OwnerActor)
+	{
+		OwnerActor->CustomTimeDilation = 1.f;
+	}
+
+	ActiveDilationScope = EComboHitDilationScope::None;
 }

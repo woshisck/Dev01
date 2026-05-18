@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/WeaponComboConfigDA.h"
+#include "Interfaces/YogComboGraphActiveInstance.h"
 #include "ComboRuntimeComponent.generated.h"
 
 class APlayerCharacterBase;
@@ -10,12 +11,16 @@ class UGameplayAbilityComboGraph;
 struct FCombatDeckActionContext;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class DEVKIT_API UComboRuntimeComponent : public UActorComponent
+class DEVKIT_API UComboRuntimeComponent : public UActorComponent, public IYogComboGraphActiveInstance
 {
 	GENERATED_BODY()
 
 public:
 	UComboRuntimeComponent();
+
+	// IYogComboGraphActiveInstance — exposes current ComboGraph + active node id to the plugin's PIE debugger.
+	virtual const UGameplayAbilityComboGraph* GetActiveComboGraph() const override { return ComboGraph; }
+	virtual FName GetActiveComboNodeId() const override { return CurrentNodeId; }
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	void LoadComboConfig(UWeaponComboConfigDA* InComboConfig);
@@ -31,6 +36,14 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	bool TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner);
+
+	/** Call when the active combo node's montage begins. Spawns OnMontageStartFx. */
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	void NotifyMontageStarted();
+
+	/** Call when a hit lands during the active combo node's montage. Spawns OnHitSuccessFx and applies HitSuccessDilation. */
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	void NotifyHitLanded();
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	void ResetCombo();
@@ -82,4 +95,12 @@ private:
 	bool bActivationFromDashSave = false;
 	bool bComboContinued = true;
 	bool bExitedComboState = false;
+
+	// Hit-dilation state — tracked so the restore timer knows which scope to undo.
+	FTimerHandle DilationRestoreHandle;
+	EComboHitDilationScope ActiveDilationScope = EComboHitDilationScope::None;
+
+	void PlayFxBinding(const FComboNodeFxBinding& Binding);
+	void ApplyHitDilation(const FComboHitDilationSettings& Settings);
+	void RestoreTimeDilation();
 };

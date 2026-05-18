@@ -370,7 +370,7 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 	Node->ComboWindowEndFrame = 20;
 	//Node->ComboWindowTotalFrames = 30;
 
-	const FWeaponComboNodeConfig RuntimeConfig = Node->BuildRuntimeConfig(ECardRequiredAction::Heavy);
+	const FWeaponComboNodeConfig RuntimeConfig = FWeaponComboNodeConfig::FromComboGraphNode(Node, ECardRequiredAction::Heavy);
 
 	TestEqual(TEXT("Graph node exports its NodeId"), RuntimeConfig.NodeId, FName(TEXT("L2H")));
 	TestEqual(TEXT("Graph edge input becomes runtime input"), RuntimeConfig.InputAction, ECardRequiredAction::Heavy);
@@ -407,8 +407,9 @@ bool FGameplayAbilityComboGraphWarnsDuplicateChildInputTest::RunTest(const FStri
 	SecondChild->NodeId = TEXT("LightB");
 	SecondChild->Montage = NewObject<UAnimMontage>(Graph);
 
-	FirstEdge->InputAction = ECardRequiredAction::Light;
-	SecondEdge->InputAction = ECardRequiredAction::Light;
+	const FGameplayTag LightInputTag = FGameplayTag::RequestGameplayTag(TEXT("Combo.Input.Light"), false);
+	FirstEdge->AcceptedInputTags.AddTag(LightInputTag);
+	SecondEdge->AcceptedInputTags.AddTag(LightInputTag);
 	Root->ChildrenNodes = { FirstChild, SecondChild };
 	FirstChild->ParentNodes = { Root };
 	SecondChild->ParentNodes = { Root };

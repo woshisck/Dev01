@@ -9,7 +9,7 @@
  * In-game ImGui window that captures UE_LOG Warning/Error/Display output and lets you
  * filter by tag prefix ([ComboRuntime], [CDC], GAS, Damage, etc.).
  *
- * Auto-created by the GameInstance subsystem system — no manual setup required.
+ * Hidden by default. Open via the Yog Debug Menu (`Yog.DebugMenu` console command).
  * Toggle ImGui input with the plugin's default shortcut (Ctrl+Alt+F1 or ImGui.InputEnabled 1).
  */
 UCLASS()
@@ -56,6 +56,7 @@ private:
 
 	// ── UI state ──────────────────────────────────────────────────
 
+	bool bVisible      = false;
 	bool bAutoScroll   = true;
 	bool bShowError    = true;
 	bool bShowWarning  = true;
