@@ -20,6 +20,7 @@
 #include "Tools/SComboGraphManagerWidget.h"
 #include "Tools/SDataEditorWidget.h"
 #include "Tools/SLevelDataWorkbenchWidget.h"
+#include "Tools/SMetaProgressionWorkbenchWidget.h"
 #include "Tools/SStoryEventWorkbenchWidget.h"
 #include "Customization/GameplayAbilityComboGraphNodeDetails.h"
 #include "Data/GameplayAbilityComboGraph.h"
@@ -41,6 +42,7 @@ namespace
 	const FName ActionBalanceTabName(TEXT("DevKitActionBalance"));
 	const FName CombatLogTabName(TEXT("DevKitCombatLog"));
 	const FName BuffFlowDebugTabName(TEXT("DevKitBuffFlowDebug"));
+	const FName MetaProgressionWorkbenchTabName(TEXT("DevKitMetaProgressionWorkbench"));
 }
 
 class FDevKitEditorModule : public FDefaultGameModuleImpl {
@@ -130,6 +132,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetTooltipText(LOCTEXT("BuffFlowDebugTabTooltip", "Open the DevKit BuffFlow debug panel."))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			MetaProgressionWorkbenchTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnMetaProgressionWorkbenchTab))
+			.SetDisplayName(LOCTEXT("MetaProgressionWorkbenchTabTitle", "Meta Progression Workbench"))
+			.SetTooltipText(LOCTEXT("MetaProgressionWorkbenchTabTooltip", "Open the meta-progression node and currency workbench."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
 		UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FDevKitEditorModule::RegisterDataEditorMenus));
 	}
 
@@ -150,6 +159,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ActionBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CombatLogTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(BuffFlowDebugTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MetaProgressionWorkbenchTabName);
 		CombatLogWidgetInstance.Reset();
 
 		FEditorDelegates::OnMapOpened.RemoveAll(this);
@@ -289,6 +299,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.Label(LOCTEXT("BuffFlowDebugTabLabel", "BuffFlow Debug"))
 			[
 				SNew(SBuffFlowDebugWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnMetaProgressionWorkbenchTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("MetaProgressionWorkbenchTabLabel", "Meta Progression Workbench"))
+			[
+				SNew(SMetaProgressionWorkbenchWidget)
 			];
 	}
 

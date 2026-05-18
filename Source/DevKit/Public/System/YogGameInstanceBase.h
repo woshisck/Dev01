@@ -210,6 +210,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
 	void StartNewRunFromFrontend();
 
+	// Continue 按钮：恢复存档点中断的局；若无有效存档点则行为同 StartNewRunFromFrontend
+	UFUNCTION(BlueprintCallable, Category = "Frontend")
+	void ContinueRunFromFrontend();
+
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
 	void HandleEntryOptionsRequested();
 

@@ -283,7 +283,7 @@ void UYogGameInstanceBase::ShowMainMenu()
 	EntryMenuWidget->OnOptionsRequested.RemoveAll(this);
 	EntryMenuWidget->OnQuitRequested.RemoveAll(this);
 	EntryMenuWidget->OnStartRequested.AddDynamic(this, &UYogGameInstanceBase::StartNewRunFromFrontend);
-	EntryMenuWidget->OnContinueRequested.AddDynamic(this, &UYogGameInstanceBase::StartNewRunFromFrontend);
+	EntryMenuWidget->OnContinueRequested.AddDynamic(this, &UYogGameInstanceBase::ContinueRunFromFrontend);
 	EntryMenuWidget->OnOptionsRequested.AddDynamic(this, &UYogGameInstanceBase::HandleEntryOptionsRequested);
 	EntryMenuWidget->OnQuitRequested.AddDynamic(this, &UYogGameInstanceBase::QuitFromFrontend);
 	UIManager->PushScreen(EYogUIScreenId::EntryMenu);
@@ -337,12 +337,35 @@ const FSlateBrush* UYogGameInstanceBase::GetFrontendMainMenuBackgroundBrush()
 	return FrontendMainMenuBrush.Get();
 }
 
+void UYogGameInstanceBase::ContinueRunFromFrontend()
+{
+	if (bFrontendLoadingGameplayMap) return;
+
+	UYogSaveSubsystem* SaveSys = GetSubsystem<UYogSaveSubsystem>();
+	if (SaveSys && SaveSys->TryRestoreRunCheckpoint())
+	{
+		// Checkpoint valid — restore and go straight into the level
+		RemoveFrontendWidget();
+		BeginLoadMainGameMap();
+	}
+	else
+	{
+		// No checkpoint — start a fresh run
+		StartNewRunFromFrontend();
+	}
+}
+
 void UYogGameInstanceBase::StartNewRunFromFrontend()
 {
 	if (bFrontendLoadingGameplayMap)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[Frontend] Start ignored because the gameplay map is already loading."));
 		return;
+	}
+
+	if (UYogSaveSubsystem* SS = GetSubsystem<UYogSaveSubsystem>())
+	{
+		SS->RecordRunStarted();
 	}
 
 	RemoveFrontendWidget();
@@ -651,7 +674,7 @@ FReply UYogGameInstanceBase::HandleStartClicked()
 
 FReply UYogGameInstanceBase::HandleContinueClicked()
 {
-	StartNewRunFromFrontend();
+	ContinueRunFromFrontend();
 	return FReply::Handled();
 }
 

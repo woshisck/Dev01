@@ -49,6 +49,8 @@ private:
 	void OnRoomSelectionChanged(FRoomRowPtr Row, ESelectInfo::Type SelectInfo);
 	void OnCampaignSelectionChanged(FCampaignRowPtr Row, ESelectInfo::Type SelectInfo);
 	FReply OnRefreshClicked();
+	FReply OnExportRoomEconomyClicked();
+	FReply OnExportFloorConfigsClicked();
 
 	FText GetRoomSummaryText() const;
 	FText GetCampaignSummaryText() const;

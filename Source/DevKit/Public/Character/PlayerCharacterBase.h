@@ -255,6 +255,9 @@ public:
 	// 切关后从 GameInstance.PendingRunState 恢复 HP / 金币 / 符文 / 热度阶段
 	void RestoreRunStateFromGI();
 
+	// BeginPlay 时异步加载局外打造的起始符文并作为隐藏被动授予（新局/续局均执行）
+	void GrantCraftedStarterRunesAsync();
+
 	// BeginPlay 末尾重新 Link 武器动画层（GAS 授能可能覆盖切关时已 Link 的层）
 	void RelinkWeaponAnimLayer();
 
