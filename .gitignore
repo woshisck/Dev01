@@ -1958,9 +1958,7 @@ Builds/Windows/DevKit/Content/Paks/DevKit-Windows.ucas
 Builds/Windows/DevKit/Content/Paks/DevKit-Windows.pak
 CompileAndOpen.bat
 BuildAndOpen.bat
-Packaged_Check_*/
+/Packaged
 /Content/SlashTrailElemental
 /Content/Blood_VFX_Pack
 /Content/_LevelUpSpawn
-/Packaged
-GenerateAndBuild.bat

@@ -119,7 +119,13 @@ FActionData UYogTargetType_MeleeBase::GetActionData(AYogCharacterBase* Targeting
 			{
 				if (MeleeGA->HasConfiguredAttackData())
 				{
-					return MeleeGA->GetAbilityActionData();
+					FActionData Data = MeleeGA->GetAbilityActionData();
+					if (Data.hitboxTypes.IsEmpty())
+					{
+						if (const UAN_MeleeDamage* Notify = Cast<UAN_MeleeDamage>(EventData.OptionalObject))
+							Data.hitboxTypes = Notify->BuildActionData().hitboxTypes;
+					}
+					return Data;
 				}
 			}
 		}
@@ -344,7 +350,13 @@ void UYogTargetType_Enemy::GetTargets_Implementation(
 	}
 
 #if ENABLE_DRAW_DEBUG
-	DrawHitboxDebug(TargetingCharacter->GetWorld(), CharLoc, CharYaw, ActionData, FColor::Orange);
+	{
+		const UAN_MeleeDamage* DmgNotify = Cast<UAN_MeleeDamage>(EventData.OptionalObject);
+		if (!DmgNotify || DmgNotify->DrawDebug)
+		{
+			DrawHitboxDebug(TargetingCharacter->GetWorld(), CharLoc, CharYaw, ActionData, FColor::Orange);
+		}
+	}
 #endif
 }
 
@@ -386,6 +398,12 @@ void UYogTargetType_Player::GetTargets_Implementation(
 	}
 
 #if ENABLE_DRAW_DEBUG
-	DrawHitboxDebug(TargetingCharacter->GetWorld(), CharLoc, CharYaw, ActionData, FColor::Yellow);
+	{
+		const UAN_MeleeDamage* DmgNotify = Cast<UAN_MeleeDamage>(EventData.OptionalObject);
+		if (!DmgNotify || DmgNotify->DrawDebug)
+		{
+			DrawHitboxDebug(TargetingCharacter->GetWorld(), CharLoc, CharYaw, ActionData, FColor::Yellow);
+		}
+	}
 #endif
 }

@@ -7,9 +7,8 @@
 #include "Data/WeaponComboConfigDA.h"
 #include "GameplayAbilityComboGraph.generated.h"
 
-class UGameplayAbility;
+class UAnimMontage;
 class UMontageAttackDataAsset;
-class UMontageConfigDA;
 
 UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UGameplayAbilityComboGraphNode : public UGenericGraphNode
@@ -25,14 +24,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	ECombatGraphInputAction RootInputAction = ECombatGraphInputAction::Any;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
-	TSubclassOf<UGameplayAbility> GameplayAbilityClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
-	FGameplayTag AbilityTagOverride;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
-	TObjectPtr<UMontageConfigDA> MontageConfig = nullptr;
+	TObjectPtr<UAnimMontage> Montage = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage", meta = (ClampMin = "1"))
+	int32 TotalFrames = 30;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
 	TObjectPtr<UMontageAttackDataAsset> AttackDataOverride = nullptr;
@@ -70,19 +66,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (EditCondition = "bUseNodeComboWindow", ClampMin = "0"))
 	int32 ComboWindowEndFrame = 27;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (EditCondition = "bUseNodeComboWindow", ClampMin = "1"))
-	int32 ComboWindowTotalFrames = 30;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card", meta = (AdvancedDisplay))
 	ECombatCardTriggerTiming CardTriggerTiming = ECombatCardTriggerTiming::OnCommit;
 
-	UFUNCTION(BlueprintPure, Category = "Combo")
-	FGameplayTag ResolveAbilityTag() const;
-
-	FWeaponComboNodeConfig BuildRuntimeConfig(ECombatGraphInputAction InputAction) const;
+	FWeaponComboNodeConfig BuildRuntimeConfig(ECardRequiredAction InputAction) const;
 	virtual FText GetDescription_Implementation() const override;
 
+#if WITH_EDITORONLY_DATA
+	bool bDebugActive = false;
+#endif
+
 #if WITH_EDITOR
+	virtual FLinearColor GetBackgroundColor() const override;
 	virtual FText GetNodeTitle() const override;
 	virtual bool CanCreateConnectionTo(UGenericGraphNode* Other, int32 NumberOfChildrenNodes, FText& ErrorMessage) override;
 #endif

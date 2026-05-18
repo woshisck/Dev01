@@ -3,6 +3,7 @@
 #include "Animation/AN_MeleeDamage.h"
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
+#include "AbilitySystem/Abilities/GA_PlayMontage.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Data/MontageAttackDataAsset.h"
@@ -24,6 +25,10 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 	AYogCharacterBase* Character = Cast<AYogCharacterBase>(Owner);
 	if (!Character) return;
 
+	Character->PendingAdditionalHitRunes.Empty();
+	Character->PendingOnHitEventTags.Empty();
+	Character->PendingHitStopOverride = AYogCharacterBase::FPendingHitStopOverride();
+
 	const UMontageAttackDataAsset* EffectiveAttackData = AttackDataOverride;
 	const FComboAttackConfig* EffectiveNodeAttackConfig = nullptr;
 	if (UYogAbilitySystemComponent* ASC = Character->GetASC())
@@ -37,6 +42,13 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 			else if (MeleeGA->HasConfiguredAttackData())
 			{
 				EffectiveAttackData = MeleeGA->GetConfiguredAttackData();
+			}
+		}
+		else if (const UGA_PlayMontage* PlayMontageGA = Cast<UGA_PlayMontage>(ASC->GetCurrentAbilityInstance()))
+		{
+			if (PlayMontageGA->HasConfiguredAttackData())
+			{
+				EffectiveAttackData = PlayMontageGA->GetConfiguredAttackData();
 			}
 		}
 	}
@@ -63,10 +75,11 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 		auto& Override = Character->PendingHitStopOverride;
 		Override.bActive = true;
 		Override.Mode = EffectiveHitStopMode;
-		Override.FrozenDuration = EffectiveNodeAttackConfig ? EffectiveNodeAttackConfig->HitStopFrozenDuration : EffectiveAttackData ? EffectiveAttackData->HitStopFrozenDuration : HitStopFrozenDuration;
-		Override.SlowDuration = EffectiveNodeAttackConfig ? EffectiveNodeAttackConfig->HitStopSlowDuration : EffectiveAttackData ? EffectiveAttackData->HitStopSlowDuration : HitStopSlowDuration;
-		Override.SlowRate = EffectiveNodeAttackConfig ? EffectiveNodeAttackConfig->HitStopSlowRate : EffectiveAttackData ? EffectiveAttackData->HitStopSlowRate : HitStopSlowRate;
-		Override.CatchUpRate = EffectiveNodeAttackConfig ? EffectiveNodeAttackConfig->HitStopCatchUpRate : EffectiveAttackData ? EffectiveAttackData->HitStopCatchUpRate : HitStopCatchUpRate;
+		Override.Scope = EffectiveAttackData ? EffectiveAttackData->HitStopScope : HitStopScope;
+		Override.FrozenDuration = EffectiveAttackData ? EffectiveAttackData->HitStopFrozenDuration : HitStopFrozenDuration;
+		Override.SlowDuration = EffectiveAttackData ? EffectiveAttackData->HitStopSlowDuration : HitStopSlowDuration;
+		Override.SlowRate = EffectiveAttackData ? EffectiveAttackData->HitStopSlowRate : HitStopSlowRate;
+		Override.CatchUpRate = EffectiveAttackData ? EffectiveAttackData->HitStopCatchUpRate : HitStopCatchUpRate;
 	}
 
 	const TArray<FGameplayTag>& EffectiveOnHitEventTags = EffectiveNodeAttackConfig

@@ -1,7 +1,7 @@
 #include "ComboGraph/AssetTypeActions_GameplayAbilityComboGraph.h"
 
 #include "Data/GameplayAbilityComboGraph.h"
-#include "GenericGraphAssetEditor/AssetEditor_GenericGraph.h"
+#include "ComboGraph/AssetEditor_ComboGraph.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_GameplayAbilityComboGraph"
 
@@ -33,7 +33,7 @@ void FAssetTypeActions_GameplayAbilityComboGraph::OpenAssetEditor(const TArray<U
 	{
 		if (UGameplayAbilityComboGraph* ComboGraph = Cast<UGameplayAbilityComboGraph>(Object))
 		{
-			TSharedRef<FAssetEditor_GenericGraph> GraphEditor = MakeShared<FAssetEditor_GenericGraph>();
+			TSharedRef<FAssetEditor_ComboGraph> GraphEditor = MakeShared<FAssetEditor_ComboGraph>();
 			GraphEditor->InitGenericGraphAssetEditor(Mode, EditWithinLevelEditor, ComboGraph);
 		}
 	}

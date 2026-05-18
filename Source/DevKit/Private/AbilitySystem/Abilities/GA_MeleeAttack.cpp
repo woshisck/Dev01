@@ -6,7 +6,7 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
-#include "BuffFlow/BuffFlowComponent.h"
+#include "Animation/HitStopManager.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
@@ -23,17 +23,14 @@
 #include "TimerManager.h"
 #include "UObject/ObjectKey.h"
 
-namespace
+struct FStatBeforeAttackSharedSnapshot
 {
-	struct FStatBeforeAttackSharedSnapshot
-	{
-		float Attack = 0.f;
-		float AttackPower = 1.f;
-		int32 ActiveCount = 0;
-	};
+	float Attack = 0.f;
+	float AttackPower = 1.f;
+	int32 ActiveCount = 0;
+};
 
-	TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
-}
+static TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
 
 UGA_MeleeAttack::UGA_MeleeAttack()
 {
@@ -548,7 +545,11 @@ void UGA_MeleeAttack::ActivateAbility(
 		? CD->AbilityData->GetMontage(FirstTag) : nullptr;
 
 	ActiveMontageConfig = nullptr;
-	if (bActiveComboNodeValid && ActiveComboNode.MontageConfig)
+	if (bActiveComboNodeValid && ActiveComboNode.Montage)
+	{
+		Montage = ActiveComboNode.Montage;
+	}
+	else if (bActiveComboNodeValid && ActiveComboNode.MontageConfig)
 	{
 		ActiveMontageConfig = ActiveComboNode.MontageConfig;
 		if (ActiveMontageConfig->Montage)
@@ -719,6 +720,7 @@ void UGA_MeleeAttack::EndAbility(
 	{
 		Owner->PendingAdditionalHitRunes.Empty();
 		Owner->PendingOnHitEventTags.Empty();
+		Owner->PendingHitStopOverride = AYogCharacterBase::FPendingHitStopOverride();
 	}
 
 	// 绉婚櫎鏀诲嚮鍓嶆憞 GE
@@ -1035,6 +1037,8 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 		}
 
 		// 骞挎挱 Ability.Event.Attack.Hit 缁欐敾鍑昏€咃紙BGC 浜嬩欢椹卞姩鍨嬬鏂囩洃鍚浜嬩欢锛?
+		Owner->ConsumePendingHitStop(HitActors);
+
 		static const FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
 		for (AActor* HitActor : HitActors)
 		{
@@ -1086,6 +1090,7 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 	{
 		Owner->PendingAdditionalHitRunes.Empty();
 		Owner->PendingOnHitEventTags.Empty();
+		Owner->PendingHitStopOverride = AYogCharacterBase::FPendingHitStopOverride();
 	}
 
 	if (CombatCardResult.bHadCard)

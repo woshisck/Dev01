@@ -9,39 +9,18 @@
 #include "PropertyEditorModule.h"
 #include "ComboGraph/AssetTypeActions_GameplayAbilityComboGraph.h"
 #include "DevKitEditor/Util/YogEntryCustomization.h"
-#include "Customization/RuneDataAssetDetails.h"
-#include "Data/RuneDataAsset.h"
-#include "Editor.h"
-#include "RuneEditor/SRuneEditorWidget.h"
-#include "ToolMenus.h"
-#include "Tools/SActionBalanceWidget.h"
+#include "Framework/Docking/TabManager.h"
+#include "HAL/IConsoleManager.h"
 #include "Tools/SBuffFlowDebugWidget.h"
-#include "Tools/SCharacterBalanceWidget.h"
-#include "Tools/SComboGraphManagerWidget.h"
-#include "Tools/SDataEditorWidget.h"
-#include "Tools/SLevelDataWorkbenchWidget.h"
-#include "Tools/SStoryEventWorkbenchWidget.h"
-#include "Customization/GameplayAbilityComboGraphNodeDetails.h"
-#include "Data/GameplayAbilityComboGraph.h"
-#include "UI/CombatLogEditorUtilityWidget.h"
-#include "UObject/StrongObjectPtr.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DevKitEditor"
 
 namespace
 {
-	const FName RuneBalanceTabName(TEXT("DevKitRuneBalance"));
-	const FName RuneEditorTabName(TEXT("DevKitRuneEditor"));
-	const FName CharacterBalanceTabName(TEXT("DevKitCharacterBalance"));
-	const FName ComboManagerTabName(TEXT("DevKitComboManager"));
-	const FName LevelDataWorkbenchTabName(TEXT("DevKitLevelDataWorkbench"));
-	const FName StoryEventWorkbenchTabName(TEXT("DevKitStoryEventWorkbench"));
-	const FName ActionBalanceTabName(TEXT("DevKitActionBalance"));
-	const FName CombatLogTabName(TEXT("DevKitCombatLog"));
 	const FName BuffFlowDebugTabName(TEXT("DevKitBuffFlowDebug"));
 }
+
 
 class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	typedef FDevKitEditorModule ThisClass;
@@ -59,70 +38,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("DevKitCombatAssetCategory", "DevKit Combat"));
 		RegisterAssetTypeAction(AssetTools, MakeShared<FAssetTypeActions_GameplayAbilityComboGraph>(CombatCategory));
 
-		// 注册 URuneDataAsset 自定义 Detail Panel（在 Detail 顶部加快捷按钮）
-		PropertyModule.RegisterCustomClassLayout(
-			URuneDataAsset::StaticClass()->GetFName(),
-			FOnGetDetailCustomizationInstance::CreateStatic(&FRuneDataAssetDetails::MakeInstance));
-		PropertyModule.RegisterCustomClassLayout(
-			UGameplayAbilityComboGraphNode::StaticClass()->GetFName(),
-			FOnGetDetailCustomizationInstance::CreateStatic(&FGameplayAbilityComboGraphNodeDetails::MakeInstance));
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			RuneBalanceTabName,
-			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnRuneBalanceTab))
-			.SetDisplayName(LOCTEXT("RuneBalanceTabTitle", "Rune Balance"))
-			.SetTooltipText(LOCTEXT("RuneBalanceTabTooltip", "Open the DevKit Rune Balance panel."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden);
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			RuneEditorTabName,
-			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnRuneEditorTab))
-			.SetDisplayName(LOCTEXT("RuneEditorTabTitle", "Rune Editor"))
-			.SetTooltipText(LOCTEXT("RuneEditorTabTooltip", "Open the DevKit Rune Editor panel."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden);
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			CharacterBalanceTabName,
-			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnCharacterBalanceTab))
-			.SetDisplayName(LOCTEXT("CharacterBalanceTabTitle", "Character Data Workbench"))
-			.SetTooltipText(LOCTEXT("CharacterBalanceTabTooltip", "Open the DevKit character, montage, and Act data workbench."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden);
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			ComboManagerTabName,
-			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnComboManagerTab))
-			.SetDisplayName(LOCTEXT("ComboManagerTabTitle", "Combo Manager"))
-			.SetTooltipText(LOCTEXT("ComboManagerTabTooltip", "Open the weapon and independent enemy combo graph manager."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden);
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			LevelDataWorkbenchTabName,
-			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnLevelDataWorkbenchTab))
-			.SetDisplayName(LOCTEXT("LevelDataWorkbenchTabTitle", "Level Data Workbench"))
-			.SetTooltipText(LOCTEXT("LevelDataWorkbenchTabTooltip", "Open the campaign and room data workbench."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden);
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			StoryEventWorkbenchTabName,
-			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnStoryEventWorkbenchTab))
-			.SetDisplayName(LOCTEXT("StoryEventWorkbenchTabTitle", "Story Event Workbench"))
-			.SetTooltipText(LOCTEXT("StoryEventWorkbenchTabTooltip", "Open the story event registry and campaign tag workbench."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden);
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			ActionBalanceTabName,
-			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnActionBalanceTab))
-			.SetDisplayName(LOCTEXT("ActionBalanceTabTitle", "Action Balance"))
-			.SetTooltipText(LOCTEXT("ActionBalanceTabTooltip", "Open the DevKit Action Balance panel."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden);
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			CombatLogTabName,
-			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnCombatLogTab))
-			.SetDisplayName(LOCTEXT("CombatLogTabTitle", "Combat Log"))
-			.SetTooltipText(LOCTEXT("CombatLogTabTooltip", "Open the DevKit Combat Log panel."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden);
-
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			BuffFlowDebugTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnBuffFlowDebugTab))
@@ -130,7 +45,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetTooltipText(LOCTEXT("BuffFlowDebugTabTooltip", "Open the DevKit BuffFlow debug panel."))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
-		UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FDevKitEditorModule::RegisterDataEditorMenus));
+		OpenBuffFlowDebugCommand = MakeUnique<FAutoConsoleCommand>(
+			TEXT("DevKit.OpenBuffFlowDebug"),
+			TEXT("Open the DevKit BuffFlow Debug panel."),
+			FConsoleCommandDelegate::CreateLambda([]
+			{
+				FGlobalTabmanager::Get()->TryInvokeTab(BuffFlowDebugTabName);
+			}));
 	}
 
 
@@ -153,6 +74,9 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		CombatLogWidgetInstance.Reset();
 
 		FEditorDelegates::OnMapOpened.RemoveAll(this);
+
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(BuffFlowDebugTabName);
+		OpenBuffFlowDebugCommand.Reset();
 
 		FModuleManager::Get().OnModulesChanged().RemoveAll(this);
 
@@ -417,9 +341,19 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		RegisteredAssetTypeActions.Add(Action);
 	}
 
+	TSharedRef<SDockTab> SpawnBuffFlowDebugTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("BuffFlowDebugTabLabel", "BuffFlow Debug"))
+			[
+				SNew(SBuffFlowDebugWidget)
+			];
+	}
+
 private:
 	TArray<TSharedPtr<IAssetTypeActions>> RegisteredAssetTypeActions;
-	TStrongObjectPtr<UCombatLogEditorUtilityWidget> CombatLogWidgetInstance;
+	TUniquePtr<FAutoConsoleCommand> OpenBuffFlowDebugCommand;
 };
 
 
