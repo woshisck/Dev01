@@ -12,7 +12,7 @@ public class DevKitTarget : TargetRules
 
 		if (Configuration == UnrealTargetConfiguration.Shipping)
 		{
-			GlobalDefinitions.Add("DEVKIT_ENABLE_SHIPPING_CHEATS=1");
+			ProjectDefinitions.Add("DEVKIT_ENABLE_SHIPPING_CHEATS=1");
 		}
 
 		ExtraModuleNames.AddRange( new string[] { "DevKit" } );
