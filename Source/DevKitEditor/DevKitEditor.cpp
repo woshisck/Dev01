@@ -370,6 +370,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenStoryEventWorkbenchTooltip", "Edit story event registries and compare Campaign StoryEventTags against configured story actions."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenStoryEventWorkbenchTab)));
+		BalanceSection.AddMenuEntry(
+			TEXT("OpenMetaProgressionWorkbench"),
+			LOCTEXT("OpenMetaProgressionWorkbenchLabel", "Meta Progression Workbench"),
+			LOCTEXT("OpenMetaProgressionWorkbenchTooltip", "Edit meta upgrade nodes, currency rules, and local save slots."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMetaProgressionWorkbenchTab)));
 
 		FToolMenuSection& DebugSection = Menu->FindOrAddSection(TEXT("DevKitDebugTools"), LOCTEXT("DevKitDebugToolsSection", "Debug Tools"));
 		DebugSection.AddMenuEntry(
@@ -429,6 +435,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenBuffFlowDebugTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(BuffFlowDebugTabName);
+	}
+
+	void OpenMetaProgressionWorkbenchTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(MetaProgressionWorkbenchTabName);
 	}
 
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
