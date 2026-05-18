@@ -7,6 +7,7 @@
 #include "Cheater.generated.h"
 
 class APlayerCharacterBase;
+class UBackpackGridComponent;
 
 UCLASS()
 class DEVKIT_API UYogCheatManager : public UCheatManager
@@ -64,6 +65,7 @@ public:
 
 private:
 	APlayerCharacterBase* GetPlayerChar() const;
+	UBackpackGridComponent* GetBGC() const;
 
 	bool bGodModeActive = false;
 };

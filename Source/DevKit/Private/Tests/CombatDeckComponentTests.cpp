@@ -27,7 +27,6 @@
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "Data/AbilityData.h"
-#include "Animation/AnimMontage.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/MontageConfigDA.h"
@@ -442,10 +441,12 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 {
 	UGameplayAbilityComboGraphNode* Node = NewObject<UGameplayAbilityComboGraphNode>();
 	Node->NodeId = TEXT("L2H");
+	Node->GameplayAbilityClass = UGA_Player_LightAtk2::StaticClass();
+	Node->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"));
 	Node->bUseNodeComboWindow = true;
 	Node->ComboWindowStartFrame = 12;
 	Node->ComboWindowEndFrame = 20;
-	//Node->ComboWindowTotalFrames = 30;
+	Node->ComboWindowTotalFrames = 30;
 
 	const FWeaponComboNodeConfig RuntimeConfig = Node->BuildRuntimeConfig(ECombatGraphInputAction::Heavy);
 
@@ -455,7 +456,7 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 	TestFalse(TEXT("Graph node frame window is ignored by runtime while montage notifies drive combo windows"), RuntimeConfig.bOverrideComboWindow);
 	TestEqual(TEXT("Combo window start frame is exported"), RuntimeConfig.ComboWindowStartFrame, 12);
 	TestEqual(TEXT("Combo window end frame is exported"), RuntimeConfig.ComboWindowEndFrame, 20);
-	//TestEqual(TEXT("Combo window total frames is exported"), RuntimeConfig.ComboWindowTotalFrames, 30);
+	TestEqual(TEXT("Combo window total frames is exported"), RuntimeConfig.ComboWindowTotalFrames, 30);
 
 	return true;
 }
@@ -543,15 +544,18 @@ bool FGameplayAbilityComboGraphWarnsDuplicateChildInputTest::RunTest(const FStri
 
 	Root->Graph = Graph;
 	Root->NodeId = TEXT("Root");
-	Root->Montage = NewObject<UAnimMontage>(Graph);
+	Root->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo1"));
+	Root->MontageConfig = NewObject<UMontageConfigDA>(Graph);
 
 	FirstChild->Graph = Graph;
 	FirstChild->NodeId = TEXT("LightA");
-	FirstChild->Montage = NewObject<UAnimMontage>(Graph);
+	FirstChild->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo2"));
+	FirstChild->MontageConfig = NewObject<UMontageConfigDA>(Graph);
 
 	SecondChild->Graph = Graph;
 	SecondChild->NodeId = TEXT("LightB");
-	SecondChild->Montage = NewObject<UAnimMontage>(Graph);
+	SecondChild->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo3"));
+	SecondChild->MontageConfig = NewObject<UMontageConfigDA>(Graph);
 
 	FirstEdge->InputAction = ECombatGraphInputAction::Light;
 	SecondEdge->InputAction = ECombatGraphInputAction::Light;

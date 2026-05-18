@@ -1,18 +1,15 @@
 #include "Animation/HitStopManager.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
-#include "Kismet/GameplayStatics.h"
 
 void UHitStopManager::RequestMontageHitStop(UAnimInstance* InAnimInst,
-	float FrozenDuration, float SlowDuration, float SlowRate, float CatchUpRate,
-	EHitStopScope Scope)
+	float FrozenDuration, float SlowDuration, float SlowRate, float CatchUpRate)
 {
-	if (Scope == EHitStopScope::SelfMontage && !InAnimInst) return;
+	if (!InAnimInst) return;
 
 	// 冻结阶段优先：正在冻结时忽略新请求，防止暴击连击叠加产生卡顿
 	if (Phase == EPhase::Frozen) return;
 
-	CachedScope       = Scope;
 	AnimInst          = InAnimInst;
 	CachedFrozenDur   = FrozenDuration;
 	CachedSlowDur     = SlowDuration;
@@ -94,11 +91,6 @@ void UHitStopManager::EndHitStop()
 
 void UHitStopManager::PauseMontage()
 {
-	if (CachedScope == EHitStopScope::GlobalDilation)
-	{
-		UGameplayStatics::SetGlobalTimeDilation(this, 0.0001f);
-		return;
-	}
 	if (UAnimInstance* AI = AnimInst.Get())
 		if (UAnimMontage* M = AI->GetCurrentActiveMontage())
 			AI->Montage_Pause(M);
@@ -106,11 +98,6 @@ void UHitStopManager::PauseMontage()
 
 void UHitStopManager::ResumeMontage()
 {
-	if (CachedScope == EHitStopScope::GlobalDilation)
-	{
-		// Global dilation is corrected by the immediately following SetPlayRate call
-		return;
-	}
 	if (UAnimInstance* AI = AnimInst.Get())
 		if (UAnimMontage* M = AI->GetCurrentActiveMontage())
 			AI->Montage_Resume(M);
@@ -118,11 +105,6 @@ void UHitStopManager::ResumeMontage()
 
 void UHitStopManager::SetPlayRate(float Rate)
 {
-	if (CachedScope == EHitStopScope::GlobalDilation)
-	{
-		UGameplayStatics::SetGlobalTimeDilation(this, Rate);
-		return;
-	}
 	if (UAnimInstance* AI = AnimInst.Get())
 		if (UAnimMontage* M = AI->GetCurrentActiveMontage())
 			AI->Montage_SetPlayRate(M, Rate);

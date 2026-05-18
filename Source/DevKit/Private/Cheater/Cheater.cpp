@@ -3,6 +3,8 @@
 #include "Cheater/Cheater.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/EnemyCharacterBase.h"
+#include "Component/BackpackGridComponent.h"
+#include "Component/CombatDeckComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Data/RuneDataAsset.h"
@@ -20,6 +22,12 @@ APlayerCharacterBase* UYogCheatManager::GetPlayerChar() const
 	return PC ? Cast<APlayerCharacterBase>(PC->GetPawn()) : nullptr;
 }
 
+UBackpackGridComponent* UYogCheatManager::GetBGC() const
+{
+	APlayerCharacterBase* Char = GetPlayerChar();
+	return Char ? Char->BackpackGridComponent : nullptr;
+}
+
 // ─── 热度 ─────────────────────────────────────────────────────────────────────
 
 void UYogCheatManager::Yog_SetHeat(float Value)
@@ -33,12 +41,23 @@ void UYogCheatManager::Yog_SetHeat(float Value)
 	const float Clamped = FMath::Clamp(Value, 0.f, ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute()));
 	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), Clamped);
 
+	// 通知 BGC 更新热度阶段状态
+	if (UBackpackGridComponent* BGC = GetBGC())
+	{
+		BGC->OnHeatValueChanged(Clamped);
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("[GM] 热度设为 %.1f"), Clamped);
 }
 
 void UYogCheatManager::Yog_SetPhase(int32 Phase)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetPhase: BackpackGridComponent has been removed"));
+	UBackpackGridComponent* BGC = GetBGC();
+	if (!BGC) { UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetPhase: 找不到 BGC")); return; }
+
+	const int32 Clamped = FMath::Clamp(Phase, 0, 3);
+	BGC->RestorePhase(Clamped);
+	UE_LOG(LogTemp, Log, TEXT("[GM] 热度阶段设为 %d"), Clamped);
 }
 
 void UYogCheatManager::Yog_MaxHeat()
@@ -51,6 +70,11 @@ void UYogCheatManager::Yog_MaxHeat()
 
 	const float Max = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
 	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), Max);
+
+	if (UBackpackGridComponent* BGC = GetBGC())
+	{
+		BGC->OnHeatValueChanged(Max);
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[GM] 热度设为满值 %.1f"), Max);
 }
@@ -105,22 +129,43 @@ void UYogCheatManager::Yog_GiveRune(int32 RuneID)
 
 void UYogCheatManager::Yog_ClearRunes()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_ClearRunes: BackpackGridComponent has been removed"));
+	UBackpackGridComponent* BGC = GetBGC();
+	if (!BGC) return;
+
+	// 收集所有 Guid 后批量移除（避免迭代中修改数组）
+	TArray<FGuid> Guids;
+	for (const FPlacedRune& Placed : BGC->GetAllPlacedRunes())
+	{
+		if (!Placed.bIsPermanent)
+		{
+			Guids.Add(Placed.Rune.RuneGuid);
+		}
+	}
+
+	for (const FGuid& Guid : Guids)
+	{
+		BGC->RemoveRune(Guid);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[GM] 已清空背包符文（共 %d 个）"), Guids.Num());
 }
 
 void UYogCheatManager::Yog_SetGold(int32 Amount)
 {
-	if (APlayerController* PC = GetOuterAPlayerController())
+	UBackpackGridComponent* BGC = GetBGC();
+	if (!BGC) return;
+
+	const int32 Current = BGC->Gold;
+	if (Amount >= Current)
 	{
-		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(PC->GetGameInstance()))
-		{
-			GI->CurrentGold = FMath::Max(0, Amount);
-			UE_LOG(LogTemp, Log, TEXT("[GM] CurrentGold set to %d"), GI->CurrentGold);
-			return;
-		}
+		BGC->AddGold(Amount - Current);
+	}
+	else
+	{
+		BGC->SpendGold(Current - Amount);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetGold: GameInstance not found"));
+	UE_LOG(LogTemp, Log, TEXT("[GM] 金币设为 %d"), Amount);
 }
 
 // ─── 玩家属性 ─────────────────────────────────────────────────────────────────
@@ -281,14 +326,16 @@ void UYogCheatManager::Yog_PrintHeat()
 	if (!Char) return;
 
 	UYogAbilitySystemComponent* ASC = Char->GetASC();
-	if (!ASC) return;
+	UBackpackGridComponent* BGC = GetBGC();
+	if (!ASC || !BGC) return;
 
 	const float Heat    = ASC->GetNumericAttribute(UBaseAttributeSet::GetHeatAttribute());
 	const float MaxHeat = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
+	const int32 Phase   = BGC->GetCurrentPhase();
 
-	UE_LOG(LogTemp, Log, TEXT("[GM] 热度: %.1f / %.1f"), Heat, MaxHeat);
+	UE_LOG(LogTemp, Log, TEXT("[GM] 热度: %.1f / %.1f  |  阶段: %d"), Heat, MaxHeat, Phase);
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan,
-		FString::Printf(TEXT("[GM] Heat: %.1f / %.1f"), Heat, MaxHeat));
+		FString::Printf(TEXT("[GM] Heat: %.1f / %.1f  Phase: %d"), Heat, MaxHeat, Phase));
 }
 
 void UYogCheatManager::Yog_PrintTags()
@@ -340,7 +387,25 @@ void UYogCheatManager::Yog_PrintAttributes()
 
 void UYogCheatManager::Yog_PrintRunes()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_PrintRunes: BackpackGridComponent has been removed"));
+	UBackpackGridComponent* BGC = GetBGC();
+	if (!BGC) return;
+
+	const TArray<FPlacedRune>& Runes = BGC->GetAllPlacedRunes();
+	UE_LOG(LogTemp, Log, TEXT("[GM] 背包符文（共 %d 个）:"), Runes.Num());
+
+	for (const FPlacedRune& Placed : Runes)
+	{
+		UE_LOG(LogTemp, Log, TEXT("  [%s] ID=%d  Lv=%d  Pivot=(%d,%d)  Active=%s  Permanent=%s"),
+			*Placed.Rune.RuneConfig.RuneName.ToString(),
+			Placed.Rune.RuneConfig.RuneID,
+			Placed.Rune.UpgradeLevel,
+			Placed.Pivot.X, Placed.Pivot.Y,
+			Placed.bIsActivated ? TEXT("Y") : TEXT("N"),
+			Placed.bIsPermanent ? TEXT("Y") : TEXT("N"));
+	}
+
+	GEngine->AddOnScreenDebugMessage(-1, 6.f, FColor::Orange,
+		FString::Printf(TEXT("[GM] 符文: %d 个，详见 Output Log"), Runes.Num()));
 }
 
 void UYogCheatManager::Yog_Help()

@@ -236,8 +236,7 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 		InfoContainer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
 
-	// WeaponInfo 已从 WeaponDefinition 移除，浮窗不再展示武器名/描述/激活区
-	const UWeaponInfoDA* Info = nullptr;
+	const UWeaponInfoDA* Info = Def->WeaponInfo;
 
 	// ── 缩略图 ─────────────────────────────────
 	CachedThumbnail = nullptr;
@@ -284,6 +283,14 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 	}
 
 	// ── 激活区 ─────────────────────────────────
+	const FActivationZoneConfig& ZoneCfg = Def->BackpackConfig.ActivationZoneConfig;
+	const int32 GW = Def->BackpackConfig.GridWidth;
+	const int32 GH = Def->BackpackConfig.GridHeight;
+
+	auto GetShape   = [&](int32 Idx) -> const FRuneShape*
+	{
+		return ZoneCfg.ZoneShapes.IsValidIndex(Idx) ? &ZoneCfg.ZoneShapes[Idx] : nullptr;
+	};
 	auto GetZoneImg = [&](int32 Idx) -> UTexture2D*
 	{
 		if (!Info) return nullptr;
@@ -295,9 +302,9 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 		return nullptr;
 	};
 
-	BuildZonePanel(ZoneGrid1, Zone1Image, GetZoneImg(0), nullptr, 5, 5);
-	BuildZonePanel(ZoneGrid2, Zone2Image, GetZoneImg(1), nullptr, 5, 5);
-	BuildZonePanel(ZoneGrid3, Zone3Image, GetZoneImg(2), nullptr, 5, 5);
+	BuildZonePanel(ZoneGrid1, Zone1Image, GetZoneImg(0), GetShape(0), GW, GH);
+	BuildZonePanel(ZoneGrid2, Zone2Image, GetZoneImg(1), GetShape(1), GW, GH);
+	BuildZonePanel(ZoneGrid3, Zone3Image, GetZoneImg(2), GetShape(2), GW, GH);
 
 	// ── 512 初始战斗卡牌列表 ───────────────────
 	const TArray<TObjectPtr<URuneDataAsset>>& SourceCards = Def->InitialCombatDeck.IsEmpty()

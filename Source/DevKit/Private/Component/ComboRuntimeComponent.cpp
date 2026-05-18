@@ -1,9 +1,8 @@
 #include "Component/ComboRuntimeComponent.h"
 
 #include "AbilitySystemComponent.h"
-#include "AbilitySystem/Abilities/GA_PlayMontage.h"
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Character/PlayerCharacterBase.h"
-#include "Animation/AnimMontage.h"
 #include "Component/CombatDeckComponent.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageConfigDA.h"
@@ -238,19 +237,6 @@ bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputActio
 		&& !StartNodeId.IsNone()
 		&& (ActiveAttackGuid.IsValid() || ActiveAbilitySpecHandle.IsValid());
 
-	// Combo window gate: while a combo is already in progress, only allow advancing
-	// to the next node when the active node's window is open (CanCombo tag is set by
-	// either ANS_ComboWindow or the node-driven timers in GA_PlayMontage).
-	// Fresh combo starts (CurrentNodeId is None) and dash-save re-entries skip the gate.
-	if (!CurrentNodeId.IsNone() && !bUseDashSavedNode)
-	{
-		static const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
-		if (ASC->GetTagCount(CanComboTag) <= 0)
-		{
-			return false;
-		}
-	}
-
 	FWeaponComboNodeConfig GraphNodeConfig;
 	const FWeaponComboNodeConfig* NextNode = nullptr;
 	bool bFoundChildNode = false;
@@ -297,7 +283,16 @@ bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputActio
 		}
 	}
 
-	if (!NextNode || (!NextNode->Montage && !NextNode->MontageConfig))
+	if (bBlockedRootFallbackDuringActiveNode)
+	{
+		UE_LOG(LogTemp, Verbose,
+			TEXT("[ComboRuntime] Ignore input without child while active node is playing input=%s current=%s"),
+			*GetGraphInputName(InputAction),
+			*StartNodeId.ToString());
+		return false;
+	}
+
+	if (!NextNode || !NextNode->AbilityTag.IsValid())
 	{
 		UE_LOG(LogTemp, Warning,
 			TEXT("[ComboRuntime] No combo node for input=%s current=%s graph=%s config=%s"),
@@ -362,27 +357,115 @@ bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputActio
 	}
 	CurrentNodeId = NextNode->NodeId;
 
-	if (bExitedComboState)
+	const bool bRestartingFromRoot = bExitedComboState;
+	if (bRestartingFromRoot)
 	{
 		FGameplayTagContainer TagsToCancel;
 		AddLegacyComboProgressTags(TagsToCancel);
+		if (ActiveNode.AbilityTag.IsValid())
+		{
+			TagsToCancel.AddTag(ActiveNode.AbilityTag);
+		}
 		ASC->CancelAbilities(&TagsToCancel);
 		ClearComboWindowAndProgressLooseTags(ASC);
 	}
 
-	const bool bActivated = ASC->TryActivateAbilityByClass(UGA_PlayMontage::StaticClass());
+	FGameplayTagContainer AbilityTags;
+	AbilityTags.AddTag(NextNode->AbilityTag);
+
+	TArray<FGameplayAbilitySpec*> MatchingSpecs;
+	ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(AbilityTags, MatchingSpecs, false);
+	if (MatchingSpecs.IsEmpty() && NextNode->GameplayAbilityClass)
+	{
+		if (FGameplayAbilitySpec* ClassSpec = ASC->FindAbilitySpecFromClass(NextNode->GameplayAbilityClass))
+		{
+			MatchingSpecs.Add(ClassSpec);
+		}
+	}
+
+	bool bCancelledPreviousAbilityForTransition = false;
+	if (bFoundChildNode && !bUseDashSavedNode && PreviousAbilitySpecHandle.IsValid() && MatchingSpecs.Num() > 0)
+	{
+		ASC->CancelAbilityHandle(PreviousAbilitySpecHandle);
+		bCancelledPreviousAbilityForTransition = true;
+	}
+
+	FGameplayTagContainer TemporaryRequiredTags;
+	for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+	{
+		if (!Spec || !Spec->Ability)
+		{
+			continue;
+		}
+
+		UYogGameplayAbility* YogAbility = Cast<UYogGameplayAbility>(Spec->Ability);
+		if (!YogAbility)
+		{
+			continue;
+		}
+
+		for (const FGameplayTag& RequiredTag : YogAbility->GetActivationRequiredTags())
+		{
+			// The config chooses the branch now, so legacy "Light2 requires Light1"
+			// style progress tags are only compatibility gates. During a child
+			// transition, the previous montage is cancelled before activation, so
+			// preserve CanCombo for old GA RequiredTags on this activation frame.
+			const bool bNeedsTransitionCanCombo =
+				(bFoundChildNode || bUseDashSavedNode) &&
+				CanComboTag.IsValid() &&
+				RequiredTag == CanComboTag;
+			if ((IsLegacyComboProgressTag(RequiredTag) || bNeedsTransitionCanCombo) && ASC->GetTagCount(RequiredTag) <= 0)
+			{
+				TemporaryRequiredTags.AddTag(RequiredTag);
+			}
+		}
+	}
+
+	for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
+	{
+		ASC->AddLooseGameplayTag(TemporaryTag);
+		TrackRuntimeCombatLooseTag(TemporaryTag);
+	}
+
+	bool bActivated = false;
+	if (!MatchingSpecs.IsEmpty())
+	{
+		for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+		{
+			if (Spec && ASC->TryActivateAbility(Spec->Handle, true))
+			{
+				bActivated = true;
+				break;
+			}
+		}
+	}
+	else
+	{
+		bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags, true);
+	}
+
+	for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
+	{
+		if (ASC->GetTagCount(TemporaryTag) > 0)
+		{
+			ASC->RemoveLooseGameplayTag(TemporaryTag);
+		}
+	}
 
 	if (!bActivated)
 	{
 		FGameplayTagContainer OwnedTags;
 		ASC->GetOwnedGameplayTags(OwnedTags);
 		UE_LOG(LogTemp, Warning,
-			TEXT("[ComboRuntime] Failed to activate node=%s input=%s current=%s montage=%s montageConfig=%s"),
+			TEXT("[ComboRuntime] Failed to activate node=%s ability=%s input=%s current=%s montageConfig=%s specs=%d tempRequired=%s owned=%s"),
 			*NextNode->NodeId.ToString(),
-			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
+			*NextNode->AbilityTag.ToString(),
+			*GetGraphInputName(InputAction),
 			*CurrentNodeId.ToString(),
-			*GetNameSafe(NextNode->Montage.Get()),
-			*GetNameSafe(NextNode->MontageConfig.Get()));
+			*GetNameSafe(NextNode->MontageConfig.Get()),
+			MatchingSpecs.Num(),
+			*TemporaryRequiredTags.ToStringSimple(),
+			*OwnedTags.ToStringSimple());
 		bActiveNodeValid = false;
 		ActiveNode = FWeaponComboNodeConfig();
 		ActiveAttackGuid.Invalidate();
@@ -425,12 +508,6 @@ bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputActio
 		return false;
 	}
 
-	ComboIndex = bFoundChildNode || bUseDashSavedNode
-		? FMath::Max(1, ComboIndex + 1)
-		: 1;
-	ComboTags.Reset();
-
-	CurrentNodeId = NextNode->NodeId;
 	SavedDashNodeId = NAME_None;
 	if (UWorld* World = GetWorld())
 	{

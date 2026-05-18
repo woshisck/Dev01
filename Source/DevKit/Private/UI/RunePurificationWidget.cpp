@@ -1,5 +1,6 @@
 #include "UI/RunePurificationWidget.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Component/BackpackGridComponent.h"
 #include "UI/YogHUD.h"
 #include "Input/CommonUIInputTypes.h"
 #include "InputCoreTypes.h"
@@ -76,16 +77,42 @@ FReply URunePurificationWidget::NativeOnAnalogValueChanged(const FGeometry& InGe
 
 void URunePurificationWidget::Setup(APlayerCharacterBase* InPlayer)
 {
-	OwningPlayer     = InPlayer;
-	Phase            = 0;
+	OwningPlayer   = InPlayer;
+	Phase          = 0;
 	SelectedRuneGuid = FGuid();
-	SelectedCell     = FIntPoint(0, 0);
+	SelectedCell   = FIntPoint(0, 0);
+	CachedPlacedRunes.Reset();
+	CachedSelectableCells.Reset();
+	FocusedIndex = 0;
 
-	OnShowRuneList();
+	if (!InPlayer) return;
+	if (UBackpackGridComponent* Grid = InPlayer->FindComponentByClass<UBackpackGridComponent>())
+	{
+		CachedPlacedRunes = Grid->GetAllPlacedRunes();
+		OnShowRuneList(CachedPlacedRunes);
+		OnNativeFocusIndexChanged(Phase, FocusedIndex);
+	}
 }
 
 void URunePurificationWidget::SelectRune(FGuid RuneGuid)
 {
+	if (Phase != 0 || !OwningPlayer.IsValid()) return;
+	UBackpackGridComponent* Grid = OwningPlayer->FindComponentByClass<UBackpackGridComponent>();
+	if (!Grid) return;
+
+	for (const FPlacedRune& PR : Grid->GetAllPlacedRunes())
+	{
+		if (PR.Rune.RuneGuid != RuneGuid) continue;
+		SelectedRuneGuid = RuneGuid;
+		Phase = 1;
+		FocusedIndex = 0;
+
+		CachedSelectableCells = PR.Rune.Shape.Cells.FilterByPredicate(
+			[](const FIntPoint& P) { return P != FIntPoint(0, 0); });
+		OnShowCellSelection(RuneGuid, CachedSelectableCells);
+		OnNativeFocusIndexChanged(Phase, FocusedIndex);
+		return;
+	}
 }
 
 void URunePurificationWidget::SelectCell(FIntPoint LocalCell)
@@ -96,8 +123,16 @@ void URunePurificationWidget::SelectCell(FIntPoint LocalCell)
 
 void URunePurificationWidget::ConfirmPurification()
 {
-	OnPurificationFinished(false);
-	DeactivateWidget();
+	if (Phase != 1 || SelectedCell == FIntPoint(0, 0)) return;
+	if (!OwningPlayer.IsValid()) return;
+
+	UBackpackGridComponent* Grid = OwningPlayer->FindComponentByClass<UBackpackGridComponent>();
+	bool bOk = Grid && Grid->TryRemoveRuneCell(SelectedRuneGuid, SelectedCell);
+	OnPurificationFinished(bOk);
+	if (!UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::RunePurification))
+	{
+		DeactivateWidget();
+	}
 }
 
 void URunePurificationWidget::CancelPurification()

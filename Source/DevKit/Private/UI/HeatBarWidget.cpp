@@ -1,4 +1,5 @@
 #include "UI/HeatBarWidget.h"
+#include "Component/BackpackGridComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameFramework/Pawn.h"
@@ -6,6 +7,7 @@
 #include "Components/Image.h"
 #include "Character/PlayerCharacterBase.h"
 #include "UI/BackpackStyleDataAsset.h"
+#include "Kismet/GameplayStatics.h"
 
 // 兜底颜色（DA 未配置时使用）
 namespace HeatBarColors
@@ -17,6 +19,18 @@ namespace HeatBarColors
 }
 
 // ============================================================
+//  内部辅助
+// ============================================================
+
+UBackpackGridComponent* UHeatBarWidget::GetBackpack() const
+{
+    if (CachedBackpack.IsValid()) return CachedBackpack.Get();
+    APawn* Pawn = GetOwningPlayerPawn();
+    if (!Pawn) return nullptr;
+    return Pawn->FindComponentByClass<UBackpackGridComponent>();
+}
+
+// ============================================================
 //  生命周期
 // ============================================================
 
@@ -24,21 +38,41 @@ void UHeatBarWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    float Heat = 0.f, MaxHeat = 1.f;
-    if (UAbilitySystemComponent* ASC =
-        UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwningPlayerPawn()))
+    if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
     {
-        bool bFound = false;
-        Heat    = ASC->GetGameplayAttributeValue(UBaseAttributeSet::GetHeatAttribute(), bFound);
-        MaxHeat = ASC->GetGameplayAttributeValue(UBaseAttributeSet::GetMaxHeatAttribute(), bFound);
+        CachedBackpack = player->GetBackpackGridComponent();
     }
-    const float NormalizedHeat = (MaxHeat > KINDA_SMALL_NUMBER)
-        ? FMath::Clamp(Heat / MaxHeat, 0.f, 1.f) : 0.f;
-    OnHeatBarUpdateReceived(NormalizedHeat, 0);
+
+    if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn()))
+        CachedBackpack = player->FindComponentByClass<UBackpackGridComponent>();
+
+    if (CachedBackpack.IsValid())
+    {
+        CachedBackpack->OnHeatBarUpdate.AddDynamic(this, &UHeatBarWidget::OnHeatBarUpdateReceived);
+
+        float Heat = 0.f, MaxHeat = 1.f;
+        if (UAbilitySystemComponent* ASC =
+            UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwningPlayerPawn()))
+        {
+            bool bFound = false;
+            Heat    = ASC->GetGameplayAttributeValue(UBaseAttributeSet::GetHeatAttribute(), bFound);
+            MaxHeat = ASC->GetGameplayAttributeValue(UBaseAttributeSet::GetMaxHeatAttribute(), bFound);
+        }
+        const float NormalizedHeat = (MaxHeat > KINDA_SMALL_NUMBER)
+            ? FMath::Clamp(Heat / MaxHeat, 0.f, 1.f) : 0.f;
+        OnHeatBarUpdateReceived(NormalizedHeat, CachedBackpack->GetCurrentPhase());
+    }
+    else
+    {
+        OnHeatBarUpdateReceived(0.f, 0);
+    }
 }
 
 void UHeatBarWidget::NativeDestruct()
 {
+    if (UBackpackGridComponent* Backpack = GetBackpack())
+        Backpack->OnHeatBarUpdate.RemoveDynamic(this, &UHeatBarWidget::OnHeatBarUpdateReceived);
+
     Super::NativeDestruct();
 }
 
@@ -73,7 +107,8 @@ void UHeatBarWidget::RefreshDisplay(float NormalizedHeat, int32 Phase)
     FLinearColor C1 = HeatBarColors::WarmOrange;
     FLinearColor C2 = HeatBarColors::Gold;
 
-    APlayerCharacterBase* Char = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
+    APlayerCharacterBase* Char = CachedBackpack.IsValid()
+        ? Cast<APlayerCharacterBase>(CachedBackpack->GetOwner()) : nullptr;
 
     if (Char)
     {

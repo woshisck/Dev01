@@ -1,4 +1,6 @@
 #include "BuffFlow/Nodes/BFNode_DecrementPhase.h"
+#include "Component/BackpackGridComponent.h"
+#include "Character/YogCharacterBase.h"
 
 UBFNode_DecrementPhase::UBFNode_DecrementPhase(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -12,5 +14,15 @@ UBFNode_DecrementPhase::UBFNode_DecrementPhase(const FObjectInitializer& ObjectI
 
 void UBFNode_DecrementPhase::ExecuteBuffFlowInput(const FName& PinName)
 {
+    if (AYogCharacterBase* Owner = GetBuffOwner())
+    {
+        if (UBackpackGridComponent* BGC = Owner->FindComponentByClass<UBackpackGridComponent>())
+        {
+            if (BGC->GetCurrentPhase() > 0)
+            {
+                BGC->DecrementPhase();
+            }
+        }
+    }
     TriggerOutput(TEXT("Out"), true);
 }
