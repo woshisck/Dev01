@@ -17,8 +17,8 @@ bool FMetaProgressionSettingsConfigTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	const FString ExpectedUpgradePath = TEXT("/Game/Docs/Data/GameData/DT_MetaUpgradeNodes.DT_MetaUpgradeNodes");
-	const FString ExpectedCurrencyPath = TEXT("/Game/Docs/Data/GameData/DT_MetaCurrencyRules.DT_MetaCurrencyRules");
+	const FString ExpectedUpgradePath = TEXT("/Game/MetaProgression/DT_MetaUpgradeNodes.DT_MetaUpgradeNodes");
+	const FString ExpectedCurrencyPath = TEXT("/Game/MetaProgression/DT_MetaCurrencyRules.DT_MetaCurrencyRules");
 
 	TestEqual(TEXT("Upgrade table path comes from DefaultGame.ini"),
 		Settings->MetaUpgradeNodeTable.ToSoftObjectPath().ToString(), ExpectedUpgradePath);

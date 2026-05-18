@@ -5,6 +5,7 @@
 #include "GameModes/LevelFlowTypes.h"
 #include "GameplayEffectTypes.h"
 #include "Data/EnemyData.h"
+#include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "YogHUD.generated.h"
 
 class UTutorialPopupWidget;
@@ -34,6 +35,7 @@ class UBackpackGridComponent;
 class UCombatItemBarWidget;
 class UCurrentRoomBuffWidget;
 class UFinisherQTEWidget;
+class UYogRunSummaryWidgetBase;
 class URoomDataAsset;
 class UTexture2D;
 enum class EYogUIScreenId : uint8;
@@ -70,6 +72,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Finisher QTE")
 	TSubclassOf<UFinisherQTEWidget> FinisherQTEWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD|MetaProgression")
+	TSubclassOf<UYogRunSummaryWidgetBase> RunSummaryWidgetClass;
 
 	UFUNCTION(BlueprintCallable, Category = "HUD|Pause")
 	void OpenPauseMenu();
@@ -464,4 +469,7 @@ private:
 
 	UFUNCTION()
 	void OnWeaponFlyComplete(UTexture2D* Thumbnail);
+
+	UFUNCTION()
+	void HandleRunEnded(const FRunSummaryData& Summary);
 };

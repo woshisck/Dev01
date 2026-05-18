@@ -14,6 +14,8 @@ AHubFacilityActor::AHubFacilityActor(const FObjectInitializer& ObjectInitializer
 	InteractBox->SetBoxExtent(FVector(120.f, 120.f, 90.f));
 	InteractBox->SetCollisionProfileName(TEXT("Trigger"));
 	RootComponent = InteractBox;
+
+	FacilityDisplayName = NSLOCTEXT("HubFacility", "UpgradeTerminal", "升级终端");
 }
 
 void AHubFacilityActor::BeginPlay()

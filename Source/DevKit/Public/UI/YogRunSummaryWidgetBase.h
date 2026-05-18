@@ -25,6 +25,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "RunSummary")
 	FOnRunSummaryAction OnReturnToHubRequested;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RunSummary")
+	FName HubLevelName = TEXT("L_HubTown");
+
 protected:
 
 	virtual void NativeConstruct() override;

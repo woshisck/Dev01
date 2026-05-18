@@ -65,11 +65,15 @@ def save_asset(asset_path):
 def create_blueprint_asset(asset_path, parent_class, is_widget_blueprint):
     ensure_directory_for_asset(asset_path)
 
-    if unreal.EditorAssetLibrary.does_asset_exist(asset_path):
-        print("Skip existing asset:", asset_path)
-        return unreal.load_asset(asset_path), False
-
     package_path, asset_name = split_asset_path(asset_path)
+    existing_asset = unreal.load_asset("{0}.{1}".format(asset_path, asset_name))
+    if not existing_asset:
+        existing_asset = unreal.load_asset(asset_path)
+
+    if existing_asset or unreal.EditorAssetLibrary.does_asset_exist(asset_path):
+        print("Skip existing asset:", asset_path)
+        return existing_asset if existing_asset else unreal.load_asset(asset_path), False
+
     factory = unreal.WidgetBlueprintFactory() if is_widget_blueprint else unreal.BlueprintFactory()
     asset_class = unreal.WidgetBlueprint if is_widget_blueprint else unreal.Blueprint
     asset_kind = "Widget Blueprint" if is_widget_blueprint else "Blueprint"
