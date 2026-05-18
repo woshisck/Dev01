@@ -306,6 +306,9 @@ public:
 	UPROPERTY()
 	FYogMapStateData MapStateData;
 
+	UPROPERTY(BlueprintReadWrite)
+	int32 CurrentGold = 0;
+
 	//ACTOR WITH GAS SYSTEM ATTACHED
 	UPROPERTY()
 	TArray<FCharacterSaveData> SavedCharacter;

@@ -5,7 +5,6 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Character/PlayerCharacterBase.h"
-#include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Data/RoomDataAsset.h"
@@ -406,6 +405,7 @@ void AYogGameMode::EnterArrangementPhase()
 
 	CurrentPhase = ELevelPhase::Arrangement;
 	OnPhaseChanged.Broadcast(CurrentPhase);
+	AwardLevelGold();
 
 	bool bRefreshTemporaryFinisherLockView = false;
 	if (bCountCombatClearsForTemporaryFinisherUnlock)
@@ -417,24 +417,6 @@ void AYogGameMode::EnterArrangementPhase()
 
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
 		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-
-	if (Player)
-	{
-		// 解锁背包
-		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-		{
-			Backpack->SetLocked(false);
-		}
-
-		// 发放金币（按当前关卡 FloorConfig 中的范围）
-		if (CampaignData && ActiveGoldMax > 0)
-		{
-			const int32 GoldReward = FMath::RandRange(ActiveGoldMin, ActiveGoldMax);
-			if (Player->BackpackGridComponent)
-				Player->BackpackGridComponent->AddGold(GoldReward);
-			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 发放金币 %d"), GoldReward);
-		}
-	}
 
 	// 重置本关已分配符文的追踪集合（多拾取物去重用）
 	if (Player && bRefreshTemporaryFinisherLockView && Player->CombatDeckComponent)
@@ -769,85 +751,11 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 	CurrentPhase = ELevelPhase::Transitioning;
 	OnPhaseChanged.Broadcast(CurrentPhase);
 
-	// 锁背包
-	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
-		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
-	{
-		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-		{
-			Backpack->SetLocked(true);
-		}
-	}
-
 	// 旧系统入口：LevelSequenceData 已废弃，由 Portal 触发 TransitionToLevel
 	FName NextLevelName;
 
 	if (!NextLevelName.IsNone())
 	{
-		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
-		{
-			GI->PendingNextFloor = CurrentFloor + 1;
-
-			// 切关前将玩家状态写入 GI，供新关卡恢复
-			if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
-				UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
-			{
-				FRunState NewState;
-				NewState.bIsValid = true;
-				NewState.CurrentGold = Player->BackpackGridComponent ? Player->BackpackGridComponent->Gold : 0;
-
-				if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
-				{
-					NewState.CurrentHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
-
-					// 热度切关：默认归零，符文可保留一阶或两阶
-					static const FGameplayTag TagRetainTwo = FGameplayTag::RequestGameplayTag(TEXT("Buff.HeatCarry.TwoPhase"), false);
-					static const FGameplayTag TagRetainOne = FGameplayTag::RequestGameplayTag(TEXT("Buff.HeatCarry.OnePhase"), false);
-					const float MaxHeat = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
-					if (TagRetainTwo.IsValid() && ASC->HasMatchingGameplayTag(TagRetainTwo))
-						NewState.CurrentHeat = MaxHeat * 2.f;
-					else if (TagRetainOne.IsValid() && ASC->HasMatchingGameplayTag(TagRetainOne))
-						NewState.CurrentHeat = MaxHeat;
-					else
-						NewState.CurrentHeat = 0.f;
-				}
-
-				if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-				{
-					NewState.CurrentPhase = Backpack->GetCurrentPhase();
-					// 只保存非永久符文（永久符文由 BeginPlay 自动重放）
-					for (const FPlacedRune& PR : Backpack->GetAllPlacedRunes())
-					{
-						if (!PR.bIsPermanent)
-						{
-							NewState.PlacedRunes.Add(PR);
-						}
-					}
-				}
-
-				if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent)
-				{
-					for (const FCombatCardInstance& Card : CombatDeck->GetFullDeckSnapshot())
-					{
-						if (Card.SourceData)
-						{
-							NewState.CombatDeckCards.Add(Card.SourceData);
-							NewState.CombatDeckCardOrientations.Add(Card.LinkOrientation);
-						}
-					}
-					NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
-					NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
-				}
-				NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
-
-				NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
-				NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
-
-				GI->PendingRunState = NewState;
-				UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE — HP=%.1f Gold=%d Phase=%d Heat=%.0f Runes=%d"),
-					NewState.CurrentHP, NewState.CurrentGold, NewState.CurrentPhase, NewState.CurrentHeat, NewState.PlacedRunes.Num());
-			}
-		}
 		UGameplayStatics::OpenLevel(GetWorld(), NextLevelName);
 	}
 	else
@@ -2481,24 +2389,6 @@ TArray<FLootOption> AYogGameMode::GenerateLootBatch(TSet<URuneDataAsset*>& Alrea
 		}
 	}
 
-	// 排除玩家背包中已满级（Lv.III）的符文
-	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
-		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
-	{
-		if (Player->BackpackGridComponent)
-		{
-			TArray<FName> MaxLevelNames = Player->BackpackGridComponent->GetMaxLevelRuneNames();
-			if (!MaxLevelNames.IsEmpty())
-			{
-				TSet<FName> MaxLevelSet(MaxLevelNames);
-				Pool = Pool.FilterByPredicate([&](URuneDataAsset* DA)
-				{
-					return DA && !MaxLevelSet.Contains(DA->GetRuneName());
-				});
-			}
-		}
-	}
-
 	// 洗牌
 	for (int32 i = Pool.Num() - 1; i > 0; i--)
 	{
@@ -2540,6 +2430,29 @@ void AYogGameMode::GenerateLootOptions()
 	ShowLootOptions(GenerateIndependentLootOptions());
 }
 
+int32 AYogGameMode::AwardLevelGold()
+{
+	const int32 MinGold = FMath::Min(ActiveGoldMin, ActiveGoldMax);
+	const int32 MaxGold = FMath::Max(ActiveGoldMin, ActiveGoldMax);
+	const int32 AwardedGold = FMath::RandRange(MinGold, MaxGold);
+
+	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	{
+		GI->CurrentGold += AwardedGold;
+		UE_LOG(LogTemp, Log, TEXT("[Gold] Level reward +%d, CurrentGold=%d"), AwardedGold, GI->CurrentGold);
+	}
+
+	if (UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
+	{
+		if (UYogSaveSubsystem* SaveSubsystem = UGameInstance::GetSubsystem<UYogSaveSubsystem>(GetGameInstance()))
+		{
+			SaveSubsystem->WriteSaveGame();
+		}
+	}
+
+	return AwardedGold;
+}
+
 void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 {
 	if (NextLevel.IsNone()) return;
@@ -2565,16 +2478,9 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 
 		if (Player)
 		{
-			// 锁背包
-			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-			{
-				Backpack->SetLocked(true);
-			}
-
 			// 保存跑局状态
 			FRunState NewState;
-			NewState.bIsValid    = true;
-			NewState.CurrentGold = Player->BackpackGridComponent ? Player->BackpackGridComponent->Gold : 0;
+			NewState.bIsValid = true;
 
 			if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
 			{
@@ -2590,18 +2496,6 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 					NewState.CurrentHeat = MaxHeat;
 				else
 					NewState.CurrentHeat = 0.f;
-			}
-
-			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-			{
-				NewState.CurrentPhase = Backpack->GetCurrentPhase();
-				for (const FPlacedRune& PR : Backpack->GetAllPlacedRunes())
-				{
-					if (!PR.bIsPermanent)
-					{
-						NewState.PlacedRunes.Add(PR);
-					}
-				}
 			}
 
 			// 保存当前武器
@@ -2625,19 +2519,13 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 			}
 			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 
-			// 保存运行时隐藏被动符文（无形状、不进格子）
-			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-			{
-				NewState.HiddenPassiveRuneInstances = Backpack->GetRuntimeHiddenPassiveRunes();
-			}
-
 			// 保存献祭恩赐
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 			NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
 
 			GI->PendingRunState = NewState;
-			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Gold=%d Phase=%d Runes=%d Weapon=%s Room=%s"),
-				NewState.CurrentHP, NewState.CurrentGold, NewState.CurrentPhase, NewState.PlacedRunes.Num(),
+			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Heat=%.0f Weapon=%s Room=%s"),
+				NewState.CurrentHP, NewState.CurrentHeat,
 				NewState.EquippedWeaponDef ? *NewState.EquippedWeaponDef->GetName() : TEXT("none"),
 				NextRoom ? *NextRoom->GetName() : TEXT("null"));
 
@@ -2647,6 +2535,7 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 				GI->PersistentSaveData = NewObject<UYogSaveGame>(GI);
 			}
 			GI->PersistentSaveData->SavedCharacterClass = Player->GetClass();
+			GI->PersistentSaveData->CurrentGold = GI->CurrentGold;
 		}
 	}
 

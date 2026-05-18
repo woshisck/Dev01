@@ -145,13 +145,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BuffFlow")
 	void StopAllBuffFlows();
 
-	UFlowAsset* GetActiveBuffFlowAsset(FGuid RuneGuid) const;
-
-	UFUNCTION(BlueprintPure, Category = "BuffFlow")
-	URuneDataAsset* GetActiveSourceRuneData(UFlowAsset* FlowAsset) const;
-
-	UFUNCTION(BlueprintPure, Category = "BuffFlow")
-	float GetRuneTuningValueForFlow(UFlowAsset* FlowAsset, FName Key, float DefaultValue = 0.f) const;
+	// ─── 调试 / Trace 检视 ─────────────────────────────────────
 
 	UFUNCTION(BlueprintCallable, Category = "BuffFlow|Trace")
 	void ClearTraceEntries();
@@ -164,11 +158,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "BuffFlow|Debug")
 	TArray<FBuffFlowActiveFlowDebugEntry> GetActiveBuffFlowDebugEntries() const;
-
-	void RecordTrace(UFlowNode* Node, UObject* Profile, AActor* Target, EBuffFlowTraceResult Result, const FString& Message, const FString& Values);
-
-	static bool IsTraceEnabled();
-	static bool IsVerboseTraceEnabled();
 
 	// ─── Buff 事件委托 ─────────────────────────────────────
 
@@ -234,12 +223,7 @@ private:
 	/** RuneGuid → 活跃的 Flow 实例（用于停止） */
 	TMap<FGuid, TWeakObjectPtr<UFlowAsset>> ActiveRuneFlows;
 
-	TMap<FGuid, TWeakObjectPtr<URuneDataAsset>> ActiveRuneSources;
-
 	UPROPERTY()
 	TArray<FBuffFlowTraceEntry> TraceEntries;
-
-	UPROPERTY(EditAnywhere, Category = "BuffFlow|Trace", meta = (ClampMin = "16", ClampMax = "1000"))
-	int32 MaxTraceEntries = 200;
 
 };

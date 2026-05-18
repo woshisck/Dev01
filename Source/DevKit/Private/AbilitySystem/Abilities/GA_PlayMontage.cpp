@@ -9,30 +9,136 @@
 #include "Component/CharacterDataComponent.h"
 #include "Component/BufferComponent.h"
 #include "Component/ComboRuntimeComponent.h"
+#include "Animation/AnimInstance.h"
 #include "Animation/AN_MeleeDamage.h"
+#include "Animation/HitStopManager.h"
+#include "Character/EnemyCharacterBase.h"
+#include "Data/GameplayAbilityComboGraph.h"
+#include "Data/MontageAttackDataAsset.h"
+#include "Engine/World.h"
+
+static AYogCharacterBase* ResolveAttackOwner(const UGameplayAbility* Ability, const FGameplayEventData& EventData)
+{
+	if (const AActor* EventInstigatorActor = EventData.Instigator.Get())
+	{
+		if (AYogCharacterBase* EventInstigator = Cast<AYogCharacterBase>(const_cast<AActor*>(EventInstigatorActor)))
+		{
+			return EventInstigator;
+		}
+	}
+
+	if (Ability)
+	{
+		if (AYogCharacterBase* AvatarOwner = Cast<AYogCharacterBase>(Ability->GetAvatarActorFromActorInfo()))
+		{
+			return AvatarOwner;
+		}
+
+		return Cast<AYogCharacterBase>(Ability->GetOwningActorFromActorInfo());
+	}
+
+	return nullptr;
+}
+
+static void CollectHitActors(const FYogGameplayEffectContainerSpec& ContainerSpec, TArray<AActor*>& OutHitActors)
+{
+	for (const TSharedPtr<FGameplayAbilityTargetData>& Data : ContainerSpec.TargetData.Data)
+	{
+		if (Data.IsValid())
+		{
+			for (TWeakObjectPtr<AActor> WeakActor : Data->GetActors())
+			{
+				if (AActor* Actor = WeakActor.Get())
+				{
+					OutHitActors.AddUnique(Actor);
+				}
+			}
+		}
+	}
+}
+
+static bool HasEnemyHit(const TArray<AActor*>& HitActors)
+{
+	for (AActor* HitActor : HitActors)
+	{
+		if (Cast<AEnemyCharacterBase>(HitActor))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
 
 UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
 {
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-    //bRetriggerInstancedAbility = true;
+    bRetriggerInstancedAbility = true;
     //NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
 
 void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+    // On retrigger: silently kill the in-flight task before committing.
+    // EndTask() marks it as garbage so its pending delegate callbacks become no-ops.
+    if (ActivePlayMontageTask)
+    {
+        ActivePlayMontageTask->EndTask();
+        ActivePlayMontageTask = nullptr;
+    }
+	ActiveComboAttackData = nullptr;
+
+    // Clear any node-driven combo window timers from a previous activation.
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(ComboWindowOpenHandle);
+        World->GetTimerManager().ClearTimer(ComboWindowCloseHandle);
+    }
+
     if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
     {
-
         return;
     }
-   
+
     UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 
     AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
-    FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
 
-    UAnimMontage* MontageToPlay = Owner->GetCharacterDataComponent()->GetCharacterData()->AbilityData->GetMontage(ability_tag);
+    // Resolve montage strictly from the active GameplayAbilityComboGraph node.
+    // No fallback to AbilityData / MontageConfig DA — the combo graph is the single source of truth.
+    UAnimMontage* MontageToPlay = nullptr;
+    const APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner);
+    const UGameplayAbilityComboGraph* ComboGraph = nullptr;
+    if (PlayerOwner && PlayerOwner->ComboRuntimeComponent)
+    {
+        ComboGraph = PlayerOwner->ComboRuntimeComponent->GetComboGraph();
+        if (ComboGraph)
+        {
+            if (const FWeaponComboNodeConfig* ActiveComboNode = PlayerOwner->ComboRuntimeComponent->GetActiveNode())
+            {
+                MontageToPlay = ActiveComboNode->Montage;
+				ActiveComboAttackData = ActiveComboNode->AttackDataOverride;
+            }
+        }
+    }
+
+    if (!ComboGraph)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[GA_PlayMontage] No UGameplayAbilityComboGraph on owner=%s — aborting activation."),
+            *GetNameSafe(Owner));
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        return;
+    }
+
+    if (!MontageToPlay)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[GA_PlayMontage] Active combo node has no Montage on graph=%s owner=%s — aborting activation."),
+            *GetNameSafe(ComboGraph), *GetNameSafe(Owner));
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        return;
+    }
 	// 记录激活时刻，连击缓存只接受此时间之后的输入
 	AbilityActivationTime = GetWorld()->GetTimeSeconds();
 
@@ -62,9 +168,7 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		EGameplayTagEventType::NewOrRemoved
 	).AddUObject(this, &UGA_PlayMontage::OnCanComboTagChanged);
 
-    if(MontageToPlay)
     {
-
         // 从蒙太奇第一个 AN_MeleeDamage 读取攻击参数（原来从 AbilityData 读）
         UAN_MeleeDamage* DmgNotify = nullptr;
         for (FAnimNotifyEvent& NotifyEvent : MontageToPlay->Notifies)
@@ -95,24 +199,38 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
         UYogTask_PlayMontageAbility* PlayMontageTask = UYogTask_PlayMontageAbility::YogPlayMontageAbility(this, NAME_None, MontageToPlay, FGameplayTagContainer(), 1.0f, NAME_None);
         if (PlayMontageTask)
         {
-            //PlayMontageTask->OnBlendOut.AddDynamic(this, &UGA_PlayMontage::OnMontageBlendOut);
- 
             PlayMontageTask->OnBlendOut.AddDynamic(this, &UGA_PlayMontage::OnMontageBlendOut);
             PlayMontageTask->OnCompleted.AddDynamic(this, &UGA_PlayMontage::OnMontageCompleted);
             PlayMontageTask->OnInterrupted.AddDynamic(this, &UGA_PlayMontage::OnMontageInterrupted);
             PlayMontageTask->OnCancelled.AddDynamic(this, &UGA_PlayMontage::OnMontageCancelled);
             PlayMontageTask->OnEventReceived.AddDynamic(this, &UGA_PlayMontage::OnEventReceived);
-            
+
+            ActivePlayMontageTask = PlayMontageTask;
             PlayMontageTask->ReadyForActivation();
-            //PlayMontageTask->OnEventReceived.AddDynamic(this, &UGA_PlayMontage::OnEventReceived);
-        }   
+
+            // Node-driven combo window: schedule CanCombo tag add/remove via timers.
+            // Only when the node explicitly overrides the window (bOverrideComboWindow = true).
+            const FWeaponComboNodeConfig* ActiveComboNode = PlayerOwner && PlayerOwner->ComboRuntimeComponent
+                ? PlayerOwner->ComboRuntimeComponent->GetActiveNode()
+                : nullptr;
+            if (ActiveComboNode && ActiveComboNode->bOverrideComboWindow && ActiveComboNode->ComboWindowTotalFrames > 0)
+            {
+                const float MontageDuration = MontageToPlay->GetPlayLength();
+                const float TotalFrames = static_cast<float>(ActiveComboNode->ComboWindowTotalFrames);
+                const float StartNormalized = FMath::Clamp(static_cast<float>(ActiveComboNode->ComboWindowStartFrame) / TotalFrames, 0.f, 1.f);
+                const float EndNormalized   = FMath::Clamp(static_cast<float>(ActiveComboNode->ComboWindowEndFrame)   / TotalFrames, 0.f, 1.f);
+                const float StartTime = StartNormalized * MontageDuration;
+                const float EndTime   = EndNormalized   * MontageDuration;
+
+                if (UWorld* World = GetWorld())
+                {
+                    World->GetTimerManager().SetTimer(ComboWindowOpenHandle,  this, &UGA_PlayMontage::OnComboWindowOpen,  FMath::Max(StartTime, 0.01f), false);
+                    World->GetTimerManager().SetTimer(ComboWindowCloseHandle, this, &UGA_PlayMontage::OnComboWindowClose, FMath::Max(EndTime,   0.01f), false);
+                }
+            }
+        }
     }
-    else
-    {
-        //EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-    }
-    
+
 
 //    if (action_data)
 //    {
@@ -166,6 +284,15 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
+    ActivePlayMontageTask = nullptr;
+	ActiveComboAttackData = nullptr;
+
+    // Clear node-driven combo window timers.
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(ComboWindowOpenHandle);
+        World->GetTimerManager().ClearTimer(ComboWindowCloseHandle);
+    }
 
     // remove related Gameplay Effects and gameplaytags(hardcode)
     if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
@@ -194,36 +321,91 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 		}
 	}
 
+	// NOTE: Do NOT reset combo state here. EndAbility is also invoked by UE during a
+	// retrigger of bRetriggerInstancedAbility, *between* the next combo node being set
+	// on ComboRuntimeComponent and the new ActivateAbility running. Resetting here would
+	// wipe the just-set ActiveNode and cause the next combo segment to lose its montage.
+	// Combo reset on natural montage end is handled in OnMontageCompleted/OnMontageBlendOut.
+
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 
 }
 
 void UGA_PlayMontage::OnMontageCompleted()
 {
-
+    ResetComboToRoot();
     EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageBlendOut()
 {
-
+    ResetComboToRoot();
     EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageInterrupted()
 {
-
+    ResetComboToRoot();
     EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageCancelled()
 {
+    ResetComboToRoot();
     EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
+}
+
+void UGA_PlayMontage::ResetComboToRoot()
+{
+    // Called only on real montage end (these callbacks become no-ops if EndTask was called
+    // by a retrigger). Safe to wipe combo state here without clobbering a chained activation.
+    if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
+    {
+        if (PlayerOwner->ComboRuntimeComponent)
+        {
+            PlayerOwner->ComboRuntimeComponent->ResetCombo();
+        }
+    }
 }
 
 void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEventData& EventData)
 {
-    ApplyEffectContainer(EventTag, EventData, -1);
+	FYogGameplayEffectContainerSpec ContainerSpec = MakeEffectContainerSpec(EventTag, EventData, -1);
+	TArray<AActor*> HitActors;
+	CollectHitActors(ContainerSpec, HitActors);
+
+	ApplyEffectContainerSpec(ContainerSpec);
+
+	AYogCharacterBase* Owner = ResolveAttackOwner(this, EventData);
+	const bool bEnemyHit = HasEnemyHit(HitActors);
+	if (bEnemyHit && Owner)
+	{
+		Owner->bComboHitConnected = true;
+		Owner->ConsumePendingHitStop(HitActors);
+	}
+
+	if (Owner)
+	{
+		Owner->PendingAdditionalHitRunes.Empty();
+		Owner->PendingOnHitEventTags.Empty();
+		Owner->PendingHitStopOverride = AYogCharacterBase::FPendingHitStopOverride();
+	}
+}
+
+void UGA_PlayMontage::OnComboWindowOpen()
+{
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")));
+	}
+}
+
+void UGA_PlayMontage::OnComboWindowClose()
+{
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")), 0);
+	}
 }
 
 void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount)

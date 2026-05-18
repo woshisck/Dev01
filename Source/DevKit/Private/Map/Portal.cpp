@@ -3,7 +3,6 @@
 #include "Components/BillboardComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Component/BackpackGridComponent.h"
 #include "NiagaraComponent.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
@@ -271,12 +270,8 @@ void APortal::TryEnter(APlayerCharacterBase* Player)
 	EntryPlayer      = Player;
 	K2_OnEntrySequenceStart();
 
-	// 锁输入 + 锁背包，避免过场中玩家干扰
+	// 锁输入，避免过场中玩家干扰
 	PC->DisableInput(PC);
-	if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-	{
-		Backpack->SetLocked(true);
-	}
 
 	// 触发 HUD 渐黑（视觉接口；HUD 不感知业务流程）
 	if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
@@ -363,10 +358,6 @@ void APortal::AbortEntry(const TCHAR* Reason)
 			{
 				HUD->EndBlackoutFade(0.2f);   // 快速恢复画面
 			}
-		}
-		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-		{
-			Backpack->SetLocked(false);
 		}
 	}
 

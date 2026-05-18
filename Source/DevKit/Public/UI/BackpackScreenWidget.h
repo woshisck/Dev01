@@ -6,7 +6,6 @@
 #include "CommonInputTypeEnum.h"
 #include "BackpackScreenWidget.generated.h"
 
-class UBackpackGridComponent;
 class APlayerCharacterBase;
 class UButton;
 class UImage;
@@ -20,9 +19,6 @@ class UBackpackGridWidget;
 class UBackpackStyleDataAsset;
 class UPendingGridWidget;
 class UCombatDeckEditWidget;
-class UTexture2D;
-class UWeaponDefinition;
-struct FPlacedRune;
 
 // ============================================================
 //  格子视觉状态枚举（蓝图可用，供自定义 BP 逻辑查询）
@@ -213,9 +209,6 @@ public:
     bool IsCellOccupied(int32 Col, int32 Row) const;
 
     UFUNCTION(BlueprintPure, Category = "Backpack")
-    FPlacedRune GetRuneAtCell(int32 Col, int32 Row) const;
-
-    UFUNCTION(BlueprintPure, Category = "Backpack")
     EBackpackCellState GetCellVisualState(int32 Col, int32 Row) const;
 
     UFUNCTION(BlueprintPure, Category = "Backpack")
@@ -229,9 +222,6 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Backpack")
     FRuneInstance GetSelectedRuneInfo() const;
-
-    UFUNCTION(BlueprintPure, Category = "Backpack")
-    const TArray<FPlacedRune>& GetAllPlacedRunes() const;
 
     UFUNCTION(BlueprintPure, Category = "Backpack")
     bool IsCellSelected(int32 Col, int32 Row) const { return SelectedCell == FIntPoint(Col, Row); }
@@ -301,10 +291,6 @@ protected:
     virtual void   NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
 private:
-    TWeakObjectPtr<UBackpackGridComponent> CachedBackpack;
-    UBackpackGridComponent* GetBackpack() const;
-    void HandleCommonInputMethodChanged(ECommonInputType NewInputType);
-
     // ── 待放置区稀疏格子（本地，开关背包时与 Player->PendingRunes 同步） ──────
     TArray<FRuneInstance> PendingGrid;  // 平铺数组 PendingCols×PendingRows，无效 GUID = 空
     int32 PendingCols = 2;

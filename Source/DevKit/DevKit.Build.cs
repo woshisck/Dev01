@@ -65,7 +65,8 @@ public class DevKit : ModuleRules
                 "Gauntlet",
                 "UMG",
                 "AIModule",
-                "AnimGraphRuntime"
+                "AnimGraphRuntime",
+                "ImGui",
             });
 
 		// Uncomment if you are using Slate UI

@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "CommonActivatableWidget.h"
-#include "Component/BackpackGridComponent.h"
 #include "RunePurificationWidget.generated.h"
 
 class APlayerCharacterBase;
@@ -34,7 +33,7 @@ public:
 
 	// BP 事件：展示背包中所有符文（Phase 0 入口）
 	UFUNCTION(BlueprintImplementableEvent, Category = "Purification")
-	void OnShowRuneList(const TArray<FPlacedRune>& PlacedRunes);
+	void OnShowRuneList();
 
 	// BP 事件：展示格子选择面板
 	// SelectableCells = Shape.Cells 中除 (0,0) 之外的所有本地坐标

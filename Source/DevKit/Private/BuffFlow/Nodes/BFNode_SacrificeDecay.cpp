@@ -1,7 +1,6 @@
 #include "BuffFlow/Nodes/BFNode_SacrificeDecay.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
-#include "Component/BackpackGridComponent.h"
 #include "Character/YogCharacterBase.h"
 #include "GameplayEffect.h"
 
@@ -60,13 +59,6 @@ void UBFNode_SacrificeDecay::OnDecayTick()
 
     // 速率累加（上限 MaxDecayRate）
     CurrentDecayRate = FMath::Min(CurrentDecayRate + DecayAccelPerSecond, MaxDecayRate);
-
-    // ── Phase 0 扣血 ───────────────────────────────────────────────────
-    AYogCharacterBase* Owner = GetBuffOwner();
-    if (!Owner) return;
-
-    UBackpackGridComponent* BGC = Owner->FindComponentByClass<UBackpackGridComponent>();
-    if (!BGC || BGC->GetCurrentPhase() != 0) return;
 
     // 当前 HP > HPDrainPerSecond 才扣血（非致命保底）
     const float CurrentHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
