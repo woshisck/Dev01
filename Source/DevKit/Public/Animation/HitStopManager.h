@@ -7,13 +7,6 @@
 
 class UAnimInstance;
 
-UENUM(BlueprintType)
-enum class EHitStopScope : uint8
-{
-	SelfMontage    UMETA(DisplayName = "Self Montage"),
-	GlobalDilation UMETA(DisplayName = "Global Dilation"),
-};
-
 /**
  * 命中停顿管理器（WorldSubsystem，自动随世界创建）。
  *
@@ -40,10 +33,9 @@ public:
 	 * @param SlowRate       减速阶段播放速率（0.01~1.0）
 	 * @param CatchUpRate    追帧阶段播放速率（>1），持续时间自动计算
 	 */
-	void RequestMontageHitStop(UAnimInstance* InAnimInst,
+	void RequestMontageHitStop(UAnimInstance* AnimInst,
 		float FrozenDuration, float SlowDuration = 0.f,
-		float SlowRate = 0.3f, float CatchUpRate = 2.0f,
-		EHitStopScope Scope = EHitStopScope::SelfMontage);
+		float SlowRate = 0.3f, float CatchUpRate = 2.0f);
 
 	// USubsystem
 	virtual void Deinitialize() override;
@@ -65,7 +57,6 @@ private:
 	float   CachedCatchUpDur  = 0.f;
 
 	TWeakObjectPtr<UAnimInstance> AnimInst;
-	EHitStopScope CachedScope = EHitStopScope::SelfMontage;
 
 	void TransitionToSlow();
 	void TransitionToCatchUp();

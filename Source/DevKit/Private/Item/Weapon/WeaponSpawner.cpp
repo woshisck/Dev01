@@ -8,6 +8,7 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/WidgetComponent.h"
 #include "GameFramework/Pawn.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
@@ -17,11 +18,14 @@
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "YogBlueprintFunctionLibrary.h"
+#include "Component/CharacterDataComponent.h"
+#include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "Tutorial/TutorialManager.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Engine/GameInstance.h"
+#include "UI/WeaponFloatWidget.h"
 #include "UI/YogHUD.h"
 #include "Data/LevelInfoPopupDA.h"
 
@@ -69,12 +73,41 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 		WeaponMesh->SetStaticMesh(WeaponDefinition->DisplayMesh);
 
 	}
+
+	WeaponInfoWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("WeaponInfoWidgetComp"));
+	WeaponInfoWidgetComp->SetupAttachment(RootComponent);
+	WeaponInfoWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
+	WeaponInfoWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
+	WeaponInfoWidgetComp->SetVisibility(false);
 }
 
 // Called when the game starts or when spawned
 void AWeaponSpawner::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// BP 里未赋值时自动按路径兜底，防止 merge 丢失引用
+	if (!WeaponFloatWidgetClass)
+	{
+		WeaponFloatWidgetClass = LoadClass<UWeaponFloatWidget>(
+			nullptr,
+			TEXT("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponFloat.WBP_WeaponFloat_C"));
+		if (!WeaponFloatWidgetClass)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] WBP_WeaponFloat 未找到，请检查资产路径"));
+		}
+	}
+
+	// 初始化浮窗 Widget
+	if (WeaponFloatWidgetClass && WeaponInfoWidgetComp && WeaponDefinition)
+	{
+		WeaponInfoWidgetComp->SetWidgetClass(WeaponFloatWidgetClass);
+		WeaponInfoWidgetComp->InitWidget();
+		if (UWeaponFloatWidget* FloatWidget = Cast<UWeaponFloatWidget>(WeaponInfoWidgetComp->GetWidget()))
+		{
+			FloatWidget->SetWeaponDefinition(WeaponDefinition);
+		}
+	}
 
 	// 缓存网格原始材质（BP Construction Script 之后运行，拿到的是最终设置值）
 	if (WeaponMesh)
@@ -106,6 +139,54 @@ void AWeaponSpawner::Tick(float DeltaTime)
 		BobTimer += DeltaTime;
 		const float BobOffset = FMath::Sin(BobTimer * BobFrequency * 2.f * PI) * BobAmplitude;
 		WeaponMesh->SetRelativeLocation(BaseMeshOffset + BobAxis.GetSafeNormal() * BobOffset);
+	}
+
+	// Tutorial 弹窗显示期间、或武器已被拾取后隐藏浮窗
+	if (bPickedUp)
+	{
+		if (WeaponInfoWidgetComp)
+			WeaponInfoWidgetComp->SetVisibility(false);
+		if (!bCollapsingForPickup)
+			if (AYogHUD* HUD = GetYogHUDForPlayer(NearbyPlayer.Get()))
+				HUD->HideWeaponFloatInfo(WeaponDefinition);
+		return;
+	}
+	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
+	{
+		if (TM->IsPopupShowing())
+		{
+			if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
+			if (AYogHUD* HUD = GetYogHUDForPlayer(NearbyPlayer.Get()))
+				HUD->HideWeaponFloatInfo(WeaponDefinition);
+			return;
+		}
+	}
+
+	// 朝向判断：武器信息由 HUD 固定显示在关卡信息区，避免世界投影浮窗越界。
+	if (bPlayerInRange && NearbyPlayer.IsValid())
+	{
+		FVector ToWeapon = GetActorLocation() - NearbyPlayer->GetActorLocation();
+		ToWeapon.Z = 0.f;
+		ToWeapon.Normalize();
+		FVector Forward = NearbyPlayer->GetActorForwardVector();
+		Forward.Z = 0.f;
+		Forward.Normalize();
+
+		const bool bShouldShow = FVector::DotProduct(Forward, ToWeapon) > -0.3f;
+		if (WeaponInfoWidgetComp)
+		{
+			WeaponInfoWidgetComp->SetVisibility(false);
+		}
+
+		if (AYogHUD* HUD = GetYogHUDForPlayer(NearbyPlayer.Get()))
+		{
+			if (bShouldShow)
+				HUD->ShowWeaponFloatInfoAtLocation(
+					WeaponDefinition,
+					GetActorLocation() + FVector(0.f, 0.f, WidgetZOffset));
+			else
+				HUD->HideWeaponFloatInfo(WeaponDefinition);
+		}
 	}
 }
 
@@ -146,6 +227,7 @@ void AWeaponSpawner::OnPlayerEnterRange(APlayerCharacterBase* Player)
 	Player->PendingWeaponSpawner = this;
 	NearbyPlayer = Player;
 	bPlayerInRange = true;
+	// 浮窗可见性由 Tick 根据朝向动态控制
 }
 
 void AWeaponSpawner::OnPlayerLeaveRange(APlayerCharacterBase* Player)
@@ -167,6 +249,7 @@ void AWeaponSpawner::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 		}
 		NearbyPlayer = nullptr;
 		bPlayerInRange = false;
+		if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
 	}
 }
 
@@ -187,9 +270,28 @@ void AWeaponSpawner::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 
 void AWeaponSpawner::ResetToAvailable()
 {
-	bPickedUp      = false;
-	bPlayerInRange = false;
-	NearbyPlayer   = nullptr;
+	APlayerCharacterBase* PreviousNearbyPlayer = NearbyPlayer.Get();
+
+	bPickedUp            = false;
+	bCollapsingForPickup = false;
+	bPlayerInRange       = false;
+	NearbyPlayer         = nullptr;
+
+	if (WeaponInfoWidgetComp)
+		WeaponInfoWidgetComp->SetVisibility(false);
+
+	if (AYogHUD* HUD = GetYogHUDForPlayer(PreviousNearbyPlayer))
+	{
+		HUD->HideWeaponFloatInfo(WeaponDefinition);
+	}
+
+	// 还原浮窗内部状态：折叠动画把 InfoContainer 透明度降到 0、Visibility=Collapsed，
+	// 必须重新调 SetWeaponDefinition 把 RenderOpacity/Visibility/RenderTransform 全部还原
+	if (WeaponInfoWidgetComp && WeaponDefinition)
+	{
+		if (UWeaponFloatWidget* FloatWidget = Cast<UWeaponFloatWidget>(WeaponInfoWidgetComp->GetWidget()))
+			FloatWidget->SetWeaponDefinition(WeaponDefinition);
+	}
 
 	// 还原网格材质
 	if (WeaponMesh)
@@ -217,6 +319,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		return;
 	}
 
+	// 拾取后浮窗永久隐藏
 	bPickedUp = true;
 
 	// 网格变黑
@@ -262,6 +365,13 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		SpawnData.bShouldSaveToGame = true;
 
 		NewWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
+
+		UCharacterData* CD = Player->GetCharacterDataComponent()->GetCharacterData();
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponSetup][WeaponSpawner] Owner=%s | CD=%s | NewAbilityData=%s"),
+			*Player->GetName(),
+			CD ? *CD->GetName() : TEXT("null"),
+			WeaponDefinition->WeaponAbilityData ? *WeaponDefinition->WeaponAbilityData->GetName() : TEXT("null"));
+		CD->AbilityData = WeaponDefinition->WeaponAbilityData;
 	}
 
 	// ── 3. 传入热度材质 + 绑定热度委托 ──────────────────────────────
@@ -297,14 +407,44 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		}
 	}
 
+	// ── 4. 注入背包配置 ───────────────────────────────────────────────
+	if (!bDisableLegacyHeatBackpackRuneForCardTestSpawner && Player->BackpackGridComponent)
+	{
+		UBackpackGridComponent* BG = Player->BackpackGridComponent;
+		BG->ApplyBackpackConfig(
+			WeaponDefinition->BackpackConfig.GridWidth,
+			WeaponDefinition->BackpackConfig.GridHeight,
+			WeaponDefinition->BackpackConfig.ActivationZoneConfig);
+
+		// ── 4b. 放置武器初始符文到热度一激活区 ──────────────────────────
+		if (WeaponDefinition->InitialRunes.Num() > 0)
+		{
+			TArray<FIntPoint> Phase1Cells = BG->GetActivationZoneCellsForPhase(0);
+			for (URuneDataAsset* RuneDA : WeaponDefinition->InitialRunes)
+			{
+				if (!RuneDA) continue;
+				FRuneInstance RuneInst = RuneDA->CreateInstance();
+				for (const FIntPoint& Cell : Phase1Cells)
+				{
+					if (BG->TryPlaceRune(RuneInst, Cell))
+						break;
+				}
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] Legacy backpack/rune config disabled for combat card test"));
+	}
+
 	// ── 5. 记录状态 ──────────────────────────────────────────────────
 	Player->EquippedWeaponDef    = WeaponDefinition;
 	Player->EquippedFromSpawner  = this;
 	Player->PendingWeaponSpawner = nullptr;
 
-	// ── 5.25 注入战斗卡组与 ComboGraph ──────────────────────────────
-	// TryPickupWeapon 自己实现了装备流程，不走 WeaponDefinition::SetupWeaponToCharacter，
-	// 因此这里直接从武器 DA 上加载 InitialCombatDeck / InitialRunes 与 GameplayAbilityComboGraph。
+	// ── 5.25 注入战斗卡组与连招配置 ─────────────────────────────────
+	// TryPickupWeapon 自己实现了装备流程，不走 WeaponDefinition::SetupWeaponToCharacter。
+	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes 和 WeaponComboConfig。
 	if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent.Get())
 	{
 		CombatDeck->LoadDeckFromWeapon(WeaponDefinition);
@@ -312,7 +452,14 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	if (UComboRuntimeComponent* ComboRuntime = Player->ComboRuntimeComponent.Get())
 	{
-		ComboRuntime->LoadComboGraph(WeaponDefinition->GameplayAbilityComboGraph);
+		if (WeaponDefinition->GameplayAbilityComboGraph)
+		{
+			ComboRuntime->LoadComboGraph(WeaponDefinition->GameplayAbilityComboGraph);
+		}
+		else
+		{
+			ComboRuntime->LoadComboConfig(WeaponDefinition->WeaponComboConfig);
+		}
 	}
 
 	// ── 5.5 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────
@@ -325,6 +472,35 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾取 [%s]"), *WeaponDefinition->GetName());
+
+	// HUD 信息区内折叠浮窗 → 缩略图飞向左下角武器图标
+	if (AYogHUD* HUD = GetYogHUDForPlayer(Player))
+	{
+		bCollapsingForPickup = true;
+		const bool bStartedHudCollapse = HUD->StartWeaponFloatPickup(
+			WeaponDefinition,
+			GetActorLocation() + FVector(0.f, 0.f, 80.f),
+			PickupCollapseDuration,
+			FSimpleDelegate::CreateWeakLambda(this, [this]()
+			{
+				bCollapsingForPickup = false;
+				if (WeaponInfoWidgetComp)
+				{
+					WeaponInfoWidgetComp->SetVisibility(false);
+				}
+			}));
+
+		if (!bStartedHudCollapse)
+		{
+			bCollapsingForPickup = false;
+			UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] HUD weapon float collapse fallback used."));
+		}
+	}
+	else
+	{
+		bCollapsingForPickup = false;
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] HUD=NULL — 动画不会触发"));
+	}
 }
 
 

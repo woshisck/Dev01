@@ -1,6 +1,7 @@
 #include "Data/GameplayAbilityComboGraph.h"
 
-#include "Animation/AnimMontage.h"
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "Data/MontageConfigDA.h"
 
 #define LOCTEXT_NAMESPACE "GameplayAbilityComboGraph"
 
@@ -48,12 +49,35 @@ UGameplayAbilityComboGraphNode::UGameplayAbilityComboGraphNode()
 #endif
 }
 
-FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(ECardRequiredAction InputAction) const
+FGameplayTag UGameplayAbilityComboGraphNode::ResolveAbilityTag() const
+{
+	if (AbilityTagOverride.IsValid())
+	{
+		return AbilityTagOverride;
+	}
+
+	if (!GameplayAbilityClass)
+	{
+		return FGameplayTag();
+	}
+
+	UYogGameplayAbility* AbilityCDO = Cast<UYogGameplayAbility>(GameplayAbilityClass->GetDefaultObject());
+	if (!AbilityCDO)
+	{
+		return FGameplayTag();
+	}
+
+	return AbilityCDO->GetFirstTagFromContainer(AbilityCDO->GetAbilityTags());
+}
+
+FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(ECombatGraphInputAction InputAction) const
 {
 	FWeaponComboNodeConfig Config;
 	Config.NodeId = GetRuntimeNodeId(this);
-	Config.InputAction = InputAction;
-	Config.Montage = Montage;
+	Config.InputAction = ToCardAction(InputAction);
+	Config.AbilityTag = ResolveAbilityTag();
+	Config.GameplayAbilityClass = GameplayAbilityClass;
+	Config.MontageConfig = MontageConfig;
 	Config.AttackDataOverride = AttackDataOverride;
 	Config.NodeAttackConfig = NodeAttackConfig;
 	Config.bIsComboFinisher = bIsComboFinisher;
@@ -68,7 +92,7 @@ FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(ECardR
 	Config.bOverrideComboWindow = false;
 	Config.ComboWindowStartFrame = ComboWindowStartFrame;
 	Config.ComboWindowEndFrame = ComboWindowEndFrame;
-	Config.ComboWindowTotalFrames = TotalFrames > 0 ? TotalFrames : 30;
+	Config.ComboWindowTotalFrames = ComboWindowTotalFrames;
 	Config.CardTriggerTiming = CardTriggerTiming;
 	return Config;
 }
@@ -76,32 +100,33 @@ FWeaponComboNodeConfig UGameplayAbilityComboGraphNode::BuildRuntimeConfig(ECardR
 FText UGameplayAbilityComboGraphNode::GetDescription_Implementation() const
 {
 	const FName RuntimeNodeId = GetRuntimeNodeId(this);
-	const FString MontageName = GetNameSafe(Montage);
+	const FGameplayTag AbilityTag = ResolveAbilityTag();
+	const FString MontageName = GetNameSafe(MontageConfig);
 	return FText::FromString(FString::Printf(
-		TEXT("Node=%s\nMontage=%s\nComboWindow=%s [%d-%d / %d]"),
+		TEXT("Node=%s\nAbility=%s\nMontage=%s\nAttack=%s %.0f / R:%.0f / HitBoxes:%d\nComboWindow=Montage Notify [%d-%d / %d display only]"),
 		*RuntimeNodeId.ToString(),
-		Montage ? *MontageName : TEXT("None"),
-		bUseNodeComboWindow ? TEXT("Node") : TEXT("Montage Notify"),
+		AbilityTag.IsValid() ? *AbilityTag.ToString() : TEXT("None"),
+		MontageConfig ? *MontageName : TEXT("None"),
+		NodeAttackConfig.bEnabled ? TEXT("Node") : AttackDataOverride ? TEXT("AttackData") : TEXT("Notify"),
+		NodeAttackConfig.bEnabled ? NodeAttackConfig.ActDamage : 0.f,
+		NodeAttackConfig.bEnabled ? NodeAttackConfig.ActRange : 0.f,
+		NodeAttackConfig.bEnabled ? NodeAttackConfig.HitboxTypes.Num() : 0,
 		ComboWindowStartFrame,
 		ComboWindowEndFrame,
-		TotalFrames));
+		ComboWindowTotalFrames));
 }
 
 #if WITH_EDITOR
-FLinearColor UGameplayAbilityComboGraphNode::GetBackgroundColor() const
-{
-	if (bDebugActive)
-	{
-		return FLinearColor(0.05f, 0.85f, 0.2f, 1.f);
-	}
-	return BackgroundColor;
-}
-
 FText UGameplayAbilityComboGraphNode::GetNodeTitle() const
 {
 	if (!NodeId.IsNone())
 	{
 		return FText::FromName(NodeId);
+	}
+
+	if (GameplayAbilityClass)
+	{
+		return GameplayAbilityClass->GetDisplayNameText();
 	}
 
 	return LOCTEXT("UntitledComboNode", "Combo Ability");
@@ -229,22 +254,26 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 		}
 		SeenNodeIds.Add(RuntimeNodeId);
 
-		if (!ComboNode->Montage)
+		if (!ComboNode->GameplayAbilityClass && !ComboNode->AbilityTagOverride.IsValid())
 		{
-			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no Montage."), *RuntimeNodeId.ToString())));
+			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no GameplayAbilityClass or AbilityTagOverride."), *RuntimeNodeId.ToString())));
+		}
+
+		if (!ComboNode->ResolveAbilityTag().IsValid())
+		{
+			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s cannot resolve an ability tag."), *RuntimeNodeId.ToString())));
+		}
+
+		if (ComboNode->RootInputAction != ECombatGraphInputAction::Dash && !ComboNode->MontageConfig)
+		{
+			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no MontageConfig."), *RuntimeNodeId.ToString())));
 		}
 
 		if (ComboNode->RootInputAction != ECombatGraphInputAction::Dash
 			&& !ComboNode->NodeAttackConfig.bEnabled
 			&& !ComboNode->AttackDataOverride)
 		{
-			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has ComboWindowEndFrame before ComboWindowStartFrame."), *RuntimeNodeId.ToString())));
-		}
-
-		if (ComboNode->bUseNodeComboWindow && ComboNode->TotalFrames > 0 &&
-			ComboNode->ComboWindowEndFrame > ComboNode->TotalFrames)
-		{
-			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has ComboWindowEndFrame after TotalFrames."), *RuntimeNodeId.ToString())));
+			OutWarnings.Add(FText::FromString(FString::Printf(TEXT("Node %s has no node attack config; runtime will fall back to AN_MeleeDamage."), *RuntimeNodeId.ToString())));
 		}
 
 		if (ComboNode->ParentNodes.IsEmpty())

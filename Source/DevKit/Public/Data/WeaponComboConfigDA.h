@@ -7,8 +7,6 @@
 #include "Data/RuneDataAsset.h"
 #include "WeaponComboConfigDA.generated.h"
 
-class UAnimMontage;
-class UMontageAttackDataAsset;
 class UMontageConfigDA;
 class UGameplayAbility;
 
@@ -48,9 +46,6 @@ struct DEVKIT_API FWeaponComboNodeConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo", meta = (AdvancedDisplay))
 	TSubclassOf<UGameplayAbility> GameplayAbilityClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
-	TObjectPtr<UAnimMontage> Montage = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	TObjectPtr<UMontageConfigDA> MontageConfig = nullptr;

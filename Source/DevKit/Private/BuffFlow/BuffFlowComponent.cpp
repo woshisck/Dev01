@@ -1,11 +1,84 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
+#include "Data/RuneDataAsset.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "FlowSubsystem.h"
 #include "FlowAsset.h"
+#include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
 #include "Nodes/FlowNode.h"
+
+namespace
+{
+	TAutoConsoleVariable<int32> CVarBuffFlowTrace(
+		TEXT("BuffFlow.Trace"),
+		0,
+		TEXT("Enable compact BuffFlow node execution trace logging and retention."));
+
+	TAutoConsoleVariable<int32> CVarBuffFlowTraceVerbose(
+		TEXT("BuffFlow.TraceVerbose"),
+		0,
+		TEXT("Enable verbose BuffFlow trace log values."));
+
+	const TCHAR* TraceResultToString(EBuffFlowTraceResult Result)
+	{
+		switch (Result)
+		{
+		case EBuffFlowTraceResult::Success:
+			return TEXT("Success");
+		case EBuffFlowTraceResult::Failed:
+			return TEXT("Failed");
+		case EBuffFlowTraceResult::Skipped:
+			return TEXT("Skipped");
+		default:
+			return TEXT("Unknown");
+		}
+	}
+
+	void DumpBuffFlowTrace(UWorld* World)
+	{
+		if (!World)
+		{
+			return;
+		}
+
+		APlayerController* PC = World->GetFirstPlayerController();
+		AActor* TraceOwner = PC ? Cast<AActor>(PC->GetPawn()) : nullptr;
+		UBuffFlowComponent* BFC = TraceOwner ? TraceOwner->FindComponentByClass<UBuffFlowComponent>() : nullptr;
+		if (!BFC)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BuffFlowTrace] Dump failed: no player BuffFlowComponent."));
+			return;
+		}
+
+		const TArray<FBuffFlowTraceEntry> Entries = BFC->GetTraceEntries();
+		UE_LOG(LogTemp, Warning, TEXT("[BuffFlowTrace] Dump Count=%d Owner=%s"), Entries.Num(), *GetNameSafe(TraceOwner));
+		// Storage is newest-first; print in chronological order (oldest -> newest) for log readability.
+		for (int32 Idx = Entries.Num() - 1; Idx >= 0; --Idx)
+		{
+			const FBuffFlowTraceEntry& Entry = Entries[Idx];
+			UE_LOG(LogTemp, Warning,
+				TEXT("[BuffFlowTrace] t=%.2f Result=%s Flow=%s Node=%s Profile=%s Target=%s Card=%s CardId=%s Msg=%s Values=%s"),
+				Entry.TimeSeconds,
+				TraceResultToString(Entry.Result),
+				*Entry.FlowName.ToString(),
+				*Entry.NodeName.ToString(),
+				*Entry.ProfileName.ToString(),
+				*Entry.TargetName.ToString(),
+				*Entry.CardName.ToString(),
+				*Entry.CardIdTag.ToString(),
+				*Entry.Message,
+				*Entry.Values);
+		}
+	}
+
+	FAutoConsoleCommandWithWorld CmdDumpBuffFlowTrace(
+		TEXT("Yog_DumpBuffFlowTrace"),
+		TEXT("Dump recent BuffFlow trace entries from the current player."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&DumpBuffFlowTrace));
+}
 
 UBuffFlowComponent::UBuffFlowComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -404,72 +477,4 @@ AYogCharacterBase* UBuffFlowComponent::GetBuffOwner() const
 AActor* UBuffFlowComponent::GetBuffGiver() const
 {
 	return CurrentBuffGiver.Get();
-}
-
-void UBuffFlowComponent::ClearTraceEntries()
-{
-	TraceEntries.Reset();
-}
-
-int32 UBuffFlowComponent::GetActiveBuffFlowCount() const
-{
-	return ActiveRuneFlows.Num();
-}
-
-TArray<FBuffFlowActiveFlowDebugEntry> UBuffFlowComponent::GetActiveBuffFlowDebugEntries() const
-{
-	TArray<FBuffFlowActiveFlowDebugEntry> Entries;
-	Entries.Reserve(ActiveRuneFlows.Num());
-
-	UFlowSubsystem* FlowSubsystem = nullptr;
-	if (UWorld* World = GetWorld())
-	{
-		if (UGameInstance* GameInstance = World->GetGameInstance())
-		{
-			FlowSubsystem = GameInstance->GetSubsystem<UFlowSubsystem>();
-		}
-	}
-
-	for (const TPair<FGuid, TWeakObjectPtr<UFlowAsset>>& Pair : ActiveRuneFlows)
-	{
-		FBuffFlowActiveFlowDebugEntry& Entry = Entries.AddDefaulted_GetRef();
-		Entry.RuneGuid = Pair.Key;
-
-		UFlowAsset* FlowAsset = Pair.Value.Get();
-		Entry.bFlowAssetValid = FlowAsset != nullptr;
-		Entry.FlowName = FlowAsset ? FName(*FlowAsset->GetName()) : NAME_None;
-
-		if (FlowAsset && FlowSubsystem)
-		{
-			for (UFlowAsset* RuntimeInstance : FlowSubsystem->GetRootInstancesByOwner(this))
-			{
-				if (RuntimeInstance && RuntimeInstance->GetTemplateAsset() == FlowAsset)
-				{
-					Entry.bRuntimeInstanceActive = RuntimeInstance->IsActive();
-
-					const TArray<UFlowNode*>& ActiveNodes = RuntimeInstance->GetActiveNodes();
-					Entry.ActiveNodeCount = ActiveNodes.Num();
-					Entry.ActiveNodeNames.Reserve(ActiveNodes.Num());
-					Entry.ActiveNodeClasses.Reserve(ActiveNodes.Num());
-					for (const UFlowNode* ActiveNode : ActiveNodes)
-					{
-						Entry.ActiveNodeNames.Add(ActiveNode ? FName(*ActiveNode->GetName()) : NAME_None);
-						Entry.ActiveNodeClasses.Add(ActiveNode ? ActiveNode->GetClass()->GetFName() : NAME_None);
-					}
-
-					const TArray<UFlowNode*>& RecordedNodes = RuntimeInstance->GetRecordedNodes();
-					Entry.RecordedNodeCount = RecordedNodes.Num();
-					Entry.RecordedNodeNames.Reserve(RecordedNodes.Num());
-					for (const UFlowNode* RecordedNode : RecordedNodes)
-					{
-						Entry.RecordedNodeNames.Add(RecordedNode ? FName(*RecordedNode->GetName()) : NAME_None);
-					}
-
-					break;
-				}
-			}
-		}
-	}
-
-	return Entries;
 }

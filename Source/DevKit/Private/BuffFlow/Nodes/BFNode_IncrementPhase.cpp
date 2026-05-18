@@ -1,4 +1,6 @@
 #include "BuffFlow/Nodes/BFNode_IncrementPhase.h"
+#include "Component/BackpackGridComponent.h"
+#include "Character/YogCharacterBase.h"
 
 UBFNode_IncrementPhase::UBFNode_IncrementPhase(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -12,5 +14,17 @@ UBFNode_IncrementPhase::UBFNode_IncrementPhase(const FObjectInitializer& ObjectI
 
 void UBFNode_IncrementPhase::ExecuteBuffFlowInput(const FName& PinName)
 {
-    TriggerOutput(TEXT("Out"), true);
+    bool bActuallyIncremented = false;
+    if (AYogCharacterBase* Owner = GetBuffOwner())
+    {
+        if (UBackpackGridComponent* BGC = Owner->FindComponentByClass<UBackpackGridComponent>())
+        {
+            const int32 PhaseBefore = BGC->GetCurrentPhase();
+            BGC->IncrementPhase();
+            bActuallyIncremented = (BGC->GetCurrentPhase() > PhaseBefore);
+        }
+    }
+    // 只有真正升阶时才触发 Out，避免满阶时后续节点（如热度清零）误执行
+    if (bActuallyIncremented)
+        TriggerOutput(TEXT("Out"), true);
 }
