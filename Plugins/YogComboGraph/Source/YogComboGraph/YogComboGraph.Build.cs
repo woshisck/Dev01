@@ -14,6 +14,7 @@ public class YogComboGraph : ModuleRules
 			"GameplayTags",
 			"GameplayAbilities",
 			"GenericGraphRuntime",
+			"Niagara",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]

@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "GameplayTagQuery.h"
 #include "GenericGraph.h"
 #include "GenericGraphEdge.h"
 #include "GenericGraphNode.h"

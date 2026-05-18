@@ -31,6 +31,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "Niagara",
+			"Enabled": true
+		},
+		{
 			"Name": "GenericGraph",
 			"Enabled": true
 		}
