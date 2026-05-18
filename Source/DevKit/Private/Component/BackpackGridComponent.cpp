@@ -12,6 +12,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "SaveGame/YogSaveSubsystem.h"
 
 namespace
 {
@@ -70,6 +71,18 @@ void UBackpackGridComponent::AddGold(int32 Amount)
 {
 	if (Amount <= 0) return;
 	Gold += Amount;
+
+	if (AActor* Owner = GetOwner())
+	{
+		if (UGameInstance* GI = Owner->GetGameInstance())
+		{
+			if (UYogSaveSubsystem* SS = GI->GetSubsystem<UYogSaveSubsystem>())
+			{
+				SS->RecordGoldEarned(Amount);
+			}
+		}
+	}
+
 	OnGoldChanged.Broadcast(Gold);
 }
 

@@ -11,6 +11,7 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "Tutorial/TutorialHintDataAsset.h"
+#include "MetaProgression/MetaTypes.h"
 #include "YogSaveGame.generated.h"
 
 
@@ -287,6 +288,106 @@ public:
 };
 
 
+// ============================================================
+//  存档槽位预览（轻量读取，选档界面用）
+//  单一事实源：bHasPendingRun 仅在读取存档后由 RunCheckpoint.bIsValid 派生
+// ============================================================
+USTRUCT(BlueprintType)
+struct DEVKIT_API FSlotPreviewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY() bool      bHasData            = false;
+	UPROPERTY() FDateTime LastPlayTime;
+	UPROPERTY() int32     HighestFloor        = 0;
+	UPROPERTY() bool      bHasPendingRun      = false; // 派生自 RunCheckpoint.bIsValid
+	UPROPERTY() int32     TotalPlayTimeSeconds = 0;
+};
+
+// ============================================================
+//  局外成长数据（含打造卡牌，统一归属；新游戏时清空）
+// ============================================================
+USTRUCT()
+struct DEVKIT_API FMetaProgressionData
+{
+	GENERATED_BODY()
+
+	// 9种局外货币 + 神秘点：Tag → 数量
+	UPROPERTY() TMap<FGameplayTag, int32> MetaCurrencies;
+
+	// 局外升级树节点等级：RowName（DT_MetaUpgradeNodes）→ 当前等级
+	UPROPERTY() TMap<FName, int32> NodeLevels;
+
+	// 已解锁功能（故事引擎 / 教程系统通过 IsFeatureUnlocked 查询）
+	UPROPERTY() TSet<FGameplayTag> UnlockedFeatures;
+
+	// 神秘侧当前等级（神秘点花费后更新）
+	UPROPERTY() int32 MysticSideLevel = 0;
+
+	// 已打造的起始符文卡牌（局内 BeginPlay 时 AsyncLoad 后 Grant）
+	UPROPERTY() TArray<FPrimaryAssetId> CraftedStarterRunes;
+
+	// 已打造的武器终结技卡牌
+	UPROPERTY() TArray<FPrimaryAssetId> CraftedWeaponFinisherCards;
+};
+
+// ============================================================
+//  局内存档点快照（FRunState 的可序列化版本）
+//  UObject 指针全部改为 TSoftObjectPtr，AsyncLoad 后恢复。
+//  单一事实源：bIsValid = true 时主菜单显示"继续游戏"
+// ============================================================
+USTRUCT()
+struct DEVKIT_API FRunCheckpointData
+{
+	GENERATED_BODY()
+
+	UPROPERTY() bool  bIsValid         = false;
+	UPROPERTY() int32 CheckpointFloor  = 0;
+
+	// ── 玩家状态 ────────────────────────────────────────────────
+	UPROPERTY() float CurrentHP    = 0.f;
+	UPROPERTY() int32 CurrentGold  = 0;
+	UPROPERTY() int32 CurrentPhase = 0;
+	UPROPERTY() float CurrentHeat  = 0.f;
+
+	// ── 战斗卡组配置 ────────────────────────────────────────────
+	UPROPERTY() int32 CompletedCombatBattleCount          = 0;
+	UPROPERTY() float CombatDeckShuffleCooldownDuration   = 1.f;
+	UPROPERTY() int32 CombatDeckMaxActiveSequenceSize      = 0;
+
+	// ── 背包与符文（FPlacedRune / FRuneInstance 内部 UObject* 由 UE 存档系统处理）──
+	UPROPERTY() TArray<FPlacedRune>   PlacedRunes;
+	UPROPERTY() TArray<FRuneInstance> PendingRunes;
+	UPROPERTY() TArray<FRuneInstance> HiddenPassiveRuneInstances;
+	UPROPERTY() TArray<FSacrificeOfferingCostState> SacrificeOfferingCosts;
+
+	// ── 软引用（明确控制加载时机）──────────────────────────────
+	UPROPERTY() TSoftObjectPtr<UWeaponDefinition> EquippedWeaponDef;
+	UPROPERTY() TSoftObjectPtr<USacrificeGraceDA> ActiveSacrificeGrace;
+
+	// 战斗卡组顺序（软引用列表，切关时保存玩家改动）
+	UPROPERTY() TArray<TSoftObjectPtr<URuneDataAsset>> CombatDeckCards;
+	UPROPERTY() TArray<ECombatCardLinkOrientation>     CombatDeckCardOrientations;
+};
+
+// ============================================================
+//  跑局统计数据（新游戏/重置槽位时保留，跨局累积）
+// ============================================================
+USTRUCT(BlueprintType)
+struct DEVKIT_API FGameStatistics
+{
+	GENERATED_BODY()
+
+	UPROPERTY() int32 TotalRuns             = 0;
+	UPROPERTY() int32 TotalKills            = 0;
+	UPROPERTY() int32 HighestFloor          = 0;
+	UPROPERTY() int32 TotalPlayTimeSeconds  = 0;
+	UPROPERTY() int32 TotalDeaths           = 0;
+	UPROPERTY() int32 TotalGoldEarned       = 0;
+};
+
+// ============================================================
+
 UCLASS(BlueprintType)
 class DEVKIT_API UYogSaveGame : public USaveGame
 {
@@ -319,6 +420,20 @@ public:
 	// 已展示过的 Save-scope 一次性弹窗 key（UYogUIManagerSubsystem::PushScreenOnce 写入）。
 	UPROPERTY()
 	TSet<FGameplayTag> ShownPopupKeys;
+
+	// ── 槽位元信息 ──────────────────────────────────────────────
+	UPROPERTY() FDateTime SlotCreatedTime;
+	UPROPERTY() FDateTime SlotLastPlayTime;
+	UPROPERTY() int32     SaveFormatVersion = 1;
+
+	// ── 局外成长（新游戏时清空，统计数据保留）──────────────────
+	UPROPERTY() FMetaProgressionData MetaProgression;
+
+	// ── 存档点快照（退出时保留，死亡/结局后清除）───────────────
+	UPROPERTY() FRunCheckpointData RunCheckpoint;
+
+	// ── 统计数据（新游戏不清除，跨局累积）──────────────────────
+	UPROPERTY() FGameStatistics Statistics;
 
 	FCharacterSaveData* GetPlayerData(APlayerState* PlayerState);
 

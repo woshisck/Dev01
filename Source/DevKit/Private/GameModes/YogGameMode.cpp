@@ -311,6 +311,14 @@ void AYogGameMode::SomeEventThatTriggersImmediateSpawn()
 void AYogGameMode::UpdateFinishLevel(int count)
 {
 	this->MonsterKillCount += count;
+
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UYogSaveSubsystem* SS = GI->GetSubsystem<UYogSaveSubsystem>())
+		{
+			SS->RecordEnemyKilled(count);
+		}
+	}
 	UE_LOG(LogTemp, Log, TEXT("MonsterKillCount: %d"), this->MonsterKillCount);
 
 	// ---- 新刷怪系统 ----
@@ -364,6 +372,19 @@ void AYogGameMode::BeginPlay()
 	// HUD 在 PC->ClientRestart 才创建（晚于 BeginPlay），用延帧+重试方式订阅
 	TryBindHUDDelegates();
 
+	// 存档点①：玩家进入关卡时立刻存盘，确保崩溃可从当前楼层恢复
+	// 用 PendingNextFloor 而非 CurrentFloor（后者在 StartLevelSpawning 才更新）
+	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	{
+		if (GI->PendingRunState.bIsValid)
+		{
+			if (UYogSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UYogSaveSubsystem>())
+			{
+				SaveSys->TriggerCheckpoint(GI->PendingNextFloor);
+			}
+		}
+	}
+
 	// 触发游戏开始事件（一次性，跨 PIE 重启会重置 — 单机 Roguelite 行为可接受）
 	TriggerLifecycleEvent(EGameLifecycleEvent::GameStart);
 }
@@ -406,6 +427,12 @@ void AYogGameMode::EnterArrangementPhase()
 
 	CurrentPhase = ELevelPhase::Arrangement;
 	OnPhaseChanged.Broadcast(CurrentPhase);
+
+	// 存档点②：击杀所有敌人、掉落物生成之前存盘
+	if (UYogSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UYogSaveSubsystem>())
+	{
+		SaveSys->TriggerCheckpoint(CurrentFloor);
+	}
 
 	bool bRefreshTemporaryFinisherLockView = false;
 	if (bCountCombatClearsForTemporaryFinisherUnlock)
@@ -863,6 +890,14 @@ void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 		return;
 	}
 
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UYogSaveSubsystem* SS = GI->GetSubsystem<UYogSaveSubsystem>())
+		{
+			SS->RecordPlayerDeath();
+		}
+	}
+
 	bPlayerDeathPending = true;
 	PendingDeathPlayer = Player;
 	CurrentPhase = ELevelPhase::Transitioning;
@@ -936,6 +971,11 @@ void AYogGameMode::FinishPlayerDeathGameOver()
 		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
 		{
 			GI->ClearRunState();
+			// 死亡才清磁盘存档点；中途退出走 ReturnToMainMenu，不清除
+			if (UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>())
+			{
+				SaveSys->ClearRunCheckpoint();
+			}
 		}
 	}
 

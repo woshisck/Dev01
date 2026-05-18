@@ -1,5 +1,6 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogWorldSubsystem.h"
+#include "System/YogGameInstanceBase.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveGameArchive.h"
 #include "GameFramework/PlayerState.h"
@@ -9,10 +10,17 @@
 #include "YogBlueprintFunctionLibrary.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
-
 #include "Components/SkeletalMeshComponent.h"
 #include "Component/CharacterDataComponent.h"
+#include "Kismet/GameplayStatics.h"
 
+static const int32 GNumSaveSlots    = 3;
+static const int32 GSettingsUserIdx = 0;
+static const FString GSettingsSlot  = TEXT("Settings");
+
+// =========================================================
+// 初始化
+// =========================================================
 
 void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -20,454 +28,591 @@ void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	if (!CurrentSaveGame)
 	{
-		UYogSaveGame* SaveGameInstance = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
-		CurrentSaveGame = SaveGameInstance;
+		CurrentSaveGame = Cast<UYogSaveGame>(
+			UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
 	}
+
+	LoadSettings();
 
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UYogSaveSubsystem::OnLevelLoaded);
 
 	if (UWorld* World = GetWorld())
 	{
-		AYogGameMode* GameMode = Cast<AYogGameMode>(World->GetAuthGameMode());
-		if (GameMode)
+		if (AYogGameMode* GameMode = Cast<AYogGameMode>(World->GetAuthGameMode()))
 		{
-			// Bind the subsystem's function to the GameMode's event.
 			GameMode->OnFinishLevelEvent().AddUObject(this, &UYogSaveSubsystem::WriteSaveGame);
 		}
 	}
-
 }
+
+// =========================================================
+// 多槽位管理
+// =========================================================
+
+FString UYogSaveSubsystem::GetSlotName(int32 SlotIndex) const
+{
+	return FString::Printf(TEXT("SaveSlot_%d"), FMath::Clamp(SlotIndex, 0, GNumSaveSlots - 1));
+}
+
+static const int32 GCurrentSaveFormatVersion = 1;
+
+void UYogSaveSubsystem::SelectSlot(int32 SlotIndex)
+{
+	CurrentSlotIndex = FMath::Clamp(SlotIndex, 0, GNumSaveSlots - 1);
+	const FString SlotName = GetSlotName(CurrentSlotIndex);
+
+	if (UGameplayStatics::DoesSaveGameExist(SlotName, 0))
+	{
+		CurrentSaveGame = Cast<UYogSaveGame>(
+			UGameplayStatics::LoadGameFromSlot(SlotName, 0));
+	}
+	else
+	{
+		CurrentSaveGame = Cast<UYogSaveGame>(
+			UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
+		CurrentSaveGame->SlotCreatedTime = FDateTime::Now();
+	}
+
+	if (CurrentSaveGame && CurrentSaveGame->SaveFormatVersion < GCurrentSaveFormatVersion)
+	{
+		MigrateSaveGame(CurrentSaveGame, CurrentSaveGame->SaveFormatVersion, GCurrentSaveFormatVersion);
+		DoAsyncSave();
+	}
+
+	if (CurrentSettings)
+	{
+		CurrentSettings->LastActiveSlot = CurrentSlotIndex;
+		SaveSettings();
+	}
+
+	OnSaveGameLoaded.Broadcast(CurrentSaveGame);
+}
+
+void UYogSaveSubsystem::DeleteSlot(int32 SlotIndex)
+{
+	const FString SlotName = GetSlotName(SlotIndex);
+	UGameplayStatics::DeleteGameInSlot(SlotName, 0);
+
+	if (SlotIndex == CurrentSlotIndex)
+	{
+		CurrentSaveGame = Cast<UYogSaveGame>(
+			UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
+	}
+}
+
+void UYogSaveSubsystem::ResetSlotForNewGame(int32 SlotIndex)
+{
+	SelectSlot(SlotIndex);
+
+	// 保留 Statistics，清空其余局外数据和存档点
+	CurrentSaveGame->MetaProgression = FMetaProgressionData{};
+	CurrentSaveGame->RunCheckpoint   = FRunCheckpointData{};
+	CurrentSaveGame->TutorialState   = ETutorialState::NeedWeaponTutorial;
+	CurrentSaveGame->ShownPopupKeys.Empty();
+	CurrentSaveGame->SlotCreatedTime  = FDateTime::Now();
+
+	DoAsyncSave();
+}
+
+void UYogSaveSubsystem::RequestSlotPreview(int32 SlotIndex, FOnSlotPreviewReady Callback)
+{
+	const FString SlotName = GetSlotName(SlotIndex);
+
+	if (!UGameplayStatics::DoesSaveGameExist(SlotName, 0))
+	{
+		FSlotPreviewData Empty;
+		Callback.ExecuteIfBound(Empty);
+		return;
+	}
+
+	// 异步加载，避免主线程卡顿
+	FAsyncLoadGameFromSlotDelegate LoadDelegate;
+	LoadDelegate.BindLambda([Callback](const FString&, const int32, USaveGame* LoadedGame)
+	{
+		FSlotPreviewData Preview;
+		if (UYogSaveGame* Save = Cast<UYogSaveGame>(LoadedGame))
+		{
+			Preview.bHasData             = true;
+			Preview.LastPlayTime         = Save->SlotLastPlayTime;
+			Preview.HighestFloor         = Save->Statistics.HighestFloor;
+			Preview.bHasPendingRun       = Save->RunCheckpoint.bIsValid; // 单一事实源
+			Preview.TotalPlayTimeSeconds = Save->Statistics.TotalPlayTimeSeconds;
+		}
+		Callback.ExecuteIfBound(Preview);
+	});
+
+	UGameplayStatics::AsyncLoadGameFromSlot(SlotName, 0, LoadDelegate);
+}
+
+// =========================================================
+// 存档点
+// =========================================================
+
+void UYogSaveSubsystem::TriggerCheckpoint(int32 CurrentFloor)
+{
+	if (!CurrentSaveGame)
+	{
+		return;
+	}
+
+	PopulateCheckpointFromRunState(CurrentSaveGame->RunCheckpoint, CurrentFloor);
+	CurrentSaveGame->SlotLastPlayTime = FDateTime::Now();
+
+	if (CurrentFloor > CurrentSaveGame->Statistics.HighestFloor)
+	{
+		CurrentSaveGame->Statistics.HighestFloor = CurrentFloor;
+	}
+
+	DoAsyncSave();
+}
+
+void UYogSaveSubsystem::ClearRunCheckpoint()
+{
+	if (!CurrentSaveGame)
+	{
+		return;
+	}
+
+	CurrentSaveGame->RunCheckpoint = FRunCheckpointData{};
+	DoAsyncSave();
+}
+
+// =========================================================
+// 快速存档（背包 UI 关闭时调用）
+// =========================================================
+
+void UYogSaveSubsystem::QuickSave()
+{
+	if (!CurrentSaveGame)
+	{
+		return;
+	}
+
+	// 复用 TriggerCheckpoint 逻辑，楼层从 GameInstance 读取
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+	const int32 Floor = GI ? GI->PendingNextFloor : CurrentSaveGame->RunCheckpoint.CheckpointFloor;
+
+	PopulateCheckpointFromRunState(CurrentSaveGame->RunCheckpoint, Floor);
+	CurrentSaveGame->SlotLastPlayTime = FDateTime::Now();
+	DoAsyncSave();
+}
+
+// =========================================================
+// FRunState ↔ FRunCheckpointData 互转
+// =========================================================
+
+void UYogSaveSubsystem::PopulateCheckpointFromRunState(FRunCheckpointData& Out, int32 Floor)
+{
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+	if (!GI || !GI->PendingRunState.bIsValid)
+	{
+		return;
+	}
+
+	const FRunState& RS = GI->PendingRunState;
+
+	Out.bIsValid        = true;
+	Out.CheckpointFloor = Floor;
+	Out.CurrentHP       = RS.CurrentHP;
+	Out.CurrentGold     = RS.CurrentGold;
+	Out.CurrentPhase    = RS.CurrentPhase;
+	Out.CurrentHeat     = RS.CurrentHeat;
+	Out.CompletedCombatBattleCount        = RS.CompletedCombatBattleCount;
+	Out.CombatDeckShuffleCooldownDuration = RS.CombatDeckShuffleCooldownDuration;
+	Out.CombatDeckMaxActiveSequenceSize   = RS.CombatDeckMaxActiveSequenceSize;
+	Out.PlacedRunes                       = RS.PlacedRunes;
+	Out.PendingRunes                      = RS.PendingRunes;
+	Out.HiddenPassiveRuneInstances        = RS.HiddenPassiveRuneInstances;
+	Out.SacrificeOfferingCosts            = RS.SacrificeOfferingCosts;
+	Out.CombatDeckCardOrientations        = RS.CombatDeckCardOrientations;
+
+	// TObjectPtr → TSoftObjectPtr（仅存路径，不强制加载）
+	Out.EquippedWeaponDef  = RS.EquippedWeaponDef.Get();
+	Out.ActiveSacrificeGrace = RS.ActiveSacrificeGrace.Get();
+
+	Out.CombatDeckCards.Reset(RS.CombatDeckCards.Num());
+	for (const TObjectPtr<URuneDataAsset>& Card : RS.CombatDeckCards)
+	{
+		Out.CombatDeckCards.Add(Card.Get());
+	}
+}
+
+bool UYogSaveSubsystem::TryRestoreRunCheckpoint()
+{
+	UYogSaveGame* Save = GetCurrentSave();
+	if (!Save || !Save->RunCheckpoint.bIsValid)
+	{
+		return false;
+	}
+	RestoreRunStateFromCheckpoint(Save->RunCheckpoint);
+	return true;
+}
+
+void UYogSaveSubsystem::RestoreRunStateFromCheckpoint(const FRunCheckpointData& In)
+{
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+	if (!GI || !In.bIsValid)
+	{
+		return;
+	}
+
+	FRunState& RS = GI->PendingRunState;
+
+	RS.bIsValid        = true;
+	RS.CurrentHP       = In.CurrentHP;
+	RS.CurrentGold     = In.CurrentGold;
+	RS.CurrentPhase    = In.CurrentPhase;
+	RS.CurrentHeat     = In.CurrentHeat;
+	RS.CompletedCombatBattleCount        = In.CompletedCombatBattleCount;
+	RS.CombatDeckShuffleCooldownDuration = In.CombatDeckShuffleCooldownDuration;
+	RS.CombatDeckMaxActiveSequenceSize   = In.CombatDeckMaxActiveSequenceSize;
+	RS.PlacedRunes                       = In.PlacedRunes;
+	RS.PendingRunes                      = In.PendingRunes;
+	RS.HiddenPassiveRuneInstances        = In.HiddenPassiveRuneInstances;
+	RS.SacrificeOfferingCosts            = In.SacrificeOfferingCosts;
+	RS.CombatDeckCardOrientations        = In.CombatDeckCardOrientations;
+
+	// TSoftObjectPtr → 同步加载（这里只恢复指针；调用方可在之后 AsyncLoad）
+	RS.EquippedWeaponDef  = In.EquippedWeaponDef.LoadSynchronous();
+	RS.ActiveSacrificeGrace = In.ActiveSacrificeGrace.LoadSynchronous();
+
+	RS.CombatDeckCards.Reset(In.CombatDeckCards.Num());
+	for (const TSoftObjectPtr<URuneDataAsset>& SoftCard : In.CombatDeckCards)
+	{
+		RS.CombatDeckCards.Add(SoftCard.LoadSynchronous());
+	}
+}
+
+// =========================================================
+// 全局设置
+// =========================================================
+
+void UYogSaveSubsystem::SaveSettings()
+{
+	if (!CurrentSettings)
+	{
+		CurrentSettings = Cast<UYogSettingsSave>(
+			UGameplayStatics::CreateSaveGameObject(UYogSettingsSave::StaticClass()));
+	}
+	UGameplayStatics::SaveGameToSlot(CurrentSettings, GSettingsSlot, GSettingsUserIdx);
+}
+
+void UYogSaveSubsystem::LoadSettings()
+{
+	if (UGameplayStatics::DoesSaveGameExist(GSettingsSlot, GSettingsUserIdx))
+	{
+		CurrentSettings = Cast<UYogSettingsSave>(
+			UGameplayStatics::LoadGameFromSlot(GSettingsSlot, GSettingsUserIdx));
+	}
+
+	if (!CurrentSettings)
+	{
+		CurrentSettings = Cast<UYogSettingsSave>(
+			UGameplayStatics::CreateSaveGameObject(UYogSettingsSave::StaticClass()));
+	}
+}
+
+// =========================================================
+// 异步写盘（核心，防止并发）
+// =========================================================
+
+void UYogSaveSubsystem::DoAsyncSave()
+{
+	if (!CurrentSaveGame)
+	{
+		return;
+	}
+
+	if (bAsyncSavePending)
+	{
+		// 前一次还未完成，跳过（下次触发时会带最新数据写入）
+		return;
+	}
+
+	bAsyncSavePending = true;
+
+	const FString SlotName = GetSlotName(CurrentSlotIndex);
+	FAsyncSaveGameToSlotDelegate SaveDelegate;
+	SaveDelegate.BindUObject(this, &UYogSaveSubsystem::OnAsyncSaveComplete);
+
+	UGameplayStatics::AsyncSaveGameToSlot(CurrentSaveGame, SlotName, 0, SaveDelegate);
+}
+
+void UYogSaveSubsystem::OnAsyncSaveComplete(const FString& SlotName, const int32 UserIndex, bool bSuccess)
+{
+	bAsyncSavePending = false;
+
+	if (bSuccess)
+	{
+		OnSaveGameWritten.Broadcast(CurrentSaveGame);
+		UE_LOG(LogTemp, Log, TEXT("[SaveSubsystem] Async save succeeded: %s"), *SlotName);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[SaveSubsystem] Async save FAILED: %s"), *SlotName);
+	}
+}
+
+// =========================================================
+// 兼容旧代码的同步写盘（内部改为异步）
+// =========================================================
+
+void UYogSaveSubsystem::WriteSaveGame()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(WriteSaveGame);
+
+	if (!CurrentSaveGame)
+	{
+		return;
+	}
+
+	AGameStateBase* GS = GetWorld() ? GetWorld()->GetGameState() : nullptr;
+	if (GS)
+	{
+		SavePlayer(CurrentSaveGame);
+		SaveMap(CurrentSaveGame);
+	}
+
+	DoAsyncSave();
+}
+
+// =========================================================
+// 其余原有接口（保留原逻辑）
+// =========================================================
 
 void UYogSaveSubsystem::OnLevelLoaded(UWorld* LoadedWorld)
 {
-
 }
 
 UYogSaveGame* UYogSaveSubsystem::GetCurrentSave()
 {
-	if (CurrentSaveGame)
+	if (!CurrentSaveGame)
 	{
-		return CurrentSaveGame;
+		CurrentSaveGame = Cast<UYogSaveGame>(
+			UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
 	}
-	else
-	{
-		UYogSaveGame* SaveGameInstance = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
-		CurrentSaveGame = SaveGameInstance;
-		return SaveGameInstance;
-	}
-
+	return CurrentSaveGame;
 }
 
 UYogSaveGame* UYogSaveSubsystem::CreateSaveGameInst()
 {
-	UYogSaveGame* SaveGameInstance = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
-	return SaveGameInstance;
+	return Cast<UYogSaveGame>(
+		UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
 }
 
-void UYogSaveSubsystem::SaveData(UObject* Object, UPARAM(ref)TArray<uint8>& Data)
+void UYogSaveSubsystem::LoadSaveGame(UYogSaveGame* SaveGame)
 {
-	if (Object == nullptr)
-	{
-		return;
-	}
-	else
-	{
-		FMemoryWriter MemoryWriter = FMemoryWriter(Data, true);
-		FYogSaveGameArchive MyArchive = FYogSaveGameArchive(MemoryWriter);
-
-		Object->Serialize(MyArchive);
-
-		UE_LOG(LogTemp, Log, TEXT("Serialize Actor finish: %s, size: %d"),*Object->GetName(), Data.Num());
-	}
+	LoadPlayer(SaveGame);
 }
 
-void UYogSaveSubsystem::LoadData(UObject* Object, UPARAM(ref)TArray<uint8>& Data)
+void UYogSaveSubsystem::SaveData(UObject* Object, UPARAM(ref) TArray<uint8>& Data)
 {
-	if (Object == nullptr)
-	{
-		return;
-	}
-	else
-	{
-		FMemoryReader MemoryReader(Data, true);
-
-		FYogSaveGameArchive Ar(MemoryReader);
-		Object->Serialize(Ar);
-	}
-
+	if (!Object) return;
+	FMemoryWriter MemoryWriter(Data, true);
+	FYogSaveGameArchive MyArchive(MemoryWriter);
+	Object->Serialize(MyArchive);
 }
 
-
-
-void UYogSaveSubsystem::LoadLevelData(UYogSaveGame* SaveGame)
+void UYogSaveSubsystem::LoadData(UObject* Object, UPARAM(ref) TArray<uint8>& Data)
 {
-	UWorld* World = GEngine->GetWorldContextFromGameViewport(GEngine->GameViewport)->World();
-	if (World)
-	{
-		// Load the level if it's different from current
-
-		//FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
-		//if (CurrentLevelName != SaveGame->LevelName)
-		//{
-		//	UGameplayStatics::OpenLevel(World, FName(*SaveGame->LevelName));
-		//	// Wait for level load complete before spawning actors
-		//	return;
-		//}
-
-	}
-	else
-	{
-		return;
-	}
-
+	if (!Object) return;
+	FMemoryReader MemoryReader(Data, true);
+	FYogSaveGameArchive Ar(MemoryReader);
+	Object->Serialize(Ar);
 }
-
 
 void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 {
-	//TODO: INIT SAVE DATA, NEED TO CHANGE IN FUTURE
 	SaveGame->WeaponInstanceItems.Empty();
 	SaveGame->PlayerStateData.Abilities.Empty();
 
-	APlayerCharacterBase* player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));	
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
+		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	if (!Player) return;
 
-	//Save current Attribute
-	SaveGame->PlayerStateData.SetupAttribute(*player->BaseAttributeSet);
+	SaveGame->PlayerStateData.SetupAttribute(*Player->BaseAttributeSet);
+	SaveGame->PlayerStateData.WeaponAbilities =
+		Player->GetCharacterDataComponent()->GetCharacterData()->AbilityData;
 
-	SaveGame->PlayerStateData.WeaponAbilities = player->GetCharacterDataComponent()->GetCharacterData()->AbilityData;
-
-	
-	TMap<FGameplayTag, int32> container = player->GetASC()->GetPlayerOwnedTagsWithCounts();
-
-	for (const auto& Pair : container)
+	TMap<FGameplayTag, int32> Container = Player->GetASC()->GetPlayerOwnedTagsWithCounts();
+	for (const auto& Pair : Container)
 	{
 		SaveGame->PlayerStateData.PlayerOwnedTags.Add(Pair.Key, Pair.Value);
 	}
 
+	SaveData(Player, SaveGame->PlayerStateData.CharacterByteData);
 
-	//UYogAbilitySystemComponent* ASC = player->GetASC();
-	//TArray<FAbilitySaveData> PlayerAbilities = ASC->GetAllGrantedAbilities();
-	//
-	//// Get all ability specs
-	//const TArray<FGameplayAbilitySpec>& AbilitySpecs = ASC->GetActivatableAbilities();
-	//for (const FGameplayAbilitySpec& Spec : AbilitySpecs)
-	//{
-	//	// Skip if ability is invalid
-	//	if (!Spec.Ability) continue;
-	//	// Convert to save data
-	//	FAbilitySaveData SaveData = ConvertAbilitySpecToSaveData(Spec);
-	//	SaveGame->PlayerStateData.Abilities.Add(SaveData);
-	//}
+	TArray<AActor*> AttachedActors;
+	Player->GetAttachedActors(AttachedActors, true, true);
 
-
-	//for (const FAbilitySaveData& ability_save_data : PlayerAbilities)
-	//{
-	//	SaveGame->PlayerStateData.Abilities.Add(ability_save_data);
-	//}
-
-	SaveData(player, SaveGame->PlayerStateData.CharacterByteData);
-
-
-
-
-	//filter the Actor with weaponInstance
-	TArray<AActor*> attachedActors;
-	player->GetAttachedActors(attachedActors, true, true);
-
-	TArray<AWeaponInstance*> weaponInstance_array;
-
-
-	for (AActor* actor : attachedActors)
+	for (AActor* Actor : AttachedActors)
 	{
-		weaponInstance_array.Add(Cast<AWeaponInstance>(actor));
+		AWeaponInstance* WeaponInst = Cast<AWeaponInstance>(Actor);
+		if (!WeaponInst) continue;
+
+		FWeaponInstanceData Data;
+		Data.ActorClassPath       = WeaponInst->GetClass()->GetPathName();
+		Data.AttachSocket         = WeaponInst->AttachSocket;
+		Data.Transform            = WeaponInst->AttachTransform;
+		Data.WeaponLayer          = WeaponInst->WeaponLayer->GetClass();
+		Data.WeaponLayerClassPath = WeaponInst->WeaponLayer->GetClass()->GetPathName();
+		SaveData(WeaponInst, Data.ByteData);
+		SaveGame->WeaponInstanceItems.Add(Data);
 	}
-
-	for (AWeaponInstance* weaponInstance : weaponInstance_array)
-	{
-		FWeaponInstanceData weaponInstanceData;
-
-		weaponInstanceData.ActorClassPath = weaponInstance->GetClass()->GetPathName();
-		weaponInstanceData.AttachSocket = weaponInstance->AttachSocket;
-		weaponInstanceData.Transform = weaponInstance->AttachTransform;
-
-		UAnimInstance* AnimInstance = player->GetMesh()->GetAnimInstance();
-		weaponInstanceData.WeaponLayer = weaponInstance->WeaponLayer->GetClass();
-
-		weaponInstanceData.WeaponLayerClassPath = weaponInstance->WeaponLayer->GetClass()->GetPathName();
-
-		SaveData(weaponInstance, weaponInstanceData.ByteData);
-		SaveGame->WeaponInstanceItems.Add(weaponInstanceData);
-		
-
-		UE_LOG(LogTemp, Warning, TEXT("Save Weapon Data Success!"));
-	}
-
-
 }
 
 void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 {
-	//Player load
 	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-	// get index 0 as local client controller
-	APlayerController* LocalPlayerController = UGameplayStatics::GetPlayerController(World, 0);
-	if (!LocalPlayerController)
-	{
-		return;
-	}
+	if (!World) return;
 
-	//APawn* LocalPlayerPawn = LocalPlayerController->GetPawn();
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(LocalPlayerController->GetPawn());
-	if (!Cast<APlayerCharacterBase>(Player))
-	{
-		return;
+	APlayerController* LocalPC = UGameplayStatics::GetPlayerController(World, 0);
+	if (!LocalPC) return;
 
-	}
-
-	if (!Player->GetASC())
-	{
-		return;
-	}
-
-	//LoadData(Player, SaveGame->PlayerStateData.CharacterByteData);
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(LocalPC->GetPawn());
+	if (!Player || !Player->GetASC()) return;
 
 	GiveAbilitiesFromSaveData(Player->GetASC(), SaveGame->PlayerStateData.Abilities);
 
-	//Weapon Actor load
-	for (FWeaponInstanceData& weaponInstance : SaveGame->WeaponInstanceItems)
+	for (FWeaponInstanceData& WeaponData : SaveGame->WeaponInstanceItems)
 	{
-		UClass* WeaponClass = StaticLoadClass(AActor::StaticClass(), nullptr, *weaponInstance.ActorClassPath);
+		UClass* WeaponClass = StaticLoadClass(AActor::StaticClass(), nullptr, *WeaponData.ActorClassPath);
+		if (!WeaponClass) continue;
 
-		if (!WeaponClass)
-		{
-			UE_LOG(LogTemp, Error, TEXT("can not load weapon actor: %s"), *weaponInstance.ActorClassPath);
-			return;
-		}
-
-		//Generate Actor
-		FActorSpawnParameters SpawnParams;
-		//SpawnParams.Name = FName(*weaponInstance.ActorName); 
-		//SpawnParams.Name = FName("Loaded Weapon Actor");
-		SpawnParams.Owner = Player;
-
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-
-		//ASAP:: Throw ERROR BECAUSE LOAD GAME IN GI
-		//UE_LOG(LogTemp, Warning, TEXT("WeaponActor, WITH SaveGame->WeaponInstanceItems:, %d"), SaveGame->WeaponInstanceItems.Num());
-		//AWeaponInstance* WeaponActor = Cast<AWeaponInstance>(GetWorld()->SpawnActor<AActor>(WeaponClass, weaponInstance.Transform, SpawnParams));
-		//
+		UBlueprint* LayerBP = LoadObject<UBlueprint>(nullptr, *WeaponData.WeaponLayerClassPath);
+		if (!LayerBP) continue;
 
 		FWeaponSpawnData SpawnData;
-		//check animelayer and set
-		UBlueprint* WeaponLayerBlueprint = LoadObject<UBlueprint>(nullptr, *weaponInstance.WeaponLayerClassPath);
-		UClass* LayerClass = WeaponLayerBlueprint->GeneratedClass;	
-		if (!LayerClass)
-		{
-			UE_LOG(LogTemp, Error, TEXT("can not load LayerClass: %s"), *weaponInstance.ActorClassPath);
-			return;
-		}
-		if (LayerClass && Player->GetMesh())
-		{
-			//if (UAnimInstance* AnimInstance = Player->GetMesh()->GetAnimInstance())
-			//{
-			//	// Link the new layer
-			//	AnimInstance->LinkAnimClassLayers(LayerClass);
-			//}
-
-			SpawnData.WeaponLayer = LayerClass;
-		}
-
+		SpawnData.WeaponLayer  = LayerBP->GeneratedClass;
 		SpawnData.ActorToSpawn = WeaponClass;
-		SpawnData.AttachSocket = weaponInstance.AttachSocket;
-		SpawnData.AttachTransform = weaponInstance.Transform;
-		//SpawnData.WeaponLayer = weaponInstance.WeaponLayer;
+		SpawnData.AttachSocket = WeaponData.AttachSocket;
+		SpawnData.AttachTransform  = WeaponData.Transform;
 		SpawnData.bShouldSaveToGame = true;
 
-
-		AWeaponInstance* WeaponActor = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
-
-
-		LoadData(WeaponActor, weaponInstance.ByteData);
-
-		if (!WeaponActor)
+		AWeaponInstance* WeaponActor = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(
+			Player, Player->GetTransform(), SpawnData);
+		if (WeaponActor)
 		{
-			UE_LOG(LogTemp, Error, TEXT("generaete Actor failed: %s"), *weaponInstance.ActorClassPath);
-			return;
+			LoadData(WeaponActor, WeaponData.ByteData);
 		}
-
-		//UE_LOG(LogTemp, Warning, TEXT("Load Actor success! : %s (Class: %s)"), *WeaponActor->GetName(), *weaponInstance.ActorClassPath);
-		//UE_LOG(LogTemp, Warning, TEXT("AttachSocket : %s (Class: %s)"), *WeaponActor->GetName(), *weaponInstance.AttachSocket.ToString());
 	}
-	//Owner->GetCharacterDataComponent()->GetCharacterData()
 
-	Player->GetCharacterDataComponent()->GetCharacterData()->AbilityData = SaveGame->PlayerStateData.WeaponAbilities;
+	Player->GetCharacterDataComponent()->GetCharacterData()->AbilityData =
+		SaveGame->PlayerStateData.WeaponAbilities;
 
-	
-	//Gameplay Tag
 	for (const auto& Pair : SaveGame->PlayerStateData.PlayerOwnedTags)
 	{
 		Player->GetASC()->AddGameplayTagWithCount(Pair.Key, Pair.Value);
-		//SaveGame->PlayerStateData.PlayerOwnedTags.Add(Pair.Key, Pair.Value);
 	}
-
-
-
-
 }
 
 void UYogSaveSubsystem::LoadMap(UYogSaveGame* SaveGame)
 {
-	//serialize Map object if necessary
 }
 
 void UYogSaveSubsystem::SaveMap(UYogSaveGame* SaveGame)
 {
-	SaveGame->MapStateData.LevelName = FName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
+	if (UWorld* W = GetWorld())
+	{
+		SaveGame->MapStateData.LevelName = FName(UGameplayStatics::GetCurrentLevelName(W, true));
+	}
 }
 
 FAbilitySaveData UYogSaveSubsystem::ConvertAbilitySpecToSaveData(const FGameplayAbilitySpec& Spec)
 {
 	FAbilitySaveData SaveData;
-
 	if (Spec.Ability)
 	{
 		SaveData.AbilityClassPath = Spec.Ability->GetClass()->GetPathName();
-		SaveData.AbilityClass = Spec.Ability->GetClass();
+		SaveData.AbilityClass     = Spec.Ability->GetClass();
 	}
-
-	SaveData.Level = Spec.Level;
+	SaveData.Level   = Spec.Level;
 	SaveData.InputID = Spec.InputID;
-	//SaveData.ActiveCount = Spec.ActiveCount;
-	//SaveData.bIsActive = Spec.IsActive();
-	//SaveData.AbilityTags = Spec.Ability->AbilityTags;
-	//SaveData.DynamicAbilityTags = Spec.DynamicAbilityTags;
-
-	//if (Spec.SourceObject)
-	//{
-	//	SaveData.SourceObjectPath = Spec.SourceObject->GetPathName();
-	//}
-
 	return SaveData;
-
 }
 
-FGameplayAbilitySpecHandle UYogSaveSubsystem::ConvertSaveDataToAbilitySpec(UYogAbilitySystemComponent* ASC, const FAbilitySaveData& SaveData)
+FGameplayAbilitySpecHandle UYogSaveSubsystem::ConvertSaveDataToAbilitySpec(
+	UYogAbilitySystemComponent* ASC, const FAbilitySaveData& SaveData)
 {
-	// Load the ability class
 	UClass* AbilityClass = SaveData.AbilityClassPath.TryLoadClass<UYogGameplayAbility>();
 	if (!AbilityClass)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to load ability class: %s"), *SaveData.AbilityClassPath.ToString());
+		UE_LOG(LogTemp, Error, TEXT("[SaveSubsystem] Failed to load ability class: %s"),
+			*SaveData.AbilityClassPath.ToString());
 		return FGameplayAbilitySpecHandle();
 	}
-
-	// Create ability spec
 	FGameplayAbilitySpec Spec(AbilityClass, SaveData.Level, SaveData.InputID);
-
-	// Restore tags
-	//Spec.Ability->AbilityTags = SaveData.AbilityTags;
-	//Spec.DynamicAbilityTags = SaveData.DynamicAbilityTags;
-
-	// Give ability to ASC
 	return ASC->GiveAbility(Spec);
 }
 
-void UYogSaveSubsystem::GiveAbilitiesFromSaveData(UYogAbilitySystemComponent* ASC, const TArray<FAbilitySaveData>& AbilitiesData)
+void UYogSaveSubsystem::GiveAbilitiesFromSaveData(UYogAbilitySystemComponent* ASC,
+	const TArray<FAbilitySaveData>& AbilitiesData)
 {
-
 	for (const FAbilitySaveData& SaveData : AbilitiesData)
 	{
-		// Give ability to ASC
-		FGameplayAbilitySpecHandle Handle = ConvertSaveDataToAbilitySpec(ASC, SaveData);
+		ConvertSaveDataToAbilitySpec(ASC, SaveData);
+	}
+}
 
-		if (Handle.IsValid())
+// =========================================================
+// 统计写入
+// =========================================================
+
+void UYogSaveSubsystem::RecordRunStarted()
+{
+	RunStartTime = FDateTime::Now();
+	if (!CurrentSaveGame) return;
+	CurrentSaveGame->Statistics.TotalRuns++;
+}
+
+void UYogSaveSubsystem::RecordEnemyKilled(int32 Count)
+{
+	if (!CurrentSaveGame || Count <= 0) return;
+	CurrentSaveGame->Statistics.TotalKills += Count;
+}
+
+void UYogSaveSubsystem::RecordPlayerDeath()
+{
+	if (!CurrentSaveGame) return;
+	CurrentSaveGame->Statistics.TotalDeaths++;
+
+	const int32 Elapsed = FMath::FloorToInt((FDateTime::Now() - RunStartTime).GetTotalSeconds());
+	if (Elapsed > 0)
+	{
+		CurrentSaveGame->Statistics.TotalPlayTimeSeconds += Elapsed;
+	}
+
+	DoAsyncSave();
+}
+
+void UYogSaveSubsystem::RecordGoldEarned(int32 Amount)
+{
+	if (!CurrentSaveGame || Amount <= 0) return;
+	CurrentSaveGame->Statistics.TotalGoldEarned += Amount;
+}
+
+// =========================================================
+// 存档版本迁移
+// =========================================================
+
+void UYogSaveSubsystem::MigrateSaveGame(UYogSaveGame* Save, int32 FromVersion, int32 ToVersion)
+{
+	if (!Save || FromVersion >= ToVersion) return;
+
+	UE_LOG(LogTemp, Log, TEXT("[SaveMigration] Migrating slot %d: v%d → v%d"),
+		CurrentSlotIndex, FromVersion, ToVersion);
+
+	for (int32 V = FromVersion; V < ToVersion; ++V)
+	{
+		switch (V)
 		{
-			UE_LOG(DevKitGame, Log, TEXT("FGameplayAbilitySpecHandle Handle is Valid "));
-			// Try to restore active state if needed
-			//if (SaveData.bIsActive && SaveData.ActiveCount > 0)
-			//{
-			//	// Note: You might need custom logic here based on your game
-			//	// Some abilities might auto-activate, others might not
-			//	FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(Handle);
-			//	if (Spec && Spec->Ability)
-			//	{
-			//		// Try to activate if it makes sense for your game
-			//		// ASC->TryActivateAbility(Handle);
-			//	}
-			//}
+		case 1:
+			// v1 → v2: 预留，当前无破坏性变更
+			break;
+		default:
+			UE_LOG(LogTemp, Warning, TEXT("[SaveMigration] Unknown version step %d → %d; skipping"), V, V + 1);
+			break;
 		}
+		Save->SaveFormatVersion = V + 1;
 	}
-
 }
-
-
-
-
-
-
-void UYogSaveSubsystem::WriteSaveGame()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(WriteSaveGame);
-	CurrentSaveGame->SavedCharacter.Empty();
-	
-	//CHECK FOR PLAYER STAT, NOT FOR IDE 
-	AGameStateBase* GS = GetWorld()->GetGameState();
-	check(GS);
-
-	SavePlayer(CurrentSaveGame);
-	SaveMap(CurrentSaveGame);
-
-
-	//WORLD SAVE
-	UYogWorldSubsystem* worldsubsystem = GetWorld()->GetSubsystem<UYogWorldSubsystem>();
-	UWorld* current_world = worldsubsystem->GetCurrentWorld();
-	//CurrentSaveGame->LevelName = current_world->GetFName();
-	//CurrentSaveGame->LevelName = current_world->GetFName();
-
-
-	if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
-	{
-		UGameplayStatics::DeleteGameInSlot(SaveSlotName, 0);
-		UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, 0);
-	}
-	else
-	{
-		UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, 0);
-	}
-
-
-	UE_LOG(DevKitGame, Log, TEXT("WRITE SAVE GAME SUCCESS! "));
-	OnSaveGameWritten.Broadcast(CurrentSaveGame);
-}
-
-/* Load from disk, optional slot name */
-void UYogSaveSubsystem::LoadSaveGame(UYogSaveGame* SaveGame)
-{
-	//UGameplayStatics::OpenLevel(GetWorld(), FName(CurrentSaveGame->MapStateData.LevelName));
-		
-	
-	LoadPlayer(SaveGame);
-
-
-	//UDevAssetManager* devAssetManager = UDevAssetManager::Get();
-	//APlayerCharacterBase* T_player = GetWorld()->SpawnActorDeferred<APlayerCharacterBase>(devAssetManager->PlayerBlueprintClass, FTransform::Identity);
-	//if (devAssetManager->YogPlayerClass)
-	//{
-	//	//spawn player character at location;
-	//	AYogGameMode* CurrentGameMode = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
-	//	if (CurrentGameMode)
-	//	{
-	//		CurrentGameMode->SpawnPlayerFromSaveData(CurrentSaveGame);
-	//		//CurrentGameMode->SpawnAndPoccessAvatar(APlayerCharacterBase* player, FVector location, FRotator rotation)
-	//		//CurrentGameMode->SpawnAndPoccessAvatar(player, CurrentSaveGame->YogSavePlayers.PlayerLocation, CurrentSaveGame->YogSavePlayers.PlayerRotation);
-	//	}
-	//	UE_LOG(DevKitGame, Log, TEXT("player name : %s"), *player->GetName());
-	//}
-	//open level ->
-}
-

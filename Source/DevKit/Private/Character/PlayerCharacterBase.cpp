@@ -18,6 +18,9 @@
 #include "Data/GASTemplate.h"
 #include "Item/ItemSpawner.h"
 #include "Component/BackpackGridComponent.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
+#include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
 #include "Component/ComboRuntimeComponent.h"
@@ -318,6 +321,47 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 	}
 
 	RestoreSacrificeOfferingCosts(State.SacrificeOfferingCosts);
+}
+
+void APlayerCharacterBase::GrantCraftedStarterRunesAsync()
+{
+	UYogMetaProgressionSubsystem* MetaSys = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr;
+	if (!MetaSys) return;
+
+	const TArray<FPrimaryAssetId>& CraftedRunes = MetaSys->GetCraftedStarterRunes();
+	if (CraftedRunes.IsEmpty()) return;
+
+	TArray<FSoftObjectPath> SoftPaths;
+	SoftPaths.Reserve(CraftedRunes.Num());
+	for (const FPrimaryAssetId& Id : CraftedRunes)
+	{
+		FSoftObjectPath Path = UAssetManager::Get().GetPrimaryAssetPath(Id);
+		if (Path.IsValid())
+		{
+			SoftPaths.Add(Path);
+		}
+	}
+	if (SoftPaths.IsEmpty()) return;
+
+	TWeakObjectPtr<APlayerCharacterBase> WeakThis(this);
+	UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
+		SoftPaths,
+		FStreamableDelegate::CreateLambda([WeakThis, SoftPaths]()
+		{
+			APlayerCharacterBase* Player = WeakThis.Get();
+			if (!Player || !Player->BackpackGridComponent) return;
+
+			for (const FSoftObjectPath& Path : SoftPaths)
+			{
+				if (URuneDataAsset* RuneDA = Cast<URuneDataAsset>(Path.ResolveObject()))
+				{
+					Player->BackpackGridComponent->AddHiddenPassiveRune(RuneDA->CreateInstance());
+				}
+			}
+		}),
+		FStreamableManager::DefaultAsyncLoadPriority
+	);
 }
 
 void APlayerCharacterBase::ItemInteract(const AItemSpawner* item)

@@ -1,6 +1,7 @@
 #include "Tools/DataEditorLibrary.h"
 
 #include "Data/CharacterData.h"
+#include "Data/EnemyData.h"
 #include "Data/EffectDataAsset.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/MontageConfigDA.h"
@@ -450,6 +451,47 @@ FString UDataEditorLibrary::ExportEffectDAsToCSV(const FString& OutFilePath)
 		return FString();
 	}
 	UE_LOG(LogDataEditor, Log, TEXT("ExportEffectDAsToCSV: wrote %d rows to %s"), All.Num(), *Path);
+	return Path;
+}
+
+FString UDataEditorLibrary::ExportEnemyAIToCSV(const FString& OutFilePath)
+{
+	const TArray<UEnemyData*> All = CollectAssetsOfClass<UEnemyData>();
+
+	FString Path = OutFilePath;
+	if (Path.IsEmpty())
+	{
+		const FString Stamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
+		Path = FPaths::ProjectSavedDir() / TEXT("Balance") / FString::Printf(TEXT("EnemyAI_%s.csv"), *Stamp);
+	}
+	IPlatformFile& PF = FPlatformFileManager::Get().GetPlatformFile();
+	PF.CreateDirectoryTree(*FPaths::GetPath(Path));
+
+	FString Csv;
+	Csv += TEXT("AssetName,DifficultyScore,DetectionRadius,CombatEnterRadius,PreferredRange,AttackRange,StrafeChance,MaxWalkSpeedOverride,SuperArmorThreshold\n");
+	for (UEnemyData* DA : All)
+	{
+		if (!DA) continue;
+		const FEnemyAIMovementTuning& Mv = DA->MovementTuning;
+		const FEnemyAIAwarenessTuning& Aw = DA->AwarenessTuning;
+		Csv += FString::Printf(TEXT("%s,%d,%.1f,%.1f,%.1f,%.1f,%.2f,%.1f,%d\n"),
+			*CsvEscape(DA->GetName()),
+			DA->DifficultyScore,
+			Aw.DetectionRadius,
+			Aw.CombatEnterRadius,
+			Mv.PreferredRange,
+			Mv.AttackRange,
+			Mv.StrafeChance,
+			Mv.MaxWalkSpeedOverride,
+			DA->SuperArmorThreshold);
+	}
+
+	if (!FFileHelper::SaveStringToFile(Csv, *Path, FFileHelper::EEncodingOptions::ForceUTF8))
+	{
+		UE_LOG(LogDataEditor, Warning, TEXT("ExportEnemyAIToCSV: failed to write %s"), *Path);
+		return FString();
+	}
+	UE_LOG(LogDataEditor, Log, TEXT("ExportEnemyAIToCSV: wrote %d rows to %s"), All.Num(), *Path);
 	return Path;
 }
 

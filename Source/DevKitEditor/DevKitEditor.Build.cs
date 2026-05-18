@@ -96,6 +96,8 @@ public class DevKitEditor : ModuleRules
 				// 数值编辑工具依赖：FPlatformApplicationMisc::ClipboardCopy
 				"ApplicationCore",
 				"EnhancedInput",
+				// 文件对话框（CSV 导入）
+				"DesktopPlatform",
 			}
         );
 

@@ -29,6 +29,7 @@
 #include "GameModes/YogGameMode.h"
 #include "Tutorial/TutorialManager.h"
 #include "TimerManager.h"
+#include "SaveGame/YogSaveSubsystem.h"
 
 // ============================================================
 //  内部辅助
@@ -1036,6 +1037,14 @@ void UBackpackScreenWidget::NativeOnDeactivated()
     if (!bSkipDataSync)
     {
         SyncPendingToPlayer();
+
+        if (UGameInstance* GI = GetGameInstance())
+        {
+            if (UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>())
+            {
+                SaveSys->QuickSave();
+            }
+        }
     }
 
     bCursorInPendingArea = false;
