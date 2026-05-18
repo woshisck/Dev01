@@ -4,6 +4,14 @@
 #include "SaveGame/YogSaveGame.h"
 #include "Engine/DataTable.h"
 
+namespace
+{
+FGameplayTag GetMysticPointTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Currency.Meta.MysticPoint"), false);
+}
+}
+
 // =========================================================
 // 内部辅助
 // =========================================================
@@ -98,6 +106,11 @@ int32 UYogMetaProgressionSubsystem::GetCurrencyAmount(FGameplayTag CurrencyTag) 
 void UYogMetaProgressionSubsystem::AddCurrency(FGameplayTag CurrencyTag, int32 Amount)
 {
 	if (Amount == 0) return;
+	if (GetCurrencyTable() && !GetCurrencyRow(CurrencyTag))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MetaProgression] Ignored unknown currency tag: %s"), *CurrencyTag.ToString());
+		return;
+	}
 
 	FMetaProgressionData& Meta = GetMeta();
 	int32& Current = Meta.MetaCurrencies.FindOrAdd(CurrencyTag, 0);
@@ -119,6 +132,11 @@ void UYogMetaProgressionSubsystem::AddCurrency(FGameplayTag CurrencyTag, int32 A
 bool UYogMetaProgressionSubsystem::SpendCurrency(FGameplayTag CurrencyTag, int32 Amount)
 {
 	if (Amount <= 0) return true;
+	if (GetCurrencyTable() && !GetCurrencyRow(CurrencyTag))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MetaProgression] Ignored spend for unknown currency tag: %s"), *CurrencyTag.ToString());
+		return false;
+	}
 
 	FMetaProgressionData& Meta = GetMeta();
 	int32& Current = Meta.MetaCurrencies.FindOrAdd(CurrencyTag, 0);
@@ -169,6 +187,8 @@ bool UYogMetaProgressionSubsystem::CanPurchaseNode(FName NodeRowName) const
 	// 货币检查
 	for (const FMetaCurrencyCost& Cost : Row->CostsPerLevel)
 	{
+		if (Cost.Amount < 0) return false;
+		if (GetCurrencyTable() && !GetCurrencyRow(Cost.CurrencyTag)) return false;
 		if (GetCurrencyAmount(Cost.CurrencyTag) < Cost.Amount) return false;
 	}
 
@@ -185,6 +205,10 @@ bool UYogMetaProgressionSubsystem::TryPurchaseNode(FName NodeRowName)
 	FMetaProgressionData& Meta = GetMeta();
 	for (const FMetaCurrencyCost& Cost : Row->CostsPerLevel)
 	{
+		if (Cost.Amount <= 0)
+		{
+			continue;
+		}
 		int32& Current = Meta.MetaCurrencies.FindOrAdd(Cost.CurrencyTag, 0);
 		Current -= Cost.Amount;
 		OnCurrencyChanged.Broadcast(Cost.CurrencyTag, Current);
@@ -243,6 +267,23 @@ void UYogMetaProgressionSubsystem::UnlockFeature(FGameplayTag FeatureTag)
 int32 UYogMetaProgressionSubsystem::GetMysticSideLevel() const
 {
 	return GetMeta().MysticSideLevel;
+}
+
+int32 UYogMetaProgressionSubsystem::GetAvailableMysticPoints() const
+{
+	const FGameplayTag MysticPointTag = GetMysticPointTag();
+	return MysticPointTag.IsValid() ? GetCurrencyAmount(MysticPointTag) : 0;
+}
+
+void UYogMetaProgressionSubsystem::AddMysticPoints(int32 Amount)
+{
+	const FGameplayTag MysticPointTag = GetMysticPointTag();
+	if (!MysticPointTag.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MetaProgression] Currency.Meta.MysticPoint tag is missing."));
+		return;
+	}
+	AddCurrency(MysticPointTag, Amount);
 }
 
 // =========================================================

@@ -584,6 +584,10 @@ void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 
 void UYogGameInstanceBase::ReturnToMainMenu()
 {
+	if (UYogSaveSubsystem* SaveSys = GetSubsystem<UYogSaveSubsystem>())
+	{
+		SaveSys->QuickSave();
+	}
 	ClearRunState();
 	ShowLoadingScreen(
 		NSLOCTEXT("DevKitFrontend", "ReturningTitle", "Returning"),

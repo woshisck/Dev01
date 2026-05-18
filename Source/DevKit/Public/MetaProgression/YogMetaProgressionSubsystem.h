@@ -86,6 +86,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "MetaProgression|Mystic")
 	int32 GetMysticSideLevel() const;
 
+	UFUNCTION(BlueprintPure, Category = "MetaProgression|Mystic")
+	int32 GetAvailableMysticPoints() const;
+
+	UFUNCTION(BlueprintCallable, Category = "MetaProgression|Mystic")
+	void AddMysticPoints(int32 Amount);
+
 	// =========================================================
 	// 打造存档（局内 BeginPlay 时 AsyncLoad 后 Grant）
 	// =========================================================

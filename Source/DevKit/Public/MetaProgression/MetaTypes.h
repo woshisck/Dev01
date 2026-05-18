@@ -4,6 +4,7 @@
 #include "GameplayTagContainer.h"
 #include "AttributeSet.h"
 #include "Engine/DataTable.h"
+#include "Styling/SlateBrush.h"
 #include "MetaTypes.generated.h"
 
 // ============================================================
@@ -115,6 +116,9 @@ struct DEVKIT_API FMetaCurrencyRow : public FTableRowBase
 	// UI 上显示的简称（如"氧"）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Currency")
 	FText ShortName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Currency")
+	FSlateBrush Icon;
 
 	// 持有上限（0 = 无上限）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Currency", meta = (ClampMin = "0"))

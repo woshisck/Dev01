@@ -107,6 +107,10 @@ void UYogSaveSubsystem::ResetSlotForNewGame(int32 SlotIndex)
 	// 保留 Statistics，清空其余局外数据和存档点
 	CurrentSaveGame->MetaProgression = FMetaProgressionData{};
 	CurrentSaveGame->RunCheckpoint   = FRunCheckpointData{};
+	CurrentSaveGame->PlayerStateData = FPlayerGASData{};
+	CurrentSaveGame->WeaponInstanceItems.Reset();
+	CurrentSaveGame->MapStateData = FYogMapStateData{};
+	CurrentSaveGame->SavedCharacter.Reset();
 	CurrentSaveGame->TutorialState   = ETutorialState::NeedWeaponTutorial;
 	CurrentSaveGame->ShownPopupKeys.Empty();
 	CurrentSaveGame->SlotCreatedTime  = FDateTime::Now();
@@ -325,7 +329,7 @@ void UYogSaveSubsystem::DoAsyncSave()
 
 	if (bAsyncSavePending)
 	{
-		// 前一次还未完成，跳过（下次触发时会带最新数据写入）
+		bAsyncSaveQueued = true;
 		return;
 	}
 
@@ -350,6 +354,12 @@ void UYogSaveSubsystem::OnAsyncSaveComplete(const FString& SlotName, const int32
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("[SaveSubsystem] Async save FAILED: %s"), *SlotName);
+	}
+
+	if (bAsyncSaveQueued)
+	{
+		bAsyncSaveQueued = false;
+		DoAsyncSave();
 	}
 }
 

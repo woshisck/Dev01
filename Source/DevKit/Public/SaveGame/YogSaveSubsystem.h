@@ -171,6 +171,7 @@ private:
 
 	// 防止并发异步写盘的标志
 	bool bAsyncSavePending = false;
+	bool bAsyncSaveQueued = false;
 
 	// 本局开始时间（用于计算 TotalPlayTimeSeconds）
 	FDateTime RunStartTime;

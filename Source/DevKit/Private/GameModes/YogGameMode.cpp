@@ -372,19 +372,6 @@ void AYogGameMode::BeginPlay()
 	// HUD 在 PC->ClientRestart 才创建（晚于 BeginPlay），用延帧+重试方式订阅
 	TryBindHUDDelegates();
 
-	// 存档点①：玩家进入关卡时立刻存盘，确保崩溃可从当前楼层恢复
-	// 用 PendingNextFloor 而非 CurrentFloor（后者在 StartLevelSpawning 才更新）
-	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
-	{
-		if (GI->PendingRunState.bIsValid)
-		{
-			if (UYogSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UYogSaveSubsystem>())
-			{
-				SaveSys->TriggerCheckpoint(GI->PendingNextFloor);
-			}
-		}
-	}
-
 	// 触发游戏开始事件（一次性，跨 PIE 重启会重置 — 单机 Roguelite 行为可接受）
 	TriggerLifecycleEvent(EGameLifecycleEvent::GameStart);
 }
@@ -427,12 +414,6 @@ void AYogGameMode::EnterArrangementPhase()
 
 	CurrentPhase = ELevelPhase::Arrangement;
 	OnPhaseChanged.Broadcast(CurrentPhase);
-
-	// 存档点②：击杀所有敌人、掉落物生成之前存盘
-	if (UYogSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UYogSaveSubsystem>())
-	{
-		SaveSys->TriggerCheckpoint(CurrentFloor);
-	}
 
 	bool bRefreshTemporaryFinisherLockView = false;
 	if (bCountCombatClearsForTemporaryFinisherUnlock)
@@ -531,6 +512,59 @@ void AYogGameMode::EnterArrangementPhase()
 					ExtraBatch.Num(), *ExtraRewardSpawnLoc.ToString());
 			}
 		}
+	}
+
+	if (Player)
+	{
+		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+		{
+			FRunState NewState;
+			NewState.bIsValid = true;
+			NewState.CurrentGold = Player->BackpackGridComponent ? Player->BackpackGridComponent->Gold : 0;
+
+			if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
+			{
+				NewState.CurrentHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
+			}
+
+			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
+			{
+				NewState.CurrentPhase = Backpack->GetCurrentPhase();
+				for (const FPlacedRune& PR : Backpack->GetAllPlacedRunes())
+				{
+					if (!PR.bIsPermanent)
+					{
+						NewState.PlacedRunes.Add(PR);
+					}
+				}
+				NewState.HiddenPassiveRuneInstances = Backpack->GetRuntimeHiddenPassiveRunes();
+			}
+
+			NewState.EquippedWeaponDef = Player->EquippedWeaponDef;
+			NewState.PendingRunes = Player->PendingRunes;
+			if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent)
+			{
+				for (const FCombatCardInstance& Card : CombatDeck->GetFullDeckSnapshot())
+				{
+					if (Card.SourceData)
+					{
+						NewState.CombatDeckCards.Add(Card.SourceData);
+						NewState.CombatDeckCardOrientations.Add(Card.LinkOrientation);
+					}
+				}
+				NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
+				NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
+			}
+			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
+			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
+			NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
+			GI->PendingRunState = NewState;
+		}
+	}
+
+	if (UYogSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UYogSaveSubsystem>())
+	{
+		SaveSys->TriggerCheckpoint(CurrentFloor);
 	}
 
 	// 开启传送门
@@ -1119,6 +1153,14 @@ void AYogGameMode::StartLevelSpawning()
 	CompletedCombatBattleCount = (GI && GI->PendingRunState.bIsValid)
 		? FMath::Max(0, GI->PendingRunState.CompletedCombatBattleCount)
 		: 0;
+
+	if (GI && GI->PendingRunState.bIsValid)
+	{
+		if (UYogSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UYogSaveSubsystem>())
+		{
+			SaveSys->TriggerCheckpoint(CurrentFloor);
+		}
+	}
 
 	const bool bNewRunStart = CurrentFloor <= 1 && (!GI || !GI->PendingRunState.bIsValid);
 	if (bNewRunStart)
