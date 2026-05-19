@@ -86,7 +86,6 @@ private:
 	void HandleCloseClicked();
 
 	UYogMetaProgressionSubsystem* GetMetaSys() const;
-	void EnsureFallbackWidgets();
 	bool NativeAddNodeCard(FName NodeRowName, const FMetaUpgradeNodeRow& NodeData,
 	                       int32 CurrentLevel, bool bCanPurchase);
 

@@ -2,7 +2,7 @@
 
 namespace
 {
-	FName GetRuntimeNodeId(const UGameplayAbilityComboGraphNode* Node)
+	FName GetRuntimeComponentNodeId(const UGameplayAbilityComboGraphNode* Node)
 	{
 		return Node && !Node->NodeId.IsNone()
 			? Node->NodeId
@@ -79,7 +79,7 @@ void UYogComboGraphRuntimeComponent::PrepareComboGraphNodeActivation(const FYogC
 {
 	ActiveGraphNode = const_cast<UGameplayAbilityComboGraphNode*>(Selection.Node);
 	PrepareComboNodeActivation(
-		GetRuntimeNodeId(Selection.Node),
+		GetRuntimeComponentNodeId(Selection.Node),
 		Selection.bFoundChildNode,
 		Selection.bFromDashSave);
 }

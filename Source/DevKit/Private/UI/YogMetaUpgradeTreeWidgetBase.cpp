@@ -6,8 +6,6 @@
 #include "Components/Button.h"
 #include "Components/ScrollBox.h"
 #include "Components/TextBlock.h"
-#include "Components/VerticalBox.h"
-#include "Blueprint/WidgetTree.h"
 #include "Kismet/GameplayStatics.h"
 
 UYogMetaUpgradeTreeWidgetBase::UYogMetaUpgradeTreeWidgetBase(const FObjectInitializer& ObjectInitializer)
@@ -28,7 +26,6 @@ UYogMetaProgressionSubsystem* UYogMetaUpgradeTreeWidgetBase::GetMetaSys() const
 void UYogMetaUpgradeTreeWidgetBase::NativeConstruct()
 {
 	Super::NativeConstruct();
-	EnsureFallbackWidgets();
 
 	if (BtnFleshSide)  BtnFleshSide->OnClicked.AddDynamic(this,  &UYogMetaUpgradeTreeWidgetBase::HandleFleshSideClicked);
 	if (BtnMysticSide) BtnMysticSide->OnClicked.AddDynamic(this, &UYogMetaUpgradeTreeWidgetBase::HandleMysticSideClicked);
@@ -123,57 +120,6 @@ void UYogMetaUpgradeTreeWidgetBase::HandleMysticSideClicked()
 void UYogMetaUpgradeTreeWidgetBase::HandleCloseClicked()
 {
 	DeactivateWidget();
-}
-
-void UYogMetaUpgradeTreeWidgetBase::EnsureFallbackWidgets()
-{
-	if (!WidgetTree)
-	{
-		return;
-	}
-
-	UVerticalBox* RootBox = Cast<UVerticalBox>(WidgetTree->RootWidget);
-	if (!RootBox)
-	{
-		RootBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Root"));
-		WidgetTree->RootWidget = RootBox;
-	}
-
-	if (!TxtCurrencyAmount)
-	{
-		TxtCurrencyAmount = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TxtCurrencyAmount"));
-		TxtCurrencyAmount->SetText(NSLOCTEXT("MetaUpgrade", "CurrencyFallback", "0"));
-		RootBox->AddChildToVerticalBox(TxtCurrencyAmount);
-	}
-	if (!BtnFleshSide)
-	{
-		BtnFleshSide = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("BtnFleshSide"));
-		UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TxtFleshSideLabel"));
-		Label->SetText(NSLOCTEXT("MetaUpgrade", "FleshSide", "Flesh"));
-		BtnFleshSide->AddChild(Label);
-		RootBox->AddChildToVerticalBox(BtnFleshSide);
-	}
-	if (!BtnMysticSide)
-	{
-		BtnMysticSide = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("BtnMysticSide"));
-		UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TxtMysticSideLabel"));
-		Label->SetText(NSLOCTEXT("MetaUpgrade", "MysticSide", "Mystic"));
-		BtnMysticSide->AddChild(Label);
-		RootBox->AddChildToVerticalBox(BtnMysticSide);
-	}
-	if (!NodeList)
-	{
-		NodeList = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("NodeList"));
-		RootBox->AddChildToVerticalBox(NodeList);
-	}
-	if (!BtnClose)
-	{
-		BtnClose = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("BtnClose"));
-		UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TxtCloseLabel"));
-		Label->SetText(NSLOCTEXT("MetaUpgrade", "Close", "Close"));
-		BtnClose->AddChild(Label);
-		RootBox->AddChildToVerticalBox(BtnClose);
-	}
 }
 
 bool UYogMetaUpgradeTreeWidgetBase::NativeAddNodeCard(FName NodeRowName, const FMetaUpgradeNodeRow& NodeData,
