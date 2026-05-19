@@ -38,7 +38,7 @@ namespace
 
 	TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
 
-	float FrameToMontageTime(int32 Frame, int32 TotalFrames, const UAnimMontage* Montage)
+	float MeleeAttack_FrameToMontageTime(int32 Frame, int32 TotalFrames, const UAnimMontage* Montage)
 	{
 		const float Duration = Montage ? Montage->GetPlayLength() : 0.f;
 		const float Normalized = TotalFrames > 0
@@ -399,9 +399,9 @@ void UGA_MeleeAttack::ScheduleNodeComboWindow(UAnimMontage* Montage, float PlayR
 	}
 
 	const float Rate = (PlayRate > KINDA_SMALL_NUMBER) ? PlayRate : 1.0f;
-	const float StartTime = FrameToMontageTime(ActiveComboNode.ComboWindowStartFrame,
+	const float StartTime = MeleeAttack_FrameToMontageTime(ActiveComboNode.ComboWindowStartFrame,
 		ActiveComboNode.ComboWindowTotalFrames, Montage) / Rate;
-	const float EndTime = FrameToMontageTime(ActiveComboNode.ComboWindowEndFrame,
+	const float EndTime = MeleeAttack_FrameToMontageTime(ActiveComboNode.ComboWindowEndFrame,
 		ActiveComboNode.ComboWindowTotalFrames, Montage) / Rate;
 
 	World->GetTimerManager().ClearTimer(ComboWindowOpenTimerHandle);
