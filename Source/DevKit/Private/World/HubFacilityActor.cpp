@@ -36,6 +36,7 @@ void AHubFacilityActor::Interact(APlayerCharacterBase* Player)
 
 	if (UCommonActivatableWidget* Widget = CreateWidget<UCommonActivatableWidget>(PC, WidgetClass))
 	{
+		Widget->AddToViewport();
 		Widget->ActivateWidget();
 	}
 }

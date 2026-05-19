@@ -443,19 +443,19 @@ void AYogGameMode::EnterArrangementPhase()
 				Player->BackpackGridComponent->AddGold(GoldReward);
 			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 发放金币 %d"), GoldReward);
 		}
+	}
 
-		// 发放局外成长货币
-		if (ActiveRoomData && !ActiveRoomData->MetaCurrencyRewards.IsEmpty())
+	// 发放局外成长货币（不依赖 Player，独立发放）
+	if (ActiveRoomData && !ActiveRoomData->MetaCurrencyRewards.IsEmpty())
+	{
+		if (UYogMetaProgressionSubsystem* Meta = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr)
 		{
-			if (UYogMetaProgressionSubsystem* Meta = GetGameInstance()
-				? GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr)
+			for (const FMetaCurrencyCost& Reward : ActiveRoomData->MetaCurrencyRewards)
 			{
-				for (const FMetaCurrencyCost& Reward : ActiveRoomData->MetaCurrencyRewards)
+				if (Reward.Amount > 0)
 				{
-					if (Reward.Amount > 0)
-					{
-						Meta->AddCurrency(Reward.CurrencyTag, Reward.Amount);
-					}
+					Meta->AddCurrency(Reward.CurrencyTag, Reward.Amount);
 				}
 			}
 		}
