@@ -16,9 +16,11 @@
 | 冲刺 / UI 返回 | B / FaceButton_Right | Space / Esc | 游戏中冲刺，UI 中返回 |
 | 背包 | View / SpecialLeft | Tab | 仅 Gameplay 中打开 |
 | 暂停 | Menu / SpecialRight | Esc | 无顶层 UI 时打开暂停 |
-| 装填 | RB / RightShoulder | R | 远程武器装填 |
+| 装填 | 无默认键 | 无默认键 | 当前核心方案未占用默认输入 |
 | 使用战斗道具 | LB / LeftShoulder | F | 使用当前道具 |
 | 切换道具 | DPad Left / Right | Z / Q | 上一个 / 下一个道具 |
+| 使用主动技能 | RB / RightShoulder | R | 使用当前主动技能 |
+| 切换主动技能 | R3 / RightThumbstick | T | 切换主动技能槽 |
 
 ## 配置入口
 
@@ -44,12 +46,14 @@
 3. 检查报告中至少包含：
    - `IA_Interact` 映射到 `E, Gamepad_FaceButton_Bottom`
    - `IA_Dash` 映射到 `SpaceBar, Gamepad_FaceButton_Right`
-   - `IA_Reload` 映射到 `R, Gamepad_RightShoulder`
+   - `IA_Reload` 无默认键
    - `IA_UseCombatItem` / `IA_SwitchCombatItemNext` / `IA_SwitchCombatItemPrevious` 已创建或找到
+   - `IA_UseActiveSkill` 映射到 `R, Gamepad_RightShoulder`
+   - `IA_SwitchActiveSkill` 映射到 `T, Gamepad_RightThumbstick`
 
 ## UI 验收
 
 - 所有常用 UI 使用 `A=确认`、`B=返回`、DPad/Left Stick 导航。
 - 暂停、战利品、背包、卡组编辑、商店、祭坛、净化、献祭、教程弹窗都需要手柄可操作。
 - UI 打开时 Gameplay 的移动、攻击、冲刺、交互、装填、道具输入不得触发。
-- 输入提示文字优先使用 `<input action="Interact"/>`、`<input action="Dash"/>`、`<input action="OpenBackpack"/>`、`<input action="UseCombatItem"/>` 等 action token。
+- 输入提示文字优先使用 `<input action="Interact"/>`、`<input action="Dash"/>`、`<input action="OpenBackpack"/>`、`<input action="UseCombatItem"/>`、`<input action="UseActiveSkill"/>` 等 action token。

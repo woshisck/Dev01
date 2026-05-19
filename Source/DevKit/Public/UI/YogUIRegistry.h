@@ -20,6 +20,7 @@ enum class EYogUIScreenId : uint8
 	PortalDirection,
 	CurrentRoomBuff,
 	CombatItemBar,
+	ActiveSkillBar,
 	FinisherQTE,
 	LevelEndReveal,
 	WeaponFloat,

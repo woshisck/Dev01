@@ -1,19 +1,29 @@
 #include "UI/ActiveSkillSetupCommandlet.h"
 
 #include "AbilitySystem/Abilities/GA_ActiveSkill_ShieldBurst.h"
+#include "AssetToolsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Editor.h"
+#include "Engine/Blueprint.h"
+#include "EngineUtils.h"
 #include "Commandlets/CommandletReportUtils.h"
 #include "Data/ActiveSkillDataAsset.h"
 #include "Engine/DataTable.h"
+#include "Factories/BlueprintFactory.h"
 #include "FileHelpers.h"
 #include "GameplayTagsManager.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "MetaProgression/MetaTypes.h"
 #include "Misc/PackageName.h"
+#include "UI/ActiveSkillLoadoutWidget.h"
 #include "UObject/Package.h"
+#include "World/HubFacilityActor.h"
 
 namespace
 {
 	const FString ActiveSkillAssetPath = TEXT("/Game/Code/Core/ActiveSkills/DA_ActiveSkill_ShieldBurst");
+	const FString ActiveSkillTerminalBlueprintPath = TEXT("/Game/Code/Core/Hub/BP_HubActiveSkillTerminal");
+	const FString HubMapPath = TEXT("/Game/World/Hub/L_HubTown");
 	const FString MetaUpgradeNodeTablePath = TEXT("/Game/MetaProgression/DT_MetaUpgradeNodes");
 	const FString ActiveSkillSetupReportFileName = TEXT("ActiveSkillSetupReport.md");
 
@@ -21,6 +31,100 @@ namespace
 	{
 		const FString AssetName = FPackageName::GetLongPackageAssetName(PackagePath);
 		return PackagePath + TEXT(".") + AssetName;
+	}
+
+	template<typename AssetT>
+	AssetT* LoadAssetByPackagePath(const FString& PackagePath)
+	{
+		return Cast<AssetT>(StaticLoadObject(AssetT::StaticClass(), nullptr, *ToObjectPath(PackagePath)));
+	}
+
+	UBlueprint* CreateBlueprintAsset(const FString& PackagePath, UClass* ParentClass, bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	{
+		if (UBlueprint* Existing = LoadAssetByPackagePath<UBlueprint>(PackagePath))
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Found `%s`."), *PackagePath));
+			return Existing;
+		}
+
+		ReportLines.Add(FString::Printf(TEXT("- %s Blueprint `%s`."), bDryRun ? TEXT("Would create") : TEXT("Created"), *PackagePath));
+		if (bDryRun)
+		{
+			return nullptr;
+		}
+
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		UBlueprintFactory* Factory = NewObject<UBlueprintFactory>();
+		Factory->BlueprintType = BPTYPE_Normal;
+		Factory->ParentClass = ParentClass;
+
+		UBlueprint* Blueprint = Cast<UBlueprint>(AssetTools.CreateAsset(
+			FPackageName::GetLongPackageAssetName(PackagePath),
+			FPackageName::GetLongPackagePath(PackagePath),
+			UBlueprint::StaticClass(),
+			Factory));
+		if (Blueprint)
+		{
+			FKismetEditorUtilities::CompileBlueprint(Blueprint);
+			FAssetRegistryModule::AssetCreated(Blueprint);
+			Blueprint->MarkPackageDirty();
+			DirtyPackages.AddUnique(Blueprint->GetPackage());
+		}
+		return Blueprint;
+	}
+
+	void EnsureTerminalPlacedInHub(UBlueprint* TerminalBlueprint, bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	{
+		if (!TerminalBlueprint || !TerminalBlueprint->GeneratedClass)
+		{
+			return;
+		}
+
+		ReportLines.Add(FString::Printf(TEXT("- %s active skill terminal placement in `%s`."), bDryRun ? TEXT("Would verify") : TEXT("Verified"), *HubMapPath));
+		if (bDryRun)
+		{
+			return;
+		}
+
+		UWorld* LoadedWorld = UEditorLoadingAndSavingUtils::LoadMap(HubMapPath);
+		UWorld* EditorWorld = LoadedWorld ? LoadedWorld : (GEditor ? GEditor->GetEditorWorldContext().World() : nullptr);
+		if (!EditorWorld)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Failed to load `%s`; terminal was not placed."), *HubMapPath));
+			return;
+		}
+
+		for (TActorIterator<AHubFacilityActor> It(EditorWorld); It; ++It)
+		{
+			AHubFacilityActor* Existing = *It;
+			if (Existing && Existing->GetClass() == TerminalBlueprint->GeneratedClass)
+			{
+				ReportLines.Add(TEXT("- Hub already contains `BP_HubActiveSkillTerminal`."));
+				return;
+			}
+		}
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Name = TEXT("BP_HubActiveSkillTerminal");
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AActor* TerminalActor = EditorWorld->SpawnActor<AActor>(
+			TerminalBlueprint->GeneratedClass,
+			FVector(320.0f, -260.0f, 90.0f),
+			FRotator::ZeroRotator,
+			SpawnParams);
+		if (!TerminalActor)
+		{
+			ReportLines.Add(TEXT("- Failed to spawn `BP_HubActiveSkillTerminal` in hub map."));
+			return;
+		}
+
+#if WITH_EDITOR
+		TerminalActor->SetActorLabel(TEXT("Active Skill Terminal"));
+#endif
+		TerminalActor->Modify();
+		EditorWorld->MarkPackageDirty();
+		DirtyPackages.AddUnique(EditorWorld->GetPackage());
+		ReportLines.Add(TEXT("- Placed `BP_HubActiveSkillTerminal` in `L_HubTown` at (320, -260, 90)."));
 	}
 }
 
@@ -87,6 +191,28 @@ int32 UActiveSkillSetupCommandlet::Main(const FString& Params)
 	}
 
 	ReportLines.Add(TEXT("- `DA_ActiveSkill_ShieldBurst` uses `UGA_ActiveSkill_ShieldBurst`, cooldown 120s, buff duration 60s."));
+
+	UBlueprint* TerminalBlueprint = CreateBlueprintAsset(
+		ActiveSkillTerminalBlueprintPath,
+		AHubFacilityActor::StaticClass(),
+		bDryRun,
+		ReportLines,
+		DirtyPackages);
+	if (TerminalBlueprint && !bDryRun)
+	{
+		FKismetEditorUtilities::CompileBlueprint(TerminalBlueprint);
+		if (AHubFacilityActor* CDO = Cast<AHubFacilityActor>(TerminalBlueprint->GeneratedClass->GetDefaultObject()))
+		{
+			CDO->Modify();
+			CDO->FacilityDisplayName = FText::FromString(TEXT("Active Skill Terminal"));
+			CDO->WidgetClass = UActiveSkillLoadoutWidget::StaticClass();
+			CDO->RequiredFeatureTag = FGameplayTag::RequestGameplayTag(TEXT("Feature.Combat.ActiveSkill"), false);
+			TerminalBlueprint->MarkPackageDirty();
+			DirtyPackages.AddUnique(TerminalBlueprint->GetPackage());
+			ReportLines.Add(TEXT("- Configured `BP_HubActiveSkillTerminal`: widget `UActiveSkillLoadoutWidget`, required feature `Feature.Combat.ActiveSkill`."));
+		}
+	}
+	EnsureTerminalPlacedInHub(TerminalBlueprint, bDryRun, ReportLines, DirtyPackages);
 
 	UDataTable* NodeTable = Cast<UDataTable>(
 		StaticLoadObject(UDataTable::StaticClass(), nullptr, *ToObjectPath(MetaUpgradeNodeTablePath)));

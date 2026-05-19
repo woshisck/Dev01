@@ -4,6 +4,7 @@
 #include "CommonActivatableWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "UI/YogHUD.h"
+#include "MetaProgression/YogMetaProgressionSubsystem.h"
 
 AHubFacilityActor::AHubFacilityActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -23,10 +24,16 @@ void AHubFacilityActor::BeginPlay()
 	Super::BeginPlay();
 	InteractBox->OnComponentBeginOverlap.AddDynamic(this, &AHubFacilityActor::HandleBeginOverlap);
 	InteractBox->OnComponentEndOverlap.AddDynamic(this,   &AHubFacilityActor::HandleEndOverlap);
+	ApplyFeatureAvailability();
 }
 
 void AHubFacilityActor::Interact(APlayerCharacterBase* Player)
 {
+	if (!IsFeatureAvailable())
+	{
+		return;
+	}
+
 	BP_OnInteract(Player);
 
 	if (!WidgetClass) return;
@@ -41,6 +48,29 @@ void AHubFacilityActor::Interact(APlayerCharacterBase* Player)
 	}
 }
 
+bool AHubFacilityActor::IsFeatureAvailable() const
+{
+	if (!RequiredFeatureTag.IsValid())
+	{
+		return true;
+	}
+
+	const UGameInstance* GI = GetGameInstance();
+	const UYogMetaProgressionSubsystem* Meta = GI ? GI->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr;
+	return Meta && Meta->IsFeatureUnlocked(RequiredFeatureTag);
+}
+
+void AHubFacilityActor::ApplyFeatureAvailability()
+{
+	const bool bAvailable = IsFeatureAvailable();
+	SetActorHiddenInGame(!bAvailable);
+	SetActorEnableCollision(bAvailable);
+	if (InteractBox)
+	{
+		InteractBox->SetGenerateOverlapEvents(bAvailable);
+	}
+}
+
 void AHubFacilityActor::HandleBeginOverlap(UPrimitiveComponent* OverlappedComponent,
                                             AActor* OtherActor, UPrimitiveComponent* OtherComp,
                                             int32 OtherBodyIndex, bool bFromSweep,
@@ -48,7 +78,10 @@ void AHubFacilityActor::HandleBeginOverlap(UPrimitiveComponent* OverlappedCompon
 {
 	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
 	{
-		Player->PendingFacility = this;
+		if (IsFeatureAvailable())
+		{
+			Player->PendingFacility = this;
+		}
 	}
 }
 
