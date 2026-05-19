@@ -4,6 +4,7 @@
 #include "UI/CombatItemBarWidget.h"
 #include "UI/CurrentRoomBuffWidget.h"
 #include "UI/FinisherQTEWidget.h"
+#include "UI/YogRunSummaryWidgetBase.h"
 #include "UI/PlayerCommonInfoWidget.h"
 #include "UI/PauseMenuWidget.h"
 #include "UI/LiquidHealthBarWidget.h"
@@ -156,6 +157,11 @@ void AYogHUD::BeginPlay()
 		SaveSys->OnSaveGameLoaded.AddDynamic(this, &AYogHUD::OnSaveGameLoaded);
 		if (UYogSaveGame* Current = SaveSys->GetCurrentSave())
 			OnSaveGameLoaded(Current);
+	}
+
+	if (UYogMetaProgressionSubsystem* MetaSys = GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>())
+	{
+		MetaSys->OnRunEnded.AddDynamic(this, &AYogHUD::HandleRunEnded);
 	}
 
 	// ── Pause PostProcess Volume ─────────────────
@@ -897,6 +903,30 @@ void AYogHUD::OnWeaponFlyComplete(UTexture2D* Thumbnail)
 
 	bHasWeapon = true;
 	GlassIcon->Show(WeaponGlassAnimDA);
+}
+
+void AYogHUD::HandleRunEnded(const FRunSummaryData& Summary)
+{
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC)
+	{
+		return;
+	}
+
+	TSubclassOf<UYogRunSummaryWidgetBase> WidgetClass = RunSummaryWidgetClass;
+	if (!WidgetClass)
+	{
+		WidgetClass = UYogRunSummaryWidgetBase::StaticClass();
+	}
+
+	UYogRunSummaryWidgetBase* SummaryWidget = CreateWidget<UYogRunSummaryWidgetBase>(PC, WidgetClass);
+	if (!SummaryWidget)
+	{
+		return;
+	}
+
+	SummaryWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::LootSelection, 40));
+	SummaryWidget->ShowSummary(Summary);
 }
 
 void AYogHUD::NotifyBackpackOpening()

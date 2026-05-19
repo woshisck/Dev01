@@ -125,6 +125,12 @@ void UYogMetaProgressionSubsystem::AddCurrency(FGameplayTag CurrencyTag, int32 A
 		}
 	}
 
+	// 正数入账时累计到本局毛收入（不受花费影响）
+	if (Amount > 0)
+	{
+		RunCurrencyGained.FindOrAdd(CurrencyTag, 0) += Amount;
+	}
+
 	OnCurrencyChanged.Broadcast(CurrencyTag, Current);
 	CommitSave();
 }
@@ -178,10 +184,12 @@ bool UYogMetaProgressionSubsystem::CanPurchaseNode(FName NodeRowName) const
 		return false;
 	}
 
-	// 前置节点：所有前置均需至少 1 级
+	// 前置节点：所有前置均需满级
 	for (const FName& Prereq : Row->Prerequisites)
 	{
-		if (GetNodeLevel(Prereq) < 1) return false;
+		const FMetaUpgradeNodeRow* PrereqRow = GetNodeRow(Prereq);
+		const int32 Required = PrereqRow ? PrereqRow->MaxLevel : 1;
+		if (GetNodeLevel(Prereq) < Required) return false;
 	}
 
 	// 货币检查
@@ -232,6 +240,12 @@ bool UYogMetaProgressionSubsystem::TryPurchaseNode(FName NodeRowName)
 			Meta.UnlockedFeatures.Add(Row->FeatureTag);
 			OnFeatureUnlocked.Broadcast(Row->FeatureTag);
 		}
+	}
+
+	// 起始符文授予（AddUnique 防重复；多级节点每级各授予一次相同 DA 即叠加）
+	if (Row->EffectType == EMetaUpgradeEffectType::RuneGrant && Row->StarterRuneToGrant.IsValid())
+	{
+		Meta.CraftedStarterRunes.AddUnique(Row->StarterRuneToGrant);
 	}
 
 	OnNodePurchased.Broadcast(NodeRowName);
@@ -314,4 +328,41 @@ const TArray<FPrimaryAssetId>& UYogMetaProgressionSubsystem::GetCraftedStarterRu
 const TArray<FPrimaryAssetId>& UYogMetaProgressionSubsystem::GetCraftedWeaponFinishers() const
 {
 	return GetMeta().CraftedWeaponFinisherCards;
+}
+
+// =========================================================
+// 跑局货币累计
+// =========================================================
+
+void UYogMetaProgressionSubsystem::ClearRunCurrencyAccumulator()
+{
+	RunCurrencyGained.Reset();
+}
+
+void UYogMetaProgressionSubsystem::GetAllNodeNames(TArray<FName>& OutNames) const
+{
+	UDataTable* Table = GetUpgradeTable();
+	if (!Table) return;
+	OutNames = Table->GetRowNames();
+}
+
+void UYogMetaProgressionSubsystem::BroadcastRunEnded(int32 FloorReached, int32 EnemiesKilled)
+{
+	FRunSummaryData Summary;
+	Summary.FloorReached    = FloorReached;
+	Summary.EnemiesKilled   = EnemiesKilled;
+	Summary.MetaCurrencyGained = RunCurrencyGained;
+
+	// 收集当前可购买的节点名（结算页"下一步"提示用）
+	TArray<FName> AllNodes;
+	GetAllNodeNames(AllNodes);
+	for (const FName& NodeName : AllNodes)
+	{
+		if (CanPurchaseNode(NodeName))
+		{
+			Summary.PurchasableNodeNames.Add(NodeName);
+		}
+	}
+
+	OnRunEnded.Broadcast(Summary);
 }

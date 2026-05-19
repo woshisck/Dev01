@@ -1,151 +1,145 @@
-# 历史遗留蓝图配置方案 + Phase 7/8
+# 开发方案：主城 + 局外成长
+
+## 需求描述
+
+- 局外成长核心机制：解锁玩家永久技能卡牌（类似黑帝斯2大阿卡纳），花费局外货币购买升级节点，节点效果包括解锁一张起始符文（始终随玩家携带进局）
+- 主城场景：做完整 3D 主城关卡（非菜单），玩家在主城内与设施交互触发局外功能
+- 运行时升级树 UI + 编辑器升级树工具同步开发
 
 ---
 
-## Part A：历史遗留蓝图配置
+## 现状速查
 
-> 部分任务已在 C++ 中完成，其余为纯编辑器操作，Codex 无法自动化。
-> 本文档给出分类清单和精确手动步骤。
-
----
-
-### 已完成（C++ 已有，无需任何操作）
-
-| 任务 | 位置 | 状态 |
-|------|------|------|
-| GA_PlayerDash 接入 SetDashMode | `GA_PlayerDash.cpp:358,382` — dash 开始/结束各调一次 `CM->SetDashMode()` | ✅ |
-| 右摇杆接入 SetCameraInputAxis | `YogPlayerControllerBase.cpp:750` — `CM->SetCameraInputAxis(Value)` | ✅ |
-| GE_WeaponHitDamage 检查无敌帧 Tag | `DamageAttributeSet.cpp:243` — 检查 `Buff.Status.DashInvincible` 后 `return` | ✅ |
-
----
-
-### 需手动在 Editor 中操作
-
-#### 1. BP_YogHUD → LevelEndEffect DA 配置
-
-**目的**：让 HUD 知道使用哪个特效参数资产（圆形揭幕/慢动作参数）。
-
-**步骤**：
-1. 在 Content Browser 找到 `BP_YogHUD`（继承自 `AYogHUD`）
-2. 打开 Blueprint → Details 面板
-3. 找到 `Level End Effect DA`（`TObjectPtr<ULevelEndEffectDA> LevelEndEffectDA`）属性
-4. 指定已有的 `LevelEndEffectDA` 资产（若无则先创建：右键 → Blueprint → 继承 `ULevelEndEffectDA`）
-5. 编译并保存 BP_YogHUD
-
----
-
-#### 2. 关卡中放置 ALevelIntroCameraMarker
-
-**目的**：每个关卡开场镜头 — 镜头先切到 Marker 位置停留，再平滑移回玩家。
-
-**步骤**：
-1. 打开目标关卡（游戏中每个战斗关卡均需放置）
-2. Place Actors → 搜索 `LevelIntroCameraMarker` → 拖入关卡
-3. 设置 Marker 的 Transform（放在关卡入口处的高处或戏剧性位置）
-4. 在 LevelFlow Blueprint（`BP_LevelFlow`）的 `BeginPlay` 事件中：
-   - 获取场景中的 `ALevelIntroCameraMarker` 引用
-   - 调用 `TriggerIntro()` 节点
-5. 保存关卡
-
----
-
-#### 3. 刷怪时对敌人施加 HealthMultiplier/DamageMultiplier GE
-
-**目的**：关卡 Buff 的血量/伤害倍率应在敌人生成后施加。
-
-**步骤**：
-1. 打开刷怪 GA（`GA_SpawnWave` 或类似名称）
-2. 在 Spawn Actor 节点后，获取生成的敌人 ASC
-3. 调用 `Apply Gameplay Effect to Self`，指定 `GE_EnemyFloorScaling`（若无则创建：继承 `UGameplayEffect`，添加 `Attribute.HealthMultiplier` 和 `Attribute.DamageMultiplier` 的 Magnitude）
-4. 从 `RoomDataAsset → BuffPool` 中读取对应倍率作为 Magnitude 来源
-5. 编译保存
-
----
-
-#### 4. 传送门约束 MinOpenPortals / MaxOpenPortals
-
-**状态**：代码库中未找到对应属性定义（可能已移除或规划中未实现）。
-
-**操作**：与策划确认是否仍需此功能；如需，先在 `APortal.h` 或 `RoomDataAsset.h` 中增加属性，再在 Portal 管理逻辑中读取。
-
----
-
-#### 5. HB_PlayerMain → Loot → LootSelectionWidgetClass
-
-**目的**：让 HUD 使用 `WBP_LootSelection` 作为战利品选择弹窗。
-
-**步骤**：
-1. 打开 `BP_YogHUD`
-2. Details → `Loot Selection Widget Class` 属性
-3. 指定 `WBP_LootSelection`
-4. 编译保存
-
----
-
-#### 6. 清理 WBP_LootSelection 的 Event On Focus Lost 节点
-
-**目的**：删除意外触发失焦关闭的 Blueprint 节点。
-
-**步骤**：
-1. 打开 `WBP_LootSelection`
-2. 切换到 Graph 视图
-3. 找到 `Event On Focus Lost` 节点（或 `Event On Deactivated`）
-4. 确认节点内的逻辑是否应删除（若触发了不期望的关闭行为，删除连线或整个节点）
-5. 编译保存
-
----
-
-#### 7. CameraShake 资产创建并分配
-
-**目的**：冲刺结束/受击时触发屏幕震动。
-
-**步骤**：
-1. Content Browser → 右键 → Blueprint Class → 搜索并继承 `UMatineeCameraShake`（或 `UCameraShakeBase`）
-2. 创建两个资产：`BS_DashShake`、`BS_HitShake`
-3. 配置参数：
-   - `BS_DashShake`：OscillationDuration=0.2, Amplitude XYZ=2,2,2, Frequency=20
-   - `BS_HitShake`：OscillationDuration=0.15, Amplitude XYZ=4,4,4, Frequency=25
-4. 在 `GA_PlayerDash` Blueprint 中，`Commit Ability` 之后添加 `Play World Camera Shake` 节点，指定 `BS_DashShake`
-5. 在受击 GA 或 `DamageAttributeSet` 触发处同样添加（或通过 `BP_PlayerController::ClientPlayCameraShake`）
-
----
-
-#### 8. 金币 HUD 绑定 OnGoldChanged
-
-**目的**：背包金币数量变化时更新金币显示控件。
-
-**步骤**：
-1. 打开金币显示 Widget（`WBP_GoldDisplay` 或 `WBP_HUD_Economy`）
-2. 在 `Event Construct` 中：
-   - 获取玩家角色 → `Get Backpack Grid Component`
-   - 绑定 `On Gold Changed` 事件
-   - 在回调中调用 `Set Text`（将 `NewGold` 转为字符串）
-3. 编译保存
-
----
-
-## Part B：Phase 7 — 统计写入 + 打造符文授予
-
-> 以下为 C++ 代码变更，Codex 直接实现。
-
-### 涉及文件
-
-| 文件 | 变更 |
+### 已完成可直接用
+| 系统 | 状态 |
 |------|------|
-| `Source/DevKit/Public/SaveGame/YogSaveSubsystem.h` | 新增 4 个统计写入函数 + `MigrateSaveGame` 声明 |
-| `Source/DevKit/Private/SaveGame/YogSaveSubsystem.cpp` | 实现统计函数 + TriggerCheckpoint 更新 HighestFloor |
-| `Source/DevKit/Private/System/YogGameInstanceBase.cpp` | `StartNewRunFromFrontend` 调用 `RecordRunStarted` |
-| `Source/DevKit/Private/GameModes/YogGameMode.cpp` | `UpdateFinishLevel` 调用 `RecordEnemyKilled`；`HandlePlayerDeath` 调用 `RecordPlayerDeath` |
-| `Source/DevKit/Public/Character/PlayerCharacterBase.h` | 声明 `GrantCraftedStarterRunesAsync()` |
-| `Source/DevKit/Private/Character/PlayerCharacterBase.cpp` | 实现 `GrantCraftedStarterRunesAsync()`（AsyncLoad → AddHiddenPassiveRune） |
-| `Source/DevKit/Private/Character/YogPlayerControllerBase.cpp` | 在 SetTimerForNextTick lambda 末尾调用 `GrantCraftedStarterRunesAsync()` |
-| `Source/DevKit/Private/Component/BackpackGridComponent.cpp` | `AddGold` 内调用 `RecordGoldEarned` |
+| `UYogMetaProgressionSubsystem` | 货币增减、节点购买、功能解锁 API 完整 |
+| `FMetaProgressionData` 存档字段 | 序列化/反序列化正常 |
+| `GrantCraftedStarterRunesAsync` | 每局 BeginPlay 时将 CraftedStarterRunes 授予为隐藏被动 |
+| `AddCraftedStarterRune(FPrimaryAssetId)` | MetaProgressionSubsystem 接口已有 |
+| `SMetaProgressionWorkbenchWidget` | 编辑器列表视图已有，需扩展为树形图 |
+
+### 缺失
+- `EMetaUpgradeEffectType::RuneGrant` — 节点购买后自动授予起始符文的效果类型
+- 运行时升级树 UI Widget
+- 主城设施框架（Hub Facility Actor）
+- 局外资源结算页
+- 资源房 → 货币联通
 
 ---
 
-## Part C：Phase 8 — 存档版本迁移框架
+## 方案设计
 
-| 文件 | 变更 |
+### A. MetaTypes 扩展：RuneGrant 效果类型
+
+在 `EMetaUpgradeEffectType` 中增加 `RuneGrant`：购买该节点时将指定 RuneDA 加入 `CraftedStarterRunes`，每局 BeginPlay 时自动授予为隐藏被动（现有 GrantCraftedStarterRunesAsync 管道已打通）。
+
+节点可为多级（MaxLevel > 1），每升一级授予一张符文（同一 DA 可以加多次形成叠加效果，或配不同 DA 形成进化链）。
+
+### B. 运行时升级树 Widget（主城内访问）
+
+`UYogMetaUpgradeTreeWidgetBase` C++ 基类提供：
+- 绑定子控件（节点卡片列表、货币显示、侧别切换）
+- 购买入口（委托给 MetaProgressionSubsystem.TryPurchaseNode）
+- 事件响应（OnNodePurchased / OnCurrencyChanged）
+
+每个节点卡片用独立 `UMetaNodeCardWidgetBase` 展示：名称、等级进度条、花费、前置锁定状态、购买按钮。
+
+### C. 编辑器升级树工具扩展
+
+在现有 `SMetaProgressionWorkbenchWidget` 基础上：
+- 将节点列表改为拓扑有向图（Slate Canvas + 连线）  
+- 支持拖拽排布节点位置（序列化到 DataTable 的 EditorPosition 辅助字段）
+- RuneGrant 类型节点显示绑定的 RuneDA 缩略图
+
+### D. 主城设施框架（AHubFacilityActor）
+
+C++ 基类：
+- Box Collision 触发交互（玩家靠近显示"按 E 交互"提示）
+- `OnInteract()` 虚函数，子 BP 覆写后推入对应 UI Widget
+- `FText FacilityDisplayName`（HUD 交互提示用）
+
+主要子类（均为 Blueprint）：
+| 设施 | 触发 UI |
+|------|---------|
+| `BP_HubUpgradeTerminal` | `WBP_MetaUpgradeTree` |
+| `BP_HubRunStartPortal` | 进入开局确认 → 加载第一层 |
+| `BP_HubArchive`（二期） | 历史统计 / 成就查询 |
+
+### E. 局外资源结算页
+
+`UYogRunSummaryWidgetBase` C++ 基类：
+- 接收结算数据：`FRunSummaryData { FloorReached, EnemiesKilled, MetaCurrencyGained (TMap), UnlockableNodeNames }`
+- 展示本局战绩 + 获得局外资源 + 当前可解锁节点提示
+- "返回主城"按钮 → 加载 L_HubTown
+
+触发点：GameMode `HandlePlayerDeath` / 通关结算时广播 `OnRunEnded(FRunSummaryData)`
+
+### F. 资源房 → 货币联通
+
+`RoomDataAsset` 增加字段 `TArray<FMetaCurrencyCost> MetaCurrencyRewards`；房间清场后 GameMode 读取并调用 `MetaProgressionSubsystem.AddCurrency`。
+
+---
+
+## 实现步骤
+
+1. **MetaTypes.h + YogMetaProgressionSubsystem.cpp**  
+   — 加 `RuneGrant` 枚举值、`StarterRuneToGrant`（`FSoftObjectPath`）字段  
+   — `TryPurchaseNode` 中处理 RuneGrant → 调用 `AddCraftedStarterRune`
+
+2. **YogMetaProgressionSubsystem.h** — 加 `FRunSummaryData` 结构体、`OnRunEnded` 委托声明
+
+3. **UYogMetaUpgradeTreeWidgetBase.h/.cpp** — C++ 基类（BindWidget + 购买逻辑 + 事件绑定）
+
+4. **UMetaNodeCardWidgetBase.h/.cpp** — 节点卡片基类（状态驱动：Locked / Available / Purchased）
+
+5. **UYogRunSummaryWidgetBase.h/.cpp** — 结算页基类（接收 FRunSummaryData，展示 + 返回主城按钮）
+
+6. **AHubFacilityActor.h/.cpp** — 主城设施 C++ 基类（碰撞 + OnInteract 虚函数）
+
+7. **RoomDataAsset.h** — 加 `MetaCurrencyRewards` 字段
+
+8. **YogGameMode.cpp** — `HandlePlayerDeath` / 通关时构建 FRunSummaryData 并广播；房间清场时调用 AddCurrency
+
+9. **SMetaProgressionWorkbenchWidget 扩展**（编辑器）— 拓扑图视图、RuneGrant 节点缩略图
+
+10. **WBP + L_HubTown**（手动 Editor）— 蓝图 Widget 布局 + 主城关卡搭建
+
+---
+
+## 涉及文件
+
+| 文件 | 改动 |
 |------|------|
-| `Source/DevKit/Private/SaveGame/YogSaveSubsystem.cpp` | `SelectSlot` 加版本检查；实现 `MigrateSaveGame(Save, FromVersion, ToVersion)` |
-| `Source/DevKit/Public/SaveGame/YogSaveSubsystem.h` | 私有声明 `MigrateSaveGame` |
+| `Source/DevKit/Public/MetaProgression/MetaTypes.h` | 加 `RuneGrant` 枚举值、`StarterRuneToGrant FSoftObjectPath` 字段 |
+| `Source/DevKit/Public/MetaProgression/YogMetaProgressionSubsystem.h` | 加 `FRunSummaryData` 结构体、`OnRunEnded` 委托 |
+| `Source/DevKit/Private/MetaProgression/YogMetaProgressionSubsystem.cpp` | `TryPurchaseNode` 处理 RuneGrant |
+| `Source/DevKit/Public/UI/YogMetaUpgradeTreeWidgetBase.h` | 新建：升级树 Widget 基类 |
+| `Source/DevKit/Private/UI/YogMetaUpgradeTreeWidgetBase.cpp` | 新建 |
+| `Source/DevKit/Public/UI/MetaNodeCardWidgetBase.h` | 新建：节点卡片 Widget 基类 |
+| `Source/DevKit/Private/UI/MetaNodeCardWidgetBase.cpp` | 新建 |
+| `Source/DevKit/Public/UI/YogRunSummaryWidgetBase.h` | 新建：结算页 Widget 基类 |
+| `Source/DevKit/Private/UI/YogRunSummaryWidgetBase.cpp` | 新建 |
+| `Source/DevKit/Public/World/HubFacilityActor.h` | 新建：主城设施 Actor 基类 |
+| `Source/DevKit/Private/World/HubFacilityActor.cpp` | 新建 |
+| `Source/DevKit/Public/Data/RoomDataAsset.h` | 加 `MetaCurrencyRewards` 字段 |
+| `Source/DevKit/Private/GameModes/YogGameMode.cpp` | 加 `HandlePlayerDeath` 结算广播 + 房间清场 AddCurrency 钩子 |
+| `Source/DevKitEditor/Private/Tools/SMetaProgressionWorkbenchWidget.cpp` | 拓扑图视图扩展 |
+
+---
+
+## 潜在风险
+
+- **RuneGrant 重复授予**：玩家多次进局，`CraftedStarterRunes` 中同一 DA 若被重复 Add 会叠加。需在 `AddCraftedStarterRune` 中加去重（或在 `TryPurchaseNode` 判断节点已购买则跳过）。目前逻辑未去重，需修复。
+- **编辑器拓扑图排布持久化**：节点坐标存在 DataTable 的辅助字段中；若美术移动节点后忘记保存 DataTable，位置丢失。考虑单独存一个 EditorLayout 资产规避。
+- **主城关卡加载时机**：死亡 → 结算页 → 主城，需要确保 PendingRunState 在加载主城前已清空（ClearRunCheckpoint 已有，但顺序需保证）。
+- **RoomDataAsset 字段新增兼容性**：已存在的 RoomDataAsset 蓝图会多一个空 MetaCurrencyRewards 字段，默认为空数组，不触发 AddCurrency，行为兼容。
+
+---
+
+## 设计决策（已确认）
+
+- **神秘点**：暂时不使用，所有节点购买只消耗货币体系。`MysticLevelRequired` 字段保留配置但 `TryPurchaseNode` 忽略它，`AddMysticPoints` 暂不调用。
+- **结算数据**：使用累计方案——局内每次 `AddCurrency` 时同步累加 `FRunSummaryData.MetaCurrencyGained`（按 Tag 分计），跑局开始时清零，结算时直接读取。局内可花费局外货币（如商店），累计反映毛收入而非净增量。
+- **编辑器节点坐标**：存 DataTable 辅助字段（`EditorPositionX/Y float`），简单直接。升级树拓扑图视图作为纯编辑器工具（扩展现有 SMetaProgressionWorkbenchWidget），不做运行时版本；玩家在主城通过 WBP_MetaUpgradeTree 购买节点，编辑器工具仅供策划配置用。
+- **主城交互键**：复用现有 `E` 键 ItemInteract 路径（`AHubFacilityActor` 实现与 `AItemSpawner` 相同的 Overlap + Interact 接口）。

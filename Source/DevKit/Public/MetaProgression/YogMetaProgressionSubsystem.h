@@ -13,6 +13,31 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMetaCurrencyChanged, FGameplayTa
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMetaNodePurchased, FName, NodeRowName);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMetaFeatureUnlocked, FGameplayTag, FeatureTag);
 
+// 跑局结算数据（非序列化，仅运行时传递）
+USTRUCT(BlueprintType)
+struct DEVKIT_API FRunSummaryData
+{
+	GENERATED_BODY()
+
+	// 本局到达的楼层
+	UPROPERTY(BlueprintReadOnly)
+	int32 FloorReached = 0;
+
+	// 本局击杀敌人数
+	UPROPERTY(BlueprintReadOnly)
+	int32 EnemiesKilled = 0;
+
+	// 本局累计获得的局外货币（Key=CurrencyTag，Value=毛收入；不扣除局内花费）
+	UPROPERTY(BlueprintReadOnly)
+	TMap<FGameplayTag, int32> MetaCurrencyGained;
+
+	// 当前可购买（CanPurchaseNode 返回 true）的节点名列表，供结算页显示提示
+	UPROPERTY(BlueprintReadOnly)
+	TArray<FName> PurchasableNodeNames;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRunEnded, const FRunSummaryData&, Summary);
+
 // ============================================================
 //  UYogMetaProgressionSubsystem
 //
@@ -112,6 +137,29 @@ public:
 	// 事件广播
 	// =========================================================
 
+	// =========================================================
+	// 跑局货币累计（结算页用）
+	// =========================================================
+
+	// 清零本局货币累计器（RecordRunStarted 时调用）
+	void ClearRunCurrencyAccumulator();
+
+	// 读取本局毛收入（AddCurrency 正数时累加，不扣除花费）
+	UFUNCTION(BlueprintPure, Category = "MetaProgression|Summary")
+	const TMap<FGameplayTag, int32>& GetRunCurrencyGained() const { return RunCurrencyGained; }
+
+	// 枚举 DataTable 中所有节点 RowName（UI 遍历用）
+	UFUNCTION(BlueprintCallable, Category = "MetaProgression|Node")
+	void GetAllNodeNames(TArray<FName>& OutNames) const;
+
+	// 构建结算数据并广播 OnRunEnded
+	UFUNCTION(BlueprintCallable, Category = "MetaProgression|Summary")
+	void BroadcastRunEnded(int32 FloorReached, int32 EnemiesKilled);
+
+	// =========================================================
+	// 事件广播
+	// =========================================================
+
 	UPROPERTY(BlueprintAssignable)
 	FOnMetaCurrencyChanged OnCurrencyChanged;
 
@@ -120,6 +168,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FOnMetaFeatureUnlocked OnFeatureUnlocked;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnRunEnded OnRunEnded;
 
 private:
 
@@ -134,4 +185,7 @@ private:
 
 	UYogSaveSubsystem* GetSaveSys() const;
 	void               CommitSave();
+
+	// 本局累计获得的局外货币（正数入账时累加，不受花费影响）
+	TMap<FGameplayTag, int32> RunCurrencyGained;
 };
