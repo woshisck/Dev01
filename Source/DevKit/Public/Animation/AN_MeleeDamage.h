@@ -129,9 +129,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitDilation")
 	FMeleeDamageHitDilationSettings HitSuccessDilation;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Events")
-	TArray<FGameplayTag> OnHitEventTags;
-
 	// ── 附加效果 ───────────────────────────────────────────────────────────
 
 	/**

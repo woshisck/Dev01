@@ -6,7 +6,11 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
+#include "Animation/AN_MeleeDamage.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/HitStopManager.h"
 #include "BuffFlow/BuffFlowComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
@@ -33,11 +37,25 @@ namespace
 	};
 
 	TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
+
+	float FrameToMontageTime(int32 Frame, int32 TotalFrames, const UAnimMontage* Montage)
+	{
+		const float Duration = Montage ? Montage->GetPlayLength() : 0.f;
+		const float Normalized = TotalFrames > 0
+			? FMath::Clamp(static_cast<float>(Frame) / static_cast<float>(TotalFrames), 0.f, 1.f)
+			: 0.f;
+		return Normalized * Duration;
+	}
 }
 
 UGA_MeleeAttack::UGA_MeleeAttack()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+	// Required for combo chaining: when ComboRuntime activates the next node
+	// (same UGA_MeleeAttack class), the previous instance is still alive
+	// (montage in CanCombo window). Without retrigger, TryActivateAbilityByClass
+	// returns false and the chain dies on the root. Matches GA_PlayMontage behavior.
+	bRetriggerInstancedAbility = true;
 
 	// 鍙楀嚮纭洿 / 鍑婚€€鏈熼棿涓嶅厑璁稿彂鍔ㄦ敾鍑?
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.HitReact"));
@@ -365,8 +383,34 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 
 void UGA_MeleeAttack::ScheduleNodeComboWindow(UAnimMontage* Montage, float PlayRate)
 {
-	// 512 temporary simplification: combo windows are authored directly on
-	// attack montages with UAnimNotifyState_ComboWindow.
+	// Drives PlayerState.AbilityCast.CanCombo via timers based on the active
+	// ComboGraph node's frame window. Ported from GA_PlayMontage so combo
+	// chaining works without requiring ANS_AddGameplayTag on every montage.
+	if (!bActiveComboNodeValid || !ActiveComboNode.bOverrideComboWindow
+		|| ActiveComboNode.ComboWindowTotalFrames <= 0 || !Montage)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float Rate = (PlayRate > KINDA_SMALL_NUMBER) ? PlayRate : 1.0f;
+	const float StartTime = FrameToMontageTime(ActiveComboNode.ComboWindowStartFrame,
+		ActiveComboNode.ComboWindowTotalFrames, Montage) / Rate;
+	const float EndTime = FrameToMontageTime(ActiveComboNode.ComboWindowEndFrame,
+		ActiveComboNode.ComboWindowTotalFrames, Montage) / Rate;
+
+	World->GetTimerManager().ClearTimer(ComboWindowOpenTimerHandle);
+	World->GetTimerManager().ClearTimer(ComboWindowCloseTimerHandle);
+
+	World->GetTimerManager().SetTimer(ComboWindowOpenTimerHandle, this,
+		&UGA_MeleeAttack::OpenNodeComboWindow, FMath::Max(StartTime, 0.01f), false);
+	World->GetTimerManager().SetTimer(ComboWindowCloseTimerHandle, this,
+		&UGA_MeleeAttack::CloseNodeComboWindow, FMath::Max(EndTime, 0.01f), false);
 }
 
 void UGA_MeleeAttack::TryStartEnemyRadialLunge()
@@ -437,12 +481,18 @@ void UGA_MeleeAttack::TryStartEnemyRadialLunge()
 
 void UGA_MeleeAttack::OpenNodeComboWindow()
 {
-	// Node frame windows are currently display/tool data only.
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")));
+	}
 }
 
 void UGA_MeleeAttack::CloseNodeComboWindow()
 {
-	// Node frame windows are currently display/tool data only.
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")), 0);
+	}
 }
 
 void UGA_MeleeAttack::ActivateAbility(
@@ -692,9 +742,10 @@ void UGA_MeleeAttack::ActivateAbility(
 
 	TryStartEnemyRadialLunge();
 	Task->ReadyForActivation();
-	// Combo windows are temporarily driven by montage notifies
-	// (ANS_AddGameplayTag: PlayerState.AbilityCast.CanCombo).
-	// Graph node frame windows stay as config data but are not applied here.
+
+	// Drive the combo window from the ComboGraph node's frame config (when set).
+	// Falls back to montage-authored ANS_AddGameplayTag notifies if bOverrideComboWindow is false.
+	ScheduleNodeComboWindow(Montage, AttackSpeedRate);
 }
 
 void UGA_MeleeAttack::EndAbility(
@@ -710,6 +761,16 @@ void UGA_MeleeAttack::EndAbility(
 		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
 		ASC->UnregisterGameplayTagEvent(CanComboTagHandle, CanComboTag, EGameplayTagEventType::NewOrRemoved);
 		CanComboTagHandle.Reset();
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ComboWindowOpenTimerHandle);
+		World->GetTimerManager().ClearTimer(ComboWindowCloseTimerHandle);
+	}
+	if (ASC)
+	{
+		ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")), 0);
 	}
 
 	if (EnemyLungeTask)
@@ -901,6 +962,11 @@ void UGA_MeleeAttack::OnMontageCancelled(FGameplayTag EventTag, FGameplayEventDa
 
 void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData EventData)
 {
+	// Re-entry guard: downstream broadcasts (Ability.Event.Attack.Hit / CritHit, DamageExecution events)
+	// can be caught by this same task if the BP's EventTags filter is too broad, causing infinite recursion.
+	if (bIsHandlingMeleeEvent) return;
+	TGuardValue<bool> ReentrancyGuard(bIsHandlingMeleeEvent, true);
+
 	UE_LOG(LogTemp, Warning, TEXT("[GA_MeleeAttack] OnEventReceived: %s on %s"), *EventTag.ToString(), *GetName());
 	++CombatDeckHitResolveCounter;
 
@@ -1039,6 +1105,26 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 		}
 
 		// 骞挎挱 Ability.Event.Attack.Hit 缁欐敾鍑昏€咃紙BGC 浜嬩欢椹卞姩鍨嬬鏂囩洃鍚浜嬩欢锛?
+		// AN_MeleeDamage HitStop: when at least one hit lands, apply directly to attacker montage
+		if (HitActors.Num() > 0)
+		{
+			AYogCharacterBase::FPendingHitStopOverride& Override = Owner->PendingHitStopOverride;
+			if (Override.bActive && Override.Mode != EHitStopMode::None)
+			{
+				UAnimInstance* AnimInst = Owner->GetMesh() ? Owner->GetMesh()->GetAnimInstance() : nullptr;
+				if (AnimInst)
+				{
+					if (UHitStopManager* HitStop = Owner->GetWorld() ? Owner->GetWorld()->GetSubsystem<UHitStopManager>() : nullptr)
+					{
+						const float Frozen = (Override.Mode == EHitStopMode::Freeze) ? Override.FrozenDuration : 0.f;
+						const float Slow   = (Override.Mode == EHitStopMode::Slow)   ? Override.SlowDuration   : 0.f;
+						HitStop->RequestMontageHitStop(AnimInst, Frozen, Slow, Override.SlowRate, Override.CatchUpRate);
+					}
+				}
+				Override.bActive = false;
+			}
+		}
+
 		static const FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
 		for (AActor* HitActor : HitActors)
 		{
@@ -1090,6 +1176,7 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 	{
 		Owner->PendingAdditionalHitRunes.Empty();
 		Owner->PendingOnHitEventTags.Empty();
+		Owner->PendingHitStopOverride = AYogCharacterBase::FPendingHitStopOverride();
 	}
 
 	if (CombatCardResult.bHadCard)

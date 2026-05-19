@@ -26,6 +26,19 @@ enum class EYogComboGraphDashSaveMode : uint8
 	ForcePreserve UMETA(DisplayName = "Force Preserve")
 };
 
+/**
+ * 决定 ComboGraph 节点在运行时激活哪一个 GA。
+ * Melee → UGA_MeleeAttack（默认）
+ * Range → UGA_RangeAttack
+ * 项目侧 (ComboRuntimeComponent) 负责根据此枚举选择激活类。
+ */
+UENUM(BlueprintType)
+enum class EYogComboGraphAttackType : uint8
+{
+	Melee UMETA(DisplayName = "Melee"),
+	Range UMETA(DisplayName = "Range")
+};
+
 UCLASS(BlueprintType, Blueprintable)
 class YOGCOMBOGRAPH_API UGameplayAbilityComboGraphNode : public UGenericGraphNode
 {
@@ -40,6 +53,10 @@ public:
 	/** Player input that starts this node when it is a root node. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	EYogComboGraphInputAction RootInputAction = EYogComboGraphInputAction::Any;
+
+	/** Melee → GA_MeleeAttack, Range → GA_RangeAttack. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	EYogComboGraphAttackType AttackType = EYogComboGraphAttackType::Melee;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
 	TObjectPtr<UAnimMontage> Montage = nullptr;

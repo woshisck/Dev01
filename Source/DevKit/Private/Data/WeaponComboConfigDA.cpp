@@ -48,6 +48,7 @@ FWeaponComboNodeConfig FWeaponComboNodeConfig::FromComboGraphNode(const UGamepla
 
 	Config.NodeId = !Node->NodeId.IsNone() ? Node->NodeId : FName(*Node->GetName());
 	Config.InputAction = InputAction;
+	Config.AttackType = Node->AttackType;
 	Config.Montage = Node->Montage;
 	Config.bIsComboFinisher = Node->bIsComboFinisher;
 	Config.bAllowDashSave = Node->bAllowDashSave;

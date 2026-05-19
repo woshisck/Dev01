@@ -91,11 +91,12 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 		Override.CatchUpRate = EffectiveNodeAttackConfig ? EffectiveNodeAttackConfig->HitStopCatchUpRate : EffectiveAttackData ? EffectiveAttackData->HitStopCatchUpRate : HitStopCatchUpRate;
 	}
 
+	static const TArray<FGameplayTag> EmptyOnHitEventTags;
 	const TArray<FGameplayTag>& EffectiveOnHitEventTags = EffectiveNodeAttackConfig
 		? EffectiveNodeAttackConfig->OnHitEventTags
 		: EffectiveAttackData
 		? EffectiveAttackData->OnHitEventTags
-		: OnHitEventTags;
+		: EmptyOnHitEventTags;
 	if (EffectiveOnHitEventTags.Num() > 0)
 	{
 		Character->PendingOnHitEventTags = EffectiveOnHitEventTags;

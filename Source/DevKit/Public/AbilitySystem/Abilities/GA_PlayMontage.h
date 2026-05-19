@@ -60,4 +60,6 @@ private:
 
 	FTimerHandle ComboWindowOpenHandle;
 	FTimerHandle ComboWindowCloseHandle;
+
+	bool bIsHandlingMeleeEvent = false;
 };

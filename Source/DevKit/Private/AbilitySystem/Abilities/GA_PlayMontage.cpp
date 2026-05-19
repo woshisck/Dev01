@@ -8,11 +8,14 @@
 #include "AbilitySystem/AbilityTask/YogTask_PlayMontageAbility.h"
 #include "AbilitySystem/Abilities/YogAbilityTypes.h"
 #include "Animation/AN_MeleeDamage.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/HitStopManager.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/BufferComponent.h"
 #include "Component/CombatItemComponent.h"
 #include "Component/ComboRuntimeComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageConfigDA.h"
 #include "Engine/World.h"
@@ -272,6 +275,11 @@ void UGA_PlayMontage::ResetComboToRoot()
 
 void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEventData& EventData)
 {
+	// Re-entry guard: downstream broadcasts (Ability.Event.Attack.Hit / CritHit, DamageExecution events)
+	// can be caught by this same task if the BP's EventTags filter is too broad, causing infinite recursion.
+	if (bIsHandlingMeleeEvent) return;
+	TGuardValue<bool> ReentrancyGuard(bIsHandlingMeleeEvent, true);
+
 	FYogGameplayEffectContainerSpec ContainerSpec = MakeEffectContainerSpec(EventTag, EventData, -1);
 	TArray<FActiveGameplayEffectHandle> Handles = ApplyEffectContainerSpec(ContainerSpec);
 
@@ -283,6 +291,26 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 
 		TArray<AActor*> HitActors;
 		CollectHitActors(ContainerSpec, HitActors);
+
+		// AN_MeleeDamage 配置的 HitStop：命中至少一个目标时直接对攻击者蒙太奇生效
+		if (HitActors.Num() > 0)
+		{
+			AYogCharacterBase::FPendingHitStopOverride& Override = Owner->PendingHitStopOverride;
+			if (Override.bActive && Override.Mode != EHitStopMode::None)
+			{
+				UAnimInstance* AnimInst = Owner->GetMesh() ? Owner->GetMesh()->GetAnimInstance() : nullptr;
+				if (AnimInst)
+				{
+					if (UHitStopManager* HitStop = Owner->GetWorld() ? Owner->GetWorld()->GetSubsystem<UHitStopManager>() : nullptr)
+					{
+						const float Frozen = (Override.Mode == EHitStopMode::Freeze) ? Override.FrozenDuration : 0.f;
+						const float Slow   = (Override.Mode == EHitStopMode::Slow)   ? Override.SlowDuration   : 0.f;
+						HitStop->RequestMontageHitStop(AnimInst, Frozen, Slow, Override.SlowRate, Override.CatchUpRate);
+					}
+				}
+				Override.bActive = false;
+			}
+		}
 
 		static const FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
 		for (AActor* HitActor : HitActors)

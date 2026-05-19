@@ -43,6 +43,10 @@ struct DEVKIT_API FWeaponComboNodeConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	ECardRequiredAction InputAction = ECardRequiredAction::Any;
 
+	/** Melee → GA_MeleeAttack, Range → GA_RangeAttack. Copied from node on FromComboGraphNode. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	EYogComboGraphAttackType AttackType = EYogComboGraphAttackType::Melee;
+
 	/** Legacy/runtime context only. YogComboGraph traversal does not use this. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	FGameplayTag AbilityTag;

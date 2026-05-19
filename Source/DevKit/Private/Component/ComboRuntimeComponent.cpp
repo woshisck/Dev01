@@ -1,7 +1,9 @@
 #include "Component/ComboRuntimeComponent.h"
 
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/Abilities/GA_PlayMontage.h"
+#include "AbilitySystem/Abilities/GA_RangeAttack.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
@@ -259,16 +261,26 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 		ASC->CancelAbilityHandle(ActiveAbilitySpecHandle);
 	}
 
-	const bool bActivated = ASC->TryActivateAbilityByClass(UGA_PlayMontage::StaticClass(), true);
+	// TEMP: route to GA_MeleeAttack / GA_RangeAttack based on the ComboGraph
+	// node's AttackType. Previously hard-coded to UGA_PlayMontage, which doesn't
+	// run the YogTargetType hit-collection pipeline (that lives on UGA_MeleeAttack).
+	// GA_RangeAttack is a stub for now; flip the enum in the editor to test routing.
+	TSubclassOf<UGameplayAbility> AbilityClass = (NextNode->AttackType == EYogComboGraphAttackType::Range)
+		? TSubclassOf<UGameplayAbility>(UGA_RangeAttack::StaticClass())
+		: TSubclassOf<UGameplayAbility>(UGA_MeleeAttack::StaticClass());
+
+	const bool bActivated = ASC->TryActivateAbilityByClass(AbilityClass, true);
 	if (!bActivated)
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("[ComboRuntime] Failed to activate node=%s input=%s current=%s montage=%s montageConfig=%s"),
+			TEXT("[ComboRuntime] Failed to activate node=%s input=%s current=%s montage=%s montageConfig=%s attackType=%s ability=%s"),
 			*NextNode->NodeId.ToString(),
 			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
 			*GetCurrentNodeId().ToString(),
 			*GetNameSafe(NextNode->Montage.Get()),
-			*GetNameSafe(NextNode->MontageConfig.Get()));
+			*GetNameSafe(NextNode->MontageConfig.Get()),
+			*StaticEnum<EYogComboGraphAttackType>()->GetNameStringByValue(static_cast<int64>(NextNode->AttackType)),
+			*GetNameSafe(AbilityClass.Get()));
 		ActiveNode = FWeaponComboNodeConfig();
 		ClearPreparedComboActivation();
 		return false;

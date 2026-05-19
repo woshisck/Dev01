@@ -146,6 +146,8 @@ private:
 	int32 ActiveComboIndex = 0;
 	FGameplayTagContainer ActiveComboTags;
 
+	bool bIsHandlingMeleeEvent = false;
+
 	/** Finds the first AN_MeleeDamage notify on the selected montage. */
 	static UAN_MeleeDamage* GetFirstDamageNotify(UAnimMontage* Montage);
 
