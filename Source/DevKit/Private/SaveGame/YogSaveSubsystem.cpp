@@ -13,6 +13,8 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Component/CharacterDataComponent.h"
+#include "Component/PlayerActiveSkillComponent.h"
+#include "Data/ActiveSkillDataAsset.h"
 #include "Kismet/GameplayStatics.h"
 
 static const int32 GNumSaveSlots    = 3;
@@ -112,6 +114,7 @@ void UYogSaveSubsystem::ResetSlotForNewGame(int32 SlotIndex)
 
 	// 保留 Statistics，清空其余局外数据和存档点
 	CurrentSaveGame->MetaProgression = FMetaProgressionData{};
+	CurrentSaveGame->SelectedSkillLoadout.Reset();
 	CurrentSaveGame->RunCheckpoint   = FRunCheckpointData{};
 	CurrentSaveGame->PlayerStateData = FPlayerGASData{};
 	CurrentSaveGame->WeaponInstanceItems.Reset();
@@ -235,6 +238,15 @@ void UYogSaveSubsystem::PopulateCheckpointFromRunState(FRunCheckpointData& Out, 
 	Out.HiddenPassiveRuneInstances        = RS.HiddenPassiveRuneInstances;
 	Out.SacrificeOfferingCosts            = RS.SacrificeOfferingCosts;
 	Out.CombatDeckCardOrientations        = RS.CombatDeckCardOrientations;
+	Out.SelectedSkillLoadout.Reset(RS.SelectedSkillLoadout.Num());
+	for (const TObjectPtr<UActiveSkillDataAsset>& Skill : RS.SelectedSkillLoadout)
+	{
+		Out.SelectedSkillLoadout.Add(Skill.Get());
+	}
+	if (CurrentSaveGame)
+	{
+		CurrentSaveGame->SelectedSkillLoadout = Out.SelectedSkillLoadout;
+	}
 
 	// TObjectPtr → TSoftObjectPtr（仅存路径，不强制加载）
 	Out.EquippedWeaponDef  = RS.EquippedWeaponDef.Get();
@@ -281,6 +293,11 @@ void UYogSaveSubsystem::RestoreRunStateFromCheckpoint(const FRunCheckpointData& 
 	RS.HiddenPassiveRuneInstances        = In.HiddenPassiveRuneInstances;
 	RS.SacrificeOfferingCosts            = In.SacrificeOfferingCosts;
 	RS.CombatDeckCardOrientations        = In.CombatDeckCardOrientations;
+	RS.SelectedSkillLoadout.Reset(In.SelectedSkillLoadout.Num());
+	for (const TSoftObjectPtr<UActiveSkillDataAsset>& SoftSkill : In.SelectedSkillLoadout)
+	{
+		RS.SelectedSkillLoadout.Add(SoftSkill.LoadSynchronous());
+	}
 
 	// TSoftObjectPtr → 同步加载（这里只恢复指针；调用方可在之后 AsyncLoad）
 	RS.EquippedWeaponDef  = In.EquippedWeaponDef.LoadSynchronous();
@@ -457,6 +474,14 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 	}
 
 	SaveData(Player, SaveGame->PlayerStateData.CharacterByteData);
+	SaveGame->SelectedSkillLoadout.Reset();
+	if (Player->ActiveSkillComponent)
+	{
+		for (UActiveSkillDataAsset* Skill : Player->ActiveSkillComponent->GetSkillLoadout())
+		{
+			SaveGame->SelectedSkillLoadout.Add(Skill);
+		}
+	}
 
 	TArray<AActor*> AttachedActors;
 	Player->GetAttachedActors(AttachedActors, true, true);
@@ -489,6 +514,16 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 	if (!Player || !Player->GetASC()) return;
 
 	GiveAbilitiesFromSaveData(Player->GetASC(), SaveGame->PlayerStateData.Abilities);
+	if (Player->ActiveSkillComponent && !SaveGame->SelectedSkillLoadout.IsEmpty())
+	{
+		TArray<UActiveSkillDataAsset*> Loadout;
+		Loadout.Reserve(SaveGame->SelectedSkillLoadout.Num());
+		for (const TSoftObjectPtr<UActiveSkillDataAsset>& SoftSkill : SaveGame->SelectedSkillLoadout)
+		{
+			Loadout.Add(SoftSkill.LoadSynchronous());
+		}
+		Player->ActiveSkillComponent->SetSkillLoadout(Loadout);
+	}
 
 	for (FWeaponInstanceData& WeaponData : SaveGame->WeaponInstanceItems)
 	{

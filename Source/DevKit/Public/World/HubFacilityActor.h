@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "GameFramework/Actor.h"
 #include "HubFacilityActor.generated.h"
 
@@ -28,6 +29,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub")
 	TSubclassOf<UCommonActivatableWidget> WidgetClass;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub")
+	FGameplayTag RequiredFeatureTag;
+
 	// 交互触发盒（玩家 Overlap 检测范围）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hub")
 	TObjectPtr<UBoxComponent> InteractBox;
@@ -35,12 +39,15 @@ public:
 protected:
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// BP 可覆写：Interact 被调用前的自定义逻辑（动画、音效等）
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hub")
 	void BP_OnInteract(APlayerCharacterBase* Player);
 
 private:
+	bool IsFeatureAvailable() const;
+	void ApplyFeatureAvailability();
 
 	UFUNCTION()
 	void HandleBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -50,4 +57,7 @@ private:
 	UFUNCTION()
 	void HandleEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	                      UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	UFUNCTION()
+	void HandleFeatureUnlocked(FGameplayTag FeatureTag);
 };

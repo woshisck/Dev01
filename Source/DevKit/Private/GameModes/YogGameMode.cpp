@@ -7,6 +7,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
+#include "Component/PlayerActiveSkillComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Data/RoomDataAsset.h"
 #include <Kismet/GameplayStatics.h>
@@ -34,6 +35,7 @@
 #include "Misc/PackageName.h"
 #include "GameFramework/PlayerController.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
+#include "World/HubFacilityActor.h"
 
 namespace
 {
@@ -575,6 +577,13 @@ void AYogGameMode::EnterArrangementPhase()
 			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 			NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
+			if (Player->ActiveSkillComponent)
+			{
+				for (UActiveSkillDataAsset* Skill : Player->ActiveSkillComponent->GetSkillLoadout())
+				{
+					NewState.SelectedSkillLoadout.Add(Skill);
+				}
+			}
 			GI->PendingRunState = NewState;
 		}
 	}
@@ -920,6 +929,13 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 
 				NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 				NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
+				if (Player->ActiveSkillComponent)
+				{
+					for (UActiveSkillDataAsset* Skill : Player->ActiveSkillComponent->GetSkillLoadout())
+					{
+						NewState.SelectedSkillLoadout.Add(Skill);
+					}
+				}
 
 				GI->PendingRunState = NewState;
 				UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE — HP=%.1f Gold=%d Phase=%d Heat=%.0f Runes=%d"),
@@ -1338,6 +1354,7 @@ void AYogGameMode::StartLevelSpawning()
 			}
 		}
 
+		EnsureHubActiveSkillTerminal();
 		ActivateHubPortals();
 		return;
 	}
@@ -2741,6 +2758,13 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 			// 保存献祭恩赐
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 			NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
+			if (Player->ActiveSkillComponent)
+			{
+				for (UActiveSkillDataAsset* Skill : Player->ActiveSkillComponent->GetSkillLoadout())
+				{
+					NewState.SelectedSkillLoadout.Add(Skill);
+				}
+			}
 
 			GI->PendingRunState = NewState;
 			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Gold=%d Phase=%d Runes=%d Weapon=%s Room=%s"),
@@ -2845,6 +2869,43 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 	}
 
 	return nullptr;
+}
+
+void AYogGameMode::EnsureHubActiveSkillTerminal()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const TCHAR* TerminalClassPath = TEXT("/Game/Code/Core/Hub/BP_HubActiveSkillTerminal.BP_HubActiveSkillTerminal_C");
+	UClass* TerminalClass = StaticLoadClass(AHubFacilityActor::StaticClass(), nullptr, TerminalClassPath);
+	if (!TerminalClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActiveSkill] Hub terminal class missing: %s"), TerminalClassPath);
+		return;
+	}
+
+	TArray<AActor*> ExistingTerminals;
+	UGameplayStatics::GetAllActorsOfClass(World, TerminalClass, ExistingTerminals);
+	if (ExistingTerminals.Num() > 0)
+	{
+		return;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Name = TEXT("BP_HubActiveSkillTerminal_Runtime");
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	AHubFacilityActor* Terminal = World->SpawnActor<AHubFacilityActor>(
+		TerminalClass,
+		FVector(320.0f, -260.0f, 90.0f),
+		FRotator::ZeroRotator,
+		SpawnParams);
+
+	UE_LOG(LogTemp, Warning, TEXT("[ActiveSkill] Runtime hub terminal spawn %s at InitialRoom hub."),
+		Terminal ? TEXT("OK") : TEXT("FAILED"));
 }
 
 void AYogGameMode::ActivateHubPortals()

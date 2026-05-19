@@ -18,6 +18,7 @@
 class AYogCharacterBase;
 class UYogGameInstanceBase;
 class UYogGameplayEffect;
+class UActiveSkillDataAsset;
 
 class AYogCharacterBase;
 
@@ -368,6 +369,7 @@ struct DEVKIT_API FRunCheckpointData
 	// 战斗卡组顺序（软引用列表，切关时保存玩家改动）
 	UPROPERTY() TArray<TSoftObjectPtr<URuneDataAsset>> CombatDeckCards;
 	UPROPERTY() TArray<ECombatCardLinkOrientation>     CombatDeckCardOrientations;
+	UPROPERTY() TArray<TSoftObjectPtr<UActiveSkillDataAsset>> SelectedSkillLoadout;
 };
 
 // ============================================================
@@ -428,6 +430,7 @@ public:
 
 	// ── 局外成长（新游戏时清空，统计数据保留）──────────────────
 	UPROPERTY() FMetaProgressionData MetaProgression;
+	UPROPERTY() TArray<TSoftObjectPtr<UActiveSkillDataAsset>> SelectedSkillLoadout;
 
 	// ── 存档点快照（退出时保留，死亡/结局后清除）───────────────
 	UPROPERTY() FRunCheckpointData RunCheckpoint;
