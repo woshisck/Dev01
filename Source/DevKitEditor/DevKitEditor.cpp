@@ -7,7 +7,6 @@
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "PropertyEditorModule.h"
-#include "ComboGraph/AssetTypeActions_GameplayAbilityComboGraph.h"
 #include "DevKitEditor/Util/YogEntryCustomization.h"
 #include "Customization/RuneDataAssetDetails.h"
 #include "Data/RuneDataAsset.h"
@@ -54,12 +53,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FEditorDelegates::OnMapOpened.AddRaw(this, &FDevKitEditorModule::OnMapOpened);
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomPropertyTypeLayout("ShopEntry", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FYogEntryCustomization::MakeInstance));
-
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		const EAssetTypeCategories::Type CombatCategory = AssetTools.RegisterAdvancedAssetCategory(
-			TEXT("DevKitCombat"),
-			LOCTEXT("DevKitCombatAssetCategory", "DevKit Combat"));
-		RegisterAssetTypeAction(AssetTools, MakeShared<FAssetTypeActions_GameplayAbilityComboGraph>(CombatCategory));
 
 		// 注册 URuneDataAsset 自定义 Detail Panel（在 Detail 顶部加快捷按钮）
 		PropertyModule.RegisterCustomClassLayout(

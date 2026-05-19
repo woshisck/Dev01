@@ -47,6 +47,7 @@ public class DevKit : ModuleRules
                 "GameplayAbilities",
                 "Flow",
                 "GenericGraphRuntime",
+                "YogComboGraph",
 
             });
 

@@ -4,7 +4,6 @@
 #include "Animation/AnimMontage.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Data/GameplayAbilityComboGraph.h"
-#include "Data/MontageConfigDA.h"
 #include "Editor.h"
 #include "IDetailsView.h"
 #include "Item/Weapon/WeaponDefinition.h"
@@ -81,45 +80,23 @@ namespace
 		{
 			return TEXT("Invalid");
 		}
-		if (!Node->ResolveAbilityTag().IsValid())
-		{
-			Issues.Add(TEXT("Missing AbilityTag"));
-		}
-		if (Node->RootInputAction != ECombatGraphInputAction::Dash && !Node->MontageConfig)
+		if (!Node->Montage)
 		{
 			Issues.Add(TEXT("Missing Montage"));
 		}
-		if (!Node->NodeAttackConfig.bEnabled)
+		if (Node->bUseNodeComboWindow && Node->ComboWindowEndFrame < Node->ComboWindowStartFrame)
 		{
-			Issues.Add(Notify ? TEXT("Can migrate") : Node->AttackDataOverride ? TEXT("AttackData fallback") : TEXT("Missing attack"));
+			Issues.Add(TEXT("Bad window"));
 		}
-		else if (Notify)
+		if (!Notify)
 		{
-			const bool bDiff = !FMath::IsNearlyEqual(Node->NodeAttackConfig.ActDamage, Notify->ActDamage)
-				|| !FMath::IsNearlyEqual(Node->NodeAttackConfig.ActRange, Notify->ActRange)
-				|| !FMath::IsNearlyEqual(Node->NodeAttackConfig.ActResilience, Notify->ActResilience)
-				|| !FMath::IsNearlyEqual(Node->NodeAttackConfig.ActDmgReduce, Notify->ActDmgReduce)
-				|| Node->NodeAttackConfig.HitboxTypes.Num() != Notify->HitboxTypes.Num();
-			if (bDiff)
-			{
-				Issues.Add(TEXT("Diff vs Notify"));
-			}
+			Issues.Add(TEXT("No montage damage notify"));
 		}
 		return Issues.IsEmpty() ? TEXT("OK") : FString::Join(Issues, TEXT(", "));
 	}
 
 	float ReadFloat(const FComboGraphManagerRow& Row, FName ColumnName)
 	{
-		const UGameplayAbilityComboGraphNode* Node = Row.Node.Get();
-		if (!Node)
-		{
-			return 0.f;
-		}
-		const FComboAttackConfig& Config = Node->NodeAttackConfig;
-		if (ColumnName == TEXT("ActDamage")) return Config.ActDamage;
-		if (ColumnName == TEXT("ActRange")) return Config.ActRange;
-		if (ColumnName == TEXT("ActResilience")) return Config.ActResilience;
-		if (ColumnName == TEXT("ActDmgReduce")) return Config.ActDmgReduce;
 		return 0.f;
 	}
 
@@ -161,26 +138,18 @@ public:
 		if (ColumnName == TEXT("Node")) return MakeTextCell(Node ? Node->NodeId.ToString() : TEXT("-"));
 		if (ColumnName == TEXT("Input"))
 		{
-			return MakeTextCell(Node && StaticEnum<ECombatGraphInputAction>()
-				? StaticEnum<ECombatGraphInputAction>()->GetNameStringByValue(static_cast<int64>(Node->RootInputAction))
+			return MakeTextCell(Node && StaticEnum<EYogComboGraphInputAction>()
+				? StaticEnum<EYogComboGraphInputAction>()->GetNameStringByValue(static_cast<int64>(Node->RootInputAction))
 				: TEXT("-"));
 		}
 		if (ColumnName == TEXT("Ability"))
 		{
-			const FGameplayTag AbilityTag = Node ? Node->ResolveAbilityTag() : FGameplayTag();
-			return MakeTextCell(AbilityTag.IsValid() ? AbilityTag.ToString() : TEXT("-"));
+			return MakeTextCell(TEXT("GA_PlayMontage"));
 		}
 		if (ColumnName == TEXT("Montage")) return MakeTextCell(ObjectName(Item->Montage.Get()), ObjectPath(Item->Montage.Get()));
 		if (ColumnName == TEXT("Attack"))
 		{
-			if (!Node)
-			{
-				return MakeTextCell(TEXT("-"));
-			}
-			const FComboAttackConfig& Config = Node->NodeAttackConfig;
-			return MakeTextCell(Config.bEnabled
-				? FString::Printf(TEXT("%.0f / R:%.0f / HB:%d"), Config.ActDamage, Config.ActRange, Config.HitboxTypes.Num())
-				: TEXT("Fallback"));
+			return MakeTextCell(Item->DamageNotify.IsValid() ? TEXT("Montage Notify") : TEXT("-"));
 		}
 		if (ColumnName == TEXT("Status")) return MakeTextCell(Item->Status);
 		if (ColumnName == TEXT("Actions"))
@@ -201,11 +170,11 @@ public:
 				]
 				+ SHorizontalBox::Slot().AutoWidth()
 				[
-					SNew(SButton)
+				SNew(SButton)
 					.Text(LOCTEXT("MigrateNotify", "Migrate Notify"))
 					.IsEnabled_Lambda([Row = Item]()
 					{
-						return Row.IsValid() && Row->Node.IsValid() && Row->DamageNotify.IsValid();
+						return false;
 					})
 					.OnClicked_Lambda([Owner = OwnerWidget, Row = Item]()
 					{
@@ -274,9 +243,9 @@ void SComboGraphManagerWidget::Construct(const FArguments& InArgs)
 					+ SHeaderRow::Column(TEXT("Graph")).DefaultLabel(LOCTEXT("GraphColumn", "Graph")).FillWidth(1.0f)
 					+ SHeaderRow::Column(TEXT("Node")).DefaultLabel(LOCTEXT("NodeColumn", "Node")).FixedWidth(110.f)
 					+ SHeaderRow::Column(TEXT("Input")).DefaultLabel(LOCTEXT("InputColumn", "Input")).FixedWidth(70.f)
-					+ SHeaderRow::Column(TEXT("Ability")).DefaultLabel(LOCTEXT("AbilityColumn", "AbilityTag")).FillWidth(1.0f)
+					+ SHeaderRow::Column(TEXT("Ability")).DefaultLabel(LOCTEXT("AbilityColumn", "Ability")).FillWidth(1.0f)
 					+ SHeaderRow::Column(TEXT("Montage")).DefaultLabel(LOCTEXT("MontageColumn", "Montage")).FillWidth(1.0f)
-					+ SHeaderRow::Column(TEXT("Attack")).DefaultLabel(LOCTEXT("AttackColumn", "Attack")).FixedWidth(150.f)
+					+ SHeaderRow::Column(TEXT("Attack")).DefaultLabel(LOCTEXT("AttackColumn", "Damage")).FixedWidth(150.f)
 					+ SHeaderRow::Column(TEXT("Status")).DefaultLabel(LOCTEXT("StatusColumn", "Status")).FixedWidth(150.f)
 					+ SHeaderRow::Column(TEXT("Actions")).DefaultLabel(LOCTEXT("ActionsColumn", "Actions")).FixedWidth(210.f)
 				)
@@ -336,15 +305,13 @@ void SComboGraphManagerWidget::RefreshData(const FText& NewStatus)
 			{
 				continue;
 			}
-			UMontageConfigDA* MontageConfig = Node->MontageConfig.Get();
-			UAnimMontage* Montage = MontageConfig ? MontageConfig->Montage.Get() : nullptr;
+			UAnimMontage* Montage = Node->Montage.Get();
 			UAN_MeleeDamage* DamageNotify = FindFirstDamageNotify(Montage);
 
 			TSharedRef<FComboGraphManagerRow> Row = MakeShared<FComboGraphManagerRow>();
 			Row->Weapon = Weapon;
 			Row->Graph = Graph;
 			Row->Node = Node;
-			Row->MontageConfig = MontageConfig;
 			Row->Montage = Montage;
 			Row->DamageNotify = DamageNotify;
 			Row->OwnerType = OwnerType;
@@ -467,20 +434,17 @@ FText SComboGraphManagerWidget::GetSelectionText() const
 		return LOCTEXT("NoSelection", "Select a combo node.");
 	}
 	const UGameplayAbilityComboGraphNode* Node = SelectedRow->Node.Get();
-	const FComboAttackConfig* Config = Node ? &Node->NodeAttackConfig : nullptr;
 	return FText::FromString(FString::Printf(
-		TEXT("Type: %s\nOwner: %s\nGraph: %s\nNode: %s\nAbilityTag: %s\nMontage: %s\nNotify: %s\nNodeAttack: %s\nHitBoxes: %d\nEvents: %d\nEffects: %d\nStatus: %s"),
+		TEXT("Type: %s\nOwner: %s\nGraph: %s\nNode: %s\nInput: %s\nMontage: %s\nMontage Damage Notify: %s\nStatus: %s"),
 		*SelectedRow->OwnerType,
 		*SelectedRow->OwnerName,
 		*ObjectPath(SelectedRow->Graph.Get()),
 		Node ? *Node->NodeId.ToString() : TEXT("-"),
-		Node && Node->ResolveAbilityTag().IsValid() ? *Node->ResolveAbilityTag().ToString() : TEXT("-"),
+		Node && StaticEnum<EYogComboGraphInputAction>()
+			? *StaticEnum<EYogComboGraphInputAction>()->GetNameStringByValue(static_cast<int64>(Node->RootInputAction))
+			: TEXT("-"),
 		*ObjectPath(SelectedRow->Montage.Get()),
 		SelectedRow->DamageNotify.IsValid() ? *SelectedRow->DamageNotify->GetName() : TEXT("-"),
-		Config && Config->bEnabled ? TEXT("Enabled") : TEXT("Fallback"),
-		Config ? Config->HitboxTypes.Num() : 0,
-		Config ? Config->OnHitEventTags.Num() : 0,
-		Config ? Config->AdditionalRuneEffects.Num() : 0,
 		*SelectedRow->Status));
 }
 
@@ -516,38 +480,7 @@ void SComboGraphManagerWidget::CommitFloat(TSharedPtr<FComboGraphManagerRow> Row
 	{
 		return;
 	}
-	UGameplayAbilityComboGraphNode* Node = Row->Node.Get();
-	if (!Node)
-	{
-		return;
-	}
-
-	const FScopedTransaction Transaction(LOCTEXT("EditComboGraphAttack", "Edit Combo Graph Attack Value"));
-	if (Row->Graph.IsValid())
-	{
-		Row->Graph->Modify();
-	}
-	Node->Modify();
-
-	FComboAttackConfig& Config = Node->NodeAttackConfig;
-	Config.bEnabled = true;
-	if (ColumnName == TEXT("ActDamage")) Config.ActDamage = NewValue;
-	else if (ColumnName == TEXT("ActRange")) Config.ActRange = NewValue;
-	else if (ColumnName == TEXT("ActResilience")) Config.ActResilience = NewValue;
-	else if (ColumnName == TEXT("ActDmgReduce")) Config.ActDmgReduce = NewValue;
-
-	Node->MarkPackageDirty();
-	if (Row->Graph.IsValid())
-	{
-		Row->Graph->MarkPackageDirty();
-	}
-	Row->Status = ComboNodeStatus(Node, Row->DamageNotify.Get());
-	StatusText = FText::Format(LOCTEXT("EditStatus", "Set {0}.{1} = {2}. Graph dirty, not auto-saved."),
-		FText::FromString(Node->NodeId.ToString()), FText::FromName(ColumnName), FText::AsNumber(NewValue));
-	if (ListView.IsValid())
-	{
-		ListView->RequestListRefresh();
-	}
+	StatusText = LOCTEXT("EditUnsupported", "Node attack editing moved out of the standalone combo graph plugin.");
 }
 
 void SComboGraphManagerWidget::MigrateNodeFromNotify(TSharedPtr<FComboGraphManagerRow> Row)
@@ -557,20 +490,8 @@ void SComboGraphManagerWidget::MigrateNodeFromNotify(TSharedPtr<FComboGraphManag
 		return;
 	}
 
-	const FScopedTransaction Transaction(LOCTEXT("MigrateNotifyToNode", "Migrate AN_MeleeDamage to Combo Node"));
-	if (Row->Graph.IsValid())
-	{
-		Row->Graph->Modify();
-	}
-	Row->Node->Modify();
-	Row->Node->NodeAttackConfig.CopyFromNotify(Row->DamageNotify.Get());
-	Row->Node->MarkPackageDirty();
-	if (Row->Graph.IsValid())
-	{
-		Row->Graph->MarkPackageDirty();
-	}
 	Row->Status = ComboNodeStatus(Row->Node.Get(), Row->DamageNotify.Get());
-	StatusText = FText::Format(LOCTEXT("MigrateStatus", "Migrated AN_MeleeDamage into node {0}. Save the graph when ready."),
+	StatusText = FText::Format(LOCTEXT("MigrateUnsupported", "Node {0} now stores combo data only; keep damage, hit reaction, and FX on the montage."),
 		FText::FromString(Row->Node->NodeId.ToString()));
 	if (DetailsView.IsValid())
 	{
@@ -592,6 +513,7 @@ UObject* SComboGraphManagerWidget::GetDetailsObject(const FComboGraphManagerRow&
 bool SComboGraphManagerWidget::CanEditFloat(const FComboGraphManagerRow& Row, FName ColumnName) const
 {
 	return Row.Node.IsValid()
+		&& false
 		&& (ColumnName == TEXT("ActDamage")
 			|| ColumnName == TEXT("ActRange")
 			|| ColumnName == TEXT("ActResilience")

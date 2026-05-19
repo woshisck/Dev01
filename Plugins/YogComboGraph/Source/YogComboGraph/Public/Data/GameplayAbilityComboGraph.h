@@ -1,18 +1,33 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "GenericGraph.h"
 #include "GenericGraphEdge.h"
 #include "GenericGraphNode.h"
-#include "Data/WeaponComboConfigDA.h"
 #include "GameplayAbilityComboGraph.generated.h"
 
-class UGameplayAbility;
-class UMontageAttackDataAsset;
-class UMontageConfigDA;
+class UAnimMontage;
+
+UENUM(BlueprintType)
+enum class EYogComboGraphInputAction : uint8
+{
+	Light UMETA(DisplayName = "Light"),
+	Heavy UMETA(DisplayName = "Heavy"),
+	Dash UMETA(DisplayName = "Dash"),
+	Any UMETA(DisplayName = "Any")
+};
+
+UENUM(BlueprintType)
+enum class EYogComboGraphDashSaveMode : uint8
+{
+	None UMETA(DisplayName = "None"),
+	PreserveIfSourceAllows UMETA(DisplayName = "Preserve If Source Allows"),
+	ForcePreserve UMETA(DisplayName = "Force Preserve")
+};
 
 UCLASS(BlueprintType, Blueprintable)
-class DEVKIT_API UGameplayAbilityComboGraphNode : public UGenericGraphNode
+class YOGCOMBOGRAPH_API UGameplayAbilityComboGraphNode : public UGenericGraphNode
 {
 	GENERATED_BODY()
 
@@ -22,23 +37,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	FName NodeId = NAME_None;
 
+	/** Player input that starts this node when it is a root node. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
-	ECombatGraphInputAction RootInputAction = ECombatGraphInputAction::Any;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
-	TSubclassOf<UGameplayAbility> GameplayAbilityClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
-	FGameplayTag AbilityTagOverride;
+	EYogComboGraphInputAction RootInputAction = EYogComboGraphInputAction::Any;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
-	TObjectPtr<UMontageConfigDA> MontageConfig = nullptr;
+	TObjectPtr<UAnimMontage> Montage = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
-	TObjectPtr<UMontageAttackDataAsset> AttackDataOverride = nullptr;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
-	FComboAttackConfig NodeAttackConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage", meta = (ClampMin = "1"))
+	int32 TotalFrames = 30;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	bool bIsComboFinisher = false;
@@ -47,7 +54,7 @@ public:
 	bool bAllowDashSave = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
-	EComboDashSaveMode DashSaveMode = EComboDashSaveMode::PreserveIfSourceAllows;
+	EYogComboGraphDashSaveMode DashSaveMode = EYogComboGraphDashSaveMode::PreserveIfSourceAllows;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash", meta = (ClampMin = "0.0"))
 	float DashSaveExpireSeconds = 2.0f;
@@ -61,8 +68,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
 	bool bBreakComboOnDashCancel = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (AdvancedDisplay, ToolTip = "Temporary display-only field. Runtime combo windows are driven by montage Combo Window notifies."))
-	bool bUseNodeComboWindow = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window")
+	bool bUseNodeComboWindow = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (EditCondition = "bUseNodeComboWindow", ClampMin = "0"))
 	int32 ComboWindowStartFrame = 18;
@@ -70,34 +77,38 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (EditCondition = "bUseNodeComboWindow", ClampMin = "0"))
 	int32 ComboWindowEndFrame = 27;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window", meta = (EditCondition = "bUseNodeComboWindow", ClampMin = "1"))
-	int32 ComboWindowTotalFrames = 30;
-
+	/** Optional trigger-timing tag (project-defined, e.g. Combo.TriggerTiming.OnHit / OnCommit). Empty = project default. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card", meta = (AdvancedDisplay))
-	ECombatCardTriggerTiming CardTriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	FGameplayTag TriggerTimingTag;
 
-	UFUNCTION(BlueprintPure, Category = "Combo")
-	FGameplayTag ResolveAbilityTag() const;
-
-	FWeaponComboNodeConfig BuildRuntimeConfig(ECombatGraphInputAction InputAction) const;
 	virtual FText GetDescription_Implementation() const override;
 
+#if WITH_EDITORONLY_DATA
+	bool bDebugActive = false;
+#endif
+
 #if WITH_EDITOR
+	virtual FLinearColor GetBackgroundColor() const override;
 	virtual FText GetNodeTitle() const override;
 	virtual bool CanCreateConnectionTo(UGenericGraphNode* Other, int32 NumberOfChildrenNodes, FText& ErrorMessage) override;
 #endif
 };
 
 UCLASS(BlueprintType, Blueprintable)
-class DEVKIT_API UGameplayAbilityComboGraphEdge : public UGenericGraphEdge
+class YOGCOMBOGRAPH_API UGameplayAbilityComboGraphEdge : public UGenericGraphEdge
 {
 	GENERATED_BODY()
 
 public:
 	UGameplayAbilityComboGraphEdge();
 
+	/** Player input that traverses this edge. Any accepts any player combo input. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
-	ECombatGraphInputAction InputAction = ECombatGraphInputAction::Any;
+	EYogComboGraphInputAction InputAction = EYogComboGraphInputAction::Any;
+
+	/** Optional gate against the owner's owned gameplay tags. Empty = no gate. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	FGameplayTagQuery StateRequirement;
 
 #if WITH_EDITOR
 	virtual FText GetNodeTitle() const override;
@@ -105,15 +116,15 @@ public:
 };
 
 UCLASS(BlueprintType, Blueprintable)
-class DEVKIT_API UGameplayAbilityComboGraph : public UGenericGraph
+class YOGCOMBOGRAPH_API UGameplayAbilityComboGraph : public UGenericGraph
 {
 	GENERATED_BODY()
 
 public:
 	UGameplayAbilityComboGraph();
 
-	const UGameplayAbilityComboGraphNode* FindRootComboNode(ECombatGraphInputAction InputAction) const;
-	const UGameplayAbilityComboGraphNode* FindChildComboNode(FName ParentNodeId, ECombatGraphInputAction InputAction) const;
+	const UGameplayAbilityComboGraphNode* FindRootComboNode(EYogComboGraphInputAction InputAction) const;
+	const UGameplayAbilityComboGraphNode* FindChildComboNode(FName ParentNodeId, EYogComboGraphInputAction InputAction, const FGameplayTagContainer* OwnedTags = nullptr) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	void ValidateComboGraph(TArray<FText>& OutWarnings) const;

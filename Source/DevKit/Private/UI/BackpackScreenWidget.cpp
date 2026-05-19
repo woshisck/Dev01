@@ -37,16 +37,16 @@
 
 namespace
 {
-    FString ComboInputActionToMoveToken(ECombatGraphInputAction Action)
+    FString ComboInputActionToMoveToken(EYogComboGraphInputAction Action)
     {
         switch (Action)
         {
-        case ECombatGraphInputAction::Light:
+        case EYogComboGraphInputAction::Light:
             return TEXT("L");
-        case ECombatGraphInputAction::Heavy:
+        case EYogComboGraphInputAction::Heavy:
             return TEXT("H");
-        case ECombatGraphInputAction::Dash:
-        case ECombatGraphInputAction::Any:
+        case EYogComboGraphInputAction::Dash:
+        case EYogComboGraphInputAction::Any:
         default:
             return FString();
         }

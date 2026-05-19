@@ -158,7 +158,7 @@ namespace CombatMontageSync
 	void AddRequest(TMap<TObjectPtr<UAnimMontage>, FMontageRequest>& Requests, const FWeaponComboNodeConfig& Node)
 	{
 		const UMontageConfigDA* MontageConfig = Node.MontageConfig;
-		UAnimMontage* Montage = MontageConfig ? MontageConfig->Montage : nullptr;
+		UAnimMontage* Montage = MontageConfig ? MontageConfig->Montage.Get() : Node.Montage.Get();
 		if (!Montage)
 		{
 			return;
@@ -207,11 +207,11 @@ namespace CombatMontageSync
 				continue;
 			}
 
-			FWeaponComboNodeConfig Config = Node->BuildRuntimeConfig(Node->RootInputAction);
+			FWeaponComboNodeConfig Config = FWeaponComboNodeConfig::FromComboGraphNode(Node, ECardRequiredAction::Any);
 			Config.bOverrideComboWindow = Node->bUseNodeComboWindow;
 			Config.ComboWindowStartFrame = Node->ComboWindowStartFrame;
 			Config.ComboWindowEndFrame = Node->ComboWindowEndFrame;
-			Config.ComboWindowTotalFrames = Node->ComboWindowTotalFrames;
+			Config.ComboWindowTotalFrames = Node->TotalFrames;
 			AddRequest(Requests, Config);
 		}
 	}

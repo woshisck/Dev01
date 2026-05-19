@@ -9,7 +9,6 @@ class UAN_MeleeDamage;
 class UAnimMontage;
 class UGameplayAbilityComboGraph;
 class UGameplayAbilityComboGraphNode;
-class UMontageConfigDA;
 class UWeaponDefinition;
 
 struct FComboGraphManagerRow
@@ -17,7 +16,6 @@ struct FComboGraphManagerRow
 	TWeakObjectPtr<UWeaponDefinition> Weapon;
 	TWeakObjectPtr<UGameplayAbilityComboGraph> Graph;
 	TWeakObjectPtr<UGameplayAbilityComboGraphNode> Node;
-	TWeakObjectPtr<UMontageConfigDA> MontageConfig;
 	TWeakObjectPtr<UAnimMontage> Montage;
 	TWeakObjectPtr<UAN_MeleeDamage> DamageNotify;
 	FString OwnerType;

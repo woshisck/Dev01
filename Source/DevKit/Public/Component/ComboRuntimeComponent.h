@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/ActorComponent.h"
+#include "Components/YogComboGraphRuntimeComponent.h"
 #include "Data/WeaponComboConfigDA.h"
 #include "GameplayAbilitySpec.h"
 #include "ComboRuntimeComponent.generated.h"
@@ -11,7 +11,7 @@ class UGameplayAbilityComboGraph;
 struct FCombatDeckActionContext;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class DEVKIT_API UComboRuntimeComponent : public UActorComponent
+class DEVKIT_API UComboRuntimeComponent : public UYogComboGraphRuntimeComponent
 {
 	GENERATED_BODY()
 
@@ -21,11 +21,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	void LoadComboConfig(UWeaponComboConfigDA* InComboConfig);
 
-	UFUNCTION(BlueprintCallable, Category = "Combo")
-	void LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph);
+	virtual void LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph) override;
 
 	UFUNCTION(BlueprintPure, Category = "Combo")
-	bool HasComboSource() const { return ComboConfig != nullptr || ComboGraph != nullptr; }
+	bool HasComboSource() const { return ComboConfig != nullptr || HasComboGraph(); }
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	bool TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner);
@@ -38,11 +37,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	bool TryActivateDash(APlayerCharacterBase* PlayerOwner);
 
-	UFUNCTION(BlueprintCallable, Category = "Combo")
-	void ResetCombo();
+	virtual void ResetCombo() override;
+	virtual bool SaveCurrentNodeForDash() override;
 
-	UFUNCTION(BlueprintCallable, Category = "Combo")
-	bool SaveCurrentNodeForDash(EComboDashSaveMode SaveMode = EComboDashSaveMode::PreserveIfSourceAllows, float ExpireSeconds = 2.0f);
+	bool SaveCurrentNodeForDashWithPolicy(EComboDashSaveMode SaveMode = EComboDashSaveMode::PreserveIfSourceAllows, float ExpireSeconds = 2.0f);
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	void ClearSavedDashNode();
@@ -54,20 +52,11 @@ public:
 	void ClearRuntimeCombatLooseTags();
 
 	UFUNCTION(BlueprintPure, Category = "Combo")
-	FName GetCurrentNodeId() const { return CurrentNodeId; }
-
-	UFUNCTION(BlueprintPure, Category = "Combo")
 	FName GetActiveNodeId() const { return ActiveNode.NodeId; }
 
 	const FWeaponComboNodeConfig* GetActiveNode() const;
-	FGuid GetActiveAttackGuid() const { return ActiveAttackGuid; }
 	void RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle);
 	bool HandleAttackAbilityEnded(const FGuid& EndedAttackGuid);
-	int32 GetComboIndex() const { return ComboIndex; }
-	const FGameplayTagContainer& GetComboTags() const { return ComboTags; }
-	bool DidComboContinue() const { return bComboContinued; }
-	bool DidExitComboState() const { return bExitedComboState; }
-	bool ConsumeActivationFromDashSave();
 	FCombatDeckActionContext BuildAttackContext(ECombatCardTriggerTiming TriggerTiming, APlayerCharacterBase* PlayerOwner) const;
 
 private:
@@ -75,38 +64,10 @@ private:
 	TObjectPtr<UWeaponComboConfigDA> ComboConfig = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UGameplayAbilityComboGraph> ComboGraph = nullptr;
-
-	UPROPERTY()
-	FName CurrentNodeId = NAME_None;
-
-	UPROPERTY()
-	FName SavedDashNodeId = NAME_None;
-
-	UPROPERTY()
 	FWeaponComboNodeConfig ActiveNode;
 
-	UPROPERTY()
-	FWeaponComboNodeConfig ActiveDashNode;
-
-	UPROPERTY()
-	FGuid ActiveAttackGuid;
-
 	FGameplayAbilitySpecHandle ActiveAbilitySpecHandle;
-
 	FTimerHandle DashSaveExpireTimerHandle;
-
-	UPROPERTY()
-	int32 ComboIndex = 0;
-
-	UPROPERTY()
-	FGameplayTagContainer ComboTags;
-
-	bool bActiveNodeValid = false;
-	bool bActiveDashNodeValid = false;
-	bool bActivationFromDashSave = false;
-	bool bComboContinued = true;
-	bool bExitedComboState = false;
 
 	UPROPERTY()
 	FGameplayTagContainer RuntimeCombatLooseTags;

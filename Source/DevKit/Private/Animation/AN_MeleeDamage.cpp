@@ -3,10 +3,32 @@
 #include "Animation/AN_MeleeDamage.h"
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
+#include "AbilitySystem/Abilities/GA_PlayMontage.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/RuneDataAsset.h"
+#include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
+
+namespace
+{
+	void RestoreGlobalHitSuccessDilation(TWeakObjectPtr<UWorld> WeakWorld)
+	{
+		if (UWorld* World = WeakWorld.Get())
+		{
+			UGameplayStatics::SetGlobalTimeDilation(World, 1.f);
+		}
+	}
+
+	void RestoreSelfHitSuccessDilation(TWeakObjectPtr<AActor> WeakActor)
+	{
+		if (AActor* Actor = WeakActor.Get())
+		{
+			Actor->CustomTimeDilation = 1.f;
+		}
+	}
+}
 
 UAN_MeleeDamage::UAN_MeleeDamage()
 {
@@ -120,4 +142,42 @@ FActionData UAN_MeleeDamage::BuildActionData() const
 	Out.ActDmgReduce  = ActDmgReduce;
 	Out.hitboxTypes   = HitboxTypes;
 	return Out;
+}
+
+void UAN_MeleeDamage::ApplyHitSuccessDilation(AActor* SourceActor) const
+{
+	if (!SourceActor || HitSuccessDilation.Scope == EMeleeDamageHitDilationScope::None || HitSuccessDilation.DurationSeconds <= 0.f)
+	{
+		return;
+	}
+
+	UWorld* World = SourceActor->GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float Factor = FMath::Clamp(HitSuccessDilation.DilationFactor, 0.01f, 1.0f);
+	float TimerDuration = FMath::Max(HitSuccessDilation.DurationSeconds, 0.01f);
+	FTimerHandle RestoreHandle;
+
+	if (HitSuccessDilation.Scope == EMeleeDamageHitDilationScope::Global)
+	{
+		UGameplayStatics::SetGlobalTimeDilation(World, Factor);
+		TimerDuration *= Factor;
+		World->GetTimerManager().SetTimer(
+			RestoreHandle,
+			FTimerDelegate::CreateStatic(&RestoreGlobalHitSuccessDilation, TWeakObjectPtr<UWorld>(World)),
+			FMath::Max(TimerDuration, 0.01f),
+			false);
+	}
+	else if (HitSuccessDilation.Scope == EMeleeDamageHitDilationScope::Self)
+	{
+		SourceActor->CustomTimeDilation = Factor;
+		World->GetTimerManager().SetTimer(
+			RestoreHandle,
+			FTimerDelegate::CreateStatic(&RestoreSelfHitSuccessDilation, TWeakObjectPtr<AActor>(SourceActor)),
+			TimerDuration,
+			false);
+	}
 }

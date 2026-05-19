@@ -556,6 +556,10 @@ void UGA_MeleeAttack::ActivateAbility(
 			Montage = ActiveMontageConfig->Montage;
 		}
 	}
+	else if (bActiveComboNodeValid && ActiveComboNode.Montage)
+	{
+		Montage = ActiveComboNode.Montage;
+	}
 	else if (CD && CD->AbilityData && FirstTag.IsValid())
 	{
 		FGameplayTagContainer ContextTags;
