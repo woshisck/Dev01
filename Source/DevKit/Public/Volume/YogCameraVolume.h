@@ -19,6 +19,17 @@ public:
 	
 	AYogCameraVolume(const FObjectInitializer& ObjectInitializer);
 
+	virtual void Tick(float DeltaSeconds) override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Volume|Debug")
+	bool bShowDebugInGame = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Volume|Debug", meta = (EditCondition = "bShowDebugInGame"))
+	FColor DebugColor = FColor::Cyan;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Volume|Debug", meta = (ClampMin = "0.1", EditCondition = "bShowDebugInGame"))
+	float DebugLineThickness = 4.f;
+
 protected:
 	virtual void BeginPlay() override;
 
