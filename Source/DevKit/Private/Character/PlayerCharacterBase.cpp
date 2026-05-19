@@ -23,6 +23,7 @@
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
+#include "Component/PlayerActiveSkillComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
@@ -95,6 +96,7 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	BackpackGridComponent = CreateDefaultSubobject<UBackpackGridComponent>(TEXT("BackpackGridComponent"));
 	CombatDeckComponent = CreateDefaultSubobject<UCombatDeckComponent>(TEXT("CombatDeckComponent"));
 	CombatItemComponent = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
+	ActiveSkillComponent = CreateDefaultSubobject<UPlayerActiveSkillComponent>(TEXT("ActiveSkillComponent"));
 	ComboRuntimeComponent = CreateDefaultSubobject<UComboRuntimeComponent>(TEXT("ComboRuntimeComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
@@ -321,6 +323,17 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 	}
 
 	RestoreSacrificeOfferingCosts(State.SacrificeOfferingCosts);
+
+	if (ActiveSkillComponent && !State.SelectedSkillLoadout.IsEmpty())
+	{
+		TArray<UActiveSkillDataAsset*> RestoredSkills;
+		RestoredSkills.Reserve(State.SelectedSkillLoadout.Num());
+		for (UActiveSkillDataAsset* Skill : State.SelectedSkillLoadout)
+		{
+			RestoredSkills.Add(Skill);
+		}
+		ActiveSkillComponent->SetSkillLoadout(RestoredSkills);
+	}
 }
 
 void APlayerCharacterBase::GrantCraftedStarterRunesAsync()

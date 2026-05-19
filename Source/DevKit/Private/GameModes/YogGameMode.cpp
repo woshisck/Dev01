@@ -7,6 +7,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
+#include "Component/PlayerActiveSkillComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Data/RoomDataAsset.h"
 #include <Kismet/GameplayStatics.h>
@@ -575,6 +576,13 @@ void AYogGameMode::EnterArrangementPhase()
 			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 			NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
+			if (Player->ActiveSkillComponent)
+			{
+				for (UActiveSkillDataAsset* Skill : Player->ActiveSkillComponent->GetSkillLoadout())
+				{
+					NewState.SelectedSkillLoadout.Add(Skill);
+				}
+			}
 			GI->PendingRunState = NewState;
 		}
 	}
@@ -920,6 +928,13 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 
 				NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 				NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
+				if (Player->ActiveSkillComponent)
+				{
+					for (UActiveSkillDataAsset* Skill : Player->ActiveSkillComponent->GetSkillLoadout())
+					{
+						NewState.SelectedSkillLoadout.Add(Skill);
+					}
+				}
 
 				GI->PendingRunState = NewState;
 				UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE — HP=%.1f Gold=%d Phase=%d Heat=%.0f Runes=%d"),
@@ -2741,6 +2756,13 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 			// 保存献祭恩赐
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 			NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
+			if (Player->ActiveSkillComponent)
+			{
+				for (UActiveSkillDataAsset* Skill : Player->ActiveSkillComponent->GetSkillLoadout())
+				{
+					NewState.SelectedSkillLoadout.Add(Skill);
+				}
+			}
 
 			GI->PendingRunState = NewState;
 			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Gold=%d Phase=%d Runes=%d Weapon=%s Room=%s"),
