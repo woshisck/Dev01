@@ -39,6 +39,7 @@ public:
 protected:
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// BP 可覆写：Interact 被调用前的自定义逻辑（动画、音效等）
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hub")
@@ -56,4 +57,7 @@ private:
 	UFUNCTION()
 	void HandleEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	                      UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	UFUNCTION()
+	void HandleFeatureUnlocked(FGameplayTag FeatureTag);
 };

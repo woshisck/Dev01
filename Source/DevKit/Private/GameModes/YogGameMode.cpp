@@ -35,6 +35,7 @@
 #include "Misc/PackageName.h"
 #include "GameFramework/PlayerController.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
+#include "World/HubFacilityActor.h"
 
 namespace
 {
@@ -1353,6 +1354,7 @@ void AYogGameMode::StartLevelSpawning()
 			}
 		}
 
+		EnsureHubActiveSkillTerminal();
 		ActivateHubPortals();
 		return;
 	}
@@ -2867,6 +2869,43 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 	}
 
 	return nullptr;
+}
+
+void AYogGameMode::EnsureHubActiveSkillTerminal()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const TCHAR* TerminalClassPath = TEXT("/Game/Code/Core/Hub/BP_HubActiveSkillTerminal.BP_HubActiveSkillTerminal_C");
+	UClass* TerminalClass = StaticLoadClass(AHubFacilityActor::StaticClass(), nullptr, TerminalClassPath);
+	if (!TerminalClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActiveSkill] Hub terminal class missing: %s"), TerminalClassPath);
+		return;
+	}
+
+	TArray<AActor*> ExistingTerminals;
+	UGameplayStatics::GetAllActorsOfClass(World, TerminalClass, ExistingTerminals);
+	if (ExistingTerminals.Num() > 0)
+	{
+		return;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Name = TEXT("BP_HubActiveSkillTerminal_Runtime");
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	AHubFacilityActor* Terminal = World->SpawnActor<AHubFacilityActor>(
+		TerminalClass,
+		FVector(320.0f, -260.0f, 90.0f),
+		FRotator::ZeroRotator,
+		SpawnParams);
+
+	UE_LOG(LogTemp, Warning, TEXT("[ActiveSkill] Runtime hub terminal spawn %s at InitialRoom hub."),
+		Terminal ? TEXT("OK") : TEXT("FAILED"));
 }
 
 void AYogGameMode::ActivateHubPortals()

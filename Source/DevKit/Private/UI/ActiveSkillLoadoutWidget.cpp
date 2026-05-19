@@ -9,7 +9,6 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Component/PlayerActiveSkillComponent.h"
 #include "Data/ActiveSkillDataAsset.h"
-#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
@@ -35,31 +34,21 @@ void UActiveSkillLoadoutWidget::NativeConstruct()
 void UActiveSkillLoadoutWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		FInputModeGameAndUI InputMode;
-		InputMode.SetWidgetToFocus(TakeWidget());
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		PC->SetInputMode(InputMode);
-		PC->SetShowMouseCursor(true);
-	}
-
-	if (Slot0Button)
-	{
-		Slot0Button->SetKeyboardFocus();
-	}
 }
 
 void UActiveSkillLoadoutWidget::NativeOnDeactivated()
 {
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		FInputModeGameOnly InputMode;
-		PC->SetInputMode(InputMode);
-		PC->SetShowMouseCursor(false);
-	}
-
 	Super::NativeOnDeactivated();
+}
+
+TOptional<FUIInputConfig> UActiveSkillLoadoutWidget::GetDesiredInputConfig() const
+{
+	return FUIInputConfig(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+}
+
+UWidget* UActiveSkillLoadoutWidget::NativeGetDesiredFocusTarget() const
+{
+	return Slot0Button ? Slot0Button.Get() : Super::NativeGetDesiredFocusTarget();
 }
 
 void UActiveSkillLoadoutWidget::BuildRuntimeLayout()

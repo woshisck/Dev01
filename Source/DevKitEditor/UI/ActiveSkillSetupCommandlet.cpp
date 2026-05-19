@@ -3,9 +3,7 @@
 #include "AbilitySystem/Abilities/GA_ActiveSkill_ShieldBurst.h"
 #include "AssetToolsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Editor.h"
 #include "Engine/Blueprint.h"
-#include "EngineUtils.h"
 #include "Commandlets/CommandletReportUtils.h"
 #include "Data/ActiveSkillDataAsset.h"
 #include "Engine/DataTable.h"
@@ -23,7 +21,6 @@ namespace
 {
 	const FString ActiveSkillAssetPath = TEXT("/Game/Code/Core/ActiveSkills/DA_ActiveSkill_ShieldBurst");
 	const FString ActiveSkillTerminalBlueprintPath = TEXT("/Game/Code/Core/Hub/BP_HubActiveSkillTerminal");
-	const FString HubMapPath = TEXT("/Game/World/Hub/L_HubTown");
 	const FString MetaUpgradeNodeTablePath = TEXT("/Game/MetaProgression/DT_MetaUpgradeNodes");
 	const FString ActiveSkillSetupReportFileName = TEXT("ActiveSkillSetupReport.md");
 
@@ -73,59 +70,6 @@ namespace
 		return Blueprint;
 	}
 
-	void EnsureTerminalPlacedInHub(UBlueprint* TerminalBlueprint, bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
-	{
-		if (!TerminalBlueprint || !TerminalBlueprint->GeneratedClass)
-		{
-			return;
-		}
-
-		ReportLines.Add(FString::Printf(TEXT("- %s active skill terminal placement in `%s`."), bDryRun ? TEXT("Would verify") : TEXT("Verified"), *HubMapPath));
-		if (bDryRun)
-		{
-			return;
-		}
-
-		UWorld* LoadedWorld = UEditorLoadingAndSavingUtils::LoadMap(HubMapPath);
-		UWorld* EditorWorld = LoadedWorld ? LoadedWorld : (GEditor ? GEditor->GetEditorWorldContext().World() : nullptr);
-		if (!EditorWorld)
-		{
-			ReportLines.Add(FString::Printf(TEXT("- Failed to load `%s`; terminal was not placed."), *HubMapPath));
-			return;
-		}
-
-		for (TActorIterator<AHubFacilityActor> It(EditorWorld); It; ++It)
-		{
-			AHubFacilityActor* Existing = *It;
-			if (Existing && Existing->GetClass() == TerminalBlueprint->GeneratedClass)
-			{
-				ReportLines.Add(TEXT("- Hub already contains `BP_HubActiveSkillTerminal`."));
-				return;
-			}
-		}
-
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Name = TEXT("BP_HubActiveSkillTerminal");
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		AActor* TerminalActor = EditorWorld->SpawnActor<AActor>(
-			TerminalBlueprint->GeneratedClass,
-			FVector(320.0f, -260.0f, 90.0f),
-			FRotator::ZeroRotator,
-			SpawnParams);
-		if (!TerminalActor)
-		{
-			ReportLines.Add(TEXT("- Failed to spawn `BP_HubActiveSkillTerminal` in hub map."));
-			return;
-		}
-
-#if WITH_EDITOR
-		TerminalActor->SetActorLabel(TEXT("Active Skill Terminal"));
-#endif
-		TerminalActor->Modify();
-		EditorWorld->MarkPackageDirty();
-		DirtyPackages.AddUnique(EditorWorld->GetPackage());
-		ReportLines.Add(TEXT("- Placed `BP_HubActiveSkillTerminal` in `L_HubTown` at (320, -260, 90)."));
-	}
 }
 
 UActiveSkillSetupCommandlet::UActiveSkillSetupCommandlet()
@@ -212,7 +156,7 @@ int32 UActiveSkillSetupCommandlet::Main(const FString& Params)
 			ReportLines.Add(TEXT("- Configured `BP_HubActiveSkillTerminal`: widget `UActiveSkillLoadoutWidget`, required feature `Feature.Combat.ActiveSkill`."));
 		}
 	}
-	EnsureTerminalPlacedInHub(TerminalBlueprint, bDryRun, ReportLines, DirtyPackages);
+	ReportLines.Add(TEXT("- Hub terminal is spawned at runtime by `AYogGameMode::EnsureHubActiveSkillTerminal` when the active room is a HubRoom."));
 
 	UDataTable* NodeTable = Cast<UDataTable>(
 		StaticLoadObject(UDataTable::StaticClass(), nullptr, *ToObjectPath(MetaUpgradeNodeTablePath)));

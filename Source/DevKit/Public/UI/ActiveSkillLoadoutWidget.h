@@ -28,6 +28,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Active Skill")
 	void RefreshLoadout();
 
+	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
+	virtual UWidget* NativeGetDesiredFocusTarget() const override;
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeOnActivated() override;

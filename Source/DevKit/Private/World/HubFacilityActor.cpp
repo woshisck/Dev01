@@ -25,6 +25,27 @@ void AHubFacilityActor::BeginPlay()
 	InteractBox->OnComponentBeginOverlap.AddDynamic(this, &AHubFacilityActor::HandleBeginOverlap);
 	InteractBox->OnComponentEndOverlap.AddDynamic(this,   &AHubFacilityActor::HandleEndOverlap);
 	ApplyFeatureAvailability();
+
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UYogMetaProgressionSubsystem* Meta = GI->GetSubsystem<UYogMetaProgressionSubsystem>())
+		{
+			Meta->OnFeatureUnlocked.AddDynamic(this, &AHubFacilityActor::HandleFeatureUnlocked);
+		}
+	}
+}
+
+void AHubFacilityActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UYogMetaProgressionSubsystem* Meta = GI->GetSubsystem<UYogMetaProgressionSubsystem>())
+		{
+			Meta->OnFeatureUnlocked.RemoveDynamic(this, &AHubFacilityActor::HandleFeatureUnlocked);
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void AHubFacilityActor::Interact(APlayerCharacterBase* Player)
@@ -95,5 +116,13 @@ void AHubFacilityActor::HandleEndOverlap(UPrimitiveComponent* OverlappedComponen
 		{
 			Player->PendingFacility = nullptr;
 		}
+	}
+}
+
+void AHubFacilityActor::HandleFeatureUnlocked(FGameplayTag FeatureTag)
+{
+	if (!RequiredFeatureTag.IsValid() || FeatureTag == RequiredFeatureTag)
+	{
+		ApplyFeatureAvailability();
 	}
 }
