@@ -17,7 +17,6 @@ class UYogAnimInstance;
 class USceneComponent;
 class UYogGameplayAbility;
 class UGameplayEffect;
-class UAbilityData;
 
 
 
@@ -54,9 +53,6 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, SaveGame)
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
-
-	UPROPERTY(SaveGame)
-	TObjectPtr<UAbilityData> WeaponAbilities;
 
 	UFUNCTION(BlueprintCallable)
 	void InitializeWeapon();

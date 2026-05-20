@@ -2,6 +2,8 @@
 
 #include "Camera/YogPlayerCameraManager.h"
 
+#include "Camera/YogSpringArmComponent.h"
+#include "Character/PlayerCharacterBase.h"
 #include "Volume/YogCameraVolume.h"
 #include "GameFramework/Character.h"
 #include "GameModes/YogGameMode.h"
@@ -59,6 +61,7 @@ void AYogPlayerCameraManager::NotifyCritHit()
 void AYogPlayerCameraManager::SetConstraintVolume(AYogCameraVolume* Volume)
 {
 	ConstraintVolume = Volume;
+	bVolumeFreezeFollow = IsValid(Volume);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -204,6 +207,12 @@ void AYogPlayerCameraManager::UpdateViewTarget(FTViewTarget& OutVT, float DeltaT
 	APawn* ViewedPawn = PCOwner ? PCOwner->GetPawn() : nullptr;
 	if (!IsValid(ViewedPawn)) return;
 
+	APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(ViewedPawn);
+	if (!PlayerCharacter)
+	{
+		return;
+	}
+
 	const FVector PlayerPos      = ViewedPawn->GetActorLocation();
 	FVector       PlayerVelocity = FVector::ZeroVector;
 	if (ACharacter* Char = Cast<ACharacter>(ViewedPawn))
@@ -250,9 +259,28 @@ void AYogPlayerCameraManager::UpdateViewTarget(FTViewTarget& OutVT, float DeltaT
 	Candidate.X += StateOffset.X + CurrentInputOffset.X;
 	Candidate.Y += StateOffset.Y + CurrentInputOffset.Y;
 
+	UYogSpringArmComponent* CameraBoom = PlayerCharacter->GetCameraBoom();
+	if (!CameraBoom)
+	{
+		return;
+	}
+
+	const bool bInCameraVolume = bVolumeFreezeFollow && ConstraintVolume.IsValid();
+	CameraBoom->SetFollowPlayer(!bInCameraVolume);
+	CameraBoom->TargetArmLength = FMath::FInterpTo(
+		CameraBoom->TargetArmLength,
+		bInCameraVolume ? ConstraintVolume->ExtendedArmLength : PlayerCharacter->DefaultCameraBoomLength,
+		DeltaTime,
+		bInCameraVolume ? ConstraintVolume->ArmLengthBlendSpeed : 6.f);
+
+	if (bInCameraVolume)
+	{
+		Candidate = OutVT.POV.Location;
+	}
+
 	// Step 8: Volume 边界约束
 	// 将候选位置投影到玩家 Z 高度再判断（Volume 通常在地面高度建模）
-	if (ConstraintVolume.IsValid())
+	if (ConstraintVolume.IsValid() && !bInCameraVolume)
 	{
 		const FVector CheckPt(Candidate.X, Candidate.Y, PlayerPos.Z);
 		if (!ConstraintVolume->EncompassesPoint(CheckPt))

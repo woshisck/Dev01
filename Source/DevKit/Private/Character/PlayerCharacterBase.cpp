@@ -5,6 +5,8 @@
 #include "UI/BackpackStyleDataAsset.h"
 #include "UI/DamageEdgeFlashWidget.h"
 #include "Character/YogCharacterMovementComponent.h"
+#include "Camera/CameraComponent.h"
+#include "Camera/YogSpringArmComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Item/ItemInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -34,6 +36,7 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "System/YogGameInstanceBase.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "Item/Weapon/WeaponAbilityData.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "GameFramework/PlayerController.h"
@@ -93,6 +96,23 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 	: Super(ObjectInitializer)
 {
+	CameraBoom = CreateDefaultSubobject<UYogSpringArmComponent>(TEXT("CameraBoom"));
+	CameraBoom->SetupAttachment(GetCapsuleComponent());
+	CameraBoom->SetUsingAbsoluteRotation(true);
+	CameraBoom->SetWorldRotation(FRotator(0.f, -40.f, -40.f));
+	CameraBoom->TargetArmLength = DefaultCameraBoomLength;
+	CameraBoom->bUsePawnControlRotation = false;
+	CameraBoom->bInheritPitch = false;
+	CameraBoom->bInheritYaw = false;
+	CameraBoom->bInheritRoll = false;
+	CameraBoom->bfollowPlayer = true;
+	CameraBoom->bReverseLag = false;
+	CameraBoom->bStayOffset = false;
+
+	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
+	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	FollowCamera->FieldOfView = DefaultCameraFOV;
+
 	BackpackGridComponent = CreateDefaultSubobject<UBackpackGridComponent>(TEXT("BackpackGridComponent"));
 	CombatDeckComponent = CreateDefaultSubobject<UCombatDeckComponent>(TEXT("CombatDeckComponent"));
 	CombatItemComponent = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
@@ -217,6 +237,56 @@ void APlayerCharacterBase::EndReviveProtection()
 		if (InvulnerableTag.IsValid())
 		{
 			ASC->RemoveLooseGameplayTag(InvulnerableTag);
+		}
+	}
+}
+
+void APlayerCharacterBase::ClearWeaponGrantedAbilities()
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC)
+	{
+		GrantedWeaponAbilityHandles.Reset();
+		return;
+	}
+
+	for (const FGameplayAbilitySpecHandle& AbilityHandle : GrantedWeaponAbilityHandles)
+	{
+		if (AbilityHandle.IsValid())
+		{
+			ASC->ClearAbility(AbilityHandle);
+		}
+	}
+	GrantedWeaponAbilityHandles.Reset();
+}
+
+void APlayerCharacterBase::GrantWeaponAbilities(UWeaponAbilityData* WeaponAbilityData)
+{
+	ClearWeaponGrantedAbilities();
+
+	if (!WeaponAbilityData)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC)
+	{
+		return;
+	}
+
+	for (const TSubclassOf<UYogGameplayAbility>& AbilityClass : WeaponAbilityData->WeaponAbilities)
+	{
+		if (!AbilityClass)
+		{
+			continue;
+		}
+
+		FGameplayAbilitySpec AbilitySpec(AbilityClass, 0, INDEX_NONE, WeaponAbilityData);
+		const FGameplayAbilitySpecHandle AbilityHandle = ASC->GiveAbility(AbilitySpec);
+		if (AbilityHandle.IsValid())
+		{
+			GrantedWeaponAbilityHandles.Add(AbilityHandle);
 		}
 	}
 }
@@ -565,6 +635,23 @@ void APlayerCharacterBase::RestoreSacrificeOfferingCosts(const TArray<FSacrifice
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (CameraBoom)
+	{
+		CameraBoom->SetupAttachment(GetCapsuleComponent());
+		CameraBoom->SetUsingAbsoluteRotation(true);
+		CameraBoom->SetWorldRotation(FRotator(0.f, -40.f, -40.f));
+		CameraBoom->TargetArmLength = DefaultCameraBoomLength;
+		CameraBoom->bUsePawnControlRotation = false;
+		CameraBoom->bInheritPitch = false;
+		CameraBoom->bInheritYaw = false;
+		CameraBoom->bInheritRoll = false;
+	}
+
+	if (FollowCamera)
+	{
+		FollowCamera->FieldOfView = DefaultCameraFOV;
+	}
 
 	// 将 BackpackGridComponent 与 ASC 关联，使符文激活时可施加 GE
 	if (BackpackGridComponent && GetAbilitySystemComponent())

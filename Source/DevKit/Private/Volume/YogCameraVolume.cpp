@@ -3,6 +3,7 @@
 #include "Volume/YogCameraVolume.h"
 #include "Components/BrushComponent.h"
 #include "Camera/YogPlayerCameraManager.h"
+#include "Camera/YogSpringArmComponent.h"
 #include "Character/PlayerCharacterBase.h"
 #include "DrawDebugHelpers.h"
 #include "Kismet/GameplayStatics.h"
@@ -14,6 +15,8 @@ AYogCameraVolume::AYogCameraVolume(const FObjectInitializer& ObjectInitializer)
 	PrimaryActorTick.bStartWithTickEnabled = true;
 
 	GetBrushComponent()->SetHiddenInGame(false);
+	GetBrushComponent()->SetCollisionProfileName(TEXT("Trigger"));
+	GetBrushComponent()->SetGenerateOverlapEvents(true);
 }
 
 void AYogCameraVolume::BeginPlay()
@@ -60,22 +63,36 @@ void AYogCameraVolume::Tick(float DeltaSeconds)
 
 void AYogCameraVolume::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 {
-	if (!Cast<APlayerCharacterBase>(OtherActor)) return;
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
+	if (!Player) return;
 
 	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(
 		UGameplayStatics::GetPlayerCameraManager(this, 0)))
 	{
 		CM->SetConstraintVolume(this);
 	}
+
+	if (UYogSpringArmComponent* CameraBoom = Player->GetCameraBoom())
+	{
+		CameraBoom->SetFollowPlayer(false);
+		CameraBoom->TargetArmLength = ExtendedArmLength;
+	}
 }
 
 void AYogCameraVolume::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 {
-	if (!Cast<APlayerCharacterBase>(OtherActor)) return;
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
+	if (!Player) return;
 
 	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(
 		UGameplayStatics::GetPlayerCameraManager(this, 0)))
 	{
 		CM->SetConstraintVolume(nullptr);
+	}
+
+	if (UYogSpringArmComponent* CameraBoom = Player->GetCameraBoom())
+	{
+		CameraBoom->SetFollowPlayer(true);
+		CameraBoom->TargetArmLength = Player->DefaultCameraBoomLength;
 	}
 }

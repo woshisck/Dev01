@@ -352,6 +352,8 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		YogASC->ClearWeaponTypeTags();
 	}
 
+	Player->ClearWeaponGrantedAbilities();
+
 	// ── 2. 生成并装备新武器 ──────────────────────────────────────────
 	AWeaponInstance* NewWeapon = nullptr;
 	for (const FWeaponSpawnData& WeaponSpawnData : WeaponDefinition->ActorsToSpawn)
@@ -361,18 +363,12 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		SpawnData.AttachSocket   = WeaponSpawnData.AttachSocket;
 		SpawnData.AttachTransform = WeaponSpawnData.AttachTransform;
 		SpawnData.WeaponLayer    = WeaponSpawnData.WeaponLayer;
-		SpawnData.WeaponAbilities = WeaponSpawnData.WeaponAbilities;
 		SpawnData.bShouldSaveToGame = true;
 
 		NewWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
-
-		UCharacterData* CD = Player->GetCharacterDataComponent()->GetCharacterData();
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponSetup][WeaponSpawner] Owner=%s | CD=%s | NewAbilityData=%s"),
-			*Player->GetName(),
-			CD ? *CD->GetName() : TEXT("null"),
-			WeaponDefinition->WeaponAbilityData ? *WeaponDefinition->WeaponAbilityData->GetName() : TEXT("null"));
-		CD->AbilityData = WeaponDefinition->WeaponAbilityData;
 	}
+
+	Player->GrantWeaponAbilities(WeaponDefinition->WeaponAbilityData);
 
 	// ── 3. 传入热度材质 + 绑定热度委托 ──────────────────────────────
 	if (NewWeapon && !bDisableLegacyHeatBackpackRuneForCardTestSpawner)
@@ -528,7 +524,6 @@ void AWeaponSpawner::ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeap
 	Weapon->AttachSocket = Data.AttachSocket;
 	Weapon->AttachTransform = Data.AttachTransform;
 	Weapon->WeaponLayer = Data.WeaponLayer;
-	Weapon->WeaponAbilities = Data.WeaponAbilities;
 }
 
 

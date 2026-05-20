@@ -174,6 +174,9 @@ private:
 	/** 当前有效边界 Volume（弱引用，Volume 销毁后自动失效） */
 	TWeakObjectPtr<AYogCameraVolume> ConstraintVolume;
 
+	/** 进入 Volume 后是否暂停跟随并拉远镜头 */
+	bool bVolumeFreezeFollow = false;
+
 	// ─── 内部逻辑 ─────────────────────────────────────────────────────────
 
 	void SetCameraStates(EYogCameraStates NewState);

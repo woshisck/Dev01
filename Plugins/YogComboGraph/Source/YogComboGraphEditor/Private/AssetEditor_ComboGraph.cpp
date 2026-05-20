@@ -18,6 +18,7 @@
 #include "PersonaModule.h"
 #include "PropertyEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "YogComboGraphTransientEditorObject.h"
 #include "Toolkits/ToolkitManager.h"
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 #include "Widgets/Input/SButton.h"
@@ -57,7 +58,7 @@ namespace
 			// a private transient object instead of registering the selected montage itself.
 			if (!TransientEditorObject && GEditor)
 			{
-				TransientEditorObject = NewObject<UObject>(GetTransientPackage(), NAME_None, RF_Transient);
+				TransientEditorObject = NewObject<UYogComboGraphTransientEditorObject>(GetTransientPackage(), NAME_None, RF_Transient);
 				if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
 				{
 					AssetEditorSubsystem->NotifyAssetOpened(TransientEditorObject, this);
@@ -204,7 +205,7 @@ namespace
 		TWeakPtr<FAssetEditorToolkit> OwnerToolkit;
 		TWeakPtr<IPersonaToolkit> PersonaToolkit;
 		TWeakObjectPtr<UAnimationAsset> AnimationAsset;
-		TObjectPtr<UObject> TransientEditorObject;
+		TObjectPtr<UYogComboGraphTransientEditorObject> TransientEditorObject;
 		FOnEditCurves OnEditCurves;
 		TArray<UObject*> EditingObjects;
 	};

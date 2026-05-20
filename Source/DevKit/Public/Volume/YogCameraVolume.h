@@ -30,6 +30,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Volume|Debug", meta = (ClampMin = "0.1", EditCondition = "bShowDebugInGame"))
 	float DebugLineThickness = 4.f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Volume|Camera", meta = (ClampMin = "0.0"))
+	float ExtendedArmLength = 3200.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Volume|Camera", meta = (ClampMin = "0.0"))
+	float ArmLengthBlendSpeed = 3.f;
+
 protected:
 	virtual void BeginPlay() override;
 
