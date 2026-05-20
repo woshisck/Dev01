@@ -56,12 +56,14 @@ private:
 	float   CachedCatchUpRate = 2.0f;
 	float   CachedCatchUpDur  = 0.f;
 
-	TWeakObjectPtr<UAnimInstance> AnimInst;
+	TArray<TWeakObjectPtr<UAnimInstance>> AnimInstances;
 
 	void TransitionToSlow();
 	void TransitionToCatchUp();
 	void EndHitStop();
 	void SetPlayRate(float Rate);
+	void FreezeCharacterMovement();
+	void RestoreCharacterMovement();
 	void PauseMontage();
 	void ResumeMontage();
 };
