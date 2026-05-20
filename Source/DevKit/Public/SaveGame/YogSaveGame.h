@@ -12,6 +12,7 @@
 #include "Item/Weapon/WeaponInstance.h"
 #include "Tutorial/TutorialHintDataAsset.h"
 #include "MetaProgression/MetaTypes.h"
+#include "Story/StoryRuleTypes.h"
 #include "YogSaveGame.generated.h"
 
 
@@ -422,6 +423,18 @@ public:
 	// 已展示过的 Save-scope 一次性弹窗 key（UYogUIManagerSubsystem::PushScreenOnce 写入）。
 	UPROPERTY()
 	TSet<FGameplayTag> ShownPopupKeys;
+
+	// Story Engine MVP：跨存档故事标记，供教程、首局引导、主城解锁共享。
+	UPROPERTY()
+	TMap<FGameplayTag, bool> StoryFlags;
+
+	// Story Engine MVP：OncePerSave 规则触发记录。
+	UPROPERTY()
+	TSet<FName> StoryFiredRuleIds;
+
+	// Story Engine MVP：遗圣目录/轻量任务状态。完整对话任务线后续再扩展。
+	UPROPERTY()
+	TMap<FGameplayTag, FStoryQuestTaskData> StoryQuestTasks;
 
 	// ── 槽位元信息 ──────────────────────────────────────────────
 	UPROPERTY() FDateTime SlotCreatedTime;

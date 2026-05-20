@@ -122,6 +122,9 @@ void UYogSaveSubsystem::ResetSlotForNewGame(int32 SlotIndex)
 	CurrentSaveGame->SavedCharacter.Reset();
 	CurrentSaveGame->TutorialState   = ETutorialState::NeedWeaponTutorial;
 	CurrentSaveGame->ShownPopupKeys.Empty();
+	CurrentSaveGame->StoryFlags.Empty();
+	CurrentSaveGame->StoryFiredRuleIds.Empty();
+	CurrentSaveGame->StoryQuestTasks.Empty();
 	CurrentSaveGame->SlotCreatedTime  = FDateTime::Now();
 
 	DoAsyncSave();
