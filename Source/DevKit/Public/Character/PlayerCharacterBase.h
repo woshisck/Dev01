@@ -43,6 +43,7 @@ class AYogCameraPawn;
 class UCameraComponent;
 class UYogSpringArmComponent;
 class UWeaponAbilityData;
+class UYogCameraOcclusionFadeComponent;
 UENUM()
 enum class EPlayerState : uint8
 {
@@ -337,6 +338,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UYogCameraOcclusionFadeComponent> CameraOcclusionFadeComponent;
 
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AYogCameraPawn> CameraPawnActor;
