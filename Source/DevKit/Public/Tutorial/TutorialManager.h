@@ -11,7 +11,7 @@ class UTutorialRegistryDA;
 class AYogPlayerControllerBase;
 class UYogSaveGame;
 
-UCLASS()
+UCLASS(Config=Game)
 class DEVKIT_API UTutorialManager : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
@@ -46,6 +46,7 @@ public:
 
 	ETutorialState GetState() const { return State; }
 	bool IsPopupShowing() const { return bPopupShowing; }
+	bool AreTutorialPopupsEnabled() const { return bTutorialPopupsEnabled; }
 
 	void NotifyPopupClosed();
 	void ForceClosePopup();
@@ -59,6 +60,9 @@ public:
 	bool HasPassedStage(ETutorialState Required) const;
 
 private:
+	UPROPERTY(Config)
+	bool bTutorialPopupsEnabled = false;
+
 	ETutorialState State = ETutorialState::NeedWeaponTutorial;
 
 	TWeakObjectPtr<UTutorialPopupWidget> PopupWidget;

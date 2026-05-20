@@ -120,6 +120,12 @@ bool UStoryEventManager::DispatchTutorialPopup(const FStoryEventEntry& Entry, FS
 	{
 		return false;
 	}
+	if (!TutorialManager->AreTutorialPopupsEnabled())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[StoryEvent] Tutorial popup skipped because tutorial popups are disabled: %s"),
+			*Entry.EventTag.ToString());
+		return true;
+	}
 
 	const FName TutorialEventID = Entry.TutorialEventID.IsNone()
 		? FName(*Entry.EventTag.ToString())

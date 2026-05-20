@@ -272,5 +272,4 @@ void UActiveSkillLoadoutWidget::HandleSlot1Clicked()
 void UActiveSkillLoadoutWidget::HandleCloseClicked()
 {
 	DeactivateWidget();
-	RemoveFromParent();
 }

@@ -1245,7 +1245,7 @@ void AYogGameMode::StartLevelSpawning()
 			{
 				// 检查当前加载的关卡是否已经是 DefaultStartingRoom 指定的关卡
 				// GetCurrentLevelName(true) 会去掉 PIE 前缀（如 "UEDPIE_0_"）
-				const FString CurrentMapName = UGameplayStatics::GetCurrentLevelName(GetWorld(), true);
+				const FString CurrentMapName = FPackageName::GetShortName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
 				if (!CurrentMapName.Equals(FPackageName::GetShortName(DefaultLevelName.ToString()), ESearchCase::IgnoreCase))
 				{
 					// 当前关卡不匹配，重定向到 DefaultStartingRoom 的关卡

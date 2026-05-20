@@ -166,44 +166,66 @@ int32 UActiveSkillSetupCommandlet::Main(const FString& Params)
 	}
 	else if (!bDryRun)
 	{
-		NodeTable->Modify();
+		bool bTableDirty = false;
 
-		FMetaUpgradeNodeRow UnlockRow;
-		UnlockRow.DisplayName = FText::FromString(TEXT("Active Skill Unlock"));
-		UnlockRow.Side = EMetaSide::Mystic;
-		UnlockRow.MaxLevel = 1;
-		UnlockRow.EffectType = EMetaUpgradeEffectType::FeatureUnlock;
-		UnlockRow.FeatureTag = FGameplayTag::RequestGameplayTag(TEXT("Feature.Combat.ActiveSkill"), false);
-		FMetaCurrencyCost UnlockCost;
-		UnlockCost.CurrencyTag = FGameplayTag::RequestGameplayTag(TEXT("Currency.Meta.MysticPoint"), false);
-		UnlockCost.Amount = 30;
-		UnlockRow.CostsPerLevel.Add(UnlockCost);
+		if (!NodeTable->FindRow<FMetaUpgradeNodeRow>(TEXT("Node.Skill.Unlock"), TEXT(""), false))
+		{
+			NodeTable->Modify();
+			FMetaUpgradeNodeRow UnlockRow;
+			UnlockRow.DisplayName = FText::FromString(TEXT("Active Skill Unlock"));
+			UnlockRow.Side = EMetaSide::Mystic;
+			UnlockRow.MaxLevel = 1;
+			UnlockRow.EffectType = EMetaUpgradeEffectType::FeatureUnlock;
+			UnlockRow.FeatureTag = FGameplayTag::RequestGameplayTag(TEXT("Feature.Combat.ActiveSkill"), false);
+			FMetaCurrencyCost UnlockCost;
+			UnlockCost.CurrencyTag = FGameplayTag::RequestGameplayTag(TEXT("Currency.Meta.MysticPoint"), false);
+			UnlockCost.Amount = 30;
+			UnlockRow.CostsPerLevel.Add(UnlockCost);
 #if WITH_EDITORONLY_DATA
-		UnlockRow.EditorPositionX = 640.0f;
-		UnlockRow.EditorPositionY = 0.0f;
+			UnlockRow.EditorPositionX = 640.0f;
+			UnlockRow.EditorPositionY = 0.0f;
 #endif
-		NodeTable->AddRow(TEXT("Node.Skill.Unlock"), UnlockRow);
+			NodeTable->AddRow(TEXT("Node.Skill.Unlock"), UnlockRow);
+			bTableDirty = true;
+			ReportLines.Add(TEXT("- Added `Node.Skill.Unlock` (30 MysticPoint, unlocks `Feature.Combat.ActiveSkill`)."));
+		}
+		else
+		{
+			ReportLines.Add(TEXT("- `Node.Skill.Unlock` already exists; skipped."));
+		}
 
-		FMetaUpgradeNodeRow Slot2Row;
-		Slot2Row.DisplayName = FText::FromString(TEXT("Active Skill Slot 2"));
-		Slot2Row.Side = EMetaSide::Mystic;
-		Slot2Row.MaxLevel = 1;
-		Slot2Row.Prerequisites.Add(TEXT("Node.Skill.Unlock"));
-		Slot2Row.EffectType = EMetaUpgradeEffectType::FeatureUnlock;
-		Slot2Row.FeatureTag = FGameplayTag::RequestGameplayTag(TEXT("Feature.Combat.ActiveSkill.Slot2"), false);
-		FMetaCurrencyCost Slot2Cost;
-		Slot2Cost.CurrencyTag = FGameplayTag::RequestGameplayTag(TEXT("Currency.Meta.MysticPoint"), false);
-		Slot2Cost.Amount = 50;
-		Slot2Row.CostsPerLevel.Add(Slot2Cost);
+		if (!NodeTable->FindRow<FMetaUpgradeNodeRow>(TEXT("Node.Skill.Slot2"), TEXT(""), false))
+		{
+			NodeTable->Modify();
+			FMetaUpgradeNodeRow Slot2Row;
+			Slot2Row.DisplayName = FText::FromString(TEXT("Active Skill Slot 2"));
+			Slot2Row.Side = EMetaSide::Mystic;
+			Slot2Row.MaxLevel = 1;
+			Slot2Row.Prerequisites.Add(TEXT("Node.Skill.Unlock"));
+			Slot2Row.EffectType = EMetaUpgradeEffectType::FeatureUnlock;
+			Slot2Row.FeatureTag = FGameplayTag::RequestGameplayTag(TEXT("Feature.Combat.ActiveSkill.Slot2"), false);
+			FMetaCurrencyCost Slot2Cost;
+			Slot2Cost.CurrencyTag = FGameplayTag::RequestGameplayTag(TEXT("Currency.Meta.MysticPoint"), false);
+			Slot2Cost.Amount = 50;
+			Slot2Row.CostsPerLevel.Add(Slot2Cost);
 #if WITH_EDITORONLY_DATA
-		Slot2Row.EditorPositionX = 960.0f;
-		Slot2Row.EditorPositionY = 0.0f;
+			Slot2Row.EditorPositionX = 960.0f;
+			Slot2Row.EditorPositionY = 0.0f;
 #endif
-		NodeTable->AddRow(TEXT("Node.Skill.Slot2"), Slot2Row);
+			NodeTable->AddRow(TEXT("Node.Skill.Slot2"), Slot2Row);
+			bTableDirty = true;
+			ReportLines.Add(TEXT("- Added `Node.Skill.Slot2` (50 MysticPoint, requires Node.Skill.Unlock, unlocks `Feature.Combat.ActiveSkill.Slot2`)."));
+		}
+		else
+		{
+			ReportLines.Add(TEXT("- `Node.Skill.Slot2` already exists; skipped."));
+		}
 
-		NodeTable->MarkPackageDirty();
-		DirtyPackages.AddUnique(NodeTable->GetPackage());
-		ReportLines.Add(TEXT("- Updated `DT_MetaUpgradeNodes`: `Node.Skill.Unlock` costs 30 MysticPoint and unlocks `Feature.Combat.ActiveSkill`; `Node.Skill.Slot2` costs 50 MysticPoint, depends on unlock, and unlocks `Feature.Combat.ActiveSkill.Slot2`."));
+		if (bTableDirty)
+		{
+			NodeTable->MarkPackageDirty();
+			DirtyPackages.AddUnique(NodeTable->GetPackage());
+		}
 	}
 	else
 	{

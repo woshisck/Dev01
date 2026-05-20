@@ -140,6 +140,7 @@ void ULoadingScreenManager::Deinitialize()
 
 	RemoveWidgetFromViewport();
 
+	FCoreUObjectDelegates::PreLoadMapWithContext.RemoveAll(this);
 	FCoreUObjectDelegates::PreLoadMap.RemoveAll(this);
 	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 }
@@ -191,7 +192,10 @@ void ULoadingScreenManager::UnregisterLoadingProcessor(TScriptInterface<ILoading
 
 void ULoadingScreenManager::HandlePreLoadMap(const FWorldContext& WorldContext, const FString& MapName)
 {
-	if (WorldContext.OwningGameInstance == GetGameInstance())
+	const bool bGIMatch = (WorldContext.OwningGameInstance == GetGameInstance());
+	UE_LOG(LogLoadingScreen, Log, TEXT("HandlePreLoadMap: MapName=%s GIMatch=%d PrevInLoadMap=%d"), *MapName, bGIMatch ? 1 : 0, bCurrentlyInLoadMap ? 1 : 0);
+
+	if (bGIMatch)
 	{
 		bCurrentlyInLoadMap = true;
 
@@ -205,9 +209,24 @@ void ULoadingScreenManager::HandlePreLoadMap(const FWorldContext& WorldContext, 
 
 void ULoadingScreenManager::HandlePostLoadMap(UWorld* World)
 {
+	UE_LOG(LogLoadingScreen, Log, TEXT("HandlePostLoadMap: World=%s GI_World=%s GI_Self=%s Match=%d"),
+		World ? *World->GetName() : TEXT("null"),
+		(World && World->GetGameInstance()) ? *GetNameSafe(World->GetGameInstance()) : TEXT("null"),
+		GetGameInstance() ? *GetNameSafe(GetGameInstance()) : TEXT("null"),
+		(World && World->GetGameInstance() == GetGameInstance()) ? 1 : 0);
+
 	if ((World != nullptr) && (World->GetGameInstance() == GetGameInstance()))
 	{
 		bCurrentlyInLoadMap = false;
+
+		if (GEngine && GEngine->IsInitialized())
+		{
+			UpdateLoadingScreen();
+			UE_LOG(LogLoadingScreen, Log, TEXT("HandlePostLoadMap: after update Showing=%d InLoadMap=%d Reason=%s"),
+				bCurrentlyShowingLoadingScreen ? 1 : 0,
+				bCurrentlyInLoadMap ? 1 : 0,
+				*DebugReasonForShowingOrHidingLoadingScreen);
+		}
 	}
 }
 
@@ -218,11 +237,18 @@ void ULoadingScreenManager::UpdateLoadingScreen()
 	if (ShouldShowLoadingScreen())
 	{
 		const UCommonLoadingScreenSettings* Settings = GetDefault<UCommonLoadingScreenSettings>();
-		
+
 		// If we don't make it to the specified checkpoint in the given time will trigger the hang detector so we can better determine where progress stalled.
  		FThreadHeartBeat::Get().MonitorCheckpointStart(GetFName(), Settings->LoadingScreenHeartbeatHangDuration);
 
 		ShowLoadingScreen();
+
+		// Always log at 1s intervals while loading screen is stuck (bCurrentlyInLoadMap cleared but screen still showing)
+		if (bCurrentlyShowingLoadingScreen && !bCurrentlyInLoadMap && (TimeUntilNextLogHeartbeatSeconds <= 0.0))
+		{
+			bLogLoadingScreenStatus = true;
+			TimeUntilNextLogHeartbeatSeconds = 1.0f;
+		}
 
  		if ((Settings->LogLoadingScreenHeartbeatInterval > 0.0f) && (TimeUntilNextLogHeartbeatSeconds <= 0.0))
  		{
@@ -233,7 +259,7 @@ void ULoadingScreenManager::UpdateLoadingScreen()
 	else
 	{
 		HideLoadingScreen();
- 
+
  		FThreadHeartBeat::Get().MonitorCheckpointEnd(GetFName());
 	}
 
@@ -424,7 +450,7 @@ bool ULoadingScreenManager::ShouldShowLoadingScreen()
 		// Don't *need* to show the screen anymore, but might still want to for a bit
 		const double CurrentTime = FPlatformTime::Seconds();
 		const bool bCanHoldLoadingScreen = (!GIsEditor || Settings->HoldLoadingScreenAdditionalSecsEvenInEditor);
-		const double HoldLoadingScreenAdditionalSecs = bCanHoldLoadingScreen ? LoadingScreenCVars::HoldLoadingScreenAdditionalSecs : 0.0;
+		const double HoldLoadingScreenAdditionalSecs = bCanHoldLoadingScreen ? Settings->HoldLoadingScreenAdditionalSecs : 0.0;
 
 		if (TimeLoadingScreenLastDismissed < 0.0)
 		{

@@ -188,6 +188,7 @@ void UActiveSkillBarWidget::UpdateSlotWidgets(const TArray<FActiveSkillSlotView>
 			}
 			else
 			{
+				SlotWidget.IconImage->SetBrush(FSlateBrush());
 				SlotWidget.IconImage->SetColorAndOpacity(FLinearColor(0.16f, 0.20f, 0.24f, 1.0f));
 			}
 		}
