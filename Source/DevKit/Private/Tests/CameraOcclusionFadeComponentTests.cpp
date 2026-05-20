@@ -6,6 +6,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
