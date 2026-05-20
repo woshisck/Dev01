@@ -332,10 +332,10 @@ public:
 
 protected:
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Camera")
 	TObjectPtr<UYogSpringArmComponent> CameraBoom;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
 
 	UPROPERTY(BlueprintReadOnly)

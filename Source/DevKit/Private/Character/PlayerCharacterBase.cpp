@@ -99,7 +99,6 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	CameraBoom = CreateDefaultSubobject<UYogSpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(GetCapsuleComponent());
 	CameraBoom->SetUsingAbsoluteRotation(true);
-	CameraBoom->SetWorldRotation(FRotator(0.f, -40.f, -40.f));
 	CameraBoom->TargetArmLength = DefaultCameraBoomLength;
 	CameraBoom->bUsePawnControlRotation = false;
 	CameraBoom->bInheritPitch = false;
@@ -650,7 +649,6 @@ void APlayerCharacterBase::BeginPlay()
 	{
 		CameraBoom->SetupAttachment(GetCapsuleComponent());
 		CameraBoom->SetUsingAbsoluteRotation(true);
-		CameraBoom->SetWorldRotation(FRotator(0.f, -40.f, -40.f));
 		CameraBoom->TargetArmLength = DefaultCameraBoomLength;
 		CameraBoom->bUsePawnControlRotation = false;
 		CameraBoom->bInheritPitch = false;
