@@ -25,6 +25,7 @@ bool FYogCameraOcclusionFadeDefaultsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Min visible alpha defaults to 0.15"), Component->MinVisibleAlpha, 0.15f);
 	TestEqual(TEXT("Fade parameter name"), Component->FadeScalarParameterName, FName(TEXT("CameraOcclusionAlpha")));
 	TestTrue(TEXT("Tagged occluders are required by default"), Component->bOnlyFadeTaggedOccluders);
+	TestNull(TEXT("Occlusion fade material is optional by default"), Component->OcclusionFadeMaterial);
 
 	return true;
 }

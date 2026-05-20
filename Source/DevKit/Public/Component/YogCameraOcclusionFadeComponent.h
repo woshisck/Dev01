@@ -77,6 +77,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Occlusion")
 	FName FadeScalarParameterName = TEXT("CameraOcclusionAlpha");
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Occlusion|Material")
+	TObjectPtr<UMaterialInterface> OcclusionFadeMaterial;
+
 	bool IsFadeAllowedForComponent(const UPrimitiveComponent* Component) const;
 
 private:

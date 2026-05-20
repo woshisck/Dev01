@@ -207,7 +207,8 @@ void UYogCameraOcclusionFadeComponent::CacheMaterialsForTarget(FYogOcclusionFade
 	{
 		Target.OriginalMaterials.Add(Component->GetMaterial(MaterialIndex));
 
-		UMaterialInstanceDynamic* DynamicMaterial = Component->CreateDynamicMaterialInstance(MaterialIndex);
+		UMaterialInterface* SourceMaterial = OcclusionFadeMaterial ? OcclusionFadeMaterial.Get() : nullptr;
+		UMaterialInstanceDynamic* DynamicMaterial = Component->CreateDynamicMaterialInstance(MaterialIndex, SourceMaterial);
 		if (DynamicMaterial)
 		{
 			DynamicMaterial->SetScalarParameterValue(FadeScalarParameterName, Target.CurrentAlpha);
