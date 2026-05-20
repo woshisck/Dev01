@@ -193,7 +193,6 @@ void ULoadingScreenManager::UnregisterLoadingProcessor(TScriptInterface<ILoading
 void ULoadingScreenManager::HandlePreLoadMap(const FWorldContext& WorldContext, const FString& MapName)
 {
 	const bool bGIMatch = (WorldContext.OwningGameInstance == GetGameInstance());
-	UE_LOG(LogLoadingScreen, Log, TEXT("HandlePreLoadMap: MapName=%s GIMatch=%d PrevInLoadMap=%d"), *MapName, bGIMatch ? 1 : 0, bCurrentlyInLoadMap ? 1 : 0);
 
 	if (bGIMatch)
 	{
@@ -209,12 +208,6 @@ void ULoadingScreenManager::HandlePreLoadMap(const FWorldContext& WorldContext, 
 
 void ULoadingScreenManager::HandlePostLoadMap(UWorld* World)
 {
-	UE_LOG(LogLoadingScreen, Log, TEXT("HandlePostLoadMap: World=%s GI_World=%s GI_Self=%s Match=%d"),
-		World ? *World->GetName() : TEXT("null"),
-		(World && World->GetGameInstance()) ? *GetNameSafe(World->GetGameInstance()) : TEXT("null"),
-		GetGameInstance() ? *GetNameSafe(GetGameInstance()) : TEXT("null"),
-		(World && World->GetGameInstance() == GetGameInstance()) ? 1 : 0);
-
 	if ((World != nullptr) && (World->GetGameInstance() == GetGameInstance()))
 	{
 		bCurrentlyInLoadMap = false;
@@ -222,10 +215,6 @@ void ULoadingScreenManager::HandlePostLoadMap(UWorld* World)
 		if (GEngine && GEngine->IsInitialized())
 		{
 			UpdateLoadingScreen();
-			UE_LOG(LogLoadingScreen, Log, TEXT("HandlePostLoadMap: after update Showing=%d InLoadMap=%d Reason=%s"),
-				bCurrentlyShowingLoadingScreen ? 1 : 0,
-				bCurrentlyInLoadMap ? 1 : 0,
-				*DebugReasonForShowingOrHidingLoadingScreen);
 		}
 	}
 }
@@ -242,13 +231,6 @@ void ULoadingScreenManager::UpdateLoadingScreen()
  		FThreadHeartBeat::Get().MonitorCheckpointStart(GetFName(), Settings->LoadingScreenHeartbeatHangDuration);
 
 		ShowLoadingScreen();
-
-		// Always log at 1s intervals while loading screen is stuck (bCurrentlyInLoadMap cleared but screen still showing)
-		if (bCurrentlyShowingLoadingScreen && !bCurrentlyInLoadMap && (TimeUntilNextLogHeartbeatSeconds <= 0.0))
-		{
-			bLogLoadingScreenStatus = true;
-			TimeUntilNextLogHeartbeatSeconds = 1.0f;
-		}
 
  		if ((Settings->LogLoadingScreenHeartbeatInterval > 0.0f) && (TimeUntilNextLogHeartbeatSeconds <= 0.0))
  		{
