@@ -243,6 +243,11 @@ void APlayerCharacterBase::EndReviveProtection()
 
 void APlayerCharacterBase::ClearWeaponGrantedAbilities()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!ASC)
 	{
@@ -262,6 +267,11 @@ void APlayerCharacterBase::ClearWeaponGrantedAbilities()
 
 void APlayerCharacterBase::GrantWeaponAbilities(UWeaponAbilityData* WeaponAbilityData)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	ClearWeaponGrantedAbilities();
 
 	if (!WeaponAbilityData)

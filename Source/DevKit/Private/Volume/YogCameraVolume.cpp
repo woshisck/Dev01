@@ -6,6 +6,7 @@
 #include "Camera/YogSpringArmComponent.h"
 #include "Character/PlayerCharacterBase.h"
 #include "DrawDebugHelpers.h"
+#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 
 AYogCameraVolume::AYogCameraVolume(const FObjectInitializer& ObjectInitializer)
@@ -66,8 +67,8 @@ void AYogCameraVolume::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActo
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
 	if (!Player) return;
 
-	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(
-		UGameplayStatics::GetPlayerCameraManager(this, 0)))
+	APlayerController* PlayerController = Player->GetController<APlayerController>();
+	if (AYogPlayerCameraManager* CM = PlayerController ? Cast<AYogPlayerCameraManager>(PlayerController->PlayerCameraManager) : nullptr)
 	{
 		CM->SetConstraintVolume(this);
 	}
@@ -84,8 +85,8 @@ void AYogCameraVolume::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
 	if (!Player) return;
 
-	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(
-		UGameplayStatics::GetPlayerCameraManager(this, 0)))
+	APlayerController* PlayerController = Player->GetController<APlayerController>();
+	if (AYogPlayerCameraManager* CM = PlayerController ? Cast<AYogPlayerCameraManager>(PlayerController->PlayerCameraManager) : nullptr)
 	{
 		CM->SetConstraintVolume(nullptr);
 	}
