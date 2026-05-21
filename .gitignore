@@ -1889,6 +1889,8 @@ Content/Plugins/OtherByMarket/ParagonMinions/Characters/AnimBP/ABP_Minion.uasset
 /Tools/*
 !/Tools/DataEditor/
 !/Tools/DataEditor/**
+!/Tools/ProductionGraph/
+!/Tools/ProductionGraph/**
 !/Tools/RuneEditor/
 !/Tools/RuneEditor/**
 Tools/SyncBridge/config.json

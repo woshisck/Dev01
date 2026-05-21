@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Production Graph</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">PG</div>
+          <div>
+            <h1>Production Graph</h1>
+            <p>教程 / 剧情制作节点图</p>
+          </div>
+        </div>
+
+        <label class="field-label" for="graphSelect">图谱</label>
+        <div class="row">
+          <select id="graphSelect" class="input"></select>
+          <button id="newGraphButton" class="icon-button" title="新建图谱">+</button>
+        </div>
+
+        <div class="tool-section">
+          <div class="section-title">新增节点</div>
+          <div class="button-grid">
+            <button data-add-node="need">需求</button>
+            <button data-add-node="solution">方案</button>
+            <button data-add-node="task">任务</button>
+            <button data-add-node="blocker">阻塞</button>
+          </div>
+        </div>
+
+        <div class="tool-section">
+          <div class="section-title">视图</div>
+          <label class="checkbox-row">
+            <input id="hideDoneToggle" type="checkbox">
+            <span>隐藏完成任务</span>
+          </label>
+          <label class="field-label" for="filterInput">筛选</label>
+          <input id="filterInput" class="input" placeholder="标题、标签、负责人">
+        </div>
+
+        <div class="tool-section">
+          <div class="section-title">历史</div>
+          <div class="history-row">
+            <button id="undoButton" type="button">撤销</button>
+            <button id="redoButton" type="button">重做</button>
+          </div>
+        </div>
+
+        <div class="sidebar-footer">
+          <button id="saveButton" class="primary-button">保存</button>
+          <button id="deleteButton" class="danger-button">删除选中</button>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <div id="graphTitle" class="graph-title">Loading...</div>
+            <div id="graphSubtitle" class="graph-subtitle"></div>
+          </div>
+          <div id="saveState" class="save-state">未修改</div>
+        </header>
+
+        <section class="canvas-wrap" id="canvasWrap">
+          <div class="canvas" id="canvas">
+            <svg id="edgeLayer" class="edge-layer"></svg>
+            <div id="nodeLayer" class="node-layer"></div>
+          </div>
+        </section>
+
+        <footer id="validationBar" class="validation-bar"></footer>
+      </main>
+
+      <aside class="inspector">
+        <div class="inspector-header">
+          <div class="section-title">详情</div>
+          <div id="selectionType" class="pill">未选择</div>
+        </div>
+        <div id="inspectorBody" class="inspector-body empty">选择一个节点或连线开始编辑。</div>
+      </aside>
+    </div>
+
+    <div id="contextMenu" class="context-menu" hidden>
+      <div class="context-menu-title">新增节点</div>
+      <button data-context-node="need">需求</button>
+      <button data-context-node="solution">方案</button>
+      <button data-context-node="task">任务</button>
+      <button data-context-node="blocker">阻塞</button>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
