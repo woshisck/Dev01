@@ -142,7 +142,7 @@ namespace
 		ReportLines.Add(FString::Printf(
 			TEXT("- `%s` maps to %s%s."),
 			*ActionName,
-			*FString::Join(KeyNames, TEXT(", ")),
+			KeyNames.IsEmpty() ? TEXT("no default keys") : *FString::Join(KeyNames, TEXT(", ")),
 			bChanged ? TEXT(" (updated)") : TEXT("")));
 	}
 
@@ -156,6 +156,8 @@ namespace
 		UInputAction* IA_UseCombatItem,
 		UInputAction* IA_SwitchCombatItemNext,
 		UInputAction* IA_SwitchCombatItemPrevious,
+		UInputAction* IA_UseActiveSkill,
+		UInputAction* IA_SwitchActiveSkill,
 		bool bDryRun,
 		TArray<FString>& ReportLines,
 		TArray<UPackage*>& DirtyPackages)
@@ -207,6 +209,8 @@ namespace
 		AssignAction(ControllerCDO->Input_UseCombatItem, IA_UseCombatItem, TEXT("Input_UseCombatItem"));
 		AssignAction(ControllerCDO->Input_SwitchCombatItem, IA_SwitchCombatItemNext, TEXT("Input_SwitchCombatItem"));
 		AssignAction(ControllerCDO->Input_SwitchCombatItemPrevious, IA_SwitchCombatItemPrevious, TEXT("Input_SwitchCombatItemPrevious"));
+		AssignAction(ControllerCDO->Input_UseActiveSkill, IA_UseActiveSkill, TEXT("Input_UseActiveSkill"));
+		AssignAction(ControllerCDO->Input_SwitchActiveSkill, IA_SwitchActiveSkill, TEXT("Input_SwitchActiveSkill"));
 
 		if (bChanged && !bDryRun)
 		{
@@ -304,7 +308,7 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 	TArray<UPackage*> DirtyPackages;
 	ReportLines.Add(TEXT("# Gamepad Input Setup Report"));
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
-	ReportLines.Add(TEXT("- Layout: A=Interact/Accept, B=Dash/Back, X=Light/Secondary, Y=Heavy/Details, Menu=Pause, View=Backpack."));
+	ReportLines.Add(TEXT("- Layout: A=Interact/Accept, B=Dash/Back, X=Light/Secondary, Y=Heavy/Details, LB=Use item, RB=Use active skill, RS=Switch active skill, Menu=Pause, View=Backpack."));
 	ReportLines.Add(TEXT(""));
 
 	UInputMappingContext* MappingContext = Cast<UInputMappingContext>(LoadObjectByPackagePath(MappingContextPath, UInputMappingContext::StaticClass()));
@@ -325,15 +329,19 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 	UInputAction* IA_UseCombatItem = LoadOrCreateInputAction(TEXT("IA_UseCombatItem"), bDryRun, ReportLines, DirtyPackages);
 	UInputAction* IA_SwitchCombatItemNext = LoadOrCreateInputAction(TEXT("IA_SwitchCombatItemNext"), bDryRun, ReportLines, DirtyPackages);
 	UInputAction* IA_SwitchCombatItemPrevious = LoadOrCreateInputAction(TEXT("IA_SwitchCombatItemPrevious"), bDryRun, ReportLines, DirtyPackages);
+	UInputAction* IA_UseActiveSkill = LoadOrCreateInputAction(TEXT("IA_UseActiveSkill"), bDryRun, ReportLines, DirtyPackages);
+	UInputAction* IA_SwitchActiveSkill = LoadOrCreateInputAction(TEXT("IA_SwitchActiveSkill"), bDryRun, ReportLines, DirtyPackages);
 
 	EnsureMappings(MappingContext, IA_Interact, TEXT("IA_Interact"), { EKeys::E, EKeys::Gamepad_FaceButton_Bottom }, { EKeys::Gamepad_FaceButton_Right }, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_Dash, TEXT("IA_Dash"), { EKeys::SpaceBar, EKeys::Gamepad_FaceButton_Right }, { EKeys::Gamepad_FaceButton_Bottom }, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_Esc, TEXT("IA_Esc"), { EKeys::Escape, EKeys::Gamepad_Special_Right }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_OpenBackpack, TEXT("IA_OpenBackback"), { EKeys::Tab, EKeys::Gamepad_Special_Left }, {}, bDryRun, ReportLines, DirtyPackages);
-	EnsureMappings(MappingContext, IA_Reload, TEXT("IA_Reload"), { EKeys::R, EKeys::Gamepad_RightShoulder }, { EKeys::Gamepad_RightThumbstick }, bDryRun, ReportLines, DirtyPackages);
+	EnsureMappings(MappingContext, IA_Reload, TEXT("IA_Reload"), {}, { EKeys::R, EKeys::Gamepad_RightShoulder, EKeys::Gamepad_RightThumbstick }, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_UseCombatItem, TEXT("IA_UseCombatItem"), { EKeys::F, EKeys::Gamepad_LeftShoulder }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_SwitchCombatItemNext, TEXT("IA_SwitchCombatItemNext"), { EKeys::Q, EKeys::Gamepad_DPad_Right }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_SwitchCombatItemPrevious, TEXT("IA_SwitchCombatItemPrevious"), { EKeys::Z, EKeys::Gamepad_DPad_Left }, {}, bDryRun, ReportLines, DirtyPackages);
+	EnsureMappings(MappingContext, IA_UseActiveSkill, TEXT("IA_UseActiveSkill"), { EKeys::R, EKeys::Gamepad_RightShoulder }, {}, bDryRun, ReportLines, DirtyPackages);
+	EnsureMappings(MappingContext, IA_SwitchActiveSkill, TEXT("IA_SwitchActiveSkill"), { EKeys::T, EKeys::Gamepad_RightThumbstick }, {}, bDryRun, ReportLines, DirtyPackages);
 
 	AssignControllerDefaults(
 		MappingContext,
@@ -345,6 +353,8 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 		IA_UseCombatItem,
 		IA_SwitchCombatItemNext,
 		IA_SwitchCombatItemPrevious,
+		IA_UseActiveSkill,
+		IA_SwitchActiveSkill,
 		bDryRun,
 		ReportLines,
 		DirtyPackages);
@@ -362,6 +372,8 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 		{ TEXT("UseCombatItem"), ToObjectPath(ActionRootPath / TEXT("IA_UseCombatItem")) },
 		{ TEXT("SwitchCombatItemNext"), ToObjectPath(ActionRootPath / TEXT("IA_SwitchCombatItemNext")) },
 		{ TEXT("SwitchCombatItemPrevious"), ToObjectPath(ActionRootPath / TEXT("IA_SwitchCombatItemPrevious")) },
+		{ TEXT("UseActiveSkill"), ToObjectPath(ActionRootPath / TEXT("IA_UseActiveSkill")) },
+		{ TEXT("SwitchActiveSkill"), ToObjectPath(ActionRootPath / TEXT("IA_SwitchActiveSkill")) },
 		{ TEXT("LightAttack"), ToObjectPath(ActionRootPath / TEXT("IA_LightAttack")) },
 		{ TEXT("HeavyAttack"), ToObjectPath(ActionRootPath / TEXT("IA_HeavyAttack")) },
 	};

@@ -7,6 +7,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
+#include "Component/PlayerActiveSkillComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Data/RoomDataAsset.h"
 #include <Kismet/GameplayStatics.h>
@@ -28,12 +29,14 @@
 #include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
 #include "LevelFlow/LevelFlowAsset.h"
+#include "Story/StoryEngineSubsystem.h"
 #include "Story/StoryEventManager.h"
 #include "FlowAsset.h"
 #include "FlowComponent.h"
 #include "Misc/PackageName.h"
 #include "GameFramework/PlayerController.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
+#include "World/HubFacilityActor.h"
 
 namespace
 {
@@ -443,19 +446,19 @@ void AYogGameMode::EnterArrangementPhase()
 				Player->BackpackGridComponent->AddGold(GoldReward);
 			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 发放金币 %d"), GoldReward);
 		}
+	}
 
-		// 发放局外成长货币
-		if (ActiveRoomData && !ActiveRoomData->MetaCurrencyRewards.IsEmpty())
+	// 发放局外成长货币（不依赖 Player，独立发放）
+	if (ActiveRoomData && !ActiveRoomData->MetaCurrencyRewards.IsEmpty())
+	{
+		if (UYogMetaProgressionSubsystem* Meta = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr)
 		{
-			if (UYogMetaProgressionSubsystem* Meta = GetGameInstance()
-				? GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr)
+			for (const FMetaCurrencyCost& Reward : ActiveRoomData->MetaCurrencyRewards)
 			{
-				for (const FMetaCurrencyCost& Reward : ActiveRoomData->MetaCurrencyRewards)
+				if (Reward.Amount > 0)
 				{
-					if (Reward.Amount > 0)
-					{
-						Meta->AddCurrency(Reward.CurrencyTag, Reward.Amount);
-					}
+					Meta->AddCurrency(Reward.CurrencyTag, Reward.Amount);
 				}
 			}
 		}
@@ -575,6 +578,13 @@ void AYogGameMode::EnterArrangementPhase()
 			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 			NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
+			if (Player->ActiveSkillComponent)
+			{
+				for (UActiveSkillDataAsset* Skill : Player->ActiveSkillComponent->GetSkillLoadout())
+				{
+					NewState.SelectedSkillLoadout.Add(Skill);
+				}
+			}
 			GI->PendingRunState = NewState;
 		}
 	}
@@ -626,13 +636,24 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 	// 512 reward-card tutorial: only trigger when the reward actually entered the combat deck.
 	if (bAddedCombatCardToDeck)
 	{
-		if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
+		if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
 		{
-			if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(
-				UGameplayStatics::GetPlayerController(GetWorld(), 0)))
-			{
-				TM->TryPostCombatTutorial(PC);
-			}
+			APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+			const FGameplayTag RuneItemTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Item.Rune"), false);
+			StoryEngine->BroadcastStoryEventWithPayload(
+				FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Item.Obtained"), false),
+				RuneItemTag,
+				ActiveGlobalStageTag,
+				RuneItemTag,
+				Player,
+				PC);
+			StoryEngine->BroadcastStoryEventWithPayload(
+				FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.FirstRuneObtained"), false),
+				RuneItemTag,
+				ActiveGlobalStageTag,
+				RuneItemTag,
+				Player,
+				PC);
 		}
 	}
 
@@ -920,6 +941,13 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 
 				NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 				NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
+				if (Player->ActiveSkillComponent)
+				{
+					for (UActiveSkillDataAsset* Skill : Player->ActiveSkillComponent->GetSkillLoadout())
+					{
+						NewState.SelectedSkillLoadout.Add(Skill);
+					}
+				}
 
 				GI->PendingRunState = NewState;
 				UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE — HP=%.1f Gold=%d Phase=%d Heat=%.0f Runes=%d"),
@@ -959,6 +987,17 @@ void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 	TM.ClearTimer(OneByOneTimer);
 	TM.ClearTimer(InitialSpawnDelayTimer);
 	TM.ClearTimer(DemandSpawnTimer);
+
+	if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
+	{
+		StoryEngine->BroadcastStoryEventWithPayload(
+			FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Player.Died"), false),
+			ActiveGlobalStageTag,
+			ActiveGlobalStageTag,
+			FGameplayTag(),
+			Player,
+			Player ? Cast<APlayerController>(Player->GetController()) : GetWorld()->GetFirstPlayerController());
+	}
 
 	TriggerLifecycleEvent(EGameLifecycleEvent::PlayerDeath);
 	BeginPlayerDeathVisuals(Player);
@@ -1093,6 +1132,17 @@ bool AYogGameMode::RevivePlayerFromDeath()
 
 	if (APlayerController* PC = Cast<APlayerController>(Player->GetController()))
 	{
+		if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
+		{
+			StoryEngine->BroadcastStoryEventWithPayload(
+				FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Player.Revived"), false),
+				ActiveGlobalStageTag,
+				ActiveGlobalStageTag,
+				FGameplayTag(),
+				Player,
+				PC);
+		}
+
 		PC->ResetIgnoreMoveInput();
 		PC->ResetIgnoreLookInput();
 		PC->EnableInput(PC);
@@ -1229,7 +1279,7 @@ void AYogGameMode::StartLevelSpawning()
 			{
 				// 检查当前加载的关卡是否已经是 DefaultStartingRoom 指定的关卡
 				// GetCurrentLevelName(true) 会去掉 PIE 前缀（如 "UEDPIE_0_"）
-				const FString CurrentMapName = UGameplayStatics::GetCurrentLevelName(GetWorld(), true);
+				const FString CurrentMapName = FPackageName::GetShortName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
 				if (!CurrentMapName.Equals(FPackageName::GetShortName(DefaultLevelName.ToString()), ESearchCase::IgnoreCase))
 				{
 					// 当前关卡不匹配，重定向到 DefaultStartingRoom 的关卡
@@ -1304,6 +1354,26 @@ void AYogGameMode::StartLevelSpawning()
 	{
 		// Hub 视为第 0 关，TransitionToLevel 写入 PendingNextFloor = 0+1 = 1
 		// → 下一关读 FloorTable[0]（第一个战斗关）
+		if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
+		{
+			APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+			const FGameplayTag HubAreaTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Area.Hub"), false);
+			StoryEngine->BroadcastStoryEventWithPayload(
+				FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Area.Entered"), false),
+				HubAreaTag,
+				ActiveGlobalStageTag,
+				FGameplayTag(),
+				nullptr,
+				PC);
+			StoryEngine->BroadcastStoryEventWithPayload(
+				FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Hub.FirstEntered"), false),
+				HubAreaTag,
+				ActiveGlobalStageTag,
+				FGameplayTag(),
+				nullptr,
+				PC);
+		}
+
 		CurrentFloor = 0;
 		CurrentPhase = ELevelPhase::Arrangement; // 跳过战斗阶段
 
@@ -1338,6 +1408,7 @@ void AYogGameMode::StartLevelSpawning()
 			}
 		}
 
+		EnsureHubActiveSkillTerminal();
 		ActivateHubPortals();
 		return;
 	}
@@ -2741,6 +2812,13 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 			// 保存献祭恩赐
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 			NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
+			if (Player->ActiveSkillComponent)
+			{
+				for (UActiveSkillDataAsset* Skill : Player->ActiveSkillComponent->GetSkillLoadout())
+				{
+					NewState.SelectedSkillLoadout.Add(Skill);
+				}
+			}
 
 			GI->PendingRunState = NewState;
 			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Gold=%d Phase=%d Runes=%d Weapon=%s Room=%s"),
@@ -2845,6 +2923,43 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 	}
 
 	return nullptr;
+}
+
+void AYogGameMode::EnsureHubActiveSkillTerminal()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const TCHAR* TerminalClassPath = TEXT("/Game/Code/Core/Hub/BP_HubActiveSkillTerminal.BP_HubActiveSkillTerminal_C");
+	UClass* TerminalClass = StaticLoadClass(AHubFacilityActor::StaticClass(), nullptr, TerminalClassPath);
+	if (!TerminalClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActiveSkill] Hub terminal class missing: %s"), TerminalClassPath);
+		return;
+	}
+
+	TArray<AActor*> ExistingTerminals;
+	UGameplayStatics::GetAllActorsOfClass(World, TerminalClass, ExistingTerminals);
+	if (ExistingTerminals.Num() > 0)
+	{
+		return;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Name = TEXT("BP_HubActiveSkillTerminal_Runtime");
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	AHubFacilityActor* Terminal = World->SpawnActor<AHubFacilityActor>(
+		TerminalClass,
+		FVector(320.0f, -260.0f, 90.0f),
+		FRotator::ZeroRotator,
+		SpawnParams);
+
+	UE_LOG(LogTemp, Warning, TEXT("[ActiveSkill] Runtime hub terminal spawn %s at InitialRoom hub."),
+		Terminal ? TEXT("OK") : TEXT("FAILED"));
 }
 
 void AYogGameMode::ActivateHubPortals()

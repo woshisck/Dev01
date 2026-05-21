@@ -4,6 +4,7 @@
 #include "CommonActivatableWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "UI/YogHUD.h"
+#include "MetaProgression/YogMetaProgressionSubsystem.h"
 
 AHubFacilityActor::AHubFacilityActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -23,10 +24,37 @@ void AHubFacilityActor::BeginPlay()
 	Super::BeginPlay();
 	InteractBox->OnComponentBeginOverlap.AddDynamic(this, &AHubFacilityActor::HandleBeginOverlap);
 	InteractBox->OnComponentEndOverlap.AddDynamic(this,   &AHubFacilityActor::HandleEndOverlap);
+	ApplyFeatureAvailability();
+
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UYogMetaProgressionSubsystem* Meta = GI->GetSubsystem<UYogMetaProgressionSubsystem>())
+		{
+			Meta->OnFeatureUnlocked.AddDynamic(this, &AHubFacilityActor::HandleFeatureUnlocked);
+		}
+	}
+}
+
+void AHubFacilityActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UYogMetaProgressionSubsystem* Meta = GI->GetSubsystem<UYogMetaProgressionSubsystem>())
+		{
+			Meta->OnFeatureUnlocked.RemoveDynamic(this, &AHubFacilityActor::HandleFeatureUnlocked);
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void AHubFacilityActor::Interact(APlayerCharacterBase* Player)
 {
+	if (!IsFeatureAvailable())
+	{
+		return;
+	}
+
 	BP_OnInteract(Player);
 
 	if (!WidgetClass) return;
@@ -36,7 +64,31 @@ void AHubFacilityActor::Interact(APlayerCharacterBase* Player)
 
 	if (UCommonActivatableWidget* Widget = CreateWidget<UCommonActivatableWidget>(PC, WidgetClass))
 	{
+		Widget->AddToViewport();
 		Widget->ActivateWidget();
+	}
+}
+
+bool AHubFacilityActor::IsFeatureAvailable() const
+{
+	if (!RequiredFeatureTag.IsValid())
+	{
+		return true;
+	}
+
+	const UGameInstance* GI = GetGameInstance();
+	const UYogMetaProgressionSubsystem* Meta = GI ? GI->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr;
+	return Meta && Meta->IsFeatureUnlocked(RequiredFeatureTag);
+}
+
+void AHubFacilityActor::ApplyFeatureAvailability()
+{
+	const bool bAvailable = IsFeatureAvailable();
+	SetActorHiddenInGame(!bAvailable);
+	SetActorEnableCollision(bAvailable);
+	if (InteractBox)
+	{
+		InteractBox->SetGenerateOverlapEvents(bAvailable);
 	}
 }
 
@@ -47,7 +99,10 @@ void AHubFacilityActor::HandleBeginOverlap(UPrimitiveComponent* OverlappedCompon
 {
 	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
 	{
-		Player->PendingFacility = this;
+		if (IsFeatureAvailable())
+		{
+			Player->PendingFacility = this;
+		}
 	}
 }
 
@@ -61,5 +116,13 @@ void AHubFacilityActor::HandleEndOverlap(UPrimitiveComponent* OverlappedComponen
 		{
 			Player->PendingFacility = nullptr;
 		}
+	}
+}
+
+void AHubFacilityActor::HandleFeatureUnlocked(FGameplayTag FeatureTag)
+{
+	if (!RequiredFeatureTag.IsValid() || FeatureTag == RequiredFeatureTag)
+	{
+		ApplyFeatureAvailability();
 	}
 }

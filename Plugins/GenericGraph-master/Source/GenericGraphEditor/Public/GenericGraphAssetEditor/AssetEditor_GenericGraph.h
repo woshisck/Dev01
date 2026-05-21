@@ -103,7 +103,7 @@ protected:
 
 	//////////////////////////////////////////////////////////////////////////
 	// graph editor event
-	void OnSelectedNodesChanged(const TSet<class UObject*>& NewSelection);
+	virtual void OnSelectedNodesChanged(const TSet<class UObject*>& NewSelection);
 
 	void OnNodeDoubleClicked(UEdGraphNode* Node);
 

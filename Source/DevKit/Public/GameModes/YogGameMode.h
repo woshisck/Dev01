@@ -346,6 +346,7 @@ protected:
 
 	// 主城/枢纽房间：立即全开所有已配置的传送门（不走 50% 随机规则）
 	void ActivateHubPortals();
+	void EnsureHubActiveSkillTerminal();
 
 	// 根据 FFloorConfig 的概率权重骰出此关的房间类型 Tag（Room.Type.Normal/Elite/Shop/Event）
 	FGameplayTag RollRoomTypeForFloor(const FFloorConfig& Config);

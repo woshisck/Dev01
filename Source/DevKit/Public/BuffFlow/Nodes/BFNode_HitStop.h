@@ -21,7 +21,7 @@ class DEVKIT_API UBFNode_HitStop : public UBFNode_Base
 
 	// 冻结持续时间（真实秒）— 仅在 ASC 持有 Buff.Status.HitStop.Freeze 时生效
 	UPROPERTY(EditAnywhere, Category = "HitStop|Freeze",
-		meta = (ClampMin = 0.01f, ClampMax = 0.3f, DisplayName = "冻结持续时间（秒）"))
+		meta = (ClampMin = 0.01f, DisplayName = "冻结持续时间（秒）"))
 	float FrozenDuration = 0.06f;
 
 	// 减速持续时间（真实秒）— 仅在 ASC 持有 Buff.Status.HitStop.Slow 时生效

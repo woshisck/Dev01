@@ -20,6 +20,7 @@ class UYogEntryMenuWidget;
 class UYogGameOverWidget;
 class UTexture2D;
 class UYogSaveGame;
+class UActiveSkillDataAsset;
 
 // =========================================================
 // 局内跑局状态快照（切关时写入，新关卡加载后恢复）
@@ -86,6 +87,9 @@ struct FRunState
 
 	UPROPERTY()
 	TArray<FSacrificeOfferingCostState> SacrificeOfferingCosts;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UActiveSkillDataAsset>> SelectedSkillLoadout;
 };
 /**
  * Base class for GameInstance, should be blueprinted

@@ -3,6 +3,7 @@
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "LevelFlow/LevelFlowAsset.h"
+#include "Story/StoryEngineSubsystem.h"
 #include "Story/StoryEventRegistryDA.h"
 #include "Tutorial/TutorialHintDataAsset.h"
 #include "Tutorial/TutorialManager.h"
@@ -21,6 +22,18 @@ void UStoryEventManager::ProcessCampaignStage(int32 FloorIndex, FGameplayTag Sta
 	for (const FGameplayTag& EventTag : Tags)
 	{
 		FStoryEventRuntimeContext Context = BuildContext(FloorIndex, StageTag, EventTag, RoomData);
+		if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>()
+			: nullptr)
+		{
+			FStoryEventContext StoryContext = FStoryEventContext::Make(EventTag);
+			StoryContext.AreaTag = StageTag;
+			StoryContext.ContextTag = StageTag;
+			StoryContext.FloorIndex = FloorIndex;
+			StoryContext.PlayerController = PlayerController;
+			StoryEngine->BroadcastStoryEventWithContext(StoryContext);
+		}
+
 		const FStoryEventEntry* Entry = Registry ? Registry->FindEntry(EventTag) : nullptr;
 		if (!Entry)
 		{
@@ -79,6 +92,12 @@ void UStoryEventManager::ProcessCampaignStage(int32 FloorIndex, FGameplayTag Sta
 void UStoryEventManager::ResetRunEvents()
 {
 	FiredRunEventTags.Reset();
+	if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>()
+		: nullptr)
+	{
+		StoryEngine->ResetRunState();
+	}
 }
 
 bool UStoryEventManager::HasFiredEvent(FGameplayTag EventTag) const
@@ -119,6 +138,12 @@ bool UStoryEventManager::DispatchTutorialPopup(const FStoryEventEntry& Entry, FS
 	if (!TutorialManager || !PlayerController)
 	{
 		return false;
+	}
+	if (!TutorialManager->AreTutorialPopupsEnabled())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[StoryEvent] Tutorial popup skipped because tutorial popups are disabled: %s"),
+			*Entry.EventTag.ToString());
+		return true;
 	}
 
 	const FName TutorialEventID = Entry.TutorialEventID.IsNone()

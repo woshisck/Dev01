@@ -41,7 +41,7 @@ struct DEVKIT_API FComboAttackConfig
 	EHitStopMode HitStopMode = EHitStopMode::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
-		meta = (EditCondition = "bEnabled && HitStopMode == EHitStopMode::Freeze", EditConditionHides, ClampMin = 0.0f, ClampMax = 0.3f))
+		meta = (EditCondition = "bEnabled && HitStopMode == EHitStopMode::Freeze", EditConditionHides, ClampMin = 0.0f))
 	float HitStopFrozenDuration = 0.06f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
@@ -105,7 +105,7 @@ public:
 	EHitStopMode HitStopMode = EHitStopMode::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
-		meta = (EditCondition = "HitStopMode == EHitStopMode::Freeze", EditConditionHides, ClampMin = 0.0f, ClampMax = 0.3f))
+		meta = (EditCondition = "HitStopMode == EHitStopMode::Freeze", EditConditionHides, ClampMin = 0.0f))
 	float HitStopFrozenDuration = 0.06f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",

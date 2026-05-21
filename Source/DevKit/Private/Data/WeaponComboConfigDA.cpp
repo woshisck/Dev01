@@ -1,5 +1,6 @@
 #include "Data/WeaponComboConfigDA.h"
 
+#include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageConfigDA.h"
 
 namespace
@@ -8,6 +9,60 @@ namespace
 	{
 		return RequiredAction == ECardRequiredAction::Any || RequiredAction == InputAction;
 	}
+
+	EComboDashSaveMode ToDashSaveMode(EYogComboGraphDashSaveMode SaveMode)
+	{
+		switch (SaveMode)
+		{
+		case EYogComboGraphDashSaveMode::None:
+			return EComboDashSaveMode::None;
+		case EYogComboGraphDashSaveMode::ForcePreserve:
+			return EComboDashSaveMode::ForcePreserve;
+		case EYogComboGraphDashSaveMode::PreserveIfSourceAllows:
+		default:
+			return EComboDashSaveMode::PreserveIfSourceAllows;
+		}
+	}
+
+	ECombatCardTriggerTiming TriggerTimingTagToEnum(const FGameplayTag& Tag)
+	{
+		if (Tag.IsValid())
+		{
+			static const FName OnHitName(TEXT("Combo.TriggerTiming.OnHit"));
+			if (Tag.GetTagName() == OnHitName)
+			{
+				return ECombatCardTriggerTiming::OnHit;
+			}
+		}
+		return ECombatCardTriggerTiming::OnCommit;
+	}
+}
+
+FWeaponComboNodeConfig FWeaponComboNodeConfig::FromComboGraphNode(const UGameplayAbilityComboGraphNode* Node, ECardRequiredAction InputAction)
+{
+	FWeaponComboNodeConfig Config;
+	if (!Node)
+	{
+		return Config;
+	}
+
+	Config.NodeId = !Node->NodeId.IsNone() ? Node->NodeId : FName(*Node->GetName());
+	Config.InputAction = InputAction;
+	Config.AttackType = Node->AttackType;
+	Config.Montage = Node->Montage;
+	Config.bIsComboFinisher = Node->bIsComboFinisher;
+	Config.bAllowDashSave = Node->bAllowDashSave;
+	Config.DashSaveMode = ToDashSaveMode(Node->DashSaveMode);
+	Config.DashSaveExpireSeconds = Node->DashSaveExpireSeconds;
+	Config.bSavePendingLinkContext = Node->bSavePendingLinkContext;
+	Config.bClearCombatTagsOnDashEnd = Node->bClearCombatTagsOnDashEnd;
+	Config.bBreakComboOnDashCancel = Node->bBreakComboOnDashCancel;
+	Config.bOverrideComboWindow = Node->bUseNodeComboWindow;
+	Config.ComboWindowStartFrame = Node->ComboWindowStartFrame;
+	Config.ComboWindowEndFrame = Node->ComboWindowEndFrame;
+	Config.ComboWindowTotalFrames = Node->TotalFrames > 0 ? Node->TotalFrames : 30;
+	Config.CardTriggerTiming = TriggerTimingTagToEnum(Node->TriggerTimingTag);
+	return Config;
 }
 
 FWeaponComboNodeConfig UWeaponComboConfigDA::FindNodeChecked(FName NodeId) const
@@ -95,10 +150,10 @@ void UWeaponComboConfigDA::ValidateConfig(TArray<FText>& OutWarnings) const
 				*Node.ParentNodeId.ToString())));
 		}
 
-		if (!Node.MontageConfig)
+		if (!Node.MontageConfig && !Node.Montage)
 		{
 			OutWarnings.Add(FText::FromString(FString::Printf(
-				TEXT("Combo node %s has no MontageConfig."),
+				TEXT("Combo node %s has no MontageConfig or Montage."),
 				*Node.NodeId.ToString())));
 		}
 	}

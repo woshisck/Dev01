@@ -1,4 +1,5 @@
 #include "Item/Weapon/WeaponDefinition.h"
+#include "Item/Weapon/WeaponAbilityData.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
@@ -50,20 +51,8 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 
 		NewActor->EquipWeaponToCharacter(ReceivingChar);
 
-		{
-			UCharacterData* CD = ReceivingChar->GetCharacterDataComponent()->GetCharacterData();
-			UE_LOG(LogTemp, Warning, TEXT("[WeaponSetup][WeaponDefinition] Owner=%s | CD=%s IsCDO=%d IsTransient=%d | NewAbilityData=%s"),
-				*ReceivingChar->GetName(),
-				CD ? *CD->GetName() : TEXT("null"),
-				CD ? (int32)CD->HasAnyFlags(RF_ClassDefaultObject) : -1,
-				CD ? (int32)CD->HasAnyFlags(RF_Transient) : -1,
-				WeaponAbilityData ? *WeaponAbilityData->GetName() : TEXT("null"));
-			CD->AbilityData = WeaponAbilityData;
-		}
-
 		LastSpawnedWeapon = NewActor;
 	}
-
 	// ── 热度委托绑定 + 阶段追赶同步 ─────────────────────────────────────
 	if (LastSpawnedWeapon && !bDisableLegacyHeatBackpackRuneForCardTest)
 	{
@@ -133,6 +122,8 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	{
 		YogASC->ApplyWeaponTypeTag(WeaponType);
 	}
+
+	ReceivingChar->GrantWeaponAbilities(WeaponAbilityData);
 
 	//TODO: DEPRECATED : for loop grant ability
 	//for (const UYogAbilitySet* YogAbilitiesSet : AbilitySetsToGrant)

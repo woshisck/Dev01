@@ -7,7 +7,6 @@
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "PropertyEditorModule.h"
-#include "ComboGraph/AssetTypeActions_GameplayAbilityComboGraph.h"
 #include "DevKitEditor/Util/YogEntryCustomization.h"
 #include "Customization/RuneDataAssetDetails.h"
 #include "Data/RuneDataAsset.h"
@@ -21,7 +20,7 @@
 #include "Tools/SDataEditorWidget.h"
 #include "Tools/SLevelDataWorkbenchWidget.h"
 #include "Tools/SMetaProgressionWorkbenchWidget.h"
-#include "Tools/SStoryEventWorkbenchWidget.h"
+#include "Tools/StoryEncounter/SStoryEncounterWorkbenchWidget.h"
 #include "Customization/GameplayAbilityComboGraphNodeDetails.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "UI/CombatLogEditorUtilityWidget.h"
@@ -38,11 +37,11 @@ namespace
 	const FName CharacterBalanceTabName(TEXT("DevKitCharacterBalance"));
 	const FName ComboManagerTabName(TEXT("DevKitComboManager"));
 	const FName LevelDataWorkbenchTabName(TEXT("DevKitLevelDataWorkbench"));
-	const FName StoryEventWorkbenchTabName(TEXT("DevKitStoryEventWorkbench"));
 	const FName ActionBalanceTabName(TEXT("DevKitActionBalance"));
 	const FName CombatLogTabName(TEXT("DevKitCombatLog"));
 	const FName BuffFlowDebugTabName(TEXT("DevKitBuffFlowDebug"));
 	const FName MetaProgressionWorkbenchTabName(TEXT("DevKitMetaProgressionWorkbench"));
+	const FName StoryEncounterWorkbenchTabName(TEXT("DevKitStoryEncounterWorkbench"));
 }
 
 class FDevKitEditorModule : public FDefaultGameModuleImpl {
@@ -54,12 +53,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FEditorDelegates::OnMapOpened.AddRaw(this, &FDevKitEditorModule::OnMapOpened);
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomPropertyTypeLayout("ShopEntry", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FYogEntryCustomization::MakeInstance));
-
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		const EAssetTypeCategories::Type CombatCategory = AssetTools.RegisterAdvancedAssetCategory(
-			TEXT("DevKitCombat"),
-			LOCTEXT("DevKitCombatAssetCategory", "DevKit Combat"));
-		RegisterAssetTypeAction(AssetTools, MakeShared<FAssetTypeActions_GameplayAbilityComboGraph>(CombatCategory));
 
 		// 注册 URuneDataAsset 自定义 Detail Panel（在 Detail 顶部加快捷按钮）
 		PropertyModule.RegisterCustomClassLayout(
@@ -105,13 +98,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			StoryEventWorkbenchTabName,
-			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnStoryEventWorkbenchTab))
-			.SetDisplayName(LOCTEXT("StoryEventWorkbenchTabTitle", "Story Event Workbench"))
-			.SetTooltipText(LOCTEXT("StoryEventWorkbenchTabTooltip", "Open the story event registry and campaign tag workbench."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden);
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			ActionBalanceTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnActionBalanceTab))
 			.SetDisplayName(LOCTEXT("ActionBalanceTabTitle", "Action Balance"))
@@ -139,6 +125,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetTooltipText(LOCTEXT("MetaProgressionWorkbenchTabTooltip", "Open the meta-progression node and currency workbench."))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			StoryEncounterWorkbenchTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnStoryEncounterWorkbenchTab))
+			.SetDisplayName(LOCTEXT("StoryEncounterWorkbenchTabTitle", "剧情教学工作台"))
+			.SetTooltipText(LOCTEXT("StoryEncounterWorkbenchTabTooltip", "打开剧情、教程、触发点和流程画布工作台。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
 		UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FDevKitEditorModule::RegisterDataEditorMenus));
 	}
 
@@ -155,11 +148,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CharacterBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ComboManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LevelDataWorkbenchTabName);
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(StoryEventWorkbenchTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ActionBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CombatLogTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(BuffFlowDebugTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MetaProgressionWorkbenchTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(StoryEncounterWorkbenchTabName);
 		CombatLogWidgetInstance.Reset();
 
 		FEditorDelegates::OnMapOpened.RemoveAll(this);
@@ -244,16 +237,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			];
 	}
 
-	TSharedRef<SDockTab> SpawnStoryEventWorkbenchTab(const FSpawnTabArgs& SpawnTabArgs)
-	{
-		return SNew(SDockTab)
-			.TabRole(ETabRole::NomadTab)
-			.Label(LOCTEXT("StoryEventWorkbenchTabLabel", "Story Event Workbench"))
-			[
-				SNew(SStoryEventWorkbenchWidget)
-			];
-	}
-
 	TSharedRef<SDockTab> SpawnActionBalanceTab(const FSpawnTabArgs& SpawnTabArgs)
 	{
 		return SNew(SDockTab)
@@ -312,6 +295,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			];
 	}
 
+	TSharedRef<SDockTab> SpawnStoryEncounterWorkbenchTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("StoryEncounterWorkbenchTabLabel", "剧情教学工作台"))
+			[
+				SNew(SStoryEncounterWorkbenchWidget)
+			];
+	}
+
 	void OnCombatLogTabClosed(TSharedRef<SDockTab> ClosedTab)
 	{
 		CombatLogWidgetInstance.Reset();
@@ -364,12 +357,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenLevelDataWorkbenchTooltip", "Edit RoomData and CampaignData assets in one level data workbench."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenLevelDataWorkbenchTab)));
-		BalanceSection.AddMenuEntry(
-			TEXT("OpenStoryEventWorkbench"),
-			LOCTEXT("OpenStoryEventWorkbenchLabel", "Story Event Workbench"),
-			LOCTEXT("OpenStoryEventWorkbenchTooltip", "Edit story event registries and compare Campaign StoryEventTags against configured story actions."),
+		FToolMenuSection& StorySection = Menu->FindOrAddSection(TEXT("DevKitStoryTools"), LOCTEXT("DevKitStoryToolsSection", "剧情工具"));
+		StorySection.AddMenuEntry(
+			TEXT("OpenStoryEncounterWorkbench"),
+			LOCTEXT("OpenStoryEncounterWorkbenchLabel", "剧情教学工作台"),
+			LOCTEXT("OpenStoryEncounterWorkbenchTooltip", "用流程图和剧情点DA配置剧情、教程和触发节点。"),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenStoryEventWorkbenchTab)));
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenStoryEncounterWorkbenchTab)));
 		BalanceSection.AddMenuEntry(
 			TEXT("OpenMetaProgressionWorkbench"),
 			LOCTEXT("OpenMetaProgressionWorkbenchLabel", "Meta Progression Workbench"),
@@ -417,11 +411,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->TryInvokeTab(LevelDataWorkbenchTabName);
 	}
 
-	void OpenStoryEventWorkbenchTab()
-	{
-		FGlobalTabmanager::Get()->TryInvokeTab(StoryEventWorkbenchTabName);
-	}
-
 	void OpenActionBalanceTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(ActionBalanceTabName);
@@ -440,6 +429,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenMetaProgressionWorkbenchTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(MetaProgressionWorkbenchTabName);
+	}
+
+	void OpenStoryEncounterWorkbenchTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(StoryEncounterWorkbenchTabName);
 	}
 
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)

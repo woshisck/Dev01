@@ -53,7 +53,9 @@ void FComboAttackConfig::CopyFromNotify(const UAN_MeleeDamage* DamageNotify)
 	HitStopSlowDuration = DamageNotify->HitStopSlowDuration;
 	HitStopSlowRate = DamageNotify->HitStopSlowRate;
 	HitStopCatchUpRate = DamageNotify->HitStopCatchUpRate;
-	OnHitEventTags = DamageNotify->OnHitEventTags;
+	// Note: UAN_MeleeDamage does not carry OnHitEventTags — that list lives on
+	// UMontageAttackDataAsset. Use AttackDataOverride on the notify (or the
+	// per-combo-node AttackData) if you need per-hit event tags.
 	AdditionalRuneEffects = DamageNotify->AdditionalRuneEffects;
 }
 

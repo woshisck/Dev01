@@ -9,6 +9,7 @@
 #include "Data/AltarDataAsset.h"
 #include "GameFramework/ForceFeedbackEffect.h"
 #include "Containers/Ticker.h"
+#include "GameplayAbilitySpec.h"
 
 #include "PlayerCharacterBase.generated.h"
 
@@ -29,6 +30,7 @@ class UBackpackStyleDataAsset;
 class UBackpackGridComponent;
 class UCombatDeckComponent;
 class UCombatItemComponent;
+class UPlayerActiveSkillComponent;
 class UComboRuntimeComponent;
 class UBuffFlowComponent;
 class USacrificeRuneComponent;
@@ -37,6 +39,11 @@ class UWeaponDefinition;
 class USacrificeGraceDA;
 class UYogAbilitySystemComponent;
 class UDamageEdgeFlashWidget;
+class AYogCameraPawn;
+class UCameraComponent;
+class UYogSpringArmComponent;
+class UWeaponAbilityData;
+class UYogCameraOcclusionFadeComponent;
 UENUM()
 enum class EPlayerState : uint8
 {
@@ -67,6 +74,18 @@ public:
 
 
 	APlayerCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	UFUNCTION(BlueprintPure, Category = "Camera")
+	UYogSpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+
+	UFUNCTION(BlueprintPure, Category = "Camera")
+	UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera")
+	float DefaultCameraBoomLength = 2300.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera")
+	float DefaultCameraFOV = 50.f;
 
 	UFUNCTION(BlueprintCallable)
 	void SetOwnCamera(AYogCameraPawn* cameraActor);
@@ -103,6 +122,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat Item")
 	TObjectPtr<UCombatItemComponent> CombatItemComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Active Skill")
+	TObjectPtr<UPlayerActiveSkillComponent> ActiveSkillComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UComboRuntimeComponent> ComboRuntimeComponent;
@@ -246,6 +268,12 @@ public:
 	UPROPERTY()
 	TObjectPtr<AWeaponSpawner> EquippedFromSpawner;
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void ClearWeaponGrantedAbilities();
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void GrantWeaponAbilities(UWeaponAbilityData* WeaponAbilityData);
+
 	UFUNCTION(BlueprintPure, Category = "Backpack")
 	UBackpackGridComponent* GetBackpackGridComponent();
 
@@ -269,6 +297,9 @@ public:
 	// 当前装备的武器定义（切关时写入 RunState，由 RestoreRunStateFromGI 重新装备）
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UWeaponDefinition> EquippedWeaponDef;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	TArray<FGameplayAbilitySpecHandle> GrantedWeaponAbilityHandles;
 
 	// ─── 献祭恩赐（全局 Run Buff）────────────────────────────────────
 
@@ -301,6 +332,15 @@ public:
 	int32 GetCurrentHeatPhase() const { return CurrentHeatPhase; }
 
 protected:
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Camera")
+	TObjectPtr<UYogSpringArmComponent> CameraBoom;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Camera")
+	TObjectPtr<UCameraComponent> FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UYogCameraOcclusionFadeComponent> CameraOcclusionFadeComponent;
 
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AYogCameraPawn> CameraPawnActor;

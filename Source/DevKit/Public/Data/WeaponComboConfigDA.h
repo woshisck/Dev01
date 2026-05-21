@@ -5,10 +5,12 @@
 #include "GameplayTagContainer.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/RuneDataAsset.h"
+#include "Data/GameplayAbilityComboGraph.h"
 #include "WeaponComboConfigDA.generated.h"
 
+class UAnimMontage;
+class UGameplayAbilityComboGraphNode;
 class UMontageConfigDA;
-class UGameplayAbility;
 
 UENUM(BlueprintType)
 enum class ECombatGraphInputAction : uint8
@@ -41,15 +43,22 @@ struct DEVKIT_API FWeaponComboNodeConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	ECardRequiredAction InputAction = ECardRequiredAction::Any;
 
+	/** Melee → GA_MeleeAttack, Range → GA_RangeAttack. Copied from node on FromComboGraphNode. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	EYogComboGraphAttackType AttackType = EYogComboGraphAttackType::Melee;
+
+	/** Legacy/runtime context only. YogComboGraph traversal does not use this. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	FGameplayTag AbilityTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo", meta = (AdvancedDisplay))
-	TSubclassOf<UGameplayAbility> GameplayAbilityClass;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	TObjectPtr<UAnimMontage> Montage = nullptr;
 
+	/** Legacy config support only. YogComboGraph nodes use Montage directly. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	TObjectPtr<UMontageConfigDA> MontageConfig = nullptr;
 
+	/** Legacy config support only. YogComboGraph nodes do not store attack override payloads. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	TObjectPtr<UMontageAttackDataAsset> AttackDataOverride = nullptr;
 
@@ -91,6 +100,8 @@ struct DEVKIT_API FWeaponComboNodeConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
 	ECombatCardTriggerTiming CardTriggerTiming = ECombatCardTriggerTiming::OnCommit;
+
+	static FWeaponComboNodeConfig FromComboGraphNode(const UGameplayAbilityComboGraphNode* Node, ECardRequiredAction InputAction);
 };
 
 UCLASS(BlueprintType, Blueprintable)

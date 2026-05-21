@@ -53,6 +53,8 @@ public class DevKitEditor : ModuleRules
 				"GameplayAbilitiesEditor",
 				"GenericGraphRuntime",
 				"GenericGraphEditor",
+				"YogComboGraph",
+				"YogComboGraphEditor",
 				"Flow",
 				"FlowEditor",
 				"Niagara"

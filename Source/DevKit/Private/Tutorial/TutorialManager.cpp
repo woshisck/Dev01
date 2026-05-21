@@ -121,6 +121,12 @@ void UTutorialManager::TryWeaponTutorial(AYogPlayerControllerBase* PC)
 	UE_LOG(LogTemp, Log, TEXT("[Tutorial] TryWeaponTutorial: State=%d, PopupValid=%d, PC=%s"),
 		(int32)State, PopupWidget.IsValid() ? 1 : 0, PC ? *PC->GetName() : TEXT("null"));
 
+	if (!AreTutorialPopupsEnabled())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] Weapon tutorial suppressed because tutorial popups are disabled."));
+		return;
+	}
+
 	if (State != ETutorialState::NeedWeaponTutorial)
 	{
 		return;
@@ -189,6 +195,10 @@ void UTutorialManager::TryPostCombatTutorial(AYogPlayerControllerBase* PC)
 void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC)
 {
 	UE_LOG(LogTemp, Log, TEXT("[Tutorial] DoShowWeaponPopup fired"));
+	if (!AreTutorialPopupsEnabled())
+	{
+		return;
+	}
 	if (!WeakPC.IsValid() || !PopupWidget.IsValid())
 	{
 		return;
@@ -341,6 +351,13 @@ void UTutorialManager::TryCardLinkTutorial(APlayerController* PC)
 
 bool UTutorialManager::ShowInlinePages(const TArray<FTutorialPage>& Pages, APlayerController* PC, bool bPauseGame)
 {
+	if (!AreTutorialPopupsEnabled())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] Inline tutorial suppressed because tutorial popups are disabled."));
+		OnPopupClosed.Broadcast();
+		return false;
+	}
+
 	if (!PopupWidget.IsValid() || Pages.IsEmpty())
 	{
 		OnPopupClosed.Broadcast();
@@ -372,6 +389,13 @@ bool UTutorialManager::ShowInlinePages(const TArray<FTutorialPage>& Pages, APlay
 
 bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool bPauseGame)
 {
+	if (!AreTutorialPopupsEnabled())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] EventID='%s' suppressed because tutorial popups are disabled."), *EventID.ToString());
+		OnPopupClosed.Broadcast();
+		return false;
+	}
+
 	if (!PopupWidget.IsValid())
 	{
 		OnPopupClosed.Broadcast();
@@ -403,7 +427,9 @@ bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool 
 
 	if (PagesToShow.Num() == 0)
 	{
-		PagesToShow.Add(MakeTutorialPage(*EventID.ToString(), TEXT("")));
+		UE_LOG(LogTemp, Warning, TEXT("[Tutorial] EventID='%s' has no tutorial pages; popup skipped."), *EventID.ToString());
+		OnPopupClosed.Broadcast();
+		return false;
 	}
 
 	bPopupShowing = true;
