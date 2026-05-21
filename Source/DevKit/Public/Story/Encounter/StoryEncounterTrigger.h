@@ -5,6 +5,8 @@
 #include "StoryEncounterTrigger.generated.h"
 
 class UBoxComponent;
+class UFlowComponent;
+class ULevelFlowAsset;
 class UStoryEncounterMap;
 class UStoryEncounterPointDA;
 
@@ -25,11 +27,29 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情触发")
 	FName NodeId;
 
+	FSimpleMulticastDelegate OnPlayerExited;
+
+	UBoxComponent* GetTriggerVolume() const { return TriggerVolume; }
+	bool RunLevelFlow(ULevelFlowAsset* FlowAsset, bool bStopExistingFlow = true);
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "剧情触发")
 	TObjectPtr<UBoxComponent> TriggerVolume = nullptr;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "剧情触发")
+	TObjectPtr<UFlowComponent> LevelFlowComp = nullptr;
+
 	UFUNCTION()
 	void OnTriggerBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnTriggerEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	bool ShouldBlockRepeatTrigger() const;
+
+private:
+	UPROPERTY(VisibleAnywhere, Category = "剧情触发|Debug")
+	bool bTriggered = false;
 };

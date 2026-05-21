@@ -14,9 +14,11 @@
 #include "IDetailsView.h"
 #include "IAssetTools.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/MessageDialog.h"
 #include "Misc/PackageName.h"
 #include "PropertyEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Tools/StoryEncounter/StoryEncounterMigrationUtils.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
@@ -453,6 +455,15 @@ void SStoryEncounterWorkbenchWidget::Construct(const FArguments& InArgs)
 				SNew(SButton)
 				.Text(LOCTEXT("CreateEncounterPoint", "新建剧情点DA"))
 				.OnClicked(this, &SStoryEncounterWorkbenchWidget::OnCreateEncounterPointClicked)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.f, 0.f, 6.f, 0.f)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("MigrateLegacyTriggers", "自动迁移旧触发器"))
+				.ToolTipText(LOCTEXT("MigrateLegacyTriggersTooltip", "扫描当前关卡里的旧 LevelEventTrigger，生成剧情点 DA、流程图节点和新的 StoryEncounterTrigger。"))
+				.OnClicked(this, &SStoryEncounterWorkbenchWidget::OnMigrateLegacyTriggersClicked)
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -1045,6 +1056,26 @@ FReply SStoryEncounterWorkbenchWidget::OnCreateEncounterPointClicked()
 
 	RefreshData(LOCTEXT("CreatePointSuccess", "已创建剧情点DA。把它绑定到流程图节点，或直接放到关卡触发器上。"));
 	SelectPoint(EncounterPoint);
+	return FReply::Handled();
+}
+
+FReply SStoryEncounterWorkbenchWidget::OnMigrateLegacyTriggersClicked()
+{
+	const EAppReturnType::Type Choice = FMessageDialog::Open(
+		EAppMsgType::YesNo,
+		LOCTEXT("MigrateLegacyTriggersConfirm",
+			"会扫描当前打开关卡里的旧 LevelEventTrigger，生成新的剧情点 DA、流程图节点和 StoryEncounterTrigger，然后删除已迁移的旧触发器。\n\n迁移前建议先保存或确认版本控制状态。是否继续？"));
+	if (Choice != EAppReturnType::Yes)
+	{
+		return FReply::Handled();
+	}
+
+	const FStoryEncounterMigrationResult Result = FStoryEncounterMigrationUtils::MigrateCurrentLevelTriggers();
+	RefreshData(Result.ToStatusText());
+	if (!Result.Messages.IsEmpty())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[StoryEncounterMigration] %s"), *FString::Join(Result.Messages, TEXT(" | ")));
+	}
 	return FReply::Handled();
 }
 

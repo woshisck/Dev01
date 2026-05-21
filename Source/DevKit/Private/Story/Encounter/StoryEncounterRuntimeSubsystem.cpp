@@ -3,6 +3,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Story/Encounter/StoryEncounterMap.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
+#include "Story/Encounter/StoryEncounterTrigger.h"
 #include "Story/StoryEngineSubsystem.h"
 
 namespace
@@ -224,6 +225,17 @@ void UStoryEncounterRuntimeSubsystem::ExecuteEncounterAction(FName EncounterId,
 	FStoryAction StoryAction;
 	if (ConvertEncounterActionForTest(EncounterId, Action, StoryAction))
 	{
+		if (StoryAction.Type == EStoryActionType::PlayLevelFlow)
+		{
+			if (AStoryEncounterTrigger* Trigger = Cast<AStoryEncounterTrigger>(Context.SourceActor))
+			{
+				if (Trigger->RunLevelFlow(StoryAction.LevelFlow, StoryAction.bStopExistingStoryFlow))
+				{
+					return;
+				}
+			}
+		}
+
 		StoryEngine->ExecuteStoryAction(StoryAction, Context);
 	}
 }

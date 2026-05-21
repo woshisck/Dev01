@@ -1,5 +1,6 @@
 #include "LevelFlow/Nodes/LENode_ShowInfoPopup.h"
 #include "LevelFlow/LevelEventTrigger.h"
+#include "Story/Encounter/StoryEncounterTrigger.h"
 #include "UI/YogHUD.h"
 #include "UI/InfoPopupWidget.h"
 #include "Data/LevelInfoPopupDA.h"
@@ -51,6 +52,15 @@ void ULENode_ShowInfoPopup::ExecuteInput(const FName& PinName)
 			{
 				TWeakObjectPtr<UInfoPopupWidget> WeakWidget(Widget);
 				Trigger->OnPlayerExited.AddLambda([WeakWidget]()
+				{
+					if (WeakWidget.IsValid())
+						WeakWidget->RequestClose();
+				});
+			}
+			else if (AStoryEncounterTrigger* StoryTrigger = Cast<AStoryEncounterTrigger>(TriggerActor))
+			{
+				TWeakObjectPtr<UInfoPopupWidget> WeakWidget(Widget);
+				StoryTrigger->OnPlayerExited.AddLambda([WeakWidget]()
 				{
 					if (WeakWidget.IsValid())
 						WeakWidget->RequestClose();

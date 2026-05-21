@@ -46,6 +46,10 @@ protected:
 public:
 	FSimpleMulticastDelegate OnPlayerExited;
 
+	ULevelFlowAsset* GetLevelFlow() const { return LevelFlow; }
+	UBoxComponent* GetTriggerVolume() const { return TriggerVolume; }
+	bool ShouldTriggerOnce() const { return bTriggerOnce; }
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "LevelFlow|Debug")
 	bool bTriggered = false;
