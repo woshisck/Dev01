@@ -33,6 +33,19 @@ public:
 	void BroadcastStoryEventWithContext(FStoryEventContext Context);
 
 	UFUNCTION(BlueprintCallable, Category = "Story")
+	void BroadcastStoryEventWithPayload(FGameplayTag EventTag, FGameplayTag ContextTag, FGameplayTag AreaTag,
+		FGameplayTag ItemTag, AActor* SourceActor = nullptr, APlayerController* PlayerController = nullptr);
+
+	UFUNCTION(BlueprintPure, Category = "Story")
+	bool EvaluateStoryCondition(const FStoryCondition& Condition, const FStoryEventContext& Context) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Story")
+	void ExecuteStoryAction(const FStoryAction& Action, FStoryEventContext Context);
+
+	UFUNCTION(BlueprintCallable, Category = "Story")
+	void ExecuteStoryActions(const TArray<FStoryAction>& Actions, FStoryEventContext Context);
+
+	UFUNCTION(BlueprintCallable, Category = "Story")
 	void ResetRunState();
 
 	UFUNCTION(BlueprintCallable, Category = "Story")
@@ -50,8 +63,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Story")
 	void CompleteQuestTask(FGameplayTag TaskId);
 
+	UFUNCTION(BlueprintCallable, Category = "Story")
+	void SetQuestTaskState(FGameplayTag TaskId, EStoryQuestTaskState NewState);
+
 	UFUNCTION(BlueprintPure, Category = "Story")
 	bool GetQuestTask(FGameplayTag TaskId, FStoryQuestTaskData& OutTask) const;
+
+	UFUNCTION(BlueprintPure, Category = "Story")
+	TArray<FStoryQuestTaskData> GetAllQuestTasks() const;
+
+	UFUNCTION(BlueprintPure, Category = "Story")
+	TArray<FStoryQuestTaskData> GetQuestTasksByState(EStoryQuestTaskState State) const;
 
 	UPROPERTY(BlueprintAssignable, Category = "Story")
 	FOnStoryEngineEventReceived OnStoryEventReceived;
@@ -80,6 +102,9 @@ private:
 
 	UPROPERTY()
 	TSet<FName> FiredMapRuleIds;
+
+	UPROPERTY()
+	TMap<FGameplayTag, FStoryQuestTaskData> TransientQuestTasks;
 
 	UPROPERTY()
 	TArray<TObjectPtr<ULevelInfoPopupDA>> TransientInfoPopups;

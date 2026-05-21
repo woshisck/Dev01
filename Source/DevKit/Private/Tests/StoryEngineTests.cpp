@@ -32,7 +32,11 @@ bool FStoryEngineGameplayTagsConfiguredTest::RunTest(const FString& Parameters)
 		TEXT("Story.Event.FirstRun.FirstRuneObtained"),
 		TEXT("Story.Event.FirstRun.FirstBackpackOpened"),
 		TEXT("Story.Event.Hub.FirstEntered"),
+		TEXT("Story.Event.Player.Died"),
+		TEXT("Story.Event.Item.Obtained"),
+		TEXT("Story.Event.Area.Entered"),
 		TEXT("Story.Flag.MemoryTutorial.Completed"),
+		TEXT("Story.Flag.FirstRun.Started"),
 		TEXT("Story.Flag.FirstRune.Obtained"),
 		TEXT("Story.Flag.FirstBackpack.Opened"),
 		TEXT("Story.Flag.Hub.FirstEntered"),
@@ -209,6 +213,91 @@ bool FStoryEngineRunAndSessionFlagsResetIndependentlyTest::RunTest(const FString
 	Engine->ResetSessionState();
 
 	TestFalse(TEXT("Session flag is cleared by session reset"), Engine->HasStoryFlag(SessionFlag, EStoryFlagScope::Session));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineQuestTaskStateQueriesTest,
+	"DevKit.StoryEngine.QuestTaskStateQueries",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStoryEngineQuestTaskStateQueriesTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag MainQuest = StoryEngineTests::RequireTag(TEXT("Story.Quest.Main"));
+	const FGameplayTag MemoryQuest = StoryEngineTests::RequireTag(TEXT("Story.Quest.MemoryTutorial"));
+	const FGameplayTag CodexSource = StoryEngineTests::RequireTag(TEXT("Story.Source.Codex"));
+	if (!TestTrue(TEXT("Story.Quest.Main tag is configured"), MainQuest.IsValid()) ||
+		!TestTrue(TEXT("Story.Quest.MemoryTutorial tag is configured"), MemoryQuest.IsValid()) ||
+		!TestTrue(TEXT("Story.Source.Codex tag is configured"), CodexSource.IsValid()))
+	{
+		return false;
+	}
+
+	UGameInstance* GameInstance = NewObject<UGameInstance>();
+	UStoryEngineSubsystem* Engine = NewObject<UStoryEngineSubsystem>(GameInstance);
+	TestNotNull(TEXT("Story engine exists"), Engine);
+
+	Engine->SetQuestTask(MainQuest, FText::FromString(TEXT("Find the first rune")), CodexSource, FGameplayTag());
+	Engine->SetQuestTask(MemoryQuest, FText::FromString(TEXT("Recover the memory fragment")), CodexSource, FGameplayTag());
+	Engine->SetQuestTaskState(MemoryQuest, EStoryQuestTaskState::Completed);
+
+	TArray<FStoryQuestTaskData> ActiveTasks = Engine->GetQuestTasksByState(EStoryQuestTaskState::Active);
+	TArray<FStoryQuestTaskData> CompletedTasks = Engine->GetQuestTasksByState(EStoryQuestTaskState::Completed);
+
+	TestEqual(TEXT("Only one quest remains active"), ActiveTasks.Num(), 1);
+	if (ActiveTasks.Num() == 1)
+	{
+		TestEqual(TEXT("Main quest remains active"), ActiveTasks[0].TaskId, MainQuest);
+	}
+
+	TestEqual(TEXT("Only one quest is completed"), CompletedTasks.Num(), 1);
+	if (CompletedTasks.Num() == 1)
+	{
+		TestEqual(TEXT("Memory quest is completed"), CompletedTasks[0].TaskId, MemoryQuest);
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEnginePublicActionConditionApisTest,
+	"DevKit.StoryEngine.PublicActionConditionApis",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStoryEnginePublicActionConditionApisTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag FlagTag = StoryEngineTests::RequireTag(TEXT("State.Combat"));
+	const FGameplayTag EventTag = StoryEngineTests::RequireTag(TEXT("Story.Event.Area.Entered"));
+	if (!TestTrue(TEXT("State.Combat tag is configured"), FlagTag.IsValid()) ||
+		!TestTrue(TEXT("Story.Event.Area.Entered tag is configured"), EventTag.IsValid()))
+	{
+		return false;
+	}
+
+	UGameInstance* GameInstance = NewObject<UGameInstance>();
+	UStoryEngineSubsystem* Engine = NewObject<UStoryEngineSubsystem>(GameInstance);
+	TestNotNull(TEXT("Story engine exists"), Engine);
+
+	FStoryEventContext Context = FStoryEventContext::Make(EventTag);
+
+	FStoryAction SetFlagAction;
+	SetFlagAction.Type = EStoryActionType::SetFlag;
+	SetFlagAction.FlagScope = EStoryFlagScope::Run;
+	SetFlagAction.FlagTag = FlagTag;
+
+	Engine->ExecuteStoryAction(SetFlagAction, Context);
+
+	FStoryCondition HasFlagCondition;
+	HasFlagCondition.Type = EStoryConditionType::HasFlag;
+	HasFlagCondition.FlagScope = EStoryFlagScope::Run;
+	HasFlagCondition.FlagTag = FlagTag;
+
+	TestTrue(TEXT("ExecuteStoryAction applies a SetFlag action"), Engine->HasStoryFlag(FlagTag, EStoryFlagScope::Run));
+	TestTrue(TEXT("EvaluateStoryCondition uses the same condition semantics as rules"),
+		Engine->EvaluateStoryCondition(HasFlagCondition, Context));
+
+	HasFlagCondition.bInvert = true;
+	TestFalse(TEXT("EvaluateStoryCondition honors inverted conditions"),
+		Engine->EvaluateStoryCondition(HasFlagCondition, Context));
 
 	return true;
 }
