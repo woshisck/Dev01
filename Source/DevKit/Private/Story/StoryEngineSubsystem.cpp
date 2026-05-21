@@ -122,6 +122,41 @@ void UStoryEngineSubsystem::BroadcastStoryEventWithContext(FStoryEventContext Co
 	bIsProcessingEvents = false;
 }
 
+void UStoryEngineSubsystem::BroadcastStoryEventWithPayload(FGameplayTag EventTag, FGameplayTag ContextTag,
+	FGameplayTag AreaTag, FGameplayTag ItemTag, AActor* SourceActor, APlayerController* PlayerController)
+{
+	FStoryEventContext Context = FStoryEventContext::Make(EventTag);
+	Context.ContextTag = ContextTag;
+	Context.AreaTag = AreaTag;
+	Context.ItemTag = ItemTag;
+	Context.SourceActor = SourceActor;
+	Context.PlayerController = PlayerController;
+	if (SourceActor)
+	{
+		Context.SourceName = SourceActor->GetFName();
+	}
+
+	BroadcastStoryEventWithContext(Context);
+}
+
+bool UStoryEngineSubsystem::EvaluateStoryCondition(const FStoryCondition& Condition, const FStoryEventContext& Context) const
+{
+	return EvaluateCondition(Condition, Context);
+}
+
+void UStoryEngineSubsystem::ExecuteStoryAction(const FStoryAction& Action, FStoryEventContext Context)
+{
+	DispatchAction(Action, Context);
+}
+
+void UStoryEngineSubsystem::ExecuteStoryActions(const TArray<FStoryAction>& Actions, FStoryEventContext Context)
+{
+	for (const FStoryAction& Action : Actions)
+	{
+		DispatchAction(Action, Context);
+	}
+}
+
 void UStoryEngineSubsystem::ResetRunState()
 {
 	RunFlags.Reset();
@@ -224,6 +259,8 @@ void UStoryEngineSubsystem::SetQuestTask(FGameplayTag TaskId, FText DisplayText,
 	TaskData.SourceTag = SourceTag;
 	TaskData.RelatedFlagTag = RelatedFlagTag;
 
+	TransientQuestTasks.Add(TaskId, TaskData);
+
 	if (UYogSaveGame* Save = GetCurrentSave())
 	{
 		Save->StoryQuestTasks.Add(TaskId, TaskData);
@@ -235,6 +272,11 @@ void UStoryEngineSubsystem::SetQuestTask(FGameplayTag TaskId, FText DisplayText,
 
 void UStoryEngineSubsystem::CompleteQuestTask(FGameplayTag TaskId)
 {
+	SetQuestTaskState(TaskId, EStoryQuestTaskState::Completed);
+}
+
+void UStoryEngineSubsystem::SetQuestTaskState(FGameplayTag TaskId, EStoryQuestTaskState NewState)
+{
 	if (!TaskId.IsValid())
 	{
 		return;
@@ -242,14 +284,25 @@ void UStoryEngineSubsystem::CompleteQuestTask(FGameplayTag TaskId)
 
 	FStoryQuestTaskData TaskData;
 	TaskData.TaskId = TaskId;
-	TaskData.State = EStoryQuestTaskState::Completed;
+	TaskData.State = NewState;
+
+	if (FStoryQuestTaskData* ExistingTransientTask = TransientQuestTasks.Find(TaskId))
+	{
+		ExistingTransientTask->State = NewState;
+		TaskData = *ExistingTransientTask;
+	}
+	else
+	{
+		TransientQuestTasks.Add(TaskId, TaskData);
+	}
 
 	if (UYogSaveGame* Save = GetCurrentSave())
 	{
 		if (FStoryQuestTaskData* ExistingTask = Save->StoryQuestTasks.Find(TaskId))
 		{
-			ExistingTask->State = EStoryQuestTaskState::Completed;
+			ExistingTask->State = NewState;
 			TaskData = *ExistingTask;
+			TransientQuestTasks.Add(TaskId, TaskData);
 		}
 		else
 		{
@@ -268,18 +321,55 @@ bool UStoryEngineSubsystem::GetQuestTask(FGameplayTag TaskId, FStoryQuestTaskDat
 		return false;
 	}
 
-	const UYogSaveGame* Save = GetCurrentSave();
-	if (!Save)
+	if (const UYogSaveGame* Save = GetCurrentSave())
 	{
-		return false;
+		if (const FStoryQuestTaskData* FoundTask = Save->StoryQuestTasks.Find(TaskId))
+		{
+			OutTask = *FoundTask;
+			return true;
+		}
 	}
 
-	if (const FStoryQuestTaskData* FoundTask = Save->StoryQuestTasks.Find(TaskId))
+	if (const FStoryQuestTaskData* FoundTask = TransientQuestTasks.Find(TaskId))
 	{
 		OutTask = *FoundTask;
 		return true;
 	}
+
 	return false;
+}
+
+TArray<FStoryQuestTaskData> UStoryEngineSubsystem::GetAllQuestTasks() const
+{
+	TMap<FGameplayTag, FStoryQuestTaskData> Tasks = TransientQuestTasks;
+	if (const UYogSaveGame* Save = GetCurrentSave())
+	{
+		for (const TPair<FGameplayTag, FStoryQuestTaskData>& Pair : Save->StoryQuestTasks)
+		{
+			Tasks.Add(Pair.Key, Pair.Value);
+		}
+	}
+
+	TArray<FStoryQuestTaskData> Result;
+	Tasks.GenerateValueArray(Result);
+	Result.Sort([](const FStoryQuestTaskData& Left, const FStoryQuestTaskData& Right)
+	{
+		return Left.TaskId.ToString() < Right.TaskId.ToString();
+	});
+	return Result;
+}
+
+TArray<FStoryQuestTaskData> UStoryEngineSubsystem::GetQuestTasksByState(EStoryQuestTaskState State) const
+{
+	TArray<FStoryQuestTaskData> Result;
+	for (const FStoryQuestTaskData& Task : GetAllQuestTasks())
+	{
+		if (Task.State == State)
+		{
+			Result.Add(Task);
+		}
+	}
+	return Result;
 }
 
 void UStoryEngineSubsystem::ProcessStoryEvent(const FStoryEventContext& Context)
