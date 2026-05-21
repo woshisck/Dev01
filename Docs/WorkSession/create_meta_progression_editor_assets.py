@@ -41,12 +41,11 @@ def fill_table_from_csv(table, csv_text, asset_path):
     unreal.EditorAssetLibrary.save_asset(asset_path, False)
 
 currency_csv = """---,CurrencyTag,DisplayName,ShortName,Icon,MaxCapacity
-Common_A,Currency.Meta.Common.A,星骸碎片,碎片,,0
+CommonA,Currency.Meta.Common.A,Common A,A,,9999
 """
 
 node_csv = """---,DisplayName,Side,MaxLevel,MysticLevelRequired,Prerequisites,CostsPerLevel,EffectType,StatAttribute,StatValuePerLevel,FeatureTag,StarterRuneToGrant,EditorPositionX,EditorPositionY
-Node.Flesh.HP.Basic,生命强化Ⅰ,Flesh,3,0,,"((CurrencyTag=Currency.Meta.Common.A,Amount=10))",StatBoost,,0.0,,,0,0
-Node.Flesh.Attack.Basic,攻击强化Ⅰ,Flesh,3,0,,"((CurrencyTag=Currency.Meta.Common.A,Amount=15))",StatBoost,,0.0,,,320,0
+MetaNode.Test.Health,Test Health,Flesh,3,0,,"((CurrencyTag=Currency.Meta.Common.A,Amount=10))",StatBoost,,5.0,,,0,0
 """
 
 currency_table = create_data_table(DT_CURRENCY, "/Script/DevKit.MetaCurrencyRow")
@@ -84,7 +83,7 @@ def get_cdo(asset_path):
 tree_asset = unreal.load_asset(WBP_TREE)
 terminal_asset = unreal.load_asset(BP_TERMINAL)
 
-if tree_asset:
+if False and tree_asset:
     tree_cdo = get_cdo(WBP_TREE)
     card_class = load_bp_class(WBP_CARD)
     tree_cdo.set_editor_property("node_card_widget_class", card_class)
@@ -92,7 +91,7 @@ if tree_asset:
     unreal.KismetEditorUtilities.compile_blueprint(tree_asset)
     unreal.EditorAssetLibrary.save_asset(WBP_TREE, False)
 
-if terminal_asset:
+if False and terminal_asset:
     terminal_cdo = get_cdo(BP_TERMINAL)
     terminal_cdo.set_editor_property("facility_display_name", unreal.Text("升级终端"))
     terminal_asset.mark_package_dirty()
