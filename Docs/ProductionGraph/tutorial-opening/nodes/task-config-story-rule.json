@@ -1,0 +1,21 @@
+{
+  "id": "task-config-story-rule",
+  "type": "task",
+  "title": "配置失败回退 StoryRule",
+  "description": "配置 PlayerFailed 事件命中教程失败回退规则，并触发 LevelFlow。",
+  "status": "todo",
+  "owner": "Tech Design",
+  "tags": [
+    "story-rule"
+  ],
+  "position": {
+    "x": 720,
+    "y": 280
+  },
+  "fields": {
+    "workType": "StoryRule",
+    "storyEvent": "Story.Event.MemoryTutorial.PlayerFailed"
+  },
+  "createdAt": "2026-05-21T00:00:00.000Z",
+  "updatedAt": "2026-05-21T00:00:00.000Z"
+}

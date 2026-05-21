@@ -27,7 +27,7 @@
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInfoDA.h"
 #include "GameModes/YogGameMode.h"
-#include "Tutorial/TutorialManager.h"
+#include "Story/StoryEngineSubsystem.h"
 #include "TimerManager.h"
 #include "SaveGame/YogSaveSubsystem.h"
 
@@ -962,9 +962,17 @@ void UBackpackScreenWidget::NativeOnActivated()
 
     // Tutorial ③：第一次打开背包时弹窗（state guard 内部去重）
     if (APlayerController* PC = GetOwningPlayer())
+    {
         if (UGameInstance* GI = GetGameInstance())
-            if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
-                TM->TryBackpackTutorial(PC);
+        {
+            if (UStoryEngineSubsystem* StoryEngine = GI->GetSubsystem<UStoryEngineSubsystem>())
+            {
+                StoryEngine->BroadcastStoryEvent(
+                    FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.FirstBackpackOpened"), false),
+                    PC);
+            }
+        }
+    }
 
     if (UWorld* World = GetWorld())
     {

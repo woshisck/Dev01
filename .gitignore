@@ -6,6 +6,10 @@ build_log.txt
 
 # Claude Code local settings
 .claude/
+.codex_appdata/
+.superpowers/
+/Docs/superpowers/
+/Docs/WorkSession/codex_*.md
 
 # UE Binaries
 Binaries/
@@ -1891,6 +1895,8 @@ Content/Plugins/OtherByMarket/ParagonMinions/Characters/AnimBP/ABP_Minion.uasset
 !/Tools/DataEditor/**
 !/Tools/RuneEditor/
 !/Tools/RuneEditor/**
+!/Tools/ProductionGraph/
+!/Tools/ProductionGraph/**
 Tools/SyncBridge/config.json
 Tools/SyncBridge/config.json
 /Content/SFX
@@ -1898,6 +1904,7 @@ sunchuankai_run_claude_code.bat
 CLAUDE.md
 Plugins/GameFeatures/CountDownTime/Binaries/Win64/UnrealEditor-CountDownTimeRuntime.dll
 Plugins/ElectronicNodes/Binaries/Win64/UnrealEditor-ElectronicNodes.dll
+Plugins/ModularGameplayActors/Binaries/Win64/UnrealEditor-ModularGameplayActors.dll
 
 # 项目自定义 USH 着色器（覆盖上方 /Shaders 忽略规则）
 !/Shaders/*.ush

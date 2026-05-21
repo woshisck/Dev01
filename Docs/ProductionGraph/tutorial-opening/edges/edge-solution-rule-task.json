@@ -1,0 +1,9 @@
+{
+  "id": "edge-solution-rule-task",
+  "type": "creates_task",
+  "source": "solution-level-flow-rewind",
+  "target": "task-config-story-rule",
+  "label": "拆出任务",
+  "createdAt": "2026-05-21T00:00:00.000Z",
+  "updatedAt": "2026-05-21T00:00:00.000Z"
+}

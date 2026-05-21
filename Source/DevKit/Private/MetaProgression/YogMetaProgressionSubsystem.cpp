@@ -2,6 +2,7 @@
 #include "MetaProgression/MetaProgressionSettings.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
+#include "Story/StoryEngineSubsystem.h"
 #include "Engine/DataTable.h"
 
 namespace
@@ -249,6 +250,13 @@ bool UYogMetaProgressionSubsystem::TryPurchaseNode(FName NodeRowName)
 	}
 
 	OnNodePurchased.Broadcast(NodeRowName);
+	if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
+	{
+		FStoryEventContext Context =
+			FStoryEventContext::Make(FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Hub.MetaFirstUpgradePurchased"), false));
+		Context.SourceName = NodeRowName;
+		StoryEngine->BroadcastStoryEventWithContext(Context);
+	}
 	CommitSave();
 	return true;
 }

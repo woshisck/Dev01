@@ -1,0 +1,21 @@
+{
+  "id": "blocker-anchor-state",
+  "type": "blocker",
+  "title": "锚点需要保存训练段状态",
+  "description": "如果只保存位置，不知道应恢复哪组敌人和哪些门状态。",
+  "status": "open",
+  "owner": "Design",
+  "tags": [
+    "blocker",
+    "state"
+  ],
+  "position": {
+    "x": 450,
+    "y": 420
+  },
+  "fields": {
+    "discoveredFrom": "task-place-anchor-trigger"
+  },
+  "createdAt": "2026-05-21T00:00:00.000Z",
+  "updatedAt": "2026-05-21T00:00:00.000Z"
+}

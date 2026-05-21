@@ -1,0 +1,9 @@
+{
+  "id": "edge-blocker-new-need",
+  "type": "becomes_need",
+  "source": "blocker-anchor-state",
+  "target": "need-training-state",
+  "label": "转成新需求",
+  "createdAt": "2026-05-21T00:00:00.000Z",
+  "updatedAt": "2026-05-21T00:00:00.000Z"
+}

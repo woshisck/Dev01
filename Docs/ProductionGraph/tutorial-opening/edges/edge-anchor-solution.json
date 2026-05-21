@@ -1,0 +1,9 @@
+{
+  "id": "edge-anchor-solution",
+  "type": "has_solution",
+  "source": "need-memory-anchor",
+  "target": "solution-level-flow-rewind",
+  "label": "解决方案",
+  "createdAt": "2026-05-21T00:00:00.000Z",
+  "updatedAt": "2026-05-21T00:00:00.000Z"
+}

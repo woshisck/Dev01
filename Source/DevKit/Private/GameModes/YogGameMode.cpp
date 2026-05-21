@@ -29,6 +29,7 @@
 #include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
 #include "LevelFlow/LevelFlowAsset.h"
+#include "Story/StoryEngineSubsystem.h"
 #include "Story/StoryEventManager.h"
 #include "FlowAsset.h"
 #include "FlowComponent.h"
@@ -635,13 +636,24 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 	// 512 reward-card tutorial: only trigger when the reward actually entered the combat deck.
 	if (bAddedCombatCardToDeck)
 	{
-		if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
+		if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
 		{
-			if (AYogPlayerControllerBase* PC = Cast<AYogPlayerControllerBase>(
-				UGameplayStatics::GetPlayerController(GetWorld(), 0)))
-			{
-				TM->TryPostCombatTutorial(PC);
-			}
+			APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+			const FGameplayTag RuneItemTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Item.Rune"), false);
+			StoryEngine->BroadcastStoryEventWithPayload(
+				FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Item.Obtained"), false),
+				RuneItemTag,
+				ActiveGlobalStageTag,
+				RuneItemTag,
+				Player,
+				PC);
+			StoryEngine->BroadcastStoryEventWithPayload(
+				FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.FirstRuneObtained"), false),
+				RuneItemTag,
+				ActiveGlobalStageTag,
+				RuneItemTag,
+				Player,
+				PC);
 		}
 	}
 
@@ -976,6 +988,17 @@ void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 	TM.ClearTimer(InitialSpawnDelayTimer);
 	TM.ClearTimer(DemandSpawnTimer);
 
+	if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
+	{
+		StoryEngine->BroadcastStoryEventWithPayload(
+			FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Player.Died"), false),
+			ActiveGlobalStageTag,
+			ActiveGlobalStageTag,
+			FGameplayTag(),
+			Player,
+			Player ? Cast<APlayerController>(Player->GetController()) : GetWorld()->GetFirstPlayerController());
+	}
+
 	TriggerLifecycleEvent(EGameLifecycleEvent::PlayerDeath);
 	BeginPlayerDeathVisuals(Player);
 
@@ -1109,6 +1132,17 @@ bool AYogGameMode::RevivePlayerFromDeath()
 
 	if (APlayerController* PC = Cast<APlayerController>(Player->GetController()))
 	{
+		if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
+		{
+			StoryEngine->BroadcastStoryEventWithPayload(
+				FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Player.Revived"), false),
+				ActiveGlobalStageTag,
+				ActiveGlobalStageTag,
+				FGameplayTag(),
+				Player,
+				PC);
+		}
+
 		PC->ResetIgnoreMoveInput();
 		PC->ResetIgnoreLookInput();
 		PC->EnableInput(PC);
@@ -1320,6 +1354,26 @@ void AYogGameMode::StartLevelSpawning()
 	{
 		// Hub 视为第 0 关，TransitionToLevel 写入 PendingNextFloor = 0+1 = 1
 		// → 下一关读 FloorTable[0]（第一个战斗关）
+		if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
+		{
+			APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+			const FGameplayTag HubAreaTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Area.Hub"), false);
+			StoryEngine->BroadcastStoryEventWithPayload(
+				FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Area.Entered"), false),
+				HubAreaTag,
+				ActiveGlobalStageTag,
+				FGameplayTag(),
+				nullptr,
+				PC);
+			StoryEngine->BroadcastStoryEventWithPayload(
+				FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Hub.FirstEntered"), false),
+				HubAreaTag,
+				ActiveGlobalStageTag,
+				FGameplayTag(),
+				nullptr,
+				PC);
+		}
+
 		CurrentFloor = 0;
 		CurrentPhase = ELevelPhase::Arrangement; // 跳过战斗阶段
 

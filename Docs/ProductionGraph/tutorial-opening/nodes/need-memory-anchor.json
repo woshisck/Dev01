@@ -1,0 +1,21 @@
+{
+  "id": "need-memory-anchor",
+  "type": "need",
+  "title": "失败回到记忆锚点",
+  "description": "玩家在记忆碎片教程普通失败后，应回到最近的训练段锚点，而不是进入正式死亡循环。",
+  "status": "open",
+  "owner": "Design",
+  "tags": [
+    "tutorial",
+    "memory-fragment"
+  ],
+  "position": {
+    "x": 120,
+    "y": 140
+  },
+  "fields": {
+    "priority": "high"
+  },
+  "createdAt": "2026-05-21T00:00:00.000Z",
+  "updatedAt": "2026-05-21T00:00:00.000Z"
+}

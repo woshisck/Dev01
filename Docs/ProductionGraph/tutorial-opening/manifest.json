@@ -1,0 +1,13 @@
+{
+  "id": "tutorial-opening",
+  "title": "开局教程制作图",
+  "description": "记忆碎片教程从需求到任务、阻塞和新需求的示例图。",
+  "version": 1,
+  "createdAt": "2026-05-21T00:00:00.000Z",
+  "updatedAt": "2026-05-21T00:00:00.000Z",
+  "viewport": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  }
+}

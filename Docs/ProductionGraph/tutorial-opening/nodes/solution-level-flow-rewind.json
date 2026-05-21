@@ -1,0 +1,21 @@
+{
+  "id": "solution-level-flow-rewind",
+  "type": "solution",
+  "title": "用 LevelFlow 播放回卷演出",
+  "description": "失败事件广播到 StoryEngine，LevelFlow 播放画面破碎和回卷表现，然后恢复训练段状态。",
+  "status": "draft",
+  "owner": "Design",
+  "tags": [
+    "level-flow",
+    "story-event"
+  ],
+  "position": {
+    "x": 420,
+    "y": 100
+  },
+  "fields": {
+    "storyEvent": "Story.Event.MemoryTutorial.PlayerFailed"
+  },
+  "createdAt": "2026-05-21T00:00:00.000Z",
+  "updatedAt": "2026-05-21T00:00:00.000Z"
+}

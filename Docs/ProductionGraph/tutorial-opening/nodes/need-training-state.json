@@ -1,0 +1,21 @@
+{
+  "id": "need-training-state",
+  "type": "need",
+  "title": "训练段状态需要结构化",
+  "description": "每个训练段需要一个稳定 ID，用于恢复敌人、门、目标提示和已完成状态。",
+  "status": "open",
+  "owner": "Design",
+  "tags": [
+    "follow-up",
+    "state"
+  ],
+  "position": {
+    "x": 120,
+    "y": 430
+  },
+  "fields": {
+    "generatedFrom": "blocker-anchor-state"
+  },
+  "createdAt": "2026-05-21T00:00:00.000Z",
+  "updatedAt": "2026-05-21T00:00:00.000Z"
+}

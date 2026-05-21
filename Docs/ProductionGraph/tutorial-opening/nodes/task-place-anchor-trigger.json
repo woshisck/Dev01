@@ -1,0 +1,22 @@
+{
+  "id": "task-place-anchor-trigger",
+  "type": "task",
+  "title": "场景放置 Anchor Trigger",
+  "description": "在每个训练段入口放置锚点触发器，记录玩家当前训练段。",
+  "status": "todo",
+  "owner": "Level",
+  "tags": [
+    "trigger",
+    "level"
+  ],
+  "position": {
+    "x": 740,
+    "y": 80
+  },
+  "fields": {
+    "workType": "Scene Trigger",
+    "verification": "PIE enter trigger and fail once"
+  },
+  "createdAt": "2026-05-21T00:00:00.000Z",
+  "updatedAt": "2026-05-21T00:00:00.000Z"
+}

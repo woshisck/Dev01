@@ -1,0 +1,9 @@
+{
+  "id": "edge-trigger-blocker",
+  "type": "blocked_by",
+  "source": "task-place-anchor-trigger",
+  "target": "blocker-anchor-state",
+  "label": "被阻塞",
+  "createdAt": "2026-05-21T00:00:00.000Z",
+  "updatedAt": "2026-05-21T00:00:00.000Z"
+}
