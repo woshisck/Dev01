@@ -15,14 +15,15 @@ const EDGE_TYPES = {
 };
 
 const STATUS_OPTIONS = ['open', 'draft', 'todo', 'doing', 'blocked', 'review', 'done'];
-const CANVAS_PAN_THRESHOLD = 2;
 const NODE_WIDTH = 230;
 const NODE_HEIGHT = 118;
+const DRAG_THRESHOLD = 2;
 
 const state = {
   graphs: [],
   graph: null,
   selectedNodeId: null,
+  selectedNodeIds: [],
   selectedEdgeId: null,
   dirty: false,
   filter: '',
@@ -30,15 +31,18 @@ const state = {
   drag: null,
   pan: null,
   connection: null,
+  selectionBox: null,
   pendingConnection: null,
   viewport: { x: 0, y: 0 },
+  nodeClipboard: null,
   undoStack: [],
   redoStack: [],
   historyLimit: 80,
   isRestoringHistory: false,
   focusMode: 'all',
-  suppressNextDocumentClick: false,
   suppressNextContextMenu: false,
+  suppressNextDocumentClick: false,
+  suppressNextCanvasClick: false,
   contextMenuPosition: null
 };
 
@@ -68,27 +72,17 @@ function now() {
   return new Date().toISOString();
 }
 
+function uniqueId(prefix) {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 function slugify(text) {
   const ascii = String(text || '')
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return ascii || `node-${Date.now().toString(36)}`;
-}
-
-function uniqueId(prefix) {
-  const ids = new Set([
-    ...(state.graph?.nodes || []).map((item) => item.id),
-    ...(state.graph?.edges || []).map((item) => item.id)
-  ]);
-  let id = `${prefix}-${Date.now().toString(36)}`;
-  let i = 1;
-  while (ids.has(id)) {
-    id = `${prefix}-${Date.now().toString(36)}-${i}`;
-    i += 1;
-  }
-  return id;
+  return ascii || `graph-${Date.now().toString(36)}`;
 }
 
 async function api(path, options) {
@@ -101,18 +95,6 @@ async function api(path, options) {
   return body;
 }
 
-function selectedNode() {
-  return state.graph?.nodes.find((node) => node.id === state.selectedNodeId) || null;
-}
-
-function selectedEdge() {
-  return state.graph?.edges.find((edge) => edge.id === state.selectedEdgeId) || null;
-}
-
-function cloneGraph(graph) {
-  return graph ? JSON.parse(JSON.stringify(graph)) : null;
-}
-
 function graphHasNode(nodeId) {
   return Boolean(nodeId && state.graph?.nodes.some((node) => node.id === nodeId));
 }
@@ -121,22 +103,62 @@ function graphHasEdge(edgeId) {
   return Boolean(edgeId && state.graph?.edges.some((edge) => edge.id === edgeId));
 }
 
+function selectedNode() {
+  return state.graph?.nodes.find((node) => node.id === state.selectedNodeId) || null;
+}
+
+function selectedEdge() {
+  return state.graph?.edges.find((edge) => edge.id === state.selectedEdgeId) || null;
+}
+
+function selectedNodeIds() {
+  const ids = new Set(state.selectedNodeIds);
+  if (state.selectedNodeId) {
+    ids.add(state.selectedNodeId);
+  }
+  return [...ids].filter((nodeId) => graphHasNode(nodeId));
+}
+
+function clearSelection() {
+  state.selectedNodeId = null;
+  state.selectedNodeIds = [];
+  state.selectedEdgeId = null;
+}
+
+function selectSingleNode(nodeId) {
+  state.selectedNodeId = nodeId;
+  state.selectedNodeIds = nodeId ? [nodeId] : [];
+  state.selectedEdgeId = null;
+}
+
+function selectMultipleNodes(nodeIds) {
+  const uniqueIds = [...new Set(nodeIds)].filter((nodeId) => graphHasNode(nodeId));
+  state.selectedNodeIds = uniqueIds;
+  state.selectedNodeId = uniqueIds.length === 1 ? uniqueIds[0] : null;
+  state.selectedEdgeId = null;
+}
+
+function cloneGraph(graph) {
+  return graph ? JSON.parse(JSON.stringify(graph)) : null;
+}
+
+function cloneValue(value) {
+  return value ? JSON.parse(JSON.stringify(value)) : value;
+}
+
 function syncSelectionToGraph() {
   if (!graphHasNode(state.selectedNodeId)) {
     state.selectedNodeId = null;
   }
+  state.selectedNodeIds = state.selectedNodeIds.filter((nodeId) => graphHasNode(nodeId));
   if (!graphHasEdge(state.selectedEdgeId)) {
     state.selectedEdgeId = null;
   }
 }
 
 function renderHistoryButtons() {
-  if (el.undoButton) {
-    el.undoButton.disabled = state.undoStack.length === 0;
-  }
-  if (el.redoButton) {
-    el.redoButton.disabled = state.redoStack.length === 0;
-  }
+  el.undoButton.disabled = state.undoStack.length === 0;
+  el.redoButton.disabled = state.redoStack.length === 0;
 }
 
 function resetHistory() {
@@ -165,6 +187,7 @@ function restoreGraphSnapshot(snapshot) {
   state.graph = cloneGraph(snapshot);
   syncSelectionToGraph();
   state.connection = null;
+  state.selectionBox = null;
   state.pendingConnection = null;
   state.dirty = true;
   state.isRestoringHistory = false;
@@ -210,13 +233,9 @@ function renderSaveState() {
 }
 
 function graphMatchesFilter(node) {
-  const text = [
-    node.title,
-    node.description,
-    node.status,
-    node.owner,
-    ...(node.tags || [])
-  ].join(' ').toLowerCase();
+  const text = [node.title, node.description, node.status, node.owner, ...(node.tags || [])]
+    .join(' ')
+    .toLowerCase();
   return text.includes(state.filter.toLowerCase());
 }
 
@@ -228,10 +247,7 @@ function visibleNodes() {
     if (state.hideDone && node.status === 'done') {
       return false;
     }
-    if (state.filter && !graphMatchesFilter(node)) {
-      return false;
-    }
-    return true;
+    return !state.filter || graphMatchesFilter(node);
   });
 }
 
@@ -239,33 +255,113 @@ function visibleNodeIds() {
   return new Set(visibleNodes().map((node) => node.id));
 }
 
-function centerOf(node) {
+function clientToGraphPoint(clientX, clientY) {
+  const rect = el.canvas.getBoundingClientRect();
   return {
-    x: Number(node.position?.x || 0) + NODE_WIDTH / 2,
-    y: Number(node.position?.y || 0) + NODE_HEIGHT / 2
+    x: clientX - rect.left,
+    y: clientY - rect.top
   };
 }
 
-function graphContentBounds() {
-  const nodes = state.graph?.nodes || [];
-  if (nodes.length === 0) {
+function pinPoint(node, role) {
+  const x = Number(node.position?.x || 0);
+  const y = Number(node.position?.y || 0);
+  return {
+    x: role === 'input' ? x : x + NODE_WIDTH,
+    y: y + NODE_HEIGHT / 2
+  };
+}
+
+function inferredPinRoles(source, target) {
+  return Number(source.position?.x || 0) <= Number(target.position?.x || 0)
+    ? { sourcePin: 'output', targetPin: 'input' }
+    : { sourcePin: 'input', targetPin: 'output' };
+}
+
+function edgeEndpointPoints(source, target, edge) {
+  const fallback = inferredPinRoles(source, target);
+  return {
+    start: pinPoint(source, edge?.sourcePin || fallback.sourcePin),
+    end: pinPoint(target, edge?.targetPin || fallback.targetPin)
+  };
+}
+
+function makePathBetweenPoints(start, end) {
+  const dx = Math.max(120, Math.abs(end.x - start.x) * 0.45);
+  return `M ${start.x} ${start.y} C ${start.x + dx} ${start.y}, ${end.x - dx} ${end.y}, ${end.x} ${end.y}`;
+}
+
+function makeEdgePath(source, target, edge) {
+  const points = edgeEndpointPoints(source, target, edge);
+  return makePathBetweenPoints(points.start, points.end);
+}
+
+function normalizedSelectionBox(box) {
+  if (!box) {
     return null;
   }
-  return nodes.reduce((bounds, node) => {
+  return {
+    x: Math.min(box.start.x, box.current.x),
+    y: Math.min(box.start.y, box.current.y),
+    width: Math.abs(box.current.x - box.start.x),
+    height: Math.abs(box.current.y - box.start.y)
+  };
+}
+
+function nodeIntersectsBox(node, box) {
+  const x = Number(node.position?.x || 0);
+  const y = Number(node.position?.y || 0);
+  return x < box.x + box.width &&
+    x + NODE_WIDTH > box.x &&
+    y < box.y + box.height &&
+    y + NODE_HEIGHT > box.y;
+}
+
+function nodesInsideSelectionBox(box = normalizedSelectionBox(state.selectionBox)) {
+  if (!box || !state.graph) {
+    return [];
+  }
+  return state.graph.nodes
+    .filter((node) => nodeIntersectsBox(node, box))
+    .map((node) => node.id);
+}
+
+function frameNodes(nodes) {
+  if (!nodes || nodes.length === 0) {
+    return;
+  }
+  const bounds = nodes.reduce((result, node) => {
     const x = Number(node.position?.x || 0);
     const y = Number(node.position?.y || 0);
     return {
-      minX: Math.min(bounds.minX, x),
-      minY: Math.min(bounds.minY, y),
-      maxX: Math.max(bounds.maxX, x + NODE_WIDTH),
-      maxY: Math.max(bounds.maxY, y + NODE_HEIGHT)
+      minX: Math.min(result.minX, x),
+      minY: Math.min(result.minY, y),
+      maxX: Math.max(result.maxX, x + NODE_WIDTH),
+      maxY: Math.max(result.maxY, y + NODE_HEIGHT)
     };
-  }, {
-    minX: Infinity,
-    minY: Infinity,
-    maxX: -Infinity,
-    maxY: -Infinity
-  });
+  }, { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+  state.viewport = {
+    x: Math.round(el.canvasWrap.clientWidth / 2 - (bounds.minX + bounds.maxX) / 2),
+    y: Math.round(el.canvasWrap.clientHeight / 2 - (bounds.minY + bounds.maxY) / 2)
+  };
+  applyCanvasTransform();
+}
+
+function focusSelectedOrAllNodes() {
+  const multiSelection = selectedNodeIds();
+  if (multiSelection.length > 1 && state.focusMode !== 'selected') {
+    frameNodes(state.graph.nodes.filter((node) => multiSelection.includes(node.id)));
+    state.focusMode = 'selected';
+    return;
+  }
+  const node = selectedNode();
+  if (node && state.focusMode !== 'selected') {
+    frameNodes([node]);
+    state.focusMode = 'selected';
+    return;
+  }
+  frameNodes(visibleNodes());
+  state.focusMode = 'all';
 }
 
 function applyCanvasTransform() {
@@ -283,95 +379,8 @@ function applyCanvasPan(dx, dy) {
   applyCanvasTransform();
 }
 
-function clientToGraphPoint(clientX, clientY) {
-  const canvasRect = el.canvas.getBoundingClientRect();
-  return {
-    x: clientX - canvasRect.left,
-    y: clientY - canvasRect.top
-  };
-}
-
-function pinPoint(node, role) {
-  const x = Number(node.position?.x || 0);
-  const y = Number(node.position?.y || 0);
-  return {
-    x: role === 'input' ? x : x + NODE_WIDTH,
-    y: y + NODE_HEIGHT / 2
-  };
-}
-
-function frameNodes(nodes) {
-  if (!nodes || nodes.length === 0) {
-    return;
-  }
-  const bounds = nodes.reduce((result, node) => {
-    const x = Number(node.position?.x || 0);
-    const y = Number(node.position?.y || 0);
-    return {
-      minX: Math.min(result.minX, x),
-      minY: Math.min(result.minY, y),
-      maxX: Math.max(result.maxX, x + NODE_WIDTH),
-      maxY: Math.max(result.maxY, y + NODE_HEIGHT)
-    };
-  }, {
-    minX: Infinity,
-    minY: Infinity,
-    maxX: -Infinity,
-    maxY: -Infinity
-  });
-  state.viewport = {
-    x: Math.round(el.canvasWrap.clientWidth / 2 - (bounds.minX + bounds.maxX) / 2),
-    y: Math.round(el.canvasWrap.clientHeight / 2 - (bounds.minY + bounds.maxY) / 2)
-  };
-  applyCanvasTransform();
-}
-
-function focusSelectedOrAllNodes() {
-  const node = selectedNode();
-  if (node && state.focusMode !== 'selected') {
-    frameNodes([node]);
-    state.focusMode = 'selected';
-    return;
-  }
-  frameNodes(visibleNodes());
-  state.focusMode = 'all';
-}
-
 function centerCanvasView() {
-  requestAnimationFrame(() => {
-    if (!graphContentBounds()) {
-      state.viewport = { x: 32, y: 32 };
-      applyCanvasTransform();
-      return;
-    }
-    frameNodes(state.graph.nodes);
-  });
-}
-
-function makePathBetweenPoints(start, end) {
-  const dx = Math.max(120, Math.abs(end.x - start.x) * 0.45);
-  return `M ${start.x} ${start.y} C ${start.x + dx} ${start.y}, ${end.x - dx} ${end.y}, ${end.x} ${end.y}`;
-}
-
-function makeEdgePath(source, target) {
-  return makePathBetweenPoints(centerOf(source), centerOf(target));
-}
-
-function connectionPreviewPath() {
-  if (!state.connection) {
-    return '';
-  }
-  return makePathBetweenPoints(state.connection.start, state.connection.current);
-}
-
-function renderConnectionPreview() {
-  if (!state.connection) {
-    return;
-  }
-  const preview = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  preview.setAttribute('d', connectionPreviewPath());
-  preview.setAttribute('class', 'connection-preview');
-  el.edgeLayer.appendChild(preview);
+  requestAnimationFrame(() => frameNodes(state.graph?.nodes || []));
 }
 
 function renderGraphSelect() {
@@ -402,20 +411,17 @@ function renderEdges() {
     el.edgeLayer.innerHTML = '';
     return;
   }
-
   const nodeById = new Map(state.graph.nodes.map((node) => [node.id, node]));
   const visible = visibleNodeIds();
-  el.edgeLayer.innerHTML = '';
-
-  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-  defs.innerHTML = `
-    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L7,3 z" fill="#64748b"></path>
-    </marker>
-    <marker id="arrow-warn" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L7,3 z" fill="#b45309"></path>
-    </marker>`;
-  el.edgeLayer.appendChild(defs);
+  el.edgeLayer.innerHTML = `
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L7,3 z" fill="#64748b"></path>
+      </marker>
+      <marker id="arrow-warn" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L7,3 z" fill="#b45309"></path>
+      </marker>
+    </defs>`;
 
   for (const edge of state.graph.edges) {
     const source = nodeById.get(edge.source);
@@ -423,8 +429,7 @@ function renderEdges() {
     if (!source || !target || !visible.has(source.id) || !visible.has(target.id)) {
       continue;
     }
-
-    const pathData = makeEdgePath(source, target);
+    const pathData = makeEdgePath(source, target, edge);
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     line.setAttribute('d', pathData);
@@ -438,14 +443,14 @@ function renderEdges() {
       event.stopPropagation();
       state.selectedEdgeId = edge.id;
       state.selectedNodeId = null;
+      state.selectedNodeIds = [];
       render();
     });
 
+    const points = edgeEndpointPoints(source, target, edge);
     const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    const sourceCenter = centerOf(source);
-    const targetCenter = centerOf(target);
-    label.setAttribute('x', (sourceCenter.x + targetCenter.x) / 2);
-    label.setAttribute('y', (sourceCenter.y + targetCenter.y) / 2 - 8);
+    label.setAttribute('x', (points.start.x + points.end.x) / 2);
+    label.setAttribute('y', (points.start.y + points.end.y) / 2 - 8);
     label.setAttribute('class', 'edge-label');
     label.textContent = edge.label || EDGE_TYPES[edge.type] || edge.type;
 
@@ -457,21 +462,44 @@ function renderEdges() {
   renderConnectionPreview();
 }
 
+function renderConnectionPreview() {
+  if (!state.connection) {
+    return;
+  }
+  const preview = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  preview.setAttribute('d', makePathBetweenPoints(state.connection.start, state.connection.current));
+  preview.setAttribute('class', 'connection-preview');
+  el.edgeLayer.appendChild(preview);
+}
+
+function renderSelectionBox() {
+  const box = normalizedSelectionBox(state.selectionBox);
+  if (!box || !state.selectionBox?.moved) {
+    return;
+  }
+  const item = document.createElement('div');
+  item.className = 'selection-box';
+  item.style.left = `${box.x}px`;
+  item.style.top = `${box.y}px`;
+  item.style.width = `${box.width}px`;
+  item.style.height = `${box.height}px`;
+  el.nodeLayer.appendChild(item);
+}
+
 function renderNodes() {
   if (!state.graph) {
     el.nodeLayer.innerHTML = '';
     return;
   }
-
   el.nodeLayer.innerHTML = '';
+  const selection = new Set(selectedNodeIds());
   for (const node of visibleNodes()) {
     const item = document.createElement('div');
     item.className = `node ${node.type}`;
-    item.classList.toggle('is-selected', state.selectedNodeId === node.id);
+    item.classList.toggle('is-selected', selection.has(node.id));
     item.style.left = `${Number(node.position?.x || 0)}px`;
     item.style.top = `${Number(node.position?.y || 0)}px`;
     item.dataset.nodeId = node.id;
-
     const tags = (node.tags || []).slice(0, 3).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('');
     item.innerHTML = `
       <button class="node-delete-button" title="删除节点" aria-label="删除节点"></button>
@@ -487,32 +515,41 @@ function renderNodes() {
           ${tags}
         </div>
       </div>`;
-
-    const deleteButton = item.querySelector('.node-delete-button');
-    deleteButton.addEventListener('pointerdown', (event) => event.stopPropagation());
-    deleteButton.addEventListener('click', (event) => {
+    item.querySelector('.node-delete-button').addEventListener('click', (event) => {
       event.stopPropagation();
       deleteNode(node.id);
     });
-
     item.querySelectorAll('.node-pin').forEach((pin) => {
       pin.addEventListener('pointerdown', (event) => startPinConnection(event, node, pin.dataset.pinRole));
       pin.addEventListener('click', (event) => event.stopPropagation());
     });
-
     item.addEventListener('pointerdown', (event) => startDrag(event, node));
     item.addEventListener('click', (event) => {
       event.stopPropagation();
-      handleNodeClick(node);
+      selectSingleNode(node.id);
+      state.focusMode = 'all';
+      render();
     });
     el.nodeLayer.appendChild(item);
   }
+  renderSelectionBox();
 }
 
 function renderInspector() {
+  const multiSelection = selectedNodeIds();
   const node = selectedNode();
   const edge = selectedEdge();
-
+  if (multiSelection.length > 1) {
+    el.selectionType.textContent = '多选';
+    el.inspectorBody.classList.remove('empty');
+    el.inspectorBody.innerHTML = `
+      <div class="form-stack">
+        <div class="field-label">已选中 ${multiSelection.length} 个节点</div>
+        <button id="deleteMultiSelectionButton" class="danger-button" type="button">删除选中节点</button>
+      </div>`;
+    document.getElementById('deleteMultiSelectionButton')?.addEventListener('click', deleteSelected);
+    return;
+  }
   if (node) {
     el.selectionType.textContent = NODE_TYPES[node.type]?.label || node.type;
     el.inspectorBody.classList.remove('empty');
@@ -520,7 +557,6 @@ function renderInspector() {
     bindNodeInspector(node);
     return;
   }
-
   if (edge) {
     el.selectionType.textContent = EDGE_TYPES[edge.type] || edge.type;
     el.inspectorBody.classList.remove('empty');
@@ -528,7 +564,6 @@ function renderInspector() {
     bindEdgeInspector(edge);
     return;
   }
-
   el.selectionType.textContent = '未选择';
   el.inspectorBody.classList.add('empty');
   el.inspectorBody.textContent = '选择一个节点或连线开始编辑。';
@@ -552,7 +587,6 @@ function nodeInspectorHtml(node) {
       <label><span class="field-label">StoryEvent</span><input class="input" data-node-field-extra="storyEvent" value="${escapeAttr(node.fields?.storyEvent || '')}"></label>
       <label><span class="field-label">LevelFlow / 资产</span><input class="input" data-node-field-extra="levelFlow" value="${escapeAttr(node.fields?.levelFlow || '')}"></label>
       <label><span class="field-label">验证方式</span><textarea data-node-field-extra="verification">${escapeHtml(node.fields?.verification || '')}</textarea></label>
-      ${node.type === 'blocker' ? '<button id="convertBlockerButton" class="secondary-button">从阻塞生成新需求</button>' : ''}
     </div>`;
 }
 
@@ -561,28 +595,22 @@ function edgeInspectorHtml(edge) {
     <div class="form-stack">
       <label><span class="field-label">关系类型</span>${selectHtml('type', EDGE_TYPES, edge.type, 'data-edge-field')}</label>
       <label><span class="field-label">标签</span><input class="input" data-edge-field="label" value="${escapeAttr(edge.label || '')}"></label>
-      <div class="mini-row">
-        <label><span class="field-label">源节点</span><input class="input" value="${escapeAttr(edge.source)}" disabled></label>
-        <label><span class="field-label">目标节点</span><input class="input" value="${escapeAttr(edge.target)}" disabled></label>
-      </div>
     </div>`;
 }
 
 function selectHtml(name, options, selected, attrName) {
-  const items = Object.entries(options)
+  return `<select class="input" ${attrName}="${name}">` + Object.entries(options)
     .map(([value, config]) => {
       const label = typeof config === 'string' ? config : config.label;
       return `<option value="${value}" ${value === selected ? 'selected' : ''}>${escapeHtml(label)}</option>`;
     })
-    .join('');
-  return `<select class="input" ${attrName}="${name}">${items}</select>`;
+    .join('') + '</select>';
 }
 
 function statusSelectHtml(selected) {
-  const items = STATUS_OPTIONS
+  return `<select class="input" data-node-field="status">` + STATUS_OPTIONS
     .map((value) => `<option value="${value}" ${value === selected ? 'selected' : ''}>${value}</option>`)
-    .join('');
-  return `<select class="input" data-node-field="status">${items}</select>`;
+    .join('') + '</select>';
 }
 
 function bindNodeInspector(node) {
@@ -590,11 +618,9 @@ function bindNodeInspector(node) {
     input.addEventListener('input', () => {
       captureFieldHistory(input);
       const field = input.dataset.nodeField;
-      if (field === 'tags') {
-        node.tags = input.value.split(',').map((item) => item.trim()).filter(Boolean);
-      } else {
-        node[field] = input.value;
-      }
+      node[field] = field === 'tags'
+        ? input.value.split(',').map((item) => item.trim()).filter(Boolean)
+        : input.value;
       node.updatedAt = now();
       markDirty();
       renderHeader();
@@ -602,7 +628,6 @@ function bindNodeInspector(node) {
       renderValidation();
     });
   });
-
   el.inspectorBody.querySelectorAll('[data-node-field-extra]').forEach((input) => {
     input.addEventListener('input', () => {
       captureFieldHistory(input);
@@ -613,11 +638,6 @@ function bindNodeInspector(node) {
       renderNodes();
     });
   });
-
-  const convertButton = document.getElementById('convertBlockerButton');
-  if (convertButton) {
-    convertButton.addEventListener('click', () => convertBlockerToNeed(node));
-  }
 }
 
 function bindEdgeInspector(edge) {
@@ -625,9 +645,6 @@ function bindEdgeInspector(edge) {
     input.addEventListener('input', () => {
       captureFieldHistory(input);
       edge[input.dataset.edgeField] = input.value;
-      if (input.dataset.edgeField === 'type' && !edge.label) {
-        edge.label = EDGE_TYPES[input.value];
-      }
       edge.updatedAt = now();
       markDirty();
       renderEdges();
@@ -639,11 +656,9 @@ function bindEdgeInspector(edge) {
 function renderValidation() {
   const messages = validateGraph();
   el.validationBar.classList.toggle('has-errors', messages.some((item) => item.kind === 'error'));
-  if (messages.length === 0) {
-    el.validationBar.textContent = '校验通过：没有断线、重复 ID 或孤立节点。';
-    return;
-  }
-  el.validationBar.textContent = messages.map((item) => item.text).join(' | ');
+  el.validationBar.textContent = messages.length === 0
+    ? '校验通过：没有断线、重复 ID 或孤立节点。'
+    : messages.map((item) => item.text).join(' | ');
 }
 
 function validateGraph() {
@@ -651,27 +666,10 @@ function validateGraph() {
     return [];
   }
   const messages = [];
-  const ids = new Set();
-  for (const node of state.graph.nodes) {
-    if (ids.has(node.id)) {
-      messages.push({ kind: 'error', text: `重复节点 ID: ${node.id}` });
-    }
-    ids.add(node.id);
-  }
-  const incident = new Map(state.graph.nodes.map((node) => [node.id, 0]));
+  const ids = new Set(state.graph.nodes.map((node) => node.id));
   for (const edge of state.graph.edges) {
-    if (!ids.has(edge.source)) {
-      messages.push({ kind: 'error', text: `连线 ${edge.id} 缺少源节点 ${edge.source}` });
-    }
-    if (!ids.has(edge.target)) {
-      messages.push({ kind: 'error', text: `连线 ${edge.id} 缺少目标节点 ${edge.target}` });
-    }
-    incident.set(edge.source, (incident.get(edge.source) || 0) + 1);
-    incident.set(edge.target, (incident.get(edge.target) || 0) + 1);
-  }
-  for (const [nodeId, count] of incident.entries()) {
-    if (count === 0 && state.graph.nodes.length > 1) {
-      messages.push({ kind: 'warning', text: `孤立节点: ${nodeId}` });
+    if (!ids.has(edge.source) || !ids.has(edge.target)) {
+      messages.push({ kind: 'error', text: `连线 ${edge.id} 缺少节点` });
     }
   }
   if (state.dirty) {
@@ -691,13 +689,6 @@ function render() {
   renderValidation();
 }
 
-function handleNodeClick(node) {
-  state.selectedNodeId = node.id;
-  state.selectedEdgeId = null;
-  state.focusMode = 'all';
-  render();
-}
-
 function startPinConnection(event, node, role) {
   if (event.button !== 0) {
     return;
@@ -705,7 +696,6 @@ function startPinConnection(event, node, role) {
   event.preventDefault();
   event.stopPropagation();
   hideContextMenu();
-  event.currentTarget.setPointerCapture(event.pointerId);
   const start = pinPoint(node, role);
   state.connection = {
     sourceNodeId: node.id,
@@ -714,6 +704,7 @@ function startPinConnection(event, node, role) {
     current: start,
     moved: false
   };
+  event.currentTarget.setPointerCapture(event.pointerId);
   el.canvasWrap.classList.add('is-connecting');
   renderEdges();
 }
@@ -721,9 +712,8 @@ function startPinConnection(event, node, role) {
 function updateConnectionPreview(event) {
   const point = clientToGraphPoint(event.clientX, event.clientY);
   state.connection.current = point;
-  const dx = point.x - state.connection.start.x;
-  const dy = point.y - state.connection.start.y;
-  state.connection.moved = Math.abs(dx) > CANVAS_PAN_THRESHOLD || Math.abs(dy) > CANVAS_PAN_THRESHOLD;
+  state.connection.moved = Math.abs(point.x - state.connection.start.x) > DRAG_THRESHOLD ||
+    Math.abs(point.y - state.connection.start.y) > DRAG_THRESHOLD;
   renderEdges();
 }
 
@@ -732,16 +722,15 @@ function pinFromPoint(clientX, clientY) {
 }
 
 function resolveConnectionTarget(start, targetPin) {
-  const targetNode = targetPin.closest('.node');
-  const targetNodeId = targetNode?.dataset.nodeId;
+  const targetNodeId = targetPin.closest('.node')?.dataset.nodeId;
   if (!targetNodeId || targetNodeId === start.sourceNodeId) {
     return null;
   }
   const targetRole = targetPin.dataset.pinRole;
   if (start.sourceRole === 'input' && targetRole === 'output') {
-    return { source: targetNodeId, target: start.sourceNodeId };
+    return { source: targetNodeId, target: start.sourceNodeId, sourcePin: 'output', targetPin: 'input' };
   }
-  return { source: start.sourceNodeId, target: targetNodeId };
+  return { source: start.sourceNodeId, target: targetNodeId, sourcePin: start.sourceRole, targetPin: targetRole };
 }
 
 function finishPinConnection(event) {
@@ -752,10 +741,12 @@ function finishPinConnection(event) {
   const targetPin = pinFromPoint(event.clientX, event.clientY);
   state.connection = null;
   el.canvasWrap.classList.remove('is-connecting');
-
   const target = targetPin ? resolveConnectionTarget(connection, targetPin) : null;
   if (target) {
-    createEdge(target.source, target.target);
+    createEdge(target.source, target.target, null, {
+      sourcePin: target.sourcePin,
+      targetPin: target.targetPin
+    });
     render();
     return;
   }
@@ -769,12 +760,64 @@ function finishPinConnection(event) {
   renderEdges();
 }
 
+function shouldStartBoxSelection(event) {
+  if (event.button !== 0) {
+    return false;
+  }
+  return !event.target.closest('.node') &&
+    !event.target.closest('.node-pin') &&
+    !event.target.closest('.node-delete-button') &&
+    !event.target.closest('.context-menu') &&
+    !event.target.closest('.edge-hit');
+}
+
+function startBoxSelection(event) {
+  if (!shouldStartBoxSelection(event)) {
+    return;
+  }
+  hideContextMenu();
+  const start = clientToGraphPoint(event.clientX, event.clientY);
+  state.selectionBox = { start, current: start, moved: false };
+  el.canvasWrap.setPointerCapture(event.pointerId);
+}
+
+function updateBoxSelection(event) {
+  const current = clientToGraphPoint(event.clientX, event.clientY);
+  state.selectionBox.current = current;
+  state.selectionBox.moved = Math.abs(current.x - state.selectionBox.start.x) > DRAG_THRESHOLD ||
+    Math.abs(current.y - state.selectionBox.start.y) > DRAG_THRESHOLD;
+  if (state.selectionBox.moved) {
+    el.canvasWrap.classList.add('is-selecting');
+    renderNodes();
+  }
+}
+
+function finishBoxSelection(event) {
+  if (!state.selectionBox) {
+    return;
+  }
+  updateBoxSelection(event);
+  const wasSelecting = state.selectionBox.moved;
+  const selectedIds = wasSelecting ? nodesInsideSelectionBox() : [];
+  state.selectionBox = null;
+  el.canvasWrap.classList.remove('is-selecting');
+  if (wasSelecting) {
+    selectMultipleNodes(selectedIds);
+    state.suppressNextCanvasClick = true;
+    setTimeout(() => {
+      state.suppressNextCanvasClick = false;
+    }, 250);
+    render();
+  } else {
+    renderNodes();
+  }
+}
+
 function startDrag(event, node) {
   if (event.button !== 0 || event.target.closest('.node-delete-button') || event.target.closest('.node-pin')) {
     return;
   }
-  const pointerId = event.pointerId;
-  event.currentTarget.setPointerCapture(pointerId);
+  event.currentTarget.setPointerCapture(event.pointerId);
   state.drag = {
     node,
     startX: event.clientX,
@@ -807,10 +850,14 @@ function onPointerMove(event) {
     updateConnectionPreview(event);
     return;
   }
+  if (state.selectionBox) {
+    updateBoxSelection(event);
+    return;
+  }
   if (state.pan) {
     const dx = event.clientX - state.pan.startX;
     const dy = event.clientY - state.pan.startY;
-    if (Math.abs(dx) > CANVAS_PAN_THRESHOLD || Math.abs(dy) > CANVAS_PAN_THRESHOLD) {
+    if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
       state.pan.moved = true;
       el.canvasWrap.classList.add('is-panning');
       applyCanvasPan(dx, dy);
@@ -841,6 +888,10 @@ function onPointerUp(event) {
     finishPinConnection(event);
     return;
   }
+  if (state.selectionBox) {
+    finishBoxSelection(event);
+    return;
+  }
   if (state.pan) {
     state.suppressNextContextMenu = state.pan.button === 2 && state.pan.moved;
     state.pan = null;
@@ -852,16 +903,15 @@ function onPointerUp(event) {
 
 function createNode(type, position, options = {}) {
   if (!state.graph) {
-    return;
+    return null;
   }
   if (options.captureHistory !== false) {
     pushUndoSnapshot();
   }
   const index = state.graph.nodes.length;
-  const id = uniqueId(type);
   const timestamp = now();
   const node = {
-    id,
+    id: uniqueId(type),
     type,
     title: NODE_TYPES[type].defaultTitle,
     description: '',
@@ -874,56 +924,44 @@ function createNode(type, position, options = {}) {
     updatedAt: timestamp
   };
   state.graph.nodes.push(node);
-  state.selectedNodeId = id;
-  state.selectedEdgeId = null;
+  selectSingleNode(node.id);
   markDirty();
   render();
   return node;
 }
 
 function inferEdgeType(source, target) {
-  const sourceNode = state.graph?.nodes.find((node) => node.id === source);
   const targetNode = state.graph?.nodes.find((node) => node.id === target);
-  if (sourceNode?.type === 'blocker' && targetNode?.type === 'need') {
-    return 'becomes_need';
-  }
-  if (targetNode?.type === 'solution') {
-    return 'has_solution';
-  }
-  if (targetNode?.type === 'task') {
-    return 'creates_task';
-  }
-  if (targetNode?.type === 'blocker') {
-    return 'blocked_by';
-  }
-  if (targetNode?.type === 'need') {
-    return 'changes_scope';
-  }
+  if (targetNode?.type === 'solution') return 'has_solution';
+  if (targetNode?.type === 'task') return 'creates_task';
+  if (targetNode?.type === 'blocker') return 'blocked_by';
+  if (targetNode?.type === 'need') return 'changes_scope';
   return 'depends_on';
 }
 
 function createEdge(source, target, type, options = {}) {
   if (!state.graph) {
-    return;
+    return null;
   }
   if (options.captureHistory !== false) {
     pushUndoSnapshot();
   }
-  const id = uniqueId('edge');
   const edgeType = type || inferEdgeType(source, target);
-  const timestamp = now();
   const edge = {
-    id,
+    id: uniqueId('edge'),
     type: edgeType,
     source,
     target,
+    sourcePin: options.sourcePin,
+    targetPin: options.targetPin,
     label: EDGE_TYPES[edgeType],
-    createdAt: timestamp,
-    updatedAt: timestamp
+    createdAt: now(),
+    updatedAt: now()
   };
   state.graph.edges.push(edge);
-  state.selectedEdgeId = id;
+  state.selectedEdgeId = edge.id;
   state.selectedNodeId = null;
+  state.selectedNodeIds = [];
   markDirty();
   return edge;
 }
@@ -945,56 +983,112 @@ function createConnectedNode(type) {
     return;
   }
   if (startRole === 'input') {
-    createEdge(node.id, startNodeId, null, { captureHistory: false });
+    createEdge(node.id, startNodeId, null, { captureHistory: false, sourcePin: 'output', targetPin: 'input' });
   } else {
-    createEdge(startNodeId, node.id, null, { captureHistory: false });
+    createEdge(startNodeId, node.id, null, { captureHistory: false, sourcePin: 'output', targetPin: 'input' });
   }
-  state.selectedNodeId = node.id;
-  state.selectedEdgeId = null;
+  selectSingleNode(node.id);
   markDirty();
   render();
 }
 
-function convertBlockerToNeed(blocker) {
+function copyInternalEdges(nodeIdSet) {
   if (!state.graph) {
-    return;
+    return [];
+  }
+  return state.graph.edges
+    .filter((edge) => nodeIdSet.has(edge.source) && nodeIdSet.has(edge.target))
+    .map((edge) => cloneValue(edge));
+}
+
+function buildNodeClipboardFromSelection() {
+  if (!state.graph) {
+    return null;
+  }
+  const ids = selectedNodeIds();
+  if (ids.length === 0) {
+    return null;
+  }
+  const idSet = new Set(ids);
+  const nodes = state.graph.nodes
+    .filter((node) => idSet.has(node.id))
+    .map((node) => cloneValue(node));
+  return {
+    nodes,
+    edges: copyInternalEdges(idSet),
+    pasteCount: 0
+  };
+}
+
+function copySelectedNodes() {
+  const clipboard = buildNodeClipboardFromSelection();
+  if (!clipboard) {
+    return false;
+  }
+  state.nodeClipboard = clipboard;
+  return true;
+}
+
+function pasteNodeClipboard(clipboard) {
+  if (!state.graph || !clipboard || clipboard.nodes.length === 0) {
+    return false;
   }
   pushUndoSnapshot();
   const timestamp = now();
-  const need = {
-    id: uniqueId('need'),
-    type: 'need',
-    title: `处理：${blocker.title}`,
-    description: blocker.description,
-    status: 'open',
-    owner: blocker.owner,
-    tags: [...new Set([...(blocker.tags || []), 'follow-up'])],
-    position: {
-      x: Number(blocker.position?.x || 0) - 280,
-      y: Number(blocker.position?.y || 0) + 120
-    },
-    fields: { generatedFrom: blocker.id },
-    createdAt: timestamp,
-    updatedAt: timestamp
-  };
-  state.graph.nodes.push(need);
-  state.graph.edges.push({
-    id: uniqueId('edge'),
-    type: 'becomes_need',
-    source: blocker.id,
-    target: need.id,
-    label: EDGE_TYPES.becomes_need,
-    createdAt: timestamp,
-    updatedAt: timestamp
-  });
-  state.selectedNodeId = need.id;
-  state.selectedEdgeId = null;
+  const offset = 40 * ((clipboard.pasteCount || 0) + 1);
+  const idMap = new Map();
+  const newNodeIds = [];
+  for (const sourceNode of clipboard.nodes) {
+    const node = cloneValue(sourceNode);
+    const oldId = node.id;
+    node.id = uniqueId(node.type || 'node');
+    node.position = {
+      x: Number(node.position?.x || 0) + offset,
+      y: Number(node.position?.y || 0) + offset
+    };
+    node.createdAt = timestamp;
+    node.updatedAt = timestamp;
+    idMap.set(oldId, node.id);
+    newNodeIds.push(node.id);
+    state.graph.nodes.push(node);
+  }
+  for (const sourceEdge of clipboard.edges || []) {
+    const source = idMap.get(sourceEdge.source);
+    const target = idMap.get(sourceEdge.target);
+    if (!source || !target) {
+      continue;
+    }
+    const edge = cloneValue(sourceEdge);
+    edge.id = uniqueId('edge');
+    edge.source = source;
+    edge.target = target;
+    edge.createdAt = timestamp;
+    edge.updatedAt = timestamp;
+    state.graph.edges.push(edge);
+  }
+  clipboard.pasteCount = (clipboard.pasteCount || 0) + 1;
+  selectMultipleNodes(newNodeIds);
   markDirty();
   render();
+  return true;
+}
+
+function pasteCopiedNodes() {
+  return pasteNodeClipboard(state.nodeClipboard);
+}
+
+function duplicateSelectedNodes() {
+  const clipboard = buildNodeClipboardFromSelection();
+  return pasteNodeClipboard(clipboard);
 }
 
 function deleteSelected() {
   if (!state.graph) {
+    return;
+  }
+  const nodeIds = selectedNodeIds();
+  if (nodeIds.length > 1) {
+    deleteNodes(nodeIds);
     return;
   }
   if (state.selectedNodeId) {
@@ -1006,11 +1100,21 @@ function deleteSelected() {
   }
 }
 
-function deleteNode(nodeId) {
-  if (!state.graph) {
+function deleteNodes(nodeIds) {
+  const ids = new Set(nodeIds.filter((nodeId) => graphHasNode(nodeId)));
+  if (ids.size === 0) {
     return;
   }
-  if (!state.graph.nodes.some((node) => node.id === nodeId)) {
+  pushUndoSnapshot();
+  state.graph.nodes = state.graph.nodes.filter((node) => !ids.has(node.id));
+  state.graph.edges = state.graph.edges.filter((edge) => !ids.has(edge.source) && !ids.has(edge.target));
+  clearSelection();
+  markDirty();
+  render();
+}
+
+function deleteNode(nodeId) {
+  if (!state.graph || !graphHasNode(nodeId)) {
     return;
   }
   pushUndoSnapshot();
@@ -1019,32 +1123,25 @@ function deleteNode(nodeId) {
   if (state.selectedNodeId === nodeId) {
     state.selectedNodeId = null;
   }
+  state.selectedNodeIds = state.selectedNodeIds.filter((id) => id !== nodeId);
   state.selectedEdgeId = null;
   markDirty();
   render();
 }
 
 function deleteEdge(edgeId) {
-  if (!state.graph) {
-    return;
-  }
-  if (!state.graph.edges.some((edge) => edge.id === edgeId)) {
+  if (!state.graph || !graphHasEdge(edgeId)) {
     return;
   }
   pushUndoSnapshot();
   state.graph.edges = state.graph.edges.filter((edge) => edge.id !== edgeId);
-  if (state.selectedEdgeId === edgeId) {
-    state.selectedEdgeId = null;
-  }
+  state.selectedEdgeId = null;
   markDirty();
   render();
 }
 
 function setContextMenuTitle(text) {
-  const title = el.contextMenu.querySelector('.context-menu-title');
-  if (title) {
-    title.textContent = text;
-  }
+  el.contextMenu.querySelector('.context-menu-title').textContent = text;
 }
 
 function placeContextMenu(clientX, clientY) {
@@ -1082,11 +1179,8 @@ function hideContextMenu() {
 }
 
 function isTypingTarget(target) {
-  if (!target) {
-    return false;
-  }
-  const tagName = target.tagName;
-  return target.isContentEditable || tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
+  const tagName = target?.tagName;
+  return target?.isContentEditable || tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
 }
 
 function handleKeyboardDelete(event) {
@@ -1104,16 +1198,29 @@ function handleKeyboardDelete(event) {
     redoGraphChange();
     return;
   }
+  if (usesShortcutModifier && event.key.toLowerCase() === 'c') {
+    event.preventDefault();
+    copySelectedNodes();
+    return;
+  }
+  if (usesShortcutModifier && event.key.toLowerCase() === 'v') {
+    event.preventDefault();
+    pasteCopiedNodes();
+    return;
+  }
+  if (usesShortcutModifier && event.key.toLowerCase() === 'd') {
+    event.preventDefault();
+    duplicateSelectedNodes();
+    return;
+  }
   if (!usesShortcutModifier && event.key.toLowerCase() === 'f') {
     event.preventDefault();
     focusSelectedOrAllNodes();
     return;
   }
-  if (event.key === 'Backspace' || event.key === 'Delete') {
-    if (state.selectedNodeId || state.selectedEdgeId) {
-      event.preventDefault();
-      deleteSelected();
-    }
+  if ((event.key === 'Backspace' || event.key === 'Delete') && (selectedNodeIds().length > 0 || state.selectedEdgeId)) {
+    event.preventDefault();
+    deleteSelected();
   }
 }
 
@@ -1125,8 +1232,7 @@ async function loadGraphs() {
 
 async function loadGraph(id) {
   state.graph = await api(`/api/graphs/${id}`);
-  state.selectedNodeId = state.graph.nodes[0]?.id || null;
-  state.selectedEdgeId = null;
+  selectSingleNode(state.graph.nodes[0]?.id || null);
   state.dirty = false;
   state.focusMode = 'all';
   resetHistory();
@@ -1151,15 +1257,15 @@ async function saveGraph() {
 }
 
 async function createNewGraph() {
-  const rawTitle = prompt('图谱名称，例如：黑夜少女首次主城对话');
-  if (!rawTitle) {
+  const title = prompt('图谱名称，例如：黑夜少女首次主城对话');
+  if (!title) {
     return;
   }
-  const id = slugify(prompt('英文 ID，用于文件夹名，例如：night-girl-hub-intro') || rawTitle);
+  const id = slugify(prompt('英文 ID，用于文件夹名，例如：night-girl-hub-intro') || title);
   await api('/api/graphs', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ id, title: rawTitle })
+    body: JSON.stringify({ id, title })
   });
   await loadGraphs();
   await loadGraph(id);
@@ -1192,13 +1298,12 @@ function bindEvents() {
       hideContextMenu();
     });
   });
-
   el.graphSelect.addEventListener('change', () => loadGraph(el.graphSelect.value));
   el.newGraphButton.addEventListener('click', createNewGraph);
   el.saveButton.addEventListener('click', saveGraph);
   el.deleteButton.addEventListener('click', deleteSelected);
-  el.undoButton?.addEventListener('click', undoGraphChange);
-  el.redoButton?.addEventListener('click', redoGraphChange);
+  el.undoButton.addEventListener('click', undoGraphChange);
+  el.redoButton.addEventListener('click', redoGraphChange);
   el.hideDoneToggle.addEventListener('change', () => {
     state.hideDone = el.hideDoneToggle.checked;
     render();
@@ -1208,11 +1313,15 @@ function bindEvents() {
     render();
   });
   el.canvas.addEventListener('click', () => {
-    state.selectedNodeId = null;
-    state.selectedEdgeId = null;
+    if (state.suppressNextCanvasClick) {
+      state.suppressNextCanvasClick = false;
+      return;
+    }
+    clearSelection();
     state.focusMode = 'all';
     render();
   });
+  el.canvasWrap.addEventListener('pointerdown', startBoxSelection);
   el.canvasWrap.addEventListener('pointerdown', startCanvasPan);
   el.canvasWrap.addEventListener('auxclick', (event) => {
     if (event.button === 1) {
