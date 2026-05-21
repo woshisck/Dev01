@@ -80,6 +80,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Occlusion|Material")
 	TObjectPtr<UMaterialInterface> OcclusionFadeMaterial;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Occlusion|Debug")
+	bool bDrawDebugOcclusionTrace = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Occlusion|Debug", meta = (ClampMin = "0.0"))
+	float DebugDrawDuration = 0.08f;
+
 	bool IsFadeAllowedForComponent(const UPrimitiveComponent* Component) const;
 
 private:

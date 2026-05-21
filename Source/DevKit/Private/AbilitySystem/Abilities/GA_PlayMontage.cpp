@@ -321,10 +321,11 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 			UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, HitTag, Payload);
 		}
 
-		if (FiredDamageNotify)
-		{
-			FiredDamageNotify->ApplyHitSuccessDilation(Owner);
-		}
+		// Temporarily disabled: hit freeze/slow now handles melee impact feedback.
+		// if (FiredDamageNotify)
+		// {
+		// 	FiredDamageNotify->ApplyHitSuccessDilation(Owner);
+		// }
 
 		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
 		{

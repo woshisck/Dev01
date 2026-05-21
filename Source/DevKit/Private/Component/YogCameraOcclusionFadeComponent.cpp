@@ -5,6 +5,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "CollisionShape.h"
 #include "Components/PrimitiveComponent.h"
+#include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
@@ -106,6 +107,7 @@ void UYogCameraOcclusionFadeComponent::RunOcclusionTrace()
 
 	const FVector Start = CameraManager->GetCameraLocation();
 	const FVector End = Owner->GetActorLocation() + PlayerTargetOffset;
+	const float SafeTraceRadius = FMath::Max(0.0f, TraceRadius);
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(YogCameraOcclusionFade), false, Owner);
 	QueryParams.bTraceComplex = false;
@@ -118,17 +120,47 @@ void UYogCameraOcclusionFadeComponent::RunOcclusionTrace()
 		End,
 		FQuat::Identity,
 		TraceChannel,
-		FCollisionShape::MakeSphere(FMath::Max(0.0f, TraceRadius)),
+		FCollisionShape::MakeSphere(SafeTraceRadius),
 		QueryParams);
 
+	bool bHitFadeAllowedOccluder = false;
 	for (const FHitResult& Hit : Hits)
 	{
 		UPrimitiveComponent* HitComponent = Hit.GetComponent();
 		if (IsFadeAllowedForComponent(HitComponent))
 		{
+			bHitFadeAllowedOccluder = true;
 			AddOrUpdateFadeTarget(HitComponent);
 		}
 	}
+
+#if ENABLE_DRAW_DEBUG
+	if (bDrawDebugOcclusionTrace)
+	{
+		const FColor TraceColor = bHitFadeAllowedOccluder ? FColor::Orange : FColor::Green;
+		const FColor BlockedHitColor = FColor::Red;
+		const FColor IgnoredHitColor = FColor::Silver;
+		const float Duration = FMath::Max(0.0f, DebugDrawDuration);
+
+		DrawDebugLine(World, Start, End, TraceColor, false, Duration, 0, 1.5f);
+		DrawDebugSphere(World, Start, SafeTraceRadius, 12, FColor::Blue, false, Duration);
+		DrawDebugSphere(World, End, SafeTraceRadius, 12, TraceColor, false, Duration);
+
+		for (const FHitResult& Hit : Hits)
+		{
+			const UPrimitiveComponent* HitComponent = Hit.GetComponent();
+			const bool bFadeAllowed = IsFadeAllowedForComponent(HitComponent);
+			DrawDebugSphere(
+				World,
+				Hit.ImpactPoint.IsNearlyZero() ? Hit.Location : Hit.ImpactPoint,
+				FMath::Max(8.0f, SafeTraceRadius * 0.5f),
+				8,
+				bFadeAllowed ? BlockedHitColor : IgnoredHitColor,
+				false,
+				Duration);
+		}
+	}
+#endif
 }
 
 void UYogCameraOcclusionFadeComponent::UpdateFadeInterpolation(float DeltaTime)

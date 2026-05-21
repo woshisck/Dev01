@@ -11,24 +11,26 @@
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 
-namespace
-{
-	void RestoreGlobalHitSuccessDilation(TWeakObjectPtr<UWorld> WeakWorld)
-	{
-		if (UWorld* World = WeakWorld.Get())
-		{
-			UGameplayStatics::SetGlobalTimeDilation(World, 1.f);
-		}
-	}
-
-	void RestoreSelfHitSuccessDilation(TWeakObjectPtr<AActor> WeakActor)
-	{
-		if (AActor* Actor = WeakActor.Get())
-		{
-			Actor->CustomTimeDilation = 1.f;
-		}
-	}
-}
+// HitSuccessDilation is temporarily disabled. Keep this file-local code around as a comment
+// so it can be restored quickly if the impact feedback direction changes again.
+// namespace
+// {
+// 	void RestoreGlobalHitSuccessDilation(TWeakObjectPtr<UWorld> WeakWorld)
+// 	{
+// 		if (UWorld* World = WeakWorld.Get())
+// 		{
+// 			UGameplayStatics::SetGlobalTimeDilation(World, 1.f);
+// 		}
+// 	}
+//
+// 	void RestoreSelfHitSuccessDilation(TWeakObjectPtr<AActor> WeakActor)
+// 	{
+// 		if (AActor* Actor = WeakActor.Get())
+// 		{
+// 			Actor->CustomTimeDilation = 1.f;
+// 		}
+// 	}
+// }
 
 UAN_MeleeDamage::UAN_MeleeDamage()
 {
@@ -147,38 +149,39 @@ FActionData UAN_MeleeDamage::BuildActionData() const
 
 void UAN_MeleeDamage::ApplyHitSuccessDilation(AActor* SourceActor) const
 {
-	if (!SourceActor || HitSuccessDilation.Scope == EMeleeDamageHitDilationScope::None || HitSuccessDilation.DurationSeconds <= 0.f)
-	{
-		return;
-	}
-
-	UWorld* World = SourceActor->GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	const float Factor = FMath::Clamp(HitSuccessDilation.DilationFactor, 0.01f, 1.0f);
-	float TimerDuration = FMath::Max(HitSuccessDilation.DurationSeconds, 0.01f);
-	FTimerHandle RestoreHandle;
-
-	if (HitSuccessDilation.Scope == EMeleeDamageHitDilationScope::Global)
-	{
-		UGameplayStatics::SetGlobalTimeDilation(World, Factor);
-		TimerDuration *= Factor;
-		World->GetTimerManager().SetTimer(
-			RestoreHandle,
-			FTimerDelegate::CreateStatic(&RestoreGlobalHitSuccessDilation, TWeakObjectPtr<UWorld>(World)),
-			FMath::Max(TimerDuration, 0.01f),
-			false);
-	}
-	else if (HitSuccessDilation.Scope == EMeleeDamageHitDilationScope::Self)
-	{
-		SourceActor->CustomTimeDilation = Factor;
-		World->GetTimerManager().SetTimer(
-			RestoreHandle,
-			FTimerDelegate::CreateStatic(&RestoreSelfHitSuccessDilation, TWeakObjectPtr<AActor>(SourceActor)),
-			TimerDuration,
-			false);
-	}
+	// Temporarily disabled: hit freeze/slow now handles melee impact feedback.
+	// if (!SourceActor || HitSuccessDilation.Scope == EMeleeDamageHitDilationScope::None || HitSuccessDilation.DurationSeconds <= 0.f)
+	// {
+	// 	return;
+	// }
+	//
+	// UWorld* World = SourceActor->GetWorld();
+	// if (!World)
+	// {
+	// 	return;
+	// }
+	//
+	// const float Factor = FMath::Clamp(HitSuccessDilation.DilationFactor, 0.01f, 1.0f);
+	// float TimerDuration = FMath::Max(HitSuccessDilation.DurationSeconds, 0.01f);
+	// FTimerHandle RestoreHandle;
+	//
+	// if (HitSuccessDilation.Scope == EMeleeDamageHitDilationScope::Global)
+	// {
+	// 	UGameplayStatics::SetGlobalTimeDilation(World, Factor);
+	// 	TimerDuration *= Factor;
+	// 	World->GetTimerManager().SetTimer(
+	// 		RestoreHandle,
+	// 		FTimerDelegate::CreateStatic(&RestoreGlobalHitSuccessDilation, TWeakObjectPtr<UWorld>(World)),
+	// 		FMath::Max(TimerDuration, 0.01f),
+	// 		false);
+	// }
+	// else if (HitSuccessDilation.Scope == EMeleeDamageHitDilationScope::Self)
+	// {
+	// 	SourceActor->CustomTimeDilation = Factor;
+	// 	World->GetTimerManager().SetTimer(
+	// 		RestoreHandle,
+	// 		FTimerDelegate::CreateStatic(&RestoreSelfHitSuccessDilation, TWeakObjectPtr<AActor>(SourceActor)),
+	// 		TimerDuration,
+	// 		false);
+	// }
 }

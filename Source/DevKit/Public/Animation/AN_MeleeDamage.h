@@ -126,8 +126,9 @@ public:
 
 	// ── 命中事件 ─────────────────────────────────────────────────────
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitDilation")
-	FMeleeDamageHitDilationSettings HitSuccessDilation;
+	// Temporarily hidden: use HitStop freeze/slow for melee impact feedback instead.
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitDilation")
+	// FMeleeDamageHitDilationSettings HitSuccessDilation;
 
 	// ── 附加效果 ───────────────────────────────────────────────────────────
 
