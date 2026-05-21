@@ -55,6 +55,7 @@ private:
 	FReply OnCreateProductionBoardClicked();
 	FReply OnCreateEncounterMapClicked();
 	FReply OnCreateEncounterPointClicked();
+	FReply OnMigrateLegacyTriggersClicked();
 	FReply OnOpenSelectedGraphClicked() const;
 	FReply OnAddNodeClicked();
 	FReply OnDeleteNodeClicked();

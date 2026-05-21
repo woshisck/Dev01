@@ -1,0 +1,117 @@
+{
+  "manifest": {
+    "id": "tutorial-opening",
+    "title": "开局教程制作图谱",
+    "updatedAt": "2026-05-21T10:02:30.841Z"
+  },
+  "nodes": [
+    {
+      "id": "need-memory-anchor",
+      "type": "need",
+      "title": "训练段状态需要结构化",
+      "description": "每个训练段需要一个稳定 ID，用于恢复敌人、门、目标提示和已完成状态。",
+      "status": "open",
+      "owner": "Design",
+      "tags": [
+        "state"
+      ],
+      "position": {
+        "x": 160,
+        "y": 240
+      },
+      "fields": {},
+      "createdAt": "2026-05-21T10:02:30.841Z",
+      "updatedAt": "2026-05-21T10:02:30.841Z"
+    },
+    {
+      "id": "solution-level-flow",
+      "type": "solution",
+      "title": "用 LevelFlow 播放回卷演出",
+      "description": "失败事件广播到 StoryEngine，LevelFlow 播放画面破碎和回卷表现，然后恢复训练段状态。",
+      "status": "draft",
+      "owner": "Design",
+      "tags": [
+        "level-flow",
+        "story-event"
+      ],
+      "position": {
+        "x": 520,
+        "y": 120
+      },
+      "fields": {},
+      "createdAt": "2026-05-21T10:02:30.841Z",
+      "updatedAt": "2026-05-21T10:02:30.841Z"
+    },
+    {
+      "id": "task-anchor-trigger",
+      "type": "task",
+      "title": "场景放置 Anchor Trigger",
+      "description": "在每个训练段入口放置锚点触发器，记录玩家当前训练段。",
+      "status": "todo",
+      "owner": "Level",
+      "tags": [
+        "trigger"
+      ],
+      "position": {
+        "x": 900,
+        "y": 100
+      },
+      "fields": {},
+      "createdAt": "2026-05-21T10:02:30.841Z",
+      "updatedAt": "2026-05-21T10:02:30.841Z"
+    },
+    {
+      "id": "blocker-save-state",
+      "type": "blocker",
+      "title": "锚点需要保存训练段状态",
+      "description": "如果只保存位置，不知道应恢复哪些敌人和机关状态。",
+      "status": "open",
+      "owner": "Design",
+      "tags": [
+        "blocker"
+      ],
+      "position": {
+        "x": 880,
+        "y": 380
+      },
+      "fields": {},
+      "createdAt": "2026-05-21T10:02:30.841Z",
+      "updatedAt": "2026-05-21T10:02:30.841Z"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-need-solution",
+      "type": "has_solution",
+      "source": "need-memory-anchor",
+      "target": "solution-level-flow",
+      "sourcePin": "output",
+      "targetPin": "input",
+      "label": "产生方案",
+      "createdAt": "2026-05-21T10:02:30.841Z",
+      "updatedAt": "2026-05-21T10:02:30.841Z"
+    },
+    {
+      "id": "edge-solution-task",
+      "type": "creates_task",
+      "source": "solution-level-flow",
+      "target": "task-anchor-trigger",
+      "sourcePin": "output",
+      "targetPin": "input",
+      "label": "拆出任务",
+      "createdAt": "2026-05-21T10:02:30.841Z",
+      "updatedAt": "2026-05-21T10:02:30.841Z"
+    },
+    {
+      "id": "edge-need-blocker",
+      "type": "blocked_by",
+      "source": "need-memory-anchor",
+      "target": "blocker-save-state",
+      "sourcePin": "output",
+      "targetPin": "input",
+      "label": "阻塞",
+      "createdAt": "2026-05-21T10:02:30.841Z",
+      "updatedAt": "2026-05-21T10:02:30.841Z"
+    }
+  ]
+}
