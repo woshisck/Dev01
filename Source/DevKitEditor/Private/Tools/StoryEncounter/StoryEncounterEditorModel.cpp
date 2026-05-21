@@ -328,6 +328,15 @@ TArray<FStoryEncounterWorkbenchMessage> FStoryEncounterEditorModel::Validate(
 					}
 					break;
 
+				case EStoryEncounterActionKind::TutorialPopup:
+					if (Action.TutorialEventId.IsNone())
+					{
+						AddWorkbenchMessage(Messages, EStoryEncounterWorkbenchMessageSeverity::Error,
+							FString::Printf(TEXT("%s 是教程弹窗，但没有填写教程事件ID。"), *Prefix),
+							EncounterMap, NAME_None, EncounterMap->EncounterId, Node.NodeId);
+					}
+					break;
+
 				case EStoryEncounterActionKind::RecordProgress:
 					if (Action.ProgressKey.IsNone())
 					{
@@ -801,6 +810,8 @@ FString FStoryEncounterEditorModel::ActionKindToChinese(EStoryEncounterActionKin
 		return TEXT("弱提示");
 	case EStoryEncounterActionKind::Dialogue:
 		return TEXT("对话");
+	case EStoryEncounterActionKind::TutorialPopup:
+		return TEXT("教程弹窗");
 	case EStoryEncounterActionKind::RecordProgress:
 		return TEXT("记录进度");
 	case EStoryEncounterActionKind::UnlockFeature:
@@ -861,6 +872,11 @@ FString FStoryEncounterEditorModel::DescribeAction(FName EncounterId, const FSto
 			*KindText,
 			*Action.Title.ToString(),
 			*Action.Body.ToString());
+	case EStoryEncounterActionKind::TutorialPopup:
+		return FString::Printf(TEXT("%s：%s%s"),
+			*KindText,
+			*Action.TutorialEventId.ToString(),
+			Action.bPauseGame ? TEXT("（暂停）") : TEXT("（不暂停）"));
 	case EStoryEncounterActionKind::RecordProgress:
 		return FString::Printf(TEXT("%s：%s（隐藏Tag：%s）"),
 			*KindText,

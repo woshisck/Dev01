@@ -46,6 +46,7 @@ enum class EStoryEncounterActionKind : uint8
 	SetQuestObjective UMETA(DisplayName = "设置目标"),
 	TeleportToNode UMETA(DisplayName = "跳到节点"),
 	PlayLevelFlow UMETA(DisplayName = "播放流程"),
+	TutorialPopup UMETA(DisplayName = "教程弹窗"),
 };
 
 USTRUCT(BlueprintType)
@@ -82,6 +83,12 @@ struct DEVKIT_API FStoryEncounterAction
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作", meta = (MultiLine = true))
 	FText Body;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	FName TutorialEventId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	bool bPauseGame = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
 	FName ProgressKey;

@@ -103,4 +103,28 @@ bool FStoryEncounterConvertsWeakHintTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterConvertsTutorialPopupTest,
+	"DevKit.StoryEncounter.ConvertsTutorialPopupAction",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStoryEncounterConvertsTutorialPopupTest::RunTest(const FString& Parameters)
+{
+	FStoryEncounterAction EncounterAction;
+	EncounterAction.Kind = EStoryEncounterActionKind::TutorialPopup;
+	EncounterAction.TutorialEventId = TEXT("tutorial_weapon_pickup");
+	EncounterAction.bPauseGame = false;
+
+	FStoryAction StoryAction;
+	const bool bConverted = UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(
+		TEXT("EM_FirstRun_Tutorial"),
+		EncounterAction,
+		StoryAction);
+
+	TestTrue(TEXT("Action converts"), bConverted);
+	TestEqual(TEXT("Converts to ShowTutorialPopup"), StoryAction.Type, EStoryActionType::ShowTutorialPopup);
+	TestEqual(TEXT("Tutorial event id is retained"), StoryAction.TutorialEventId, FName(TEXT("tutorial_weapon_pickup")));
+	TestFalse(TEXT("Pause flag is retained"), StoryAction.bPauseGame);
+	return true;
+}
+
 #endif

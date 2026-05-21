@@ -145,6 +145,12 @@ bool UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(FName Encoun
 		OutStoryAction.HintDuration = 3.f;
 		return true;
 
+	case EStoryEncounterActionKind::TutorialPopup:
+		OutStoryAction.Type = EStoryActionType::ShowTutorialPopup;
+		OutStoryAction.TutorialEventId = EncounterAction.TutorialEventId;
+		OutStoryAction.bPauseGame = EncounterAction.bPauseGame;
+		return !OutStoryAction.TutorialEventId.IsNone();
+
 	case EStoryEncounterActionKind::RecordProgress:
 		OutStoryAction.Type = EStoryActionType::SetFlag;
 		OutStoryAction.FlagScope = EStoryFlagScope::Save;
