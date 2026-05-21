@@ -5,8 +5,6 @@
 #include "UI/BackpackStyleDataAsset.h"
 #include "UI/DamageEdgeFlashWidget.h"
 #include "Character/YogCharacterMovementComponent.h"
-#include "Camera/CameraComponent.h"
-#include "Camera/YogSpringArmComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Item/ItemInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -25,19 +23,16 @@
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
-#include "Component/PlayerActiveSkillComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/SkillChargeComponent.h"
-#include "Component/YogCameraOcclusionFadeComponent.h"
 #include "Data/SacrificeGraceDA.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "AbilitySystem/Abilities/YogTargetType_Melee.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "System/YogGameInstanceBase.h"
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Item/Weapon/WeaponAbilityData.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "GameFramework/PlayerController.h"
@@ -97,28 +92,9 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	//: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 	: Super(ObjectInitializer)
 {
-	CameraBoom = CreateDefaultSubobject<UYogSpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(GetCapsuleComponent());
-	CameraBoom->SetUsingAbsoluteRotation(true);
-	CameraBoom->TargetArmLength = DefaultCameraBoomLength;
-	CameraBoom->bUsePawnControlRotation = false;
-	CameraBoom->bInheritPitch = false;
-	CameraBoom->bInheritYaw = false;
-	CameraBoom->bInheritRoll = false;
-	CameraBoom->bfollowPlayer = true;
-	CameraBoom->bReverseLag = false;
-	CameraBoom->bStayOffset = false;
-
-	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
-	FollowCamera->FieldOfView = DefaultCameraFOV;
-
-	CameraOcclusionFadeComponent = CreateDefaultSubobject<UYogCameraOcclusionFadeComponent>(TEXT("CameraOcclusionFadeComponent"));
-
 	BackpackGridComponent = CreateDefaultSubobject<UBackpackGridComponent>(TEXT("BackpackGridComponent"));
 	CombatDeckComponent = CreateDefaultSubobject<UCombatDeckComponent>(TEXT("CombatDeckComponent"));
 	CombatItemComponent = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
-	ActiveSkillComponent = CreateDefaultSubobject<UPlayerActiveSkillComponent>(TEXT("ActiveSkillComponent"));
 	ComboRuntimeComponent = CreateDefaultSubobject<UComboRuntimeComponent>(TEXT("ComboRuntimeComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
@@ -243,66 +219,6 @@ void APlayerCharacterBase::EndReviveProtection()
 	}
 }
 
-void APlayerCharacterBase::ClearWeaponGrantedAbilities()
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (!ASC)
-	{
-		GrantedWeaponAbilityHandles.Reset();
-		return;
-	}
-
-	for (const FGameplayAbilitySpecHandle& AbilityHandle : GrantedWeaponAbilityHandles)
-	{
-		if (AbilityHandle.IsValid())
-		{
-			ASC->ClearAbility(AbilityHandle);
-		}
-	}
-	GrantedWeaponAbilityHandles.Reset();
-}
-
-void APlayerCharacterBase::GrantWeaponAbilities(UWeaponAbilityData* WeaponAbilityData)
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	ClearWeaponGrantedAbilities();
-
-	if (!WeaponAbilityData)
-	{
-		return;
-	}
-
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (!ASC)
-	{
-		return;
-	}
-
-	for (const TSubclassOf<UYogGameplayAbility>& AbilityClass : WeaponAbilityData->WeaponAbilities)
-	{
-		if (!AbilityClass)
-		{
-			continue;
-		}
-
-		FGameplayAbilitySpec AbilitySpec(AbilityClass, 0, INDEX_NONE, WeaponAbilityData);
-		const FGameplayAbilitySpecHandle AbilityHandle = ASC->GiveAbility(AbilitySpec);
-		if (AbilityHandle.IsValid())
-		{
-			GrantedWeaponAbilityHandles.Add(AbilityHandle);
-		}
-	}
-}
-
 void APlayerCharacterBase::RestoreRunStateFromGI()
 {
 	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
@@ -405,17 +321,6 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 	}
 
 	RestoreSacrificeOfferingCosts(State.SacrificeOfferingCosts);
-
-	if (ActiveSkillComponent && !State.SelectedSkillLoadout.IsEmpty())
-	{
-		TArray<UActiveSkillDataAsset*> RestoredSkills;
-		RestoredSkills.Reserve(State.SelectedSkillLoadout.Num());
-		for (UActiveSkillDataAsset* Skill : State.SelectedSkillLoadout)
-		{
-			RestoredSkills.Add(Skill);
-		}
-		ActiveSkillComponent->SetSkillLoadout(RestoredSkills);
-	}
 }
 
 void APlayerCharacterBase::GrantCraftedStarterRunesAsync()
@@ -647,22 +552,6 @@ void APlayerCharacterBase::RestoreSacrificeOfferingCosts(const TArray<FSacrifice
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-
-	if (CameraBoom)
-	{
-		CameraBoom->SetupAttachment(GetCapsuleComponent());
-		CameraBoom->SetUsingAbsoluteRotation(true);
-		CameraBoom->TargetArmLength = DefaultCameraBoomLength;
-		CameraBoom->bUsePawnControlRotation = false;
-		CameraBoom->bInheritPitch = false;
-		CameraBoom->bInheritYaw = false;
-		CameraBoom->bInheritRoll = false;
-	}
-
-	if (FollowCamera)
-	{
-		FollowCamera->FieldOfView = DefaultCameraFOV;
-	}
 
 	// 将 BackpackGridComponent 与 ASC 关联，使符文激活时可施加 GE
 	if (BackpackGridComponent && GetAbilitySystemComponent())

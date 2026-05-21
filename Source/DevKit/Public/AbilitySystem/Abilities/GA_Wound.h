@@ -54,8 +54,6 @@ private:
 
 	TWeakObjectPtr<UYogAbilitySystemComponent> InstigatorASC;
 
-	bool bIsApplyingWoundDamage = false;
-
 	UFUNCTION()
 	void OnDamageTaken(FGameplayEventData Payload);
 

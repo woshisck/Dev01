@@ -101,9 +101,4 @@ private:
 	FDelegateHandle CancelledHandle;
 	FDelegateHandle EventHandle;
 
-	/** Re-entry guard around OnEventReceived broadcast — prevents a listener
-	 *  (C++ GA, Blueprint event node, or plugin like ComboGraph) from causing
-	 *  infinite recursion when it broadcasts a gameplay event that matches
-	 *  this task's EventTags filter. */
-	bool bIsBroadcastingEvent = false;
 };

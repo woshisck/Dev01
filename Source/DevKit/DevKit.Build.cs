@@ -35,7 +35,6 @@ public class DevKit : ModuleRules
                 "GameplayTags",
                 "GameplayTasks",
                 "DataRegistry",
-                "DeveloperSettings",
                 "ReplicationGraph",
                 "GameFeatures",
                 "Hotfix",
@@ -48,7 +47,6 @@ public class DevKit : ModuleRules
                 "GameplayAbilities",
                 "Flow",
                 "GenericGraphRuntime",
-                "YogComboGraph",
 
             });
 
@@ -59,6 +57,7 @@ public class DevKit : ModuleRules
                 "Slate",
                 "SlateCore",
                 "RenderCore",
+                "DeveloperSettings",
                 "EnhancedInput",
                 "NetCore",
                 "RHI",

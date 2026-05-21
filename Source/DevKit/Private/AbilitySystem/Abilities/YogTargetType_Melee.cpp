@@ -158,16 +158,6 @@ FActionData UYogTargetType_MeleeBase::GetActionData(AYogCharacterBase* Targeting
 	return FActionData();
 }
 
-bool UYogTargetType_MeleeBase::ShouldDrawDebugHitbox(const FGameplayEventData& EventData) const
-{
-	if (const UAN_MeleeDamage* DmgNotify = Cast<UAN_MeleeDamage>(EventData.OptionalObject))
-	{
-		return DmgNotify->bDrawDebugHitbox;
-	}
-
-	return false;
-}
-
 bool UYogTargetType_MeleeBase::IsTargetHit(const FVector& CharLoc, float CharYaw, const FActionData& ActionData, const FVector& TargetLoc) const
 {
 	const float OuterRadius = ActionData.ActRange > 0.f ? ActionData.ActRange : 400.f;
@@ -354,10 +344,7 @@ void UYogTargetType_Enemy::GetTargets_Implementation(
 	}
 
 #if ENABLE_DRAW_DEBUG
-	if (ShouldDrawDebugHitbox(EventData))
-	{
-		DrawHitboxDebug(TargetingCharacter->GetWorld(), CharLoc, CharYaw, ActionData, FColor::Orange);
-	}
+	DrawHitboxDebug(TargetingCharacter->GetWorld(), CharLoc, CharYaw, ActionData, FColor::Orange);
 #endif
 }
 
@@ -399,9 +386,6 @@ void UYogTargetType_Player::GetTargets_Implementation(
 	}
 
 #if ENABLE_DRAW_DEBUG
-	if (ShouldDrawDebugHitbox(EventData))
-	{
-		DrawHitboxDebug(TargetingCharacter->GetWorld(), CharLoc, CharYaw, ActionData, FColor::Yellow);
-	}
+	DrawHitboxDebug(TargetingCharacter->GetWorld(), CharLoc, CharYaw, ActionData, FColor::Yellow);
 #endif
 }

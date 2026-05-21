@@ -1,9 +1,6 @@
 #include "Animation/HitStopManager.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
 
 void UHitStopManager::RequestMontageHitStop(UAnimInstance* InAnimInst,
 	float FrozenDuration, float SlowDuration, float SlowRate, float CatchUpRate)
@@ -13,8 +10,7 @@ void UHitStopManager::RequestMontageHitStop(UAnimInstance* InAnimInst,
 	// 冻结阶段优先：正在冻结时忽略新请求，防止暴击连击叠加产生卡顿
 	if (Phase == EPhase::Frozen) return;
 
-	if (!AnimInstances.Contains(InAnimInst))
-		AnimInstances.Add(InAnimInst);
+	AnimInst          = InAnimInst;
 	CachedFrozenDur   = FrozenDuration;
 	CachedSlowDur     = SlowDuration;
 	CachedSlowRate    = FMath::Clamp(SlowRate, 0.01f, 1.0f);
@@ -31,7 +27,6 @@ void UHitStopManager::RequestMontageHitStop(UAnimInstance* InAnimInst,
 		Phase              = EPhase::Frozen;
 		PhaseStartRealTime = FPlatformTime::Seconds();
 		PauseMontage();
-		FreezeCharacterMovement();
 	}
 	else
 	{
@@ -60,7 +55,6 @@ void UHitStopManager::Tick(float /*DeltaTime*/)
 void UHitStopManager::TransitionToSlow()
 {
 	ResumeMontage();
-	RestoreCharacterMovement();
 
 	if (CachedSlowDur > 0.f)
 	{
@@ -92,75 +86,28 @@ void UHitStopManager::EndHitStop()
 {
 	Phase = EPhase::None;
 	SetPlayRate(1.f);
-	RestoreCharacterMovement();
-	AnimInstances.Reset();
-}
-
-void UHitStopManager::FreezeCharacterMovement()
-{
-	for (TWeakObjectPtr<UAnimInstance>& Weak : AnimInstances)
-	{
-		if (UAnimInstance* AI = Weak.Get())
-		{
-			if (USkeletalMeshComponent* Mesh = AI->GetOwningComponent())
-			{
-				if (ACharacter* Char = Cast<ACharacter>(Mesh->GetOwner()))
-				{
-					if (UCharacterMovementComponent* CMC = Char->GetCharacterMovement())
-					{
-						CMC->DisableMovement();
-					}
-				}
-			}
-		}
-	}
-}
-
-void UHitStopManager::RestoreCharacterMovement()
-{
-	for (TWeakObjectPtr<UAnimInstance>& Weak : AnimInstances)
-	{
-		if (UAnimInstance* AI = Weak.Get())
-		{
-			if (USkeletalMeshComponent* Mesh = AI->GetOwningComponent())
-			{
-				if (ACharacter* Char = Cast<ACharacter>(Mesh->GetOwner()))
-				{
-					if (UCharacterMovementComponent* CMC = Char->GetCharacterMovement())
-					{
-						if (CMC->MovementMode == MOVE_None)
-						{
-							CMC->SetMovementMode(MOVE_Walking);
-						}
-					}
-				}
-			}
-		}
-	}
+	AnimInst.Reset();
 }
 
 void UHitStopManager::PauseMontage()
 {
-	for (TWeakObjectPtr<UAnimInstance>& Weak : AnimInstances)
-		if (UAnimInstance* AI = Weak.Get())
-			if (UAnimMontage* M = AI->GetCurrentActiveMontage())
-				AI->Montage_Pause(M);
+	if (UAnimInstance* AI = AnimInst.Get())
+		if (UAnimMontage* M = AI->GetCurrentActiveMontage())
+			AI->Montage_Pause(M);
 }
 
 void UHitStopManager::ResumeMontage()
 {
-	for (TWeakObjectPtr<UAnimInstance>& Weak : AnimInstances)
-		if (UAnimInstance* AI = Weak.Get())
-			if (UAnimMontage* M = AI->GetCurrentActiveMontage())
-				AI->Montage_Resume(M);
+	if (UAnimInstance* AI = AnimInst.Get())
+		if (UAnimMontage* M = AI->GetCurrentActiveMontage())
+			AI->Montage_Resume(M);
 }
 
 void UHitStopManager::SetPlayRate(float Rate)
 {
-	for (TWeakObjectPtr<UAnimInstance>& Weak : AnimInstances)
-		if (UAnimInstance* AI = Weak.Get())
-			if (UAnimMontage* M = AI->GetCurrentActiveMontage())
-				AI->Montage_SetPlayRate(M, Rate);
+	if (UAnimInstance* AI = AnimInst.Get())
+		if (UAnimMontage* M = AI->GetCurrentActiveMontage())
+			AI->Montage_SetPlayRate(M, Rate);
 }
 
 void UHitStopManager::Deinitialize()

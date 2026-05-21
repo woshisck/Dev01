@@ -4,13 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
-#include "Engine/EngineTypes.h"
 #include "GA_PlayMontage.generated.h"
 
-class UAN_MeleeDamage;
-class UAnimMontage;
-class UYogTask_PlayMontageAbility;
-
+/**
+ * 
+ */
 UCLASS()
 class DEVKIT_API UGA_PlayMontage : public UYogGameplayAbility
 {
@@ -20,46 +18,37 @@ public:
 	UGA_PlayMontage(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
-	UFUNCTION()
-	void OnMontageCompleted();
 
-	UFUNCTION()
-	void OnMontageBlendOut();
+    UFUNCTION()
+    void OnMontageCompleted();
 
-	UFUNCTION()
-	void OnMontageInterrupted();
+    UFUNCTION()
+    void OnMontageBlendOut();
 
-	UFUNCTION()
-	void OnMontageCancelled();
+    UFUNCTION()
+    void OnMontageInterrupted();
 
-	UFUNCTION()
-	void OnEventReceived(FGameplayTag EventTag, const FGameplayEventData& EventData);
+    UFUNCTION()
+    void OnMontageCancelled();
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	TSubclassOf<UYogGameplayEffect> DynamicEffectClass;
+    UFUNCTION()
+    void OnEventReceived(FGameplayTag EventTag, const FGameplayEventData& EventData);
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+    TSubclassOf<UYogGameplayEffect> DynamicEffectClass;
 
 	UPROPERTY()
 	TArray<FActiveGameplayEffectHandle> ActiveEffectHandles;
 
-	UPROPERTY()
-	TObjectPtr<UYogTask_PlayMontageAbility> ActivePlayMontageTask;
-
 private:
+	// CanCombo tag 变化时的回调，检查输入缓存并触发连击
 	void OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount);
-	void OnComboWindowOpen();
-	void OnComboWindowClose();
-	void ResetComboToRoot();
 
 	FDelegateHandle CanComboTagHandle;
+
+	// ActivateAbility 时记录的世界时间，OnCanComboTagChanged 只接受此时间之后的输入
 	float AbilityActivationTime = 0.0f;
-
-	UPROPERTY()
-	TObjectPtr<UAnimMontage> ActiveMontage;
-
-	FTimerHandle ComboWindowOpenHandle;
-	FTimerHandle ComboWindowCloseHandle;
-
-	bool bIsHandlingMeleeEvent = false;
 };

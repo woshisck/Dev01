@@ -11,3 +11,5 @@
 /.github/...
 **.sln
 **/.vs/**
+**/DevKit.exe
+**/DevKit.exp

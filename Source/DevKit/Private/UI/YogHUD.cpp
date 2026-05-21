@@ -2,7 +2,6 @@
 #include "UI/YogHUDRootWidget.h"
 #include "UI/CombatDeckBarWidget.h"
 #include "UI/CombatItemBarWidget.h"
-#include "UI/ActiveSkillBarWidget.h"
 #include "UI/CurrentRoomBuffWidget.h"
 #include "UI/FinisherQTEWidget.h"
 #include "UI/YogRunSummaryWidgetBase.h"
@@ -201,7 +200,6 @@ void AYogHUD::BeginPlay()
 	if (MainHUDWidget)
 	{
 		EnsureCombatItemWidget();
-		EnsureActiveSkillWidget();
 	}
 
 	EnsureFinisherQTEWidget();
@@ -214,7 +212,6 @@ void AYogHUD::BeginPlay()
 		BindHealthAttributes(Pawn);
 		BindCombatDeckWidget(Pawn);
 		BindCombatItemWidget(Pawn);
-		BindActiveSkillWidget(Pawn);
 		BindPlayerCommonInfoWidget(Pawn);
 	}
 	else if (APlayerController* PC = GetOwningPlayerController())
@@ -1247,35 +1244,6 @@ void AYogHUD::EnsureCombatItemWidget()
 	}
 }
 
-void AYogHUD::EnsureActiveSkillWidget()
-{
-	if (ActiveSkillBarWidget || !MainHUDWidget || !MainHUDWidget->BottomRightPlayerInfoRegion)
-	{
-		return;
-	}
-
-	APlayerController* PC = GetOwningPlayerController();
-	if (!PC)
-	{
-		return;
-	}
-
-	TSubclassOf<UActiveSkillBarWidget> WidgetClass =
-		ResolveManagedWidgetClass(EYogUIScreenId::ActiveSkillBar, TSubclassOf<UActiveSkillBarWidget>(UActiveSkillBarWidget::StaticClass()));
-	ActiveSkillBarWidget = CreateWidget<UActiveSkillBarWidget>(PC, WidgetClass);
-	if (!ActiveSkillBarWidget)
-	{
-		return;
-	}
-
-	if (UOverlaySlot* SkillSlot = MainHUDWidget->BottomRightPlayerInfoRegion->AddChildToOverlay(ActiveSkillBarWidget))
-	{
-		SkillSlot->SetHorizontalAlignment(HAlign_Right);
-		SkillSlot->SetVerticalAlignment(VAlign_Bottom);
-		SkillSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 92.0f));
-	}
-}
-
 bool AYogHUD::EnsureFinisherQTEWidget()
 {
 	if (FinisherQTEWidget)
@@ -1349,18 +1317,6 @@ void AYogHUD::BindCombatItemWidget(APawn* Pawn)
 	CombatItemBarWidget->BindToCombatItemComponent(Player ? Player->CombatItemComponent : nullptr);
 }
 
-void AYogHUD::BindActiveSkillWidget(APawn* Pawn)
-{
-	EnsureActiveSkillWidget();
-	if (!ActiveSkillBarWidget)
-	{
-		return;
-	}
-
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Pawn);
-	ActiveSkillBarWidget->BindToActiveSkillComponent(Player ? Player->ActiveSkillComponent : nullptr);
-}
-
 void AYogHUD::BindPlayerCommonInfoWidget(APawn* Pawn)
 {
 	if (!MainHUDWidget || !MainHUDWidget->PlayerCommonInfoHud)
@@ -1382,7 +1338,6 @@ void AYogHUD::OnPawnPossessed(APawn* OldPawn, APawn* NewPawn)
 		BindHealthAttributes(NewPawn);
 		BindCombatDeckWidget(NewPawn);
 		BindCombatItemWidget(NewPawn);
-		BindActiveSkillWidget(NewPawn);
 	}
 }
 

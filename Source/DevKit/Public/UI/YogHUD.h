@@ -33,7 +33,6 @@ class ARewardPickup;
 class APlayerCharacterBase;
 class UBackpackGridComponent;
 class UCombatItemBarWidget;
-class UActiveSkillBarWidget;
 class UCurrentRoomBuffWidget;
 class UFinisherQTEWidget;
 class UYogRunSummaryWidgetBase;
@@ -371,10 +370,8 @@ private:
 	void BindHealthAttributes(APawn* Pawn);
 	void BindCombatDeckWidget(APawn* Pawn);
 	void BindCombatItemWidget(APawn* Pawn);
-	void BindActiveSkillWidget(APawn* Pawn);
 	void BindPlayerCommonInfoWidget(APawn* Pawn);
 	void EnsureCombatItemWidget();
-	void EnsureActiveSkillWidget();
 	bool EnsureFinisherQTEWidget();
 	bool EnsureWeaponFloatWidget();
 	void EnsureBackpackWidget();
@@ -418,9 +415,6 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UCombatItemBarWidget> CombatItemBarWidget;
-
-	UPROPERTY()
-	TObjectPtr<UActiveSkillBarWidget> ActiveSkillBarWidget;
 
 	UPROPERTY()
 	TObjectPtr<UFinisherQTEWidget> FinisherQTEWidget;

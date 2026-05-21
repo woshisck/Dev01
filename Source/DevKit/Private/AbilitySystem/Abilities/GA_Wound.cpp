@@ -3,26 +3,15 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 
-// =====================================================================
-// GA_Wound is currently DISABLED — being replaced by a pure GameplayEffect
-// approach (tag check inside DamageExecution + GE-driven extra damage).
-// Class shell is kept so Blueprints / GE_Wound_Marker.GrantedAbilities
-// references still load. All trigger registration + behavior bodies are
-// wrapped in `#if 0 ... #endif` and can be revived if the GE-only design
-// turns out to be insufficient.
-// =====================================================================
-
 UGA_Wound::UGA_Wound(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-#if 0 // GA_Wound disabled — trigger registration suppressed
 	FAbilityTriggerData TriggerData;
 	TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Buff.Event.Wound"));
 	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
 	AbilityTriggers.Add(TriggerData);
-#endif
 }
 
 void UGA_Wound::ActivateAbility(
@@ -33,12 +22,6 @@ void UGA_Wound::ActivateAbility(
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	// GA_Wound disabled — immediately end if it somehow gets activated
-	// (e.g., a stale BP still has the trigger configured at the BP level).
-	EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-	return;
-
-#if 0 // Original behavior — replaced by pure GE approach
 	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
 	if (!ASC)
 	{
@@ -71,13 +54,10 @@ void UGA_Wound::ActivateAbility(
 		this, DamagedTag, nullptr, false, true);
 	WaitTask->EventReceived.AddDynamic(this, &UGA_Wound::OnDamageTaken);
 	WaitTask->ReadyForActivation();
-#endif
 }
 
 void UGA_Wound::OnDamageTaken(FGameplayEventData Payload)
 {
-#if 0 // GA_Wound disabled — wound damage is now expected to come from a GE path
-	if (bIsApplyingWoundDamage) return;
 	if (!WoundDamageEffect || ExtraDamage <= 0.f) return;
 
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
@@ -94,24 +74,20 @@ void UGA_Wound::OnDamageTaken(FGameplayEventData Payload)
 		Spec.Data->SetSetByCallerMagnitude(DataDamageTag, ExtraDamage);
 	}
 
-	TGuardValue<bool> ReentrancyGuard(bIsApplyingWoundDamage, true);
 	ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
 
 	if (InstigatorASC.IsValid())
 	{
 		InstigatorASC->LogDamageDealt(GetAvatarActorFromActorInfo(), ExtraDamage, FName("Wound"));
 	}
-#endif
 }
 
 void UGA_Wound::OnWoundedTagChanged(const FGameplayTag Tag, int32 NewCount)
 {
-#if 0 // GA_Wound disabled — no tag listener was registered
 	if (NewCount <= 0)
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 	}
-#endif
 }
 
 void UGA_Wound::EndAbility(
@@ -121,13 +97,11 @@ void UGA_Wound::EndAbility(
 	bool bReplicateEndAbility,
 	bool bWasCancelled)
 {
-#if 0 // GA_Wound disabled — no tag listener was registered, nothing to clean up
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
 		const FGameplayTag WoundedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Wounded"));
 		ActorInfo->AbilitySystemComponent->RegisterGameplayTagEvent(
 			WoundedTag, EGameplayTagEventType::NewOrRemoved).Remove(TagChangeDelegateHandle);
 	}
-#endif
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

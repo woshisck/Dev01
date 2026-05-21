@@ -87,21 +87,11 @@ void UYogTask_PlayMontageAbility::OnMontageEnded(UAnimMontage* Montage, bool bIn
 
 void UYogTask_PlayMontageAbility::OnGameplayEvent(FGameplayTag EventTag, const FGameplayEventData* Payload)
 {
-	// Universal re-entry guard: any listener (C++, BP, plugin) that calls
-	// SendGameplayEvent inside its handler would otherwise loop back here.
-	// This makes the multicast non-reentrant regardless of who's bound.
-	if (bIsBroadcastingEvent)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[YogTask_PlayMontageAbility] Suppressed recursive OnGameplayEvent for tag %s"), *EventTag.ToString());
-		return;
-	}
-
 	if (ShouldBroadcastAbilityTaskDelegates())
 	{
 		FGameplayEventData TempData = *Payload;
 		TempData.EventTag = EventTag;
 
-		TGuardValue<bool> ReentrancyGuard(bIsBroadcastingEvent, true);
 		OnEventReceived.Broadcast(EventTag, TempData);
 	}
 }

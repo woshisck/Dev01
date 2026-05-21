@@ -3,21 +3,13 @@
 #include "Volume/YogCameraVolume.h"
 #include "Components/BrushComponent.h"
 #include "Camera/YogPlayerCameraManager.h"
-#include "Camera/YogSpringArmComponent.h"
 #include "Character/PlayerCharacterBase.h"
-#include "DrawDebugHelpers.h"
-#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 
 AYogCameraVolume::AYogCameraVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	PrimaryActorTick.bCanEverTick = true;
-	PrimaryActorTick.bStartWithTickEnabled = true;
-
 	GetBrushComponent()->SetHiddenInGame(false);
-	GetBrushComponent()->SetCollisionProfileName(TEXT("Trigger"));
-	GetBrushComponent()->SetGenerateOverlapEvents(true);
 }
 
 void AYogCameraVolume::BeginPlay()
@@ -28,72 +20,24 @@ void AYogCameraVolume::BeginPlay()
 	OnActorEndOverlap.AddDynamic(this, &AYogCameraVolume::OnOverlapEnd);
 }
 
-void AYogCameraVolume::Tick(float DeltaSeconds)
-{
-	Super::Tick(DeltaSeconds);
-
-#if !UE_BUILD_SHIPPING
-	if (!bShowDebugInGame)
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World || !World->IsGameWorld())
-	{
-		return;
-	}
-
-	const FBox Bounds = GetComponentsBoundingBox(true);
-	if (!Bounds.IsValid)
-	{
-		return;
-	}
-
-	DrawDebugBox(
-		World,
-		Bounds.GetCenter(),
-		Bounds.GetExtent(),
-		DebugColor,
-		false,
-		-1.f,
-		0,
-		DebugLineThickness);
-#endif
-}
-
 void AYogCameraVolume::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 {
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
-	if (!Player) return;
+	if (!Cast<APlayerCharacterBase>(OtherActor)) return;
 
-	APlayerController* PlayerController = Player->GetController<APlayerController>();
-	if (AYogPlayerCameraManager* CM = PlayerController ? Cast<AYogPlayerCameraManager>(PlayerController->PlayerCameraManager) : nullptr)
+	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(
+		UGameplayStatics::GetPlayerCameraManager(this, 0)))
 	{
 		CM->SetConstraintVolume(this);
-	}
-
-	if (UYogSpringArmComponent* CameraBoom = Player->GetCameraBoom())
-	{
-		CameraBoom->SetFollowPlayer(false);
-		CameraBoom->TargetArmLength = ExtendedArmLength;
 	}
 }
 
 void AYogCameraVolume::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 {
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
-	if (!Player) return;
+	if (!Cast<APlayerCharacterBase>(OtherActor)) return;
 
-	APlayerController* PlayerController = Player->GetController<APlayerController>();
-	if (AYogPlayerCameraManager* CM = PlayerController ? Cast<AYogPlayerCameraManager>(PlayerController->PlayerCameraManager) : nullptr)
+	if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(
+		UGameplayStatics::GetPlayerCameraManager(this, 0)))
 	{
 		CM->SetConstraintVolume(nullptr);
-	}
-
-	if (UYogSpringArmComponent* CameraBoom = Player->GetCameraBoom())
-	{
-		CameraBoom->SetFollowPlayer(true);
-		CameraBoom->TargetArmLength = Player->DefaultCameraBoomLength;
 	}
 }

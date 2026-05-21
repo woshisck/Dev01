@@ -10,26 +10,6 @@ void UYogSpringArmComponent::BeginPlay()
 	Super::BeginPlay();
 }
 
-void UYogSpringArmComponent::SetFollowPlayer(bool bInFollowPlayer)
-{
-	const uint8 NewFollow = bInFollowPlayer ? 1 : 0;
-	if (bfollowPlayer == NewFollow)
-	{
-		return;
-	}
-
-	bfollowPlayer = NewFollow;
-	if (bfollowPlayer)
-	{
-		bHasFrozenArmOrigin = false;
-	}
-	else
-	{
-		FrozenArmOrigin = GetComponentLocation() + TargetOffset;
-		bHasFrozenArmOrigin = true;
-	}
-}
-
 
 //UpdateDesiredArmLocation(bDoCollisionTest, , , );
 void UYogSpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace /*bDoCollisionTest*/, bool bDoLocationLag /*bEnableCameraLag*/, bool bDoRotationLag /*bEnableCameraRotationLag*/, float DeltaTime /*DeltaTime*/)
@@ -73,23 +53,11 @@ void UYogSpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace /*bDoCollisi
 		OwnerDirect = MovementComp->GetLastUpdateVelocity().GetSafeNormal2D();
 	}
 
-	if (!bfollowPlayer)
-	{
-		if (!bHasFrozenArmOrigin)
-		{
-			FrozenArmOrigin = GetComponentLocation() + TargetOffset;
-			bHasFrozenArmOrigin = true;
-		}
-	}
-	else
-	{
-		bHasFrozenArmOrigin = false;
-	}
 
 
 
 	// Get the spring arm 'origin', the target we want to look at
-	FVector ArmOrigin = bfollowPlayer ? GetComponentLocation() + TargetOffset : FrozenArmOrigin;
+	FVector ArmOrigin = GetComponentLocation() + TargetOffset;
 	// We lag the target, not the actual camera position, so rotating the camera around does not have lag
 	//FVector DesiredLoc = ArmOrigin;
 	FVector DesiredLoc = ArmOrigin;

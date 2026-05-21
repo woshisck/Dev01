@@ -194,22 +194,9 @@ void UYogGameInstanceBase::OpenMapAndLoadSave(const TSoftObjectPtr<UWorld> Level
 
 void UYogGameInstanceBase::OnPostLoadMap(UWorld* World)
 {
-	UE_LOG(LogTemp, Log, TEXT("[Frontend] OnPostLoadMap: World=%s FrontendLoading=%d FrontendWidget=%d"),
-		World ? *World->GetName() : TEXT("None"),
-		bFrontendLoadingGameplayMap ? 1 : 0,
-		FrontendWidget.IsValid() ? 1 : 0);
-
-	if (FrontendWidget.IsValid())
-	{
-		RemoveFrontendWidget();
-	}
-
 	if (bFrontendLoadingGameplayMap)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Frontend] PostLoadMap received for %s; clearing frontend loading screen."),
-			World ? *World->GetName() : TEXT("None"));
 		bFrontendMapLoaded = true;
-		bFrontendMinLoadTimeElapsed = true;
 		FinishFrontendLoadingIfReady();
 	}
 

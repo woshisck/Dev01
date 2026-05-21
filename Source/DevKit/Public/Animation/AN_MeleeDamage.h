@@ -12,31 +12,6 @@ class URuneDataAsset;
 class UMontageAttackDataAsset;
 
 UENUM(BlueprintType)
-enum class EMeleeDamageHitDilationScope : uint8
-{
-	None    UMETA(DisplayName = "None"),
-	Global  UMETA(DisplayName = "Global"),
-	Self    UMETA(DisplayName = "Self"),
-};
-
-USTRUCT(BlueprintType)
-struct DEVKIT_API FMeleeDamageHitDilationSettings
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitDilation")
-	EMeleeDamageHitDilationScope Scope = EMeleeDamageHitDilationScope::None;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitDilation",
-		meta = (EditCondition = "Scope != EMeleeDamageHitDilationScope::None", ClampMin = "0.01", ClampMax = "1.0"))
-	float DilationFactor = 0.15f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitDilation",
-		meta = (EditCondition = "Scope != EMeleeDamageHitDilationScope::None", ClampMin = "0.0"))
-	float DurationSeconds = 0.08f;
-};
-
-UENUM(BlueprintType)
 enum class EHitStopMode : uint8
 {
 	None    UMETA(DisplayName = "None"),
@@ -100,16 +75,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitBox")
 	TArray<FYogHitboxType> HitboxTypes;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug", meta = (DisplayName = "Draw Debug Hitbox"))
-	bool bDrawDebugHitbox = false;
-
 	// ── 攻击停顿 ─────────────────────────────────────────────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop")
 	EHitStopMode HitStopMode = EHitStopMode::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
-		meta = (EditCondition = "HitStopMode == EHitStopMode::Freeze", EditConditionHides, ClampMin = 0.0f))
+		meta = (EditCondition = "HitStopMode == EHitStopMode::Freeze", EditConditionHides, ClampMin = 0.0f, ClampMax = 0.3f))
 	float HitStopFrozenDuration = 0.06f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop",
@@ -126,9 +98,8 @@ public:
 
 	// ── 命中事件 ─────────────────────────────────────────────────────
 
-	// Temporarily hidden: use HitStop freeze/slow for melee impact feedback instead.
-	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitDilation")
-	// FMeleeDamageHitDilationSettings HitSuccessDilation;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Events")
+	TArray<FGameplayTag> OnHitEventTags;
 
 	// ── 附加效果 ───────────────────────────────────────────────────────────
 
@@ -144,6 +115,4 @@ public:
 
 	/** 将本 Notify 的攻击参数打包成 FActionData，供 TargetType 命中框检测使用。*/
 	FActionData BuildActionData() const;
-
-	void ApplyHitSuccessDilation(AActor* SourceActor) const;
 };

@@ -27,7 +27,7 @@
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInfoDA.h"
 #include "GameModes/YogGameMode.h"
-#include "Story/StoryEngineSubsystem.h"
+#include "Tutorial/TutorialManager.h"
 #include "TimerManager.h"
 #include "SaveGame/YogSaveSubsystem.h"
 
@@ -37,16 +37,16 @@
 
 namespace
 {
-    FString ComboInputActionToMoveToken(EYogComboGraphInputAction Action)
+    FString ComboInputActionToMoveToken(ECombatGraphInputAction Action)
     {
         switch (Action)
         {
-        case EYogComboGraphInputAction::Light:
+        case ECombatGraphInputAction::Light:
             return TEXT("L");
-        case EYogComboGraphInputAction::Heavy:
+        case ECombatGraphInputAction::Heavy:
             return TEXT("H");
-        case EYogComboGraphInputAction::Dash:
-        case EYogComboGraphInputAction::Any:
+        case ECombatGraphInputAction::Dash:
+        case ECombatGraphInputAction::Any:
         default:
             return FString();
         }
@@ -962,17 +962,9 @@ void UBackpackScreenWidget::NativeOnActivated()
 
     // Tutorial ③：第一次打开背包时弹窗（state guard 内部去重）
     if (APlayerController* PC = GetOwningPlayer())
-    {
         if (UGameInstance* GI = GetGameInstance())
-        {
-            if (UStoryEngineSubsystem* StoryEngine = GI->GetSubsystem<UStoryEngineSubsystem>())
-            {
-                StoryEngine->BroadcastStoryEvent(
-                    FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.FirstBackpackOpened"), false),
-                    PC);
-            }
-        }
-    }
+            if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
+                TM->TryBackpackTutorial(PC);
 
     if (UWorld* World = GetWorld())
     {

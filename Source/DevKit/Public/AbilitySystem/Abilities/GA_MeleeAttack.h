@@ -12,7 +12,6 @@
 class UMontageConfigDA;
 class UMontageAttackDataAsset;
 class UAbilityTask_ApplyRootMotionMoveToForce;
-class AYogCharacterBase;
 
 /**
  * 閫氱敤杩戞垬鏀诲嚮 GA锛堟晫浜?+ 鐜╁鍧囧彲浣跨敤锛夈€?
@@ -90,13 +89,6 @@ protected:
 	void SetNextActivationFromDashSave(bool bFromDashSave);
 
 private:
-	struct FMeleeHitAttrSnapshot
-	{
-		bool  bValid              = false;
-		float PreCardAttack       = 0.f;
-		float PreCardAttackPower  = 0.f;
-	};
-
 	/** GE_StatBeforeATK 鐨勬縺娲诲彞鏌勶紝EndAbility 鏃惰嚜鍔ㄧЩ闄?*/
 	FActiveGameplayEffectHandle StatBeforeATKHandle;
 
@@ -154,8 +146,6 @@ private:
 	int32 ActiveComboIndex = 0;
 	FGameplayTagContainer ActiveComboTags;
 
-	bool bIsHandlingMeleeEvent = false;
-
 	/** Finds the first AN_MeleeDamage notify on the selected montage. */
 	static UAN_MeleeDamage* GetFirstDamageNotify(UAnimMontage* Montage);
 
@@ -187,10 +177,4 @@ private:
 
 	UFUNCTION()
 	void OnEventReceived(FGameplayTag EventTag, FGameplayEventData EventData);
-
-	FMeleeHitAttrSnapshot NormalizeAttrsPreCard(UAbilitySystemComponent* ASC);
-	void NormalizeAttrsPostCard(UAbilitySystemComponent* ASC, const FMeleeHitAttrSnapshot& Snapshot);
-	void ApplyHitStop(AYogCharacterBase* Owner, const TArray<AActor*>& HitActors);
-	void ApplyHitReactions(AYogCharacterBase* Owner, const FYogGameplayEffectContainerSpec& ContainerSpec);
-	void RestoreAttrsPostCard(UAbilitySystemComponent* ASC, const FCombatCardResolveResult& CardResult, const FMeleeHitAttrSnapshot& Snapshot);
 };

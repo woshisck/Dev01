@@ -17,9 +17,6 @@ class DEVKIT_API UYogSpringArmComponent : public USpringArmComponent
 public:
 	virtual void BeginPlay();
 
-	UFUNCTION(BlueprintCallable, Category = "Lag")
-	void SetFollowPlayer(bool bInFollowPlayer);
-
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Lag)
 	uint32 bReverseLag : 1;
@@ -32,10 +29,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Lag)
 	uint32 bfollowPlayer : 1;
-
-private:
-	FVector FrozenArmOrigin = FVector::ZeroVector;
-	bool    bHasFrozenArmOrigin = false;
 
 	virtual void UpdateDesiredArmLocation(bool bDoTrace, bool bDoLocationLag, bool bDoRotationLag, float DeltaTime) override;
 };

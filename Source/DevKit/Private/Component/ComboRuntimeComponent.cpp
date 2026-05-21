@@ -1,44 +1,42 @@
 #include "Component/ComboRuntimeComponent.h"
 
 #include "AbilitySystemComponent.h"
-#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
-#include "AbilitySystem/Abilities/GA_PlayMontage.h"
-#include "AbilitySystem/Abilities/GA_RangeAttack.h"
-#include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageConfigDA.h"
+#include "Item/Weapon/WeaponDefinition.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 
 namespace
 {
-	ECardRequiredAction ToCardAction(ECombatGraphInputAction InputAction)
-	{
-		switch (InputAction)
-		{
-		case ECombatGraphInputAction::Light:
-			return ECardRequiredAction::Light;
-		case ECombatGraphInputAction::Heavy:
-			return ECardRequiredAction::Heavy;
-		case ECombatGraphInputAction::Dash:
-		case ECombatGraphInputAction::Any:
-		default:
-			return ECardRequiredAction::Any;
-		}
-	}
-
-	EYogComboGraphInputAction CardActionToComboGraphInput(ECardRequiredAction InputAction)
+	ECombatGraphInputAction ToGraphInputAction(ECardRequiredAction InputAction)
 	{
 		switch (InputAction)
 		{
 		case ECardRequiredAction::Light:
-			return EYogComboGraphInputAction::Light;
+			return ECombatGraphInputAction::Light;
 		case ECardRequiredAction::Heavy:
-			return EYogComboGraphInputAction::Heavy;
+			return ECombatGraphInputAction::Heavy;
 		case ECardRequiredAction::Any:
 		default:
-			return EYogComboGraphInputAction::Any;
+			return ECombatGraphInputAction::Any;
 		}
+	}
+
+	FString GetGraphInputName(ECombatGraphInputAction InputAction)
+	{
+		return StaticEnum<ECombatGraphInputAction>()
+			? StaticEnum<ECombatGraphInputAction>()->GetNameStringByValue(static_cast<int64>(InputAction))
+			: FString(TEXT("Input"));
+	}
+
+	bool IsLegacyComboProgressTag(const FGameplayTag& Tag)
+	{
+		const FString TagName = Tag.ToString();
+		return TagName.StartsWith(TEXT("PlayerState.AbilityCast.LightAtk.Combo"))
+			|| TagName.StartsWith(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo"));
 	}
 
 	void AddLegacyComboProgressTags(FGameplayTagContainer& OutTags)
@@ -103,7 +101,8 @@ UComboRuntimeComponent::UComboRuntimeComponent()
 void UComboRuntimeComponent::LoadComboConfig(UWeaponComboConfigDA* InComboConfig)
 {
 	ComboConfig = InComboConfig;
-	Super::LoadComboGraph(nullptr);
+	ComboGraph = nullptr;
+	ResetCombo();
 
 	if (!ComboConfig)
 	{
@@ -120,27 +119,37 @@ void UComboRuntimeComponent::LoadComboConfig(UWeaponComboConfigDA* InComboConfig
 
 void UComboRuntimeComponent::LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph)
 {
+	ComboGraph = InComboGraph;
 	ComboConfig = nullptr;
-	Super::LoadComboGraph(InComboGraph);
+	ResetCombo();
+
+	if (!ComboGraph)
+	{
+		return;
+	}
+
+	TArray<FText> Warnings;
+	ComboGraph->ValidateComboGraph(Warnings);
+	for (const FText& Warning : Warnings)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GameplayAbilityComboGraph] %s: %s"), *GetNameSafe(ComboGraph), *Warning.ToString());
+	}
 }
 
 bool UComboRuntimeComponent::HasDashInputNode() const
 {
-	return GetComboGraph() && GetComboGraph()->FindRootComboNode(EYogComboGraphInputAction::Dash) != nullptr;
+	return ComboGraph && ComboGraph->FindRootComboNode(ECombatGraphInputAction::Dash) != nullptr;
 }
 
 bool UComboRuntimeComponent::TryActivateDash(APlayerCharacterBase* PlayerOwner)
 {
-	if (!GetComboGraph())
+	if (!ComboGraph || !PlayerOwner)
 	{
 		return false;
 	}
-	return TryActivateCombo(ECombatGraphInputAction::Dash, PlayerOwner);
-}
 
-bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner)
-{
-	if ((!ComboConfig && !HasComboGraph()) || !PlayerOwner)
+	const UGameplayAbilityComboGraphNode* DashGraphNode = ComboGraph->FindRootComboNode(ECombatGraphInputAction::Dash);
+	if (!DashGraphNode)
 	{
 		return false;
 	}
@@ -151,42 +160,115 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 		return false;
 	}
 
-	const bool bUseDashSavedNode = HasSavedDashNode();
-	const FName StartNodeId = GetComboStartNodeId();
+	FWeaponComboNodeConfig DashNode = DashGraphNode->BuildRuntimeConfig(ECombatGraphInputAction::Dash);
+	if (!DashNode.AbilityTag.IsValid())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[ComboRuntime] Dash graph node=%s has no ability tag."),
+			*DashNode.NodeId.ToString());
+		return false;
+	}
+
+	const FName PreviousSavedDashNodeId = SavedDashNodeId;
+	const bool bSavedComboNode = SaveCurrentNodeForDash(DashNode.DashSaveMode, DashNode.DashSaveExpireSeconds);
+	if (bSavedComboNode && DashNode.bSavePendingLinkContext && PlayerOwner->CombatDeckComponent)
+	{
+		PlayerOwner->CombatDeckComponent->SavePendingLinkContextForDash();
+	}
+
+	FGameplayTagContainer AbilityTags;
+	AbilityTags.AddTag(DashNode.AbilityTag);
+	const bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags, true);
+	if (!bActivated)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().ClearTimer(DashSaveExpireTimerHandle);
+		}
+		SavedDashNodeId = PreviousSavedDashNodeId;
+		if (PlayerOwner->CombatDeckComponent)
+		{
+			PlayerOwner->CombatDeckComponent->ClearDashSavedLinkContext();
+		}
+
+		FGameplayTagContainer OwnedTags;
+		ASC->GetOwnedGameplayTags(OwnedTags);
+		UE_LOG(LogTemp, Warning,
+			TEXT("[ComboRuntime] Failed to activate dash node=%s ability=%s savedCombo=%d owned=%s"),
+			*DashNode.NodeId.ToString(),
+			*DashNode.AbilityTag.ToString(),
+			bSavedComboNode ? 1 : 0,
+			*OwnedTags.ToStringSimple());
+		return false;
+	}
+
+	ActiveDashNode = DashNode;
+	bActiveDashNodeValid = true;
+	return true;
+}
+
+bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner)
+{
+	return TryActivateCombo(ToGraphInputAction(InputAction), PlayerOwner);
+}
+
+bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputAction, APlayerCharacterBase* PlayerOwner)
+{
+	if ((!ComboConfig && !ComboGraph) || !PlayerOwner)
+	{
+		return false;
+	}
+
+	UAbilitySystemComponent* ASC = PlayerOwner->GetAbilitySystemComponent();
+	if (!ASC)
+	{
+		return false;
+	}
+
+	if (InputAction == ECombatGraphInputAction::Dash)
+	{
+		return TryActivateDash(PlayerOwner);
+	}
+
+	const bool bUseDashSavedNode = !SavedDashNodeId.IsNone();
+	const FName StartNodeId = bUseDashSavedNode ? SavedDashNodeId : CurrentNodeId;
+	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
 	const bool bHasActiveAttackNode = !bUseDashSavedNode
 		&& !StartNodeId.IsNone()
-		&& (GetActiveAttackGuid().IsValid() || ActiveAbilitySpecHandle.IsValid());
+		&& (ActiveAttackGuid.IsValid() || ActiveAbilitySpecHandle.IsValid());
 
-	FWeaponComboNodeConfig NextNodeConfig;
+	FWeaponComboNodeConfig GraphNodeConfig;
 	const FWeaponComboNodeConfig* NextNode = nullptr;
 	bool bFoundChildNode = false;
 	bool bBlockedRootFallbackDuringActiveNode = false;
 
-	if (GetComboGraph())
+	if (ComboGraph)
 	{
-		FGameplayTagContainer OwnedTags;
-		ASC->GetOwnedGameplayTags(OwnedTags);
-
-		FYogComboGraphNodeSelection Selection;
-		const EYogComboGraphInputAction GraphInput = CardActionToComboGraphInput(InputAction);
-		if (FindNextComboGraphNode(GraphInput, &OwnedTags, Selection))
+		const UGameplayAbilityComboGraphNode* NextGraphNode = ComboGraph->FindChildComboNode(StartNodeId, InputAction);
+		bFoundChildNode = NextGraphNode != nullptr;
+		if (!NextGraphNode)
 		{
-			if (bHasActiveAttackNode && !Selection.bFoundChildNode && !Selection.bFromDashSave)
+			if (bHasActiveAttackNode)
 			{
 				bBlockedRootFallbackDuringActiveNode = true;
 			}
 			else
 			{
-				NextNodeConfig = FWeaponComboNodeConfig::FromComboGraphNode(Selection.Node, InputAction);
-				NextNode = &NextNodeConfig;
-				bFoundChildNode = Selection.bFoundChildNode;
-				PrepareComboGraphNodeActivation(Selection);
+				NextGraphNode = ComboGraph->FindRootComboNode(InputAction);
 			}
+		}
+		if (NextGraphNode)
+		{
+			GraphNodeConfig = NextGraphNode->BuildRuntimeConfig(InputAction);
+			NextNode = &GraphNodeConfig;
 		}
 	}
 	else if (ComboConfig)
 	{
-		NextNode = ComboConfig->FindChildNode(StartNodeId, InputAction);
+		const ECardRequiredAction CardInputAction = InputAction == ECombatGraphInputAction::Heavy
+			? ECardRequiredAction::Heavy
+			: ECardRequiredAction::Light;
+		NextNode = ComboConfig->FindChildNode(StartNodeId, CardInputAction);
 		bFoundChildNode = NextNode != nullptr;
 		if (!NextNode)
 		{
@@ -196,12 +278,8 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 			}
 			else
 			{
-				NextNode = ComboConfig->FindRootNode(InputAction);
+				NextNode = ComboConfig->FindRootNode(CardInputAction);
 			}
-		}
-		if (NextNode)
-		{
-			PrepareComboNodeActivation(NextNode->NodeId, bFoundChildNode, bUseDashSavedNode);
 		}
 	}
 
@@ -209,86 +287,232 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	{
 		UE_LOG(LogTemp, Verbose,
 			TEXT("[ComboRuntime] Ignore input without child while active node is playing input=%s current=%s"),
-			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
+			*GetGraphInputName(InputAction),
 			*StartNodeId.ToString());
 		return false;
 	}
 
-	if (!NextNode || (!NextNode->Montage && !NextNode->MontageConfig))
+	if (!NextNode || !NextNode->AbilityTag.IsValid())
 	{
 		UE_LOG(LogTemp, Warning,
 			TEXT("[ComboRuntime] No combo node for input=%s current=%s graph=%s config=%s"),
-			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
-			*GetCurrentNodeId().ToString(),
-			*GetNameSafe(GetComboGraph()),
+			*GetGraphInputName(InputAction),
+			*CurrentNodeId.ToString(),
+			*GetNameSafe(ComboGraph),
 			*GetNameSafe(ComboConfig));
-		if (!GetCurrentNodeId().IsNone() && PlayerOwner->CombatDeckComponent)
+		if (!CurrentNodeId.IsNone() && PlayerOwner->CombatDeckComponent)
 		{
 			PlayerOwner->CombatDeckComponent->NotifyComboStateExited();
 		}
-		ActiveNode = FWeaponComboNodeConfig();
-		MarkComboActivationMiss();
+		bComboContinued = false;
+		bExitedComboState = !CurrentNodeId.IsNone();
+		CurrentNodeId = NAME_None;
+		ComboIndex = 0;
+		ComboTags.Reset();
+		ClearRuntimeCombatLooseTags();
 		return false;
 	}
 
 	if (bFoundChildNode && !bUseDashSavedNode)
 	{
-		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
 		if (CanComboTag.IsValid() && ASC->GetTagCount(CanComboTag) <= 0)
 		{
 			UE_LOG(LogTemp, Verbose,
 				TEXT("[ComboRuntime] Queue child activation until CanCombo opens input=%s current=%s next=%s"),
-				*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
-				*GetCurrentNodeId().ToString(),
+				*GetGraphInputName(InputAction),
+				*CurrentNodeId.ToString(),
 				*NextNode->NodeId.ToString());
-			ClearPreparedComboActivation();
 			return false;
 		}
 	}
 
-	ActiveNode = *NextNode;
+	const FWeaponComboNodeConfig PreviousActiveNode = ActiveNode;
+	const FGuid PreviousAttackGuid = ActiveAttackGuid;
+	const FGameplayAbilitySpecHandle PreviousAbilitySpecHandle = ActiveAbilitySpecHandle;
+	const bool bPreviousActiveNodeValid = bActiveNodeValid;
+	const bool bPreviousActivationFromDashSave = bActivationFromDashSave;
+	const bool bPreviousComboContinued = bComboContinued;
+	const bool bPreviousExitedComboState = bExitedComboState;
+	const FName PreviousCurrentNodeId = CurrentNodeId;
+	const FName PreviousSavedDashNodeId = SavedDashNodeId;
+	const int32 PreviousComboIndex = ComboIndex;
+	const FGameplayTagContainer PreviousComboTags = ComboTags;
 
-	if (DidExitComboState())
+	const int32 NextComboIndex = bFoundChildNode || bUseDashSavedNode
+		? FMath::Max(1, ComboIndex + 1)
+		: 1;
+
+	ActiveNode = *NextNode;
+	bActiveNodeValid = true;
+	bActivationFromDashSave = bUseDashSavedNode;
+	bComboContinued = bFoundChildNode || bUseDashSavedNode;
+	bExitedComboState = !CurrentNodeId.IsNone() && !bFoundChildNode && !bUseDashSavedNode;
+	ActiveAttackGuid = FGuid::NewGuid();
+	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
+	ComboIndex = NextComboIndex;
+	ComboTags.Reset();
+	if (NextNode->AbilityTag.IsValid())
+	{
+		ComboTags.AddTag(NextNode->AbilityTag);
+	}
+	CurrentNodeId = NextNode->NodeId;
+
+	const bool bRestartingFromRoot = bExitedComboState;
+	if (bRestartingFromRoot)
 	{
 		FGameplayTagContainer TagsToCancel;
 		AddLegacyComboProgressTags(TagsToCancel);
+		if (ActiveNode.AbilityTag.IsValid())
+		{
+			TagsToCancel.AddTag(ActiveNode.AbilityTag);
+		}
 		ASC->CancelAbilities(&TagsToCancel);
 		ClearComboWindowAndProgressLooseTags(ASC);
 	}
 
-	if (bFoundChildNode && !bUseDashSavedNode && ActiveAbilitySpecHandle.IsValid())
+	FGameplayTagContainer AbilityTags;
+	AbilityTags.AddTag(NextNode->AbilityTag);
+
+	TArray<FGameplayAbilitySpec*> MatchingSpecs;
+	ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(AbilityTags, MatchingSpecs, false);
+	if (MatchingSpecs.IsEmpty() && NextNode->GameplayAbilityClass)
 	{
-		ASC->CancelAbilityHandle(ActiveAbilitySpecHandle);
+		if (FGameplayAbilitySpec* ClassSpec = ASC->FindAbilitySpecFromClass(NextNode->GameplayAbilityClass))
+		{
+			MatchingSpecs.Add(ClassSpec);
+		}
 	}
 
-	// TEMP: route to GA_MeleeAttack / GA_RangeAttack based on the ComboGraph
-	// node's AttackType. Previously hard-coded to UGA_PlayMontage, which doesn't
-	// run the YogTargetType hit-collection pipeline (that lives on UGA_MeleeAttack).
-	// GA_RangeAttack is a stub for now; flip the enum in the editor to test routing.
-	TSubclassOf<UGameplayAbility> AbilityClass = (NextNode->AttackType == EYogComboGraphAttackType::Range)
-		? TSubclassOf<UGameplayAbility>(UGA_RangeAttack::StaticClass())
-		: TSubclassOf<UGameplayAbility>(UGA_MeleeAttack::StaticClass());
+	bool bCancelledPreviousAbilityForTransition = false;
+	if (bFoundChildNode && !bUseDashSavedNode && PreviousAbilitySpecHandle.IsValid() && MatchingSpecs.Num() > 0)
+	{
+		ASC->CancelAbilityHandle(PreviousAbilitySpecHandle);
+		bCancelledPreviousAbilityForTransition = true;
+	}
 
-	const bool bActivated = ASC->TryActivateAbilityByClass(AbilityClass, true);
+	FGameplayTagContainer TemporaryRequiredTags;
+	for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+	{
+		if (!Spec || !Spec->Ability)
+		{
+			continue;
+		}
+
+		UYogGameplayAbility* YogAbility = Cast<UYogGameplayAbility>(Spec->Ability);
+		if (!YogAbility)
+		{
+			continue;
+		}
+
+		for (const FGameplayTag& RequiredTag : YogAbility->GetActivationRequiredTags())
+		{
+			// The config chooses the branch now, so legacy "Light2 requires Light1"
+			// style progress tags are only compatibility gates. During a child
+			// transition, the previous montage is cancelled before activation, so
+			// preserve CanCombo for old GA RequiredTags on this activation frame.
+			const bool bNeedsTransitionCanCombo =
+				(bFoundChildNode || bUseDashSavedNode) &&
+				CanComboTag.IsValid() &&
+				RequiredTag == CanComboTag;
+			if ((IsLegacyComboProgressTag(RequiredTag) || bNeedsTransitionCanCombo) && ASC->GetTagCount(RequiredTag) <= 0)
+			{
+				TemporaryRequiredTags.AddTag(RequiredTag);
+			}
+		}
+	}
+
+	for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
+	{
+		ASC->AddLooseGameplayTag(TemporaryTag);
+		TrackRuntimeCombatLooseTag(TemporaryTag);
+	}
+
+	bool bActivated = false;
+	if (!MatchingSpecs.IsEmpty())
+	{
+		for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+		{
+			if (Spec && ASC->TryActivateAbility(Spec->Handle, true))
+			{
+				bActivated = true;
+				break;
+			}
+		}
+	}
+	else
+	{
+		bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags, true);
+	}
+
+	for (const FGameplayTag& TemporaryTag : TemporaryRequiredTags)
+	{
+		if (ASC->GetTagCount(TemporaryTag) > 0)
+		{
+			ASC->RemoveLooseGameplayTag(TemporaryTag);
+		}
+	}
+
 	if (!bActivated)
 	{
+		FGameplayTagContainer OwnedTags;
+		ASC->GetOwnedGameplayTags(OwnedTags);
 		UE_LOG(LogTemp, Warning,
-			TEXT("[ComboRuntime] Failed to activate node=%s input=%s current=%s montage=%s montageConfig=%s attackType=%s ability=%s"),
+			TEXT("[ComboRuntime] Failed to activate node=%s ability=%s input=%s current=%s montageConfig=%s specs=%d tempRequired=%s owned=%s"),
 			*NextNode->NodeId.ToString(),
-			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
-			*GetCurrentNodeId().ToString(),
-			*GetNameSafe(NextNode->Montage.Get()),
+			*NextNode->AbilityTag.ToString(),
+			*GetGraphInputName(InputAction),
+			*CurrentNodeId.ToString(),
 			*GetNameSafe(NextNode->MontageConfig.Get()),
-			*StaticEnum<EYogComboGraphAttackType>()->GetNameStringByValue(static_cast<int64>(NextNode->AttackType)),
-			*GetNameSafe(AbilityClass.Get()));
+			MatchingSpecs.Num(),
+			*TemporaryRequiredTags.ToStringSimple(),
+			*OwnedTags.ToStringSimple());
+		bActiveNodeValid = false;
 		ActiveNode = FWeaponComboNodeConfig();
-		ClearPreparedComboActivation();
+		ActiveAttackGuid.Invalidate();
+		ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
+		bActivationFromDashSave = false;
+		bComboContinued = false;
+		if (bFoundChildNode && !bUseDashSavedNode && PreviousAttackGuid.IsValid() && !bCancelledPreviousAbilityForTransition)
+		{
+			ActiveNode = PreviousActiveNode;
+			ActiveAttackGuid = PreviousAttackGuid;
+			ActiveAbilitySpecHandle = PreviousAbilitySpecHandle;
+			bActiveNodeValid = bPreviousActiveNodeValid;
+			bActivationFromDashSave = bPreviousActivationFromDashSave;
+			bComboContinued = bPreviousComboContinued;
+			bExitedComboState = bPreviousExitedComboState;
+			CurrentNodeId = PreviousCurrentNodeId;
+			SavedDashNodeId = PreviousSavedDashNodeId;
+			ComboIndex = PreviousComboIndex;
+			ComboTags = PreviousComboTags;
+		}
+		else if (bCancelledPreviousAbilityForTransition)
+		{
+			if (!CurrentNodeId.IsNone() && PlayerOwner->CombatDeckComponent)
+			{
+				PlayerOwner->CombatDeckComponent->NotifyComboStateExited();
+			}
+			CurrentNodeId = NAME_None;
+			ComboIndex = 0;
+			ComboTags.Reset();
+			bExitedComboState = true;
+		}
+		else
+		{
+			CurrentNodeId = PreviousCurrentNodeId;
+			SavedDashNodeId = PreviousSavedDashNodeId;
+			ComboIndex = PreviousComboIndex;
+			ComboTags = PreviousComboTags;
+			bExitedComboState = bPreviousExitedComboState;
+		}
 		return false;
 	}
 
-	CommitPreparedComboActivation();
-	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
-
+	SavedDashNodeId = NAME_None;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(DashSaveExpireTimerHandle);
+	}
 	if (bUseDashSavedNode && PlayerOwner->CombatDeckComponent)
 	{
 		PlayerOwner->CombatDeckComponent->RestorePendingLinkContextFromDash();
@@ -304,83 +528,26 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	return true;
 }
 
-bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputAction, APlayerCharacterBase* PlayerOwner)
-{
-	if (InputAction == ECombatGraphInputAction::Dash)
-	{
-		if ((!ComboConfig && !HasComboGraph()) || !PlayerOwner)
-		{
-			return false;
-		}
-
-		UAbilitySystemComponent* ASC = PlayerOwner->GetAbilitySystemComponent();
-		if (!ASC)
-		{
-			return false;
-		}
-
-		if (!GetComboGraph())
-		{
-			return false;
-		}
-
-		FGameplayTagContainer OwnedTags;
-		ASC->GetOwnedGameplayTags(OwnedTags);
-
-		FYogComboGraphNodeSelection Selection;
-		if (!FindNextComboGraphNode(EYogComboGraphInputAction::Dash, &OwnedTags, Selection))
-		{
-			return false;
-		}
-
-		FWeaponComboNodeConfig DashNode = FWeaponComboNodeConfig::FromComboGraphNode(Selection.Node, ECardRequiredAction::Any);
-		const FName PreviousSavedDashNodeId = SavedDashNodeId;
-		const bool bSavedComboNode = SaveCurrentNodeForDashWithPolicy(DashNode.DashSaveMode, DashNode.DashSaveExpireSeconds);
-		if (bSavedComboNode && DashNode.bSavePendingLinkContext && PlayerOwner->CombatDeckComponent)
-		{
-			PlayerOwner->CombatDeckComponent->SavePendingLinkContextForDash();
-		}
-
-		PrepareComboGraphNodeActivation(Selection);
-		ActiveNode = DashNode;
-
-		const bool bActivated = ASC->TryActivateAbilitiesByTag(
-			FGameplayTagContainer(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"))),
-			true);
-		if (!bActivated)
-		{
-			ClearPreparedComboActivation();
-			ActiveNode = FWeaponComboNodeConfig();
-			ClearSavedDashNode();
-			if (!PreviousSavedDashNodeId.IsNone())
-			{
-				SaveComboNodeForDash(PreviousSavedDashNodeId);
-			}
-			if (PlayerOwner->CombatDeckComponent)
-			{
-				PlayerOwner->CombatDeckComponent->ClearDashSavedLinkContext();
-			}
-			return false;
-		}
-
-		CommitPreparedComboActivation();
-		return true;
-	}
-
-	return TryActivateCombo(ToCardAction(InputAction), PlayerOwner);
-}
-
 void UComboRuntimeComponent::ResetCombo()
 {
-	Super::ResetCombo();
+	CurrentNodeId = NAME_None;
+	SavedDashNodeId = NAME_None;
 	ActiveNode = FWeaponComboNodeConfig();
+	ActiveDashNode = FWeaponComboNodeConfig();
+	ActiveAttackGuid.Invalidate();
 	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
+	ComboIndex = 0;
+	ComboTags.Reset();
+	bActiveNodeValid = false;
+	bActiveDashNodeValid = false;
+	bActivationFromDashSave = false;
+	bComboContinued = false;
+	bExitedComboState = true;
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DashSaveExpireTimerHandle);
 	}
 	ClearRuntimeCombatLooseTags();
-
 	if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetOwner()))
 	{
 		if (PlayerOwner->CombatDeckComponent)
@@ -390,16 +557,7 @@ void UComboRuntimeComponent::ResetCombo()
 	}
 }
 
-bool UComboRuntimeComponent::SaveCurrentNodeForDash()
-{
-	if (const FWeaponComboNodeConfig* Node = GetActiveNode())
-	{
-		return SaveCurrentNodeForDashWithPolicy(Node->DashSaveMode, Node->DashSaveExpireSeconds);
-	}
-	return false;
-}
-
-bool UComboRuntimeComponent::SaveCurrentNodeForDashWithPolicy(EComboDashSaveMode SaveMode, float ExpireSeconds)
+bool UComboRuntimeComponent::SaveCurrentNodeForDash(EComboDashSaveMode SaveMode, float ExpireSeconds)
 {
 	if (SaveMode == EComboDashSaveMode::None)
 	{
@@ -407,17 +565,16 @@ bool UComboRuntimeComponent::SaveCurrentNodeForDashWithPolicy(EComboDashSaveMode
 		return false;
 	}
 
-	const FWeaponComboNodeConfig* Node = GetActiveNode();
-	const bool bSourceAllowsSave = Node && Node->bAllowDashSave;
+	const bool bSourceAllowsSave = bActiveNodeValid && ActiveNode.bAllowDashSave;
 	const bool bForcePreserve = SaveMode == EComboDashSaveMode::ForcePreserve;
-	const FName SourceNodeId = Node ? Node->NodeId : GetCurrentNodeId();
+	const FName SourceNodeId = bActiveNodeValid ? ActiveNode.NodeId : CurrentNodeId;
 	if (SourceNodeId.IsNone() || (!bForcePreserve && !bSourceAllowsSave))
 	{
 		ClearSavedDashNode();
 		return false;
 	}
 
-	SaveComboNodeForDash(SourceNodeId);
+	SavedDashNodeId = SourceNodeId;
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DashSaveExpireTimerHandle);
@@ -437,7 +594,7 @@ bool UComboRuntimeComponent::SaveCurrentNodeForDashWithPolicy(EComboDashSaveMode
 
 void UComboRuntimeComponent::ClearSavedDashNode()
 {
-	SaveComboNodeForDash(NAME_None);
+	SavedDashNodeId = NAME_None;
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DashSaveExpireTimerHandle);
@@ -454,8 +611,8 @@ void UComboRuntimeComponent::ClearSavedDashNode()
 
 void UComboRuntimeComponent::NotifyDashEnded(bool bWasCancelled)
 {
-	const bool bClearCombatTags = ActiveNode.bClearCombatTagsOnDashEnd;
-	const bool bBreakOnCancel = ActiveNode.bBreakComboOnDashCancel;
+	const bool bClearCombatTags = !bActiveDashNodeValid || ActiveDashNode.bClearCombatTagsOnDashEnd;
+	const bool bBreakOnCancel = !bActiveDashNodeValid || ActiveDashNode.bBreakComboOnDashCancel;
 
 	if (bWasCancelled && bBreakOnCancel)
 	{
@@ -466,6 +623,9 @@ void UComboRuntimeComponent::NotifyDashEnded(bool bWasCancelled)
 	{
 		ClearRuntimeCombatLooseTags();
 	}
+
+	ActiveDashNode = FWeaponComboNodeConfig();
+	bActiveDashNodeValid = false;
 }
 
 void UComboRuntimeComponent::ClearRuntimeCombatLooseTags()
@@ -493,31 +653,6 @@ void UComboRuntimeComponent::ClearRuntimeCombatLooseTags()
 	RuntimeCombatLooseTags.Reset();
 }
 
-const FWeaponComboNodeConfig* UComboRuntimeComponent::GetActiveNode() const
-{
-	return GetActiveGraphNodeId().IsNone() ? nullptr : &ActiveNode;
-}
-
-void UComboRuntimeComponent::RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle)
-{
-	if (AttackGuid.IsValid() && GetActiveAttackGuid().IsValid() && GetActiveAttackGuid() == AttackGuid)
-	{
-		ActiveAbilitySpecHandle = AbilityHandle;
-	}
-}
-
-bool UComboRuntimeComponent::HandleAttackAbilityEnded(const FGuid& EndedAttackGuid)
-{
-	if (!EndedAttackGuid.IsValid() || !GetActiveAttackGuid().IsValid() || GetActiveAttackGuid() != EndedAttackGuid)
-	{
-		return false;
-	}
-
-	const bool bHadActiveNode = GetActiveNode() != nullptr || !GetCurrentNodeId().IsNone();
-	ResetCombo();
-	return bHadActiveNode;
-}
-
 void UComboRuntimeComponent::TrackRuntimeCombatLooseTag(const FGameplayTag& Tag)
 {
 	if (Tag.IsValid())
@@ -530,28 +665,84 @@ void UComboRuntimeComponent::ExpireSavedDashNode()
 {
 	UE_LOG(LogTemp, Log,
 		TEXT("[ComboRuntime] DashSave expired savedNode=%s"),
-		*GetComboStartNodeId().ToString());
+		*SavedDashNodeId.ToString());
 	ClearSavedDashNode();
+}
+
+const FWeaponComboNodeConfig* UComboRuntimeComponent::GetActiveNode() const
+{
+	return bActiveNodeValid ? &ActiveNode : nullptr;
+}
+
+void UComboRuntimeComponent::RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle)
+{
+	if (AttackGuid.IsValid() && ActiveAttackGuid.IsValid() && ActiveAttackGuid == AttackGuid)
+	{
+		ActiveAbilitySpecHandle = AbilityHandle;
+	}
+}
+
+bool UComboRuntimeComponent::HandleAttackAbilityEnded(const FGuid& EndedAttackGuid)
+{
+	if (!EndedAttackGuid.IsValid() || !ActiveAttackGuid.IsValid() || ActiveAttackGuid != EndedAttackGuid)
+	{
+		return false;
+	}
+
+	const bool bHadActiveNode = bActiveNodeValid || !CurrentNodeId.IsNone();
+
+	CurrentNodeId = NAME_None;
+	ActiveNode = FWeaponComboNodeConfig();
+	ActiveAttackGuid.Invalidate();
+	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
+	ComboIndex = 0;
+	ComboTags.Reset();
+	bActiveNodeValid = false;
+	bActivationFromDashSave = false;
+	bComboContinued = false;
+	bExitedComboState = true;
+
+	if (bHadActiveNode && SavedDashNodeId.IsNone())
+	{
+		ClearRuntimeCombatLooseTags();
+		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetOwner()))
+		{
+			if (PlayerOwner->CombatDeckComponent)
+			{
+				PlayerOwner->CombatDeckComponent->NotifyComboStateExited();
+			}
+		}
+	}
+
+	return bHadActiveNode;
+}
+
+bool UComboRuntimeComponent::ConsumeActivationFromDashSave()
+{
+	const bool bResult = bActivationFromDashSave;
+	bActivationFromDashSave = false;
+	return bResult;
 }
 
 FCombatDeckActionContext UComboRuntimeComponent::BuildAttackContext(ECombatCardTriggerTiming TriggerTiming, APlayerCharacterBase* PlayerOwner) const
 {
 	FCombatDeckActionContext Context;
-	if (!GetActiveNode())
+	if (!bActiveNodeValid)
 	{
 		return Context;
 	}
 
 	Context.ActionType = ActiveNode.InputAction;
-	Context.ComboIndex = GetComboIndex();
+	Context.ComboIndex = ComboIndex;
 	Context.ComboNodeId = ActiveNode.NodeId;
-	Context.ComboTags = GetComboTags();
+	Context.ComboTags = ComboTags;
+	Context.AbilityTag = ActiveNode.AbilityTag;
 	Context.WeaponDef = PlayerOwner ? PlayerOwner->EquippedWeaponDef : nullptr;
 	Context.bIsComboFinisher = ActiveNode.bIsComboFinisher;
-	Context.bComboContinued = DidComboContinue();
-	Context.bExitedComboState = DidExitComboState();
-	Context.bFromDashSave = WasActivationFromDashSave();
+	Context.bComboContinued = bComboContinued;
+	Context.bExitedComboState = bExitedComboState;
+	Context.bFromDashSave = bActivationFromDashSave;
 	Context.TriggerTiming = TriggerTiming;
-	Context.AttackInstanceGuid = GetActiveAttackGuid();
+	Context.AttackInstanceGuid = ActiveAttackGuid;
 	return Context;
 }

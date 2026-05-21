@@ -441,19 +441,51 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 {
 	UGameplayAbilityComboGraphNode* Node = NewObject<UGameplayAbilityComboGraphNode>();
 	Node->NodeId = TEXT("L2H");
+	Node->GameplayAbilityClass = UGA_Player_LightAtk2::StaticClass();
+	Node->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"));
 	Node->bUseNodeComboWindow = true;
 	Node->ComboWindowStartFrame = 12;
 	Node->ComboWindowEndFrame = 20;
-	Node->TotalFrames = 30;
+	Node->ComboWindowTotalFrames = 30;
 
-	const FWeaponComboNodeConfig RuntimeConfig = FWeaponComboNodeConfig::FromComboGraphNode(Node, ECardRequiredAction::Heavy);
+	const FWeaponComboNodeConfig RuntimeConfig = Node->BuildRuntimeConfig(ECombatGraphInputAction::Heavy);
 
 	TestEqual(TEXT("Graph node exports its NodeId"), RuntimeConfig.NodeId, FName(TEXT("L2H")));
 	TestEqual(TEXT("Graph edge input becomes runtime input"), RuntimeConfig.InputAction, ECardRequiredAction::Heavy);
-	TestTrue(TEXT("Graph node frame window drives runtime combo windows"), RuntimeConfig.bOverrideComboWindow);
+	TestEqual(TEXT("Graph node exports gameplay ability class fallback"), RuntimeConfig.GameplayAbilityClass, Node->GameplayAbilityClass);
+	TestFalse(TEXT("Graph node frame window is ignored by runtime while montage notifies drive combo windows"), RuntimeConfig.bOverrideComboWindow);
 	TestEqual(TEXT("Combo window start frame is exported"), RuntimeConfig.ComboWindowStartFrame, 12);
 	TestEqual(TEXT("Combo window end frame is exported"), RuntimeConfig.ComboWindowEndFrame, 20);
 	TestEqual(TEXT("Combo window total frames is exported"), RuntimeConfig.ComboWindowTotalFrames, 30);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphExportsNodeAttackConfigTest,
+	"DevKit.CombatDeck.ComboGraphExportsNodeAttackConfig",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGameplayAbilityComboGraphExportsNodeAttackConfigTest::RunTest(const FString& Parameters)
+{
+	UGameplayAbilityComboGraphNode* Node = NewObject<UGameplayAbilityComboGraphNode>();
+	Node->NodeId = TEXT("L1");
+	Node->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo1"));
+	Node->NodeAttackConfig.bEnabled = true;
+	Node->NodeAttackConfig.ActDamage = 42.f;
+	Node->NodeAttackConfig.ActRange = 275.f;
+	Node->NodeAttackConfig.ActResilience = 18.f;
+	Node->NodeAttackConfig.ActDmgReduce = 0.25f;
+	Node->NodeAttackConfig.OnHitEventTags.Add(FGameplayTag::RequestGameplayTag(TEXT("Action.Attack.Swing")));
+
+	const FWeaponComboNodeConfig RuntimeConfig = Node->BuildRuntimeConfig(ECombatGraphInputAction::Light);
+	const FActionData ActionData = RuntimeConfig.NodeAttackConfig.BuildActionData();
+
+	TestTrue(TEXT("Graph node exports enabled node attack config"), RuntimeConfig.NodeAttackConfig.bEnabled);
+	TestEqual(TEXT("Node attack damage is exported"), ActionData.ActDamage, 42.f);
+	TestEqual(TEXT("Node attack range is exported"), ActionData.ActRange, 275.f);
+	TestEqual(TEXT("Node attack resilience is exported"), ActionData.ActResilience, 18.f);
+	TestEqual(TEXT("Node attack damage reduction is exported"), ActionData.ActDmgReduce, 0.25f);
+	TestEqual(TEXT("Node hit event tags are exported"), RuntimeConfig.NodeAttackConfig.OnHitEventTags.Num(), 1);
 
 	return true;
 }
@@ -468,9 +500,9 @@ bool FGameplayAbilityComboGraphDashNodeExportsRuntimeConfigTest::RunTest(const F
 	UGameplayAbilityComboGraphNode* DashNode = NewObject<UGameplayAbilityComboGraphNode>(Graph);
 	DashNode->Graph = Graph;
 	DashNode->NodeId = TEXT("Dash");
-	DashNode->RootInputAction = EYogComboGraphInputAction::Dash;
-	DashNode->Montage = NewObject<UAnimMontage>(Graph);
-	DashNode->DashSaveMode = EYogComboGraphDashSaveMode::ForcePreserve;
+	DashNode->RootInputAction = ECombatGraphInputAction::Dash;
+	DashNode->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"));
+	DashNode->DashSaveMode = EComboDashSaveMode::ForcePreserve;
 	DashNode->DashSaveExpireSeconds = 0.75f;
 	DashNode->bSavePendingLinkContext = false;
 	DashNode->bClearCombatTagsOnDashEnd = true;
@@ -482,11 +514,11 @@ bool FGameplayAbilityComboGraphDashNodeExportsRuntimeConfigTest::RunTest(const F
 	Graph->ValidateComboGraph(Warnings);
 	const bool bHasMontageWarning = Warnings.ContainsByPredicate([](const FText& Warning)
 	{
-		return Warning.ToString().Contains(TEXT("has no Montage"));
+		return Warning.ToString().Contains(TEXT("has no MontageConfig"));
 	});
-	TestFalse(TEXT("Dash graph node with montage validates cleanly"), bHasMontageWarning);
+	TestFalse(TEXT("Dash graph node does not require MontageConfig"), bHasMontageWarning);
 
-	const FWeaponComboNodeConfig RuntimeConfig = FWeaponComboNodeConfig::FromComboGraphNode(DashNode, ECardRequiredAction::Any);
+	const FWeaponComboNodeConfig RuntimeConfig = DashNode->BuildRuntimeConfig(ECombatGraphInputAction::Dash);
 	TestEqual(TEXT("Dash node maps to card-neutral runtime action"), RuntimeConfig.InputAction, ECardRequiredAction::Any);
 	TestEqual(TEXT("Dash node exports save mode"), RuntimeConfig.DashSaveMode, EComboDashSaveMode::ForcePreserve);
 	TestEqual(TEXT("Dash node exports save expiry"), RuntimeConfig.DashSaveExpireSeconds, 0.75f);
@@ -512,18 +544,21 @@ bool FGameplayAbilityComboGraphWarnsDuplicateChildInputTest::RunTest(const FStri
 
 	Root->Graph = Graph;
 	Root->NodeId = TEXT("Root");
-	Root->Montage = NewObject<UAnimMontage>(Graph);
+	Root->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo1"));
+	Root->MontageConfig = NewObject<UMontageConfigDA>(Graph);
 
 	FirstChild->Graph = Graph;
 	FirstChild->NodeId = TEXT("LightA");
-	FirstChild->Montage = NewObject<UAnimMontage>(Graph);
+	FirstChild->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo2"));
+	FirstChild->MontageConfig = NewObject<UMontageConfigDA>(Graph);
 
 	SecondChild->Graph = Graph;
 	SecondChild->NodeId = TEXT("LightB");
-	SecondChild->Montage = NewObject<UAnimMontage>(Graph);
+	SecondChild->AbilityTagOverride = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo3"));
+	SecondChild->MontageConfig = NewObject<UMontageConfigDA>(Graph);
 
-	FirstEdge->InputAction = EYogComboGraphInputAction::Light;
-	SecondEdge->InputAction = EYogComboGraphInputAction::Light;
+	FirstEdge->InputAction = ECombatGraphInputAction::Light;
+	SecondEdge->InputAction = ECombatGraphInputAction::Light;
 	Root->ChildrenNodes = { FirstChild, SecondChild };
 	FirstChild->ParentNodes = { Root };
 	SecondChild->ParentNodes = { Root };

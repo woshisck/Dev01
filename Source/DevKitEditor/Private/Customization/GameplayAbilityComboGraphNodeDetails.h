@@ -14,5 +14,7 @@ public:
 private:
 	TWeakObjectPtr<UGameplayAbilityComboGraphNode> EditingNode;
 
+	FReply MigrateFromFirstNotify();
 	FText GetSummaryText() const;
+	bool CanMigrateFromFirstNotify() const;
 };

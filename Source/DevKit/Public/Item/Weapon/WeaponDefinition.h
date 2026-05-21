@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 
 #include "AbilitySystem/Abilities/YogAbilitySet.h"
+#include "Data/AbilityData.h"
 #include "Animation/YogAnimInstance.h"
 #include "Component/BackpackGridComponent.h"
 #include "GameplayTagContainer.h"
@@ -20,7 +21,6 @@ class APlayerCharacterBase;
 class UMaterialInterface;
 class URuneDataAsset;
 class UWeaponComboConfigDA;
-class UWeaponAbilityData;
 class UGameplayAbilityComboGraph;
 //class UYogAnimInstance;
 
@@ -61,6 +61,9 @@ struct FWeaponSpawnData
 	UPROPERTY(EditAnywhere, Category = Equipment)
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
 
+	UPROPERTY(SaveGame)
+	TObjectPtr<UAbilityData> WeaponAbilities;
+
 	// Optional: Save game data for persistence
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bShouldSaveToGame = false;
@@ -82,8 +85,8 @@ public:
 	//TArray<TObjectPtr<UYogAbilitySet>> AbilitySetsToGrant;
 	UWeaponDefinition(){};
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Ability")
-	TObjectPtr<UWeaponAbilityData> WeaponAbilityData;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability")
+	TObjectPtr<UAbilityData> WeaponAbilityData;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UWeaponComboConfigDA> WeaponComboConfig;

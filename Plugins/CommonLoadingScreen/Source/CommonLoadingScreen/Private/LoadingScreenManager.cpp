@@ -140,7 +140,6 @@ void ULoadingScreenManager::Deinitialize()
 
 	RemoveWidgetFromViewport();
 
-	FCoreUObjectDelegates::PreLoadMapWithContext.RemoveAll(this);
 	FCoreUObjectDelegates::PreLoadMap.RemoveAll(this);
 	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 }
@@ -192,9 +191,7 @@ void ULoadingScreenManager::UnregisterLoadingProcessor(TScriptInterface<ILoading
 
 void ULoadingScreenManager::HandlePreLoadMap(const FWorldContext& WorldContext, const FString& MapName)
 {
-	const bool bGIMatch = (WorldContext.OwningGameInstance == GetGameInstance());
-
-	if (bGIMatch)
+	if (WorldContext.OwningGameInstance == GetGameInstance())
 	{
 		bCurrentlyInLoadMap = true;
 
@@ -211,11 +208,6 @@ void ULoadingScreenManager::HandlePostLoadMap(UWorld* World)
 	if ((World != nullptr) && (World->GetGameInstance() == GetGameInstance()))
 	{
 		bCurrentlyInLoadMap = false;
-
-		if (GEngine && GEngine->IsInitialized())
-		{
-			UpdateLoadingScreen();
-		}
 	}
 }
 
@@ -226,7 +218,7 @@ void ULoadingScreenManager::UpdateLoadingScreen()
 	if (ShouldShowLoadingScreen())
 	{
 		const UCommonLoadingScreenSettings* Settings = GetDefault<UCommonLoadingScreenSettings>();
-
+		
 		// If we don't make it to the specified checkpoint in the given time will trigger the hang detector so we can better determine where progress stalled.
  		FThreadHeartBeat::Get().MonitorCheckpointStart(GetFName(), Settings->LoadingScreenHeartbeatHangDuration);
 
@@ -241,7 +233,7 @@ void ULoadingScreenManager::UpdateLoadingScreen()
 	else
 	{
 		HideLoadingScreen();
-
+ 
  		FThreadHeartBeat::Get().MonitorCheckpointEnd(GetFName());
 	}
 
@@ -432,7 +424,7 @@ bool ULoadingScreenManager::ShouldShowLoadingScreen()
 		// Don't *need* to show the screen anymore, but might still want to for a bit
 		const double CurrentTime = FPlatformTime::Seconds();
 		const bool bCanHoldLoadingScreen = (!GIsEditor || Settings->HoldLoadingScreenAdditionalSecsEvenInEditor);
-		const double HoldLoadingScreenAdditionalSecs = bCanHoldLoadingScreen ? Settings->HoldLoadingScreenAdditionalSecs : 0.0;
+		const double HoldLoadingScreenAdditionalSecs = bCanHoldLoadingScreen ? LoadingScreenCVars::HoldLoadingScreenAdditionalSecs : 0.0;
 
 		if (TimeLoadingScreenLastDismissed < 0.0)
 		{

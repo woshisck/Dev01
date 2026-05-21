@@ -34,7 +34,6 @@
 #include "Component/BufferComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
-#include "Component/PlayerActiveSkillComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "AbilitySystemComponent.h"
 
@@ -206,16 +205,6 @@ void AYogPlayerControllerBase::SetupInputComponent()
 		{
 			const FEnhancedInputActionEventBinding& switchPrevItemBinding = EnhancedInputComp->BindAction(Input_SwitchCombatItemPrevious, ETriggerEvent::Started, this, &AYogPlayerControllerBase::SwitchCombatItemPrevious);
 			SwitchCombatItemPreviousInputHandle = switchPrevItemBinding.GetHandle();
-		}
-		if (Input_UseActiveSkill)
-		{
-			const FEnhancedInputActionEventBinding& activeSkillBinding = EnhancedInputComp->BindAction(Input_UseActiveSkill, ETriggerEvent::Started, this, &AYogPlayerControllerBase::UseActiveSkill);
-			UseActiveSkillInputHandle = activeSkillBinding.GetHandle();
-		}
-		if (Input_SwitchActiveSkill)
-		{
-			const FEnhancedInputActionEventBinding& switchActiveSkillBinding = EnhancedInputComp->BindAction(Input_SwitchActiveSkill, ETriggerEvent::Started, this, &AYogPlayerControllerBase::SwitchActiveSkill);
-			SwitchActiveSkillInputHandle = switchActiveSkillBinding.GetHandle();
 		}
 		if (Input_Dash)
 		{
@@ -523,30 +512,6 @@ void AYogPlayerControllerBase::SwitchCombatItemPrevious(const FInputActionValue&
 		if (PlayerCharacter->CombatItemComponent)
 		{
 			PlayerCharacter->CombatItemComponent->SelectPreviousItem();
-		}
-	}
-}
-
-void AYogPlayerControllerBase::UseActiveSkill(const FInputActionValue& Value)
-{
-	if (IsGameplayInputBlocked()) return;
-	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
-	{
-		if (PlayerCharacter->ActiveSkillComponent)
-		{
-			PlayerCharacter->ActiveSkillComponent->UseActiveSkill();
-		}
-	}
-}
-
-void AYogPlayerControllerBase::SwitchActiveSkill(const FInputActionValue& Value)
-{
-	if (IsGameplayInputBlocked()) return;
-	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
-	{
-		if (PlayerCharacter->ActiveSkillComponent)
-		{
-			PlayerCharacter->ActiveSkillComponent->SelectNextSkill();
 		}
 	}
 }
