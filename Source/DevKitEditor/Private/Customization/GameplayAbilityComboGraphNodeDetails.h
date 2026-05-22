@@ -15,4 +15,6 @@ private:
 	TWeakObjectPtr<UGameplayAbilityComboGraphNode> EditingNode;
 
 	FText GetSummaryText() const;
+	FText GetNodeClassText() const;
+	FText GetNodeClassTooltipText() const;
 };

@@ -20,6 +20,22 @@ void FGameplayAbilityComboGraphNodeDetails::CustomizeDetails(IDetailLayoutBuilde
 	EditingNode = Objects.Num() > 0 ? Cast<UGameplayAbilityComboGraphNode>(Objects[0].Get()) : nullptr;
 
 	IDetailCategoryBuilder& Category = DetailBuilder.EditCategory(TEXT("Combo Manager"));
+	Category.AddCustomRow(LOCTEXT("ComboManagerNodeClassFilter", "Node Class"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("NodeClassLabel", "Node Class"))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		.MinDesiredWidth(240.f)
+		[
+			SNew(STextBlock)
+			.Text(this, &FGameplayAbilityComboGraphNodeDetails::GetNodeClassText)
+			.ToolTipText(this, &FGameplayAbilityComboGraphNodeDetails::GetNodeClassTooltipText)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		];
+
 	Category.AddCustomRow(LOCTEXT("ComboManagerSummaryFilter", "Combo Manager"))
 		.WholeRowContent()
 		[
@@ -46,6 +62,24 @@ FText FGameplayAbilityComboGraphNodeDetails::GetSummaryText() const
 		Node->ComboWindowStartFrame,
 		Node->ComboWindowEndFrame,
 		Node->TotalFrames));
+}
+
+FText FGameplayAbilityComboGraphNodeDetails::GetNodeClassText() const
+{
+	const UGameplayAbilityComboGraphNode* Node = EditingNode.Get();
+	const UClass* NodeClass = Node ? Node->GetClass() : nullptr;
+	return NodeClass
+		? FText::FromString(NodeClass->GetName())
+		: LOCTEXT("NoNodeClass", "None");
+}
+
+FText FGameplayAbilityComboGraphNodeDetails::GetNodeClassTooltipText() const
+{
+	const UGameplayAbilityComboGraphNode* Node = EditingNode.Get();
+	const UClass* NodeClass = Node ? Node->GetClass() : nullptr;
+	return NodeClass
+		? FText::FromString(NodeClass->GetPathName())
+		: LOCTEXT("NoNodeClassTooltip", "No combo node selected.");
 }
 
 #undef LOCTEXT_NAMESPACE
