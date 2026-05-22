@@ -281,6 +281,9 @@ public:
 	// AN_MeleeDamage 存入的命中事件 Tag，GA_MeleeAttack 命中目标时广播后清空
 	TArray<FGameplayTag> PendingOnHitEventTags;
 
+	// AN_MeleeDamage 存入的命中 GameplayCue Tag，GA_MeleeAttack 命中目标时触发后清空
+	FGameplayTag PendingHitImpactCueTag;
+
 	/**
 	 * 命中目标时触发附加符文效果的入口（由 GA_MeleeAttack::OnEventReceived 调用）。
 	 * 在 Blueprint 中重写：启动 RuneDA 的 FlowAsset，或执行其他符文激活逻辑。

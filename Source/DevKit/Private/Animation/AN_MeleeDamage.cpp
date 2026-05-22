@@ -104,6 +104,11 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 		Character->PendingOnHitEventTags = EffectiveOnHitEventTags;
 	}
 
+	if (HitImpactCueTag.IsValid())
+	{
+		Character->PendingHitImpactCueTag = HitImpactCueTag;
+	}
+
 	FGameplayEventData EventData;
 	EventData.Instigator   = Character;
 	EventData.EventTag     = EffectiveNodeAttackConfig && EffectiveNodeAttackConfig->EventTag.IsValid()

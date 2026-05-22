@@ -130,6 +130,17 @@ public:
 	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitDilation")
 	// FMeleeDamageHitDilationSettings HitSuccessDilation;
 
+	// ── 命中特效 ─────────────────────────────────────────────────────────────
+
+	/**
+	 * GameplayCue tag fired on the attacker's ASC when this attack actually hits an enemy.
+	 * The cue is executed once per ApplyHitReactions call (one swing connection, not per target).
+	 * Cue location is set to the first hit actor's world position so impact VFX spawn at the right place.
+	 * Leave invalid to skip. Create a matching GCN_* Blueprint to define the actual VFX/SFX/shake.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|HitImpact")
+	FGameplayTag HitImpactCueTag;
+
 	// ── 附加效果 ───────────────────────────────────────────────────────────
 
 	/**

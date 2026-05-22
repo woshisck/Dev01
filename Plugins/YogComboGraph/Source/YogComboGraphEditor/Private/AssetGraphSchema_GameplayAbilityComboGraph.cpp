@@ -11,6 +11,7 @@
 #include "Factories/AnimMontageFactory.h"
 #include "GenericGraphAssetEditor/EdNode_GenericGraphNode.h"
 #include "GenericGraphAssetEditor/EdNode_GenericGraphEdge.h"
+#include "GenericGraphAssetEditor/ConnectionDrawingPolicy_GenericGraph.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "GenericGraph.h"
 #include "GenericGraphEdge.h"
@@ -611,7 +612,7 @@ bool UAssetGraphSchema_GameplayAbilityComboGraph::CreateAutomaticConversionNodeA
 
 FConnectionDrawingPolicy* UAssetGraphSchema_GameplayAbilityComboGraph::CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj) const
 {
-	return UEdGraphSchema::CreateConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements, InGraphObj);
+	return new FConnectionDrawingPolicy_GenericGraph(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements, InGraphObj);
 }
 
 FLinearColor UAssetGraphSchema_GameplayAbilityComboGraph::GetPinTypeColor(const FEdGraphPinType& PinType) const

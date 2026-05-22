@@ -32,11 +32,9 @@ public:
 		check(Schema);
 
 		SBorder::Construct(SBorder::FArguments()
-			.BorderImage(this, &SGenericGraphPin::GetPinBorder)
-			.BorderBackgroundColor(this, &SGenericGraphPin::GetPinColor)
 			.OnMouseButtonDown(this, &SGenericGraphPin::OnPinMouseDown)
 			.Cursor(this, &SGenericGraphPin::GetPinCursor)
-			.Padding(FMargin(5.0f))
+			.Padding(FMargin(0.0f))
 		);
 	}
 
@@ -114,25 +112,20 @@ void SEdNode_GenericGraphNode::UpdateGraphNode()
 			[
 				SNew(SOverlay)
 
+				// Input Pin Area (full node, behind output for hit-test priority)
 				+ SOverlay::Slot()
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 				[
-					SNew(SVerticalBox)
+					SAssignNew(LeftNodeBox, SVerticalBox)
+				]
 
-					// Input Pin Area
-					+ SVerticalBox::Slot()
-					.FillHeight(1)
-					[
-						SAssignNew(LeftNodeBox, SVerticalBox)
-					]
-
-					// Output Pin Area	
-					+ SVerticalBox::Slot()
-					.FillHeight(1)
-					[
-						SAssignNew(RightNodeBox, SVerticalBox)
-					]
+				// Output Pin Area (full node, higher z-order to initiate drags from anywhere)
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				[
+					SAssignNew(RightNodeBox, SVerticalBox)
 				]
 
 				+ SOverlay::Slot()

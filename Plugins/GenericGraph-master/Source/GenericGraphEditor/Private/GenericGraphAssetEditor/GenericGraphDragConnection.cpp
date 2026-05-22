@@ -50,8 +50,25 @@ void FGenericGraphDragConnection::HoverTargetChanged()
 			// The Graph object in which the pins reside.
 			UEdGraph* GraphObj = StartingPinObj->GetOwningNode()->GetGraph();
 
+			// When nodes use full-area pin widgets, the hovered pin may share direction
+			// with the source. Redirect to the opposite pin on the target node.
+			UEdGraphPin* EffectiveTargetPin = TargetPinObj;
+			if (StartingPinObj->Direction == TargetPinObj->Direction)
+			{
+				if (UEdNode_GenericGraphNode* TargetNode = Cast<UEdNode_GenericGraphNode>(TargetPinObj->GetOwningNode()))
+				{
+					UEdGraphPin* OppositePin = (TargetPinObj->Direction == EGPD_Output)
+						? TargetNode->GetInputPin()
+						: TargetNode->GetOutputPin();
+					if (OppositePin)
+					{
+						EffectiveTargetPin = OppositePin;
+					}
+				}
+			}
+
 			// Determine what the schema thinks about the wiring ActionRow
-			const FPinConnectionResponse Response = GraphObj->GetSchema()->CanCreateConnection(StartingPinObj, TargetPinObj);
+			const FPinConnectionResponse Response = GraphObj->GetSchema()->CanCreateConnection(StartingPinObj, EffectiveTargetPin);
 
 			if (Response.Response == ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
 			{
@@ -216,15 +233,31 @@ FReply FGenericGraphDragConnection::DroppedOnPin(FVector2D ScreenPosition, FVect
 		{
 			UEdGraph* MyGraphObj = PinA->GetOwningNode()->GetGraph();
 
-			if (MyGraphObj->GetSchema()->TryCreateConnection(PinA, PinB))
+			// Redirect same-direction pin drop to the target node's opposite pin.
+			UEdGraphPin* EffectivePinB = PinB;
+			if (PinA->Direction == PinB->Direction)
+			{
+				if (UEdNode_GenericGraphNode* TargetNode = Cast<UEdNode_GenericGraphNode>(PinB->GetOwningNode()))
+				{
+					UEdGraphPin* OppositePin = (PinB->Direction == EGPD_Output)
+						? TargetNode->GetInputPin()
+						: TargetNode->GetOutputPin();
+					if (OppositePin)
+					{
+						EffectivePinB = OppositePin;
+					}
+				}
+			}
+
+			if (MyGraphObj->GetSchema()->TryCreateConnection(PinA, EffectivePinB))
 			{
 				if (!PinA->IsPendingKill())
 				{
 					NodeList.Add(PinA->GetOwningNode());
 				}
-				if (!PinB->IsPendingKill())
+				if (!EffectivePinB->IsPendingKill())
 				{
-					NodeList.Add(PinB->GetOwningNode());
+					NodeList.Add(EffectivePinB->GetOwningNode());
 				}
 			}
 		}

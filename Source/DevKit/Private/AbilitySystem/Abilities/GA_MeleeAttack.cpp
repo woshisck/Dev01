@@ -784,6 +784,7 @@ void UGA_MeleeAttack::EndAbility(
 	{
 		Owner->PendingAdditionalHitRunes.Empty();
 		Owner->PendingOnHitEventTags.Empty();
+		Owner->PendingHitImpactCueTag = FGameplayTag();
 	}
 
 	// 绉婚櫎鏀诲嚮鍓嶆憞 GE
@@ -1142,6 +1143,27 @@ void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGame
 				UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, EvtTag, EvtPayload);
 			}
 		}
+	}
+
+	if (Owner->PendingHitImpactCueTag.IsValid())
+	{
+		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+		{
+			FGameplayCueParameters CueParams;
+			CueParams.Instigator = Owner;
+			CueParams.EffectCauser = Owner;
+			if (!HitActors.IsEmpty() && HitActors[0])
+			{
+				CueParams.Location = HitActors[0]->GetActorLocation();
+				CueParams.Normal = (HitActors[0]->GetActorLocation() - Owner->GetActorLocation()).GetSafeNormal();
+			}
+			else
+			{
+				CueParams.Location = Owner->GetActorLocation();
+			}
+			ASC->ExecuteGameplayCue(Owner->PendingHitImpactCueTag, CueParams);
+		}
+		Owner->PendingHitImpactCueTag = FGameplayTag();
 	}
 
 	Owner->PendingAdditionalHitRunes.Empty();
