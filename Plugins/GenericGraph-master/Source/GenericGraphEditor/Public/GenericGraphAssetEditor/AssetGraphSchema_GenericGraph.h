@@ -45,8 +45,8 @@ public:
 	UEdNode_GenericGraphEdge* NodeTemplate;
 };
 
-UCLASS(MinimalAPI)
-class UAssetGraphSchema_GenericGraph : public UEdGraphSchema
+UCLASS()
+class GENERICGRAPHEDITOR_API UAssetGraphSchema_GenericGraph : public UEdGraphSchema
 {
 	GENERATED_BODY()
 

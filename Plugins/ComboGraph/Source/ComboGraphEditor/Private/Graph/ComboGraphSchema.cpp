@@ -794,8 +794,12 @@ TSubclassOf<UComboGraphNodeAnimBase> UComboGraphSchema::GetRuntimeClassForAnimAs
 
 	if (Asset->GetClass()->IsChildOf(UAnimMontage::StaticClass()))
 	{
-		if (!ComboGraph)
+		if (!ComboGraph || !ComboGraph->DefaultNodeMontageType)
 		{
+			if (ComboGraph)
+			{
+				CG_EDITOR_LOG(Warning, TEXT("GetRuntimeClassForAnimAsset - DefaultNodeMontageType is unset on %s. Falling back to UComboGraphNodeMontage."), *GetNameSafe(ComboGraph));
+			}
 			return UComboGraphNodeMontage::StaticClass();
 		}
 
@@ -804,8 +808,12 @@ TSubclassOf<UComboGraphNodeAnimBase> UComboGraphSchema::GetRuntimeClassForAnimAs
 
 	if (Asset->GetClass()->IsChildOf(UAnimSequence::StaticClass()))
 	{
-		if (!ComboGraph)
+		if (!ComboGraph || !ComboGraph->DefaultNodeSequenceType)
 		{
+			if (ComboGraph)
+			{
+				CG_EDITOR_LOG(Warning, TEXT("GetRuntimeClassForAnimAsset - DefaultNodeSequenceType is unset on %s. Falling back to UComboGraphNodeSequence."), *GetNameSafe(ComboGraph));
+			}
 			return UComboGraphNodeSequence::StaticClass();
 		}
 

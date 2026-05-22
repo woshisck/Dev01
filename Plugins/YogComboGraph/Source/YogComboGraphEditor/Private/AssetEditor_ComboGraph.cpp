@@ -1,7 +1,9 @@
 #include "AssetEditor_ComboGraph.h"
 
+#include "AssetGraphSchema_GameplayAbilityComboGraph.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimationAsset.h"
+#include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Editor.h"
@@ -234,6 +236,16 @@ FAssetEditor_ComboGraph::~FAssetEditor_ComboGraph()
 void FAssetEditor_ComboGraph::CreateEditorModeManager()
 {
 	EditorModeManager = MakeShareable(FModuleManager::LoadModuleChecked<FPersonaModule>(TEXT("Persona")).CreatePersonaEditorModeManager());
+}
+
+void FAssetEditor_ComboGraph::CreateEdGraph()
+{
+	FAssetEditor_GenericGraph::CreateEdGraph();
+
+	if (EditingGraph && EditingGraph->EdGraph)
+	{
+		EditingGraph->EdGraph->Schema = UAssetGraphSchema_GameplayAbilityComboGraph::StaticClass();
+	}
 }
 
 void FAssetEditor_ComboGraph::OnSelectedNodesChanged(const TSet<class UObject*>& NewSelection)

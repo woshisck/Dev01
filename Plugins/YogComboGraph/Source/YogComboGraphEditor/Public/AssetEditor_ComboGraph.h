@@ -33,6 +33,7 @@ public:
 
 private:
 	virtual void CreateEditorModeManager() override;
+	virtual void CreateEdGraph() override;
 	virtual void OnSelectedNodesChanged(const TSet<class UObject*>& NewSelection) override;
 
 	TSharedRef<SDockTab> SpawnTab_SelectedMontage(const FSpawnTabArgs& Args);

@@ -24,6 +24,7 @@ public class YogComboGraphEditor : ModuleRules
 			"SlateCore",
 			"UnrealEd",
 			"EditorFramework",
+			"AssetRegistry",
 			"PropertyEditor",
 			"ToolMenus",
 			"GameplayTags",

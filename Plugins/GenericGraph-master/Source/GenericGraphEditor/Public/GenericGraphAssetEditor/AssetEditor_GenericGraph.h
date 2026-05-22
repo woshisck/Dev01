@@ -66,7 +66,7 @@ protected:
 
 	void BindCommands();
 
-	void CreateEdGraph();
+	virtual void CreateEdGraph();
 
 	void CreateCommandList();
 

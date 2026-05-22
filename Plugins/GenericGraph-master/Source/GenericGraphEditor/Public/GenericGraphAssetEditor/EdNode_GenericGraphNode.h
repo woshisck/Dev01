@@ -9,8 +9,8 @@ class UEdNode_GenericGraphEdge;
 class UEdGraph_GenericGraph;
 class SEdNode_GenericGraphNode;
 
-UCLASS(MinimalAPI)
-class UEdNode_GenericGraphNode : public UEdGraphNode
+UCLASS()
+class GENERICGRAPHEDITOR_API UEdNode_GenericGraphNode : public UEdGraphNode
 {
 	GENERATED_BODY()
 
