@@ -238,6 +238,7 @@ struct DEVKIT_API FCombatCardEffectContext
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeckLoaded, const TArray<FCombatCardInstance>&, ActiveSequence);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeckCardsEntered, const TArray<FCombatCardInstance>&, Cards);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCardConsumed, const FCombatCardInstance&, Card, const FCombatCardResolveResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatCardResult, const FCombatCardResolveResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnShuffleProgress, float, NormalizedProgress);
@@ -347,6 +348,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
 	FOnDeckLoaded OnDeckLoaded;
+
+	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
+	FOnDeckCardsEntered OnDeckCardsEntered;
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
 	FOnCardConsumed OnCardConsumed;

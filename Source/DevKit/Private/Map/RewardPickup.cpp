@@ -2,8 +2,10 @@
 #include "Components/BoxComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Component/BackpackGridComponent.h"
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
+#include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "UI/RuneRewardFloatWidget.h"
 #include "UI/YogHUD.h"
 
@@ -162,6 +164,23 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 		? AssignedLoot
 		: GM->GenerateIndependentLootOptions();
 
+	if (ShouldGrantImmediately(Options))
+	{
+		if (GrantImmediateLoot(Player, Options))
+		{
+			ConsumeAndDestroy();
+		}
+		else
+		{
+			bPickedUp = false;
+			if (bPlayerInRange && RuneInfoWidgetComp)
+			{
+				RuneInfoWidgetComp->SetVisibility(true);
+			}
+		}
+		return;
+	}
+
 	// 入队到 HUD（HUD 内部决定立即弹还是排队），不再直接 Destroy 自己
 	HUD->QueueLootSelection(Options, this);
 }
@@ -197,6 +216,76 @@ bool ARewardPickup::IsPickupAllowed() const
 	}
 
 	return false;
+}
+
+bool ARewardPickup::ShouldGrantImmediately(const TArray<FLootOption>& Options) const
+{
+	if (Options.IsEmpty())
+	{
+		return false;
+	}
+
+	for (const FLootOption& Option : Options)
+	{
+		if (Option.LootType == ELootType::Rune)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool ARewardPickup::GrantImmediateLoot(APlayerCharacterBase* Player, const TArray<FLootOption>& Options)
+{
+	if (!Player)
+	{
+		return false;
+	}
+
+	bool bGrantedAny = false;
+	for (const FLootOption& Option : Options)
+	{
+		const int32 Amount = FMath::Max(0, Option.Amount);
+		if (Amount <= 0)
+		{
+			continue;
+		}
+
+		switch (Option.LootType)
+		{
+		case ELootType::Gold:
+			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
+			{
+				Backpack->AddGold(Amount);
+				bGrantedAny = true;
+				UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Granted gold: %d"), Amount);
+			}
+			break;
+
+		case ELootType::Material:
+			if (Option.MetaCurrencyTag.IsValid())
+			{
+				if (UYogMetaProgressionSubsystem* Meta = UGameInstance::GetSubsystem<UYogMetaProgressionSubsystem>(GetGameInstance()))
+				{
+					Meta->AddCurrency(Option.MetaCurrencyTag, Amount);
+					bGrantedAny = true;
+					UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Granted material: %s x%d"), *Option.MetaCurrencyTag.ToString(), Amount);
+				}
+			}
+			else
+			{
+				bGrantedAny = true;
+				UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Material reward has no tag; collected placeholder x%d."), Amount);
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	return bGrantedAny;
 }
 
 void ARewardPickup::ClearNearbyPlayer()

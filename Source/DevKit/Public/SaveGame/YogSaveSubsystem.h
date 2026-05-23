@@ -42,6 +42,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|Slot")
 	void ResetSlotForNewGame(int32 SlotIndex);
 
+	UFUNCTION(BlueprintPure, Category = "SaveGame|FirstRunTutorial")
+	bool IsFirstRunTutorialActive() const;
+
+	UFUNCTION(BlueprintCallable, Category = "SaveGame|FirstRunTutorial")
+	void MarkFirstRunTutorialCompleted();
+
 	// 异步读取槽位预览（不加载全部数据，选档 UI 用）
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|Slot")
 	void RequestSlotPreview(int32 SlotIndex, FOnSlotPreviewReady Callback);

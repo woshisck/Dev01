@@ -5,8 +5,8 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Character/PlayerCharacterBase.h"
-#include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
+#include "Component/BackpackGridComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Data/RoomDataAsset.h"
@@ -499,7 +499,9 @@ void AYogGameMode::EnterArrangementPhase()
 			// 预分配战利品选项，拾取时直接展示，无需再次生成
 			if (ARewardPickup* Pickup = Cast<ARewardPickup>(Spawned))
 			{
-				TArray<FLootOption> Batch = GenerateLootBatch(LootAssignedThisLevel);
+				TArray<FLootOption> Batch = (ActiveRoomData && ActiveRoomData->bUseFixedRewardOptions)
+					? ActiveRoomData->FixedRewardOptions
+					: GenerateLootBatch(LootAssignedThisLevel);
 				Pickup->AssignLoot(Batch);
 				UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 预分配 %d 个符文选项给 RewardPickup"), Batch.Num());
 			}
@@ -630,6 +632,23 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 		if (Player->CombatDeckComponent)
 		{
 			bAddedCombatCardToDeck = Player->CombatDeckComponent->AddCardFromRuneReward(Chosen.RuneAsset);
+		}
+	}
+	else if (Chosen.LootType == ELootType::Gold)
+	{
+		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
+		{
+			Backpack->AddGold(FMath::Max(0, Chosen.Amount));
+		}
+	}
+	else if (Chosen.LootType == ELootType::Material)
+	{
+		if (Chosen.MetaCurrencyTag.IsValid())
+		{
+			if (UYogMetaProgressionSubsystem* Meta = UGameInstance::GetSubsystem<UYogMetaProgressionSubsystem>(GetGameInstance()))
+			{
+				Meta->AddCurrency(Chosen.MetaCurrencyTag, FMath::Max(0, Chosen.Amount));
+			}
 		}
 	}
 
@@ -2945,6 +2964,18 @@ void AYogGameMode::EnsureHubActiveSkillTerminal()
 	UGameplayStatics::GetAllActorsOfClass(World, TerminalClass, ExistingTerminals);
 	if (ExistingTerminals.Num() > 0)
 	{
+		bool bAnyVisible = false;
+		for (AActor* ExistingTerminal : ExistingTerminals)
+		{
+			if (ExistingTerminal && !ExistingTerminal->IsHidden())
+			{
+				bAnyVisible = true;
+				break;
+			}
+		}
+		UE_LOG(LogTemp, Warning, TEXT("[ActiveSkill] Runtime hub terminal already exists. Count=%d AnyVisible=%d"),
+			ExistingTerminals.Num(),
+			bAnyVisible ? 1 : 0);
 		return;
 	}
 
@@ -3091,6 +3122,13 @@ void AYogGameMode::ActivatePortals()
 	bool bAtLeastOneOpened = false;
 	for (const FPortalDestConfig& Cfg : Configs)
 	{
+		if (ActiveRoomData->bForceSinglePortal && Cfg.PortalIndex != ActiveRoomData->ForcedPortalIndex)
+		{
+			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: skipping portal [%d], tutorial forces portal [%d]."),
+				Cfg.PortalIndex, ActiveRoomData->ForcedPortalIndex);
+			continue;
+		}
+
 		APortal** Found = PortalMap.Find(Cfg.PortalIndex);
 		if (!Found || !(*Found)) continue;
 
@@ -3113,7 +3151,7 @@ void AYogGameMode::ActivatePortals()
 		}
 
 		// 洗牌后第一个必开；后续 50% 概率
-		const bool bShouldOpen = !bAtLeastOneOpened || FMath::RandBool();
+		const bool bShouldOpen = ActiveRoomData->bForceSinglePortal || !bAtLeastOneOpened || FMath::RandBool();
 		if (!bShouldOpen)
 		{
 			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 随机未开启"), Cfg.PortalIndex);

@@ -492,6 +492,7 @@ void UCombatDeckComponent::LoadDeckFromSourceAssets(const TArray<URuneDataAsset*
 			DeckList.Add(Card);
 		}
 	}
+	const TArray<FCombatCardInstance> EnteredCards = DeckList;
 
 	DeckState = EDeckState::Ready;
 	ShuffleCooldownRemaining = 0.0f;
@@ -502,6 +503,10 @@ void UCombatDeckComponent::LoadDeckFromSourceAssets(const TArray<URuneDataAsset*
 	DashSavedLinkActionContext = FCombatDeckActionContext();
 	ResolvedAttackGuids.Reset();
 	RefillActiveSequence();
+	if (!EnteredCards.IsEmpty())
+	{
+		OnDeckCardsEntered.Broadcast(BuildTemporaryLockViewCards(EnteredCards));
+	}
 	RefreshCardPassiveFlows();
 }
 
@@ -619,6 +624,9 @@ bool UCombatDeckComponent::AddCardFromRuneReward(URuneDataAsset* RuneAsset)
 
 	DeckList.Add(Card);
 	OnRewardAddedToDeck.Broadcast(Card);
+	TArray<FCombatCardInstance> EnteredCards;
+	EnteredCards.Add(Card);
+	OnDeckCardsEntered.Broadcast(EnteredCards);
 	StartPassiveFlowsForCard(Card);
 
 	if (DeckState == EDeckState::Ready && ActiveSequence.IsEmpty())
@@ -639,6 +647,9 @@ bool UCombatDeckComponent::AddCardFromRuneShop(URuneDataAsset* RuneAsset)
 
 	DeckList.Add(Card);
 	OnRewardAddedToDeck.Broadcast(Card);
+	TArray<FCombatCardInstance> EnteredCards;
+	EnteredCards.Add(Card);
+	OnDeckCardsEntered.Broadcast(EnteredCards);
 	StartPassiveFlowsForCard(Card);
 
 	if (DeckState == EDeckState::Ready && ActiveSequence.IsEmpty())

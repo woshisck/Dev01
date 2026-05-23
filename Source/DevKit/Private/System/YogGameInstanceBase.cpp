@@ -37,6 +37,7 @@ UYogGameInstanceBase::UYogGameInstanceBase()
 {
 	bShouldLoadSaveAfterMap = false;
 	MainGameMap = FSoftObjectPath(TEXT("/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom.InitialRoom"));
+	FirstRunTutorialMap = MainGameMap;
 	FrontendMap = FSoftObjectPath(TEXT("/Game/Maps/L_EntryMenu.L_EntryMenu"));
 }
 
@@ -398,10 +399,19 @@ void UYogGameInstanceBase::QuitFromFrontend()
 
 void UYogGameInstanceBase::BeginLoadMainGameMap()
 {
-	const FString PackageName = MainGameMap.GetLongPackageName();
+	const bool bUseFirstRunTutorialMap = [&]()
+	{
+		if (UYogSaveSubsystem* SaveSys = GetSubsystem<UYogSaveSubsystem>())
+		{
+			return SaveSys->IsFirstRunTutorialActive() && FirstRunTutorialMap.IsValid();
+		}
+		return false;
+	}();
+	const FSoftObjectPath& TargetMap = bUseFirstRunTutorialMap ? FirstRunTutorialMap : MainGameMap;
+	const FString PackageName = TargetMap.GetLongPackageName();
 	if (PackageName.IsEmpty())
 	{
-		UE_LOG(LogTemp, Error, TEXT("[Frontend] Could not resolve map package from %s"), *MainGameMap.ToString());
+		UE_LOG(LogTemp, Error, TEXT("[Frontend] Could not resolve map package from %s"), *TargetMap.ToString());
 		return;
 	}
 
@@ -419,16 +429,25 @@ void UYogGameInstanceBase::BeginLoadMainGameMap()
 		World->GetTimerManager().ClearTimer(FrontendLoadingTimerHandle);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[Frontend] Opening gameplay map %s."), *PackageName);
+	UE_LOG(LogTemp, Log, TEXT("[Frontend] Opening gameplay map %s (FirstRunTutorial=%d)."), *PackageName, bUseFirstRunTutorialMap ? 1 : 0);
 	UGameplayStatics::OpenLevel(this, FName(*PackageName), true);
 }
 
 void UYogGameInstanceBase::HandleMainGameMapPreloaded()
 {
-	const FString PackageName = MainGameMap.GetLongPackageName();
+	const bool bUseFirstRunTutorialMap = [&]()
+	{
+		if (UYogSaveSubsystem* SaveSys = GetSubsystem<UYogSaveSubsystem>())
+		{
+			return SaveSys->IsFirstRunTutorialActive() && FirstRunTutorialMap.IsValid();
+		}
+		return false;
+	}();
+	const FSoftObjectPath& TargetMap = bUseFirstRunTutorialMap ? FirstRunTutorialMap : MainGameMap;
+	const FString PackageName = TargetMap.GetLongPackageName();
 	if (PackageName.IsEmpty())
 	{
-		UE_LOG(LogTemp, Error, TEXT("[Frontend] Could not resolve map package from %s"), *MainGameMap.ToString());
+		UE_LOG(LogTemp, Error, TEXT("[Frontend] Could not resolve map package from %s"), *TargetMap.ToString());
 		return;
 	}
 

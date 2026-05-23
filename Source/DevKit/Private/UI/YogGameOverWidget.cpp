@@ -13,6 +13,7 @@
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "System/YogGameInstanceBase.h"
+#include "SaveGame/YogSaveSubsystem.h"
 #include "TimerManager.h"
 #include "UI/YogInputKeyUtils.h"
 #include "UI/YogUIManagerSubsystem.h"
@@ -375,6 +376,13 @@ void UYogGameOverWidget::HandleRetryClicked()
 	}
 	if (UYogGameInstanceBase* GI = GetGameInstance<UYogGameInstanceBase>())
 	{
+		if (UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>())
+		{
+			if (SaveSys->IsFirstRunTutorialActive())
+			{
+				SaveSys->MarkFirstRunTutorialCompleted();
+			}
+		}
 		GI->StartNewRunFromFrontend();
 	}
 }

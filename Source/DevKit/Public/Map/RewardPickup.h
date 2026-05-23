@@ -75,6 +75,8 @@ private:
 	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
 
 	bool IsPickupAllowed() const;
+	bool ShouldGrantImmediately(const TArray<FLootOption>& Options) const;
+	bool GrantImmediateLoot(APlayerCharacterBase* Player, const TArray<FLootOption>& Options);
 	void ClearNearbyPlayer();
 
 	UFUNCTION()

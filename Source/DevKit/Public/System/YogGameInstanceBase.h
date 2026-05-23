@@ -196,6 +196,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
 	FSoftObjectPath MainGameMap;
 
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend|Tutorial")
+	FSoftObjectPath FirstRunTutorialMap;
+
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
 	FSoftObjectPath FrontendMap;
 

@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Data/RuneDataAsset.h"
+#include "GameplayTagContainer.h"
 #include "LevelFlowTypes.generated.h"
+
+class UTexture2D;
 
 /**
  * 关卡阶段
@@ -25,6 +28,8 @@ UENUM(BlueprintType)
 enum class ELootType : uint8
 {
 	Rune			UMETA(DisplayName = "Rune"),
+	Gold			UMETA(DisplayName = "Gold"),
+	Material		UMETA(DisplayName = "Material"),
 };
 
 /** 单个战利品选项，由 GameMode 生成后广播给 UI */
@@ -37,7 +42,19 @@ struct DEVKIT_API FLootOption
 	ELootType LootType = ELootType::Rune;
 
 	// LootType == Rune 时有效
-	UPROPERTY(BlueprintReadOnly, Category = "Loot")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
 	TObjectPtr<URuneDataAsset> RuneAsset = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
+	int32 Amount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
+	FGameplayTag MetaCurrencyTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
+	TObjectPtr<UTexture2D> Icon = nullptr;
 };
 

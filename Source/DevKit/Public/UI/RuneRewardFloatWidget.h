@@ -35,4 +35,5 @@ protected:
 	TObjectPtr<UWidget> PickupHintText;
 
 	void RefreshPickupHint();
+	void AddRewardRow(const FText& Name, UTexture2D* IconTexture, const FLinearColor& FallbackColor);
 };

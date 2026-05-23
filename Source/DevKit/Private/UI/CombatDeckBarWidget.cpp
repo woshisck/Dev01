@@ -52,6 +52,7 @@ void UCombatDeckBarWidget::BindToCombatDeck(UCombatDeckComponent* InCombatDeck)
 		BoundCombatDeck->OnShuffleProgress.AddDynamic(this, &UCombatDeckBarWidget::HandleShuffleProgress);
 		BoundCombatDeck->OnShuffleCompleted.AddDynamic(this, &UCombatDeckBarWidget::HandleShuffleCompleted);
 		BoundCombatDeck->OnRewardAddedToDeck.AddDynamic(this, &UCombatDeckBarWidget::HandleRewardAddedToDeck);
+		BoundCombatDeck->OnDeckCardsEntered.AddDynamic(this, &UCombatDeckBarWidget::HandleDeckCardsEntered);
 	}
 
 	RefreshDeckSnapshot();
@@ -91,6 +92,7 @@ void UCombatDeckBarWidget::UnbindFromCurrentDeck()
 	BoundCombatDeck->OnShuffleProgress.RemoveDynamic(this, &UCombatDeckBarWidget::HandleShuffleProgress);
 	BoundCombatDeck->OnShuffleCompleted.RemoveDynamic(this, &UCombatDeckBarWidget::HandleShuffleCompleted);
 	BoundCombatDeck->OnRewardAddedToDeck.RemoveDynamic(this, &UCombatDeckBarWidget::HandleRewardAddedToDeck);
+	BoundCombatDeck->OnDeckCardsEntered.RemoveDynamic(this, &UCombatDeckBarWidget::HandleDeckCardsEntered);
 	BoundCombatDeck = nullptr;
 }
 
@@ -312,4 +314,9 @@ void UCombatDeckBarWidget::HandleRewardAddedToDeck(const FCombatCardInstance& Ca
 	ShowToast(RewardToastText, RewardToastTimeRemaining);
 	BP_OnRewardAddedToDeck(Card);
 	RefreshDeckSnapshot();
+}
+
+void UCombatDeckBarWidget::HandleDeckCardsEntered(const TArray<FCombatCardInstance>& Cards)
+{
+	BP_OnDeckCardsEntered(Cards);
 }

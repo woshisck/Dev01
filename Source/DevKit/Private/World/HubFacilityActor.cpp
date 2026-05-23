@@ -90,6 +90,15 @@ void AHubFacilityActor::ApplyFeatureAvailability()
 	{
 		InteractBox->SetGenerateOverlapEvents(bAvailable);
 	}
+
+	if (RequiredFeatureTag.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HubFacility] %s availability=%d required=%s hidden=%d"),
+			*GetNameSafe(this),
+			bAvailable ? 1 : 0,
+			*RequiredFeatureTag.ToString(),
+			IsHidden() ? 1 : 0);
+	}
 }
 
 void AHubFacilityActor::HandleBeginOverlap(UPrimitiveComponent* OverlappedComponent,

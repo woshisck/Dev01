@@ -123,9 +123,56 @@ void UYogSaveSubsystem::ResetSlotForNewGame(int32 SlotIndex)
 	CurrentSaveGame->TutorialState   = ETutorialState::NeedWeaponTutorial;
 	CurrentSaveGame->ShownPopupKeys.Empty();
 	CurrentSaveGame->StoryFlags.Empty();
+	if (const FGameplayTag ActiveTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Active"), false);
+		ActiveTag.IsValid())
+	{
+		CurrentSaveGame->StoryFlags.Add(ActiveTag, true);
+	}
+	if (const FGameplayTag CompletedTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Completed"), false);
+		CompletedTag.IsValid())
+	{
+		CurrentSaveGame->StoryFlags.Remove(CompletedTag);
+	}
 	CurrentSaveGame->StoryFiredRuleIds.Empty();
 	CurrentSaveGame->StoryQuestTasks.Empty();
 	CurrentSaveGame->SlotCreatedTime  = FDateTime::Now();
+
+	DoAsyncSave();
+}
+
+bool UYogSaveSubsystem::IsFirstRunTutorialActive() const
+{
+	if (!CurrentSaveGame)
+	{
+		return false;
+	}
+
+	const FGameplayTag ActiveTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Active"), false);
+	const FGameplayTag CompletedTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Completed"), false);
+	const bool bActive = ActiveTag.IsValid()
+		&& CurrentSaveGame->StoryFlags.FindRef(ActiveTag);
+	const bool bCompleted = CompletedTag.IsValid()
+		&& CurrentSaveGame->StoryFlags.FindRef(CompletedTag);
+	return bActive && !bCompleted;
+}
+
+void UYogSaveSubsystem::MarkFirstRunTutorialCompleted()
+{
+	if (!CurrentSaveGame)
+	{
+		return;
+	}
+
+	if (const FGameplayTag ActiveTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Active"), false);
+		ActiveTag.IsValid())
+	{
+		CurrentSaveGame->StoryFlags.Remove(ActiveTag);
+	}
+	if (const FGameplayTag CompletedTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Completed"), false);
+		CompletedTag.IsValid())
+	{
+		CurrentSaveGame->StoryFlags.Add(CompletedTag, true);
+	}
 
 	DoAsyncSave();
 }

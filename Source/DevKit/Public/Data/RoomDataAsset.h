@@ -6,6 +6,7 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "GameModes/SpawnTypes.h"   // FEnemyEntry, FRoomDifficultyTier
+#include "GameModes/LevelFlowTypes.h"
 #include "Data/EnemyData.h"         // FBuffEntry
 #include "Data/RuneDataAsset.h"     // URuneDataAsset (LootPool)
 #include "MetaProgression/MetaTypes.h" // FMetaCurrencyCost
@@ -170,6 +171,19 @@ public:
     // 每个门可配置专属 DA_Room 候选池，找不到时回退到 Campaign 全局 RoomPool
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portals")
     TArray<FPortalDestConfig> PortalDestinations;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portals|Tutorial")
+    bool bForceSinglePortal = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portals|Tutorial", meta = (EditCondition = "bForceSinglePortal"))
+    int32 ForcedPortalIndex = 0;
+
+    // If enabled, the room reward pickup uses these options exactly. This is intended for first-run tutorial rooms.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Tutorial")
+    bool bUseFixedRewardOptions = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Tutorial", meta = (EditCondition = "bUseFixedRewardOptions"))
+    TArray<FLootOption> FixedRewardOptions;
 
     // =========================================================
     // 局外成长货币奖励（战斗胜利时发放）

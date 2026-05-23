@@ -32,6 +32,9 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Combat Deck")
 	void BP_OnRewardAddedToDeck(const FCombatCardInstance& Card);
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "Combat Deck")
+	void BP_OnDeckCardsEntered(const TArray<FCombatCardInstance>& Cards);
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -124,4 +127,7 @@ private:
 
 	UFUNCTION()
 	void HandleRewardAddedToDeck(const FCombatCardInstance& Card);
+
+	UFUNCTION()
+	void HandleDeckCardsEntered(const TArray<FCombatCardInstance>& Cards);
 };
