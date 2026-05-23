@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>虚幻引擎音效管理 SOP</title>
+  <style>
+    :root {
+      --bg: #f7f4ee;
+      --panel: #ffffff;
+      --ink: #1f2528;
+      --muted: #657074;
+      --line: #ddd6cb;
+      --accent: #0f766e;
+      --accent-2: #b45309;
+      --accent-3: #2563eb;
+      --soft: #e8f4f1;
+      --soft-2: #fff3df;
+      --soft-3: #eaf0ff;
+      --shadow: 0 18px 50px rgba(31, 37, 40, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.62), rgba(247,244,238,0.82)),
+        var(--bg);
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+      line-height: 1.68;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 22px;
+      border-right: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.74);
+      backdrop-filter: blur(18px);
+      overflow: auto;
+    }
+
+    .brand {
+      margin-bottom: 28px;
+    }
+
+    .brand .eyebrow {
+      display: inline-block;
+      margin-bottom: 10px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 25px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      color: #384145;
+      font-size: 14px;
+    }
+
+    .nav a:hover {
+      background: var(--soft);
+      color: #0b4f49;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    main {
+      min-width: 0;
+      padding: 44px clamp(20px, 4vw, 60px) 70px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 22px;
+      margin-bottom: 26px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero h2 {
+      max-width: 920px;
+      margin: 0;
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 820px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      min-height: 112px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .stat strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--accent);
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    section {
+      margin-top: 34px;
+      scroll-margin-top: 24px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 14px;
+    }
+
+    .section-head h3 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      max-width: 620px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .card {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: var(--shadow);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: #0b4f49;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .card h4 {
+      margin: 12px 0 8px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .card p,
+    .card li {
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    ul,
+    ol {
+      margin: 10px 0 0;
+      padding-left: 22px;
+    }
+
+    code {
+      padding: 2px 6px;
+      border: 1px solid #e5dfd4;
+      border-radius: 6px;
+      background: #fbf8f2;
+      color: #2c3438;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 0.92em;
+    }
+
+    pre {
+      margin: 12px 0 0;
+      padding: 15px;
+      border: 1px solid #e5dfd4;
+      border-radius: 8px;
+      background: #252b2d;
+      color: #f4f1ea;
+      overflow: auto;
+      line-height: 1.55;
+    }
+
+    pre code {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 8px;
+      background: var(--panel);
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 12px 13px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #ece7de;
+      color: #31383b;
+      font-weight: 800;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .flow {
+      counter-reset: step;
+      display: grid;
+      gap: 12px;
+    }
+
+    .step {
+      counter-increment: step;
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .step::before {
+      content: counter(step, decimal-leading-zero);
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: white;
+      font-weight: 900;
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 16px;
+    }
+
+    .step span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .callout {
+      border-left: 5px solid var(--accent-2);
+      background: var(--soft-2);
+    }
+
+    .callout.blue {
+      border-left-color: var(--accent-3);
+      background: var(--soft-3);
+    }
+
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .pill {
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: #3f494d;
+      font-size: 13px;
+    }
+
+    .footer-note {
+      margin-top: 34px;
+      padding: 20px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .quick-grid,
+      .grid-3,
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      main {
+        padding-inline: 16px;
+      }
+
+      .nav {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head {
+        display: block;
+      }
+
+      .section-head p {
+        margin-top: 8px;
+      }
+
+      .step {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="eyebrow">Unreal Audio SOP</span>
+        <h1>虚幻引擎音效管理指南</h1>
+        <p>从命名、响度检测、UE 配置到验收归档的一页式工作流。</p>
+      </div>
+      <nav class="nav" aria-label="页面目录">
+        <a href="#principles"><span class="dot"></span>核心原则</a>
+        <a href="#naming"><span class="dot"></span>命名规范</a>
+        <a href="#loudness"><span class="dot"></span>响度数据</a>
+        <a href="#routing"><span class="dot"></span>分类路由</a>
+        <a href="#interfaces"><span class="dot"></span>UE 接口</a>
+        <a href="#workflows"><span class="dot"></span>声音工作流</a>
+        <a href="#template"><span class="dot"></span>资产模板</a>
+        <a href="#folders"><span class="dot"></span>目录结构</a>
+        <a href="#sop"><span class="dot"></span>SOP 流程</a>
+      </nav>
+    </aside>
+
+    <main>
+      <header class="hero">
+        <h2>让项目里的每一个声音都可追踪、可配置、可验收。</h2>
+        <p>不要只管理 WAV 文件。更稳的方式是管理声音资产的完整生命周期：制作、响度、导入、路由、触发、调试、归档。</p>
+        <div class="quick-grid">
+          <div class="stat"><strong>命名统一</strong><span>类型、系统、动作、变体、版本都能从文件名看出来。</span></div>
+          <div class="stat"><strong>响度可测</strong><span>记录 LUFS、True Peak、RMS、时长和动态范围。</span></div>
+          <div class="stat"><strong>配置复用</strong><span>Attenuation、Concurrency、Submix、Sound Class 模板化。</span></div>
+          <div class="stat"><strong>验收闭环</strong><span>用 Audio Insights 和资产表检查播放、性能和混音。</span></div>
+        </div>
+      </header>
+
+      <section id="principles">
+        <div class="section-head">
+          <h3>核心原则</h3>
+          <p>从“能响”升级到“能长期维护”。</p>
+        </div>
+        <div class="card callout">
+          <p><strong>推荐生命周期：</strong><code>原始素材 -> 处理与响度校准 -> UE 导入 -> 分类路由 -> 空间化/衰减/并发/混音配置 -> 触发逻辑 -> QA 检查 -> 版本归档</code></p>
+          <p>项目规模越大，越要把音效当成系统资产。命名、响度、配置、触发、验收都应该有规则。</p>
+        </div>
+      </section>
+
+      <section id="naming">
+        <div class="section-head">
+          <h3>命名规范</h3>
+          <p>文件名应该帮助你判断它是谁、在哪里用、做什么、是不是最新版。</p>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <span class="tag">素材命名</span>
+            <h4>六级推荐格式</h4>
+            <pre><code>一级_二级_三级_四级_五级_六级</code></pre>
+            <table>
+              <tr><th>层级</th><th>含义</th><th>示例</th></tr>
+              <tr><td>一级命名</td><td>声音大类</td><td><code>SFX</code>、<code>AMB</code>、<code>BGM</code>、<code>VO</code>、<code>UI</code></td></tr>
+              <tr><td>二级命名</td><td>类型或来源</td><td><code>Terrain</code> 地貌、<code>Weather</code> 天气、<code>Chest</code> 宝箱、<code>WoodFloor</code> 木地板</td></tr>
+              <tr><td>三级命名</td><td>具体内容</td><td><code>River</code> 河流、<code>Door</code> 门窗、<code>Wind</code> 风、<code>Footstep</code> 脚步</td></tr>
+              <tr><td>四级命名</td><td>声音量级</td><td><code>Small</code>、<code>Medium</code>、<code>Large</code></td></tr>
+              <tr><td>五级命名</td><td>播放规则或动作</td><td><code>Loop</code>、<code>Open</code>、<code>Close</code>、<code>Jump</code>、<code>Hit</code></td></tr>
+              <tr><td>六级命名</td><td>变体序号</td><td><code>01</code>、<code>02</code>、<code>03</code></td></tr>
+            </table>
+          </div>
+          <div class="card">
+            <span class="tag">示例拆解</span>
+            <h4>按字段读懂文件名</h4>
+            <table>
+              <tr><th>完整命名</th><th>解释</th></tr>
+              <tr><td><code>SFX_Chest_Wood_Small_Open_01</code></td><td>交互音效，木宝箱，小量级，打开动作，第 1 个变体。</td></tr>
+              <tr><td><code>AMB_Terrain_River_Medium_Loop_01</code></td><td>环境音，地貌类，河流，中等量级，循环播放，第 1 个变体。</td></tr>
+              <tr><td><code>SFX_WoodFloor_Footstep_Small_Run_03</code></td><td>木地板脚步，小量级，跑步，第 3 个变体。</td></tr>
+              <tr><td><code>AMB_Weather_Rain_Large_Loop_02</code></td><td>天气环境音，雨，大量级，循环播放，第 2 个变体。</td></tr>
+            </table>
+            <p>导入 UE 后再加资产前缀，例如 <code>SW_SFX_Chest_Wood_Small_Open_01</code>、<code>MS_AMB_Terrain_River_Medium_Loop_01</code>。</p>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <span class="tag">UE 资产前缀</span>
+          <h4>引擎内资产命名</h4>
+          <table>
+            <tr><th>前缀</th><th>含义</th><th>示例</th></tr>
+            <tr><td><code>SW_</code></td><td>Sound Wave 原始声音资产</td><td><code>SW_SFX_Chest_Wood_Small_Open_01</code></td></tr>
+            <tr><td><code>SCue_</code></td><td>Sound Cue 随机和简单逻辑</td><td><code>SCue_SFX_Chest_Wood_Open</code></td></tr>
+            <tr><td><code>MS_</code></td><td>MetaSound 参数化播放逻辑</td><td><code>MS_SFX_Chest_Wood_Open</code></td></tr>
+            <tr><td><code>ATT_</code></td><td>Sound Attenuation 衰减</td><td><code>ATT_Object_Medium</code></td></tr>
+            <tr><td><code>CON_</code></td><td>Sound Concurrency 并发控制</td><td><code>CON_Chest_Interact</code></td></tr>
+            <tr><td><code>Submix_</code></td><td>Submix 混音路由</td><td><code>Submix_SFX</code></td></tr>
+          </table>
+        </div>
+      </section>
+
+      <section id="loudness">
+        <div class="section-head">
+          <h3>响度与可衡量数据</h3>
+          <p>可以从最简单的免费工具开始：先学会看 LUFS 和 True Peak，再把结果填进资产表。</p>
+        </div>
+        <div class="grid-3">
+          <div class="card">
+            <span class="tag">每个声音记录</span>
+            <h4>建议指标</h4>
+            <ul>
+              <li>Peak / True Peak</li>
+              <li>RMS</li>
+              <li>LUFS-I / LUFS-S / LUFS-M</li>
+              <li>Dynamic Range</li>
+              <li>Loop Seam</li>
+              <li>Length / Sample Rate / Channels</li>
+            </ul>
+          </div>
+          <div class="card">
+            <span class="tag">工具建议</span>
+            <h4>批量检测</h4>
+            <ul>
+              <li>Reaper / Nuendo / Pro Tools</li>
+              <li>iZotope RX</li>
+              <li>Youlean Loudness Meter</li>
+              <li>导出 CSV 或资产表作为验收记录</li>
+            </ul>
+          </div>
+          <div class="card">
+            <span class="tag">UE 内检查</span>
+            <h4>运行时调试</h4>
+            <ul>
+              <li>Audio Insights</li>
+              <li>Submix Meter</li>
+              <li>Audio Synesthesia / Loudness NRT</li>
+              <li>MetaSound Analyzer</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card callout blue" style="margin-top:16px">
+          <h4>响度参考起点</h4>
+          <table>
+            <tr><th>类型</th><th>建议范围</th><th>注意</th></tr>
+            <tr><td>Master 输出</td><td>不超过 <code>-1 dBTP</code></td><td>避免平台转换或压缩后削波。</td></tr>
+            <tr><td>UI 音效</td><td><code>-20 到 -16 LUFS-S</code></td><td>短、清楚、不要刺耳。</td></tr>
+            <tr><td>交互 SFX</td><td><code>-18 到 -12 LUFS-S</code></td><td>按重要性分层。</td></tr>
+            <tr><td>脚步 / Foley</td><td><code>-28 到 -20 LUFS-S</code></td><td>高频播放，避免疲劳。</td></tr>
+            <tr><td>环境 AMB</td><td><code>-34 到 -24 LUFS-I</code></td><td>长时间播放，宁可稳一点。</td></tr>
+            <tr><td>BGM</td><td><code>-26 到 -18 LUFS-I</code></td><td>给 VO 和关键 SFX 留空间。</td></tr>
+            <tr><td>VO</td><td><code>-24 到 -18 LUFS-S</code></td><td>优先保证清晰度。</td></tr>
+          </table>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <span class="tag">零基础教程</span>
+          <h4>用 Youlean Loudness Meter 做单个声音验收</h4>
+          <ol>
+            <li>安装免费版 <code>Youlean Loudness Meter</code>，在 Reaper、Nuendo、Pro Tools 或任意支持 VST 的软件里作为插件打开。</li>
+            <li>把要检查的 WAV 放到一条音轨上，音轨音量保持 <code>0 dB</code>，不要额外加压缩、限制或自动音量。</li>
+            <li>点击插件里的 Reset，从头播放完整声音；Loop 类声音至少播放 20 到 30 秒。</li>
+            <li>记录 <code>Integrated LUFS</code>、<code>Short Term LUFS</code>、<code>True Peak Max</code>。</li>
+            <li>如果 True Peak 高于 <code>-1 dBTP</code>，先降素材增益；如果同类声音听感差很多，再按目标范围微调增益。</li>
+            <li>把数值填进资产登记表，状态先标记为 <code>Measured</code>，进 UE 场景听感确认后再标记 <code>Approved</code>。</li>
+          </ol>
+          <p>最小团队可以先不做复杂母带，只要求每个声音都有响度记录、不过载、同类型听感接近。</p>
+        </div>
+      </section>
+
+      <section id="routing">
+        <div class="section-head">
+          <h3>UE 分类与路由</h3>
+          <p>用 Sound Class 和 Submix 把音量设置、混音处理、调试隔离出来。</p>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <span class="tag">Sound Class</span>
+            <h4>推荐层级</h4>
+            <pre><code>Master
+  BGM
+  Ambience
+  SFX
+    Interaction
+    Foley
+    Weapon
+    Vehicle
+  UI
+  VO
+  Cinematic</code></pre>
+          </div>
+          <div class="card">
+            <span class="tag">Submix</span>
+            <h4>推荐总线</h4>
+            <pre><code>Submix_Master
+Submix_BGM
+Submix_AMB
+Submix_SFX
+Submix_UI
+Submix_VO
+Submix_Reverb</code></pre>
+            <p>玩家设置可单独控制 BGM / SFX / VO / UI；调试时也能快速静音某类声音。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="interfaces">
+        <div class="section-head">
+          <h3>UE 其他系统接口建议</h3>
+          <p>音频不要散落在各个蓝图节点里。推荐提供一个统一 Audio Facade，让玩法、动画、UI、关卡和剧情都从同一入口请求播放。</p>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <span class="tag">统一入口</span>
+            <h4>建议做一个 Audio Manager / Subsystem</h4>
+            <table>
+              <tr><th>接口</th><th>用途</th></tr>
+              <tr><td><code>Play2D(AudioId)</code></td><td>UI、系统提示、非空间化声音。</td></tr>
+              <tr><td><code>PlayAtLocation(AudioId, Location)</code></td><td>一次性世界声音，例如开门、拾取、爆炸。</td></tr>
+              <tr><td><code>PlayAttached(AudioId, Actor/Component)</code></td><td>跟随角色或物体的声音，例如机器运转、火焰。</td></tr>
+              <tr><td><code>SetState(Tag)</code></td><td>切换音乐、环境、战斗状态。</td></tr>
+              <tr><td><code>SetRTPC/Parameter(Name, Value)</code></td><td>把速度、血量、距离、天气强度传给 MetaSound 或混音系统。</td></tr>
+              <tr><td><code>StopGroup(GroupId)</code></td><td>停止一类声音，例如关闭某区域环境音。</td></tr>
+            </table>
+          </div>
+          <div class="card">
+            <span class="tag">数据驱动</span>
+            <h4>不要让业务直接引用 WAV</h4>
+            <p>玩法系统只传 <code>AudioId</code> 或 <code>GameplayTag</code>，Audio Manager 去查 Data Asset，再决定实际播放哪个 MetaSound、Sound Cue、Attenuation、Concurrency 和 Submix。</p>
+            <pre><code>Gameplay Event
+  -> AudioId / GameplayTag
+  -> Audio Data Asset
+  -> Sound Asset + ATT + CON + Submix
+  -> Audio Manager Play</code></pre>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <span class="tag">接入位置</span>
+          <h4>各系统应该在哪里接音频</h4>
+          <table>
+            <tr><th>系统</th><th>推荐接入点</th><th>典型声音</th><th>注意</th></tr>
+            <tr><td>角色动画</td><td><code>Anim Notify</code> / <code>Anim Notify State</code></td><td>脚步、落地、挥砍、衣料</td><td>高频声音要并发限制，脚步材质可从 Physical Material 取。</td></tr>
+            <tr><td>玩法交互</td><td>交互组件、Ability、Gameplay Event</td><td>开门、拾取、宝箱、机关</td><td>只发事件和 AudioId，不直接播放具体 WAV。</td></tr>
+            <tr><td>UI</td><td>统一 UI Sound Router 或 Common UI Action</td><td>点击、确认、返回、错误提示</td><td>2D 播放，独立 UI Sound Class，支持玩家关闭或调低。</td></tr>
+            <tr><td>关卡环境</td><td>Audio Volume、Ambient Sound Actor、Level Script 只做区域开关</td><td>风、雨、河流、城市底噪</td><td>区域进入退出用 Fade，避免突然切断。</td></tr>
+            <tr><td>音乐系统</td><td>Game State、Music Manager、Gameplay Tags</td><td>探索、战斗、Boss、胜利 Stinger</td><td>用状态切换，不在单个敌人蓝图里直接控制 BGM。</td></tr>
+            <tr><td>剧情过场</td><td>Sequencer Audio Track 或剧情控制器</td><td>对白、镜头音效、过场音乐</td><td>要和 VO、BGM Ducking 规则一致。</td></tr>
+            <tr><td>物理碰撞</td><td>Hit Event / Impact Resolver</td><td>撞击、滚动、破碎</td><td>按材质、速度、质量选择量级，避免每帧触发。</td></tr>
+          </table>
+        </div>
+      </section>
+
+      <section id="workflows">
+        <div class="section-head">
+          <h3>三类核心工作流</h3>
+          <p>环境音、交互音、背景音乐要分开设计，它们的目标和配置完全不同。</p>
+        </div>
+        <div class="grid-3">
+          <div class="card">
+            <span class="tag">环境音 AMB</span>
+            <h4>按层组织</h4>
+            <pre><code>AMB_Forest_Base_Loop
+AMB_Forest_Wind_Loop
+AMB_Forest_Birds_Random
+AMB_Forest_Insects_Night
+AMB_Forest_Tree_Creak_Random</code></pre>
+            <ul>
+              <li>用 Ambient Sound Actor 或 Soundscape 放置。</li>
+              <li>用 Audio Volume 控制室内外、混响和过渡。</li>
+              <li>循环必须检查无缝，区域切换要 Fade。</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <span class="tag">交互音 SFX</span>
+            <h4>随机、并发、空间化</h4>
+            <ul>
+              <li>一个行为至少 3 个变体。</li>
+              <li>高频声音必须设置 Concurrency。</li>
+              <li>3D 世界声音必须设置 Attenuation。</li>
+              <li>用 MetaSound 或 Sound Cue 做随机 Pitch / Volume。</li>
+              <li>不要在蓝图里散落硬引用，优先统一 Data Asset。</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <span class="tag">背景音乐 BGM</span>
+            <h4>按状态和段落组织</h4>
+            <pre><code>BGM_Explore_Loop
+BGM_Combat_Intro
+BGM_Combat_Loop
+BGM_Combat_Stinger_Win
+BGM_Boss_Phase01
+BGM_Boss_Phase02</code></pre>
+            <ul>
+              <li>Quartz 做节拍同步切换。</li>
+              <li>Gameplay Tags 驱动音乐状态。</li>
+              <li>VO 播放时给 BGM 做 Ducking。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="template">
+        <div class="section-head">
+          <h3>资产登记模板</h3>
+          <p>建议每个声音入库时都有一条记录，方便查问题和交接。</p>
+        </div>
+        <div class="card">
+          <table>
+            <tr><th>字段</th><th>示例</th><th>用途</th></tr>
+            <tr><td>Asset Name</td><td><code>SW_SFX_Door_Wood_Open_01</code></td><td>唯一资产名。</td></tr>
+            <tr><td>Category</td><td><code>SFX / Interaction</code></td><td>分类与路由依据。</td></tr>
+            <tr><td>Loop / 3D</td><td><code>No / Yes</code></td><td>决定 Loop、Attenuation、空间化检查。</td></tr>
+            <tr><td>ATT / CON</td><td><code>ATT_Indoor_MediumObject</code> / <code>CON_Interaction_Medium</code></td><td>衰减和并发模板。</td></tr>
+            <tr><td>Submix</td><td><code>Submix_SFX</code></td><td>混音路由。</td></tr>
+            <tr><td>LUFS / True Peak</td><td><code>-16.5 LUFS-S</code> / <code>-2.0 dBTP</code></td><td>响度验收。</td></tr>
+            <tr><td>Variants</td><td><code>3</code></td><td>防重复感。</td></tr>
+            <tr><td>Status</td><td><code>Approved</code></td><td>制作、接入、验收状态。</td></tr>
+          </table>
+        </div>
+      </section>
+
+      <section id="folders">
+        <div class="section-head">
+          <h3>推荐目录结构</h3>
+          <p>让素材、播放逻辑、混音配置和数据配置各归其位。</p>
+        </div>
+        <div class="card">
+          <pre><code>Content/Audio/
+  Ambience/
+    Forest/
+    City/
+    Interior/
+  BGM/
+    Exploration/
+    Combat/
+    Cinematic/
+  SFX/
+    Interaction/
+    Foley/
+    Weapon/
+    Vehicle/
+    UI/
+  VO/
+    NPC/
+    Player/
+  MetaSounds/
+  SoundCues/
+  Attenuation/
+  Concurrency/
+  Mix/
+    SoundClasses/
+    Submixes/
+    SoundMixes/
+  Data/</code></pre>
+        </div>
+      </section>
+
+      <section id="sop">
+        <div class="section-head">
+          <h3>SOP 总流程</h3>
+          <p>从需求到归档的完整闭环，可以直接复制进团队文档。</p>
+        </div>
+        <div class="flow">
+          <div class="step"><div><strong>需求登记</strong><span>明确声音类型、触发场景、是否循环、是否 3D、优先级。</span></div></div>
+          <div class="step"><div><strong>素材制作</strong><span>在 DAW 中完成剪辑、降噪、响度处理、Loop 处理、命名。</span></div></div>
+          <div class="step"><div><strong>响度检测</strong><span>批量测量 LUFS、True Peak、RMS、时长，输出记录表。</span></div></div>
+          <div class="step"><div><strong>导入 UE</strong><span>按目录导入 Sound Wave，检查采样率、声道、Loop、压缩设置。</span></div></div>
+          <div class="step"><div><strong>创建播放资产</strong><span>创建 Sound Cue 或 MetaSound，添加随机变体、Pitch/Volume 随机、参数控制。</span></div></div>
+          <div class="step"><div><strong>配置空间与并发</strong><span>设置 Attenuation、Concurrency、Priority、Virtualization。</span></div></div>
+          <div class="step"><div><strong>路由混音</strong><span>分配 Sound Class、Submix，确认玩家设置能控制对应分类。</span></div></div>
+          <div class="step"><div><strong>玩法接入</strong><span>蓝图、C++、Anim Notify、Sequencer 接入，避免硬编码散落引用。</span></div></div>
+          <div class="step"><div><strong>场景测试</strong><span>检查响度、触发时机、重复感、遮挡、混响、室内外过渡。</span></div></div>
+          <div class="step"><div><strong>性能检查</strong><span>用 Audio Insights 检查活动声音数量、并发裁剪、CPU、内存、流式加载。</span></div></div>
+          <div class="step"><div><strong>验收归档</strong><span>更新音频资产表，标记 Approved，锁定版本。</span></div></div>
+        </div>
+      </section>
+
+      <div class="footer-note">
+        一句话版：虚幻音效 SOP 的关键不是“把 WAV 放进去能响”，而是建立一套可追踪的资产系统：统一命名、外部响度检测、UE 内分类路由、环境/交互/BGM 分工作流配置，最后用 Audio Insights 和响度表做验收。
+      </div>
+    </main>
+  </div>
+</body>
+</html>
