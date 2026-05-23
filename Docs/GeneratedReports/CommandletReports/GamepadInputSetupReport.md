@@ -1,21 +1,24 @@
 ﻿# Gamepad Input Setup Report
 - Mode: Apply
-- Layout: A=Interact/Accept, B=Dash/Back, X=Light/Secondary, Y=Heavy/Details, LB=Use item, RB=Use active skill, RS=Switch active skill, Menu=Pause, View=Backpack.
+- Layout: A=Interact/Accept, B=Dash/Back, X=Light/Secondary/ReverseCard, Y=Heavy/Details, LB=Use item, RB=Use active skill, RS=Switch active skill, Menu=Pause, View=Backpack.
 
 - Found input action `/Game/Code/Core/Input/Actions/IA_UseCombatItem`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_SwitchCombatItemNext`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_SwitchCombatItemPrevious`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_UseActiveSkill`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_SwitchActiveSkill`.
+- Created input action `/Game/Code/Core/Input/Actions/IA_ReverseCard`.
 - `IA_Interact` maps to E, Gamepad_FaceButton_Bottom.
 - `IA_Dash` maps to SpaceBar, Gamepad_FaceButton_Right.
 - `IA_Esc` maps to Escape, Gamepad_Special_Right.
 - `IA_OpenBackback` maps to Tab, Gamepad_Special_Left.
 - `IA_Reload` maps to no default keys.
+- `IA_MouseClick` maps to LeftMouseButton.
 - `IA_UseCombatItem` maps to F, Gamepad_LeftShoulder.
 - `IA_SwitchCombatItemNext` maps to Q, Gamepad_DPad_Right.
 - `IA_SwitchCombatItemPrevious` maps to Z, Gamepad_DPad_Left.
 - `IA_UseActiveSkill` maps to R, Gamepad_RightShoulder.
 - `IA_SwitchActiveSkill` maps to T, Gamepad_RightThumbstick.
+- `IA_ReverseCard` maps to R, Gamepad_FaceButton_Left (updated).
 - Controller input defaults already match target actions.
-- BP_InputActionDecorator has 16 required action mappings.
+- BP_InputActionDecorator has 20 required action mappings (updated).

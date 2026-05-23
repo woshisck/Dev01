@@ -74,6 +74,7 @@ namespace BackpackDeckUIStyleSetup
 	const FString InteractInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_Interact.IA_Interact");
 	const FString EscInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_Esc.IA_Esc");
 	const FString MouseClickInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_MouseClick.IA_MouseClick");
+	const FString ReverseCardInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_ReverseCard.IA_ReverseCard");
 
 	const FLinearColor SilverText(0.86f, 0.88f, 0.90f, 1.0f);
 	const FLinearColor MutedSilver(0.58f, 0.62f, 0.66f, 1.0f);
@@ -221,6 +222,7 @@ namespace BackpackDeckUIStyleSetup
 			bChanged |= EnsureActionMapping(TEXT("Interact"), InteractInputActionObjectPath);
 			bChanged |= EnsureActionMapping(TEXT("Esc"), EscInputActionObjectPath);
 			bChanged |= EnsureActionMapping(TEXT("MouseClick"), MouseClickInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("ReverseCard"), ReverseCardInputActionObjectPath);
 			if (DecoratorCDO->AutoResolvePath != TEXT("/Game/Code/Core/Input/Actions/"))
 			{
 				DecoratorCDO->AutoResolvePath = TEXT("/Game/Code/Core/Input/Actions/");
@@ -243,7 +245,7 @@ namespace BackpackDeckUIStyleSetup
 			}
 		}
 
-		ReportLines.Add(FString::Printf(TEXT("- BP_InputActionDecorator ActionMap includes Interact, Esc, and MouseClick mappings%s."),
+		ReportLines.Add(FString::Printf(TEXT("- BP_InputActionDecorator ActionMap includes Interact, Esc, MouseClick, and ReverseCard mappings%s."),
 			bChanged ? TEXT(" (updated)") : TEXT("")));
 	}
 
@@ -997,7 +999,7 @@ namespace BackpackDeckUIStyleSetup
 		UWidget* CombatDeckEditWidget = ConstructWidgetFromClassPath(WidgetTree, ToClassPath(CombatDeckEditPath), TEXT("CombatDeckEditWidget"), UCombatDeckEditWidget::StaticClass(), ReportLines);
 		UWidget* RuneInfoCard = ConstructWidgetFromClassPath(WidgetTree, RuneInfoCardClassPath, TEXT("RuneInfoCard"), URuneInfoCardWidget::StaticClass(), ReportLines);
 		UBorder* OperationHintWidget = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("OperationHintWidget"));
-		UYogCommonRichTextBlock* OperationHintText = MakeComboRichLabel(WidgetTree, TEXT("OperationHintText"), TEXT("<input action=\"MouseClick\"/> 拖拽卡牌调整顺序  R 反转 Link"), 12, BrightSilver);
+		UYogCommonRichTextBlock* OperationHintText = MakeComboRichLabel(WidgetTree, TEXT("OperationHintText"), TEXT("<input action=\"MouseClick\"/> 拖拽卡牌调整顺序  <input action=\"ReverseCard\"/> 反转 Link"), 12, BrightSilver);
 		UBorder* BottomActionBar = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("BottomActionBar"), false);
 		USizeBox* ButtonRowSize = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("ButtonRowSize"), false);
 		UHorizontalBox* ButtonRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("ButtonRow"), false);

@@ -835,8 +835,8 @@
         {
           "type": "TutorialPopup",
           "tutorialEventId": "tutorial_card_link_moonlight",
-          "title": "月痕相连",
-          "body": "月光会读取相邻卡牌的特征。方向和顺序不同，它能连接到的卡牌也会不同。",
+          "title": "连携卡牌",
+          "body": "连携卡拥有基础结算效果；满足连携条件时，会在基础结算之外追加或转化为连携效果。",
           "pauseGame": true,
           "progressKey": "",
           "progressLabel": "",
@@ -848,15 +848,21 @@
           "reuseKey": "",
           "tutorialPages": [
             {
-              "title": "月痕会寻找邻牌",
-              "body": "月光属于连携卡。它不只看自己的效果，还会读取相邻卡牌的特征；条件满足时，本次攻击会追加月光效果。",
-              "subText": "把它放在不同位置，同一套卡组也会产生不同节奏。",
+              "title": "基础结算效果",
+              "body": "[月光] 是连携卡。连携卡被打出并完成消耗时，会先执行卡牌自身的基础结算效果；如果本次没有满足连携条件，结算会停留在这一步。",
+              "subText": "基础结算效果是卡牌的稳定收益，和是否成功触发连携分开判断。",
               "illustration": "/Game/Docs/UI/TutorialTex/512/T_Tutorial512_LinkCard"
             },
             {
-              "title": "光照向哪一侧",
-              "body": "月光有两个方向：正向读取前一张卡，反向读取后一张卡。选中月光后按 <input action=\"ReverseCard\"/> 切换方向，再调整卡牌顺序，就能决定它与哪张卡产生连携。",
-              "subText": "先记住：方向决定读取哪一侧，顺序决定那一侧是谁。",
+              "title": "连携条件",
+              "body": "连携卡的强化效果来自相邻卡牌。它会读取指定方向上的卡牌特征；条件满足时，会在基础效果上追加更强效果，或将基础效果转化为新的表现。",
+              "subText": "是否触发连携，取决于卡牌顺序、连携方向和相邻卡牌是否符合要求。",
+              "illustration": "/Game/Docs/UI/TutorialTex/512/T_Tutorial512_LinkCard"
+            },
+            {
+              "title": "正向与反向",
+              "body": "有些连携卡可以切换方向。选中连携卡后按 <input action=\"ReverseCard\"/>，可以改变它读取哪一侧的卡牌；再调整卡牌顺序，就能决定它和哪张卡产生连携。",
+              "subText": "方向决定读取哪一侧，顺序决定那一侧是谁。具体效果以卡牌说明为准。",
               "illustration": "/Game/Docs/UI/TutorialTex/512/T_Tutorial512_LinkCard"
             }
           ]
@@ -879,7 +885,7 @@
         }
       ],
       "extra": {
-        "stageDirection": "蓝雾特殊敌人死亡后掉落 [月光]。拾取后弹出两页教程：第一页介绍连携卡读取相邻卡牌，第二页介绍月光正向/反向连携。正文必须使用 YogCommonRichTextBlock；反转卡牌输入使用 <input action=\"ReverseCard\"/>，当前项目仍需确认或补齐该 token，避免写死 R / 手柄 X。",
+        "stageDirection": "蓝雾特殊敌人死亡后掉落 [月光]。拾取后弹出三页教程：第一页说明连携卡也有默认效果，第二页说明满足连携条件后追加或改变效果，第三页介绍正向/反向与卡牌顺序。正文必须使用 YogCommonRichTextBlock；反转卡牌输入使用 <input action=\"ReverseCard\"/>，当前项目仍需确认或补齐该 token，避免写死 R / 手柄 X。",
         "implementation": {
           "specialEnemySelection": "LastSpawnedEnemy 或指定 Enemy_Tutorial_MoonlightCarrier",
           "vfx": "BlueFogAura",
@@ -1036,7 +1042,7 @@
           "type": "TutorialPopup",
           "tutorialEventId": "tutorial_finisher_card",
           "title": "终结技卡牌",
-          "body": "靠近祭坛时，按下 <input action=\"Interact\"/> 交互并献祭一张卡牌，换取武器终结技。终结技会把一次完整攻击节奏压成爆发窗口；终结技输入窗口出现时，按下 <input action=\"HeavyAttack\"/> 完成确认，可以打出更重的一击。",
+          "body": "",
           "pauseGame": true,
           "progressKey": "",
           "progressLabel": "",
@@ -1046,7 +1052,26 @@
           "levelFlow": "",
           "actionId": "",
           "reuseKey": "",
-          "tutorialPages": []
+          "tutorialPages": [
+            {
+              "title": "终结技卡牌",
+              "body": "终结技卡牌也是卡牌的一种。它进入卡组后，会像普通卡牌一样被打出；正常打出时，会先结算这张卡的基础效果。",
+              "subText": "基础效果是卡牌稳定生效的部分，可能是伤害、强化、标记或其他短时间收益。",
+              "illustration": "/Game/Docs/UI/TutorialTex/512/T_Tutorial512_WeaponCards"
+            },
+            {
+              "title": "基础效果与特殊效果",
+              "body": "终结技卡牌通常分为两层：基础效果负责稳定结算；如果之后满足卡牌写明的特殊条件，还会触发额外的终结技效果。",
+              "subText": "特殊条件通常和攻击方式或连击有关，例如在指定连段、指定攻击或指定时机中打出。",
+              "illustration": "/Game/Docs/UI/TutorialTex/512/T_Tutorial512_WeaponCards"
+            },
+            {
+              "title": "阅读触发需求",
+              "body": "查看终结技卡牌时，先看基础效果，再看特殊触发需求。没有满足需求时，只结算基础效果；满足需求时，才会释放完整的终结技效果。",
+              "subText": "不同终结技卡牌的需求可能不同，按卡牌说明和 HUD 提示执行。",
+              "illustration": ""
+            }
+          ]
         },
         {
           "type": "RecordProgress",
@@ -1078,6 +1103,10 @@
             "HeavyAttack"
           ],
           "inputRichTextNote": "祭坛交互和终结技 QTE 确认输入都使用 action token。"
+        },
+        "graphPosition": {
+          "x": 6085,
+          "y": 68
         }
       }
     },
@@ -1244,7 +1273,7 @@
       "type": "UI",
       "title": "CombatDeckBar 增加 OnDeckCardsEntered 渐入渐出高亮，首次入组追加 <input action=\"OpenBackpack\"/> 打开背包底部操作提示条",
       "owner": "UI",
-      "status": "todo"
+      "status": "partial"
     },
     {
       "id": "WI_FirstRun_RewardPickupTypes",
@@ -1300,21 +1329,21 @@
       "type": "UI",
       "title": "所有教程类按键提示统一使用 YogCommonRichTextBlock / InputActionRichTextDecorator：Move、CameraLook、Dash、Interact、OpenBackpack、MouseClick、LightAttack、HeavyAttack、ReverseCard，不写死 E/Space/Tab/H/R 或手柄键名",
       "owner": "UI",
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "WI_FirstRun_FinisherQTERichText",
       "type": "UI",
       "title": "WBP_FinisherQTEPrompt 的输入提示改为 YogCommonRichTextBlock / InputActionRichTextDecorator，终结技确认显示 <input action=\"HeavyAttack\"/>，不要写死 H",
       "owner": "UI",
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "WI_FirstRun_ReverseCardInputToken",
       "type": "Input/UI",
       "title": "新增或确认反转卡牌输入 token：建议 <input action=\"ReverseCard\"/>，用于后续月光/连携卡教程；不要在正文里写死 R 或手柄 X",
       "owner": "Input/UI",
-      "status": "todo"
+      "status": "done"
     }
   ],
   "extra": {

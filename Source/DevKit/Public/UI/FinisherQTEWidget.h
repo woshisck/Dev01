@@ -8,6 +8,7 @@ class UBorder;
 class UCanvasPanel;
 class UProgressBar;
 class UTextBlock;
+class UWidget;
 
 UCLASS()
 class DEVKIT_API UFinisherQTEWidget : public UUserWidget
@@ -35,16 +36,16 @@ protected:
 	TObjectPtr<UBorder> PromptPanel;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> KeyText;
+	TObjectPtr<UWidget> KeyText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> PromptText;
+	TObjectPtr<UWidget> PromptText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UProgressBar> WindowProgressBar;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Finisher QTE")
-	FText KeyLabel = FText::FromString(TEXT("H"));
+	FText KeyLabel = FText::FromString(TEXT("<input action=\"HeavyAttack\"/>"));
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Finisher QTE")
 	FText ActivePrompt = FText::FromString(TEXT("FINISHER"));
@@ -61,7 +62,9 @@ private:
 	bool bPromptActive = false;
 	bool bConfirmed = false;
 
-	void BuildRuntimeLayout();
+	void BuildRuntimeLayout(bool bForceRebuild = false);
 	void RefreshVisuals(float RemainingAlpha);
 	float GetCurrentRealTime() const;
+	bool IsKeyPromptRichText() const;
+	void SetTextIfSupported(UWidget* Widget, const FText& Text) const;
 };

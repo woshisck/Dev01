@@ -199,10 +199,10 @@ FText UBackpackScreenWidget::BuildOperationHintText() const
 
     if (bIsGamepadInputMode)
     {
-        return FText::FromString(TEXT("左右选择卡牌  <input action=\"Interact\"/> 拿起/放下排序  X 反转 Link"));
+        return FText::FromString(TEXT("左右选择卡牌  <input action=\"Interact\"/> 拿起/放下排序  <input action=\"ReverseCard\"/> 反转 Link"));
     }
 
-    return FText::FromString(TEXT("<input action=\"MouseClick\"/> 拖拽卡牌调整顺序  R 反转 Link"));
+    return FText::FromString(TEXT("<input action=\"MouseClick\"/> 拖拽卡牌调整顺序  <input action=\"ReverseCard\"/> 反转 Link"));
 }
 
 FText UBackpackScreenWidget::BuildConfirmButtonText() const
@@ -2590,7 +2590,7 @@ void UBackpackScreenWidget::GamepadConfirm()
             SelectedCell     = GamepadCursorCell;
             HoverCol = HoverRow = -1;
             OnSelectionChanged();
-            OnStatusMessage(NSLOCTEXT("Backpack", "GrabOK", "已抓取符文，移动光标后按 A 放置"));
+            OnStatusMessage(NSLOCTEXT("Backpack", "GrabOK", "已抓取符文，移动光标后按确认放置"));
         }
         else
         {
@@ -2783,7 +2783,7 @@ void UBackpackScreenWidget::PendingGamepadConfirm()
         PendingGrabbedIdx    = PendingCursorIdx;
         PendingSelectedIdx   = PendingCursorIdx;
         RefreshPendingGrid();
-        OnStatusMessage(NSLOCTEXT("Backpack", "PendingGrabOK", "已抓取符文，DPad→移动，A→放置，B→取消"));
+        OnStatusMessage(NSLOCTEXT("Backpack", "PendingGrabOK", "已抓取符文，移动光标后按确认放置，按返回取消"));
     }
     else
     {

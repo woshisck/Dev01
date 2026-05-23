@@ -106,12 +106,12 @@ void URuneRewardFloatWidget::RefreshPickupHint()
 
 	if (UYogCommonRichTextBlock* RichHint = Cast<UYogCommonRichTextBlock>(PickupHintText))
 	{
-		RichHint->SetText(FText::FromString(TEXT("<input action=\"Interact\"/> Pick up")));
+		RichHint->SetText(FText::FromString(TEXT("<input action=\"Interact\"/> 拾取")));
 		return;
 	}
 
 	if (UTextBlock* PlainHint = Cast<UTextBlock>(PickupHintText))
 	{
-		PlainHint->SetText(NSLOCTEXT("RuneRewardFloat", "PickupHintGamepadA", "Press A to pick up"));
+		PlainHint->SetText(NSLOCTEXT("RuneRewardFloat", "PickupHintConfirm", "确认拾取"));
 	}
 }

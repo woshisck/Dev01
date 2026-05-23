@@ -11,14 +11,16 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "UI/InputActionRichTextDecorator.h"
+#include "UI/YogCommonRichTextBlock.h"
 
 void UFinisherQTEWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	if (!PromptPanel || !KeyText || !PromptText || !WindowProgressBar)
+	if (!PromptPanel || !KeyText || !PromptText || !WindowProgressBar || !IsKeyPromptRichText())
 	{
-		BuildRuntimeLayout();
+		BuildRuntimeLayout(true);
 	}
 
 	HidePrompt();
@@ -47,7 +49,7 @@ void UFinisherQTEWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 
 void UFinisherQTEWidget::ShowPrompt(float WindowDuration)
 {
-	BuildRuntimeLayout();
+	BuildRuntimeLayout(!IsKeyPromptRichText());
 
 	Duration = FMath::Max(0.05f, WindowDuration);
 	StartRealTime = GetCurrentRealTime();
@@ -82,12 +84,27 @@ void UFinisherQTEWidget::RefreshVisuals(float RemainingAlpha)
 {
 	if (KeyText)
 	{
-		KeyText->SetText(KeyLabel);
+		SetTextIfSupported(KeyText, KeyLabel);
 	}
 
 	if (PromptText)
 	{
-		PromptText->SetText(bConfirmed ? ConfirmedPrompt : ActivePrompt);
+		SetTextIfSupported(PromptText, bConfirmed ? ConfirmedPrompt : ActivePrompt);
+	}
+
+	if (PromptPanel)
+	{
+		const float IntroAlpha = Duration > 0.f
+			? FMath::Clamp((GetCurrentRealTime() - StartRealTime) / 0.12f, 0.f, 1.f)
+			: 1.f;
+		const float SmoothIntro = FMath::InterpEaseInOut(0.f, 1.f, IntroAlpha, 2.f);
+		const float ConfirmPulse = bConfirmed ? 1.04f : 1.f;
+		const float CurrentScale = FMath::Lerp(0.94f, ConfirmPulse, SmoothIntro);
+		PromptPanel->SetRenderOpacity(SmoothIntro);
+		PromptPanel->SetRenderScale(FVector2D(CurrentScale, CurrentScale));
+		PromptPanel->SetBrushColor(bConfirmed
+			? FLinearColor(0.025f, 0.090f, 0.065f, 0.88f)
+			: FLinearColor(0.015f, 0.016f, 0.020f, 0.82f));
 	}
 
 	if (WindowProgressBar)
@@ -99,9 +116,29 @@ void UFinisherQTEWidget::RefreshVisuals(float RemainingAlpha)
 	}
 }
 
-void UFinisherQTEWidget::BuildRuntimeLayout()
+bool UFinisherQTEWidget::IsKeyPromptRichText() const
 {
-	if (!WidgetTree || (PromptPanel && KeyText && PromptText && WindowProgressBar))
+	return Cast<UYogCommonRichTextBlock>(KeyText) != nullptr;
+}
+
+void UFinisherQTEWidget::SetTextIfSupported(UWidget* Widget, const FText& Text) const
+{
+	if (UTextBlock* TextBlock = Cast<UTextBlock>(Widget))
+	{
+		TextBlock->SetText(Text);
+		return;
+	}
+
+	if (UYogCommonRichTextBlock* RichTextBlock = Cast<UYogCommonRichTextBlock>(Widget))
+	{
+		RichTextBlock->EnsureDecoratorClass(UInputActionRichTextDecorator::StaticClass());
+		RichTextBlock->SetText(Text);
+	}
+}
+
+void UFinisherQTEWidget::BuildRuntimeLayout(bool bForceRebuild)
+{
+	if (!WidgetTree || (!bForceRebuild && PromptPanel && KeyText && PromptText && WindowProgressBar))
 	{
 		return;
 	}
@@ -129,22 +166,22 @@ void UFinisherQTEWidget::BuildRuntimeLayout()
 	KeyBack->SetBrushColor(FLinearColor(0.92f, 0.74f, 0.25f, 0.95f));
 	KeyBack->SetPadding(FMargin(12.f, 5.f));
 
-	KeyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("KeyText"));
-	KeyText->SetJustification(ETextJustify::Center);
-	KeyText->SetColorAndOpacity(FSlateColor(FLinearColor(0.02f, 0.018f, 0.012f, 1.f)));
-	FSlateFontInfo KeyFont = KeyText->GetFont();
-	KeyFont.Size = 26;
-	KeyText->SetFont(KeyFont);
+	UYogCommonRichTextBlock* KeyRichText = WidgetTree->ConstructWidget<UYogCommonRichTextBlock>(UYogCommonRichTextBlock::StaticClass(), TEXT("KeyText"));
+	KeyRichText->EnsureDecoratorClass(UInputActionRichTextDecorator::StaticClass());
+	KeyRichText->OverrideFontSize = 22;
+	KeyRichText->OverrideColor = FLinearColor(0.02f, 0.018f, 0.012f, 1.f);
+	KeyText = KeyRichText;
 	KeyBack->SetContent(KeyText);
 
-	PromptText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PromptText"));
-	PromptText->SetJustification(ETextJustify::Left);
-	PromptText->SetColorAndOpacity(FSlateColor(FLinearColor(0.96f, 0.96f, 0.92f, 1.f)));
-	PromptText->SetShadowOffset(FVector2D(1.f, 1.f));
-	PromptText->SetShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.85f));
-	FSlateFontInfo PromptFont = PromptText->GetFont();
+	UTextBlock* PromptTextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PromptText"));
+	PromptTextBlock->SetJustification(ETextJustify::Left);
+	PromptTextBlock->SetColorAndOpacity(FSlateColor(FLinearColor(0.96f, 0.96f, 0.92f, 1.f)));
+	PromptTextBlock->SetShadowOffset(FVector2D(1.f, 1.f));
+	PromptTextBlock->SetShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.85f));
+	FSlateFontInfo PromptFont = PromptTextBlock->GetFont();
 	PromptFont.Size = 19;
-	PromptText->SetFont(PromptFont);
+	PromptTextBlock->SetFont(PromptFont);
+	PromptText = PromptTextBlock;
 
 	WindowProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("WindowProgressBar"));
 	WindowProgressBar->SetPercent(1.f);

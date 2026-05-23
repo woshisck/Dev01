@@ -14,7 +14,7 @@ class UWidget;
  *
  * WBP 控件（BindWidgetOptional）：
  *   RuneListBox    VerticalBox  动态填充每个可选符文行（图标 + 名称）
- *   PickupHintText TextBlock    静态提示文字（如 "按 E 选择符文"，直接在 WBP 中填写）
+ *   PickupHintText RichText/TextBlock    推荐显示 `<input action="Interact"/> 拾取`
  */
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API URuneRewardFloatWidget : public UUserWidget

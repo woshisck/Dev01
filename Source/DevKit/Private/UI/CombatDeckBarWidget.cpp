@@ -22,6 +22,11 @@ void UCombatDeckBarWidget::NativeConstruct()
 		RewardToastText->SetRenderOpacity(0.0f);
 		RewardToastText->SetVisibility(ESlateVisibility::Collapsed);
 	}
+	if (DeckEntryHighlightPanel)
+	{
+		DeckEntryHighlightPanel->SetRenderOpacity(0.0f);
+		DeckEntryHighlightPanel->SetVisibility(ESlateVisibility::Collapsed);
+	}
 	RefreshDeckSnapshot();
 }
 
@@ -31,6 +36,7 @@ void UCombatDeckBarWidget::NativeTick(const FGeometry& MyGeometry, float InDelta
 
 	TickToast(ConsumedToastText, ConsumedToastTimeRemaining, InDeltaTime);
 	TickToast(RewardToastText, RewardToastTimeRemaining, InDeltaTime);
+	TickDeckCardsEnteredHighlight(InDeltaTime);
 }
 
 void UCombatDeckBarWidget::BindToCombatDeck(UCombatDeckComponent* InCombatDeck)
@@ -71,6 +77,25 @@ void UCombatDeckBarWidget::RefreshDeckSnapshot()
 	TArray<FCombatCardInstance> EmptySnapshot;
 	UpdateDeckVisuals(EmptySnapshot, EDeckState::Ready);
 	BP_OnDeckSnapshotChanged(EmptySnapshot, EDeckState::Ready);
+}
+
+void UCombatDeckBarWidget::PlayDeckCardsEnteredHighlight()
+{
+	if (IsDesignTime())
+	{
+		return;
+	}
+
+	EntryHighlightElapsed = 0.0f;
+	bEntryHighlightAnimating = true;
+
+	if (DeckEntryHighlightPanel)
+	{
+		DeckEntryHighlightPanel->SetVisibility(ESlateVisibility::HitTestInvisible);
+		DeckEntryHighlightPanel->SetRenderOpacity(0.0f);
+	}
+
+	SetRenderScale(FVector2D(1.0f, 1.0f));
 }
 
 void UCombatDeckBarWidget::NativeDestruct()
@@ -226,6 +251,61 @@ void UCombatDeckBarWidget::TickToast(UWidget* ToastWidget, float& ToastTimeRemai
 	}
 }
 
+float UCombatDeckBarWidget::GetDeckEntryHighlightDuration() const
+{
+	return FMath::Max(0.0f, EntryHighlightFadeInDuration)
+		+ FMath::Max(0.0f, EntryHighlightHoldDuration)
+		+ FMath::Max(0.0f, EntryHighlightFadeOutDuration);
+}
+
+void UCombatDeckBarWidget::TickDeckCardsEnteredHighlight(float DeltaTime)
+{
+	if (!bEntryHighlightAnimating)
+	{
+		return;
+	}
+
+	const float FadeIn = FMath::Max(0.0f, EntryHighlightFadeInDuration);
+	const float Hold = FMath::Max(0.0f, EntryHighlightHoldDuration);
+	const float FadeOut = FMath::Max(0.0f, EntryHighlightFadeOutDuration);
+	const float Duration = FMath::Max(0.01f, GetDeckEntryHighlightDuration());
+
+	EntryHighlightElapsed = FMath::Min(EntryHighlightElapsed + FMath::Max(0.0f, DeltaTime), Duration);
+
+	float HighlightAlpha = 1.0f;
+	if (FadeIn > 0.0f && EntryHighlightElapsed < FadeIn)
+	{
+		HighlightAlpha = FMath::Clamp(EntryHighlightElapsed / FadeIn, 0.0f, 1.0f);
+	}
+	else if (FadeOut > 0.0f && EntryHighlightElapsed > FadeIn + Hold)
+	{
+		const float FadeOutElapsed = EntryHighlightElapsed - FadeIn - Hold;
+		HighlightAlpha = FMath::Clamp(1.0f - (FadeOutElapsed / FadeOut), 0.0f, 1.0f);
+	}
+
+	const float SmoothAlpha = FMath::InterpEaseInOut(0.0f, 1.0f, HighlightAlpha, 2.0f);
+	const float PeakScale = FMath::Max(1.0f, EntryHighlightPeakScale);
+	const float CurrentScale = FMath::Lerp(1.0f, PeakScale, SmoothAlpha);
+	SetRenderScale(FVector2D(CurrentScale, CurrentScale));
+
+	if (DeckEntryHighlightPanel)
+	{
+		DeckEntryHighlightPanel->SetRenderOpacity(SmoothAlpha);
+	}
+
+	if (EntryHighlightElapsed >= Duration)
+	{
+		bEntryHighlightAnimating = false;
+		EntryHighlightElapsed = 0.0f;
+		SetRenderScale(FVector2D(1.0f, 1.0f));
+		if (DeckEntryHighlightPanel)
+		{
+			DeckEntryHighlightPanel->SetRenderOpacity(0.0f);
+			DeckEntryHighlightPanel->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+}
+
 FText UCombatDeckBarWidget::GetCardDisplayName(const FCombatCardInstance& Card)
 {
 	if (!Card.Config.DisplayName.IsEmpty())
@@ -318,5 +398,9 @@ void UCombatDeckBarWidget::HandleRewardAddedToDeck(const FCombatCardInstance& Ca
 
 void UCombatDeckBarWidget::HandleDeckCardsEntered(const TArray<FCombatCardInstance>& Cards)
 {
+	if (!Cards.IsEmpty())
+	{
+		PlayDeckCardsEnteredHighlight();
+	}
 	BP_OnDeckCardsEntered(Cards);
 }

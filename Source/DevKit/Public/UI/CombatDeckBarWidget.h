@@ -35,6 +35,9 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Combat Deck")
 	void BP_OnDeckCardsEntered(const TArray<FCombatCardInstance>& Cards);
 
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Animation")
+	void PlayDeckCardsEnteredHighlight();
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -45,6 +48,18 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Toast", meta = (ClampMin = "0.01"))
 	float ToastFadeDuration = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "0.0"))
+	float EntryHighlightFadeInDuration = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "0.0"))
+	float EntryHighlightHoldDuration = 0.65f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "0.0"))
+	float EntryHighlightFadeOutDuration = 0.35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "1.0", ClampMax = "1.2"))
+	float EntryHighlightPeakScale = 1.035f;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<class UCombatDeckCardSlotWidget> CardSlot_0;
@@ -88,6 +103,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<class UWidget> RewardToastText;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<class UWidget> DeckEntryHighlightPanel;
+
 private:
 	UPROPERTY()
 	TObjectPtr<UCombatDeckComponent> BoundCombatDeck;
@@ -103,12 +121,16 @@ private:
 	void SetTextIfBound(class UWidget* TextWidget, const FText& Text);
 	void ShowToast(class UWidget* ToastWidget, float& ToastTimeRemaining);
 	void TickToast(class UWidget* ToastWidget, float& ToastTimeRemaining, float DeltaTime);
+	void TickDeckCardsEnteredHighlight(float DeltaTime);
+	float GetDeckEntryHighlightDuration() const;
 
 	static FText GetCardDisplayName(const FCombatCardInstance& Card);
 	static FText GetConsumedToastText(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);
 
 	float ConsumedToastTimeRemaining = 0.0f;
 	float RewardToastTimeRemaining = 0.0f;
+	float EntryHighlightElapsed = 0.0f;
+	bool bEntryHighlightAnimating = false;
 
 	UFUNCTION()
 	void HandleDeckLoaded(const TArray<FCombatCardInstance>& ActiveSequence);
