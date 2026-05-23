@@ -77,6 +77,7 @@ AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 
 	// 事件总线统一使用的 FlowComponent，同时只跑一个 Flow（新触发停旧的）
 	LifecycleFlowComponent = CreateDefaultSubobject<UFlowComponent>(TEXT("LifecycleFlowComponent"));
+	SingleChoiceLootGameplayTag = FGameplayTag::RequestGameplayTag(TEXT("Loot.Reward.SingleChoice"), false);
 }
 
 bool AYogGameMode::ShouldSkipCombatForRoom(const URoomDataAsset* RoomData)
@@ -89,6 +90,45 @@ bool AYogGameMode::ShouldSkipCombatForRoom(const URoomDataAsset* RoomData)
 bool AYogGameMode::HasActiveStoryEventTag(FGameplayTag EventTag) const
 {
 	return EventTag.IsValid() && ActiveStoryEventTags.HasTag(EventTag);
+}
+
+UCampaignDataAsset* AYogGameMode::GetActiveCampaignData() const
+{
+	return ActiveCampaignData ? ActiveCampaignData.Get() : CampaignData.Get();
+}
+
+void AYogGameMode::ResolveActiveCampaignData()
+{
+	UCampaignDataAsset* ResolvedCampaign = CampaignData;
+	const TCHAR* Source = TEXT("CampaignData");
+
+	if (UYogSaveSubsystem* SaveSys = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UYogSaveSubsystem>()
+		: nullptr)
+	{
+		if (SaveSys->IsFirstRunTutorialActive() && FirstRunTutorialCampaignData)
+		{
+			ResolvedCampaign = FirstRunTutorialCampaignData;
+			Source = TEXT("FirstRunTutorialCampaignData");
+		}
+	}
+
+	if (const UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+	{
+		if (GI->HasCampaignOverride())
+		{
+			ResolvedCampaign = GI->GetCampaignOverrideData();
+			Source = TEXT("GameInstance.CampaignOverrideData");
+		}
+	}
+
+	ActiveCampaignData = ResolvedCampaign;
+
+	UE_LOG(LogTemp, Log, TEXT("[Campaign] Active=%s Source=%s Main=%s FirstRun=%s"),
+		*GetNameSafe(ActiveCampaignData),
+		Source,
+		*GetNameSafe(CampaignData),
+		*GetNameSafe(FirstRunTutorialCampaignData));
 }
 
 
@@ -152,7 +192,9 @@ void AYogGameMode::StartPlay()
 {
 	Super::StartPlay();
 
-	if (CampaignData)
+	ResolveActiveCampaignData();
+
+	if (GetActiveCampaignData())
 	{
 		StartLevelSpawning();
 	}
@@ -326,7 +368,7 @@ void AYogGameMode::UpdateFinishLevel(int count)
 	UE_LOG(LogTemp, Log, TEXT("MonsterKillCount: %d"), this->MonsterKillCount);
 
 	// ---- 新刷怪系统 ----
-	if (CampaignData)
+	if (GetActiveCampaignData())
 	{
 		// 全局存活数递减
 		TotalAliveEnemies = FMath::Max(0, TotalAliveEnemies - count);
@@ -439,7 +481,7 @@ void AYogGameMode::EnterArrangementPhase()
 		}
 
 		// 发放金币（按当前关卡 FloorConfig 中的范围）
-		if (CampaignData && ActiveGoldMax > 0)
+		if (GetActiveCampaignData() && ActiveGoldMax > 0)
 		{
 			const int32 GoldReward = FMath::RandRange(ActiveGoldMin, ActiveGoldMax);
 			if (Player->BackpackGridComponent)
@@ -502,6 +544,7 @@ void AYogGameMode::EnterArrangementPhase()
 				TArray<FLootOption> Batch = (ActiveRoomData && ActiveRoomData->bUseFixedRewardOptions)
 					? ActiveRoomData->FixedRewardOptions
 					: GenerateLootBatch(LootAssignedThisLevel);
+				Batch = ApplyLootOptionLimit(Batch);
 				Pickup->AssignLoot(Batch);
 				UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 预分配 %d 个符文选项给 RewardPickup"), Batch.Num());
 			}
@@ -515,7 +558,7 @@ void AYogGameMode::EnterArrangementPhase()
 	if (!bIsHubRoom && !IsSacrificeEventRoom() && RewardPickupClass
 		&& FMath::FRand() < SacrificeDropChance)
 	{
-		TArray<FLootOption> ExtraBatch = GenerateLootBatch(LootAssignedThisLevel);
+		TArray<FLootOption> ExtraBatch = ApplyLootOptionLimit(GenerateLootBatch(LootAssignedThisLevel));
 		if (ExtraBatch.Num() <= 0)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EnterArrangementPhase: skipped extra RewardPickup because no extra rune options were available."));
@@ -1229,10 +1272,11 @@ void AYogGameMode::EndPlayerDeathVisuals(APlayerCharacterBase* Player)
 void AYogGameMode::StartLevelSpawning()
 {
 	const FString CurrentMapNameForFrontend = UGameplayStatics::GetCurrentLevelName(GetWorld(), true);
+	UCampaignDataAsset* Campaign = GetActiveCampaignData();
 	UE_LOG(LogTemp, Warning, TEXT("[StartLevelSpawning] Map=%s CampaignData=%s ActiveRoomData=%s"),
-		*CurrentMapNameForFrontend, *GetNameSafe(CampaignData), *GetNameSafe(ActiveRoomData));
+		*CurrentMapNameForFrontend, *GetNameSafe(Campaign), *GetNameSafe(ActiveRoomData));
 
-	if (!CampaignData)
+	if (!Campaign)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: CampaignData 未配置，跳过新刷怪系统"));
 		return;
@@ -1267,14 +1311,14 @@ void AYogGameMode::StartLevelSpawning()
 
 	// FloorTable 下标从 0 开始，CurrentFloor 从 1 开始
 	const int32 TableIndex = CurrentFloor - 1;
-	if (!CampaignData->FloorTable.IsValidIndex(TableIndex))
+	if (!Campaign->FloorTable.IsValidIndex(TableIndex))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: FloorTable 没有第 %d 关的配置，降级为场景预放置敌人统计"), CurrentFloor);
 		FallbackToPreplacedEnemies();
 		return;
 	}
 
-	const FFloorConfig& Config = CampaignData->FloorTable[TableIndex];
+	const FFloorConfig& Config = Campaign->FloorTable[TableIndex];
 
 	// ---- 确定本关使用的 DA_Room ----
 	// 优先读取 GI 中由传送门写入的 PendingRoomData（切关传递）
@@ -1290,10 +1334,10 @@ void AYogGameMode::StartLevelSpawning()
 	else
 	{
 		// 第一关：优先使用 DefaultStartingRoom（策划手动指定）；未填则骰子选取
-		if (CurrentFloor == 1 && CampaignData->DefaultStartingRoom)
+		if (CurrentFloor == 1 && Campaign->DefaultStartingRoom)
 		{
-			const FName DefaultRoomName = CampaignData->DefaultStartingRoom->RoomName;
-			const FName DefaultLevelName = ResolveRoomLevelNameForOpen(DefaultRoomName, CampaignData->DefaultStartingRoom);
+			const FName DefaultRoomName = Campaign->DefaultStartingRoom->RoomName;
+			const FName DefaultLevelName = ResolveRoomLevelNameForOpen(DefaultRoomName, Campaign->DefaultStartingRoom);
 			if (!DefaultLevelName.IsNone())
 			{
 				// 检查当前加载的关卡是否已经是 DefaultStartingRoom 指定的关卡
@@ -1304,13 +1348,13 @@ void AYogGameMode::StartLevelSpawning()
 					// 当前关卡不匹配，重定向到 DefaultStartingRoom 的关卡
 					UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: 当前关卡 [%s] ≠ DefaultStartingRoom [%s]，重定向..."),
 						*CurrentMapName, *DefaultLevelName.ToString());
-					if (GI) GI->PendingRoomData = CampaignData->DefaultStartingRoom;
+					if (GI) GI->PendingRoomData = Campaign->DefaultStartingRoom;
 					UGameplayStatics::OpenLevel(GetWorld(), DefaultLevelName);
 					return;
 				}
 			}
 
-			ActiveRoomData = CampaignData->DefaultStartingRoom;
+			ActiveRoomData = Campaign->DefaultStartingRoom;
 			UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 使用 DefaultStartingRoom = %s"), *ActiveRoomData->GetName());
 		}
 		else
@@ -1690,6 +1734,29 @@ void AYogGameMode::GenerateWavePlans(int32 TotalScore, int32 MaxWaveCount, URoom
 
 		const int32 Budget = BasePerWave + (i == 0 ? Remainder : 0);
 		WavePlans.Add(BuildWavePlan(Budget, Room, Tier.MaxEnemiesPerWave, Tier.MaxEnemiesPerLevel));
+	}
+
+	if (Room && Room->bSpawnSpecialRewardEnemy && Room->SpecialRewardEnemyClass)
+	{
+		if (WavePlans.IsEmpty())
+		{
+			WavePlans.Add(FWavePlan());
+		}
+
+		FPlannedEnemy SpecialEnemy;
+		SpecialEnemy.EnemyClass = Room->SpecialRewardEnemyClass;
+		SpecialEnemy.PreSpawnFX = Room->SpecialRewardEnemyPreSpawnFX;
+		SpecialEnemy.PreSpawnFXDuration = Room->SpecialRewardEnemyPreSpawnFXDuration;
+		SpecialEnemy.bAllowAnySpawner = true;
+		SpecialEnemy.bSpecialRewardEnemy = true;
+
+		FWavePlan& TargetWave = WavePlans.Last();
+		TargetWave.EnemiesToSpawn.Add(SpecialEnemy);
+		TotalLevelPlannedEnemies++;
+		LevelTypeSpawnCounts.FindOrAdd(SpecialEnemy.EnemyClass)++;
+
+		UE_LOG(LogTemp, Log, TEXT("GenerateWavePlans: appended special reward enemy %s to the final wave."),
+			*GetNameSafe(SpecialEnemy.EnemyClass));
 	}
 }
 
@@ -2466,7 +2533,7 @@ bool AYogGameMode::SpawnEnemyFromPool(const FPlannedEnemy& Planned)
 	{
 		if (AMobSpawner* S = Cast<AMobSpawner>(Actor))
 		{
-			if (S->EnemySpawnClassis.Contains(Planned.EnemyClass))
+			if (Planned.bAllowAnySpawner || S->EnemySpawnClassis.Contains(Planned.EnemyClass))
 				ValidSpawners.Add(S);
 		}
 	}
@@ -2506,7 +2573,7 @@ bool AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 	TArray<AMobSpawner*> ValidSpawners;
 	for (AActor* A : OutActors)
 		if (AMobSpawner* S = Cast<AMobSpawner>(A))
-			if (S->EnemySpawnClassis.Contains(Planned.EnemyClass))
+			if (Planned.bAllowAnySpawner || S->EnemySpawnClassis.Contains(Planned.EnemyClass))
 				ValidSpawners.Add(S);
 
 	if (ValidSpawners.IsEmpty())
@@ -2645,13 +2712,51 @@ TArray<FBuffEntry> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int
 // 关卡流程
 // =========================================================
 
+int32 AYogGameMode::GetCurrentLootOptionCount() const
+{
+	int32 OptionCount = FMath::Clamp(DefaultLootOptionCount, 1, 3);
+
+	const FGameplayTag EffectiveSingleChoiceTag = SingleChoiceLootGameplayTag.IsValid()
+		? SingleChoiceLootGameplayTag
+		: FGameplayTag::RequestGameplayTag(TEXT("Loot.Reward.SingleChoice"), false);
+
+	if (EffectiveSingleChoiceTag.IsValid())
+	{
+		if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
+			UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
+		{
+			if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
+			{
+				if (ASC->HasMatchingGameplayTag(EffectiveSingleChoiceTag))
+				{
+					OptionCount = FMath::Clamp(SingleChoiceLootOptionCount, 1, 3);
+				}
+			}
+		}
+	}
+
+	return OptionCount;
+}
+
+TArray<FLootOption> AYogGameMode::ApplyLootOptionLimit(const TArray<FLootOption>& Options) const
+{
+	const int32 OptionCount = FMath::Min(GetCurrentLootOptionCount(), Options.Num());
+	TArray<FLootOption> Limited;
+	Limited.Reserve(OptionCount);
+	for (int32 Index = 0; Index < OptionCount; ++Index)
+	{
+		Limited.Add(Options[Index]);
+	}
+	return Limited;
+}
+
 TArray<FLootOption> AYogGameMode::GenerateLootBatch(TSet<URuneDataAsset*>& AlreadyOffered)
 {
 	TArray<FLootOption> Batch;
 
 	// 确定符文源池
 	const TArray<TObjectPtr<URuneDataAsset>>* SourcePool = nullptr;
-	if (CampaignData && ActiveRoomData && !ActiveRoomData->LootPool.IsEmpty())
+	if (GetActiveCampaignData() && ActiveRoomData && !ActiveRoomData->LootPool.IsEmpty())
 	{
 		SourcePool = &ActiveRoomData->LootPool;
 	}
@@ -2703,7 +2808,7 @@ TArray<FLootOption> AYogGameMode::GenerateLootBatch(TSet<URuneDataAsset*>& Alrea
 		Pool.Swap(i, j);
 	}
 
-	const int32 OptionsCount = FMath::Min(3, Pool.Num());
+	const int32 OptionsCount = FMath::Min(GetCurrentLootOptionCount(), Pool.Num());
 	for (int32 i = 0; i < OptionsCount; i++)
 	{
 		FLootOption Option;
@@ -2879,7 +2984,8 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 	static const FGameplayTag NormalTag = FGameplayTag::RequestGameplayTag(FName("Room.Type.Normal"));
 
 	// 层级过滤：Campaign 设置了 LayerTag 时，只选包含该 Tag 的房间
-	const FGameplayTag& LayerTag = CampaignData ? CampaignData->LayerTag : FGameplayTag::EmptyTag;
+	UCampaignDataAsset* Campaign = GetActiveCampaignData();
+	const FGameplayTag& LayerTag = Campaign ? Campaign->LayerTag : FGameplayTag::EmptyTag;
 
 	auto PickByTag = [&](const TArray<TObjectPtr<URoomDataAsset>>& Pool) -> URoomDataAsset*
 	{
@@ -2904,10 +3010,10 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 			return Found;
 	}
 
-	if (!CampaignData) return nullptr;
+	if (!Campaign) return nullptr;
 
 	// 2. Campaign 全局 RoomPool（同类型 + 同层级）
-	if (URoomDataAsset* Found = PickByTag(CampaignData->RoomPool))
+	if (URoomDataAsset* Found = PickByTag(Campaign->RoomPool))
 		return Found;
 
 	// 3. 门专属池兜底：类型不匹配时无视类型随机取门专属池里的任意一个
@@ -2930,7 +3036,7 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 	if (RequiredTag != NormalTag)
 	{
 		TArray<URoomDataAsset*> Fallback;
-		for (const TObjectPtr<URoomDataAsset>& Room : CampaignData->RoomPool)
+		for (const TObjectPtr<URoomDataAsset>& Room : Campaign->RoomPool)
 		{
 			if (!Room) continue;
 			if (!Room->RoomTags.HasTag(NormalTag)) continue;
@@ -2995,13 +3101,14 @@ void AYogGameMode::EnsureHubActiveSkillTerminal()
 
 void AYogGameMode::ActivateHubPortals()
 {
+	UCampaignDataAsset* Campaign = GetActiveCampaignData();
 	UE_LOG(LogTemp, Warning, TEXT("[ActivateHubPortals] CampaignData=%s ActiveRoomData=%s IsHub=%d PortalDests=%d"),
-		*GetNameSafe(CampaignData),
+		*GetNameSafe(Campaign),
 		*GetNameSafe(ActiveRoomData),
 		ActiveRoomData ? (int32)ActiveRoomData->bIsHubRoom : -1,
 		ActiveRoomData ? ActiveRoomData->PortalDestinations.Num() : -1);
 
-	if (!CampaignData || !ActiveRoomData) return;
+	if (!Campaign || !ActiveRoomData) return;
 	if (ActiveRoomData->PortalDestinations.IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ActivateHubPortals: HubRoom [%s] 没有配置 PortalDestinations"), *ActiveRoomData->GetName());
@@ -3009,8 +3116,8 @@ void AYogGameMode::ActivateHubPortals()
 	}
 
 	// 目标是 FloorTable[0]（第一个战斗关），骰子决定房间类型
-	const FGameplayTag RequiredRoomType = CampaignData->FloorTable.IsValidIndex(0)
-		? RollRoomTypeForFloor(CampaignData->FloorTable[0])
+	const FGameplayTag RequiredRoomType = Campaign->FloorTable.IsValidIndex(0)
+		? RollRoomTypeForFloor(Campaign->FloorTable[0])
 		: FGameplayTag::RequestGameplayTag(FName("Room.Type.Normal"));
 
 	UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: 第一关类型 = %s"), *RequiredRoomType.ToString());
@@ -3039,8 +3146,8 @@ void AYogGameMode::ActivateHubPortals()
 		}
 
 		// 主城 → 第一关：用 FloorTable[0] 的难度分选下一关 Tier，预骰本门 Buff
-		const FFloorConfig* NextConfig = CampaignData->FloorTable.IsValidIndex(0)
-			? &CampaignData->FloorTable[0]
+		const FFloorConfig* NextConfig = Campaign->FloorTable.IsValidIndex(0)
+			? &Campaign->FloorTable[0]
 			: nullptr;
 		const int32 NextScore = NextConfig ? NextConfig->TotalDifficultyScore : 30;
 		const FRoomDifficultyTier& NextTier = ResolveTier(
@@ -3077,7 +3184,8 @@ const FRoomDifficultyTier& AYogGameMode::ResolveTier(const URoomDataAsset& Room,
 
 void AYogGameMode::ActivatePortals()
 {
-	if (!CampaignData || !ActiveRoomData) return;
+	UCampaignDataAsset* Campaign = GetActiveCampaignData();
+	if (!Campaign || !ActiveRoomData) return;
 
 	// 传送门目标配置现在存在 ActiveRoomData（当前关卡的 DA_Room）里
 	if (ActiveRoomData->PortalDestinations.IsEmpty())
@@ -3088,8 +3196,8 @@ void AYogGameMode::ActivatePortals()
 
 	// 下一关的 FloorConfig（所有门共享同一次类型骰子）
 	const int32 NextIdx = CurrentFloor; // CurrentFloor 是 1-based，NextIdx 是下一关的 0-based 下标
-	const FFloorConfig* NextConfig = CampaignData->FloorTable.IsValidIndex(NextIdx)
-		? &CampaignData->FloorTable[NextIdx]
+	const FFloorConfig* NextConfig = Campaign->FloorTable.IsValidIndex(NextIdx)
+		? &Campaign->FloorTable[NextIdx]
 		: nullptr;
 
 	// 骰一次类型：所有门的目标房间类型相同（保证下一关体验一致）

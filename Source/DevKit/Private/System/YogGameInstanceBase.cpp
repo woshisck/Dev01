@@ -2,6 +2,7 @@
 
 #include "System/YogGameInstanceBase.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Data/CampaignDataAsset.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "Engine/AssetManager.h"
@@ -812,6 +813,7 @@ void UYogGameInstanceBase::ClearRunState()
 	PendingRoomBuffs.Reset();
 	PendingNextFloor = 1;
 	bPlayLevelIntroFadeIn = false;
+	ClearCampaignOverride();
 
 	UE_LOG(LogTemp, Log, TEXT("ClearRunState: 跑局状态已清空（含传送门预骰）"));
 }
@@ -819,6 +821,37 @@ void UYogGameInstanceBase::ClearRunState()
 
 
 
+
+void UYogGameInstanceBase::SetCampaignOverride(UCampaignDataAsset* InCampaignData)
+{
+	CampaignOverrideData = InCampaignData;
+	bCampaignOverrideActive = InCampaignData != nullptr;
+
+	UE_LOG(LogTemp, Log, TEXT("[CampaignOverride] Set active=%d campaign=%s"),
+		bCampaignOverrideActive ? 1 : 0,
+		*GetNameSafe(CampaignOverrideData));
+}
+
+void UYogGameInstanceBase::ClearCampaignOverride()
+{
+	if (bCampaignOverrideActive || CampaignOverrideData)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[CampaignOverride] Cleared campaign=%s"),
+			*GetNameSafe(CampaignOverrideData));
+	}
+	CampaignOverrideData = nullptr;
+	bCampaignOverrideActive = false;
+}
+
+bool UYogGameInstanceBase::HasCampaignOverride() const
+{
+	return bCampaignOverrideActive && CampaignOverrideData != nullptr;
+}
+
+UCampaignDataAsset* UYogGameInstanceBase::GetCampaignOverrideData() const
+{
+	return HasCampaignOverride() ? CampaignOverrideData.Get() : nullptr;
+}
 
 void UYogGameInstanceBase::HandleAsyncSave(const FString& SlotName, const int32 UserIndex, bool bSuccess)
 {

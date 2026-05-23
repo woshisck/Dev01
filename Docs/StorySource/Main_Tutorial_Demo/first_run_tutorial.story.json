@@ -1245,7 +1245,7 @@
       "type": "System",
       "title": "新存档入口写入 FirstRunTutorial.Active，并加载教程 Campaign",
       "owner": "Tech Design",
-      "status": "done"
+      "status": "todo"
     },
     {
       "id": "WI_FirstRun_HubTriggers",
@@ -1273,7 +1273,7 @@
       "type": "UI",
       "title": "CombatDeckBar 增加 OnDeckCardsEntered 渐入渐出高亮，首次入组追加 <input action=\"OpenBackpack\"/> 打开背包底部操作提示条",
       "owner": "UI",
-      "status": "partial"
+      "status": "todo"
     },
     {
       "id": "WI_FirstRun_RewardPickupTypes",
@@ -1329,21 +1329,21 @@
       "type": "UI",
       "title": "所有教程类按键提示统一使用 YogCommonRichTextBlock / InputActionRichTextDecorator：Move、CameraLook、Dash、Interact、OpenBackpack、MouseClick、LightAttack、HeavyAttack、ReverseCard，不写死 E/Space/Tab/H/R 或手柄键名",
       "owner": "UI",
-      "status": "done"
+      "status": "todo"
     },
     {
       "id": "WI_FirstRun_FinisherQTERichText",
       "type": "UI",
       "title": "WBP_FinisherQTEPrompt 的输入提示改为 YogCommonRichTextBlock / InputActionRichTextDecorator，终结技确认显示 <input action=\"HeavyAttack\"/>，不要写死 H",
       "owner": "UI",
-      "status": "done"
+      "status": "todo"
     },
     {
       "id": "WI_FirstRun_ReverseCardInputToken",
       "type": "Input/UI",
       "title": "新增或确认反转卡牌输入 token：建议 <input action=\"ReverseCard\"/>，用于后续月光/连携卡教程；不要在正文里写死 R 或手柄 X",
       "owner": "Input/UI",
-      "status": "done"
+      "status": "todo"
     }
   ],
   "extra": {

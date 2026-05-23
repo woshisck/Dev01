@@ -20,7 +20,9 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/PackageName.h"
 #include "UI/FinisherQTEWidget.h"
+#include "UI/InputActionRichTextDecorator.h"
 #include "UI/YogHUD.h"
+#include "UI/YogCommonRichTextBlock.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintFactory.h"
 
@@ -84,6 +86,49 @@ namespace FinisherQTEWidgetSetup
 		TextBlock->SetShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.85f));
 	}
 
+	void ConfigureKeyRichText(UYogCommonRichTextBlock* RichTextBlock)
+	{
+		if (!RichTextBlock)
+		{
+			return;
+		}
+
+		RichTextBlock->SetText(FText::FromString(TEXT("<input action=\"HeavyAttack\"/>")));
+		RichTextBlock->SetJustification(ETextJustify::Center);
+		RichTextBlock->OverrideFontSize = 22;
+		RichTextBlock->OverrideColor = FLinearColor(0.02f, 0.018f, 0.012f, 1.f);
+		RichTextBlock->EnsureDecoratorClass(UInputActionRichTextDecorator::StaticClass());
+	}
+
+	void ResetWidgetTree(UWidgetBlueprint* WidgetBlueprint)
+	{
+		if (!WidgetBlueprint || !WidgetBlueprint->WidgetTree)
+		{
+			return;
+		}
+
+		UWidgetTree* WidgetTree = WidgetBlueprint->WidgetTree;
+		TArray<UObject*> ExistingObjects;
+		GetObjectsWithOuter(WidgetTree, ExistingObjects, true);
+		for (UObject* ExistingObject : ExistingObjects)
+		{
+			UWidget* ExistingWidget = Cast<UWidget>(ExistingObject);
+			if (!ExistingWidget)
+			{
+				continue;
+			}
+
+			WidgetTree->RemoveWidget(ExistingWidget);
+			const FString OldName = FString::Printf(
+				TEXT("FinisherQTE_Old_%s_%s"),
+				*ExistingWidget->GetName(),
+				*FGuid::NewGuid().ToString(EGuidFormats::Digits));
+			ExistingWidget->Rename(*OldName, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional);
+		}
+
+		WidgetTree->RootWidget = nullptr;
+	}
+
 	void BuildDesignerTree(UWidgetBlueprint* WidgetBlueprint)
 	{
 		if (!WidgetBlueprint || !WidgetBlueprint->WidgetTree)
@@ -94,12 +139,7 @@ namespace FinisherQTEWidgetSetup
 		WidgetBlueprint->Modify();
 		UWidgetTree* WidgetTree = WidgetBlueprint->WidgetTree;
 		WidgetTree->Modify();
-
-		if (WidgetTree->RootWidget)
-		{
-			WidgetTree->RemoveWidget(WidgetTree->RootWidget);
-			WidgetTree->RootWidget = nullptr;
-		}
+		ResetWidgetTree(WidgetBlueprint);
 
 		UCanvasPanel* RootCanvas = ConstructNamedWidget<UCanvasPanel>(WidgetTree, TEXT("FinisherQTERoot"), false);
 		USizeBox* PanelSize = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("PromptPanelSize"), false);
@@ -107,7 +147,7 @@ namespace FinisherQTEWidgetSetup
 		UVerticalBox* PromptStack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("PromptStack"), false);
 		UHorizontalBox* PromptRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("PromptRow"), false);
 		UBorder* KeyBack = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("KeyBack"), false);
-		UTextBlock* KeyText = ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("KeyText"));
+		UYogCommonRichTextBlock* KeyText = ConstructNamedWidget<UYogCommonRichTextBlock>(WidgetTree, TEXT("KeyText"));
 		UTextBlock* PromptText = ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("PromptText"));
 		UProgressBar* WindowProgressBar = ConstructNamedWidget<UProgressBar>(WidgetTree, TEXT("WindowProgressBar"));
 
@@ -149,7 +189,7 @@ namespace FinisherQTEWidgetSetup
 			KeySlot->SetPadding(FMargin(0.f, 0.f, 10.f, 0.f));
 		}
 
-		ConfigureText(KeyText, TEXT("H"), FLinearColor(0.02f, 0.018f, 0.012f, 1.f), 26, ETextJustify::Center);
+		ConfigureKeyRichText(KeyText);
 		ConfigureText(PromptText, TEXT("FINISHER"), FLinearColor(0.96f, 0.96f, 0.92f, 1.f), 19, ETextJustify::Left);
 		if (UHorizontalBoxSlot* PromptSlot = PromptRow->AddChildToHorizontalBox(PromptText))
 		{

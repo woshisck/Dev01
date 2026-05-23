@@ -187,11 +187,14 @@ def main():
     hud_assigned = get_prop(game_mode_cdo, ["hud_class", "HUDClass"])
     check(class_path(hud_assigned) == class_path(hud_class), "B_GameMode HUDClass points to BP_YogHUD")
 
+    main_campaign = load_asset("/Game/Docs/Map/DA_Campaign_MainRun")
     campaign = load_asset("/Game/Docs/Map/DA_Campaign_Tutorial")
     registry = load_asset("/Game/Data/Story/DA_StoryEventRegistry_Tutorial")
     campaign_assigned = get_prop(game_mode_cdo, ["campaign_data", "CampaignData"])
+    first_run_campaign_assigned = get_prop(game_mode_cdo, ["first_run_tutorial_campaign_data", "FirstRunTutorialCampaignData"])
     registry_assigned = get_prop(game_mode_cdo, ["story_event_registry", "StoryEventRegistry"])
-    check(asset_path(campaign_assigned) == asset_path(campaign), "B_GameMode CampaignData points to DA_Campaign_Tutorial")
+    check(asset_path(campaign_assigned) == asset_path(main_campaign), "B_GameMode CampaignData points to DA_Campaign_MainRun")
+    check(asset_path(first_run_campaign_assigned) == asset_path(campaign), "B_GameMode FirstRunTutorialCampaignData points to DA_Campaign_Tutorial")
     check(asset_path(registry_assigned) == asset_path(registry), "B_GameMode StoryEventRegistry points to DA_StoryEventRegistry_Tutorial")
     dispatch = get_prop(
         game_mode_cdo,

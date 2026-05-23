@@ -14,6 +14,19 @@
 #include "UI/InputActionRichTextDecorator.h"
 #include "UI/YogCommonRichTextBlock.h"
 
+namespace
+{
+template <typename TWidget>
+TWidget* ConstructRuntimeWidget(UWidgetTree* WidgetTree, const TCHAR* BaseName)
+{
+	return WidgetTree
+		? WidgetTree->ConstructWidget<TWidget>(
+			TWidget::StaticClass(),
+			MakeUniqueObjectName(WidgetTree, TWidget::StaticClass(), FName(BaseName)))
+		: nullptr;
+}
+}
+
 void UFinisherQTEWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -149,31 +162,31 @@ void UFinisherQTEWidget::BuildRuntimeLayout(bool bForceRebuild)
 		WidgetTree->RootWidget = nullptr;
 	}
 
-	RuntimeRoot = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("FinisherQTERoot"));
+	RuntimeRoot = ConstructRuntimeWidget<UCanvasPanel>(WidgetTree, TEXT("FinisherQTERoot"));
 	WidgetTree->RootWidget = RuntimeRoot;
 
-	USizeBox* PanelSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("PromptPanelSize"));
+	USizeBox* PanelSize = ConstructRuntimeWidget<USizeBox>(WidgetTree, TEXT("PromptPanelSize"));
 	PanelSize->SetWidthOverride(280.f);
 	PanelSize->SetHeightOverride(96.f);
 
-	PromptPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("PromptPanel"));
+	PromptPanel = ConstructRuntimeWidget<UBorder>(WidgetTree, TEXT("PromptPanel"));
 	PromptPanel->SetBrushColor(FLinearColor(0.015f, 0.016f, 0.020f, 0.82f));
 	PromptPanel->SetPadding(FMargin(12.f, 10.f));
 
-	UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("PromptStack"));
-	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("PromptRow"));
-	UBorder* KeyBack = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("KeyBack"));
+	UVerticalBox* Stack = ConstructRuntimeWidget<UVerticalBox>(WidgetTree, TEXT("PromptStack"));
+	UHorizontalBox* Row = ConstructRuntimeWidget<UHorizontalBox>(WidgetTree, TEXT("PromptRow"));
+	UBorder* KeyBack = ConstructRuntimeWidget<UBorder>(WidgetTree, TEXT("KeyBack"));
 	KeyBack->SetBrushColor(FLinearColor(0.92f, 0.74f, 0.25f, 0.95f));
 	KeyBack->SetPadding(FMargin(12.f, 5.f));
 
-	UYogCommonRichTextBlock* KeyRichText = WidgetTree->ConstructWidget<UYogCommonRichTextBlock>(UYogCommonRichTextBlock::StaticClass(), TEXT("KeyText"));
+	UYogCommonRichTextBlock* KeyRichText = ConstructRuntimeWidget<UYogCommonRichTextBlock>(WidgetTree, TEXT("KeyText"));
 	KeyRichText->EnsureDecoratorClass(UInputActionRichTextDecorator::StaticClass());
 	KeyRichText->OverrideFontSize = 22;
 	KeyRichText->OverrideColor = FLinearColor(0.02f, 0.018f, 0.012f, 1.f);
 	KeyText = KeyRichText;
 	KeyBack->SetContent(KeyText);
 
-	UTextBlock* PromptTextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PromptText"));
+	UTextBlock* PromptTextBlock = ConstructRuntimeWidget<UTextBlock>(WidgetTree, TEXT("PromptText"));
 	PromptTextBlock->SetJustification(ETextJustify::Left);
 	PromptTextBlock->SetColorAndOpacity(FSlateColor(FLinearColor(0.96f, 0.96f, 0.92f, 1.f)));
 	PromptTextBlock->SetShadowOffset(FVector2D(1.f, 1.f));
@@ -183,7 +196,7 @@ void UFinisherQTEWidget::BuildRuntimeLayout(bool bForceRebuild)
 	PromptTextBlock->SetFont(PromptFont);
 	PromptText = PromptTextBlock;
 
-	WindowProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("WindowProgressBar"));
+	WindowProgressBar = ConstructRuntimeWidget<UProgressBar>(WidgetTree, TEXT("WindowProgressBar"));
 	WindowProgressBar->SetPercent(1.f);
 	WindowProgressBar->SetFillColorAndOpacity(FLinearColor(0.94f, 0.76f, 0.26f, 1.f));
 

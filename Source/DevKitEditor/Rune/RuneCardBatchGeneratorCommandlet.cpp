@@ -115,6 +115,7 @@ namespace Rune512Batch
 		FString CardIdTag;
 		TArray<FString> EffectTags;
 		ECombatCardType CardType = ECombatCardType::Normal;
+		ECardRequiredAction RequiredAction = ECardRequiredAction::Any;
 		ECombatCardTriggerTiming TriggerTiming = ECombatCardTriggerTiming::OnHit;
 		ECombatCardLinkOrientation DefaultLinkOrientation = ECombatCardLinkOrientation::Forward;
 		ERuneType RuneType = ERuneType::Buff;
@@ -396,6 +397,7 @@ namespace Rune512Batch
 			{ TEXT("T_Rune512_Shield"), TEXT("T_Rune512_Shield.png") },
 			{ TEXT("T_Rune512_Pierce"), TEXT("T_Rune512_Pierce.png") },
 			{ TEXT("T_Rune512_Attack"), TEXT("T_Rune512_Attack.png") },
+			{ TEXT("T_Rune512_THSword_Cleave"), TEXT("T_Rune512_THSword_Cleave.png") },
 			{ TEXT("T_Rune512_ReduceDamage"), TEXT("T_Rune512_ReduceDamage.png") },
 			{ TEXT("T_Rune512_Sacrifice_MoonlightShadow"), TEXT("T_Rune512_Sacrifice_MoonlightShadow.png") },
 			{ TEXT("T_Rune512_Sacrifice_ShadowMark"), TEXT("T_Rune512_Sacrifice_ShadowMark.png") },
@@ -928,6 +930,24 @@ namespace Rune512Batch
 			TEXT("FA_Rune512_Knockback_Base"),
 			ERuneType::Debuff,
 			{ TEXT("已有 GA_KnockbackDebuff 处理 15% 额外护甲伤害；护甲时击退距离减少需要在 GA_Knockback 或专用节点中参数化。") }));
+
+		FCardSpec Heavy = MakeNormalCard(
+			TEXT("Heavy"),
+			TEXT("\u91cd\u51fb"),
+			TEXT("\u5b58\u5728\u4e8e 1D \u5361\u7ec4\u65f6\uff0c\u73a9\u5bb6\u653b\u51fb\u643a\u5e26\u5c11\u91cf\u51fb\u9000\u3002\u6253\u51fa\u540e\u9020\u6210\u989d\u5916\u4f24\u5bb3\u5e76\u51fb\u9000\u76ee\u6807\uff1b\u82e5\u7531\u91cd\u653b\u51fb\u6253\u51fa\uff0c\u8ffd\u52a0\u989d\u5916\u4f24\u5bb3\u548c\u77ed\u6682\u51cf\u901f\u3002"),
+			TEXT("Card.ID.Heavy"),
+			{ TEXT("Card.Effect.Heavy"), TEXT("Card.Effect.Knockback") },
+			TEXT("T_Rune512_THSword_Cleave"),
+			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Knockback"),
+			TEXT("FA_Rune512_Heavy_Base"),
+			ERuneType::Buff,
+			{
+				TEXT("Heavy v1 duplicates the knockback flow. Verify the card editor flow for passive 1D-deck knockback and heavy-attack slow before final balance."),
+				TEXT("RequiredAction remains Any so light/heavy attacks can both draw the card; heavy-specific bonus should branch from combat-card context.")
+			});
+		Heavy.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+		Heavy.RequiredAction = ECardRequiredAction::Any;
+		Specs.Add(Heavy);
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Fear"),
@@ -3954,7 +3974,7 @@ namespace Rune512Batch
 				CombatCard.CardEffectTags.AddTag(Tag);
 			}
 		}
-		CombatCard.RequiredAction = ECardRequiredAction::Any;
+		CombatCard.RequiredAction = Spec.RequiredAction;
 		CombatCard.TriggerTiming = Spec.TriggerTiming;
 		CombatCard.BaseFlow = BaseFlow;
 		CombatCard.LinkRecipes.Reset();
@@ -4063,7 +4083,7 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 	ReportLines.Add(TEXT(""));
 
 	ReportLines.Add(TEXT("## Generic Rune status card integration"));
-	ReportLines.Add(TEXT("- Bleed, Rend, Wound, Knockback, Fear, Freeze, Stun, and Curse are generated as Normal combat cards."));
+	ReportLines.Add(TEXT("- Bleed, Rend, Wound, Knockback, Heavy, Fear, Freeze, Stun, and Curse are generated as Normal combat cards."));
 	ReportLines.Add(TEXT("- These cards reuse Playtest_GA/RuneBaseEffect FA templates. Tune the underlying Generic Rune GA/GE when the status rule itself needs to change."));
 	ReportLines.Add(TEXT("- Bloodvine remains design-only; no dedicated 512 card is generated in this pass."));
 	ReportLines.Add(TEXT(""));

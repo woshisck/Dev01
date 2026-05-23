@@ -21,6 +21,7 @@ class UYogGameOverWidget;
 class UTexture2D;
 class UYogSaveGame;
 class UActiveSkillDataAsset;
+class UCampaignDataAsset;
 
 // =========================================================
 // 局内跑局状态快照（切关时写入，新关卡加载后恢复）
@@ -185,6 +186,24 @@ public:
 	// 由 APortal::TryEnter 写入；下一关 AYogHUD::BeginPlay 检测后触发线性反向 PostProcess 淡入
 	UPROPERTY()
 	bool bPlayLevelIntroFadeIn = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Campaign|Override")
+	bool bCampaignOverrideActive = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Campaign|Override")
+	TObjectPtr<UCampaignDataAsset> CampaignOverrideData;
+
+	UFUNCTION(BlueprintCallable, Category = "Campaign|Override")
+	void SetCampaignOverride(UCampaignDataAsset* InCampaignData);
+
+	UFUNCTION(BlueprintCallable, Category = "Campaign|Override")
+	void ClearCampaignOverride();
+
+	UFUNCTION(BlueprintPure, Category = "Campaign|Override")
+	bool HasCampaignOverride() const;
+
+	UFUNCTION(BlueprintPure, Category = "Campaign|Override")
+	UCampaignDataAsset* GetCampaignOverrideData() const;
 
 	// 清空跑局状态（玩家死亡时调用，使下一局从默认值开始）
 	void ClearRunState();

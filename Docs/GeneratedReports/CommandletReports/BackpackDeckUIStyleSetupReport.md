@@ -1,0 +1,37 @@
+﻿# Backpack Deck UI Style Setup Report
+- Mode: Apply
+- BackpackGridOnly: false
+- Style target: bright silver gothic card UI, aligned with 512 tutorial illustrations.
+
+- Found texture `/Game/Docs/UI/RunCard/BackpackInspect/T_BackpackInspect_MainPanelFrame`.
+- Found texture `/Game/Docs/UI/RunCard/BackpackInspect/T_BackpackInspect_CellFrame`.
+- Found texture `/Game/Docs/UI/RunCard/BackpackInspect/T_BackpackInspect_TarotCardFrame`.
+- Found texture `/Game/Docs/UI/RunCard/BackpackInspect/T_BackpackInspect_WeaponIcon_TrickBlade`.
+- BP_InputActionDecorator ActionMap includes Interact, Esc, MouseClick, and ReverseCard mappings.
+- Found `/Game/Docs/UI/RunCard/GlobalSet/DA_BackpackStyle`.
+- Found `/Game/UI/Playtest_UI/Runes/WBP_RuneSlot`.
+- Rebuilt `/Game/UI/Playtest_UI/Runes/WBP_RuneSlot` layout.
+- Rune slot rebuilt as a compact silver card cell.
+- Found `/Game/UI/Playtest_UI/BackpackGrid/WBP_BackpackGrid`.
+- Rebuilt `/Game/UI/Playtest_UI/BackpackGrid/WBP_BackpackGrid` layout.
+- Backpack grid wrapper rebuilt without legacy heat phase controls.
+- Found `/Game/UI/Playtest_UI/BackpackGrid/WBP_PendingGrid`.
+- Rebuilt `/Game/UI/Playtest_UI/BackpackGrid/WBP_PendingGrid` layout.
+- Pending grid wrapper rebuilt to match the silver card grid style.
+- Found `/Game/UI/Playtest_UI/HUD/WBP_CombatDeckCardSlot`.
+- Rebuilt `/Game/UI/Playtest_UI/HUD/WBP_CombatDeckCardSlot` layout.
+- Combat deck HUD card slot rebuilt in the tutorial-card silver style.
+- Found `/Game/UI/Playtest_UI/HUD/WBP_CombatDeckBar`.
+- Rebuilt `/Game/UI/Playtest_UI/HUD/WBP_CombatDeckBar` layout.
+- Combat deck HUD conveyor rebuilt with 8 silver card slots, reload overlay, and code-driven entry highlight panel.
+- Found `/Game/UI/Playtest_UI/CombatInfo/WBP_CombatDeckEditCardSlot`.
+- Rebuilt `/Game/UI/Playtest_UI/CombatInfo/WBP_CombatDeckEditCardSlot` layout.
+- Combat deck edit card slot rebuilt larger with wrapped title text and a bottom glass-gem Link orientation indicator.
+- Found `/Game/UI/Playtest_UI/CombatInfo/WBP_CombatDeckEditWidget`.
+- Rebuilt `/Game/UI/Playtest_UI/CombatInfo/WBP_CombatDeckEditWidget` layout.
+- Combat deck edit widget rebuilt as a horizontal 1D card preview list with a visible scrollbar.
+- Found `/Game/UI/Playtest_UI/WBP_BackpackScreen`.
+- Rebuilt `/Game/UI/Playtest_UI/WBP_BackpackScreen` layout.
+- Backpack screen rebuilt as a 16:9 inspect panel using live widgets only: 25% weapon inspection, 50% tarot deck conveyor, 25% card details; no full-screen art overlay.
+- Weapon combo list now uses YogCommonRichTextBlock with BP_InputActionDecorator/BP_KeywordDecorator for CommonUI adaptive input icons.
+- Deck operation hints now live in a 64px reserved row under the deck preview, separated from the global bottom confirm/cancel action bar.

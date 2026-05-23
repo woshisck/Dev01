@@ -10,6 +10,7 @@ TREE_WBP = "/Game/UI/MetaProgression/WBP_MetaUpgradeTree"
 WBP_CARD = "/Game/UI/MetaProgression/WBP_MetaNodeCard"
 TERMINAL_BP = "/Game/World/Hub/BP_HubUpgradeTerminal"
 HUB_MAP = "/Game/World/Hub/L_HubTown"
+MAIN_CAMPAIGN_DA = "/Game/Docs/Map/DA_Campaign_MainRun"
 CAMPAIGN_DA = "/Game/Docs/Map/DA_Campaign_Tutorial"
 STORY_REGISTRY_DA = "/Game/Data/Story/DA_StoryEventRegistry_Tutorial"
 
@@ -237,7 +238,7 @@ def create_story_entry(event_tag, action_type, tutorial_event_id, pause_game, no
     return entry
 
 
-def configure_hud_and_game_mode(campaign=None, registry=None):
+def configure_hud_and_game_mode(main_campaign=None, first_run_campaign=None, registry=None):
     hud_parent = load_class_or_raise("BP_YogHUD", ["/Script/DevKit.YogHUD", "/Script/DevKit.AYogHUD"])
     hud_bp = create_blueprint(HUD_BP, hud_parent)
     hud_cdo = get_cdo(HUD_BP)
@@ -251,8 +252,14 @@ def configure_hud_and_game_mode(campaign=None, registry=None):
     game_mode_cdo = get_cdo(GAME_MODE_BP)
     hud_class = load_bp_class(HUD_BP)
     set_property_any(game_mode_cdo, ["hud_class", "HUDClass"], hud_class)
-    if campaign:
-        set_property_any(game_mode_cdo, ["campaign_data", "CampaignData"], campaign)
+    if main_campaign:
+        set_property_any(game_mode_cdo, ["campaign_data", "CampaignData"], main_campaign)
+    if first_run_campaign:
+        set_property_any(
+            game_mode_cdo,
+            ["first_run_tutorial_campaign_data", "FirstRunTutorialCampaignData"],
+            first_run_campaign,
+        )
     if registry:
         set_property_any(game_mode_cdo, ["story_event_registry", "StoryEventRegistry"], registry)
     set_property_any(
@@ -416,10 +423,11 @@ def configure_hub_map():
 def main():
     configure_meta_widgets()
     configure_terminal()
-    campaign = configure_campaign()
+    main_campaign = load_asset_or_raise(MAIN_CAMPAIGN_DA)
+    first_run_campaign = configure_campaign()
     configure_room_rewards()
     registry = configure_story_registry()
-    configure_hud_and_game_mode(campaign, registry)
+    configure_hud_and_game_mode(main_campaign, first_run_campaign, registry)
     configure_hub_map()
 
     out_path = os.path.join(unreal.Paths.project_saved_dir(), "StageOneLoopAssetsReport.txt")

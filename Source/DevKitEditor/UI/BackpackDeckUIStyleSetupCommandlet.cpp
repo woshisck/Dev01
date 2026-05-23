@@ -799,6 +799,7 @@ namespace BackpackDeckUIStyleSetup
 		USizeBox* RootSize = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("RootSize"), false);
 		UOverlay* Root = ConstructNamedWidget<UOverlay>(WidgetTree, TEXT("Root"));
 		UBorder* Back = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("ConveyorBack"), false);
+		UBorder* DeckEntryHighlightPanel = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("DeckEntryHighlightPanel"), false);
 		UVerticalBox* Stack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("ConveyorStack"), false);
 		UHorizontalBox* HeaderRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("HeaderRow"), false);
 		UTextBlock* TitleText = MakeLabel(WidgetTree, TEXT("TitleText"), TEXT("1D DECK"), 16, BrightSilver, ETextJustify::Left);
@@ -810,7 +811,7 @@ namespace BackpackDeckUIStyleSetup
 		UTextBlock* ShuffleText = MakeLabel(WidgetTree, TEXT("ShuffleText"), TEXT("Reloading"), 13, SilverText);
 		UTextBlock* ConsumedToastText = MakeLabel(WidgetTree, TEXT("ConsumedToastText"), TEXT("Consumed"), 14, AccentGold);
 		UTextBlock* RewardToastText = MakeLabel(WidgetTree, TEXT("RewardToastText"), TEXT("Added"), 14, BrightSilver);
-		if (!RootSize || !Root || !Back || !Stack || !HeaderRow || !TitleText || !StatusText || !CardRow || !ShufflePanel || !ShuffleBack || !ShuffleProgressBar || !ShuffleText || !ConsumedToastText || !RewardToastText)
+		if (!RootSize || !Root || !Back || !DeckEntryHighlightPanel || !Stack || !HeaderRow || !TitleText || !StatusText || !CardRow || !ShufflePanel || !ShuffleBack || !ShuffleProgressBar || !ShuffleText || !ConsumedToastText || !RewardToastText)
 		{
 			return;
 		}
@@ -823,6 +824,11 @@ namespace BackpackDeckUIStyleSetup
 		ConfigureBorder(Back, FLinearColor(0.012f, 0.014f, 0.018f, 0.78f), FMargin(16.0f, 8.0f));
 		Back->SetContent(Stack);
 		AddOverlayChild(Root, Back, HAlign_Fill, VAlign_Fill);
+
+		ConfigureBorder(DeckEntryHighlightPanel, FLinearColor(0.58f, 0.86f, 1.0f, 0.28f), FMargin());
+		DeckEntryHighlightPanel->SetRenderOpacity(0.0f);
+		DeckEntryHighlightPanel->SetVisibility(ESlateVisibility::Collapsed);
+		AddOverlayChild(Root, DeckEntryHighlightPanel, HAlign_Fill, VAlign_Fill, FMargin(8.0f, 2.0f));
 
 		AddHorizontalChild(HeaderRow, TitleText, VAlign_Center, FMargin(), ESlateSizeRule::Fill);
 		AddHorizontalChild(HeaderRow, StatusText, VAlign_Center, FMargin(), ESlateSizeRule::Fill);
@@ -851,7 +857,7 @@ namespace BackpackDeckUIStyleSetup
 		AddOverlayChild(Root, ConsumedToastText, HAlign_Left, VAlign_Top, FMargin(24.0f, 18.0f, 0.0f, 0.0f));
 		AddOverlayChild(Root, RewardToastText, HAlign_Right, VAlign_Top, FMargin(0.0f, 18.0f, 24.0f, 0.0f));
 
-		ReportLines.Add(TEXT("- Combat deck HUD conveyor rebuilt with 8 silver card slots and reload overlay."));
+		ReportLines.Add(TEXT("- Combat deck HUD conveyor rebuilt with 8 silver card slots, reload overlay, and code-driven entry highlight panel."));
 	}
 
 	void BuildCombatDeckEditCardSlotTree(UWidgetBlueprint* WidgetBlueprint, TArray<FString>& ReportLines)

@@ -57,6 +57,7 @@ namespace MainUISetup
 	const TCHAR* DividerTexturePath = TEXT("/Game/UI/Playtest_UI/UI_Tex/Pause/T_PauseDivider_Ornate.T_PauseDivider_Ornate");
 	const TCHAR* FocusTexturePath = TEXT("/Game/UI/Playtest_UI/UI_Tex/Pause/T_PauseFocusGlow.T_PauseFocusGlow");
 	const TCHAR* GoldIconTexturePath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon");
+	const TCHAR* MaterialIconTexturePath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_MaterialQuestionIcon.T_MaterialQuestionIcon");
 
 	FString ToObjectPath(const FString& PackagePath)
 	{
@@ -210,8 +211,13 @@ namespace MainUISetup
 		USizeBox* GoldIconBox = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("GoldIconBox"), false);
 		UImage* GoldIcon = ConstructNamedWidget<UImage>(WidgetTree, TEXT("GoldIcon"));
 		UTextBlock* GoldText = ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("GoldText"));
+		UHorizontalBox* MaterialRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("MaterialRow"));
+		USizeBox* MaterialIconBox = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("MaterialIconBox"), false);
+		UImage* MaterialIcon = ConstructNamedWidget<UImage>(WidgetTree, TEXT("MaterialIcon"));
+		UTextBlock* MaterialText = ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("MaterialText"));
 
-		if (!RootSizeBox || !CommonInfoList || !GoldRow || !GoldIconBox || !GoldIcon || !GoldText)
+		if (!RootSizeBox || !CommonInfoList || !GoldRow || !GoldIconBox || !GoldIcon || !GoldText
+			|| !MaterialRow || !MaterialIconBox || !MaterialIcon || !MaterialText)
 		{
 			return;
 		}
@@ -255,7 +261,41 @@ namespace MainUISetup
 			TextSlot->SetVerticalAlignment(VAlign_Center);
 		}
 
-		ReportLines.Add(TEXT("- Player common info HUD designer tree refreshed with gold row and extensible entry list."));
+		MaterialRow->SetVisibility(ESlateVisibility::HitTestInvisible);
+		if (UVerticalBoxSlot* MaterialRowSlot = CommonInfoList->AddChildToVerticalBox(MaterialRow))
+		{
+			MaterialRowSlot->SetHorizontalAlignment(HAlign_Right);
+			MaterialRowSlot->SetPadding(FMargin(0.0f, 2.0f));
+		}
+
+		MaterialIconBox->SetWidthOverride(24.0f);
+		MaterialIconBox->SetHeightOverride(24.0f);
+		MaterialIconBox->AddChild(MaterialIcon);
+		if (UHorizontalBoxSlot* IconSlot = MaterialRow->AddChildToHorizontalBox(MaterialIconBox))
+		{
+			IconSlot->SetVerticalAlignment(VAlign_Center);
+			IconSlot->SetPadding(FMargin(0.0f, 0.0f, 6.0f, 0.0f));
+		}
+
+		if (UTexture2D* MaterialTexture = LoadTexture(MaterialIconTexturePath))
+		{
+			FSlateBrush MaterialBrush;
+			MaterialBrush.SetResourceObject(MaterialTexture);
+			MaterialBrush.ImageSize = FVector2D(24.0f, 24.0f);
+			MaterialBrush.DrawAs = ESlateBrushDrawType::Image;
+			MaterialIcon->SetBrush(MaterialBrush);
+		}
+		MaterialIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+		ConfigureText(MaterialText, TEXT("0"), FLinearColor(0.78f, 0.90f, 1.0f, 1.0f), 18, false);
+		MaterialText->SetShadowOffset(FVector2D(1.0f, 1.0f));
+		MaterialText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.8f));
+		if (UHorizontalBoxSlot* TextSlot = MaterialRow->AddChildToHorizontalBox(MaterialText))
+		{
+			TextSlot->SetVerticalAlignment(VAlign_Center);
+		}
+
+		ReportLines.Add(TEXT("- Player common info HUD designer tree refreshed with gold and material rows."));
 	}
 
 	void BuildHudTree(UWidgetBlueprint* WidgetBlueprint, TArray<FString>& ReportLines)
@@ -591,7 +631,10 @@ namespace MainUISetup
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CommonInfoList"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("GoldRow"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("GoldIcon"))
-			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("GoldText"));
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("GoldText"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("MaterialRow"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("MaterialIcon"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("MaterialText"));
 	}
 
 	bool PauseNeedsRefresh(UWidgetBlueprint* WidgetBlueprint)
@@ -676,7 +719,8 @@ namespace MainUISetup
 			TEXT("SourceArt/UI/HUD"),
 			HudTextureRoot,
 			{
-				TEXT("T_GoldCoinIcon.png")
+				TEXT("T_GoldCoinIcon.png"),
+				TEXT("T_MaterialQuestionIcon.png")
 			},
 			bDryRun,
 			ReportLines,

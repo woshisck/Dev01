@@ -279,6 +279,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow")
 	TArray<TObjectPtr<URuneDataAsset>> FallbackLootPool;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow|Loot", meta = (ClampMin = "1", ClampMax = "3"))
+	int32 DefaultLootOptionCount = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow|Loot")
+	FGameplayTag SingleChoiceLootGameplayTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow|Loot", meta = (ClampMin = "1", ClampMax = "3"))
+	int32 SingleChoiceLootOptionCount = 1;
+
 	// Legacy SacrificeGrace fields kept for Blueprint/config compatibility.
 	// Runtime extra drops now use RewardPickup/LootSelection instead.
 
@@ -301,6 +310,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign")
 	TObjectPtr<UCampaignDataAsset> CampaignData;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|FirstRun")
+	TObjectPtr<UCampaignDataAsset> FirstRunTutorialCampaignData;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|StoryEvent")
 	TObjectPtr<UStoryEventRegistryDA> StoryEventRegistry;
 
@@ -320,6 +332,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "LevelFlow|RoomBuff")
 	URoomDataAsset* GetActiveRoomData() const { return ActiveRoomData; }
+
+	UFUNCTION(BlueprintPure, Category = "Campaign")
+	UCampaignDataAsset* GetActiveCampaignData() const;
 
 	UFUNCTION(BlueprintPure, Category = "Campaign|StoryEvent")
 	FGameplayTag GetActiveGlobalStageTag() const { return ActiveGlobalStageTag; }
@@ -357,6 +372,8 @@ protected:
 	// ---- 刷怪算法 ----
 
 	// 单只待刷敌人的完整计划（类型 + 本次选中的敌人专属 Buff）
+	void ResolveActiveCampaignData();
+
 	struct FPlannedEnemy
 	{
 		TSubclassOf<AEnemyCharacterBase> EnemyClass;
@@ -365,6 +382,8 @@ protected:
 		// 从 EnemyData 复制，运行时只读
 		TObjectPtr<UNiagaraSystem> PreSpawnFX;
 		float PreSpawnFXDuration = 0.f;
+		bool bAllowAnySpawner = false;
+		bool bSpecialRewardEnemy = false;
 	};
 
 	// 波次计划（运行时数据，不需要 UE 反射）
@@ -503,6 +522,9 @@ protected:
 	TObjectPtr<URoomDataAsset> ActiveRoomData;
 
 	// 当前关卡的奖励配置（从 FloorConfig 缓存，整理阶段使用）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "Campaign", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UCampaignDataAsset> ActiveCampaignData;
+
 	int32 ActiveGoldMin  = 10;
 	int32 ActiveGoldMax  = 20;
 	int32 ActiveBuffCount = 1;
@@ -538,6 +560,8 @@ protected:
 	 * 生成的符文 DA 指针会被写入 AlreadyOffered，供同关下一次调用去重。
 	 */
 	TArray<FLootOption> GenerateLootBatch(TSet<URuneDataAsset*>& AlreadyOffered);
+	int32 GetCurrentLootOptionCount() const;
+	TArray<FLootOption> ApplyLootOptionLimit(const TArray<FLootOption>& Options) const;
 
 	// 本关已分配给各拾取物的符文集合（防止同关多个拾取物提供重复选项）
 	TSet<URuneDataAsset*> LootAssignedThisLevel;

@@ -10,23 +10,32 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Engine/Texture2D.h"
+#include "Engine/GameInstance.h"
+#include "MetaProgression/YogMetaProgressionSubsystem.h"
 
 void UPlayerCommonInfoWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
 	ApplyGoldIconBrush();
+	ApplyMaterialIconBrush();
 	SetGold(BoundBackpack ? BoundBackpack->Gold : 0);
+	BindToMetaProgression();
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 	if (GoldRow)
 	{
 		GoldRow->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	if (MaterialRow)
+	{
+		MaterialRow->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
 }
 
 void UPlayerCommonInfoWidget::NativeDestruct()
 {
 	UnbindBackpack();
+	UnbindMetaProgression();
 	ClearCommonInfoEntries();
 
 	Super::NativeDestruct();
@@ -63,6 +72,14 @@ void UPlayerCommonInfoWidget::SetGold(int32 Gold)
 	}
 }
 
+void UPlayerCommonInfoWidget::SetMaterial(int32 Material)
+{
+	if (MaterialText)
+	{
+		ConfigureCountText(MaterialText, FText::AsNumber(FMath::Max(0, Material)));
+	}
+}
+
 void UPlayerCommonInfoWidget::SetCommonInfoEntry(FName EntryId, FText Label, int32 Count, UTexture2D* IconTexture)
 {
 	if (EntryId.IsNone())
@@ -73,6 +90,12 @@ void UPlayerCommonInfoWidget::SetCommonInfoEntry(FName EntryId, FText Label, int
 	if (EntryId == TEXT("Gold"))
 	{
 		SetGold(Count);
+		return;
+	}
+
+	if (EntryId == TEXT("Material"))
+	{
+		SetMaterial(Count);
 		return;
 	}
 
@@ -140,6 +163,14 @@ void UPlayerCommonInfoWidget::HandleGoldChanged(int32 NewGold)
 	SetGold(NewGold);
 }
 
+void UPlayerCommonInfoWidget::HandleMetaCurrencyChanged(FGameplayTag CurrencyTag, int32 NewAmount)
+{
+	if (CurrencyTag == GetPrimaryMaterialCurrencyTag())
+	{
+		SetMaterial(NewAmount);
+	}
+}
+
 void UPlayerCommonInfoWidget::UnbindBackpack()
 {
 	if (BoundBackpack)
@@ -149,9 +180,45 @@ void UPlayerCommonInfoWidget::UnbindBackpack()
 	}
 }
 
+void UPlayerCommonInfoWidget::BindToMetaProgression()
+{
+	UnbindMetaProgression();
+
+	UGameInstance* GameInstance = GetGameInstance();
+	BoundMetaProgression = GameInstance ? GameInstance->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr;
+	if (!BoundMetaProgression)
+	{
+		SetMaterial(0);
+		return;
+	}
+
+	BoundMetaProgression->OnCurrencyChanged.RemoveDynamic(this, &UPlayerCommonInfoWidget::HandleMetaCurrencyChanged);
+	BoundMetaProgression->OnCurrencyChanged.AddDynamic(this, &UPlayerCommonInfoWidget::HandleMetaCurrencyChanged);
+	SetMaterial(BoundMetaProgression->GetCurrencyAmount(GetPrimaryMaterialCurrencyTag()));
+}
+
+void UPlayerCommonInfoWidget::UnbindMetaProgression()
+{
+	if (BoundMetaProgression)
+	{
+		BoundMetaProgression->OnCurrencyChanged.RemoveDynamic(this, &UPlayerCommonInfoWidget::HandleMetaCurrencyChanged);
+		BoundMetaProgression = nullptr;
+	}
+}
+
 void UPlayerCommonInfoWidget::ApplyGoldIconBrush()
 {
 	ConfigureIcon(GoldIcon, LoadGoldIconTexture(), FVector2D(24.0f, 24.0f));
+}
+
+void UPlayerCommonInfoWidget::ApplyMaterialIconBrush()
+{
+	ConfigureIcon(MaterialIcon, LoadMaterialIconTexture(), FVector2D(24.0f, 24.0f));
+}
+
+FGameplayTag UPlayerCommonInfoWidget::GetPrimaryMaterialCurrencyTag() const
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Currency.Meta.Common.A"), false);
 }
 
 void UPlayerCommonInfoWidget::ConfigureIcon(UImage* Icon, UTexture2D* Texture, const FVector2D& Size) const
@@ -253,6 +320,14 @@ UTexture2D* UPlayerCommonInfoWidget::LoadGoldIconTexture() const
 		UTexture2D::StaticClass(),
 		nullptr,
 		TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon")));
+}
+
+UTexture2D* UPlayerCommonInfoWidget::LoadMaterialIconTexture() const
+{
+	return Cast<UTexture2D>(StaticLoadObject(
+		UTexture2D::StaticClass(),
+		nullptr,
+		TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_MaterialQuestionIcon.T_MaterialQuestionIcon")));
 }
 
 FName UPlayerCommonInfoWidget::MakeEntryWidgetName(FName EntryId, const TCHAR* Suffix)

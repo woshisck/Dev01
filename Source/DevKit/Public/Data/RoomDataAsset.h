@@ -15,8 +15,10 @@
 // 前向声明（FPortalDestConfig.RoomPool 需要引用本类）
 class URoomDataAsset;
 class AAltarActor;
+class AEnemyCharacterBase;
 class AShopActor;
 class UAltarDataAsset;
+class UNiagaraSystem;
 class USacrificeSelectionWidget;
 class UShopDataAsset;
 class UShopSelectionWidget;
@@ -86,6 +88,20 @@ public:
     // 精英专属敌人（bEliteOnly）只在 RoomTypeTag == Room.Type.Elite 时出现
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemies")
     TArray<FEnemyEntry> EnemyPool;
+
+    // Optional scripted reward enemy. Use this for tutorial/special-card rooms that need
+    // one visible elite or variant enemy in addition to the normal room pool.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemies|Special Reward")
+    bool bSpawnSpecialRewardEnemy = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemies|Special Reward", meta = (EditCondition = "bSpawnSpecialRewardEnemy"))
+    TSubclassOf<AEnemyCharacterBase> SpecialRewardEnemyClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemies|Special Reward", meta = (EditCondition = "bSpawnSpecialRewardEnemy"))
+    TObjectPtr<UNiagaraSystem> SpecialRewardEnemyPreSpawnFX;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemies|Special Reward", meta = (EditCondition = "bSpawnSpecialRewardEnemy", ClampMin = "0.0"))
+    float SpecialRewardEnemyPreSpawnFXDuration = 0.0f;
 
     // =========================================================
     // 关卡符文池（给所有敌人的词条 Buff）
