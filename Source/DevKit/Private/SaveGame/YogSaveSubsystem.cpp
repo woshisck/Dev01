@@ -200,6 +200,13 @@ void UYogSaveSubsystem::RequestSlotPreview(int32 SlotIndex, FOnSlotPreviewReady 
 			Preview.HighestFloor         = Save->Statistics.HighestFloor;
 			Preview.bHasPendingRun       = Save->RunCheckpoint.bIsValid; // 单一事实源
 			Preview.TotalPlayTimeSeconds = Save->Statistics.TotalPlayTimeSeconds;
+
+			const FGameplayTag ActiveTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Active"), false);
+			const FGameplayTag CompletedTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Completed"), false);
+			Preview.bFirstRunTutorialCompleted = CompletedTag.IsValid() && Save->StoryFlags.FindRef(CompletedTag);
+			Preview.bFirstRunTutorialActive = ActiveTag.IsValid()
+				&& Save->StoryFlags.FindRef(ActiveTag)
+				&& !Preview.bFirstRunTutorialCompleted;
 		}
 		Callback.ExecuteIfBound(Preview);
 	});

@@ -303,6 +303,8 @@ struct DEVKIT_API FSlotPreviewData
 	UPROPERTY() FDateTime LastPlayTime;
 	UPROPERTY() int32     HighestFloor        = 0;
 	UPROPERTY() bool      bHasPendingRun      = false; // 派生自 RunCheckpoint.bIsValid
+	UPROPERTY() bool      bFirstRunTutorialActive = false;
+	UPROPERTY() bool      bFirstRunTutorialCompleted = false;
 	UPROPERTY() int32     TotalPlayTimeSeconds = 0;
 };
 

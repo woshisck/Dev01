@@ -64,6 +64,12 @@ bool FSlotSelectWidgetContractTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Pending summary includes pending run state"), PendingSummary.Contains(TEXT("Continue Available")));
 	TestTrue(TEXT("Pending summary includes play time"), PendingSummary.Contains(TEXT("01:01:01")));
 
+	FSlotPreviewData FirstRunPreview;
+	FirstRunPreview.bHasData = true;
+	FirstRunPreview.bFirstRunTutorialActive = true;
+	const FString FirstRunSummary = UYogSlotSelectWidgetBase::BuildPreviewSummary(FirstRunPreview).ToString();
+	TestTrue(TEXT("First-run tutorial save is explicit in slot preview"), FirstRunSummary.Contains(TEXT("First Run Tutorial")));
+
 	return true;
 }
 

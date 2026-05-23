@@ -24,7 +24,15 @@ FText UYogSlotSelectWidgetBase::BuildPreviewSummary(const FSlotPreviewData& Prev
 		return FText::FromString(TEXT("Empty Slot"));
 	}
 
-	const FString RunState = Preview.bHasPendingRun ? TEXT("Continue Available") : TEXT("No Pending Run");
+	FString RunState = TEXT("No Pending Run");
+	if (Preview.bHasPendingRun)
+	{
+		RunState = TEXT("Continue Available");
+	}
+	else if (Preview.bFirstRunTutorialActive)
+	{
+		RunState = TEXT("First Run Tutorial");
+	}
 	const FString LastPlayed = Preview.LastPlayTime.GetTicks() > 0
 		? Preview.LastPlayTime.ToString(TEXT("%Y-%m-%d %H:%M"))
 		: FString(TEXT("Never"));
@@ -206,7 +214,7 @@ void UYogSlotSelectWidgetBase::UpdateSlotWidgets(int32 SlotIndex, const FSlotPre
 
 	if (UButton* ContinueButton = GetContinueButton(SlotIndex))
 	{
-		ContinueButton->SetIsEnabled(Preview.bHasPendingRun);
+		ContinueButton->SetIsEnabled(Preview.bHasPendingRun || Preview.bFirstRunTutorialActive);
 	}
 
 	if (UButton* DeleteButton = GetDeleteButton(SlotIndex))

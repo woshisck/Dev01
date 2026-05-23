@@ -28,7 +28,7 @@ Generated: 2026-05-23T14:41:12.651Z
 | Trigger | /Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom / Spawner_Tutorial_Endless -> EP_FirstRun_ScriptedDefeatReturnHub | Level | todo |
 | Dialogue | EP_FirstRun_ScriptedDefeatReturnHub: 遗圣目录 | Narrative/UI | todo |
 | SystemEvent | System / ReturnToHub_AfterFirstRunTutorial -> EP_FirstRun_ReturnHubNormalRunStart | Tech Design | todo |
-| System | 新存档入口写入 FirstRunTutorial.Active，并加载教程 Campaign | Tech Design | todo |
+| System | 新存档入口写入 FirstRunTutorial.Active，并加载教程 Campaign | Tech Design | done |
 | LevelDesign | 主城摆放移动、冲刺、武器拾取、木人桩、Portal 引导相关 Trigger / Actor | Level Design | todo |
 | UI/Narrative | 配置教程弹窗内容：武器、背包卡牌规则、重击、月光、终结技、教程完成；正文/副正文统一使用 YogCommonRichTextBlock + InputActionRichTextDecorator | UI/Narrative | todo |
 | UI | 移动教学底部操作提示条正文使用输入设备分流：键鼠正文渲染 <input action="Move"/> + WASD 说明；手柄正文渲染 <input action="Move"/> 和 <input action="CameraLook"/> | UI | todo |

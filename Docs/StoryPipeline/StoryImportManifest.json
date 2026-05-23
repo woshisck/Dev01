@@ -1250,7 +1250,7 @@
           "type": "System",
           "title": "新存档入口写入 FirstRunTutorial.Active，并加载教程 Campaign",
           "owner": "Tech Design",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "WI_FirstRun_HubTriggers",
