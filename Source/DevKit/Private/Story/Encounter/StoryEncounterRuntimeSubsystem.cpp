@@ -1,5 +1,8 @@
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
 
+#include "CommonInputSubsystem.h"
+#include "CommonInputTypeEnum.h"
+#include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
 #include "Story/Encounter/StoryEncounterMap.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
@@ -37,6 +40,36 @@ APlayerController* ResolveEncounterPlayer(AActor* SourceActor)
 	return SourceActor && SourceActor->GetWorld()
 		? UGameplayStatics::GetPlayerController(SourceActor->GetWorld(), 0)
 		: nullptr;
+}
+
+FText ResolveInputAwareBody(const FStoryEncounterAction& Action, const FStoryEventContext& Context)
+{
+	if (!Action.bUseInputTextVariants)
+	{
+		return Action.Body;
+	}
+
+	const APlayerController* PlayerController = Context.PlayerController;
+	const ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;
+	const UCommonInputSubsystem* InputSubsystem = LocalPlayer
+		? ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(LocalPlayer)
+		: nullptr;
+	if (!InputSubsystem)
+	{
+		return Action.Body;
+	}
+
+	if (InputSubsystem->GetCurrentInputType() == ECommonInputType::Gamepad && !Action.GamepadBody.IsEmpty())
+	{
+		return Action.GamepadBody;
+	}
+
+	if (InputSubsystem->GetCurrentInputType() == ECommonInputType::MouseAndKeyboard && !Action.KeyboardMouseBody.IsEmpty())
+	{
+		return Action.KeyboardMouseBody;
+	}
+
+	return Action.Body;
 }
 }
 
@@ -137,7 +170,6 @@ bool UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(FName Encoun
 
 	switch (EncounterAction.Kind)
 	{
-	case EStoryEncounterActionKind::WeakHint:
 	case EStoryEncounterActionKind::Dialogue:
 		OutStoryAction.Type = EStoryActionType::ShowInfoHint;
 		OutStoryAction.HintTitle = EncounterAction.Title;
@@ -145,11 +177,19 @@ bool UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(FName Encoun
 		OutStoryAction.HintDuration = 3.f;
 		return true;
 
+	case EStoryEncounterActionKind::WeakHint:
+		OutStoryAction.Type = EStoryActionType::ShowInfoHint;
+		OutStoryAction.HintTitle = FText::GetEmpty();
+		OutStoryAction.HintText = EncounterAction.Body;
+		OutStoryAction.HintDuration = 3.f;
+		return true;
+
 	case EStoryEncounterActionKind::TutorialPopup:
 		OutStoryAction.Type = EStoryActionType::ShowTutorialPopup;
 		OutStoryAction.TutorialEventId = EncounterAction.TutorialEventId;
+		OutStoryAction.TutorialPages = EncounterAction.TutorialPages;
 		OutStoryAction.bPauseGame = EncounterAction.bPauseGame;
-		return !OutStoryAction.TutorialEventId.IsNone();
+		return !OutStoryAction.TutorialEventId.IsNone() || OutStoryAction.TutorialPages.Num() > 0;
 
 	case EStoryEncounterActionKind::RecordProgress:
 		OutStoryAction.Type = EStoryActionType::SetFlag;
@@ -231,6 +271,22 @@ void UStoryEncounterRuntimeSubsystem::ExecuteEncounterAction(FName EncounterId,
 	FStoryAction StoryAction;
 	if (ConvertEncounterActionForTest(EncounterId, Action, StoryAction))
 	{
+		if (StoryAction.Type == EStoryActionType::ShowInfoHint || StoryAction.Type == EStoryActionType::SetQuestTask)
+		{
+			const FText InputAwareBody = ResolveInputAwareBody(Action, Context);
+			if (!InputAwareBody.IsEmpty())
+			{
+				if (StoryAction.Type == EStoryActionType::ShowInfoHint)
+				{
+					StoryAction.HintText = InputAwareBody;
+				}
+				else
+				{
+					StoryAction.QuestTaskText = InputAwareBody;
+				}
+			}
+		}
+
 		if (StoryAction.Type == EStoryActionType::PlayLevelFlow)
 		{
 			if (AStoryEncounterTrigger* Trigger = Cast<AStoryEncounterTrigger>(Context.SourceActor))

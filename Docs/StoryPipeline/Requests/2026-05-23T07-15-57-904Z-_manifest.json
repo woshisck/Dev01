@@ -1,0 +1,15 @@
+{
+  "id": "2026-05-23T07-15-57-904Z-_manifest",
+  "mode": "导出引擎manifest",
+  "sourceFiles": [
+    "Docs/StorySource/Main_Tutorial_Demo/first_run_tutorial.story.json"
+  ],
+  "metadataFile": "Docs/StoryPipeline/Metadata/project_assets.json",
+  "rules": "Main_Tutorial_Demo 仅用于 Demo 阶段首局教程制作。,优先使用 WeakHint / TutorialPopup / Dialogue / RecordProgress 表达玩家可见内容。,地图 Trigger、Portal、刷怪、奖励、演出进入工作量清单，不自动修改地图。",
+  "outputs": [
+    "Docs/StoryPipeline/StoryImportManifest.json",
+    "Docs/StoryPipeline/StoryWorkload.md",
+    "Docs/StoryPipeline/ValidationReport.md"
+  ],
+  "createdAt": "2026-05-23T07:15:57.907Z"
+}

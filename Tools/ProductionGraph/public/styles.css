@@ -175,6 +175,13 @@ textarea {
   color: var(--muted);
 }
 
+.plain-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
 .sidebar-footer {
   position: sticky;
   bottom: 0;

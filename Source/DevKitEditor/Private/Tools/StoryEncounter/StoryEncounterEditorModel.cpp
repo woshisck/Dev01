@@ -693,8 +693,8 @@ void FStoryEncounterEditorModel::InitializeNewEncounterMap(UStoryEncounterMap* E
 
 	FStoryEncounterAction HintAction;
 	HintAction.Kind = EStoryEncounterActionKind::WeakHint;
-	HintAction.Title = FText::FromString(TEXT("细微提示"));
-	HintAction.Body = FText::FromString(TEXT("填写玩家第一次触发时看到的弱提示。"));
+	HintAction.Title = FText::FromString(TEXT("底部操作提示条"));
+	HintAction.Body = FText::FromString(TEXT("填写玩家第一次触发时在底部看到的操作提示。"));
 	EntryNode.Actions.Add(HintAction);
 
 	EncounterMap->Nodes.Add(EntryNode);
@@ -739,8 +739,8 @@ void FStoryEncounterEditorModel::InitializeNewEncounterPoint(
 
 	FStoryEncounterAction HintAction;
 	HintAction.Kind = EStoryEncounterActionKind::WeakHint;
-	HintAction.Title = FText::FromString(TEXT("细微提示"));
-	HintAction.Body = FText::FromString(TEXT("填写玩家触发时看到的一句弱提示。"));
+	HintAction.Title = FText::FromString(TEXT("底部操作提示条"));
+	HintAction.Body = FText::FromString(TEXT("填写玩家触发时在底部看到的一句操作提示。"));
 	EncounterPoint->Actions.Add(HintAction);
 }
 
@@ -807,7 +807,7 @@ FString FStoryEncounterEditorModel::ActionKindToChinese(EStoryEncounterActionKin
 	switch (Kind)
 	{
 	case EStoryEncounterActionKind::WeakHint:
-		return TEXT("弱提示");
+		return TEXT("底部操作提示条");
 	case EStoryEncounterActionKind::Dialogue:
 		return TEXT("对话");
 	case EStoryEncounterActionKind::TutorialPopup:

@@ -100,6 +100,7 @@ bool FStoryEncounterConvertsWeakHintTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Action converts"), bConverted);
 	TestEqual(TEXT("Converts to ShowInfoHint"), StoryAction.Type, EStoryActionType::ShowInfoHint);
 	TestTrue(TEXT("Hint body is retained"), StoryAction.HintText.EqualTo(EncounterAction.Body));
+	TestTrue(TEXT("Weak hint title is editor-only"), StoryAction.HintTitle.IsEmpty());
 	return true;
 }
 
@@ -113,6 +114,10 @@ bool FStoryEncounterConvertsTutorialPopupTest::RunTest(const FString& Parameters
 	EncounterAction.Kind = EStoryEncounterActionKind::TutorialPopup;
 	EncounterAction.TutorialEventId = TEXT("tutorial_weapon_pickup");
 	EncounterAction.bPauseGame = false;
+	FTutorialPage InlinePage;
+	InlinePage.Title = FText::FromString(TEXT("Inline"));
+	InlinePage.Body = FText::FromString(TEXT("Inline body"));
+	EncounterAction.TutorialPages.Add(InlinePage);
 
 	FStoryAction StoryAction;
 	const bool bConverted = UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(
@@ -123,6 +128,7 @@ bool FStoryEncounterConvertsTutorialPopupTest::RunTest(const FString& Parameters
 	TestTrue(TEXT("Action converts"), bConverted);
 	TestEqual(TEXT("Converts to ShowTutorialPopup"), StoryAction.Type, EStoryActionType::ShowTutorialPopup);
 	TestEqual(TEXT("Tutorial event id is retained"), StoryAction.TutorialEventId, FName(TEXT("tutorial_weapon_pickup")));
+	TestEqual(TEXT("Inline tutorial pages are retained"), StoryAction.TutorialPages.Num(), 1);
 	TestFalse(TEXT("Pause flag is retained"), StoryAction.bPauseGame);
 	return true;
 }

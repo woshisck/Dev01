@@ -1,0 +1,36 @@
+{
+  "mode": "导出引擎manifest",
+  "sourceFiles": [
+    "Docs/StorySource/main/first_run_tutorial.story.json"
+  ],
+  "rules": {
+    "storyGraphAssetPrefix": "EG_",
+    "storyPointAssetPrefix": "EP_",
+    "encounterId": "EM_FirstRun_Tutorial",
+    "importPolicy": "dry-run-first",
+    "doNotModifyMaps": true,
+    "triggerPlacement": "manual-work-item",
+    "runtimeSystems": [
+      "TutorialManager",
+      "StoryEngineSubsystem",
+      "CombatDeckComponent",
+      "RewardPickup",
+      "Portal",
+      "RoomDataAsset",
+      "AltarActor"
+    ],
+    "tagRules": {
+      "progressRoot": "Story.Encounter.Progress.EM_FirstRun_Tutorial",
+      "saveFlags": [
+        "Story.Flag.FirstRunTutorial.Active",
+        "Story.Flag.FirstRunTutorial.Completed"
+      ]
+    }
+  },
+  "outputs": {
+    "manifest": "Docs/StoryPipeline/Exports/StoryImportManifest_FirstRunTutorial.json",
+    "validationReport": "Docs/StoryPipeline/Reports/FirstRunTutorial_Validation.md",
+    "workloadReport": "Docs/StoryPipeline/Reports/FirstRunTutorial_WorkItems.md"
+  }
+}
+

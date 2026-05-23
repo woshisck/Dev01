@@ -1,0 +1,134 @@
+Command: Z:\GZA_Software\RealityCapture\UE_5.4\Engine\Binaries\Win64\UnrealEditor-Cmd.exe X:\Project\Dev01\DevKit.uproject -run=StoryImport Manifest=X:\Project\Dev01\Docs\StoryPipeline\StoryImportManifest.json -unattended -nop4
+ExitCode: 1
+
+--- stdout ---
+[2026.05.23-12.55.01:938][  0]LogTextureFormatManager: Display: Loaded Base TextureFormat: TextureFormatASTC
+[2026.05.23-12.55.01:938][  0]LogTextureFormatManager: Display: Loaded Base TextureFormat: TextureFormatDXT
+[2026.05.23-12.55.01:938][  0]LogTextureFormatManager: Display: Loaded Base TextureFormat: TextureFormatETC2
+[2026.05.23-12.55.01:938][  0]LogTextureFormatManager: Display: Loaded Base TextureFormat: TextureFormatIntelISPCTexComp
+[2026.05.23-12.55.01:938][  0]LogTextureFormatManager: Display: Loaded Base TextureFormat: TextureFormatUncompressed
+[2026.05.23-12.55.01:938][  0]LogTextureFormatOodle: Display: Oodle Texture TFO init; latest sdk version = 2.9.12
+[2026.05.23-12.55.01:938][  0]LogTextureFormatOodle: Display: Oodle Texture loading DLL: oo2tex_win64_2.9.12.dll
+[2026.05.23-12.55.01:939][  0]LogTextureFormatOodle: Display: Oodle Texture loading DLL: oo2tex_win64_2.9.5.dll
+[2026.05.23-12.55.01:939][  0]LogTextureFormatManager: Display: Loaded Base TextureFormat: TextureFormatOodle
+[2026.05.23-12.55.01:963][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'Android'
+[2026.05.23-12.55.01:963][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'Android_ASTC'
+[2026.05.23-12.55.01:963][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'Android_DXT'
+[2026.05.23-12.55.01:963][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'Android_ETC2'
+[2026.05.23-12.55.01:963][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'AndroidClient'
+[2026.05.23-12.55.01:963][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'Android_ASTCClient'
+[2026.05.23-12.55.01:963][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'Android_DXTClient'
+[2026.05.23-12.55.01:963][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'Android_ETC2Client'
+[2026.05.23-12.55.01:963][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'Android_Multi'
+[2026.05.23-12.55.01:963][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'Android_MultiClient'
+[2026.05.23-12.55.01:968][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'IOS'
+[2026.05.23-12.55.01:968][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'IOSClient'
+[2026.05.23-12.55.01:972][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'Linux'
+[2026.05.23-12.55.01:972][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'LinuxEditor'
+[2026.05.23-12.55.01:972][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'LinuxServer'
+[2026.05.23-12.55.01:972][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'LinuxClient'
+[2026.05.23-12.55.01:976][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'LinuxArm64'
+[2026.05.23-12.55.01:976][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'LinuxArm64Server'
+[2026.05.23-12.55.01:976][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'LinuxArm64Client'
+[2026.05.23-12.55.01:980][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'Mac'
+[2026.05.23-12.55.01:980][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'MacEditor'
+[2026.05.23-12.55.01:980][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'MacServer'
+[2026.05.23-12.55.01:980][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'MacClient'
+[2026.05.23-12.55.01:984][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'TVOS'
+[2026.05.23-12.55.01:984][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'TVOSClient'
+[2026.05.23-12.55.01:992][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'Windows'
+[2026.05.23-12.55.01:992][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'WindowsEditor'
+[2026.05.23-12.55.01:992][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'WindowsServer'
+[2026.05.23-12.55.01:992][  0]LogTargetPlatformManager: Display: Loaded TargetPlatform 'WindowsClient'
+[2026.05.23-12.55.01:992][  0]LogTargetPlatformManager: Display: Building Assets For WindowsEditor
+[2026.05.23-12.55.02:008][  0]LogAudioDebug: Display: Lib vorbis DLL was dynamically loaded.
+[2026.05.23-12.55.02:074][  0]LogDerivedDataCache: Display: Memory: Max Cache Size: -1 MB
+[2026.05.23-12.55.02:106][  0]LogDerivedDataCache: Display: ../../../Engine/DerivedDataCache/Compressed.ddp: Opened pak cache for reading. (2464 MiB)
+[2026.05.23-12.55.02:121][  0]LogZenServiceInstance: Display: Unreal Zen Storage Server HTTP service at [::1]:8558 status: OK!.
+[2026.05.23-12.55.02:122][  0]LogDerivedDataCache: Display: ZenLocal: Using ZenServer HTTP service at http://[::1]:8558/ with namespace ue.ddc status: OK!.
+[2026.05.23-12.55.02:134][  0]LogDerivedDataCache: Display: C:/Users/g/AppData/Local/UnrealEngine/Common/DerivedDataCache: Performance: Latency=0.08ms. RandomReadSpeed=739.49MBs, RandomWriteSpeed=99.89MBs. Assigned SpeedClass 'Local'
+[2026.05.23-12.55.02:136][  0]LogShaderCompilers: Display: Using Local Shader Compiler with 13 workers.
+[2026.05.23-12.55.02:137][  0]LogShaderCompilers: Display: Compiling shader autogen file: X:/Project/Dev01/Intermediate/ShaderAutogen/PCD3D_SM5/AutogenShaderHeaders.ush
+[2026.05.23-12.55.02:137][  0]LogShaderCompilers: Display: Autogen file is unchanged, skipping write.
+[2026.05.23-12.55.03:657][  0]LogEditorDomain: Display: EditorDomain is Disabled
+[2026.05.23-12.55.03:822][  0]LogDeviceProfileManager: Display: Deviceprofile LinuxArm64Editor not found.
+[2026.05.23-12.55.03:822][  0]LogDeviceProfileManager: Display: Deviceprofile LinuxArm64 not found.
+[2026.05.23-12.55.03:856][  0]LogCsvProfiler: Display: Metadata set : deviceprofile="WindowsEditor"
+[2026.05.23-12.55.03:856][  0]LogShaderCompilers: Display: Compiling shader autogen file: X:/Project/Dev01/Intermediate/ShaderAutogen/PCD3D_SM6/AutogenShaderHeaders.ush
+[2026.05.23-12.55.03:856][  0]LogShaderCompilers: Display: Autogen file is unchanged, skipping write.
+[2026.05.23-12.55.03:881][  0]LogTextureEncodingSettings: Display: Texture Encode Speed: Final (cook).
+[2026.05.23-12.55.03:881][  0]LogTextureEncodingSettings: Display: Oodle Texture Encode Speed settings: Fast: RDO Off Lambda=0, Effort=Normal Final: RDO Off Lambda=0, Effort=Normal
+[2026.05.23-12.55.03:881][  0]LogTextureEncodingSettings: Display: Shared linear texture encoding: Disabled
+[2026.05.23-12.55.03:936][  0]LogMeshReduction: Display: Using QuadricMeshReduction for automatic static mesh reduction
+[2026.05.23-12.55.03:936][  0]LogMeshReduction: Display: Using SkeletalMeshReduction for automatic skeletal mesh reduction
+[2026.05.23-12.55.03:936][  0]LogMeshReduction: Display: Using ProxyLODMeshReduction for automatic mesh merging
+[2026.05.23-12.55.03:936][  0]LogMeshReduction: Display: No distributed automatic mesh merging module available
+[2026.05.23-12.55.04:119][  0]LogVirtualization: Display: VirtualizationSystem name found in ini file: None
+[2026.05.23-12.55.04:119][  0]LogVirtualization: Display: FNullVirtualizationSystem mounted, virtualization will be disabled
+[2026.05.23-12.55.04:297][  0]LogWorldPartition: Display: FWorldPartitionClassDescRegistry::Initialize started...
+[2026.05.23-12.55.04:299][  0]LogWorldPartition: Display: FWorldPartitionClassDescRegistry::Initialize took 1.751 ms
+[2026.05.23-12.55.05:320][  0]LogPython: Display: No enabled plugins with python dependencies found, skipping
+[2026.05.23-12.55.05:986][  0]LogAudio: Display: Registering Engine Module Parameter Interfaces...
+[2026.05.23-12.55.06:260][  0]LogUObjectGlobals: Warning: [AssetLog] X:\Project\Dev01\Content\Art\EnvironmentAsset\Prox_Box\SM_GothicAltar01.uasset: Failed to load '/Game/Art/OtherByMarket/DepthsBelow/Geometry/Props/Furniture/MI_GothicAltarA01': Can't find file.
+[2026.05.23-12.55.06:260][  0]LogLinker: Warning: [AssetLog] X:\Project\Dev01\Content\Art\EnvironmentAsset\Prox_Box\SM_GothicAltar01.uasset: VerifyImport: Failed to load package for import object 'Package /Game/Art/OtherByMarket/DepthsBelow/Geometry/Props/Furniture/MI_GothicAltarA01'
+[2026.05.23-12.55.06:626][  0]LogMaterial: Warning: Expression include file path '/Project/PlayerGlowOverlay.ush' is invalid, removing from cached data for material '/Game/Art/Material/CharacterMaterial/OverwriteMat/M_HeatPhaseOverlay.M_HeatPhaseOverlay'.
+[2026.05.23-12.55.06:661][  0]LogMaterial: Warning: Expression include file path '/Project/LiquidHealthBar.ush' is invalid, removing from cached data for material '/Game/UI/UI_Material/HUD/M_LiquidHealthBar.M_LiquidHealthBar'.
+[2026.05.23-12.55.06:677][  0]LogMaterial: Warning: Expression include file path '/Project/GlassChromaDistort.ush' is invalid, removing from cached data for material '/Game/UI/UI_Material/BackpackMaterial/M_GlassChromaDistort.M_GlassChromaDistort'.
+[2026.05.23-12.55.06:677][  0]LogMaterial: Warning: Expression include file path '/Project/GlassFrameUI.ush' is invalid, removing from cached data for material '/Game/UI/UI_Material/BackpackMaterial/M_GlassFrame.M_GlassFrame'.
+[2026.05.23-12.55.06:679][  0]LogMaterial: Warning: Expression include file path '/Project/WeaponTrail.ush' is invalid, removing from cached data for material '/Game/UI/UI_Material/WeaoponIconMat/M_WeaponTrail.M_WeaponTrail'.
+[2026.05.23-12.55.06:815][  0]LogPython: Warning: 'PlayerState' and 'EPlayerState' have the same name (PlayerState) when exposed to Python. Rename one of them using 'ScriptName' meta-data.
+[2026.05.23-12.55.07:601][  0]LogAudioCaptureCore: Display: No Audio Capture implementations found. Audio input will be silent.
+[2026.05.23-12.55.07:601][  0]LogAudioCaptureCore: Display: No Audio Capture implementations found. Audio input will be silent.
+[2026.05.23-12.55.07:831][  0]LogGameFeatures: Display: Creating GameFeaturePlugin StateMachine using Identifier:CountDownTime.uplugin from PluginURL:file:X:/Project/Dev01/Plugins/GameFeatures/CountDownTime/CountDownTime.uplugin
+[2026.05.23-12.55.07:837][  0]LogStreaming: Display: FlushAsyncLoading(1): 1 QueuedPackages, 0 AsyncPackages
+[2026.05.23-12.55.07:838][  0]LogGameFeatures: Display: Game feature 'CountDownTime' loaded successfully. Ending state: Active, [Active, Active]
+[2026.05.23-12.55.07:839][  0]LogGameFeatures: Display: Total built in plugin load time 0.0083s
+[2026.05.23-12.55.07:866][  0]DevKitLevelSystem: Display: INIT YogWorldSubsystem
+[2026.05.23-12.55.07:875][  0]LogCsvProfiler: Display: Metadata set : largeworldcoordinates="1"
+[2026.05.23-12.55.08:030][  0]LogStreaming: Error: Couldn't find file for package /Game/SlashTrailElemental/Niagara/SlashTrail/NS_SlashTrail_Dark requested by async loading code. NameToLoad: /Game/SlashTrailElemental/Niagara/SlashTrail/NS_SlashTrail_Dark
+[2026.05.23-12.55.09:267][  0]LogBlueprint: Warning: [AssetLog] X:\Project\Dev01\Content\Code\Characters\AnimationBP\ABT_Base.uasset: [Compiler] Idle/Walk to GetDmg  will never be taken, please connect something to  Can Enter Transition
+[2026.05.23-12.55.09:267][  0]LogBlueprint: Warning: [AssetLog] X:\Project\Dev01\Content\Code\Characters\AnimationBP\ABT_Base.uasset: [Compiler] OnDmgState to EndDmg  will never be taken, please connect something to  Can Enter Transition
+[2026.05.23-12.55.09:715][  0]LogTemp: Display: [StoryImport] Mode=DryRun Manifest=X:/Project/Dev01/Docs/StoryPipeline/StoryImportManifest.json
+[2026.05.23-12.55.09:716][  0]LogTemp: Display: # Story Import
+[2026.05.23-12.55.09:716][  0]LogTemp: Display: ## first_run_tutorial
+[2026.05.23-12.55.09:716][  0]LogTemp: Display: - Would write point `EP_FirstRun_HubMoveHint`.
+[2026.05.23-12.55.09:716][  0]LogTemp: Display: - Would write point `EP_FirstRun_HubDashHint`.
+[2026.05.23-12.55.09:717][  0]LogTemp: Display: - Would write point `EP_FirstRun_WeaponPickupPrompt`.
+[2026.05.23-12.55.09:717][  0]LogTemp: Display: - Would write point `EP_FirstRun_DeckEnterHighlight`.
+[2026.05.23-12.55.09:717][  0]LogTemp: Display: - Would write point `EP_FirstRun_BackpackCardRules`.
+[2026.05.23-12.55.09:717][  0]LogTemp: Display: - Would write point `EP_FirstRun_TrainingDummyCombo`.
+[2026.05.23-12.55.09:717][  0]LogTemp: Display: - Would write point `EP_FirstRun_DummyDropHeavyCard`.
+[2026.05.23-12.55.09:718][  0]LogTemp: Display: - Would write point `EP_FirstRun_HubPortalRewardPreview`.
+[2026.05.23-12.55.09:718][  0]LogTemp: Display: - Would write point `EP_FirstRun_CombatRoom01Gold`.
+[2026.05.23-12.55.09:718][  0]LogTemp: Display: - Would write point `EP_FirstRun_CombatRoom02ThreeCards`.
+[2026.05.23-12.55.09:718][  0]LogTemp: Display: - Would write point `EP_FirstRun_MoonlightSpecialEnemy`.
+[2026.05.23-12.55.09:718][  0]LogTemp: Display: - Would write point `EP_FirstRun_TransitionRoom01GoldMaterial`.
+[2026.05.23-12.55.09:718][  0]LogTemp: Display: - Would write point `EP_FirstRun_TransitionRoom02GoldMaterial`.
+[2026.05.23-12.55.09:719][  0]LogTemp: Display: - Would write point `EP_FirstRun_PrayerSacrificeFinisher`.
+[2026.05.23-12.55.09:719][  0]LogTemp: Display: - Would write point `EP_FirstRun_ScriptedDefeatReturnHub`.
+[2026.05.23-12.55.09:719][  0]LogTemp: Display: - Would write point `EP_FirstRun_ReturnHubNormalRunStart`.
+[2026.05.23-12.55.09:719][  0]LogTemp: Display: - Would write graph `EG_FirstRun_Tutorial` with 16 point(s).
+[2026.05.23-12.55.09:719][  0]LogTemp: Display: 
+[2026.05.23-12.55.09:719][  0]LogInit: Display: 
+[2026.05.23-12.55.09:720][  0]LogInit: Display: Warning/Error Summary (Unique only)
+[2026.05.23-12.55.09:720][  0]LogInit: Display: -----------------------------------
+[2026.05.23-12.55.09:720][  0]LogInit: Display: LogStreaming: Error: Couldn't find file for package /Game/SlashTrailElemental/Niagara/SlashTrail/NS_SlashTrail_Dark requested by async loading code. NameToLoad: /Game/SlashTrailElemental/Niagara/SlashTrail/NS_SlashTrail_Dark
+[2026.05.23-12.55.09:720][  0]LogInit: Display: LogUObjectGlobals: Warning: [AssetLog] X:\Project\Dev01\Content\Art\EnvironmentAsset\Prox_Box\SM_GothicAltar01.uasset: Failed to load '/Game/Art/OtherByMarket/DepthsBelow/Geometry/Props/Furniture/MI_GothicAltarA01': Can't find file.
+[2026.05.23-12.55.09:721][  0]LogInit: Display: LogLinker: Warning: [AssetLog] X:\Project\Dev01\Content\Art\EnvironmentAsset\Prox_Box\SM_GothicAltar01.uasset: VerifyImport: Failed to load package for import object 'Package /Game/Art/OtherByMarket/DepthsBelow/Geometry/Props/Furniture/MI_GothicAltarA01'
+[2026.05.23-12.55.09:721][  0]LogInit: Display: LogMaterial: Warning: Expression include file path '/Project/PlayerGlowOverlay.ush' is invalid, removing from cached data for material '/Game/Art/Material/CharacterMaterial/OverwriteMat/M_HeatPhaseOverlay.M_HeatPhaseOverlay'.
+[2026.05.23-12.55.09:722][  0]LogInit: Display: LogMaterial: Warning: Expression include file path '/Project/LiquidHealthBar.ush' is invalid, removing from cached data for material '/Game/UI/UI_Material/HUD/M_LiquidHealthBar.M_LiquidHealthBar'.
+[2026.05.23-12.55.09:722][  0]LogInit: Display: LogMaterial: Warning: Expression include file path '/Project/GlassChromaDistort.ush' is invalid, removing from cached data for material '/Game/UI/UI_Material/BackpackMaterial/M_GlassChromaDistort.M_GlassChromaDistort'.
+[2026.05.23-12.55.09:722][  0]LogInit: Display: LogMaterial: Warning: Expression include file path '/Project/GlassFrameUI.ush' is invalid, removing from cached data for material '/Game/UI/UI_Material/BackpackMaterial/M_GlassFrame.M_GlassFrame'.
+[2026.05.23-12.55.09:723][  0]LogInit: Display: LogMaterial: Warning: Expression include file path '/Project/WeaponTrail.ush' is invalid, removing from cached data for material '/Game/UI/UI_Material/WeaoponIconMat/M_WeaponTrail.M_WeaponTrail'.
+[2026.05.23-12.55.09:723][  0]LogInit: Display: LogPython: Warning: 'PlayerState' and 'EPlayerState' have the same name (PlayerState) when exposed to Python. Rename one of them using 'ScriptName' meta-data.
+[2026.05.23-12.55.09:723][  0]LogInit: Display: LogBlueprint: Warning: [AssetLog] X:\Project\Dev01\Content\Code\Characters\AnimationBP\ABT_Base.uasset: [Compiler] Idle/Walk to GetDmg  will never be taken, please connect something to  Can Enter Transition
+[2026.05.23-12.55.09:724][  0]LogInit: Display: LogBlueprint: Warning: [AssetLog] X:\Project\Dev01\Content\Code\Characters\AnimationBP\ABT_Base.uasset: [Compiler] OnDmgState to EndDmg  will never be taken, please connect something to  Can Enter Transition
+[2026.05.23-12.55.09:724][  0]LogInit: Display: 
+[2026.05.23-12.55.09:724][  0]LogInit: Display: Failure - 1 error(s), 10 warning(s)
+[2026.05.23-12.55.09:724][  0]LogInit: Display: 
+Execution of commandlet took:  0.00 seconds
+[2026.05.23-12.55.10:019][  0]LogShaderCompilers: Display: Shaders left to compile 0
+[2026.05.23-12.55.10:094][  0]LogStudioTelemetry: Display: Shutdown StudioTelemetry Module
+
+
+--- stderr ---

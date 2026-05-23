@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Story Pipeline Editor</title>
+    <link rel="stylesheet" href="/story.css">
+  </head>
+  <body>
+    <div class="story-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">SE</div>
+          <div>
+            <h1>剧情编辑器</h1>
+            <p>Story Source / Codex / UE 导入</p>
+          </div>
+        </div>
+
+        <div class="row">
+          <button id="newSegmentButton" class="primary-button">新建剧情段</button>
+          <button id="refreshButton">刷新</button>
+        </div>
+
+        <label class="field-label" for="filterInput">筛选</label>
+        <input id="filterInput" class="input" placeholder="主线、章节、地图、ID">
+
+        <div class="segment-list" id="segmentList"></div>
+
+        <div class="sidebar-footer">
+          <a href="/" class="plain-link">返回 Production Graph</a>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <div id="segmentTitle" class="segment-title">未选择剧情段</div>
+            <div id="segmentSubtitle" class="segment-subtitle"></div>
+          </div>
+          <div class="top-actions">
+            <button id="syncMetadataButton">同步项目资产</button>
+            <button id="syncUeMetadataButton">同步DA关卡数据</button>
+            <button id="undoButton" title="Ctrl+Z">撤销</button>
+            <button id="redoButton" title="Ctrl+Y / Ctrl+Shift+Z">重做</button>
+            <button id="saveButton" class="primary-button">保存源文件</button>
+            <button id="codexButton">生成 Codex 任务</button>
+            <button id="runCodexButton">运行 Codex 整理</button>
+            <button id="exportButton">导出 UE Manifest</button>
+            <button id="ueDryRunButton">同步到 UE Dry Run</button>
+            <button id="ueApplyButton" class="danger-button">同步到 UE Apply</button>
+          </div>
+        </header>
+
+        <section class="editor-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>基础字段</h2>
+              <span id="saveState" class="pill">未修改</span>
+            </div>
+            <div id="basicForm" class="form-grid"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>剧情流程图</h2>
+              <div class="graph-actions">
+                <button id="autoLayoutButton">自动排布</button>
+                <button id="reorderByCanvasButton">按画布顺序重排</button>
+                <button id="addPointButton">新增剧情点</button>
+              </div>
+            </div>
+            <div id="pointList" class="point-list"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>状态 / 道具 / 工作量</h2>
+            </div>
+            <div id="advancedForm" class="stack"></div>
+          </section>
+        </section>
+      </main>
+
+      <aside class="inspector">
+        <div class="panel-header">
+          <h2>选中节点详情</h2>
+        </div>
+        <div id="selectionInspector" class="selection-inspector">选择中间流程图里的剧情点或动作。</div>
+
+        <div class="panel-header log-header">
+          <h2>输出</h2>
+          <button id="clearLogButton">清空</button>
+        </div>
+        <pre id="logOutput" class="log-output">等待操作。</pre>
+      </aside>
+    </div>
+
+    <div id="editModal" class="modal-backdrop" hidden>
+      <section class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+        <header class="edit-modal-header">
+          <div>
+            <h2 id="editModalTitle">编辑</h2>
+            <p id="editModalSubtitle"></p>
+          </div>
+          <button id="editModalCloseButton" class="icon-button" type="button" aria-label="关闭编辑窗口"></button>
+        </header>
+        <div id="editModalContent" class="edit-modal-content"></div>
+      </section>
+    </div>
+
+    <script src="/story.js"></script>
+  </body>
+</html>

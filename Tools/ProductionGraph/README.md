@@ -16,6 +16,12 @@ node Tools\ProductionGraph\server.js --port 4783
 http://localhost:4783
 ```
 
+剧情编辑器入口：
+
+```text
+http://localhost:4783/story.html
+```
+
 ## 操作
 
 - 鼠标左键拖动节点。
@@ -36,6 +42,58 @@ http://localhost:4783
 
 ```text
 Docs/ProductionGraph/<graph-id>/graph.json
+```
+
+剧情源数据保存到：
+
+```text
+Docs/StorySource/<ArcId>/<StoryId>.story.json
+Docs/StorySource/<ArcId>/<StoryId>.story.md
+```
+
+剧情编辑器可以导出：
+
+```text
+Docs/StoryPipeline/StoryImportManifest.json
+Docs/StoryPipeline/StoryWorkload.md
+Docs/StoryPipeline/ValidationReport.md
+Docs/StoryPipeline/Metadata/project_assets.json
+Docs/StoryPipeline/Requests/*.json
+Docs/StoryPipeline/Requests/*.md
+Docs/StoryPipeline/Runs/*.final.md
+Docs/StoryPipeline/Runs/*.log.txt
+```
+
+`生成 Codex 任务` 只创建请求文件；`运行 Codex 整理` 会调用本机 Codex CLI 读取该请求并整理剧情源数据。默认优先使用：
+
+```text
+%LOCALAPPDATA%\OpenAI\Codex\bin\codex.exe
+```
+
+如果需要指定其他 Codex CLI 路径，可以先设置环境变量：
+
+```powershell
+$env:CODEX_CLI_PATH="C:\Users\g\AppData\Local\OpenAI\Codex\bin\codex.exe"
+```
+
+`同步项目资产` 会快速扫描 `Content` 和 `Config/Tags`，生成 `Docs/StoryPipeline/Metadata/project_assets.json`。剧情编辑器会用它给地图、RoomData、卡牌、教程配置和 tag 字段提供下拉候选；字段仍允许手动输入。
+
+UE 导入使用 `StoryImport` Commandlet。默认是 dry-run，只报告将创建/更新哪些资产：
+
+```powershell
+UnrealEditor-Cmd.exe DevKit.uproject -run=StoryImport -unattended -nop4
+```
+
+确认后加 `Apply` 写入剧情工作台资产：
+
+```powershell
+UnrealEditor-Cmd.exe DevKit.uproject -run=StoryImport Apply -unattended -nop4
+```
+
+也可以指定 manifest：
+
+```powershell
+UnrealEditor-Cmd.exe DevKit.uproject -run=StoryImport -Manifest="Docs/StoryPipeline/StoryImportManifest.json" -unattended -nop4
 ```
 
 ## 测试

@@ -1,6 +1,10 @@
 const http = require('http');
 const fs = require('fs/promises');
+const fsSync = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
+const storyPipeline = require('./story_pipeline');
+const storyMetadata = require('./story_metadata');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -169,6 +173,308 @@ async function readBody(request) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
+function findCodexCli() {
+  const candidates = [
+    process.env.CODEX_CLI_PATH,
+    path.join(process.env.LOCALAPPDATA || '', 'OpenAI', 'Codex', 'bin', 'codex.exe'),
+    path.join(
+      process.env.LOCALAPPDATA || '',
+      'Packages',
+      'OpenAI.Codex_2p2nqsd0c76g0',
+      'LocalCache',
+      'Local',
+      'OpenAI',
+      'Codex',
+      'bin',
+      'codex.exe'
+    ),
+    'codex'
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    if (candidate === 'codex' || fsSync.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  throw new Error('Codex CLI not found. Set CODEX_CLI_PATH to codex.exe.');
+}
+
+function findUnrealEditorCmd() {
+  const candidates = [
+    process.env.UNREAL_EDITOR_CMD,
+    process.env.UE_EDITOR_CMD,
+    path.join('Z:', 'GZA_Software', 'RealityCapture', 'UE_5.4', 'Engine', 'Binaries', 'Win64', 'UnrealEditor-Cmd.exe'),
+    path.join('C:', 'Program Files', 'Epic Games', 'UE_5.4', 'Engine', 'Binaries', 'Win64', 'UnrealEditor-Cmd.exe'),
+    'UnrealEditor-Cmd.exe'
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    if (candidate === 'UnrealEditor-Cmd.exe' || fsSync.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  throw new Error('UnrealEditor-Cmd.exe not found. Set UNREAL_EDITOR_CMD to the editor commandlet executable.');
+}
+
+async function runCodexPrompt(prompt, runId) {
+  const codexPath = findCodexCli();
+  const runDir = path.join(ROOT, 'Docs', 'StoryPipeline', 'Runs');
+  await fs.mkdir(runDir, { recursive: true });
+  const outputFile = path.join(runDir, `${runId}.final.md`);
+  const logFile = path.join(runDir, `${runId}.log.txt`);
+  const args = [
+    'exec',
+    '-C',
+    ROOT,
+    '-s',
+    'workspace-write',
+    '-a',
+    'never',
+    '-o',
+    outputFile,
+    '-'
+  ];
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(codexPath, args, {
+      cwd: ROOT,
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error('Codex run timed out after 10 minutes.'));
+    }, 10 * 60 * 1000);
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on('close', async (code) => {
+      clearTimeout(timer);
+      const logText = [
+        `Command: ${codexPath} ${args.join(' ')}`,
+        `ExitCode: ${code}`,
+        '',
+        '--- stdout ---',
+        stdout,
+        '',
+        '--- stderr ---',
+        stderr
+      ].join('\n');
+      await fs.writeFile(logFile, logText, 'utf8');
+      if (code !== 0) {
+        reject(new Error(`Codex exited with ${code}. See ${path.relative(ROOT, logFile)}`));
+        return;
+      }
+      resolve({
+        exitCode: code,
+        outputFile: path.relative(ROOT, outputFile).replace(/\\/g, '/'),
+        logFile: path.relative(ROOT, logFile).replace(/\\/g, '/')
+      });
+    });
+    child.stdin.end(prompt);
+  });
+}
+
+function uniqueLines(lines) {
+  return Array.from(new Set(lines.filter(Boolean)));
+}
+
+function analyzeStoryImportOutput(stdout) {
+  const lines = stdout.split(/\r?\n/);
+  const storyImportLines = lines.filter((line) => line.includes('[StoryImport]') || line.includes('LogTemp: Display: - '));
+  const projectErrors = uniqueLines(lines
+    .filter((line) => line.includes('Error:') && !line.includes('[StoryImport]'))
+    .map((line) => line.replace(/^\[[^\]]+\]\[[^\]]+\]/, '').trim()));
+  const storyImportFailures = uniqueLines(storyImportLines
+    .filter((line) => /\bFailed\b|\bSkipped\b|Error:/i.test(line))
+    .map((line) => line.replace(/^\[[^\]]+\]\[[^\]]+\]/, '').trim()));
+  const countLines = (needle) => storyImportLines.filter((line) => line.includes(needle)).length;
+  const started = storyImportLines.some((line) => line.includes('[StoryImport] Mode='));
+  const touchedCount =
+    countLines('Would write point') +
+    countLines('Would write graph') +
+    countLines('Created point') +
+    countLines('Created graph') +
+    countLines('Updated point') +
+    countLines('Updated graph');
+  return {
+    started,
+    storyImportOk: started && storyImportFailures.length === 0 && touchedCount > 0,
+    storyImportFailures,
+    projectErrors,
+    counts: {
+      wouldWritePoints: countLines('Would write point'),
+      wouldWriteGraphs: countLines('Would write graph'),
+      createdPoints: countLines('Created point'),
+      createdGraphs: countLines('Created graph'),
+      updatedPoints: countLines('Updated point'),
+      updatedGraphs: countLines('Updated graph')
+    }
+  };
+}
+
+async function runStoryImportCommandlet({ apply = false, manifestPath = 'Docs/StoryPipeline/StoryImportManifest.json' } = {}) {
+  const editorCmd = findUnrealEditorCmd();
+  const runDir = path.join(ROOT, 'Docs', 'StoryPipeline', 'Runs');
+  await fs.mkdir(runDir, { recursive: true });
+  const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-story-import-${apply ? 'apply' : 'dry-run'}`;
+  const logFile = path.join(runDir, `${runId}.log.txt`);
+  const manifestFullPath = path.resolve(ROOT, manifestPath);
+  const args = [
+    path.join(ROOT, 'DevKit.uproject'),
+    '-run=StoryImport',
+    `Manifest=${manifestFullPath}`,
+    '-unattended',
+    '-nop4'
+  ];
+  if (apply) {
+    args.splice(2, 0, 'Apply');
+  }
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(editorCmd, args, {
+      cwd: ROOT,
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error('StoryImport commandlet timed out after 15 minutes.'));
+    }, 15 * 60 * 1000);
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on('close', async (code) => {
+      clearTimeout(timer);
+      const analysis = analyzeStoryImportOutput(stdout);
+      const logText = [
+        `Command: ${editorCmd} ${args.join(' ')}`,
+        `ExitCode: ${code}`,
+        '',
+        '--- stdout ---',
+        stdout,
+        '',
+        '--- stderr ---',
+        stderr
+      ].join('\n');
+      await fs.writeFile(logFile, logText, 'utf8');
+      resolve({
+        exitCode: code,
+        ok: code === 0,
+        mode: apply ? 'Apply' : 'DryRun',
+        manifestFile: path.relative(ROOT, manifestFullPath).replace(/\\/g, '/'),
+        logFile: path.relative(ROOT, logFile).replace(/\\/g, '/'),
+        storyImportOk: analysis.storyImportOk,
+        storyImportCounts: analysis.counts,
+        storyImportFailures: analysis.storyImportFailures,
+        projectErrors: analysis.projectErrors,
+        warning: code !== 0 && analysis.storyImportOk
+          ? 'StoryImport completed, but Unreal exited with project-level errors. Check projectErrors and the log.'
+          : '',
+        error: code === 0
+          ? ''
+          : analysis.storyImportOk
+            ? `Unreal exited with ${code} after StoryImport completed. Check projectErrors and the log.`
+            : `StoryImport exited with ${code}. Check the log for project-level errors.`
+      });
+    });
+  });
+}
+
+async function runStoryMetadataExportCommandlet() {
+  const editorCmd = findUnrealEditorCmd();
+  const runDir = path.join(ROOT, 'Docs', 'StoryPipeline', 'Runs');
+  await fs.mkdir(runDir, { recursive: true });
+  const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-story-metadata-export`;
+  const logFile = path.join(runDir, `${runId}.log.txt`);
+  const outputPath = path.join(ROOT, 'Docs', 'StoryPipeline', 'Metadata', 'ue_project_assets.json');
+  const args = [
+    path.join(ROOT, 'DevKit.uproject'),
+    '-run=StoryMetadataExport',
+    `Output=${outputPath}`,
+    '-unattended',
+    '-nop4'
+  ];
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(editorCmd, args, {
+      cwd: ROOT,
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error('StoryMetadataExport commandlet timed out after 15 minutes.'));
+    }, 15 * 60 * 1000);
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on('close', async (code) => {
+      clearTimeout(timer);
+      const logText = [
+        `Command: ${editorCmd} ${args.join(' ')}`,
+        `ExitCode: ${code}`,
+        '',
+        '--- stdout ---',
+        stdout,
+        '',
+        '--- stderr ---',
+        stderr
+      ].join('\n');
+      await fs.writeFile(logFile, logText, 'utf8');
+      resolve({
+        exitCode: code,
+        ok: code === 0,
+        outputFile: path.relative(ROOT, outputPath).replace(/\\/g, '/'),
+        logFile: path.relative(ROOT, logFile).replace(/\\/g, '/'),
+        error: code === 0 ? '' : `StoryMetadataExport exited with ${code}. Check the log for project-level errors.`
+      });
+    });
+  });
+}
+
+function buildStoryCodexPrompt(request) {
+  return [
+    '你是这个项目的剧情管线整理助手。请严格处理请求文件中的剧情源数据。',
+    '',
+    '目标：',
+    '- 读取 sourceFiles 中列出的 .story.json。',
+    '- 如果 metadataFile 存在，读取它并用于校验地图、tag、RoomData、卡牌和 Story 资产候选。',
+    '- 检查并整理剧情字段、tag、剧情点、Actions、工作量。',
+    '- 可以更新 Docs/StoryPipeline/StoryImportManifest.json、Docs/StoryPipeline/StoryWorkload.md、Docs/StoryPipeline/ValidationReport.md。',
+    '- 不要修改 UE 地图，不要运行 StoryImport Apply，不要改无关源码。',
+    '- 保留 schemaVersion、extra 和未知字段。',
+    '',
+    '请求：',
+    JSON.stringify(request, null, 2)
+  ].join('\n');
+}
+
 function send(response, status, body, type = 'application/json; charset=utf-8') {
   response.writeHead(status, { 'content-type': type });
   response.end(body);
@@ -189,6 +495,71 @@ async function serveStatic(request, response) {
 async function handleApi(request, response) {
   const url = new URL(request.url, 'http://localhost');
   const parts = url.pathname.split('/').filter(Boolean);
+  if (request.method === 'GET' && url.pathname === '/api/story/default') {
+    send(response, 200, JSON.stringify({ segment: storyPipeline.defaultSegment() }));
+    return;
+  }
+  if (request.method === 'GET' && url.pathname === '/api/story/metadata') {
+    const metadata = storyMetadata.readMetadata(ROOT);
+    send(response, 200, JSON.stringify({
+      metadata,
+      metadataFile: storyMetadata.metadataFileForRequest(ROOT),
+      exists: Boolean(metadata)
+    }));
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/story/sync-metadata') {
+    send(response, 200, JSON.stringify(storyMetadata.syncMetadata(ROOT)));
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/story/sync-ue-metadata') {
+    const commandlet = await runStoryMetadataExportCommandlet();
+    const metadata = storyMetadata.syncMetadata(ROOT);
+    send(response, 200, JSON.stringify({ commandlet, ...metadata }));
+    return;
+  }
+  if (request.method === 'GET' && url.pathname === '/api/story/segments') {
+    send(response, 200, JSON.stringify({ segments: storyPipeline.listSegments(ROOT) }));
+    return;
+  }
+  if (request.method === 'GET' && url.pathname === '/api/story/segment') {
+    const arc = url.searchParams.get('arc');
+    const storyId = url.searchParams.get('storyId');
+    send(response, 200, JSON.stringify({ segment: storyPipeline.readSegment(ROOT, arc, storyId) }));
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/story/segment') {
+    const body = JSON.parse(await readBody(request));
+    send(response, 200, JSON.stringify(storyPipeline.writeSegment(ROOT, body.segment || body)));
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/story/codex-request') {
+    const body = JSON.parse(await readBody(request));
+    send(response, 200, JSON.stringify(storyPipeline.createCodexRequest(ROOT, body)));
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/story/run-codex') {
+    const body = JSON.parse(await readBody(request));
+    const requestResult = storyPipeline.createCodexRequest(ROOT, body);
+    const runId = requestResult.request.id;
+    const runResult = await runCodexPrompt(buildStoryCodexPrompt(requestResult.request), runId);
+    send(response, 200, JSON.stringify({ ...requestResult, run: runResult }));
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/story/export') {
+    const body = JSON.parse(await readBody(request));
+    send(response, 200, JSON.stringify(storyPipeline.exportPipeline(ROOT, body.sourceFiles || [])));
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/story/import-ue') {
+    const body = JSON.parse(await readBody(request));
+    const result = await runStoryImportCommandlet({
+      apply: body.apply === true,
+      manifestPath: body.manifestPath || 'Docs/StoryPipeline/StoryImportManifest.json'
+    });
+    send(response, 200, JSON.stringify({ import: result }));
+    return;
+  }
   if (request.method === 'GET' && url.pathname === '/api/graphs') {
     send(response, 200, JSON.stringify({ graphs: await listGraphs() }));
     return;

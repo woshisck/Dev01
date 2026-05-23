@@ -100,6 +100,8 @@ public class DevKitEditor : ModuleRules
 				"EnhancedInput",
 				// 文件对话框（CSV 导入）
 				"DesktopPlatform",
+				"Json",
+				"JsonUtilities",
 			}
         );
 

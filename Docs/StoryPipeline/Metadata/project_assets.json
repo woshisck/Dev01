@@ -1,0 +1,2833 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-23T08:09:32.843Z",
+  "source": "fast-filesystem-scan",
+  "ueMetadataFile": "Docs/StoryPipeline/Metadata/ue_project_assets.json",
+  "ueMetadataGeneratedAt": "2026-05-23T06:27:59.172Z",
+  "maps": [
+    {
+      "name": "CommonAssets_Buildings",
+      "path": "/Game/Art/Map/ArtCheckLevel/CommonAssets_Buildings",
+      "directory": "/Game/Art/Map/ArtCheckLevel"
+    },
+    {
+      "name": "CommonBake_01",
+      "path": "/Game/Art/Map/ArtCheckLevel/CommonBake_01",
+      "directory": "/Game/Art/Map/ArtCheckLevel"
+    },
+    {
+      "name": "CommonLight",
+      "path": "/Game/Art/Map/ArtCheckLevel/CommonLight",
+      "directory": "/Game/Art/Map/ArtCheckLevel"
+    },
+    {
+      "name": "CommonLight_01",
+      "path": "/Game/Art/Map/ArtCheckLevel/CommonLight_01",
+      "directory": "/Game/Art/Map/ArtCheckLevel"
+    },
+    {
+      "name": "GymLeve_L1",
+      "path": "/Game/Art/Map/ArtCheckLevel/GymLeve_L1",
+      "directory": "/Game/Art/Map/ArtCheckLevel"
+    },
+    {
+      "name": "L_MaterialRender",
+      "path": "/Game/Art/Map/ArtCheckLevel/L_MaterialRender",
+      "directory": "/Game/Art/Map/ArtCheckLevel"
+    },
+    {
+      "name": "MaterialTest_MainLevel",
+      "path": "/Game/Art/Map/ArtCheckLevel/MaterialTest_MainLevel",
+      "directory": "/Game/Art/Map/ArtCheckLevel"
+    },
+    {
+      "name": "L1_CommonLevel_Cave_S_01",
+      "path": "/Game/Art/Map/GameLevel_L1/Cave/L1_CommonLevel_Cave_S_01",
+      "directory": "/Game/Art/Map/GameLevel_L1/Cave"
+    },
+    {
+      "name": "L1_CommonLevel_Cave_S_01_ZS",
+      "path": "/Game/Art/Map/GameLevel_L1/Cave/L1_CommonLevel_Cave_S_01_ZS",
+      "directory": "/Game/Art/Map/GameLevel_L1/Cave"
+    },
+    {
+      "name": "L1_CommonLevel_Cave_S_02",
+      "path": "/Game/Art/Map/GameLevel_L1/Cave/L1_CommonLevel_Cave_S_02",
+      "directory": "/Game/Art/Map/GameLevel_L1/Cave"
+    },
+    {
+      "name": "L1_CommonLevel_CaveToPrison_S_01",
+      "path": "/Game/Art/Map/GameLevel_L1/Cave/L1_CommonLevel_CaveToPrison_S_01",
+      "directory": "/Game/Art/Map/GameLevel_L1/Cave"
+    },
+    {
+      "name": "L1_CommonLevel_CaveToPrison_S_02",
+      "path": "/Game/Art/Map/GameLevel_L1/Cave/L1_CommonLevel_CaveToPrison_S_02",
+      "directory": "/Game/Art/Map/GameLevel_L1/Cave"
+    },
+    {
+      "name": "L1_CommonLevel_CaveToPrison_S_03",
+      "path": "/Game/Art/Map/GameLevel_L1/Cave/L1_CommonLevel_CaveToPrison_S_03",
+      "directory": "/Game/Art/Map/GameLevel_L1/Cave"
+    },
+    {
+      "name": "L1_IinitialLevel_01",
+      "path": "/Game/Art/Map/GameLevel_L1/Cave/L1_IinitialLevel_01",
+      "directory": "/Game/Art/Map/GameLevel_L1/Cave"
+    },
+    {
+      "name": "L1_IinitialLevel_01_ZS",
+      "path": "/Game/Art/Map/GameLevel_L1/Cave/L1_IinitialLevel_01_ZS",
+      "directory": "/Game/Art/Map/GameLevel_L1/Cave"
+    },
+    {
+      "name": "L1_CLL_Prison_S03",
+      "path": "/Game/Art/Map/GameLevel_L1/Light/L1_CLL_Prison_S03",
+      "directory": "/Game/Art/Map/GameLevel_L1/Light"
+    },
+    {
+      "name": "L1_CLL_Prison_S03_01",
+      "path": "/Game/Art/Map/GameLevel_L1/Light/L1_CLL_Prison_S03_01",
+      "directory": "/Game/Art/Map/GameLevel_L1/Light"
+    },
+    {
+      "name": "L1_CLL_Prison_S03_02",
+      "path": "/Game/Art/Map/GameLevel_L1/Light/L1_CLL_Prison_S03_02",
+      "directory": "/Game/Art/Map/GameLevel_L1/Light"
+    },
+    {
+      "name": "L1_CommonLightBase",
+      "path": "/Game/Art/Map/GameLevel_L1/Light/L1_CommonLightBase",
+      "directory": "/Game/Art/Map/GameLevel_L1/Light"
+    },
+    {
+      "name": "L1_BossLevel_Prison_01",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_BossLevel_Prison_01",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_M_01",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_M_01",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_M_02",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_M_02",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_M_03",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_M_03",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_M_04",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_M_04",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_M_05",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_M_05",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_M_06",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_M_06",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_S_01",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_01",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_S_03_ZS",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_03_ZS",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_S_04",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_04",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_S_05",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_05",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_S_06",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_06",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_S_07",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_07",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_S_08",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_08",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_S_10",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_10",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_EliteLevel_Prison_01",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_EliteLevel_Prison_01",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_EliteLevel_Prison_02",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_EliteLevel_Prison_02",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_SpringLevel_Prison_01",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_SpringLevel_Prison_01",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_SpringLevel_Prison_02",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/L1_SpringLevel_Prison_02",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison"
+    },
+    {
+      "name": "L1_CommonLevel_corridor_S",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB/L1_CommonLevel_corridor_S",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB"
+    },
+    {
+      "name": "L1_CommonLevel_corridor_S_GZA",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB/L1_CommonLevel_corridor_S_GZA",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB"
+    },
+    {
+      "name": "L1_CommonLevel_PrayRoom",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB/L1_CommonLevel_PrayRoom",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_S_Room_03",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB/L1_CommonLevel_Prison_S_Room_03",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_StorageRoom_B3",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB/L1_CommonLevel_Prison_StorageRoom_B3",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB"
+    },
+    {
+      "name": "L1_CommonLevel_WaterChannel",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB/L1_CommonLevel_WaterChannel",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB"
+    },
+    {
+      "name": "L1_CommonLevel_WaterDungeon",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB/L1_CommonLevel_WaterDungeon",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB"
+    },
+    {
+      "name": "L1_EliteLevel_Prison_-2",
+      "path": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB/L1_EliteLevel_Prison_-2",
+      "directory": "/Game/Art/Map/GameLevel_L1/Prison/Prison_WB"
+    },
+    {
+      "name": "L2_LT_Dock_Test",
+      "path": "/Game/Art/Map/GameLevel_L2/L2_LT_Dock/L2_LT_Dock_Test",
+      "directory": "/Game/Art/Map/GameLevel_L2/L2_LT_Dock"
+    },
+    {
+      "name": "L2_LT_Market",
+      "path": "/Game/Art/Map/GameLevel_L2/L2_LT_Market",
+      "directory": "/Game/Art/Map/GameLevel_L2"
+    },
+    {
+      "name": "L2_LT_Slum_01",
+      "path": "/Game/Art/Map/GameLevel_L2/L2_LT_Slum/L2_LT_Slum_01",
+      "directory": "/Game/Art/Map/GameLevel_L2/L2_LT_Slum"
+    },
+    {
+      "name": "L2_LT_Slum_01_Art",
+      "path": "/Game/Art/Map/GameLevel_L2/L2_LT_Slum/L2_LT_Slum_01_Art",
+      "directory": "/Game/Art/Map/GameLevel_L2/L2_LT_Slum"
+    },
+    {
+      "name": "L2_LT_Slum_01_DataBake",
+      "path": "/Game/Art/Map/GameLevel_L2/L2_LT_Slum/L2_LT_Slum_01_DataBake",
+      "directory": "/Game/Art/Map/GameLevel_L2/L2_LT_Slum"
+    },
+    {
+      "name": "L2_LT_Slum_01_GamePlay",
+      "path": "/Game/Art/Map/GameLevel_L2/L2_LT_Slum/L2_LT_Slum_01_GamePlay",
+      "directory": "/Game/Art/Map/GameLevel_L2/L2_LT_Slum"
+    },
+    {
+      "name": "L2_LT_Slum_01_Light",
+      "path": "/Game/Art/Map/GameLevel_L2/L2_LT_Slum/L2_LT_Slum_01_Light",
+      "directory": "/Game/Art/Map/GameLevel_L2/L2_LT_Slum"
+    },
+    {
+      "name": "L2_LT_Slum_01_VFX",
+      "path": "/Game/Art/Map/GameLevel_L2/L2_LT_Slum/L2_LT_Slum_01_VFX",
+      "directory": "/Game/Art/Map/GameLevel_L2/L2_LT_Slum"
+    },
+    {
+      "name": "L3_Corridor_01",
+      "path": "/Game/Art/Map/GameLevel_L3/L3_Corridor_01/L3_Corridor_01",
+      "directory": "/Game/Art/Map/GameLevel_L3/L3_Corridor_01"
+    },
+    {
+      "name": "L3_Corridor_01_Art",
+      "path": "/Game/Art/Map/GameLevel_L3/L3_Corridor_01/L3_Corridor_01_Art",
+      "directory": "/Game/Art/Map/GameLevel_L3/L3_Corridor_01"
+    },
+    {
+      "name": "L3_Corridor_01_Gameplay",
+      "path": "/Game/Art/Map/GameLevel_L3/L3_Corridor_01/L3_Corridor_01_Gameplay",
+      "directory": "/Game/Art/Map/GameLevel_L3/L3_Corridor_01"
+    },
+    {
+      "name": "L3_Corridor_01_Light",
+      "path": "/Game/Art/Map/GameLevel_L3/L3_Corridor_01/L3_Corridor_01_Light",
+      "directory": "/Game/Art/Map/GameLevel_L3/L3_Corridor_01"
+    },
+    {
+      "name": "L3_Corridor_01_VFX",
+      "path": "/Game/Art/Map/GameLevel_L3/L3_Corridor_01/L3_Corridor_01_VFX",
+      "directory": "/Game/Art/Map/GameLevel_L3/L3_Corridor_01"
+    },
+    {
+      "name": "L_Corridor_01b_Art",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon/L_Corridor_01b_Art",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon"
+    },
+    {
+      "name": "L_Corridor_01b_Bake",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon/L_Corridor_01b_Bake",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon"
+    },
+    {
+      "name": "L_Corridor_01b_DataBake",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon/L_Corridor_01b_DataBake",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon"
+    },
+    {
+      "name": "L_Corridor_01b_Gameplay",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon/L_Corridor_01b_Gameplay",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon"
+    },
+    {
+      "name": "L_Corridor_01b_Light",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon/L_Corridor_01b_Light",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon"
+    },
+    {
+      "name": "L_Corridor_01b_PLA",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon/L_Corridor_01b_PLA",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon"
+    },
+    {
+      "name": "L1_CommonLevel_corridor_01b",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon/L1_CommonLevel_corridor_01b",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Dungeon"
+    },
+    {
+      "name": "L_Corridor_01a_Art",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Goth/L_Corridor_01a_Art",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Goth"
+    },
+    {
+      "name": "L_Corridor_01a_DataBake",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Goth/L_Corridor_01a_DataBake",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Goth"
+    },
+    {
+      "name": "L_Corridor_01a_Gameplay",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Goth/L_Corridor_01a_Gameplay",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Goth"
+    },
+    {
+      "name": "L_Corridor_01a_Light",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Goth/L_Corridor_01a_Light",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Goth"
+    },
+    {
+      "name": "L_Corridor_01a_PLA",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Goth/L_Corridor_01a_PLA",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Goth"
+    },
+    {
+      "name": "L1_CommonLevel_Corridor_01a",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Goth/L1_CommonLevel_Corridor_01a",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_corridor_S_Goth"
+    },
+    {
+      "name": "L1_CommonLevel_EmbalmingChamber",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber/L1_CommonLevel_EmbalmingChamber",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber"
+    },
+    {
+      "name": "L1_EmbalmingChamber_Art",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber/L1_EmbalmingChamber_Art",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber"
+    },
+    {
+      "name": "L1_EmbalmingChamber_Gameplay",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber/L1_EmbalmingChamber_Gameplay",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber"
+    },
+    {
+      "name": "L1_EmbalmingChamber_Light",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber/L1_EmbalmingChamber_Light",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber"
+    },
+    {
+      "name": "L1_CommonLevel_PrayRoom",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/L1_CommonLevel_PrayRoom",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom"
+    },
+    {
+      "name": "L1_PrayRoom_Art",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/L1_PrayRoom_Art",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom"
+    },
+    {
+      "name": "L1_PrayRoom_DataBake",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/L1_PrayRoom_DataBake",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom"
+    },
+    {
+      "name": "L1_PrayRoom_Gameplay",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/L1_PrayRoom_Gameplay",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom"
+    },
+    {
+      "name": "L1_PrayRoom_Light",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/L1_PrayRoom_Light",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom"
+    },
+    {
+      "name": "L_Prison_S_02_Art",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_02/L_Prison_S_02_Art",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_02"
+    },
+    {
+      "name": "L_Prison_S_02_DataBake",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_02/L_Prison_S_02_DataBake",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_02"
+    },
+    {
+      "name": "L_Prison_S_02_Gameplay",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_02/L_Prison_S_02_Gameplay",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_02"
+    },
+    {
+      "name": "L_Prison_S_02_Light",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_02/L_Prison_S_02_Light",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_02"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_S_02",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_02/L1_CommonLevel_Prison_S_02",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_02"
+    },
+    {
+      "name": "L_Prison_S_03_Art",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03/L_Prison_S_03_Art",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03"
+    },
+    {
+      "name": "L_Prison_S_03_DataBake",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03/L_Prison_S_03_DataBake",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03"
+    },
+    {
+      "name": "L_Prison_S_03_Gameplay",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03/L_Prison_S_03_Gameplay",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03"
+    },
+    {
+      "name": "L_Prison_S_03_Light",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03/L_Prison_S_03_Light",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03"
+    },
+    {
+      "name": "L_Prison_S_03_PLA",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03/L_Prison_S_03_PLA",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03"
+    },
+    {
+      "name": "L_Prison_S_03_VFX",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03/L_Prison_S_03_VFX",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03"
+    },
+    {
+      "name": "L_Prison_S_03a_Art",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03/L_Prison_S_03a_Art",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_S_03",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03/L1_CommonLevel_Prison_S_03",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_03"
+    },
+    {
+      "name": "L_Prison_S_09_Art",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_09/L_Prison_S_09_Art",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_09"
+    },
+    {
+      "name": "L_Prison_S_09_DataBake",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_09/L_Prison_S_09_DataBake",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_09"
+    },
+    {
+      "name": "L_Prison_S_09_Gameplay",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_09/L_Prison_S_09_Gameplay",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_09"
+    },
+    {
+      "name": "L_Prison_S_09_Light",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_09/L_Prison_S_09_Light",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_09"
+    },
+    {
+      "name": "L1_CommonLevel_Prison_S_09",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_09/L1_CommonLevel_Prison_S_09",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_Prison_S_09"
+    },
+    {
+      "name": "L1_CommonLevel_WaterDungeon",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon/L1_CommonLevel_WaterDungeon",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon"
+    },
+    {
+      "name": "L1_Waterdungeon_Art",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon/L1_Waterdungeon_Art",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon"
+    },
+    {
+      "name": "L1_Waterdungeon_DataBake",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon/L1_Waterdungeon_DataBake",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon"
+    },
+    {
+      "name": "L1_Waterdungeon_Gameplay",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon/L1_Waterdungeon_Gameplay",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon"
+    },
+    {
+      "name": "L1_Waterdungeon_Light",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon/L1_Waterdungeon_Light",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon"
+    },
+    {
+      "name": "L1_Waterdungeon_PLA",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon/L1_Waterdungeon_PLA",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon"
+    },
+    {
+      "name": "L1_Waterdungeon_VFX",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon/L1_Waterdungeon_VFX",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_WaterDungeon"
+    },
+    {
+      "name": "InitialRoom",
+      "path": "/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom",
+      "directory": "/Game/Art/Map/Map_Data/L1_InitialRoom"
+    },
+    {
+      "name": "InitialRoom_Art",
+      "path": "/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom_Art",
+      "directory": "/Game/Art/Map/Map_Data/L1_InitialRoom"
+    },
+    {
+      "name": "InitialRoom_GamePlay",
+      "path": "/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom_GamePlay",
+      "directory": "/Game/Art/Map/Map_Data/L1_InitialRoom"
+    },
+    {
+      "name": "InitialRoom_Light",
+      "path": "/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom_Light",
+      "directory": "/Game/Art/Map/Map_Data/L1_InitialRoom"
+    },
+    {
+      "name": "Emitters_Overview_MAP",
+      "path": "/Game/Blood_VFX_Pack/MAP/Emitters_Overview_MAP",
+      "directory": "/Game/Blood_VFX_Pack/MAP"
+    },
+    {
+      "name": "Pixelated_Systems_MAP",
+      "path": "/Game/Blood_VFX_Pack/MAP/Pixelated_Systems_MAP",
+      "directory": "/Game/Blood_VFX_Pack/MAP"
+    },
+    {
+      "name": "Stylized_Systems_MAP",
+      "path": "/Game/Blood_VFX_Pack/MAP/Stylized_Systems_MAP",
+      "directory": "/Game/Blood_VFX_Pack/MAP"
+    },
+    {
+      "name": "Systems_Overview_MAP",
+      "path": "/Game/Blood_VFX_Pack/MAP/Systems_Overview_MAP",
+      "directory": "/Game/Blood_VFX_Pack/MAP"
+    },
+    {
+      "name": "L_Example_Map",
+      "path": "/Game/CardHandTemplate/Levels/L_Example_Map",
+      "directory": "/Game/CardHandTemplate/Levels"
+    },
+    {
+      "name": "Overview",
+      "path": "/Game/CharacterBodyFX3/Maps/Overview",
+      "directory": "/Game/CharacterBodyFX3/Maps"
+    },
+    {
+      "name": "OverView_DemoScene_CharacterStatus01",
+      "path": "/Game/CharacterStatus/Demo/OverView_DemoScene_CharacterStatus01",
+      "directory": "/Game/CharacterStatus/Demo"
+    },
+    {
+      "name": "L_CoinHuman",
+      "path": "/Game/Coin_VFX/Map/L_CoinHuman",
+      "directory": "/Game/Coin_VFX/Map"
+    },
+    {
+      "name": "L_Overview_All",
+      "path": "/Game/Coin_VFX/Map/L_Overview_All",
+      "directory": "/Game/Coin_VFX/Map"
+    },
+    {
+      "name": "L_SuckingCoins",
+      "path": "/Game/Coin_VFX/Map/L_SuckingCoins",
+      "directory": "/Game/Coin_VFX/Map"
+    },
+    {
+      "name": "Gym",
+      "path": "/Game/Developers/sunchuankai/LootTest/Gym",
+      "directory": "/Game/Developers/sunchuankai/LootTest"
+    },
+    {
+      "name": "RuneTest",
+      "path": "/Game/Developers/sunchuankai/LootTest/RuneTest",
+      "directory": "/Game/Developers/sunchuankai/LootTest"
+    },
+    {
+      "name": "RuneTest",
+      "path": "/Game/Developers/sunchuankai/RuneTest",
+      "directory": "/Game/Developers/sunchuankai"
+    },
+    {
+      "name": "Free_Magic_Map",
+      "path": "/Game/Free_Magic/Maps/Free_Magic_Map",
+      "directory": "/Game/Free_Magic/Maps"
+    },
+    {
+      "name": "Demo_Map",
+      "path": "/Game/Imortal_Loot_Drop_VFX/Demo/Map/Demo_Map",
+      "directory": "/Game/Imortal_Loot_Drop_VFX/Demo/Map"
+    },
+    {
+      "name": "DemoLevel",
+      "path": "/Game/ImpactParticlesVol1/Maps/DemoLevel",
+      "directory": "/Game/ImpactParticlesVol1/Maps"
+    },
+    {
+      "name": "Overview",
+      "path": "/Game/Lava_FX/Map/Overview",
+      "directory": "/Game/Lava_FX/Map"
+    },
+    {
+      "name": "AlchemyLab",
+      "path": "/Game/Maps/AlchemyLab",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "Basement",
+      "path": "/Game/Maps/Basement",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "Dungeon",
+      "path": "/Game/Maps/Dungeon",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "Dungeon_Asset",
+      "path": "/Game/Maps/Dungeon_Asset",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "Dungeon_Lights",
+      "path": "/Game/Maps/Dungeon_Lights",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "Base_Square",
+      "path": "/Game/Maps/Dungeon/Basement/Base_Square",
+      "directory": "/Game/Maps/Dungeon/Basement"
+    },
+    {
+      "name": "EndNode",
+      "path": "/Game/Maps/Dungeon/EndNode",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "NightMare",
+      "path": "/Game/Maps/Dungeon/NightMare",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "RootNode",
+      "path": "/Game/Maps/Dungeon/RootNode",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "SavageGarden",
+      "path": "/Game/Maps/Dungeon/SavageGarden",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "Squeeezer",
+      "path": "/Game/Maps/Dungeon/Squeeezer",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "SubHuman",
+      "path": "/Game/Maps/Dungeon/SubHuman",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "SubLevel",
+      "path": "/Game/Maps/Dungeon/SubLevel",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "UG_Dungeon_Five",
+      "path": "/Game/Maps/Dungeon/UG_Dungeon_Five",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "UG_Dungeon_Four",
+      "path": "/Game/Maps/Dungeon/UG_Dungeon_Four",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "UG_Dungeon_One",
+      "path": "/Game/Maps/Dungeon/UG_Dungeon_One",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "UG_Dungeon_Three",
+      "path": "/Game/Maps/Dungeon/UG_Dungeon_Three",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "UG_Dungeon_Two",
+      "path": "/Game/Maps/Dungeon/UG_Dungeon_Two",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "YourOwnMiracle",
+      "path": "/Game/Maps/Dungeon/YourOwnMiracle",
+      "directory": "/Game/Maps/Dungeon"
+    },
+    {
+      "name": "DungeonEntry",
+      "path": "/Game/Maps/DungeonEntry",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "Invoker",
+      "path": "/Game/Maps/EditorOnly/Invoker",
+      "directory": "/Game/Maps/EditorOnly"
+    },
+    {
+      "name": "KingsStair",
+      "path": "/Game/Maps/EditorOnly/KingsStair",
+      "directory": "/Game/Maps/EditorOnly"
+    },
+    {
+      "name": "Lighting",
+      "path": "/Game/Maps/EditorOnly/Lighting",
+      "directory": "/Game/Maps/EditorOnly"
+    },
+    {
+      "name": "Noita",
+      "path": "/Game/Maps/EditorOnly/Noita",
+      "directory": "/Game/Maps/EditorOnly"
+    },
+    {
+      "name": "WeatherReport",
+      "path": "/Game/Maps/EditorOnly/WeatherReport",
+      "directory": "/Game/Maps/EditorOnly"
+    },
+    {
+      "name": "L_EntryMenu",
+      "path": "/Game/Maps/L_EntryMenu",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "Level_DefaultEditor",
+      "path": "/Game/Maps/Level_DefaultEditor",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "lvl_CardPattern",
+      "path": "/Game/Maps/lvl_CardPattern",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "lvl_Geo",
+      "path": "/Game/Maps/lvl_Geo",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "lvl_Geo2",
+      "path": "/Game/Maps/lvl_Geo2",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "lvl_Geo3",
+      "path": "/Game/Maps/lvl_Geo3",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "lvl_Geo4",
+      "path": "/Game/Maps/lvl_Geo4",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "lvl_Lighting",
+      "path": "/Game/Maps/lvl_Lighting",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "lvl_Master",
+      "path": "/Game/Maps/lvl_Master",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "lvl_Starter",
+      "path": "/Game/Maps/lvl_Starter",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "lvl_StartGame",
+      "path": "/Game/Maps/lvl_StartGame",
+      "directory": "/Game/Maps"
+    },
+    {
+      "name": "Overview",
+      "path": "/Game/PoisonFX/Map/Overview",
+      "directory": "/Game/PoisonFX/Map"
+    },
+    {
+      "name": "Effects_Map",
+      "path": "/Game/Portal/Maps/Effects_Map",
+      "directory": "/Game/Portal/Maps"
+    },
+    {
+      "name": "Map_StylizedSlashesV1_CrossSlashes",
+      "path": "/Game/StylizedSlashesVol1/Maps/Map_StylizedSlashesV1_CrossSlashes",
+      "directory": "/Game/StylizedSlashesVol1/Maps"
+    },
+    {
+      "name": "Map_StylizedSlashesV1_EzrealSlashes",
+      "path": "/Game/StylizedSlashesVol1/Maps/Map_StylizedSlashesV1_EzrealSlashes",
+      "directory": "/Game/StylizedSlashesVol1/Maps"
+    },
+    {
+      "name": "Map_StylizedSlashesV1_GroundSlashes",
+      "path": "/Game/StylizedSlashesVol1/Maps/Map_StylizedSlashesV1_GroundSlashes",
+      "directory": "/Game/StylizedSlashesVol1/Maps"
+    },
+    {
+      "name": "Map_StylizedSlashesV1_GroundSlashes_ShowcaseAll",
+      "path": "/Game/StylizedSlashesVol1/Maps/Map_StylizedSlashesV1_GroundSlashes_ShowcaseAll",
+      "directory": "/Game/StylizedSlashesVol1/Maps"
+    },
+    {
+      "name": "Map_StylizedSlashesV1_KassadinSlashes",
+      "path": "/Game/StylizedSlashesVol1/Maps/Map_StylizedSlashesV1_KassadinSlashes",
+      "directory": "/Game/StylizedSlashesVol1/Maps"
+    },
+    {
+      "name": "NewMap",
+      "path": "/Game/UI/Health_NiagaraUI/NewMap",
+      "directory": "/Game/UI/Health_NiagaraUI"
+    },
+    {
+      "name": "L_HubTown",
+      "path": "/Game/World/Hub/L_HubTown",
+      "directory": "/Game/World/Hub"
+    }
+  ],
+  "roomData": [
+    {
+      "name": "DA_EmbalmingChamber",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber/DA_EmbalmingChamber",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber",
+      "roomName": "L1_CommonLevel_EmbalmingChamber",
+      "displayName": "防腐加工间",
+      "tags": [
+        "Room.Layer.L1",
+        "Room.Type.Shop"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 0,
+      "buffCount": 0,
+      "lootCount": 3,
+      "portalCount": 0,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_PrayRoom",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom",
+      "roomName": "PrayRoom",
+      "displayName": "祈祷室",
+      "tags": [
+        "Room.Layer.L1",
+        "Room.Type.Event"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 0,
+      "buffCount": 0,
+      "lootCount": 3,
+      "portalCount": 0,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_LootOnly",
+      "path": "/Game/Developers/sunchuankai/LootTest/DA_LootOnly",
+      "directory": "/Game/Developers/sunchuankai/LootTest",
+      "roomName": "RuneTest",
+      "displayName": "RuneTest",
+      "tags": [
+        "Room.Layer.L1"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 0,
+      "buffCount": 0,
+      "lootCount": 3,
+      "portalCount": 1,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_HubRoom_InitialRoom",
+      "path": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
+      "directory": "/Game/Docs/Map/DA_L1_Room",
+      "roomName": "InitialRoom",
+      "displayName": "InitialRoom",
+      "tags": [
+        "Room.Layer.L1"
+      ],
+      "isHubRoom": true,
+      "enemyCount": 0,
+      "buffCount": 0,
+      "lootCount": 11,
+      "portalCount": 1,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_Room_CL_Corridor_01a",
+      "path": "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01a",
+      "directory": "/Game/Docs/Map/DA_L1_Room",
+      "roomName": "L1_CommonLevel_Corridor_01a",
+      "displayName": "血痕回廊",
+      "tags": [
+        "Room.Layer.L1",
+        "Room.Type.Normal"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 2,
+      "buffCount": 5,
+      "lootCount": 13,
+      "portalCount": 2,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_Room_CL_Corridor_01b",
+      "path": "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01b",
+      "directory": "/Game/Docs/Map/DA_L1_Room",
+      "roomName": "L1_CommonLevel_Corridor_01b",
+      "displayName": "忏悔深渊",
+      "tags": [
+        "Room.Layer.L1",
+        "Room.Type.Normal"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 2,
+      "buffCount": 5,
+      "lootCount": 13,
+      "portalCount": 1,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_Room_CL_WaterDungeon",
+      "path": "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_WaterDungeon",
+      "directory": "/Game/Docs/Map/DA_L1_Room",
+      "roomName": "L1_CommonLevel_WaterDungeon",
+      "displayName": "溺魂囚牢",
+      "tags": [
+        "Room.Layer.L1",
+        "Room.Type.Normal"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 2,
+      "buffCount": 5,
+      "lootCount": 13,
+      "portalCount": 2,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_Room_Prison_Normal",
+      "path": "/Game/Docs/Map/DA_Room_Prison_Normal",
+      "directory": "/Game/Docs/Map",
+      "roomName": "NormalRoon",
+      "displayName": "NormalRoon",
+      "tags": [],
+      "isHubRoom": false,
+      "enemyCount": 1,
+      "buffCount": 0,
+      "lootCount": 3,
+      "portalCount": 0,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_Room_512_Shop",
+      "path": "/Game/Docs/Map/Shop/DA_Room_512_Shop",
+      "directory": "/Game/Docs/Map/Shop",
+      "roomName": "ShopRoom",
+      "displayName": "符文商店",
+      "tags": [
+        "Room.Layer.L1",
+        "Room.Type.Shop"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 0,
+      "buffCount": 0,
+      "lootCount": 0,
+      "portalCount": 3,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    }
+  ],
+  "rooms": [
+    {
+      "name": "DA_EmbalmingChamber",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber/DA_EmbalmingChamber",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber",
+      "roomName": "L1_CommonLevel_EmbalmingChamber",
+      "displayName": "防腐加工间",
+      "tags": [
+        "Room.Layer.L1",
+        "Room.Type.Shop"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 0,
+      "buffCount": 0,
+      "lootCount": 3,
+      "portalCount": 0,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_PrayRoom",
+      "path": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom",
+      "directory": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom",
+      "roomName": "PrayRoom",
+      "displayName": "祈祷室",
+      "tags": [
+        "Room.Layer.L1",
+        "Room.Type.Event"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 0,
+      "buffCount": 0,
+      "lootCount": 3,
+      "portalCount": 0,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_LootOnly",
+      "path": "/Game/Developers/sunchuankai/LootTest/DA_LootOnly",
+      "directory": "/Game/Developers/sunchuankai/LootTest",
+      "roomName": "RuneTest",
+      "displayName": "RuneTest",
+      "tags": [
+        "Room.Layer.L1"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 0,
+      "buffCount": 0,
+      "lootCount": 3,
+      "portalCount": 1,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_HubRoom_InitialRoom",
+      "path": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
+      "directory": "/Game/Docs/Map/DA_L1_Room",
+      "roomName": "InitialRoom",
+      "displayName": "InitialRoom",
+      "tags": [
+        "Room.Layer.L1"
+      ],
+      "isHubRoom": true,
+      "enemyCount": 0,
+      "buffCount": 0,
+      "lootCount": 11,
+      "portalCount": 1,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_Room_CL_Corridor_01a",
+      "path": "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01a",
+      "directory": "/Game/Docs/Map/DA_L1_Room",
+      "roomName": "L1_CommonLevel_Corridor_01a",
+      "displayName": "血痕回廊",
+      "tags": [
+        "Room.Layer.L1",
+        "Room.Type.Normal"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 2,
+      "buffCount": 5,
+      "lootCount": 13,
+      "portalCount": 2,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_Room_CL_Corridor_01b",
+      "path": "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01b",
+      "directory": "/Game/Docs/Map/DA_L1_Room",
+      "roomName": "L1_CommonLevel_Corridor_01b",
+      "displayName": "忏悔深渊",
+      "tags": [
+        "Room.Layer.L1",
+        "Room.Type.Normal"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 2,
+      "buffCount": 5,
+      "lootCount": 13,
+      "portalCount": 1,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_Room_CL_WaterDungeon",
+      "path": "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_WaterDungeon",
+      "directory": "/Game/Docs/Map/DA_L1_Room",
+      "roomName": "L1_CommonLevel_WaterDungeon",
+      "displayName": "溺魂囚牢",
+      "tags": [
+        "Room.Layer.L1",
+        "Room.Type.Normal"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 2,
+      "buffCount": 5,
+      "lootCount": 13,
+      "portalCount": 2,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_Room_Prison_Normal",
+      "path": "/Game/Docs/Map/DA_Room_Prison_Normal",
+      "directory": "/Game/Docs/Map",
+      "roomName": "NormalRoon",
+      "displayName": "NormalRoon",
+      "tags": [],
+      "isHubRoom": false,
+      "enemyCount": 1,
+      "buffCount": 0,
+      "lootCount": 3,
+      "portalCount": 0,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    },
+    {
+      "name": "DA_Room_512_Shop",
+      "path": "/Game/Docs/Map/Shop/DA_Room_512_Shop",
+      "directory": "/Game/Docs/Map/Shop",
+      "roomName": "ShopRoom",
+      "displayName": "符文商店",
+      "tags": [
+        "Room.Layer.L1",
+        "Room.Type.Shop"
+      ],
+      "isHubRoom": false,
+      "enemyCount": 0,
+      "buffCount": 0,
+      "lootCount": 0,
+      "portalCount": 3,
+      "forceSinglePortal": false,
+      "forcedPortalIndex": 0,
+      "useFixedRewardOptions": false,
+      "fixedRewardCount": 0
+    }
+  ],
+  "campaigns": [
+    {
+      "name": "DA_Campaign_LootOnly",
+      "path": "/Game/Developers/sunchuankai/LootTest/DA_Campaign_LootOnly",
+      "directory": "/Game/Developers/sunchuankai/LootTest",
+      "layerTag": "Room.Layer.L1",
+      "floorCount": 1,
+      "defaultStartingRoom": "/Game/Developers/sunchuankai/LootTest/DA_LootOnly",
+      "roomPool": [
+        "/Game/Developers/sunchuankai/LootTest/DA_LootOnly"
+      ],
+      "floors": [
+        {
+          "index": 0,
+          "totalDifficultyScore": 30,
+          "forceElite": false,
+          "eliteChance": 0.20000000298023224,
+          "shopChance": 0.15000000596046448,
+          "eventChance": 0.10000000149011612,
+          "globalStageTag": "",
+          "storyEventTags": []
+        }
+      ]
+    },
+    {
+      "name": "DA_Campaign_MainRun",
+      "path": "/Game/Docs/Map/DA_Campaign_MainRun",
+      "directory": "/Game/Docs/Map",
+      "layerTag": "Room.Layer.L1",
+      "floorCount": 9,
+      "defaultStartingRoom": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
+      "roomPool": [
+        "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01a",
+        "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01b",
+        "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_WaterDungeon",
+        "/Game/Art/Map/Map_Data/L1_CommonLevel_EmbalmingChamber/DA_EmbalmingChamber",
+        "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom"
+      ],
+      "floors": [
+        {
+          "index": 0,
+          "totalDifficultyScore": 10,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 0,
+          "globalStageTag": "",
+          "storyEventTags": []
+        },
+        {
+          "index": 1,
+          "totalDifficultyScore": 20,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 0,
+          "globalStageTag": "",
+          "storyEventTags": []
+        },
+        {
+          "index": 2,
+          "totalDifficultyScore": 20,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 0,
+          "globalStageTag": "",
+          "storyEventTags": []
+        },
+        {
+          "index": 3,
+          "totalDifficultyScore": 25,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 1,
+          "globalStageTag": "",
+          "storyEventTags": []
+        },
+        {
+          "index": 4,
+          "totalDifficultyScore": 40,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 0,
+          "globalStageTag": "",
+          "storyEventTags": []
+        },
+        {
+          "index": 5,
+          "totalDifficultyScore": 40,
+          "forceElite": true,
+          "eliteChance": 0,
+          "shopChance": 1,
+          "eventChance": 0,
+          "globalStageTag": "",
+          "storyEventTags": []
+        },
+        {
+          "index": 6,
+          "totalDifficultyScore": 50,
+          "forceElite": false,
+          "eliteChance": 0.20000000298023224,
+          "shopChance": 0.30000001192092896,
+          "eventChance": 0.10000000149011612,
+          "globalStageTag": "",
+          "storyEventTags": []
+        },
+        {
+          "index": 7,
+          "totalDifficultyScore": 50,
+          "forceElite": false,
+          "eliteChance": 0.20000000298023224,
+          "shopChance": 0.10000000149011612,
+          "eventChance": 0.10000000149011612,
+          "globalStageTag": "",
+          "storyEventTags": []
+        },
+        {
+          "index": 8,
+          "totalDifficultyScore": 60,
+          "forceElite": false,
+          "eliteChance": 0.20000000298023224,
+          "shopChance": 0.20000000298023224,
+          "eventChance": 0.20000000298023224,
+          "globalStageTag": "",
+          "storyEventTags": []
+        }
+      ]
+    },
+    {
+      "name": "DA_Campaign_Tutorial",
+      "path": "/Game/Docs/Map/DA_Campaign_Tutorial",
+      "directory": "/Game/Docs/Map",
+      "layerTag": "",
+      "floorCount": 8,
+      "defaultStartingRoom": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
+      "roomPool": [
+        "/Game/Docs/Map/DA_Room_Prison_Normal",
+        "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01a",
+        "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01b",
+        "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_WaterDungeon"
+      ],
+      "floors": [
+        {
+          "index": 0,
+          "totalDifficultyScore": 0,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 0,
+          "globalStageTag": "Level.Stage.WeaponPickup",
+          "storyEventTags": [
+            "Tutorial.WeaponPickup"
+          ]
+        },
+        {
+          "index": 1,
+          "totalDifficultyScore": 10,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 0,
+          "globalStageTag": "Level.Stage.FirstCombat",
+          "storyEventTags": [
+            "Tutorial.CardConsume"
+          ]
+        },
+        {
+          "index": 2,
+          "totalDifficultyScore": 10,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 0,
+          "globalStageTag": "Level.Stage.ShuffleRoom",
+          "storyEventTags": [
+            "Tutorial.Shuffle"
+          ]
+        },
+        {
+          "index": 3,
+          "totalDifficultyScore": 10,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 0,
+          "globalStageTag": "Level.Stage.Reward",
+          "storyEventTags": [
+            "Tutorial.RewardToDeck"
+          ]
+        },
+        {
+          "index": 4,
+          "totalDifficultyScore": 0,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 0,
+          "globalStageTag": "Level.Stage.Backpack",
+          "storyEventTags": [
+            "Tutorial.BackpackArrange"
+          ]
+        },
+        {
+          "index": 5,
+          "totalDifficultyScore": 15,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 0,
+          "globalStageTag": "Level.Stage.LinkCard",
+          "storyEventTags": [
+            "Tutorial.LinkCard"
+          ]
+        },
+        {
+          "index": 6,
+          "totalDifficultyScore": 20,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 0,
+          "globalStageTag": "Level.Stage.Finisher",
+          "storyEventTags": [
+            "Tutorial.Finisher"
+          ]
+        },
+        {
+          "index": 7,
+          "totalDifficultyScore": 0,
+          "forceElite": false,
+          "eliteChance": 0,
+          "shopChance": 0,
+          "eventChance": 0,
+          "globalStageTag": "Level.Stage.RouteChoice",
+          "storyEventTags": [
+            "Tutorial.RouteRewardChoice"
+          ]
+        }
+      ]
+    }
+  ],
+  "runes": [
+    {
+      "name": "DA_Rune512_THSword_Cleave",
+      "path": "/Game/Code/Weapon/TwoHandedSword/CombatCards/DA_Rune512_THSword_Cleave",
+      "directory": "/Game/Code/Weapon/TwoHandedSword/CombatCards"
+    },
+    {
+      "name": "DA_Rune512_THSword_Moonlight",
+      "path": "/Game/Code/Weapon/TwoHandedSword/CombatCards/DA_Rune512_THSword_Moonlight",
+      "directory": "/Game/Code/Weapon/TwoHandedSword/CombatCards"
+    },
+    {
+      "name": "DA_Rune512_THSword_Slash",
+      "path": "/Game/Code/Weapon/TwoHandedSword/CombatCards/DA_Rune512_THSword_Slash",
+      "directory": "/Game/Code/Weapon/TwoHandedSword/CombatCards"
+    },
+    {
+      "name": "DA_Rune_Tester",
+      "path": "/Game/Developers/sunchuankai/Rune_define/DA_Rune_Tester",
+      "directory": "/Game/Developers/sunchuankai/Rune_define"
+    },
+    {
+      "name": "DA_Rune_AfterShock",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/Aftershock/DA_Rune_AfterShock",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/Aftershock"
+    },
+    {
+      "name": "DA_Rune_AgonyPact",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/AgonyPact/DA_Rune_AgonyPact",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/AgonyPact"
+    },
+    {
+      "name": "DA_Rune_AttackUp",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/AttackUp/DA_Rune_AttackUp",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/AttackUp"
+    },
+    {
+      "name": "DA_Rune_AttackUp1",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/AttackUp/DA_Rune_AttackUp1",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/AttackUp"
+    },
+    {
+      "name": "DA_Rune_Bleed",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/Bleed/DA_Rune_Bleed",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/Bleed"
+    },
+    {
+      "name": "DA_Rune_BurnMark",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/BurnMark/DA_Rune_BurnMark",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/BurnMark"
+    },
+    {
+      "name": "DA_Rune_DeadlyStrike",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/DeadlyStrike/DA_Rune_DeadlyStrike",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/DeadlyStrike"
+    },
+    {
+      "name": "DA_Rune_DeathCurse",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/DeathCurse/DA_Rune_DeathCurse",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/DeathCurse"
+    },
+    {
+      "name": "DA_Rune_DeathPoison",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/DeathPoison/DA_Rune_DeathPoison",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/DeathPoison"
+    },
+    {
+      "name": "DA_Rune_DuoAssault",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/DuoAssault/DA_Rune_DuoAssault",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/DuoAssault"
+    },
+    {
+      "name": "DA_Rune_Enrage",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/Enrage/DA_Rune_Enrage",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/Enrage"
+    },
+    {
+      "name": "DA_Rune_Fearless",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/Fearless/DA_Rune_Fearless",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/Fearless"
+    },
+    {
+      "name": "DA_Rune_Frenzy",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/Frenzy/DA_Rune_Frenzy",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/Frenzy"
+    },
+    {
+      "name": "DA_Rune_HeatOnHit",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/Heat/DA_Rune_HeatOnHit",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/Heat"
+    },
+    {
+      "name": "DA_Rune_HeatPhase",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/Heat/DA_Rune_HeatPhase",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/Heat"
+    },
+    {
+      "name": "DA_Rune_BlazingCore",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/HeatUp/DA_Rune_BlazingCore",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/HeatUp"
+    },
+    {
+      "name": "DA_Rune_HeatUp",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/HeatUp/DA_Rune_HeatUp",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/HeatUp"
+    },
+    {
+      "name": "DA_Rune_LingeringEmbers",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/HeatUp/DA_Rune_LingeringEmbers",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/HeatUp"
+    },
+    {
+      "name": "DA_Rune_Ignite",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/Ignite/DA_Rune_Ignite",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/Ignite"
+    },
+    {
+      "name": "DA_Rune_IronArmor",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/IronArmor/DA_Rune_IronArmor",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/IronArmor"
+    },
+    {
+      "name": "DA_Rune_KillExplosion",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/KillExplosion/DA_Rune_KillExplosion",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/KillExplosion"
+    },
+    {
+      "name": "DA_Rune_Knockback",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/KnockBack/DA_Rune_Knockback",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/KnockBack"
+    },
+    {
+      "name": "DA_Rune_KnockbackStagger",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/KnockBack/DA_Rune_KnockbackStagger",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/KnockBack"
+    },
+    {
+      "name": "DA_Rune_KnockbackEnwind",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/KnockbackEnwind/DA_Rune_KnockbackEnwind",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/KnockbackEnwind"
+    },
+    {
+      "name": "DA_Rune_MoonWave",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/MoonWave/DA_Rune_MoonWave",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/MoonWave"
+    },
+    {
+      "name": "DA_Rune_Pursuit",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/Pursuit/DA_Rune_Pursuit",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/Pursuit"
+    },
+    {
+      "name": "DA_Rune_Rend",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/Rend/DA_Rune_Rend",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/Rend"
+    },
+    {
+      "name": "DA_Rune_ShadowDash",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/ShadowDash/DA_Rune_ShadowDash",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/ShadowDash"
+    },
+    {
+      "name": "DA_Rune_Shockwave",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/Shockwave/DA_Rune_Shockwave",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/Shockwave"
+    },
+    {
+      "name": "DA_Rune_SpeedOverlap",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/SpeedOverlap/DA_Rune_SpeedOverlap",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/SpeedOverlap"
+    },
+    {
+      "name": "DA_Rune_UpperCut",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/UpperCut/DA_Rune_UpperCut",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/UpperCut"
+    },
+    {
+      "name": "DA_Rune_VenomFang",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/VenomFang/DA_Rune_VenomFang",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/VenomFang"
+    },
+    {
+      "name": "DA_Rune_WeaknessUnveiled",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/Weakness_Unveiled/DA_Rune_WeaknessUnveiled",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/Weakness_Unveiled"
+    },
+    {
+      "name": "DA_Rune_WraithwindWhisper",
+      "path": "/Game/Docs/BuffDocs/Playtest_GA/WraithwindWhisper/DA_Rune_WraithwindWhisper",
+      "directory": "/Game/Docs/BuffDocs/Playtest_GA/WraithwindWhisper"
+    },
+    {
+      "name": "DA_Rune_AttackBoost",
+      "path": "/Game/Docs/BuffDocs/SacrificeRune/AttackBoost/DA_Rune_AttackBoost",
+      "directory": "/Game/Docs/BuffDocs/SacrificeRune/AttackBoost"
+    },
+    {
+      "name": "DA_Rune_DivinePower",
+      "path": "/Game/Docs/BuffDocs/SacrificeRune/DivinePower/DA_Rune_DivinePower",
+      "directory": "/Game/Docs/BuffDocs/SacrificeRune/DivinePower"
+    },
+    {
+      "name": "DA_Rune_Siphon",
+      "path": "/Game/Docs/BuffDocs/SacrificeRune/Siphon/DA_Rune_Siphon",
+      "directory": "/Game/Docs/BuffDocs/SacrificeRune/Siphon"
+    },
+    {
+      "name": "DA_Rune512_Attack",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Attack",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Bleed",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Bleed",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Burn",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Curse",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Curse",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Fear",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Fear",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Freeze",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Freeze",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Knockback",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Moonlight_Forward",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Moonlight_Reversed",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Reversed",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Pierce",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Pierce",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Poison",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Poison",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_ReduceDamage",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_ReduceDamage",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Rend",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Rend",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Shield",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Shield",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Splash",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Splash",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Split",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Stun",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Stun",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_Wound",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Wound",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated"
+    },
+    {
+      "name": "DA_Rune512_EnemyRoom_Attack",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom/DA_Rune512_EnemyRoom_Attack",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom"
+    },
+    {
+      "name": "DA_Rune512_EnemyRoom_Burn",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom/DA_Rune512_EnemyRoom_Burn",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom"
+    },
+    {
+      "name": "DA_Rune512_EnemyRoom_Moonlight",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom/DA_Rune512_EnemyRoom_Moonlight",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom"
+    },
+    {
+      "name": "DA_Rune512_EnemyRoom_Moonlight_Reversed",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom/DA_Rune512_EnemyRoom_Moonlight_Reversed",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom"
+    },
+    {
+      "name": "DA_Rune512_EnemyRoom_Pierce",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom/DA_Rune512_EnemyRoom_Pierce",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom"
+    },
+    {
+      "name": "DA_Rune512_EnemyRoom_Poison",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom/DA_Rune512_EnemyRoom_Poison",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom"
+    },
+    {
+      "name": "DA_Rune512_EnemyRoom_ReduceDamage",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom/DA_Rune512_EnemyRoom_ReduceDamage",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom"
+    },
+    {
+      "name": "DA_Rune512_EnemyRoom_Shield",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom/DA_Rune512_EnemyRoom_Shield",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom"
+    },
+    {
+      "name": "DA_Rune512_EnemyRoom_Split",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom/DA_Rune512_EnemyRoom_Split",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom"
+    },
+    {
+      "name": "DA_Rune512_Sacrifice_GiantSwing",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/DA_Rune512_Sacrifice_GiantSwing",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice"
+    },
+    {
+      "name": "DA_Rune512_Sacrifice_MoonlightShadow",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/DA_Rune512_Sacrifice_MoonlightShadow",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice"
+    },
+    {
+      "name": "DA_Rune512_Sacrifice_ShadowMark",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/DA_Rune512_Sacrifice_ShadowMark",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice"
+    },
+    {
+      "name": "DA_Rune_AttackUp_01",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/GenericRune/DA_Rune_AttackUp_01",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/GenericRune"
+    },
+    {
+      "name": "DA_Rune_MoonBlade_01",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/GenericRune/DA_Rune_MoonBlade_01",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/GenericRune"
+    },
+    {
+      "name": "DA_Rune_AttackUp",
+      "path": "/Game/Docs/DA_Rune_AttackUp",
+      "directory": "/Game/Docs"
+    },
+    {
+      "name": "DA_Rune_Burn",
+      "path": "/Game/YogRuneEditor/Runes/DA_Rune_Burn",
+      "directory": "/Game/YogRuneEditor/Runes"
+    },
+    {
+      "name": "DA_Rune_Finisher",
+      "path": "/Game/YogRuneEditor/Runes/DA_Rune_Finisher",
+      "directory": "/Game/YogRuneEditor/Runes"
+    },
+    {
+      "name": "DA_Rune_Moonlight",
+      "path": "/Game/YogRuneEditor/Runes/DA_Rune_Moonlight",
+      "directory": "/Game/YogRuneEditor/Runes"
+    },
+    {
+      "name": "DA_Rune_Poison",
+      "path": "/Game/YogRuneEditor/Runes/DA_Rune_Poison",
+      "directory": "/Game/YogRuneEditor/Runes"
+    },
+    {
+      "name": "DA_Rune_PrecisionAttack",
+      "path": "/Game/YogRuneEditor/Runes/DA_Rune_PrecisionAttack",
+      "directory": "/Game/YogRuneEditor/Runes"
+    }
+  ],
+  "tutorials": [
+    {
+      "name": "DA_Tutorial_Backpack",
+      "path": "/Game/Docs/UI/Tutorial/DA_Tutorial_Backpack",
+      "directory": "/Game/Docs/UI/Tutorial"
+    },
+    {
+      "name": "DA_Tutorial_CardLink",
+      "path": "/Game/Docs/UI/Tutorial/DA_Tutorial_CardLink",
+      "directory": "/Game/Docs/UI/Tutorial"
+    },
+    {
+      "name": "DA_Tutorial_FirstRune",
+      "path": "/Game/Docs/UI/Tutorial/DA_Tutorial_FirstRune",
+      "directory": "/Game/Docs/UI/Tutorial"
+    },
+    {
+      "name": "DA_Tutorial_ShuffleHint",
+      "path": "/Game/Docs/UI/Tutorial/DA_Tutorial_ShuffleHint",
+      "directory": "/Game/Docs/UI/Tutorial"
+    },
+    {
+      "name": "DA_Tutorial_WeaponPickup",
+      "path": "/Game/Docs/UI/Tutorial/DA_Tutorial_WeaponPickup",
+      "directory": "/Game/Docs/UI/Tutorial"
+    },
+    {
+      "name": "DA_TutorialRegistry",
+      "path": "/Game/Docs/UI/Tutorial/DA_TutorialRegistry",
+      "directory": "/Game/Docs/UI/Tutorial"
+    }
+  ],
+  "storyAssets": [
+    {
+      "name": "DA_StoryEventRegistry_Tutorial",
+      "path": "/Game/Data/Story/DA_StoryEventRegistry_Tutorial",
+      "directory": "/Game/Data/Story"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Forward_Attack",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Forward_Attack",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Forward_Burn",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Forward_Burn",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Forward_Pierce",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Forward_Pierce",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Forward_Poison",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Forward_Poison",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Forward_ReduceDamage",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Forward_ReduceDamage",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Forward_Shield",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Forward_Shield",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Reversed_Attack",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Reversed_Attack",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Reversed_Burn",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Reversed_Burn",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Reversed_Pierce",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Reversed_Pierce",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Reversed_Poison",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Reversed_Poison",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Reversed_ReduceDamage",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Reversed_ReduceDamage",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Reversed_Shield",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Reversed_Shield",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_Rune512_Moonlight_Reversed_Split",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Reversed_Split",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile"
+    },
+    {
+      "name": "EP_EG_FirstRun_Tutorial_attack_card_consume",
+      "path": "/Game/Story/EncounterPoints/Tutorial/FirstRun/EP_EG_FirstRun_Tutorial_attack_card_consume",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/FirstRun"
+    },
+    {
+      "name": "EP_EG_FirstRun_Tutorial_backpack_arrange",
+      "path": "/Game/Story/EncounterPoints/Tutorial/FirstRun/EP_EG_FirstRun_Tutorial_backpack_arrange",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/FirstRun"
+    },
+    {
+      "name": "EP_EG_FirstRun_Tutorial_card_link_first",
+      "path": "/Game/Story/EncounterPoints/Tutorial/FirstRun/EP_EG_FirstRun_Tutorial_card_link_first",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/FirstRun"
+    },
+    {
+      "name": "EP_EG_FirstRun_Tutorial_first_run_complete",
+      "path": "/Game/Story/EncounterPoints/Tutorial/FirstRun/EP_EG_FirstRun_Tutorial_first_run_complete",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/FirstRun"
+    },
+    {
+      "name": "EP_EG_FirstRun_Tutorial_first_rune_reward",
+      "path": "/Game/Story/EncounterPoints/Tutorial/FirstRun/EP_EG_FirstRun_Tutorial_first_rune_reward",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/FirstRun"
+    },
+    {
+      "name": "EP_EG_FirstRun_Tutorial_hub_start",
+      "path": "/Game/Story/EncounterPoints/Tutorial/FirstRun/EP_EG_FirstRun_Tutorial_hub_start",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/FirstRun"
+    },
+    {
+      "name": "EP_EG_FirstRun_Tutorial_route_choice",
+      "path": "/Game/Story/EncounterPoints/Tutorial/FirstRun/EP_EG_FirstRun_Tutorial_route_choice",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/FirstRun"
+    },
+    {
+      "name": "EP_EG_FirstRun_Tutorial_shuffle_observe",
+      "path": "/Game/Story/EncounterPoints/Tutorial/FirstRun/EP_EG_FirstRun_Tutorial_shuffle_observe",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/FirstRun"
+    },
+    {
+      "name": "EP_EG_FirstRun_Tutorial_weapon_pickup",
+      "path": "/Game/Story/EncounterPoints/Tutorial/FirstRun/EP_EG_FirstRun_Tutorial_weapon_pickup",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/FirstRun"
+    },
+    {
+      "name": "EP_EG_MemoryTutorial_PreRun_basic_attack",
+      "path": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun/EP_EG_MemoryTutorial_PreRun_basic_attack",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun"
+    },
+    {
+      "name": "EP_EG_MemoryTutorial_PreRun_boss_execution",
+      "path": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun/EP_EG_MemoryTutorial_PreRun_boss_execution",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun"
+    },
+    {
+      "name": "EP_EG_MemoryTutorial_PreRun_card_consumption_hint",
+      "path": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun/EP_EG_MemoryTutorial_PreRun_card_consumption_hint",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun"
+    },
+    {
+      "name": "EP_EG_MemoryTutorial_PreRun_dodge_spacing",
+      "path": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun/EP_EG_MemoryTutorial_PreRun_dodge_spacing",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun"
+    },
+    {
+      "name": "EP_EG_MemoryTutorial_PreRun_memory_awaken",
+      "path": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun/EP_EG_MemoryTutorial_PreRun_memory_awaken",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun"
+    },
+    {
+      "name": "EP_EG_MemoryTutorial_PreRun_memory_complete",
+      "path": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun/EP_EG_MemoryTutorial_PreRun_memory_complete",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun"
+    },
+    {
+      "name": "EP_EG_MemoryTutorial_PreRun_move_camera",
+      "path": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun/EP_EG_MemoryTutorial_PreRun_move_camera",
+      "directory": "/Game/Story/EncounterPoints/Tutorial/MemoryPreRun"
+    },
+    {
+      "name": "EG_FirstRun_Tutorial",
+      "path": "/Game/Story/Encounters/Tutorial/EG_FirstRun_Tutorial",
+      "directory": "/Game/Story/Encounters/Tutorial"
+    },
+    {
+      "name": "EG_MemoryTutorial_PreRun",
+      "path": "/Game/Story/Encounters/Tutorial/EG_MemoryTutorial_PreRun",
+      "directory": "/Game/Story/Encounters/Tutorial"
+    },
+    {
+      "name": "SR_FirstRun",
+      "path": "/Game/Story/Rules/SR_FirstRun",
+      "directory": "/Game/Story/Rules"
+    },
+    {
+      "name": "SR_HubOnboarding",
+      "path": "/Game/Story/Rules/SR_HubOnboarding",
+      "directory": "/Game/Story/Rules"
+    },
+    {
+      "name": "SR_MemoryTutorial",
+      "path": "/Game/Story/Rules/SR_MemoryTutorial",
+      "directory": "/Game/Story/Rules"
+    }
+  ],
+  "levelFlows": [
+    {
+      "name": "T_Vfx_Noise_disflow_07",
+      "path": "/Game/CharacterStatus/__GenericSource/Texture/T_Vfx_Noise_disflow_07",
+      "directory": "/Game/CharacterStatus/__GenericSource/Texture"
+    },
+    {
+      "name": "DA_FlowTest_Rune_Log",
+      "path": "/Game/Docs/BuffDocs/FlowAsset/DA_FlowTest_Rune_Log",
+      "directory": "/Game/Docs/BuffDocs/FlowAsset"
+    },
+    {
+      "name": "FA_Debug",
+      "path": "/Game/Docs/BuffDocs/FlowAsset/FA_Debug",
+      "directory": "/Game/Docs/BuffDocs/FlowAsset"
+    },
+    {
+      "name": "FA_Test_Log",
+      "path": "/Game/Docs/BuffDocs/FlowAsset/FA_Test_Log",
+      "directory": "/Game/Docs/BuffDocs/FlowAsset"
+    },
+    {
+      "name": "GE_Rune_Debug",
+      "path": "/Game/Docs/BuffDocs/FlowAsset/GE_Rune_Debug",
+      "directory": "/Game/Docs/BuffDocs/FlowAsset"
+    },
+    {
+      "name": "FA_Rune512_Attack_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Attack_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Bleed_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Bleed_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Burn_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Burn_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Curse_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Curse_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Fear_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Fear_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Freeze_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Freeze_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Knockback_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Knockback_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Forward_Attack",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Attack",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Forward_Burn",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Burn",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Forward_Pierce",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Pierce",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Forward_Poison",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Poison",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Forward_ReduceDamage",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_ReduceDamage",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Forward_Shield",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Shield",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Forward_Split",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Split",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Reversed_Attack",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Attack",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Reversed_Burn",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Burn",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Reversed_Pierce",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Pierce",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Reversed_Poison",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Poison",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Reversed_ReduceDamage",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_ReduceDamage",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Reversed_Shield",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Shield",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Moonlight_Reversed_Split",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Split",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Pierce_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Pierce_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Poison_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Poison_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_ReduceDamage_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_ReduceDamage_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Rend_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Rend_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Shield_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Shield_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Splash_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Splash_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Split_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Split_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Stun_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Stun_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Wound_Base",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Wound_Base",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow"
+    },
+    {
+      "name": "FA_Rune512_Sacrifice_GiantSwing",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/Flow/FA_Rune512_Sacrifice_GiantSwing",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/Flow"
+    },
+    {
+      "name": "FA_Rune512_Sacrifice_MoonlightShadow",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/Flow/FA_Rune512_Sacrifice_MoonlightShadow",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/Flow"
+    },
+    {
+      "name": "FA_Rune512_Sacrifice_ShadowMark",
+      "path": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/Flow/FA_Rune512_Sacrifice_ShadowMark",
+      "directory": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/Flow"
+    },
+    {
+      "name": "FA_FinisherCard_BaseEffect",
+      "path": "/Game/YogRuneEditor/Flows/FA_FinisherCard_BaseEffect",
+      "directory": "/Game/YogRuneEditor/Flows"
+    },
+    {
+      "name": "FA_FinisherCard_ChargeHit",
+      "path": "/Game/YogRuneEditor/Flows/FA_FinisherCard_ChargeHit",
+      "directory": "/Game/YogRuneEditor/Flows"
+    },
+    {
+      "name": "FA_FinisherCard_Detonate",
+      "path": "/Game/YogRuneEditor/Flows/FA_FinisherCard_Detonate",
+      "directory": "/Game/YogRuneEditor/Flows"
+    },
+    {
+      "name": "FA_Rune_Burn",
+      "path": "/Game/YogRuneEditor/Flows/FA_Rune_Burn",
+      "directory": "/Game/YogRuneEditor/Flows"
+    },
+    {
+      "name": "FA_Rune_Moonlight",
+      "path": "/Game/YogRuneEditor/Flows/FA_Rune_Moonlight",
+      "directory": "/Game/YogRuneEditor/Flows"
+    },
+    {
+      "name": "FA_Rune_Moonlight_Forward_Burn",
+      "path": "/Game/YogRuneEditor/Flows/FA_Rune_Moonlight_Forward_Burn",
+      "directory": "/Game/YogRuneEditor/Flows"
+    },
+    {
+      "name": "FA_Rune_Moonlight_Forward_Poison",
+      "path": "/Game/YogRuneEditor/Flows/FA_Rune_Moonlight_Forward_Poison",
+      "directory": "/Game/YogRuneEditor/Flows"
+    },
+    {
+      "name": "FA_Rune_Moonlight_Reversed_Burn",
+      "path": "/Game/YogRuneEditor/Flows/FA_Rune_Moonlight_Reversed_Burn",
+      "directory": "/Game/YogRuneEditor/Flows"
+    },
+    {
+      "name": "FA_Rune_Moonlight_Reversed_Poison",
+      "path": "/Game/YogRuneEditor/Flows/FA_Rune_Moonlight_Reversed_Poison",
+      "directory": "/Game/YogRuneEditor/Flows"
+    },
+    {
+      "name": "FA_Rune_Poison",
+      "path": "/Game/YogRuneEditor/Flows/FA_Rune_Poison",
+      "directory": "/Game/YogRuneEditor/Flows"
+    },
+    {
+      "name": "FA_Rune_PrecisionAttack",
+      "path": "/Game/YogRuneEditor/Flows/FA_Rune_PrecisionAttack",
+      "directory": "/Game/YogRuneEditor/Flows"
+    }
+  ],
+  "tags": [
+    "Ability.Event.Attack.CritHit",
+    "Ability.Event.Attack.Hit",
+    "Ability.Event.Attack.Miss",
+    "Ability.Event.Damaged",
+    "Ability.Event.Dash",
+    "Ability.Event.Death",
+    "Ability.Event.DeathAnimComplete",
+    "Ability.Event.Finisher.HitFrame",
+    "Ability.Event.Kill",
+    "Ability.Musket.Heavy",
+    "Ability.Musket.Light",
+    "Ability.Musket.Reload",
+    "Ability.Musket.SprintAtk",
+    "Ability.Musket.SprintReload",
+    "Action.Attack",
+    "Action.Attack.Swing",
+    "Action.Combo.LastHit",
+    "Action.Dead",
+    "Action.Finisher.Confirm",
+    "Action.FinisherCharge.Activate",
+    "Action.FinisherCharge.ChargeConsumed",
+    "Action.Heat.CanPhaseUp",
+    "Action.HitReact",
+    "Action.HitReact.Back",
+    "Action.HitReact.Front",
+    "Action.Knockback",
+    "Action.Mark",
+    "Action.Mark.Apply",
+    "Action.Mark.Apply.Finisher",
+    "Action.Mark.Apply.Shadow",
+    "Action.Mark.Detonate",
+    "Action.Mark.Detonate.Finisher",
+    "Action.Mark.Detonate.Shadow",
+    "Action.Player.FinisherAttack",
+    "Action.Rune",
+    "Action.Rune.KnockbackApplied",
+    "Action.Rune.MoonlightBurnHit",
+    "Action.Rune.MoonlightPoisonExpired",
+    "Action.Rune.MoonlightPoisonHit",
+    "Action.Rune.MoonlightSlash",
+    "Action.Rune.ShadowMarkDetonate",
+    "Action.Rune.SlashWaveHit",
+    "Action.Slash",
+    "Action.UpperCut",
+    "Attribute.ActDamage",
+    "Attribute.ActDmgReduce",
+    "Attribute.ActRange",
+    "Attribute.ActResilience",
+    "Block.AI",
+    "Block.Movement",
+    "Buff.Data",
+    "Buff.Data.ArmorDamage",
+    "Buff.Data.AttributeMod",
+    "Buff.Data.Damage",
+    "Buff.Data.DamageMultiplier",
+    "Buff.Data.Duration",
+    "Buff.Data.Heal",
+    "Buff.Data.ShieldAmount",
+    "Buff.Data.StatusStacks",
+    "Buff.Effect.Attribute",
+    "Buff.Effect.Attribute.Attack",
+    "Buff.Effect.Attribute.AttackSpeed",
+    "Buff.Effect.Attribute.Bleed",
+    "Buff.Effect.Attribute.CooldownDuration",
+    "Buff.Effect.Attribute.CritDamage",
+    "Buff.Effect.Attribute.CritRate",
+    "Buff.Effect.Attribute.Heat",
+    "Buff.Effect.Attribute.MaxCharge",
+    "Buff.Effect.Attribute.MaxHP",
+    "Buff.Effect.Attribute.MoveSpeed",
+    "Buff.Effect.Damage",
+    "Buff.Effect.Damage.Elemental",
+    "Buff.Effect.Damage.Physical",
+    "Buff.Effect.Damage.Reflected",
+    "Buff.Effect.Damage.True",
+    "Buff.Effect.Heal",
+    "Buff.Effect.Heal.Instant",
+    "Buff.Effect.Heal.Periodic",
+    "Buff.Effect.Shield",
+    "Buff.Effect.Summon",
+    "Buff.Event.Bleed",
+    "Buff.Event.Burn",
+    "Buff.Event.Fear",
+    "Buff.Event.Freeze",
+    "Buff.Event.KnockbackDebuff",
+    "Buff.Event.Rend",
+    "Buff.Event.Wound",
+    "Buff.HeatCarry.OnePhase",
+    "Buff.HeatCarry.TwoPhase",
+    "Buff.Rune.Element",
+    "Buff.Rune.Element.Fire",
+    "Buff.Rune.Element.Ice",
+    "Buff.Rune.Element.Lightning",
+    "Buff.Rune.Element.Void",
+    "Buff.Rune.Rarity",
+    "Buff.Rune.Rarity.Common",
+    "Buff.Rune.Rarity.Epic",
+    "Buff.Rune.Rarity.Rare",
+    "Buff.Rune.Type",
+    "Buff.Rune.Type.Attack",
+    "Buff.Rune.Type.Defense",
+    "Buff.Rune.Type.Summon",
+    "Buff.Rune.Type.Utility",
+    "Buff.Status.Armored",
+    "Buff.Status.Bleeding",
+    "Buff.Status.Burning",
+    "Buff.Status.CC",
+    "Buff.Status.CC.Frozen",
+    "Buff.Status.CC.Stun",
+    "Buff.Status.Chilled",
+    "Buff.Status.Cursed",
+    "Buff.Status.DashInvincible",
+    "Buff.Status.Dead",
+    "Buff.Status.DuoAssaultReady",
+    "Buff.Status.Enraged",
+    "Buff.Status.ExtraDamageApplied",
+    "Buff.Status.Feared",
+    "Buff.Status.FinisherCharge",
+    "Buff.Status.FinisherExecuting",
+    "Buff.Status.FinisherQTEOpen",
+    "Buff.Status.FinisherWindowOpen",
+    "Buff.Status.Frozen",
+    "Buff.Status.Heat",
+    "Buff.Status.Heat.Active",
+    "Buff.Status.Heat.Phase",
+    "Buff.Status.Heat.Phase.1",
+    "Buff.Status.Heat.Phase.2",
+    "Buff.Status.Heat.Phase.3",
+    "Buff.Status.HeatDecayBlocked",
+    "Buff.Status.HeatInhibit",
+    "Buff.Status.HitReact",
+    "Buff.Status.HitStop",
+    "Buff.Status.HitStop.Freeze",
+    "Buff.Status.HitStop.Slow",
+    "Buff.Status.InSmoke",
+    "Buff.Status.Invulnerable",
+    "Buff.Status.Knockback",
+    "Buff.Status.KnockbackDebuff",
+    "Buff.Status.Mark",
+    "Buff.Status.Mark.Finisher",
+    "Buff.Status.Mark.Shadow",
+    "Buff.Status.NextHitCrit",
+    "Buff.Status.OilBlade",
+    "Buff.Status.Poisoned",
+    "Buff.Status.Rended",
+    "Buff.Status.ShadowMark",
+    "Buff.Status.Shielded",
+    "Buff.Status.SlashWaveSwingActive",
+    "Buff.Status.StickyOil",
+    "Buff.Status.Stunned",
+    "Buff.Status.SuperArmor",
+    "Buff.Status.Wounded",
+    "Buff.Trigger",
+    "Buff.Trigger.OnComboEnd",
+    "Buff.Trigger.OnDash",
+    "Buff.Trigger.OnHit",
+    "Buff.Trigger.OnKill",
+    "Buff.Trigger.OnSkillCast",
+    "Buff.Trigger.OnTakeDamage",
+    "Buff.Trigger.Passive",
+    "Card.Effect.Attack",
+    "Card.Effect.Bleed",
+    "Card.Effect.Buff.AttackUp",
+    "Card.Effect.Burn",
+    "Card.Effect.Curse",
+    "Card.Effect.Defense.ReduceDamage",
+    "Card.Effect.Fear",
+    "Card.Effect.Freeze",
+    "Card.Effect.Knockback",
+    "Card.Effect.Moonlight",
+    "Card.Effect.Pierce",
+    "Card.Effect.Poison",
+    "Card.Effect.Rend",
+    "Card.Effect.Shield",
+    "Card.Effect.Splash",
+    "Card.Effect.SplashSplit",
+    "Card.Effect.Split",
+    "Card.Effect.Stun",
+    "Card.Effect.Wound",
+    "Card.ID.AttackUp",
+    "Card.ID.Bleed",
+    "Card.ID.Burn",
+    "Card.ID.Curse",
+    "Card.ID.Fear",
+    "Card.ID.Freeze",
+    "Card.ID.Knockback",
+    "Card.ID.Moonlight",
+    "Card.ID.Pierce",
+    "Card.ID.Poison",
+    "Card.ID.ReduceDamage",
+    "Card.ID.Rend",
+    "Card.ID.Shield",
+    "Card.ID.Splash",
+    "Card.ID.SplashSplit",
+    "Card.ID.Split",
+    "Card.ID.Stun",
+    "Card.ID.Wound",
+    "Character.State.Feared",
+    "Character.State.Frozen",
+    "Character.State.Stunned",
+    "Character.State.SuperArmor",
+    "Combo.TriggerTiming.OnCommit",
+    "Combo.TriggerTiming.OnHit",
+    "Currency.Meta.Common.A",
+    "Currency.Meta.Common.B",
+    "Currency.Meta.Common.C",
+    "Currency.Meta.MysticPoint",
+    "Currency.Meta.Rare.A",
+    "Currency.Meta.Rare.B",
+    "Currency.Meta.Rare.C",
+    "Currency.Meta.Special.A",
+    "Currency.Meta.Special.B",
+    "Currency.Meta.Special.C",
+    "Data.Damage",
+    "Data.Damage.Burn",
+    "Data.Poison.ArmorPercentPerStack",
+    "Data.Poison.PercentPerStack",
+    "Effect.ID",
+    "Effect.ID.Unspecified",
+    "Enemy_Behavior",
+    "Enemy_Behavior.B_Combat",
+    "Enemy_Behavior.B_Combat.Assist",
+    "Enemy_Behavior.B_Combat.Flee",
+    "Enemy_Behavior.B_Combat.GetPlayerAction",
+    "Enemy_Behavior.B_Combat.HasCombo",
+    "Enemy_Behavior.B_Combat.IsAttack",
+    "Enemy_Behavior.B_Combat.Minion",
+    "Enemy_Behavior.B_Combat.Range",
+    "Enemy_Behavior.B_Combat.Retreat",
+    "Enemy_Behavior.B_Social",
+    "Enemy_Behavior.B_Social.Investigate",
+    "Enemy_Behavior.B_Social.Patrol",
+    "Enemy_Behavior.B_Social.Runaway",
+    "Enemy.Action.Attack",
+    "Enemy.Melee.HAtk1",
+    "Enemy.Melee.HAtk2",
+    "Enemy.Melee.HAtk3",
+    "Enemy.Melee.HAtk4",
+    "Enemy.Melee.LAtk1",
+    "Enemy.Melee.LAtk2",
+    "Enemy.Melee.LAtk3",
+    "Enemy.Melee.LAtk4",
+    "Enemy.Range.HAtk1",
+    "Enemy.Range.HAtk2",
+    "Enemy.Range.HAtk3",
+    "Enemy.Range.HAtk4",
+    "Enemy.Range.LAtk1",
+    "Enemy.Range.LAtk2",
+    "Enemy.Range.LAtk3",
+    "Enemy.Range.LAtk4",
+    "Enemy.Skill",
+    "Enemy.Skill.Skill1",
+    "Enemy.Skill.Skill2",
+    "Enemy.Skill.Skill3",
+    "Enemy.Skill.Skill4",
+    "Event.Moonlight.FwdBurn.Hit",
+    "Event.Moonlight.FwdPoison.Hit",
+    "Event.Moonlight.Hit",
+    "GameplayCue.Character",
+    "GameplayCue.Character.Bleed",
+    "GameplayCue.Character.Burn",
+    "GameplayCue.Character.CameraShake",
+    "GameplayCue.Character.HitEffect",
+    "GameplayCue.Character.KnockBack",
+    "GameplayCue.Character.MontageFreeze",
+    "GameplayCue.Character.Phantom",
+    "GameplayCue.Character.Rage",
+    "GameplayCue.Character.SuperResist",
+    "GameplayCue.Combat.HitImpact.Sword",
+    "GameplayCue.Combat.HitImpact.UltraSword",
+    "GameplayCue.Musket.ChargeFull",
+    "GameplayCue.Musket.Fire",
+    "GameplayCue.Musket.Reload",
+    "GameplayCue.Rune.AtkUp",
+    "GameplayCue.Rune.Cursed",
+    "GameplayCue.Rune.DeathPoison",
+    "GameplayCue.Rune.Fearless",
+    "GameplayCue.Rune.FinisherCharge",
+    "GameplayCue.Rune.KillExplosion",
+    "GameplayCue.Rune.MoonlightSlash.Fire",
+    "GameplayCue.Rune.MoonlightSlash.Hit",
+    "GameplayCue.Rune.MoonlightSlash.Pierce",
+    "GameplayCue.Rune.MoonlightSlash.Split",
+    "GameplayCue.Rune.Shield",
+    "GameplayEffect.AttributeTrait.Infinite",
+    "GameplayEffect.AttributeTrait.Periodic",
+    "GameplayEffect.AttributeType",
+    "GameplayEffect.AttributeType.KeepHeat",
+    "GameplayEffect.DamageTrait.Instant",
+    "GameplayEffect.DamageTrait.Periodic",
+    "GameplayEffect.DamageType.Basic",
+    "GameplayEffect.DamageType.Buff",
+    "GameplayEffect.DamageType.Fire",
+    "GameplayEffect.DamageType.GeneralAttack",
+    "GameplayEffect.DamageType.Passive",
+    "GameplayEffect.DamageType.Ranged",
+    "GameplayEffect.Heal.Instant",
+    "GameplayEffect.Heal.Periodic",
+    "GameplayEffect.ToSelf.Instance",
+    "GameplayEffect.ToSelf.Periodic",
+    "GameplayEffect.ToSelf.Permanent",
+    "GameplayEvent.Musket.HeavyRelease",
+    "Item.Damage.NoHitReact",
+    "Item.Damage.OilFireBonus",
+    "Level.Stage.Backpack",
+    "Level.Stage.Finisher",
+    "Level.Stage.FirstCombat",
+    "Level.Stage.LinkCard",
+    "Level.Stage.Reward",
+    "Level.Stage.RouteChoice",
+    "Level.Stage.ShuffleRoom",
+    "Level.Stage.WeaponPickup",
+    "Offensive.Damage",
+    "Passive.Damage",
+    "Passive.Death",
+    "Passive.Death.Rortten",
+    "Passive.FreezeFrame",
+    "Passive.Howl",
+    "Passive.HurtMontage",
+    "Passive.HurtMontage.Back",
+    "Passive.HurtMontage.Front",
+    "Passive.KnockBack",
+    "Passive.Phantom",
+    "Passive.Phantom.Cooldown",
+    "Passive.Rage",
+    "Passive.SuperResist",
+    "PlayerState",
+    "PlayerState.AbilityCast",
+    "PlayerState.AbilityCast.CanCombo",
+    "PlayerState.AbilityCast.Cooldown",
+    "PlayerState.AbilityCast.Cooling",
+    "PlayerState.AbilityCast.Dash",
+    "PlayerState.AbilityCast.Dash.Dash1",
+    "PlayerState.AbilityCast.Dash.DashATK1",
+    "PlayerState.AbilityCast.DashAtk",
+    "PlayerState.AbilityCast.Finisher",
+    "PlayerState.AbilityCast.FinisherCharge",
+    "PlayerState.AbilityCast.HeavyAtk",
+    "PlayerState.AbilityCast.HeavyAtk.Combo1",
+    "PlayerState.AbilityCast.HeavyAtk.Combo2",
+    "PlayerState.AbilityCast.HeavyAtk.Combo3",
+    "PlayerState.AbilityCast.HeavyAtk.Combo4",
+    "PlayerState.AbilityCast.LightAtk",
+    "PlayerState.AbilityCast.LightAtk.Combo1",
+    "PlayerState.AbilityCast.LightAtk.Combo2",
+    "PlayerState.AbilityCast.LightAtk.Combo3",
+    "PlayerState.AbilityCast.LightAtk.Combo4",
+    "PlayerState.AbilityCast.Reload",
+    "PlayerState.AbilityCast.Skill",
+    "PlayerState.AbilityCast.Skill.Skill1",
+    "PlayerState.AbilityCast.Skill.Skill2",
+    "PlayerState.AnimLayer",
+    "PlayerState.AnimLayer.Default",
+    "Room",
+    "Room.Layer",
+    "Room.Layer.L1",
+    "Room.Layer.L2",
+    "Room.Layer.L3",
+    "Room.Type",
+    "Room.Type.Elite",
+    "Room.Type.Event",
+    "Room.Type.Normal",
+    "Room.Type.Shop",
+    "Rune.Card.Moonlight",
+    "Rune.Card.Type.Attack",
+    "Rune.Card.Type.Link",
+    "Rune.ID",
+    "Rune.ID.Burn",
+    "Rune.ID.Finisher",
+    "Rune.ID.Moonlight",
+    "Rune.ID.NewRune",
+    "Rune.ID.Poison",
+    "Rune.ID.PrecisionAttack",
+    "Rune.ID.Unspecified",
+    "Rune.Library.Base",
+    "Rune.Library.ComboCard",
+    "Rune.Library.Enemy",
+    "Rune.Library.Finisher",
+    "Rune.Library.Level",
+    "Rune.Link.Backward.MoonlightToAttack",
+    "Rune.Link.Forward.AttackToMoonlight",
+    "Rune.Sacrifice.GiantSwing",
+    "Rune.Sacrifice.MoonlightShadow",
+    "Rune.Sacrifice.ShadowMark",
+    "State",
+    "State.Combat",
+    "State.Combo.ChainActive",
+    "State.Dead",
+    "State.Dialogue",
+    "State.Interact",
+    "State.Musket.Aiming",
+    "State.Musket.Reloading",
+    "StateMachine.Idle",
+    "Story.Area.Hub",
+    "Story.Encounter.Progress.EM_FirstRun_Tutorial.attack_card_consume_seen",
+    "Story.Encounter.Progress.EM_FirstRun_Tutorial.backpack_seen",
+    "Story.Encounter.Progress.EM_FirstRun_Tutorial.card_link_seen",
+    "Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run_tutorial_complete",
+    "Story.Encounter.Progress.EM_FirstRun_Tutorial.first_rune_seen",
+    "Story.Encounter.Progress.EM_FirstRun_Tutorial.hub_start_seen",
+    "Story.Encounter.Progress.EM_FirstRun_Tutorial.route_choice_seen",
+    "Story.Encounter.Progress.EM_FirstRun_Tutorial.shuffle_seen",
+    "Story.Encounter.Progress.EM_FirstRun_Tutorial.weapon_pickup_seen",
+    "Story.Encounter.Progress.EM_MemoryTutorial_PreRun.basic_attack_done",
+    "Story.Encounter.Progress.EM_MemoryTutorial_PreRun.boss_execution_seen",
+    "Story.Encounter.Progress.EM_MemoryTutorial_PreRun.card_consumption_seen",
+    "Story.Encounter.Progress.EM_MemoryTutorial_PreRun.dodge_done",
+    "Story.Encounter.Progress.EM_MemoryTutorial_PreRun.memory_awaken_seen",
+    "Story.Encounter.Progress.EM_MemoryTutorial_PreRun.memory_fragment_complete",
+    "Story.Encounter.Progress.EM_MemoryTutorial_PreRun.move_camera_done",
+    "Story.Encounter.Progress.EM_MemoryTutorial_PreRun.weapon_echo_seen",
+    "Story.Event.Area.Entered",
+    "Story.Event.FirstRun.Ended",
+    "Story.Event.FirstRun.FirstBackpackOpened",
+    "Story.Event.FirstRun.FirstRuneObtained",
+    "Story.Event.FirstRun.Started",
+    "Story.Event.Hub.FirstEntered",
+    "Story.Event.Hub.MetaFirstUpgradePurchased",
+    "Story.Event.Item.Obtained",
+    "Story.Event.MemoryTutorial.AnchorReached",
+    "Story.Event.MemoryTutorial.Completed",
+    "Story.Event.MemoryTutorial.PlayerFailed",
+    "Story.Event.MemoryTutorial.ScriptedDefeat",
+    "Story.Event.MemoryTutorial.Started",
+    "Story.Event.Player.Died",
+    "Story.Event.Player.Revived",
+    "Story.Flag.FirstBackpack.Opened",
+    "Story.Flag.FirstRun.Started",
+    "Story.Flag.FirstRune.Obtained",
+    "Story.Flag.FirstRunTutorial.Active",
+    "Story.Flag.FirstRunTutorial.Completed",
+    "Story.Flag.Hub.FirstEntered",
+    "Story.Flag.MemoryTutorial.Completed",
+    "Story.Flag.MemoryTutorial.Started",
+    "Story.Flag.Meta.FirstUpgradePurchased",
+    "Story.Flag.NightGirl.FirstMet",
+    "Story.Item.Rune",
+    "Story.Quest.Main",
+    "Story.Quest.MemoryTutorial",
+    "Story.Source.Codex",
+    "Story.Source.NightGirl",
+    "Story.Source.System",
+    "Tutorial.BackpackArrange",
+    "Tutorial.CardConsume",
+    "Tutorial.Finisher",
+    "Tutorial.LinkCard",
+    "Tutorial.RewardToDeck",
+    "Tutorial.RouteRewardChoice",
+    "Tutorial.RunSummary",
+    "Tutorial.Shuffle",
+    "Tutorial.WeaponPickup",
+    "Weapon.Type",
+    "Weapon.Type.Melee",
+    "Weapon.Type.Ranged"
+  ],
+  "storyTerms": {
+    "arcs": [
+      "main",
+      "Main_Tutorial_Demo",
+      "side",
+      "system",
+      "tutorial"
+    ],
+    "chapters": [
+      "first_run"
+    ],
+    "timelines": [
+      "dream",
+      "memory",
+      "past",
+      "present"
+    ],
+    "progressKeys": [
+      "[object Object]",
+      "first_run_tutorial_completed",
+      "first_run.backpack_rules_seen",
+      "first_run.combat_room_01_cleared",
+      "first_run.combat_room_02_cards_seen",
+      "first_run.deck_enter_highlight_seen",
+      "first_run.finisher_obtained",
+      "first_run.heavy_card_obtained",
+      "first_run.hub_dash_hint",
+      "first_run.hub_move_hint",
+      "first_run.hub_portal_guided",
+      "first_run.moonlight_obtained",
+      "first_run.scripted_defeat_seen",
+      "first_run.training_dummy_started",
+      "first_run.transition_rooms_finished",
+      "first_run.weapon_picked"
+    ]
+  },
+  "summary": {
+    "maps": 172,
+    "roomData": 9,
+    "rooms": 9,
+    "campaigns": 3,
+    "runes": 79,
+    "tutorials": 6,
+    "storyAssets": 36,
+    "levelFlows": 50,
+    "tags": 454
+  }
+}

@@ -57,8 +57,8 @@ UObject* UStoryEncounterPointFactory::FactoryCreateNew(UClass* Class, UObject* I
 
 	FStoryEncounterAction HintAction;
 	HintAction.Kind = EStoryEncounterActionKind::WeakHint;
-	HintAction.Title = LOCTEXT("DefaultHintTitle", "细微提示");
-	HintAction.Body = LOCTEXT("DefaultHintBody", "填写玩家触发时看到的一句弱提示。");
+	HintAction.Title = LOCTEXT("DefaultHintTitle", "底部操作提示条");
+	HintAction.Body = LOCTEXT("DefaultHintBody", "填写玩家触发时在底部看到的一句操作提示。");
 	Point->Actions.Add(HintAction);
 	return Point;
 }

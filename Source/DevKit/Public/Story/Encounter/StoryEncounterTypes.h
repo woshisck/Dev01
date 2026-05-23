@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Story/StoryRuleTypes.h"
+#include "UI/GameDialogWidget.h"
 #include "StoryEncounterTypes.generated.h"
 
 class ULevelFlowAsset;
@@ -39,7 +40,7 @@ enum class EStoryEncounterConditionKind : uint8
 UENUM(BlueprintType)
 enum class EStoryEncounterActionKind : uint8
 {
-	WeakHint UMETA(DisplayName = "弱提示"),
+	WeakHint UMETA(DisplayName = "底部操作提示条"),
 	Dialogue UMETA(DisplayName = "对话"),
 	RecordProgress UMETA(DisplayName = "记录进度"),
 	UnlockFeature UMETA(DisplayName = "解锁功能"),
@@ -79,13 +80,31 @@ struct DEVKIT_API FStoryEncounterAction
 	EStoryEncounterActionKind Kind = EStoryEncounterActionKind::WeakHint;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	FName ActionId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	FName ReuseKey;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
 	FText Title;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作", meta = (MultiLine = true))
 	FText Body;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	bool bUseInputTextVariants = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作", meta = (MultiLine = true))
+	FText KeyboardMouseBody;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作", meta = (MultiLine = true))
+	FText GamepadBody;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
 	FName TutorialEventId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
+	TArray<FTutorialPage> TutorialPages;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
 	bool bPauseGame = true;

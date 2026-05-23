@@ -547,7 +547,14 @@ void UStoryEngineSubsystem::DispatchAction(const FStoryAction& Action, const FSt
 			? GetGameInstance()->GetSubsystem<UTutorialManager>()
 			: nullptr)
 		{
-			TutorialManager->ShowByEventID(Action.TutorialEventId, ResolvePlayerController(Context), Action.bPauseGame);
+			if (Action.TutorialPages.Num() > 0)
+			{
+				TutorialManager->ShowInlinePages(Action.TutorialPages, ResolvePlayerController(Context), Action.bPauseGame);
+			}
+			else
+			{
+				TutorialManager->ShowByEventID(Action.TutorialEventId, ResolvePlayerController(Context), Action.bPauseGame);
+			}
 		}
 		break;
 	case EStoryActionType::ShowInfoHint:

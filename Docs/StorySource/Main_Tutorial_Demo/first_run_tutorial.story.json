@@ -1,0 +1,1379 @@
+{
+  "schemaVersion": 1,
+  "storyId": "first_run_tutorial",
+  "arc": "Main_Tutorial_Demo",
+  "chapter": "first_run",
+  "timeline": "present",
+  "encounterId": "EM_FirstRun_Tutorial",
+  "graphAsset": "EG_FirstRun_Tutorial",
+  "maps": [
+    "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
+    "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01a",
+    "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01b",
+    "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_WaterDungeon",
+    "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom"
+  ],
+  "states": [
+    {
+      "key": "Story.Flag.FirstRunTutorial.Active",
+      "initialValue": true,
+      "scope": "Save",
+      "description": "新存档进入 Demo 首局教程时写入。"
+    },
+    {
+      "key": "Story.Flag.FirstRunTutorial.Completed",
+      "initialValue": false,
+      "scope": "Save",
+      "description": "玩家死亡回主城并获得教程完成卡组后写入。"
+    },
+    {
+      "key": "Story.Flag.FirstRunTutorial.DemoOnly",
+      "initialValue": true,
+      "scope": "Build",
+      "description": "Main_Tutorial_Demo 分组仅用于 Demo 阶段制作和验证。"
+    }
+  ],
+  "keyItems": [
+    {
+      "id": "tutorial_weapon",
+      "displayName": "教程武器",
+      "kind": "Weapon",
+      "grantsDeck": [
+        "攻击",
+        "攻击"
+      ],
+      "note": "新档首局主城拾取，作为 1D 卡组教学入口。"
+    },
+    {
+      "id": "card_attack",
+      "displayName": "攻击",
+      "kind": "CombatCard",
+      "note": "默认基础攻击卡。"
+    },
+    {
+      "id": "card_heavy",
+      "displayName": "重击",
+      "kind": "CombatCard",
+      "note": "木人桩掉落的第一张新卡，教学击退、额外伤害、重攻击追加减速。"
+    },
+    {
+      "id": "card_split",
+      "displayName": "分裂",
+      "kind": "CombatCard",
+      "note": "第二战斗房三选一卡之一，用于提示后续卡牌变化。"
+    },
+    {
+      "id": "card_moonlight",
+      "displayName": "月光",
+      "kind": "LinkCard",
+      "note": "蓝雾特殊敌人掉落的第一张连携卡。"
+    },
+    {
+      "id": "card_weapon_finisher",
+      "displayName": "武器终结技",
+      "kind": "FinisherCard",
+      "note": "祈祷室献祭获得，教程结束后进入默认初始卡组。"
+    }
+  ],
+  "points": [
+    {
+      "nodeId": "hub_move_hint",
+      "asset": "EP_FirstRun_HubMoveHint",
+      "displayName": "主城移动底部操作提示条",
+      "kind": "Area",
+      "playerFacingEvent": "玩家进入主城后，看到底部居中的移动操作提示条，并被引导离开出生点。",
+      "firePolicy": "Once",
+      "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
+      "placementName": "Trigger_Tutorial_Move",
+      "condition": {
+        "kind": "None",
+        "progressKey": "",
+        "progressLabel": "",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "WeakHint",
+          "title": "移动",
+          "body": "",
+          "useInputTextVariants": true,
+          "inputTextVariants": {
+            "keyboardMouse": "<input action=\"Move\"/> 移动角色。键鼠使用 WASD。",
+            "gamepad": "<input action=\"Move\"/> 使用左摇杆移动角色。<input action=\"CameraLook\"/> 使用右摇杆调整镜头。"
+          },
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.hub_move_hint",
+          "progressLabel": "已提示移动",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "出生点前方放置轻量 Trigger。使用底部居中的 WBP_InfoPopup / InfoPopupWidget 操作提示条，不使用武器拾取面板或关卡奖励面板。正文使用 Yog Common UI Rich Text / YogCommonRichTextBlock，支持 <input action=\"Move\"/> 与 <input action=\"CameraLook\"/> 输入图标；文本同时写明键鼠 WASD、手柄左摇杆移动、手柄右摇杆调整镜头。",
+        "implementation": {
+          "textWidget": "YogCommonRichTextBlock",
+          "inputDecoratorActions": [
+            "Move",
+            "CameraLook"
+          ],
+          "inputDecorator": "InputActionRichTextDecorator",
+          "inputRichTextNote": "底部操作提示条正文使用输入设备分流：键鼠显示 Move + WASD，手柄显示 Move + CameraLook。"
+        },
+        "graphPosition": {
+          "x": 79,
+          "y": 79
+        }
+      }
+    },
+    {
+      "nodeId": "hub_dash_hint",
+      "asset": "EP_FirstRun_HubDashHint",
+      "displayName": "主城冲刺底部操作提示条",
+      "kind": "Area",
+      "playerFacingEvent": "玩家穿过移动区域后，看到底部居中的冲刺操作提示条。",
+      "firePolicy": "Once",
+      "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
+      "placementName": "Trigger_Tutorial_Dash",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.hub_move_hint",
+        "progressLabel": "已提示移动",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "WeakHint",
+          "title": "冲刺",
+          "body": "按下 <input action=\"Dash\"/> 使用冲刺。",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "useInputTextVariants": false,
+          "inputTextVariants": {},
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.hub_dash_hint",
+          "progressLabel": "已提示冲刺",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "移动 Trigger 后 6-10 米放置第二个 Trigger；使用底部居中的 WBP_InfoPopup / InfoPopupWidget 操作提示条，表现参考用户截图中的底部操作提示条。正文必须使用 YogCommonRichTextBlock + InputActionRichTextDecorator，避免写死键鼠或手柄按键。",
+        "implementation": {
+          "textWidget": "YogCommonRichTextBlock",
+          "inputDecorator": "InputActionRichTextDecorator",
+          "inputDecoratorActions": [
+            "Dash"
+          ],
+          "inputRichTextNote": "Dash 底部操作提示条不写死 Space/Gamepad FaceButton，统一使用 <input action=\"Dash\"/>。"
+        },
+        "graphPosition": {
+          "x": 534,
+          "y": 85
+        }
+      }
+    },
+    {
+      "nodeId": "weapon_pickup_prompt",
+      "asset": "EP_FirstRun_WeaponPickupPrompt",
+      "displayName": "拾取教程武器",
+      "kind": "Object",
+      "playerFacingEvent": "玩家接近发光武器后看到拾取提示，拾取后获得武器和默认卡组 [攻击][攻击]。",
+      "firePolicy": "Once",
+      "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
+      "placementName": "WeaponSpawner_Tutorial",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.hub_dash_hint",
+        "progressLabel": "已提示冲刺",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "TutorialPopup",
+          "tutorialEventId": "tutorial_weapon_pickup",
+          "title": "拾取武器",
+          "body": "靠近发光武器，按下 <input action=\"Interact\"/> 拾取。武器会装备到角色身上，并将武器携带的卡组加入玩家牌库。",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.weapon_picked",
+          "progressLabel": "已拾取教程武器",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "武器点需要发光轮廓和交互提示。拾取提示、教程弹窗正文和武器交互提示都必须使用 YogCommonRichTextBlock + InputActionRichTextDecorator；拾取输入统一写 <input action=\"Interact\"/>，不要写死 [E]。拾取瞬间播放短 UI 提示：武器入手、卡组条出现。",
+        "implementation": {
+          "grantWeapon": "tutorial_weapon",
+          "initialDeck": [
+            "攻击",
+            "攻击"
+          ],
+          "requiredActor": "WeaponSpawner_Tutorial",
+          "textWidget": "YogCommonRichTextBlock",
+          "inputDecorator": "InputActionRichTextDecorator",
+          "inputDecoratorActions": [
+            "Interact"
+          ],
+          "inputRichTextNote": "武器拾取、奖励拾取、祭坛交互共用 Interact 输入 token。"
+        }
+      }
+    },
+    {
+      "nodeId": "deck_enter_highlight",
+      "asset": "EP_FirstRun_DeckEnterHighlight",
+      "displayName": "1D 卡组进卡高亮",
+      "kind": "Feature",
+      "playerFacingEvent": "卡牌进入卡组时，下方卡组 UI 渐入渐出高亮一次，并用底部操作提示条提示玩家可以打开背包查看卡牌。",
+      "firePolicy": "Repeat",
+      "placementLevel": "Any",
+      "placementName": "WBP_CombatDeckBar.OnDeckCardsEntered",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.weapon_picked",
+        "progressLabel": "已拾取教程武器",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "WeakHint",
+          "title": "新的卡牌已入组",
+          "body": "新的卡牌进入卡组。按下 <input action=\"OpenBackpack\"/> 打开背包查看卡牌效果。",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.deck_enter_highlight_seen",
+          "progressLabel": "已看到卡组高亮",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "CombatDeckBar 监听 OnDeckCardsEntered：每次有卡进入 1D 卡组时播放一次 0.25s 渐入、0.65s 保持、0.35s 渐出高亮。首次高亮后追加打开背包底部操作提示条，正文必须使用 <input action=\"OpenBackpack\"/>，不要写死 Tab/View。",
+        "implementation": {
+          "uiTarget": "WBP_CombatDeckBar",
+          "animation": "Anim_DeckSlotPulse_FadeInOut",
+          "repeatForEveryCardEnter": true,
+          "textWidget": "YogCommonRichTextBlock",
+          "inputDecorator": "InputActionRichTextDecorator",
+          "inputDecoratorActions": [
+            "OpenBackpack",
+            "LightAttack",
+            "HeavyAttack"
+          ],
+          "inputRichTextNote": "卡组高亮后的打开背包提示和攻击说明都使用输入 action token。"
+        },
+        "graphPosition": {
+          "x": 1465,
+          "y": 79
+        }
+      }
+    },
+    {
+      "nodeId": "backpack_card_rules",
+      "asset": "EP_FirstRun_BackpackCardRules",
+      "displayName": "背包内卡牌规则教学",
+      "kind": "Feature",
+      "playerFacingEvent": "玩家第一次打开背包后，看到武器连招、基础卡牌规则和卡牌排序说明；本阶段不提前讲连携卡。",
+      "firePolicy": "Once",
+      "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
+      "placementName": "Backpack_FirstOpen",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.deck_enter_highlight_seen",
+        "progressLabel": "已看到卡组高亮",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "TutorialPopup",
+          "tutorialEventId": "tutorial_backpack_combo",
+          "title": "武器与卡牌",
+          "body": "打开背包后，可以查看当前武器连招、卡牌效果和卡牌顺序。连招决定攻击节奏，卡牌会改写其中某一次攻击的结果。",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": [
+            {
+              "title": "武器的节奏",
+              "body": "按下 <input action=\"OpenBackpack\"/> 打开背包时，可以查看当前武器的连招标记。连招决定你的攻击节奏；卡牌会在这个节奏里改写某一次攻击的结果。",
+              "subText": "先记住当前武器的连招，再观察下方 1D 卡组的顺序。",
+              "illustration": ""
+            },
+            {
+              "title": "牌会等待出手",
+              "body": "卡牌会按顺序进入 1D 卡组。多数卡牌会随攻击触发；有些卡牌会要求 <input action=\"LightAttack\"/> 或 <input action=\"HeavyAttack\"/>，满足条件时会发挥额外效果。",
+              "subText": "本阶段先理解卡牌与攻击的关系，连携卡之后再讲。",
+              "illustration": ""
+            },
+            {
+              "title": "出手之前，先整理顺序",
+              "body": "整理阶段可以调整卡牌顺序，决定下一轮战斗中先看到哪张卡。键鼠使用 <input action=\"MouseClick\"/> 拖拽卡牌；手柄用方向键或左摇杆选择卡牌，按 <input action=\"Interact\"/> 拿起，再移动到目标位置后按 <input action=\"Interact\"/> 放下。",
+              "subText": "顺序会影响卡牌触发时机。之后获得连携卡时，顺序还会影响它能连接到哪张卡。",
+              "illustration": "/Game/Docs/UI/TutorialTex/512/T_Tutorial512_CardSort"
+            }
+          ]
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.backpack_rules_seen",
+          "progressLabel": "已阅读背包和卡牌基础教程",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "第一次打开背包时暂停游戏弹窗。教程弹窗 BodyText / BodySubText 已是 YogCommonRichTextBlock，正文里的背包、轻攻击、重攻击、鼠标拖拽和交互确认输入必须使用 <input action=\"OpenBackpack\"/>、<input action=\"LightAttack\"/>、<input action=\"HeavyAttack\"/>、<input action=\"MouseClick\"/>、<input action=\"Interact\"/>。背包 UI 保持可见，连招标记高亮，卡牌详情面板指向 [攻击] 卡，第三页高亮卡组编排列表。",
+        "implementation": {
+          "textWidget": "YogCommonRichTextBlock",
+          "inputDecorator": "InputActionRichTextDecorator",
+          "inputDecoratorActions": [
+            "OpenBackpack",
+            "LightAttack",
+            "HeavyAttack",
+            "MouseClick",
+            "Interact"
+          ],
+          "inputRichTextNote": "背包教程弹窗正文必须走 YogCommonRichTextBlock。卡牌排序说明使用 MouseClick + Interact token；手柄方向键/左摇杆属于导航输入说明，UI 如需图标化可后续补充 Navigation token。"
+        },
+        "graphPosition": {
+          "x": 1920,
+          "y": 79
+        }
+      }
+    },
+    {
+      "nodeId": "training_dummy_combo",
+      "asset": "EP_FirstRun_TrainingDummyCombo",
+      "displayName": "木人桩攻击与连招练习",
+      "kind": "Object",
+      "playerFacingEvent": "玩家在武器中心攻击木人桩，右上角显示武器连招列表，观察攻击、连招和卡组变化。",
+      "firePolicy": "Once",
+      "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
+      "placementName": "BP_TutorialTrainingDummy",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.backpack_rules_seen",
+        "progressLabel": "已阅读背包和卡牌基础教程",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "WeakHint",
+          "title": "练习攻击",
+          "body": "尝试使用 轻攻击：<input action=\"LightAttack\"/> 或 重攻击：<input action=\"HeavyAttack\"/> 攻击木人桩，观察右上角连招列表和下方卡组变化。",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.training_dummy_started",
+          "progressLabel": "已开始木人桩练习",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "武器中心放置木人桩。进入区域后右上角常驻当前武器连招列表；攻击教学底部提示条必须使用 YogCommonRichTextBlock + InputActionRichTextDecorator，轻/重攻击统一写 <input action=\"LightAttack\"/> / <input action=\"HeavyAttack\"/>；木人桩死亡前不打开传送门。",
+        "implementation": {
+          "requiredActor": "BP_TutorialTrainingDummy",
+          "comboListUi": "TopRight",
+          "completionEvent": "OnTutorialDummyKilled",
+          "textWidget": "YogCommonRichTextBlock",
+          "inputDecorator": "InputActionRichTextDecorator",
+          "inputDecoratorActions": [
+            "LightAttack",
+            "HeavyAttack"
+          ],
+          "inputRichTextNote": "木人桩攻击教学使用 LightAttack/HeavyAttack token。"
+        },
+        "graphPosition": {
+          "x": 2383,
+          "y": 89
+        }
+      }
+    },
+    {
+      "nodeId": "dummy_drop_heavy_card",
+      "asset": "EP_FirstRun_DummyDropHeavyCard",
+      "displayName": "木人桩掉落重击卡",
+      "kind": "Object",
+      "playerFacingEvent": "木人桩死亡后掉落单卡奖励，只显示中间一张 [重击] 卡；玩家拾取后理解新卡会进入卡组。",
+      "firePolicy": "Once",
+      "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
+      "placementName": "RewardPickup_DummyHeavyCard",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.training_dummy_started",
+        "progressLabel": "已开始木人桩练习",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "TutorialPopup",
+          "tutorialEventId": "tutorial_card_heavy",
+          "title": "获得卡牌",
+          "body": "重击在卡组中时，<input action=\"LightAttack\"/> 与 <input action=\"HeavyAttack\"/> 都会附带少量击退。打出这张卡会造成额外伤害并击退敌人；使用 <input action=\"HeavyAttack\"/> 打出时，还会追加伤害和减速。",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": [
+            {
+              "title": "获得掉落物",
+              "body": "当关卡结束时会获得对应的奖励，获取这些奖励强化自身，面对更强的敌人吧",
+              "subText": "",
+              "illustration": ""
+            },
+            {
+              "title": "获得卡牌：重击",
+              "body": "重击在卡组中时，<input action=\"LightAttack\"/> 与 <input action=\"HeavyAttack\"/> 都会附带少量击退。打出这张卡会造成额外伤害并击退敌人；使用 <input action=\"HeavyAttack\"/> 打出时，还会追加伤害和减速。",
+              "subText": "",
+              "illustration": ""
+            }
+          ]
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.heavy_card_obtained",
+          "progressLabel": "已获得重击卡",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "木人桩死亡处生成 RewardPickup。三选一 UI 只显示中间卡位，左右卡位隐藏。拾取提示与卡牌说明正文必须支持 YogCommonRichTextBlock；拾取使用 <input action=\"Interact\"/>，攻击方式使用 <input action=\"LightAttack\"/> / <input action=\"HeavyAttack\"/>。拾取后播放卡牌入组高亮。",
+        "implementation": {
+          "rewardLayout": "SingleCenterCard",
+          "fixedReward": [
+            {
+              "type": "Rune",
+              "card": "重击"
+            }
+          ],
+          "textWidget": "YogCommonRichTextBlock",
+          "inputDecorator": "InputActionRichTextDecorator",
+          "inputDecoratorActions": [
+            "Interact",
+            "LightAttack",
+            "HeavyAttack"
+          ],
+          "inputRichTextNote": "重击卡教程弹窗中所有攻击方式和拾取提示都使用 action token。"
+        },
+        "graphPosition": {
+          "x": 2840,
+          "y": 79
+        }
+      }
+    },
+    {
+      "nodeId": "hub_portal_reward_preview",
+      "asset": "EP_FirstRun_HubPortalRewardPreview",
+      "displayName": "主城教程结束与传送门奖励预览",
+      "kind": "Feature",
+      "playerFacingEvent": "玩家拾取 [重击] 后，高亮传送门 UI，并看到下一关奖励 icon。主城初始教程结束。",
+      "firePolicy": "Once",
+      "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
+      "placementName": "Portal_TutorialStart",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.heavy_card_obtained",
+        "progressLabel": "已获得重击卡",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "WeakHint",
+          "title": "进入下一关",
+          "body": "通道已开启。请留意相关信息。",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.hub_portal_guided",
+          "progressLabel": "已引导进入教程战斗",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "Portal_TutorialStart 强制高亮，HUD 显示奖励预览。Portal 交互提示必须使用 YogCommonRichTextBlock + InputActionRichTextDecorator，进入/确认统一写 <input action=\"Interact\"/>。金币用现有金币 icon；卡牌用卡牌自身 icon；材料 v1 用问号 icon。",
+        "implementation": {
+          "portalPolicy": "ForceOpenTutorialPortal",
+          "rewardIconRules": {
+            "gold": "UseExistingGoldIcon",
+            "card": "UseCardIcon",
+            "material": "UseQuestionIcon"
+          },
+          "textWidget": "YogCommonRichTextBlock",
+          "inputDecorator": "InputActionRichTextDecorator",
+          "inputDecoratorActions": [
+            "Interact"
+          ],
+          "inputRichTextNote": "Portal 进入提示沿用 Interact token。"
+        },
+        "graphPosition": {
+          "x": 3291,
+          "y": 88
+        }
+      }
+    },
+    {
+      "nodeId": "combat_room_01_gold",
+      "asset": "EP_FirstRun_CombatRoom01Gold",
+      "displayName": "第一战斗房金币教学",
+      "kind": "Area",
+      "playerFacingEvent": "玩家进入第一战斗房，击败少量无 Buff 敌人，拾取金币并看到右下角金币增长。",
+      "firePolicy": "OncePerRun",
+      "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01a",
+      "placementName": "RoomStart_FirstCombatGold",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.hub_portal_guided",
+        "progressLabel": "已引导进入教程战斗",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.combat_room_01_cleared",
+          "progressLabel": "已完成第一战斗房",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "房间无敌人 Buff，少量敌人。清场后复用 RewardPickup 掉落金币；拾取提示必须使用 YogCommonRichTextBlock + <input action=\"Interact\"/>；拾取时播放金币音效、金币 VFX，右下角金币数字增长。",
+        "implementation": {
+          "roomBuffCount": 0,
+          "enemyAmount": "Few",
+          "fixedReward": [
+            {
+              "type": "Gold",
+              "amount": 25
+            }
+          ],
+          "textWidget": "YogCommonRichTextBlock",
+          "inputDecorator": "InputActionRichTextDecorator",
+          "inputDecoratorActions": [
+            "Interact"
+          ],
+          "inputRichTextNote": "金币拾取提示使用 Interact token。"
+        },
+        "graphPosition": {
+          "x": 3760,
+          "y": 80
+        }
+      }
+    },
+    {
+      "nodeId": "combat_room_02_three_cards",
+      "asset": "EP_FirstRun_CombatRoom02ThreeCards",
+      "displayName": "第二战斗房敌人 Buff 与三选一卡",
+      "kind": "Area",
+      "playerFacingEvent": "玩家进入第二战斗房，敌人获得 Buff；清场后强制打开指定传送门，并掉落三选一卡牌 [攻击][重击][分裂]。",
+      "firePolicy": "OncePerRun",
+      "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01b",
+      "placementName": "RoomStart_BuffedThreeCards",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.combat_room_01_cleared",
+        "progressLabel": "已完成第一战斗房",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "WeakHint",
+          "tutorialEventId": "tutorial_room_buff_reward_cards",
+          "title": "强化房间",
+          "body": "敌人获得了关卡强化！注意！",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.combat_room_02_cards_seen",
+          "progressLabel": "已看到 Buff 房和三选一卡",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "进入房间时给敌人启用 1 个 Buff。清场后强制开启指定 Portal，不走随机；奖励 UI 三选一，卡牌奖励 icon 使用紫色效果。奖励选择、确认与拾取提示必须使用 YogCommonRichTextBlock + <input action=\"Interact\"/>。",
+        "implementation": {
+          "roomBuffCount": 1,
+          "forcePortalIndex": 0,
+          "fixedReward": [
+            {
+              "type": "Rune",
+              "card": "攻击"
+            },
+            {
+              "type": "Rune",
+              "card": "重击"
+            },
+            {
+              "type": "Rune",
+              "card": "分裂"
+            }
+          ],
+          "rewardColor": "Purple",
+          "textWidget": "YogCommonRichTextBlock",
+          "inputDecorator": "InputActionRichTextDecorator",
+          "inputDecoratorActions": [
+            "Interact"
+          ],
+          "inputRichTextNote": "三选一卡奖励确认提示使用 Interact token。"
+        },
+        "graphPosition": {
+          "x": 4213,
+          "y": 88
+        }
+      }
+    },
+    {
+      "nodeId": "moonlight_special_enemy",
+      "asset": "EP_FirstRun_MoonlightSpecialEnemy",
+      "displayName": "蓝雾特殊敌人与月光连携卡",
+      "kind": "Area",
+      "playerFacingEvent": "指定敌人带蓝色周身雾效；玩家击杀后掉落连携卡 [月光]，随后看到连携卡与正反方向的说明。",
+      "firePolicy": "OncePerRun",
+      "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_Room_CL_WaterDungeon",
+      "placementName": "Enemy_Tutorial_MoonlightCarrier",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.combat_room_02_cards_seen",
+        "progressLabel": "已看到 Buff 房和三选一卡",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "TutorialPopup",
+          "tutorialEventId": "tutorial_card_link_moonlight",
+          "title": "月痕相连",
+          "body": "月光会读取相邻卡牌的特征。方向和顺序不同，它能连接到的卡牌也会不同。",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": [
+            {
+              "title": "月痕会寻找邻牌",
+              "body": "月光属于连携卡。它不只看自己的效果，还会读取相邻卡牌的特征；条件满足时，本次攻击会追加月光效果。",
+              "subText": "把它放在不同位置，同一套卡组也会产生不同节奏。",
+              "illustration": "/Game/Docs/UI/TutorialTex/512/T_Tutorial512_LinkCard"
+            },
+            {
+              "title": "光照向哪一侧",
+              "body": "月光有两个方向：正向读取前一张卡，反向读取后一张卡。选中月光后按 <input action=\"ReverseCard\"/> 切换方向，再调整卡牌顺序，就能决定它与哪张卡产生连携。",
+              "subText": "先记住：方向决定读取哪一侧，顺序决定那一侧是谁。",
+              "illustration": "/Game/Docs/UI/TutorialTex/512/T_Tutorial512_LinkCard"
+            }
+          ]
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.moonlight_obtained",
+          "progressLabel": "已获得月光连携卡",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "蓝雾特殊敌人死亡后掉落 [月光]。拾取后弹出两页教程：第一页介绍连携卡读取相邻卡牌，第二页介绍月光正向/反向连携。正文必须使用 YogCommonRichTextBlock；反转卡牌输入使用 <input action=\"ReverseCard\"/>，当前项目仍需确认或补齐该 token，避免写死 R / 手柄 X。",
+        "implementation": {
+          "specialEnemySelection": "LastSpawnedEnemy 或指定 Enemy_Tutorial_MoonlightCarrier",
+          "vfx": "BlueFogAura",
+          "fixedReward": [
+            {
+              "type": "Rune",
+              "card": "月光"
+            }
+          ],
+          "inputRichTextNote": "连携卡弹窗正文使用 YogCommonRichTextBlock；反转方向使用 <input action=\"ReverseCard\"/>，若 decorator 尚未支持该 token，需要在 UI/Input 工作量中补齐。",
+          "textWidget": "YogCommonRichTextBlock",
+          "inputDecorator": "InputActionRichTextDecorator",
+          "inputDecoratorActions": [
+            "ReverseCard"
+          ]
+        },
+        "graphPosition": {
+          "x": 4681,
+          "y": 105
+        }
+      }
+    },
+    {
+      "nodeId": "transition_room_01_gold_material",
+      "asset": "EP_FirstRun_TransitionRoom01GoldMaterial",
+      "displayName": "第一过渡房记录：金币与材料",
+      "kind": "Area",
+      "playerFacingEvent": "玩家完成第一间过渡房。本房不弹出底部提示条，只提供金币和材料奖励，并记录推进进度。",
+      "firePolicy": "OncePerRun",
+      "placementLevel": "Any",
+      "placementName": "RoomPool_Tutorial_Transition_01_Clear",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.moonlight_obtained",
+        "progressLabel": "已获得月光连携卡",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.transition_room_01_cleared",
+          "progressLabel": "已完成第一间过渡房",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "transition_room_01_record",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "第一间过渡房不显示底部提示条，不讲新机制。房间刷怪可以轻度随机，奖励过滤为 Gold / Material；材料 icon 暂用问号。完成后记录 first_run.transition_room_01_cleared，并强制进入第二间过渡房。",
+        "implementation": {
+          "roomIndex": 1,
+          "totalRequiredRooms": 2,
+          "allowedRewards": [
+            "Gold",
+            "Material"
+          ],
+          "showWeakHint": false,
+          "forceNextStoryPoint": "transition_room_02_gold_material"
+        }
+      }
+    },
+    {
+      "nodeId": "transition_room_02_gold_material",
+      "asset": "EP_FirstRun_TransitionRoom02GoldMaterial",
+      "displayName": "第二过渡房记录：通往祈祷室",
+      "kind": "Area",
+      "playerFacingEvent": "玩家完成第二间过渡房。本房仍不弹出底部提示条，只提供金币和材料奖励；结束后必定进入祈祷室。",
+      "firePolicy": "OncePerRun",
+      "placementLevel": "Any",
+      "placementName": "RoomPool_Tutorial_Transition_02_Clear",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.transition_room_01_cleared",
+        "progressLabel": "已完成第一间过渡房",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.transition_room_02_cleared",
+          "progressLabel": "已完成第二间过渡房",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "transition_room_02_record",
+          "reuseKey": "",
+          "tutorialPages": []
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.transition_rooms_finished",
+          "progressLabel": "已完成两间过渡房",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "transition_rooms_finished_record",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "第二间过渡房不显示底部提示条，不讲新机制。奖励仍过滤为 Gold / Material；房间结束后写入 first_run.transition_room_02_cleared 和 first_run.transition_rooms_finished，并强制打开/选择通往祈祷室的 Portal，不再回到随机房间池。",
+        "implementation": {
+          "roomIndex": 2,
+          "totalRequiredRooms": 2,
+          "allowedRewards": [
+            "Gold",
+            "Material"
+          ],
+          "showWeakHint": false,
+          "forceNextRoom": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom",
+          "forceNextStoryPoint": "prayer_sacrifice_finisher"
+        }
+      }
+    },
+    {
+      "nodeId": "prayer_sacrifice_finisher",
+      "asset": "EP_FirstRun_PrayerSacrificeFinisher",
+      "displayName": "祈祷室献祭获得终结技",
+      "kind": "Object",
+      "playerFacingEvent": "玩家进入祈祷室，与祭坛交互，献祭一张卡牌并获得武器终结技卡牌。",
+      "firePolicy": "OncePerRun",
+      "placementLevel": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom",
+      "placementName": "Altar_Tutorial_Finisher",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.transition_rooms_finished",
+        "progressLabel": "已完成两间过渡房",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "TutorialPopup",
+          "tutorialEventId": "tutorial_finisher_card",
+          "title": "终结技卡牌",
+          "body": "靠近祭坛时，按下 <input action=\"Interact\"/> 交互并献祭一张卡牌，换取武器终结技。终结技会把一次完整攻击节奏压成爆发窗口；终结技输入窗口出现时，按下 <input action=\"HeavyAttack\"/> 完成确认，可以打出更重的一击。",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.finisher_obtained",
+          "progressLabel": "已获得武器终结技",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "祈祷室只保留祭坛交互。祭坛交互提示、献祭确认提示和终结技教程正文必须使用 YogCommonRichTextBlock + InputActionRichTextDecorator：祭坛交互写 <input action=\"Interact\"/>，终结技确认写 <input action=\"HeavyAttack\"/>。打开献祭选择，玩家选一张卡作为代价；确认后授予 [武器终结技]，并弹出终结技教程。\n入口规则：第二间过渡房结束后必定进入祈祷室，不再从普通房间池随机。",
+        "implementation": {
+          "altar": "Altar_Tutorial_Finisher",
+          "cost": "OneDeckCard",
+          "grantCard": "武器终结技",
+          "textWidget": "YogCommonRichTextBlock",
+          "inputDecorator": "InputActionRichTextDecorator",
+          "inputDecoratorActions": [
+            "Interact",
+            "HeavyAttack"
+          ],
+          "inputRichTextNote": "祭坛交互和终结技 QTE 确认输入都使用 action token。"
+        }
+      }
+    },
+    {
+      "nodeId": "scripted_defeat_return_hub",
+      "asset": "EP_FirstRun_ScriptedDefeatReturnHub",
+      "displayName": "终结技后无限刷敌与回归主城",
+      "kind": "Death",
+      "playerFacingEvent": "玩家获得终结技后，祈祷室立即无限刷敌；玩家无法通关，死亡后出现“回归主城”选项。",
+      "firePolicy": "OncePerRun",
+      "placementLevel": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom",
+      "placementName": "Spawner_Tutorial_Endless",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.finisher_obtained",
+        "progressLabel": "已获得武器终结技",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "Dialogue",
+          "title": "遗圣目录",
+          "body": "圣体负荷上升。这里不是胜利试炼，是一次记录。记住终结技的重量。",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run.scripted_defeat_seen",
+          "progressLabel": "已经历教程失败回主城",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "获得终结技后延迟 1 秒关闭出口并启动无限刷敌。敌人数量无上限，难度保证玩家最终死亡。死亡界面只给“回归主城”明确选项；如果死亡界面出现确认/返回输入提示，也必须使用 YogCommonRichTextBlock + InputActionRichTextDecorator，不写死键鼠或手柄按键。",
+        "implementation": {
+          "startEndlessSpawn": true,
+          "winCondition": "None",
+          "deathOption": "ReturnToHub",
+          "inputRichTextNote": "死亡回主城选项的确认/返回提示如果显示按键，走 CommonUI 输入提示或 YogCommonRichTextBlock。"
+        },
+        "graphPosition": {
+          "x": 6519,
+          "y": 105
+        }
+      }
+    },
+    {
+      "nodeId": "return_hub_normal_run_start",
+      "asset": "EP_FirstRun_ReturnHubNormalRunStart",
+      "displayName": "回主城并进入后续体验",
+      "kind": "System",
+      "playerFacingEvent": "玩家回到主城，首局教程完成；武器初始卡组固定为 [攻击][攻击][月光][武器终结技]，后续进入正常体验。",
+      "firePolicy": "Once",
+      "placementLevel": "System",
+      "placementName": "ReturnToHub_AfterFirstRunTutorial",
+      "condition": {
+        "kind": "ProgressCompleted",
+        "progressKey": "first_run.scripted_defeat_seen",
+        "progressLabel": "已经历教程失败回主城",
+        "featureTag": "",
+        "runCount": 0
+      },
+      "actions": [
+        {
+          "type": "TutorialPopup",
+          "tutorialEventId": "tutorial_first_run_completed",
+          "title": "新的循环开始",
+          "body": "你回到主城。初始卡组已固定为 [攻击][攻击][月光][武器终结技]。Demo 首局教程结束，之后可以开始正常体验。",
+          "pauseGame": true,
+          "progressKey": "",
+          "progressLabel": "",
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        },
+        {
+          "type": "RecordProgress",
+          "progressKey": "first_run_tutorial_completed",
+          "progressLabel": "首局教程完成",
+          "title": "",
+          "body": "",
+          "tutorialEventId": "",
+          "pauseGame": true,
+          "featureTag": "",
+          "questTaskTag": "",
+          "targetNodeId": "",
+          "levelFlow": "",
+          "actionId": "",
+          "reuseKey": "",
+          "tutorialPages": []
+        }
+      ],
+      "extra": {
+        "stageDirection": "回主城时写入 Completed，清除 Active。初始化武器默认卡组为 [攻击][攻击][月光][武器终结技]，开放后续 Demo 正常流程入口。",
+        "implementation": {
+          "saveFlagOff": "Story.Flag.FirstRunTutorial.Active",
+          "saveFlagOn": "Story.Flag.FirstRunTutorial.Completed",
+          "startingDeckAfterTutorial": [
+            "攻击",
+            "攻击",
+            "月光",
+            "武器终结技"
+          ]
+        }
+      }
+    }
+  ],
+  "workItems": [
+    {
+      "id": "WI_FirstRun_SaveEntry",
+      "type": "System",
+      "title": "新存档入口写入 FirstRunTutorial.Active，并加载教程 Campaign",
+      "owner": "Tech Design",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_HubTriggers",
+      "type": "LevelDesign",
+      "title": "主城摆放移动、冲刺、武器拾取、木人桩、Portal 引导相关 Trigger / Actor",
+      "owner": "Level Design",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_TutorialPopups",
+      "type": "UI/Narrative",
+      "title": "配置教程弹窗内容：武器、背包卡牌规则、重击、月光、终结技、教程完成；正文/副正文统一使用 YogCommonRichTextBlock + InputActionRichTextDecorator",
+      "owner": "UI/Narrative",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_MoveHintRichText",
+      "type": "UI",
+      "title": "移动教学底部操作提示条正文使用输入设备分流：键鼠正文渲染 <input action=\"Move\"/> + WASD 说明；手柄正文渲染 <input action=\"Move\"/> 和 <input action=\"CameraLook\"/>",
+      "owner": "UI",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_CombatDeckHighlight",
+      "type": "UI",
+      "title": "CombatDeckBar 增加 OnDeckCardsEntered 渐入渐出高亮，首次入组追加 <input action=\"OpenBackpack\"/> 打开背包底部操作提示条",
+      "owner": "UI",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_RewardPickupTypes",
+      "type": "Gameplay",
+      "title": "RewardPickup 支持 Card / Gold / Material；金币音效/VFX；材料问号 icon；卡牌紫色奖励表现",
+      "owner": "Gameplay/UI",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_ForcedPortal",
+      "type": "Gameplay",
+      "title": "Portal 支持教程强制开启指定门，并显示奖励倾向 icon",
+      "owner": "Gameplay",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_RoomSequence",
+      "type": "DataAsset",
+      "title": "配置 Demo 教程房间序列：Hub -> 无 Buff 金币房 -> Buff 三选一卡房 -> 月光房 -> 固定 2 个过渡房 -> 祈祷室",
+      "owner": "Level Design",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_MoonlightEnemy",
+      "type": "VFX/Gameplay",
+      "title": "指定敌人附加蓝色周身雾效，死亡掉落 [月光] 连携卡",
+      "owner": "VFX/Gameplay",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_PrayerAltar",
+      "type": "Gameplay",
+      "title": "祈祷室祭坛支持献祭一张卡并授予 [武器终结技]",
+      "owner": "Gameplay",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_ScriptedDefeat",
+      "type": "LevelFlow",
+      "title": "终结技教程后启动无限刷敌、锁定失败流程，死亡后只显示“回归主城”选项",
+      "owner": "Tech Design",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_ReturnHubDeck",
+      "type": "Save/Deck",
+      "title": "教程完成回主城后设置默认卡组 [攻击][攻击][月光][武器终结技]，并写入 Completed",
+      "owner": "Gameplay",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_InputRichTextPolicy",
+      "type": "UI",
+      "title": "所有教程类按键提示统一使用 YogCommonRichTextBlock / InputActionRichTextDecorator：Move、CameraLook、Dash、Interact、OpenBackpack、MouseClick、LightAttack、HeavyAttack、ReverseCard，不写死 E/Space/Tab/H/R 或手柄键名",
+      "owner": "UI",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_FinisherQTERichText",
+      "type": "UI",
+      "title": "WBP_FinisherQTEPrompt 的输入提示改为 YogCommonRichTextBlock / InputActionRichTextDecorator，终结技确认显示 <input action=\"HeavyAttack\"/>，不要写死 H",
+      "owner": "UI",
+      "status": "todo"
+    },
+    {
+      "id": "WI_FirstRun_ReverseCardInputToken",
+      "type": "Input/UI",
+      "title": "新增或确认反转卡牌输入 token：建议 <input action=\"ReverseCard\"/>，用于后续月光/连携卡教程；不要在正文里写死 R 或手柄 X",
+      "owner": "Input/UI",
+      "status": "todo"
+    }
+  ],
+  "extra": {
+    "loadingArt": {
+      "source": "SourceArt/UI/Loading/T_FirstRunTutorial_Loading.png",
+      "asset": "/Game/UI/Loading/T_FirstRunTutorial_Loading",
+      "widget": "/Game/UI/UI_LoadingScreen"
+    },
+    "productionScope": "Main_Tutorial_Demo 仅代表 Demo 阶段制作和验证的首局教程剧情编辑，不等同最终完整主线。",
+    "writingTone": "教程文案短、明确、低打扰；所有按键/输入类说明使用 YogCommonRichTextBlock 的 <input action=\"...\"/>；需要世界观语气时使用“遗圣目录”作为冷静记录者。",
+    "inputRichTextRequirements": [
+      {
+        "scope": "底部操作提示条 / WeakHint / InfoPopupWidget",
+        "widget": "YogCommonRichTextBlock",
+        "decorator": "InputActionRichTextDecorator",
+        "rule": "所有玩家可见按键提示使用 <input action=\"ActionName\"/>；禁止写死 E、Space、Tab、H 或手柄键名。",
+        "tokens": [
+          "Move",
+          "CameraLook",
+          "Dash",
+          "Interact",
+          "OpenBackpack",
+          "LightAttack",
+          "HeavyAttack",
+          "MouseClick"
+        ]
+      },
+      {
+        "scope": "教程弹窗 / TutorialPopup",
+        "widget": "UTutorialPopupWidget.BodyText / BodySubText (YogCommonRichTextBlock)",
+        "decorator": "InputActionRichTextDecorator",
+        "rule": "教程弹窗正文可以直接写 <input action=\"...\"/>，确认按钮已有 <input action=\"Interact\"/>；正文里的操作教学也必须走 token。"
+      },
+      {
+        "scope": "拾取、Portal、奖励、祭坛交互",
+        "widget": "InteractPromptWidget / PortalPreviewWidget / RewardPickup UI / 祭坛 UI",
+        "decorator": "InputActionRichTextDecorator",
+        "rule": "交互、拾取、进入、确认统一优先使用 <input action=\"Interact\"/>。"
+      },
+      {
+        "scope": "终结技 QTE 与连携卡反转",
+        "widget": "WBP_FinisherQTEPrompt / 背包卡牌详情提示",
+        "decorator": "InputActionRichTextDecorator",
+        "rule": "终结技确认用 <input action=\"HeavyAttack\"/>；反转卡牌需要新增或确认 <input action=\"ReverseCard\"/> 后再写玩家可见文案。",
+        "pendingTokens": [
+          "ReverseCard"
+        ]
+      }
+    ],
+    "inputTokenGlossary": {
+      "Move": "移动输入。键鼠显示 WASD，手柄显示左摇杆。",
+      "CameraLook": "镜头输入。手柄显示右摇杆。",
+      "Dash": "冲刺输入。键鼠/手柄图标由 CommonUI 当前输入设备决定。",
+      "Interact": "交互、拾取、确认。用于武器、金币、Portal、祭坛、奖励选择等。",
+      "OpenBackpack": "打开背包。用于卡组入组后的背包查看提示。",
+      "LightAttack": "轻攻击。用于木人桩、基础卡牌和战斗练习。",
+      "HeavyAttack": "重攻击。用于重击卡、终结技确认和重攻击教学。",
+      "ReverseCard": "待新增或确认：反转卡牌输入，用于切换连携卡正向/反向。",
+      "MouseClick": "鼠标点击/拖拽输入。用于背包卡组排序说明。"
+    }
+  }
+}

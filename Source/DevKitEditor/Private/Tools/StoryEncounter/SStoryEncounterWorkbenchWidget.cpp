@@ -1122,13 +1122,13 @@ FReply SStoryEncounterWorkbenchWidget::OnAddWeakHintClicked()
 			EncounterMap->Modify();
 			FStoryEncounterAction Action;
 			Action.Kind = EStoryEncounterActionKind::WeakHint;
-			Action.Title = LOCTEXT("WeakHintDefaultTitle", "细微提示");
-			Action.Body = LOCTEXT("WeakHintDefaultBody", "填写玩家需要看见的一句弱提示。");
+			Action.Title = LOCTEXT("WeakHintDefaultTitle", "底部操作提示条");
+			Action.Body = LOCTEXT("WeakHintDefaultBody", "填写玩家需要在底部看到的一句操作提示。");
 			Node->Actions.Add(Action);
 			EncounterMap->MarkPackageDirty();
 			MarkSelectedNodeChanged();
 			RebuildMessageRows();
-			StatusText = LOCTEXT("AddWeakHintStatus", "已给当前节点添加弱提示。");
+			StatusText = LOCTEXT("AddWeakHintStatus", "已给当前节点添加底部操作提示条。");
 		}
 	}
 	return FReply::Handled();

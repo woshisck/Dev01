@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Tutorial/TutorialHintDataAsset.h"
+#include "UI/GameDialogWidget.h"
 #include "StoryRuleTypes.generated.h"
 
 class AActor;
@@ -166,6 +167,9 @@ struct DEVKIT_API FStoryAction
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
 	FName TutorialEventId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
+	TArray<FTutorialPage> TutorialPages;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
 	bool bPauseGame = true;
