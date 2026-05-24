@@ -36,6 +36,40 @@ namespace
 		return InvulnerableTag.IsValid() && ASC && ASC->HasMatchingGameplayTag(InvulnerableTag);
 	}
 
+	UAbilitySystemComponent* GetTargetASC(const FGameplayEffectModCallbackData& Data)
+	{
+		return Data.Target.AbilityActorInfo.IsValid()
+			? Data.Target.AbilityActorInfo->AbilitySystemComponent.Get()
+			: nullptr;
+	}
+
+	UBaseAttributeSet* GetValidTargetBaseSet(
+		const FGameplayEffectModCallbackData& Data,
+		AYogCharacterBase* TargetCharacter,
+		const TCHAR* DamagePath)
+	{
+		if (!TargetCharacter || !IsValid(TargetCharacter->BaseAttributeSet))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[DamageAttributeSet] %s skipped: Target=%s has no BaseAttributeSet."),
+				DamagePath,
+				*GetNameSafe(TargetCharacter));
+			return nullptr;
+		}
+
+		UAbilitySystemComponent* TargetASC = GetTargetASC(Data);
+		if (TargetASC &&
+			(!TargetASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetHealthAttribute()) ||
+			 !TargetASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetMaxHealthAttribute())))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[DamageAttributeSet] %s skipped: Target=%s ASC is missing Health/MaxHealth attributes."),
+				DamagePath,
+				*GetNameSafe(TargetCharacter));
+			return nullptr;
+		}
+
+		return TargetCharacter->BaseAttributeSet;
+	}
+
 	void RemoveShieldGameplayEffects(UAbilitySystemComponent* ASC)
 	{
 		if (!ASC)
@@ -79,9 +113,7 @@ namespace
 			return DamageAmount;
 		}
 
-		UAbilitySystemComponent* TargetASC = Data.Target.AbilityActorInfo.IsValid()
-			? Data.Target.AbilityActorInfo->AbilitySystemComponent.Get()
-			: nullptr;
+		UAbilitySystemComponent* TargetASC = GetTargetASC(Data);
 		UBaseAttributeSet* BaseSet = TargetCharacter->BaseAttributeSet;
 
 		float RemainingDamage = DamageAmount;
@@ -254,6 +286,12 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 
 		if (LocalDamageDone > 0)
 		{
+			UBaseAttributeSet* TargetBaseSet = GetValidTargetBaseSet(Data, TargetCharacter, TEXT("DamagePure"));
+			if (!TargetBaseSet)
+			{
+				return;
+			}
+
 			// ── 护甲拦截（护甲先吸收，溢出才扣血）─────────────────────────
 			const float HealthDamage = AbsorbDamageWithShieldAndArmor(Data, TargetCharacter, LocalDamageDone, true);
 
@@ -266,8 +304,8 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 
 			if (HealthDamage > 0.f)
 			{
-				const float OldHealth = TargetCharacter->BaseAttributeSet->GetHealth();
-				TargetCharacter->BaseAttributeSet->SetHealth(FMath::Clamp(OldHealth - HealthDamage, 0.0f, TargetCharacter->BaseAttributeSet->GetMaxHealth()));
+				const float OldHealth = TargetBaseSet->GetHealth();
+				TargetBaseSet->SetHealth(FMath::Clamp(OldHealth - HealthDamage, 0.0f, TargetBaseSet->GetMaxHealth()));
 			}
 
 			if (ASC)
@@ -275,7 +313,8 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
 				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone, bSuppressDamageFeedback);
 				UCombatItemComponent::TryApplyOilFireBonus(SourceYogASC, ASC, Data.EffectSpec);
-				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
+				const float MaxHealth = TargetBaseSet->GetMaxHealth();
+				float percent = MaxHealth > 0.f ? TargetBaseSet->GetHealth() / MaxHealth : 0.f;
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);
 
 				// 广播 Ability.Event.Damaged 给受击目标（GA_Wound 等监听此事件）
@@ -292,7 +331,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				}
 
 				// 击杀广播
-				if (TargetCharacter->BaseAttributeSet->GetHealth() <= 0.f && SourceYogASC)
+				if (TargetBaseSet->GetHealth() <= 0.f && SourceYogASC)
 				{
 					SourceYogASC->OnKilledTarget.Broadcast(TargetCharacter, TargetCharacter->GetActorLocation());
 
@@ -372,13 +411,19 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 
 		if (LocalDamageDone > 0)
 		{
+			UBaseAttributeSet* TargetBaseSet = GetValidTargetBaseSet(Data, TargetCharacter, TEXT("DamagePhysical"));
+			if (!TargetBaseSet)
+			{
+				return;
+			}
+
 			// ── 护甲拦截 ─────────────────────────────────────────────────────
 			const float HealthDamage = AbsorbDamageWithShieldAndArmor(Data, TargetCharacter, LocalDamageDone, true);
 
 			if (HealthDamage > 0.f)
 			{
-				const float OldHealth = TargetCharacter->BaseAttributeSet->GetHealth();
-				TargetCharacter->BaseAttributeSet->SetHealth(FMath::Clamp(OldHealth - HealthDamage, 0.0f, TargetCharacter->BaseAttributeSet->GetMaxHealth()));
+				const float OldHealth = TargetBaseSet->GetHealth();
+				TargetBaseSet->SetHealth(FMath::Clamp(OldHealth - HealthDamage, 0.0f, TargetBaseSet->GetMaxHealth()));
 			}
 
 			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
@@ -387,7 +432,8 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
 				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone);
 				UCombatItemComponent::TryApplyOilFireBonus(SourceYogASC, ASC, Data.EffectSpec);
-				float percent = TargetCharacter->BaseAttributeSet->GetHealth() / TargetCharacter->BaseAttributeSet->GetMaxHealth();
+				const float MaxHealth = TargetBaseSet->GetMaxHealth();
+				float percent = MaxHealth > 0.f ? TargetBaseSet->GetHealth() / MaxHealth : 0.f;
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);
 
 				// 广播 Ability.Event.Damaged（不在 DamageBuff 路径广播，防止 GA_Wound 递归）
@@ -404,7 +450,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				}
 
 				// 击杀广播
-				if (TargetCharacter->BaseAttributeSet->GetHealth() <= 0.f && SourceYogASC)
+				if (TargetBaseSet->GetHealth() <= 0.f && SourceYogASC)
 				{
 					SourceYogASC->OnKilledTarget.Broadcast(TargetCharacter, TargetCharacter->GetActorLocation());
 
@@ -445,8 +491,14 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			return;
 		}
 
-		if (LocalDamageDone > 0.f && TargetCharacter && TargetCharacter->BaseAttributeSet)
+		if (LocalDamageDone > 0.f)
 		{
+			UBaseAttributeSet* TargetBaseSet = GetValidTargetBaseSet(Data, TargetCharacter, TEXT("DamageBuff"));
+			if (!TargetBaseSet)
+			{
+				return;
+			}
+
 			const float HealthDamage = AbsorbDamageWithShieldAndArmor(Data, TargetCharacter, LocalDamageDone, false);
 			if (HealthDamage <= 0.f)
 			{
@@ -459,16 +511,17 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				ASC->SuppressNextDamageFeedback();
 			}
 
-			const float OldHealth = TargetCharacter->BaseAttributeSet->GetHealth();
+			const float OldHealth = TargetBaseSet->GetHealth();
 			// 不至死：Health 最低保留 1（GEExec_PoisonDamage 在输出前已Clamp，此处双重保险）
 			const float NewHealth = FMath::Max(1.f, OldHealth - HealthDamage);
-			TargetCharacter->BaseAttributeSet->SetHealth(NewHealth);
+			TargetBaseSet->SetHealth(NewHealth);
 
 			if (ASC)
 			{
 				UYogAbilitySystemComponent* SourceYogASC = Cast<UYogAbilitySystemComponent>(Source);
 				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone, true);
-				TargetCharacter->OnCharacterHealthUpdate.Broadcast(NewHealth / TargetCharacter->BaseAttributeSet->GetMaxHealth(), LocalDamageDone);
+				const float MaxHealth = TargetBaseSet->GetMaxHealth();
+				TargetCharacter->OnCharacterHealthUpdate.Broadcast(MaxHealth > 0.f ? NewHealth / MaxHealth : 0.f, LocalDamageDone);
 			}
 		}
 	}
