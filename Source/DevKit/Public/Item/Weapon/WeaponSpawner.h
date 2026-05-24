@@ -24,7 +24,6 @@ class UWidgetComponent;
 class UWeaponFloatWidget;
 
 class UWeaponDefinition;
-class UStoryEncounterPointDA;
 
 
 struct FGameplayTag;
@@ -54,9 +53,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Definition")
 	TObjectPtr<UWeaponDefinition> WeaponDefinition;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Encounter")
-	TObjectPtr<UStoryEncounterPointDA> PickupEncounterPoint;
 
 	//Delay between when the weapon is made available and when we check for a pawn standing in the spawner. Used to give the bIsWeaponAvailable OnRep time to fire and play FX.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Definition")

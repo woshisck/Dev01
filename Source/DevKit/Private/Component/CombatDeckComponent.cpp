@@ -491,55 +491,6 @@ void UCombatDeckComponent::LoadDeckFromWeapon(const UWeaponDefinition* WeaponDef
 	LoadDeckFromSourceAssets({}, ShuffleCooldownDuration, MaxActiveSequenceSize);
 }
 
-void UCombatDeckComponent::LoadDeckFromWeaponForFirstRunTutorial(const UWeaponDefinition* WeaponDefinition)
-{
-	if (!WeaponDefinition)
-	{
-		LoadDeckFromSourceAssets({}, ShuffleCooldownDuration, MaxActiveSequenceSize);
-		return;
-	}
-
-	const bool bUseTutorialOverride = WeaponDefinition->bUseFirstRunTutorialCombatDeckOverride
-		&& !WeaponDefinition->FirstRunTutorialCombatDeckOverride.IsEmpty();
-	const TArray<TObjectPtr<URuneDataAsset>>* SourceCards = bUseTutorialOverride
-		? &WeaponDefinition->FirstRunTutorialCombatDeckOverride
-		: GetDefaultWeaponDeckSource(WeaponDefinition);
-
-	TArray<URuneDataAsset*> SourceAssets;
-	CopyDeckSourceAssets(SourceCards, SourceAssets);
-
-	const bool bAppendTemporaryFinisher = !bUseTutorialOverride
-		|| !WeaponDefinition->bSuppressTemporaryFinisherDuringFirstRunTutorial;
-	LoadDeckFromSourceAssetsInternal(
-		SourceAssets,
-		WeaponDefinition->ShuffleCooldownDuration,
-		WeaponDefinition->MaxActiveSequenceSize,
-		bAppendTemporaryFinisher);
-}
-
-void UCombatDeckComponent::ApplyFirstRunTutorialCompletedDeck(const UWeaponDefinition* WeaponDefinition)
-{
-	if (!WeaponDefinition)
-	{
-		LoadDeckFromSourceAssets({}, ShuffleCooldownDuration, MaxActiveSequenceSize);
-		return;
-	}
-
-	const bool bUseCompletedOverride = WeaponDefinition->bUseFirstRunTutorialCompletedDeckOverride
-		&& !WeaponDefinition->FirstRunTutorialCompletedCombatDeckOverride.IsEmpty();
-	const TArray<TObjectPtr<URuneDataAsset>>* SourceCards = bUseCompletedOverride
-		? &WeaponDefinition->FirstRunTutorialCompletedCombatDeckOverride
-		: GetDefaultWeaponDeckSource(WeaponDefinition);
-
-	TArray<URuneDataAsset*> SourceAssets;
-	CopyDeckSourceAssets(SourceCards, SourceAssets);
-	LoadDeckFromSourceAssetsInternal(
-		SourceAssets,
-		WeaponDefinition->ShuffleCooldownDuration,
-		WeaponDefinition->MaxActiveSequenceSize,
-		!bUseCompletedOverride);
-}
-
 void UCombatDeckComponent::LoadDeckFromSourceAssets(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize)
 {
 	LoadDeckFromSourceAssetsInternal(SourceAssets, InShuffleCooldownDuration, InMaxActiveSequenceSize, true);

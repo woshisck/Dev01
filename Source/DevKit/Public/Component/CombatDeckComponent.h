@@ -273,12 +273,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
 	void LoadDeckFromWeapon(const UWeaponDefinition* WeaponDefinition);
 
-	UFUNCTION(BlueprintCallable, Category = "Combat Deck|First Run Tutorial")
-	void LoadDeckFromWeaponForFirstRunTutorial(const UWeaponDefinition* WeaponDefinition);
-
-	UFUNCTION(BlueprintCallable, Category = "Combat Deck|First Run Tutorial")
-	void ApplyFirstRunTutorialCompletedDeck(const UWeaponDefinition* WeaponDefinition);
-
 	void LoadDeckFromSourceAssets(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize);
 
 	void LoadDeckFromExactSourceAssets(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize);

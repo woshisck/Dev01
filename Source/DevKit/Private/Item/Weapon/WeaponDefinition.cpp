@@ -9,7 +9,6 @@
 #include "Engine/AssetManager.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
-#include "SaveGame/YogSaveSubsystem.h"
 
 namespace
 {
@@ -101,22 +100,7 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 
 	if (UCombatDeckComponent* CombatDeck = ReceivingChar ? ReceivingChar->CombatDeckComponent.Get() : nullptr)
 	{
-		const UYogSaveSubsystem* SaveSys = ReceivingChar && ReceivingChar->GetGameInstance()
-			? ReceivingChar->GetGameInstance()->GetSubsystem<UYogSaveSubsystem>()
-			: nullptr;
-		if (SaveSys && SaveSys->IsFirstRunTutorialActive())
-		{
-			CombatDeck->LoadDeckFromWeaponForFirstRunTutorial(this);
-		}
-		else if (SaveSys && SaveSys->IsFirstRunTutorialCompleted()
-			&& bUseFirstRunTutorialCompletedDeckOverride)
-		{
-			CombatDeck->ApplyFirstRunTutorialCompletedDeck(this);
-		}
-		else
-		{
-			CombatDeck->LoadDeckFromWeapon(this);
-		}
+		CombatDeck->LoadDeckFromWeapon(this);
 	}
 
 	if (UComboRuntimeComponent* ComboRuntime = ReceivingChar ? ReceivingChar->ComboRuntimeComponent.Get() : nullptr)

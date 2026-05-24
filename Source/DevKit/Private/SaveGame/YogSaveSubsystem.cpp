@@ -156,17 +156,6 @@ bool UYogSaveSubsystem::IsFirstRunTutorialActive() const
 	return bActive && !bCompleted;
 }
 
-bool UYogSaveSubsystem::IsFirstRunTutorialCompleted() const
-{
-	if (!CurrentSaveGame)
-	{
-		return false;
-	}
-
-	const FGameplayTag CompletedTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Completed"), false);
-	return CompletedTag.IsValid() && CurrentSaveGame->StoryFlags.FindRef(CompletedTag);
-}
-
 void UYogSaveSubsystem::MarkFirstRunTutorialCompleted()
 {
 	if (!CurrentSaveGame)
