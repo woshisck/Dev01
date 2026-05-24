@@ -192,6 +192,7 @@ EStoryEncounterActionKind ParseActionKind(const FString& Value)
 	if (Value.Equals(TEXT("SetQuestObjective"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::SetQuestObjective;
 	if (Value.Equals(TEXT("TeleportToNode"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::TeleportToNode;
 	if (Value.Equals(TEXT("PlayLevelFlow"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::PlayLevelFlow;
+	if (Value.Equals(TEXT("SetActorEnabled"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::SetActorEnabled;
 	if (Value.Equals(TEXT("TutorialPopup"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::TutorialPopup;
 	return EStoryEncounterActionKind::WeakHint;
 }
@@ -254,6 +255,9 @@ FStoryEncounterAction ParseAction(const TSharedPtr<FJsonObject>& Object)
 		Action.QuestTaskTag = FGameplayTag::RequestGameplayTag(FName(*QuestTaskTag), false);
 	}
 	Action.TargetNodeId = FName(*GetString(Object, TEXT("targetNodeId")));
+	Action.TargetActorName = FName(*GetString(Object, TEXT("targetActorName")));
+	Action.TargetActorTag = FName(*GetString(Object, TEXT("targetActorTag")));
+	Action.bActorEnabled = GetBool(Object, TEXT("actorEnabled"), GetBool(Object, TEXT("bActorEnabled"), true));
 	const FString LevelFlowPath = GetString(Object, TEXT("levelFlow"));
 	if (!LevelFlowPath.IsEmpty())
 	{

@@ -91,6 +91,7 @@ assert.ok(storyJs.includes('preservePanelScroll') && storyJs.includes('renderPoi
 assert.ok(storyCss.includes('.checkbox-row'), 'story editor should style boolean action toggles');
 assert.ok(storyCss.includes('.tutorial-pages-editor') && storyCss.includes('.tutorial-page-card'), 'story editor should style tutorial page editor cards');
 assert.ok(storyJs.includes('动作节点 ID') && storyJs.includes('复用 Key'), 'story editor should expose reusable action-node metadata');
+assert.ok(storyJs.includes('SetActorEnabled') && storyJs.includes('目标 Actor 名称') && storyJs.includes('启用关卡对象'), 'story editor should expose level actor show/hide story actions');
 assert.ok(storyJs.includes('collapsedPoints') && storyJs.includes('collapsedActions'), 'story editor should track collapsed point and action cards');
 assert.ok(storyJs.includes('pointCollapseKey') && storyJs.includes('actionCollapseKey'), 'story editor should use stable collapse keys');
 assert.ok(storyJs.includes('makeCollapseButton') && storyJs.includes('setCollapseButtonState'), 'story editor should use arrow collapse buttons without full list rerender');

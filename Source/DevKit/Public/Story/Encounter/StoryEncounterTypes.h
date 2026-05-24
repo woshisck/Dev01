@@ -47,6 +47,7 @@ enum class EStoryEncounterActionKind : uint8
 	SetQuestObjective UMETA(DisplayName = "设置目标"),
 	TeleportToNode UMETA(DisplayName = "跳到节点"),
 	PlayLevelFlow UMETA(DisplayName = "播放流程"),
+	SetActorEnabled UMETA(DisplayName = "设置关卡对象启用"),
 	TutorialPopup UMETA(DisplayName = "教程弹窗"),
 };
 
@@ -123,6 +124,15 @@ struct DEVKIT_API FStoryEncounterAction
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
 	FName TargetNodeId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|关卡对象")
+	FName TargetActorName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|关卡对象")
+	FName TargetActorTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|关卡对象")
+	bool bActorEnabled = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
 	TObjectPtr<ULevelFlowAsset> LevelFlow = nullptr;

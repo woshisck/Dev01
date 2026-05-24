@@ -53,6 +53,9 @@ const FIELD_HELP = {
   '页副文': '可选的补充说明，也会进入 YogCommonRichTextBlock。',
   '页插图': '可选插图资产路径或占位说明。后续生成教程 DA 时用于绑定 Illustration。',
   '关卡演出 / LevelFlow': '需要播放的关卡演出、镜头、刷怪、Portal 开启或其他 LevelFlow 事件名。',
+  '目标 Actor 名称': '关卡里要由剧情控制的 Actor 实例名。用于精确控制一个普通摆放对象，例如 WeaponSpawner_FirstRun_DemoSword。',
+  '目标 Actor Tag': '关卡里要由剧情控制的一组 Actor Tag。适合同时显示或隐藏多个对象，例如 Story.FirstRun.DemoWeapon。',
+  '启用关卡对象': '勾选表示显示并启用碰撞/Tick；取消勾选表示隐藏并禁用碰撞/Tick。用于剧情控制普通武器、门、提示物、装饰或其他关卡对象。',
   '正文 / 内容': '玩家看到的正文内容，例如底部操作提示、对话文本、提示框说明。WeakHint 会显示为底部居中的短提示条，可以写 <input action="Dash"/> 这类输入图标标签。',
   '区分键鼠/手柄正文': '默认关闭，动作只使用“正文 / 内容”。开启后才显示键鼠正文和手柄正文，并在运行时按当前输入设备选择对应正文。',
   '键鼠正文': '键鼠输入方式下显示的正文。可以写 <input action="Move"/> 这类 Yog Common UI Rich Text 输入标签，并补充 WASD 等键鼠说明。',
@@ -74,6 +77,7 @@ const ACTION_TYPES = [
   'SetQuestObjective',
   'TeleportToNode',
   'PlayLevelFlow',
+  'SetActorEnabled',
   'TutorialPopup'
 ];
 const CONDITION_TYPES = ['None', 'ProgressMissing', 'ProgressCompleted', 'RunCountAtLeast', 'FeatureUnlocked'];
@@ -98,6 +102,7 @@ const ACTION_TYPE_LABELS = {
   SetQuestObjective: '设置任务目标',
   TeleportToNode: '传送到节点',
   PlayLevelFlow: '播放关卡演出',
+  SetActorEnabled: '关卡对象启用/隐藏',
   TutorialPopup: '教程弹窗'
 };
 const CONDITION_TYPE_LABELS = {
@@ -958,6 +963,10 @@ function actionGraphDetail(action) {
   if (action?.type === 'RecordProgress') {
     return action.progressKey || '未填写进度 Key';
   }
+  if (action?.type === 'SetActorEnabled') {
+    const target = action.targetActorName || action.targetActorTag || '未填写关卡对象';
+    return `${target} -> ${action.actorEnabled === false ? '隐藏/禁用' : '显示/启用'}`;
+  }
   return action?.body || action?.levelFlow || action?.tutorialEventId || '未填写动作内容';
 }
 
@@ -993,6 +1002,11 @@ function actionStatus(action) {
     return action.targetNodeId
       ? { label: '已配置', className: 'is-ready' }
       : { label: '缺目标', className: 'is-warning' };
+  }
+  if (action?.type === 'SetActorEnabled') {
+    return (action.targetActorName || action.targetActorTag)
+      ? { label: action.actorEnabled === false ? '隐藏' : '启用', className: 'is-ready' }
+      : { label: '缺对象', className: 'is-warning' };
   }
   if (usesInputTextVariants(action)) {
     return (action.inputTextVariants?.keyboardMouse || action.inputTextVariants?.gamepad)
@@ -1576,6 +1590,9 @@ function renderAction(point, action, actionIndex, pointIndex, isSelected = false
       if (value === 'TutorialPopup') {
         action.tutorialPages = Array.isArray(action.tutorialPages) ? action.tutorialPages : [];
       }
+      if (value === 'SetActorEnabled' && action.actorEnabled === undefined) {
+        action.actorEnabled = true;
+      }
       setTimeout(renderPointsPreservingInspector, 0);
     })),
     field('标题', textInput(action.title, (value) => { action.title = value; }, '对话标题、提示标题或任务标题')),
@@ -1585,7 +1602,14 @@ function renderAction(point, action, actionIndex, pointIndex, isSelected = false
     field('教程事件 ID', comboInput(action.tutorialEventId, metadataValues('tutorials', 'name'), (value) => { action.tutorialEventId = value; }, '选择或填写教程事件 ID')),
     field('关卡演出 / LevelFlow', comboInput(action.levelFlow, metadataValues('levelFlows'), (value) => { action.levelFlow = value; }, '需要播放的 LevelFlow 资产或事件名'))
   );
-  if (action.type !== 'TutorialPopup') {
+  if (action.type === 'SetActorEnabled') {
+    grid.append(
+      field('目标 Actor 名称', textInput(action.targetActorName, (value) => { action.targetActorName = value; }, '例如 WeaponSpawner_FirstRun_DemoSword')),
+      field('目标 Actor Tag', textInput(action.targetActorTag, (value) => { action.targetActorTag = value; }, '例如 Story.FirstRun.DemoWeapon')),
+      field('启用关卡对象', checkboxInput(action.actorEnabled !== false, (checked) => { action.actorEnabled = checked; }, '勾选显示/启用；取消勾选隐藏/禁用'), true)
+    );
+  }
+  if (action.type !== 'TutorialPopup' && action.type !== 'SetActorEnabled') {
     grid.append(
       field('正文 / 内容', textArea(action.body, (value) => { action.body = value; }, '玩家看到的对话、浮窗、提示框正文'), true),
       field('区分键鼠/手柄正文', checkboxInput(useInputVariants, (checked) => {
@@ -1596,7 +1620,7 @@ function renderAction(point, action, actionIndex, pointIndex, isSelected = false
       }, '开启后按当前输入设备显示键鼠正文或手柄正文'), true)
     );
   }
-  if (action.type !== 'TutorialPopup' && useInputVariants) {
+  if (action.type !== 'TutorialPopup' && action.type !== 'SetActorEnabled' && useInputVariants) {
     grid.append(
       field('键鼠正文', textArea(action.inputTextVariants?.keyboardMouse, (value) => {
         action.inputTextVariants = action.inputTextVariants || {};

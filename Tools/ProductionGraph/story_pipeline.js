@@ -14,6 +14,7 @@ const ACTION_TYPES = new Set([
   'SetQuestObjective',
   'TeleportToNode',
   'PlayLevelFlow',
+  'SetActorEnabled',
   'TutorialPopup'
 ]);
 
@@ -165,17 +166,22 @@ function normalizeTutorialPage(page, index = 0) {
 function normalizeAction(action) {
   const normalized = cleanObject(action);
   const type = cleanString(normalized.type || normalized.Kind || normalized.kind, 'WeakHint');
+  const actionType = ACTION_TYPES.has(type) ? type : 'WeakHint';
   const inputTextVariants = cleanObject(normalized.inputTextVariants || normalized.InputTextVariants);
   const keyboardMouseText = cleanString(inputTextVariants.keyboardMouse || inputTextVariants.KeyboardMouse || normalized.keyboardMouseBody || normalized.KeyboardMouseBody);
   const gamepadText = cleanString(inputTextVariants.gamepad || inputTextVariants.Gamepad || normalized.gamepadBody || normalized.GamepadBody);
   const hasInputTextVariants = keyboardMouseText || gamepadText || Object.keys(inputTextVariants).length > 0;
   const rawUseInputTextVariants = normalized.useInputTextVariants ?? normalized.UseInputTextVariants ?? normalized.bUseInputTextVariants;
   const useInputTextVariants = cleanBool(rawUseInputTextVariants, Boolean(hasInputTextVariants));
+  const targetActorName = cleanString(normalized.targetActorName || normalized.TargetActorName);
+  const targetActorTag = cleanString(normalized.targetActorTag || normalized.TargetActorTag);
+  const rawActorEnabled = normalized.actorEnabled ?? normalized.ActorEnabled ?? normalized.bActorEnabled;
+  const hasActorControlFields = actionType === 'SetActorEnabled' || targetActorName || targetActorTag || rawActorEnabled !== undefined;
   return {
     ...normalized,
     actionId: cleanString(normalized.actionId || normalized.ActionId),
     reuseKey: cleanString(normalized.reuseKey || normalized.ReuseKey),
-    type: ACTION_TYPES.has(type) ? type : 'WeakHint',
+    type: actionType,
     title: cleanString(normalized.title || normalized.Title),
     body: cleanString(normalized.body || normalized.Body),
     ...(useInputTextVariants || rawUseInputTextVariants !== undefined ? { useInputTextVariants } : {}),
@@ -192,6 +198,11 @@ function normalizeAction(action) {
     featureTag: cleanString(normalized.featureTag || normalized.FeatureTag),
     questTaskTag: cleanString(normalized.questTaskTag || normalized.QuestTaskTag),
     targetNodeId: cleanString(normalized.targetNodeId || normalized.TargetNodeId),
+    ...(hasActorControlFields ? {
+      targetActorName,
+      targetActorTag,
+      actorEnabled: cleanBool(rawActorEnabled, true)
+    } : {}),
     levelFlow: cleanString(normalized.levelFlow || normalized.LevelFlow)
   };
 }
@@ -457,6 +468,9 @@ function validateSegments(segments, metadata = null) {
         if (action.type === 'SetQuestObjective' && !action.questTaskTag) {
           warnings.push(`${segment.storyId}.${point.nodeId}: SetQuestObjective missing questTaskTag`);
         }
+        if (action.type === 'SetActorEnabled' && !action.targetActorName && !action.targetActorTag) {
+          warnings.push(`${segment.storyId}.${point.nodeId}: SetActorEnabled missing targetActorName or targetActorTag`);
+        }
         if (action.type === 'TutorialPopup' && !action.tutorialEventId) {
           warnings.push(`${segment.storyId}.${point.nodeId}: TutorialPopup missing tutorialEventId; UE runtime looks up pages through TutorialRegistry`);
         }
@@ -525,6 +539,10 @@ function buildWorkloadMarkdown(manifest) {
         }
         if (action.type === 'SetQuestObjective') {
           lines.push(`| QuestTask | ${action.questTaskTag || `需要为 ${point.asset} 配置 QuestTaskTag`} | Narrative | todo |`);
+        }
+        if (action.type === 'SetActorEnabled') {
+          const target = action.targetActorName || action.targetActorTag || `需要为 ${point.asset} 配置 TargetActorName/TargetActorTag`;
+          lines.push(`| LevelActor | ${target} -> ${action.actorEnabled ? 'Enable/Show' : 'Disable/Hide'} | Level/Tech Design | todo |`);
         }
       }
     }

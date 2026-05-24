@@ -2,6 +2,7 @@
 
 #include "CommonInputSubsystem.h"
 #include "CommonInputTypeEnum.h"
+#include "EngineUtils.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
 #include "Story/Encounter/StoryEncounterMap.h"
@@ -70,6 +71,41 @@ FText ResolveInputAwareBody(const FStoryEncounterAction& Action, const FStoryEve
 	}
 
 	return Action.Body;
+}
+
+bool DoesActorMatchStoryTarget(const AActor* Actor, FName TargetActorName, FName TargetActorTag)
+{
+	if (!Actor)
+	{
+		return false;
+	}
+
+	if (!TargetActorName.IsNone())
+	{
+		if (Actor->GetFName() == TargetActorName || Actor->GetName().Equals(TargetActorName.ToString(), ESearchCase::IgnoreCase))
+		{
+			return true;
+		}
+	}
+
+	if (!TargetActorTag.IsNone() && Actor->ActorHasTag(TargetActorTag))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+void SetActorStoryEnabled(AActor* Actor, bool bEnabled)
+{
+	if (!Actor)
+	{
+		return;
+	}
+
+	Actor->SetActorHiddenInGame(!bEnabled);
+	Actor->SetActorEnableCollision(bEnabled);
+	Actor->SetActorTickEnabled(bEnabled);
 }
 }
 
@@ -213,6 +249,7 @@ bool UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(FName Encoun
 		OutStoryAction.LevelFlow = EncounterAction.LevelFlow;
 		return OutStoryAction.LevelFlow != nullptr;
 
+	case EStoryEncounterActionKind::SetActorEnabled:
 	case EStoryEncounterActionKind::TeleportToNode:
 	default:
 		return false;
@@ -257,9 +294,69 @@ bool UStoryEncounterRuntimeSubsystem::CanTriggerNode(FName EncounterId,
 	}
 }
 
+bool UStoryEncounterRuntimeSubsystem::ExecuteActorEnabledAction(
+	const FStoryEncounterAction& Action,
+	const FStoryEventContext& Context) const
+{
+	if (Action.TargetActorName.IsNone() && Action.TargetActorTag.IsNone())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StoryEncounter] SetActorEnabled skipped: no TargetActorName or TargetActorTag."));
+		return false;
+	}
+
+	UWorld* World = nullptr;
+	if (Context.SourceActor)
+	{
+		World = Context.SourceActor->GetWorld();
+	}
+	if (!World)
+	{
+		World = GetWorld();
+	}
+	if (!World)
+	{
+		return false;
+	}
+
+	int32 MatchedCount = 0;
+	for (TActorIterator<AActor> It(World); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (!DoesActorMatchStoryTarget(Actor, Action.TargetActorName, Action.TargetActorTag))
+		{
+			continue;
+		}
+
+		SetActorStoryEnabled(Actor, Action.bActorEnabled);
+		++MatchedCount;
+	}
+
+	if (MatchedCount <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StoryEncounter] SetActorEnabled found no actors. Name=%s Tag=%s Enabled=%d"),
+			*Action.TargetActorName.ToString(),
+			*Action.TargetActorTag.ToString(),
+			Action.bActorEnabled ? 1 : 0);
+		return false;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[StoryEncounter] SetActorEnabled Name=%s Tag=%s Enabled=%d Count=%d"),
+		*Action.TargetActorName.ToString(),
+		*Action.TargetActorTag.ToString(),
+		Action.bActorEnabled ? 1 : 0,
+		MatchedCount);
+	return true;
+}
+
 void UStoryEncounterRuntimeSubsystem::ExecuteEncounterAction(FName EncounterId,
 	const FStoryEncounterAction& Action, const FStoryEventContext& Context)
 {
+	if (Action.Kind == EStoryEncounterActionKind::SetActorEnabled)
+	{
+		ExecuteActorEnabledAction(Action, Context);
+		return;
+	}
+
 	UStoryEngineSubsystem* StoryEngine = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>()
 		: nullptr;

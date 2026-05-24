@@ -42,6 +42,7 @@ const segment = storyPipeline.normalizeSegment({
             { title: '记录', body: '遗圣目录已经开始记录。' }
           ]
         },
+        { type: 'SetActorEnabled', targetActorName: 'WeaponSpawner_FirstRun_DemoSword', actorEnabled: true },
         { type: 'RecordProgress', progressKey: 'wake_up_seen' }
       ],
       extra: { futureField: true }
@@ -79,5 +80,6 @@ assert.ok(exported.manifest.metadataFile, 'manifest should reference synced meta
 assert.equal(exported.manifest.validation.errors.length, 0, 'valid segment should not produce errors');
 assert.equal(exported.manifest.segments[0].extra.customNarrativeNote, 'keep me', 'extra fields should be preserved');
 assert.equal(exported.manifest.segments[0].points[0].actions[0].tutorialPages.length, 2, 'tutorial popup pages should be preserved');
+assert.equal(exported.manifest.segments[0].points[0].actions[1].targetActorName, 'WeaponSpawner_FirstRun_DemoSword', 'actor control target should be preserved');
 
 console.log('Story pipeline smoke passed');

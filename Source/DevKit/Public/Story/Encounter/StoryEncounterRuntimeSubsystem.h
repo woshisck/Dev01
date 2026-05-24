@@ -28,5 +28,6 @@ public:
 private:
 	bool CanTriggerNode(FName EncounterId, const FStoryEncounterNode& Node,
 		const FStoryEventContext& Context) const;
+	bool ExecuteActorEnabledAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
 	void ExecuteEncounterAction(FName EncounterId, const FStoryEncounterAction& Action, const FStoryEventContext& Context);
 };

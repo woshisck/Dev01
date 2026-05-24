@@ -382,6 +382,15 @@ TArray<FStoryEncounterWorkbenchMessage> FStoryEncounterEditorModel::Validate(
 					}
 					break;
 
+				case EStoryEncounterActionKind::SetActorEnabled:
+					if (Action.TargetActorName.IsNone() && Action.TargetActorTag.IsNone())
+					{
+						AddWorkbenchMessage(Messages, EStoryEncounterWorkbenchMessageSeverity::Error,
+							FString::Printf(TEXT("%s 是关卡对象控制，但没有填写 TargetActorName 或 TargetActorTag。"), *Prefix),
+							EncounterMap, NAME_None, EncounterMap->EncounterId, Node.NodeId);
+					}
+					break;
+
 				default:
 					break;
 				}
@@ -822,6 +831,8 @@ FString FStoryEncounterEditorModel::ActionKindToChinese(EStoryEncounterActionKin
 		return TEXT("跳到节点");
 	case EStoryEncounterActionKind::PlayLevelFlow:
 		return TEXT("播放流程");
+	case EStoryEncounterActionKind::SetActorEnabled:
+		return TEXT("关卡对象控制");
 	default:
 		return TEXT("未知");
 	}
@@ -890,6 +901,20 @@ FString FStoryEncounterEditorModel::DescribeAction(FName EncounterId, const FSto
 		return FString::Printf(TEXT("%s：%s"), *KindText, *Action.TargetNodeId.ToString());
 	case EStoryEncounterActionKind::PlayLevelFlow:
 		return FString::Printf(TEXT("%s：%s"), *KindText, Action.LevelFlow ? *Action.LevelFlow->GetName() : TEXT("-"));
+	case EStoryEncounterActionKind::SetActorEnabled:
+	{
+		const FString NamePart = Action.TargetActorName.IsNone()
+			? FString()
+			: FString::Printf(TEXT("Name=%s "), *Action.TargetActorName.ToString());
+		const FString TagPart = Action.TargetActorTag.IsNone()
+			? FString()
+			: FString::Printf(TEXT("Tag=%s"), *Action.TargetActorTag.ToString());
+		return FString::Printf(TEXT("%s：%s%s -> %s"),
+			*KindText,
+			*NamePart,
+			*TagPart,
+			Action.bActorEnabled ? TEXT("启用") : TEXT("隐藏/禁用"));
+	}
 	default:
 		return KindText;
 	}
