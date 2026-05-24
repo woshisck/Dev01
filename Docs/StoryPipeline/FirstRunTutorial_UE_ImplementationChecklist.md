@@ -52,7 +52,10 @@ Details 面板填写：
 Details 面板填写：
 
 - `Weapon Definition` = 首局演示武器 DA，例如 `DA_Weapon_FirstRun_DemoSword`
-- 不填写 `Story Encounter|Pickup`
+- 清空 `Story Encounter|Pickup` 相关字段：
+  - `PickupEncounterPoint`
+  - `PickupEncounterGraph`
+  - `PickupEncounterNodeId`
 
 打开首局演示武器 DA：
 
@@ -93,12 +96,16 @@ Details 面板填写：
 
 ### 1.5 木人桩
 
-在武器区域附近放置训练木人桩 Actor：
+在武器区域附近放置现有训练 Dummy：
 
-- Actor Name：`BP_TutorialTrainingDummy` 或 `TutorialTrainingDummy`
+- Blueprint：`/Game/Code/Characters/B_EnemyDummy`
+- Actor Name：`B_EnemyDummy_Tutorial`
+- Character/Data 资产如需手动指定，使用：`/Game/Docs/Data/Character/DA_Char_Dummy`
 
 配置要求：
 
+- 不需要新建 `TutorialTrainingDummy` C++ 类。
+- 默认走现有 EnemyBase / EnemyDummy 体系即可。
 - 生命值足够玩家练习 1 到 2 轮攻击。
 - 放在玩家拾取武器后自然会攻击的位置。
 - 木人桩死亡后需要生成或启用重击卡奖励。
