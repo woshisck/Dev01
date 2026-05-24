@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-23T14:41:12.651Z",
+  "generatedAt": "2026-05-24T04:33:50.225Z",
   "metadataFile": "Docs/StoryPipeline/Metadata/project_assets.json",
   "segments": [
     {
@@ -29,7 +29,7 @@
           "key": "Story.Flag.FirstRunTutorial.Completed",
           "initialValue": false,
           "scope": "Save",
-          "description": "玩家死亡回主城并获得教程完成卡组后写入。"
+          "description": "玩家死亡回主城并完成 Demo 首局教程后写入。"
         },
         {
           "key": "Story.Flag.FirstRunTutorial.DemoOnly",
@@ -40,14 +40,14 @@
       ],
       "keyItems": [
         {
-          "id": "tutorial_weapon",
-          "displayName": "教程武器",
+          "id": "first_run_demo_weapon",
+          "displayName": "首局演示武器",
           "kind": "Weapon",
           "grantsDeck": [
             "攻击",
             "攻击"
           ],
-          "note": "新档首局主城拾取，作为 1D 卡组教学入口。"
+          "note": "新档首局主城拾取的普通武器 DA；卡组仍由武器自身 InitialCombatDeck 提供。"
         },
         {
           "id": "card_attack",
@@ -117,7 +117,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             },
             {
               "type": "RecordProgress",
@@ -133,7 +136,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
@@ -186,6 +192,28 @@
               "inputTextVariants": {},
               "actionId": "",
               "reuseKey": "",
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
+            },
+            {
+              "type": "SetActorEnabled",
+              "title": "显示首局武器",
+              "body": "",
+              "tutorialEventId": "",
+              "pauseGame": true,
+              "progressKey": "",
+              "progressLabel": "",
+              "featureTag": "",
+              "questTaskTag": "",
+              "targetNodeId": "",
+              "targetActorName": "WeaponSpawner_FirstRun_DemoSword",
+              "targetActorTag": "Story.FirstRun.DemoWeapon",
+              "actorEnabled": true,
+              "levelFlow": "",
+              "actionId": "show_first_run_demo_weapon",
+              "reuseKey": "LevelActor.FirstRun.DemoWeapon.Show",
               "tutorialPages": []
             },
             {
@@ -202,11 +230,14 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
-            "stageDirection": "移动 Trigger 后 6-10 米放置第二个 Trigger；使用底部居中的 WBP_InfoPopup / InfoPopupWidget 操作提示条，表现参考用户截图中的底部操作提示条。正文必须使用 YogCommonRichTextBlock + InputActionRichTextDecorator，避免写死键鼠或手柄按键。",
+            "stageDirection": "移动 Trigger 后 6-10 米放置第二个 Trigger；使用底部居中的 WBP_InfoPopup / InfoPopupWidget 操作提示条，表现参考用户截图中的底部操作提示条。正文必须使用 YogCommonRichTextBlock + InputActionRichTextDecorator，避免写死键鼠或手柄按键。冲刺提示完成后，通过剧情动作显示首局演示武器 Actor；该 Actor 是普通 BP_WeaponSpawner，不需要教程专用 Spawner 逻辑。",
             "implementation": {
               "textWidget": "YogCommonRichTextBlock",
               "inputDecorator": "InputActionRichTextDecorator",
@@ -224,12 +255,12 @@
         {
           "nodeId": "weapon_pickup_prompt",
           "asset": "EP_FirstRun_WeaponPickupPrompt",
-          "displayName": "拾取教程武器",
+          "displayName": "拾取首局演示武器",
           "kind": "Object",
-          "playerFacingEvent": "玩家接近发光武器后看到拾取提示，拾取后获得武器和默认卡组 [攻击][攻击]。",
+          "playerFacingEvent": "玩家接近主城中放置的普通武器，看到拾取提示；拾取后武器自身 InitialCombatDeck 提供 [攻击][攻击]。",
           "firePolicy": "Once",
           "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
-          "placementName": "WeaponSpawner_Tutorial",
+          "placementName": "WeaponSpawner_FirstRun_DemoSword",
           "condition": {
             "kind": "ProgressCompleted",
             "progressKey": "first_run.hub_dash_hint",
@@ -242,7 +273,7 @@
               "type": "TutorialPopup",
               "tutorialEventId": "tutorial_weapon_pickup",
               "title": "拾取武器",
-              "body": "靠近发光武器，按下 <input action=\"Interact\"/> 拾取。武器会装备到角色身上，并将武器携带的卡组加入玩家牌库。",
+              "body": "靠近发光武器，按下 <input action=\"Interact\"/> 拾取。武器会装备到角色身上；这把武器自身配置的 InitialCombatDeck 会把 [攻击][攻击] 加入 1D 卡组。",
               "pauseGame": true,
               "progressKey": "",
               "progressLabel": "",
@@ -252,12 +283,15 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             },
             {
               "type": "RecordProgress",
               "progressKey": "first_run.weapon_picked",
-              "progressLabel": "已拾取教程武器",
+              "progressLabel": "已拾取首局演示武器",
               "title": "",
               "body": "",
               "tutorialEventId": "",
@@ -268,18 +302,24 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
-            "stageDirection": "武器点需要发光轮廓和交互提示。拾取提示、教程弹窗正文和武器交互提示都必须使用 YogCommonRichTextBlock + InputActionRichTextDecorator；拾取输入统一写 <input action=\"Interact\"/>，不要写死 [E]。拾取瞬间播放短 UI 提示：武器入手、卡组条出现。",
+            "stageDirection": "放置普通 BP_WeaponSpawner，Actor 名称建议为 WeaponSpawner_FirstRun_DemoSword，并添加 Actor Tag：Story.FirstRun.DemoWeapon。拾取提示、教程弹窗正文和武器交互提示都必须使用 YogCommonRichTextBlock + InputActionRichTextDecorator；拾取输入统一写 <input action=\"Interact\"/>，不要写死 [E]。拾取瞬间播放短 UI 提示：武器入手、卡组条出现。",
             "implementation": {
-              "grantWeapon": "tutorial_weapon",
-              "initialDeck": [
+              "grantWeapon": "DA_Weapon_FirstRun_DemoSword",
+              "weaponDeckSource": "WeaponDefinition.InitialCombatDeck",
+              "expectedInitialCombatDeck": [
                 "攻击",
                 "攻击"
               ],
-              "requiredActor": "WeaponSpawner_Tutorial",
+              "requiredActor": "WeaponSpawner_FirstRun_DemoSword",
+              "requiredActorTag": "Story.FirstRun.DemoWeapon",
+              "placementPolicy": "使用普通 BP_WeaponSpawner 和普通 WeaponDefinition；不要添加教程专用 Spawner 或首局教程专用卡组覆盖字段。",
               "textWidget": "YogCommonRichTextBlock",
               "inputDecorator": "InputActionRichTextDecorator",
               "inputDecoratorActions": [
@@ -320,7 +360,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             },
             {
               "type": "RecordProgress",
@@ -336,14 +379,31 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
-            "stageDirection": "CombatDeckBar 监听 OnDeckCardsEntered：每次有卡进入 1D 卡组时播放一次 0.25s 渐入、0.65s 保持、0.35s 渐出高亮。首次高亮后追加打开背包底部操作提示条，正文必须使用 <input action=\"OpenBackpack\"/>，不要写死 Tab/View。",
+            "stageDirection": "CombatDeckBar 监听 OnDeckCardsEntered：每次有卡进入 1D 卡组时播放一次 C++ 驱动高亮，默认 0.1s 渐入、0.2s 保持、0.15s 渐出。首次高亮后追加打开背包底部操作提示条，正文必须使用 <input action=\"OpenBackpack\"/>，不要写死 Tab/View。",
             "implementation": {
               "uiTarget": "WBP_CombatDeckBar",
-              "animation": "Anim_DeckSlotPulse_FadeInOut",
+              "animation": "CodeDrivenDeckEntryHighlight",
+              "highlightTiming": {
+                "fadeIn": 0.1,
+                "hold": 0.2,
+                "fadeOut": 0.15,
+                "peakScale": 1.035,
+                "peakOpacity": 1
+              },
+              "editableParameters": [
+                "EntryHighlightFadeInDuration",
+                "EntryHighlightHoldDuration",
+                "EntryHighlightFadeOutDuration",
+                "EntryHighlightPeakScale",
+                "EntryHighlightPeakOpacity"
+              ],
               "repeatForEveryCardEnter": true,
               "textWidget": "YogCommonRichTextBlock",
               "inputDecorator": "InputActionRichTextDecorator",
@@ -410,7 +470,10 @@
                   "subText": "顺序会影响卡牌触发时机。之后获得连携卡时，顺序还会影响它能连接到哪张卡。",
                   "illustration": "/Game/Docs/UI/TutorialTex/512/T_Tutorial512_CardSort"
                 }
-              ]
+              ],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             },
             {
               "type": "RecordProgress",
@@ -426,7 +489,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
@@ -480,7 +546,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             },
             {
               "type": "RecordProgress",
@@ -496,7 +565,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
@@ -563,7 +635,10 @@
                   "subText": "",
                   "illustration": ""
                 }
-              ]
+              ],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             },
             {
               "type": "RecordProgress",
@@ -579,7 +654,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
@@ -638,7 +716,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             },
             {
               "type": "RecordProgress",
@@ -654,7 +735,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
@@ -710,7 +794,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
@@ -768,7 +855,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             },
             {
               "type": "RecordProgress",
@@ -784,7 +874,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
@@ -870,7 +963,10 @@
                   "subText": "方向决定读取哪一侧，顺序决定那一侧是谁。具体效果以卡牌说明为准。",
                   "illustration": "/Game/Docs/UI/TutorialTex/512/T_Tutorial512_LinkCard"
                 }
-              ]
+              ],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             },
             {
               "type": "RecordProgress",
@@ -886,7 +982,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
@@ -944,7 +1043,10 @@
               "levelFlow": "",
               "actionId": "transition_room_01_record",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
@@ -992,7 +1094,10 @@
               "levelFlow": "",
               "actionId": "transition_room_02_record",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             },
             {
               "type": "RecordProgress",
@@ -1008,7 +1113,10 @@
               "levelFlow": "",
               "actionId": "transition_rooms_finished_record",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
@@ -1076,7 +1184,10 @@
                   "subText": "不同终结技卡牌的需求可能不同，按卡牌说明和 HUD 提示执行。",
                   "illustration": ""
                 }
-              ]
+              ],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             },
             {
               "type": "RecordProgress",
@@ -1092,7 +1203,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
@@ -1146,7 +1260,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             },
             {
               "type": "RecordProgress",
@@ -1162,7 +1279,10 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
@@ -1184,7 +1304,7 @@
           "asset": "EP_FirstRun_ReturnHubNormalRunStart",
           "displayName": "回主城并进入后续体验",
           "kind": "System",
-          "playerFacingEvent": "玩家回到主城，首局教程完成；武器初始卡组固定为 [攻击][攻击][月光][武器终结技]，后续进入正常体验。",
+          "playerFacingEvent": "玩家回到主城，首局教程完成；后续体验使用正常随机流程和正常武器配置。",
           "firePolicy": "Once",
           "placementLevel": "System",
           "placementName": "ReturnToHub_AfterFirstRunTutorial",
@@ -1200,7 +1320,7 @@
               "type": "TutorialPopup",
               "tutorialEventId": "tutorial_first_run_completed",
               "title": "新的循环开始",
-              "body": "你回到主城。初始卡组已固定为 [攻击][攻击][月光][武器终结技]。Demo 首局教程结束，之后可以开始正常体验。",
+              "body": "你回到主城。首局教程已完成；后续将进入正常的随机流程。接下来出现的武器会使用它自己的默认卡组。",
               "pauseGame": true,
               "progressKey": "",
               "progressLabel": "",
@@ -1210,6 +1330,47 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
+            },
+            {
+              "type": "SetActorEnabled",
+              "title": "隐藏首局武器",
+              "body": "",
+              "tutorialEventId": "",
+              "pauseGame": true,
+              "progressKey": "",
+              "progressLabel": "",
+              "featureTag": "",
+              "questTaskTag": "",
+              "targetNodeId": "",
+              "targetActorName": "WeaponSpawner_FirstRun_DemoSword",
+              "targetActorTag": "Story.FirstRun.DemoWeapon",
+              "actorEnabled": false,
+              "levelFlow": "",
+              "actionId": "hide_first_run_demo_weapon",
+              "reuseKey": "LevelActor.FirstRun.DemoWeapon.Hide",
+              "tutorialPages": []
+            },
+            {
+              "type": "SetActorEnabled",
+              "title": "显示正常流程武器",
+              "body": "",
+              "tutorialEventId": "",
+              "pauseGame": true,
+              "progressKey": "",
+              "progressLabel": "",
+              "featureTag": "",
+              "questTaskTag": "",
+              "targetNodeId": "",
+              "targetActorName": "WeaponSpawner_MainRun_StartWeapon",
+              "targetActorTag": "Story.MainRun.StartWeapon",
+              "actorEnabled": true,
+              "levelFlow": "",
+              "actionId": "show_main_run_start_weapon",
+              "reuseKey": "LevelActor.MainRun.StartWeapon.Show",
               "tutorialPages": []
             },
             {
@@ -1226,20 +1387,21 @@
               "levelFlow": "",
               "actionId": "",
               "reuseKey": "",
-              "tutorialPages": []
+              "tutorialPages": [],
+              "targetActorName": "",
+              "targetActorTag": "",
+              "actorEnabled": true
             }
           ],
           "extra": {
-            "stageDirection": "回主城时写入 Completed，清除 Active。初始化武器默认卡组为 [攻击][攻击][月光][武器终结技]，开放后续 Demo 正常流程入口。",
+            "stageDirection": "回主城时写入 Completed，清除 Active。隐藏首局演示武器放置点，显示正常流程武器放置点；正常流程仍由 DA_Campaign_MainRun 驱动。",
             "implementation": {
               "saveFlagOff": "Story.Flag.FirstRunTutorial.Active",
               "saveFlagOn": "Story.Flag.FirstRunTutorial.Completed",
-              "startingDeckAfterTutorial": [
-                "攻击",
-                "攻击",
-                "月光",
-                "武器终结技"
-              ]
+              "hideActor": "WeaponSpawner_FirstRun_DemoSword",
+              "showActor": "WeaponSpawner_MainRun_StartWeapon",
+              "normalWeaponDeckSource": "Normal WeaponDefinition.InitialCombatDeck",
+              "campaignAfterTutorial": "/Game/Docs/Map/DA_Campaign_MainRun"
             }
           }
         }
@@ -1250,7 +1412,7 @@
           "type": "System",
           "title": "新存档入口写入 FirstRunTutorial.Active，并加载教程 Campaign",
           "owner": "Tech Design",
-          "status": "done"
+          "status": "todo"
         },
         {
           "id": "WI_FirstRun_HubTriggers",
@@ -1278,7 +1440,7 @@
           "type": "UI",
           "title": "CombatDeckBar 增加 OnDeckCardsEntered 渐入渐出高亮，首次入组追加 <input action=\"OpenBackpack\"/> 打开背包底部操作提示条",
           "owner": "UI",
-          "status": "partial"
+          "status": "todo"
         },
         {
           "id": "WI_FirstRun_RewardPickupTypes",
@@ -1324,9 +1486,9 @@
         },
         {
           "id": "WI_FirstRun_ReturnHubDeck",
-          "type": "Save/Deck",
-          "title": "教程完成回主城后设置默认卡组 [攻击][攻击][月光][武器终结技]，并写入 Completed",
-          "owner": "Gameplay",
+          "type": "LevelActor/DataAsset",
+          "title": "教程完成回主城后隐藏首局演示武器，显示正常流程武器；正常武器卡组由自身 InitialCombatDeck 决定",
+          "owner": "Level Design/Gameplay",
           "status": "todo"
         },
         {
@@ -1334,21 +1496,21 @@
           "type": "UI",
           "title": "所有教程类按键提示统一使用 YogCommonRichTextBlock / InputActionRichTextDecorator：Move、CameraLook、Dash、Interact、OpenBackpack、MouseClick、LightAttack、HeavyAttack、ReverseCard，不写死 E/Space/Tab/H/R 或手柄键名",
           "owner": "UI",
-          "status": "done"
+          "status": "todo"
         },
         {
           "id": "WI_FirstRun_FinisherQTERichText",
           "type": "UI",
           "title": "WBP_FinisherQTEPrompt 的输入提示改为 YogCommonRichTextBlock / InputActionRichTextDecorator，终结技确认显示 <input action=\"HeavyAttack\"/>，不要写死 H",
           "owner": "UI",
-          "status": "done"
+          "status": "todo"
         },
         {
           "id": "WI_FirstRun_ReverseCardInputToken",
           "type": "Input/UI",
           "title": "新增或确认反转卡牌输入 token：建议 <input action=\"ReverseCard\"/>，用于后续月光/连携卡教程；不要在正文里写死 R 或手柄 X",
           "owner": "Input/UI",
-          "status": "done"
+          "status": "todo"
         }
       ],
       "extra": {
@@ -1408,7 +1570,8 @@
           "HeavyAttack": "重攻击。用于重击卡、终结技确认和重攻击教学。",
           "ReverseCard": "待新增或确认：反转卡牌输入，用于切换连携卡正向/反向。",
           "MouseClick": "鼠标点击/拖拽输入。用于背包卡组排序说明。"
-        }
+        },
+        "weaponDeckPolicy": "武器只使用普通 WeaponDefinition.InitialCombatDeck；首局教程通过剧情 SetActorEnabled 控制普通 BP_WeaponSpawner 的显示/隐藏，不使用教程专用卡组覆盖字段或教程专用 Spawner。"
       }
     }
   ],

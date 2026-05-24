@@ -25,7 +25,7 @@
 | --- | --- | --- | --- | --- |
 | `EP_FirstRun_HubMoveHint` | `hub_move_hint` | 主城移动底部操作提示条 | Area | /Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom / Trigger_Tutorial_Move |
 | `EP_FirstRun_HubDashHint` | `hub_dash_hint` | 主城冲刺底部操作提示条 | Area | /Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom / Trigger_Tutorial_Dash |
-| `EP_FirstRun_WeaponPickupPrompt` | `weapon_pickup_prompt` | 拾取教程武器 | Object | /Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom / WeaponSpawner_Tutorial |
+| `EP_FirstRun_WeaponPickupPrompt` | `weapon_pickup_prompt` | 拾取首局演示武器 | Object | /Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom / WeaponSpawner_FirstRun_DemoSword |
 | `EP_FirstRun_DeckEnterHighlight` | `deck_enter_highlight` | 1D 卡组进卡高亮 | Feature | Any / WBP_CombatDeckBar.OnDeckCardsEntered |
 | `EP_FirstRun_BackpackCardRules` | `backpack_card_rules` | 背包内卡牌规则教学 | Feature | /Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom / Backpack_FirstOpen |
 | `EP_FirstRun_TrainingDummyCombo` | `training_dummy_combo` | 木人桩攻击与连招练习 | Object | /Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom / BP_TutorialTrainingDummy |
@@ -42,8 +42,8 @@
 
 ## 状态与关键道具
 
-- States: {"key":"Story.Flag.FirstRunTutorial.Active","initialValue":true,"scope":"Save","description":"新存档进入 Demo 首局教程时写入。"}, {"key":"Story.Flag.FirstRunTutorial.Completed","initialValue":false,"scope":"Save","description":"玩家死亡回主城并获得教程完成卡组后写入。"}, {"key":"Story.Flag.FirstRunTutorial.DemoOnly","initialValue":true,"scope":"Build","description":"Main_Tutorial_Demo 分组仅用于 Demo 阶段制作和验证。"}
-- KeyItems: {"id":"tutorial_weapon","displayName":"教程武器","kind":"Weapon","grantsDeck":["攻击","攻击"],"note":"新档首局主城拾取，作为 1D 卡组教学入口。"}, {"id":"card_attack","displayName":"攻击","kind":"CombatCard","note":"默认基础攻击卡。"}, {"id":"card_heavy","displayName":"重击","kind":"CombatCard","note":"木人桩掉落的第一张新卡，教学击退、额外伤害、重攻击追加减速。"}, {"id":"card_split","displayName":"分裂","kind":"CombatCard","note":"第二战斗房三选一卡之一，用于提示后续卡牌变化。"}, {"id":"card_moonlight","displayName":"月光","kind":"LinkCard","note":"蓝雾特殊敌人掉落的第一张连携卡。"}, {"id":"card_weapon_finisher","displayName":"武器终结技","kind":"FinisherCard","note":"祈祷室献祭获得，教程结束后进入默认初始卡组。"}
+- States: {"key":"Story.Flag.FirstRunTutorial.Active","initialValue":true,"scope":"Save","description":"新存档进入 Demo 首局教程时写入。"}, {"key":"Story.Flag.FirstRunTutorial.Completed","initialValue":false,"scope":"Save","description":"玩家死亡回主城并完成 Demo 首局教程后写入。"}, {"key":"Story.Flag.FirstRunTutorial.DemoOnly","initialValue":true,"scope":"Build","description":"Main_Tutorial_Demo 分组仅用于 Demo 阶段制作和验证。"}
+- KeyItems: {"id":"first_run_demo_weapon","displayName":"首局演示武器","kind":"Weapon","grantsDeck":["攻击","攻击"],"note":"新档首局主城拾取的普通武器 DA；卡组仍由武器自身 InitialCombatDeck 提供。"}, {"id":"card_attack","displayName":"攻击","kind":"CombatCard","note":"默认基础攻击卡。"}, {"id":"card_heavy","displayName":"重击","kind":"CombatCard","note":"木人桩掉落的第一张新卡，教学击退、额外伤害、重攻击追加减速。"}, {"id":"card_split","displayName":"分裂","kind":"CombatCard","note":"第二战斗房三选一卡之一，用于提示后续卡牌变化。"}, {"id":"card_moonlight","displayName":"月光","kind":"LinkCard","note":"蓝雾特殊敌人掉落的第一张连携卡。"}, {"id":"card_weapon_finisher","displayName":"武器终结技","kind":"FinisherCard","note":"祈祷室献祭获得，教程结束后进入默认初始卡组。"}
 
 ## 工作量
 
@@ -58,7 +58,7 @@
 - [ ] VFX/Gameplay: 指定敌人附加蓝色周身雾效，死亡掉落 [月光] 连携卡
 - [ ] Gameplay: 祈祷室祭坛支持献祭一张卡并授予 [武器终结技]
 - [ ] LevelFlow: 终结技教程后启动无限刷敌、锁定失败流程，死亡后只显示“回归主城”选项
-- [ ] Save/Deck: 教程完成回主城后设置默认卡组 [攻击][攻击][月光][武器终结技]，并写入 Completed
+- [ ] LevelActor/DataAsset: 教程完成回主城后隐藏首局演示武器，显示正常流程武器；正常武器卡组由自身 InitialCombatDeck 决定
 - [ ] UI: 所有教程类按键提示统一使用 YogCommonRichTextBlock / InputActionRichTextDecorator：Move、CameraLook、Dash、Interact、OpenBackpack、MouseClick、LightAttack、HeavyAttack、ReverseCard，不写死 E/Space/Tab/H/R 或手柄键名
 - [ ] UI: WBP_FinisherQTEPrompt 的输入提示改为 YogCommonRichTextBlock / InputActionRichTextDecorator，终结技确认显示 <input action="HeavyAttack"/>，不要写死 H
 - [ ] Input/UI: 新增或确认反转卡牌输入 token：建议 <input action="ReverseCard"/>，用于后续月光/连携卡教程；不要在正文里写死 R 或手柄 X

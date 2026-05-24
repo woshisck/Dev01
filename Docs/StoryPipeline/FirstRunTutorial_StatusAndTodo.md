@@ -13,7 +13,9 @@
   - `Rune`：继续走现有卡牌选择 UI。
   - `Gold`：拾取后直接写入背包金币。
   - `Material`：拾取后写入指定 `MetaCurrencyTag`；未指定 tag 时按占位材料拾取处理。
-- `CombatDeckComponent` 增加 `OnDeckCardsEntered`，`CombatDeckBarWidget` 增加 `BP_OnDeckCardsEntered`，可用于 1D 卡组进卡高亮。
+- `CombatDeckComponent` 增加 `OnDeckCardsEntered`，`CombatDeckBarWidget` 已用 C++ 实现 1D 卡组进卡高亮；`BP_OnDeckCardsEntered` 只作为可选蓝图扩展点。
+  - 默认时间：0.1s 渐入、0.2s 保持、0.15s 渐出。
+  - 可调参数：`EntryHighlightFadeInDuration`、`EntryHighlightHoldDuration`、`EntryHighlightFadeOutDuration`、`EntryHighlightPeakScale`、`EntryHighlightPeakOpacity`。
 - loading 图已改为 `imagegen` 生成的真实位图，不再使用程序绘制/SVG 风格占位。
   - 源图：`SourceArt/UI/Loading/T_FirstRunTutorial_Loading.png`
   - UE 资产：`/Game/UI/Loading/T_FirstRunTutorial_Loading`
@@ -31,7 +33,7 @@
   - 木人桩死亡后的单卡奖励掉落点
   - 教程传送门
 - 配置教程武器 `WeaponDefinition.InitialCombatDeck = [攻击, 攻击]`。
-- 在 `WBP_CombatDeckBar` 或对应蓝图中实现 `BP_OnDeckCardsEntered` 的渐入/渐出高亮表现。
+- 打开 `WBP_CombatDeckBar`，确认 `DeckEntryHighlightPanel` 存在，并按观感微调 C++ 暴露的 Entry Highlight 参数。
 - 配置教程房间 `RoomDataAsset`：
   - 第一战斗房：金币固定奖励。
   - 第二战斗房：固定三选一卡牌 `[攻击, 重击, 分裂]`，指定 Portal。
@@ -42,4 +44,3 @@
 - 配置无限刷敌失败房，并在玩家死亡后显示回归主城选项。
 - 配置教程完成后回主城的最终卡组 `[攻击, 攻击, 月光, 武器终结技]`。
 - 修复或确认项目已有缺失资源 `/Game/SlashTrailElemental/Niagara/SlashTrail/NS_SlashTrail_Dark`；它会导致 Commandlet 进程返回失败码，但不影响 loading 图导入结果。
-

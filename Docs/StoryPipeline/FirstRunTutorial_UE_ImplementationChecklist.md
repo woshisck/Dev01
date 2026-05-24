@@ -44,19 +44,21 @@
 
 打开：`/Game/Docs/Map/DA_Campaign_Tutorial`
 
-建议把 Demo 首局教程整理成以下顺序：
+注意：`DA_Campaign_Tutorial` 当前只有全局 `RoomPool`、`FloorTable`、`DefaultStartingRoom` 等字段，没有“每一层固定目标 RoomData”的表格字段。下面这张表是首局教程的目标路线，不是要求你在 Campaign DA 里逐行填写目标 RoomData。
 
-| 顺序 | 目标 RoomData | 目的 | 检查点 |
-| --- | --- | --- | --- |
-| 0 | `/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom` | 主城教程 | Hub、武器、木人桩、Portal |
-| 1 | `/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01a` | 第一战斗房 | 无 Buff、金币奖励 |
-| 2 | `/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01b` | 第二战斗房 | 敌人 Buff、三选一卡 |
-| 3 | `/Game/Docs/Map/DA_L1_Room/DA_Room_CL_WaterDungeon` | 月光房 | 蓝雾敌人、月光掉落 |
-| 4 | 任意普通房 A | 过渡房 1 | 金币/材料，不弹提示 |
-| 5 | 任意普通房 B | 过渡房 2 | 金币/材料，结束后进祈祷室 |
-| 6 | `/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom` | 祈祷室 | 献祭、终结技、无限刷敌 |
+建议把 Demo 首局教程目标路线整理成以下顺序：
 
-当前代码已支持运行时 Campaign 选择：`B_GameMode.CampaignData` 指向 `/Game/Docs/Map/DA_Campaign_MainRun`，`B_GameMode.FirstRunTutorialCampaignData` 指向 `/Game/Docs/Map/DA_Campaign_Tutorial`。首局教程 Active 时自动使用 Tutorial，完成后回到 MainRun。`DA_Campaign_Tutorial` 仍需要检查是否继续复用旧阶段 Tag，或改成上面这条 Demo 首局链路；房间顺序优先用 RoomData 的 `PortalDestinations` 和 `bForceSinglePortal` 串起来。
+| 顺序  | 目标 RoomData                                                  | 目的    | 检查点               |
+| --- | ------------------------------------------------------------ | ----- | ----------------- |
+| 0   | `/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom`           | 主城教程  | Hub、武器、木人桩、Portal |
+| 1   | `/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01a`          | 第一战斗房 | 无 Buff、金币奖励       |
+| 2   | `/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01b`          | 第二战斗房 | 敌人 Buff、三选一卡      |
+| 3   | `/Game/Docs/Map/DA_L1_Room/DA_Room_CL_WaterDungeon`          | 月光房   | 蓝雾敌人、月光掉落         |
+| 4   | 任意普通房 A                                                      | 过渡房 1 | 金币/材料，不弹提示        |
+| 5   | 任意普通房 B                                                      | 过渡房 2 | 金币/材料，结束后进祈祷室     |
+| 6   | `/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom` | 祈祷室   | 献祭、终结技、无限刷敌       |
+
+当前代码已支持运行时 Campaign 选择：`B_GameMode.CampaignData` 指向 `/Game/Docs/Map/DA_Campaign_MainRun`，`B_GameMode.FirstRunTutorialCampaignData` 指向 `/Game/Docs/Map/DA_Campaign_Tutorial`。首局教程 Active 时自动使用 Tutorial，完成后回到 MainRun。`DA_Campaign_Tutorial` 只负责本教程可用的全局房间池和阶段参数；固定进入下一间房的逻辑要配置在当前 RoomData 的 `PortalDestinations` / `bForceSinglePortal` 上。
 
 ### 1.3 Campaign 路由检查
 
@@ -84,26 +86,22 @@
 
 ### 1.4 武器卡组切换方案
 
-当前采用“同一把武器 DA，按存档剧情状态选择卡组”的方案，不再为了教程单独改正常武器卡组。
+当前采用“不同普通武器 DA + 剧情控制关卡对象出现”的方案。武器 DA 只使用原本的 `InitialCombatDeck`，不再给武器增加首局教程卡组覆盖字段。
 
 运行时路径：
 1. 新存档会写入 `Story.Flag.FirstRunTutorial.Active`。
-2. 玩家在首局教程 Active 时拾取武器，`AWeaponSpawner` / `UWeaponDefinition::SetupWeaponToCharacter` 会调用 `UCombatDeckComponent.LoadDeckFromWeaponForFirstRunTutorial`。
-3. 这时优先读取武器 DA 的 `Combat Deck|First Run Tutorial`：
-   - `bUseFirstRunTutorialCombatDeckOverride` = true
-   - `FirstRunTutorialCombatDeckOverride` = `[攻击][攻击]`
-   - `bSuppressTemporaryFinisherDuringFirstRunTutorial` = true
-4. 教程完成后会移除 `Story.Flag.FirstRunTutorial.Active` 并写入 `Story.Flag.FirstRunTutorial.Completed`。
-5. 之后进入正常流程，`B_GameMode.CampaignData` 使用 `DA_Campaign_MainRun`；同一把武器会走正常卡组，或在需要时读取 `FirstRunTutorialCompletedCombatDeckOverride`。
-6. 跨房间或 checkpoint 恢复时，`PendingRunState.CombatDeckCards` 会按保存内容精确恢复，不会再次追加教程外的临时终结技卡。
+2. `hub_dash_hint` 完成后，剧情动作 `SetActorEnabled` 显示主城里正常摆放的 `BP_WeaponSpawner`：`WeaponSpawner_FirstRun_DemoSword`。
+3. 这个 Spawner 指向首局演示武器 DA，例如 `DA_Weapon_FirstRun_DemoSword`；该武器自己的 `InitialCombatDeck` 填 `[攻击][攻击]`。
+4. 玩家拾取武器时，仍走普通 `AWeaponSpawner` / `UWeaponDefinition::SetupWeaponToCharacter` 流程，读取武器自身 `InitialCombatDeck`。
+5. 教程完成后会移除 `Story.Flag.FirstRunTutorial.Active` 并写入 `Story.Flag.FirstRunTutorial.Completed`。
+6. 回主城后，剧情动作隐藏首局演示武器，并显示正常流程武器放置点 `WeaponSpawner_MainRun_StartWeapon`。
+7. 后续进入正常流程时，`B_GameMode.CampaignData` 使用 `DA_Campaign_MainRun`；正常流程武器仍读取它自己的 `InitialCombatDeck`。
 
 建议配置方式：
-- 正常武器的 `InitialCombatDeck` 保持正式默认卡组，不要为了教程改成 `[攻击][攻击]`。
-- 教程临时卡组只填在 `FirstRunTutorialCombatDeckOverride`。
-- 如果 Demo 首局结束后必须从 `[攻击][攻击][月光][武器终结技]` 开始，就勾选：
-  - `bUseFirstRunTutorialCompletedDeckOverride` = true
-  - `FirstRunTutorialCompletedCombatDeckOverride` = `[攻击][攻击][月光][武器终结技]`
-- 如果后续正式体验不需要这条特殊完成卡组，就不要勾选 completed override，让武器回到 `InitialCombatDeck`。
+- 首局演示武器 DA：`InitialCombatDeck = [攻击][攻击]`。
+- 正常流程起始武器 DA：`InitialCombatDeck = [攻击][攻击][月光][武器终结技]`，或使用正式设计需要的默认卡组。
+- 关卡里两个武器都是普通 `BP_WeaponSpawner`，通过剧情 `SetActorEnabled` 控制显示/隐藏。
+- 不要使用教程专用 WeaponSpawner，不要在 `WeaponDefinition` 里添加首局教程专用卡组列表。
 
 ## 2. 主城教程配置
 
@@ -153,64 +151,59 @@ RoomData：
 - 不要写死 Space / 手柄键名
 - 触发一次后不重复弹
 
-### 2.3 教程武器拾取点
+### 2.3 首局演示武器拾取点
 
 放置：
 1. 打开 `InitialRoom_GamePlay`
 2. 放置 `Content/Code/Weapon/BP_WeaponSpawner`
-3. 命名：`WeaponSpawner_Tutorial`
-4. 放在武器中心视觉明显位置
+3. 命名：`WeaponSpawner_FirstRun_DemoSword`
+4. 添加 Actor Tag：`Story.FirstRun.DemoWeapon`
+5. 放在武器中心视觉明显位置
+6. 初始可以隐藏；冲刺提示完成后由 `SetActorEnabled` 显示
 
 填写：
-- 武器 Definition 指向教程双手剑或当前 Demo 默认武器
-- 武器正常 `InitialCombatDeck` 填正式默认卡组；如果 Demo 首局结束后希望玩家以 `[攻击][攻击][月光][武器终结技]` 开始正常体验，就把这套作为正式默认，或使用下面的 completed override
-- 教程临时卡组不要写进正常 `InitialCombatDeck`，改填：
-  - `bUseFirstRunTutorialCombatDeckOverride` = true
-  - `FirstRunTutorialCombatDeckOverride`：
-    - `DA_Rune512_Attack`
-    - `DA_Rune512_Attack`
-  - `bSuppressTemporaryFinisherDuringFirstRunTutorial` = true
-- 教程完成后的特殊初始卡组如需要，填：
-  - `bUseFirstRunTutorialCompletedDeckOverride` = true
-  - `FirstRunTutorialCompletedCombatDeckOverride`：
-    - `DA_Rune512_Attack`
-    - `DA_Rune512_Attack`
-    - 月光卡 DA
-    - 武器终结技卡 DA
-- 如果不需要教程完成卡组覆盖，就保持 `bUseFirstRunTutorialCompletedDeckOverride` = false
+- Weapon Definition 指向首局演示武器 DA，例如 `DA_Weapon_FirstRun_DemoSword`
+- 该武器 DA 的普通 `InitialCombatDeck` 填：
+  - `DA_Rune512_Attack`
+  - `DA_Rune512_Attack`
 - 拾取提示使用：`<input action="Interact"/>`
 
 当前 C++ 行为：
-- `Story.Flag.FirstRunTutorial.Active` 有效时，拾取武器会自动加载 `FirstRunTutorialCombatDeckOverride`
-- `Story.Flag.FirstRunTutorial.Completed` 有效且武器开启 completed override 时，拾取/恢复武器会加载 `FirstRunTutorialCompletedCombatDeckOverride`
-- 其他情况使用正常 `InitialCombatDeck`，为空时回退到 `InitialRunes`
+- `BP_WeaponSpawner` 和 `WeaponDefinition` 不再有首局教程专用卡组逻辑。
+- 拾取任何武器时都读取该武器 DA 自己的 `InitialCombatDeck`，为空时回退到 `InitialRunes`。
+- 首局教程要换武器时，通过剧情动作 `SetActorEnabled` 控制普通 Spawner 的显示/隐藏。
 
 剧情绑定：
-- `BP_WeaponSpawner` 现在有 `PickupEncounterPoint` 字段
-- `PickupEncounterPoint` = `EP_FirstRun_WeaponPickupPrompt`
+- `hub_dash_hint` 的动作节点显示 `WeaponSpawner_FirstRun_DemoSword`
+- `weapon_pickup_prompt` 的 `placementName` = `WeaponSpawner_FirstRun_DemoSword`
+- 拾取完成后触发 `EP_FirstRun_WeaponPickupPrompt` 的方式走普通 Story Trigger、LevelFlow 或 BP 事件绑定，不在 `BP_WeaponSpawner` 上新增教程专用字段
 
 检查：
 - 靠近武器出现拾取提示
-- 首局教程 Active 时，拾取后下方 1D 卡组只出现 `[攻击][攻击]`
-- 教程完成后，再次进入正常流程时不再使用教程临时卡组
+- 拾取后下方 1D 卡组只出现该武器 `InitialCombatDeck` 里的 `[攻击][攻击]`
+- 教程完成后，首局演示武器被隐藏，正常流程武器可出现
 - 触发 `first_run.weapon_picked`
 
 ### 2.4 1D 卡组进卡高亮
 
 资产：
 - `WBP_CombatDeckBar`
-- C++ 已有 `CombatDeckComponent.OnDeckCardsEntered`
-- C++ 已有 `CombatDeckBarWidget.BP_OnDeckCardsEntered`
+- C++ 已绑定 `CombatDeckComponent.OnDeckCardsEntered`
+- C++ 已实现 `CombatDeckBarWidget.PlayDeckCardsEnteredHighlight`
+- `BP_OnDeckCardsEntered` 只作为可选蓝图扩展点，不再要求蓝图里做基础动效
 
 配置：
 1. 打开 `WBP_CombatDeckBar`
-2. 实现 `BP_OnDeckCardsEntered`
-3. 做一个短动画：
+2. 确认存在可选绑定控件：`DeckEntryHighlightPanel`
+3. 基础动效由 C++ 驱动：
    - 下方卡组外框亮起
-   - 0.15s 渐入
-   - 0.6s 保持
-   - 0.25s 渐出
-4. 每次有卡进入 1D 卡组都播放
+   - `EntryHighlightFadeInDuration` 默认 `0.1`
+   - `EntryHighlightHoldDuration` 默认 `0.2`
+   - `EntryHighlightFadeOutDuration` 默认 `0.15`
+   - `EntryHighlightPeakScale` 默认 `1.035`
+   - `EntryHighlightPeakOpacity` 默认 `1.0`
+4. 这些参数在 `WBP_CombatDeckBar` 的 Class Defaults 里可调
+5. 每次有卡进入 1D 卡组都播放
 
 剧情绑定：
 - 事件源：`WBP_CombatDeckBar.OnDeckCardsEntered`
@@ -502,23 +495,18 @@ RoomData：
 - `EP_FirstRun_ReturnHubNormalRunStart`
 - `NodeId` = `return_hub_normal_run_start`
 
-保存/卡组写入：
+保存/关卡对象切换：
 1. 移除 `Story.Flag.FirstRunTutorial.Active`
 2. 写入 `Story.Flag.FirstRunTutorial.Completed`
-3. 回主城后进入正常流程时，卡组来源不再是教程临时 override：
-   - 如果武器开启 `bUseFirstRunTutorialCompletedDeckOverride`，读取 completed override
-   - 否则读取武器正常 `InitialCombatDeck`
-4. 如果 Demo 首局要求固定新默认卡组，在武器 DA 的 `FirstRunTutorialCompletedCombatDeckOverride` 填：
-   - `[攻击]`
-   - `[攻击]`
-   - `[月光]`
-   - `[武器终结技]`
-5. 清理首局教程临时房间状态
-6. 回到 `InitialRoom`
+3. 隐藏 `WeaponSpawner_FirstRun_DemoSword`
+4. 显示 `WeaponSpawner_MainRun_StartWeapon`
+5. `WeaponSpawner_MainRun_StartWeapon` 指向正常流程武器 DA；该武器自己的 `InitialCombatDeck` 决定后续默认卡组
+6. 清理首局教程临时房间状态
+7. 回到 `InitialRoom`
 
 检查：
 - 再次从主菜单进入同一存档，不再走首局教程入口
-- 回主城后，如果配置了 completed override，武器卡组为 `[攻击][攻击][月光][武器终结技]`
+- 回主城后，正常流程武器出现；拾取后卡组来自该武器自身 `InitialCombatDeck`
 - 可以进入正常 Run
 
 ## 9. 最终全流程验收
@@ -546,39 +534,46 @@ RoomData：
 5. 回主城后检查：
    - `Story.Flag.FirstRunTutorial.Active` 不存在或为 false
    - `Story.Flag.FirstRunTutorial.Completed` 为 true
-   - 初始卡组正确
+   - 首局演示武器已隐藏，正常流程武器出现；拾取后卡组来自正常武器自身 `InitialCombatDeck`
 6. 回主菜单再进入该存档，确认不会重走首局教程。
 
 ## 10. 当前需要开发补齐的点
 
 ### 10.1 本轮 C++ 已补齐
 
-1. 武器卡组切换：
-   - `UWeaponDefinition` 增加首局教程卡组 override 与教程完成卡组 override。
-   - `AWeaponSpawner` 和 `UWeaponDefinition::SetupWeaponToCharacter` 会按 `FirstRunTutorial.Active/Completed` 自动选择卡组。
-2. 武器拾取触发剧情点：
-   - `BP_WeaponSpawner` 可直接填写 `PickupEncounterPoint`。
-   - 拾取成功后会调用 `StoryEncounterRuntimeSubsystem.TriggerEncounterPoint`。
+1. 武器卡组方案已回到普通路径：
+   - `UWeaponDefinition` 不再持有首局教程专用卡组列表。
+   - `AWeaponSpawner` 和 `UWeaponDefinition::SetupWeaponToCharacter` 只读取武器自身 `InitialCombatDeck` / `InitialRunes`。
+2. 剧情控制关卡对象：
+   - Story Encounter 新增动作 `SetActorEnabled`。
+   - 可通过 `TargetActorName` 或 `TargetActorTag` 显示/隐藏普通关卡 Actor。
+   - 剧情编辑器与 UE 导入管线已支持该动作，并会把目标 Actor 缺失列入工作量清单。
 3. 固定奖励拾取物：
    - `ARewardPickup` 增加 `bUseFixedLootOptions` 和 `FixedLootOptions`。
    - 静态放置或动态 Spawn 的奖励都可以直接指定固定 Loot。
-4. 首局教程完成状态查询：
-   - `UYogSaveSubsystem` 增加 `IsFirstRunTutorialCompleted()`，供武器卡组和后续蓝图逻辑判断。
-5. 切关恢复卡组：
+4. 切关恢复卡组：
    - `APlayerCharacterBase::RestoreRunStateFromGI` 现在使用精确恢复，不会在教程跨房间时额外塞入临时终结技卡。
 
 ### 10.2 仍需配置或蓝图补齐
 
-1. 打开教程武器 DA，填写：
-   - `FirstRunTutorialCombatDeckOverride = [攻击][攻击]`
-   - 需要的话填写 `FirstRunTutorialCompletedCombatDeckOverride = [攻击][攻击][月光][武器终结技]`
-2. 打开 `WeaponSpawner_Tutorial`，填写：
-   - `PickupEncounterPoint = EP_FirstRun_WeaponPickupPrompt`
-3. 背包首次打开触发 `EP_FirstRun_BackpackCardRules` 仍需检查 UI 入口是否已绑定。
-4. 木人桩死亡事件仍需生成或启用固定 `[重击]` 奖励拾取物。
-5. 月光特殊敌人仍需在目标 RoomData / 刷怪逻辑中配置特殊敌人 BP、蓝雾 FX 和 `[月光]` 固定掉落。
-6. Portal 预览奖励 icon 的金币/卡牌/材料表现仍需逐项检查。
-7. 两个过渡房结束后强制进入祈祷室仍需在 RoomData `PortalDestinations` / `bForceSinglePortal` 中配置。
-8. 祈祷室获得终结技后启动无限刷敌仍需关卡 BP 或 Room Event 绑定。
-9. 死亡界面“只显示回归主城”仍需按首局教程 Active/Completed 状态做 UI 分支验收。
-10. 全流程 PIE 验收仍未完成：新存档从主菜单进入、首局教程、死亡回主城、再进入正常 MainRun。
+1. 创建或打开首局演示武器 DA，例如 `DA_Weapon_FirstRun_DemoSword`：
+   - 普通 `InitialCombatDeck = [攻击][攻击]`
+   - 不填写任何首局教程专用卡组覆盖字段
+2. 在 `InitialRoom_GamePlay` 放置普通 `BP_WeaponSpawner`：
+   - Actor Name = `WeaponSpawner_FirstRun_DemoSword`
+   - Actor Tag = `Story.FirstRun.DemoWeapon`
+   - Weapon Definition = `DA_Weapon_FirstRun_DemoSword`
+3. 放置正常流程起始武器 Spawner：
+   - Actor Name = `WeaponSpawner_MainRun_StartWeapon`
+   - Actor Tag = `Story.MainRun.StartWeapon`
+   - Weapon Definition 指向正常流程武器 DA
+   - 正常流程武器 DA 的 `InitialCombatDeck` 由正式设计决定，例如 `[攻击][攻击][月光][武器终结技]`
+4. 拾取成功后触发 `EP_FirstRun_WeaponPickupPrompt` 的绑定仍需用普通 Story Trigger、LevelFlow 或 BP 事件接上。
+5. 背包首次打开触发 `EP_FirstRun_BackpackCardRules` 仍需检查 UI 入口是否已绑定。
+6. 木人桩死亡事件仍需生成或启用固定 `[重击]` 奖励拾取物。
+7. 月光特殊敌人仍需在目标 RoomData / 刷怪逻辑中配置特殊敌人 BP、蓝雾 FX 和 `[月光]` 固定掉落。
+8. Portal 预览奖励 icon 的金币/卡牌/材料表现仍需逐项检查。
+9. 两个过渡房结束后强制进入祈祷室仍需在 RoomData `PortalDestinations` / `bForceSinglePortal` 中配置。
+10. 祈祷室获得终结技后启动无限刷敌仍需关卡 BP 或 Room Event 绑定。
+11. 死亡界面“只显示回归主城”仍需按首局教程 Active/Completed 状态做 UI 分支验收。
+12. 全流程 PIE 验收仍未完成：新存档从主菜单进入、首局教程、死亡回主城、再进入正常 MainRun。
