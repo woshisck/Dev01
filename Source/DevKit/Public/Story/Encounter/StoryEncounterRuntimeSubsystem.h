@@ -6,6 +6,7 @@
 #include "StoryEncounterRuntimeSubsystem.generated.h"
 
 class UStoryEncounterMap;
+class UStoryEncounterGraph;
 class UStoryEncounterPointDA;
 
 UCLASS()
@@ -16,6 +17,9 @@ class DEVKIT_API UStoryEncounterRuntimeSubsystem : public UGameInstanceSubsystem
 public:
 	UFUNCTION(BlueprintCallable, Category = "Story Encounter")
 	bool TriggerEncounterNode(UStoryEncounterMap* EncounterMap, FName NodeId, AActor* SourceActor);
+
+	UFUNCTION(BlueprintCallable, Category = "Story Encounter")
+	bool TriggerEncounterGraphNode(UStoryEncounterGraph* EncounterGraph, FName NodeId, AActor* SourceActor);
 
 	UFUNCTION(BlueprintCallable, Category = "Story Encounter")
 	bool TriggerEncounterPoint(UStoryEncounterPointDA* EncounterPoint, AActor* SourceActor);

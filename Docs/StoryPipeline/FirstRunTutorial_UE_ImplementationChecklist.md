@@ -115,16 +115,17 @@ RoomData：
 
 ### 2.1 移动提示 Trigger
 
+> 注意：场景里使用现有 `/Game/Docs/Map/LevelEvent/BP_LevelEventTrigger`。该 BP 的父类 `ALevelEventTrigger` 现在只保留 `EncounterGraph + NodeId` 这一种 Story Encounter 配置方式，不需要另找 `StoryEncounterTrigger` BP，也不需要再填写 `EncounterPoint` 或旧的 `EncounterMap`。
+
 放置：
 1. 打开 `InitialRoom_GamePlay`
-2. 放置 C++ Actor：`StoryEncounterTrigger`
+2. 放置现有蓝图：`/Game/Docs/Map/LevelEvent/BP_LevelEventTrigger`
 3. 命名：`Trigger_Tutorial_Move`
 4. 放在出生点前方，玩家必经但不挡路的位置
 5. 调整 `TriggerVolume` 范围，覆盖玩家离开出生点的路径
 
 填写：
-- `EncounterPoint` = `/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_HubMoveHint`
-- `EncounterMap` = `/Game/Story/Encounters/Main_Tutorial_Demo/EG_FirstRun_Tutorial`
+- `EncounterGraph` = `/Game/Story/Encounters/Main_Tutorial_Demo/EG_FirstRun_Tutorial`
 - `NodeId` = `hub_move_hint`
 
 检查：
@@ -142,8 +143,7 @@ RoomData：
 3. 放在移动提示之后的第二段路径
 
 填写：
-- `EncounterPoint` = `EP_FirstRun_HubDashHint`
-- `EncounterMap` = `EG_FirstRun_Tutorial`
+- `EncounterGraph` = `EG_FirstRun_Tutorial`
 - `NodeId` = `hub_dash_hint`
 
 检查：
@@ -157,7 +157,7 @@ RoomData：
 1. 打开 `InitialRoom_GamePlay`
 2. 放置 `Content/Code/Weapon/BP_WeaponSpawner`
 3. 命名：`WeaponSpawner_FirstRun_DemoSword`
-4. 添加 Actor Tag：`Story.FirstRun.DemoWeapon`
+4. 推荐添加 Actor Tag：`Story.FirstRun.DemoWeapon`，也可以只依赖唯一 Actor Name
 5. 放在武器中心视觉明显位置
 6. 初始可以隐藏；冲刺提示完成后由 `SetActorEnabled` 显示
 
@@ -561,11 +561,11 @@ RoomData：
    - 不填写任何首局教程专用卡组覆盖字段
 2. 在 `InitialRoom_GamePlay` 放置普通 `BP_WeaponSpawner`：
    - Actor Name = `WeaponSpawner_FirstRun_DemoSword`
-   - Actor Tag = `Story.FirstRun.DemoWeapon`
+   - Actor Tag = `Story.FirstRun.DemoWeapon`（推荐，用于 `SetActorEnabled` 批量或稳定查找；如果只控制单个对象，也可以用 Actor Name）
    - Weapon Definition = `DA_Weapon_FirstRun_DemoSword`
 3. 放置正常流程起始武器 Spawner：
    - Actor Name = `WeaponSpawner_MainRun_StartWeapon`
-   - Actor Tag = `Story.MainRun.StartWeapon`
+   - Actor Tag = `Story.MainRun.StartWeapon`（推荐；非强制）
    - Weapon Definition 指向正常流程武器 DA
    - 正常流程武器 DA 的 `InitialCombatDeck` 由正式设计决定，例如 `[攻击][攻击][月光][武器终结技]`
 4. 拾取成功后触发 `EP_FirstRun_WeaponPickupPrompt` 的绑定仍需用普通 Story Trigger、LevelFlow 或 BP 事件接上。

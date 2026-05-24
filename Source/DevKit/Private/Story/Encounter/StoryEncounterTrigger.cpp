@@ -4,6 +4,8 @@
 #include "Components/BoxComponent.h"
 #include "FlowComponent.h"
 #include "LevelFlow/LevelFlowAsset.h"
+#include "Story/Encounter/StoryEncounterGraph.h"
+#include "Story/Encounter/StoryEncounterGraphNode.h"
 #include "Story/Encounter/StoryEncounterMap.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
@@ -40,6 +42,10 @@ void AStoryEncounterTrigger::OnTriggerBeginOverlap(UPrimitiveComponent* Overlapp
 			if (EncounterPoint)
 			{
 				bTriggeredNow = Runtime->TriggerEncounterPoint(EncounterPoint, this);
+			}
+			else if (EncounterGraph && !NodeId.IsNone())
+			{
+				bTriggeredNow = Runtime->TriggerEncounterGraphNode(EncounterGraph, NodeId, this);
 			}
 			else if (EncounterMap && !NodeId.IsNone())
 			{
@@ -87,6 +93,20 @@ bool AStoryEncounterTrigger::ShouldBlockRepeatTrigger() const
 	if (EncounterPoint)
 	{
 		FirePolicy = EncounterPoint->FirePolicy;
+	}
+	else if (EncounterGraph && !NodeId.IsNone())
+	{
+		if (const UStoryEncounterGraphNode* GraphNode = EncounterGraph->FindNodeByStoryNodeId(NodeId))
+		{
+			if (const UStoryEncounterPointDA* Point = GraphNode->GetPoint())
+			{
+				FirePolicy = Point->FirePolicy;
+			}
+			else
+			{
+				FirePolicy = GraphNode->ToEncounterNode().FirePolicy;
+			}
+		}
 	}
 	else if (EncounterMap && !NodeId.IsNone())
 	{

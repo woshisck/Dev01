@@ -6,8 +6,11 @@
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
 #include "Story/Encounter/StoryEncounterMap.h"
+#include "Story/Encounter/StoryEncounterGraph.h"
+#include "Story/Encounter/StoryEncounterGraphNode.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Encounter/StoryEncounterTrigger.h"
+#include "LevelFlow/LevelEventTrigger.h"
 #include "Story/StoryEngineSubsystem.h"
 
 namespace
@@ -139,6 +142,55 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterNode(UStoryEncounterMap* E
 	for (const FStoryEncounterAction& Action : Node->Actions)
 	{
 		ExecuteEncounterAction(EncounterMap->EncounterId, Action, Context);
+	}
+
+	return true;
+}
+
+bool UStoryEncounterRuntimeSubsystem::TriggerEncounterGraphNode(UStoryEncounterGraph* EncounterGraph, FName NodeId, AActor* SourceActor)
+{
+	if (!EncounterGraph || NodeId.IsNone())
+	{
+		return false;
+	}
+
+	UStoryEncounterGraphNode* GraphNode = EncounterGraph->FindNodeByStoryNodeId(NodeId);
+	if (!GraphNode)
+	{
+		return false;
+	}
+
+	if (UStoryEncounterPointDA* Point = GraphNode->GetPoint())
+	{
+		return TriggerEncounterPoint(Point, SourceActor);
+	}
+
+	const FStoryEncounterNode Node = GraphNode->ToEncounterNode();
+	const FName EncounterId = !GraphNode->GetEncounterId().IsNone()
+		? GraphNode->GetEncounterId()
+		: EncounterGraph->EncounterId;
+	if (EncounterId.IsNone() || Node.NodeId.IsNone())
+	{
+		return false;
+	}
+
+	FStoryEventContext Context;
+	Context.SourceActor = SourceActor;
+	Context.PlayerController = ResolveEncounterPlayer(SourceActor);
+	Context.SourceName = Node.NodeId;
+	if (UWorld* World = GetWorld())
+	{
+		Context.MapName = FName(*UGameplayStatics::GetCurrentLevelName(World, true));
+	}
+
+	if (!CanTriggerNode(EncounterId, Node, Context))
+	{
+		return false;
+	}
+
+	for (const FStoryEncounterAction& Action : Node.Actions)
+	{
+		ExecuteEncounterAction(EncounterId, Action, Context);
 	}
 
 	return true;
@@ -389,6 +441,13 @@ void UStoryEncounterRuntimeSubsystem::ExecuteEncounterAction(FName EncounterId,
 			if (AStoryEncounterTrigger* Trigger = Cast<AStoryEncounterTrigger>(Context.SourceActor))
 			{
 				if (Trigger->RunLevelFlow(StoryAction.LevelFlow, StoryAction.bStopExistingStoryFlow))
+				{
+					return;
+				}
+			}
+			else if (ALevelEventTrigger* LevelTrigger = Cast<ALevelEventTrigger>(Context.SourceActor))
+			{
+				if (LevelTrigger->RunLevelFlow(StoryAction.LevelFlow, StoryAction.bStopExistingStoryFlow))
 				{
 					return;
 				}

@@ -7,6 +7,7 @@
 class UBoxComponent;
 class UFlowComponent;
 class ULevelFlowAsset;
+class UStoryEncounterGraph;
 class APlayerCharacterBase;
 struct FHitResult;
 
@@ -39,6 +40,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "LevelFlow")
 	TObjectPtr<ULevelFlowAsset> LevelFlow;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Encounter")
+	TObjectPtr<UStoryEncounterGraph> EncounterGraph = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Encounter")
+	FName NodeId;
+
 	// 是否只触发一次（默认开启）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "LevelFlow")
 	bool bTriggerOnce = true;
@@ -49,6 +56,7 @@ public:
 	ULevelFlowAsset* GetLevelFlow() const { return LevelFlow; }
 	UBoxComponent* GetTriggerVolume() const { return TriggerVolume; }
 	bool ShouldTriggerOnce() const { return bTriggerOnce; }
+	bool RunLevelFlow(ULevelFlowAsset* FlowAsset, bool bStopExistingFlow = true);
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "LevelFlow|Debug")

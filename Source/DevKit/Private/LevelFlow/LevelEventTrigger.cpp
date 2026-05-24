@@ -1,8 +1,11 @@
 #include "LevelFlow/LevelEventTrigger.h"
-#include "LevelFlow/LevelFlowAsset.h"
+
 #include "Character/PlayerCharacterBase.h"
 #include "Components/BoxComponent.h"
 #include "FlowComponent.h"
+#include "LevelFlow/LevelFlowAsset.h"
+#include "Story/Encounter/StoryEncounterGraph.h"
+#include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
 
 ALevelEventTrigger::ALevelEventTrigger()
 {
@@ -23,8 +26,12 @@ void ALevelEventTrigger::BeginPlay()
 {
 	Super::BeginPlay();
 	bTriggered = false;
-	UE_LOG(LogTemp, Log, TEXT("[LevelEventTrigger] BeginPlay: %s bTriggerOnce=%d Flow=%s"),
-		*GetNameSafe(this), (int32)bTriggerOnce, *GetNameSafe(LevelFlow));
+	UE_LOG(LogTemp, Log, TEXT("[LevelEventTrigger] BeginPlay: %s bTriggerOnce=%d Flow=%s EncounterGraph=%s NodeId=%s"),
+		*GetNameSafe(this),
+		(int32)bTriggerOnce,
+		*GetNameSafe(LevelFlow),
+		*GetNameSafe(EncounterGraph),
+		*NodeId.ToString());
 }
 
 void ALevelEventTrigger::OnOverlapBegin(UPrimitiveComponent*, AActor* OtherActor,
@@ -32,14 +39,32 @@ void ALevelEventTrigger::OnOverlapBegin(UPrimitiveComponent*, AActor* OtherActor
 {
 	if (!Cast<APlayerCharacterBase>(OtherActor)) return;
 	if (bTriggerOnce && bTriggered) return;
-	if (!LevelFlow) { UE_LOG(LogTemp, Warning, TEXT("[LevelEventTrigger] LevelFlow 未赋值！")); return; }
+
+	bool bDidTrigger = false;
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UStoryEncounterRuntimeSubsystem* Runtime = GameInstance->GetSubsystem<UStoryEncounterRuntimeSubsystem>())
+		{
+			if (EncounterGraph && !NodeId.IsNone())
+			{
+				bDidTrigger |= Runtime->TriggerEncounterGraphNode(EncounterGraph, NodeId, this);
+			}
+		}
+	}
+
+	if (LevelFlow)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[LevelEventTrigger] Trigger Flow: %s"), *LevelFlow->GetName());
+		bDidTrigger |= RunLevelFlow(LevelFlow);
+	}
+
+	if (!bDidTrigger)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[LevelEventTrigger] no LevelFlow or Story Encounter triggered on %s"), *GetNameSafe(this));
+		return;
+	}
 
 	bTriggered = true;
-	UE_LOG(LogTemp, Log, TEXT("[LevelEventTrigger] 触发 Flow: %s"), *LevelFlow->GetName());
-
-	LevelFlowComp->FinishRootFlow(LevelFlow, EFlowFinishPolicy::Keep);
-	LevelFlowComp->RootFlow = LevelFlow;
-	LevelFlowComp->StartRootFlow();
 }
 
 void ALevelEventTrigger::OnOverlapEnd(UPrimitiveComponent*, AActor* OtherActor,
@@ -47,4 +72,20 @@ void ALevelEventTrigger::OnOverlapEnd(UPrimitiveComponent*, AActor* OtherActor,
 {
 	if (!Cast<APlayerCharacterBase>(OtherActor)) return;
 	OnPlayerExited.Broadcast();
+}
+
+bool ALevelEventTrigger::RunLevelFlow(ULevelFlowAsset* FlowAsset, bool bStopExistingFlow)
+{
+	if (!FlowAsset || !LevelFlowComp)
+	{
+		return false;
+	}
+
+	if (bStopExistingFlow)
+	{
+		LevelFlowComp->FinishRootFlow(LevelFlowComp->RootFlow, EFlowFinishPolicy::Keep);
+	}
+	LevelFlowComp->RootFlow = FlowAsset;
+	LevelFlowComp->StartRootFlow();
+	return true;
 }

@@ -7,6 +7,7 @@
 class UBoxComponent;
 class UFlowComponent;
 class ULevelFlowAsset;
+class UStoryEncounterGraph;
 class UStoryEncounterMap;
 class UStoryEncounterPointDA;
 
@@ -23,6 +24,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情触发")
 	TObjectPtr<UStoryEncounterMap> EncounterMap = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Encounter")
+	TObjectPtr<UStoryEncounterGraph> EncounterGraph = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情触发")
 	FName NodeId;
