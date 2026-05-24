@@ -34,6 +34,14 @@
 - Page 1 illustration set to `T_Tutorial512_LinkCard`.
 - Wrote 1 page(s) to `/Game/Docs/UI/Tutorial/DA_Tutorial_CardLink`.
 
+## `tutorial_heavy_card`
+- Created `/Game/Docs/UI/Tutorial/DA_Tutorial_HeavyCard`.
+- Wrote 1 page(s) to `/Game/Docs/UI/Tutorial/DA_Tutorial_HeavyCard`.
+
+## `tutorial_finisher`
+- Created `/Game/Docs/UI/Tutorial/DA_Tutorial_Finisher`.
+- Wrote 1 page(s) to `/Game/Docs/UI/Tutorial/DA_Tutorial_Finisher`.
+
 ## `tutorial_shuffle_hint`
 - Found existing `/Game/Docs/UI/Tutorial/DA_Tutorial_ShuffleHint`.
 - Page 1 illustration set to `T_Tutorial512_DeckReload`.
@@ -45,4 +53,6 @@
 - Mapped `tutorial_first_rune` -> `DA_Tutorial_FirstRune`.
 - Mapped `tutorial_backpack` -> `DA_Tutorial_Backpack`.
 - Mapped `tutorial_card_link` -> `DA_Tutorial_CardLink`.
+- Mapped `tutorial_heavy_card` -> `DA_Tutorial_HeavyCard`.
+- Mapped `tutorial_finisher` -> `DA_Tutorial_Finisher`.
 - Mapped `tutorial_shuffle_hint` -> `DA_Tutorial_ShuffleHint`.

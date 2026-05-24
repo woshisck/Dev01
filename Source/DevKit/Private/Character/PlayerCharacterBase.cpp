@@ -1143,10 +1143,15 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 	static const FGameplayTag HeavyHintTag   = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.HeavyCard"));
 	static const FGameplayTag LinkHintTag     = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.LinkCard"));
 	static const FGameplayTag FinisherHintTag = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.Finisher"));
+	static const FName WeaponOwnerSource(TEXT("Weapon"));
 
 	for (const FCombatCardInstance& Card : Cards)
 	{
 		if (!Card.IsValidCard()) continue;
+		if (Card.OwnerSource == WeaponOwnerSource)
+		{
+			continue;
+		}
 
 		// 重击卡：RequiredAction == Heavy（区别于普通攻击卡）
 		if (Card.Config.RequiredAction == ECardRequiredAction::Heavy)

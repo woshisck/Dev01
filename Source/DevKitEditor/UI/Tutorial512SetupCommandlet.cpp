@@ -254,6 +254,28 @@ namespace Tutorial512Setup
 				}
 			},
 			{
+				TEXT("tutorial_heavy_card"),
+				TEXT("DA_Tutorial_HeavyCard"),
+				{
+					{
+						TEXT("重击卡牌"),
+						TEXT("重击卡会在 <input action=\"HeavyAttack\"/> 命中时按顺序消耗，并触发它写入的效果。轻攻击不会消耗只要求重击的卡牌。"),
+						TEXT("把重击卡放到合适的位置，可以让关键连段更稳定地吃到强化。")
+					},
+				}
+			},
+			{
+				TEXT("tutorial_finisher"),
+				TEXT("DA_Tutorial_Finisher"),
+				{
+					{
+						TEXT("终结技卡牌"),
+						TEXT("Finisher 卡进入卡组后，会在合适的攻击节奏里提供终结技准备窗口。窗口出现时，用 <input action=\"HeavyAttack\"/> 完成确认连段。"),
+						TEXT("若卡牌显示锁定进度，先完成要求的战斗场次再回来使用它。")
+					},
+				}
+			},
+			{
 				TEXT("tutorial_shuffle_hint"),
 				TEXT("DA_Tutorial_ShuffleHint"),
 				{
