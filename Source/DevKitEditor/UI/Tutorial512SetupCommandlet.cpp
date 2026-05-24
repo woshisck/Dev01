@@ -235,11 +235,6 @@ namespace Tutorial512Setup
 						TEXT("Link 卡可以正向读取前一张，也可以反向赋能下一张。选中 Link 卡后按 <input action=\"ReverseCard\"/> 切换方向。"),
 						TEXT("")
 					},
-					{
-						TEXT("双手剑终结技卡牌"),
-						TEXT("卡组中的 Finisher 是德式双手剑的终结技准备牌。打出后会进入短暂强化窗口；在窗口内用 <input action=\"HeavyAttack\"/> 连段完成最后一击，会触发终结技并引爆此前命中的终结印记。"),
-						TEXT("若卡牌显示锁定进度，先完成 3 场战斗解锁；普通攻击消耗它时只会获得准备效果，不会立刻打出终结技。")
-					},
 				}
 			},
 			{
@@ -271,7 +266,7 @@ namespace Tutorial512Setup
 					{
 						TEXT("终结技卡牌"),
 						TEXT("Finisher 卡进入卡组后，会在合适的攻击节奏里提供终结技准备窗口。窗口出现时，用 <input action=\"HeavyAttack\"/> 完成确认连段。"),
-						TEXT("若卡牌显示锁定进度，先完成要求的战斗场次再回来使用它。")
+						TEXT("教程最后一关获得终结技卡牌后，可以直接把它编入卡组并使用。")
 					},
 				}
 			},

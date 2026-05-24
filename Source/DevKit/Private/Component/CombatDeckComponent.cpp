@@ -6,9 +6,7 @@
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "FlowAsset.h"
-#include "GameModes/YogGameMode.h"
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Kismet/GameplayStatics.h"
 
 namespace
 {
@@ -114,7 +112,7 @@ UCombatDeckComponent::UCombatDeckComponent()
 	PrimaryComponentTick.bStartWithTickEnabled = true;
 	TemporaryInitialFinisherRune = TSoftObjectPtr<URuneDataAsset>(
 		FSoftObjectPath(TEXT("/Game/YogRuneEditor/Runes/DA_Rune_Finisher.DA_Rune_Finisher")));
-	TemporaryFinisherLockedReasonText = FText::FromString(TEXT("Finisher unlocks after 3 completed battles"));
+	TemporaryFinisherLockedReasonText = FText::GetEmpty();
 }
 
 void UCombatDeckComponent::BeginPlay()
@@ -484,16 +482,16 @@ void UCombatDeckComponent::LoadDeckFromWeapon(const UWeaponDefinition* WeaponDef
 		TArray<URuneDataAsset*> SourceAssets;
 		CopyDeckSourceAssets(GetDefaultWeaponDeckSource(WeaponDefinition), SourceAssets);
 
-		LoadDeckFromSourceAssets(SourceAssets, WeaponDefinition->ShuffleCooldownDuration, WeaponDefinition->MaxActiveSequenceSize);
+		LoadDeckFromSourceAssetsInternal(SourceAssets, WeaponDefinition->ShuffleCooldownDuration, WeaponDefinition->MaxActiveSequenceSize, false);
 		return;
 	}
 
-	LoadDeckFromSourceAssets({}, ShuffleCooldownDuration, MaxActiveSequenceSize);
+	LoadDeckFromSourceAssetsInternal({}, ShuffleCooldownDuration, MaxActiveSequenceSize, false);
 }
 
 void UCombatDeckComponent::LoadDeckFromSourceAssets(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize)
 {
-	LoadDeckFromSourceAssetsInternal(SourceAssets, InShuffleCooldownDuration, InMaxActiveSequenceSize, true);
+	LoadDeckFromSourceAssetsInternal(SourceAssets, InShuffleCooldownDuration, InMaxActiveSequenceSize, false);
 }
 
 void UCombatDeckComponent::LoadDeckFromExactSourceAssets(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize)
@@ -818,18 +816,9 @@ bool UCombatDeckComponent::IsTemporaryFinisherLocked(
 	int32& OutRequiredBattles,
 	int32& OutCurrentBattles) const
 {
-	OutRequiredBattles = FMath::Max(0, TemporaryFinisherUnlockCompletedBattles);
 	OutCurrentBattles = 0;
-
-	if (!Card.IsValidCard() || Card.Config.CardType != ECombatCardType::Finisher || OutRequiredBattles <= 0)
-	{
-		return false;
-	}
-
-	const UWorld* World = GetWorld();
-	const AYogGameMode* GameMode = World ? Cast<AYogGameMode>(UGameplayStatics::GetGameMode(World)) : nullptr;
-	OutCurrentBattles = GameMode ? FMath::Max(0, GameMode->GetCompletedCombatBattleCount()) : 0;
-	return OutCurrentBattles < OutRequiredBattles;
+	OutRequiredBattles = 0;
+	return false;
 }
 
 FCombatCardInstance UCombatDeckComponent::BuildTemporaryLockViewCard(const FCombatCardInstance& Card) const

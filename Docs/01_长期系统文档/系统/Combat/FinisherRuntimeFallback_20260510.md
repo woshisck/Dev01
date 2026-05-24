@@ -63,14 +63,12 @@
   - `ComboHintBody`
   - `ComboHintDuration`
 
-## Temporary initial unlock gate
+## Tutorial-time acquisition
 
-- The runtime deck component automatically adds `/Game/YogRuneEditor/Runes/DA_Rune_Finisher` through `TemporaryInitialFinisherRune`.
-- Do not place the temporary finisher manually in the weapon `InitialCombatDeck`; the component removes duplicates and inserts it into the last visible active slot.
-- Packaged builds use `TemporaryFinisherUnlockCompletedBattles = 3`.
-- Before the unlock count is reached, the card is visible as `LOCK current/required`. If consumed while locked, it advances the deck but does not execute the card flow.
-- Completed combat clears are counted in `AYogGameMode::CompletedCombatBattleCount` and persisted in `FRunState::CompletedCombatBattleCount`.
-- Editor-only GM command: `Yog_UnlockFinisher`.
+- The runtime weapon deck load no longer automatically adds `/Game/YogRuneEditor/Runes/DA_Rune_Finisher`.
+- The tutorial should grant the finisher card in its final stage. Once granted, the card is immediately usable.
+- `TemporaryFinisherUnlockCompletedBattles` defaults to `0`, and the temporary 3-combat unlock gate is disabled.
+- Editor-only GM command `Yog_UnlockFinisher` is retained for compatibility but is no longer required by the current tutorial flow.
 
 ## Recommended asset setup
 

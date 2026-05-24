@@ -1181,11 +1181,11 @@ bool FCombatDeckEditMovesAndReversesCardsTest::RunTest(const FString& Parameters
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckFullSnapshotShowsTemporaryFinisherLockTest,
-	"DevKit.CombatDeck.FullSnapshotShowsTemporaryFinisherLock",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckFullSnapshotLeavesFinisherUnlockedTest,
+	"DevKit.CombatDeck.FullSnapshotLeavesFinisherUnlocked",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckFullSnapshotShowsTemporaryFinisherLockTest::RunTest(const FString& Parameters)
+bool FCombatDeckFullSnapshotLeavesFinisherUnlockedTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->TemporaryFinisherUnlockCompletedBattles = 3;
@@ -1197,8 +1197,8 @@ bool FCombatDeckFullSnapshotShowsTemporaryFinisherLockTest::RunTest(const FStrin
 
 	const TArray<FCombatCardInstance> Cards = Deck->GetFullDeckSnapshot();
 	TestEqual(TEXT("Full deck snapshot keeps the finisher card"), Cards.Num(), 1);
-	TestTrue(TEXT("Full deck snapshot marks temporary finisher as locked"), Cards[0].bTemporarilyLocked);
-	TestEqual(TEXT("Full deck snapshot reports required battles"), Cards[0].TemporaryUnlockRequiredCompletedBattles, 3);
+	TestFalse(TEXT("Full deck snapshot keeps the finisher unlocked"), Cards[0].bTemporarilyLocked);
+	TestEqual(TEXT("Full deck snapshot reports no required battles"), Cards[0].TemporaryUnlockRequiredCompletedBattles, 0);
 	TestEqual(TEXT("Full deck snapshot reports current battles"), Cards[0].TemporaryUnlockCurrentCompletedBattles, 0);
 
 	return true;

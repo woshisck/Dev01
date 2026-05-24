@@ -26,8 +26,7 @@
 - Found existing `/Game/Docs/UI/Tutorial/DA_Tutorial_Backpack`.
 - Page 1 illustration set to `T_Tutorial512_CardSort`.
 - Page 2 illustration set to `T_Tutorial512_LinkCard`.
-- Page 3 illustration set to `T_Tutorial512_WeaponCards`.
-- Wrote 3 page(s) to `/Game/Docs/UI/Tutorial/DA_Tutorial_Backpack`.
+- Wrote 2 page(s) to `/Game/Docs/UI/Tutorial/DA_Tutorial_Backpack`.
 
 ## `tutorial_card_link`
 - Found existing `/Game/Docs/UI/Tutorial/DA_Tutorial_CardLink`.
@@ -35,11 +34,11 @@
 - Wrote 1 page(s) to `/Game/Docs/UI/Tutorial/DA_Tutorial_CardLink`.
 
 ## `tutorial_heavy_card`
-- Created `/Game/Docs/UI/Tutorial/DA_Tutorial_HeavyCard`.
+- Found existing `/Game/Docs/UI/Tutorial/DA_Tutorial_HeavyCard`.
 - Wrote 1 page(s) to `/Game/Docs/UI/Tutorial/DA_Tutorial_HeavyCard`.
 
 ## `tutorial_finisher`
-- Created `/Game/Docs/UI/Tutorial/DA_Tutorial_Finisher`.
+- Found existing `/Game/Docs/UI/Tutorial/DA_Tutorial_Finisher`.
 - Wrote 1 page(s) to `/Game/Docs/UI/Tutorial/DA_Tutorial_Finisher`.
 
 ## `tutorial_shuffle_hint`

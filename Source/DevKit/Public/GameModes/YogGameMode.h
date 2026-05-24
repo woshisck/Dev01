@@ -201,7 +201,7 @@ public:
 	float InitialSpawnDelay = 1.5f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow|Temporary Finisher")
-	bool bCountCombatClearsForTemporaryFinisherUnlock = true;
+	bool bCountCombatClearsForTemporaryFinisherUnlock = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow|Temporary Finisher")
 	int32 CompletedCombatBattleCount = 0;

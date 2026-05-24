@@ -331,13 +331,13 @@ public:
 	void RefreshDeckView();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Temporary Finisher")
-	bool bGrantTemporaryInitialFinisherCard = true;
+	bool bGrantTemporaryInitialFinisherCard = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Temporary Finisher")
 	TSoftObjectPtr<URuneDataAsset> TemporaryInitialFinisherRune;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Temporary Finisher", meta = (ClampMin = "0"))
-	int32 TemporaryFinisherUnlockCompletedBattles = 3;
+	int32 TemporaryFinisherUnlockCompletedBattles = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Temporary Finisher")
 	FText TemporaryFinisherLockedReasonText;
