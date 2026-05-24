@@ -26,6 +26,7 @@
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
+#include "GameplayTagContainer.h"
 #include "Tutorial/TutorialManager.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
@@ -288,6 +289,18 @@ void AYogHUD::OpenBackpack()
 		if (UCommonActivatableWidget* W = UIManager->PushScreen(EYogUIScreenId::Backpack))
 		{
 			BackpackWidget = Cast<UBackpackScreenWidget>(W);
+
+			// 首次打开背包时触发一次性教程提示（进队列；若当前有弹窗则等关闭后补发）
+			if (UGameInstance* GI = GetGameInstance())
+			{
+				if (UTutorialManager* TM = GI->GetSubsystem<UTutorialManager>())
+				{
+					static const FGameplayTag BackpackHintTag =
+						FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.Backpack"));
+					TM->TryShowHintOnce(BackpackHintTag, TEXT("tutorial_backpack"),
+						GetOwningPlayerController());
+				}
+			}
 			return;
 		}
 	}

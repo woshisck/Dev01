@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
+#include "Component/CombatDeckComponent.h"
 #include "Data/RuneDataAsset.h"
 #include "Data/AltarDataAsset.h"
 #include "GameFramework/ForceFeedbackEffect.h"
@@ -358,6 +359,10 @@ private:
 
 	UFUNCTION()
 	void HandleDamageReceivedFeedback(UYogAbilitySystemComponent* SourceASC, float Damage);
+
+	// 卡牌入组时触发教程一次性提示（识别 Heavy / Link / Finisher）
+	UFUNCTION()
+	void OnDeckCardsEnteredForTutorial(const TArray<FCombatCardInstance>& Cards);
 
 	void PlayDamageScreenFlash();
 	void StartDamagePlayerGlow();

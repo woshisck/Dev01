@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Tutorial/TutorialHintDataAsset.h"
 #include "UI/GameDialogWidget.h"
@@ -44,6 +45,18 @@ public:
 	// LevelFlow entry: show inline tutorial pages without requiring a DialogContentDA asset.
 	bool ShowInlinePages(const TArray<FTutorialPage>& Pages, APlayerController* PC, bool bPauseGame = true);
 
+	// 事件驱动一次性提示：HintTag 未展示过则展示 EventID 对应弹窗，并将 HintTag 记入存档 ShownPopupKeys。
+	// 不依赖 ETutorialState 顺序，适合背包打开/卡牌获得等孤立触发点。
+	// 当前有弹窗正在显示时，提示进入队列，等 NotifyPopupClosed 后自动补发，不会丢失。
+	UFUNCTION(BlueprintCallable, Category = "Tutorial|HintOnce")
+	bool TryShowHintOnce(FGameplayTag HintTag, FName EventID, APlayerController* PC, bool bPauseGame = true);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Tutorial|HintOnce")
+	bool HasShownHint(FGameplayTag HintTag) const;
+
+	// 每次 NotifyPopupClosed 后自动调用，尝试发送队列中的下一条提示。
+	void FlushPendingHints();
+
 	ETutorialState GetState() const { return State; }
 	bool IsPopupShowing() const { return bPopupShowing; }
 	bool AreTutorialPopupsEnabled() const { return bTutorialPopupsEnabled; }
@@ -62,6 +75,17 @@ public:
 private:
 	UPROPERTY(Config)
 	bool bTutorialPopupsEnabled = false;
+
+	void MarkHintShown(FGameplayTag HintTag);
+
+	struct FPendingHint
+	{
+		FGameplayTag HintTag;
+		FName EventID;
+		TWeakObjectPtr<APlayerController> PC;
+		bool bPauseGame = true;
+	};
+	TArray<FPendingHint> PendingHints;
 
 	ETutorialState State = ETutorialState::NeedWeaponTutorial;
 

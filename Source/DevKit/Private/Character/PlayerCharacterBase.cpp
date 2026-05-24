@@ -45,6 +45,7 @@
 #include "GameModes/YogGameMode.h"
 #include "GameplayEffect.h"
 #include "GameplayTagContainer.h"
+#include "Tutorial/TutorialManager.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 
 namespace
@@ -670,6 +671,13 @@ void APlayerCharacterBase::BeginPlay()
 		BackpackGridComponent->InitWithASC(GetAbilitySystemComponent());
 	}
 
+	// 卡牌入组事件：C++ 统一识别卡牌类型并触发一次性教程提示
+	if (CombatDeckComponent)
+	{
+		CombatDeckComponent->OnDeckCardsEntered.AddDynamic(
+			this, &APlayerCharacterBase::OnDeckCardsEnteredForTutorial);
+	}
+
 	// 初始化技能充能系统
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 	{
@@ -1121,6 +1129,40 @@ void APlayerCharacterBase::TickPlayerPhaseGlow(float DeltaTime)
 	{
 		PlayerOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), SweepProgress);
 		PlayerOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), GlowAlpha);
+	}
+}
+
+void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCardInstance>& Cards)
+{
+	UTutorialManager* TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTutorialManager>() : nullptr;
+	if (!TM) return;
+
+	APlayerController* PC = GetController<APlayerController>();
+	if (!PC) return;
+
+	static const FGameplayTag HeavyHintTag   = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.HeavyCard"));
+	static const FGameplayTag LinkHintTag     = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.LinkCard"));
+	static const FGameplayTag FinisherHintTag = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.Finisher"));
+
+	for (const FCombatCardInstance& Card : Cards)
+	{
+		if (!Card.IsValidCard()) continue;
+
+		// 重击卡：RequiredAction == Heavy（区别于普通攻击卡）
+		if (Card.Config.RequiredAction == ECardRequiredAction::Heavy)
+		{
+			TM->TryShowHintOnce(HeavyHintTag, TEXT("tutorial_heavy_card"), PC);
+		}
+		// 连携卡（月光等）
+		else if (Card.Config.CardType == ECombatCardType::Link)
+		{
+			TM->TryShowHintOnce(LinkHintTag, TEXT("tutorial_card_link"), PC);
+		}
+		// 终结技卡
+		else if (Card.Config.CardType == ECombatCardType::Finisher)
+		{
+			TM->TryShowHintOnce(FinisherHintTag, TEXT("tutorial_finisher"), PC);
+		}
 	}
 }
 

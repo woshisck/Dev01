@@ -3,6 +3,7 @@
 #include "Character/YogPlayerControllerBase.h"
 #include "Containers/Ticker.h"
 #include "Engine/LocalPlayer.h"
+#include "GameplayTagContainer.h"
 #include "Kismet/GameplayStatics.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveSubsystem.h"
@@ -458,6 +459,7 @@ void UTutorialManager::NotifyPopupClosed()
 
 	bPopupShowing = false;
 	OnPopupClosed.Broadcast();
+	FlushPendingHints();
 }
 
 void UTutorialManager::ForceClosePopup()
@@ -478,6 +480,101 @@ void UTutorialManager::EndDilationVisualIfActive()
 	UTimeDilationVisualSubsystem::EndTimeDilationVisual(GetGameInstance());
 	bDilationVisualActive = false;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  事件驱动一次性提示（HintOnce）
+//  不依赖 ETutorialState 顺序；每个 HintTag 只展示一次，结果写入 ShownPopupKeys。
+//  当前有弹窗时进入 PendingHints 队列，NotifyPopupClosed 后自动补发。
+// ─────────────────────────────────────────────────────────────────────────────
+
+bool UTutorialManager::HasShownHint(FGameplayTag HintTag) const
+{
+	if (!HintTag.IsValid()) return false;
+	UGameInstance* GI = GetGameInstance();
+	UYogSaveSubsystem* SaveSys = GI ? GI->GetSubsystem<UYogSaveSubsystem>() : nullptr;
+	const UYogSaveGame* Save = SaveSys ? SaveSys->GetCurrentSave() : nullptr;
+	return Save && Save->ShownPopupKeys.Contains(HintTag);
+}
+
+void UTutorialManager::MarkHintShown(FGameplayTag HintTag)
+{
+	if (!HintTag.IsValid()) return;
+	UGameInstance* GI = GetGameInstance();
+	UYogSaveSubsystem* SaveSys = GI ? GI->GetSubsystem<UYogSaveSubsystem>() : nullptr;
+	UYogSaveGame* Save = SaveSys ? SaveSys->GetCurrentSave() : nullptr;
+	if (Save)
+	{
+		Save->ShownPopupKeys.Add(HintTag);
+		SaveSys->WriteSaveGame();
+	}
+}
+
+bool UTutorialManager::TryShowHintOnce(FGameplayTag HintTag, FName EventID, APlayerController* PC, bool bPauseGame)
+{
+	if (!AreTutorialPopupsEnabled()) return false;
+	if (HasShownHint(HintTag))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[Tutorial] HintOnce '%s' already shown, skipping."), *HintTag.ToString());
+		return true;
+	}
+
+	// 同一 HintTag 不重复入队
+	for (const FPendingHint& Pending : PendingHints)
+	{
+		if (Pending.HintTag == HintTag) return true;
+	}
+
+	if (!bPopupShowing)
+	{
+		if (ShowByEventID(EventID, PC, bPauseGame))
+		{
+			MarkHintShown(HintTag);
+			return true;
+		}
+		// ShowByEventID 失败（EventID 未配置等），不入队
+		UE_LOG(LogTemp, Warning, TEXT("[Tutorial] HintOnce '%s' ShowByEventID('%s') failed immediately, not queued."),
+			*HintTag.ToString(), *EventID.ToString());
+		return false;
+	}
+
+	// 当前有弹窗，进入队列等待补发
+	UE_LOG(LogTemp, Log, TEXT("[Tutorial] HintOnce '%s' queued (popup busy)."), *HintTag.ToString());
+	FPendingHint& Queued = PendingHints.AddDefaulted_GetRef();
+	Queued.HintTag   = HintTag;
+	Queued.EventID   = EventID;
+	Queued.PC        = PC;
+	Queued.bPauseGame = bPauseGame;
+	return true;
+}
+
+void UTutorialManager::FlushPendingHints()
+{
+	while (!PendingHints.IsEmpty() && !bPopupShowing)
+	{
+		FPendingHint Next = PendingHints[0];
+		PendingHints.RemoveAt(0);
+
+		if (HasShownHint(Next.HintTag))
+		{
+			// 队列期间已被其他路径标记完成，跳过
+			continue;
+		}
+		if (!Next.PC.IsValid())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Tutorial] FlushPendingHints: PC invalid for hint '%s', dropping."),
+				*Next.HintTag.ToString());
+			continue;
+		}
+
+		if (ShowByEventID(Next.EventID, Next.PC.Get(), Next.bPauseGame))
+		{
+			MarkHintShown(Next.HintTag);
+			// ShowByEventID 会把 bPopupShowing 设为 true，循环下次判断时退出
+		}
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 void UTutorialManager::SaveState()
 {
