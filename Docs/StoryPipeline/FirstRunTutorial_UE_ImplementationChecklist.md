@@ -82,6 +82,29 @@
 - 教程完成 / 普通流程：日志应出现 `Source=CampaignData`，使用 `DA_Campaign_MainRun`
 - 后续剧情强控：剧情或蓝图调用 `SetCampaignOverride(DA_Campaign_Story_xxx)`，日志应出现 `Source=GameInstance.CampaignOverrideData`
 
+### 1.4 武器卡组切换方案
+
+当前采用“同一把武器 DA，按存档剧情状态选择卡组”的方案，不再为了教程单独改正常武器卡组。
+
+运行时路径：
+1. 新存档会写入 `Story.Flag.FirstRunTutorial.Active`。
+2. 玩家在首局教程 Active 时拾取武器，`AWeaponSpawner` / `UWeaponDefinition::SetupWeaponToCharacter` 会调用 `UCombatDeckComponent.LoadDeckFromWeaponForFirstRunTutorial`。
+3. 这时优先读取武器 DA 的 `Combat Deck|First Run Tutorial`：
+   - `bUseFirstRunTutorialCombatDeckOverride` = true
+   - `FirstRunTutorialCombatDeckOverride` = `[攻击][攻击]`
+   - `bSuppressTemporaryFinisherDuringFirstRunTutorial` = true
+4. 教程完成后会移除 `Story.Flag.FirstRunTutorial.Active` 并写入 `Story.Flag.FirstRunTutorial.Completed`。
+5. 之后进入正常流程，`B_GameMode.CampaignData` 使用 `DA_Campaign_MainRun`；同一把武器会走正常卡组，或在需要时读取 `FirstRunTutorialCompletedCombatDeckOverride`。
+6. 跨房间或 checkpoint 恢复时，`PendingRunState.CombatDeckCards` 会按保存内容精确恢复，不会再次追加教程外的临时终结技卡。
+
+建议配置方式：
+- 正常武器的 `InitialCombatDeck` 保持正式默认卡组，不要为了教程改成 `[攻击][攻击]`。
+- 教程临时卡组只填在 `FirstRunTutorialCombatDeckOverride`。
+- 如果 Demo 首局结束后必须从 `[攻击][攻击][月光][武器终结技]` 开始，就勾选：
+  - `bUseFirstRunTutorialCompletedDeckOverride` = true
+  - `FirstRunTutorialCompletedCombatDeckOverride` = `[攻击][攻击][月光][武器终结技]`
+- 如果后续正式体验不需要这条特殊完成卡组，就不要勾选 completed override，让武器回到 `InitialCombatDeck`。
+
 ## 2. 主城教程配置
 
 地图：`/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom`
@@ -140,19 +163,36 @@ RoomData：
 
 填写：
 - 武器 Definition 指向教程双手剑或当前 Demo 默认武器
-- 武器自身 `InitialCombatDeck` 填：
-  - `DA_Rune512_Attack`
-  - `DA_Rune512_Attack`
+- 武器正常 `InitialCombatDeck` 填正式默认卡组；如果 Demo 首局结束后希望玩家以 `[攻击][攻击][月光][武器终结技]` 开始正常体验，就把这套作为正式默认，或使用下面的 completed override
+- 教程临时卡组不要写进正常 `InitialCombatDeck`，改填：
+  - `bUseFirstRunTutorialCombatDeckOverride` = true
+  - `FirstRunTutorialCombatDeckOverride`：
+    - `DA_Rune512_Attack`
+    - `DA_Rune512_Attack`
+  - `bSuppressTemporaryFinisherDuringFirstRunTutorial` = true
+- 教程完成后的特殊初始卡组如需要，填：
+  - `bUseFirstRunTutorialCompletedDeckOverride` = true
+  - `FirstRunTutorialCompletedCombatDeckOverride`：
+    - `DA_Rune512_Attack`
+    - `DA_Rune512_Attack`
+    - 月光卡 DA
+    - 武器终结技卡 DA
+- 如果不需要教程完成卡组覆盖，就保持 `bUseFirstRunTutorialCompletedDeckOverride` = false
 - 拾取提示使用：`<input action="Interact"/>`
 
+当前 C++ 行为：
+- `Story.Flag.FirstRunTutorial.Active` 有效时，拾取武器会自动加载 `FirstRunTutorialCombatDeckOverride`
+- `Story.Flag.FirstRunTutorial.Completed` 有效且武器开启 completed override 时，拾取/恢复武器会加载 `FirstRunTutorialCompletedCombatDeckOverride`
+- 其他情况使用正常 `InitialCombatDeck`，为空时回退到 `InitialRunes`
+
 剧情绑定：
-- 需要在武器拾取成功事件后触发 `EP_FirstRun_WeaponPickupPrompt`
-- 若当前 `BP_WeaponSpawner` 没有 Story Encounter 触发字段，需要加一个蓝图事件或 Level Blueprint 调用 `StoryEncounterRuntimeSubsystem.TriggerEncounterPoint`
+- `BP_WeaponSpawner` 现在有 `PickupEncounterPoint` 字段
+- `PickupEncounterPoint` = `EP_FirstRun_WeaponPickupPrompt`
 
 检查：
 - 靠近武器出现拾取提示
-- 拾取后获得武器
-- 下方 1D 卡组出现 `[攻击][攻击]`
+- 首局教程 Active 时，拾取后下方 1D 卡组只出现 `[攻击][攻击]`
+- 教程完成后，再次进入正常流程时不再使用教程临时卡组
 - 触发 `first_run.weapon_picked`
 
 ### 2.4 1D 卡组进卡高亮
@@ -234,17 +274,11 @@ RoomData：
 - 卡牌：`/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback` 或正式 `[重击]` DA
 
 注意：
-当前 `ARewardPickup` 的 `AssignedLoot` 是运行时由 `AssignLoot` 写入，手动放一个 `BP_RewardPickup` 不会自动带固定卡牌。因此这里需要二选一：
-
-方案 A：做一个教程专用 BP。
-- 新建 `BP_TutorialRewardPickup_HeavyCard` 继承 `BP_RewardPickup`
-- 暴露 `FixedLootOptions`
-- BeginPlay 调用 `AssignLoot(FixedLootOptions)`
-- `FixedLootOptions` 只填一项 Rune：`[重击]`
-
-方案 B：木人桩死亡时由 Level Blueprint / 木人桩 BP Spawn `BP_RewardPickup`。
-- Spawn 后立即调用 `AssignLoot`
-- 传入只含 `[重击]` 的 `FLootOption`
+- C++ 已给 `ARewardPickup` 增加固定奖励字段，不需要再做教程专用子类才能固定掉落。
+- 放置或 Spawn `BP_RewardPickup` 后直接填写：
+  - `bUseFixedLootOptions` = true
+  - `FixedLootOptions` 只填一项 Rune：`[重击]`
+- 如果木人桩死亡时动态 Spawn，也可以 Spawn 后继续调用 `AssignLoot`；但静态配置优先用 `FixedLootOptions`，更好检查。
 
 放置/生成后命名：
 - `RewardPickup_DummyHeavyCard`
@@ -471,17 +505,20 @@ RoomData：
 保存/卡组写入：
 1. 移除 `Story.Flag.FirstRunTutorial.Active`
 2. 写入 `Story.Flag.FirstRunTutorial.Completed`
-3. 设置新默认卡组：
+3. 回主城后进入正常流程时，卡组来源不再是教程临时 override：
+   - 如果武器开启 `bUseFirstRunTutorialCompletedDeckOverride`，读取 completed override
+   - 否则读取武器正常 `InitialCombatDeck`
+4. 如果 Demo 首局要求固定新默认卡组，在武器 DA 的 `FirstRunTutorialCompletedCombatDeckOverride` 填：
    - `[攻击]`
    - `[攻击]`
    - `[月光]`
    - `[武器终结技]`
-4. 清理首局教程临时房间状态
-5. 回到 `InitialRoom`
+5. 清理首局教程临时房间状态
+6. 回到 `InitialRoom`
 
 检查：
 - 再次从主菜单进入同一存档，不再走首局教程入口
-- 回主城后武器卡组为 `[攻击][攻击][月光][武器终结技]`
+- 回主城后，如果配置了 completed override，武器卡组为 `[攻击][攻击][月光][武器终结技]`
 - 可以进入正常 Run
 
 ## 9. 最终全流程验收
@@ -514,15 +551,34 @@ RoomData：
 
 ## 10. 当前需要开发补齐的点
 
-以下不是单纯填 DA 就能完成，需要补蓝图或 C++：
+### 10.1 本轮 C++ 已补齐
 
-1. `BP_WeaponSpawner` 拾取成功后触发 Story Encounter。
-2. 背包首次打开触发 `EP_FirstRun_BackpackCardRules`。
-3. 教程专用 RewardPickup：支持手动/脚本指定固定 Loot，并能只显示中间一张卡。
-4. 木人桩死亡事件生成固定 `[重击]` 奖励。
-5. 月光敌人死亡事件生成固定 `[月光]` 奖励。
-6. Portal 预览奖励 icon 的金币/卡牌/材料表现。
-7. 两个过渡房结束后强制进入祈祷室。
-8. 祈祷室获得终结技后启动无限刷敌。
-9. 死亡界面“只显示回归主城”。
-10. 回主城后写入 Completed 并重置默认卡组。
+1. 武器卡组切换：
+   - `UWeaponDefinition` 增加首局教程卡组 override 与教程完成卡组 override。
+   - `AWeaponSpawner` 和 `UWeaponDefinition::SetupWeaponToCharacter` 会按 `FirstRunTutorial.Active/Completed` 自动选择卡组。
+2. 武器拾取触发剧情点：
+   - `BP_WeaponSpawner` 可直接填写 `PickupEncounterPoint`。
+   - 拾取成功后会调用 `StoryEncounterRuntimeSubsystem.TriggerEncounterPoint`。
+3. 固定奖励拾取物：
+   - `ARewardPickup` 增加 `bUseFixedLootOptions` 和 `FixedLootOptions`。
+   - 静态放置或动态 Spawn 的奖励都可以直接指定固定 Loot。
+4. 首局教程完成状态查询：
+   - `UYogSaveSubsystem` 增加 `IsFirstRunTutorialCompleted()`，供武器卡组和后续蓝图逻辑判断。
+5. 切关恢复卡组：
+   - `APlayerCharacterBase::RestoreRunStateFromGI` 现在使用精确恢复，不会在教程跨房间时额外塞入临时终结技卡。
+
+### 10.2 仍需配置或蓝图补齐
+
+1. 打开教程武器 DA，填写：
+   - `FirstRunTutorialCombatDeckOverride = [攻击][攻击]`
+   - 需要的话填写 `FirstRunTutorialCompletedCombatDeckOverride = [攻击][攻击][月光][武器终结技]`
+2. 打开 `WeaponSpawner_Tutorial`，填写：
+   - `PickupEncounterPoint = EP_FirstRun_WeaponPickupPrompt`
+3. 背包首次打开触发 `EP_FirstRun_BackpackCardRules` 仍需检查 UI 入口是否已绑定。
+4. 木人桩死亡事件仍需生成或启用固定 `[重击]` 奖励拾取物。
+5. 月光特殊敌人仍需在目标 RoomData / 刷怪逻辑中配置特殊敌人 BP、蓝雾 FX 和 `[月光]` 固定掉落。
+6. Portal 预览奖励 icon 的金币/卡牌/材料表现仍需逐项检查。
+7. 两个过渡房结束后强制进入祈祷室仍需在 RoomData `PortalDestinations` / `bForceSinglePortal` 中配置。
+8. 祈祷室获得终结技后启动无限刷敌仍需关卡 BP 或 Room Event 绑定。
+9. 死亡界面“只显示回归主城”仍需按首局教程 Active/Completed 状态做 UI 分支验收。
+10. 全流程 PIE 验收仍未完成：新存档从主菜单进入、首局教程、死亡回主城、再进入正常 MainRun。

@@ -358,7 +358,7 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		{
 			RestoredDeckAssets.Add(SourceAsset);
 		}
-		CombatDeckComponent->LoadDeckFromSourceAssets(
+		CombatDeckComponent->LoadDeckFromExactSourceAssets(
 			RestoredDeckAssets,
 			State.CombatDeckShuffleCooldownDuration,
 			State.CombatDeckMaxActiveSequenceSize);

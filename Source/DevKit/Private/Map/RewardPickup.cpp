@@ -29,6 +29,11 @@ void ARewardPickup::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (bUseFixedLootOptions && !FixedLootOptions.IsEmpty() && AssignedLoot.IsEmpty())
+	{
+		AssignLoot(FixedLootOptions);
+	}
+
 	if (CollisionVolume)
 	{
 		CollisionVolume->SetGenerateOverlapEvents(IsPickupAllowed());
@@ -159,6 +164,11 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 	bPickedUp = true;
 	if (RuneInfoWidgetComp) RuneInfoWidgetComp->SetVisibility(false);
 	if (Player->PendingPickup == this) Player->PendingPickup = nullptr;
+
+	if (bUseFixedLootOptions && !FixedLootOptions.IsEmpty() && AssignedLoot.IsEmpty())
+	{
+		AssignLoot(FixedLootOptions);
+	}
 
 	TArray<FLootOption> Options = (AssignedLoot.Num() > 0)
 		? AssignedLoot

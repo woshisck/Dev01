@@ -22,6 +22,9 @@
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
+#include "SaveGame/YogSaveSubsystem.h"
+#include "Story/Encounter/StoryEncounterPointDataAsset.h"
+#include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
 #include "Tutorial/TutorialManager.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Engine/GameInstance.h"
@@ -443,7 +446,22 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes 和 WeaponComboConfig。
 	if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent.Get())
 	{
-		CombatDeck->LoadDeckFromWeapon(WeaponDefinition);
+		const UYogSaveSubsystem* SaveSys = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UYogSaveSubsystem>()
+			: nullptr;
+		if (SaveSys && SaveSys->IsFirstRunTutorialActive())
+		{
+			CombatDeck->LoadDeckFromWeaponForFirstRunTutorial(WeaponDefinition);
+		}
+		else if (SaveSys && SaveSys->IsFirstRunTutorialCompleted()
+			&& WeaponDefinition->bUseFirstRunTutorialCompletedDeckOverride)
+		{
+			CombatDeck->ApplyFirstRunTutorialCompletedDeck(WeaponDefinition);
+		}
+		else
+		{
+			CombatDeck->LoadDeckFromWeapon(WeaponDefinition);
+		}
 	}
 
 	if (UComboRuntimeComponent* ComboRuntime = Player->ComboRuntimeComponent.Get())
@@ -496,6 +514,17 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	{
 		bCollapsingForPickup = false;
 		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] HUD=NULL — 动画不会触发"));
+	}
+
+	if (PickupEncounterPoint)
+	{
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			if (UStoryEncounterRuntimeSubsystem* Runtime = GameInstance->GetSubsystem<UStoryEncounterRuntimeSubsystem>())
+			{
+				Runtime->TriggerEncounterPoint(PickupEncounterPoint, this);
+			}
+		}
 	}
 }
 

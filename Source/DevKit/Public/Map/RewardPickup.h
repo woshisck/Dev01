@@ -43,6 +43,12 @@ public:
 	 */
 	void AssignLoot(const TArray<FLootOption>& InLoot);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Fixed")
+	bool bUseFixedLootOptions = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Fixed", meta = (EditCondition = "bUseFixedLootOptions"))
+	TArray<FLootOption> FixedLootOptions;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;

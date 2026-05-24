@@ -141,6 +141,24 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck")
 	TArray<TObjectPtr<URuneDataAsset>> InitialCombatDeck;
 
+	// Optional first-run tutorial deck. This lets the tutorial use a temporary deck without changing the normal weapon setup.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck|First Run Tutorial")
+	bool bUseFirstRunTutorialCombatDeckOverride = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck|First Run Tutorial", meta = (EditCondition = "bUseFirstRunTutorialCombatDeckOverride"))
+	TArray<TObjectPtr<URuneDataAsset>> FirstRunTutorialCombatDeckOverride;
+
+	// First-run tutorial pickup should normally show only the scripted tutorial cards, not the temporary locked finisher.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck|First Run Tutorial", meta = (EditCondition = "bUseFirstRunTutorialCombatDeckOverride"))
+	bool bSuppressTemporaryFinisherDuringFirstRunTutorial = true;
+
+	// Deck snapshot to apply when the first-run tutorial is marked complete.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck|First Run Tutorial")
+	bool bUseFirstRunTutorialCompletedDeckOverride = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck|First Run Tutorial", meta = (EditCondition = "bUseFirstRunTutorialCompletedDeckOverride"))
+	TArray<TObjectPtr<URuneDataAsset>> FirstRunTutorialCompletedCombatDeckOverride;
+
 	// 卡组打空后的装填时间。V1 默认 1 秒，武器可覆盖。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck", meta = (ClampMin = "0.0"))
 	float ShuffleCooldownDuration = 1.0f;

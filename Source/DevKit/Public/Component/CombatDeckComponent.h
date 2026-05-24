@@ -273,7 +273,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
 	void LoadDeckFromWeapon(const UWeaponDefinition* WeaponDefinition);
 
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|First Run Tutorial")
+	void LoadDeckFromWeaponForFirstRunTutorial(const UWeaponDefinition* WeaponDefinition);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck|First Run Tutorial")
+	void ApplyFirstRunTutorialCompletedDeck(const UWeaponDefinition* WeaponDefinition);
+
 	void LoadDeckFromSourceAssets(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize);
+
+	void LoadDeckFromExactSourceAssets(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize);
 
 	TArray<URuneDataAsset*> GetDeckSourceAssets() const;
 
@@ -433,6 +441,7 @@ private:
 	TSet<FGuid> ResolvedAttackGuids;
 
 	FCombatCardInstance MakeCardFromRune(URuneDataAsset* RuneAsset, FName OwnerSource) const;
+	void LoadDeckFromSourceAssetsInternal(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize, bool bAppendTemporaryFinisherCard);
 	void AppendTemporaryInitialFinisherCard(TArray<URuneDataAsset*>& SourceAssets) const;
 	bool IsTemporaryFinisherLocked(const FCombatCardInstance& Card, int32& OutRequiredBattles, int32& OutCurrentBattles) const;
 	FCombatCardInstance BuildTemporaryLockViewCard(const FCombatCardInstance& Card) const;
