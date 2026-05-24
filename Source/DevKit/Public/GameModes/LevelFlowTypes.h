@@ -38,7 +38,7 @@ struct DEVKIT_API FLootOption
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadOnly, Category = "Loot")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
 	ELootType LootType = ELootType::Rune;
 
 	// LootType == Rune 时有效

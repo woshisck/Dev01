@@ -2,10 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "GameModes/LevelFlowTypes.h"
 #include "Story/StoryRuleTypes.h"
 #include "UI/GameDialogWidget.h"
 #include "StoryEncounterTypes.generated.h"
 
+class ARewardPickup;
 class ULevelFlowAsset;
 
 UENUM(BlueprintType)
@@ -50,6 +52,7 @@ enum class EStoryEncounterActionKind : uint8
 	SetActorEnabled UMETA(DisplayName = "设置关卡对象启用"),
 	TutorialPopup UMETA(DisplayName = "教程弹窗"),
 	TutorialAreaHint UMETA(DisplayName = "区域教程提示"),
+	SpawnRewardPickup UMETA(DisplayName = "Spawn Reward Pickup"),
 };
 
 USTRUCT(BlueprintType)
@@ -137,6 +140,24 @@ struct DEVKIT_API FStoryEncounterAction
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
 	TObjectPtr<ULevelFlowAsset> LevelFlow = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
+	TSubclassOf<ARewardPickup> RewardPickupClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
+	TArray<FLootOption> RewardLootOptions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物", meta = (ClampMin = "1"))
+	int32 RewardPickupCount = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
+	FVector RewardSpawnOffset = FVector(120.f, 0.f, 0.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
+	bool bSpawnRewardOnTargetDeath = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
+	bool bRewardPickupAllowedOutsideArrangement = true;
 };
 
 USTRUCT(BlueprintType)

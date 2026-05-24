@@ -5,7 +5,10 @@
 #include "EngineUtils.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
+#include "Character/YogCharacterBase.h"
 #include "Data/LevelInfoPopupDA.h"
+#include "GameModes/YogGameMode.h"
+#include "Map/RewardPickup.h"
 #include "Story/Encounter/StoryEncounterMap.h"
 #include "Story/Encounter/StoryEncounterGraph.h"
 #include "Story/Encounter/StoryEncounterGraphNode.h"
@@ -319,6 +322,7 @@ bool UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(FName Encoun
 		return OutStoryAction.LevelFlow != nullptr;
 
 	case EStoryEncounterActionKind::SetActorEnabled:
+	case EStoryEncounterActionKind::SpawnRewardPickup:
 	case EStoryEncounterActionKind::TeleportToNode:
 	default:
 		return false;
@@ -485,6 +489,153 @@ bool UStoryEncounterRuntimeSubsystem::ExecuteTutorialAreaHintAction(
 	return true;
 }
 
+bool UStoryEncounterRuntimeSubsystem::ExecuteSpawnRewardPickupAction(
+	const FStoryEncounterAction& Action,
+	const FStoryEventContext& Context)
+{
+	UWorld* World = Context.SourceActor ? Context.SourceActor->GetWorld() : GetWorld();
+	if (!World || Action.RewardLootOptions.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StoryEncounter] SpawnRewardPickup skipped: World=%s LootCount=%d"),
+			World ? TEXT("OK") : TEXT("NULL"),
+			Action.RewardLootOptions.Num());
+		return false;
+	}
+
+	TArray<AActor*> Targets;
+	if (!Action.TargetActorName.IsNone() || !Action.TargetActorTag.IsNone())
+	{
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			if (DoesActorMatchStoryTarget(*It, Action.TargetActorName, Action.TargetActorTag))
+			{
+				Targets.Add(*It);
+			}
+		}
+	}
+
+	if (Targets.IsEmpty() && Context.SourceActor)
+	{
+		Targets.Add(Context.SourceActor);
+	}
+
+	if (Targets.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StoryEncounter] SpawnRewardPickup found no target. Name=%s Tag=%s"),
+			*Action.TargetActorName.ToString(),
+			*Action.TargetActorTag.ToString());
+		return false;
+	}
+
+	if (Action.bSpawnRewardOnTargetDeath)
+	{
+		int32 BoundCount = 0;
+		for (AActor* Target : Targets)
+		{
+			AYogCharacterBase* Character = Cast<AYogCharacterBase>(Target);
+			if (!Character)
+			{
+				continue;
+			}
+
+			const TObjectKey<AYogCharacterBase> Key(Character);
+			PendingRewardDropActions.FindOrAdd(Key).Add(Action);
+			if (!BoundRewardDropTargets.Contains(Key))
+			{
+				Character->OnCharacterDied.AddDynamic(this, &UStoryEncounterRuntimeSubsystem::HandleRewardDropCharacterDied);
+				BoundRewardDropTargets.Add(Key);
+			}
+			++BoundCount;
+		}
+
+		if (BoundCount > 0)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[StoryEncounter] SpawnRewardPickup armed on death. Count=%d Loot=%d"),
+				BoundCount,
+				Action.RewardLootOptions.Num());
+			return true;
+		}
+	}
+
+	bool bSpawnedAny = false;
+	const int32 Count = FMath::Max(1, Action.RewardPickupCount);
+	for (AActor* Target : Targets)
+	{
+		if (!Target)
+		{
+			continue;
+		}
+
+		TSubclassOf<ARewardPickup> PickupClass = Action.RewardPickupClass;
+		if (!PickupClass)
+		{
+			if (const AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(World)))
+			{
+				PickupClass = GM->RewardPickupClass;
+			}
+		}
+
+		if (!PickupClass)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[StoryEncounter] SpawnRewardPickup skipped: RewardPickupClass is not set."));
+			return false;
+		}
+
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const FVector SpreadOffset(0.f, Index * 120.f, 0.f);
+			const FVector SpawnLocation = Target->GetActorLocation() + Action.RewardSpawnOffset + SpreadOffset;
+			ARewardPickup* Pickup = World->SpawnActor<ARewardPickup>(PickupClass, SpawnLocation, FRotator::ZeroRotator);
+			if (!Pickup)
+			{
+				continue;
+			}
+
+			Pickup->bAllowPickupOutsideArrangement = Action.bRewardPickupAllowedOutsideArrangement;
+			Pickup->bUseFixedLootOptions = true;
+			Pickup->FixedLootOptions = Action.RewardLootOptions;
+			Pickup->AssignLoot(Action.RewardLootOptions);
+			Pickup->SetActorHiddenInGame(false);
+			Pickup->SetActorEnableCollision(true);
+			bSpawnedAny = true;
+		}
+	}
+
+	return bSpawnedAny;
+}
+
+void UStoryEncounterRuntimeSubsystem::HandleRewardDropCharacterDied(AYogCharacterBase* Character)
+{
+	if (!Character)
+	{
+		return;
+	}
+
+	const TObjectKey<AYogCharacterBase> Key(Character);
+	TArray<FStoryEncounterAction> Actions;
+	if (!PendingRewardDropActions.RemoveAndCopyValue(Key, Actions))
+	{
+		return;
+	}
+	BoundRewardDropTargets.Remove(Key);
+	Character->OnCharacterDied.RemoveDynamic(this, &UStoryEncounterRuntimeSubsystem::HandleRewardDropCharacterDied);
+
+	FStoryEventContext Context;
+	Context.SourceActor = Character;
+	Context.PlayerController = ResolveEncounterPlayer(Character);
+	Context.SourceName = Character->GetFName();
+	if (UWorld* World = Character->GetWorld())
+	{
+		Context.MapName = FName(*UGameplayStatics::GetCurrentLevelName(World, true));
+	}
+
+	for (FStoryEncounterAction Action : Actions)
+	{
+		Action.bSpawnRewardOnTargetDeath = false;
+		ExecuteSpawnRewardPickupAction(Action, Context);
+	}
+}
+
 void UStoryEncounterRuntimeSubsystem::ExecuteEncounterAction(FName EncounterId,
 	const FStoryEncounterAction& Action, const FStoryEventContext& Context)
 {
@@ -496,6 +647,11 @@ void UStoryEncounterRuntimeSubsystem::ExecuteEncounterAction(FName EncounterId,
 	if (Action.Kind == EStoryEncounterActionKind::TutorialAreaHint)
 	{
 		ExecuteTutorialAreaHintAction(Action, Context);
+		return;
+	}
+	if (Action.Kind == EStoryEncounterActionKind::SpawnRewardPickup)
+	{
+		ExecuteSpawnRewardPickupAction(Action, Context);
 		return;
 	}
 

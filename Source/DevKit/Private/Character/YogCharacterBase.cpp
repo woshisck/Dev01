@@ -169,6 +169,18 @@ void AYogCharacterBase::PostInitializeComponents()
 	UE_LOG(LogTemp, Log, TEXT("PostInit: AbilitySystemComponent = %p"), AbilitySystemComponent.Get());
 
 	check(AbilitySystemComponent);
+	if (BaseAttributeSet && !AbilitySystemComponent->HasAttributeSetForAttribute(UBaseAttributeSet::GetHealthAttribute()))
+	{
+		AbilitySystemComponent->AddAttributeSetSubobject(BaseAttributeSet.Get());
+	}
+	if (DamageAttributeSet && !AbilitySystemComponent->GetAttributeSet(UDamageAttributeSet::StaticClass()))
+	{
+		AbilitySystemComponent->AddAttributeSetSubobject(DamageAttributeSet.Get());
+	}
+	if (RuneAttributeSet && !AbilitySystemComponent->GetAttributeSet(URuneAttributeSet::StaticClass()))
+	{
+		AbilitySystemComponent->AddAttributeSetSubobject(RuneAttributeSet.Get());
+	}
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 	AbilitySystemComponent->InitConflictTable();
 }

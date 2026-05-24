@@ -164,6 +164,10 @@ void AEnemyCharacterBase::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
+	if (AbilitySystemComponent && EnemyAttributeSet && !AbilitySystemComponent->GetAttributeSet(UEnemyAttributeSet::StaticClass()))
+	{
+		AbilitySystemComponent->AddAttributeSetSubobject(EnemyAttributeSet.Get());
+	}
 }
 
 

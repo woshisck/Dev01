@@ -134,10 +134,7 @@
       "graphPosition": {
         "x": 0,
         "y": 0
-      },
-      "nextNodeIds": [
-        "hub_dash_hint"
-      ]
+      }
     },
     {
       "nodeId": "hub_dash_hint",
@@ -212,10 +209,7 @@
       "graphPosition": {
         "x": 420,
         "y": 0
-      },
-      "nextNodeIds": [
-        "deck_enter_highlight"
-      ]
+      }
     },
     {
       "nodeId": "deck_enter_highlight",
@@ -304,12 +298,9 @@
         }
       },
       "graphPosition": {
-        "x": 840,
+        "x": 0,
         "y": 220
-      },
-      "nextNodeIds": [
-        "training_dummy_combo"
-      ]
+      }
     },
     {
       "nodeId": "training_dummy_combo",
@@ -365,6 +356,29 @@
           "targetActorName": "",
           "targetActorTag": "",
           "actorEnabled": true
+        },
+        {
+          "type": "SpawnRewardPickup",
+          "actionId": "drop_dummy_heavy_card",
+          "targetActorName": "B_EnemyDummy_Tutorial",
+          "targetActorTag": "",
+          "spawnRewardOnTargetDeath": true,
+          "rewardPickupClass": "/Game/Code/Dungeon/BP_RewardPickup.BP_RewardPickup_C",
+          "rewardPickupCount": 1,
+          "rewardSpawnOffset": {
+            "x": 120,
+            "y": 0,
+            "z": 20
+          },
+          "rewardPickupAllowedOutsideArrangement": true,
+          "rewardLootOptions": [
+            {
+              "lootType": "Rune",
+              "runeAsset": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback",
+              "amount": 0,
+              "displayName": "重击卡"
+            }
+          ]
         }
       ],
       "extra": {
@@ -383,12 +397,9 @@
         }
       },
       "graphPosition": {
-        "x": 1260,
-        "y": 0
-      },
-      "nextNodeIds": [
-        "hub_portal_reward_preview"
-      ]
+        "x": 420,
+        "y": 220
+      }
     },
     {
       "nodeId": "hub_portal_reward_preview",
@@ -464,8 +475,8 @@
         }
       },
       "graphPosition": {
-        "x": 1680,
-        "y": 0
+        "x": 0,
+        "y": 520
       },
       "nextNodeIds": [
         "combat_room_01_gold"
@@ -528,8 +539,8 @@
         }
       },
       "graphPosition": {
-        "x": 2100,
-        "y": 0
+        "x": 420,
+        "y": 520
       },
       "nextNodeIds": [
         "combat_room_02_three_cards"
@@ -620,8 +631,8 @@
         }
       },
       "graphPosition": {
-        "x": 2520,
-        "y": 0
+        "x": 840,
+        "y": 520
       },
       "nextNodeIds": [
         "moonlight_special_enemy"
@@ -722,8 +733,8 @@
         }
       },
       "graphPosition": {
-        "x": 2940,
-        "y": 0
+        "x": 1260,
+        "y": 520
       },
       "nextNodeIds": [
         "transition_room_01_gold_material"
@@ -780,8 +791,8 @@
         }
       },
       "graphPosition": {
-        "x": 3360,
-        "y": 0
+        "x": 1680,
+        "y": 520
       },
       "nextNodeIds": [
         "transition_room_02_gold_material"
@@ -858,8 +869,8 @@
         }
       },
       "graphPosition": {
-        "x": 3780,
-        "y": 0
+        "x": 2100,
+        "y": 520
       },
       "nextNodeIds": [
         "prayer_sacrifice_finisher"
@@ -918,8 +929,8 @@
         }
       },
       "graphPosition": {
-        "x": 4200,
-        "y": 0
+        "x": 2520,
+        "y": 520
       },
       "nextNodeIds": [
         "scripted_defeat_return_hub"
@@ -991,8 +1002,8 @@
         }
       },
       "graphPosition": {
-        "x": 4620,
-        "y": 0
+        "x": 2940,
+        "y": 520
       },
       "nextNodeIds": [
         "return_hub_normal_run_start"
@@ -1104,8 +1115,8 @@
         }
       },
       "graphPosition": {
-        "x": 5040,
-        "y": 0
+        "x": 3360,
+        "y": 520
       }
     }
   ],

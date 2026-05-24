@@ -49,6 +49,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Fixed", meta = (EditCondition = "bUseFixedLootOptions"))
 	TArray<FLootOption> FixedLootOptions;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Story")
+	bool bAllowPickupOutsideArrangement = false;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;

@@ -8,6 +8,7 @@
 #include "JsonObjectConverter.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "LevelFlow/LevelFlowAsset.h"
+#include "Map/RewardPickup.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -168,6 +169,47 @@ FTutorialPage ParseTutorialPage(const TSharedPtr<FJsonObject>& Object)
 	return Page;
 }
 
+ELootType ParseLootType(const FString& Value)
+{
+	if (Value.Equals(TEXT("Gold"), ESearchCase::IgnoreCase)) return ELootType::Gold;
+	if (Value.Equals(TEXT("Material"), ESearchCase::IgnoreCase)) return ELootType::Material;
+	return ELootType::Rune;
+}
+
+FLootOption ParseLootOption(const TSharedPtr<FJsonObject>& Object)
+{
+	FLootOption Option;
+	Option.LootType = ParseLootType(GetString(Object, TEXT("lootType"), TEXT("Rune")));
+	Option.Amount = GetInt(Object, TEXT("amount"), Option.LootType == ELootType::Rune ? 0 : 1);
+	Option.DisplayName = FText::FromString(GetString(Object, TEXT("displayName")));
+
+	const FString RunePath = GetString(Object, TEXT("runeAsset"));
+	if (!RunePath.IsEmpty())
+	{
+		Option.RuneAsset = Cast<URuneDataAsset>(StaticLoadObject(
+			URuneDataAsset::StaticClass(),
+			nullptr,
+			*ToLoadableObjectPath(RunePath)));
+	}
+
+	const FString IconPath = GetString(Object, TEXT("icon"));
+	if (!IconPath.IsEmpty())
+	{
+		Option.Icon = Cast<UTexture2D>(StaticLoadObject(
+			UTexture2D::StaticClass(),
+			nullptr,
+			*ToLoadableObjectPath(IconPath)));
+	}
+
+	const FString MetaCurrencyTag = GetString(Object, TEXT("metaCurrencyTag"));
+	if (!MetaCurrencyTag.IsEmpty())
+	{
+		Option.MetaCurrencyTag = FGameplayTag::RequestGameplayTag(FName(*MetaCurrencyTag), false);
+	}
+
+	return Option;
+}
+
 EStoryEncounterNodeKind ParseNodeKind(const FString& Value)
 {
 	if (Value.Equals(TEXT("Area"), ESearchCase::IgnoreCase)) return EStoryEncounterNodeKind::Area;
@@ -205,6 +247,7 @@ EStoryEncounterActionKind ParseActionKind(const FString& Value)
 	if (Value.Equals(TEXT("PlayLevelFlow"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::PlayLevelFlow;
 	if (Value.Equals(TEXT("SetActorEnabled"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::SetActorEnabled;
 	if (Value.Equals(TEXT("TutorialPopup"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::TutorialPopup;
+	if (Value.Equals(TEXT("SpawnRewardPickup"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::SpawnRewardPickup;
 	return EStoryEncounterActionKind::WeakHint;
 }
 
@@ -269,6 +312,30 @@ FStoryEncounterAction ParseAction(const TSharedPtr<FJsonObject>& Object)
 	Action.TargetActorName = FName(*GetString(Object, TEXT("targetActorName")));
 	Action.TargetActorTag = FName(*GetString(Object, TEXT("targetActorTag")));
 	Action.bActorEnabled = GetBool(Object, TEXT("actorEnabled"), GetBool(Object, TEXT("bActorEnabled"), true));
+	const FString RewardPickupClassPath = GetString(Object, TEXT("rewardPickupClass"));
+	if (!RewardPickupClassPath.IsEmpty())
+	{
+		Action.RewardPickupClass = LoadClass<ARewardPickup>(nullptr, *ToLoadableObjectPath(RewardPickupClassPath));
+	}
+	Action.RewardLootOptions.Reset();
+	for (const TSharedPtr<FJsonValue>& LootValue : GetArray(Object, TEXT("rewardLootOptions")))
+	{
+		if (const TSharedPtr<FJsonObject>* LootObject = nullptr; LootValue->TryGetObject(LootObject))
+		{
+			Action.RewardLootOptions.Add(ParseLootOption(*LootObject));
+		}
+	}
+	Action.RewardPickupCount = FMath::Max(1, GetInt(Object, TEXT("rewardPickupCount"), Action.RewardPickupCount));
+	const TSharedPtr<FJsonObject> RewardSpawnOffset = GetObject(Object, TEXT("rewardSpawnOffset"));
+	if (RewardSpawnOffset.IsValid())
+	{
+		Action.RewardSpawnOffset = FVector(
+			GetFloat(RewardSpawnOffset, TEXT("x"), Action.RewardSpawnOffset.X),
+			GetFloat(RewardSpawnOffset, TEXT("y"), Action.RewardSpawnOffset.Y),
+			GetFloat(RewardSpawnOffset, TEXT("z"), Action.RewardSpawnOffset.Z));
+	}
+	Action.bSpawnRewardOnTargetDeath = GetBool(Object, TEXT("spawnRewardOnTargetDeath"), Action.bSpawnRewardOnTargetDeath);
+	Action.bRewardPickupAllowedOutsideArrangement = GetBool(Object, TEXT("rewardPickupAllowedOutsideArrangement"), Action.bRewardPickupAllowedOutsideArrangement);
 	const FString LevelFlowPath = GetString(Object, TEXT("levelFlow"));
 	if (!LevelFlowPath.IsEmpty())
 	{

@@ -220,6 +220,11 @@ void ARewardPickup::ResetForSkip(APlayerCharacterBase* Player)
 
 bool ARewardPickup::IsPickupAllowed() const
 {
+	if (bAllowPickupOutsideArrangement)
+	{
+		return true;
+	}
+
 	if (const AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this)))
 	{
 		return GM->CurrentPhase == ELevelPhase::Arrangement;

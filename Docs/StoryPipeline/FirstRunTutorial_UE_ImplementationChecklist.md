@@ -112,23 +112,24 @@ Details 面板填写：
 
 ### 1.6 木人桩重击卡奖励
 
-放置或由蓝图生成：
+现在不需要在关卡里手动放 `BP_RewardPickup`。
 
-- Blueprint：`BP_RewardPickup`
-- Actor Name：`RewardPickup_DummyHeavyCard`
+`training_dummy_combo` 剧情点已经配置了 `SpawnRewardPickup` 动作：
 
-Details 面板填写：
-
-- `bUseFixedLootOptions` = true
-- `FixedLootOptions` 只保留 1 项
-- 该项类型选择 `Rune`
-- Rune 卡填写正式 `[重击]` 卡；如果暂用击退卡，使用：
+- `TargetActorName` = `B_EnemyDummy_Tutorial`
+- `bSpawnRewardOnTargetDeath` = true
+- `RewardPickupClass` = `/Game/Code/Dungeon/BP_RewardPickup`
+- `RewardLootOptions` 只包含 1 个 Rune：
   - `/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback`
+- `RewardPickupCount` = 1
+
+引擎里只需要确认木人桩 Actor Name 正确。木人桩死亡后，故事引擎会自动在木人桩附近生成重击卡 Pickup。
 
 说明：
 
-- 玩家选择该卡并进入卡组后，会自动弹 `tutorial_heavy_card`。
+- 玩家选择该卡并进入卡组后，会自动触发 `tutorial_heavy_card`。
 - 不需要再额外配置重击卡教程 Story EP。
+- 不要再预放 `RewardPickup_DummyHeavyCard`，否则会出现重复奖励。
 
 ### 1.7 主城 Portal
 
@@ -288,6 +289,17 @@ RoomData / 祭坛配置：
 - 回到 `/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom`
 
 ## 7. 教程弹窗资产
+
+打开：
+
+- `/Game/Code/Core/GameMode/BP_HUD`
+
+Details 面板确认：
+
+- `TutorialPopupClass` = `/Game/UI/Playtest_UI/WBP_TutorialPopup`
+- `TutorialRegistry` = `/Game/Docs/UI/Tutorial/DA_TutorialRegistry`
+
+如果 `TutorialRegistry` 为空，武器拾取、背包、重击卡、连携卡、终结技这些 EventID 都会找不到内容，日志会出现 `TutorialRegistry is not set on BP_HUD`，教程弹窗会被跳过。
 
 打开：
 

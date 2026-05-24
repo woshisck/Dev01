@@ -16,12 +16,50 @@ UAttributeStatComponent::UAttributeStatComponent()
 	// ...
 }
 
+namespace
+{
+UAbilitySystemComponent* GetOwnerAbilitySystemComponent(const UActorComponent* Component)
+{
+	AActor* Owner = Component ? Component->GetOwner() : nullptr;
+	if (!IsValid(Owner))
+	{
+		return nullptr;
+	}
+
+	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
+}
+
+bool HasAttributeSet(const UActorComponent* Component, const UAbilitySystemComponent* ASC, const FGameplayAttribute& Attribute)
+{
+	if (!ASC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AttributeStatComponent] No ASC found on %s"),
+			Component && Component->GetOwner() ? *Component->GetOwner()->GetName() : TEXT("null"));
+		return false;
+	}
+
+	if (!ASC->HasAttributeSetForAttribute(Attribute))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AttributeStatComponent] %s has no AttributeSet for %s"),
+			Component && Component->GetOwner() ? *Component->GetOwner()->GetName() : TEXT("null"),
+			*Attribute.GetName());
+		return false;
+	}
+
+	return true;
+}
+}
+
 
 void UAttributeStatComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UAbilitySystemComponent* abilitySystemComponent = GetOwner()->FindComponentByClass<UAbilitySystemComponent>();
+	UAbilitySystemComponent* abilitySystemComponent = GetOwnerAbilitySystemComponent(this);
+	if (!HasAttributeSet(this, abilitySystemComponent, UBaseAttributeSet::GetHealthAttribute()))
+	{
+		return;
+	}
 
 	abilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBaseAttributeSet::GetHealthAttribute()).AddUObject(this, &UAttributeStatComponent::HandleHealthChange);
 
@@ -41,12 +79,8 @@ float UAttributeStatComponent::GetAttribute(FGameplayAttribute attribute) const
 		UE_LOG(LogTemp, Warning, TEXT("[AttributeStatComponent::GetAttribute] GetOwner() is null or invalid"));
 		return 0.f;
 	}
-	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
-	if (!ASC)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[AttributeStatComponent::GetAttribute] No ASC found on %s"), *Owner->GetName());
-		return 0.f;
-	}
+	UAbilitySystemComponent* ASC = GetOwnerAbilitySystemComponent(this);
+	if (!HasAttributeSet(this, ASC, attribute)) return 0.f;
 	return ASC->GetNumericAttributeBase(attribute);
 }
 
@@ -65,8 +99,8 @@ void UAttributeStatComponent::AddAttribute(FGameplayAttribute attribute, float v
 {
 	if (value_add != 0)
 	{
-		UAbilitySystemComponent* abilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
-		check(abilitySystemComponent);
+		UAbilitySystemComponent* abilitySystemComponent = GetOwnerAbilitySystemComponent(this);
+		if (!HasAttributeSet(this, abilitySystemComponent, attribute)) return;
 
 		abilitySystemComponent->SetNumericAttributeBase(attribute, abilitySystemComponent->GetNumericAttributeBase(attribute) + value_add);
 	}
@@ -76,8 +110,8 @@ void UAttributeStatComponent::MultiplyAttribute(FGameplayAttribute attribute, fl
 {
 	if (value_multiply != 0)
 	{
-		UAbilitySystemComponent* abilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
-		check(abilitySystemComponent);
+		UAbilitySystemComponent* abilitySystemComponent = GetOwnerAbilitySystemComponent(this);
+		if (!HasAttributeSet(this, abilitySystemComponent, attribute)) return;
 
 		abilitySystemComponent->SetNumericAttributeBase(attribute, abilitySystemComponent->GetNumericAttributeBase(attribute) * value_multiply);
 	}
@@ -87,8 +121,8 @@ void UAttributeStatComponent::DivideAttribute(FGameplayAttribute attribute, floa
 {
 	if (value_divide != 0)
 	{
-		UAbilitySystemComponent* abilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
-		check(abilitySystemComponent);
+		UAbilitySystemComponent* abilitySystemComponent = GetOwnerAbilitySystemComponent(this);
+		if (!HasAttributeSet(this, abilitySystemComponent, attribute)) return;
 
 		abilitySystemComponent->SetNumericAttributeBase(attribute, abilitySystemComponent->GetNumericAttributeBase(attribute) / value_divide);
 	}
@@ -98,8 +132,8 @@ void UAttributeStatComponent::OverrideAttribute(FGameplayAttribute attribute, fl
 {
 	if (value_override)
 	{
-		UAbilitySystemComponent* abilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
-		check(abilitySystemComponent);
+		UAbilitySystemComponent* abilitySystemComponent = GetOwnerAbilitySystemComponent(this);
+		if (!HasAttributeSet(this, abilitySystemComponent, attribute)) return;
 
 		abilitySystemComponent->SetNumericAttributeBase(attribute, value_override);
 	}

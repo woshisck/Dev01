@@ -392,6 +392,21 @@ TArray<FStoryEncounterWorkbenchMessage> FStoryEncounterEditorModel::Validate(
 					}
 					break;
 
+				case EStoryEncounterActionKind::SpawnRewardPickup:
+					if (Action.RewardLootOptions.IsEmpty())
+					{
+						AddWorkbenchMessage(Messages, EStoryEncounterWorkbenchMessageSeverity::Error,
+							FString::Printf(TEXT("%s 是奖励拾取物，但没有配置 RewardLootOptions。"), *Prefix),
+							EncounterMap, NAME_None, EncounterMap->EncounterId, Node.NodeId);
+					}
+					if (Action.bSpawnRewardOnTargetDeath && Action.TargetActorName.IsNone() && Action.TargetActorTag.IsNone())
+					{
+						AddWorkbenchMessage(Messages, EStoryEncounterWorkbenchMessageSeverity::Warning,
+							FString::Printf(TEXT("%s 设置为死亡掉落，但没有配置 TargetActorName 或 TargetActorTag；会绑定触发源。"), *Prefix),
+							EncounterMap, NAME_None, EncounterMap->EncounterId, Node.NodeId);
+					}
+					break;
+
 				default:
 					break;
 				}
@@ -836,6 +851,8 @@ FString FStoryEncounterEditorModel::ActionKindToChinese(EStoryEncounterActionKin
 		return TEXT("播放流程");
 	case EStoryEncounterActionKind::SetActorEnabled:
 		return TEXT("关卡对象控制");
+	case EStoryEncounterActionKind::SpawnRewardPickup:
+		return TEXT("生成奖励拾取物");
 	default:
 		return TEXT("未知");
 	}
@@ -919,6 +936,12 @@ FString FStoryEncounterEditorModel::DescribeAction(FName EncounterId, const FSto
 			*TagPart,
 			Action.bActorEnabled ? TEXT("启用") : TEXT("隐藏/禁用"));
 	}
+	case EStoryEncounterActionKind::SpawnRewardPickup:
+		return FString::Printf(TEXT("%s：%d 个 Pickup，%d 项奖励%s"),
+			*KindText,
+			FMath::Max(1, Action.RewardPickupCount),
+			Action.RewardLootOptions.Num(),
+			Action.bSpawnRewardOnTargetDeath ? TEXT("，目标死亡后生成") : TEXT("，立即生成"));
 	default:
 		return KindText;
 	}
