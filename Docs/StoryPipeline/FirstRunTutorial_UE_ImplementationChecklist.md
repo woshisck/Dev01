@@ -112,6 +112,14 @@ Details 面板填写：
 
 ### 1.6 木人桩重击卡奖励
 
+1. 删除场景里的 B_EnemyDummy_Tutorial 实例。
+2. 从健康的 /Game/Code/Characters/B_EnemyDummy 重新拖一个到场景。
+3. 重命名 Actor 为 B_EnemyDummy_Tutorial。
+4. CharacterDataComponent.CharacterData 设为 /Game/Docs/Data/Character/DA_Char_Dummy。
+5. 确认 UIWidgetComponent 绑定敌人血条，例如 UI_EnemyHealthBar。
+6. 保存关卡。
+
+
 现在不需要在关卡里手动放 `BP_RewardPickup`。
 
 `training_dummy_combo` 剧情点已经配置了 `SpawnRewardPickup` 动作：

@@ -97,6 +97,7 @@ public:
 	virtual void UnPossessed() override;
 	virtual void OnRep_PlayerState() override;
 	virtual void OnRep_Controller() override;
+	void EnsureCoreAttributeSetsRegistered();
 
 	//---------------------------------------
 	//	Components

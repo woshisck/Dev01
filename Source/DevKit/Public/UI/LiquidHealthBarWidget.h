@@ -128,6 +128,8 @@ protected:
     TObjectPtr<UImage> LiquidFillImage;
 
 private:
+    bool EnsureDynamicMaterial();
+
     UPROPERTY()
     TObjectPtr<UMaterialInstanceDynamic> LiquidDynMat;
 
@@ -135,4 +137,5 @@ private:
     float SloshAmp   = 0.f;   // 当前晃动幅度
     float SloshPh    = 0.f;   // 当前晃动相位（弧度，持续累加）
     bool  bNeedsTick = false; // 仅在晃动激活时 Tick，避免每帧 DMI 写入开销
+    bool  bLoggedMissingMaterialSetup = false;
 };

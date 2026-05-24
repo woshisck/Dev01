@@ -121,6 +121,7 @@ bool AYogCharacterBase::IsAlive() const
 void AYogCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+	EnsureCoreAttributeSetsRegistered();
 
 	// ── 基础通用技能（路径固定，无需编辑器配置）────────────────────────────
 	// 资产路径：Content/Core/Data/DA_Base_AbilitySet（GASTemplate DataAsset）
@@ -166,9 +167,33 @@ void AYogCharacterBase::PostInitializeComponents()
 		AttributeStatsComponent = FindComponentByClass<UAttributeStatComponent>();
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("PostInit: AbilitySystemComponent = %p"), AbilitySystemComponent.Get());
+	EnsureCoreAttributeSetsRegistered();
+	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	AbilitySystemComponent->InitConflictTable();
+}
+
+void AYogCharacterBase::EnsureCoreAttributeSetsRegistered()
+{
+	UE_LOG(LogTemp, Log, TEXT("EnsureCoreAttributeSetsRegistered: AbilitySystemComponent = %p Owner=%s"),
+		AbilitySystemComponent.Get(),
+		*GetNameSafe(this));
 
 	check(AbilitySystemComponent);
+	if (!BaseAttributeSet)
+	{
+		BaseAttributeSet = NewObject<UBaseAttributeSet>(this, TEXT("BaseAttributeSet_Runtime"));
+		UE_LOG(LogTemp, Warning, TEXT("[AttributeSetRepair] Created missing BaseAttributeSet for %s"), *GetNameSafe(this));
+	}
+	if (!DamageAttributeSet)
+	{
+		DamageAttributeSet = NewObject<UDamageAttributeSet>(this, TEXT("DamageAttributeSet_Runtime"));
+		UE_LOG(LogTemp, Warning, TEXT("[AttributeSetRepair] Created missing DamageAttributeSet for %s"), *GetNameSafe(this));
+	}
+	if (!RuneAttributeSet)
+	{
+		RuneAttributeSet = NewObject<URuneAttributeSet>(this, TEXT("RuneAttributeSet_Runtime"));
+		UE_LOG(LogTemp, Warning, TEXT("[AttributeSetRepair] Created missing RuneAttributeSet for %s"), *GetNameSafe(this));
+	}
 	if (BaseAttributeSet && !AbilitySystemComponent->HasAttributeSetForAttribute(UBaseAttributeSet::GetHealthAttribute()))
 	{
 		AbilitySystemComponent->AddAttributeSetSubobject(BaseAttributeSet.Get());
@@ -181,8 +206,6 @@ void AYogCharacterBase::PostInitializeComponents()
 	{
 		AbilitySystemComponent->AddAttributeSetSubobject(RuneAttributeSet.Get());
 	}
-	AbilitySystemComponent->InitAbilityActorInfo(this, this);
-	AbilitySystemComponent->InitConflictTable();
 }
 
 void AYogCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

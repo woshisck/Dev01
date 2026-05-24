@@ -1,25 +1,18 @@
 #include "UI/LiquidHealthBarWidget.h"
 #include "Components/Image.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
+
+namespace
+{
+    constexpr TCHAR DefaultLiquidHealthBarMaterialPath[] = TEXT("/Game/UI/UI_Material/HUD/M_LiquidHealthBar.M_LiquidHealthBar");
+}
 
 void ULiquidHealthBarWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    if (LiquidMaterial && LiquidFillImage)
-    {
-        LiquidDynMat = UMaterialInstanceDynamic::Create(LiquidMaterial, this);
-        LiquidFillImage->SetBrushFromMaterial(LiquidDynMat);
-
-        LiquidDynMat->SetScalarParameterValue(TEXT("FillPercent"),    CurrentPct * FillWindowEnd);
-        LiquidDynMat->SetScalarParameterValue(TEXT("SloshAmplitude"), 0.f);
-        LiquidDynMat->SetScalarParameterValue(TEXT("SloshPhase"),     0.f);
-        ApplyColors();
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("[LiquidHB] DMI 未创建 — LiquidMaterial 或 LiquidFillImage 未绑定"));
-    }
+    EnsureDynamicMaterial();
 }
 
 void ULiquidHealthBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -54,9 +47,8 @@ void ULiquidHealthBarWidget::SetHealthPercent(float NewPct)
     const float Delta = FMath::Abs(NewPct - CurrentPct);
     CurrentPct = NewPct;
 
-    if (!LiquidDynMat)
+    if (!EnsureDynamicMaterial())
     {
-        UE_LOG(LogTemp, Error, TEXT("[LiquidHB] SetHealthPercent(%.2f) — LiquidDynMat 为 null，跳过"), NewPct);
         return;
     }
 
@@ -81,4 +73,66 @@ void ULiquidHealthBarWidget::ApplyColors()
     LiquidDynMat->SetVectorParameterValue(TEXT("LiquidColorDeep"),    LiquidColorDeep);
     LiquidDynMat->SetVectorParameterValue(TEXT("LiquidColorSurface"), LiquidColorSurface);
     LiquidDynMat->SetVectorParameterValue(TEXT("GlintColor"),         GlintColor);
+}
+
+bool ULiquidHealthBarWidget::EnsureDynamicMaterial()
+{
+    if (LiquidDynMat)
+    {
+        return true;
+    }
+
+    if (!LiquidFillImage)
+    {
+        if (!bLoggedMissingMaterialSetup)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LiquidHB] LiquidFillImage is not bound; health percent will be cached until the widget is configured."));
+            bLoggedMissingMaterialSetup = true;
+        }
+        return false;
+    }
+
+    UMaterialInterface* SourceMaterial = LiquidMaterial;
+    if (!SourceMaterial)
+    {
+        SourceMaterial = Cast<UMaterialInterface>(LiquidFillImage->GetBrush().GetResourceObject());
+    }
+
+    if (!SourceMaterial)
+    {
+        SourceMaterial = LoadObject<UMaterialInterface>(nullptr, DefaultLiquidHealthBarMaterialPath);
+        if (SourceMaterial)
+        {
+            LiquidMaterial = SourceMaterial;
+        }
+    }
+
+    if (!SourceMaterial)
+    {
+        if (!bLoggedMissingMaterialSetup)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LiquidHB] LiquidMaterial is not set and fallback material '%s' could not be loaded."), DefaultLiquidHealthBarMaterialPath);
+            bLoggedMissingMaterialSetup = true;
+        }
+        return false;
+    }
+
+    LiquidDynMat = UMaterialInstanceDynamic::Create(SourceMaterial, this);
+    if (!LiquidDynMat)
+    {
+        if (!bLoggedMissingMaterialSetup)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LiquidHB] Failed to create dynamic material instance from '%s'."), *SourceMaterial->GetName());
+            bLoggedMissingMaterialSetup = true;
+        }
+        return false;
+    }
+
+    LiquidFillImage->SetBrushFromMaterial(LiquidDynMat);
+    LiquidDynMat->SetScalarParameterValue(TEXT("FillPercent"), CurrentPct * FillWindowEnd);
+    LiquidDynMat->SetScalarParameterValue(TEXT("SloshAmplitude"), 0.f);
+    LiquidDynMat->SetScalarParameterValue(TEXT("SloshPhase"), 0.f);
+    ApplyColors();
+
+    return true;
 }
