@@ -49,6 +49,7 @@ enum class EStoryEncounterActionKind : uint8
 	PlayLevelFlow UMETA(DisplayName = "播放流程"),
 	SetActorEnabled UMETA(DisplayName = "设置关卡对象启用"),
 	TutorialPopup UMETA(DisplayName = "教程弹窗"),
+	TutorialAreaHint UMETA(DisplayName = "区域教程提示"),
 };
 
 USTRUCT(BlueprintType)

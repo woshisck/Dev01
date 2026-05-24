@@ -26,10 +26,9 @@ void ALevelEventTrigger::BeginPlay()
 {
 	Super::BeginPlay();
 	bTriggered = false;
-	UE_LOG(LogTemp, Log, TEXT("[LevelEventTrigger] BeginPlay: %s bTriggerOnce=%d Flow=%s EncounterGraph=%s NodeId=%s"),
+	UE_LOG(LogTemp, Log, TEXT("[LevelEventTrigger] BeginPlay: %s bTriggerOnce=%d EncounterGraph=%s NodeId=%s"),
 		*GetNameSafe(this),
 		(int32)bTriggerOnce,
-		*GetNameSafe(LevelFlow),
 		*GetNameSafe(EncounterGraph),
 		*NodeId.ToString());
 }
@@ -52,15 +51,9 @@ void ALevelEventTrigger::OnOverlapBegin(UPrimitiveComponent*, AActor* OtherActor
 		}
 	}
 
-	if (LevelFlow)
-	{
-		UE_LOG(LogTemp, Log, TEXT("[LevelEventTrigger] Trigger Flow: %s"), *LevelFlow->GetName());
-		bDidTrigger |= RunLevelFlow(LevelFlow);
-	}
-
 	if (!bDidTrigger)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[LevelEventTrigger] no LevelFlow or Story Encounter triggered on %s"), *GetNameSafe(this));
+		UE_LOG(LogTemp, Warning, TEXT("[LevelEventTrigger] no Story Encounter triggered on %s"), *GetNameSafe(this));
 		return;
 	}
 

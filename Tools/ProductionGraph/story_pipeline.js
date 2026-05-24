@@ -8,6 +8,7 @@ const SCHEMA_VERSION = 1;
 
 const ACTION_TYPES = new Set([
   'WeakHint',
+  'TutorialAreaHint',
   'Dialogue',
   'RecordProgress',
   'UnlockFeature',

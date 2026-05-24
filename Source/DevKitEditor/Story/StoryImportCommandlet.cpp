@@ -186,6 +186,7 @@ EStoryEncounterConditionKind ParseConditionKind(const FString& Value)
 
 EStoryEncounterActionKind ParseActionKind(const FString& Value)
 {
+	if (Value.Equals(TEXT("TutorialAreaHint"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::TutorialAreaHint;
 	if (Value.Equals(TEXT("Dialogue"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::Dialogue;
 	if (Value.Equals(TEXT("RecordProgress"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::RecordProgress;
 	if (Value.Equals(TEXT("UnlockFeature"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::UnlockFeature;

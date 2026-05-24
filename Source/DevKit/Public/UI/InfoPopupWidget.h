@@ -43,10 +43,9 @@ protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
-	static constexpr float FadeDuration = 0.25f;
-
 	float FadeDirection = 0.f;
 	float FadeAlpha = 0.f;
+	float ActiveFadeDuration = 0.25f;
 
 	FTimerHandle AutoCloseTimer;
 

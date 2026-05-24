@@ -35,4 +35,7 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "行为", meta = (ClampMin = "0"))
 	float DisplayDuration = 4.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "行为", meta = (ClampMin = "0.01"))
+	float FadeDuration = 0.25f;
 };

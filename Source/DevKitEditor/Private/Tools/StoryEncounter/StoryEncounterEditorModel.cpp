@@ -319,6 +319,7 @@ TArray<FStoryEncounterWorkbenchMessage> FStoryEncounterEditorModel::Validate(
 				switch (Action.Kind)
 				{
 				case EStoryEncounterActionKind::WeakHint:
+				case EStoryEncounterActionKind::TutorialAreaHint:
 				case EStoryEncounterActionKind::Dialogue:
 					if (Action.Body.IsEmpty())
 					{
@@ -815,6 +816,8 @@ FString FStoryEncounterEditorModel::ActionKindToChinese(EStoryEncounterActionKin
 {
 	switch (Kind)
 	{
+	case EStoryEncounterActionKind::TutorialAreaHint:
+		return TEXT("区域教程提示");
 	case EStoryEncounterActionKind::WeakHint:
 		return TEXT("底部操作提示条");
 	case EStoryEncounterActionKind::Dialogue:
@@ -877,6 +880,7 @@ FString FStoryEncounterEditorModel::DescribeAction(FName EncounterId, const FSto
 	const FString KindText = ActionKindToChinese(Action.Kind);
 	switch (Action.Kind)
 	{
+	case EStoryEncounterActionKind::TutorialAreaHint:
 	case EStoryEncounterActionKind::WeakHint:
 	case EStoryEncounterActionKind::Dialogue:
 		return FString::Printf(TEXT("%s：%s - %s"),

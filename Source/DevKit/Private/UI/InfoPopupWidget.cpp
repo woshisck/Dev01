@@ -21,6 +21,8 @@ void UInfoPopupWidget::Show(const ULevelInfoPopupDA* DA)
 {
 	if (!DA) return;
 
+	GetWorld()->GetTimerManager().ClearTimer(AutoCloseTimer);
+
 	if (BodyText) BodyText->SetText(RuneHudTextUtils::GetLevelInfoHudSummary(*DA, 58));
 
 	if (TitleText)
@@ -33,6 +35,7 @@ void UInfoPopupWidget::Show(const ULevelInfoPopupDA* DA)
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 	FadeAlpha = 0.f;
 	FadeDirection = 1.f;
+	ActiveFadeDuration = FMath::Max(DA->FadeDuration, 0.01f);
 	SetRenderOpacity(0.f);
 
 	if (DA->DisplayDuration > 0.f)
@@ -60,7 +63,7 @@ void UInfoPopupWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 
 	if (FadeDirection == 0.f) return;
 
-	FadeAlpha = FMath::Clamp(FadeAlpha + FadeDirection * (InDeltaTime / FadeDuration), 0.f, 1.f);
+	FadeAlpha = FMath::Clamp(FadeAlpha + FadeDirection * (InDeltaTime / ActiveFadeDuration), 0.f, 1.f);
 	SetRenderOpacity(FadeAlpha);
 
 	if (FadeDirection > 0.f && FadeAlpha >= 1.f)

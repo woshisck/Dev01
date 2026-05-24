@@ -71,6 +71,7 @@ const POINT_KINDS = ['Area', 'Object', 'NPC', 'System', 'Death', 'Feature'];
 const FIRE_POLICIES = ['Once', 'Repeat', 'OncePerRun'];
 const ACTION_TYPES = [
   'WeakHint',
+  'TutorialAreaHint',
   'Dialogue',
   'RecordProgress',
   'UnlockFeature',
@@ -95,6 +96,7 @@ const FIRE_POLICY_LABELS = {
   OncePerRun: '每局一次'
 };
 const ACTION_TYPE_LABELS = {
+  TutorialAreaHint: '区域教程提示',
   WeakHint: '底部操作提示条',
   Dialogue: '对话 / 提示框',
   RecordProgress: '记录进度',
@@ -1382,7 +1384,7 @@ function actionNodeKindClass(action) {
   if (action.type === 'PlayLevelFlow') {
     return ' is-level-flow';
   }
-  if (action.type === 'WeakHint' || action.type === 'TutorialPopup') {
+  if (action.type === 'WeakHint' || action.type === 'TutorialAreaHint' || action.type === 'TutorialPopup') {
     return ' is-ui';
   }
   return '';

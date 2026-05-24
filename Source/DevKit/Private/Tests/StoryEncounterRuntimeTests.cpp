@@ -84,6 +84,30 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterConvertsWeakHintTest,
 	"DevKit.StoryEncounter.ConvertsWeakHintToInfoHint",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterPreservesDottedProgressKeyTest,
+	"DevKit.StoryEncounter.PreservesDottedProgressKey",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStoryEncounterPreservesDottedProgressKeyTest::RunTest(const FString& Parameters)
+{
+	FStoryEncounterAction EncounterAction;
+	EncounterAction.Kind = EStoryEncounterActionKind::RecordProgress;
+	EncounterAction.ProgressKey = TEXT("first_run.weapon_picked");
+
+	FStoryAction StoryAction;
+	const bool bConverted = UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(
+		TEXT("EM_FirstRun_Tutorial"),
+		EncounterAction,
+		StoryAction);
+
+	TestTrue(TEXT("Dotted progress key converts"), bConverted);
+	TestTrue(TEXT("Generated dotted flag is valid"), StoryAction.FlagTag.IsValid());
+	TestEqual(TEXT("Generated dotted tag name is stable"),
+		UStoryEncounterRuntimeSubsystem::MakeProgressTagName(TEXT("EM_FirstRun_Tutorial"), TEXT("first_run.weapon_picked")),
+		FString(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_picked")));
+	return true;
+}
+
 bool FStoryEncounterConvertsWeakHintTest::RunTest(const FString& Parameters)
 {
 	FStoryEncounterAction EncounterAction;
@@ -101,6 +125,29 @@ bool FStoryEncounterConvertsWeakHintTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Converts to ShowInfoHint"), StoryAction.Type, EStoryActionType::ShowInfoHint);
 	TestTrue(TEXT("Hint body is retained"), StoryAction.HintText.EqualTo(EncounterAction.Body));
 	TestTrue(TEXT("Weak hint title is editor-only"), StoryAction.HintTitle.IsEmpty());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterConvertsTutorialAreaHintTest,
+	"DevKit.StoryEncounter.ConvertsTutorialAreaHintToPersistentInfoHint",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStoryEncounterConvertsTutorialAreaHintTest::RunTest(const FString& Parameters)
+{
+	FStoryEncounterAction EncounterAction;
+	EncounterAction.Kind = EStoryEncounterActionKind::TutorialAreaHint;
+	EncounterAction.Body = FText::FromString(TEXT("<input action=\"Dash\"/>"));
+
+	FStoryAction StoryAction;
+	const bool bConverted = UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(
+		TEXT("EM_FirstRun_Tutorial"),
+		EncounterAction,
+		StoryAction);
+
+	TestTrue(TEXT("Action converts"), bConverted);
+	TestEqual(TEXT("Converts to ShowInfoHint"), StoryAction.Type, EStoryActionType::ShowInfoHint);
+	TestEqual(TEXT("Area hint does not auto-close"), StoryAction.HintDuration, 0.f);
+	TestTrue(TEXT("Area hint body is retained"), StoryAction.HintText.EqualTo(EncounterAction.Body));
 	return true;
 }
 

@@ -12,12 +12,8 @@ class APlayerCharacterBase;
 struct FHitResult;
 
 /**
- * 关卡事件触发器 — 放在关卡中，玩家进入 BoxComponent 后启动指定 LevelFlowAsset。
- *
- * 配置步骤：
- *   1. 放置到关卡，调整 BoxComponent 大小
- *   2. Details → LevelFlow → LevelFlow 字段指定 DA_LevelEvent_XXX
- *   3. DA 里用 LevelEvent 系列节点（LENode_TimeDilation、LENode_ShowTutorial 等）连线
+ * Level trigger used by story encounter points. Place it in a level, set the
+ * trigger volume, then bind an EncounterGraph and NodeId.
  */
 UCLASS(Blueprintable)
 class DEVKIT_API ALevelEventTrigger : public AActor
@@ -30,15 +26,11 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Story Encounter")
 	TObjectPtr<UBoxComponent> TriggerVolume;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Story Encounter|Runtime")
 	TObjectPtr<UFlowComponent> LevelFlowComp;
-
-	// 指定要运行的关卡事件 Flow
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "LevelFlow")
-	TObjectPtr<ULevelFlowAsset> LevelFlow;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Encounter")
 	TObjectPtr<UStoryEncounterGraph> EncounterGraph = nullptr;
@@ -46,20 +38,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Encounter")
 	FName NodeId;
 
-	// 是否只触发一次（默认开启）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "LevelFlow")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Encounter")
 	bool bTriggerOnce = true;
 
 public:
 	FSimpleMulticastDelegate OnPlayerExited;
 
-	ULevelFlowAsset* GetLevelFlow() const { return LevelFlow; }
 	UBoxComponent* GetTriggerVolume() const { return TriggerVolume; }
 	bool ShouldTriggerOnce() const { return bTriggerOnce; }
 	bool RunLevelFlow(ULevelFlowAsset* FlowAsset, bool bStopExistingFlow = true);
 
 private:
-	UPROPERTY(VisibleAnywhere, Category = "LevelFlow|Debug")
+	UPROPERTY(VisibleAnywhere, Category = "Story Encounter|Debug")
 	bool bTriggered = false;
 
 	UFUNCTION()

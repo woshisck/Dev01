@@ -87,7 +87,7 @@
           "displayName": "主城移动底部操作提示条",
           "kind": "Area",
           "playerFacingEvent": "玩家进入主城后，看到底部居中的移动操作提示条，并被引导离开出生点。",
-          "firePolicy": "Once",
+          "firePolicy": "Repeat",
           "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
           "placementName": "Trigger_Tutorial_Move",
           "condition": {
@@ -99,7 +99,7 @@
           },
           "actions": [
             {
-              "type": "WeakHint",
+              "type": "TutorialAreaHint",
               "title": "移动",
               "body": "",
               "useInputTextVariants": true,
@@ -111,25 +111,6 @@
               "pauseGame": true,
               "progressKey": "",
               "progressLabel": "",
-              "featureTag": "",
-              "questTaskTag": "",
-              "targetNodeId": "",
-              "levelFlow": "",
-              "actionId": "",
-              "reuseKey": "",
-              "tutorialPages": [],
-              "targetActorName": "",
-              "targetActorTag": "",
-              "actorEnabled": true
-            },
-            {
-              "type": "RecordProgress",
-              "progressKey": "first_run.hub_move_hint",
-              "progressLabel": "已提示移动",
-              "title": "",
-              "body": "",
-              "tutorialEventId": "",
-              "pauseGame": true,
               "featureTag": "",
               "questTaskTag": "",
               "targetNodeId": "",
@@ -156,7 +137,8 @@
             "graphPosition": {
               "x": 79,
               "y": 79
-            }
+            },
+            "tutorialAreaHint": true
           }
         },
         {
@@ -165,19 +147,19 @@
           "displayName": "主城冲刺底部操作提示条",
           "kind": "Area",
           "playerFacingEvent": "玩家穿过移动区域后，看到底部居中的冲刺操作提示条。",
-          "firePolicy": "Once",
+          "firePolicy": "Repeat",
           "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
           "placementName": "Trigger_Tutorial_Dash",
           "condition": {
-            "kind": "ProgressCompleted",
-            "progressKey": "first_run.hub_move_hint",
-            "progressLabel": "已提示移动",
+            "kind": "None",
+            "progressKey": "",
+            "progressLabel": "",
             "featureTag": "",
             "runCount": 0
           },
           "actions": [
             {
-              "type": "WeakHint",
+              "type": "TutorialAreaHint",
               "title": "冲刺",
               "body": "按下 <input action=\"Dash\"/> 使用冲刺。",
               "tutorialEventId": "",
@@ -215,25 +197,6 @@
               "actionId": "show_first_run_demo_weapon",
               "reuseKey": "LevelActor.FirstRun.DemoWeapon.Show",
               "tutorialPages": []
-            },
-            {
-              "type": "RecordProgress",
-              "progressKey": "first_run.hub_dash_hint",
-              "progressLabel": "已提示冲刺",
-              "title": "",
-              "body": "",
-              "tutorialEventId": "",
-              "pauseGame": true,
-              "featureTag": "",
-              "questTaskTag": "",
-              "targetNodeId": "",
-              "levelFlow": "",
-              "actionId": "",
-              "reuseKey": "",
-              "tutorialPages": [],
-              "targetActorName": "",
-              "targetActorTag": "",
-              "actorEnabled": true
             }
           ],
           "extra": {
@@ -249,7 +212,8 @@
             "graphPosition": {
               "x": 534,
               "y": 85
-            }
+            },
+            "tutorialAreaHint": true
           }
         },
         {
@@ -262,9 +226,9 @@
           "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
           "placementName": "WeaponSpawner_FirstRun_DemoSword",
           "condition": {
-            "kind": "ProgressCompleted",
-            "progressKey": "first_run.hub_dash_hint",
-            "progressLabel": "已提示冲刺",
+            "kind": "None",
+            "progressKey": "",
+            "progressLabel": "",
             "featureTag": "",
             "runCount": 0
           },

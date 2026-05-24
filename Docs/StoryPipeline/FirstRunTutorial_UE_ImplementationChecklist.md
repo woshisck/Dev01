@@ -90,7 +90,7 @@
 
 运行时路径：
 1. 新存档会写入 `Story.Flag.FirstRunTutorial.Active`。
-2. `hub_dash_hint` 完成后，剧情动作 `SetActorEnabled` 显示主城里正常摆放的 `BP_WeaponSpawner`：`WeaponSpawner_FirstRun_DemoSword`。
+2. 玩家进入 `hub_dash_hint` 区域时，剧情动作 `SetActorEnabled` 显示主城里正常摆放的 `BP_WeaponSpawner`：`WeaponSpawner_FirstRun_DemoSword`。
 3. 这个 Spawner 指向首局演示武器 DA，例如 `DA_Weapon_FirstRun_DemoSword`；该武器自己的 `InitialCombatDeck` 填 `[攻击][攻击]`。
 4. 玩家拾取武器时，仍走普通 `AWeaponSpawner` / `UWeaponDefinition::SetupWeaponToCharacter` 流程，读取武器自身 `InitialCombatDeck`。
 5. 教程完成后会移除 `Story.Flag.FirstRunTutorial.Active` 并写入 `Story.Flag.FirstRunTutorial.Completed`。
@@ -115,7 +115,7 @@ RoomData：
 
 ### 2.1 移动提示 Trigger
 
-> 注意：场景里使用现有 `/Game/Docs/Map/LevelEvent/BP_LevelEventTrigger`。该 BP 的父类 `ALevelEventTrigger` 现在只保留 `EncounterGraph + NodeId` 这一种 Story Encounter 配置方式，不需要另找 `StoryEncounterTrigger` BP，也不需要再填写 `EncounterPoint` 或旧的 `EncounterMap`。
+> 注意：场景里使用现有 `/Game/Docs/Map/LevelEvent/BP_LevelEventTrigger`。该 BP 的父类 `ALevelEventTrigger` 现在只保留 `EncounterGraph + NodeId` 这一种 Story Encounter 配置方式，不需要另找 `StoryEncounterTrigger` BP，也不需要再填写 `EncounterPoint`、旧的 `EncounterMap` 或直接挂载 `Level Flow`。
 
 放置：
 1. 打开 `InitialRoom_GamePlay`
@@ -127,13 +127,14 @@ RoomData：
 填写：
 - `EncounterGraph` = `/Game/Story/Encounters/Main_Tutorial_Demo/EG_FirstRun_Tutorial`
 - `NodeId` = `hub_move_hint`
+- `bTriggerOnce` / `Trigger Once` = false
 
 检查：
 - PIE 新档进入主城，走过 Trigger 后出现底部提示条
 - 文本必须使用输入富文本：
   - 键鼠：`<input action="Move"/> 移动角色。`
   - 手柄：`<input action="Move"/> 移动角色。<input action="CameraLook"/> 调整镜头。`
-- 触发后保存进度：`Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.hub_move_hint`
+- 这是 `TutorialAreaHint`，不写入进度、不作为后续剧情条件。玩家进入框体 0.15s 淡入，停留时保持显示，离开框体 0.15s 淡出；重新进入会再次显示。
 
 ### 2.2 冲刺提示 Trigger
 
@@ -145,11 +146,12 @@ RoomData：
 填写：
 - `EncounterGraph` = `EG_FirstRun_Tutorial`
 - `NodeId` = `hub_dash_hint`
+- `bTriggerOnce` / `Trigger Once` = false
 
 检查：
 - 玩家穿过后出现：`按下 <input action="Dash"/> 使用冲刺。`
 - 不要写死 Space / 手柄键名
-- 触发一次后不重复弹
+- 这是 `TutorialAreaHint`，不写入进度，也不依赖移动提示。玩家在框体内保持显示，离开 0.15s 淡出；重新进入会再次显示。
 
 ### 2.3 首局演示武器拾取点
 
@@ -159,7 +161,7 @@ RoomData：
 3. 命名：`WeaponSpawner_FirstRun_DemoSword`
 4. 推荐添加 Actor Tag：`Story.FirstRun.DemoWeapon`，也可以只依赖唯一 Actor Name
 5. 放在武器中心视觉明显位置
-6. 初始可以隐藏；冲刺提示完成后由 `SetActorEnabled` 显示
+6. 初始可以隐藏；玩家进入冲刺提示区域时由 `SetActorEnabled` 显示
 
 填写：
 - Weapon Definition 指向首局演示武器 DA，例如 `DA_Weapon_FirstRun_DemoSword`
@@ -174,9 +176,9 @@ RoomData：
 - 首局教程要换武器时，通过剧情动作 `SetActorEnabled` 控制普通 Spawner 的显示/隐藏。
 
 剧情绑定：
-- `hub_dash_hint` 的动作节点显示 `WeaponSpawner_FirstRun_DemoSword`
+- `hub_dash_hint` 的动作节点在玩家进入冲刺提示区域时显示 `WeaponSpawner_FirstRun_DemoSword`
 - `weapon_pickup_prompt` 的 `placementName` = `WeaponSpawner_FirstRun_DemoSword`
-- 拾取完成后触发 `EP_FirstRun_WeaponPickupPrompt` 的方式走普通 Story Trigger、LevelFlow 或 BP 事件绑定，不在 `BP_WeaponSpawner` 上新增教程专用字段
+- 拾取完成后触发 `EP_FirstRun_WeaponPickupPrompt` 的方式走普通 Story Trigger 或 BP 事件绑定，不在 `BP_WeaponSpawner` 上新增教程专用字段
 
 检查：
 - 靠近武器出现拾取提示
@@ -568,7 +570,7 @@ RoomData：
    - Actor Tag = `Story.MainRun.StartWeapon`（推荐；非强制）
    - Weapon Definition 指向正常流程武器 DA
    - 正常流程武器 DA 的 `InitialCombatDeck` 由正式设计决定，例如 `[攻击][攻击][月光][武器终结技]`
-4. 拾取成功后触发 `EP_FirstRun_WeaponPickupPrompt` 的绑定仍需用普通 Story Trigger、LevelFlow 或 BP 事件接上。
+4. 拾取成功后触发 `EP_FirstRun_WeaponPickupPrompt` 的绑定仍需用普通 Story Trigger 或 BP 事件接上。
 5. 背包首次打开触发 `EP_FirstRun_BackpackCardRules` 仍需检查 UI 入口是否已绑定。
 6. 木人桩死亡事件仍需生成或启用固定 `[重击]` 奖励拾取物。
 7. 月光特殊敌人仍需在目标 RoomData / 刷怪逻辑中配置特殊敌人 BP、蓝雾 FX 和 `[月光]` 固定掉落。

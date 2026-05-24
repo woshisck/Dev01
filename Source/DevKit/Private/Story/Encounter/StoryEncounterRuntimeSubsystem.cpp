@@ -5,6 +5,7 @@
 #include "EngineUtils.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
+#include "Data/LevelInfoPopupDA.h"
 #include "Story/Encounter/StoryEncounterMap.h"
 #include "Story/Encounter/StoryEncounterGraph.h"
 #include "Story/Encounter/StoryEncounterGraphNode.h"
@@ -12,6 +13,8 @@
 #include "Story/Encounter/StoryEncounterTrigger.h"
 #include "LevelFlow/LevelEventTrigger.h"
 #include "Story/StoryEngineSubsystem.h"
+#include "UI/InfoPopupWidget.h"
+#include "UI/YogHUD.h"
 
 namespace
 {
@@ -25,11 +28,18 @@ FName SanitizeTagSegment(FName RawName)
 	FString Sanitized;
 	for (const TCHAR Character : Value)
 	{
-		if (FChar::IsAlnum(Character) || Character == TEXT('_'))
+		if (FChar::IsAlnum(Character) || Character == TEXT('_') || Character == TEXT('.'))
 		{
 			Sanitized.AppendChar(Character);
 		}
 	}
+
+	while (Sanitized.Contains(TEXT("..")))
+	{
+		Sanitized.ReplaceInline(TEXT(".."), TEXT("."));
+	}
+	Sanitized.RemoveFromStart(TEXT("."));
+	Sanitized.RemoveFromEnd(TEXT("."));
 
 	return Sanitized.IsEmpty() ? NAME_None : FName(*Sanitized);
 }
@@ -272,6 +282,13 @@ bool UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(FName Encoun
 		OutStoryAction.HintDuration = 3.f;
 		return true;
 
+	case EStoryEncounterActionKind::TutorialAreaHint:
+		OutStoryAction.Type = EStoryActionType::ShowInfoHint;
+		OutStoryAction.HintTitle = FText::GetEmpty();
+		OutStoryAction.HintText = EncounterAction.Body;
+		OutStoryAction.HintDuration = 0.f;
+		return true;
+
 	case EStoryEncounterActionKind::TutorialPopup:
 		OutStoryAction.Type = EStoryActionType::ShowTutorialPopup;
 		OutStoryAction.TutorialEventId = EncounterAction.TutorialEventId;
@@ -400,12 +417,77 @@ bool UStoryEncounterRuntimeSubsystem::ExecuteActorEnabledAction(
 	return true;
 }
 
+bool UStoryEncounterRuntimeSubsystem::ExecuteTutorialAreaHintAction(
+	const FStoryEncounterAction& Action,
+	const FStoryEventContext& Context)
+{
+	APlayerController* PlayerController = Context.PlayerController;
+	if (!PlayerController)
+	{
+		PlayerController = ResolveEncounterPlayer(Context.SourceActor);
+	}
+
+	AYogHUD* HUD = PlayerController ? Cast<AYogHUD>(PlayerController->GetHUD()) : nullptr;
+	if (!HUD)
+	{
+		return false;
+	}
+
+	ULevelInfoPopupDA* Popup = NewObject<ULevelInfoPopupDA>(this);
+	Popup->Title = FText::GetEmpty();
+	Popup->Body = ResolveInputAwareBody(Action, Context);
+	if (Popup->Body.IsEmpty())
+	{
+		Popup->Body = Action.Body;
+	}
+	Popup->HUDSummaryText = Popup->Body;
+	Popup->DisplayDuration = 0.f;
+	Popup->FadeDuration = 0.15f;
+
+	HUD->ShowInfoPopup(Popup);
+
+	UInfoPopupWidget* Widget = HUD->GetInfoPopupWidget();
+	if (!Widget)
+	{
+		return true;
+	}
+
+	TWeakObjectPtr<UInfoPopupWidget> WeakWidget(Widget);
+	if (ALevelEventTrigger* Trigger = Cast<ALevelEventTrigger>(Context.SourceActor))
+	{
+		Trigger->OnPlayerExited.AddWeakLambda(this, [WeakWidget]()
+		{
+			if (WeakWidget.IsValid())
+			{
+				WeakWidget->RequestClose();
+			}
+		});
+	}
+	else if (AStoryEncounterTrigger* StoryTrigger = Cast<AStoryEncounterTrigger>(Context.SourceActor))
+	{
+		StoryTrigger->OnPlayerExited.AddWeakLambda(this, [WeakWidget]()
+		{
+			if (WeakWidget.IsValid())
+			{
+				WeakWidget->RequestClose();
+			}
+		});
+	}
+
+	return true;
+}
+
 void UStoryEncounterRuntimeSubsystem::ExecuteEncounterAction(FName EncounterId,
 	const FStoryEncounterAction& Action, const FStoryEventContext& Context)
 {
 	if (Action.Kind == EStoryEncounterActionKind::SetActorEnabled)
 	{
 		ExecuteActorEnabledAction(Action, Context);
+		return;
+	}
+	if (Action.Kind == EStoryEncounterActionKind::TutorialAreaHint)
+	{
+		ExecuteTutorialAreaHintAction(Action, Context);
 		return;
 	}
 
