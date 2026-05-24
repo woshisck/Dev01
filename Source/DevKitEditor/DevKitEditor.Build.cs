@@ -72,6 +72,7 @@ public class DevKitEditor : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
+				"LevelEditor",
 				"ToolMenus",
 				"EditorStyle",
 				"DataValidation",

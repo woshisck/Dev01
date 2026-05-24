@@ -11,8 +11,14 @@
 #include "Customization/RuneDataAssetDetails.h"
 #include "Data/RuneDataAsset.h"
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "LevelEditor.h"
+#include "PlayInEditorDataTypes.h"
 #include "RuneEditor/SRuneEditorWidget.h"
+#include "Styling/AppStyle.h"
 #include "ToolMenus.h"
+#include "Editor/UnrealEdEngine.h"
+#include "UnrealEdGlobals.h"
 #include "Tools/SActionBalanceWidget.h"
 #include "Tools/SBuffFlowDebugWidget.h"
 #include "Tools/SCharacterBalanceWidget.h"
@@ -42,6 +48,7 @@ namespace
 	const FName BuffFlowDebugTabName(TEXT("DevKitBuffFlowDebug"));
 	const FName MetaProgressionWorkbenchTabName(TEXT("DevKitMetaProgressionWorkbench"));
 	const FName StoryEncounterWorkbenchTabName(TEXT("DevKitStoryEncounterWorkbench"));
+	const FString EntryMenuMapOverride(TEXT("/Game/Maps/L_EntryMenu"));
 }
 
 class FDevKitEditorModule : public FDefaultGameModuleImpl {
@@ -320,6 +327,17 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("DevKitToolsMenuLabel", "DevKit Tools"),
 			LOCTEXT("DevKitToolsMenuTooltip", "Open DevKit authoring, balance, and debug editor tools."),
 			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillDevKitDataMenu));
+
+		UToolMenu* PlayToolbar = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.LevelEditorToolBar.PlayToolBar"));
+		FToolMenuSection& PlaySection = PlayToolbar->FindOrAddSection(TEXT("Play"));
+		PlaySection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			TEXT("DevKitPlayFromMainMenu"),
+			FToolUIActionChoice(FUIAction(
+				FExecuteAction::CreateRaw(this, &FDevKitEditorModule::PlayFromMainMenu),
+				FCanExecuteAction::CreateRaw(this, &FDevKitEditorModule::CanStartPlaySession))),
+			LOCTEXT("PlayFromMainMenuLabel", "Play Menu"),
+			LOCTEXT("PlayFromMainMenuTooltip", "Start PIE from the entry menu map without changing the currently edited level."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("PlayWorld.PlayInViewport"))));
 	}
 
 	void FillDevKitDataMenu(UToolMenu* Menu)
@@ -384,6 +402,43 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenBuffFlowDebugTooltip", "Open the DevKit BuffFlow debug editor window."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenBuffFlowDebugTab)));
+
+		DebugSection.AddMenuEntry(
+			TEXT("PlayFromMainMenu"),
+			LOCTEXT("PlayFromMainMenuMenuLabel", "Play From Main Menu"),
+			LOCTEXT("PlayFromMainMenuMenuTooltip", "Start PIE from the entry menu map without changing the currently edited level."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("PlayWorld.PlayInViewport")),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FDevKitEditorModule::PlayFromMainMenu),
+				FCanExecuteAction::CreateRaw(this, &FDevKitEditorModule::CanStartPlaySession)));
+	}
+
+	bool CanStartPlaySession() const
+	{
+		return GUnrealEd && !GUnrealEd->PlayWorld && !GUnrealEd->GetPlaySessionRequest().IsSet();
+	}
+
+	void PlayFromMainMenu()
+	{
+		if (!CanStartPlaySession())
+		{
+			return;
+		}
+
+		FRequestPlaySessionParams SessionParams;
+		SessionParams.GlobalMapOverride = EntryMenuMapOverride;
+
+		if (FModuleManager::Get().IsModuleLoaded(TEXT("LevelEditor")))
+		{
+			FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+			if (TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport())
+			{
+				SessionParams.DestinationSlateViewport = ActiveLevelViewport;
+			}
+		}
+
+		GUnrealEd->RequestPlaySession(SessionParams);
+		GUnrealEd->StartQueuedPlaySessionRequest();
 	}
 
 	void OpenRuneBalanceTab()

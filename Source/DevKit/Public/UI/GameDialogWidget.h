@@ -45,6 +45,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Tutorial")
 	void OnNextPressed();
 
+	UFUNCTION(BlueprintCallable, Category = "Tutorial")
+	void OnPreviousPagePressed();
+
+	UFUNCTION(BlueprintCallable, Category = "Tutorial")
+	void OnNextPagePressed();
+
 	// 渐出动画结束后由 C++ 自动调用，无需在 WBP 手动调用
 	UFUNCTION(BlueprintCallable, Category = "Tutorial")
 	void ConfirmClose();
@@ -59,6 +65,7 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 	virtual UWidget* NativeGetDesiredFocusTarget() const override;
+	virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void NativeOnActivated() override;
 	virtual void NativeOnDeactivated() override;
@@ -84,6 +91,24 @@ protected:
 	TObjectPtr<UTextBlock> PageHint;
 
 	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> BtnPreviousPage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> BtnNextPage;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> BtnPreviousPageLabel;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> BtnNextPageLabel;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UYogCommonRichTextBlock> PagePreviousInputHint;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UYogCommonRichTextBlock> PageNextInputHint;
+
+	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UYogCommonRichTextBlock> BodySubText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -102,6 +127,8 @@ private:
 	bool bPauseMe = true;         // ShowPopup 时传入，控制 NativeOnActivated 是否暂停游戏
 	void RefreshPage();
 	void RefreshConfirmInputHint(ECommonInputType NewInputType);
+	void RefreshPageNavigation(ECommonInputType NewInputType);
+	bool NavigatePage(int32 Delta);
 
 	UFUNCTION()
 	void OnFadeInAnimFinished();

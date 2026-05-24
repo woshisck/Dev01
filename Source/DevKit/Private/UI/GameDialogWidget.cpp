@@ -60,6 +60,18 @@ void UTutorialPopupWidget::OnNextPressed()
 	RefreshPage();
 }
 
+void UTutorialPopupWidget::OnPreviousPagePressed()
+{
+	if (!bIsInteractable) return;
+	NavigatePage(-1);
+}
+
+void UTutorialPopupWidget::OnNextPagePressed()
+{
+	if (!bIsInteractable) return;
+	NavigatePage(1);
+}
+
 void UTutorialPopupWidget::ConfirmClose()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] ConfirmClose called"));
@@ -86,14 +98,27 @@ void UTutorialPopupWidget::NativeConstruct()
 		BtnConfirm->OnClicked.RemoveDynamic(this, &UTutorialPopupWidget::OnNextPressed);
 		BtnConfirm->OnClicked.AddDynamic(this, &UTutorialPopupWidget::OnNextPressed);
 	}
+	if (BtnPreviousPage)
+	{
+		BtnPreviousPage->OnClicked.RemoveDynamic(this, &UTutorialPopupWidget::OnPreviousPagePressed);
+		BtnPreviousPage->OnClicked.AddDynamic(this, &UTutorialPopupWidget::OnPreviousPagePressed);
+	}
+	if (BtnNextPage)
+	{
+		BtnNextPage->OnClicked.RemoveDynamic(this, &UTutorialPopupWidget::OnNextPagePressed);
+		BtnNextPage->OnClicked.AddDynamic(this, &UTutorialPopupWidget::OnNextPagePressed);
+	}
 
 	RefreshConfirmInputHint(ECommonInputType::MouseAndKeyboard);
+	RefreshPageNavigation(ECommonInputType::MouseAndKeyboard);
 	if (UCommonInputSubsystem* InputSub =
 		ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(GetOwningLocalPlayer()))
 	{
 		InputSub->OnInputMethodChangedNative.RemoveAll(this);
 		InputSub->OnInputMethodChangedNative.AddUObject(
 			this, &UTutorialPopupWidget::RefreshConfirmInputHint);
+		InputSub->OnInputMethodChangedNative.AddUObject(
+			this, &UTutorialPopupWidget::RefreshPageNavigation);
 	}
 }
 
@@ -108,6 +133,17 @@ UWidget* UTutorialPopupWidget::NativeGetDesiredFocusTarget() const
 	return BtnConfirm;
 }
 
+FReply UTutorialPopupWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	const int32 PageDirection = YogInputKeys::GetHorizontalNavigationDirection(InKeyEvent.GetKey());
+	if (PageDirection != 0)
+	{
+		return NavigatePage(PageDirection) ? FReply::Handled() : FReply::Unhandled();
+	}
+
+	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
+}
+
 FReply UTutorialPopupWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
@@ -120,6 +156,11 @@ FReply UTutorialPopupWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 	{
 		OnNextPressed();
 		return FReply::Handled();
+	}
+	const int32 PageDirection = YogInputKeys::GetHorizontalNavigationDirection(Key);
+	if (PageDirection != 0)
+	{
+		return NavigatePage(PageDirection) ? FReply::Handled() : FReply::Unhandled();
 	}
 
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
@@ -206,6 +247,61 @@ void UTutorialPopupWidget::RefreshConfirmInputHint(ECommonInputType /*NewInputTy
 	}
 }
 
+void UTutorialPopupWidget::RefreshPageNavigation(ECommonInputType NewInputType)
+{
+	const bool bHasMultiplePages = TotalPages > 1;
+	const bool bCanGoPrevious = bHasMultiplePages && CurrentPage > 0;
+	const bool bCanGoNext = bHasMultiplePages && CurrentPage < TotalPages - 1;
+	const bool bGamepad = NewInputType == ECommonInputType::Gamepad;
+
+	if (BtnPreviousPage)
+	{
+		BtnPreviousPage->SetVisibility(bHasMultiplePages && !bGamepad ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		BtnPreviousPage->SetIsEnabled(bCanGoPrevious);
+	}
+	if (BtnNextPage)
+	{
+		BtnNextPage->SetVisibility(bHasMultiplePages && !bGamepad ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		BtnNextPage->SetIsEnabled(bCanGoNext);
+	}
+	if (BtnPreviousPageLabel)
+	{
+		BtnPreviousPageLabel->SetText(FText::FromString(TEXT("<")));
+	}
+	if (BtnNextPageLabel)
+	{
+		BtnNextPageLabel->SetText(FText::FromString(TEXT(">")));
+	}
+	if (PagePreviousInputHint)
+	{
+		PagePreviousInputHint->SetVisibility(bHasMultiplePages && bGamepad ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		PagePreviousInputHint->SetText(FText::FromString(TEXT("<input action=\"SwitchCombatItemPrevious\"/>")));
+	}
+	if (PageNextInputHint)
+	{
+		PageNextInputHint->SetVisibility(bHasMultiplePages && bGamepad ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		PageNextInputHint->SetText(FText::FromString(TEXT("<input action=\"SwitchCombatItemNext\"/>")));
+	}
+}
+
+bool UTutorialPopupWidget::NavigatePage(int32 Delta)
+{
+	if (Pages.Num() <= 1 || Delta == 0)
+	{
+		return false;
+	}
+
+	const int32 NewPage = FMath::Clamp(CurrentPage + Delta, 0, Pages.Num() - 1);
+	if (NewPage == CurrentPage)
+	{
+		return false;
+	}
+
+	CurrentPage = NewPage;
+	RefreshPage();
+	return true;
+}
+
 void UTutorialPopupWidget::RefreshPage()
 {
 	if (!Pages.IsValidIndex(CurrentPage)) return;
@@ -221,8 +317,6 @@ void UTutorialPopupWidget::RefreshPage()
 			? LOCTEXT("Close", "知道了")
 			: LOCTEXT("Next",  "下一页"));
 	}
-
-	RefreshConfirmInputHint(ECommonInputType::MouseAndKeyboard);
 
 	if (IllustrationImage)
 	{
@@ -254,6 +348,15 @@ void UTutorialPopupWidget::RefreshPage()
 				FText::AsNumber(TotalPages)));
 		}
 	}
+
+	ECommonInputType CurrentInputType = ECommonInputType::MouseAndKeyboard;
+	if (UCommonInputSubsystem* InputSub =
+		ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(GetOwningLocalPlayer()))
+	{
+		CurrentInputType = InputSub->GetCurrentInputType();
+	}
+	RefreshConfirmInputHint(CurrentInputType);
+	RefreshPageNavigation(CurrentInputType);
 }
 
 #undef LOCTEXT_NAMESPACE

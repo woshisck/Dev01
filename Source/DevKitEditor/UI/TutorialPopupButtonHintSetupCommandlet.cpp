@@ -150,6 +150,47 @@ namespace TutorialPopupButtonHintSetup
 		SetClassArrayProperty(HintText, TEXT("DecoratorClasses"), DecoratorClasses);
 	}
 
+	UTextBlock* ConfigurePageArrowLabel(UTextBlock* Label, const FString& Text)
+	{
+		if (!Label)
+		{
+			return nullptr;
+		}
+
+		Label->Modify();
+		Label->SetText(FText::FromString(Text));
+		Label->SetJustification(ETextJustify::Center);
+		Label->SetColorAndOpacity(FSlateColor(HintColor));
+		Label->SetFont(FSlateFontInfo(Label->GetFont().FontObject, 24));
+		return Label;
+	}
+
+	void ConfigurePageNavInputHint(UYogCommonRichTextBlock* HintText, const FString& ActionToken)
+	{
+		ConfigureInputHint(HintText);
+		if (HintText)
+		{
+			HintText->SetText(FText::FromString(FString::Printf(TEXT("<input action=\"%s\"/>"), *ActionToken)));
+			HintText->OverrideFontSize = 16;
+		}
+	}
+
+	UButton* ConfigurePageArrowButton(UButton* Button, UWidget* Content)
+	{
+		if (!Button)
+		{
+			return nullptr;
+		}
+
+		Button->Modify();
+		Button->SetVisibility(ESlateVisibility::Visible);
+		if (Content)
+		{
+			Button->SetContent(Content);
+		}
+		return Button;
+	}
+
 	bool UpdateTutorialPopupButton(UWidgetBlueprint* WidgetBlueprint, TArray<FString>& ReportLines)
 	{
 		if (!WidgetBlueprint || !WidgetBlueprint->WidgetTree)
@@ -215,6 +256,117 @@ namespace TutorialPopupButtonHintSetup
 		ReportLines.Add(TEXT("- Added `BtnConfirmInputHint` before `BtnConfirmLabel` in `BtnConfirm`."));
 		return true;
 	}
+
+	bool UpdatePageNavigation(UWidgetBlueprint* WidgetBlueprint, TArray<FString>& ReportLines)
+	{
+		if (!WidgetBlueprint || !WidgetBlueprint->WidgetTree)
+		{
+			ReportLines.Add(TEXT("- Missing widget blueprint or widget tree for page navigation."));
+			return false;
+		}
+
+		UWidgetTree* WidgetTree = WidgetBlueprint->WidgetTree;
+		UTextBlock* PageHint = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("PageHint")));
+		if (!PageHint)
+		{
+			ReportLines.Add(TEXT("- Missing required TextBlock `PageHint`."));
+			return false;
+		}
+
+		UPanelWidget* OriginalParent = PageHint->GetParent();
+		const int32 OriginalIndex = OriginalParent ? OriginalParent->GetChildIndex(PageHint) : INDEX_NONE;
+
+		WidgetBlueprint->Modify();
+		WidgetTree->Modify();
+		PageHint->Modify();
+
+		UHorizontalBox* PageNavigationRow = FindOrCreateWidget<UHorizontalBox>(WidgetTree, TEXT("PageNavigationRow"), false);
+		UButton* BtnPreviousPage = FindOrCreateWidget<UButton>(WidgetTree, TEXT("BtnPreviousPage"), true);
+		UButton* BtnNextPage = FindOrCreateWidget<UButton>(WidgetTree, TEXT("BtnNextPage"), true);
+		UTextBlock* BtnPreviousPageLabel = FindOrCreateWidget<UTextBlock>(WidgetTree, TEXT("BtnPreviousPageLabel"), true);
+		UTextBlock* BtnNextPageLabel = FindOrCreateWidget<UTextBlock>(WidgetTree, TEXT("BtnNextPageLabel"), true);
+		UYogCommonRichTextBlock* PagePreviousInputHint =
+			FindOrCreateWidget<UYogCommonRichTextBlock>(WidgetTree, TEXT("PagePreviousInputHint"), true);
+		UYogCommonRichTextBlock* PageNextInputHint =
+			FindOrCreateWidget<UYogCommonRichTextBlock>(WidgetTree, TEXT("PageNextInputHint"), true);
+
+		if (!PageNavigationRow || !BtnPreviousPage || !BtnNextPage || !BtnPreviousPageLabel || !BtnNextPageLabel ||
+			!PagePreviousInputHint || !PageNextInputHint)
+		{
+			ReportLines.Add(TEXT("- Failed to create page navigation widgets."));
+			return false;
+		}
+
+		DetachFromParent(PageNavigationRow);
+		DetachFromParent(BtnPreviousPage);
+		DetachFromParent(BtnNextPage);
+		DetachFromParent(BtnPreviousPageLabel);
+		DetachFromParent(BtnNextPageLabel);
+		DetachFromParent(PagePreviousInputHint);
+		DetachFromParent(PageNextInputHint);
+		DetachFromParent(PageHint);
+
+		ConfigurePageArrowButton(BtnPreviousPage, ConfigurePageArrowLabel(BtnPreviousPageLabel, TEXT("<")));
+		ConfigurePageArrowButton(BtnNextPage, ConfigurePageArrowLabel(BtnNextPageLabel, TEXT(">")));
+		ConfigurePageNavInputHint(PagePreviousInputHint, TEXT("SwitchCombatItemPrevious"));
+		ConfigurePageNavInputHint(PageNextInputHint, TEXT("SwitchCombatItemNext"));
+
+		PageHint->SetJustification(ETextJustify::Center);
+
+		PageNavigationRow->Modify();
+		PageNavigationRow->ClearChildren();
+		if (UHorizontalBoxSlot* PrevButtonSlot = PageNavigationRow->AddChildToHorizontalBox(BtnPreviousPage))
+		{
+			PrevButtonSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			PrevButtonSlot->SetPadding(FMargin(0.0f, 0.0f, 10.0f, 0.0f));
+			PrevButtonSlot->SetHorizontalAlignment(HAlign_Center);
+			PrevButtonSlot->SetVerticalAlignment(VAlign_Center);
+		}
+		if (UHorizontalBoxSlot* PrevHintSlot = PageNavigationRow->AddChildToHorizontalBox(PagePreviousInputHint))
+		{
+			PrevHintSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			PrevHintSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+			PrevHintSlot->SetHorizontalAlignment(HAlign_Center);
+			PrevHintSlot->SetVerticalAlignment(VAlign_Center);
+		}
+		if (UHorizontalBoxSlot* PageSlot = PageNavigationRow->AddChildToHorizontalBox(PageHint))
+		{
+			PageSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			PageSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+			PageSlot->SetHorizontalAlignment(HAlign_Center);
+			PageSlot->SetVerticalAlignment(VAlign_Center);
+		}
+		if (UHorizontalBoxSlot* NextHintSlot = PageNavigationRow->AddChildToHorizontalBox(PageNextInputHint))
+		{
+			NextHintSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			NextHintSlot->SetPadding(FMargin(0.0f, 0.0f, 10.0f, 0.0f));
+			NextHintSlot->SetHorizontalAlignment(HAlign_Center);
+			NextHintSlot->SetVerticalAlignment(VAlign_Center);
+		}
+		if (UHorizontalBoxSlot* NextButtonSlot = PageNavigationRow->AddChildToHorizontalBox(BtnNextPage))
+		{
+			NextButtonSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			NextButtonSlot->SetPadding(FMargin(0.0f));
+			NextButtonSlot->SetHorizontalAlignment(HAlign_Center);
+			NextButtonSlot->SetVerticalAlignment(VAlign_Center);
+		}
+
+		if (OriginalParent)
+		{
+			if (OriginalIndex != INDEX_NONE)
+			{
+				OriginalParent->InsertChildAt(OriginalIndex, PageNavigationRow);
+			}
+			else
+			{
+				OriginalParent->AddChild(PageNavigationRow);
+			}
+		}
+
+		WidgetBlueprint->MarkPackageDirty();
+		ReportLines.Add(TEXT("- Replaced `PageHint` with `PageNavigationRow` containing previous/next arrow buttons and gamepad DPad hints."));
+		return true;
+	}
 }
 
 UTutorialPopupButtonHintSetupCommandlet::UTutorialPopupButtonHintSetupCommandlet()
@@ -247,11 +399,17 @@ int32 UTutorialPopupButtonHintSetupCommandlet::Main(const FString& Params)
 	else if (bDryRun)
 	{
 		ReportLines.Add(TEXT("- Would add `BtnConfirmInputHint` before `BtnConfirmLabel`."));
+		ReportLines.Add(TEXT("- Would wrap `PageHint` with previous/next navigation controls."));
 	}
-	else if (UpdateTutorialPopupButton(WidgetBlueprint, ReportLines))
+	else
 	{
-		FKismetEditorUtilities::CompileBlueprint(WidgetBlueprint);
-		DirtyPackages.AddUnique(WidgetBlueprint->GetPackage());
+		const bool bUpdatedButton = UpdateTutorialPopupButton(WidgetBlueprint, ReportLines);
+		const bool bUpdatedNavigation = UpdatePageNavigation(WidgetBlueprint, ReportLines);
+		if (bUpdatedButton || bUpdatedNavigation)
+		{
+			FKismetEditorUtilities::CompileBlueprint(WidgetBlueprint);
+			DirtyPackages.AddUnique(WidgetBlueprint->GetPackage());
+		}
 	}
 
 	if (!bDryRun && DirtyPackages.Num() > 0)
