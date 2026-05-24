@@ -53,6 +53,8 @@ enum class EStoryEncounterActionKind : uint8
 	TutorialPopup UMETA(DisplayName = "教程弹窗"),
 	TutorialAreaHint UMETA(DisplayName = "区域教程提示"),
 	SpawnRewardPickup UMETA(DisplayName = "Spawn Reward Pickup"),
+	SetRoomRewardOverride UMETA(DisplayName = "Set Room Reward Override"),
+	SetPortalOverride UMETA(DisplayName = "Set Portal Override"),
 };
 
 USTRUCT(BlueprintType)
@@ -158,6 +160,15 @@ struct DEVKIT_API FStoryEncounterAction
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
 	bool bRewardPickupAllowedOutsideArrangement = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Override")
+	bool bClearRoomRewardOverride = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Portal Override")
+	int32 ForcedPortalIndex = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Portal Override")
+	bool bClearPortalOverride = false;
 };
 
 USTRUCT(BlueprintType)

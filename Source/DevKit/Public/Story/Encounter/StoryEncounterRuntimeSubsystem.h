@@ -37,6 +37,8 @@ private:
 	bool ExecuteActorEnabledAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
 	bool ExecuteTutorialAreaHintAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context);
 	bool ExecuteSpawnRewardPickupAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context);
+	bool ExecuteSetRoomRewardOverrideAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
+	bool ExecuteSetPortalOverrideAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
 	void ExecuteEncounterAction(FName EncounterId, const FStoryEncounterAction& Action, const FStoryEventContext& Context);
 
 	UFUNCTION()

@@ -500,6 +500,18 @@
       },
       "actions": [
         {
+          "type": "SetRoomRewardOverride",
+          "actionId": "override_room01_gold_reward",
+          "rewardLootOptions": [
+            {
+              "lootType": "Gold",
+              "amount": 50,
+              "displayName": "金币",
+              "icon": "/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon"
+            }
+          ]
+        },
+        {
           "type": "RecordProgress",
           "progressKey": "first_run.combat_room_01_cleared",
           "progressLabel": "已完成第一战斗房",
@@ -563,6 +575,32 @@
         "runCount": 0
       },
       "actions": [
+        {
+          "type": "SetRoomRewardOverride",
+          "actionId": "override_room02_three_card_reward",
+          "rewardLootOptions": [
+            {
+              "lootType": "Rune",
+              "runeAsset": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Attack",
+              "displayName": "攻击"
+            },
+            {
+              "lootType": "Rune",
+              "runeAsset": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback",
+              "displayName": "重击"
+            },
+            {
+              "lootType": "Rune",
+              "runeAsset": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split",
+              "displayName": "分裂"
+            }
+          ]
+        },
+        {
+          "type": "SetPortalOverride",
+          "actionId": "force_room02_next_portal",
+          "forcedPortalIndex": 0
+        },
         {
           "type": "WeakHint",
           "tutorialEventId": "tutorial_room_buff_reward_cards",

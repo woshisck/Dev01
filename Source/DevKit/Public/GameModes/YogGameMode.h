@@ -194,7 +194,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow")
 	TSubclassOf<ARewardPickup> RewardPickupClass;
 
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
+	void SetRoomRewardOptionsOverride(const TArray<FLootOption>& InOptions);
 
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
+	void ClearRoomRewardOptionsOverride();
+
+	UFUNCTION(BlueprintPure, Category = "LevelFlow|Story Override")
+	bool HasRoomRewardOptionsOverride() const { return bHasRoomRewardOptionsOverride; }
+
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
+	void SetForcedPortalOverride(int32 PortalIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
+	void ClearForcedPortalOverride();
+
+	UFUNCTION(BlueprintPure, Category = "LevelFlow|Story Override")
+	bool HasForcedPortalOverride() const { return bHasForcedPortalOverride; }
 
 	// 进关后延迟多少秒再开始刷怪（给特效/动画和 AI 初始化预留时间）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow", meta = (ClampMin = "0.0"))
@@ -522,6 +538,18 @@ protected:
 	TObjectPtr<URoomDataAsset> ActiveRoomData;
 
 	// 当前关卡的奖励配置（从 FloorConfig 缓存，整理阶段使用）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "LevelFlow|Story Override", meta = (AllowPrivateAccess = "true"))
+	bool bHasRoomRewardOptionsOverride = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "LevelFlow|Story Override", meta = (AllowPrivateAccess = "true"))
+	TArray<FLootOption> RoomRewardOptionsOverride;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "LevelFlow|Story Override", meta = (AllowPrivateAccess = "true"))
+	bool bHasForcedPortalOverride = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "LevelFlow|Story Override", meta = (AllowPrivateAccess = "true"))
+	int32 ForcedPortalOverrideIndex = 0;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "Campaign", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCampaignDataAsset> ActiveCampaignData;
 

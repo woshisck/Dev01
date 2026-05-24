@@ -451,6 +451,46 @@ void AYogGameMode::TryBindHUDDelegates()
 // 关卡流程
 // =========================================================
 
+void AYogGameMode::SetRoomRewardOptionsOverride(const TArray<FLootOption>& InOptions)
+{
+	RoomRewardOptionsOverride = InOptions;
+	bHasRoomRewardOptionsOverride = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Room reward options override set. Count=%d"),
+		RoomRewardOptionsOverride.Num());
+}
+
+void AYogGameMode::ClearRoomRewardOptionsOverride()
+{
+	if (bHasRoomRewardOptionsOverride || !RoomRewardOptionsOverride.IsEmpty())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Room reward options override cleared."));
+	}
+
+	bHasRoomRewardOptionsOverride = false;
+	RoomRewardOptionsOverride.Reset();
+}
+
+void AYogGameMode::SetForcedPortalOverride(int32 PortalIndex)
+{
+	ForcedPortalOverrideIndex = PortalIndex;
+	bHasForcedPortalOverride = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Forced portal override set. PortalIndex=%d"),
+		ForcedPortalOverrideIndex);
+}
+
+void AYogGameMode::ClearForcedPortalOverride()
+{
+	if (bHasForcedPortalOverride)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Forced portal override cleared."));
+	}
+
+	bHasForcedPortalOverride = false;
+	ForcedPortalOverrideIndex = 0;
+}
+
 void AYogGameMode::EnterArrangementPhase()
 {
 	if (CurrentPhase != ELevelPhase::Combat)
@@ -541,9 +581,17 @@ void AYogGameMode::EnterArrangementPhase()
 			// 预分配战利品选项，拾取时直接展示，无需再次生成
 			if (ARewardPickup* Pickup = Cast<ARewardPickup>(Spawned))
 			{
-				TArray<FLootOption> Batch = (ActiveRoomData && ActiveRoomData->bUseFixedRewardOptions)
-					? ActiveRoomData->FixedRewardOptions
-					: GenerateLootBatch(LootAssignedThisLevel);
+				TArray<FLootOption> Batch;
+				if (bHasRoomRewardOptionsOverride)
+				{
+					Batch = RoomRewardOptionsOverride;
+				}
+				else
+				{
+					Batch = (ActiveRoomData && ActiveRoomData->bUseFixedRewardOptions)
+						? ActiveRoomData->FixedRewardOptions
+						: GenerateLootBatch(LootAssignedThisLevel);
+				}
 				Batch = ApplyLootOptionLimit(Batch);
 				Pickup->AssignLoot(Batch);
 				UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 预分配 %d 个符文选项给 RewardPickup"), Batch.Num());
@@ -1275,6 +1323,9 @@ void AYogGameMode::StartLevelSpawning()
 	UCampaignDataAsset* Campaign = GetActiveCampaignData();
 	UE_LOG(LogTemp, Warning, TEXT("[StartLevelSpawning] Map=%s CampaignData=%s ActiveRoomData=%s"),
 		*CurrentMapNameForFrontend, *GetNameSafe(Campaign), *GetNameSafe(ActiveRoomData));
+
+	ClearRoomRewardOptionsOverride();
+	ClearForcedPortalOverride();
 
 	if (!Campaign)
 	{
@@ -3228,12 +3279,16 @@ void AYogGameMode::ActivatePortals()
 	}
 
 	bool bAtLeastOneOpened = false;
+	const bool bForceSinglePortal = bHasForcedPortalOverride || ActiveRoomData->bForceSinglePortal;
+	const int32 ForcedPortalIndex = bHasForcedPortalOverride
+		? ForcedPortalOverrideIndex
+		: ActiveRoomData->ForcedPortalIndex;
 	for (const FPortalDestConfig& Cfg : Configs)
 	{
-		if (ActiveRoomData->bForceSinglePortal && Cfg.PortalIndex != ActiveRoomData->ForcedPortalIndex)
+		if (bForceSinglePortal && Cfg.PortalIndex != ForcedPortalIndex)
 		{
 			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: skipping portal [%d], tutorial forces portal [%d]."),
-				Cfg.PortalIndex, ActiveRoomData->ForcedPortalIndex);
+				Cfg.PortalIndex, ForcedPortalIndex);
 			continue;
 		}
 
@@ -3259,7 +3314,7 @@ void AYogGameMode::ActivatePortals()
 		}
 
 		// 洗牌后第一个必开；后续 50% 概率
-		const bool bShouldOpen = ActiveRoomData->bForceSinglePortal || !bAtLeastOneOpened || FMath::RandBool();
+		const bool bShouldOpen = bForceSinglePortal || !bAtLeastOneOpened || FMath::RandBool();
 		if (!bShouldOpen)
 		{
 			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 随机未开启"), Cfg.PortalIndex);

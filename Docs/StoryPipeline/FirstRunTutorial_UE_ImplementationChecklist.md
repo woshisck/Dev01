@@ -137,16 +137,14 @@ Details 面板填写：
 
 - `/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom`
 
-填写：
+填写房间自身出口：
 
-- `bForceSinglePortal` = true
-- `ForcedPortalIndex` = 主城入口 Portal 的 Index
 - `PortalDestinations` 添加或确认一项：
   - `PortalIndex` = 主城入口 Portal 的 Index
   - `RoomPool` 只放第一战斗房：
     - `/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01a`
 
-## 2. 战斗房 RoomData
+## 2. 战斗房默认 RoomData 与剧情覆盖
 
 ### 2.1 第一战斗房：金币奖励
 
@@ -154,15 +152,21 @@ Details 面板填写：
 
 - `/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01a`
 
-填写：
+RoomData 只填写房间自身信息：
 
 - 敌人池放少量基础敌人。
-- `bUseFixedRewardOptions` = true
-- `FixedRewardOptions` 只放金币：
+
+不要在这个 `DA_Room` 里配置教程固定奖励。
+
+奖励在剧情点里配置：
+
+- 打开 `EP_FirstRun_CombatRoom01Gold`
+- `Actions` 添加或确认 `SetRoomRewardOverride`
+- `RewardLootOptions` 只放 1 项：
   - `LootType` = `Gold`
-  - `Amount` = 建议 50
+  - `Amount` = `50`
   - `DisplayName` = `金币`
-  - `Icon` = 项目已有金币 icon
+  - `Icon` = `/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon`
 
 ### 2.2 第二战斗房：Buff 与三选一卡
 
@@ -174,18 +178,26 @@ Details 面板填写：
 
 - 敌人池放基础敌人。
 - Buff Pool 至少放 1 个玩家能看出来的 Buff。
-- `bUseFixedRewardOptions` = true
-- `FixedRewardOptions` 放 3 张 Rune：
+
+不要在这个 `DA_Room` 里配置教程固定奖励。
+
+奖励在剧情点里配置：
+
+- 打开 `EP_FirstRun_CombatRoom02ThreeCards`
+- `Actions` 添加或确认 `SetRoomRewardOverride`
+- `RewardLootOptions` 放 3 张 Rune：
   - `[攻击]`：`/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Attack`
   - `[重击]`：正式重击卡，或暂用 `DA_Rune512_Knockback`
   - `[分裂]`：`/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split`
 
 Portal 路由：
 
-- `bForceSinglePortal` = true
-- `ForcedPortalIndex` = 通往下一房间的 Portal Index
-- `PortalDestinations` 对应 Index 的 `RoomPool` 只放：
+- `DA_Room` 的 `PortalDestinations` 对应 Index 的 `RoomPool` 只放：
   - `/Game/Docs/Map/DA_L1_Room/DA_Room_CL_WaterDungeon`
+- 强制只开哪扇门不要写到 `DA_Room`：
+  - 打开 `EP_FirstRun_CombatRoom02ThreeCards`
+  - `Actions` 添加或确认 `SetPortalOverride`
+  - `ForcedPortalIndex` = 通往下一房间的 Portal Index，例如 `0`
 
 ## 3. 月光连携卡房
 
@@ -213,18 +225,17 @@ Portal 路由：
 
 选择两个普通 RoomData 作为过渡房，或复制现有 Corridor RoomData。
 
-每个过渡房填写：
+每个过渡房的 `DA_Room` 只填写房间自身信息：
 
-- `bUseFixedRewardOptions` = true
-- `FixedRewardOptions` 放金币和材料
 - 不配置教程提示
+
+如果过渡房也需要固定 Gold / Material 奖励，不要写到 `DA_Room`，在对应剧情点里加 `SetRoomRewardOverride`，把 `RewardLootOptions` 配成 Gold / Material。
 
 第二个过渡房额外填写：
 
-- `bForceSinglePortal` = true
-- `ForcedPortalIndex` = 通往祈祷室的 Portal Index
-- `PortalDestinations` 对应 Index 的 `RoomPool` 只放：
+- `DA_Room` 的 `PortalDestinations` 对应 Index 的 `RoomPool` 只放：
   - `/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom`
+- 强制只开哪扇门不要写到 `DA_Room`，在对应剧情点里加 `SetPortalOverride`，填写通往祈祷室的 `ForcedPortalIndex`
 
 ## 5. 祈祷室
 
