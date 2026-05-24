@@ -221,7 +221,7 @@ void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase
 	{
 		PagesToShow.Add(MakeTutorialPage(
 			TEXT("拾起武器"),
-			TEXT("靠近发光武器，按 [E] 拾取。武器会装备到角色身上，并把它自带的初始卡牌装入下方 1D 卡组。")));
+			TEXT("靠近发光武器，按 <input action=\"Interact\"/> 拾取。武器会装备到角色身上，并把它自带的初始卡牌装入下方 1D 卡组。")));
 		PagesToShow.Add(MakeTutorialPage(
 			TEXT("武器自带初始卡牌"),
 			TEXT("每把武器都有一组起始卡。拾取后，卡组会按武器配置顺序显示；轻/重攻击不会被卡组阻止，但命中会按顺序消耗卡牌并触发效果。")));
