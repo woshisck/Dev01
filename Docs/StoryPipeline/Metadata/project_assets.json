@@ -2803,7 +2803,6 @@
     "progressKeys": [
       "[object Object]",
       "first_run_tutorial_completed",
-      "first_run.backpack_rules_seen",
       "first_run.combat_room_01_cleared",
       "first_run.combat_room_02_cards_seen",
       "first_run.deck_enter_highlight_seen",
@@ -2815,8 +2814,7 @@
       "first_run.moonlight_obtained",
       "first_run.scripted_defeat_seen",
       "first_run.training_dummy_started",
-      "first_run.transition_rooms_finished",
-      "first_run.weapon_picked"
+      "first_run.transition_rooms_finished"
     ]
   },
   "summary": {

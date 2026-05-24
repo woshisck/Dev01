@@ -14,9 +14,8 @@ Generated: 2026-05-24T04:33:50.225Z
 | Trigger | /Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom / Trigger_Tutorial_Move -> EP_FirstRun_HubMoveHint | Level | todo |
 | Trigger | /Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom / Trigger_Tutorial_Dash -> EP_FirstRun_HubDashHint | Level | todo |
 | LevelActor | WeaponSpawner_FirstRun_DemoSword -> Enable/Show | Level/Tech Design | todo |
-| Trigger | /Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom / WeaponSpawner_FirstRun_DemoSword -> EP_FirstRun_WeaponPickupPrompt | Level | todo |
 | SystemEvent | Any / WBP_CombatDeckBar.OnDeckCardsEntered -> EP_FirstRun_DeckEnterHighlight | Tech Design | todo |
-| Trigger | /Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom / BP_TutorialTrainingDummy -> EP_FirstRun_TrainingDummyCombo | Level | todo |
+| Trigger | /Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom / B_EnemyDummy_Tutorial -> EP_FirstRun_TrainingDummyCombo | Level | todo |
 | Trigger | /Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom / Portal_TutorialStart -> EP_FirstRun_HubPortalRewardPreview | Level | todo |
 | Trigger | /Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01a / RoomStart_FirstCombatGold -> EP_FirstRun_CombatRoom01Gold | Level | todo |
 | Trigger | /Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01b / RoomStart_BuffedThreeCards -> EP_FirstRun_CombatRoom02ThreeCards | Level | todo |
@@ -30,7 +29,7 @@ Generated: 2026-05-24T04:33:50.225Z
 | LevelActor | WeaponSpawner_FirstRun_DemoSword -> Disable/Hide | Level/Tech Design | todo |
 | LevelActor | WeaponSpawner_MainRun_StartWeapon -> Enable/Show | Level/Tech Design | todo |
 | System | 新存档入口写入 FirstRunTutorial.Active，并加载教程 Campaign | Tech Design | todo |
-| LevelDesign | 主城摆放移动、冲刺、武器拾取、木人桩、Portal 引导相关 Trigger / Actor | Level Design | todo |
+| LevelDesign | 主城摆放移动、冲刺、武器拾取、木人桩、Portal 引导相关 Trigger / Actor；武器拾取教程由 TryWeaponTutorial 自动触发，不接 Story Pickup EP | Level Design | todo |
 | UI/Narrative | 配置教程弹窗内容：武器、背包卡牌规则、重击、月光、终结技、教程完成；背包/重击/月光/终结技说明走 HintOnce，正文/副正文统一使用 YogCommonRichTextBlock + InputActionRichTextDecorator | UI/Narrative | todo |
 | UI | 移动教学底部操作提示条正文使用输入设备分流：键鼠正文渲染 <input action="Move"/> + WASD 说明；手柄正文渲染 <input action="Move"/> 和 <input action="CameraLook"/> | UI | todo |
 | UI | CombatDeckBar 增加 OnDeckCardsEntered 渐入渐出高亮，首次入组追加 <input action="OpenBackpack"/> 打开背包底部操作提示条 | UI | todo |

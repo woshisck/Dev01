@@ -129,12 +129,15 @@
           "inputDecorator": "InputActionRichTextDecorator",
           "inputRichTextNote": "底部操作提示条正文使用输入设备分流：键鼠显示 Move + WASD，手柄显示 Move + CameraLook。"
         },
-        "graphPosition": {
-          "x": 79,
-          "y": 79
-        },
         "tutorialAreaHint": true
-      }
+      },
+      "graphPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nextNodeIds": [
+        "hub_dash_hint"
+      ]
     },
     {
       "nodeId": "hub_dash_hint",
@@ -204,89 +207,15 @@
           ],
           "inputRichTextNote": "Dash 底部操作提示条不写死 Space/Gamepad FaceButton，统一使用 <input action=\"Dash\"/>。"
         },
-        "graphPosition": {
-          "x": 534,
-          "y": 85
-        },
         "tutorialAreaHint": true
-      }
-    },
-    {
-      "nodeId": "weapon_pickup_prompt",
-      "asset": "EP_FirstRun_WeaponPickupPrompt",
-      "displayName": "拾取首局演示武器",
-      "kind": "Object",
-      "playerFacingEvent": "玩家接近主城中放置的普通武器，看到拾取提示；拾取后武器自身 InitialCombatDeck 提供 [攻击][攻击]。",
-      "firePolicy": "Once",
-      "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
-      "placementName": "WeaponSpawner_FirstRun_DemoSword",
-      "condition": {
-        "kind": "None",
-        "progressKey": "",
-        "progressLabel": "",
-        "featureTag": "",
-        "runCount": 0
       },
-      "actions": [
-        {
-          "type": "TutorialPopup",
-          "tutorialEventId": "tutorial_weapon_pickup",
-          "title": "拾取武器",
-          "body": "靠近发光武器，按下 <input action=\"Interact\"/> 拾取。武器会装备到角色身上；这把武器自身配置的 InitialCombatDeck 会把 [攻击][攻击] 加入 1D 卡组。",
-          "pauseGame": true,
-          "progressKey": "",
-          "progressLabel": "",
-          "featureTag": "",
-          "questTaskTag": "",
-          "targetNodeId": "",
-          "levelFlow": "",
-          "actionId": "",
-          "reuseKey": "",
-          "tutorialPages": [],
-          "targetActorName": "",
-          "targetActorTag": "",
-          "actorEnabled": true
-        },
-        {
-          "type": "RecordProgress",
-          "progressKey": "first_run.weapon_picked",
-          "progressLabel": "已拾取首局演示武器",
-          "title": "",
-          "body": "",
-          "tutorialEventId": "",
-          "pauseGame": true,
-          "featureTag": "",
-          "questTaskTag": "",
-          "targetNodeId": "",
-          "levelFlow": "",
-          "actionId": "",
-          "reuseKey": "",
-          "tutorialPages": [],
-          "targetActorName": "",
-          "targetActorTag": "",
-          "actorEnabled": true
-        }
-      ],
-      "extra": {
-        "stageDirection": "放置普通 BP_WeaponSpawner，Actor 名称建议为 WeaponSpawner_FirstRun_DemoSword，并添加 Actor Tag：Story.FirstRun.DemoWeapon。拾取提示、教程弹窗正文和武器交互提示都必须使用 YogCommonRichTextBlock + InputActionRichTextDecorator；拾取输入统一写 <input action=\"Interact\"/>，不要写死 [E]。拾取瞬间播放短 UI 提示：武器入手、卡组条出现。",
-        "implementation": {
-          "grantWeapon": "DA_Weapon_FirstRun_DemoSword",
-          "weaponDeckSource": "WeaponDefinition.InitialCombatDeck",
-          "expectedInitialCombatDeck": [
-            "攻击",
-            "攻击"
-          ],
-          "requiredActor": "WeaponSpawner_FirstRun_DemoSword",
-          "requiredActorTag": "Story.FirstRun.DemoWeapon",
-          "placementPolicy": "使用普通 BP_WeaponSpawner 和普通 WeaponDefinition；不要添加教程专用 Spawner 或首局教程专用卡组覆盖字段。",
-          "textWidget": "YogCommonRichTextBlock",
-          "inputDecorator": "InputActionRichTextDecorator",
-          "inputDecoratorActions": [
-            "Interact"
-          ],
-          "inputRichTextNote": "武器拾取、奖励拾取、祭坛交互共用 Interact 输入 token。"
-        }
-      }
+      "graphPosition": {
+        "x": 420,
+        "y": 0
+      },
+      "nextNodeIds": [
+        "deck_enter_highlight"
+      ]
     },
     {
       "nodeId": "deck_enter_highlight",
@@ -298,9 +227,9 @@
       "placementLevel": "Any",
       "placementName": "WBP_CombatDeckBar.OnDeckCardsEntered",
       "condition": {
-        "kind": "ProgressCompleted",
-        "progressKey": "first_run.weapon_picked",
-        "progressLabel": "已拾取教程武器",
+        "kind": "None",
+        "progressKey": "",
+        "progressLabel": "",
         "featureTag": "",
         "runCount": 0
       },
@@ -372,12 +301,15 @@
             "HeavyAttack"
           ],
           "inputRichTextNote": "卡组高亮后的打开背包提示和攻击说明都使用输入 action token。"
-        },
-        "graphPosition": {
-          "x": 1465,
-          "y": 79
         }
-      }
+      },
+      "graphPosition": {
+        "x": 840,
+        "y": 220
+      },
+      "nextNodeIds": [
+        "training_dummy_combo"
+      ]
     },
     {
       "nodeId": "training_dummy_combo",
@@ -387,11 +319,11 @@
       "playerFacingEvent": "玩家在武器中心攻击木人桩，右上角显示武器连招列表，观察攻击、连招和卡组变化。",
       "firePolicy": "Once",
       "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
-      "placementName": "BP_TutorialTrainingDummy",
+      "placementName": "B_EnemyDummy_Tutorial",
       "condition": {
         "kind": "ProgressCompleted",
-        "progressKey": "first_run.backpack_rules_seen",
-        "progressLabel": "已阅读背包和卡牌基础教程",
+        "progressKey": "first_run.deck_enter_highlight_seen",
+        "progressLabel": "???????",
         "featureTag": "",
         "runCount": 0
       },
@@ -438,7 +370,7 @@
       "extra": {
         "stageDirection": "武器中心放置木人桩。进入区域后右上角常驻当前武器连招列表；攻击教学底部提示条必须使用 YogCommonRichTextBlock + InputActionRichTextDecorator，轻/重攻击统一写 <input action=\"LightAttack\"/> / <input action=\"HeavyAttack\"/>；木人桩死亡前不打开传送门。",
         "implementation": {
-          "requiredActor": "BP_TutorialTrainingDummy",
+          "requiredActor": "B_EnemyDummy_Tutorial",
           "comboListUi": "TopRight",
           "completionEvent": "OnTutorialDummyKilled",
           "textWidget": "YogCommonRichTextBlock",
@@ -448,12 +380,15 @@
             "HeavyAttack"
           ],
           "inputRichTextNote": "木人桩攻击教学使用 LightAttack/HeavyAttack token。"
-        },
-        "graphPosition": {
-          "x": 2383,
-          "y": 89
         }
-      }
+      },
+      "graphPosition": {
+        "x": 1260,
+        "y": 0
+      },
+      "nextNodeIds": [
+        "hub_portal_reward_preview"
+      ]
     },
     {
       "nodeId": "hub_portal_reward_preview",
@@ -526,12 +461,15 @@
             "Interact"
           ],
           "inputRichTextNote": "Portal 进入提示沿用 Interact token。"
-        },
-        "graphPosition": {
-          "x": 3291,
-          "y": 88
         }
-      }
+      },
+      "graphPosition": {
+        "x": 1680,
+        "y": 0
+      },
+      "nextNodeIds": [
+        "combat_room_01_gold"
+      ]
     },
     {
       "nodeId": "combat_room_01_gold",
@@ -587,12 +525,15 @@
             "Interact"
           ],
           "inputRichTextNote": "金币拾取提示使用 Interact token。"
-        },
-        "graphPosition": {
-          "x": 3760,
-          "y": 80
         }
-      }
+      },
+      "graphPosition": {
+        "x": 2100,
+        "y": 0
+      },
+      "nextNodeIds": [
+        "combat_room_02_three_cards"
+      ]
     },
     {
       "nodeId": "combat_room_02_three_cards",
@@ -676,12 +617,15 @@
             "Interact"
           ],
           "inputRichTextNote": "三选一卡奖励确认提示使用 Interact token。"
-        },
-        "graphPosition": {
-          "x": 4213,
-          "y": 88
         }
-      }
+      },
+      "graphPosition": {
+        "x": 2520,
+        "y": 0
+      },
+      "nextNodeIds": [
+        "moonlight_special_enemy"
+      ]
     },
     {
       "nodeId": "moonlight_special_enemy",
@@ -775,12 +719,15 @@
           "inputDecoratorActions": [
             "ReverseCard"
           ]
-        },
-        "graphPosition": {
-          "x": 4681,
-          "y": 105
         }
-      }
+      },
+      "graphPosition": {
+        "x": 2940,
+        "y": 0
+      },
+      "nextNodeIds": [
+        "transition_room_01_gold_material"
+      ]
     },
     {
       "nodeId": "transition_room_01_gold_material",
@@ -831,7 +778,14 @@
           "showWeakHint": false,
           "forceNextStoryPoint": "transition_room_02_gold_material"
         }
-      }
+      },
+      "graphPosition": {
+        "x": 3360,
+        "y": 0
+      },
+      "nextNodeIds": [
+        "transition_room_02_gold_material"
+      ]
     },
     {
       "nodeId": "transition_room_02_gold_material",
@@ -902,7 +856,14 @@
           "forceNextRoom": "/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom",
           "forceNextStoryPoint": "prayer_sacrifice_finisher"
         }
-      }
+      },
+      "graphPosition": {
+        "x": 3780,
+        "y": 0
+      },
+      "nextNodeIds": [
+        "prayer_sacrifice_finisher"
+      ]
     },
     {
       "nodeId": "prayer_sacrifice_finisher",
@@ -954,12 +915,15 @@
             "HeavyAttack"
           ],
           "inputRichTextNote": "祭坛交互和终结技 QTE 确认输入都使用 action token。"
-        },
-        "graphPosition": {
-          "x": 6085,
-          "y": 68
         }
-      }
+      },
+      "graphPosition": {
+        "x": 4200,
+        "y": 0
+      },
+      "nextNodeIds": [
+        "scripted_defeat_return_hub"
+      ]
     },
     {
       "nodeId": "scripted_defeat_return_hub",
@@ -1024,12 +988,15 @@
           "winCondition": "None",
           "deathOption": "ReturnToHub",
           "inputRichTextNote": "死亡回主城选项的确认/返回提示如果显示按键，走 CommonUI 输入提示或 YogCommonRichTextBlock。"
-        },
-        "graphPosition": {
-          "x": 6519,
-          "y": 105
         }
-      }
+      },
+      "graphPosition": {
+        "x": 4620,
+        "y": 0
+      },
+      "nextNodeIds": [
+        "return_hub_normal_run_start"
+      ]
     },
     {
       "nodeId": "return_hub_normal_run_start",
@@ -1135,6 +1102,10 @@
           "normalWeaponDeckSource": "Normal WeaponDefinition.InitialCombatDeck",
           "campaignAfterTutorial": "/Game/Docs/Map/DA_Campaign_MainRun"
         }
+      },
+      "graphPosition": {
+        "x": 5040,
+        "y": 0
       }
     }
   ],

@@ -92,6 +92,16 @@ int32 GetInt(const TSharedPtr<FJsonObject>& Object, const TCHAR* Field, int32 De
 	return Object->TryGetNumberField(Field, Value) ? FMath::RoundToInt(Value) : Default;
 }
 
+float GetFloat(const TSharedPtr<FJsonObject>& Object, const TCHAR* Field, float Default = 0.f)
+{
+	if (!Object.IsValid())
+	{
+		return Default;
+	}
+	double Value = 0.0;
+	return Object->TryGetNumberField(Field, Value) ? static_cast<float>(Value) : Default;
+}
+
 bool GetBool(const TSharedPtr<FJsonObject>& Object, const TCHAR* Field, bool bDefault = false)
 {
 	if (!Object.IsValid())
@@ -280,6 +290,44 @@ FString SanitizeAssetName(const FString& Value)
 	return Out.IsEmpty() ? TEXT("StoryAsset") : Out;
 }
 
+TSharedPtr<FJsonObject> GetGraphPositionObject(const TSharedPtr<FJsonObject>& PointObject)
+{
+	if (TSharedPtr<FJsonObject> Position = GetObject(PointObject, TEXT("graphPosition")))
+	{
+		return Position;
+	}
+	if (TSharedPtr<FJsonObject> Extra = GetObject(PointObject, TEXT("extra")))
+	{
+		return GetObject(Extra, TEXT("graphPosition"));
+	}
+	return nullptr;
+}
+
+FVector2D GetGraphPosition(const TSharedPtr<FJsonObject>& PointObject, int32 PointIndex)
+{
+	if (TSharedPtr<FJsonObject> Position = GetGraphPositionObject(PointObject))
+	{
+		return FVector2D(
+			GetFloat(Position, TEXT("x"), PointIndex * 360.f),
+			GetFloat(Position, TEXT("y"), 0.f));
+	}
+	return FVector2D(PointIndex * 360.f, 0.f);
+}
+
+TArray<FName> GetNextNodeIds(const TSharedPtr<FJsonObject>& PointObject)
+{
+	TArray<FName> Result;
+	for (const TSharedPtr<FJsonValue>& Value : GetArray(PointObject, TEXT("nextNodeIds")))
+	{
+		FString NodeId;
+		if (Value.IsValid() && Value->TryGetString(NodeId) && !NodeId.IsEmpty())
+		{
+			Result.Add(FName(*NodeId));
+		}
+	}
+	return Result;
+}
+
 UStoryEncounterPointDA* WritePoint(
 	const FString& Arc,
 	const FString& GraphAsset,
@@ -310,7 +358,7 @@ UStoryEncounterPointDA* WritePoint(
 	Point->Condition = ParseCondition(GetObject(PointObject, TEXT("condition")));
 	Point->PlacementLevel = FName(*GetString(PointObject, TEXT("placementLevel")));
 	Point->PlacementName = FName(*GetString(PointObject, TEXT("placementName")));
-	Point->EditorPosition = FVector2D(PointIndex * 360.f, 0.f);
+	Point->EditorPosition = GetGraphPosition(PointObject, PointIndex);
 	Point->Actions.Reset();
 	for (const TSharedPtr<FJsonValue>& ActionValue : GetArray(PointObject, TEXT("actions")))
 	{
@@ -346,7 +394,7 @@ void EnsureGraphEditorData(UStoryEncounterGraph* Graph)
 #endif
 }
 
-UEdNode_GenericGraphNode* AddGraphNode(UStoryEncounterGraph* Graph, UStoryEncounterPointDA* Point, int32 NodeIndex)
+UEdNode_GenericGraphNode* AddGraphNode(UStoryEncounterGraph* Graph, UStoryEncounterPointDA* Point)
 {
 	if (!Graph || !Point || !Graph->EdGraph)
 	{
@@ -373,8 +421,8 @@ UEdNode_GenericGraphNode* AddGraphNode(UStoryEncounterGraph* Graph, UStoryEncoun
 	EdNode->CreateNewGuid();
 	EdNode->PostPlacedNewNode();
 	EdNode->AllocateDefaultPins();
-	EdNode->NodePosX = NodeIndex * 360;
-	EdNode->NodePosY = 0;
+	EdNode->NodePosX = FMath::RoundToInt(Point->EditorPosition.X);
+	EdNode->NodePosY = FMath::RoundToInt(Point->EditorPosition.Y);
 	EdNode->SetFlags(RF_Transactional);
 	return EdNode;
 }
@@ -385,6 +433,7 @@ void WriteGraph(
 	FName EncounterId,
 	const FString& StoryId,
 	const TArray<UStoryEncounterPointDA*>& Points,
+	const TMap<FName, TArray<FName>>& ExplicitEdges,
 	TArray<UPackage*>& DirtyPackages,
 	TArray<FString>& ReportLines)
 {
@@ -423,19 +472,34 @@ void WriteGraph(
 	Graph->ClearGraph();
 
 	TArray<UEdNode_GenericGraphNode*> EdNodes;
+	TMap<FName, UEdNode_GenericGraphNode*> EdNodeByNodeId;
 	for (int32 Index = 0; Index < Points.Num(); ++Index)
 	{
-		if (UEdNode_GenericGraphNode* EdNode = AddGraphNode(Graph, Points[Index], Index))
+		if (UEdNode_GenericGraphNode* EdNode = AddGraphNode(Graph, Points[Index]))
 		{
 			EdNodes.Add(EdNode);
+			EdNodeByNodeId.Add(Points[Index]->GetStableNodeId(), EdNode);
 		}
 	}
 
-	if (const UEdGraphSchema* Schema = EdGraph->GetSchema())
+	if (const UEdGraphSchema* Schema = EdGraph->GetSchema(); Schema && ExplicitEdges.Num() > 0)
 	{
-		for (int32 Index = 0; Index + 1 < EdNodes.Num(); ++Index)
+		for (const TPair<FName, TArray<FName>>& EdgePair : ExplicitEdges)
 		{
-			Schema->TryCreateConnection(EdNodes[Index]->Pins[1], EdNodes[Index + 1]->Pins[0]);
+			UEdNode_GenericGraphNode* FromNode = EdNodeByNodeId.FindRef(EdgePair.Key);
+			if (!FromNode || FromNode->Pins.Num() < 2)
+			{
+				continue;
+			}
+
+			for (const FName& ToNodeId : EdgePair.Value)
+			{
+				UEdNode_GenericGraphNode* ToNode = EdNodeByNodeId.FindRef(ToNodeId);
+				if (ToNode && ToNode->Pins.Num() > 0)
+				{
+					Schema->TryCreateConnection(FromNode->Pins[1], ToNode->Pins[0]);
+				}
+			}
 		}
 	}
 
@@ -515,6 +579,7 @@ int32 UStoryImportCommandlet::Main(const FString& Params)
 		}
 
 		TArray<UStoryEncounterPointDA*> Points;
+		TMap<FName, TArray<FName>> ExplicitEdges;
 		int32 PointIndex = 0;
 		for (const TSharedPtr<FJsonValue>& PointValue : GetArray(SegmentObject, TEXT("points")))
 		{
@@ -531,6 +596,11 @@ int32 UStoryImportCommandlet::Main(const FString& Params)
 			else if (UStoryEncounterPointDA* Point = WritePoint(Arc, GraphAsset, EncounterId, *PointObjectPtr, PointIndex, DirtyPackages, ReportLines))
 			{
 				Points.Add(Point);
+				const TArray<FName> NextNodeIds = GetNextNodeIds(*PointObjectPtr);
+				if (!NextNodeIds.IsEmpty())
+				{
+					ExplicitEdges.Add(Point->GetStableNodeId(), NextNodeIds);
+				}
 			}
 			++PointIndex;
 		}
@@ -541,7 +611,7 @@ int32 UStoryImportCommandlet::Main(const FString& Params)
 		}
 		else
 		{
-			WriteGraph(Arc, GraphAsset, EncounterId, StoryId, Points, DirtyPackages, ReportLines);
+			WriteGraph(Arc, GraphAsset, EncounterId, StoryId, Points, ExplicitEdges, DirtyPackages, ReportLines);
 		}
 		ReportLines.Add(TEXT(""));
 	}
