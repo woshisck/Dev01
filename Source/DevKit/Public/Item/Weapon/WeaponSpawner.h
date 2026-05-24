@@ -22,6 +22,8 @@ class UPrimitiveComponent;
 class UStaticMeshComponent;
 class UWidgetComponent;
 class UWeaponFloatWidget;
+class UStoryEncounterGraph;
+class UStoryEncounterPointDA;
 
 class UWeaponDefinition;
 
@@ -141,6 +143,20 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "武器展示|材质")
 	TObjectPtr<UMaterialInterface> PickedUpMaterial;
 
+	// Optional generic story hook fired after this spawner successfully equips its weapon.
+	// Used by tutorial pickups without adding tutorial-specific behavior to the weapon flow.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Encounter|Pickup")
+	TObjectPtr<UStoryEncounterPointDA> PickupEncounterPoint = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Encounter|Pickup")
+	TObjectPtr<UStoryEncounterGraph> PickupEncounterGraph = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Encounter|Pickup")
+	FName PickupEncounterNodeId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Encounter|Pickup")
+	bool bTriggerPickupEncounterOnce = true;
+
 private:
 
 	// 朝向检测：玩家在范围内时每帧判断是否应显示浮窗
@@ -153,7 +169,9 @@ private:
 	TArray<TObjectPtr<UMaterialInterface>> CachedMeshMaterials;
 
 	void ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data);
+	void TriggerPickupStoryEncounter(APlayerCharacterBase* Player);
 
 	float BobTimer = 0.f;
 	FVector BaseMeshOffset = FVector::ZeroVector;
+	bool bPickupEncounterTriggered = false;
 };

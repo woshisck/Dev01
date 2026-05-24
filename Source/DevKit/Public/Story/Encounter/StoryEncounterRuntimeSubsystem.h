@@ -8,6 +8,7 @@
 class UStoryEncounterMap;
 class UStoryEncounterGraph;
 class UStoryEncounterPointDA;
+class ULevelInfoPopupDA;
 
 UCLASS()
 class DEVKIT_API UStoryEncounterRuntimeSubsystem : public UGameInstanceSubsystem
@@ -35,4 +36,7 @@ private:
 	bool ExecuteActorEnabledAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
 	bool ExecuteTutorialAreaHintAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context);
 	void ExecuteEncounterAction(FName EncounterId, const FStoryEncounterAction& Action, const FStoryEventContext& Context);
+
+	UPROPERTY()
+	TArray<TObjectPtr<ULevelInfoPopupDA>> TransientInfoPopups;
 };

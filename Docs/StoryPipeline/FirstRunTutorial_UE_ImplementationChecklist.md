@@ -178,7 +178,8 @@ RoomData：
 剧情绑定：
 - `hub_dash_hint` 的动作节点在玩家进入冲刺提示区域时显示 `WeaponSpawner_FirstRun_DemoSword`
 - `weapon_pickup_prompt` 的 `placementName` = `WeaponSpawner_FirstRun_DemoSword`
-- 拾取完成后触发 `EP_FirstRun_WeaponPickupPrompt` 的方式走普通 Story Trigger 或 BP 事件绑定，不在 `BP_WeaponSpawner` 上新增教程专用字段
+- 首次武器拾取由 `AWeaponSpawner::TryPickupWeapon` 调用 `UTutorialManager::TryWeaponTutorial` 触发，不需要在首局演示武器实例上额外绑定 `Story Encounter|Pickup`，否则可能和旧状态机路径重复。
+- `Story Encounter|Pickup` 保留给非 `NeedWeaponTutorial` 状态下的剧情拾取点：可填写 `PickupEncounterPoint`，或填写 `PickupEncounterGraph` + `PickupEncounterNodeId`。
 
 检查：
 - 靠近武器出现拾取提示
@@ -570,7 +571,7 @@ RoomData：
    - Actor Tag = `Story.MainRun.StartWeapon`（推荐；非强制）
    - Weapon Definition 指向正常流程武器 DA
    - 正常流程武器 DA 的 `InitialCombatDeck` 由正式设计决定，例如 `[攻击][攻击][月光][武器终结技]`
-4. 拾取成功后触发 `EP_FirstRun_WeaponPickupPrompt` 的绑定仍需用普通 Story Trigger 或 BP 事件接上。
+4. 首次武器拾取弹窗由 `TryWeaponTutorial` 触发；不要在 `WeaponSpawner_FirstRun_DemoSword` 上重复填写 `Story Encounter|Pickup`。非首次剧情拾取点可使用该通用钩子。
 5. 背包首次打开触发 `EP_FirstRun_BackpackCardRules` 仍需检查 UI 入口是否已绑定。
 6. 木人桩死亡事件仍需生成或启用固定 `[重击]` 奖励拾取物。
 7. 月光特殊敌人仍需在目标 RoomData / 刷怪逻辑中配置特殊敌人 BP、蓝雾 FX 和 `[月光]` 固定掉落。

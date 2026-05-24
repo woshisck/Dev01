@@ -28,7 +28,7 @@
 - 在教程主城中摆放并绑定：
   - 移动提示 Trigger
   - 冲刺提示 Trigger
-  - 教程武器拾取点
+  - 教程武器拾取点；首次拾取弹窗由 `TryWeaponTutorial` 触发，不要重复绑定 `Story Encounter|Pickup`
   - 木人桩
   - 木人桩死亡后的单卡奖励掉落点
   - 教程传送门

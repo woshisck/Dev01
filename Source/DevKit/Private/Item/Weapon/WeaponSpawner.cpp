@@ -28,6 +28,9 @@
 #include "UI/WeaponFloatWidget.h"
 #include "UI/YogHUD.h"
 #include "Data/LevelInfoPopupDA.h"
+#include "Story/Encounter/StoryEncounterGraph.h"
+#include "Story/Encounter/StoryEncounterPointDataAsset.h"
+#include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
 
 namespace
 {
@@ -469,6 +472,24 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾取 [%s]"), *WeaponDefinition->GetName());
 
+	bool bHandledByTutorialState = false;
+	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
+	{
+		if (TM->GetState() == ETutorialState::NeedWeaponTutorial)
+		{
+			if (AYogPlayerControllerBase* YogPC = Player->GetController<AYogPlayerControllerBase>())
+			{
+				TM->TryWeaponTutorial(YogPC);
+				bHandledByTutorialState = true;
+			}
+		}
+	}
+
+	if (!bHandledByTutorialState)
+	{
+		TriggerPickupStoryEncounter(Player);
+	}
+
 	// HUD 信息区内折叠浮窗 → 缩略图飞向左下角武器图标
 	if (AYogHUD* HUD = GetYogHUDForPlayer(Player))
 	{
@@ -498,6 +519,54 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] HUD=NULL — 动画不会触发"));
 	}
 
+}
+
+void AWeaponSpawner::TriggerPickupStoryEncounter(APlayerCharacterBase* Player)
+{
+	if (bTriggerPickupEncounterOnce && bPickupEncounterTriggered)
+	{
+		return;
+	}
+
+	if (!PickupEncounterPoint && (!PickupEncounterGraph || PickupEncounterNodeId.IsNone()))
+	{
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	UStoryEncounterRuntimeSubsystem* Runtime = GameInstance
+		? GameInstance->GetSubsystem<UStoryEncounterRuntimeSubsystem>()
+		: nullptr;
+	if (!Runtime)
+	{
+		return;
+	}
+
+	bool bTriggered = false;
+	if (PickupEncounterPoint)
+	{
+		bTriggered = Runtime->TriggerEncounterPoint(PickupEncounterPoint, this);
+	}
+	else
+	{
+		bTriggered = Runtime->TriggerEncounterGraphNode(PickupEncounterGraph, PickupEncounterNodeId, this);
+	}
+
+	if (bTriggered)
+	{
+		bPickupEncounterTriggered = true;
+		UE_LOG(LogTemp, Log, TEXT("[WeaponSpawner] Triggered pickup story encounter on %s for player %s"),
+			*GetNameSafe(this),
+			*GetNameSafe(Player));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] Pickup story encounter did not trigger on %s. Point=%s Graph=%s NodeId=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(PickupEncounterPoint),
+			*GetNameSafe(PickupEncounterGraph),
+			*PickupEncounterNodeId.ToString());
+	}
 }
 
 

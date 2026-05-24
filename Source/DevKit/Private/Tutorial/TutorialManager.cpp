@@ -451,6 +451,11 @@ bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool 
 
 void UTutorialManager::NotifyPopupClosed()
 {
+	if (!bPopupShowing)
+	{
+		return;
+	}
+
 	bPopupShowing = false;
 	OnPopupClosed.Broadcast();
 }

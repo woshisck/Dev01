@@ -441,8 +441,16 @@ bool UStoryEncounterRuntimeSubsystem::ExecuteTutorialAreaHintAction(
 		Popup->Body = Action.Body;
 	}
 	Popup->HUDSummaryText = Popup->Body;
-	Popup->DisplayDuration = 0.f;
+	const bool bCloseOnExit = Context.SourceActor
+		&& (Context.SourceActor->IsA<ALevelEventTrigger>() || Context.SourceActor->IsA<AStoryEncounterTrigger>());
+	Popup->DisplayDuration = bCloseOnExit ? 0.f : 4.f;
 	Popup->FadeDuration = 0.15f;
+
+	TransientInfoPopups.Add(Popup);
+	if (TransientInfoPopups.Num() > 8)
+	{
+		TransientInfoPopups.RemoveAt(0);
+	}
 
 	HUD->ShowInfoPopup(Popup);
 
