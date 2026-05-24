@@ -49,17 +49,20 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Toast", meta = (ClampMin = "0.01"))
 	float ToastFadeDuration = 0.25f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "0.0"))
-	float EntryHighlightFadeInDuration = 0.25f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "0.0", ToolTip = "Seconds for the deck-entry highlight to fade in when cards enter the 1D deck."))
+	float EntryHighlightFadeInDuration = 0.10f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "0.0"))
-	float EntryHighlightHoldDuration = 0.65f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "0.0", ToolTip = "Seconds for the deck-entry highlight to stay fully visible."))
+	float EntryHighlightHoldDuration = 0.20f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "0.0"))
-	float EntryHighlightFadeOutDuration = 0.35f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "0.0", ToolTip = "Seconds for the deck-entry highlight to fade out."))
+	float EntryHighlightFadeOutDuration = 0.15f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "1.0", ClampMax = "1.2"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "1.0", ClampMax = "1.2", ToolTip = "Small code-driven pulse scale applied to the whole deck bar while the entry highlight is visible."))
 	float EntryHighlightPeakScale = 1.035f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Entry Highlight", meta = (ClampMin = "0.0", ClampMax = "1.0", ToolTip = "Maximum render opacity applied to DeckEntryHighlightPanel. The panel brush alpha still controls the final visual strength."))
+	float EntryHighlightPeakOpacity = 1.0f;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<class UCombatDeckCardSlotWidget> CardSlot_0;

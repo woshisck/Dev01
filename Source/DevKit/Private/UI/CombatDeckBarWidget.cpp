@@ -290,7 +290,7 @@ void UCombatDeckBarWidget::TickDeckCardsEnteredHighlight(float DeltaTime)
 
 	if (DeckEntryHighlightPanel)
 	{
-		DeckEntryHighlightPanel->SetRenderOpacity(SmoothAlpha);
+		DeckEntryHighlightPanel->SetRenderOpacity(SmoothAlpha * FMath::Clamp(EntryHighlightPeakOpacity, 0.0f, 1.0f));
 	}
 
 	if (EntryHighlightElapsed >= Duration)
