@@ -1973,3 +1973,4 @@ Packaged_Check_*/
 /Content/_LevelUpSpawn
 /Packaged
 GenerateAndBuild.bat
+Tools/ProductionGraph/*.log
