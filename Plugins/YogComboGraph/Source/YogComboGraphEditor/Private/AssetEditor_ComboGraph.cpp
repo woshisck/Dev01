@@ -1,4 +1,5 @@
 #include "AssetEditor_ComboGraph.h"
+#include "EdNode_ComboGraphRoot.h"
 
 #include "AssetGraphSchema_GameplayAbilityComboGraph.h"
 #include "Animation/AnimMontage.h"
@@ -242,9 +243,24 @@ void FAssetEditor_ComboGraph::CreateEdGraph()
 {
 	FAssetEditor_GenericGraph::CreateEdGraph();
 
-	if (EditingGraph && EditingGraph->EdGraph)
+	if (!EditingGraph || !EditingGraph->EdGraph)
 	{
-		EditingGraph->EdGraph->Schema = UAssetGraphSchema_GameplayAbilityComboGraph::StaticClass();
+		return;
+	}
+
+	EditingGraph->EdGraph->Schema = UAssetGraphSchema_GameplayAbilityComboGraph::StaticClass();
+
+	// Ensure every graph (new or opened from disk) has exactly one root node.
+	// New graphs: FAssetEditor_GenericGraph::CreateEdGraph calls CreateDefaultNodesForGraph
+	// on the generic schema (no-op), so we always reach here without a root.
+	// Existing assets: also reach here without a root until saved with this change.
+	const bool bHasRoot = EditingGraph->EdGraph->Nodes.ContainsByPredicate(
+		[](const UEdGraphNode* N) { return Cast<const UEdNode_ComboGraphRoot>(N) != nullptr; });
+
+	if (!bHasRoot)
+	{
+		const UEdGraphSchema* Schema = EditingGraph->EdGraph->GetSchema();
+		Schema->CreateDefaultNodesForGraph(*EditingGraph->EdGraph);
 	}
 }
 
