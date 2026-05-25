@@ -108,3 +108,34 @@
 
 ---
 
+
+## 2026-05-26 — SNode 补全（Tier 1+2）：SetActorEnabled / UnlockFeature / SetRoomRewardOverride / SetPortalOverride / SetQuestObjective / TutorialAreaHint
+
+**状态：** 代码已写完，待编译验证
+
+**核心变更：**
+
+### 1. 一档节点（教程必需）
+
+- **SNode_SetActorEnabled**：按 Actor Name/Tag 遍历场景，SetHidden/Collision/Tick。用于教程期间隐藏正常流程起始武器、显示教程演示武器
+- **SNode_UnlockFeature**：`YogMetaProgressionSubsystem::UnlockFeature(FeatureTag)`，解锁冲刺/背包等功能
+- **SNode_SetRoomRewardOverride**：`AYogGameMode::SetRoomRewardOptionsOverride / Clear`，覆盖教程房间固定奖励池
+- **SNode_SetPortalOverride**：`AYogGameMode::SetForcedPortalOverride / Clear`，强制指定传送门目的地
+
+### 2. 二档节点（玩法补充）
+
+- **SNode_SetQuestObjective**：`StoryEngineSubsystem::SetQuestTask()`，新增/更新任务目标条目（写存档 + 广播 OnQuestTaskChanged）
+- **SNode_TutorialAreaHint**：ShowInfoHint 包装，Duration 默认 0（常驻），适合区域进入后持续展示的操作说明
+- **SNode_ShowHint 扩展**：新增可选 `HintTitle` 字段（空 = 无标题 WeakHint 样式，有值 = 带标题 InfoHint）
+
+### 3. ActionKind 覆盖情况
+
+本次补全后，DA `Actions[]` 的 13 个 ActionKind 中，已有 SNode 对应 10 个。剩余 3 个暂缓：
+
+- `PlayLevelFlow`：DA Actions[] 保留，Story FA 内不嵌套 Level FA
+- `Dialogue`：阶段二对话系统
+- `TeleportToNode`：暂无用例
+
+**关联文档：** [StoryFA_NodeReference.md](../01_长期系统文档/系统/Story/StoryFA_NodeReference.md)
+
+---

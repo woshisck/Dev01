@@ -1,82 +1,96 @@
 # 第一局教程流程完成结果与待做事项
 
-## 已完成
+## 已完成（按时间顺序）
 
-- 新存档会写入 `Story.Flag.FirstRunTutorial.Active`，完成后可写入 `Story.Flag.FirstRunTutorial.Completed`。
-- `YogGameInstanceBase` 支持 `FirstRunTutorialMap`，新存档首局教程可以加载独立教程地图；当前默认仍指向现有 `InitialRoom`。
-- `RoomDataAsset` 增加教程字段：
-  - `bForceSinglePortal`
-  - `ForcedPortalIndex`
-  - `bUseFixedRewardOptions`
-  - `FixedRewardOptions`
-- `RewardPickup` 支持三类奖励：
-  - `Rune`：继续走现有卡牌选择 UI。
-  - `Gold`：拾取后直接写入背包金币。
-  - `Material`：拾取后写入指定 `MetaCurrencyTag`；未指定 tag 时按占位材料拾取处理。
-- `CombatDeckComponent` 增加 `OnDeckCardsEntered`，`CombatDeckBarWidget` 已用 C++ 实现 1D 卡组进卡高亮；`BP_OnDeckCardsEntered` 只作为可选蓝图扩展点。
-  - 默认时间：0.1s 渐入、0.2s 保持、0.15s 渐出。
-  - 可调参数：`EntryHighlightFadeInDuration`、`EntryHighlightHoldDuration`、`EntryHighlightFadeOutDuration`、`EntryHighlightPeakScale`、`EntryHighlightPeakOpacity`。
-- loading 图已改为 `imagegen` 生成的真实位图，不再使用程序绘制/SVG 风格占位。
-  - 源图：`SourceArt/UI/Loading/T_FirstRunTutorial_Loading.png`
-  - UE 资产：`/Game/UI/Loading/T_FirstRunTutorial_Loading`
-  - 已绑定到：`/Game/UI/UI_LoadingScreen`
-- 新增 `FirstRunLoadingScreenSetup` Commandlet，可重复导入 loading 图并绑定加载屏。
+### 基础系统层（2026-05 早期）
 
-## 已完成（2026-05-25 补充二）
+- 新存档写入 `Story.Flag.FirstRunTutorial.Active`；教程完成后可写 `Story.Flag.FirstRunTutorial.Completed`
+- `YogGameInstanceBase` 支持 `FirstRunTutorialMap`；当前默认仍指向现有 `InitialRoom`
+- `RoomDataAsset` 增加教程字段：`bForceSinglePortal`、`ForcedPortalIndex`、`bUseFixedRewardOptions`、`FixedRewardOptions`
+- `RewardPickup` 支持 Rune / Gold / Material 三类奖励
+- `CombatDeckComponent` 增加 `OnDeckCardsEntered`，进卡高亮动画 C++ 实现（渐入 0.1s / 保持 0.2s / 渐出 0.15s）
+- Loading 图改为真实位图，`FirstRunLoadingScreenSetup` Commandlet 可重复导入
 
-- `ATutorialMobSpawner`：关卡 Actor，调用 `Activate()` 后生成指定敌人；敌人死亡后等待 `RespawnDelay`（默认 5s）自动重新生成。
-  - `EnemySpawnClassis[0]`：要生成的敌人 BP
-  - `SpawnRadius` / `SpawnZOffset`：复用父类 `AMobSpawner` 的 NavMesh 生成位置逻辑；想固定在 Spawner 附近时把 `SpawnRadius` 设小或设为 0
-  - `bActivateOnBeginPlay`：调试用，关卡启动即激活
-  - `OnKillEncounterPoint`：击杀时触发的剧情节点（受节点 FirePolicy 控制，仅触发一次）
-  - 生成后设置 `bCountsForLevelClear=false`，并从 `GameMode` 的 `AliveEnemies` 里反注册，不参与房间清怪/波次推进
-  - 如果生成的是 `ATrainingDummyCharacter`，会自动关闭 `bResetOnDeath`，让它走正常死亡销毁，再由 Spawner 负责 5s 重刷
-- `ULENode_ActivateTutorialSpawner`：FA 节点，按 `SpawnerActorTag`（`FName`）找到关卡中的 `ATutorialMobSpawner` 并调用 `Activate()`；分类 `LevelEvent|Tutorial`
-- `FirstRunTutorialSpawnerSetupCommandlet`：自动创建/更新首局教程木人相关资产：
-  - `/Game/Code/Core/System/B_TutorialMobSpawner`
+### 教程木人链路（2026-05-25）
+
+- `ATrainingDummyCharacter`：`FinishDying()` 广播 `OnCharacterDied`，支持故事系统接收死亡事件
+- `AStoryEncounterDeathListener`：关卡 Actor，按 Tag/Name 绑定死亡委托触发剧情
+- `ATutorialMobSpawner`：调用 `Activate()` 后生成指定敌人，死亡后 5s 重刷；`OnKillEncounterPoint` 控制掉卡（FirePolicy=Once）；生成的敌人不参与清怪统计
+- `FA_DummyDeath_DropHeavyCard`（Story Director Flow）：木头人死亡掉落重击卡
+- `FA_ActivateTutorialDummySpawner`（Story Director Flow）：拾取武器后激活木人桩 Spawner
+- `EP_FirstRun_WeaponPickupActivateDummy`：武器拾取触发点，NodeEventFlow 绑定激活 FA
+- `EP_FirstRun_TrainingDummyCombo`：木人死亡触发点，NodeEventFlow 绑定掉卡 FA
+- 移动提示 Trigger：已摆放并配置
+- 冲刺提示 Trigger：已摆放并配置
+- 武器相关 Actor Tag：已配置
+
+### Story Director FA 体系（2026-05-25 ～ 26）
+
+- `UStoryFlowAsset`：独立 FA 类型，与关卡 FA / 符文 FA 严格隔离
+- `USNode_Base`：SNode 基类，`AllowedAssetClasses = { UStoryFlowAsset }` 强制隔离
+- 首批 SNode（7 个）：ShowHint、ShowTutorialPopup、RecordProgress、GiveCard、EnablePortal、SpawnRewardPickup、ActivateTutorialSpawner
+- `NodeEventFlow` 字段升级为 `UStoryFlowAsset*`
+- `BFNode_Base` 的 `DeniedAssetClasses` 新增 `UStoryFlowAsset`，防止 Buff 节点污染 Story FA 编辑器
+- Commandlet 全面迁移到 Story FA
+- `StoryFlowAssetFactory`：编辑器内右键创建 Story Director Flow
+
+### 新增 SNode（2026-05-26）
+
+以下节点覆盖了 DA `Actions[]` 中剩余的主要 ActionKind，完成了从 DA 到 Story FA 的迁移体系：
+
+| 节点 | 功能 | 分类 |
+| --- | --- | --- |
+| `SNode_SetActorEnabled` | 按 Name/Tag 显示/隐藏关卡 Actor | `StoryDirector\|Level` |
+| `SNode_UnlockFeature` | 解锁游戏功能（冲刺、背包等） | `StoryDirector\|Progress` |
+| `SNode_SetRoomRewardOverride` | 覆盖/清除当前房间奖励池 | `StoryDirector\|Level` |
+| `SNode_SetPortalOverride` | 强制传送门目的地 / 清除覆盖 | `StoryDirector\|Level` |
+| `SNode_SetQuestObjective` | 新增/更新任务目标 | `StoryDirector\|Quest` |
+| `SNode_TutorialAreaHint` | 常驻区域提示（Duration=0） | `StoryDirector\|UI` |
+| `SNode_ShowHint`（扩展） | 新增可选 HintTitle 字段 | `StoryDirector\|UI` |
+
+---
+
+## 待做（优先级排序）
+
+### P0：编译与资产迁移（必须先做）
+
+- [ ] 关闭 UE 编辑器，编译 `DevKitEditor` 目标，确认无报错
+- [ ] 编译通过后，在 Content Browser 删除旧 ULevelFlowAsset 资产：
+  - `/Game/Story/Flows/Tutorial/FA_DummyDeath_DropHeavyCard`
   - `/Game/Story/Flows/Tutorial/FA_ActivateTutorialDummySpawner`
-  - `/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_WeaponPickupActivateDummy`
+- [ ] 重新运行两个 Commandlet 重建为 Story Director Flow 类型：
+  - `DummyDeathFlowSetupCommandlet`
+  - `FirstRunTutorialSpawnerSetupCommandlet`
 
-**教程武器拾取触发木人桩流程：**
+### P1：武器显示由故事引擎控制
 
-```text
-WeaponSpawner.PickupEncounterPoint = /Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_WeaponPickupActivateDummy
-  NodeEventFlow = /Game/Story/Flows/Tutorial/FA_ActivateTutorialDummySpawner
-    [Start] → [ActivateTutorialSpawner (Tag: TutorialDummy)] → [Finish]
+- [ ] 找到正常流程起始武器 Spawner Actor，确认 Actor Tag（或设置 Tag 为 `Story.MainRun.StartWeapon`）
+- [ ] 在最早必然触发的教程入口 Encounter（如 `EP_FirstRun_HubMoveHint`）的 NodeEventFlow FA 中加入：
+  - `SNode_SetActorEnabled(TargetActorTag=Story.MainRun.StartWeapon, bEnabled=false)`
+- [ ] 找到教程演示武器 Spawner Actor，确认 Tag（或设置为 `Story.FirstRun.DemoWeapon`）；默认在关卡中 Hidden In Game = true
+- [ ] 在 `EP_FirstRun_HubDashHint`（冲刺提示完成后）的 NodeEventFlow FA 中加入：
+  - `SNode_SetActorEnabled(TargetActorTag=Story.FirstRun.DemoWeapon, bEnabled=true)`
+- [ ] 在教程完成回主城 Encounter `EP_FirstRun_ReturnHubNormalRunStart` 的 NodeEventFlow FA 中加入：
+  - `SNode_SetActorEnabled(TargetActorTag=Story.FirstRun.DemoWeapon, bEnabled=false)`
+  - `SNode_SetActorEnabled(TargetActorTag=Story.MainRun.StartWeapon, bEnabled=true)`
+  - `SNode_RecordProgress(EncounterId=EM_FirstRun_Tutorial, ProgressKey=Completed)`
 
-/Game/Code/Core/System/B_TutorialMobSpawner (tag: TutorialDummy, EnemySpawnClassis[0]=B_EnemyDummy_Tutorial)
-  OnKillEncounterPoint = /Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_TrainingDummyCombo (FirePolicy=Once)
-    → NodeEventFlow = /Game/Story/Flows/Tutorial/FA_DummyDeath_DropHeavyCard（掉落重击卡）
-  RespawnDelay = 5.0s → 无限循环生成
-```
+### P2：教程关卡编辑器配置
 
-## 已完成（2026-05-25 补充）
+- [ ] 摆放 `B_TutorialMobSpawner`：Tag=`TutorialDummy`，`EnemySpawnClassis[0]=B_EnemyDummy_Tutorial`，`OnKillEncounterPoint=EP_FirstRun_TrainingDummyCombo`
+- [ ] 摆放教程传送门，配置 Selected Level / Selected Room
+- [ ] 配置教程武器 `WeaponDefinition.InitialCombatDeck = [攻击, 攻击]`
 
-- `ATrainingDummyCharacter` 新增：`FinishDying()` 广播 `OnCharacterDied`，支持剧情系统接收死亡事件
-- `AStoryEncounterDeathListener`：关卡 Actor，无需 Overlap Box，按 `TargetActorName`/`TargetActorTag` 绑定死亡委托触发剧情
-- `NodeEventFlow` 字段：`UStoryEncounterPointDA` 和 `FStoryEncounterNode` 均支持绑定 FA，Actions 完成后自动运行
-- `AStoryFlowProxy`：FA 运行代理，携带 `ContextTransform`（触发时位置快照）
-- `LENode_SpawnRewardPickup`：FA 内生成奖励拾取物的节点（自动读取 ContextTransform）
-- `DummyDeathFlowSetupCommandlet`：自动创建 `FA_DummyDeath_DropHeavyCard` 并绑定到 `EP_FirstRun_TrainingDummyCombo`
+### P3：房间 RoomDataAsset 配置
 
-## 待做
+- [ ] 第一战斗房：金币固定奖励
+- [ ] 第二战斗房：固定三选一卡牌 `[攻击, 重击, 分裂]`，指定 Portal
+- [ ] 连携卡房：特殊敌人死亡掉落月光卡，配置蓝色周身雾效
+- [ ] 过渡房：金币/材料奖励
+- [ ] 祈祷室：献祭获得武器终结技
+- [ ] 无限刷敌失败房：玩家死亡后显示回归主城选项
 
-- 配置教程专用地图或确认 `FirstRunTutorialMap` 目标地图。
-- 在教程主城中摆放并绑定：
-  - 移动提示 Trigger
-  - 冲刺提示 Trigger
-  - 教程武器拾取点；首次拾取弹窗由 `TryWeaponTutorial` 触发，`PickupEncounterPoint` 绑定到 `/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_WeaponPickupActivateDummy`，`PickupEncounterGraph` / `PickupEncounterNodeId` 留空
-  - 拖入 `/Game/Code/Core/System/B_TutorialMobSpawner`；场景实例设置 `Actor Tag=TutorialDummy`，并按摆位微调 `SpawnRadius` / `SpawnZOffset`
-  - 教程传送门
-- 配置教程武器 `WeaponDefinition.InitialCombatDeck = [攻击, 攻击]`。
-- 打开 `WBP_CombatDeckBar`，确认 `DeckEntryHighlightPanel` 存在，并按观感微调 C++ 暴露的 Entry Highlight 参数。
-- 配置教程房间 `RoomDataAsset`：
-  - 第一战斗房：金币固定奖励。
-  - 第二战斗房：固定三选一卡牌 `[攻击, 重击, 分裂]`，指定 Portal。
-  - 连携卡房：特殊敌人死亡掉落 `[月光]`。
-  - 过渡房：金币/材料奖励。
-  - 祈祷室：献祭获得武器终结技。
-- 配置特殊敌人蓝色周身雾效，若走刷怪逻辑则绑定到最后一个敌人。
-- 配置无限刷敌失败房，并在玩家死亡后显示回归主城选项。
-- 配置教程完成后回主城的最终卡组 `[攻击, 攻击, 月光, 武器终结技]`。
-- 修复或确认项目已有缺失资源 `/Game/SlashTrailElemental/Niagara/SlashTrail/NS_SlashTrail_Dark`；它会导致 Commandlet 进程返回失败码，但不影响 loading 图导入结果。
+### P4：验收
+
+- [ ] 完整 PIE 验证第一局教程链路（见 `FirstRunTutorial_UE_ImplementationChecklist.md` 第 9 节）
+- [ ] 修复或确认 `/Game/SlashTrailElemental/Niagara/SlashTrail/NS_SlashTrail_Dark` 缺失资源不影响流程
