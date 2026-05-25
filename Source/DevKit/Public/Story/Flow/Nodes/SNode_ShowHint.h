@@ -13,10 +13,14 @@ class DEVKIT_API USNode_ShowHint : public USNode_Base
 	GENERATED_UCLASS_BODY()
 
 public:
+	/** 可选标题。空 = 无标题（等价于 WeakHint 样式）；有内容 = 带标题的 InfoHint。 */
+	UPROPERTY(EditAnywhere, Category = "Hint")
+	FText HintTitle;
+
 	UPROPERTY(EditAnywhere, Category = "Hint", meta = (MultiLine = true))
 	FText HintText;
 
-	/** 显示时长（秒）。0 = 无限，直到玩家离开区域。 */
+	/** 显示时长（秒）。0 = 常驻，直到被新提示替换。 */
 	UPROPERTY(EditAnywhere, Category = "Hint", meta = (ClampMin = "0.0"))
 	float Duration = 3.0f;
 
