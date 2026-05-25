@@ -31,6 +31,7 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/SkillChargeComponent.h"
 #include "Component/YogCameraOcclusionFadeComponent.h"
+#include "Data/GameplayAbilityComboGraph.h"
 #include "Data/SacrificeGraceDA.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "AbilitySystem/Abilities/YogTargetType_Melee.h"
@@ -128,6 +129,13 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 
 	// 近战默认命中框：C++ 实现，无需在每个角色蓝图 Class Defaults 中单独配置
 	DefaultMeleeTargetType = UYogTargetType_Player::StaticClass();
+
+	static ConstructorHelpers::FObjectFinder<UGameplayAbilityComboGraph> DefaultUnarmedComboGraphAsset(
+		TEXT("/Game/Code/Weapon/Disarm/GA_ComboGraph_Disarm.GA_ComboGraph_Disarm"));
+	if (DefaultUnarmedComboGraphAsset.Succeeded())
+	{
+		DefaultUnarmedComboGraph = DefaultUnarmedComboGraphAsset.Object;
+	}
 }
 
 void APlayerCharacterBase::SetOwnCamera(AYogCameraPawn* cameraActor)
@@ -145,6 +153,11 @@ AYogCameraPawn* APlayerCharacterBase::GetOwnCamera()
 
 void APlayerCharacterBase::Die()
 {
+	if (ComboRuntimeComponent)
+	{
+		ComboRuntimeComponent->ResetCombo();
+	}
+
 	Super::Die();
 
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
@@ -242,6 +255,71 @@ void APlayerCharacterBase::EndReviveProtection()
 			ASC->RemoveLooseGameplayTag(InvulnerableTag);
 		}
 	}
+}
+
+void APlayerCharacterBase::ApplyDefaultUnarmedComboGraph()
+{
+	if (!ComboRuntimeComponent)
+	{
+		return;
+	}
+
+	if (DefaultUnarmedComboGraph)
+	{
+		ComboRuntimeComponent->LoadComboGraph(DefaultUnarmedComboGraph);
+	}
+	else
+	{
+		ComboRuntimeComponent->LoadComboConfig(nullptr);
+	}
+}
+
+void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDefinition)
+{
+	if (!ComboRuntimeComponent)
+	{
+		return;
+	}
+
+	if (!WeaponDefinition)
+	{
+		ApplyDefaultUnarmedComboGraph();
+		return;
+	}
+
+	if (WeaponDefinition->GameplayAbilityComboGraph)
+	{
+		ComboRuntimeComponent->LoadComboGraph(WeaponDefinition->GameplayAbilityComboGraph);
+	}
+	else if (WeaponDefinition->WeaponComboConfig)
+	{
+		ComboRuntimeComponent->LoadComboConfig(WeaponDefinition->WeaponComboConfig);
+	}
+	else
+	{
+		ApplyDefaultUnarmedComboGraph();
+	}
+}
+
+void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
+{
+	if (EquippedWeaponInstance)
+	{
+		OnHeatPhaseChanged.RemoveDynamic(EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
+		EquippedWeaponInstance->Destroy();
+		EquippedWeaponInstance = nullptr;
+	}
+
+	EquippedWeaponDef = nullptr;
+	EquippedFromSpawner = nullptr;
+	ClearWeaponGrantedAbilities();
+
+	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
+	{
+		YogASC->ClearWeaponTypeTags();
+	}
+
+	ApplyDefaultUnarmedComboGraph();
 }
 
 void APlayerCharacterBase::ClearWeaponGrantedAbilities()
@@ -349,6 +427,10 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 	{
 		State.EquippedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
 		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE Weapon - %s"), *State.EquippedWeaponDef->GetName());
+	}
+	else
+	{
+		ResetToDefaultUnarmedCombatState();
 	}
 
 	if (CombatDeckComponent && !State.CombatDeckCards.IsEmpty())
@@ -709,6 +791,7 @@ void APlayerCharacterBase::BeginPlay()
 
 	// GAS Template 授能（在 Super::BeginPlay 中完成）可能覆盖切关前 Link 的武器动画层；
 	// 在此重新 Link，确保武器层优先级高于默认层
+	ApplyDefaultUnarmedComboGraph();
 	RelinkWeaponAnimLayer();
 
 	//GetASC()->InitAbilityActorInfo(this, this);

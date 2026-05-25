@@ -45,6 +45,7 @@ class UCameraComponent;
 class UYogSpringArmComponent;
 class UWeaponAbilityData;
 class UYogCameraOcclusionFadeComponent;
+class UGameplayAbilityComboGraph;
 UENUM()
 enum class EPlayerState : uint8
 {
@@ -129,6 +130,18 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UComboRuntimeComponent> ComboRuntimeComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
+	TObjectPtr<UGameplayAbilityComboGraph> DefaultUnarmedComboGraph;
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
+	void ApplyDefaultUnarmedComboGraph();
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
+	void ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDefinition);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
+	void ResetToDefaultUnarmedCombatState();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BuffFlow")
 	TObjectPtr<UBuffFlowComponent> BuffFlowComponent;

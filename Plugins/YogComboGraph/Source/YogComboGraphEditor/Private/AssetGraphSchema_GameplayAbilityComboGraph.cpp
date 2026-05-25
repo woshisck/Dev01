@@ -29,6 +29,8 @@ int32 UAssetGraphSchema_GameplayAbilityComboGraph::CurrentCacheRefreshID = 0;
 
 namespace
 {
+	const FName DodgeActionRootNodeId(TEXT("DodgeActionRoot"));
+
 	class FYogComboGraphCycleChecker
 	{
 	public:
@@ -205,9 +207,9 @@ namespace
 		OutputPin->bHidden = true;
 	}
 
-	UGameplayAbilityComboGraphNode* CreateRuntimeNodeForMontage(UEdNode_GenericGraphNode* EdNode, UGameplayAbilityComboGraph* ComboGraph, UAnimMontage* Montage)
+	UGameplayAbilityComboGraphNode* CreateRuntimeComboNode(UEdNode_GenericGraphNode* EdNode, UGameplayAbilityComboGraph* ComboGraph)
 	{
-		if (!EdNode || !ComboGraph || !Montage || !ComboGraph->NodeType || !ComboGraph->NodeType->IsChildOf(UGameplayAbilityComboGraphNode::StaticClass()))
+		if (!EdNode || !ComboGraph || !ComboGraph->NodeType || !ComboGraph->NodeType->IsChildOf(UGameplayAbilityComboGraphNode::StaticClass()))
 		{
 			return nullptr;
 		}
@@ -219,11 +221,51 @@ namespace
 		}
 
 		ComboNode->Graph = ComboGraph;
+		EdNode->GenericGraphNode = ComboNode;
+
+		return ComboNode;
+	}
+
+	void ConfigureDodgeActionRootNode(UGameplayAbilityComboGraphNode* ComboNode)
+	{
+		if (!ComboNode)
+		{
+			return;
+		}
+
+		ComboNode->NodeId = DodgeActionRootNodeId;
+		ComboNode->NodeTitle = FText::FromName(DodgeActionRootNodeId);
+		ComboNode->RootInputAction = EYogComboGraphInputAction::Dash;
+		ComboNode->Montage = nullptr;
+		ComboNode->TotalFrames = 1;
+		ComboNode->bIsComboFinisher = false;
+		ComboNode->bAllowDashSave = true;
+		ComboNode->DashSaveMode = EYogComboGraphDashSaveMode::PreserveIfSourceAllows;
+		ComboNode->DashSaveExpireSeconds = 2.0f;
+		ComboNode->bSavePendingLinkContext = true;
+		ComboNode->bClearCombatTagsOnDashEnd = true;
+		ComboNode->bBreakComboOnDashCancel = true;
+		ComboNode->bUseNodeComboWindow = false;
+		ComboNode->ComboWindowStartFrame = 0;
+		ComboNode->ComboWindowEndFrame = 0;
+	}
+
+	UGameplayAbilityComboGraphNode* CreateRuntimeNodeForMontage(UEdNode_GenericGraphNode* EdNode, UGameplayAbilityComboGraph* ComboGraph, UAnimMontage* Montage)
+	{
+		if (!Montage)
+		{
+			return nullptr;
+		}
+
+		UGameplayAbilityComboGraphNode* ComboNode = CreateRuntimeComboNode(EdNode, ComboGraph);
+		if (!ComboNode)
+		{
+			return nullptr;
+		}
+
 		ComboNode->Montage = Montage;
 		ComboNode->NodeId = MakeNodeIdFromAnimation(Montage);
 		ComboNode->NodeTitle = FText::FromName(ComboNode->NodeId);
-		EdNode->GenericGraphNode = ComboNode;
-
 		return ComboNode;
 	}
 
@@ -463,9 +505,17 @@ void UAssetGraphSchema_GameplayAbilityComboGraph::GetGraphContextActions(FGraphC
 		LOCTEXT("YogComboGraphNewNodeTooltip", "Add combo node here"),
 		0));
 	Action->NodeTemplate = NewObject<UEdNode_GenericGraphNode>(ContextMenuBuilder.OwnerOfTemporaries);
-	Action->NodeTemplate->GenericGraphNode = NewObject<UGenericGraphNode>(Action->NodeTemplate, Graph->NodeType);
-	Action->NodeTemplate->GenericGraphNode->Graph = Graph;
+	CreateRuntimeComboNode(Action->NodeTemplate, Graph);
 	ContextMenuBuilder.AddAction(Action);
+
+	TSharedPtr<FYogComboGraphSchemaAction_NewNode> DodgeAction(new FYogComboGraphSchemaAction_NewNode(
+		LOCTEXT("YogComboGraphNodeAction", "Combo Graph Node"),
+		LOCTEXT("YogComboGraphDodgeActionRootNode", "Dodge Action Root Node"),
+		LOCTEXT("YogComboGraphDodgeActionRootNodeTooltip", "Add a root node that starts the combo graph Dodge/Dash action."),
+		1));
+	DodgeAction->NodeTemplate = NewObject<UEdNode_GenericGraphNode>(ContextMenuBuilder.OwnerOfTemporaries);
+	ConfigureDodgeActionRootNode(CreateRuntimeComboNode(DodgeAction->NodeTemplate, Graph));
+	ContextMenuBuilder.AddAction(DodgeAction);
 }
 
 void UAssetGraphSchema_GameplayAbilityComboGraph::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const

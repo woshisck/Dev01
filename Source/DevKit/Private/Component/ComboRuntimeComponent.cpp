@@ -335,6 +335,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputActio
 			return false;
 		}
 
+		const FGameplayAbilitySpecHandle InterruptedAttackHandle = ActiveAbilitySpecHandle;
 		FWeaponComboNodeConfig DashNode = FWeaponComboNodeConfig::FromComboGraphNode(Selection.Node, ECardRequiredAction::Any);
 		const FName PreviousSavedDashNodeId = SavedDashNodeId;
 		const bool bSavedComboNode = SaveCurrentNodeForDashWithPolicy(DashNode.DashSaveMode, DashNode.DashSaveExpireSeconds);
@@ -345,6 +346,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputActio
 
 		PrepareComboGraphNodeActivation(Selection);
 		ActiveNode = DashNode;
+		ActiveDashMontageOverride = DashNode.Montage;
 
 		const bool bActivated = ASC->TryActivateAbilitiesByTag(
 			FGameplayTagContainer(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"))),
@@ -353,6 +355,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputActio
 		{
 			ClearPreparedComboActivation();
 			ActiveNode = FWeaponComboNodeConfig();
+			ActiveDashMontageOverride = nullptr;
 			ClearSavedDashNode();
 			if (!PreviousSavedDashNodeId.IsNone())
 			{
@@ -363,6 +366,11 @@ bool UComboRuntimeComponent::TryActivateCombo(ECombatGraphInputAction InputActio
 				PlayerOwner->CombatDeckComponent->ClearDashSavedLinkContext();
 			}
 			return false;
+		}
+
+		if (InterruptedAttackHandle.IsValid())
+		{
+			ASC->CancelAbilityHandle(InterruptedAttackHandle);
 		}
 
 		CommitPreparedComboActivation();
@@ -376,6 +384,7 @@ void UComboRuntimeComponent::ResetCombo()
 {
 	Super::ResetCombo();
 	ActiveNode = FWeaponComboNodeConfig();
+	ActiveDashMontageOverride = nullptr;
 	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
 	if (UWorld* World = GetWorld())
 	{
@@ -475,6 +484,7 @@ void UComboRuntimeComponent::NotifyDashEnded(bool bWasCancelled)
 	// attacks (since the dash node has no Light/Heavy children). Clear them here so the
 	// player can attack again after dashing.
 	ClearPreparedComboActivation();
+	ActiveDashMontageOverride = nullptr;
 	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
 }
 
