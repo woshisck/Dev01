@@ -1,6 +1,7 @@
 #include "BuffFlow/Nodes/BFNode_Base.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "LevelFlow/LevelFlowAsset.h"
+#include "Story/Flow/StoryFlowAsset.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
 
@@ -8,8 +9,8 @@ UBFNode_Base::UBFNode_Base(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITOR
-	// 在所有 FlowAsset（普通 FA / NotifyFlowAsset）中可见，只排除 LevelFlowAsset
-	DeniedAssetClasses = { ULevelFlowAsset::StaticClass() };
+	// 在普通 FA 中可见，排除 LevelFlowAsset（关卡事件）和 UStoryFlowAsset（导演系统）
+	DeniedAssetClasses = { ULevelFlowAsset::StaticClass(), UStoryFlowAsset::StaticClass() };
 #endif
 }
 

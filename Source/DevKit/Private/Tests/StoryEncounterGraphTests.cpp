@@ -8,6 +8,7 @@
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
 #include "FlowAsset.h"
+#include "Story/Flow/StoryFlowAsset.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterGraphDefaultsTest,
 	"DevKit.StoryEncounter.GraphDefaultsToStoryEncounterTypes",
@@ -48,7 +49,7 @@ bool FStoryEncounterPointConvertsToNodeTest::RunTest(const FString& Parameters)
 	HintAction.Title = FText::FromString(TEXT("残影"));
 	HintAction.Body = FText::FromString(TEXT("靠近残影，观察它的动作。"));
 	Point->Actions.Add(HintAction);
-	Point->NodeEventFlow = NewObject<UFlowAsset>(Point);
+	Point->NodeEventFlow = NewObject<UStoryFlowAsset>(Point);
 
 	const FStoryEncounterNode Node = Point->ToEncounterNode();
 

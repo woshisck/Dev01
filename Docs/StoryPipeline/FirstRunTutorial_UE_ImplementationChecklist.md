@@ -53,17 +53,17 @@ Details 面板填写：
 
 - `Weapon Definition` = 首局演示武器 DA，例如 `DA_Weapon_FirstRun_DemoSword`
 - `Story Encounter|Pickup`：
-  - `PickupEncounterPoint` = 一个只用于激活教程木人 Spawner 的专用 EP，建议命名 `EP_FirstRun_WeaponPickupActivateDummy`
+  - `PickupEncounterPoint` = `/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_WeaponPickupActivateDummy`
   - `PickupEncounterGraph` / `PickupEncounterNodeId` 留空
   - `bTriggerPickupEncounterOnce` = true
 
 该 `PickupEncounterPoint` 只做一件事：
 
-- `NodeEventFlow` = `FA_ActivateTutorialDummySpawner`
+- `NodeEventFlow` = `/Game/Story/Flows/Tutorial/FA_ActivateTutorialDummySpawner`
 - `Actions` 留空，不要放 `ShowTutorialPopup`
 - `FirePolicy` = Once
 
-`FA_ActivateTutorialDummySpawner` 流程：
+`/Game/Story/Flows/Tutorial/FA_ActivateTutorialDummySpawner` 流程：
 
 ```text
 [Start] → [ActivateTutorialSpawner (SpawnerActorTag=TutorialDummy)] → [Finish]
@@ -111,18 +111,18 @@ Details 面板填写：
 
 在武器区域附近放置教程专用 Spawner，而不是直接把木人桩 Actor 放进关卡：
 
-- Blueprint：`B_TutorialMobSpawner`（基于 `ATutorialMobSpawner`）
+- Blueprint：`/Game/Code/Core/System/B_TutorialMobSpawner`（基于 `ATutorialMobSpawner`）
 - Actor Name：`Spawner_TutorialDummy`
 - Actor Tag：`TutorialDummy`
 
-Details 面板填写：
+Details 面板确认（蓝图默认值已写入，场景实例只需要按摆位微调）：
 
 - `EnemySpawnClassis[0]` = `/Game/Code/Characters/B_EnemyDummy_Tutorial`
 - `RespawnDelay` = `5.0`
 - `bActivateOnBeginPlay` = false
 - `OnKillEncounterPoint` = `/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_TrainingDummyCombo`
-- `SpawnRadius` = `0` 到 `100`，按场景摆位微调
-- `SpawnZOffset` = 使用父类默认值即可，除非生成高度明显不对
+- `SpawnRadius` = `0` 到 `100`，按场景摆位微调（蓝图默认 `0`）
+- `SpawnZOffset` = `96`，除非生成高度明显不对
 
 `B_EnemyDummy_Tutorial` 只作为 Spawner 要生成的敌人 BP：
 

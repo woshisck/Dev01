@@ -1,43 +1,38 @@
 ## Codex 审查结果
 
 ### 发现的问题
-- `UStoryEncounterRuntimeSubsystem` 实际继承的是 `UGameInstanceSubsystem`，不是方案中写的 `WorldSubsystem`；基于 WorldSubsystem 的论证不准确。
-- `PlayLevelFlow` 的修复方案可能导致 Flow 执行两次：`RunFlowViaProxy()` 后如果不 `return`，现有逻辑仍会继续调用 `StoryEngine->ExecuteStoryAction()`，再走 `AYogGameMode::RunStoryLevelFlow()`。
-- 当前非 Trigger Actor 场景并非完全“静默失败”：现有代码会回退到 `StoryEngine -> GameMode` 执行 Flow；真正缺失的是以触发源 Actor 作为 Flow 上下文。
-- `AStoryFlowProxy` 头文件示例中使用了 `UFlowAsset*`，但只前置声明了 `UFlowComponent` / `ULevelFlowAsset`，会缺少 `class UFlowAsset;`。
-- `UFlowComponent` 当前未看到 `OnRootFlowFinished` 之类的结束委托；方案中的 `OnFlowFinished()` 绑定大概率不能直接编译。
-- “延迟 1 帧 Destroy 兜底”不成立：带 `Delay`、等待 UI、等待选择、播放序列等异步 Flow 会被过早销毁。
-- 只在 `TriggerEncounterNode()` 添加 `NodeEventFlow` 不够；当前 `TriggerEncounterNode()`、`TriggerEncounterGraphNode()`、`TriggerEncounterPoint()` 都各自独立执行 `Actions`，需要三处统一处理或抽出公共执行函数。
-- 仅在 `AStoryFlowProxy` 上暴露 `GetContextSourceActor()` 不等于 Flow 图中已有 `[Get Story Context Actor]` 节点；还需要明确设计可被 LevelFlow 编辑器使用的节点或上下文访问机制。
-- `RunFlowViaProxy()` 没有处理 `bStopExistingStoryFlow` 语义；用于 `PlayLevelFlow` 回退时会把原本“停旧 Flow 再启新 Flow”的行为改成并发 Spawn 多个 Proxy。
-- `UStoryEncounterGraphNode` 的 fallback 节点目前没有 `Actions` / `NodeEventFlow` 编辑字段；如果未绑定 `UStoryEncounterPointDA` 的图节点也要支持该能力，方案漏了这部分。
+- `current_plan.md:40` 计划复用 `LENode_*`，但现有 `ULENode_Base` 通过 `AllowedAssetClasses = { ULevelFlowAsset::StaticClass() }` 限定只能用于 `ULevelFlowAsset`。迁移到 `UStoryFlowAsset` 后，`LENode_Delay`、`LENode_ShowTutorial`、`LENode_SpawnRewardPickup`、`LENode_ActivateTutorialSpawner` 等默认不可用。
+- `current_plan.md:165` 对节点过滤的判断与现状相反：`LENode_*` 不会自然出现在 Story FA；反而 `UBFNode_Base` 只排除了 `ULevelFlowAsset`，所以 BuffFlow 节点会出现在 `UStoryFlowAsset` 中。
+- `USNode_ShowTutorialPopup` 方案自相矛盾：`current_plan.md:79-83` 写阻塞等待关闭，`current_plan.md:172` 又确认非阻塞立即 Out。实现路径和 Pin 语义必须二选一。
+- `USNode_EnablePortal` 仅调用 `APortal::EnablePortal()` 不足以让传送门可进入。当前 `APortal::Open()` 才会设置 `bIsOpen`、`SelectedLevel`、`SelectedRoom` 等状态；`EnablePortal_Implementation()` 主要只是应用表现。
+- `USNode_RecordProgress` 文档里的 tag 规则写成 `Story.Progress.{EncounterId}.{ProgressKey}`，但现有 `MakeProgressTagName()` 实际生成 `Story.Encounter.Progress.{EncounterId}.{ProgressKey}`。如果资产或说明按前者配置，会导致进度条件不匹配。
+- `RunFlowViaProxy()` 当前代码里已经是 `UFlowAsset*`，计划中“从 `ULevelFlowAsset*` 改为 `UFlowAsset*`”属于过期步骤；但测试里仍有 `NewObject<UFlowAsset>` 赋给 `NodeEventFlow`，改成 `UStoryFlowAsset` 后需要同步更新。
+- `USNode_GiveCard` 的 Phase B 只写入战斗卡组，已确认决策又要求同时写入背包。两处不一致，且需要定义卡组添加失败但背包添加成功时的处理策略。
 
 ### 潜在风险
-- 新增 `TObjectPtr<ULevelFlowAsset>` 是硬引用，剧情 DA / Map 被加载时会连带加载 Flow Asset；如果 Flow 资产体量变大，可能增加加载成本。
-- Proxy 作为 Flow Root Owner 会改变部分现有 LevelFlow 节点行为，例如 `LENode_ShowInfoPopup` 当前只识别 `ALevelEventTrigger` / `AStoryEncounterTrigger` 来绑定离开区域关闭逻辑。
-- `ContextSourceActor` 是弱引用，死亡、复位或销毁后 Flow 延迟读取可能拿到空指针。
-- FlowComponent 默认 `RootFlowMode = Authority`，NodeEventFlow 若承担纯 UI 表现，需要确认是否应在客户端、本地玩家或服务器执行。
-- 临时 Proxy 上的 `UFlowComponent` 会注册到 FlowSubsystem；若存档发生在 Flow 运行中，需确认不会把临时剧情 Flow 错误写入存档。
-- “现有资产兼容性零风险”表述过满；序列化层面通常兼容，但仍需要 UE 编译、资产加载、重存和编辑器详情面板验证。
+- 旧 `FA_DummyDeath_DropHeavyCard` 是 `ULevelFlowAsset`，不能简单在同一路径“覆盖”为 `UStoryFlowAsset`；通常需要删除旧资产、换路径，或写明确的资产迁移逻辑。
+- 绕过 `StoryEncounterRuntimeSubsystem::ExecuteEncounterAction()` 后，现有输入设备文案变体解析（键鼠/手柄）不会自动生效，ShowHint / Quest 类节点可能丢失当前 DA 行为。
+- “覆盖第一章教程所有操作”的节点清单不足：现有动作还包括 `UnlockFeature`、`SetQuestObjective`、`SetActorEnabled`、`SetRoomRewardOverride`、`SetPortalOverride`、`SpawnRewardPickup` 等。
+- 只新增 `UStoryFlowAsset` 运行时类，未新增 `StoryFlowAssetFactory` 时，内容浏览器创建入口和图初始化体验可能不如现有 `Level Event Flow`。
+- `MakeProgressTag()` 使用未注册 tag 时会返回 invalid；节点需要日志或 Failed 分支，否则设计侧很难定位配置错误。
 
 ### 改进建议
-- 抽出公共方法，例如 `ExecuteEncounterNode(EncounterId, Node, SourceActor)`，统一处理 Context、条件、Actions、NodeEventFlow，避免三条入口重复漏改。
-- 将 `RunFlowViaProxy()` 改为返回 `bool`，并在 `PlayLevelFlow` 回退执行成功后立刻 `return`，防止继续走 GameMode 回退。
-- 区分两类执行：`NodeEventFlow` 默认可并发；`PlayLevelFlow` 回退应明确是否保留 `bStopExistingStoryFlow` 的单实例语义。
-- 不要用 1 帧销毁兜底；应实现可靠完成信号，例如自定义 `UStoryFlowComponent` 监听 Root Flow Custom Output，或定时轮询 `GetRootInstances()` 直到该 Proxy 的 Root Flow 结束。
-- 增加可编辑器使用的上下文节点，例如 `ULENode_GetStoryContextActor` / `ULENode_GetStoryContextLocation`，或定义 `IStoryFlowContextProvider` 接口让节点从 Root Owner 读取上下文。
-- 在 `RunFlowViaProxy()` 中补充 `GetWorld()` 判空、Spawn 失败日志、必要的 `SpawnCollisionHandlingOverride`，并考虑设置 Proxy 的 Transient/Hidden/NoCollision 属性。
-- 补自动化测试：`UStoryEncounterPointDA::ToEncounterNode()` 复制 `NodeEventFlow`；三条触发入口都会执行一次 NodeEventFlow；非 Trigger Actor 的 `PlayLevelFlow` 不会双跑。
+- 明确 Story FA 节点过滤策略：`USNode_Base` 设置 `AllowedAssetClasses = { UStoryFlowAsset::StaticClass() }`；同时更新 `UBFNode_Base` 排除 `UStoryFlowAsset`。
+- 若要复用 `LENode_*`，把 `ULENode_Base` 的允许列表扩展到 `UStoryFlowAsset`；若不想混用，则补齐对应 `USNode_*`。
+- 将 `USNode_ShowTutorialPopup` 固定为非阻塞或阻塞，并同步修改字段、Pin 名称、测试和文档。
+- 把 `USNode_EnablePortal` 改成调用 GameMode/Portal 的完整开启流程，或重命名为仅表现用途的节点，避免误以为可进入。
+- 增加迁移影响范围：更新自动化测试、DummyDeath commandlet、资产创建工厂、编辑器筛选/校验逻辑。
+- 为 Story 节点补充最小自动化测试：节点过滤、RecordProgress tag、GiveCard 成败分支、Portal 开启语义、TutorialPopup Out 时机。
 
 ### 需要向用户确认的问题
-- `NodeEventFlow` 应在 `Actions[]` 之前、之后，还是与某个动作顺序混排执行？
-- `PlayLevelFlow` 在非 Trigger Actor 场景下，应使用 Proxy 获取 SourceActor 上下文，还是继续使用 GameMode 的全局单 Flow 机制？
-- `NodeEventFlow` 是否允许多个实例并发运行，还是同一节点/同一 Flow 需要去重或覆盖旧实例？
-- Flow 中除 `SourceActor` 外是否还需要 `EncounterId`、`NodeId`、`PlayerController`、房间数据、事件 Tag、死亡位置快照等上下文？
-- 未绑定 `UStoryEncounterPointDA` 的 `UStoryEncounterGraphNode` fallback 节点是否也要能配置 `NodeEventFlow`？
-- 木头人死亡后 Actor 是否会很快复位或销毁？如果会，是否应在触发瞬间缓存 Transform，而不是让 Flow 延迟读取 Actor？
+- `USNode_ShowTutorialPopup` 最终要非阻塞立即 Out，还是等待玩家关闭弹窗后 Out？
+- Story FA 中是否允许复用 `LENode_*`，还是所有剧情节点都必须是 `USNode_*`？
+- `EnablePortal` 的目标是只打开表现，还是生成可交互、可进门的完整传送门？
+- `GiveCard` 是否要求卡组和背包同时成功才算成功？其中一步失败时是否回滚？
+- 本阶段是否要完全迁移 `Actions[]`，还是仅把 `NodeEventFlow` 类型改为 `UStoryFlowAsset` 并保留旧 DA Actions？
 
 ### 需要手动创建的引擎资产
-- `FA_DummyDeath_DropHeavyCard`：`ULevelFlowAsset`，用于木头人死亡掉落重击卡流程。
-- `BP_Pickup_HeavyCard` 或等价拾取物蓝图：若项目中尚不存在，需要创建并在 Flow 中引用。
-- 对应剧情点 DA / EncounterMap 节点配置：为目标死亡节点手动设置 `NodeEventFlow` 引用。
+- `UStoryFlowAsset` 类型的 Story FA 资产：按第一章/教程每个需要迁移的 `NodeEventFlow` 创建或迁移。
+- `FA_DummyDeath_DropHeavyCard`：若 commandlet 不能安全删除并重建旧 `ULevelFlowAsset`，需手动删除旧资产后重建为 `UStoryFlowAsset`。
+- 对应 `UStoryEncounterPointDA` 的 `NodeEventFlow` 引用：需要指向新的 Story FA 资产。
+- 无新增蓝图、DT、材质需求。

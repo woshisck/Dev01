@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "EngineUtils.h"
 #include "FlowAsset.h"
+#include "Story/Flow/StoryFlowAsset.h"
 #include "Interfaces/FlowDataPinValueSupplierInterface.h"
 #include "LevelFlow/LevelFlowAsset.h"
 #include "LevelFlow/Nodes/LENode_GetStoryContext.h"
@@ -366,7 +367,7 @@ bool FStoryEncounterNodeEventFlowRunsViaProxyTest::RunTest(const FString& Parame
 	UStoryEncounterPointDA* Point = NewObject<UStoryEncounterPointDA>();
 	Point->EncounterId = TEXT("EM_Test");
 	Point->NodeId = TEXT("node_event_flow");
-	Point->NodeEventFlow = NewObject<UFlowAsset>(Point);
+	Point->NodeEventFlow = NewObject<UStoryFlowAsset>(Point);
 
 	const FTransform Snapshot(FRotator(0.f, 90.f, 0.f), FVector(100.f, 200.f, 300.f), FVector::OneVector);
 	AActor* SourceActor = StoryEncounterRuntimeTests::SpawnTestActorWithTransform(World, Snapshot);
@@ -498,7 +499,7 @@ bool FStoryEncounterDeathListenerRunsNodeEventFlowTest::RunTest(const FString& P
 	UStoryEncounterPointDA* Point = NewObject<UStoryEncounterPointDA>(Listener);
 	Point->EncounterId = TEXT("EM_Test");
 	Point->NodeId = TEXT("dummy_death_drop");
-	Point->NodeEventFlow = NewObject<UFlowAsset>(Point);
+	Point->NodeEventFlow = NewObject<UStoryFlowAsset>(Point);
 
 	Listener->EncounterPoint = Point;
 	Listener->TargetActorTag = TEXT("StoryTest.DeathListenerDummy");

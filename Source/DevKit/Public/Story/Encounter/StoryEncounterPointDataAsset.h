@@ -5,8 +5,6 @@
 #include "Story/Encounter/StoryEncounterTypes.h"
 #include "StoryEncounterPointDataAsset.generated.h"
 
-class UFlowAsset;
-
 /**
  * A designer-authored story/tutorial point.
  *
@@ -43,7 +41,7 @@ public:
 	TArray<FStoryEncounterAction> Actions;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "节点 Flow")
-	TObjectPtr<UFlowAsset> NodeEventFlow = nullptr;
+	TObjectPtr<UStoryFlowAsset> NodeEventFlow = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "关卡放置")
 	FName PlacementLevel;

@@ -61,3 +61,50 @@
 **关联方案：** `Docs/WorkSession/current_plan.md`
 
 ---
+
+## 2026-05-26 — Story Director FA 体系（UStoryFlowAsset + USNode_*）
+
+**状态：** 代码已写完，待编译验证
+
+**核心变更：**
+
+### 1. UStoryFlowAsset — 独立剧情 FA 类型
+
+- **新建** `Story/Flow/StoryFlowAsset.h/.cpp`：纯类型标识类，继承 `UFlowAsset`，DisplayName "Story Director Flow"
+- `UStoryEncounterPointDA.NodeEventFlow` 字段类型从 `UFlowAsset*` 升级为 `UStoryFlowAsset*`
+- `FStoryEncounterNode.NodeEventFlow` 同步升级
+
+### 2. USNode_Base — SNode 基类
+
+- **新建** `Story/Flow/Nodes/SNode_Base.h/.cpp`：设置 `AllowedAssetClasses = { UStoryFlowAsset }`，严格限定 SNode_* 只在 Story FA 编辑器内可见
+- 三个访问器：`GetStoryEngine()`、`GetPlayerController()`、`GetStoryProxy()`
+
+### 3. 七个 USNode 节点（全新）
+
+| 节点 | 文件 |
+| --- | --- |
+| `USNode_ShowHint` | 显示弱引导提示 |
+| `USNode_ShowTutorialPopup` | 显示教程弹窗 |
+| `USNode_RecordProgress` | 持久化剧情进度 Tag |
+| `USNode_GiveCard` | 给予卡牌（Out/DeckFailed/InventoryFailed 三引脚） |
+| `USNode_EnablePortal` | 激活传送门（可选 Open） |
+| `USNode_SpawnRewardPickup` | 生成奖励拾取物（Story FA 版） |
+| `USNode_ActivateTutorialSpawner` | 激活教程刷怪点（Story FA 版） |
+
+### 4. FA 隔离修复
+
+- `BFNode_Base.cpp`：`DeniedAssetClasses` 新增 `UStoryFlowAsset`，防止 Buff 节点污染 Story FA 编辑器
+
+### 5. Commandlet 升级
+
+- `DummyDeathFlowSetupCommandlet.cpp`：全面替换为 `UStoryFlowAsset` + `USNode_SpawnRewardPickup`，新增旧类型资产冲突检测
+- `FirstRunTutorialSpawnerSetupCommandlet.cpp`（新建）：创建 `FA_ActivateTutorialDummySpawner`（Story FA）+ 配置 `USNode_ActivateTutorialSpawner`，创建 `EP_FirstRun_WeaponPickupActivateDummy` 故事点，配置 `B_TutorialMobSpawner` 蓝图
+
+### 6. 自动化测试修复
+
+- `StoryEncounterGraphTests.cpp`、`StoryEncounterRuntimeTests.cpp`：`NewObject<UFlowAsset>` 改为 `NewObject<UStoryFlowAsset>`，适配类型收窄
+
+**关联文档：** [StoryFA_NodeReference.md](../Story/StoryFA_NodeReference.md)
+
+---
+

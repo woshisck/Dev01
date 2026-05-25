@@ -1,6 +1,6 @@
 # Story Engine MVP 状态与缺口整理
 
-> 更新时间：2026-05-21
+> 更新时间：2026-05-25
 > 范围：教程、弱引导、轻量任务、首局/主城故事事件。完整 NPC 对话与长期任务线属于阶段二。
 
 ## 当前已补齐
@@ -38,6 +38,30 @@
 
 `UTutorialManager.bTutorialPopupsEnabled` 已在 `DefaultGame.ini` 中启用。
 后续如果某些教程希望保持弱引导，可以在 StoryRule 中优先使用 `ShowInfoHint` 或 `PlayLevelFlow`，而不是 `ShowTutorialPopup`。
+
+### 4. Story Director FA（剧情节点绑定 Flow）
+
+新增独立 FA 类型 `UStoryFlowAsset`（Story Director Flow），与关卡 FA / 符文 FA 严格隔离。
+
+**核心机制：**
+
+- `UStoryEncounterPointDA.NodeEventFlow` 字段类型升级为 `UStoryFlowAsset*`
+- 节点触发时，`StoryEncounterRuntimeSubsystem` 通过 `AStoryFlowProxy` 运行绑定的 Story FA
+- Proxy 携带源 Actor 上下文（`GetContextSourceActor()`），节点内可读取
+
+**已实现 SNode 节点：**
+
+| 节点 | 功能 |
+| --- | --- |
+| `USNode_ShowHint` | 显示弱引导提示 |
+| `USNode_ShowTutorialPopup` | 显示教程弹窗 |
+| `USNode_RecordProgress` | 持久化记录剧情进度标记 |
+| `USNode_GiveCard` | 给予卡牌（牌组+背包，带失败引脚） |
+| `USNode_EnablePortal` | 激活并可选打开传送门 |
+| `USNode_SpawnRewardPickup` | 在源 Actor 位置生成奖励拾取物 |
+| `USNode_ActivateTutorialSpawner` | 激活教程刷怪点 |
+
+详细节点文档见 [StoryFA_NodeReference.md](StoryFA_NodeReference.md)。
 
 ## 仍未完成
 

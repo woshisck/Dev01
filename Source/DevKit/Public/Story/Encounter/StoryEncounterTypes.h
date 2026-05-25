@@ -4,6 +4,7 @@
 #include "GameplayTagContainer.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "Story/StoryRuleTypes.h"
+#include "Story/Flow/StoryFlowAsset.h"
 #include "UI/GameDialogWidget.h"
 #include "StoryEncounterTypes.generated.h"
 
@@ -202,7 +203,7 @@ struct DEVKIT_API FStoryEncounterNode
 	TArray<FStoryEncounterAction> Actions;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点|Flow")
-	TObjectPtr<UFlowAsset> NodeEventFlow = nullptr;
+	TObjectPtr<UStoryFlowAsset> NodeEventFlow = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点")
 	FName NextNodeId;

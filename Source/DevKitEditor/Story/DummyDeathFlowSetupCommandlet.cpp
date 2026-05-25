@@ -7,11 +7,11 @@
 #include "Graph/FlowGraphSchema_Actions.h"
 #include "Graph/Nodes/FlowGraphNode.h"
 #include "GameModes/LevelFlowTypes.h"
-#include "LevelFlow/LevelFlowAsset.h"
-#include "LevelFlow/Nodes/LENode_SpawnRewardPickup.h"
 #include "Map/RewardPickup.h"
 #include "Misc/PackageName.h"
 #include "Nodes/Graph/FlowNode_Start.h"
+#include "Story/Flow/StoryFlowAsset.h"
+#include "Story/Flow/Nodes/SNode_SpawnRewardPickup.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "UObject/Package.h"
 
@@ -27,13 +27,22 @@ FString ToObjectPath(const FString& PackagePath)
 	return PackagePath + TEXT(".") + FPackageName::GetLongPackageAssetName(PackagePath);
 }
 
-ULevelFlowAsset* LoadOrCreateFlowAsset(TArray<UPackage*>& DirtyPackages, bool& bOutCreated)
+UStoryFlowAsset* LoadOrCreateFlowAsset(TArray<UPackage*>& DirtyPackages, bool& bOutCreated)
 {
 	bOutCreated = false;
 
-	if (ULevelFlowAsset* Existing = LoadObject<ULevelFlowAsset>(nullptr, *ToObjectPath(FlowPackagePath)))
+	if (UStoryFlowAsset* Existing = LoadObject<UStoryFlowAsset>(nullptr, *ToObjectPath(FlowPackagePath)))
 	{
 		return Existing;
+	}
+
+	// 若路径已存在其他类型的 FA（例如旧的 ULevelFlowAsset），提示用户手动删除
+	if (UFlowAsset* OldAsset = LoadObject<UFlowAsset>(nullptr, *ToObjectPath(FlowPackagePath)))
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[DummyDeathFlowSetup] %s already exists as %s (not UStoryFlowAsset). Delete it in the content browser and re-run."),
+			*FlowPackagePath, *OldAsset->GetClass()->GetName());
+		return nullptr;
 	}
 
 	UPackage* Package = CreatePackage(*FlowPackagePath);
@@ -42,7 +51,7 @@ ULevelFlowAsset* LoadOrCreateFlowAsset(TArray<UPackage*>& DirtyPackages, bool& b
 		return nullptr;
 	}
 
-	ULevelFlowAsset* FlowAsset = NewObject<ULevelFlowAsset>(
+	UStoryFlowAsset* FlowAsset = NewObject<UStoryFlowAsset>(
 		Package,
 		*FPackageName::GetLongPackageAssetName(FlowPackagePath),
 		RF_Public | RF_Standalone | RF_Transactional);
@@ -59,7 +68,7 @@ ULevelFlowAsset* LoadOrCreateFlowAsset(TArray<UPackage*>& DirtyPackages, bool& b
 	return FlowAsset;
 }
 
-ULENode_SpawnRewardPickup* FindSpawnRewardNode(ULevelFlowAsset* FlowAsset)
+USNode_SpawnRewardPickup* FindSpawnRewardNode(UStoryFlowAsset* FlowAsset)
 {
 	if (!FlowAsset)
 	{
@@ -68,7 +77,7 @@ ULENode_SpawnRewardPickup* FindSpawnRewardNode(ULevelFlowAsset* FlowAsset)
 
 	for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
 	{
-		if (ULENode_SpawnRewardPickup* SpawnNode = Cast<ULENode_SpawnRewardPickup>(Pair.Value))
+		if (USNode_SpawnRewardPickup* SpawnNode = Cast<USNode_SpawnRewardPickup>(Pair.Value))
 		{
 			return SpawnNode;
 		}
@@ -77,7 +86,7 @@ ULENode_SpawnRewardPickup* FindSpawnRewardNode(ULevelFlowAsset* FlowAsset)
 	return nullptr;
 }
 
-UFlowNode_Start* FindStartNode(ULevelFlowAsset* FlowAsset)
+UFlowNode_Start* FindStartNode(UStoryFlowAsset* FlowAsset)
 {
 	if (!FlowAsset)
 	{
@@ -95,7 +104,7 @@ UFlowNode_Start* FindStartNode(ULevelFlowAsset* FlowAsset)
 	return nullptr;
 }
 
-bool ConfigureRewardNode(ULENode_SpawnRewardPickup* SpawnNode)
+bool ConfigureRewardNode(USNode_SpawnRewardPickup* SpawnNode)
 {
 	if (!SpawnNode)
 	{
@@ -130,7 +139,7 @@ bool ConfigureRewardNode(ULENode_SpawnRewardPickup* SpawnNode)
 	return true;
 }
 
-ULENode_SpawnRewardPickup* EnsureSpawnRewardNode(ULevelFlowAsset* FlowAsset, TArray<UPackage*>& DirtyPackages)
+USNode_SpawnRewardPickup* EnsureSpawnRewardNode(UStoryFlowAsset* FlowAsset, TArray<UPackage*>& DirtyPackages)
 {
 	if (!FlowAsset)
 	{
@@ -152,17 +161,17 @@ ULENode_SpawnRewardPickup* EnsureSpawnRewardNode(ULevelFlowAsset* FlowAsset, TAr
 		return nullptr;
 	}
 
-	ULENode_SpawnRewardPickup* SpawnNode = FindSpawnRewardNode(FlowAsset);
+	USNode_SpawnRewardPickup* SpawnNode = FindSpawnRewardNode(FlowAsset);
 	UFlowGraphNode* SpawnGraphNode = SpawnNode ? Cast<UFlowGraphNode>(SpawnNode->GetGraphNode()) : nullptr;
 	if (!SpawnNode || !SpawnGraphNode)
 	{
 		SpawnGraphNode = FFlowGraphSchemaAction_NewNode::CreateNode(
 			Graph,
 			StartGraphNode->GetOutputPin(0),
-			ULENode_SpawnRewardPickup::StaticClass(),
+			USNode_SpawnRewardPickup::StaticClass(),
 			FVector2D(320.f, 0.f),
 			false);
-		SpawnNode = SpawnGraphNode ? Cast<ULENode_SpawnRewardPickup>(SpawnGraphNode->GetFlowNodeBase()) : nullptr;
+		SpawnNode = SpawnGraphNode ? Cast<USNode_SpawnRewardPickup>(SpawnGraphNode->GetFlowNodeBase()) : nullptr;
 	}
 	else if (UEdGraphPin* StartOut = StartGraphNode->GetOutputPin(0))
 	{
@@ -219,14 +228,14 @@ int32 UDummyDeathFlowSetupCommandlet::Main(const FString& Params)
 
 	TArray<UPackage*> DirtyPackages;
 	bool bCreatedFlow = false;
-	ULevelFlowAsset* FlowAsset = LoadOrCreateFlowAsset(DirtyPackages, bCreatedFlow);
+	UStoryFlowAsset* FlowAsset = LoadOrCreateFlowAsset(DirtyPackages, bCreatedFlow);
 	if (!FlowAsset)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to create/load %s."), *FlowPackagePath);
 		return 1;
 	}
 
-	ULENode_SpawnRewardPickup* SpawnNode = EnsureSpawnRewardNode(FlowAsset, DirtyPackages);
+	USNode_SpawnRewardPickup* SpawnNode = EnsureSpawnRewardNode(FlowAsset, DirtyPackages);
 	if (!SpawnNode)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to configure Spawn Reward Pickup node."));
@@ -256,7 +265,7 @@ int32 UDummyDeathFlowSetupCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("[Codex] %s %s, configured spawn node %s, bound NodeEventFlow on %s, removed %d inline reward action(s)."),
+	UE_LOG(LogTemp, Display, TEXT("[DummyDeathFlowSetup] %s %s, configured spawn node %s, bound NodeEventFlow on %s, removed %d inline reward action(s)."),
 		bCreatedFlow ? TEXT("Created") : TEXT("Updated"),
 		*FlowPackagePath,
 		*GetNameSafe(SpawnNode),
