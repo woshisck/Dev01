@@ -16,6 +16,7 @@
 #include "PlayInEditorDataTypes.h"
 #include "RuneEditor/SRuneEditorWidget.h"
 #include "Styling/AppStyle.h"
+#include "ToolMenuEntry.h"
 #include "ToolMenus.h"
 #include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
@@ -327,6 +328,17 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("DevKitToolsMenuLabel", "DevKit Tools"),
 			LOCTEXT("DevKitToolsMenuTooltip", "Open DevKit authoring, balance, and debug editor tools."),
 			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillDevKitDataMenu));
+
+		UToolMenu* PlayToolbar = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.LevelEditorToolBar.PlayToolBar"));
+		FToolMenuSection& PlaySection = PlayToolbar->FindOrAddSection(TEXT("Play"));
+		PlaySection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			TEXT("DevKitPlayFromMainMenu"),
+			FToolUIActionChoice(FUIAction(
+				FExecuteAction::CreateRaw(this, &FDevKitEditorModule::PlayFromMainMenu),
+				FCanExecuteAction::CreateRaw(this, &FDevKitEditorModule::CanStartPlaySession))),
+			LOCTEXT("PlayFromMainMenuLabel", "Play Menu"),
+			LOCTEXT("PlayFromMainMenuTooltip", "Start PIE from the entry menu map without changing the currently edited level."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("PlayWorld.PlayInViewport"))));
 
 	}
 
