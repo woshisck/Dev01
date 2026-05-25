@@ -287,7 +287,9 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	}
 
 	CommitPreparedComboActivation();
-	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
+	// Do NOT clear ActiveAbilitySpecHandle here — RegisterActiveAttackAbility already set it
+	// to the new activation's handle during TryActivateAbilityByClass. Clearing it would
+	// prevent CancelAbilityHandle from cancelling the current ability on the next combo hit.
 
 	if (bUseDashSavedNode && PlayerOwner->CombatDeckComponent)
 	{

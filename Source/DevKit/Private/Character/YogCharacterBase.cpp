@@ -178,7 +178,10 @@ void AYogCharacterBase::EnsureCoreAttributeSetsRegistered()
 		AbilitySystemComponent.Get(),
 		*GetNameSafe(this));
 
-	check(AbilitySystemComponent);
+	if (!ensureMsgf(AbilitySystemComponent, TEXT("[YogCharacterBase] AbilitySystemComponent is null on %s"), *GetNameSafe(this)))
+	{
+		return;
+	}
 	if (!BaseAttributeSet)
 	{
 		BaseAttributeSet = NewObject<UBaseAttributeSet>(this, TEXT("BaseAttributeSet_Runtime"));
