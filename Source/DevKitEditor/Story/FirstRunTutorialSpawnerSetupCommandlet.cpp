@@ -25,9 +25,12 @@ namespace FirstRunTutorialSpawnerSetup
 {
 const FString SpawnerBlueprintPath = TEXT("/Game/Code/Core/System/B_TutorialMobSpawner");
 const FString ActivateFlowPath = TEXT("/Game/Story/Flows/Tutorial/FA_ActivateTutorialDummySpawner");
+const FString HubMovePointPath = TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_HubMoveHint");
 const FString PickupPointPath = TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_WeaponPickupActivateDummy");
 const FString TrainingDummyPointPath = TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_TrainingDummyCombo");
 const FString TutorialDummyClassPath = TEXT("/Game/Code/Characters/B_EnemyDummy_Tutorial.B_EnemyDummy_Tutorial_C");
+const FName MainRunWeaponActorName = TEXT("WeaponSpawner_MainRun_StartWeapon");
+const FName MainRunWeaponActorTag = TEXT("Story.MainRun.StartWeapon");
 const FName TutorialWeaponActorName = TEXT("WeaponSpawner_FirstRun_DemoSword");
 const FName TutorialWeaponActorTag = TEXT("Story.FirstRun.DemoWeapon");
 
@@ -382,6 +385,91 @@ bool ConfigurePickupPoint(UStoryEncounterPointDA* Point, UStoryFlowAsset* Activa
 	DirtyPackages.AddUnique(Point->GetPackage());
 	return true;
 }
+
+FStoryEncounterAction* FindActorEnabledAction(
+	UStoryEncounterPointDA* Point,
+	FName ActionId,
+	FName ReuseKey,
+	FName ActorName,
+	FName ActorTag,
+	bool bEnabled)
+{
+	if (!Point)
+	{
+		return nullptr;
+	}
+
+	return Point->Actions.FindByPredicate([&](const FStoryEncounterAction& Action)
+	{
+		if (Action.Kind != EStoryEncounterActionKind::SetActorEnabled)
+		{
+			return false;
+		}
+
+		return Action.ActionId == ActionId
+			|| Action.ReuseKey == ReuseKey
+			|| (Action.TargetActorTag == ActorTag && Action.bActorEnabled == bEnabled)
+			|| (Action.TargetActorName == ActorName && Action.bActorEnabled == bEnabled);
+	});
+}
+
+bool EnsureActorEnabledAction(
+	UStoryEncounterPointDA* Point,
+	FName ActionId,
+	FName ReuseKey,
+	FName ActorName,
+	FName ActorTag,
+	bool bEnabled,
+	TArray<UPackage*>& DirtyPackages)
+{
+	if (!Point)
+	{
+		return false;
+	}
+
+	Point->Modify();
+	FStoryEncounterAction* Action = FindActorEnabledAction(Point, ActionId, ReuseKey, ActorName, ActorTag, bEnabled);
+	if (!Action)
+	{
+		FStoryEncounterAction NewAction;
+		NewAction.Kind = EStoryEncounterActionKind::SetActorEnabled;
+		NewAction.ActionId = ActionId;
+		NewAction.ReuseKey = ReuseKey;
+		Point->Actions.Insert(NewAction, 0);
+		Action = &Point->Actions[0];
+	}
+
+	Action->Kind = EStoryEncounterActionKind::SetActorEnabled;
+	Action->ActionId = ActionId;
+	Action->ReuseKey = ReuseKey;
+	Action->TargetActorName = ActorName;
+	Action->TargetActorTag = ActorTag;
+	Action->bActorEnabled = bEnabled;
+
+	Point->MarkPackageDirty();
+	DirtyPackages.AddUnique(Point->GetPackage());
+	return true;
+}
+
+bool ConfigureTutorialWeaponVisibility(TArray<UPackage*>& DirtyPackages)
+{
+	UStoryEncounterPointDA* HubMovePoint = LoadAssetByPackagePath<UStoryEncounterPointDA>(HubMovePointPath);
+	if (!HubMovePoint)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialSpawnerSetup] Failed to load %s; main-run weapon hide action was not configured."),
+			*HubMovePointPath);
+		return false;
+	}
+
+	return EnsureActorEnabledAction(
+		HubMovePoint,
+		TEXT("hide_main_run_start_weapon_during_first_run"),
+		TEXT("LevelActor.MainRun.StartWeapon.HideDuringFirstRun"),
+		MainRunWeaponActorName,
+		MainRunWeaponActorTag,
+		false,
+		DirtyPackages);
+}
 }
 
 UFirstRunTutorialSpawnerSetupCommandlet::UFirstRunTutorialSpawnerSetupCommandlet()
@@ -427,6 +515,8 @@ int32 UFirstRunTutorialSpawnerSetupCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
+	const bool bConfiguredWeaponVisibility = ConfigureTutorialWeaponVisibility(DirtyPackages);
+
 	UStoryEncounterPointDA* TrainingDummyPoint = LoadAssetByPackagePath<UStoryEncounterPointDA>(TrainingDummyPointPath);
 	if (!TrainingDummyPoint)
 	{
@@ -454,13 +544,14 @@ int32 UFirstRunTutorialSpawnerSetupCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("[FirstRunTutorialSpawnerSetup] %s %s, %s %s, %s %s. Activate node tag=%s."),
+	UE_LOG(LogTemp, Display, TEXT("[FirstRunTutorialSpawnerSetup] %s %s, %s %s, %s %s, weapon visibility=%s. Activate node tag=%s."),
 		bCreatedSpawnerBlueprint ? TEXT("Created") : TEXT("Updated"),
 		*SpawnerBlueprintPath,
 		bCreatedFlow ? TEXT("created") : TEXT("updated"),
 		*ActivateFlowPath,
 		bCreatedPickupPoint ? TEXT("created") : TEXT("updated"),
 		*PickupPointPath,
+		bConfiguredWeaponVisibility ? TEXT("configured") : TEXT("not configured"),
 		*ActivateNode->SpawnerActorTag.ToString());
 	return 0;
 }

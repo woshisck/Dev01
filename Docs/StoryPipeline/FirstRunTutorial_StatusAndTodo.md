@@ -35,6 +35,7 @@
 - `StoryFlowAssetFactory`：编辑器内右键创建 Story Director Flow
 - `FirstRunTutorialSpawnerSetupCommandlet`：已升级为自动生成
   `[Start] -> SNode_SetActorEnabled(Story.FirstRun.DemoWeapon, true) -> SNode_ActivateTutorialSpawner(TutorialDummy)`
+- `ATutorialMobSpawner`：激活后直接按 Spawner 自身位置调用 `SpawnMobAtLocation()`，不再依赖 NavMesh 随机投影；日志会提示是否找到 Spawner、是否生成成功。
 
 ### 新增 SNode（2026-05-26）
 
@@ -66,12 +67,14 @@
 - [x] 验证 `FA_ActivateTutorialDummySpawner` 包含：
   - `SNode_SetActorEnabled(TargetActorTag=Story.FirstRun.DemoWeapon, bEnabled=true)`
   - `SNode_ActivateTutorialSpawner(SpawnerActorTag=TutorialDummy)`
+- [x] `EP_FirstRun_HubMoveHint` 已由 commandlet 写入隐藏正式武器动作：
+  - `SetActorEnabled(TargetActorTag=Story.MainRun.StartWeapon, bActorEnabled=false)`
 
 ### P1：武器显示由故事引擎控制
 
 - [ ] 找到正常流程起始武器 Spawner Actor，确认 Actor Tag（或设置 Tag 为 `Story.MainRun.StartWeapon`）
-- [ ] 在最早必然触发的教程入口 Encounter（如 `EP_FirstRun_HubMoveHint`）的 NodeEventFlow FA 中加入：
-  - `SNode_SetActorEnabled(TargetActorTag=Story.MainRun.StartWeapon, bEnabled=false)`
+- [x] 在最早必然触发的教程入口 Encounter（当前为 `EP_FirstRun_HubMoveHint`）中加入：
+  - `SetActorEnabled(TargetActorTag=Story.MainRun.StartWeapon, bActorEnabled=false)`
 - [ ] 找到教程演示武器 Spawner Actor，确认 Tag（或设置为 `Story.FirstRun.DemoWeapon`）；默认在关卡中 Hidden In Game = true
 - [x] 在武器拾取故事点 `EP_FirstRun_WeaponPickupActivateDummy` 的 NodeEventFlow FA 中加入：
   - `SNode_SetActorEnabled(TargetActorTag=Story.FirstRun.DemoWeapon, bEnabled=true)`
@@ -86,7 +89,8 @@
 ### P2：教程关卡编辑器配置
 
 - [ ] 摆放 `B_TutorialMobSpawner`：Tag=`TutorialDummy`，`EnemySpawnClassis[0]=B_EnemyDummy_Tutorial`，`OnKillEncounterPoint=EP_FirstRun_TrainingDummyCombo`
-- [ ] 摆放教程传送门，配置 Selected Level / Selected Room
+- [ ] 摆放教程传送门，只配置 `Index`；`SelectedLevel` / `SelectedRoom` 是运行时字段，灰色不可填是正常的
+- [ ] 在当前 Hub 的 `RoomDataAsset.PortalDestinations` 里配置传送目标：`PortalIndex` 对应传送门 Actor 的 `Index`，`RoomPool` 放可进入的目标 RoomDataAsset
 - [ ] 配置教程武器 `WeaponDefinition.InitialCombatDeck = [攻击, 攻击]`
 
 ### P3：房间 RoomDataAsset 配置

@@ -14,6 +14,9 @@
 - `FA_ActivateTutorialDummySpawner` 已自动包含：
   - `SNode_SetActorEnabled(Story.FirstRun.DemoWeapon, true)`
   - `SNode_ActivateTutorialSpawner(TutorialDummy)`
+- `EP_FirstRun_HubMoveHint` 已自动包含：
+  - `SetActorEnabled(Story.MainRun.StartWeapon, false)`
+- `ATutorialMobSpawner` 激活后会直接按 Spawner 位置刷出木头人，不再依赖 NavMesh 随机投影。
 
 仍需在 UE 中完成：
 
@@ -104,7 +107,7 @@
 - 如果当前没有更早的教程入口 Encounter，可先放在 `/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_HubMoveHint`。
 - 注意：如果放在移动提示 Trigger 中，玩家触发移动提示前它不会被隐藏；如果出生点能看到它，后续最好补一个真正的教程入口/Hub Start Encounter。
 
-新增或确认动作：
+已自动写入动作：
 
 - Action Type：`SetActorEnabled`
 - Target Actor Name：`WeaponSpawner_MainRun_StartWeapon`
@@ -179,11 +182,26 @@
 
 在主城摆放教程传送门。
 
-需要配置：
+传送门 Actor 上需要配置：
 
-- Selected Level：教程战斗 Level。
-- Selected Room：教程战斗 Room。
-- 传送门开启逻辑按现有清怪/进度逻辑走，不需要被教程木头人阻塞。
+- `Index`：与 RoomDataAsset 的 `PortalDestinations[].PortalIndex` 对应。
+
+不要在传送门 Actor 上找 `SelectedLevel` / `SelectedRoom` 来填：
+
+- 这两个字段是运行时结果，`APortal::Open()` 时由 GameMode 或 Story FA 写入。
+- Details 面板里显示为灰色是正常的。
+
+真正需要配置的位置：
+
+- 打开当前 Hub 使用的 RoomDataAsset，例如 `/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom`。
+- 在 `PortalDestinations` 添加或确认一项：
+  - `PortalIndex`：填教程传送门 Actor 的 `Index`
+  - `RoomPool`：放教程战斗房的 RoomDataAsset
+- 如果只希望开启一个固定门：
+  - `bForceSinglePortal = true`
+  - `ForcedPortalIndex = 教程传送门 Actor 的 Index`
+
+传送门开启逻辑按现有清怪/进度逻辑走，不需要被教程木头人阻塞。
 
 验收：
 
@@ -299,6 +317,6 @@
 - 正常流程起始武器仍显示：检查 `EP_FirstRun_HubMoveHint` 或更早教程入口 Encounter 是否有 `SetActorEnabled(false)`。
 - `SetActorEnabled` 无效：检查 Actor Name 和 Actor Tag 是否与动作配置完全一致。
 - 教程武器不显示：检查 `EP_FirstRun_HubDashHint` 是否触发，以及 `SetActorEnabled(true)` 目标是否正确。
-- 木头人不刷：检查 Spawner 的 Actor Tag 是否为 `TutorialDummy`，以及拾取武器 Encounter 是否执行 `FA_ActivateTutorialDummySpawner`。
+- 木头人不刷：检查 Spawner 的 Actor Tag 是否为 `TutorialDummy`，以及拾取武器 Encounter 是否执行 `FA_ActivateTutorialDummySpawner`；日志应出现 `[SNode_ActivateTutorialSpawner] Activating ...` 和 `[TutorialMobSpawner] ... spawned ...`。
 - 木头人刷了但影响清怪：检查 `ATutorialMobSpawner` 是否正确 unregister enemy。
 - 掉卡重复：检查 `FA_DummyDeath_DropHeavyCard` / 对应 Encounter 的一次性策略。

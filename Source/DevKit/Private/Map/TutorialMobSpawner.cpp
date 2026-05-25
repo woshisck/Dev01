@@ -3,6 +3,7 @@
 #include "Character/EnemyCharacterBase.h"
 #include "Character/TrainingDummyCharacter.h"
 #include "Character/YogCharacterBase.h"
+#include "Components/SceneComponent.h"
 #include "GameModes/YogGameMode.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
@@ -10,6 +11,9 @@
 ATutorialMobSpawner::ATutorialMobSpawner()
 {
 	PrimaryActorTick.bCanEverTick = false;
+
+	USceneComponent* SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	SetRootComponent(SceneRoot);
 }
 
 void ATutorialMobSpawner::BeginPlay()
@@ -33,11 +37,15 @@ void ATutorialMobSpawner::EndPlay(const EEndPlayReason::Type Reason)
 
 void ATutorialMobSpawner::Activate()
 {
-	if (bIsActive)
+	if (bIsActive && SpawnedMob.IsValid())
 	{
+		UE_LOG(LogTemp, Log, TEXT("[TutorialMobSpawner] %s already active with mob %s."),
+			*GetNameSafe(this),
+			*GetNameSafe(SpawnedMob.Get()));
 		return;
 	}
 	bIsActive = true;
+	UE_LOG(LogTemp, Log, TEXT("[TutorialMobSpawner] Activating %s."), *GetNameSafe(this));
 	DoSpawnMob();
 }
 
@@ -57,11 +65,21 @@ void ATutorialMobSpawner::DoSpawnMob()
 		return;
 	}
 
-	AEnemyCharacterBase* Mob = SpawnMob(EnemySpawnClassis[0]);
+	const FVector SpawnLocation = GetActorLocation() + FVector(0.f, 0.f, SpawnZOffset);
+	AEnemyCharacterBase* Mob = SpawnMobAtLocation(EnemySpawnClassis[0], SpawnLocation);
 	if (!Mob)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[TutorialMobSpawner] %s: failed to spawn %s at %s."),
+			*GetNameSafe(this),
+			*GetNameSafe(EnemySpawnClassis[0].Get()),
+			*SpawnLocation.ToCompactString());
 		return;
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("[TutorialMobSpawner] %s spawned %s at %s."),
+		*GetNameSafe(this),
+		*GetNameSafe(Mob),
+		*SpawnLocation.ToCompactString());
 
 	Mob->bCountsForLevelClear = false;
 
