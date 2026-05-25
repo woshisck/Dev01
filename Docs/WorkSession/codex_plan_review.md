@@ -1,50 +1,43 @@
 ## Codex 审查结果
 
 ### 发现的问题
-- `StarterRuneToGrant` 设计为单个 `FSoftObjectPath`，但现有授予接口是 `AddCraftedStarterRune(FPrimaryAssetId)`；需要明确资产引用与 `PrimaryAssetId` 转换，否则 BeginPlay 可能无法授予。
-- “同一 DA 可多次叠加”和“需要去重”互相矛盾；现有 `AddCraftedStarterRune` 使用 `AddUnique`，多级节点授予同一 RuneDA 时会花费成功但不会增加效果。
-- 单个 `StarterRuneToGrant` 字段无法支持“每级授予不同 DA 形成进化链”，除非改成数组或把每一级拆成独立节点。
-- 方案说 `TryPurchaseNode` 忽略 `MysticLevelRequired`，但现有 `CanPurchaseNode` 仍会检查该字段，实施步骤未覆盖。
-- `AHubFacilityActor` 的 `OnInteract()` 不会被当前 E 键流程自动调用；现有交互分支只处理 Weapon/Pickup/Altar/Shop/Portal，需要补 `PendingHubFacility` 或通用交互接口。
-- 运行时 UI 方案未接入现有 `YogUIManagerSubsystem`、`EYogUIScreenId`、`DA_YogUIRegistry` 和 CommonActivatableWidget 输入策略，直接 Push/显示会和鼠标、焦点、关闭栈冲突。
-- 结算页触发点与现有死亡复活/GameOver 流程冲突；若在 `HandlePlayerDeath` 广播，可能在可复活时提前展示结算。
+- `UStoryEncounterRuntimeSubsystem` 实际继承的是 `UGameInstanceSubsystem`，不是方案中写的 `WorldSubsystem`；基于 WorldSubsystem 的论证不准确。
+- `PlayLevelFlow` 的修复方案可能导致 Flow 执行两次：`RunFlowViaProxy()` 后如果不 `return`，现有逻辑仍会继续调用 `StoryEngine->ExecuteStoryAction()`，再走 `AYogGameMode::RunStoryLevelFlow()`。
+- 当前非 Trigger Actor 场景并非完全“静默失败”：现有代码会回退到 `StoryEngine -> GameMode` 执行 Flow；真正缺失的是以触发源 Actor 作为 Flow 上下文。
+- `AStoryFlowProxy` 头文件示例中使用了 `UFlowAsset*`，但只前置声明了 `UFlowComponent` / `ULevelFlowAsset`，会缺少 `class UFlowAsset;`。
+- `UFlowComponent` 当前未看到 `OnRootFlowFinished` 之类的结束委托；方案中的 `OnFlowFinished()` 绑定大概率不能直接编译。
+- “延迟 1 帧 Destroy 兜底”不成立：带 `Delay`、等待 UI、等待选择、播放序列等异步 Flow 会被过早销毁。
+- 只在 `TriggerEncounterNode()` 添加 `NodeEventFlow` 不够；当前 `TriggerEncounterNode()`、`TriggerEncounterGraphNode()`、`TriggerEncounterPoint()` 都各自独立执行 `Actions`，需要三处统一处理或抽出公共执行函数。
+- 仅在 `AStoryFlowProxy` 上暴露 `GetContextSourceActor()` 不等于 Flow 图中已有 `[Get Story Context Actor]` 节点；还需要明确设计可被 LevelFlow 编辑器使用的节点或上下文访问机制。
+- `RunFlowViaProxy()` 没有处理 `bStopExistingStoryFlow` 语义；用于 `PlayLevelFlow` 回退时会把原本“停旧 Flow 再启新 Flow”的行为改成并发 Spawn 多个 Proxy。
+- `UStoryEncounterGraphNode` 的 fallback 节点目前没有 `Actions` / `NodeEventFlow` 编辑字段；如果未绑定 `UStoryEncounterPointDA` 的图节点也要支持该能力，方案漏了这部分。
 
 ### 潜在风险
-- `TryPurchaseNode` 内直接调用 `AddCraftedStarterRune` 会触发额外 `CommitSave`，购买流程不是单次原子提交。
-- 将编辑器布局坐标写入运行时 `FMetaUpgradeNodeRow` 会污染 DataTable/CSV，并增加策划导入导出维护成本。
-- `AddCurrency` 被用于奖励、扣款和调试发放；用它无差别累计 `MetaCurrencyGained` 容易把非跑局收益计入结算。
-- 资源房奖励如果没有独立“本房间已发放”语义，后续重构或多路径结算时可能重复发货币。
-- 新增 `RuneGrant` 后，编辑器工具、校验、CSV 导入导出、节点显示标签都需要同步更新，否则配置侧容易产生无效节点。
+- 新增 `TObjectPtr<ULevelFlowAsset>` 是硬引用，剧情 DA / Map 被加载时会连带加载 Flow Asset；如果 Flow 资产体量变大，可能增加加载成本。
+- Proxy 作为 Flow Root Owner 会改变部分现有 LevelFlow 节点行为，例如 `LENode_ShowInfoPopup` 当前只识别 `ALevelEventTrigger` / `AStoryEncounterTrigger` 来绑定离开区域关闭逻辑。
+- `ContextSourceActor` 是弱引用，死亡、复位或销毁后 Flow 延迟读取可能拿到空指针。
+- FlowComponent 默认 `RootFlowMode = Authority`，NodeEventFlow 若承担纯 UI 表现，需要确认是否应在客户端、本地玩家或服务器执行。
+- 临时 Proxy 上的 `UFlowComponent` 会注册到 FlowSubsystem；若存档发生在 Flow 运行中，需确认不会把临时剧情 Flow 错误写入存档。
+- “现有资产兼容性零风险”表述过满；序列化层面通常兼容，但仍需要 UE 编译、资产加载、重存和编辑器详情面板验证。
 
 ### 改进建议
-- 将 RuneGrant 数据建模为 `TArray<TSoftObjectPtr<URuneDataAsset>> StarterRunesToGrantByLevel`，或明确只支持唯一符文并把 MaxLevel 限制为 1。
-- 在 `TryPurchaseNode` 内直接修改 `Meta.CraftedStarterRunes`，使用内部 helper，最后统一广播与保存。
-- 新增通用交互目标：`PendingInteractable` / `IInteractable::TryInteract(Player)`，Hub、Shop、Portal 可逐步统一到同一路径。
-- 新增 `MetaUpgradeTree`、`RunSummary` 的 ScreenId 与 UIRegistry 条目，Widget 基类建议继承项目现有 CommonUI 基类。
-- 资源房奖励建议放在 `EnterArrangementPhase` 成功切到 Arrangement 后，由 `GrantRoomMetaRewards(ActiveRoomData)` 统一发放、累计结算、批量保存。
-- 编辑器拓扑布局优先考虑单独 `DA_MetaUpgradeTreeLayout`；若仍写入 DataTable，至少把校验、CSV、代理编辑、默认值一次补齐。
-- 增加自动化测试：RuneGrant 购买、同 DA 多级语义、货币奖励累计、死亡/复活不弹结算、返回主城清理 RunState。
+- 抽出公共方法，例如 `ExecuteEncounterNode(EncounterId, Node, SourceActor)`，统一处理 Context、条件、Actions、NodeEventFlow，避免三条入口重复漏改。
+- 将 `RunFlowViaProxy()` 改为返回 `bool`，并在 `PlayLevelFlow` 回退执行成功后立刻 `return`，防止继续走 GameMode 回退。
+- 区分两类执行：`NodeEventFlow` 默认可并发；`PlayLevelFlow` 回退应明确是否保留 `bStopExistingStoryFlow` 的单实例语义。
+- 不要用 1 帧销毁兜底；应实现可靠完成信号，例如自定义 `UStoryFlowComponent` 监听 Root Flow Custom Output，或定时轮询 `GetRootInstances()` 直到该 Proxy 的 Root Flow 结束。
+- 增加可编辑器使用的上下文节点，例如 `ULENode_GetStoryContextActor` / `ULENode_GetStoryContextLocation`，或定义 `IStoryFlowContextProvider` 接口让节点从 Root Owner 读取上下文。
+- 在 `RunFlowViaProxy()` 中补充 `GetWorld()` 判空、Spawn 失败日志、必要的 `SpawnCollisionHandlingOverride`，并考虑设置 Proxy 的 Transient/Hidden/NoCollision 属性。
+- 补自动化测试：`UStoryEncounterPointDA::ToEncounterNode()` 复制 `NodeEventFlow`；三条触发入口都会执行一次 NodeEventFlow；非 Trigger Actor 的 `PlayLevelFlow` 不会双跑。
 
 ### 需要向用户确认的问题
-- 同一个 RuneDA 多次解锁时，期望是叠加多实例，还是只解锁一次？
-- 前置节点要求是“至少 1 级”还是“前置满级”？现有注释与实现语义不完全一致。
-- 神秘侧是否完全不参与购买限制，还是只暂时不用“神秘点”但仍保留神秘侧等级门槛？
-- 死亡后流程是直接结算回主城，还是先保留现有复活/GameOver 菜单？
-- 结算页货币显示要展示毛收入、净增量，还是按来源拆分？
+- `NodeEventFlow` 应在 `Actions[]` 之前、之后，还是与某个动作顺序混排执行？
+- `PlayLevelFlow` 在非 Trigger Actor 场景下，应使用 Proxy 获取 SourceActor 上下文，还是继续使用 GameMode 的全局单 Flow 机制？
+- `NodeEventFlow` 是否允许多个实例并发运行，还是同一节点/同一 Flow 需要去重或覆盖旧实例？
+- Flow 中除 `SourceActor` 外是否还需要 `EncounterId`、`NodeId`、`PlayerController`、房间数据、事件 Tag、死亡位置快照等上下文？
+- 未绑定 `UStoryEncounterPointDA` 的 `UStoryEncounterGraphNode` fallback 节点是否也要能配置 `NodeEventFlow`？
+- 木头人死亡后 Actor 是否会很快复位或销毁？如果会，是否应在触发瞬间缓存 Transform，而不是让 Flow 延迟读取 Actor？
 
 ### 需要手动创建的引擎资产
-（列出所有需要在 UE5 编辑器中手动创建的蓝图、DA、DT、材质等资产，留空则填无）
-- `WBP_MetaUpgradeTree`
-- `WBP_MetaNodeCard`
-- `WBP_RunSummary`
-- `BP_HubUpgradeTerminal`
-- `BP_HubRunStartPortal`（或复用/派生现有 Portal BP）
-- `BP_HubArchive`（二期需要）
-- `L_HubTown`
-- `DA_Room_HubTown`（`bIsHubRoom=true`，配置 `PortalDestinations`）
-- `DA_YogUIRegistry` 新增/配置 MetaUpgradeTree、RunSummary 屏幕条目
-- `DT_MetaUpgradeNodes` 新增/修改 RuneGrant 节点行
-- `DT_MetaCurrencyRules` 新增/确认局外货币 Tag 行
-- 各资源房 `DA_Room_*` 配置 `MetaCurrencyRewards`
-- RuneGrant 引用的 `DA_Rune_*` 资产
-- 主城设施用 Static Mesh / Material / Niagara / 音效资产（如不复用现有资源）
+- `FA_DummyDeath_DropHeavyCard`：`ULevelFlowAsset`，用于木头人死亡掉落重击卡流程。
+- `BP_Pickup_HeavyCard` 或等价拾取物蓝图：若项目中尚不存在，需要创建并在 Flow 中引用。
+- 对应剧情点 DA / EncounterMap 节点配置：为目标死亡节点手动设置 `NodeEventFlow` 引用。

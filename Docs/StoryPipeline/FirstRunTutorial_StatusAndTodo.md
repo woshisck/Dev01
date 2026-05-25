@@ -22,6 +22,15 @@
   - 已绑定到：`/Game/UI/UI_LoadingScreen`
 - 新增 `FirstRunLoadingScreenSetup` Commandlet，可重复导入 loading 图并绑定加载屏。
 
+## 已完成（2026-05-25 补充）
+
+- `ATrainingDummyCharacter` 新增：`FinishDying()` 广播 `OnCharacterDied`，支持剧情系统接收死亡事件
+- `AStoryEncounterDeathListener`：关卡 Actor，无需 Overlap Box，按 `TargetActorName`/`TargetActorTag` 绑定死亡委托触发剧情
+- `NodeEventFlow` 字段：`UStoryEncounterPointDA` 和 `FStoryEncounterNode` 均支持绑定 FA，Actions 完成后自动运行
+- `AStoryFlowProxy`：FA 运行代理，携带 `ContextTransform`（触发时位置快照）
+- `LENode_SpawnRewardPickup`：FA 内生成奖励拾取物的节点（自动读取 ContextTransform）
+- `DummyDeathFlowSetupCommandlet`：自动创建 `FA_DummyDeath_DropHeavyCard` 并绑定到 `EP_FirstRun_TrainingDummyCombo`
+
 ## 待做
 
 - 配置教程专用地图或确认 `FirstRunTutorialMap` 目标地图。
@@ -29,8 +38,8 @@
   - 移动提示 Trigger
   - 冲刺提示 Trigger
   - 教程武器拾取点；首次拾取弹窗由 `TryWeaponTutorial` 触发，清空 `PickupEncounterPoint` / `PickupEncounterGraph` / `PickupEncounterNodeId`
-  - 木人桩
-  - 木人桩死亡后的单卡奖励掉落点
+  - 木人桩（`B_EnemyDummy_Tutorial`，父类改为 `ATrainingDummyCharacter`）
+  - 木人桩旁放置 `AStoryEncounterDeathListener`，`TargetActorTag` 指向木人桩，绑定 `EP_FirstRun_TrainingDummyCombo`
   - 教程传送门
 - 配置教程武器 `WeaponDefinition.InitialCombatDeck = [攻击, 攻击]`。
 - 打开 `WBP_CombatDeckBar`，确认 `DeckEntryHighlightPanel` 存在，并按观感微调 C++ 暴露的 Entry Highlight 参数。

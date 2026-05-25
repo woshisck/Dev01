@@ -62,6 +62,7 @@ class UPropInteractComponnet;
 class UWidgetComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
+DECLARE_MULTICAST_DELEGATE_OneParam(FCharacterDiedNativeDelegate, AYogCharacterBase*);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCharacterHealthUpdateDelegate, float, HealthPercent, float, DamageTaken);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterMoveableDelegate, const bool, Moveable);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterVelocityDelegate, const FVector, Velocity);
@@ -185,6 +186,8 @@ public:
 	//DELEGATE DEFINE
 	UPROPERTY(BlueprintAssignable,Category = "Character|Attributes")
 	FCharacterDiedDelegate OnCharacterDied;
+
+	FCharacterDiedNativeDelegate OnCharacterDiedNative;
 
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FCharacterHealthUpdateDelegate OnCharacterHealthUpdate;

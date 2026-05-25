@@ -9,6 +9,7 @@ class UStoryEncounterMap;
 class UStoryEncounterGraph;
 class UStoryEncounterPointDA;
 class ULevelInfoPopupDA;
+class UFlowAsset;
 class AYogCharacterBase;
 
 UCLASS()
@@ -39,7 +40,11 @@ private:
 	bool ExecuteSpawnRewardPickupAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context);
 	bool ExecuteSetRoomRewardOverrideAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
 	bool ExecuteSetPortalOverrideAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
+	void ExecuteEncounterNodeCore(FName EncounterId, const FStoryEncounterNode& Node,
+		const FStoryEventContext& Context);
 	void ExecuteEncounterAction(FName EncounterId, const FStoryEncounterAction& Action, const FStoryEventContext& Context);
+	void RunFlowViaProxy(UFlowAsset* FlowAsset, AActor* SourceActor,
+		APlayerController* PlayerController, bool bStopExisting = false);
 
 	UFUNCTION()
 	void HandleRewardDropCharacterDied(AYogCharacterBase* Character);

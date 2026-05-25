@@ -36,8 +36,11 @@ void ATrainingDummyCharacter::Die()
 
 void ATrainingDummyCharacter::FinishDying()
 {
-	// GA_Dead already called EndAbility() before this tick, so Buff.Status.Dead is gone.
-	// Reset the dummy instead of destroying it.
+	// Broadcast death so StoryEncounterRuntimeSubsystem can spawn loot pickups,
+	// but skip Super::FinishDying() which would call Destroy().
+	OnCharacterDied.Broadcast(this);
+	OnCharacterDiedNative.Broadcast(this);
+
 	GetWorldTimerManager().ClearTimer(ResetTimerHandle);
 	GetWorldTimerManager().SetTimer(ResetTimerHandle, this, &ATrainingDummyCharacter::ResetDummy, 0.1f, false);
 }

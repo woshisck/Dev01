@@ -1174,6 +1174,11 @@ void AYogGameMode::FinishPlayerDeathGameOver()
 	{
 		bGameOverTriggered = true;
 
+		if (APlayerCharacterBase* Player = PendingDeathPlayer.Get())
+		{
+			Player->ResetToDefaultUnarmedCombatState();
+		}
+
 		// 广播本局结算数据（展示结算界面、触发成长货币结算存档）
 		if (UYogMetaProgressionSubsystem* Meta = GetGameInstance()
 			? GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr)
