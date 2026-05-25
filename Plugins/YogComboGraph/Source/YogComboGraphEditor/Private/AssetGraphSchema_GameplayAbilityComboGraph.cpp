@@ -1,4 +1,5 @@
 #include "AssetGraphSchema_GameplayAbilityComboGraph.h"
+#include "EdNode_ComboGraphRoot.h"
 
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
@@ -478,6 +479,18 @@ UAnimationAsset* UAssetGraphSchema_GameplayAbilityComboGraph::GetFirstSupportedA
 	return nullptr;
 }
 
+void UAssetGraphSchema_GameplayAbilityComboGraph::CreateDefaultNodesForGraph(UEdGraph& Graph) const
+{
+	UEdNode_ComboGraphRoot* RootEdNode = NewObject<UEdNode_ComboGraphRoot>(&Graph);
+	Graph.AddNode(RootEdNode, false, false);
+	RootEdNode->CreateNewGuid();
+	RootEdNode->PostPlacedNewNode();
+	RootEdNode->AllocateDefaultPins();
+	RootEdNode->NodePosX = -250;
+	RootEdNode->NodePosY = 0;
+	RootEdNode->SetFlags(RF_Transactional);
+}
+
 EGraphType UAssetGraphSchema_GameplayAbilityComboGraph::GetGraphType(const UEdGraph* TestEdGraph) const
 {
 	return GT_StateMachine;
@@ -560,13 +573,33 @@ const FPinConnectionResponse UAssetGraphSchema_GameplayAbilityComboGraph::CanCre
 
 	UEdNode_GenericGraphNode* NodeA = Cast<UEdNode_GenericGraphNode>(A->GetOwningNode());
 	UEdNode_GenericGraphNode* NodeB = Cast<UEdNode_GenericGraphNode>(B->GetOwningNode());
-	if (!NodeA || !NodeB || !NodeA->GenericGraphNode || !NodeB->GenericGraphNode)
+	if (!NodeA || !NodeB)
 	{
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("PinErrorInvalidNode", "Not a valid combo graph node"));
 	}
 
 	UEdNode_GenericGraphNode* OutNode = A->Direction == EGPD_Output ? NodeA : NodeB;
-	UEdNode_GenericGraphNode* InNode = A->Direction == EGPD_Output ? NodeB : NodeA;
+	UEdNode_GenericGraphNode* InNode  = A->Direction == EGPD_Output ? NodeB : NodeA;
+
+	// Root node: only allow connections FROM its output, never TO its input.
+	if (Cast<UEdNode_ComboGraphRoot>(InNode))
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("PinErrorRootInput", "Cannot connect to the Root node"));
+	}
+	if (Cast<UEdNode_ComboGraphRoot>(OutNode))
+	{
+		if (!InNode->GenericGraphNode)
+		{
+			return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("PinErrorInvalidTarget", "Target is not a valid combo node"));
+		}
+		// Direct connection (no edge node) so the child stays parentless in the runtime graph.
+		return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, LOCTEXT("PinConnectFromRoot", "Connect from Root"));
+	}
+
+	if (!NodeA->GenericGraphNode || !NodeB->GenericGraphNode)
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("PinErrorInvalidNode", "Not a valid combo graph node"));
+	}
 
 	bool bAllowCycles = false;
 	if (const UGenericGraph* GenericGraph = OutNode->GetGraph() ? Cast<UGenericGraph>(OutNode->GetGraph()->GetOuter()) : nullptr)
@@ -613,7 +646,21 @@ bool UAssetGraphSchema_GameplayAbilityComboGraph::TryCreateConnection(UEdGraphPi
 	UEdNode_GenericGraphNode* NodeA = Cast<UEdNode_GenericGraphNode>(A->GetOwningNode());
 	UEdNode_GenericGraphNode* NodeB = Cast<UEdNode_GenericGraphNode>(B->GetOwningNode());
 	UEdNode_GenericGraphNode* OutNode = A->Direction == EGPD_Output ? NodeA : NodeB;
-	UEdNode_GenericGraphNode* InNode = A->Direction == EGPD_Output ? NodeB : NodeA;
+	UEdNode_GenericGraphNode* InNode  = A->Direction == EGPD_Output ? NodeB : NodeA;
+
+	// Root→child: create a direct pin-to-pin link (no edge node) so the child
+	// remains parentless in RebuildGenericGraph and becomes a runtime RootNode.
+	if (Cast<UEdNode_ComboGraphRoot>(OutNode))
+	{
+		UEdGraphPin* RootOutPin = GetOutputPin(OutNode);
+		UEdGraphPin* ChildInPin = GetInputPin(InNode);
+		if (!RootOutPin || !ChildInPin || !InNode || !InNode->GenericGraphNode)
+		{
+			return false;
+		}
+		UEdGraphSchema::TryCreateConnection(RootOutPin, ChildInPin);
+		return true;
+	}
 	UEdGraphPin* OutPin = GetOutputPin(OutNode);
 	UEdGraphPin* InPin = GetInputPin(InNode);
 	if (!OutNode || !InNode || !OutPin || !InPin)
