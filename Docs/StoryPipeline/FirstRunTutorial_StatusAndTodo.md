@@ -22,6 +22,30 @@
   - 已绑定到：`/Game/UI/UI_LoadingScreen`
 - 新增 `FirstRunLoadingScreenSetup` Commandlet，可重复导入 loading 图并绑定加载屏。
 
+## 已完成（2026-05-25 补充二）
+
+- `ATutorialMobSpawner`：关卡 Actor，调用 `Activate()` 后生成指定敌人；敌人死亡后等待 `RespawnDelay`（默认 5s）自动重新生成。
+  - `EnemySpawnClassis[0]`：要生成的敌人 BP
+  - `SpawnRadius` / `SpawnZOffset`：复用父类 `AMobSpawner` 的 NavMesh 生成位置逻辑；想固定在 Spawner 附近时把 `SpawnRadius` 设小或设为 0
+  - `bActivateOnBeginPlay`：调试用，关卡启动即激活
+  - `OnKillEncounterPoint`：击杀时触发的剧情节点（受节点 FirePolicy 控制，仅触发一次）
+  - 生成后设置 `bCountsForLevelClear=false`，并从 `GameMode` 的 `AliveEnemies` 里反注册，不参与房间清怪/波次推进
+  - 如果生成的是 `ATrainingDummyCharacter`，会自动关闭 `bResetOnDeath`，让它走正常死亡销毁，再由 Spawner 负责 5s 重刷
+- `ULENode_ActivateTutorialSpawner`：FA 节点，按 `SpawnerActorTag`（`FName`）找到关卡中的 `ATutorialMobSpawner` 并调用 `Activate()`；分类 `LevelEvent|Tutorial`
+
+**教程武器拾取触发木人桩流程：**
+
+```text
+WeaponSpawner.PickupEncounterPoint = EP_WeaponPickup
+  NodeEventFlow = FA_ActivateDummySpawner
+    [Start] → [ActivateTutorialSpawner (Tag: TutorialDummy)] → [Finish]
+
+B_TutorialMobSpawner (tag: TutorialDummy, EnemySpawnClassis[0]=B_EnemyDummy_Tutorial)
+  OnKillEncounterPoint = EP_FirstRun_TrainingDummyCombo (FirePolicy=Once)
+    → NodeEventFlow = FA_DummyDeath_DropHeavyCard（掉落重击卡）
+  RespawnDelay = 5.0s → 无限循环生成
+```
+
 ## 已完成（2026-05-25 补充）
 
 - `ATrainingDummyCharacter` 新增：`FinishDying()` 广播 `OnCharacterDied`，支持剧情系统接收死亡事件
@@ -37,9 +61,9 @@
 - 在教程主城中摆放并绑定：
   - 移动提示 Trigger
   - 冲刺提示 Trigger
-  - 教程武器拾取点；首次拾取弹窗由 `TryWeaponTutorial` 触发，清空 `PickupEncounterPoint` / `PickupEncounterGraph` / `PickupEncounterNodeId`
-  - 木人桩（`B_EnemyDummy_Tutorial`，父类改为 `ATrainingDummyCharacter`）
-  - 木人桩旁放置 `AStoryEncounterDeathListener`，`TargetActorTag` 指向木人桩，绑定 `EP_FirstRun_TrainingDummyCombo`
+  - 教程武器拾取点；首次拾取弹窗由 `TryWeaponTutorial` 触发，`PickupEncounterPoint` 绑定只负责激活木人 Spawner 的专用 EP，`PickupEncounterGraph` / `PickupEncounterNodeId` 留空
+  - `B_TutorialMobSpawner`：`Actor Tag=TutorialDummy`，`EnemySpawnClassis[0]=B_EnemyDummy_Tutorial`，`RespawnDelay=5.0`，`OnKillEncounterPoint=EP_FirstRun_TrainingDummyCombo`
+  - 武器拾取 Encounter 的 `NodeEventFlow`：`Start → ActivateTutorialSpawner(Tag=TutorialDummy) → Finish`
   - 教程传送门
 - 配置教程武器 `WeaponDefinition.InitialCombatDeck = [攻击, 攻击]`。
 - 打开 `WBP_CombatDeckBar`，确认 `DeckEntryHighlightPanel` 存在，并按观感微调 C++ 暴露的 Entry Highlight 参数。

@@ -29,6 +29,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BuffFlow")
 	TObjectPtr<UBuffFlowComponent> BuffFlowComponent;
 
+	// Tutorial/practice enemies can opt out of room clear, wave, and kill-count progression.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Level")
+	bool bCountsForLevelClear = true;
+
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 

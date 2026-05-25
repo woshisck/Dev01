@@ -465,7 +465,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾取 [%s]"), *WeaponDefinition->GetName());
 
-	bool bHandledByTutorialState = false;
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
 	{
 		if (TM->GetState() == ETutorialState::NeedWeaponTutorial)
@@ -473,15 +472,12 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 			if (AYogPlayerControllerBase* YogPC = Player->GetController<AYogPlayerControllerBase>())
 			{
 				TM->TryWeaponTutorial(YogPC);
-				bHandledByTutorialState = true;
 			}
 		}
 	}
 
-	if (!bHandledByTutorialState)
-	{
-		TriggerPickupStoryEncounter(Player);
-	}
+	// The tutorial popup and pickup story hook are independent; first-run uses the hook to activate the dummy spawner.
+	TriggerPickupStoryEncounter(Player);
 
 	// HUD 信息区内折叠浮窗 → 缩略图飞向左下角武器图标
 	if (AYogHUD* HUD = GetYogHUDForPlayer(Player))

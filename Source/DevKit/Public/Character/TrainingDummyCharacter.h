@@ -16,6 +16,14 @@ class DEVKIT_API ATrainingDummyCharacter : public AEnemyCharacterBase
 public:
 	ATrainingDummyCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	// Keep legacy training-dummy behavior by default. Tutorial spawners can disable this
+	// so the actor follows the normal death -> destroy lifecycle and respawns as a new mob.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Dummy")
+	bool bResetOnDeath = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Dummy", meta = (ClampMin = "0.0"))
+	float ResetDelay = 0.1f;
+
 	virtual void BeginPlay() override;
 	virtual void Die() override;
 	virtual void FinishDying() override;

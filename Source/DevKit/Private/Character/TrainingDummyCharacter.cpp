@@ -8,6 +8,7 @@
 ATrainingDummyCharacter::ATrainingDummyCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bCountsForLevelClear = false;
 }
 
 void ATrainingDummyCharacter::BeginPlay()
@@ -36,13 +37,19 @@ void ATrainingDummyCharacter::Die()
 
 void ATrainingDummyCharacter::FinishDying()
 {
+	if (!bResetOnDeath)
+	{
+		Super::FinishDying();
+		return;
+	}
+
 	// Broadcast death so StoryEncounterRuntimeSubsystem can spawn loot pickups,
 	// but skip Super::FinishDying() which would call Destroy().
 	OnCharacterDied.Broadcast(this);
 	OnCharacterDiedNative.Broadcast(this);
 
 	GetWorldTimerManager().ClearTimer(ResetTimerHandle);
-	GetWorldTimerManager().SetTimer(ResetTimerHandle, this, &ATrainingDummyCharacter::ResetDummy, 0.1f, false);
+	GetWorldTimerManager().SetTimer(ResetTimerHandle, this, &ATrainingDummyCharacter::ResetDummy, ResetDelay, false);
 }
 
 void ATrainingDummyCharacter::ResetDummy()

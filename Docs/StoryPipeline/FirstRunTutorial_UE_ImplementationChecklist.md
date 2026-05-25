@@ -52,10 +52,22 @@ Details 面板填写：
 Details 面板填写：
 
 - `Weapon Definition` = 首局演示武器 DA，例如 `DA_Weapon_FirstRun_DemoSword`
-- 清空 `Story Encounter|Pickup` 相关字段：
-  - `PickupEncounterPoint`
-  - `PickupEncounterGraph`
-  - `PickupEncounterNodeId`
+- `Story Encounter|Pickup`：
+  - `PickupEncounterPoint` = 一个只用于激活教程木人 Spawner 的专用 EP，建议命名 `EP_FirstRun_WeaponPickupActivateDummy`
+  - `PickupEncounterGraph` / `PickupEncounterNodeId` 留空
+  - `bTriggerPickupEncounterOnce` = true
+
+该 `PickupEncounterPoint` 只做一件事：
+
+- `NodeEventFlow` = `FA_ActivateTutorialDummySpawner`
+- `Actions` 留空，不要放 `ShowTutorialPopup`
+- `FirePolicy` = Once
+
+`FA_ActivateTutorialDummySpawner` 流程：
+
+```text
+[Start] → [ActivateTutorialSpawner (SpawnerActorTag=TutorialDummy)] → [Finish]
+```
 
 打开首局演示武器 DA：
 
@@ -66,7 +78,8 @@ Details 面板填写：
 说明：
 
 - 首次武器教程由 `TryWeaponTutorial` 自动触发。
-- 不要在这个武器 Spawner 上重复绑定 Pickup Story，否则可能和武器教程状态机重复触发。
+- `PickupEncounterPoint` 只负责激活木人 Spawner；武器教程弹窗仍由 `TryWeaponTutorial` 管。
+- 不要把已有的武器拾取弹窗 EP 直接绑到这里，否则可能和 `TryWeaponTutorial` 重复弹窗。
 
 ### 1.4 正常流程起始武器
 
@@ -94,50 +107,66 @@ Details 面板填写：
 - 首局教程完成回主城后显示正常流程武器。
 - 如果正式流程后续也要让玩家开局持有终结技卡，再单独恢复该武器 DA 的 `InitialCombatDeck` 配置。
 
-### 1.5 木人桩
+### 1.5 教程木人 Spawner
 
-在武器区域附近放置现有训练 Dummy：
+在武器区域附近放置教程专用 Spawner，而不是直接把木人桩 Actor 放进关卡：
 
-- Blueprint：`/Game/Code/Characters/B_EnemyDummy`
-- Actor Name：`B_EnemyDummy_Tutorial`
-- Character/Data 资产如需手动指定，使用：`/Game/Docs/Data/Character/DA_Char_Dummy`
+- Blueprint：`B_TutorialMobSpawner`（基于 `ATutorialMobSpawner`）
+- Actor Name：`Spawner_TutorialDummy`
+- Actor Tag：`TutorialDummy`
 
-配置要求：
+Details 面板填写：
 
-- 不需要新建 `TutorialTrainingDummy` C++ 类。
-- 默认走现有 EnemyBase / EnemyDummy 体系即可。
+- `EnemySpawnClassis[0]` = `/Game/Code/Characters/B_EnemyDummy_Tutorial`
+- `RespawnDelay` = `5.0`
+- `bActivateOnBeginPlay` = false
+- `OnKillEncounterPoint` = `/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_TrainingDummyCombo`
+- `SpawnRadius` = `0` 到 `100`，按场景摆位微调
+- `SpawnZOffset` = 使用父类默认值即可，除非生成高度明显不对
+
+`B_EnemyDummy_Tutorial` 只作为 Spawner 要生成的敌人 BP：
+
+- 父类保持 `ATrainingDummyCharacter`。
+- Character/Data 资产如需手动指定，使用 `/Game/Docs/Data/Character/DA_Char_Dummy`。
 - 生命值足够玩家练习 1 到 2 轮攻击。
-- 放在玩家拾取武器后自然会攻击的位置。
-- 木人桩死亡后需要生成或启用重击卡奖励。
+- 不要把 `B_EnemyDummy_Tutorial` 作为场景常驻 Actor 手动摆放。
+
+说明：
+
+- Spawner 生成的木人不会参与房间清怪/波次推进。
+- 如果生成的是 `ATrainingDummyCharacter`，Spawner 会自动关闭木人自身的死亡重置，让它正常销毁并由 Spawner 在 5 秒后重刷。
 
 ### 1.6 木人桩重击卡奖励
 
-1. 删除场景里的 B_EnemyDummy_Tutorial 实例。
-2. 从健康的 /Game/Code/Characters/B_EnemyDummy 重新拖一个到场景。
-3. 重命名 Actor 为 B_EnemyDummy_Tutorial。
-4. CharacterDataComponent.CharacterData 设为 /Game/Docs/Data/Character/DA_Char_Dummy。
-5. 确认 UIWidgetComponent 绑定敌人血条，例如 UI_EnemyHealthBar。
-6. 保存关卡。
+现在不需要在关卡里手动放 `BP_RewardPickup`，也不需要放 `AStoryEncounterDeathListener`。
 
+打开：
 
-现在不需要在关卡里手动放 `BP_RewardPickup`。
+- `/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_TrainingDummyCombo`
 
-`training_dummy_combo` 剧情点已经配置了 `SpawnRewardPickup` 动作：
+确认：
 
-- `TargetActorName` = `B_EnemyDummy_Tutorial`
-- `bSpawnRewardOnTargetDeath` = true
+- `FirePolicy` = Once
+- `NodeEventFlow` = `FA_DummyDeath_DropHeavyCard`
+- `Actions` 里不要再保留内联 `SpawnRewardPickup`，避免和 FA 重复掉卡
+
+打开 `FA_DummyDeath_DropHeavyCard`，确认其中的 `SpawnRewardPickup` 节点：
+
 - `RewardPickupClass` = `/Game/Code/Dungeon/BP_RewardPickup`
 - `RewardLootOptions` 只包含 1 个 Rune：
   - `/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback`
 - `RewardPickupCount` = 1
+- `RewardSpawnOffset` 建议 `(120, 0, 20)`
+- `bAllowPickupOutsideArrangement` = true
 
-引擎里只需要确认木人桩 Actor Name 正确。木人桩死亡后，故事引擎会自动在木人桩附近生成重击卡 Pickup。
+木人第一次死亡时，`Spawner_TutorialDummy.OnKillEncounterPoint` 会触发 `EP_FirstRun_TrainingDummyCombo`，再由 `NodeEventFlow` 在木人死亡位置附近生成重击卡 Pickup。后续木人仍会每 5 秒重刷，但因为 `FirePolicy=Once`，不会重复掉重击卡。
 
 说明：
 
 - 玩家选择该卡并进入卡组后，会自动触发 `tutorial_heavy_card`。
 - 不需要再额外配置重击卡教程 Story EP。
 - 不要再预放 `RewardPickup_DummyHeavyCard`，否则会出现重复奖励。
+- 不要再配置 `TargetActorName = B_EnemyDummy_Tutorial` 这类死亡监听配置；现在死亡事件由 `ATutorialMobSpawner` 自己管理。
 
 ### 1.7 主城 Portal
 
@@ -151,6 +180,12 @@ Details 面板填写：
   - `PortalIndex` = 主城入口 Portal 的 Index
   - `RoomPool` 只放第一战斗房：
     - `/Game/Docs/Map/DA_L1_Room/DA_Room_CL_corridor_01a`
+
+配置要求：
+
+- 主城传送门默认按普通关卡逻辑可用，不要等待木人死亡才开启。
+- 教程木人不参与清怪判定，因此不要用“房间清怪后开门”来驱动主城传送门。
+- `EP_FirstRun_HubPortalRewardPreview` 如需保留，只做提示/预览，不负责解锁主城出口。
 
 ## 2. 战斗房默认 RoomData 与剧情覆盖
 
@@ -324,14 +359,15 @@ Details 面板确认：
 
 - `/Game/Docs/UI/Tutorial/DA_TutorialRegistry`
 
-确认四个 EventID 映射：
+确认五个 EventID 映射：
 
+- `tutorial_weapon_pickup` -> `DA_Tutorial_WeaponPickup`
 - `tutorial_backpack` -> `DA_Tutorial_Backpack`
 - `tutorial_card_link` -> `DA_Tutorial_CardLink`
 - `tutorial_heavy_card` -> `DA_Tutorial_HeavyCard`
 - `tutorial_finisher` -> `DA_Tutorial_Finisher`
 
-打开这四个 Tutorial DA，文案里的按键必须写成：
+打开这五个 Tutorial DA，文案里的按键必须写成：
 
 - `<input action="Interact"/>`
 - `<input action="OpenBackpack"/>`

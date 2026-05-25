@@ -147,8 +147,11 @@ void AEnemyCharacterBase::Die()
 	// 通知 GameMode 击杀计数，触发波次/关卡完成检查
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
 	{
-		GM->LastEnemyKillLocation = GetActorLocation();
-		GM->UpdateFinishLevel(1);
+		if (bCountsForLevelClear)
+		{
+			GM->LastEnemyKillLocation = GetActorLocation();
+			GM->UpdateFinishLevel(1);
+		}
 		// 从相机战斗感知列表中移除
 		GM->UnregisterEnemy(this);
 	}
