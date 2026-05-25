@@ -141,6 +141,9 @@ public:
 	void ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDefinition);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
+	void ApplyCurrentEquipmentComboGraph();
+
+	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
 	void ResetToDefaultUnarmedCombatState();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BuffFlow")

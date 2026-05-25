@@ -509,6 +509,12 @@ bool FPlayerWeaponComboGraphOverridesAndResetToUnarmedTest::RunTest(const FStrin
 		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == WeaponGraph);
 
 	Player->EquippedWeaponDef = WeaponDef;
+	Player->ApplyDefaultUnarmedComboGraph();
+	Player->ApplyCurrentEquipmentComboGraph();
+
+	TestTrue(TEXT("Current equipment combo graph refresh restores weapon graph over default"),
+		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == WeaponGraph);
+
 	Player->ResetToDefaultUnarmedCombatState();
 
 	TestNull(TEXT("Reset to unarmed clears equipped weapon definition"), Player->EquippedWeaponDef.Get());

@@ -301,6 +301,18 @@ void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDe
 	}
 }
 
+void APlayerCharacterBase::ApplyCurrentEquipmentComboGraph()
+{
+	if (EquippedWeaponDef)
+	{
+		ApplyComboGraphFromWeapon(EquippedWeaponDef);
+	}
+	else
+	{
+		ApplyDefaultUnarmedComboGraph();
+	}
+}
+
 void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 {
 	if (EquippedWeaponInstance)
@@ -791,7 +803,7 @@ void APlayerCharacterBase::BeginPlay()
 
 	// GAS Template 授能（在 Super::BeginPlay 中完成）可能覆盖切关前 Link 的武器动画层；
 	// 在此重新 Link，确保武器层优先级高于默认层
-	ApplyDefaultUnarmedComboGraph();
+	ApplyCurrentEquipmentComboGraph();
 	RelinkWeaponAnimLayer();
 
 	//GetASC()->InitAbilityActorInfo(this, this);
