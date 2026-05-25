@@ -11,11 +11,14 @@
 - 武器相关 Actor Tag 已配置。
 - 教程木头人生成逻辑已走 `B_TutorialMobSpawner` / `ATutorialMobSpawner`。
 - `FA_ActivateTutorialDummySpawner` 和 `FA_DummyDeath_DropHeavyCard` 已重建为 Story Director Flow 类型。
+- `FA_ActivateTutorialDummySpawner` 已自动包含：
+  - `SNode_SetActorEnabled(Story.FirstRun.DemoWeapon, true)`
+  - `SNode_ActivateTutorialSpawner(TutorialDummy)`
 
 仍需在 UE 中完成：
 
 - 正常流程起始武器在教程中不应默认显示，需要由 Story Encounter 动作隐藏，再在教程完成后显示。
-- 首局教程演示武器也应由 Story Encounter 动作显示/隐藏。
+- 首局教程演示武器默认隐藏这一步仍需在关卡 Actor 上确认。
 - 摆放并配置 `B_TutorialMobSpawner`。
 - 配置教程传送门、房间奖励、月光房、过渡房、祈愿房。
 - 完整 PIE 验证第一局教程链路。
@@ -58,16 +61,19 @@
 
 故事动作配置：
 
-- 在 `/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_HubDashHint` 中确认有动作：
-  - Action Type：`SetActorEnabled`
+- 已由 `FirstRunTutorialSpawnerSetupCommandlet` 自动写入 `/Game/Story/Flows/Tutorial/FA_ActivateTutorialDummySpawner`：
+  - Node：`SNode_SetActorEnabled`
   - Target Actor Name：`WeaponSpawner_FirstRun_DemoSword`
   - Target Actor Tag：`Story.FirstRun.DemoWeapon`
   - Actor Enabled：`true`
-  - 建议 Action Id：`show_first_run_demo_weapon`
+- 后续紧接：
+  - `SNode_ActivateTutorialSpawner`
+  - Spawner Actor Tag：`TutorialDummy`
+- 如果你希望“冲刺提示完成后”就显示首局教程演示武器，再在 `/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_HubDashHint` 对应的 NodeEventFlow FA 中额外加入 `SNode_SetActorEnabled(Story.FirstRun.DemoWeapon, true)`。
 
 建议初始状态：
 
-- 首局教程演示武器可以在关卡里默认隐藏/禁用，由冲刺提示后的 `SetActorEnabled(true)` 显示。
+- 首局教程演示武器可以在关卡里默认隐藏/禁用，由故事引擎的 `SetActorEnabled(true)` 显示。
 - 如果你希望一进主城就能看到教程武器，也可以默认显示，但不要影响正常流程起始武器的隐藏逻辑。
 
 武器配置：
@@ -79,7 +85,7 @@
 验收：
 
 - 新存档进入教程时，玩家不会同时看到“教程演示武器”和“正常流程起始武器”造成困惑。
-- 玩家完成冲刺提示后，教程演示武器按预期可见并可拾取。
+- 玩家到达对应故事触发点后，教程演示武器按预期可见并可拾取。
 - 拾取教程演示武器后，能触发 `EP_FirstRun_WeaponPickupActivateDummy`。
 
 ### 1.4 正常流程起始武器

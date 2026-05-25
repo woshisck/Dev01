@@ -17,6 +17,7 @@
 #include "Nodes/Graph/FlowNode_Start.h"
 #include "Story/Flow/StoryFlowAsset.h"
 #include "Story/Flow/Nodes/SNode_ActivateTutorialSpawner.h"
+#include "Story/Flow/Nodes/SNode_SetActorEnabled.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "UObject/Package.h"
 
@@ -27,6 +28,8 @@ const FString ActivateFlowPath = TEXT("/Game/Story/Flows/Tutorial/FA_ActivateTut
 const FString PickupPointPath = TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_WeaponPickupActivateDummy");
 const FString TrainingDummyPointPath = TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_TrainingDummyCombo");
 const FString TutorialDummyClassPath = TEXT("/Game/Code/Characters/B_EnemyDummy_Tutorial.B_EnemyDummy_Tutorial_C");
+const FName TutorialWeaponActorName = TEXT("WeaponSpawner_FirstRun_DemoSword");
+const FName TutorialWeaponActorTag = TEXT("Story.FirstRun.DemoWeapon");
 
 FString ToObjectPath(const FString& PackagePath)
 {
@@ -174,6 +177,59 @@ USNode_ActivateTutorialSpawner* FindActivateNode(UStoryFlowAsset* FlowAsset)
 	return nullptr;
 }
 
+USNode_SetActorEnabled* FindShowWeaponNode(UStoryFlowAsset* FlowAsset)
+{
+	if (!FlowAsset)
+	{
+		return nullptr;
+	}
+
+	for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
+	{
+		if (USNode_SetActorEnabled* SetActorNode = Cast<USNode_SetActorEnabled>(Pair.Value))
+		{
+			if (SetActorNode->TargetActorTag == TutorialWeaponActorTag || SetActorNode->TargetActorName == TutorialWeaponActorName)
+			{
+				return SetActorNode;
+			}
+		}
+	}
+	return nullptr;
+}
+
+bool EnsurePinConnection(UEdGraph* Graph, UEdGraphPin* FromPin, UEdGraphPin* ToPin)
+{
+	if (!Graph || !FromPin || !ToPin)
+	{
+		return false;
+	}
+
+	if (FromPin->LinkedTo.Contains(ToPin))
+	{
+		return true;
+	}
+
+	FromPin->Modify();
+	ToPin->Modify();
+	if (const UEdGraphSchema* Schema = Graph->GetSchema())
+	{
+		return Schema->TryCreateConnection(FromPin, ToPin);
+	}
+	return false;
+}
+
+void BreakPinConnection(UEdGraphPin* FromPin, UEdGraphPin* ToPin)
+{
+	if (!FromPin || !ToPin || !FromPin->LinkedTo.Contains(ToPin))
+	{
+		return;
+	}
+
+	FromPin->Modify();
+	ToPin->Modify();
+	FromPin->BreakLinkTo(ToPin);
+}
+
 USNode_ActivateTutorialSpawner* EnsureActivateNode(UStoryFlowAsset* FlowAsset, TArray<UPackage*>& DirtyPackages)
 {
 	if (!FlowAsset)
@@ -196,30 +252,54 @@ USNode_ActivateTutorialSpawner* EnsureActivateNode(UStoryFlowAsset* FlowAsset, T
 		return nullptr;
 	}
 
+	USNode_SetActorEnabled* ShowWeaponNode = FindShowWeaponNode(FlowAsset);
+	UFlowGraphNode* ShowWeaponGraphNode = ShowWeaponNode ? Cast<UFlowGraphNode>(ShowWeaponNode->GetGraphNode()) : nullptr;
+	if (!ShowWeaponNode || !ShowWeaponGraphNode)
+	{
+		ShowWeaponGraphNode = FFlowGraphSchemaAction_NewNode::CreateNode(
+			Graph,
+			StartGraphNode->GetOutputPin(0),
+			USNode_SetActorEnabled::StaticClass(),
+			FVector2D(320.f, -120.f),
+			false);
+		ShowWeaponNode = ShowWeaponGraphNode ? Cast<USNode_SetActorEnabled>(ShowWeaponGraphNode->GetFlowNodeBase()) : nullptr;
+	}
+
+	if (ShowWeaponNode)
+	{
+		ShowWeaponNode->Modify();
+		ShowWeaponNode->TargetActorName = TutorialWeaponActorName;
+		ShowWeaponNode->TargetActorTag = TutorialWeaponActorTag;
+		ShowWeaponNode->bEnabled = true;
+	}
+
 	USNode_ActivateTutorialSpawner* ActivateNode = FindActivateNode(FlowAsset);
 	UFlowGraphNode* ActivateGraphNode = ActivateNode ? Cast<UFlowGraphNode>(ActivateNode->GetGraphNode()) : nullptr;
 	if (!ActivateNode || !ActivateGraphNode)
 	{
 		ActivateGraphNode = FFlowGraphSchemaAction_NewNode::CreateNode(
 			Graph,
-			StartGraphNode->GetOutputPin(0),
+			ShowWeaponGraphNode ? ShowWeaponGraphNode->GetOutputPin(0) : StartGraphNode->GetOutputPin(0),
 			USNode_ActivateTutorialSpawner::StaticClass(),
-			FVector2D(320.f, 0.f),
+			FVector2D(640.f, 0.f),
 			false);
 		ActivateNode = ActivateGraphNode ? Cast<USNode_ActivateTutorialSpawner>(ActivateGraphNode->GetFlowNodeBase()) : nullptr;
 	}
-	else if (UEdGraphPin* StartOut = StartGraphNode->GetOutputPin(0))
+
+	if (ShowWeaponGraphNode && ActivateGraphNode)
 	{
+		UEdGraphPin* StartOut = StartGraphNode->GetOutputPin(0);
+		UEdGraphPin* ShowWeaponIn = ShowWeaponGraphNode->GetInputPin(0);
+		UEdGraphPin* ShowWeaponOut = ShowWeaponGraphNode->GetOutputPin(0);
 		UEdGraphPin* ActivateIn = ActivateGraphNode->GetInputPin(0);
-		if (ActivateIn && !StartOut->LinkedTo.Contains(ActivateIn))
-		{
-			StartOut->Modify();
-			ActivateIn->Modify();
-			if (const UEdGraphSchema* Schema = Graph->GetSchema())
-			{
-				Schema->TryCreateConnection(StartOut, ActivateIn);
-			}
-		}
+
+		BreakPinConnection(StartOut, ActivateIn);
+		EnsurePinConnection(Graph, StartOut, ShowWeaponIn);
+		EnsurePinConnection(Graph, ShowWeaponOut, ActivateIn);
+	}
+	else if (ActivateGraphNode)
+	{
+		EnsurePinConnection(Graph, StartGraphNode->GetOutputPin(0), ActivateGraphNode->GetInputPin(0));
 	}
 
 	if (ActivateNode)
