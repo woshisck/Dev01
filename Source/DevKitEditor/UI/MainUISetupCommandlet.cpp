@@ -45,7 +45,7 @@ namespace MainUISetup
 	const FString FrontendTextureRoot = TEXT("/Game/UI/Playtest_UI/UI_Tex/Frontend");
 	const FString ReportFileName = TEXT("MainUISetupReport.md");
 
-	const TCHAR* PlayerHealthClassPath = TEXT("/Game/UI/WB_PlayerHealthBar.WB_PlayerHealthBar_C");
+	const TCHAR* PlayerHealthClassPath = TEXT("/Game/UI/Widget/WB_PlayerHealthBar.WB_PlayerHealthBar_C");
 	const TCHAR* EnemyArrowClassPath = TEXT("/Game/UI/Playtest_UI/CombatInfo/WBP_EnemyArrow.WBP_EnemyArrow_C");
 	const TCHAR* WeaponGlassClassPath = TEXT("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponGlassIcon.WBP_WeaponGlassIcon_C");
 	const TCHAR* InfoPopupClassPath = TEXT("/Game/UI/Playtest_UI/Tutorial/WBP_InfoPopup.WBP_InfoPopup_C");
@@ -124,6 +124,18 @@ namespace MainUISetup
 		return Widget;
 	}
 
+	bool WidgetUsesClassPath(UWidgetBlueprint* WidgetBlueprint, const FName WidgetName, const TCHAR* ClassPath)
+	{
+		if (!WidgetBlueprint || !WidgetBlueprint->WidgetTree)
+		{
+			return false;
+		}
+
+		UWidget* Widget = WidgetBlueprint->WidgetTree->FindWidget(WidgetName);
+		UClass* ExpectedClass = LoadClass<UWidget>(nullptr, ClassPath);
+		return Widget && ExpectedClass && Widget->GetClass()->IsChildOf(ExpectedClass);
+	}
+
 	void ConfigureCanvasSlot(UCanvasPanelSlot* Slot, const FAnchors& Anchors, const FVector2D& Position, const FVector2D& Size, const FVector2D& Alignment, int32 ZOrder)
 	{
 		if (!Slot)
@@ -187,12 +199,18 @@ namespace MainUISetup
 	void ResetWidgetTree(UWidgetBlueprint* WidgetBlueprint)
 	{
 		WidgetBlueprint->Modify();
-		WidgetBlueprint->WidgetTree->Modify();
-		if (WidgetBlueprint->WidgetTree->RootWidget)
+		if (UWidgetTree* ExistingTree = WidgetBlueprint->WidgetTree)
 		{
-			WidgetBlueprint->WidgetTree->RemoveWidget(WidgetBlueprint->WidgetTree->RootWidget);
-			WidgetBlueprint->WidgetTree->RootWidget = nullptr;
+			ExistingTree->Modify();
+			const FName OldTreeName = MakeUniqueObjectName(GetTransientPackage(), UWidgetTree::StaticClass(), TEXT("OldWidgetTree"));
+			ExistingTree->Rename(
+				*OldTreeName.ToString(),
+				GetTransientPackage(),
+				REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);
 		}
+
+		WidgetBlueprint->WidgetTree = NewObject<UWidgetTree>(WidgetBlueprint, TEXT("WidgetTree"), RF_Transactional);
+		WidgetBlueprint->WidgetTree->Modify();
 	}
 
 	void BuildPlayerCommonInfoTree(UWidgetBlueprint* WidgetBlueprint, TArray<FString>& ReportLines)
@@ -620,6 +638,7 @@ namespace MainUISetup
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BottomCenterCombatRegion"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BottomRightPlayerInfoRegion"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("PlayerHealthBar"))
+			|| !WidgetUsesClassPath(WidgetBlueprint, TEXT("PlayerHealthBar"), PlayerHealthClassPath)
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CombatDeckBar"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("PlayerCommonInfoHud"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CurrentRoomBuffPanel"));
