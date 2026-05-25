@@ -84,6 +84,7 @@ public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
 	static bool ShouldSkipCombatForRoom(const URoomDataAsset* RoomData);
+	static bool ShouldPreserveCurrentMapForEditorPlay(bool bIsPlayInEditorWorld, bool bHasPendingRoomData);
 
 
 

@@ -30,4 +30,25 @@ bool FGameModeNonCombatEventRoomTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameModeEditorPIEPreservesCurrentMapTest,
+	"DevKit.GameMode.EditorPIEPreservesCurrentMap",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGameModeEditorPIEPreservesCurrentMapTest::RunTest(const FString& Parameters)
+{
+	TestTrue(
+		TEXT("Plain PIE without an explicit room keeps the editor's current map"),
+		AYogGameMode::ShouldPreserveCurrentMapForEditorPlay(true, false));
+
+	TestFalse(
+		TEXT("Frontend or portal room data keeps using the explicit room flow"),
+		AYogGameMode::ShouldPreserveCurrentMapForEditorPlay(true, true));
+
+	TestFalse(
+		TEXT("Non-PIE worlds still use configured starting room flow"),
+		AYogGameMode::ShouldPreserveCurrentMapForEditorPlay(false, false));
+
+	return true;
+}
+
 #endif

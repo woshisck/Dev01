@@ -87,6 +87,11 @@ bool AYogGameMode::ShouldSkipCombatForRoom(const URoomDataAsset* RoomData)
 		&& RoomData->EnemyPool.IsEmpty();
 }
 
+bool AYogGameMode::ShouldPreserveCurrentMapForEditorPlay(bool bIsPlayInEditorWorld, bool bHasPendingRoomData)
+{
+	return bIsPlayInEditorWorld && !bHasPendingRoomData;
+}
+
 bool AYogGameMode::HasActiveStoryEventTag(FGameplayTag EventTag) const
 {
 	return EventTag.IsValid() && ActiveStoryEventTags.HasTag(EventTag);
@@ -1389,12 +1394,21 @@ void AYogGameMode::StartLevelSpawning()
 		{
 			const FName DefaultRoomName = Campaign->DefaultStartingRoom->RoomName;
 			const FName DefaultLevelName = ResolveRoomLevelNameForOpen(DefaultRoomName, Campaign->DefaultStartingRoom);
+			bool bPreservedCurrentEditorMap = false;
 			if (!DefaultLevelName.IsNone())
 			{
 				// 检查当前加载的关卡是否已经是 DefaultStartingRoom 指定的关卡
 				// GetCurrentLevelName(true) 会去掉 PIE 前缀（如 "UEDPIE_0_"）
 				const FString CurrentMapName = FPackageName::GetShortName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
-				if (!CurrentMapName.Equals(FPackageName::GetShortName(DefaultLevelName.ToString()), ESearchCase::IgnoreCase))
+				const bool bCurrentMapMatchesDefault = CurrentMapName.Equals(FPackageName::GetShortName(DefaultLevelName.ToString()), ESearchCase::IgnoreCase);
+				if (!bCurrentMapMatchesDefault
+					&& ShouldPreserveCurrentMapForEditorPlay(GetWorld() && GetWorld()->WorldType == EWorldType::PIE, GI && GI->PendingRoomData != nullptr))
+				{
+					bPreservedCurrentEditorMap = true;
+					UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: PIE current map [%s] differs from DefaultStartingRoom [%s]; preserving editor map."),
+						*CurrentMapName, *DefaultLevelName.ToString());
+				}
+				if (!bCurrentMapMatchesDefault && !bPreservedCurrentEditorMap)
 				{
 					// 当前关卡不匹配，重定向到 DefaultStartingRoom 的关卡
 					UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: 当前关卡 [%s] ≠ DefaultStartingRoom [%s]，重定向..."),
@@ -1405,8 +1419,16 @@ void AYogGameMode::StartLevelSpawning()
 				}
 			}
 
-			ActiveRoomData = Campaign->DefaultStartingRoom;
-			UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 使用 DefaultStartingRoom = %s"), *ActiveRoomData->GetName());
+			if (bPreservedCurrentEditorMap)
+			{
+				ActiveRoomData = nullptr;
+				UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: no RoomData selected for current editor map; using preplaced enemy fallback."));
+			}
+			else
+			{
+				ActiveRoomData = Campaign->DefaultStartingRoom;
+				UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 使用 DefaultStartingRoom = %s"), *ActiveRoomData->GetName());
+			}
 		}
 		else
 		{
