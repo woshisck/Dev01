@@ -115,6 +115,15 @@ UGA_PlayerDash::UGA_PlayerDash()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
+	// Keep the interrupt contract in C++ so Blueprint defaults cannot silently
+	// make dash fail to cancel attacks or become usable after death.
+	const FGameplayTag DashTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"));
+	AbilityTags.AddTag(DashTag);
+	ActivationOwnedTags.AddTag(DashTag);
+	CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast")));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
+	ActivationBlockedTags.AddTag(DashTag);
+
 	// 受击硬直 / 击退期间不允许冲刺
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.HitReact"));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Knockback"));
@@ -122,6 +131,23 @@ UGA_PlayerDash::UGA_PlayerDash()
 	// 持续 buff 类 GA（ActivationOwnedTags 含 Buff.Status.*）不被冲刺的 CancelAbilitiesWithTag 取消。
 	// 策划若需扩展豁免范围，可在 Blueprint 子类的 Class Defaults 中追加标签。
 	DashCancelProtectedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status"), false));
+}
+
+UAnimMontage* UGA_PlayerDash::ResolveDashMontage(APlayerCharacterBase* Player, const FGameplayTag& AbilityTag) const
+{
+	if (Player && Player->ComboRuntimeComponent)
+	{
+		if (UAnimMontage* ComboGraphDashMontage = Player->ComboRuntimeComponent->GetActiveDashMontageOverride())
+		{
+			return ComboGraphDashMontage;
+		}
+	}
+
+	UCharacterDataComponent* CDC = Player ? Player->GetCharacterDataComponent() : nullptr;
+	UCharacterData* CD = CDC ? CDC->GetCharacterData() : nullptr;
+	return (CD && CD->AbilityData && AbilityTag.IsValid())
+		? CD->AbilityData->GetMontage(AbilityTag)
+		: nullptr;
 }
 
 void UGA_PlayerDash::PreActivate(
@@ -280,15 +306,11 @@ void UGA_PlayerDash::ActivateAbility(
 			DashChargeTag());
 	}
 
-	// ── 2. 从 AbilityDA 读取蒙太奇（和 GA_MeleeAttack 一致的数据驱动方式）─────
-	UCharacterDataComponent* CDC = Player ? Player->GetCharacterDataComponent() : nullptr;
-	UCharacterData* CD = CDC ? CDC->GetCharacterData() : nullptr;
-
+	// ── 2. 优先从 Combo Graph Dash 节点读取蒙太奇；为空则回退到 AbilityDA ─────
 	FGameplayTag FirstTag;
 	for (const FGameplayTag& Tag : AbilityTags) { FirstTag = Tag; break; }
 
-	UAnimMontage* DashMontage = (CD && CD->AbilityData && FirstTag.IsValid())
-		? CD->AbilityData->GetMontage(FirstTag) : nullptr;
+	UAnimMontage* DashMontage = ResolveDashMontage(Player, FirstTag);
 
 	if (!DashMontage)
 	{

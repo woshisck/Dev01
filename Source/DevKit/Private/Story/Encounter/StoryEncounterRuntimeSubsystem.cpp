@@ -4,6 +4,7 @@
 #include "CommonInputTypeEnum.h"
 #include "EngineUtils.h"
 #include "Engine/LocalPlayer.h"
+#include "FlowAsset.h"
 #include "Kismet/GameplayStatics.h"
 #include "Character/YogCharacterBase.h"
 #include "Data/LevelInfoPopupDA.h"
@@ -13,7 +14,9 @@
 #include "Story/Encounter/StoryEncounterGraph.h"
 #include "Story/Encounter/StoryEncounterGraphNode.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
+#include "Story/Encounter/StoryFlowProxy.h"
 #include "Story/Encounter/StoryEncounterTrigger.h"
+#include "LevelFlow/LevelFlowAsset.h"
 #include "LevelFlow/LevelEventTrigger.h"
 #include "Story/StoryEngineSubsystem.h"
 #include "UI/InfoPopupWidget.h"
@@ -142,9 +145,10 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterNode(UStoryEncounterMap* E
 	Context.SourceActor = SourceActor;
 	Context.PlayerController = ResolveEncounterPlayer(SourceActor);
 	Context.SourceName = NodeId;
-	if (UWorld* World = GetWorld())
+	UWorld* ContextWorld = SourceActor ? SourceActor->GetWorld() : GetWorld();
+	if (ContextWorld)
 	{
-		Context.MapName = FName(*UGameplayStatics::GetCurrentLevelName(World, true));
+		Context.MapName = FName(*UGameplayStatics::GetCurrentLevelName(ContextWorld, true));
 	}
 
 	if (!CanTriggerNode(EncounterMap->EncounterId, *Node, Context))
@@ -152,10 +156,7 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterNode(UStoryEncounterMap* E
 		return false;
 	}
 
-	for (const FStoryEncounterAction& Action : Node->Actions)
-	{
-		ExecuteEncounterAction(EncounterMap->EncounterId, Action, Context);
-	}
+	ExecuteEncounterNodeCore(EncounterMap->EncounterId, *Node, Context);
 
 	return true;
 }
@@ -191,9 +192,10 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterGraphNode(UStoryEncounterG
 	Context.SourceActor = SourceActor;
 	Context.PlayerController = ResolveEncounterPlayer(SourceActor);
 	Context.SourceName = Node.NodeId;
-	if (UWorld* World = GetWorld())
+	UWorld* ContextWorld = SourceActor ? SourceActor->GetWorld() : GetWorld();
+	if (ContextWorld)
 	{
-		Context.MapName = FName(*UGameplayStatics::GetCurrentLevelName(World, true));
+		Context.MapName = FName(*UGameplayStatics::GetCurrentLevelName(ContextWorld, true));
 	}
 
 	if (!CanTriggerNode(EncounterId, Node, Context))
@@ -201,10 +203,7 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterGraphNode(UStoryEncounterG
 		return false;
 	}
 
-	for (const FStoryEncounterAction& Action : Node.Actions)
-	{
-		ExecuteEncounterAction(EncounterId, Action, Context);
-	}
+	ExecuteEncounterNodeCore(EncounterId, Node, Context);
 
 	return true;
 }
@@ -226,9 +225,10 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterPoint(UStoryEncounterPoint
 	Context.SourceActor = SourceActor;
 	Context.PlayerController = ResolveEncounterPlayer(SourceActor);
 	Context.SourceName = Node.NodeId;
-	if (UWorld* World = GetWorld())
+	UWorld* ContextWorld = SourceActor ? SourceActor->GetWorld() : GetWorld();
+	if (ContextWorld)
 	{
-		Context.MapName = FName(*UGameplayStatics::GetCurrentLevelName(World, true));
+		Context.MapName = FName(*UGameplayStatics::GetCurrentLevelName(ContextWorld, true));
 	}
 
 	if (!CanTriggerNode(EncounterPoint->EncounterId, Node, Context))
@@ -236,10 +236,7 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterPoint(UStoryEncounterPoint
 		return false;
 	}
 
-	for (const FStoryEncounterAction& Action : Node.Actions)
-	{
-		ExecuteEncounterAction(EncounterPoint->EncounterId, Action, Context);
-	}
+	ExecuteEncounterNodeCore(EncounterPoint->EncounterId, Node, Context);
 
 	return true;
 }
@@ -319,6 +316,7 @@ bool UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(FName Encoun
 	case EStoryEncounterActionKind::PlayLevelFlow:
 		OutStoryAction.Type = EStoryActionType::PlayLevelFlow;
 		OutStoryAction.LevelFlow = EncounterAction.LevelFlow;
+		OutStoryAction.bStopExistingStoryFlow = EncounterAction.bStopExistingStoryFlow;
 		return OutStoryAction.LevelFlow != nullptr;
 
 	case EStoryEncounterActionKind::SetActorEnabled:
@@ -688,6 +686,80 @@ void UStoryEncounterRuntimeSubsystem::HandleRewardDropCharacterDied(AYogCharacte
 	}
 }
 
+void UStoryEncounterRuntimeSubsystem::ExecuteEncounterNodeCore(FName EncounterId,
+	const FStoryEncounterNode& Node, const FStoryEventContext& Context)
+{
+	for (const FStoryEncounterAction& Action : Node.Actions)
+	{
+		ExecuteEncounterAction(EncounterId, Action, Context);
+	}
+
+	if (Node.NodeEventFlow)
+	{
+		APlayerController* PlayerController = Context.PlayerController
+			? Context.PlayerController.Get()
+			: ResolveEncounterPlayer(Context.SourceActor);
+		RunFlowViaProxy(Node.NodeEventFlow, Context.SourceActor, PlayerController);
+	}
+}
+
+void UStoryEncounterRuntimeSubsystem::RunFlowViaProxy(UFlowAsset* FlowAsset, AActor* SourceActor,
+	APlayerController* PlayerController, bool bStopExisting)
+{
+	if (!FlowAsset)
+	{
+		return;
+	}
+
+	UWorld* World = SourceActor ? SourceActor->GetWorld() : nullptr;
+	if (!World && PlayerController)
+	{
+		World = PlayerController->GetWorld();
+	}
+	if (!World)
+	{
+		World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	}
+	if (!World)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StoryEncounter] RunFlowViaProxy skipped: no world for %s."),
+			*GetNameSafe(FlowAsset));
+		return;
+	}
+
+	if (bStopExisting)
+	{
+		for (TActorIterator<AStoryFlowProxy> It(World); It; ++It)
+		{
+			if (It->IsRunningFlow(FlowAsset))
+			{
+				It->StopFlow();
+				It->Destroy();
+			}
+		}
+	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.ObjectFlags |= RF_Transient;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	AStoryFlowProxy* Proxy = World->SpawnActor<AStoryFlowProxy>(
+		AStoryFlowProxy::StaticClass(),
+		FTransform::Identity,
+		SpawnParameters);
+	if (!Proxy)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StoryEncounter] RunFlowViaProxy failed to spawn proxy for %s."),
+			*GetNameSafe(FlowAsset));
+		return;
+	}
+
+	Proxy->ContextSourceActor = SourceActor;
+	Proxy->ContextTransform = SourceActor ? SourceActor->GetActorTransform() : FTransform::Identity;
+	Proxy->ContextPlayerController = PlayerController;
+	Proxy->RunFlow(FlowAsset);
+}
+
 void UStoryEncounterRuntimeSubsystem::ExecuteEncounterAction(FName EncounterId,
 	const FStoryEncounterAction& Action, const FStoryEventContext& Context)
 {
@@ -714,14 +786,6 @@ void UStoryEncounterRuntimeSubsystem::ExecuteEncounterAction(FName EncounterId,
 	if (Action.Kind == EStoryEncounterActionKind::SetPortalOverride)
 	{
 		ExecuteSetPortalOverrideAction(Action, Context);
-		return;
-	}
-
-	UStoryEngineSubsystem* StoryEngine = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>()
-		: nullptr;
-	if (!StoryEngine)
-	{
 		return;
 	}
 
@@ -760,6 +824,23 @@ void UStoryEncounterRuntimeSubsystem::ExecuteEncounterAction(FName EncounterId,
 					return;
 				}
 			}
+			else
+			{
+				APlayerController* PlayerController = Context.PlayerController
+					? Context.PlayerController.Get()
+					: ResolveEncounterPlayer(Context.SourceActor);
+				RunFlowViaProxy(StoryAction.LevelFlow.Get(), Context.SourceActor, PlayerController,
+					StoryAction.bStopExistingStoryFlow);
+				return;
+			}
+		}
+
+		UStoryEngineSubsystem* StoryEngine = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>()
+			: nullptr;
+		if (!StoryEngine)
+		{
+			return;
 		}
 
 		StoryEngine->ExecuteStoryAction(StoryAction, Context);

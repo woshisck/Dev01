@@ -8,6 +8,7 @@
 #include "StoryEncounterTypes.generated.h"
 
 class ARewardPickup;
+class UFlowAsset;
 class ULevelFlowAsset;
 
 UENUM(BlueprintType)
@@ -143,6 +144,9 @@ struct DEVKIT_API FStoryEncounterAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
 	TObjectPtr<ULevelFlowAsset> LevelFlow = nullptr;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	bool bStopExistingStoryFlow = true;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
 	TSubclassOf<ARewardPickup> RewardPickupClass;
 
@@ -196,6 +200,9 @@ struct DEVKIT_API FStoryEncounterNode
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点")
 	TArray<FStoryEncounterAction> Actions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点|Flow")
+	TObjectPtr<UFlowAsset> NodeEventFlow = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点")
 	FName NextNodeId;

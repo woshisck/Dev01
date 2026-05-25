@@ -209,6 +209,17 @@ EP_Wakeup -> EP_MoveHint -> EP_AttackEcho -> EP_DodgeHint -> EP_RuneCardHint -> 
 
 旧字段 `EncounterMap + NodeId` 是兼容旧资产用的，新流程优先使用 `EncounterPoint`。
 
+### 第五步（替代方案）：死亡监听触发器
+
+如果剧情点需要在**角色死亡**时触发（而非玩家进入区域），使用 `AStoryEncounterDeathListener` 替代 `AStoryEncounterTrigger`：
+
+1. 在关卡中放置 `AStoryEncounterDeathListener`
+2. 设置匹配目标（二选一）：`TargetActorName`（按名称精确匹配）或 `TargetActorTag`（按 Tag 匹配，推荐）
+3. 绑定剧情资产（三选一）：`EncounterPoint` 直接绑 DA（推荐）；或 `EncounterMap + NodeId`；或 `EncounterGraph + NodeId`
+4. `bTriggerOnce = true`（默认）：角色死亡后只触发一次
+
+`BeginPlay` 时自动搜索场景内所有匹配角色并绑定，无需 Overlap Box，也无需角色类感知剧情逻辑。
+
 ---
 
 ## 五、Actions 使用说明
@@ -252,7 +263,58 @@ RecordProgress
 
 ---
 
-## 六、第一局前记忆碎片教程示例
+## 六、NodeEventFlow — 节点绑定剧情专属 FA
+
+除 `Actions[]` 之外，每个剧情点 DA 还支持绑定一个 **`NodeEventFlow`**（`UFlowAsset*`）。
+
+`Actions[]` 全部执行完成后，系统自动通过 `AStoryFlowProxy` 启动该 FA。
+
+### 适用场景
+
+- 生成拾取物（不修改角色类，完全由剧情系统驱动）
+- 播放特殊演出序列
+- 解锁特效或触发其他系统
+
+### 与 PlayLevelFlow 的区别
+
+| 对比项 | `PlayLevelFlow`（Action） | `NodeEventFlow` |
+| --- | --- | --- |
+| 触发时机 | Actions[] 内按顺序执行 | Actions[] 全部完成后 |
+| 适用来源 | 关卡触发器、角色死亡均可 | 任意剧情节点 |
+| 上下文 | 通过 Proxy 传递 | 通过 Proxy 传递 |
+
+### 配置方法
+
+在剧情点 DA 的 `NodeEventFlow` 槽绑定一个 `LevelFlowAsset`（继承自 `UFlowAsset`）。
+
+### FA 内可用节点
+
+| 节点名 | 编辑器分类 | 功能 |
+|--------|-----------|------|
+| `Get Story Context` | `LevelEvent \| Story` | 读取触发源的 ContextTransform（位置快照）、SourceActor、PlayerController |
+| `Spawn Reward Pickup` | `LevelEvent \| Reward` | 在 ContextTransform 位置生成奖励拾取物，无需手动接线位置 |
+
+> `ContextTransform` 是触发时立即抓取的快照，适合触发源会复位的场景（如木头人复活后位置归零）。
+
+### 示例：木头人死亡掉落重击卡
+
+```text
+剧情点 DA：EP_FirstRun_TrainingDummyCombo
+  Kind            = Death
+  Actions[]       = [ WeakHint: "击败木头人！" ]
+  NodeEventFlow   = FA_DummyDeath_DropHeavyCard
+
+FA_DummyDeath_DropHeavyCard 节点流程：
+  [Start]
+    → [Spawn Reward Pickup]
+        RewardLootOptions = [ DA_Rune512_Knockback ]
+        RewardSpawnOffset = (120, 0, 20)
+    → [Finish]
+```
+
+---
+
+## 七、第一局前记忆碎片教程示例
 
 建议先做一个流程图：
 

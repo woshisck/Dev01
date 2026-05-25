@@ -1,0 +1,266 @@
+#include "Story/DummyDeathFlowSetupCommandlet.h"
+
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "FileHelpers.h"
+#include "FlowAsset.h"
+#include "Graph/FlowGraph.h"
+#include "Graph/FlowGraphSchema_Actions.h"
+#include "Graph/Nodes/FlowGraphNode.h"
+#include "GameModes/LevelFlowTypes.h"
+#include "LevelFlow/LevelFlowAsset.h"
+#include "LevelFlow/Nodes/LENode_SpawnRewardPickup.h"
+#include "Map/RewardPickup.h"
+#include "Misc/PackageName.h"
+#include "Nodes/Graph/FlowNode_Start.h"
+#include "Story/Encounter/StoryEncounterPointDataAsset.h"
+#include "UObject/Package.h"
+
+namespace DummyDeathFlowSetup
+{
+const FString FlowPackagePath = TEXT("/Game/Story/Flows/Tutorial/FA_DummyDeath_DropHeavyCard");
+const FString PointObjectPath = TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_TrainingDummyCombo.EP_FirstRun_TrainingDummyCombo");
+const FString PickupClassPath = TEXT("/Game/Code/Dungeon/BP_RewardPickup.BP_RewardPickup_C");
+const FString RuneObjectPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback.DA_Rune512_Knockback");
+
+FString ToObjectPath(const FString& PackagePath)
+{
+	return PackagePath + TEXT(".") + FPackageName::GetLongPackageAssetName(PackagePath);
+}
+
+ULevelFlowAsset* LoadOrCreateFlowAsset(TArray<UPackage*>& DirtyPackages, bool& bOutCreated)
+{
+	bOutCreated = false;
+
+	if (ULevelFlowAsset* Existing = LoadObject<ULevelFlowAsset>(nullptr, *ToObjectPath(FlowPackagePath)))
+	{
+		return Existing;
+	}
+
+	UPackage* Package = CreatePackage(*FlowPackagePath);
+	if (!Package)
+	{
+		return nullptr;
+	}
+
+	ULevelFlowAsset* FlowAsset = NewObject<ULevelFlowAsset>(
+		Package,
+		*FPackageName::GetLongPackageAssetName(FlowPackagePath),
+		RF_Public | RF_Standalone | RF_Transactional);
+	if (!FlowAsset)
+	{
+		return nullptr;
+	}
+
+	UFlowGraph::CreateGraph(FlowAsset);
+	FAssetRegistryModule::AssetCreated(FlowAsset);
+	FlowAsset->MarkPackageDirty();
+	DirtyPackages.AddUnique(Package);
+	bOutCreated = true;
+	return FlowAsset;
+}
+
+ULENode_SpawnRewardPickup* FindSpawnRewardNode(ULevelFlowAsset* FlowAsset)
+{
+	if (!FlowAsset)
+	{
+		return nullptr;
+	}
+
+	for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
+	{
+		if (ULENode_SpawnRewardPickup* SpawnNode = Cast<ULENode_SpawnRewardPickup>(Pair.Value))
+		{
+			return SpawnNode;
+		}
+	}
+
+	return nullptr;
+}
+
+UFlowNode_Start* FindStartNode(ULevelFlowAsset* FlowAsset)
+{
+	if (!FlowAsset)
+	{
+		return nullptr;
+	}
+
+	for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
+	{
+		if (UFlowNode_Start* StartNode = Cast<UFlowNode_Start>(Pair.Value))
+		{
+			return StartNode;
+		}
+	}
+
+	return nullptr;
+}
+
+bool ConfigureRewardNode(ULENode_SpawnRewardPickup* SpawnNode)
+{
+	if (!SpawnNode)
+	{
+		return false;
+	}
+
+	TSubclassOf<ARewardPickup> PickupClass = LoadClass<ARewardPickup>(nullptr, *PickupClassPath);
+	if (!PickupClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to load reward pickup class %s."), *PickupClassPath);
+		return false;
+	}
+
+	URuneDataAsset* RuneAsset = LoadObject<URuneDataAsset>(nullptr, *RuneObjectPath);
+	if (!RuneAsset)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to load rune asset %s."), *RuneObjectPath);
+		return false;
+	}
+
+	FLootOption LootOption;
+	LootOption.LootType = ELootType::Rune;
+	LootOption.RuneAsset = RuneAsset;
+
+	SpawnNode->Modify();
+	SpawnNode->RewardPickupClass = PickupClass;
+	SpawnNode->RewardLootOptions.Reset();
+	SpawnNode->RewardLootOptions.Add(LootOption);
+	SpawnNode->RewardPickupCount = 1;
+	SpawnNode->RewardSpawnOffset = FVector(120.f, 0.f, 20.f);
+	SpawnNode->bAllowPickupOutsideArrangement = true;
+	return true;
+}
+
+ULENode_SpawnRewardPickup* EnsureSpawnRewardNode(ULevelFlowAsset* FlowAsset, TArray<UPackage*>& DirtyPackages)
+{
+	if (!FlowAsset)
+	{
+		return nullptr;
+	}
+
+	UEdGraph* Graph = FlowAsset->GetGraph();
+	if (!Graph)
+	{
+		UFlowGraph::CreateGraph(FlowAsset);
+		Graph = FlowAsset->GetGraph();
+	}
+
+	UFlowNode_Start* StartNode = FindStartNode(FlowAsset);
+	UFlowGraphNode* StartGraphNode = StartNode ? Cast<UFlowGraphNode>(StartNode->GetGraphNode()) : nullptr;
+	if (!Graph || !StartGraphNode)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Flow asset %s has no usable start node."), *FlowPackagePath);
+		return nullptr;
+	}
+
+	ULENode_SpawnRewardPickup* SpawnNode = FindSpawnRewardNode(FlowAsset);
+	UFlowGraphNode* SpawnGraphNode = SpawnNode ? Cast<UFlowGraphNode>(SpawnNode->GetGraphNode()) : nullptr;
+	if (!SpawnNode || !SpawnGraphNode)
+	{
+		SpawnGraphNode = FFlowGraphSchemaAction_NewNode::CreateNode(
+			Graph,
+			StartGraphNode->GetOutputPin(0),
+			ULENode_SpawnRewardPickup::StaticClass(),
+			FVector2D(320.f, 0.f),
+			false);
+		SpawnNode = SpawnGraphNode ? Cast<ULENode_SpawnRewardPickup>(SpawnGraphNode->GetFlowNodeBase()) : nullptr;
+	}
+	else if (UEdGraphPin* StartOut = StartGraphNode->GetOutputPin(0))
+	{
+		UEdGraphPin* SpawnIn = SpawnGraphNode->GetInputPin(0);
+		if (SpawnIn && !StartOut->LinkedTo.Contains(SpawnIn))
+		{
+			StartOut->Modify();
+			SpawnIn->Modify();
+			if (const UEdGraphSchema* Schema = Graph->GetSchema())
+			{
+				Schema->TryCreateConnection(StartOut, SpawnIn);
+			}
+		}
+	}
+
+	if (!ConfigureRewardNode(SpawnNode))
+	{
+		return nullptr;
+	}
+
+	FlowAsset->HarvestNodeConnections();
+	FlowAsset->MarkPackageDirty();
+	DirtyPackages.AddUnique(FlowAsset->GetPackage());
+	return SpawnNode;
+}
+
+int32 RemoveInlineRewardActions(UStoryEncounterPointDA* Point)
+{
+	if (!Point)
+	{
+		return 0;
+	}
+
+	const int32 OldNum = Point->Actions.Num();
+	Point->Actions.RemoveAll([](const FStoryEncounterAction& Action)
+	{
+		return Action.Kind == EStoryEncounterActionKind::SpawnRewardPickup;
+	});
+	return OldNum - Point->Actions.Num();
+}
+}
+
+UDummyDeathFlowSetupCommandlet::UDummyDeathFlowSetupCommandlet()
+{
+	IsClient = false;
+	IsEditor = true;
+	IsServer = false;
+	LogToConsole = true;
+}
+
+int32 UDummyDeathFlowSetupCommandlet::Main(const FString& Params)
+{
+	using namespace DummyDeathFlowSetup;
+
+	TArray<UPackage*> DirtyPackages;
+	bool bCreatedFlow = false;
+	ULevelFlowAsset* FlowAsset = LoadOrCreateFlowAsset(DirtyPackages, bCreatedFlow);
+	if (!FlowAsset)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to create/load %s."), *FlowPackagePath);
+		return 1;
+	}
+
+	ULENode_SpawnRewardPickup* SpawnNode = EnsureSpawnRewardNode(FlowAsset, DirtyPackages);
+	if (!SpawnNode)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to configure Spawn Reward Pickup node."));
+		return 1;
+	}
+
+	UStoryEncounterPointDA* Point = LoadObject<UStoryEncounterPointDA>(nullptr, *PointObjectPath);
+	if (!Point)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to load story point %s."), *PointObjectPath);
+		return 1;
+	}
+
+	Point->Modify();
+	Point->Kind = EStoryEncounterNodeKind::Death;
+	Point->Condition.Kind = EStoryEncounterConditionKind::None;
+	Point->FirePolicy = EStoryEncounterFirePolicy::Once;
+	const int32 RemovedRewardActions = RemoveInlineRewardActions(Point);
+	Point->NodeEventFlow = FlowAsset;
+	Point->MarkPackageDirty();
+	DirtyPackages.AddUnique(Point->GetPackage());
+
+	const bool bSaved = UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
+	if (!bSaved)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to save one or more packages."));
+		return 1;
+	}
+
+	UE_LOG(LogTemp, Display, TEXT("[Codex] %s %s, configured spawn node %s, bound NodeEventFlow on %s, removed %d inline reward action(s)."),
+		bCreatedFlow ? TEXT("Created") : TEXT("Updated"),
+		*FlowPackagePath,
+		*GetNameSafe(SpawnNode),
+		*PointObjectPath,
+		RemovedRewardActions);
+	return 0;
+}

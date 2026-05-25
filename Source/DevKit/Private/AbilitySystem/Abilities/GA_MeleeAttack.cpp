@@ -57,7 +57,8 @@ UGA_MeleeAttack::UGA_MeleeAttack()
 	// returns false and the chain dies on the root. Matches GA_PlayMontage behavior.
 	bRetriggerInstancedAbility = true;
 
-	// 鍙楀嚮纭洿 / 鍑婚€€鏈熼棿涓嶅厑璁稿彂鍔ㄦ敾鍑?
+	// Runtime guards that should not depend on Blueprint class defaults.
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Dead"));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.HitReact"));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Knockback"));
 }

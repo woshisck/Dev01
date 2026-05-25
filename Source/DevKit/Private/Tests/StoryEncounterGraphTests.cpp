@@ -7,6 +7,7 @@
 #include "Story/Encounter/StoryEncounterGraphNode.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
+#include "FlowAsset.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterGraphDefaultsTest,
 	"DevKit.StoryEncounter.GraphDefaultsToStoryEncounterTypes",
@@ -47,6 +48,7 @@ bool FStoryEncounterPointConvertsToNodeTest::RunTest(const FString& Parameters)
 	HintAction.Title = FText::FromString(TEXT("残影"));
 	HintAction.Body = FText::FromString(TEXT("靠近残影，观察它的动作。"));
 	Point->Actions.Add(HintAction);
+	Point->NodeEventFlow = NewObject<UFlowAsset>(Point);
 
 	const FStoryEncounterNode Node = Point->ToEncounterNode();
 
@@ -56,6 +58,7 @@ bool FStoryEncounterPointConvertsToNodeTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Player event is copied"), Node.PlayerFacingEvent.EqualTo(Point->PlayerFacingEvent));
 	TestEqual(TEXT("Actions are copied"), Node.Actions.Num(), 1);
 	TestEqual(TEXT("Weak hint action survives conversion"), Node.Actions[0].Kind, EStoryEncounterActionKind::WeakHint);
+	TestEqual(TEXT("Node event flow is copied"), Node.NodeEventFlow.Get(), Point->NodeEventFlow.Get());
 	return true;
 }
 

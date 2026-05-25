@@ -8,6 +8,7 @@
 
 class APlayerCharacterBase;
 class UGameplayAbilityComboGraph;
+class UAnimMontage;
 struct FCombatDeckActionContext;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -54,10 +55,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combo")
 	FName GetActiveNodeId() const { return ActiveNode.NodeId; }
 
+	UFUNCTION(BlueprintPure, Category = "Combo")
+	UAnimMontage* GetActiveDashMontageOverride() const { return ActiveDashMontageOverride; }
+
 	const FWeaponComboNodeConfig* GetActiveNode() const;
 	void RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle);
 	bool HandleAttackAbilityEnded(const FGuid& EndedAttackGuid);
 	FCombatDeckActionContext BuildAttackContext(ECombatCardTriggerTiming TriggerTiming, APlayerCharacterBase* PlayerOwner) const;
+
+#if WITH_DEV_AUTOMATION_TESTS
+	void SetActiveDashMontageOverrideForTest(UAnimMontage* Montage) { ActiveDashMontageOverride = Montage; }
+#endif
 
 private:
 	UPROPERTY()
@@ -65,6 +73,9 @@ private:
 
 	UPROPERTY()
 	FWeaponComboNodeConfig ActiveNode;
+
+	UPROPERTY()
+	TObjectPtr<UAnimMontage> ActiveDashMontageOverride = nullptr;
 
 	FGameplayAbilitySpecHandle ActiveAbilitySpecHandle;
 	FTimerHandle DashSaveExpireTimerHandle;

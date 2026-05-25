@@ -3,7 +3,9 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/PackageName.h"
 #include "Component/CombatDeckComponent.h"
+#include "Component/ComboRuntimeComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "AbilitySystem/Abilities/GA_PlayerDash.h"
 #include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
 #include "AbilitySystem/GameplayEffect/GE_RuneBurn.h"
 #include "AbilitySystem/Execution/GEExec_BurnDamage.h"
@@ -33,7 +35,9 @@
 #include "Data/RuneDataAsset.h"
 #include "Data/RuneCardEffectProfileDA.h"
 #include "Data/WeaponComboConfigDA.h"
+#include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
+#include "Item/Weapon/WeaponDefinition.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/World.h"
@@ -287,6 +291,231 @@ bool FStateConflictHitReactBlocksMovementControlTest::RunTest(const FString& Par
 
 	Character->Destroy();
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FComboGraphMeleeAbilityHasActionAndDeathGuardsTest,
+	"DevKit.CombatDeck.ComboGraphMeleeAbilityHasActionAndDeathGuards",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FComboGraphMeleeAbilityHasActionAndDeathGuardsTest::RunTest(const FString& Parameters)
+{
+	UGA_MeleeAttack* Ability = NewObject<UGA_MeleeAttack>();
+	const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"));
+
+	TestTrue(TEXT("Generic ComboGraph melee ability is blocked while dead"),
+		Ability->GetActivationBlockedTags().HasTagExact(DeadTag));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerDashHasDefaultInterruptAndDeathGuardsTest,
+	"DevKit.CombatDeck.PlayerDashHasDefaultInterruptAndDeathGuards",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerDashHasDefaultInterruptAndDeathGuardsTest::RunTest(const FString& Parameters)
+{
+	UGA_PlayerDash* Ability = NewObject<UGA_PlayerDash>();
+	const FGameplayTag DashTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"));
+	const FGameplayTag ActionTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast"));
+	const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"));
+
+	TestTrue(TEXT("Dash ability carries the dash action tag by default"),
+		Ability->GetAbilityTags().HasTagExact(DashTag));
+	TestTrue(TEXT("Dash ability owns the dash action tag while active"),
+		Ability->GetActivationOwnedTags().HasTagExact(DashTag));
+	TestTrue(TEXT("Dash cancels currently active action abilities by default"),
+		Ability->GetCancelAbilitiesWithTag().HasTagExact(ActionTag));
+	TestTrue(TEXT("Dash cannot activate while dead"),
+		Ability->GetActivationBlockedTags().HasTagExact(DeadTag));
+	TestTrue(TEXT("Dash cannot retrigger while another dash action is active"),
+		Ability->GetActivationBlockedTags().HasTagExact(DashTag));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerDashPrefersComboGraphMontageOverrideTest,
+	"DevKit.CombatDeck.PlayerDashPrefersComboGraphMontageOverride",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerDashPrefersComboGraphMontageOverrideTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for dash montage override test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for dash montage override test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+	TestNotNull(TEXT("Player has ComboRuntimeComponent"), Player->ComboRuntimeComponent.Get());
+	if (!Player->ComboRuntimeComponent)
+	{
+		Player->Destroy();
+		return false;
+	}
+
+	UAnimMontage* GraphDashMontage = NewObject<UAnimMontage>(Player);
+	Player->ComboRuntimeComponent->SetActiveDashMontageOverrideForTest(GraphDashMontage);
+
+	UGA_PlayerDash* Ability = NewObject<UGA_PlayerDash>();
+	const FGameplayTag DashTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"));
+	TestEqual(TEXT("Dash GA resolves the ComboGraph dash node montage before AbilityData fallback"),
+		Ability->ResolveDashMontage(Player, DashTag), GraphDashMontage);
+
+	Player->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerDeathClearsComboRuntimeStateTest,
+	"DevKit.CombatDeck.PlayerDeathClearsComboRuntimeState",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerDeathClearsComboRuntimeStateTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for player death combo runtime test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for death combo runtime test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	UYogAbilitySystemComponent* ASC = Player->GetASC();
+	TestNotNull(TEXT("Player has Yog ASC"), ASC);
+	TestNotNull(TEXT("Player has ComboRuntimeComponent"), Player->ComboRuntimeComponent.Get());
+	if (!ASC || !Player->ComboRuntimeComponent)
+	{
+		Player->Destroy();
+		return false;
+	}
+
+	ASC->InitAbilityActorInfo(Player, Player);
+
+	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>(Player);
+	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
+	Root->Graph = Graph;
+	Root->NodeId = TEXT("L1");
+	Root->RootInputAction = EYogComboGraphInputAction::Light;
+	Root->Montage = NewObject<UAnimMontage>(Graph);
+	Graph->AllNodes = { Root };
+	Graph->RootNodes = { Root };
+
+	Player->ComboRuntimeComponent->LoadComboGraph(Graph);
+	TestTrue(TEXT("Combo runtime can enter an active graph node before death"),
+		Player->ComboRuntimeComponent->TryActivateComboGraphNode(EYogComboGraphInputAction::Light, FGameplayTagContainer()));
+	TestEqual(TEXT("Combo runtime stores current node before death"),
+		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(TEXT("L1")));
+	TestTrue(TEXT("Combo runtime stores active attack guid before death"),
+		Player->ComboRuntimeComponent->GetActiveAttackGuid().IsValid());
+
+	Player->Die();
+
+	TestEqual(TEXT("Player death clears current combo node"),
+		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(NAME_None));
+	TestEqual(TEXT("Player death clears active graph node"),
+		Player->ComboRuntimeComponent->GetActiveGraphNodeId(), FName(NAME_None));
+	TestFalse(TEXT("Player death clears active attack guid"),
+		Player->ComboRuntimeComponent->GetActiveAttackGuid().IsValid());
+
+	Player->Destroy();
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerDefaultUnarmedComboGraphLoadsFallbackTest,
+	"DevKit.CombatDeck.PlayerDefaultUnarmedComboGraphLoadsFallback",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerDefaultUnarmedComboGraphLoadsFallbackTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for unarmed combo fallback test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for unarmed combo fallback test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	TestNotNull(TEXT("Player has a C++ default unarmed combo graph asset"),
+		Player->DefaultUnarmedComboGraph.Get());
+	if (Player->DefaultUnarmedComboGraph)
+	{
+		TestEqual(TEXT("Default unarmed combo graph points at the Disarm graph asset"),
+			Player->DefaultUnarmedComboGraph->GetPathName(),
+			FString(TEXT("/Game/Code/Weapon/Disarm/GA_ComboGraph_Disarm.GA_ComboGraph_Disarm")));
+	}
+
+	UGameplayAbilityComboGraph* DefaultGraph = NewObject<UGameplayAbilityComboGraph>(Player);
+	Player->DefaultUnarmedComboGraph = DefaultGraph;
+	Player->ApplyDefaultUnarmedComboGraph();
+
+	TestTrue(TEXT("Default unarmed combo graph becomes the active combo graph"),
+		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == DefaultGraph);
+	TestTrue(TEXT("Default unarmed combo graph counts as a combo source"),
+		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->HasComboSource());
+
+	Player->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerWeaponComboGraphOverridesAndResetToUnarmedTest,
+	"DevKit.CombatDeck.PlayerWeaponComboGraphOverridesAndResetToUnarmed",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerWeaponComboGraphOverridesAndResetToUnarmedTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for weapon combo override test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for weapon combo override test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	UGameplayAbilityComboGraph* DefaultGraph = NewObject<UGameplayAbilityComboGraph>(Player);
+	UGameplayAbilityComboGraph* WeaponGraph = NewObject<UGameplayAbilityComboGraph>(Player);
+	UWeaponDefinition* WeaponDef = NewObject<UWeaponDefinition>(Player);
+	WeaponDef->GameplayAbilityComboGraph = WeaponGraph;
+
+	Player->DefaultUnarmedComboGraph = DefaultGraph;
+	Player->ApplyDefaultUnarmedComboGraph();
+	Player->ApplyComboGraphFromWeapon(WeaponDef);
+
+	TestTrue(TEXT("Weapon combo graph overrides default unarmed graph"),
+		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == WeaponGraph);
+
+	Player->EquippedWeaponDef = WeaponDef;
+	Player->ResetToDefaultUnarmedCombatState();
+
+	TestNull(TEXT("Reset to unarmed clears equipped weapon definition"), Player->EquippedWeaponDef.Get());
+	TestTrue(TEXT("Reset to unarmed restores default combo graph"),
+		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == DefaultGraph);
+
+	Player->Destroy();
 	return true;
 }
 

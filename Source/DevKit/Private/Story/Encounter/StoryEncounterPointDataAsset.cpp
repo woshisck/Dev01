@@ -20,6 +20,7 @@ FStoryEncounterNode UStoryEncounterPointDA::ToEncounterNode() const
 	Node.FirePolicy = FirePolicy;
 	Node.Condition = Condition;
 	Node.Actions = Actions;
+	Node.NodeEventFlow = NodeEventFlow;
 	Node.EditorPosition = EditorPosition;
 	return Node;
 }

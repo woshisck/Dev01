@@ -6,6 +6,8 @@
 
 class AActor;
 class ACharacter;
+class APlayerCharacterBase;
+class UAnimMontage;
 class UPrimitiveComponent;
 struct FCollisionQueryParams;
 struct FCollisionShape;
@@ -39,6 +41,8 @@ class DEVKIT_API UGA_PlayerDash : public UYogGameplayAbility
 
 public:
 	UGA_PlayerDash();
+
+	UAnimMontage* ResolveDashMontage(APlayerCharacterBase* Player, const FGameplayTag& AbilityTag) const;
 
 	// ── 策划配置 ─────────────────────────────────────────────────────────────
 
