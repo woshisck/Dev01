@@ -22,7 +22,9 @@ UYogAbilitySystemComponent* UYogAbilityTask_PlayMontageAndWaitForEvent::GetTarge
 
 void UYogAbilityTask_PlayMontageAndWaitForEvent::OnMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted)
 {
-	if (Ability && Ability->GetCurrentMontage() == MontageToPlay)
+	const bool bIsCurrentMontage = Ability && Ability->GetCurrentMontage() == MontageToPlay;
+
+	if (bIsCurrentMontage)
 	{
 		if (Montage == MontageToPlay)
 		{
@@ -35,8 +37,14 @@ void UYogAbilityTask_PlayMontageAndWaitForEvent::OnMontageBlendingOut(UAnimMonta
 			{
 				Character->SetAnimRootMotionTranslationScale(1.f);
 			}
-
 		}
+	}
+	else
+	{
+		// Ability has moved to a new montage (combo retrigger). This stale task should
+		// not fire End/Interrupt callbacks - the new activation is already running.
+		EndTask();
+		return;
 	}
 
 	if (bInterrupted)

@@ -287,7 +287,9 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	}
 
 	CommitPreparedComboActivation();
-	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
+	// Do NOT clear ActiveAbilitySpecHandle here — RegisterActiveAttackAbility already set it
+	// to the new activation's handle during TryActivateAbilityByClass. Clearing it would
+	// prevent CancelAbilityHandle from cancelling the current ability on the next combo hit.
 
 	if (bUseDashSavedNode && PlayerOwner->CombatDeckComponent)
 	{
@@ -466,6 +468,14 @@ void UComboRuntimeComponent::NotifyDashEnded(bool bWasCancelled)
 	{
 		ClearRuntimeCombatLooseTags();
 	}
+
+	// The dash ability never calls HandleAttackAbilityEnded, so ActiveAttackGuid and
+	// ActiveAbilitySpecHandle from the committed dash node remain valid after the dash
+	// ends. This makes bHasActiveAttackNode stay true, which blocks all root-fallback
+	// attacks (since the dash node has no Light/Heavy children). Clear them here so the
+	// player can attack again after dashing.
+	ClearPreparedComboActivation();
+	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
 }
 
 void UComboRuntimeComponent::ClearRuntimeCombatLooseTags()
