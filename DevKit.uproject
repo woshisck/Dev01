@@ -5,6 +5,14 @@
 	"Description": "",
 	"Modules": [
 		{
+			"Name": "DevKitShaders",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"AdditionalDependencies": [
+				"RenderCore"
+			]
+		},
+		{
 			"Name": "DevKit",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
