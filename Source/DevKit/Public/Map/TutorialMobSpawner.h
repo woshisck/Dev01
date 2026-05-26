@@ -26,6 +26,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tutorial|Spawn", meta = (ClampMin = "0.0"))
 	float RespawnDelay = 5.0f;
 
+	/** 大于 0 时覆盖教程敌人的 MaxHealth/Health，避免训练木头人被默认低血量一刀击杀。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tutorial|Spawn", meta = (ClampMin = "0.0"))
+	float SpawnedMobMaxHealthOverride = 100.0f;
+
 	/** 为 true 时在 BeginPlay 直接激活，用于调试。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tutorial|Spawn")
 	bool bActivateOnBeginPlay = false;
@@ -46,6 +50,9 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 
 private:
+	AEnemyCharacterBase* SpawnTutorialMobAtLocation(TSubclassOf<AEnemyCharacterBase> EnemyClass, const FVector& SpawnLocation);
+	void ConfigureSpawnedMob(AEnemyCharacterBase* Mob) const;
+	void ApplySpawnedMobHealthOverride(AEnemyCharacterBase* Mob) const;
 	void DoSpawnMob();
 	void HandleMobDied(AYogCharacterBase* Mob);
 

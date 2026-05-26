@@ -43,6 +43,9 @@ public:
 	 */
 	void AssignLoot(const TArray<FLootOption>& InLoot);
 
+	/** 重新应用当前拾取许可到可见性和 overlap；Story 节点运行时改 bAllowPickupOutsideArrangement 后需要调用。 */
+	void RefreshPickupAvailability();
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Fixed")
 	bool bUseFixedLootOptions = false;
 

@@ -2,10 +2,13 @@
 
 #include "Misc/AutomationTest.h"
 
+#include "AbilitySystemComponent.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Character/TrainingDummyCharacter.h"
 #include "EngineUtils.h"
 #include "Map/TutorialMobSpawner.h"
+#include "Mob/MobSpawner.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialMobSpawnerTrainingDummyCanDestroyTest,
 	"DevKit.TutorialMobSpawner.TrainingDummyCanDestroyInsteadOfReset",
@@ -109,9 +112,69 @@ bool FTutorialMobSpawnerActivateSpawnsAtSpawnerLocationTest::RunTest(const FStri
 		TestEqual(TEXT("Tutorial enemy spawns at spawner location plus Z offset"),
 			SpawnedEnemy->GetActorLocation(),
 			SpawnerLocation + FVector(0.f, 0.f, Spawner->SpawnZOffset));
+
+		if (UAbilitySystemComponent* ASC = SpawnedEnemy->GetAbilitySystemComponent())
+		{
+			if (ASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetMaxHealthAttribute())
+				&& ASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetHealthAttribute()))
+			{
+				TestEqual(TEXT("Tutorial enemy max health override applied"),
+					ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute()),
+					Spawner->SpawnedMobMaxHealthOverride);
+				TestEqual(TEXT("Tutorial enemy health override applied"),
+					ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute()),
+					Spawner->SpawnedMobMaxHealthOverride);
+			}
+		}
 		SpawnedEnemy->Destroy();
 	}
 
+	Spawner->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMobSpawnerStorySpawnUsesRegularSpawnerTest,
+	"DevKit.MobSpawner.StorySpawnUsesRegularSpawner",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FMobSpawnerStorySpawnUsesRegularSpawnerTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Test world exists"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	const FVector SpawnerLocation(321.f, 654.f, 87.f);
+	AMobSpawner* Spawner = World->SpawnActor<AMobSpawner>(
+		AMobSpawner::StaticClass(),
+		SpawnerLocation,
+		FRotator::ZeroRotator);
+	TestNotNull(TEXT("Regular mob spawner spawned"), Spawner);
+	if (!Spawner)
+	{
+		return false;
+	}
+
+	Spawner->SpawnZOffset = 96.f;
+	FStoryMobSpawnOptions Options;
+	Options.EnemyClassOverride = AEnemyCharacterBase::StaticClass();
+	Options.bSpawnAtSpawnerLocation = true;
+	Options.bCountsForLevelClear = false;
+	Options.bRespawnOnDeath = false;
+
+	AEnemyCharacterBase* SpawnedEnemy = Spawner->SpawnMobForStory(Options);
+	TestNotNull(TEXT("Regular spawner can story-spawn an enemy"), SpawnedEnemy);
+	if (SpawnedEnemy)
+	{
+		TestFalse(TEXT("Story-spawned enemy can opt out of level clear"), SpawnedEnemy->bCountsForLevelClear);
+		TestEqual(TEXT("Story-spawned enemy uses spawner location plus Z offset"),
+			SpawnedEnemy->GetActorLocation(),
+			SpawnerLocation + FVector(0.f, 0.f, Spawner->SpawnZOffset));
+	}
+
+	Spawner->ClearStorySpawnedMob();
 	Spawner->Destroy();
 	return true;
 }

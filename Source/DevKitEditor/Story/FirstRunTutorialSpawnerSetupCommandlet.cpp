@@ -1,18 +1,12 @@
 #include "Story/FirstRunTutorialSpawnerSetupCommandlet.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetToolsModule.h"
 #include "Character/EnemyCharacterBase.h"
-#include "Factories/BlueprintFactory.h"
 #include "FileHelpers.h"
 #include "FlowAsset.h"
 #include "Graph/FlowGraph.h"
 #include "Graph/FlowGraphSchema_Actions.h"
 #include "Graph/Nodes/FlowGraphNode.h"
-#include "IAssetTools.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "Kismet2/KismetEditorUtilities.h"
-#include "Map/TutorialMobSpawner.h"
 #include "Misc/PackageName.h"
 #include "Nodes/Graph/FlowNode_Start.h"
 #include "Story/Flow/StoryFlowAsset.h"
@@ -23,7 +17,6 @@
 
 namespace FirstRunTutorialSpawnerSetup
 {
-const FString SpawnerBlueprintPath = TEXT("/Game/Code/Core/System/B_TutorialMobSpawner");
 const FString ActivateFlowPath = TEXT("/Game/Story/Flows/Tutorial/FA_ActivateTutorialDummySpawner");
 const FString HubMovePointPath = TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_HubMoveHint");
 const FString PickupPointPath = TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_WeaponPickupActivateDummy");
@@ -43,37 +36,6 @@ template<typename AssetT>
 AssetT* LoadAssetByPackagePath(const FString& PackagePath)
 {
 	return Cast<AssetT>(StaticLoadObject(AssetT::StaticClass(), nullptr, *ToObjectPath(PackagePath)));
-}
-
-UBlueprint* LoadOrCreateSpawnerBlueprint(TArray<UPackage*>& DirtyPackages, bool& bOutCreated)
-{
-	bOutCreated = false;
-
-	if (UBlueprint* Existing = LoadAssetByPackagePath<UBlueprint>(SpawnerBlueprintPath))
-	{
-		return Existing;
-	}
-
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	UBlueprintFactory* Factory = NewObject<UBlueprintFactory>();
-	Factory->BlueprintType = BPTYPE_Normal;
-	Factory->ParentClass = ATutorialMobSpawner::StaticClass();
-
-	UBlueprint* Blueprint = Cast<UBlueprint>(AssetTools.CreateAsset(
-		FPackageName::GetLongPackageAssetName(SpawnerBlueprintPath),
-		FPackageName::GetLongPackagePath(SpawnerBlueprintPath),
-		UBlueprint::StaticClass(),
-		Factory));
-
-	if (Blueprint)
-	{
-		FKismetEditorUtilities::CompileBlueprint(Blueprint);
-		FAssetRegistryModule::AssetCreated(Blueprint);
-		Blueprint->MarkPackageDirty();
-		DirtyPackages.AddUnique(Blueprint->GetPackage());
-		bOutCreated = true;
-	}
-	return Blueprint;
 }
 
 UStoryEncounterPointDA* LoadOrCreateStoryPoint(TArray<UPackage*>& DirtyPackages, bool& bOutCreated)
@@ -233,7 +195,10 @@ void BreakPinConnection(UEdGraphPin* FromPin, UEdGraphPin* ToPin)
 	FromPin->BreakLinkTo(ToPin);
 }
 
-USNode_ActivateTutorialSpawner* EnsureActivateNode(UStoryFlowAsset* FlowAsset, TArray<UPackage*>& DirtyPackages)
+USNode_ActivateTutorialSpawner* EnsureActivateNode(
+	UStoryFlowAsset* FlowAsset,
+	UStoryEncounterPointDA* TrainingDummyPoint,
+	TArray<UPackage*>& DirtyPackages)
 {
 	if (!FlowAsset)
 	{
@@ -309,56 +274,20 @@ USNode_ActivateTutorialSpawner* EnsureActivateNode(UStoryFlowAsset* FlowAsset, T
 	{
 		ActivateNode->Modify();
 		ActivateNode->SpawnerActorTag = TEXT("TutorialDummy");
+		ActivateNode->EnemyClassOverride = LoadClass<AEnemyCharacterBase>(nullptr, *TutorialDummyClassPath);
+		ActivateNode->bSpawnAtSpawnerLocation = true;
+		ActivateNode->bCountsForLevelClear = false;
+		ActivateNode->bUnregisterFromEnemyAwareness = true;
+		ActivateNode->MaxHealthOverride = 0.0f;
+		ActivateNode->bRespawnOnDeath = true;
+		ActivateNode->RespawnDelay = 5.0f;
+		ActivateNode->OnKillEncounterPoint = TrainingDummyPoint;
 	}
 
 	FlowAsset->HarvestNodeConnections();
 	FlowAsset->MarkPackageDirty();
 	DirtyPackages.AddUnique(FlowAsset->GetPackage());
 	return ActivateNode;
-}
-
-bool ConfigureSpawnerBlueprint(UBlueprint* Blueprint, UStoryEncounterPointDA* TrainingDummyPoint, TArray<UPackage*>& DirtyPackages)
-{
-	if (!Blueprint)
-	{
-		return false;
-	}
-
-	if (!Blueprint->GeneratedClass)
-	{
-		FKismetEditorUtilities::CompileBlueprint(Blueprint);
-	}
-
-	ATutorialMobSpawner* DefaultSpawner = Blueprint->GeneratedClass
-		? Cast<ATutorialMobSpawner>(Blueprint->GeneratedClass->GetDefaultObject())
-		: nullptr;
-	if (!DefaultSpawner)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Blueprint %s is not an ATutorialMobSpawner blueprint."), *SpawnerBlueprintPath);
-		return false;
-	}
-
-	TSubclassOf<AEnemyCharacterBase> DummyClass = LoadClass<AEnemyCharacterBase>(nullptr, *TutorialDummyClassPath);
-	if (!DummyClass)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to load tutorial dummy class %s."), *TutorialDummyClassPath);
-		return false;
-	}
-
-	DefaultSpawner->Modify();
-	DefaultSpawner->EnemySpawnClassis.Reset();
-	DefaultSpawner->EnemySpawnClassis.Add(DummyClass);
-	DefaultSpawner->RespawnDelay = 5.0f;
-	DefaultSpawner->bActivateOnBeginPlay = false;
-	DefaultSpawner->OnKillEncounterPoint = TrainingDummyPoint;
-	DefaultSpawner->SpawnRadius = 0.0f;
-	DefaultSpawner->SpawnZOffset = 96.0f;
-
-	FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-	FKismetEditorUtilities::CompileBlueprint(Blueprint);
-	Blueprint->MarkPackageDirty();
-	DirtyPackages.AddUnique(Blueprint->GetPackage());
-	return true;
 }
 
 bool ConfigurePickupPoint(UStoryEncounterPointDA* Point, UStoryFlowAsset* ActivateFlow, TArray<UPackage*>& DirtyPackages)
@@ -486,6 +415,13 @@ int32 UFirstRunTutorialSpawnerSetupCommandlet::Main(const FString& Params)
 
 	TArray<UPackage*> DirtyPackages;
 
+	UStoryEncounterPointDA* TrainingDummyPoint = LoadAssetByPackagePath<UStoryEncounterPointDA>(TrainingDummyPointPath);
+	if (!TrainingDummyPoint)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to load %s."), *TrainingDummyPointPath);
+		return 1;
+	}
+
 	bool bCreatedFlow = false;
 	UStoryFlowAsset* ActivateFlow = LoadOrCreateFlowAsset(DirtyPackages, bCreatedFlow);
 	if (!ActivateFlow)
@@ -494,7 +430,7 @@ int32 UFirstRunTutorialSpawnerSetupCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	USNode_ActivateTutorialSpawner* ActivateNode = EnsureActivateNode(ActivateFlow, DirtyPackages);
+	USNode_ActivateTutorialSpawner* ActivateNode = EnsureActivateNode(ActivateFlow, TrainingDummyPoint, DirtyPackages);
 	if (!ActivateNode)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to configure Activate Tutorial Spawner node."));
@@ -517,26 +453,6 @@ int32 UFirstRunTutorialSpawnerSetupCommandlet::Main(const FString& Params)
 
 	const bool bConfiguredWeaponVisibility = ConfigureTutorialWeaponVisibility(DirtyPackages);
 
-	UStoryEncounterPointDA* TrainingDummyPoint = LoadAssetByPackagePath<UStoryEncounterPointDA>(TrainingDummyPointPath);
-	if (!TrainingDummyPoint)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to load %s."), *TrainingDummyPointPath);
-		return 1;
-	}
-
-	bool bCreatedSpawnerBlueprint = false;
-	UBlueprint* SpawnerBlueprint = LoadOrCreateSpawnerBlueprint(DirtyPackages, bCreatedSpawnerBlueprint);
-	if (!SpawnerBlueprint)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to create/load %s."), *SpawnerBlueprintPath);
-		return 1;
-	}
-
-	if (!ConfigureSpawnerBlueprint(SpawnerBlueprint, TrainingDummyPoint, DirtyPackages))
-	{
-		return 1;
-	}
-
 	const bool bSaved = UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 	if (!bSaved)
 	{
@@ -544,14 +460,14 @@ int32 UFirstRunTutorialSpawnerSetupCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("[FirstRunTutorialSpawnerSetup] %s %s, %s %s, %s %s, weapon visibility=%s. Activate node tag=%s."),
-		bCreatedSpawnerBlueprint ? TEXT("Created") : TEXT("Updated"),
-		*SpawnerBlueprintPath,
+	UE_LOG(LogTemp, Display, TEXT("[FirstRunTutorialSpawnerSetup] %s %s, %s %s, weapon visibility=%s. Story spawn tag=%s enemy=%s killPoint=%s."),
 		bCreatedFlow ? TEXT("created") : TEXT("updated"),
 		*ActivateFlowPath,
 		bCreatedPickupPoint ? TEXT("created") : TEXT("updated"),
 		*PickupPointPath,
 		bConfiguredWeaponVisibility ? TEXT("configured") : TEXT("not configured"),
-		*ActivateNode->SpawnerActorTag.ToString());
+		*ActivateNode->SpawnerActorTag.ToString(),
+		*GetNameSafe(ActivateNode->EnemyClassOverride.Get()),
+		*GetNameSafe(ActivateNode->OnKillEncounterPoint));
 	return 0;
 }

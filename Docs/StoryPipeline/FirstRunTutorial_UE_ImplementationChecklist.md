@@ -9,20 +9,20 @@
 - 移动提示 Trigger 已摆放并配置。
 - 冲刺提示 Trigger 已摆放并配置。
 - 武器相关 Actor Tag 已配置。
-- 教程木头人生成逻辑已走 `B_TutorialMobSpawner` / `ATutorialMobSpawner`。
+- 教程木头人生成逻辑已改为普通 `B_MobSpawner` / `AMobSpawner::SpawnMobForStory()`。
 - `FA_ActivateTutorialDummySpawner` 和 `FA_DummyDeath_DropHeavyCard` 已重建为 Story Director Flow 类型。
 - `FA_ActivateTutorialDummySpawner` 已自动包含：
   - `SNode_SetActorEnabled(Story.FirstRun.DemoWeapon, true)`
   - `SNode_ActivateTutorialSpawner(TutorialDummy)`
 - `EP_FirstRun_HubMoveHint` 已自动包含：
   - `SetActorEnabled(Story.MainRun.StartWeapon, false)`
-- `ATutorialMobSpawner` 激活后会直接按 Spawner 位置刷出木头人，不再依赖 NavMesh 随机投影。
+- 普通 `AMobSpawner` 已有默认 Root，Story Spawn 会按 Spawner 位置刷出木头人，不再依赖 NavMesh 随机投影。
 
 仍需在 UE 中完成：
 
 - 正常流程起始武器在教程中不应默认显示，需要由 Story Encounter 动作隐藏，再在教程完成后显示。
 - 首局教程演示武器默认隐藏这一步仍需在关卡 Actor 上确认。
-- 摆放并配置 `B_TutorialMobSpawner`。
+- 摆放并配置普通 `B_MobSpawner`。
 - 配置教程传送门、房间奖励、月光房、过渡房、祈愿房。
 - 完整 PIE 验证第一局教程链路。
 
@@ -147,16 +147,16 @@
 
 在教程主城中摆放：
 
-- Blueprint：`/Game/Code/Core/System/B_TutorialMobSpawner`
+- Blueprint：`/Game/Code/Core/System/B_MobSpawner`
 - Actor Tag：`TutorialDummy`
-- `EnemySpawnClassis[0]`：教程木头人 BP，例如 `B_EnemyDummy_Tutorial`
-- `OnKillEncounterPoint`：`/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_TrainingDummyCombo`
+- `EnemySpawnClassis[0]`：可填教程木头人 BP，例如 `B_EnemyDummy_Tutorial`，作为普通 Spawner 的兜底配置；当前 Story FA 已通过 `EnemyClassOverride` 指定该类。
+- 不需要在 Spawner Actor 上配置 `OnKillEncounterPoint`；击杀触发点由 `FA_ActivateTutorialDummySpawner` 中的 `SNode_ActivateTutorialSpawner.OnKillEncounterPoint` 指向 `EP_FirstRun_TrainingDummyCombo`。
 - 生成位置面向玩家，避免刷在墙体、不可达区域或传送门旁边。
 
 行为预期：
 
 - 玩家拾取教程武器后，通过 `FA_ActivateTutorialDummySpawner` 激活。
-- 生成逻辑仍复用父类 `AMobSpawner::SpawnMobAtLocation()`。
+- 生成逻辑走普通 `AMobSpawner::SpawnMobForStory()`，内部复用 `SpawnMobAtLocation()` 的生成 FX / AI Controller / 生成位置逻辑。
 - 生成的木头人不参与房间清怪统计。
 - 木头人死亡后 5 秒再次刷新。
 
@@ -317,6 +317,6 @@
 - 正常流程起始武器仍显示：检查 `EP_FirstRun_HubMoveHint` 或更早教程入口 Encounter 是否有 `SetActorEnabled(false)`。
 - `SetActorEnabled` 无效：检查 Actor Name 和 Actor Tag 是否与动作配置完全一致。
 - 教程武器不显示：检查 `EP_FirstRun_HubDashHint` 是否触发，以及 `SetActorEnabled(true)` 目标是否正确。
-- 木头人不刷：检查 Spawner 的 Actor Tag 是否为 `TutorialDummy`，以及拾取武器 Encounter 是否执行 `FA_ActivateTutorialDummySpawner`；日志应出现 `[SNode_ActivateTutorialSpawner] Activating ...` 和 `[TutorialMobSpawner] ... spawned ...`。
-- 木头人刷了但影响清怪：检查 `ATutorialMobSpawner` 是否正确 unregister enemy。
+- 木头人不刷：检查普通 `B_MobSpawner` 的 Actor Tag 是否为 `TutorialDummy`，以及拾取武器 Encounter 是否执行 `FA_ActivateTutorialDummySpawner`；日志应出现 `[SNode_ActivateTutorialSpawner] Story spawning from ...` 和 `[MobSpawner][StorySpawn] ... spawned ...`。
+- 木头人刷了但影响清怪：检查 `SNode_ActivateTutorialSpawner` 中 `bCountsForLevelClear=false`、`bUnregisterFromEnemyAwareness=true` 是否仍保持。
 - 掉卡重复：检查 `FA_DummyDeath_DropHeavyCard` / 对应 Encounter 的一次性策略。

@@ -34,11 +34,7 @@ void ARewardPickup::BeginPlay()
 		AssignLoot(FixedLootOptions);
 	}
 
-	if (CollisionVolume)
-	{
-		CollisionVolume->SetGenerateOverlapEvents(IsPickupAllowed());
-	}
-	SetActorHiddenInGame(!IsPickupAllowed());
+	RefreshPickupAvailability();
 }
 
 void ARewardPickup::Tick(float DeltaTime)
@@ -134,6 +130,17 @@ void ARewardPickup::AssignLoot(const TArray<FLootOption>& InLoot)
 			FloatWidget->SetLootOptions(AssignedLoot);
 		}
 	}
+}
+
+void ARewardPickup::RefreshPickupAvailability()
+{
+	const bool bAllowed = IsPickupAllowed();
+	if (CollisionVolume)
+	{
+		CollisionVolume->SetGenerateOverlapEvents(bAllowed);
+	}
+	SetActorEnableCollision(bAllowed);
+	SetActorHiddenInGame(!bAllowed);
 }
 
 void ARewardPickup::TryPickup(APlayerCharacterBase* Player)

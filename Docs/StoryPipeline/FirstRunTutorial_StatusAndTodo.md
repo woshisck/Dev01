@@ -15,9 +15,9 @@
 
 - `ATrainingDummyCharacter`：`FinishDying()` 广播 `OnCharacterDied`，支持故事系统接收死亡事件
 - `AStoryEncounterDeathListener`：关卡 Actor，按 Tag/Name 绑定死亡委托触发剧情
-- `ATutorialMobSpawner`：调用 `Activate()` 后生成指定敌人，死亡后 5s 重刷；`OnKillEncounterPoint` 控制掉卡（FirePolicy=Once）；生成的敌人不参与清怪统计
+- `AMobSpawner::SpawnMobForStory()`：普通 Spawner 可由 Story FA 指定敌人类并生成教程木头人，死亡后 5s 重刷；`OnKillEncounterPoint` 控制掉卡（FirePolicy=Once）；生成的敌人不参与清怪统计
 - `FA_DummyDeath_DropHeavyCard`（Story Director Flow）：木头人死亡掉落重击卡
-- `FA_ActivateTutorialDummySpawner`（Story Director Flow）：拾取武器后激活木人桩 Spawner
+- `FA_ActivateTutorialDummySpawner`（Story Director Flow）：拾取武器后调用普通 `B_MobSpawner` 生成木人桩
 - `EP_FirstRun_WeaponPickupActivateDummy`：武器拾取触发点，NodeEventFlow 绑定激活 FA
 - `EP_FirstRun_TrainingDummyCombo`：木人死亡触发点，NodeEventFlow 绑定掉卡 FA
 - 移动提示 Trigger：已摆放并配置
@@ -35,7 +35,7 @@
 - `StoryFlowAssetFactory`：编辑器内右键创建 Story Director Flow
 - `FirstRunTutorialSpawnerSetupCommandlet`：已升级为自动生成
   `[Start] -> SNode_SetActorEnabled(Story.FirstRun.DemoWeapon, true) -> SNode_ActivateTutorialSpawner(TutorialDummy)`
-- `ATutorialMobSpawner`：激活后直接按 Spawner 自身位置调用 `SpawnMobAtLocation()`，不再依赖 NavMesh 随机投影；日志会提示是否找到 Spawner、是否生成成功。
+- `AMobSpawner`：已补默认 Root；Story Spawn 直接按 Spawner 自身位置调用 `SpawnMobAtLocation()`，不再依赖 NavMesh 随机投影；日志会提示是否找到 Spawner、是否生成成功。
 
 ### 新增 SNode（2026-05-26）
 
@@ -88,7 +88,7 @@
 
 ### P2：教程关卡编辑器配置
 
-- [ ] 摆放 `B_TutorialMobSpawner`：Tag=`TutorialDummy`，`EnemySpawnClassis[0]=B_EnemyDummy_Tutorial`，`OnKillEncounterPoint=EP_FirstRun_TrainingDummyCombo`
+- [ ] 摆放普通 `B_MobSpawner`：Tag=`TutorialDummy`；`EnemySpawnClassis[0]=B_EnemyDummy_Tutorial` 可填作兜底，击杀触发点由 `FA_ActivateTutorialDummySpawner` 的 `SNode_ActivateTutorialSpawner.OnKillEncounterPoint=EP_FirstRun_TrainingDummyCombo` 控制
 - [ ] 摆放教程传送门，只配置 `Index`；`SelectedLevel` / `SelectedRoom` 是运行时字段，灰色不可填是正常的
 - [ ] 在当前 Hub 的 `RoomDataAsset.PortalDestinations` 里配置传送目标：`PortalIndex` 对应传送门 Actor 的 `Index`，`RoomPool` 放可进入的目标 RoomDataAsset
 - [ ] 配置教程武器 `WeaponDefinition.InitialCombatDeck = [攻击, 攻击]`

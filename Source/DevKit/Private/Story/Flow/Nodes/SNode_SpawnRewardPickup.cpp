@@ -44,20 +44,37 @@ void USNode_SpawnRewardPickup::ExecuteInput(const FName& PinName)
 
 	const FTransform ContextTransform = ResolveContextTransform();
 	const int32 Count = FMath::Max(1, RewardPickupCount);
+	int32 SpawnedCount = 0;
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
 		const FVector SpreadOffset(0.f, Index * 120.f, 0.f);
 		const FVector SpawnLocation = ContextTransform.GetLocation() + RewardSpawnOffset + SpreadOffset;
 		ARewardPickup* Pickup = World->SpawnActor<ARewardPickup>(PickupClass, SpawnLocation, FRotator::ZeroRotator);
-		if (!Pickup) continue;
+		if (!Pickup)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SNode_SpawnRewardPickup] failed to spawn pickup %d/%d. Class=%s Location=%s"),
+				Index + 1,
+				Count,
+				*GetNameSafe(PickupClass.Get()),
+				*SpawnLocation.ToCompactString());
+			continue;
+		}
 
 		Pickup->bAllowPickupOutsideArrangement = bAllowPickupOutsideArrangement;
 		Pickup->bUseFixedLootOptions = true;
 		Pickup->FixedLootOptions = RewardLootOptions;
 		Pickup->AssignLoot(RewardLootOptions);
-		Pickup->SetActorHiddenInGame(false);
-		Pickup->SetActorEnableCollision(true);
+		Pickup->RefreshPickupAvailability();
+		++SpawnedCount;
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("[SNode_SpawnRewardPickup] spawned %d/%d pickup(s). Class=%s LootCount=%d Context=%s AllowOutside=%d"),
+		SpawnedCount,
+		Count,
+		*GetNameSafe(PickupClass.Get()),
+		RewardLootOptions.Num(),
+		*ContextTransform.GetLocation().ToCompactString(),
+		bAllowPickupOutsideArrangement ? 1 : 0);
 
 	TriggerOutput(TEXT("Out"), true);
 }

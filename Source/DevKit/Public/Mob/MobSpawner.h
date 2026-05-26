@@ -8,6 +8,49 @@
 #include "MobSpawner.generated.h"
 
 class AEnemyCharacterBase;
+class AYogCharacterBase;
+class UStoryEncounterPointDA;
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FStoryMobSpawnOptions
+{
+	GENERATED_BODY()
+
+	/** 为空时使用 Spawner 的 EnemySpawnClassis[0]。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
+	TSubclassOf<AEnemyCharacterBase> EnemyClassOverride;
+
+	/** true 时在 Spawner 位置生成；false 时走普通 PrepareSpawnLocation 随机点。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
+	bool bSpawnAtSpawnerLocation = true;
+
+	/** Story 生成物是否计入房间清怪/击杀进度。教程木头人应为 false。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
+	bool bCountsForLevelClear = false;
+
+	/** 生成后是否从 GameMode 敌人感知列表移除。教程/展示敌人通常为 true。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
+	bool bUnregisterFromEnemyAwareness = true;
+
+	/** 大于 0 时覆盖 MaxHealth/Health；0 表示使用敌人自身数据。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story", meta = (ClampMin = "0.0"))
+	float MaxHealthOverride = 0.0f;
+
+	/** 旧的 Story 生成物仍存活时，再次触发是否先销毁旧实例。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
+	bool bDestroyExistingStoryMob = true;
+
+	/** Story 生成物死亡时触发的剧情节点。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
+	TObjectPtr<UStoryEncounterPointDA> OnKillEncounterPoint;
+
+	/** Story 生成物死亡后是否自动重刷。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
+	bool bRespawnOnDeath = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story", meta = (ClampMin = "0.0"))
+	float RespawnDelay = 5.0f;
+};
 
 UCLASS()
 class DEVKIT_API AMobSpawner : public AActor
@@ -21,6 +64,7 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:	
 	// Called every frame
@@ -36,6 +80,13 @@ public:
 	// 在指定位置刷出敌人（跳过位置随机化）
 	UFUNCTION(BlueprintCallable)
 	AEnemyCharacterBase* SpawnMobAtLocation(TSubclassOf<AActor> EnemyClass, FVector Location);
+
+	/** Story/教程使用的通用控制生成接口。仍复用普通 MobSpawner 的生成 FX、AI Controller、生成点逻辑。 */
+	UFUNCTION(BlueprintCallable, Category = "Story")
+	AEnemyCharacterBase* SpawnMobForStory(const FStoryMobSpawnOptions& Options);
+
+	UFUNCTION(BlueprintCallable, Category = "Story")
+	void ClearStorySpawnedMob();
 
 	/**
 	 * 敌人生成后立即调用（在 BP 子类中重写以播放出生特效/动画）
@@ -73,5 +124,18 @@ public:
 	TArray<TSubclassOf<AEnemyCharacterBase>> EnemySpawnClassis;
 
 
+private:
+	void ConfigureStorySpawnedMob(AEnemyCharacterBase* Mob, const FStoryMobSpawnOptions& Options) const;
+	void ApplyStoryHealthOverride(AEnemyCharacterBase* Mob, const FStoryMobSpawnOptions& Options) const;
+	void HandleStoryMobDied(AYogCharacterBase* Mob);
+	void RespawnStoryMob();
+
+	UPROPERTY()
+	TWeakObjectPtr<AEnemyCharacterBase> StorySpawnedMob;
+
+	UPROPERTY()
+	FStoryMobSpawnOptions ActiveStorySpawnOptions;
+	FTimerHandle StoryRespawnTimer;
+	FDelegateHandle StoryDeathDelegateHandle;
 
 };
