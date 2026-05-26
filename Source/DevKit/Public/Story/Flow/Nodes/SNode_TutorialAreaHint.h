@@ -19,6 +19,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Hint", meta = (MultiLine = true))
 	FText HintText;
 
+	UPROPERTY(EditAnywhere, Category = "Hint|Input")
+	bool bUseInputTextVariants = false;
+
+	UPROPERTY(EditAnywhere, Category = "Hint|Input", meta = (MultiLine = true, EditCondition = "bUseInputTextVariants"))
+	FText KeyboardMouseHintText;
+
+	UPROPERTY(EditAnywhere, Category = "Hint|Input", meta = (MultiLine = true, EditCondition = "bUseInputTextVariants"))
+	FText GamepadHintText;
+
 	/**
 	 * 显示时长（秒）。
 	 * 0 = 常驻，直到同一 HUD 槽位被新提示替换或手动清除；>0 = 到时自动消失。

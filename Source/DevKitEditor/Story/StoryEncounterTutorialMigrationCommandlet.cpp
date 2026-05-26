@@ -2,15 +2,25 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "FileHelpers.h"
+#include "FlowAsset.h"
+#include "Graph/FlowGraph.h"
+#include "Graph/FlowGraphSchema_Actions.h"
+#include "Graph/Nodes/FlowGraphNode.h"
 #include "GenericGraphAssetEditor/AssetGraphSchema_GenericGraph.h"
 #include "GenericGraphAssetEditor/EdGraph_GenericGraph.h"
 #include "GenericGraphAssetEditor/EdNode_GenericGraphNode.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Misc/PackageName.h"
+#include "Nodes/Graph/FlowNode_Start.h"
 #include "Story/Encounter/StoryEncounterGraph.h"
 #include "Story/Encounter/StoryEncounterGraphEdge.h"
 #include "Story/Encounter/StoryEncounterGraphNode.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
+#include "Story/Flow/StoryFlowAsset.h"
+#include "Story/Flow/Nodes/SNode_RecordProgress.h"
+#include "Story/Flow/Nodes/SNode_ShowHint.h"
+#include "Story/Flow/Nodes/SNode_ShowTutorialPopup.h"
+#include "Story/Flow/Nodes/SNode_TutorialAreaHint.h"
 #include "UObject/Package.h"
 
 namespace StoryEncounterTutorialMigration
@@ -47,6 +57,7 @@ struct FFlowSpec
 
 const FString GraphRoot = TEXT("/Game/Story/Encounters/Tutorial");
 const FString PointRoot = TEXT("/Game/Story/EncounterPoints/Tutorial");
+const FString FlowRoot = TEXT("/Game/Story/Flows/Tutorial/Generated");
 
 FString ToObjectPath(const FString& PackagePath)
 {
@@ -140,6 +151,132 @@ FActionSpec RecordProgress(FName ProgressKey, const FString& Label)
 	Action.ProgressKey = ProgressKey;
 	Action.ProgressLabel = Label;
 	return Action;
+}
+
+UEdGraphPin* FindGraphPin(UFlowNode* Node, FName PinName, EEdGraphPinDirection Direction)
+{
+	UFlowGraphNode* GraphNode = Node ? Cast<UFlowGraphNode>(Node->GetGraphNode()) : nullptr;
+	if (!GraphNode)
+	{
+		return nullptr;
+	}
+
+	for (UEdGraphPin* Pin : GraphNode->Pins)
+	{
+		if (Pin && Pin->Direction == Direction && Pin->PinName == PinName)
+		{
+			return Pin;
+		}
+	}
+	return nullptr;
+}
+
+void ClearNonEntryNodes(UFlowAsset* FlowAsset)
+{
+	UFlowGraph* FlowGraph = FlowAsset ? Cast<UFlowGraph>(FlowAsset->GetGraph()) : nullptr;
+	UFlowNode* EntryNode = FlowAsset ? FlowAsset->GetDefaultEntryNode() : nullptr;
+	if (!FlowAsset || !FlowGraph || !EntryNode)
+	{
+		return;
+	}
+
+	TArray<TPair<FGuid, UFlowNode*>> NodesToRemove;
+	for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
+	{
+		if (Pair.Value && Pair.Value != EntryNode)
+		{
+			NodesToRemove.Add(Pair);
+		}
+	}
+
+	for (const TPair<FGuid, UFlowNode*>& Pair : NodesToRemove)
+	{
+		if (UFlowGraphNode* GraphNode = Cast<UFlowGraphNode>(Pair.Value->GetGraphNode()))
+		{
+			FlowGraph->GetSchema()->BreakNodeLinks(*GraphNode);
+			GraphNode->DestroyNode();
+		}
+		FlowAsset->UnregisterNode(Pair.Key);
+	}
+}
+
+UFlowNode* CreateStoryFlowNode(UFlowGraph* FlowGraph, UFlowNode* FromNode, UClass* NodeClass, const FVector2D& Location)
+{
+	UEdGraphPin* FromPin = FromNode ? FindGraphPin(FromNode, TEXT("Out"), EGPD_Output) : nullptr;
+	UFlowGraphNode* GraphNode = FFlowGraphSchemaAction_NewNode::CreateNode(FlowGraph, FromPin, NodeClass, Location, false);
+	return GraphNode ? Cast<UFlowNode>(GraphNode->GetFlowNodeBase()) : nullptr;
+}
+
+UFlowNode* AppendActionNode(UFlowGraph* FlowGraph, UFlowNode* PreviousNode,
+	const FFlowSpec& Flow, const FActionSpec& Spec, int32 ActionIndex)
+{
+	const FVector2D Location(320.f + ActionIndex * 320.f, 0.f);
+	switch (Spec.Kind)
+	{
+	case EStoryEncounterActionKind::Dialogue:
+	case EStoryEncounterActionKind::WeakHint:
+		if (USNode_ShowHint* HintNode = Cast<USNode_ShowHint>(
+			CreateStoryFlowNode(FlowGraph, PreviousNode, USNode_ShowHint::StaticClass(), Location)))
+		{
+			HintNode->HintTitle = Spec.Kind == EStoryEncounterActionKind::Dialogue
+				? FText::FromString(Spec.Title)
+				: FText::GetEmpty();
+			HintNode->HintText = FText::FromString(Spec.Body);
+			HintNode->Duration = 3.0f;
+			return HintNode;
+		}
+		break;
+
+	case EStoryEncounterActionKind::TutorialAreaHint:
+		if (USNode_TutorialAreaHint* AreaHintNode = Cast<USNode_TutorialAreaHint>(
+			CreateStoryFlowNode(FlowGraph, PreviousNode, USNode_TutorialAreaHint::StaticClass(), Location)))
+		{
+			AreaHintNode->HintText = FText::FromString(Spec.Body);
+			AreaHintNode->Duration = 0.0f;
+			return AreaHintNode;
+		}
+		break;
+
+	case EStoryEncounterActionKind::TutorialPopup:
+		if (USNode_ShowTutorialPopup* PopupNode = Cast<USNode_ShowTutorialPopup>(
+			CreateStoryFlowNode(FlowGraph, PreviousNode, USNode_ShowTutorialPopup::StaticClass(), Location)))
+		{
+			PopupNode->TutorialEventId = Spec.TutorialEventId;
+			PopupNode->bPauseGame = Spec.bPauseGame;
+			return PopupNode;
+		}
+		break;
+
+	case EStoryEncounterActionKind::RecordProgress:
+		if (USNode_RecordProgress* ProgressNode = Cast<USNode_RecordProgress>(
+			CreateStoryFlowNode(FlowGraph, PreviousNode, USNode_RecordProgress::StaticClass(), Location)))
+		{
+			ProgressNode->EncounterId = Flow.EncounterId;
+			ProgressNode->ProgressKey = Spec.ProgressKey;
+			return ProgressNode;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	return PreviousNode;
+}
+
+bool IsHandledByStoryFlow(const FActionSpec& Spec)
+{
+	switch (Spec.Kind)
+	{
+	case EStoryEncounterActionKind::Dialogue:
+	case EStoryEncounterActionKind::WeakHint:
+	case EStoryEncounterActionKind::TutorialAreaHint:
+	case EStoryEncounterActionKind::TutorialPopup:
+	case EStoryEncounterActionKind::RecordProgress:
+		return true;
+	default:
+		return false;
+	}
 }
 
 TArray<FFlowSpec> MakeTutorialFlows()
@@ -294,6 +431,80 @@ TArray<FFlowSpec> MakeTutorialFlows()
 	};
 }
 
+UStoryFlowAsset* WriteStoryFlowAsset(const FFlowSpec& Flow, const FNodeSpec& Node,
+	TArray<UPackage*>& DirtyPackages, TArray<FString>& ReportLines)
+{
+	const bool bHasHandledActions = Node.Actions.ContainsByPredicate([](const FActionSpec& Action)
+	{
+		return IsHandledByStoryFlow(Action);
+	});
+	if (!bHasHandledActions)
+	{
+		return nullptr;
+	}
+
+	const FString PackagePath = FString::Printf(TEXT("%s/%s/FA_%s_%s"),
+		*FlowRoot,
+		*Flow.PointFolder,
+		*Flow.AssetName,
+		*Node.NodeId.ToString());
+
+	bool bCreated = false;
+	UStoryFlowAsset* FlowAsset = LoadOrCreateAsset<UStoryFlowAsset>(PackagePath, DirtyPackages, bCreated);
+	if (!FlowAsset)
+	{
+		ReportLines.Add(FString::Printf(TEXT("- Failed Story FA `%s`."), *PackagePath));
+		return nullptr;
+	}
+
+	FlowAsset->Modify();
+	if (!FlowAsset->GetGraph())
+	{
+		UFlowGraph::CreateGraph(FlowAsset);
+	}
+
+	UFlowGraph* FlowGraph = Cast<UFlowGraph>(FlowAsset->GetGraph());
+	UFlowNode* StartNode = FlowAsset->GetDefaultEntryNode();
+	if (!FlowGraph || !StartNode)
+	{
+		ReportLines.Add(FString::Printf(TEXT("- Story FA `%s` has no usable Start node."), *PackagePath));
+		return nullptr;
+	}
+
+	ClearNonEntryNodes(FlowAsset);
+
+	UFlowNode* PreviousNode = StartNode;
+	int32 ActionIndex = 0;
+	int32 WrittenNodeCount = 0;
+	for (const FActionSpec& ActionSpec : Node.Actions)
+	{
+		if (!IsHandledByStoryFlow(ActionSpec))
+		{
+			continue;
+		}
+
+		UFlowNode* NewPreviousNode = AppendActionNode(FlowGraph, PreviousNode, Flow, ActionSpec, ActionIndex);
+		if (NewPreviousNode && NewPreviousNode != PreviousNode)
+		{
+			PreviousNode = NewPreviousNode;
+			++WrittenNodeCount;
+			++ActionIndex;
+		}
+	}
+
+	FlowAsset->HarvestNodeConnections();
+	FlowAsset->PostEditChange();
+	FlowAsset->MarkPackageDirty();
+	DirtyPackages.AddUnique(FlowAsset->GetPackage());
+	FlowGraph->NotifyGraphChanged();
+
+	ReportLines.Add(FString::Printf(TEXT("- %s Story FA `%s` with %d node(s)."),
+		bCreated ? TEXT("Created") : TEXT("Updated"),
+		*PackagePath,
+		WrittenNodeCount));
+	return FlowAsset;
+}
+
 UStoryEncounterPointDA* WritePointAsset(const FFlowSpec& Flow, const FNodeSpec& Node, int32 NodeIndex,
 	TArray<UPackage*>& DirtyPackages, TArray<FString>& ReportLines)
 {
@@ -322,10 +533,14 @@ UStoryEncounterPointDA* WritePointAsset(const FFlowSpec& Flow, const FNodeSpec& 
 	Point->PlacementLevel = NAME_None;
 	Point->PlacementName = Node.NodeId;
 	Point->EditorPosition = FVector2D(NodeIndex * 360.f, 0.f);
+	Point->NodeEventFlow = WriteStoryFlowAsset(Flow, Node, DirtyPackages, ReportLines);
 
 	for (const FActionSpec& ActionSpec : Node.Actions)
 	{
-		Point->Actions.Add(MakeAction(ActionSpec));
+		if (!IsHandledByStoryFlow(ActionSpec))
+		{
+			Point->Actions.Add(MakeAction(ActionSpec));
+		}
 	}
 
 	Point->MarkPackageDirty();

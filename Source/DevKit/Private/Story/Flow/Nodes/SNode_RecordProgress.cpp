@@ -29,7 +29,7 @@ void USNode_RecordProgress::ExecuteInput(const FName& PinName)
 		Action.Type = EStoryActionType::SetFlag;
 		Action.FlagTag = ProgressTag;
 		Action.FlagScope = EStoryFlagScope::Save;
-		Engine->ExecuteStoryAction(Action, FStoryEventContext{});
+		Engine->ExecuteStoryAction(Action, MakeStoryEventContext());
 	}
 	TriggerOutput(TEXT("Out"), true);
 }

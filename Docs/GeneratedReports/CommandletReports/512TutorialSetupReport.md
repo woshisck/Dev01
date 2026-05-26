@@ -4,18 +4,19 @@
 - Illustration root: `/Game/Docs/UI/TutorialTex/512`
 
 ## Illustration import
-- Imported/reimported `X:/Project/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_WeaponPickup.png` -> `/Game/Docs/UI/TutorialTex/512`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_WeaponCards.png` -> `/Game/Docs/UI/TutorialTex/512`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_RewardCard.png` -> `/Game/Docs/UI/TutorialTex/512`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_CardSort.png` -> `/Game/Docs/UI/TutorialTex/512`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_LinkCard.png` -> `/Game/Docs/UI/TutorialTex/512`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_DeckReload.png` -> `/Game/Docs/UI/TutorialTex/512`.
+- Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_WeaponPickup.png` -> `/Game/Docs/UI/TutorialTex/512`.
+- Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_WeaponCards.png` -> `/Game/Docs/UI/TutorialTex/512`.
+- Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_RewardCard.png` -> `/Game/Docs/UI/TutorialTex/512`.
+- Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_CardSort.png` -> `/Game/Docs/UI/TutorialTex/512`.
+- Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_LinkCard.png` -> `/Game/Docs/UI/TutorialTex/512`.
+- Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_DeckReload.png` -> `/Game/Docs/UI/TutorialTex/512`.
 
 ## `tutorial_weapon_pickup`
 - Found existing `/Game/Docs/UI/Tutorial/DA_Tutorial_WeaponPickup`.
 - Page 1 illustration set to `T_Tutorial512_WeaponPickup`.
 - Page 2 illustration set to `T_Tutorial512_WeaponCards`.
-- Wrote 2 page(s) to `/Game/Docs/UI/Tutorial/DA_Tutorial_WeaponPickup`.
+- Page 3 illustration set to `T_Tutorial512_WeaponCards`.
+- Wrote 3 page(s) to `/Game/Docs/UI/Tutorial/DA_Tutorial_WeaponPickup`.
 
 ## `tutorial_first_rune`
 - Found existing `/Game/Docs/UI/Tutorial/DA_Tutorial_FirstRune`.

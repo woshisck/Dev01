@@ -20,6 +20,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Hint", meta = (MultiLine = true))
 	FText HintText;
 
+	UPROPERTY(EditAnywhere, Category = "Hint|Input")
+	bool bUseInputTextVariants = false;
+
+	UPROPERTY(EditAnywhere, Category = "Hint|Input", meta = (MultiLine = true, EditCondition = "bUseInputTextVariants"))
+	FText KeyboardMouseHintText;
+
+	UPROPERTY(EditAnywhere, Category = "Hint|Input", meta = (MultiLine = true, EditCondition = "bUseInputTextVariants"))
+	FText GamepadHintText;
+
 	/** 显示时长（秒）。0 = 常驻，直到被新提示替换。 */
 	UPROPERTY(EditAnywhere, Category = "Hint", meta = (ClampMin = "0.0"))
 	float Duration = 3.0f;

@@ -374,7 +374,7 @@
           "rewardLootOptions": [
             {
               "lootType": "Rune",
-              "runeAsset": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback",
+              "runeAsset": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Heavy",
               "amount": 0,
               "displayName": "重击卡"
             }
@@ -586,7 +586,7 @@
             },
             {
               "lootType": "Rune",
-              "runeAsset": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback",
+              "runeAsset": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Heavy",
               "displayName": "重击"
             },
             {

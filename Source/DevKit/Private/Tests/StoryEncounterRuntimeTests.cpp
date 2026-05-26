@@ -8,6 +8,8 @@
 #include "EngineUtils.h"
 #include "FlowAsset.h"
 #include "Story/Flow/StoryFlowAsset.h"
+#include "Story/Flow/Nodes/SNode_ShowHint.h"
+#include "Story/Flow/Nodes/SNode_SpawnRewardPickup.h"
 #include "Interfaces/FlowDataPinValueSupplierInterface.h"
 #include "LevelFlow/LevelFlowAsset.h"
 #include "LevelFlow/Nodes/LENode_GetStoryContext.h"
@@ -21,6 +23,7 @@
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
 #include "Story/Encounter/StoryProductionBoard.h"
 #include "Types/FlowDataPinResults.h"
+#include "UI/DialogContentDA.h"
 
 namespace StoryEncounterRuntimeTests
 {
@@ -527,6 +530,80 @@ bool FStoryEncounterDeathListenerRunsNodeEventFlowTest::RunTest(const FString& P
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterPlayLevelFlowNonTriggerRunsViaProxyTest,
 	"DevKit.StoryEncounter.PlayLevelFlowNonTriggerRunsViaProxy",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterWeaponPickupTutorialPointsAtDummyTest,
+	"DevKit.StoryEncounter.FirstRunWeaponPickupTutorialPointsAtDummy",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStoryEncounterWeaponPickupTutorialPointsAtDummyTest::RunTest(const FString& Parameters)
+{
+	const UDialogContentDA* Tutorial = LoadObject<UDialogContentDA>(
+		nullptr,
+		TEXT("/Game/Docs/UI/Tutorial/DA_Tutorial_WeaponPickup.DA_Tutorial_WeaponPickup"));
+
+	TestNotNull(TEXT("Weapon pickup tutorial asset loads"), Tutorial);
+	if (!Tutorial)
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Weapon pickup tutorial has an extra dummy-combat page"), Tutorial->Pages.Num() >= 3);
+	if (Tutorial->Pages.Num() < 3)
+	{
+		return false;
+	}
+
+	const FString ThirdPageBody = Tutorial->Pages[2].Body.ToString();
+	TestTrue(TEXT("Third page asks the player to attack the training dummy"),
+		ThirdPageBody.Contains(TEXT("木头人")) || ThirdPageBody.Contains(TEXT("dummy"), ESearchCase::IgnoreCase));
+	TestTrue(TEXT("Third page mentions attacking"),
+		ThirdPageBody.Contains(TEXT("攻击")) || ThirdPageBody.Contains(TEXT("attack"), ESearchCase::IgnoreCase));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest,
+	"DevKit.StoryEncounter.DummyDeathFlowDropsHeavyAndHintsPickup",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest::RunTest(const FString& Parameters)
+{
+	const UStoryFlowAsset* Flow = LoadObject<UStoryFlowAsset>(
+		nullptr,
+		TEXT("/Game/Story/Flows/Tutorial/FA_DummyDeath_DropHeavyCard.FA_DummyDeath_DropHeavyCard"));
+
+	TestNotNull(TEXT("Dummy death Story FA loads"), Flow);
+	if (!Flow)
+	{
+		return false;
+	}
+
+	bool bDropsHeavy = false;
+	bool bDropsKnockback = false;
+	bool bHasPickupHint = false;
+	for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
+	{
+		if (const USNode_SpawnRewardPickup* SpawnNode = Cast<USNode_SpawnRewardPickup>(Pair.Value))
+		{
+			for (const FLootOption& Option : SpawnNode->RewardLootOptions)
+			{
+				const FString RunePath = GetPathNameSafe(Option.RuneAsset);
+				bDropsHeavy |= RunePath.Contains(TEXT("DA_Rune512_Heavy"));
+				bDropsKnockback |= RunePath.Contains(TEXT("DA_Rune512_Knockback"));
+			}
+		}
+
+		if (const USNode_ShowHint* HintNode = Cast<USNode_ShowHint>(Pair.Value))
+		{
+			const FString HintBody = HintNode->HintText.ToString();
+			bHasPickupHint |= HintBody.Contains(TEXT("拾取")) || HintBody.Contains(TEXT("pick"), ESearchCase::IgnoreCase);
+		}
+	}
+
+	TestTrue(TEXT("Dummy death flow drops Heavy card"), bDropsHeavy);
+	TestFalse(TEXT("Dummy death flow must not drop Knockback card"), bDropsKnockback);
+	TestTrue(TEXT("Dummy death flow shows pickup weak hint after the drop"), bHasPickupHint);
+	return true;
+}
 
 bool FStoryEncounterPlayLevelFlowNonTriggerRunsViaProxyTest::RunTest(const FString& Parameters)
 {

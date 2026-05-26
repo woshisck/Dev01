@@ -22,7 +22,7 @@ void USNode_ShowTutorialPopup::ExecuteInput(const FName& PinName)
 		Action.TutorialEventId = TutorialEventId;
 		Action.TutorialPages = InlinePages;
 		Action.bPauseGame = bPauseGame;
-		Engine->ExecuteStoryAction(Action, FStoryEventContext{});
+		Engine->ExecuteStoryAction(Action, MakeStoryEventContext());
 	}
 	TriggerOutput(TEXT("Out"), true);
 }

@@ -293,7 +293,7 @@ Story Director FA 是专为剧情引擎设计的 Flow Asset 类型，与 `ULevel
 ```
 [Start] → [SNode_SpawnRewardPickup]
            RewardPickupClass = BP_RewardPickup
-           RewardLootOptions = [{ Type=Rune, RuneAsset=DA_Rune512_Knockback }]
+           RewardLootOptions = [{ Type=Rune, RuneAsset=DA_Rune512_Heavy }]
            RewardPickupCount = 1
            RewardSpawnOffset = (120, 0, 20)
            bAllowPickupOutsideArrangement = true

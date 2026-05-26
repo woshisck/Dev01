@@ -6,6 +6,7 @@
 
 class UStoryEngineSubsystem;
 class AStoryFlowProxy;
+struct FStoryEventContext;
 
 /**
  * 所有导演系统 Story FA 节点的基类。
@@ -21,4 +22,7 @@ protected:
 	UStoryEngineSubsystem* GetStoryEngine() const;
 	APlayerController* GetPlayerController() const;
 	AStoryFlowProxy* GetStoryProxy() const;
+	FStoryEventContext MakeStoryEventContext() const;
+	FText ResolveInputAwareText(const FText& DefaultText, bool bUseInputTextVariants,
+		const FText& KeyboardMouseText, const FText& GamepadText) const;
 };

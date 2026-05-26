@@ -226,6 +226,9 @@ void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase
 		PagesToShow.Add(MakeTutorialPage(
 			TEXT("武器自带初始卡牌"),
 			TEXT("每把武器都有一组起始卡。拾取后，卡组会按武器配置顺序显示；轻/重攻击不会被卡组阻止，但命中会按顺序消耗卡牌并触发效果。")));
+		PagesToShow.Add(MakeTutorialPage(
+			TEXT("试试攻击木头人"),
+			TEXT("拾取武器后，走到木头人身边，尝试用 <input action=\"LightAttack\"/> 或 <input action=\"HeavyAttack\"/> 攻击它。击败后会掉落一张新卡牌，靠近掉落物再按 <input action=\"Interact\"/> 拾取。")));
 	}
 
 	bPopupShowing = true;

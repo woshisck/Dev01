@@ -19,9 +19,13 @@ void USNode_TutorialAreaHint::ExecuteInput(const FName& PinName)
 	{
 		FStoryAction Action;
 		Action.Type = EStoryActionType::ShowInfoHint;
-		Action.HintText = HintText;
+		Action.HintText = ResolveInputAwareText(
+			HintText,
+			bUseInputTextVariants,
+			KeyboardMouseHintText,
+			GamepadHintText);
 		Action.HintDuration = Duration;
-		Engine->ExecuteStoryAction(Action, FStoryEventContext{});
+		Engine->ExecuteStoryAction(Action, MakeStoryEventContext());
 	}
 	TriggerOutput(TEXT("Out"), true);
 }

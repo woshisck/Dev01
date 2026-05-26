@@ -11,6 +11,7 @@
 #include "Misc/PackageName.h"
 #include "Nodes/Graph/FlowNode_Start.h"
 #include "Story/Flow/StoryFlowAsset.h"
+#include "Story/Flow/Nodes/SNode_ShowHint.h"
 #include "Story/Flow/Nodes/SNode_SpawnRewardPickup.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "UObject/Package.h"
@@ -20,7 +21,7 @@ namespace DummyDeathFlowSetup
 const FString FlowPackagePath = TEXT("/Game/Story/Flows/Tutorial/FA_DummyDeath_DropHeavyCard");
 const FString PointObjectPath = TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_TrainingDummyCombo.EP_FirstRun_TrainingDummyCombo");
 const FString PickupClassPath = TEXT("/Game/Code/Dungeon/BP_RewardPickup.BP_RewardPickup_C");
-const FString RuneObjectPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback.DA_Rune512_Knockback");
+const FString RuneObjectPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Heavy.DA_Rune512_Heavy");
 
 FString ToObjectPath(const FString& PackagePath)
 {
@@ -86,6 +87,28 @@ USNode_SpawnRewardPickup* FindSpawnRewardNode(UStoryFlowAsset* FlowAsset)
 	return nullptr;
 }
 
+USNode_ShowHint* FindPickupHintNode(UStoryFlowAsset* FlowAsset)
+{
+	if (!FlowAsset)
+	{
+		return nullptr;
+	}
+
+	for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
+	{
+		if (USNode_ShowHint* HintNode = Cast<USNode_ShowHint>(Pair.Value))
+		{
+			if (HintNode->HintText.ToString().Contains(TEXT("拾取"))
+				|| HintNode->HintText.ToString().Contains(TEXT("pick"), ESearchCase::IgnoreCase))
+			{
+				return HintNode;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 UFlowNode_Start* FindStartNode(UStoryFlowAsset* FlowAsset)
 {
 	if (!FlowAsset)
@@ -102,6 +125,27 @@ UFlowNode_Start* FindStartNode(UStoryFlowAsset* FlowAsset)
 	}
 
 	return nullptr;
+}
+
+bool EnsurePinConnection(UEdGraph* Graph, UEdGraphPin* FromPin, UEdGraphPin* ToPin)
+{
+	if (!Graph || !FromPin || !ToPin)
+	{
+		return false;
+	}
+
+	if (FromPin->LinkedTo.Contains(ToPin))
+	{
+		return true;
+	}
+
+	FromPin->Modify();
+	ToPin->Modify();
+	if (const UEdGraphSchema* Schema = Graph->GetSchema())
+	{
+		return Schema->TryCreateConnection(FromPin, ToPin);
+	}
+	return false;
 }
 
 bool ConfigureRewardNode(USNode_SpawnRewardPickup* SpawnNode)
@@ -192,13 +236,38 @@ USNode_SpawnRewardPickup* EnsureSpawnRewardNode(UStoryFlowAsset* FlowAsset, TArr
 		return nullptr;
 	}
 
+	USNode_ShowHint* HintNode = FindPickupHintNode(FlowAsset);
+	UFlowGraphNode* HintGraphNode = HintNode ? Cast<UFlowGraphNode>(HintNode->GetGraphNode()) : nullptr;
+	if (!HintNode || !HintGraphNode)
+	{
+		HintGraphNode = FFlowGraphSchemaAction_NewNode::CreateNode(
+			Graph,
+			SpawnGraphNode ? SpawnGraphNode->GetOutputPin(0) : nullptr,
+			USNode_ShowHint::StaticClass(),
+			FVector2D(640.f, 0.f),
+			false);
+		HintNode = HintGraphNode ? Cast<USNode_ShowHint>(HintGraphNode->GetFlowNodeBase()) : nullptr;
+	}
+	else if (SpawnGraphNode)
+	{
+		EnsurePinConnection(Graph, SpawnGraphNode->GetOutputPin(0), HintGraphNode->GetInputPin(0));
+	}
+
+	if (HintNode)
+	{
+		HintNode->Modify();
+		HintNode->HintTitle = FText::GetEmpty();
+		HintNode->HintText = FText::FromString(TEXT("掉落了一张新卡牌。靠近掉落物，按 <input action=\"Interact\"/> 拾取。"));
+		HintNode->Duration = 3.0f;
+	}
+
 	FlowAsset->HarvestNodeConnections();
 	FlowAsset->MarkPackageDirty();
 	DirtyPackages.AddUnique(FlowAsset->GetPackage());
 	return SpawnNode;
 }
 
-int32 RemoveInlineRewardActions(UStoryEncounterPointDA* Point)
+int32 RemoveInlineActionsHandledByFlow(UStoryEncounterPointDA* Point)
 {
 	if (!Point)
 	{
@@ -208,7 +277,10 @@ int32 RemoveInlineRewardActions(UStoryEncounterPointDA* Point)
 	const int32 OldNum = Point->Actions.Num();
 	Point->Actions.RemoveAll([](const FStoryEncounterAction& Action)
 	{
-		return Action.Kind == EStoryEncounterActionKind::SpawnRewardPickup;
+		return Action.Kind == EStoryEncounterActionKind::SpawnRewardPickup
+			|| Action.Kind == EStoryEncounterActionKind::WeakHint
+			|| Action.Kind == EStoryEncounterActionKind::TutorialAreaHint
+			|| Action.Kind == EStoryEncounterActionKind::TutorialPopup;
 	});
 	return OldNum - Point->Actions.Num();
 }
@@ -253,7 +325,7 @@ int32 UDummyDeathFlowSetupCommandlet::Main(const FString& Params)
 	Point->Kind = EStoryEncounterNodeKind::Death;
 	Point->Condition.Kind = EStoryEncounterConditionKind::None;
 	Point->FirePolicy = EStoryEncounterFirePolicy::Once;
-	const int32 RemovedRewardActions = RemoveInlineRewardActions(Point);
+	const int32 RemovedInlineActions = RemoveInlineActionsHandledByFlow(Point);
 	Point->NodeEventFlow = FlowAsset;
 	Point->MarkPackageDirty();
 	DirtyPackages.AddUnique(Point->GetPackage());
@@ -265,11 +337,11 @@ int32 UDummyDeathFlowSetupCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("[DummyDeathFlowSetup] %s %s, configured spawn node %s, bound NodeEventFlow on %s, removed %d inline reward action(s)."),
+	UE_LOG(LogTemp, Display, TEXT("[DummyDeathFlowSetup] %s %s, configured spawn node %s, bound NodeEventFlow on %s, removed %d inline action(s)."),
 		bCreatedFlow ? TEXT("Created") : TEXT("Updated"),
 		*FlowPackagePath,
 		*GetNameSafe(SpawnNode),
 		*PointObjectPath,
-		RemovedRewardActions);
+		RemovedInlineActions);
 	return 0;
 }
