@@ -1061,6 +1061,40 @@ bool FCombatDeckLinkConfigBackwardTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckLinkConfigBackwardCanStartFromFirstAttackTest,
+	"DevKit.CombatDeck.LinkConfigBackwardCanStartFromFirstAttack",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckLinkConfigBackwardCanStartFromFirstAttackTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig MoonlightCard{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightCard.LinkConfig.Direction = ECombatCardLinkDirection::BackwardEmpowerNext;
+	MoonlightCard.LinkConfig.BackwardEffect.Flow = NewObject<UFlowAsset>();
+	MoonlightCard.LinkConfig.BackwardEffect.Condition.RequiredNeighborTypes.Add(ECombatCardType::Attack);
+
+	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+
+	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
+
+	FCombatDeckActionContext MoonlightContext;
+	MoonlightContext.ActionType = ECardRequiredAction::Light;
+	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.bComboContinued = false;
+	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
+	TestTrue(TEXT("First attack Moonlight opens a pending backward link"), MoonlightResult.bPendingBackwardLink);
+
+	FCombatDeckActionContext AttackContext = MoonlightContext;
+	AttackContext.AttackInstanceGuid = FGuid::NewGuid();
+	AttackContext.bComboContinued = true;
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCardWithContext(AttackContext);
+	TestTrue(TEXT("Second attack triggers the pending backward link"), AttackResult.bTriggeredBackwardLink);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckLinkConfigBothUsesForwardPriorityTest,
 	"DevKit.CombatDeck.LinkConfigBothUsesForwardPriority",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -1216,6 +1250,48 @@ bool FCombatDeckRecipeReversedUsesEffectTagsTest::RunTest(const FString& Paramet
 	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCardWithContext(AttackContext);
 	TestTrue(TEXT("Next Card.Effect.Attack triggers reversed Moonlight recipe"), AttackResult.bTriggeredBackwardLink);
 	TestEqual(TEXT("Reversed recipe multiplier is reported"), AttackResult.AppliedMultiplier, 1.25f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRecipeReversedCanStartFromFirstAttackTest,
+	"DevKit.CombatDeck.RecipeReversedCanStartFromFirstAttack",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckRecipeReversedCanStartFromFirstAttackTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag SplashSplitEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.SplashSplit"));
+
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig MoonlightCard{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightCard.DefaultLinkOrientation = ECombatCardLinkOrientation::Reversed;
+
+	FCombatCardLinkRecipe Recipe;
+	Recipe.Direction = ECombatCardLinkOrientation::Reversed;
+	Recipe.LinkFlow = NewObject<UFlowAsset>();
+	Recipe.Condition.RequiredNeighborEffectTags.AddTag(SplashSplitEffectTag);
+	MoonlightCard.LinkRecipes.Add(Recipe);
+
+	FCombatCardConfig SplashCard{ ECombatCardType::Normal, ECardRequiredAction::Any };
+	SplashCard.CardEffectTags.AddTag(SplashSplitEffectTag);
+
+	Deck->SetDeckListForTest({ MoonlightCard, SplashCard });
+
+	FCombatDeckActionContext MoonlightContext;
+	MoonlightContext.ActionType = ECardRequiredAction::Light;
+	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.bComboContinued = false;
+	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
+	TestTrue(TEXT("First attack reversed Moonlight opens a pending recipe link"), MoonlightResult.bPendingBackwardLink);
+	TestFalse(TEXT("First attack reversed Moonlight does not release base flow while pending"), MoonlightResult.bTriggeredBaseFlow);
+
+	FCombatDeckActionContext SplashContext = MoonlightContext;
+	SplashContext.AttackInstanceGuid = FGuid::NewGuid();
+	SplashContext.bComboContinued = true;
+	const FCombatCardResolveResult SplashResult = Deck->ResolveAttackCardWithContext(SplashContext);
+	TestTrue(TEXT("Second attack Splash/Split triggers the pending Moonlight recipe"), SplashResult.bTriggeredBackwardLink);
 
 	return true;
 }

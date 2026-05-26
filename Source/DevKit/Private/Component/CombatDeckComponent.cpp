@@ -267,8 +267,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		{
 			if (Card.LinkOrientation == ECombatCardLinkOrientation::Reversed)
 			{
-				const bool bHasReversedRecipe = Context.bComboContinued
-					&& Card.Config.LinkRecipes.ContainsByPredicate([](const FCombatCardLinkRecipe& Recipe)
+				const bool bHasReversedRecipe = Card.Config.LinkRecipes.ContainsByPredicate([](const FCombatCardLinkRecipe& Recipe)
 					{
 						return Recipe.Direction == ECombatCardLinkOrientation::Reversed && Recipe.LinkFlow;
 					});
@@ -336,7 +335,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 				ExecuteFlow(Card.Config.BaseFlow, Card, Context, Result);
 			}
 
-			if (!bForwardMatched && Context.bComboContinued && WantsBackwardLink(Card.Config) && Card.Config.LinkConfig.BackwardEffect.Flow)
+			if (!bForwardMatched && WantsBackwardLink(Card.Config) && Card.Config.LinkConfig.BackwardEffect.Flow)
 			{
 				Result.bTriggeredLink = true;
 				Result.bPendingBackwardLink = true;
@@ -353,7 +352,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 			Result.bTriggeredMatchedFlow = true;
 			ExecuteFlow(Card.Config.MatchedFlow, Card, Context, Result);
 
-			if (Card.Config.LinkMode == ECardLinkMode::PassToNext && Context.bComboContinued)
+			if (Card.Config.LinkMode == ECardLinkMode::PassToNext)
 			{
 				Result.bTriggeredLink = true;
 				Result.bPendingBackwardLink = true;
