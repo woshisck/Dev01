@@ -1,15 +1,28 @@
 #include "AbilitySystem/Abilities/GA_Knockback.h"
 
+#include "Abilities/GameplayAbilityTargetTypes.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Character/PlayerCharacterBase.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayTagsManager.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Data/CharacterData.h"
 #include "Data/AbilityData.h"
+
+namespace
+{
+FVector GetHorizontalSafeNormal(FVector Direction)
+{
+    Direction.Z = 0.f;
+    return Direction.IsNearlyZero() ? FVector::ZeroVector : Direction.GetSafeNormal();
+}
+}
 
 UGA_Knockback::UGA_Knockback(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -29,6 +42,96 @@ UGA_Knockback::UGA_Knockback(const FObjectInitializer& ObjectInitializer)
     TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"));
     TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
     AbilityTriggers.Add(TriggerData);
+}
+
+FVector UGA_Knockback::ResolveKnockbackDirection(
+    const ACharacter* TargetChar,
+    const FGameplayEventData* TriggerEventData)
+{
+    if (!TargetChar)
+    {
+        return FVector::ZeroVector;
+    }
+
+    if (TriggerEventData)
+    {
+        for (int32 Index = 0; Index < TriggerEventData->TargetData.Num(); ++Index)
+        {
+            const FGameplayAbilityTargetData* DirectionData = TriggerEventData->TargetData.Get(Index);
+            if (!DirectionData || !DirectionData->HasOrigin() || !DirectionData->HasEndPoint())
+            {
+                continue;
+            }
+
+            const FVector ExplicitDirection = GetHorizontalSafeNormal(
+                DirectionData->GetEndPoint() - DirectionData->GetOrigin().GetLocation());
+            if (!ExplicitDirection.IsNearlyZero())
+            {
+                return ExplicitDirection;
+            }
+        }
+    }
+
+    FVector KnockbackDir = TargetChar->GetActorForwardVector() * -1.f;
+
+    if (TriggerEventData && TriggerEventData->Instigator != nullptr)
+    {
+        FVector FromInstigator = TargetChar->GetActorLocation()
+            - TriggerEventData->Instigator->GetActorLocation();
+        FromInstigator.Z = 0.f;
+
+        if (!FromInstigator.IsNearlyZero())
+        {
+            KnockbackDir = FromInstigator.GetSafeNormal();
+        }
+    }
+
+    return GetHorizontalSafeNormal(KnockbackDir);
+}
+
+FVector UGA_Knockback::ResolveAttackDirectionFromSource(const AActor* SourceActor)
+{
+    const AActor* DirectionActor = SourceActor;
+    if (const AController* Controller = Cast<AController>(DirectionActor))
+    {
+        if (const APawn* Pawn = Controller->GetPawn())
+        {
+            DirectionActor = Pawn;
+        }
+    }
+
+    if (const APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(DirectionActor))
+    {
+        const FVector InputDirection = GetHorizontalSafeNormal(Player->LastInputDirection);
+        if (!InputDirection.IsNearlyZero())
+        {
+            return InputDirection;
+        }
+    }
+
+    return DirectionActor
+        ? GetHorizontalSafeNormal(DirectionActor->GetActorForwardVector())
+        : FVector::ZeroVector;
+}
+
+void UGA_Knockback::AppendAttackDirectionTargetData(
+    FGameplayEventData& EventData,
+    const FVector& InDirection,
+    const AActor* AnchorActor)
+{
+    const FVector Direction = GetHorizontalSafeNormal(InDirection);
+    if (Direction.IsNearlyZero())
+    {
+        return;
+    }
+
+    const FVector Origin = AnchorActor ? AnchorActor->GetActorLocation() : FVector::ZeroVector;
+    FGameplayAbilityTargetData_LocationInfo* DirectionData = new FGameplayAbilityTargetData_LocationInfo();
+    DirectionData->SourceLocation.LocationType = EGameplayAbilityTargetingLocationType::LiteralTransform;
+    DirectionData->SourceLocation.LiteralTransform = FTransform(FRotator::ZeroRotator, Origin);
+    DirectionData->TargetLocation.LocationType = EGameplayAbilityTargetingLocationType::LiteralTransform;
+    DirectionData->TargetLocation.LiteralTransform = FTransform(Direction.Rotation(), Origin + Direction);
+    EventData.TargetData.Add(DirectionData);
 }
 
 void UGA_Knockback::ActivateAbility(
@@ -56,20 +159,8 @@ void UGA_Knockback::ActivateAbility(
     }
 
     // ---- 计算击退方向 ----
-    // 优先用事件的 Instigator（攻击者）位置推算方向
-    FVector KnockbackDir = TargetChar->GetActorForwardVector() * -1.f; // 默认向后
-
-    if (TriggerEventData && TriggerEventData->Instigator != nullptr)
-    {
-        FVector FromInstigator = TargetChar->GetActorLocation()
-            - TriggerEventData->Instigator->GetActorLocation();
-        FromInstigator.Z = 0.f; // 水平方向击退，不影响垂直轴
-
-        if (!FromInstigator.IsNearlyZero())
-        {
-            KnockbackDir = FromInstigator.GetSafeNormal();
-        }
-    }
+    // Prefer an explicit attack direction in the event payload, then fall back to instigator position.
+    const FVector KnockbackDir = ResolveKnockbackDirection(TargetChar, TriggerEventData);
 
     // ---- 计算目标位置 ----
     const float EffectiveKnockbackDistance =

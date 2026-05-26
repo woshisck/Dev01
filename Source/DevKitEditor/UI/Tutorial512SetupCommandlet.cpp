@@ -87,6 +87,8 @@ namespace Tutorial512Setup
 			{ TEXT("T_Tutorial512_CardSort"), TEXT("T_Tutorial512_CardSort.png") },
 			{ TEXT("T_Tutorial512_LinkCard"), TEXT("T_Tutorial512_LinkCard.png") },
 			{ TEXT("T_Tutorial512_DeckReload"), TEXT("T_Tutorial512_DeckReload.png") },
+			{ TEXT("T_Tutorial512_HeavyCard"), TEXT("T_Tutorial512_HeavyCard.png") },
+			{ TEXT("T_Tutorial512_Finisher"), TEXT("T_Tutorial512_Finisher.png") },
 		};
 	}
 
@@ -119,6 +121,14 @@ namespace Tutorial512Setup
 		if (EventID == TEXT("tutorial_shuffle_hint"))
 		{
 			return TEXT("T_Tutorial512_DeckReload");
+		}
+		if (EventID == TEXT("tutorial_heavy_card"))
+		{
+			return TEXT("T_Tutorial512_HeavyCard");
+		}
+		if (EventID == TEXT("tutorial_finisher"))
+		{
+			return TEXT("T_Tutorial512_Finisher");
 		}
 		return FString();
 	}

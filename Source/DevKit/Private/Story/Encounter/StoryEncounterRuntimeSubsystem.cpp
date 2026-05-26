@@ -126,6 +126,16 @@ void SetActorStoryEnabled(AActor* Actor, bool bEnabled)
 	Actor->SetActorEnableCollision(bEnabled);
 	Actor->SetActorTickEnabled(bEnabled);
 }
+
+FName MakeEncounterFireKey(FName EncounterId, FName NodeId)
+{
+	if (EncounterId.IsNone() || NodeId.IsNone())
+	{
+		return NAME_None;
+	}
+
+	return FName(*FString::Printf(TEXT("%s.%s"), *EncounterId.ToString(), *NodeId.ToString()));
+}
 }
 
 bool UStoryEncounterRuntimeSubsystem::TriggerEncounterNode(UStoryEncounterMap* EncounterMap, FName NodeId, AActor* SourceActor)
@@ -157,6 +167,7 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterNode(UStoryEncounterMap* E
 	}
 
 	ExecuteEncounterNodeCore(EncounterMap->EncounterId, *Node, Context);
+	MarkNodeFired(EncounterMap->EncounterId, *Node);
 
 	return true;
 }
@@ -204,6 +215,7 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterGraphNode(UStoryEncounterG
 	}
 
 	ExecuteEncounterNodeCore(EncounterId, Node, Context);
+	MarkNodeFired(EncounterId, Node);
 
 	return true;
 }
@@ -237,6 +249,7 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterPoint(UStoryEncounterPoint
 	}
 
 	ExecuteEncounterNodeCore(EncounterPoint->EncounterId, Node, Context);
+	MarkNodeFired(EncounterPoint->EncounterId, Node);
 
 	return true;
 }
@@ -337,6 +350,11 @@ bool UStoryEncounterRuntimeSubsystem::CanTriggerNode(FName EncounterId,
 		return false;
 	}
 
+	if (ShouldSkipForFirePolicy(EncounterId, Node))
+	{
+		return false;
+	}
+
 	const UStoryEngineSubsystem* StoryEngine = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>()
 		: nullptr;
@@ -364,6 +382,59 @@ bool UStoryEncounterRuntimeSubsystem::CanTriggerNode(FName EncounterId,
 	}
 	default:
 		return false;
+	}
+}
+
+bool UStoryEncounterRuntimeSubsystem::ShouldSkipForFirePolicy(FName EncounterId,
+	const FStoryEncounterNode& Node) const
+{
+	if (Node.FirePolicy == EStoryEncounterFirePolicy::Repeat)
+	{
+		return false;
+	}
+
+	const FName FireKey = MakeEncounterFireKey(EncounterId, Node.NodeId);
+	if (FireKey.IsNone())
+	{
+		return false;
+	}
+
+	switch (Node.FirePolicy)
+	{
+	case EStoryEncounterFirePolicy::Once:
+		return FiredOnceEncounterNodes.Contains(FireKey);
+	case EStoryEncounterFirePolicy::OncePerRun:
+		return FiredRunEncounterNodes.Contains(FireKey);
+	case EStoryEncounterFirePolicy::Repeat:
+	default:
+		return false;
+	}
+}
+
+void UStoryEncounterRuntimeSubsystem::MarkNodeFired(FName EncounterId, const FStoryEncounterNode& Node)
+{
+	if (Node.FirePolicy == EStoryEncounterFirePolicy::Repeat)
+	{
+		return;
+	}
+
+	const FName FireKey = MakeEncounterFireKey(EncounterId, Node.NodeId);
+	if (FireKey.IsNone())
+	{
+		return;
+	}
+
+	switch (Node.FirePolicy)
+	{
+	case EStoryEncounterFirePolicy::Once:
+		FiredOnceEncounterNodes.Add(FireKey);
+		break;
+	case EStoryEncounterFirePolicy::OncePerRun:
+		FiredRunEncounterNodes.Add(FireKey);
+		break;
+	case EStoryEncounterFirePolicy::Repeat:
+	default:
+		break;
 	}
 }
 

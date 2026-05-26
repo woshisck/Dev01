@@ -1,7 +1,33 @@
 #include "AbilitySystem/Abilities/GA_KnockbackDebuff.h"
+#include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "GameFramework/Controller.h"
+
+namespace
+{
+const AActor* ResolveDamageDirectionSource(const FGameplayEventData& DamagePayload)
+{
+	const AActor* DirectionSource = DamagePayload.ContextHandle.IsValid()
+		? DamagePayload.ContextHandle.GetInstigator()
+		: nullptr;
+	if (!DirectionSource)
+	{
+		DirectionSource = DamagePayload.Instigator.Get();
+	}
+
+	if (const AController* Controller = Cast<AController>(DirectionSource))
+	{
+		if (const APawn* Pawn = Controller->GetPawn())
+		{
+			DirectionSource = Pawn;
+		}
+	}
+
+	return DirectionSource;
+}
+}
 
 UGA_KnockbackDebuff::UGA_KnockbackDebuff(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -43,6 +69,30 @@ void UGA_KnockbackDebuff::ActivateAbility(
 	WaitTask->ReadyForActivation();
 }
 
+FGameplayEventData UGA_KnockbackDebuff::MakeKnockbackPayloadFromDamageEvent(
+	AActor* AvatarActor,
+	const FGameplayEventData& DamagePayload)
+{
+	FGameplayEventData KnockbackPayload;
+	KnockbackPayload.EventTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"), false);
+	KnockbackPayload.Target = AvatarActor;
+
+	if (const AActor* DirectionSource = ResolveDamageDirectionSource(DamagePayload))
+	{
+		KnockbackPayload.Instigator = const_cast<AActor*>(DirectionSource);
+		UGA_Knockback::AppendAttackDirectionTargetData(
+			KnockbackPayload,
+			UGA_Knockback::ResolveAttackDirectionFromSource(DirectionSource),
+			AvatarActor);
+	}
+	else
+	{
+		KnockbackPayload.Instigator = DamagePayload.Instigator;
+	}
+
+	return KnockbackPayload;
+}
+
 void UGA_KnockbackDebuff::OnDamageTaken(FGameplayEventData Payload)
 {
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
@@ -52,9 +102,7 @@ void UGA_KnockbackDebuff::OnDamageTaken(FGameplayEventData Payload)
 	static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"), false);
 	if (KnockbackTag.IsValid())
 	{
-		FGameplayEventData KBPayload;
-		KBPayload.Instigator = Payload.Instigator; // 攻击者，用于计算击退方向
-		KBPayload.Target     = AvatarActor;
+		FGameplayEventData KBPayload = MakeKnockbackPayloadFromDamageEvent(AvatarActor, Payload);
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(AvatarActor, KnockbackTag, KBPayload);
 	}
 

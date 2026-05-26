@@ -400,6 +400,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLENodeSpawnRewardPickupUsesStoryContextTransfo
 	"DevKit.StoryEncounter.SpawnRewardPickupUsesStoryContextTransform",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterOncePointSkipsSecondRewardDropTest,
+	"DevKit.StoryEncounter.OncePointSkipsSecondRewardDrop",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
 bool FLENodeSpawnRewardPickupUsesStoryContextTransformTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = GWorld;
@@ -450,6 +454,59 @@ bool FLENodeSpawnRewardPickupUsesStoryContextTransformTest::RunTest(const FStrin
 		FoundPickup->Destroy();
 	}
 
+	return true;
+}
+
+bool FStoryEncounterOncePointSkipsSecondRewardDropTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Test world exists"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	StoryEncounterRuntimeTests::DestroyRewardPickups(World);
+
+	UGameInstance* GameInstance = NewObject<UGameInstance>();
+	UStoryEncounterRuntimeSubsystem* Runtime = NewObject<UStoryEncounterRuntimeSubsystem>(GameInstance);
+	UStoryEncounterPointDA* Point = NewObject<UStoryEncounterPointDA>();
+	Point->EncounterId = TEXT("EM_Test");
+	Point->NodeId = TEXT("dummy_death_drop_once");
+	Point->Kind = EStoryEncounterNodeKind::Death;
+	Point->FirePolicy = EStoryEncounterFirePolicy::Once;
+
+	FStoryEncounterAction DropAction;
+	DropAction.Kind = EStoryEncounterActionKind::SpawnRewardPickup;
+	DropAction.RewardPickupClass = ARewardPickup::StaticClass();
+	DropAction.RewardPickupCount = 1;
+	DropAction.bSpawnRewardOnTargetDeath = false;
+	FLootOption LootOption;
+	LootOption.LootType = ELootType::Rune;
+	LootOption.DisplayName = FText::FromString(TEXT("Heavy Card"));
+	DropAction.RewardLootOptions.Add(LootOption);
+	Point->Actions.Add(DropAction);
+
+	AActor* SourceActor = StoryEncounterRuntimeTests::SpawnTestActorWithTransform(World, FTransform::Identity);
+	TestNotNull(TEXT("Source actor spawned"), SourceActor);
+	if (!SourceActor)
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("First death trigger spawns reward"), Runtime->TriggerEncounterPoint(Point, SourceActor));
+	TestFalse(TEXT("Second death trigger is blocked by Once policy"), Runtime->TriggerEncounterPoint(Point, SourceActor));
+
+	int32 PickupCount = 0;
+	for (TActorIterator<ARewardPickup> It(World); It; ++It)
+	{
+		++PickupCount;
+	}
+
+	TestEqual(TEXT("Once death point drops only one reward pickup"), PickupCount, 1);
+
+	StoryEncounterRuntimeTests::DestroyRewardPickups(World);
+	SourceActor->Destroy();
 	return true;
 }
 

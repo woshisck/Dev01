@@ -1,6 +1,8 @@
 #include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
 
+#include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystemComponent.h"
+#include "BuffFlow/BuffFlowComponent.h"
 #include "Types/FlowDataPinResults.h"
 #include "FlowTypes.h"
 
@@ -70,6 +72,17 @@ void UBFNode_SendGameplayEvent::ExecuteBuffFlowInput(const FName& PinName)
 	EventData.Instigator = InstigatorActor;
 	EventData.Target = PayloadTargetActor;
 	EventData.EventMagnitude = ResolvedMagnitude;
+	static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"), false);
+	if (KnockbackTag.IsValid() && EventTag.MatchesTagExact(KnockbackTag))
+	{
+		if (const UBuffFlowComponent* BFC = GetBuffFlowComponent())
+		{
+			UGA_Knockback::AppendAttackDirectionTargetData(
+				EventData,
+				BFC->LastEventContext.AttackDirection,
+				PayloadTargetActor);
+		}
+	}
 
 	// Finish this node before dispatching, because the event can synchronously restart this Flow.
 	TriggerOutput(TEXT("Out"), true);

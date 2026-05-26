@@ -35,6 +35,8 @@ public:
 private:
 	bool CanTriggerNode(FName EncounterId, const FStoryEncounterNode& Node,
 		const FStoryEventContext& Context) const;
+	bool ShouldSkipForFirePolicy(FName EncounterId, const FStoryEncounterNode& Node) const;
+	void MarkNodeFired(FName EncounterId, const FStoryEncounterNode& Node);
 	bool ExecuteActorEnabledAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
 	bool ExecuteTutorialAreaHintAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context);
 	bool ExecuteSpawnRewardPickupAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context);
@@ -54,4 +56,6 @@ private:
 
 	TMap<TObjectKey<AYogCharacterBase>, TArray<FStoryEncounterAction>> PendingRewardDropActions;
 	TSet<TObjectKey<AYogCharacterBase>> BoundRewardDropTargets;
+	TSet<FName> FiredOnceEncounterNodes;
+	TSet<FName> FiredRunEncounterNodes;
 };

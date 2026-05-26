@@ -140,6 +140,9 @@ struct FBFEventContext
 	UPROPERTY()
 	float DamageAmount = 0.f;
 
+	UPROPERTY()
+	FVector AttackDirection = FVector::ZeroVector;
+
 	/** 供 OnBuffAdded / OnBuffRemoved 节点使用的 Tag */
 	UPROPERTY()
 	FGameplayTag EventTag;
@@ -149,6 +152,7 @@ struct FBFEventContext
 		DamageCauser.Reset();
 		DamageReceiver.Reset();
 		DamageAmount = 0.f;
+		AttackDirection = FVector::ZeroVector;
 		EventTag = FGameplayTag::EmptyTag;
 	}
 };

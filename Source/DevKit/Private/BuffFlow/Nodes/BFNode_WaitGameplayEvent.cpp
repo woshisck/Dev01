@@ -95,6 +95,7 @@ void UBFNode_WaitGameplayEvent::HandleGameplayEvent(FGameplayTag Tag, const FGam
 			BFC->LastEventContext.DamageCauser   = const_cast<AActor*>(Payload->Instigator.Get());
 			BFC->LastEventContext.DamageReceiver = const_cast<AActor*>(Payload->Target.Get());
 			BFC->LastEventContext.DamageAmount   = Payload->EventMagnitude;
+			BFC->LastEventContext.AttackDirection = FVector::ZeroVector;
 
 			EventMagnitude = FFlowDataPinOutputProperty_Float(Payload->EventMagnitude);
 		}
