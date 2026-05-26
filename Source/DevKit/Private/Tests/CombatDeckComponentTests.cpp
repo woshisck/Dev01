@@ -6,6 +6,7 @@
 #include "Component/ComboRuntimeComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
 #include "AbilitySystem/GameplayEffect/GE_RuneBurn.h"
 #include "AbilitySystem/Execution/GEExec_BurnDamage.h"
@@ -16,6 +17,8 @@
 #include "BuffFlow/Nodes/BFNode_ApplyGEInRadius.h"
 #include "BuffFlow/Nodes/BFNode_ApplyRuneEffectProfile.h"
 #include "BuffFlow/Nodes/BFNode_CalcRuneGroundPathTransform.h"
+#include "BuffFlow/Nodes/BFNode_CombatCardContext.h"
+#include "BuffFlow/Nodes/BFNode_DoDamage.h"
 #include "BuffFlow/Nodes/BFNode_GrantSacrificePassive.h"
 #include "BuffFlow/Nodes/BFNode_PlayFlipbookVFX.h"
 #include "BuffFlow/Nodes/BFNode_PlayNiagara.h"
@@ -2146,6 +2149,90 @@ bool FCombatDeckGeneratedGenericStatusCardsConfiguredTest::RunTest(const FString
 		bAllValid &= TestTrue(FString::Printf(TEXT("%s DA uses generated BaseFlow"), *Key), CardConfig.BaseFlow.Get() == ExpectedFlow);
 		bAllValid &= TestTrue(FString::Printf(TEXT("%s RuneInfo Flow uses generated BaseFlow"), *Key), CardDA->RuneInfo.Flow.FlowAsset.Get() == ExpectedFlow);
 		bAllValid &= TestEqual(FString::Printf(TEXT("%s has no link recipes"), *Key), CardConfig.LinkRecipes.Num(), 0);
+	}
+
+	return bAllValid;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedHeavyCardBonusConfiguredTest,
+	"DevKit.CombatDeck.GeneratedHeavyCardBonusConfigured",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckGeneratedHeavyCardBonusConfiguredTest::RunTest(const FString& Parameters)
+{
+	bool bAllValid = true;
+
+	URuneDataAsset* HeavyDA = LoadObject<URuneDataAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Heavy.DA_Rune512_Heavy"));
+	bAllValid &= TestNotNull(TEXT("Generated heavy DA exists"), HeavyDA);
+	if (!HeavyDA)
+	{
+		return false;
+	}
+
+	const FGameplayTag HeavyIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Heavy"), false);
+	const FGameplayTag HeavyEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Heavy"), false);
+	const FGameplayTag KnockbackEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Knockback"), false);
+	const FCombatCardConfig& HeavyCard = HeavyDA->RuneInfo.CombatCard;
+	bAllValid &= TestTrue(TEXT("Card.ID.Heavy tag exists"), HeavyIdTag.IsValid());
+	bAllValid &= TestTrue(TEXT("Card.Effect.Heavy tag exists"), HeavyEffectTag.IsValid());
+	bAllValid &= TestTrue(TEXT("Card.Effect.Knockback tag exists"), KnockbackEffectTag.IsValid());
+	bAllValid &= TestEqual(TEXT("Heavy card keeps Any action so light and heavy attacks can draw it"), HeavyCard.RequiredAction, ECardRequiredAction::Any);
+	bAllValid &= TestEqual(TEXT("Heavy card triggers on hit"), HeavyCard.TriggerTiming, ECombatCardTriggerTiming::OnHit);
+	bAllValid &= TestEqual(TEXT("Heavy card id configured"), HeavyCard.CardIdTag, HeavyIdTag);
+	bAllValid &= TestTrue(TEXT("Heavy card has Heavy effect tag"), HeavyCard.CardEffectTags.HasTagExact(HeavyEffectTag));
+	bAllValid &= TestTrue(TEXT("Heavy card has Knockback effect tag"), HeavyCard.CardEffectTags.HasTagExact(KnockbackEffectTag));
+
+	UFlowAsset* HeavyFlow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Heavy_Base.FA_Rune512_Heavy_Base"));
+	bAllValid &= TestNotNull(TEXT("Generated heavy base flow exists"), HeavyFlow);
+	if (!HeavyFlow)
+	{
+		return false;
+	}
+
+	const UBFNode_CombatCardContextBranch* HeavyBranch = nullptr;
+	const UBFNode_DoDamage* ExtraDamageNode = nullptr;
+	const UBFNode_ApplyAttributeModifier* SlowNode = nullptr;
+	for (const TPair<FGuid, UFlowNode*>& Pair : HeavyFlow->GetNodes())
+	{
+		if (const UBFNode_CombatCardContextBranch* Branch = Cast<UBFNode_CombatCardContextBranch>(Pair.Value))
+		{
+			if (Branch->RequiredAction == ECardRequiredAction::Heavy)
+			{
+				HeavyBranch = Branch;
+			}
+		}
+		else if (const UBFNode_DoDamage* DamageNode = Cast<UBFNode_DoDamage>(Pair.Value))
+		{
+			if (DamageNode->TargetSelector == EBFTargetSelector::LastDamageTarget
+				&& DamageNode->DamageEffect.Get()
+				&& DamageNode->FlatDamage.Value > 0.f)
+			{
+				ExtraDamageNode = DamageNode;
+			}
+		}
+		else if (const UBFNode_ApplyAttributeModifier* ApplyNode = Cast<UBFNode_ApplyAttributeModifier>(Pair.Value))
+		{
+			if (ApplyNode->Target == EBFTargetSelector::LastDamageTarget
+				&& ApplyNode->Attribute == UBaseAttributeSet::GetMoveSpeedAttribute()
+				&& ApplyNode->DurationType == ERuneDurationType::Duration
+				&& ApplyNode->Duration > 0.f)
+			{
+				SlowNode = ApplyNode;
+			}
+		}
+	}
+
+	bAllValid &= TestNotNull(TEXT("Heavy flow has a heavy-action context branch"), HeavyBranch);
+	bAllValid &= TestNotNull(TEXT("Heavy flow has an extra damage node for heavy attacks"), ExtraDamageNode);
+	bAllValid &= TestNotNull(TEXT("Heavy flow has a temporary movement slow node for heavy attacks"), SlowNode);
+	if (SlowNode)
+	{
+		bAllValid &= TestEqual(TEXT("Heavy slow is multiplicative"), SlowNode->ModOp.GetValue(), EGameplayModOp::Multiplicitive);
+		bAllValid &= TestTrue(TEXT("Heavy slow reduces movement speed"), SlowNode->Value.Value > 0.f && SlowNode->Value.Value < 1.f);
 	}
 
 	return bAllValid;

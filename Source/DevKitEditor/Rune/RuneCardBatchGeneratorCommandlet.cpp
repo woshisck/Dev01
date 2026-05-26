@@ -3,6 +3,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "Commandlets/CommandletReportUtils.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/GameplayEffect/GE_MusketBullet_Damage.h"
 #include "AbilitySystem/GameplayEffect/GE_RuneBurn.h"
 #include "AbilitySystem/Execution/GEExec_PoisonDamage.h"
@@ -10,6 +11,8 @@
 #include "BuffFlow/Nodes/BFNode_ApplyEffect.h"
 #include "BuffFlow/Nodes/BFNode_ApplyGEInRadius.h"
 #include "BuffFlow/Nodes/BFNode_CalcRuneGroundPathTransform.h"
+#include "BuffFlow/Nodes/BFNode_CombatCardContext.h"
+#include "BuffFlow/Nodes/BFNode_DoDamage.h"
 #include "BuffFlow/Nodes/BFNode_MathFloat.h"
 #include "BuffFlow/Nodes/BFNode_OnDamageDealt.h"
 #include "BuffFlow/Nodes/BFNode_PlayFlipbookVFX.h"
@@ -92,6 +95,7 @@ namespace Rune512Batch
 	const FString THSwordComboGraph = TEXT("/Game/Docs/Combat/TwoHandedSword/CG_THSword_Test");
 	const FString MusketBulletBlueprintPath = TEXT("/Game/Code/Weapon/BP_MusketBullet");
 	const FString DamageBasicSetByCallerPath = TEXT("/Game/Code/GAS/GameplayEffects/GE_Damage_Basic_SetByCaller");
+	const FString HeavyBonusDamageEffectPath = TEXT("/Game/Code/GAS/Abilities/Finisher/GE_FinisherDamage");
 
 	struct FIconImportSpec
 	{
@@ -942,8 +946,7 @@ namespace Rune512Batch
 			TEXT("FA_Rune512_Heavy_Base"),
 			ERuneType::Buff,
 			{
-				TEXT("Heavy v1 duplicates the knockback flow. Verify the card editor flow for passive 1D-deck knockback and heavy-attack slow before final balance."),
-				TEXT("RequiredAction remains Any so light/heavy attacks can both draw the card; heavy-specific bonus should branch from combat-card context.")
+				TEXT("RequiredAction remains Any so light/heavy attacks can both draw the card; FA_Rune512_Heavy_Base adds a Heavy-only context branch for bonus damage and slow.")
 			});
 		Heavy.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 		Heavy.RequiredAction = ECardRequiredAction::Any;
@@ -3368,6 +3371,187 @@ namespace Rune512Batch
 		}
 	}
 
+	FVector2D GetFlowNodeLocation(const UFlowNode* Node)
+	{
+		const UFlowGraphNode* GraphNode = Node ? Cast<UFlowGraphNode>(Node->GetGraphNode()) : nullptr;
+		return GraphNode ? FVector2D(static_cast<float>(GraphNode->NodePosX), static_cast<float>(GraphNode->NodePosY)) : FVector2D::ZeroVector;
+	}
+
+	UFlowNode* FindRightmostTerminalFlowNode(UFlowAsset* FlowAsset)
+	{
+		if (!FlowAsset)
+		{
+			return nullptr;
+		}
+
+		UFlowNode* BestNode = nullptr;
+		float BestX = -FLT_MAX;
+		UFlowNode* EntryNode = FlowAsset->GetDefaultEntryNode();
+		for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
+		{
+			UFlowNode* Node = Pair.Value;
+			if (!Node || Node == EntryNode)
+			{
+				continue;
+			}
+
+			UEdGraphPin* OutputPin = GetFirstOutputPin(Node);
+			if (!OutputPin || OutputPin->LinkedTo.Num() > 0)
+			{
+				continue;
+			}
+
+			const float NodeX = GetFlowNodeLocation(Node).X;
+			if (!BestNode || NodeX > BestX)
+			{
+				BestNode = Node;
+				BestX = NodeX;
+			}
+		}
+
+		return BestNode;
+	}
+
+	void ConfigureHeavyBaseFlow(
+		UFlowAsset* FlowAsset,
+		const FString& FlowName,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		if (FlowName != TEXT("FA_Rune512_Heavy_Base"))
+		{
+			return;
+		}
+
+		if (bDryRun)
+		{
+			ReportLines.Add(TEXT("- Would configure `FA_Rune512_Heavy_Base`: base knockback flow -> Heavy-only context branch -> bonus damage -> temporary move speed slow."));
+			return;
+		}
+
+		if (!FlowAsset)
+		{
+			ReportLines.Add(TEXT("- Cannot configure `FA_Rune512_Heavy_Base`: Flow asset was not loaded."));
+			return;
+		}
+
+		UFlowGraph* FlowGraph = Cast<UFlowGraph>(FlowAsset->GetGraph());
+		UFlowNode* EntryNode = FlowAsset->GetDefaultEntryNode();
+		if (!FlowGraph || !EntryNode)
+		{
+			ReportLines.Add(TEXT("- Cannot configure `FA_Rune512_Heavy_Base`: missing FlowGraph or Entry node."));
+			return;
+		}
+
+		UBFNode_CombatCardContextBranch* HeavyBranch = Cast<UBFNode_CombatCardContextBranch>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node)
+			{
+				UBFNode_CombatCardContextBranch* Branch = Cast<UBFNode_CombatCardContextBranch>(Node);
+				return Branch && Branch->RequiredAction == ECardRequiredAction::Heavy;
+			}));
+
+		UFlowNode* TerminalNode = FindRightmostTerminalFlowNode(FlowAsset);
+		if (!TerminalNode)
+		{
+			TerminalNode = EntryNode;
+		}
+
+		if (!HeavyBranch)
+		{
+			const FVector2D TerminalLocation = GetFlowNodeLocation(TerminalNode);
+			HeavyBranch = Cast<UBFNode_CombatCardContextBranch>(CreateFlowNodeAfter(
+				FlowGraph,
+				TerminalNode,
+				UBFNode_CombatCardContextBranch::StaticClass(),
+				FVector2D(TerminalLocation.X + 320.f, TerminalLocation.Y)));
+		}
+
+		UBFNode_DoDamage* ExtraDamageNode = Cast<UBFNode_DoDamage>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node)
+			{
+				UBFNode_DoDamage* DamageNode = Cast<UBFNode_DoDamage>(Node);
+				return DamageNode
+					&& DamageNode->TargetSelector == EBFTargetSelector::LastDamageTarget
+					&& DamageNode->FlatDamage.Value > 0.f;
+			}));
+		if (!ExtraDamageNode && HeavyBranch)
+		{
+			const FVector2D BranchLocation = GetFlowNodeLocation(HeavyBranch);
+			ExtraDamageNode = Cast<UBFNode_DoDamage>(CreateFlowNodeAfter(
+				FlowGraph,
+				HeavyBranch,
+				UBFNode_DoDamage::StaticClass(),
+				FVector2D(BranchLocation.X + 320.f, BranchLocation.Y - 40.f)));
+		}
+
+		UBFNode_ApplyAttributeModifier* SlowNode = Cast<UBFNode_ApplyAttributeModifier>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node)
+			{
+				UBFNode_ApplyAttributeModifier* ApplyNode = Cast<UBFNode_ApplyAttributeModifier>(Node);
+				return ApplyNode
+					&& ApplyNode->Target == EBFTargetSelector::LastDamageTarget
+					&& ApplyNode->Attribute == UBaseAttributeSet::GetMoveSpeedAttribute();
+			}));
+		if (!SlowNode && ExtraDamageNode)
+		{
+			const FVector2D DamageLocation = GetFlowNodeLocation(ExtraDamageNode);
+			SlowNode = Cast<UBFNode_ApplyAttributeModifier>(CreateFlowNodeAfter(
+				FlowGraph,
+				ExtraDamageNode,
+				UBFNode_ApplyAttributeModifier::StaticClass(),
+				FVector2D(DamageLocation.X + 320.f, DamageLocation.Y)));
+		}
+
+		if (!HeavyBranch || !ExtraDamageNode || !SlowNode)
+		{
+			ReportLines.Add(TEXT("- Failed to configure `FA_Rune512_Heavy_Base`: missing generated Heavy branch, damage, or slow node."));
+			return;
+		}
+
+		const FGameplayTag HeavyCardIdTag = RequestTag(TEXT("Card.ID.Heavy"), ReportLines);
+		HeavyBranch->Modify();
+		HeavyBranch->RequiredAction = ECardRequiredAction::Heavy;
+		HeavyBranch->RequiredSourceCardTypes = { ECombatCardType::Normal };
+		HeavyBranch->RequiredSourceCardIdTags.Reset();
+		if (HeavyCardIdTag.IsValid())
+		{
+			HeavyBranch->RequiredSourceCardIdTags.AddTag(HeavyCardIdTag);
+		}
+
+		ExtraDamageNode->Modify();
+		ExtraDamageNode->TargetSelector = EBFTargetSelector::LastDamageTarget;
+		ExtraDamageNode->FlatDamage = FFlowDataPinInputProperty_Float(12.f);
+		ExtraDamageNode->DamageMultiplier = FFlowDataPinInputProperty_Float(0.f);
+		ExtraDamageNode->DamageEffect = LoadBlueprintClassByPackagePath<UGameplayEffect>(HeavyBonusDamageEffectPath);
+
+		SlowNode->Modify();
+		SlowNode->Target = EBFTargetSelector::LastDamageTarget;
+		SlowNode->Attribute = UBaseAttributeSet::GetMoveSpeedAttribute();
+		SlowNode->ModOp = EGameplayModOp::Multiplicitive;
+		SlowNode->Value = FFlowDataPinInputProperty_Float(0.65f);
+		SlowNode->DurationType = ERuneDurationType::Duration;
+		SlowNode->Duration = 1.5f;
+		SlowNode->Period = 0.f;
+		SlowNode->bFireImmediately = false;
+
+		RefreshGraphNodePins(HeavyBranch);
+		RefreshGraphNodePins(ExtraDamageNode);
+		RefreshGraphNodePins(SlowNode);
+		LinkFlowNodes(HeavyBranch, ExtraDamageNode);
+		LinkFlowNodes(ExtraDamageNode, SlowNode);
+
+		FlowAsset->HarvestNodeConnections();
+		FlowAsset->MarkPackageDirty();
+		DirtyPackages.AddUnique(FlowAsset->GetPackage());
+		FlowGraph->Modify();
+		FlowGraph->NotifyGraphChanged();
+		ReportLines.Add(TEXT("- Configured `FA_Rune512_Heavy_Base`: Heavy-only context branch adds +12 damage and 1.5s 65% move speed slow after base knockback."));
+	}
+
 	void ConfigureSplitBaseFlow(
 		UFlowAsset* FlowAsset,
 		const FString& FlowName,
@@ -3910,6 +4094,7 @@ namespace Rune512Batch
 		ConfigureStandaloneNiagaraVfxFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		StripApplyAttributeInlineVfx(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		ConfigureCombatCardAttributeMultiplierFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
+		ConfigureHeavyBaseFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		ConfigureSplitBaseFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		ConfigureSplashBaseFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		URuneCardEffectProfileDA* BaseProfile = ConfigureMoonlightEffectProfile(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);

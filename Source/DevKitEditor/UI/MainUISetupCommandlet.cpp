@@ -18,6 +18,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "CommonTextBlock.h"
 #include "Engine/Blueprint.h"
 #include "Engine/Texture2D.h"
 #include "FileHelpers.h"
@@ -30,8 +31,10 @@
 #include "UI/LiquidHealthBarWidget.h"
 #include "UI/PauseMenuWidget.h"
 #include "UI/PlayerCommonInfoWidget.h"
+#include "UI/InputActionRichTextDecorator.h"
 #include "UI/YogHUD.h"
 #include "UI/YogHUDRootWidget.h"
+#include "UI/YogCommonRichTextBlock.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintFactory.h"
 
@@ -52,6 +55,7 @@ namespace MainUISetup
 	const TCHAR* CombatDeckClassPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_CombatDeckBar.WBP_CombatDeckBar_C");
 	const TCHAR* CurrentRoomBuffClassPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_CurrentRoomBuffPanel.WBP_CurrentRoomBuffPanel_C");
 	const TCHAR* PlayerCommonInfoClassPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_PlayerCommonInfoHud.WBP_PlayerCommonInfoHud_C");
+	const TCHAR* InfoPopupTextStyleClassPath = TEXT("/Game/Docs/UI/Tutorial/BP_InfoPopupTextStyle.BP_InfoPopupTextStyle_C");
 
 	const TCHAR* PanelFrameTexturePath = TEXT("/Game/UI/Playtest_UI/UI_Tex/Pause/T_PausePanel_OrnateFrame.T_PausePanel_OrnateFrame");
 	const TCHAR* DividerTexturePath = TEXT("/Game/UI/Playtest_UI/UI_Tex/Pause/T_PauseDivider_Ornate.T_PauseDivider_Ornate");
@@ -166,6 +170,23 @@ namespace MainUISetup
 		FSlateFontInfo FontInfo = TextBlock->GetFont();
 		FontInfo.Size = Size;
 		TextBlock->SetFont(FontInfo);
+	}
+
+	void ConfigureComboRichText(UYogCommonRichTextBlock* RichTextBlock, const FString& Text, const FLinearColor& Color, int32 Size)
+	{
+		if (!RichTextBlock)
+		{
+			return;
+		}
+
+		RichTextBlock->SetText(FText::FromString(Text));
+		RichTextBlock->SetAutoWrapText(true);
+		RichTextBlock->SetJustification(ETextJustify::Left);
+		RichTextBlock->SetClipping(EWidgetClipping::ClipToBounds);
+		RichTextBlock->FontStyleClass = LoadClass<UCommonTextStyle>(nullptr, InfoPopupTextStyleClassPath);
+		RichTextBlock->OverrideFontSize = Size;
+		RichTextBlock->OverrideColor = Color;
+		RichTextBlock->EnsureDecoratorClass(UInputActionRichTextDecorator::StaticClass());
 	}
 
 	void AddWidgetToOverlay(UOverlay* Overlay, UWidget* Child, EHorizontalAlignment HAlign, EVerticalAlignment VAlign, const FMargin& Padding = FMargin())
@@ -370,6 +391,48 @@ namespace MainUISetup
 		{
 			BottomRight->SetVisibility(ESlateVisibility::HitTestInvisible);
 		}
+
+		USizeBox* WeaponComboListPanel = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("WeaponComboListPanel"));
+		UBorder* WeaponComboListFrame = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("WeaponComboListFrame"), false);
+		UVerticalBox* WeaponComboListStack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("WeaponComboListStack"), false);
+		UTextBlock* WeaponComboListTitle = ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("WeaponComboListTitle"), false);
+		UYogCommonRichTextBlock* WeaponComboListText = ConstructNamedWidget<UYogCommonRichTextBlock>(WidgetTree, TEXT("WeaponComboListText"));
+		if (WeaponComboListPanel && WeaponComboListFrame && WeaponComboListStack && WeaponComboListTitle && WeaponComboListText)
+		{
+			WeaponComboListPanel->SetWidthOverride(430.f);
+			WeaponComboListPanel->SetHeightOverride(132.f);
+			WeaponComboListPanel->SetVisibility(ESlateVisibility::Collapsed);
+			WeaponComboListPanel->SetClipping(EWidgetClipping::ClipToBounds);
+
+			WeaponComboListFrame->SetBrushColor(FLinearColor(0.025f, 0.028f, 0.034f, 0.78f));
+			WeaponComboListFrame->SetPadding(FMargin(14.f, 10.f));
+			WeaponComboListFrame->SetVisibility(ESlateVisibility::HitTestInvisible);
+			WeaponComboListPanel->AddChild(WeaponComboListFrame);
+			WeaponComboListFrame->SetContent(WeaponComboListStack);
+
+			ConfigureText(WeaponComboListTitle, TEXT("\u6b66\u5668\u8fde\u62db"), FLinearColor(0.96f, 0.91f, 0.78f, 1.f), 16, false);
+			WeaponComboListTitle->SetJustification(ETextJustify::Left);
+			WeaponComboListTitle->SetShadowOffset(FVector2D(1.0f, 1.0f));
+			WeaponComboListTitle->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.85f));
+			if (UVerticalBoxSlot* TitleSlot = WeaponComboListStack->AddChildToVerticalBox(WeaponComboListTitle))
+			{
+				TitleSlot->SetHorizontalAlignment(HAlign_Fill);
+				TitleSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+			}
+
+			ConfigureComboRichText(
+				WeaponComboListText,
+				TEXT("\u8fde\u6bb5 01   <input action=\"LightAttack\"/> -> <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>\n\u8fde\u6bb5 02   <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"),
+				FLinearColor(0.88f, 0.91f, 0.96f, 1.f),
+				13);
+			WeaponComboListText->SetVisibility(ESlateVisibility::HitTestInvisible);
+			if (UVerticalBoxSlot* TextSlot = WeaponComboListStack->AddChildToVerticalBox(WeaponComboListText))
+			{
+				TextSlot->SetHorizontalAlignment(HAlign_Fill);
+				TextSlot->SetVerticalAlignment(VAlign_Fill);
+			}
+		}
+		AddWidgetToOverlay(TopRight, WeaponComboListPanel, HAlign_Right, VAlign_Top);
 
 		UWidget* PlayerCommonInfo = ConstructWidgetFromPath(
 			WidgetTree,
@@ -641,6 +704,8 @@ namespace MainUISetup
 			|| !WidgetUsesClassPath(WidgetBlueprint, TEXT("PlayerHealthBar"), PlayerHealthClassPath)
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CombatDeckBar"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("PlayerCommonInfoHud"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("WeaponComboListPanel"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("WeaponComboListText"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CurrentRoomBuffPanel"));
 	}
 

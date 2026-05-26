@@ -12,6 +12,9 @@ class UCombatDeckBarWidget;
 class UPlayerCommonInfoWidget;
 class UCurrentRoomBuffWidget;
 class UOverlay;
+class UWeaponDefinition;
+class UWidget;
+class UYogCommonRichTextBlock;
 
 /**
  * Main HUD container widget.
@@ -25,6 +28,9 @@ class DEVKIT_API UYogHUDRootWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
 	// Stable layout regions used by WBP_HUDRoot. These are optional so older
 	// HUD blueprints keep loading while generated layouts catch up.
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -77,4 +83,18 @@ public:
 	/** Current room enemy rune/buff panel. WBP control variable name: CurrentRoomBuffPanel */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UCurrentRoomBuffWidget> CurrentRoomBuffPanel;
+
+	/** WBP control variable name: WeaponComboListPanel */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> WeaponComboListPanel;
+
+	/** WBP control variable name: WeaponComboListText */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UYogCommonRichTextBlock> WeaponComboListText;
+
+private:
+	void RefreshWeaponComboList(bool bForce = false);
+
+	TWeakObjectPtr<UWeaponDefinition> CachedComboWeaponDefinition;
+	float ComboListRefreshAccumulator = 0.f;
 };

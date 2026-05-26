@@ -5,39 +5,13 @@
 - Generated EffectProfile root: `/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile`
 - Generated sacrifice root: `/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice`
 
-## Icon import
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_Burn.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_Poison.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_Moonlight.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_Splash.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_Split.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_Shield.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_Pierce.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_Attack.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_THSword_Cleave.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_ReduceDamage.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_Sacrifice_MoonlightShadow.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_Sacrifice_ShadowMark.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneIcons/T_Rune512_Sacrifice_GiantSwing.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/Icons`.
-
-## 512 flipbook VFX texture import
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneVFX/PreviewFrames/T_Rune512_VFX_MoonBlade_Flight.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneVFX/PreviewFrames/T_Rune512_VFX_Moonlight_Hit.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneVFX/PreviewFrames/T_Rune512_VFX_Poison_Hit.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneVFX/PreviewFrames/T_Rune512_VFX_Poison_Spread.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneVFX/PreviewFrames/T_Rune512_VFX_Burn_Hit.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures`.
-- Imported/reimported `X:/Project/Dev01/SourceArt/512RuneVFX/PreviewFrames/T_Rune512_VFX_ShieldPierce.png` -> `/Game/Docs/BuffDocs/V2-RuneCard/VFX/Textures`.
-- Found flipbook material `/Game/Docs/BuffDocs/V2-RuneCard/VFX/Materials/M_Rune512_FlipbookSprite`.
-- Found ground path decal material `/Game/Docs/BuffDocs/V2-RuneCard/VFX/Materials/M_Rune512_GroundPath_Poison_Decal`.
-- Found ground path decal material `/Game/Docs/BuffDocs/V2-RuneCard/VFX/Materials/M_Rune512_GroundPath_Burn_Fan_Decal`.
-
 ## Poison GameplayEffect assets
 - Configured `/Game/Code/GAS/Abilities/Shared/GE_Poison`: removed old modifiers, added GEExec_PoisonDamage, duration=5.0s period=1.0s executeOnApply=false stackLimit=20 grantedTag=Buff.Status.Poisoned.
 - Configured `/Game/Docs/BuffDocs/Playtest_GA/DeathPoison/GE_PoisonSplash`: removed old modifiers, added GEExec_PoisonDamage, duration=3.0s period=1.0s executeOnApply=true stackLimit=10 grantedTag=Buff.Status.Poisoned.
 
 ## Card `DA_Rune512_Burn`
 - Found existing asset `/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Burn_Base`.
-- Configured `FA_Rune512_Burn_Base`: Play Niagara node `Rune.Burn.ApplyNiagara` -> `/Game/Art/EnvironmentAsset/VFX/Niagara/Fire/NS_Fire_Floor`, Socket=spine_03, Offset=X=0.000 Y=0.000 Z=6.000, Scale=X=0.280 Y=0.280 Z=0.280, lifetime=3.2, burnDOT=1, cleared Flipbook nodes=0 (inserted after Start).
+- Configured `FA_Rune512_Burn_Base`: Play Niagara node `Rune.Burn.ApplyNiagara` -> `/Game/Art/EnvironmentAsset/VFX/Niagara/Fire/NS_Fire_Floor`, Socket=spine_03, Offset=X=0.000 Y=0.000 Z=6.000, Scale=X=0.280 Y=0.280 Z=0.280, lifetime=3.2, burnDOT=1, cleared Flipbook nodes=0 (updated existing node).
 - Verified `FA_Rune512_Burn_Base`: Apply Attribute Modifier has no inline VFX fields; checked nodes=1.
 - Found existing asset `/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn`.
 - Updated RuneInfo -> CombatCard.
@@ -76,11 +50,11 @@
 - Manual check: 已有 GA_KnockbackDebuff 处理 15% 额外护甲伤害；护甲时击退距离减少需要在 GA_Knockback 或专用节点中参数化。
 
 ## Card `DA_Rune512_Heavy`
-- Duplicated `/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Knockback` -> `/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Heavy_Base`.
-- Duplicated `/Game/Docs/BuffDocs/V2-RuneCard/GenericRune/DA_Rune_AttackUp_01` -> `/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Heavy`.
+- Found existing asset `/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Heavy_Base`.
+- Configured `FA_Rune512_Heavy_Base`: Heavy-only context branch adds +12 damage and 1.5s 65% move speed slow after base knockback.
+- Found existing asset `/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Heavy`.
 - Updated RuneInfo -> CombatCard.
-- Manual check: Heavy v1 duplicates the knockback flow. Verify the card editor flow for passive 1D-deck knockback and heavy-attack slow before final balance.
-- Manual check: RequiredAction remains Any so light/heavy attacks can both draw the card; heavy-specific bonus should branch from combat-card context.
+- Manual check: RequiredAction remains Any so light/heavy attacks can both draw the card; FA_Rune512_Heavy_Base adds a Heavy-only context branch for bonus damage and slow.
 
 ## Card `DA_Rune512_Fear`
 - Found existing asset `/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Fear_Base`.

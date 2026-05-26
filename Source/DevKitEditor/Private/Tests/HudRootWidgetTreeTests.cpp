@@ -4,8 +4,10 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Image.h"
+#include "Components/PanelWidget.h"
 #include "Components/Widget.h"
 #include "UI/LiquidHealthBarWidget.h"
+#include "UI/YogCommonRichTextBlock.h"
 #include "WidgetBlueprint.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHudRootPlayerHealthBarBlueprintBindingTest,
@@ -70,6 +72,50 @@ bool FHudRootPlayerHealthBarBlueprintBindingTest::RunTest(const FString& Paramet
 
 	TestTrue(TEXT("PlayerHealthBar uses the designer blueprint with bound LiquidFillImage"), bUsesDesignerBlueprint);
 	return bLiquidFillImageIsImage && bUsesDesignerBlueprint;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHudRootWeaponComboListBlueprintBindingTest,
+	"DevKitEditor.UI.HUD.WeaponComboListInTopRight",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Parameters)
+{
+	const TCHAR* HudBlueprintPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_HUDRoot.WBP_HUDRoot");
+
+	UWidgetBlueprint* HudBlueprint = LoadObject<UWidgetBlueprint>(nullptr, HudBlueprintPath);
+	if (!TestNotNull(TEXT("HUD root widget blueprint loads"), HudBlueprint))
+	{
+		return false;
+	}
+
+	UWidgetTree* WidgetTree = HudBlueprint->WidgetTree;
+	if (!TestNotNull(TEXT("HUD root has a designer widget tree"), WidgetTree))
+	{
+		return false;
+	}
+
+	UWidget* TopRightRegion = WidgetTree->FindWidget(TEXT("TopRightPlayerInfoRegion"));
+	UWidget* ComboPanel = WidgetTree->FindWidget(TEXT("WeaponComboListPanel"));
+	UWidget* ComboText = WidgetTree->FindWidget(TEXT("WeaponComboListText"));
+
+	bool bValid = true;
+	bValid &= TestNotNull(TEXT("HUD root contains TopRightPlayerInfoRegion"), TopRightRegion);
+	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListPanel"), ComboPanel);
+	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListText"), ComboText);
+
+	if (ComboText)
+	{
+		bValid &= TestTrue(TEXT("WeaponComboListText uses rich text so input icons can render"),
+			ComboText->IsA<UYogCommonRichTextBlock>());
+	}
+
+	if (UPanelWidget* TopRightPanel = Cast<UPanelWidget>(TopRightRegion))
+	{
+		bValid &= TestTrue(TEXT("WeaponComboListPanel is placed inside TopRightPlayerInfoRegion"),
+			ComboPanel && TopRightPanel->GetChildIndex(ComboPanel) != INDEX_NONE);
+	}
+
+	return bValid;
 }
 
 #endif
