@@ -4,8 +4,13 @@
 #include "Mob/MobSpawner.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
+#include "BuffFlow/Actors/BuffFlowLifecycleProxy.h"
+#include "BuffFlow/BuffFlowComponent.h"
+#include "BuffFlow/BuffFlowTypes.h"
+#include "BuffFlow/LifecycleFlowAsset.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Character/YogCharacterBase.h"
+#include "Component/CharacterDataComponent.h"
 #include "Components/SceneComponent.h"
 #include "Controller/YogAIController.h"
 #include "GameModes/YogGameMode.h"
@@ -116,6 +121,52 @@ void AMobSpawner::ApplyStoryHealthOverride(AEnemyCharacterBase* Mob, const FStor
         Options.MaxHealthOverride);
 }
 
+namespace
+{
+	UEnemyData* ResolveEnemyDataFromClass(TSubclassOf<AEnemyCharacterBase> EnemyClass)
+	{
+		const AEnemyCharacterBase* EnemyCDO = EnemyClass ? EnemyClass->GetDefaultObject<AEnemyCharacterBase>() : nullptr;
+		const UCharacterDataComponent* CharacterDataComponent = EnemyCDO ? EnemyCDO->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		return CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
+	}
+}
+
+void AMobSpawner::HandleLifecycleStoryEnemySpawned(AEnemyCharacterBase* SpawnedEnemy, FBuffFlowLifecycleContext& Context)
+{
+	if (!SpawnedEnemy || Context.bSpawnFinalized)
+	{
+		return;
+	}
+
+	ConfigureStorySpawnedMob(SpawnedEnemy, ActiveStorySpawnOptions);
+	ApplyStoryHealthOverride(SpawnedEnemy, ActiveStorySpawnOptions);
+	StorySpawnedMob = SpawnedEnemy;
+	StoryDeathStartedDelegateHandle = SpawnedEnemy->OnCharacterDeathStartedNative.AddUObject(this, &AMobSpawner::HandleStoryMobDeathStarted);
+	StoryDeathDelegateHandle = SpawnedEnemy->OnCharacterDiedNative.AddUObject(this, &AMobSpawner::HandleStoryMobDied);
+	Context.bSpawnFinalized = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[MobSpawner][StorySpawn] %s lifecycle-spawned %s Class=%s CountsForClear=%d Respawn=%d Delay=%.2f."),
+		*GetNameSafe(this),
+		*GetNameSafe(SpawnedEnemy),
+		*GetNameSafe(Context.EnemyClass.Get()),
+		ActiveStorySpawnOptions.bCountsForLevelClear ? 1 : 0,
+		ActiveStorySpawnOptions.bRespawnOnDeath ? 1 : 0,
+		ActiveStorySpawnOptions.RespawnDelay);
+}
+
+void AMobSpawner::HandleLifecycleStoryEnemySpawnFailed(FBuffFlowLifecycleContext& Context)
+{
+	if (Context.bSpawnFinalized)
+	{
+		return;
+	}
+
+	Context.bSpawnFinalized = true;
+	UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][StorySpawn] %s lifecycle spawn failed. Class=%s."),
+		*GetNameSafe(this),
+		*GetNameSafe(Context.EnemyClass.Get()));
+}
+
 AEnemyCharacterBase* AMobSpawner::SpawnMobForStory(const FStoryMobSpawnOptions& Options)
 {
     if (Options.bDestroyExistingStoryMob)
@@ -149,6 +200,47 @@ AEnemyCharacterBase* AMobSpawner::SpawnMobForStory(const FStoryMobSpawnOptions& 
     {
         UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][StorySpawn] %s skipped: invalid spawn location."), *GetNameSafe(this));
         return nullptr;
+    }
+
+    UEnemyData* EnemyData = ResolveEnemyDataFromClass(EnemyClass);
+    if (EnemyData && EnemyData->SpawnLifecycleFlow)
+    {
+        ActiveStorySpawnOptions = Options;
+        bStoryKillEncounterTriggered = false;
+
+        FActorSpawnParameters ProxyParams;
+        ProxyParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+        ABuffFlowLifecycleProxy* Proxy = GetWorld()->SpawnActor<ABuffFlowLifecycleProxy>(
+            ABuffFlowLifecycleProxy::StaticClass(),
+            SpawnLocation,
+            GetActorRotation(),
+            ProxyParams);
+        UBuffFlowComponent* ProxyBuffFlow = Proxy ? Proxy->GetBuffFlowComponent() : nullptr;
+        if (!Proxy || !ProxyBuffFlow)
+        {
+            if (Proxy)
+            {
+                Proxy->Destroy();
+            }
+            UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][StorySpawn] %s failed to start lifecycle spawn for %s."),
+                *GetNameSafe(this),
+                *GetNameSafe(EnemyClass.Get()));
+            return nullptr;
+        }
+
+        FBuffFlowLifecycleContext Context;
+        Context.Type = EBuffFlowLifecycleType::Spawn;
+        Context.LifecycleTarget = Proxy;
+        Context.Spawner = this;
+        Context.EnemyData = EnemyData;
+        Context.EnemyClass = EnemyClass;
+        Context.SpawnTransform = FTransform(GetActorRotation(), SpawnLocation);
+        Context.bStorySpawn = true;
+
+        ProxyBuffFlow->SetLifecycleContext(Context);
+        ProxyBuffFlow->StartBuffFlow(EnemyData->SpawnLifecycleFlow.Get(), FGuid::NewGuid(), this, true);
+        return StorySpawnedMob.Get();
     }
 
     AEnemyCharacterBase* Spawned = SpawnMobAtLocation(EnemyClass, SpawnLocation);

@@ -191,6 +191,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "BuffFlow")
 	AActor* GetBuffGiver() const;
 
+	void SetLifecycleContext(const FBuffFlowLifecycleContext& InContext);
+	void ClearLifecycleContext();
+	const FBuffFlowLifecycleContext& GetLifecycleContext() const { return LifecycleContext; }
+	FBuffFlowLifecycleContext& GetMutableLifecycleContext() { return LifecycleContext; }
+	AActor* GetLifecycleTarget() const;
+	void SetLifecycleTarget(AActor* TargetActor);
+	void RequestLifecycleFinish();
+
 	UFUNCTION(BlueprintPure, Category = "BuffFlow|Combat Card")
 	bool HasCombatCardEffectContext() const { return bHasCombatCardEffectContext; }
 
@@ -238,6 +246,9 @@ private:
 
 	UPROPERTY()
 	TArray<FBuffFlowTraceEntry> TraceEntries;
+
+	UPROPERTY()
+	FBuffFlowLifecycleContext LifecycleContext;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow|Trace", meta = (ClampMin = "16", ClampMax = "1000"))
 	int32 MaxTraceEntries = 200;

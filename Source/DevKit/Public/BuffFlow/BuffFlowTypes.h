@@ -4,6 +4,12 @@
 #include "GameplayTagContainer.h"
 #include "BuffFlowTypes.generated.h"
 
+class AEnemyCharacterBase;
+class AMobSpawner;
+class AYogCharacterBase;
+class UEnemyData;
+class URuneDataAsset;
+
 /**
  * GE 堆叠模式
  *   None      — 每次命中独立创建一个 GE 实例（无去重）
@@ -24,6 +30,7 @@ enum class EBFGEStackMode : uint8
 UENUM(BlueprintType)
 enum class EBFTargetSelector : uint8
 {
+	LifecycleTarget  UMETA(DisplayName = "Lifecycle Target"),
 	BuffOwner        UMETA(DisplayName = "Buff拥有者"),
 	BuffGiver        UMETA(DisplayName = "Buff施加者"),
 	LastDamageTarget UMETA(DisplayName = "上次伤害目标"),   // DamageReceiver（被击者）
@@ -34,6 +41,88 @@ enum class EBFTargetSelector : uint8
  * 事件上下文 —— 由触发器节点写入，供后续节点读取
  * 统一替代之前分散的 LastDamageTargetActor 字段
  */
+UENUM(BlueprintType)
+enum class EBuffFlowLifecycleType : uint8
+{
+	None  UMETA(DisplayName = "None"),
+	Spawn UMETA(DisplayName = "Spawn"),
+	Death UMETA(DisplayName = "Death"),
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FBuffFlowLifecycleContext
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	EBuffFlowLifecycleType Type = EBuffFlowLifecycleType::None;
+
+	UPROPERTY()
+	TWeakObjectPtr<AActor> LifecycleTarget;
+
+	UPROPERTY()
+	TWeakObjectPtr<AMobSpawner> Spawner;
+
+	UPROPERTY()
+	TWeakObjectPtr<UEnemyData> EnemyData;
+
+	UPROPERTY()
+	TSubclassOf<AEnemyCharacterBase> EnemyClass;
+
+	UPROPERTY()
+	FTransform SpawnTransform = FTransform::Identity;
+
+	UPROPERTY()
+	TArray<TObjectPtr<URuneDataAsset>> EnemyBuffs;
+
+	UPROPERTY()
+	int32 WaveIndex = INDEX_NONE;
+
+	UPROPERTY()
+	bool bSpawnFinalized = false;
+
+	UPROPERTY()
+	bool bStorySpawn = false;
+
+	UPROPERTY()
+	TWeakObjectPtr<AEnemyCharacterBase> SpawnedEnemy;
+
+	UPROPERTY()
+	TWeakObjectPtr<AYogCharacterBase> DyingCharacter;
+
+	UPROPERTY()
+	TWeakObjectPtr<AActor> Instigator;
+
+	UPROPERTY()
+	TWeakObjectPtr<AActor> Killer;
+
+	UPROPERTY()
+	FVector DeathLocation = FVector::ZeroVector;
+
+	UPROPERTY()
+	bool bFinishRequested = false;
+
+	void Reset()
+	{
+		Type = EBuffFlowLifecycleType::None;
+		LifecycleTarget.Reset();
+		Spawner.Reset();
+		EnemyData.Reset();
+		EnemyClass = nullptr;
+		SpawnTransform = FTransform::Identity;
+		EnemyBuffs.Reset();
+		WaveIndex = INDEX_NONE;
+		bSpawnFinalized = false;
+		bStorySpawn = false;
+		SpawnedEnemy.Reset();
+		DyingCharacter.Reset();
+		Instigator.Reset();
+		Killer.Reset();
+		DeathLocation = FVector::ZeroVector;
+		bFinishRequested = false;
+	}
+};
+
 USTRUCT(BlueprintType)
 struct FBFEventContext
 {

@@ -33,6 +33,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Level")
 	bool bCountsForLevelClear = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Death", meta = (ClampMin = "0.0", ForceUnits = "s"))
+	float DeathDisappearDelayAfterAnimation = 0.15f;
+
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -40,6 +43,7 @@ public:
 	virtual void Die() override;
 
 	virtual bool IsAlive() const override;
+	virtual float GetDeathDisappearDelayAfterAnimation(bool bHasDissolveCue) const override;
 
 	void PostInitializeComponents() override;
 

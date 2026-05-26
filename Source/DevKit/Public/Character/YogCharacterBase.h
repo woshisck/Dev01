@@ -329,6 +329,8 @@ public:
 	//UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void FinishDying();
 
+	virtual float GetDeathDisappearDelayAfterAnimation(bool bHasDissolveCue) const;
+
 	//UFUNCTION(BlueprintCallable, Category = "Feature")
 	
 	virtual void Die();

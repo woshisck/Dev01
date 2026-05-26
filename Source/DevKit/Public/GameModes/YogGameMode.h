@@ -28,7 +28,10 @@ class UFlowComponent;
 class AMobSpawner;
 class UNiagaraSystem;
 class URuneDataAsset;
+class UEnemyData;
+class USpawnLifecycleFlowAsset;
 class UStoryEventRegistryDA;
+struct FBuffFlowLifecycleContext;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMapClean);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, ELevelPhase, NewPhase);
@@ -362,6 +365,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Campaign|StoryEvent")
 	bool HasActiveStoryEventTag(FGameplayTag EventTag) const;
 
+	void HandleLifecycleEnemySpawned(AEnemyCharacterBase* SpawnedEnemy, FBuffFlowLifecycleContext& Context);
+	void HandleLifecycleEnemySpawnFailed(FBuffFlowLifecycleContext& Context);
+
 	/**
 	 * 根据当前总难度分选取房间的难度档位（Low / Medium / High）。
 	 * 公共静态：StartLevelSpawning（当前关）和 ActivatePortals 预骰下一关 Buff 时共用，
@@ -394,11 +400,13 @@ protected:
 	struct FPlannedEnemy
 	{
 		TSubclassOf<AEnemyCharacterBase> EnemyClass;
+		TObjectPtr<UEnemyData> EnemyData;
 		// Rolled from EnemyData.EnemyBuffPool. Only entries that pass ApplyChance are granted.
 		TArray<TObjectPtr<URuneDataAsset>> EnemyBuffs;
 		// 从 EnemyData 复制，运行时只读
 		TObjectPtr<UNiagaraSystem> PreSpawnFX;
 		float PreSpawnFXDuration = 0.f;
+		TObjectPtr<USpawnLifecycleFlowAsset> SpawnLifecycleFlow;
 		bool bAllowAnySpawner = false;
 		bool bSpecialRewardEnemy = false;
 	};

@@ -90,6 +90,11 @@ bool AEnemyCharacterBase::IsAlive() const
 	return AttributeStatsComponent->GetStat_Health() > 0.f;
 }
 
+float AEnemyCharacterBase::GetDeathDisappearDelayAfterAnimation(bool /*bHasDissolveCue*/) const
+{
+	return FMath::Max(0.0f, DeathDisappearDelayAfterAnimation);
+}
+
 void AEnemyCharacterBase::SetAIAttackRuntimeContext(const FEnemyAIAttackOption& AttackOption, AActor* TargetActor, float DistanceToTarget)
 {
 	PendingAIAttackContext.bValid = true;

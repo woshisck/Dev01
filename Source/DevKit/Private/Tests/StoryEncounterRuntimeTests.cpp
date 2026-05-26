@@ -8,6 +8,7 @@
 #include "EngineUtils.h"
 #include "FlowAsset.h"
 #include "Story/Flow/StoryFlowAsset.h"
+#include "Story/Flow/Nodes/SNode_ActivateTutorialSpawner.h"
 #include "Story/Flow/Nodes/SNode_ShowHint.h"
 #include "Story/Flow/Nodes/SNode_SpawnRewardPickup.h"
 #include "Interfaces/FlowDataPinValueSupplierInterface.h"
@@ -565,6 +566,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterDummyDeathFlowDropsHeavyAndHints
 	"DevKit.StoryEncounter.DummyDeathFlowDropsHeavyAndHintsPickup",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterTutorialDummySpawnBindsKillPointTest,
+	"DevKit.StoryEncounter.TutorialDummySpawnBindsKillPoint",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
 bool FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest::RunTest(const FString& Parameters)
 {
 	const UStoryFlowAsset* Flow = LoadObject<UStoryFlowAsset>(
@@ -602,6 +607,45 @@ bool FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest::RunTest(const FS
 	TestTrue(TEXT("Dummy death flow drops Heavy card"), bDropsHeavy);
 	TestFalse(TEXT("Dummy death flow must not drop Knockback card"), bDropsKnockback);
 	TestTrue(TEXT("Dummy death flow shows pickup weak hint after the drop"), bHasPickupHint);
+	return true;
+}
+
+bool FStoryEncounterTutorialDummySpawnBindsKillPointTest::RunTest(const FString& Parameters)
+{
+	const UStoryFlowAsset* ActivateFlow = LoadObject<UStoryFlowAsset>(
+		nullptr,
+		TEXT("/Game/Story/Flows/Tutorial/FA_ActivateTutorialDummySpawner.FA_ActivateTutorialDummySpawner"));
+	const UStoryEncounterPointDA* KillPoint = LoadObject<UStoryEncounterPointDA>(
+		nullptr,
+		TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_TrainingDummyCombo.EP_FirstRun_TrainingDummyCombo"));
+
+	TestNotNull(TEXT("Tutorial dummy activation Story FA loads"), ActivateFlow);
+	TestNotNull(TEXT("Training dummy kill point loads"), KillPoint);
+	if (!ActivateFlow || !KillPoint)
+	{
+		return false;
+	}
+
+	const USNode_ActivateTutorialSpawner* ActivateNode = nullptr;
+	for (const TPair<FGuid, UFlowNode*>& Pair : ActivateFlow->GetNodes())
+	{
+		if (const USNode_ActivateTutorialSpawner* Candidate = Cast<USNode_ActivateTutorialSpawner>(Pair.Value))
+		{
+			ActivateNode = Candidate;
+			break;
+		}
+	}
+
+	TestNotNull(TEXT("Tutorial dummy activation flow has ActivateTutorialSpawner node"), ActivateNode);
+	if (!ActivateNode)
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("ActivateTutorialSpawner binds the dummy kill point"),
+		ActivateNode->OnKillEncounterPoint.Get() == KillPoint);
+	TestTrue(TEXT("ActivateTutorialSpawner uses BP_Enemy_DummyTraining"),
+		GetPathNameSafe(ActivateNode->EnemyClassOverride.Get()).Contains(TEXT("BP_Enemy_DummyTraining")));
 	return true;
 }
 

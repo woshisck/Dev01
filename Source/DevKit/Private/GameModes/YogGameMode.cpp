@@ -20,6 +20,8 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Data/RuneDataAsset.h"
 #include "BuffFlow/BuffFlowComponent.h"
+#include "BuffFlow/Actors/BuffFlowLifecycleProxy.h"
+#include "BuffFlow/LifecycleFlowAsset.h"
 #include "Component/CharacterDataComponent.h"
 #include "Map/Portal.h"
 #include "Map/RewardPickup.h"
@@ -2259,9 +2261,11 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 		const int32 EnemyBuffCost = CollectEnemyBuffs(Chosen.EnemyData, SelectedEnemyBuffs);
 
 		OutPlanned.EnemyClass         = Chosen.EnemyData->EnemyClass;
+		OutPlanned.EnemyData          = Chosen.EnemyData;
 		OutPlanned.EnemyBuffs         = SelectedEnemyBuffs;
 		OutPlanned.PreSpawnFX         = Chosen.EnemyData->PreSpawnFX;
 		OutPlanned.PreSpawnFXDuration = Chosen.EnemyData->PreSpawnFXDuration;
+		OutPlanned.SpawnLifecycleFlow = Chosen.EnemyData->SpawnLifecycleFlow;
 
 		LevelTypeSpawnCounts.FindOrAdd(Chosen.EnemyData->EnemyClass)++;
 		WaveTypeSpawnCounts.FindOrAdd(Chosen.EnemyData->EnemyClass)++;
@@ -2508,10 +2512,8 @@ void AYogGameMode::CheckDemandSpawn()
 	Wave.DemandEnemyPool.RemoveAtSwap(DemandIndex);
 	Wave.DemandCount = Wave.DemandEnemyPool.Num();
 
-	if (SpawnEnemyFromPool(DemandPlanned))
+	if (BeginSpawnEnemyFromPool(DemandPlanned))
 	{
-		Wave.TotalSpawnedInWave++;
-		TotalAliveEnemies++;
 		UE_LOG(LogTemp, Log, TEXT("CheckDemandSpawn: 补刷 %s，剩余补刷次数=%d"),
 			DemandPlanned.EnemyClass ? *DemandPlanned.EnemyClass->GetName() : TEXT("?"), Wave.DemandCount);
 	}
@@ -2641,6 +2643,42 @@ bool AYogGameMode::SpawnEnemyFromPool(const FPlannedEnemy& Planned)
 	return false;
 }
 
+void AYogGameMode::HandleLifecycleEnemySpawned(AEnemyCharacterBase* SpawnedEnemy, FBuffFlowLifecycleContext& Context)
+{
+	if (!SpawnedEnemy || Context.bSpawnFinalized)
+	{
+		return;
+	}
+
+	for (const FBuffEntry& Entry : ActiveRoomBuffs)
+	{
+		ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get(), TEXT("RoomBuff.LifecycleSpawn"));
+	}
+	ActivateEnemyRunes(SpawnedEnemy, Context.EnemyBuffs, TEXT("EnemyBuff.LifecycleSpawn"));
+
+	if (WavePlans.IsValidIndex(Context.WaveIndex))
+	{
+		WavePlans[Context.WaveIndex].TotalSpawnedInWave++;
+	}
+
+	TotalAliveEnemies++;
+	PendingSpawnCount = FMath::Max(0, PendingSpawnCount - 1);
+	Context.bSpawnFinalized = true;
+	CheckLevelComplete();
+}
+
+void AYogGameMode::HandleLifecycleEnemySpawnFailed(FBuffFlowLifecycleContext& Context)
+{
+	if (Context.bSpawnFinalized)
+	{
+		return;
+	}
+
+	PendingSpawnCount = FMath::Max(0, PendingSpawnCount - 1);
+	Context.bSpawnFinalized = true;
+	CheckLevelComplete();
+}
+
 bool AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 {
 	if (!Planned.EnemyClass) return false;
@@ -2663,6 +2701,45 @@ bool AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 	AMobSpawner* Spawner = ValidSpawners[FMath::RandRange(0, ValidSpawners.Num() - 1)];
 	FVector Location = Spawner->PrepareSpawnLocation();
 	if (Location == FVector::ZeroVector) return false;
+
+	if (Planned.SpawnLifecycleFlow)
+	{
+		PendingSpawnCount++;
+
+		FActorSpawnParameters Params;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		ABuffFlowLifecycleProxy* Proxy = GetWorld()->SpawnActor<ABuffFlowLifecycleProxy>(
+			ABuffFlowLifecycleProxy::StaticClass(),
+			Location,
+			Spawner->GetActorRotation(),
+			Params);
+		if (!Proxy || !Proxy->GetBuffFlowComponent())
+		{
+			PendingSpawnCount = FMath::Max(0, PendingSpawnCount - 1);
+			if (Proxy)
+			{
+				Proxy->Destroy();
+			}
+			CheckLevelComplete();
+			return false;
+		}
+
+		FBuffFlowLifecycleContext Context;
+		Context.Type = EBuffFlowLifecycleType::Spawn;
+		Context.LifecycleTarget = Proxy;
+		Context.Spawner = Spawner;
+		Context.EnemyData = Planned.EnemyData;
+		Context.EnemyClass = Planned.EnemyClass;
+		Context.SpawnTransform = FTransform(Spawner->GetActorRotation(), Location);
+		Context.EnemyBuffs = Planned.EnemyBuffs;
+		Context.WaveIndex = CurrentWaveIndex;
+
+		UBuffFlowComponent* ProxyBuffFlow = Proxy->GetBuffFlowComponent();
+		ProxyBuffFlow->SetLifecycleContext(Context);
+		ProxyBuffFlow->StartBuffFlow(Planned.SpawnLifecycleFlow, FGuid::NewGuid(), Spawner, true);
+		return true;
+	}
 
 	const float FXDuration = FMath::Max(0.f,
 		Planned.PreSpawnFXDuration + FMath::FRandRange(-Spawner->SpawnFXVariance, Spawner->SpawnFXVariance));

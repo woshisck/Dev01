@@ -10,6 +10,7 @@
 class AEnemyCharacterBase;
 class AYogCharacterBase;
 class UStoryEncounterPointDA;
+struct FBuffFlowLifecycleContext;
 
 USTRUCT(BlueprintType)
 struct DEVKIT_API FStoryMobSpawnOptions
@@ -84,6 +85,9 @@ public:
 	/** Story/教程使用的通用控制生成接口。仍复用普通 MobSpawner 的生成 FX、AI Controller、生成点逻辑。 */
 	UFUNCTION(BlueprintCallable, Category = "Story")
 	AEnemyCharacterBase* SpawnMobForStory(const FStoryMobSpawnOptions& Options);
+
+	void HandleLifecycleStoryEnemySpawned(AEnemyCharacterBase* SpawnedEnemy, FBuffFlowLifecycleContext& Context);
+	void HandleLifecycleStoryEnemySpawnFailed(FBuffFlowLifecycleContext& Context);
 
 	UFUNCTION(BlueprintCallable, Category = "Story")
 	void ClearStorySpawnedMob();

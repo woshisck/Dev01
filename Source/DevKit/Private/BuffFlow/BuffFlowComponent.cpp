@@ -1,5 +1,6 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Character/EnemyCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Data/RuneDataAsset.h"
 #include "Engine/GameInstance.h"
@@ -290,6 +291,7 @@ void UBuffFlowComponent::StopAllBuffFlows()
 
 	ActiveRuneFlows.Empty();
 	ActiveRuneSources.Empty();
+	ClearLifecycleContext();
 }
 
 UFlowAsset* UBuffFlowComponent::GetActiveBuffFlowAsset(FGuid RuneGuid) const
@@ -477,4 +479,33 @@ AYogCharacterBase* UBuffFlowComponent::GetBuffOwner() const
 AActor* UBuffFlowComponent::GetBuffGiver() const
 {
 	return CurrentBuffGiver.Get();
+}
+
+void UBuffFlowComponent::SetLifecycleContext(const FBuffFlowLifecycleContext& InContext)
+{
+	LifecycleContext = InContext;
+}
+
+void UBuffFlowComponent::ClearLifecycleContext()
+{
+	LifecycleContext.Reset();
+}
+
+AActor* UBuffFlowComponent::GetLifecycleTarget() const
+{
+	return LifecycleContext.LifecycleTarget.Get();
+}
+
+void UBuffFlowComponent::SetLifecycleTarget(AActor* TargetActor)
+{
+	LifecycleContext.LifecycleTarget = TargetActor;
+	if (AEnemyCharacterBase* SpawnedEnemy = Cast<AEnemyCharacterBase>(TargetActor))
+	{
+		LifecycleContext.SpawnedEnemy = SpawnedEnemy;
+	}
+}
+
+void UBuffFlowComponent::RequestLifecycleFinish()
+{
+	LifecycleContext.bFinishRequested = true;
 }

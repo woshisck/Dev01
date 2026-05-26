@@ -538,6 +538,11 @@ void AYogCharacterBase::FinishDying()
 	Destroy();
 }
 
+float AYogCharacterBase::GetDeathDisappearDelayAfterAnimation(bool bHasDissolveCue) const
+{
+	return bHasDissolveCue ? 2.0f : 3.0f;
+}
+
 void AYogCharacterBase::BroadcastDeathStarted()
 {
 	if (bDeathStartedBroadcast)

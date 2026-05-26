@@ -14,6 +14,7 @@
 class AEnemyCharacterBase;
 class AActor;
 class URuneDataAsset;
+class USpawnLifecycleFlowAsset;
 
 // =========================================================
 // Buff 条目（携带难度扣分）
@@ -302,6 +303,9 @@ public:
 	// 预生成特效持续时间（秒）。FX 结束后才真正 SpawnActor；0 = 立即刷出
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Spawn")
 	float PreSpawnFXDuration = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Spawn")
+	TObjectPtr<USpawnLifecycleFlowAsset> SpawnLifecycleFlow;
 
 	// 连续被击中多少次后进入霸体（0 = 永不触发霸体）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Poise", meta = (ClampMin = "0"))

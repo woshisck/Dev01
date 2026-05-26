@@ -65,6 +65,35 @@ bool FEnemyDeathCountsForLevelClearByDefaultTest::RunTest(const FString& Paramet
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnemyDeathDisappearDelayDefaultsToPostAnimationGraceTest,
+	"DevKit.Enemy.DeathDisappearDelayDefaultsToPostAnimationGrace",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FEnemyDeathDisappearDelayDefaultsToPostAnimationGraceTest::RunTest(const FString& Parameters)
+{
+	const AEnemyCharacterBase* DefaultEnemy = GetDefault<AEnemyCharacterBase>();
+	TestNotNull(TEXT("Enemy default object exists"), DefaultEnemy);
+	if (!DefaultEnemy)
+	{
+		return false;
+	}
+
+	const FFloatProperty* DelayProperty = FindFProperty<FFloatProperty>(
+		AEnemyCharacterBase::StaticClass(),
+		TEXT("DeathDisappearDelayAfterAnimation"));
+	TestNotNull(TEXT("Enemy exposes death disappear delay after animation"), DelayProperty);
+	if (!DelayProperty)
+	{
+		return false;
+	}
+
+	const float DefaultDelay = DelayProperty->GetPropertyValue_InContainer(DefaultEnemy);
+	TestEqual(TEXT("Enemy default death disappear delay is 0.15s"), DefaultDelay, 0.15f);
+	TestEqual(TEXT("Enemy death delay resolver ignores dissolve defaults"), DefaultEnemy->GetDeathDisappearDelayAfterAnimation(true), 0.15f);
+	TestEqual(TEXT("Enemy death delay resolver handles non-dissolve deaths"), DefaultEnemy->GetDeathDisappearDelayAfterAnimation(false), 0.15f);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialMobSpawnerActivateSpawnsAtSpawnerLocationTest,
 	"DevKit.TutorialMobSpawner.ActivateSpawnsAtSpawnerLocation",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

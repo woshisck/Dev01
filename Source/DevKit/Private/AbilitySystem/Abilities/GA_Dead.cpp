@@ -56,6 +56,11 @@ void UGA_Dead::ActivateAbility(
         }
     }
 
+    UE_LOG(LogTemp, Warning, TEXT("[GA_Dead] Resolved death data Character=%s CharData=%s DeathMontage=%s"),
+        *GetNameSafe(Character),
+        *GetNameSafe(CharData),
+        *GetNameSafe(DeathMontage));
+
     UE_LOG(LogTemp, Warning, TEXT("[GA_Dead] DeathMontage=%s DissolveTag=%s"),
         *GetNameSafe(DeathMontage), *CachedDissolveTag.ToString());
 
@@ -90,7 +95,6 @@ void UGA_Dead::ActivateAbility(
     }
 }
 
-// 蒙太奇正常完成 → 开始销毁流程
 void UGA_Dead::OnDeathMontageCompleted()
 {
     UE_LOG(LogTemp, Warning, TEXT("[GA_Dead] OnDeathMontageCompleted"));
@@ -133,14 +137,23 @@ void UGA_Dead::StartDeathDelay()
     UWorld* World = GetWorld();
     if (!World || DeathDelayTimer.IsValid()) return;
 
+    AActor* Avatar = CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid()
+        ? CurrentActorInfo->AvatarActor.Get()
+        : nullptr;
+    const AYogCharacterBase* Character = Cast<AYogCharacterBase>(Avatar);
+    const bool bHasDissolveCue = CachedDissolveTag.IsValid();
+    const float DefaultDisappearDelay = bHasDissolveCue ? 2.0f : 3.0f;
+    const float DisappearDelay = FMath::Max(
+        0.001f,
+        Character ? Character->GetDeathDisappearDelayAfterAnimation(bHasDissolveCue) : DefaultDisappearDelay);
+
     // 广播死亡动画完成事件（供 FA_EnemyBuff_DeathPoison 等监听毒液溅射时机）
-    if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
+    if (Avatar)
     {
         static const FGameplayTag TAG_DeathAnimComplete =
             FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.DeathAnimComplete"), false);
         if (TAG_DeathAnimComplete.IsValid())
         {
-            AActor* Avatar = CurrentActorInfo->AvatarActor.Get();
             FGameplayEventData DeathAnimPayload;
             DeathAnimPayload.Instigator = Avatar;
             DeathAnimPayload.Target     = Avatar;
@@ -148,22 +161,21 @@ void UGA_Dead::StartDeathDelay()
         }
     }
 
-    if (!CachedDissolveTag.IsValid())
+    if (!bHasDissolveCue)
     {
-        // 无消解效果 → 等待 3 秒后销毁
+        // No dissolve cue: wait the character-specific disappear delay before destroying.
         World->GetTimerManager().SetTimer(
             DeathDelayTimer,
             this,
             &UGA_Dead::OnDeathDelayExpired,
-            3.0f,
+            DisappearDelay,
             false);
         return;
     }
 
-    // ---- 有消解效果：立即触发 GC（此时角色仍存活，消解在活体角色上播放），等 2s 后销毁 ----
-    if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
+    // Trigger dissolve immediately, then wait the character-specific disappear delay before destroying.
+    if (Avatar)
     {
-        AActor* Avatar = CurrentActorInfo->AvatarActor.Get();
         FGameplayCueParameters CueParams;
         CueParams.Location     = Avatar->GetActorLocation();
         CueParams.Normal       = Avatar->GetActorForwardVector();
@@ -175,7 +187,7 @@ void UGA_Dead::StartDeathDelay()
         DeathDelayTimer,
         this,
         &UGA_Dead::OnDeathDelayExpired,
-        2.0f,
+        DisappearDelay,
         false);
 }
 
