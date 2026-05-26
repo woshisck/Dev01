@@ -70,49 +70,6 @@ namespace
 		return TargetCharacter->BaseAttributeSet;
 	}
 
-	void LogTargetHealthTrace(
-		const FGameplayEffectModCallbackData& Data,
-		AYogCharacterBase* TargetCharacter,
-		const TCHAR* DamagePath,
-		float LocalDamageDone,
-		float HealthDamage,
-		const UBaseAttributeSet* TargetBaseSet,
-		float OldHealth,
-		float OldMaxHealth,
-		float NewHealth)
-	{
-		UAbilitySystemComponent* TargetASC = GetTargetASC(Data);
-		const UBaseAttributeSet* RegisteredBaseSet = TargetASC
-			? Cast<const UBaseAttributeSet>(TargetASC->GetAttributeSet(UBaseAttributeSet::StaticClass()))
-			: nullptr;
-		const bool bHasHealthAttribute = TargetASC && TargetASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetHealthAttribute());
-		const bool bHasMaxHealthAttribute = TargetASC && TargetASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
-		const float ASCHealth = bHasHealthAttribute
-			? TargetASC->GetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute())
-			: -1.0f;
-		const float ASCMaxHealth = bHasMaxHealthAttribute
-			? TargetASC->GetNumericAttributeBase(UBaseAttributeSet::GetMaxHealthAttribute())
-			: -1.0f;
-
-		UE_LOG(LogTemp, Warning,
-			TEXT("[DamageHealthTrace][%s] Target=%s Damage=%.2f HealthDamage=%.2f CharBase=%s(%p) ASCBase=%s(%p) SameBase=%d Old=%.2f Max=%.2f New=%.2f ASCHealth=%.2f ASCMax=%.2f Dead=%d"),
-			DamagePath,
-			*GetNameSafe(TargetCharacter),
-			LocalDamageDone,
-			HealthDamage,
-			*GetNameSafe(TargetBaseSet),
-			static_cast<const void*>(TargetBaseSet),
-			*GetNameSafe(RegisteredBaseSet),
-			static_cast<const void*>(RegisteredBaseSet),
-			TargetBaseSet == RegisteredBaseSet ? 1 : 0,
-			OldHealth,
-			OldMaxHealth,
-			NewHealth,
-			ASCHealth,
-			ASCMaxHealth,
-			TargetCharacter && TargetCharacter->bIsDead ? 1 : 0);
-	}
-
 	void RemoveShieldGameplayEffects(UAbilitySystemComponent* ASC)
 	{
 		if (!ASC)
@@ -348,10 +305,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			if (HealthDamage > 0.f)
 			{
 				const float OldHealth = TargetBaseSet->GetHealth();
-				const float OldMaxHealth = TargetBaseSet->GetMaxHealth();
-				const float NewHealth = FMath::Clamp(OldHealth - HealthDamage, 0.0f, OldMaxHealth);
-				LogTargetHealthTrace(Data, TargetCharacter, TEXT("DamagePure"), LocalDamageDone, HealthDamage, TargetBaseSet, OldHealth, OldMaxHealth, NewHealth);
-				TargetBaseSet->SetHealth(NewHealth);
+				TargetBaseSet->SetHealth(FMath::Clamp(OldHealth - HealthDamage, 0.0f, TargetBaseSet->GetMaxHealth()));
 			}
 
 			if (ASC)
@@ -469,10 +423,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			if (HealthDamage > 0.f)
 			{
 				const float OldHealth = TargetBaseSet->GetHealth();
-				const float OldMaxHealth = TargetBaseSet->GetMaxHealth();
-				const float NewHealth = FMath::Clamp(OldHealth - HealthDamage, 0.0f, OldMaxHealth);
-				LogTargetHealthTrace(Data, TargetCharacter, TEXT("DamagePhysical"), LocalDamageDone, HealthDamage, TargetBaseSet, OldHealth, OldMaxHealth, NewHealth);
-				TargetBaseSet->SetHealth(NewHealth);
+				TargetBaseSet->SetHealth(FMath::Clamp(OldHealth - HealthDamage, 0.0f, TargetBaseSet->GetMaxHealth()));
 			}
 
 			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();

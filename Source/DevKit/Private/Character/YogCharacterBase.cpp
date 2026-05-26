@@ -34,6 +34,14 @@ namespace
 {
 	constexpr bool bDisableLegacyOnHitRuneRuntimeForCardTest = true;
 	static const ECollisionChannel DashThroughChannel = ECC_GameTraceChannel5;
+
+	template <typename TAttributeSet>
+	TAttributeSet* GetMutableRegisteredAttributeSet(UAbilitySystemComponent* ASC)
+	{
+		return ASC
+			? const_cast<TAttributeSet*>(Cast<const TAttributeSet>(ASC->GetAttributeSet(TAttributeSet::StaticClass())))
+			: nullptr;
+	}
 }
 
 
@@ -182,15 +190,51 @@ void AYogCharacterBase::EnsureCoreAttributeSetsRegistered()
 	{
 		return;
 	}
+
+	if (UBaseAttributeSet* RegisteredBaseSet = GetMutableRegisteredAttributeSet<UBaseAttributeSet>(AbilitySystemComponent.Get()))
+	{
+		if (BaseAttributeSet.Get() != RegisteredBaseSet)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[AttributeSetRepair] Relinked BaseAttributeSet for %s to ASC registered set %s (old=%s)"),
+				*GetNameSafe(this),
+				*GetNameSafe(RegisteredBaseSet),
+				*GetNameSafe(BaseAttributeSet.Get()));
+			BaseAttributeSet = RegisteredBaseSet;
+		}
+	}
 	if (!BaseAttributeSet)
 	{
 		BaseAttributeSet = NewObject<UBaseAttributeSet>(this, TEXT("BaseAttributeSet_Runtime"));
 		UE_LOG(LogTemp, Warning, TEXT("[AttributeSetRepair] Created missing BaseAttributeSet for %s"), *GetNameSafe(this));
 	}
+
+	if (UDamageAttributeSet* RegisteredDamageSet = GetMutableRegisteredAttributeSet<UDamageAttributeSet>(AbilitySystemComponent.Get()))
+	{
+		if (DamageAttributeSet.Get() != RegisteredDamageSet)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[AttributeSetRepair] Relinked DamageAttributeSet for %s to ASC registered set %s (old=%s)"),
+				*GetNameSafe(this),
+				*GetNameSafe(RegisteredDamageSet),
+				*GetNameSafe(DamageAttributeSet.Get()));
+			DamageAttributeSet = RegisteredDamageSet;
+		}
+	}
 	if (!DamageAttributeSet)
 	{
 		DamageAttributeSet = NewObject<UDamageAttributeSet>(this, TEXT("DamageAttributeSet_Runtime"));
 		UE_LOG(LogTemp, Warning, TEXT("[AttributeSetRepair] Created missing DamageAttributeSet for %s"), *GetNameSafe(this));
+	}
+
+	if (URuneAttributeSet* RegisteredRuneSet = GetMutableRegisteredAttributeSet<URuneAttributeSet>(AbilitySystemComponent.Get()))
+	{
+		if (RuneAttributeSet.Get() != RegisteredRuneSet)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[AttributeSetRepair] Relinked RuneAttributeSet for %s to ASC registered set %s (old=%s)"),
+				*GetNameSafe(this),
+				*GetNameSafe(RegisteredRuneSet),
+				*GetNameSafe(RuneAttributeSet.Get()));
+			RuneAttributeSet = RegisteredRuneSet;
+		}
 	}
 	if (!RuneAttributeSet)
 	{
