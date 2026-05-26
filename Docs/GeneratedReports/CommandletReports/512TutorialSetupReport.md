@@ -10,6 +10,8 @@
 - Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_CardSort.png` -> `/Game/Docs/UI/TutorialTex/512`.
 - Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_LinkCard.png` -> `/Game/Docs/UI/TutorialTex/512`.
 - Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_DeckReload.png` -> `/Game/Docs/UI/TutorialTex/512`.
+- Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_HeavyCard.png` -> `/Game/Docs/UI/TutorialTex/512`.
+- Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/Tutorial512/T_Tutorial512_Finisher.png` -> `/Game/Docs/UI/TutorialTex/512`.
 
 ## `tutorial_weapon_pickup`
 - Found existing `/Game/Docs/UI/Tutorial/DA_Tutorial_WeaponPickup`.
@@ -36,10 +38,12 @@
 
 ## `tutorial_heavy_card`
 - Found existing `/Game/Docs/UI/Tutorial/DA_Tutorial_HeavyCard`.
+- Page 1 illustration set to `T_Tutorial512_HeavyCard`.
 - Wrote 1 page(s) to `/Game/Docs/UI/Tutorial/DA_Tutorial_HeavyCard`.
 
 ## `tutorial_finisher`
 - Found existing `/Game/Docs/UI/Tutorial/DA_Tutorial_Finisher`.
+- Page 1 illustration set to `T_Tutorial512_Finisher`.
 - Wrote 1 page(s) to `/Game/Docs/UI/Tutorial/DA_Tutorial_Finisher`.
 
 ## `tutorial_shuffle_hint`

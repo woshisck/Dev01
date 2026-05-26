@@ -1,4 +1,5 @@
 #include "BuffFlow/Nodes/BFNode_OnDamageReceived.h"
+#include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Character/YogCharacterBase.h"
@@ -42,9 +43,12 @@ void UBFNode_OnDamageReceived::HandleDamageReceived(UYogAbilitySystemComponent* 
 	// 填充事件上下文：SourceASC 是攻击者，自己是被击者
 	if (UBuffFlowComponent* BFC = GetBuffFlowComponent())
 	{
-		BFC->LastEventContext.DamageCauser   = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
+		AActor* DamageCauser = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
+		BFC->LastEventContext.DamageCauser   = DamageCauser;
 		BFC->LastEventContext.DamageReceiver = BFC->GetBuffOwner();
 		BFC->LastEventContext.DamageAmount   = Damage;
+		BFC->LastEventContext.AttackDirection =
+			UGA_Knockback::ResolveAttackDirectionFromSource(DamageCauser);
 	}
 
 	TriggerOutput(TEXT("OnDamage"), false);

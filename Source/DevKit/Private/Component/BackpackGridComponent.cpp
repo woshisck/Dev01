@@ -1112,6 +1112,7 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 				BFC->LastEventContext.DamageCauser = InstigatorActor ? InstigatorActor : GiverActor;
 				BFC->LastEventContext.DamageReceiver = TargetActor;
 				BFC->LastEventContext.DamageAmount = Payload->EventMagnitude;
+				BFC->LastEventContext.AttackDirection = FVector::ZeroVector;
 
 				UE_LOG(LogTemp, Warning, TEXT("[PlayerRune] EventFired Owner=%s Rune=%s Guid=%s Flow=%s Event=%s Instigator=%s Target=%s Magnitude=%.2f"),
 					*GetNameSafe(GiverActor),

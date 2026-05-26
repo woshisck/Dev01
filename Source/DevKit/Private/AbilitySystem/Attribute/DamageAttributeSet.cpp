@@ -326,6 +326,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 						DamagedPayload.Instigator     = SourceActor;
 						DamagedPayload.Target         = TargetCharacter;
 						DamagedPayload.EventMagnitude = LocalDamageDone;
+						DamagedPayload.ContextHandle  = Context;
 						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetCharacter, DamagedTag, DamagedPayload);
 					}
 				}
@@ -445,6 +446,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 						DamagedPayload.Instigator     = SourceActor;
 						DamagedPayload.Target         = TargetCharacter;
 						DamagedPayload.EventMagnitude = LocalDamageDone;
+						DamagedPayload.ContextHandle  = Context;
 						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetCharacter, DamagedTag, DamagedPayload);
 					}
 				}

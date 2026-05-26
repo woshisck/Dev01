@@ -6,6 +6,7 @@
 
 class UAbilityTask_ApplyRootMotionMoveToForce;
 class UAbilityTask_PlayMontageAndWait;
+class ACharacter;
 
 /**
  * 击退 GA
@@ -34,6 +35,17 @@ public:
         const FGameplayAbilityActivationInfo ActivationInfo,
         bool bReplicateEndAbility,
         bool bWasCancelled) override;
+
+    static FVector ResolveKnockbackDirection(
+        const ACharacter* TargetChar,
+        const FGameplayEventData* TriggerEventData);
+
+    static FVector ResolveAttackDirectionFromSource(const AActor* SourceActor);
+
+    static void AppendAttackDirectionTargetData(
+        FGameplayEventData& EventData,
+        const FVector& InDirection,
+        const AActor* AnchorActor);
 
     // 击退距离（cm）。500 = 5 米
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Knockback")

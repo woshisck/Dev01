@@ -34,6 +34,10 @@ public:
 		bool bReplicateEndAbility,
 		bool bWasCancelled) override;
 
+	static FGameplayEventData MakeKnockbackPayloadFromDamageEvent(
+		AActor* AvatarActor,
+		const FGameplayEventData& DamagePayload);
+
 	/** 护甲额外伤害 GE（Instant，SetByCaller 减少 ArmorHP） */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "KnockbackDebuff")
 	TSubclassOf<UGameplayEffect> ArmorDamageEffect;

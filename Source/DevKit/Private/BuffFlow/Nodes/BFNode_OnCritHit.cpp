@@ -1,4 +1,5 @@
 #include "BuffFlow/Nodes/BFNode_OnCritHit.h"
+#include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Character/YogCharacterBase.h"
@@ -39,9 +40,12 @@ void UBFNode_OnCritHit::HandleCritHit(UYogAbilitySystemComponent* TargetASC, flo
 {
 	if (UBuffFlowComponent* BFC = GetBuffFlowComponent())
 	{
-		BFC->LastEventContext.DamageCauser   = BFC->GetBuffOwner();
+		AActor* DamageCauser = BFC->GetBuffOwner();
+		BFC->LastEventContext.DamageCauser   = DamageCauser;
 		BFC->LastEventContext.DamageReceiver = TargetASC ? TargetASC->GetAvatarActor() : nullptr;
 		BFC->LastEventContext.DamageAmount   = Damage;
+		BFC->LastEventContext.AttackDirection =
+			UGA_Knockback::ResolveAttackDirectionFromSource(DamageCauser);
 	}
 
 	TriggerOutput(TEXT("OnCrit"), false);

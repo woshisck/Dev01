@@ -2049,6 +2049,7 @@ static void ActivateEnemyRune(AEnemyCharacterBase* Enemy, URuneDataAsset* RuneDA
 			CapturedBFC->LastEventContext.DamageCauser = InstigatorActor ? InstigatorActor : CapturedEnemy;
 			CapturedBFC->LastEventContext.DamageReceiver = TargetActor ? TargetActor : CapturedEnemy;
 			CapturedBFC->LastEventContext.DamageAmount = Payload ? Payload->EventMagnitude : 0.f;
+			CapturedBFC->LastEventContext.AttackDirection = FVector::ZeroVector;
 
 			UE_LOG(LogTemp, Warning, TEXT("[EnemyRune] EventFired Enemy=%s Source=%s Rune=%s DA=%s Flow=%s Trigger=%s Event=%s Instigator=%s Target=%s Magnitude=%.2f"),
 				*GetNameSafe(CapturedEnemy),

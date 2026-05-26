@@ -1,5 +1,6 @@
 ﻿#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "Component/CombatItemComponent.h"
+#include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystem/Abilities/YogTargetType.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
@@ -221,6 +222,8 @@ void UGA_MeleeAttack::PrimeCombatDeckHitContext(const FGameplayEventData& EventD
 	BuffFlowComponent->LastEventContext.DamageCauser = OwnerCharacter;
 	BuffFlowComponent->LastEventContext.DamageReceiver = HitTarget;
 	BuffFlowComponent->LastEventContext.DamageAmount = 0.f;
+	BuffFlowComponent->LastEventContext.AttackDirection =
+		UGA_Knockback::ResolveAttackDirectionFromSource(OwnerCharacter);
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("[CombatDeckHitContext] Prime Target=%s Owner=%s Event=%s"),
