@@ -162,9 +162,11 @@ AEnemyCharacterBase* AMobSpawner::SpawnMobForStory(const FStoryMobSpawnOptions& 
     }
 
     ActiveStorySpawnOptions = Options;
+    bStoryKillEncounterTriggered = false;
     ConfigureStorySpawnedMob(Spawned, Options);
     ApplyStoryHealthOverride(Spawned, Options);
     StorySpawnedMob = Spawned;
+    StoryDeathStartedDelegateHandle = Spawned->OnCharacterDeathStartedNative.AddUObject(this, &AMobSpawner::HandleStoryMobDeathStarted);
     StoryDeathDelegateHandle = Spawned->OnCharacterDiedNative.AddUObject(this, &AMobSpawner::HandleStoryMobDied);
 
     UE_LOG(LogTemp, Log, TEXT("[MobSpawner][StorySpawn] %s spawned %s Class=%s CountsForClear=%d Respawn=%d Delay=%.2f."),
@@ -183,19 +185,40 @@ void AMobSpawner::ClearStorySpawnedMob()
 
     if (AEnemyCharacterBase* Mob = StorySpawnedMob.Get())
     {
+        Mob->OnCharacterDeathStartedNative.Remove(StoryDeathStartedDelegateHandle);
         Mob->OnCharacterDiedNative.Remove(StoryDeathDelegateHandle);
         Mob->Destroy();
     }
+    StoryDeathStartedDelegateHandle.Reset();
     StoryDeathDelegateHandle.Reset();
     StorySpawnedMob.Reset();
+    bStoryKillEncounterTriggered = false;
+}
+
+void AMobSpawner::HandleStoryMobDeathStarted(AYogCharacterBase* Mob)
+{
+    if (AEnemyCharacterBase* DeadMob = Cast<AEnemyCharacterBase>(Mob))
+    {
+        DeadMob->OnCharacterDeathStartedNative.Remove(StoryDeathStartedDelegateHandle);
+    }
+    StoryDeathStartedDelegateHandle.Reset();
+
+    UE_LOG(LogTemp, Log, TEXT("[MobSpawner][StorySpawn] %s observed death start of %s. OnKillEncounterPoint=%s."),
+        *GetNameSafe(this),
+        *GetNameSafe(Mob),
+        *GetNameSafe(ActiveStorySpawnOptions.OnKillEncounterPoint));
+
+    TriggerStoryKillEncounter(Mob);
 }
 
 void AMobSpawner::HandleStoryMobDied(AYogCharacterBase* Mob)
 {
     if (AEnemyCharacterBase* DeadMob = Cast<AEnemyCharacterBase>(Mob))
     {
+        DeadMob->OnCharacterDeathStartedNative.Remove(StoryDeathStartedDelegateHandle);
         DeadMob->OnCharacterDiedNative.Remove(StoryDeathDelegateHandle);
     }
+    StoryDeathStartedDelegateHandle.Reset();
     StoryDeathDelegateHandle.Reset();
     StorySpawnedMob.Reset();
 
@@ -203,6 +226,26 @@ void AMobSpawner::HandleStoryMobDied(AYogCharacterBase* Mob)
         *GetNameSafe(this),
         *GetNameSafe(Mob),
         *GetNameSafe(ActiveStorySpawnOptions.OnKillEncounterPoint));
+
+    TriggerStoryKillEncounter(Mob);
+
+    if (ActiveStorySpawnOptions.bRespawnOnDeath)
+    {
+        GetWorldTimerManager().SetTimer(
+            StoryRespawnTimer,
+            this,
+            &AMobSpawner::RespawnStoryMob,
+            ActiveStorySpawnOptions.RespawnDelay,
+            false);
+    }
+}
+
+void AMobSpawner::TriggerStoryKillEncounter(AYogCharacterBase* Mob)
+{
+    if (bStoryKillEncounterTriggered)
+    {
+        return;
+    }
 
     if (ActiveStorySpawnOptions.OnKillEncounterPoint)
     {
@@ -221,15 +264,7 @@ void AMobSpawner::HandleStoryMobDied(AYogCharacterBase* Mob)
             bTriggered ? 1 : 0);
     }
 
-    if (ActiveStorySpawnOptions.bRespawnOnDeath)
-    {
-        GetWorldTimerManager().SetTimer(
-            StoryRespawnTimer,
-            this,
-            &AMobSpawner::RespawnStoryMob,
-            ActiveStorySpawnOptions.RespawnDelay,
-            false);
-    }
+    bStoryKillEncounterTriggered = true;
 }
 
 void AMobSpawner::RespawnStoryMob()

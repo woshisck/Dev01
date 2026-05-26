@@ -182,6 +182,40 @@ bool FCombatDeckSourceRestoreTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRewardCardAutoReloadsIntoVisibleSequenceTest,
+	"DevKit.CombatDeck.RewardCardAutoReloadsIntoVisibleSequence",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckRewardCardAutoReloadsIntoVisibleSequenceTest::RunTest(const FString& Parameters)
+{
+	URuneDataAsset* FirstRune = NewObject<URuneDataAsset>();
+	FirstRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light };
+
+	URuneDataAsset* SecondRune = NewObject<URuneDataAsset>();
+	SecondRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light };
+
+	URuneDataAsset* RewardRune = NewObject<URuneDataAsset>();
+	RewardRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Heavy };
+
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+	Deck->LoadDeckFromExactSourceAssets({ FirstRune, SecondRune }, 1.0f, 2);
+	TestEqual(TEXT("Initial active sequence is capped at two cards"), Deck->GetRemainingDeckSnapshot().Num(), 2);
+
+	TestTrue(TEXT("Reward rune enters combat deck"), Deck->AddCardFromRuneReward(RewardRune));
+	TestEqual(TEXT("Reward pickup starts one automatic reload shuffle"), Deck->GetDeckState(), EDeckState::EmptyShuffling);
+
+	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
+	const TArray<FCombatCardInstance> VisibleCards = Deck->GetRemainingDeckSnapshot();
+	bool bRewardVisible = false;
+	for (const FCombatCardInstance& Card : VisibleCards)
+	{
+		bRewardVisible |= Card.SourceData == RewardRune;
+	}
+
+	TestTrue(TEXT("Reward card is visible after the automatic reload"), bRewardVisible);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRemainingSnapshotTest,
 	"DevKit.CombatDeck.RemainingSnapshotDropsConsumedCards",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

@@ -195,6 +195,7 @@ void APlayerCharacterBase::ReviveFromDeath(float ReviveHealthPercent, float Prot
 	ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"), false), 0);
 
 	bIsDead = false;
+	ResetDeathStartedBroadcast();
 	bWaitingForDeathReviveChoice = false;
 	CustomTimeDilation = 1.f;
 

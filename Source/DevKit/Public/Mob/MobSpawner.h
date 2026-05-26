@@ -127,7 +127,9 @@ public:
 private:
 	void ConfigureStorySpawnedMob(AEnemyCharacterBase* Mob, const FStoryMobSpawnOptions& Options) const;
 	void ApplyStoryHealthOverride(AEnemyCharacterBase* Mob, const FStoryMobSpawnOptions& Options) const;
+	void HandleStoryMobDeathStarted(AYogCharacterBase* Mob);
 	void HandleStoryMobDied(AYogCharacterBase* Mob);
+	void TriggerStoryKillEncounter(AYogCharacterBase* Mob);
 	void RespawnStoryMob();
 
 	UPROPERTY()
@@ -136,6 +138,8 @@ private:
 	UPROPERTY()
 	FStoryMobSpawnOptions ActiveStorySpawnOptions;
 	FTimerHandle StoryRespawnTimer;
+	FDelegateHandle StoryDeathStartedDelegateHandle;
 	FDelegateHandle StoryDeathDelegateHandle;
+	bool bStoryKillEncounterTriggered = false;
 
 };

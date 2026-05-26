@@ -6,9 +6,13 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Character/TrainingDummyCharacter.h"
+#include "Engine/GameInstance.h"
 #include "EngineUtils.h"
+#include "Map/RewardPickup.h"
 #include "Map/TutorialMobSpawner.h"
 #include "Mob/MobSpawner.h"
+#include "Misc/ScopeExit.h"
+#include "Story/Encounter/StoryEncounterPointDataAsset.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialMobSpawnerTrainingDummyCanDestroyTest,
 	"DevKit.TutorialMobSpawner.TrainingDummyCanDestroyInsteadOfReset",
@@ -175,6 +179,99 @@ bool FMobSpawnerStorySpawnUsesRegularSpawnerTest::RunTest(const FString& Paramet
 	}
 
 	Spawner->ClearStorySpawnedMob();
+	Spawner->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMobSpawnerStoryKillEncounterTriggersOnDeathStartTest,
+	"DevKit.MobSpawner.StoryKillEncounterTriggersOnDeathStart",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FMobSpawnerStoryKillEncounterTriggersOnDeathStartTest::RunTest(const FString& Parameters)
+{
+	UGameInstance* GameInstance = NewObject<UGameInstance>(GEngine);
+	GameInstance->InitializeStandalone(TEXT("MobSpawnerStoryKillEncounterTest"));
+	UWorld* World = GameInstance->GetWorld();
+	ON_SCOPE_EXIT
+	{
+		GameInstance->Shutdown();
+		if (World)
+		{
+			GEngine->DestroyWorldContext(World);
+			World->DestroyWorld(false);
+		}
+	};
+
+	TestNotNull(TEXT("Standalone test world exists"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	for (TActorIterator<ARewardPickup> It(World); It; ++It)
+	{
+		It->Destroy();
+	}
+
+	AMobSpawner* Spawner = World->SpawnActor<AMobSpawner>();
+	TestNotNull(TEXT("Story mob spawner spawned"), Spawner);
+	if (!Spawner)
+	{
+		return false;
+	}
+
+	UStoryEncounterPointDA* KillPoint = NewObject<UStoryEncounterPointDA>();
+	KillPoint->EncounterId = TEXT("EM_Test");
+	KillPoint->NodeId = TEXT("dummy_kill_immediate_drop");
+	KillPoint->Kind = EStoryEncounterNodeKind::Death;
+	KillPoint->FirePolicy = EStoryEncounterFirePolicy::Repeat;
+
+	FStoryEncounterAction DropAction;
+	DropAction.Kind = EStoryEncounterActionKind::SpawnRewardPickup;
+	DropAction.RewardPickupClass = ARewardPickup::StaticClass();
+	DropAction.RewardPickupCount = 1;
+	DropAction.bRewardPickupAllowedOutsideArrangement = true;
+	DropAction.bSpawnRewardOnTargetDeath = false;
+	FLootOption LootOption;
+	LootOption.LootType = ELootType::Rune;
+	LootOption.DisplayName = FText::FromString(TEXT("Immediate Heavy"));
+	DropAction.RewardLootOptions.Add(LootOption);
+	KillPoint->Actions.Add(DropAction);
+
+	FStoryMobSpawnOptions Options;
+	Options.EnemyClassOverride = ATrainingDummyCharacter::StaticClass();
+	Options.bSpawnAtSpawnerLocation = true;
+	Options.bCountsForLevelClear = false;
+	Options.bRespawnOnDeath = false;
+	Options.OnKillEncounterPoint = KillPoint;
+
+	AEnemyCharacterBase* SpawnedEnemy = Spawner->SpawnMobForStory(Options);
+	TestNotNull(TEXT("Story dummy spawned"), SpawnedEnemy);
+	if (!SpawnedEnemy)
+	{
+		Spawner->Destroy();
+		return false;
+	}
+
+	SpawnedEnemy->Die();
+
+	ARewardPickup* ImmediatePickup = nullptr;
+	for (TActorIterator<ARewardPickup> It(World); It; ++It)
+	{
+		ImmediatePickup = *It;
+		break;
+	}
+
+	TestNotNull(TEXT("Kill encounter spawns reward immediately when Die starts"), ImmediatePickup);
+
+	if (ImmediatePickup)
+	{
+		ImmediatePickup->Destroy();
+	}
+	if (SpawnedEnemy && !SpawnedEnemy->IsActorBeingDestroyed())
+	{
+		SpawnedEnemy->Destroy();
+	}
 	Spawner->Destroy();
 	return true;
 }

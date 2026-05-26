@@ -650,17 +650,17 @@ bool UCombatDeckComponent::AddCardFromRuneReward(URuneDataAsset* RuneAsset)
 		return false;
 	}
 
-	DeckList.Add(Card);
+	const int32 InsertIndex = MaxActiveSequenceSize > 0
+		? FMath::Clamp(MaxActiveSequenceSize - 1, 0, DeckList.Num())
+		: DeckList.Num();
+	DeckList.Insert(Card, InsertIndex);
 	OnRewardAddedToDeck.Broadcast(Card);
 	TArray<FCombatCardInstance> EnteredCards;
 	EnteredCards.Add(Card);
 	OnDeckCardsEntered.Broadcast(EnteredCards);
 	StartPassiveFlowsForCard(Card);
 
-	if (DeckState == EDeckState::Ready && ActiveSequence.IsEmpty())
-	{
-		RefillActiveSequence();
-	}
+	StartDeckEditReload();
 
 	return true;
 }

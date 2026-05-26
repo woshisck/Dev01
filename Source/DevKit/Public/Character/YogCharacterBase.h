@@ -190,6 +190,11 @@ public:
 	FCharacterDiedNativeDelegate OnCharacterDiedNative;
 
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FCharacterDiedDelegate OnCharacterDeathStarted;
+
+	FCharacterDiedNativeDelegate OnCharacterDeathStartedNative;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FCharacterHealthUpdateDelegate OnCharacterHealthUpdate;
 
 
@@ -333,6 +338,14 @@ public:
 	friend UDamageAttributeSet;
 	//friend UAdditionAttributeSet;
 
+protected:
+	void BroadcastDeathStarted();
+	void ResetDeathStartedBroadcast();
+
+private:
+	bool bDeathStartedBroadcast = false;
+
+public:
 	// ─── 命中闪白 / 攻击前闪红 ──────────────────────────────────────────────
 
 	/** 角色闪光 Overlay 材质（需含 FlashColor、FlashAlpha、Power 三个参数） */

@@ -538,11 +538,29 @@ void AYogCharacterBase::FinishDying()
 	Destroy();
 }
 
+void AYogCharacterBase::BroadcastDeathStarted()
+{
+	if (bDeathStartedBroadcast)
+	{
+		return;
+	}
+
+	bDeathStartedBroadcast = true;
+	OnCharacterDeathStarted.Broadcast(this);
+	OnCharacterDeathStartedNative.Broadcast(this);
+}
+
+void AYogCharacterBase::ResetDeathStartedBroadcast()
+{
+	bDeathStartedBroadcast = false;
+}
+
 void AYogCharacterBase::Die()
 {
 	UE_LOG(LogTemp, Log, TEXT("DEATH HAPPEN, DEAD CHARACTER: %s"), *UKismetSystemLibrary::GetDisplayName(this));
 
 	bIsDead = true;
+	BroadcastDeathStarted();
 
 	// 死亡时立即关闭胶囊碰撞，防止尸体阻挡玩家移动和敌人寻路
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())

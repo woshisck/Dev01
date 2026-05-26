@@ -55,6 +55,7 @@ void ATrainingDummyCharacter::FinishDying()
 void ATrainingDummyCharacter::ResetDummy()
 {
 	bIsDead = false;
+	ResetDeathStartedBroadcast();
 
 	// Restore capsule collision (disabled by YogCharacterBase::Die).
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
