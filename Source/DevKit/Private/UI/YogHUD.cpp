@@ -1522,11 +1522,10 @@ void AYogHUD::NotifyPlayerExitedPortalRange(APortal* /*Portal*/)
 	// 同上
 }
 
-FVector2D AYogHUD::ClampPortalPreviewPositionForViewport(
+FVector2D AYogHUD::ResolvePortalPreviewAnchorPosition(
 	const FVector2D& ScreenPosition,
 	const FVector2D& ViewportSize,
-	const FVector2D& WidgetSize,
-	const FVector2D& Alignment,
+	float SideOffset,
 	float Margin)
 {
 	if (ViewportSize.X <= 0.f || ViewportSize.Y <= 0.f)
@@ -1534,18 +1533,17 @@ FVector2D AYogHUD::ClampPortalPreviewPositionForViewport(
 		return ScreenPosition;
 	}
 
-	const FVector2D SafeWidgetSize(
-		FMath::Max(WidgetSize.X, 1.f),
-		FMath::Max(WidgetSize.Y, 1.f));
-	const float SafeMargin = FMath::Max(0.f, Margin);
-	const float MinX = SafeMargin + SafeWidgetSize.X * Alignment.X;
-	const float MaxX = FMath::Max(MinX, ViewportSize.X - SafeMargin - SafeWidgetSize.X * (1.f - Alignment.X));
-	const float MinY = SafeMargin + SafeWidgetSize.Y * Alignment.Y;
-	const float MaxY = FMath::Max(MinY, ViewportSize.Y - SafeMargin - SafeWidgetSize.Y * (1.f - Alignment.Y));
+	FVector2D AnchorPosition = ScreenPosition;
+	const float EffectiveSideOffset = FMath::Clamp(SideOffset, 0.f, 48.f);
+	const float SideX = (AnchorPosition.X > ViewportSize.X * 0.5f)
+		? -EffectiveSideOffset
+		: EffectiveSideOffset;
+	AnchorPosition.X += SideX;
 
-	return FVector2D(
-		FMath::Clamp(ScreenPosition.X, MinX, MaxX),
-		FMath::Clamp(ScreenPosition.Y, MinY, MaxY));
+	const float SafeMargin = FMath::Max(0.f, Margin);
+	AnchorPosition.X = FMath::Clamp(AnchorPosition.X, SafeMargin, FMath::Max(SafeMargin, ViewportSize.X - SafeMargin));
+	AnchorPosition.Y = FMath::Clamp(AnchorPosition.Y, SafeMargin, FMath::Max(SafeMargin, ViewportSize.Y - SafeMargin));
+	return AnchorPosition;
 }
 
 void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
@@ -1660,25 +1658,14 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 		FVector2D ViewportSize;
 		if (UGameViewportClient* GVC = GetWorld()->GetGameViewport())
 			GVC->GetViewportSize(ViewportSize);
-		const float EffectiveSideOffset = FMath::Clamp(PortalWidgetSideOffset, 0.f, 48.f);
-		const float SideX = (ScreenPos.X > ViewportSize.X * 0.5f)
-			? -EffectiveSideOffset : EffectiveSideOffset;
-		ScreenPos.X += SideX;
+		ScreenPos = ResolvePortalPreviewAnchorPosition(
+			ScreenPos,
+			ViewportSize,
+			PortalWidgetSideOffset,
+			24.f);
 
 		const FVector2D PreviewAlignment(0.5f, 1.0f);
 		PortalPreviewWidget->SetAlignmentInViewport(PreviewAlignment);
-		PortalPreviewWidget->ForceLayoutPrepass();
-		FVector2D PreviewSize = PortalPreviewWidget->GetDesiredSize();
-		if (PreviewSize.X < 1.f || PreviewSize.Y < 1.f)
-		{
-			PreviewSize = FVector2D(430.f, 260.f);
-		}
-		ScreenPos = ClampPortalPreviewPositionForViewport(
-			ScreenPos,
-			ViewportSize,
-			PreviewSize,
-			PreviewAlignment,
-			24.f);
 		PortalPreviewWidget->SetPositionInViewport(ScreenPos, false);
 	}
 

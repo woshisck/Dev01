@@ -11,7 +11,35 @@
 #include "Components/Widget.h"
 #include "UI/LiquidHealthBarWidget.h"
 #include "UI/YogCommonRichTextBlock.h"
+#include "UObject/UnrealType.h"
 #include "WidgetBlueprint.h"
+
+namespace
+{
+	TOptional<ETextJustify::Type> ReadTextJustification(const UWidget* Widget)
+	{
+		if (!Widget)
+		{
+			return {};
+		}
+
+		if (const FByteProperty* ByteProperty = FindFProperty<FByteProperty>(Widget->GetClass(), TEXT("Justification")))
+		{
+			return static_cast<ETextJustify::Type>(ByteProperty->GetPropertyValue_InContainer(Widget));
+		}
+
+		if (const FEnumProperty* EnumProperty = FindFProperty<FEnumProperty>(Widget->GetClass(), TEXT("Justification")))
+		{
+			if (const FNumericProperty* UnderlyingProperty = EnumProperty->GetUnderlyingProperty())
+			{
+				return static_cast<ETextJustify::Type>(UnderlyingProperty->GetUnsignedIntPropertyValue(
+					EnumProperty->ContainerPtrToValuePtr<void>(Widget)));
+			}
+		}
+
+		return {};
+	}
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHudRootPlayerHealthBarBlueprintBindingTest,
 	"DevKitEditor.UI.HUD.PlayerHealthBarUsesDesignerBlueprint",
@@ -78,7 +106,7 @@ bool FHudRootPlayerHealthBarBlueprintBindingTest::RunTest(const FString& Paramet
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHudRootWeaponComboListBlueprintBindingTest,
-	"DevKitEditor.UI.HUD.WeaponComboListInTopRight",
+	"DevKitEditor.UI.HUD.WeaponComboListRightAligned",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Parameters)
@@ -100,13 +128,22 @@ bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Paramet
 	UWidget* TopRightRegion = WidgetTree->FindWidget(TEXT("TopRightPlayerInfoRegion"));
 	UWidget* RootCanvas = WidgetTree->FindWidget(TEXT("RootCanvas"));
 	UWidget* ComboPanel = WidgetTree->FindWidget(TEXT("WeaponComboListPanel"));
+	UWidget* ComboTitle = WidgetTree->FindWidget(TEXT("WeaponComboListTitle"));
 	UWidget* ComboText = WidgetTree->FindWidget(TEXT("WeaponComboListText"));
 
 	bool bValid = true;
 	bValid &= TestNotNull(TEXT("HUD root contains RootCanvas"), RootCanvas);
 	bValid &= TestNotNull(TEXT("HUD root contains TopRightPlayerInfoRegion"), TopRightRegion);
 	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListPanel"), ComboPanel);
+	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListTitle"), ComboTitle);
 	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListText"), ComboText);
+
+	if (ComboTitle)
+	{
+		bValid &= TestEqual(TEXT("WeaponComboListTitle text is right aligned"),
+			ReadTextJustification(ComboTitle).Get(ETextJustify::Left),
+			ETextJustify::Right);
+	}
 
 	if (ComboText)
 	{
@@ -115,6 +152,9 @@ bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Paramet
 		bValid &= TestNotEqual(TEXT("WeaponComboListText does not clip combo lines"),
 			ComboText->GetClipping(),
 			EWidgetClipping::ClipToBounds);
+		bValid &= TestEqual(TEXT("WeaponComboListText text is right aligned"),
+			ReadTextJustification(ComboText).Get(ETextJustify::Left),
+			ETextJustify::Right);
 	}
 
 	if (UCanvasPanel* RootCanvasPanel = Cast<UCanvasPanel>(RootCanvas))
@@ -131,8 +171,26 @@ bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Paramet
 
 		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(ComboPanel->Slot))
 		{
+			const FAnchors Anchors = CanvasSlot->GetAnchors();
+			bValid &= TestEqual(TEXT("WeaponComboListPanel anchors to the top-right corner"),
+				Anchors.Minimum,
+				FVector2D(1.f, 0.f));
+			bValid &= TestEqual(TEXT("WeaponComboListPanel max anchor stays top-right"),
+				Anchors.Maximum,
+				FVector2D(1.f, 0.f));
+			bValid &= TestEqual(TEXT("WeaponComboListPanel aligns its right edge to the anchor"),
+				CanvasSlot->GetAlignment(),
+				FVector2D(1.f, 0.f));
+			bValid &= TestEqual(TEXT("WeaponComboListPanel right edge sits near the screen edge"),
+				CanvasSlot->GetPosition().X,
+				-16.0,
+				0.001);
+			bValid &= TestEqual(TEXT("WeaponComboListPanel uses the requested compact width"),
+				CanvasSlot->GetSize().X,
+				460.0,
+				0.001);
 			bValid &= TestTrue(TEXT("WeaponComboListPanel has enough vertical room for long weapon combo lists"),
-				CanvasSlot->GetSize().Y >= 260.f);
+				CanvasSlot->GetSize().Y >= 300.f);
 		}
 	}
 

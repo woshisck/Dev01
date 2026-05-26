@@ -95,11 +95,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD|Finisher QTE")
 	void MarkFinisherQTEConfirmed();
 
-	static FVector2D ClampPortalPreviewPositionForViewport(
+	static FVector2D ResolvePortalPreviewAnchorPosition(
 		const FVector2D& ScreenPosition,
 		const FVector2D& ViewportSize,
-		const FVector2D& WidgetSize,
-		const FVector2D& Alignment,
+		float SideOffset,
 		float Margin);
 
 	// ─────────────────────────────────────────

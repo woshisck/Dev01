@@ -88,17 +88,12 @@ namespace
 
     UTexture2D* ResolvePortalRewardIcon(const FLootOption& Option)
     {
-        if (Option.Icon)
-        {
-            return Option.Icon;
-        }
-
         switch (Option.LootType)
         {
         case ELootType::Gold:
             return LoadPortalRewardTexture(TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon"));
         case ELootType::Rune:
-            return Option.RuneAsset ? Option.RuneAsset->GetRuneIcon() : nullptr;
+            return LoadPortalRewardTexture(TEXT("/Game/Docs/UI/RunCard/BackpackInspect/T_BackpackInspect_TarotCardFrame.T_BackpackInspect_TarotCardFrame"));
         case ELootType::Material:
         default:
             return LoadPortalRewardTexture(TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_MaterialQuestionIcon.T_MaterialQuestionIcon"));
@@ -117,7 +112,7 @@ namespace
         case ELootType::Gold:
             return NSLOCTEXT("Portal", "RewardGold", "金币");
         case ELootType::Rune:
-            return Option.RuneAsset ? FText::FromName(Option.RuneAsset->GetRuneName()) : NSLOCTEXT("Portal", "RewardRune", "卡牌");
+            return NSLOCTEXT("Portal", "RewardRune", "卡牌");
         case ELootType::Material:
         default:
             return NSLOCTEXT("Portal", "RewardMaterial", "材料");

@@ -14,6 +14,71 @@
 #include "Data/RuneDataAsset.h"
 #include "UI/YogHUD.h"
 
+namespace
+{
+	FText GetPortalRewardTypeDisplayName(ELootType LootType)
+	{
+		switch (LootType)
+		{
+		case ELootType::Gold:
+			return NSLOCTEXT("Portal", "PreviewRewardGold", "金币");
+		case ELootType::Rune:
+			return NSLOCTEXT("Portal", "PreviewRewardCard", "卡牌");
+		case ELootType::Material:
+		default:
+			return NSLOCTEXT("Portal", "PreviewRewardMaterial", "材料");
+		}
+	}
+
+	FLootOption MakePortalRewardTypePreviewOption(ELootType LootType)
+	{
+		FLootOption Option;
+		Option.LootType = LootType;
+		Option.DisplayName = GetPortalRewardTypeDisplayName(LootType);
+		return Option;
+	}
+
+	void AddPortalRewardTypePreviewOption(
+		TArray<FLootOption>& OutOptions,
+		TSet<ELootType>& AddedTypes,
+		ELootType LootType)
+	{
+		if (AddedTypes.Contains(LootType))
+		{
+			return;
+		}
+
+		AddedTypes.Add(LootType);
+		OutOptions.Add(MakePortalRewardTypePreviewOption(LootType));
+	}
+
+	TArray<FLootOption> BuildPortalRewardPreviewOptions(const URoomDataAsset* Room)
+	{
+		TArray<FLootOption> PreviewOptions;
+		if (!Room)
+		{
+			return PreviewOptions;
+		}
+
+		TSet<ELootType> AddedTypes;
+		if (Room->bUseFixedRewardOptions && !Room->FixedRewardOptions.IsEmpty())
+		{
+			for (const FLootOption& FixedOption : Room->FixedRewardOptions)
+			{
+				AddPortalRewardTypePreviewOption(PreviewOptions, AddedTypes, FixedOption.LootType);
+			}
+			return PreviewOptions;
+		}
+
+		if (!Room->LootPool.IsEmpty())
+		{
+			AddPortalRewardTypePreviewOption(PreviewOptions, AddedTypes, ELootType::Rune);
+		}
+
+		return PreviewOptions;
+	}
+}
+
 APortal::APortal(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -91,32 +156,8 @@ void APortal::BuildPreviewInfo()
 		? FText::FromName(SelectedRoom->RoomName)
 		: SelectedRoom->DisplayName;
 
-	if (SelectedRoom->bUseFixedRewardOptions && !SelectedRoom->FixedRewardOptions.IsEmpty())
-	{
-		CachedPreviewInfo.RewardPreviewOptions = SelectedRoom->FixedRewardOptions;
-		CachedPreviewInfo.LootCount = CachedPreviewInfo.RewardPreviewOptions.Num();
-	}
-	else if (!SelectedRoom->LootPool.IsEmpty())
-	{
-		const int32 PreviewCount = FMath::Min(3, SelectedRoom->LootPool.Num());
-		CachedPreviewInfo.RewardPreviewOptions.Reserve(PreviewCount);
-		for (int32 RewardIndex = 0; RewardIndex < PreviewCount; ++RewardIndex)
-		{
-			URuneDataAsset* RuneAsset = SelectedRoom->LootPool[RewardIndex].Get();
-			if (!RuneAsset)
-			{
-				continue;
-			}
-
-			FLootOption Option;
-			Option.LootType = ELootType::Rune;
-			Option.RuneAsset = RuneAsset;
-			Option.DisplayName = FText::FromName(RuneAsset->GetRuneName());
-			Option.Icon = RuneAsset->GetRuneIcon();
-			CachedPreviewInfo.RewardPreviewOptions.Add(Option);
-		}
-		CachedPreviewInfo.LootCount = CachedPreviewInfo.RewardPreviewOptions.Num();
-	}
+	CachedPreviewInfo.RewardPreviewOptions = BuildPortalRewardPreviewOptions(SelectedRoom);
+	CachedPreviewInfo.LootCount = CachedPreviewInfo.RewardPreviewOptions.Num();
 
 	// 提取首个 Room.Type.* Tag 作为类型徽章依据
 	static const FGameplayTag RoomTypeRoot = FGameplayTag::RequestGameplayTag(
