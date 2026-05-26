@@ -6,8 +6,10 @@
 #include "Abilities/GameplayAbilityTypes.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "Character/EnemyCharacterBase.h"
 #include "Components/BoxComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "EngineUtils.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GameplayEffect.h"
@@ -38,6 +40,17 @@ namespace
 	float SafeExtentRatio(float NewExtent, float DefaultExtent)
 	{
 		return DefaultExtent > KINDA_SMALL_NUMBER ? NewExtent / DefaultExtent : 1.f;
+	}
+
+	FVector HorizontalSafeNormal(FVector Direction)
+	{
+		Direction.Z = 0.f;
+		return Direction.IsNearlyZero() ? FVector::ZeroVector : Direction.GetSafeNormal();
+	}
+
+	bool IsWorldSurfaceObjectType(const ECollisionChannel ObjectType)
+	{
+		return ObjectType == ECC_WorldStatic || ObjectType == ECC_WorldDynamic;
 	}
 }
 
@@ -77,6 +90,7 @@ void ASlashWaveProjectile::InitProjectile(ACharacter* InSource, float InDamage,
 		ProjectileMovement->MaxSpeed = Speed;
 		ProjectileMovement->Velocity = GetActorForwardVector() * Speed;
 	}
+	TargetedBounceSegmentStartLocation = GetActorLocation();
 
 	if (HasActorBegunPlay() && GetWorld())
 	{
@@ -120,6 +134,60 @@ AActor* ASlashWaveProjectile::GetCreatorActor() const
 	return GetOwner();
 }
 
+FVector ASlashWaveProjectile::GetCurrentTravelDirection() const
+{
+	if (ProjectileMovement)
+	{
+		const FVector VelocityDirection = HorizontalSafeNormal(ProjectileMovement->Velocity);
+		if (!VelocityDirection.IsNearlyZero())
+		{
+			return VelocityDirection;
+		}
+	}
+
+	return HorizontalSafeNormal(GetActorForwardVector());
+}
+
+int32 ASlashWaveProjectile::GetTargetedBounceCount() const
+{
+	return TargetedBounceCount;
+}
+
+bool ASlashWaveProjectile::IsTargetedBounceEnabled() const
+{
+	return bEnableTargetedBounce;
+}
+
+FVector ASlashWaveProjectile::ResolveTargetedBounceReflection(const FVector& IncomingDirection, const FVector& HitNormal)
+{
+	const FVector Incoming = HorizontalSafeNormal(IncomingDirection);
+	if (Incoming.IsNearlyZero())
+	{
+		return FVector::ZeroVector;
+	}
+
+	FVector Normal = HorizontalSafeNormal(HitNormal);
+	if (Normal.IsNearlyZero())
+	{
+		Normal = -Incoming;
+	}
+
+	FVector ReflectedDirection = Incoming - 2.f * FVector::DotProduct(Incoming, Normal) * Normal;
+	ReflectedDirection = HorizontalSafeNormal(ReflectedDirection);
+	return ReflectedDirection.IsNearlyZero() ? -Incoming : ReflectedDirection;
+}
+
+bool ASlashWaveProjectile::TryGetKnockbackDirectionOverride(FVector& OutDirection) const
+{
+	if (!bEnableTargetedBounce)
+	{
+		return false;
+	}
+
+	OutDirection = GetCurrentTravelDirection();
+	return !OutDirection.IsNearlyZero();
+}
+
 void ASlashWaveProjectile::InitProjectileWithConfig(ACharacter* InSource, const FSlashWaveProjectileRuntimeConfig& InConfig)
 {
 	const FVector DefaultCollisionBoxExtent = FVector(
@@ -158,12 +226,19 @@ void ASlashWaveProjectile::InitProjectileWithConfig(ACharacter* InSource, const 
 	SplitCollisionBoxExtentMultiplier = SafePositiveScale(InConfig.SplitCollisionBoxExtentMultiplier);
 	bBounceOnEnemyHit = InConfig.bBounceOnEnemyHit;
 	MaxEnemyBounces = FMath::Max(0, InConfig.MaxEnemyBounces);
+	bEnableTargetedBounce = InConfig.bEnableTargetedBounce;
+	TargetedBounceMaxCount = FMath::Max(0, InConfig.TargetedBounceMaxCount);
+	TargetedBounceSearchRadius = FMath::Max(0.f, InConfig.TargetedBounceSearchRadius);
+	TargetedBounceMaxTravelDistance = FMath::Max(0.f, InConfig.TargetedBounceMaxTravelDistance);
+	TargetedBounceCount = 0;
+	bTargetedBounceFallbackReflectionActive = false;
+	TargetedBounceSegmentStartLocation = GetActorLocation();
 
 	if (CollisionBox)
 	{
-		CollisionBox->SetCollisionResponseToChannel(
-			ECC_WorldStatic,
-			bDestroyOnWorldStaticHit ? ECR_Overlap : ECR_Ignore);
+		const bool bOverlapWorldSurfaces = bDestroyOnWorldStaticHit || bEnableTargetedBounce;
+		CollisionBox->SetCollisionResponseToChannel(ECC_WorldStatic, bOverlapWorldSurfaces ? ECR_Overlap : ECR_Ignore);
+		CollisionBox->SetCollisionResponseToChannel(ECC_WorldDynamic, bEnableTargetedBounce ? ECR_Overlap : ECR_Ignore);
 	}
 
 	FVector FinalVisualScale = VisualScaleMultiplier;
@@ -191,7 +266,7 @@ void ASlashWaveProjectile::InitProjectileWithConfig(ACharacter* InSource, const 
 	ApplyRuntimeVisualConfig(InConfig);
 
 	UE_LOG(LogTemp, Warning,
-		TEXT("[SlashWaveProjectile] InitConfig Damage=%.1f Speed=%.1f Distance=%.1f HitCount=%d DamageApps=%d DamageInterval=%.2f Split=%d Generation=%d SplitRandom=%d SplitYawJitter=%.1f SplitPitch=%.1f Bounce=%d BounceMax=%d CollisionExtent=%s ActorScale=%s VisualNiagara=%s HideDefault=%d"),
+		TEXT("[SlashWaveProjectile] InitConfig Damage=%.1f Speed=%.1f Distance=%.1f HitCount=%d DamageApps=%d DamageInterval=%.2f Split=%d Generation=%d SplitRandom=%d SplitYawJitter=%.1f SplitPitch=%.1f Bounce=%d BounceMax=%d TargetedBounce=%d TargetedMax=%d TargetedRadius=%.1f TargetedTravel=%.1f CollisionExtent=%s ActorScale=%s VisualNiagara=%s HideDefault=%d"),
 		InConfig.Damage,
 		Speed,
 		MaxDistance,
@@ -205,6 +280,10 @@ void ASlashWaveProjectile::InitProjectileWithConfig(ACharacter* InSource, const 
 		SplitRandomPitchDegrees,
 		bBounceOnEnemyHit ? 1 : 0,
 		MaxEnemyBounces,
+		bEnableTargetedBounce ? 1 : 0,
+		TargetedBounceMaxCount,
+		TargetedBounceSearchRadius,
+		TargetedBounceMaxTravelDistance,
 		*CollisionBoxExtent.ToString(),
 		*FinalVisualScale.ToString(),
 		*GetNameSafe(InConfig.ProjectileVisualNiagaraSystem),
@@ -250,6 +329,7 @@ void ASlashWaveProjectile::BeginPlay()
 
 	CollisionBox->OnComponentBeginOverlap.AddDynamic(this, &ASlashWaveProjectile::OnOverlapBegin);
 
+	TargetedBounceSegmentStartLocation = GetActorLocation();
 	RefreshLifetimeFromDistance();
 
 	GetWorld()->GetTimerManager().SetTimer(
@@ -279,22 +359,28 @@ void ASlashWaveProjectile::OnOverlapBegin(
 		return;
 	}
 
+	const FVector HitLocation = SweepHitResult.ImpactPoint.IsNearlyZero()
+		? OtherActor->GetActorLocation()
+		: FVector(SweepHitResult.ImpactPoint);
+	const UAbilitySystemComponent* OtherASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OtherActor);
+	const bool bSurfaceOverlap = OtherComp && IsWorldSurfaceObjectType(OtherComp->GetCollisionObjectType());
+	const bool bTargetedBounceEnemy = Cast<AEnemyCharacterBase>(OtherActor) != nullptr;
+	if (bEnableTargetedBounce && (!OtherASC || bSurfaceOverlap || !bTargetedBounceEnemy))
+	{
+		TryTargetedBounceFromImpact(OtherActor, HitLocation, &SweepHitResult, false);
+		return;
+	}
+
 	if (bDestroyOnWorldStaticHit
 		&& OtherComp
 		&& OtherComp->GetCollisionObjectType() == ECC_WorldStatic)
 	{
-		const FVector ImpactLocation = SweepHitResult.ImpactPoint.IsNearlyZero()
-			? GetActorLocation()
-			: FVector(SweepHitResult.ImpactPoint);
-		TrySplitFromImpact(nullptr, ImpactLocation);
+		TrySplitFromImpact(nullptr, HitLocation);
 		Expire();
 		return;
 	}
 
-	const FVector HitLocation = SweepHitResult.ImpactPoint.IsNearlyZero()
-		? OtherActor->GetActorLocation()
-		: FVector(SweepHitResult.ImpactPoint);
-	if (!UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OtherActor))
+	if (!OtherASC)
 	{
 		return;
 	}
@@ -338,6 +424,10 @@ void ASlashWaveProjectile::HandleInitialOverlaps()
 		}
 
 		if (!UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OverlappingActor))
+		{
+			continue;
+		}
+		if (bEnableTargetedBounce && !Cast<AEnemyCharacterBase>(OverlappingActor))
 		{
 			continue;
 		}
@@ -394,7 +484,14 @@ bool ASlashWaveProjectile::TryStartDamageSequence(AActor* Target, const FVector&
 	}
 	if (Record.AppliedCount > 0)
 	{
-		TryBounceFromEnemyHit(Target, HitLocation, HitResult);
+		if (bEnableTargetedBounce)
+		{
+			TryTargetedBounceFromImpact(Target, HitLocation, HitResult, true);
+		}
+		else
+		{
+			TryBounceFromEnemyHit(Target, HitLocation, HitResult);
+		}
 	}
 	return true;
 }
@@ -498,7 +595,8 @@ bool ASlashWaveProjectile::ApplyDamageTo(AActor* Target, const FVector& HitLocat
 	}
 
 	FGameplayEffectContextHandle CtxHandle = SourceASC->MakeEffectContext();
-	CtxHandle.AddInstigator(SourceCharacter, SourceCharacter);
+	AActor* EffectCauser = bEnableTargetedBounce ? static_cast<AActor*>(this) : static_cast<AActor*>(SourceCharacter.Get());
+	CtxHandle.AddInstigator(SourceCharacter.Get(), EffectCauser);
 	CtxHandle.AddSourceObject(this);
 
 	if (DamageEffectClass && !bForcePureDamage)
@@ -585,7 +683,8 @@ void ASlashWaveProjectile::ApplyAdditionalHitEffectTo(AActor* Target, UAbilitySy
 	}
 
 	FGameplayEffectContextHandle CtxHandle = SourceASC->MakeEffectContext();
-	CtxHandle.AddInstigator(SourceCharacter, SourceCharacter);
+	AActor* EffectCauser = bEnableTargetedBounce ? static_cast<AActor*>(this) : static_cast<AActor*>(SourceCharacter.Get());
+	CtxHandle.AddInstigator(SourceCharacter.Get(), EffectCauser);
 	CtxHandle.AddSourceObject(this);
 
 	FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(AdditionalHitEffectClass, 1.f, CtxHandle);
@@ -725,6 +824,175 @@ void ASlashWaveProjectile::TryBounceFromEnemyHit(AActor* ImpactActor, const FVec
 		*ReflectedDirection.ToString());
 }
 
+AEnemyCharacterBase* ASlashWaveProjectile::FindNearestTargetedBounceEnemy(AActor* ImpactActor, const FVector& SearchOrigin) const
+{
+	if (!bEnableTargetedBounce || !GetWorld() || TargetedBounceSearchRadius <= KINDA_SMALL_NUMBER)
+	{
+		return nullptr;
+	}
+
+	if (MaxHitCount > 0 && HitRecords.Num() >= MaxHitCount)
+	{
+		return nullptr;
+	}
+
+	const float SearchRadiusSq = FMath::Square(TargetedBounceSearchRadius);
+	float BestDistanceSq = SearchRadiusSq;
+	AEnemyCharacterBase* BestEnemy = nullptr;
+	for (TActorIterator<AEnemyCharacterBase> It(GetWorld()); It; ++It)
+	{
+		AEnemyCharacterBase* Enemy = *It;
+		if (!IsValid(Enemy)
+			|| Enemy == SourceCharacter
+			|| Enemy == ImpactActor
+			|| !Enemy->IsAlive()
+			|| FindHitRecordIndex(Enemy) != INDEX_NONE)
+		{
+			continue;
+		}
+
+		FVector Delta = Enemy->GetActorLocation() - SearchOrigin;
+		Delta.Z = 0.f;
+		const float DistanceSq = Delta.SizeSquared();
+		if (DistanceSq <= BestDistanceSq)
+		{
+			BestDistanceSq = DistanceSq;
+			BestEnemy = Enemy;
+		}
+	}
+
+	return BestEnemy;
+}
+
+FVector ASlashWaveProjectile::ResolveTargetedBounceHitNormal(
+	AActor* ImpactActor,
+	const FVector& HitLocation,
+	const FHitResult* HitResult) const
+{
+	FVector HitNormal = FVector::ZeroVector;
+	if (HitResult)
+	{
+		HitNormal = HitResult->ImpactNormal.GetSafeNormal();
+		if (HitNormal.IsNearlyZero())
+		{
+			HitNormal = HitResult->Normal.GetSafeNormal();
+		}
+	}
+
+	if (HitNormal.IsNearlyZero() && ImpactActor)
+	{
+		HitNormal = (HitLocation - ImpactActor->GetActorLocation()).GetSafeNormal();
+	}
+
+	HitNormal = HorizontalSafeNormal(HitNormal);
+	if (HitNormal.IsNearlyZero())
+	{
+		HitNormal = -GetCurrentTravelDirection();
+	}
+	return HitNormal;
+}
+
+bool ASlashWaveProjectile::RedirectTargetedBounce(const FVector& Direction, const TCHAR* Reason, AActor* TargetActor)
+{
+	if (!bEnableTargetedBounce
+		|| !ProjectileMovement
+		|| !GetWorld()
+		|| IsActorBeingDestroyed()
+		|| TargetedBounceCount >= TargetedBounceMaxCount)
+	{
+		return false;
+	}
+
+	const FVector RedirectDirection = HorizontalSafeNormal(Direction);
+	if (RedirectDirection.IsNearlyZero())
+	{
+		return false;
+	}
+
+	++TargetedBounceCount;
+	const FVector BounceOffset = RedirectDirection * FMath::Max(20.f, CollisionBoxExtent.X * 0.5f);
+	SetActorLocation(GetActorLocation() + BounceOffset, false);
+	SetActorRotation(RedirectDirection.Rotation());
+	ProjectileMovement->Velocity = RedirectDirection * Speed;
+	ProjectileMovement->UpdateComponentVelocity();
+	TargetedBounceSegmentStartLocation = GetActorLocation();
+
+	RefreshLifetimeFromDistance();
+	GetWorld()->GetTimerManager().ClearTimer(LifetimeTimerHandle);
+	GetWorld()->GetTimerManager().SetTimer(
+		LifetimeTimerHandle, this, &ASlashWaveProjectile::Expire, Lifetime, false);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[SlashWaveProjectile] TargetedBounce Reason=%s Target=%s Count=%d/%d Direction=%s SegmentRange=%.1f"),
+		Reason ? Reason : TEXT("Unknown"),
+		*GetNameSafe(TargetActor),
+		TargetedBounceCount,
+		TargetedBounceMaxCount,
+		*RedirectDirection.ToString(),
+		bEnableTargetedBounce && TargetedBounceMaxTravelDistance > KINDA_SMALL_NUMBER ? TargetedBounceMaxTravelDistance : MaxDistance);
+	return true;
+}
+
+bool ASlashWaveProjectile::TryTargetedBounceFromImpact(
+	AActor* ImpactActor,
+	const FVector& HitLocation,
+	const FHitResult* HitResult,
+	bool bAllowReflection)
+{
+	if (!bEnableTargetedBounce
+		|| !ProjectileMovement
+		|| !GetWorld()
+		|| IsActorBeingDestroyed())
+	{
+		return false;
+	}
+
+	if (TargetedBounceCount >= TargetedBounceMaxCount
+		|| (MaxHitCount > 0 && HitRecords.Num() >= MaxHitCount))
+	{
+		Expire();
+		return false;
+	}
+
+	const FVector SearchOrigin = Cast<AEnemyCharacterBase>(ImpactActor)
+		? ImpactActor->GetActorLocation()
+		: (HitLocation.IsNearlyZero()
+			? (ImpactActor ? ImpactActor->GetActorLocation() : GetActorLocation())
+			: HitLocation);
+	if (AEnemyCharacterBase* NextEnemy = FindNearestTargetedBounceEnemy(ImpactActor, SearchOrigin))
+	{
+		bTargetedBounceFallbackReflectionActive = false;
+		FVector TargetDirection = NextEnemy->GetActorLocation() - GetActorLocation();
+		TargetDirection = HorizontalSafeNormal(TargetDirection);
+		if (TargetDirection.IsNearlyZero())
+		{
+			TargetDirection = HorizontalSafeNormal(NextEnemy->GetActorLocation() - SearchOrigin);
+		}
+		if (RedirectTargetedBounce(TargetDirection, TEXT("Target"), NextEnemy))
+		{
+			return true;
+		}
+	}
+
+	if (bAllowReflection)
+	{
+		const FVector IncomingDirection = GetCurrentTravelDirection();
+		const FVector HitNormal = ResolveTargetedBounceHitNormal(ImpactActor, SearchOrigin, HitResult);
+		const FVector ReflectedDirection = ResolveTargetedBounceReflection(IncomingDirection, HitNormal);
+		if (!ReflectedDirection.IsNearlyZero())
+		{
+			bTargetedBounceFallbackReflectionActive = true;
+			if (RedirectTargetedBounce(ReflectedDirection, TEXT("Reflect"), ImpactActor))
+			{
+				return true;
+			}
+		}
+	}
+
+	Expire();
+	return false;
+}
+
 ACharacter* ASlashWaveProjectile::ResolveFallbackSourceCharacter() const
 {
 	if (ACharacter* InstigatorCharacter = Cast<ACharacter>(GetInstigator()))
@@ -811,6 +1079,10 @@ void ASlashWaveProjectile::TrySplitFromImpact(AActor* ImpactActor, const FVector
 	ChildConfig.SplitCollisionBoxExtentMultiplier = SplitCollisionBoxExtentMultiplier;
 	ChildConfig.bBounceOnEnemyHit = bBounceOnEnemyHit;
 	ChildConfig.MaxEnemyBounces = MaxEnemyBounces;
+	ChildConfig.bEnableTargetedBounce = bEnableTargetedBounce;
+	ChildConfig.TargetedBounceMaxCount = TargetedBounceMaxCount;
+	ChildConfig.TargetedBounceSearchRadius = TargetedBounceSearchRadius;
+	ChildConfig.TargetedBounceMaxTravelDistance = TargetedBounceMaxTravelDistance;
 	ChildConfig.ProjectileVisualNiagaraSystem = RuntimeVisualNiagaraSystem;
 	ChildConfig.ProjectileVisualNiagaraScale = RuntimeVisualNiagaraScale;
 	ChildConfig.bHideDefaultProjectileVisuals = bRuntimeHideDefaultProjectileVisuals;
@@ -908,9 +1180,12 @@ void ASlashWaveProjectile::Expire()
 
 void ASlashWaveProjectile::RefreshLifetimeFromDistance()
 {
-	if (MaxDistance > KINDA_SMALL_NUMBER && Speed > KINDA_SMALL_NUMBER)
+	const float DistanceLimit = bEnableTargetedBounce && TargetedBounceMaxTravelDistance > KINDA_SMALL_NUMBER
+		? TargetedBounceMaxTravelDistance
+		: MaxDistance;
+	if (DistanceLimit > KINDA_SMALL_NUMBER && Speed > KINDA_SMALL_NUMBER)
 	{
-		Lifetime = MaxDistance / Speed;
+		Lifetime = DistanceLimit / Speed;
 	}
 }
 

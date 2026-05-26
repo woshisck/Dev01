@@ -3,11 +3,13 @@
 #include "Misc/AutomationTest.h"
 
 #include "Abilities/GameplayAbilityTargetTypes.h"
+#include "AbilitySystem/Abilities/GA_ActiveSkill_ShieldBurst.h"
 #include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystem/Abilities/GA_KnockbackDebuff.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "Projectile/SlashWaveProjectile.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKnockbackUsesExplicitAttackDirectionTest,
 	"DevKit.Knockback.UsesExplicitAttackDirectionTargetData",
@@ -297,6 +299,137 @@ bool FKnockbackDebuffUsesPlayerAttackInputDirectionTest::RunTest(const FString& 
 	Target->Destroy();
 	Attacker->Destroy();
 	EffectCauser->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKnockbackDebuffUsesProjectileDirectionContextTest,
+	"DevKit.Knockback.DebuffUsesProjectileDirectionContext",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FKnockbackDebuffUsesProjectileDirectionContextTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for projectile knockback context test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	ACharacter* Target = World->SpawnActor<ACharacter>();
+	APlayerCharacterBase* Attacker = World->SpawnActor<APlayerCharacterBase>();
+	ASlashWaveProjectile* Projectile = World->SpawnActor<ASlashWaveProjectile>();
+	TestNotNull(TEXT("Target character spawned"), Target);
+	TestNotNull(TEXT("Player attacker spawned"), Attacker);
+	TestNotNull(TEXT("Slash wave projectile spawned"), Projectile);
+	if (!Target || !Attacker || !Projectile)
+	{
+		if (Target)
+		{
+			Target->Destroy();
+		}
+		if (Attacker)
+		{
+			Attacker->Destroy();
+		}
+		if (Projectile)
+		{
+			Projectile->Destroy();
+		}
+		return false;
+	}
+
+	Target->SetActorLocation(FVector::ZeroVector);
+	Attacker->SetActorLocation(FVector::ZeroVector);
+	Attacker->LastInputDirection = FVector::XAxisVector;
+	Projectile->SetActorLocation(FVector::ZeroVector);
+	Projectile->SetActorRotation(FRotator(0.f, 90.f, 0.f));
+	FSlashWaveProjectileRuntimeConfig ProjectileConfig;
+	ProjectileConfig.bEnableTargetedBounce = true;
+	Projectile->InitProjectileWithConfig(Attacker, ProjectileConfig);
+
+	FGameplayEventData DamagePayload;
+	DamagePayload.Instigator = Projectile;
+	DamagePayload.Target = Target;
+	DamagePayload.EventMagnitude = 120.f;
+	DamagePayload.ContextHandle = FGameplayEffectContextHandle(new FGameplayEffectContext());
+	DamagePayload.ContextHandle.AddInstigator(Attacker, Projectile);
+	DamagePayload.ContextHandle.AddSourceObject(Projectile);
+
+	const FGameplayEventData KnockbackPayload =
+		UGA_KnockbackDebuff::MakeKnockbackPayloadFromDamageEvent(Target, DamagePayload);
+	const FVector Direction = UGA_Knockback::ResolveKnockbackDirection(Target, &KnockbackPayload);
+
+	TestTrue(TEXT("Projectile-context knockback follows projectile travel direction"),
+		FVector::DotProduct(Direction, FVector::YAxisVector) > 0.99f);
+	TestTrue(TEXT("Projectile-context knockback ignores player input direction"),
+		FMath::Abs(Direction.X) < 0.01f);
+
+	Target->Destroy();
+	Attacker->Destroy();
+	Projectile->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FShieldBurstUsesProjectileDirectionContextTest,
+	"DevKit.Knockback.ShieldBurstUsesProjectileDirectionContext",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FShieldBurstUsesProjectileDirectionContextTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for shield burst projectile context test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	ACharacter* Target = World->SpawnActor<ACharacter>();
+	APlayerCharacterBase* Attacker = World->SpawnActor<APlayerCharacterBase>();
+	ASlashWaveProjectile* Projectile = World->SpawnActor<ASlashWaveProjectile>();
+	TestNotNull(TEXT("Target character spawned"), Target);
+	TestNotNull(TEXT("Player attacker spawned"), Attacker);
+	TestNotNull(TEXT("Slash wave projectile spawned"), Projectile);
+	if (!Target || !Attacker || !Projectile)
+	{
+		if (Target)
+		{
+			Target->Destroy();
+		}
+		if (Attacker)
+		{
+			Attacker->Destroy();
+		}
+		if (Projectile)
+		{
+			Projectile->Destroy();
+		}
+		return false;
+	}
+
+	Target->SetActorLocation(FVector::ZeroVector);
+	Attacker->SetActorLocation(FVector::ZeroVector);
+	Attacker->LastInputDirection = FVector::XAxisVector;
+	Projectile->SetActorLocation(FVector::ZeroVector);
+	Projectile->SetActorRotation(FRotator(0.f, 90.f, 0.f));
+	FSlashWaveProjectileRuntimeConfig ProjectileConfig;
+	ProjectileConfig.bEnableTargetedBounce = true;
+	Projectile->InitProjectileWithConfig(Attacker, ProjectileConfig);
+
+	FGameplayEffectContextHandle DamageContext(new FGameplayEffectContext());
+	DamageContext.AddInstigator(Attacker, Projectile);
+	DamageContext.AddSourceObject(Projectile);
+
+	const FGameplayEventData KnockbackPayload =
+		UGA_ActiveSkill_ShieldBurst::MakeKnockbackPayload(Attacker, Target, 500.f, DamageContext);
+	const FVector Direction = UGA_Knockback::ResolveKnockbackDirection(Target, &KnockbackPayload);
+
+	TestTrue(TEXT("Shield Burst projectile-context knockback follows projectile travel direction"),
+		FVector::DotProduct(Direction, FVector::YAxisVector) > 0.99f);
+	TestEqual(TEXT("Shield Burst payload keeps knockback distance magnitude"), KnockbackPayload.EventMagnitude, 500.f);
+
+	Target->Destroy();
+	Attacker->Destroy();
+	Projectile->Destroy();
 	return true;
 }
 

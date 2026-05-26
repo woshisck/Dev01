@@ -16,6 +16,7 @@
 
 class AYogPlayerControllerBase;
 class APlayerCharacterBase;
+class UYogGameInstanceBase;
 class UYogSaveGame;
 class AEnemyCharacterBase;
 class APortal;
@@ -206,6 +207,11 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "LevelFlow|Story Override")
 	bool HasRoomRewardOptionsOverride() const { return bHasRoomRewardOptionsOverride; }
+
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
+	bool ApplyPendingRoomRewardOptionsOverride(UYogGameInstanceBase* GameInstance);
+
+	const TArray<FLootOption>& GetRoomRewardOptionsOverride() const { return RoomRewardOptionsOverride; }
 
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
 	void SetForcedPortalOverride(int32 PortalIndex);

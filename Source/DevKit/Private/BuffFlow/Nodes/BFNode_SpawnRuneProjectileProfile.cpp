@@ -117,6 +117,10 @@ void UBFNode_SpawnRuneProjectileProfile::ExecuteBuffFlowInput(const FName& PinNa
 	Config.SplitCollisionBoxExtentMultiplier = Projectile.SplitCollisionBoxExtentMultiplier;
 	Config.bBounceOnEnemyHit = Projectile.bBounceSplitChildrenOnEnemyHit;
 	Config.MaxEnemyBounces = Projectile.SplitChildMaxEnemyBounces;
+	Config.bEnableTargetedBounce = Projectile.bEnableTargetedBounce;
+	Config.TargetedBounceMaxCount = Projectile.TargetedBounceMaxCount;
+	Config.TargetedBounceSearchRadius = Projectile.TargetedBounceSearchRadius;
+	Config.TargetedBounceMaxTravelDistance = Projectile.TargetedBounceMaxTravelDistance;
 
 	int32 ComboBonusProjectiles = 0;
 	if (Projectile.bAddComboStacksToProjectileCount && BFC && BFC->HasCombatCardEffectContext())

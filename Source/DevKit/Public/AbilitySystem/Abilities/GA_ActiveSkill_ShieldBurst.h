@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "GameplayEffectTypes.h"
 #include "GA_ActiveSkill_ShieldBurst.generated.h"
 
 class UYogAbilitySystemComponent;
@@ -27,6 +28,12 @@ public:
 		bool bReplicateEndAbility,
 		bool bWasCancelled) override;
 
+	static FGameplayEventData MakeKnockbackPayload(
+		AActor* SourceActor,
+		AActor* TargetActor,
+		float InKnockbackDistance,
+		const FGameplayEffectContextHandle& DamageContext);
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Active Skill", meta = (ClampMin = "0.0"))
 	float BuffDuration = 60.0f;
 
@@ -37,6 +44,11 @@ private:
 	UFUNCTION()
 	void HandlePlayerDamageDealt(UYogAbilitySystemComponent* TargetASC, float Damage);
 
+	void HandlePlayerDamageDealtWithContext(
+		UYogAbilitySystemComponent* TargetASC,
+		float Damage,
+		const FGameplayEffectContextHandle& DamageContext);
+
 	void FinishBuff();
 
 	UPROPERTY()
@@ -46,4 +58,5 @@ private:
 	TObjectPtr<AActor> SourceActor;
 
 	FTimerHandle BuffTimerHandle;
+	FDelegateHandle DealtDamageWithContextHandle;
 };

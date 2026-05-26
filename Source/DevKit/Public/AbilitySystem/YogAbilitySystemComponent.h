@@ -7,6 +7,7 @@
 #include "Data/AbilityData.h"
 #include "Data/RuneDataAsset.h"
 #include "Data/StateConflictDataAsset.h"
+#include "GameplayEffectTypes.h"
 #include "Item/Weapon/WeaponTypes.h"
 #include "YogAbilitySystemComponent.generated.h"
 
@@ -115,6 +116,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceivedDamageDelegate, UYogAbilit
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceiveHitResultDelegate, class UYogAbilitySystemComponent*, SourceASC, bool, HitResult);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDealtDamageDelegate, UYogAbilitySystemComponent*, TargetASC, float, Damage);
+
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FDealtDamageContextDelegate, UYogAbilitySystemComponent*, float, const FGameplayEffectContextHandle&);
 
 /** 造成暴击时在 Source ASC 广播 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCritHitDelegate, UYogAbilitySystemComponent*, TargetASC, float, Damage);
@@ -323,6 +326,8 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "DamageDealt")
 	FDealtDamageDelegate DealtDamage;
 
+	FDealtDamageContextDelegate DealtDamageWithContext;
+
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FCritHitDelegate OnCritHit;
 
@@ -332,7 +337,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FKilledTargetDelegate OnKilledTarget;
 
-	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage, bool bSuppressHitReact = false);
+	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage, bool bSuppressHitReact = false, const FGameplayEffectContextHandle& DamageContext = FGameplayEffectContextHandle());
 	void SuppressNextDamageFeedback();
 	bool ConsumeSuppressNextDamageFeedback();
 

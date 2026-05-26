@@ -1913,11 +1913,118 @@ bool FCombatDeckGeneratedComboDrivenAssetsConfiguredTest::RunTest(const FString&
 		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Shield.FA_Rune512_Moonlight_Forward_Shield"),
 		TEXT("Moonlight forward shield"),
 		true);
+
+	UFlowAsset* MoonlightForwardShieldFlow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Shield.FA_Rune512_Moonlight_Forward_Shield"));
+	TestNotNull(TEXT("Moonlight forward shield flow exists for targeted bounce tuning"), MoonlightForwardShieldFlow);
+	if (MoonlightForwardShieldFlow)
+	{
+		UBFNode_SpawnSlashWaveProjectile* ShieldSlashNode = nullptr;
+		for (const TPair<FGuid, UFlowNode*>& Pair : MoonlightForwardShieldFlow->GetNodes())
+		{
+			ShieldSlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
+			if (ShieldSlashNode)
+			{
+				break;
+			}
+		}
+
+		TestNotNull(TEXT("Moonlight forward shield has slash-wave node"), ShieldSlashNode);
+		if (ShieldSlashNode)
+		{
+			TestTrue(TEXT("Moonlight forward shield enables targeted bounce"), ShieldSlashNode->bEnableTargetedBounce);
+			TestEqual(TEXT("Moonlight forward shield targeted bounce max count"), ShieldSlashNode->TargetedBounceMaxCount, 5);
+			TestEqual(TEXT("Moonlight forward shield targeted bounce search radius"), ShieldSlashNode->TargetedBounceSearchRadius, 650.f);
+			TestEqual(TEXT("Moonlight forward shield targeted bounce travel range"), ShieldSlashNode->TargetedBounceMaxTravelDistance, 650.f);
+			TestTrue(TEXT("Moonlight forward shield uses base moonlight collision X"), FMath::IsNearlyEqual(static_cast<float>(ShieldSlashNode->CollisionBoxExtent.X), 30.f));
+			TestTrue(TEXT("Moonlight forward shield uses base moonlight collision Y"), FMath::IsNearlyEqual(static_cast<float>(ShieldSlashNode->CollisionBoxExtent.Y), 60.f));
+			TestTrue(TEXT("Moonlight forward shield uses base moonlight collision Z"), FMath::IsNearlyEqual(static_cast<float>(ShieldSlashNode->CollisionBoxExtent.Z), 35.f));
+			TestTrue(TEXT("Moonlight forward shield visual scale X"), FMath::IsNearlyEqual(static_cast<float>(ShieldSlashNode->VisualScaleMultiplier.X), 0.85f));
+			TestEqual(TEXT("Moonlight forward shield can hit initial target plus five bounces"), ShieldSlashNode->MaxHitCount, 6);
+		}
+	}
+
+	URuneCardEffectProfileDA* MoonlightForwardShieldProfile = LoadObject<URuneCardEffectProfileDA>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Forward_Shield.EP_Rune512_Moonlight_Forward_Shield"));
+	TestNotNull(TEXT("Moonlight forward shield effect profile exists"), MoonlightForwardShieldProfile);
+	if (MoonlightForwardShieldProfile)
+	{
+		const FRuneCardProfileProjectileConfig& Projectile = MoonlightForwardShieldProfile->Projectile;
+		TestTrue(TEXT("Moonlight forward shield profile enables targeted bounce"), Projectile.bEnableTargetedBounce);
+		TestEqual(TEXT("Moonlight forward shield profile targeted bounce max count"), Projectile.TargetedBounceMaxCount, 5);
+		TestEqual(TEXT("Moonlight forward shield profile targeted bounce search radius"), Projectile.TargetedBounceSearchRadius, 650.f);
+		TestEqual(TEXT("Moonlight forward shield profile targeted bounce travel range"), Projectile.TargetedBounceMaxTravelDistance, 650.f);
+		TestTrue(TEXT("Moonlight forward shield profile collision X"), FMath::IsNearlyEqual(static_cast<float>(Projectile.CollisionBoxExtent.X), 30.f));
+		TestEqual(TEXT("Moonlight forward shield profile max hit count"), Projectile.MaxHitCount, 6);
+	}
+
 	bForwardMoonlightComboConfigValid &= ValidateForwardMoonlightComboProjectiles(
 		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_ReduceDamage.FA_Rune512_Moonlight_Forward_ReduceDamage"),
 		TEXT("Moonlight forward reduce damage"),
 		true);
 	return bForwardMoonlightComboConfigValid;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMoonlightForwardShieldTargetedBounceConfiguredTest,
+	"DevKit.CombatDeck.MoonlightForwardShieldTargetedBounceConfigured",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckMoonlightForwardShieldTargetedBounceConfiguredTest::RunTest(const FString& Parameters)
+{
+	UFlowAsset* MoonlightForwardShieldFlow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Shield.FA_Rune512_Moonlight_Forward_Shield"));
+	TestNotNull(TEXT("Moonlight forward shield flow exists for targeted bounce tuning"), MoonlightForwardShieldFlow);
+	if (!MoonlightForwardShieldFlow)
+	{
+		return false;
+	}
+
+	UBFNode_SpawnSlashWaveProjectile* ShieldSlashNode = nullptr;
+	for (const TPair<FGuid, UFlowNode*>& Pair : MoonlightForwardShieldFlow->GetNodes())
+	{
+		ShieldSlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
+		if (ShieldSlashNode)
+		{
+			break;
+		}
+	}
+
+	TestNotNull(TEXT("Moonlight forward shield has slash-wave node"), ShieldSlashNode);
+	if (!ShieldSlashNode)
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Moonlight forward shield enables targeted bounce"), ShieldSlashNode->bEnableTargetedBounce);
+	TestEqual(TEXT("Moonlight forward shield targeted bounce max count"), ShieldSlashNode->TargetedBounceMaxCount, 5);
+	TestEqual(TEXT("Moonlight forward shield targeted bounce search radius"), ShieldSlashNode->TargetedBounceSearchRadius, 650.f);
+	TestEqual(TEXT("Moonlight forward shield targeted bounce travel range"), ShieldSlashNode->TargetedBounceMaxTravelDistance, 650.f);
+	TestTrue(TEXT("Moonlight forward shield uses base moonlight collision X"), FMath::IsNearlyEqual(static_cast<float>(ShieldSlashNode->CollisionBoxExtent.X), 30.f));
+	TestTrue(TEXT("Moonlight forward shield uses base moonlight collision Y"), FMath::IsNearlyEqual(static_cast<float>(ShieldSlashNode->CollisionBoxExtent.Y), 60.f));
+	TestTrue(TEXT("Moonlight forward shield uses base moonlight collision Z"), FMath::IsNearlyEqual(static_cast<float>(ShieldSlashNode->CollisionBoxExtent.Z), 35.f));
+	TestTrue(TEXT("Moonlight forward shield visual scale X"), FMath::IsNearlyEqual(static_cast<float>(ShieldSlashNode->VisualScaleMultiplier.X), 0.85f));
+	TestEqual(TEXT("Moonlight forward shield can hit initial target plus five bounces"), ShieldSlashNode->MaxHitCount, 6);
+
+	URuneCardEffectProfileDA* MoonlightForwardShieldProfile = LoadObject<URuneCardEffectProfileDA>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Profile/EP_Rune512_Moonlight_Forward_Shield.EP_Rune512_Moonlight_Forward_Shield"));
+	TestNotNull(TEXT("Moonlight forward shield effect profile exists"), MoonlightForwardShieldProfile);
+	if (!MoonlightForwardShieldProfile)
+	{
+		return false;
+	}
+
+	const FRuneCardProfileProjectileConfig& Projectile = MoonlightForwardShieldProfile->Projectile;
+	TestTrue(TEXT("Moonlight forward shield profile enables targeted bounce"), Projectile.bEnableTargetedBounce);
+	TestEqual(TEXT("Moonlight forward shield profile targeted bounce max count"), Projectile.TargetedBounceMaxCount, 5);
+	TestEqual(TEXT("Moonlight forward shield profile targeted bounce search radius"), Projectile.TargetedBounceSearchRadius, 650.f);
+	TestEqual(TEXT("Moonlight forward shield profile targeted bounce travel range"), Projectile.TargetedBounceMaxTravelDistance, 650.f);
+	TestTrue(TEXT("Moonlight forward shield profile collision X"), FMath::IsNearlyEqual(static_cast<float>(Projectile.CollisionBoxExtent.X), 30.f));
+	TestEqual(TEXT("Moonlight forward shield profile max hit count"), Projectile.MaxHitCount, 6);
+	return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedSplashSplitConfiguredTest,

@@ -811,6 +811,7 @@ void UYogGameInstanceBase::ClearRunState()
 	// v3：传送门跨关字段同点清，避免下一局误读上一局的预骰数据
 	PendingRoomData = nullptr;
 	PendingRoomBuffs.Reset();
+	ClearPendingRoomRewardOptionsOverride();
 	PendingNextFloor = 1;
 	bPlayLevelIntroFadeIn = false;
 	ClearCampaignOverride();
@@ -821,6 +822,39 @@ void UYogGameInstanceBase::ClearRunState()
 
 
 
+
+void UYogGameInstanceBase::SetPendingRoomRewardOptionsOverride(const TArray<FLootOption>& InOptions)
+{
+	PendingRoomRewardOptionsOverride = InOptions;
+	bHasPendingRoomRewardOptionsOverride = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Pending room reward options override set. Count=%d"),
+		PendingRoomRewardOptionsOverride.Num());
+}
+
+void UYogGameInstanceBase::ClearPendingRoomRewardOptionsOverride()
+{
+	if (bHasPendingRoomRewardOptionsOverride || !PendingRoomRewardOptionsOverride.IsEmpty())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Pending room reward options override cleared."));
+	}
+
+	bHasPendingRoomRewardOptionsOverride = false;
+	PendingRoomRewardOptionsOverride.Reset();
+}
+
+bool UYogGameInstanceBase::ConsumePendingRoomRewardOptionsOverride(TArray<FLootOption>& OutOptions)
+{
+	if (!bHasPendingRoomRewardOptionsOverride)
+	{
+		OutOptions.Reset();
+		return false;
+	}
+
+	OutOptions = PendingRoomRewardOptionsOverride;
+	ClearPendingRoomRewardOptionsOverride();
+	return true;
+}
 
 void UYogGameInstanceBase::SetCampaignOverride(UCampaignDataAsset* InCampaignData)
 {

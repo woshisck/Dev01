@@ -4,9 +4,61 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "GameFramework/Controller.h"
+#include "Projectile/SlashWaveProjectile.h"
 
 namespace
 {
+bool TryAppendProjectileDirection(
+	FGameplayEventData& KnockbackPayload,
+	const FGameplayEventData& DamagePayload)
+{
+	auto TryAppendFromObject = [&KnockbackPayload](const UObject* Object) -> bool
+	{
+		const ASlashWaveProjectile* Projectile = Cast<ASlashWaveProjectile>(Object);
+		if (!Projectile)
+		{
+			return false;
+		}
+
+		FVector ProjectileDirection = FVector::ZeroVector;
+		if (!Projectile->TryGetKnockbackDirectionOverride(ProjectileDirection))
+		{
+			return false;
+		}
+
+		KnockbackPayload.Instigator = const_cast<ASlashWaveProjectile*>(Projectile);
+		KnockbackPayload.OptionalObject = Projectile;
+		UGA_Knockback::AppendAttackDirectionTargetData(
+			KnockbackPayload,
+			ProjectileDirection,
+			Projectile);
+		return true;
+	};
+
+	if (DamagePayload.ContextHandle.IsValid())
+	{
+		if (TryAppendFromObject(DamagePayload.ContextHandle.GetSourceObject()))
+		{
+			return true;
+		}
+		if (TryAppendFromObject(DamagePayload.ContextHandle.GetEffectCauser()))
+		{
+			return true;
+		}
+		if (TryAppendFromObject(DamagePayload.ContextHandle.GetInstigator()))
+		{
+			return true;
+		}
+	}
+
+	if (TryAppendFromObject(DamagePayload.OptionalObject.Get()))
+	{
+		return true;
+	}
+
+	return TryAppendFromObject(DamagePayload.Instigator.Get());
+}
+
 const AActor* ResolveDamageDirectionSource(const FGameplayEventData& DamagePayload)
 {
 	const AActor* DirectionSource = DamagePayload.ContextHandle.IsValid()
@@ -76,6 +128,11 @@ FGameplayEventData UGA_KnockbackDebuff::MakeKnockbackPayloadFromDamageEvent(
 	FGameplayEventData KnockbackPayload;
 	KnockbackPayload.EventTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"), false);
 	KnockbackPayload.Target = AvatarActor;
+
+	if (TryAppendProjectileDirection(KnockbackPayload, DamagePayload))
+	{
+		return KnockbackPayload;
+	}
 
 	if (const AActor* DirectionSource = ResolveDamageDirectionSource(DamagePayload))
 	{

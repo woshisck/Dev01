@@ -625,7 +625,11 @@ bool UYogAbilitySystemComponent::ConsumeSuppressNextDamageFeedback()
 	return bSuppress;
 }
 
-void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage, const bool bSuppressHitReact)
+void UYogAbilitySystemComponent::ReceiveDamage(
+	UYogAbilitySystemComponent* SourceASC,
+	float Damage,
+	const bool bSuppressHitReact,
+	const FGameplayEffectContextHandle& DamageContext)
 {
 	ReceivedDamage.Broadcast(SourceASC, Damage);
 
@@ -635,6 +639,7 @@ void UYogAbilitySystemComponent::ReceiveDamage(UYogAbilitySystemComponent* Sourc
 	if (SourceASC && IsValid(this) && IsValid(GetAvatarActor()))
 	{
 		SourceASC->DealtDamage.Broadcast(this, Damage);
+		SourceASC->DealtDamageWithContext.Broadcast(this, Damage, DamageContext);
 	}
 
 	if (!IsValid(GetAvatarActor()))

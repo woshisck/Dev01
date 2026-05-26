@@ -2,6 +2,7 @@
 
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
+#include "System/YogGameInstanceBase.h"
 
 USNode_SetRoomRewardOverride::USNode_SetRoomRewardOverride(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -17,25 +18,55 @@ void USNode_SetRoomRewardOverride::ExecuteInput(const FName& PinName)
 {
 	UWorld* World = GetWorld();
 	AYogGameMode* GM = World ? Cast<AYogGameMode>(UGameplayStatics::GetGameMode(World)) : nullptr;
-	if (!GM)
+	UYogGameInstanceBase* GI = World ? Cast<UYogGameInstanceBase>(World->GetGameInstance()) : nullptr;
+
+	ApplyRewardOverride(GM, GI);
+
+	TriggerOutput(TEXT("Out"), true);
+}
+
+bool USNode_SetRoomRewardOverride::ApplyRewardOverride(AYogGameMode* GameMode, UYogGameInstanceBase* GameInstance) const
+{
+	if (!bClearOverride && LootOptions.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SNode_SetRoomRewardOverride] AYogGameMode not found — skipped."));
-		TriggerOutput(TEXT("Out"), true);
-		return;
+		UE_LOG(LogTemp, Warning, TEXT("[SNode_SetRoomRewardOverride] LootOptions is empty and bClearOverride is false; skipped."));
+		return false;
+	}
+
+	if (OverrideTarget == EStoryRewardOverrideTarget::NextRoom)
+	{
+		if (!GameInstance)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SNode_SetRoomRewardOverride] GameInstance not found for NextRoom reward override; skipped."));
+			return false;
+		}
+
+		if (bClearOverride)
+		{
+			GameInstance->ClearPendingRoomRewardOptionsOverride();
+		}
+		else
+		{
+			GameInstance->SetPendingRoomRewardOptionsOverride(LootOptions);
+		}
+
+		return true;
+	}
+
+	if (!GameMode)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SNode_SetRoomRewardOverride] AYogGameMode not found for CurrentRoom reward override; skipped."));
+		return false;
 	}
 
 	if (bClearOverride)
 	{
-		GM->ClearRoomRewardOptionsOverride();
-	}
-	else if (!LootOptions.IsEmpty())
-	{
-		GM->SetRoomRewardOptionsOverride(LootOptions);
+		GameMode->ClearRoomRewardOptionsOverride();
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SNode_SetRoomRewardOverride] LootOptions is empty and bClearOverride is false — skipped."));
+		GameMode->SetRoomRewardOptionsOverride(LootOptions);
 	}
 
-	TriggerOutput(TEXT("Out"), true);
+	return true;
 }
