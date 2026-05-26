@@ -13,6 +13,7 @@
 #include "UI/YogCommonRichTextBlock.h"
 #include "CommonInputSubsystem.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
+#include "Engine/Texture2D.h"
 
 namespace
 {
@@ -78,6 +79,94 @@ namespace
             PortalPanelBorderColor,
             PortalPanelBorderWidth));
         Border->SetPadding(FMargin(16.f, 14.f));
+    }
+
+    UTexture2D* LoadPortalRewardTexture(const TCHAR* TexturePath)
+    {
+        return TexturePath ? LoadObject<UTexture2D>(nullptr, TexturePath) : nullptr;
+    }
+
+    UTexture2D* ResolvePortalRewardIcon(const FLootOption& Option)
+    {
+        if (Option.Icon)
+        {
+            return Option.Icon;
+        }
+
+        switch (Option.LootType)
+        {
+        case ELootType::Gold:
+            return LoadPortalRewardTexture(TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon"));
+        case ELootType::Rune:
+            return Option.RuneAsset ? Option.RuneAsset->GetRuneIcon() : nullptr;
+        case ELootType::Material:
+        default:
+            return LoadPortalRewardTexture(TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_MaterialQuestionIcon.T_MaterialQuestionIcon"));
+        }
+    }
+
+    FText ResolvePortalRewardLabel(const FLootOption& Option)
+    {
+        if (!Option.DisplayName.IsEmptyOrWhitespace())
+        {
+            return Option.DisplayName;
+        }
+
+        switch (Option.LootType)
+        {
+        case ELootType::Gold:
+            return NSLOCTEXT("Portal", "RewardGold", "金币");
+        case ELootType::Rune:
+            return Option.RuneAsset ? FText::FromName(Option.RuneAsset->GetRuneName()) : NSLOCTEXT("Portal", "RewardRune", "卡牌");
+        case ELootType::Material:
+        default:
+            return NSLOCTEXT("Portal", "RewardMaterial", "材料");
+        }
+    }
+
+    void AddPortalRewardIcon(UHorizontalBox* IconBox, const FLootOption& Option)
+    {
+        if (!IconBox)
+        {
+            return;
+        }
+
+        USizeBox* SlotBox = NewObject<USizeBox>(IconBox);
+        SlotBox->SetWidthOverride(34.f);
+        SlotBox->SetHeightOverride(34.f);
+        SlotBox->SetToolTipText(ResolvePortalRewardLabel(Option));
+
+        UImage* Icon = NewObject<UImage>(SlotBox);
+        if (UTexture2D* Texture = ResolvePortalRewardIcon(Option))
+        {
+            Icon->SetBrushFromTexture(Texture, true);
+        }
+        else
+        {
+            Icon->SetColorAndOpacity(FLinearColor(0.18f, 0.18f, 0.20f, 1.f));
+        }
+        SlotBox->AddChild(Icon);
+
+        UHorizontalBoxSlot* IconSlot = IconBox->AddChildToHorizontalBox(SlotBox);
+        IconSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+        IconSlot->SetVerticalAlignment(VAlign_Center);
+        IconSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
+    }
+
+    FText BuildPortalRewardFallbackText(const TArray<FLootOption>& Options)
+    {
+        if (Options.IsEmpty())
+        {
+            return NSLOCTEXT("Portal", "LootSummaryUnknown", "战利品");
+        }
+
+        TArray<FString> Labels;
+        Labels.Reserve(Options.Num());
+        for (const FLootOption& Option : Options)
+        {
+            Labels.Add(ResolvePortalRewardLabel(Option).ToString());
+        }
+        return FText::FromString(FString::Printf(TEXT("战利品: %s"), *FString::Join(Labels, TEXT("、"))));
     }
 
     // RuneName 漏配兜底：开发期暴露资产名定位漏配，Shipping 显示"未命名"
@@ -262,11 +351,32 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
         }
     }
 
-    // 战利品摘要（仅列类型，不带数量）
-    if (LootSummaryText)
+    if (LootIconBox)
     {
-        LootSummaryText->SetText(
-            NSLOCTEXT("Portal", "LootSummary", "战利品：符文、金币"));
+        LootIconBox->ClearChildren();
+        if (Info.RewardPreviewOptions.IsEmpty())
+        {
+            FLootOption UnknownReward;
+            UnknownReward.LootType = ELootType::Material;
+            AddPortalRewardIcon(LootIconBox, UnknownReward);
+        }
+        else
+        {
+            for (const FLootOption& Option : Info.RewardPreviewOptions)
+            {
+                AddPortalRewardIcon(LootIconBox, Option);
+            }
+        }
+
+        LootIconBox->SetVisibility(ESlateVisibility::HitTestInvisible);
+        if (LootSummaryText)
+        {
+            LootSummaryText->SetVisibility(ESlateVisibility::Collapsed);
+        }
+    }
+    else if (LootSummaryText)
+    {
+        LootSummaryText->SetText(BuildPortalRewardFallbackText(Info.RewardPreviewOptions));
     }
 
     // 浮窗刚显示时默认隐藏交互提示，待 HUD 检测到 PendingPortal == this 再调 SetInteractHintVisible(true)

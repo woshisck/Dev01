@@ -148,6 +148,7 @@ FText WeaponComboTextUtils::BuildComboHintText(
 
 	TSet<FString> UniqueSequences;
 	TArray<FString> MoveListLines;
+	const bool bLimitLines = MaxLines > 0;
 	const int32 ClampedMaxLines = FMath::Max(1, MaxLines);
 	for (const FString& Sequence : Sequences)
 	{
@@ -160,7 +161,7 @@ FText WeaponComboTextUtils::BuildComboHintText(
 		MoveListLines.Add(FString::Printf(TEXT("\u8fde\u6bb5 %02d   %s"),
 			MoveListLines.Num() + 1,
 			*FormatComboForCommonUI(Sequence)));
-		if (MoveListLines.Num() >= ClampedMaxLines)
+		if (bLimitLines && MoveListLines.Num() >= ClampedMaxLines)
 		{
 			break;
 		}
@@ -169,7 +170,7 @@ FText WeaponComboTextUtils::BuildComboHintText(
 	if (MoveListLines.IsEmpty())
 	{
 		MoveListLines.Add(TEXT("\u8fde\u6bb5 01   <input action=\"LightAttack\"/> -> <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"));
-		if (ClampedMaxLines > 1)
+		if (!bLimitLines || ClampedMaxLines > 1)
 		{
 			MoveListLines.Add(TEXT("\u8fde\u6bb5 02   <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"));
 		}

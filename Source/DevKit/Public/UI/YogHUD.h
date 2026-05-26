@@ -95,6 +95,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD|Finisher QTE")
 	void MarkFinisherQTEConfirmed();
 
+	static FVector2D ClampPortalPreviewPositionForViewport(
+		const FVector2D& ScreenPosition,
+		const FVector2D& ViewportSize,
+		const FVector2D& WidgetSize,
+		const FVector2D& Alignment,
+		float Margin);
+
 	// ─────────────────────────────────────────
 	//  暂停遮罩后处理
 	// ─────────────────────────────────────────

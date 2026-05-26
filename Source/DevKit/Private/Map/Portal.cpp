@@ -91,6 +91,33 @@ void APortal::BuildPreviewInfo()
 		? FText::FromName(SelectedRoom->RoomName)
 		: SelectedRoom->DisplayName;
 
+	if (SelectedRoom->bUseFixedRewardOptions && !SelectedRoom->FixedRewardOptions.IsEmpty())
+	{
+		CachedPreviewInfo.RewardPreviewOptions = SelectedRoom->FixedRewardOptions;
+		CachedPreviewInfo.LootCount = CachedPreviewInfo.RewardPreviewOptions.Num();
+	}
+	else if (!SelectedRoom->LootPool.IsEmpty())
+	{
+		const int32 PreviewCount = FMath::Min(3, SelectedRoom->LootPool.Num());
+		CachedPreviewInfo.RewardPreviewOptions.Reserve(PreviewCount);
+		for (int32 RewardIndex = 0; RewardIndex < PreviewCount; ++RewardIndex)
+		{
+			URuneDataAsset* RuneAsset = SelectedRoom->LootPool[RewardIndex].Get();
+			if (!RuneAsset)
+			{
+				continue;
+			}
+
+			FLootOption Option;
+			Option.LootType = ELootType::Rune;
+			Option.RuneAsset = RuneAsset;
+			Option.DisplayName = FText::FromName(RuneAsset->GetRuneName());
+			Option.Icon = RuneAsset->GetRuneIcon();
+			CachedPreviewInfo.RewardPreviewOptions.Add(Option);
+		}
+		CachedPreviewInfo.LootCount = CachedPreviewInfo.RewardPreviewOptions.Num();
+	}
+
 	// 提取首个 Room.Type.* Tag 作为类型徽章依据
 	static const FGameplayTag RoomTypeRoot = FGameplayTag::RequestGameplayTag(
 		FName("Room.Type"), false);

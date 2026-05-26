@@ -52,5 +52,5 @@ void UYogHUDRootWidget::RefreshWeaponComboList(bool bForce)
 	}
 
 	WeaponComboListPanel->SetVisibility(ESlateVisibility::HitTestInvisible);
-	WeaponComboListText->SetText(WeaponComboTextUtils::BuildComboHintText(CurrentWeapon, 4, true));
+	WeaponComboListText->SetText(WeaponComboTextUtils::BuildComboHintText(CurrentWeapon, 0, true));
 }

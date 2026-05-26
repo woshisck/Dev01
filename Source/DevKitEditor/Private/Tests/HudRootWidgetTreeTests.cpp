@@ -3,8 +3,11 @@
 #include "Misc/AutomationTest.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/HorizontalBox.h"
 #include "Components/Image.h"
-#include "Components/PanelWidget.h"
+#include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "UI/LiquidHealthBarWidget.h"
 #include "UI/YogCommonRichTextBlock.h"
@@ -95,10 +98,12 @@ bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Paramet
 	}
 
 	UWidget* TopRightRegion = WidgetTree->FindWidget(TEXT("TopRightPlayerInfoRegion"));
+	UWidget* RootCanvas = WidgetTree->FindWidget(TEXT("RootCanvas"));
 	UWidget* ComboPanel = WidgetTree->FindWidget(TEXT("WeaponComboListPanel"));
 	UWidget* ComboText = WidgetTree->FindWidget(TEXT("WeaponComboListText"));
 
 	bool bValid = true;
+	bValid &= TestNotNull(TEXT("HUD root contains RootCanvas"), RootCanvas);
 	bValid &= TestNotNull(TEXT("HUD root contains TopRightPlayerInfoRegion"), TopRightRegion);
 	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListPanel"), ComboPanel);
 	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListText"), ComboText);
@@ -107,12 +112,72 @@ bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Paramet
 	{
 		bValid &= TestTrue(TEXT("WeaponComboListText uses rich text so input icons can render"),
 			ComboText->IsA<UYogCommonRichTextBlock>());
+		bValid &= TestNotEqual(TEXT("WeaponComboListText does not clip combo lines"),
+			ComboText->GetClipping(),
+			EWidgetClipping::ClipToBounds);
 	}
 
-	if (UPanelWidget* TopRightPanel = Cast<UPanelWidget>(TopRightRegion))
+	if (UCanvasPanel* RootCanvasPanel = Cast<UCanvasPanel>(RootCanvas))
 	{
-		bValid &= TestTrue(TEXT("WeaponComboListPanel is placed inside TopRightPlayerInfoRegion"),
-			ComboPanel && TopRightPanel->GetChildIndex(ComboPanel) != INDEX_NONE);
+		bValid &= TestTrue(TEXT("WeaponComboListPanel is mounted directly on RootCanvas so it cannot resize or shift level float panels"),
+			ComboPanel && RootCanvasPanel->GetChildIndex(ComboPanel) != INDEX_NONE);
+	}
+
+	if (ComboPanel)
+	{
+		bValid &= TestNotEqual(TEXT("WeaponComboListPanel does not clip combo lines"),
+			ComboPanel->GetClipping(),
+			EWidgetClipping::ClipToBounds);
+
+		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(ComboPanel->Slot))
+		{
+			bValid &= TestTrue(TEXT("WeaponComboListPanel has enough vertical room for long weapon combo lists"),
+				CanvasSlot->GetSize().Y >= 260.f);
+		}
+	}
+
+	return bValid;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPortalPreviewRewardIconBoxBlueprintBindingTest,
+	"DevKitEditor.UI.PortalPreview.RewardIconBoxBinding",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPortalPreviewRewardIconBoxBlueprintBindingTest::RunTest(const FString& Parameters)
+{
+	const TCHAR* PortalPreviewBlueprintPath = TEXT("/Game/UI/Playtest_UI/Portal/WBP_PortalPreview.WBP_PortalPreview");
+
+	UWidgetBlueprint* PortalPreviewBlueprint = LoadObject<UWidgetBlueprint>(nullptr, PortalPreviewBlueprintPath);
+	if (!TestNotNull(TEXT("Portal preview widget blueprint loads"), PortalPreviewBlueprint))
+	{
+		return false;
+	}
+
+	UWidgetTree* WidgetTree = PortalPreviewBlueprint->WidgetTree;
+	if (!TestNotNull(TEXT("Portal preview has a designer widget tree"), WidgetTree))
+	{
+		return false;
+	}
+
+	UWidget* LootIconBox = WidgetTree->FindWidget(TEXT("LootIconBox"));
+	UWidget* LootSummaryText = WidgetTree->FindWidget(TEXT("LootSummaryText"));
+
+	bool bValid = true;
+	bValid &= TestNotNull(TEXT("Portal preview contains LootIconBox"), LootIconBox);
+	bValid &= TestNotNull(TEXT("Portal preview keeps LootSummaryText as native fallback"), LootSummaryText);
+
+	if (LootIconBox)
+	{
+		bValid &= TestTrue(TEXT("LootIconBox is a horizontal reward icon row"),
+			LootIconBox->IsA<UHorizontalBox>());
+	}
+
+	if (LootSummaryText)
+	{
+		bValid &= TestTrue(TEXT("LootSummaryText is hidden by default because rewards render as icons"),
+			LootSummaryText->GetVisibility() == ESlateVisibility::Collapsed);
+		bValid &= TestTrue(TEXT("LootSummaryText remains a text block fallback"),
+			LootSummaryText->IsA<UTextBlock>());
 	}
 
 	return bValid;

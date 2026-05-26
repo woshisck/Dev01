@@ -231,9 +231,10 @@ namespace PortalPreviewWBPSetup
 		UTextBlock* MarkerTitleText = ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("MarkerTitleText"), false);
 		UVerticalBox* BuffListBox = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("BuffListBox"));
 		UTextBlock* LootSummaryText = ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("LootSummaryText"));
+		UHorizontalBox* LootIconBox = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("LootIconBox"));
 		UYogCommonRichTextBlock* InteractHintRoot = ConstructNamedWidget<UYogCommonRichTextBlock>(WidgetTree, TEXT("InteractHintRoot"));
 
-		if (!RootCanvas || !Root || !BG || !VStack || !HeaderBox || !RoomTypeBadge || !RoomTypeText || !RoomNameText || !MarkerTitleText || !BuffListBox || !LootSummaryText || !InteractHintRoot)
+		if (!RootCanvas || !Root || !BG || !VStack || !HeaderBox || !RoomTypeBadge || !RoomTypeText || !RoomNameText || !MarkerTitleText || !BuffListBox || !LootSummaryText || !LootIconBox || !InteractHintRoot)
 		{
 			return;
 		}
@@ -289,10 +290,16 @@ namespace PortalPreviewWBPSetup
 			BuffSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
 		}
 
-		ConfigureText(LootSummaryText, TEXT("战利品：符文、金币"), LootTextColor, 22, ETextJustify::Left, true);
-		if (UVerticalBoxSlot* LootSlot = VStack->AddChildToVerticalBox(LootSummaryText))
+		ConfigureText(LootSummaryText, TEXT("战利品"), LootTextColor, 14, ETextJustify::Left, true);
+		LootSummaryText->SetVisibility(ESlateVisibility::Collapsed);
+		if (UVerticalBoxSlot* LootIconSlot = VStack->AddChildToVerticalBox(LootIconBox))
 		{
-			LootSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 10.f));
+			LootIconSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 10.f));
+			LootIconSlot->SetHorizontalAlignment(HAlign_Left);
+		}
+		if (UVerticalBoxSlot* LootTextSlot = VStack->AddChildToVerticalBox(LootSummaryText))
+		{
+			LootTextSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 10.f));
 		}
 
 		ConfigureRichText(InteractHintRoot, TEXT("<input action=\"Interact\"/> 进入"), HintTextColor, 14);
@@ -381,6 +388,7 @@ int32 UPortalPreviewWidgetSetupCommandlet::Main(const FString& Params)
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("RoomTypeBadge"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("RoomTypeText"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BuffListBox"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("LootIconBox"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("LootSummaryText"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("InteractHintRoot"));
 
@@ -390,7 +398,7 @@ int32 UPortalPreviewWidgetSetupCommandlet::Main(const FString& Params)
 			FKismetEditorUtilities::CompileBlueprint(WidgetBlueprint);
 			WidgetBlueprint->MarkPackageDirty();
 			DirtyPackages.AddUnique(WidgetBlueprint->GetPackage());
-			ReportLines.Add(TEXT("- Designer tree refreshed with BG border, header, buff list, loot summary, and input hint."));
+			ReportLines.Add(TEXT("- Designer tree refreshed with BG border, header, buff list, reward icons, and input hint."));
 		}
 		else
 		{

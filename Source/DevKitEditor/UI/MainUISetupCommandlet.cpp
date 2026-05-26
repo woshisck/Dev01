@@ -182,7 +182,7 @@ namespace MainUISetup
 		RichTextBlock->SetText(FText::FromString(Text));
 		RichTextBlock->SetAutoWrapText(true);
 		RichTextBlock->SetJustification(ETextJustify::Left);
-		RichTextBlock->SetClipping(EWidgetClipping::ClipToBounds);
+		RichTextBlock->SetClipping(EWidgetClipping::Inherit);
 		RichTextBlock->FontStyleClass = LoadClass<UCommonTextStyle>(nullptr, InfoPopupTextStyleClassPath);
 		RichTextBlock->OverrideFontSize = Size;
 		RichTextBlock->OverrideColor = Color;
@@ -399,10 +399,10 @@ namespace MainUISetup
 		UYogCommonRichTextBlock* WeaponComboListText = ConstructNamedWidget<UYogCommonRichTextBlock>(WidgetTree, TEXT("WeaponComboListText"));
 		if (WeaponComboListPanel && WeaponComboListFrame && WeaponComboListStack && WeaponComboListTitle && WeaponComboListText)
 		{
-			WeaponComboListPanel->SetWidthOverride(430.f);
-			WeaponComboListPanel->SetHeightOverride(132.f);
+			WeaponComboListPanel->SetWidthOverride(560.f);
+			WeaponComboListPanel->SetMinDesiredHeight(180.f);
 			WeaponComboListPanel->SetVisibility(ESlateVisibility::Collapsed);
-			WeaponComboListPanel->SetClipping(EWidgetClipping::ClipToBounds);
+			WeaponComboListPanel->SetClipping(EWidgetClipping::Inherit);
 
 			WeaponComboListFrame->SetBrushColor(FLinearColor(0.025f, 0.028f, 0.034f, 0.78f));
 			WeaponComboListFrame->SetPadding(FMargin(14.f, 10.f));
@@ -432,7 +432,16 @@ namespace MainUISetup
 				TextSlot->SetVerticalAlignment(VAlign_Fill);
 			}
 		}
-		AddWidgetToOverlay(TopRight, WeaponComboListPanel, HAlign_Right, VAlign_Top);
+		if (WeaponComboListPanel)
+		{
+			ConfigureCanvasSlot(
+				RootCanvas->AddChildToCanvas(WeaponComboListPanel),
+				FAnchors(1.f, 0.f),
+				FVector2D(-16.f, 16.f),
+				FVector2D(560.f, 320.f),
+				FVector2D(1.f, 0.f),
+				7);
+		}
 
 		UWidget* PlayerCommonInfo = ConstructWidgetFromPath(
 			WidgetTree,

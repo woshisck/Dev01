@@ -1,6 +1,6 @@
 ﻿# Main UI Setup Report
 - Mode: Apply
-- ForceLayout: false
+- ForceLayout: true
 - FrontendOnly: false
 - HudOnly: false
 - HudRootOnly: true

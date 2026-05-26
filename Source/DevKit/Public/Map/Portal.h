@@ -5,6 +5,7 @@
 #include "GameplayTagContainer.h"
 #include "NiagaraSystem.h"
 #include "Data/EnemyData.h"   // FBuffEntry
+#include "GameModes/LevelFlowTypes.h"
 #include "Portal.generated.h"
 
 class APlayerCharacterBase;
@@ -47,6 +48,9 @@ struct DEVKIT_API FPortalPreviewInfo
     /** 战利品个数（当前固定 3） */
     UPROPERTY(BlueprintReadOnly)
     int32 LootCount = 3;
+
+    UPROPERTY(BlueprintReadOnly)
+    TArray<FLootOption> RewardPreviewOptions;
 };
 
 /**

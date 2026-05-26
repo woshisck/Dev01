@@ -41,6 +41,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "UI/WeaponComboTextUtils.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/World.h"
@@ -812,6 +813,56 @@ bool FGameplayAbilityComboGraphWarnsDuplicateChildInputTest::RunTest(const FStri
 		return Warning.ToString().Contains(TEXT("multiple children for input"));
 	});
 	TestTrue(TEXT("Graph validation reports duplicate child input under the same parent"), bHasDuplicateInputWarning);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponComboHintTextUnlimitedLinesTest,
+	"DevKit.CombatDeck.WeaponComboHintTextUnlimitedLines",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FWeaponComboHintTextUnlimitedLinesTest::RunTest(const FString& Parameters)
+{
+	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
+	UWeaponDefinition* Weapon = NewObject<UWeaponDefinition>();
+	Weapon->GameplayAbilityComboGraph = Graph;
+
+	UGameplayAbilityComboGraphNode* LightRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
+	UGameplayAbilityComboGraphNode* HeavyRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
+	LightRoot->Graph = Graph;
+	LightRoot->NodeId = TEXT("LightRoot");
+	LightRoot->RootInputAction = EYogComboGraphInputAction::Light;
+	HeavyRoot->Graph = Graph;
+	HeavyRoot->NodeId = TEXT("HeavyRoot");
+	HeavyRoot->RootInputAction = EYogComboGraphInputAction::Heavy;
+
+	auto AddChild = [Graph](UGameplayAbilityComboGraphNode* Parent, const TCHAR* NodeId, EYogComboGraphInputAction InputAction)
+	{
+		UGameplayAbilityComboGraphNode* Child = NewObject<UGameplayAbilityComboGraphNode>(Graph);
+		UGameplayAbilityComboGraphEdge* Edge = NewObject<UGameplayAbilityComboGraphEdge>(Graph);
+		Child->Graph = Graph;
+		Child->NodeId = NodeId;
+		Edge->InputAction = InputAction;
+		Parent->ChildrenNodes.Add(Child);
+		Child->ParentNodes.Add(Parent);
+		Parent->Edges.Add(Child, Edge);
+		Graph->AllNodes.Add(Child);
+		return Child;
+	};
+
+	Graph->RootNodes = { LightRoot, HeavyRoot };
+	Graph->AllNodes = { LightRoot, HeavyRoot };
+	AddChild(LightRoot, TEXT("LL"), EYogComboGraphInputAction::Light);
+	AddChild(LightRoot, TEXT("LH"), EYogComboGraphInputAction::Heavy);
+	AddChild(AddChild(HeavyRoot, TEXT("HL"), EYogComboGraphInputAction::Light), TEXT("HLH"), EYogComboGraphInputAction::Heavy);
+	AddChild(AddChild(HeavyRoot, TEXT("HH"), EYogComboGraphInputAction::Heavy), TEXT("HHL"), EYogComboGraphInputAction::Light);
+	AddChild(AddChild(AddChild(HeavyRoot, TEXT("HLL"), EYogComboGraphInputAction::Light), TEXT("HLLL"), EYogComboGraphInputAction::Light), TEXT("HLLLH"), EYogComboGraphInputAction::Heavy);
+
+	const FString LimitedText = WeaponComboTextUtils::BuildComboHintText(Weapon, 4, true).ToString();
+	TestFalse(TEXT("Explicit line limit still truncates combo hint text"), LimitedText.Contains(TEXT("连段 05")));
+
+	const FString UnlimitedText = WeaponComboTextUtils::BuildComboHintText(Weapon, 0, true).ToString();
+	TestTrue(TEXT("Zero line limit means show every combo sequence"), UnlimitedText.Contains(TEXT("连段 05")));
 
 	return true;
 }

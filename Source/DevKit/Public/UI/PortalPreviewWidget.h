@@ -9,6 +9,7 @@
 class UTextBlock;
 class UBorder;
 class UVerticalBox;
+class UHorizontalBox;
 class UYogCommonRichTextBlock;
 
 /**
@@ -76,6 +77,9 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UTextBlock> LootSummaryText;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UHorizontalBox> LootIconBox;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UYogCommonRichTextBlock> InteractHintRoot;
