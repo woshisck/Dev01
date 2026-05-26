@@ -251,6 +251,18 @@ class DEVKIT_API UBFNode_SpawnSlashWaveProjectile : public UBFNode_Base
 		EditCondition = "bSplitOnFirstHit && bBounceSplitChildrenOnEnemyHit", EditConditionHides))
 	int32 SplitChildMaxEnemyBounces = 0;
 
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Targeted Bounce", meta = (DisplayName = "Enable Targeted Bounce"))
+	bool bEnableTargetedBounce = false;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Targeted Bounce", meta = (ClampMin = "0", DisplayName = "Targeted Bounce Max Count"))
+	int32 TargetedBounceMaxCount = 5;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Targeted Bounce", meta = (ClampMin = "0.0", DisplayName = "Targeted Bounce Search Radius"))
+	float TargetedBounceSearchRadius = 650.f;
+
+	UPROPERTY(EditAnywhere, Category = "Slash Wave|Targeted Bounce", meta = (ClampMin = "0.0", DisplayName = "Targeted Bounce Max Travel Distance"))
+	float TargetedBounceMaxTravelDistance = 650.f;
+
 	// ---- 生成位置 ----
 
 	// 生成位置偏移 — 相对于来源角色的局部偏移（X=前方，Z=上方）

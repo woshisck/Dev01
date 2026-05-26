@@ -12,6 +12,7 @@ class UGameplayEffect;
 class UNiagaraComponent;
 class UNiagaraSystem;
 class ACharacter;
+class AEnemyCharacterBase;
 
 USTRUCT(BlueprintType)
 struct DEVKIT_API FSlashWaveProjectileRuntimeConfig
@@ -137,6 +138,18 @@ struct DEVKIT_API FSlashWaveProjectileRuntimeConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Split|Bounce", meta = (ClampMin = "0"))
 	int32 MaxEnemyBounces = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Targeted Bounce")
+	bool bEnableTargetedBounce = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Targeted Bounce", meta = (ClampMin = "0"))
+	int32 TargetedBounceMaxCount = 5;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Targeted Bounce", meta = (ClampMin = "0.0"))
+	float TargetedBounceSearchRadius = 650.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slash Wave|Targeted Bounce", meta = (ClampMin = "0.0"))
+	float TargetedBounceMaxTravelDistance = 650.f;
 };
 
 struct FSlashWaveHitRecord
@@ -205,6 +218,20 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SlashWave")
 	void ApplyImmediateHit(AActor* Target);
+
+	UFUNCTION(BlueprintPure, Category = "SlashWave|Targeted Bounce")
+	FVector GetCurrentTravelDirection() const;
+
+	UFUNCTION(BlueprintPure, Category = "SlashWave|Targeted Bounce")
+	int32 GetTargetedBounceCount() const;
+
+	UFUNCTION(BlueprintPure, Category = "SlashWave|Targeted Bounce")
+	bool IsTargetedBounceEnabled() const;
+
+	UFUNCTION(BlueprintPure, Category = "SlashWave|Targeted Bounce")
+	static FVector ResolveTargetedBounceReflection(const FVector& IncomingDirection, const FVector& HitNormal);
+
+	bool TryGetKnockbackDirectionOverride(FVector& OutDirection) const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -343,6 +370,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	int32 MaxEnemyBounces = 0;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Targeted Bounce")
+	bool bEnableTargetedBounce = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Targeted Bounce", meta = (ClampMin = "0"))
+	int32 TargetedBounceMaxCount = 5;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Targeted Bounce", meta = (ClampMin = "0.0"))
+	float TargetedBounceSearchRadius = 650.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Targeted Bounce", meta = (ClampMin = "0.0"))
+	float TargetedBounceMaxTravelDistance = 650.f;
+
 	// ── Blueprint 表现层钩子 ────────────────────────────────────────────────
 	/** 命中新目标时触发（在此播放粒子/音效/贴花）*/
 	UFUNCTION(BlueprintImplementableEvent, Category = "VFX")
@@ -370,6 +409,9 @@ private:
 	bool bHasSplit = false;
 	bool bInitialOverlapCheckScheduled = false;
 	int32 EnemyBounceCount = 0;
+	int32 TargetedBounceCount = 0;
+	bool bTargetedBounceFallbackReflectionActive = false;
+	FVector TargetedBounceSegmentStartLocation = FVector::ZeroVector;
 
 	FTimerHandle LifetimeTimerHandle;
 
@@ -393,6 +435,10 @@ private:
 	void SendExpireGameplayEvent() const;
 	void TrySplitFromImpact(AActor* ImpactActor, const FVector& ImpactLocation);
 	void TryBounceFromEnemyHit(AActor* ImpactActor, const FVector& HitLocation, const FHitResult* HitResult);
+	AEnemyCharacterBase* FindNearestTargetedBounceEnemy(AActor* ImpactActor, const FVector& SearchOrigin) const;
+	bool TryTargetedBounceFromImpact(AActor* ImpactActor, const FVector& HitLocation, const FHitResult* HitResult, bool bAllowReflection);
+	bool RedirectTargetedBounce(const FVector& Direction, const TCHAR* Reason, AActor* TargetActor);
+	FVector ResolveTargetedBounceHitNormal(AActor* ImpactActor, const FVector& HitLocation, const FHitResult* HitResult) const;
 	ACharacter* ResolveFallbackSourceCharacter() const;
 	void CacheSourceCharacterFromSpawnReferences();
 

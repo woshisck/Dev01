@@ -230,6 +230,18 @@ struct DEVKIT_API FRuneCardProfileProjectileConfig
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Projectile|Split|Bounce", meta = (ClampMin = "0"))
 	int32 SplitChildMaxEnemyBounces = 0;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Projectile|Targeted Bounce")
+	bool bEnableTargetedBounce = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Projectile|Targeted Bounce", meta = (ClampMin = "0"))
+	int32 TargetedBounceMaxCount = 5;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Projectile|Targeted Bounce", meta = (ClampMin = "0.0"))
+	float TargetedBounceSearchRadius = 650.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Projectile|Targeted Bounce", meta = (ClampMin = "0.0"))
+	float TargetedBounceMaxTravelDistance = 650.f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Projectile")
 	FVector SpawnOffset = FVector(80.f, 0.f, 45.f);
 

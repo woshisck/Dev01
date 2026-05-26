@@ -118,6 +118,10 @@ void UBFNode_SpawnSlashWaveProjectile::ExecuteBuffFlowInput(const FName& PinName
 	Config.SplitCollisionBoxExtentMultiplier = SplitCollisionBoxExtentMultiplier;
 	Config.bBounceOnEnemyHit = bBounceSplitChildrenOnEnemyHit;
 	Config.MaxEnemyBounces = SplitChildMaxEnemyBounces;
+	Config.bEnableTargetedBounce = bEnableTargetedBounce;
+	Config.TargetedBounceMaxCount = TargetedBounceMaxCount;
+	Config.TargetedBounceSearchRadius = TargetedBounceSearchRadius;
+	Config.TargetedBounceMaxTravelDistance = TargetedBounceMaxTravelDistance;
 
 	int32 ComboBonusProjectiles = 0;
 	if (bAddComboStacksToProjectileCount)

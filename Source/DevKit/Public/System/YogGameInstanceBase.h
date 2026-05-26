@@ -8,6 +8,7 @@
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Data/SacrificeGraceDA.h"
 #include "Data/AltarDataAsset.h"
+#include "GameModes/LevelFlowTypes.h"
 
 #include "YogGameInstanceBase.generated.h"
 
@@ -183,6 +184,12 @@ public:
 	UPROPERTY()
 	TArray<FBuffEntry> PendingRoomBuffs;
 
+	UPROPERTY()
+	bool bHasPendingRoomRewardOptionsOverride = false;
+
+	UPROPERTY()
+	TArray<FLootOption> PendingRoomRewardOptionsOverride;
+
 	// 由 APortal::TryEnter 写入；下一关 AYogHUD::BeginPlay 检测后触发线性反向 PostProcess 淡入
 	UPROPERTY()
 	bool bPlayLevelIntroFadeIn = false;
@@ -207,6 +214,18 @@ public:
 
 	// 清空跑局状态（玩家死亡时调用，使下一局从默认值开始）
 	void ClearRunState();
+
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
+	void SetPendingRoomRewardOptionsOverride(const TArray<FLootOption>& InOptions);
+
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
+	void ClearPendingRoomRewardOptionsOverride();
+
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
+	bool ConsumePendingRoomRewardOptionsOverride(TArray<FLootOption>& OutOptions);
+
+	UFUNCTION(BlueprintPure, Category = "LevelFlow|Story Override")
+	bool HasPendingRoomRewardOptionsOverride() const { return bHasPendingRoomRewardOptionsOverride; }
 
 	// =========================================================
 	// Frontend / packaged startup flow

@@ -1,8 +1,54 @@
 #include "AbilitySystem/Abilities/GA_ActiveSkill_ShieldBurst.h"
 
+#include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayTagContainer.h"
+#include "Projectile/SlashWaveProjectile.h"
+
+namespace
+{
+bool TryAppendProjectileDirectionFromContext(
+	FGameplayEventData& Payload,
+	const FGameplayEffectContextHandle& DamageContext)
+{
+	auto TryAppendFromObject = [&Payload](const UObject* Object) -> bool
+	{
+		const ASlashWaveProjectile* Projectile = Cast<ASlashWaveProjectile>(Object);
+		if (!Projectile)
+		{
+			return false;
+		}
+
+		FVector ProjectileDirection = FVector::ZeroVector;
+		if (!Projectile->TryGetKnockbackDirectionOverride(ProjectileDirection))
+		{
+			return false;
+		}
+
+		Payload.OptionalObject = Projectile;
+		UGA_Knockback::AppendAttackDirectionTargetData(Payload, ProjectileDirection, Projectile);
+		return true;
+	};
+
+	if (!DamageContext.IsValid())
+	{
+		return false;
+	}
+
+	if (TryAppendFromObject(DamageContext.GetSourceObject()))
+	{
+		return true;
+	}
+
+	if (TryAppendFromObject(DamageContext.GetEffectCauser()))
+	{
+		return true;
+	}
+
+	return TryAppendFromObject(DamageContext.GetInstigator());
+}
+}
 
 UGA_ActiveSkill_ShieldBurst::UGA_ActiveSkill_ShieldBurst(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -28,7 +74,9 @@ void UGA_ActiveSkill_ShieldBurst::ActivateAbility(
 		return;
 	}
 
-	SourceASC->DealtDamage.AddUniqueDynamic(this, &UGA_ActiveSkill_ShieldBurst::HandlePlayerDamageDealt);
+	DealtDamageWithContextHandle = SourceASC->DealtDamageWithContext.AddUObject(
+		this,
+		&UGA_ActiveSkill_ShieldBurst::HandlePlayerDamageDealtWithContext);
 
 	if (UWorld* World = GetWorld())
 	{
@@ -47,6 +95,29 @@ void UGA_ActiveSkill_ShieldBurst::ActivateAbility(
 
 void UGA_ActiveSkill_ShieldBurst::HandlePlayerDamageDealt(UYogAbilitySystemComponent* TargetASC, float Damage)
 {
+	HandlePlayerDamageDealtWithContext(TargetASC, Damage, FGameplayEffectContextHandle());
+}
+
+FGameplayEventData UGA_ActiveSkill_ShieldBurst::MakeKnockbackPayload(
+	AActor* InSourceActor,
+	AActor* TargetActor,
+	float InKnockbackDistance,
+	const FGameplayEffectContextHandle& DamageContext)
+{
+	FGameplayEventData Payload;
+	Payload.EventTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"), false);
+	Payload.Instigator = InSourceActor;
+	Payload.Target = TargetActor;
+	Payload.EventMagnitude = InKnockbackDistance;
+	TryAppendProjectileDirectionFromContext(Payload, DamageContext);
+	return Payload;
+}
+
+void UGA_ActiveSkill_ShieldBurst::HandlePlayerDamageDealtWithContext(
+	UYogAbilitySystemComponent* TargetASC,
+	float Damage,
+	const FGameplayEffectContextHandle& DamageContext)
+{
 	if (!SourceActor || !TargetASC || Damage <= 0.0f)
 	{
 		return;
@@ -64,10 +135,7 @@ void UGA_ActiveSkill_ShieldBurst::HandlePlayerDamageDealt(UYogAbilitySystemCompo
 		return;
 	}
 
-	FGameplayEventData Payload;
-	Payload.Instigator = SourceActor;
-	Payload.Target = TargetActor;
-	Payload.EventMagnitude = KnockbackDistance;
+	FGameplayEventData Payload = MakeKnockbackPayload(SourceActor, TargetActor, KnockbackDistance, DamageContext);
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetActor, KnockbackTag, Payload);
 }
 
@@ -90,7 +158,11 @@ void UGA_ActiveSkill_ShieldBurst::EndAbility(
 
 	if (SourceASC)
 	{
-		SourceASC->DealtDamage.RemoveDynamic(this, &UGA_ActiveSkill_ShieldBurst::HandlePlayerDamageDealt);
+		if (DealtDamageWithContextHandle.IsValid())
+		{
+			SourceASC->DealtDamageWithContext.Remove(DealtDamageWithContextHandle);
+			DealtDamageWithContextHandle.Reset();
+		}
 	}
 	SourceASC = nullptr;
 	SourceActor = nullptr;

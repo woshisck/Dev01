@@ -478,6 +478,25 @@ void AYogGameMode::ClearRoomRewardOptionsOverride()
 	RoomRewardOptionsOverride.Reset();
 }
 
+bool AYogGameMode::ApplyPendingRoomRewardOptionsOverride(UYogGameInstanceBase* GameInstance)
+{
+	if (!GameInstance)
+	{
+		return false;
+	}
+
+	TArray<FLootOption> PendingOptions;
+	if (!GameInstance->ConsumePendingRoomRewardOptionsOverride(PendingOptions))
+	{
+		return false;
+	}
+
+	SetRoomRewardOptionsOverride(PendingOptions);
+	UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Applied pending room reward options override. Count=%d"),
+		PendingOptions.Num());
+	return true;
+}
+
 void AYogGameMode::SetForcedPortalOverride(int32 PortalIndex)
 {
 	ForcedPortalOverrideIndex = PortalIndex;
@@ -1339,6 +1358,9 @@ void AYogGameMode::StartLevelSpawning()
 	ClearRoomRewardOptionsOverride();
 	ClearForcedPortalOverride();
 
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+	ApplyPendingRoomRewardOptionsOverride(GI);
+
 	if (!Campaign)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("StartLevelSpawning: CampaignData 未配置，跳过新刷怪系统"));
@@ -1346,7 +1368,6 @@ void AYogGameMode::StartLevelSpawning()
 	}
 
 	// 从 GameInstance 读取上一关存储的楼层推进（切关后 GameMode 重建，CurrentFloor 默认为 1）
-	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
 	if (GI && GI->PendingNextFloor > 1)
 	{
 		CurrentFloor = GI->PendingNextFloor;
