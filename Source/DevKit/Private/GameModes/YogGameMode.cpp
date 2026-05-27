@@ -103,6 +103,25 @@ FString DescribeGameModeLootOptionsForRewardDebug(const TArray<FLootOption>& Opt
 
 	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
 }
+
+void SealPortalsExcept(const TMap<int32, APortal*>& PortalMap, int32 OpenPortalIndex, const TCHAR* Context)
+{
+	for (const TPair<int32, APortal*>& Entry : PortalMap)
+	{
+		APortal* Portal = Entry.Value;
+		if (!Portal || Entry.Key == OpenPortalIndex)
+		{
+			continue;
+		}
+
+		Portal->bWillNeverOpen = true;
+		Portal->NeverOpen();
+		UE_LOG(LogTemp, Log, TEXT("[%s] sealed portal [%d], forced portal [%d]."),
+			Context ? Context : TEXT("PortalPlan"),
+			Entry.Key,
+			OpenPortalIndex);
+	}
+}
 }
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
@@ -3694,6 +3713,11 @@ void AYogGameMode::ActivateHubPortals()
 			PortalMap.Add(Portal->Index, Portal);
 	}
 
+	if (bHasStoryPlan && StoryPlan.bForceSinglePortal)
+	{
+		SealPortalsExcept(PortalMap, StoryPlan.PortalIndex, TEXT("ActivateHubPortals"));
+	}
+
 	// 主城所有传送门全开（不走 50% 随机）
 	for (const FPortalDestConfig& Cfg : ActiveRoomData->PortalDestinations)
 	{
@@ -3812,6 +3836,11 @@ void AYogGameMode::ActivatePortals()
 		: bHasForcedPortalOverride
 		? ForcedPortalOverrideIndex
 		: ActiveRoomData->ForcedPortalIndex;
+	if (bForceSinglePortal)
+	{
+		SealPortalsExcept(PortalMap, ForcedPortalIndex, TEXT("ActivatePortals"));
+	}
+
 	for (const FPortalDestConfig& Cfg : Configs)
 	{
 		if (bForceSinglePortal && Cfg.PortalIndex != ForcedPortalIndex)

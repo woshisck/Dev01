@@ -36,6 +36,8 @@
 namespace
 {
 	constexpr bool bDisableLegacyHeatBackpackRuneForCardTestSpawner = true;
+	const FName FirstRunTutorialWeaponTag(TEXT("Story.FirstRun.DemoWeapon"));
+	const FName MainRunStartWeaponTag(TEXT("Story.MainRun.StartWeapon"));
 
 	AYogHUD* GetYogHUDForPlayer(APlayerCharacterBase* Player)
 	{
@@ -87,8 +89,23 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 
 bool AWeaponSpawner::ShouldEnableForFirstRunTutorialState(
 	EWeaponSpawnerTutorialVisibility Visibility,
-	bool bIsFirstRunTutorialActive)
+	bool bIsFirstRunTutorialActive,
+	bool bHasFirstRunTutorialWeaponTag,
+	bool bHasMainRunStartWeaponTag)
 {
+	if (Visibility == EWeaponSpawnerTutorialVisibility::Always)
+	{
+		if (bHasFirstRunTutorialWeaponTag)
+		{
+			return bIsFirstRunTutorialActive;
+		}
+
+		if (bHasMainRunStartWeaponTag)
+		{
+			return !bIsFirstRunTutorialActive;
+		}
+	}
+
 	switch (Visibility)
 	{
 	case EWeaponSpawnerTutorialVisibility::FirstRunTutorialOnly:
@@ -108,7 +125,9 @@ void AWeaponSpawner::BeginPlay()
 
 	bEnabledByFirstRunTutorialState = ShouldEnableForFirstRunTutorialState(
 		TutorialVisibility,
-		ResolveFirstRunTutorialActive());
+		ResolveFirstRunTutorialActive(),
+		Tags.Contains(FirstRunTutorialWeaponTag),
+		Tags.Contains(MainRunStartWeaponTag));
 	ApplyTutorialVisibilityEnabled(bEnabledByFirstRunTutorialState);
 	if (!bEnabledByFirstRunTutorialState)
 	{

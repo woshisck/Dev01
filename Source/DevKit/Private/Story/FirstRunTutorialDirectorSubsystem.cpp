@@ -2,6 +2,7 @@
 
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
+#include "Data/RoomDataAsset.h"
 #include "Data/RuneDataAsset.h"
 #include "Engine/Texture2D.h"
 #include "GameModes/YogGameMode.h"
@@ -18,6 +19,7 @@ constexpr const TCHAR* SplitRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512
 constexpr const TCHAR* MoonlightRunePath = TEXT("/Game/Code/Weapon/TwoHandedSword/CombatCards/DA_Rune512_THSword_Moonlight.DA_Rune512_THSword_Moonlight");
 constexpr const TCHAR* FinisherRunePath = TEXT("/Game/YogRuneEditor/Runes/DA_Rune_Finisher.DA_Rune_Finisher");
 constexpr const TCHAR* EnemyRoomAttackBuffPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom/DA_Rune512_EnemyRoom_Attack.DA_Rune512_EnemyRoom_Attack");
+constexpr const TCHAR* PrayerRoomDataPath = TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom.DA_PrayRoom");
 
 constexpr const TCHAR* GoldIconPath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon");
 constexpr const TCHAR* MaterialIconPath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_MaterialQuestionIcon.T_MaterialQuestionIcon");
@@ -215,6 +217,46 @@ bool UFirstRunTutorialDirectorSubsystem::BuildDefaultNextRoomPlanForStage(EFirst
 	OutPlan.bForceSinglePortal = true;
 	OutPlan.PortalIndex = 0;
 
+	if (InStage == EFirstRunTutorialStage::GoldRoomCleared)
+	{
+		OutPlan.bOverrideRewardOptions = true;
+		OutPlan.RewardOptionsOverride = {
+			MakeRuneLootOption(MoonlightRunePath, TEXT("Moonlight"), MoonlightIconPath),
+		};
+		return true;
+	}
+
+	if (InStage == EFirstRunTutorialStage::BuffCardRoom)
+	{
+		OutPlan.bOverrideRewardOptions = true;
+		OutPlan.RewardOptionsOverride = { MakeMaterialLootOption(1) };
+		return true;
+	}
+
+	if (InStage == EFirstRunTutorialStage::MoonlightRoom)
+	{
+		OutPlan.bOverrideRewardOptions = true;
+		OutPlan.RewardOptionsOverride = {
+			MakeRuneLootOption(AttackRunePath, TEXT("Attack"), AttackIconPath),
+			MakeRuneLootOption(HeavyRunePath, TEXT("Heavy"), HeavyIconPath),
+			MakeRuneLootOption(SplitRunePath, TEXT("Split"), SplitIconPath),
+		};
+		AddEnemyRoomAttackBuff(OutPlan);
+		return true;
+	}
+
+	if (InStage == EFirstRunTutorialStage::TransitionRoom01)
+	{
+		OutPlan.RoomDataOverride = LoadTutorialAsset<URoomDataAsset>(PrayerRoomDataPath);
+		return true;
+	}
+
+	if (InStage == EFirstRunTutorialStage::TransitionRoom02)
+	{
+		OutPlan.RoomDataOverride = LoadTutorialAsset<URoomDataAsset>(PrayerRoomDataPath);
+		return true;
+	}
+
 	switch (InStage)
 	{
 	case EFirstRunTutorialStage::GoldRoomCleared:
@@ -283,7 +325,7 @@ EFirstRunTutorialStage UFirstRunTutorialDirectorSubsystem::GetNextStageAfterPlan
 	case EFirstRunTutorialStage::MoonlightRoom:
 		return EFirstRunTutorialStage::TransitionRoom01;
 	case EFirstRunTutorialStage::TransitionRoom01:
-		return EFirstRunTutorialStage::TransitionRoom02;
+		return EFirstRunTutorialStage::PrayerRoom;
 	case EFirstRunTutorialStage::TransitionRoom02:
 		return EFirstRunTutorialStage::PrayerRoom;
 	default:

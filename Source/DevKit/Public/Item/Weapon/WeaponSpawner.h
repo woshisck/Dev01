@@ -62,7 +62,9 @@ public:
 
 	static bool ShouldEnableForFirstRunTutorialState(
 		EWeaponSpawnerTutorialVisibility Visibility,
-		bool bIsFirstRunTutorialActive);
+		bool bIsFirstRunTutorialActive,
+		bool bHasFirstRunTutorialWeaponTag = false,
+		bool bHasMainRunStartWeaponTag = false);
 
 	UFUNCTION(BlueprintPure, Category = "Story Encounter|First Run Tutorial")
 	bool IsEnabledByFirstRunTutorialState() const { return bEnabledByFirstRunTutorialState; }
