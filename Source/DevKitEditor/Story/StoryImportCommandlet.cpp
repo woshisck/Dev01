@@ -18,6 +18,7 @@
 #include "Story/Encounter/StoryEncounterGraphEdge.h"
 #include "Story/Encounter/StoryEncounterGraphNode.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
+#include "Story/Flow/StoryFlowAsset.h"
 #include "UI/GameDialogWidget.h"
 #include "Engine/Texture2D.h"
 #include "UObject/Package.h"
@@ -438,6 +439,21 @@ UStoryEncounterPointDA* WritePoint(
 	Point->PlacementLevel = FName(*GetString(PointObject, TEXT("placementLevel")));
 	Point->PlacementName = FName(*GetString(PointObject, TEXT("placementName")));
 	Point->EditorPosition = GetGraphPosition(PointObject, PointIndex);
+	const FString NodeEventFlowPath = GetString(PointObject, TEXT("nodeEventFlow"));
+	if (!NodeEventFlowPath.IsEmpty())
+	{
+		Point->NodeEventFlow = Cast<UStoryFlowAsset>(StaticLoadObject(
+			UStoryFlowAsset::StaticClass(),
+			nullptr,
+			*ToLoadableObjectPath(NodeEventFlowPath)));
+		if (!Point->NodeEventFlow)
+		{
+			ReportLines.Add(FString::Printf(
+				TEXT("- Warning: point `%s` could not load nodeEventFlow `%s`."),
+				*PackagePath,
+				*NodeEventFlowPath));
+		}
+	}
 	Point->Actions.Reset();
 	for (const TSharedPtr<FJsonValue>& ActionValue : GetArray(PointObject, TEXT("actions")))
 	{
