@@ -46,8 +46,11 @@ protected:
 	/** 获取 Buff 拥有者角色 */
 	AYogCharacterBase* GetBuffOwner() const;
 
-	/** 根据 Target 选择器解析目标 Actor */
+	/** 根据 Target 选择器解析目标 Actor（单目标） */
 	AActor* ResolveTarget(EBFTargetSelector Selector) const;
+
+	/** 根据 Target 选择器解析所有目标 Actor（AllHitTargets 返回完整列表，其他选择器等价于 ResolveTarget） */
+	TArray<AActor*> ResolveAllTargets(EBFTargetSelector Selector) const;
 
 private:
 	/** 缓存，避免每次调用都查找 */

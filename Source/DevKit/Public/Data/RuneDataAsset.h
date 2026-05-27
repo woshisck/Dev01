@@ -325,6 +325,11 @@ struct DEVKIT_API FCombatCardConfig
     UPROPERTY()
     FGameplayTagContainer CardTags;
 
+    /** Runs at OnCommit time (before montage starts) without consuming the card.
+     *  Use for pre-montage setup such as weapon trail VFX. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Flow")
+    TObjectPtr<UFlowAsset> PreCommitFlow = nullptr;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Flow")
     TObjectPtr<UFlowAsset> BaseFlow = nullptr;
 

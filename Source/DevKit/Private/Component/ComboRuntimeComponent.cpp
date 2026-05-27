@@ -486,6 +486,15 @@ void UComboRuntimeComponent::NotifyDashEnded(bool bWasCancelled)
 	ClearPreparedComboActivation();
 	ActiveDashMontageOverride = nullptr;
 	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
+
+	// CommitPreparedComboActivation set CurrentNodeId to the dash node ID but never
+	// resets it when the dash ends. ClearPreparedComboActivation only clears ActiveNodeId.
+	// Without this, GetCurrentNodeId() returns the dash node even after the montage
+	// finishes, keeping the editor cursor stuck on it and causing bExitedComboState=true
+	// on the next attack (dash nodes have no attack children → root fallback looks like
+	// a state exit, firing unnecessary legacy tag cancellation).
+	CurrentNodeId = NAME_None;
+	ActiveNode = FWeaponComboNodeConfig();
 }
 
 void UComboRuntimeComponent::ClearRuntimeCombatLooseTags()

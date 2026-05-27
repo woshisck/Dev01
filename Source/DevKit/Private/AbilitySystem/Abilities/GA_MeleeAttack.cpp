@@ -218,18 +218,50 @@ void UGA_MeleeAttack::PrimeCombatDeckHitContext(const FGameplayEventData& EventD
 		return;
 	}
 
-	AActor* HitTarget = PreviewFirstCombatDeckHitTarget(EventData);
 	BuffFlowComponent->LastEventContext.DamageCauser = OwnerCharacter;
-	BuffFlowComponent->LastEventContext.DamageReceiver = HitTarget;
 	BuffFlowComponent->LastEventContext.DamageAmount = 0.f;
 	BuffFlowComponent->LastEventContext.AttackDirection =
 		UGA_Knockback::ResolveAttackDirectionFromSource(OwnerCharacter);
+	BuffFlowComponent->LastEventContext.DamageReceivers.Reset();
+
+	AActor* FirstTarget = nullptr;
+	if (OwnerCharacter->DefaultMeleeTargetType)
+	{
+		const UYogTargetType* TargetTypeCDO = OwnerCharacter->DefaultMeleeTargetType.GetDefaultObject();
+		if (TargetTypeCDO)
+		{
+			TArray<FHitResult> HitResults;
+			TArray<AActor*> TargetActors;
+			TargetTypeCDO->GetTargets(OwnerCharacter, GetAvatarActorFromActorInfo(), EventData, HitResults, TargetActors);
+
+			for (AActor* Actor : TargetActors)
+			{
+				if (IsValid(Actor))
+				{
+					BuffFlowComponent->LastEventContext.DamageReceivers.Add(Actor);
+					if (!FirstTarget) FirstTarget = Actor;
+				}
+			}
+			for (const FHitResult& Hit : HitResults)
+			{
+				AActor* Actor = Hit.GetActor();
+				if (IsValid(Actor))
+				{
+					BuffFlowComponent->LastEventContext.DamageReceivers.AddUnique(Actor);
+					if (!FirstTarget) FirstTarget = Actor;
+				}
+			}
+		}
+	}
+
+	BuffFlowComponent->LastEventContext.DamageReceiver = FirstTarget;
 
 	UE_LOG(LogTemp, Warning,
-		TEXT("[CombatDeckHitContext] Prime Target=%s Owner=%s Event=%s"),
-		*GetNameSafe(HitTarget),
+		TEXT("[CombatDeckHitContext] Prime Target=%s Owner=%s Event=%s HitCount=%d"),
+		*GetNameSafe(FirstTarget),
 		*GetNameSafe(OwnerCharacter),
-		*EventData.EventTag.ToString());
+		*EventData.EventTag.ToString(),
+		BuffFlowComponent->LastEventContext.DamageReceivers.Num());
 }
 
 FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTiming TriggerTiming)
@@ -745,6 +777,12 @@ void UGA_MeleeAttack::ActivateAbility(
 	Task->EventReceived.AddDynamic(this, &UGA_MeleeAttack::OnEventReceived);
 
 	TryStartEnemyRadialLunge();
+
+	// Resolve OnCommit cards before the montage starts so pre-montage flows
+	// (e.g. weapon trail setup) can execute before the first animation frame.
+	// OnHit cards are unaffected: they still fire from OnEventReceived via AN_MeleeDamage.
+	ResolveCombatDeck(ECombatCardTriggerTiming::OnCommit);
+
 	Task->ReadyForActivation();
 
 	// Drive the combo window from the ComboGraph node's frame config (when set).

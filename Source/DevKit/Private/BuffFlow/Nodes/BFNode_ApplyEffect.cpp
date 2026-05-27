@@ -19,12 +19,26 @@ UBFNode_ApplyEffect::UBFNode_ApplyEffect(const FObjectInitializer& ObjectInitial
 void UBFNode_ApplyEffect::Cleanup()
 {
 	bCleaningUp = true;
+
 	if (bRemoveEffectOnCleanup && GrantedASC.IsValid() && GrantedHandle.IsValid())
 	{
 		GrantedASC->RemoveActiveGameplayEffect(GrantedHandle);
 	}
 	GrantedHandle = FActiveGameplayEffectHandle();
 	GrantedASC.Reset();
+
+	if (bRemoveEffectOnCleanup)
+	{
+		for (FMultiTargetEntry& Entry : MultiTargetHandles)
+		{
+			if (Entry.ASC.IsValid() && Entry.Handle.IsValid())
+			{
+				Entry.ASC->RemoveActiveGameplayEffect(Entry.Handle);
+			}
+		}
+	}
+	MultiTargetHandles.Reset();
+
 	Super::Cleanup();
 }
 
@@ -41,6 +55,7 @@ void UBFNode_ApplyEffect::ExecuteBuffFlowInput(const FName& PinName)
 	// ── Remove 引脚处理 ───────────────────────────────────────────────
 	if (PinName == TEXT("Remove"))
 	{
+		// Single-target path
 		if (GrantedASC.IsValid() && GrantedHandle.IsValid())
 		{
 			int32 Count = -1; // -1 = 全部移除
@@ -64,6 +79,17 @@ void UBFNode_ApplyEffect::ExecuteBuffFlowInput(const FName& PinName)
 				GrantedASC.Reset();
 			}
 		}
+
+		// Multi-target path (AllHitTargets): remove from all tracked targets
+		for (FMultiTargetEntry& Entry : MultiTargetHandles)
+		{
+			if (Entry.ASC.IsValid() && Entry.Handle.IsValid())
+			{
+				Entry.ASC->RemoveActiveGameplayEffect(Entry.Handle);
+			}
+		}
+		MultiTargetHandles.Reset();
+
 		TriggerOutput(TEXT("Removed"), true);
 		return;
 	}
@@ -82,17 +108,8 @@ void UBFNode_ApplyEffect::ExecuteBuffFlowInput(const FName& PinName)
 		return;
 	}
 
-	AActor* TargetActor = ResolveTarget(Target);
-	if (!TargetActor)
-	{
-		TriggerOutput(TEXT("Failed"), true);
-		return;
-	}
-
-	// 获取目标的 ASC（支持任何实现了 IAbilitySystemInterface 的 Actor）
-	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
-	UAbilitySystemComponent* TargetASC = ASI ? ASI->GetAbilitySystemComponent() : nullptr;
-	if (!TargetASC)
+	TArray<AActor*> TargetActors = ResolveAllTargets(Target);
+	if (TargetActors.IsEmpty())
 	{
 		TriggerOutput(TEXT("Failed"), true);
 		return;
@@ -123,36 +140,81 @@ void UBFNode_ApplyEffect::ExecuteBuffFlowInput(const FName& PinName)
 	ApplySetByCaller(SetByCallerTag2, GET_MEMBER_NAME_CHECKED(UBFNode_ApplyEffect, SetByCallerValue2), SetByCallerValue2);
 	ApplySetByCaller(SetByCallerTag3, GET_MEMBER_NAME_CHECKED(UBFNode_ApplyEffect, SetByCallerValue3), SetByCallerValue3);
 
-	FActiveGameplayEffectHandle Handle;
 	const int32 ResolvedApplicationCount = FMath::Clamp(ApplicationCount, 1, 20);
-	for (int32 ApplyIndex = 0; ApplyIndex < ResolvedApplicationCount; ++ApplyIndex)
-	{
-		Handle = TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-	}
+	const bool bMultiTarget = Target == EBFTargetSelector::AllHitTargets;
 
-	// 仅存储首次有效 handle（Unique/Stackable GE 始终是同一实例，Instant GE handle 无效）
-	if (!GrantedHandle.IsValid() && Handle.IsValid())
-	{
-		GrantedHandle = Handle;
-		GrantedASC    = TargetASC;
+	FActiveGameplayEffectHandle LastHandle;
+	UAbilitySystemComponent* LastTargetASC = nullptr;
 
-		// 注册 GE 移除回调：GE 被外部撤销（到期/手动Remove）时触发 OnRemoved 引脚
-		FOnActiveGameplayEffectRemoved_Info* Del = TargetASC->OnGameplayEffectRemoved_InfoDelegate(Handle);
-		if (Del)
+	for (AActor* TargetActor : TargetActors)
+	{
+		// 获取目标的 ASC（支持任何实现了 IAbilitySystemInterface 的 Actor）
+		IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
+		UAbilitySystemComponent* TargetASC = ASI ? ASI->GetAbilitySystemComponent() : nullptr;
+		if (!TargetASC)
 		{
-			Del->AddUObject(this, &UBFNode_ApplyEffect::HandleGERemoved);
+			continue;
+		}
+
+		FActiveGameplayEffectHandle Handle;
+		for (int32 ApplyIndex = 0; ApplyIndex < ResolvedApplicationCount; ++ApplyIndex)
+		{
+			Handle = TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+		}
+
+		if (Handle.IsValid())
+		{
+			LastHandle    = Handle;
+			LastTargetASC = TargetASC;
+
+			if (bMultiTarget)
+			{
+				// AllHitTargets：为每个目标单独跟踪 handle
+				FMultiTargetEntry& Entry = MultiTargetHandles.AddDefaulted_GetRef();
+				Entry.ASC    = TargetASC;
+				Entry.Handle = Handle;
+
+				FOnActiveGameplayEffectRemoved_Info* Del = TargetASC->OnGameplayEffectRemoved_InfoDelegate(Handle);
+				if (Del)
+				{
+					Del->AddUObject(this, &UBFNode_ApplyEffect::HandleGERemoved);
+				}
+			}
+			else if (!GrantedHandle.IsValid())
+			{
+				// 单目标：仅存储首次有效 handle
+				GrantedHandle = Handle;
+				GrantedASC    = TargetASC;
+
+				FOnActiveGameplayEffectRemoved_Info* Del = TargetASC->OnGameplayEffectRemoved_InfoDelegate(Handle);
+				if (Del)
+				{
+					Del->AddUObject(this, &UBFNode_ApplyEffect::HandleGERemoved);
+				}
+			}
 		}
 	}
 
-	// ── 写入输出数据引脚（反映施加瞬间状态） ──────────────────────────
-	if (Handle.IsValid())
+	// 至少有一个目标失败（整体按 Failed 处理仅当所有目标均无 ASC）
+	if (!LastHandle.IsValid() && !bMultiTarget)
+	{
+		bGEApplied      = FFlowDataPinOutputProperty_Bool(false);
+		GEStackCount    = FFlowDataPinOutputProperty_Int32(0);
+		GELevel         = FFlowDataPinOutputProperty_Float(0.f);
+		GETimeRemaining = FFlowDataPinOutputProperty_Float(0.f);
+		TriggerOutput(TEXT("Failed"), true);
+		return;
+	}
+
+	// ── 写入输出数据引脚（反映最后一次成功施加的状态） ──────────────────
+	if (LastHandle.IsValid())
 	{
 		bGEApplied = FFlowDataPinOutputProperty_Bool(true);
 
-		const FActiveGameplayEffect* ActiveGE = TargetASC->GetActiveGameplayEffect(Handle);
+		const FActiveGameplayEffect* ActiveGE = LastTargetASC->GetActiveGameplayEffect(LastHandle);
 		if (ActiveGE)
 		{
-			GEStackCount    = FFlowDataPinOutputProperty_Int32(TargetASC->GetCurrentStackCount(Handle));
+			GEStackCount    = FFlowDataPinOutputProperty_Int32(LastTargetASC->GetCurrentStackCount(LastHandle));
 			GELevel         = FFlowDataPinOutputProperty_Float(ActiveGE->Spec.GetLevel());
 			const float Dur = ActiveGE->GetDuration();
 			GETimeRemaining = FFlowDataPinOutputProperty_Float(Dur < 0.f ? -1.f : Dur);
@@ -167,9 +229,10 @@ void UBFNode_ApplyEffect::ExecuteBuffFlowInput(const FName& PinName)
 	}
 	else
 	{
-		bGEApplied      = FFlowDataPinOutputProperty_Bool(false);
+		// AllHitTargets 且所有目标均已施加（部分 Instant GE handle 失效属正常）
+		bGEApplied      = FFlowDataPinOutputProperty_Bool(!MultiTargetHandles.IsEmpty());
 		GEStackCount    = FFlowDataPinOutputProperty_Int32(0);
-		GELevel         = FFlowDataPinOutputProperty_Float(0.f);
+		GELevel         = FFlowDataPinOutputProperty_Float(ResolvedLevel);
 		GETimeRemaining = FFlowDataPinOutputProperty_Float(0.f);
 	}
 

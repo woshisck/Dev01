@@ -14,6 +14,13 @@ namespace
 	const FName CombatDeckOwnerSourceReward(TEXT("Reward"));
 	const FName CombatDeckOwnerSourceShop(TEXT("Shop"));
 
+	// Derives a stable, collision-free GUID for a card's pre-commit flow slot.
+	// XOR on A and D ensures the result never equals the source GUID.
+	FGuid CombatDeck_PreCommitGuid(const FGuid& CardGuid)
+	{
+		return FGuid(CardGuid.A ^ 0x50524543u, CardGuid.B, CardGuid.C, CardGuid.D ^ 0x4f4d4954u);
+	}
+
 	const TArray<TObjectPtr<URuneDataAsset>>* GetDefaultWeaponDeckSource(const UWeaponDefinition* WeaponDefinition)
 	{
 		if (!WeaponDefinition)
@@ -171,6 +178,24 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	}
 
 	FCombatCardInstance Card = ActiveSequence[CurrentIndex];
+
+	// OnCommit path: runs PreCommitFlow (e.g. trail setup) without consuming the card.
+	// CurrentIndex is NOT advanced so the same card is still available for OnHit resolution.
+	if (Context.TriggerTiming == ECombatCardTriggerTiming::OnCommit)
+	{
+		if (Card.Config.PreCommitFlow)
+		{
+			// Use a derived GUID so BaseFlow (keyed at Card.InstanceGuid) never stops
+			// or overwrites this flow when bRestartExistingFlow fires at OnHit time.
+			FCombatCardInstance PreCommitCard = Card;
+			PreCommitCard.InstanceGuid = CombatDeck_PreCommitGuid(Card.InstanceGuid);
+			ExecuteFlow(Card.Config.PreCommitFlow, PreCommitCard, Context, Result);
+			// Do not set Result.bHadCard: this is a pre-montage setup step, not a consumption.
+			Result.bHadCard = false;
+		}
+		return Result;
+	}
+
 	const bool bAllowOnCommitCardAtHitNotify =
 		Context.TriggerTiming == ECombatCardTriggerTiming::OnHit
 		&& Card.Config.TriggerTiming == ECombatCardTriggerTiming::OnCommit;
@@ -441,6 +466,9 @@ void UCombatDeckComponent::StopCardFlow(const FCombatCardInstance& Card)
 
 	if (UBuffFlowComponent* BuffFlowComponent = GetOwner() ? GetOwner()->FindComponentByClass<UBuffFlowComponent>() : nullptr)
 	{
+		// Always stop the pre-commit flow slot first (no-op if not present).
+		BuffFlowComponent->StopBuffFlow(CombatDeck_PreCommitGuid(Card.InstanceGuid));
+
 		if (UFlowAsset* ActiveFlow = BuffFlowComponent->GetActiveBuffFlowAsset(Card.InstanceGuid))
 		{
 			const float DeferredStopDelay = GetProjectileEventFlowStopDelay(ActiveFlow);
