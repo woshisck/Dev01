@@ -155,6 +155,57 @@ bool FCombatDeckFinisherRequirementTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckTriggeredFinisherSkipsRefreshUntilEffectEndsTest,
+	"DevKit.CombatDeck.TriggeredFinisherSkipsRefreshUntilEffectEnds",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckTriggeredFinisherSkipsRefreshUntilEffectEndsTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+	Deck->SetShuffleCooldownDuration(1.0f);
+
+	FCombatCardConfig FinisherCard{ ECombatCardType::Finisher, ECardRequiredAction::Any };
+	FinisherCard.bRequiresComboFinisher = true;
+	FinisherCard.DisplayName = FText::FromString(TEXT("Finisher"));
+
+	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Light };
+	AttackCard.DisplayName = FText::FromString(TEXT("Attack"));
+
+	Deck->SetDeckListForTest({ FinisherCard, AttackCard });
+
+	const FCombatCardResolveResult FinisherResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, true, false);
+	TestTrue(TEXT("Combo finisher triggers the finisher card"), FinisherResult.bTriggeredFinisher);
+	TestTrue(TEXT("Triggered finisher is suppressed while its effect is active"),
+		Deck->IsCardSuppressedFromActiveSequenceForTest(FinisherResult.ConsumedCard.InstanceGuid));
+
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Consuming the remaining attack card starts shuffle"), AttackResult.bStartedShuffle);
+
+	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
+	const TArray<FCombatCardInstance> DuringEffectCards = Deck->GetDeckSnapshot();
+	TestEqual(TEXT("Refresh during finisher effect excludes the finisher"), DuringEffectCards.Num(), 1);
+	TestEqual(TEXT("Attack card fills the refreshed deck while finisher is held back"),
+		DuringEffectCards[0].Config.CardType, ECombatCardType::Attack);
+
+	Deck->StopCardFlow(FinisherResult.ConsumedCard);
+	TestFalse(TEXT("Finisher suppression is cleared when the card effect ends"),
+		Deck->IsCardSuppressedFromActiveSequenceForTest(FinisherResult.ConsumedCard.InstanceGuid));
+	TestEqual(TEXT("Ending the effect does not inject finisher into the current active deck"),
+		Deck->GetDeckSnapshot().Num(), 1);
+
+	const FCombatCardResolveResult NextAttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("The active attack card can be consumed after finisher effect ends"), NextAttackResult.bHadCard);
+	TestTrue(TEXT("Consuming the active attack starts the next shuffle"), NextAttackResult.bStartedShuffle);
+
+	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
+	const TArray<FCombatCardInstance> AfterEffectCards = Deck->GetDeckSnapshot();
+	TestEqual(TEXT("Next refresh after effect end restores the full deck"), AfterEffectCards.Num(), 2);
+	TestEqual(TEXT("Finisher returns on the refresh after its effect ended"),
+		AfterEffectCards[0].Config.CardType, ECombatCardType::Finisher);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckSourceRestoreTest,
 	"DevKit.CombatDeck.SourceAssetsCanRestoreDeckOrder",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

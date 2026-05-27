@@ -444,6 +444,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	}
 	if (Result.bTriggeredFinisher)
 	{
+		RegisterTriggeredFinisherCard(Card);
 		OnFinisherTriggered.Broadcast(Result);
 	}
 
@@ -465,6 +466,8 @@ void UCombatDeckComponent::StopCardFlow(const FCombatCardInstance& Card)
 	{
 		return;
 	}
+
+	ReleaseTriggeredFinisherCard(Card);
 
 	if (UBuffFlowComponent* BuffFlowComponent = GetOwner() ? GetOwner()->FindComponentByClass<UBuffFlowComponent>() : nullptr)
 	{
@@ -575,6 +578,7 @@ void UCombatDeckComponent::LoadDeckFromSourceAssetsInternal(const TArray<URuneDa
 	DashSavedLinkContext = FCombatCardInstance();
 	DashSavedLinkActionContext = FCombatDeckActionContext();
 	ResolvedAttackGuids.Reset();
+	FinisherCardsWaitingForEffectEnd.Reset();
 	RefillActiveSequence();
 	if (!EnteredCards.IsEmpty())
 	{
@@ -773,6 +777,7 @@ void UCombatDeckComponent::SetDeckListForTest(const TArray<FCombatCardConfig>& I
 	DashSavedLinkContext = FCombatCardInstance();
 	DashSavedLinkActionContext = FCombatDeckActionContext();
 	ResolvedAttackGuids.Reset();
+	FinisherCardsWaitingForEffectEnd.Reset();
 	RefillActiveSequence();
 }
 
@@ -805,6 +810,11 @@ void UCombatDeckComponent::ClearDashSavedLinkContext()
 {
 	DashSavedLinkContext = FCombatCardInstance();
 	DashSavedLinkActionContext = FCombatDeckActionContext();
+}
+
+bool UCombatDeckComponent::IsCardSuppressedFromActiveSequenceForTest(const FGuid& CardGuid) const
+{
+	return FinisherCardsWaitingForEffectEnd.Contains(CardGuid);
 }
 
 FCombatCardInstance UCombatDeckComponent::MakeCardFromRune(URuneDataAsset* RuneAsset, FName OwnerSource) const
@@ -925,14 +935,47 @@ void UCombatDeckComponent::RefillActiveSequence()
 		? FMath::Min(MaxActiveSequenceSize, DeckList.Num())
 		: DeckList.Num();
 
-	for (int32 i = 0; i < DesiredCount; ++i)
+	for (const FCombatCardInstance& Card : DeckList)
 	{
-		ActiveSequence.Add(DeckList[i]);
+		if (ActiveSequence.Num() >= DesiredCount)
+		{
+			break;
+		}
+
+		if (ShouldSkipActiveSequenceRefillCard(Card))
+		{
+			continue;
+		}
+
+		ActiveSequence.Add(Card);
 	}
 
 	DeckState = EDeckState::Ready;
 	ShuffleCooldownRemaining = 0.0f;
 	OnDeckLoaded.Broadcast(BuildTemporaryLockViewCards(ActiveSequence));
+}
+
+void UCombatDeckComponent::RegisterTriggeredFinisherCard(const FCombatCardInstance& Card)
+{
+	if (Card.Config.CardType == ECombatCardType::Finisher && Card.InstanceGuid.IsValid())
+	{
+		FinisherCardsWaitingForEffectEnd.Add(Card.InstanceGuid);
+	}
+}
+
+void UCombatDeckComponent::ReleaseTriggeredFinisherCard(const FCombatCardInstance& Card)
+{
+	if (Card.InstanceGuid.IsValid())
+	{
+		FinisherCardsWaitingForEffectEnd.Remove(Card.InstanceGuid);
+	}
+}
+
+bool UCombatDeckComponent::ShouldSkipActiveSequenceRefillCard(const FCombatCardInstance& Card) const
+{
+	return Card.Config.CardType == ECombatCardType::Finisher
+		&& Card.InstanceGuid.IsValid()
+		&& FinisherCardsWaitingForEffectEnd.Contains(Card.InstanceGuid);
 }
 
 void UCombatDeckComponent::RefreshCardPassiveFlows()

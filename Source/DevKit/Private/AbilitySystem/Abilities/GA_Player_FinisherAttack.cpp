@@ -360,14 +360,14 @@ void UGA_Player_FinisherAttack::OpenFallbackQTEWindow()
 		return;
 	}
 
-	const float SafeDilation = FMath::Clamp(FallbackQTESlowDilation, 0.001f, 1.f);
+	const float SafeDilation = FMath::Clamp(FallbackQTESlowDilation, 0.0f, 1.f);
 	if (AWorldSettings* WorldSettings = World->GetWorldSettings())
 	{
 		WorldSettings->SetTimeDilation(SafeDilation);
 	}
 	UTimeDilationVisualSubsystem::BeginTimeDilationVisual(Character);
 	bTimeDilationVisualActive = true;
-	Character->CustomTimeDilation = 1.f / SafeDilation;
+	Character->CustomTimeDilation = SafeDilation > SMALL_NUMBER ? 1.f / SafeDilation : 1.f;
 	bTimeDilationRestored = false;
 	bFallbackQTEOpened = true;
 

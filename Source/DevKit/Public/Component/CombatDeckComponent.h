@@ -347,6 +347,7 @@ public:
 	void SavePendingLinkContextForDash();
 	bool RestorePendingLinkContextFromDash();
 	void ClearDashSavedLinkContext();
+	bool IsCardSuppressedFromActiveSequenceForTest(const FGuid& CardGuid) const;
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
 	FOnDeckLoaded OnDeckLoaded;
@@ -434,6 +435,8 @@ private:
 
 	TSet<FGuid> ResolvedAttackGuids;
 
+	TSet<FGuid> FinisherCardsWaitingForEffectEnd;
+
 	FCombatCardInstance MakeCardFromRune(URuneDataAsset* RuneAsset, FName OwnerSource) const;
 	void LoadDeckFromSourceAssetsInternal(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize, bool bAppendTemporaryFinisherCard);
 	void AppendTemporaryInitialFinisherCard(TArray<URuneDataAsset*>& SourceAssets) const;
@@ -442,6 +445,9 @@ private:
 	TArray<FCombatCardInstance> BuildTemporaryLockViewCards(const TArray<FCombatCardInstance>& Cards) const;
 	void PushCombatCardConsumeLog(const FCombatCardResolveResult& Result) const;
 	void RefillActiveSequence();
+	void RegisterTriggeredFinisherCard(const FCombatCardInstance& Card);
+	void ReleaseTriggeredFinisherCard(const FCombatCardInstance& Card);
+	bool ShouldSkipActiveSequenceRefillCard(const FCombatCardInstance& Card) const;
 	void RefreshCardPassiveFlows();
 	void StartPassiveFlowsForCard(const FCombatCardInstance& Card);
 	void StopPassiveFlowsForCard(const FGuid& CardGuid);
