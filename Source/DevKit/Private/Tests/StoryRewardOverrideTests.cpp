@@ -281,4 +281,52 @@ bool FFirstRunHubPortalSetsNextRoomGoldRewardTest::RunTest(const FString& Parame
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstRunHubSeedsNextRoomGoldRewardBeforeCardPickupTest,
+	"DevKit.StoryRewardOverride.FirstRunHubSeedsNextRoomGoldRewardBeforeCardPickup",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstRunHubSeedsNextRoomGoldRewardBeforeCardPickupTest::RunTest(const FString& Parameters)
+{
+	UStoryEncounterPointDA* Point = Cast<UStoryEncounterPointDA>(StaticLoadObject(
+		UStoryEncounterPointDA::StaticClass(),
+		nullptr,
+		TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_HubMoveHint.EP_FirstRun_HubMoveHint")));
+	TestNotNull(TEXT("First-run hub move encounter point exists"), Point);
+	if (!Point)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("First-run hub reward seed is not gated by card pickup"),
+		Point->Condition.Kind,
+		EStoryEncounterConditionKind::None);
+
+	const FStoryEncounterAction* RewardAction = Point->Actions.FindByPredicate(
+		[](const FStoryEncounterAction& Action)
+		{
+			return Action.Kind == EStoryEncounterActionKind::SetRoomRewardOverride
+				&& Action.ActionId == TEXT("seed_first_room_gold_reward");
+		});
+	TestNotNull(TEXT("Hub move encounter seeds the first combat room reward"), RewardAction);
+	if (!RewardAction)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Hub seed targets the next room"),
+		RewardAction->RewardOverrideTarget,
+		EStoryRewardOverrideTarget::NextRoom);
+	TestFalse(TEXT("Hub seed is not a clear action"), RewardAction->bClearRoomRewardOverride);
+	TestEqual(TEXT("Seeded reward option count"), RewardAction->RewardLootOptions.Num(), 1);
+	if (RewardAction->RewardLootOptions.Num() == 1)
+	{
+		const FLootOption& Reward = RewardAction->RewardLootOptions[0];
+		TestEqual(TEXT("Seeded first combat room reward is gold"), Reward.LootType, ELootType::Gold);
+		TestEqual(TEXT("Seeded first combat room gold amount"), Reward.Amount, 50);
+		TestNotNull(TEXT("Seeded first combat room reward has the gold icon"), Reward.Icon.Get());
+	}
+
+	return true;
+}
+
 #endif
