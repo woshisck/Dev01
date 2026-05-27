@@ -88,6 +88,11 @@ namespace
 
     UTexture2D* ResolvePortalRewardIcon(const FLootOption& Option)
     {
+        if (Option.Icon)
+        {
+            return Option.Icon;
+        }
+
         switch (Option.LootType)
         {
         case ELootType::Gold:

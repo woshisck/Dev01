@@ -4,6 +4,7 @@
 #include "GameModes/YogGameMode.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Character/YogPlayerControllerBase.h"
+#include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/BackpackGridComponent.h"
@@ -33,6 +34,7 @@
 #include "LevelFlow/LevelFlowAsset.h"
 #include "Story/StoryEngineSubsystem.h"
 #include "Story/StoryEventManager.h"
+#include "Story/FirstRunTutorialDirectorSubsystem.h"
 #include "FlowAsset.h"
 #include "FlowComponent.h"
 #include "Misc/PackageName.h"
@@ -123,6 +125,19 @@ bool AYogGameMode::ShouldSkipCombatForRoom(const URoomDataAsset* RoomData)
 bool AYogGameMode::ShouldPreserveCurrentMapForEditorPlay(bool bIsPlayInEditorWorld, bool bHasPendingRoomData)
 {
 	return bIsPlayInEditorWorld && !bHasPendingRoomData;
+}
+
+bool AYogGameMode::ShouldAllowExtraRewardPickupForRoom(
+	const URoomDataAsset* RoomData,
+	bool bIsSacrificeEventRoom,
+	bool bHasRewardPickupClass,
+	bool bEnableExtraRewardPickups)
+{
+	const bool bIsHubRoom = RoomData && RoomData->bIsHubRoom;
+	return bEnableExtraRewardPickups
+		&& !bIsHubRoom
+		&& !bIsSacrificeEventRoom
+		&& bHasRewardPickupClass;
 }
 
 bool AYogGameMode::HasActiveStoryEventTag(FGameplayTag EventTag) const
@@ -567,6 +582,31 @@ void AYogGameMode::ClearForcedPortalOverride()
 	ForcedPortalOverrideIndex = 0;
 }
 
+void AYogGameMode::ApplyStoryNextRoomPlanForCurrentRoom(const FStoryNextRoomPlan& Plan)
+{
+	if (Plan.bOverrideRewardOptions)
+	{
+		SetRoomRewardOptionsOverride(Plan.RewardOptionsOverride);
+		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
+		{
+			GI->ClearPendingRoomRewardOptionsOverride();
+		}
+	}
+
+	bSuppressRoomClearRewardPickup = Plan.bSuppressRoomClearRewardPickup;
+	bStorySpecialRewardEnemyEnabled = Plan.bMarkLastEnemyAsSpecialRewardEnemy;
+	StorySpecialRewardEnemyLootOptions = Plan.SpecialRewardEnemyLootOptions;
+	StorySpecialRewardEnemyAuraFX = Plan.SpecialRewardEnemyAuraFX;
+
+	UE_LOG(LogTemp, Log,
+		TEXT("[FirstRunTutorialDirector] Applied story plan to current room. RewardOverride=%d RewardCount=%d SuppressClearReward=%d SpecialEnemy=%d SpecialLootCount=%d"),
+		Plan.bOverrideRewardOptions ? 1 : 0,
+		Plan.RewardOptionsOverride.Num(),
+		bSuppressRoomClearRewardPickup ? 1 : 0,
+		bStorySpecialRewardEnemyEnabled ? 1 : 0,
+		StorySpecialRewardEnemyLootOptions.Num());
+}
+
 void AYogGameMode::EnterArrangementPhase()
 {
 	if (CurrentPhase != ELevelPhase::Combat)
@@ -597,7 +637,7 @@ void AYogGameMode::EnterArrangementPhase()
 		}
 
 		// 发放金币（按当前关卡 FloorConfig 中的范围）
-		if (GetActiveCampaignData() && ActiveGoldMax > 0)
+		if (GetActiveCampaignData() && ActiveGoldMax > 0 && !bHasRoomRewardOptionsOverride)
 		{
 			const int32 GoldReward = FMath::RandRange(ActiveGoldMin, ActiveGoldMax);
 			if (Player->BackpackGridComponent)
@@ -646,7 +686,7 @@ void AYogGameMode::EnterArrangementPhase()
 	TriggerLifecycleEvent(EGameLifecycleEvent::LevelClear);
 
 	// 生成奖励拾取物
-	if (RewardPickupClass)
+	if (RewardPickupClass && !bSuppressRoomClearRewardPickup)
 	{
 		FVector SpawnLoc = LootSpawnLoc;
 		if (!SpawnLoc.IsZero())
@@ -685,16 +725,25 @@ void AYogGameMode::EnterArrangementPhase()
 					*GetNameSafe(Pickup),
 					*DescribeGameModeLootOptionsForRewardDebug(Batch));
 				Pickup->AssignLoot(Batch);
-				UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 预分配 %d 个符文选项给 RewardPickup"), Batch.Num());
+				UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: assigned %d loot option(s) to RewardPickup"), Batch.Num());
 			}
 		}
 	}
+	else if (bSuppressRoomClearRewardPickup)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Room clear RewardPickup suppressed by story plan."));
+	}
 
-	// 献祭恩赐额外掉落（非主城关卡，15% 概率）
+	// Legacy extra reward pickup roll. Disabled by default while rooms should emit one pickup.
 	SpawnSacrificeEventAltar(LootSpawnLoc);
 
 	const bool bIsHubRoom = ActiveRoomData && ActiveRoomData->bIsHubRoom;
-	if (!bIsHubRoom && !IsSacrificeEventRoom() && RewardPickupClass
+	const bool bIsSacrificeRoom = IsSacrificeEventRoom();
+	if (ShouldAllowExtraRewardPickupForRoom(
+			ActiveRoomData,
+			bIsSacrificeRoom,
+			RewardPickupClass != nullptr,
+			bEnableExtraRewardPickups)
 		&& FMath::FRand() < SacrificeDropChance)
 	{
 		TArray<FLootOption> ExtraBatch = ApplyLootOptionLimit(GenerateLootBatch(LootAssignedThisLevel));
@@ -779,6 +828,11 @@ void AYogGameMode::EnterArrangementPhase()
 	}
 
 	// 开启传送门
+	if (UFirstRunTutorialDirectorSubsystem* Director = GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
+	{
+		Director->HandleArrangementPhase(this);
+	}
+
 	ActivatePortals();
 
 	// v3：启用 HUD 传送门引导（单例浮窗 + 屏幕边缘方位箭头）。主城（HubRoom）跳过
@@ -855,6 +909,11 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 				RuneItemTag,
 				Player,
 				PC);
+		}
+
+		if (UFirstRunTutorialDirectorSubsystem* Director = GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
+		{
+			Director->HandleRewardRuneAdded(Chosen.RuneAsset, Player);
 		}
 	}
 
@@ -1188,6 +1247,7 @@ void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 	TM.ClearTimer(OneByOneTimer);
 	TM.ClearTimer(InitialSpawnDelayTimer);
 	TM.ClearTimer(DemandSpawnTimer);
+	TM.ClearTimer(ForcedSurvivalSpawnTimer);
 
 	if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
 	{
@@ -1208,6 +1268,16 @@ void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 		PC->SetIgnoreMoveInput(true);
 		PC->SetIgnoreLookInput(true);
 		PC->SetShowMouseCursor(false);
+	}
+
+	if (UFirstRunTutorialDirectorSubsystem* Director = GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
+	{
+		if (Director->ShouldHandleScriptedDefeatDeath())
+		{
+			ClearPlayerDeathGameOverTicker();
+			Director->HandleScriptedDefeatDeath(this);
+			return;
+		}
 	}
 
 	if (CanOfferPlayerDeathRevive(bGameOverTriggered, bPlayerDeathReviveUsed) && Player)
@@ -1422,6 +1492,12 @@ void AYogGameMode::StartLevelSpawning()
 
 	ClearRoomRewardOptionsOverride();
 	ClearForcedPortalOverride();
+	bSuppressRoomClearRewardPickup = false;
+	bStorySpecialRewardEnemyEnabled = false;
+	StorySpecialRewardEnemyLootOptions.Reset();
+	StorySpecialRewardEnemyAuraFX = nullptr;
+	bForcedSurvivalActive = false;
+	GetWorldTimerManager().ClearTimer(ForcedSurvivalSpawnTimer);
 
 	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
 
@@ -1540,7 +1616,19 @@ void AYogGameMode::StartLevelSpawning()
 	}
 
 	// ── 主城/枢纽房间：无战斗，立即全开传送门 ──────────────────────────────
-	const bool bAppliedPendingRewardOverride = ApplyPendingRoomRewardOptionsOverrideForRoom(GI, ActiveRoomData);
+	FStoryNextRoomPlan CurrentRoomStoryPlan;
+	const bool bConsumedStoryPlan = GI
+		&& ActiveRoomData
+		&& !ActiveRoomData->bIsHubRoom
+		&& GI->ConsumePendingStoryNextRoomPlan(CurrentRoomStoryPlan);
+	if (bConsumedStoryPlan)
+	{
+		ApplyStoryNextRoomPlanForCurrentRoom(CurrentRoomStoryPlan);
+	}
+
+	const bool bAppliedPendingRewardOverride = bConsumedStoryPlan && CurrentRoomStoryPlan.bOverrideRewardOptions
+		? true
+		: ApplyPendingRoomRewardOptionsOverrideForRoom(GI, ActiveRoomData);
 	UE_LOG(LogTemp, Log,
 		TEXT("[StoryRewardDebug] GM StartLevelSpawning after room-aware pending reward check Applied=%d HasCurrentOverride=%d ActiveRoom=%s IsHub=%d CurrentOverrideOptions=%s GI=%s"),
 		bAppliedPendingRewardOverride ? 1 : 0,
@@ -1932,6 +2020,60 @@ void AYogGameMode::GenerateWavePlans(int32 TotalScore, int32 MaxWaveCount, URoom
 
 		UE_LOG(LogTemp, Log, TEXT("GenerateWavePlans: appended special reward enemy %s to the final wave."),
 			*GetNameSafe(SpecialEnemy.EnemyClass));
+	}
+
+	if (bStorySpecialRewardEnemyEnabled)
+	{
+		if (WavePlans.IsEmpty())
+		{
+			WavePlans.Add(FWavePlan());
+		}
+
+		FWavePlan* TargetWave = nullptr;
+		for (int32 WaveIndex = WavePlans.Num() - 1; WaveIndex >= 0; --WaveIndex)
+		{
+			if (!WavePlans[WaveIndex].EnemiesToSpawn.IsEmpty())
+			{
+				TargetWave = &WavePlans[WaveIndex];
+				break;
+			}
+		}
+
+		if (!TargetWave)
+		{
+			TargetWave = &WavePlans.Last();
+			if (Room)
+			{
+				for (const FEnemyEntry& Entry : Room->EnemyPool)
+				{
+					if (Entry.EnemyData && Entry.EnemyData->EnemyClass)
+					{
+						FPlannedEnemy Planned;
+						Planned.EnemyClass = Entry.EnemyData->EnemyClass;
+						Planned.EnemyData = Entry.EnemyData;
+						Planned.PreSpawnFX = Entry.EnemyData->PreSpawnFX;
+						Planned.PreSpawnFXDuration = Entry.EnemyData->PreSpawnFXDuration;
+						Planned.SpawnLifecycleFlow = Entry.EnemyData->SpawnLifecycleFlow;
+						TargetWave->EnemiesToSpawn.Add(Planned);
+						TotalLevelPlannedEnemies++;
+						LevelTypeSpawnCounts.FindOrAdd(Planned.EnemyClass)++;
+						break;
+					}
+				}
+			}
+		}
+
+		if (TargetWave && !TargetWave->EnemiesToSpawn.IsEmpty())
+		{
+			FPlannedEnemy& SpecialEnemy = TargetWave->EnemiesToSpawn.Last();
+			SpecialEnemy.bSpecialRewardEnemy = true;
+			SpecialEnemy.SpecialRewardOptions = StorySpecialRewardEnemyLootOptions;
+			SpecialEnemy.SpecialRewardAuraFX = StorySpecialRewardEnemyAuraFX;
+			UE_LOG(LogTemp, Log,
+				TEXT("[FirstRunTutorialDirector] Marked last planned enemy as story special reward enemy. Class=%s LootCount=%d"),
+				*GetNameSafe(SpecialEnemy.EnemyClass),
+				SpecialEnemy.SpecialRewardOptions.Num());
+		}
 	}
 }
 
@@ -2663,6 +2805,11 @@ void AYogGameMode::FallbackToPreplacedEnemies()
 
 void AYogGameMode::CheckLevelComplete()
 {
+	if (bForcedSurvivalActive)
+	{
+		return;
+	}
+
 	if (!bAllWavesSpawned || TotalAliveEnemies > 0 || PendingSpawnCount > 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CheckLevelComplete] 未通过: bAllWavesSpawned=%s TotalAlive=%d PendingSpawn=%d"),
@@ -2733,6 +2880,7 @@ bool AYogGameMode::SpawnEnemyFromPool(const FPlannedEnemy& Planned)
 			}
 			// 施加敌人专属 Buff（BuildWavePlan 时选好的，只对此只怪生效）
 			ActivateEnemyRunes(SpawnedEnemy, Planned.EnemyBuffs, TEXT("EnemyBuff.Spawn"));
+			MarkStorySpecialRewardEnemy(SpawnedEnemy, Planned);
 		}
 		return SpawnedEnemy != nullptr;
 	}
@@ -2885,6 +3033,7 @@ void AYogGameMode::FinishSpawnFromPool(FPlannedEnemy Planned,
 			ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get(), TEXT("RoomBuff.DelayedSpawn"));
 		}
 		ActivateEnemyRunes(SpawnedEnemy, Planned.EnemyBuffs, TEXT("EnemyBuff.DelayedSpawn"));
+		MarkStorySpecialRewardEnemy(SpawnedEnemy, Planned);
 
 		if (WavePlans.IsValidIndex(WaveIdx))
 			WavePlans[WaveIdx].TotalSpawnedInWave++;
@@ -2897,6 +3046,156 @@ void AYogGameMode::FinishSpawnFromPool(FPlannedEnemy Planned,
 	}
 
 	CheckLevelComplete();
+}
+
+void AYogGameMode::MarkStorySpecialRewardEnemy(AEnemyCharacterBase* Enemy, const FPlannedEnemy& Planned)
+{
+	if (!Enemy || !Planned.bSpecialRewardEnemy)
+	{
+		return;
+	}
+
+	TArray<FLootOption> RewardOptions = Planned.SpecialRewardOptions;
+	if (RewardOptions.IsEmpty())
+	{
+		RewardOptions = StorySpecialRewardEnemyLootOptions;
+	}
+
+	Enemy->Tags.AddUnique(TEXT("Story.SpecialRewardEnemy"));
+
+	if (Planned.SpecialRewardAuraFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAttached(
+			Planned.SpecialRewardAuraFX,
+			Enemy->GetRootComponent(),
+			NAME_None,
+			FVector::ZeroVector,
+			FRotator::ZeroRotator,
+			EAttachLocation::KeepRelativeOffset,
+			true);
+	}
+
+	if (RewardOptions.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Special reward enemy has no loot options. Enemy=%s"),
+			*GetNameSafe(Enemy));
+		return;
+	}
+
+	TWeakObjectPtr<AYogGameMode> WeakThis(this);
+	Enemy->OnCharacterDiedNative.AddWeakLambda(this, [WeakThis, RewardOptions](AYogCharacterBase* DeadCharacter)
+	{
+		if (AYogGameMode* GameMode = WeakThis.Get())
+		{
+			GameMode->SpawnStorySpecialRewardPickup(DeadCharacter, RewardOptions);
+		}
+	});
+
+	UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Special reward enemy marked. Enemy=%s LootCount=%d"),
+		*GetNameSafe(Enemy),
+		RewardOptions.Num());
+}
+
+void AYogGameMode::SpawnStorySpecialRewardPickup(AYogCharacterBase* DeadCharacter, const TArray<FLootOption> RewardOptions)
+{
+	if (!DeadCharacter || !RewardPickupClass || RewardOptions.IsEmpty())
+	{
+		return;
+	}
+
+	const FVector SpawnLoc = DeadCharacter->GetActorLocation();
+	ARewardPickup* Pickup = GetWorld()->SpawnActor<ARewardPickup>(RewardPickupClass, SpawnLoc, FRotator::ZeroRotator);
+	if (!Pickup)
+	{
+		return;
+	}
+
+	Pickup->bAllowPickupOutsideArrangement = true;
+	Pickup->AssignLoot(RewardOptions);
+	Pickup->RefreshPickupAvailability();
+
+	UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Spawned special RewardPickup=%s at %s LootCount=%d"),
+		*GetNameSafe(Pickup),
+		*SpawnLoc.ToString(),
+		RewardOptions.Num());
+}
+
+void AYogGameMode::StartForcedSurvivalEncounter()
+{
+	if (bForcedSurvivalActive)
+	{
+		return;
+	}
+
+	bForcedSurvivalActive = true;
+	CurrentPhase = ELevelPhase::Combat;
+	OnPhaseChanged.Broadcast(CurrentPhase);
+
+	if (UWorld* World = GetWorld())
+	{
+		TArray<AActor*> PortalActors;
+		UGameplayStatics::GetAllActorsOfClass(World, APortal::StaticClass(), PortalActors);
+		for (AActor* PortalActor : PortalActors)
+		{
+			if (APortal* Portal = Cast<APortal>(PortalActor))
+			{
+				Portal->DisablePortal();
+			}
+		}
+
+		World->GetTimerManager().SetTimer(
+			ForcedSurvivalSpawnTimer,
+			this,
+			&AYogGameMode::SpawnForcedSurvivalEnemy,
+			1.5f,
+			true,
+			0.1f);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Forced survival encounter started."));
+}
+
+void AYogGameMode::SpawnForcedSurvivalEnemy()
+{
+	if (!bForcedSurvivalActive || !ActiveRoomData)
+	{
+		return;
+	}
+
+	FPlannedEnemy Planned;
+	for (const FEnemyEntry& Entry : ActiveRoomData->EnemyPool)
+	{
+		if (Entry.EnemyData && Entry.EnemyData->EnemyClass)
+		{
+			Planned.EnemyClass = Entry.EnemyData->EnemyClass;
+			Planned.EnemyData = Entry.EnemyData;
+			Planned.EnemyBuffs.Reset();
+			CollectEnemyBuffs(Entry.EnemyData, Planned.EnemyBuffs);
+			Planned.PreSpawnFX = Entry.EnemyData->PreSpawnFX;
+			Planned.PreSpawnFXDuration = Entry.EnemyData->PreSpawnFXDuration;
+			Planned.SpawnLifecycleFlow = Entry.EnemyData->SpawnLifecycleFlow;
+			Planned.bAllowAnySpawner = true;
+			break;
+		}
+	}
+
+	if (!Planned.EnemyClass && !WavePlans.IsEmpty())
+	{
+		for (const FWavePlan& Wave : WavePlans)
+		{
+			if (!Wave.EnemiesToSpawn.IsEmpty())
+			{
+				Planned = Wave.EnemiesToSpawn[0];
+				Planned.bAllowAnySpawner = true;
+				break;
+			}
+		}
+	}
+
+	if (Planned.EnemyClass)
+	{
+		BeginSpawnEnemyFromPool(Planned);
+	}
 }
 
 TArray<FBuffEntry> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int32 BuffCount)
@@ -3375,6 +3674,10 @@ void AYogGameMode::ActivateHubPortals()
 	}
 
 	// 目标是 FloorTable[0]（第一个战斗关），骰子决定房间类型
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+	FStoryNextRoomPlan StoryPlan;
+	const bool bHasStoryPlan = GI && GI->GetPendingStoryNextRoomPlan(StoryPlan);
+
 	const FGameplayTag RequiredRoomType = Campaign->FloorTable.IsValidIndex(0)
 		? RollRoomTypeForFloor(Campaign->FloorTable[0])
 		: FGameplayTag::RequestGameplayTag(FName("Room.Type.Normal"));
@@ -3394,10 +3697,19 @@ void AYogGameMode::ActivateHubPortals()
 	// 主城所有传送门全开（不走 50% 随机）
 	for (const FPortalDestConfig& Cfg : ActiveRoomData->PortalDestinations)
 	{
+		if (bHasStoryPlan && StoryPlan.bForceSinglePortal && Cfg.PortalIndex != StoryPlan.PortalIndex)
+		{
+			UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: skipping portal [%d], story plan forces portal [%d]."),
+				Cfg.PortalIndex, StoryPlan.PortalIndex);
+			continue;
+		}
+
 		APortal** Found = PortalMap.Find(Cfg.PortalIndex);
 		if (!Found || !(*Found)) continue;
 
-		URoomDataAsset* ChosenRoom = SelectRoomByTag(&Cfg, RequiredRoomType);
+		URoomDataAsset* ChosenRoom = StoryPlan.RoomDataOverride
+			? StoryPlan.RoomDataOverride.Get()
+			: SelectRoomByTag(&Cfg, RequiredRoomType);
 		if (!ChosenRoom || ChosenRoom->RoomName.IsNone())
 		{
 			UE_LOG(LogTemp, Warning, TEXT("ActivateHubPortals: 门[%d] 找不到合适的 DA_Room，跳过"), Cfg.PortalIndex);
@@ -3411,7 +3723,9 @@ void AYogGameMode::ActivateHubPortals()
 		const int32 NextScore = NextConfig ? NextConfig->TotalDifficultyScore : 30;
 		const FRoomDifficultyTier& NextTier = ResolveTier(
 			*ChosenRoom, NextScore, LowDifficultyScoreMax, HighDifficultyScoreMin);
-		const TArray<FBuffEntry> PreRolled = SelectRoomBuffs(*ChosenRoom, NextTier.BuffCount);
+		const TArray<FBuffEntry> PreRolled = (bHasStoryPlan && StoryPlan.bOverrideBuffs)
+			? StoryPlan.BuffsOverride
+			: SelectRoomBuffs(*ChosenRoom, NextTier.BuffCount);
 
 		const FName LevelName = ResolveRoomLevelNameForOpen(ChosenRoom->RoomName, ChosenRoom);
 		(*Found)->Open(LevelName, ChosenRoom, PreRolled);
@@ -3454,6 +3768,10 @@ void AYogGameMode::ActivatePortals()
 	}
 
 	// 下一关的 FloorConfig（所有门共享同一次类型骰子）
+	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
+	FStoryNextRoomPlan StoryPlan;
+	const bool bHasStoryPlan = GI && GI->GetPendingStoryNextRoomPlan(StoryPlan);
+
 	const int32 NextIdx = CurrentFloor; // CurrentFloor 是 1-based，NextIdx 是下一关的 0-based 下标
 	const FFloorConfig* NextConfig = Campaign->FloorTable.IsValidIndex(NextIdx)
 		? &Campaign->FloorTable[NextIdx]
@@ -3487,8 +3805,11 @@ void AYogGameMode::ActivatePortals()
 	}
 
 	bool bAtLeastOneOpened = false;
-	const bool bForceSinglePortal = bHasForcedPortalOverride || ActiveRoomData->bForceSinglePortal;
-	const int32 ForcedPortalIndex = bHasForcedPortalOverride
+	const bool bStoryForcesSinglePortal = bHasStoryPlan && StoryPlan.bForceSinglePortal;
+	const bool bForceSinglePortal = bStoryForcesSinglePortal || bHasForcedPortalOverride || ActiveRoomData->bForceSinglePortal;
+	const int32 ForcedPortalIndex = bStoryForcesSinglePortal
+		? StoryPlan.PortalIndex
+		: bHasForcedPortalOverride
 		? ForcedPortalOverrideIndex
 		: ActiveRoomData->ForcedPortalIndex;
 	for (const FPortalDestConfig& Cfg : Configs)
@@ -3504,7 +3825,9 @@ void AYogGameMode::ActivatePortals()
 		if (!Found || !(*Found)) continue;
 
 		// 先查此门专属 RoomPool，再查 Campaign 全局，最后退化为 Normal
-		URoomDataAsset* ChosenRoom = SelectRoomByTag(&Cfg, RequiredRoomType);
+		URoomDataAsset* ChosenRoom = StoryPlan.RoomDataOverride
+			? StoryPlan.RoomDataOverride.Get()
+			: SelectRoomByTag(&Cfg, RequiredRoomType);
 
 		if (!ChosenRoom)
 		{
@@ -3533,7 +3856,9 @@ void AYogGameMode::ActivatePortals()
 		const int32 NextScore = NextConfig ? NextConfig->TotalDifficultyScore : 30;
 		const FRoomDifficultyTier& NextTier = ResolveTier(
 			*ChosenRoom, NextScore, LowDifficultyScoreMax, HighDifficultyScoreMin);
-		const TArray<FBuffEntry> PreRolled = SelectRoomBuffs(*ChosenRoom, NextTier.BuffCount);
+		const TArray<FBuffEntry> PreRolled = (bHasStoryPlan && StoryPlan.bOverrideBuffs)
+			? StoryPlan.BuffsOverride
+			: SelectRoomBuffs(*ChosenRoom, NextTier.BuffCount);
 
 		(*Found)->Open(LevelName, ChosenRoom, PreRolled);
 		bAtLeastOneOpened = true;
@@ -3541,6 +3866,7 @@ void AYogGameMode::ActivatePortals()
 		UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 开启 → 关卡=%s 房间=%s 预骰Buff数=%d"),
 			Cfg.PortalIndex, *LevelName.ToString(), *ChosenRoom->GetName(), PreRolled.Num());
 	}
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

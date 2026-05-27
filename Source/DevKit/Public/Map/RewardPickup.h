@@ -46,6 +46,9 @@ public:
 	/** 重新应用当前拾取许可到可见性和 overlap；Story 节点运行时改 bAllowPickupOutsideArrangement 后需要调用。 */
 	void RefreshPickupAvailability();
 
+	/** Returns true when a pickup can grant all loot directly without opening card selection. */
+	static bool ShouldGrantLootImmediatelyForOptions(const TArray<FLootOption>& Options);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Fixed")
 	bool bUseFixedLootOptions = false;
 
@@ -77,6 +80,15 @@ protected:
 	// 浮窗垂直偏移（cm）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "浮窗")
 	float WidgetZOffset = 50.f;
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Reward|Pickup")
+	void K2_OnImmediateLootGranted(ELootType LootType, int32 Amount, FGameplayTag MetaCurrencyTag);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Reward|Pickup")
+	void K2_OnGoldLootGranted(int32 Amount);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Reward|Pickup")
+	void K2_OnMaterialLootGranted(FGameplayTag MetaCurrencyTag, int32 Amount);
 
 private:
 	// GameMode 预分配的战利品选项（Spawn 时写入，拾取时广播给 UI）

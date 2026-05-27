@@ -11,6 +11,7 @@
 #include "Input/CommonUIInputTypes.h"
 #include "InputCoreTypes.h"
 #include "Map/AltarActor.h"
+#include "Story/FirstRunTutorialDirectorSubsystem.h"
 #include "UI/YogHUD.h"
 #include "UI/YogCommonUITextBlock.h"
 #include "UI/YogInputKeyUtils.h"
@@ -330,6 +331,18 @@ void USacrificeSelectionWidget::ConfirmSacrifice()
 	{
 		FailSacrifice(NSLOCTEXT("SacrificeSelection", "GrantFailed", "献祭符文未能授予。"));
 		return;
+	}
+
+	URuneDataAsset* GrantedRune = CurrentOptions[SelectedOptionIndex].GrantedRune;
+	if (!GrantedRune && AltarData)
+	{
+		GrantedRune = AltarData->EventSacrificeRune;
+	}
+	if (UFirstRunTutorialDirectorSubsystem* Director = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>()
+		: nullptr)
+	{
+		Director->HandleSacrificeConfirmed(GrantedRune, OwningPlayer.Get());
 	}
 
 	OnSacrificeFinished(true);

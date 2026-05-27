@@ -847,6 +847,7 @@ void UYogGameInstanceBase::ClearRunState()
 	PendingRoomData = nullptr;
 	PendingRoomBuffs.Reset();
 	ClearPendingRoomRewardOptionsOverride();
+	ClearPendingStoryNextRoomPlan();
 	PendingNextFloor = 1;
 	bPlayLevelIntroFadeIn = false;
 	ClearCampaignOverride();
@@ -906,6 +907,69 @@ bool UYogGameInstanceBase::GetPendingRoomRewardOptionsOverride(TArray<FLootOptio
 	}
 
 	OutOptions = PendingRoomRewardOptionsOverride;
+	return true;
+}
+
+void UYogGameInstanceBase::SetPendingStoryNextRoomPlan(const FStoryNextRoomPlan& InPlan)
+{
+	PendingStoryNextRoomPlan = InPlan;
+	bHasPendingStoryNextRoomPlan = InPlan.HasAnyOverride();
+
+	if (InPlan.bOverrideRewardOptions)
+	{
+		SetPendingRoomRewardOptionsOverride(InPlan.RewardOptionsOverride);
+	}
+
+	UE_LOG(LogTemp, Log,
+		TEXT("[StoryNextRoomPlan] Set Pending=%d ForcePortal=%d PortalIndex=%d Room=%s RewardOverride=%d RewardCount=%d BuffOverride=%d BuffCount=%d"),
+		bHasPendingStoryNextRoomPlan ? 1 : 0,
+		InPlan.bForceSinglePortal ? 1 : 0,
+		InPlan.PortalIndex,
+		*GetNameSafe(InPlan.RoomDataOverride.Get()),
+		InPlan.bOverrideRewardOptions ? 1 : 0,
+		InPlan.RewardOptionsOverride.Num(),
+		InPlan.bOverrideBuffs ? 1 : 0,
+		InPlan.BuffsOverride.Num());
+
+	RefreshOpenPortalRewardPreviews();
+}
+
+void UYogGameInstanceBase::ClearPendingStoryNextRoomPlan()
+{
+	if (bHasPendingStoryNextRoomPlan)
+	{
+		UE_LOG(LogTemp, Log,
+			TEXT("[StoryNextRoomPlan] Cleared Room=%s PortalIndex=%d"),
+			*GetNameSafe(PendingStoryNextRoomPlan.RoomDataOverride.Get()),
+			PendingStoryNextRoomPlan.PortalIndex);
+	}
+
+	bHasPendingStoryNextRoomPlan = false;
+	PendingStoryNextRoomPlan = FStoryNextRoomPlan();
+}
+
+bool UYogGameInstanceBase::ConsumePendingStoryNextRoomPlan(FStoryNextRoomPlan& OutPlan)
+{
+	if (!bHasPendingStoryNextRoomPlan)
+	{
+		OutPlan = FStoryNextRoomPlan();
+		return false;
+	}
+
+	OutPlan = PendingStoryNextRoomPlan;
+	ClearPendingStoryNextRoomPlan();
+	return true;
+}
+
+bool UYogGameInstanceBase::GetPendingStoryNextRoomPlan(FStoryNextRoomPlan& OutPlan) const
+{
+	if (!bHasPendingStoryNextRoomPlan)
+	{
+		OutPlan = FStoryNextRoomPlan();
+		return false;
+	}
+
+	OutPlan = PendingStoryNextRoomPlan;
 	return true;
 }
 

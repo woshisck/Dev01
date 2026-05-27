@@ -7,6 +7,8 @@
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "FlowAsset.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "SaveGame/YogSaveSubsystem.h"
+#include "Story/FirstRunTutorialDirectorSubsystem.h"
 
 namespace
 {
@@ -479,7 +481,22 @@ void UCombatDeckComponent::LoadDeckFromWeapon(const UWeaponDefinition* WeaponDef
 	if (WeaponDefinition)
 	{
 		TArray<URuneDataAsset*> SourceAssets;
-		CopyDeckSourceAssets(GetDefaultWeaponDeckSource(WeaponDefinition), SourceAssets);
+		if (UWorld* World = GetWorld())
+		{
+			if (UGameInstance* GameInstance = World->GetGameInstance())
+			{
+				if (const UYogSaveSubsystem* SaveSys = GameInstance->GetSubsystem<UYogSaveSubsystem>();
+					SaveSys && SaveSys->IsFirstRunTutorialCompleted())
+				{
+					UFirstRunTutorialDirectorSubsystem::BuildDefaultPostTutorialDeck(SourceAssets);
+				}
+			}
+		}
+
+		if (SourceAssets.IsEmpty())
+		{
+			CopyDeckSourceAssets(GetDefaultWeaponDeckSource(WeaponDefinition), SourceAssets);
+		}
 
 		LoadDeckFromSourceAssetsInternal(SourceAssets, WeaponDefinition->ShuffleCooldownDuration, WeaponDefinition->MaxActiveSequenceSize, false);
 		return;
