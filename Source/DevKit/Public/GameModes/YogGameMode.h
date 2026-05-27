@@ -211,6 +211,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
 	bool ApplyPendingRoomRewardOptionsOverride(UYogGameInstanceBase* GameInstance);
 
+	bool ApplyPendingRoomRewardOptionsOverrideForRoom(
+		UYogGameInstanceBase* GameInstance,
+		const URoomDataAsset* RoomData);
+
 	const TArray<FLootOption>& GetRoomRewardOptionsOverride() const { return RoomRewardOptionsOverride; }
 
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")

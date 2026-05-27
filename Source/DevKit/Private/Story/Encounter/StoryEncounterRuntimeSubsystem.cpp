@@ -64,12 +64,12 @@ APlayerController* ResolveEncounterPlayer(AActor* SourceActor)
 		: nullptr;
 }
 
-FString DescribeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+FString DescribeEncounterEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
 {
 	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
 }
 
-FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+FString DescribeEncounterLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
 {
 	if (Options.IsEmpty())
 	{
@@ -84,7 +84,7 @@ FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
 		Parts.Add(FString::Printf(
 			TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
 			Index,
-			*DescribeEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+			*DescribeEncounterEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
 			Option.Amount,
 			*Option.DisplayName.ToString(),
 			*GetNameSafe(Option.RuneAsset.Get()),
@@ -292,9 +292,9 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterPoint(UStoryEncounterPoint
 			*GetNameSafe(SourceActor),
 			*Context.MapName.ToString(),
 			Node.Actions.Num(),
-			*DescribeEnumValueForRewardDebug(StaticEnum<EStoryEncounterConditionKind>(), static_cast<int64>(Node.Condition.Kind)),
+			*DescribeEncounterEnumValueForRewardDebug(StaticEnum<EStoryEncounterConditionKind>(), static_cast<int64>(Node.Condition.Kind)),
 			*Node.Condition.ProgressKey.ToString(),
-			*DescribeEnumValueForRewardDebug(StaticEnum<EStoryEncounterFirePolicy>(), static_cast<int64>(Node.FirePolicy)));
+			*DescribeEncounterEnumValueForRewardDebug(StaticEnum<EStoryEncounterFirePolicy>(), static_cast<int64>(Node.FirePolicy)));
 	}
 
 	const bool bCanTrigger = CanTriggerNode(EncounterPoint->EncounterId, Node, Context);
@@ -306,9 +306,9 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterPoint(UStoryEncounterPoint
 				TEXT("[StoryRewardDebug] EncounterPoint skipped by CanTriggerNode Encounter=%s Node=%s Condition=%s ProgressKey=%s FirePolicy=%s"),
 				*EncounterPoint->EncounterId.ToString(),
 				*Node.NodeId.ToString(),
-				*DescribeEnumValueForRewardDebug(StaticEnum<EStoryEncounterConditionKind>(), static_cast<int64>(Node.Condition.Kind)),
+				*DescribeEncounterEnumValueForRewardDebug(StaticEnum<EStoryEncounterConditionKind>(), static_cast<int64>(Node.Condition.Kind)),
 				*Node.Condition.ProgressKey.ToString(),
-				*DescribeEnumValueForRewardDebug(StaticEnum<EStoryEncounterFirePolicy>(), static_cast<int64>(Node.FirePolicy)));
+				*DescribeEncounterEnumValueForRewardDebug(StaticEnum<EStoryEncounterFirePolicy>(), static_cast<int64>(Node.FirePolicy)));
 		}
 		return false;
 	}
@@ -761,9 +761,9 @@ bool UStoryEncounterRuntimeSubsystem::ExecuteSetRoomRewardOverrideAction(
 		TEXT("[StoryRewardDebug] EncounterAction SetRoomRewardOverride ActionId=%s SourceNode=%s Target=%s Clear=%d Options=%s SourceActor=%s World=%s GI=%s"),
 		*Action.ActionId.ToString(),
 		*Context.SourceName.ToString(),
-		*DescribeEnumValueForRewardDebug(StaticEnum<EStoryRewardOverrideTarget>(), static_cast<int64>(Action.RewardOverrideTarget)),
+		*DescribeEncounterEnumValueForRewardDebug(StaticEnum<EStoryRewardOverrideTarget>(), static_cast<int64>(Action.RewardOverrideTarget)),
 		Action.bClearRoomRewardOverride ? 1 : 0,
-		*DescribeLootOptionsForRewardDebug(Action.RewardLootOptions),
+		*DescribeEncounterLootOptionsForRewardDebug(Action.RewardLootOptions),
 		*GetNameSafe(Context.SourceActor.Get()),
 		*GetNameSafe(World),
 		*GetNameSafe(GI));

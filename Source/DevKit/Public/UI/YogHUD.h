@@ -101,6 +101,10 @@ public:
 		float SideOffset,
 		float Margin);
 
+	static FVector2D ResolvePortalPreviewAlignment(
+		const FVector2D& ScreenPosition,
+		const FVector2D& ViewportSize);
+
 	// ─────────────────────────────────────────
 	//  暂停遮罩后处理
 	// ─────────────────────────────────────────

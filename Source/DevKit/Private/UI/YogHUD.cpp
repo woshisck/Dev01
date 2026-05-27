@@ -80,12 +80,12 @@ namespace
 		}
 	}
 
-	FString DescribeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+	FString DescribeHUDEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
 	{
 		return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
 	}
 
-	FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+	FString DescribeHUDLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
 	{
 		if (Options.IsEmpty())
 		{
@@ -100,7 +100,7 @@ namespace
 			Parts.Add(FString::Printf(
 				TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
 				Index,
-				*DescribeEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+				*DescribeHUDEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
 				Option.Amount,
 				*Option.DisplayName.ToString(),
 				*GetNameSafe(Option.RuneAsset.Get()),
@@ -1582,6 +1582,19 @@ FVector2D AYogHUD::ResolvePortalPreviewAnchorPosition(
 	return AnchorPosition;
 }
 
+FVector2D AYogHUD::ResolvePortalPreviewAlignment(
+	const FVector2D& ScreenPosition,
+	const FVector2D& ViewportSize)
+{
+	if (ViewportSize.X <= 0.f || ViewportSize.Y <= 0.f)
+	{
+		return FVector2D(0.5f, 1.0f);
+	}
+
+	const bool bDoorOnRightSide = ScreenPosition.X > ViewportSize.X * 0.5f;
+	return FVector2D(bDoorOnRightSide ? 1.0f : 0.0f, 1.0f);
+}
+
 void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 {
 	if (MajorUICount > 0) return;
@@ -1695,7 +1708,7 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 			Target->Index,
 			TargetPreviewRevision,
 			*GetNameSafe(Player->PendingPortal),
-			*DescribeLootOptionsForRewardDebug(Target->CachedPreviewInfo.RewardPreviewOptions));
+			*DescribeHUDLootOptionsForRewardDebug(Target->CachedPreviewInfo.RewardPreviewOptions));
 		PortalPreviewWidget->SetPreviewInfo(Target->CachedPreviewInfo);
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
@@ -1709,13 +1722,14 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 		FVector2D ViewportSize;
 		if (UGameViewportClient* GVC = GetWorld()->GetGameViewport())
 			GVC->GetViewportSize(ViewportSize);
+		const FVector2D ProjectedDoorScreenPos = ScreenPos;
 		ScreenPos = ResolvePortalPreviewAnchorPosition(
 			ScreenPos,
 			ViewportSize,
 			PortalWidgetSideOffset,
 			24.f);
 
-		const FVector2D PreviewAlignment(0.5f, 1.0f);
+		const FVector2D PreviewAlignment = ResolvePortalPreviewAlignment(ProjectedDoorScreenPos, ViewportSize);
 		PortalPreviewWidget->SetAlignmentInViewport(PreviewAlignment);
 		PortalPreviewWidget->SetPositionInViewport(ScreenPos, false);
 	}

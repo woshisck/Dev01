@@ -39,12 +39,12 @@ namespace
 		return Option;
 	}
 
-	FString DescribeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+	FString DescribePortalEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
 	{
 		return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
 	}
 
-	FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+	FString DescribePortalLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
 	{
 		if (Options.IsEmpty())
 		{
@@ -59,7 +59,7 @@ namespace
 			Parts.Add(FString::Printf(
 				TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
 				Index,
-				*DescribeEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+				*DescribePortalEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
 				Option.Amount,
 				*Option.DisplayName.ToString(),
 				*GetNameSafe(Option.RuneAsset.Get()),
@@ -164,7 +164,7 @@ void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 		*SelectedLevel.ToString(),
 		*GetNameSafe(SelectedRoom),
 		PreviewRevision,
-		*DescribeLootOptionsForRewardDebug(CachedPreviewInfo.RewardPreviewOptions));
+		*DescribePortalLootOptionsForRewardDebug(CachedPreviewInfo.RewardPreviewOptions));
 
 	// 调试：列出每个 PreRolled Buff 的资产名 + RuneName，定位 RuneName 漏填
 	for (int32 i = 0; i < PreRolledBuffs.Num(); ++i)
@@ -189,7 +189,7 @@ TArray<FLootOption> APortal::BuildRewardPreviewOptionsForRoom(
 			TEXT("[StoryRewardDebug] Portal BuildRewardPreviewOptionsForRoom uses pending override Room=%s GI=%s Options=%s"),
 			*GetNameSafe(Room),
 			*GetNameSafe(GameInstance),
-			*DescribeLootOptionsForRewardDebug(PendingOptions));
+			*DescribePortalLootOptionsForRewardDebug(PendingOptions));
 		return PendingOptions;
 	}
 
@@ -201,7 +201,7 @@ TArray<FLootOption> APortal::BuildRewardPreviewOptionsForRoom(
 		(Room && Room->bUseFixedRewardOptions) ? 1 : 0,
 		Room ? Room->FixedRewardOptions.Num() : 0,
 		Room ? Room->LootPool.Num() : 0,
-		*DescribeLootOptionsForRewardDebug(RoomOptions));
+		*DescribePortalLootOptionsForRewardDebug(RoomOptions));
 	return RoomOptions;
 }
 
@@ -255,7 +255,7 @@ void APortal::RefreshPreviewInfo()
 		PreviewRevision,
 		*SelectedLevel.ToString(),
 		*GetNameSafe(SelectedRoom),
-		*DescribeLootOptionsForRewardDebug(CachedPreviewInfo.RewardPreviewOptions));
+		*DescribePortalLootOptionsForRewardDebug(CachedPreviewInfo.RewardPreviewOptions));
 }
 
 // =========================================================

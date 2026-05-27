@@ -100,12 +100,12 @@ namespace
         }
     }
 
-    FString DescribeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+    FString DescribePortalPreviewEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
     {
         return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
     }
 
-    FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+    FString DescribePortalPreviewLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
     {
         if (Options.IsEmpty())
         {
@@ -120,7 +120,7 @@ namespace
             Parts.Add(FString::Printf(
                 TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
                 Index,
-                *DescribeEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+                *DescribePortalPreviewEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
                 Option.Amount,
                 *Option.DisplayName.ToString(),
                 *GetNameSafe(Option.RuneAsset.Get()),
@@ -135,7 +135,7 @@ namespace
     {
         TArray<FLootOption> Options;
         Options.Add(Option);
-        return DescribeLootOptionsForRewardDebug(Options);
+        return DescribePortalPreviewLootOptionsForRewardDebug(Options);
     }
 
     FText ResolvePortalRewardLabel(const FLootOption& Option)
@@ -300,7 +300,7 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
         TEXT("[StoryRewardDebug] PortalPreviewWidget SetPreviewInfo Room=%s Level=%s RewardOptions=%s LootIconBox=%s LootSummaryText=%s"),
         *Info.RoomDisplayName.ToString(),
         *Info.RoomLevelName.ToString(),
-        *DescribeLootOptionsForRewardDebug(Info.RewardPreviewOptions),
+        *DescribePortalPreviewLootOptionsForRewardDebug(Info.RewardPreviewOptions),
         *GetNameSafe(LootIconBox),
         *GetNameSafe(LootSummaryText));
 

@@ -35,12 +35,12 @@
 
 namespace
 {
-FString DescribeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+FString DescribeGameInstanceEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
 {
 	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
 }
 
-FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+FString DescribeGameInstanceLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
 {
 	if (Options.IsEmpty())
 	{
@@ -55,7 +55,7 @@ FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
 		Parts.Add(FString::Printf(
 			TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
 			Index,
-			*DescribeEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+			*DescribeGameInstanceEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
 			Option.Amount,
 			*Option.DisplayName.ToString(),
 			*GetNameSafe(Option.RuneAsset.Get()),
@@ -864,7 +864,7 @@ void UYogGameInstanceBase::SetPendingRoomRewardOptionsOverride(const TArray<FLoo
 	bHasPendingRoomRewardOptionsOverride = true;
 
 	UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GI SetPendingRoomRewardOptionsOverride Options=%s"),
-		*DescribeLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
+		*DescribeGameInstanceLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
 	RefreshOpenPortalRewardPreviews();
 }
 
@@ -873,7 +873,7 @@ void UYogGameInstanceBase::ClearPendingRoomRewardOptionsOverride()
 	if (bHasPendingRoomRewardOptionsOverride || !PendingRoomRewardOptionsOverride.IsEmpty())
 	{
 		UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GI ClearPendingRoomRewardOptionsOverride OldOptions=%s"),
-			*DescribeLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
+			*DescribeGameInstanceLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
 	}
 
 	bHasPendingRoomRewardOptionsOverride = false;
@@ -892,7 +892,7 @@ bool UYogGameInstanceBase::ConsumePendingRoomRewardOptionsOverride(TArray<FLootO
 
 	OutOptions = PendingRoomRewardOptionsOverride;
 	UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GI ConsumePendingRoomRewardOptionsOverride consuming Options=%s"),
-		*DescribeLootOptionsForRewardDebug(OutOptions));
+		*DescribeGameInstanceLootOptionsForRewardDebug(OutOptions));
 	ClearPendingRoomRewardOptionsOverride();
 	return true;
 }
@@ -917,7 +917,7 @@ void UYogGameInstanceBase::RefreshOpenPortalRewardPreviews()
 		UE_LOG(LogTemp, Log,
 			TEXT("[StoryRewardDebug] GI RefreshOpenPortalRewardPreviews skipped: World is null Pending=%d Options=%s"),
 			bHasPendingRoomRewardOptionsOverride ? 1 : 0,
-			*DescribeLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
+			*DescribeGameInstanceLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
 		return;
 	}
 
@@ -946,7 +946,7 @@ void UYogGameInstanceBase::RefreshOpenPortalRewardPreviews()
 		bHasPendingRoomRewardOptionsOverride ? 1 : 0,
 		PortalActors.Num(),
 		RefreshedCount,
-		*DescribeLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
+		*DescribeGameInstanceLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
 }
 
 void UYogGameInstanceBase::SetCampaignOverride(UCampaignDataAsset* InCampaignData)

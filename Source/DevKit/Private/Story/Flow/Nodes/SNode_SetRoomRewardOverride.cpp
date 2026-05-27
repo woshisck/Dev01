@@ -7,12 +7,12 @@
 
 namespace
 {
-FString DescribeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+FString DescribeRewardOverrideNodeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
 {
 	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
 }
 
-FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+FString DescribeRewardOverrideNodeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
 {
 	if (Options.IsEmpty())
 	{
@@ -27,7 +27,7 @@ FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
 		Parts.Add(FString::Printf(
 			TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
 			Index,
-			*DescribeEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+			*DescribeRewardOverrideNodeEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
 			Option.Amount,
 			*Option.DisplayName.ToString(),
 			*GetNameSafe(Option.RuneAsset.Get()),
@@ -62,9 +62,9 @@ void USNode_SetRoomRewardOverride::ExecuteInput(const FName& PinName)
 		*GetNameSafe(World),
 		*GetNameSafe(GM),
 		*GetNameSafe(GI),
-		*DescribeEnumValueForRewardDebug(StaticEnum<EStoryRewardOverrideTarget>(), static_cast<int64>(OverrideTarget)),
+		*DescribeRewardOverrideNodeEnumValueForRewardDebug(StaticEnum<EStoryRewardOverrideTarget>(), static_cast<int64>(OverrideTarget)),
 		bClearOverride ? 1 : 0,
-		*DescribeLootOptionsForRewardDebug(LootOptions));
+		*DescribeRewardOverrideNodeLootOptionsForRewardDebug(LootOptions));
 
 	ApplyRewardOverride(GM, GI);
 
@@ -78,9 +78,9 @@ bool USNode_SetRoomRewardOverride::ApplyRewardOverride(AYogGameMode* GameMode, U
 		*GetName(),
 		*GetNameSafe(GameMode),
 		*GetNameSafe(GameInstance),
-		*DescribeEnumValueForRewardDebug(StaticEnum<EStoryRewardOverrideTarget>(), static_cast<int64>(OverrideTarget)),
+		*DescribeRewardOverrideNodeEnumValueForRewardDebug(StaticEnum<EStoryRewardOverrideTarget>(), static_cast<int64>(OverrideTarget)),
 		bClearOverride ? 1 : 0,
-		*DescribeLootOptionsForRewardDebug(LootOptions));
+		*DescribeRewardOverrideNodeLootOptionsForRewardDebug(LootOptions));
 
 	if (!bClearOverride && LootOptions.IsEmpty())
 	{

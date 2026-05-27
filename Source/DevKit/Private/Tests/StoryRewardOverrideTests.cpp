@@ -168,6 +168,52 @@ bool FGameModeAppliesPendingRoomRewardOverrideTest::RunTest(const FString& Param
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameModeKeepsPendingRoomRewardOverrideForHubRoomTest,
+	"DevKit.StoryRewardOverride.GameModeKeepsPendingOverrideForHubRoom",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGameModeKeepsPendingRoomRewardOverrideForHubRoomTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Test world exists"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	AYogGameMode* GM = World->SpawnActor<AYogGameMode>();
+	UYogGameInstanceBase* GI = NewObject<UYogGameInstanceBase>();
+	URoomDataAsset* HubRoom = NewObject<URoomDataAsset>();
+	TestNotNull(TEXT("Game mode actor spawned"), GM);
+	TestNotNull(TEXT("Game instance exists"), GI);
+	TestNotNull(TEXT("Hub room exists"), HubRoom);
+	if (!GM || !GI || !HubRoom)
+	{
+		return false;
+	}
+
+	HubRoom->bIsHubRoom = true;
+	GI->SetPendingRoomRewardOptionsOverride({ StoryRewardOverrideTests::MakeGoldOption(50) });
+
+	TestFalse(TEXT("Hub room does not consume the next-room reward override"),
+		GM->ApplyPendingRoomRewardOptionsOverrideForRoom(GI, HubRoom));
+	TestFalse(TEXT("Hub room does not receive a current-room reward override"),
+		GM->HasRoomRewardOptionsOverride());
+
+	TArray<FLootOption> RemainingOptions;
+	TestTrue(TEXT("Pending reward override remains available for portal preview and next room"),
+		GI->ConsumePendingRoomRewardOptionsOverride(RemainingOptions));
+	TestEqual(TEXT("Remaining option count"), RemainingOptions.Num(), 1);
+	if (RemainingOptions.Num() == 1)
+	{
+		TestEqual(TEXT("Remaining pending reward is gold"), RemainingOptions[0].LootType, ELootType::Gold);
+		TestEqual(TEXT("Remaining pending gold amount"), RemainingOptions[0].Amount, 50);
+	}
+
+	GM->Destroy();
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPortalRewardPreviewPrefersPendingOverrideTest,
 	"DevKit.StoryRewardOverride.PortalPreviewPrefersPendingOverride",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
