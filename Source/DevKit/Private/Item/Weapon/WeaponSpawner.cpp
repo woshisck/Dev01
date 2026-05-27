@@ -18,6 +18,7 @@
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "YogBlueprintFunctionLibrary.h"
+#include "SaveGame/YogSaveSubsystem.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
@@ -84,10 +85,35 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 	WeaponInfoWidgetComp->SetVisibility(false);
 }
 
+bool AWeaponSpawner::ShouldEnableForFirstRunTutorialState(
+	EWeaponSpawnerTutorialVisibility Visibility,
+	bool bIsFirstRunTutorialActive)
+{
+	switch (Visibility)
+	{
+	case EWeaponSpawnerTutorialVisibility::FirstRunTutorialOnly:
+		return bIsFirstRunTutorialActive;
+	case EWeaponSpawnerTutorialVisibility::NonTutorialOnly:
+		return !bIsFirstRunTutorialActive;
+	case EWeaponSpawnerTutorialVisibility::Always:
+	default:
+		return true;
+	}
+}
+
 // Called when the game starts or when spawned
 void AWeaponSpawner::BeginPlay()
 {
 	Super::BeginPlay();
+
+	bEnabledByFirstRunTutorialState = ShouldEnableForFirstRunTutorialState(
+		TutorialVisibility,
+		ResolveFirstRunTutorialActive());
+	ApplyTutorialVisibilityEnabled(bEnabledByFirstRunTutorialState);
+	if (!bEnabledByFirstRunTutorialState)
+	{
+		return;
+	}
 
 	// BP 里未赋值时自动按路径兜底，防止 merge 丢失引用
 	if (!WeaponFloatWidgetClass)
@@ -129,6 +155,10 @@ void AWeaponSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void AWeaponSpawner::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	if (!bEnabledByFirstRunTutorialState)
+	{
+		return;
+	}
 
 	// 旋转
 	WeaponMesh->AddRelativeRotation(FRotator(
@@ -225,6 +255,10 @@ void AWeaponSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AAct
 
 void AWeaponSpawner::OnPlayerEnterRange(APlayerCharacterBase* Player)
 {
+	if (!bEnabledByFirstRunTutorialState)
+	{
+		return;
+	}
 	if (!Player || !WeaponDefinition) return;
 
 	Player->PendingWeaponSpawner = this;
@@ -235,6 +269,10 @@ void AWeaponSpawner::OnPlayerEnterRange(APlayerCharacterBase* Player)
 
 void AWeaponSpawner::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 {
+	if (!bEnabledByFirstRunTutorialState)
+	{
+		return;
+	}
 	if (!Player) return;
 
 	if (Player->PendingWeaponSpawner == this)
@@ -308,6 +346,10 @@ void AWeaponSpawner::ResetToAvailable()
 
 void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 {
+	if (!bEnabledByFirstRunTutorialState)
+	{
+		return;
+	}
 	if (!Player || !WeaponDefinition) return;
 
 	// ── 预览模式：仅弹 LevelInfoPopup，不执行拾取 ──────────────────
@@ -555,6 +597,52 @@ void AWeaponSpawner::TriggerPickupStoryEncounter(APlayerCharacterBase* Player)
 			*GetNameSafe(PickupEncounterPoint),
 			*GetNameSafe(PickupEncounterGraph),
 			*PickupEncounterNodeId.ToString());
+	}
+}
+
+
+bool AWeaponSpawner::ResolveFirstRunTutorialActive() const
+{
+	if (const UGameInstance* GI = GetGameInstance())
+	{
+		if (const UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>())
+		{
+			return SaveSys->IsFirstRunTutorialActive();
+		}
+	}
+
+	return false;
+}
+
+void AWeaponSpawner::ApplyTutorialVisibilityEnabled(bool bEnabled)
+{
+	SetActorHiddenInGame(!bEnabled);
+	SetActorTickEnabled(bEnabled);
+	SetActorEnableCollision(bEnabled);
+
+	if (WeaponMesh)
+	{
+		WeaponMesh->SetVisibility(bEnabled, true);
+		WeaponMesh->SetHiddenInGame(!bEnabled, true);
+		WeaponMesh->SetCollisionEnabled(bEnabled ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
+	}
+
+	if (WeaponInfoWidgetComp)
+	{
+		WeaponInfoWidgetComp->SetVisibility(false);
+		WeaponInfoWidgetComp->SetHiddenInGame(!bEnabled);
+	}
+
+	if (PlayerInteractVolume)
+	{
+		PlayerInteractVolume->SetGenerateOverlapEvents(bEnabled);
+		PlayerInteractVolume->SetCollisionEnabled(bEnabled ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+	}
+
+	if (BlockVolume)
+	{
+		BlockVolume->SetGenerateOverlapEvents(false);
+		BlockVolume->SetCollisionEnabled(bEnabled ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
 	}
 }
 

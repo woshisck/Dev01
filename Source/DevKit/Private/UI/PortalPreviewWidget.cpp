@@ -88,7 +88,7 @@ namespace
 
     UTexture2D* ResolvePortalRewardIcon(const FLootOption& Option)
     {
-        if (Option.Icon)
+        if (Option.LootType != ELootType::Rune && Option.Icon)
         {
             return Option.Icon;
         }
@@ -259,6 +259,33 @@ namespace
     }
 }
 
+TArray<FLootOption> UPortalPreviewWidget::BuildAggregatedRewardPreviewOptions(const TArray<FLootOption>& Options)
+{
+    TArray<FLootOption> Aggregated;
+    Aggregated.Reserve(Options.Num());
+
+    bool bAddedCardPreview = false;
+    for (const FLootOption& Option : Options)
+    {
+        if (Option.LootType == ELootType::Rune)
+        {
+            if (!bAddedCardPreview)
+            {
+                FLootOption CardPreview;
+                CardPreview.LootType = ELootType::Rune;
+                CardPreview.DisplayName = FText::FromString(TEXT("\u5361\u724C"));
+                Aggregated.Add(CardPreview);
+                bAddedCardPreview = true;
+            }
+            continue;
+        }
+
+        Aggregated.Add(Option);
+    }
+
+    return Aggregated;
+}
+
 void UPortalPreviewWidget::NativeConstruct()
 {
     Super::NativeConstruct();
@@ -403,10 +430,13 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
         }
     }
 
+    const TArray<FLootOption> AggregatedRewardPreviewOptions =
+        BuildAggregatedRewardPreviewOptions(Info.RewardPreviewOptions);
+
     if (LootIconBox)
     {
         LootIconBox->ClearChildren();
-        if (Info.RewardPreviewOptions.IsEmpty())
+        if (AggregatedRewardPreviewOptions.IsEmpty())
         {
             UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] PortalPreviewWidget reward options empty; showing material/unknown placeholder."));
             FLootOption UnknownReward;
@@ -415,7 +445,7 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
         }
         else
         {
-            for (const FLootOption& Option : Info.RewardPreviewOptions)
+            for (const FLootOption& Option : AggregatedRewardPreviewOptions)
             {
                 AddPortalRewardIcon(LootIconBox, Option);
             }
@@ -429,7 +459,7 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
     }
     else if (LootSummaryText)
     {
-        LootSummaryText->SetText(BuildPortalRewardFallbackText(Info.RewardPreviewOptions));
+        LootSummaryText->SetText(BuildPortalRewardFallbackText(AggregatedRewardPreviewOptions));
     }
 
     // 浮窗刚显示时默认隐藏交互提示，待 HUD 检测到 PendingPortal == this 再调 SetInteractHintVisible(true)

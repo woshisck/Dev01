@@ -31,6 +31,13 @@ class UWeaponDefinition;
 struct FGameplayTag;
 struct FHitResult;
 
+UENUM(BlueprintType)
+enum class EWeaponSpawnerTutorialVisibility : uint8
+{
+	Always UMETA(DisplayName = "Always"),
+	FirstRunTutorialOnly UMETA(DisplayName = "First Run Tutorial Only"),
+	NonTutorialOnly UMETA(DisplayName = "Non Tutorial Only"),
+};
 
 
 
@@ -53,12 +60,22 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	void OnConstruction(const FTransform& Transform) override;
 
+	static bool ShouldEnableForFirstRunTutorialState(
+		EWeaponSpawnerTutorialVisibility Visibility,
+		bool bIsFirstRunTutorialActive);
+
+	UFUNCTION(BlueprintPure, Category = "Story Encounter|First Run Tutorial")
+	bool IsEnabledByFirstRunTutorialState() const { return bEnabledByFirstRunTutorialState; }
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Definition")
 	TObjectPtr<UWeaponDefinition> WeaponDefinition;
 
 	//Delay between when the weapon is made available and when we check for a pawn standing in the spawner. Used to give the bIsWeaponAvailable OnRep time to fire and play FX.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Definition")
 	float CheckExistingOverlapDelay;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Encounter|First Run Tutorial")
+	EWeaponSpawnerTutorialVisibility TutorialVisibility = EWeaponSpawnerTutorialVisibility::Always;
 
 	// --- IPlayerInteraction ---
 	virtual void OnPlayerBeginOverlap(APlayerCharacterBase* Player) override;
@@ -159,6 +176,8 @@ public:
 
 private:
 
+	bool bEnabledByFirstRunTutorialState = true;
+
 	// 朝向检测：玩家在范围内时每帧判断是否应显示浮窗
 	bool bPlayerInRange       = false;
 	bool bPickedUp            = false;  // 拾取后浮窗永久隐藏
@@ -170,6 +189,8 @@ private:
 
 	void ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data);
 	void TriggerPickupStoryEncounter(APlayerCharacterBase* Player);
+	void ApplyTutorialVisibilityEnabled(bool bEnabled);
+	bool ResolveFirstRunTutorialActive() const;
 
 	float BobTimer = 0.f;
 	FVector BaseMeshOffset = FVector::ZeroVector;
