@@ -4,6 +4,7 @@
 #include "GameplayTagContainer.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "Story/StoryRuleTypes.h"
+#include "Story/StoryRewardOverrideTypes.h"
 #include "Story/Flow/StoryFlowAsset.h"
 #include "UI/GameDialogWidget.h"
 #include "StoryEncounterTypes.generated.h"
@@ -168,6 +169,9 @@ struct DEVKIT_API FStoryEncounterAction
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Override")
 	bool bClearRoomRewardOverride = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Override")
+	EStoryRewardOverrideTarget RewardOverrideTarget = EStoryRewardOverrideTarget::CurrentRoom;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Portal Override")
 	int32 ForcedPortalIndex = 0;

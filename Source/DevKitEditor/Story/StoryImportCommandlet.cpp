@@ -18,6 +18,7 @@
 #include "Story/Encounter/StoryEncounterGraphEdge.h"
 #include "Story/Encounter/StoryEncounterGraphNode.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
+#include "Story/Flow/StoryFlowAsset.h"
 #include "UI/GameDialogWidget.h"
 #include "Engine/Texture2D.h"
 #include "UObject/Package.h"
@@ -253,6 +254,12 @@ EStoryEncounterActionKind ParseActionKind(const FString& Value)
 	return EStoryEncounterActionKind::WeakHint;
 }
 
+EStoryRewardOverrideTarget ParseRewardOverrideTarget(const FString& Value)
+{
+	if (Value.Equals(TEXT("NextRoom"), ESearchCase::IgnoreCase)) return EStoryRewardOverrideTarget::NextRoom;
+	return EStoryRewardOverrideTarget::CurrentRoom;
+}
+
 FStoryEncounterCondition ParseCondition(const TSharedPtr<FJsonObject>& Object)
 {
 	FStoryEncounterCondition Condition;
@@ -339,6 +346,7 @@ FStoryEncounterAction ParseAction(const TSharedPtr<FJsonObject>& Object)
 	Action.bSpawnRewardOnTargetDeath = GetBool(Object, TEXT("spawnRewardOnTargetDeath"), Action.bSpawnRewardOnTargetDeath);
 	Action.bRewardPickupAllowedOutsideArrangement = GetBool(Object, TEXT("rewardPickupAllowedOutsideArrangement"), Action.bRewardPickupAllowedOutsideArrangement);
 	Action.bClearRoomRewardOverride = GetBool(Object, TEXT("clearRoomRewardOverride"), Action.bClearRoomRewardOverride);
+	Action.RewardOverrideTarget = ParseRewardOverrideTarget(GetString(Object, TEXT("rewardOverrideTarget")));
 	Action.ForcedPortalIndex = GetInt(Object, TEXT("forcedPortalIndex"), Action.ForcedPortalIndex);
 	Action.bClearPortalOverride = GetBool(Object, TEXT("clearPortalOverride"), Action.bClearPortalOverride);
 	const FString LevelFlowPath = GetString(Object, TEXT("levelFlow"));
@@ -431,6 +439,21 @@ UStoryEncounterPointDA* WritePoint(
 	Point->PlacementLevel = FName(*GetString(PointObject, TEXT("placementLevel")));
 	Point->PlacementName = FName(*GetString(PointObject, TEXT("placementName")));
 	Point->EditorPosition = GetGraphPosition(PointObject, PointIndex);
+	const FString NodeEventFlowPath = GetString(PointObject, TEXT("nodeEventFlow"));
+	if (!NodeEventFlowPath.IsEmpty())
+	{
+		Point->NodeEventFlow = Cast<UStoryFlowAsset>(StaticLoadObject(
+			UStoryFlowAsset::StaticClass(),
+			nullptr,
+			*ToLoadableObjectPath(NodeEventFlowPath)));
+		if (!Point->NodeEventFlow)
+		{
+			ReportLines.Add(FString::Printf(
+				TEXT("- Warning: point `%s` could not load nodeEventFlow `%s`."),
+				*PackagePath,
+				*NodeEventFlowPath));
+		}
+	}
 	Point->Actions.Reset();
 	for (const TSharedPtr<FJsonValue>& ActionValue : GetArray(PointObject, TEXT("actions")))
 	{

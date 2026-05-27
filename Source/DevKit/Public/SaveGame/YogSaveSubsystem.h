@@ -45,6 +45,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SaveGame|FirstRunTutorial")
 	bool IsFirstRunTutorialActive() const;
 
+	UFUNCTION(BlueprintPure, Category = "SaveGame|FirstRunTutorial")
+	bool IsFirstRunTutorialCompleted() const;
+
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|FirstRunTutorial")
 	void MarkFirstRunTutorialCompleted();
 

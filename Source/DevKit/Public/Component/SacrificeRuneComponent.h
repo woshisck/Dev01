@@ -97,6 +97,11 @@ public:
 
 	bool HasPassive(ESacrificeRunePassiveType Type) const;
 
+#if WITH_DEV_AUTOMATION_TESTS
+	static bool FlowHasOffensiveSpawnNodeForTest(const UFlowAsset* FlowAsset);
+	static FCombatCardInstance ResolveShadowReplaySourceCardForTest(const FCombatCardResolveResult& Result);
+#endif
+
 private:
 	struct FShadowMarkState
 	{
@@ -141,7 +146,8 @@ private:
 	bool IsValidEnemyTarget(AActor* Actor) const;
 	void ApplyInstantPureDamage(AActor* Target, float Damage, FName DamageLogType, bool bSuppressFeedback);
 	bool IsPlayerInAttackState() const;
-	bool FlowHasOffensiveSpawnNode(const UFlowAsset* FlowAsset) const;
+	static bool FlowHasOffensiveSpawnNode(const UFlowAsset* FlowAsset);
+	static FCombatCardInstance ResolveShadowReplaySourceCard(const FCombatCardResolveResult& Result);
 
 	UFUNCTION()
 	void HandlePlayerDamageDealt(UYogAbilitySystemComponent* TargetASC, float Damage);

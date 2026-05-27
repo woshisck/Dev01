@@ -35,6 +35,41 @@ bool FPortalPreviewRestoresLegacyAnchorPositionTest::RunTest(const FString& Para
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPortalPreviewAlignsBesideDoorProjectionTest,
+	"DevKit.Portal.PreviewAlignsBesideDoorProjection",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPortalPreviewAlignsBesideDoorProjectionTest::RunTest(const FString& Parameters)
+{
+	const FVector2D ViewportSize(1920.f, 1080.f);
+
+	const FVector2D RightDoorAlignment = AYogHUD::ResolvePortalPreviewAlignment(
+		FVector2D(1700.f, 540.f),
+		ViewportSize);
+	TestEqual(TEXT("Door on the right side anchors the preview by its right edge"),
+		RightDoorAlignment.X,
+		1.0,
+		0.001);
+	TestEqual(TEXT("Preview stays vertically bottom-aligned near the door"),
+		RightDoorAlignment.Y,
+		1.0,
+		0.001);
+
+	const FVector2D LeftDoorAlignment = AYogHUD::ResolvePortalPreviewAlignment(
+		FVector2D(220.f, 540.f),
+		ViewportSize);
+	TestEqual(TEXT("Door on the left side anchors the preview by its left edge"),
+		LeftDoorAlignment.X,
+		0.0,
+		0.001);
+	TestEqual(TEXT("Preview stays vertically bottom-aligned near the door"),
+		LeftDoorAlignment.Y,
+		1.0,
+		0.001);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPortalPreviewUsesFixedRewardTypesTest,
 	"DevKit.Portal.PreviewUsesFixedRewardTypes",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

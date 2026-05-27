@@ -101,6 +101,10 @@ public:
 		float SideOffset,
 		float Margin);
 
+	static FVector2D ResolvePortalPreviewAlignment(
+		const FVector2D& ScreenPosition,
+		const FVector2D& ViewportSize);
+
 	// ─────────────────────────────────────────
 	//  暂停遮罩后处理
 	// ─────────────────────────────────────────
@@ -460,6 +464,7 @@ private:
 
 	TArray<TWeakObjectPtr<APortal>> CachedOpenPortals;
 	TWeakObjectPtr<APortal>         CurrentPreviewTarget;
+	int32 CurrentPreviewRevision = INDEX_NONE;
 	bool bShowPortalGuidance = false;
 
 	// === Portal 进入过场 Blackout（独立 PP Volume，不与 Pause/LevelEnd 互扰） ===
