@@ -52,6 +52,7 @@
 #include "Components/OverlaySlot.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/Texture2D.h"
 #include "CommonActivatableWidget.h"
 #include "GameFramework/Pawn.h"
 
@@ -77,6 +78,37 @@ namespace
 		{
 			UIManager->SetWidgetClassOverride(ScreenId, WidgetClass);
 		}
+	}
+
+	FString DescribeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+	{
+		return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
+	}
+
+	FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+	{
+		if (Options.IsEmpty())
+		{
+			return TEXT("Count=0 []");
+		}
+
+		TArray<FString> Parts;
+		Parts.Reserve(Options.Num());
+		for (int32 Index = 0; Index < Options.Num(); ++Index)
+		{
+			const FLootOption& Option = Options[Index];
+			Parts.Add(FString::Printf(
+				TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
+				Index,
+				*DescribeEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+				Option.Amount,
+				*Option.DisplayName.ToString(),
+				*GetNameSafe(Option.RuneAsset.Get()),
+				*GetNameSafe(Option.Icon.Get()),
+				*Option.MetaCurrencyTag.ToString()));
+		}
+
+		return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
 	}
 }
 
@@ -1657,6 +1689,13 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 	{
 		CurrentPreviewTarget = Target;
 		CurrentPreviewRevision = TargetPreviewRevision;
+		UE_LOG(LogTemp, Log,
+			TEXT("[StoryRewardDebug] HUD SetPortalPreviewInfo Target=%s PortalIndex=%d Revision=%d PendingPortal=%s RewardOptions=%s"),
+			*GetNameSafe(Target),
+			Target->Index,
+			TargetPreviewRevision,
+			*GetNameSafe(Player->PendingPortal),
+			*DescribeLootOptionsForRewardDebug(Target->CachedPreviewInfo.RewardPreviewOptions));
 		PortalPreviewWidget->SetPreviewInfo(Target->CachedPreviewInfo);
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}

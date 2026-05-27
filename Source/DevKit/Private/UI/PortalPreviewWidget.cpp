@@ -100,6 +100,44 @@ namespace
         }
     }
 
+    FString DescribeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+    {
+        return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
+    }
+
+    FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+    {
+        if (Options.IsEmpty())
+        {
+            return TEXT("Count=0 []");
+        }
+
+        TArray<FString> Parts;
+        Parts.Reserve(Options.Num());
+        for (int32 Index = 0; Index < Options.Num(); ++Index)
+        {
+            const FLootOption& Option = Options[Index];
+            Parts.Add(FString::Printf(
+                TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
+                Index,
+                *DescribeEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+                Option.Amount,
+                *Option.DisplayName.ToString(),
+                *GetNameSafe(Option.RuneAsset.Get()),
+                *GetNameSafe(Option.Icon.Get()),
+                *Option.MetaCurrencyTag.ToString()));
+        }
+
+        return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
+    }
+
+    FString DescribeLootOptionForRewardDebug(const FLootOption& Option)
+    {
+        TArray<FLootOption> Options;
+        Options.Add(Option);
+        return DescribeLootOptionsForRewardDebug(Options);
+    }
+
     FText ResolvePortalRewardLabel(const FLootOption& Option)
     {
         if (!Option.DisplayName.IsEmptyOrWhitespace())
@@ -132,7 +170,13 @@ namespace
         SlotBox->SetToolTipText(ResolvePortalRewardLabel(Option));
 
         UImage* Icon = NewObject<UImage>(SlotBox);
-        if (UTexture2D* Texture = ResolvePortalRewardIcon(Option))
+        UTexture2D* Texture = ResolvePortalRewardIcon(Option);
+        UE_LOG(LogTemp, Log,
+            TEXT("[StoryRewardDebug] PortalPreviewWidget AddPortalRewardIcon IconBox=%s Option=%s ResolvedTexture=%s"),
+            *GetNameSafe(IconBox),
+            *DescribeLootOptionForRewardDebug(Option),
+            *GetNameSafe(Texture));
+        if (Texture)
         {
             Icon->SetBrushFromTexture(Texture, true);
         }
@@ -252,6 +296,14 @@ void UPortalPreviewWidget::RefreshHintText(ECommonInputType /*NewInputType*/)
 
 void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
 {
+    UE_LOG(LogTemp, Log,
+        TEXT("[StoryRewardDebug] PortalPreviewWidget SetPreviewInfo Room=%s Level=%s RewardOptions=%s LootIconBox=%s LootSummaryText=%s"),
+        *Info.RoomDisplayName.ToString(),
+        *Info.RoomLevelName.ToString(),
+        *DescribeLootOptionsForRewardDebug(Info.RewardPreviewOptions),
+        *GetNameSafe(LootIconBox),
+        *GetNameSafe(LootSummaryText));
+
     // 房间名
     if (RoomNameText)
     {
@@ -351,6 +403,7 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
         LootIconBox->ClearChildren();
         if (Info.RewardPreviewOptions.IsEmpty())
         {
+            UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] PortalPreviewWidget reward options empty; showing material/unknown placeholder."));
             FLootOption UnknownReward;
             UnknownReward.LootType = ELootType::Material;
             AddPortalRewardIcon(LootIconBox, UnknownReward);

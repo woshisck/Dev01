@@ -8,6 +8,7 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "Engine/GameInstance.h"
+#include "Engine/Texture2D.h"
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "Data/RoomDataAsset.h"
@@ -36,6 +37,37 @@ namespace
 		Option.LootType = LootType;
 		Option.DisplayName = GetPortalRewardTypeDisplayName(LootType);
 		return Option;
+	}
+
+	FString DescribeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+	{
+		return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
+	}
+
+	FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+	{
+		if (Options.IsEmpty())
+		{
+			return TEXT("Count=0 []");
+		}
+
+		TArray<FString> Parts;
+		Parts.Reserve(Options.Num());
+		for (int32 Index = 0; Index < Options.Num(); ++Index)
+		{
+			const FLootOption& Option = Options[Index];
+			Parts.Add(FString::Printf(
+				TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
+				Index,
+				*DescribeEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+				Option.Amount,
+				*Option.DisplayName.ToString(),
+				*GetNameSafe(Option.RuneAsset.Get()),
+				*GetNameSafe(Option.Icon.Get()),
+				*Option.MetaCurrencyTag.ToString()));
+		}
+
+		return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
 	}
 
 	void AddPortalRewardTypePreviewOption(
@@ -125,6 +157,15 @@ void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 	RefreshPreviewInfo();
 	EnablePortal();
 
+	UE_LOG(LogTemp, Log,
+		TEXT("[StoryRewardDebug] Portal Open Portal=%s Index=%d SelectedLevel=%s SelectedRoom=%s PreviewRevision=%d CachedRewardOptions=%s"),
+		*GetNameSafe(this),
+		Index,
+		*SelectedLevel.ToString(),
+		*GetNameSafe(SelectedRoom),
+		PreviewRevision,
+		*DescribeLootOptionsForRewardDebug(CachedPreviewInfo.RewardPreviewOptions));
+
 	// 调试：列出每个 PreRolled Buff 的资产名 + RuneName，定位 RuneName 漏填
 	for (int32 i = 0; i < PreRolledBuffs.Num(); ++i)
 	{
@@ -144,10 +185,24 @@ TArray<FLootOption> APortal::BuildRewardPreviewOptionsForRoom(
 	TArray<FLootOption> PendingOptions;
 	if (GameInstance && GameInstance->GetPendingRoomRewardOptionsOverride(PendingOptions))
 	{
+		UE_LOG(LogTemp, Log,
+			TEXT("[StoryRewardDebug] Portal BuildRewardPreviewOptionsForRoom uses pending override Room=%s GI=%s Options=%s"),
+			*GetNameSafe(Room),
+			*GetNameSafe(GameInstance),
+			*DescribeLootOptionsForRewardDebug(PendingOptions));
 		return PendingOptions;
 	}
 
-	return BuildPortalRewardPreviewOptions(Room);
+	TArray<FLootOption> RoomOptions = BuildPortalRewardPreviewOptions(Room);
+	UE_LOG(LogTemp, Log,
+		TEXT("[StoryRewardDebug] Portal BuildRewardPreviewOptionsForRoom uses RoomData Room=%s GI=%s UseFixed=%d FixedCount=%d LootPoolCount=%d Options=%s"),
+		*GetNameSafe(Room),
+		*GetNameSafe(GameInstance),
+		(Room && Room->bUseFixedRewardOptions) ? 1 : 0,
+		Room ? Room->FixedRewardOptions.Num() : 0,
+		Room ? Room->LootPool.Num() : 0,
+		*DescribeLootOptionsForRewardDebug(RoomOptions));
+	return RoomOptions;
 }
 
 void APortal::BuildPreviewInfo()
@@ -193,6 +248,14 @@ void APortal::RefreshPreviewInfo()
 {
 	BuildPreviewInfo();
 	++PreviewRevision;
+	UE_LOG(LogTemp, Log,
+		TEXT("[StoryRewardDebug] Portal RefreshPreviewInfo Portal=%s Index=%d Revision=%d SelectedLevel=%s SelectedRoom=%s RewardOptions=%s"),
+		*GetNameSafe(this),
+		Index,
+		PreviewRevision,
+		*SelectedLevel.ToString(),
+		*GetNameSafe(SelectedRoom),
+		*DescribeLootOptionsForRewardDebug(CachedPreviewInfo.RewardPreviewOptions));
 }
 
 // =========================================================

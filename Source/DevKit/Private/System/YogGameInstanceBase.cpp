@@ -33,6 +33,40 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 
+namespace
+{
+FString DescribeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+{
+	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
+}
+
+FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+{
+	if (Options.IsEmpty())
+	{
+		return TEXT("Count=0 []");
+	}
+
+	TArray<FString> Parts;
+	Parts.Reserve(Options.Num());
+	for (int32 Index = 0; Index < Options.Num(); ++Index)
+	{
+		const FLootOption& Option = Options[Index];
+		Parts.Add(FString::Printf(
+			TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
+			Index,
+			*DescribeEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+			Option.Amount,
+			*Option.DisplayName.ToString(),
+			*GetNameSafe(Option.RuneAsset.Get()),
+			*GetNameSafe(Option.Icon.Get()),
+			*Option.MetaCurrencyTag.ToString()));
+	}
+
+	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
+}
+}
+
 UYogGameInstanceBase::UYogGameInstanceBase()
 	: SaveSlot(TEXT("SaveGame"))
 	, SaveUserIndex(0)
@@ -829,8 +863,8 @@ void UYogGameInstanceBase::SetPendingRoomRewardOptionsOverride(const TArray<FLoo
 	PendingRoomRewardOptionsOverride = InOptions;
 	bHasPendingRoomRewardOptionsOverride = true;
 
-	UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Pending room reward options override set. Count=%d"),
-		PendingRoomRewardOptionsOverride.Num());
+	UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GI SetPendingRoomRewardOptionsOverride Options=%s"),
+		*DescribeLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
 	RefreshOpenPortalRewardPreviews();
 }
 
@@ -838,7 +872,8 @@ void UYogGameInstanceBase::ClearPendingRoomRewardOptionsOverride()
 {
 	if (bHasPendingRoomRewardOptionsOverride || !PendingRoomRewardOptionsOverride.IsEmpty())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Pending room reward options override cleared."));
+		UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GI ClearPendingRoomRewardOptionsOverride OldOptions=%s"),
+			*DescribeLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
 	}
 
 	bHasPendingRoomRewardOptionsOverride = false;
@@ -851,10 +886,13 @@ bool UYogGameInstanceBase::ConsumePendingRoomRewardOptionsOverride(TArray<FLootO
 	if (!bHasPendingRoomRewardOptionsOverride)
 	{
 		OutOptions.Reset();
+		UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GI ConsumePendingRoomRewardOptionsOverride no pending override."));
 		return false;
 	}
 
 	OutOptions = PendingRoomRewardOptionsOverride;
+	UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GI ConsumePendingRoomRewardOptionsOverride consuming Options=%s"),
+		*DescribeLootOptionsForRewardDebug(OutOptions));
 	ClearPendingRoomRewardOptionsOverride();
 	return true;
 }
@@ -876,19 +914,39 @@ void UYogGameInstanceBase::RefreshOpenPortalRewardPreviews()
 	UWorld* World = GetWorld();
 	if (!World)
 	{
+		UE_LOG(LogTemp, Log,
+			TEXT("[StoryRewardDebug] GI RefreshOpenPortalRewardPreviews skipped: World is null Pending=%d Options=%s"),
+			bHasPendingRoomRewardOptionsOverride ? 1 : 0,
+			*DescribeLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
 		return;
 	}
 
 	TArray<AActor*> PortalActors;
 	UGameplayStatics::GetAllActorsOfClass(World, APortal::StaticClass(), PortalActors);
+	int32 RefreshedCount = 0;
 	for (AActor* Actor : PortalActors)
 	{
 		APortal* Portal = Cast<APortal>(Actor);
 		if (Portal && Portal->bIsOpen)
 		{
+			++RefreshedCount;
+			UE_LOG(LogTemp, Log,
+				TEXT("[StoryRewardDebug] GI RefreshOpenPortalRewardPreviews refreshing Portal=%s Index=%d RevisionBefore=%d Pending=%d"),
+				*GetNameSafe(Portal),
+				Portal->Index,
+				Portal->GetPreviewRevision(),
+				bHasPendingRoomRewardOptionsOverride ? 1 : 0);
 			Portal->RefreshPreviewInfo();
 		}
 	}
+
+	UE_LOG(LogTemp, Log,
+		TEXT("[StoryRewardDebug] GI RefreshOpenPortalRewardPreviews World=%s Pending=%d PortalActors=%d OpenRefreshed=%d Options=%s"),
+		*GetNameSafe(World),
+		bHasPendingRoomRewardOptionsOverride ? 1 : 0,
+		PortalActors.Num(),
+		RefreshedCount,
+		*DescribeLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
 }
 
 void UYogGameInstanceBase::SetCampaignOverride(UCampaignDataAsset* InCampaignData)

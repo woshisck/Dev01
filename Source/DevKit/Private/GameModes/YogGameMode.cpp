@@ -70,6 +70,37 @@ FName ResolveRoomLevelNameForOpen(FName RequestedLevel, const URoomDataAsset* Ro
 
 	return RequestedLevel;
 }
+
+FString DescribeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+{
+	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
+}
+
+FString DescribeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+{
+	if (Options.IsEmpty())
+	{
+		return TEXT("Count=0 []");
+	}
+
+	TArray<FString> Parts;
+	Parts.Reserve(Options.Num());
+	for (int32 Index = 0; Index < Options.Num(); ++Index)
+	{
+		const FLootOption& Option = Options[Index];
+		Parts.Add(FString::Printf(
+			TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
+			Index,
+			*DescribeEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+			Option.Amount,
+			*Option.DisplayName.ToString(),
+			*GetNameSafe(Option.RuneAsset.Get()),
+			*GetNameSafe(Option.Icon.Get()),
+			*Option.MetaCurrencyTag.ToString()));
+	}
+
+	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
+}
 }
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
@@ -463,15 +494,16 @@ void AYogGameMode::SetRoomRewardOptionsOverride(const TArray<FLootOption>& InOpt
 	RoomRewardOptionsOverride = InOptions;
 	bHasRoomRewardOptionsOverride = true;
 
-	UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Room reward options override set. Count=%d"),
-		RoomRewardOptionsOverride.Num());
+	UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GM SetRoomRewardOptionsOverride Options=%s"),
+		*DescribeLootOptionsForRewardDebug(RoomRewardOptionsOverride));
 }
 
 void AYogGameMode::ClearRoomRewardOptionsOverride()
 {
 	if (bHasRoomRewardOptionsOverride || !RoomRewardOptionsOverride.IsEmpty())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Room reward options override cleared."));
+		UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GM ClearRoomRewardOptionsOverride OldOptions=%s"),
+			*DescribeLootOptionsForRewardDebug(RoomRewardOptionsOverride));
 	}
 
 	bHasRoomRewardOptionsOverride = false;
@@ -482,18 +514,20 @@ bool AYogGameMode::ApplyPendingRoomRewardOptionsOverride(UYogGameInstanceBase* G
 {
 	if (!GameInstance)
 	{
+		UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GM ApplyPendingRoomRewardOptionsOverride skipped: GameInstance is null."));
 		return false;
 	}
 
 	TArray<FLootOption> PendingOptions;
 	if (!GameInstance->ConsumePendingRoomRewardOptionsOverride(PendingOptions))
 	{
+		UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GM ApplyPendingRoomRewardOptionsOverride found no pending override."));
 		return false;
 	}
 
 	SetRoomRewardOptionsOverride(PendingOptions);
-	UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Applied pending room reward options override. Count=%d"),
-		PendingOptions.Num());
+	UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GM ApplyPendingRoomRewardOptionsOverride applied Options=%s"),
+		*DescribeLootOptionsForRewardDebug(PendingOptions));
 	return true;
 }
 
@@ -608,17 +642,32 @@ void AYogGameMode::EnterArrangementPhase()
 			if (ARewardPickup* Pickup = Cast<ARewardPickup>(Spawned))
 			{
 				TArray<FLootOption> Batch;
+				const TCHAR* RewardSource = TEXT("Generated");
 				if (bHasRoomRewardOptionsOverride)
 				{
 					Batch = RoomRewardOptionsOverride;
+					RewardSource = TEXT("RoomRewardOverride");
 				}
 				else
 				{
 					Batch = (ActiveRoomData && ActiveRoomData->bUseFixedRewardOptions)
 						? ActiveRoomData->FixedRewardOptions
 						: GenerateLootBatch(LootAssignedThisLevel);
+					RewardSource = (ActiveRoomData && ActiveRoomData->bUseFixedRewardOptions)
+						? TEXT("RoomDataFixedRewardOptions")
+						: TEXT("GenerateLootBatch");
 				}
+				UE_LOG(LogTemp, Log,
+					TEXT("[StoryRewardDebug] GM EnterArrangementPhase reward batch before limit Source=%s HasOverride=%d ActiveRoom=%s Options=%s"),
+					RewardSource,
+					bHasRoomRewardOptionsOverride ? 1 : 0,
+					*GetNameSafe(ActiveRoomData),
+					*DescribeLootOptionsForRewardDebug(Batch));
 				Batch = ApplyLootOptionLimit(Batch);
+				UE_LOG(LogTemp, Log,
+					TEXT("[StoryRewardDebug] GM EnterArrangementPhase assigning RewardPickup=%s Options=%s"),
+					*GetNameSafe(Pickup),
+					*DescribeLootOptionsForRewardDebug(Batch));
 				Pickup->AssignLoot(Batch);
 				UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 预分配 %d 个符文选项给 RewardPickup"), Batch.Num());
 			}
@@ -1359,7 +1408,13 @@ void AYogGameMode::StartLevelSpawning()
 	ClearForcedPortalOverride();
 
 	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
-	ApplyPendingRoomRewardOptionsOverride(GI);
+	const bool bAppliedPendingRewardOverride = ApplyPendingRoomRewardOptionsOverride(GI);
+	UE_LOG(LogTemp, Log,
+		TEXT("[StoryRewardDebug] GM StartLevelSpawning after pending reward consume Applied=%d HasCurrentOverride=%d CurrentOverrideOptions=%s GI=%s"),
+		bAppliedPendingRewardOverride ? 1 : 0,
+		bHasRoomRewardOptionsOverride ? 1 : 0,
+		*DescribeLootOptionsForRewardDebug(RoomRewardOptionsOverride),
+		*GetNameSafe(GI));
 
 	if (!Campaign)
 	{
@@ -2930,6 +2985,11 @@ TArray<FLootOption> AYogGameMode::ApplyLootOptionLimit(const TArray<FLootOption>
 TArray<FLootOption> AYogGameMode::GenerateLootBatch(TSet<URuneDataAsset*>& AlreadyOffered)
 {
 	TArray<FLootOption> Batch;
+	UE_LOG(LogTemp, Log,
+		TEXT("[StoryRewardDebug] GM GenerateLootBatch start ActiveRoom=%s Campaign=%s AlreadyOffered=%d"),
+		*GetNameSafe(ActiveRoomData),
+		*GetNameSafe(GetActiveCampaignData()),
+		AlreadyOffered.Num());
 
 	// 确定符文源池
 	const TArray<TObjectPtr<URuneDataAsset>>* SourcePool = nullptr;
@@ -2995,6 +3055,9 @@ TArray<FLootOption> AYogGameMode::GenerateLootBatch(TSet<URuneDataAsset*>& Alrea
 		AlreadyOffered.Add(Pool[i]); // 写入已分配集合，下次调用时排除
 	}
 
+	UE_LOG(LogTemp, Log,
+		TEXT("[StoryRewardDebug] GM GenerateLootBatch result Options=%s"),
+		*DescribeLootOptionsForRewardDebug(Batch));
 	return Batch;
 }
 
