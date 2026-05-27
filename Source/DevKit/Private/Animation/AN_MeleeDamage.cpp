@@ -5,6 +5,7 @@
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/Abilities/GA_PlayMontage.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "AbilitySystem/GameplayEffect/GE_MeleeAttackFrame.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/RuneDataAsset.h"
@@ -129,6 +130,12 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 	SwingEventData.Instigator = Character;
 	SwingEventData.EventTag   = TAG_Swing;
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, TAG_Swing, SwingEventData);
+
+	if (UYogAbilitySystemComponent* ASC = Character->GetASC())
+	{
+		const FActionData ActionData = BuildActionData();
+		ApplyAttackFrameGE(Character, MeshComp, ASC, ActionData);
+	}
 }
 
 FString UAN_MeleeDamage::GetNotifyName_Implementation() const
@@ -150,6 +157,63 @@ FActionData UAN_MeleeDamage::BuildActionData() const
 	Out.ActDmgReduce  = ActDmgReduce;
 	Out.hitboxTypes   = HitboxTypes;
 	return Out;
+}
+
+void UAN_MeleeDamage::ApplyAttackFrameGE(AYogCharacterBase* Character, USkeletalMeshComponent* MeshComp,
+	UAbilitySystemComponent* ASC, const FActionData& ActionData)
+{
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	Context.AddSourceObject(Character);
+	FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(
+		UGE_MeleeAttackFrame::StaticClass(), 1.f, Context);
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	static const FGameplayTag TAG_ActDamage    = FGameplayTag::RequestGameplayTag("Attribute.ActDamage");
+	static const FGameplayTag TAG_ActRange     = FGameplayTag::RequestGameplayTag("Attribute.ActRange");
+	static const FGameplayTag TAG_ActRes       = FGameplayTag::RequestGameplayTag("Attribute.ActResilience");
+	static const FGameplayTag TAG_ActDmgReduce = FGameplayTag::RequestGameplayTag("Attribute.ActDmgReduce");
+
+	SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDamage,    ActionData.ActDamage);
+	SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRange,     ActionData.ActRange);
+	SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRes,       ActionData.ActResilience);
+	SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDmgReduce, ActionData.ActDmgReduce);
+
+	const FActiveGameplayEffectHandle GEHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+	if (!GEHandle.IsValid())
+	{
+		return;
+	}
+
+	UAnimInstance* AnimInst = MeshComp->GetAnimInstance();
+	if (!AnimInst)
+	{
+		// No anim instance to bind end callback — remove immediately to avoid leaking the GE.
+		ASC->RemoveActiveGameplayEffect(GEHandle);
+		return;
+	}
+
+	// Bind a self-removing lambda so the GE is cleaned up when the montage ends.
+	// Capturing GEHandle by value ensures this specific effect is removed even if
+	// another AN_MeleeDamage fires (and replaces the map entry) before this one ends.
+	TSharedPtr<FDelegateHandle> DelegateHandlePtr = MakeShared<FDelegateHandle>();
+	TWeakObjectPtr<UAnimInstance> WeakAnimInst(AnimInst);
+	TWeakObjectPtr<UAbilitySystemComponent> WeakASC(ASC);
+
+	*DelegateHandlePtr = AnimInst->OnMontageEnded.AddWeakLambda(this,
+		[WeakASC, WeakAnimInst, DelegateHandlePtr, GEHandle](UAnimMontage*, bool)
+		{
+			if (UAbilitySystemComponent* ValidASC = WeakASC.Get())
+			{
+				ValidASC->RemoveActiveGameplayEffect(GEHandle);
+			}
+			if (UAnimInstance* ValidAnimInst = WeakAnimInst.Get())
+			{
+				ValidAnimInst->OnMontageEnded.Remove(*DelegateHandlePtr);
+			}
+		});
 }
 
 void UAN_MeleeDamage::ApplyHitSuccessDilation(AActor* SourceActor) const
