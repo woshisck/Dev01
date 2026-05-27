@@ -11,7 +11,7 @@
  * Removed by the notify when the montage ends (via OnMontageEnded binding).
  *
  * Modifiers (all magnitudes SetByCaller — caller must set all four before applying):
- *   BaseAttributeSet.AttackPower  Additive  Attribute.ActDamage
+ *   BaseAttributeSet.Attack  Additive  Attribute.ActDamage
  *   BaseAttributeSet.AttackRange  Override  Attribute.ActRange
  *   BaseAttributeSet.Resilience   Override  Attribute.ActResilience
  *   BaseAttributeSet.Resist       Override  Attribute.ActDmgReduce

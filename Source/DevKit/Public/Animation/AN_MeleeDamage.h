@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
+#include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
 #include "Data/AbilityData.h"
 #include "AN_MeleeDamage.generated.h"
@@ -12,6 +13,28 @@ class UAbilitySystemComponent;
 class URuneDataAsset;
 class UMontageAttackDataAsset;
 class AYogCharacterBase;
+class UAnimInstance;
+class UAnimMontage;
+class UAN_MeleeDamage;
+
+UCLASS()
+class DEVKIT_API UAN_MeleeDamageMontageCleanupBinding : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	void Initialize(UAN_MeleeDamage* InOwnerNotify, UAnimInstance* InAnimInstance,
+		UAbilitySystemComponent* InASC, FActiveGameplayEffectHandle InGEHandle);
+
+	UFUNCTION()
+	void HandleMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+
+private:
+	TWeakObjectPtr<UAN_MeleeDamage> OwnerNotify;
+	TWeakObjectPtr<UAnimInstance> AnimInstance;
+	TWeakObjectPtr<UAbilitySystemComponent> ASC;
+	FActiveGameplayEffectHandle GEHandle;
+};
 
 UENUM(BlueprintType)
 enum class EMeleeDamageHitDilationScope : uint8
@@ -60,6 +83,8 @@ UCLASS(meta = (DisplayName = "AN Melee Damage"))
 class DEVKIT_API UAN_MeleeDamage : public UAnimNotify
 {
 	GENERATED_BODY()
+
+	friend class UAN_MeleeDamageMontageCleanupBinding;
 
 public:
 	UAN_MeleeDamage();
@@ -161,8 +186,13 @@ public:
 	void ApplyHitSuccessDilation(AActor* SourceActor) const;
 
 private:
+	void RemoveCleanupBinding(UAN_MeleeDamageMontageCleanupBinding* Binding);
+
 	// Applies GE_MeleeAttackFrame to the character's ASC with the current action data
-	// values, and binds a self-removing OnMontageEnded lambda to remove it.
+	// values, and binds a self-removing OnMontageEnded cleanup object to remove it.
 	void ApplyAttackFrameGE(AYogCharacterBase* Character, USkeletalMeshComponent* MeshComp,
 		UAbilitySystemComponent* ASC, const FActionData& ActionData);
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UAN_MeleeDamageMontageCleanupBinding>> ActiveCleanupBindings;
 };

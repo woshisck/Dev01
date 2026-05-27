@@ -23,7 +23,7 @@ UGE_MeleeAttackFrame::UGE_MeleeAttackFrame()
 		Modifiers.Add(Mod);
 	};
 
-	AddMod(UBaseAttributeSet::GetAttackPowerAttribute(), EGameplayModOp::Additive, TAG_ActDamage);
+	AddMod(UBaseAttributeSet::GetAttackAttribute(), EGameplayModOp::Additive, TAG_ActDamage);
 	AddMod(UBaseAttributeSet::GetAttackRangeAttribute(), EGameplayModOp::Override,  TAG_ActRange);
 	AddMod(UBaseAttributeSet::GetResilienceAttribute(),  EGameplayModOp::Override,  TAG_ActRes);
 	AddMod(UBaseAttributeSet::GetResistAttribute(),      EGameplayModOp::Override,  TAG_ActDmgReduce);

@@ -7,6 +7,7 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/GameplayEffect/GE_MeleeAttackFrame.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Animation/AnimInstance.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/RuneDataAsset.h"
 #include "Engine/World.h"
@@ -32,6 +33,36 @@
 // 		}
 // 	}
 // }
+
+void UAN_MeleeDamageMontageCleanupBinding::Initialize(UAN_MeleeDamage* InOwnerNotify, UAnimInstance* InAnimInstance,
+	UAbilitySystemComponent* InASC, FActiveGameplayEffectHandle InGEHandle)
+{
+	OwnerNotify = InOwnerNotify;
+	AnimInstance = InAnimInstance;
+	ASC = InASC;
+	GEHandle = InGEHandle;
+}
+
+void UAN_MeleeDamageMontageCleanupBinding::HandleMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	(void)Montage;
+	(void)bInterrupted;
+
+	if (UAbilitySystemComponent* ValidASC = ASC.Get())
+	{
+		ValidASC->RemoveActiveGameplayEffect(GEHandle);
+	}
+
+	if (UAnimInstance* ValidAnimInstance = AnimInstance.Get())
+	{
+		ValidAnimInstance->OnMontageEnded.RemoveDynamic(this, &UAN_MeleeDamageMontageCleanupBinding::HandleMontageEnded);
+	}
+
+	if (UAN_MeleeDamage* ValidOwnerNotify = OwnerNotify.Get())
+	{
+		ValidOwnerNotify->RemoveCleanupBinding(this);
+	}
+}
 
 UAN_MeleeDamage::UAN_MeleeDamage()
 {
@@ -110,6 +141,17 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 		Character->PendingHitImpactCueTag = HitImpactCueTag;
 	}
 
+	const FActionData EffectiveActionData = EffectiveNodeAttackConfig
+		? EffectiveNodeAttackConfig->BuildActionData()
+		: EffectiveAttackData
+		? EffectiveAttackData->BuildActionData()
+		: BuildActionData();
+
+	if (UYogAbilitySystemComponent* ASC = Character->GetASC())
+	{
+		ApplyAttackFrameGE(Character, MeshComp, ASC, EffectiveActionData);
+	}
+
 	FGameplayEventData EventData;
 	EventData.Instigator   = Character;
 	EventData.EventTag     = EffectiveNodeAttackConfig && EffectiveNodeAttackConfig->EventTag.IsValid()
@@ -130,12 +172,6 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 	SwingEventData.Instigator = Character;
 	SwingEventData.EventTag   = TAG_Swing;
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, TAG_Swing, SwingEventData);
-
-	if (UYogAbilitySystemComponent* ASC = Character->GetASC())
-	{
-		const FActionData ActionData = BuildActionData();
-		ApplyAttackFrameGE(Character, MeshComp, ASC, ActionData);
-	}
 }
 
 FString UAN_MeleeDamage::GetNotifyName_Implementation() const
@@ -195,25 +231,19 @@ void UAN_MeleeDamage::ApplyAttackFrameGE(AYogCharacterBase* Character, USkeletal
 		return;
 	}
 
-	// Bind a self-removing lambda so the GE is cleaned up when the montage ends.
-	// Capturing GEHandle by value ensures this specific effect is removed even if
-	// another AN_MeleeDamage fires (and replaces the map entry) before this one ends.
-	TSharedPtr<FDelegateHandle> DelegateHandlePtr = MakeShared<FDelegateHandle>();
-	TWeakObjectPtr<UAnimInstance> WeakAnimInst(AnimInst);
-	TWeakObjectPtr<UAbilitySystemComponent> WeakASC(ASC);
+	// OnMontageEnded is a dynamic multicast delegate in UE 5.4, so it cannot bind
+	// lambdas or be removed by delegate handle. Keep a transient UObject alive to
+	// remove this exact GE when the montage ends, then unbind itself.
+	UAN_MeleeDamageMontageCleanupBinding* CleanupBinding =
+		NewObject<UAN_MeleeDamageMontageCleanupBinding>(this);
+	CleanupBinding->Initialize(this, AnimInst, ASC, GEHandle);
+	ActiveCleanupBindings.Add(CleanupBinding);
+	AnimInst->OnMontageEnded.AddUniqueDynamic(CleanupBinding, &UAN_MeleeDamageMontageCleanupBinding::HandleMontageEnded);
+}
 
-	*DelegateHandlePtr = AnimInst->OnMontageEnded.AddWeakLambda(this,
-		[WeakASC, WeakAnimInst, DelegateHandlePtr, GEHandle](UAnimMontage*, bool)
-		{
-			if (UAbilitySystemComponent* ValidASC = WeakASC.Get())
-			{
-				ValidASC->RemoveActiveGameplayEffect(GEHandle);
-			}
-			if (UAnimInstance* ValidAnimInst = WeakAnimInst.Get())
-			{
-				ValidAnimInst->OnMontageEnded.Remove(*DelegateHandlePtr);
-			}
-		});
+void UAN_MeleeDamage::RemoveCleanupBinding(UAN_MeleeDamageMontageCleanupBinding* Binding)
+{
+	ActiveCleanupBindings.Remove(Binding);
 }
 
 void UAN_MeleeDamage::ApplyHitSuccessDilation(AActor* SourceActor) const
