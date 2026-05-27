@@ -1289,17 +1289,18 @@ void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 		PC->SetShowMouseCursor(false);
 	}
 
+	bool bScriptedDefeatHandled = false;
 	if (UFirstRunTutorialDirectorSubsystem* Director = GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
 	{
 		if (Director->ShouldHandleScriptedDefeatDeath())
 		{
-			ClearPlayerDeathGameOverTicker();
 			Director->HandleScriptedDefeatDeath(this);
-			return;
+			bScriptedDefeatHandled = true;
+			bPlayerDeathReviveUsed = true;
 		}
 	}
 
-	if (CanOfferPlayerDeathRevive(bGameOverTriggered, bPlayerDeathReviveUsed) && Player)
+	if (!bScriptedDefeatHandled && CanOfferPlayerDeathRevive(bGameOverTriggered, bPlayerDeathReviveUsed) && Player)
 	{
 		Player->PrepareForDeathReviveChoice();
 	}

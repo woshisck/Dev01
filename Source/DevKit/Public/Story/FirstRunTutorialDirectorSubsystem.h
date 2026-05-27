@@ -46,6 +46,12 @@ public:
 	void HandleSacrificeConfirmed(URuneDataAsset* GrantedRune, APlayerCharacterBase* Player);
 
 	UFUNCTION(BlueprintPure, Category = "Story|FirstRunTutorial")
+	URuneDataAsset* ResolveSacrificeRewardOverride(URuneDataAsset* DefaultRune) const;
+
+	UFUNCTION(BlueprintPure, Category = "Story|FirstRunTutorial")
+	bool IsPrayerSacrificeOverrideActive() const;
+
+	UFUNCTION(BlueprintPure, Category = "Story|FirstRunTutorial")
 	bool ShouldHandleScriptedDefeatDeath() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Story|FirstRunTutorial")
@@ -54,6 +60,8 @@ public:
 	static bool BuildDefaultNextRoomPlanForStage(EFirstRunTutorialStage Stage, FStoryNextRoomPlan& OutPlan);
 	static void BuildDefaultPostTutorialDeck(TArray<URuneDataAsset*>& OutDeck);
 	static bool IsRuneAtPath(const URuneDataAsset* Rune, const TCHAR* Path);
+	static URuneDataAsset* LoadFirstRunFinisherRune();
+	static URuneDataAsset* ResolveSacrificeRewardForStage(EFirstRunTutorialStage Stage, bool bFirstRunTutorialActive, URuneDataAsset* DefaultRune);
 
 private:
 	static EFirstRunTutorialStage GetNextStageAfterPlanning(EFirstRunTutorialStage PlanningStage);

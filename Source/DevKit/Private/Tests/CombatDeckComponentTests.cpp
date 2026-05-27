@@ -4,6 +4,7 @@
 #include "Misc/PackageName.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
+#include "Component/SacrificeRuneComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
@@ -1145,6 +1146,61 @@ bool FCombatDeckLinkConfigBackwardTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Next attack triggers Moonlight backward link"), AttackResult.bTriggeredBackwardLink);
 	TestTrue(TEXT("Next attack still releases its own base flow"), AttackResult.bTriggeredBaseFlow);
 	TestEqual(TEXT("Backward link multiplier is reported"), AttackResult.AppliedMultiplier, 1.25f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMoonlightShadowReplaySourceCardTest,
+	"DevKit.CombatDeck.MoonlightShadowReplayUsesLinkedSourceCard",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckMoonlightShadowReplaySourceCardTest::RunTest(const FString& Parameters)
+{
+	FCombatCardInstance MoonlightCard;
+	MoonlightCard.Config = FCombatCardConfig{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightCard.Config.CardIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"), false);
+
+	FCombatCardInstance HeavyCard;
+	HeavyCard.Config = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Heavy };
+	HeavyCard.Config.CardIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Heavy"), false);
+
+	FCombatCardResolveResult Result;
+	Result.ConsumedCard = HeavyCard;
+	Result.LinkedSourceCard = MoonlightCard;
+	Result.LinkedTargetCard = HeavyCard;
+	Result.bTriggeredBackwardLink = true;
+
+	const FCombatCardInstance ReplaySourceCard = USacrificeRuneComponent::ResolveShadowReplaySourceCardForTest(Result);
+	TestEqual(TEXT("Backward Moonlight replay uses the linked source card"), ReplaySourceCard.Config.CardIdTag, MoonlightCard.Config.CardIdTag);
+	TestNotEqual(TEXT("Backward Moonlight replay does not use the consumed heavy card"), ReplaySourceCard.Config.CardIdTag, HeavyCard.Config.CardIdTag);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMoonlightShadowReplayDetectsProfileFlowsTest,
+	"DevKit.CombatDeck.MoonlightShadowReplayDetectsProfileFlows",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckMoonlightShadowReplayDetectsProfileFlowsTest::RunTest(const FString& Parameters)
+{
+	UFlowAsset* ForwardAttackFlow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Attack.FA_Rune512_Moonlight_Forward_Attack"));
+	UFlowAsset* ReversedAttackFlow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Attack.FA_Rune512_Moonlight_Reversed_Attack"));
+
+	TestNotNull(TEXT("Moonlight forward attack flow exists"), ForwardAttackFlow);
+	TestNotNull(TEXT("Moonlight reversed attack flow exists"), ReversedAttackFlow);
+	if (!ForwardAttackFlow || !ReversedAttackFlow)
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Forward attack profile flow is replayable from the shadow"),
+		USacrificeRuneComponent::FlowHasOffensiveSpawnNodeForTest(ForwardAttackFlow));
+	TestTrue(TEXT("Reversed attack profile flow is replayable from the shadow"),
+		USacrificeRuneComponent::FlowHasOffensiveSpawnNodeForTest(ReversedAttackFlow));
 
 	return true;
 }

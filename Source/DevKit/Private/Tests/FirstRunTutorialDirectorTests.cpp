@@ -3,6 +3,7 @@
 #include "Misc/AutomationTest.h"
 
 #include "Data/RoomDataAsset.h"
+#include "Data/RuneDataAsset.h"
 #include "Story/FirstRunTutorialDirectorSubsystem.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstRunTutorialDirectorBuildsMoonlightSecondRoomPlanTest,
@@ -107,6 +108,51 @@ bool FFirstRunTutorialDirectorBuildsPostTutorialDeckTest::RunTest(const FString&
 		TestNotNull(TEXT("Finisher card exists"), DeckAssets[3]);
 		TestEqual(TEXT("First two cards use the same attack asset"), DeckAssets[0], DeckAssets[1]);
 	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstRunTutorialDirectorPrayerSacrificeOverridesToFinisherTest,
+	"DevKit.FirstRunTutorialDirector.PrayerSacrificeOverridesToFinisher",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstRunTutorialDirectorPrayerSacrificeOverridesToFinisherTest::RunTest(const FString& Parameters)
+{
+	URuneDataAsset* MoonlightShadow = LoadObject<URuneDataAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Sacrifice/DA_Rune512_Sacrifice_MoonlightShadow.DA_Rune512_Sacrifice_MoonlightShadow"));
+	URuneDataAsset* Finisher = UFirstRunTutorialDirectorSubsystem::LoadFirstRunFinisherRune();
+
+	TestNotNull(TEXT("Moonlight shadow sacrifice rune exists"), MoonlightShadow);
+	TestNotNull(TEXT("First-run finisher rune exists"), Finisher);
+	if (!MoonlightShadow || !Finisher)
+	{
+		return false;
+	}
+
+	TestEqual(
+		TEXT("Active prayer stage overrides altar reward to finisher"),
+		UFirstRunTutorialDirectorSubsystem::ResolveSacrificeRewardForStage(
+			EFirstRunTutorialStage::PrayerRoom,
+			true,
+			MoonlightShadow),
+		Finisher);
+
+	TestEqual(
+		TEXT("Inactive tutorial keeps altar reward"),
+		UFirstRunTutorialDirectorSubsystem::ResolveSacrificeRewardForStage(
+			EFirstRunTutorialStage::PrayerRoom,
+			false,
+			MoonlightShadow),
+		MoonlightShadow);
+
+	TestEqual(
+		TEXT("Other tutorial stages keep altar reward"),
+		UFirstRunTutorialDirectorSubsystem::ResolveSacrificeRewardForStage(
+			EFirstRunTutorialStage::MoonlightRoom,
+			true,
+			MoonlightShadow),
+		MoonlightShadow);
 
 	return true;
 }

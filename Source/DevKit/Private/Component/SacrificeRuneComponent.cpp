@@ -7,7 +7,10 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Actors/SacrificeShadowEchoActor.h"
 #include "BuffFlow/BuffFlowComponent.h"
+#include "BuffFlow/Nodes/BFNode_SpawnBuffFlowProjectile.h"
+#include "BuffFlow/Nodes/BFNode_SpawnRuneAreaProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
+#include "BuffFlow/Nodes/BFNode_SpawnRuneProjectileProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
@@ -345,6 +348,7 @@ void USacrificeRuneComponent::ReplayOffensiveCardFlowsFromShadow(const FCombatCa
 	}
 
 	const FTransform SourceTransform(ActiveShadow->GetActorRotation(), ActiveShadow->GetActorLocation(), FVector::OneVector);
+	const FCombatCardInstance ReplaySourceCard = ResolveShadowReplaySourceCard(Result);
 	for (UFlowAsset* FlowAsset : Result.ExecutedFlows)
 	{
 		if (!FlowHasOffensiveSpawnNode(FlowAsset))
@@ -354,7 +358,7 @@ void USacrificeRuneComponent::ReplayOffensiveCardFlowsFromShadow(const FCombatCa
 
 		Player->BuffFlowComponent->StartCombatCardFlowWithSourceTransform(
 			FlowAsset,
-			Result.ConsumedCard,
+			ReplaySourceCard,
 			Result.ActionContext,
 			Result,
 			Player,
@@ -621,7 +625,7 @@ bool USacrificeRuneComponent::IsPlayerInAttackState() const
 		|| (DashAttackTag.IsValid() && ASC->HasMatchingGameplayTag(DashAttackTag));
 }
 
-bool USacrificeRuneComponent::FlowHasOffensiveSpawnNode(const UFlowAsset* FlowAsset) const
+bool USacrificeRuneComponent::FlowHasOffensiveSpawnNode(const UFlowAsset* FlowAsset)
 {
 	if (!FlowAsset)
 	{
@@ -631,12 +635,30 @@ bool USacrificeRuneComponent::FlowHasOffensiveSpawnNode(const UFlowAsset* FlowAs
 	for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
 	{
 		if (Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value)
+			|| Cast<UBFNode_SpawnRuneProjectileProfile>(Pair.Value)
+			|| Cast<UBFNode_SpawnRuneAreaProfile>(Pair.Value)
+			|| Cast<UBFNode_SpawnBuffFlowProjectile>(Pair.Value)
 			|| Cast<UBFNode_SpawnRuneGroundPathEffect>(Pair.Value))
 		{
 			return true;
 		}
 	}
 	return false;
+}
+
+FCombatCardInstance USacrificeRuneComponent::ResolveShadowReplaySourceCard(const FCombatCardResolveResult& Result)
+{
+	if (Result.bTriggeredBackwardLink && Result.LinkedSourceCard.IsValidCard())
+	{
+		return Result.LinkedSourceCard;
+	}
+
+	if (Result.bTriggeredForwardLink && Result.LinkedTargetCard.IsValidCard())
+	{
+		return Result.LinkedTargetCard;
+	}
+
+	return Result.ConsumedCard;
 }
 
 void USacrificeRuneComponent::HandlePlayerDamageDealt(UYogAbilitySystemComponent* TargetASC, float Damage)
@@ -673,7 +695,19 @@ void USacrificeRuneComponent::HandleCardConsumed(const FCombatCardInstance& Card
 		return;
 	}
 
-	ReplayOffensiveCardFlowsFromShadow(Result);
 	PendingShadowDamageApplications++;
+	ReplayOffensiveCardFlowsFromShadow(Result);
 	ActiveShadow->ConsumeAttackCharge();
 }
+
+#if WITH_DEV_AUTOMATION_TESTS
+bool USacrificeRuneComponent::FlowHasOffensiveSpawnNodeForTest(const UFlowAsset* FlowAsset)
+{
+	return FlowHasOffensiveSpawnNode(FlowAsset);
+}
+
+FCombatCardInstance USacrificeRuneComponent::ResolveShadowReplaySourceCardForTest(const FCombatCardResolveResult& Result)
+{
+	return ResolveShadowReplaySourceCard(Result);
+}
+#endif

@@ -144,19 +144,20 @@ void UFirstRunTutorialDirectorSubsystem::HandleRewardRuneAdded(URuneDataAsset* R
 
 void UFirstRunTutorialDirectorSubsystem::HandleSacrificeConfirmed(URuneDataAsset* GrantedRune, APlayerCharacterBase* Player)
 {
-	if (!Player || !GrantedRune || !IsFirstRunTutorialActive())
+	URuneDataAsset* EffectiveRune = ResolveSacrificeRewardOverride(GrantedRune);
+	if (!Player || !EffectiveRune || !IsFirstRunTutorialActive())
 	{
 		return;
 	}
 
-	if (Stage != EFirstRunTutorialStage::PrayerRoom && !IsRuneAtPath(GrantedRune, FinisherRunePath))
+	if (Stage != EFirstRunTutorialStage::PrayerRoom || !IsRuneAtPath(EffectiveRune, FinisherRunePath))
 	{
 		return;
 	}
 
 	if (Player->CombatDeckComponent)
 	{
-		Player->CombatDeckComponent->AddCardFromRuneReward(GrantedRune);
+		Player->CombatDeckComponent->AddCardFromRuneReward(EffectiveRune);
 	}
 
 	BroadcastTutorialStoryEvent(FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.FinisherObtained"), false), Player);
@@ -166,6 +167,18 @@ void UFirstRunTutorialDirectorSubsystem::HandleSacrificeConfirmed(URuneDataAsset
 	{
 		GameMode->StartForcedSurvivalEncounter();
 	}
+}
+
+URuneDataAsset* UFirstRunTutorialDirectorSubsystem::ResolveSacrificeRewardOverride(URuneDataAsset* DefaultRune) const
+{
+	return ResolveSacrificeRewardForStage(Stage, IsFirstRunTutorialActive(), DefaultRune);
+}
+
+bool UFirstRunTutorialDirectorSubsystem::IsPrayerSacrificeOverrideActive() const
+{
+	return IsFirstRunTutorialActive()
+		&& Stage == EFirstRunTutorialStage::PrayerRoom
+		&& LoadFirstRunFinisherRune() != nullptr;
 }
 
 bool UFirstRunTutorialDirectorSubsystem::ShouldHandleScriptedDefeatDeath() const
@@ -189,23 +202,6 @@ void UFirstRunTutorialDirectorSubsystem::HandleScriptedDefeatDeath(AYogGameMode*
 	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
 	{
 		GI->ClearRunState();
-
-		if (UWorld* World = GameMode->GetWorld())
-		{
-			FTimerHandle ReturnHandle;
-			TWeakObjectPtr<UYogGameInstanceBase> WeakGI(GI);
-			World->GetTimerManager().SetTimer(
-				ReturnHandle,
-				FTimerDelegate::CreateLambda([WeakGI]()
-				{
-					if (UYogGameInstanceBase* PinnedGI = WeakGI.Get())
-					{
-						PinnedGI->StartNewRunFromFrontend();
-					}
-				}),
-				0.75f,
-				false);
-		}
 	}
 
 	SetStage(EFirstRunTutorialStage::Completed);
@@ -307,6 +303,27 @@ void UFirstRunTutorialDirectorSubsystem::BuildDefaultPostTutorialDeck(TArray<URu
 	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(AttackRunePath));
 	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(MoonlightRunePath));
 	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(FinisherRunePath));
+}
+
+URuneDataAsset* UFirstRunTutorialDirectorSubsystem::LoadFirstRunFinisherRune()
+{
+	return LoadTutorialAsset<URuneDataAsset>(FinisherRunePath);
+}
+
+URuneDataAsset* UFirstRunTutorialDirectorSubsystem::ResolveSacrificeRewardForStage(
+	EFirstRunTutorialStage InStage,
+	bool bFirstRunTutorialActive,
+	URuneDataAsset* DefaultRune)
+{
+	if (bFirstRunTutorialActive && InStage == EFirstRunTutorialStage::PrayerRoom)
+	{
+		if (URuneDataAsset* FinisherRune = LoadFirstRunFinisherRune())
+		{
+			return FinisherRune;
+		}
+	}
+
+	return DefaultRune;
 }
 
 bool UFirstRunTutorialDirectorSubsystem::IsRuneAtPath(const URuneDataAsset* Rune, const TCHAR* Path)

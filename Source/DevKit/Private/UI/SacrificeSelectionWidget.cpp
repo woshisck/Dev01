@@ -229,11 +229,26 @@ void USacrificeSelectionWidget::Setup(UAltarDataAsset* InData, APlayerCharacterB
 	}
 
 	TArray<FAltarSacrificeEntry> Pool = InData->SacrificeRunePool;
+	UFirstRunTutorialDirectorSubsystem* TutorialDirector = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>()
+		: nullptr;
+	if (TutorialDirector && TutorialDirector->IsPrayerSacrificeOverrideActive())
+	{
+		FAltarSacrificeEntry TutorialEntry;
+		TutorialEntry.GrantedRune = TutorialDirector->ResolveSacrificeRewardOverride(InData->EventSacrificeRune);
+		TutorialEntry.CostType = ESacrificeOfferingCostType::SacrificeDeckCard;
+		TutorialEntry.CostDescription = GetCostFallbackText(TutorialEntry.CostType);
+		Pool = { TutorialEntry };
+	}
 	for (FAltarSacrificeEntry& Entry : Pool)
 	{
 		if (!Entry.GrantedRune)
 		{
 			Entry.GrantedRune = InData->EventSacrificeRune;
+		}
+		if (TutorialDirector)
+		{
+			Entry.GrantedRune = TutorialDirector->ResolveSacrificeRewardOverride(Entry.GrantedRune);
 		}
 		if (Entry.CostDescription.IsEmpty())
 		{
@@ -342,6 +357,7 @@ void USacrificeSelectionWidget::ConfirmSacrifice()
 		? GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>()
 		: nullptr)
 	{
+		GrantedRune = Director->ResolveSacrificeRewardOverride(GrantedRune);
 		Director->HandleSacrificeConfirmed(GrantedRune, OwningPlayer.Get());
 	}
 
@@ -666,11 +682,18 @@ bool USacrificeSelectionWidget::GrantSelectedRune()
 	{
 		Rune = AltarData->EventSacrificeRune;
 	}
+	if (UFirstRunTutorialDirectorSubsystem* Director = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>()
+		: nullptr)
+	{
+		Rune = Director->ResolveSacrificeRewardOverride(Rune);
+	}
 	if (!Rune)
 	{
 		return false;
 	}
 
+	CurrentOptions[SelectedOptionIndex].GrantedRune = Rune;
 	Player->AddRuneToInventory(Rune->CreateInstance());
 	return true;
 }
