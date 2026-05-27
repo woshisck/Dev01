@@ -94,7 +94,38 @@ AActor* UBFNode_Base::ResolveTarget(EBFTargetSelector Selector) const
 		return BFC->LastEventContext.DamageCauser.Get();
 	case EBFTargetSelector::LifecycleTarget:
 		return BFC->GetLifecycleTarget();
+	case EBFTargetSelector::AllHitTargets:
+		return BFC->LastEventContext.DamageReceiver.Get();
 	default:
 		return BFC->GetBuffOwner();
 	}
+}
+
+TArray<AActor*> UBFNode_Base::ResolveAllTargets(EBFTargetSelector Selector) const
+{
+	TArray<AActor*> Result;
+
+	if (Selector != EBFTargetSelector::AllHitTargets)
+	{
+		if (AActor* Single = ResolveTarget(Selector))
+		{
+			Result.Add(Single);
+		}
+		return Result;
+	}
+
+	UBuffFlowComponent* BFC = GetBuffFlowComponent();
+	if (!BFC)
+	{
+		return Result;
+	}
+
+	for (const TWeakObjectPtr<AActor>& WeakActor : BFC->LastEventContext.DamageReceivers)
+	{
+		if (AActor* Actor = WeakActor.Get())
+		{
+			Result.Add(Actor);
+		}
+	}
+	return Result;
 }

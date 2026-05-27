@@ -73,10 +73,10 @@ public:
     float FallbackQTEWindowStartTime = 0.35f;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Finisher|Fallback", meta = (ClampMin = "0.05"))
-    float FallbackQTEWindowDuration = 0.45f;
+    float FallbackQTEWindowDuration = 1.0f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Finisher|Fallback", meta = (ClampMin = "0.001", ClampMax = "1.0"))
-    float FallbackQTESlowDilation = 0.15f;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Finisher|Fallback", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float FallbackQTESlowDilation = 0.0f;
 
     /** 蒙太奇没有 Ability.Event.Finisher.HitFrame 的 AN_MeleeDamage 时，是否由 GA 自动触发一次命中帧。 */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Finisher|Fallback")

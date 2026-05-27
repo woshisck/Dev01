@@ -4,6 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/YogCharacterBase.h"
+#include "Containers/Ticker.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
 #include "UI/YogHUD.h"
@@ -14,6 +15,43 @@ namespace
 FGameplayTag GetANSFinisherTimeDilationQTEOpenTag()
 {
     return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherQTEOpen"));
+}
+
+void CloseANSFinisherTimeDilationWindow(TWeakObjectPtr<AYogCharacterBase> WeakCharacter, bool bHidePrompt)
+{
+    AYogCharacterBase* Character = WeakCharacter.Get();
+    if (!Character)
+    {
+        return;
+    }
+
+    if (UWorld* World = Character->GetWorld())
+    {
+        if (AWorldSettings* WS = World->GetWorldSettings())
+        {
+            WS->SetTimeDilation(1.0f);
+        }
+    }
+
+    Character->CustomTimeDilation = 1.0f;
+
+    if (UYogAbilitySystemComponent* ASC = Character->GetASC())
+    {
+        ASC->SetLooseGameplayTagCount(GetANSFinisherTimeDilationQTEOpenTag(), 0);
+    }
+
+    UTimeDilationVisualSubsystem::EndTimeDilationVisual(Character);
+
+    if (bHidePrompt)
+    {
+        if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
+        {
+            if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+            {
+                HUD->HideFinisherQTEPrompt();
+            }
+        }
+    }
 }
 }
 
@@ -39,7 +77,8 @@ void UANS_FinisherTimeDilation::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
         return;
     }
 
-    const float SafeDilation = FMath::Clamp(SlowDilation, 0.001f, 1.0f);
+    const float SafeDilation = FMath::Clamp(SlowDilation, 0.0f, 1.0f);
+    const float PromptDuration = RealTimePauseDuration > 0.0f ? RealTimePauseDuration : TotalDuration;
 
     // 全局减速
     if (AWorldSettings* WS = World->GetWorldSettings())
@@ -49,7 +88,7 @@ void UANS_FinisherTimeDilation::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
     UTimeDilationVisualSubsystem::BeginTimeDilationVisual(Character);
 
     // 玩家自身用倒数抵消，维持正常速度（"子弹时间"效果）
-    Character->CustomTimeDilation = 1.0f / SafeDilation;
+    Character->CustomTimeDilation = SafeDilation > SMALL_NUMBER ? 1.0f / SafeDilation : 1.0f;
 
     if (UYogAbilitySystemComponent* ASC = Character->GetASC())
     {
@@ -60,8 +99,25 @@ void UANS_FinisherTimeDilation::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
     {
         if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
         {
-            HUD->ShowFinisherQTEPrompt(TotalDuration);
+            HUD->ShowFinisherQTEPrompt(PromptDuration);
         }
+    }
+
+    if (PromptDuration > 0.0f)
+    {
+        TWeakObjectPtr<AYogCharacterBase> WeakCharacter(Character);
+        FTSTicker::GetCoreTicker().AddTicker(
+            FTickerDelegate::CreateLambda([WeakCharacter](float)
+            {
+                AYogCharacterBase* TickedCharacter = WeakCharacter.Get();
+                UYogAbilitySystemComponent* ASC = TickedCharacter ? TickedCharacter->GetASC() : nullptr;
+                if (ASC && ASC->HasMatchingGameplayTag(GetANSFinisherTimeDilationQTEOpenTag()))
+                {
+                    CloseANSFinisherTimeDilationWindow(WeakCharacter, true);
+                }
+                return false;
+            }),
+            PromptDuration);
     }
 
     // 通知 UI 显示输入提示

@@ -94,6 +94,19 @@
       },
       "actions": [
         {
+          "type": "SetRoomRewardOverride",
+          "actionId": "seed_first_room_gold_reward",
+          "rewardOverrideTarget": "NextRoom",
+          "rewardLootOptions": [
+            {
+              "lootType": "Gold",
+              "amount": 50,
+              "displayName": "金币 x50",
+              "icon": "/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon"
+            }
+          ]
+        },
+        {
           "type": "TutorialAreaHint",
           "title": "移动",
           "body": "",
@@ -306,38 +319,20 @@
       "nodeId": "training_dummy_combo",
       "asset": "EP_FirstRun_TrainingDummyCombo",
       "displayName": "木人桩攻击与连招练习",
-      "kind": "Object",
+      "kind": "Death",
       "playerFacingEvent": "玩家在武器中心攻击木人桩，右上角显示武器连招列表，观察攻击、连招和卡组变化。",
       "firePolicy": "Once",
+      "nodeEventFlow": "/Game/Story/Flows/Tutorial/FA_DummyDeath_DropHeavyCard",
       "placementLevel": "/Game/Docs/Map/DA_L1_Room/DA_HubRoom_InitialRoom",
       "placementName": "B_EnemyDummy_Tutorial",
       "condition": {
-        "kind": "ProgressCompleted",
-        "progressKey": "first_run.deck_enter_highlight_seen",
-        "progressLabel": "???????",
+        "kind": "None",
+        "progressKey": "",
+        "progressLabel": "",
         "featureTag": "",
         "runCount": 0
       },
       "actions": [
-        {
-          "type": "WeakHint",
-          "title": "练习攻击",
-          "body": "尝试使用 轻攻击：<input action=\"LightAttack\"/> 或 重攻击：<input action=\"HeavyAttack\"/> 攻击木人桩，观察右上角连招列表和下方卡组变化。",
-          "tutorialEventId": "",
-          "pauseGame": true,
-          "progressKey": "",
-          "progressLabel": "",
-          "featureTag": "",
-          "questTaskTag": "",
-          "targetNodeId": "",
-          "levelFlow": "",
-          "actionId": "",
-          "reuseKey": "",
-          "tutorialPages": [],
-          "targetActorName": "",
-          "targetActorTag": "",
-          "actorEnabled": true
-        },
         {
           "type": "RecordProgress",
           "progressKey": "first_run.training_dummy_started",
@@ -356,29 +351,6 @@
           "targetActorName": "",
           "targetActorTag": "",
           "actorEnabled": true
-        },
-        {
-          "type": "SpawnRewardPickup",
-          "actionId": "drop_dummy_heavy_card",
-          "targetActorName": "B_EnemyDummy_Tutorial",
-          "targetActorTag": "",
-          "spawnRewardOnTargetDeath": true,
-          "rewardPickupClass": "/Game/Code/Dungeon/BP_RewardPickup.BP_RewardPickup_C",
-          "rewardPickupCount": 1,
-          "rewardSpawnOffset": {
-            "x": 120,
-            "y": 0,
-            "z": 20
-          },
-          "rewardPickupAllowedOutsideArrangement": true,
-          "rewardLootOptions": [
-            {
-              "lootType": "Rune",
-              "runeAsset": "/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Heavy",
-              "amount": 0,
-              "displayName": "重击卡"
-            }
-          ]
         }
       ],
       "extra": {
@@ -418,6 +390,19 @@
         "runCount": 0
       },
       "actions": [
+        {
+          "type": "SetRoomRewardOverride",
+          "actionId": "override_next_room01_gold_reward",
+          "rewardOverrideTarget": "NextRoom",
+          "rewardLootOptions": [
+            {
+              "lootType": "Gold",
+              "amount": 50,
+              "displayName": "金币 x50",
+              "icon": "/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon"
+            }
+          ]
+        },
         {
           "type": "WeakHint",
           "title": "进入下一关",

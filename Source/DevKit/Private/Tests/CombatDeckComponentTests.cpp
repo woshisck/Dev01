@@ -4,6 +4,7 @@
 #include "Misc/PackageName.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
+#include "Component/SacrificeRuneComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
@@ -150,6 +151,57 @@ bool FCombatDeckFinisherRequirementTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Combo finisher consumes the finisher card"), ComboFinisher.bHadCard);
 	TestTrue(TEXT("Combo finisher triggers finisher matched flow"), ComboFinisher.bTriggeredMatchedFlow);
 	TestTrue(TEXT("Combo finisher triggers finisher bonus"), ComboFinisher.bTriggeredFinisher);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckTriggeredFinisherSkipsRefreshUntilEffectEndsTest,
+	"DevKit.CombatDeck.TriggeredFinisherSkipsRefreshUntilEffectEnds",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckTriggeredFinisherSkipsRefreshUntilEffectEndsTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+	Deck->SetShuffleCooldownDuration(1.0f);
+
+	FCombatCardConfig FinisherCard{ ECombatCardType::Finisher, ECardRequiredAction::Any };
+	FinisherCard.bRequiresComboFinisher = true;
+	FinisherCard.DisplayName = FText::FromString(TEXT("Finisher"));
+
+	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Light };
+	AttackCard.DisplayName = FText::FromString(TEXT("Attack"));
+
+	Deck->SetDeckListForTest({ FinisherCard, AttackCard });
+
+	const FCombatCardResolveResult FinisherResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, true, false);
+	TestTrue(TEXT("Combo finisher triggers the finisher card"), FinisherResult.bTriggeredFinisher);
+	TestTrue(TEXT("Triggered finisher is suppressed while its effect is active"),
+		Deck->IsCardSuppressedFromActiveSequenceForTest(FinisherResult.ConsumedCard.InstanceGuid));
+
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Consuming the remaining attack card starts shuffle"), AttackResult.bStartedShuffle);
+
+	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
+	const TArray<FCombatCardInstance> DuringEffectCards = Deck->GetDeckSnapshot();
+	TestEqual(TEXT("Refresh during finisher effect excludes the finisher"), DuringEffectCards.Num(), 1);
+	TestEqual(TEXT("Attack card fills the refreshed deck while finisher is held back"),
+		DuringEffectCards[0].Config.CardType, ECombatCardType::Attack);
+
+	Deck->StopCardFlow(FinisherResult.ConsumedCard);
+	TestFalse(TEXT("Finisher suppression is cleared when the card effect ends"),
+		Deck->IsCardSuppressedFromActiveSequenceForTest(FinisherResult.ConsumedCard.InstanceGuid));
+	TestEqual(TEXT("Ending the effect does not inject finisher into the current active deck"),
+		Deck->GetDeckSnapshot().Num(), 1);
+
+	const FCombatCardResolveResult NextAttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("The active attack card can be consumed after finisher effect ends"), NextAttackResult.bHadCard);
+	TestTrue(TEXT("Consuming the active attack starts the next shuffle"), NextAttackResult.bStartedShuffle);
+
+	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
+	const TArray<FCombatCardInstance> AfterEffectCards = Deck->GetDeckSnapshot();
+	TestEqual(TEXT("Next refresh after effect end restores the full deck"), AfterEffectCards.Num(), 2);
+	TestEqual(TEXT("Finisher returns on the refresh after its effect ended"),
+		AfterEffectCards[0].Config.CardType, ECombatCardType::Finisher);
 
 	return true;
 }
@@ -1145,6 +1197,61 @@ bool FCombatDeckLinkConfigBackwardTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Next attack triggers Moonlight backward link"), AttackResult.bTriggeredBackwardLink);
 	TestTrue(TEXT("Next attack still releases its own base flow"), AttackResult.bTriggeredBaseFlow);
 	TestEqual(TEXT("Backward link multiplier is reported"), AttackResult.AppliedMultiplier, 1.25f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMoonlightShadowReplaySourceCardTest,
+	"DevKit.CombatDeck.MoonlightShadowReplayUsesLinkedSourceCard",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckMoonlightShadowReplaySourceCardTest::RunTest(const FString& Parameters)
+{
+	FCombatCardInstance MoonlightCard;
+	MoonlightCard.Config = FCombatCardConfig{ ECombatCardType::Link, ECardRequiredAction::Any };
+	MoonlightCard.Config.CardIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"), false);
+
+	FCombatCardInstance HeavyCard;
+	HeavyCard.Config = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Heavy };
+	HeavyCard.Config.CardIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Heavy"), false);
+
+	FCombatCardResolveResult Result;
+	Result.ConsumedCard = HeavyCard;
+	Result.LinkedSourceCard = MoonlightCard;
+	Result.LinkedTargetCard = HeavyCard;
+	Result.bTriggeredBackwardLink = true;
+
+	const FCombatCardInstance ReplaySourceCard = USacrificeRuneComponent::ResolveShadowReplaySourceCardForTest(Result);
+	TestEqual(TEXT("Backward Moonlight replay uses the linked source card"), ReplaySourceCard.Config.CardIdTag, MoonlightCard.Config.CardIdTag);
+	TestNotEqual(TEXT("Backward Moonlight replay does not use the consumed heavy card"), ReplaySourceCard.Config.CardIdTag, HeavyCard.Config.CardIdTag);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMoonlightShadowReplayDetectsProfileFlowsTest,
+	"DevKit.CombatDeck.MoonlightShadowReplayDetectsProfileFlows",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckMoonlightShadowReplayDetectsProfileFlowsTest::RunTest(const FString& Parameters)
+{
+	UFlowAsset* ForwardAttackFlow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Forward_Attack.FA_Rune512_Moonlight_Forward_Attack"));
+	UFlowAsset* ReversedAttackFlow = LoadObject<UFlowAsset>(
+		nullptr,
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/Flow/FA_Rune512_Moonlight_Reversed_Attack.FA_Rune512_Moonlight_Reversed_Attack"));
+
+	TestNotNull(TEXT("Moonlight forward attack flow exists"), ForwardAttackFlow);
+	TestNotNull(TEXT("Moonlight reversed attack flow exists"), ReversedAttackFlow);
+	if (!ForwardAttackFlow || !ReversedAttackFlow)
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Forward attack profile flow is replayable from the shadow"),
+		USacrificeRuneComponent::FlowHasOffensiveSpawnNodeForTest(ForwardAttackFlow));
+	TestTrue(TEXT("Reversed attack profile flow is replayable from the shadow"),
+		USacrificeRuneComponent::FlowHasOffensiveSpawnNodeForTest(ReversedAttackFlow));
 
 	return true;
 }

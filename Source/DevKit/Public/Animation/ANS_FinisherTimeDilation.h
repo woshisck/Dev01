@@ -21,7 +21,11 @@ class DEVKIT_API UANS_FinisherTimeDilation : public UAnimNotifyState
 public:
     /** 全局慢动作倍率（0.15 = 全局减速到1/6.6，玩家用CustomTimeDilation抵消）*/
     UPROPERTY(EditAnywhere, Category = "TimeDilation")
-    float SlowDilation = 0.15f;
+    float SlowDilation = 0.0f;
+
+    /** QTE window length in real seconds. Zero or less uses the notify state's authored duration. */
+    UPROPERTY(EditAnywhere, Category = "TimeDilation", meta = (ClampMin = "0.0"))
+    float RealTimePauseDuration = 1.0f;
 
     /** 显示/隐藏提示UI用的GameplayEvent Tag（广播给PlayerController）*/
     UPROPERTY(EditAnywhere, Category = "UI")

@@ -703,6 +703,27 @@ bool FStoryEncounterTutorialDummySpawnBindsKillPointTest::RunTest(const FString&
 		ActivateNode->OnKillEncounterPoint.Get() == KillPoint);
 	TestTrue(TEXT("ActivateTutorialSpawner uses BP_Enemy_DummyTraining"),
 		GetPathNameSafe(ActivateNode->EnemyClassOverride.Get()).Contains(TEXT("BP_Enemy_DummyTraining")));
+
+	TestEqual(TEXT("Training dummy kill point runs on death"),
+		KillPoint->Kind,
+		EStoryEncounterNodeKind::Death);
+	TestEqual(TEXT("Training dummy kill point has no progress gate"),
+		KillPoint->Condition.Kind,
+		EStoryEncounterConditionKind::None);
+	TestNotNull(TEXT("Training dummy kill point runs the dummy death Story FA"), KillPoint->NodeEventFlow.Get());
+	if (KillPoint->NodeEventFlow)
+	{
+		TestTrue(TEXT("Training dummy kill point uses Heavy card drop flow"),
+			GetPathNameSafe(KillPoint->NodeEventFlow.Get()).Contains(TEXT("FA_DummyDeath_DropHeavyCard")));
+	}
+
+	const bool bHasInlineDelayedRewardDrop = KillPoint->Actions.ContainsByPredicate(
+		[](const FStoryEncounterAction& Action)
+		{
+			return Action.Kind == EStoryEncounterActionKind::SpawnRewardPickup;
+		});
+	TestFalse(TEXT("Training dummy kill point does not keep the old inline delayed reward drop"),
+		bHasInlineDelayedRewardDrop);
 	return true;
 }
 

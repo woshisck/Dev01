@@ -34,6 +34,8 @@ class DEVKIT_API UPortalPreviewWidget : public UUserWidget
     GENERATED_BODY()
 
 public:
+    static TArray<FLootOption> BuildAggregatedRewardPreviewOptions(const TArray<FLootOption>& Options);
+
     /** 由 HUD 在 Target Portal 切换时调用，刷新整张浮窗内容 */
     UFUNCTION(BlueprintCallable, Category = "PortalPreview")
     void SetPreviewInfo(const FPortalPreviewInfo& Info);

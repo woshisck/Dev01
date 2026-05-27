@@ -3,6 +3,7 @@
 #include "CommonInputSubsystem.h"
 #include "CommonInputTypeEnum.h"
 #include "EngineUtils.h"
+#include "Engine/Texture2D.h"
 #include "Engine/LocalPlayer.h"
 #include "FlowAsset.h"
 #include "Kismet/GameplayStatics.h"
@@ -19,6 +20,7 @@
 #include "LevelFlow/LevelFlowAsset.h"
 #include "LevelFlow/LevelEventTrigger.h"
 #include "Story/StoryEngineSubsystem.h"
+#include "System/YogGameInstanceBase.h"
 #include "UI/InfoPopupWidget.h"
 #include "UI/YogHUD.h"
 
@@ -60,6 +62,37 @@ APlayerController* ResolveEncounterPlayer(AActor* SourceActor)
 	return SourceActor && SourceActor->GetWorld()
 		? UGameplayStatics::GetPlayerController(SourceActor->GetWorld(), 0)
 		: nullptr;
+}
+
+FString DescribeEncounterEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+{
+	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
+}
+
+FString DescribeEncounterLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+{
+	if (Options.IsEmpty())
+	{
+		return TEXT("Count=0 []");
+	}
+
+	TArray<FString> Parts;
+	Parts.Reserve(Options.Num());
+	for (int32 Index = 0; Index < Options.Num(); ++Index)
+	{
+		const FLootOption& Option = Options[Index];
+		Parts.Add(FString::Printf(
+			TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
+			Index,
+			*DescribeEncounterEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+			Option.Amount,
+			*Option.DisplayName.ToString(),
+			*GetNameSafe(Option.RuneAsset.Get()),
+			*GetNameSafe(Option.Icon.Get()),
+			*Option.MetaCurrencyTag.ToString()));
+	}
+
+	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
 }
 
 FText ResolveInputAwareBody(const FStoryEncounterAction& Action, const FStoryEventContext& Context)
@@ -233,6 +266,12 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterPoint(UStoryEncounterPoint
 		return false;
 	}
 
+	const bool bHasRoomRewardOverrideAction = Node.Actions.ContainsByPredicate(
+		[](const FStoryEncounterAction& Action)
+		{
+			return Action.Kind == EStoryEncounterActionKind::SetRoomRewardOverride;
+		});
+
 	FStoryEventContext Context;
 	Context.SourceActor = SourceActor;
 	Context.PlayerController = ResolveEncounterPlayer(SourceActor);
@@ -243,9 +282,43 @@ bool UStoryEncounterRuntimeSubsystem::TriggerEncounterPoint(UStoryEncounterPoint
 		Context.MapName = FName(*UGameplayStatics::GetCurrentLevelName(ContextWorld, true));
 	}
 
-	if (!CanTriggerNode(EncounterPoint->EncounterId, Node, Context))
+	if (bHasRoomRewardOverrideAction)
 	{
+		UE_LOG(LogTemp, Log,
+			TEXT("[StoryRewardDebug] EncounterPoint candidate Encounter=%s Node=%s Asset=%s SourceActor=%s Map=%s ActionCount=%d Condition=%s ProgressKey=%s FirePolicy=%s"),
+			*EncounterPoint->EncounterId.ToString(),
+			*Node.NodeId.ToString(),
+			*EncounterPoint->GetPathName(),
+			*GetNameSafe(SourceActor),
+			*Context.MapName.ToString(),
+			Node.Actions.Num(),
+			*DescribeEncounterEnumValueForRewardDebug(StaticEnum<EStoryEncounterConditionKind>(), static_cast<int64>(Node.Condition.Kind)),
+			*Node.Condition.ProgressKey.ToString(),
+			*DescribeEncounterEnumValueForRewardDebug(StaticEnum<EStoryEncounterFirePolicy>(), static_cast<int64>(Node.FirePolicy)));
+	}
+
+	const bool bCanTrigger = CanTriggerNode(EncounterPoint->EncounterId, Node, Context);
+	if (!bCanTrigger)
+	{
+		if (bHasRoomRewardOverrideAction)
+		{
+			UE_LOG(LogTemp, Log,
+				TEXT("[StoryRewardDebug] EncounterPoint skipped by CanTriggerNode Encounter=%s Node=%s Condition=%s ProgressKey=%s FirePolicy=%s"),
+				*EncounterPoint->EncounterId.ToString(),
+				*Node.NodeId.ToString(),
+				*DescribeEncounterEnumValueForRewardDebug(StaticEnum<EStoryEncounterConditionKind>(), static_cast<int64>(Node.Condition.Kind)),
+				*Node.Condition.ProgressKey.ToString(),
+				*DescribeEncounterEnumValueForRewardDebug(StaticEnum<EStoryEncounterFirePolicy>(), static_cast<int64>(Node.FirePolicy)));
+		}
 		return false;
+	}
+
+	if (bHasRoomRewardOverrideAction)
+	{
+		UE_LOG(LogTemp, Log,
+			TEXT("[StoryRewardDebug] EncounterPoint executing Encounter=%s Node=%s"),
+			*EncounterPoint->EncounterId.ToString(),
+			*Node.NodeId.ToString());
 	}
 
 	ExecuteEncounterNodeCore(EncounterPoint->EncounterId, Node, Context);
@@ -680,25 +753,68 @@ bool UStoryEncounterRuntimeSubsystem::ExecuteSetRoomRewardOverrideAction(
 	const FStoryEventContext& Context) const
 {
 	UWorld* World = Context.SourceActor ? Context.SourceActor->GetWorld() : GetWorld();
+	UYogGameInstanceBase* GI = World
+		? Cast<UYogGameInstanceBase>(World->GetGameInstance())
+		: Cast<UYogGameInstanceBase>(GetGameInstance());
+
+	UE_LOG(LogTemp, Log,
+		TEXT("[StoryRewardDebug] EncounterAction SetRoomRewardOverride ActionId=%s SourceNode=%s Target=%s Clear=%d Options=%s SourceActor=%s World=%s GI=%s"),
+		*Action.ActionId.ToString(),
+		*Context.SourceName.ToString(),
+		*DescribeEncounterEnumValueForRewardDebug(StaticEnum<EStoryRewardOverrideTarget>(), static_cast<int64>(Action.RewardOverrideTarget)),
+		Action.bClearRoomRewardOverride ? 1 : 0,
+		*DescribeEncounterLootOptionsForRewardDebug(Action.RewardLootOptions),
+		*GetNameSafe(Context.SourceActor.Get()),
+		*GetNameSafe(World),
+		*GetNameSafe(GI));
+
+	if (Action.RewardOverrideTarget == EStoryRewardOverrideTarget::NextRoom)
+	{
+		if (!GI)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[StoryRewardDebug] EncounterAction SetRoomRewardOverride skipped: GameInstance is not UYogGameInstanceBase."));
+			return false;
+		}
+
+		if (Action.bClearRoomRewardOverride)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] EncounterAction clearing NextRoom pending reward override."));
+			GI->ClearPendingRoomRewardOptionsOverride();
+			return true;
+		}
+
+		if (Action.RewardLootOptions.IsEmpty())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[StoryRewardDebug] EncounterAction SetRoomRewardOverride skipped: RewardLootOptions is empty."));
+			return false;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] EncounterAction writing NextRoom pending reward override."));
+		GI->SetPendingRoomRewardOptionsOverride(Action.RewardLootOptions);
+		return true;
+	}
+
 	AYogGameMode* GM = World ? Cast<AYogGameMode>(UGameplayStatics::GetGameMode(World)) : nullptr;
 	if (!GM)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[StoryEncounter] SetRoomRewardOverride skipped: GameMode is not AYogGameMode."));
+		UE_LOG(LogTemp, Warning, TEXT("[StoryRewardDebug] EncounterAction SetRoomRewardOverride skipped: GameMode is not AYogGameMode."));
 		return false;
 	}
 
 	if (Action.bClearRoomRewardOverride)
 	{
+		UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] EncounterAction clearing CurrentRoom reward override."));
 		GM->ClearRoomRewardOptionsOverride();
 		return true;
 	}
 
 	if (Action.RewardLootOptions.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[StoryEncounter] SetRoomRewardOverride skipped: RewardLootOptions is empty."));
+		UE_LOG(LogTemp, Warning, TEXT("[StoryRewardDebug] EncounterAction SetRoomRewardOverride skipped: RewardLootOptions is empty."));
 		return false;
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] EncounterAction writing CurrentRoom reward override."));
 	GM->SetRoomRewardOptionsOverride(Action.RewardLootOptions);
 	return true;
 }

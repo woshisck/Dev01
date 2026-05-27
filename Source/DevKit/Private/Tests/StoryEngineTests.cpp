@@ -40,6 +40,7 @@ bool FStoryEngineGameplayTagsConfiguredTest::RunTest(const FString& Parameters)
 		TEXT("Story.Flag.FirstRune.Obtained"),
 		TEXT("Story.Flag.FirstBackpack.Opened"),
 		TEXT("Story.Flag.Hub.FirstEntered"),
+		TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.heavy_card_obtained"),
 		TEXT("Story.Quest.Main"),
 		TEXT("Story.Quest.MemoryTutorial"),
 		TEXT("Story.Source.Codex"),
@@ -97,6 +98,51 @@ bool FStoryEngineConfiguredRuleSetsLoadTest::RunTest(const FString& Parameters)
 	}
 
 	return bAllLoaded;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineFirstRuneRuleMarksHeavyCardProgressTest,
+	"DevKit.StoryEngine.FirstRuneRuleMarksHeavyCardProgress",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStoryEngineFirstRuneRuleMarksHeavyCardProgressTest::RunTest(const FString& Parameters)
+{
+	const UStoryRuleSetDA* RuleSet = LoadObject<UStoryRuleSetDA>(
+		nullptr,
+		TEXT("/Game/Story/Rules/SR_FirstRun.SR_FirstRun"));
+	TestNotNull(TEXT("First-run rule set loads"), RuleSet);
+	if (!RuleSet)
+	{
+		return false;
+	}
+
+	const FGameplayTag FirstRuneEvent = StoryEngineTests::RequireTag(TEXT("Story.Event.FirstRun.FirstRuneObtained"));
+	const FGameplayTag HeavyCardProgress = StoryEngineTests::RequireTag(
+		TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.heavy_card_obtained"));
+	if (!TestTrue(TEXT("First rune event tag is configured"), FirstRuneEvent.IsValid()) ||
+		!TestTrue(TEXT("Heavy card progress tag is configured"), HeavyCardProgress.IsValid()))
+	{
+		return false;
+	}
+
+	bool bMarksHeavyCardProgress = false;
+	for (const FStoryRule& Rule : RuleSet->Rules)
+	{
+		if (Rule.TriggerEventTag != FirstRuneEvent)
+		{
+			continue;
+		}
+
+		bMarksHeavyCardProgress |= Rule.Actions.ContainsByPredicate(
+			[HeavyCardProgress](const FStoryAction& Action)
+			{
+				return Action.Type == EStoryActionType::SetFlag
+					&& Action.FlagScope == EStoryFlagScope::Save
+					&& Action.FlagTag == HeavyCardProgress;
+			});
+	}
+
+	TestTrue(TEXT("First rune rule marks first-run heavy card progress"), bMarksHeavyCardProgress);
+	return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryRuleSetFiltersAndSortsRulesTest,

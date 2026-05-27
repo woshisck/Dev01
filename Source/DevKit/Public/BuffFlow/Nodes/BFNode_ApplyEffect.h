@@ -126,9 +126,17 @@ protected:
 	virtual void Cleanup() override;
 
 private:
-	/** 首次施加后存储的 handle（Unique/Stackable GE 共享同一实例，handle 保持有效） */
+	/** 首次施加后存储的 handle（Unique/Stackable GE 共享同一实例，handle 保持有效）— 单目标路径使用 */
 	FActiveGameplayEffectHandle GrantedHandle;
 	TWeakObjectPtr<UAbilitySystemComponent> GrantedASC;
+
+	/** AllHitTargets 多目标路径：每个命中目标的 ASC + handle */
+	struct FMultiTargetEntry
+	{
+		TWeakObjectPtr<UAbilitySystemComponent> ASC;
+		FActiveGameplayEffectHandle Handle;
+	};
+	TArray<FMultiTargetEntry> MultiTargetHandles;
 
 	/** Cleanup 主动移除 GE 时置 true，阻止 HandleGERemoved 二次触发 OnRemoved 引脚 */
 	bool bCleaningUp = false;

@@ -11,6 +11,7 @@
 #include "Data/CampaignDataAsset.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/SacrificeGraceDA.h"
+#include "Story/StoryNextRoomPlanTypes.h"
 #include "Containers/Ticker.h"
 #include "YogGameMode.generated.h"
 
@@ -23,6 +24,7 @@ class APortal;
 class ARewardPickup;
 class AAltarActor;
 class AShopActor;
+class AYogCharacterBase;
 class ULootSelectionWidget;
 class ULevelFlowAsset;
 class UFlowComponent;
@@ -89,6 +91,11 @@ public:
 
 	static bool ShouldSkipCombatForRoom(const URoomDataAsset* RoomData);
 	static bool ShouldPreserveCurrentMapForEditorPlay(bool bIsPlayInEditorWorld, bool bHasPendingRoomData);
+	static bool ShouldAllowExtraRewardPickupForRoom(
+		const URoomDataAsset* RoomData,
+		bool bIsSacrificeEventRoom,
+		bool bHasRewardPickupClass,
+		bool bEnableExtraRewardPickups);
 
 
 
@@ -211,6 +218,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
 	bool ApplyPendingRoomRewardOptionsOverride(UYogGameInstanceBase* GameInstance);
 
+	bool ApplyPendingRoomRewardOptionsOverrideForRoom(
+		UYogGameInstanceBase* GameInstance,
+		const URoomDataAsset* RoomData);
+
 	const TArray<FLootOption>& GetRoomRewardOptionsOverride() const { return RoomRewardOptionsOverride; }
 
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
@@ -262,6 +273,12 @@ public:
 	// 玩家选择一个战利品（0-2）
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void SelectLoot(int32 LootIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow|FirstRunTutorial")
+	void StartForcedSurvivalEncounter();
+
+	UFUNCTION(BlueprintPure, Category = "LevelFlow|FirstRunTutorial")
+	bool IsForcedSurvivalActive() const { return bForcedSurvivalActive; }
 
 	// 整理完成，锁背包并加载下一关（旧系统保留，新系统由 Portal 触发 TransitionToLevel）
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
@@ -324,6 +341,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SacrificeGrace",
 	          meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float SacrificeDropChance = 0.15f;
+
+	/** Enables the legacy roll for a second RewardPickup beside the normal room reward. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SacrificeGrace")
+	bool bEnableExtraRewardPickups = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SacrificeGrace")
 	TSubclassOf<AActor> SacrificePickupClass;
@@ -415,6 +436,8 @@ protected:
 		TObjectPtr<USpawnLifecycleFlowAsset> SpawnLifecycleFlow;
 		bool bAllowAnySpawner = false;
 		bool bSpecialRewardEnemy = false;
+		TArray<FLootOption> SpecialRewardOptions;
+		TObjectPtr<UNiagaraSystem> SpecialRewardAuraFX;
 	};
 
 	// 波次计划（运行时数据，不需要 UE 反射）
@@ -460,6 +483,9 @@ protected:
 	// 检查关卡是否完成（所有波次结束 + 场内清空）
 	void CheckLevelComplete();
 	void HandleTimedClearObjectiveExpired();
+	void ApplyStoryNextRoomPlanForCurrentRoom(const FStoryNextRoomPlan& Plan);
+	void MarkStorySpecialRewardEnemy(AEnemyCharacterBase* Enemy, const FPlannedEnemy& Planned);
+	void SpawnStorySpecialRewardPickup(AYogCharacterBase* DeadCharacter, const TArray<FLootOption> RewardOptions);
 	void SpawnSacrificeEventAltar(const FVector& LootSpawnLoc);
 	bool IsSacrificeEventRoom() const;
 	void SpawnShopActorForRoom();
@@ -493,8 +519,10 @@ protected:
 	FTimerHandle InitialSpawnDelayTimer;
 	FTimerHandle DemandSpawnTimer;
 	FTimerHandle TimedClearObjectiveTimer;
+	FTimerHandle ForcedSurvivalSpawnTimer;
 	bool bTimedClearObjectiveActive = false;
 	bool bTimedClearObjectiveExpired = false;
+	bool bForcedSurvivalActive = false;
 	FTimerHandle PlayerDeathGameOverTimer;
 	TArray<FPlannedEnemy> OneByOneSpawnQueue;
 	int32 OneByOneSpawnIndex = 0;
@@ -551,6 +579,20 @@ protected:
 	// 当前关卡的房间配置（StartLevelSpawning 时缓存，整理阶段使用）
 	UPROPERTY()
 	TObjectPtr<URoomDataAsset> ActiveRoomData;
+
+	UPROPERTY(Transient)
+	bool bSuppressRoomClearRewardPickup = false;
+
+	UPROPERTY(Transient)
+	bool bStorySpecialRewardEnemyEnabled = false;
+
+	UPROPERTY(Transient)
+	TArray<FLootOption> StorySpecialRewardEnemyLootOptions;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraSystem> StorySpecialRewardEnemyAuraFX;
+
+	void SpawnForcedSurvivalEnemy();
 
 	// 当前关卡的奖励配置（从 FloorConfig 缓存，整理阶段使用）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "LevelFlow|Story Override", meta = (AllowPrivateAccess = "true"))

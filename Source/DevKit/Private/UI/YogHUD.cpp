@@ -52,6 +52,7 @@
 #include "Components/OverlaySlot.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/Texture2D.h"
 #include "CommonActivatableWidget.h"
 #include "GameFramework/Pawn.h"
 
@@ -77,6 +78,37 @@ namespace
 		{
 			UIManager->SetWidgetClassOverride(ScreenId, WidgetClass);
 		}
+	}
+
+	FString DescribeHUDEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+	{
+		return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
+	}
+
+	FString DescribeHUDLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+	{
+		if (Options.IsEmpty())
+		{
+			return TEXT("Count=0 []");
+		}
+
+		TArray<FString> Parts;
+		Parts.Reserve(Options.Num());
+		for (int32 Index = 0; Index < Options.Num(); ++Index)
+		{
+			const FLootOption& Option = Options[Index];
+			Parts.Add(FString::Printf(
+				TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
+				Index,
+				*DescribeHUDEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+				Option.Amount,
+				*Option.DisplayName.ToString(),
+				*GetNameSafe(Option.RuneAsset.Get()),
+				*GetNameSafe(Option.Icon.Get()),
+				*Option.MetaCurrencyTag.ToString()));
+		}
+
+		return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
 	}
 }
 
@@ -636,6 +668,7 @@ void AYogHUD::ShowWeaponFloatInfoAtLocation(const UWeaponDefinition* Def, FVecto
 	{
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
 		CurrentPreviewTarget = nullptr;
+		CurrentPreviewRevision = INDEX_NONE;
 	}
 	WeaponFloatWidget->SetUserFocus(GetOwningPlayerController());
 }
@@ -1452,6 +1485,8 @@ void AYogHUD::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
 void AYogHUD::ShowPortalGuidance()
 {
 	bShowPortalGuidance = true;
+	CurrentPreviewTarget = nullptr;
+	CurrentPreviewRevision = INDEX_NONE;
 
 	// 一次性扫描场景所有 bIsOpen 的 Portal，缓存弱指针避免每帧 GetAllActorsOfClass
 	CachedOpenPortals.Reset();
@@ -1504,6 +1539,7 @@ void AYogHUD::HidePortalGuidance()
 {
 	bShowPortalGuidance = false;
 	CurrentPreviewTarget = nullptr;
+	CurrentPreviewRevision = INDEX_NONE;
 	CachedOpenPortals.Reset();
 	if (PortalPreviewWidget)
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
@@ -1546,6 +1582,19 @@ FVector2D AYogHUD::ResolvePortalPreviewAnchorPosition(
 	return AnchorPosition;
 }
 
+FVector2D AYogHUD::ResolvePortalPreviewAlignment(
+	const FVector2D& ScreenPosition,
+	const FVector2D& ViewportSize)
+{
+	if (ViewportSize.X <= 0.f || ViewportSize.Y <= 0.f)
+	{
+		return FVector2D(0.5f, 1.0f);
+	}
+
+	const bool bDoorOnRightSide = ScreenPosition.X > ViewportSize.X * 0.5f;
+	return FVector2D(bDoorOnRightSide ? 1.0f : 0.0f, 1.0f);
+}
+
 void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 {
 	if (MajorUICount > 0) return;
@@ -1554,6 +1603,7 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 	{
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
 		CurrentPreviewTarget = nullptr;
+		CurrentPreviewRevision = INDEX_NONE;
 		return;
 	}
 
@@ -1561,12 +1611,16 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 	if (!PC || !PC->GetPawn())
 	{
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+		CurrentPreviewTarget = nullptr;
+		CurrentPreviewRevision = INDEX_NONE;
 		return;
 	}
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(PC->GetPawn());
 	if (!Player)
 	{
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+		CurrentPreviewTarget = nullptr;
+		CurrentPreviewRevision = INDEX_NONE;
 		return;
 	}
 
@@ -1638,13 +1692,23 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 			PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
 		}
 		CurrentPreviewTarget = nullptr;
+		CurrentPreviewRevision = INDEX_NONE;
 		return;
 	}
 
 	// Target 切换 → 刷新数据 + 显示
-	if (CurrentPreviewTarget.Get() != Target)
+	const int32 TargetPreviewRevision = Target->GetPreviewRevision();
+	if (CurrentPreviewTarget.Get() != Target || CurrentPreviewRevision != TargetPreviewRevision)
 	{
 		CurrentPreviewTarget = Target;
+		CurrentPreviewRevision = TargetPreviewRevision;
+		UE_LOG(LogTemp, Log,
+			TEXT("[StoryRewardDebug] HUD SetPortalPreviewInfo Target=%s PortalIndex=%d Revision=%d PendingPortal=%s RewardOptions=%s"),
+			*GetNameSafe(Target),
+			Target->Index,
+			TargetPreviewRevision,
+			*GetNameSafe(Player->PendingPortal),
+			*DescribeHUDLootOptionsForRewardDebug(Target->CachedPreviewInfo.RewardPreviewOptions));
 		PortalPreviewWidget->SetPreviewInfo(Target->CachedPreviewInfo);
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
@@ -1658,13 +1722,14 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 		FVector2D ViewportSize;
 		if (UGameViewportClient* GVC = GetWorld()->GetGameViewport())
 			GVC->GetViewportSize(ViewportSize);
+		const FVector2D ProjectedDoorScreenPos = ScreenPos;
 		ScreenPos = ResolvePortalPreviewAnchorPosition(
 			ScreenPos,
 			ViewportSize,
 			PortalWidgetSideOffset,
 			24.f);
 
-		const FVector2D PreviewAlignment(0.5f, 1.0f);
+		const FVector2D PreviewAlignment = ResolvePortalPreviewAlignment(ProjectedDoorScreenPos, ViewportSize);
 		PortalPreviewWidget->SetAlignmentInViewport(PreviewAlignment);
 		PortalPreviewWidget->SetPositionInViewport(ScreenPos, false);
 	}
@@ -1713,6 +1778,7 @@ void AYogHUD::PopMajorUI()
 
 	// 重置 Portal 目标，强制 TickPortalPreview 重新判断并 SetVisible（否则 Target 未变会跳过）
 	CurrentPreviewTarget = nullptr;
+	CurrentPreviewRevision = INDEX_NONE;
 
 	// 恢复 Slate 可见性（opacity 从当前 alpha 继续 fade-in，避免闪现）
 	if (UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr)

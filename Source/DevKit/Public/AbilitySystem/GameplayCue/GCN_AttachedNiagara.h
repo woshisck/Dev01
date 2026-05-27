@@ -11,6 +11,48 @@ class USkeletalMeshComponent;
 class AWeaponInstance;
 
 UENUM(BlueprintType)
+enum class EGCNNiagaraParamType : uint8
+{
+	Float  UMETA(DisplayName = "Float"),
+	Vector UMETA(DisplayName = "Vector"),
+	Color  UMETA(DisplayName = "Color"),
+	Bool   UMETA(DisplayName = "Bool"),
+	Int    UMETA(DisplayName = "Int"),
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FGCNNiagaraParamOverride
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara|Parameter")
+	FName ParameterName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara|Parameter")
+	EGCNNiagaraParamType ParamType = EGCNNiagaraParamType::Float;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara|Parameter",
+		meta = (EditCondition = "ParamType == EGCNNiagaraParamType::Float", EditConditionHides))
+	float FloatValue = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara|Parameter",
+		meta = (EditCondition = "ParamType == EGCNNiagaraParamType::Vector", EditConditionHides))
+	FVector VectorValue = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara|Parameter",
+		meta = (EditCondition = "ParamType == EGCNNiagaraParamType::Color", EditConditionHides))
+	FLinearColor ColorValue = FLinearColor::White;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara|Parameter",
+		meta = (EditCondition = "ParamType == EGCNNiagaraParamType::Bool", EditConditionHides))
+	bool bBoolValue = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara|Parameter",
+		meta = (EditCondition = "ParamType == EGCNNiagaraParamType::Int", EditConditionHides))
+	int32 IntValue = 0;
+};
+
+UENUM(BlueprintType)
 enum class EGCNAttachedNiagaraAttachTarget : uint8
 {
 	TargetActor UMETA(DisplayName = "Target Actor"),
@@ -82,12 +124,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Niagara")
 	bool bSkipDedicatedServer = true;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Niagara|Parameters")
+	TArray<FGCNNiagaraParamOverride> NiagaraParameterOverrides;
+
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UNiagaraComponent> ActiveNiagaraComponent;
 
 	UNiagaraComponent* SpawnNiagara(AActor* Target, bool bAutoDestroy);
 	void StopNiagara();
+	void ApplyNiagaraParameterOverrides(UNiagaraComponent* Component) const;
 	USceneComponent* ResolveAttachComponent(AActor* Target, FName& OutSocketName) const;
 	USceneComponent* ResolveTargetActorAttachComponent(AActor* Target, FName& OutSocketName) const;
 	USceneComponent* ResolveWeaponAttachComponent(AActor* Target, FName& OutSocketName) const;

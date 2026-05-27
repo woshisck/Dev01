@@ -8,8 +8,10 @@
 #include "Data/AbilityData.h"
 #include "AN_MeleeDamage.generated.h"
 
+class UAbilitySystemComponent;
 class URuneDataAsset;
 class UMontageAttackDataAsset;
+class AYogCharacterBase;
 
 UENUM(BlueprintType)
 enum class EMeleeDamageHitDilationScope : uint8
@@ -157,4 +159,10 @@ public:
 	FActionData BuildActionData() const;
 
 	void ApplyHitSuccessDilation(AActor* SourceActor) const;
+
+private:
+	// Applies GE_MeleeAttackFrame to the character's ASC with the current action data
+	// values, and binds a self-removing OnMontageEnded lambda to remove it.
+	void ApplyAttackFrameGE(AYogCharacterBase* Character, USkeletalMeshComponent* MeshComp,
+		UAbilitySystemComponent* ASC, const FActionData& ActionData);
 };

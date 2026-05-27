@@ -242,6 +242,11 @@ bool ARewardPickup::IsPickupAllowed() const
 
 bool ARewardPickup::ShouldGrantImmediately(const TArray<FLootOption>& Options) const
 {
+	return ShouldGrantLootImmediatelyForOptions(Options);
+}
+
+bool ARewardPickup::ShouldGrantLootImmediatelyForOptions(const TArray<FLootOption>& Options)
+{
 	if (Options.IsEmpty())
 	{
 		return false;
@@ -281,6 +286,8 @@ bool ARewardPickup::GrantImmediateLoot(APlayerCharacterBase* Player, const TArra
 			{
 				Backpack->AddGold(Amount);
 				bGrantedAny = true;
+				K2_OnGoldLootGranted(Amount);
+				K2_OnImmediateLootGranted(ELootType::Gold, Amount, Option.MetaCurrencyTag);
 				UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Granted gold: %d"), Amount);
 			}
 			break;
@@ -292,12 +299,16 @@ bool ARewardPickup::GrantImmediateLoot(APlayerCharacterBase* Player, const TArra
 				{
 					Meta->AddCurrency(Option.MetaCurrencyTag, Amount);
 					bGrantedAny = true;
+					K2_OnMaterialLootGranted(Option.MetaCurrencyTag, Amount);
+					K2_OnImmediateLootGranted(ELootType::Material, Amount, Option.MetaCurrencyTag);
 					UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Granted material: %s x%d"), *Option.MetaCurrencyTag.ToString(), Amount);
 				}
 			}
 			else
 			{
 				bGrantedAny = true;
+				K2_OnMaterialLootGranted(Option.MetaCurrencyTag, Amount);
+				K2_OnImmediateLootGranted(ELootType::Material, Amount, Option.MetaCurrencyTag);
 				UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Material reward has no tag; collected placeholder x%d."), Amount);
 			}
 			break;

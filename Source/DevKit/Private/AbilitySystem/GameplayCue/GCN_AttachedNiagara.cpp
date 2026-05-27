@@ -122,7 +122,47 @@ UNiagaraComponent* AGCN_AttachedNiagara::SpawnNiagara(AActor* Target, bool bAuto
 		}
 	}
 
+	if (SpawnedComponent)
+	{
+		ApplyNiagaraParameterOverrides(SpawnedComponent);
+	}
+
 	return SpawnedComponent;
+}
+
+void AGCN_AttachedNiagara::ApplyNiagaraParameterOverrides(UNiagaraComponent* Component) const
+{
+	if (!Component)
+	{
+		return;
+	}
+
+	for (const FGCNNiagaraParamOverride& Override : NiagaraParameterOverrides)
+	{
+		if (Override.ParameterName.IsNone())
+		{
+			continue;
+		}
+
+		switch (Override.ParamType)
+		{
+		case EGCNNiagaraParamType::Float:
+			Component->SetVariableFloat(Override.ParameterName, Override.FloatValue);
+			break;
+		case EGCNNiagaraParamType::Vector:
+			Component->SetVariableVec3(Override.ParameterName, Override.VectorValue);
+			break;
+		case EGCNNiagaraParamType::Color:
+			Component->SetVariableLinearColor(Override.ParameterName, Override.ColorValue);
+			break;
+		case EGCNNiagaraParamType::Bool:
+			Component->SetVariableBool(Override.ParameterName, Override.bBoolValue);
+			break;
+		case EGCNNiagaraParamType::Int:
+			Component->SetVariableInt(Override.ParameterName, Override.IntValue);
+			break;
+		}
+	}
 }
 
 void AGCN_AttachedNiagara::StopNiagara()

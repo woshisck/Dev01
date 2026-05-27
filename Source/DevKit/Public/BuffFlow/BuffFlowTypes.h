@@ -35,6 +35,7 @@ enum class EBFTargetSelector : uint8
 	BuffGiver        UMETA(DisplayName = "Buff施加者"),
 	LastDamageTarget UMETA(DisplayName = "上次伤害目标"),   // DamageReceiver（被击者）
 	DamageCauser     UMETA(DisplayName = "伤害来源"),       // DamageCauser（攻击者）
+	AllHitTargets    UMETA(DisplayName = "所有命中目标"),   // all actors from DamageReceivers (anim notify multi-hit)
 };
 
 /**
@@ -136,6 +137,10 @@ struct FBFEventContext
 	UPROPERTY()
 	TWeakObjectPtr<AActor> DamageReceiver;
 
+	/** 所有被命中的目标（AnimNotify 多目标命中时填写，供 AllHitTargets 选择器使用） */
+	UPROPERTY()
+	TArray<TWeakObjectPtr<AActor>> DamageReceivers;
+
 	/** 伤害量 */
 	UPROPERTY()
 	float DamageAmount = 0.f;
@@ -151,6 +156,7 @@ struct FBFEventContext
 	{
 		DamageCauser.Reset();
 		DamageReceiver.Reset();
+		DamageReceivers.Reset();
 		DamageAmount = 0.f;
 		AttackDirection = FVector::ZeroVector;
 		EventTag = FGameplayTag::EmptyTag;

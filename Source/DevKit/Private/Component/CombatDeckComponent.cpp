@@ -7,12 +7,21 @@
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "FlowAsset.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "SaveGame/YogSaveSubsystem.h"
+#include "Story/FirstRunTutorialDirectorSubsystem.h"
 
 namespace
 {
 	const FName CombatDeckOwnerSourceWeapon(TEXT("Weapon"));
 	const FName CombatDeckOwnerSourceReward(TEXT("Reward"));
 	const FName CombatDeckOwnerSourceShop(TEXT("Shop"));
+
+	// Derives a stable, collision-free GUID for a card's pre-commit flow slot.
+	// XOR on A and D ensures the result never equals the source GUID.
+	FGuid CombatDeck_PreCommitGuid(const FGuid& CardGuid)
+	{
+		return FGuid(CardGuid.A ^ 0x50524543u, CardGuid.B, CardGuid.C, CardGuid.D ^ 0x4f4d4954u);
+	}
 
 	const TArray<TObjectPtr<URuneDataAsset>>* GetDefaultWeaponDeckSource(const UWeaponDefinition* WeaponDefinition)
 	{
@@ -171,6 +180,24 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	}
 
 	FCombatCardInstance Card = ActiveSequence[CurrentIndex];
+
+	// OnCommit path: runs PreCommitFlow (e.g. trail setup) without consuming the card.
+	// CurrentIndex is NOT advanced so the same card is still available for OnHit resolution.
+	if (Context.TriggerTiming == ECombatCardTriggerTiming::OnCommit)
+	{
+		if (Card.Config.PreCommitFlow)
+		{
+			// Use a derived GUID so BaseFlow (keyed at Card.InstanceGuid) never stops
+			// or overwrites this flow when bRestartExistingFlow fires at OnHit time.
+			FCombatCardInstance PreCommitCard = Card;
+			PreCommitCard.InstanceGuid = CombatDeck_PreCommitGuid(Card.InstanceGuid);
+			ExecuteFlow(Card.Config.PreCommitFlow, PreCommitCard, Context, Result);
+			// Do not set Result.bHadCard: this is a pre-montage setup step, not a consumption.
+			Result.bHadCard = false;
+		}
+		return Result;
+	}
+
 	const bool bAllowOnCommitCardAtHitNotify =
 		Context.TriggerTiming == ECombatCardTriggerTiming::OnHit
 		&& Card.Config.TriggerTiming == ECombatCardTriggerTiming::OnCommit;
@@ -417,6 +444,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	}
 	if (Result.bTriggeredFinisher)
 	{
+		RegisterTriggeredFinisherCard(Card);
 		OnFinisherTriggered.Broadcast(Result);
 	}
 
@@ -439,8 +467,13 @@ void UCombatDeckComponent::StopCardFlow(const FCombatCardInstance& Card)
 		return;
 	}
 
+	ReleaseTriggeredFinisherCard(Card);
+
 	if (UBuffFlowComponent* BuffFlowComponent = GetOwner() ? GetOwner()->FindComponentByClass<UBuffFlowComponent>() : nullptr)
 	{
+		// Always stop the pre-commit flow slot first (no-op if not present).
+		BuffFlowComponent->StopBuffFlow(CombatDeck_PreCommitGuid(Card.InstanceGuid));
+
 		if (UFlowAsset* ActiveFlow = BuffFlowComponent->GetActiveBuffFlowAsset(Card.InstanceGuid))
 		{
 			const float DeferredStopDelay = GetProjectileEventFlowStopDelay(ActiveFlow);
@@ -479,7 +512,22 @@ void UCombatDeckComponent::LoadDeckFromWeapon(const UWeaponDefinition* WeaponDef
 	if (WeaponDefinition)
 	{
 		TArray<URuneDataAsset*> SourceAssets;
-		CopyDeckSourceAssets(GetDefaultWeaponDeckSource(WeaponDefinition), SourceAssets);
+		if (UWorld* World = GetWorld())
+		{
+			if (UGameInstance* GameInstance = World->GetGameInstance())
+			{
+				if (const UYogSaveSubsystem* SaveSys = GameInstance->GetSubsystem<UYogSaveSubsystem>();
+					SaveSys && SaveSys->IsFirstRunTutorialCompleted())
+				{
+					UFirstRunTutorialDirectorSubsystem::BuildDefaultPostTutorialDeck(SourceAssets);
+				}
+			}
+		}
+
+		if (SourceAssets.IsEmpty())
+		{
+			CopyDeckSourceAssets(GetDefaultWeaponDeckSource(WeaponDefinition), SourceAssets);
+		}
 
 		LoadDeckFromSourceAssetsInternal(SourceAssets, WeaponDefinition->ShuffleCooldownDuration, WeaponDefinition->MaxActiveSequenceSize, false);
 		return;
@@ -530,6 +578,7 @@ void UCombatDeckComponent::LoadDeckFromSourceAssetsInternal(const TArray<URuneDa
 	DashSavedLinkContext = FCombatCardInstance();
 	DashSavedLinkActionContext = FCombatDeckActionContext();
 	ResolvedAttackGuids.Reset();
+	FinisherCardsWaitingForEffectEnd.Reset();
 	RefillActiveSequence();
 	if (!EnteredCards.IsEmpty())
 	{
@@ -728,6 +777,7 @@ void UCombatDeckComponent::SetDeckListForTest(const TArray<FCombatCardConfig>& I
 	DashSavedLinkContext = FCombatCardInstance();
 	DashSavedLinkActionContext = FCombatDeckActionContext();
 	ResolvedAttackGuids.Reset();
+	FinisherCardsWaitingForEffectEnd.Reset();
 	RefillActiveSequence();
 }
 
@@ -760,6 +810,11 @@ void UCombatDeckComponent::ClearDashSavedLinkContext()
 {
 	DashSavedLinkContext = FCombatCardInstance();
 	DashSavedLinkActionContext = FCombatDeckActionContext();
+}
+
+bool UCombatDeckComponent::IsCardSuppressedFromActiveSequenceForTest(const FGuid& CardGuid) const
+{
+	return FinisherCardsWaitingForEffectEnd.Contains(CardGuid);
 }
 
 FCombatCardInstance UCombatDeckComponent::MakeCardFromRune(URuneDataAsset* RuneAsset, FName OwnerSource) const
@@ -880,14 +935,47 @@ void UCombatDeckComponent::RefillActiveSequence()
 		? FMath::Min(MaxActiveSequenceSize, DeckList.Num())
 		: DeckList.Num();
 
-	for (int32 i = 0; i < DesiredCount; ++i)
+	for (const FCombatCardInstance& Card : DeckList)
 	{
-		ActiveSequence.Add(DeckList[i]);
+		if (ActiveSequence.Num() >= DesiredCount)
+		{
+			break;
+		}
+
+		if (ShouldSkipActiveSequenceRefillCard(Card))
+		{
+			continue;
+		}
+
+		ActiveSequence.Add(Card);
 	}
 
 	DeckState = EDeckState::Ready;
 	ShuffleCooldownRemaining = 0.0f;
 	OnDeckLoaded.Broadcast(BuildTemporaryLockViewCards(ActiveSequence));
+}
+
+void UCombatDeckComponent::RegisterTriggeredFinisherCard(const FCombatCardInstance& Card)
+{
+	if (Card.Config.CardType == ECombatCardType::Finisher && Card.InstanceGuid.IsValid())
+	{
+		FinisherCardsWaitingForEffectEnd.Add(Card.InstanceGuid);
+	}
+}
+
+void UCombatDeckComponent::ReleaseTriggeredFinisherCard(const FCombatCardInstance& Card)
+{
+	if (Card.InstanceGuid.IsValid())
+	{
+		FinisherCardsWaitingForEffectEnd.Remove(Card.InstanceGuid);
+	}
+}
+
+bool UCombatDeckComponent::ShouldSkipActiveSequenceRefillCard(const FCombatCardInstance& Card) const
+{
+	return Card.Config.CardType == ECombatCardType::Finisher
+		&& Card.InstanceGuid.IsValid()
+		&& FinisherCardsWaitingForEffectEnd.Contains(Card.InstanceGuid);
 }
 
 void UCombatDeckComponent::RefreshCardPassiveFlows()
