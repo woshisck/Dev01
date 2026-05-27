@@ -253,6 +253,12 @@ EStoryEncounterActionKind ParseActionKind(const FString& Value)
 	return EStoryEncounterActionKind::WeakHint;
 }
 
+EStoryRewardOverrideTarget ParseRewardOverrideTarget(const FString& Value)
+{
+	if (Value.Equals(TEXT("NextRoom"), ESearchCase::IgnoreCase)) return EStoryRewardOverrideTarget::NextRoom;
+	return EStoryRewardOverrideTarget::CurrentRoom;
+}
+
 FStoryEncounterCondition ParseCondition(const TSharedPtr<FJsonObject>& Object)
 {
 	FStoryEncounterCondition Condition;
@@ -339,6 +345,7 @@ FStoryEncounterAction ParseAction(const TSharedPtr<FJsonObject>& Object)
 	Action.bSpawnRewardOnTargetDeath = GetBool(Object, TEXT("spawnRewardOnTargetDeath"), Action.bSpawnRewardOnTargetDeath);
 	Action.bRewardPickupAllowedOutsideArrangement = GetBool(Object, TEXT("rewardPickupAllowedOutsideArrangement"), Action.bRewardPickupAllowedOutsideArrangement);
 	Action.bClearRoomRewardOverride = GetBool(Object, TEXT("clearRoomRewardOverride"), Action.bClearRoomRewardOverride);
+	Action.RewardOverrideTarget = ParseRewardOverrideTarget(GetString(Object, TEXT("rewardOverrideTarget")));
 	Action.ForcedPortalIndex = GetInt(Object, TEXT("forcedPortalIndex"), Action.ForcedPortalIndex);
 	Action.bClearPortalOverride = GetBool(Object, TEXT("clearPortalOverride"), Action.bClearPortalOverride);
 	const FString LevelFlowPath = GetString(Object, TEXT("levelFlow"));

@@ -16,6 +16,7 @@
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Map/Portal.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Styling/SlateBrush.h"
@@ -830,6 +831,7 @@ void UYogGameInstanceBase::SetPendingRoomRewardOptionsOverride(const TArray<FLoo
 
 	UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Pending room reward options override set. Count=%d"),
 		PendingRoomRewardOptionsOverride.Num());
+	RefreshOpenPortalRewardPreviews();
 }
 
 void UYogGameInstanceBase::ClearPendingRoomRewardOptionsOverride()
@@ -841,6 +843,7 @@ void UYogGameInstanceBase::ClearPendingRoomRewardOptionsOverride()
 
 	bHasPendingRoomRewardOptionsOverride = false;
 	PendingRoomRewardOptionsOverride.Reset();
+	RefreshOpenPortalRewardPreviews();
 }
 
 bool UYogGameInstanceBase::ConsumePendingRoomRewardOptionsOverride(TArray<FLootOption>& OutOptions)
@@ -854,6 +857,38 @@ bool UYogGameInstanceBase::ConsumePendingRoomRewardOptionsOverride(TArray<FLootO
 	OutOptions = PendingRoomRewardOptionsOverride;
 	ClearPendingRoomRewardOptionsOverride();
 	return true;
+}
+
+bool UYogGameInstanceBase::GetPendingRoomRewardOptionsOverride(TArray<FLootOption>& OutOptions) const
+{
+	if (!bHasPendingRoomRewardOptionsOverride)
+	{
+		OutOptions.Reset();
+		return false;
+	}
+
+	OutOptions = PendingRoomRewardOptionsOverride;
+	return true;
+}
+
+void UYogGameInstanceBase::RefreshOpenPortalRewardPreviews()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	TArray<AActor*> PortalActors;
+	UGameplayStatics::GetAllActorsOfClass(World, APortal::StaticClass(), PortalActors);
+	for (AActor* Actor : PortalActors)
+	{
+		APortal* Portal = Cast<APortal>(Actor);
+		if (Portal && Portal->bIsOpen)
+		{
+			Portal->RefreshPreviewInfo();
+		}
+	}
 }
 
 void UYogGameInstanceBase::SetCampaignOverride(UCampaignDataAsset* InCampaignData)

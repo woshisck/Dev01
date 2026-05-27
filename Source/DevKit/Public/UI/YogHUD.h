@@ -460,6 +460,7 @@ private:
 
 	TArray<TWeakObjectPtr<APortal>> CachedOpenPortals;
 	TWeakObjectPtr<APortal>         CurrentPreviewTarget;
+	int32 CurrentPreviewRevision = INDEX_NONE;
 	bool bShowPortalGuidance = false;
 
 	// === Portal 进入过场 Blackout（独立 PP Volume，不与 Pause/LevelEnd 互扰） ===

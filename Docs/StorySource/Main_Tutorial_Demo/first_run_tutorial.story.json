@@ -419,6 +419,19 @@
       },
       "actions": [
         {
+          "type": "SetRoomRewardOverride",
+          "actionId": "override_next_room01_gold_reward",
+          "rewardOverrideTarget": "NextRoom",
+          "rewardLootOptions": [
+            {
+              "lootType": "Gold",
+              "amount": 50,
+              "displayName": "金币 x50",
+              "icon": "/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon"
+            }
+          ]
+        },
+        {
           "type": "WeakHint",
           "title": "进入下一关",
           "body": "通道已开启。请留意相关信息。",

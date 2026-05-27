@@ -14,6 +14,7 @@ class UBoxComponent;
 class UNiagaraComponent;
 class UStaticMeshComponent;
 class UYogSaveSubsystem;
+class UYogGameInstanceBase;
 class URoomDataAsset;
 class URuneDataAsset;
 
@@ -111,6 +112,13 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 	          const TArray<FBuffEntry>& InPreRolledBuffs);
+
+	static TArray<FLootOption> BuildRewardPreviewOptionsForRoom(
+		const URoomDataAsset* Room,
+		const UYogGameInstanceBase* GameInstance);
+
+	void RefreshPreviewInfo();
+	int32 GetPreviewRevision() const { return PreviewRevision; }
 
 	// 直接通过名字切换关卡（保留旧接口，BP 可调）
 	UFUNCTION(BlueprintCallable)
@@ -259,6 +267,7 @@ private:
 
 	// 防重入：TryEnter 触发后置 true，本 actor 销毁前不再接受第二次按 E
 	bool bEntryInProgress = false;
+	int32 PreviewRevision = 0;
 
 	FTimerHandle EntryWalkTickTimer;
 	FTimerHandle EntryFinishTimer;

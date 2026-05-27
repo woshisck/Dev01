@@ -224,6 +224,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
 	bool ConsumePendingRoomRewardOptionsOverride(TArray<FLootOption>& OutOptions);
 
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
+	bool GetPendingRoomRewardOptionsOverride(TArray<FLootOption>& OutOptions) const;
+
 	UFUNCTION(BlueprintPure, Category = "LevelFlow|Story Override")
 	bool HasPendingRoomRewardOptionsOverride() const { return bHasPendingRoomRewardOptionsOverride; }
 
@@ -410,6 +413,7 @@ private:
 	FReply HandleContinueClicked();
 	FReply HandleOptionsClicked();
 	FReply HandleQuitClicked();
+	void RefreshOpenPortalRewardPreviews();
 
 protected:
 

@@ -19,6 +19,7 @@
 #include "LevelFlow/LevelFlowAsset.h"
 #include "LevelFlow/LevelEventTrigger.h"
 #include "Story/StoryEngineSubsystem.h"
+#include "System/YogGameInstanceBase.h"
 #include "UI/InfoPopupWidget.h"
 #include "UI/YogHUD.h"
 
@@ -680,6 +681,34 @@ bool UStoryEncounterRuntimeSubsystem::ExecuteSetRoomRewardOverrideAction(
 	const FStoryEventContext& Context) const
 {
 	UWorld* World = Context.SourceActor ? Context.SourceActor->GetWorld() : GetWorld();
+	UYogGameInstanceBase* GI = World
+		? Cast<UYogGameInstanceBase>(World->GetGameInstance())
+		: Cast<UYogGameInstanceBase>(GetGameInstance());
+
+	if (Action.RewardOverrideTarget == EStoryRewardOverrideTarget::NextRoom)
+	{
+		if (!GI)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[StoryEncounter] SetRoomRewardOverride skipped: GameInstance is not UYogGameInstanceBase."));
+			return false;
+		}
+
+		if (Action.bClearRoomRewardOverride)
+		{
+			GI->ClearPendingRoomRewardOptionsOverride();
+			return true;
+		}
+
+		if (Action.RewardLootOptions.IsEmpty())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[StoryEncounter] SetRoomRewardOverride skipped: RewardLootOptions is empty."));
+			return false;
+		}
+
+		GI->SetPendingRoomRewardOptionsOverride(Action.RewardLootOptions);
+		return true;
+	}
+
 	AYogGameMode* GM = World ? Cast<AYogGameMode>(UGameplayStatics::GetGameMode(World)) : nullptr;
 	if (!GM)
 	{

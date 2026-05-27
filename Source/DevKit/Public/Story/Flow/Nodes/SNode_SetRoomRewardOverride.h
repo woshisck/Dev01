@@ -3,17 +3,11 @@
 #include "CoreMinimal.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "Story/Flow/Nodes/SNode_Base.h"
+#include "Story/StoryRewardOverrideTypes.h"
 #include "SNode_SetRoomRewardOverride.generated.h"
 
 class AYogGameMode;
 class UYogGameInstanceBase;
-
-UENUM(BlueprintType)
-enum class EStoryRewardOverrideTarget : uint8
-{
-	CurrentRoom UMETA(DisplayName = "Current Room"),
-	NextRoom UMETA(DisplayName = "Next Room"),
-};
 
 /**
  * 覆盖当前房间的奖励池，或清除已有的覆盖。

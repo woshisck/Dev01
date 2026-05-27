@@ -122,7 +122,7 @@ void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 	PreRolledBuffs  = InPreRolledBuffs;
 	bIsOpen         = true;
 
-	BuildPreviewInfo();
+	RefreshPreviewInfo();
 	EnablePortal();
 
 	// 调试：列出每个 PreRolled Buff 的资产名 + RuneName，定位 RuneName 漏填
@@ -135,6 +135,19 @@ void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 			E.RuneDA ? *E.RuneDA->GetName() : TEXT("null"),
 			*RuneName.ToString());
 	}
+}
+
+TArray<FLootOption> APortal::BuildRewardPreviewOptionsForRoom(
+	const URoomDataAsset* Room,
+	const UYogGameInstanceBase* GameInstance)
+{
+	TArray<FLootOption> PendingOptions;
+	if (GameInstance && GameInstance->GetPendingRoomRewardOptionsOverride(PendingOptions))
+	{
+		return PendingOptions;
+	}
+
+	return BuildPortalRewardPreviewOptions(Room);
 }
 
 void APortal::BuildPreviewInfo()
@@ -156,7 +169,10 @@ void APortal::BuildPreviewInfo()
 		? FText::FromName(SelectedRoom->RoomName)
 		: SelectedRoom->DisplayName;
 
-	CachedPreviewInfo.RewardPreviewOptions = BuildPortalRewardPreviewOptions(SelectedRoom);
+	const UYogGameInstanceBase* GI = GetWorld()
+		? Cast<UYogGameInstanceBase>(GetWorld()->GetGameInstance())
+		: nullptr;
+	CachedPreviewInfo.RewardPreviewOptions = BuildRewardPreviewOptionsForRoom(SelectedRoom, GI);
 	CachedPreviewInfo.LootCount = CachedPreviewInfo.RewardPreviewOptions.Num();
 
 	// 提取首个 Room.Type.* Tag 作为类型徽章依据
@@ -171,6 +187,12 @@ void APortal::BuildPreviewInfo()
 			CachedPreviewInfo.RoomTypeTag = TypeTags.First();
 		}
 	}
+}
+
+void APortal::RefreshPreviewInfo()
+{
+	BuildPreviewInfo();
+	++PreviewRevision;
 }
 
 // =========================================================

@@ -636,6 +636,7 @@ void AYogHUD::ShowWeaponFloatInfoAtLocation(const UWeaponDefinition* Def, FVecto
 	{
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
 		CurrentPreviewTarget = nullptr;
+		CurrentPreviewRevision = INDEX_NONE;
 	}
 	WeaponFloatWidget->SetUserFocus(GetOwningPlayerController());
 }
@@ -1452,6 +1453,8 @@ void AYogHUD::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
 void AYogHUD::ShowPortalGuidance()
 {
 	bShowPortalGuidance = true;
+	CurrentPreviewTarget = nullptr;
+	CurrentPreviewRevision = INDEX_NONE;
 
 	// 一次性扫描场景所有 bIsOpen 的 Portal，缓存弱指针避免每帧 GetAllActorsOfClass
 	CachedOpenPortals.Reset();
@@ -1504,6 +1507,7 @@ void AYogHUD::HidePortalGuidance()
 {
 	bShowPortalGuidance = false;
 	CurrentPreviewTarget = nullptr;
+	CurrentPreviewRevision = INDEX_NONE;
 	CachedOpenPortals.Reset();
 	if (PortalPreviewWidget)
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
@@ -1554,6 +1558,7 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 	{
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
 		CurrentPreviewTarget = nullptr;
+		CurrentPreviewRevision = INDEX_NONE;
 		return;
 	}
 
@@ -1561,12 +1566,16 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 	if (!PC || !PC->GetPawn())
 	{
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+		CurrentPreviewTarget = nullptr;
+		CurrentPreviewRevision = INDEX_NONE;
 		return;
 	}
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(PC->GetPawn());
 	if (!Player)
 	{
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
+		CurrentPreviewTarget = nullptr;
+		CurrentPreviewRevision = INDEX_NONE;
 		return;
 	}
 
@@ -1638,13 +1647,16 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 			PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
 		}
 		CurrentPreviewTarget = nullptr;
+		CurrentPreviewRevision = INDEX_NONE;
 		return;
 	}
 
 	// Target 切换 → 刷新数据 + 显示
-	if (CurrentPreviewTarget.Get() != Target)
+	const int32 TargetPreviewRevision = Target->GetPreviewRevision();
+	if (CurrentPreviewTarget.Get() != Target || CurrentPreviewRevision != TargetPreviewRevision)
 	{
 		CurrentPreviewTarget = Target;
+		CurrentPreviewRevision = TargetPreviewRevision;
 		PortalPreviewWidget->SetPreviewInfo(Target->CachedPreviewInfo);
 		PortalPreviewWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
@@ -1713,6 +1725,7 @@ void AYogHUD::PopMajorUI()
 
 	// 重置 Portal 目标，强制 TickPortalPreview 重新判断并 SetVisible（否则 Target 未变会跳过）
 	CurrentPreviewTarget = nullptr;
+	CurrentPreviewRevision = INDEX_NONE;
 
 	// 恢复 Slate 可见性（opacity 从当前 alpha 继续 fade-in，避免闪现）
 	if (UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr)

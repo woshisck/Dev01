@@ -2,8 +2,11 @@
 
 #include "Misc/AutomationTest.h"
 
+#include "Data/RoomDataAsset.h"
 #include "Engine/World.h"
 #include "GameModes/YogGameMode.h"
+#include "Map/Portal.h"
+#include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Flow/Nodes/SNode_SetRoomRewardOverride.h"
 #include "System/YogGameInstanceBase.h"
 
@@ -16,6 +19,17 @@ FLootOption MakeGoldOption(int32 Amount)
 	Option.Amount = Amount;
 	Option.DisplayName = FText::Format(
 		NSLOCTEXT("StoryRewardOverrideTests", "GoldRewardFormat", "Gold x{0}"),
+		FText::AsNumber(Amount));
+	return Option;
+}
+
+FLootOption MakeMaterialOption(int32 Amount)
+{
+	FLootOption Option;
+	Option.LootType = ELootType::Material;
+	Option.Amount = Amount;
+	Option.DisplayName = FText::Format(
+		NSLOCTEXT("StoryRewardOverrideTests", "MaterialRewardFormat", "Material x{0}"),
 		FText::AsNumber(Amount));
 	return Option;
 }
@@ -50,6 +64,39 @@ bool FGameInstancePendingRoomRewardOverrideConsumedOnceTest::RunTest(const FStri
 	TestFalse(TEXT("Pending reward override is one-shot"),
 		GI->ConsumePendingRoomRewardOptionsOverride(SecondConsume));
 	TestEqual(TEXT("Second consume returns no options"), SecondConsume.Num(), 0);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameInstancePendingRoomRewardOverrideCanBePreviewedTest,
+	"DevKit.StoryRewardOverride.GameInstancePendingOverrideCanBePreviewed",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGameInstancePendingRoomRewardOverrideCanBePreviewedTest::RunTest(const FString& Parameters)
+{
+	UYogGameInstanceBase* GI = NewObject<UYogGameInstanceBase>();
+	TestNotNull(TEXT("Game instance exists"), GI);
+	if (!GI)
+	{
+		return false;
+	}
+
+	GI->SetPendingRoomRewardOptionsOverride({ StoryRewardOverrideTests::MakeGoldOption(50) });
+
+	TArray<FLootOption> PreviewOptions;
+	TestTrue(TEXT("Pending reward override can be read for preview"),
+		GI->GetPendingRoomRewardOptionsOverride(PreviewOptions));
+	TestEqual(TEXT("Preview option count"), PreviewOptions.Num(), 1);
+	if (PreviewOptions.Num() == 1)
+	{
+		TestEqual(TEXT("Preview loot type is gold"), PreviewOptions[0].LootType, ELootType::Gold);
+		TestEqual(TEXT("Preview gold amount"), PreviewOptions[0].Amount, 50);
+	}
+
+	TArray<FLootOption> ConsumedOptions;
+	TestTrue(TEXT("Preview read does not consume pending reward override"),
+		GI->ConsumePendingRoomRewardOptionsOverride(ConsumedOptions));
+	TestEqual(TEXT("Consumed option count after preview"), ConsumedOptions.Num(), 1);
 
 	return true;
 }
@@ -121,6 +168,40 @@ bool FGameModeAppliesPendingRoomRewardOverrideTest::RunTest(const FString& Param
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPortalRewardPreviewPrefersPendingOverrideTest,
+	"DevKit.StoryRewardOverride.PortalPreviewPrefersPendingOverride",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPortalRewardPreviewPrefersPendingOverrideTest::RunTest(const FString& Parameters)
+{
+	URoomDataAsset* Room = NewObject<URoomDataAsset>();
+	UYogGameInstanceBase* GI = NewObject<UYogGameInstanceBase>();
+	TestNotNull(TEXT("Room data exists"), Room);
+	TestNotNull(TEXT("Game instance exists"), GI);
+	if (!Room || !GI)
+	{
+		return false;
+	}
+
+	Room->bUseFixedRewardOptions = true;
+	Room->FixedRewardOptions = { StoryRewardOverrideTests::MakeMaterialOption(1) };
+	GI->SetPendingRoomRewardOptionsOverride({ StoryRewardOverrideTests::MakeGoldOption(50) });
+
+	const TArray<FLootOption> PreviewOptions = APortal::BuildRewardPreviewOptionsForRoom(Room, GI);
+	TestEqual(TEXT("Portal preview option count"), PreviewOptions.Num(), 1);
+	if (PreviewOptions.Num() == 1)
+	{
+		TestEqual(TEXT("Portal preview uses pending gold override"), PreviewOptions[0].LootType, ELootType::Gold);
+		TestEqual(TEXT("Portal preview gold amount"), PreviewOptions[0].Amount, 50);
+	}
+
+	TArray<FLootOption> ConsumedOptions;
+	TestTrue(TEXT("Portal preview does not consume pending reward override"),
+		GI->ConsumePendingRoomRewardOptionsOverride(ConsumedOptions));
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryFlowSetRoomRewardOverrideNextRoomStoresPendingTest,
 	"DevKit.StoryRewardOverride.StoryFlowNextRoomStoresPendingOverride",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -150,6 +231,51 @@ bool FStoryFlowSetRoomRewardOverrideNextRoomStoresPendingTest::RunTest(const FSt
 	{
 		TestEqual(TEXT("Pending loot type is gold"), ConsumedOptions[0].LootType, ELootType::Gold);
 		TestEqual(TEXT("Pending gold amount"), ConsumedOptions[0].Amount, 50);
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstRunHubPortalSetsNextRoomGoldRewardTest,
+	"DevKit.StoryRewardOverride.FirstRunHubPortalSetsNextRoomGoldReward",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFirstRunHubPortalSetsNextRoomGoldRewardTest::RunTest(const FString& Parameters)
+{
+	UStoryEncounterPointDA* Point = Cast<UStoryEncounterPointDA>(StaticLoadObject(
+		UStoryEncounterPointDA::StaticClass(),
+		nullptr,
+		TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_HubPortalRewardPreview.EP_FirstRun_HubPortalRewardPreview")));
+	TestNotNull(TEXT("First-run hub portal encounter point exists"), Point);
+	if (!Point)
+	{
+		return false;
+	}
+
+	const FStoryEncounterAction* RewardAction = Point->Actions.FindByPredicate(
+		[](const FStoryEncounterAction& Action)
+		{
+			return Action.Kind == EStoryEncounterActionKind::SetRoomRewardOverride
+				&& Action.ActionId == TEXT("override_next_room01_gold_reward");
+		});
+	TestNotNull(TEXT("Hub portal encounter sets a room reward override"), RewardAction);
+	if (!RewardAction)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Reward override targets the next room"),
+		RewardAction->RewardOverrideTarget,
+		EStoryRewardOverrideTarget::NextRoom);
+	TestFalse(TEXT("Reward override is not a clear action"), RewardAction->bClearRoomRewardOverride);
+	TestEqual(TEXT("Reward option count"), RewardAction->RewardLootOptions.Num(), 1);
+	if (RewardAction->RewardLootOptions.Num() == 1)
+	{
+		const FLootOption& Reward = RewardAction->RewardLootOptions[0];
+		TestEqual(TEXT("First-run next-room reward is gold"), Reward.LootType, ELootType::Gold);
+		TestEqual(TEXT("First-run next-room gold amount"), Reward.Amount, 50);
+		TestFalse(TEXT("First-run next-room reward has a display name"), Reward.DisplayName.IsEmpty());
+		TestNotNull(TEXT("First-run next-room reward has the gold icon"), Reward.Icon.Get());
 	}
 
 	return true;
