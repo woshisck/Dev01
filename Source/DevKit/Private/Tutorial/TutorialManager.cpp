@@ -23,6 +23,9 @@ namespace
 
 	const FName LinkCardTutorialEventID(TEXT("tutorial_card_link"));
 	const FName MoonlightLinkCardTutorialEventID(TEXT("tutorial_card_link_moonlight"));
+	const FName WeaponPickupTutorialEventID(TEXT("tutorial_weapon_pickup"));
+	const TCHAR* DefaultTutorialRegistryObjectPath =
+		TEXT("/Game/Docs/UI/Tutorial/DA_TutorialRegistry.DA_TutorialRegistry");
 
 	FGameplayTag GetLinkCardHintTag()
 	{
@@ -54,6 +57,40 @@ namespace
 		Page.Body = FText::FromString(Body);
 		Page.SubText = FText::FromString(SubText);
 		return Page;
+	}
+
+	void BuildFallbackPagesForEventID(FName EventID, TArray<FTutorialPage>& OutPages)
+	{
+		if (EventID == FName(TEXT("tutorial_moonlight_pickup")))
+		{
+			OutPages.Add(MakeTutorialPage(
+				TEXT("获得月光·连携卡"),
+				TEXT("月光是一张特殊的连携卡，自身可造成斩击伤害，同时能与卡组中相邻的卡牌产生联动效果。打开背包调整卡牌顺序，以决定连携的方向。")));
+			OutPages.Add(MakeTutorialPage(
+				TEXT("正向连携"),
+				TEXT("将月光放在普通卡或重击卡的右侧（后方）：前方的卡牌命中后，月光接续触发正向连携，追加额外效果。")));
+			OutPages.Add(MakeTutorialPage(
+				TEXT("反向连携"),
+				TEXT("将月光放在普通卡或重击卡的左侧（前方）：月光命中后，触发反向连携，为后方卡牌蓄积特殊增益。")));
+		}
+		else if (EventID == FName(TEXT("tutorial_backpack")))
+		{
+			OutPages.Add(MakeTutorialPage(
+				TEXT("卡牌背包"),
+				TEXT("战斗卡牌会依次消耗。打开背包后，可以拖拽调整卡牌顺序，让连击节奏更流畅。")));
+		}
+		else if (EventID == FName(TEXT("tutorial_first_rune")))
+		{
+			OutPages.Add(MakeTutorialPage(
+				TEXT("获得战斗卡"),
+				TEXT("新卡已装入卡组。打开背包可以查看当前卡牌，并调整它们的战斗顺序。")));
+		}
+		else if (EventID == FName(TEXT("tutorial_card_link")) || EventID == FName(TEXT("tutorial_card_link_moonlight")))
+		{
+			OutPages.Add(MakeTutorialPage(
+				TEXT("连携卡"),
+				TEXT("连携卡放在相邻位置时会与旁边的卡牌产生联动。正向连携（卡牌后接月光）或反向连携（月光后接卡牌）均可触发，效果各有不同。")));
+		}
 	}
 
 	UYogUIManagerSubsystem* PrepareTutorialPopupManager(UTutorialPopupWidget* FallbackWidget, APlayerController* PC, bool bPauseGame)
@@ -104,12 +141,30 @@ void UTutorialManager::Deinitialize()
 
 void UTutorialManager::Init(UTutorialPopupWidget* InWidget, UTutorialRegistryDA* InRegistry)
 {
+	// If the widget instance changed (level transition → new HUD), reset popup showing state
+	// so a stale bPopupShowing=true from the previous level doesn't block all new tutorials.
+	if (PopupWidget.Get() != InWidget)
+	{
+		if (bPopupShowing)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[Tutorial] Init: widget changed during popup (level transition?) — resetting bPopupShowing."));
+		}
+		bPopupShowing = false;
+
+		if (DilationTickerHandle.IsValid())
+		{
+			FTSTicker::GetCoreTicker().RemoveTicker(DilationTickerHandle);
+			DilationTickerHandle.Reset();
+		}
+		EndDilationVisualIfActive();
+	}
+
 	PopupWidget = InWidget;
-	Registry = InRegistry;
+	Registry = ResolveTutorialRegistry(InRegistry);
 
 	UE_LOG(LogTemp, Log, TEXT("[Tutorial] Init: PopupWidget=%s, Registry=%s"),
 		InWidget ? *InWidget->GetClass()->GetName() : TEXT("NULL - TutorialPopupClass is not set on BP_HUD"),
-		InRegistry ? *InRegistry->GetName() : TEXT("NULL - TutorialRegistry is not set on BP_HUD"));
+		Registry ? *Registry->GetName() : TEXT("NULL - TutorialRegistry is not set on BP_HUD"));
 }
 
 void UTutorialManager::LoadFromSave(UYogSaveGame* Save)
@@ -236,7 +291,7 @@ void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase
 	TArray<FTutorialPage> PagesToShow;
 	if (Registry)
 	{
-		if (const TArray<FTutorialPage>* RegisteredPages = Registry->FindPages(TutorialEventID(TEXT("tutorial_weapon_pickup"))))
+		if (const TArray<FTutorialPage>* RegisteredPages = Registry->FindPages(WeaponPickupTutorialEventID))
 		{
 			PagesToShow = *RegisteredPages;
 		}
@@ -431,6 +486,31 @@ FName UTutorialManager::ResolveLinkCardTutorialEventIdForTest(const UTutorialReg
 	return ResolveLinkCardTutorialEventIdFromRegistry(InRegistry);
 }
 
+UTutorialRegistryDA* UTutorialManager::ResolveTutorialRegistry(UTutorialRegistryDA* InRegistry)
+{
+	if (InRegistry)
+	{
+		return InRegistry;
+	}
+
+	return LoadObject<UTutorialRegistryDA>(nullptr, DefaultTutorialRegistryObjectPath);
+}
+
+UTutorialRegistryDA* UTutorialManager::ResolveTutorialRegistryForTest(UTutorialRegistryDA* InRegistry)
+{
+	return ResolveTutorialRegistry(InRegistry);
+}
+
+bool UTutorialManager::IsDirectEventTutorialAllowed(FName EventID)
+{
+	return EventID != WeaponPickupTutorialEventID;
+}
+
+bool UTutorialManager::IsDirectEventTutorialAllowedForTest(FName EventID)
+{
+	return IsDirectEventTutorialAllowed(EventID);
+}
+
 FName UTutorialManager::ResolveLinkCardTutorialEventId() const
 {
 	return ResolveLinkCardTutorialEventIdFromRegistry(Registry);
@@ -511,6 +591,14 @@ bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool 
 		return false;
 	}
 
+	if (!IsDirectEventTutorialAllowed(EventID))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] EventID='%s' suppressed because it must be triggered by the weapon pickup flow."),
+			*EventID.ToString());
+		OnPopupClosed.Broadcast();
+		return false;
+	}
+
 	if (!PopupWidget.IsValid())
 	{
 		OnPopupClosed.Broadcast();
@@ -538,6 +626,11 @@ bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool 
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[Tutorial] Registry is not configured; EventID='%s' uses fallback text"), *EventID.ToString());
+	}
+
+	if (PagesToShow.Num() == 0)
+	{
+		BuildFallbackPagesForEventID(EventID, PagesToShow);
 	}
 
 	if (PagesToShow.Num() == 0)

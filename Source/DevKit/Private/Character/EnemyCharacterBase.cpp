@@ -60,6 +60,7 @@ void AEnemyCharacterBase::BeginPlay()
 		{
 			AbilitySystemComponent->SuperArmorThreshold = ED->SuperArmorThreshold;
 			AbilitySystemComponent->SuperArmorDuration  = ED->SuperArmorDuration;
+			AbilitySystemComponent->RecentlyDamagedStateDuration = ED->RecentlyDamagedStateDuration;
 			if (ED->MovementTuning.MaxWalkSpeedOverride > 0.0f)
 			{
 				GetCharacterMovement()->MaxWalkSpeed = ED->MovementTuning.MaxWalkSpeedOverride;

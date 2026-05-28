@@ -102,7 +102,15 @@
 - [ ] 祈祷室：献祭获得武器终结技
 - [ ] 无限刷敌失败房：玩家死亡后显示回归主城选项
 
-### P4：验收
+### P4：验收（2026-05-28 新增 Bug 修复）
+
+- [x] **Bug Fix** `YogGameMode.cpp EnterArrangementPhase`：普通房间结算拾取物生成后补调 `Pickup->PlaySpawnFocusCue()`，恢复时间膨胀/屏幕灰化/高亮效果
+- [x] **Bug Fix** `FirstRunTutorialDirectorSubsystem`：新增 `HandleFirstBackpackOpened(APlayerController*)`；月光阶段后首次开背包自动调用 StoryEngine 显示 `tutorial_backpack` 弹窗，`bFirstBackpackPopupShown` 保证只触发一次
+- [x] **Bug Fix** `BackpackScreenWidget::NativeActivate`：在故事事件广播后调用 `Director->HandleFirstBackpackOpened(PC)`
+- [ ] **待验证** 木头人拾取物时间膨胀是否实际显示（`FA_DummyDeath_DropHeavyCard` 中 `bPlaySpawnFocusCue` 已由 Commandlet 设为 true，需 PIE 确认）
+- [ ] **待配置** `tutorial_backpack` TutorialData DA 中是否有对应页面内容（如为空则需在 DA 中配置背包说明页）
+
+### P5：原 P4 验收
 
 - [ ] 完整 PIE 验证第一局教程链路（见 `FirstRunTutorial_UE_ImplementationChecklist.md` 第 9 节）
 - [ ] 修复或确认 `/Game/SlashTrailElemental/Niagara/SlashTrail/NS_SlashTrail_Dark` 缺失资源不影响流程

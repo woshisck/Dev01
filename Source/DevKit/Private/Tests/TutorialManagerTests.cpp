@@ -166,4 +166,48 @@ bool FTutorialManagerCoreTutorialIllustrationsConfiguredTest::RunTest(const FStr
 	return bAllConfigured;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialManagerLoadsDefaultRegistryWhenHudRegistryIsUnsetTest,
+	"DevKit.TutorialManager.LoadsDefaultRegistryWhenHudRegistryIsUnset",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FTutorialManagerLoadsDefaultRegistryWhenHudRegistryIsUnsetTest::RunTest(const FString& Parameters)
+{
+	const UTutorialRegistryDA* Registry = UTutorialManager::ResolveTutorialRegistryForTest(nullptr);
+	if (!TestNotNull(TEXT("Default tutorial registry loads when HUD registry is unset"), Registry))
+	{
+		return false;
+	}
+
+	const TArray<FTutorialPage>* Pages = Registry->FindPages(FName(TEXT("tutorial_weapon_pickup")));
+	if (!TestNotNull(TEXT("Default registry contains weapon pickup tutorial"), Pages))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Weapon pickup tutorial has pages"), Pages->Num() > 0);
+	if (Pages->Num() > 0)
+	{
+		TestNotNull(TEXT("Weapon pickup first page has an illustration"), (*Pages)[0].Illustration.Get());
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialManagerSuppressesDirectWeaponPickupEventTest,
+	"DevKit.TutorialManager.SuppressesDirectWeaponPickupEvent",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FTutorialManagerSuppressesDirectWeaponPickupEventTest::RunTest(const FString& Parameters)
+{
+	TestFalse(
+		TEXT("Weapon pickup tutorial cannot be shown by direct story event"),
+		UTutorialManager::IsDirectEventTutorialAllowedForTest(FName(TEXT("tutorial_weapon_pickup"))));
+
+	TestTrue(
+		TEXT("Other tutorial events can still be shown directly"),
+		UTutorialManager::IsDirectEventTutorialAllowedForTest(FName(TEXT("tutorial_first_rune"))));
+
+	return true;
+}
+
 #endif

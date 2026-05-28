@@ -89,9 +89,9 @@
 | 项目 | 内容 |
 |------|------|
 | 涉及文件 | `Source/.../DamageExecution.cpp`、`Source/.../GA_Dead.cpp`、`Source/.../BackpackGridComponent.cpp`、`Config/DefaultGameplayTags.ini`、`Config/Tags/BuffTag.ini`、`Docs/01_长期系统文档/系统/Rune/EnemyBuff_ProductionGuide.md` |
-| 5 个敌人符文 | E001 无畏（HP<75% 触发霸体+20%减伤）/ E002 死亡之毒（动画播完 AOE 毒液溅射）/ E003 死咒（死亡时给击杀者 MaxHealth×0.9 最多 3 层）/ E004 激怒（首次受击 AttackSpeed×1.4）/ E005 铁甲（Spawn 即激活 ArmorHP+80） |
+| 5 个敌人符文 | E001 无畏（HP<75% 触发霸体+50%承伤）/ E002 死亡之毒（动画播完 AOE 毒液溅射）/ E003 死咒（死亡时给击杀者 MaxHealth×0.9 最多 3 层）/ E004 激怒（首次受击 AttackSpeed×1.4）/ E005 铁甲（Spawn 即激活 ArmorHP+80） |
 | FA 形态 | Category B Actor Ability Passive（`[Start]` 节点起步），`YogGameMode::SpawnEnemyFromPool` 自动启动，敌人销毁随 Actor Cleanup |
-| DmgTaken clamp 修复 | `DamageExecution.cpp:85` 由 `FMath::Max(x,1.f)` 改为 `(x<=0)?1.f:Max(x,0.01f)`：capture 失败兜底 1.0；成功则允许 < 1.0（无畏 ×0.8 减伤生效） |
+| DmgTaken clamp 修复 | `DamageExecution.cpp:85` 由 `FMath::Max(x,1.f)` 改为 `(x<=0)?1.f:Max(x,0.01f)`：capture 失败兜底 1.0；成功则允许 < 1.0 的减伤倍率和 > 1.0 的易伤倍率生效（无畏当前为 ×1.5 承伤） |
 | DeathAnimComplete 事件 | `GA_Dead::StartDeathDelay` 在 IsValid 守卫后广播 `Ability.Event.DeathAnimComplete`（Payload.Instigator=Target=Avatar 自身），供 E002 监听 |
 | CritHit 事件 | `DamageExecution.cpp` 暴击时除 `OnCritHit` 委托外，额外发送 `Ability.Event.Attack.CritHit` 事件（Payload.Magnitude=FinalDamage） |
 | 新增 Tag | `Ability.Event.DeathAnimComplete`、`Ability.Event.Attack.CritHit`、`Buff.Status.SuperArmor`、`Buff.Status.Enraged`、`Buff.Status.Cursed` |
@@ -363,11 +363,11 @@
 | 项目 | 内容 |
 |------|------|
 | 核心文件 | `Data/EnemyData.h`、`Character/EnemyCharacterBase.cpp`、`Character/YogCharacterBase.h/.cpp`、`AbilitySystem/YogAbilitySystemComponent.cpp` |
-| DA 新字段 | `SuperArmorThreshold`（默认 3）/ `SuperArmorDuration`（默认 2s）——`EnemyCharacterBase::BeginPlay` 自动推到 ASC |
-| 金光触发 | 连续受击 ≥ Threshold 的短暂霸体 → 金黄正弦脉冲；关卡/自身/FA/AnimNotify/GE 直接授予 `Buff.Status.SuperArmor` → 稳定金光 |
+| DA 新字段 | `SuperArmorThreshold`（默认 3）/ `SuperArmorDuration`（默认 2s）/ `RecentlyDamagedStateDuration`（默认 3s）——`EnemyCharacterBase::BeginPlay` 自动推到 ASC |
+| 金光触发 | `Buff.Status.RecentlyDamaged` 持续窗口内连续受击 ≥ Threshold 的短暂霸体 → 金黄正弦脉冲；关卡/自身/FA/AnimNotify/GE 直接授予 `Buff.Status.SuperArmor` → 稳定金光 |
 | 金光结束 | `SuperArmorDuration` 到期 → ASC 调 `StopSuperArmorFlash()` → Overlay 移除 |
 | 优先级 | 命中白闪 > 霸体金光 > 攻击前红光；白闪结束后金光自动恢复 |
-| 可调参数 | `SuperArmorPulseFreq`（短暂霸体闪烁频率）/ `SuperArmorStableAlpha`（稳定金光强度）/ `SuperArmorThreshold` / `SuperArmorDuration`（DA） |
+| 可调参数 | `SuperArmorPulseFreq`（短暂霸体闪烁频率）/ `SuperArmorStableAlpha`（稳定金光强度）/ `SuperArmorThreshold` / `SuperArmorDuration` / `RecentlyDamagedStateDuration`（DA） |
 | 技术文档 | [CharacterFlash_Technical](../01_长期系统文档/系统/VFX/CharacterFlash_Technical.md) |
 
 ---

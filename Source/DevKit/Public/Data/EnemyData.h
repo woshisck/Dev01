@@ -314,4 +314,8 @@ public:
 	// 霸体持续时间（秒）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Poise", meta = (ClampMin = "0.0"))
 	float SuperArmorDuration = 2.f;
+
+	// 受到攻击后保持“最近受击”状态的时间（秒）；该状态到期时会清空被动霸体受击计数。
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Poise", meta = (ClampMin = "0.0"))
+	float RecentlyDamagedStateDuration = 3.f;
 };

@@ -1,38 +1,34 @@
 ## Codex 审查结果
 
 ### 发现的问题
-- `current_plan.md:40` 计划复用 `LENode_*`，但现有 `ULENode_Base` 通过 `AllowedAssetClasses = { ULevelFlowAsset::StaticClass() }` 限定只能用于 `ULevelFlowAsset`。迁移到 `UStoryFlowAsset` 后，`LENode_Delay`、`LENode_ShowTutorial`、`LENode_SpawnRewardPickup`、`LENode_ActivateTutorialSpawner` 等默认不可用。
-- `current_plan.md:165` 对节点过滤的判断与现状相反：`LENode_*` 不会自然出现在 Story FA；反而 `UBFNode_Base` 只排除了 `ULevelFlowAsset`，所以 BuffFlow 节点会出现在 `UStoryFlowAsset` 中。
-- `USNode_ShowTutorialPopup` 方案自相矛盾：`current_plan.md:79-83` 写阻塞等待关闭，`current_plan.md:172` 又确认非阻塞立即 Out。实现路径和 Pin 语义必须二选一。
-- `USNode_EnablePortal` 仅调用 `APortal::EnablePortal()` 不足以让传送门可进入。当前 `APortal::Open()` 才会设置 `bIsOpen`、`SelectedLevel`、`SelectedRoom` 等状态；`EnablePortal_Implementation()` 主要只是应用表现。
-- `USNode_RecordProgress` 文档里的 tag 规则写成 `Story.Progress.{EncounterId}.{ProgressKey}`，但现有 `MakeProgressTagName()` 实际生成 `Story.Encounter.Progress.{EncounterId}.{ProgressKey}`。如果资产或说明按前者配置，会导致进度条件不匹配。
-- `RunFlowViaProxy()` 当前代码里已经是 `UFlowAsset*`，计划中“从 `ULevelFlowAsset*` 改为 `UFlowAsset*`”属于过期步骤；但测试里仍有 `NewObject<UFlowAsset>` 赋给 `NodeEventFlow`，改成 `UStoryFlowAsset` 后需要同步更新。
-- `USNode_GiveCard` 的 Phase B 只写入战斗卡组，已确认决策又要求同时写入背包。两处不一致，且需要定义卡组添加失败但背包添加成功时的处理策略。
+- `current_plan.md:52` 和 `current_plan.md:81` 写成 Run / Session / Map 标志位，但代码里的 `EStoryFlagScope` 实际是 `Save / Run / Session`，Map 只存在于规则触发策略 `OncePerMap`，不是 StoryFlag 作用域。
+- `current_plan.md:47` 写 DataTable 在 GameInstance BP 中赋值，但当前实现从 `UMetaProgressionSettings` / `Config/DefaultGame.ini` 加载 `MetaUpgradeNodeTable` 与 `MetaCurrencyRuleTable`。
+- `current_plan.md:73-83` 的“已实现导演接口”只列了导演向外调用的少量接口，遗漏了导演自身被外部系统调用的入口，如 `HandleArrangementPhase`、`HandleRewardRuneAdded`、`HandleSacrificeConfirmed`、`HandleScriptedDefeatDeath`、`HandleFirstBackpackOpened` 等。
+- `current_plan.md:79-83` 对 StoryEngine / Save / GameMode 的副作用写得过粗。例如教程死亡流程还会调用 `ClearRunCheckpoint()` 与 `GI->ClearRunState()`，只写 `MarkFirstRunTutorialCompleted()` 会低估状态清理影响。
+- `current_plan.md:89` 提议 `GameMode::OverrideNextSpawnWave()`，但本轮原则写的是“只记录现有事实，不设计未来”。该项应明确标为“候选接口/未实现”，否则和设计原则冲突。
+- `current_plan.md:90` 写“无对话系统”不够准确：项目已有 `GameDialogWidget`、`DialogContentDA`、教程弹窗/提示与 StoryEncounter 的 `Dialogue` action 映射；缺的是“实时对话气泡/完整对话流程”，不是完全没有对话相关系统。
+- `current_plan.md:109-116` 写“新建 6 个文件”，但当前工作区中这些目标路径已经存在。若继续执行，应改为审校/更新现有文档，避免覆盖未跟踪或未提交内容。
 
 ### 潜在风险
-- 旧 `FA_DummyDeath_DropHeavyCard` 是 `ULevelFlowAsset`，不能简单在同一路径“覆盖”为 `UStoryFlowAsset`；通常需要删除旧资产、换路径，或写明确的资产迁移逻辑。
-- 绕过 `StoryEncounterRuntimeSubsystem::ExecuteEncounterAction()` 后，现有输入设备文案变体解析（键鼠/手柄）不会自动生效，ShowHint / Quest 类节点可能丢失当前 DA 行为。
-- “覆盖第一章教程所有操作”的节点清单不足：现有动作还包括 `UnlockFeature`、`SetQuestObjective`、`SetActorEnabled`、`SetRoomRewardOverride`、`SetPortalOverride`、`SpawnRewardPickup` 等。
-- 只新增 `UStoryFlowAsset` 运行时类，未新增 `StoryFlowAssetFactory` 时，内容浏览器创建入口和图初始化体验可能不如现有 `Level Event Flow`。
-- `MakeProgressTag()` 使用未注册 tag 时会返回 invalid；节点需要日志或 Failed 分支，否则设计侧很难定位配置错误。
+- 接口汇总如果只扫 `Public/*.h`，会遗漏 `Private` 中实际调用链、StoryFlow/SNode 节点、UI 触发点和蓝图资产里的调用。
+- 新建 `Docs/Systems/*` 与既有 `Docs/01_长期系统文档/系统/Story/*` 可能形成双份 StoryEngine 文档，后续容易漂移。
+- `StartForcedSurvivalEncounter()` 当前依赖 `ActiveRoomData` 或现有 `WavePlans` 选择敌人，并不等同于“指定特定遭遇战”；文档若不说明限制，后续接口设计会被误判。
+- “Portal 上加 `SetLocked(bool)` 即可”低估了传送门状态语义：需要明确碰撞、视觉、HUD 预览、`TryEnter` 防重入、`DisablePortal/NeverOpen` 的关系。
+- `DocConventions.md` 只靠人工约束，缺少检查手段，文档仍可能很快过时。
 
 ### 改进建议
-- 明确 Story FA 节点过滤策略：`USNode_Base` 设置 `AllowedAssetClasses = { UStoryFlowAsset::StaticClass() }`；同时更新 `UBFNode_Base` 排除 `UStoryFlowAsset`。
-- 若要复用 `LENode_*`，把 `ULENode_Base` 的允许列表扩展到 `UStoryFlowAsset`；若不想混用，则补齐对应 `USNode_*`。
-- 将 `USNode_ShowTutorialPopup` 固定为非阻塞或阻塞，并同步修改字段、Pin 名称、测试和文档。
-- 把 `USNode_EnablePortal` 改成调用 GameMode/Portal 的完整开启流程，或重命名为仅表现用途的节点，避免误以为可进入。
-- 增加迁移影响范围：更新自动化测试、DummyDeath commandlet、资产创建工厂、编辑器筛选/校验逻辑。
-- 为 Story 节点补充最小自动化测试：节点过滤、RecordProgress tag、GiveCard 成败分支、Portal 开启语义、TutorialPopup Out 时机。
+- 将 `DirectorInterfaces.md` 拆成三类：导演主动调用的系统接口、外部系统调用导演的入口、StoryFlow/SNode 可用动作节点。
+- 每个接口补充来源文件、是否 `BlueprintCallable/Pure`、参数、返回值、主要副作用、持久化行为、调用时机限制。
+- 修正 StoryFlag 作用域为 `Save / Run / Session`，另起一节说明 `OncePerMap` 是规则触发策略，不是标志位作用域。
+- 对“当前缺口分析”统一标注状态：`已实现`、`已有替代方案`、`未实现候选接口`、`需系统设计`。
+- 在 `SystemDependencyMap.md` 中同时画调用方向和持久化方向，至少覆盖 Director、StoryEngine、SaveSubsystem、MetaProgression、GameMode、GameInstance、Portal/UI。
+- 为文档规范增加最低校验项：更新接口文档时必须引用源码路径；新增 `UFUNCTION(BlueprintCallable)` 或 StoryFlow 节点时同步更新接口清单。
 
 ### 需要向用户确认的问题
-- `USNode_ShowTutorialPopup` 最终要非阻塞立即 Out，还是等待玩家关闭弹窗后 Out？
-- Story FA 中是否允许复用 `LENode_*`，还是所有剧情节点都必须是 `USNode_*`？
-- `EnablePortal` 的目标是只打开表现，还是生成可交互、可进门的完整传送门？
-- `GiveCard` 是否要求卡组和背包同时成功才算成功？其中一步失败时是否回滚？
-- 本阶段是否要完全迁移 `Actions[]`，还是仅把 `NodeEventFlow` 类型改为 `UStoryFlowAsset` 并保留旧 DA Actions？
+- “导演接口汇总”是否只记录 `FirstRunTutorialDirectorSubsystem` 当前用到的接口，还是要记录所有未来通用剧情导演可调用的公共接口？
+- 现有 `Docs/Systems/*` 和 `Docs/Architecture/*` 是否就是本计划的执行产物？如果是，本轮应审校这些文件，而不是按“新建文件”执行。
+- 对话缺口是否限定为“实时气泡/NPC 对话流程”，并继续保留现有 TutorialPopup、InfoHint、DialogContentDA 作为可用能力？
+- 刷怪接口是否要进入本轮文档的“未来缺口”即可，还是需要另开后续代码方案来设计确定性刷怪 API？
 
 ### 需要手动创建的引擎资产
-- `UStoryFlowAsset` 类型的 Story FA 资产：按第一章/教程每个需要迁移的 `NodeEventFlow` 创建或迁移。
-- `FA_DummyDeath_DropHeavyCard`：若 commandlet 不能安全删除并重建旧 `ULevelFlowAsset`，需手动删除旧资产后重建为 `UStoryFlowAsset`。
-- 对应 `UStoryEncounterPointDA` 的 `NodeEventFlow` 引用：需要指向新的 Story FA 资产。
-- 无新增蓝图、DT、材质需求。
+- 无
