@@ -180,6 +180,7 @@ bool ConfigureRewardNode(USNode_SpawnRewardPickup* SpawnNode)
 	SpawnNode->RewardPickupCount = 1;
 	SpawnNode->RewardSpawnOffset = FVector(120.f, 0.f, 20.f);
 	SpawnNode->bAllowPickupOutsideArrangement = true;
+	SpawnNode->bPlaySpawnFocusCue = true;
 	return true;
 }
 

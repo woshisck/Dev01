@@ -169,12 +169,13 @@ AActor* AYogCameraPawn::FindNearestPickup(const FVector& PlayerPos) const
 
 	for (AActor* P : Pickups)
 	{
-		if (!IsValid(P)) continue;
-		const float DistSq = FVector::DistSquared(P->GetActorLocation(), PlayerPos);
+		ARewardPickup* Pickup = Cast<ARewardPickup>(P);
+		if (!IsValid(Pickup) || !Pickup->IsAvailableForCameraFocus()) continue;
+		const float DistSq = FVector::DistSquared(Pickup->GetActorLocation(), PlayerPos);
 		if (DistSq < MinDistSq)
 		{
 			MinDistSq = DistSq;
-			Nearest   = P;
+			Nearest   = Pickup;
 		}
 	}
 	return Nearest;
@@ -239,14 +240,11 @@ void AYogCameraPawn::DetermineState(const FVector& PlayerPos, bool bIsMoving)
 		}
 	}
 
-	// Priority 4 — 整理阶段有拾取物
-	if (GM && GM->CurrentPhase == ELevelPhase::Arrangement)
+	// Priority 4 - available reward pickups, including tutorial drops outside Arrangement.
+	if (IsValid(FindNearestPickup(PlayerPos)))
 	{
-		if (IsValid(FindNearestPickup(PlayerPos)))
-		{
-			SetCameraStates(EYogCameraStates::PickupFocus);
-			return;
-		}
+		SetCameraStates(EYogCameraStates::PickupFocus);
+		return;
 	}
 
 	// Priority 5 — 玩家正在移动

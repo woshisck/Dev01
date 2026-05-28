@@ -1,12 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Ticker.h"
 #include "GameFramework/Actor.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "Map/PickupInteractable.h"
 #include "RewardPickup.generated.h"
 
 class UBoxComponent;
+class UPrimitiveComponent;
 class UWidgetComponent;
 class URuneRewardFloatWidget;
 class APlayerCharacterBase;
@@ -46,6 +48,14 @@ public:
 	/** 重新应用当前拾取许可到可见性和 overlap；Story 节点运行时改 bAllowPickupOutsideArrangement 后需要调用。 */
 	void RefreshPickupAvailability();
 
+	UFUNCTION(BlueprintCallable, Category = "Reward|Pickup")
+	void PlaySpawnFocusCue();
+
+	bool IsAvailableForCameraFocus() const;
+
+	UFUNCTION(BlueprintPure, Category = "Reward|Pickup")
+	bool IsSpawnFocusCueActive() const { return bSpawnFocusCueActive; }
+
 	/** Returns true when a pickup can grant all loot directly without opening card selection. */
 	static bool ShouldGrantLootImmediatelyForOptions(const TArray<FLootOption>& Options);
 
@@ -58,9 +68,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Story")
 	bool bAllowPickupOutsideArrangement = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Spawn Focus")
+	bool bEnableSpawnFocusCue = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Spawn Focus", meta = (ClampMin = "0.01", ClampMax = "1.0", EditCondition = "bEnableSpawnFocusCue"))
+	float SpawnFocusDilationScale = 0.08f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Spawn Focus", meta = (ClampMin = "0.05", EditCondition = "bEnableSpawnFocusCue"))
+	float SpawnFocusDilationDuration = 0.35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Spawn Focus", meta = (ClampMin = "0.05", EditCondition = "bEnableSpawnFocusCue"))
+	float SpawnFocusHighlightDuration = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Spawn Focus", meta = (ClampMin = "0", ClampMax = "255", EditCondition = "bEnableSpawnFocusCue"))
+	int32 SpawnFocusStencilValue = 2;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup")
 	TObjectPtr<UBoxComponent> CollisionVolume;
@@ -90,18 +116,39 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Reward|Pickup")
 	void K2_OnMaterialLootGranted(FGameplayTag MetaCurrencyTag, int32 Amount);
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "Reward|Pickup")
+	void K2_OnSpawnFocusCueStarted();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Reward|Pickup")
+	void K2_OnSpawnFocusCueEnded();
+
 private:
+	struct FPrimitiveHighlightState
+	{
+		TWeakObjectPtr<UPrimitiveComponent> Component;
+		bool bRenderCustomDepth = false;
+		int32 CustomDepthStencilValue = 0;
+	};
 	// GameMode 预分配的战利品选项（Spawn 时写入，拾取时广播给 UI）
 	TArray<FLootOption> AssignedLoot;
 
 	bool bPickedUp = false;
 	bool bPlayerInRange = false;
 	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
+	bool bSpawnFocusCueActive = false;
+	bool bSpawnFocusTimeDilationActive = false;
+	float SpawnFocusHighlightElapsed = 0.f;
+	float PreviousSpawnFocusGlobalTimeDilation = 1.f;
+	FTSTicker::FDelegateHandle SpawnFocusDilationTickerHandle;
+	TArray<FPrimitiveHighlightState> SpawnFocusPrimitiveStates;
 
 	bool IsPickupAllowed() const;
 	bool ShouldGrantImmediately(const TArray<FLootOption>& Options) const;
 	bool GrantImmediateLoot(APlayerCharacterBase* Player, const TArray<FLootOption>& Options);
 	void ClearNearbyPlayer();
+	void SetSpawnFocusHighlightActive(bool bActive);
+	void TickSpawnFocusCue(float DeltaTime);
+	void RestoreSpawnFocusTimeDilation();
 
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,

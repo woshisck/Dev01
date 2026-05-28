@@ -703,6 +703,7 @@ bool UStoryEncounterRuntimeSubsystem::ExecuteSpawnRewardPickupAction(
 
 	bool bSpawnedAny = false;
 	const int32 Count = FMath::Max(1, Action.RewardPickupCount);
+	bool bPlayedFocusCue = false;
 	for (AActor* Target : Targets)
 	{
 		if (!Target)
@@ -739,8 +740,12 @@ bool UStoryEncounterRuntimeSubsystem::ExecuteSpawnRewardPickupAction(
 			Pickup->bUseFixedLootOptions = true;
 			Pickup->FixedLootOptions = Action.RewardLootOptions;
 			Pickup->AssignLoot(Action.RewardLootOptions);
-			Pickup->SetActorHiddenInGame(false);
-			Pickup->SetActorEnableCollision(true);
+			Pickup->RefreshPickupAvailability();
+			if (Action.bPlayRewardPickupFocusCue && !bPlayedFocusCue)
+			{
+				Pickup->PlaySpawnFocusCue();
+				bPlayedFocusCue = true;
+			}
 			bSpawnedAny = true;
 		}
 	}

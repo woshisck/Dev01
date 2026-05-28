@@ -345,6 +345,7 @@ FStoryEncounterAction ParseAction(const TSharedPtr<FJsonObject>& Object)
 	}
 	Action.bSpawnRewardOnTargetDeath = GetBool(Object, TEXT("spawnRewardOnTargetDeath"), Action.bSpawnRewardOnTargetDeath);
 	Action.bRewardPickupAllowedOutsideArrangement = GetBool(Object, TEXT("rewardPickupAllowedOutsideArrangement"), Action.bRewardPickupAllowedOutsideArrangement);
+	Action.bPlayRewardPickupFocusCue = GetBool(Object, TEXT("playRewardPickupFocusCue"), Action.bPlayRewardPickupFocusCue);
 	Action.bClearRoomRewardOverride = GetBool(Object, TEXT("clearRoomRewardOverride"), Action.bClearRoomRewardOverride);
 	Action.RewardOverrideTarget = ParseRewardOverrideTarget(GetString(Object, TEXT("rewardOverrideTarget")));
 	Action.ForcedPortalIndex = GetInt(Object, TEXT("forcedPortalIndex"), Action.ForcedPortalIndex);

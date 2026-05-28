@@ -261,6 +261,7 @@ bool FMobSpawnerStoryKillEncounterTriggersOnDeathStartTest::RunTest(const FStrin
 	DropAction.RewardPickupCount = 1;
 	DropAction.bRewardPickupAllowedOutsideArrangement = true;
 	DropAction.bSpawnRewardOnTargetDeath = false;
+	DropAction.bPlayRewardPickupFocusCue = false;
 	FLootOption LootOption;
 	LootOption.LootType = ELootType::Rune;
 	LootOption.DisplayName = FText::FromString(TEXT("Immediate Heavy"));

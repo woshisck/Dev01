@@ -167,6 +167,9 @@ struct DEVKIT_API FStoryEncounterAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
 	bool bRewardPickupAllowedOutsideArrangement = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Pickup")
+	bool bPlayRewardPickupFocusCue = true;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Override")
 	bool bClearRoomRewardOverride = false;
 

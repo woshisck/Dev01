@@ -65,6 +65,10 @@ void USNode_SpawnRewardPickup::ExecuteInput(const FName& PinName)
 		Pickup->FixedLootOptions = RewardLootOptions;
 		Pickup->AssignLoot(RewardLootOptions);
 		Pickup->RefreshPickupAvailability();
+		if (bPlaySpawnFocusCue && Index == 0)
+		{
+			Pickup->PlaySpawnFocusCue();
+		}
 		++SpawnedCount;
 	}
 

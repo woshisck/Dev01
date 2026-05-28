@@ -430,6 +430,7 @@ bool FLENodeSpawnRewardPickupUsesStoryContextTransformTest::RunTest(const FStrin
 	Node->RewardSpawnOffset = FVector(120.f, 0.f, 20.f);
 	Node->RewardPickupCount = 1;
 	Node->bAllowPickupOutsideArrangement = true;
+	Node->bPlaySpawnFocusCue = false;
 
 	const FTransform ContextTransform(FRotator::ZeroRotator, FVector(10.f, 20.f, 30.f), FVector::OneVector);
 	TestTrue(TEXT("Reward pickup spawns from supplied context transform"),
@@ -457,6 +458,40 @@ bool FLENodeSpawnRewardPickupUsesStoryContextTransformTest::RunTest(const FStrin
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRewardPickupOutsideArrangementCameraFocusTest,
+	"DevKit.StoryEncounter.RewardPickupOutsideArrangementCanCameraFocus",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FRewardPickupOutsideArrangementCameraFocusTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Test world exists"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	ARewardPickup* Pickup = World->SpawnActor<ARewardPickup>();
+	TestNotNull(TEXT("Reward pickup spawned"), Pickup);
+	if (!Pickup)
+	{
+		return false;
+	}
+
+	Pickup->bAllowPickupOutsideArrangement = true;
+	Pickup->RefreshPickupAvailability();
+	TestTrue(TEXT("Story reward pickup can be camera-focused outside arrangement"),
+		Pickup->IsAvailableForCameraFocus());
+
+	Pickup->bAllowPickupOutsideArrangement = false;
+	Pickup->RefreshPickupAvailability();
+	TestFalse(TEXT("Unavailable pickup is not camera-focused"),
+		Pickup->IsAvailableForCameraFocus());
+
+	Pickup->Destroy();
+	return true;
+}
+
 bool FStoryEncounterOncePointSkipsSecondRewardDropTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = GWorld;
@@ -481,6 +516,7 @@ bool FStoryEncounterOncePointSkipsSecondRewardDropTest::RunTest(const FString& P
 	DropAction.RewardPickupClass = ARewardPickup::StaticClass();
 	DropAction.RewardPickupCount = 1;
 	DropAction.bSpawnRewardOnTargetDeath = false;
+	DropAction.bPlayRewardPickupFocusCue = false;
 	FLootOption LootOption;
 	LootOption.LootType = ELootType::Rune;
 	LootOption.DisplayName = FText::FromString(TEXT("Heavy Card"));
@@ -642,10 +678,12 @@ bool FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest::RunTest(const FS
 	bool bDropsHeavy = false;
 	bool bDropsKnockback = false;
 	bool bHasPickupHint = false;
+	bool bPlaysSpawnFocusCue = false;
 	for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
 	{
 		if (const USNode_SpawnRewardPickup* SpawnNode = Cast<USNode_SpawnRewardPickup>(Pair.Value))
 		{
+			bPlaysSpawnFocusCue |= SpawnNode->bPlaySpawnFocusCue;
 			for (const FLootOption& Option : SpawnNode->RewardLootOptions)
 			{
 				const FString RunePath = GetPathNameSafe(Option.RuneAsset);
@@ -663,6 +701,7 @@ bool FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest::RunTest(const FS
 
 	TestTrue(TEXT("Dummy death flow drops Heavy card"), bDropsHeavy);
 	TestFalse(TEXT("Dummy death flow must not drop Knockback card"), bDropsKnockback);
+	TestTrue(TEXT("Dummy death flow plays the spawn focus cue"), bPlaysSpawnFocusCue);
 	TestTrue(TEXT("Dummy death flow shows pickup weak hint after the drop"), bHasPickupHint);
 	return true;
 }

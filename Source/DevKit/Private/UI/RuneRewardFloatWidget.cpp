@@ -58,6 +58,52 @@ void URuneRewardFloatWidget::SetLootOptions(const TArray<FLootOption>& Options)
 	}
 }
 
+void URuneRewardFloatWidget::PlayPromptHighlightPulse(float DurationSeconds)
+{
+	PromptHighlightDuration = FMath::Max(0.05f, DurationSeconds);
+	PromptHighlightElapsed = 0.f;
+
+	if (PickupHintText)
+	{
+		PickupHintText->SetRenderOpacity(1.f);
+		PickupHintText->SetRenderScale(FVector2D(ComputePromptHighlightScale(0.f, PromptHighlightDuration)));
+	}
+}
+
+float URuneRewardFloatWidget::ComputePromptHighlightScale(float ElapsedSeconds, float DurationSeconds)
+{
+	const float SafeDuration = FMath::Max(0.05f, DurationSeconds);
+	const float Normalized = FMath::Clamp(ElapsedSeconds / SafeDuration, 0.f, 1.f);
+	const float Pulse = 0.5f + 0.5f * FMath::Sin(Normalized * PI * 6.f);
+	const float Fade = 1.f - Normalized;
+	return 1.f + 0.12f * Pulse * Fade;
+}
+
+void URuneRewardFloatWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (PromptHighlightElapsed < 0.f || !PickupHintText)
+	{
+		return;
+	}
+
+	PromptHighlightElapsed += FMath::Max(0.f, InDeltaTime);
+	if (PromptHighlightElapsed >= PromptHighlightDuration)
+	{
+		PromptHighlightElapsed = -1.f;
+		PickupHintText->SetRenderOpacity(1.f);
+		PickupHintText->SetRenderScale(FVector2D(1.f));
+		return;
+	}
+
+	const float Scale = ComputePromptHighlightScale(PromptHighlightElapsed, PromptHighlightDuration);
+	const float Normalized = FMath::Clamp(PromptHighlightElapsed / FMath::Max(0.05f, PromptHighlightDuration), 0.f, 1.f);
+	const float OpacityPulse = 0.85f + 0.15f * FMath::Abs(FMath::Sin(Normalized * PI * 6.f));
+	PickupHintText->SetRenderOpacity(OpacityPulse);
+	PickupHintText->SetRenderScale(FVector2D(Scale));
+}
+
 void URuneRewardFloatWidget::AddRewardRow(const FText& Name, UTexture2D* IconTexture, const FLinearColor& FallbackColor)
 {
 	if (!RuneListBox)

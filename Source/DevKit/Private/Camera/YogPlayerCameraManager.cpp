@@ -82,9 +82,10 @@ AActor* AYogPlayerCameraManager::FindNearestPickup(const FVector& PlayerPos) con
 	float   MinDistSq = FLT_MAX;
 	for (AActor* P : Pickups)
 	{
-		if (!IsValid(P)) continue;
-		const float D = FVector::DistSquared(P->GetActorLocation(), PlayerPos);
-		if (D < MinDistSq) { MinDistSq = D; Nearest = P; }
+		ARewardPickup* Pickup = Cast<ARewardPickup>(P);
+		if (!IsValid(Pickup) || !Pickup->IsAvailableForCameraFocus()) continue;
+		const float D = FVector::DistSquared(Pickup->GetActorLocation(), PlayerPos);
+		if (D < MinDistSq) { MinDistSq = D; Nearest = Pickup; }
 	}
 	return Nearest;
 }
@@ -128,13 +129,11 @@ void AYogPlayerCameraManager::DetermineState(const FVector& PlayerPos, bool bIsM
 
 	AYogGameMode* GM = GetYogGameMode();
 
-	if (GM && GM->CurrentPhase == ELevelPhase::Arrangement)
+	const bool bCombatHasAliveEnemies = GM && GM->CurrentPhase == ELevelPhase::Combat && GM->HasAliveEnemies();
+	if (!bCombatHasAliveEnemies && IsValid(FindNearestPickup(PlayerPos)))
 	{
-		if (IsValid(FindNearestPickup(PlayerPos)))
-		{
-			SetCameraStates(EYogCameraStates::PickupFocus);
-			return;
-		}
+		SetCameraStates(EYogCameraStates::PickupFocus);
+		return;
 	}
 
 	// LookAhead 关闭时：始终 FocusCharacter，相机只跟随不领先

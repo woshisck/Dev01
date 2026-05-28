@@ -1,13 +1,17 @@
 #include "Map/RewardPickup.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Containers/Ticker.h"
 #include "Component/BackpackGridComponent.h"
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
+#include "Misc/App.h"
 #include "UI/RuneRewardFloatWidget.h"
 #include "UI/YogHUD.h"
+#include "Visual/TimeDilationVisualSubsystem.h"
 
 ARewardPickup::ARewardPickup()
 {
@@ -41,6 +45,8 @@ void ARewardPickup::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	TickSpawnFocusCue(DeltaTime);
+
 	if (!bPlayerInRange || !NearbyPlayer.IsValid() || !RuneInfoWidgetComp) return;
 
 	// 动态左右偏移：武器在屏幕右半则向左偏，左半则向右偏
@@ -68,6 +74,14 @@ void ARewardPickup::Tick(float DeltaTime)
 	RuneInfoWidgetComp->SetRelativeLocation(Right * WidgetSideOffset + FVector(0.f, 0.f, WidgetZOffset));
 }
 
+void ARewardPickup::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	SetSpawnFocusHighlightActive(false);
+	RestoreSpawnFocusTimeDilation();
+
+	Super::EndPlay(EndPlayReason);
+}
+
 void ARewardPickup::OnPlayerEnterRange(APlayerCharacterBase* Player)
 {
 	if (bPickedUp || !Player) return;
@@ -93,7 +107,7 @@ void ARewardPickup::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 	{
 		NearbyPlayer = nullptr;
 		bPlayerInRange = false;
-		if (RuneInfoWidgetComp) RuneInfoWidgetComp->SetVisibility(false);
+		if (RuneInfoWidgetComp && !bSpawnFocusCueActive) RuneInfoWidgetComp->SetVisibility(false);
 	}
 }
 
@@ -141,6 +155,60 @@ void ARewardPickup::RefreshPickupAvailability()
 	}
 	SetActorEnableCollision(bAllowed);
 	SetActorHiddenInGame(!bAllowed);
+}
+
+void ARewardPickup::PlaySpawnFocusCue()
+{
+	if (!bEnableSpawnFocusCue || bPickedUp)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	SetSpawnFocusHighlightActive(true);
+
+	const float SafeScale = FMath::Clamp(SpawnFocusDilationScale, 0.01f, 1.f);
+	const float SafeDuration = FMath::Max(0.05f, SpawnFocusDilationDuration);
+
+	if (SpawnFocusDilationTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(SpawnFocusDilationTickerHandle);
+		SpawnFocusDilationTickerHandle.Reset();
+	}
+
+	if (!bSpawnFocusTimeDilationActive)
+	{
+		PreviousSpawnFocusGlobalTimeDilation = UGameplayStatics::GetGlobalTimeDilation(World);
+		UTimeDilationVisualSubsystem::BeginTimeDilationVisual(this);
+		bSpawnFocusTimeDilationActive = true;
+	}
+
+	UGameplayStatics::SetGlobalTimeDilation(World, SafeScale);
+
+	TWeakObjectPtr<ARewardPickup> WeakThis(this);
+	SpawnFocusDilationTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateLambda([WeakThis](float) -> bool
+		{
+			if (ARewardPickup* Pickup = WeakThis.Get())
+			{
+				Pickup->RestoreSpawnFocusTimeDilation();
+			}
+			return false;
+		}),
+		SafeDuration);
+}
+
+bool ARewardPickup::IsAvailableForCameraFocus() const
+{
+	return !bPickedUp
+		&& !IsHidden()
+		&& !IsActorBeingDestroyed()
+		&& IsPickupAllowed();
 }
 
 void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
@@ -337,4 +405,118 @@ void ARewardPickup::ClearNearbyPlayer()
 	{
 		RuneInfoWidgetComp->SetVisibility(false);
 	}
+}
+
+void ARewardPickup::SetSpawnFocusHighlightActive(bool bActive)
+{
+	if (bActive && bSpawnFocusCueActive)
+	{
+		SpawnFocusHighlightElapsed = 0.f;
+		if (RuneInfoWidgetComp)
+		{
+			RuneInfoWidgetComp->SetVisibility(true);
+			if (URuneRewardFloatWidget* FloatWidget = Cast<URuneRewardFloatWidget>(RuneInfoWidgetComp->GetWidget()))
+			{
+				FloatWidget->PlayPromptHighlightPulse(SpawnFocusHighlightDuration);
+			}
+		}
+		return;
+	}
+
+	if (!bActive && !bSpawnFocusCueActive)
+	{
+		return;
+	}
+
+	bSpawnFocusCueActive = bActive;
+	SpawnFocusHighlightElapsed = 0.f;
+
+	if (bActive)
+	{
+		SpawnFocusPrimitiveStates.Reset();
+
+		TArray<UPrimitiveComponent*> PrimitiveComponents;
+		GetComponents(PrimitiveComponents);
+		for (UPrimitiveComponent* Component : PrimitiveComponents)
+		{
+			if (!Component)
+			{
+				continue;
+			}
+
+			FPrimitiveHighlightState State;
+			State.Component = Component;
+			State.bRenderCustomDepth = Component->bRenderCustomDepth;
+			State.CustomDepthStencilValue = Component->CustomDepthStencilValue;
+			SpawnFocusPrimitiveStates.Add(State);
+
+			Component->SetRenderCustomDepth(true);
+			Component->SetCustomDepthStencilValue(FMath::Clamp(SpawnFocusStencilValue, 0, 255));
+		}
+
+		if (RuneInfoWidgetComp)
+		{
+			RuneInfoWidgetComp->SetVisibility(true);
+			if (URuneRewardFloatWidget* FloatWidget = Cast<URuneRewardFloatWidget>(RuneInfoWidgetComp->GetWidget()))
+			{
+				FloatWidget->PlayPromptHighlightPulse(SpawnFocusHighlightDuration);
+			}
+		}
+
+		K2_OnSpawnFocusCueStarted();
+		return;
+	}
+
+	for (const FPrimitiveHighlightState& State : SpawnFocusPrimitiveStates)
+	{
+		if (UPrimitiveComponent* Component = State.Component.Get())
+		{
+			Component->SetRenderCustomDepth(State.bRenderCustomDepth);
+			Component->SetCustomDepthStencilValue(State.CustomDepthStencilValue);
+		}
+	}
+	SpawnFocusPrimitiveStates.Reset();
+
+	if (RuneInfoWidgetComp && !bPlayerInRange)
+	{
+		RuneInfoWidgetComp->SetVisibility(false);
+	}
+
+	K2_OnSpawnFocusCueEnded();
+}
+
+void ARewardPickup::TickSpawnFocusCue(float DeltaTime)
+{
+	if (!bSpawnFocusCueActive)
+	{
+		return;
+	}
+
+	SpawnFocusHighlightElapsed += FApp::GetDeltaTime() > 0.f ? FApp::GetDeltaTime() : DeltaTime;
+	if (SpawnFocusHighlightElapsed >= FMath::Max(0.05f, SpawnFocusHighlightDuration))
+	{
+		SetSpawnFocusHighlightActive(false);
+	}
+}
+
+void ARewardPickup::RestoreSpawnFocusTimeDilation()
+{
+	if (SpawnFocusDilationTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(SpawnFocusDilationTickerHandle);
+		SpawnFocusDilationTickerHandle.Reset();
+	}
+
+	if (!bSpawnFocusTimeDilationActive)
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		UGameplayStatics::SetGlobalTimeDilation(World, FMath::Max(0.01f, PreviousSpawnFocusGlobalTimeDilation));
+	}
+
+	UTimeDilationVisualSubsystem::EndTimeDilationVisual(this);
+	bSpawnFocusTimeDilationActive = false;
 }

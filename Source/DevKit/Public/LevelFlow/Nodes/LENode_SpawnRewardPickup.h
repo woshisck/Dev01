@@ -31,6 +31,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Reward")
 	bool bAllowPickupOutsideArrangement = true;
 
+	UPROPERTY(EditAnywhere, Category = "Reward|Focus Cue")
+	bool bPlaySpawnFocusCue = true;
+
 	bool SpawnRewardPickupAtContext(UWorld* World, const FTransform& ContextTransform) const;
 
 protected:

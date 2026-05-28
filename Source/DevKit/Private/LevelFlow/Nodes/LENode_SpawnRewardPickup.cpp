@@ -97,8 +97,11 @@ bool ULENode_SpawnRewardPickup::SpawnRewardPickupAtContext(UWorld* World, const 
 		Pickup->bUseFixedLootOptions = true;
 		Pickup->FixedLootOptions = RewardLootOptions;
 		Pickup->AssignLoot(RewardLootOptions);
-		Pickup->SetActorHiddenInGame(false);
-		Pickup->SetActorEnableCollision(true);
+		Pickup->RefreshPickupAvailability();
+		if (bPlaySpawnFocusCue && Index == 0)
+		{
+			Pickup->PlaySpawnFocusCue();
+		}
 		bSpawnedAny = true;
 	}
 

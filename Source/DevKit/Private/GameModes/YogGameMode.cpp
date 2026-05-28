@@ -3133,6 +3133,7 @@ void AYogGameMode::SpawnStorySpecialRewardPickup(AYogCharacterBase* DeadCharacte
 	Pickup->bAllowPickupOutsideArrangement = true;
 	Pickup->AssignLoot(RewardOptions);
 	Pickup->RefreshPickupAvailability();
+	Pickup->PlaySpawnFocusCue();
 
 	UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Spawned special RewardPickup=%s at %s LootCount=%d"),
 		*GetNameSafe(Pickup),

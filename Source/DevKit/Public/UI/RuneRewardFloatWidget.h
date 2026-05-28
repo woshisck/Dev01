@@ -25,8 +25,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RuneRewardFloat")
 	void SetLootOptions(const TArray<FLootOption>& Options);
 
+	UFUNCTION(BlueprintCallable, Category = "RuneRewardFloat")
+	void PlayPromptHighlightPulse(float DurationSeconds);
+
+	static float ComputePromptHighlightScale(float ElapsedSeconds, float DurationSeconds);
+
 protected:
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UVerticalBox> RuneListBox;
@@ -36,4 +42,8 @@ protected:
 
 	void RefreshPickupHint();
 	void AddRewardRow(const FText& Name, UTexture2D* IconTexture, const FLinearColor& FallbackColor);
+
+private:
+	float PromptHighlightElapsed = -1.f;
+	float PromptHighlightDuration = 0.f;
 };
