@@ -16,7 +16,12 @@ AWeaponInstance::AWeaponInstance()
 	PrimaryActorTick.bCanEverTick = true;
 
 	USceneComponent* root = CreateOptionalDefaultSubobject<USceneComponent>(TEXT("Root"));
+	root->SetMobility(EComponentMobility::Movable);
 	SetRootComponent(root);
+
+	VFXAttachPoint = CreateDefaultSubobject<USceneComponent>(TEXT("VFXAttachPoint"));
+	VFXAttachPoint->SetMobility(EComponentMobility::Movable);
+	VFXAttachPoint->SetupAttachment(root);
 
 }
 

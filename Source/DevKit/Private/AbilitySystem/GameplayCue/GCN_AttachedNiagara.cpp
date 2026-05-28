@@ -4,6 +4,7 @@
 #include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Item/Weapon/WeaponInstance.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
@@ -19,6 +20,7 @@ bool AGCN_AttachedNiagara::OnActive_Implementation(AActor* Target, const FGamepl
 {
 	Super::OnActive_Implementation(Target, Parameters);
 	SpawnNiagara(Target, false);
+	ApplyWeaponMaterial(Target);
 	return true;
 }
 
@@ -42,12 +44,14 @@ bool AGCN_AttachedNiagara::OnExecute_Implementation(AActor* Target, const FGamep
 bool AGCN_AttachedNiagara::OnRemove_Implementation(AActor* Target, const FGameplayCueParameters& Parameters)
 {
 	StopNiagara();
+	RestoreWeaponMaterial();
 	return Super::OnRemove_Implementation(Target, Parameters);
 }
 
 void AGCN_AttachedNiagara::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	StopNiagara();
+	RestoreWeaponMaterial();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -175,6 +179,78 @@ void AGCN_AttachedNiagara::StopNiagara()
 	ActiveNiagaraComponent->Deactivate();
 	ActiveNiagaraComponent->DestroyComponent();
 	ActiveNiagaraComponent = nullptr;
+}
+
+void AGCN_AttachedNiagara::ApplyWeaponMaterial(AActor* Target)
+{
+	if (!WeaponMaterialOverride)
+	{
+		return;
+	}
+
+	AWeaponInstance* Weapon = ResolveEquippedWeapon(Target);
+	if (!Weapon)
+	{
+		return;
+	}
+
+	TArray<UMeshComponent*> MeshComponents;
+	Weapon->GetComponents<UMeshComponent>(MeshComponents);
+	if (MeshComponents.Num() == 0 || !MeshComponents[0])
+	{
+		return;
+	}
+
+	UMeshComponent* WeaponMesh = MeshComponents[0];
+	CachedWeaponMesh = WeaponMesh;
+	OriginalWeaponMaterial = WeaponMesh->GetMaterial(0);
+
+	ActiveWeaponMaterialDynamic = UMaterialInstanceDynamic::Create(WeaponMaterialOverride, this);
+	if (!ActiveWeaponMaterialDynamic)
+	{
+		return;
+	}
+
+	ApplyWeaponMaterialParameters(ActiveWeaponMaterialDynamic);
+	WeaponMesh->SetMaterial(0, ActiveWeaponMaterialDynamic);
+}
+
+void AGCN_AttachedNiagara::RestoreWeaponMaterial()
+{
+	if (UMeshComponent* WeaponMesh = CachedWeaponMesh.Get())
+	{
+		WeaponMesh->SetMaterial(0, OriginalWeaponMaterial);
+	}
+
+	CachedWeaponMesh = nullptr;
+	OriginalWeaponMaterial = nullptr;
+	ActiveWeaponMaterialDynamic = nullptr;
+}
+
+void AGCN_AttachedNiagara::ApplyWeaponMaterialParameters(UMaterialInstanceDynamic* DynMat) const
+{
+	if (!DynMat)
+	{
+		return;
+	}
+
+	for (const FGCNMaterialParamOverride& Override : WeaponMaterialParameterOverrides)
+	{
+		if (Override.ParameterName.IsNone())
+		{
+			continue;
+		}
+
+		switch (Override.ParamType)
+		{
+		case EGCNMaterialParamType::Scalar:
+			DynMat->SetScalarParameterValue(Override.ParameterName, Override.ScalarValue);
+			break;
+		case EGCNMaterialParamType::Vector:
+			DynMat->SetVectorParameterValue(Override.ParameterName, Override.VectorValue);
+			break;
+		}
+	}
 }
 
 USceneComponent* AGCN_AttachedNiagara::ResolveAttachComponent(AActor* Target, FName& OutSocketName) const

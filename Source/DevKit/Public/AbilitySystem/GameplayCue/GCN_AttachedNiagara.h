@@ -8,6 +8,9 @@ class UNiagaraComponent;
 class UNiagaraSystem;
 class USceneComponent;
 class USkeletalMeshComponent;
+class UMeshComponent;
+class UMaterialInterface;
+class UMaterialInstanceDynamic;
 class AWeaponInstance;
 
 UENUM(BlueprintType)
@@ -50,6 +53,33 @@ struct DEVKIT_API FGCNNiagaraParamOverride
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara|Parameter",
 		meta = (EditCondition = "ParamType == EGCNNiagaraParamType::Int", EditConditionHides))
 	int32 IntValue = 0;
+};
+
+UENUM(BlueprintType)
+enum class EGCNMaterialParamType : uint8
+{
+	Scalar UMETA(DisplayName = "Scalar"),
+	Vector UMETA(DisplayName = "Vector"),
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FGCNMaterialParamOverride
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material|Parameter")
+	FName ParameterName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material|Parameter")
+	EGCNMaterialParamType ParamType = EGCNMaterialParamType::Scalar;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material|Parameter",
+		meta = (EditCondition = "ParamType == EGCNMaterialParamType::Scalar", EditConditionHides))
+	float ScalarValue = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material|Parameter",
+		meta = (EditCondition = "ParamType == EGCNMaterialParamType::Vector", EditConditionHides))
+	FLinearColor VectorValue = FLinearColor::White;
 };
 
 UENUM(BlueprintType)
@@ -127,13 +157,37 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Niagara|Parameters")
 	TArray<FGCNNiagaraParamOverride> NiagaraParameterOverrides;
 
+	// ── Weapon Material Override ───────────────────────────────────────────────
+
+	/** Material applied to the equipped weapon's first material slot on active. Null = no override. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponMaterial")
+	TObjectPtr<UMaterialInterface> WeaponMaterialOverride;
+
+	/** Scalar/Vector parameters set on the dynamic material instance created from WeaponMaterialOverride. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponMaterial|Parameters")
+	TArray<FGCNMaterialParamOverride> WeaponMaterialParameterOverrides;
+
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UNiagaraComponent> ActiveNiagaraComponent;
 
+	// Original material at slot 0 before the override was applied.
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> OriginalWeaponMaterial;
+
+	// Dynamic instance created from WeaponMaterialOverride; null when inactive.
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> ActiveWeaponMaterialDynamic;
+
+	// Weak ref to the mesh we patched — avoids holding a strong ref to the weapon.
+	TWeakObjectPtr<UMeshComponent> CachedWeaponMesh;
+
 	UNiagaraComponent* SpawnNiagara(AActor* Target, bool bAutoDestroy);
 	void StopNiagara();
 	void ApplyNiagaraParameterOverrides(UNiagaraComponent* Component) const;
+	void ApplyWeaponMaterial(AActor* Target);
+	void RestoreWeaponMaterial();
+	void ApplyWeaponMaterialParameters(UMaterialInstanceDynamic* DynMat) const;
 	USceneComponent* ResolveAttachComponent(AActor* Target, FName& OutSocketName) const;
 	USceneComponent* ResolveTargetActorAttachComponent(AActor* Target, FName& OutSocketName) const;
 	USceneComponent* ResolveWeaponAttachComponent(AActor* Target, FName& OutSocketName) const;

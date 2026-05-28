@@ -17,6 +17,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
+#include "Component/MontageVFXBindingComponent.h"
 #include "Component/BufferComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Data/CharacterData.h"
@@ -955,6 +956,11 @@ void UGA_MeleeAttack::EndAbility(
 			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.ConsumedCard);
 			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedSourceCard);
 			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedTargetCard);
+		}
+
+		if (PlayerOwner->MontageVFXBindingComponent)
+		{
+			PlayerOwner->MontageVFXBindingComponent->ClearAllBindings();
 		}
 	}
 

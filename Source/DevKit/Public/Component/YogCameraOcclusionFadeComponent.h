@@ -56,6 +56,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Occlusion")
 	FVector PlayerTargetOffset = FVector(0.0f, 0.0f, 80.0f);
 
+	/** No longer used by the sweep (which queries WorldStatic/WorldDynamic by object type).
+	 *  Retained for backward-compatibility with existing Blueprint instances. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Occlusion")
 	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Visibility;
 
@@ -64,6 +66,16 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Occlusion")
 	FName OccluderTag = TEXT("CameraOccluder");
+
+	/**
+	 * When enabled, the trace queries WorldStatic and WorldDynamic object types so that
+	 * UStaticMeshComponent, UInstancedStaticMeshComponent, and
+	 * UHierarchicalInstancedStaticMeshComponent (used by Packed Level Actors, Blueprint
+	 * actors, and StaticMeshActors) are detected regardless of their Visibility channel
+	 * response. Matching components also bypass the OccluderTag requirement.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Occlusion")
+	bool bAutoDetectStaticMeshComponents = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Occlusion", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float MinVisibleAlpha = 0.15f;

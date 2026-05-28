@@ -5,6 +5,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "CollisionShape.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -84,7 +85,12 @@ bool UYogCameraOcclusionFadeComponent::IsFadeAllowedForComponent(const UPrimitiv
 		return false;
 	}
 
-	if (bOnlyFadeTaggedOccluders && !bHasOccluderTag)
+	// UInstancedStaticMeshComponent and UHierarchicalInstancedStaticMeshComponent both
+	// inherit UStaticMeshComponent, so IsA covers all three types.
+	const bool bIsAutoAcceptedType = bAutoDetectStaticMeshComponents
+		&& Component->IsA<UStaticMeshComponent>();
+
+	if (!bIsAutoAcceptedType && bOnlyFadeTaggedOccluders && !bHasOccluderTag)
 	{
 		return false;
 	}
@@ -113,13 +119,20 @@ void UYogCameraOcclusionFadeComponent::RunOcclusionTrace()
 	QueryParams.bTraceComplex = false;
 	QueryParams.AddIgnoredActor(Owner);
 
+	// SweepMultiByObjectType treats all hits as overlaps internally, so the sweep
+	// continues through blocking geometry and returns every component along the full
+	// camera-to-player path, not just the first blocking one.
+	FCollisionObjectQueryParams ObjectQueryParams;
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldStatic);
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+
 	TArray<FHitResult> Hits;
-	World->SweepMultiByChannel(
+	World->SweepMultiByObjectType(
 		Hits,
 		Start,
 		End,
 		FQuat::Identity,
-		TraceChannel,
+		ObjectQueryParams,
 		FCollisionShape::MakeSphere(SafeTraceRadius),
 		QueryParams);
 

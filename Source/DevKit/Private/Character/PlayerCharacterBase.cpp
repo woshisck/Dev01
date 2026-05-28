@@ -30,6 +30,7 @@
 #include "Component/SacrificeRuneComponent.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/SkillChargeComponent.h"
+#include "Component/MontageVFXBindingComponent.h"
 #include "Component/YogCameraOcclusionFadeComponent.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Data/SacrificeGraceDA.h"
@@ -126,6 +127,7 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
 	SacrificeRuneComponent = CreateDefaultSubobject<USacrificeRuneComponent>(TEXT("SacrificeRuneComponent"));
 	SkillChargeComponent = CreateDefaultSubobject<USkillChargeComponent>(TEXT("SkillChargeComponent"));
+	MontageVFXBindingComponent = CreateDefaultSubobject<UMontageVFXBindingComponent>(TEXT("MontageVFXBindingComponent"));
 
 	// 近战默认命中框：C++ 实现，无需在每个角色蓝图 Class Defaults 中单独配置
 	DefaultMeleeTargetType = UYogTargetType_Player::StaticClass();

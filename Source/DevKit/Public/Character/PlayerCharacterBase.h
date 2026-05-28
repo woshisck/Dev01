@@ -36,6 +36,7 @@ class UComboRuntimeComponent;
 class UBuffFlowComponent;
 class USacrificeRuneComponent;
 class USkillChargeComponent;
+class UMontageVFXBindingComponent;
 class UWeaponDefinition;
 class USacrificeGraceDA;
 class UYogAbilitySystemComponent;
@@ -155,7 +156,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SkillCharge")
 	TObjectPtr<USkillChargeComponent> SkillChargeComponent;
 
-	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VFX")
+	TObjectPtr<UMontageVFXBindingComponent> MontageVFXBindingComponent;
+
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;

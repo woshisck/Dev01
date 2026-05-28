@@ -1,0 +1,132 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Components/ActorComponent.h"
+#include "AbilitySystem/GameplayCue/GCN_AttachedNiagara.h"
+#include "MontageVFXBindingComponent.generated.h"
+
+class UNiagaraSystem;
+class UNiagaraComponent;
+class USoundBase;
+class UMaterialInterface;
+class UMaterialInstanceDynamic;
+class UMeshComponent;
+class AWeaponInstance;
+
+// ─── Binding config (written by BFNode_SetMontageVFXBinding in PreCommit flow) ─
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FMontageVFXBindingConfig
+{
+	GENERATED_BODY()
+
+	// Niagara
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Niagara")
+	TObjectPtr<UNiagaraSystem> NiagaraSystem;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Niagara|Attachment")
+	EGCNAttachedNiagaraAttachTarget AttachTarget = EGCNAttachedNiagaraAttachTarget::TargetActor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Niagara")
+	bool bAttachToSkeletalMesh = true;
+
+	// Actor attach sockets
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Niagara")
+	FName AttachSocketName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Niagara")
+	TArray<FName> AttachSocketFallbackNames;
+
+	// Weapon attach sockets
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Niagara|Weapon")
+	FName WeaponAttachSocketName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Niagara|Weapon")
+	TArray<FName> WeaponAttachSocketFallbackNames;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Niagara|Weapon")
+	bool bFallbackToTargetActorIfWeaponMissing = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Niagara")
+	FVector LocationOffset = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Niagara")
+	FRotator RotationOffset = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Niagara")
+	FVector Scale = FVector::OneVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Niagara|Parameters")
+	TArray<FGCNNiagaraParamOverride> NiagaraParameterOverrides;
+
+	// Sound (fire-and-forget on NotifyBegin)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Sound")
+	TObjectPtr<USoundBase> Sound;
+
+	// Weapon material override (restored on NotifyEnd / ClearAllBindings)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Material",
+		meta = (ToolTip = "Applied to the weapon mesh on NotifyBegin, restored on NotifyEnd."))
+	TObjectPtr<UMaterialInterface> WeaponMaterialOverride;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Material|Parameters")
+	TArray<FGCNMaterialParamOverride> WeaponMaterialParameterOverrides;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Material")
+	int32 WeaponMaterialSlot = 0;
+};
+
+// ─── Active-state tracking (internal, per slot) ──────────────────────────────
+
+USTRUCT()
+struct DEVKIT_API FMontageVFXActiveState
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraComponent> NiagaraComp;
+
+	UPROPERTY()
+	TObjectPtr<UMeshComponent> WeaponMesh;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> OriginalMaterial;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> ActiveDynamicMaterial;
+
+	UPROPERTY()
+	int32 MaterialSlot = 0;
+};
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
+class DEVKIT_API UMontageVFXBindingComponent : public UActorComponent
+{
+	GENERATED_BODY()
+
+public:
+	UMontageVFXBindingComponent();
+
+	void RegisterBinding(FName SlotName, const FMontageVFXBindingConfig& Config);
+	void ActivateSlot(FName SlotName);
+	void DeactivateSlot(FName SlotName);
+	void ClearAllBindings();
+
+private:
+	UPROPERTY()
+	TMap<FName, FMontageVFXBindingConfig> PendingBindings;
+
+	UPROPERTY()
+	TMap<FName, FMontageVFXActiveState> ActiveStates;
+
+	USceneComponent* ResolveAttachTarget(const FMontageVFXBindingConfig& Config, FName& OutSocket) const;
+	USceneComponent* ResolveWeaponAttachComponent(const FMontageVFXBindingConfig& Config, FName& OutSocket) const;
+	USceneComponent* ResolveOwnerAttachComponent(const FMontageVFXBindingConfig& Config, FName& OutSocket) const;
+	static USceneComponent* FindNamedSceneComponent(AActor* OwnerActor, FName ComponentName);
+	static bool TryResolveSocketOrBone(UMeshComponent* Mesh, FName SocketOrBoneName, FName& OutSocket);
+	AWeaponInstance* ResolveEquippedWeapon() const;
+	void ApplyNiagaraParameterOverrides(UNiagaraComponent* Comp, const TArray<FGCNNiagaraParamOverride>& Overrides) const;
+	void ApplyMaterialParams(UMaterialInstanceDynamic* DynMat, const TArray<FGCNMaterialParamOverride>& Params) const;
+	void TearDownActiveState(FMontageVFXActiveState& State);
+};

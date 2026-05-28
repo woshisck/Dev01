@@ -16,6 +16,7 @@ struct FWeaponSpawnData;
 class UYogAnimInstance;
 class USceneComponent;
 class UYogGameplayAbility;
+class UStaticMeshComponent;
 class UGameplayEffect;
 
 
@@ -44,6 +45,9 @@ public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void PostActorCreated() override;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VFX")
+	TObjectPtr<USceneComponent> VFXAttachPoint;
 
 	UPROPERTY(BlueprintReadWrite, SaveGame)
 	FName AttachSocket;
