@@ -80,8 +80,6 @@ public:
 	bool HasPassedStage(ETutorialState Required) const;
 
 	static FName ResolveLinkCardTutorialEventIdForTest(const UTutorialRegistryDA* InRegistry);
-	static UTutorialRegistryDA* ResolveTutorialRegistryForTest(UTutorialRegistryDA* InRegistry);
-	static bool IsDirectEventTutorialAllowedForTest(FName EventID);
 
 private:
 	UPROPERTY(Config)
@@ -118,8 +116,6 @@ private:
 	void DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC);
 	void DoShowPostCombatPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC);
 	void EndDilationVisualIfActive();
-	static UTutorialRegistryDA* ResolveTutorialRegistry(UTutorialRegistryDA* InRegistry);
-	static bool IsDirectEventTutorialAllowed(FName EventID);
 	FName ResolveLinkCardTutorialEventId() const;
 	void ShowLinkCardBackpackPrompt(APlayerController* PC);
 

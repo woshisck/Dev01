@@ -745,7 +745,6 @@ void AYogGameMode::EnterArrangementPhase()
 					*DescribeGameModeLootOptionsForRewardDebug(Batch));
 				Pickup->AssignLoot(Batch);
 				UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: assigned %d loot option(s) to RewardPickup"), Batch.Num());
-				Pickup->PlaySpawnFocusCue();
 			}
 		}
 	}
@@ -1298,10 +1297,6 @@ void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 			Director->HandleScriptedDefeatDeath(this);
 			bScriptedDefeatHandled = true;
 			bPlayerDeathReviveUsed = true;
-		}
-		else if (Director->ShouldRestartTutorialOnDeath())
-		{
-			Director->HandleTutorialRestartForDeath();
 		}
 	}
 

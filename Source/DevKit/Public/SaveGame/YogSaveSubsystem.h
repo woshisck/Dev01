@@ -51,6 +51,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|FirstRunTutorial")
 	void MarkFirstRunTutorialCompleted();
 
+	UFUNCTION(BlueprintCallable, Category = "SaveGame|FirstRunTutorial")
+	void SetFirstRunTutorialStage(int32 Stage);
+
+	UFUNCTION(BlueprintPure, Category = "SaveGame|FirstRunTutorial")
+	int32 GetFirstRunTutorialStage() const;
+
 	// 异步读取槽位预览（不加载全部数据，选档 UI 用）
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|Slot")
 	void RequestSlotPreview(int32 SlotIndex, FOnSlotPreviewReady Callback);
@@ -195,6 +201,10 @@ private:
 	void RestoreRunStateFromCheckpoint(const FRunCheckpointData& InCheckpoint);
 
 	void LoadLevelData(UYogSaveGame* SaveGame);
+
+	bool IsNormalGameSlot(int32 SlotIndex) const;
+	void InitializeSaveForNewGame(UYogSaveGame* Save, bool bFirstRunTutorial) const;
+	void EnsureReservedNormalGameSlot();
 
 	// 异步写盘完成回调
 	UFUNCTION()

@@ -2,18 +2,14 @@
 
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
-#include "Containers/Ticker.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/RuneDataAsset.h"
 #include "Engine/Texture2D.h"
-#include "GameFramework/PlayerController.h"
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "Story/StoryEngineSubsystem.h"
-#include "Story/StoryRuleTypes.h"
 #include "System/YogGameInstanceBase.h"
-#include "Tutorial/TutorialManager.h"
 
 namespace
 {
@@ -87,6 +83,7 @@ void UFirstRunTutorialDirectorSubsystem::SetStage(EFirstRunTutorialStage InStage
 {
 	UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Stage %d -> %d"), static_cast<int32>(Stage), static_cast<int32>(InStage));
 	Stage = InStage;
+	PersistStageToSave(InStage);
 }
 
 bool UFirstRunTutorialDirectorSubsystem::IsFirstRunTutorialActive() const
@@ -97,6 +94,40 @@ bool UFirstRunTutorialDirectorSubsystem::IsFirstRunTutorialActive() const
 	return SaveSys && SaveSys->IsFirstRunTutorialActive();
 }
 
+EFirstRunTutorialStage UFirstRunTutorialDirectorSubsystem::GetPersistedStage() const
+{
+	const UYogSaveSubsystem* SaveSys = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UYogSaveSubsystem>()
+		: nullptr;
+	const int32 RawStage = SaveSys ? SaveSys->GetFirstRunTutorialStage() : 0;
+	return RawStage >= static_cast<int32>(EFirstRunTutorialStage::None)
+		&& RawStage <= static_cast<int32>(EFirstRunTutorialStage::Completed)
+		? static_cast<EFirstRunTutorialStage>(RawStage)
+		: EFirstRunTutorialStage::None;
+}
+
+void UFirstRunTutorialDirectorSubsystem::RestoreStageFromSave()
+{
+	const EFirstRunTutorialStage PersistedStage = GetPersistedStage();
+	if (PersistedStage != EFirstRunTutorialStage::None && PersistedStage != Stage)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Restored stage %d -> %d"),
+			static_cast<int32>(Stage),
+			static_cast<int32>(PersistedStage));
+		Stage = PersistedStage;
+	}
+}
+
+void UFirstRunTutorialDirectorSubsystem::PersistStageToSave(EFirstRunTutorialStage InStage) const
+{
+	if (UYogSaveSubsystem* SaveSys = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UYogSaveSubsystem>()
+		: nullptr)
+	{
+		SaveSys->SetFirstRunTutorialStage(static_cast<int32>(InStage));
+	}
+}
+
 void UFirstRunTutorialDirectorSubsystem::HandleArrangementPhase(AYogGameMode* GameMode)
 {
 	if (!GameMode || !IsFirstRunTutorialActive())
@@ -104,6 +135,7 @@ void UFirstRunTutorialDirectorSubsystem::HandleArrangementPhase(AYogGameMode* Ga
 		return;
 	}
 
+	RestoreStageFromSave();
 	EFirstRunTutorialStage PlanningStage = Stage;
 	if (PlanningStage == EFirstRunTutorialStage::None && GameMode->CurrentFloor <= 1)
 	{
@@ -140,32 +172,16 @@ void UFirstRunTutorialDirectorSubsystem::HandleRewardRuneAdded(URuneDataAsset* R
 		return;
 	}
 
+	RestoreStageFromSave();
 	if (IsRuneAtPath(RuneAsset, MoonlightRunePath))
 	{
-		bMoonlightObtained = true;
 		BroadcastTutorialStoryEvent(FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.MoonlightObtained"), false), Player);
-
-		if (!bMoonlightTutorialShown)
-		{
-			APlayerController* PC = Player ? Player->GetController<APlayerController>() : nullptr;
-			TWeakObjectPtr<UFirstRunTutorialDirectorSubsystem> WeakThis(this);
-			TWeakObjectPtr<APlayerController> WeakPC(PC);
-			FTSTicker::GetCoreTicker().AddTicker(
-				FTickerDelegate::CreateLambda([WeakThis, WeakPC](float) -> bool
-				{
-					if (WeakThis.IsValid() && WeakPC.IsValid())
-					{
-						WeakThis->ShowMoonlightPickupTutorial(WeakPC.Get());
-					}
-					return false;
-				}),
-				0.5f);
-		}
 	}
 }
 
 void UFirstRunTutorialDirectorSubsystem::HandleSacrificeConfirmed(URuneDataAsset* GrantedRune, APlayerCharacterBase* Player)
 {
+	RestoreStageFromSave();
 	URuneDataAsset* EffectiveRune = ResolveSacrificeRewardOverride(GrantedRune);
 	if (!Player || !EffectiveRune || !IsFirstRunTutorialActive())
 	{
@@ -193,19 +209,22 @@ void UFirstRunTutorialDirectorSubsystem::HandleSacrificeConfirmed(URuneDataAsset
 
 URuneDataAsset* UFirstRunTutorialDirectorSubsystem::ResolveSacrificeRewardOverride(URuneDataAsset* DefaultRune) const
 {
-	return ResolveSacrificeRewardForStage(Stage, IsFirstRunTutorialActive(), DefaultRune);
+	const EFirstRunTutorialStage EffectiveStage = Stage != EFirstRunTutorialStage::None ? Stage : GetPersistedStage();
+	return ResolveSacrificeRewardForStage(EffectiveStage, IsFirstRunTutorialActive(), DefaultRune);
 }
 
 bool UFirstRunTutorialDirectorSubsystem::IsPrayerSacrificeOverrideActive() const
 {
+	const EFirstRunTutorialStage EffectiveStage = Stage != EFirstRunTutorialStage::None ? Stage : GetPersistedStage();
 	return IsFirstRunTutorialActive()
-		&& Stage == EFirstRunTutorialStage::PrayerRoom
+		&& EffectiveStage == EFirstRunTutorialStage::PrayerRoom
 		&& LoadFirstRunFinisherRune() != nullptr;
 }
 
 bool UFirstRunTutorialDirectorSubsystem::ShouldHandleScriptedDefeatDeath() const
 {
-	return Stage == EFirstRunTutorialStage::ForcedSurvival && IsFirstRunTutorialActive();
+	const EFirstRunTutorialStage EffectiveStage = Stage != EFirstRunTutorialStage::None ? Stage : GetPersistedStage();
+	return EffectiveStage == EFirstRunTutorialStage::ForcedSurvival && IsFirstRunTutorialActive();
 }
 
 void UFirstRunTutorialDirectorSubsystem::HandleScriptedDefeatDeath(AYogGameMode* GameMode)
@@ -369,44 +388,6 @@ EFirstRunTutorialStage UFirstRunTutorialDirectorSubsystem::GetNextStageAfterPlan
 		return EFirstRunTutorialStage::PrayerRoom;
 	default:
 		return PlanningStage;
-	}
-}
-
-bool UFirstRunTutorialDirectorSubsystem::ShouldRestartTutorialOnDeath() const
-{
-	return IsFirstRunTutorialActive()
-		&& Stage != EFirstRunTutorialStage::ForcedSurvival
-		&& Stage != EFirstRunTutorialStage::Completed;
-}
-
-void UFirstRunTutorialDirectorSubsystem::HandleTutorialRestartForDeath()
-{
-	UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Tutorial death at Stage=%d — resetting to None for restart."), static_cast<int32>(Stage));
-	SetStage(EFirstRunTutorialStage::None);
-	bMoonlightObtained = false;
-	bMoonlightTutorialShown = false;
-}
-
-void UFirstRunTutorialDirectorSubsystem::HandleFirstBackpackOpened(APlayerController* PC)
-{
-	// 月光教程弹窗已改为在拾取时触发，此处不再重复弹出。
-}
-
-void UFirstRunTutorialDirectorSubsystem::ShowMoonlightPickupTutorial(APlayerController* PC)
-{
-	if (!PC || bMoonlightTutorialShown || !IsFirstRunTutorialActive())
-	{
-		return;
-	}
-
-	if (UTutorialManager* TutMgr = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UTutorialManager>()
-		: nullptr)
-	{
-		if (TutMgr->ShowByEventID(FName(TEXT("tutorial_moonlight_pickup")), PC, true))
-		{
-			bMoonlightTutorialShown = true;
-		}
 	}
 }
 

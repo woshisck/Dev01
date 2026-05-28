@@ -28,7 +28,6 @@
 #include "Item/Weapon/WeaponInfoDA.h"
 #include "GameModes/YogGameMode.h"
 #include "Story/StoryEngineSubsystem.h"
-#include "Story/FirstRunTutorialDirectorSubsystem.h"
 #include "TimerManager.h"
 #include "SaveGame/YogSaveSubsystem.h"
 
@@ -971,10 +970,6 @@ void UBackpackScreenWidget::NativeOnActivated()
                 StoryEngine->BroadcastStoryEvent(
                     FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.FirstBackpackOpened"), false),
                     PC);
-            }
-            if (UFirstRunTutorialDirectorSubsystem* Director = GI->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
-            {
-                Director->HandleFirstBackpackOpened(PC);
             }
         }
     }

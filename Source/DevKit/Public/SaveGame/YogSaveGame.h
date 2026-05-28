@@ -422,6 +422,9 @@ public:
 	UPROPERTY()
 	ETutorialState TutorialState = ETutorialState::NeedWeaponTutorial;
 
+	UPROPERTY()
+	int32 FirstRunTutorialStage = 0;
+
 	// 已展示过的 Save-scope 一次性弹窗 key（UYogUIManagerSubsystem::PushScreenOnce 写入）。
 	UPROPERTY()
 	TSet<FGameplayTag> ShownPopupKeys;
