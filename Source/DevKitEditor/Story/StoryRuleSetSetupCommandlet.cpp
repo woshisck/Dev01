@@ -252,6 +252,32 @@ namespace StoryRuleSetSetup
 			TEXT("Story.Source.Codex")));
 		Rules.Add(LegacyBackpack);
 
+		FStoryRule Moonlight = MakeRule(
+			TEXT("FirstRun.MoonlightObtained"),
+			TEXT("Story.Event.FirstRun.MoonlightObtained"),
+			100,
+			EStoryRuleFirePolicy::OncePerSave);
+		Moonlight.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstRun.MoonlightObtained")));
+		Moonlight.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstRun.MoonlightObtained")));
+		Moonlight.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.moonlight_obtained")));
+		Moonlight.Actions.Add(ShowTutorial(TEXT("tutorial_card_link_moonlight")));
+		Moonlight.Actions.Add(SetQuest(
+			TEXT("Story.Quest.Main"),
+			TEXT("调整月光连携卡的方向和顺序"),
+			TEXT("Story.Source.Codex")));
+		Rules.Add(Moonlight);
+
+		FStoryRule Finisher = MakeRule(
+			TEXT("FirstRun.FinisherObtained"),
+			TEXT("Story.Event.FirstRun.FinisherObtained"),
+			100,
+			EStoryRuleFirePolicy::OncePerSave);
+		Finisher.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstRun.FinisherObtained")));
+		Finisher.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstRun.FinisherObtained")));
+		Finisher.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.finisher_obtained")));
+		Finisher.Actions.Add(ShowTutorial(TEXT("tutorial_finisher")));
+		Rules.Add(Finisher);
+
 		return Rules;
 	}
 

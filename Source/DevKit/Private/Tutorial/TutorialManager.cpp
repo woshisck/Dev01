@@ -24,9 +24,9 @@ namespace
 	const FName LinkCardTutorialEventID(TEXT("tutorial_card_link"));
 	const FName MoonlightLinkCardTutorialEventID(TEXT("tutorial_card_link_moonlight"));
 
-	FGameplayTag GetLinkCardHintTag()
+	FGameplayTag GetMoonlightLinkCardHintTag()
 	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.LinkCard"), false);
+		return FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.MoonlightLinkCard"), false);
 	}
 
 	bool HasRegisteredTutorialPages(const UTutorialRegistryDA* InRegistry, FName EventID)
@@ -388,7 +388,7 @@ void UTutorialManager::NotifyLinkCardEnteredDeck(APlayerController* PC)
 		return;
 	}
 
-	const FGameplayTag HintTag = GetLinkCardHintTag();
+	const FGameplayTag HintTag = GetMoonlightLinkCardHintTag();
 	if (!HintTag.IsValid() || HasShownHint(HintTag))
 	{
 		bLinkCardBackpackTutorialPending = false;
@@ -400,6 +400,12 @@ void UTutorialManager::NotifyLinkCardEnteredDeck(APlayerController* PC)
 	}
 
 	bLinkCardBackpackTutorialPending = true;
+	if (TryShowHintOnce(HintTag, ResolveLinkCardTutorialEventId(), PC, /*bPauseGame=*/true))
+	{
+		bLinkCardBackpackTutorialPending = false;
+		return;
+	}
+
 	ShowLinkCardBackpackPrompt(PC);
 }
 
@@ -410,7 +416,7 @@ bool UTutorialManager::TryShowPendingLinkCardTutorial(APlayerController* PC)
 		return false;
 	}
 
-	const FGameplayTag HintTag = GetLinkCardHintTag();
+	const FGameplayTag HintTag = GetMoonlightLinkCardHintTag();
 	if (!HintTag.IsValid() || HasShownHint(HintTag))
 	{
 		bLinkCardBackpackTutorialPending = false;

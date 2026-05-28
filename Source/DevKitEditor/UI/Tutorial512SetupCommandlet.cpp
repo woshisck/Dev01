@@ -290,6 +290,11 @@ namespace Tutorial512Setup
 				TEXT("DA_Tutorial_HeavyCard"),
 				{
 					{
+						TEXT("新的卡牌已入组"),
+						TEXT("你获得了第一张新卡牌：[重击]。它会进入后台背包，并追加到当前战斗卡组里。之后打开卡组编排界面，可以拖动卡牌更换触发顺序。"),
+						TEXT("<input action=\"MouseClick\"/> 拖动卡牌；<input action=\"Accept\"/> 拿起/放下，<input action=\"Move\"/> 移动位置。")
+					},
+					{
 						TEXT("重击卡牌"),
 						TEXT("重击卡会在 <input action=\"HeavyAttack\"/> 命中时按顺序消耗，并触发它写入的效果。轻攻击不会消耗只要求重击的卡牌。"),
 						TEXT("把重击卡放到合适的位置，可以让关键连段更稳定地吃到强化。")
