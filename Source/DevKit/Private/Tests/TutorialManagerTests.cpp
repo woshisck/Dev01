@@ -115,4 +115,55 @@ bool FTutorialManagerMoonlightLinkContentConfiguredTest::RunTest(const FString& 
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialManagerCoreTutorialIllustrationsConfiguredTest,
+	"DevKit.TutorialManager.CoreTutorialIllustrationsConfigured",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FTutorialManagerCoreTutorialIllustrationsConfiguredTest::RunTest(const FString& Parameters)
+{
+	const UTutorialRegistryDA* Registry = LoadObject<UTutorialRegistryDA>(
+		nullptr,
+		TEXT("/Game/Docs/UI/Tutorial/DA_TutorialRegistry.DA_TutorialRegistry"));
+	if (!TestNotNull(TEXT("Tutorial registry asset loads"), Registry))
+	{
+		return false;
+	}
+
+	const FName RequiredEventIDs[] = {
+		FName(TEXT("tutorial_weapon_pickup")),
+		FName(TEXT("tutorial_first_rune")),
+		FName(TEXT("tutorial_backpack")),
+		FName(TEXT("tutorial_card_link")),
+		FName(TEXT("tutorial_card_link_moonlight")),
+		FName(TEXT("tutorial_heavy_card")),
+		FName(TEXT("tutorial_finisher")),
+		FName(TEXT("tutorial_shuffle_hint")),
+	};
+
+	bool bAllConfigured = true;
+	for (const FName EventID : RequiredEventIDs)
+	{
+		const TArray<FTutorialPage>* Pages = Registry->FindPages(EventID);
+		bAllConfigured &= TestNotNull(
+			FString::Printf(TEXT("%s tutorial is registered"), *EventID.ToString()),
+			Pages);
+		if (!Pages)
+		{
+			continue;
+		}
+
+		bAllConfigured &= TestTrue(
+			FString::Printf(TEXT("%s has pages"), *EventID.ToString()),
+			Pages->Num() > 0);
+		for (int32 Index = 0; Index < Pages->Num(); ++Index)
+		{
+			bAllConfigured &= TestNotNull(
+				FString::Printf(TEXT("%s page %d has an illustration"), *EventID.ToString(), Index + 1),
+				(*Pages)[Index].Illustration.Get());
+		}
+	}
+
+	return bAllConfigured;
+}
+
 #endif

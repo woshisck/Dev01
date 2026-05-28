@@ -125,6 +125,7 @@ private:
 	TArray<FTutorialPage> Pages;
 	bool bIsInteractable = false; // FadeIn 完成前禁止翻页/关闭，防止幽灵输入
 	bool bPauseMe = true;         // ShowPopup 时传入，控制 NativeOnActivated 是否暂停游戏
+	void ApplyCurrentPageIllustration();
 	void RefreshPage();
 	void RefreshConfirmInputHint(ECommonInputType NewInputType);
 	void RefreshPageNavigation(ECommonInputType NewInputType);

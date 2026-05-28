@@ -5,6 +5,7 @@
 #include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
 #include "InputCoreTypes.h"
+#include "Engine/Texture2D.h"
 #include "Styling/SlateBrush.h"
 #include "UI/YogInputKeyUtils.h"
 #include "UI/YogUIManagerSubsystem.h"
@@ -228,6 +229,7 @@ void UTutorialPopupWidget::OnFadeInAnimFinished()
 	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] OnFadeInAnimFinished — FadeOut already playing=%s"),
 		(Anim_FadeOut && IsAnimationPlaying(Anim_FadeOut)) ? TEXT("YES_LEAK") : TEXT("no"));
 	UnbindAllFromAnimationFinished(Anim_FadeIn);
+	ApplyCurrentPageIllustration();
 	bIsInteractable = true;
 	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] bIsInteractable=true SET"));
 }
@@ -303,6 +305,38 @@ bool UTutorialPopupWidget::NavigatePage(int32 Delta)
 	return true;
 }
 
+void UTutorialPopupWidget::ApplyCurrentPageIllustration()
+{
+	if (!IllustrationImage || !Pages.IsValidIndex(CurrentPage))
+	{
+		return;
+	}
+
+	const FTutorialPage& Page = Pages[CurrentPage];
+	if (Page.Illustration)
+	{
+		FSlateBrush Brush;
+		Brush.DrawAs = ESlateBrushDrawType::Image;
+		Brush.SetResourceObject(Page.Illustration);
+		Brush.ImageSize = FVector2D(Page.Illustration->GetSizeX(), Page.Illustration->GetSizeY());
+		Brush.TintColor = FSlateColor(FLinearColor::White);
+
+		IllustrationImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+		IllustrationImage->SetRenderOpacity(1.f);
+		IllustrationImage->SetColorAndOpacity(FLinearColor::White);
+		IllustrationImage->SetBrush(Brush);
+		IllustrationImage->SetBrushTintColor(FLinearColor::White);
+	}
+	else
+	{
+		FSlateBrush EmptyBrush;
+		EmptyBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
+		IllustrationImage->SetBrush(EmptyBrush);
+		IllustrationImage->SetBrushTintColor(FLinearColor::Transparent);
+		IllustrationImage->SetColorAndOpacity(FLinearColor::Transparent);
+	}
+}
+
 void UTutorialPopupWidget::RefreshPage()
 {
 	if (!Pages.IsValidIndex(CurrentPage)) return;
@@ -319,22 +353,7 @@ void UTutorialPopupWidget::RefreshPage()
 			: LOCTEXT("Next",  "下一页"));
 	}
 
-	if (IllustrationImage)
-	{
-		if (Page.Illustration)
-		{
-			IllustrationImage->SetBrushTintColor(FLinearColor::White);
-			IllustrationImage->SetColorAndOpacity(FLinearColor::White);
-			IllustrationImage->SetBrushFromTexture(Page.Illustration, true);
-		}
-		else
-		{
-			FSlateBrush EmptyBrush;
-			IllustrationImage->SetBrush(EmptyBrush);
-			IllustrationImage->SetBrushTintColor(FLinearColor::Black);
-			IllustrationImage->SetColorAndOpacity(FLinearColor::White);
-		}
-	}
+	ApplyCurrentPageIllustration();
 
 	if (BodySubText)
 	{
