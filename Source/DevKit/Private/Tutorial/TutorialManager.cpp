@@ -23,6 +23,9 @@ namespace
 
 	const FName LinkCardTutorialEventID(TEXT("tutorial_card_link"));
 	const FName MoonlightLinkCardTutorialEventID(TEXT("tutorial_card_link_moonlight"));
+	const FName WeaponPickupTutorialEventID(TEXT("tutorial_weapon_pickup"));
+	const TCHAR* DefaultTutorialRegistryObjectPath =
+		TEXT("/Game/Docs/UI/Tutorial/DA_TutorialRegistry.DA_TutorialRegistry");
 
 	FGameplayTag GetLinkCardHintTag()
 	{
@@ -138,12 +141,30 @@ void UTutorialManager::Deinitialize()
 
 void UTutorialManager::Init(UTutorialPopupWidget* InWidget, UTutorialRegistryDA* InRegistry)
 {
+	// If the widget instance changed (level transition → new HUD), reset popup showing state
+	// so a stale bPopupShowing=true from the previous level doesn't block all new tutorials.
+	if (PopupWidget.Get() != InWidget)
+	{
+		if (bPopupShowing)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[Tutorial] Init: widget changed during popup (level transition?) — resetting bPopupShowing."));
+		}
+		bPopupShowing = false;
+
+		if (DilationTickerHandle.IsValid())
+		{
+			FTSTicker::GetCoreTicker().RemoveTicker(DilationTickerHandle);
+			DilationTickerHandle.Reset();
+		}
+		EndDilationVisualIfActive();
+	}
+
 	PopupWidget = InWidget;
-	Registry = InRegistry;
+	Registry = ResolveTutorialRegistry(InRegistry);
 
 	UE_LOG(LogTemp, Log, TEXT("[Tutorial] Init: PopupWidget=%s, Registry=%s"),
 		InWidget ? *InWidget->GetClass()->GetName() : TEXT("NULL - TutorialPopupClass is not set on BP_HUD"),
-		InRegistry ? *InRegistry->GetName() : TEXT("NULL - TutorialRegistry is not set on BP_HUD"));
+		Registry ? *Registry->GetName() : TEXT("NULL - TutorialRegistry is not set on BP_HUD"));
 }
 
 void UTutorialManager::LoadFromSave(UYogSaveGame* Save)
@@ -270,7 +291,7 @@ void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase
 	TArray<FTutorialPage> PagesToShow;
 	if (Registry)
 	{
-		if (const TArray<FTutorialPage>* RegisteredPages = Registry->FindPages(TutorialEventID(TEXT("tutorial_weapon_pickup"))))
+		if (const TArray<FTutorialPage>* RegisteredPages = Registry->FindPages(WeaponPickupTutorialEventID))
 		{
 			PagesToShow = *RegisteredPages;
 		}
@@ -465,6 +486,31 @@ FName UTutorialManager::ResolveLinkCardTutorialEventIdForTest(const UTutorialReg
 	return ResolveLinkCardTutorialEventIdFromRegistry(InRegistry);
 }
 
+UTutorialRegistryDA* UTutorialManager::ResolveTutorialRegistry(UTutorialRegistryDA* InRegistry)
+{
+	if (InRegistry)
+	{
+		return InRegistry;
+	}
+
+	return LoadObject<UTutorialRegistryDA>(nullptr, DefaultTutorialRegistryObjectPath);
+}
+
+UTutorialRegistryDA* UTutorialManager::ResolveTutorialRegistryForTest(UTutorialRegistryDA* InRegistry)
+{
+	return ResolveTutorialRegistry(InRegistry);
+}
+
+bool UTutorialManager::IsDirectEventTutorialAllowed(FName EventID)
+{
+	return EventID != WeaponPickupTutorialEventID;
+}
+
+bool UTutorialManager::IsDirectEventTutorialAllowedForTest(FName EventID)
+{
+	return IsDirectEventTutorialAllowed(EventID);
+}
+
 FName UTutorialManager::ResolveLinkCardTutorialEventId() const
 {
 	return ResolveLinkCardTutorialEventIdFromRegistry(Registry);
@@ -541,6 +587,14 @@ bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool 
 	if (!AreTutorialPopupsEnabled())
 	{
 		UE_LOG(LogTemp, Log, TEXT("[Tutorial] EventID='%s' suppressed because tutorial popups are disabled."), *EventID.ToString());
+		OnPopupClosed.Broadcast();
+		return false;
+	}
+
+	if (!IsDirectEventTutorialAllowed(EventID))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] EventID='%s' suppressed because it must be triggered by the weapon pickup flow."),
+			*EventID.ToString());
 		OnPopupClosed.Broadcast();
 		return false;
 	}
