@@ -1241,6 +1241,8 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 	static const FGameplayTag HeavyHintTag   = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.HeavyCard"));
 	static const FGameplayTag LinkHintTag     = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.LinkCard"));
 	static const FGameplayTag FinisherHintTag = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.Finisher"));
+	static const FGameplayTag HeavyIdTag      = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Heavy"), false);
+	static const FGameplayTag HeavyEffectTag  = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Heavy"), false);
 	static const FGameplayTag MoonlightIdTag  = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"), false);
 	static const FGameplayTag MoonlightEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Moonlight"), false);
 	static const FName WeaponOwnerSource(TEXT("Weapon"));
@@ -1253,8 +1255,12 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 			continue;
 		}
 
-		// 重击卡：RequiredAction == Heavy（区别于普通攻击卡）
-		if (Card.Config.RequiredAction == ECardRequiredAction::Heavy)
+		const bool bIsHeavyCard =
+			Card.Config.RequiredAction == ECardRequiredAction::Heavy
+			|| (HeavyIdTag.IsValid() && Card.Config.CardIdTag == HeavyIdTag)
+			|| (HeavyEffectTag.IsValid() && Card.Config.CardEffectTags.HasTagExact(HeavyEffectTag));
+
+		if (bIsHeavyCard)
 		{
 			TM->TryShowHintOnce(HeavyHintTag, TEXT("tutorial_heavy_card"), PC);
 		}

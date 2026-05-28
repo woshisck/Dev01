@@ -173,7 +173,15 @@ void UFirstRunTutorialDirectorSubsystem::HandleRewardRuneAdded(URuneDataAsset* R
 	}
 
 	RestoreStageFromSave();
-	if (IsRuneAtPath(RuneAsset, MoonlightRunePath))
+	const FGameplayTag MoonlightIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"), false);
+	const FGameplayTag MoonlightEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Moonlight"), false);
+	const FCombatCardConfig& CombatCard = RuneAsset->RuneInfo.CombatCard;
+	const bool bIsMoonlightCard =
+		IsRuneAtPath(RuneAsset, MoonlightRunePath)
+		|| (MoonlightIdTag.IsValid() && CombatCard.CardIdTag == MoonlightIdTag)
+		|| (MoonlightEffectTag.IsValid() && CombatCard.CardEffectTags.HasTagExact(MoonlightEffectTag));
+
+	if (bIsMoonlightCard)
 	{
 		BroadcastTutorialStoryEvent(FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.MoonlightObtained"), false), Player);
 	}

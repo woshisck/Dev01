@@ -145,6 +145,59 @@ bool FStoryEngineFirstRuneRuleMarksHeavyCardProgressTest::RunTest(const FString&
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineMoonlightRuleShowsTutorialTest,
+	"DevKit.StoryEngine.MoonlightRuleShowsTutorial",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStoryEngineMoonlightRuleShowsTutorialTest::RunTest(const FString& Parameters)
+{
+	const UStoryRuleSetDA* RuleSet = LoadObject<UStoryRuleSetDA>(
+		nullptr,
+		TEXT("/Game/Story/Rules/SR_FirstRun.SR_FirstRun"));
+	TestNotNull(TEXT("First-run rule set loads"), RuleSet);
+	if (!RuleSet)
+	{
+		return false;
+	}
+
+	const FGameplayTag MoonlightEvent = StoryEngineTests::RequireTag(TEXT("Story.Event.FirstRun.MoonlightObtained"));
+	const FGameplayTag MoonlightProgress = StoryEngineTests::RequireTag(
+		TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.moonlight_obtained"));
+	if (!TestTrue(TEXT("Moonlight event tag is configured"), MoonlightEvent.IsValid()) ||
+		!TestTrue(TEXT("Moonlight progress tag is configured"), MoonlightProgress.IsValid()))
+	{
+		return false;
+	}
+
+	bool bMarksMoonlightProgress = false;
+	bool bShowsMoonlightTutorial = false;
+	for (const FStoryRule& Rule : RuleSet->Rules)
+	{
+		if (Rule.TriggerEventTag != MoonlightEvent)
+		{
+			continue;
+		}
+
+		bMarksMoonlightProgress |= Rule.Actions.ContainsByPredicate(
+			[MoonlightProgress](const FStoryAction& Action)
+			{
+				return Action.Type == EStoryActionType::SetFlag
+					&& Action.FlagScope == EStoryFlagScope::Save
+					&& Action.FlagTag == MoonlightProgress;
+			});
+		bShowsMoonlightTutorial |= Rule.Actions.ContainsByPredicate(
+			[](const FStoryAction& Action)
+			{
+				return Action.Type == EStoryActionType::ShowTutorialPopup
+					&& Action.TutorialEventId == FName(TEXT("tutorial_card_link_moonlight"));
+			});
+	}
+
+	TestTrue(TEXT("Moonlight rule marks first-run moonlight progress"), bMarksMoonlightProgress);
+	TestTrue(TEXT("Moonlight rule shows the moonlight link-card tutorial"), bShowsMoonlightTutorial);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryRuleSetFiltersAndSortsRulesTest,
 	"DevKit.StoryEngine.RuleSetFiltersAndSortsRules",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

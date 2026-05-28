@@ -115,6 +115,41 @@ bool FTutorialManagerMoonlightLinkContentConfiguredTest::RunTest(const FString& 
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialManagerHeavyCardContentConfiguredTest,
+	"DevKit.TutorialManager.HeavyCardContentConfigured",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FTutorialManagerHeavyCardContentConfiguredTest::RunTest(const FString& Parameters)
+{
+	const UTutorialRegistryDA* Registry = LoadObject<UTutorialRegistryDA>(
+		nullptr,
+		TEXT("/Game/Docs/UI/Tutorial/DA_TutorialRegistry.DA_TutorialRegistry"));
+	if (!TestNotNull(TEXT("Tutorial registry asset loads"), Registry))
+	{
+		return false;
+	}
+
+	const TArray<FTutorialPage>* Pages = Registry->FindPages(FName(TEXT("tutorial_heavy_card")));
+	if (!TestNotNull(TEXT("Heavy card tutorial is registered"), Pages))
+	{
+		return false;
+	}
+
+	TestTrue(TEXT("Heavy card tutorial explains deck entry and card use"), Pages->Num() >= 2);
+	if (Pages->Num() < 2)
+	{
+		return false;
+	}
+
+	const FString FirstBody = (*Pages)[0].Body.ToString();
+	const FString FirstSubText = (*Pages)[0].SubText.ToString();
+	TestTrue(TEXT("First heavy card page says the card enters the deck"),
+		FirstBody.Contains(TEXT("进入后台背包")) && FirstBody.Contains(TEXT("战斗卡组")));
+	TestTrue(TEXT("First heavy card page explains drag reorder"),
+		FirstBody.Contains(TEXT("拖动")) || FirstSubText.Contains(TEXT("拖动")));
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialManagerCoreTutorialIllustrationsConfiguredTest,
 	"DevKit.TutorialManager.CoreTutorialIllustrationsConfigured",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
