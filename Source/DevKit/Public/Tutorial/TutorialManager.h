@@ -10,6 +10,7 @@
 class UTutorialPopupWidget;
 class UTutorialRegistryDA;
 class AYogPlayerControllerBase;
+class ULevelInfoPopupDA;
 class UYogSaveGame;
 
 UCLASS(Config=Game)
@@ -38,6 +39,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Tutorial")
 	void TryCardLinkTutorial(APlayerController* PC);
+
+	UFUNCTION(BlueprintCallable, Category = "Tutorial")
+	void NotifyLinkCardEnteredDeck(APlayerController* PC);
+
+	UFUNCTION(BlueprintCallable, Category = "Tutorial")
+	bool TryShowPendingLinkCardTutorial(APlayerController* PC);
 
 	// LevelFlow entry: show a registered tutorial popup directly without state validation.
 	bool ShowByEventID(FName EventID, APlayerController* PC, bool bPauseGame = true);
@@ -72,6 +79,8 @@ public:
 	int32 StageRank(ETutorialState S) const;
 	bool HasPassedStage(ETutorialState Required) const;
 
+	static FName ResolveLinkCardTutorialEventIdForTest(const UTutorialRegistryDA* InRegistry);
+
 private:
 	UPROPERTY(Config)
 	bool bTutorialPopupsEnabled = false;
@@ -94,7 +103,11 @@ private:
 	UPROPERTY()
 	TObjectPtr<UTutorialRegistryDA> Registry;
 
+	UPROPERTY()
+	TArray<TObjectPtr<ULevelInfoPopupDA>> TransientInfoPopups;
+
 	bool bPopupShowing = false;
+	bool bLinkCardBackpackTutorialPending = false;
 
 	FTimerHandle DelayHandle;
 	FTSTicker::FDelegateHandle DilationTickerHandle;
@@ -103,6 +116,8 @@ private:
 	void DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC);
 	void DoShowPostCombatPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC);
 	void EndDilationVisualIfActive();
+	FName ResolveLinkCardTutorialEventId() const;
+	void ShowLinkCardBackpackPrompt(APlayerController* PC);
 
 	void SaveState();
 };

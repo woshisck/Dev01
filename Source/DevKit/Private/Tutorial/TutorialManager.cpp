@@ -2,6 +2,7 @@
 
 #include "Character/YogPlayerControllerBase.h"
 #include "Containers/Ticker.h"
+#include "Data/LevelInfoPopupDA.h"
 #include "Engine/LocalPlayer.h"
 #include "GameplayTagContainer.h"
 #include "Kismet/GameplayStatics.h"
@@ -9,6 +10,7 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "UI/GameDialogWidget.h"
 #include "UI/TutorialRegistryDA.h"
+#include "UI/YogHUD.h"
 #include "UI/YogUIManagerSubsystem.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 
@@ -17,6 +19,32 @@ namespace
 	FName TutorialEventID(const TCHAR* EventID)
 	{
 		return FName(EventID);
+	}
+
+	const FName LinkCardTutorialEventID(TEXT("tutorial_card_link"));
+	const FName MoonlightLinkCardTutorialEventID(TEXT("tutorial_card_link_moonlight"));
+
+	FGameplayTag GetLinkCardHintTag()
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.LinkCard"), false);
+	}
+
+	bool HasRegisteredTutorialPages(const UTutorialRegistryDA* InRegistry, FName EventID)
+	{
+		if (!InRegistry)
+		{
+			return false;
+		}
+
+		const TArray<FTutorialPage>* Pages = InRegistry->FindPages(EventID);
+		return Pages && !Pages->IsEmpty();
+	}
+
+	FName ResolveLinkCardTutorialEventIdFromRegistry(const UTutorialRegistryDA* InRegistry)
+	{
+		return HasRegisteredTutorialPages(InRegistry, MoonlightLinkCardTutorialEventID)
+			? MoonlightLinkCardTutorialEventID
+			: LinkCardTutorialEventID;
 	}
 
 	FTutorialPage MakeTutorialPage(const TCHAR* Title, const TCHAR* Body, const TCHAR* SubText = TEXT(""))
@@ -346,11 +374,94 @@ void UTutorialManager::TryCardLinkTutorial(APlayerController* PC)
 		return;
 	}
 
-	if (ShowByEventID(TutorialEventID(TEXT("tutorial_card_link")), PC, /*bPauseGame=*/true))
+	if (ShowByEventID(ResolveLinkCardTutorialEventId(), PC, /*bPauseGame=*/true))
 	{
 		State = ETutorialState::Completed;
 		SaveState();
 	}
+}
+
+void UTutorialManager::NotifyLinkCardEnteredDeck(APlayerController* PC)
+{
+	if (!AreTutorialPopupsEnabled())
+	{
+		return;
+	}
+
+	const FGameplayTag HintTag = GetLinkCardHintTag();
+	if (!HintTag.IsValid() || HasShownHint(HintTag))
+	{
+		bLinkCardBackpackTutorialPending = false;
+		return;
+	}
+	if (bLinkCardBackpackTutorialPending)
+	{
+		return;
+	}
+
+	bLinkCardBackpackTutorialPending = true;
+	ShowLinkCardBackpackPrompt(PC);
+}
+
+bool UTutorialManager::TryShowPendingLinkCardTutorial(APlayerController* PC)
+{
+	if (!bLinkCardBackpackTutorialPending)
+	{
+		return false;
+	}
+
+	const FGameplayTag HintTag = GetLinkCardHintTag();
+	if (!HintTag.IsValid() || HasShownHint(HintTag))
+	{
+		bLinkCardBackpackTutorialPending = false;
+		return true;
+	}
+
+	if (TryShowHintOnce(HintTag, ResolveLinkCardTutorialEventId(), PC, /*bPauseGame=*/true))
+	{
+		bLinkCardBackpackTutorialPending = false;
+		return true;
+	}
+
+	return false;
+}
+
+FName UTutorialManager::ResolveLinkCardTutorialEventIdForTest(const UTutorialRegistryDA* InRegistry)
+{
+	return ResolveLinkCardTutorialEventIdFromRegistry(InRegistry);
+}
+
+FName UTutorialManager::ResolveLinkCardTutorialEventId() const
+{
+	return ResolveLinkCardTutorialEventIdFromRegistry(Registry);
+}
+
+void UTutorialManager::ShowLinkCardBackpackPrompt(APlayerController* PC)
+{
+	if (!PC)
+	{
+		return;
+	}
+
+	AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD());
+	if (!HUD)
+	{
+		return;
+	}
+
+	ULevelInfoPopupDA* Popup = NewObject<ULevelInfoPopupDA>(this);
+	Popup->Title = FText::FromString(TEXT("获得连携卡"));
+	Popup->Body = FText::FromString(TEXT("月光已进入卡组。打开背包查看连携卡的正向/反向规则。"));
+	Popup->HUDSummaryText = FText::FromString(TEXT("打开背包查看月光连携卡的正向/反向规则。"));
+	Popup->DisplayDuration = 4.0f;
+
+	TransientInfoPopups.Add(Popup);
+	if (TransientInfoPopups.Num() > 8)
+	{
+		TransientInfoPopups.RemoveAt(0);
+	}
+
+	HUD->ShowInfoPopup(Popup);
 }
 
 bool UTutorialManager::ShowInlinePages(const TArray<FTutorialPage>& Pages, APlayerController* PC, bool bPauseGame)

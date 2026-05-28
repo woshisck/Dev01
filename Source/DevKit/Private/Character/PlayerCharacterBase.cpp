@@ -1239,6 +1239,8 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 	static const FGameplayTag HeavyHintTag   = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.HeavyCard"));
 	static const FGameplayTag LinkHintTag     = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.LinkCard"));
 	static const FGameplayTag FinisherHintTag = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.Finisher"));
+	static const FGameplayTag MoonlightIdTag  = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"), false);
+	static const FGameplayTag MoonlightEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Moonlight"), false);
 	static const FName WeaponOwnerSource(TEXT("Weapon"));
 
 	for (const FCombatCardInstance& Card : Cards)
@@ -1257,7 +1259,17 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 		// 连携卡（月光等）
 		else if (Card.Config.CardType == ECombatCardType::Link)
 		{
-			TM->TryShowHintOnce(LinkHintTag, TEXT("tutorial_card_link"), PC);
+			const bool bIsMoonlightLinkCard =
+				(MoonlightIdTag.IsValid() && Card.Config.CardIdTag == MoonlightIdTag)
+				|| (MoonlightEffectTag.IsValid() && Card.Config.CardEffectTags.HasTagExact(MoonlightEffectTag));
+			if (bIsMoonlightLinkCard)
+			{
+				TM->NotifyLinkCardEnteredDeck(PC);
+			}
+			else
+			{
+				TM->TryShowHintOnce(LinkHintTag, TEXT("tutorial_card_link"), PC);
+			}
 		}
 		// 终结技卡
 		else if (Card.Config.CardType == ECombatCardType::Finisher)

@@ -9,6 +9,7 @@
 #include "IAssetTools.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
+#include "Misc/Parse.h"
 #include "UI/DialogContentDA.h"
 #include "UI/TutorialRegistryDA.h"
 #include "UObject/Package.h"
@@ -114,7 +115,7 @@ namespace Tutorial512Setup
 			}
 			return TEXT("T_Tutorial512_WeaponCards");
 		}
-		if (EventID == TEXT("tutorial_card_link"))
+		if (EventID == TEXT("tutorial_card_link") || EventID == TEXT("tutorial_card_link_moonlight"))
 		{
 			return TEXT("T_Tutorial512_LinkCard");
 		}
@@ -260,6 +261,27 @@ namespace Tutorial512Setup
 						TEXT("连携卡"),
 						TEXT("Link 卡会读取相邻卡牌的标签和方向。条件满足时，它会触发连携效果；HUD 会显示连携原因，让你知道为什么这次攻击被强化。"),
 						TEXT("例：月光放在不同方向，可以选择不同连携效果。")
+					},
+				}
+			},
+			{
+				TEXT("tutorial_card_link_moonlight"),
+				TEXT("DA_Tutorial_CardLinkMoonlight"),
+				{
+					{
+						TEXT("基础结算效果"),
+						TEXT("[月光] 是连携卡。连携卡被打出并完成消耗时，会先执行卡牌自身的基础结算效果；如果本次没有满足连携条件，结算会停留在这一步。"),
+						TEXT("基础结算效果是卡牌的稳定收益，和是否成功触发连携分开判断。")
+					},
+					{
+						TEXT("连携条件"),
+						TEXT("连携卡的强化效果来自相邻卡牌。它会读取指定方向上的卡牌特征；条件满足时，会在基础效果上追加更强效果，或将基础效果转化为新的表现。"),
+						TEXT("是否触发连携，取决于卡牌顺序、连携方向和相邻卡牌是否符合要求。")
+					},
+					{
+						TEXT("正向与反向"),
+						TEXT("有些连携卡可以切换方向。选中连携卡后按 <input action=\"ReverseCard\"/>，可以改变它读取哪一侧的卡牌；再调整卡牌顺序，就能决定它和哪张卡产生连携。"),
+						TEXT("方向决定读取哪一侧，顺序决定那一侧是谁。具体效果以卡牌说明为准。")
 					},
 				}
 			},
@@ -509,6 +531,9 @@ int32 UTutorial512SetupCommandlet::Main(const FString& Params)
 
 	const bool bApply = Params.Contains(TEXT("Apply"), ESearchCase::IgnoreCase);
 	const bool bDryRun = !bApply;
+	FString OnlyEventString;
+	FParse::Value(*Params, TEXT("OnlyEvent="), OnlyEventString);
+	const FName OnlyEventID = OnlyEventString.IsEmpty() ? NAME_None : FName(*OnlyEventString);
 
 	TArray<FString> ReportLines;
 	TArray<UPackage*> DirtyPackages;
@@ -518,13 +543,30 @@ int32 UTutorial512SetupCommandlet::Main(const FString& Params)
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
 	ReportLines.Add(FString::Printf(TEXT("- Tutorial root: `%s`"), *TutorialRoot));
 	ReportLines.Add(FString::Printf(TEXT("- Illustration root: `%s`"), *IllustrationRoot));
+	if (!OnlyEventID.IsNone())
+	{
+		ReportLines.Add(FString::Printf(TEXT("- OnlyEvent: `%s`"), *OnlyEventID.ToString()));
+	}
 	ReportLines.Add(TEXT(""));
 
-	ImportIllustrations(bDryRun, ReportLines, DirtyPackages);
+	if (OnlyEventID.IsNone())
+	{
+		ImportIllustrations(bDryRun, ReportLines, DirtyPackages);
+	}
+	else
+	{
+		ReportLines.Add(TEXT("## Illustration import"));
+		ReportLines.Add(TEXT("- Skipped in OnlyEvent mode; existing imported textures are reused."));
+		ReportLines.Add(TEXT(""));
+	}
 
 	const TArray<FTutorial512EntrySpec> Specs = MakeSpecs();
 	for (const FTutorial512EntrySpec& Spec : Specs)
 	{
+		if (!OnlyEventID.IsNone() && Spec.EventID != OnlyEventID)
+		{
+			continue;
+		}
 		ConfigureDialogContent(Spec, bDryRun, ReportLines, DirtyPackages, ContentByEvent);
 		ReportLines.Add(TEXT(""));
 	}

@@ -5,6 +5,7 @@
 #include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
 #include "InputCoreTypes.h"
+#include "Styling/SlateBrush.h"
 #include "UI/YogInputKeyUtils.h"
 #include "UI/YogUIManagerSubsystem.h"
 
@@ -321,9 +322,18 @@ void UTutorialPopupWidget::RefreshPage()
 	if (IllustrationImage)
 	{
 		if (Page.Illustration)
+		{
+			IllustrationImage->SetBrushTintColor(FLinearColor::White);
+			IllustrationImage->SetColorAndOpacity(FLinearColor::White);
 			IllustrationImage->SetBrushFromTexture(Page.Illustration, true);
+		}
 		else
+		{
+			FSlateBrush EmptyBrush;
+			IllustrationImage->SetBrush(EmptyBrush);
 			IllustrationImage->SetBrushTintColor(FLinearColor::Black);
+			IllustrationImage->SetColorAndOpacity(FLinearColor::White);
+		}
 	}
 
 	if (BodySubText)

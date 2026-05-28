@@ -331,6 +331,7 @@ void AYogHUD::OpenBackpack()
 						FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.Backpack"));
 					TM->TryShowHintOnce(BackpackHintTag, TEXT("tutorial_backpack"),
 						GetOwningPlayerController());
+					TM->TryShowPendingLinkCardTutorial(GetOwningPlayerController());
 				}
 			}
 			return;
