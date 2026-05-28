@@ -376,13 +376,6 @@ void UYogGameOverWidget::HandleRetryClicked()
 	}
 	if (UYogGameInstanceBase* GI = GetGameInstance<UYogGameInstanceBase>())
 	{
-		if (UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>())
-		{
-			if (SaveSys->IsFirstRunTutorialActive())
-			{
-				SaveSys->MarkFirstRunTutorialCompleted();
-			}
-		}
 		GI->StartNewRunFromFrontend();
 	}
 }

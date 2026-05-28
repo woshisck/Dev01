@@ -34,7 +34,7 @@
 ## E001 — 无畏
 
 **机制：** 持续监听 HP，当 HP < 75% 时一次性激活：
-- `DmgTaken × 0.8`（受到伤害减少 20%）
+- `DmgTaken × 1.5`（受到伤害增加 50%）
 - 授予 `Buff.Status.SuperArmor`（受击不产生硬直，YogAbilitySystemComponent 的 Poise 系统检测此 tag 跳过 HitReact 事件）
 
 **表现：** 触发时爆发金色光芒 GC；激活期间轻微金色 Fresnel 边缘光。
@@ -66,15 +66,8 @@
     ↓ True
 [Do Once ⑤]                     ← 只触发一次（HP 来回穿越 75% 不重复激活）
     ↓ Out
-[Apply Attribute Modifier ⑥]    ← 20% 减伤
-    Attribute    = BaseAttributeSet.DmgTaken
-    ModOp        = Multiply
-    Value        = 0.8
-    DurationType = Infinite
-    Target       = BuffOwner
-    ↓ Out
-[Add Tag ⑦]                     ← 授予霸体（无硬直）
-    Tag    = Buff.Status.SuperArmor
+[Apply Gameplay Effect ⑥]       ← 授予霸体并提高承伤
+    Effect = GE_Fearless
     Target = BuffOwner
 ```
 
@@ -83,7 +76,7 @@
 > - `②.CachedValue` → `③.B`
 > - `③.Result` → `④.A`
 >
-> **DmgTaken 减伤原理：** `DamageExecution.cpp` 公式 `FinalDamage = AttackPower × Attack × DmgTaken`，DmgTaken = 0.8 即减伤 20%。（已修复 clamp 使 < 1.0 生效）
+> **DmgTaken 承伤原理：** `DamageExecution.cpp` 公式 `FinalDamage = AttackPower × Attack × DmgTaken`，DmgTaken = 1.5 即受到伤害增加 50%。（clamp 仍允许 < 1.0 的减伤倍率按需生效）
 >
 > **SuperArmor 原理：** `YogAbilitySystemComponent.cpp` Poise 系统检测 `Buff.Status.SuperArmor` tag，持有时跳过 HitReact GA 的触发事件，攻击动画不被打断。
 
@@ -286,7 +279,7 @@ Content Browser 新建文件夹：`Content/Docs/BuffDocs/EnemyBuff/`
 
 | 符文 | 可调参数 | 节点 |
 |------|---------|------|
-| 无畏 | HP 触发阈值 / 减伤比例 | ④ B 值 / ⑥ Value |
+| 无畏 | HP 触发阈值 / 承伤倍率 | ④ B 值 / GE_Fearless.DmgTaken |
 | 死亡之毒 | 溅射半径 / 毒伤值 / 持续时间 | ② Radius / GE_PoisonSplash |
 | 死咒 | MaxHealth 倍率 / 叠层上限 | ② Value / ② MaxStacks |
 | 激怒 | 攻速倍率 | ② Value |

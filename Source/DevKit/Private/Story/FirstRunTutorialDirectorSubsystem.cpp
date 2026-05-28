@@ -2,14 +2,18 @@
 
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
+#include "Containers/Ticker.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/RuneDataAsset.h"
 #include "Engine/Texture2D.h"
+#include "GameFramework/PlayerController.h"
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "Story/StoryEngineSubsystem.h"
+#include "Story/StoryRuleTypes.h"
 #include "System/YogGameInstanceBase.h"
+#include "Tutorial/TutorialManager.h"
 
 namespace
 {
@@ -138,7 +142,25 @@ void UFirstRunTutorialDirectorSubsystem::HandleRewardRuneAdded(URuneDataAsset* R
 
 	if (IsRuneAtPath(RuneAsset, MoonlightRunePath))
 	{
+		bMoonlightObtained = true;
 		BroadcastTutorialStoryEvent(FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.MoonlightObtained"), false), Player);
+
+		if (!bMoonlightTutorialShown)
+		{
+			APlayerController* PC = Player ? Player->GetController<APlayerController>() : nullptr;
+			TWeakObjectPtr<UFirstRunTutorialDirectorSubsystem> WeakThis(this);
+			TWeakObjectPtr<APlayerController> WeakPC(PC);
+			FTSTicker::GetCoreTicker().AddTicker(
+				FTickerDelegate::CreateLambda([WeakThis, WeakPC](float) -> bool
+				{
+					if (WeakThis.IsValid() && WeakPC.IsValid())
+					{
+						WeakThis->ShowMoonlightPickupTutorial(WeakPC.Get());
+					}
+					return false;
+				}),
+				0.5f);
+		}
 	}
 }
 
@@ -347,6 +369,44 @@ EFirstRunTutorialStage UFirstRunTutorialDirectorSubsystem::GetNextStageAfterPlan
 		return EFirstRunTutorialStage::PrayerRoom;
 	default:
 		return PlanningStage;
+	}
+}
+
+bool UFirstRunTutorialDirectorSubsystem::ShouldRestartTutorialOnDeath() const
+{
+	return IsFirstRunTutorialActive()
+		&& Stage != EFirstRunTutorialStage::ForcedSurvival
+		&& Stage != EFirstRunTutorialStage::Completed;
+}
+
+void UFirstRunTutorialDirectorSubsystem::HandleTutorialRestartForDeath()
+{
+	UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Tutorial death at Stage=%d — resetting to None for restart."), static_cast<int32>(Stage));
+	SetStage(EFirstRunTutorialStage::None);
+	bMoonlightObtained = false;
+	bMoonlightTutorialShown = false;
+}
+
+void UFirstRunTutorialDirectorSubsystem::HandleFirstBackpackOpened(APlayerController* PC)
+{
+	// 月光教程弹窗已改为在拾取时触发，此处不再重复弹出。
+}
+
+void UFirstRunTutorialDirectorSubsystem::ShowMoonlightPickupTutorial(APlayerController* PC)
+{
+	if (!PC || bMoonlightTutorialShown || !IsFirstRunTutorialActive())
+	{
+		return;
+	}
+
+	if (UTutorialManager* TutMgr = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UTutorialManager>()
+		: nullptr)
+	{
+		if (TutMgr->ShowByEventID(FName(TEXT("tutorial_moonlight_pickup")), PC, true))
+		{
+			bMoonlightTutorialShown = true;
+		}
 	}
 }
 

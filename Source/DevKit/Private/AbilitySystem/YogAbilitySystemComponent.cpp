@@ -74,6 +74,11 @@ namespace
 			(DashAttackTag.IsValid() && ASC->HasMatchingGameplayTag(DashAttackTag));
 	}
 
+	FGameplayTag GetRecentlyDamagedTag()
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.RecentlyDamaged"), false);
+	}
+
 }
 
 // Sets default values
@@ -709,14 +714,10 @@ void UYogAbilitySystemComponent::ReceiveDamage(
 	if (bEnemyDefender && !bHadBlockingSuperArmor)
 	{
 		PoiseHitCount++;
+		RefreshRecentlyDamagedState();
 
 		UE_LOG(LogTemp, Log, TEXT("[Poise] PoiseHitCount=%d/%d on %s"),
 			PoiseHitCount, SuperArmorThreshold, *GetNameSafe(GetAvatarActor()));
-
-		// 5s 无受击后重置计数
-		if (UWorld* W = GetWorld())
-			W->GetTimerManager().SetTimer(
-				PoiseResetTimer, this, &UYogAbilitySystemComponent::OnPoiseResetTimerEnd, 5.f, false);
 
 		if (SuperArmorThreshold > 0 && PoiseHitCount >= SuperArmorThreshold)
 		{
@@ -773,9 +774,58 @@ void UYogAbilitySystemComponent::ReceiveDamage(
 		*GetNameSafe(EventData.Instigator.Get()));
 }
 
+void UYogAbilitySystemComponent::RefreshRecentlyDamagedState()
+{
+	const FGameplayTag RecentlyDamagedTag = GetRecentlyDamagedTag();
+	if (RecentlyDamagedTag.IsValid())
+	{
+		SetLooseGameplayTagCount(RecentlyDamagedTag, 1);
+	}
+
+	if (UWorld* W = GetWorld())
+	{
+		const float Duration = FMath::Max(RecentlyDamagedStateDuration, 0.0f);
+		if (Duration > 0.0f)
+		{
+			W->GetTimerManager().SetTimer(
+				PoiseResetTimer, this, &UYogAbilitySystemComponent::OnPoiseResetTimerEnd, Duration, false);
+		}
+		else
+		{
+			W->GetTimerManager().ClearTimer(PoiseResetTimer);
+			OnPoiseResetTimerEnd();
+		}
+	}
+}
+
+float UYogAbilitySystemComponent::GetRecentlyDamagedStateRemainingTime() const
+{
+	if (const UWorld* W = GetWorld())
+	{
+		return W->GetTimerManager().GetTimerRemaining(PoiseResetTimer);
+	}
+
+	return -1.0f;
+}
+
+void UYogAbilitySystemComponent::ClearRecentlyDamagedState()
+{
+	if (UWorld* W = GetWorld())
+	{
+		W->GetTimerManager().ClearTimer(PoiseResetTimer);
+	}
+
+	PoiseHitCount = 0;
+	const FGameplayTag RecentlyDamagedTag = GetRecentlyDamagedTag();
+	if (RecentlyDamagedTag.IsValid())
+	{
+		SetLooseGameplayTagCount(RecentlyDamagedTag, 0);
+	}
+}
+
 void UYogAbilitySystemComponent::OnPoiseResetTimerEnd()
 {
-	PoiseHitCount = 0;
+	ClearRecentlyDamagedState();
 	UE_LOG(LogTemp, Log, TEXT("[Poise] PoiseHitCount reset on %s"), *GetNameSafe(GetAvatarActor()));
 }
 

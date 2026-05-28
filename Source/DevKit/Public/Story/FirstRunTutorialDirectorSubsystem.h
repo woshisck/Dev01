@@ -7,6 +7,7 @@
 #include "FirstRunTutorialDirectorSubsystem.generated.h"
 
 class APlayerCharacterBase;
+class APlayerController;
 class AYogGameMode;
 class URuneDataAsset;
 
@@ -57,6 +58,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Story|FirstRunTutorial")
 	void HandleScriptedDefeatDeath(AYogGameMode* GameMode);
 
+	/** 背包首次打开时调用（保留接口，触发逻辑已移至月光拾取时）。 */
+	void HandleFirstBackpackOpened(APlayerController* PC);
+
+	/** 教程关卡中玩家死亡（祈祷室前）：重置 Director 阶段及 session 标记，教程本局继续活跃，下局从头规划。 */
+	void HandleTutorialRestartForDeath();
+
+	UFUNCTION(BlueprintPure, Category = "Story|FirstRunTutorial")
+	bool ShouldRestartTutorialOnDeath() const;
+
 	static bool BuildDefaultNextRoomPlanForStage(EFirstRunTutorialStage Stage, FStoryNextRoomPlan& OutPlan);
 	static void BuildDefaultPostTutorialDeck(TArray<URuneDataAsset*>& OutDeck);
 	static bool IsRuneAtPath(const URuneDataAsset* Rune, const TCHAR* Path);
@@ -67,7 +77,11 @@ private:
 	static EFirstRunTutorialStage GetNextStageAfterPlanning(EFirstRunTutorialStage PlanningStage);
 	bool IsFirstRunTutorialActive() const;
 	void BroadcastTutorialStoryEvent(FGameplayTag EventTag, APlayerCharacterBase* Player) const;
+	void ShowMoonlightPickupTutorial(APlayerController* PC);
 
 	UPROPERTY()
 	EFirstRunTutorialStage Stage = EFirstRunTutorialStage::None;
+
+	bool bMoonlightObtained = false;
+	bool bMoonlightTutorialShown = false;
 };

@@ -240,12 +240,13 @@ private:
 	void StopStatusNiagara(const FGameplayTag& Tag);
 
 	// ── 韧性系统内部状态 ──────────────────────────────────────────────
-	/** 连续触发受击次数（5s 无受击后归零，达到 SuperArmorThreshold 时触发霸体） */
+	/** 连续触发受击次数（RecentlyDamaged 状态到期后归零，达到 SuperArmorThreshold 时触发霸体） */
 	int32 PoiseHitCount = 0;
 	FTimerHandle PoiseResetTimer;
 	FTimerHandle SuperArmorTimer;
 	bool bPoiseSuperArmorActive = false;
 
+	void RefreshRecentlyDamagedState();
 	void TriggerSuperArmorCounterAttack();
 	void OnPoiseResetTimerEnd();
 	void OnSuperArmorTimerEnd();
@@ -316,6 +317,22 @@ public:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Poise")
 	float SuperArmorDuration = 2.f;
+
+	/**
+	 * 敌人受到攻击后保持 Buff.Status.RecentlyDamaged 的时间。
+	 * 到期时会移除状态并清空被动霸体的受击计数。
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Poise", meta = (ClampMin = "0.0"))
+	float RecentlyDamagedStateDuration = 3.f;
+
+	UFUNCTION(BlueprintPure, Category = "Poise")
+	int32 GetPoiseHitCount() const { return PoiseHitCount; }
+
+	UFUNCTION(BlueprintPure, Category = "Poise")
+	float GetRecentlyDamagedStateRemainingTime() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Poise")
+	void ClearRecentlyDamagedState();
 
 	UPROPERTY(BlueprintAssignable, Category = "DamageTaken")
 	FReceivedDamageDelegate ReceivedDamage;
