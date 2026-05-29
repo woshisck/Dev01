@@ -191,6 +191,7 @@ private:
 
 	void ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data);
 	void TriggerPickupStoryEncounter(APlayerCharacterBase* Player);
+	void ActivateFirstRunTutorialSpawners() const;
 	void ApplyTutorialVisibilityEnabled(bool bEnabled);
 	bool ResolveFirstRunTutorialActive() const;
 

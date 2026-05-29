@@ -940,7 +940,7 @@ namespace Rune512Batch
 			TEXT("\u91cd\u51fb"),
 			TEXT("\u5b58\u5728\u4e8e 1D \u5361\u7ec4\u65f6\uff0c\u73a9\u5bb6\u653b\u51fb\u643a\u5e26\u5c11\u91cf\u51fb\u9000\u3002\u6253\u51fa\u540e\u9020\u6210\u989d\u5916\u4f24\u5bb3\u5e76\u51fb\u9000\u76ee\u6807\uff1b\u82e5\u7531\u91cd\u653b\u51fb\u6253\u51fa\uff0c\u8ffd\u52a0\u989d\u5916\u4f24\u5bb3\u548c\u77ed\u6682\u51cf\u901f\u3002"),
 			TEXT("Card.ID.Heavy"),
-			{ TEXT("Card.Effect.Heavy"), TEXT("Card.Effect.Knockback") },
+			{ TEXT("Card.Effect.Heavy"), TEXT("Card.Effect.Knockback"), TEXT("Card.Effect.Attack") },
 			TEXT("T_Rune512_THSword_Cleave"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Knockback"),
 			TEXT("FA_Rune512_Heavy_Base"),

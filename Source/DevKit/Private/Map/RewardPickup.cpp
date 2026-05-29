@@ -322,7 +322,7 @@ bool ARewardPickup::ShouldGrantLootImmediatelyForOptions(const TArray<FLootOptio
 
 	for (const FLootOption& Option : Options)
 	{
-		if (Option.LootType == ELootType::Rune)
+		if (Option.LootType == ELootType::Rune && Option.RuneAsset)
 		{
 			return false;
 		}

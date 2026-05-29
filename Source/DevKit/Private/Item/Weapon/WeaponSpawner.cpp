@@ -10,6 +10,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "GameFramework/Pawn.h"
+#include "EngineUtils.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "TimerManager.h"
@@ -23,6 +24,7 @@
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
+#include "Map/TutorialMobSpawner.h"
 #include "Tutorial/TutorialManager.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Engine/GameInstance.h"
@@ -539,6 +541,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	// The tutorial popup and pickup story hook are independent; first-run uses the hook to activate the dummy spawner.
 	TriggerPickupStoryEncounter(Player);
+	ActivateFirstRunTutorialSpawners();
 
 	// HUD 信息区内折叠浮窗 → 缩略图飞向左下角武器图标
 	if (AYogHUD* HUD = GetYogHUDForPlayer(Player))
@@ -616,6 +619,33 @@ void AWeaponSpawner::TriggerPickupStoryEncounter(APlayerCharacterBase* Player)
 			*GetNameSafe(PickupEncounterPoint),
 			*GetNameSafe(PickupEncounterGraph),
 			*PickupEncounterNodeId.ToString());
+	}
+}
+
+void AWeaponSpawner::ActivateFirstRunTutorialSpawners() const
+{
+	if (!ResolveFirstRunTutorialActive())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	int32 ActivatedCount = 0;
+	for (TActorIterator<ATutorialMobSpawner> It(World); It; ++It)
+	{
+		It->Activate();
+		++ActivatedCount;
+	}
+
+	if (ActivatedCount <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] First-run weapon pickup found no TutorialMobSpawner in %s."),
+			*GetNameSafe(World));
 	}
 }
 

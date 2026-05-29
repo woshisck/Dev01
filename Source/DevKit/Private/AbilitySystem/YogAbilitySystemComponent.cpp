@@ -3,7 +3,6 @@
 #include "UI/CombatLogStatics.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Abilities/PassiveAbility.h"
-#include "Component/ComboRuntimeComponent.h"
 #include "GameplayEffect.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemGlobals.h"
@@ -73,41 +72,6 @@ namespace
 		return (LightAttackTag.IsValid() && ASC->HasMatchingGameplayTag(LightAttackTag)) ||
 			(HeavyAttackTag.IsValid() && ASC->HasMatchingGameplayTag(HeavyAttackTag)) ||
 			(DashAttackTag.IsValid() && ASC->HasMatchingGameplayTag(DashAttackTag));
-	}
-
-	void ResetPlayerComboOnHitReactInterrupt(UYogAbilitySystemComponent* ASC)
-	{
-		if (!ASC)
-		{
-			return;
-		}
-
-		APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ASC->GetAvatarActor());
-		if (!Player)
-		{
-			Player = Cast<APlayerCharacterBase>(ASC->GetOwner());
-		}
-		if (!Player || !Player->ComboRuntimeComponent)
-		{
-			return;
-		}
-
-		UComboRuntimeComponent* ComboRuntime = Player->ComboRuntimeComponent.Get();
-		const bool bHadComboState =
-			!ComboRuntime->GetCurrentNodeId().IsNone() ||
-			!ComboRuntime->GetActiveGraphNodeId().IsNone() ||
-			ComboRuntime->GetActiveAttackGuid().IsValid();
-		if (!bHadComboState)
-		{
-			return;
-		}
-
-		UE_LOG(LogTemp, Warning,
-			TEXT("[ComboRuntime] Reset on hit-react interrupt Target=%s Current=%s Active=%s"),
-			*GetNameSafe(Player),
-			*ComboRuntime->GetCurrentNodeId().ToString(),
-			*ComboRuntime->GetActiveGraphNodeId().ToString());
-		ComboRuntime->ResetCombo();
 	}
 
 	FGameplayTag GetRecentlyDamagedTag()
@@ -338,11 +302,6 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 		*Tag.ToString(), (int32)TagExists, *GetNameSafe(GetOwner()));
 
 	HandleStatusNiagaraTag(Tag, TagExists);
-
-	if (TagExists && IsHitReactStateTag(Tag))
-	{
-		ResetPlayerComboOnHitReactInterrupt(this);
-	}
 
 	// =========================================================
 	// 阻断分类：Tag 出现/消失时按 BlockCategoryMap 执行对应阻断

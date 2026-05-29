@@ -832,6 +832,17 @@ FCombatCardInstance UCombatDeckComponent::MakeCardFromRune(URuneDataAsset* RuneA
 	Card.Config = RuneAsset->RuneInfo.CombatCard;
 	Card.LinkOrientation = Card.Config.DefaultLinkOrientation;
 
+	static const FGameplayTag HeavyCardIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Heavy"), false);
+	static const FGameplayTag HeavyEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Heavy"), false);
+	static const FGameplayTag AttackEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Attack"), false);
+	const bool bIsHeavyCard =
+		(HeavyCardIdTag.IsValid() && Card.Config.CardIdTag == HeavyCardIdTag)
+		|| (HeavyEffectTag.IsValid() && Card.Config.CardEffectTags.HasTagExact(HeavyEffectTag));
+	if (bIsHeavyCard && AttackEffectTag.IsValid())
+	{
+		Card.Config.CardEffectTags.AddTag(AttackEffectTag);
+	}
+
 	if (Card.Config.DisplayName.IsEmpty())
 	{
 		Card.Config.DisplayName = FText::FromName(RuneAsset->GetRuneName());

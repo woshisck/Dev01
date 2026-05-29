@@ -593,6 +593,9 @@ protected:
 	TObjectPtr<UNiagaraSystem> StorySpecialRewardEnemyAuraFX;
 
 	void SpawnForcedSurvivalEnemy();
+	bool SpawnForcedSurvivalEnemyWithoutSpawner(const FPlannedEnemy& Planned);
+	bool ShouldSpawnFirstRunInitialCardReward() const;
+	void SpawnFirstRunInitialCardRewardPickup(const FVector& BaseSpawnLocation);
 
 	// 当前关卡的奖励配置（从 FloorConfig 缓存，整理阶段使用）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "LevelFlow|Story Override", meta = (AllowPrivateAccess = "true"))

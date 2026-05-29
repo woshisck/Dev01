@@ -11,6 +11,7 @@
 #include "Component/PlayerActiveSkillComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Data/RoomDataAsset.h"
+#include "Data/EnemyData.h"
 #include <Kismet/GameplayStatics.h>
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
@@ -44,6 +45,18 @@
 
 namespace
 {
+constexpr const TCHAR* FirstRunForcedSurvivalEnemyDataPath = TEXT("/Game/Docs/Data/Enemy/RottenGuard/DA_RottenGuard.DA_RottenGuard");
+constexpr const TCHAR* FirstRunRewardBurnRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn");
+constexpr const TCHAR* FirstRunRewardPoisonRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Poison.DA_Rune512_Poison");
+constexpr const TCHAR* FirstRunRewardSplitRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split.DA_Rune512_Split");
+constexpr const TCHAR* FirstRunRewardKnockbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback.DA_Rune512_Knockback");
+constexpr const TCHAR* FirstRunRewardShieldRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Shield.DA_Rune512_Shield");
+
+UEnemyData* LoadFirstRunForcedSurvivalEnemyData()
+{
+	return LoadObject<UEnemyData>(nullptr, FirstRunForcedSurvivalEnemyDataPath);
+}
+
 FName ResolveRoomLevelNameForOpen(FName RequestedLevel, const URoomDataAsset* Room)
 {
 	const FString Requested = RequestedLevel.ToString();
@@ -752,6 +765,8 @@ void AYogGameMode::EnterArrangementPhase()
 	{
 		UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Room clear RewardPickup suppressed by story plan."));
 	}
+
+	SpawnFirstRunInitialCardRewardPickup(LootSpawnLoc);
 
 	// Legacy extra reward pickup roll. Disabled by default while rooms should emit one pickup.
 	SpawnSacrificeEventAltar(LootSpawnLoc);
@@ -3213,10 +3228,168 @@ void AYogGameMode::SpawnForcedSurvivalEnemy()
 		}
 	}
 
+	if (!Planned.EnemyClass)
+	{
+		if (UEnemyData* FallbackEnemyData = LoadFirstRunForcedSurvivalEnemyData())
+		{
+			Planned.EnemyClass = FallbackEnemyData->EnemyClass;
+			Planned.EnemyData = FallbackEnemyData;
+			Planned.EnemyBuffs.Reset();
+			CollectEnemyBuffs(FallbackEnemyData, Planned.EnemyBuffs);
+			Planned.PreSpawnFX = FallbackEnemyData->PreSpawnFX;
+			Planned.PreSpawnFXDuration = FallbackEnemyData->PreSpawnFXDuration;
+			Planned.SpawnLifecycleFlow = FallbackEnemyData->SpawnLifecycleFlow;
+			Planned.bAllowAnySpawner = true;
+			UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Forced survival using fallback enemy data %s."),
+				*GetNameSafe(FallbackEnemyData));
+		}
+	}
+
 	if (Planned.EnemyClass)
 	{
-		BeginSpawnEnemyFromPool(Planned);
+		if (!BeginSpawnEnemyFromPool(Planned))
+		{
+			SpawnForcedSurvivalEnemyWithoutSpawner(Planned);
+		}
 	}
+}
+
+bool AYogGameMode::SpawnForcedSurvivalEnemyWithoutSpawner(const FPlannedEnemy& Planned)
+{
+	if (!bForcedSurvivalActive || !Planned.EnemyClass || !GetWorld())
+	{
+		return false;
+	}
+
+	APawn* PlayerPawn = nullptr;
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	{
+		PlayerPawn = PC->GetPawn();
+	}
+
+	const FVector Origin = PlayerPawn ? PlayerPawn->GetActorLocation() : FVector::ZeroVector;
+	const FVector Forward = PlayerPawn ? PlayerPawn->GetActorForwardVector() : FVector::ForwardVector;
+	const FVector Right = PlayerPawn ? PlayerPawn->GetActorRightVector() : FVector::RightVector;
+	const FVector SpawnLocation = Origin
+		+ Forward.GetSafeNormal() * FMath::FRandRange(650.f, 900.f)
+		+ Right.GetSafeNormal() * FMath::FRandRange(-350.f, 350.f)
+		+ FVector(0.f, 0.f, 120.f);
+
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	AEnemyCharacterBase* SpawnedEnemy = GetWorld()->SpawnActor<AEnemyCharacterBase>(
+		Planned.EnemyClass,
+		SpawnLocation,
+		FRotator::ZeroRotator,
+		Params);
+	if (!SpawnedEnemy)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Forced survival fallback spawn failed. Class=%s Location=%s"),
+			*GetNameSafe(Planned.EnemyClass.Get()),
+			*SpawnLocation.ToCompactString());
+		return false;
+	}
+
+	if (!SpawnedEnemy->GetController())
+	{
+		SpawnedEnemy->SpawnDefaultController();
+	}
+
+	for (const FBuffEntry& Entry : ActiveRoomBuffs)
+	{
+		ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get(), TEXT("RoomBuff.ForcedSurvivalFallback"));
+	}
+	ActivateEnemyRunes(SpawnedEnemy, Planned.EnemyBuffs, TEXT("EnemyBuff.ForcedSurvivalFallback"));
+	MarkStorySpecialRewardEnemy(SpawnedEnemy, Planned);
+	RegisterEnemy(SpawnedEnemy);
+	++TotalAliveEnemies;
+
+	UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Forced survival fallback spawned %s without MobSpawner at %s."),
+		*GetNameSafe(SpawnedEnemy),
+		*SpawnLocation.ToCompactString());
+	return true;
+}
+
+bool AYogGameMode::ShouldSpawnFirstRunInitialCardReward() const
+{
+	const UYogSaveSubsystem* SaveSys = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UYogSaveSubsystem>()
+		: nullptr;
+	if (!SaveSys || !SaveSys->IsFirstRunTutorialActive())
+	{
+		return false;
+	}
+
+	return CurrentFloor <= 1
+		&& SaveSys->GetFirstRunTutorialStage() == static_cast<int32>(EFirstRunTutorialStage::None);
+}
+
+void AYogGameMode::SpawnFirstRunInitialCardRewardPickup(const FVector& BaseSpawnLocation)
+{
+	if (!RewardPickupClass || !ShouldSpawnFirstRunInitialCardReward() || !GetWorld())
+	{
+		return;
+	}
+
+	static const TCHAR* CandidateRunePaths[] =
+	{
+		FirstRunRewardBurnRunePath,
+		FirstRunRewardPoisonRunePath,
+		FirstRunRewardSplitRunePath,
+		FirstRunRewardKnockbackRunePath,
+		FirstRunRewardShieldRunePath,
+	};
+
+	TArray<URuneDataAsset*> CandidateRunes;
+	for (const TCHAR* RunePath : CandidateRunePaths)
+	{
+		if (URuneDataAsset* RuneAsset = LoadObject<URuneDataAsset>(nullptr, RunePath))
+		{
+			CandidateRunes.Add(RuneAsset);
+		}
+	}
+
+	if (CandidateRunes.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Initial card reward skipped: no candidate rune assets loaded."));
+		return;
+	}
+
+	TArray<FLootOption> CardOptions;
+	const int32 DesiredOptionCount = FMath::Min(3, CandidateRunes.Num());
+	for (int32 OptionIndex = 0; OptionIndex < DesiredOptionCount; ++OptionIndex)
+	{
+		const int32 RuneIndex = FMath::RandRange(0, CandidateRunes.Num() - 1);
+
+		FLootOption CardOption;
+		CardOption.LootType = ELootType::Rune;
+		CardOption.RuneAsset = CandidateRunes[RuneIndex];
+		CardOptions.Add(CardOption);
+
+		CandidateRunes.RemoveAtSwap(RuneIndex);
+	}
+
+	if (CardOptions.IsEmpty())
+	{
+		return;
+	}
+
+	const FVector SpawnLocation = BaseSpawnLocation + FVector(250.f, 0.f, 0.f);
+	ARewardPickup* CardPickup = GetWorld()->SpawnActor<ARewardPickup>(
+		RewardPickupClass,
+		SpawnLocation,
+		FRotator::ZeroRotator);
+	if (!CardPickup)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Initial card reward spawn failed at %s."),
+			*SpawnLocation.ToCompactString());
+		return;
+	}
+
+	CardPickup->AssignLoot(CardOptions);
+	UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Initial card reward spawned %d options at %s."),
+		CardOptions.Num(),
+		*SpawnLocation.ToCompactString());
 }
 
 TArray<FBuffEntry> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int32 BuffCount)
