@@ -232,7 +232,6 @@ namespace StoryRuleSetSetup
 			EStoryRuleFirePolicy::OncePerSave);
 		Backpack.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstBackpack.Opened")));
 		Backpack.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstBackpack.Opened")));
-		Backpack.Actions.Add(ShowTutorial(TEXT("tutorial_backpack")));
 		Backpack.Actions.Add(SetQuest(
 			TEXT("Story.Quest.Main"),
 			TEXT("整理符文后继续前进"),

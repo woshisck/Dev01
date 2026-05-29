@@ -29,6 +29,7 @@
 #include "Tutorial/TutorialManager.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Engine/GameInstance.h"
+#include "GameModes/YogGameMode.h"
 #include "UI/WeaponFloatWidget.h"
 #include "UI/YogHUD.h"
 #include "Data/LevelInfoPopupDA.h"
@@ -543,6 +544,10 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	// The tutorial popup and pickup story hook are independent; first-run uses the hook to activate the dummy spawner.
 	TriggerPickupStoryEncounter(Player);
 	ActivateFirstRunTutorialSpawners();
+	if (AYogGameMode* GameMode = GetWorld() ? Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()) : nullptr)
+	{
+		GameMode->NotifyPlayerWeaponEquipped(Player);
+	}
 
 	// HUD 信息区内折叠浮窗 → 缩略图飞向左下角武器图标
 	if (AYogHUD* HUD = GetYogHUDForPlayer(Player))

@@ -605,7 +605,8 @@ UUserWidget* UYogUIManagerSubsystem::GetWidget(EYogUIScreenId ScreenId) const
 {
 	if (const TObjectPtr<UUserWidget>* Existing = Instances.Find(ScreenId))
 	{
-		return *Existing;
+		UUserWidget* Widget = Existing->Get();
+		return (IsValid(Widget) && Widget->IsInViewport()) ? Widget : nullptr;
 	}
 	return nullptr;
 }

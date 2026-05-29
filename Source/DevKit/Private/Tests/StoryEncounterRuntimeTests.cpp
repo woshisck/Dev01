@@ -677,7 +677,7 @@ bool FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest::RunTest(const FS
 
 	bool bDropsHeavy = false;
 	bool bDropsKnockback = false;
-	bool bHasPickupHint = false;
+	bool bHasBackpackDeckHint = false;
 	bool bPlaysSpawnFocusCue = false;
 	for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
 	{
@@ -695,14 +695,16 @@ bool FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest::RunTest(const FS
 		if (const USNode_ShowHint* HintNode = Cast<USNode_ShowHint>(Pair.Value))
 		{
 			const FString HintBody = HintNode->HintText.ToString();
-			bHasPickupHint |= HintBody.Contains(TEXT("拾取")) || HintBody.Contains(TEXT("pick"), ESearchCase::IgnoreCase);
+			bHasBackpackDeckHint |= HintBody.Contains(TEXT("背包"))
+				&& HintBody.Contains(TEXT("战斗卡组"))
+				&& HintBody.Contains(TEXT("OpenBackpack"));
 		}
 	}
 
 	TestTrue(TEXT("Dummy death flow drops Heavy card"), bDropsHeavy);
 	TestFalse(TEXT("Dummy death flow must not drop Knockback card"), bDropsKnockback);
 	TestTrue(TEXT("Dummy death flow plays the spawn focus cue"), bPlaysSpawnFocusCue);
-	TestTrue(TEXT("Dummy death flow shows pickup weak hint after the drop"), bHasPickupHint);
+	TestTrue(TEXT("Dummy death flow shows backpack/deck weak hint after the drop"), bHasBackpackDeckHint);
 	return true;
 }
 

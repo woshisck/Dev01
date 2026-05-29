@@ -13,6 +13,7 @@
 #include "UI/YogCommonRichTextBlock.h"
 #include "CommonInputSubsystem.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
+#include "Blueprint/WidgetTree.h"
 #include "Engine/Texture2D.h"
 
 namespace
@@ -286,10 +287,128 @@ TArray<FLootOption> UPortalPreviewWidget::BuildAggregatedRewardPreviewOptions(co
     return Aggregated;
 }
 
+void UPortalPreviewWidget::EnsurePreviewLayoutBindings()
+{
+    const bool bHasCoreBindings =
+        BG && RoomNameText && RoomTypeBadge && RoomTypeText && BuffListBox && (LootIconBox || LootSummaryText);
+    if (bHasCoreBindings)
+    {
+        return;
+    }
+
+    if (!WidgetTree)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("PortalPreviewWidget: WidgetTree is missing; cannot build runtime fallback layout."));
+        return;
+    }
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("PortalPreviewWidget: WBP bindings incomplete; rebuilding runtime fallback layout. BG=%s RoomName=%s TypeBadge=%s TypeText=%s BuffList=%s LootIcon=%s LootText=%s"),
+        *GetNameSafe(BG),
+        *GetNameSafe(RoomNameText),
+        *GetNameSafe(RoomTypeBadge),
+        *GetNameSafe(RoomTypeText),
+        *GetNameSafe(BuffListBox),
+        *GetNameSafe(LootIconBox),
+        *GetNameSafe(LootSummaryText));
+
+    auto ConfigureFallbackText = [](UTextBlock* TextBlock, const FText& Text, const FLinearColor& Color, int32 Size, bool bWrap)
+    {
+        if (!TextBlock)
+        {
+            return;
+        }
+
+        TextBlock->SetText(Text);
+        TextBlock->SetColorAndOpacity(FSlateColor(Color));
+        TextBlock->SetAutoWrapText(bWrap);
+        TextBlock->SetShadowOffset(FVector2D(1.f, 1.f));
+        TextBlock->SetShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.75f));
+        SetPortalTextSize(TextBlock, Size);
+    };
+
+    UVerticalBox* VStack = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RuntimePortalPreviewStack"));
+    UHorizontalBox* HeaderBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("RuntimePortalPreviewHeader"));
+    RoomTypeBadge = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RoomTypeBadge"));
+    RoomTypeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RoomTypeText"));
+    RoomNameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RoomNameText"));
+    BuffListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("BuffListBox"));
+    LootIconBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("LootIconBox"));
+    LootSummaryText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LootSummaryText"));
+    InteractHintRoot = WidgetTree->ConstructWidget<UYogCommonRichTextBlock>(UYogCommonRichTextBlock::StaticClass(), TEXT("InteractHintRoot"));
+
+    if (!BG)
+    {
+        USizeBox* RootBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RuntimePortalPreviewRoot"));
+        RootBox->SetWidthOverride(430.f);
+        RootBox->SetMinDesiredWidth(360.f);
+        BG = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BG"));
+        RootBox->AddChild(BG);
+        WidgetTree->RootWidget = RootBox;
+    }
+
+    if (!BG || !VStack || !HeaderBox || !RoomTypeBadge || !RoomTypeText || !RoomNameText || !BuffListBox || !LootIconBox || !LootSummaryText)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("PortalPreviewWidget: runtime fallback layout creation failed."));
+        return;
+    }
+
+    ConfigurePortalPanelBorder(BG);
+    BG->SetContent(VStack);
+
+    if (UVerticalBoxSlot* HeaderSlot = VStack->AddChildToVerticalBox(HeaderBox))
+    {
+        HeaderSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
+    }
+
+    RoomTypeBadge->SetPadding(FMargin(10.f, 3.f));
+    RoomTypeBadge->SetContent(RoomTypeText);
+    ConfigureFallbackText(RoomTypeText, NSLOCTEXT("Portal", "FallbackRoomType", "未知"), PortalBuffNameColor, 20, false);
+    if (UHorizontalBoxSlot* BadgeSlot = HeaderBox->AddChildToHorizontalBox(RoomTypeBadge))
+    {
+        BadgeSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+        BadgeSlot->SetVerticalAlignment(VAlign_Center);
+    }
+
+    ConfigureFallbackText(RoomNameText, NSLOCTEXT("Portal", "FallbackRoomName", "下一关"), PortalBuffNameColor, 22, true);
+    if (UHorizontalBoxSlot* RoomSlot = HeaderBox->AddChildToHorizontalBox(RoomNameText))
+    {
+        RoomSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+        RoomSlot->SetVerticalAlignment(VAlign_Center);
+        RoomSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
+    }
+
+    if (UVerticalBoxSlot* BuffSlot = VStack->AddChildToVerticalBox(BuffListBox))
+    {
+        BuffSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
+    }
+
+    if (UVerticalBoxSlot* LootIconSlot = VStack->AddChildToVerticalBox(LootIconBox))
+    {
+        LootIconSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 10.f));
+        LootIconSlot->SetHorizontalAlignment(HAlign_Left);
+    }
+
+    ConfigureFallbackText(LootSummaryText, NSLOCTEXT("Portal", "FallbackLootSummary", "战利品"), PortalBuffNameColor, 14, true);
+    LootSummaryText->SetVisibility(ESlateVisibility::Collapsed);
+    if (UVerticalBoxSlot* LootTextSlot = VStack->AddChildToVerticalBox(LootSummaryText))
+    {
+        LootTextSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 10.f));
+    }
+
+    if (InteractHintRoot)
+    {
+        InteractHintRoot->SetAutoWrapText(true);
+        InteractHintRoot->SetVisibility(ESlateVisibility::Collapsed);
+        VStack->AddChildToVerticalBox(InteractHintRoot);
+    }
+}
+
 void UPortalPreviewWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
+    EnsurePreviewLayoutBindings();
     ConfigurePortalPanelBorder(BG);
 
     // 写入初始提示文字

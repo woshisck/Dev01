@@ -288,6 +288,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom = nullptr);
 
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow|FirstRunTutorial")
+	void NotifyPlayerWeaponEquipped(APlayerCharacterBase* Player);
+
 	UFUNCTION(BlueprintCallable, Category = "GameOver")
 	void HandlePlayerDeath(APlayerCharacterBase* Player);
 
@@ -361,6 +364,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|FirstRun")
 	TObjectPtr<UCampaignDataAsset> FirstRunTutorialCampaignData;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|FirstRun")
+	bool bInitialRoomPortalsRequireWeapon = true;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|StoryEvent")
 	TObjectPtr<UStoryEventRegistryDA> StoryEventRegistry;
 
@@ -412,6 +418,7 @@ protected:
 
 	// 主城/枢纽房间：立即全开所有已配置的传送门（不走 50% 随机规则）
 	void ActivateHubPortals();
+	bool ShouldDelayInitialRoomPortalsUntilWeapon() const;
 	void EnsureHubActiveSkillTerminal();
 
 	// 根据 FFloorConfig 的概率权重骰出此关的房间类型 Tag（Room.Type.Normal/Elite/Shop/Event）

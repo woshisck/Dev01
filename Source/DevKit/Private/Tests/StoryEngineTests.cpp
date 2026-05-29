@@ -149,6 +149,47 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineMoonlightRuleShowsTutorialTest,
 	"DevKit.StoryEngine.MoonlightRuleShowsTutorial",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineFirstBackpackOpenedDoesNotShowTutorialPopupTest,
+	"DevKit.StoryEngine.FirstBackpackOpenedDoesNotShowTutorialPopup",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStoryEngineFirstBackpackOpenedDoesNotShowTutorialPopupTest::RunTest(const FString& Parameters)
+{
+	const UStoryRuleSetDA* RuleSet = LoadObject<UStoryRuleSetDA>(
+		nullptr,
+		TEXT("/Game/Story/Rules/SR_FirstRun.SR_FirstRun"));
+	TestNotNull(TEXT("First-run rule set loads"), RuleSet);
+	if (!RuleSet)
+	{
+		return false;
+	}
+
+	const FGameplayTag FirstBackpackEvent = StoryEngineTests::RequireTag(TEXT("Story.Event.FirstRun.FirstBackpackOpened"));
+	if (!TestTrue(TEXT("First backpack event tag is configured"), FirstBackpackEvent.IsValid()))
+	{
+		return false;
+	}
+
+	bool bHasBackpackPopup = false;
+	for (const FStoryRule& Rule : RuleSet->Rules)
+	{
+		if (Rule.TriggerEventTag != FirstBackpackEvent)
+		{
+			continue;
+		}
+
+		bHasBackpackPopup |= Rule.Actions.ContainsByPredicate(
+			[](const FStoryAction& Action)
+			{
+				return Action.Type == EStoryActionType::ShowTutorialPopup
+					&& Action.TutorialEventId == FName(TEXT("tutorial_backpack"));
+			});
+	}
+
+	TestFalse(TEXT("First backpack opened rule must not show tutorial_backpack popup"), bHasBackpackPopup);
+	return true;
+}
+
 bool FStoryEngineMoonlightRuleShowsTutorialTest::RunTest(const FString& Parameters)
 {
 	const UStoryRuleSetDA* RuleSet = LoadObject<UStoryRuleSetDA>(
