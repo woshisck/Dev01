@@ -97,6 +97,20 @@ FString DescribeEncounterLootOptionsForRewardDebug(const TArray<FLootOption>& Op
 
 FText ResolveInputAwareBody(const FStoryEncounterAction& Action, const FStoryEventContext& Context)
 {
+	const auto IsMovementHintText = [](const FText& Text)
+	{
+		const FString Value = Text.ToString();
+		return Value.Contains(TEXT("移动")) || Value.Contains(TEXT("WASD")) || Value.Contains(TEXT("左摇杆"));
+	};
+
+	if (Action.bUseInputTextVariants
+		&& (IsMovementHintText(Action.Body)
+			|| IsMovementHintText(Action.KeyboardMouseBody)
+			|| IsMovementHintText(Action.GamepadBody)))
+	{
+		return FText::FromString(TEXT("<左摇杆>移动角色，键鼠使用WASD"));
+	}
+
 	if (!Action.bUseInputTextVariants)
 	{
 		return Action.Body;

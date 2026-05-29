@@ -296,8 +296,8 @@ namespace Tutorial512Setup
 					},
 					{
 						TEXT("重击卡牌"),
-						TEXT("重击卡会在 <input action=\"HeavyAttack\"/> 命中时按顺序消耗，并触发它写入的效果。轻攻击不会消耗只要求重击的卡牌。"),
-						TEXT("把重击卡放到合适的位置，可以让关键连段更稳定地吃到强化。")
+						TEXT("重击是一张普通稀有卡。它可以被 <input action=\"LightAttack\"/> 正常打出，造成额外伤害和击退。"),
+						TEXT("它的协调需求是 <input action=\"HeavyAttack\"/>：用重攻击打出时，额外伤害和击退距离会大幅提升。")
 					},
 				}
 			},

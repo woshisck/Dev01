@@ -46,10 +46,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Tutorial")
 	bool TryShowPendingLinkCardTutorial(APlayerController* PC);
 
-	// LevelFlow entry: show a registered tutorial popup directly without state validation.
+	// LevelFlow/story entry: show a registered tutorial popup after tutorial runtime and duplicate checks.
 	bool ShowByEventID(FName EventID, APlayerController* PC, bool bPauseGame = true);
 
-	// LevelFlow entry: show inline tutorial pages without requiring a DialogContentDA asset.
+	// LevelFlow/story entry: show inline tutorial pages after tutorial runtime and duplicate checks.
 	bool ShowInlinePages(const TArray<FTutorialPage>& Pages, APlayerController* PC, bool bPauseGame = true);
 
 	// 事件驱动一次性提示：HintTag 未展示过则展示 EventID 对应弹窗，并将 HintTag 记入存档 ShownPopupKeys。
@@ -80,6 +80,9 @@ public:
 	bool HasPassedStage(ETutorialState Required) const;
 
 	static FName ResolveLinkCardTutorialEventIdForTest(const UTutorialRegistryDA* InRegistry);
+#if WITH_DEV_AUTOMATION_TESTS
+	static int32 GetFallbackTutorialPageCountForTest(FName EventID);
+#endif
 
 private:
 	UPROPERTY(Config)
@@ -116,8 +119,14 @@ private:
 	void DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC);
 	void DoShowPostCombatPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC);
 	void EndDilationVisualIfActive();
+	bool IsTutorialRuntimeAllowed() const;
+	bool HasShownPagedTutorial(FName TutorialKey) const;
+	void MarkPagedTutorialShown(FName TutorialKey);
+	FName MakeInlineTutorialKey(const TArray<FTutorialPage>& Pages) const;
 	FName ResolveLinkCardTutorialEventId() const;
 	void ShowLinkCardBackpackPrompt(APlayerController* PC);
 
 	void SaveState();
+
+	TSet<FName> ShownPagedTutorialKeys;
 };

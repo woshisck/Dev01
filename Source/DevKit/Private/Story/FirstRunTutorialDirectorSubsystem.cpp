@@ -7,6 +7,7 @@
 #include "Engine/Texture2D.h"
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
+#include "Map/RewardPickup.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "Story/StoryEngineSubsystem.h"
 #include "System/YogGameInstanceBase.h"
@@ -59,6 +60,7 @@ FLootOption MakeMaterialLootOption(int32 Amount)
 	FLootOption Option;
 	Option.LootType = ELootType::Material;
 	Option.Amount = Amount;
+	Option.MetaCurrencyTag = ARewardPickup::ResolveMaterialCurrencyTag(FGameplayTag());
 	Option.DisplayName = FText::Format(NSLOCTEXT("FirstRunTutorial", "MaterialRewardFmt", "材料 x{0}"), Amount);
 	Option.Icon = LoadTutorialAsset<UTexture2D>(MaterialIconPath);
 	return Option;

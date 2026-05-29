@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Character/YogCharacterBase.h"
 #include "Components/ActorComponent.h"
 #include "GameplayEffectTypes.h"
 #include "EnemyHealthDisplayComponent.generated.h"
@@ -10,7 +11,6 @@ class UNiagaraSystem;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UYogAbilitySystemComponent;
-class AYogCharacterBase;
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class DEVKIT_API UEnemyHealthDisplayComponent : public UActorComponent
@@ -63,7 +63,7 @@ public:
 	bool bCreateMissingHealthBarComponent = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display", meta = (ClampMin = "0.0", ForceUnits = "s"))
-	float HideDelay = 2.0f;
+	float HideDelay = 10.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Niagara")
 	TObjectPtr<UNiagaraComponent> HealthBarComponent;
@@ -96,6 +96,9 @@ public:
 	FName DamageMarkerBoolParameterName = TEXT("\u5E03\u5C14");
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Niagara")
+	FName DamageValueColorParameterName = TEXT("color");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Niagara")
 	FName ArmorParameterName = TEXT("armor");
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Material")
@@ -124,6 +127,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Damage Value", meta = (ClampMin = "0.0"))
 	float MinDamageValueToDisplay = 0.01f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Damage Value")
+	FLinearColor HealthDamageValueColor = FLinearColor(1.0f, 0.05f, 0.02f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Damage Value")
+	FLinearColor ArmorDamageValueColor = FLinearColor::White;
 
 	UFUNCTION(BlueprintCallable, Category = "Enemy|Health Display")
 	void RefreshDisplayFromAttributes();
@@ -156,6 +165,9 @@ private:
 	void HandleCharacterHealthUpdate(float HealthPercent, float DamageTaken);
 
 	UFUNCTION()
+	void HandleCharacterDamageValue(float DamageAmount, EYogDamageValueType DamageValueType);
+
+	UFUNCTION()
 	void HandleOwnerDeathStarted(AYogCharacterBase* Character);
 
 	void HandleHealthChanged(const FOnAttributeChangeData& Data);
@@ -165,8 +177,9 @@ private:
 	void UnbindAttributeDelegates();
 	void UpdateHealthBar(float HealthPercent, float OldHealthPercent);
 	void UpdateArmorParameter();
-	void SpawnDamageValue(float DamageTaken);
+	void SpawnDamageValue(float DamageAmount, EYogDamageValueType DamageValueType);
 	static void SetNiagaraFloatParameter(UNiagaraComponent& NiagaraComponent, FName ParameterName, float Value);
+	static void SetNiagaraColorParameter(UNiagaraComponent& NiagaraComponent, FName ParameterName, const FLinearColor& Value);
 	void LogHealthDisplayState(
 		const TCHAR* Source,
 		float InputHealthPercent,
@@ -190,6 +203,7 @@ private:
 		float OldHealthPercent);
 	UNiagaraComponent* CreateHealthBarComponent(AActor& Owner);
 	UNiagaraComponent* ResolveHealthBarComponent();
+	UNiagaraSystem* ResolveDamageValueSystem() const;
 	UMaterialInstanceDynamic* ResolveHealthBarMaterialInstance();
 	float GetCurrentArmorHP() const;
 	float GetCurrentMaxArmorHP() const;
@@ -199,6 +213,7 @@ private:
 	float GetHealthBarVisibleDuration() const;
 	void HideHealthBar();
 	void HideHealthBarImmediately();
+	void ShowHealthBarUntilOwnerDestroyed();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UYogAbilitySystemComponent> CachedAbilitySystemComponent;

@@ -25,6 +25,7 @@
 #include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneProjectileProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
+#include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Data/RuneCardEffectProfileDA.h"
@@ -123,6 +124,7 @@ namespace Rune512Batch
 		ECombatCardTriggerTiming TriggerTiming = ECombatCardTriggerTiming::OnHit;
 		ECombatCardLinkOrientation DefaultLinkOrientation = ECombatCardLinkOrientation::Forward;
 		ERuneType RuneType = ERuneType::Buff;
+		ERuneRarity Rarity = ERuneRarity::Common;
 		FString TargetAssetName;
 		FString TemplateDAPath;
 		FString IconAssetName;
@@ -938,7 +940,7 @@ namespace Rune512Batch
 		FCardSpec Heavy = MakeNormalCard(
 			TEXT("Heavy"),
 			TEXT("\u91cd\u51fb"),
-			TEXT("\u5b58\u5728\u4e8e 1D \u5361\u7ec4\u65f6\uff0c\u73a9\u5bb6\u653b\u51fb\u643a\u5e26\u5c11\u91cf\u51fb\u9000\u3002\u6253\u51fa\u540e\u9020\u6210\u989d\u5916\u4f24\u5bb3\u5e76\u51fb\u9000\u76ee\u6807\uff1b\u82e5\u7531\u91cd\u653b\u51fb\u6253\u51fa\uff0c\u8ffd\u52a0\u989d\u5916\u4f24\u5bb3\u548c\u77ed\u6682\u51cf\u901f\u3002"),
+			TEXT("\u666e\u901a\u7a00\u6709\u5361\u3002\u8f7b\u653b\u51fb\u547d\u4e2d\u65f6\u4e5f\u53ef\u4ee5\u6b63\u5e38\u6253\u51fa\uff0c\u9020\u6210\u989d\u5916\u4f24\u5bb3\u5e76\u51fb\u9000\u654c\u4eba\u3002\u534f\u8c03\u9700\u6c42\uff1a\u5982\u679c\u7528\u91cd\u653b\u51fb\u6253\u51fa\u8fd9\u5f20\u5361\uff0c\u5219\u5927\u5e45\u63d0\u5347\u672c\u6b21\u989d\u5916\u4f24\u5bb3\u548c\u51fb\u9000\u8ddd\u79bb\u3002"),
 			TEXT("Card.ID.Heavy"),
 			{ TEXT("Card.Effect.Heavy"), TEXT("Card.Effect.Knockback"), TEXT("Card.Effect.Attack") },
 			TEXT("T_Rune512_THSword_Cleave"),
@@ -946,10 +948,11 @@ namespace Rune512Batch
 			TEXT("FA_Rune512_Heavy_Base"),
 			ERuneType::Buff,
 			{
-				TEXT("RequiredAction remains Any so light/heavy attacks can both draw the card; FA_Rune512_Heavy_Base adds a Heavy-only context branch for bonus damage and slow.")
+				TEXT("RequiredAction remains Any so light/heavy attacks can both draw the card; FA_Rune512_Heavy_Base adds a Heavy-only coordination branch for much higher bonus damage and knockback distance.")
 			});
 		Heavy.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 		Heavy.RequiredAction = ECardRequiredAction::Any;
+		Heavy.Rarity = ERuneRarity::Rare;
 		Specs.Add(Heavy);
 
 		Specs.Add(MakeNormalCard(
@@ -3438,7 +3441,7 @@ namespace Rune512Batch
 
 		if (bDryRun)
 		{
-			ReportLines.Add(TEXT("- Would configure `FA_Rune512_Heavy_Base`: base knockback flow -> Heavy-only context branch -> bonus damage -> temporary move speed slow."));
+			ReportLines.Add(TEXT("- Would configure `FA_Rune512_Heavy_Base`: base knockback flow -> Heavy-only context branch -> bonus damage -> bonus knockback distance."));
 			return;
 		}
 
@@ -3470,14 +3473,41 @@ namespace Rune512Batch
 			TerminalNode = EntryNode;
 		}
 
-		if (!HeavyBranch)
+		UBFNode_DoDamage* BaseDamageNode = Cast<UBFNode_DoDamage>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node)
+			{
+				const UBFNode_DoDamage* DamageNode = Cast<UBFNode_DoDamage>(Node);
+				return DamageNode
+					&& DamageNode->TargetSelector == EBFTargetSelector::LastDamageTarget
+					&& DamageNode->DamageEffect.Get()
+					&& DamageNode->FlatDamage.Value > 0.f
+					&& DamageNode->FlatDamage.Value < 20.f;
+			}));
+		if (!BaseDamageNode)
 		{
-			const FVector2D TerminalLocation = GetFlowNodeLocation(TerminalNode);
+			UFlowNode* InsertAfterNode = HeavyBranch ? FindPreviousFlowNode(HeavyBranch) : TerminalNode;
+			if (!InsertAfterNode)
+			{
+				InsertAfterNode = EntryNode;
+			}
+
+			const FVector2D InsertLocation = GetFlowNodeLocation(InsertAfterNode);
+			BaseDamageNode = Cast<UBFNode_DoDamage>(CreateFlowNodeAfter(
+				FlowGraph,
+				InsertAfterNode,
+				UBFNode_DoDamage::StaticClass(),
+				FVector2D(InsertLocation.X + 260.f, InsertLocation.Y - 60.f)));
+		}
+
+		if (!HeavyBranch && BaseDamageNode)
+		{
+			const FVector2D BaseDamageLocation = GetFlowNodeLocation(BaseDamageNode);
 			HeavyBranch = Cast<UBFNode_CombatCardContextBranch>(CreateFlowNodeAfter(
 				FlowGraph,
-				TerminalNode,
+				BaseDamageNode,
 				UBFNode_CombatCardContextBranch::StaticClass(),
-				FVector2D(TerminalLocation.X + 320.f, TerminalLocation.Y)));
+				FVector2D(BaseDamageLocation.X + 320.f, BaseDamageLocation.Y + 60.f)));
 		}
 
 		UBFNode_DoDamage* ExtraDamageNode = Cast<UBFNode_DoDamage>(FindFirstNode(
@@ -3499,32 +3529,39 @@ namespace Rune512Batch
 				FVector2D(BranchLocation.X + 320.f, BranchLocation.Y - 40.f)));
 		}
 
-		UBFNode_ApplyAttributeModifier* SlowNode = Cast<UBFNode_ApplyAttributeModifier>(FindFirstNode(
+		UBFNode_SendGameplayEvent* BonusKnockbackNode = Cast<UBFNode_SendGameplayEvent>(FindFirstNode(
 			FlowAsset,
 			[](UFlowNode* Node)
 			{
-				UBFNode_ApplyAttributeModifier* ApplyNode = Cast<UBFNode_ApplyAttributeModifier>(Node);
-				return ApplyNode
-					&& ApplyNode->Target == EBFTargetSelector::LastDamageTarget
-					&& ApplyNode->Attribute == UBaseAttributeSet::GetMoveSpeedAttribute();
+				const UBFNode_SendGameplayEvent* EventNode = Cast<UBFNode_SendGameplayEvent>(Node);
+				return EventNode
+					&& EventNode->Target == EBFTargetSelector::LastDamageTarget
+					&& EventNode->EventTag.GetTagName() == FName(TEXT("Action.Knockback"))
+					&& EventNode->Magnitude.Value >= 300.f;
 			}));
-		if (!SlowNode && ExtraDamageNode)
+		if (!BonusKnockbackNode && ExtraDamageNode)
 		{
 			const FVector2D DamageLocation = GetFlowNodeLocation(ExtraDamageNode);
-			SlowNode = Cast<UBFNode_ApplyAttributeModifier>(CreateFlowNodeAfter(
+			BonusKnockbackNode = Cast<UBFNode_SendGameplayEvent>(CreateFlowNodeAfter(
 				FlowGraph,
 				ExtraDamageNode,
-				UBFNode_ApplyAttributeModifier::StaticClass(),
+				UBFNode_SendGameplayEvent::StaticClass(),
 				FVector2D(DamageLocation.X + 320.f, DamageLocation.Y)));
 		}
 
-		if (!HeavyBranch || !ExtraDamageNode || !SlowNode)
+		if (!BaseDamageNode || !HeavyBranch || !ExtraDamageNode || !BonusKnockbackNode)
 		{
-			ReportLines.Add(TEXT("- Failed to configure `FA_Rune512_Heavy_Base`: missing generated Heavy branch, damage, or slow node."));
+			ReportLines.Add(TEXT("- Failed to configure `FA_Rune512_Heavy_Base`: missing generated base damage, Heavy branch, bonus damage, or bonus knockback node."));
 			return;
 		}
 
 		const FGameplayTag HeavyCardIdTag = RequestTag(TEXT("Card.ID.Heavy"), ReportLines);
+		BaseDamageNode->Modify();
+		BaseDamageNode->TargetSelector = EBFTargetSelector::LastDamageTarget;
+		BaseDamageNode->FlatDamage = FFlowDataPinInputProperty_Float(8.f);
+		BaseDamageNode->DamageMultiplier = FFlowDataPinInputProperty_Float(0.f);
+		BaseDamageNode->DamageEffect = LoadBlueprintClassByPackagePath<UGameplayEffect>(HeavyBonusDamageEffectPath);
+
 		HeavyBranch->Modify();
 		HeavyBranch->RequiredAction = ECardRequiredAction::Heavy;
 		HeavyBranch->RequiredSourceCardTypes = { ECombatCardType::Normal };
@@ -3536,32 +3573,31 @@ namespace Rune512Batch
 
 		ExtraDamageNode->Modify();
 		ExtraDamageNode->TargetSelector = EBFTargetSelector::LastDamageTarget;
-		ExtraDamageNode->FlatDamage = FFlowDataPinInputProperty_Float(12.f);
+		ExtraDamageNode->FlatDamage = FFlowDataPinInputProperty_Float(20.f);
 		ExtraDamageNode->DamageMultiplier = FFlowDataPinInputProperty_Float(0.f);
 		ExtraDamageNode->DamageEffect = LoadBlueprintClassByPackagePath<UGameplayEffect>(HeavyBonusDamageEffectPath);
 
-		SlowNode->Modify();
-		SlowNode->Target = EBFTargetSelector::LastDamageTarget;
-		SlowNode->Attribute = UBaseAttributeSet::GetMoveSpeedAttribute();
-		SlowNode->ModOp = EGameplayModOp::Multiplicitive;
-		SlowNode->Value = FFlowDataPinInputProperty_Float(0.65f);
-		SlowNode->DurationType = ERuneDurationType::Duration;
-		SlowNode->Duration = 1.5f;
-		SlowNode->Period = 0.f;
-		SlowNode->bFireImmediately = false;
+		BonusKnockbackNode->Modify();
+		BonusKnockbackNode->EventTag = RequestTag(TEXT("Action.Knockback"), ReportLines);
+		BonusKnockbackNode->Target = EBFTargetSelector::LastDamageTarget;
+		BonusKnockbackNode->PayloadTarget = EBFTargetSelector::LastDamageTarget;
+		BonusKnockbackNode->Instigator = EBFTargetSelector::DamageCauser;
+		BonusKnockbackNode->Magnitude = FFlowDataPinInputProperty_Float(520.f);
 
+		RefreshGraphNodePins(BaseDamageNode);
 		RefreshGraphNodePins(HeavyBranch);
 		RefreshGraphNodePins(ExtraDamageNode);
-		RefreshGraphNodePins(SlowNode);
+		RefreshGraphNodePins(BonusKnockbackNode);
+		LinkFlowNodes(BaseDamageNode, HeavyBranch);
 		LinkFlowNodes(HeavyBranch, ExtraDamageNode);
-		LinkFlowNodes(ExtraDamageNode, SlowNode);
+		LinkFlowNodes(ExtraDamageNode, BonusKnockbackNode);
 
 		FlowAsset->HarvestNodeConnections();
 		FlowAsset->MarkPackageDirty();
 		DirtyPackages.AddUnique(FlowAsset->GetPackage());
 		FlowGraph->Modify();
 		FlowGraph->NotifyGraphChanged();
-		ReportLines.Add(TEXT("- Configured `FA_Rune512_Heavy_Base`: Heavy-only context branch adds +12 damage and 1.5s 65% move speed slow after base knockback."));
+		ReportLines.Add(TEXT("- Configured `FA_Rune512_Heavy_Base`: any action adds +8 damage after base knockback; Heavy-only coordination branch adds +20 damage and 520cm knockback."));
 	}
 
 	void ConfigureSplitBaseFlow(
@@ -4156,6 +4192,7 @@ namespace Rune512Batch
 		RuneInfo.RuneConfig.RuneIcon = Icon;
 		RuneInfo.RuneConfig.RuneID = RuneId;
 		RuneInfo.RuneConfig.RuneType = Spec.RuneType;
+		RuneInfo.RuneConfig.Rarity = Spec.Rarity;
 		RuneInfo.Flow.FlowAsset = BaseFlow;
 
 		FCombatCardConfig& CombatCard = RuneInfo.CombatCard;

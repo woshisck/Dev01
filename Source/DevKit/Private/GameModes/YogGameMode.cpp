@@ -127,13 +127,20 @@ void SealPortalsExcept(const TMap<int32, APortal*>& PortalMap, int32 OpenPortalI
 			continue;
 		}
 
-		Portal->bWillNeverOpen = true;
-		Portal->NeverOpen();
+		Portal->MarkUnavailable();
 		UE_LOG(LogTemp, Log, TEXT("[%s] sealed portal [%d], forced portal [%d]."),
 			Context ? Context : TEXT("PortalPlan"),
 			Entry.Key,
 			OpenPortalIndex);
 	}
+}
+
+bool PlayerHasEquippedWeapon(const UWorld* World)
+{
+	const APlayerCharacterBase* Player = World
+		? Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(World, 0))
+		: nullptr;
+	return Player && (Player->EquippedWeaponDef || Player->EquippedWeaponInstance);
 }
 }
 
@@ -913,11 +920,12 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 	}
 	else if (Chosen.LootType == ELootType::Material)
 	{
-		if (Chosen.MetaCurrencyTag.IsValid())
+		const FGameplayTag MaterialCurrencyTag = ARewardPickup::ResolveMaterialCurrencyTag(Chosen.MetaCurrencyTag);
+		if (MaterialCurrencyTag.IsValid())
 		{
 			if (UYogMetaProgressionSubsystem* Meta = UGameInstance::GetSubsystem<UYogMetaProgressionSubsystem>(GetGameInstance()))
 			{
-				Meta->AddCurrency(Chosen.MetaCurrencyTag, FMath::Max(0, Chosen.Amount));
+				Meta->AddCurrency(MaterialCurrencyTag, FMath::Max(0, Chosen.Amount));
 			}
 		}
 	}
@@ -1091,8 +1099,7 @@ void AYogGameMode::SpawnSacrificeEventAltar(const FVector& LootSpawnLoc)
 		AltarClass = AAltarActor::StaticClass();
 	}
 
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(World, 0));
-	auto ConfigureSacrificeAltar = [this, Player](AAltarActor* Altar)
+	auto ConfigureSacrificeAltar = [this](AAltarActor* Altar)
 	{
 		if (!Altar || !ActiveRoomData)
 		{
@@ -1104,14 +1111,6 @@ void AYogGameMode::SpawnSacrificeEventAltar(const FVector& LootSpawnLoc)
 		Altar->SetOpenSacrificeDirectly(true);
 		Altar->SetAltarActive(true);
 
-		if (Player)
-		{
-			constexpr float ImmediateInteractRadiusSq = 260.0f * 260.0f;
-			if (FVector::DistSquared(Player->GetActorLocation(), Altar->GetActorLocation()) <= ImmediateInteractRadiusSq)
-			{
-				Player->PendingAltar = Altar;
-			}
-		}
 	};
 
 	TArray<AActor*> ExistingAltarActors;
@@ -1771,13 +1770,17 @@ void AYogGameMode::StartLevelSpawning()
 				}
 				if (!bCanOpen)
 				{
-					Portal->bWillNeverOpen = true;
-					Portal->NeverOpen();
+					Portal->MarkUnavailable();
 				}
 			}
 		}
 
 		EnsureHubActiveSkillTerminal();
+		if (ShouldDelayInitialRoomPortalsUntilWeapon())
+		{
+			UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: initial hub portals delayed until the player has a weapon."));
+			return;
+		}
 		ActivateHubPortals();
 		return;
 	}
@@ -1815,8 +1818,7 @@ void AYogGameMode::StartLevelSpawning()
 
 				if (!bCanOpen)
 				{
-					Portal->bWillNeverOpen = true;
-					Portal->NeverOpen();
+					Portal->MarkUnavailable();
 				}
 			}
 		}
@@ -1870,8 +1872,7 @@ void AYogGameMode::StartLevelSpawning()
 
 				if (!bCanOpen)
 				{
-					Portal->bWillNeverOpen = true;
-					Portal->NeverOpen();
+					Portal->MarkUnavailable();
 				}
 			}
 		}
@@ -1978,8 +1979,7 @@ void AYogGameMode::StartLevelSpawning()
 
 			if (!bCanOpen)
 			{
-				Portal->bWillNeverOpen = true;
-				Portal->NeverOpen();
+				Portal->MarkUnavailable();
 				UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: Portal[%d] 永不开启 → NeverOpen"), Portal->Index);
 			}
 		}
@@ -3861,6 +3861,12 @@ void AYogGameMode::EnsureHubActiveSkillTerminal()
 
 void AYogGameMode::ActivateHubPortals()
 {
+	if (ShouldDelayInitialRoomPortalsUntilWeapon())
+	{
+		UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: delayed until the player equips a weapon."));
+		return;
+	}
+
 	UCampaignDataAsset* Campaign = GetActiveCampaignData();
 	UE_LOG(LogTemp, Warning, TEXT("[ActivateHubPortals] CampaignData=%s ActiveRoomData=%s IsHub=%d PortalDests=%d"),
 		*GetNameSafe(Campaign),
@@ -4060,6 +4066,7 @@ void AYogGameMode::ActivatePortals()
 		const bool bShouldOpen = bForceSinglePortal || !bAtLeastOneOpened || FMath::RandBool();
 		if (!bShouldOpen)
 		{
+			(*Found)->MarkUnavailable();
 			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 随机未开启"), Cfg.PortalIndex);
 			continue;
 		}
@@ -4084,6 +4091,32 @@ void AYogGameMode::ActivatePortals()
 // ─────────────────────────────────────────────────────────────────────────────
 // 敌人注册表（相机战斗感知）
 // ─────────────────────────────────────────────────────────────────────────────
+
+bool AYogGameMode::ShouldDelayInitialRoomPortalsUntilWeapon() const
+{
+	if (!bInitialRoomPortalsRequireWeapon || !ActiveRoomData || !ActiveRoomData->bIsHubRoom)
+	{
+		return false;
+	}
+
+	const UYogSaveSubsystem* SaveSys = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UYogSaveSubsystem>()
+		: nullptr;
+	return SaveSys && SaveSys->IsFirstRunTutorialActive() && !PlayerHasEquippedWeapon(GetWorld());
+}
+
+void AYogGameMode::NotifyPlayerWeaponEquipped(APlayerCharacterBase* Player)
+{
+	if (!Player || !ActiveRoomData || !ActiveRoomData->bIsHubRoom)
+	{
+		return;
+	}
+
+	if (bInitialRoomPortalsRequireWeapon && (Player->EquippedWeaponDef || Player->EquippedWeaponInstance))
+	{
+		ActivateHubPortals();
+	}
+}
 
 void AYogGameMode::RegisterEnemy(AEnemyCharacterBase* Enemy)
 {

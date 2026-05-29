@@ -107,6 +107,9 @@ public:
 	void NeverOpen();
 	virtual void NeverOpen_Implementation();
 
+	UFUNCTION(BlueprintCallable, Category = "Portal")
+	void MarkUnavailable();
+
 	// GameMode 在关卡结束时调用，分配目标关卡 / 房间配置 / 已预骰的关卡 Buff 列表并开启门。
 	// PreRolledBuffs 与 GI->PendingRoomBuffs 同型；本门各自缓存，仅在玩家确认进入时由 TryEnter 写入 GI。
 	UFUNCTION(BlueprintCallable)

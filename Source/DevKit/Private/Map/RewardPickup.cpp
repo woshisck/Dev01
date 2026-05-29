@@ -331,6 +331,16 @@ bool ARewardPickup::ShouldGrantLootImmediatelyForOptions(const TArray<FLootOptio
 	return true;
 }
 
+FGameplayTag ARewardPickup::ResolveMaterialCurrencyTag(FGameplayTag ConfiguredTag)
+{
+	if (ConfiguredTag.IsValid())
+	{
+		return ConfiguredTag;
+	}
+
+	return FGameplayTag::RequestGameplayTag(TEXT("Currency.Meta.Common.A"), false);
+}
+
 bool ARewardPickup::GrantImmediateLoot(APlayerCharacterBase* Player, const TArray<FLootOption>& Options)
 {
 	if (!Player)
@@ -361,23 +371,28 @@ bool ARewardPickup::GrantImmediateLoot(APlayerCharacterBase* Player, const TArra
 			break;
 
 		case ELootType::Material:
-			if (Option.MetaCurrencyTag.IsValid())
 			{
+				const FGameplayTag MaterialCurrencyTag = ResolveMaterialCurrencyTag(Option.MetaCurrencyTag);
+				if (!MaterialCurrencyTag.IsValid())
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] Material reward has no valid currency tag; amount=%d."), Amount);
+					break;
+				}
+
 				if (UYogMetaProgressionSubsystem* Meta = UGameInstance::GetSubsystem<UYogMetaProgressionSubsystem>(GetGameInstance()))
 				{
-					Meta->AddCurrency(Option.MetaCurrencyTag, Amount);
+					Meta->AddCurrency(MaterialCurrencyTag, Amount);
 					bGrantedAny = true;
-					K2_OnMaterialLootGranted(Option.MetaCurrencyTag, Amount);
-					K2_OnImmediateLootGranted(ELootType::Material, Amount, Option.MetaCurrencyTag);
-					UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Granted material: %s x%d"), *Option.MetaCurrencyTag.ToString(), Amount);
+					K2_OnMaterialLootGranted(MaterialCurrencyTag, Amount);
+					K2_OnImmediateLootGranted(ELootType::Material, Amount, MaterialCurrencyTag);
+					UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Granted material: %s x%d"), *MaterialCurrencyTag.ToString(), Amount);
 				}
-			}
-			else
-			{
-				bGrantedAny = true;
-				K2_OnMaterialLootGranted(Option.MetaCurrencyTag, Amount);
-				K2_OnImmediateLootGranted(ELootType::Material, Amount, Option.MetaCurrencyTag);
-				UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Material reward has no tag; collected placeholder x%d."), Amount);
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] Material reward failed: MetaProgression subsystem missing. Tag=%s Amount=%d"),
+						*MaterialCurrencyTag.ToString(),
+						Amount);
+				}
 			}
 			break;
 

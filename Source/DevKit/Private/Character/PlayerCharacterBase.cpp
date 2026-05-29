@@ -1259,25 +1259,22 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 			Card.Config.RequiredAction == ECardRequiredAction::Heavy
 			|| (HeavyIdTag.IsValid() && Card.Config.CardIdTag == HeavyIdTag)
 			|| (HeavyEffectTag.IsValid() && Card.Config.CardEffectTags.HasTagExact(HeavyEffectTag));
+		const bool bIsMoonlightLinkCard =
+			(MoonlightIdTag.IsValid() && Card.Config.CardIdTag == MoonlightIdTag)
+			|| (MoonlightEffectTag.IsValid() && Card.Config.CardEffectTags.HasTagExact(MoonlightEffectTag));
 
 		if (bIsHeavyCard)
 		{
 			TM->TryShowHintOnce(HeavyHintTag, TEXT("tutorial_heavy_card"), PC);
 		}
+		else if (bIsMoonlightLinkCard)
+		{
+			TM->NotifyLinkCardEnteredDeck(PC);
+		}
 		// 连携卡（月光等）
 		else if (Card.Config.CardType == ECombatCardType::Link)
 		{
-			const bool bIsMoonlightLinkCard =
-				(MoonlightIdTag.IsValid() && Card.Config.CardIdTag == MoonlightIdTag)
-				|| (MoonlightEffectTag.IsValid() && Card.Config.CardEffectTags.HasTagExact(MoonlightEffectTag));
-			if (bIsMoonlightLinkCard)
-			{
-				TM->NotifyLinkCardEnteredDeck(PC);
-			}
-			else
-			{
-				TM->TryShowHintOnce(LinkHintTag, TEXT("tutorial_card_link"), PC);
-			}
+			TM->TryShowHintOnce(LinkHintTag, TEXT("tutorial_card_link"), PC);
 		}
 		// 终结技卡
 		else if (Card.Config.CardType == ECombatCardType::Finisher)

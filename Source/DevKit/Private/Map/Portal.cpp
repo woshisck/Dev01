@@ -324,18 +324,33 @@ void APortal::NeverOpen_Implementation()
 	if (OpenVFXComp) OpenVFXComp->Deactivate();
 	if (IdleVFXComp) IdleVFXComp->Deactivate();
 
-	if (NeverOpenArt.Mesh)
+	if (NeverOpenArt.Mesh || NeverOpenArt.IdleVFX || NeverOpenArt.OpenVFX)
 	{
 		ApplyArtConfig(NeverOpenArt, false);
+	}
+	else if (ClosedArt.Mesh || ClosedArt.IdleVFX || ClosedArt.OpenVFX)
+	{
+		ApplyArtConfig(ClosedArt, false);
 	}
 	else
 	{
 		// 没配 NeverOpenArt 就直接隐藏门体
-		if (PortalMesh) PortalMesh->SetVisibility(false);
+		if (PortalMesh) PortalMesh->SetVisibility(true);
 	}
 
 	// 禁用碰撞，玩家无法穿越
-	CollisionVolume->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (CollisionVolume)
+	{
+		CollisionVolume->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		CollisionVolume->SetGenerateOverlapEvents(false);
+	}
+	bIsOpen = false;
+}
+
+void APortal::MarkUnavailable()
+{
+	bWillNeverOpen = true;
+	NeverOpen();
 }
 
 void APortal::YogOpenLevel(FName LevelName)
