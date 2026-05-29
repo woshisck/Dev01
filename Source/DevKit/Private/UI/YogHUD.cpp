@@ -217,7 +217,7 @@ void AYogHUD::BeginPlay()
 	// First try to adopt an instance the subsystem already created via bCreateOnHUDStart.
 	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
 	{
-		MainHUDWidget = UIManager->GetTypedWidget<UYogHUDRootWidget>(EYogUIScreenId::MainHUD);
+		MainHUDWidget = Cast<UYogHUDRootWidget>(UIManager->EnsureWidget(EYogUIScreenId::MainHUD));
 	}
 	if (!MainHUDWidget)
 	{

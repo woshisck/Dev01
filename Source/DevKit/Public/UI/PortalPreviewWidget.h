@@ -89,6 +89,8 @@ protected:
 private:
     bool bInteractHintVisible = false;
 
+    void EnsurePreviewLayoutBindings();
+
     // 输入设备切换时重建 RichText，令图标实时更新
     void RefreshHintText(ECommonInputType NewInputType);
 };

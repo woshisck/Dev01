@@ -144,6 +144,11 @@ void APortal::BeginPlay()
 	Super::BeginPlay();
 	// 关卡开始时门是关闭的
 	DisablePortal();
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().SetTimerForNextTick(
+			FTimerDelegate::CreateUObject(this, &APortal::TriggerLinkedDoorCloseEvents));
+	}
 }
 
 void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
@@ -156,6 +161,8 @@ void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 
 	RefreshPreviewInfo();
 	EnablePortal();
+	K2_OnPortalOpened();
+	TriggerLinkedDoorOpenEvents();
 
 	UE_LOG(LogTemp, Log,
 		TEXT("[StoryRewardDebug] Portal Open Portal=%s Index=%d SelectedLevel=%s SelectedRoom=%s PreviewRevision=%d CachedRewardOptions=%s"),
@@ -353,6 +360,33 @@ void APortal::MarkUnavailable()
 	NeverOpen();
 }
 
+void APortal::MarkUnavailableForPreview(FName InSelectedLevel, URoomDataAsset* InSelectedRoom)
+{
+	SelectedLevel = InSelectedLevel;
+	SelectedRoom = InSelectedRoom;
+	PreRolledBuffs.Reset();
+	bWillNeverOpen = true;
+	bIsOpen = false;
+
+	if (OpenVFXComp) OpenVFXComp->Deactivate();
+	if (IdleVFXComp) IdleVFXComp->Deactivate();
+
+	if (const FPortalArtConfig* Art = DestinationArtMap.Find(SelectedLevel))
+	{
+		ApplyArtConfig(*Art, false);
+	}
+	else
+	{
+		NeverOpen();
+	}
+
+	if (CollisionVolume)
+	{
+		CollisionVolume->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		CollisionVolume->SetGenerateOverlapEvents(false);
+	}
+}
+
 void APortal::YogOpenLevel(FName LevelName)
 {
 	UGameplayStatics::OpenLevel(GetWorld(), LevelName, true);
@@ -407,6 +441,49 @@ void APortal::HandlePlayerExitRange(APlayerCharacterBase* Player)
 }
 
 // v3 完整过场：Portal 主导业务流程；HUD 仅负责视觉 BlackoutFade
+void APortal::TriggerLinkedDoorOpenEvents()
+{
+	TriggerLinkedDoorEvent(DoorOpenEventName);
+}
+
+void APortal::TriggerLinkedDoorCloseEvents()
+{
+	TriggerLinkedDoorEvent(DoorCloseEventName);
+}
+
+void APortal::TriggerLinkedDoorEvent(FName EventName)
+{
+	if (EventName.IsNone())
+	{
+		return;
+	}
+
+	for (AActor* Target : DoorOpenEventTargets)
+	{
+		if (!IsValid(Target))
+		{
+			continue;
+		}
+
+		UFunction* Function = Target->FindFunction(EventName);
+		if (!Function)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Portal[%d]: Door event '%s' not found on %s"),
+				Index, *EventName.ToString(), *GetNameSafe(Target));
+			continue;
+		}
+
+		if (Function->NumParms != 0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Portal[%d]: Door event '%s' on %s must not have parameters"),
+				Index, *EventName.ToString(), *GetNameSafe(Target));
+			continue;
+		}
+
+		Target->ProcessEvent(Function, nullptr);
+	}
+}
+
 void APortal::TryEnter(APlayerCharacterBase* Player)
 {
 	if (bEntryInProgress)

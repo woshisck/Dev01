@@ -93,6 +93,9 @@ public:
 	void EnablePortal();
 	virtual void EnablePortal_Implementation();
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "Portal|FX", meta = (DisplayName = "On Portal Opened"))
+	void K2_OnPortalOpened();
+
 	/**
 	 * 关闭传送门（关卡开始时）：C++ 自动应用 ClosedArt。
 	 */
@@ -109,6 +112,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Portal")
 	void MarkUnavailable();
+
+	UFUNCTION(BlueprintCallable, Category = "Portal")
+	void MarkUnavailableForPreview(FName InSelectedLevel, URoomDataAsset* InSelectedRoom);
 
 	// GameMode 在关卡结束时调用，分配目标关卡 / 房间配置 / 已预骰的关卡 Buff 列表并开启门。
 	// PreRolledBuffs 与 GI->PendingRoomBuffs 同型；本门各自缓存，仅在玩家确认进入时由 TryEnter 写入 GI。
@@ -241,6 +247,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Art")
 	TMap<FName, FPortalArtConfig> DestinationArtMap;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Door")
+	TArray<TObjectPtr<AActor>> DoorOpenEventTargets;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Door")
+	FName DoorOpenEventName = TEXT("open door");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Door")
+	FName DoorCloseEventName = TEXT("close door");
+
 public:
 	// === 入门过场配置（在 BP_Portal Details 面板可调）===
 
@@ -262,6 +277,9 @@ private:
 	// Overlap 内部处理函数（与 BP 钩 K2_* 区分命名）
 	void HandlePlayerEnterRange(APlayerCharacterBase* Player);
 	void HandlePlayerExitRange(APlayerCharacterBase* Player);
+	void TriggerLinkedDoorOpenEvents();
+	void TriggerLinkedDoorCloseEvents();
+	void TriggerLinkedDoorEvent(FName EventName);
 
 	// === Entry 过场状态机 ===
 	void TickEntryMovement();   // Timer 回调：每帧驱动玩家走向门

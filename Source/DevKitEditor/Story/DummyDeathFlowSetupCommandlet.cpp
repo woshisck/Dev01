@@ -258,7 +258,7 @@ USNode_SpawnRewardPickup* EnsureSpawnRewardNode(UStoryFlowAsset* FlowAsset, TArr
 	{
 		HintNode->Modify();
 		HintNode->HintTitle = FText::GetEmpty();
-		HintNode->HintText = FText::FromString(TEXT("掉落了一张新卡牌。靠近掉落物，按 <input action=\"Interact\"/> 拾取。"));
+		HintNode->HintText = FText::FromString(TEXT("新获得的卡牌会进入背包，并追加到当前战斗卡组。按 <input action=\"OpenBackpack\"/> 打开背包查看卡牌效果。"));
 		HintNode->Duration = 3.0f;
 	}
 

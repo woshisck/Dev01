@@ -4066,7 +4066,7 @@ void AYogGameMode::ActivatePortals()
 		const bool bShouldOpen = bForceSinglePortal || !bAtLeastOneOpened || FMath::RandBool();
 		if (!bShouldOpen)
 		{
-			(*Found)->MarkUnavailable();
+			(*Found)->MarkUnavailableForPreview(LevelName, ChosenRoom);
 			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 随机未开启"), Cfg.PortalIndex);
 			continue;
 		}
@@ -4099,10 +4099,7 @@ bool AYogGameMode::ShouldDelayInitialRoomPortalsUntilWeapon() const
 		return false;
 	}
 
-	const UYogSaveSubsystem* SaveSys = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UYogSaveSubsystem>()
-		: nullptr;
-	return SaveSys && SaveSys->IsFirstRunTutorialActive() && !PlayerHasEquippedWeapon(GetWorld());
+	return !PlayerHasEquippedWeapon(GetWorld());
 }
 
 void AYogGameMode::NotifyPlayerWeaponEquipped(APlayerCharacterBase* Player)
