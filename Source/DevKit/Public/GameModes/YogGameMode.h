@@ -298,6 +298,7 @@ public:
 	bool IsPlayerDeathPending() const { return bPlayerDeathPending; }
 
 	static bool CanOfferPlayerDeathRevive(bool bInGameOverTriggered, bool bInPlayerDeathReviveUsed);
+	static bool ShouldBroadcastRunSummaryForPlayerDeathGameOver(bool bCanRevive);
 	static float CalculatePlayerReviveHealth(float MaxHealth, float ReviveHealthPercent);
 
 	// 从 LootPool 中随机生成战利品选项并广播（由 ARewardPickup 兜底路径触发）

@@ -1341,6 +1341,11 @@ bool AYogGameMode::CanOfferPlayerDeathRevive(bool bInGameOverTriggered, bool bIn
 	return !bInGameOverTriggered && !bInPlayerDeathReviveUsed;
 }
 
+bool AYogGameMode::ShouldBroadcastRunSummaryForPlayerDeathGameOver(bool /*bCanRevive*/)
+{
+	return false;
+}
+
 float AYogGameMode::CalculatePlayerReviveHealth(float MaxHealth, float ReviveHealthPercent)
 {
 	if (MaxHealth <= 0.f || ReviveHealthPercent <= 0.f)
@@ -1371,10 +1376,13 @@ void AYogGameMode::FinishPlayerDeathGameOver()
 		}
 
 		// 广播本局结算数据（展示结算界面、触发成长货币结算存档）
-		if (UYogMetaProgressionSubsystem* Meta = GetGameInstance()
-			? GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr)
+		if (ShouldBroadcastRunSummaryForPlayerDeathGameOver(bCanRevive))
 		{
-			Meta->BroadcastRunEnded(CurrentFloor, MonsterKillCount);
+			if (UYogMetaProgressionSubsystem* Meta = GetGameInstance()
+				? GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr)
+			{
+				Meta->BroadcastRunEnded(CurrentFloor, MonsterKillCount);
+			}
 		}
 
 		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))

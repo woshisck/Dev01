@@ -229,9 +229,19 @@ void AAltarActor::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 	{
 		Player->PendingAltar = this;
 	}
+	const bool bWasActive = bIsActive;
 	OnPlayerNearby(Player, true);
-	// Refresh visibility after the Blueprint event in case BP modified state
-	SetInteractPromptVisible(Player && bIsActive);
+	// If the BP event called SetAltarActive(false) as part of an intro animation,
+	// re-activate so the prompt appears on the first box entry. Skip re-activation
+	// only when the sacrifice has already been consumed (a legitimate deactivation).
+	if (bWasActive && !bIsActive && !bSacrificeRewardConsumed)
+	{
+		SetAltarActive(true);
+	}
+	else
+	{
+		SetInteractPromptVisible(Player && bIsActive);
+	}
 }
 
 void AAltarActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)

@@ -3,8 +3,10 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/ContentWidget.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
+#include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -54,16 +56,53 @@ UButton* MakeGameOverButton(UWidgetTree* Tree, const FName Name, const FText& Te
 
 	return Button;
 }
+
+UTextBlock* FindButtonTextBlock(UWidget* Widget)
+{
+	if (!Widget)
+	{
+		return nullptr;
+	}
+
+	if (UTextBlock* TextBlock = Cast<UTextBlock>(Widget))
+	{
+		return TextBlock;
+	}
+
+	if (UContentWidget* ContentWidget = Cast<UContentWidget>(Widget))
+	{
+		return FindButtonTextBlock(ContentWidget->GetContent());
+	}
+
+	if (UPanelWidget* PanelWidget = Cast<UPanelWidget>(Widget))
+	{
+		for (int32 ChildIndex = 0; ChildIndex < PanelWidget->GetChildrenCount(); ++ChildIndex)
+		{
+			if (UTextBlock* TextBlock = FindButtonTextBlock(PanelWidget->GetChildAt(ChildIndex)))
+			{
+				return TextBlock;
+			}
+		}
+	}
+
+	return nullptr;
+}
+}
+
+void UYogGameOverWidget::BuildDeathMenuActions(bool bInCanRevive, TArray<EYogGameOverMenuAction>& OutActions)
+{
+	OutActions.Reset();
+	if (bInCanRevive)
+	{
+		OutActions.Add(EYogGameOverMenuAction::Revive);
+	}
+	OutActions.Add(EYogGameOverMenuAction::ReturnToHub);
 }
 
 void UYogGameOverWidget::Setup(bool bInCanRevive)
 {
 	bCanRevive = bInCanRevive;
-	if (BtnRevive)
-	{
-		BtnRevive->SetVisibility(bCanRevive ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-	}
-
+	ApplyMenuConfiguration();
 	FocusedButtonIndex = 0;
 	CacheButtons();
 	FocusButton(FocusedButtonIndex);
@@ -93,11 +132,13 @@ void UYogGameOverWidget::NativeConstruct()
 	if (BtnReturnToTitle)
 	{
 		BtnReturnToTitle->OnClicked.RemoveDynamic(this, &UYogGameOverWidget::HandleReturnToTitleClicked);
-		BtnReturnToTitle->OnClicked.AddDynamic(this, &UYogGameOverWidget::HandleReturnToTitleClicked);
+		BtnReturnToTitle->OnClicked.RemoveDynamic(this, &UYogGameOverWidget::HandleRetryClicked);
+		BtnReturnToTitle->OnClicked.AddDynamic(this, &UYogGameOverWidget::HandleRetryClicked);
 		BtnReturnToTitle->OnHovered.RemoveDynamic(this, &UYogGameOverWidget::HandleReturnToTitleHovered);
 		BtnReturnToTitle->OnHovered.AddDynamic(this, &UYogGameOverWidget::HandleReturnToTitleHovered);
 	}
 
+	ApplyMenuConfiguration();
 	CacheButtons();
 }
 
@@ -107,6 +148,7 @@ void UYogGameOverWidget::NativeOnActivated()
 	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	SetIsFocusable(true);
 	AcceptInputUnlockTime = GetWorld() ? GetWorld()->GetRealTimeSeconds() + 0.35f : 0.f;
+	ApplyMenuConfiguration();
 	CacheButtons();
 	FocusButton(FocusedButtonIndex);
 }
@@ -174,7 +216,9 @@ TOptional<FUIInputConfig> UYogGameOverWidget::GetDesiredInputConfig() const
 
 UWidget* UYogGameOverWidget::NativeGetDesiredFocusTarget() const
 {
-	return MenuButtons.IsValidIndex(FocusedButtonIndex) ? MenuButtons[FocusedButtonIndex].Get() : BtnRetry.Get();
+	return MenuButtons.IsValidIndex(FocusedButtonIndex)
+		? MenuButtons[FocusedButtonIndex].Get()
+		: GetButtonForAction(EYogGameOverMenuAction::ReturnToHub);
 }
 
 void UYogGameOverWidget::BuildFallbackLayout()
@@ -229,10 +273,9 @@ void UYogGameOverWidget::BuildFallbackLayout()
 	RootBox->AddChildToVerticalBox(ButtonBox);
 
 	BtnRevive = MakeGameOverButton(WidgetTree, TEXT("BtnRevive"), NSLOCTEXT("GameOver", "Revive", "Revive"));
-	BtnRetry = MakeGameOverButton(WidgetTree, TEXT("BtnRetry"), NSLOCTEXT("GameOver", "Retry", "Try Again"));
-	BtnReturnToTitle = MakeGameOverButton(WidgetTree, TEXT("BtnReturnToTitle"), NSLOCTEXT("GameOver", "ReturnToTitle", "Return to Title"));
+	BtnRetry = MakeGameOverButton(WidgetTree, TEXT("BtnRetry"), NSLOCTEXT("GameOver", "ReturnToHub", "Return to Hub"));
 
-	for (UButton* Button : { BtnRevive.Get(), BtnRetry.Get(), BtnReturnToTitle.Get() })
+	for (UButton* Button : { BtnRevive.Get(), BtnRetry.Get() })
 	{
 		if (!Button)
 		{
@@ -240,26 +283,72 @@ void UYogGameOverWidget::BuildFallbackLayout()
 		}
 		if (UVerticalBoxSlot* ButtonSlot = ButtonBox->AddChildToVerticalBox(Button))
 		{
-			ButtonSlot->SetPadding(FMargin(0.f, 0.f, 0.f, Button == BtnReturnToTitle ? 0.f : 10.f));
+			ButtonSlot->SetPadding(FMargin(0.f, 0.f, 0.f, Button == BtnRetry ? 0.f : 10.f));
 			ButtonSlot->SetHorizontalAlignment(HAlign_Center);
 		}
+	}
+}
+
+void UYogGameOverWidget::ApplyMenuConfiguration()
+{
+	if (BtnRevive)
+	{
+		BtnRevive->SetVisibility(bCanRevive ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		SetButtonText(BtnRevive, NSLOCTEXT("GameOver", "Revive", "Revive"));
+	}
+
+	UButton* ReturnToHubButton = GetButtonForAction(EYogGameOverMenuAction::ReturnToHub);
+	if (ReturnToHubButton)
+	{
+		ReturnToHubButton->SetVisibility(ESlateVisibility::Visible);
+		SetButtonText(ReturnToHubButton, NSLOCTEXT("GameOver", "ReturnToHub", "Return to Hub"));
+	}
+
+	if (BtnReturnToTitle && BtnReturnToTitle.Get() != ReturnToHubButton)
+	{
+		BtnReturnToTitle->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UYogGameOverWidget::SetButtonText(UButton* Button, const FText& Text) const
+{
+	if (!Button)
+	{
+		return;
+	}
+
+	if (UTextBlock* Label = FindButtonTextBlock(Button))
+	{
+		Label->SetText(Text);
+	}
+}
+
+UButton* UYogGameOverWidget::GetButtonForAction(EYogGameOverMenuAction Action) const
+{
+	switch (Action)
+	{
+	case EYogGameOverMenuAction::Revive:
+		return BtnRevive.Get();
+	case EYogGameOverMenuAction::ReturnToHub:
+		return BtnRetry ? BtnRetry.Get() : BtnReturnToTitle.Get();
+	default:
+		return nullptr;
 	}
 }
 
 void UYogGameOverWidget::CacheButtons()
 {
 	MenuButtons.Reset();
-	if (bCanRevive && BtnRevive && BtnRevive->GetVisibility() != ESlateVisibility::Collapsed)
+
+	TArray<EYogGameOverMenuAction> Actions;
+	BuildDeathMenuActions(bCanRevive, Actions);
+	for (const EYogGameOverMenuAction Action : Actions)
 	{
-		MenuButtons.Add(BtnRevive);
-	}
-	if (BtnRetry)
-	{
-		MenuButtons.Add(BtnRetry);
-	}
-	if (BtnReturnToTitle)
-	{
-		MenuButtons.Add(BtnReturnToTitle);
+		UButton* Button = GetButtonForAction(Action);
+		if (Button && Button->GetVisibility() != ESlateVisibility::Collapsed)
+		{
+			MenuButtons.Add(Button);
+		}
 	}
 
 	FocusedButtonIndex = FMath::Clamp(FocusedButtonIndex, 0, FMath::Max(0, MenuButtons.Num() - 1));
@@ -368,7 +457,7 @@ void UYogGameOverWidget::HandleRetryClicked()
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[GameOver] Retry selected."));
+	UE_LOG(LogTemp, Warning, TEXT("[GameOver] ReturnToHub selected."));
 	CloseManagedScreen();
 	if (UWorld* World = GetWorld())
 	{

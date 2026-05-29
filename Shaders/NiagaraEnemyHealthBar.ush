@@ -1,0 +1,96 @@
+// NiagaraEnemyHealthBar.ush
+// Custom Node:
+//   Include File Path : /Project/NiagaraEnemyHealthBar.ush
+//   Output Type       : CMOT Float 3
+//   Code              : return NiagaraEnemyHealthArmorTint(BaseColor, Armor, BackgroundColor, ArmorSilver, ArmorThreshold, ArmorIntensity, FillDetectThreshold);
+
+float3 NiagaraEnemyHealthArmorTint(
+    float3 BaseColor,
+    float  Armor,
+    float3 BackgroundColor,
+    float3 ArmorSilver,
+    float  ArmorThreshold,
+    float  ArmorIntensity,
+    float  FillDetectThreshold
+)
+{
+    float armorMask = step(ArmorThreshold, Armor);
+
+    // Keep the dark background unchanged. Only colors far enough from the
+    // background are treated as health-fill pixels.
+    float colorDistance = distance(BaseColor, BackgroundColor);
+    float fillMask = smoothstep(FillDetectThreshold, FillDetectThreshold + 0.05, colorDistance);
+
+    float tintAmount = saturate(armorMask * fillMask * ArmorIntensity);
+    return lerp(BaseColor, ArmorSilver, tintAmount);
+}
+
+float4 NiagaraEnemyHealthBarDirect(
+    float2 UV,
+    float  HealthPercent,
+    float  Armor,
+    float3 RedColor,
+    float3 YellowColor,
+    float3 GreenColor,
+    float3 BackgroundColor,
+    float3 ArmorSilver,
+    float  LowHealthThreshold,
+    float  HighHealthThreshold,
+    float  ArmorThreshold,
+    float  EdgeSoftness
+)
+{
+    float health = saturate(HealthPercent);
+    float edge = max(EdgeSoftness, 0.0001);
+    float fill = 1.0 - smoothstep(health - edge, health + edge, UV.x);
+
+    float lowMask = 1.0 - step(LowHealthThreshold, health);
+    float highMask = step(HighHealthThreshold, health);
+    float midMask = saturate(1.0 - lowMask - highMask);
+
+    float3 fillColor = RedColor * lowMask + YellowColor * midMask + GreenColor * highMask;
+    fillColor = lerp(fillColor, ArmorSilver, step(ArmorThreshold, Armor));
+
+    float3 color = lerp(BackgroundColor, fillColor, fill);
+    return float4(color, 1.0);
+}
+
+float4 NiagaraEnemyHealthBarOldNew(
+    float2 UV,
+    float  DynamicNew,
+    float  DynamicOld,
+    float  DynamicArmor,
+    float  HealthPercent,
+    float  OldHealthPercent,
+    float  Armor,
+    float  UseDynamicParameters,
+    float3 RedColor,
+    float3 YellowColor,
+    float3 GreenColor,
+    float3 BackgroundColor,
+    float3 ArmorSilver,
+    float  EdgeSoftness
+)
+{
+    float useDynamic = step(0.5, UseDynamicParameters);
+    float newHealth = saturate(lerp(HealthPercent, DynamicNew, useDynamic));
+    float oldHealth = saturate(lerp(OldHealthPercent, DynamicOld, useDynamic));
+    float armorValue = saturate(max(Armor, DynamicArmor * useDynamic));
+    float drawMask = step(0.001, max(newHealth, oldHealth));
+
+    float edge = max(EdgeSoftness, 0.0001);
+    float currentMask = 1.0 - smoothstep(newHealth - edge, newHealth + edge, UV.x);
+    float oldMask = 1.0 - smoothstep(oldHealth - edge, oldHealth + edge, UV.x);
+    float stableMask = min(currentMask, oldMask);
+    float deltaMask = abs(currentMask - oldMask);
+
+    float armorMask = step(0.5, armorValue);
+    float decreasing = step(newHealth + edge, oldHealth);
+    float3 stableColor = lerp(RedColor, ArmorSilver, armorMask);
+    float3 deltaColor = lerp(GreenColor, YellowColor, decreasing);
+
+    float3 color = BackgroundColor;
+    color = lerp(color, stableColor, stableMask);
+    color = lerp(color, deltaColor, deltaMask);
+    return float4(color, drawMask);
+}
