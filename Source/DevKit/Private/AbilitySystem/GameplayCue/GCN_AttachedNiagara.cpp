@@ -165,6 +165,9 @@ void AGCN_AttachedNiagara::ApplyNiagaraParameterOverrides(UNiagaraComponent* Com
 		case EGCNNiagaraParamType::Int:
 			Component->SetVariableInt(Override.ParameterName, Override.IntValue);
 			break;
+		case EGCNNiagaraParamType::Material:
+			Component->SetVariableMaterial(Override.ParameterName, Override.MaterialValue.Get());
+			break;
 		}
 	}
 }

@@ -16,11 +16,12 @@ class AWeaponInstance;
 UENUM(BlueprintType)
 enum class EGCNNiagaraParamType : uint8
 {
-	Float  UMETA(DisplayName = "Float"),
-	Vector UMETA(DisplayName = "Vector"),
-	Color  UMETA(DisplayName = "Color"),
-	Bool   UMETA(DisplayName = "Bool"),
-	Int    UMETA(DisplayName = "Int"),
+	Float    UMETA(DisplayName = "Float"),
+	Vector   UMETA(DisplayName = "Vector"),
+	Color    UMETA(DisplayName = "Color"),
+	Bool     UMETA(DisplayName = "Bool"),
+	Int      UMETA(DisplayName = "Int"),
+	Material UMETA(DisplayName = "Material"),
 };
 
 USTRUCT(BlueprintType)
@@ -53,6 +54,10 @@ struct DEVKIT_API FGCNNiagaraParamOverride
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara|Parameter",
 		meta = (EditCondition = "ParamType == EGCNNiagaraParamType::Int", EditConditionHides))
 	int32 IntValue = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara|Parameter",
+		meta = (EditCondition = "ParamType == EGCNNiagaraParamType::Material", EditConditionHides))
+	TObjectPtr<UMaterialInterface> MaterialValue;
 };
 
 UENUM(BlueprintType)

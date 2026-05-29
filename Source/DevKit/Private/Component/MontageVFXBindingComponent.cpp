@@ -370,6 +370,9 @@ void UMontageVFXBindingComponent::ApplyNiagaraParameterOverrides(UNiagaraCompone
 		case EGCNNiagaraParamType::Int:
 			Comp->SetVariableInt(Override.ParameterName, Override.IntValue);
 			break;
+		case EGCNNiagaraParamType::Material:
+			Comp->SetVariableMaterial(Override.ParameterName, Override.MaterialValue.Get());
+			break;
 		}
 	}
 }
