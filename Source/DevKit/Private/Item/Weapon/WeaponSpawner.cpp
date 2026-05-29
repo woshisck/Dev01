@@ -7,6 +7,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "GameFramework/Pawn.h"
@@ -668,6 +669,22 @@ void AWeaponSpawner::ApplyTutorialVisibilityEnabled(bool bEnabled)
 	SetActorHiddenInGame(!bEnabled);
 	SetActorTickEnabled(bEnabled);
 	SetActorEnableCollision(bEnabled);
+
+	if (!bEnabled)
+	{
+		TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
+		GetComponents(PrimitiveComponents);
+		for (UPrimitiveComponent* Primitive : PrimitiveComponents)
+		{
+			if (!Primitive)
+			{
+				continue;
+			}
+
+			Primitive->SetGenerateOverlapEvents(false);
+			Primitive->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+	}
 
 	if (WeaponMesh)
 	{

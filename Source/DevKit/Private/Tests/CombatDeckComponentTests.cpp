@@ -31,6 +31,7 @@
 #include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneProjectileProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
+#include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
 #include "Data/AbilityData.h"
 #include "Data/GameplayAbilityComboGraph.h"
@@ -2439,15 +2440,24 @@ bool FCombatDeckGeneratedHeavyCardBonusConfiguredTest::RunTest(const FString& Pa
 	const FGameplayTag HeavyIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Heavy"), false);
 	const FGameplayTag HeavyEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Heavy"), false);
 	const FGameplayTag KnockbackEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Knockback"), false);
+	const FGameplayTag KnockbackActionTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"), false);
 	const FCombatCardConfig& HeavyCard = HeavyDA->RuneInfo.CombatCard;
 	bAllValid &= TestTrue(TEXT("Card.ID.Heavy tag exists"), HeavyIdTag.IsValid());
 	bAllValid &= TestTrue(TEXT("Card.Effect.Heavy tag exists"), HeavyEffectTag.IsValid());
 	bAllValid &= TestTrue(TEXT("Card.Effect.Knockback tag exists"), KnockbackEffectTag.IsValid());
+	bAllValid &= TestTrue(TEXT("Action.Knockback tag exists"), KnockbackActionTag.IsValid());
+	bAllValid &= TestEqual(TEXT("Heavy card is a normal card"), HeavyCard.CardType, ECombatCardType::Normal);
+	bAllValid &= TestEqual(TEXT("Heavy card is rare"), HeavyDA->RuneInfo.RuneConfig.Rarity, ERuneRarity::Rare);
 	bAllValid &= TestEqual(TEXT("Heavy card keeps Any action so light and heavy attacks can draw it"), HeavyCard.RequiredAction, ECardRequiredAction::Any);
 	bAllValid &= TestEqual(TEXT("Heavy card triggers on hit"), HeavyCard.TriggerTiming, ECombatCardTriggerTiming::OnHit);
 	bAllValid &= TestEqual(TEXT("Heavy card id configured"), HeavyCard.CardIdTag, HeavyIdTag);
 	bAllValid &= TestTrue(TEXT("Heavy card has Heavy effect tag"), HeavyCard.CardEffectTags.HasTagExact(HeavyEffectTag));
 	bAllValid &= TestTrue(TEXT("Heavy card has Knockback effect tag"), HeavyCard.CardEffectTags.HasTagExact(KnockbackEffectTag));
+	const FString HeavyDescription = HeavyDA->RuneInfo.RuneConfig.RuneDescription.ToString();
+	bAllValid &= TestTrue(TEXT("Heavy description explains light attacks can play it"), HeavyDescription.Contains(TEXT("轻攻击")));
+	bAllValid &= TestTrue(TEXT("Heavy description explains base extra damage and knockback"), HeavyDescription.Contains(TEXT("额外伤害")) && HeavyDescription.Contains(TEXT("击退")));
+	bAllValid &= TestTrue(TEXT("Heavy description explains coordination requirement"), HeavyDescription.Contains(TEXT("协调需求")));
+	bAllValid &= TestTrue(TEXT("Heavy description explains heavy attack bonus"), HeavyDescription.Contains(TEXT("重攻击")) && HeavyDescription.Contains(TEXT("大幅提升")));
 
 	UFlowAsset* HeavyFlow = LoadObject<UFlowAsset>(
 		nullptr,
@@ -2459,8 +2469,9 @@ bool FCombatDeckGeneratedHeavyCardBonusConfiguredTest::RunTest(const FString& Pa
 	}
 
 	const UBFNode_CombatCardContextBranch* HeavyBranch = nullptr;
+	const UBFNode_DoDamage* BaseDamageNode = nullptr;
 	const UBFNode_DoDamage* ExtraDamageNode = nullptr;
-	const UBFNode_ApplyAttributeModifier* SlowNode = nullptr;
+	const UBFNode_SendGameplayEvent* BonusKnockbackNode = nullptr;
 	for (const TPair<FGuid, UFlowNode*>& Pair : HeavyFlow->GetNodes())
 	{
 		if (const UBFNode_CombatCardContextBranch* Branch = Cast<UBFNode_CombatCardContextBranch>(Pair.Value))
@@ -2474,31 +2485,38 @@ bool FCombatDeckGeneratedHeavyCardBonusConfiguredTest::RunTest(const FString& Pa
 		{
 			if (DamageNode->TargetSelector == EBFTargetSelector::LastDamageTarget
 				&& DamageNode->DamageEffect.Get()
-				&& DamageNode->FlatDamage.Value > 0.f)
+				&& DamageNode->FlatDamage.Value > 0.f
+				&& DamageNode->FlatDamage.Value < 20.f)
+			{
+				BaseDamageNode = DamageNode;
+			}
+			else if (DamageNode->TargetSelector == EBFTargetSelector::LastDamageTarget
+				&& DamageNode->DamageEffect.Get()
+				&& DamageNode->FlatDamage.Value >= 20.f)
 			{
 				ExtraDamageNode = DamageNode;
 			}
 		}
-		else if (const UBFNode_ApplyAttributeModifier* ApplyNode = Cast<UBFNode_ApplyAttributeModifier>(Pair.Value))
+		else if (const UBFNode_SendGameplayEvent* EventNode = Cast<UBFNode_SendGameplayEvent>(Pair.Value))
 		{
-			if (ApplyNode->Target == EBFTargetSelector::LastDamageTarget
-				&& ApplyNode->Attribute == UBaseAttributeSet::GetMoveSpeedAttribute()
-				&& ApplyNode->DurationType == ERuneDurationType::Duration
-				&& ApplyNode->Duration > 0.f)
+			if (EventNode->EventTag == KnockbackActionTag
+				&& EventNode->Target == EBFTargetSelector::LastDamageTarget
+				&& EventNode->PayloadTarget == EBFTargetSelector::LastDamageTarget
+				&& EventNode->Magnitude.Value >= 520.f)
 			{
-				SlowNode = ApplyNode;
+				BonusKnockbackNode = EventNode;
 			}
 		}
 	}
 
+	bAllValid &= TestNotNull(TEXT("Heavy flow has base extra damage for light and heavy attacks"), BaseDamageNode);
 	bAllValid &= TestNotNull(TEXT("Heavy flow has a heavy-action context branch"), HeavyBranch);
-	bAllValid &= TestNotNull(TEXT("Heavy flow has an extra damage node for heavy attacks"), ExtraDamageNode);
-	bAllValid &= TestNotNull(TEXT("Heavy flow has a temporary movement slow node for heavy attacks"), SlowNode);
-	if (SlowNode)
+	if (HeavyBranch)
 	{
-		bAllValid &= TestEqual(TEXT("Heavy slow is multiplicative"), SlowNode->ModOp.GetValue(), EGameplayModOp::Multiplicitive);
-		bAllValid &= TestTrue(TEXT("Heavy slow reduces movement speed"), SlowNode->Value.Value > 0.f && SlowNode->Value.Value < 1.f);
+		bAllValid &= TestTrue(TEXT("Heavy branch only matches heavy attacks"), HeavyBranch->RequiredSourceCardIdTags.HasTagExact(HeavyIdTag));
 	}
+	bAllValid &= TestNotNull(TEXT("Heavy flow has a large extra damage node for coordinated heavy attacks"), ExtraDamageNode);
+	bAllValid &= TestNotNull(TEXT("Heavy flow has a large bonus knockback node for coordinated heavy attacks"), BonusKnockbackNode);
 
 	return bAllValid;
 }

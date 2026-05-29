@@ -4,6 +4,7 @@
 
 #include "Data/RoomDataAsset.h"
 #include "Data/RuneDataAsset.h"
+#include "GameplayTagContainer.h"
 #include "Story/FirstRunTutorialDirectorSubsystem.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstRunTutorialDirectorBuildsMoonlightSecondRoomPlanTest,
@@ -53,6 +54,9 @@ bool FFirstRunTutorialDirectorBuildsTransitionCurrencyPlansTest::RunTest(const F
 		TestEqual(TEXT("Third room reward is material"),
 			MaterialPlan.RewardOptionsOverride[0].LootType,
 			ELootType::Material);
+		TestEqual(TEXT("Material reward uses the HUD primary material currency"),
+			MaterialPlan.RewardOptionsOverride[0].MetaCurrencyTag,
+			FGameplayTag::RequestGameplayTag(TEXT("Currency.Meta.Common.A"), false));
 	}
 	TestFalse(TEXT("Material room does not use a special enemy reward"), MaterialPlan.bMarkLastEnemyAsSpecialRewardEnemy);
 

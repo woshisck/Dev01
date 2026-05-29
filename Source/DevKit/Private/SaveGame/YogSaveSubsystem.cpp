@@ -72,6 +72,11 @@ bool UYogSaveSubsystem::IsNormalGameSlot(int32 SlotIndex) const
 	return FMath::Clamp(SlotIndex, 0, GNumSaveSlots - 1) == GNumSaveSlots - 1;
 }
 
+int32 UYogSaveSubsystem::GetNormalGameSlotIndex() const
+{
+	return GNumSaveSlots - 1;
+}
+
 void UYogSaveSubsystem::InitializeSaveForNewGame(UYogSaveGame* Save, bool bFirstRunTutorial) const
 {
 	if (!Save)

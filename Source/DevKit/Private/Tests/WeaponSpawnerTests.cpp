@@ -37,6 +37,32 @@ bool FWeaponSpawnerTutorialVisibilityRulesTest::RunTest(const FString& Parameter
 			EWeaponSpawnerTutorialVisibility::NonTutorialOnly,
 			false));
 
+	TestTrue(TEXT("Tagged first-run tutorial weapons are enabled only during first-run tutorial"),
+		AWeaponSpawner::ShouldEnableForFirstRunTutorialState(
+			EWeaponSpawnerTutorialVisibility::Always,
+			true,
+			true,
+			false));
+	TestFalse(TEXT("Tagged first-run tutorial weapons are disabled for normal runs"),
+		AWeaponSpawner::ShouldEnableForFirstRunTutorialState(
+			EWeaponSpawnerTutorialVisibility::Always,
+			false,
+			true,
+			false));
+
+	TestFalse(TEXT("Tagged main-run start weapons are disabled during first-run tutorial"),
+		AWeaponSpawner::ShouldEnableForFirstRunTutorialState(
+			EWeaponSpawnerTutorialVisibility::Always,
+			true,
+			false,
+			true));
+	TestTrue(TEXT("Tagged main-run start weapons are enabled for normal runs"),
+		AWeaponSpawner::ShouldEnableForFirstRunTutorialState(
+			EWeaponSpawnerTutorialVisibility::Always,
+			false,
+			false,
+			true));
+
 	return true;
 }
 

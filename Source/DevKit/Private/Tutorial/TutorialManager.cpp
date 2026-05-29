@@ -21,6 +21,7 @@ namespace
 		return FName(EventID);
 	}
 
+	const FName WeaponPickupTutorialKey(TEXT("tutorial_weapon_pickup"));
 	const FName LinkCardTutorialEventID(TEXT("tutorial_card_link"));
 	const FName MoonlightLinkCardTutorialEventID(TEXT("tutorial_card_link_moonlight"));
 
@@ -42,6 +43,11 @@ namespace
 
 	FName ResolveLinkCardTutorialEventIdFromRegistry(const UTutorialRegistryDA* InRegistry)
 	{
+		if (!InRegistry)
+		{
+			return MoonlightLinkCardTutorialEventID;
+		}
+
 		return HasRegisteredTutorialPages(InRegistry, MoonlightLinkCardTutorialEventID)
 			? MoonlightLinkCardTutorialEventID
 			: LinkCardTutorialEventID;
@@ -54,6 +60,56 @@ namespace
 		Page.Body = FText::FromString(Body);
 		Page.SubText = FText::FromString(SubText);
 		return Page;
+	}
+
+	TArray<FTutorialPage> BuildFallbackTutorialPages(FName EventID)
+	{
+		TArray<FTutorialPage> Pages;
+		if (EventID == TEXT("tutorial_heavy_card"))
+		{
+			Pages.Add(MakeTutorialPage(
+				TEXT("获得重击卡"),
+				TEXT("你拾取了 [重击]。这是一张普通稀有卡，已经进入背包，并追加到当前战斗卡组中。"),
+				TEXT("打开背包后，可以拖动卡牌调整触发顺序。")));
+			Pages.Add(MakeTutorialPage(
+				TEXT("重击协调"),
+				TEXT("重击卡可以被 <input action=\"LightAttack\"/> 正常打出，造成额外伤害和击退。它的协调需求是 <input action=\"HeavyAttack\"/>：用重攻击打出时，额外伤害和击退距离会大幅提升。")));
+		}
+		else if (EventID == MoonlightLinkCardTutorialEventID)
+		{
+			Pages.Add(MakeTutorialPage(
+				TEXT("获得月光"),
+				TEXT("[月光] 是连携卡。连携卡会进入背包和战斗卡组，需要和相邻卡牌形成条件才会打出连携效果。")));
+			Pages.Add(MakeTutorialPage(
+				TEXT("正向连携"),
+				TEXT("正向连携会读取前一张已打出的卡牌。把月光放在攻击卡之后，可以让月光根据前一张卡获得额外效果。")));
+			Pages.Add(MakeTutorialPage(
+				TEXT("反向连携"),
+				TEXT("反向连携会影响后一张卡牌。把月光放在攻击卡之前，可以让下一张符合条件的卡获得月光连携效果。")));
+		}
+		else if (EventID == LinkCardTutorialEventID)
+		{
+			Pages.Add(MakeTutorialPage(
+				TEXT("连携卡"),
+				TEXT("连携卡会检查相邻卡牌。调整它在卡组中的位置，可以改变正向或反向连携的触发对象。")));
+		}
+		else if (EventID == TEXT("tutorial_backpack"))
+		{
+			Pages.Add(MakeTutorialPage(
+				TEXT("背包与卡组"),
+				TEXT("新获得的卡牌会进入背包，并追加到当前战斗卡组。打开背包后，可以查看和调整卡牌顺序。")));
+		}
+
+		return Pages;
+	}
+
+	uint32 HashTutorialPage(const FTutorialPage& Page)
+	{
+		uint32 Hash = GetTypeHash(Page.Title.ToString());
+		Hash = HashCombine(Hash, GetTypeHash(Page.Body.ToString()));
+		Hash = HashCombine(Hash, GetTypeHash(Page.SubText.ToString()));
+		Hash = HashCombine(Hash, GetTypeHash(GetPathNameSafe(Page.Illustration.Get())));
+		return Hash;
 	}
 
 	UYogUIManagerSubsystem* PrepareTutorialPopupManager(UTutorialPopupWidget* FallbackWidget, APlayerController* PC, bool bPauseGame)
@@ -120,6 +176,7 @@ void UTutorialManager::LoadFromSave(UYogSaveGame* Save)
 	}
 
 	State = Save->TutorialState;
+	ShownPagedTutorialKeys.Reset();
 }
 
 int32 UTutorialManager::StageRank(ETutorialState S) const
@@ -145,14 +202,63 @@ bool UTutorialManager::HasPassedStage(ETutorialState Required) const
 	return Cur >= 0 && Req >= 0 && Cur > Req;
 }
 
+bool UTutorialManager::IsTutorialRuntimeAllowed() const
+{
+	if (!AreTutorialPopupsEnabled())
+	{
+		return false;
+	}
+
+	const UGameInstance* GI = GetGameInstance();
+	const UYogSaveSubsystem* SaveSys = GI ? GI->GetSubsystem<UYogSaveSubsystem>() : nullptr;
+	if (SaveSys)
+	{
+		if (SaveSys->IsFirstRunTutorialActive())
+		{
+			return true;
+		}
+
+		if (SaveSys->IsFirstRunTutorialCompleted())
+		{
+			return false;
+		}
+	}
+
+	return State != ETutorialState::None && State != ETutorialState::Completed;
+}
+
+bool UTutorialManager::HasShownPagedTutorial(FName TutorialKey) const
+{
+	return !TutorialKey.IsNone() && ShownPagedTutorialKeys.Contains(TutorialKey);
+}
+
+void UTutorialManager::MarkPagedTutorialShown(FName TutorialKey)
+{
+	if (!TutorialKey.IsNone())
+	{
+		ShownPagedTutorialKeys.Add(TutorialKey);
+	}
+}
+
+FName UTutorialManager::MakeInlineTutorialKey(const TArray<FTutorialPage>& Pages) const
+{
+	uint32 Hash = GetTypeHash(Pages.Num());
+	for (const FTutorialPage& Page : Pages)
+	{
+		Hash = HashCombine(Hash, HashTutorialPage(Page));
+	}
+
+	return FName(*FString::Printf(TEXT("InlineTutorial_%08x_%d"), Hash, Pages.Num()));
+}
+
 void UTutorialManager::TryWeaponTutorial(AYogPlayerControllerBase* PC)
 {
 	UE_LOG(LogTemp, Log, TEXT("[Tutorial] TryWeaponTutorial: State=%d, PopupValid=%d, PC=%s"),
 		(int32)State, PopupWidget.IsValid() ? 1 : 0, PC ? *PC->GetName() : TEXT("null"));
 
-	if (!AreTutorialPopupsEnabled())
+	if (!IsTutorialRuntimeAllowed())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Tutorial] Weapon tutorial suppressed because tutorial popups are disabled."));
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] Weapon tutorial suppressed because tutorial runtime is not active."));
 		return;
 	}
 
@@ -224,8 +330,15 @@ void UTutorialManager::TryPostCombatTutorial(AYogPlayerControllerBase* PC)
 void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase> WeakPC)
 {
 	UE_LOG(LogTemp, Log, TEXT("[Tutorial] DoShowWeaponPopup fired"));
-	if (!AreTutorialPopupsEnabled())
+	if (!IsTutorialRuntimeAllowed())
 	{
+		return;
+	}
+	if (HasShownPagedTutorial(WeaponPickupTutorialKey))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] Weapon popup skipped because it was already shown in this tutorial session."));
+		State = ETutorialState::WeaponTutorialDone;
+		SaveState();
 		return;
 	}
 	if (!WeakPC.IsValid() || !PopupWidget.IsValid())
@@ -268,6 +381,7 @@ void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase
 	if (Widget)
 	{
 		Widget->ShowPopup(PagesToShow);
+		MarkPagedTutorialShown(WeaponPickupTutorialKey);
 		if (UIManager)
 		{
 			UIManager->PushScreen(EYogUIScreenId::TutorialPopup);
@@ -383,7 +497,7 @@ void UTutorialManager::TryCardLinkTutorial(APlayerController* PC)
 
 void UTutorialManager::NotifyLinkCardEnteredDeck(APlayerController* PC)
 {
-	if (!AreTutorialPopupsEnabled())
+	if (!IsTutorialRuntimeAllowed())
 	{
 		return;
 	}
@@ -411,6 +525,13 @@ void UTutorialManager::NotifyLinkCardEnteredDeck(APlayerController* PC)
 
 bool UTutorialManager::TryShowPendingLinkCardTutorial(APlayerController* PC)
 {
+	if (!IsTutorialRuntimeAllowed())
+	{
+		bLinkCardBackpackTutorialPending = false;
+		PendingHints.Reset();
+		return false;
+	}
+
 	if (!bLinkCardBackpackTutorialPending)
 	{
 		return false;
@@ -437,6 +558,13 @@ FName UTutorialManager::ResolveLinkCardTutorialEventIdForTest(const UTutorialReg
 	return ResolveLinkCardTutorialEventIdFromRegistry(InRegistry);
 }
 
+#if WITH_DEV_AUTOMATION_TESTS
+int32 UTutorialManager::GetFallbackTutorialPageCountForTest(FName EventID)
+{
+	return BuildFallbackTutorialPages(EventID).Num();
+}
+#endif
+
 FName UTutorialManager::ResolveLinkCardTutorialEventId() const
 {
 	return ResolveLinkCardTutorialEventIdFromRegistry(Registry);
@@ -444,6 +572,11 @@ FName UTutorialManager::ResolveLinkCardTutorialEventId() const
 
 void UTutorialManager::ShowLinkCardBackpackPrompt(APlayerController* PC)
 {
+	if (!IsTutorialRuntimeAllowed())
+	{
+		return;
+	}
+
 	if (!PC)
 	{
 		return;
@@ -472,9 +605,9 @@ void UTutorialManager::ShowLinkCardBackpackPrompt(APlayerController* PC)
 
 bool UTutorialManager::ShowInlinePages(const TArray<FTutorialPage>& Pages, APlayerController* PC, bool bPauseGame)
 {
-	if (!AreTutorialPopupsEnabled())
+	if (!IsTutorialRuntimeAllowed())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Tutorial] Inline tutorial suppressed because tutorial popups are disabled."));
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] Inline tutorial suppressed because tutorial runtime is not active."));
 		OnPopupClosed.Broadcast();
 		return false;
 	}
@@ -484,6 +617,16 @@ bool UTutorialManager::ShowInlinePages(const TArray<FTutorialPage>& Pages, APlay
 		OnPopupClosed.Broadcast();
 		return false;
 	}
+
+	const FName TutorialKey = MakeInlineTutorialKey(Pages);
+	if (HasShownPagedTutorial(TutorialKey))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] Inline tutorial skipped because it was already shown in this tutorial session. Key=%s"),
+			*TutorialKey.ToString());
+		OnPopupClosed.Broadcast();
+		return true;
+	}
+
 	if (bPopupShowing)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[Tutorial] ShowInlinePages ignored because a tutorial popup is already showing"));
@@ -500,6 +643,7 @@ bool UTutorialManager::ShowInlinePages(const TArray<FTutorialPage>& Pages, APlay
 	if (Widget)
 	{
 		Widget->ShowPopup(Pages, bPauseGame);
+		MarkPagedTutorialShown(TutorialKey);
 		if (UIManager)
 		{
 			UIManager->PushScreen(EYogUIScreenId::TutorialPopup);
@@ -510,9 +654,9 @@ bool UTutorialManager::ShowInlinePages(const TArray<FTutorialPage>& Pages, APlay
 
 bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool bPauseGame)
 {
-	if (!AreTutorialPopupsEnabled())
+	if (!IsTutorialRuntimeAllowed())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Tutorial] EventID='%s' suppressed because tutorial popups are disabled."), *EventID.ToString());
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] EventID='%s' suppressed because tutorial runtime is not active."), *EventID.ToString());
 		OnPopupClosed.Broadcast();
 		return false;
 	}
@@ -522,6 +666,15 @@ bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool 
 		OnPopupClosed.Broadcast();
 		return false;
 	}
+
+	if (HasShownPagedTutorial(EventID))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Tutorial] EventID='%s' skipped because it was already shown in this tutorial session."),
+			*EventID.ToString());
+		OnPopupClosed.Broadcast();
+		return true;
+	}
+
 	if (bPopupShowing)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[Tutorial] ShowByEventID(%s) ignored because a tutorial popup is already showing"), *EventID.ToString());
@@ -548,6 +701,11 @@ bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool 
 
 	if (PagesToShow.Num() == 0)
 	{
+		PagesToShow = BuildFallbackTutorialPages(EventID);
+	}
+
+	if (PagesToShow.Num() == 0)
+	{
 		UE_LOG(LogTemp, Warning, TEXT("[Tutorial] EventID='%s' has no tutorial pages; popup skipped."), *EventID.ToString());
 		OnPopupClosed.Broadcast();
 		return false;
@@ -562,6 +720,7 @@ bool UTutorialManager::ShowByEventID(FName EventID, APlayerController* PC, bool 
 	if (Widget)
 	{
 		Widget->ShowPopup(PagesToShow, bPauseGame);
+		MarkPagedTutorialShown(EventID);
 		if (UIManager)
 		{
 			UIManager->PushScreen(EYogUIScreenId::TutorialPopup);
@@ -631,7 +790,7 @@ void UTutorialManager::MarkHintShown(FGameplayTag HintTag)
 
 bool UTutorialManager::TryShowHintOnce(FGameplayTag HintTag, FName EventID, APlayerController* PC, bool bPauseGame)
 {
-	if (!AreTutorialPopupsEnabled()) return false;
+	if (!IsTutorialRuntimeAllowed()) return false;
 	if (HasShownHint(HintTag))
 	{
 		UE_LOG(LogTemp, Verbose, TEXT("[Tutorial] HintOnce '%s' already shown, skipping."), *HintTag.ToString());
@@ -669,6 +828,12 @@ bool UTutorialManager::TryShowHintOnce(FGameplayTag HintTag, FName EventID, APla
 
 void UTutorialManager::FlushPendingHints()
 {
+	if (!IsTutorialRuntimeAllowed())
+	{
+		PendingHints.Reset();
+		return;
+	}
+
 	while (!PendingHints.IsEmpty() && !bPopupShowing)
 	{
 		FPendingHint Next = PendingHints[0];

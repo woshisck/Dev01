@@ -59,6 +59,9 @@ public:
 	/** Returns true when a pickup can grant all loot directly without opening card selection. */
 	static bool ShouldGrantLootImmediatelyForOptions(const TArray<FLootOption>& Options);
 
+	/** Returns the configured material currency tag, falling back to the HUD's primary material currency. */
+	static FGameplayTag ResolveMaterialCurrencyTag(FGameplayTag ConfiguredTag);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Fixed")
 	bool bUseFixedLootOptions = false;
 

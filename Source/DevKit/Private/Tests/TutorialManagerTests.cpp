@@ -84,6 +84,36 @@ bool FTutorialManagerFallsBackWhenMoonlightTutorialHasNoPagesTest::RunTest(const
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialManagerUsesMoonlightFallbackWhenRegistryMissingTest,
+	"DevKit.TutorialManager.UsesMoonlightFallbackWhenRegistryMissing",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FTutorialManagerUsesMoonlightFallbackWhenRegistryMissingTest::RunTest(const FString& Parameters)
+{
+	TestEqual(
+		TEXT("Missing registry uses the moonlight-specific tutorial event"),
+		UTutorialManager::ResolveLinkCardTutorialEventIdForTest(nullptr).ToString(),
+		FString(TEXT("tutorial_card_link_moonlight")));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialManagerCoreFallbackPagesExistTest,
+	"DevKit.TutorialManager.CoreFallbackPagesExist",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FTutorialManagerCoreFallbackPagesExistTest::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("Heavy card fallback has tutorial pages"),
+		UTutorialManager::GetFallbackTutorialPageCountForTest(FName(TEXT("tutorial_heavy_card"))) > 0);
+	TestTrue(TEXT("Moonlight link fallback has tutorial pages"),
+		UTutorialManager::GetFallbackTutorialPageCountForTest(FName(TEXT("tutorial_card_link_moonlight"))) > 0);
+	TestTrue(TEXT("Backpack fallback has tutorial pages"),
+		UTutorialManager::GetFallbackTutorialPageCountForTest(FName(TEXT("tutorial_backpack"))) > 0);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialManagerMoonlightLinkContentConfiguredTest,
 	"DevKit.TutorialManager.MoonlightLinkContentConfigured",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

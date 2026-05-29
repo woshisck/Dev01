@@ -27,6 +27,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogEnemyHealthDisplay, Log, All);
 
 namespace
 {
+	constexpr TCHAR DefaultDamageValueSystemPath[] =
+		TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyDamageValue.NS_EnemyDamageValue");
+
 	void CollectAttachedNiagaraComponents(USceneComponent* Parent, TArray<UNiagaraComponent*>& OutComponents)
 	{
 		if (!Parent)
@@ -226,6 +229,13 @@ UEnemyHealthDisplayComponent::UEnemyHealthDisplayComponent()
 	{
 		HealthBarSystem = DefaultHealthBarSystem.Object;
 	}
+
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> DefaultDamageValueSystem(
+		DefaultDamageValueSystemPath);
+	if (DefaultDamageValueSystem.Succeeded())
+	{
+		DamageValueSystem = DefaultDamageValueSystem.Object;
+	}
 }
 
 void UEnemyHealthDisplayComponent::BeginPlay()
@@ -237,6 +247,9 @@ void UEnemyHealthDisplayComponent::BeginPlay()
 		OwnerCharacter->OnCharacterHealthUpdate.AddUniqueDynamic(
 			this,
 			&UEnemyHealthDisplayComponent::HandleCharacterHealthUpdate);
+		OwnerCharacter->OnCharacterDamageValue.AddUniqueDynamic(
+			this,
+			&UEnemyHealthDisplayComponent::HandleCharacterDamageValue);
 		OwnerCharacter->OnCharacterDeathStarted.AddUniqueDynamic(
 			this,
 			&UEnemyHealthDisplayComponent::HandleOwnerDeathStarted);
@@ -270,6 +283,9 @@ void UEnemyHealthDisplayComponent::EndPlay(const EEndPlayReason::Type EndPlayRea
 		OwnerCharacter->OnCharacterHealthUpdate.RemoveDynamic(
 			this,
 			&UEnemyHealthDisplayComponent::HandleCharacterHealthUpdate);
+		OwnerCharacter->OnCharacterDamageValue.RemoveDynamic(
+			this,
+			&UEnemyHealthDisplayComponent::HandleCharacterDamageValue);
 		OwnerCharacter->OnCharacterDeathStarted.RemoveDynamic(
 			this,
 			&UEnemyHealthDisplayComponent::HandleOwnerDeathStarted);
@@ -288,7 +304,7 @@ void UEnemyHealthDisplayComponent::RefreshDisplayFromAttributes()
 		LastHealthPercent = 0.0f;
 		bHasLastHealthPercent = true;
 		UpdateArmorParameter();
-		HideHealthBarImmediately();
+		ShowHealthBarUntilOwnerDestroyed();
 		return;
 	}
 
@@ -411,8 +427,7 @@ void UEnemyHealthDisplayComponent::HandleCharacterHealthUpdate(float HealthPerce
 		LastHealthPercent = 0.0f;
 		bHasLastHealthPercent = true;
 		UpdateArmorParameter();
-		SpawnDamageValue(DamageTaken);
-		HideHealthBarImmediately();
+		ShowHealthBarUntilOwnerDestroyed();
 		return;
 	}
 
@@ -427,7 +442,16 @@ void UEnemyHealthDisplayComponent::HandleCharacterHealthUpdate(float HealthPerce
 	LastHealthPercent = ClampedHealthPercent;
 	bHasLastHealthPercent = true;
 	UpdateArmorParameter();
-	SpawnDamageValue(DamageTaken);
+}
+
+void UEnemyHealthDisplayComponent::HandleCharacterDamageValue(float DamageAmount, EYogDamageValueType DamageValueType)
+{
+	if (!bEnableHealthDisplay)
+	{
+		return;
+	}
+
+	SpawnDamageValue(DamageAmount, DamageValueType);
 }
 
 void UEnemyHealthDisplayComponent::HandleOwnerDeathStarted(AYogCharacterBase* Character)
@@ -444,7 +468,7 @@ void UEnemyHealthDisplayComponent::HandleOwnerDeathStarted(AYogCharacterBase* Ch
 	LastHealthPercent = 0.0f;
 	bHasLastHealthPercent = true;
 	UpdateArmorParameter();
-	HideHealthBarImmediately();
+	ShowHealthBarUntilOwnerDestroyed();
 }
 
 void UEnemyHealthDisplayComponent::HandleHealthChanged(const FOnAttributeChangeData& Data)
@@ -484,7 +508,7 @@ void UEnemyHealthDisplayComponent::HandleHealthChanged(const FOnAttributeChangeD
 		LastHealthPercent = 0.0f;
 		bHasLastHealthPercent = true;
 		UpdateArmorParameter();
-		HideHealthBarImmediately();
+		ShowHealthBarUntilOwnerDestroyed();
 		return;
 	}
 
@@ -535,7 +559,7 @@ void UEnemyHealthDisplayComponent::HandleArmorChanged(const FOnAttributeChangeDa
 			LastHealthPercent = 0.0f;
 			bHasLastHealthPercent = true;
 			UpdateArmorParameter();
-			HideHealthBarImmediately();
+			ShowHealthBarUntilOwnerDestroyed();
 			return;
 		}
 
@@ -720,15 +744,10 @@ void UEnemyHealthDisplayComponent::UpdateArmorParameter()
 	}
 }
 
-void UEnemyHealthDisplayComponent::SpawnDamageValue(float DamageTaken)
+void UEnemyHealthDisplayComponent::SpawnDamageValue(float DamageAmount, EYogDamageValueType DamageValueType)
 {
-	if (!DamageValueSystem || DamageTaken < MinDamageValueToDisplay)
-	{
-		return;
-	}
-
-	if (DamageValueSystem == HealthBarSystem
-		|| IsLikelyHealthBarSystemName(DamageValueSystem->GetName()))
+	UNiagaraSystem* ResolvedDamageValueSystem = ResolveDamageValueSystem();
+	if (!ResolvedDamageValueSystem || DamageAmount < MinDamageValueToDisplay)
 	{
 		return;
 	}
@@ -742,7 +761,7 @@ void UEnemyHealthDisplayComponent::SpawnDamageValue(float DamageTaken)
 
 	UNiagaraComponent* DamageComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 		World,
-		DamageValueSystem,
+		ResolvedDamageValueSystem,
 		Owner->GetActorLocation() + DamageValueLocationOffset,
 		DamageValueRotation,
 		DamageValueScale,
@@ -758,7 +777,7 @@ void UEnemyHealthDisplayComponent::SpawnDamageValue(float DamageTaken)
 
 	if (!DamageValueParameterName.IsNone())
 	{
-		DamageComponent->SetVariableFloat(DamageValueParameterName, DamageTaken);
+		DamageComponent->SetVariableFloat(DamageValueParameterName, DamageAmount);
 	}
 
 	if (!DamageMarkerBoolParameterName.IsNone())
@@ -766,11 +785,20 @@ void UEnemyHealthDisplayComponent::SpawnDamageValue(float DamageTaken)
 		DamageComponent->SetVariableBool(DamageMarkerBoolParameterName, true);
 	}
 
+	const bool bArmorDamageValue = DamageValueType == EYogDamageValueType::Armor;
 	if (!ArmorParameterName.IsNone())
 	{
-		const float ArmorValue = ShouldUseArmorTint(GetCurrentArmorHP(), bUseArmorTint) ? 1.0f : 0.0f;
-		SetNiagaraFloatParameter(*DamageComponent, ArmorParameterName, ArmorValue);
+		SetNiagaraFloatParameter(*DamageComponent, ArmorParameterName, bArmorDamageValue ? 1.0f : 0.0f);
 	}
+
+	if (!DamageValueColorParameterName.IsNone())
+	{
+		SetNiagaraColorParameter(
+			*DamageComponent,
+			DamageValueColorParameterName,
+			bArmorDamageValue ? ArmorDamageValueColor : HealthDamageValueColor);
+	}
+
 }
 
 void UEnemyHealthDisplayComponent::SetNiagaraFloatParameter(
@@ -1545,6 +1573,21 @@ UMaterialInstanceDynamic* UEnemyHealthDisplayComponent::ResolveHealthBarMaterial
 	return HealthBarMaterialInstance;
 }
 
+UNiagaraSystem* UEnemyHealthDisplayComponent::ResolveDamageValueSystem() const
+{
+	UNiagaraSystem* ConfiguredSystem = DamageValueSystem.Get();
+	const bool bConfiguredSystemLooksLikeHealthBar = ConfiguredSystem
+		&& (ConfiguredSystem == HealthBarSystem
+			|| IsLikelyHealthBarSystemName(ConfiguredSystem->GetName()));
+	if (ConfiguredSystem && !bConfiguredSystemLooksLikeHealthBar)
+	{
+		return ConfiguredSystem;
+	}
+
+	UNiagaraSystem* FallbackSystem = LoadObject<UNiagaraSystem>(nullptr, DefaultDamageValueSystemPath);
+	return FallbackSystem;
+}
+
 float UEnemyHealthDisplayComponent::GetCurrentArmorHP() const
 {
 	const UYogAbilitySystemComponent* ASC = CachedAbilitySystemComponent.Get();
@@ -1621,11 +1664,11 @@ float UEnemyHealthDisplayComponent::GetHealthBarVisibleDuration() const
 	const float RecentlyDamagedRemaining = ASC->GetRecentlyDamagedStateRemainingTime();
 	if (RecentlyDamagedRemaining > 0.0f)
 	{
-		return RecentlyDamagedRemaining;
+		return FMath::Max(RecentlyDamagedRemaining, FallbackDuration);
 	}
 
 	const float RecentlyDamagedDuration = FMath::Max(ASC->RecentlyDamagedStateDuration, 0.0f);
-	return RecentlyDamagedDuration > 0.0f ? RecentlyDamagedDuration : FallbackDuration;
+	return FMath::Max(RecentlyDamagedDuration, FallbackDuration);
 }
 
 void UEnemyHealthDisplayComponent::HideHealthBar()
@@ -1641,4 +1684,44 @@ void UEnemyHealthDisplayComponent::HideHealthBarImmediately()
 	}
 
 	SetHealthBarVisible(false);
+}
+
+void UEnemyHealthDisplayComponent::ShowHealthBarUntilOwnerDestroyed()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(HideHealthBarTimerHandle);
+	}
+
+	if (UNiagaraComponent* HealthBar = ResolveHealthBarComponent())
+	{
+		HideInactiveSplashNiagaraComponents(HealthBar);
+		HealthBar->SetVisibility(true);
+		HealthBar->SetHiddenInGame(false);
+		if (!HealthBar->IsActive())
+		{
+			HealthBar->Activate(true);
+		}
+	}
+}
+
+void UEnemyHealthDisplayComponent::SetNiagaraColorParameter(
+	UNiagaraComponent& NiagaraComponent,
+	FName ParameterName,
+	const FLinearColor& Value)
+{
+	if (ParameterName.IsNone())
+	{
+		return;
+	}
+
+	NiagaraComponent.SetVariableLinearColor(ParameterName, Value);
+
+	const FString ParameterString = ParameterName.ToString();
+	if (!ParameterString.StartsWith(TEXT("User.")))
+	{
+		NiagaraComponent.SetVariableLinearColor(
+			FName(*FString::Printf(TEXT("User.%s"), *ParameterString)),
+			Value);
+	}
 }

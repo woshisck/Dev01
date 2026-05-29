@@ -2,6 +2,7 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
+#include "AbilitySystem/GameplayEffect/GE_MeleeAttackFrame.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
@@ -93,6 +94,8 @@ void UGA_Player_FinisherAttack::ActivateAbility(
 	bFallbackQTEOpened = false;
 	bPreFinisherAuraActive = false;
 	bTimeDilationVisualActive = false;
+	bHasCurrentHitFrameActionData = false;
+	CurrentHitFrameActionData = FActionData();
 
 	if (!FinisherMontage)
 	{
@@ -254,8 +257,54 @@ void UGA_Player_FinisherAttack::ApplyFinisherHitbox(const FGameplayEventData& Ev
 		return;
 	}
 
-	FYogGameplayEffectContainerSpec ContainerSpec = MakeEffectContainerSpec(GetGAPlayerFinisherHitFrameEventTag(), EventData, -1);
+	FGameplayEventData EffectiveEventData = EventData;
+	bool bAppliedFallbackAttackFrameGE = false;
+	FActiveGameplayEffectHandle FallbackAttackFrameGEHandle;
+
+	if (!Cast<UAN_MeleeDamage>(EffectiveEventData.OptionalObject))
+	{
+		if (const UAN_MeleeDamage* DamageNotify = FindFinisherHitFrameNotify())
+		{
+			EffectiveEventData.OptionalObject = const_cast<UAN_MeleeDamage*>(DamageNotify);
+			CurrentHitFrameActionData = DamageNotify->BuildActionData();
+			bHasCurrentHitFrameActionData = true;
+		}
+	}
+
+	if (!Cast<UAN_MeleeDamage>(EventData.OptionalObject))
+	{
+		if (UYogAbilitySystemComponent* ASC = Owner->GetASC())
+		{
+			const FActionData ActionData = GetAbilityActionData();
+			FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+			Context.AddSourceObject(Owner);
+			FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(UGE_MeleeAttackFrame::StaticClass(), 1.f, Context);
+			if (SpecHandle.IsValid())
+			{
+				static const FGameplayTag TAG_ActDamage = FGameplayTag::RequestGameplayTag(TEXT("Attribute.ActDamage"));
+				static const FGameplayTag TAG_ActRange = FGameplayTag::RequestGameplayTag(TEXT("Attribute.ActRange"));
+				static const FGameplayTag TAG_ActRes = FGameplayTag::RequestGameplayTag(TEXT("Attribute.ActResilience"));
+				static const FGameplayTag TAG_ActDmgReduce = FGameplayTag::RequestGameplayTag(TEXT("Attribute.ActDmgReduce"));
+
+				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDamage, ActionData.ActDamage);
+				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRange, ActionData.ActRange);
+				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRes, ActionData.ActResilience);
+				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDmgReduce, ActionData.ActDmgReduce);
+				FallbackAttackFrameGEHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+				bAppliedFallbackAttackFrameGE = FallbackAttackFrameGEHandle.IsValid();
+			}
+		}
+	}
+
+	FYogGameplayEffectContainerSpec ContainerSpec = MakeEffectContainerSpec(GetGAPlayerFinisherHitFrameEventTag(), EffectiveEventData, -1);
 	const TArray<FActiveGameplayEffectHandle> Handles = ApplyEffectContainerSpec(ContainerSpec);
+	if (bAppliedFallbackAttackFrameGE)
+	{
+		if (UYogAbilitySystemComponent* ASC = Owner->GetASC())
+		{
+			ASC->RemoveActiveGameplayEffect(FallbackAttackFrameGEHandle);
+		}
+	}
 	if (Handles.IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GA_Player_FinisherAttack] Finisher hitbox found no valid targets."));
@@ -291,10 +340,13 @@ void UGA_Player_FinisherAttack::ApplyFinisherHitbox(const FGameplayEventData& Ev
 	}
 
 	UE_LOG(LogTemp, Warning,
-		TEXT("[GA_Player_FinisherAttack] Applied finisher hitbox. Hits=%d DamageHandles=%d Confirmed=%d"),
+		TEXT("[GA_Player_FinisherAttack] Applied finisher hitbox. Hits=%d DamageHandles=%d Confirmed=%d Damage=%.1f Range=%.1f Source=%s"),
 		HitActors.Num(),
 		Handles.Num(),
-		bPlayerConfirmed ? 1 : 0);
+		bPlayerConfirmed ? 1 : 0,
+		GetAbilityActionData().ActDamage,
+		GetAbilityActionData().ActRange,
+		*GetNameSafe(EffectiveEventData.OptionalObject.Get()));
 }
 
 void UGA_Player_FinisherAttack::HandleFinisherHitFrame(const FGameplayEventData& EventData)
@@ -306,6 +358,19 @@ void UGA_Player_FinisherAttack::HandleFinisherHitFrame(const FGameplayEventData&
 
 	bReceivedHitFrame = true;
 	ClearTicker(FallbackHitFrameTickerHandle);
+
+	bHasCurrentHitFrameActionData = false;
+	CurrentHitFrameActionData = FActionData();
+	if (const UAN_MeleeDamage* DamageNotify = Cast<UAN_MeleeDamage>(EventData.OptionalObject))
+	{
+		CurrentHitFrameActionData = DamageNotify->BuildActionData();
+		bHasCurrentHitFrameActionData = true;
+	}
+	else if (const UMontageAttackDataAsset* AttackData = Cast<UMontageAttackDataAsset>(EventData.OptionalObject))
+	{
+		CurrentHitFrameActionData = AttackData->BuildActionData();
+		bHasCurrentHitFrameActionData = true;
+	}
 
 	ApplyFinisherHitbox(EventData);
 	DetonateMarks(bPlayerConfirmed);
@@ -515,8 +580,40 @@ bool UGA_Player_FinisherAttack::MontageHasFinisherHitFrameNotify() const
 	return false;
 }
 
+const UAN_MeleeDamage* UGA_Player_FinisherAttack::FindFinisherHitFrameNotify() const
+{
+	if (!FinisherMontage)
+	{
+		return nullptr;
+	}
+
+	for (const FAnimNotifyEvent& NotifyEvent : FinisherMontage->Notifies)
+	{
+		const UAN_MeleeDamage* DamageNotify = Cast<UAN_MeleeDamage>(NotifyEvent.Notify);
+		if (!DamageNotify)
+		{
+			continue;
+		}
+
+		const FGameplayTag NotifyEventTag = DamageNotify->AttackDataOverride && DamageNotify->AttackDataOverride->EventTag.IsValid()
+			? DamageNotify->AttackDataOverride->EventTag
+			: DamageNotify->EventTag;
+		if (NotifyEventTag == GetGAPlayerFinisherHitFrameEventTag())
+		{
+			return DamageNotify;
+		}
+	}
+
+	return nullptr;
+}
+
 FActionData UGA_Player_FinisherAttack::GetAbilityActionData_Implementation() const
 {
+	if (bHasCurrentHitFrameActionData)
+	{
+		return CurrentHitFrameActionData;
+	}
+
 	return FallbackFinisherActionData;
 }
 

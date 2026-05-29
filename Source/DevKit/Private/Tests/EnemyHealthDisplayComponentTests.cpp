@@ -62,7 +62,10 @@ bool FEnemyHealthDisplayDefaultConfigTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Legacy old health percent Niagara parameter is still written for compatibility"), ComponentDefaults->LegacyOldHealthPercentParameterName, FName(TEXT("old")));
 	TestEqual(TEXT("Damage value Niagara parameter matches existing damage value system"), ComponentDefaults->DamageValueParameterName, FName(TEXT("num")));
 	TestEqual(TEXT("Damage marker bool Niagara parameter preserves existing name"), ComponentDefaults->DamageMarkerBoolParameterName, FName(TEXT("\u5E03\u5C14")));
+	TestEqual(TEXT("Damage value color Niagara parameter is explicit"), ComponentDefaults->DamageValueColorParameterName, FName(TEXT("color")));
 	TestEqual(TEXT("Armor tint Niagara parameter is explicit"), ComponentDefaults->ArmorParameterName, FName(TEXT("armor")));
+	TestEqual(TEXT("Health damage values are red by default"), ComponentDefaults->HealthDamageValueColor, FLinearColor(1.0f, 0.05f, 0.02f, 1.0f));
+	TestEqual(TEXT("Armor damage values are white by default"), ComponentDefaults->ArmorDamageValueColor, FLinearColor::White);
 	TestEqual(TEXT("Direct material health percent parameter is explicit"),
 		ComponentDefaults->MaterialHealthPercentParameterName,
 		FName(TEXT("HealthPercent")));
@@ -89,7 +92,7 @@ bool FEnemyHealthDisplayDefaultConfigTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Direct material armor parameter is explicit"),
 		ComponentDefaults->MaterialArmorParameterName,
 		FName(TEXT("Armor")));
-	TestEqual(TEXT("Health bar hides after existing delay"), ComponentDefaults->HideDelay, 2.0f);
+	TestEqual(TEXT("Health bar stays visible for the default combat readability window"), ComponentDefaults->HideDelay, 10.0f);
 	TestTrue(TEXT("Enemy health display hides inherited character widget components by default"),
 		ComponentDefaults->bHideLegacyCharacterWidgetComponent);
 	TestTrue(TEXT("Armor tint is enabled by default"), ComponentDefaults->bUseArmorTint);
@@ -107,6 +110,14 @@ bool FEnemyHealthDisplayDefaultConfigTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Health bar Niagara system points at generated enemy health asset"),
 			ComponentDefaults->HealthBarSystem->GetPathName(),
 			FString(TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyHealth.NS_EnemyHealth")));
+	}
+	TestNotNull(TEXT("Damage value Niagara system is assigned by default"),
+		ComponentDefaults->DamageValueSystem.Get());
+	if (ComponentDefaults->DamageValueSystem)
+	{
+		TestEqual(TEXT("Damage value Niagara system points at generated enemy damage value asset"),
+			ComponentDefaults->DamageValueSystem->GetPathName(),
+			FString(TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyDamageValue.NS_EnemyDamageValue")));
 	}
 	TestNotNull(TEXT("Direct health bar material is assigned by default"),
 		ComponentDefaults->HealthBarMaterial.Get());
@@ -522,11 +533,11 @@ bool FEnemyHealthDisplayUsesAttachedSpawnedHealthBarTest::RunTest(const FString&
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnemyHealthDisplayHidesWhenDeathStartsTest,
-	"DevKit.Enemy.HealthDisplay.HidesWhenDeathStartsAndStaysHidden",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnemyHealthDisplayStaysVisibleUntilOwnerDestroyAfterDeathTest,
+	"DevKit.Enemy.HealthDisplay.StaysVisibleUntilOwnerDestroyAfterDeath",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FEnemyHealthDisplayHidesWhenDeathStartsTest::RunTest(const FString& Parameters)
+bool FEnemyHealthDisplayStaysVisibleUntilOwnerDestroyAfterDeathTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = GWorld;
 	TestNotNull(TEXT("Automation world exists"), World);
@@ -579,7 +590,7 @@ bool FEnemyHealthDisplayHidesWhenDeathStartsTest::RunTest(const FString& Paramet
 	FDeathStartedParams DeathParams{ Enemy };
 	DisplayComponent->ProcessEvent(DeathStartedFunction, &DeathParams);
 
-	TestFalse(TEXT("Health bar hides immediately when owner death starts"), HealthBar->IsVisible());
+	TestTrue(TEXT("Health bar remains visible when owner death starts"), HealthBar->IsVisible());
 
 	UFunction* HealthUpdateFunction = DisplayComponent->FindFunction(TEXT("HandleCharacterHealthUpdate"));
 	TestNotNull(TEXT("Health display still has health update handler"), HealthUpdateFunction);
@@ -594,7 +605,7 @@ bool FEnemyHealthDisplayHidesWhenDeathStartsTest::RunTest(const FString& Paramet
 		DisplayComponent->ProcessEvent(HealthUpdateFunction, &HealthParams);
 	}
 
-	TestFalse(TEXT("Death health update does not show the health bar again"), HealthBar->IsVisible());
+	TestTrue(TEXT("Death health update keeps the health bar visible until the owner is destroyed"), HealthBar->IsVisible());
 
 	Enemy->Destroy();
 	return true;

@@ -332,7 +332,7 @@ void UYogGameInstanceBase::ShowMainMenu()
 	EntryMenuWidget->OnContinueRequested.RemoveAll(this);
 	EntryMenuWidget->OnOptionsRequested.RemoveAll(this);
 	EntryMenuWidget->OnQuitRequested.RemoveAll(this);
-	EntryMenuWidget->OnStartRequested.AddDynamic(this, &UYogGameInstanceBase::StartNewRunFromFrontend);
+	EntryMenuWidget->OnStartRequested.AddDynamic(this, &UYogGameInstanceBase::StartNormalRunFromFrontend);
 	EntryMenuWidget->OnContinueRequested.AddDynamic(this, &UYogGameInstanceBase::ContinueRunFromFrontend);
 	EntryMenuWidget->OnOptionsRequested.AddDynamic(this, &UYogGameInstanceBase::HandleEntryOptionsRequested);
 	EntryMenuWidget->OnQuitRequested.AddDynamic(this, &UYogGameInstanceBase::QuitFromFrontend);
@@ -345,7 +345,7 @@ void UYogGameInstanceBase::ShowMainMenu()
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("AutoStart")))
 	{
-		StartNewRunFromFrontend();
+		StartNormalRunFromFrontend();
 	}
 }
 
@@ -421,6 +421,22 @@ void UYogGameInstanceBase::StartNewRunFromFrontend()
 	RemoveFrontendWidget();
 	ClearRunState();
 	BeginLoadMainGameMap();
+}
+
+void UYogGameInstanceBase::StartNormalRunFromFrontend()
+{
+	if (bFrontendLoadingGameplayMap)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Frontend] Normal start ignored because the gameplay map is already loading."));
+		return;
+	}
+
+	if (UYogSaveSubsystem* SS = GetSubsystem<UYogSaveSubsystem>())
+	{
+		SS->SelectSlot(SS->GetNormalGameSlotIndex());
+	}
+
+	StartNewRunFromFrontend();
 }
 
 void UYogGameInstanceBase::HandleEntryOptionsRequested()
@@ -740,7 +756,7 @@ void UYogGameInstanceBase::RefocusEntryMenuWidget()
 
 FReply UYogGameInstanceBase::HandleStartClicked()
 {
-	StartNewRunFromFrontend();
+	StartNormalRunFromFrontend();
 	return FReply::Handled();
 }
 

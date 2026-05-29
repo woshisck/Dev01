@@ -78,22 +78,20 @@ void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
     const FVector2D Center = ViewportSize * 0.5f;
 
     TArray<AEnemyCharacterBase*> AllEnemies = GM->GetAllAliveEnemies();
-    // Fallback scan: if the registry is empty, some enemies may have been unregistered
-    // (e.g. bUnregisterFromEnemyAwareness) or missed registration due to spawn timing.
-    // Rate-limited to once per second to avoid iterating all actors every frame.
-    if (AllEnemies.IsEmpty())
+    // Fallback scan: some room/story spawns can miss or leave the GameMode awareness
+    // registry while still being valid combat targets. Merge a slow world scan so
+    // arrows stay reliable without iterating all actors every frame.
+    const float Now = GetWorld()->GetTimeSeconds();
+    if (Now >= NextFallbackScanTime)
     {
-        const float Now = GetWorld()->GetTimeSeconds();
-        if (Now >= NextFallbackScanTime)
+        NextFallbackScanTime = Now + FMath::Max(0.1f, FallbackScanInterval);
+        for (TActorIterator<AEnemyCharacterBase> It(GetWorld()); It; ++It)
         {
-            NextFallbackScanTime = Now + 1.f;
-            for (TActorIterator<AEnemyCharacterBase> It(GetWorld()); It; ++It)
+            AEnemyCharacterBase* E = *It;
+            if (E && E->IsAlive())
             {
-                if (AEnemyCharacterBase* E = *It; E && E->IsAlive())
-                {
-                    AllEnemies.Add(E);
-                    GM->RegisterEnemy(E);
-                }
+                AllEnemies.AddUnique(E);
+                GM->RegisterEnemy(E);
             }
         }
     }

@@ -70,6 +70,32 @@ namespace
 		return TargetCharacter->BaseAttributeSet;
 	}
 
+	struct FDamageAbsorptionResult
+	{
+		float HealthDamage = 0.0f;
+		float ArmorDamage = 0.0f;
+		float ShieldDamage = 0.0f;
+	};
+
+	void BroadcastDamageValues(AYogCharacterBase* TargetCharacter, const FDamageAbsorptionResult& Result)
+	{
+		if (!TargetCharacter)
+		{
+			return;
+		}
+
+		if (Result.ArmorDamage > 0.0f)
+		{
+			TargetCharacter->OnCharacterDamageValue.Broadcast(Result.ArmorDamage, EYogDamageValueType::Armor);
+		}
+
+		const float RedDamage = Result.HealthDamage + Result.ShieldDamage;
+		if (RedDamage > 0.0f)
+		{
+			TargetCharacter->OnCharacterDamageValue.Broadcast(RedDamage, EYogDamageValueType::Health);
+		}
+	}
+
 	void RemoveShieldGameplayEffects(UAbilitySystemComponent* ASC)
 	{
 		if (!ASC)
@@ -102,7 +128,7 @@ namespace
 		}
 	}
 
-	float AbsorbDamageWithShieldAndArmor(
+	FDamageAbsorptionResult AbsorbDamageWithShieldAndArmor(
 		const FGameplayEffectModCallbackData& Data,
 		AYogCharacterBase* TargetCharacter,
 		float DamageAmount,
@@ -110,13 +136,15 @@ namespace
 	{
 		if (DamageAmount <= 0.f || !TargetCharacter || !TargetCharacter->BaseAttributeSet)
 		{
-			return DamageAmount;
+			return { FMath::Max(0.0f, DamageAmount), 0.0f, 0.0f };
 		}
 
 		UAbilitySystemComponent* TargetASC = GetTargetASC(Data);
 		UBaseAttributeSet* BaseSet = TargetCharacter->BaseAttributeSet;
 
 		float RemainingDamage = DamageAmount;
+		float ArmorDamage = 0.0f;
+		float ShieldDamage = 0.0f;
 
 		const float CurrentShield = FMath::Max(0.f, BaseSet->GetShield());
 		if (CurrentShield > 0.f)
@@ -136,6 +164,7 @@ namespace
 			}
 
 			RemainingDamage -= ShieldAbsorbed;
+			ShieldDamage += ShieldAbsorbed;
 			const float NewShield = TargetASC
 				? FMath::Max(0.f, TargetASC->GetNumericAttribute(UBaseAttributeSet::GetShieldAttribute()))
 				: FMath::Max(0.f, BaseSet->GetShield());
@@ -162,7 +191,7 @@ namespace
 
 			if (RemainingDamage <= 0.f)
 			{
-				return 0.f;
+				return { 0.0f, 0.0f, ShieldDamage };
 			}
 		}
 
@@ -182,6 +211,7 @@ namespace
 					BaseSet->SetArmorHP(NewArmor);
 				}
 				RemainingDamage -= ArmorAbsorbed;
+				ArmorDamage += ArmorAbsorbed;
 				UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Armor] Absorb Target=%s Damage=%.1f Armor %.1f -> %.1f HealthDamage=%.1f"),
 					*GetNameSafe(TargetCharacter),
 					DamageAmount,
@@ -191,7 +221,7 @@ namespace
 			}
 		}
 
-		return FMath::Max(0.f, RemainingDamage);
+		return { FMath::Max(0.f, RemainingDamage), ArmorDamage, ShieldDamage };
 	}
 }
 
@@ -293,7 +323,8 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			}
 
 			// ── 护甲拦截（护甲先吸收，溢出才扣血）─────────────────────────
-			const float HealthDamage = AbsorbDamageWithShieldAndArmor(Data, TargetCharacter, LocalDamageDone, true);
+			const FDamageAbsorptionResult DamageResult = AbsorbDamageWithShieldAndArmor(Data, TargetCharacter, LocalDamageDone, true);
+			const float HealthDamage = DamageResult.HealthDamage;
 
 			UYogAbilitySystemComponent* ASC = TargetCharacter->GetASC();
 			const bool bSuppressDamageFeedback = ShouldSuppressDamageFeedbackForEffect(Data.EffectSpec);
@@ -316,6 +347,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				const float MaxHealth = TargetBaseSet->GetMaxHealth();
 				float percent = MaxHealth > 0.f ? TargetBaseSet->GetHealth() / MaxHealth : 0.f;
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);
+				BroadcastDamageValues(TargetCharacter, DamageResult);
 
 				// 广播 Ability.Event.Damaged 给受击目标（GA_Wound 等监听此事件）
 				{
@@ -419,7 +451,8 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			}
 
 			// ── 护甲拦截 ─────────────────────────────────────────────────────
-			const float HealthDamage = AbsorbDamageWithShieldAndArmor(Data, TargetCharacter, LocalDamageDone, true);
+			const FDamageAbsorptionResult DamageResult = AbsorbDamageWithShieldAndArmor(Data, TargetCharacter, LocalDamageDone, true);
+			const float HealthDamage = DamageResult.HealthDamage;
 
 			if (HealthDamage > 0.f)
 			{
@@ -436,6 +469,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				const float MaxHealth = TargetBaseSet->GetMaxHealth();
 				float percent = MaxHealth > 0.f ? TargetBaseSet->GetHealth() / MaxHealth : 0.f;
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);
+				BroadcastDamageValues(TargetCharacter, DamageResult);
 
 				// 广播 Ability.Event.Damaged（不在 DamageBuff 路径广播，防止 GA_Wound 递归）
 				{
@@ -501,7 +535,8 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				return;
 			}
 
-			const float HealthDamage = AbsorbDamageWithShieldAndArmor(Data, TargetCharacter, LocalDamageDone, false);
+			const FDamageAbsorptionResult DamageResult = AbsorbDamageWithShieldAndArmor(Data, TargetCharacter, LocalDamageDone, false);
+			const float HealthDamage = DamageResult.HealthDamage;
 			if (HealthDamage <= 0.f)
 			{
 				return;
@@ -524,6 +559,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				ASC->ReceiveDamage(SourceYogASC, LocalDamageDone, true, Context);
 				const float MaxHealth = TargetBaseSet->GetMaxHealth();
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(MaxHealth > 0.f ? NewHealth / MaxHealth : 0.f, LocalDamageDone);
+				BroadcastDamageValues(TargetCharacter, DamageResult);
 			}
 		}
 	}

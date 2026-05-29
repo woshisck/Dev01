@@ -48,6 +48,13 @@ enum class EWeaponState : uint8
 	Reloading		UMETA(DisplayName = "Reloading")
 };
 
+UENUM(BlueprintType)
+enum class EYogDamageValueType : uint8
+{
+	Health	UMETA(DisplayName = "Health"),
+	Armor	UMETA(DisplayName = "Armor")
+};
+
 
 
 
@@ -64,6 +71,7 @@ class UWidgetComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
 DECLARE_MULTICAST_DELEGATE_OneParam(FCharacterDiedNativeDelegate, AYogCharacterBase*);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCharacterHealthUpdateDelegate, float, HealthPercent, float, DamageTaken);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCharacterDamageValueDelegate, float, DamageAmount, EYogDamageValueType, DamageValueType);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterMoveableDelegate, const bool, Moveable);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterVelocityDelegate, const FVector, Velocity);
 
@@ -196,6 +204,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
 	FCharacterHealthUpdateDelegate OnCharacterHealthUpdate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character|Attributes")
+	FCharacterDamageValueDelegate OnCharacterDamageValue;
 
 
 

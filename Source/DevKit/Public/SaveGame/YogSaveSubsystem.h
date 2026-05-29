@@ -65,6 +65,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SaveGame|Slot")
 	FString GetSlotName(int32 SlotIndex) const;
 
+	UFUNCTION(BlueprintPure, Category = "SaveGame|Slot")
+	int32 GetNormalGameSlotIndex() const;
+
 	// =========================================================
 	// 存档点（Checkpoint）— 三个触发点
 	// ①进入关卡前  ②清关后  触发此函数

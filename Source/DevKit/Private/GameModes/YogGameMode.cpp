@@ -913,11 +913,12 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 	}
 	else if (Chosen.LootType == ELootType::Material)
 	{
-		if (Chosen.MetaCurrencyTag.IsValid())
+		const FGameplayTag MaterialCurrencyTag = ARewardPickup::ResolveMaterialCurrencyTag(Chosen.MetaCurrencyTag);
+		if (MaterialCurrencyTag.IsValid())
 		{
 			if (UYogMetaProgressionSubsystem* Meta = UGameInstance::GetSubsystem<UYogMetaProgressionSubsystem>(GetGameInstance()))
 			{
-				Meta->AddCurrency(Chosen.MetaCurrencyTag, FMath::Max(0, Chosen.Amount));
+				Meta->AddCurrency(MaterialCurrencyTag, FMath::Max(0, Chosen.Amount));
 			}
 		}
 	}

@@ -7,6 +7,7 @@
 
 class UYogAbilityTask_PlayMontageAndWaitForEvent;
 class AYogCharacterBase;
+class UAN_MeleeDamage;
 class UNiagaraComponent;
 class UNiagaraSystem;
 
@@ -135,6 +136,7 @@ private:
 
     void ApplyFinisherHitbox(const FGameplayEventData& EventData);
     void HandleFinisherHitFrame(const FGameplayEventData& EventData);
+    const UAN_MeleeDamage* FindFinisherHitFrameNotify() const;
     void RestoreTimeDilation(bool bEndExternalVisual = false);
     void OpenFallbackQTEWindow();
     void CloseFallbackQTEWindow();
@@ -152,6 +154,9 @@ private:
     bool bFallbackQTEOpened    = false;
     bool bPreFinisherAuraActive = false;
     bool bTimeDilationVisualActive = false;
+    bool bHasCurrentHitFrameActionData = false;
+
+    FActionData CurrentHitFrameActionData;
 
     UPROPERTY()
     TObjectPtr<UYogAbilityTask_PlayMontageAndWaitForEvent> MontageTask;
