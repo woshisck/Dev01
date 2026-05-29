@@ -130,6 +130,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug", meta = (DisplayName = "Draw Debug Hitbox"))
 	bool bDrawDebugHitbox = false;
 
+#if WITH_EDITOR
+	virtual bool ShouldFireInEditor() override;
+#endif
+
 	// ── 攻击停顿 ─────────────────────────────────────────────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitStop")
