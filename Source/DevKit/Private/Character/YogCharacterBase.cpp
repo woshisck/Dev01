@@ -460,6 +460,11 @@ void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 	}
 	float Health = Data.NewValue;
 	float MaxHealth = AttributeStatsComponent->GetStat_MaxHealth();
+	if (AbilitySystemComponent
+		&& AbilitySystemComponent->HasAttributeSetForAttribute(UBaseAttributeSet::GetMaxHealthAttribute()))
+	{
+		MaxHealth = AbilitySystemComponent->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
+	}
 	float percent = (MaxHealth > 0.f) ? (Health / MaxHealth) : 0.f;
 	const float DamageTaken = FMath::Max(0.f, Data.OldValue - Data.NewValue);
 

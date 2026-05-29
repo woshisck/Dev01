@@ -12,6 +12,7 @@
 #include "EnemyCharacterBase.generated.h"
 
 class UBuffFlowComponent;
+class UEnemyHealthDisplayComponent;
 class UYogAbilitySystemComponent;
 
 /**
@@ -28,6 +29,9 @@ public:
 	// 关卡 Buff（RuneDA FlowAsset）直接在此组件上激活，无需背包
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BuffFlow")
 	TObjectPtr<UBuffFlowComponent> BuffFlowComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Health Display")
+	TObjectPtr<UEnemyHealthDisplayComponent> HealthDisplayComponent;
 
 	// Tutorial/practice enemies can opt out of room clear, wave, and kill-count progression.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Level")

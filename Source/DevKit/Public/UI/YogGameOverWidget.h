@@ -9,12 +9,20 @@ class UTextBlock;
 class UVerticalBox;
 class UWidget;
 
+enum class EYogGameOverMenuAction : uint8
+{
+	Revive,
+	ReturnToHub
+};
+
 UCLASS(Blueprintable)
 class DEVKIT_API UYogGameOverWidget : public UCommonActivatableWidget
 {
 	GENERATED_BODY()
 
 public:
+	static void BuildDeathMenuActions(bool bInCanRevive, TArray<EYogGameOverMenuAction>& OutActions);
+
 	UFUNCTION(BlueprintCallable, Category = "GameOver")
 	void Setup(bool bInCanRevive);
 
@@ -47,6 +55,9 @@ protected:
 
 private:
 	void BuildFallbackLayout();
+	void ApplyMenuConfiguration();
+	void SetButtonText(UButton* Button, const FText& Text) const;
+	UButton* GetButtonForAction(EYogGameOverMenuAction Action) const;
 	void CacheButtons();
 	void FocusButton(int32 NewIndex);
 	void ActivateFocusedButton();

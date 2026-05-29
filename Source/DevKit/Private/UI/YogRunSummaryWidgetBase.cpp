@@ -1,6 +1,7 @@
 #include "UI/YogRunSummaryWidgetBase.h"
 #include "Components/Button.h"
 #include "Kismet/GameplayStatics.h"
+#include "System/YogGameInstanceBase.h"
 
 void UYogRunSummaryWidgetBase::NativeConstruct()
 {
@@ -32,6 +33,17 @@ void UYogRunSummaryWidgetBase::HandleReturnToHubClicked()
 {
 	OnReturnToHubRequested.Broadcast();
 	DeactivateWidget();
+
+	if (UWorld* World = GetWorld())
+	{
+		UGameplayStatics::SetGamePaused(World, false);
+	}
+	if (UYogGameInstanceBase* GI = GetGameInstance<UYogGameInstanceBase>())
+	{
+		GI->StartNewRunFromFrontend();
+		return;
+	}
+
 	if (!HubLevelName.IsNone())
 	{
 		UGameplayStatics::OpenLevel(this, HubLevelName);
