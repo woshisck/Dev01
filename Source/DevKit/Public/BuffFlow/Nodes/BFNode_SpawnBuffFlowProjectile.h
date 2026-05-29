@@ -79,11 +79,8 @@ class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Visual", meta = (DisplayName = "Projectile Visual Niagara Scale"))
 	FVector ProjectileVisualNiagaraScale = FVector(1.f, 1.f, 1.f);
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Collision", meta = (ClampMin = "1.0", DisplayName = "Collision Capsule Radius"))
-	float CollisionCapsuleRadius = 24.f;
-
-	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Collision", meta = (ClampMin = "1.0", DisplayName = "Collision Capsule Half Height"))
-	float CollisionCapsuleHalfHeight = 48.f;
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Collision", meta = (ClampMin = "1.0", DisplayName = "Collision Box Extent"))
+	FVector CollisionBoxExtent = FVector(24.f, 24.f, 48.f);
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Collision", meta = (DisplayName = "Destroy On Hit Trigger"))
 	bool bDestroyOnHitTrigger = true;

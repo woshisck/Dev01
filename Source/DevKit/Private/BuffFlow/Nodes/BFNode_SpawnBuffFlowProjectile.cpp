@@ -117,7 +117,7 @@ void UBFNode_SpawnBuffFlowProjectile::ExecuteBuffFlowInput(const FName& PinName)
 			EBuffFlowTraceResult::Success,
 			TEXT("Spawned BuffFlow projectile"),
 			FString::Printf(
-				TEXT("Class=%s Count=%d BaseCount=%d SpawnInterval=%.2f AddCombo=%d HasCardContext=%d ComboStacks=%d PerStack=%d MaxBonus=%d ComboBonus=%d TriggerMode=%d TriggerInterval=%.2f Lifetime=%.2f Speed=%.1f Capsule=(R=%.1f HH=%.1f) Effect=%s"),
+				TEXT("Class=%s Count=%d BaseCount=%d SpawnInterval=%.2f AddCombo=%d HasCardContext=%d ComboStacks=%d PerStack=%d MaxBonus=%d ComboBonus=%d TriggerMode=%d TriggerInterval=%.2f Lifetime=%.2f Speed=%.1f Box=(X=%.1f Y=%.1f Z=%.1f) Effect=%s"),
 				*GetNameSafe(ResolvedProjectileClass.Get()),
 				SpawnedOrScheduledCount,
 				FMath::Max(1, ProjectileCount),
@@ -132,8 +132,9 @@ void UBFNode_SpawnBuffFlowProjectile::ExecuteBuffFlowInput(const FName& PinName)
 				TriggerInterval,
 				Lifetime,
 				Speed,
-				CollisionCapsuleRadius,
-				CollisionCapsuleHalfHeight,
+				CollisionBoxExtent.X,
+				CollisionBoxExtent.Y,
+				CollisionBoxExtent.Z,
 				*GetNameSafe(EffectClass.Get())));
 	}
 
@@ -218,8 +219,7 @@ FBuffFlowProjectileRuntimeConfig UBFNode_SpawnBuffFlowProjectile::BuildRuntimeCo
 	Config.ProjectileVisualColor = ProjectileVisualColor;
 	Config.ProjectileVisualNiagaraSystem = ProjectileVisualNiagaraSystem;
 	Config.ProjectileVisualNiagaraScale = ProjectileVisualNiagaraScale;
-	Config.CollisionCapsuleRadius = CollisionCapsuleRadius;
-	Config.CollisionCapsuleHalfHeight = CollisionCapsuleHalfHeight;
+	Config.CollisionBoxExtent = CollisionBoxExtent;
 	Config.bDestroyOnHitTrigger = bDestroyOnHitTrigger;
 	Config.bDestroyOnWorldStaticHit = bDestroyOnWorldStaticHit;
 	Config.EffectClass = EffectClass;

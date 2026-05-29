@@ -8,7 +8,7 @@
 class UCurveFloat;
 class UGameplayEffect;
 class UProjectileMovementComponent;
-class UCapsuleComponent;
+class UBoxComponent;
 class USceneComponent;
 class ACharacter;
 class UNiagaraSystem;
@@ -112,10 +112,7 @@ struct DEVKIT_API FBuffFlowProjectileRuntimeConfig
 	FVector ProjectileVisualNiagaraScale = FVector(1.f, 1.f, 1.f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Projectile", meta = (ClampMin = "1.0"))
-	float CollisionCapsuleRadius = 24.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Projectile", meta = (ClampMin = "1.0"))
-	float CollisionCapsuleHalfHeight = 48.f;
+	FVector CollisionBoxExtent = FVector(24.f, 24.f, 48.f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Projectile")
 	bool bDestroyOnHitTrigger = true;
@@ -195,7 +192,7 @@ protected:
 	TObjectPtr<USceneComponent> SceneRoot;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UCapsuleComponent> CollisionCapsule;
+	TObjectPtr<UBoxComponent> CollisionBox;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UProjectileMovementComponent> ProjectileMovement;

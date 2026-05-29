@@ -4,7 +4,7 @@
 #include "AbilitySystem/Attribute/DamageAttributeSet.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
-#include "Components/CapsuleComponent.h"
+#include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
 #include "Curves/CurveFloat.h"
 #include "Abilities/GameplayAbilityTypes.h"
@@ -34,14 +34,14 @@ ABuffFlowProjectile::ABuffFlowProjectile()
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	SetRootComponent(SceneRoot);
 
-	CollisionCapsule = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CollisionCapsule"));
-	CollisionCapsule->SetupAttachment(SceneRoot);
-	CollisionCapsule->InitCapsuleSize(RuntimeConfig.CollisionCapsuleRadius, RuntimeConfig.CollisionCapsuleHalfHeight);
-	CollisionCapsule->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	CollisionCapsule->SetCollisionObjectType(ECC_WorldDynamic);
-	CollisionCapsule->SetCollisionResponseToAllChannels(ECR_Ignore);
-	CollisionCapsule->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	CollisionCapsule->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Overlap);
+	CollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
+	CollisionBox->SetupAttachment(SceneRoot);
+	CollisionBox->SetBoxExtent(RuntimeConfig.CollisionBoxExtent, false);
+	CollisionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	CollisionBox->SetCollisionObjectType(ECC_WorldDynamic);
+	CollisionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	CollisionBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	CollisionBox->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Overlap);
 
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
 	ProjectileMovement->InitialSpeed = RuntimeConfig.Speed;
@@ -78,13 +78,12 @@ void ABuffFlowProjectile::ApplyRuntimeConfig(const FBuffFlowProjectileRuntimeCon
 {
 	RuntimeConfig = InConfig;
 	RuntimeConfig.TriggerInterval = FMath::Max(0.01f, RuntimeConfig.TriggerInterval);
-	RuntimeConfig.CollisionCapsuleRadius = FMath::Max(1.f, RuntimeConfig.CollisionCapsuleRadius);
-	RuntimeConfig.CollisionCapsuleHalfHeight = FMath::Max(RuntimeConfig.CollisionCapsuleRadius, RuntimeConfig.CollisionCapsuleHalfHeight);
+	RuntimeConfig.CollisionBoxExtent = RuntimeConfig.CollisionBoxExtent.ComponentMax(FVector(1.f));
 
-	if (CollisionCapsule)
+	if (CollisionBox)
 	{
-		CollisionCapsule->SetCapsuleSize(RuntimeConfig.CollisionCapsuleRadius, RuntimeConfig.CollisionCapsuleHalfHeight, true);
-		CollisionCapsule->SetCollisionResponseToChannel(
+		CollisionBox->SetBoxExtent(RuntimeConfig.CollisionBoxExtent, true);
+		CollisionBox->SetCollisionResponseToChannel(
 			ECC_WorldStatic,
 			RuntimeConfig.bDestroyOnWorldStaticHit ? ECR_Overlap : ECR_Ignore);
 	}
@@ -117,10 +116,10 @@ void ABuffFlowProjectile::BeginPlay()
 		SetCreatorForSpawn(GetOwner() ? GetOwner() : GetInstigator());
 	}
 
-	if (CollisionCapsule)
+	if (CollisionBox)
 	{
-		CollisionCapsule->OnComponentBeginOverlap.AddDynamic(this, &ABuffFlowProjectile::OnOverlapBegin);
-		CollisionCapsule->OnComponentEndOverlap.AddDynamic(this, &ABuffFlowProjectile::OnOverlapEnd);
+		CollisionBox->OnComponentBeginOverlap.AddDynamic(this, &ABuffFlowProjectile::OnOverlapBegin);
+		CollisionBox->OnComponentEndOverlap.AddDynamic(this, &ABuffFlowProjectile::OnOverlapEnd);
 	}
 
 	if (bInitialized)
@@ -352,15 +351,15 @@ void ABuffFlowProjectile::ScheduleInitialOverlapCheck()
 
 void ABuffFlowProjectile::HandleInitialOverlaps()
 {
-	if (!bInitialized || !CollisionCapsule || IsActorBeingDestroyed())
+	if (!bInitialized || !CollisionBox || IsActorBeingDestroyed())
 	{
 		return;
 	}
 
-	CollisionCapsule->UpdateOverlaps();
+	CollisionBox->UpdateOverlaps();
 
 	TArray<AActor*> Actors;
-	CollisionCapsule->GetOverlappingActors(Actors);
+	CollisionBox->GetOverlappingActors(Actors);
 	for (AActor* Actor : Actors)
 	{
 		if (!Actor || Actor == this || Actor == CreatorActor.Get())
