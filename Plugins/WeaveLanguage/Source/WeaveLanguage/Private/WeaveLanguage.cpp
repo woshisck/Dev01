@@ -7,7 +7,6 @@
 
 #define LOCTEXT_NAMESPACE "FWeaveLanguageModule"
 
-
 void FWeaveLanguageModule::StartupModule()
 {
 	UToolMenus::RegisterStartupCallback(
@@ -35,10 +34,8 @@ void FWeaveLanguageModule::RegisterMenus()
 {
 	FToolMenuOwnerScoped OwnerScoped(this);
 
-
-	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu");
-	FToolMenuSection& Section = Menu->AddSection("Weaver", LOCTEXT("Weaver", "Weaver"));
-
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Tools");
+	FToolMenuSection& Section = Menu->FindOrAddSection("Weaver");
 
 	Section.AddSubMenu(
 		"WeaverMenu",
@@ -50,28 +47,26 @@ void FWeaveLanguageModule::RegisterMenus()
 
 void FWeaveLanguageModule::FillWeaverMenu(UToolMenu* Menu)
 {
-	FToolMenuSection& Section = Menu->AddSection("WeaverActions", LOCTEXT("WeaverActions", "Actions"));
+	FToolMenuSection& Section = Menu->FindOrAddSection("WeaverActions");
 
 	Section.AddMenuEntry(
 		"WeaveDebugger",
-		LOCTEXT("WeaveDebugger", "Weave 生成解释调试器"),
-		LOCTEXT("WeaveDebuggerTooltip", "从选中节点生成 Weave 代码或解释 Weave 代码"),
+		LOCTEXT("WeaveDebugger", "Open Weave Debugger"),
+		LOCTEXT("WeaveDebuggerTooltip", "Generate Weave code from selected nodes or interpret Weave code."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateRaw(this, &FWeaveLanguageModule::OnOpenDebugger))
 	);
 }
-
 
 void FWeaveLanguageModule::OnGenerateWeave()
 {
 	UWeaveOperator::GenerateWeaveLanguage();
 }
 
-
 void FWeaveLanguageModule::OnOpenDebugger()
 {
 	TSharedRef<SWindow> Window = SNew(SWindow)
-		.Title(FText::FromString(TEXT("Weave 生成解释调试器")))
+		.Title(FText::FromString(TEXT("Weave Debugger")))
 		.ClientSize(FVector2D(800, 600))
 		.SupportsMaximize(true)
 		.SupportsMinimize(true)
