@@ -93,6 +93,7 @@ private:
 
     TWeakObjectPtr<UYogAbilitySystemComponent> CachedPlayerASC;
     float LastCombatEventTime = -999.f;
+    float NextFallbackScanTime = 0.f;
 
     void RebuildArrowPool();
 

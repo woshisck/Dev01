@@ -157,6 +157,13 @@
 			"Enabled": true
 		},
 		{
+			"Name": "WeaveLanguage",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		},
+		{
 			"Name": "YogComboGraph",
 			"Enabled": true
 		}

@@ -8,6 +8,7 @@
 #include "Components/Image.h"
 #include "Engine/GameViewportClient.h"
 #include "GameFramework/Pawn.h"
+#include "EngineUtils.h"
 
 void UEnemyArrowWidget::NativeConstruct()
 {
@@ -63,7 +64,7 @@ void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
     };
 
     AYogGameMode* GM = GetWorld()->GetAuthGameMode<AYogGameMode>();
-    if (!GM || !GM->HasAliveEnemies()) { HideAll(); return; }
+    if (!GM) { HideAll(); return; }
 
     APlayerController* PC = GetOwningPlayer();
     if (!PC || !PC->GetPawn()) { HideAll(); return; }
@@ -77,6 +78,27 @@ void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
     const FVector2D Center = ViewportSize * 0.5f;
 
     TArray<AEnemyCharacterBase*> AllEnemies = GM->GetAllAliveEnemies();
+    // Fallback scan: if the registry is empty, some enemies may have been unregistered
+    // (e.g. bUnregisterFromEnemyAwareness) or missed registration due to spawn timing.
+    // Rate-limited to once per second to avoid iterating all actors every frame.
+    if (AllEnemies.IsEmpty())
+    {
+        const float Now = GetWorld()->GetTimeSeconds();
+        if (Now >= NextFallbackScanTime)
+        {
+            NextFallbackScanTime = Now + 1.f;
+            for (TActorIterator<AEnemyCharacterBase> It(GetWorld()); It; ++It)
+            {
+                if (AEnemyCharacterBase* E = *It; E && E->IsAlive())
+                {
+                    AllEnemies.Add(E);
+                    GM->RegisterEnemy(E);
+                }
+            }
+        }
+    }
+
+    if (AllEnemies.IsEmpty()) { HideAll(); return; }
 
     bool bAnyOnScreen = false;
     TArray<TPair<AEnemyCharacterBase*, FVector2D>> OffScreenEnemyData;
@@ -115,7 +137,7 @@ void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
         return;
     }
 
-    // 按距离排序，取最近的 MaxArrows 个
+    // 按距离排序
     OffScreenEnemyData.Sort([&PlayerPos](const TPair<AEnemyCharacterBase*, FVector2D>& A,
                                          const TPair<AEnemyCharacterBase*, FVector2D>& B)
     {
@@ -123,11 +145,24 @@ void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
              < FVector::DistSquared(B.Key->GetActorLocation(), PlayerPos);
     });
 
+    // 动态扩展 pool，确保每个离屏敌人都有一个箭头 Image
+    while (ArrowImages.Num() < OffScreenEnemyData.Num())
+    {
+        UImage* Img = NewObject<UImage>(this);
+        if (ArrowTexture) Img->SetBrushFromTexture(ArrowTexture, false);
+        Img->SetColorAndOpacity(ArrowColor);
+        Img->SetVisibility(ESlateVisibility::Collapsed);
+        if (UCanvasPanelSlot* S = RootCanvas->AddChildToCanvas(Img))
+        {
+            S->SetSize(FVector2D(ArrowSize, ArrowSize));
+            S->SetAlignment(FVector2D(0.5f, 0.5f));
+        }
+        ArrowImages.Add(Img);
+    }
+
     int32 ArrowIdx = 0;
     for (const TPair<AEnemyCharacterBase*, FVector2D>& Pair : OffScreenEnemyData)
     {
-        if (ArrowIdx >= MaxArrows) break;
-
         UImage* Arrow = ArrowImages[ArrowIdx++];
         Arrow->SetVisibility(ESlateVisibility::HitTestInvisible);
 

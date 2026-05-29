@@ -146,6 +146,7 @@ void AAltarActor::SetOpenSacrificeDirectly(bool bInOpenDirectly)
 {
 	bOpenSacrificeDirectly = bInOpenDirectly;
 	ConfigureInteractPrompt();
+	SetInteractPromptVisible(NearbyPlayer.IsValid() && bIsActive);
 }
 
 void AAltarActor::TryInteract(APlayerCharacterBase* Player)
@@ -228,8 +229,9 @@ void AAltarActor::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 	{
 		Player->PendingAltar = this;
 	}
-	SetInteractPromptVisible(Player && bIsActive);
 	OnPlayerNearby(Player, true);
+	// Refresh visibility after the Blueprint event in case BP modified state
+	SetInteractPromptVisible(Player && bIsActive);
 }
 
 void AAltarActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)
