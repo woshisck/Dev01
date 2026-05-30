@@ -111,7 +111,7 @@ EFirstRunTutorialStage UFirstRunTutorialDirectorSubsystem::GetPersistedStage() c
 void UFirstRunTutorialDirectorSubsystem::RestoreStageFromSave()
 {
 	const EFirstRunTutorialStage PersistedStage = GetPersistedStage();
-	if (PersistedStage != EFirstRunTutorialStage::None && PersistedStage != Stage)
+	if (PersistedStage != Stage)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Restored stage %d -> %d"),
 			static_cast<int32>(Stage),
@@ -266,10 +266,6 @@ bool UFirstRunTutorialDirectorSubsystem::BuildDefaultNextRoomPlanForStage(EFirst
 
 	if (InStage == EFirstRunTutorialStage::GoldRoomCleared)
 	{
-		OutPlan.bOverrideRewardOptions = true;
-		OutPlan.RewardOptionsOverride = {
-			MakeRuneLootOption(MoonlightRunePath, TEXT("Moonlight"), MoonlightIconPath),
-		};
 		return true;
 	}
 
@@ -284,9 +280,7 @@ bool UFirstRunTutorialDirectorSubsystem::BuildDefaultNextRoomPlanForStage(EFirst
 	{
 		OutPlan.bOverrideRewardOptions = true;
 		OutPlan.RewardOptionsOverride = {
-			MakeRuneLootOption(AttackRunePath, TEXT("Attack"), AttackIconPath),
-			MakeRuneLootOption(HeavyRunePath, TEXT("Heavy"), HeavyIconPath),
-			MakeRuneLootOption(SplitRunePath, TEXT("Split"), SplitIconPath),
+			MakeRuneLootOption(MoonlightRunePath, TEXT("Moonlight"), MoonlightIconPath),
 		};
 		AddEnemyRoomAttackBuff(OutPlan);
 		return true;
