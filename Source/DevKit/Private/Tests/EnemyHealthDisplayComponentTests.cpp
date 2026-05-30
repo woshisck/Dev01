@@ -9,8 +9,10 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Materials/Material.h"
+#if WITH_EDITORONLY_DATA
 #include "Materials/MaterialExpressionDynamicParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
+#endif
 #include "Materials/MaterialInterface.h"
 #include "NiagaraComponent.h"
 #include "NiagaraEmitter.h"
@@ -19,6 +21,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraSystem.h"
 
+#if WITH_EDITORONLY_DATA
 namespace
 {
 	bool FindEnemyHealthRapidParameter(
@@ -43,6 +46,7 @@ namespace
 		return false;
 	}
 }
+#endif
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnemyHealthDisplayDefaultConfigTest,
 	"DevKit.Enemy.HealthDisplay.DefaultConfigMatchesNiagaraAssets",
@@ -131,6 +135,7 @@ bool FEnemyHealthDisplayDefaultConfigTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+#if WITH_EDITORONLY_DATA
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnemyHealthDisplayMaterialGraphTest,
 	"DevKit.Enemy.HealthDisplay.DirectMaterialKeepsDynamicNewOldInputs",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -269,6 +274,7 @@ bool FEnemyHealthDisplayNiagaraAssetLayoutTest::RunTest(const FString& Parameter
 
 	return true;
 }
+#endif
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnemyHealthDisplayMathTest,
 	"DevKit.Enemy.HealthDisplay.MathClampsHealthAndArmorState",

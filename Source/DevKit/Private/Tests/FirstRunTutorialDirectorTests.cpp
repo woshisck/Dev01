@@ -7,29 +7,24 @@
 #include "GameplayTagContainer.h"
 #include "Story/FirstRunTutorialDirectorSubsystem.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstRunTutorialDirectorBuildsMoonlightSecondRoomPlanTest,
-	"DevKit.FirstRunTutorialDirector.BuildsMoonlightSecondRoomPlan",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstRunTutorialDirectorBuildsPostInitialRoomPlanTest,
+	"DevKit.FirstRunTutorialDirector.BuildsPostInitialRoomPlan",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FFirstRunTutorialDirectorBuildsMoonlightSecondRoomPlanTest::RunTest(const FString& Parameters)
+bool FFirstRunTutorialDirectorBuildsPostInitialRoomPlanTest::RunTest(const FString& Parameters)
 {
 	FStoryNextRoomPlan Plan;
-	TestTrue(TEXT("GoldRoomCleared builds the second-room moonlight plan"),
+	TestTrue(TEXT("GoldRoomCleared builds the post-initial tutorial room plan"),
 		UFirstRunTutorialDirectorSubsystem::BuildDefaultNextRoomPlanForStage(
 			EFirstRunTutorialStage::GoldRoomCleared,
 			Plan));
 
-	TestTrue(TEXT("Moonlight second room plan forces a single portal"), Plan.bForceSinglePortal);
+	TestTrue(TEXT("Post-initial room plan forces a single portal"), Plan.bForceSinglePortal);
 	TestEqual(TEXT("Default forced portal is index 0"), Plan.PortalIndex, 0);
-	TestTrue(TEXT("Moonlight second room overrides reward options"), Plan.bOverrideRewardOptions);
-	TestEqual(TEXT("Moonlight second room offers one card reward"), Plan.RewardOptionsOverride.Num(), 1);
-	if (Plan.RewardOptionsOverride.Num() == 1)
-	{
-		TestEqual(TEXT("Moonlight reward is a rune"), Plan.RewardOptionsOverride[0].LootType, ELootType::Rune);
-		TestNotNull(TEXT("Moonlight rune asset is loaded"), Plan.RewardOptionsOverride[0].RuneAsset.Get());
-		TestNotNull(TEXT("Moonlight uses an explicit card preview icon"), Plan.RewardOptionsOverride[0].Icon.Get());
-	}
-	TestFalse(TEXT("Moonlight second room does not use a special enemy reward"), Plan.bMarkLastEnemyAsSpecialRewardEnemy);
+	TestFalse(TEXT("Second room does not override reward options; first clear separately spawns gold plus the initial three-card pickup"),
+		Plan.bOverrideRewardOptions);
+	TestEqual(TEXT("Second room has no fixed reward override"), Plan.RewardOptionsOverride.Num(), 0);
+	TestFalse(TEXT("Post-initial room does not use a special enemy reward"), Plan.bMarkLastEnemyAsSpecialRewardEnemy);
 
 	return true;
 }
@@ -67,15 +62,15 @@ bool FFirstRunTutorialDirectorBuildsTransitionCurrencyPlansTest::RunTest(const F
 			FixedRunePlan));
 
 	TestTrue(TEXT("Fixed rune room forces a single portal"), FixedRunePlan.bForceSinglePortal);
-	TestTrue(TEXT("Fixed rune room overrides reward options"), FixedRunePlan.bOverrideRewardOptions);
-	TestEqual(TEXT("Fixed rune room has three reward options"), FixedRunePlan.RewardOptionsOverride.Num(), 3);
+	TestTrue(TEXT("Fixed moonlight room overrides reward options"), FixedRunePlan.bOverrideRewardOptions);
+	TestEqual(TEXT("Fixed moonlight room has one reward option"), FixedRunePlan.RewardOptionsOverride.Num(), 1);
 	for (const FLootOption& Option : FixedRunePlan.RewardOptionsOverride)
 	{
-		TestEqual(TEXT("Fixed rune room option is a rune"), Option.LootType, ELootType::Rune);
-		TestNotNull(TEXT("Fixed rune room rune asset is loaded"), Option.RuneAsset.Get());
-		TestNotNull(TEXT("Fixed rune room uses an explicit card preview icon"), Option.Icon.Get());
+		TestEqual(TEXT("Fixed moonlight room option is a rune"), Option.LootType, ELootType::Rune);
+		TestNotNull(TEXT("Fixed moonlight room rune asset is loaded"), Option.RuneAsset.Get());
+		TestNotNull(TEXT("Fixed moonlight room uses an explicit card preview icon"), Option.Icon.Get());
 	}
-	TestTrue(TEXT("Fixed rune room carries the enemy attack buff"), FixedRunePlan.bOverrideBuffs);
+	TestTrue(TEXT("Fixed moonlight room carries the enemy attack buff"), FixedRunePlan.bOverrideBuffs);
 
 	FStoryNextRoomPlan PrayerPlan;
 	TestTrue(TEXT("TransitionRoom01 builds fifth-room prayer plan"),
