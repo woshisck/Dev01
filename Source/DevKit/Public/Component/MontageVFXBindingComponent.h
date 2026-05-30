@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "AbilitySystem/GameplayCue/GCN_AttachedNiagara.h"
+#include "Data/AbilityData.h"
 #include "MontageVFXBindingComponent.generated.h"
 
 class UNiagaraSystem;
@@ -11,6 +12,8 @@ class USoundBase;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
 class UMeshComponent;
+class UStaticMesh;
+class UStaticMeshComponent;
 class AWeaponInstance;
 
 // ─── Binding config (written by BFNode_SetMontageVFXBinding in PreCommit flow) ─
@@ -73,6 +76,34 @@ struct DEVKIT_API FMontageVFXBindingConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Material")
 	int32 WeaponMaterialSlot = 0;
+
+	// Annulus plane (spawned on NotifyBegin, destroyed on NotifyEnd)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Annulus Plane")
+	bool bSpawnAnnulusPlane = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Annulus Plane",
+		meta = (EditCondition = "bSpawnAnnulusPlane", EditConditionHides))
+	TObjectPtr<UStaticMesh> AnnulusPlaneMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Annulus Plane",
+		meta = (EditCondition = "bSpawnAnnulusPlane", EditConditionHides))
+	TObjectPtr<UMaterialInterface> AnnulusPlaneMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Annulus Plane",
+		meta = (EditCondition = "bSpawnAnnulusPlane", EditConditionHides, ClampMin = "0.0"))
+	float AnnulusPlaneZOffset = 8.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Annulus Plane",
+		meta = (EditCondition = "bSpawnAnnulusPlane", EditConditionHides, ClampMin = "1.0"))
+	float AnnulusPlaneMeshSize = 100.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Annulus Plane",
+		meta = (EditCondition = "bSpawnAnnulusPlane", EditConditionHides))
+	FLinearColor AnnulusPlaneTint = FLinearColor(0.f, 0.7f, 1.f, 0.35f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Annulus Plane|Parameters",
+		meta = (EditCondition = "bSpawnAnnulusPlane", EditConditionHides))
+	TArray<FGCNMaterialParamOverride> AnnulusPlaneMaterialParameterOverrides;
 };
 
 // ─── Active-state tracking (internal, per slot) ──────────────────────────────
@@ -96,6 +127,9 @@ struct DEVKIT_API FMontageVFXActiveState
 
 	UPROPERTY()
 	int32 MaterialSlot = 0;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UStaticMeshComponent>> AnnulusPlaneComponents;
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -109,7 +143,7 @@ public:
 	UMontageVFXBindingComponent();
 
 	void RegisterBinding(FName SlotName, const FMontageVFXBindingConfig& Config);
-	void ActivateSlot(FName SlotName);
+	void ActivateSlot(FName SlotName, const FActionData* ActionData = nullptr);
 	void DeactivateSlot(FName SlotName);
 	void ClearAllBindings();
 
@@ -128,5 +162,6 @@ private:
 	AWeaponInstance* ResolveEquippedWeapon() const;
 	void ApplyNiagaraParameterOverrides(UNiagaraComponent* Comp, const TArray<FGCNNiagaraParamOverride>& Overrides) const;
 	void ApplyMaterialParams(UMaterialInstanceDynamic* DynMat, const TArray<FGCNMaterialParamOverride>& Params) const;
+	void SpawnAnnulusPlanes(const FMontageVFXBindingConfig& Config, const FActionData& ActionData, FMontageVFXActiveState& State) const;
 	void TearDownActiveState(FMontageVFXActiveState& State);
 };

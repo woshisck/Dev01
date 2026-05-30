@@ -8,6 +8,7 @@
 class UNiagaraSystem;
 class USoundBase;
 class UMaterialInterface;
+class UStaticMesh;
 
 UCLASS(NotBlueprintable, meta = (DisplayName = "Set Montage VFX Binding", Category = "BuffFlow|Combat"))
 class DEVKIT_API UBFNode_SetMontageVFXBinding : public UBFNode_Base
@@ -79,6 +80,35 @@ class DEVKIT_API UBFNode_SetMontageVFXBinding : public UBFNode_Base
 
 	UPROPERTY(EditAnywhere, Category = "VFX|Material")
 	int32 WeaponMaterialSlot = 0;
+
+	// ── Annulus plane ────────────────────────────────────────────────────────
+
+	UPROPERTY(EditAnywhere, Category = "VFX|Annulus Plane")
+	bool bSpawnAnnulusPlane = false;
+
+	UPROPERTY(EditAnywhere, Category = "VFX|Annulus Plane",
+		meta = (EditCondition = "bSpawnAnnulusPlane", EditConditionHides))
+	TObjectPtr<UStaticMesh> AnnulusPlaneMesh;
+
+	UPROPERTY(EditAnywhere, Category = "VFX|Annulus Plane",
+		meta = (EditCondition = "bSpawnAnnulusPlane", EditConditionHides))
+	TObjectPtr<UMaterialInterface> AnnulusPlaneMaterial;
+
+	UPROPERTY(EditAnywhere, Category = "VFX|Annulus Plane",
+		meta = (EditCondition = "bSpawnAnnulusPlane", EditConditionHides, ClampMin = "0.0"))
+	float AnnulusPlaneZOffset = 8.f;
+
+	UPROPERTY(EditAnywhere, Category = "VFX|Annulus Plane",
+		meta = (EditCondition = "bSpawnAnnulusPlane", EditConditionHides, ClampMin = "1.0"))
+	float AnnulusPlaneMeshSize = 100.f;
+
+	UPROPERTY(EditAnywhere, Category = "VFX|Annulus Plane",
+		meta = (EditCondition = "bSpawnAnnulusPlane", EditConditionHides))
+	FLinearColor AnnulusPlaneTint = FLinearColor(0.f, 0.7f, 1.f, 0.35f);
+
+	UPROPERTY(EditAnywhere, Category = "VFX|Annulus Plane|Parameters",
+		meta = (EditCondition = "bSpawnAnnulusPlane", EditConditionHides))
+	TArray<FGCNMaterialParamOverride> AnnulusPlaneMaterialParameterOverrides;
 
 protected:
 	virtual void ExecuteBuffFlowInput(const FName& PinName) override;

@@ -3,9 +3,11 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/StaticMesh.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
@@ -25,7 +27,7 @@ void UMontageVFXBindingComponent::RegisterBinding(FName SlotName, const FMontage
 	PendingBindings.Add(SlotName, Config);
 }
 
-void UMontageVFXBindingComponent::ActivateSlot(FName SlotName)
+void UMontageVFXBindingComponent::ActivateSlot(FName SlotName, const FActionData* ActionData)
 {
 	const FMontageVFXBindingConfig* Config = PendingBindings.Find(SlotName);
 	if (!Config)
@@ -126,13 +128,20 @@ void UMontageVFXBindingComponent::ActivateSlot(FName SlotName)
 		}
 	}
 
+	// ── Annulus plane ────────────────────────────────────────────────────────
+	if (ActionData)
+	{
+		SpawnAnnulusPlanes(*Config, *ActionData, State);
+	}
+
 	ActiveStates.Add(SlotName, MoveTemp(State));
 
-	UE_LOG(LogTemp, Log, TEXT("[MontageVFXBinding] ActivateSlot slot=%s niagara=%s sound=%s mat=%s"),
+	UE_LOG(LogTemp, Log, TEXT("[MontageVFXBinding] ActivateSlot slot=%s niagara=%s sound=%s mat=%s annulusPlane=%d"),
 		*SlotName.ToString(),
 		*GetNameSafe(Config->NiagaraSystem.Get()),
 		*GetNameSafe(Config->Sound.Get()),
-		*GetNameSafe(Config->WeaponMaterialOverride.Get()));
+		*GetNameSafe(Config->WeaponMaterialOverride.Get()),
+		Config->bSpawnAnnulusPlane ? 1 : 0);
 }
 
 void UMontageVFXBindingComponent::DeactivateSlot(FName SlotName)
@@ -173,6 +182,15 @@ void UMontageVFXBindingComponent::TearDownActiveState(FMontageVFXActiveState& St
 	State.WeaponMesh = nullptr;
 	State.OriginalMaterial = nullptr;
 	State.ActiveDynamicMaterial = nullptr;
+
+	for (UStaticMeshComponent* PlaneComponent : State.AnnulusPlaneComponents)
+	{
+		if (PlaneComponent)
+		{
+			PlaneComponent->DestroyComponent();
+		}
+	}
+	State.AnnulusPlaneComponents.Reset();
 }
 
 USceneComponent* UMontageVFXBindingComponent::ResolveAttachTarget(const FMontageVFXBindingConfig& Config, FName& OutSocket) const
@@ -398,5 +416,91 @@ void UMontageVFXBindingComponent::ApplyMaterialParams(UMaterialInstanceDynamic* 
 			DynMat->SetVectorParameterValue(Param.ParameterName, Param.VectorValue);
 			break;
 		}
+	}
+}
+
+void UMontageVFXBindingComponent::SpawnAnnulusPlanes(const FMontageVFXBindingConfig& Config,
+	const FActionData& ActionData, FMontageVFXActiveState& State) const
+{
+	AActor* Owner = GetOwner();
+	UStaticMesh* PlaneMesh = Config.AnnulusPlaneMesh.Get();
+	if (!PlaneMesh)
+	{
+		PlaneMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
+	}
+
+	if (!Owner || !Config.bSpawnAnnulusPlane || !PlaneMesh || !Config.AnnulusPlaneMaterial)
+	{
+		return;
+	}
+
+	const float OuterR = ActionData.ActRange > 0.f ? ActionData.ActRange : 400.f;
+	if (OuterR <= 0.f)
+	{
+		return;
+	}
+
+	const float SafeMeshSize = FMath::Max(Config.AnnulusPlaneMeshSize, 1.f);
+	const FVector Loc = Owner->GetActorLocation();
+	const float Yaw = Owner->GetActorRotation().Yaw;
+	const float YawRad = FMath::DegreesToRadians(Yaw);
+	const FVector Forward(FMath::Cos(YawRad), FMath::Sin(YawRad), 0.f);
+
+	for (const FYogHitboxType& HB : ActionData.hitboxTypes)
+	{
+		if (HB.hitboxType != EHitBoxType::Annulus)
+		{
+			continue;
+		}
+
+		const FHitboxAnnulus& Ann = HB.AnnulusHitbox;
+		const float InnerR = FMath::Max(Ann.inner_radius, 0.f);
+		const float EffectiveOffset = Ann.bAutoOffset ? -InnerR : Ann.OffsetCore;
+		const FVector CenterLoc = Loc + Forward * EffectiveOffset + FVector(0.f, 0.f, Config.AnnulusPlaneZOffset);
+		const float EffectiveOuterR = (Ann.bAutoOffset && InnerR > 0.f) ? OuterR + InnerR : OuterR;
+		if (EffectiveOuterR <= 0.f)
+		{
+			continue;
+		}
+
+		UStaticMeshComponent* PlaneComponent = NewObject<UStaticMeshComponent>(Owner);
+		if (!PlaneComponent)
+		{
+			continue;
+		}
+
+		PlaneComponent->SetStaticMesh(PlaneMesh);
+		PlaneComponent->SetMobility(EComponentMobility::Movable);
+		PlaneComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		PlaneComponent->SetGenerateOverlapEvents(false);
+		PlaneComponent->SetCastShadow(false);
+		PlaneComponent->SetReceivesDecals(false);
+		PlaneComponent->SetHiddenInGame(false);
+		PlaneComponent->RegisterComponent();
+
+		const float DiameterScale = (EffectiveOuterR * 2.f) / SafeMeshSize;
+		PlaneComponent->SetWorldLocation(CenterLoc);
+		PlaneComponent->SetWorldRotation(FRotator(0.f, Yaw, 0.f));
+		PlaneComponent->SetWorldScale3D(FVector(DiameterScale, DiameterScale, 1.f));
+
+		if (UMaterialInstanceDynamic* MID =
+			PlaneComponent->CreateDynamicMaterialInstance(0, Config.AnnulusPlaneMaterial))
+		{
+			const float InnerRadius01 = FMath::Clamp(InnerR / EffectiveOuterR, 0.f, 1.f);
+			const float Degree = FMath::Clamp(Ann.degree, 0.f, 360.f);
+			MID->SetScalarParameterValue(TEXT("InnerRadius01"), InnerRadius01);
+			MID->SetScalarParameterValue(TEXT("OuterRadius01"), 1.f);
+			MID->SetScalarParameterValue(TEXT("InnerRadius"), InnerR);
+			MID->SetScalarParameterValue(TEXT("OuterRadius"), EffectiveOuterR);
+			MID->SetScalarParameterValue(TEXT("Degree"), Degree);
+			MID->SetScalarParameterValue(TEXT("Degree01"), Degree / 360.f);
+			MID->SetScalarParameterValue(TEXT("AngleOffsetDeg"), 0.f);
+			MID->SetScalarParameterValue(TEXT("WorldYaw"), Yaw);
+			MID->SetScalarParameterValue(TEXT("Opacity"), Config.AnnulusPlaneTint.A);
+			MID->SetVectorParameterValue(TEXT("Tint"), Config.AnnulusPlaneTint);
+			ApplyMaterialParams(MID, Config.AnnulusPlaneMaterialParameterOverrides);
+		}
+
+		State.AnnulusPlaneComponents.Add(PlaneComponent);
 	}
 }

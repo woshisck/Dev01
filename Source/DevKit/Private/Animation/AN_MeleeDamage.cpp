@@ -189,15 +189,12 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 	if (MeshComp && bDrawDebugHitbox)
 	{
 		UWorld* DebugWorld = MeshComp->GetWorld();
-		if (DebugWorld)
+		if (DebugWorld && DebugWorld->WorldType == EWorldType::EditorPreview)
 		{
 			const AActor* DebugOwner = MeshComp->GetOwner();
 			const float DebugYaw = DebugOwner ? DebugOwner->GetActorRotation().Yaw : 0.f;
 			AN_MeleeDamage_DrawPersonaHitbox(DebugWorld, MeshComp->GetComponentLocation(), DebugYaw, BuildActionData());
-			if (DebugWorld->WorldType == EWorldType::EditorPreview)
-			{
-				return;
-			}
+			return;
 		}
 	}
 #endif

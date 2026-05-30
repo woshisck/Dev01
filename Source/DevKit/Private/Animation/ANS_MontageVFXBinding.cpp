@@ -1,5 +1,7 @@
 #include "Animation/ANS_MontageVFXBinding.h"
 
+#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/MontageVFXBindingComponent.h"
 
@@ -19,7 +21,18 @@ void UANS_MontageVFXBinding::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnim
 		return;
 	}
 
-	Player->MontageVFXBindingComponent->ActivateSlot(SlotName);
+	FActionData ActionData;
+	const FActionData* ActionDataPtr = nullptr;
+	if (UYogAbilitySystemComponent* ASC = Player->GetASC())
+	{
+		if (const UGA_MeleeAttack* MeleeGA = Cast<UGA_MeleeAttack>(ASC->GetCurrentAbilityInstance()))
+		{
+			ActionData = MeleeGA->GetAbilityActionData();
+			ActionDataPtr = &ActionData;
+		}
+	}
+
+	Player->MontageVFXBindingComponent->ActivateSlot(SlotName, ActionDataPtr);
 }
 
 void UANS_MontageVFXBinding::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
