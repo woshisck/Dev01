@@ -38,6 +38,7 @@
 #include "Story/FirstRunTutorialDirectorSubsystem.h"
 #include "FlowAsset.h"
 #include "FlowComponent.h"
+#include "Engine/Texture2D.h"
 #include "Misc/PackageName.h"
 #include "GameFramework/PlayerController.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
@@ -51,6 +52,7 @@ constexpr const TCHAR* FirstRunRewardPoisonRunePath = TEXT("/Game/Docs/BuffDocs/
 constexpr const TCHAR* FirstRunRewardSplitRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split.DA_Rune512_Split");
 constexpr const TCHAR* FirstRunRewardKnockbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback.DA_Rune512_Knockback");
 constexpr const TCHAR* FirstRunRewardShieldRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Shield.DA_Rune512_Shield");
+constexpr const TCHAR* FirstRunGoldIconPath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon");
 
 UEnemyData* LoadFirstRunForcedSurvivalEnemyData()
 {
@@ -141,6 +143,16 @@ bool PlayerHasEquippedWeapon(const UWorld* World)
 		? Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(World, 0))
 		: nullptr;
 	return Player && (Player->EquippedWeaponDef || Player->EquippedWeaponInstance);
+}
+
+FLootOption MakeFirstRunGoldLootOption(int32 Amount)
+{
+	FLootOption Option;
+	Option.LootType = ELootType::Gold;
+	Option.Amount = FMath::Max(1, Amount);
+	Option.DisplayName = FText::Format(NSLOCTEXT("FirstRunTutorial", "InitialGoldRewardFmt", "Gold x{0}"), Option.Amount);
+	Option.Icon = LoadObject<UTexture2D>(nullptr, FirstRunGoldIconPath);
+	return Option;
 }
 }
 
@@ -666,6 +678,7 @@ void AYogGameMode::EnterArrangementPhase()
 
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
 		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	const bool bUseFirstRunInitialSplitReward = ShouldSpawnFirstRunInitialCardReward();
 
 	if (Player)
 	{
@@ -676,7 +689,7 @@ void AYogGameMode::EnterArrangementPhase()
 		}
 
 		// 发放金币（按当前关卡 FloorConfig 中的范围）
-		if (GetActiveCampaignData() && ActiveGoldMax > 0 && !bHasRoomRewardOptionsOverride)
+		if (GetActiveCampaignData() && ActiveGoldMax > 0 && !bHasRoomRewardOptionsOverride && !bUseFirstRunInitialSplitReward)
 		{
 			const int32 GoldReward = FMath::RandRange(ActiveGoldMin, ActiveGoldMax);
 			if (Player->BackpackGridComponent)
@@ -742,6 +755,14 @@ void AYogGameMode::EnterArrangementPhase()
 				{
 					Batch = RoomRewardOptionsOverride;
 					RewardSource = TEXT("RoomRewardOverride");
+				}
+				else if (bUseFirstRunInitialSplitReward)
+				{
+					const int32 GoldReward = ActiveGoldMax > 0
+						? FMath::RandRange(FMath::Max(0, ActiveGoldMin), ActiveGoldMax)
+						: 30;
+					Batch.Add(MakeFirstRunGoldLootOption(GoldReward));
+					RewardSource = TEXT("FirstRunInitialGold");
 				}
 				else
 				{

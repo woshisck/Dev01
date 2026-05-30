@@ -86,6 +86,41 @@ function Get-RelativePath {
     return [System.Uri]::UnescapeDataString($RelativeUri.ToString()).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
 }
 
+function Remove-SaveGameArtifacts {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Roots
+    )
+
+    foreach ($Root in $Roots) {
+        if ([string]::IsNullOrWhiteSpace($Root) -or !(Test-Path $Root)) {
+            continue
+        }
+
+        $ResolvedRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Root)
+
+        $SaveGameDirs = Get-ChildItem -Path $ResolvedRoot -Directory -Recurse -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -ieq "SaveGames" -and $_.FullName -match "[\\/ ]Saved[\\/]" }
+
+        foreach ($Dir in $SaveGameDirs) {
+            Write-Host "Removing save directory: $($Dir.FullName)" -ForegroundColor Yellow
+            Remove-Item -LiteralPath $Dir.FullName -Recurse -Force
+        }
+
+        $SaveFiles = Get-ChildItem -Path $ResolvedRoot -File -Recurse -Force -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.Extension -ieq ".sav" -or
+                $_.Name -like "SaveSlot_*" -or
+                $_.Name -ieq "Settings.sav"
+            }
+
+        foreach ($File in $SaveFiles) {
+            Write-Host "Removing save file: $($File.FullName)" -ForegroundColor Yellow
+            Remove-Item -LiteralPath $File.FullName -Force
+        }
+    }
+}
+
 $ProjectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 if ([string]::IsNullOrWhiteSpace($ProjectFile)) {
     $ProjectFile = Join-Path $ProjectRoot "DevKit.uproject"
@@ -145,12 +180,17 @@ Write-Host "Engine:  $EngineRoot"
 Write-Host "Project: $ProjectFile"
 Write-Host "Output:  $ArchiveDir"
 
+$ProjectSavedDir = Join-Path $ProjectRoot "Saved"
+Remove-SaveGameArtifacts -Roots @($ProjectSavedDir)
+
 Invoke-Checked -FilePath $RunUAT -Arguments $UatArgs
 
 $WindowsPackageDir = Join-Path $ArchiveDir "Windows"
 if (!(Test-Path $WindowsPackageDir)) {
     $WindowsPackageDir = $ArchiveDir
 }
+
+Remove-SaveGameArtifacts -Roots @($ArchiveDir, $WindowsPackageDir)
 
 $GameExe = Get-ChildItem -Path $WindowsPackageDir -Recurse -Filter "$Target.exe" -File |
     Sort-Object FullName |

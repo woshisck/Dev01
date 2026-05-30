@@ -218,10 +218,7 @@ bool UTutorialManager::IsTutorialRuntimeAllowed() const
 			return true;
 		}
 
-		if (SaveSys->IsFirstRunTutorialCompleted())
-		{
-			return false;
-		}
+		return false;
 	}
 
 	return State != ETutorialState::None && State != ETutorialState::Completed;
