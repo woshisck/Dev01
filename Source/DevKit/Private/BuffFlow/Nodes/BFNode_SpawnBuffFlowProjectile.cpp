@@ -120,7 +120,7 @@ void UBFNode_SpawnBuffFlowProjectile::ExecuteBuffFlowInput(const FName& PinName)
 				TEXT("Class=%s Count=%d BaseCount=%d SpawnInterval=%.2f AddCombo=%d HasCardContext=%d ComboStacks=%d PerStack=%d MaxBonus=%d ComboBonus=%d TriggerMode=%d TriggerInterval=%.2f Lifetime=%.2f Speed=%.1f Box=(X=%.1f Y=%.1f Z=%.1f) Effect=%s"),
 				*GetNameSafe(ResolvedProjectileClass.Get()),
 				SpawnedOrScheduledCount,
-				FMath::Max(1, ProjectileCount),
+				FMath::Max(1, ProjectileCount.Value),
 				ResolvedSpawnInterval,
 				bAddComboStacksToProjectileCount ? 1 : 0,
 				BFC && BFC->HasCombatCardEffectContext() ? 1 : 0,
@@ -130,8 +130,8 @@ void UBFNode_SpawnBuffFlowProjectile::ExecuteBuffFlowInput(const FName& PinName)
 				ComboBonusProjectiles,
 				static_cast<int32>(TriggerMode),
 				TriggerInterval,
-				Lifetime,
-				Speed,
+				Lifetime.Value,
+				Speed.Value,
 				CollisionBoxExtent.X,
 				CollisionBoxExtent.Y,
 				CollisionBoxExtent.Z,
@@ -200,7 +200,7 @@ int32 UBFNode_SpawnBuffFlowProjectile::ResolveSpawnCount(
 			: UncappedBonusProjectiles;
 	}
 
-	return FMath::Max(1, FMath::Max(1, ProjectileCount) + OutComboBonusProjectiles);
+	return FMath::Max(1, FMath::Max(1, ProjectileCount.Value) + OutComboBonusProjectiles);
 }
 
 FBuffFlowProjectileRuntimeConfig UBFNode_SpawnBuffFlowProjectile::BuildRuntimeConfig() const
@@ -208,11 +208,11 @@ FBuffFlowProjectileRuntimeConfig UBFNode_SpawnBuffFlowProjectile::BuildRuntimeCo
 	FBuffFlowProjectileRuntimeConfig Config;
 	Config.TriggerMode = TriggerMode;
 	Config.TriggerInterval = TriggerInterval;
-	Config.Lifetime = Lifetime;
+	Config.Lifetime = Lifetime.Value;
 	Config.LifetimeCurve = LifetimeCurve;
 	Config.LifetimeCurveInput = LifetimeCurveInput;
-	Config.LifetimeCurveConstantInput = LifetimeCurveConstantInput;
-	Config.Speed = Speed;
+	Config.LifetimeCurveConstantInput = LifetimeCurveConstantInput.Value;
+	Config.Speed = Speed.Value;
 	Config.SpeedOverLifeCurve = SpeedOverLifeCurve;
 	Config.SpeedCurveMode = SpeedCurveMode;
 	Config.VisualCoefficient = VisualCoefficient;
@@ -223,15 +223,15 @@ FBuffFlowProjectileRuntimeConfig UBFNode_SpawnBuffFlowProjectile::BuildRuntimeCo
 	Config.bDestroyOnHitTrigger = bDestroyOnHitTrigger;
 	Config.bDestroyOnWorldStaticHit = bDestroyOnWorldStaticHit;
 	Config.EffectClass = EffectClass;
-	Config.bApplyPureDamageFallback = bApplyPureDamageFallback;
-	Config.SetByCallerMagnitudeTag = SetByCallerMagnitudeTag;
-	Config.BaseEffectMagnitude = BaseEffectMagnitude;
-	Config.CreatorAttackMagnitudeScale = CreatorAttackMagnitudeScale;
-	Config.CreatorAttackPowerMagnitudeScale = CreatorAttackPowerMagnitudeScale;
-	Config.EffectRadius = EffectRadius;
-	Config.MaxTriggersPerTarget = MaxTriggersPerTarget;
-	Config.TriggerGameplayEventTag = TriggerGameplayEventTag;
+	Config.bApplyPureDamageFallback = bApplyPureDamageFallback.Value;
+	Config.SetByCallerMagnitudeTag = SetByCallerMagnitudeTag.Value;
+	Config.BaseEffectMagnitude = BaseEffectMagnitude.Value;
+	Config.CreatorAttackMagnitudeScale = CreatorAttackMagnitudeScale.Value;
+	Config.CreatorAttackPowerMagnitudeScale = CreatorAttackPowerMagnitudeScale.Value;
+	Config.EffectRadius = EffectRadius.Value;
+	Config.MaxTriggersPerTarget = MaxTriggersPerTarget.Value;
+	Config.TriggerGameplayEventTag = TriggerGameplayEventTag.Value;
 	Config.bSendTriggerEventToCreator = bSendTriggerEventToCreator;
-	Config.ExpireGameplayEventTag = ExpireGameplayEventTag;
+	Config.ExpireGameplayEventTag = ExpireGameplayEventTag.Value;
 	return Config;
 }

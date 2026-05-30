@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Types/FlowDataPinProperties.h"
 #include "BuffFlow/BuffFlowTypes.h"
 #include "BuffFlow/Nodes/BFNode_Base.h"
 #include "Projectile/BuffFlowProjectile.h"
@@ -26,7 +27,7 @@ class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
 	FVector SpawnOffset = FVector(80.f, 0.f, 45.f);
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Pattern", meta = (ClampMin = "1", DisplayName = "Projectile Count"))
-	int32 ProjectileCount = 1;
+	FFlowDataPinInputProperty_Int32 ProjectileCount{1};
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Pattern", meta = (ClampMin = "0.0", DisplayName = "Spawn Interval", ToolTip = "Delay between each projectile spawn when Projectile Count is greater than 1. 0 spawns all projectiles immediately."))
 	float SpawnInterval = 0.f;
@@ -47,7 +48,7 @@ class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
 	float TriggerInterval = 0.2f;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Lifetime", meta = (ClampMin = "0.01", DisplayName = "Lifetime"))
-	float Lifetime = 1.f;
+	FFlowDataPinInputProperty_Float Lifetime{1.f};
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Lifetime", meta = (DisplayName = "Lifetime Curve"))
 	TObjectPtr<UCurveFloat> LifetimeCurve = nullptr;
@@ -56,10 +57,10 @@ class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
 	EBuffFlowProjectileCurveInput LifetimeCurveInput = EBuffFlowProjectileCurveInput::Constant;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Lifetime", meta = (DisplayName = "Lifetime Curve Constant Input", EditCondition = "LifetimeCurve != nullptr", EditConditionHides))
-	float LifetimeCurveConstantInput = 0.f;
+	FFlowDataPinInputProperty_Float LifetimeCurveConstantInput;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Movement", meta = (ClampMin = "0.0", DisplayName = "Speed"))
-	float Speed = 1200.f;
+	FFlowDataPinInputProperty_Float Speed{1200.f};
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Movement", meta = (DisplayName = "Speed Over Life Curve"))
 	TObjectPtr<UCurveFloat> SpeedOverLifeCurve = nullptr;
@@ -92,34 +93,34 @@ class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
 	TSubclassOf<UGameplayEffect> EffectClass;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Effect", meta = (DisplayName = "Apply Pure Damage Fallback"))
-	bool bApplyPureDamageFallback = false;
+	FFlowDataPinInputProperty_Bool bApplyPureDamageFallback;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Effect", meta = (DisplayName = "SetByCaller Magnitude Tag"))
-	FGameplayTag SetByCallerMagnitudeTag;
+	FFlowDataPinInputProperty_GameplayTag SetByCallerMagnitudeTag;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Effect", meta = (DisplayName = "Base Effect Magnitude"))
-	float BaseEffectMagnitude = 0.f;
+	FFlowDataPinInputProperty_Float BaseEffectMagnitude;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Effect", meta = (DisplayName = "Creator Attack Magnitude Scale"))
-	float CreatorAttackMagnitudeScale = 1.f;
+	FFlowDataPinInputProperty_Float CreatorAttackMagnitudeScale{1.f};
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Effect", meta = (DisplayName = "Creator Attack Power Magnitude Scale"))
-	float CreatorAttackPowerMagnitudeScale = 0.f;
+	FFlowDataPinInputProperty_Float CreatorAttackPowerMagnitudeScale;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Effect", meta = (ClampMin = "0.0", DisplayName = "Effect Radius"))
-	float EffectRadius = 0.f;
+	FFlowDataPinInputProperty_Float EffectRadius;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Effect", meta = (ClampMin = "0", DisplayName = "Max Triggers Per Target"))
-	int32 MaxTriggersPerTarget = 0;
+	FFlowDataPinInputProperty_Int32 MaxTriggersPerTarget;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Events", meta = (DisplayName = "Trigger Gameplay Event Tag"))
-	FGameplayTag TriggerGameplayEventTag;
+	FFlowDataPinInputProperty_GameplayTag TriggerGameplayEventTag;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Events", meta = (DisplayName = "Trigger Event To Creator"))
 	bool bSendTriggerEventToCreator = true;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Events", meta = (DisplayName = "Expire Gameplay Event Tag"))
-	FGameplayTag ExpireGameplayEventTag;
+	FFlowDataPinInputProperty_GameplayTag ExpireGameplayEventTag;
 
 protected:
 	virtual void ExecuteBuffFlowInput(const FName& PinName) override;

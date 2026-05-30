@@ -89,19 +89,19 @@ namespace
 
 			if (const UBFNode_SpawnBuffFlowProjectile* BuffFlowProjectileNode = Cast<UBFNode_SpawnBuffFlowProjectile>(Pair.Value))
 			{
-				if (!BuffFlowProjectileNode->TriggerGameplayEventTag.IsValid() && !BuffFlowProjectileNode->ExpireGameplayEventTag.IsValid())
+				if (!BuffFlowProjectileNode->TriggerGameplayEventTag.Value.IsValid() && !BuffFlowProjectileNode->ExpireGameplayEventTag.Value.IsValid())
 				{
 					continue;
 				}
 
-				int32 MaxSpawnCount = FMath::Max(1, BuffFlowProjectileNode->ProjectileCount);
+				int32 MaxSpawnCount = FMath::Max(1, BuffFlowProjectileNode->ProjectileCount.Value);
 				if (BuffFlowProjectileNode->bAddComboStacksToProjectileCount)
 				{
 					MaxSpawnCount += FMath::Max(0, BuffFlowProjectileNode->MaxBonusProjectiles);
 				}
 
 				const float SpawnDelay = FMath::Max(0.f, BuffFlowProjectileNode->SpawnInterval) * static_cast<float>(FMath::Max(0, MaxSpawnCount - 1));
-				const float Lifetime = SpawnDelay + FMath::Max(0.f, BuffFlowProjectileNode->Lifetime);
+				const float Lifetime = SpawnDelay + FMath::Max(0.f, BuffFlowProjectileNode->Lifetime.Value);
 				MaxProjectileLifetime = FMath::Max(MaxProjectileLifetime, Lifetime);
 			}
 		}
