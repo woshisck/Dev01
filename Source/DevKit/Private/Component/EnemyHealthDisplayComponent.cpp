@@ -798,6 +798,8 @@ void UEnemyHealthDisplayComponent::SpawnDamageValue(float DamageAmount, EYogDama
 			DamageValueColorParameterName,
 			bArmorDamageValue ? ArmorDamageValueColor : HealthDamageValueColor);
 	}
+
+	DamageComponent->Activate(true);
 }
 
 void UEnemyHealthDisplayComponent::SetNiagaraFloatParameter(
