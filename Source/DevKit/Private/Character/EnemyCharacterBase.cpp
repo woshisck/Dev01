@@ -14,6 +14,8 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/EnemyHealthDisplayComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "BehaviorTree/BehaviorTreeComponent.h"
+#include "BrainComponent.h"
 
 AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -151,6 +153,29 @@ void AEnemyCharacterBase::Die()
 	bIsDead = true;
 
 	Super::Die();
+
+	// 关闭 AI：停止 BT、停止移动、清除焦点、关掉自动朝向，防止尸体仍然朝玩家转向
+	// Super::Die() 已关闭胶囊碰撞但不会停 AI；BT 仍会下发 MoveTo，CMC.Velocity 不为 0 时
+	// bOrientRotationToMovement 会把死掉的角色继续旋转去对着玩家。
+	if (AYogAIController* YogAI = Cast<AYogAIController>(GetController()))
+	{
+		if (UBrainComponent* Brain = YogAI->GetBrainComponent())
+		{
+			Brain->StopLogic(TEXT("Dead"));
+		}
+		YogAI->StopMovement();
+		YogAI->ClearFocus(EAIFocusPriority::Gameplay);
+		YogAI->ClearFocus(EAIFocusPriority::Move);
+	}
+
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->StopMovementImmediately();
+		MoveComp->bOrientRotationToMovement = false;
+		MoveComp->bUseControllerDesiredRotation = false;
+		MoveComp->DisableMovement();
+	}
+	bUseControllerRotationYaw = false;
 
 	// 通知 GameMode 击杀计数，触发波次/关卡完成检查
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))

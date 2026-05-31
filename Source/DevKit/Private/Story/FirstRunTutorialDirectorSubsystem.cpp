@@ -267,14 +267,20 @@ bool UFirstRunTutorialDirectorSubsystem::BuildDefaultNextRoomPlanForStage(EFirst
 		return true;
 
 	case EFirstRunTutorialStage::MoonlightRoom:
-		// Fourth room keeps the room/default reward table while the tutorial route stays single-door.
+		// 第 4 关：让玩家通过 01b 的 portal[0] 走到 WaterDungeon；保留默认奖励池。
 		return true;
 
 	case EFirstRunTutorialStage::TransitionRoom01:
-		OutPlan.RoomDataOverride = LoadTutorialAsset<URoomDataAsset>(PrayerRoomDataPath);
+		// 第 4 关（WaterDungeon）：默认 portal[0] = [01a, 01b]，随机回一间走廊。
 		return true;
 
 	case EFirstRunTutorialStage::TransitionRoom02:
+		// 玩家此时在 01a 或 01b 第二次出现的房间。两间走廊都把 portal[1] 配成
+		// [PrayerRoom]，强制开 portal[1] 走 portal 机制；同时 RoomDataOverride
+		// 锁定到 DA_PrayRoom —— 否则 SelectRoomByTag 的类型滚动（多半 Normal）
+		// 会把唯一的 Event 型 PrayerRoom 过滤掉，回退到 Campaign 的 Normal 池里
+		// 任意一张（WD/01a/01b），玩家就进不去祈祷室。
+		OutPlan.PortalIndex = 1;
 		OutPlan.RoomDataOverride = LoadTutorialAsset<URoomDataAsset>(PrayerRoomDataPath);
 		return true;
 
@@ -332,7 +338,7 @@ EFirstRunTutorialStage UFirstRunTutorialDirectorSubsystem::GetNextStageAfterPlan
 	case EFirstRunTutorialStage::MoonlightRoom:
 		return EFirstRunTutorialStage::TransitionRoom01;
 	case EFirstRunTutorialStage::TransitionRoom01:
-		return EFirstRunTutorialStage::PrayerRoom;
+		return EFirstRunTutorialStage::TransitionRoom02;
 	case EFirstRunTutorialStage::TransitionRoom02:
 		return EFirstRunTutorialStage::PrayerRoom;
 	default:

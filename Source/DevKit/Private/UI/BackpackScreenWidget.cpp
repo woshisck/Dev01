@@ -961,17 +961,35 @@ void UBackpackScreenWidget::NativeOnActivated()
     OnSelectionChanged();
 
     // Tutorial ③：第一次打开背包时弹窗（state guard 内部去重）
-    if (APlayerController* PC = GetOwningPlayer())
+    // 下一帧广播 —— 避免在 backpack 自身 NativeOnActivated 调用栈里同步 push TutorialPopup，
+    // 触发 CommonUI activatable stack 排队，导致 popup 等到 backpack 关闭后才显示。
+    if (UWorld* World = GetWorld())
     {
-        if (UGameInstance* GI = GetGameInstance())
-        {
-            if (UStoryEngineSubsystem* StoryEngine = GI->GetSubsystem<UStoryEngineSubsystem>())
+        TWeakObjectPtr<UBackpackScreenWidget> WeakSelf(this);
+        World->GetTimerManager().SetTimerForNextTick(
+            FTimerDelegate::CreateLambda([WeakSelf]()
             {
-                StoryEngine->BroadcastStoryEvent(
-                    FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.FirstBackpackOpened"), false),
-                    PC);
-            }
-        }
+                if (!WeakSelf.IsValid() || !WeakSelf->IsActivated())
+                {
+                    return;
+                }
+                APlayerController* PC = WeakSelf->GetOwningPlayer();
+                if (!PC)
+                {
+                    return;
+                }
+                UGameInstance* GI = WeakSelf->GetGameInstance();
+                if (!GI)
+                {
+                    return;
+                }
+                if (UStoryEngineSubsystem* StoryEngine = GI->GetSubsystem<UStoryEngineSubsystem>())
+                {
+                    StoryEngine->BroadcastStoryEvent(
+                        FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.FirstBackpackOpened"), false),
+                        PC);
+                }
+            }));
     }
 
     if (UWorld* World = GetWorld())

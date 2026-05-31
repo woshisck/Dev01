@@ -21,6 +21,7 @@
 #include "Misc/Parse.h"
 #include "Styling/SlateBrush.h"
 #include "TimerManager.h"
+#include "UObject/Stack.h"
 #include "UI/YogEntryMenuWidget.h"
 #include "UI/YogGameOverWidget.h"
 #include "UI/YogUIManagerSubsystem.h"
@@ -453,6 +454,17 @@ void UYogGameInstanceBase::ContinueRunFromFrontend()
 {
 	if (bFrontendLoadingGameplayMap) return;
 
+	UE_LOG(LogTemp, Warning,
+		TEXT("[Frontend] ContinueRunFromFrontend entry — stale state before clear: PendingRoomData=%s PendingNextFloor=%d PendingRunState.bIsValid=%d"),
+		*GetNameSafe(PendingRoomData),
+		PendingNextFloor,
+		PendingRunState.bIsValid ? 1 : 0);
+
+	// 防御：清掉同进程内残留的过渡字段（PendingRoomData / PendingNextFloor 等），
+	// 否则 StartLevelSpawning 会把它当成"从传送门进新房间"，在 Hub 里 spawn 出商店之类的脏物体。
+	// RestoreRunStateFromCheckpoint 只恢复 PendingRunState，这里清过渡字段与 Restore 不冲突。
+	ClearPendingTransitionFields();
+
 	UYogSaveSubsystem* SaveSys = GetSubsystem<UYogSaveSubsystem>();
 	if (SaveSys && SaveSys->TryRestoreRunCheckpoint())
 	{
@@ -742,6 +754,11 @@ void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive, bool bScriptedDef
 
 void UYogGameInstanceBase::ReturnToMainMenu()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[Frontend] ReturnToMainMenu called. ScriptCallstack:\n%s"),
+		*FFrame::GetScriptCallstack());
+
+	// 先清过渡字段，避免 QuickSave 之外的派生（如 PendingRoomData）继续指向上一关 → 后续 Continue 误用
+	ClearPendingTransitionFields();
 	if (UYogSaveSubsystem* SaveSys = GetSubsystem<UYogSaveSubsystem>())
 	{
 		SaveSys->QuickSave();
@@ -932,7 +949,13 @@ void UYogGameInstanceBase::SpawnMobInMap()
 void UYogGameInstanceBase::ClearRunState()
 {
 	PendingRunState = FRunState(); // 重置为默认值，bIsValid = false
+	ClearPendingTransitionFields();
 
+	UE_LOG(LogTemp, Log, TEXT("ClearRunState: 跑局状态已清空（含传送门预骰）"));
+}
+
+void UYogGameInstanceBase::ClearPendingTransitionFields()
+{
 	// v3：传送门跨关字段同点清，避免下一局误读上一局的预骰数据
 	PendingRoomData = nullptr;
 	PendingRoomBuffs.Reset();
@@ -941,8 +964,6 @@ void UYogGameInstanceBase::ClearRunState()
 	PendingNextFloor = 1;
 	bPlayLevelIntroFadeIn = false;
 	ClearCampaignOverride();
-
-	UE_LOG(LogTemp, Log, TEXT("ClearRunState: 跑局状态已清空（含传送门预骰）"));
 }
 
 

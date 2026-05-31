@@ -222,6 +222,11 @@ public:
 	// 清空跑局状态（玩家死亡时调用，使下一局从默认值开始）
 	void ClearRunState();
 
+	// 仅清过渡字段（PendingRoomData / PendingNextFloor / 房间预骰 / 故事覆盖等），
+	// 保留 PendingRunState，供 ReturnToMainMenu 在 QuickSave 前清脏数据、
+	// 以及 ContinueRunFromFrontend 在 TryRestoreRunCheckpoint 前清残留状态使用。
+	void ClearPendingTransitionFields();
+
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
 	void SetPendingRoomRewardOptionsOverride(const TArray<FLootOption>& InOptions);
 

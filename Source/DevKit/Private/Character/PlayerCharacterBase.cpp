@@ -47,6 +47,7 @@
 #include "GameModes/YogGameMode.h"
 #include "GameplayEffect.h"
 #include "GameplayTagContainer.h"
+#include "Story/StoryEngineSubsystem.h"
 #include "Tutorial/TutorialManager.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 
@@ -1277,7 +1278,6 @@ void APlayerCharacterBase::TickPlayerPhaseGlow(float DeltaTime)
 void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCardInstance>& Cards)
 {
 	UTutorialManager* TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTutorialManager>() : nullptr;
-	if (!TM) return;
 
 	APlayerController* PC = GetController<APlayerController>();
 	if (!PC) return;
@@ -1290,11 +1290,30 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 	static const FGameplayTag MoonlightIdTag  = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"), false);
 	static const FGameplayTag MoonlightEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Moonlight"), false);
 	static const FName WeaponOwnerSource(TEXT("Weapon"));
+	bool bBroadcastedRewardCardEntered = false;
 
 	for (const FCombatCardInstance& Card : Cards)
 	{
 		if (!Card.IsValidCard()) continue;
 		if (Card.OwnerSource == WeaponOwnerSource)
+		{
+			continue;
+		}
+
+		if (!bBroadcastedRewardCardEntered)
+		{
+			if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()
+				? GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>()
+				: nullptr)
+			{
+				StoryEngine->BroadcastStoryEvent(
+					FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.FirstRewardCardEntered"), false),
+					PC);
+			}
+			bBroadcastedRewardCardEntered = true;
+		}
+
+		if (!TM)
 		{
 			continue;
 		}

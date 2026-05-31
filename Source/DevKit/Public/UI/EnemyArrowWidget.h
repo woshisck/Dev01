@@ -83,10 +83,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Config")
     FLinearColor ArrowColor = FLinearColor(1.f, 0.8f, 0.2f, 0.9f);
 
-    /** Seconds between slow fallback scans for alive enemies missing from the GameMode registry. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Config", meta = (ClampMin = "0.1"))
-    float FallbackScanInterval = 1.0f;
-
 protected:
     virtual void NativeConstruct() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -97,7 +93,6 @@ private:
 
     TWeakObjectPtr<UYogAbilitySystemComponent> CachedPlayerASC;
     float LastCombatEventTime = -999.f;
-    float NextFallbackScanTime = 0.f;
 
     void RebuildArrowPool();
     void CollectAliveEnemies(TArray<AEnemyCharacterBase*>& OutEnemies);

@@ -4,12 +4,36 @@
 
 #include "Abilities/GameplayAbilityTargetTypes.h"
 #include "AbilitySystem/Abilities/GA_ActiveSkill_ShieldBurst.h"
+#include "AbilitySystem/Abilities/GA_HitReaction.h"
 #include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystem/Abilities/GA_KnockbackDebuff.h"
+#include "AbilitySystem/Abilities/GA_Rend.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "Projectile/SlashWaveProjectile.h"
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatResponseAbilitiesBlockWhileDeadTest,
+	"DevKit.Knockback.CombatResponseAbilitiesBlockWhileDead",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatResponseAbilitiesBlockWhileDeadTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"));
+
+	UGA_Knockback* KnockbackAbility = NewObject<UGA_Knockback>();
+	UGA_HitReaction* HitReactionAbility = NewObject<UGA_HitReaction>();
+	UGA_Rend* RendAbility = NewObject<UGA_Rend>();
+
+	TestTrue(TEXT("Knockback cannot activate while dead"),
+		KnockbackAbility->GetActivationBlockedTags().HasTagExact(DeadTag));
+	TestTrue(TEXT("Hit reaction cannot activate while dead"),
+		HitReactionAbility->GetActivationBlockedTags().HasTagExact(DeadTag));
+	TestTrue(TEXT("Rend cannot activate while dead"),
+		RendAbility->GetActivationBlockedTags().HasTagExact(DeadTag));
+
+	return true;
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKnockbackUsesExplicitAttackDirectionTest,
 	"DevKit.Knockback.UsesExplicitAttackDirectionTargetData",

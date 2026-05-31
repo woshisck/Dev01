@@ -383,39 +383,36 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	}
 
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	auto TryBufferedAttack = [&](EInputCommandType CommandType, ECardRequiredAction ActionType, const TCHAR* FallbackTagName) -> bool
-	{
-		if (!Buffer->ConsumeBufferedInputSince(CommandType, AbilityActivationTime))
-		{
-			return false;
-		}
-
-		bool bActivated = false;
-		const bool bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
-		if (bHasComboSource)
-		{
-			bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ActionType, PlayerOwner);
-		}
-		else if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
-		{
-			FGameplayTagContainer TagContainer;
-			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
-			bActivated = PlayerASC->TryActivateAbilitiesByTag(TagContainer, true);
-		}
-
-		if (!bActivated && ASC && Tag.IsValid())
-		{
-			ASC->SetLooseGameplayTagCount(Tag, 0);
-		}
-		return true;
-	};
-
-	if (TryBufferedAttack(EInputCommandType::LightAttack, ECardRequiredAction::Light, TEXT("PlayerState.AbilityCast.LightAtk")))
+	EInputCommandType BufferedAttackType = EInputCommandType::LightAttack;
+	if (!Buffer->ConsumeLatestAttackInputSince(AbilityActivationTime, BufferedAttackType))
 	{
 		return;
 	}
 
-	TryBufferedAttack(EInputCommandType::HeavyAttack, ECardRequiredAction::Heavy, TEXT("PlayerState.AbilityCast.HeavyAtk"));
+	const ECardRequiredAction ActionType = BufferedAttackType == EInputCommandType::HeavyAttack
+		? ECardRequiredAction::Heavy
+		: ECardRequiredAction::Light;
+	const TCHAR* FallbackTagName = BufferedAttackType == EInputCommandType::HeavyAttack
+		? TEXT("PlayerState.AbilityCast.HeavyAtk")
+		: TEXT("PlayerState.AbilityCast.LightAtk");
+
+	bool bActivated = false;
+	const bool bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
+	if (bHasComboSource)
+	{
+		bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ActionType, PlayerOwner);
+	}
+	else if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
+	{
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
+		bActivated = PlayerASC->TryActivateAbilitiesByTag(TagContainer, true);
+	}
+
+	if (!bActivated && ASC && Tag.IsValid())
+	{
+		ASC->SetLooseGameplayTagCount(Tag, 0);
+	}
 }
 
 void UGA_MeleeAttack::ScheduleNodeComboWindow(UAnimMontage* Montage, float PlayRate)

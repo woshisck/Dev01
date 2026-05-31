@@ -78,18 +78,34 @@ bool FFirstRunTutorialDirectorBuildsTransitionCurrencyPlansTest::RunTest(const F
 	TestEqual(TEXT("Fourth room has no fixed reward option"), DefaultRewardPlan.RewardOptionsOverride.Num(), 0);
 	TestFalse(TEXT("Fourth room does not carry a tutorial enemy attack buff"), DefaultRewardPlan.bOverrideBuffs);
 
-	FStoryNextRoomPlan PrayerPlan;
-	TestTrue(TEXT("TransitionRoom01 builds fifth-room prayer plan"),
+	FStoryNextRoomPlan TransitionRoom01Plan;
+	TestTrue(TEXT("TransitionRoom01 plan still produced (WaterDungeon → 01a/01b via portal[0] pool)"),
 		UFirstRunTutorialDirectorSubsystem::BuildDefaultNextRoomPlanForStage(
 			EFirstRunTutorialStage::TransitionRoom01,
-			PrayerPlan));
+			TransitionRoom01Plan));
 
-	TestTrue(TEXT("Prayer room forces a single portal"), PrayerPlan.bForceSinglePortal);
-	TestNotNull(TEXT("Prayer room plan loads DA_PrayRoom"), PrayerPlan.RoomDataOverride.Get());
-	if (PrayerPlan.RoomDataOverride)
+	TestTrue(TEXT("TransitionRoom01 keeps forced single portal"), TransitionRoom01Plan.bForceSinglePortal);
+	TestEqual(TEXT("TransitionRoom01 still uses portal[0] so the WaterDungeon → corridor route fires"),
+		TransitionRoom01Plan.PortalIndex, 0);
+	TestNull(TEXT("TransitionRoom01 should no longer hard-override the next room data"),
+		TransitionRoom01Plan.RoomDataOverride.Get());
+
+	FStoryNextRoomPlan TransitionRoom02Plan;
+	TestTrue(TEXT("TransitionRoom02 plan produced (corridor 01a/01b → PrayerRoom via portal[1])"),
+		UFirstRunTutorialDirectorSubsystem::BuildDefaultNextRoomPlanForStage(
+			EFirstRunTutorialStage::TransitionRoom02,
+			TransitionRoom02Plan));
+
+	TestTrue(TEXT("TransitionRoom02 forces a single portal"), TransitionRoom02Plan.bForceSinglePortal);
+	TestEqual(TEXT("TransitionRoom02 forces portal[1] so the prayer-room exit is taken"),
+		TransitionRoom02Plan.PortalIndex, 1);
+	TestNotNull(
+		TEXT("TransitionRoom02 pins RoomDataOverride to DA_PrayRoom so SelectRoomByTag's type roll can't drop the only Event room from portal[1]"),
+		TransitionRoom02Plan.RoomDataOverride.Get());
+	if (const URoomDataAsset* OverrideRoom = TransitionRoom02Plan.RoomDataOverride.Get())
 	{
-		TestTrue(TEXT("Prayer room override points at DA_PrayRoom"),
-			PrayerPlan.RoomDataOverride->GetPathName().Contains(TEXT("DA_PrayRoom")));
+		TestTrue(TEXT("TransitionRoom02 RoomDataOverride is the PrayerRoom asset"),
+			OverrideRoom->GetPathName().Contains(TEXT("DA_PrayRoom")));
 	}
 
 	return true;

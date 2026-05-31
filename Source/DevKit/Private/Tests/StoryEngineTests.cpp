@@ -5,6 +5,8 @@
 
 #include "Story/StoryEngineSettings.h"
 #include "Story/StoryEngineSubsystem.h"
+#include "Story/StoryEventRegistryDA.h"
+#include "Story/StoryEventTypes.h"
 #include "Story/StoryRuleSetDA.h"
 
 namespace StoryEngineTests
@@ -30,6 +32,7 @@ bool FStoryEngineGameplayTagsConfiguredTest::RunTest(const FString& Parameters)
 		TEXT("Story.Event.MemoryTutorial.Completed"),
 		TEXT("Story.Event.FirstRun.Started"),
 		TEXT("Story.Event.FirstRun.FirstRuneObtained"),
+		TEXT("Story.Event.FirstRun.FirstRewardCardEntered"),
 		TEXT("Story.Event.FirstRun.FirstBackpackOpened"),
 		TEXT("Story.Event.Hub.FirstEntered"),
 		TEXT("Story.Event.Player.Died"),
@@ -100,6 +103,56 @@ bool FStoryEngineConfiguredRuleSetsLoadTest::RunTest(const FString& Parameters)
 	return bAllLoaded;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEventRegistryRewardToDeckBroadcastOnlyTest,
+	"DevKit.StoryEngine.RegistryRewardToDeckBroadcastOnly",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStoryEventRegistryRewardToDeckBroadcastOnlyTest::RunTest(const FString& Parameters)
+{
+	const UStoryEventRegistryDA* Registry = LoadObject<UStoryEventRegistryDA>(
+		nullptr,
+		TEXT("/Game/Data/Story/DA_StoryEventRegistry_Tutorial.DA_StoryEventRegistry_Tutorial"));
+	TestNotNull(TEXT("Tutorial story event registry loads"), Registry);
+	if (!Registry)
+	{
+		return false;
+	}
+
+	const FGameplayTag RewardToDeckEvent = StoryEngineTests::RequireTag(TEXT("Tutorial.RewardToDeck"));
+	if (!TestTrue(TEXT("RewardToDeck event tag is configured"), RewardToDeckEvent.IsValid()))
+	{
+		return false;
+	}
+
+	const FStoryEventEntry* Entry = Registry->FindEntry(RewardToDeckEvent);
+	TestNotNull(TEXT("RewardToDeck registry entry exists"), Entry);
+	if (!Entry)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("RewardToDeck registry entry is broadcast-only"), Entry->ActionType, EStoryEventActionType::BroadcastOnly);
+	TestTrue(TEXT("RewardToDeck registry entry no longer dispatches a tutorial ID"), Entry->TutorialEventID.IsNone());
+	TestFalse(TEXT("RewardToDeck registry entry no longer pauses the game"), Entry->bPauseGame);
+
+	const UStoryRuleSetDA* RuleSet = LoadObject<UStoryRuleSetDA>(
+		nullptr,
+		TEXT("/Game/Story/Rules/SR_FirstRun.SR_FirstRun"));
+	TestNotNull(TEXT("First-run rule set loads"), RuleSet);
+	if (!RuleSet)
+	{
+		return false;
+	}
+
+	const bool bHasRewardToDeckRule = RuleSet->Rules.ContainsByPredicate(
+		[RewardToDeckEvent](const FStoryRule& Rule)
+		{
+			return Rule.TriggerEventTag == RewardToDeckEvent;
+		});
+	TestFalse(TEXT("RewardToDeck broadcast is not consumed by first-run story rules"), bHasRewardToDeckRule);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineFirstRuneRuleMarksHeavyCardProgressTest,
 	"DevKit.StoryEngine.FirstRuneRuleMarksHeavyCardProgress",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -145,15 +198,75 @@ bool FStoryEngineFirstRuneRuleMarksHeavyCardProgressTest::RunTest(const FString&
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineFirstRewardCardEnteredShowsTutorialTest,
+	"DevKit.StoryEngine.FirstRewardCardEnteredShowsTutorial",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStoryEngineFirstRewardCardEnteredShowsTutorialTest::RunTest(const FString& Parameters)
+{
+	const UStoryRuleSetDA* RuleSet = LoadObject<UStoryRuleSetDA>(
+		nullptr,
+		TEXT("/Game/Story/Rules/SR_FirstRun.SR_FirstRun"));
+	TestNotNull(TEXT("First-run rule set loads"), RuleSet);
+	if (!RuleSet)
+	{
+		return false;
+	}
+
+	const FGameplayTag RewardCardEnteredEvent = StoryEngineTests::RequireTag(TEXT("Story.Event.FirstRun.FirstRewardCardEntered"));
+	const FGameplayTag FirstRuneFlag = StoryEngineTests::RequireTag(TEXT("Story.Flag.FirstRune.Obtained"));
+	if (!TestTrue(TEXT("First reward card entered event tag is configured"), RewardCardEnteredEvent.IsValid()) ||
+		!TestTrue(TEXT("First rune obtained flag is configured"), FirstRuneFlag.IsValid()))
+	{
+		return false;
+	}
+
+	const FStoryRule* MatchingRule = nullptr;
+	for (const FStoryRule& Rule : RuleSet->Rules)
+	{
+		if (Rule.TriggerEventTag == RewardCardEnteredEvent)
+		{
+			MatchingRule = &Rule;
+			break;
+		}
+	}
+
+	TestNotNull(TEXT("First reward card entered rule exists"), MatchingRule);
+	if (!MatchingRule)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("First reward card entered rule fires once per save"), MatchingRule->FirePolicy, EStoryRuleFirePolicy::OncePerSave);
+	TestTrue(TEXT("First reward card entered rule is gated by first-rune save flag"),
+		MatchingRule->Conditions.ContainsByPredicate(
+			[FirstRuneFlag](const FStoryCondition& Condition)
+			{
+				return Condition.Type == EStoryConditionType::HasFlag
+					&& Condition.bInvert
+					&& Condition.FlagScope == EStoryFlagScope::Save
+					&& Condition.FlagTag == FirstRuneFlag;
+			}));
+	TestTrue(TEXT("First reward card entered rule shows tutorial_first_rune"),
+		MatchingRule->Actions.ContainsByPredicate(
+			[](const FStoryAction& Action)
+			{
+				return Action.Type == EStoryActionType::ShowTutorialPopup
+					&& Action.TutorialEventId == FName(TEXT("tutorial_first_rune"));
+			}));
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineMoonlightRuleShowsTutorialTest,
 	"DevKit.StoryEngine.MoonlightRuleShowsTutorial",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineFirstBackpackOpenedDoesNotShowTutorialPopupTest,
-	"DevKit.StoryEngine.FirstBackpackOpenedDoesNotShowTutorialPopup",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineFirstBackpackOpenedShowsTutorialPopupTest,
+	"DevKit.StoryEngine.FirstBackpackOpenedShowsTutorialPopup",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FStoryEngineFirstBackpackOpenedDoesNotShowTutorialPopupTest::RunTest(const FString& Parameters)
+bool FStoryEngineFirstBackpackOpenedShowsTutorialPopupTest::RunTest(const FString& Parameters)
 {
 	const UStoryRuleSetDA* RuleSet = LoadObject<UStoryRuleSetDA>(
 		nullptr,
@@ -186,7 +299,7 @@ bool FStoryEngineFirstBackpackOpenedDoesNotShowTutorialPopupTest::RunTest(const 
 			});
 	}
 
-	TestFalse(TEXT("First backpack opened rule must not show tutorial_backpack popup"), bHasBackpackPopup);
+	TestTrue(TEXT("First backpack opened rule must show tutorial_backpack popup"), bHasBackpackPopup);
 	return true;
 }
 

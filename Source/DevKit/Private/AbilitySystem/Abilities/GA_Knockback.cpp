@@ -36,6 +36,7 @@ UGA_Knockback::UGA_Knockback(const FObjectInitializer& ObjectInitializer)
 
     // 击退激活时立即取消受击硬直 GA（GA_HitReaction），改为播放击退专用动画
     CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact")));
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
 
     // 监听 Action.Knockback 事件自动激活（FA 的 Send Gameplay Event 节点发出此 Tag）
     FAbilityTriggerData TriggerData;

@@ -568,6 +568,11 @@ FName UTutorialManager::ResolveLinkCardTutorialEventIdForTest(const UTutorialReg
 	return ResolveLinkCardTutorialEventIdFromRegistry(InRegistry);
 }
 
+bool UTutorialManager::HasRegisteredEvent(FName EventID) const
+{
+	return HasRegisteredTutorialPages(Registry, EventID);
+}
+
 #if WITH_DEV_AUTOMATION_TESTS
 int32 UTutorialManager::GetFallbackTutorialPageCountForTest(FName EventID)
 {

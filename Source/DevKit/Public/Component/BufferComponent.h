@@ -111,6 +111,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "InputBuffer")
 	bool ConsumeBufferedInputSince(EInputCommandType Type, float SinceTime);
 
+	UFUNCTION(BlueprintCallable, Category = "InputBuffer")
+	bool ConsumeLatestAttackInputSince(float SinceTime, EInputCommandType& OutType);
+
 	/** 清空所有缓存输入（整理阶段开始时调用，避免残留输入） */
 	UFUNCTION(BlueprintCallable, Category = "InputBuffer")
 	void ClearBuffer();

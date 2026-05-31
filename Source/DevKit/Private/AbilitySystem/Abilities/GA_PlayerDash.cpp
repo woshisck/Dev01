@@ -120,6 +120,7 @@ UGA_PlayerDash::UGA_PlayerDash()
 	const FGameplayTag DashTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"));
 	AbilityTags.AddTag(DashTag);
 	ActivationOwnedTags.AddTag(DashTag);
+	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.DashInvincible")));
 	CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast")));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
 	ActivationBlockedTags.AddTag(DashTag);

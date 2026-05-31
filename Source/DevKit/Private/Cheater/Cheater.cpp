@@ -127,6 +127,77 @@ void UYogCheatManager::Yog_GiveRune(int32 RuneID)
 	UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveRune: 未找到 RuneID=%d 的 DataAsset（确认已加载）"), RuneID);
 }
 
+void UYogCheatManager::Yog_GiveMoonlightLinkCards()
+{
+	APlayerCharacterBase* Char = GetPlayerChar();
+	UCombatDeckComponent* CombatDeck = Char ? Char->CombatDeckComponent : nullptr;
+	if (!CombatDeck)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: CombatDeckComponent not found."));
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("[GM] Moonlight cards failed: no combat deck."));
+		}
+		return;
+	}
+
+	const TCHAR* CardPaths[] = {
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Reversed.DA_Rune512_Moonlight_Reversed"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Poison.DA_Rune512_Poison"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Shield.DA_Rune512_Shield"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Pierce.DA_Rune512_Pierce"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Attack.DA_Rune512_Attack"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_ReduceDamage.DA_Rune512_ReduceDamage"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Splash.DA_Rune512_Splash"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split.DA_Rune512_Split"),
+	};
+
+	int32 AddedCount = 0;
+	TArray<FString> MissingCards;
+	for (const TCHAR* CardPath : CardPaths)
+	{
+		URuneDataAsset* RuneAsset = LoadObject<URuneDataAsset>(nullptr, CardPath);
+		if (!RuneAsset)
+		{
+			MissingCards.Add(CardPath);
+			UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: failed to load %s"), CardPath);
+			continue;
+		}
+
+		if (CombatDeck->AddCardFromRuneReward(RuneAsset))
+		{
+			++AddedCount;
+		}
+		else
+		{
+			MissingCards.Add(CardPath);
+			UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: failed to add %s"), CardPath);
+		}
+	}
+
+	CombatDeck->RefreshDeckView();
+
+	const FString Message = FString::Printf(
+		TEXT("[GM] Moonlight link cards added: %d/%d"),
+		AddedCount,
+		UE_ARRAY_COUNT(CardPaths));
+	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
+	if (!MissingCards.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Missing moonlight cards: %s"), *FString::Join(MissingCards, TEXT(", ")));
+	}
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			6.f,
+			MissingCards.IsEmpty() ? FColor::Green : FColor::Yellow,
+			Message);
+	}
+}
+
 void UYogCheatManager::Yog_ClearRunes()
 {
 	UBackpackGridComponent* BGC = GetBGC();

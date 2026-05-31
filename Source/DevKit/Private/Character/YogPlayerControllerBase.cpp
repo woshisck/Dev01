@@ -38,7 +38,7 @@
 #include "Component/ComboRuntimeComponent.h"
 #include "AbilitySystemComponent.h"
 
-#if !UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING || DEVKIT_ENABLE_SHIPPING_CHEATS
 #include "Cheater/Cheater.h"
 #endif
 
@@ -48,7 +48,7 @@ AYogPlayerControllerBase::AYogPlayerControllerBase()
 {
 	PlayerCameraManagerClass = AYogPlayerCameraManager::StaticClass();
 
-#if !UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING || DEVKIT_ENABLE_SHIPPING_CHEATS
 	CheatClass = UYogCheatManager::StaticClass();
 #endif
 }
@@ -144,7 +144,7 @@ void AYogPlayerControllerBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-#if !UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING || DEVKIT_ENABLE_SHIPPING_CHEATS
 	if (IsLocalController() && CheatManager == nullptr)
 	{
 		AddCheats(/*bForce=*/true);

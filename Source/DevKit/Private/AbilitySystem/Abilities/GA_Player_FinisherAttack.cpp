@@ -70,6 +70,7 @@ UGA_Player_FinisherAttack::UGA_Player_FinisherAttack(const FObjectInitializer& O
 	FallbackFinisherActionData.ActDamage = 60.f;
 	FallbackFinisherActionData.ActRange = 480.f;
 	FallbackFinisherActionData.ActResilience = 40.f;
+	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Invulnerable")));
 
 	FYogHitboxType DefaultHitbox;
 	DefaultHitbox.hitboxType = EHitBoxType::Annulus;

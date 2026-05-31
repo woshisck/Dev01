@@ -28,6 +28,7 @@ public:
 	// ── 背包 / 符文 ───────────────────────────────────────────────────────────
 	/** 按 RuneID 给予玩家一个符文（加入 PendingRunes，需手动放入格子） */
 	UFUNCTION(Exec) void Yog_GiveRune(int32 RuneID);
+	UFUNCTION(Exec) void Yog_GiveMoonlightLinkCards();
 	/** 清空背包中所有已放置符文 */
 	UFUNCTION(Exec) void Yog_ClearRunes();
 	/** 直接设置金币数量 */

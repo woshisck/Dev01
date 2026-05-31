@@ -412,45 +412,28 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
 	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
 
-	if (Buffer->HasBufferedInputSince(EInputCommandType::LightAttack, AbilityActivationTime))
+	EInputCommandType BufferedAttackType = EInputCommandType::LightAttack;
+	if (Buffer->ConsumeLatestAttackInputSince(AbilityActivationTime, BufferedAttackType))
 	{
 		Buffer->ClearBuffer();
 		bool bActivated = false;
 		bool bHasComboSource = false;
+		const ECardRequiredAction ActionType = BufferedAttackType == EInputCommandType::HeavyAttack
+			? ECardRequiredAction::Heavy
+			: ECardRequiredAction::Light;
+		const TCHAR* FallbackTagName = BufferedAttackType == EInputCommandType::HeavyAttack
+			? TEXT("PlayerState.AbilityCast.HeavyAtk")
+			: TEXT("PlayerState.AbilityCast.LightAtk");
 		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
 		{
 			bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
 			bActivated = bHasComboSource
-				&& PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Light, PlayerOwner);
+				&& PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ActionType, PlayerOwner);
 		}
 		if (!bActivated && !bHasComboSource)
 		{
 			FGameplayTagContainer TagContainer;
-			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.LightAtk")));
-			bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
-		}
-		if (!bActivated && ASC)
-		{
-			ASC->SetLooseGameplayTagCount(CanComboTag, 0);
-		}
-		return;
-	}
-
-	if (Buffer->HasBufferedInputSince(EInputCommandType::HeavyAttack, AbilityActivationTime))
-	{
-		Buffer->ClearBuffer();
-		bool bActivated = false;
-		bool bHasComboSource = false;
-		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
-		{
-			bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
-			bActivated = bHasComboSource
-				&& PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Heavy, PlayerOwner);
-		}
-		if (!bActivated && !bHasComboSource)
-		{
-			FGameplayTagContainer TagContainer;
-			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.HeavyAtk")));
+			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
 			bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
 		}
 		if (!bActivated && ASC)
