@@ -147,6 +147,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
 	void ResetToDefaultUnarmedCombatState();
 
+	UFUNCTION(BlueprintCallable, Category = "Run State")
+	void ClearRunCarriedStateForHub();
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BuffFlow")
 	TObjectPtr<UBuffFlowComponent> BuffFlowComponent;
 

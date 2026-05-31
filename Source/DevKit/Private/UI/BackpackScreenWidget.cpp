@@ -2191,6 +2191,16 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 FReply UBackpackScreenWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
     const FKey Key = InKeyEvent.GetKey();
+    if (!InKeyEvent.IsRepeat() &&
+        (Key == EKeys::Gamepad_Special_Left ||
+         Key == EKeys::Gamepad_Special_Right ||
+         Key == EKeys::Escape ||
+         Key == EKeys::Tab))
+    {
+        DeactivateWidget();
+        return FReply::Handled();
+    }
+
     if (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput())
     {
         auto StartDeckDirRepeat = [&](int32 Direction) -> FReply

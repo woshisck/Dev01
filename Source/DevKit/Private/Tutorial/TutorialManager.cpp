@@ -99,6 +99,19 @@ namespace
 				TEXT("背包与卡组"),
 				TEXT("新获得的卡牌会进入背包，并追加到当前战斗卡组。打开背包后，可以查看和调整卡牌顺序。")));
 		}
+		else if (EventID == TEXT("tutorial_finisher"))
+		{
+			Pages.Add(MakeTutorialPage(
+				TEXT("获得双手剑终结技"),
+				TEXT("你在祭坛上献祭后获得了 [双手剑终结技]。这是一张终结技卡，已自动进入背包和当前战斗卡组。")));
+			Pages.Add(MakeTutorialPage(
+				TEXT("终结技卡牌"),
+				TEXT("终结技卡进入卡组后，会在合适的攻击节奏里提供一个终结技准备窗口。窗口出现时，画面会出现专属的终结技提示。")));
+			Pages.Add(MakeTutorialPage(
+				TEXT("协调需求"),
+				TEXT("终结技的协调需求是 <input action=\"HeavyAttack\"/>：在准备窗口出现时按重攻击完成确认连段，触发终结技额外伤害。"),
+				TEXT("没有在窗口内确认会让窗口关闭，需要再次触发节奏才会重新开启。")));
+		}
 
 		return Pages;
 	}

@@ -60,6 +60,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Altar")
 	void SetAltarActive(bool bInActive);
 
+	UFUNCTION(BlueprintCallable, Category = "Altar|Interaction")
+	void EnsureInteractBoxMinimumExtent(FVector MinimumExtent);
+
 	UFUNCTION(BlueprintCallable, Category = "Altar|Sacrifice")
 	void ConsumeSacrificeReward();
 
@@ -105,6 +108,9 @@ protected:
 	// BP 重写：显示 / 隐藏交互提示（"按 F 交互"等）
 	void ConfigureInteractPrompt();
 	void SetInteractPromptVisible(bool bVisible);
+	bool IsInteractPromptShowing() const;
+	void RefreshCurrentPlayerOverlap();
+	void QueueRefreshCurrentPlayerOverlap();
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Altar")
 	void OnPlayerNearby(APlayerCharacterBase* Player, bool bNearby);

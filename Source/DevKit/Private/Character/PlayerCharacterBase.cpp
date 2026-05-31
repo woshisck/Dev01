@@ -337,6 +337,50 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 	ApplyDefaultUnarmedComboGraph();
 }
 
+void APlayerCharacterBase::ClearRunCarriedStateForHub()
+{
+	ResetToDefaultUnarmedCombatState();
+
+	PendingRunes.Reset();
+	ActiveSacrificeGrace = nullptr;
+	ActiveSacrificeOfferingCosts.Reset();
+
+	if (BuffFlowComponent)
+	{
+		BuffFlowComponent->StopAllBuffFlows();
+	}
+
+	if (CombatDeckComponent)
+	{
+		TArray<URuneDataAsset*> EmptyDeck;
+		CombatDeckComponent->LoadDeckFromExactSourceAssets(EmptyDeck, 0.0f, 0);
+		CombatDeckComponent->RefreshDeckView();
+	}
+
+	if (BackpackGridComponent)
+	{
+		BackpackGridComponent->Gold = 0;
+		BackpackGridComponent->OnGoldChanged.Broadcast(0);
+		BackpackGridComponent->RestorePlacedRunes({}, true);
+		BackpackGridComponent->RestoreRuntimeHiddenPassiveRunes({});
+		BackpackGridComponent->RestorePhase(0);
+		BackpackGridComponent->SetLocked(false);
+	}
+
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+	{
+		ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), 0.0f);
+	}
+
+	if (ActiveSkillComponent)
+	{
+		TArray<UActiveSkillDataAsset*> EmptyLoadout;
+		ActiveSkillComponent->SetSkillLoadout(EmptyLoadout);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[RunState] Cleared carried player state for hub. Player=%s"), *GetNameSafe(this));
+}
+
 void APlayerCharacterBase::ClearWeaponGrantedAbilities()
 {
 	if (!HasAuthority())

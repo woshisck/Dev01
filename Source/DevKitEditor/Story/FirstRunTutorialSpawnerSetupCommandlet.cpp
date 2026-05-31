@@ -280,7 +280,7 @@ USNode_ActivateTutorialSpawner* EnsureActivateNode(
 		ActivateNode->bUnregisterFromEnemyAwareness = true;
 		ActivateNode->MaxHealthOverride = 0.0f;
 		ActivateNode->bRespawnOnDeath = true;
-		ActivateNode->RespawnDelay = 5.0f;
+		ActivateNode->RespawnDelay = 2.0f;
 		ActivateNode->OnKillEncounterPoint = TrainingDummyPoint;
 	}
 

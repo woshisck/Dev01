@@ -3,13 +3,14 @@
 #include "Blueprint/WidgetTree.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "CommonInputSubsystem.h"
+#include "CommonTextBlock.h"
 #include "Components/Border.h"
 #include "UI/InputActionRichTextDecorator.h"
 #include "UI/YogCommonRichTextBlock.h"
 
 namespace
 {
-	const TCHAR* InputActionDecoratorClassPath = TEXT("/Game/Docs/UI/Tutorial/BP_InputActionDecorator.BP_InputActionDecorator_C");
+	const TCHAR* InfoPopupTextStyleClassPath = TEXT("/Game/Docs/UI/Tutorial/BP_InfoPopupTextStyle.BP_InfoPopupTextStyle_C");
 }
 
 FText UInteractPromptWidget::MakePromptMarkup(const FText& Label)
@@ -20,6 +21,19 @@ FText UInteractPromptWidget::MakePromptMarkup(const FText& Label)
 	}
 
 	return FText::FromString(FString::Printf(TEXT("<input action=\"Interact\"/> %s"), *Label.ToString()));
+}
+
+void UInteractPromptWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+
+	// Build the fallback layout here (before RebuildWidget runs from TakeWidget) so the SObjectWidget
+	// has a valid RootWidget the first time the screen layer takes our widget. NativeConstruct is too
+	// late — by then the slate widget has already been built from an empty WidgetTree.
+	// Same reason for the input decorator: it must be appended to DecoratorClasses before
+	// SRichTextBlock is built, otherwise the <input action=.../> tag is rendered as raw text.
+	BuildFallbackLayout();
+	EnsureInputDecorator();
 }
 
 void UInteractPromptWidget::NativeConstruct()
@@ -68,6 +82,10 @@ void UInteractPromptWidget::BuildFallbackLayout()
 	PromptText = WidgetTree->ConstructWidget<UYogCommonRichTextBlock>(
 		UYogCommonRichTextBlock::StaticClass(),
 		TEXT("PromptText"));
+	if (UClass* TextStyleClass = LoadClass<UCommonTextStyle>(nullptr, InfoPopupTextStyleClassPath))
+	{
+		PromptText->FontStyleClass = TextStyleClass;
+	}
 	PromptText->OverrideFontSize = PromptFontSize;
 	PromptText->OverrideColor = PromptTextColor;
 
@@ -90,11 +108,5 @@ void UInteractPromptWidget::EnsureInputDecorator()
 		return;
 	}
 
-	UClass* DecoratorClass = LoadClass<URichTextBlockDecorator>(nullptr, InputActionDecoratorClassPath);
-	if (!DecoratorClass)
-	{
-		DecoratorClass = UInputActionRichTextDecorator::StaticClass();
-	}
-
-	PromptText->EnsureDecoratorClass(DecoratorClass);
+	PromptText->EnsureDecoratorClass(UInputActionRichTextDecorator::StaticClass());
 }

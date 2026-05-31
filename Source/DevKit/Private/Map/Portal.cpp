@@ -157,7 +157,14 @@ void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 	SelectedLevel   = InSelectedLevel;
 	SelectedRoom    = InSelectedRoom;
 	PreRolledBuffs  = InPreRolledBuffs;
+	bWillNeverOpen  = false;
 	bIsOpen         = true;
+
+	if (CollisionVolume)
+	{
+		CollisionVolume->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		CollisionVolume->SetGenerateOverlapEvents(true);
+	}
 
 	RefreshPreviewInfo();
 	EnablePortal();
@@ -330,6 +337,7 @@ void APortal::NeverOpen_Implementation()
 	// 停止特效
 	if (OpenVFXComp) OpenVFXComp->Deactivate();
 	if (IdleVFXComp) IdleVFXComp->Deactivate();
+	TriggerLinkedDoorCloseEvents();
 
 	if (NeverOpenArt.Mesh || NeverOpenArt.IdleVFX || NeverOpenArt.OpenVFX)
 	{
@@ -370,15 +378,13 @@ void APortal::MarkUnavailableForPreview(FName InSelectedLevel, URoomDataAsset* I
 
 	if (OpenVFXComp) OpenVFXComp->Deactivate();
 	if (IdleVFXComp) IdleVFXComp->Deactivate();
+	TriggerLinkedDoorCloseEvents();
 
-	if (const FPortalArtConfig* Art = DestinationArtMap.Find(SelectedLevel))
-	{
-		ApplyArtConfig(*Art, false);
-	}
-	else
-	{
-		NeverOpen();
-	}
+	const FPortalArtConfig& UnavailableArt =
+		(NeverOpenArt.Mesh || NeverOpenArt.IdleVFX || NeverOpenArt.OpenVFX)
+			? NeverOpenArt
+			: ClosedArt;
+	ApplyArtConfig(UnavailableArt, false);
 
 	if (CollisionVolume)
 	{

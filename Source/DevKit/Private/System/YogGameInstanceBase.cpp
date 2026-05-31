@@ -332,8 +332,8 @@ void UYogGameInstanceBase::ShowMainMenu()
 	EntryMenuWidget->OnContinueRequested.RemoveAll(this);
 	EntryMenuWidget->OnOptionsRequested.RemoveAll(this);
 	EntryMenuWidget->OnQuitRequested.RemoveAll(this);
-	EntryMenuWidget->OnStartRequested.AddDynamic(this, &UYogGameInstanceBase::StartNormalRunFromFrontend);
-	EntryMenuWidget->OnContinueRequested.AddDynamic(this, &UYogGameInstanceBase::ContinueRunFromFrontend);
+	EntryMenuWidget->OnStartRequested.AddDynamic(this, &UYogGameInstanceBase::ShowSlotSelectMenu);
+	EntryMenuWidget->OnContinueRequested.AddDynamic(this, &UYogGameInstanceBase::ShowSlotSelectMenu);
 	EntryMenuWidget->OnOptionsRequested.AddDynamic(this, &UYogGameInstanceBase::HandleEntryOptionsRequested);
 	EntryMenuWidget->OnQuitRequested.AddDynamic(this, &UYogGameInstanceBase::QuitFromFrontend);
 	UIManager->PushScreen(EYogUIScreenId::EntryMenu);
@@ -346,6 +346,68 @@ void UYogGameInstanceBase::ShowMainMenu()
 	if (FParse::Param(FCommandLine::Get(), TEXT("AutoStart")))
 	{
 		StartNormalRunFromFrontend();
+	}
+}
+
+void UYogGameInstanceBase::ShowSlotSelectMenu()
+{
+	if (bFrontendLoadingGameplayMap)
+	{
+		return;
+	}
+
+	GetFrontendMainMenuBackgroundBrush();
+
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
+	UYogUIManagerSubsystem* UIManager = LocalPlayer ? LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
+	if (!UIManager)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Frontend] Cannot show slot select menu: UIManager is missing."));
+		return;
+	}
+
+	RemoveFrontendWidget();
+
+	TSubclassOf<UYogEntryMenuWidget> WidgetClass = SlotSelectMenuClass;
+	if (!WidgetClass)
+	{
+		WidgetClass = EntryMenuClass;
+		if (!WidgetClass)
+		{
+			WidgetClass = UYogEntryMenuWidget::StaticClass();
+		}
+	}
+
+	UIManager->SetWidgetClassOverride(EYogUIScreenId::EntryMenu, WidgetClass);
+	FYogUIScreenInputPolicy Policy;
+	Policy.bShowMouseCursor = true;
+	Policy.bPauseGame = false;
+	Policy.bDisablePawnInput = false;
+	Policy.bAffectsMajorUI = false;
+	UIManager->SetInputPolicyOverride(EYogUIScreenId::EntryMenu, Policy);
+
+	EntryMenuWidget = Cast<UYogEntryMenuWidget>(UIManager->EnsureWidget(EYogUIScreenId::EntryMenu));
+	if (!EntryMenuWidget)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Frontend] Cannot show slot select menu: widget class is invalid."));
+		return;
+	}
+
+	EntryMenuWidget->SetBackgroundTexture(FrontendMainMenuTexture);
+	EntryMenuWidget->OnStartRequested.RemoveAll(this);
+	EntryMenuWidget->OnContinueRequested.RemoveAll(this);
+	EntryMenuWidget->OnOptionsRequested.RemoveAll(this);
+	EntryMenuWidget->OnQuitRequested.RemoveAll(this);
+	EntryMenuWidget->OnStartRequested.AddDynamic(this, &UYogGameInstanceBase::StartNormalRunFromFrontend);
+	EntryMenuWidget->OnContinueRequested.AddDynamic(this, &UYogGameInstanceBase::ContinueRunFromFrontend);
+	EntryMenuWidget->OnOptionsRequested.AddDynamic(this, &UYogGameInstanceBase::HandleEntryOptionsRequested);
+	EntryMenuWidget->OnQuitRequested.AddDynamic(this, &UYogGameInstanceBase::ShowMainMenu);
+	UIManager->PushScreen(EYogUIScreenId::EntryMenu);
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(this, &UYogGameInstanceBase::RefocusEntryMenuWidget);
 	}
 }
 
@@ -437,6 +499,18 @@ void UYogGameInstanceBase::StartNormalRunFromFrontend()
 	}
 
 	StartNewRunFromFrontend();
+}
+
+void UYogGameInstanceBase::QueueFirstRunWorldRewindHint()
+{
+	bPendingFirstRunWorldRewindHint = true;
+}
+
+bool UYogGameInstanceBase::ConsumeFirstRunWorldRewindHint()
+{
+	const bool bWasPending = bPendingFirstRunWorldRewindHint;
+	bPendingFirstRunWorldRewindHint = false;
+	return bWasPending;
 }
 
 void UYogGameInstanceBase::HandleEntryOptionsRequested()
@@ -617,7 +691,7 @@ void UYogGameInstanceBase::ShowLoadingScreen(const FText& Title, const FText& Su
 	}
 }
 
-void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
+void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive, bool bScriptedDefeat)
 {
 	RemoveFrontendWidget();
 
@@ -651,7 +725,7 @@ void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive)
 		return;
 	}
 
-	GameOverWidget->Setup(bCanRevive);
+	GameOverWidget->Setup(bCanRevive, bScriptedDefeat);
 	UIManager->PushScreen(EYogUIScreenId::GameOver);
 	if (UWorld* World = GetWorld())
 	{

@@ -8,7 +8,9 @@
 #include "RewardPickup.generated.h"
 
 class UBoxComponent;
+class UNiagaraSystem;
 class UPrimitiveComponent;
+class UTexture2D;
 class UWidgetComponent;
 class URuneRewardFloatWidget;
 class APlayerCharacterBase;
@@ -86,6 +88,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Spawn Focus", meta = (ClampMin = "0", ClampMax = "255", EditCondition = "bEnableSpawnFocusCue"))
 	int32 SpawnFocusStencilValue = 2;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Audio")
+	bool bStopAutoActivatedAudioOnBeginPlay = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Immediate Loot FX")
+	TObjectPtr<UNiagaraSystem> GoldImmediateGrantFX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Immediate Loot FX")
+	TObjectPtr<UTexture2D> GoldImmediateGrantIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Immediate Loot FX")
+	TObjectPtr<UNiagaraSystem> MaterialImmediateGrantFX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Immediate Loot FX")
+	TObjectPtr<UTexture2D> MaterialImmediateGrantIcon;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
@@ -133,6 +150,7 @@ private:
 		int32 CustomDepthStencilValue = 0;
 	};
 	// GameMode 预分配的战利品选项（Spawn 时写入，拾取时广播给 UI）
+	UPROPERTY(Transient)
 	TArray<FLootOption> AssignedLoot;
 
 	bool bPickedUp = false;

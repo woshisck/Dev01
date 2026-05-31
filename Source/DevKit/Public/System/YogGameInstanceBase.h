@@ -272,16 +272,25 @@ public:
 	TSubclassOf<UYogEntryMenuWidget> EntryMenuClass;
 
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
+	TSubclassOf<UYogEntryMenuWidget> SlotSelectMenuClass;
+
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
 	TSubclassOf<UYogGameOverWidget> GameOverWidgetClass;
 
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
 	void ShowMainMenu();
 
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
+	void ShowSlotSelectMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "Frontend")
 	void StartNewRunFromFrontend();
 
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
 	void StartNormalRunFromFrontend();
+
+	void QueueFirstRunWorldRewindHint();
+	bool ConsumeFirstRunWorldRewindHint();
 
 	// Continue 按钮：恢复存档点中断的局；若无有效存档点则行为同 StartNewRunFromFrontend
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
@@ -294,7 +303,7 @@ public:
 	void QuitFromFrontend();
 
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
-	void ShowGameOverScreen(bool bCanRevive = false);
+	void ShowGameOverScreen(bool bCanRevive = false, bool bScriptedDefeat = false);
 
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
 	void ReturnToMainMenu();
@@ -328,6 +337,8 @@ public:
 	TArray<FSequenceStep> Steps;
 	int32 CurrentIndex = 0;
 	FTimerHandle StepTimerHandle;
+
+	bool bPendingFirstRunWorldRewindHint = false;
 
 
 	///////////////////////////////////////////////////////////////////////////////////

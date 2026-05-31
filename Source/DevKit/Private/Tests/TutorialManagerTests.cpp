@@ -110,6 +110,8 @@ bool FTutorialManagerCoreFallbackPagesExistTest::RunTest(const FString& Paramete
 		UTutorialManager::GetFallbackTutorialPageCountForTest(FName(TEXT("tutorial_card_link_moonlight"))) > 0);
 	TestTrue(TEXT("Backpack fallback has tutorial pages"),
 		UTutorialManager::GetFallbackTutorialPageCountForTest(FName(TEXT("tutorial_backpack"))) > 0);
+	TestTrue(TEXT("Finisher fallback has tutorial pages"),
+		UTutorialManager::GetFallbackTutorialPageCountForTest(FName(TEXT("tutorial_finisher"))) > 0);
 
 	return true;
 }

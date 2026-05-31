@@ -300,6 +300,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "GameOver")
 	bool IsPlayerDeathPending() const { return bPlayerDeathPending; }
 
+	UFUNCTION(BlueprintPure, Category = "GameOver")
+	bool IsScriptedDefeatGameOver() const { return bScriptedDefeatGameOver; }
+
 	static bool CanOfferPlayerDeathRevive(bool bInGameOverTriggered, bool bInPlayerDeathReviveUsed);
 	static bool ShouldBroadcastRunSummaryForPlayerDeathGameOver(bool bCanRevive);
 	static float CalculatePlayerReviveHealth(float MaxHealth, float ReviveHealthPercent);
@@ -578,6 +581,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameOver", meta = (AllowPrivateAccess = "true"))
 	bool bPlayerDeathPending = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameOver", meta = (AllowPrivateAccess = "true"))
+	bool bScriptedDefeatGameOver = false;
 
 	UPROPERTY()
 	TWeakObjectPtr<APlayerCharacterBase> PendingDeathPlayer;

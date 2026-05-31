@@ -568,8 +568,6 @@ void UCombatDeckComponent::LoadDeckFromSourceAssetsInternal(const TArray<URuneDa
 			DeckList.Add(Card);
 		}
 	}
-	const TArray<FCombatCardInstance> EnteredCards = DeckList;
-
 	DeckState = EDeckState::Ready;
 	ShuffleCooldownRemaining = 0.0f;
 	LastResolvedCard = FCombatCardInstance();
@@ -580,10 +578,6 @@ void UCombatDeckComponent::LoadDeckFromSourceAssetsInternal(const TArray<URuneDa
 	ResolvedAttackGuids.Reset();
 	FinisherCardsWaitingForEffectEnd.Reset();
 	RefillActiveSequence();
-	if (!EnteredCards.IsEmpty())
-	{
-		OnDeckCardsEntered.Broadcast(BuildTemporaryLockViewCards(EnteredCards));
-	}
 	RefreshCardPassiveFlows();
 }
 

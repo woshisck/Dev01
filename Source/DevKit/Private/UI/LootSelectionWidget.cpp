@@ -169,9 +169,16 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 	for (int32 i = 0; i < Options.Num() && ValidOptionIndices.Num() < MaxCards; ++i)
 	{
 		const FLootOption& Opt = Options[i];
-		if (Opt.LootType == ELootType::Rune && Opt.RuneAsset)
+		if (Opt.LootType == ELootType::Rune && IsValid(Opt.RuneAsset.Get()))
 		{
 			ValidOptionIndices.Add(i);
+		}
+		else if (Opt.LootType == ELootType::Rune)
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("[LootSelection] RebuildCards skipped invalid rune option Index=%d Rune=%s"),
+				i,
+				*GetNameSafe(Opt.RuneAsset.Get()));
 		}
 	}
 
@@ -217,7 +224,8 @@ void ULootSelectionWidget::RebuildCards(const TArray<FLootOption>& Options)
 		URuneInfoCardWidget* Card = CreateWidget<URuneInfoCardWidget>(this, RuneCardClass);
 		if (!Card) continue;
 
-		Card->ShowRune(Opt.RuneAsset->RuneInfo);
+		FRuneInstance RuneInstance = Opt.RuneAsset->CreateInstance();
+		Card->ShowRune(RuneInstance);
 		Card->SetGenericEffectsExpanded(false);  // 默认折叠，FocusCard 时按聚焦展开
 		Card->SetSelected(false);                 // 重建时清场，FocusCard 再统一设当前选中
 

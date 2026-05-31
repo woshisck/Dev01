@@ -27,6 +27,14 @@ void UPauseMenuWidget::NativeOnInitialized()
 	{
 		BtnControl->OnClicked.AddDynamic(this, &UPauseMenuWidget::HandleControl);
 	}
+	if (BtnResume)
+	{
+		BtnResume->OnClicked.AddDynamic(this, &UPauseMenuWidget::HandleResume);
+	}
+	if (BtnContinue)
+	{
+		BtnContinue->OnClicked.AddDynamic(this, &UPauseMenuWidget::HandleResume);
+	}
 	if (BtnDisplay)
 	{
 		BtnDisplay->OnClicked.AddDynamic(this, &UPauseMenuWidget::HandleDisplay);
@@ -71,7 +79,19 @@ void UPauseMenuWidget::NativeOnDeactivated()
 
 UWidget* UPauseMenuWidget::NativeGetDesiredFocusTarget() const
 {
-	return MenuButtons.IsValidIndex(FocusedButtonIndex) ? MenuButtons[FocusedButtonIndex].Get() : BtnControl.Get();
+	if (MenuButtons.IsValidIndex(FocusedButtonIndex))
+	{
+		return MenuButtons[FocusedButtonIndex].Get();
+	}
+	if (BtnResume)
+	{
+		return BtnResume.Get();
+	}
+	if (BtnContinue)
+	{
+		return BtnContinue.Get();
+	}
+	return BtnControl.Get();
 }
 
 FReply UPauseMenuWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
@@ -127,25 +147,31 @@ void UPauseMenuWidget::CloseMenu()
 
 void UPauseMenuWidget::HandleControl()
 {
-	FocusButton(0);
+	FocusButton(FindButtonIndex(BtnControl));
 	SetDescription(NSLOCTEXT("PauseMenu", "ControlDesc", "Controller and keyboard input reference."));
+}
+
+void UPauseMenuWidget::HandleResume()
+{
+	FocusButton(FMath::Max(0, FindButtonIndex(BtnResume ? BtnResume.Get() : BtnContinue.Get())));
+	CloseMenu();
 }
 
 void UPauseMenuWidget::HandleDisplay()
 {
-	FocusButton(1);
+	FocusButton(FindButtonIndex(BtnDisplay));
 	SetDescription(NSLOCTEXT("PauseMenu", "DisplayDesc", "Display settings entry."));
 }
 
 void UPauseMenuWidget::HandleSound()
 {
-	FocusButton(2);
+	FocusButton(FindButtonIndex(BtnSound));
 	SetDescription(NSLOCTEXT("PauseMenu", "SoundDesc", "Sound settings entry."));
 }
 
 void UPauseMenuWidget::HandleSave()
 {
-	FocusButton(3);
+	FocusButton(FindButtonIndex(BtnSave));
 	bool bSaved = false;
 
 	if (UGameInstance* GameInstance = GetGameInstance())
@@ -169,7 +195,7 @@ void UPauseMenuWidget::HandleSave()
 
 void UPauseMenuWidget::HandleQuit()
 {
-	FocusButton(4);
+	FocusButton(FindButtonIndex(BtnQuit));
 
 	UYogGameInstanceBase* YogGI = GetGameInstance() ? Cast<UYogGameInstanceBase>(GetGameInstance()) : nullptr;
 	CloseMenu();
@@ -183,6 +209,14 @@ void UPauseMenuWidget::HandleQuit()
 void UPauseMenuWidget::CacheButtons()
 {
 	MenuButtons.Reset();
+	if (BtnResume)
+	{
+		MenuButtons.Add(BtnResume);
+	}
+	else if (BtnContinue)
+	{
+		MenuButtons.Add(BtnContinue);
+	}
 	if (BtnControl)
 	{
 		MenuButtons.Add(BtnControl);
@@ -205,6 +239,22 @@ void UPauseMenuWidget::CacheButtons()
 	}
 
 	FocusedButtonIndex = FMath::Clamp(FocusedButtonIndex, 0, FMath::Max(0, MenuButtons.Num() - 1));
+}
+
+int32 UPauseMenuWidget::FindButtonIndex(const UButton* Button) const
+{
+	if (!Button)
+	{
+		return FocusedButtonIndex;
+	}
+	for (int32 Index = 0; Index < MenuButtons.Num(); ++Index)
+	{
+		if (MenuButtons[Index] == Button)
+		{
+			return Index;
+		}
+	}
+	return FocusedButtonIndex;
 }
 
 void UPauseMenuWidget::FocusButton(int32 NewIndex)
@@ -231,25 +281,30 @@ void UPauseMenuWidget::FocusButton(int32 NewIndex)
 		Button->SetKeyboardFocus();
 	}
 
-	switch (FocusedButtonIndex)
+	UButton* FocusedButton = MenuButtons.IsValidIndex(FocusedButtonIndex) ? MenuButtons[FocusedButtonIndex].Get() : nullptr;
+	if (FocusedButton == BtnResume || FocusedButton == BtnContinue)
 	{
-	case 0:
+		SetDescription(NSLOCTEXT("PauseMenu", "ResumeDesc", "Return to the current run."));
+	}
+	else if (FocusedButton == BtnControl)
+	{
 		SetDescription(NSLOCTEXT("PauseMenu", "ControlDesc", "Controller and keyboard input reference."));
-		break;
-	case 1:
+	}
+	else if (FocusedButton == BtnDisplay)
+	{
 		SetDescription(NSLOCTEXT("PauseMenu", "DisplayDesc", "Display settings entry."));
-		break;
-	case 2:
+	}
+	else if (FocusedButton == BtnSound)
+	{
 		SetDescription(NSLOCTEXT("PauseMenu", "SoundDesc", "Sound settings entry."));
-		break;
-	case 3:
+	}
+	else if (FocusedButton == BtnSave)
+	{
 		SetDescription(NSLOCTEXT("PauseMenu", "SaveDesc", "Save the current run state."));
-		break;
-	case 4:
+	}
+	else if (FocusedButton == BtnQuit)
+	{
 		SetDescription(NSLOCTEXT("PauseMenu", "QuitDesc", "Quit the game and back to the Main Menu."));
-		break;
-	default:
-		break;
 	}
 }
 

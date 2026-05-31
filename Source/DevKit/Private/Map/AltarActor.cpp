@@ -10,6 +10,7 @@
 #include "UI/SacrificeSelectionWidget.h"
 #include "UI/YogUIManagerSubsystem.h"
 #include "Character/PlayerCharacterBase.h"
+#include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -19,6 +20,32 @@ UYogUIManagerSubsystem* GetAltarUIManagerForPlayer(const APlayerCharacterBase* P
 	const APlayerController* PC = Player ? Player->GetController<APlayerController>() : nullptr;
 	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
 	return LocalPlayer ? LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
+}
+
+APlayerCharacterBase* GetFirstLocalPlayerCharacter(const UWorld* World)
+{
+	const APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+	return PC ? Cast<APlayerCharacterBase>(PC->GetPawn()) : nullptr;
+}
+
+bool IsPlayerWithinAltarFallbackRange(const UBoxComponent* Box, const APlayerCharacterBase* Player, float& OutDist2D)
+{
+	OutDist2D = TNumericLimits<float>::Max();
+	if (!Box || !Player)
+	{
+		return false;
+	}
+
+	const FVector PlayerLocation = Player->GetActorLocation();
+	const FVector BoxLocation = Box->GetComponentLocation();
+	const FVector Extent = Box->GetScaledBoxExtent();
+	OutDist2D = FVector::Dist2D(PlayerLocation, BoxLocation);
+
+	const FBox ExpandedBox = Box->Bounds.GetBox().ExpandBy(FVector(160.f, 160.f, 140.f));
+	const bool bInsideExpandedBox = ExpandedBox.IsInsideOrOn(PlayerLocation);
+	const bool bNearCenter = OutDist2D <= FMath::Max(Extent.X, Extent.Y) + 180.f
+		&& FMath::Abs(PlayerLocation.Z - BoxLocation.Z) <= Extent.Z + 240.f;
+	return bInsideExpandedBox || bNearCenter;
 }
 }
 
@@ -51,7 +78,11 @@ AAltarActor::AAltarActor()
 	InteractPromptWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 150.f));
 	InteractPromptWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
 	InteractPromptWidgetComp->SetDrawAtDesiredSize(true);
-	InteractPromptWidgetComp->SetVisibility(false);
+	// Keep the component itself permanently visible so it registers with the screen layer on the first
+	// tick (UpdateWidgetOnScreen only adds to the layer when component is visible, and SetVisibility
+	// later doesn't re-trigger that path for screen-space). Toggle the inner UUserWidget's Slate
+	// visibility for show/hide instead.
+	InteractPromptWidgetComp->SetVisibility(true);
 	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
 
 	IdleVFXComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("IdleVFXComponent"));
@@ -71,6 +102,7 @@ void AAltarActor::BeginPlay()
 	}
 
 	ConfigureInteractPrompt();
+	QueueRefreshCurrentPlayerOverlap();
 }
 
 void AAltarActor::OnPhaseChanged(ELevelPhase NewPhase)
@@ -103,20 +135,8 @@ void AAltarActor::SetAltarActive(bool bInActive)
 	}
 	else if (bIsActive && InteractBox)
 	{
-		// Player may already be inside the box when the altar becomes active (e.g. phase change
-		// fires after the player walked in). Re-trigger the overlap logic so PendingAltar is set.
-		TArray<AActor*> OverlappingActors;
-		InteractBox->GetOverlappingActors(OverlappingActors, APlayerCharacterBase::StaticClass());
-		for (AActor* Actor : OverlappingActors)
-		{
-			if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Actor))
-			{
-				OnPlayerBeginOverlap(Player);
-				break;
-			}
-		}
-		if (!NearbyPlayer.IsValid())
-			SetInteractPromptVisible(false);
+		RefreshCurrentPlayerOverlap();
+		QueueRefreshCurrentPlayerOverlap();
 	}
 	else
 	{
@@ -140,6 +160,7 @@ void AAltarActor::SetAltarData(UAltarDataAsset* InData)
 	AltarData = InData;
 	ConfigureInteractPrompt();
 	SetInteractPromptVisible(NearbyPlayer.IsValid() && bIsActive);
+	QueueRefreshCurrentPlayerOverlap();
 }
 
 void AAltarActor::SetOpenSacrificeDirectly(bool bInOpenDirectly)
@@ -147,11 +168,34 @@ void AAltarActor::SetOpenSacrificeDirectly(bool bInOpenDirectly)
 	bOpenSacrificeDirectly = bInOpenDirectly;
 	ConfigureInteractPrompt();
 	SetInteractPromptVisible(NearbyPlayer.IsValid() && bIsActive);
+	QueueRefreshCurrentPlayerOverlap();
+}
+
+void AAltarActor::EnsureInteractBoxMinimumExtent(FVector MinimumExtent)
+{
+	if (!InteractBox)
+	{
+		return;
+	}
+
+	const FVector CurrentExtent = InteractBox->GetUnscaledBoxExtent();
+	const FVector NewExtent(
+		FMath::Max(CurrentExtent.X, MinimumExtent.X),
+		FMath::Max(CurrentExtent.Y, MinimumExtent.Y),
+		FMath::Max(CurrentExtent.Z, MinimumExtent.Z));
+	if (!CurrentExtent.Equals(NewExtent))
+	{
+		InteractBox->SetBoxExtent(NewExtent, true);
+	}
+	QueueRefreshCurrentPlayerOverlap();
 }
 
 void AAltarActor::TryInteract(APlayerCharacterBase* Player)
 {
-	if (!bIsActive || bSacrificeRewardConsumed || !Player || !AltarData) return;
+	if (!bIsActive || bSacrificeRewardConsumed || !Player || !AltarData)
+	{
+		return;
+	}
 
 	if (bOpenSacrificeDirectly)
 	{
@@ -174,6 +218,11 @@ void AAltarActor::TryInteract(APlayerCharacterBase* Player)
 
 		if (!SacrificeWidget)
 		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("[AltarActor] TryInteract failed to create sacrifice widget. WidgetClass=%s Player=%s Actor=%s"),
+				*GetNameSafe(SacrificeWidgetClass.Get()),
+				*GetNameSafe(Player),
+				*GetNameSafe(this));
 			return;
 		}
 
@@ -189,6 +238,10 @@ void AAltarActor::TryInteract(APlayerCharacterBase* Player)
 				}
 			}
 		}
+		UE_LOG(LogTemp, Warning,
+			TEXT("[AltarActor] TryInteract could not push sacrifice screen. Player=%s Actor=%s"),
+			*GetNameSafe(Player),
+			*GetNameSafe(this));
 		return;
 	}
 
@@ -207,7 +260,15 @@ void AAltarActor::TryInteract(APlayerCharacterBase* Player)
 		}
 	}
 
-	if (!AltarMenuWidget) return;
+	if (!AltarMenuWidget)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[AltarActor] TryInteract failed to create altar menu widget. WidgetClass=%s Player=%s Actor=%s"),
+			*GetNameSafe(AltarMenuWidgetClass.Get()),
+			*GetNameSafe(Player),
+			*GetNameSafe(this));
+		return;
+	}
 	AltarMenuWidget->SetupAltar(AltarData, Player);
 	if (APlayerController* PC = Player->GetController<APlayerController>())
 	{
@@ -220,6 +281,10 @@ void AAltarActor::TryInteract(APlayerCharacterBase* Player)
 			}
 		}
 	}
+	UE_LOG(LogTemp, Warning,
+		TEXT("[AltarActor] TryInteract could not push altar menu screen. Player=%s Actor=%s"),
+		*GetNameSafe(Player),
+		*GetNameSafe(this));
 }
 
 void AAltarActor::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
@@ -303,8 +368,21 @@ void AAltarActor::ConfigureInteractPrompt()
 		InteractPromptWidgetComp->SetOwnerPlayer(PC->GetLocalPlayer());
 	}
 
-	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
-	InteractPromptWidgetComp->InitWidget();
+	// Bug fix: only InitWidget once. Calling InitWidget multiple times (BeginPlay + SetAltarData + SetOpenSacrificeDirectly all triggered)
+	// destroyed+recreated the widget on each call, leaving the renderer in a "freshly-created" state that didn't paint on the first
+	// SetVisibility(true). Re-entering the box did a visibility toggle that gave the renderer a chance to catch up.
+	if (!InteractPromptWidgetComp->GetWidget())
+	{
+		InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
+		InteractPromptWidgetComp->InitWidget();
+		// Default UUserWidget visibility is SelfHitTestInvisible (visible). We want hidden until
+		// the player overlaps, but we keep the component visible so it gets added to the screen
+		// layer on the first tick. So collapse the inner widget right after creation.
+		if (UUserWidget* InnerWidget = InteractPromptWidgetComp->GetWidget())
+		{
+			InnerWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
 	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
 	{
 		PromptWidget->SetPromptLabel(bOpenSacrificeDirectly
@@ -315,8 +393,89 @@ void AAltarActor::ConfigureInteractPrompt()
 
 void AAltarActor::SetInteractPromptVisible(bool bVisible)
 {
+	const bool bFinalVisible = bVisible && bIsActive && !bSacrificeRewardConsumed;
 	if (InteractPromptWidgetComp)
 	{
-		InteractPromptWidgetComp->SetVisibility(bVisible && bIsActive && !bSacrificeRewardConsumed);
+		// Component stays visible permanently (registered with screen layer on first tick). Only toggle
+		// the inner UUserWidget's Slate visibility. Toggling component visibility instead is racy on
+		// screen-space because UWidgetComponent::UpdateWidgetOnScreen only runs from TickComponent,
+		// and USceneComponent::SetVisibility doesn't reliably reactivate that tick.
+		if (UUserWidget* InnerWidget = InteractPromptWidgetComp->GetWidget())
+		{
+			InnerWidget->SetVisibility(bFinalVisible
+				? ESlateVisibility::SelfHitTestInvisible
+				: ESlateVisibility::Collapsed);
+		}
 	}
+}
+
+bool AAltarActor::IsInteractPromptShowing() const
+{
+	if (!InteractPromptWidgetComp)
+	{
+		return false;
+	}
+	if (const UUserWidget* InnerWidget = InteractPromptWidgetComp->GetWidget())
+	{
+		const ESlateVisibility V = InnerWidget->GetVisibility();
+		return V != ESlateVisibility::Collapsed && V != ESlateVisibility::Hidden;
+	}
+	return false;
+}
+
+void AAltarActor::RefreshCurrentPlayerOverlap()
+{
+	if (!bIsActive || !InteractBox)
+	{
+		return;
+	}
+
+	InteractBox->UpdateOverlaps();
+
+	TArray<AActor*> OverlappingActors;
+	InteractBox->GetOverlappingActors(OverlappingActors, APlayerCharacterBase::StaticClass());
+	APlayerCharacterBase* FallbackPlayer = GetFirstLocalPlayerCharacter(GetWorld());
+	float FallbackDist2D = TNumericLimits<float>::Max();
+	const bool bFallbackPlayerInRange = IsPlayerWithinAltarFallbackRange(InteractBox, FallbackPlayer, FallbackDist2D);
+	for (AActor* Actor : OverlappingActors)
+	{
+		if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Actor))
+		{
+			if (NearbyPlayer.Get() != Player || Player->PendingAltar != this || !IsInteractPromptShowing())
+			{
+				OnPlayerBeginOverlap(Player);
+			}
+			return;
+		}
+	}
+
+	if (bFallbackPlayerInRange)
+	{
+		if (NearbyPlayer.Get() != FallbackPlayer
+			|| FallbackPlayer->PendingAltar != this
+			|| !IsInteractPromptShowing())
+		{
+			OnPlayerBeginOverlap(FallbackPlayer);
+		}
+		return;
+	}
+
+	if (!NearbyPlayer.IsValid())
+	{
+		SetInteractPromptVisible(false);
+	}
+}
+
+void AAltarActor::QueueRefreshCurrentPlayerOverlap()
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	GetWorld()->GetTimerManager().SetTimerForNextTick(
+		FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			RefreshCurrentPlayerOverlap();
+		}));
 }

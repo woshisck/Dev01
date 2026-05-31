@@ -12,7 +12,8 @@ class UWidget;
 enum class EYogGameOverMenuAction : uint8
 {
 	Revive,
-	ReturnToHub
+	ReturnToHub,
+	ReturnToTitle
 };
 
 UCLASS(Blueprintable)
@@ -21,10 +22,10 @@ class DEVKIT_API UYogGameOverWidget : public UCommonActivatableWidget
 	GENERATED_BODY()
 
 public:
-	static void BuildDeathMenuActions(bool bInCanRevive, TArray<EYogGameOverMenuAction>& OutActions);
+	static void BuildDeathMenuActions(bool bInCanRevive, bool bInScriptedDefeat, TArray<EYogGameOverMenuAction>& OutActions);
 
 	UFUNCTION(BlueprintCallable, Category = "GameOver")
-	void Setup(bool bInCanRevive);
+	void Setup(bool bInCanRevive, bool bInScriptedDefeat = false);
 
 protected:
 	virtual void NativeConstruct() override;
@@ -85,6 +86,7 @@ private:
 
 	TArray<TObjectPtr<UButton>> MenuButtons;
 	bool bCanRevive = false;
+	bool bScriptedDefeat = false;
 	int32 FocusedButtonIndex = 0;
 	float LastAnalogNavigationTime = 0.f;
 	float AcceptInputUnlockTime = 0.f;

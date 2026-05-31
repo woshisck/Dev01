@@ -39,7 +39,7 @@ public:
 	bool bRespawnOnDeath = true;
 
 	UPROPERTY(EditAnywhere, Category = "Respawn", meta = (ClampMin = "0.0"))
-	float RespawnDelay = 5.0f;
+	float RespawnDelay = 2.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Story")
 	TObjectPtr<UStoryEncounterPointDA> OnKillEncounterPoint;

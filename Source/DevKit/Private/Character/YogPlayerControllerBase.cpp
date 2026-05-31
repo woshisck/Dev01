@@ -248,6 +248,22 @@ void AYogPlayerControllerBase::SetupInputComponent()
 
 	}
 
+	auto BindPausedMenuKey = [this](const FKey& Key)
+	{
+		FInputKeyBinding Binding(FInputChord(Key), IE_Pressed);
+		Binding.bConsumeInput = false;
+		Binding.bExecuteWhenPaused = true;
+		Binding.KeyDelegate.GetDelegateForManualSet().BindLambda([this, Key]()
+		{
+			HandleMenuBackInput(Key);
+		});
+		InputComponent->KeyBindings.Add(Binding);
+	};
+	BindPausedMenuKey(EKeys::Escape);
+	BindPausedMenuKey(EKeys::Virtual_Back);
+	BindPausedMenuKey(EKeys::Gamepad_Special_Right);
+	BindPausedMenuKey(EKeys::Gamepad_FaceButton_Right);
+
 }
 
 bool AYogPlayerControllerBase::InputKey(const FInputKeyParams& Params)

@@ -606,7 +606,7 @@ namespace MainUISetup
 		AddWidgetToOverlay(RootOverlay, BackgroundDim, HAlign_Fill, VAlign_Fill);
 
 		PanelSizeBox->SetWidthOverride(760.f);
-		PanelSizeBox->SetHeightOverride(560.f);
+		PanelSizeBox->SetHeightOverride(620.f);
 		AddWidgetToOverlay(RootOverlay, PanelSizeBox, HAlign_Center, VAlign_Center);
 		PanelSizeBox->AddChild(PanelOverlay);
 
@@ -614,7 +614,7 @@ namespace MainUISetup
 		{
 			FSlateBrush FrameBrush;
 			FrameBrush.SetResourceObject(PanelFrameTexture);
-			FrameBrush.ImageSize = FVector2D(760.f, 560.f);
+			FrameBrush.ImageSize = FVector2D(760.f, 620.f);
 			FrameBrush.DrawAs = ESlateBrushDrawType::Image;
 			PanelFrameImage->SetBrush(FrameBrush);
 			AddWidgetToOverlay(PanelOverlay, PanelFrameImage, HAlign_Fill, VAlign_Fill);
@@ -640,6 +640,7 @@ namespace MainUISetup
 			ButtonListSlot->SetPadding(FMargin(58.f, 0.f));
 		}
 
+		AddPauseButton(WidgetTree, ButtonList, TEXT("BtnResume"), TEXT("BtnResumeText"), TEXT("Continue"), FocusTexture);
 		AddPauseButton(WidgetTree, ButtonList, TEXT("BtnControl"), TEXT("BtnControlText"), TEXT("Control"), FocusTexture);
 		AddPauseButton(WidgetTree, ButtonList, TEXT("BtnDisplay"), TEXT("BtnDisplayText"), TEXT("Display"), FocusTexture);
 		AddPauseButton(WidgetTree, ButtonList, TEXT("BtnSound"), TEXT("BtnSoundText"), TEXT("Sound"), FocusTexture);
@@ -648,7 +649,7 @@ namespace MainUISetup
 
 		AddDivider(WidgetTree, MenuStack, TEXT("BottomDivider"), DividerTexture);
 
-		ConfigureText(DescriptionText, TEXT("Quit the game and back to the Main Menu."), FLinearColor(0.62f, 0.64f, 0.68f, 1.f), 20, true);
+		ConfigureText(DescriptionText, TEXT("Return to the current run."), FLinearColor(0.62f, 0.64f, 0.68f, 1.f), 20, true);
 		if (UVerticalBoxSlot* DescSlot = MenuStack->AddChildToVerticalBox(DescriptionText))
 		{
 			DescSlot->SetHorizontalAlignment(HAlign_Center);
@@ -733,6 +734,7 @@ namespace MainUISetup
 	bool PauseNeedsRefresh(UWidgetBlueprint* WidgetBlueprint)
 	{
 		return !WidgetBlueprint || !WidgetBlueprint->WidgetTree
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BtnResume"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BtnControl"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BtnDisplay"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BtnSound"))

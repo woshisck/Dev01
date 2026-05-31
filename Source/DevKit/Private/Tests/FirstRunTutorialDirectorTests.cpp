@@ -21,9 +21,21 @@ bool FFirstRunTutorialDirectorBuildsPostInitialRoomPlanTest::RunTest(const FStri
 
 	TestTrue(TEXT("Post-initial room plan forces a single portal"), Plan.bForceSinglePortal);
 	TestEqual(TEXT("Default forced portal is index 0"), Plan.PortalIndex, 0);
-	TestFalse(TEXT("Second room does not override reward options; first clear separately spawns gold plus the initial three-card pickup"),
-		Plan.bOverrideRewardOptions);
-	TestEqual(TEXT("Second room has no fixed reward override"), Plan.RewardOptionsOverride.Num(), 0);
+	TestTrue(TEXT("Second room overrides reward options to Moonlight"), Plan.bOverrideRewardOptions);
+	TestEqual(TEXT("Second room has one fixed reward override"), Plan.RewardOptionsOverride.Num(), 1);
+	if (Plan.RewardOptionsOverride.Num() == 1)
+	{
+		TestEqual(TEXT("Second room reward is a rune"), Plan.RewardOptionsOverride[0].LootType, ELootType::Rune);
+		TestNotNull(TEXT("Second room Moonlight rune asset is loaded"), Plan.RewardOptionsOverride[0].RuneAsset.Get());
+		TestNotNull(TEXT("Second room uses an explicit card preview icon"), Plan.RewardOptionsOverride[0].Icon.Get());
+		if (const URuneDataAsset* MoonlightRune = Plan.RewardOptionsOverride[0].RuneAsset.Get())
+		{
+			const FGameplayTag MoonlightIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"), false);
+			TestTrue(TEXT("Second room reward resolves to a Moonlight card"),
+				MoonlightRune->RuneInfo.CombatCard.CardIdTag == MoonlightIdTag
+				|| MoonlightRune->GetPathName().Contains(TEXT("Moonlight")));
+		}
+	}
 	TestFalse(TEXT("Post-initial room does not use a special enemy reward"), Plan.bMarkLastEnemyAsSpecialRewardEnemy);
 
 	return true;
@@ -55,22 +67,16 @@ bool FFirstRunTutorialDirectorBuildsTransitionCurrencyPlansTest::RunTest(const F
 	}
 	TestFalse(TEXT("Material room does not use a special enemy reward"), MaterialPlan.bMarkLastEnemyAsSpecialRewardEnemy);
 
-	FStoryNextRoomPlan FixedRunePlan;
-	TestTrue(TEXT("MoonlightRoom builds fourth-room fixed rune plan"),
+	FStoryNextRoomPlan DefaultRewardPlan;
+	TestTrue(TEXT("MoonlightRoom builds fourth-room default reward plan"),
 		UFirstRunTutorialDirectorSubsystem::BuildDefaultNextRoomPlanForStage(
 			EFirstRunTutorialStage::MoonlightRoom,
-			FixedRunePlan));
+			DefaultRewardPlan));
 
-	TestTrue(TEXT("Fixed rune room forces a single portal"), FixedRunePlan.bForceSinglePortal);
-	TestTrue(TEXT("Fixed moonlight room overrides reward options"), FixedRunePlan.bOverrideRewardOptions);
-	TestEqual(TEXT("Fixed moonlight room has one reward option"), FixedRunePlan.RewardOptionsOverride.Num(), 1);
-	for (const FLootOption& Option : FixedRunePlan.RewardOptionsOverride)
-	{
-		TestEqual(TEXT("Fixed moonlight room option is a rune"), Option.LootType, ELootType::Rune);
-		TestNotNull(TEXT("Fixed moonlight room rune asset is loaded"), Option.RuneAsset.Get());
-		TestNotNull(TEXT("Fixed moonlight room uses an explicit card preview icon"), Option.Icon.Get());
-	}
-	TestTrue(TEXT("Fixed moonlight room carries the enemy attack buff"), FixedRunePlan.bOverrideBuffs);
+	TestTrue(TEXT("Fourth room forces a single portal"), DefaultRewardPlan.bForceSinglePortal);
+	TestFalse(TEXT("Fourth room uses the room/default reward table"), DefaultRewardPlan.bOverrideRewardOptions);
+	TestEqual(TEXT("Fourth room has no fixed reward option"), DefaultRewardPlan.RewardOptionsOverride.Num(), 0);
+	TestFalse(TEXT("Fourth room does not carry a tutorial enemy attack buff"), DefaultRewardPlan.bOverrideBuffs);
 
 	FStoryNextRoomPlan PrayerPlan;
 	TestTrue(TEXT("TransitionRoom01 builds fifth-room prayer plan"),
@@ -101,11 +107,11 @@ bool FFirstRunTutorialDirectorBuildsPostTutorialDeckTest::RunTest(const FString&
 	TestEqual(TEXT("Post tutorial deck has four cards"), DeckAssets.Num(), 4);
 	if (DeckAssets.Num() == 4)
 	{
-		TestNotNull(TEXT("First attack card exists"), DeckAssets[0]);
-		TestNotNull(TEXT("Second attack card exists"), DeckAssets[1]);
+		TestNotNull(TEXT("Burn card exists"), DeckAssets[0]);
+		TestNotNull(TEXT("Knockback card exists"), DeckAssets[1]);
 		TestNotNull(TEXT("Moonlight card exists"), DeckAssets[2]);
 		TestNotNull(TEXT("Finisher card exists"), DeckAssets[3]);
-		TestEqual(TEXT("First two cards use the same attack asset"), DeckAssets[0], DeckAssets[1]);
+		TestNotEqual(TEXT("Burn and knockback use separate card assets"), DeckAssets[0], DeckAssets[1]);
 	}
 
 	return true;

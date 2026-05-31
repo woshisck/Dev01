@@ -10,6 +10,7 @@
 #include "Component/BackpackGridComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
 #include "Character/EnemyCharacterBase.h"
+#include "Data/LevelInfoPopupDA.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/EnemyData.h"
 #include <Kismet/GameplayStatics.h>
@@ -49,10 +50,10 @@ namespace
 constexpr const TCHAR* FirstRunForcedSurvivalEnemyDataPath = TEXT("/Game/Docs/Data/Enemy/RottenGuard/DA_RottenGuard.DA_RottenGuard");
 constexpr const TCHAR* FirstRunRewardBurnRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn");
 constexpr const TCHAR* FirstRunRewardPoisonRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Poison.DA_Rune512_Poison");
-constexpr const TCHAR* FirstRunRewardSplitRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split.DA_Rune512_Split");
 constexpr const TCHAR* FirstRunRewardKnockbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback.DA_Rune512_Knockback");
-constexpr const TCHAR* FirstRunRewardShieldRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Shield.DA_Rune512_Shield");
+constexpr const TCHAR* FirstRunRewardSplashRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Splash.DA_Rune512_Splash");
 constexpr const TCHAR* FirstRunGoldIconPath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon");
+constexpr int32 FirstRunInitialGoldRewardAmount = 50;
 
 UEnemyData* LoadFirstRunForcedSurvivalEnemyData()
 {
@@ -72,9 +73,7 @@ FName ResolveRoomLevelNameForOpen(FName RequestedLevel, const URoomDataAsset* Ro
 	}
 
 	if (Requested.Equals(TEXT("PrayRoom"), ESearchCase::IgnoreCase)
-		|| Requested.Equals(TEXT("L1_CommonLevel_PrayRoom"), ESearchCase::IgnoreCase)
-		|| RoomAssetName.Equals(TEXT("DA_PrayRoom"), ESearchCase::IgnoreCase)
-		|| RoomAssetName.Equals(TEXT("DA_CL_PrayRoom"), ESearchCase::IgnoreCase))
+		|| Requested.Equals(TEXT("L1_CommonLevel_PrayRoom"), ESearchCase::IgnoreCase))
 	{
 		return FName(TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/L1_CommonLevel_PrayRoom"));
 	}
@@ -137,6 +136,40 @@ void SealPortalsExcept(const TMap<int32, APortal*>& PortalMap, int32 OpenPortalI
 	}
 }
 
+bool ResolveUsableForcedPortalIndex(
+	const TArray<FPortalDestConfig>& Configs,
+	const TMap<int32, APortal*>& PortalMap,
+	int32& InOutForcedPortalIndex,
+	const TCHAR* Context)
+{
+	for (const FPortalDestConfig& Cfg : Configs)
+	{
+		if (Cfg.PortalIndex == InOutForcedPortalIndex && PortalMap.Contains(Cfg.PortalIndex))
+		{
+			return true;
+		}
+	}
+
+	for (const FPortalDestConfig& Cfg : Configs)
+	{
+		if (PortalMap.Contains(Cfg.PortalIndex))
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("%s: forced portal [%d] is not available in this room; fallback to portal [%d]."),
+				Context ? Context : TEXT("PortalPlan"),
+				InOutForcedPortalIndex,
+				Cfg.PortalIndex);
+			InOutForcedPortalIndex = Cfg.PortalIndex;
+			return true;
+		}
+	}
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("%s: no usable portal exists for forced single-portal room."),
+		Context ? Context : TEXT("PortalPlan"));
+	return false;
+}
+
 bool PlayerHasEquippedWeapon(const UWorld* World)
 {
 	const APlayerCharacterBase* Player = World
@@ -153,6 +186,27 @@ FLootOption MakeFirstRunGoldLootOption(int32 Amount)
 	Option.DisplayName = FText::Format(NSLOCTEXT("FirstRunTutorial", "InitialGoldRewardFmt", "Gold x{0}"), Option.Amount);
 	Option.Icon = LoadObject<UTexture2D>(nullptr, FirstRunGoldIconPath);
 	return Option;
+}
+
+void ShowFirstRunWorldRewindHint(UObject* Outer, APlayerController* PC)
+{
+	if (!Outer || !PC)
+	{
+		return;
+	}
+
+	AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD());
+	if (!HUD)
+	{
+		return;
+	}
+
+	ULevelInfoPopupDA* Popup = NewObject<ULevelInfoPopupDA>(Outer);
+	Popup->Title = FText::GetEmpty();
+	Popup->Body = NSLOCTEXT("FirstRunTutorial", "WorldRewindHintBody", "世界回溯");
+	Popup->HUDSummaryText = Popup->Body;
+	Popup->DisplayDuration = 3.0f;
+	HUD->ShowInfoPopup(Popup);
 }
 }
 
@@ -758,10 +812,7 @@ void AYogGameMode::EnterArrangementPhase()
 				}
 				else if (bUseFirstRunInitialSplitReward)
 				{
-					const int32 GoldReward = ActiveGoldMax > 0
-						? FMath::RandRange(FMath::Max(0, ActiveGoldMin), ActiveGoldMax)
-						: 30;
-					Batch.Add(MakeFirstRunGoldLootOption(GoldReward));
+					Batch.Add(MakeFirstRunGoldLootOption(FirstRunInitialGoldRewardAmount));
 					RewardSource = TEXT("FirstRunInitialGold");
 				}
 				else
@@ -785,6 +836,7 @@ void AYogGameMode::EnterArrangementPhase()
 					*GetNameSafe(Pickup),
 					*DescribeGameModeLootOptionsForRewardDebug(Batch));
 				Pickup->AssignLoot(Batch);
+				Pickup->PlaySpawnFocusCue();
 				UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: assigned %d loot option(s) to RewardPickup"), Batch.Num());
 			}
 		}
@@ -823,6 +875,7 @@ void AYogGameMode::EnterArrangementPhase()
 			if (ExtraPickup)
 			{
 				ExtraPickup->AssignLoot(ExtraBatch);
+				ExtraPickup->PlaySpawnFocusCue();
 				UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: spawned extra RewardPickup with %d rune options @ %s"),
 					ExtraBatch.Num(), *ExtraRewardSpawnLoc.ToString());
 			}
@@ -1130,6 +1183,25 @@ void AYogGameMode::SpawnSacrificeEventAltar(const FVector& LootSpawnLoc)
 		Altar->SetAltarData(ActiveRoomData->SacrificeEventAltarData);
 		Altar->SetSacrificeWidgetClass(ActiveRoomData->SacrificeEventWidgetClass);
 		Altar->SetOpenSacrificeDirectly(true);
+		Altar->EnsureInteractBoxMinimumExtent(FVector(240.f, 240.f, 180.f));
+
+		if (UGameInstance* GI = GetGameInstance())
+		{
+			const UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>();
+			if (SaveSys && SaveSys->IsFirstRunTutorialActive())
+			{
+				if (UFirstRunTutorialDirectorSubsystem* Director = GI->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
+				{
+					Director->SetStage(EFirstRunTutorialStage::PrayerRoom);
+					UE_LOG(LogTemp, Warning,
+						TEXT("[AltarInteractDebug] First-run sacrifice altar configured as PrayerRoom. Room=%s Altar=%s FinisherRune=%s"),
+						*GetNameSafe(ActiveRoomData),
+						*GetNameSafe(Altar),
+						*GetNameSafe(UFirstRunTutorialDirectorSubsystem::LoadFirstRunFinisherRune()));
+				}
+			}
+		}
+
 		Altar->SetAltarActive(true);
 
 	};
@@ -1324,18 +1396,21 @@ void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 		PC->SetShowMouseCursor(false);
 	}
 
-	bool bScriptedDefeatHandled = false;
+	bScriptedDefeatGameOver = false;
 	if (UFirstRunTutorialDirectorSubsystem* Director = GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
 	{
 		if (Director->ShouldHandleScriptedDefeatDeath())
 		{
+			// Apply tutorial completion side-effects immediately so subsequent map loads
+			// (whichever path the player picks from the death menu) treat the tutorial as finished
+			// and the world-rewind hint fires on the first hub room.
 			Director->HandleScriptedDefeatDeath(this);
-			bScriptedDefeatHandled = true;
+			bScriptedDefeatGameOver = true;
 			bPlayerDeathReviveUsed = true;
 		}
 	}
 
-	if (!bScriptedDefeatHandled && CanOfferPlayerDeathRevive(bGameOverTriggered, bPlayerDeathReviveUsed) && Player)
+	if (!bScriptedDefeatGameOver && CanOfferPlayerDeathRevive(bGameOverTriggered, bPlayerDeathReviveUsed) && Player)
 	{
 		Player->PrepareForDeathReviveChoice();
 	}
@@ -1432,7 +1507,7 @@ void AYogGameMode::FinishPlayerDeathGameOver()
 
 	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
 	{
-		GI->ShowGameOverScreen(bCanRevive);
+		GI->ShowGameOverScreen(bCanRevive, bScriptedDefeatGameOver);
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[GameOver] Game paused after player death."));
@@ -1701,8 +1776,9 @@ void AYogGameMode::StartLevelSpawning()
 		*DescribeGameModeLootOptionsForRewardDebug(RoomRewardOptionsOverride),
 		*GetNameSafe(GI));
 
+	const bool bNonCombatEventRoom = ShouldSkipCombatForRoom(ActiveRoomData);
 	ActiveGlobalStageTag = Config.GlobalStageTag;
-	ActiveStoryEventTags = Config.StoryEventTags;
+	ActiveStoryEventTags = bNonCombatEventRoom ? FGameplayTagContainer() : Config.StoryEventTags;
 	OnCampaignStageEntered.Broadcast(CurrentFloor, ActiveGlobalStageTag, ActiveStoryEventTags, ActiveRoomData);
 	if (bDispatchStoryEventsFromCampaign)
 	{
@@ -1766,11 +1842,29 @@ void AYogGameMode::StartLevelSpawning()
 		CurrentFloor = 0;
 		CurrentPhase = ELevelPhase::Arrangement; // 跳过战斗阶段
 
+		if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
+		{
+			Player->ClearRunCarriedStateForHub();
+		}
+		if (GI)
+		{
+			GI->ClearRunState();
+			if (UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>())
+			{
+				SaveSys->ClearRunCheckpoint();
+			}
+		}
+
 		if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
 		{
 			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 			{
 				HUD->HideCurrentRoomBuffs();
+			}
+
+			if (GI && GI->ConsumeFirstRunWorldRewindHint())
+			{
+				ShowFirstRunWorldRewindHint(this, PC);
 			}
 		}
 
@@ -3362,11 +3456,10 @@ void AYogGameMode::SpawnFirstRunInitialCardRewardPickup(const FVector& BaseSpawn
 
 	static const TCHAR* CandidateRunePaths[] =
 	{
+		FirstRunRewardSplashRunePath,
+		FirstRunRewardKnockbackRunePath,
 		FirstRunRewardBurnRunePath,
 		FirstRunRewardPoisonRunePath,
-		FirstRunRewardSplitRunePath,
-		FirstRunRewardKnockbackRunePath,
-		FirstRunRewardShieldRunePath,
 	};
 
 	TArray<URuneDataAsset*> CandidateRunes;
@@ -3416,6 +3509,7 @@ void AYogGameMode::SpawnFirstRunInitialCardRewardPickup(const FVector& BaseSpawn
 	}
 
 	CardPickup->AssignLoot(CardOptions);
+	CardPickup->PlaySpawnFocusCue();
 	UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Initial card reward spawned %d options at %s."),
 		CardOptions.Num(),
 		*SpawnLocation.ToCompactString());
@@ -3923,18 +4017,25 @@ void AYogGameMode::ActivateHubPortals()
 			PortalMap.Add(Portal->Index, Portal);
 	}
 
-	if (bHasStoryPlan && StoryPlan.bForceSinglePortal)
+	int32 ForcedPortalIndex = StoryPlan.PortalIndex;
+	const bool bForceSinglePortal = bHasStoryPlan && StoryPlan.bForceSinglePortal;
+	if (bForceSinglePortal)
 	{
-		SealPortalsExcept(PortalMap, StoryPlan.PortalIndex, TEXT("ActivateHubPortals"));
+		if (!ResolveUsableForcedPortalIndex(ActiveRoomData->PortalDestinations, PortalMap, ForcedPortalIndex, TEXT("ActivateHubPortals")))
+		{
+			return;
+		}
+
+		SealPortalsExcept(PortalMap, ForcedPortalIndex, TEXT("ActivateHubPortals"));
 	}
 
 	// 主城所有传送门全开（不走 50% 随机）
 	for (const FPortalDestConfig& Cfg : ActiveRoomData->PortalDestinations)
 	{
-		if (bHasStoryPlan && StoryPlan.bForceSinglePortal && Cfg.PortalIndex != StoryPlan.PortalIndex)
+		if (bForceSinglePortal && Cfg.PortalIndex != ForcedPortalIndex)
 		{
 			UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: skipping portal [%d], story plan forces portal [%d]."),
-				Cfg.PortalIndex, StoryPlan.PortalIndex);
+				Cfg.PortalIndex, ForcedPortalIndex);
 			continue;
 		}
 
@@ -4041,13 +4142,18 @@ void AYogGameMode::ActivatePortals()
 	bool bAtLeastOneOpened = false;
 	const bool bStoryForcesSinglePortal = bHasStoryPlan && StoryPlan.bForceSinglePortal;
 	const bool bForceSinglePortal = bStoryForcesSinglePortal || bHasForcedPortalOverride || ActiveRoomData->bForceSinglePortal;
-	const int32 ForcedPortalIndex = bStoryForcesSinglePortal
+	int32 ForcedPortalIndex = bStoryForcesSinglePortal
 		? StoryPlan.PortalIndex
 		: bHasForcedPortalOverride
 		? ForcedPortalOverrideIndex
 		: ActiveRoomData->ForcedPortalIndex;
 	if (bForceSinglePortal)
 	{
+		if (!ResolveUsableForcedPortalIndex(Configs, PortalMap, ForcedPortalIndex, TEXT("ActivatePortals")))
+		{
+			return;
+		}
+
 		SealPortalsExcept(PortalMap, ForcedPortalIndex, TEXT("ActivatePortals"));
 	}
 

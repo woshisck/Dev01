@@ -100,6 +100,7 @@ private:
     float NextFallbackScanTime = 0.f;
 
     void RebuildArrowPool();
+    void CollectAliveEnemies(TArray<AEnemyCharacterBase*>& OutEnemies);
 
     UFUNCTION()
     void OnPlayerDamageTaken(UYogAbilitySystemComponent* SourceASC, float Damage);

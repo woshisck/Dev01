@@ -22,17 +22,24 @@ bool FPlayerDeathReviveOfferRulesTest::RunTest(const FString& Parameters)
 		AYogGameMode::ShouldBroadcastRunSummaryForPlayerDeathGameOver(true));
 
 	TArray<EYogGameOverMenuAction> GameOverActions;
-	UYogGameOverWidget::BuildDeathMenuActions(true, GameOverActions);
+	UYogGameOverWidget::BuildDeathMenuActions(true, false, GameOverActions);
 	TestEqual(TEXT("Revive death menu has revive and return to hub"), GameOverActions.Num(), 2);
 	TestTrue(TEXT("Revive death menu offers revive first"),
 		GameOverActions.IsValidIndex(0) && GameOverActions[0] == EYogGameOverMenuAction::Revive);
 	TestTrue(TEXT("Revive death menu offers return to hub second"),
 		GameOverActions.IsValidIndex(1) && GameOverActions[1] == EYogGameOverMenuAction::ReturnToHub);
 
-	UYogGameOverWidget::BuildDeathMenuActions(false, GameOverActions);
+	UYogGameOverWidget::BuildDeathMenuActions(false, false, GameOverActions);
 	TestEqual(TEXT("Final death menu only has return to hub"), GameOverActions.Num(), 1);
 	TestTrue(TEXT("Final death menu offers return to hub"),
 		GameOverActions.IsValidIndex(0) && GameOverActions[0] == EYogGameOverMenuAction::ReturnToHub);
+
+	UYogGameOverWidget::BuildDeathMenuActions(true, true, GameOverActions);
+	TestEqual(TEXT("Scripted defeat menu has two non-revive options"), GameOverActions.Num(), 2);
+	TestTrue(TEXT("Scripted defeat menu offers return to hub first"),
+		GameOverActions.IsValidIndex(0) && GameOverActions[0] == EYogGameOverMenuAction::ReturnToHub);
+	TestTrue(TEXT("Scripted defeat menu offers return to title second"),
+		GameOverActions.IsValidIndex(1) && GameOverActions[1] == EYogGameOverMenuAction::ReturnToTitle);
 
 	TestEqual(TEXT("Revive health is 30 percent of max health"),
 		AYogGameMode::CalculatePlayerReviveHealth(100.f, 0.3f), 30.f);

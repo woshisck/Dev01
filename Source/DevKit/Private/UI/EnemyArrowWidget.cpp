@@ -53,6 +53,41 @@ void UEnemyArrowWidget::RebuildArrowPool()
     }
 }
 
+void UEnemyArrowWidget::CollectAliveEnemies(TArray<AEnemyCharacterBase*>& OutEnemies)
+{
+    OutEnemies.Reset();
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    AYogGameMode* GM = World->GetAuthGameMode<AYogGameMode>();
+    if (GM)
+    {
+        OutEnemies = GM->GetAllAliveEnemies();
+    }
+
+    const float Now = World->GetTimeSeconds();
+    if (OutEnemies.IsEmpty() || Now >= NextFallbackScanTime)
+    {
+        NextFallbackScanTime = Now + FMath::Max(0.1f, FallbackScanInterval);
+        for (TActorIterator<AEnemyCharacterBase> It(World); It; ++It)
+        {
+            AEnemyCharacterBase* E = *It;
+            if (E && E->IsAlive())
+            {
+                OutEnemies.AddUnique(E);
+                if (GM)
+                {
+                    GM->RegisterEnemy(E);
+                }
+            }
+        }
+    }
+}
+
 void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
@@ -63,11 +98,10 @@ void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
             if (A) A->SetVisibility(ESlateVisibility::Collapsed);
     };
 
-    AYogGameMode* GM = GetWorld()->GetAuthGameMode<AYogGameMode>();
-    if (!GM) { HideAll(); return; }
-
     APlayerController* PC = GetOwningPlayer();
     if (!PC || !PC->GetPawn()) { HideAll(); return; }
+
+    if (!RootCanvas) { HideAll(); return; }
 
     UGameViewportClient* ViewportClient = GetWorld()->GetGameViewport();
     if (!ViewportClient) { HideAll(); return; }
@@ -77,24 +111,8 @@ void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
     if (ViewportSize.X <= 0.f || ViewportSize.Y <= 0.f) { HideAll(); return; }
     const FVector2D Center = ViewportSize * 0.5f;
 
-    TArray<AEnemyCharacterBase*> AllEnemies = GM->GetAllAliveEnemies();
-    // Fallback scan: some room/story spawns can miss or leave the GameMode awareness
-    // registry while still being valid combat targets. Merge a slow world scan so
-    // arrows stay reliable without iterating all actors every frame.
-    const float Now = GetWorld()->GetTimeSeconds();
-    if (Now >= NextFallbackScanTime)
-    {
-        NextFallbackScanTime = Now + FMath::Max(0.1f, FallbackScanInterval);
-        for (TActorIterator<AEnemyCharacterBase> It(GetWorld()); It; ++It)
-        {
-            AEnemyCharacterBase* E = *It;
-            if (E && E->IsAlive())
-            {
-                AllEnemies.AddUnique(E);
-                GM->RegisterEnemy(E);
-            }
-        }
-    }
+    TArray<AEnemyCharacterBase*> AllEnemies;
+    CollectAliveEnemies(AllEnemies);
 
     if (AllEnemies.IsEmpty()) { HideAll(); return; }
 

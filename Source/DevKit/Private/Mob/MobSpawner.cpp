@@ -67,6 +67,8 @@ AEnemyCharacterBase* AMobSpawner::SpawnMobAtLocation(TSubclassOf<AActor> EnemyCl
     {
         if (!Spawned->GetController())
             Spawned->SpawnDefaultController();
+        if (AYogGameMode* GM = World->GetAuthGameMode<AYogGameMode>())
+            GM->RegisterEnemy(Spawned);
         OnEnemySpawned(Spawned, Location);
     }
     return Spawned;

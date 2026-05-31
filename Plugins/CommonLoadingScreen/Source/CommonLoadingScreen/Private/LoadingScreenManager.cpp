@@ -170,6 +170,11 @@ bool ULoadingScreenManager::IsTickable() const
 	return !HasAnyFlags(RF_ClassDefaultObject);
 }
 
+bool ULoadingScreenManager::IsTickableWhenPaused() const
+{
+	return true;
+}
+
 TStatId ULoadingScreenManager::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(ULoadingScreenManager, STATGROUP_Tickables);

@@ -20,6 +20,7 @@ public:
 	static FText MakePromptMarkup(const FText& Label);
 
 protected:
+	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 

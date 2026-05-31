@@ -31,6 +31,12 @@ protected:
 	TObjectPtr<UTextBlock> DescriptionText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UButton> BtnResume;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UButton> BtnContinue;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UButton> BtnControl;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -47,6 +53,9 @@ protected:
 
 private:
 	UFUNCTION()
+	void HandleResume();
+
+	UFUNCTION()
 	void HandleControl();
 
 	UFUNCTION()
@@ -62,6 +71,7 @@ private:
 	void HandleQuit();
 
 	void CacheButtons();
+	int32 FindButtonIndex(const UButton* Button) const;
 	void FocusButton(int32 NewIndex);
 	void ActivateFocusedButton();
 	void SetDescription(const FText& Text);

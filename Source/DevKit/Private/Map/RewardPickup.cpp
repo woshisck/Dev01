@@ -1,4 +1,5 @@
 #include "Map/RewardPickup.h"
+#include "Components/AudioComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/WidgetComponent.h"
@@ -32,6 +33,22 @@ ARewardPickup::ARewardPickup()
 void ARewardPickup::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (bStopAutoActivatedAudioOnBeginPlay)
+	{
+		TArray<UAudioComponent*> AudioComponents;
+		GetComponents(AudioComponents);
+		for (UAudioComponent* AudioComponent : AudioComponents)
+		{
+			if (!AudioComponent)
+			{
+				continue;
+			}
+
+			AudioComponent->SetAutoActivate(false);
+			AudioComponent->Stop();
+		}
+	}
 
 	if (bUseFixedLootOptions && !FixedLootOptions.IsEmpty() && AssignedLoot.IsEmpty())
 	{
@@ -174,6 +191,15 @@ void ARewardPickup::PlaySpawnFocusCue()
 
 	const float SafeScale = FMath::Clamp(SpawnFocusDilationScale, 0.01f, 1.f);
 	const float SafeDuration = FMath::Max(0.05f, SpawnFocusDilationDuration);
+	const float CurrentDilation = UGameplayStatics::GetGlobalTimeDilation(World);
+
+	if (!bSpawnFocusTimeDilationActive && CurrentDilation < 0.99f)
+	{
+		UE_LOG(LogTemp, Verbose,
+			TEXT("[RewardPickup] Spawn focus highlight only; global time dilation is already active (Current=%.3f)."),
+			CurrentDilation);
+		return;
+	}
 
 	if (SpawnFocusDilationTickerHandle.IsValid())
 	{
@@ -183,7 +209,7 @@ void ARewardPickup::PlaySpawnFocusCue()
 
 	if (!bSpawnFocusTimeDilationActive)
 	{
-		PreviousSpawnFocusGlobalTimeDilation = UGameplayStatics::GetGlobalTimeDilation(World);
+		PreviousSpawnFocusGlobalTimeDilation = CurrentDilation;
 		UTimeDilationVisualSubsystem::BeginTimeDilationVisual(this);
 		bSpawnFocusTimeDilationActive = true;
 	}
@@ -322,7 +348,7 @@ bool ARewardPickup::ShouldGrantLootImmediatelyForOptions(const TArray<FLootOptio
 
 	for (const FLootOption& Option : Options)
 	{
-		if (Option.LootType == ELootType::Rune && Option.RuneAsset)
+		if (Option.LootType == ELootType::Rune)
 		{
 			return false;
 		}

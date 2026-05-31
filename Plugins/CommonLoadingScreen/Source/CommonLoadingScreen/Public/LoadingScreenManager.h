@@ -38,6 +38,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual ETickableTickType GetTickableTickType() const override;
 	virtual bool IsTickable() const override;
+	virtual bool IsTickableWhenPaused() const override;
 	virtual TStatId GetStatId() const override;
 	virtual UWorld* GetTickableGameObjectWorld() const override;
 	//~End of FTickableObjectBase interface

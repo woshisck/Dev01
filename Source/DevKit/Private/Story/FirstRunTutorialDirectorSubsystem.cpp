@@ -14,19 +14,14 @@
 
 namespace
 {
-constexpr const TCHAR* AttackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Attack.DA_Rune512_Attack");
-constexpr const TCHAR* HeavyRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Heavy.DA_Rune512_Heavy");
-constexpr const TCHAR* SplitRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split.DA_Rune512_Split");
+constexpr const TCHAR* BurnRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn");
+constexpr const TCHAR* KnockbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback.DA_Rune512_Knockback");
 constexpr const TCHAR* MoonlightRunePath = TEXT("/Game/Code/Weapon/TwoHandedSword/CombatCards/DA_Rune512_THSword_Moonlight.DA_Rune512_THSword_Moonlight");
+constexpr const TCHAR* MoonlightFallbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward");
 constexpr const TCHAR* FinisherRunePath = TEXT("/Game/YogRuneEditor/Runes/DA_Rune_Finisher.DA_Rune_Finisher");
-constexpr const TCHAR* EnemyRoomAttackBuffPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/EnemyRoom/DA_Rune512_EnemyRoom_Attack.DA_Rune512_EnemyRoom_Attack");
 constexpr const TCHAR* PrayerRoomDataPath = TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom.DA_PrayRoom");
 
-constexpr const TCHAR* GoldIconPath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon");
 constexpr const TCHAR* MaterialIconPath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_MaterialQuestionIcon.T_MaterialQuestionIcon");
-constexpr const TCHAR* AttackIconPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/Icons/T_Rune512_Attack.T_Rune512_Attack");
-constexpr const TCHAR* HeavyIconPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/Icons/T_Rune512_THSword.T_Rune512_THSword");
-constexpr const TCHAR* SplitIconPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/Icons/T_Rune512_Split.T_Rune512_Split");
 constexpr const TCHAR* MoonlightIconPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/Icons/T_Rune512_THSword_Moonlight.T_Rune512_THSword_Moonlight");
 
 template <typename T>
@@ -45,13 +40,18 @@ FLootOption MakeRuneLootOption(const TCHAR* RunePath, const TCHAR* DisplayName, 
 	return Option;
 }
 
-FLootOption MakeGoldLootOption(int32 Amount)
+FLootOption MakeMoonlightLootOption()
 {
-	FLootOption Option;
-	Option.LootType = ELootType::Gold;
-	Option.Amount = Amount;
-	Option.DisplayName = FText::Format(NSLOCTEXT("FirstRunTutorial", "GoldRewardFmt", "金币 x{0}"), Amount);
-	Option.Icon = LoadTutorialAsset<UTexture2D>(GoldIconPath);
+	FLootOption Option = MakeRuneLootOption(MoonlightRunePath, TEXT("Moonlight"), MoonlightIconPath);
+	if (!Option.RuneAsset)
+	{
+		Option.RuneAsset = LoadTutorialAsset<URuneDataAsset>(MoonlightFallbackRunePath);
+		UE_LOG(LogTemp, Warning,
+			TEXT("[FirstRunTutorialDirector] Primary Moonlight rune failed to load, fallback=%s Asset=%s"),
+			MoonlightFallbackRunePath,
+			*GetNameSafe(Option.RuneAsset.Get()));
+	}
+
 	return Option;
 }
 
@@ -66,19 +66,6 @@ FLootOption MakeMaterialLootOption(int32 Amount)
 	return Option;
 }
 
-void AddEnemyRoomAttackBuff(FStoryNextRoomPlan& Plan)
-{
-	if (URuneDataAsset* BuffRune = LoadTutorialAsset<URuneDataAsset>(EnemyRoomAttackBuffPath))
-	{
-		FBuffEntry Entry;
-		Entry.RuneDA = BuffRune;
-		Entry.DifficultyScore = 1;
-		Entry.ApplyChance = 1.0f;
-
-		Plan.bOverrideBuffs = true;
-		Plan.BuffsOverride.Add(Entry);
-	}
-}
 }
 
 void UFirstRunTutorialDirectorSubsystem::SetStage(EFirstRunTutorialStage InStage)
@@ -253,6 +240,7 @@ void UFirstRunTutorialDirectorSubsystem::HandleScriptedDefeatDeath(AYogGameMode*
 	if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
 	{
 		GI->ClearRunState();
+		GI->QueueFirstRunWorldRewindHint();
 	}
 
 	SetStage(EFirstRunTutorialStage::Completed);
@@ -264,73 +252,30 @@ bool UFirstRunTutorialDirectorSubsystem::BuildDefaultNextRoomPlanForStage(EFirst
 	OutPlan.bForceSinglePortal = true;
 	OutPlan.PortalIndex = 0;
 
-	if (InStage == EFirstRunTutorialStage::GoldRoomCleared)
-	{
-		return true;
-	}
-
-	if (InStage == EFirstRunTutorialStage::BuffCardRoom)
-	{
-		OutPlan.bOverrideRewardOptions = true;
-		OutPlan.RewardOptionsOverride = { MakeMaterialLootOption(1) };
-		return true;
-	}
-
-	if (InStage == EFirstRunTutorialStage::MoonlightRoom)
-	{
-		OutPlan.bOverrideRewardOptions = true;
-		OutPlan.RewardOptionsOverride = {
-			MakeRuneLootOption(MoonlightRunePath, TEXT("Moonlight"), MoonlightIconPath),
-		};
-		AddEnemyRoomAttackBuff(OutPlan);
-		return true;
-	}
-
-	if (InStage == EFirstRunTutorialStage::TransitionRoom01)
-	{
-		OutPlan.RoomDataOverride = LoadTutorialAsset<URoomDataAsset>(PrayerRoomDataPath);
-		return true;
-	}
-
-	if (InStage == EFirstRunTutorialStage::TransitionRoom02)
-	{
-		OutPlan.RoomDataOverride = LoadTutorialAsset<URoomDataAsset>(PrayerRoomDataPath);
-		return true;
-	}
-
 	switch (InStage)
 	{
 	case EFirstRunTutorialStage::GoldRoomCleared:
 		OutPlan.bOverrideRewardOptions = true;
 		OutPlan.RewardOptionsOverride = {
-			MakeRuneLootOption(AttackRunePath, TEXT("攻击"), AttackIconPath),
-			MakeRuneLootOption(HeavyRunePath, TEXT("重击"), HeavyIconPath),
-			MakeRuneLootOption(SplitRunePath, TEXT("分裂"), SplitIconPath),
+			MakeMoonlightLootOption(),
 		};
-		AddEnemyRoomAttackBuff(OutPlan);
 		return true;
 
 	case EFirstRunTutorialStage::BuffCardRoom:
 		OutPlan.bOverrideRewardOptions = true;
-		OutPlan.RewardOptionsOverride = {
-			MakeRuneLootOption(MoonlightRunePath, TEXT("月光"), MoonlightIconPath),
-		};
-		OutPlan.bSuppressRoomClearRewardPickup = true;
-		OutPlan.bMarkLastEnemyAsSpecialRewardEnemy = true;
-		OutPlan.SpecialRewardEnemyLootOptions = OutPlan.RewardOptionsOverride;
-		return true;
-
-	case EFirstRunTutorialStage::MoonlightRoom:
-		OutPlan.bOverrideRewardOptions = true;
-		OutPlan.RewardOptionsOverride = { MakeGoldLootOption(30) };
-		return true;
-
-	case EFirstRunTutorialStage::TransitionRoom01:
-		OutPlan.bOverrideRewardOptions = true;
 		OutPlan.RewardOptionsOverride = { MakeMaterialLootOption(1) };
 		return true;
 
+	case EFirstRunTutorialStage::MoonlightRoom:
+		// Fourth room keeps the room/default reward table while the tutorial route stays single-door.
+		return true;
+
+	case EFirstRunTutorialStage::TransitionRoom01:
+		OutPlan.RoomDataOverride = LoadTutorialAsset<URoomDataAsset>(PrayerRoomDataPath);
+		return true;
+
 	case EFirstRunTutorialStage::TransitionRoom02:
+		OutPlan.RoomDataOverride = LoadTutorialAsset<URoomDataAsset>(PrayerRoomDataPath);
 		return true;
 
 	default:
@@ -344,8 +289,8 @@ bool UFirstRunTutorialDirectorSubsystem::BuildDefaultNextRoomPlanForStage(EFirst
 void UFirstRunTutorialDirectorSubsystem::BuildDefaultPostTutorialDeck(TArray<URuneDataAsset*>& OutDeck)
 {
 	OutDeck.Reset();
-	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(AttackRunePath));
-	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(AttackRunePath));
+	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(BurnRunePath));
+	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(KnockbackRunePath));
 	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(MoonlightRunePath));
 	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(FinisherRunePath));
 }

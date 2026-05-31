@@ -108,7 +108,16 @@ FText ResolveInputAwareBody(const FStoryEncounterAction& Action, const FStoryEve
 			|| IsMovementHintText(Action.KeyboardMouseBody)
 			|| IsMovementHintText(Action.GamepadBody)))
 	{
-		return FText::FromString(TEXT("<左摇杆>移动角色，键鼠使用WASD"));
+		const APlayerController* PlayerController = Context.PlayerController;
+		const ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;
+		const UCommonInputSubsystem* InputSubsystem = LocalPlayer
+			? ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(LocalPlayer)
+			: nullptr;
+		const bool bIsGamepad = InputSubsystem
+			&& InputSubsystem->GetCurrentInputType() == ECommonInputType::Gamepad;
+		return bIsGamepad
+			? FText::FromString(TEXT("<input action=\"Move\"/>移动角色"))
+			: FText::FromString(TEXT("WASD移动角色"));
 	}
 
 	if (!Action.bUseInputTextVariants)

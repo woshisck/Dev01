@@ -744,6 +744,9 @@ bool FStoryEncounterTutorialDummySpawnBindsKillPointTest::RunTest(const FString&
 		ActivateNode->OnKillEncounterPoint.Get() == KillPoint);
 	TestTrue(TEXT("ActivateTutorialSpawner uses BP_Enemy_DummyTraining"),
 		GetPathNameSafe(ActivateNode->EnemyClassOverride.Get()).Contains(TEXT("BP_Enemy_DummyTraining")));
+	TestEqual(TEXT("Tutorial dummy respawns after two seconds"),
+		ActivateNode->RespawnDelay,
+		2.0f);
 
 	TestEqual(TEXT("Training dummy kill point runs on death"),
 		KillPoint->Kind,

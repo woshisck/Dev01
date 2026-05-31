@@ -11,6 +11,27 @@
 #include "UI/GenericEffectListWidget.h"
 #include "Styling/SlateBrush.h"
 
+namespace
+{
+bool IsUsableSlateTexture(const UTexture2D* Texture)
+{
+    if (!Texture)
+    {
+        return false;
+    }
+
+    const UPTRINT Ptr = reinterpret_cast<UPTRINT>(Texture);
+    if (Ptr < 0x10000 || (Ptr & (alignof(UObject) - 1)) != 0)
+    {
+        return false;
+    }
+
+    return Texture->IsValidLowLevelFast(false)
+        && IsValid(Texture)
+        && !Texture->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed);
+}
+}
+
 // ============================================================
 //  构造函数
 // ============================================================
@@ -63,7 +84,7 @@ void URuneInfoCardWidget::ShowRune(const FRuneInstance& Rune)
 
     if (CardBG)
     {
-        if (Rune.RuneConfig.CardBackground)
+        if (IsUsableSlateTexture(Rune.RuneConfig.CardBackground))
         {
             CardBG->SetBrushFromTexture(Rune.RuneConfig.CardBackground, false);
         }
@@ -131,7 +152,7 @@ void URuneInfoCardWidget::ShowRune(const FRuneInstance& Rune)
 
     if (CardIcon)
     {
-        if (Rune.RuneConfig.RuneIcon)
+        if (IsUsableSlateTexture(Rune.RuneConfig.RuneIcon))
         {
             CardIcon->SetBrushFromTexture(Rune.RuneConfig.RuneIcon, false);
             CardIcon->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
