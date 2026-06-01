@@ -12,18 +12,9 @@ class UAnimMontage;
 UENUM(BlueprintType)
 enum class EYogComboGraphInputAction : uint8
 {
-	Light UMETA(DisplayName = "Light"),
-	Heavy UMETA(DisplayName = "Heavy"),
-	Dash UMETA(DisplayName = "Dash"),
-	Any UMETA(DisplayName = "Any")
-};
-
-UENUM(BlueprintType)
-enum class EYogComboGraphDashSaveMode : uint8
-{
-	None UMETA(DisplayName = "None"),
-	PreserveIfSourceAllows UMETA(DisplayName = "Preserve If Source Allows"),
-	ForcePreserve UMETA(DisplayName = "Force Preserve")
+	Light = 0 UMETA(DisplayName = "Light"),
+	Heavy = 1 UMETA(DisplayName = "Heavy"),
+	Any = 3 UMETA(DisplayName = "Any")
 };
 
 /**
@@ -66,24 +57,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	bool bIsComboFinisher = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
-	bool bAllowDashSave = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
-	EYogComboGraphDashSaveMode DashSaveMode = EYogComboGraphDashSaveMode::PreserveIfSourceAllows;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash", meta = (ClampMin = "0.0"))
-	float DashSaveExpireSeconds = 2.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
-	bool bSavePendingLinkContext = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
-	bool bClearCombatTagsOnDashEnd = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
-	bool bBreakComboOnDashCancel = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo|Window")
 	bool bUseNodeComboWindow = true;

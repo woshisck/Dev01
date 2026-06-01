@@ -445,44 +445,6 @@ bool FPlayerFinisherAttackOwnsInvulnerableTagTest::RunTest(const FString& Parame
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerDashPrefersComboGraphMontageOverrideTest,
-	"DevKit.CombatDeck.PlayerDashPrefersComboGraphMontageOverride",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FPlayerDashPrefersComboGraphMontageOverrideTest::RunTest(const FString& Parameters)
-{
-	UWorld* World = GWorld;
-	TestNotNull(TEXT("Automation world exists for dash montage override test"), World);
-	if (!World)
-	{
-		return false;
-	}
-
-	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
-	TestNotNull(TEXT("Player spawned for dash montage override test"), Player);
-	if (!Player)
-	{
-		return false;
-	}
-	TestNotNull(TEXT("Player has ComboRuntimeComponent"), Player->ComboRuntimeComponent.Get());
-	if (!Player->ComboRuntimeComponent)
-	{
-		Player->Destroy();
-		return false;
-	}
-
-	UAnimMontage* GraphDashMontage = NewObject<UAnimMontage>(Player);
-	Player->ComboRuntimeComponent->SetActiveDashMontageOverrideForTest(GraphDashMontage);
-
-	UGA_PlayerDash* Ability = NewObject<UGA_PlayerDash>();
-	const FGameplayTag DashTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"));
-	TestEqual(TEXT("Dash GA resolves the ComboGraph dash node montage before AbilityData fallback"),
-		Ability->ResolveDashMontage(Player, DashTag), GraphDashMontage);
-
-	Player->Destroy();
-	return true;
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerDeathClearsComboRuntimeStateTest,
 	"DevKit.CombatDeck.PlayerDeathClearsComboRuntimeState",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -848,45 +810,6 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 	TestEqual(TEXT("Combo window start frame is exported"), RuntimeConfig.ComboWindowStartFrame, 12);
 	TestEqual(TEXT("Combo window end frame is exported"), RuntimeConfig.ComboWindowEndFrame, 20);
 	TestEqual(TEXT("Combo window total frames is exported"), RuntimeConfig.ComboWindowTotalFrames, 30);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphDashNodeExportsRuntimeConfigTest,
-	"DevKit.CombatDeck.ComboGraphDashNodeExportsRuntimeConfig",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FGameplayAbilityComboGraphDashNodeExportsRuntimeConfigTest::RunTest(const FString& Parameters)
-{
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
-	UGameplayAbilityComboGraphNode* DashNode = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	DashNode->Graph = Graph;
-	DashNode->NodeId = TEXT("Dash");
-	DashNode->RootInputAction = EYogComboGraphInputAction::Dash;
-	DashNode->Montage = NewObject<UAnimMontage>(Graph);
-	DashNode->DashSaveMode = EYogComboGraphDashSaveMode::ForcePreserve;
-	DashNode->DashSaveExpireSeconds = 0.75f;
-	DashNode->bSavePendingLinkContext = false;
-	DashNode->bClearCombatTagsOnDashEnd = true;
-	DashNode->bBreakComboOnDashCancel = false;
-	Graph->AllNodes = { DashNode };
-	Graph->RootNodes = { DashNode };
-
-	TArray<FText> Warnings;
-	Graph->ValidateComboGraph(Warnings);
-	const bool bHasMontageWarning = Warnings.ContainsByPredicate([](const FText& Warning)
-	{
-		return Warning.ToString().Contains(TEXT("has no Montage"));
-	});
-	TestFalse(TEXT("Dash graph node with montage validates cleanly"), bHasMontageWarning);
-
-	const FWeaponComboNodeConfig RuntimeConfig = FWeaponComboNodeConfig::FromComboGraphNode(DashNode, ECardRequiredAction::Any);
-	TestEqual(TEXT("Dash node maps to card-neutral runtime action"), RuntimeConfig.InputAction, ECardRequiredAction::Any);
-	TestEqual(TEXT("Dash node exports save mode"), RuntimeConfig.DashSaveMode, EComboDashSaveMode::ForcePreserve);
-	TestEqual(TEXT("Dash node exports save expiry"), RuntimeConfig.DashSaveExpireSeconds, 0.75f);
-	TestFalse(TEXT("Dash node can disable pending link save"), RuntimeConfig.bSavePendingLinkContext);
-	TestTrue(TEXT("Dash node exports combat tag cleanup"), RuntimeConfig.bClearCombatTagsOnDashEnd);
-	TestFalse(TEXT("Dash node can keep save on cancel"), RuntimeConfig.bBreakComboOnDashCancel);
 
 	return true;
 }

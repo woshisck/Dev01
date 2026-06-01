@@ -446,13 +446,9 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	if (Buffer->HasBufferedInputSince(EInputCommandType::Dash, AbilityActivationTime))
 	{
 		Buffer->ClearBuffer();
-		bool bActivated = false;
-		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
-		{
-			bActivated = PlayerOwner->ComboRuntimeComponent
-				&& PlayerOwner->ComboRuntimeComponent->HasComboSource()
-				&& PlayerOwner->ComboRuntimeComponent->TryActivateDash(PlayerOwner);
-		}
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
+		const bool bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
 		if (!bActivated && ASC)
 		{
 			ASC->SetLooseGameplayTagCount(CanComboTag, 0);

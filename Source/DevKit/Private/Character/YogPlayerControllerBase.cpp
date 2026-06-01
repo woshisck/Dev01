@@ -585,39 +585,9 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 			player->SetActorRotation(DashFacing);
 		}
 
-		bool bActivated = false;
-		const bool bHasGraphDash = player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasDashInputNode();
-		if (bHasGraphDash)
-		{
-			bActivated = player->ComboRuntimeComponent->TryActivateDash(player);
-		}
-		else
-		{
-			bool bSavedDashCombo = false;
-			if (player->ComboRuntimeComponent)
-			{
-				bSavedDashCombo = player->ComboRuntimeComponent->SaveCurrentNodeForDash();
-			}
-			if (bSavedDashCombo && player->CombatDeckComponent)
-			{
-				player->CombatDeckComponent->SavePendingLinkContextForDash();
-			}
-
-			FGameplayTagContainer TagContainer;
-			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
-			bActivated = player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
-			if (!bActivated)
-			{
-				if (player->ComboRuntimeComponent)
-				{
-					player->ComboRuntimeComponent->ClearSavedDashNode();
-				}
-				if (player->CombatDeckComponent)
-				{
-					player->CombatDeckComponent->ClearDashSavedLinkContext();
-				}
-			}
-		}
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
+		const bool bActivated = player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
 
 		player->GetInputBufferComponent()->RecordDash();
 

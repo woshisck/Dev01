@@ -573,8 +573,6 @@ void UCombatDeckComponent::LoadDeckFromSourceAssetsInternal(const TArray<URuneDa
 	LastResolvedCard = FCombatCardInstance();
 	PendingLinkContext = FCombatCardInstance();
 	PendingLinkActionContext = FCombatDeckActionContext();
-	DashSavedLinkContext = FCombatCardInstance();
-	DashSavedLinkActionContext = FCombatDeckActionContext();
 	ResolvedAttackGuids.Reset();
 	FinisherCardsWaitingForEffectEnd.Reset();
 	RefillActiveSequence();
@@ -768,8 +766,6 @@ void UCombatDeckComponent::SetDeckListForTest(const TArray<FCombatCardConfig>& I
 	LastResolvedCard = FCombatCardInstance();
 	PendingLinkContext = FCombatCardInstance();
 	PendingLinkActionContext = FCombatDeckActionContext();
-	DashSavedLinkContext = FCombatCardInstance();
-	DashSavedLinkActionContext = FCombatDeckActionContext();
 	ResolvedAttackGuids.Reset();
 	FinisherCardsWaitingForEffectEnd.Reset();
 	RefillActiveSequence();
@@ -778,32 +774,6 @@ void UCombatDeckComponent::SetDeckListForTest(const TArray<FCombatCardConfig>& I
 void UCombatDeckComponent::AdvanceShuffleForTest(float DeltaTime)
 {
 	AdvanceShuffle(DeltaTime);
-}
-
-void UCombatDeckComponent::SavePendingLinkContextForDash()
-{
-	DashSavedLinkContext = PendingLinkContext;
-	DashSavedLinkActionContext = PendingLinkActionContext;
-}
-
-bool UCombatDeckComponent::RestorePendingLinkContextFromDash()
-{
-	if (!DashSavedLinkContext.IsValidCard())
-	{
-		return false;
-	}
-
-	PendingLinkContext = DashSavedLinkContext;
-	PendingLinkActionContext = DashSavedLinkActionContext;
-	DashSavedLinkContext = FCombatCardInstance();
-	DashSavedLinkActionContext = FCombatDeckActionContext();
-	return true;
-}
-
-void UCombatDeckComponent::ClearDashSavedLinkContext()
-{
-	DashSavedLinkContext = FCombatCardInstance();
-	DashSavedLinkActionContext = FCombatDeckActionContext();
 }
 
 bool UCombatDeckComponent::IsCardSuppressedFromActiveSequenceForTest(const FGuid& CardGuid) const
@@ -1083,8 +1053,6 @@ void UCombatDeckComponent::ResetRuntimeStateAfterDeckEdit()
 	LastResolvedCard = FCombatCardInstance();
 	PendingLinkContext = FCombatCardInstance();
 	PendingLinkActionContext = FCombatDeckActionContext();
-	DashSavedLinkContext = FCombatCardInstance();
-	DashSavedLinkActionContext = FCombatDeckActionContext();
 	ResolvedAttackGuids.Reset();
 	DeckState = EDeckState::Ready;
 	ShuffleCooldownRemaining = 0.0f;
@@ -1096,8 +1064,6 @@ void UCombatDeckComponent::StartDeckEditReload()
 	LastResolvedCard = FCombatCardInstance();
 	PendingLinkContext = FCombatCardInstance();
 	PendingLinkActionContext = FCombatDeckActionContext();
-	DashSavedLinkContext = FCombatCardInstance();
-	DashSavedLinkActionContext = FCombatDeckActionContext();
 	ResolvedAttackGuids.Reset();
 
 	DeckState = EDeckState::EmptyShuffling;

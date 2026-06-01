@@ -10,20 +10,6 @@ namespace
 		return RequiredAction == ECardRequiredAction::Any || RequiredAction == InputAction;
 	}
 
-	EComboDashSaveMode ToDashSaveMode(EYogComboGraphDashSaveMode SaveMode)
-	{
-		switch (SaveMode)
-		{
-		case EYogComboGraphDashSaveMode::None:
-			return EComboDashSaveMode::None;
-		case EYogComboGraphDashSaveMode::ForcePreserve:
-			return EComboDashSaveMode::ForcePreserve;
-		case EYogComboGraphDashSaveMode::PreserveIfSourceAllows:
-		default:
-			return EComboDashSaveMode::PreserveIfSourceAllows;
-		}
-	}
-
 	ECombatCardTriggerTiming TriggerTimingTagToEnum(const FGameplayTag& Tag)
 	{
 		if (Tag.IsValid())
@@ -51,12 +37,6 @@ FWeaponComboNodeConfig FWeaponComboNodeConfig::FromComboGraphNode(const UGamepla
 	Config.AttackType = Node->AttackType;
 	Config.Montage = Node->Montage;
 	Config.bIsComboFinisher = Node->bIsComboFinisher;
-	Config.bAllowDashSave = Node->bAllowDashSave;
-	Config.DashSaveMode = ToDashSaveMode(Node->DashSaveMode);
-	Config.DashSaveExpireSeconds = Node->DashSaveExpireSeconds;
-	Config.bSavePendingLinkContext = Node->bSavePendingLinkContext;
-	Config.bClearCombatTagsOnDashEnd = Node->bClearCombatTagsOnDashEnd;
-	Config.bBreakComboOnDashCancel = Node->bBreakComboOnDashCancel;
 	Config.bOverrideComboWindow = Node->bUseNodeComboWindow;
 	Config.ComboWindowStartFrame = Node->ComboWindowStartFrame;
 	Config.ComboWindowEndFrame = Node->ComboWindowEndFrame;

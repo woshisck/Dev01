@@ -262,6 +262,12 @@ void FAssetEditor_ComboGraph::CreateEdGraph()
 		const UEdGraphSchema* Schema = EditingGraph->EdGraph->GetSchema();
 		Schema->CreateDefaultNodesForGraph(*EditingGraph->EdGraph);
 	}
+
+	if (UAssetGraphSchema_GameplayAbilityComboGraph::EnsureRootConnectionEdges(*EditingGraph->EdGraph))
+	{
+		EditingGraph->EdGraph->NotifyGraphChanged();
+		EditingGraph->MarkPackageDirty();
+	}
 }
 
 void FAssetEditor_ComboGraph::OnSelectedNodesChanged(const TSet<class UObject*>& NewSelection)

@@ -13,7 +13,6 @@ namespace
 			return TEXT("L");
 		case EYogComboGraphInputAction::Heavy:
 			return TEXT("H");
-		case EYogComboGraphInputAction::Dash:
 		case EYogComboGraphInputAction::Any:
 		default:
 			return FString();

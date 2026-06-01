@@ -344,9 +344,6 @@ public:
 
 	void SetDeckListForTest(const TArray<FCombatCardConfig>& InCards);
 	void AdvanceShuffleForTest(float DeltaTime);
-	void SavePendingLinkContextForDash();
-	bool RestorePendingLinkContextFromDash();
-	void ClearDashSavedLinkContext();
 	bool IsCardSuppressedFromActiveSequenceForTest(const FGuid& CardGuid) const;
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
@@ -424,12 +421,6 @@ private:
 
 	UPROPERTY()
 	FCombatDeckActionContext PendingLinkActionContext;
-
-	UPROPERTY()
-	FCombatCardInstance DashSavedLinkContext;
-
-	UPROPERTY()
-	FCombatDeckActionContext DashSavedLinkActionContext;
 
 	TMap<FGuid, TArray<FGuid>> ActiveCardPassiveFlowGuids;
 

@@ -4,7 +4,6 @@
 #include "Camera/YogPlayerCameraManager.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "Component/SkillChargeComponent.h"
 #include "Data/CharacterData.h"
@@ -136,14 +135,6 @@ UGA_PlayerDash::UGA_PlayerDash()
 
 UAnimMontage* UGA_PlayerDash::ResolveDashMontage(APlayerCharacterBase* Player, const FGameplayTag& AbilityTag) const
 {
-	if (Player && Player->ComboRuntimeComponent)
-	{
-		if (UAnimMontage* ComboGraphDashMontage = Player->ComboRuntimeComponent->GetActiveDashMontageOverride())
-		{
-			return ComboGraphDashMontage;
-		}
-	}
-
 	UCharacterDataComponent* CDC = Player ? Player->GetCharacterDataComponent() : nullptr;
 	UCharacterData* CD = CDC ? CDC->GetCharacterData() : nullptr;
 	return (CD && CD->AbilityData && AbilityTag.IsValid())
@@ -239,14 +230,6 @@ bool UGA_PlayerDash::CanActivateAbility(
 	// 此时 CancelAbilitiesWithTag 尚未执行，ActivationOwnedTags 仍在 ASC 上，
 	// 直接收集当前所有连招进度 Tag 写入 PendingSaveComboTags。
 	PendingSaveComboTags.Reset();
-	if (const APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ActorInfo->AvatarActor.Get()))
-	{
-		if (Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->HasComboSource())
-		{
-			return true;
-		}
-	}
-
 	if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
 	{
 		static const FGameplayTag SavePoint =
@@ -483,14 +466,6 @@ void UGA_PlayerDash::EndAbility(
 			YASC->ApplyDashSave(PendingSaveComboTags);
 		}
 		PendingSaveComboTags.Reset();
-	}
-
-	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Character))
-	{
-		if (Player->ComboRuntimeComponent)
-		{
-			Player->ComboRuntimeComponent->NotifyDashEnded(bWasCancelled);
-		}
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

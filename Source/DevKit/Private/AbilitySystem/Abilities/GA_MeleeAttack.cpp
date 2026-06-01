@@ -627,7 +627,6 @@ void UGA_MeleeAttack::ActivateAbility(
 			ActiveComboTags = PlayerOwner->ComboRuntimeComponent->GetComboTags();
 			bComboContinued = PlayerOwner->ComboRuntimeComponent->DidComboContinue();
 			bExitedComboState = PlayerOwner->ComboRuntimeComponent->DidExitComboState();
-			bCombatDeckFromDashSave = bCombatDeckFromDashSave || PlayerOwner->ComboRuntimeComponent->ConsumeActivationFromDashSave();
 			bActiveComboNodeValid = true;
 			PlayerOwner->ComboRuntimeComponent->RegisterActiveAttackAbility(ActiveAttackGuid, Handle);
 		}
