@@ -230,7 +230,7 @@ def main():
         ("Tutorial.WeaponPickup", tutorial_popup, "tutorial_weapon_pickup", True),
         ("Tutorial.CardConsume", broadcast_only, "", False),
         ("Tutorial.Shuffle", tutorial_popup, "tutorial_shuffle_hint", False),
-        ("Tutorial.RewardToDeck", tutorial_popup, "tutorial_first_rune", True),
+        ("Tutorial.RewardToDeck", broadcast_only, "", False),
         ("Tutorial.BackpackArrange", tutorial_popup, "tutorial_backpack", True),
         ("Tutorial.LinkCard", tutorial_popup, "tutorial_card_link", True),
         ("Tutorial.Finisher", broadcast_only, "", False),

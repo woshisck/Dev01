@@ -355,7 +355,7 @@ def configure_story_registry():
         create_story_entry("Tutorial.WeaponPickup", tutorial_popup, "tutorial_weapon_pickup", True, "First run weapon pickup tutorial."),
         create_story_entry("Tutorial.CardConsume", broadcast_only, "", False, "First combat stage broadcast; combat HUD teaches card consume."),
         create_story_entry("Tutorial.Shuffle", tutorial_popup, "tutorial_shuffle_hint", False, "First shuffle hint."),
-        create_story_entry("Tutorial.RewardToDeck", tutorial_popup, "tutorial_first_rune", True, "First reward enters deck tutorial."),
+        create_story_entry("Tutorial.RewardToDeck", broadcast_only, "", False, "First reward enters deck broadcast; Story Rule shows tutorial_first_rune when the card actually enters deck."),
         create_story_entry("Tutorial.BackpackArrange", tutorial_popup, "tutorial_backpack", True, "First backpack arrangement tutorial."),
         create_story_entry("Tutorial.LinkCard", tutorial_popup, "tutorial_card_link", True, "First link card tutorial."),
         create_story_entry("Tutorial.Finisher", broadcast_only, "", False, "Finisher stage broadcast placeholder."),
