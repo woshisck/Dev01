@@ -105,15 +105,7 @@ namespace Tutorial512Setup
 		}
 		if (EventID == TEXT("tutorial_backpack"))
 		{
-			if (PageIndex == 0)
-			{
-				return TEXT("T_Tutorial512_CardSort");
-			}
-			if (PageIndex == 1)
-			{
-				return TEXT("T_Tutorial512_LinkCard");
-			}
-			return TEXT("T_Tutorial512_WeaponCards");
+			return PageIndex == 0 ? TEXT("T_Tutorial512_CardSort") : FString();
 		}
 		if (EventID == TEXT("tutorial_card_link") || EventID == TEXT("tutorial_card_link_moonlight"))
 		{
@@ -245,11 +237,6 @@ namespace Tutorial512Setup
 						TEXT("调整卡牌顺序"),
 						TEXT("整理阶段可以在卡组编排列表里拖动卡牌排序。放下后会触发一次短装填，HUD 会按新顺序刷新。"),
 						TEXT("<input action=\"MouseClick\"/> 拖动卡牌；<input action=\"Accept\"/> 拿起/放下，<input action=\"Move\"/> 移动位置。")
-					},
-					{
-						TEXT("切换连携方向"),
-						TEXT("Link 卡可以正向读取前一张，也可以反向赋能下一张。选中 Link 卡后按 <input action=\"ReverseCard\"/> 切换方向。"),
-						TEXT("")
 					},
 				}
 			},

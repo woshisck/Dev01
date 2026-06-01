@@ -63,27 +63,21 @@ void UEnemyArrowWidget::CollectAliveEnemies(TArray<AEnemyCharacterBase*>& OutEne
         return;
     }
 
+    // 每帧直接遍历世界中的敌人 Actor：
+    // 1) 不依赖 GameMode 注册时序（覆盖任何注册路径的疏漏）；
+    // 2) 用 bIsDead 而非 IsAlive()——后者读 GAS Health 属性，新刷怪在
+    //    属性集初值生效前会被误判为"已死"，导致波次中后续敌人没有箭头。
+    // 代价：每帧 O(敌人 Actor 数)，对小关卡可忽略。
     AYogGameMode* GM = World->GetAuthGameMode<AYogGameMode>();
-    if (GM)
+    for (TActorIterator<AEnemyCharacterBase> It(World); It; ++It)
     {
-        OutEnemies = GM->GetAllAliveEnemies();
-    }
+        AEnemyCharacterBase* E = *It;
+        if (!IsValid(E) || E->bIsDead) continue;
 
-    const float Now = World->GetTimeSeconds();
-    if (OutEnemies.IsEmpty() || Now >= NextFallbackScanTime)
-    {
-        NextFallbackScanTime = Now + FMath::Max(0.1f, FallbackScanInterval);
-        for (TActorIterator<AEnemyCharacterBase> It(World); It; ++It)
+        OutEnemies.Add(E);
+        if (GM)
         {
-            AEnemyCharacterBase* E = *It;
-            if (E && E->IsAlive())
-            {
-                OutEnemies.AddUnique(E);
-                if (GM)
-                {
-                    GM->RegisterEnemy(E);
-                }
-            }
+            GM->RegisterEnemy(E); // 顺带回填注册表，保持相机感知一致
         }
     }
 }
@@ -123,7 +117,7 @@ void UEnemyArrowWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
     const FVector PlayerPos = PC->GetPawn()->GetActorLocation();
     for (AEnemyCharacterBase* E : AllEnemies)
     {
-        if (!IsValid(E) || !E->IsAlive()) continue;
+        if (!IsValid(E) || E->bIsDead) continue;
 
         FVector2D SP;
         // 抬高投影点到胶囊中段，修正斜视角下脚底投影偏差

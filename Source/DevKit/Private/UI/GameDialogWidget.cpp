@@ -307,6 +307,11 @@ bool UTutorialPopupWidget::NavigatePage(int32 Delta)
 
 void UTutorialPopupWidget::ApplyCurrentPageIllustration()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[TutorialPopup] ApplyCurrentPageIllustration page=%d/%d IllustrationImage=%s Illustration=%s"),
+		CurrentPage, Pages.Num(),
+		IllustrationImage ? TEXT("BOUND") : TEXT("NULL_UNBOUND"),
+		Pages.IsValidIndex(CurrentPage) ? *GetPathNameSafe(Pages[CurrentPage].Illustration.Get()) : TEXT("BAD_INDEX"));
+
 	if (!IllustrationImage || !Pages.IsValidIndex(CurrentPage))
 	{
 		return;

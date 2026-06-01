@@ -15,6 +15,7 @@ class UMeshComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
 class AWeaponInstance;
+class UMontageVFXBindingDataAsset;
 
 // ─── Binding config (written by BFNode_SetMontageVFXBinding in PreCommit flow) ─
 
@@ -77,7 +78,7 @@ struct DEVKIT_API FMontageVFXBindingConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Material")
 	int32 WeaponMaterialSlot = 0;
 
-	// Annulus plane (spawned on NotifyBegin, destroyed on NotifyEnd)
+	// Annulus plane (spawned on NotifyBegin, optionally kept alive by the ANS RemainTime)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Annulus Plane")
 	bool bSpawnAnnulusPlane = false;
 
@@ -130,6 +131,7 @@ struct DEVKIT_API FMontageVFXActiveState
 
 	UPROPERTY()
 	TArray<TObjectPtr<UStaticMeshComponent>> AnnulusPlaneComponents;
+
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -142,8 +144,12 @@ class DEVKIT_API UMontageVFXBindingComponent : public UActorComponent
 public:
 	UMontageVFXBindingComponent();
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX Binding|Defaults",
+		meta = (ToolTip = "Slot configs used when no runtime BuffFlow montage VFX binding is registered."))
+	TObjectPtr<UMontageVFXBindingDataAsset> DefaultBindingsAsset;
+
 	void RegisterBinding(FName SlotName, const FMontageVFXBindingConfig& Config);
-	void ActivateSlot(FName SlotName, const FActionData* ActionData = nullptr);
+	void ActivateSlot(FName SlotName, const FActionData* ActionData = nullptr, float AnnulusPlaneRemainTime = 0.f);
 	void DeactivateSlot(FName SlotName);
 	void ClearAllBindings();
 
@@ -162,6 +168,7 @@ private:
 	AWeaponInstance* ResolveEquippedWeapon() const;
 	void ApplyNiagaraParameterOverrides(UNiagaraComponent* Comp, const TArray<FGCNNiagaraParamOverride>& Overrides) const;
 	void ApplyMaterialParams(UMaterialInstanceDynamic* DynMat, const TArray<FGCNMaterialParamOverride>& Params) const;
-	void SpawnAnnulusPlanes(const FMontageVFXBindingConfig& Config, const FActionData& ActionData, FMontageVFXActiveState& State) const;
+	void SpawnAnnulusPlanes(const FMontageVFXBindingConfig& Config, const FActionData& ActionData,
+		FMontageVFXActiveState& State, float AnnulusPlaneRemainTime) const;
 	void TearDownActiveState(FMontageVFXActiveState& State);
 };

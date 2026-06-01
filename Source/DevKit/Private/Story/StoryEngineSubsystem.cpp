@@ -547,13 +547,21 @@ void UStoryEngineSubsystem::DispatchAction(const FStoryAction& Action, const FSt
 			? GetGameInstance()->GetSubsystem<UTutorialManager>()
 			: nullptr)
 		{
-			if (Action.TutorialPages.Num() > 0)
+			APlayerController* PC = ResolvePlayerController(Context);
+			// 优先 Registry/DA 路径：DA 里手填的 Illustration 才能正确显示贴图；
+			// inline pages 是 JSON 导入产物，遇到贴图路径解析失败时会静默写 nullptr。
+			// Registry 没条目时退回 inline，inline 也没有再用 EventID 走 BuildFallbackTutorialPages 兜底文字。
+			if (!Action.TutorialEventId.IsNone() && TutorialManager->HasRegisteredEvent(Action.TutorialEventId))
 			{
-				TutorialManager->ShowInlinePages(Action.TutorialPages, ResolvePlayerController(Context), Action.bPauseGame);
+				TutorialManager->ShowByEventID(Action.TutorialEventId, PC, Action.bPauseGame);
+			}
+			else if (Action.TutorialPages.Num() > 0)
+			{
+				TutorialManager->ShowInlinePages(Action.TutorialPages, PC, Action.bPauseGame);
 			}
 			else
 			{
-				TutorialManager->ShowByEventID(Action.TutorialEventId, ResolvePlayerController(Context), Action.bPauseGame);
+				TutorialManager->ShowByEventID(Action.TutorialEventId, PC, Action.bPauseGame);
 			}
 		}
 		break;

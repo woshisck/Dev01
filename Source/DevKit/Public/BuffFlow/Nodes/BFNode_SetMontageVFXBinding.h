@@ -9,6 +9,7 @@ class UNiagaraSystem;
 class USoundBase;
 class UMaterialInterface;
 class UStaticMesh;
+class UMontageVFXBindingDataAsset;
 
 UCLASS(NotBlueprintable, meta = (DisplayName = "Set Montage VFX Binding", Category = "BuffFlow|Combat"))
 class DEVKIT_API UBFNode_SetMontageVFXBinding : public UBFNode_Base
@@ -17,6 +18,14 @@ class DEVKIT_API UBFNode_SetMontageVFXBinding : public UBFNode_Base
 
 	UPROPERTY(EditAnywhere, Category = "Binding")
 	FName SlotName;
+
+	UPROPERTY(EditAnywhere, Category = "Binding",
+		meta = (ToolTip = "Optional source asset. When set, the node copies this slot config before applying the fields below."))
+	TObjectPtr<UMontageVFXBindingDataAsset> BindingAsset;
+
+	UPROPERTY(EditAnywhere, Category = "Binding",
+		meta = (ToolTip = "If false, BindingAsset supplies the whole config and the node's inline fields are ignored."))
+	bool bOverrideBindingAssetConfig = false;
 
 	// ── Niagara ──────────────────────────────────────────────────────────────
 

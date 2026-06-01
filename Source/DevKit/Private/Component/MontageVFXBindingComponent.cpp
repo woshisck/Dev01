@@ -4,6 +4,7 @@
 #include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Data/MontageVFXBindingDataAsset.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -12,6 +13,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
+#include "TimerManager.h"
 
 UMontageVFXBindingComponent::UMontageVFXBindingComponent()
 {
@@ -27,12 +29,17 @@ void UMontageVFXBindingComponent::RegisterBinding(FName SlotName, const FMontage
 	PendingBindings.Add(SlotName, Config);
 }
 
-void UMontageVFXBindingComponent::ActivateSlot(FName SlotName, const FActionData* ActionData)
+void UMontageVFXBindingComponent::ActivateSlot(FName SlotName, const FActionData* ActionData,
+	float AnnulusPlaneRemainTime)
 {
 	const FMontageVFXBindingConfig* Config = PendingBindings.Find(SlotName);
+	if (!Config && DefaultBindingsAsset)
+	{
+		Config = DefaultBindingsAsset->ResolveBinding(SlotName);
+	}
 	if (!Config)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[MontageVFXBinding] ActivateSlot: no pending binding for slot=%s"), *SlotName.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[MontageVFXBinding] ActivateSlot: no pending or default binding for slot=%s"), *SlotName.ToString());
 		return;
 	}
 
@@ -131,7 +138,7 @@ void UMontageVFXBindingComponent::ActivateSlot(FName SlotName, const FActionData
 	// ── Annulus plane ────────────────────────────────────────────────────────
 	if (ActionData)
 	{
-		SpawnAnnulusPlanes(*Config, *ActionData, State);
+		SpawnAnnulusPlanes(*Config, *ActionData, State, AnnulusPlaneRemainTime);
 	}
 
 	ActiveStates.Add(SlotName, MoveTemp(State));
@@ -420,7 +427,7 @@ void UMontageVFXBindingComponent::ApplyMaterialParams(UMaterialInstanceDynamic* 
 }
 
 void UMontageVFXBindingComponent::SpawnAnnulusPlanes(const FMontageVFXBindingConfig& Config,
-	const FActionData& ActionData, FMontageVFXActiveState& State) const
+	const FActionData& ActionData, FMontageVFXActiveState& State, float AnnulusPlaneRemainTime) const
 {
 	AActor* Owner = GetOwner();
 	UStaticMesh* PlaneMesh = Config.AnnulusPlaneMesh.Get();
@@ -441,6 +448,9 @@ void UMontageVFXBindingComponent::SpawnAnnulusPlanes(const FMontageVFXBindingCon
 	}
 
 	const float SafeMeshSize = FMath::Max(Config.AnnulusPlaneMeshSize, 1.f);
+	const float SafeRemainTime = FMath::Max(AnnulusPlaneRemainTime, 0.f);
+	UWorld* World = Owner->GetWorld();
+	const bool bUseRemainTime = SafeRemainTime > KINDA_SMALL_NUMBER && World;
 	const FVector Loc = Owner->GetActorLocation();
 	const float Yaw = Owner->GetActorRotation().Yaw;
 	const float YawRad = FMath::DegreesToRadians(Yaw);
@@ -497,10 +507,32 @@ void UMontageVFXBindingComponent::SpawnAnnulusPlanes(const FMontageVFXBindingCon
 			MID->SetScalarParameterValue(TEXT("AngleOffsetDeg"), 0.f);
 			MID->SetScalarParameterValue(TEXT("WorldYaw"), Yaw);
 			MID->SetScalarParameterValue(TEXT("Opacity"), Config.AnnulusPlaneTint.A);
+			MID->SetScalarParameterValue(TEXT("RemainTime"), SafeRemainTime);
+			MID->SetScalarParameterValue(TEXT("SpawnTime"), World ? World->GetTimeSeconds() : 0.f);
 			MID->SetVectorParameterValue(TEXT("Tint"), Config.AnnulusPlaneTint);
 			ApplyMaterialParams(MID, Config.AnnulusPlaneMaterialParameterOverrides);
 		}
 
-		State.AnnulusPlaneComponents.Add(PlaneComponent);
+		if (!bUseRemainTime)
+		{
+			State.AnnulusPlaneComponents.Add(PlaneComponent);
+		}
+
+		if (bUseRemainTime)
+		{
+			TWeakObjectPtr<UStaticMeshComponent> WeakPlaneComponent(PlaneComponent);
+			FTimerHandle DestroyTimerHandle;
+			World->GetTimerManager().SetTimer(
+				DestroyTimerHandle,
+				FTimerDelegate::CreateLambda([WeakPlaneComponent]()
+				{
+					if (UStaticMeshComponent* Plane = WeakPlaneComponent.Get())
+					{
+						Plane->DestroyComponent();
+					}
+				}),
+				SafeRemainTime,
+				false);
+		}
 	}
 }

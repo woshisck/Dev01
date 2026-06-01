@@ -68,6 +68,10 @@ public:
 	bool IsPopupShowing() const { return bPopupShowing; }
 	bool AreTutorialPopupsEnabled() const { return bTutorialPopupsEnabled; }
 
+	// Registry 是否能解析出该 EventID。dispatch 层可以借此优先走 DA 路径（含图），
+	// Registry 没条目再退回 inline pages，保留旧路径兜底。
+	bool HasRegisteredEvent(FName EventID) const;
+
 	void NotifyPopupClosed();
 	void ForceClosePopup();
 

@@ -20,4 +20,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX Binding")
 	FName SlotName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX Binding|Annulus Plane",
+		meta = (ClampMin = "0.0", ToolTip = "Annulus plane lifetime in seconds. Values <= 0 keep the notify state's begin/end lifetime."))
+	float RemainTime = 0.f;
 };

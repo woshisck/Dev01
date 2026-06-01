@@ -78,6 +78,7 @@ void ABuffFlowProjectile::ApplyRuntimeConfig(const FBuffFlowProjectileRuntimeCon
 {
 	RuntimeConfig = InConfig;
 	RuntimeConfig.TriggerInterval = FMath::Max(0.01f, RuntimeConfig.TriggerInterval);
+	RuntimeConfig.MaxHit = FMath::Max(0.f, RuntimeConfig.MaxHit);
 	RuntimeConfig.CollisionBoxExtent = RuntimeConfig.CollisionBoxExtent.ComponentMax(FVector(1.f));
 
 	if (CollisionBox)
@@ -99,6 +100,7 @@ void ABuffFlowProjectile::InitBuffFlowProjectile(AActor* InCreator, const FBuffF
 	EffectMagnitude = RuntimeConfig.BaseEffectMagnitude
 		+ CreatorAttributes.Attack * RuntimeConfig.CreatorAttackMagnitudeScale
 		+ CreatorAttributes.AttackPower * RuntimeConfig.CreatorAttackPowerMagnitudeScale;
+	PeriodicHitCount = 0.f;
 	bInitialized = CreatorActor.IsValid();
 
 	BP_OnConfigured(RuntimeConfig, EffectMagnitude, CreatorAttributes);
@@ -152,6 +154,7 @@ void ABuffFlowProjectile::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 	OverlappingTargets.Reset();
 	TriggerCountsByActor.Reset();
+	PeriodicHitCount = 0.f;
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -454,11 +457,22 @@ void ABuffFlowProjectile::TriggerEffectForTargets(const TArray<AActor*>& Targets
 		{
 			int32& TriggerCount = TriggerCountsByActor.FindOrAdd(TWeakObjectPtr<AActor>(Target));
 			++TriggerCount;
+			if (RuntimeConfig.TriggerMode == EBuffFlowProjectileTriggerMode::PeriodicOverlap)
+			{
+				PeriodicHitCount += 1.f;
+			}
 			if (ACharacter* HitCharacter = Cast<ACharacter>(Target))
 			{
 				BP_OnEnemyCharacterHit(HitCharacter, TriggerLocation, EffectMagnitude);
 			}
 			SendTriggerGameplayEvent(Target, TriggerLocation);
+			if (RuntimeConfig.TriggerMode == EBuffFlowProjectileTriggerMode::PeriodicOverlap
+				&& RuntimeConfig.MaxHit > 0.f
+				&& PeriodicHitCount >= RuntimeConfig.MaxHit)
+			{
+				Expire();
+				return;
+			}
 		}
 	}
 }
@@ -585,6 +599,13 @@ bool ABuffFlowProjectile::CanTriggerTarget(AActor* Target) const
 	}
 
 	if (!UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target))
+	{
+		return false;
+	}
+
+	if (RuntimeConfig.TriggerMode == EBuffFlowProjectileTriggerMode::PeriodicOverlap
+		&& RuntimeConfig.MaxHit > 0.f
+		&& PeriodicHitCount >= RuntimeConfig.MaxHit)
 	{
 		return false;
 	}

@@ -47,6 +47,9 @@ class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile", meta = (ClampMin = "0.01", DisplayName = "Trigger Interval", EditCondition = "TriggerMode == EBuffFlowProjectileTriggerMode::PeriodicOverlap", EditConditionHides))
 	float TriggerInterval = 0.2f;
 
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile", meta = (ClampMin = "0.0", DisplayName = "MaxHit", ToolTip = "Maximum successful Periodic Overlap triggers before expiring. 0 means unlimited.", EditCondition = "TriggerMode == EBuffFlowProjectileTriggerMode::PeriodicOverlap", EditConditionHides))
+	float MaxHit = 0.f;
+
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Lifetime", meta = (ClampMin = "0.01", DisplayName = "Lifetime"))
 	FFlowDataPinInputProperty_Float Lifetime{1.f};
 

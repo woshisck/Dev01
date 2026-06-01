@@ -13,6 +13,7 @@
 #include "Data/LevelInfoPopupDA.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/EnemyData.h"
+#include "Data/ShopDataAsset.h"
 #include <Kismet/GameplayStatics.h>
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
@@ -1077,6 +1078,13 @@ void AYogGameMode::SpawnShopActorForRoom()
 		return;
 	}
 
+	UE_LOG(LogTemp, Warning,
+		TEXT("[ShopDebug] SpawnShopActorForRoom firing — ActiveRoomData=%s bIsHubRoom=%d ShopData=%s Map=%s"),
+		*GetNameSafe(ActiveRoomData),
+		ActiveRoomData->bIsHubRoom ? 1 : 0,
+		*GetNameSafe(ActiveRoomData->ShopData.Get()),
+		*UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
+
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -2002,13 +2010,45 @@ void AYogGameMode::StartLevelSpawning()
 		}
 
 		SpawnSacrificeEventAltar(EventAnchorLoc);
-		ActivatePortals();
 
-		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		// 教程祈祷室：玩家必须先与祭坛交互拿到双手剑终结技，再进入 ForcedSurvival 死亡流程。
+		// 没有这一关，玩家会在献祭前直接走开启的传送门到下一关，跳过整段终结技教学。
+		// 这里仅在 IsPrayerSacrificeOverrideActive() 命中时（教程激活 + 当前 Stage==PrayerRoom
+		// + 终结技 Rune 能加载到）封闭所有传送门；其它事件房保持原行为。
+		bool bGateTutorialPrayerRoomPortals = false;
+		if (UGameInstance* TutorialGI = GetGameInstance())
 		{
-			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+			if (UFirstRunTutorialDirectorSubsystem* Director = TutorialGI->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
 			{
-				HUD->ShowPortalGuidance();
+				bGateTutorialPrayerRoomPortals = Director->IsPrayerSacrificeOverrideActive();
+			}
+		}
+
+		if (bGateTutorialPrayerRoomPortals)
+		{
+			TArray<AActor*> AllPortalActors;
+			UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), AllPortalActors);
+			for (AActor* PortalActor : AllPortalActors)
+			{
+				if (APortal* Portal = Cast<APortal>(PortalActor))
+				{
+					Portal->MarkUnavailable();
+				}
+			}
+			UE_LOG(LogTemp, Log,
+				TEXT("StartLevelSpawning: [TutorialPrayerRoom] %s — 教程献祭未完成，封闭所有传送门"),
+				*GetNameSafe(ActiveRoomData));
+		}
+		else
+		{
+			ActivatePortals();
+
+			if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+			{
+				if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
+				{
+					HUD->ShowPortalGuidance();
+				}
 			}
 		}
 
@@ -3726,6 +3766,13 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 		UE_LOG(LogTemp, Warning, TEXT("TransitionToLevel: resolved map [%s] -> [%s] for room [%s]"),
 			*NextLevel.ToString(), *ResolvedNextLevel.ToString(), *GetNameSafe(NextRoom));
 	}
+
+	const bool bIsShopTransition = NextRoom
+		&& (NextRoom->ShopData != nullptr
+			|| NextRoom->RoomTags.HasTagExact(FGameplayTag::RequestGameplayTag(FName("Room.Type.Shop"), false)));
+	UE_LOG(LogTemp, Warning,
+		TEXT("[ShopDebug] TransitionToLevel NextLevel=%s NextRoom=%s IsShopTransition=%d"),
+		*NextLevel.ToString(), *GetNameSafe(NextRoom), bIsShopTransition ? 1 : 0);
 
 	CurrentPhase = ELevelPhase::Transitioning;
 	OnPhaseChanged.Broadcast(CurrentPhase);

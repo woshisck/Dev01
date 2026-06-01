@@ -3,10 +3,12 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/PackageName.h"
 #include "Component/CombatDeckComponent.h"
+#include "Component/BufferComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
+#include "AbilitySystem/Abilities/GA_Player_FinisherAttack.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
 #include "AbilitySystem/GameplayEffect/GE_RuneBurn.h"
@@ -408,6 +410,7 @@ bool FPlayerDashHasDefaultInterruptAndDeathGuardsTest::RunTest(const FString& Pa
 {
 	UGA_PlayerDash* Ability = NewObject<UGA_PlayerDash>();
 	const FGameplayTag DashTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"));
+	const FGameplayTag DashInvincibleTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.DashInvincible"));
 	const FGameplayTag ActionTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast"));
 	const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"));
 
@@ -415,12 +418,29 @@ bool FPlayerDashHasDefaultInterruptAndDeathGuardsTest::RunTest(const FString& Pa
 		Ability->GetAbilityTags().HasTagExact(DashTag));
 	TestTrue(TEXT("Dash ability owns the dash action tag while active"),
 		Ability->GetActivationOwnedTags().HasTagExact(DashTag));
+	TestTrue(TEXT("Dash ability owns invincibility while active"),
+		Ability->GetActivationOwnedTags().HasTagExact(DashInvincibleTag));
 	TestTrue(TEXT("Dash cancels currently active action abilities by default"),
 		Ability->GetCancelAbilitiesWithTag().HasTagExact(ActionTag));
 	TestTrue(TEXT("Dash cannot activate while dead"),
 		Ability->GetActivationBlockedTags().HasTagExact(DeadTag));
 	TestTrue(TEXT("Dash cannot retrigger while another dash action is active"),
 		Ability->GetActivationBlockedTags().HasTagExact(DashTag));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerFinisherAttackOwnsInvulnerableTagTest,
+	"DevKit.CombatDeck.PlayerFinisherAttackOwnsInvulnerableTag",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerFinisherAttackOwnsInvulnerableTagTest::RunTest(const FString& Parameters)
+{
+	UGA_Player_FinisherAttack* Ability = NewObject<UGA_Player_FinisherAttack>();
+	const FGameplayTag InvulnerableTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Invulnerable"));
+
+	TestTrue(TEXT("Finisher attack owns invulnerability while active"),
+		Ability->GetActivationOwnedTags().HasTagExact(InvulnerableTag));
 
 	return true;
 }
@@ -638,6 +658,54 @@ bool FCombatDeckMeleeActionMappingTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Heavy combo finisher remains a Heavy card action"), HeavyFinisher->GetCombatDeckActionType(), ECardRequiredAction::Heavy);
 	TestTrue(TEXT("Heavy combo 4 is a combo finisher"), HeavyFinisher->IsCombatDeckComboFinisher());
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputBufferConsumesLatestAttackInputTest,
+	"DevKit.CombatDeck.InputBufferConsumesLatestAttackInput",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FInputBufferConsumesLatestAttackInputTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for input buffer test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	AActor* OwnerActor = World->SpawnActor<AActor>();
+	TestNotNull(TEXT("Owner spawned for input buffer test"), OwnerActor);
+	if (!OwnerActor)
+	{
+		return false;
+	}
+
+	UBufferComponent* Buffer = NewObject<UBufferComponent>(OwnerActor);
+	TestNotNull(TEXT("Buffer component created"), Buffer);
+	if (!Buffer)
+	{
+		OwnerActor->Destroy();
+		return false;
+	}
+
+	OwnerActor->AddInstanceComponent(Buffer);
+	Buffer->RegisterComponent();
+
+	EInputCommandType ConsumedType = EInputCommandType::LightAttack;
+	const float SinceTime = World->GetTimeSeconds() - 1.0f;
+	Buffer->RecordLightAttack();
+	Buffer->RecordHeavyAttack();
+	TestTrue(TEXT("Latest attack input is consumed"), Buffer->ConsumeLatestAttackInputSince(SinceTime, ConsumedType));
+	TestEqual(TEXT("Heavy wins when it was recorded after light"), ConsumedType, EInputCommandType::HeavyAttack);
+
+	Buffer->ClearBuffer();
+	Buffer->RecordHeavyAttack();
+	Buffer->RecordLightAttack();
+	TestTrue(TEXT("Latest attack input is consumed after order swap"), Buffer->ConsumeLatestAttackInputSince(SinceTime, ConsumedType));
+	TestEqual(TEXT("Light wins when it was recorded after heavy"), ConsumedType, EInputCommandType::LightAttack);
+
+	OwnerActor->Destroy();
 	return true;
 }
 

@@ -211,6 +211,22 @@ namespace StoryRuleSetSetup
 			TEXT("Story.Source.Codex")));
 		Rules.Add(FirstRune);
 
+		FStoryRule FirstRewardCardEntered = MakeRule(
+			TEXT("FirstRun.FirstRewardCardEntered"),
+			TEXT("Story.Event.FirstRun.FirstRewardCardEntered"),
+			100,
+			EStoryRuleFirePolicy::OncePerSave);
+		FirstRewardCardEntered.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
+		FirstRewardCardEntered.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
+		FirstRewardCardEntered.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.heavy_card_obtained")));
+		FirstRewardCardEntered.Actions.Add(ShowTutorial(TEXT("tutorial_first_rune")));
+		FirstRewardCardEntered.Actions.Add(SetQuest(
+			TEXT("Story.Quest.Main"),
+			TEXT("打开背包查看你的符文"),
+			TEXT("Story.Source.Codex")));
+		Rules.Add(FirstRewardCardEntered);
+
+		/*
 		FStoryRule LegacyReward = MakeRule(
 			TEXT("FirstRun.LegacyRewardToDeck"),
 			TEXT("Tutorial.RewardToDeck"),
@@ -223,8 +239,7 @@ namespace StoryRuleSetSetup
 			TEXT("Story.Quest.Main"),
 			TEXT("打开背包查看你的符文"),
 			TEXT("Story.Source.Codex")));
-		Rules.Add(LegacyReward);
-
+		*/
 		FStoryRule Backpack = MakeRule(
 			TEXT("FirstRun.FirstBackpackOpened"),
 			TEXT("Story.Event.FirstRun.FirstBackpackOpened"),
@@ -232,6 +247,7 @@ namespace StoryRuleSetSetup
 			EStoryRuleFirePolicy::OncePerSave);
 		Backpack.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstBackpack.Opened")));
 		Backpack.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstBackpack.Opened")));
+		Backpack.Actions.Add(ShowTutorial(TEXT("tutorial_backpack")));
 		Backpack.Actions.Add(SetQuest(
 			TEXT("Story.Quest.Main"),
 			TEXT("整理符文后继续前进"),

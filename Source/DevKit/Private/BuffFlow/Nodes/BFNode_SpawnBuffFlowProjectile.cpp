@@ -117,7 +117,7 @@ void UBFNode_SpawnBuffFlowProjectile::ExecuteBuffFlowInput(const FName& PinName)
 			EBuffFlowTraceResult::Success,
 			TEXT("Spawned BuffFlow projectile"),
 			FString::Printf(
-				TEXT("Class=%s Count=%d BaseCount=%d SpawnInterval=%.2f AddCombo=%d HasCardContext=%d ComboStacks=%d PerStack=%d MaxBonus=%d ComboBonus=%d TriggerMode=%d TriggerInterval=%.2f Lifetime=%.2f Speed=%.1f Box=(X=%.1f Y=%.1f Z=%.1f) Effect=%s"),
+				TEXT("Class=%s Count=%d BaseCount=%d SpawnInterval=%.2f AddCombo=%d HasCardContext=%d ComboStacks=%d PerStack=%d MaxBonus=%d ComboBonus=%d TriggerMode=%d TriggerInterval=%.2f MaxHit=%.1f Lifetime=%.2f Speed=%.1f Box=(X=%.1f Y=%.1f Z=%.1f) Effect=%s"),
 				*GetNameSafe(ResolvedProjectileClass.Get()),
 				SpawnedOrScheduledCount,
 				FMath::Max(1, ProjectileCount.Value),
@@ -130,6 +130,7 @@ void UBFNode_SpawnBuffFlowProjectile::ExecuteBuffFlowInput(const FName& PinName)
 				ComboBonusProjectiles,
 				static_cast<int32>(TriggerMode),
 				TriggerInterval,
+				MaxHit,
 				Lifetime.Value,
 				Speed.Value,
 				CollisionBoxExtent.X,
@@ -208,6 +209,7 @@ FBuffFlowProjectileRuntimeConfig UBFNode_SpawnBuffFlowProjectile::BuildRuntimeCo
 	FBuffFlowProjectileRuntimeConfig Config;
 	Config.TriggerMode = TriggerMode;
 	Config.TriggerInterval = TriggerInterval;
+	Config.MaxHit = MaxHit;
 	Config.Lifetime = Lifetime.Value;
 	Config.LifetimeCurve = LifetimeCurve;
 	Config.LifetimeCurveInput = LifetimeCurveInput;

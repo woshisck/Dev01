@@ -383,39 +383,51 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	}
 
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	auto TryBufferedAttack = [&](EInputCommandType CommandType, ECardRequiredAction ActionType, const TCHAR* FallbackTagName) -> bool
+	EInputCommandType BufferedAttackType = EInputCommandType::LightAttack;
+	if (!Buffer->ConsumeLatestAttackInputSince(AbilityActivationTime, BufferedAttackType))
 	{
-		if (!Buffer->ConsumeBufferedInputSince(CommandType, AbilityActivationTime))
-		{
-			return false;
-		}
-
-		bool bActivated = false;
-		const bool bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
-		if (bHasComboSource)
-		{
-			bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ActionType, PlayerOwner);
-		}
-		else if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
-		{
-			FGameplayTagContainer TagContainer;
-			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
-			bActivated = PlayerASC->TryActivateAbilitiesByTag(TagContainer, true);
-		}
-
-		if (!bActivated && ASC && Tag.IsValid())
-		{
-			ASC->SetLooseGameplayTagCount(Tag, 0);
-		}
-		return true;
-	};
-
-	if (TryBufferedAttack(EInputCommandType::LightAttack, ECardRequiredAction::Light, TEXT("PlayerState.AbilityCast.LightAtk")))
-	{
+		// === DIAG: attack-stuck repro (CL564) ===
+		// 旧版会两次独立尝试 Light/Heavy；新版只看最近一次 attack。
+		// 若卡攻击是因为此处早退而 CanCombo tag 未清，这条会出现并跟随玩家"卡住"。
+		UE_LOG(LogTemp, Warning,
+			TEXT("[Melee][DIAG564] OnCanComboTagChanged EARLY-RETURN — no buffered attack since AbilityActivationTime=%.3f Tag=%s NewCount=%d"),
+			AbilityActivationTime, *Tag.ToString(), NewCount);
 		return;
 	}
 
-	TryBufferedAttack(EInputCommandType::HeavyAttack, ECardRequiredAction::Heavy, TEXT("PlayerState.AbilityCast.HeavyAtk"));
+	const ECardRequiredAction ActionType = BufferedAttackType == EInputCommandType::HeavyAttack
+		? ECardRequiredAction::Heavy
+		: ECardRequiredAction::Light;
+	const TCHAR* FallbackTagName = BufferedAttackType == EInputCommandType::HeavyAttack
+		? TEXT("PlayerState.AbilityCast.HeavyAtk")
+		: TEXT("PlayerState.AbilityCast.LightAtk");
+
+	bool bActivated = false;
+	const bool bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
+	if (bHasComboSource)
+	{
+		bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ActionType, PlayerOwner);
+	}
+	else if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
+	{
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
+		bActivated = PlayerASC->TryActivateAbilitiesByTag(TagContainer, true);
+	}
+
+	// === DIAG: attack-stuck repro (CL564) ===
+	UE_LOG(LogTemp, Verbose,
+		TEXT("[Melee][DIAG564] OnCanComboTagChanged consumed=%s HasComboSource=%d Activated=%d Tag=%s"),
+		BufferedAttackType == EInputCommandType::HeavyAttack ? TEXT("Heavy") : TEXT("Light"),
+		bHasComboSource ? 1 : 0, bActivated ? 1 : 0, *Tag.ToString());
+
+	if (!bActivated && ASC && Tag.IsValid())
+	{
+		ASC->SetLooseGameplayTagCount(Tag, 0);
+		UE_LOG(LogTemp, Warning,
+			TEXT("[Melee][DIAG564] OnCanComboTagChanged ACTIVATION FAILED — cleared %s tag count"),
+			*Tag.ToString());
+	}
 }
 
 void UGA_MeleeAttack::ScheduleNodeComboWindow(UAnimMontage* Montage, float PlayRate)
@@ -957,10 +969,14 @@ void UGA_MeleeAttack::EndAbility(
 			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedSourceCard);
 			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedTargetCard);
 		}
+	}
 
-		if (PlayerOwner->MontageVFXBindingComponent)
+	if (const AYogCharacterBase* AvatarCharacter = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo()))
+	{
+		if (UMontageVFXBindingComponent* VFXBindingComponent =
+			AvatarCharacter->FindComponentByClass<UMontageVFXBindingComponent>())
 		{
-			PlayerOwner->MontageVFXBindingComponent->ClearAllBindings();
+			VFXBindingComponent->ClearAllBindings();
 		}
 	}
 

@@ -90,6 +90,23 @@ bool UBufferComponent::ConsumeBufferedInputSince(EInputCommandType Type, float S
 	return false;
 }
 
+bool UBufferComponent::ConsumeLatestAttackInputSince(float SinceTime, EInputCommandType& OutType)
+{
+	for (int32 i = InputCommandHistory.Num() - 1; i >= 0; --i)
+	{
+		FInputCommand& Cmd = InputCommandHistory[i];
+		const bool bIsAttack = Cmd.CommandType == EInputCommandType::LightAttack ||
+			Cmd.CommandType == EInputCommandType::HeavyAttack;
+		if (bIsAttack && Cmd.Timestamp > SinceTime)
+		{
+			OutType = Cmd.CommandType;
+			Cmd.Timestamp = -9999.0f;
+			return true;
+		}
+	}
+	return false;
+}
+
 void UBufferComponent::ClearBuffer()
 {
 	InputCommandHistory.Empty();

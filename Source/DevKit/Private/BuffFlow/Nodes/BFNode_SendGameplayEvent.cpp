@@ -46,6 +46,25 @@ void UBFNode_SendGameplayEvent::ExecuteBuffFlowInput(const FName& PinName)
 		return;
 	}
 
+	static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"), false);
+	static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"), false);
+	static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact"), false);
+	static const FGameplayTag SlashTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Slash"), false);
+	static const FGameplayTag RendTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Event.Rend"), false);
+	const bool bInterruptsDeathMontage =
+		(KnockbackTag.IsValid() && EventTag.MatchesTag(KnockbackTag)) ||
+		(HitReactTag.IsValid() && EventTag.MatchesTag(HitReactTag)) ||
+		(SlashTag.IsValid() && EventTag.MatchesTag(SlashTag)) ||
+		(RendTag.IsValid() && EventTag.MatchesTag(RendTag));
+	if (DeadTag.IsValid() && bInterruptsDeathMontage && TargetASC->HasMatchingGameplayTag(DeadTag))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[BFNode_SendGameplayEvent] Skip %s for dead target %s"),
+			*EventTag.ToString(),
+			*GetNameSafe(TargetActor));
+		TriggerOutput(TEXT("Out"), true);
+		return;
+	}
+
 	AActor* InstigatorActor = ResolveTarget(Instigator);
 	AActor* PayloadTargetActor = ResolveTarget(PayloadTarget);
 	if (!PayloadTargetActor)
@@ -72,7 +91,6 @@ void UBFNode_SendGameplayEvent::ExecuteBuffFlowInput(const FName& PinName)
 	EventData.Instigator = InstigatorActor;
 	EventData.Target = PayloadTargetActor;
 	EventData.EventMagnitude = ResolvedMagnitude;
-	static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"), false);
 	if (KnockbackTag.IsValid() && EventTag.MatchesTagExact(KnockbackTag))
 	{
 		if (const UBuffFlowComponent* BFC = GetBuffFlowComponent())
