@@ -152,6 +152,11 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	}
 
 	const bool bUseDashSavedNode = HasSavedDashNode();
+	if (!bUseDashSavedNode && !GetComboStartNodeId().IsNone() && !IsActiveComboAbilityRunning(ASC))
+	{
+		ClearStaleActiveComboState(ASC, TEXT("AttackInput"));
+	}
+
 	const FName StartNodeId = GetComboStartNodeId();
 	const bool bHasActiveAttackNode = !bUseDashSavedNode
 		&& !StartNodeId.IsNone()
@@ -525,6 +530,51 @@ void UComboRuntimeComponent::ClearRuntimeCombatLooseTags()
 const FWeaponComboNodeConfig* UComboRuntimeComponent::GetActiveNode() const
 {
 	return GetActiveGraphNodeId().IsNone() ? nullptr : &ActiveNode;
+}
+
+bool UComboRuntimeComponent::IsActiveComboAbilityRunning(UAbilitySystemComponent* ASC) const
+{
+	if (!ASC)
+	{
+		return false;
+	}
+
+	if (ActiveAbilitySpecHandle.IsValid())
+	{
+		if (const FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(ActiveAbilitySpecHandle))
+		{
+			if (Spec->IsActive())
+			{
+				return true;
+			}
+		}
+	}
+
+	static const FGameplayTag DashTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"), false);
+	return DashTag.IsValid() && ASC->HasMatchingGameplayTag(DashTag);
+}
+
+void UComboRuntimeComponent::ClearStaleActiveComboState(UAbilitySystemComponent* ASC, const TCHAR* Reason)
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("[ComboRuntime] Clear stale active combo state Reason=%s Current=%s Active=%s GuidValid=%d HandleValid=%d"),
+		Reason ? Reason : TEXT("Unknown"),
+		*GetCurrentNodeId().ToString(),
+		*GetActiveGraphNodeId().ToString(),
+		GetActiveAttackGuid().IsValid() ? 1 : 0,
+		ActiveAbilitySpecHandle.IsValid() ? 1 : 0);
+
+	CurrentNodeId = NAME_None;
+	ActiveNode = FWeaponComboNodeConfig();
+	ActiveDashMontageOverride = nullptr;
+	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
+	ClearPreparedComboActivation();
+	ClearSavedDashNode();
+
+	if (ASC)
+	{
+		ClearComboWindowAndProgressLooseTags(ASC);
+	}
 }
 
 void UComboRuntimeComponent::RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle)

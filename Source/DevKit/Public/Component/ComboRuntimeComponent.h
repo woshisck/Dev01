@@ -9,6 +9,7 @@
 class APlayerCharacterBase;
 class UGameplayAbilityComboGraph;
 class UAnimMontage;
+class UAbilitySystemComponent;
 struct FCombatDeckActionContext;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -83,6 +84,8 @@ private:
 	UPROPERTY()
 	FGameplayTagContainer RuntimeCombatLooseTags;
 
+	bool IsActiveComboAbilityRunning(UAbilitySystemComponent* ASC) const;
+	void ClearStaleActiveComboState(UAbilitySystemComponent* ASC, const TCHAR* Reason);
 	void TrackRuntimeCombatLooseTag(const FGameplayTag& Tag);
 	void ExpireSavedDashNode();
 };
