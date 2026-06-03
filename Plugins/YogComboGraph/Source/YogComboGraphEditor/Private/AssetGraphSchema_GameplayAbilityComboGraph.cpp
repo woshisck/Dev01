@@ -413,12 +413,6 @@ namespace
 			EdgeNode->GenericGraphEdge->Graph = GenericGraph;
 			EdgeNode->GenericGraphEdge->StartNode = Start->GenericGraphNode;
 			EdgeNode->GenericGraphEdge->EndNode = End->GenericGraphNode;
-#if WITH_EDITORONLY_DATA
-			if (!Start->GenericGraphNode)
-			{
-				EdgeNode->GenericGraphEdge->bShouldDrawTitle = false;
-			}
-#endif
 		}
 
 		ParentGraph->AddNode(EdgeNode, true, false);
