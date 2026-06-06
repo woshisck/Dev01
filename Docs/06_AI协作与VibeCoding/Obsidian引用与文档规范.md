@@ -1,4 +1,4 @@
----
+﻿---
 status: current
 type: guide
 owner: ai
@@ -12,7 +12,7 @@ updated: 2026-06-06
 优先使用相对 Markdown 链接：
 
 ```md
-[文档名](../01_长期系统文档/系统/Rune/README.md)
+[文档名](../04_开发实现与系统文档/系统/Rune/README.md)
 ```
 
 可以使用 Obsidian Backlinks、Outgoing Links 和 Graph 查看关系，但正文链接保持 GitHub 和编辑器兼容。

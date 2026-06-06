@@ -75,9 +75,9 @@ git status --short
 Expected known unrelated modified files can remain unstaged:
 
 ```text
- M Docs/02_版本计划与需求/429反馈迭代.md
- M Docs/02_版本计划与需求/核心方案/01_开发方案/符文/符文连携系统后续开发方案.md
- M Docs/03_配置与编辑器手册/核心配置说明/道具/油瓶雷石烟雾配置说明.md
+ M Docs/01_策划需求与版本方案/429反馈迭代.md
+ M Docs/01_策划需求与版本方案/核心方案/01_开发方案/符文/符文连携系统后续开发方案.md
+ M Docs/03_策划配置与制作手册/核心配置说明/道具/油瓶雷石烟雾配置说明.md
 ```
 
 - [ ] **Step 2: Confirm meta table config is already wired**

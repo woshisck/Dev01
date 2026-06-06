@@ -1,4 +1,4 @@
----
+﻿---
 status: current
 type: guide
 owner: production
@@ -17,11 +17,11 @@ updated: 2026-06-06
 
 | 开发事件 | 必须同步更新的文档 |
 | --- | --- |
-| 新建 Subsystem / Manager / 核心 Component | 在 `Docs/01_长期系统文档/系统/{System}/` 下建立或更新接口文档 |
-| 导演新增对某系统的调用 | `Docs/01_长期系统文档/系统/Story/DirectorInterfaces.md` |
+| 新建 Subsystem / Manager / 核心 Component | 在 `Docs/04_开发实现与系统文档/系统/{System}/` 下建立或更新接口文档 |
+| 导演新增对某系统的调用 | `Docs/04_开发实现与系统文档/系统/Story/DirectorInterfaces.md` |
 | 现有接口签名变更 | 对应系统的接口文档 |
-| 系统新增对另一系统的依赖 | `Docs/01_长期系统文档/系统/SystemDependencyMap.md` |
-| 新增 DataAsset / WBP / GameplayTag / Commandlet 配置 | `Docs/03_配置与编辑器手册/` 或对应系统配置说明 |
+| 系统新增对另一系统的依赖 | `Docs/04_开发实现与系统文档/系统/SystemDependencyMap.md` |
+| 新增 DataAsset / WBP / GameplayTag / Commandlet 配置 | `Docs/03_策划配置与制作手册/` 或对应系统配置说明 |
 | AI 辅助代码任务启动 | `Docs/06_AI协作与VibeCoding/AI任务交接模板.md` |
 
 **原则：不要等整理期再补，改代码时同步改文档。**
@@ -46,7 +46,7 @@ updated: 2026-06-06
 
 ## 导演接口汇总维护规则
 
-[DirectorInterfaces.md](../01_长期系统文档/系统/Story/DirectorInterfaces.md) 是导演系统的唯一接口索引。
+[DirectorInterfaces.md](../04_开发实现与系统文档/系统/Story/DirectorInterfaces.md) 是导演系统的唯一接口索引。
 
 - 已实现接口记入“已实现”表。
 - 有需求但未实现的接口记入“缺口”表，注明是否为硬性需求。
@@ -59,13 +59,13 @@ updated: 2026-06-06
 ```text
 Docs/
 ├── 00_入口与规范/             入口、分类规则、迁移表、缺失引用记录
-├── 01_长期系统文档/           长期有效的系统、标签、编码规范
+├── 01_策划需求与版本方案/      策划需求、版本方案、协作接口、验收要求
+├── 02_玩法设计与调研/          玩法设计、调研、故事源内容
+├── 03_策划配置与制作手册/      引擎内配置、编辑器操作、制作手册
+├── 04_开发实现与系统文档/      长期有效的系统、标签、编码规范
 │   ├── 编码规范/              C++/GAS/WBP/DA 等工程规范
 │   └── 系统/                  Combat、Rune、Story、Save、UI 等系统依据
-├── 02_版本计划与需求/         当前版本方案、协作接口、验收要求
-├── 03_配置与编辑器手册/       引擎内配置、编辑器操作、制作手册
-├── 04_调研与玩法设计/         玩法设计、调研、故事源内容
-├── 05_项目管理与进度/         进度、FeatureLog、验收报告
+├── 05_完成记录与任务看板/      任务、完成记录、策划配置清单、验收报告
 ├── 06_AI协作与VibeCoding/     AI 代码协作规范与任务交接入口
 ├── 90_自动生成报告/           Commandlet、StoryPipeline、ProductionGraph 输出
 ├── 98_废弃/                   与当前方向冲突的历史依据
@@ -80,5 +80,5 @@ Docs/
 
 - 代码实现细节 -> 直接读代码。
 - Git 历史和改动原因 -> commit message。
-- 正在开发中的临时方案 -> `02_版本计划与需求/` 或 `99_归档/WorkSession/` 中对应记录。
+- 正在开发中的临时方案 -> `01_策划需求与版本方案/` 或 `99_归档/WorkSession/` 中对应记录。
 - 已废弃的接口 -> 移入 `98_废弃/` 或在原归档文档顶部标注废弃状态。

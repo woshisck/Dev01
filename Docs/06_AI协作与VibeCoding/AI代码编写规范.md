@@ -1,4 +1,4 @@
----
+﻿---
 status: current
 type: guide
 owner: ai
@@ -17,20 +17,20 @@ updated: 2026-06-06
 
 ## 必读规范
 
-- [C++ Coding Style Guide](../01_长期系统文档/编码规范/CppCodingStyle_Guide.md)
-- [GAS 规范](../01_长期系统文档/编码规范/GAS.md)
-- [Widget 规范](../01_长期系统文档/编码规范/Widget.md)
-- [DataAsset 规范](../01_长期系统文档/编码规范/DataAsset.md)
-- [AnimNotify 规范](../01_长期系统文档/编码规范/AnimNotify.md)
-- [GameplayTag 总指南](../01_长期系统文档/标签/GameplayTag_MasterGuide.md)
+- [C++ Coding Style Guide](../04_开发实现与系统文档/编码规范/CppCodingStyle_Guide.md)
+- [GAS 规范](../04_开发实现与系统文档/编码规范/GAS.md)
+- [Widget 规范](../04_开发实现与系统文档/编码规范/Widget.md)
+- [DataAsset 规范](../04_开发实现与系统文档/编码规范/DataAsset.md)
+- [AnimNotify 规范](../04_开发实现与系统文档/编码规范/AnimNotify.md)
+- [GameplayTag 总指南](../04_开发实现与系统文档/标签/GameplayTag_MasterGuide.md)
 
 ## 系统优先入口
 
-- Buff、符文、卡牌效果：先查 [Rune 系统](../01_长期系统文档/系统/Rune/README.md)。
-- 剧情、教程、规则触发：先查 [Story 系统](../01_长期系统文档/系统/Story/README.md)。
-- 关卡、房间、传送门：先查 [Level 系统](../01_长期系统文档/系统/Level/README.md)。
-- UI、HUD、WBP：先查 [UI 系统](../01_长期系统文档/系统/UI/) 和 Widget 规范。
-- 存档、局外成长：先查 [Progression 系统](../01_长期系统文档/系统/Progression/README.md)。
+- Buff、符文、卡牌效果：先查 [Rune 系统](../04_开发实现与系统文档/系统/Rune/README.md)。
+- 剧情、教程、规则触发：先查 [Story 系统](../04_开发实现与系统文档/系统/Story/README.md)。
+- 关卡、房间、传送门：先查 [Level 系统](../04_开发实现与系统文档/系统/Level/README.md)。
+- UI、HUD、WBP：先查 [UI 系统](../04_开发实现与系统文档/系统/UI/) 和 Widget 规范。
+- 存档、局外成长：先查 [Progression 系统](../04_开发实现与系统文档/系统/Progression/README.md)。
 
 ## 代码提交前检查
 

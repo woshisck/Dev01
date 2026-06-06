@@ -106,7 +106,7 @@
 
 - `StoryEncounterGraphTests.cpp`、`StoryEncounterRuntimeTests.cpp`：`NewObject<UFlowAsset>` 改为 `NewObject<UStoryFlowAsset>`，适配类型收窄
 
-**关联文档：** [StoryFA_NodeReference.md](../../../01_长期系统文档/系统/Story/StoryFA_NodeReference.md)
+**关联文档：** [StoryFA_NodeReference.md](../../../04_开发实现与系统文档/系统/Story/StoryFA_NodeReference.md)
 
 ---
 
@@ -138,7 +138,7 @@
 - `Dialogue`：阶段二对话系统
 - `TeleportToNode`：暂无用例
 
-**关联文档：** [StoryFA_NodeReference.md](../../../01_长期系统文档/系统/Story/StoryFA_NodeReference.md)
+**关联文档：** [StoryFA_NodeReference.md](../../../04_开发实现与系统文档/系统/Story/StoryFA_NodeReference.md)
 
 ---
 

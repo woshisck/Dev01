@@ -4,7 +4,7 @@
 
 > 适用范围：背包网格、符文放置/激活/移动、三选一拾取流程  
 > 适用人群：程序  
-> 配套文档：[背包系统配置指南](BackpackSystem_Guide.md) · [BuffFlow 程序接入指南](../../../01_长期系统文档/系统/Rune/BuffFlow_ProgrammerGuide.md)  
+> 配套文档：[背包系统配置指南](BackpackSystem_Guide.md) · [BuffFlow 程序接入指南](../../../04_开发实现与系统文档/系统/Rune/BuffFlow_ProgrammerGuide.md)  
 > 最后更新：2026-04-14
 
 ---

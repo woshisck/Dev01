@@ -3,7 +3,7 @@
 # 开发方案：符文多层数据表架构
 
 > 创建：2026-05-09  
-> 关联：[RuneEditor_UserGuide.md](../../01_长期系统文档/系统/Rune/RuneEditor_UserGuide.md)
+> 关联：[RuneEditor_UserGuide.md](../../04_开发实现与系统文档/系统/Rune/RuneEditor_UserGuide.md)
 
 ---
 

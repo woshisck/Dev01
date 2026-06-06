@@ -25,9 +25,9 @@
 ### 文档三层结构
 
 ```
-Layer 1：全局架构图       → Docs/01_长期系统文档/系统/SystemDependencyMap.md
-Layer 2：系统接口卡片     → Docs/01_长期系统文档/系统/{System}/*_Architecture.md
-Layer 3：导演接口汇总     → Docs/01_长期系统文档/系统/Director/DirectorInterfaces.md  ← 核心输出
+Layer 1：全局架构图       → Docs/04_开发实现与系统文档/系统/SystemDependencyMap.md
+Layer 2：系统接口卡片     → Docs/04_开发实现与系统文档/系统/{System}/*_Architecture.md
+Layer 3：导演接口汇总     → Docs/04_开发实现与系统文档/系统/Director/DirectorInterfaces.md  ← 核心输出
 ```
 
 ---
@@ -36,19 +36,19 @@ Layer 3：导演接口汇总     → Docs/01_长期系统文档/系统/Director/
 
 ### Step 1：补全三个无文档的核心系统
 
-**1a. 存档系统** → `Docs/01_长期系统文档/系统/Save/SaveSubsystem_Architecture.md`
+**1a. 存档系统** → `Docs/04_开发实现与系统文档/系统/Save/SaveSubsystem_Architecture.md`
 
 - 职责：多槽位管理（0-2）、Checkpoint 触发/清除、异步写盘并发保护、统计记录、版本迁移
 - 关键分组：槽位管理 / 存档点 / 快速存档 / 设置 / 统计
 - 数据流：`TriggerCheckpoint` → `PopulateCheckpointFromRunState` → `DoAsyncSave` → 回调
 
-**1b. 元进度系统** → `Docs/01_长期系统文档/系统/MetaProgression/MetaProgression_Architecture.md`
+**1b. 元进度系统** → `Docs/04_开发实现与系统文档/系统/MetaProgression/MetaProgression_Architecture.md`
 
 - 职责：局外货币增减、升级节点购买（前置检查+DataTable）、功能解锁、神秘侧等级、打造存档
 - 核心约定：MetaProgression 只做业务逻辑，持久化完全委托 SaveSubsystem
 - 数据表：`MetaUpgradeNodeTable` / `MetaCurrencyRuleTable`（在 GameInstance BP 中赋值）
 
-**1c. 故事引擎** → `Docs/01_长期系统文档/系统/Story/StoryEngine_Architecture.md`
+**1c. 故事引擎** → `Docs/04_开发实现与系统文档/系统/Story/StoryEngine_Architecture.md`
 
 - 职责：RuleSet 管理、事件广播队列（防重入）、条件求值、动作执行、任务状态、标志位
 - 三类标志位作用域：Run（局内）/ Session（本次启动）/ Map（本关）及存活周期
@@ -58,7 +58,7 @@ Layer 3：导演接口汇总     → Docs/01_长期系统文档/系统/Director/
 
 ### Step 2：全局系统依赖关系图
 
-→ `Docs/01_长期系统文档/系统/SystemDependencyMap.md`
+→ `Docs/04_开发实现与系统文档/系统/SystemDependencyMap.md`
 
 内容：
 
@@ -70,7 +70,7 @@ Layer 3：导演接口汇总     → Docs/01_长期系统文档/系统/Director/
 
 ### Step 3：导演接口汇总（核心输出）
 
-→ `Docs/01_长期系统文档/系统/Director/DirectorInterfaces.md`
+→ `Docs/04_开发实现与系统文档/系统/Director/DirectorInterfaces.md`
 
 **3a. 已实现的导演接口**
 
@@ -110,12 +110,12 @@ Layer 3：导演接口汇总     → Docs/01_长期系统文档/系统/Director/
 
 **新建（6 个纯文档，不改任何代码）**
 
-- `Docs/01_长期系统文档/系统/SystemDependencyMap.md` — 全局系统依赖图
+- `Docs/04_开发实现与系统文档/系统/SystemDependencyMap.md` — 全局系统依赖图
 - `Docs/00_入口与规范/DocConventions.md` — 文档维护规范
-- `Docs/01_长期系统文档/系统/Save/SaveSubsystem_Architecture.md` — 存档系统架构
-- `Docs/01_长期系统文档/系统/MetaProgression/MetaProgression_Architecture.md` — 元进度系统架构
-- `Docs/01_长期系统文档/系统/Story/StoryEngine_Architecture.md` — 故事引擎架构
-- `Docs/01_长期系统文档/系统/Director/DirectorInterfaces.md` — 导演接口汇总（核心输出）
+- `Docs/04_开发实现与系统文档/系统/Save/SaveSubsystem_Architecture.md` — 存档系统架构
+- `Docs/04_开发实现与系统文档/系统/MetaProgression/MetaProgression_Architecture.md` — 元进度系统架构
+- `Docs/04_开发实现与系统文档/系统/Story/StoryEngine_Architecture.md` — 故事引擎架构
+- `Docs/04_开发实现与系统文档/系统/Director/DirectorInterfaces.md` — 导演接口汇总（核心输出）
 
 ---
 

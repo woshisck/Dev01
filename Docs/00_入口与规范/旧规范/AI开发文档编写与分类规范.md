@@ -109,16 +109,16 @@ Docs/项目需求文档/512版本项目计划/设计/
 如果是长期系统说明，放在已有系统目录：
 
 ```text
-Docs/01_长期系统文档/系统/
-Docs/04_调研与玩法设计/设计文档/
+Docs/04_开发实现与系统文档/系统/
+Docs/02_玩法设计与调研/设计文档/
 Docs/Survey/
 ```
 
 示例：
 
 ```text
-Docs/01_长期系统文档/系统/Rune/BuffFlow_ArchitectureAndPlan.md
-Docs/04_调研与玩法设计/设计文档/VFX_PoisonAndArmorShield_Niagara.md
+Docs/04_开发实现与系统文档/系统/Rune/BuffFlow_ArchitectureAndPlan.md
+Docs/02_玩法设计与调研/设计文档/VFX_PoisonAndArmorShield_Niagara.md
 ```
 
 ### 2.5 工作过程记录

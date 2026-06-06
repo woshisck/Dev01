@@ -12,10 +12,10 @@
 
 | 开发事件 | 必须同步更新的文档 |
 | --- | --- |
-| 新建 Subsystem / Manager / 核心 Component | 在 `Docs/01_长期系统文档/系统/{System}/` 下建接口文档 |
-| 导演新增对某系统的调用 | `Docs/01_长期系统文档/系统/Director/DirectorInterfaces.md` |
+| 新建 Subsystem / Manager / 核心 Component | 在 `Docs/04_开发实现与系统文档/系统/{System}/` 下建接口文档 |
+| 导演新增对某系统的调用 | `Docs/04_开发实现与系统文档/系统/Director/DirectorInterfaces.md` |
 | 现有接口签名变更 | 对应系统的接口文档 |
-| 系统新增对另一系统的依赖 | `Docs/01_长期系统文档/系统/SystemDependencyMap.md` |
+| 系统新增对另一系统的依赖 | `Docs/04_开发实现与系统文档/系统/SystemDependencyMap.md` |
 
 **原则：不要等整理期再补，改代码时同步改文档。**
 
