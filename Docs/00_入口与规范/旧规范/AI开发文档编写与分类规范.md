@@ -1,4 +1,4 @@
-# AI 开发文档编写与分类规范
+﻿# AI 开发文档编写与分类规范
 
 > 适用范围：使用 AI 进行需求分析、代码开发、配置交付、联调验收时产生的文档。  
 > 适用人群：策划、程序、技术美术、使用 AI 协作开发的同事。  
@@ -109,16 +109,16 @@ Docs/项目需求文档/512版本项目计划/设计/
 如果是长期系统说明，放在已有系统目录：
 
 ```text
-Docs/Systems/
-Docs/Design/
+Docs/01_长期系统文档/系统/
+Docs/04_调研与玩法设计/设计文档/
 Docs/Survey/
 ```
 
 示例：
 
 ```text
-Docs/Systems/Rune/BuffFlow_ArchitectureAndPlan.md
-Docs/Design/VFX_PoisonAndArmorShield_Niagara.md
+Docs/01_长期系统文档/系统/Rune/BuffFlow_ArchitectureAndPlan.md
+Docs/04_调研与玩法设计/设计文档/VFX_PoisonAndArmorShield_Niagara.md
 ```
 
 ### 2.5 工作过程记录
@@ -309,3 +309,4 @@ Source 或 Shaders 里的 .ush 文件
 ```
 
 如果一份文档无法回答这五点，就不能视为可交付配置说明。
+

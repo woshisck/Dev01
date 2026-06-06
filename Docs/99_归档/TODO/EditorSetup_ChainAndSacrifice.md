@@ -1,3 +1,5 @@
+﻿> 状态：归档。仅用于历史追溯，不作为当前实现依据。
+
 # 编辑器配置指南：链路系统 + 献祭恩赐系统
 
 > 本文档对应代码版本：2026-04-19 第四次会话  
@@ -251,3 +253,4 @@ BeginPlay / 按键事件:
 | `Source/DevKit/Public/BuffFlow/Nodes/BFNode_SacrificeDecay.h/.cpp` | 衰退 Timer 节点 |
 | `Source/DevKit/Private/Character/PlayerCharacterBase.cpp` | `AcquireSacrificeGrace()`、BeginPlay 重激活 |
 | `Source/DevKit/Private/GameModes/YogGameMode.cpp` | `EnterArrangementPhase` 15% 掉落逻辑 |
+

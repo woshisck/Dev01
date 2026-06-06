@@ -7,7 +7,7 @@
 
 | 文档 | 内容 |
 | --- | --- |
-| [BuffFlow_Architecture.md](BuffFlow_Architecture.md) | BuffFlow 整体架构：FA/FlowGraph/BackpackGrid 关系 |
+| [BuffFlow_ArchitectureAndPlan.md](BuffFlow_ArchitectureAndPlan.md) | BuffFlow 整体架构：FA/FlowGraph/BackpackGrid 关系 |
 | [FA_UniversalArchitecture.md](FA_UniversalArchitecture.md) | FA 节点通用架构（所有符文的 FA 共享基础） |
 | [FA_Moonlight_NodeSequences.md](FA_Moonlight_NodeSequences.md) | 月光卡 4 个 FA 的完整节点配置 + 数值表 |
 | [YogRuneEditor_Technical.md](YogRuneEditor_Technical.md) | RuneEditor 程序技术文档 |

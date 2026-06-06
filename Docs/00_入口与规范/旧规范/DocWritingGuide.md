@@ -1,6 +1,6 @@
 ﻿# 文档编写规则
 
-> 适用范围：Docs/Design/ 下所有文档  
+> 适用范围：Docs/04_调研与玩法设计/设计文档/ 下所有文档  
 > 原则：让不同角色的人能快速找到、快速看懂、快速上手
 
 ---
@@ -12,7 +12,7 @@
 **一类文档放一个文件夹**，按系统/主题分，不按读者角色分：
 
 ```
-Docs/Design/
+Docs/04_调研与玩法设计/设计文档/
 ├── INDEX.md              ← 总索引，所有文档入口
 ├── DocWritingGuide.md    ← 本文档
 ├── Tags/                 ← GameplayTag 系统全部文档
@@ -367,3 +367,4 @@ TGuardValue<bool> Guard(bProcessingConflict, true);  // 退出时自动还原
 | Tag 相关的任何内容 | 按上述类型定 | `Tags/` |
 | BuffFlow/符文系统 | 按上述类型定 | `BuffFlow/` |
 | StateConflict 系统 | 按上述类型定 | `StateConflict/` |
+

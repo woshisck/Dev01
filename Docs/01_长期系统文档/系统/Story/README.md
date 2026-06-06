@@ -16,8 +16,8 @@
 
 | 文档 | 内容 |
 | --- | --- |
-| [../../StoryPipeline/FirstRunTutorial_StatusAndTodo.md](../../StoryPipeline/FirstRunTutorial_StatusAndTodo.md) | 教程流水线进度与待办 |
-| [../../StorySource/FirstRunTutorial_Story.md](../../StorySource/FirstRunTutorial_Story.md) | 教程文案 |
+| [FirstRunTutorial_StatusAndTodo.md](../../../90_自动生成报告/StoryPipeline/FirstRunTutorial_StatusAndTodo.md) | 教程流水线进度与待办 |
+| [first_run_tutorial.story.md](../../../04_调研与玩法设计/设计文档/StorySource/StorySource/Main_Tutorial_Demo/first_run_tutorial.story.md) | 教程文案 |
 
 ## 接口参考（速查）
 

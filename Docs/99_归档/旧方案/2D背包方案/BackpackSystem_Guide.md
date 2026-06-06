@@ -1,4 +1,6 @@
-﻿# 背包系统蓝图制作指南
+﻿> 状态：归档。仅用于历史追溯，不作为当前实现依据。
+
+# 背包系统蓝图制作指南
 
 > 适用范围：WBP_BackpackScreen / WBP_RuneInfoCard 蓝图制作、样式 DA 配置  
 > 适用人群：策划 + 美术  
@@ -209,3 +211,4 @@ A：包含 `BackpackGrid` 的 VerticalBox / HorizontalBox Slot → **Size = Auto
 
 **Q：待放置区颜色不对？**  
 A：在 `DA_BackpackStyle` 里调 `Pending Has Rune Color` / `Pending Empty Color`。
+

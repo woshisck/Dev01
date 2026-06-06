@@ -1,3 +1,5 @@
+﻿> 状态：归档。仅用于历史追溯，不作为当前实现依据。
+
 # 编辑器配置指南：LevelFlow + Tutorial 弹窗动画 + WeaponSpawner 浮窗
 
 > 对应代码版本：2026-04-19 第二次会话（FEAT-012 / FIX-008 / FIX-009）  
@@ -239,3 +241,4 @@ Content Browser 右键 → **Miscellaneous → Data Asset**
 - [ ] DA_LevelEvent_XXX 中节点连线正确，Flow 编辑器无报错
 - [ ] BP_LevelEventTrigger 放置到关卡后触发正常（走进 Box → 事件启动）
 - [ ] bTriggerOnce 有效：离开再进入不再触发第二次
+

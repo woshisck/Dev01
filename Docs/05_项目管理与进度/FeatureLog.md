@@ -143,7 +143,7 @@
 |------|------|
 | 背景 | 合作者推送 10 commits 在 origin/main（-5130 行），删除大量本地正在用的 C++ 类与设计文档 |
 | 撤回的删除（C++） | `UYogCommonRichTextBlock` / `UInputActionRichTextDecorator` / `UInfoPopupWidget` / `UGenericRuneEffectDA` / `UGenericEffectListWidget` / `UGenericEffectEntryWidget` / `UPortalPreviewWidget` / `UPortalDirectionWidget` / `FPortalPreviewInfo` / `ULevelInfoPopupDA` / `ULENode_ShowInfoPopup` / `UTutorialRegistryDA` 等 |
-| 撤回的删除（文档） | 当时旧路径：`Docs/Survey/01-06_*.md`（玩家研究问卷依据）、`Docs/Systems/Rune/BackpackUI_Architecture.md`、`Docs/Systems/Level/WBP_PortalPreview_Layout.md`、`Docs/Systems/UI/WBP_LootSelection_Layout.md` 等 |
+| 撤回的删除（文档） | 当时旧路径：`Docs/Survey/01-06_*.md`（玩家研究问卷依据）、`Docs/01_长期系统文档/系统/Rune/BackpackUI_Architecture.md`、`Docs/01_长期系统文档/系统/Level/WBP_PortalPreview_Layout.md`、`Docs/01_长期系统文档/系统/UI/WBP_LootSelection_Layout.md` 等 |
 | 撤回的重构 | YogHUD / TutorialManager / Portal / RewardPickup / WeaponSpawner / GameMode 等被部分回滚到 e7200ab2 状态 |
 | 决策依据 | 用户 2026-04-27 确认"全部本地"：本地仍在重构/使用这些类与文档，远程删除会破坏本地 UI 体系 |
 | 后续行动 | 需告知合作者：他 pull 后会发现"删过的东西又回来了"；建议沟通哪些是"过期清理"哪些是"误删"；过期清理的部分待协商后专门做一个清理 commit |
@@ -290,7 +290,7 @@
 | 延缓帧逻辑 | `Montage_SetPlayRate(SlowRate)` → 真实时间计时（SlowDuration 秒）→ `SetPlayRate(CatchUpRate)` 追帧 → 恢复 1.0；追帧时长自动计算：`SlowDuration × (1-SlowRate) / (CatchUpRate-1)` |
 | FA 接线 | `[OnDamageDealt] → [BFNode_HitStop]`（无 Tag 时静默跳过） |
 | 暴击冻结帧 | 暴击 FA：`[OnCritHit] → [AddTag: Buff.Status.HitStop.Freeze]`；OnCritHit 先于 OnDamageDealt 触发，顺序天然正确 |
-| 设计文档 | `Docs/Design/Combat/HitStop_Design.md` |
+| 设计文档 | `Docs/04_调研与玩法设计/设计文档/Combat/HitStop_Design.md` |
 
 ---
 
@@ -1874,3 +1874,4 @@ Stack: UnrealEditor_SlateCore / UnrealEditor_Slate（无游戏代码帧）
 ```
 
 **系统缩写**：CAM 相机 / UI 界面 / COMBAT 战斗 / LOOP 主循环 / BACKPACK 背包 / MAP 地图关卡 / BUFF 符文Buff / AUDIO 音效
+

@@ -1,4 +1,6 @@
-﻿# 背包与符文激活系统 — 技术文档
+﻿> 状态：归档。仅用于历史追溯，不作为当前实现依据。
+
+# 背包与符文激活系统 — 技术文档
 
 > 适用范围：背包网格、符文放置/激活/移动、三选一拾取流程  
 > 适用人群：程序  
@@ -289,3 +291,4 @@ void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 - **FA 执行期间不改 RuneSlots**：BuffFlow FA 的 BFNode 执行是同帧同步的，不要在 BFNode 回调里修改 BackpackGrid 的槽位数据（重入风险）
 - **升级合并走 `TryMergeRunes`**：添加新符文后必须调 `TryMergeRunes`，不要手动改 RuneLevel 字段
 - **FallbackLootPool 只在奖励池耗尽时启用**：不要把 FallbackLootPool 当普通池用，它是兜底，优先用 BuffDataAsset 配置的池
+

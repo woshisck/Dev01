@@ -101,15 +101,15 @@
 
 ## 导演可调用的系统接口概览
 
-> 详细接口规范见 [DirectorInterfaces.md](../Systems/Director/DirectorInterfaces.md)
+> 详细接口规范见 [DirectorInterfaces.md](Story/DirectorInterfaces.md)
 
 | 系统 | 已暴露给导演的调用点数量 | 文档 |
 | --- | --- | --- |
 | GameInstance（通过 GI） | 1（SetPendingStoryNextRoomPlan） | 本文 |
 | AYogGameMode | 1（StartForcedSurvivalEncounter） | 待补：GameMode 接口文档 |
-| StoryEngineSubsystem | 3（ExecuteAction / Broadcast / SetFlag） | [StoryEngine_Architecture.md](../Systems/Story/StoryEngine_Architecture.md) |
-| YogMetaProgressionSubsystem | 1（UnlockFeature） | [MetaProgression_Architecture.md](../Systems/MetaProgression/MetaProgression_Architecture.md) |
-| YogSaveSubsystem | 1（MarkFirstRunTutorialCompleted） | [SaveSubsystem_Architecture.md](../Systems/Save/SaveSubsystem_Architecture.md) |
+| StoryEngineSubsystem | 3（ExecuteAction / Broadcast / SetFlag） | [StoryEngine_Architecture.md](Story/StoryEngine_Architecture.md) |
+| YogMetaProgressionSubsystem | 1（UnlockFeature） | [MetaProgression_Architecture.md](Progression/MetaProgression_Architecture.md) |
+| YogSaveSubsystem | 1（MarkFirstRunTutorialCompleted） | [SaveSubsystem_Architecture.md](Progression/SaveSubsystem_Architecture.md) |
 
 ---
 

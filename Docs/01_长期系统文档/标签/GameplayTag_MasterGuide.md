@@ -1,4 +1,4 @@
-# GameplayTag 总体设计指南
+﻿# GameplayTag 总体设计指南
 
 > 版本：v1（2026-04-09）  
 > 适用范围：项目全部 GameplayTag，覆盖 GAS、AI、状态机、符文系统、跨系统通信
@@ -341,6 +341,7 @@ Event.Rune.KnockbackApplied ← GA 执行完成的输出信号（GA → 玩家 A
 | `Config/Tags/EnemyTag.ini` | `Enemy.*` + `Enemy_Behavior.*` |
 | `Config/Tags/StateTag.ini` | `State.*` |
 | `Config/Tags/RoomTag.ini` | `Room.*` |
-| `Docs/Design/Buff_Tag_Spec.md` | `Buff.*` 详细规范 |
+| `Docs/04_调研与玩法设计/设计文档/Buff_Tag_Spec.md` | `Buff.*` 详细规范 |
 | **本文档** | 全命名空间总览 |
-| `Docs/Design/StateConflict_TagBlock.md` | 冲突规则配置指南 |
+| `Docs/04_调研与玩法设计/设计文档/StateConflict_TagBlock.md` | 冲突规则配置指南 |
+

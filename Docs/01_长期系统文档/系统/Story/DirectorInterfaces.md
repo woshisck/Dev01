@@ -1,7 +1,7 @@
 # 导演系统接口汇总
 
 > 最后更新：2026-05-28
-> 维护规范：见 [DocConventions.md](../../Architecture/DocConventions.md)
+> 维护规范：见 [DocConventions.md](../../../00_入口与规范/DocConventions.md)
 
 导演系统当前由 `UFirstRunTutorialDirectorSubsystem`（教程专属）承担。通用剧情逻辑通过 `StoryEngineSubsystem` 的 RuleSet 配置，无需单独建导演类。
 

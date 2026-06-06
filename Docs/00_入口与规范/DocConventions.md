@@ -1,8 +1,15 @@
+---
+status: current
+type: guide
+owner: production
+updated: 2026-06-06
+---
+
 # 文档维护规范
 
-> 最后更新：2026-05-28
+> 最后更新：2026-06-06
 
-本文规定项目文档的维护原则，重点面向系统接口文档和导演接口汇总的同步要求。
+本文规定项目文档的维护原则，重点面向系统接口文档、导演接口汇总、配置说明和 AI 协作入口的同步要求。
 
 ---
 
@@ -10,10 +17,12 @@
 
 | 开发事件 | 必须同步更新的文档 |
 | --- | --- |
-| 新建 Subsystem / Manager / 核心 Component | 在 `Docs/Systems/{System}/` 下建接口文档 |
-| 导演新增对某系统的调用 | `Docs/Systems/Director/DirectorInterfaces.md` |
+| 新建 Subsystem / Manager / 核心 Component | 在 `Docs/01_长期系统文档/系统/{System}/` 下建立或更新接口文档 |
+| 导演新增对某系统的调用 | `Docs/01_长期系统文档/系统/Story/DirectorInterfaces.md` |
 | 现有接口签名变更 | 对应系统的接口文档 |
-| 系统新增对另一系统的依赖 | `Docs/Architecture/SystemDependencyMap.md` |
+| 系统新增对另一系统的依赖 | `Docs/01_长期系统文档/系统/SystemDependencyMap.md` |
+| 新增 DataAsset / WBP / GameplayTag / Commandlet 配置 | `Docs/03_配置与编辑器手册/` 或对应系统配置说明 |
+| AI 辅助代码任务启动 | `Docs/06_AI协作与VibeCoding/AI任务交接模板.md` |
 
 **原则：不要等整理期再补，改代码时同步改文档。**
 
@@ -23,13 +32,13 @@
 
 每个对外暴露的接口按以下格式记录：
 
-```
+```text
 ### 接口名（函数签名）
 
 - **调用时机**：Arrangement 前 / 运行时 / 任意时
 - **参数**：逐参数说明
 - **副作用**：调用后会改变哪些状态（存档、标志位、Actor 状态等）
-- **实现状态**：✓ 已实现 / ✗ 未实现（占位）
+- **实现状态**：已实现 / 未实现（占位）
 - **注意**：特殊约束或已知问题
 ```
 
@@ -37,39 +46,39 @@
 
 ## 导演接口汇总维护规则
 
-[DirectorInterfaces.md](../Systems/Director/DirectorInterfaces.md) 是导演系统的唯一接口索引。
+[DirectorInterfaces.md](../01_长期系统文档/系统/Story/DirectorInterfaces.md) 是导演系统的唯一接口索引。
 
-- 已实现接口记入"已实现"表
-- 有需求但未实现的接口记入"缺口"表，注明是否为硬性需求
-- 不记录正在开发中的接口（等合入后再写）
+- 已实现接口记入“已实现”表。
+- 有需求但未实现的接口记入“缺口”表，注明是否为硬性需求。
+- 不记录正在开发中的接口；等合入后再写入长期系统文档。
 
 ---
 
 ## 文档目录约定
 
-```
+```text
 Docs/
-├── Architecture/        全局架构文档（系统依赖图、规范）
-├── Systems/
-│   ├── Director/        导演系统接口汇总
-│   ├── Save/            存档系统
-│   ├── Story/           故事引擎
-│   ├── MetaProgression/ 元进度系统
-│   ├── Rune/            符文/Buff 系统（已有）
-│   ├── Combat/          战斗系统（已有）
-│   ├── Level/           关卡系统（已有）
-│   └── UI/              UI 系统（已有）
-├── Conventions/         编码规范（材质/WBP/GA/AN/DA）
-└── WorkSession/         当前开发方案（current_plan.md）
+├── 00_入口与规范/             入口、分类规则、迁移表、缺失引用记录
+├── 01_长期系统文档/           长期有效的系统、标签、编码规范
+│   ├── 编码规范/              C++/GAS/WBP/DA 等工程规范
+│   └── 系统/                  Combat、Rune、Story、Save、UI 等系统依据
+├── 02_版本计划与需求/         当前版本方案、协作接口、验收要求
+├── 03_配置与编辑器手册/       引擎内配置、编辑器操作、制作手册
+├── 04_调研与玩法设计/         玩法设计、调研、故事源内容
+├── 05_项目管理与进度/         进度、FeatureLog、验收报告
+├── 06_AI协作与VibeCoding/     AI 代码协作规范与任务交接入口
+├── 90_自动生成报告/           Commandlet、StoryPipeline、ProductionGraph 输出
+├── 98_废弃/                   与当前方向冲突的历史依据
+└── 99_归档/                   仅供历史追溯，不作为当前实现依据
 ```
 
 ---
 
 ## 不需要文档化的内容
 
-以下内容不写进文档，因为有更权威的来源：
+以下内容不写进长期文档，因为有更权威的来源：
 
-- 代码实现细节 → 直接读代码
-- Git 历史和改动原因 → commit message
-- 正在开发中的接口 → current_plan.md
-- 已废弃的接口 → 直接从文档删除
+- 代码实现细节 -> 直接读代码。
+- Git 历史和改动原因 -> commit message。
+- 正在开发中的临时方案 -> `02_版本计划与需求/` 或 `99_归档/WorkSession/` 中对应记录。
+- 已废弃的接口 -> 移入 `98_废弃/` 或在原归档文档顶部标注废弃状态。

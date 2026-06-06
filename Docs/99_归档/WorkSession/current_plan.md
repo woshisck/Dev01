@@ -1,4 +1,6 @@
-﻿# 开发方案：符文多层数据表架构
+﻿> 状态：归档。仅用于历史追溯，不作为当前实现依据。
+
+# 开发方案：符文多层数据表架构
 
 > 创建：2026-05-09  
 > 关联：[RuneEditor_UserGuide.md](../../01_长期系统文档/系统/Rune/RuneEditor_UserGuide.md)
@@ -343,3 +345,4 @@ Count: 1               →  Key="Projectile.Count"      →  OutputPin → Proje
 - Excel 双向同步（CSV 导入导出）
 - 运行时热更新数值
 - 跨符文共享数值模板（现有 `UGenericRuneEffectDA` 可承担部分）
+

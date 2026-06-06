@@ -1,4 +1,6 @@
-﻿OpenAI Codex v0.125.0 (research preview)
+﻿> 状态：归档。仅用于历史追溯，不作为当前实现依据。
+
+OpenAI Codex v0.125.0 (research preview)
 --------
 workdir: D:\Self\GItGame\Dev01
 model: gpt-5.5
@@ -170,8 +172,8 @@ exec
  D Docs/Research/PlayerResearch_Questionnaire_v0.1_20260415.md
  D Docs/Research/PlayerResearch_Questionnaire_v0.2_20260429.md
  D Docs/Research/PlayerResearch_Report_v0.1_20260415.md
- M Docs/Systems/Combat/AttackDamage_ConfigGuide.md
- M Docs/Systems/Rune/YogRuneEditor_Technical.md
+ M Docs/01_长期系统文档/系统/Combat/AttackDamage_ConfigGuide.md
+ M Docs/01_长期系统文档/系统/Rune/YogRuneEditor_Technical.md
  D Docs/TBD_ComboMake.md
  M Docs/Tags/GameplayTag_MasterGuide.md
  D Docs/WorkSession/PhaseB_Workflow.md
@@ -243,8 +245,8 @@ exec
 ?? Content/YogRuneEditor/Asset/
 ?? Docs/Conventions/NodeCreation_RedLines.md
 ?? Docs/PM/CurrentProgress_20260508.md
-?? Docs/Systems/Rune/FA_Moonlight_NodeSequences.md
-?? Docs/Systems/Rune/RuneEditor_UserGuide.md
+?? Docs/01_长期系统文档/系统/Rune/FA_Moonlight_NodeSequences.md
+?? Docs/01_长期系统文档/系统/Rune/RuneEditor_UserGuide.md
 ?? Source/DevKit/Private/AbilitySystem/Abilities/GA_ApplyFinisherMark.cpp
 ?? Source/DevKit/Private/AbilitySystem/Abilities/GA_FinisherCharge.cpp
 ?? Source/DevKit/Private/AbilitySystem/Abilities/GA_Player_FinisherAttack.cpp
@@ -364,8 +366,8 @@ warning: in the working copy of 'Docs/Conventions/AnimNotify.md', LF will be rep
 warning: in the working copy of 'Docs/FeatureLog.md', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'Docs/INDEX.md', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'Docs/PM/TASKS.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'Docs/Systems/Combat/AttackDamage_ConfigGuide.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'Docs/Systems/Rune/YogRuneEditor_Technical.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Docs/01_长期系统文档/系统/Combat/AttackDamage_ConfigGuide.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Docs/01_长期系统文档/系统/Rune/YogRuneEditor_Technical.md', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'Docs/Tags/GameplayTag_MasterGuide.md', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'Docs/WorkSession/codex_code_review.md', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'Docs/WorkSession/codex_plan_review.md', LF will be replaced by CRLF the next time Git touches it
@@ -6443,3 +6445,5 @@ Full review comments:
 
 - [P2] Treat zero bonus cap as unlimited — D:/Self/GItGame/Dev01/Source/DevKit/Private/BuffFlow/Nodes/BFNode_SpawnRangedProjectiles.cpp:159-161
   With `bAddComboStacksToProjectileCount` enabled and `MaxBonusProjectiles` left at its documented/default value of 0, this `Min(0, computedBonus)` forces the bonus count to 0, so combo stacks never add projectiles. The UI/comment says 0 means no upper limit, so only positive caps should clamp the computed bonus.
+
+

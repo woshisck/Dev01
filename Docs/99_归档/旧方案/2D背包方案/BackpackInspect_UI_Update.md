@@ -1,3 +1,5 @@
+﻿> 状态：归档。仅用于历史追溯，不作为当前实现依据。
+
 # Backpack Inspect UI Update
 
 ## Goal
@@ -69,3 +71,4 @@ Recommended visual layout:
 - Combat deck edit cards now default to fixed tall-card sizing with a 1:3 ratio.
 - Combo hints render through `UYogCommonRichTextBlock` with `BP_InputActionDecorator`, using CommonUI input icons from `<input action="LightAttack"/>` / `<input action="HeavyAttack"/>` instead of hardcoded controller/keyboard rows.
 - Weapon inspection uses the style DA default weapon icon when the equipped weapon has no thumbnail.
+

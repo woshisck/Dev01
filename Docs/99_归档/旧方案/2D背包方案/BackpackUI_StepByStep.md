@@ -1,4 +1,6 @@
-﻿# 背包系统 UI 制作手册（零基础版）
+﻿> 状态：归档。仅用于历史追溯，不作为当前实现依据。
+
+# 背包系统 UI 制作手册（零基础版）
 
 > 适用范围：WBP_RuneSlot / WBP_BackpackGrid / WBP_PendingGrid / WBP_BackpackScreen 蓝图制作  
 > 适用人群：完全不熟悉 UE5 蓝图和 UMG 的人  
@@ -394,3 +396,4 @@ Content Browser → `+ Add → Miscellaneous → Data Asset` → 选 **`Backpack
 | 激活区颜色没变 | DA_BackpackStyle 是否填入 WBP_BackpackGrid 的 Style DA 字段；武器 DA 的 Zone Shapes 是否填写 |
 | RuneInfoCard 没出现 | 变量名 `RuneInfoCard`；确认它是 WBP_RuneInfoCard 实例；确认它是 HorizontalBox 最后一个子控件 |
 | GrabbedRuneIcon 不跟鼠标 | 确认 Image 在 Canvas Panel 根层（不在 Border 里）；变量名精确为 `GrabbedRuneIcon` |
+
