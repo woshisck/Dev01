@@ -13,6 +13,7 @@
 #include "GameModes/YogGameMode.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/EnemyHealthDisplayComponent.h"
+#include "Component/MontageVFXBindingComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BrainComponent.h"
@@ -23,6 +24,7 @@ AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitial
 	EnemyAttributeSet = CreateDefaultSubobject<UEnemyAttributeSet>(TEXT("EnemyAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
 	HealthDisplayComponent = CreateDefaultSubobject<UEnemyHealthDisplayComponent>(TEXT("EnemyHealthDisplayComponent"));
+	MontageVFXBindingComponent = CreateDefaultSubobject<UMontageVFXBindingComponent>(TEXT("MontageVFXBindingComponent"));
 
 	// 近战默认命中框：C++ 实现，无需在每个角色蓝图 Class Defaults 中单独配置
 	DefaultMeleeTargetType = UYogTargetType_Enemy::StaticClass();

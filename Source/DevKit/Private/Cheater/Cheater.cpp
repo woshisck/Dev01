@@ -13,8 +13,142 @@
 #include "GameFramework/PlayerController.h"
 #include "System/YogGameInstanceBase.h"
 #include "EngineUtils.h"
+#include "HAL/IConsoleManager.h"
 
 // ─── 内部辅助 ─────────────────────────────────────────────────────────────────
+
+namespace
+{
+	const TCHAR* GYogMoonlightLinkCardPaths[] = {
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Reversed.DA_Rune512_Moonlight_Reversed"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Poison.DA_Rune512_Poison"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Shield.DA_Rune512_Shield"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Pierce.DA_Rune512_Pierce"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Attack.DA_Rune512_Attack"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_ReduceDamage.DA_Rune512_ReduceDamage"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Splash.DA_Rune512_Splash"),
+		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split.DA_Rune512_Split"),
+	};
+
+	APlayerCharacterBase* FindCheatPlayer(UWorld* World)
+	{
+		APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+		return PC ? Cast<APlayerCharacterBase>(PC->GetPawn()) : nullptr;
+	}
+
+	void GiveMoonlightLinkCardsToWorld(UWorld* World)
+	{
+		APlayerCharacterBase* Char = FindCheatPlayer(World);
+		UCombatDeckComponent* CombatDeck = Char ? Char->CombatDeckComponent : nullptr;
+		if (!CombatDeck)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: CombatDeckComponent not found."));
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("[GM] Moonlight cards failed: no combat deck."));
+			}
+			return;
+		}
+
+		int32 AddedCount = 0;
+		TArray<FString> MissingCards;
+		for (const TCHAR* CardPath : GYogMoonlightLinkCardPaths)
+		{
+			URuneDataAsset* RuneAsset = LoadObject<URuneDataAsset>(nullptr, CardPath);
+			if (!RuneAsset)
+			{
+				MissingCards.Add(CardPath);
+				UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: failed to load %s"), CardPath);
+				continue;
+			}
+
+			if (CombatDeck->AddCardFromRuneReward(RuneAsset))
+			{
+				++AddedCount;
+			}
+			else
+			{
+				MissingCards.Add(CardPath);
+				UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: failed to add %s"), CardPath);
+			}
+		}
+
+		CombatDeck->RefreshDeckView();
+
+		const FString Message = FString::Printf(
+			TEXT("[GM] Moonlight link cards added: %d/%d"),
+			AddedCount,
+			UE_ARRAY_COUNT(GYogMoonlightLinkCardPaths));
+		UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
+		if (!MissingCards.IsEmpty())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[GM] Missing moonlight cards: %s"), *FString::Join(MissingCards, TEXT(", ")));
+		}
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				6.f,
+				MissingCards.IsEmpty() ? FColor::Green : FColor::Yellow,
+				Message);
+		}
+	}
+
+	void SetLevelEndedForWorld(UWorld* World)
+	{
+		AYogGameMode* GameMode = World ? World->GetAuthGameMode<AYogGameMode>() : nullptr;
+		if (!GameMode)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetLevelEnded: GameMode not found."));
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("[GM] Level end failed: no GameMode."));
+			}
+			return;
+		}
+
+		if (GameMode->CurrentPhase != ELevelPhase::Arrangement)
+		{
+			GameMode->CurrentPhase = ELevelPhase::Combat;
+			GameMode->EnterArrangementPhase();
+		}
+
+		APlayerCharacterBase* Char = FindCheatPlayer(World);
+		if (UBackpackGridComponent* Backpack = Char ? Char->GetBackpackGridComponent() : nullptr)
+		{
+			Backpack->SetLocked(false);
+		}
+
+		const FString Message = TEXT("[GM] Level set to ended / Arrangement phase.");
+		UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 6.f, FColor::Green, Message);
+		}
+	}
+
+	FAutoConsoleCommandWithWorld GGiveMoonlightLinkCardsCommand(
+		TEXT("Yog_GiveMoonlightLinkCards"),
+		TEXT("Adds Moonlight link test cards directly to the current player's combat deck."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&GiveMoonlightLinkCardsToWorld));
+
+	FAutoConsoleCommandWithWorld GGiveMoonlightLinkCardsAliasCommand(
+		TEXT("Yog.GiveMoonlightLinkCards"),
+		TEXT("Adds Moonlight link test cards directly to the current player's combat deck."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&GiveMoonlightLinkCardsToWorld));
+
+	FAutoConsoleCommandWithWorld GSetLevelEndedCommand(
+		TEXT("Yog_SetLevelEnded"),
+		TEXT("Forces the current level into ended / Arrangement phase for card and backpack testing."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&SetLevelEndedForWorld));
+
+	FAutoConsoleCommandWithWorld GSetLevelEndedAliasCommand(
+		TEXT("Yog.SetLevelEnded"),
+		TEXT("Forces the current level into ended / Arrangement phase for card and backpack testing."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&SetLevelEndedForWorld));
+}
 
 APlayerCharacterBase* UYogCheatManager::GetPlayerChar() const
 {
@@ -129,73 +263,12 @@ void UYogCheatManager::Yog_GiveRune(int32 RuneID)
 
 void UYogCheatManager::Yog_GiveMoonlightLinkCards()
 {
-	APlayerCharacterBase* Char = GetPlayerChar();
-	UCombatDeckComponent* CombatDeck = Char ? Char->CombatDeckComponent : nullptr;
-	if (!CombatDeck)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: CombatDeckComponent not found."));
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("[GM] Moonlight cards failed: no combat deck."));
-		}
-		return;
-	}
+	GiveMoonlightLinkCardsToWorld(GetWorld());
+}
 
-	const TCHAR* CardPaths[] = {
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Reversed.DA_Rune512_Moonlight_Reversed"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Poison.DA_Rune512_Poison"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Shield.DA_Rune512_Shield"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Pierce.DA_Rune512_Pierce"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Attack.DA_Rune512_Attack"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_ReduceDamage.DA_Rune512_ReduceDamage"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Splash.DA_Rune512_Splash"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split.DA_Rune512_Split"),
-	};
-
-	int32 AddedCount = 0;
-	TArray<FString> MissingCards;
-	for (const TCHAR* CardPath : CardPaths)
-	{
-		URuneDataAsset* RuneAsset = LoadObject<URuneDataAsset>(nullptr, CardPath);
-		if (!RuneAsset)
-		{
-			MissingCards.Add(CardPath);
-			UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: failed to load %s"), CardPath);
-			continue;
-		}
-
-		if (CombatDeck->AddCardFromRuneReward(RuneAsset))
-		{
-			++AddedCount;
-		}
-		else
-		{
-			MissingCards.Add(CardPath);
-			UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: failed to add %s"), CardPath);
-		}
-	}
-
-	CombatDeck->RefreshDeckView();
-
-	const FString Message = FString::Printf(
-		TEXT("[GM] Moonlight link cards added: %d/%d"),
-		AddedCount,
-		UE_ARRAY_COUNT(CardPaths));
-	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
-	if (!MissingCards.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[GM] Missing moonlight cards: %s"), *FString::Join(MissingCards, TEXT(", ")));
-	}
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			6.f,
-			MissingCards.IsEmpty() ? FColor::Green : FColor::Yellow,
-			Message);
-	}
+void UYogCheatManager::Yog_SetLevelEnded()
+{
+	SetLevelEndedForWorld(GetWorld());
 }
 
 void UYogCheatManager::Yog_ClearRunes()

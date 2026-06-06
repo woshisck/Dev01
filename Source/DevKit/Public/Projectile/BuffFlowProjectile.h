@@ -78,6 +78,9 @@ struct DEVKIT_API FBuffFlowProjectileRuntimeConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Projectile", meta = (ClampMin = "0.01", EditCondition = "TriggerMode == EBuffFlowProjectileTriggerMode::PeriodicOverlap", EditConditionHides))
 	float TriggerInterval = 0.2f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Projectile", meta = (ClampMin = "0.0", EditCondition = "TriggerMode == EBuffFlowProjectileTriggerMode::PeriodicOverlap", EditConditionHides))
+	float MaxHit = 0.f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuffFlow|Projectile", meta = (ClampMin = "0.0"))
 	float Lifetime = 1.f;
 
@@ -231,6 +234,7 @@ private:
 	float ResolvedLifetime = 1.f;
 	float ResolvedBaseSpeed = 1200.f;
 	float EffectMagnitude = 0.f;
+	float PeriodicHitCount = 0.f;
 	bool bInitialized = false;
 	bool bInitialOverlapCheckScheduled = false;
 

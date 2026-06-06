@@ -16,7 +16,7 @@ namespace
 {
 constexpr const TCHAR* BurnRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn");
 constexpr const TCHAR* KnockbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback.DA_Rune512_Knockback");
-constexpr const TCHAR* MoonlightRunePath = TEXT("/Game/Code/Weapon/TwoHandedSword/CombatCards/DA_Rune512_THSword_Moonlight.DA_Rune512_THSword_Moonlight");
+constexpr const TCHAR* MoonlightRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward");
 constexpr const TCHAR* MoonlightFallbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward");
 constexpr const TCHAR* FinisherRunePath = TEXT("/Game/YogRuneEditor/Runes/DA_Rune_Finisher.DA_Rune_Finisher");
 constexpr const TCHAR* PrayerRoomDataPath = TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom.DA_PrayRoom");

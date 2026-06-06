@@ -13,6 +13,7 @@
 
 class UBuffFlowComponent;
 class UEnemyHealthDisplayComponent;
+class UMontageVFXBindingComponent;
 class UYogAbilitySystemComponent;
 
 /**
@@ -32,6 +33,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy|Health Display")
 	TObjectPtr<UEnemyHealthDisplayComponent> HealthDisplayComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VFX")
+	TObjectPtr<UMontageVFXBindingComponent> MontageVFXBindingComponent;
 
 	// Tutorial/practice enemies can opt out of room clear, wave, and kill-count progression.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Level")

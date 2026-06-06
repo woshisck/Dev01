@@ -1,9 +1,31 @@
 #include "Animation/ANS_MontageVFXBinding.h"
 
+#include "Animation/AN_MeleeDamage.h"
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
-#include "Character/PlayerCharacterBase.h"
+#include "Character/YogCharacterBase.h"
 #include "Component/MontageVFXBindingComponent.h"
+
+namespace
+{
+	const UAN_MeleeDamage* FindFirstMeleeDamageNotify(const UAnimSequenceBase* Animation)
+	{
+		if (!Animation)
+		{
+			return nullptr;
+		}
+
+		for (const FAnimNotifyEvent& Event : Animation->Notifies)
+		{
+			if (const UAN_MeleeDamage* DamageNotify = Cast<UAN_MeleeDamage>(Event.Notify))
+			{
+				return DamageNotify;
+			}
+		}
+
+		return nullptr;
+	}
+}
 
 void UANS_MontageVFXBinding::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
 	float TotalDuration, const FAnimNotifyEventReference& EventReference)
@@ -15,15 +37,18 @@ void UANS_MontageVFXBinding::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnim
 		return;
 	}
 
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(MeshComp->GetOwner());
-	if (!Player || !Player->MontageVFXBindingComponent)
+	AYogCharacterBase* Character = Cast<AYogCharacterBase>(MeshComp->GetOwner());
+	UMontageVFXBindingComponent* VFXBindingComponent = Character
+		? Character->FindComponentByClass<UMontageVFXBindingComponent>()
+		: nullptr;
+	if (!Character || !VFXBindingComponent)
 	{
 		return;
 	}
 
 	FActionData ActionData;
 	const FActionData* ActionDataPtr = nullptr;
-	if (UYogAbilitySystemComponent* ASC = Player->GetASC())
+	if (UYogAbilitySystemComponent* ASC = Character->GetASC())
 	{
 		if (const UGA_MeleeAttack* MeleeGA = Cast<UGA_MeleeAttack>(ASC->GetCurrentAbilityInstance()))
 		{
@@ -32,7 +57,16 @@ void UANS_MontageVFXBinding::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnim
 		}
 	}
 
-	Player->MontageVFXBindingComponent->ActivateSlot(SlotName, ActionDataPtr);
+	if (!ActionDataPtr)
+	{
+		if (const UAN_MeleeDamage* DamageNotify = FindFirstMeleeDamageNotify(Animation))
+		{
+			ActionData = DamageNotify->BuildActionData();
+			ActionDataPtr = &ActionData;
+		}
+	}
+
+	VFXBindingComponent->ActivateSlot(SlotName, ActionDataPtr, RemainTime);
 }
 
 void UANS_MontageVFXBinding::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
@@ -45,13 +79,16 @@ void UANS_MontageVFXBinding::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSe
 		return;
 	}
 
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(MeshComp->GetOwner());
-	if (!Player || !Player->MontageVFXBindingComponent)
+	const AYogCharacterBase* Character = Cast<AYogCharacterBase>(MeshComp->GetOwner());
+	UMontageVFXBindingComponent* VFXBindingComponent = Character
+		? Character->FindComponentByClass<UMontageVFXBindingComponent>()
+		: nullptr;
+	if (!VFXBindingComponent)
 	{
 		return;
 	}
 
-	Player->MontageVFXBindingComponent->DeactivateSlot(SlotName);
+	VFXBindingComponent->DeactivateSlot(SlotName);
 }
 
 FString UANS_MontageVFXBinding::GetNotifyName_Implementation() const

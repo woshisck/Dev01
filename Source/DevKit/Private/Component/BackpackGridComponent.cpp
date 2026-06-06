@@ -268,6 +268,13 @@ void UBackpackGridComponent::DebugPlaceTestRunes()
 
 void UBackpackGridComponent::AddHiddenPassiveRune(const FRuneInstance& Rune)
 {
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] Legacy hidden passive rune activation disabled for combat card test: %s"),
+			*Rune.RuneConfig.RuneName.ToString());
+		return;
+	}
+
 	if (!Rune.Flow.FlowAsset) return;
 
 	RuntimeHiddenPassiveRunes.Add(Rune);
@@ -283,6 +290,16 @@ void UBackpackGridComponent::AddHiddenPassiveRune(const FRuneInstance& Rune)
 void UBackpackGridComponent::RestoreRuntimeHiddenPassiveRunes(const TArray<FRuneInstance>& Runes)
 {
 	RuntimeHiddenPassiveRunes.Reset();
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		if (!Runes.IsEmpty())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] Skipped %d legacy hidden passive runes during restore for combat card test"),
+				Runes.Num());
+		}
+		return;
+	}
+
 	for (const FRuneInstance& Rune : Runes)
 	{
 		AddHiddenPassiveRune(Rune);
@@ -291,6 +308,12 @@ void UBackpackGridComponent::RestoreRuntimeHiddenPassiveRunes(const TArray<FRune
 
 void UBackpackGridComponent::ActivateHiddenPassiveRunes()
 {
+	if (bDisableLegacyBackpackRuneRuntimeForCardTest)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BackpackGrid] Legacy hidden passive rune activation disabled for combat card test"));
+		return;
+	}
+
 	UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();
 	if (!BFC)
 	{
