@@ -68,10 +68,13 @@ namespace
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk"), false);
 		static const FGameplayTag DashAttackTag =
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.DashAtk"), false);
+		static const FGameplayTag SpecialAttackTag =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SpecialAttack"), false);
 
 		return (LightAttackTag.IsValid() && ASC->HasMatchingGameplayTag(LightAttackTag)) ||
 			(HeavyAttackTag.IsValid() && ASC->HasMatchingGameplayTag(HeavyAttackTag)) ||
-			(DashAttackTag.IsValid() && ASC->HasMatchingGameplayTag(DashAttackTag));
+			(DashAttackTag.IsValid() && ASC->HasMatchingGameplayTag(DashAttackTag)) ||
+			(SpecialAttackTag.IsValid() && ASC->HasMatchingGameplayTag(SpecialAttackTag));
 	}
 
 	FGameplayTag GetRecentlyDamagedTag()

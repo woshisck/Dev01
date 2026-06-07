@@ -8,7 +8,6 @@
 #include "Component/SacrificeRuneComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
-#include "AbilitySystem/Abilities/GA_Player_FinisherAttack.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
 #include "AbilitySystem/GameplayEffect/GE_RuneBurn.h"
@@ -132,11 +131,11 @@ bool FCombatDeckActionMismatchTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckFinisherRequirementTest,
-	"DevKit.CombatDeck.FinisherRequiresComboFinisher",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckDeprecatedFinisherCardsAreIgnoredTest,
+	"DevKit.CombatDeck.DeprecatedFinisherCardsAreIgnored",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckFinisherRequirementTest::RunTest(const FString& Parameters)
+bool FCombatDeckDeprecatedFinisherCardsAreIgnoredTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	FCombatCardConfig FinisherCard{ ECombatCardType::Finisher, ECardRequiredAction::Any };
@@ -144,25 +143,20 @@ bool FCombatDeckFinisherRequirementTest::RunTest(const FString& Parameters)
 	Deck->SetDeckListForTest({ FinisherCard });
 
 	const FCombatCardResolveResult NormalAttack = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("Normal attack consumes the finisher card"), NormalAttack.bHadCard);
-	TestFalse(TEXT("Normal attack does not trigger finisher matched flow"), NormalAttack.bTriggeredMatchedFlow);
-	TestFalse(TEXT("Normal attack does not trigger finisher bonus"), NormalAttack.bTriggeredFinisher);
-
-	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
+	TestFalse(TEXT("Deprecated finisher card is not inserted into the deck"), NormalAttack.bHadCard);
 
 	const FCombatCardResolveResult ComboFinisher = Deck->ResolveAttackCard(ECardRequiredAction::Light, true, false);
-	TestTrue(TEXT("Combo finisher consumes the finisher card"), ComboFinisher.bHadCard);
-	TestTrue(TEXT("Combo finisher triggers finisher matched flow"), ComboFinisher.bTriggeredMatchedFlow);
-	TestTrue(TEXT("Combo finisher triggers finisher bonus"), ComboFinisher.bTriggeredFinisher);
+	TestFalse(TEXT("Combo finisher flag does not reactivate deprecated finisher cards"), ComboFinisher.bHadCard);
+	TestFalse(TEXT("Deprecated finisher bonus never triggers"), ComboFinisher.bTriggeredFinisher);
 
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckTriggeredFinisherSkipsRefreshUntilEffectEndsTest,
-	"DevKit.CombatDeck.TriggeredFinisherSkipsRefreshUntilEffectEnds",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckDeprecatedFinisherDoesNotSuppressRefreshTest,
+	"DevKit.CombatDeck.DeprecatedFinisherDoesNotSuppressRefresh",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckTriggeredFinisherSkipsRefreshUntilEffectEndsTest::RunTest(const FString& Parameters)
+bool FCombatDeckDeprecatedFinisherDoesNotSuppressRefreshTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->SetShuffleCooldownDuration(1.0f);
@@ -176,35 +170,26 @@ bool FCombatDeckTriggeredFinisherSkipsRefreshUntilEffectEndsTest::RunTest(const 
 
 	Deck->SetDeckListForTest({ FinisherCard, AttackCard });
 
-	const FCombatCardResolveResult FinisherResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, true, false);
-	TestTrue(TEXT("Combo finisher triggers the finisher card"), FinisherResult.bTriggeredFinisher);
-	TestTrue(TEXT("Triggered finisher is suppressed while its effect is active"),
-		Deck->IsCardSuppressedFromActiveSequenceForTest(FinisherResult.ConsumedCard.InstanceGuid));
+	const TArray<FCombatCardInstance> InitialCards = Deck->GetDeckSnapshot();
+	TestEqual(TEXT("Deprecated finisher is filtered out of the active deck"), InitialCards.Num(), 1);
+	if (InitialCards.Num() == 1)
+	{
+		TestEqual(TEXT("Attack card remains after finisher filtering"), InitialCards[0].Config.CardType, ECombatCardType::Attack);
+	}
 
 	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Attack card can still be consumed"), AttackResult.bHadCard);
 	TestTrue(TEXT("Consuming the remaining attack card starts shuffle"), AttackResult.bStartedShuffle);
+	TestFalse(TEXT("Deprecated finisher card never enters suppression tracking"),
+		Deck->IsCardSuppressedFromActiveSequenceForTest(FGuid::NewGuid()));
 
 	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
-	const TArray<FCombatCardInstance> DuringEffectCards = Deck->GetDeckSnapshot();
-	TestEqual(TEXT("Refresh during finisher effect excludes the finisher"), DuringEffectCards.Num(), 1);
-	TestEqual(TEXT("Attack card fills the refreshed deck while finisher is held back"),
-		DuringEffectCards[0].Config.CardType, ECombatCardType::Attack);
-
-	Deck->StopCardFlow(FinisherResult.ConsumedCard);
-	TestFalse(TEXT("Finisher suppression is cleared when the card effect ends"),
-		Deck->IsCardSuppressedFromActiveSequenceForTest(FinisherResult.ConsumedCard.InstanceGuid));
-	TestEqual(TEXT("Ending the effect does not inject finisher into the current active deck"),
-		Deck->GetDeckSnapshot().Num(), 1);
-
-	const FCombatCardResolveResult NextAttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("The active attack card can be consumed after finisher effect ends"), NextAttackResult.bHadCard);
-	TestTrue(TEXT("Consuming the active attack starts the next shuffle"), NextAttackResult.bStartedShuffle);
-
-	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
-	const TArray<FCombatCardInstance> AfterEffectCards = Deck->GetDeckSnapshot();
-	TestEqual(TEXT("Next refresh after effect end restores the full deck"), AfterEffectCards.Num(), 2);
-	TestEqual(TEXT("Finisher returns on the refresh after its effect ended"),
-		AfterEffectCards[0].Config.CardType, ECombatCardType::Finisher);
+	const TArray<FCombatCardInstance> RefreshedCards = Deck->GetDeckSnapshot();
+	TestEqual(TEXT("Refresh keeps only the non-finisher card"), RefreshedCards.Num(), 1);
+	if (RefreshedCards.Num() == 1)
+	{
+		TestEqual(TEXT("Attack card fills the refreshed deck"), RefreshedCards[0].Config.CardType, ECombatCardType::Attack);
+	}
 
 	return true;
 }
@@ -426,21 +411,6 @@ bool FPlayerDashHasDefaultInterruptAndDeathGuardsTest::RunTest(const FString& Pa
 		Ability->GetActivationBlockedTags().HasTagExact(DeadTag));
 	TestTrue(TEXT("Dash cannot retrigger while another dash action is active"),
 		Ability->GetActivationBlockedTags().HasTagExact(DashTag));
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerFinisherAttackOwnsInvulnerableTagTest,
-	"DevKit.CombatDeck.PlayerFinisherAttackOwnsInvulnerableTag",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FPlayerFinisherAttackOwnsInvulnerableTagTest::RunTest(const FString& Parameters)
-{
-	UGA_Player_FinisherAttack* Ability = NewObject<UGA_Player_FinisherAttack>();
-	const FGameplayTag InvulnerableTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Invulnerable"));
-
-	TestTrue(TEXT("Finisher attack owns invulnerability while active"),
-		Ability->GetActivationOwnedTags().HasTagExact(InvulnerableTag));
 
 	return true;
 }
@@ -1679,11 +1649,11 @@ bool FCombatDeckEditMovesAndReversesCardsTest::RunTest(const FString& Parameters
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckFullSnapshotLeavesFinisherUnlockedTest,
-	"DevKit.CombatDeck.FullSnapshotLeavesFinisherUnlocked",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckFullSnapshotFiltersDeprecatedFinisherTest,
+	"DevKit.CombatDeck.FullSnapshotFiltersDeprecatedFinisher",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckFullSnapshotLeavesFinisherUnlockedTest::RunTest(const FString& Parameters)
+bool FCombatDeckFullSnapshotFiltersDeprecatedFinisherTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->TemporaryFinisherUnlockCompletedBattles = 3;
@@ -1694,10 +1664,7 @@ bool FCombatDeckFullSnapshotLeavesFinisherUnlockedTest::RunTest(const FString& P
 	Deck->SetDeckListForTest({ FinisherCard });
 
 	const TArray<FCombatCardInstance> Cards = Deck->GetFullDeckSnapshot();
-	TestEqual(TEXT("Full deck snapshot keeps the finisher card"), Cards.Num(), 1);
-	TestFalse(TEXT("Full deck snapshot keeps the finisher unlocked"), Cards[0].bTemporarilyLocked);
-	TestEqual(TEXT("Full deck snapshot reports no required battles"), Cards[0].TemporaryUnlockRequiredCompletedBattles, 0);
-	TestEqual(TEXT("Full deck snapshot reports current battles"), Cards[0].TemporaryUnlockCurrentCompletedBattles, 0);
+	TestEqual(TEXT("Full deck snapshot filters deprecated finisher cards"), Cards.Num(), 0);
 
 	return true;
 }

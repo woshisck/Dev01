@@ -35,6 +35,7 @@
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
+#include "Component/PlayerSpecialAttackComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "AbilitySystemComponent.h"
 
@@ -425,6 +426,39 @@ void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
 			Buffer->RecordLightAttack();
 		}
 
+		static const FGameplayTag SpecialAttackTag =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SpecialAttack"), false);
+		if (SpecialAttackTag.IsValid())
+		{
+			if (UAbilitySystemComponent* ASC = player->GetASC())
+			{
+				if (ASC->HasMatchingGameplayTag(SpecialAttackTag))
+				{
+					const FGameplayTag CanComboTag =
+						FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
+					if (CanComboTag.IsValid() && ASC->GetTagCount(CanComboTag) > 0)
+					{
+						const bool bActivated = player->ComboRuntimeComponent
+							&& player->ComboRuntimeComponent->HasComboSource()
+							&& player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Light, player);
+						if (bActivated)
+						{
+							if (UBufferComponent* Buffer = player->GetInputBufferComponent())
+							{
+								Buffer->ClearBuffer();
+							}
+
+							FGameplayTagContainer SpecialAttackTags;
+							SpecialAttackTags.AddTag(SpecialAttackTag);
+							SpecialAttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Ability.Player.SpecialAttack"), false));
+							ASC->CancelAbilities(&SpecialAttackTags);
+						}
+					}
+					return;
+				}
+			}
+		}
+
 		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasComboSource())
 		{
 			player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Light, player);
@@ -442,32 +476,18 @@ void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
 	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
+		if (player->SpecialAttackComponent && player->SpecialAttackComponent->HasSpecialAttack())
+		{
+			player->SpecialAttackComponent->UseSpecialAttack();
+			return;
+		}
+
 		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
 		{
 			Buffer->RecordHeavyAttack();
 		}
 
-		// 终结技执行期间：将重攻击路由到确认事件，不驱动 ComboRuntime
-		static const FGameplayTag TAG_FinisherExecuting =
-			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherExecuting"));
-		static const FGameplayTag TAG_FinisherQTEOpen =
-			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherQTEOpen"));
-		if (UAbilitySystemComponent* ASC = player->GetASC())
-		{
-			if (ASC->HasMatchingGameplayTag(TAG_FinisherExecuting))
-			{
-				if (ASC->HasMatchingGameplayTag(TAG_FinisherQTEOpen))
-				{
-					FGameplayEventData EventData;
-					EventData.Instigator = player;
-					ASC->HandleGameplayEvent(
-						FGameplayTag::RequestGameplayTag(TEXT("Action.Finisher.Confirm")),
-						&EventData);
-				}
-				return;
-			}
-		}
-
+		// Fallback for characters without an equipped special attack.
 		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasComboSource())
 		{
 			player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Heavy, player);

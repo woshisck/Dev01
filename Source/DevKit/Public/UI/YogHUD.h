@@ -35,7 +35,6 @@ class UBackpackGridComponent;
 class UCombatItemBarWidget;
 class UActiveSkillBarWidget;
 class UCurrentRoomBuffWidget;
-class UFinisherQTEWidget;
 class UYogRunSummaryWidgetBase;
 class URoomDataAsset;
 class UTexture2D;
@@ -71,9 +70,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Pause")
 	TSubclassOf<UPauseMenuWidget> PauseMenuClass;
 
-	UPROPERTY(EditDefaultsOnly, Category = "HUD|Finisher QTE")
-	TSubclassOf<UFinisherQTEWidget> FinisherQTEWidgetClass;
-
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|MetaProgression")
 	TSubclassOf<UYogRunSummaryWidgetBase> RunSummaryWidgetClass;
 
@@ -85,15 +81,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "HUD|Pause")
 	bool IsPauseMenuOpen() const;
-
-	UFUNCTION(BlueprintCallable, Category = "HUD|Finisher QTE")
-	void ShowFinisherQTEPrompt(float WindowDuration);
-
-	UFUNCTION(BlueprintCallable, Category = "HUD|Finisher QTE")
-	void HideFinisherQTEPrompt();
-
-	UFUNCTION(BlueprintCallable, Category = "HUD|Finisher QTE")
-	void MarkFinisherQTEConfirmed();
 
 	static FVector2D ResolvePortalPreviewAnchorPosition(
 		const FVector2D& ScreenPosition,
@@ -385,7 +372,6 @@ private:
 	void BindPlayerCommonInfoWidget(APawn* Pawn);
 	void EnsureCombatItemWidget();
 	void EnsureActiveSkillWidget();
-	bool EnsureFinisherQTEWidget();
 	bool EnsureWeaponFloatWidget();
 	void EnsureBackpackWidget();
 	void EnsureLootSelectionWidget();
@@ -431,9 +417,6 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UActiveSkillBarWidget> ActiveSkillBarWidget;
-
-	UPROPERTY()
-	TObjectPtr<UFinisherQTEWidget> FinisherQTEWidget;
 
 	// === LootSelection 队列管理（多个 RewardPickup 同时触发时按 FIFO 排队） ===
 	struct FQueuedLootRequest

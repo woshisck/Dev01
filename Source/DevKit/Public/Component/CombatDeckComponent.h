@@ -439,6 +439,7 @@ private:
 	void RegisterTriggeredFinisherCard(const FCombatCardInstance& Card);
 	void ReleaseTriggeredFinisherCard(const FCombatCardInstance& Card);
 	bool ShouldSkipActiveSequenceRefillCard(const FCombatCardInstance& Card) const;
+	void PruneDeprecatedFinisherCards();
 	void RefreshCardPassiveFlows();
 	void StartPassiveFlowsForCard(const FCombatCardInstance& Card);
 	void StopPassiveFlowsForCard(const FGuid& CardGuid);

@@ -32,6 +32,7 @@ class UBackpackGridComponent;
 class UCombatDeckComponent;
 class UCombatItemComponent;
 class UPlayerActiveSkillComponent;
+class UPlayerSpecialAttackComponent;
 class UComboRuntimeComponent;
 class UBuffFlowComponent;
 class USacrificeRuneComponent;
@@ -128,6 +129,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Active Skill")
 	TObjectPtr<UPlayerActiveSkillComponent> ActiveSkillComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Special Attack")
+	TObjectPtr<UPlayerSpecialAttackComponent> SpecialAttackComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UComboRuntimeComponent> ComboRuntimeComponent;

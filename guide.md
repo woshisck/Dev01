@@ -18,12 +18,79 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 - GAS abilities, gameplay tags, montage notifies, and data assets are all part of combat behavior; inspect all relevant pieces before changing a flow.
 - Combat cards and runes use `CombatDeckComponent`, `RuneDataAsset`, and BuffFlow assets.
 - Active skills use `PlayerActiveSkillComponent` and `ActiveSkillDataAsset`; prefer reusing this shape for weapon skills when practical.
+- Heavy attack routes through `PlayerSpecialAttackComponent` when a complete `SpecialAttackDataAsset` is equipped; normal heavy combo is only the fallback with no equipped special attack.
+- Special attack montages can reuse `AN_MeleeDamage` with `GameplayEffect.DamageType.GeneralAttack`; `UGA_PlayerSpecialAttack` listens to that by default and applies the normal melee damage path without advancing the weapon combo graph.
+- To connect a special attack into the normal light combo before it finishes, add a montage combo window that grants `PlayerState.AbilityCast.CanCombo`; `UGA_PlayerSpecialAttack` consumes buffered light input during that window and starts the weapon combo graph light root.
 
 ## Finisher Notes
 
-- The old finisher system uses `DA_Rune_Finisher`, `GA_FinisherCharge`, `GA_ApplyFinisherMark`, `GA_Player_FinisherAttack`, finisher gameplay tags, montage notifies, and QTE HUD.
-- Heavy attack is currently hijacked during `Buff.Status.FinisherExecuting` to send `Action.Finisher.Confirm`.
+- The old finisher system is deprecated; native finisher GAS classes, montage notifies, and QTE HUD code have been removed while legacy finisher tags/assets are kept only for compatibility unless explicitly needed.
+- Heavy attack was previously hijacked during `Buff.Status.FinisherExecuting`; that route is deprecated and heavy attack should stay available for the weapon skill path.
 - If replacing heavy attack with weapon skills, avoid depending on the old finisher QTE path.
+- Deprecated native code removed/marked deleted:
+  - `Source/DevKit/Private/AbilitySystem/Abilities/GA_ApplyFinisherMark.cpp`
+  - `Source/DevKit/Private/AbilitySystem/Abilities/GA_FinisherCharge.cpp`
+  - `Source/DevKit/Private/AbilitySystem/Abilities/GA_Player_FinisherAttack.cpp`
+  - `Source/DevKit/Public/AbilitySystem/Abilities/GA_ApplyFinisherMark.h`
+  - `Source/DevKit/Public/AbilitySystem/Abilities/GA_FinisherCharge.h`
+  - `Source/DevKit/Public/AbilitySystem/Abilities/GA_Player_FinisherAttack.h`
+  - `Source/DevKit/Private/Animation/ANS_FinisherTimeDilation.cpp`
+  - `Source/DevKit/Private/Animation/AN_TriggerFinisherAbility.cpp`
+  - `Source/DevKit/Public/Animation/ANS_FinisherTimeDilation.h`
+  - `Source/DevKit/Public/Animation/AN_TriggerFinisherAbility.h`
+  - `Source/DevKit/Private/UI/FinisherQTEWidget.cpp`
+  - `Source/DevKit/Public/UI/FinisherQTEWidget.h`
+  - `Source/DevKitEditor/Rune/FinisherCardSetupCommandlet.*`
+  - `Source/DevKitEditor/UI/FinisherQTEWidgetSetupCommandlet.*`
+- Deprecated finisher assets still present/tracked:
+  - `Content/Code/GAS/Abilities/Finisher/*`
+  - `Content/Code/GAS/GameplayCueNotifies/GCN_FinisherCharge.uasset`
+  - `Content/Code/Weapon/TwoHandedSword/GeneratedMontages/*_Finisher.uasset`
+  - `Content/YogRuneEditor/Runes/DA_Rune_Finisher.uasset`
+  - `Content/YogRuneEditor/Flows/FA_FinisherCard_*.uasset`
+  - `Content/UI/Playtest_UI/HUD/WBP_FinisherQTEPrompt.uasset`
+  - `Content/Docs/UI/Tutorial/DA_Tutorial_Finisher.uasset`
+  - `Content/Docs/UI/TutorialTex/512/T_Tutorial512_Finisher.uasset`
+  - `Content/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_PrayerSacrificeFinisher.uasset`
+  - `Content/VFX/Misc/*Finisher*.uasset`
+  - `Content/VFX/Trail/Material/MI_Finisher_Fame.uasset`
+  - `Plugins/YogAnimSource/Content/ElianAnim/TwoHandedSword/*FinisherAtk*.uasset`
+  - `SourceArt/**/*Finisher*.png`
+- Deprecated finisher tags retained only for legacy asset/save compatibility:
+  - `Card.Effect.Finisher`
+  - `Card.ID.Finisher`
+  - `GameplayCue.Rune.FinisherCharge`
+  - `Rune.Library.Finisher`
+  - `Tutorial.Hint.Finisher`
+  - `Rune.ID.Finisher`
+  - `Buff.Status.FinisherCharge`
+  - `Buff.Status.FinisherExecuting`
+  - `Buff.Status.Mark.Finisher`
+  - `Buff.Status.FinisherWindowOpen`
+  - `Buff.Status.FinisherQTEOpen`
+  - `Action.Mark.Apply.Finisher`
+  - `Action.Mark.Detonate.Finisher`
+  - `Action.Finisher.Confirm`
+  - `Action.FinisherCharge.Activate`
+  - `Action.FinisherCharge.ChargeConsumed`
+  - `Ability.Event.Finisher.HitFrame`
+  - `Action.Player.FinisherAttack`
+  - `PlayerState.AbilityCast.Finisher`
+  - `PlayerState.AbilityCast.FinisherCharge`
+  - `Level.Stage.Finisher`
+  - `Tutorial.Finisher`
+  - `Story.Event.FirstRun.FinisherObtained`
+  - `Story.Flag.FirstRun.FinisherObtained`
+  - `Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.finisher_obtained`
+- Remaining guarded/deprecation references:
+  - `Source/DevKit/Public/Combat/FinisherDeprecation.h`
+  - `Source/DevKit/Private/Cheater/Cheater.cpp`
+  - `Source/DevKit/Private/Story/FirstRunTutorialDirectorSubsystem.cpp`
+  - `Source/DevKit/Private/Character/PlayerCharacterBase.cpp`
+  - `Source/DevKit/Private/Component/CombatDeckComponent.cpp`
+  - `Source/DevKit/Public/Component/CombatDeckComponent.h`
+  - `Tools/RuneEditor/finisher_card_setup_smoke.py`
+- Do not confuse deprecated QTE finisher move code with generic combo-final-hit naming such as `bIsComboFinisher`, `IsCombatDeckComboFinisher`, or combo graph nodes marked as finishers. Those are normal combo/deck concepts unless the task explicitly removes combo-final-hit behavior.
 
 ## Unreal Project Notes
 

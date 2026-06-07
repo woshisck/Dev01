@@ -167,7 +167,7 @@ void UGA_PlayerDash::PreActivate(
 	// 精细取消：手动遍历，同时检查 AbilityTags 与 ActivationOwnedTags。
 	// 注：GAS 的 CancelAbilities(WithTags, WithoutTags) 只对 AbilityTags 做 WithoutTags
 	// 过滤，不检查 ActivationOwnedTags，因此需要自行迭代来保护通过
-	// ActivationOwnedTags 提供持续 buff 的 GA（例如 GA_FinisherCharge）。
+	// ActivationOwnedTags 提供持续 buff 的 GA。
 	UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	if (!ASC || SavedCancelTags.IsEmpty())
 	{

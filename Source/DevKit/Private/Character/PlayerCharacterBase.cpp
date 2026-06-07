@@ -26,8 +26,10 @@
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
+#include "Component/PlayerSpecialAttackComponent.h"
 #include "Component/ComboRuntimeComponent.h"
 #include "Component/SacrificeRuneComponent.h"
+#include "Combat/FinisherDeprecation.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/SkillChargeComponent.h"
 #include "Component/MontageVFXBindingComponent.h"
@@ -123,6 +125,7 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	CombatDeckComponent = CreateDefaultSubobject<UCombatDeckComponent>(TEXT("CombatDeckComponent"));
 	CombatItemComponent = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
 	ActiveSkillComponent = CreateDefaultSubobject<UPlayerActiveSkillComponent>(TEXT("ActiveSkillComponent"));
+	SpecialAttackComponent = CreateDefaultSubobject<UPlayerSpecialAttackComponent>(TEXT("SpecialAttackComponent"));
 	ComboRuntimeComponent = CreateDefaultSubobject<UComboRuntimeComponent>(TEXT("ComboRuntimeComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
@@ -1340,7 +1343,8 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 			TM->TryShowHintOnce(LinkHintTag, TEXT("tutorial_card_link"), PC);
 		}
 		// 终结技卡
-		else if (Card.Config.CardType == ECombatCardType::Finisher)
+		else if (!DevKit::Combat::IsFinisherAbilityDeprecated()
+			&& Card.Config.CardType == ECombatCardType::Finisher)
 		{
 			TM->TryShowHintOnce(FinisherHintTag, TEXT("tutorial_finisher"), PC);
 		}

@@ -224,6 +224,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"), TEXT("重击2") },
 			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3"), TEXT("重击3") },
 			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"), TEXT("重击4") },
+			{ TEXT("PlayerState.AbilityCast.SpecialAttack"), TEXT("Special Attack") },
 		};
 
 		FName ActionName = FName("Attack");

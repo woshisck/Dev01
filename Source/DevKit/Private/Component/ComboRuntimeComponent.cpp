@@ -70,6 +70,23 @@ namespace
 			}
 		}
 	}
+
+	bool IsSpecialAttackBlockingCombo(const UAbilitySystemComponent* ASC)
+	{
+		if (!ASC)
+		{
+			return false;
+		}
+
+		const FGameplayTag SpecialAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SpecialAttack"), false);
+		if (!SpecialAttackTag.IsValid() || !ASC->HasMatchingGameplayTag(SpecialAttackTag))
+		{
+			return false;
+		}
+
+		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
+		return !CanComboTag.IsValid() || ASC->GetTagCount(CanComboTag) <= 0;
+	}
 }
 
 UComboRuntimeComponent::UComboRuntimeComponent()
@@ -111,6 +128,14 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	UAbilitySystemComponent* ASC = PlayerOwner->GetAbilitySystemComponent();
 	if (!ASC)
 	{
+		return false;
+	}
+
+	if (IsSpecialAttackBlockingCombo(ASC))
+	{
+		UE_LOG(LogTemp, Verbose,
+			TEXT("[ComboRuntime] Block combo activation during special attack until CanCombo opens input=%s"),
+			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)));
 		return false;
 	}
 

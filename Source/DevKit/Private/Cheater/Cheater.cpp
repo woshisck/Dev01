@@ -5,6 +5,7 @@
 #include "Character/EnemyCharacterBase.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
+#include "Combat/FinisherDeprecation.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Data/RuneDataAsset.h"
@@ -424,6 +425,17 @@ void UYogCheatManager::Yog_UnlockFinisher()
 #if UE_BUILD_SHIPPING && !DEVKIT_ENABLE_SHIPPING_CHEATS
 	return;
 #else
+	if (DevKit::Combat::IsFinisherAbilityDeprecated())
+	{
+		const FString Message = TEXT("[GM] Finisher ability is deprecated; unlock command skipped.");
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, Message);
+		}
+		return;
+	}
+
 	UWorld* World = GetWorld();
 	AYogGameMode* GameMode = World ? World->GetAuthGameMode<AYogGameMode>() : nullptr;
 	if (!GameMode)

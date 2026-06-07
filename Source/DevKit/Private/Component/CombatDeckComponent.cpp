@@ -5,6 +5,7 @@
 #include "BuffFlow/Nodes/BFNode_SpawnBuffFlowProjectile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
+#include "Combat/FinisherDeprecation.h"
 #include "FlowAsset.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "SaveGame/YogSaveSubsystem.h"
@@ -113,20 +114,39 @@ namespace
 
 		return FMath::Clamp(MaxProjectileLifetime + 0.35f, 0.25f, 5.0f);
 	}
+
+	bool IsDeprecatedFinisherCardConfig(const FCombatCardConfig& Config)
+	{
+		if (!DevKit::Combat::IsFinisherAbilityDeprecated())
+		{
+			return false;
+		}
+
+		static const FGameplayTag FinisherCardIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Finisher"), false);
+		static const FGameplayTag FinisherCardEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Finisher"), false);
+
+		return Config.CardType == ECombatCardType::Finisher
+			|| (FinisherCardIdTag.IsValid() && Config.CardIdTag == FinisherCardIdTag)
+			|| (FinisherCardEffectTag.IsValid() && Config.CardEffectTags.HasTagExact(FinisherCardEffectTag));
+	}
 }
 
 UCombatDeckComponent::UCombatDeckComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = true;
-	TemporaryInitialFinisherRune = TSoftObjectPtr<URuneDataAsset>(
-		FSoftObjectPath(TEXT("/Game/YogRuneEditor/Runes/DA_Rune_Finisher.DA_Rune_Finisher")));
+	if (!DevKit::Combat::IsFinisherAbilityDeprecated())
+	{
+		TemporaryInitialFinisherRune = TSoftObjectPtr<URuneDataAsset>(
+			FSoftObjectPath(TEXT("/Game/YogRuneEditor/Runes/DA_Rune_Finisher.DA_Rune_Finisher")));
+	}
 	TemporaryFinisherLockedReasonText = FText::GetEmpty();
 }
 
 void UCombatDeckComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	PruneDeprecatedFinisherCards();
 	RefillActiveSequence();
 	RefreshCardPassiveFlows();
 }
@@ -281,7 +301,8 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	const bool bComboRequirementSatisfied = !Card.Config.bRequiresComboFinisher || Context.bIsComboFinisher;
 	Result.bTriggeredFinisher = Result.bActionMatched
 		&& bComboRequirementSatisfied
-		&& Card.Config.CardType == ECombatCardType::Finisher;
+		&& Card.Config.CardType == ECombatCardType::Finisher
+		&& !IsDeprecatedFinisherCardConfig(Card.Config);
 
 	if (Result.bActionMatched && bComboRequirementSatisfied)
 	{
@@ -575,6 +596,7 @@ void UCombatDeckComponent::LoadDeckFromSourceAssetsInternal(const TArray<URuneDa
 	PendingLinkActionContext = FCombatDeckActionContext();
 	ResolvedAttackGuids.Reset();
 	FinisherCardsWaitingForEffectEnd.Reset();
+	PruneDeprecatedFinisherCards();
 	RefillActiveSequence();
 	RefreshCardPassiveFlows();
 }
@@ -585,7 +607,7 @@ TArray<URuneDataAsset*> UCombatDeckComponent::GetDeckSourceAssets() const
 	SourceAssets.Reserve(DeckList.Num());
 	for (const FCombatCardInstance& Card : DeckList)
 	{
-		if (Card.SourceData)
+		if (Card.SourceData && !IsDeprecatedFinisherCardConfig(Card.Config))
 		{
 			SourceAssets.Add(Card.SourceData);
 		}
@@ -754,6 +776,11 @@ void UCombatDeckComponent::SetDeckListForTest(const TArray<FCombatCardConfig>& I
 	DeckList.Reset();
 	for (const FCombatCardConfig& Config : InCards)
 	{
+		if (IsDeprecatedFinisherCardConfig(Config))
+		{
+			continue;
+		}
+
 		FCombatCardInstance Card;
 		Card.InstanceGuid = FGuid::NewGuid();
 		Card.Config = Config;
@@ -789,6 +816,11 @@ FCombatCardInstance UCombatDeckComponent::MakeCardFromRune(URuneDataAsset* RuneA
 		return Card;
 	}
 
+	if (IsDeprecatedFinisherCardConfig(RuneAsset->RuneInfo.CombatCard))
+	{
+		return Card;
+	}
+
 	Card.InstanceGuid = FGuid::NewGuid();
 	Card.SourceData = RuneAsset;
 	Card.Level = RuneAsset->RuneInfo.Level;
@@ -818,6 +850,11 @@ FCombatCardInstance UCombatDeckComponent::MakeCardFromRune(URuneDataAsset* RuneA
 void UCombatDeckComponent::AppendTemporaryInitialFinisherCard(TArray<URuneDataAsset*>& SourceAssets) const
 {
 	if (!bGrantTemporaryInitialFinisherCard)
+	{
+		return;
+	}
+
+	if (DevKit::Combat::IsFinisherAbilityDeprecated())
 	{
 		return;
 	}
@@ -932,6 +969,11 @@ void UCombatDeckComponent::RefillActiveSequence()
 
 void UCombatDeckComponent::RegisterTriggeredFinisherCard(const FCombatCardInstance& Card)
 {
+	if (DevKit::Combat::IsFinisherAbilityDeprecated())
+	{
+		return;
+	}
+
 	if (Card.Config.CardType == ECombatCardType::Finisher && Card.InstanceGuid.IsValid())
 	{
 		FinisherCardsWaitingForEffectEnd.Add(Card.InstanceGuid);
@@ -948,9 +990,39 @@ void UCombatDeckComponent::ReleaseTriggeredFinisherCard(const FCombatCardInstanc
 
 bool UCombatDeckComponent::ShouldSkipActiveSequenceRefillCard(const FCombatCardInstance& Card) const
 {
+	if (IsDeprecatedFinisherCardConfig(Card.Config))
+	{
+		return true;
+	}
+
 	return Card.Config.CardType == ECombatCardType::Finisher
 		&& Card.InstanceGuid.IsValid()
 		&& FinisherCardsWaitingForEffectEnd.Contains(Card.InstanceGuid);
+}
+
+void UCombatDeckComponent::PruneDeprecatedFinisherCards()
+{
+	if (!DevKit::Combat::IsFinisherAbilityDeprecated())
+	{
+		return;
+	}
+
+	DeckList.RemoveAll([this](const FCombatCardInstance& Card)
+	{
+		if (IsDeprecatedFinisherCardConfig(Card.Config))
+		{
+			StopPassiveFlowsForCard(Card.InstanceGuid);
+			return true;
+		}
+
+		return false;
+	});
+
+	ActiveSequence.RemoveAll([](const FCombatCardInstance& Card)
+	{
+		return IsDeprecatedFinisherCardConfig(Card.Config);
+	});
+	FinisherCardsWaitingForEffectEnd.Reset();
 }
 
 void UCombatDeckComponent::RefreshCardPassiveFlows()
