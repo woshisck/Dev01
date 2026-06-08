@@ -288,24 +288,28 @@ void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDe
 		return;
 	}
 
+	TSubclassOf<UYogGameplayAbility> SpecialAction = nullptr;
+
 	if (!WeaponDefinition)
 	{
 		ApplyDefaultUnarmedComboGraph();
-		return;
 	}
-
-	if (WeaponDefinition->GameplayAbilityComboGraph)
+	else if (WeaponDefinition->GameplayAbilityComboGraph)
 	{
 		ComboRuntimeComponent->LoadComboGraph(WeaponDefinition->GameplayAbilityComboGraph);
+		SpecialAction = WeaponDefinition->ComboSpecialActionAbility;
 	}
 	else if (WeaponDefinition->WeaponComboConfig)
 	{
 		ComboRuntimeComponent->LoadComboConfig(WeaponDefinition->WeaponComboConfig);
+		SpecialAction = WeaponDefinition->ComboSpecialActionAbility;
 	}
 	else
 	{
 		ApplyDefaultUnarmedComboGraph();
 	}
+
+	ComboRuntimeComponent->SetComboSpecialActionAbility(SpecialAction);
 }
 
 void APlayerCharacterBase::ApplyCurrentEquipmentComboGraph()
@@ -329,8 +333,17 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 		EquippedWeaponInstance = nullptr;
 	}
 
+	if (InactiveWeaponInstance)
+	{
+		OnHeatPhaseChanged.RemoveDynamic(InactiveWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
+		InactiveWeaponInstance->Destroy();
+		InactiveWeaponInstance = nullptr;
+	}
+
 	EquippedWeaponDef = nullptr;
 	EquippedFromSpawner = nullptr;
+	InactiveWeaponDef = nullptr;
+	InactiveWeaponFromSpawner = nullptr;
 	ClearWeaponGrantedAbilities();
 
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
@@ -339,6 +352,70 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 	}
 
 	ApplyDefaultUnarmedComboGraph();
+}
+
+bool APlayerCharacterBase::CanSwitchWeapon() const
+{
+	return InactiveWeaponDef != nullptr;
+}
+
+void APlayerCharacterBase::SwitchWeapon()
+{
+	if (!CanSwitchWeapon())
+	{
+		return;
+	}
+
+	if (ComboRuntimeComponent)
+	{
+		ComboRuntimeComponent->ResetCombo();
+	}
+
+	if (EquippedWeaponInstance)
+	{
+		OnHeatPhaseChanged.RemoveDynamic(EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
+		EquippedWeaponInstance->SetActorHiddenInGame(true);
+	}
+
+	if (InactiveWeaponInstance)
+	{
+		InactiveWeaponInstance->SetActorHiddenInGame(false);
+	}
+
+	Swap(EquippedWeaponDef, InactiveWeaponDef);
+	Swap(EquippedWeaponInstance, InactiveWeaponInstance);
+	Swap(EquippedFromSpawner, InactiveWeaponFromSpawner);
+
+	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
+	{
+		YogASC->ClearWeaponTypeTags();
+		if (EquippedWeaponDef)
+		{
+			YogASC->ApplyWeaponTypeTag(EquippedWeaponDef->WeaponType);
+		}
+	}
+
+	ClearWeaponGrantedAbilities();
+	if (EquippedWeaponDef)
+	{
+		GrantWeaponAbilities(EquippedWeaponDef->WeaponAbilityData);
+	}
+
+	ApplyComboGraphFromWeapon(EquippedWeaponDef);
+
+	if (CombatDeckComponent && EquippedWeaponDef)
+	{
+		CombatDeckComponent->LoadDeckFromWeapon(EquippedWeaponDef);
+	}
+
+	if (EquippedWeaponInstance)
+	{
+		OnHeatPhaseChanged.AddDynamic(EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
+		OnHeatPhaseChanged.Broadcast(CurrentHeatPhase);
+	}
+
+	RelinkWeaponAnimLayer();
+	OnWeaponSwitched.Broadcast();
 }
 
 void APlayerCharacterBase::ClearRunCarriedStateForHub()

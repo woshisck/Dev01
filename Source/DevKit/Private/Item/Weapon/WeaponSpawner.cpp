@@ -401,6 +401,44 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
 		if (TM->IsPopupShowing()) TM->ForceClosePopup();
 
+	// Route to inactive slot when player already carries a weapon.
+	if (Player->EquippedWeaponDef != nullptr)
+	{
+		if (Player->InactiveWeaponInstance)
+		{
+			if (Player->InactiveWeaponFromSpawner && Player->InactiveWeaponFromSpawner != this)
+			{
+				Player->InactiveWeaponFromSpawner->ResetToAvailable();
+			}
+			Player->OnHeatPhaseChanged.RemoveDynamic(Player->InactiveWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
+			Player->InactiveWeaponInstance->Destroy();
+			Player->InactiveWeaponInstance = nullptr;
+		}
+
+		AWeaponInstance* NewInactiveWeapon = nullptr;
+		for (const FWeaponSpawnData& WeaponSpawnData : WeaponDefinition->ActorsToSpawn)
+		{
+			FWeaponSpawnData SpawnData;
+			SpawnData.ActorToSpawn    = WeaponSpawnData.ActorToSpawn;
+			SpawnData.AttachSocket    = WeaponSpawnData.AttachSocket;
+			SpawnData.AttachTransform = WeaponSpawnData.AttachTransform;
+			SpawnData.WeaponLayer     = WeaponSpawnData.WeaponLayer;
+			NewInactiveWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
+			if (NewInactiveWeapon)
+			{
+				NewInactiveWeapon->SetActorHiddenInGame(true);
+			}
+		}
+
+		Player->InactiveWeaponDef          = WeaponDefinition;
+		Player->InactiveWeaponInstance     = NewInactiveWeapon;
+		Player->InactiveWeaponFromSpawner  = this;
+		Player->PendingWeaponSpawner       = nullptr;
+
+		UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已存入备用槽 [%s]"), *WeaponDefinition->GetName());
+		return;
+	}
+
 	// ── 1. 处理旧武器 ────────────────────────────────────────────────
 	if (Player->EquippedWeaponInstance)
 	{

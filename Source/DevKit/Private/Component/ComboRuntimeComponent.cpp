@@ -94,6 +94,11 @@ UComboRuntimeComponent::UComboRuntimeComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
+void UComboRuntimeComponent::SetComboSpecialActionAbility(TSubclassOf<UYogGameplayAbility> InAbility)
+{
+	ComboSpecialActionAbility = InAbility;
+}
+
 void UComboRuntimeComponent::LoadComboConfig(UWeaponComboConfigDA* InComboConfig)
 {
 	ComboConfig = InComboConfig;

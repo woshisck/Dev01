@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 
 #include "AbilitySystem/Abilities/YogAbilitySet.h"
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Animation/YogAnimInstance.h"
 #include "Component/BackpackGridComponent.h"
 #include "GameplayTagContainer.h"
@@ -90,6 +91,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UGameplayAbilityComboGraph> GameplayAbilityComboGraph;
+
+	// Ability activated when the player presses the special-action input (e.g. Dash button)
+	// during this weapon's combo window. Leave null to disable the input for this weapon.
+	// Examples: GA_DaggerDash for daggers, GA_BlockCounter for ultra sword.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
+	TSubclassOf<UYogGameplayAbility> ComboSpecialActionAbility;
 
 	// 武器类型：决定装备时挂在 ASC 上的 Weapon.Type.* LooseTag。
 	// 玩家专属攻击 GA 通过 ActivationRequiredTags 持有该 Tag → 自动隔离近战/远程激活路径。

@@ -22,7 +22,7 @@
 
 namespace
 {
-	void CollectHitActors(const FYogGameplayEffectContainerSpec& ContainerSpec, TArray<AActor*>& OutHitActors)
+	void GA_PlayMontage_CollectHitActors(const FYogGameplayEffectContainerSpec& ContainerSpec, TArray<AActor*>& OutHitActors)
 	{
 		for (const TSharedPtr<FGameplayAbilityTargetData>& Data : ContainerSpec.TargetData.Data)
 		{
@@ -290,7 +290,7 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 		Owner->bComboHitConnected = true;
 
 		TArray<AActor*> HitActors;
-		CollectHitActors(ContainerSpec, HitActors);
+		GA_PlayMontage_CollectHitActors(ContainerSpec, HitActors);
 
 		// AN_MeleeDamage 配置的 HitStop：命中至少一个目标时直接对攻击者蒙太奇生效
 		if (HitActors.Num() > 0)
@@ -446,9 +446,17 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	if (Buffer->HasBufferedInputSince(EInputCommandType::Dash, AbilityActivationTime))
 	{
 		Buffer->ClearBuffer();
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
-		const bool bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		bool bActivated = false;
+		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
+		{
+			const TSubclassOf<UYogGameplayAbility> SpecialAction = PlayerOwner->ComboRuntimeComponent
+				? PlayerOwner->ComboRuntimeComponent->GetComboSpecialActionAbility()
+				: nullptr;
+			if (SpecialAction)
+			{
+				bActivated = Owner->GetASC()->TryActivateAbilityByClass(SpecialAction, true);
+			}
+		}
 		if (!bActivated && ASC)
 		{
 			ASC->SetLooseGameplayTagCount(CanComboTag, 0);

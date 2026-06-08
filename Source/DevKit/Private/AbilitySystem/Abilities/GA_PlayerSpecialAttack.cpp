@@ -23,7 +23,7 @@ FGameplayTag GetDefaultSpecialAttackEventTag()
 	return FGameplayTag::RequestGameplayTag(TEXT("GameplayEffect.DamageType.GeneralAttack"));
 }
 
-void CollectHitActors(const FYogGameplayEffectContainerSpec& ContainerSpec, TArray<AActor*>& OutHitActors)
+void GA_PlayerSpecialAttack_CollectHitActors(const FYogGameplayEffectContainerSpec& ContainerSpec, TArray<AActor*>& OutHitActors)
 {
 	for (const TSharedPtr<FGameplayAbilityTargetData>& Data : ContainerSpec.TargetData.Data)
 	{
@@ -283,7 +283,7 @@ void UGA_PlayerSpecialAttack::ApplyDamageFromEvent(FGameplayTag EventTag, const 
 	Owner->bComboHitConnected = true;
 
 	TArray<AActor*> HitActors;
-	CollectHitActors(ContainerSpec, HitActors);
+	GA_PlayerSpecialAttack_CollectHitActors(ContainerSpec, HitActors);
 
 	if (HitActors.Num() > 0)
 	{

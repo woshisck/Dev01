@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Components/YogComboGraphRuntimeComponent.h"
 #include "Data/WeaponComboConfigDA.h"
 #include "GameplayAbilitySpec.h"
@@ -38,6 +39,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combo")
 	FName GetActiveNodeId() const { return ActiveNode.NodeId; }
 
+	UFUNCTION(BlueprintPure, Category = "Combo")
+	TSubclassOf<UYogGameplayAbility> GetComboSpecialActionAbility() const { return ComboSpecialActionAbility; }
+
+	void SetComboSpecialActionAbility(TSubclassOf<UYogGameplayAbility> InAbility);
+
 	const FWeaponComboNodeConfig* GetActiveNode() const;
 	void RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle);
 	bool HandleAttackAbilityEnded(const FGuid& EndedAttackGuid);
@@ -46,6 +52,9 @@ public:
 private:
 	UPROPERTY()
 	TObjectPtr<UWeaponComboConfigDA> ComboConfig = nullptr;
+
+	UPROPERTY()
+	TSubclassOf<UYogGameplayAbility> ComboSpecialActionAbility;
 
 	UPROPERTY()
 	FWeaponComboNodeConfig ActiveNode;

@@ -65,6 +65,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMaxHeatUpdateDelegate, const float,
 // 热度阶段变化（0=无热度, 1=白光, 2=绿光, 3=橙黄, 4=过热红光）
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHeatPhaseDelegate, int32, Phase);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FWeaponSwitchedDelegate);
+
 UCLASS()
 class DEVKIT_API APlayerCharacterBase : public AYogCharacterBase
 {
@@ -328,6 +330,24 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	TArray<FGameplayAbilitySpecHandle> GrantedWeaponAbilityHandles;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<UWeaponDefinition> InactiveWeaponDef;
+
+	UPROPERTY()
+	TObjectPtr<AWeaponInstance> InactiveWeaponInstance;
+
+	UPROPERTY()
+	TObjectPtr<AWeaponSpawner> InactiveWeaponFromSpawner;
+
+	UPROPERTY(BlueprintAssignable, Category = "Weapon")
+	FWeaponSwitchedDelegate OnWeaponSwitched;
+
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	bool CanSwitchWeapon() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void SwitchWeapon();
 
 	// ─── 献祭恩赐（全局 Run Buff）────────────────────────────────────
 
