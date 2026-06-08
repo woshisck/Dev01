@@ -6,7 +6,7 @@
 #include "Component/CombatDeckComponent.h"
 #include "Data/EnemyData.h"
 #include "Data/RuneDataAsset.h"
-#include "Data/WeaponComboConfigDA.h"
+#include "Data/WeaponComboNodeConfig.h"
 #include "GA_MeleeAttack.generated.h"
 
 class UMontageConfigDA;

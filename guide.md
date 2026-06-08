@@ -4,6 +4,10 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 ## Current Direction
 
+- Pending input naming change: rename input actions `lightattack`, `heavyattack`, and `dash` to `NormalAttack`, `SpecialAttack`, and `WeaponSkill`.
+- Pending combo graph change: rework combo graphs so `WeaponSkill` can be enabled on the graph, and expose the node class set on the graph.
+- Pending special attack change: rework `SpecialAttackDataAsset` so each special attack can define its own combo graph.
+- Pending player load change: make the player class load both the equipped weapon combo graph and the equipped special attack combo graph. The special attack combo graph should only start from the `SpecialAttack` button; the weapon combo graph can ignore `SpecialAttack` input.
 - Heavy attack should become the primary weapon skill input.
 - Finisher action is deprecated unless the user explicitly asks to work on it.
 - Prefer minor, code-focused changes over large system rewrites.
@@ -21,6 +25,12 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 - Heavy attack routes through `PlayerSpecialAttackComponent` when a complete `SpecialAttackDataAsset` is equipped; normal heavy combo is only the fallback with no equipped special attack.
 - Special attack montages can reuse `AN_MeleeDamage` with `GameplayEffect.DamageType.GeneralAttack`; `UGA_PlayerSpecialAttack` listens to that by default and applies the normal melee damage path without advancing the weapon combo graph.
 - To connect a special attack into the normal light combo before it finishes, add a montage combo window that grants `PlayerState.AbilityCast.CanCombo`; `UGA_PlayerSpecialAttack` consumes buffered light input during that window and starts the weapon combo graph light root.
+
+## Future Cleanup Markers
+
+- `BackpackGridComponent` on `APlayerCharacterBase`: if can be cleaned.
+- `CombatDeckComponent` on `APlayerCharacterBase`: if can be cleaned.
+- `PlayerActiveSkillComponent` on `APlayerCharacterBase`: if can be cleaned.
 
 ## Finisher Notes
 
@@ -104,6 +114,7 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 ## Working Rules
 
+- DO NOT COMPILE THE CODE UNLESS THE USER EXPLICITLY TELLS YOU TO DO SO.
 - Read relevant code and local docs before editing.
 - Use existing systems, naming, and asset conventions.
 - Keep changes scoped to the requested behavior.
@@ -114,6 +125,7 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 ## Verification
 
+- Do not compile code unless the user explicitly asks for compilation in the current thread.
 - For Unreal builds, prefer `CompileAndOpen.bat` when opening the editor is acceptable.
 - For build-only checks, use the UE 5.4 `Build.bat` path available on this machine.
 - If a full build is too expensive or blocked, run targeted searches/checks and clearly state what was not verified.

@@ -1,11 +1,11 @@
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Item/Weapon/WeaponAbilityData.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
+#include "Component/PlayerSpecialAttackComponent.h"
 #include "Engine/AssetManager.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
@@ -108,6 +108,11 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		ReceivingChar->ApplyComboGraphFromWeapon(this);
 	}
 
+	if (ReceivingChar && ReceivingChar->SpecialAttackComponent)
+	{
+		ReceivingChar->SpecialAttackComponent->SetSpecialAttack(DefaultSpecialAttack);
+	}
+
 	// ── 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────────
 	// 让玩家专属攻击 GA 的 ActivationRequiredTags 能匹配通过；
 	// ClearWeaponTypeTags 已在函数顶部清理过旧 Tag，此处只需 Apply 新 Tag
@@ -115,8 +120,6 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	{
 		YogASC->ApplyWeaponTypeTag(WeaponType);
 	}
-
-	ReceivingChar->GrantWeaponAbilities(WeaponAbilityData);
 
 	//TODO: DEPRECATED : for loop grant ability
 	//for (const UYogAbilitySet* YogAbilitiesSet : AbilitySetsToGrant)

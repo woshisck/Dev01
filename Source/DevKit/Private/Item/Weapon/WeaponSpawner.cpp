@@ -25,6 +25,7 @@
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/ComboRuntimeComponent.h"
+#include "Component/PlayerSpecialAttackComponent.h"
 #include "Map/TutorialMobSpawner.h"
 #include "Tutorial/TutorialManager.h"
 #include "Character/YogPlayerControllerBase.h"
@@ -458,8 +459,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		YogASC->ClearWeaponTypeTags();
 	}
 
-	Player->ClearWeaponGrantedAbilities();
-
 	// ── 2. 生成并装备新武器 ──────────────────────────────────────────
 	AWeaponInstance* NewWeapon = nullptr;
 	for (const FWeaponSpawnData& WeaponSpawnData : WeaponDefinition->ActorsToSpawn)
@@ -473,8 +472,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 		NewWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
 	}
-
-	Player->GrantWeaponAbilities(WeaponDefinition->WeaponAbilityData);
 
 	// ── 3. 传入热度材质 + 绑定热度委托 ──────────────────────────────
 	if (NewWeapon && !bDisableLegacyHeatBackpackRuneForCardTestSpawner)
@@ -546,7 +543,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	// ── 5.25 注入战斗卡组与连招配置 ─────────────────────────────────
 	// TryPickupWeapon 自己实现了装备流程，不走 WeaponDefinition::SetupWeaponToCharacter。
-	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes 和 WeaponComboConfig。
+	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes / GameplayAbilityComboGraph / DefaultSpecialAttack。
 	if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent.Get())
 	{
 		CombatDeck->LoadDeckFromWeapon(WeaponDefinition);
@@ -555,6 +552,11 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	if (Player->ComboRuntimeComponent)
 	{
 		Player->ApplyComboGraphFromWeapon(WeaponDefinition);
+	}
+
+	if (Player->SpecialAttackComponent)
+	{
+		Player->SpecialAttackComponent->SetSpecialAttack(WeaponDefinition->DefaultSpecialAttack);
 	}
 
 	// ── 5.5 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────

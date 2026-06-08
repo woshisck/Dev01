@@ -20,9 +20,8 @@ class AWeaponInstance;
 class APlayerCharacterBase;
 class UMaterialInterface;
 class URuneDataAsset;
-class UWeaponComboConfigDA;
-class UWeaponAbilityData;
 class UGameplayAbilityComboGraph;
+class USpecialAttackDataAsset;
 //class UYogAnimInstance;
 
 
@@ -83,14 +82,11 @@ public:
 	//TArray<TObjectPtr<UYogAbilitySet>> AbilitySetsToGrant;
 	UWeaponDefinition(){};
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Ability")
-	TObjectPtr<UWeaponAbilityData> WeaponAbilityData;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
-	TObjectPtr<UWeaponComboConfigDA> WeaponComboConfig;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UGameplayAbilityComboGraph> GameplayAbilityComboGraph;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Special Attack")
+	TObjectPtr<USpecialAttackDataAsset> DefaultSpecialAttack;
 
 	// Ability activated when the player presses the special-action input (e.g. Dash button)
 	// during this weapon's combo window. Leave null to disable the input for this weapon.

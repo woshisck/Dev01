@@ -40,7 +40,7 @@
 #include "Data/MontageConfigDA.h"
 #include "Data/RuneDataAsset.h"
 #include "Data/RuneCardEffectProfileDA.h"
-#include "Data/WeaponComboConfigDA.h"
+#include "Data/WeaponComboNodeConfig.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Item/Weapon/WeaponDefinition.h"
@@ -713,48 +713,6 @@ bool FCombatDeckMontageAttackDataSelectionTest::RunTest(const FString& Parameter
 	BranchContext.AddTag(BranchTag);
 	TestEqual(TEXT("Branch attack data is selected by tags"),
 		MontageConfig->ResolveAttackData(BranchContext), BranchAttackData);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponComboConfigRoutesMixedFinisherTest,
-	"DevKit.CombatDeck.ComboConfigRoutesLightLightHeavyFinisher",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FWeaponComboConfigRoutesMixedFinisherTest::RunTest(const FString& Parameters)
-{
-	UWeaponComboConfigDA* ComboConfig = NewObject<UWeaponComboConfigDA>();
-
-	FWeaponComboNodeConfig L1;
-	L1.NodeId = TEXT("L1");
-	L1.InputAction = ECardRequiredAction::Light;
-
-	FWeaponComboNodeConfig L2;
-	L2.NodeId = TEXT("L2");
-	L2.ParentNodeId = TEXT("L1");
-	L2.InputAction = ECardRequiredAction::Light;
-
-	FWeaponComboNodeConfig L2H;
-	L2H.NodeId = TEXT("L2H");
-	L2H.ParentNodeId = TEXT("L2");
-	L2H.InputAction = ECardRequiredAction::Heavy;
-	L2H.bIsComboFinisher = true;
-
-	ComboConfig->RootNodes = { TEXT("L1") };
-	ComboConfig->Nodes = { L1, L2, L2H };
-
-	const FWeaponComboNodeConfig* Root = ComboConfig->FindRootNode(ECardRequiredAction::Light);
-	TestNotNull(TEXT("Light input selects L1 root"), Root);
-	TestEqual(TEXT("Root node is L1"), Root ? Root->NodeId : NAME_None, FName(TEXT("L1")));
-
-	const FWeaponComboNodeConfig* Second = ComboConfig->FindChildNode(TEXT("L1"), ECardRequiredAction::Light);
-	TestNotNull(TEXT("Second light selects L2"), Second);
-	TestEqual(TEXT("Second node is L2"), Second ? Second->NodeId : NAME_None, FName(TEXT("L2")));
-
-	const FWeaponComboNodeConfig* Finisher = ComboConfig->FindChildNode(TEXT("L2"), ECardRequiredAction::Heavy);
-	TestNotNull(TEXT("Heavy after L-L selects independent finisher node"), Finisher);
-	TestEqual(TEXT("Finisher node is L2H"), Finisher ? Finisher->NodeId : NAME_None, FName(TEXT("L2H")));
-	TestTrue(TEXT("L-L-H node is marked as finisher"), Finisher && Finisher->bIsComboFinisher);
 
 	return true;
 }

@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Components/YogComboGraphRuntimeComponent.h"
-#include "Data/WeaponComboConfigDA.h"
+#include "Data/WeaponComboNodeConfig.h"
 #include "GameplayAbilitySpec.h"
 #include "ComboRuntimeComponent.generated.h"
 
@@ -20,13 +20,10 @@ class DEVKIT_API UComboRuntimeComponent : public UYogComboGraphRuntimeComponent
 public:
 	UComboRuntimeComponent();
 
-	UFUNCTION(BlueprintCallable, Category = "Combo")
-	void LoadComboConfig(UWeaponComboConfigDA* InComboConfig);
-
 	virtual void LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph) override;
 
 	UFUNCTION(BlueprintPure, Category = "Combo")
-	bool HasComboSource() const { return ComboConfig != nullptr || HasComboGraph(); }
+	bool HasComboSource() const { return HasComboGraph(); }
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	bool TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner);
@@ -50,9 +47,6 @@ public:
 	FCombatDeckActionContext BuildAttackContext(ECombatCardTriggerTiming TriggerTiming, APlayerCharacterBase* PlayerOwner) const;
 
 private:
-	UPROPERTY()
-	TObjectPtr<UWeaponComboConfigDA> ComboConfig = nullptr;
-
 	UPROPERTY()
 	TSubclassOf<UYogGameplayAbility> ComboSpecialActionAbility;
 

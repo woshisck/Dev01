@@ -99,33 +99,14 @@ void UComboRuntimeComponent::SetComboSpecialActionAbility(TSubclassOf<UYogGamepl
 	ComboSpecialActionAbility = InAbility;
 }
 
-void UComboRuntimeComponent::LoadComboConfig(UWeaponComboConfigDA* InComboConfig)
-{
-	ComboConfig = InComboConfig;
-	Super::LoadComboGraph(nullptr);
-
-	if (!ComboConfig)
-	{
-		return;
-	}
-
-	TArray<FText> Warnings;
-	ComboConfig->ValidateConfig(Warnings);
-	for (const FText& Warning : Warnings)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponComboConfig] %s: %s"), *GetNameSafe(ComboConfig), *Warning.ToString());
-	}
-}
-
 void UComboRuntimeComponent::LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph)
 {
-	ComboConfig = nullptr;
 	Super::LoadComboGraph(InComboGraph);
 }
 
 bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner)
 {
-	if ((!ComboConfig && !HasComboGraph()) || !PlayerOwner)
+	if (!HasComboGraph() || !PlayerOwner)
 	{
 		return false;
 	}
@@ -180,26 +161,6 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 			}
 		}
 	}
-	else if (ComboConfig)
-	{
-		NextNode = ComboConfig->FindChildNode(StartNodeId, InputAction);
-		bFoundChildNode = NextNode != nullptr;
-		if (!NextNode)
-		{
-			if (bHasActiveAttackNode)
-			{
-				bBlockedRootFallbackDuringActiveNode = true;
-			}
-			else
-			{
-				NextNode = ComboConfig->FindRootNode(InputAction);
-			}
-		}
-		if (NextNode)
-		{
-			PrepareComboNodeActivation(NextNode->NodeId, bFoundChildNode);
-		}
-	}
 
 	if (bBlockedRootFallbackDuringActiveNode)
 	{
@@ -213,11 +174,10 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	if (!NextNode || (!NextNode->Montage && !NextNode->MontageConfig))
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("[ComboRuntime] No combo node for input=%s current=%s graph=%s config=%s"),
+			TEXT("[ComboRuntime] No combo node for input=%s current=%s graph=%s"),
 			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
 			*GetCurrentNodeId().ToString(),
-			*GetNameSafe(GetComboGraph()),
-			*GetNameSafe(ComboConfig));
+			*GetNameSafe(GetComboGraph()));
 		if (!GetCurrentNodeId().IsNone() && PlayerOwner->CombatDeckComponent)
 		{
 			PlayerOwner->CombatDeckComponent->NotifyComboStateExited();

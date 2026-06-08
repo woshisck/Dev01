@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/RuneDataAsset.h"
-#include "Data/WeaponComboConfigDA.h"
+#include "Data/WeaponComboNodeConfig.h"
 #include "CombatDeckComponent.generated.h"
 
 class UBuffFlowComponent;

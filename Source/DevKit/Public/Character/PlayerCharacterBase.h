@@ -45,7 +45,6 @@ class UDamageEdgeFlashWidget;
 class AYogCameraPawn;
 class UCameraComponent;
 class UYogSpringArmComponent;
-class UWeaponAbilityData;
 class UYogCameraOcclusionFadeComponent;
 class UGameplayAbilityComboGraph;
 UENUM()
@@ -298,12 +297,6 @@ public:
 	UPROPERTY()
 	TObjectPtr<AWeaponSpawner> EquippedFromSpawner;
 
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void ClearWeaponGrantedAbilities();
-
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void GrantWeaponAbilities(UWeaponAbilityData* WeaponAbilityData);
-
 	UFUNCTION(BlueprintPure, Category = "Backpack")
 	UBackpackGridComponent* GetBackpackGridComponent();
 
@@ -327,9 +320,6 @@ public:
 	// 当前装备的武器定义（切关时写入 RunState，由 RestoreRunStateFromGI 重新装备）
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UWeaponDefinition> EquippedWeaponDef;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
-	TArray<FGameplayAbilitySpecHandle> GrantedWeaponAbilityHandles;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UWeaponDefinition> InactiveWeaponDef;

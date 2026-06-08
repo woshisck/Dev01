@@ -3867,10 +3867,6 @@ namespace Rune512Batch
 				ReportLines.Add(FString::Printf(TEXT("- `%s` has no GameplayAbilityComboGraph property."), *WeaponPath));
 			}
 
-			if (FObjectPropertyBase* ComboConfigProperty = FindFProperty<FObjectPropertyBase>(Weapon->GetClass(), TEXT("WeaponComboConfig")))
-			{
-				ComboConfigProperty->SetObjectPropertyValue_InContainer(Weapon, nullptr);
-			}
 			Weapon->MarkPackageDirty();
 			DirtyPackages.AddUnique(Weapon->GetPackage());
 		}

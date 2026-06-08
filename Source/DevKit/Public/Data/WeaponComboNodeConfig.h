@@ -1,12 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/DataAsset.h"
-#include "GameplayTagContainer.h"
+#include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/RuneDataAsset.h"
-#include "Data/GameplayAbilityComboGraph.h"
-#include "WeaponComboConfigDA.generated.h"
+#include "GameplayTagContainer.h"
+#include "WeaponComboNodeConfig.generated.h"
 
 class UAnimMontage;
 class UGameplayAbilityComboGraphNode;
@@ -26,22 +25,18 @@ struct DEVKIT_API FWeaponComboNodeConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	ECardRequiredAction InputAction = ECardRequiredAction::Any;
 
-	/** Melee → GA_MeleeAttack, Range → GA_RangeAttack. Copied from node on FromComboGraphNode. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	EYogComboGraphAttackType AttackType = EYogComboGraphAttackType::Melee;
 
-	/** Legacy/runtime context only. YogComboGraph traversal does not use this. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	FGameplayTag AbilityTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	TObjectPtr<UAnimMontage> Montage = nullptr;
 
-	/** Legacy config support only. YogComboGraph nodes use Montage directly. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	TObjectPtr<UMontageConfigDA> MontageConfig = nullptr;
 
-	/** Legacy config support only. YogComboGraph nodes do not store attack override payloads. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	TObjectPtr<UMontageAttackDataAsset> AttackDataOverride = nullptr;
 
@@ -67,27 +62,4 @@ struct DEVKIT_API FWeaponComboNodeConfig
 	ECombatCardTriggerTiming CardTriggerTiming = ECombatCardTriggerTiming::OnCommit;
 
 	static FWeaponComboNodeConfig FromComboGraphNode(const UGameplayAbilityComboGraphNode* Node, ECardRequiredAction InputAction);
-};
-
-UCLASS(BlueprintType, Blueprintable)
-class DEVKIT_API UWeaponComboConfigDA : public UPrimaryDataAsset
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combo")
-	TArray<FName> RootNodes;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combo")
-	TArray<FWeaponComboNodeConfig> Nodes;
-
-	UFUNCTION(BlueprintPure, Category = "Combo")
-	FWeaponComboNodeConfig FindNodeChecked(FName NodeId) const;
-
-	const FWeaponComboNodeConfig* FindNode(FName NodeId) const;
-	const FWeaponComboNodeConfig* FindRootNode(ECardRequiredAction InputAction) const;
-	const FWeaponComboNodeConfig* FindChildNode(FName ParentNodeId, ECardRequiredAction InputAction) const;
-
-	UFUNCTION(BlueprintCallable, Category = "Combo")
-	void ValidateConfig(TArray<FText>& OutWarnings) const;
 };

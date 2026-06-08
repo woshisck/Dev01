@@ -41,7 +41,6 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "System/YogGameInstanceBase.h"
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Item/Weapon/WeaponAbilityData.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "GameFramework/PlayerController.h"
@@ -277,7 +276,7 @@ void APlayerCharacterBase::ApplyDefaultUnarmedComboGraph()
 	}
 	else
 	{
-		ComboRuntimeComponent->LoadComboConfig(nullptr);
+		ComboRuntimeComponent->LoadComboGraph(nullptr);
 	}
 }
 
@@ -297,11 +296,6 @@ void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDe
 	else if (WeaponDefinition->GameplayAbilityComboGraph)
 	{
 		ComboRuntimeComponent->LoadComboGraph(WeaponDefinition->GameplayAbilityComboGraph);
-		SpecialAction = WeaponDefinition->ComboSpecialActionAbility;
-	}
-	else if (WeaponDefinition->WeaponComboConfig)
-	{
-		ComboRuntimeComponent->LoadComboConfig(WeaponDefinition->WeaponComboConfig);
 		SpecialAction = WeaponDefinition->ComboSpecialActionAbility;
 	}
 	else
@@ -344,11 +338,15 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 	EquippedFromSpawner = nullptr;
 	InactiveWeaponDef = nullptr;
 	InactiveWeaponFromSpawner = nullptr;
-	ClearWeaponGrantedAbilities();
 
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 	{
 		YogASC->ClearWeaponTypeTags();
+	}
+
+	if (SpecialAttackComponent)
+	{
+		SpecialAttackComponent->SetSpecialAttack(nullptr);
 	}
 
 	ApplyDefaultUnarmedComboGraph();
@@ -395,13 +393,12 @@ void APlayerCharacterBase::SwitchWeapon()
 		}
 	}
 
-	ClearWeaponGrantedAbilities();
-	if (EquippedWeaponDef)
-	{
-		GrantWeaponAbilities(EquippedWeaponDef->WeaponAbilityData);
-	}
-
 	ApplyComboGraphFromWeapon(EquippedWeaponDef);
+
+	if (SpecialAttackComponent)
+	{
+		SpecialAttackComponent->SetSpecialAttack(EquippedWeaponDef ? EquippedWeaponDef->DefaultSpecialAttack.Get() : nullptr);
+	}
 
 	if (CombatDeckComponent && EquippedWeaponDef)
 	{
@@ -460,66 +457,6 @@ void APlayerCharacterBase::ClearRunCarriedStateForHub()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[RunState] Cleared carried player state for hub. Player=%s"), *GetNameSafe(this));
-}
-
-void APlayerCharacterBase::ClearWeaponGrantedAbilities()
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (!ASC)
-	{
-		GrantedWeaponAbilityHandles.Reset();
-		return;
-	}
-
-	for (const FGameplayAbilitySpecHandle& AbilityHandle : GrantedWeaponAbilityHandles)
-	{
-		if (AbilityHandle.IsValid())
-		{
-			ASC->ClearAbility(AbilityHandle);
-		}
-	}
-	GrantedWeaponAbilityHandles.Reset();
-}
-
-void APlayerCharacterBase::GrantWeaponAbilities(UWeaponAbilityData* WeaponAbilityData)
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	ClearWeaponGrantedAbilities();
-
-	if (!WeaponAbilityData)
-	{
-		return;
-	}
-
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (!ASC)
-	{
-		return;
-	}
-
-	for (const TSubclassOf<UYogGameplayAbility>& AbilityClass : WeaponAbilityData->WeaponAbilities)
-	{
-		if (!AbilityClass)
-		{
-			continue;
-		}
-
-		FGameplayAbilitySpec AbilitySpec(AbilityClass, 0, INDEX_NONE, WeaponAbilityData);
-		const FGameplayAbilitySpecHandle AbilityHandle = ASC->GiveAbility(AbilitySpec);
-		if (AbilityHandle.IsValid())
-		{
-			GrantedWeaponAbilityHandles.Add(AbilityHandle);
-		}
-	}
 }
 
 void APlayerCharacterBase::RestoreRunStateFromGI()

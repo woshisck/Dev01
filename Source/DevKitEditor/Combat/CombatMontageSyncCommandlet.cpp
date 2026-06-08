@@ -10,7 +10,7 @@
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageConfigDA.h"
 #include "Data/MontageNotifyEntry.h"
-#include "Data/WeaponComboConfigDA.h"
+#include "Data/WeaponComboNodeConfig.h"
 #include "FileHelpers.h"
 #include "GenericGraphNode.h"
 #include "Misc/FileHelper.h"
@@ -216,19 +216,6 @@ namespace CombatMontageSync
 		}
 	}
 
-	void GatherFromConfig(const UWeaponComboConfigDA* Config, TMap<TObjectPtr<UAnimMontage>, FMontageRequest>& Requests)
-	{
-		if (!Config)
-		{
-			return;
-		}
-
-		for (const FWeaponComboNodeConfig& Node : Config->Nodes)
-		{
-			AddRequest(Requests, Node);
-		}
-	}
-
 	bool NotifyHasCanCombo(const FAnimNotifyEvent& Event, const FGameplayTag& CanComboTag)
 	{
 		const UAnimNotifyState_AddGameplayTag* AddTagState = Cast<UAnimNotifyState_AddGameplayTag>(Event.NotifyStateClass);
@@ -389,7 +376,6 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 
 	TMap<TObjectPtr<UAnimMontage>, FMontageRequest> Requests;
 	GatherFromGraph(Cast<UGameplayAbilityComboGraph>(GetObjectPropertyValue(Weapon, TEXT("GameplayAbilityComboGraph"))), Requests);
-	GatherFromConfig(Cast<UWeaponComboConfigDA>(GetObjectPropertyValue(Weapon, TEXT("WeaponComboConfig"))), Requests);
 
 	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
 	TArray<UPackage*> PackagesToSave;
@@ -456,7 +442,6 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 	{
 		Requests.Empty();
 		GatherFromGraph(Cast<UGameplayAbilityComboGraph>(GetObjectPropertyValue(Weapon, TEXT("GameplayAbilityComboGraph"))), Requests);
-		GatherFromConfig(Cast<UWeaponComboConfigDA>(GetObjectPropertyValue(Weapon, TEXT("WeaponComboConfig"))), Requests);
 	}
 
 	ReportLines.Add(TEXT("## Conflict Fixes"));
