@@ -90,14 +90,16 @@ FText UGameplayAbilityComboGraphNode::GetDescription_Implementation() const
 	const FName RuntimeNodeId = GetRuntimeNodeId(this);
 	const FString MontageName = GetNameSafe(Montage);
 	return FText::FromString(FString::Printf(
-		TEXT("Node=%s\nRootInput=%s\nMontage=%s\nComboWindow=%s [%d-%d / %d]"),
+		TEXT("Node=%s\nRootInput=%s\nMontage=%s\nComboWindow=%s [%d-%d / %d]\nCardSlot=%s\nCardRole=%s"),
 		*RuntimeNodeId.ToString(),
 		*InputActionToString(RootInputAction),
 		Montage ? *MontageName : TEXT("None"),
 		bUseNodeComboWindow ? TEXT("Node") : TEXT("Montage Notify"),
 		ComboWindowStartFrame,
 		ComboWindowEndFrame,
-		TotalFrames));
+		TotalFrames,
+		CombatDeckActionSlotTag.IsValid() ? *CombatDeckActionSlotTag.ToString() : TEXT("RuntimeDefault"),
+		CombatDeckFlowRoleTag.IsValid() ? *CombatDeckFlowRoleTag.ToString() : TEXT("RuntimeDefault")));
 }
 
 #if WITH_EDITOR

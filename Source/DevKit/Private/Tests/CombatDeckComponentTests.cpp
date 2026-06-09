@@ -1339,6 +1339,93 @@ bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& P
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphNodeExportsCombatDeckContextTagsTest,
+	"DevKit.CombatDeck.ComboGraphNodeExportsCombatDeckContextTags",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FGameplayAbilityComboGraphNodeExportsCombatDeckContextTagsTest::RunTest(const FString& Parameters)
+{
+	UGameplayAbilityComboGraphNode* Node = NewObject<UGameplayAbilityComboGraphNode>();
+	Node->NodeId = TEXT("DashStep");
+	Node->CombatDeckActionSlotTag = FGameplayTag::RequestGameplayTag(TEXT("Combo.CombatDeck.ActionSlot.Dash"), false);
+	Node->CombatDeckFlowRoleTag = FGameplayTag::RequestGameplayTag(TEXT("Combo.CombatDeck.FlowRole.Catalyst"), false);
+
+	TestTrue(TEXT("Dash action-slot tag is registered"), Node->CombatDeckActionSlotTag.IsValid());
+	TestTrue(TEXT("Catalyst flow-role tag is registered"), Node->CombatDeckFlowRoleTag.IsValid());
+
+	const FWeaponComboNodeConfig RuntimeConfig = FWeaponComboNodeConfig::FromComboGraphNode(Node, ECardRequiredAction::Any);
+
+	TestEqual(TEXT("Graph node action-slot tag exports to runtime config"),
+		RuntimeConfig.CombatDeckActionSlot, ECombatDeckActionSlot::Dash);
+	TestEqual(TEXT("Graph node flow-role tag exports to runtime config"),
+		RuntimeConfig.CombatDeckFlowRole, ECombatDeckFlowRole::Catalyst);
+	TestFalse(TEXT("Catalyst dash override does not become a combo finisher"),
+		RuntimeConfig.bIsComboFinisher);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponSkillComboGraphUsesFinisherDeckContextByDefaultTest,
+	"DevKit.CombatDeck.WeaponSkillComboGraphUsesFinisherDeckContextByDefault",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FWeaponSkillComboGraphUsesFinisherDeckContextByDefaultTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for weapon-skill deck context test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for weapon-skill deck context test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	UYogAbilitySystemComponent* ASC = Player->GetASC();
+	TestNotNull(TEXT("Player has Yog ASC"), ASC);
+	TestNotNull(TEXT("Player has ComboRuntimeComponent"), Player->ComboRuntimeComponent.Get());
+	if (!ASC || !Player->ComboRuntimeComponent)
+	{
+		Player->Destroy();
+		return false;
+	}
+
+	ASC->InitAbilityActorInfo(Player, Player);
+	Player->ComboRuntimeComponent->SetComboSpecialActionAbility(UYogGameplayAbility::StaticClass());
+	ASC->GiveAbility(FGameplayAbilitySpec(UYogGameplayAbility::StaticClass(), 1));
+
+	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>(Player);
+	UGameplayAbilityComboGraphNode* WeaponSkillRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
+	WeaponSkillRoot->Graph = Graph;
+	WeaponSkillRoot->NodeId = TEXT("WeaponSkillRoot");
+	WeaponSkillRoot->RootInputAction = EYogComboGraphInputAction::WeaponSkill;
+	WeaponSkillRoot->Montage = NewObject<UAnimMontage>(Graph);
+	Graph->AllNodes = { WeaponSkillRoot };
+	Graph->RootNodes = { WeaponSkillRoot };
+
+	Player->ComboRuntimeComponent->LoadComboGraph(Graph);
+	TestTrue(TEXT("WeaponSkill graph root activates through ComboRuntime"),
+		Player->ComboRuntimeComponent->TryActivateWeaponSkill(Player));
+
+	const FCombatDeckActionContext Context =
+		Player->ComboRuntimeComponent->BuildAttackContext(ECombatCardTriggerTiming::OnCommit, Player);
+	TestEqual(TEXT("WeaponSkill default context uses weapon-skill slot"),
+		Context.ActionSlot, ECombatDeckActionSlot::WeaponSkill);
+	TestEqual(TEXT("WeaponSkill default context uses finisher flow role"),
+		Context.FlowRole, ECombatDeckFlowRole::Finisher);
+	TestTrue(TEXT("WeaponSkill default context is a combo finisher for deck release"),
+		Context.bIsComboFinisher);
+	TestEqual(TEXT("WeaponSkill default context releases finisher cards"),
+		Context.ReleaseMode, ECombatCardReleaseMode::Finisher);
+
+	Player->Destroy();
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphSupportsNamedInputsTest,
 	"DevKit.CombatDeck.ComboGraphSupportsNamedInputs",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

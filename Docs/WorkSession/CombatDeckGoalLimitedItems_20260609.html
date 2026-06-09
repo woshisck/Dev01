@@ -6,29 +6,38 @@
   <title>Combat Deck / ComboGraph 目标受限条目 - 2026-06-09</title>
   <style>
     :root {
-      --bg: #f6f7f9;
-      --panel: #ffffff;
-      --ink: #1d2430;
-      --muted: #5b6574;
-      --line: #d9dee7;
-      --accent: #0b6f84;
-      --ok: #1f7a46;
+      --bg: #f7f8fb;
+      --panel: #fff;
+      --ink: #1f2733;
+      --muted: #647084;
+      --line: #d9dee8;
+      --ok: #1e7a45;
       --warn: #9a5b00;
       --risk: #a83232;
+      --info: #0b6f84;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       background: var(--bg);
       color: var(--ink);
-      font: 15px/1.58 "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      font: 15px/1.6 "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
     }
-    main { max-width: 1180px; margin: 0 auto; padding: 32px 24px 56px; }
-    header { border-bottom: 1px solid var(--line); padding-bottom: 18px; margin-bottom: 22px; }
+    main { max-width: 1120px; margin: 0 auto; padding: 32px 24px 56px; }
+    header { border-bottom: 1px solid var(--line); margin-bottom: 22px; padding-bottom: 18px; }
     h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.25; }
-    h2 { margin: 0 0 12px; font-size: 19px; }
-    h3 { margin: 0 0 6px; font-size: 16px; }
+    h2 { margin: 0 0 12px; font-size: 20px; }
     p { margin: 0 0 10px; }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin: 16px 0;
+      padding: 18px;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid var(--line); padding: 9px 10px; text-align: left; vertical-align: top; }
+    th { background: #eef1f5; }
     code {
       background: #eef1f5;
       border: 1px solid #dde2ea;
@@ -38,37 +47,22 @@
       font-size: 13px;
     }
     .meta { color: var(--muted); display: flex; flex-wrap: wrap; gap: 10px 18px; }
-    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-    section, .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-    }
-    section { padding: 18px; margin: 16px 0; }
-    .card { padding: 16px; }
     .badge {
       display: inline-flex;
-      min-height: 24px;
       align-items: center;
+      min-height: 24px;
       border-radius: 999px;
       padding: 2px 9px;
       font-size: 12px;
       font-weight: 700;
       white-space: nowrap;
     }
-    .ok { color: var(--ok); background: #e4f4ea; }
+    .ok { color: var(--ok); background: #e5f4eb; }
     .warn { color: var(--warn); background: #fff3d6; }
     .risk { color: var(--risk); background: #ffe7e7; }
-    .info { color: var(--accent); background: #e2f3f7; }
-    table { width: 100%; border-collapse: collapse; background: var(--panel); }
-    th, td { border: 1px solid var(--line); padding: 9px 10px; text-align: left; vertical-align: top; }
-    th { background: #eef1f5; }
+    .info { color: var(--info); background: #e2f3f7; }
     ul { margin: 8px 0 0; padding-left: 22px; }
     li { margin: 4px 0; }
-    @media (max-width: 900px) {
-      main { padding: 22px 14px 40px; }
-      .grid { grid-template-columns: 1fr; }
-    }
   </style>
 </head>
 <body>
@@ -79,103 +73,113 @@
         <span>项目：DevKit</span>
         <span>分支：<code>ComboGraphRemoveDash</code></span>
         <span>日期：2026-06-09</span>
-        <span>状态：同事反馈已拆解，核心代码目标继续收口</span>
+        <span>用途：记录已完成目标与仍需资产/PIE 验证的限制项</span>
       </div>
     </header>
 
     <section>
-      <h2>本次反馈处理状态</h2>
+      <h2>同事反馈处理状态</h2>
       <table>
         <thead>
           <tr>
             <th>反馈</th>
             <th>状态</th>
-            <th>说明</th>
+            <th>当前处理</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td>WeaponSkill 失败应回到 Root，不关联 Dash。</td>
-            <td><span class="badge ok">已处理</span></td>
-            <td><code>TryActivateWeaponSkill</code> 失败后会 <code>ResetCombo()</code>；控制器不再用 <code>PlayerState.AbilityCast.Dash</code> 兜底。</td>
+            <td><span class="badge ok">已完成</span></td>
+            <td><code>TryActivateWeaponSkill</code> 失败后 <code>ResetCombo()</code>；Controller 不再用 Dash tag 兜底。</td>
           </tr>
           <tr>
-            <td>不按 Heavy 定义武器；每把武器自己的位移 Montage 配在 ComboGraph。</td>
-            <td><span class="badge ok">方向确认</span></td>
-            <td>位移/战技入口继续走 <code>WeaponSkill</code> ComboGraph 节点。每把武器需要在自身图上配置对应 Montage。</td>
+            <td>不按 Heavy 定义武器；每把武器自己的 dash montage 配在 ComboGraph。</td>
+            <td><span class="badge ok">代码支持</span></td>
+            <td><code>WeaponSkill</code> 输入走武器 ComboGraph 节点。默认按战技/终结处理；位移节点可用节点 tag 覆盖为 <code>Dash / Catalyst</code>。</td>
           </tr>
           <tr>
-            <td>Montage 完成/中断/取消时通知 BuffFlow 清理当前 GameplayEffect。</td>
-            <td><span class="badge ok">代码补齐</span></td>
-            <td><code>UGA_PlayerSpecialAttack</code> 已补齐卡牌 BuffFlow 清理；普通 Montage ability 保持原有 <code>ActiveEffectHandles</code> 清理。</td>
+            <td>Montage interrupted/cancel/end 时通知 BuffFlow 清理当前 GameplayEffect。</td>
+            <td><span class="badge ok">已补齐关键路径</span></td>
+            <td><code>UGA_PlayerSpecialAttack</code> 结束时清理已激活卡牌 BuffFlow；普通 Montage ability 保持既有 active effect handle 清理。</td>
           </tr>
           <tr>
             <td>只有 Attack 有卡槽 UI，保留当前 UI 给未来改动。</td>
-            <td><span class="badge ok">已处理</span></td>
-            <td><code>GetFullDeckSnapshot()</code> 现在只返回攻击序列；Skill / WeaponSkill / Dash 单槽通过独立接口保留。</td>
+            <td><span class="badge ok">已完成</span></td>
+            <td><code>GetFullDeckSnapshot()</code> 只返回 Attack 顺序卡组；<code>Skill</code>、<code>WeaponSkill</code>、<code>Dash</code> 通过单槽接口保留。</td>
           </tr>
           <tr>
-            <td>先让玩家能装备两把武器，并创建 flip-flop 切换按键。</td>
-            <td><span class="badge ok">已处理</span></td>
-            <td>已接入 active/inactive 武器槽、<code>IA_SwitchWeapon</code>、默认 <code>V</code> / 手柄 <code>L3</code>。</td>
-          </tr>
-          <tr>
-            <td>两把武器不共用卡组体系。</td>
-            <td><span class="badge ok">已处理</span></td>
-            <td>每个武器槽独立保存 SourceAssets、攻击卡连携方向、洗牌冷却、序列上限；切换时先保存当前槽，再恢复目标槽。RunState/checkpoint 也会保存并恢复备用武器及备用卡组。</td>
+            <td>先让玩家能装备两把武器，修改 equip function 并创建 flip-flop 切换键。</td>
+            <td><span class="badge ok">已完成</span></td>
+            <td>Active/Inactive 武器槽、<code>IA_SwitchWeapon</code>、默认 <code>V</code> / <code>L3</code>、两套独立卡组状态与 RunState/checkpoint 持久化均已接入。</td>
           </tr>
         </tbody>
       </table>
     </section>
 
     <section>
-      <h2>仍然受限的事项</h2>
-      <div class="grid">
-        <div class="card">
-          <h3>每把武器的 WeaponSkill 资产</h3>
-          <span class="badge warn">资产需求</span>
-          <p>不再用 Heavy/武器重量分支兜底。每把武器都需要在自己的 ComboGraph 中配置 <code>WeaponSkill</code> 节点、Montage 或 MontageConfig。</p>
-        </div>
-        <div class="card">
-          <h3>SpecialAttack 命名债务</h3>
-          <span class="badge warn">设计债务</span>
-          <p>输入行为已拆为 <code>SpecialAttack</code>，但部分卡牌枚举和旧资产仍有 Light/Heavy 兼容语义。彻底改名需要资产、UI 文案、旧引用一起迁移。</p>
-        </div>
-        <div class="card">
-          <h3>热度切武器 / 弹反失衡</h3>
-          <span class="badge info">后续功能</span>
-          <p>双武器切换和备用卡组持久化已完成。热度资源消耗、切换弹反、敌人失衡、后摇切换 CD 重置仍需要单独设计数据和 GameplayCue/Effect。</p>
-        </div>
-        <div class="card">
-          <h3>完整 CombatDeck 测试组</h3>
-          <span class="badge risk">旧失败需另清</span>
-          <p>目标用例已通过；完整 <code>DevKit.CombatDeck</code> 组仍有旧的卡牌解析/生成资产测试失败，建议拆成单独修复任务。</p>
-        </div>
-        <div class="card">
-          <h3>编辑器人工验证</h3>
-          <span class="badge warn">PIE 必做</span>
-          <p>需要在 PIE 中确认无武器左键不会变冲刺、拾取双武器后 <code>V</code> / <code>L3</code> 可切换、每把武器自己的卡组不会串卡。</p>
-        </div>
-      </div>
+      <h2>本次新增限制解除</h2>
+      <ul>
+        <li>ComboGraph 节点新增可选 <code>CombatDeckActionSlotTag</code> 和 <code>CombatDeckFlowRoleTag</code>。</li>
+        <li>WeaponSkill 节点默认卡组语义为 <code>WeaponSkill / Finisher</code>，符合“战技视为引爆/终结逻辑”。</li>
+        <li>纯位移、闪避、取消节点可在资产上设置 <code>Combo.CombatDeck.ActionSlot.Dash</code> 与 <code>Combo.CombatDeck.FlowRole.Catalyst</code>。</li>
+        <li>这些 tag 已加入 <code>Config/Tags/ComboGraphInput.ini</code>，编辑器中可选择。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>仍然受限 / 需要解决</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>条目</th>
+            <th>状态</th>
+            <th>需要做什么</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>每把武器的 WeaponSkill 节点资产</td>
+            <td><span class="badge warn">资产需求</span></td>
+            <td>检查每把武器 ComboGraph 是否有 <code>WeaponSkill</code> root/child、有效 Montage/MontageConfig，并按节点用途设置或留空 Combat Card tag。</td>
+          </tr>
+          <tr>
+            <td>PIE 人工验证</td>
+            <td><span class="badge warn">必须验证</span></td>
+            <td>无武器左键应攻击而不是冲刺；拾取双手剑后左键攻击有效；<code>WeaponSkill</code> 无节点时回 root；<code>V</code>/<code>L3</code> 可切换双武器。</td>
+          </tr>
+          <tr>
+            <td>测试卡牌配置</td>
+            <td><span class="badge warn">资产需求</span></td>
+            <td>准备 <code>Attack/Starter</code>、<code>Attack/Catalyst</code>、<code>Skill/Catalyst</code>、<code>WeaponSkill/Finisher</code>、<code>Dash/Catalyst</code> 五类测试卡。</td>
+          </tr>
+          <tr>
+            <td>完整 <code>DevKit.CombatDeck</code> 测试组</td>
+            <td><span class="badge risk">旧失败需另清</span></td>
+            <td>目标用例已通过；完整测试组仍有旧的卡牌解析/生成资产失败，建议拆成独立修复任务。</td>
+          </tr>
+          <tr>
+            <td>热度切武器、弹反、失衡、CD 重置</td>
+            <td><span class="badge info">后续功能</span></td>
+            <td>双武器基础已完成；热度资源、弹反事件、失衡 GameplayEffect/Cue、后摇切换 CD 重置还需要单独设计和实现。</td>
+          </tr>
+          <tr>
+            <td>旧 Finisher 资产清理</td>
+            <td><span class="badge warn">兼容性债务</span></td>
+            <td>旧 QTE Finisher 原生代码已去除/守护，但 tag 与部分资产仍为兼容保留。清理前需引用审计，不能删 generic combo-final-hit 逻辑。</td>
+          </tr>
+        </tbody>
+      </table>
     </section>
 
     <section>
       <h2>验证状态</h2>
       <ul>
-        <li>C++ 编译通过：<code>Build.bat DevKitEditor Win64 Development</code>。</li>
-        <li>输入资产 commandlet 已执行：创建/绑定 <code>IA_SwitchWeapon</code>，默认键位 <code>V</code> / <code>L3</code>。</li>
-        <li>目标自动化测试已通过：WeaponSkill 失败回根、双武器槽切换、双武器独立卡组、备用武器 RunState 保存/恢复、Attack-only UI snapshot。</li>
-        <li>完整 <code>DevKit.CombatDeck</code> 组存在旧失败；本次目标相关用例已逐个单跑通过。</li>
-      </ul>
-    </section>
-
-    <section>
-      <h2>后续资产需求</h2>
-      <ul>
-        <li>为每把可装备武器检查或补齐 <code>WeaponSkill</code> ComboGraph 节点。</li>
-        <li>为 <code>DA_WPN_THSword</code> 等武器确认专属位移/战技 Montage 已挂到 ComboGraph 节点。</li>
-        <li>配置测试卡：Attack / Starter、Attack / Catalyst、Skill / Catalyst、WeaponSkill / Finisher、Dash / Catalyst。</li>
-        <li>如果要做热度切武器，补充热度 UI、切换 GA、弹反/失衡 GameplayCue 和技能 CD 重置策略。</li>
+        <li>编译通过：<code>Build.bat DevKitEditor Win64 Development</code>。</li>
+        <li>新增红灯已确认：测试先因 ComboGraph 节点缺少 Combat Deck tag 字段失败，再实现通过。</li>
+        <li>新增测试通过：<code>DevKit.CombatDeck.ComboGraphNodeExportsCombatDeckContextTags</code>。</li>
+        <li>新增测试通过：<code>DevKit.CombatDeck.WeaponSkillComboGraphUsesFinisherDeckContextByDefault</code>。</li>
+        <li>之前目标测试仍需在最终提交前整体复跑：WeaponSkill 回根、双武器切换、独立卡组、RunState 恢复、Attack-only UI snapshot。</li>
       </ul>
     </section>
   </main>

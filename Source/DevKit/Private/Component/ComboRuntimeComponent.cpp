@@ -150,8 +150,8 @@ bool UComboRuntimeComponent::TryActivateWeaponSkill(APlayerCharacterBase* Player
 		WeaponComboGraph,
 		EYogComboGraphInputAction::WeaponSkill,
 		ECardRequiredAction::Any,
-		ECombatDeckActionSlot::Dash,
-		ECombatDeckFlowRole::Catalyst,
+		ECombatDeckActionSlot::WeaponSkill,
+		ECombatDeckFlowRole::Finisher,
 		PlayerOwner,
 		ComboSpecialActionAbility);
 
@@ -233,10 +233,11 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 			}
 			else
 			{
-				NextNodeConfig = FWeaponComboNodeConfig::FromComboGraphNode(Selection.Node, RuntimeInputAction);
-				NextNodeConfig.CombatDeckActionSlot = ActionSlot;
-				NextNodeConfig.CombatDeckFlowRole = NextNodeConfig.bIsComboFinisher ? ECombatDeckFlowRole::Finisher : FlowRole;
-				NextNodeConfig.bIsComboFinisher = NextNodeConfig.bIsComboFinisher || NextNodeConfig.CombatDeckFlowRole == ECombatDeckFlowRole::Finisher;
+				NextNodeConfig = FWeaponComboNodeConfig::FromComboGraphNode(
+					Selection.Node,
+					RuntimeInputAction,
+					ActionSlot,
+					FlowRole);
 				NextNode = &NextNodeConfig;
 				bFoundChildNode = Selection.bFoundChildNode;
 				PrepareComboGraphNodeActivation(Selection);

@@ -73,6 +73,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card", meta = (AdvancedDisplay))
 	FGameplayTag TriggerTimingTag;
 
+	/** Optional action-slot tag (project-defined, e.g. Combo.CombatDeck.ActionSlot.Dash). Empty = runtime default. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card", meta = (AdvancedDisplay))
+	FGameplayTag CombatDeckActionSlotTag;
+
+	/** Optional flow-role tag (project-defined, e.g. Combo.CombatDeck.FlowRole.Catalyst). Empty = runtime default. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card", meta = (AdvancedDisplay))
+	FGameplayTag CombatDeckFlowRoleTag;
+
 	virtual FText GetDescription_Implementation() const override;
 
 #if WITH_EDITORONLY_DATA

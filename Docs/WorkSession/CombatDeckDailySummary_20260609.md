@@ -35,6 +35,8 @@ Post-feedback note:
   - `DevKit.CombatDeck.PlayerRunStateCapturesIndependentWeaponDecks`
   - `DevKit.CombatDeck.PlayerRestoreRunStateRestoresInactiveWeaponDeck`
   - `DevKit.CombatDeck.SingleActionSlotsRouteFromSourceAssets`
+  - `DevKit.CombatDeck.ComboGraphNodeExportsCombatDeckContextTags`
+  - `DevKit.CombatDeck.WeaponSkillComboGraphUsesFinisherDeckContextByDefault`
 - Broad `DevKit.CombatDeck` group still contains existing unrelated failures in older card-resolution/generated-asset tests. The target tests above were rerun individually and passed.
 
 ## Implemented Code Changes
@@ -172,9 +174,16 @@ Current gameplay interpretation:
 - `WeaponComboNodeConfig` now carries:
   - combat deck action slot
   - combat deck flow role
+- ComboGraph nodes expose optional Combat Card gameplay tags:
+  - `CombatDeckActionSlotTag`
+  - `CombatDeckFlowRoleTag`
+- Empty node tags use the runtime default for the input path.
+- A graph-authored mobility/cancel node can explicitly set:
+  - `Combo.CombatDeck.ActionSlot.Dash`
+  - `Combo.CombatDeck.FlowRole.Catalyst`
 - Runtime combo node activation writes the correct deck context:
   - normal attack -> `Attack / Starter`
-  - weapon skill path -> currently `Dash / Catalyst`
+  - weapon skill path -> default `WeaponSkill / Finisher`
   - special attack combo -> `WeaponSkill / Finisher`
 - Combo finishers still map to finisher release mode, but this is separate from the deprecated QTE finisher system.
 
@@ -182,7 +191,7 @@ Post-feedback adjustment:
 
 - Weapon skill failure now resets ComboGraph state to root.
 - Controller-side dash fallback was removed. Weapon movement/dash behavior should be authored as `WeaponSkill` nodes in each weapon ComboGraph.
-- Existing `Dash / Catalyst` context is retained for the graph-authored mobility/weapon-skill path until the asset team decides whether those nodes should be reclassified as `WeaponSkill / Finisher`.
+- `WeaponSkill` nodes default to weapon-skill finisher/detonate card context. If a specific node is pure movement, dodge, or cancel, classify that node with the Dash/Catalyst gameplay tags above.
 
 ### Ranged / Projectile Propagation
 
@@ -217,6 +226,8 @@ Automation tests were added or updated around:
 - active/inactive weapon switching
 - independent active/inactive weapon combat decks preserving reward cards while switching
 - RunState/checkpoint capture and restore for inactive weapon combat decks
+- ComboGraph node Combat Card tags exporting to runtime action slot / flow role
+- WeaponSkill ComboGraph activation defaulting to `WeaponSkill / Finisher` combat deck context
 
 Note: targeted UE automation tests were rerun for the post-feedback changes listed above.
 
@@ -238,6 +249,10 @@ For `DA_WPN_THSword` and `CG_THSword_Test`:
 - Normal attack root is `NormalAttack` / legacy `Light`.
 - Weapon skill root is `WeaponSkill`.
 - Nodes have valid montage or montage config.
+- If the node represents detonation/weapon skill payoff, leave Combat Card tags empty so the runtime default stays `WeaponSkill / Finisher`.
+- If the node represents movement, dodge, or cancel, set:
+  - `CombatDeckActionSlotTag = Combo.CombatDeck.ActionSlot.Dash`
+  - `CombatDeckFlowRoleTag = Combo.CombatDeck.FlowRole.Catalyst`
 - If special attack is equipped, `DefaultSpecialAttack` references a `SpecialAttackDataAsset`.
 - If that special attack needs graph logic, the special attack asset has `Config.ComboGraph`.
 
@@ -282,20 +297,21 @@ For BuffFlow graphs that depend on combat context:
 
 ## Remaining Development Direction
 
-### 1. WeaponSkill / Dash Context Naming
+### 1. WeaponSkill / Dash Context Authoring
 
 Current code path:
 
 - `WeaponSkill` input activates weapon ComboGraph `WeaponSkill`.
 - If activation fails, runtime state resets to root.
 - There is no controller fallback to `PlayerState.AbilityCast.Dash`.
-- The deck context for graph-based weapon skill/mobility is currently `Dash / Catalyst`.
+- The deck context for graph-based weapon skill defaults to `WeaponSkill / Finisher`.
+- Per-node Combat Card gameplay tags can override that context to `Dash / Catalyst` for mobility/cancel nodes.
 
-Recommended next decision:
+Recommended asset decision:
 
 - If a graph node represents pure movement/cancel, keep it as `Dash / Catalyst`.
-- If a graph node represents weapon detonation/finisher, reclassify that node path to `WeaponSkill / Finisher`.
-- This likely needs an asset-facing field on ComboGraph nodes so different weapons can mix mobility and detonation nodes without using weapon weight categories.
+- If a graph node represents weapon detonation/finisher, leave it as the default `WeaponSkill / Finisher`.
+- Different weapons can now mix mobility and detonation nodes without using weapon weight categories.
 
 ### 2. Per-Weapon Mobility In ComboGraph
 
@@ -412,5 +428,7 @@ Recommended cleanup order:
    - WeaponSkill / Finisher
    - Dash / Catalyst
 7. Test attack ordered card sequence and single-slot repeat trigger in PIE.
-8. Decide whether each graph-based weapon-skill node should be `Dash / Catalyst` or `WeaponSkill / Finisher`.
+8. Classify each graph-based weapon-skill node:
+   - leave empty for default `WeaponSkill / Finisher`
+   - set Combat Card tags for `Dash / Catalyst` movement/cancel nodes
 9. Only after the above is stable, start heat-based weapon switching, parry, imbalance, and cooldown reset rules.

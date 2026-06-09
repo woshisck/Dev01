@@ -67,5 +67,9 @@ struct DEVKIT_API FWeaponComboNodeConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
 	ECombatCardTriggerTiming CardTriggerTiming = ECombatCardTriggerTiming::OnCommit;
 
-	static FWeaponComboNodeConfig FromComboGraphNode(const UGameplayAbilityComboGraphNode* Node, ECardRequiredAction InputAction);
+	static FWeaponComboNodeConfig FromComboGraphNode(
+		const UGameplayAbilityComboGraphNode* Node,
+		ECardRequiredAction InputAction,
+		ECombatDeckActionSlot DefaultActionSlot = ECombatDeckActionSlot::Attack,
+		ECombatDeckFlowRole DefaultFlowRole = ECombatDeckFlowRole::Starter);
 };
