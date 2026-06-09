@@ -66,6 +66,36 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHeatPhaseDelegate, int32, Phase);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FWeaponSwitchedDelegate);
 
+USTRUCT(BlueprintType)
+struct DEVKIT_API FWeaponCombatDeckRuntimeState
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<TObjectPtr<URuneDataAsset>> SourceAssets;
+
+	UPROPERTY()
+	TArray<ECombatCardLinkOrientation> AttackCardOrientations;
+
+	UPROPERTY()
+	float ShuffleCooldownDuration = 1.0f;
+
+	UPROPERTY()
+	int32 MaxActiveSequenceSize = 0;
+
+	UPROPERTY()
+	bool bInitialized = false;
+
+	void Reset()
+	{
+		SourceAssets.Reset();
+		AttackCardOrientations.Reset();
+		ShuffleCooldownDuration = 1.0f;
+		MaxActiveSequenceSize = 0;
+		bInitialized = false;
+	}
+};
+
 UCLASS()
 class DEVKIT_API APlayerCharacterBase : public AYogCharacterBase
 {
@@ -325,6 +355,12 @@ public:
 	TObjectPtr<UWeaponDefinition> InactiveWeaponDef;
 
 	UPROPERTY()
+	FWeaponCombatDeckRuntimeState EquippedWeaponDeckState;
+
+	UPROPERTY()
+	FWeaponCombatDeckRuntimeState InactiveWeaponDeckState;
+
+	UPROPERTY()
 	TObjectPtr<AWeaponInstance> InactiveWeaponInstance;
 
 	UPROPERTY()
@@ -338,6 +374,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void SwitchWeapon();
+
+	void CaptureEquippedWeaponDeckState();
+	void InitializeEquippedWeaponDeckStateFromDefinition();
+	void InitializeInactiveWeaponDeckStateFromDefinition();
+	void InitializeWeaponDeckStateFromDefinition(FWeaponCombatDeckRuntimeState& DeckState, const UWeaponDefinition* WeaponDefinition) const;
+	void LoadCombatDeckFromWeaponDeckState(FWeaponCombatDeckRuntimeState& DeckState, const UWeaponDefinition* WeaponDefinition);
 
 	// ─── 献祭恩赐（全局 Run Buff）────────────────────────────────────
 

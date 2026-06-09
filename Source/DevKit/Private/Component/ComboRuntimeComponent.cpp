@@ -146,7 +146,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 
 bool UComboRuntimeComponent::TryActivateWeaponSkill(APlayerCharacterBase* PlayerOwner)
 {
-	return TryActivateComboFromGraph(
+	const bool bActivated = TryActivateComboFromGraph(
 		WeaponComboGraph,
 		EYogComboGraphInputAction::WeaponSkill,
 		ECardRequiredAction::Any,
@@ -154,6 +154,13 @@ bool UComboRuntimeComponent::TryActivateWeaponSkill(APlayerCharacterBase* Player
 		ECombatDeckFlowRole::Catalyst,
 		PlayerOwner,
 		ComboSpecialActionAbility);
+
+	if (!bActivated)
+	{
+		ResetCombo();
+	}
+
+	return bActivated;
 }
 
 bool UComboRuntimeComponent::TryActivateSpecialAttackCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner)

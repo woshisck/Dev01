@@ -160,6 +160,7 @@ namespace
 		UInputAction* IA_SwitchCombatItemPrevious,
 		UInputAction* IA_UseActiveSkill,
 		UInputAction* IA_SwitchActiveSkill,
+		UInputAction* IA_SwitchWeapon,
 		bool bDryRun,
 		TArray<FString>& ReportLines,
 		TArray<UPackage*>& DirtyPackages)
@@ -215,6 +216,7 @@ namespace
 		AssignAction(ControllerCDO->Input_SwitchCombatItemPrevious, IA_SwitchCombatItemPrevious, TEXT("Input_SwitchCombatItemPrevious"));
 		AssignAction(ControllerCDO->Input_UseActiveSkill, IA_UseActiveSkill, TEXT("Input_UseActiveSkill"));
 		AssignAction(ControllerCDO->Input_SwitchActiveSkill, IA_SwitchActiveSkill, TEXT("Input_SwitchActiveSkill"));
+		AssignAction(ControllerCDO->Input_SwitchWeapon, IA_SwitchWeapon, TEXT("Input_SwitchWeapon"));
 
 		if (bChanged && !bDryRun)
 		{
@@ -312,7 +314,7 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 	TArray<UPackage*> DirtyPackages;
 	ReportLines.Add(TEXT("# Gamepad Input Setup Report"));
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
-	ReportLines.Add(TEXT("- Layout: A=Interact/Accept, B=WeaponSkill/Back, X=NormalAttack/Secondary/ReverseCard, Y=SpecialAttack/Details, LB=Use item, RB=Use active skill, RS=Switch active skill, Menu=Pause, View=Backpack."));
+	ReportLines.Add(TEXT("- Layout: A=Interact/Accept, B=WeaponSkill/Back, X=NormalAttack/Secondary/ReverseCard, Y=SpecialAttack/Details, LB=Use item, RB=Use active skill, L3=Switch weapon, RS=Switch active skill, Menu=Pause, View=Backpack."));
 	ReportLines.Add(TEXT(""));
 
 	UInputMappingContext* MappingContext = Cast<UInputMappingContext>(LoadObjectByPackagePath(MappingContextPath, UInputMappingContext::StaticClass()));
@@ -338,6 +340,7 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 	UInputAction* IA_SwitchCombatItemPrevious = LoadOrCreateInputAction(TEXT("IA_SwitchCombatItemPrevious"), bDryRun, ReportLines, DirtyPackages);
 	UInputAction* IA_UseActiveSkill = LoadOrCreateInputAction(TEXT("IA_UseActiveSkill"), bDryRun, ReportLines, DirtyPackages);
 	UInputAction* IA_SwitchActiveSkill = LoadOrCreateInputAction(TEXT("IA_SwitchActiveSkill"), bDryRun, ReportLines, DirtyPackages);
+	UInputAction* IA_SwitchWeapon = LoadOrCreateInputAction(TEXT("IA_SwitchWeapon"), bDryRun, ReportLines, DirtyPackages);
 	UInputAction* IA_ReverseCard = LoadOrCreateInputAction(TEXT("IA_ReverseCard"), bDryRun, ReportLines, DirtyPackages);
 
 	EnsureMappings(MappingContext, IA_Interact, TEXT("IA_Interact"), { EKeys::E, EKeys::Gamepad_FaceButton_Bottom }, { EKeys::Gamepad_FaceButton_Right }, bDryRun, ReportLines, DirtyPackages);
@@ -353,6 +356,7 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 	EnsureMappings(MappingContext, IA_SwitchCombatItemPrevious, TEXT("IA_SwitchCombatItemPrevious"), { EKeys::Z, EKeys::Gamepad_DPad_Left }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_UseActiveSkill, TEXT("IA_UseActiveSkill"), { EKeys::R, EKeys::Gamepad_RightShoulder }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_SwitchActiveSkill, TEXT("IA_SwitchActiveSkill"), { EKeys::T, EKeys::Gamepad_RightThumbstick }, {}, bDryRun, ReportLines, DirtyPackages);
+	EnsureMappings(MappingContext, IA_SwitchWeapon, TEXT("IA_SwitchWeapon"), { EKeys::V, EKeys::Gamepad_LeftThumbstick }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_ReverseCard, TEXT("IA_ReverseCard"), { EKeys::R, EKeys::Gamepad_FaceButton_Left }, {}, bDryRun, ReportLines, DirtyPackages);
 
 	AssignControllerDefaults(
@@ -369,6 +373,7 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 		IA_SwitchCombatItemPrevious,
 		IA_UseActiveSkill,
 		IA_SwitchActiveSkill,
+		IA_SwitchWeapon,
 		bDryRun,
 		ReportLines,
 		DirtyPackages);
@@ -388,6 +393,7 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 		{ TEXT("SwitchCombatItemPrevious"), ToObjectPath(ActionRootPath / TEXT("IA_SwitchCombatItemPrevious")) },
 		{ TEXT("UseActiveSkill"), ToObjectPath(ActionRootPath / TEXT("IA_UseActiveSkill")) },
 		{ TEXT("SwitchActiveSkill"), ToObjectPath(ActionRootPath / TEXT("IA_SwitchActiveSkill")) },
+		{ TEXT("SwitchWeapon"), ToObjectPath(ActionRootPath / TEXT("IA_SwitchWeapon")) },
 		{ TEXT("NormalAttack"), ToObjectPath(ActionRootPath / TEXT("IA_NormalAttack")) },
 		{ TEXT("SpecialAttack"), ToObjectPath(ActionRootPath / TEXT("IA_SpecialAttack")) },
 		{ TEXT("MouseClick"), ToObjectPath(ActionRootPath / TEXT("IA_MouseClick")) },

@@ -597,28 +597,38 @@ void UCombatDeckComponent::LoadDeckFromWeapon(const UWeaponDefinition* WeaponDef
 	if (WeaponDefinition)
 	{
 		TArray<URuneDataAsset*> SourceAssets;
-		if (UWorld* World = GetWorld())
-		{
-			if (UGameInstance* GameInstance = World->GetGameInstance())
-			{
-				if (const UYogSaveSubsystem* SaveSys = GameInstance->GetSubsystem<UYogSaveSubsystem>();
-					SaveSys && SaveSys->IsFirstRunTutorialCompleted())
-				{
-					UFirstRunTutorialDirectorSubsystem::BuildDefaultPostTutorialDeck(SourceAssets);
-				}
-			}
-		}
-
-		if (SourceAssets.IsEmpty())
-		{
-			CopyDeckSourceAssets(GetDefaultWeaponDeckSource(WeaponDefinition), SourceAssets);
-		}
-
+		BuildDefaultWeaponDeckSourceAssets(WeaponDefinition, SourceAssets);
 		LoadDeckFromSourceAssetsInternal(SourceAssets, WeaponDefinition->ShuffleCooldownDuration, WeaponDefinition->MaxActiveSequenceSize, false);
 		return;
 	}
 
 	LoadDeckFromSourceAssetsInternal({}, ShuffleCooldownDuration, MaxActiveSequenceSize, false);
+}
+
+void UCombatDeckComponent::BuildDefaultWeaponDeckSourceAssets(const UWeaponDefinition* WeaponDefinition, TArray<URuneDataAsset*>& OutSourceAssets) const
+{
+	OutSourceAssets.Reset();
+	if (!WeaponDefinition)
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		if (UGameInstance* GameInstance = World->GetGameInstance())
+		{
+			if (const UYogSaveSubsystem* SaveSys = GameInstance->GetSubsystem<UYogSaveSubsystem>();
+				SaveSys && SaveSys->IsFirstRunTutorialCompleted())
+			{
+				UFirstRunTutorialDirectorSubsystem::BuildDefaultPostTutorialDeck(OutSourceAssets);
+			}
+		}
+	}
+
+	if (OutSourceAssets.IsEmpty())
+	{
+		CopyDeckSourceAssets(GetDefaultWeaponDeckSource(WeaponDefinition), OutSourceAssets);
+	}
 }
 
 void UCombatDeckComponent::LoadDeckFromSourceAssets(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize)
@@ -693,9 +703,7 @@ TArray<URuneDataAsset*> UCombatDeckComponent::GetDeckSourceAssets() const
 
 TArray<FCombatCardInstance> UCombatDeckComponent::GetFullDeckSnapshot() const
 {
-	TArray<FCombatCardInstance> Cards = DeckList;
-	AppendSingleActionSlotCards(Cards);
-	return BuildTemporaryLockViewCards(Cards);
+	return BuildTemporaryLockViewCards(DeckList);
 }
 
 TArray<FCombatCardInstance> UCombatDeckComponent::GetRemainingDeckSnapshot() const

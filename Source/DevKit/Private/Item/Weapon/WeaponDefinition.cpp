@@ -101,6 +101,7 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	if (UCombatDeckComponent* CombatDeck = ReceivingChar ? ReceivingChar->CombatDeckComponent.Get() : nullptr)
 	{
 		CombatDeck->LoadDeckFromWeapon(this);
+		ReceivingChar->CaptureEquippedWeaponDeckState();
 	}
 
 	if (ReceivingChar && ReceivingChar->ComboRuntimeComponent)

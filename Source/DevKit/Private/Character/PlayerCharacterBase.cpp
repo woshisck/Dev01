@@ -321,6 +321,123 @@ void APlayerCharacterBase::ApplyCurrentEquipmentComboGraph()
 	}
 }
 
+void APlayerCharacterBase::CaptureEquippedWeaponDeckState()
+{
+	if (!EquippedWeaponDef)
+	{
+		EquippedWeaponDeckState.Reset();
+		return;
+	}
+
+	if (!CombatDeckComponent)
+	{
+		InitializeWeaponDeckStateFromDefinition(EquippedWeaponDeckState, EquippedWeaponDef);
+		return;
+	}
+
+	EquippedWeaponDeckState.Reset();
+
+	const TArray<URuneDataAsset*> SourceAssets = CombatDeckComponent->GetDeckSourceAssets();
+	EquippedWeaponDeckState.SourceAssets.Reserve(SourceAssets.Num());
+	for (URuneDataAsset* SourceAsset : SourceAssets)
+	{
+		if (SourceAsset)
+		{
+			EquippedWeaponDeckState.SourceAssets.Add(SourceAsset);
+		}
+	}
+
+	const TArray<FCombatCardInstance> AttackCards = CombatDeckComponent->GetFullDeckSnapshot();
+	EquippedWeaponDeckState.AttackCardOrientations.Reserve(AttackCards.Num());
+	for (const FCombatCardInstance& Card : AttackCards)
+	{
+		EquippedWeaponDeckState.AttackCardOrientations.Add(Card.LinkOrientation);
+	}
+
+	EquippedWeaponDeckState.ShuffleCooldownDuration = CombatDeckComponent->GetShuffleCooldownDuration();
+	EquippedWeaponDeckState.MaxActiveSequenceSize = CombatDeckComponent->GetMaxActiveSequenceSize();
+	EquippedWeaponDeckState.bInitialized = true;
+}
+
+void APlayerCharacterBase::InitializeEquippedWeaponDeckStateFromDefinition()
+{
+	InitializeWeaponDeckStateFromDefinition(EquippedWeaponDeckState, EquippedWeaponDef);
+}
+
+void APlayerCharacterBase::InitializeInactiveWeaponDeckStateFromDefinition()
+{
+	InitializeWeaponDeckStateFromDefinition(InactiveWeaponDeckState, InactiveWeaponDef);
+}
+
+void APlayerCharacterBase::InitializeWeaponDeckStateFromDefinition(FWeaponCombatDeckRuntimeState& DeckState, const UWeaponDefinition* WeaponDefinition) const
+{
+	DeckState.Reset();
+	if (!WeaponDefinition)
+	{
+		return;
+	}
+
+	TArray<URuneDataAsset*> SourceAssets;
+	if (CombatDeckComponent)
+	{
+		CombatDeckComponent->BuildDefaultWeaponDeckSourceAssets(WeaponDefinition, SourceAssets);
+	}
+
+	DeckState.SourceAssets.Reserve(SourceAssets.Num());
+	for (URuneDataAsset* SourceAsset : SourceAssets)
+	{
+		if (SourceAsset)
+		{
+			DeckState.SourceAssets.Add(SourceAsset);
+		}
+	}
+
+	DeckState.ShuffleCooldownDuration = WeaponDefinition->ShuffleCooldownDuration;
+	DeckState.MaxActiveSequenceSize = WeaponDefinition->MaxActiveSequenceSize;
+	DeckState.bInitialized = true;
+}
+
+void APlayerCharacterBase::LoadCombatDeckFromWeaponDeckState(FWeaponCombatDeckRuntimeState& DeckState, const UWeaponDefinition* WeaponDefinition)
+{
+	if (!CombatDeckComponent)
+	{
+		return;
+	}
+
+	if (!WeaponDefinition)
+	{
+		DeckState.Reset();
+		TArray<URuneDataAsset*> EmptyDeck;
+		CombatDeckComponent->LoadDeckFromExactSourceAssets(EmptyDeck, 0.0f, 0);
+		return;
+	}
+
+	if (!DeckState.bInitialized)
+	{
+		InitializeWeaponDeckStateFromDefinition(DeckState, WeaponDefinition);
+	}
+
+	TArray<URuneDataAsset*> SourceAssets;
+	SourceAssets.Reserve(DeckState.SourceAssets.Num());
+	for (const TObjectPtr<URuneDataAsset>& SourceAsset : DeckState.SourceAssets)
+	{
+		if (SourceAsset)
+		{
+			SourceAssets.Add(SourceAsset.Get());
+		}
+	}
+
+	CombatDeckComponent->LoadDeckFromExactSourceAssets(
+		SourceAssets,
+		DeckState.ShuffleCooldownDuration,
+		DeckState.MaxActiveSequenceSize);
+
+	if (!DeckState.AttackCardOrientations.IsEmpty())
+	{
+		CombatDeckComponent->ApplyDeckOrientations(DeckState.AttackCardOrientations);
+	}
+}
+
 void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 {
 	if (EquippedWeaponInstance)
@@ -341,6 +458,8 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 	EquippedFromSpawner = nullptr;
 	InactiveWeaponDef = nullptr;
 	InactiveWeaponFromSpawner = nullptr;
+	EquippedWeaponDeckState.Reset();
+	InactiveWeaponDeckState.Reset();
 
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 	{
@@ -367,6 +486,12 @@ void APlayerCharacterBase::SwitchWeapon()
 		return;
 	}
 
+	CaptureEquippedWeaponDeckState();
+	if (!InactiveWeaponDeckState.bInitialized)
+	{
+		InitializeInactiveWeaponDeckStateFromDefinition();
+	}
+
 	if (ComboRuntimeComponent)
 	{
 		ComboRuntimeComponent->ResetCombo();
@@ -386,6 +511,7 @@ void APlayerCharacterBase::SwitchWeapon()
 	Swap(EquippedWeaponDef, InactiveWeaponDef);
 	Swap(EquippedWeaponInstance, InactiveWeaponInstance);
 	Swap(EquippedFromSpawner, InactiveWeaponFromSpawner);
+	Swap(EquippedWeaponDeckState, InactiveWeaponDeckState);
 
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 	{
@@ -403,10 +529,7 @@ void APlayerCharacterBase::SwitchWeapon()
 		SpecialAttackComponent->SetSpecialAttack(EquippedWeaponDef ? EquippedWeaponDef->DefaultSpecialAttack.Get() : nullptr);
 	}
 
-	if (CombatDeckComponent && EquippedWeaponDef)
-	{
-		CombatDeckComponent->LoadDeckFromWeapon(EquippedWeaponDef);
-	}
+	LoadCombatDeckFromWeaponDeckState(EquippedWeaponDeckState, EquippedWeaponDef);
 
 	if (EquippedWeaponInstance)
 	{
@@ -530,6 +653,8 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		{
 			CombatDeckComponent->ApplyDeckOrientations(State.CombatDeckCardOrientations);
 		}
+
+		CaptureEquippedWeaponDeckState();
 	}
 
 	if (BackpackGridComponent)

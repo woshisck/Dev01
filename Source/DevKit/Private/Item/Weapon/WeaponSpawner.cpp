@@ -424,9 +424,11 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 			SpawnData.AttachSocket    = WeaponSpawnData.AttachSocket;
 			SpawnData.AttachTransform = WeaponSpawnData.AttachTransform;
 			SpawnData.WeaponLayer     = WeaponSpawnData.WeaponLayer;
+			SpawnData.bShouldSaveToGame = true;
 			NewInactiveWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
 			if (NewInactiveWeapon)
 			{
+				NewInactiveWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
 				NewInactiveWeapon->SetActorHiddenInGame(true);
 			}
 		}
@@ -435,6 +437,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		Player->InactiveWeaponInstance     = NewInactiveWeapon;
 		Player->InactiveWeaponFromSpawner  = this;
 		Player->PendingWeaponSpawner       = nullptr;
+		Player->InitializeInactiveWeaponDeckStateFromDefinition();
 
 		UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已存入备用槽 [%s]"), *WeaponDefinition->GetName());
 		return;
@@ -547,6 +550,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent.Get())
 	{
 		CombatDeck->LoadDeckFromWeapon(WeaponDefinition);
+		Player->CaptureEquippedWeaponDeckState();
 	}
 
 	if (Player->ComboRuntimeComponent)

@@ -24,6 +24,17 @@ Result:
   - Existing deprecated UE API warnings around `bIsFocusable` / `IsFocusable`.
   - Existing deprecated GameplayEffect tag container warnings.
 
+Post-feedback note:
+
+- After the colleague feedback pass, the project was recompiled with the same `Build.bat` command and passed.
+- `GamepadInputSetupCommandlet Apply` was run to create/bind `IA_SwitchWeapon`.
+- Targeted UE automation tests passed:
+  - `DevKit.CombatDeck.WeaponSkillMissResetsComboRuntimeToRoot`
+  - `DevKit.CombatDeck.PlayerSwitchWeaponSwapsActiveAndInactiveSlots`
+  - `DevKit.CombatDeck.PlayerSwitchWeaponPreservesIndependentDecks`
+  - `DevKit.CombatDeck.SingleActionSlotsRouteFromSourceAssets`
+- Broad `DevKit.CombatDeck` group still contains existing unrelated failures in older card-resolution/generated-asset tests. The four target tests above were rerun individually and passed.
+
 ## Implemented Code Changes
 
 ### Input Naming And Routing
@@ -39,7 +50,8 @@ Result:
 - `YogPlayerControllerBase` routes:
   - `NormalAttack` to normal weapon/unarmed combo attack.
   - `SpecialAttack` to `PlayerSpecialAttackComponent` when equipped, otherwise legacy heavy fallback.
-  - `WeaponSkill` first to weapon ComboGraph `WeaponSkill` node, then to dash fallback.
+  - `WeaponSkill` to the equipped weapon ComboGraph `WeaponSkill` node. If activation fails, combo state resets to root instead of falling back to dash.
+- `YogPlayerControllerBase` now exposes `SwitchWeapon` input for active/inactive weapon flip-flop.
 - `BufferComponent` records `NormalAttack`, `SpecialAttack`, and `WeaponSkill` instead of the old light/heavy/dash names.
 
 ### ComboGraph Changes
@@ -116,7 +128,7 @@ The deck is now split at runtime:
 - Single-slot cards do not trigger attack deck shuffle.
 - Single-slot cards can trigger repeatedly on each matching action.
 - `GetDeckSourceAssets()` includes attack sequence cards and single-slot cards, so save/restore keeps the slot cards.
-- `GetFullDeckSnapshot()` includes attack sequence plus single-slot cards for full inspection.
+- `GetFullDeckSnapshot()` returns attack sequence cards only, so the current attack card slot UI stays unchanged.
 - `GetActionSlotCardSnapshot()` exposes the currently equipped single-slot card for UI/debugging.
 
 Current gameplay interpretation:
@@ -136,6 +148,22 @@ Current gameplay interpretation:
 - Default active skill deck role is `Skill / Catalyst`.
 - `PlayerActiveSkillComponent` resolves the skill slot when the skill is configured to do so.
 
+### Two-Weapon Runtime Deck State
+
+- `APlayerCharacterBase` now keeps separate runtime deck state for:
+  - equipped weapon slot
+  - inactive weapon slot
+- Each slot stores:
+  - source card assets
+  - attack-card link orientations
+  - shuffle cooldown
+  - max active sequence size
+- `SwitchWeapon()` captures the current slot deck before swapping, swaps the deck states with the weapon definitions/instances, then restores the promoted weapon's own deck state.
+- Picking up a second weapon initializes the inactive slot deck from that weapon definition without changing the current attack deck.
+- Active weapon pickup/setup captures the loaded deck into the equipped slot state.
+- Restoring a saved run deck also syncs that restored deck into the equipped weapon slot state.
+- Current limitation: the existing RunState/checkpoint format still persists only the active weapon and active deck. Persisting the inactive weapon and inactive deck across level transitions/save-load remains a separate follow-up.
+
 ### Weapon Combo Node Context
 
 - `WeaponComboNodeConfig` now carries:
@@ -146,6 +174,12 @@ Current gameplay interpretation:
   - weapon skill path -> currently `Dash / Catalyst`
   - special attack combo -> `WeaponSkill / Finisher`
 - Combo finishers still map to finisher release mode, but this is separate from the deprecated QTE finisher system.
+
+Post-feedback adjustment:
+
+- Weapon skill failure now resets ComboGraph state to root.
+- Controller-side dash fallback was removed. Weapon movement/dash behavior should be authored as `WeaponSkill` nodes in each weapon ComboGraph.
+- Existing `Dash / Catalyst` context is retained for the graph-authored mobility/weapon-skill path until the asset team decides whether those nodes should be reclassified as `WeaponSkill / Finisher`.
 
 ### Ranged / Projectile Propagation
 
@@ -175,8 +209,12 @@ Automation tests were added or updated around:
 - special attack data asset carrying ComboGraph
 - player loading weapon graph and special attack graph separately
 - BuffFlow storing action slot and flow role in combat-card context
+- attack-only full deck snapshot for the current card slot UI
+- weapon skill miss resetting combo runtime state to root
+- active/inactive weapon switching
+- independent active/inactive weapon combat decks preserving reward cards while switching
 
-Note: build passed, but UE automation tests were not rerun in this final pass.
+Note: targeted UE automation tests were rerun for the post-feedback changes listed above.
 
 ## Editor / Asset Test Checklist
 
@@ -184,7 +222,7 @@ Note: build passed, but UE automation tests were not rerun in this final pass.
 
 - Player spawns with no weapon.
 - Left mouse / `NormalAttack` should trigger default unarmed attack graph, not dash.
-- `WeaponSkill` input should trigger dash fallback.
+- `WeaponSkill` input should only activate if the current unarmed/weapon ComboGraph has a valid `WeaponSkill` node. If no node exists, it should return to root without triggering dash.
 - Confirm default unarmed combo graph points to:
   - `/Game/Code/Weapon/Disarm/GA_ComboGraph_Disarm`
 
@@ -206,6 +244,7 @@ Confirm Enhanced Input references:
 - `IA_NormalAttack`
 - `IA_SpecialAttack`
 - `IA_WeaponSkill`
+- `IA_SwitchWeapon`
 - `IMC_YogPlayerBase` maps them to the intended keyboard/mouse/gamepad buttons.
 - `B_YogPlayerControllerBase` assigns the new input action fields.
 
@@ -226,6 +265,7 @@ For each combat card/rune DA:
   - `RequiredActionSlot = Dash`
   - usually `RequiredFlowRole = Catalyst`
 - Link recipes should set `RequiredActionSlot` and `RequiredFlowRole` when the link should only trigger in a specific action context.
+- When testing two weapons, add or earn a card while weapon A is active, switch to weapon B, add or earn a different card, then switch back and confirm each weapon keeps only its own attack deck cards.
 
 ### BuffFlow Assets
 
@@ -238,40 +278,33 @@ For BuffFlow graphs that depend on combat context:
 
 ## Remaining Development Direction
 
-### 1. Weapon Skill Versus Dash Naming
+### 1. WeaponSkill / Dash Context Naming
 
 Current code path:
 
-- `WeaponSkill` input first tries weapon ComboGraph `WeaponSkill`.
-- If no graph node activates, it falls back to `PlayerState.AbilityCast.Dash`.
-- The deck context for the graph-based weapon skill path is currently `Dash / Catalyst` in `TryActivateWeaponSkill`.
+- `WeaponSkill` input activates weapon ComboGraph `WeaponSkill`.
+- If activation fails, runtime state resets to root.
+- There is no controller fallback to `PlayerState.AbilityCast.Dash`.
+- The deck context for graph-based weapon skill/mobility is currently `Dash / Catalyst`.
 
 Recommended next decision:
 
-- If weapon skill means weapon-provided detonate/finisher, change graph weapon skill context to `WeaponSkill / Finisher`.
-- Keep fallback dash as `Dash / Catalyst`.
-- This will make the user-facing model cleaner:
-  - attack = ordered starter/catalyst cards
-  - skill = player-selected catalyst
-  - weapon skill = detonate/finisher
-  - dash = mobility/cancel catalyst
+- If a graph node represents pure movement/cancel, keep it as `Dash / Catalyst`.
+- If a graph node represents weapon detonation/finisher, reclassify that node path to `WeaponSkill / Finisher`.
+- This likely needs an asset-facing field on ComboGraph nodes so different weapons can mix mobility and detonation nodes without using weapon weight categories.
 
-### 2. Heavy Weapon Dodge Override
+### 2. Per-Weapon Mobility In ComboGraph
 
-Not fully implementable yet from current code/data because:
+Current direction:
 
-- `EWeaponType` only has `Melee` and `Ranged`.
-- There is no separate `Heavy` weapon type.
-- There is no dedicated native `Dodge` ability class or `PlayerState.AbilityCast.Dodge` tag path.
+- Do not define weapons as `Heavy` for mobility behavior.
+- Every weapon owns its movement/dash/dodge behavior through its own ComboGraph `WeaponSkill` node and Montage/MontageConfig.
 
-Recommended implementation:
+Recommended asset work:
 
-- Add weapon mobility mode data to `WeaponDefinition`, for example:
-  - `DefaultDash`
-  - `Dodge`
-  - `WeaponOverrideAbility`
-- Add a dedicated dodge gameplay tag and optional GA.
-- Let `YogPlayerControllerBase::WeaponSkill` choose mobility fallback based on equipped weapon data.
+- Add or verify `WeaponSkill` roots/children in every weapon ComboGraph.
+- Put the sword/dagger/heavy-weapon movement montage directly on those nodes.
+- Only add a native `Dodge` tag/ability later if designers need gameplay logic that cannot live in ComboGraph + Montage + BuffFlow.
 
 ### 3. Post-Attack Cancel Strengthening
 
@@ -286,16 +319,14 @@ Recommended implementation:
 - Montage assets need notify windows for valid cancel timing.
 - BuffFlow cards can then check `FlowRole` plus cancel tags to apply bonuses.
 
-### 4. Two-Weapon Heat Switch
+### 4. Two-Weapon Switch And Heat Extension
 
-This is a larger feature and should stay separate from the current card slot refactor.
+Base active/inactive weapon switching is wired in code, and each weapon slot now keeps its own runtime combat deck state. The heat/resource/parry version and cross-level persistence remain larger follow-up features.
 
 Recommended data/code pieces:
 
-- second equipped weapon slot
-- per-weapon combat deck save data
+- inactive weapon plus inactive deck checkpoint data if the second weapon must persist across level transitions/save-load
 - heat/resource requirement
-- switch activation ability
 - parry/imbalance gameplay events
 - cooldown reset rule for skill and weapon skill when switching during recovery cancel
 
@@ -316,6 +347,7 @@ Recommended cleanup order:
 - `IA_NormalAttack`
 - `IA_SpecialAttack`
 - `IA_WeaponSkill`
+- `IA_SwitchWeapon`
 - updated `IMC_YogPlayerBase`
 - updated `B_YogPlayerControllerBase`
 - default unarmed ComboGraph asset
@@ -345,18 +377,16 @@ Recommended cleanup order:
   - weapon skill single slot
   - dash single slot
 
-### Required For Heavy Weapon Dodge
+### Required For Per-Weapon Mobility
 
-- weapon classification beyond current `Melee/Ranged`, or a dedicated mobility mode field
-- dodge gameplay tag
-- dodge GA or dash variant ability
-- dodge montage
-- heavy weapon DA configured to use dodge fallback or override ability
+- `WeaponSkill` ComboGraph node per weapon that needs movement/cancel behavior
+- dash/dodge/mobility montage or montage config per weapon
+- optional BuffFlow card configured as `Dash / Catalyst` when movement should trigger a card
 
 ### Required For Two-Weapon Switch
 
 - secondary weapon slot assets/UI
-- per-weapon deck storage
+- inactive weapon/deck checkpoint storage if persistence is required
 - heat/resource UI
 - weapon switch GA
 - parry/imbalance gameplay cue/effect assets
@@ -365,17 +395,20 @@ Recommended cleanup order:
 ## Suggested Next Work Order
 
 1. Open editor and validate input assets/controller assignment.
-2. Validate no-weapon normal attack and weapon-skill dash fallback.
-3. Validate `DA_WPN_THSword`:
+2. Run the input setup commandlet in Apply mode if `IA_SwitchWeapon` is missing.
+3. Validate no-weapon normal attack and confirm weapon-skill failure returns to root without dash fallback.
+4. Validate `DA_WPN_THSword`:
    - normal attack root works
-   - weapon skill root works or intentionally falls back
+   - weapon skill root works or intentionally fails back to root
    - special attack asset/graph is assigned if needed
-4. Configure several test rune cards:
+5. Pick up a second weapon and press `V` / gamepad `L3` to flip active/inactive weapons.
+   - Add or earn different attack cards on each weapon and confirm switching restores each weapon's own deck.
+6. Configure several test rune cards:
    - Attack / Starter
    - Attack / Catalyst
    - Skill / Catalyst
    - WeaponSkill / Finisher
    - Dash / Catalyst
-5. Test attack ordered card sequence and single-slot repeat trigger in PIE.
-6. Decide whether graph-based weapon skill should be `WeaponSkill / Finisher` instead of current `Dash / Catalyst`.
-7. Only after the above is stable, start heavy weapon dodge and two-weapon switch as separate feature work.
+7. Test attack ordered card sequence and single-slot repeat trigger in PIE.
+8. Decide whether each graph-based weapon-skill node should be `Dash / Catalyst` or `WeaponSkill / Finisher`.
+9. Only after the above is stable, start heat-based weapon switching, parry, imbalance, and cooldown reset rules.

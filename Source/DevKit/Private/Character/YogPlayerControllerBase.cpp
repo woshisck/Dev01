@@ -220,6 +220,11 @@ void AYogPlayerControllerBase::SetupInputComponent()
 			const FEnhancedInputActionEventBinding& switchActiveSkillBinding = EnhancedInputComp->BindAction(Input_SwitchActiveSkill, ETriggerEvent::Started, this, &AYogPlayerControllerBase::SwitchActiveSkill);
 			SwitchActiveSkillInputHandle = switchActiveSkillBinding.GetHandle();
 		}
+		if (Input_SwitchWeapon)
+		{
+			const FEnhancedInputActionEventBinding& switchWeaponBinding = EnhancedInputComp->BindAction(Input_SwitchWeapon, ETriggerEvent::Started, this, &AYogPlayerControllerBase::SwitchWeapon);
+			SwitchWeaponInputHandle = switchWeaponBinding.GetHandle();
+		}
 		UInputAction* WeaponSkillAction = Input_WeaponSkill ? Input_WeaponSkill.Get() : Input_Dash.Get();
 		if (WeaponSkillAction)
 		{
@@ -606,6 +611,15 @@ void AYogPlayerControllerBase::SwitchActiveSkill(const FInputActionValue& Value)
 	}
 }
 
+void AYogPlayerControllerBase::SwitchWeapon(const FInputActionValue& Value)
+{
+	if (IsGameplayInputBlocked()) return;
+	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
+	{
+		PlayerCharacter->SwitchWeapon();
+	}
+}
+
 void AYogPlayerControllerBase::HandlePauseInput(const FInputActionValue& Value)
 {
 	HandleMenuBackInput(EKeys::Gamepad_Special_Right);
@@ -631,29 +645,6 @@ void AYogPlayerControllerBase::WeaponSkill(const FInputActionValue& Value)
 				Buffer->RecordWeaponSkill();
 			}
 			return;
-		}
-
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
-		const bool bActivated = player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
-
-		player->GetInputBufferComponent()->RecordWeaponSkill();
-
-		if (bActivated)
-		{
-			player->GetASC()->OnDashExecuted.Broadcast();
-			if (player->CombatDeckComponent)
-			{
-				FCombatDeckActionContext Context;
-				Context.ActionType = ECardRequiredAction::Any;
-				Context.ActionSlot = ECombatDeckActionSlot::Dash;
-				Context.FlowRole = ECombatDeckFlowRole::Catalyst;
-				Context.WeaponDef = player->EquippedWeaponDef;
-				Context.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
-				Context.bConsumeOnCommit = true;
-				Context.AttackInstanceGuid = FGuid::NewGuid();
-				player->CombatDeckComponent->ResolveAttackCardWithContext(Context);
-			}
 		}
 	}
 	//UE_LOG(LogTemp, Log, TEXT("Dash"));

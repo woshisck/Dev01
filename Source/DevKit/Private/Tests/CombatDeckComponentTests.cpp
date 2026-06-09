@@ -46,6 +46,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "Item/Weapon/WeaponInstance.h"
 #include "UI/WeaponComboTextUtils.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -370,6 +371,7 @@ bool FCombatDeckSingleActionSlotsRouteFromSourceAssetsTest::RunTest(const FStrin
 		Deck->GetActionSlotCardSnapshot(ECombatDeckActionSlot::WeaponSkill).SourceData.Get(), WeaponSkillRune);
 	TestEqual(TEXT("Dash source asset is stored in the dash slot"),
 		Deck->GetActionSlotCardSnapshot(ECombatDeckActionSlot::Dash).SourceData.Get(), DashRune);
+	TestEqual(TEXT("Full deck UI snapshot stays attack-slot only"), Deck->GetFullDeckSnapshot().Num(), 1);
 
 	const TArray<URuneDataAsset*> SourceAssets = Deck->GetDeckSourceAssets();
 	TestTrue(TEXT("Saved source assets include attack card"), SourceAssets.Contains(AttackRune));
@@ -812,6 +814,221 @@ bool FPlayerWeaponComboGraphOverridesAndResetToUnarmedTest::RunTest(const FStrin
 	TestNull(TEXT("Reset to unarmed clears equipped weapon definition"), Player->EquippedWeaponDef.Get());
 	TestTrue(TEXT("Reset to unarmed restores default combo graph"),
 		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == DefaultGraph);
+
+	Player->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponSkillMissResetsComboRuntimeToRootTest,
+	"DevKit.CombatDeck.WeaponSkillMissResetsComboRuntimeToRoot",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FWeaponSkillMissResetsComboRuntimeToRootTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for weapon-skill miss reset test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for weapon-skill miss reset test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	UYogAbilitySystemComponent* ASC = Player->GetASC();
+	TestNotNull(TEXT("Player has Yog ASC"), ASC);
+	TestNotNull(TEXT("Player has ComboRuntimeComponent"), Player->ComboRuntimeComponent.Get());
+	if (!ASC || !Player->ComboRuntimeComponent)
+	{
+		Player->Destroy();
+		return false;
+	}
+
+	ASC->InitAbilityActorInfo(Player, Player);
+
+	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>(Player);
+	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
+	Root->Graph = Graph;
+	Root->NodeId = TEXT("L1");
+	Root->RootInputAction = EYogComboGraphInputAction::Light;
+	Root->Montage = NewObject<UAnimMontage>(Graph);
+	Graph->AllNodes = { Root };
+	Graph->RootNodes = { Root };
+
+	Player->ComboRuntimeComponent->LoadComboGraph(Graph);
+	TestTrue(TEXT("Combo runtime can enter a normal attack node before weapon-skill miss"),
+		Player->ComboRuntimeComponent->TryActivateComboGraphNode(EYogComboGraphInputAction::Light, FGameplayTagContainer()));
+	TestEqual(TEXT("Combo runtime stores current node before weapon-skill miss"),
+		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(TEXT("L1")));
+	TestTrue(TEXT("Combo runtime stores active attack guid before weapon-skill miss"),
+		Player->ComboRuntimeComponent->GetActiveAttackGuid().IsValid());
+
+	TestFalse(TEXT("Weapon-skill input with no graph node fails activation"),
+		Player->ComboRuntimeComponent->TryActivateWeaponSkill(Player));
+	TestEqual(TEXT("Weapon-skill miss clears current combo node"),
+		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(NAME_None));
+	TestEqual(TEXT("Weapon-skill miss clears active graph node"),
+		Player->ComboRuntimeComponent->GetActiveGraphNodeId(), FName(NAME_None));
+	TestFalse(TEXT("Weapon-skill miss clears active attack guid"),
+		Player->ComboRuntimeComponent->GetActiveAttackGuid().IsValid());
+
+	Player->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerSwitchWeaponSwapsActiveAndInactiveSlotsTest,
+	"DevKit.CombatDeck.PlayerSwitchWeaponSwapsActiveAndInactiveSlots",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerSwitchWeaponSwapsActiveAndInactiveSlotsTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for weapon switch test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for weapon switch test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	UGameplayAbilityComboGraph* GraphA = NewObject<UGameplayAbilityComboGraph>(Player);
+	UGameplayAbilityComboGraph* GraphB = NewObject<UGameplayAbilityComboGraph>(Player);
+	UWeaponDefinition* WeaponA = NewObject<UWeaponDefinition>(Player);
+	UWeaponDefinition* WeaponB = NewObject<UWeaponDefinition>(Player);
+	WeaponA->GameplayAbilityComboGraph = GraphA;
+	WeaponB->GameplayAbilityComboGraph = GraphB;
+
+	AWeaponInstance* InstanceA = World->SpawnActor<AWeaponInstance>();
+	AWeaponInstance* InstanceB = World->SpawnActor<AWeaponInstance>();
+	TestNotNull(TEXT("Active weapon instance spawned"), InstanceA);
+	TestNotNull(TEXT("Inactive weapon instance spawned"), InstanceB);
+	if (!InstanceA || !InstanceB)
+	{
+		if (InstanceA)
+		{
+			InstanceA->Destroy();
+		}
+		if (InstanceB)
+		{
+			InstanceB->Destroy();
+		}
+		Player->Destroy();
+		return false;
+	}
+
+	Player->EquippedWeaponDef = WeaponA;
+	Player->InactiveWeaponDef = WeaponB;
+	Player->EquippedWeaponInstance = InstanceA;
+	Player->InactiveWeaponInstance = InstanceB;
+	InstanceA->SetActorHiddenInGame(false);
+	InstanceB->SetActorHiddenInGame(true);
+
+	Player->ApplyComboGraphFromWeapon(WeaponA);
+	TestTrue(TEXT("Player reports a second weapon can be switched to"), Player->CanSwitchWeapon());
+
+	Player->SwitchWeapon();
+
+	TestEqual(TEXT("Switch weapon promotes inactive definition"),
+		Player->EquippedWeaponDef.Get(), WeaponB);
+	TestEqual(TEXT("Switch weapon demotes previous active definition"),
+		Player->InactiveWeaponDef.Get(), WeaponA);
+	TestEqual(TEXT("Switch weapon promotes inactive instance"),
+		Player->EquippedWeaponInstance.Get(), InstanceB);
+	TestEqual(TEXT("Switch weapon demotes previous active instance"),
+		Player->InactiveWeaponInstance.Get(), InstanceA);
+	TestFalse(TEXT("Promoted weapon instance is visible"), InstanceB->IsHidden());
+	TestTrue(TEXT("Demoted weapon instance is hidden"), InstanceA->IsHidden());
+	TestTrue(TEXT("Promoted weapon combo graph is active"),
+		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetWeaponComboGraph() == GraphB);
+
+	Player->EquippedWeaponInstance = nullptr;
+	Player->InactiveWeaponInstance = nullptr;
+	InstanceA->Destroy();
+	InstanceB->Destroy();
+	Player->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerSwitchWeaponPreservesIndependentDecksTest,
+	"DevKit.CombatDeck.PlayerSwitchWeaponPreservesIndependentDecks",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerSwitchWeaponPreservesIndependentDecksTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for independent weapon deck test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for independent weapon deck test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	auto MakeAttackRune = [](UObject* Outer, const TCHAR* Name) -> URuneDataAsset*
+	{
+		URuneDataAsset* Rune = NewObject<URuneDataAsset>(Outer, FName(Name));
+		Rune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
+		Rune->RuneInfo.CombatCard.DisplayName = FText::FromString(Name);
+		return Rune;
+	};
+
+	URuneDataAsset* WeaponACard = MakeAttackRune(Player, TEXT("WeaponACard"));
+	URuneDataAsset* WeaponAReward = MakeAttackRune(Player, TEXT("WeaponAReward"));
+	URuneDataAsset* WeaponBCard = MakeAttackRune(Player, TEXT("WeaponBCard"));
+	URuneDataAsset* WeaponBReward = MakeAttackRune(Player, TEXT("WeaponBReward"));
+
+	UWeaponDefinition* WeaponA = NewObject<UWeaponDefinition>(Player);
+	UWeaponDefinition* WeaponB = NewObject<UWeaponDefinition>(Player);
+	WeaponA->InitialCombatDeck = { WeaponACard };
+	WeaponB->InitialCombatDeck = { WeaponBCard };
+
+	Player->EquippedWeaponDef = WeaponA;
+	Player->InactiveWeaponDef = WeaponB;
+	Player->CombatDeckComponent->LoadDeckFromWeapon(WeaponA);
+	TestTrue(TEXT("Weapon A can add a reward card to its own deck"),
+		Player->CombatDeckComponent->AddCardFromRuneReward(WeaponAReward));
+
+	Player->SwitchWeapon();
+	TArray<URuneDataAsset*> WeaponBInitialSources = Player->CombatDeckComponent->GetDeckSourceAssets();
+	TestTrue(TEXT("Switch to weapon B loads weapon B deck"),
+		WeaponBInitialSources.Contains(WeaponBCard));
+	TestFalse(TEXT("Switch to weapon B does not carry weapon A reward into weapon B deck"),
+		WeaponBInitialSources.Contains(WeaponAReward));
+
+	TestTrue(TEXT("Weapon B can add a reward card to its own deck"),
+		Player->CombatDeckComponent->AddCardFromRuneReward(WeaponBReward));
+
+	Player->SwitchWeapon();
+	TArray<URuneDataAsset*> RestoredWeaponASources = Player->CombatDeckComponent->GetDeckSourceAssets();
+	TestTrue(TEXT("Switch back to weapon A restores weapon A base card"),
+		RestoredWeaponASources.Contains(WeaponACard));
+	TestTrue(TEXT("Switch back to weapon A preserves weapon A reward"),
+		RestoredWeaponASources.Contains(WeaponAReward));
+	TestFalse(TEXT("Switch back to weapon A does not include weapon B reward"),
+		RestoredWeaponASources.Contains(WeaponBReward));
+
+	Player->SwitchWeapon();
+	TArray<URuneDataAsset*> RestoredWeaponBSources = Player->CombatDeckComponent->GetDeckSourceAssets();
+	TestTrue(TEXT("Switch back to weapon B restores weapon B base card"),
+		RestoredWeaponBSources.Contains(WeaponBCard));
+	TestTrue(TEXT("Switch back to weapon B preserves weapon B reward"),
+		RestoredWeaponBSources.Contains(WeaponBReward));
+	TestFalse(TEXT("Switch back to weapon B does not include weapon A reward"),
+		RestoredWeaponBSources.Contains(WeaponAReward));
 
 	Player->Destroy();
 	return true;

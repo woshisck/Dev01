@@ -81,6 +81,7 @@ void UGA_PlayerSpecialAttack::ActivateAbility(
 	ActiveCombatDeckContext = FCombatDeckActionContext();
 	bHasActiveCombatDeckContext = false;
 	bCombatDeckCardResolvedThisActivation = false;
+	ActiveCombatCardResult = FCombatCardResolveResult();
 
 	ActiveConfig = SpecialAttackComponent->GetSpecialAttackConfig();
 	ActiveMontage = ActiveConfig.Montage;
@@ -177,6 +178,13 @@ void UGA_PlayerSpecialAttack::EndAbility(
 {
 	ActiveMontageTask = nullptr;
 
+	if (ActiveCombatCardResult.bHadCard && PlayerOwner && PlayerOwner->CombatDeckComponent)
+	{
+		PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.ConsumedCard);
+		PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedSourceCard);
+		PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedTargetCard);
+	}
+
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
 		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
@@ -204,6 +212,7 @@ void UGA_PlayerSpecialAttack::EndAbility(
 	bIsHandlingSpecialAttackEvent = false;
 	bHasActiveCombatDeckContext = false;
 	bCombatDeckCardResolvedThisActivation = false;
+	ActiveCombatCardResult = FCombatCardResolveResult();
 	ActiveCombatDeckContext = FCombatDeckActionContext();
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -372,6 +381,7 @@ FCombatCardResolveResult UGA_PlayerSpecialAttack::ResolveCombatDeckOnHit()
 	if (Result.bHadCard)
 	{
 		bCombatDeckCardResolvedThisActivation = true;
+		ActiveCombatCardResult = Result;
 	}
 	return Result;
 }

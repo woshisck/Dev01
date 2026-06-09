@@ -56,6 +56,7 @@ public:
 	void SwitchCombatItemPrevious(const FInputActionValue& Value);
 	void UseActiveSkill(const FInputActionValue& Value);
 	void SwitchActiveSkill(const FInputActionValue& Value);
+	void SwitchWeapon(const FInputActionValue& Value);
 	void HandlePauseInput(const FInputActionValue& Value);
 	void Dash(const FInputActionValue& Value);
 	void Move(const FInputActionValue& Value);
@@ -111,6 +112,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_SwitchActiveSkill;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_SwitchWeapon;
 
 	/** 手柄右摇杆 — 驱动相机微偏移（Vector2D InputAction） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
@@ -207,6 +211,7 @@ private:
 	uint32 SwitchCombatItemPreviousInputHandle = INDEX_NONE;
 	uint32 UseActiveSkillInputHandle = INDEX_NONE;
 	uint32 SwitchActiveSkillInputHandle = INDEX_NONE;
+	uint32 SwitchWeaponInputHandle = INDEX_NONE;
 	uint32 PauseInputHandle = INDEX_NONE;
 	uint32 WeaponSkillInputHandle = INDEX_NONE;
 	uint32 InteractInputHandle = INDEX_NONE;

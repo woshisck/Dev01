@@ -307,6 +307,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
 	void LoadDeckFromWeapon(const UWeaponDefinition* WeaponDefinition);
 
+	void BuildDefaultWeaponDeckSourceAssets(const UWeaponDefinition* WeaponDefinition, TArray<URuneDataAsset*>& OutSourceAssets) const;
+
 	void LoadDeckFromSourceAssets(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize);
 
 	void LoadDeckFromExactSourceAssets(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize);

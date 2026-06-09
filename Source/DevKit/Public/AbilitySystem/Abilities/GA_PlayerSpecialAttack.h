@@ -74,6 +74,9 @@ private:
 	bool bCombatDeckCardResolvedThisActivation = false;
 
 	UPROPERTY()
+	FCombatCardResolveResult ActiveCombatCardResult;
+
+	UPROPERTY()
 	FCombatDeckActionContext ActiveCombatDeckContext;
 
 	void OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount);
