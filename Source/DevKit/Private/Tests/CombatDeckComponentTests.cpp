@@ -7,6 +7,7 @@
 #include "Component/ComboRuntimeComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "AbilitySystem/Abilities/GA_ActiveSkill_ShieldBurst.h"
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
@@ -34,6 +35,7 @@
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
+#include "Animation/AnimNotifyState_PostAtkWindow.h"
 #include "Data/AbilityData.h"
 #include "Data/ActiveSkillDataAsset.h"
 #include "Data/GameplayAbilityComboGraph.h"
@@ -45,6 +47,8 @@
 #include "Data/WeaponComboNodeConfig.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
+#include "Component/PlayerActiveSkillComponent.h"
+#include "Component/PlayerSpecialAttackComponent.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "System/YogGameInstanceBase.h"
@@ -955,6 +959,124 @@ bool FPlayerSwitchWeaponSwapsActiveAndInactiveSlotsTest::RunTest(const FString& 
 	Player->InactiveWeaponInstance = nullptr;
 	InstanceA->Destroy();
 	InstanceB->Destroy();
+	Player->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPostAttackWindowAppliesRecoveryTagTest,
+	"DevKit.CombatDeck.PostAttackWindowAppliesRecoveryTag",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPostAttackWindowAppliesRecoveryTagTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for post-attack window test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for post-attack window test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	UYogAbilitySystemComponent* ASC = Player->GetASC();
+	TestNotNull(TEXT("Player ability system exists"), ASC);
+	if (!ASC)
+	{
+		Player->Destroy();
+		return false;
+	}
+	ASC->InitAbilityActorInfo(Player, Player);
+
+	const FGameplayTag RecoveryTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
+	TestTrue(TEXT("Post-attack recovery tag is registered"), RecoveryTag.IsValid());
+
+	UAnimNotifyState_PostAtkWindow* Notify = NewObject<UAnimNotifyState_PostAtkWindow>(Player);
+	USkeletalMeshComponent* Mesh = Player->GetMesh();
+	FAnimNotifyEventReference EventReference;
+
+	Notify->NotifyBegin(Mesh, nullptr, 0.25f, EventReference);
+	TestTrue(TEXT("Post-attack notify begin adds recovery window tag"),
+		RecoveryTag.IsValid() && ASC->GetTagCount(RecoveryTag) > 0);
+
+	Notify->NotifyEnd(Mesh, nullptr, EventReference);
+	TestEqual(TEXT("Post-attack notify end clears recovery window tag"),
+		RecoveryTag.IsValid() ? ASC->GetTagCount(RecoveryTag) : 0, 0);
+
+	Player->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerSwitchWeaponRecoveryCancelClearsActiveSkillCooldownTest,
+	"DevKit.CombatDeck.PlayerSwitchWeaponRecoveryCancelClearsActiveSkillCooldown",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerSwitchWeaponRecoveryCancelClearsActiveSkillCooldownTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for recovery cancel switch test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for recovery cancel switch test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	UYogAbilitySystemComponent* ASC = Player->GetASC();
+	TestNotNull(TEXT("Player ability system exists"), ASC);
+	if (!ASC)
+	{
+		Player->Destroy();
+		return false;
+	}
+	ASC->InitAbilityActorInfo(Player, Player);
+
+	UWeaponDefinition* WeaponA = NewObject<UWeaponDefinition>(Player);
+	UWeaponDefinition* WeaponB = NewObject<UWeaponDefinition>(Player);
+	Player->EquippedWeaponDef = WeaponA;
+	Player->InactiveWeaponDef = WeaponB;
+
+	UActiveSkillDataAsset* Skill = NewObject<UActiveSkillDataAsset>(Player);
+	Skill->Config.SkillId = TEXT("RecoveryCancelSkill");
+	Skill->Config.AbilityClass = UGA_ActiveSkill_ShieldBurst::StaticClass();
+	Skill->Config.Cooldown = 10.0f;
+	Player->ActiveSkillComponent->SetSkillLoadout({ Skill });
+	Player->ActiveSkillComponent->SetUnlockedSlotCount(1);
+	TestTrue(TEXT("Active skill can be used before recovery cancel switch"),
+		Player->ActiveSkillComponent->UseActiveSkill());
+
+	TArray<FActiveSkillSlotView> BeforeSwitchSlots = Player->ActiveSkillComponent->GetSlotViews();
+	TestTrue(TEXT("Active skill is cooling down before recovery cancel switch"),
+		BeforeSwitchSlots.IsValidIndex(0) && BeforeSwitchSlots[0].CooldownRemaining > 0.0f);
+
+	const FGameplayTag RecoveryTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
+	const FGameplayTag BonusTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.RecoveryCancelBonus"), false);
+	TestTrue(TEXT("Post-attack recovery tag is registered"), RecoveryTag.IsValid());
+	TestTrue(TEXT("Recovery-cancel bonus tag is registered"), BonusTag.IsValid());
+	if (RecoveryTag.IsValid())
+	{
+		ASC->AddLooseGameplayTag(RecoveryTag);
+	}
+
+	Player->SwitchWeapon();
+
+	TArray<FActiveSkillSlotView> AfterSwitchSlots = Player->ActiveSkillComponent->GetSlotViews();
+	TestTrue(TEXT("Recovery-window weapon switch clears active skill cooldown"),
+		AfterSwitchSlots.IsValidIndex(0) && FMath::IsNearlyZero(AfterSwitchSlots[0].CooldownRemaining));
+	TestTrue(TEXT("Recovery-window weapon switch applies recovery cancel bonus tag"),
+		BonusTag.IsValid() && ASC->GetTagCount(BonusTag) > 0);
+	TestEqual(TEXT("Recovery-window weapon switch still promotes inactive weapon"),
+		Player->EquippedWeaponDef.Get(), WeaponB);
+
 	Player->Destroy();
 	return true;
 }

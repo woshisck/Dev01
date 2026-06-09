@@ -37,6 +37,8 @@ Post-feedback note:
   - `DevKit.CombatDeck.SingleActionSlotsRouteFromSourceAssets`
   - `DevKit.CombatDeck.ComboGraphNodeExportsCombatDeckContextTags`
   - `DevKit.CombatDeck.WeaponSkillComboGraphUsesFinisherDeckContextByDefault`
+  - `DevKit.CombatDeck.PostAttackWindowAppliesRecoveryTag`
+  - `DevKit.CombatDeck.PlayerSwitchWeaponRecoveryCancelClearsActiveSkillCooldown`
 - Broad `DevKit.CombatDeck` group still contains existing unrelated failures in older card-resolution/generated-asset tests. The target tests above were rerun individually and passed.
 
 ## Implemented Code Changes
@@ -169,6 +171,16 @@ Current gameplay interpretation:
 - RunState/checkpoint now persists the inactive weapon definition plus its independent deck source assets, attack-card orientations, shuffle cooldown, and max active sequence size.
 - Restoring from RunState recreates the inactive weapon slot and restores the inactive deck state so switching after a level transition or checkpoint restore keeps the second weapon's cards.
 
+### Post-Attack Recovery Cancel Switch
+
+- `AnimNotifyState_PostAtkWindow` now opens `PlayerState.AbilityCast.PostAttackRecovery` for the duration of the recovery notify.
+- `SwitchWeapon()` checks that recovery-window tag before resetting/switching weapon state.
+- Switching weapon during this recovery window:
+  - clears active skill cooldowns through `PlayerActiveSkillComponent::ClearCooldowns()`
+  - clears weapon special attack cooldown through `PlayerSpecialAttackComponent::ClearCooldown()`
+  - grants `Buff.Status.RecoveryCancelBonus` for `RecoveryCancelBonusDuration`
+- The bonus is currently a gameplay-state marker for BuffFlow/design follow-up. It does not yet apply parry, imbalance, heat, or stat changes by itself.
+
 ### Weapon Combo Node Context
 
 - `WeaponComboNodeConfig` now carries:
@@ -228,6 +240,8 @@ Automation tests were added or updated around:
 - RunState/checkpoint capture and restore for inactive weapon combat decks
 - ComboGraph node Combat Card tags exporting to runtime action slot / flow role
 - WeaponSkill ComboGraph activation defaulting to `WeaponSkill / Finisher` combat deck context
+- post-attack recovery notify opening/closing the recovery window tag
+- recovery-window weapon switch clearing active skill cooldown and granting the recovery-cancel bonus tag
 
 Note: targeted UE automation tests were rerun for the post-feedback changes listed above.
 
@@ -328,16 +342,19 @@ Recommended asset work:
 
 ### 3. Post-Attack Cancel Strengthening
 
-Code has a post-attack window concept, but the strengthening rules need asset/design support.
+Base code support is now in place for weapon switching during post-attack recovery.
 
-Recommended implementation:
+Current code path:
 
-- Define gameplay tags for cancel windows:
-  - post-attack cancel open
-  - cancel performed in recovery
-  - cancel bonus active
-- Montage assets need notify windows for valid cancel timing.
-- BuffFlow cards can then check `FlowRole` plus cancel tags to apply bonuses.
+- Recovery notifies open `PlayerState.AbilityCast.PostAttackRecovery`.
+- Recovery-window weapon switch clears active skill / weapon skill cooldowns.
+- Recovery-window weapon switch grants `Buff.Status.RecoveryCancelBonus`.
+
+Remaining asset/design support:
+
+- Montage assets need `PostAtkWindow` notify windows at the intended cancel timing.
+- BuffFlow or GameplayEffect assets should define what `Buff.Status.RecoveryCancelBonus` actually does.
+- Parry, imbalance, heat/resource, and weapon-swap burst behavior remain follow-up features.
 
 ### 4. Two-Weapon Switch And Heat Extension
 
@@ -347,7 +364,7 @@ Recommended data/code pieces:
 
 - heat/resource requirement
 - parry/imbalance gameplay events
-- cooldown reset rule for skill and weapon skill when switching during recovery cancel
+- recovery-cancel bonus effect data beyond the current cooldown reset marker
 
 ### 5. Deprecated Finisher Cleanup
 
@@ -408,7 +425,7 @@ Recommended cleanup order:
 - heat/resource UI
 - weapon switch GA
 - parry/imbalance gameplay cue/effect assets
-- cooldown reset policy data
+- recovery-cancel bonus GameplayEffect/BuffFlow assets
 
 ## Suggested Next Work Order
 
@@ -431,4 +448,6 @@ Recommended cleanup order:
 8. Classify each graph-based weapon-skill node:
    - leave empty for default `WeaponSkill / Finisher`
    - set Combat Card tags for `Dash / Catalyst` movement/cancel nodes
-9. Only after the above is stable, start heat-based weapon switching, parry, imbalance, and cooldown reset rules.
+9. Add `PostAtkWindow` notify windows to the attack montages that should allow recovery weapon-switch cancel.
+10. Configure BuffFlow/GameplayEffect behavior for `Buff.Status.RecoveryCancelBonus`.
+11. Only after the above is stable, start heat-based weapon switching, parry, and imbalance rules.

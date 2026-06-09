@@ -10,6 +10,7 @@
 UAnimNotifyState_PostAtkWindow::UAnimNotifyState_PostAtkWindow()
 {
     TagToClearOnActionInput = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+    RecoveryWindowTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
 }
 
 void UAnimNotifyState_PostAtkWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
@@ -22,11 +23,31 @@ void UAnimNotifyState_PostAtkWindow::NotifyBegin(USkeletalMeshComponent* MeshCom
         BeginTime = World->GetTimeSeconds();
     }
     bStopRequested = false;
+
+    if (RecoveryWindowTag.IsValid())
+    {
+        UAbilitySystemComponent* ASC =
+            UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MeshComp ? MeshComp->GetOwner() : nullptr);
+        if (ASC)
+        {
+            ASC->SetLooseGameplayTagCount(RecoveryWindowTag, 1);
+        }
+    }
 }
 
 void UAnimNotifyState_PostAtkWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
     const FAnimNotifyEventReference& EventReference)
 {
+    if (RecoveryWindowTag.IsValid())
+    {
+        UAbilitySystemComponent* ASC =
+            UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MeshComp ? MeshComp->GetOwner() : nullptr);
+        if (ASC)
+        {
+            ASC->SetLooseGameplayTagCount(RecoveryWindowTag, 0);
+        }
+    }
+
     Super::NotifyEnd(MeshComp, Animation, EventReference);
 }
 

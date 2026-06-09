@@ -124,6 +124,8 @@
         <li>WeaponSkill 节点默认卡组语义为 <code>WeaponSkill / Finisher</code>，符合“战技视为引爆/终结逻辑”。</li>
         <li>纯位移、闪避、取消节点可在资产上设置 <code>Combo.CombatDeck.ActionSlot.Dash</code> 与 <code>Combo.CombatDeck.FlowRole.Catalyst</code>。</li>
         <li>这些 tag 已加入 <code>Config/Tags/ComboGraphInput.ini</code>，编辑器中可选择。</li>
+        <li>后摇恢复窗口现在由 <code>PostAtkWindow</code> Notify 写入 <code>PlayerState.AbilityCast.PostAttackRecovery</code>。</li>
+        <li>恢复窗口内切换武器会清主动技能/战技冷却，并临时授予 <code>Buff.Status.RecoveryCancelBonus</code>，供 BuffFlow 或 GameplayEffect 资产继续扩展。</li>
       </ul>
     </section>
 
@@ -159,9 +161,9 @@
             <td>目标用例已通过；完整测试组仍有旧的卡牌解析/生成资产失败，建议拆成独立修复任务。</td>
           </tr>
           <tr>
-            <td>热度切武器、弹反、失衡、CD 重置</td>
+            <td>热度切武器、弹反、失衡、恢复取消奖励效果</td>
             <td><span class="badge info">后续功能</span></td>
-            <td>双武器基础已完成；热度资源、弹反事件、失衡 GameplayEffect/Cue、后摇切换 CD 重置还需要单独设计和实现。</td>
+            <td>双武器基础与后摇切换清 CD 已完成；热度资源、弹反事件、失衡 GameplayEffect/Cue、<code>RecoveryCancelBonus</code> 的实际数值/特效资产还需要单独设计和实现。</td>
           </tr>
           <tr>
             <td>旧 Finisher 资产清理</td>
@@ -179,7 +181,9 @@
         <li>新增红灯已确认：测试先因 ComboGraph 节点缺少 Combat Deck tag 字段失败，再实现通过。</li>
         <li>新增测试通过：<code>DevKit.CombatDeck.ComboGraphNodeExportsCombatDeckContextTags</code>。</li>
         <li>新增测试通过：<code>DevKit.CombatDeck.WeaponSkillComboGraphUsesFinisherDeckContextByDefault</code>。</li>
-        <li>之前目标测试仍需在最终提交前整体复跑：WeaponSkill 回根、双武器切换、独立卡组、RunState 恢复、Attack-only UI snapshot。</li>
+        <li>新增测试通过：<code>DevKit.CombatDeck.PostAttackWindowAppliesRecoveryTag</code>。</li>
+        <li>新增测试通过：<code>DevKit.CombatDeck.PlayerSwitchWeaponRecoveryCancelClearsActiveSkillCooldown</code>。</li>
+        <li>目标回归已复跑：WeaponSkill 回根、双武器切换、独立卡组、RunState 恢复、Attack-only UI snapshot。</li>
       </ul>
     </section>
   </main>

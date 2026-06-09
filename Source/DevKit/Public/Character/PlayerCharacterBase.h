@@ -374,6 +374,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	bool CanSwitchWeapon() const;
 
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	bool IsInPostAttackRecoveryWindow() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void SwitchWeapon();
 
@@ -453,6 +456,8 @@ private:
 	void StartDamageTimeDilation();
 	void RestoreDamageTimeDilation();
 	void EndReviveProtection();
+	void ApplyRecoveryCancelWeaponSwitchBonus();
+	void ClearRecoveryCancelBonus();
 
 	int32 CurrentHeatPhase = 0;
 	UPROPERTY()
@@ -465,8 +470,12 @@ private:
 	bool bWaitingForDeathReviveChoice = false;
 	bool bRunStateRestoredFromGI = false;
 	FTimerHandle ReviveProtectionTimerHandle;
+	FTimerHandle RecoveryCancelBonusTimerHandle;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> PlayerOverlayDynMat;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> DamageOverlayDynMat;
 	UPROPERTY() TObjectPtr<UDamageEdgeFlashWidget> DamageEdgeFlashWidget;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon|Recovery Cancel", meta = (ClampMin = "0.0"))
+	float RecoveryCancelBonusDuration = 1.5f;
 
 };

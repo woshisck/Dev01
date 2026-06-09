@@ -55,6 +55,16 @@
 
 namespace
 {
+FGameplayTag GetPostAttackRecoveryTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
+}
+
+FGameplayTag GetRecoveryCancelBonusTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.RecoveryCancelBonus"), false);
+}
+
 void AddSacrificeCostModifier(UGameplayEffect* Effect, const FGameplayAttribute& Attribute, float Delta)
 {
 	if (!Effect || FMath::IsNearlyZero(Delta))
@@ -574,12 +584,21 @@ bool APlayerCharacterBase::CanSwitchWeapon() const
 	return InactiveWeaponDef != nullptr;
 }
 
+bool APlayerCharacterBase::IsInPostAttackRecoveryWindow() const
+{
+	const FGameplayTag RecoveryTag = GetPostAttackRecoveryTag();
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	return RecoveryTag.IsValid() && ASC && ASC->GetTagCount(RecoveryTag) > 0;
+}
+
 void APlayerCharacterBase::SwitchWeapon()
 {
 	if (!CanSwitchWeapon())
 	{
 		return;
 	}
+
+	const bool bRecoveryCancelSwitch = IsInPostAttackRecoveryWindow();
 
 	CaptureEquippedWeaponDeckState();
 	if (!InactiveWeaponDeckState.bInitialized)
@@ -590,6 +609,11 @@ void APlayerCharacterBase::SwitchWeapon()
 	if (ComboRuntimeComponent)
 	{
 		ComboRuntimeComponent->ResetCombo();
+	}
+
+	if (bRecoveryCancelSwitch)
+	{
+		ApplyRecoveryCancelWeaponSwitchBonus();
 	}
 
 	if (EquippedWeaponInstance)
@@ -634,6 +658,60 @@ void APlayerCharacterBase::SwitchWeapon()
 
 	RelinkWeaponAnimLayer();
 	OnWeaponSwitched.Broadcast();
+}
+
+void APlayerCharacterBase::ApplyRecoveryCancelWeaponSwitchBonus()
+{
+	if (ActiveSkillComponent)
+	{
+		ActiveSkillComponent->ClearCooldowns();
+	}
+
+	if (SpecialAttackComponent)
+	{
+		SpecialAttackComponent->ClearCooldown();
+	}
+
+	const FGameplayTag BonusTag = GetRecoveryCancelBonusTag();
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!BonusTag.IsValid() || !ASC)
+	{
+		return;
+	}
+
+	ASC->SetLooseGameplayTagCount(BonusTag, 1);
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(RecoveryCancelBonusTimerHandle);
+		if (RecoveryCancelBonusDuration <= 0.0f)
+		{
+			ClearRecoveryCancelBonus();
+		}
+		else
+		{
+			World->GetTimerManager().SetTimer(
+				RecoveryCancelBonusTimerHandle,
+				this,
+				&APlayerCharacterBase::ClearRecoveryCancelBonus,
+				RecoveryCancelBonusDuration,
+				false);
+		}
+	}
+}
+
+void APlayerCharacterBase::ClearRecoveryCancelBonus()
+{
+	const FGameplayTag BonusTag = GetRecoveryCancelBonusTag();
+	if (!BonusTag.IsValid())
+	{
+		return;
+	}
+
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+	{
+		ASC->SetLooseGameplayTagCount(BonusTag, 0);
+	}
 }
 
 void APlayerCharacterBase::ClearRunCarriedStateForHub()
@@ -1154,6 +1232,12 @@ void APlayerCharacterBase::BeginPlay()
 
 void APlayerCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(RecoveryCancelBonusTimerHandle);
+	}
+	ClearRecoveryCancelBonus();
+
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 	{
 		YogASC->ReceivedDamage.RemoveDynamic(this, &APlayerCharacterBase::HandleDamageReceivedFeedback);

@@ -208,6 +208,24 @@ bool UPlayerActiveSkillComponent::UseActiveSkill()
 	return true;
 }
 
+void UPlayerActiveSkillComponent::ClearCooldowns()
+{
+	bool bChanged = false;
+	for (FActiveSkillRuntimeSlot& Slot : Slots)
+	{
+		if (Slot.CooldownRemaining > 0.0f)
+		{
+			Slot.CooldownRemaining = 0.0f;
+			bChanged = true;
+		}
+	}
+
+	if (bChanged)
+	{
+		BroadcastSlotsChanged();
+	}
+}
+
 void UPlayerActiveSkillComponent::SelectNextSkill()
 {
 	const int32 AvailableSlots = FMath::Clamp(UnlockedSlotCount, 0, Slots.Num());

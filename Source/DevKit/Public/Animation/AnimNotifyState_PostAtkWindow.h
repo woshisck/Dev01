@@ -42,6 +42,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostAtkWindow")
     FGameplayTag TagToClearOnActionInput;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostAtkWindow")
+    FGameplayTag RecoveryWindowTag;
+
     virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
         float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
 
