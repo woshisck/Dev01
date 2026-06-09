@@ -14,7 +14,7 @@ enum class EYogComboGraphInputAction : uint8
 {
 	Light = 0 UMETA(DisplayName = "NormalAttack"),
 	Heavy = 1 UMETA(DisplayName = "SpecialAttack"),
-	WeaponSkill = 2 UMETA(DisplayName = "WeaponSkill"),
+	WeaponSkill = 2 UMETA(DisplayName = "Dash"),
 	Any = 3 UMETA(DisplayName = "Any"),
 	Dash = 5 UMETA(Hidden, DisplayName = "WeaponSkill")
 };
