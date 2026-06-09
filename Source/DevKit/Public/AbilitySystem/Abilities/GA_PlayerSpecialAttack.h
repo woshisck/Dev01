@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbilityTypes.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "Component/CombatDeckComponent.h"
 #include "Data/SpecialAttackDataAsset.h"
 #include "GameplayTagContainer.h"
 #include "GA_PlayerSpecialAttack.generated.h"
@@ -69,6 +70,11 @@ private:
 	float AbilityActivationTime = 0.0f;
 	bool bAddedSpecialAttackLooseTag = false;
 	bool bIsHandlingSpecialAttackEvent = false;
+	bool bHasActiveCombatDeckContext = false;
+	bool bCombatDeckCardResolvedThisActivation = false;
+
+	UPROPERTY()
+	FCombatDeckActionContext ActiveCombatDeckContext;
 
 	void OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount);
 
@@ -87,5 +93,8 @@ private:
 	UFUNCTION()
 	void OnEventReceived(FGameplayTag EventTag, FGameplayEventData EventData);
 
+	void CaptureCombatDeckContext();
+	void PrimeCombatDeckHitContext(const TArray<AActor*>& HitActors) const;
+	FCombatCardResolveResult ResolveCombatDeckOnHit();
 	void ApplyDamageFromEvent(FGameplayTag EventTag, const FGameplayEventData& EventData);
 };

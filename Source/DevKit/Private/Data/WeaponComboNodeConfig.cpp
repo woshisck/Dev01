@@ -28,9 +28,11 @@ FWeaponComboNodeConfig FWeaponComboNodeConfig::FromComboGraphNode(const UGamepla
 
 	Config.NodeId = !Node->NodeId.IsNone() ? Node->NodeId : FName(*Node->GetName());
 	Config.InputAction = InputAction;
+	Config.CombatDeckActionSlot = ECombatDeckActionSlot::Attack;
 	Config.AttackType = Node->AttackType;
 	Config.Montage = Node->Montage;
 	Config.bIsComboFinisher = Node->bIsComboFinisher;
+	Config.CombatDeckFlowRole = Node->bIsComboFinisher ? ECombatDeckFlowRole::Finisher : ECombatDeckFlowRole::Starter;
 	Config.bOverrideComboWindow = Node->bUseNodeComboWindow;
 	Config.ComboWindowStartFrame = Node->ComboWindowStartFrame;
 	Config.ComboWindowEndFrame = Node->ComboWindowEndFrame;

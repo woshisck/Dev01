@@ -25,6 +25,12 @@ struct DEVKIT_API FWeaponComboNodeConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	ECardRequiredAction InputAction = ECardRequiredAction::Any;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+	ECombatDeckActionSlot CombatDeckActionSlot = ECombatDeckActionSlot::Attack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
+	ECombatDeckFlowRole CombatDeckFlowRole = ECombatDeckFlowRole::Starter;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	EYogComboGraphAttackType AttackType = EYogComboGraphAttackType::Melee;
 

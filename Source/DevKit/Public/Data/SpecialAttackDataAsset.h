@@ -6,6 +6,7 @@
 #include "SpecialAttackDataAsset.generated.h"
 
 class UAnimMontage;
+class UGameplayAbilityComboGraph;
 class UTexture2D;
 
 USTRUCT(BlueprintType)
@@ -27,6 +28,9 @@ struct DEVKIT_API FSpecialAttackConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Special Attack")
 	TObjectPtr<UAnimMontage> Montage = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Special Attack")
+	TObjectPtr<UGameplayAbilityComboGraph> ComboGraph = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Special Attack", meta = (ClampMin = "0.0"))
 	float Cooldown = 0.0f;

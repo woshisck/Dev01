@@ -6,8 +6,37 @@
 
 namespace
 {
+	EYogComboGraphInputAction NormalizeInputAction(EYogComboGraphInputAction InputAction)
+	{
+		if (InputAction == EYogComboGraphInputAction::Dash)
+		{
+			return EYogComboGraphInputAction::WeaponSkill;
+		}
+		return InputAction;
+	}
+
+	bool IsKnownInputAction(EYogComboGraphInputAction InputAction)
+	{
+		switch (NormalizeInputAction(InputAction))
+		{
+		case EYogComboGraphInputAction::Light:
+		case EYogComboGraphInputAction::Heavy:
+		case EYogComboGraphInputAction::WeaponSkill:
+		case EYogComboGraphInputAction::Any:
+			return true;
+		default:
+			return false;
+		}
+	}
+
 	bool DoesInputMatch(EYogComboGraphInputAction Required, EYogComboGraphInputAction Input)
 	{
+		Required = NormalizeInputAction(Required);
+		Input = NormalizeInputAction(Input);
+		if (!IsKnownInputAction(Required) || !IsKnownInputAction(Input))
+		{
+			return false;
+		}
 		return Required == EYogComboGraphInputAction::Any || Required == Input;
 	}
 
@@ -34,9 +63,15 @@ namespace
 
 	FString InputActionToString(EYogComboGraphInputAction InputAction)
 	{
+		InputAction = NormalizeInputAction(InputAction);
+		if (!IsKnownInputAction(InputAction))
+		{
+			return FString(TEXT("Invalid"));
+		}
+
 		const UEnum* Enum = StaticEnum<EYogComboGraphInputAction>();
 		return Enum
-			? Enum->GetNameStringByValue(static_cast<int64>(InputAction))
+			? Enum->GetDisplayNameTextByValue(static_cast<int64>(InputAction)).ToString()
 			: FString(TEXT("Any"));
 	}
 }
@@ -113,9 +148,7 @@ UGameplayAbilityComboGraphEdge::UGameplayAbilityComboGraphEdge()
 #if WITH_EDITOR
 FText UGameplayAbilityComboGraphEdge::GetNodeTitle() const
 {
-	return StaticEnum<EYogComboGraphInputAction>()
-		? StaticEnum<EYogComboGraphInputAction>()->GetDisplayNameTextByValue(static_cast<int64>(InputAction))
-		: LOCTEXT("AnyInputEdge", "Any");
+	return FText::FromString(InputActionToString(InputAction));
 }
 #endif
 
@@ -194,6 +227,16 @@ const UGameplayAbilityComboGraphNode* UGameplayAbilityComboGraph::FindChildCombo
 	return nullptr;
 }
 
+TArray<TSubclassOf<UGameplayAbilityComboGraphNode>> UGameplayAbilityComboGraph::GetSupportedNodeClasses() const
+{
+	TArray<TSubclassOf<UGameplayAbilityComboGraphNode>> NodeClasses;
+	if (NodeType && NodeType->IsChildOf(UGameplayAbilityComboGraphNode::StaticClass()))
+	{
+		NodeClasses.Add(TSubclassOf<UGameplayAbilityComboGraphNode>(NodeType.Get()));
+	}
+	return NodeClasses;
+}
+
 void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) const
 {
 	OutWarnings.Reset();
@@ -239,17 +282,24 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 
 		if (ComboNode->ParentNodes.IsEmpty())
 		{
-			if (const FName* ExistingRoot = RootInputs.Find(ComboNode->RootInputAction))
+			const EYogComboGraphInputAction RootInputAction = NormalizeInputAction(ComboNode->RootInputAction);
+			if (!IsKnownInputAction(RootInputAction))
+			{
+				OutWarnings.Add(FText::FromString(FString::Printf(
+					TEXT("Root node %s has an invalid root input."),
+					*RuntimeNodeId.ToString())));
+			}
+			else if (const FName* ExistingRoot = RootInputs.Find(RootInputAction))
 			{
 				OutWarnings.Add(FText::FromString(FString::Printf(
 					TEXT("Root nodes %s and %s use the same root input %s."),
 					*ExistingRoot->ToString(),
 					*RuntimeNodeId.ToString(),
-					*InputActionToString(ComboNode->RootInputAction))));
+					*InputActionToString(RootInputAction))));
 			}
 			else
 			{
-				RootInputs.Add(ComboNode->RootInputAction, RuntimeNodeId);
+				RootInputs.Add(RootInputAction, RuntimeNodeId);
 			}
 		}
 

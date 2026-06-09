@@ -45,6 +45,8 @@ namespace
             return TEXT("L");
         case EYogComboGraphInputAction::Heavy:
             return TEXT("H");
+        case EYogComboGraphInputAction::WeaponSkill:
+            return TEXT("W");
         case EYogComboGraphInputAction::Any:
         default:
             return FString();
@@ -55,12 +57,17 @@ namespace
     {
         if (Token == TEXT("L"))
         {
-            return TEXT("<input action=\"LightAttack\"/>");
+            return TEXT("<input action=\"NormalAttack\"/>");
         }
 
         if (Token == TEXT("H"))
         {
-            return TEXT("<input action=\"HeavyAttack\"/>");
+            return TEXT("<input action=\"SpecialAttack\"/>");
+        }
+
+        if (Token == TEXT("W"))
+        {
+            return TEXT("<input action=\"WeaponSkill\"/>");
         }
 
         return TEXT("[Input]");
@@ -214,7 +221,7 @@ FText UBackpackScreenWidget::BuildConfirmButtonText() const
 FText UBackpackScreenWidget::BuildCancelButtonText() const
 {
     // Gamepad close uses B (Gamepad_FaceButton_Right). The "Back" decorator action resolves
-    // to IA_Dash on gamepad (B icon); "Esc" resolves to IA_Esc which is mapped to the Start
+    // to IA_WeaponSkill on gamepad (B icon); "Esc" resolves to IA_Esc which is mapped to the Start
     // button glyph on gamepad — the wrong icon for this button.
     return bIsGamepadInputMode
         ? FText::FromString(TEXT("<input action=\"Back\"/> 取消"))
@@ -288,8 +295,8 @@ FText UBackpackScreenWidget::BuildComboHintText(const UWeaponDefinition* WeaponD
 
     if (MoveListLines.IsEmpty())
     {
-        MoveListLines.Add(TEXT("连段 01   <input action=\"LightAttack\"/> -> <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"));
-        MoveListLines.Add(TEXT("连段 02   <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"));
+        MoveListLines.Add(TEXT("连段 01   <input action=\"NormalAttack\"/> -> <input action=\"NormalAttack\"/> -> <input action=\"SpecialAttack\"/>"));
+        MoveListLines.Add(TEXT("连段 02   <input action=\"NormalAttack\"/> -> <input action=\"SpecialAttack\"/>"));
     }
 
     return FText::FromString(FString::Join(MoveListLines, TEXT("\n\n")));

@@ -422,7 +422,7 @@ namespace MainUISetup
 
 			ConfigureComboRichText(
 				WeaponComboListText,
-				TEXT("\u8fde\u6bb5 01   <input action=\"LightAttack\"/> -> <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>\n\u8fde\u6bb5 02   <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"),
+				TEXT("\u8fde\u6bb5 01   <input action=\"NormalAttack\"/> -> <input action=\"NormalAttack\"/> -> <input action=\"SpecialAttack\"/>\n\u8fde\u6bb5 02   <input action=\"NormalAttack\"/> -> <input action=\"SpecialAttack\"/>"),
 				FLinearColor(0.88f, 0.91f, 0.96f, 1.f),
 				13);
 			WeaponComboListText->SetVisibility(ESlateVisibility::HitTestInvisible);

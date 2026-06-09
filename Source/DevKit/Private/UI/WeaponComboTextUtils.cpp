@@ -13,6 +13,8 @@ namespace
 			return TEXT("L");
 		case EYogComboGraphInputAction::Heavy:
 			return TEXT("H");
+		case EYogComboGraphInputAction::WeaponSkill:
+			return TEXT("W");
 		case EYogComboGraphInputAction::Any:
 		default:
 			return FString();
@@ -23,12 +25,17 @@ namespace
 	{
 		if (Token == TEXT("L"))
 		{
-			return TEXT("<input action=\"LightAttack\"/>");
+			return TEXT("<input action=\"NormalAttack\"/>");
 		}
 
 		if (Token == TEXT("H"))
 		{
-			return TEXT("<input action=\"HeavyAttack\"/>");
+			return TEXT("<input action=\"SpecialAttack\"/>");
+		}
+
+		if (Token == TEXT("W"))
+		{
+			return TEXT("<input action=\"WeaponSkill\"/>");
 		}
 
 		return TEXT("[Input]");
@@ -168,10 +175,10 @@ FText WeaponComboTextUtils::BuildComboHintText(
 
 	if (MoveListLines.IsEmpty())
 	{
-		MoveListLines.Add(TEXT("\u8fde\u6bb5 01   <input action=\"LightAttack\"/> -> <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"));
+		MoveListLines.Add(TEXT("\u8fde\u6bb5 01   <input action=\"NormalAttack\"/> -> <input action=\"NormalAttack\"/> -> <input action=\"SpecialAttack\"/>"));
 		if (!bLimitLines || ClampedMaxLines > 1)
 		{
-			MoveListLines.Add(TEXT("\u8fde\u6bb5 02   <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"));
+			MoveListLines.Add(TEXT("\u8fde\u6bb5 02   <input action=\"NormalAttack\"/> -> <input action=\"SpecialAttack\"/>"));
 		}
 	}
 

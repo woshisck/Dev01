@@ -8,6 +8,7 @@
 #include "ComboRuntimeComponent.generated.h"
 
 class APlayerCharacterBase;
+class UGameplayAbility;
 class UGameplayAbilityComboGraph;
 class UAbilitySystemComponent;
 struct FCombatDeckActionContext;
@@ -22,11 +23,34 @@ public:
 
 	virtual void LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph) override;
 
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	void LoadWeaponComboGraph(UGameplayAbilityComboGraph* InComboGraph);
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	void LoadSpecialAttackComboGraph(UGameplayAbilityComboGraph* InComboGraph);
+
 	UFUNCTION(BlueprintPure, Category = "Combo")
-	bool HasComboSource() const { return HasComboGraph(); }
+	bool HasComboSource() const { return HasWeaponComboSource(); }
+
+	UFUNCTION(BlueprintPure, Category = "Combo")
+	bool HasWeaponComboSource() const { return WeaponComboGraph != nullptr; }
+
+	UFUNCTION(BlueprintPure, Category = "Combo")
+	bool HasSpecialAttackComboSource() const { return SpecialAttackComboGraph != nullptr; }
+
+	UFUNCTION(BlueprintPure, Category = "Combo")
+	UGameplayAbilityComboGraph* GetWeaponComboGraph() const { return WeaponComboGraph; }
+
+	UFUNCTION(BlueprintPure, Category = "Combo")
+	UGameplayAbilityComboGraph* GetSpecialAttackComboGraph() const { return SpecialAttackComboGraph; }
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	bool TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner);
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	bool TryActivateWeaponSkill(APlayerCharacterBase* PlayerOwner);
+
+	bool TryActivateSpecialAttackCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner);
 
 	virtual void ResetCombo() override;
 
@@ -48,6 +72,12 @@ public:
 
 private:
 	UPROPERTY()
+	TObjectPtr<UGameplayAbilityComboGraph> WeaponComboGraph = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UGameplayAbilityComboGraph> SpecialAttackComboGraph = nullptr;
+
+	UPROPERTY()
 	TSubclassOf<UYogGameplayAbility> ComboSpecialActionAbility;
 
 	UPROPERTY()
@@ -61,4 +91,13 @@ private:
 	bool IsActiveComboAbilityRunning(UAbilitySystemComponent* ASC) const;
 	void ClearStaleActiveComboState(UAbilitySystemComponent* ASC, const TCHAR* Reason);
 	void TrackRuntimeCombatLooseTag(const FGameplayTag& Tag);
+	void SetActiveComboGraph(UGameplayAbilityComboGraph* InComboGraph);
+	bool TryActivateComboFromGraph(
+		UGameplayAbilityComboGraph* SourceGraph,
+		EYogComboGraphInputAction GraphInput,
+		ECardRequiredAction RuntimeInputAction,
+		ECombatDeckActionSlot ActionSlot,
+		ECombatDeckFlowRole FlowRole,
+		APlayerCharacterBase* PlayerOwner,
+		TSubclassOf<UGameplayAbility> AbilityOverride = nullptr);
 };

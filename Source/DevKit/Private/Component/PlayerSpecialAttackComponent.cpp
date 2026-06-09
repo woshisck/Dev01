@@ -2,6 +2,7 @@
 
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Component/ComboRuntimeComponent.h"
 
 UPlayerSpecialAttackComponent::UPlayerSpecialAttackComponent()
 {
@@ -36,13 +37,20 @@ void UPlayerSpecialAttackComponent::SetSpecialAttack(USpecialAttackDataAsset* In
 	SpecialAttackAsset = InSpecialAttack;
 	RuntimeConfig = InSpecialAttack ? InSpecialAttack->Config : FSpecialAttackConfig();
 	CooldownRemaining = 0.0f;
+	if (APlayerCharacterBase* PlayerOwner = GetPlayerOwner())
+	{
+		if (PlayerOwner->ComboRuntimeComponent)
+		{
+			PlayerOwner->ComboRuntimeComponent->LoadSpecialAttackComboGraph(RuntimeConfig.ComboGraph.Get());
+		}
+	}
 	GrantSpecialAttackAbility();
 	BroadcastSpecialAttackChanged();
 }
 
 bool UPlayerSpecialAttackComponent::HasSpecialAttack() const
 {
-	return SpecialAttackAsset && RuntimeConfig.AbilityClass && RuntimeConfig.Montage;
+	return SpecialAttackAsset && RuntimeConfig.AbilityClass && (RuntimeConfig.Montage || RuntimeConfig.ComboGraph);
 }
 
 bool UPlayerSpecialAttackComponent::UseSpecialAttack()
@@ -67,7 +75,21 @@ bool UPlayerSpecialAttackComponent::UseSpecialAttack()
 	}
 
 	GrantSpecialAttackAbility();
-	if (!ASC->TryActivateAbilityByClass(RuntimeConfig.AbilityClass, true))
+	bool bActivated = false;
+	if (RuntimeConfig.ComboGraph)
+	{
+		if (APlayerCharacterBase* PlayerOwner = GetPlayerOwner())
+		{
+			bActivated = PlayerOwner->ComboRuntimeComponent
+				&& PlayerOwner->ComboRuntimeComponent->TryActivateSpecialAttackCombo(RuntimeConfig.AbilityClass, PlayerOwner);
+		}
+	}
+	else
+	{
+		bActivated = ASC->TryActivateAbilityByClass(RuntimeConfig.AbilityClass, true);
+	}
+
+	if (!bActivated)
 	{
 		OnSpecialAttackUseFailed.Broadcast(FText::FromString(TEXT("Cannot activate special attack")));
 		return false;

@@ -3,6 +3,7 @@
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Component/CombatDeckComponent.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 
 UPlayerActiveSkillComponent::UPlayerActiveSkillComponent()
@@ -164,6 +165,37 @@ bool UPlayerActiveSkillComponent::UseActiveSkill()
 	{
 		OnSkillUseFailed.Broadcast(ActiveSlotIndex, FText::FromString(TEXT("Cannot activate skill")));
 		return false;
+	}
+
+	if (Slot.Config.bResolveCombatDeckOnUse)
+	{
+		if (APlayerCharacterBase* PlayerOwner = GetPlayerOwner())
+		{
+			if (PlayerOwner->CombatDeckComponent)
+			{
+				FCombatDeckActionContext Context;
+				Context.ActionType = ECardRequiredAction::Any;
+				Context.ActionSlot = Slot.Config.CombatDeckActionSlot;
+				Context.FlowRole = Slot.Config.CombatDeckFlowRole;
+				Context.WeaponDef = PlayerOwner->EquippedWeaponDef;
+				Context.bIsComboFinisher = Context.FlowRole == ECombatDeckFlowRole::Finisher;
+				Context.ReleaseMode = Context.bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
+				Context.TriggerTiming = Slot.Config.CombatDeckTriggerTiming;
+				Context.bConsumeOnCommit = Context.TriggerTiming == ECombatCardTriggerTiming::OnCommit;
+				Context.AttackInstanceGuid = FGuid::NewGuid();
+
+				if (const UYogGameplayAbility* AbilityCDO = Slot.Config.AbilityClass.GetDefaultObject())
+				{
+					for (const FGameplayTag& Tag : AbilityCDO->AbilityTags)
+					{
+						Context.AbilityTag = Tag;
+						break;
+					}
+				}
+
+				PlayerOwner->CombatDeckComponent->ResolveAttackCardWithContext(Context);
+			}
+		}
 	}
 
 	Slot.CooldownRemaining = FMath::Max(0.0f, Slot.Config.Cooldown);

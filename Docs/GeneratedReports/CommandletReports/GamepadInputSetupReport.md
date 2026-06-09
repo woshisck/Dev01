@@ -1,15 +1,20 @@
 ﻿# Gamepad Input Setup Report
 - Mode: Apply
-- Layout: A=Interact/Accept, B=Dash/Back, X=Light/Secondary/ReverseCard, Y=Heavy/Details, LB=Use item, RB=Use active skill, RS=Switch active skill, Menu=Pause, View=Backpack.
+- Layout: A=Interact/Accept, B=WeaponSkill/Back, X=NormalAttack/Secondary/ReverseCard, Y=SpecialAttack/Details, LB=Use item, RB=Use active skill, RS=Switch active skill, Menu=Pause, View=Backpack.
 
+- Found input action `/Game/Code/Core/Input/Actions/IA_NormalAttack`.
+- Found input action `/Game/Code/Core/Input/Actions/IA_SpecialAttack`.
+- Found input action `/Game/Code/Core/Input/Actions/IA_WeaponSkill`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_UseCombatItem`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_SwitchCombatItemNext`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_SwitchCombatItemPrevious`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_UseActiveSkill`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_SwitchActiveSkill`.
-- Created input action `/Game/Code/Core/Input/Actions/IA_ReverseCard`.
+- Found input action `/Game/Code/Core/Input/Actions/IA_ReverseCard`.
 - `IA_Interact` maps to E, Gamepad_FaceButton_Bottom.
-- `IA_Dash` maps to SpaceBar, Gamepad_FaceButton_Right.
+- `IA_NormalAttack` maps to LeftMouseButton, Gamepad_FaceButton_Left (updated).
+- `IA_SpecialAttack` maps to RightMouseButton, Gamepad_FaceButton_Top (updated).
+- `IA_WeaponSkill` maps to SpaceBar, Gamepad_FaceButton_Right (updated).
 - `IA_Esc` maps to Escape, Gamepad_Special_Right.
 - `IA_OpenBackback` maps to Tab, Gamepad_Special_Left.
 - `IA_Reload` maps to no default keys.
@@ -19,6 +24,8 @@
 - `IA_SwitchCombatItemPrevious` maps to Z, Gamepad_DPad_Left.
 - `IA_UseActiveSkill` maps to R, Gamepad_RightShoulder.
 - `IA_SwitchActiveSkill` maps to T, Gamepad_RightThumbstick.
-- `IA_ReverseCard` maps to R, Gamepad_FaceButton_Left (updated).
-- Controller input defaults already match target actions.
+- `IA_ReverseCard` maps to R, Gamepad_FaceButton_Left.
+- Controller default `Input_NormalAttack` -> `/Game/Code/Core/Input/Actions/IA_NormalAttack.IA_NormalAttack`.
+- Controller default `Input_SpecialAttack` -> `/Game/Code/Core/Input/Actions/IA_SpecialAttack.IA_SpecialAttack`.
+- Controller default `Input_WeaponSkill` -> `/Game/Code/Core/Input/Actions/IA_WeaponSkill.IA_WeaponSkill`.
 - BP_InputActionDecorator has 20 required action mappings (updated).

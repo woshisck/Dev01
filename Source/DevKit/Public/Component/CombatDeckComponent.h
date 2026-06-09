@@ -22,6 +22,13 @@ enum class ECombatLinkBreakReason : uint8
 	ConditionFailed UMETA(DisplayName = "Condition Failed"),
 };
 
+UENUM(BlueprintType)
+enum class ECombatCardReleaseMode : uint8
+{
+	Normal   UMETA(DisplayName = "Normal"),
+	Finisher UMETA(DisplayName = "Finisher"),
+};
+
 USTRUCT(BlueprintType)
 struct DEVKIT_API FCombatDeckActionContext
 {
@@ -29,6 +36,12 @@ struct DEVKIT_API FCombatDeckActionContext
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
 	ECardRequiredAction ActionType = ECardRequiredAction::Any;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	ECombatDeckActionSlot ActionSlot = ECombatDeckActionSlot::Attack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	ECombatDeckFlowRole FlowRole = ECombatDeckFlowRole::Starter;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
 	int32 ComboIndex = 0;
@@ -49,6 +62,9 @@ struct DEVKIT_API FCombatDeckActionContext
 	bool bIsComboFinisher = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	ECombatCardReleaseMode ReleaseMode = ECombatCardReleaseMode::Normal;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
 	bool bComboContinued = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
@@ -59,6 +75,9 @@ struct DEVKIT_API FCombatDeckActionContext
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
 	ECombatCardTriggerTiming TriggerTiming = ECombatCardTriggerTiming::OnHit;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	bool bConsumeOnCommit = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
 	FGuid AttackInstanceGuid;
@@ -126,6 +145,12 @@ struct DEVKIT_API FCombatCardResolveResult
 	bool bActionMatched = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bActionSlotMatched = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bFlowRoleMatched = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
 	bool bTriggeredBaseFlow = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
@@ -148,6 +173,9 @@ struct DEVKIT_API FCombatCardResolveResult
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
 	bool bTriggeredFinisher = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	bool bReleaseModeMatched = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
 	bool bStartedShuffle = false;
@@ -211,6 +239,12 @@ struct DEVKIT_API FCombatCardEffectContext
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
 	FGameplayTag AbilityTag;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	ECombatDeckActionSlot ActionSlot = ECombatDeckActionSlot::Attack;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	ECombatDeckFlowRole FlowRole = ECombatDeckFlowRole::Starter;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
 	float EffectMultiplier = 1.0f;
@@ -296,6 +330,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Combat Deck")
 	TArray<FCombatCardInstance> GetRemainingDeckSnapshot() const;
+
+	UFUNCTION(BlueprintPure, Category = "Combat Deck")
+	FCombatCardInstance GetActionSlotCardSnapshot(ECombatDeckActionSlot Slot) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck|Edit")
 	bool MoveCardInDeck(int32 FromIndex, int32 InsertIndex);
@@ -413,6 +450,15 @@ private:
 	UPROPERTY(SaveGame)
 	int32 MaxActiveSequenceSize = 0;
 
+	UPROPERTY(SaveGame)
+	FCombatCardInstance SkillSlotCard;
+
+	UPROPERTY(SaveGame)
+	FCombatCardInstance WeaponSkillSlotCard;
+
+	UPROPERTY(SaveGame)
+	FCombatCardInstance DashSlotCard;
+
 	UPROPERTY()
 	FCombatCardInstance LastResolvedCard;
 
@@ -429,6 +475,13 @@ private:
 	TSet<FGuid> FinisherCardsWaitingForEffectEnd;
 
 	FCombatCardInstance MakeCardFromRune(URuneDataAsset* RuneAsset, FName OwnerSource) const;
+	bool RouteCardToActionSlot(const FCombatCardInstance& Card);
+	bool StoreCardInSingleActionSlot(const FCombatCardInstance& Card, bool bStopExistingPassiveFlows);
+	void ClearSingleActionSlotCards();
+	bool IsSingleActionSlot(ECombatDeckActionSlot Slot) const;
+	FCombatCardInstance* GetMutableSingleActionSlotCard(ECombatDeckActionSlot Slot);
+	const FCombatCardInstance* GetSingleActionSlotCard(ECombatDeckActionSlot Slot) const;
+	void AppendSingleActionSlotCards(TArray<FCombatCardInstance>& Cards) const;
 	void LoadDeckFromSourceAssetsInternal(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize, bool bAppendTemporaryFinisherCard);
 	void AppendTemporaryInitialFinisherCard(TArray<URuneDataAsset*>& SourceAssets) const;
 	bool IsTemporaryFinisherLocked(const FCombatCardInstance& Card, int32& OutRequiredBattles, int32& OutCurrentBattles) const;
@@ -450,6 +503,9 @@ private:
 	void AdvanceShuffle(float DeltaTime);
 	void ExecuteFlow(UFlowAsset* FlowAsset, const FCombatCardInstance& Card, const FCombatDeckActionContext& Context, FCombatCardResolveResult& Result) const;
 	bool DoesActionMatch(ECardRequiredAction RequiredAction, ECardRequiredAction ActionType) const;
+	bool DoesActionSlotMatch(ECombatDeckActionSlot RequiredSlot, ECombatDeckActionSlot ActionSlot) const;
+	bool DoesFlowRoleMatch(ECombatDeckFlowRole RequiredRole, ECombatDeckFlowRole FlowRole) const;
+	bool DoesReleaseModeMatch(const FCombatCardConfig& Config, const FCombatDeckActionContext& Context) const;
 	void BreakPendingLink(ECombatLinkBreakReason Reason, const FCombatDeckActionContext* BreakContext = nullptr);
 	int32 GetComboBonusStacks(const FCombatDeckActionContext& Context) const;
 	float GetComboEffectMultiplier(const FCombatCardConfig& Config, const FCombatDeckActionContext& Context) const;

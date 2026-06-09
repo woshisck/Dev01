@@ -12,9 +12,11 @@ class UAnimMontage;
 UENUM(BlueprintType)
 enum class EYogComboGraphInputAction : uint8
 {
-	Light = 0 UMETA(DisplayName = "Light"),
-	Heavy = 1 UMETA(DisplayName = "Heavy"),
-	Any = 3 UMETA(DisplayName = "Any")
+	Light = 0 UMETA(DisplayName = "NormalAttack"),
+	Heavy = 1 UMETA(DisplayName = "SpecialAttack"),
+	WeaponSkill = 2 UMETA(DisplayName = "WeaponSkill"),
+	Any = 3 UMETA(DisplayName = "Any"),
+	Dash = 5 UMETA(Hidden, DisplayName = "WeaponSkill")
 };
 
 /**
@@ -115,6 +117,9 @@ public:
 
 	const UGameplayAbilityComboGraphNode* FindRootComboNode(EYogComboGraphInputAction InputAction) const;
 	const UGameplayAbilityComboGraphNode* FindChildComboNode(FName ParentNodeId, EYogComboGraphInputAction InputAction, const FGameplayTagContainer* OwnedTags = nullptr) const;
+
+	UFUNCTION(BlueprintPure, Category = "Combo")
+	TArray<TSubclassOf<UGameplayAbilityComboGraphNode>> GetSupportedNodeClasses() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	void ValidateComboGraph(TArray<FText>& OutWarnings) const;

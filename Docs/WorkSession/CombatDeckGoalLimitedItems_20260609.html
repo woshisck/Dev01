@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>目标受限条目 - Combat Deck / ComboGraph - 2026-06-09</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --ink: #1d2430;
+      --muted: #596273;
+      --line: #d9dee7;
+      --accent: #0c6f8f;
+      --accent-soft: #e2f3f7;
+      --warn: #9a5b00;
+      --warn-soft: #fff3d6;
+      --risk: #a83232;
+      --risk-soft: #ffe7e7;
+      --ok: #1d7545;
+      --ok-soft: #e3f4e9;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.58 "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 24px 56px;
+    }
+
+    header {
+      margin-bottom: 22px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 19px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 10px;
+    }
+
+    .meta {
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 20px 0 24px;
+    }
+
+    .metric, section, .item {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .metric {
+      padding: 14px 16px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 24px;
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    section {
+      padding: 18px;
+      margin: 16px 0;
+    }
+
+    .item {
+      padding: 16px;
+      margin: 12px 0;
+    }
+
+    .item-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .p0 { background: var(--risk-soft); color: var(--risk); }
+    .p1 { background: var(--warn-soft); color: var(--warn); }
+    .p2 { background: var(--accent-soft); color: var(--accent); }
+    .done { background: var(--ok-soft); color: var(--ok); }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .detail {
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+
+    .detail b {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    ul, ol {
+      margin: 8px 0 0;
+      padding-left: 22px;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    code {
+      background: #eef1f5;
+      border: 1px solid #dde2ea;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      background: var(--panel);
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eef1f5;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        padding: 22px 14px 40px;
+      }
+
+      .summary-grid,
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .item-head {
+        display: block;
+      }
+
+      .badges {
+        justify-content: flex-start;
+        margin-top: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>目标受限需要解决的条目</h1>
+      <div class="meta">
+        <span>项目：DevKit / Combat Deck / ComboGraph</span>
+        <span>分支：<code>ComboGraphRemoveDash</code></span>
+        <span>日期：2026-06-09</span>
+        <span>状态：代码骨架已推进，部分目标受资产与设计配置限制</span>
+      </div>
+    </header>
+
+    <div class="summary-grid">
+      <div class="metric">
+        <strong>5</strong>
+        <span>主要受限条目</span>
+      </div>
+      <div class="metric">
+        <strong>3</strong>
+        <span>需要资产配置验证的输入/图系统</span>
+      </div>
+      <div class="metric">
+        <strong>2</strong>
+        <span>需要新增玩法数据结构的方向</span>
+      </div>
+      <div class="metric">
+        <strong>1</strong>
+        <span>建议暂缓的大型系统：双武器热度切换</span>
+      </div>
+    </div>
+
+    <section>
+      <h2>当前已具备的基础</h2>
+      <ul>
+        <li>输入名已整理为 <code>NormalAttack</code>、<code>SpecialAttack</code>、<code>WeaponSkill</code>，旧 Light/Heavy/Dash 保留兼容。</li>
+        <li>ComboGraph 已支持 <code>WeaponSkill</code> 输入，并把旧 <code>Dash</code> 图输入兼容映射到 <code>WeaponSkill</code>。</li>
+        <li>SpecialAttack 已能单独挂 <code>SpecialAttackDataAsset.Config.ComboGraph</code>。</li>
+        <li>CombatDeck 已拆出 <code>Attack</code> 顺序卡组，以及 <code>Skill</code>、<code>WeaponSkill</code>、<code>Dash</code> 单槽。</li>
+        <li>BuffFlow 已能读取 <code>ActionSlot</code> 和 <code>FlowRole</code>，可区分启动、催化、终结。</li>
+        <li>最近一次编译已通过：<code>Build.bat DevKitEditor Win64 Development</code> 退出码为 <code>0</code>。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>受限条目清单</h2>
+
+      <article class="item">
+        <div class="item-head">
+          <h3>1. WeaponSkill 当前语义仍与 Dash fallback 混在一起</h3>
+          <div class="badges">
+            <span class="badge p0">优先级 P0</span>
+            <span class="badge p1">需要代码决策</span>
+          </div>
+        </div>
+        <p>当前输入链路是：按 <code>WeaponSkill</code> 先尝试武器 ComboGraph 的 <code>WeaponSkill</code> 节点，失败后回退到 <code>PlayerState.AbilityCast.Dash</code>。</p>
+        <div class="detail-grid">
+          <div class="detail">
+            <b>阻塞点</b>
+            <p>图驱动的 WeaponSkill 在运行时目前映射为 <code>Dash / Catalyst</code>，而设计目标里“战技”更像 <code>WeaponSkill / Finisher</code>。</p>
+          </div>
+          <div class="detail">
+            <b>需要解决</b>
+            <p>明确战技是否就是终结/引爆。如果是，需要把 graph-based weapon skill 改为 <code>WeaponSkill / Finisher</code>，只让 fallback dash 保持 <code>Dash / Catalyst</code>。</p>
+          </div>
+          <div class="detail">
+            <b>资产需求</b>
+            <p>武器 ComboGraph 需要有明确 <code>WeaponSkill</code> root；战技节点需要有效 montage 或 montage config。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="item">
+        <div class="item-head">
+          <h3>2. 重型武器变闪避还缺武器分类与 Dodge 能力</h3>
+          <div class="badges">
+            <span class="badge p0">优先级 P0</span>
+            <span class="badge p1">需要数据结构</span>
+            <span class="badge p1">需要资产</span>
+          </div>
+        </div>
+        <p>设计目标是“无武器默认冲刺，携带重型武器变为闪避，或者由武器覆盖玩家移动技能”。当前代码还不能完整表达这个规则。</p>
+        <div class="detail-grid">
+          <div class="detail">
+            <b>阻塞点</b>
+            <p><code>EWeaponType</code> 目前只有 <code>Melee</code> 和 <code>Ranged</code>，没有 Heavy；项目里也没有独立 <code>Dodge</code> GA 和 <code>PlayerState.AbilityCast.Dodge</code> 路径。</p>
+          </div>
+          <div class="detail">
+            <b>需要解决</b>
+            <p>在 <code>WeaponDefinition</code> 增加移动覆盖配置，例如 <code>DefaultDash</code>、<code>Dodge</code>、<code>OverrideAbility</code>。</p>
+          </div>
+          <div class="detail">
+            <b>资产需求</b>
+            <p>Dodge GA、Dodge montage、Dodge gameplay tag、重型武器 DA 的移动覆盖配置。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="item">
+        <div class="item-head">
+          <h3>3. 后摇取消强化需要动画窗口和标签协议</h3>
+          <div class="badges">
+            <span class="badge p1">优先级 P1</span>
+            <span class="badge p1">需要动画配置</span>
+          </div>
+        </div>
+        <p>当前 SpecialAttack 和普通攻击之间已经有 <code>CanCombo</code> 连接基础，但“后摇阶段取消获得强化”还没有完整协议。</p>
+        <div class="detail-grid">
+          <div class="detail">
+            <b>阻塞点</b>
+            <p>缺少统一的 recovery cancel window tag、cancel performed tag、cancel bonus active tag。</p>
+          </div>
+          <div class="detail">
+            <b>需要解决</b>
+            <p>定义 montage notify window；在技能、战技、冲刺取消攻击后摇时写入状态；BuffFlow 根据状态给予强化。</p>
+          </div>
+          <div class="detail">
+            <b>资产需求</b>
+            <p>攻击 montage 的后摇窗口 notify、取消强化 BuffFlow、取消成功的反馈音效/VFX。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="item">
+        <div class="item-head">
+          <h3>4. 卡组 UI 还没有表现四类槽位</h3>
+          <div class="badges">
+            <span class="badge p1">优先级 P1</span>
+            <span class="badge p2">需要 UI</span>
+          </div>
+        </div>
+        <p>代码已经拆出 Attack 顺序卡组和三个单槽，但 UI 仍需要把这些槽位清晰展示给玩家。</p>
+        <div class="detail-grid">
+          <div class="detail">
+            <b>阻塞点</b>
+            <p>现有 UI 多数仍围绕 full deck / remaining deck 展示，缺少 Skill、WeaponSkill、Dash 单槽的装备与替换交互。</p>
+          </div>
+          <div class="detail">
+            <b>需要解决</b>
+            <p>用 <code>GetActionSlotCardSnapshot()</code> 支持 UI 展示，并增加替换/清空单槽的交互接口。</p>
+          </div>
+          <div class="detail">
+            <b>资产需求</b>
+            <p>槽位图标、卡面状态、攻击顺序编号、单槽锁定/空槽视觉。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="item">
+        <div class="item-head">
+          <h3>5. 双武器热度切换是独立大系统</h3>
+          <div class="badges">
+            <span class="badge p2">优先级 P2</span>
+            <span class="badge p1">建议暂缓</span>
+          </div>
+        </div>
+        <p>双武器、热度条、爆豆打断、弹反失衡、CD 重置、两套卡组不共用，已经超出当前输入和卡组槽位重构的范围。</p>
+        <div class="detail-grid">
+          <div class="detail">
+            <b>阻塞点</b>
+            <p>缺少第二武器槽、每把武器独立 deck 存储、热度资源和切换能力。</p>
+          </div>
+          <div class="detail">
+            <b>需要解决</b>
+            <p>先作为单独 feature 做数据模型和能力链路，再接入当前 CombatDeck slot 体系。</p>
+          </div>
+          <div class="detail">
+            <b>资产需求</b>
+            <p>双武器 UI、热度条 UI、切换 montage、弹反/失衡 GE、命中反馈和切换 VFX。</p>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section>
+      <h2>建议下一步</h2>
+      <ol>
+        <li>先在编辑器里验证无武器 <code>NormalAttack</code> 不再触发 dash，<code>WeaponSkill</code> 仍能触发 dash fallback。</li>
+        <li>给两手剑测试资产补齐 <code>NormalAttack</code> root 与 <code>WeaponSkill</code> root，并确认每个节点有 montage/montage config。</li>
+        <li>决定 graph-based weapon skill 的 deck context 是否改成 <code>WeaponSkill / Finisher</code>。</li>
+        <li>配置四张最小验证卡：<code>Attack / Starter</code>、<code>Attack / Catalyst</code>、<code>Skill / Catalyst</code>、<code>WeaponSkill / Finisher</code>。</li>
+        <li>确认四槽 UI 方案后，再做单槽替换/清空接口。</li>
+        <li>重武器 Dodge 和双武器热度切换作为后续独立任务拆分。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>最小资产需求表</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>类别</th>
+            <th>必须资产/配置</th>
+            <th>用途</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>输入</td>
+            <td><code>IA_NormalAttack</code>, <code>IA_SpecialAttack</code>, <code>IA_WeaponSkill</code>, <code>IMC_YogPlayerBase</code></td>
+            <td>验证新输入命名和 fallback 绑定。</td>
+          </tr>
+          <tr>
+            <td>ComboGraph</td>
+            <td>无武器图、两手剑图、WeaponSkill root 节点、有效 montage config</td>
+            <td>验证普通攻击、战技和无武器默认状态。</td>
+          </tr>
+          <tr>
+            <td>SpecialAttack</td>
+            <td><code>SpecialAttackDataAsset</code>, special combo graph, special montage</td>
+            <td>验证 SpecialAttack 和普通攻击图分离。</td>
+          </tr>
+          <tr>
+            <td>CombatDeck</td>
+            <td>Attack/Skill/WeaponSkill/Dash 四类测试 rune card 与 BuffFlow</td>
+            <td>验证攻击顺序卡组和单槽重复触发。</td>
+          </tr>
+          <tr>
+            <td>Dodge</td>
+            <td>Dodge tag、Dodge GA、Dodge montage、武器移动覆盖字段</td>
+            <td>实现重武器从 dash 变 dodge。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

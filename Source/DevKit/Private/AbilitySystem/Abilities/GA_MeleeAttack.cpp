@@ -296,12 +296,15 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 	if (!bUsedComboRuntimeContext)
 	{
 		Context.ActionType = GetCombatDeckActionType();
+		Context.ActionSlot = ECombatDeckActionSlot::Attack;
 		Context.ComboIndex = ActiveComboIndex;
 		Context.ComboNodeId = bActiveComboNodeValid ? ActiveComboNode.NodeId : NAME_None;
 		Context.ComboTags = ActiveComboTags;
 		Context.AbilityTag = bActiveComboNodeValid ? ActiveComboNode.AbilityTag : FGameplayTag();
 		Context.WeaponDef = PlayerOwner->EquippedWeaponDef;
 		Context.bIsComboFinisher = IsCombatDeckComboFinisher();
+		Context.FlowRole = Context.bIsComboFinisher ? ECombatDeckFlowRole::Finisher : ECombatDeckFlowRole::Starter;
+		Context.ReleaseMode = Context.bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
 		Context.bComboContinued = bComboContinued;
 		Context.bExitedComboState = bExitedComboState;
 		Context.bFromDashSave = bCombatDeckFromDashSave;
@@ -322,9 +325,11 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 	}
 
 	UE_LOG(LogTemp, Warning,
-		TEXT("[CombatDeckContext] Runtime=%d Action=%s ComboIndex=%d Node=%s Continued=%d Exited=%d Trigger=%d Ability=%s Guid=%s"),
+		TEXT("[CombatDeckContext] Runtime=%d Action=%s Slot=%s Role=%s ComboIndex=%d Node=%s Continued=%d Exited=%d Trigger=%d Ability=%s Guid=%s"),
 		bUsedComboRuntimeContext ? 1 : 0,
 		*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(Context.ActionType)),
+		*StaticEnum<ECombatDeckActionSlot>()->GetNameStringByValue(static_cast<int64>(Context.ActionSlot)),
+		*StaticEnum<ECombatDeckFlowRole>()->GetNameStringByValue(static_cast<int64>(Context.FlowRole)),
 		Context.ComboIndex,
 		*Context.ComboNodeId.ToString(),
 		Context.bComboContinued ? 1 : 0,
@@ -383,7 +388,7 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	}
 
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	EInputCommandType BufferedAttackType = EInputCommandType::LightAttack;
+	EInputCommandType BufferedAttackType = EInputCommandType::NormalAttack;
 	if (!Buffer->ConsumeLatestAttackInputSince(AbilityActivationTime, BufferedAttackType))
 	{
 		// === DIAG: attack-stuck repro (CL564) ===
@@ -395,10 +400,10 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 		return;
 	}
 
-	const ECardRequiredAction ActionType = BufferedAttackType == EInputCommandType::HeavyAttack
+	const ECardRequiredAction ActionType = BufferedAttackType == EInputCommandType::SpecialAttack
 		? ECardRequiredAction::Heavy
 		: ECardRequiredAction::Light;
-	const TCHAR* FallbackTagName = BufferedAttackType == EInputCommandType::HeavyAttack
+	const TCHAR* FallbackTagName = BufferedAttackType == EInputCommandType::SpecialAttack
 		? TEXT("PlayerState.AbilityCast.HeavyAtk")
 		: TEXT("PlayerState.AbilityCast.LightAtk");
 
@@ -418,7 +423,7 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	// === DIAG: attack-stuck repro (CL564) ===
 	UE_LOG(LogTemp, Verbose,
 		TEXT("[Melee][DIAG564] OnCanComboTagChanged consumed=%s HasComboSource=%d Activated=%d Tag=%s"),
-		BufferedAttackType == EInputCommandType::HeavyAttack ? TEXT("Heavy") : TEXT("Light"),
+		BufferedAttackType == EInputCommandType::SpecialAttack ? TEXT("SpecialAttack") : TEXT("NormalAttack"),
 		bHasComboSource ? 1 : 0, bActivated ? 1 : 0, *Tag.ToString());
 
 	if (!bActivated && ASC && Tag.IsValid())

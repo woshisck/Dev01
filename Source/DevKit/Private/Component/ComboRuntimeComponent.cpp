@@ -101,15 +101,88 @@ void UComboRuntimeComponent::SetComboSpecialActionAbility(TSubclassOf<UYogGamepl
 
 void UComboRuntimeComponent::LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph)
 {
-	Super::LoadComboGraph(InComboGraph);
+	LoadWeaponComboGraph(InComboGraph);
+}
+
+void UComboRuntimeComponent::LoadWeaponComboGraph(UGameplayAbilityComboGraph* InComboGraph)
+{
+	WeaponComboGraph = InComboGraph;
+	SetActiveComboGraph(WeaponComboGraph);
+}
+
+void UComboRuntimeComponent::LoadSpecialAttackComboGraph(UGameplayAbilityComboGraph* InComboGraph)
+{
+	const bool bWasActiveSpecialGraph = GetComboGraph() == SpecialAttackComboGraph;
+	SpecialAttackComboGraph = InComboGraph;
+
+	if (bWasActiveSpecialGraph)
+	{
+		SetActiveComboGraph(SpecialAttackComboGraph ? SpecialAttackComboGraph : WeaponComboGraph);
+	}
+	else if (!WeaponComboGraph && SpecialAttackComboGraph)
+	{
+		SetActiveComboGraph(SpecialAttackComboGraph);
+	}
+}
+
+void UComboRuntimeComponent::SetActiveComboGraph(UGameplayAbilityComboGraph* InComboGraph)
+{
+	if (GetComboGraph() != InComboGraph)
+	{
+		Super::LoadComboGraph(InComboGraph);
+	}
 }
 
 bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner)
 {
-	if (!HasComboGraph() || !PlayerOwner)
+	return TryActivateComboFromGraph(
+		WeaponComboGraph,
+		CardActionToComboGraphInput(InputAction),
+		InputAction,
+		ECombatDeckActionSlot::Attack,
+		ECombatDeckFlowRole::Starter,
+		PlayerOwner);
+}
+
+bool UComboRuntimeComponent::TryActivateWeaponSkill(APlayerCharacterBase* PlayerOwner)
+{
+	return TryActivateComboFromGraph(
+		WeaponComboGraph,
+		EYogComboGraphInputAction::WeaponSkill,
+		ECardRequiredAction::Any,
+		ECombatDeckActionSlot::Dash,
+		ECombatDeckFlowRole::Catalyst,
+		PlayerOwner,
+		ComboSpecialActionAbility);
+}
+
+bool UComboRuntimeComponent::TryActivateSpecialAttackCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner)
+{
+	return TryActivateComboFromGraph(
+		SpecialAttackComboGraph,
+		EYogComboGraphInputAction::Heavy,
+		ECardRequiredAction::Heavy,
+		ECombatDeckActionSlot::WeaponSkill,
+		ECombatDeckFlowRole::Finisher,
+		PlayerOwner,
+		AbilityClass);
+}
+
+bool UComboRuntimeComponent::TryActivateComboFromGraph(
+	UGameplayAbilityComboGraph* SourceGraph,
+	EYogComboGraphInputAction GraphInput,
+	ECardRequiredAction RuntimeInputAction,
+	ECombatDeckActionSlot ActionSlot,
+	ECombatDeckFlowRole FlowRole,
+	APlayerCharacterBase* PlayerOwner,
+	TSubclassOf<UGameplayAbility> AbilityOverride)
+{
+	if (!SourceGraph || !PlayerOwner)
 	{
 		return false;
 	}
+
+	SetActiveComboGraph(SourceGraph);
 
 	UAbilitySystemComponent* ASC = PlayerOwner->GetAbilitySystemComponent();
 	if (!ASC)
@@ -121,7 +194,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	{
 		UE_LOG(LogTemp, Verbose,
 			TEXT("[ComboRuntime] Block combo activation during special attack until CanCombo opens input=%s"),
-			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)));
+			*StaticEnum<EYogComboGraphInputAction>()->GetNameStringByValue(static_cast<int64>(GraphInput)));
 		return false;
 	}
 
@@ -145,7 +218,6 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 		ASC->GetOwnedGameplayTags(OwnedTags);
 
 		FYogComboGraphNodeSelection Selection;
-		const EYogComboGraphInputAction GraphInput = CardActionToComboGraphInput(InputAction);
 		if (FindNextComboGraphNode(GraphInput, &OwnedTags, Selection))
 		{
 			if (bHasActiveAttackNode && !Selection.bFoundChildNode)
@@ -154,7 +226,10 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 			}
 			else
 			{
-				NextNodeConfig = FWeaponComboNodeConfig::FromComboGraphNode(Selection.Node, InputAction);
+				NextNodeConfig = FWeaponComboNodeConfig::FromComboGraphNode(Selection.Node, RuntimeInputAction);
+				NextNodeConfig.CombatDeckActionSlot = ActionSlot;
+				NextNodeConfig.CombatDeckFlowRole = NextNodeConfig.bIsComboFinisher ? ECombatDeckFlowRole::Finisher : FlowRole;
+				NextNodeConfig.bIsComboFinisher = NextNodeConfig.bIsComboFinisher || NextNodeConfig.CombatDeckFlowRole == ECombatDeckFlowRole::Finisher;
 				NextNode = &NextNodeConfig;
 				bFoundChildNode = Selection.bFoundChildNode;
 				PrepareComboGraphNodeActivation(Selection);
@@ -166,7 +241,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	{
 		UE_LOG(LogTemp, Verbose,
 			TEXT("[ComboRuntime] Ignore input without child while active node is playing input=%s current=%s"),
-			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
+			*StaticEnum<EYogComboGraphInputAction>()->GetNameStringByValue(static_cast<int64>(GraphInput)),
 			*StartNodeId.ToString());
 		return false;
 	}
@@ -175,7 +250,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	{
 		UE_LOG(LogTemp, Warning,
 			TEXT("[ComboRuntime] No combo node for input=%s current=%s graph=%s"),
-			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
+			*StaticEnum<EYogComboGraphInputAction>()->GetNameStringByValue(static_cast<int64>(GraphInput)),
 			*GetCurrentNodeId().ToString(),
 			*GetNameSafe(GetComboGraph()));
 		if (!GetCurrentNodeId().IsNone() && PlayerOwner->CombatDeckComponent)
@@ -194,7 +269,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 		{
 			UE_LOG(LogTemp, Verbose,
 				TEXT("[ComboRuntime] Queue child activation until CanCombo opens input=%s current=%s next=%s"),
-				*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
+				*StaticEnum<EYogComboGraphInputAction>()->GetNameStringByValue(static_cast<int64>(GraphInput)),
 				*GetCurrentNodeId().ToString(),
 				*NextNode->NodeId.ToString());
 			ClearPreparedComboActivation();
@@ -221,9 +296,11 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 	// node's AttackType. Previously hard-coded to UGA_PlayMontage, which doesn't
 	// run the YogTargetType hit-collection pipeline (that lives on UGA_MeleeAttack).
 	// GA_RangeAttack is a stub for now; flip the enum in the editor to test routing.
-	TSubclassOf<UGameplayAbility> AbilityClass = (NextNode->AttackType == EYogComboGraphAttackType::Range)
-		? TSubclassOf<UGameplayAbility>(UGA_RangeAttack::StaticClass())
-		: TSubclassOf<UGameplayAbility>(UGA_MeleeAttack::StaticClass());
+	TSubclassOf<UGameplayAbility> AbilityClass = AbilityOverride
+		? TSubclassOf<UGameplayAbility>(AbilityOverride.Get())
+		: (NextNode->AttackType == EYogComboGraphAttackType::Range)
+			? TSubclassOf<UGameplayAbility>(UGA_RangeAttack::StaticClass())
+			: TSubclassOf<UGameplayAbility>(UGA_MeleeAttack::StaticClass());
 
 	const bool bActivated = ASC->TryActivateAbilityByClass(AbilityClass, true);
 	if (!bActivated)
@@ -231,7 +308,7 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 		UE_LOG(LogTemp, Warning,
 			TEXT("[ComboRuntime] Failed to activate node=%s input=%s current=%s montage=%s montageConfig=%s attackType=%s ability=%s"),
 			*NextNode->NodeId.ToString(),
-			*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(InputAction)),
+			*StaticEnum<EYogComboGraphInputAction>()->GetNameStringByValue(static_cast<int64>(GraphInput)),
 			*GetCurrentNodeId().ToString(),
 			*GetNameSafe(NextNode->Montage.Get()),
 			*GetNameSafe(NextNode->MontageConfig.Get()),
@@ -378,11 +455,14 @@ FCombatDeckActionContext UComboRuntimeComponent::BuildAttackContext(ECombatCardT
 	}
 
 	Context.ActionType = ActiveNode.InputAction;
+	Context.ActionSlot = ActiveNode.CombatDeckActionSlot;
+	Context.FlowRole = ActiveNode.CombatDeckFlowRole;
 	Context.ComboIndex = GetComboIndex();
 	Context.ComboNodeId = ActiveNode.NodeId;
 	Context.ComboTags = GetComboTags();
 	Context.WeaponDef = PlayerOwner ? PlayerOwner->EquippedWeaponDef : nullptr;
 	Context.bIsComboFinisher = ActiveNode.bIsComboFinisher;
+	Context.ReleaseMode = ActiveNode.bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
 	Context.bComboContinued = DidComboContinue();
 	Context.bExitedComboState = DidExitComboState();
 	Context.TriggerTiming = TriggerTiming;

@@ -168,6 +168,8 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCard(ECardRequiredAc
 	FCombatDeckActionContext Context;
 	Context.ActionType = ActionType;
 	Context.bIsComboFinisher = bIsComboFinisher;
+	Context.ReleaseMode = bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
+	Context.FlowRole = bIsComboFinisher ? ECombatDeckFlowRole::Finisher : ECombatDeckFlowRole::Starter;
 	Context.bFromDashSave = bFromDashSave;
 	Context.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
 	Context.AttackInstanceGuid = FGuid::NewGuid();
@@ -183,15 +185,14 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 {
 	FCombatCardResolveResult Result;
 	Result.ActionContext = Context;
+	if (Result.ActionContext.bIsComboFinisher)
+	{
+		Result.ActionContext.ReleaseMode = ECombatCardReleaseMode::Finisher;
+	}
 
 	if (Context.bExitedComboState)
 	{
-		BreakPendingLink(ECombatLinkBreakReason::ComboStateExited, &Context);
-	}
-
-	if (DeckState == EDeckState::EmptyShuffling || !ActiveSequence.IsValidIndex(CurrentIndex))
-	{
-		return Result;
+		BreakPendingLink(ECombatLinkBreakReason::ComboStateExited, &Result.ActionContext);
 	}
 
 	if (Context.AttackInstanceGuid.IsValid() && ResolvedAttackGuids.Contains(Context.AttackInstanceGuid))
@@ -199,12 +200,41 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		return Result;
 	}
 
-	FCombatCardInstance Card = ActiveSequence[CurrentIndex];
+	const bool bUseSingleActionSlot = IsSingleActionSlot(Result.ActionContext.ActionSlot);
+	FCombatCardInstance Card;
+	if (bUseSingleActionSlot)
+	{
+		const FCombatCardInstance* SlotCard = GetSingleActionSlotCard(Result.ActionContext.ActionSlot);
+		if (!SlotCard || !SlotCard->IsValidCard())
+		{
+			return Result;
+		}
+
+		Card = *SlotCard;
+	}
+	else
+	{
+		if (DeckState == EDeckState::EmptyShuffling || !ActiveSequence.IsValidIndex(CurrentIndex))
+		{
+			return Result;
+		}
+
+		Card = ActiveSequence[CurrentIndex];
+	}
+
+	Result.bReleaseModeMatched = DoesReleaseModeMatch(Card.Config, Result.ActionContext);
+	Result.bActionSlotMatched = DoesActionSlotMatch(Card.Config.RequiredActionSlot, Result.ActionContext.ActionSlot);
+	Result.bFlowRoleMatched = DoesFlowRoleMatch(Card.Config.RequiredFlowRole, Result.ActionContext.FlowRole);
 
 	// OnCommit path: runs PreCommitFlow (e.g. trail setup) without consuming the card.
 	// CurrentIndex is NOT advanced so the same card is still available for OnHit resolution.
-	if (Context.TriggerTiming == ECombatCardTriggerTiming::OnCommit)
+	if (Context.TriggerTiming == ECombatCardTriggerTiming::OnCommit && !Context.bConsumeOnCommit)
 	{
+		if (!Result.bReleaseModeMatched || !Result.bActionSlotMatched || !Result.bFlowRoleMatched)
+		{
+			return Result;
+		}
+
 		if (Card.Config.PreCommitFlow)
 		{
 			// Use a derived GUID so BaseFlow (keyed at Card.InstanceGuid) never stops
@@ -234,11 +264,37 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	const float CurrentCardComboMultiplier = GetComboEffectMultiplier(Card.Config, Context);
 	Result.bHadCard = true;
 	Result.ConsumedCard = Card;
-	Result.bActionMatched = !IsLinkCardType(Card.Config.CardType)
+	if (!Result.bReleaseModeMatched)
+	{
+		if (PendingLinkContext.IsValidCard())
+		{
+			BreakPendingLink(ECombatLinkBreakReason::ConditionFailed, &Result.ActionContext);
+		}
+
+		if (Context.AttackInstanceGuid.IsValid())
+		{
+			ResolvedAttackGuids.Add(Context.AttackInstanceGuid);
+		}
+
+		return Result;
+	}
+
+	const bool bLegacyActionMatched = !IsLinkCardType(Card.Config.CardType)
 		? true
 		: DoesActionMatch(Card.Config.RequiredAction, Context.ActionType);
+	Result.bActionMatched = bLegacyActionMatched && Result.bActionSlotMatched && Result.bFlowRoleMatched;
 	SetAppliedMultiplier(Result, 1.0f, CurrentCardComboMultiplier);
 	Result.ReasonText = Card.Config.HUDReasonText;
+
+	if (!Result.bActionSlotMatched || !Result.bFlowRoleMatched)
+	{
+		if (PendingLinkContext.IsValidCard())
+		{
+			BreakPendingLink(ECombatLinkBreakReason::ConditionFailed, &Result.ActionContext);
+		}
+
+		return Result;
+	}
 
 	int32 RequiredBattles = 0;
 	int32 CurrentBattles = 0;
@@ -256,11 +312,14 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 			ResolvedAttackGuids.Add(Context.AttackInstanceGuid);
 		}
 
-		CurrentIndex++;
-		Result.bStartedShuffle = CurrentIndex >= ActiveSequence.Num();
+		if (!bUseSingleActionSlot)
+		{
+			CurrentIndex++;
+			Result.bStartedShuffle = CurrentIndex >= ActiveSequence.Num();
+		}
 
 		OnCardConsumed.Broadcast(Card, Result);
-		if (Result.bStartedShuffle)
+		if (Result.bStartedShuffle && !bUseSingleActionSlot)
 		{
 			StartShuffle();
 			OnShuffleStarted.Broadcast(Result);
@@ -298,10 +357,12 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		}
 	}
 
-	const bool bComboRequirementSatisfied = !Card.Config.bRequiresComboFinisher || Context.bIsComboFinisher;
+	const bool bIsFinisherRelease = Result.ActionContext.ReleaseMode == ECombatCardReleaseMode::Finisher || Context.bIsComboFinisher;
+	const bool bComboRequirementSatisfied = !Card.Config.bRequiresComboFinisher || bIsFinisherRelease;
+	const bool bCardUsesFinisherRelease = Card.Config.CardType == ECombatCardType::Finisher || Card.Config.bRequiresComboFinisher;
 	Result.bTriggeredFinisher = Result.bActionMatched
 		&& bComboRequirementSatisfied
-		&& Card.Config.CardType == ECombatCardType::Finisher
+		&& bCardUsesFinisherRelease
 		&& !IsDeprecatedFinisherCardConfig(Card.Config);
 
 	if (Result.bActionMatched && bComboRequirementSatisfied)
@@ -431,8 +492,11 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		ResolvedAttackGuids.Add(Context.AttackInstanceGuid);
 	}
 
-	CurrentIndex++;
-	Result.bStartedShuffle = CurrentIndex >= ActiveSequence.Num();
+	if (!bUseSingleActionSlot)
+	{
+		CurrentIndex++;
+		Result.bStartedShuffle = CurrentIndex >= ActiveSequence.Num();
+	}
 
 	OnCardConsumed.Broadcast(Card, Result);
 	if (Result.bTriggeredBaseFlow)
@@ -469,7 +533,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		OnFinisherTriggered.Broadcast(Result);
 	}
 
-	if (Result.bStartedShuffle)
+	if (Result.bStartedShuffle && !bUseSingleActionSlot)
 	{
 		StartShuffle();
 		OnShuffleStarted.Broadcast(Result);
@@ -572,6 +636,7 @@ void UCombatDeckComponent::LoadDeckFromSourceAssetsInternal(const TArray<URuneDa
 	StopAllCardPassiveFlows();
 
 	DeckList.Reset();
+	ClearSingleActionSlotCards();
 	ShuffleCooldownDuration = FMath::Max(0.0f, InShuffleCooldownDuration);
 	MaxActiveSequenceSize = FMath::Max(0, InMaxActiveSequenceSize);
 
@@ -586,7 +651,7 @@ void UCombatDeckComponent::LoadDeckFromSourceAssetsInternal(const TArray<URuneDa
 		const FCombatCardInstance Card = MakeCardFromRune(RuneAsset, CombatDeckOwnerSourceWeapon);
 		if (Card.IsValidCard())
 		{
-			DeckList.Add(Card);
+			RouteCardToActionSlot(Card);
 		}
 	}
 	DeckState = EDeckState::Ready;
@@ -604,7 +669,7 @@ void UCombatDeckComponent::LoadDeckFromSourceAssetsInternal(const TArray<URuneDa
 TArray<URuneDataAsset*> UCombatDeckComponent::GetDeckSourceAssets() const
 {
 	TArray<URuneDataAsset*> SourceAssets;
-	SourceAssets.Reserve(DeckList.Num());
+	SourceAssets.Reserve(DeckList.Num() + 3);
 	for (const FCombatCardInstance& Card : DeckList)
 	{
 		if (Card.SourceData && !IsDeprecatedFinisherCardConfig(Card.Config))
@@ -612,12 +677,25 @@ TArray<URuneDataAsset*> UCombatDeckComponent::GetDeckSourceAssets() const
 			SourceAssets.Add(Card.SourceData);
 		}
 	}
+
+	TArray<FCombatCardInstance> SingleSlotCards;
+	AppendSingleActionSlotCards(SingleSlotCards);
+	for (const FCombatCardInstance& Card : SingleSlotCards)
+	{
+		if (Card.SourceData && !IsDeprecatedFinisherCardConfig(Card.Config))
+		{
+			SourceAssets.Add(Card.SourceData);
+		}
+	}
+
 	return SourceAssets;
 }
 
 TArray<FCombatCardInstance> UCombatDeckComponent::GetFullDeckSnapshot() const
 {
-	return BuildTemporaryLockViewCards(DeckList);
+	TArray<FCombatCardInstance> Cards = DeckList;
+	AppendSingleActionSlotCards(Cards);
+	return BuildTemporaryLockViewCards(Cards);
 }
 
 TArray<FCombatCardInstance> UCombatDeckComponent::GetRemainingDeckSnapshot() const
@@ -634,6 +712,21 @@ TArray<FCombatCardInstance> UCombatDeckComponent::GetRemainingDeckSnapshot() con
 	}
 
 	return RemainingCards;
+}
+
+FCombatCardInstance UCombatDeckComponent::GetActionSlotCardSnapshot(ECombatDeckActionSlot Slot) const
+{
+	if (const FCombatCardInstance* SlotCard = GetSingleActionSlotCard(Slot))
+	{
+		return BuildTemporaryLockViewCard(*SlotCard);
+	}
+
+	if (Slot == ECombatDeckActionSlot::Attack && DeckState == EDeckState::Ready && ActiveSequence.IsValidIndex(CurrentIndex))
+	{
+		return BuildTemporaryLockViewCard(ActiveSequence[CurrentIndex]);
+	}
+
+	return FCombatCardInstance();
 }
 
 void UCombatDeckComponent::RefreshDeckView()
@@ -713,6 +806,17 @@ bool UCombatDeckComponent::AddCardFromRuneReward(URuneDataAsset* RuneAsset)
 		return false;
 	}
 
+	if (StoreCardInSingleActionSlot(Card, true))
+	{
+		OnRewardAddedToDeck.Broadcast(Card);
+		TArray<FCombatCardInstance> EnteredCards;
+		EnteredCards.Add(Card);
+		OnDeckCardsEntered.Broadcast(EnteredCards);
+		StartPassiveFlowsForCard(Card);
+		RefreshDeckView();
+		return true;
+	}
+
 	const int32 InsertIndex = MaxActiveSequenceSize > 0
 		? FMath::Clamp(MaxActiveSequenceSize - 1, 0, DeckList.Num())
 		: DeckList.Num();
@@ -734,6 +838,17 @@ bool UCombatDeckComponent::AddCardFromRuneShop(URuneDataAsset* RuneAsset)
 	if (!Card.IsValidCard())
 	{
 		return false;
+	}
+
+	if (StoreCardInSingleActionSlot(Card, true))
+	{
+		OnRewardAddedToDeck.Broadcast(Card);
+		TArray<FCombatCardInstance> EnteredCards;
+		EnteredCards.Add(Card);
+		OnDeckCardsEntered.Broadcast(EnteredCards);
+		StartPassiveFlowsForCard(Card);
+		RefreshDeckView();
+		return true;
 	}
 
 	DeckList.Add(Card);
@@ -774,6 +889,7 @@ void UCombatDeckComponent::SetDeckListForTest(const TArray<FCombatCardConfig>& I
 	StopAllCardPassiveFlows();
 
 	DeckList.Reset();
+	ClearSingleActionSlotCards();
 	for (const FCombatCardConfig& Config : InCards)
 	{
 		if (IsDeprecatedFinisherCardConfig(Config))
@@ -785,7 +901,7 @@ void UCombatDeckComponent::SetDeckListForTest(const TArray<FCombatCardConfig>& I
 		Card.InstanceGuid = FGuid::NewGuid();
 		Card.Config = Config;
 		Card.LinkOrientation = Config.DefaultLinkOrientation;
-		DeckList.Add(Card);
+		RouteCardToActionSlot(Card);
 	}
 
 	DeckState = EDeckState::Ready;
@@ -845,6 +961,99 @@ FCombatCardInstance UCombatDeckComponent::MakeCardFromRune(URuneDataAsset* RuneA
 	}
 
 	return Card;
+}
+
+bool UCombatDeckComponent::RouteCardToActionSlot(const FCombatCardInstance& Card)
+{
+	if (!Card.IsValidCard())
+	{
+		return false;
+	}
+
+	if (StoreCardInSingleActionSlot(Card, false))
+	{
+		return true;
+	}
+
+	DeckList.Add(Card);
+	return true;
+}
+
+bool UCombatDeckComponent::StoreCardInSingleActionSlot(const FCombatCardInstance& Card, bool bStopExistingPassiveFlows)
+{
+	FCombatCardInstance* SlotCard = GetMutableSingleActionSlotCard(Card.Config.RequiredActionSlot);
+	if (!SlotCard)
+	{
+		return false;
+	}
+
+	if (bStopExistingPassiveFlows && SlotCard->IsValidCard())
+	{
+		StopPassiveFlowsForCard(SlotCard->InstanceGuid);
+	}
+
+	*SlotCard = Card;
+	return true;
+}
+
+void UCombatDeckComponent::ClearSingleActionSlotCards()
+{
+	SkillSlotCard = FCombatCardInstance();
+	WeaponSkillSlotCard = FCombatCardInstance();
+	DashSlotCard = FCombatCardInstance();
+}
+
+bool UCombatDeckComponent::IsSingleActionSlot(ECombatDeckActionSlot Slot) const
+{
+	return Slot == ECombatDeckActionSlot::Skill
+		|| Slot == ECombatDeckActionSlot::WeaponSkill
+		|| Slot == ECombatDeckActionSlot::Dash;
+}
+
+FCombatCardInstance* UCombatDeckComponent::GetMutableSingleActionSlotCard(ECombatDeckActionSlot Slot)
+{
+	switch (Slot)
+	{
+	case ECombatDeckActionSlot::Skill:
+		return &SkillSlotCard;
+	case ECombatDeckActionSlot::WeaponSkill:
+		return &WeaponSkillSlotCard;
+	case ECombatDeckActionSlot::Dash:
+		return &DashSlotCard;
+	default:
+		return nullptr;
+	}
+}
+
+const FCombatCardInstance* UCombatDeckComponent::GetSingleActionSlotCard(ECombatDeckActionSlot Slot) const
+{
+	switch (Slot)
+	{
+	case ECombatDeckActionSlot::Skill:
+		return SkillSlotCard.IsValidCard() ? &SkillSlotCard : nullptr;
+	case ECombatDeckActionSlot::WeaponSkill:
+		return WeaponSkillSlotCard.IsValidCard() ? &WeaponSkillSlotCard : nullptr;
+	case ECombatDeckActionSlot::Dash:
+		return DashSlotCard.IsValidCard() ? &DashSlotCard : nullptr;
+	default:
+		return nullptr;
+	}
+}
+
+void UCombatDeckComponent::AppendSingleActionSlotCards(TArray<FCombatCardInstance>& Cards) const
+{
+	if (SkillSlotCard.IsValidCard())
+	{
+		Cards.Add(SkillSlotCard);
+	}
+	if (WeaponSkillSlotCard.IsValidCard())
+	{
+		Cards.Add(WeaponSkillSlotCard);
+	}
+	if (DashSlotCard.IsValidCard())
+	{
+		Cards.Add(DashSlotCard);
+	}
 }
 
 void UCombatDeckComponent::AppendTemporaryInitialFinisherCard(TArray<URuneDataAsset*>& SourceAssets) const
@@ -1022,6 +1231,19 @@ void UCombatDeckComponent::PruneDeprecatedFinisherCards()
 	{
 		return IsDeprecatedFinisherCardConfig(Card.Config);
 	});
+
+	auto PruneSingleSlotCard = [this](FCombatCardInstance& Card)
+	{
+		if (IsDeprecatedFinisherCardConfig(Card.Config))
+		{
+			StopPassiveFlowsForCard(Card.InstanceGuid);
+			Card = FCombatCardInstance();
+		}
+	};
+	PruneSingleSlotCard(SkillSlotCard);
+	PruneSingleSlotCard(WeaponSkillSlotCard);
+	PruneSingleSlotCard(DashSlotCard);
+
 	FinisherCardsWaitingForEffectEnd.Reset();
 }
 
@@ -1030,6 +1252,13 @@ void UCombatDeckComponent::RefreshCardPassiveFlows()
 	StopAllCardPassiveFlows();
 
 	for (const FCombatCardInstance& Card : DeckList)
+	{
+		StartPassiveFlowsForCard(Card);
+	}
+
+	TArray<FCombatCardInstance> SingleSlotCards;
+	AppendSingleActionSlotCards(SingleSlotCards);
+	for (const FCombatCardInstance& Card : SingleSlotCards)
 	{
 		StartPassiveFlowsForCard(Card);
 	}
@@ -1255,6 +1484,8 @@ FCombatCardEffectContext UCombatDeckComponent::BuildCombatCardEffectContext(
 	EffectContext.ComboNodeId = Context.ComboNodeId;
 	EffectContext.ComboTags = Context.ComboTags;
 	EffectContext.AbilityTag = Context.AbilityTag;
+	EffectContext.ActionSlot = Context.ActionSlot;
+	EffectContext.FlowRole = Context.FlowRole;
 	EffectContext.EffectMultiplier = Result.AppliedMultiplier;
 	EffectContext.ComboBonusStacks = GetComboBonusStacks(Context);
 	EffectContext.bFromLink = Result.bTriggeredLink || Result.bTriggeredForwardLink || Result.bTriggeredBackwardLink;
@@ -1320,6 +1551,23 @@ bool UCombatDeckComponent::DoesActionMatch(ECardRequiredAction RequiredAction, E
 	return RequiredAction == ECardRequiredAction::Any || RequiredAction == ActionType;
 }
 
+bool UCombatDeckComponent::DoesActionSlotMatch(ECombatDeckActionSlot RequiredSlot, ECombatDeckActionSlot ActionSlot) const
+{
+	return RequiredSlot == ECombatDeckActionSlot::Any || RequiredSlot == ActionSlot;
+}
+
+bool UCombatDeckComponent::DoesFlowRoleMatch(ECombatDeckFlowRole RequiredRole, ECombatDeckFlowRole FlowRole) const
+{
+	return RequiredRole == ECombatDeckFlowRole::Any || RequiredRole == FlowRole;
+}
+
+bool UCombatDeckComponent::DoesReleaseModeMatch(const FCombatCardConfig& Config, const FCombatDeckActionContext& Context) const
+{
+	const bool bCardRequiresFinisherRelease = Config.CardType == ECombatCardType::Finisher || Config.bRequiresComboFinisher;
+	const bool bContextIsFinisherRelease = Context.ReleaseMode == ECombatCardReleaseMode::Finisher || Context.bIsComboFinisher;
+	return bCardRequiresFinisherRelease == bContextIsFinisherRelease;
+}
+
 bool UCombatDeckComponent::DoesLinkConditionMatch(const FCombatCardLinkCondition& Condition, const FCombatCardInstance& NeighborCard, const FCombatDeckActionContext& Context) const
 {
 	if (!NeighborCard.IsValidCard())
@@ -1342,6 +1590,16 @@ bool UCombatDeckComponent::DoesLinkConditionMatch(const FCombatCardLinkCondition
 	}
 
 	if (!DoesActionMatch(Condition.RequiredAction, Context.ActionType))
+	{
+		return false;
+	}
+
+	if (!DoesActionSlotMatch(Condition.RequiredActionSlot, Context.ActionSlot))
+	{
+		return false;
+	}
+
+	if (!DoesFlowRoleMatch(Condition.RequiredFlowRole, Context.FlowRole))
 	{
 		return false;
 	}

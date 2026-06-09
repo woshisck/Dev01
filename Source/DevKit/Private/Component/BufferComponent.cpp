@@ -14,19 +14,34 @@ UBufferComponent::UBufferComponent()
 	// ...
 }
 
+void UBufferComponent::RecordNormalAttack()
+{
+	PushCommand(FInputCommand(EInputCommandType::NormalAttack, GetWorld()->GetTimeSeconds()));
+}
+
+void UBufferComponent::RecordSpecialAttack()
+{
+	PushCommand(FInputCommand(EInputCommandType::SpecialAttack, GetWorld()->GetTimeSeconds()));
+}
+
+void UBufferComponent::RecordWeaponSkill()
+{
+	PushCommand(FInputCommand(EInputCommandType::WeaponSkill, GetWorld()->GetTimeSeconds()));
+}
+
 void UBufferComponent::RecordLightAttack()
 {
-	PushCommand(FInputCommand(EInputCommandType::LightAttack, GetWorld()->GetTimeSeconds()));
+	RecordNormalAttack();
 }
 
 void UBufferComponent::RecordHeavyAttack()
 {
-	PushCommand(FInputCommand(EInputCommandType::HeavyAttack, GetWorld()->GetTimeSeconds()));
+	RecordSpecialAttack();
 }
 
 void UBufferComponent::RecordDash()
 {
-	PushCommand(FInputCommand(EInputCommandType::Dash, GetWorld()->GetTimeSeconds()));
+	RecordWeaponSkill();
 }
 
 void UBufferComponent::RecordMove(const FVector2D& Direction)
@@ -95,8 +110,8 @@ bool UBufferComponent::ConsumeLatestAttackInputSince(float SinceTime, EInputComm
 	for (int32 i = InputCommandHistory.Num() - 1; i >= 0; --i)
 	{
 		FInputCommand& Cmd = InputCommandHistory[i];
-		const bool bIsAttack = Cmd.CommandType == EInputCommandType::LightAttack ||
-			Cmd.CommandType == EInputCommandType::HeavyAttack;
+		const bool bIsAttack = Cmd.CommandType == EInputCommandType::NormalAttack ||
+			Cmd.CommandType == EInputCommandType::SpecialAttack;
 		if (bIsAttack && Cmd.Timestamp > SinceTime)
 		{
 			OutType = Cmd.CommandType;
@@ -164,12 +179,12 @@ FString UBufferComponent::CommandToString(const FInputCommand& Command)
 {
 	switch (Command.CommandType)
 	{
-	case EInputCommandType::LightAttack:
-		return TEXT("LightAttack");
-	case EInputCommandType::HeavyAttack:
-		return TEXT("HeavyAttack");
-	case EInputCommandType::Dash:
-		return TEXT("Dash");
+	case EInputCommandType::NormalAttack:
+		return TEXT("NormalAttack");
+	case EInputCommandType::SpecialAttack:
+		return TEXT("SpecialAttack");
+	case EInputCommandType::WeaponSkill:
+		return TEXT("WeaponSkill");
 	case EInputCommandType::Move:
 		return FString::Printf(TEXT("Move: X=%f, Y=%f"), Command.MoveDirection.X, Command.MoveDirection.Y);
 	default:

@@ -1,12 +1,14 @@
 #include "AbilitySystem/Abilities/GA_PlayerSpecialAttack.h"
 
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystem/Abilities/YogAbilityTypes.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Animation/AN_MeleeDamage.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/HitStopManager.h"
+#include "BuffFlow/BuffFlowComponent.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/BufferComponent.h"
@@ -76,14 +78,30 @@ void UGA_PlayerSpecialAttack::ActivateAbility(
 		return;
 	}
 
+	ActiveCombatDeckContext = FCombatDeckActionContext();
+	bHasActiveCombatDeckContext = false;
+	bCombatDeckCardResolvedThisActivation = false;
+
 	ActiveConfig = SpecialAttackComponent->GetSpecialAttackConfig();
 	ActiveMontage = ActiveConfig.Montage;
+	if (PlayerOwner->ComboRuntimeComponent)
+	{
+		if (const FWeaponComboNodeConfig* ActiveComboNode = PlayerOwner->ComboRuntimeComponent->GetActiveNode())
+		{
+			if (ActiveComboNode->Montage)
+			{
+				ActiveMontage = ActiveComboNode->Montage;
+			}
+		}
+	}
 	if (!ActiveMontage)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayerSpecialAttack] Missing montage on special attack owner=%s."), *GetNameSafe(PlayerOwner));
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+
+	CaptureCombatDeckContext();
 
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
@@ -184,6 +202,9 @@ void UGA_PlayerSpecialAttack::EndAbility(
 	AbilityActivationTime = 0.0f;
 	bAddedSpecialAttackLooseTag = false;
 	bIsHandlingSpecialAttackEvent = false;
+	bHasActiveCombatDeckContext = false;
+	bCombatDeckCardResolvedThisActivation = false;
+	ActiveCombatDeckContext = FCombatDeckActionContext();
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -201,7 +222,7 @@ void UGA_PlayerSpecialAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32
 		return;
 	}
 
-	if (!Buffer->ConsumeBufferedInputSince(EInputCommandType::LightAttack, AbilityActivationTime))
+	if (!Buffer->ConsumeBufferedInputSince(EInputCommandType::NormalAttack, AbilityActivationTime))
 	{
 		return;
 	}
@@ -253,6 +274,108 @@ void UGA_PlayerSpecialAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEv
 	ApplyDamageFromEvent(EventTag, EventData);
 }
 
+void UGA_PlayerSpecialAttack::CaptureCombatDeckContext()
+{
+	if (!PlayerOwner)
+	{
+		return;
+	}
+
+	if (PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->GetActiveNode())
+	{
+		ActiveCombatDeckContext = PlayerOwner->ComboRuntimeComponent->BuildAttackContext(ECombatCardTriggerTiming::OnHit, PlayerOwner);
+	}
+	else
+	{
+		ActiveCombatDeckContext = FCombatDeckActionContext();
+		ActiveCombatDeckContext.ActionType = ECardRequiredAction::Heavy;
+		ActiveCombatDeckContext.ActionSlot = ECombatDeckActionSlot::WeaponSkill;
+		ActiveCombatDeckContext.FlowRole = ECombatDeckFlowRole::Finisher;
+		ActiveCombatDeckContext.WeaponDef = PlayerOwner->EquippedWeaponDef;
+		ActiveCombatDeckContext.bIsComboFinisher = true;
+	}
+
+	ActiveCombatDeckContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+	ActiveCombatDeckContext.ReleaseMode = ActiveCombatDeckContext.bIsComboFinisher
+		? ECombatCardReleaseMode::Finisher
+		: ECombatCardReleaseMode::Normal;
+	if (!ActiveCombatDeckContext.AttackInstanceGuid.IsValid())
+	{
+		ActiveCombatDeckContext.AttackInstanceGuid = FGuid::NewGuid();
+	}
+	if (!ActiveCombatDeckContext.AbilityTag.IsValid())
+	{
+		for (const FGameplayTag& Tag : AbilityTags)
+		{
+			ActiveCombatDeckContext.AbilityTag = Tag;
+			break;
+		}
+	}
+
+	bHasActiveCombatDeckContext = PlayerOwner->CombatDeckComponent != nullptr;
+}
+
+void UGA_PlayerSpecialAttack::PrimeCombatDeckHitContext(const TArray<AActor*>& HitActors) const
+{
+	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo());
+	if (!Owner)
+	{
+		return;
+	}
+
+	UBuffFlowComponent* BuffFlowComponent = Owner->FindComponentByClass<UBuffFlowComponent>();
+	if (!BuffFlowComponent)
+	{
+		return;
+	}
+
+	BuffFlowComponent->LastEventContext.DamageCauser = Owner;
+	BuffFlowComponent->LastEventContext.DamageAmount = 0.f;
+	BuffFlowComponent->LastEventContext.AttackDirection = UGA_Knockback::ResolveAttackDirectionFromSource(Owner);
+	BuffFlowComponent->LastEventContext.DamageReceivers.Reset();
+
+	AActor* FirstTarget = nullptr;
+	for (AActor* HitActor : HitActors)
+	{
+		if (!IsValid(HitActor))
+		{
+			continue;
+		}
+
+		BuffFlowComponent->LastEventContext.DamageReceivers.AddUnique(HitActor);
+		if (!FirstTarget)
+		{
+			FirstTarget = HitActor;
+		}
+	}
+
+	BuffFlowComponent->LastEventContext.DamageReceiver = FirstTarget;
+}
+
+FCombatCardResolveResult UGA_PlayerSpecialAttack::ResolveCombatDeckOnHit()
+{
+	FCombatCardResolveResult EmptyResult;
+	if (bCombatDeckCardResolvedThisActivation || !bHasActiveCombatDeckContext || !PlayerOwner || !PlayerOwner->CombatDeckComponent)
+	{
+		return EmptyResult;
+	}
+
+	FCombatDeckActionContext Context = ActiveCombatDeckContext;
+	Context.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+	if (!Context.AttackInstanceGuid.IsValid())
+	{
+		Context.AttackInstanceGuid = FGuid::NewGuid();
+		ActiveCombatDeckContext.AttackInstanceGuid = Context.AttackInstanceGuid;
+	}
+
+	const FCombatCardResolveResult Result = PlayerOwner->CombatDeckComponent->ResolveAttackCardWithContext(Context);
+	if (Result.bHadCard)
+	{
+		bCombatDeckCardResolvedThisActivation = true;
+	}
+	return Result;
+}
+
 void UGA_PlayerSpecialAttack::ApplyDamageFromEvent(FGameplayTag EventTag, const FGameplayEventData& EventData)
 {
 	if (!bApplyDamageFromMontageEvents || bIsHandlingSpecialAttackEvent)
@@ -263,6 +386,12 @@ void UGA_PlayerSpecialAttack::ApplyDamageFromEvent(FGameplayTag EventTag, const 
 	TGuardValue<bool> ReentrancyGuard(bIsHandlingSpecialAttackEvent, true);
 
 	const FYogGameplayEffectContainerSpec ContainerSpec = MakeEffectContainerSpec(EventTag, EventData, -1);
+	TArray<AActor*> HitActors;
+	GA_PlayerSpecialAttack_CollectHitActors(ContainerSpec, HitActors);
+
+	PrimeCombatDeckHitContext(HitActors);
+	ResolveCombatDeckOnHit();
+
 	const TArray<FActiveGameplayEffectHandle> Handles = ApplyEffectContainerSpec(ContainerSpec);
 
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo());
@@ -281,9 +410,6 @@ void UGA_PlayerSpecialAttack::ApplyDamageFromEvent(FGameplayTag EventTag, const 
 	}
 
 	Owner->bComboHitConnected = true;
-
-	TArray<AActor*> HitActors;
-	GA_PlayerSpecialAttack_CollectHitActors(ContainerSpec, HitActors);
 
 	if (HitActors.Num() > 0)
 	{

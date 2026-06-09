@@ -12,9 +12,9 @@ class UYogGameplayEffect;
 UENUM(BlueprintType)
 enum class EInputCommandType : uint8
 {
-	LightAttack,
-	HeavyAttack,
-	Dash,
+	NormalAttack,
+	SpecialAttack,
+	WeaponSkill,
 	Move
 };
 
@@ -35,7 +35,7 @@ struct FInputCommand
 	float Timestamp = 0.0f;
 
 	FInputCommand()
-		: CommandType(EInputCommandType::LightAttack), MoveDirection(FVector2D::ZeroVector), Timestamp(0.0f)
+		: CommandType(EInputCommandType::NormalAttack), MoveDirection(FVector2D::ZeroVector), Timestamp(0.0f)
 	{
 	}
 
@@ -53,12 +53,12 @@ struct FInputCommand
 	{
 		switch (CommandType)
 		{
-		case EInputCommandType::LightAttack:
-			return TEXT("LightAttack");
-		case EInputCommandType::HeavyAttack:
-			return TEXT("HeavyAttack");
-		case EInputCommandType::Dash:
-			return TEXT("Dash");
+		case EInputCommandType::NormalAttack:
+			return TEXT("NormalAttack");
+		case EInputCommandType::SpecialAttack:
+			return TEXT("SpecialAttack");
+		case EInputCommandType::WeaponSkill:
+			return TEXT("WeaponSkill");
 		case EInputCommandType::Move:
 			return FString::Printf(TEXT("Move: X=%f, Y=%f"), MoveDirection.X, MoveDirection.Y);
 		default:
@@ -77,6 +77,9 @@ public:
 	// Sets default values for this component's properties
 	UBufferComponent();
 
+	void RecordNormalAttack();
+	void RecordSpecialAttack();
+	void RecordWeaponSkill();
 	void RecordLightAttack();
 	void RecordHeavyAttack();
 	void RecordDash();

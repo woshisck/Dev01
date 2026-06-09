@@ -181,7 +181,10 @@ FGuid UGA_MusketBase::ResolveCombatDeckOnFire(
 
     FCombatDeckActionContext Context;
     Context.ActionType = ActionType;
+    Context.ActionSlot = ECombatDeckActionSlot::Attack;
+    Context.FlowRole = bIsComboFinisher ? ECombatDeckFlowRole::Finisher : ECombatDeckFlowRole::Starter;
     Context.bIsComboFinisher = bIsComboFinisher;
+    Context.ReleaseMode = bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
     Context.bFromDashSave = bFromDashSave;
     Context.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
     Context.AttackInstanceGuid = AttackGuid;
@@ -211,7 +214,9 @@ void UGA_MusketBase::ApplyCombatDeckContextToBullet(
         bIsComboFinisher,
         bFromDashSave,
         AttackGuid,
-        Damage);
+        Damage,
+        ECombatDeckActionSlot::Attack,
+        bIsComboFinisher ? ECombatDeckFlowRole::Finisher : ECombatDeckFlowRole::Starter);
 }
 
 // ── Cues ──────────────────────────────────────────────────────────────────────

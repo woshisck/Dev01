@@ -412,16 +412,16 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
 	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
 
-	EInputCommandType BufferedAttackType = EInputCommandType::LightAttack;
+	EInputCommandType BufferedAttackType = EInputCommandType::NormalAttack;
 	if (Buffer->ConsumeLatestAttackInputSince(AbilityActivationTime, BufferedAttackType))
 	{
 		Buffer->ClearBuffer();
 		bool bActivated = false;
 		bool bHasComboSource = false;
-		const ECardRequiredAction ActionType = BufferedAttackType == EInputCommandType::HeavyAttack
+		const ECardRequiredAction ActionType = BufferedAttackType == EInputCommandType::SpecialAttack
 			? ECardRequiredAction::Heavy
 			: ECardRequiredAction::Light;
-		const TCHAR* FallbackTagName = BufferedAttackType == EInputCommandType::HeavyAttack
+		const TCHAR* FallbackTagName = BufferedAttackType == EInputCommandType::SpecialAttack
 			? TEXT("PlayerState.AbilityCast.HeavyAtk")
 			: TEXT("PlayerState.AbilityCast.LightAtk");
 		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
@@ -443,19 +443,14 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 		return;
 	}
 
-	if (Buffer->HasBufferedInputSince(EInputCommandType::Dash, AbilityActivationTime))
+	if (Buffer->HasBufferedInputSince(EInputCommandType::WeaponSkill, AbilityActivationTime))
 	{
 		Buffer->ClearBuffer();
 		bool bActivated = false;
 		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
 		{
-			const TSubclassOf<UYogGameplayAbility> SpecialAction = PlayerOwner->ComboRuntimeComponent
-				? PlayerOwner->ComboRuntimeComponent->GetComboSpecialActionAbility()
-				: nullptr;
-			if (SpecialAction)
-			{
-				bActivated = Owner->GetASC()->TryActivateAbilityByClass(SpecialAction, true);
-			}
+			bActivated = PlayerOwner->ComboRuntimeComponent
+				&& PlayerOwner->ComboRuntimeComponent->TryActivateWeaponSkill(PlayerOwner);
 		}
 		if (!bActivated && ASC)
 		{

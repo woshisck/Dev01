@@ -70,9 +70,13 @@ void AMusketBullet::SetCombatDeckContextWithGuid(
     bool bInComboFinisher,
     bool bInFromDashSave,
     const FGuid& InAttackInstanceGuid,
-    float InAttackDamage)
+    float InAttackDamage,
+    ECombatDeckActionSlot InActionSlot,
+    ECombatDeckFlowRole InFlowRole)
 {
     CombatDeckActionType = InActionType;
+    CombatDeckActionSlot = InActionSlot;
+    CombatDeckFlowRole = InFlowRole;
     bCombatDeckComboFinisher = bInComboFinisher;
     bCombatDeckFromDashSave = bInFromDashSave;
     CombatDeckAttackInstanceGuid = InAttackInstanceGuid;
@@ -332,7 +336,10 @@ void AMusketBullet::ResolveCombatDeckOnHit()
 
     FCombatDeckActionContext Context;
     Context.ActionType = CombatDeckActionType;
+    Context.ActionSlot = CombatDeckActionSlot;
+    Context.FlowRole = bCombatDeckComboFinisher ? ECombatDeckFlowRole::Finisher : CombatDeckFlowRole;
     Context.bIsComboFinisher = bCombatDeckComboFinisher;
+    Context.ReleaseMode = bCombatDeckComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
     Context.bFromDashSave = bCombatDeckFromDashSave;
     Context.TriggerTiming = ECombatCardTriggerTiming::OnHit;
     Context.AttackInstanceGuid = CombatDeckAttackInstanceGuid.IsValid()
