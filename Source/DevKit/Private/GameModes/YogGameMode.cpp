@@ -924,6 +924,7 @@ void AYogGameMode::EnterArrangementPhase()
 				NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
 				NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
 			}
+			Player->CaptureCombatLoadoutForRunState(NewState);
 			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 			NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
@@ -1331,6 +1332,7 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 					NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
 					NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
 				}
+				Player->CaptureCombatLoadoutForRunState(NewState);
 				NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 
 				NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
@@ -3847,6 +3849,7 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 				NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
 				NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
 			}
+			Player->CaptureCombatLoadoutForRunState(NewState);
 			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 
 			// 保存运行时隐藏被动符文（无形状、不进格子）

@@ -121,8 +121,8 @@
           </tr>
           <tr>
             <td>两把武器不共用卡组体系。</td>
-            <td><span class="badge ok">运行时已处理</span></td>
-            <td>每个武器槽独立保存 SourceAssets、攻击卡连携方向、洗牌冷却、序列上限；切换时先保存当前槽，再恢复目标槽。</td>
+            <td><span class="badge ok">已处理</span></td>
+            <td>每个武器槽独立保存 SourceAssets、攻击卡连携方向、洗牌冷却、序列上限；切换时先保存当前槽，再恢复目标槽。RunState/checkpoint 也会保存并恢复备用武器及备用卡组。</td>
           </tr>
         </tbody>
       </table>
@@ -131,11 +131,6 @@
     <section>
       <h2>仍然受限的事项</h2>
       <div class="grid">
-        <div class="card">
-          <h3>备用武器跨关/读档持久化</h3>
-          <span class="badge warn">存档结构待扩展</span>
-          <p>当前实现保证本局运行时切换不丢各自卡组；现有 RunState/checkpoint 仍只保存当前武器和当前卡组。若第二把武器需要跨关或读档保留，需要新增 inactive weapon/deck 字段。</p>
-        </div>
         <div class="card">
           <h3>每把武器的 WeaponSkill 资产</h3>
           <span class="badge warn">资产需求</span>
@@ -149,7 +144,7 @@
         <div class="card">
           <h3>热度切武器 / 弹反失衡</h3>
           <span class="badge info">后续功能</span>
-          <p>目前先完成双武器切换。热度资源消耗、切换弹反、敌人失衡、后摇切换 CD 重置仍需要单独设计数据和 GameplayCue/Effect。</p>
+          <p>双武器切换和备用卡组持久化已完成。热度资源消耗、切换弹反、敌人失衡、后摇切换 CD 重置仍需要单独设计数据和 GameplayCue/Effect。</p>
         </div>
         <div class="card">
           <h3>完整 CombatDeck 测试组</h3>
@@ -169,7 +164,7 @@
       <ul>
         <li>C++ 编译通过：<code>Build.bat DevKitEditor Win64 Development</code>。</li>
         <li>输入资产 commandlet 已执行：创建/绑定 <code>IA_SwitchWeapon</code>，默认键位 <code>V</code> / <code>L3</code>。</li>
-        <li>目标自动化测试已通过：WeaponSkill 失败回根、双武器槽切换、双武器独立卡组、Attack-only UI snapshot。</li>
+        <li>目标自动化测试已通过：WeaponSkill 失败回根、双武器槽切换、双武器独立卡组、备用武器 RunState 保存/恢复、Attack-only UI snapshot。</li>
         <li>完整 <code>DevKit.CombatDeck</code> 组存在旧失败；本次目标相关用例已逐个单跑通过。</li>
       </ul>
     </section>
@@ -180,7 +175,6 @@
         <li>为每把可装备武器检查或补齐 <code>WeaponSkill</code> ComboGraph 节点。</li>
         <li>为 <code>DA_WPN_THSword</code> 等武器确认专属位移/战技 Montage 已挂到 ComboGraph 节点。</li>
         <li>配置测试卡：Attack / Starter、Attack / Catalyst、Skill / Catalyst、WeaponSkill / Finisher、Dash / Catalyst。</li>
-        <li>如果要跨关保存第二把武器，扩展 RunState、SaveGame、恢复逻辑和相关测试。</li>
         <li>如果要做热度切武器，补充热度 UI、切换 GA、弹反/失衡 GameplayCue 和技能 CD 重置策略。</li>
       </ul>
     </section>

@@ -47,6 +47,7 @@
 #include "Character/YogCharacterBase.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInstance.h"
+#include "System/YogGameInstanceBase.h"
 #include "UI/WeaponComboTextUtils.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -1029,6 +1030,136 @@ bool FPlayerSwitchWeaponPreservesIndependentDecksTest::RunTest(const FString& Pa
 		RestoredWeaponBSources.Contains(WeaponBReward));
 	TestFalse(TEXT("Switch back to weapon B does not include weapon A reward"),
 		RestoredWeaponBSources.Contains(WeaponAReward));
+
+	Player->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerRunStateCapturesIndependentWeaponDecksTest,
+	"DevKit.CombatDeck.PlayerRunStateCapturesIndependentWeaponDecks",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerRunStateCapturesIndependentWeaponDecksTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for run-state weapon deck capture test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for run-state weapon deck capture test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	auto MakeCardRune = [](UObject* Outer, const TCHAR* Name, ECombatDeckActionSlot Slot) -> URuneDataAsset*
+	{
+		URuneDataAsset* Rune = NewObject<URuneDataAsset>(Outer, FName(Name));
+		Rune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
+		Rune->RuneInfo.CombatCard.DisplayName = FText::FromString(Name);
+		Rune->RuneInfo.CombatCard.RequiredActionSlot = Slot;
+		return Rune;
+	};
+
+	URuneDataAsset* WeaponAAttack = MakeCardRune(Player, TEXT("RunStateWeaponAAttack"), ECombatDeckActionSlot::Attack);
+	URuneDataAsset* WeaponASkill = MakeCardRune(Player, TEXT("RunStateWeaponASkill"), ECombatDeckActionSlot::Skill);
+	URuneDataAsset* WeaponBAttack = MakeCardRune(Player, TEXT("RunStateWeaponBAttack"), ECombatDeckActionSlot::Attack);
+	URuneDataAsset* WeaponBDash = MakeCardRune(Player, TEXT("RunStateWeaponBDash"), ECombatDeckActionSlot::Dash);
+
+	UWeaponDefinition* WeaponA = NewObject<UWeaponDefinition>(Player);
+	UWeaponDefinition* WeaponB = NewObject<UWeaponDefinition>(Player);
+	WeaponA->InitialCombatDeck = { WeaponAAttack, WeaponASkill };
+	WeaponB->InitialCombatDeck = { WeaponBAttack, WeaponBDash };
+	WeaponA->ShuffleCooldownDuration = 1.5f;
+	WeaponB->ShuffleCooldownDuration = 2.5f;
+	WeaponA->MaxActiveSequenceSize = 1;
+	WeaponB->MaxActiveSequenceSize = 2;
+
+	Player->EquippedWeaponDef = WeaponA;
+	Player->InactiveWeaponDef = WeaponB;
+	Player->CombatDeckComponent->LoadDeckFromWeapon(WeaponA);
+	Player->InitializeInactiveWeaponDeckStateFromDefinition();
+
+	FRunState SavedState;
+	Player->CaptureCombatLoadoutForRunState(SavedState);
+
+	TestEqual(TEXT("RunState stores active weapon definition"), SavedState.EquippedWeaponDef.Get(), WeaponA);
+	TestEqual(TEXT("RunState stores inactive weapon definition"), SavedState.InactiveWeaponDef.Get(), WeaponB);
+	TestTrue(TEXT("RunState active deck includes attack card"), SavedState.CombatDeckCards.Contains(WeaponAAttack));
+	TestTrue(TEXT("RunState active deck includes skill single-slot card"), SavedState.CombatDeckCards.Contains(WeaponASkill));
+	TestTrue(TEXT("RunState inactive deck includes attack card"), SavedState.InactiveCombatDeckCards.Contains(WeaponBAttack));
+	TestTrue(TEXT("RunState inactive deck includes dash single-slot card"), SavedState.InactiveCombatDeckCards.Contains(WeaponBDash));
+	TestEqual(TEXT("RunState stores active shuffle cooldown"), SavedState.CombatDeckShuffleCooldownDuration, 1.5f);
+	TestEqual(TEXT("RunState stores inactive shuffle cooldown"), SavedState.InactiveCombatDeckShuffleCooldownDuration, 2.5f);
+	TestEqual(TEXT("RunState stores active max active sequence size"), SavedState.CombatDeckMaxActiveSequenceSize, 1);
+	TestEqual(TEXT("RunState stores inactive max active sequence size"), SavedState.InactiveCombatDeckMaxActiveSequenceSize, 2);
+
+	Player->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerRestoreRunStateRestoresInactiveWeaponDeckTest,
+	"DevKit.CombatDeck.PlayerRestoreRunStateRestoresInactiveWeaponDeck",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerRestoreRunStateRestoresInactiveWeaponDeckTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for inactive weapon run-state restore test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for inactive weapon run-state restore test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	auto MakeAttackRune = [](UObject* Outer, const TCHAR* Name) -> URuneDataAsset*
+	{
+		URuneDataAsset* Rune = NewObject<URuneDataAsset>(Outer, FName(Name));
+		Rune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
+		Rune->RuneInfo.CombatCard.DisplayName = FText::FromString(Name);
+		return Rune;
+	};
+
+	URuneDataAsset* WeaponACard = MakeAttackRune(Player, TEXT("RestoreWeaponACard"));
+	URuneDataAsset* WeaponAReward = MakeAttackRune(Player, TEXT("RestoreWeaponAReward"));
+	URuneDataAsset* WeaponBCard = MakeAttackRune(Player, TEXT("RestoreWeaponBCard"));
+	URuneDataAsset* WeaponBReward = MakeAttackRune(Player, TEXT("RestoreWeaponBReward"));
+
+	UWeaponDefinition* WeaponA = NewObject<UWeaponDefinition>(Player);
+	UWeaponDefinition* WeaponB = NewObject<UWeaponDefinition>(Player);
+	WeaponA->InitialCombatDeck = { WeaponACard };
+	WeaponB->InitialCombatDeck = { WeaponBCard };
+
+	FRunState State;
+	State.bIsValid = true;
+	State.EquippedWeaponDef = WeaponA;
+	State.InactiveWeaponDef = WeaponB;
+	State.CombatDeckCards = { WeaponACard, WeaponAReward };
+	State.InactiveCombatDeckCards = { WeaponBCard, WeaponBReward };
+	State.CombatDeckShuffleCooldownDuration = 1.0f;
+	State.InactiveCombatDeckShuffleCooldownDuration = 1.0f;
+
+	Player->RestoreRunState(State);
+
+	TestEqual(TEXT("Restore keeps active weapon definition"), Player->EquippedWeaponDef.Get(), WeaponA);
+	TestEqual(TEXT("Restore keeps inactive weapon definition"), Player->InactiveWeaponDef.Get(), WeaponB);
+	TestTrue(TEXT("Restored active deck contains active reward"), Player->CombatDeckComponent->GetDeckSourceAssets().Contains(WeaponAReward));
+	TestFalse(TEXT("Restored active deck does not contain inactive reward"), Player->CombatDeckComponent->GetDeckSourceAssets().Contains(WeaponBReward));
+
+	Player->SwitchWeapon();
+
+	TestEqual(TEXT("Switch after restore promotes inactive weapon definition"), Player->EquippedWeaponDef.Get(), WeaponB);
+	TestTrue(TEXT("Switch after restore loads inactive reward deck"), Player->CombatDeckComponent->GetDeckSourceAssets().Contains(WeaponBReward));
+	TestFalse(TEXT("Switch after restore does not leak active reward into inactive deck"), Player->CombatDeckComponent->GetDeckSourceAssets().Contains(WeaponAReward));
 
 	Player->Destroy();
 	return true;

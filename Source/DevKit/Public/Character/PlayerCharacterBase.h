@@ -47,6 +47,7 @@ class UCameraComponent;
 class UYogSpringArmComponent;
 class UYogCameraOcclusionFadeComponent;
 class UGameplayAbilityComboGraph;
+struct FRunState;
 UENUM()
 enum class EPlayerState : uint8
 {
@@ -340,6 +341,7 @@ public:
 
 	// 切关后从 GameInstance.PendingRunState 恢复 HP / 金币 / 符文 / 热度阶段
 	void RestoreRunStateFromGI();
+	void RestoreRunState(const FRunState& State);
 
 	// BeginPlay 时异步加载局外打造的起始符文并作为隐藏被动授予（新局/续局均执行）
 	void GrantCraftedStarterRunesAsync();
@@ -380,6 +382,8 @@ public:
 	void InitializeInactiveWeaponDeckStateFromDefinition();
 	void InitializeWeaponDeckStateFromDefinition(FWeaponCombatDeckRuntimeState& DeckState, const UWeaponDefinition* WeaponDefinition) const;
 	void LoadCombatDeckFromWeaponDeckState(FWeaponCombatDeckRuntimeState& DeckState, const UWeaponDefinition* WeaponDefinition);
+	void CaptureCombatLoadoutForRunState(FRunState& OutState);
+	void RestoreInactiveWeaponFromDefinition(UWeaponDefinition* WeaponDefinition);
 
 	// ─── 献祭恩赐（全局 Run Buff）────────────────────────────────────
 

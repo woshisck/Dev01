@@ -51,6 +51,7 @@
 #include "Story/StoryEngineSubsystem.h"
 #include "Tutorial/TutorialManager.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
+#include "YogBlueprintFunctionLibrary.h"
 
 namespace
 {
@@ -95,6 +96,42 @@ bool ApplySacrificeCostStateToASC(UAbilitySystemComponent* ASC, const FSacrifice
 	Context.AddSourceObject(SourceObject);
 	FGameplayEffectSpec Spec(Effect, Context, 1.0f);
 	return ASC->ApplyGameplayEffectSpecToSelf(Spec).IsValid();
+}
+
+void CopyDeckRuntimeStateToRunStateFields(
+	const FWeaponCombatDeckRuntimeState& DeckState,
+	TArray<TObjectPtr<URuneDataAsset>>& OutCards,
+	TArray<ECombatCardLinkOrientation>& OutOrientations,
+	float& OutShuffleCooldownDuration,
+	int32& OutMaxActiveSequenceSize)
+{
+	OutCards.Reset(DeckState.SourceAssets.Num());
+	for (const TObjectPtr<URuneDataAsset>& SourceAsset : DeckState.SourceAssets)
+	{
+		if (SourceAsset)
+		{
+			OutCards.Add(SourceAsset);
+		}
+	}
+
+	OutOrientations = DeckState.AttackCardOrientations;
+	OutShuffleCooldownDuration = DeckState.ShuffleCooldownDuration;
+	OutMaxActiveSequenceSize = DeckState.MaxActiveSequenceSize;
+}
+
+void RestoreDeckRuntimeStateFromRunStateFields(
+	FWeaponCombatDeckRuntimeState& DeckState,
+	const TArray<TObjectPtr<URuneDataAsset>>& SourceAssets,
+	const TArray<ECombatCardLinkOrientation>& Orientations,
+	float ShuffleCooldownDuration,
+	int32 MaxActiveSequenceSize)
+{
+	DeckState.Reset();
+	DeckState.SourceAssets = SourceAssets;
+	DeckState.AttackCardOrientations = Orientations;
+	DeckState.ShuffleCooldownDuration = ShuffleCooldownDuration;
+	DeckState.MaxActiveSequenceSize = MaxActiveSequenceSize;
+	DeckState.bInitialized = true;
 }
 }
 
@@ -438,6 +475,64 @@ void APlayerCharacterBase::LoadCombatDeckFromWeaponDeckState(FWeaponCombatDeckRu
 	}
 }
 
+void APlayerCharacterBase::CaptureCombatLoadoutForRunState(FRunState& OutState)
+{
+	CaptureEquippedWeaponDeckState();
+	if (InactiveWeaponDef && !InactiveWeaponDeckState.bInitialized)
+	{
+		InitializeInactiveWeaponDeckStateFromDefinition();
+	}
+
+	OutState.EquippedWeaponDef = EquippedWeaponDef;
+	OutState.InactiveWeaponDef = InactiveWeaponDef;
+	CopyDeckRuntimeStateToRunStateFields(
+		EquippedWeaponDeckState,
+		OutState.CombatDeckCards,
+		OutState.CombatDeckCardOrientations,
+		OutState.CombatDeckShuffleCooldownDuration,
+		OutState.CombatDeckMaxActiveSequenceSize);
+	CopyDeckRuntimeStateToRunStateFields(
+		InactiveWeaponDeckState,
+		OutState.InactiveCombatDeckCards,
+		OutState.InactiveCombatDeckCardOrientations,
+		OutState.InactiveCombatDeckShuffleCooldownDuration,
+		OutState.InactiveCombatDeckMaxActiveSequenceSize);
+}
+
+void APlayerCharacterBase::RestoreInactiveWeaponFromDefinition(UWeaponDefinition* WeaponDefinition)
+{
+	if (InactiveWeaponInstance)
+	{
+		OnHeatPhaseChanged.RemoveDynamic(InactiveWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
+		InactiveWeaponInstance->Destroy();
+		InactiveWeaponInstance = nullptr;
+	}
+
+	InactiveWeaponDef = WeaponDefinition;
+	InactiveWeaponFromSpawner = nullptr;
+	InactiveWeaponDeckState.Reset();
+	if (!WeaponDefinition || !GetWorld())
+	{
+		return;
+	}
+
+	AWeaponInstance* LastSpawnedWeapon = nullptr;
+	for (const FWeaponSpawnData& WeaponSpawnData : WeaponDefinition->ActorsToSpawn)
+	{
+		FWeaponSpawnData SpawnData = WeaponSpawnData;
+		SpawnData.bShouldSaveToGame = true;
+		AWeaponInstance* NewInactiveWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(this, GetTransform(), SpawnData);
+		if (NewInactiveWeapon)
+		{
+			NewInactiveWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
+			NewInactiveWeapon->SetActorHiddenInGame(true);
+			LastSpawnedWeapon = NewInactiveWeapon;
+		}
+	}
+
+	InactiveWeaponInstance = LastSpawnedWeapon;
+}
+
 void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 {
 	if (EquippedWeaponInstance)
@@ -605,6 +700,11 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		GI->PendingRunState.CurrentPhase, GI->PendingRunState.PlacedRunes.Num());
 
 	const FRunState State = GI->PendingRunState;
+	RestoreRunState(State);
+}
+
+void APlayerCharacterBase::RestoreRunState(const FRunState& State)
+{
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 
 	// 恢复 HP
@@ -656,13 +756,38 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 
 		CaptureEquippedWeaponDeckState();
 	}
+	else
+	{
+		InitializeEquippedWeaponDeckStateFromDefinition();
+	}
+
+	RestoreInactiveWeaponFromDefinition(State.InactiveWeaponDef);
+	if (State.InactiveWeaponDef)
+	{
+		if (!State.InactiveCombatDeckCards.IsEmpty())
+		{
+			RestoreDeckRuntimeStateFromRunStateFields(
+				InactiveWeaponDeckState,
+				State.InactiveCombatDeckCards,
+				State.InactiveCombatDeckCardOrientations,
+				State.InactiveCombatDeckShuffleCooldownDuration,
+				State.InactiveCombatDeckMaxActiveSequenceSize);
+		}
+		else
+		{
+			InitializeInactiveWeaponDeckStateFromDefinition();
+		}
+	}
 
 	if (BackpackGridComponent)
 	{
 		BackpackGridComponent->RestorePlacedRunes(State.PlacedRunes);
 		BackpackGridComponent->RestorePhase(State.CurrentPhase);
 
-		if (UAbilitySystemComponent* HeatASC = GetAbilitySystemComponent())
+		if (UAbilitySystemComponent* HeatASC = GetAbilitySystemComponent();
+			HeatASC
+			&& HeatASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetHeatAttribute())
+			&& HeatASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetMaxHeatAttribute()))
 		{
 			const float MaxHeat = HeatASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
 			float HeatToSet = State.CurrentHeat;

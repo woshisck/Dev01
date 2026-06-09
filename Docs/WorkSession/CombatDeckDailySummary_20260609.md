@@ -32,8 +32,10 @@ Post-feedback note:
   - `DevKit.CombatDeck.WeaponSkillMissResetsComboRuntimeToRoot`
   - `DevKit.CombatDeck.PlayerSwitchWeaponSwapsActiveAndInactiveSlots`
   - `DevKit.CombatDeck.PlayerSwitchWeaponPreservesIndependentDecks`
+  - `DevKit.CombatDeck.PlayerRunStateCapturesIndependentWeaponDecks`
+  - `DevKit.CombatDeck.PlayerRestoreRunStateRestoresInactiveWeaponDeck`
   - `DevKit.CombatDeck.SingleActionSlotsRouteFromSourceAssets`
-- Broad `DevKit.CombatDeck` group still contains existing unrelated failures in older card-resolution/generated-asset tests. The four target tests above were rerun individually and passed.
+- Broad `DevKit.CombatDeck` group still contains existing unrelated failures in older card-resolution/generated-asset tests. The target tests above were rerun individually and passed.
 
 ## Implemented Code Changes
 
@@ -162,7 +164,8 @@ Current gameplay interpretation:
 - Picking up a second weapon initializes the inactive slot deck from that weapon definition without changing the current attack deck.
 - Active weapon pickup/setup captures the loaded deck into the equipped slot state.
 - Restoring a saved run deck also syncs that restored deck into the equipped weapon slot state.
-- Current limitation: the existing RunState/checkpoint format still persists only the active weapon and active deck. Persisting the inactive weapon and inactive deck across level transitions/save-load remains a separate follow-up.
+- RunState/checkpoint now persists the inactive weapon definition plus its independent deck source assets, attack-card orientations, shuffle cooldown, and max active sequence size.
+- Restoring from RunState recreates the inactive weapon slot and restores the inactive deck state so switching after a level transition or checkpoint restore keeps the second weapon's cards.
 
 ### Weapon Combo Node Context
 
@@ -213,6 +216,7 @@ Automation tests were added or updated around:
 - weapon skill miss resetting combo runtime state to root
 - active/inactive weapon switching
 - independent active/inactive weapon combat decks preserving reward cards while switching
+- RunState/checkpoint capture and restore for inactive weapon combat decks
 
 Note: targeted UE automation tests were rerun for the post-feedback changes listed above.
 
@@ -321,11 +325,10 @@ Recommended implementation:
 
 ### 4. Two-Weapon Switch And Heat Extension
 
-Base active/inactive weapon switching is wired in code, and each weapon slot now keeps its own runtime combat deck state. The heat/resource/parry version and cross-level persistence remain larger follow-up features.
+Base active/inactive weapon switching is wired in code, each weapon slot keeps its own runtime combat deck state, and RunState/checkpoint now persists the inactive weapon deck. The heat/resource/parry version remains a larger follow-up feature.
 
 Recommended data/code pieces:
 
-- inactive weapon plus inactive deck checkpoint data if the second weapon must persist across level transitions/save-load
 - heat/resource requirement
 - parry/imbalance gameplay events
 - cooldown reset rule for skill and weapon skill when switching during recovery cancel
@@ -386,7 +389,6 @@ Recommended cleanup order:
 ### Required For Two-Weapon Switch
 
 - secondary weapon slot assets/UI
-- inactive weapon/deck checkpoint storage if persistence is required
 - heat/resource UI
 - weapon switch GA
 - parry/imbalance gameplay cue/effect assets

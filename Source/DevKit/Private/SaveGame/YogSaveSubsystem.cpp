@@ -454,11 +454,14 @@ void UYogSaveSubsystem::PopulateCheckpointFromRunState(FRunCheckpointData& Out, 
 	Out.CompletedCombatBattleCount        = RS.CompletedCombatBattleCount;
 	Out.CombatDeckShuffleCooldownDuration = RS.CombatDeckShuffleCooldownDuration;
 	Out.CombatDeckMaxActiveSequenceSize   = RS.CombatDeckMaxActiveSequenceSize;
+	Out.InactiveCombatDeckShuffleCooldownDuration = RS.InactiveCombatDeckShuffleCooldownDuration;
+	Out.InactiveCombatDeckMaxActiveSequenceSize   = RS.InactiveCombatDeckMaxActiveSequenceSize;
 	Out.PlacedRunes                       = RS.PlacedRunes;
 	Out.PendingRunes                      = RS.PendingRunes;
 	Out.HiddenPassiveRuneInstances        = RS.HiddenPassiveRuneInstances;
 	Out.SacrificeOfferingCosts            = RS.SacrificeOfferingCosts;
 	Out.CombatDeckCardOrientations        = RS.CombatDeckCardOrientations;
+	Out.InactiveCombatDeckCardOrientations = RS.InactiveCombatDeckCardOrientations;
 	Out.SelectedSkillLoadout.Reset(RS.SelectedSkillLoadout.Num());
 	for (const TObjectPtr<UActiveSkillDataAsset>& Skill : RS.SelectedSkillLoadout)
 	{
@@ -471,12 +474,19 @@ void UYogSaveSubsystem::PopulateCheckpointFromRunState(FRunCheckpointData& Out, 
 
 	// TObjectPtr → TSoftObjectPtr（仅存路径，不强制加载）
 	Out.EquippedWeaponDef  = RS.EquippedWeaponDef.Get();
+	Out.InactiveWeaponDef = RS.InactiveWeaponDef.Get();
 	Out.ActiveSacrificeGrace = RS.ActiveSacrificeGrace.Get();
 
 	Out.CombatDeckCards.Reset(RS.CombatDeckCards.Num());
 	for (const TObjectPtr<URuneDataAsset>& Card : RS.CombatDeckCards)
 	{
 		Out.CombatDeckCards.Add(Card.Get());
+	}
+
+	Out.InactiveCombatDeckCards.Reset(RS.InactiveCombatDeckCards.Num());
+	for (const TObjectPtr<URuneDataAsset>& Card : RS.InactiveCombatDeckCards)
+	{
+		Out.InactiveCombatDeckCards.Add(Card.Get());
 	}
 }
 
@@ -509,11 +519,14 @@ void UYogSaveSubsystem::RestoreRunStateFromCheckpoint(const FRunCheckpointData& 
 	RS.CompletedCombatBattleCount        = In.CompletedCombatBattleCount;
 	RS.CombatDeckShuffleCooldownDuration = In.CombatDeckShuffleCooldownDuration;
 	RS.CombatDeckMaxActiveSequenceSize   = In.CombatDeckMaxActiveSequenceSize;
+	RS.InactiveCombatDeckShuffleCooldownDuration = In.InactiveCombatDeckShuffleCooldownDuration;
+	RS.InactiveCombatDeckMaxActiveSequenceSize   = In.InactiveCombatDeckMaxActiveSequenceSize;
 	RS.PlacedRunes                       = In.PlacedRunes;
 	RS.PendingRunes                      = In.PendingRunes;
 	RS.HiddenPassiveRuneInstances        = In.HiddenPassiveRuneInstances;
 	RS.SacrificeOfferingCosts            = In.SacrificeOfferingCosts;
 	RS.CombatDeckCardOrientations        = In.CombatDeckCardOrientations;
+	RS.InactiveCombatDeckCardOrientations = In.InactiveCombatDeckCardOrientations;
 	RS.SelectedSkillLoadout.Reset(In.SelectedSkillLoadout.Num());
 	for (const TSoftObjectPtr<UActiveSkillDataAsset>& SoftSkill : In.SelectedSkillLoadout)
 	{
@@ -522,12 +535,19 @@ void UYogSaveSubsystem::RestoreRunStateFromCheckpoint(const FRunCheckpointData& 
 
 	// TSoftObjectPtr → 同步加载（这里只恢复指针；调用方可在之后 AsyncLoad）
 	RS.EquippedWeaponDef  = In.EquippedWeaponDef.LoadSynchronous();
+	RS.InactiveWeaponDef = In.InactiveWeaponDef.LoadSynchronous();
 	RS.ActiveSacrificeGrace = In.ActiveSacrificeGrace.LoadSynchronous();
 
 	RS.CombatDeckCards.Reset(In.CombatDeckCards.Num());
 	for (const TSoftObjectPtr<URuneDataAsset>& SoftCard : In.CombatDeckCards)
 	{
 		RS.CombatDeckCards.Add(SoftCard.LoadSynchronous());
+	}
+
+	RS.InactiveCombatDeckCards.Reset(In.InactiveCombatDeckCards.Num());
+	for (const TSoftObjectPtr<URuneDataAsset>& SoftCard : In.InactiveCombatDeckCards)
+	{
+		RS.InactiveCombatDeckCards.Add(SoftCard.LoadSynchronous());
 	}
 }
 
