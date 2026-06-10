@@ -77,6 +77,8 @@ public:
 	TSubclassOf<UYogGameplayAbility> GetComboSpecialActionAbility() const { return GetWeaponSkillAbility(); }
 	void SetComboSpecialActionAbility(TSubclassOf<UYogGameplayAbility> InAbility) { SetWeaponSkillAbility(InAbility); }
 
+	void EnsureWeaponComboAbilitiesGranted(APlayerCharacterBase* PlayerOwner);
+
 	const FWeaponComboNodeConfig* GetActiveNode() const;
 	void RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle);
 	bool HandleAttackAbilityEnded(const FGuid& EndedAttackGuid);

@@ -119,6 +119,100 @@ namespace
 		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
 		return !CanComboTag.IsValid() || ASC->GetTagCount(CanComboTag) <= 0;
 	}
+
+	void AddUniqueAbilityClass(
+		TArray<TSubclassOf<UGameplayAbility>>& OutAbilityClasses,
+		TSubclassOf<UGameplayAbility> AbilityClass)
+	{
+		if (AbilityClass)
+		{
+			OutAbilityClasses.AddUnique(AbilityClass);
+		}
+	}
+
+	void AddDefaultAbilityForInput(
+		TArray<TSubclassOf<UGameplayAbility>>& OutAbilityClasses,
+		EYogComboGraphInputAction GraphInput,
+		EYogComboGraphAttackType AttackType,
+		TSubclassOf<UYogGameplayAbility> WeaponSkillAbility)
+	{
+		if (GraphInput == EYogComboGraphInputAction::Any)
+		{
+			AddDefaultAbilityForInput(
+				OutAbilityClasses,
+				EYogComboGraphInputAction::Attack,
+				AttackType,
+				WeaponSkillAbility);
+			AddDefaultAbilityForInput(
+				OutAbilityClasses,
+				EYogComboGraphInputAction::WeaponSkill,
+				AttackType,
+				WeaponSkillAbility);
+			AddDefaultAbilityForInput(
+				OutAbilityClasses,
+				EYogComboGraphInputAction::Dash,
+				AttackType,
+				WeaponSkillAbility);
+			AddDefaultAbilityForInput(
+				OutAbilityClasses,
+				EYogComboGraphInputAction::Special,
+				AttackType,
+				WeaponSkillAbility);
+			return;
+		}
+
+		AddUniqueAbilityClass(
+			OutAbilityClasses,
+			GetDefaultAbilityForInput(GraphInput, AttackType, WeaponSkillAbility));
+	}
+
+	void GatherWeaponComboAbilityClasses(
+		const UGameplayAbilityComboGraph* SourceGraph,
+		TSubclassOf<UYogGameplayAbility> WeaponSkillAbility,
+		TArray<TSubclassOf<UGameplayAbility>>& OutAbilityClasses)
+	{
+		if (!SourceGraph)
+		{
+			return;
+		}
+
+		for (const UGenericGraphNode* GenericNode : SourceGraph->AllNodes)
+		{
+			const UGameplayAbilityComboGraphNode* ComboNode = Cast<UGameplayAbilityComboGraphNode>(GenericNode);
+			if (!ComboNode)
+			{
+				continue;
+			}
+
+			AddUniqueAbilityClass(OutAbilityClasses, ComboNode->GameplayAbilityClass);
+
+			const bool bIsRootNode = SourceGraph->RootNodes.Contains(GenericNode) || ComboNode->ParentNodes.IsEmpty();
+			if (bIsRootNode)
+			{
+				AddDefaultAbilityForInput(
+					OutAbilityClasses,
+					ComboNode->RootInputAction,
+					ComboNode->AttackType,
+					WeaponSkillAbility);
+			}
+
+			for (const TPair<UGenericGraphNode*, UGenericGraphEdge*>& EdgePair : ComboNode->Edges)
+			{
+				const UGameplayAbilityComboGraphNode* ChildNode = Cast<UGameplayAbilityComboGraphNode>(EdgePair.Key);
+				const UGameplayAbilityComboGraphEdge* Edge = Cast<UGameplayAbilityComboGraphEdge>(EdgePair.Value);
+				if (!ChildNode || !Edge)
+				{
+					continue;
+				}
+
+				AddDefaultAbilityForInput(
+					OutAbilityClasses,
+					Edge->InputAction,
+					ChildNode->AttackType,
+					WeaponSkillAbility);
+			}
+		}
+	}
 }
 
 UComboRuntimeComponent::UComboRuntimeComponent()
@@ -129,6 +223,23 @@ UComboRuntimeComponent::UComboRuntimeComponent()
 void UComboRuntimeComponent::SetWeaponSkillAbility(TSubclassOf<UYogGameplayAbility> InAbility)
 {
 	WeaponSkillAbility = InAbility;
+}
+
+void UComboRuntimeComponent::EnsureWeaponComboAbilitiesGranted(APlayerCharacterBase* PlayerOwner)
+{
+	UAbilitySystemComponent* ASC = PlayerOwner ? PlayerOwner->GetAbilitySystemComponent() : nullptr;
+	if (!ASC)
+	{
+		return;
+	}
+
+	TArray<TSubclassOf<UGameplayAbility>> AbilityClasses;
+	GatherWeaponComboAbilityClasses(WeaponComboGraph, WeaponSkillAbility, AbilityClasses);
+
+	for (const TSubclassOf<UGameplayAbility>& AbilityClass : AbilityClasses)
+	{
+		EnsureAbilityGranted(ASC, AbilityClass);
+	}
 }
 
 void UComboRuntimeComponent::LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph)
@@ -366,9 +477,6 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 		: NextNode->GameplayAbilityClass
 			? NextNode->GameplayAbilityClass
 			: GetDefaultAbilityForInput(GraphInput, NextNode->AttackType, WeaponSkillAbility);
-	/* start comment lazy grant ability for clear debug only*/
-	//EnsureAbilityGranted(ASC, AbilityClass);
-	/* end comment lazy grant ability for clear debug only*/
 	const bool bActivated = ASC->TryActivateAbilityByClass(AbilityClass, true);
 	if (!bActivated)
 	{
