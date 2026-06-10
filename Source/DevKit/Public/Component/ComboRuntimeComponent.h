@@ -48,9 +48,19 @@ public:
 	bool TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner);
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
+	bool TryActivateAttack(APlayerCharacterBase* PlayerOwner);
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
 	bool TryActivateWeaponSkill(APlayerCharacterBase* PlayerOwner);
 
-	bool TryActivateSpecialAttackCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner);
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	bool TryActivateDash(APlayerCharacterBase* PlayerOwner);
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	bool TryActivateSpecial(APlayerCharacterBase* PlayerOwner);
+
+	bool TryActivateSpecialCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner);
+	bool TryActivateSpecialAttackCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner) { return TryActivateSpecialCombo(AbilityClass, PlayerOwner); }
 
 	virtual void ResetCombo() override;
 
@@ -61,9 +71,11 @@ public:
 	FName GetActiveNodeId() const { return ActiveNode.NodeId; }
 
 	UFUNCTION(BlueprintPure, Category = "Combo")
-	TSubclassOf<UYogGameplayAbility> GetComboSpecialActionAbility() const { return ComboSpecialActionAbility; }
+	TSubclassOf<UYogGameplayAbility> GetWeaponSkillAbility() const { return WeaponSkillAbility; }
 
-	void SetComboSpecialActionAbility(TSubclassOf<UYogGameplayAbility> InAbility);
+	void SetWeaponSkillAbility(TSubclassOf<UYogGameplayAbility> InAbility);
+	TSubclassOf<UYogGameplayAbility> GetComboSpecialActionAbility() const { return GetWeaponSkillAbility(); }
+	void SetComboSpecialActionAbility(TSubclassOf<UYogGameplayAbility> InAbility) { SetWeaponSkillAbility(InAbility); }
 
 	const FWeaponComboNodeConfig* GetActiveNode() const;
 	void RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle);
@@ -78,7 +90,7 @@ private:
 	TObjectPtr<UGameplayAbilityComboGraph> SpecialAttackComboGraph = nullptr;
 
 	UPROPERTY()
-	TSubclassOf<UYogGameplayAbility> ComboSpecialActionAbility;
+	TSubclassOf<UYogGameplayAbility> WeaponSkillAbility;
 
 	UPROPERTY()
 	FWeaponComboNodeConfig ActiveNode;
@@ -92,6 +104,7 @@ private:
 	void ClearStaleActiveComboState(UAbilitySystemComponent* ASC, const TCHAR* Reason);
 	void TrackRuntimeCombatLooseTag(const FGameplayTag& Tag);
 	void SetActiveComboGraph(UGameplayAbilityComboGraph* InComboGraph);
+	void EnsureAbilityGranted(UAbilitySystemComponent* ASC, TSubclassOf<UGameplayAbility> AbilityClass);
 	bool TryActivateComboFromGraph(
 		UGameplayAbilityComboGraph* SourceGraph,
 		EYogComboGraphInputAction GraphInput,

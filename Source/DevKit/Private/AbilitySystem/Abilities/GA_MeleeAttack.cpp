@@ -388,33 +388,58 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	}
 
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	EInputCommandType BufferedAttackType = EInputCommandType::NormalAttack;
-	if (!Buffer->ConsumeLatestAttackInputSince(AbilityActivationTime, BufferedAttackType))
+	EInputCommandType BufferedActionType = EInputCommandType::Attack;
+	if (!Buffer->ConsumeLatestActionInputSince(AbilityActivationTime, BufferedActionType))
 	{
 		// === DIAG: attack-stuck repro (CL564) ===
-		// 旧版会两次独立尝试 Light/Heavy；新版只看最近一次 attack。
+		// 旧版会两次独立尝试 Light/Heavy；新版只看最近一次 action。
 		// 若卡攻击是因为此处早退而 CanCombo tag 未清，这条会出现并跟随玩家"卡住"。
 		UE_LOG(LogTemp, Warning,
-			TEXT("[Melee][DIAG564] OnCanComboTagChanged EARLY-RETURN — no buffered attack since AbilityActivationTime=%.3f Tag=%s NewCount=%d"),
+			TEXT("[Melee][DIAG564] OnCanComboTagChanged EARLY-RETURN — no buffered action since AbilityActivationTime=%.3f Tag=%s NewCount=%d"),
 			AbilityActivationTime, *Tag.ToString(), NewCount);
 		return;
 	}
-
-	const ECardRequiredAction ActionType = BufferedAttackType == EInputCommandType::SpecialAttack
-		? ECardRequiredAction::Heavy
-		: ECardRequiredAction::Light;
-	const TCHAR* FallbackTagName = BufferedAttackType == EInputCommandType::SpecialAttack
-		? TEXT("PlayerState.AbilityCast.HeavyAtk")
-		: TEXT("PlayerState.AbilityCast.LightAtk");
 
 	bool bActivated = false;
 	const bool bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
 	if (bHasComboSource)
 	{
-		bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ActionType, PlayerOwner);
+		switch (BufferedActionType)
+		{
+		case EInputCommandType::Attack:
+			bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateAttack(PlayerOwner);
+			break;
+		case EInputCommandType::WeaponSkill:
+			bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateWeaponSkill(PlayerOwner);
+			break;
+		case EInputCommandType::Dash:
+			bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateDash(PlayerOwner);
+			break;
+		case EInputCommandType::Special:
+			bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateSpecial(PlayerOwner);
+			break;
+		default:
+			break;
+		}
 	}
 	else if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
 	{
+		const TCHAR* FallbackTagName = TEXT("PlayerState.AbilityCast.Attack");
+		switch (BufferedActionType)
+		{
+		case EInputCommandType::WeaponSkill:
+			FallbackTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
+			break;
+		case EInputCommandType::Dash:
+			FallbackTagName = TEXT("PlayerState.AbilityCast.Dash");
+			break;
+		case EInputCommandType::Special:
+			FallbackTagName = TEXT("PlayerState.AbilityCast.Special");
+			break;
+		default:
+			break;
+		}
+
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
 		bActivated = PlayerASC->TryActivateAbilitiesByTag(TagContainer, true);
@@ -423,7 +448,7 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	// === DIAG: attack-stuck repro (CL564) ===
 	UE_LOG(LogTemp, Verbose,
 		TEXT("[Melee][DIAG564] OnCanComboTagChanged consumed=%s HasComboSource=%d Activated=%d Tag=%s"),
-		BufferedAttackType == EInputCommandType::SpecialAttack ? TEXT("SpecialAttack") : TEXT("NormalAttack"),
+		*StaticEnum<EInputCommandType>()->GetNameStringByValue(static_cast<int64>(BufferedActionType)),
 		bHasComboSource ? 1 : 0, bActivated ? 1 : 0, *Tag.ToString());
 
 	if (!bActivated && ASC && Tag.IsValid())

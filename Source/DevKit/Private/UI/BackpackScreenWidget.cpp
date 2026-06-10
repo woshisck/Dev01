@@ -41,12 +41,15 @@ namespace
     {
         switch (Action)
         {
-        case EYogComboGraphInputAction::Light:
+        case EYogComboGraphInputAction::Attack:
             return TEXT("L");
-        case EYogComboGraphInputAction::Heavy:
-            return TEXT("H");
         case EYogComboGraphInputAction::WeaponSkill:
+        case EYogComboGraphInputAction::LegacyWeaponSkill:
+            return TEXT("H");
+        case EYogComboGraphInputAction::Dash:
             return TEXT("W");
+        case EYogComboGraphInputAction::Special:
+            return TEXT("S");
         case EYogComboGraphInputAction::Any:
         default:
             return FString();
@@ -57,17 +60,22 @@ namespace
     {
         if (Token == TEXT("L"))
         {
-            return TEXT("<input action=\"NormalAttack\"/>");
+            return TEXT("<input action=\"Attack\"/>");
         }
 
         if (Token == TEXT("H"))
         {
-            return TEXT("<input action=\"SpecialAttack\"/>");
+            return TEXT("<input action=\"WeaponSkill\"/>");
         }
 
         if (Token == TEXT("W"))
         {
-            return TEXT("<input action=\"WeaponSkill\"/>");
+            return TEXT("<input action=\"Dash\"/>");
+        }
+
+        if (Token == TEXT("S"))
+        {
+            return TEXT("<input action=\"Special\"/>");
         }
 
         return TEXT("[Input]");
@@ -295,8 +303,8 @@ FText UBackpackScreenWidget::BuildComboHintText(const UWeaponDefinition* WeaponD
 
     if (MoveListLines.IsEmpty())
     {
-        MoveListLines.Add(TEXT("连段 01   <input action=\"NormalAttack\"/> -> <input action=\"NormalAttack\"/> -> <input action=\"SpecialAttack\"/>"));
-        MoveListLines.Add(TEXT("连段 02   <input action=\"NormalAttack\"/> -> <input action=\"SpecialAttack\"/>"));
+        MoveListLines.Add(TEXT("连段 01   <input action=\"Attack\"/> -> <input action=\"Attack\"/> -> <input action=\"WeaponSkill\"/>"));
+        MoveListLines.Add(TEXT("连段 02   <input action=\"Attack\"/> -> <input action=\"WeaponSkill\"/>"));
     }
 
     return FText::FromString(FString::Join(MoveListLines, TEXT("\n\n")));

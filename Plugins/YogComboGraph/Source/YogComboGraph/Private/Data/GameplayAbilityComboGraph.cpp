@@ -8,7 +8,7 @@ namespace
 {
 	EYogComboGraphInputAction NormalizeInputAction(EYogComboGraphInputAction InputAction)
 	{
-		if (InputAction == EYogComboGraphInputAction::Dash)
+		if (InputAction == EYogComboGraphInputAction::LegacyWeaponSkill)
 		{
 			return EYogComboGraphInputAction::WeaponSkill;
 		}
@@ -19,9 +19,10 @@ namespace
 	{
 		switch (NormalizeInputAction(InputAction))
 		{
-		case EYogComboGraphInputAction::Light:
-		case EYogComboGraphInputAction::Heavy:
+		case EYogComboGraphInputAction::Attack:
 		case EYogComboGraphInputAction::WeaponSkill:
+		case EYogComboGraphInputAction::Dash:
+		case EYogComboGraphInputAction::Special:
 		case EYogComboGraphInputAction::Any:
 			return true;
 		default:

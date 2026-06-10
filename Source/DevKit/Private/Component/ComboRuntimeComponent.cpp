@@ -2,7 +2,10 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
+#include "AbilitySystem/Abilities/GA_PlayerDash.h"
 #include "AbilitySystem/Abilities/GA_RangeAttack.h"
+#include "AbilitySystem/Abilities/GA_Special.h"
+#include "AbilitySystem/Abilities/GA_WeaponSkill.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
 #include "Data/GameplayAbilityComboGraph.h"
@@ -15,12 +18,37 @@ namespace
 		switch (InputAction)
 		{
 		case ECardRequiredAction::Light:
-			return EYogComboGraphInputAction::Light;
+			return EYogComboGraphInputAction::Attack;
 		case ECardRequiredAction::Heavy:
-			return EYogComboGraphInputAction::Heavy;
+			return EYogComboGraphInputAction::WeaponSkill;
 		case ECardRequiredAction::Any:
 		default:
 			return EYogComboGraphInputAction::Any;
+		}
+	}
+
+	TSubclassOf<UGameplayAbility> GetDefaultAbilityForInput(
+		EYogComboGraphInputAction GraphInput,
+		EYogComboGraphAttackType AttackType,
+		TSubclassOf<UYogGameplayAbility> WeaponSkillAbility)
+	{
+		switch (GraphInput)
+		{
+		case EYogComboGraphInputAction::Attack:
+			return AttackType == EYogComboGraphAttackType::Range
+				? TSubclassOf<UGameplayAbility>(UGA_RangeAttack::StaticClass())
+				: TSubclassOf<UGameplayAbility>(UGA_MeleeAttack::StaticClass());
+		case EYogComboGraphInputAction::Dash:
+			return TSubclassOf<UGameplayAbility>(UGA_PlayerDash::StaticClass());
+		case EYogComboGraphInputAction::Special:
+			return TSubclassOf<UGameplayAbility>(UGA_Special::StaticClass());
+		case EYogComboGraphInputAction::WeaponSkill:
+		case EYogComboGraphInputAction::LegacyWeaponSkill:
+			return WeaponSkillAbility
+				? TSubclassOf<UGameplayAbility>(WeaponSkillAbility.Get())
+				: TSubclassOf<UGameplayAbility>(UGA_WeaponSkill::StaticClass());
+		default:
+			return TSubclassOf<UGameplayAbility>(UGA_MeleeAttack::StaticClass());
 		}
 	}
 
@@ -78,8 +106,12 @@ namespace
 			return false;
 		}
 
-		const FGameplayTag SpecialAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SpecialAttack"), false);
-		if (!SpecialAttackTag.IsValid() || !ASC->HasMatchingGameplayTag(SpecialAttackTag))
+		const FGameplayTag SpecialTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special"), false);
+		const FGameplayTag LegacySpecialAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SpecialAttack"), false);
+		const bool bHasSpecialTag =
+			(SpecialTag.IsValid() && ASC->HasMatchingGameplayTag(SpecialTag)) ||
+			(LegacySpecialAttackTag.IsValid() && ASC->HasMatchingGameplayTag(LegacySpecialAttackTag));
+		if (!bHasSpecialTag)
 		{
 			return false;
 		}
@@ -94,9 +126,9 @@ UComboRuntimeComponent::UComboRuntimeComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UComboRuntimeComponent::SetComboSpecialActionAbility(TSubclassOf<UYogGameplayAbility> InAbility)
+void UComboRuntimeComponent::SetWeaponSkillAbility(TSubclassOf<UYogGameplayAbility> InAbility)
 {
-	ComboSpecialActionAbility = InAbility;
+	WeaponSkillAbility = InAbility;
 }
 
 void UComboRuntimeComponent::LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph)
@@ -144,6 +176,13 @@ bool UComboRuntimeComponent::TryActivateCombo(ECardRequiredAction InputAction, A
 		PlayerOwner);
 }
 
+bool UComboRuntimeComponent::TryActivateAttack(APlayerCharacterBase* PlayerOwner)
+{
+	return TryActivateCombo(
+		ECardRequiredAction::Light,
+		PlayerOwner);
+}
+
 bool UComboRuntimeComponent::TryActivateWeaponSkill(APlayerCharacterBase* PlayerOwner)
 {
 	const bool bActivated = TryActivateComboFromGraph(
@@ -153,7 +192,7 @@ bool UComboRuntimeComponent::TryActivateWeaponSkill(APlayerCharacterBase* Player
 		ECombatDeckActionSlot::WeaponSkill,
 		ECombatDeckFlowRole::Finisher,
 		PlayerOwner,
-		ComboSpecialActionAbility);
+		WeaponSkillAbility);
 
 	if (!bActivated)
 	{
@@ -163,11 +202,33 @@ bool UComboRuntimeComponent::TryActivateWeaponSkill(APlayerCharacterBase* Player
 	return bActivated;
 }
 
-bool UComboRuntimeComponent::TryActivateSpecialAttackCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner)
+bool UComboRuntimeComponent::TryActivateDash(APlayerCharacterBase* PlayerOwner)
+{
+	return TryActivateComboFromGraph(
+		WeaponComboGraph,
+		EYogComboGraphInputAction::Dash,
+		ECardRequiredAction::Any,
+		ECombatDeckActionSlot::Dash,
+		ECombatDeckFlowRole::Catalyst,
+		PlayerOwner);
+}
+
+bool UComboRuntimeComponent::TryActivateSpecial(APlayerCharacterBase* PlayerOwner)
+{
+	return TryActivateComboFromGraph(
+		WeaponComboGraph,
+		EYogComboGraphInputAction::Special,
+		ECardRequiredAction::Heavy,
+		ECombatDeckActionSlot::WeaponSkill,
+		ECombatDeckFlowRole::Finisher,
+		PlayerOwner);
+}
+
+bool UComboRuntimeComponent::TryActivateSpecialCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner)
 {
 	return TryActivateComboFromGraph(
 		SpecialAttackComboGraph,
-		EYogComboGraphInputAction::Heavy,
+		EYogComboGraphInputAction::Special,
 		ECardRequiredAction::Heavy,
 		ECombatDeckActionSlot::WeaponSkill,
 		ECombatDeckFlowRole::Finisher,
@@ -300,15 +361,13 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 		ASC->CancelAbilityHandle(ActiveAbilitySpecHandle);
 	}
 
-	// TEMP: route to GA_MeleeAttack / GA_RangeAttack based on the ComboGraph
-	// node's AttackType. Previously hard-coded to UGA_PlayMontage, which doesn't
-	// run the YogTargetType hit-collection pipeline (that lives on UGA_MeleeAttack).
-	// GA_RangeAttack is a stub for now; flip the enum in the editor to test routing.
 	TSubclassOf<UGameplayAbility> AbilityClass = AbilityOverride
 		? TSubclassOf<UGameplayAbility>(AbilityOverride.Get())
-		: (NextNode->AttackType == EYogComboGraphAttackType::Range)
-			? TSubclassOf<UGameplayAbility>(UGA_RangeAttack::StaticClass())
-			: TSubclassOf<UGameplayAbility>(UGA_MeleeAttack::StaticClass());
+		: NextNode->GameplayAbilityClass
+			? NextNode->GameplayAbilityClass
+			: GetDefaultAbilityForInput(GraphInput, NextNode->AttackType, WeaponSkillAbility);
+
+	EnsureAbilityGranted(ASC, AbilityClass);
 
 	const bool bActivated = ASC->TryActivateAbilityByClass(AbilityClass, true);
 	if (!bActivated)
@@ -424,6 +483,24 @@ void UComboRuntimeComponent::ClearStaleActiveComboState(UAbilitySystemComponent*
 	{
 		ClearComboWindowAndProgressLooseTags(ASC);
 	}
+}
+
+void UComboRuntimeComponent::EnsureAbilityGranted(UAbilitySystemComponent* ASC, TSubclassOf<UGameplayAbility> AbilityClass)
+{
+	if (!ASC || !AbilityClass)
+	{
+		return;
+	}
+
+	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	{
+		if (Spec.Ability && Spec.Ability->GetClass() == AbilityClass)
+		{
+			return;
+		}
+	}
+
+	ASC->GiveAbility(FGameplayAbilitySpec(AbilityClass, 1, INDEX_NONE, this));
 }
 
 void UComboRuntimeComponent::RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle)

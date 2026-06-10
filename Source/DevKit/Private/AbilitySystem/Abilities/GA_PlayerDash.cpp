@@ -4,6 +4,7 @@
 #include "Camera/YogPlayerCameraManager.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
+#include "Component/ComboRuntimeComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "Component/SkillChargeComponent.h"
 #include "Data/CharacterData.h"
@@ -294,7 +295,18 @@ void UGA_PlayerDash::ActivateAbility(
 	FGameplayTag FirstTag;
 	for (const FGameplayTag& Tag : AbilityTags) { FirstTag = Tag; break; }
 
-	UAnimMontage* DashMontage = ResolveDashMontage(Player, FirstTag);
+	UAnimMontage* DashMontage = nullptr;
+	if (Player && Player->ComboRuntimeComponent)
+	{
+		if (const FWeaponComboNodeConfig* ActiveComboNode = Player->ComboRuntimeComponent->GetActiveNode())
+		{
+			DashMontage = ActiveComboNode->Montage;
+		}
+	}
+	if (!DashMontage)
+	{
+		DashMontage = ResolveDashMontage(Player, FirstTag);
+	}
 
 	if (!DashMontage)
 	{

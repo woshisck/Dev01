@@ -4,15 +4,18 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 ## Current Direction
 
-- Pending input naming change: rename input actions `lightattack`, `heavyattack`, and `dash` to `NormalAttack`, `SpecialAttack`, and `WeaponSkill`.
-- Pending combo graph change: rework combo graphs so `WeaponSkill` can be enabled on the graph, and expose the node class set on the graph.
-- Pending special attack change: rework `SpecialAttackDataAsset` so each special attack can define its own combo graph.
-- Pending player load change: make the player class load both the equipped weapon combo graph and the equipped special attack combo graph. The special attack combo graph should only start from the `SpecialAttack` button; the weapon combo graph can ignore `SpecialAttack` input.
-- Heavy attack should become the primary weapon skill input.
-- Finisher action is deprecated unless the user explicitly asks to work on it.
-- Prefer minor, code-focused changes over large system rewrites.
-- Preserve the existing combo graph system for normal weapon attack chains.
-- Treat weapon skills as equipped abilities/items that can be routed through GAS.
+- Pending input naming change: rename input actions `lightattack`, `heavyattack`, and `dash` to `Attack`, `WeaponSkill`, and `dash`.
+
+## Attack / WeaponSkill Refactor Follow-ups
+
+- Build/compile was not run for the Attack / WeaponSkill / Dash / Special refactor because this guide says not to compile unless explicitly requested.
+- Add Unreal `ClassRedirects` for deleted native classes if legacy Blueprint assets still reference them:
+  `UGA_Player_LightAtk1-4`, `UGA_Player_HeavyAtk1-4`, `UGA_Player_DashAtk`, and possibly `UGA_PlayerMeleeAttack`.
+- Asset migration/resave was not done. Existing input assets, combo graph assets, Blueprint GA assets, and UI data may still need editor-side validation after the C++ rename.
+- Some compatibility names/tags were intentionally left in code/config, including deprecated controller input fallbacks, legacy `LightAtk`/`HeavyAtk` gameplay tags, `SpecialAttack` compatibility tags, and `ComboSpecialActionAbility` wrapper redirects.
+- The old `Character/InputBufferComponent` legacy component still has `LightAttack`/`HeavyAttack` enum names; live player code uses `Component/BufferComponent`, but the old component was not removed.
+- `UGA_RangeAttack` remains a stub; combo graph routing can activate it for ranged attack nodes, but the projectile/hitscan implementation is still pending.
+- DevKit-only per-node fields such as `MontageConfig`, `AttackDataOverride`, and `NodeAttackConfig` were not exposed directly on `YogComboGraph` nodes because the plugin currently cannot depend on the `DevKit` module without creating a module-boundary problem.
 
 ## Combat Architecture
 

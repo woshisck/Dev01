@@ -216,6 +216,10 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 		// 从 SourceTags 识别当前动作名称（源自 GA 的 AbilityTags 在 GE Spec 快照中）
 		static const struct { const TCHAR* Tag; const TCHAR* Name; } ActionMap[] =
 		{
+			{ TEXT("PlayerState.AbilityCast.Attack"), TEXT("Attack") },
+			{ TEXT("PlayerState.AbilityCast.WeaponSkill"), TEXT("Weapon Skill") },
+			{ TEXT("PlayerState.AbilityCast.Dash"), TEXT("Dash") },
+			{ TEXT("PlayerState.AbilityCast.Special"), TEXT("Special") },
 			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo1"), TEXT("轻击1") },
 			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo2"), TEXT("轻击2") },
 			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo3"), TEXT("轻击3") },

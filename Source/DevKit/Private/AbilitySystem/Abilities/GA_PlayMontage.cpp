@@ -412,26 +412,54 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
 	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
 
-	EInputCommandType BufferedAttackType = EInputCommandType::NormalAttack;
-	if (Buffer->ConsumeLatestAttackInputSince(AbilityActivationTime, BufferedAttackType))
+	EInputCommandType BufferedActionType = EInputCommandType::Attack;
+	if (Buffer->ConsumeLatestActionInputSince(AbilityActivationTime, BufferedActionType))
 	{
 		Buffer->ClearBuffer();
 		bool bActivated = false;
 		bool bHasComboSource = false;
-		const ECardRequiredAction ActionType = BufferedAttackType == EInputCommandType::SpecialAttack
-			? ECardRequiredAction::Heavy
-			: ECardRequiredAction::Light;
-		const TCHAR* FallbackTagName = BufferedAttackType == EInputCommandType::SpecialAttack
-			? TEXT("PlayerState.AbilityCast.HeavyAtk")
-			: TEXT("PlayerState.AbilityCast.LightAtk");
 		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
 		{
 			bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
-			bActivated = bHasComboSource
-				&& PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ActionType, PlayerOwner);
+			if (bHasComboSource)
+			{
+				switch (BufferedActionType)
+				{
+				case EInputCommandType::Attack:
+					bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateAttack(PlayerOwner);
+					break;
+				case EInputCommandType::WeaponSkill:
+					bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateWeaponSkill(PlayerOwner);
+					break;
+				case EInputCommandType::Dash:
+					bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateDash(PlayerOwner);
+					break;
+				case EInputCommandType::Special:
+					bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateSpecial(PlayerOwner);
+					break;
+				default:
+					break;
+				}
+			}
 		}
 		if (!bActivated && !bHasComboSource)
 		{
+			const TCHAR* FallbackTagName = TEXT("PlayerState.AbilityCast.Attack");
+			switch (BufferedActionType)
+			{
+			case EInputCommandType::WeaponSkill:
+				FallbackTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
+				break;
+			case EInputCommandType::Dash:
+				FallbackTagName = TEXT("PlayerState.AbilityCast.Dash");
+				break;
+			case EInputCommandType::Special:
+				FallbackTagName = TEXT("PlayerState.AbilityCast.Special");
+				break;
+			default:
+				break;
+			}
+
 			FGameplayTagContainer TagContainer;
 			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
 			bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
@@ -441,20 +469,5 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 			ASC->SetLooseGameplayTagCount(CanComboTag, 0);
 		}
 		return;
-	}
-
-	if (Buffer->HasBufferedInputSince(EInputCommandType::WeaponSkill, AbilityActivationTime))
-	{
-		Buffer->ClearBuffer();
-		bool bActivated = false;
-		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
-		{
-			bActivated = PlayerOwner->ComboRuntimeComponent
-				&& PlayerOwner->ComboRuntimeComponent->TryActivateWeaponSkill(PlayerOwner);
-		}
-		if (!bActivated && ASC)
-		{
-			ASC->SetLooseGameplayTagCount(CanComboTag, 0);
-		}
 	}
 }

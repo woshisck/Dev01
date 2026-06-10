@@ -335,7 +335,7 @@ void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDe
 		return;
 	}
 
-	TSubclassOf<UYogGameplayAbility> SpecialAction = nullptr;
+	TSubclassOf<UYogGameplayAbility> WeaponSkillAbility = nullptr;
 	USpecialAttackDataAsset* SpecialAttack = WeaponDefinition ? WeaponDefinition->DefaultSpecialAttack.Get() : nullptr;
 
 	if (!WeaponDefinition)
@@ -345,14 +345,14 @@ void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDe
 	else if (WeaponDefinition->GameplayAbilityComboGraph)
 	{
 		ComboRuntimeComponent->LoadComboGraph(WeaponDefinition->GameplayAbilityComboGraph);
-		SpecialAction = WeaponDefinition->ComboSpecialActionAbility;
+		WeaponSkillAbility = WeaponDefinition->WeaponSkillAbility;
 	}
 	else
 	{
 		ApplyDefaultUnarmedComboGraph();
 	}
 
-	ComboRuntimeComponent->SetComboSpecialActionAbility(SpecialAction);
+	ComboRuntimeComponent->SetWeaponSkillAbility(WeaponSkillAbility);
 	ComboRuntimeComponent->LoadSpecialAttackComboGraph(SpecialAttack ? SpecialAttack->Config.ComboGraph.Get() : nullptr);
 }
 

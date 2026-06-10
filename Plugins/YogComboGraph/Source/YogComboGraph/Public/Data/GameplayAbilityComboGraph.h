@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Abilities/GameplayAbility.h"
 #include "GameplayTagContainer.h"
 #include "GenericGraph.h"
 #include "GenericGraphEdge.h"
@@ -12,11 +13,12 @@ class UAnimMontage;
 UENUM(BlueprintType)
 enum class EYogComboGraphInputAction : uint8
 {
-	Light = 0 UMETA(DisplayName = "NormalAttack"),
-	Heavy = 1 UMETA(DisplayName = "SpecialAttack"),
-	WeaponSkill = 2 UMETA(DisplayName = "Dash"),
+	Attack = 0 UMETA(DisplayName = "Attack"),
+	WeaponSkill = 1 UMETA(DisplayName = "WeaponSkill"),
+	Dash = 2 UMETA(DisplayName = "Dash"),
 	Any = 3 UMETA(DisplayName = "Any"),
-	Dash = 5 UMETA(Hidden, DisplayName = "WeaponSkill")
+	Special = 4 UMETA(DisplayName = "Special"),
+	LegacyWeaponSkill = 5 UMETA(Hidden, DisplayName = "Legacy WeaponSkill")
 };
 
 /**
@@ -50,6 +52,13 @@ public:
 	/** Melee → GA_MeleeAttack, Range → GA_RangeAttack. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	EYogComboGraphAttackType AttackType = EYogComboGraphAttackType::Melee;
+
+	/** Optional GA class for this node. Empty uses the runtime default for the input action. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
+	TSubclassOf<UGameplayAbility> GameplayAbilityClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability")
+	FGameplayTag AbilityTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
 	TObjectPtr<UAnimMontage> Montage = nullptr;

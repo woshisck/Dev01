@@ -8,6 +8,7 @@
 #include "WeaponComboNodeConfig.generated.h"
 
 class UAnimMontage;
+class UGameplayAbility;
 class UGameplayAbilityComboGraphNode;
 class UMontageConfigDA;
 
@@ -33,6 +34,9 @@ struct DEVKIT_API FWeaponComboNodeConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	EYogComboGraphAttackType AttackType = EYogComboGraphAttackType::Melee;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	TSubclassOf<UGameplayAbility> GameplayAbilityClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	FGameplayTag AbilityTag;

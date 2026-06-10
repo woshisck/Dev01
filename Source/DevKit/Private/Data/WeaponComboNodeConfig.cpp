@@ -83,6 +83,8 @@ FWeaponComboNodeConfig FWeaponComboNodeConfig::FromComboGraphNode(
 	Config.NodeId = !Node->NodeId.IsNone() ? Node->NodeId : FName(*Node->GetName());
 	Config.InputAction = InputAction;
 	Config.AttackType = Node->AttackType;
+	Config.GameplayAbilityClass = Node->GameplayAbilityClass;
+	Config.AbilityTag = Node->AbilityTag;
 	Config.Montage = Node->Montage;
 	Config.CombatDeckActionSlot = ActionSlotTagToEnum(Node->CombatDeckActionSlotTag, DefaultActionSlot);
 	Config.CombatDeckFlowRole = FlowRoleTagToEnum(

@@ -8,9 +8,10 @@
 #include "Component/SacrificeRuneComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_ActiveSkill_ShieldBurst.h"
+#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
-#include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
+#include "AbilitySystem/Abilities/GA_WeaponSkill.h"
 #include "AbilitySystem/GameplayEffect/GE_RuneBurn.h"
 #include "AbilitySystem/Execution/GEExec_BurnDamage.h"
 #include "AbilitySystem/Execution/GEExec_PoisonDamage.h"
@@ -398,8 +399,8 @@ bool FCombatDeckDeprecatedFinisherCardsAreIgnoredTest::RunTest(const FString& Pa
 	FinisherCard.bRequiresComboFinisher = true;
 	Deck->SetDeckListForTest({ FinisherCard });
 
-	const FCombatCardResolveResult NormalAttack = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestFalse(TEXT("Deprecated finisher card is not inserted into the deck"), NormalAttack.bHadCard);
+	const FCombatCardResolveResult Attack = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestFalse(TEXT("Deprecated finisher card is not inserted into the deck"), Attack.bHadCard);
 
 	const FCombatCardResolveResult ComboFinisher = Deck->ResolveAttackCard(ECardRequiredAction::Light, true, false);
 	TestFalse(TEXT("Combo finisher flag does not reactivate deprecated finisher cards"), ComboFinisher.bHadCard);
@@ -706,14 +707,14 @@ bool FPlayerDeathClearsComboRuntimeStateTest::RunTest(const FString& Parameters)
 	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
 	Root->Graph = Graph;
 	Root->NodeId = TEXT("L1");
-	Root->RootInputAction = EYogComboGraphInputAction::Light;
+	Root->RootInputAction = EYogComboGraphInputAction::Attack;
 	Root->Montage = NewObject<UAnimMontage>(Graph);
 	Graph->AllNodes = { Root };
 	Graph->RootNodes = { Root };
 
 	Player->ComboRuntimeComponent->LoadComboGraph(Graph);
 	TestTrue(TEXT("Combo runtime can enter an active graph node before death"),
-		Player->ComboRuntimeComponent->TryActivateComboGraphNode(EYogComboGraphInputAction::Light, FGameplayTagContainer()));
+		Player->ComboRuntimeComponent->TryActivateComboGraphNode(EYogComboGraphInputAction::Attack, FGameplayTagContainer()));
 	TestEqual(TEXT("Combo runtime stores current node before death"),
 		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(TEXT("L1")));
 	TestTrue(TEXT("Combo runtime stores active attack guid before death"),
@@ -859,14 +860,14 @@ bool FWeaponSkillMissResetsComboRuntimeToRootTest::RunTest(const FString& Parame
 	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
 	Root->Graph = Graph;
 	Root->NodeId = TEXT("L1");
-	Root->RootInputAction = EYogComboGraphInputAction::Light;
+	Root->RootInputAction = EYogComboGraphInputAction::Attack;
 	Root->Montage = NewObject<UAnimMontage>(Graph);
 	Graph->AllNodes = { Root };
 	Graph->RootNodes = { Root };
 
 	Player->ComboRuntimeComponent->LoadComboGraph(Graph);
 	TestTrue(TEXT("Combo runtime can enter a normal attack node before weapon-skill miss"),
-		Player->ComboRuntimeComponent->TryActivateComboGraphNode(EYogComboGraphInputAction::Light, FGameplayTagContainer()));
+		Player->ComboRuntimeComponent->TryActivateComboGraphNode(EYogComboGraphInputAction::Attack, FGameplayTagContainer()));
 	TestEqual(TEXT("Combo runtime stores current node before weapon-skill miss"),
 		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(TEXT("L1")));
 	TestTrue(TEXT("Combo runtime stores active attack guid before weapon-skill miss"),
@@ -1293,21 +1294,33 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMeleeActionMappingTest,
 
 bool FCombatDeckMeleeActionMappingTest::RunTest(const FString& Parameters)
 {
-	UGA_Player_LightAtk1* LightAttack = NewObject<UGA_Player_LightAtk1>();
-	TestEqual(TEXT("Light attack maps to Light card action"), LightAttack->GetCombatDeckActionType(), ECardRequiredAction::Light);
-	TestFalse(TEXT("Light attack 1 is not a combo finisher"), LightAttack->IsCombatDeckComboFinisher());
+	UGameplayAbilityComboGraphNode* AttackNode = NewObject<UGameplayAbilityComboGraphNode>();
+	AttackNode->NodeId = TEXT("AttackRoot");
+	AttackNode->GameplayAbilityClass = UGA_MeleeAttack::StaticClass();
+	const FWeaponComboNodeConfig AttackConfig = FWeaponComboNodeConfig::FromComboGraphNode(
+		AttackNode,
+		ECardRequiredAction::Light);
 
-	UGA_Player_HeavyAtk1* HeavyAttack = NewObject<UGA_Player_HeavyAtk1>();
-	TestEqual(TEXT("Heavy attack maps to Heavy card action"), HeavyAttack->GetCombatDeckActionType(), ECardRequiredAction::Heavy);
-	TestFalse(TEXT("Heavy attack 1 is not a combo finisher"), HeavyAttack->IsCombatDeckComboFinisher());
+	TestEqual(TEXT("Attack graph node maps to Light card action"), AttackConfig.InputAction, ECardRequiredAction::Light);
+	TestEqual(TEXT("Attack graph node defaults to attack slot"), AttackConfig.CombatDeckActionSlot, ECombatDeckActionSlot::Attack);
+	TestFalse(TEXT("Attack graph node is not a combo finisher by default"), AttackConfig.bIsComboFinisher);
+	TestEqual(TEXT("Attack graph node exposes melee ability class"), AttackConfig.GameplayAbilityClass.Get(), UGA_MeleeAttack::StaticClass());
 
-	UGA_Player_LightAtk4* LightFinisher = NewObject<UGA_Player_LightAtk4>();
-	TestEqual(TEXT("Light combo finisher remains a Light card action"), LightFinisher->GetCombatDeckActionType(), ECardRequiredAction::Light);
-	TestTrue(TEXT("Light combo 4 is a combo finisher"), LightFinisher->IsCombatDeckComboFinisher());
+	UGameplayAbilityComboGraphNode* WeaponSkillNode = NewObject<UGameplayAbilityComboGraphNode>();
+	WeaponSkillNode->NodeId = TEXT("WeaponSkillRoot");
+	WeaponSkillNode->GameplayAbilityClass = UGA_WeaponSkill::StaticClass();
+	WeaponSkillNode->bIsComboFinisher = true;
+	const FWeaponComboNodeConfig WeaponSkillConfig = FWeaponComboNodeConfig::FromComboGraphNode(
+		WeaponSkillNode,
+		ECardRequiredAction::Any,
+		ECombatDeckActionSlot::WeaponSkill,
+		ECombatDeckFlowRole::Finisher);
 
-	UGA_Player_HeavyAtk4* HeavyFinisher = NewObject<UGA_Player_HeavyAtk4>();
-	TestEqual(TEXT("Heavy combo finisher remains a Heavy card action"), HeavyFinisher->GetCombatDeckActionType(), ECardRequiredAction::Heavy);
-	TestTrue(TEXT("Heavy combo 4 is a combo finisher"), HeavyFinisher->IsCombatDeckComboFinisher());
+	TestEqual(TEXT("WeaponSkill graph node maps to Any card action"), WeaponSkillConfig.InputAction, ECardRequiredAction::Any);
+	TestEqual(TEXT("WeaponSkill graph node uses weapon-skill slot"), WeaponSkillConfig.CombatDeckActionSlot, ECombatDeckActionSlot::WeaponSkill);
+	TestEqual(TEXT("WeaponSkill graph node uses finisher flow role"), WeaponSkillConfig.CombatDeckFlowRole, ECombatDeckFlowRole::Finisher);
+	TestTrue(TEXT("WeaponSkill graph node can be a combo finisher"), WeaponSkillConfig.bIsComboFinisher);
+	TestEqual(TEXT("WeaponSkill graph node exposes weapon-skill ability class"), WeaponSkillConfig.GameplayAbilityClass.Get(), UGA_WeaponSkill::StaticClass());
 
 	return true;
 }
@@ -1343,18 +1356,24 @@ bool FInputBufferConsumesLatestAttackInputTest::RunTest(const FString& Parameter
 	OwnerActor->AddInstanceComponent(Buffer);
 	Buffer->RegisterComponent();
 
-	EInputCommandType ConsumedType = EInputCommandType::NormalAttack;
+	EInputCommandType ConsumedType = EInputCommandType::Attack;
 	const float SinceTime = World->GetTimeSeconds() - 1.0f;
-	Buffer->RecordNormalAttack();
-	Buffer->RecordSpecialAttack();
-	TestTrue(TEXT("Latest attack input is consumed"), Buffer->ConsumeLatestAttackInputSince(SinceTime, ConsumedType));
-	TestEqual(TEXT("SpecialAttack wins when it was recorded after NormalAttack"), ConsumedType, EInputCommandType::SpecialAttack);
+	Buffer->RecordAttack();
+	Buffer->RecordWeaponSkill();
+	TestTrue(TEXT("Attack-only input is consumed"), Buffer->ConsumeLatestAttackInputSince(SinceTime, ConsumedType));
+	TestEqual(TEXT("Attack-only consume skips WeaponSkill"), ConsumedType, EInputCommandType::Attack);
 
 	Buffer->ClearBuffer();
-	Buffer->RecordSpecialAttack();
-	Buffer->RecordNormalAttack();
-	TestTrue(TEXT("Latest attack input is consumed after order swap"), Buffer->ConsumeLatestAttackInputSince(SinceTime, ConsumedType));
-	TestEqual(TEXT("NormalAttack wins when it was recorded after SpecialAttack"), ConsumedType, EInputCommandType::NormalAttack);
+	Buffer->RecordAttack();
+	Buffer->RecordSpecial();
+	TestTrue(TEXT("Latest action input is consumed"), Buffer->ConsumeLatestActionInputSince(SinceTime, ConsumedType));
+	TestEqual(TEXT("Special wins when it was recorded after Attack"), ConsumedType, EInputCommandType::Special);
+
+	Buffer->ClearBuffer();
+	Buffer->RecordSpecial();
+	Buffer->RecordWeaponSkill();
+	TestTrue(TEXT("Latest action input is consumed after order swap"), Buffer->ConsumeLatestActionInputSince(SinceTime, ConsumedType));
+	TestEqual(TEXT("WeaponSkill wins when it was recorded after Special"), ConsumedType, EInputCommandType::WeaponSkill);
 
 	OwnerActor->Destroy();
 	return true;
@@ -1517,7 +1536,7 @@ bool FWeaponSkillComboGraphUsesFinisherDeckContextByDefaultTest::RunTest(const F
 	}
 
 	ASC->InitAbilityActorInfo(Player, Player);
-	Player->ComboRuntimeComponent->SetComboSpecialActionAbility(UYogGameplayAbility::StaticClass());
+	Player->ComboRuntimeComponent->SetWeaponSkillAbility(UYogGameplayAbility::StaticClass());
 	ASC->GiveAbility(FGameplayAbilitySpec(UYogGameplayAbility::StaticClass(), 1));
 
 	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>(Player);
@@ -1566,8 +1585,8 @@ bool FGameplayAbilityComboGraphSupportsNamedInputsTest::RunTest(const FString& P
 
 	TestTrue(TEXT("WeaponSkill can be used as a combo graph root input"),
 		Graph->FindRootComboNode(EYogComboGraphInputAction::WeaponSkill) == WeaponSkillRoot);
-	TestNull(TEXT("WeaponSkill roots are not selected by NormalAttack input"),
-		Graph->FindRootComboNode(EYogComboGraphInputAction::Light));
+	TestNull(TEXT("WeaponSkill roots are not selected by Attack input"),
+		Graph->FindRootComboNode(EYogComboGraphInputAction::Attack));
 
 	const TArray<TSubclassOf<UGameplayAbilityComboGraphNode>> NodeClasses = Graph->GetSupportedNodeClasses();
 	TestTrue(TEXT("Combo graph exposes its configured node class set"),
@@ -1576,19 +1595,19 @@ bool FGameplayAbilityComboGraphSupportsNamedInputsTest::RunTest(const FString& P
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphLegacyDashInputRoutesToWeaponSkillTest,
-	"DevKit.CombatDeck.ComboGraphLegacyDashInputRoutesToWeaponSkill",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphLegacyWeaponSkillInputRoutesToWeaponSkillTest,
+	"DevKit.CombatDeck.ComboGraphLegacyWeaponSkillInputRoutesToWeaponSkill",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FGameplayAbilityComboGraphLegacyDashInputRoutesToWeaponSkillTest::RunTest(const FString& Parameters)
+bool FGameplayAbilityComboGraphLegacyWeaponSkillInputRoutesToWeaponSkillTest::RunTest(const FString& Parameters)
 {
 	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
-	const EYogComboGraphInputAction LegacyDashInput = static_cast<EYogComboGraphInputAction>(5);
+	const EYogComboGraphInputAction LegacyWeaponSkillInput = EYogComboGraphInputAction::LegacyWeaponSkill;
 
 	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
 	Root->Graph = Graph;
 	Root->NodeId = TEXT("DisarmDashRoot");
-	Root->RootInputAction = LegacyDashInput;
+	Root->RootInputAction = LegacyWeaponSkillInput;
 	Root->Montage = NewObject<UAnimMontage>(Graph);
 
 	UGameplayAbilityComboGraphNode* Child = NewObject<UGameplayAbilityComboGraphNode>(Graph);
@@ -1597,30 +1616,30 @@ bool FGameplayAbilityComboGraphLegacyDashInputRoutesToWeaponSkillTest::RunTest(c
 	Child->Montage = NewObject<UAnimMontage>(Graph);
 
 	UGameplayAbilityComboGraphEdge* Edge = NewObject<UGameplayAbilityComboGraphEdge>(Graph);
-	Edge->InputAction = LegacyDashInput;
+	Edge->InputAction = LegacyWeaponSkillInput;
 	Root->ChildrenNodes = { Child };
 	Child->ParentNodes = { Root };
 	Root->Edges.Add(Child, Edge);
 	Graph->RootNodes = { Root };
 	Graph->AllNodes = { Root, Child };
 
-	TestTrue(TEXT("Legacy Dash root input routes to WeaponSkill"),
+	TestTrue(TEXT("Legacy WeaponSkill root input routes to WeaponSkill"),
 		Graph->FindRootComboNode(EYogComboGraphInputAction::WeaponSkill) == Root);
-	TestNull(TEXT("Legacy Dash root input is not selected by NormalAttack"),
-		Graph->FindRootComboNode(EYogComboGraphInputAction::Light));
-	TestTrue(TEXT("Legacy Dash edge input routes to WeaponSkill"),
+	TestNull(TEXT("Legacy WeaponSkill root input is not selected by Attack"),
+		Graph->FindRootComboNode(EYogComboGraphInputAction::Attack));
+	TestTrue(TEXT("Legacy WeaponSkill edge input routes to WeaponSkill"),
 		Graph->FindChildComboNode(TEXT("DisarmDashRoot"), EYogComboGraphInputAction::WeaponSkill) == Child);
-	TestNull(TEXT("Legacy Dash edge input is not selected by NormalAttack"),
-		Graph->FindChildComboNode(TEXT("DisarmDashRoot"), EYogComboGraphInputAction::Light));
+	TestNull(TEXT("Legacy WeaponSkill edge input is not selected by Attack"),
+		Graph->FindChildComboNode(TEXT("DisarmDashRoot"), EYogComboGraphInputAction::Attack));
 
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphInvalidInputDoesNotMatchNormalAttackTest,
-	"DevKit.CombatDeck.ComboGraphInvalidInputDoesNotMatchNormalAttack",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphInvalidInputDoesNotMatchAttackTest,
+	"DevKit.CombatDeck.ComboGraphInvalidInputDoesNotMatchAttack",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FGameplayAbilityComboGraphInvalidInputDoesNotMatchNormalAttackTest::RunTest(const FString& Parameters)
+bool FGameplayAbilityComboGraphInvalidInputDoesNotMatchAttackTest::RunTest(const FString& Parameters)
 {
 	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
 	const EYogComboGraphInputAction InvalidInput = static_cast<EYogComboGraphInputAction>(255);
@@ -1634,8 +1653,8 @@ bool FGameplayAbilityComboGraphInvalidInputDoesNotMatchNormalAttackTest::RunTest
 	Graph->RootNodes = { Root };
 	Graph->AllNodes = { Root };
 
-	TestNull(TEXT("Invalid root input is not selected by NormalAttack"),
-		Graph->FindRootComboNode(EYogComboGraphInputAction::Light));
+	TestNull(TEXT("Invalid root input is not selected by Attack"),
+		Graph->FindRootComboNode(EYogComboGraphInputAction::Attack));
 	TestNull(TEXT("Invalid root input is not selected by WeaponSkill"),
 		Graph->FindRootComboNode(EYogComboGraphInputAction::WeaponSkill));
 
@@ -1729,8 +1748,8 @@ bool FGameplayAbilityComboGraphWarnsDuplicateChildInputTest::RunTest(const FStri
 	SecondChild->NodeId = TEXT("LightB");
 	SecondChild->Montage = NewObject<UAnimMontage>(Graph);
 
-	FirstEdge->InputAction = EYogComboGraphInputAction::Light;
-	SecondEdge->InputAction = EYogComboGraphInputAction::Light;
+	FirstEdge->InputAction = EYogComboGraphInputAction::Attack;
+	SecondEdge->InputAction = EYogComboGraphInputAction::Attack;
 	Root->ChildrenNodes = { FirstChild, SecondChild };
 	FirstChild->ParentNodes = { Root };
 	SecondChild->ParentNodes = { Root };
@@ -1761,14 +1780,14 @@ bool FWeaponComboHintTextUnlimitedLinesTest::RunTest(const FString& Parameters)
 	UWeaponDefinition* Weapon = NewObject<UWeaponDefinition>();
 	Weapon->GameplayAbilityComboGraph = Graph;
 
-	UGameplayAbilityComboGraphNode* LightRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	UGameplayAbilityComboGraphNode* HeavyRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	LightRoot->Graph = Graph;
-	LightRoot->NodeId = TEXT("LightRoot");
-	LightRoot->RootInputAction = EYogComboGraphInputAction::Light;
-	HeavyRoot->Graph = Graph;
-	HeavyRoot->NodeId = TEXT("HeavyRoot");
-	HeavyRoot->RootInputAction = EYogComboGraphInputAction::Heavy;
+	UGameplayAbilityComboGraphNode* AttackRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
+	UGameplayAbilityComboGraphNode* WeaponSkillRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
+	AttackRoot->Graph = Graph;
+	AttackRoot->NodeId = TEXT("AttackRoot");
+	AttackRoot->RootInputAction = EYogComboGraphInputAction::Attack;
+	WeaponSkillRoot->Graph = Graph;
+	WeaponSkillRoot->NodeId = TEXT("WeaponSkillRoot");
+	WeaponSkillRoot->RootInputAction = EYogComboGraphInputAction::WeaponSkill;
 
 	auto AddChild = [Graph](UGameplayAbilityComboGraphNode* Parent, const TCHAR* NodeId, EYogComboGraphInputAction InputAction)
 	{
@@ -1784,13 +1803,13 @@ bool FWeaponComboHintTextUnlimitedLinesTest::RunTest(const FString& Parameters)
 		return Child;
 	};
 
-	Graph->RootNodes = { LightRoot, HeavyRoot };
-	Graph->AllNodes = { LightRoot, HeavyRoot };
-	AddChild(LightRoot, TEXT("LL"), EYogComboGraphInputAction::Light);
-	AddChild(LightRoot, TEXT("LH"), EYogComboGraphInputAction::Heavy);
-	AddChild(AddChild(HeavyRoot, TEXT("HL"), EYogComboGraphInputAction::Light), TEXT("HLH"), EYogComboGraphInputAction::Heavy);
-	AddChild(AddChild(HeavyRoot, TEXT("HH"), EYogComboGraphInputAction::Heavy), TEXT("HHL"), EYogComboGraphInputAction::Light);
-	AddChild(AddChild(AddChild(HeavyRoot, TEXT("HLL"), EYogComboGraphInputAction::Light), TEXT("HLLL"), EYogComboGraphInputAction::Light), TEXT("HLLLH"), EYogComboGraphInputAction::Heavy);
+	Graph->RootNodes = { AttackRoot, WeaponSkillRoot };
+	Graph->AllNodes = { AttackRoot, WeaponSkillRoot };
+	AddChild(AttackRoot, TEXT("AA"), EYogComboGraphInputAction::Attack);
+	AddChild(AttackRoot, TEXT("AW"), EYogComboGraphInputAction::WeaponSkill);
+	AddChild(AddChild(WeaponSkillRoot, TEXT("WA"), EYogComboGraphInputAction::Attack), TEXT("WAW"), EYogComboGraphInputAction::WeaponSkill);
+	AddChild(AddChild(WeaponSkillRoot, TEXT("WW"), EYogComboGraphInputAction::WeaponSkill), TEXT("WWA"), EYogComboGraphInputAction::Attack);
+	AddChild(AddChild(AddChild(WeaponSkillRoot, TEXT("WAA"), EYogComboGraphInputAction::Attack), TEXT("WAAA"), EYogComboGraphInputAction::Attack), TEXT("WAAAW"), EYogComboGraphInputAction::WeaponSkill);
 
 	const FString LimitedText = WeaponComboTextUtils::BuildComboHintText(Weapon, 4, true).ToString();
 	TestFalse(TEXT("Explicit line limit still truncates combo hint text"), LimitedText.Contains(TEXT("连段 05")));

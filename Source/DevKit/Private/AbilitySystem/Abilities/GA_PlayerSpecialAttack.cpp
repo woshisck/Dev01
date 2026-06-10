@@ -16,6 +16,7 @@
 #include "Component/CombatItemComponent.h"
 #include "Component/PlayerSpecialAttackComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Data/MontageConfigDA.h"
 #include "Data/RuneDataAsset.h"
 
 namespace
@@ -51,12 +52,15 @@ UGA_PlayerSpecialAttack::UGA_PlayerSpecialAttack(const FObjectInitializer& Objec
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	bRetriggerInstancedAbility = false;
 
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Ability.Player.Special")));
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special")));
 	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Ability.Player.SpecialAttack")));
 	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SpecialAttack")));
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SpecialAttack")));
+	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special")));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HitReact")));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Knockback")));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special")));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SpecialAttack")));
 
 	EventTags.AddTag(GetDefaultSpecialAttackEventTag());
@@ -72,7 +76,7 @@ void UGA_PlayerSpecialAttack::ActivateAbility(
 
 	PlayerOwner = ActorInfo ? Cast<APlayerCharacterBase>(ActorInfo->AvatarActor.Get()) : nullptr;
 	SpecialAttackComponent = PlayerOwner ? PlayerOwner->SpecialAttackComponent.Get() : nullptr;
-	if (!PlayerOwner || !SpecialAttackComponent)
+	if (!PlayerOwner)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
@@ -83,7 +87,7 @@ void UGA_PlayerSpecialAttack::ActivateAbility(
 	bCombatDeckCardResolvedThisActivation = false;
 	ActiveCombatCardResult = FCombatCardResolveResult();
 
-	ActiveConfig = SpecialAttackComponent->GetSpecialAttackConfig();
+	ActiveConfig = SpecialAttackComponent ? SpecialAttackComponent->GetSpecialAttackConfig() : FSpecialAttackConfig();
 	ActiveMontage = ActiveConfig.Montage;
 	if (PlayerOwner->ComboRuntimeComponent)
 	{
@@ -92,6 +96,11 @@ void UGA_PlayerSpecialAttack::ActivateAbility(
 			if (ActiveComboNode->Montage)
 			{
 				ActiveMontage = ActiveComboNode->Montage;
+			}
+			if (ActiveComboNode->MontageConfig)
+			{
+				ActiveConfig.Montage = ActiveComboNode->MontageConfig->Montage;
+				ActiveMontage = ActiveMontage ? ActiveMontage : ActiveComboNode->MontageConfig->Montage;
 			}
 		}
 	}
@@ -118,10 +127,10 @@ void UGA_PlayerSpecialAttack::ActivateAbility(
 	AbilityActivationTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
-		const FGameplayTag SpecialAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SpecialAttack"));
-		if (SpecialAttackTag.IsValid() && ASC->GetTagCount(SpecialAttackTag) <= 0)
+		const FGameplayTag SpecialTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special"));
+		if (SpecialTag.IsValid() && ASC->GetTagCount(SpecialTag) <= 0)
 		{
-			ASC->AddLooseGameplayTag(SpecialAttackTag);
+			ASC->AddLooseGameplayTag(SpecialTag);
 			bAddedSpecialAttackLooseTag = true;
 		}
 
@@ -195,10 +204,10 @@ void UGA_PlayerSpecialAttack::EndAbility(
 		}
 		ASC->SetLooseGameplayTagCount(CanComboTag, 0);
 
-		const FGameplayTag SpecialAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SpecialAttack"), false);
-		if (bAddedSpecialAttackLooseTag && SpecialAttackTag.IsValid())
+		const FGameplayTag SpecialTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special"), false);
+		if (bAddedSpecialAttackLooseTag && SpecialTag.IsValid())
 		{
-			ASC->RemoveLooseGameplayTag(SpecialAttackTag);
+			ASC->RemoveLooseGameplayTag(SpecialTag);
 			bAddedSpecialAttackLooseTag = false;
 		}
 	}
@@ -231,14 +240,14 @@ void UGA_PlayerSpecialAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32
 		return;
 	}
 
-	if (!Buffer->ConsumeBufferedInputSince(EInputCommandType::NormalAttack, AbilityActivationTime))
+	if (!Buffer->ConsumeBufferedInputSince(EInputCommandType::Attack, AbilityActivationTime))
 	{
 		return;
 	}
 
 	Buffer->ClearBuffer();
 	const bool bActivated = PlayerOwner->ComboRuntimeComponent->HasComboSource()
-		&& PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Light, PlayerOwner);
+		&& PlayerOwner->ComboRuntimeComponent->TryActivateAttack(PlayerOwner);
 
 	if (bActivated)
 	{

@@ -70,8 +70,9 @@ void UAnimNotifyState_PostAtkWindow::NotifyTick(USkeletalMeshComponent* MeshComp
 
     // ── 攻击输入：清 CanCombo tag，新 GA 激活后通过 GAS 流程停止蒙太奇，此处不干预 ──
     const bool bHasAtkInput =
-        Buffer->HasBufferedInputSince(EInputCommandType::NormalAttack, BeginTime) ||
-        Buffer->HasBufferedInputSince(EInputCommandType::SpecialAttack, BeginTime);
+        Buffer->HasBufferedInputSince(EInputCommandType::Attack, BeginTime) ||
+        Buffer->HasBufferedInputSince(EInputCommandType::WeaponSkill, BeginTime) ||
+        Buffer->HasBufferedInputSince(EInputCommandType::Special, BeginTime);
 
     if (bHasAtkInput)
     {

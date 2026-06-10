@@ -73,7 +73,7 @@ namespace
 				TEXT("打开背包后，可以拖动卡牌调整触发顺序。")));
 			Pages.Add(MakeTutorialPage(
 				TEXT("重击协调"),
-				TEXT("重击卡可以被 <input action=\"LightAttack\"/> 正常打出，造成额外伤害和击退。它的协调需求是 <input action=\"HeavyAttack\"/>：用重攻击打出时，额外伤害和击退距离会大幅提升。")));
+				TEXT("重击卡可以被 <input action=\"Attack\"/> 正常打出，造成额外伤害和击退。它的协调需求是 <input action=\"WeaponSkill\"/>：用武器技能打出时，额外伤害和击退距离会大幅提升。")));
 		}
 		else if (EventID == MoonlightLinkCardTutorialEventID)
 		{
@@ -109,7 +109,7 @@ namespace
 				TEXT("终结技卡进入卡组后，会在合适的攻击节奏里提供一个终结技准备窗口。窗口出现时，画面会出现专属的终结技提示。")));
 			Pages.Add(MakeTutorialPage(
 				TEXT("协调需求"),
-				TEXT("终结技的协调需求是 <input action=\"HeavyAttack\"/>：在准备窗口出现时按重攻击完成确认连段，触发终结技额外伤害。"),
+				TEXT("终结技的协调需求是 <input action=\"WeaponSkill\"/>：在准备窗口出现时按武器技能完成确认连段，触发终结技额外伤害。"),
 				TEXT("没有在窗口内确认会让窗口关闭，需要再次触发节奏才会重新开启。")));
 		}
 
@@ -379,7 +379,7 @@ void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase
 			TEXT("每把武器都有一组起始卡。拾取后，卡组会按武器配置顺序显示；轻/重攻击不会被卡组阻止，但命中会按顺序消耗卡牌并触发效果。")));
 		PagesToShow.Add(MakeTutorialPage(
 			TEXT("试试攻击木头人"),
-			TEXT("拾取武器后，走到木头人身边，尝试用 <input action=\"LightAttack\"/> 或 <input action=\"HeavyAttack\"/> 攻击它。击败后会掉落一张新卡牌，靠近掉落物再按 <input action=\"Interact\"/> 拾取。")));
+			TEXT("拾取武器后，走到木头人身边，尝试用 <input action=\"Attack\"/> 或 <input action=\"WeaponSkill\"/> 攻击它。击败后会掉落一张新卡牌，靠近掉落物再按 <input action=\"Interact\"/> 拾取。")));
 	}
 
 	bPopupShowing = true;

@@ -213,7 +213,7 @@ namespace Tutorial512Setup
 					},
 					{
 						TEXT("试试攻击木头人"),
-						TEXT("拾取武器后，走到木头人身边，尝试用 <input action=\"NormalAttack\"/> 或 <input action=\"SpecialAttack\"/> 攻击它。击败后会掉落一张新卡牌，靠近掉落物再按 <input action=\"Interact\"/> 拾取。"),
+						TEXT("拾取武器后，走到木头人身边，尝试用 <input action=\"Attack\"/> 或 <input action=\"WeaponSkill\"/> 攻击它。击败后会掉落一张新卡牌，靠近掉落物再按 <input action=\"Interact\"/> 拾取。"),
 						TEXT("")
 					},
 				}
@@ -283,8 +283,8 @@ namespace Tutorial512Setup
 					},
 					{
 						TEXT("重击卡牌"),
-						TEXT("重击是一张普通稀有卡。它可以被 <input action=\"NormalAttack\"/> 正常打出，造成额外伤害和击退。"),
-						TEXT("它的协调需求是 <input action=\"SpecialAttack\"/>：用重攻击打出时，额外伤害和击退距离会大幅提升。")
+						TEXT("重击是一张普通稀有卡。它可以被 <input action=\"Attack\"/> 正常打出，造成额外伤害和击退。"),
+						TEXT("它的协调需求是 <input action=\"WeaponSkill\"/>：用武器技能打出时，额外伤害和击退距离会大幅提升。")
 					},
 				}
 			},
@@ -294,7 +294,7 @@ namespace Tutorial512Setup
 				{
 					{
 						TEXT("终结技卡牌"),
-						TEXT("Finisher 卡进入卡组后，会在合适的攻击节奏里提供终结技准备窗口。窗口出现时，用 <input action=\"SpecialAttack\"/> 完成确认连段。"),
+						TEXT("Finisher 卡进入卡组后，会在合适的攻击节奏里提供终结技准备窗口。窗口出现时，用 <input action=\"Special\"/> 完成确认连段。"),
 						TEXT("教程最后一关获得终结技卡牌后，可以直接把它编入卡组并使用。")
 					},
 				}

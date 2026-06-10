@@ -14,14 +14,9 @@ UBufferComponent::UBufferComponent()
 	// ...
 }
 
-void UBufferComponent::RecordNormalAttack()
+void UBufferComponent::RecordAttack()
 {
-	PushCommand(FInputCommand(EInputCommandType::NormalAttack, GetWorld()->GetTimeSeconds()));
-}
-
-void UBufferComponent::RecordSpecialAttack()
-{
-	PushCommand(FInputCommand(EInputCommandType::SpecialAttack, GetWorld()->GetTimeSeconds()));
+	PushCommand(FInputCommand(EInputCommandType::Attack, GetWorld()->GetTimeSeconds()));
 }
 
 void UBufferComponent::RecordWeaponSkill()
@@ -29,19 +24,14 @@ void UBufferComponent::RecordWeaponSkill()
 	PushCommand(FInputCommand(EInputCommandType::WeaponSkill, GetWorld()->GetTimeSeconds()));
 }
 
-void UBufferComponent::RecordLightAttack()
-{
-	RecordNormalAttack();
-}
-
-void UBufferComponent::RecordHeavyAttack()
-{
-	RecordSpecialAttack();
-}
-
 void UBufferComponent::RecordDash()
 {
-	RecordWeaponSkill();
+	PushCommand(FInputCommand(EInputCommandType::Dash, GetWorld()->GetTimeSeconds()));
+}
+
+void UBufferComponent::RecordSpecial()
+{
+	PushCommand(FInputCommand(EInputCommandType::Special, GetWorld()->GetTimeSeconds()));
 }
 
 void UBufferComponent::RecordMove(const FVector2D& Direction)
@@ -110,9 +100,27 @@ bool UBufferComponent::ConsumeLatestAttackInputSince(float SinceTime, EInputComm
 	for (int32 i = InputCommandHistory.Num() - 1; i >= 0; --i)
 	{
 		FInputCommand& Cmd = InputCommandHistory[i];
-		const bool bIsAttack = Cmd.CommandType == EInputCommandType::NormalAttack ||
-			Cmd.CommandType == EInputCommandType::SpecialAttack;
-		if (bIsAttack && Cmd.Timestamp > SinceTime)
+		if (Cmd.CommandType == EInputCommandType::Attack && Cmd.Timestamp > SinceTime)
+		{
+			OutType = Cmd.CommandType;
+			Cmd.Timestamp = -9999.0f;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UBufferComponent::ConsumeLatestActionInputSince(float SinceTime, EInputCommandType& OutType)
+{
+	for (int32 i = InputCommandHistory.Num() - 1; i >= 0; --i)
+	{
+		FInputCommand& Cmd = InputCommandHistory[i];
+		const bool bIsAction =
+			Cmd.CommandType == EInputCommandType::Attack ||
+			Cmd.CommandType == EInputCommandType::WeaponSkill ||
+			Cmd.CommandType == EInputCommandType::Dash ||
+			Cmd.CommandType == EInputCommandType::Special;
+		if (bIsAction && Cmd.Timestamp > SinceTime)
 		{
 			OutType = Cmd.CommandType;
 			Cmd.Timestamp = -9999.0f;
@@ -179,12 +187,14 @@ FString UBufferComponent::CommandToString(const FInputCommand& Command)
 {
 	switch (Command.CommandType)
 	{
-	case EInputCommandType::NormalAttack:
-		return TEXT("NormalAttack");
-	case EInputCommandType::SpecialAttack:
-		return TEXT("SpecialAttack");
+	case EInputCommandType::Attack:
+		return TEXT("Attack");
 	case EInputCommandType::WeaponSkill:
 		return TEXT("WeaponSkill");
+	case EInputCommandType::Dash:
+		return TEXT("Dash");
+	case EInputCommandType::Special:
+		return TEXT("Special");
 	case EInputCommandType::Move:
 		return FString::Printf(TEXT("Move: X=%f, Y=%f"), Command.MoveDirection.X, Command.MoveDirection.Y);
 	default:
