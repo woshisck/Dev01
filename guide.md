@@ -17,6 +17,12 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 - `UGA_RangeAttack` remains a stub; combo graph routing can activate it for ranged attack nodes, but the projectile/hitscan implementation is still pending.
 - DevKit-only per-node fields such as `MontageConfig`, `AttackDataOverride`, and `NodeAttackConfig` were not exposed directly on `YogComboGraph` nodes because the plugin currently cannot depend on the `DevKit` module without creating a module-boundary problem.
 
+## Initial Data Assets
+
+- `DA_Base_AbilitySet_Initial` (`/Game/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial`): base `UGASTemplate` loaded by every character at `BeginPlay` via `YogCharacterBase`. Contains shared reactive GAs (`GA_Dead`, `GA_HitReaction`, `GA_Knockback`, etc.). Do **not** put weapon combat GAs here (`GA_MeleeAttack`, `GA_RangeAttack`, `GA_WeaponSkill`) — those are lazily granted by `ComboRuntimeComponent::EnsureAbilityGranted` when a combo node first fires.
+- `CharacterData` GAS template (`UGASTemplate::AbilityMap`): per-character ability grants applied during `InitializeComponentsWithStats`. Logged as `"Grant ability from GAS Template: <name>"` in the output log. Same rule: no weapon combat GAs here.
+- `DefaultUnarmedWeaponDef` (`APlayerCharacterBase::DefaultUnarmedWeaponDef`): a `UWeaponDefinition` asset assigned in the player character Blueprint. Auto-equipped at `BeginPlay` if `EquippedWeaponDef` is still null after all init (i.e. no weapon loaded from save). Replaces the old `DefaultUnarmedComboGraph` field for the unarmed default state — set `DefaultUnarmedWeaponDef` on the BP, not the raw combo graph, so the full weapon path (combo graph + deck + special attack + weapon type tag) is initialized consistently.
+
 ## Combat Architecture
 
 - Normal melee attacks use `ComboRuntimeComponent` and weapon combo graphs.

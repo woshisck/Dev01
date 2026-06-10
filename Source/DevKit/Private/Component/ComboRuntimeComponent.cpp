@@ -366,9 +366,9 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 		: NextNode->GameplayAbilityClass
 			? NextNode->GameplayAbilityClass
 			: GetDefaultAbilityForInput(GraphInput, NextNode->AttackType, WeaponSkillAbility);
-
-	EnsureAbilityGranted(ASC, AbilityClass);
-
+	/* start comment lazy grant ability for clear debug only*/
+	//EnsureAbilityGranted(ASC, AbilityClass);
+	/* end comment lazy grant ability for clear debug only*/
 	const bool bActivated = ASC->TryActivateAbilityByClass(AbilityClass, true);
 	if (!bActivated)
 	{

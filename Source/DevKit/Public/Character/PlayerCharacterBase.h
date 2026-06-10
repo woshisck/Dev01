@@ -171,6 +171,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UGameplayAbilityComboGraph> DefaultUnarmedComboGraph;
 
+	// Equipped at BeginPlay when no weapon is carried (e.g. unarmed default loadout).
+	// SetupWeaponToCharacter is called on this if EquippedWeaponDef is still null after init.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
+	TObjectPtr<UWeaponDefinition> DefaultUnarmedWeaponDef;
+
 	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
 	void ApplyDefaultUnarmedComboGraph();
 

@@ -1202,6 +1202,11 @@ void APlayerCharacterBase::BeginPlay()
 	ApplyCurrentEquipmentComboGraph();
 	RelinkWeaponAnimLayer();
 
+	if (!EquippedWeaponDef && DefaultUnarmedWeaponDef)
+	{
+		DefaultUnarmedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
+	}
+
 	//GetASC()->InitAbilityActorInfo(this, this);
 	//if (GasTemplate != nullptr)
 	//{

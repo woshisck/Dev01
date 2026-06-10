@@ -35,6 +35,8 @@ class DEVKIT_API UGA_MeleeAttack : public UYogGameplayAbility
 public:
 	UGA_MeleeAttack();
 
+	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+
 	/**
 	 * 鏄惁鍦ㄦ縺娲绘椂璋冪敤 CommitAbility锛堟墸闄ゆ秷鑰?+ 瑙﹀彂鍐峰嵈锛夈€?
 	 * 鐜╁杩戞垬 GA 濉?true锛涙晫浜鸿繎鎴?GA 淇濇寔 false锛堥粯璁わ級銆?

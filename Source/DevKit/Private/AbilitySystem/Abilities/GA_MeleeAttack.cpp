@@ -65,6 +65,14 @@ UGA_MeleeAttack::UGA_MeleeAttack()
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Knockback"));
 }
 
+void UGA_MeleeAttack::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	Super::OnGiveAbility(ActorInfo, Spec);
+	UE_LOG(LogTemp, Warning, TEXT("[GA_MeleeAttack] OnGiveAbility — granted to: %s"),
+		ActorInfo && ActorInfo->AvatarActor.IsValid() ? *ActorInfo->AvatarActor->GetName() : TEXT("unknown"));
+	FDebug::DumpStackTraceToLog(ELogVerbosity::Warning);
+}
+
 UAN_MeleeDamage* UGA_MeleeAttack::GetFirstDamageNotify(UAnimMontage* Montage)
 {
 	if (!Montage) return nullptr;
