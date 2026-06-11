@@ -315,6 +315,8 @@ void APlayerCharacterBase::ApplyDefaultUnarmedComboGraph()
 		: nullptr;
 	ComboRuntimeComponent->LoadWeaponComboGraph(Graph);
 	ComboRuntimeComponent->LoadSpecialAttackComboGraph(nullptr);
+	ComboRuntimeComponent->SetWeaponSkillAbility(nullptr);
+	ComboRuntimeComponent->EnsureWeaponComboAbilitiesGranted(this);
 }
 
 void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDefinition)
@@ -340,6 +342,7 @@ void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDe
 	}
 
 	ComboRuntimeComponent->LoadSpecialAttackComboGraph(SpecialAttack ? SpecialAttack->Config.ComboGraph.Get() : nullptr);
+	ComboRuntimeComponent->EnsureWeaponComboAbilitiesGranted(this);
 }
 
 void APlayerCharacterBase::ApplyCurrentEquipmentComboGraph()
@@ -562,7 +565,14 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 		SpecialAttackComponent->SetSpecialAttack(nullptr);
 	}
 
-	ApplyDefaultUnarmedComboGraph();
+	if (DefaultUnarmedWeaponDef)
+	{
+		DefaultUnarmedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
+	}
+	else
+	{
+		ApplyDefaultUnarmedComboGraph();
+	}
 }
 
 bool APlayerCharacterBase::CanSwitchWeapon() const
