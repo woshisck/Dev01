@@ -25,7 +25,7 @@ void UCombatDeckCardSlotWidget::NativePreConstruct()
 	FCombatCardInstance PreviewCard;
 	PreviewCard.Config.bIsCombatCard = true;
 	PreviewCard.Config.DisplayName = FText::FromString(TEXT("Card"));
-	PreviewCard.Config.RequiredAction = ECardRequiredAction::Light;
+	PreviewCard.Config.RequiredAction = ECardRequiredAction::Any;
 	PreviewCard.Config.CardType = ECombatCardType::Attack;
 	SetCard(PreviewCard, true);
 }
@@ -166,12 +166,11 @@ FText UCombatDeckCardSlotWidget::GetActionText(ECardRequiredAction RequiredActio
 	switch (RequiredAction)
 	{
 	case ECardRequiredAction::Light:
-		return FText::FromString(TEXT("Light"));
 	case ECardRequiredAction::Heavy:
-		return FText::FromString(TEXT("Heavy"));
+		return FText::FromString(TEXT("\u653b\u51fb"));
 	case ECardRequiredAction::Any:
 	default:
-		return FText::FromString(TEXT("Any"));
+		return FText::FromString(TEXT("\u89e6\u53d1"));
 	}
 }
 
@@ -185,7 +184,7 @@ FText UCombatDeckCardSlotWidget::GetStateText(const FCombatCardInstance& Card, b
 			FText::AsNumber(Card.TemporaryUnlockRequiredCompletedBattles));
 	}
 
-	return bIsNextCard ? FText::FromString(TEXT("NEXT")) : FText::GetEmpty();
+	return bIsNextCard ? FText::FromString(TEXT("\u5f53\u524d")) : FText::GetEmpty();
 }
 
 void UCombatDeckCardSlotWidget::SetTextIfSupported(UWidget* Widget, const FText& Text)
@@ -205,14 +204,11 @@ void UCombatDeckCardSlotWidget::SetTextIfSupported(UWidget* Widget, const FText&
 void UCombatDeckCardSlotWidget::ApplyUseFlipTransform(float NormalizedAlpha)
 {
 	const float Alpha = FMath::Clamp(NormalizedAlpha, 0.0f, 1.0f);
-	const float FoldAlpha = Alpha < 0.5f
-		? Alpha * 2.0f
-		: (1.0f - Alpha) * 2.0f;
-	const float SmoothFoldAlpha = FMath::InterpEaseInOut(0.0f, 1.0f, FoldAlpha, 2.0f);
-	const float ScaleX = FMath::Lerp(1.0f, FMath::Clamp(UseFlipMinScaleX, 0.0f, 1.0f), SmoothFoldAlpha);
-	const float ScaleY = FMath::Lerp(1.0f, FMath::Max(1.0f, UseFlipPeakScaleY), SmoothFoldAlpha);
+	const float PulseAlpha = FMath::Sin(Alpha * UE_PI);
+	const float SmoothPulseAlpha = FMath::InterpEaseInOut(0.0f, 1.0f, PulseAlpha, 2.0f);
+	const float PulseScale = FMath::Lerp(1.0f, FMath::Max(1.0f, UseFlipPeakScaleY), SmoothPulseAlpha);
 
-	SetRenderScale(FVector2D(ScaleX, ScaleY));
+	SetRenderScale(FVector2D(PulseScale, PulseScale));
 }
 
 void UCombatDeckCardSlotWidget::ResetUseFlipTransform()
@@ -225,13 +221,15 @@ FText UCombatDeckCardSlotWidget::GetTypeText(ECombatCardType CardType)
 	switch (CardType)
 	{
 	case ECombatCardType::Link:
-		return FText::FromString(TEXT("Link"));
+		return FText::FromString(TEXT("\u8fde\u643a"));
 	case ECombatCardType::Finisher:
-		return FText::FromString(TEXT("Finisher"));
+		return FText::FromString(TEXT("\u7ec8\u7ed3"));
 	case ECombatCardType::Passive:
-		return FText::FromString(TEXT("Passive"));
+		return FText::FromString(TEXT("\u88ab\u52a8"));
+	case ECombatCardType::Normal:
+		return FText::FromString(TEXT("\u666e\u901a"));
 	case ECombatCardType::Attack:
 	default:
-		return FText::FromString(TEXT("Attack"));
+		return FText::FromString(TEXT("\u542f\u52a8"));
 	}
 }

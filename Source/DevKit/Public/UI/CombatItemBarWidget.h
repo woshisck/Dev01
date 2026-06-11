@@ -37,6 +37,7 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual void NativeDestruct() override;
 
 private:
@@ -57,11 +58,24 @@ private:
 	TObjectPtr<UHorizontalBox> RuntimeRoot = nullptr;
 
 	TArray<FRuntimeSlotWidget> RuntimeSlotWidgets;
+	TArray<bool> RuntimeSlotHasEntry;
 
 	void UnbindCurrentComponent();
 	void BuildRuntimeLayout();
 	void UpdateSlotWidgets(const TArray<FCombatItemSlotView>& Slots);
+	void StartSelectionRoll(int32 PreviousIndex, int32 NewIndex);
+	void TickSelectionRoll(float DeltaTime);
+	void ApplySelectionPresentation(float Alpha = 1.f);
+	void ApplySlotPresentation(int32 SlotIndex, float Opacity, float Scale, float TranslationY);
 	FText GetShortDisplayName(const FCombatItemSlotView& ItemSlot) const;
+
+	int32 LastSelectedSlotIndex = INDEX_NONE;
+	int32 RollPreviousSlotIndex = INDEX_NONE;
+	int32 RollNewSlotIndex = INDEX_NONE;
+	float RollTimer = 0.f;
+	bool bSelectionRollActive = false;
+
+	static constexpr float RollDurationSeconds = 0.32f;
 
 	UFUNCTION()
 	void HandleItemSlotsChanged(const TArray<FCombatItemSlotView>& Slots);

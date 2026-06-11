@@ -149,7 +149,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCard(ECardRequiredAc
 	Context.ActionType = ActionType;
 	Context.bIsComboFinisher = bIsComboFinisher;
 	Context.bFromDashSave = bFromDashSave;
-	Context.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	Context.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	Context.AttackInstanceGuid = FGuid::NewGuid();
 	return ResolveAttackCardWithContext(Context);
 }
@@ -166,7 +166,11 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 
 	if (Context.bExitedComboState)
 	{
-		BreakPendingLink(ECombatLinkBreakReason::ComboStateExited, &Context);
+		ResetCombatSequenceProgress(ECombatLinkBreakReason::ComboStateExited, &Context);
+	}
+	else if (!Context.bComboContinued && CurrentIndex > 0)
+	{
+		ResetCombatSequenceProgress(ECombatLinkBreakReason::ComboStateExited, &Context);
 	}
 
 	if (DeckState == EDeckState::EmptyShuffling || !ActiveSequence.IsValidIndex(CurrentIndex))
@@ -236,15 +240,10 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 			ResolvedAttackGuids.Add(Context.AttackInstanceGuid);
 		}
 
-		CurrentIndex++;
-		Result.bStartedShuffle = CurrentIndex >= ActiveSequence.Num();
+		AdvanceCombatSequenceAfterUse();
+		Result.bStartedShuffle = false;
 
 		OnCardConsumed.Broadcast(Card, Result);
-		if (Result.bStartedShuffle)
-		{
-			StartShuffle();
-			OnShuffleStarted.Broadcast(Result);
-		}
 
 		PushCombatCardConsumeLog(Result);
 		return Result;
@@ -410,8 +409,8 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		ResolvedAttackGuids.Add(Context.AttackInstanceGuid);
 	}
 
-	CurrentIndex++;
-	Result.bStartedShuffle = CurrentIndex >= ActiveSequence.Num();
+	AdvanceCombatSequenceAfterUse();
+	Result.bStartedShuffle = false;
 
 	OnCardConsumed.Broadcast(Card, Result);
 	if (Result.bTriggeredBaseFlow)
@@ -446,12 +445,6 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	{
 		RegisterTriggeredFinisherCard(Card);
 		OnFinisherTriggered.Broadcast(Result);
-	}
-
-	if (Result.bStartedShuffle)
-	{
-		StartShuffle();
-		OnShuffleStarted.Broadcast(Result);
 	}
 
 	// ── 512版本：推卡牌消耗行到战斗日志 ────────────────────────────────
@@ -504,7 +497,7 @@ void UCombatDeckComponent::StopCardFlow(const FCombatCardInstance& Card)
 
 void UCombatDeckComponent::NotifyComboStateExited()
 {
-	BreakPendingLink(ECombatLinkBreakReason::ComboStateExited);
+	ResetCombatSequenceProgress(ECombatLinkBreakReason::ComboStateExited);
 }
 
 void UCombatDeckComponent::LoadDeckFromWeapon(const UWeaponDefinition* WeaponDefinition)
@@ -602,18 +595,12 @@ TArray<FCombatCardInstance> UCombatDeckComponent::GetFullDeckSnapshot() const
 
 TArray<FCombatCardInstance> UCombatDeckComponent::GetRemainingDeckSnapshot() const
 {
-	TArray<FCombatCardInstance> RemainingCards;
 	if (DeckState != EDeckState::Ready)
 	{
-		return RemainingCards;
+		return {};
 	}
 
-	for (int32 Index = CurrentIndex; Index < ActiveSequence.Num(); ++Index)
-	{
-		RemainingCards.Add(BuildTemporaryLockViewCard(ActiveSequence[Index]));
-	}
-
-	return RemainingCards;
+	return BuildTemporaryLockViewCards(ActiveSequence);
 }
 
 void UCombatDeckComponent::RefreshDeckView()
@@ -623,7 +610,7 @@ void UCombatDeckComponent::RefreshDeckView()
 		return;
 	}
 
-	OnDeckLoaded.Broadcast(GetRemainingDeckSnapshot());
+	OnDeckLoaded.Broadcast(BuildTemporaryLockViewCards(ActiveSequence));
 }
 
 bool UCombatDeckComponent::MoveCardInDeck(int32 FromIndex, int32 InsertIndex)
@@ -1078,6 +1065,32 @@ void UCombatDeckComponent::StopAllCardPassiveFlows()
 	ActiveCardPassiveFlowGuids.Reset();
 }
 
+void UCombatDeckComponent::ResetCombatSequenceProgress(ECombatLinkBreakReason Reason, const FCombatDeckActionContext* BreakContext)
+{
+	BreakPendingLink(Reason, BreakContext);
+	LastResolvedCard = FCombatCardInstance();
+	PendingLinkContext = FCombatCardInstance();
+	PendingLinkActionContext = FCombatDeckActionContext();
+	ResolvedAttackGuids.Reset();
+	CurrentIndex = 0;
+
+	if (DeckState == EDeckState::Ready)
+	{
+		OnDeckLoaded.Broadcast(BuildTemporaryLockViewCards(ActiveSequence));
+	}
+}
+
+void UCombatDeckComponent::AdvanceCombatSequenceAfterUse()
+{
+	if (ActiveSequence.IsEmpty())
+	{
+		CurrentIndex = 0;
+		return;
+	}
+
+	CurrentIndex = FMath::Clamp(CurrentIndex + 1, 0, ActiveSequence.Num());
+}
+
 void UCombatDeckComponent::ResetRuntimeStateAfterDeckEdit()
 {
 	LastResolvedCard = FCombatCardInstance();
@@ -1093,34 +1106,10 @@ void UCombatDeckComponent::ResetRuntimeStateAfterDeckEdit()
 
 void UCombatDeckComponent::StartDeckEditReload()
 {
-	LastResolvedCard = FCombatCardInstance();
-	PendingLinkContext = FCombatCardInstance();
-	PendingLinkActionContext = FCombatDeckActionContext();
-	DashSavedLinkContext = FCombatCardInstance();
-	DashSavedLinkActionContext = FCombatDeckActionContext();
-	ResolvedAttackGuids.Reset();
-
-	DeckState = EDeckState::EmptyShuffling;
-	ShuffleCooldownRemaining = FMath::Max(0.0f, ShuffleCooldownDuration * 0.5f);
-	CurrentIndex = 0;
-	ActiveSequence.Reset();
-
-	FCombatCardResolveResult Result;
-	Result.bStartedShuffle = true;
-	Result.ReasonText = NSLOCTEXT("CombatDeck", "DeckEditReload", "Deck edited: reload started");
-	OnShuffleStarted.Broadcast(Result);
-	OnShuffleProgress.Broadcast(0.0f);
-
-	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckEdit] ReloadAfterMove Cooldown=%.3f FullCooldown=%.3f DeckCount=%d"),
-		ShuffleCooldownRemaining,
+	UE_LOG(LogTemp, Display, TEXT("[CombatDeckEdit] RefreshSequenceWithoutShuffle FullCooldown=%.3f DeckCount=%d"),
 		ShuffleCooldownDuration,
 		DeckList.Num());
-
-	if (ShuffleCooldownRemaining <= KINDA_SMALL_NUMBER)
-	{
-		RefillActiveSequence();
-		OnShuffleCompleted.Broadcast(BuildTemporaryLockViewCards(ActiveSequence));
-	}
+	ResetRuntimeStateAfterDeckEdit();
 }
 
 void UCombatDeckComponent::StartShuffle()

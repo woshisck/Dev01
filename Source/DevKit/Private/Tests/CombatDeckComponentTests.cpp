@@ -53,11 +53,11 @@
 #include "GameplayEffect.h"
 #include "NiagaraSystem.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckConsumesFourCardsTest,
-	"DevKit.CombatDeck.ConsumesFourCardsThenShuffles",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckAdvancesCardsWithoutShufflingTest,
+	"DevKit.CombatDeck.AdvancesCardsWithoutConsumingOrShuffling",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckConsumesFourCardsTest::RunTest(const FString& Parameters)
+bool FCombatDeckAdvancesCardsWithoutShufflingTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->SetShuffleCooldownDuration(1.0f);
@@ -71,42 +71,50 @@ bool FCombatDeckConsumesFourCardsTest::RunTest(const FString& Parameters)
 	for (int32 i = 0; i < 3; ++i)
 	{
 		const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-		TestTrue(TEXT("Card is consumed before the deck is empty"), Result.bHadCard);
-		TestFalse(TEXT("Deck should not shuffle before the final card"), Result.bStartedShuffle);
+		TestTrue(TEXT("Card triggers before the sequence reaches the end"), Result.bHadCard);
+		TestFalse(TEXT("Card trigger does not start shuffle"), Result.bStartedShuffle);
+		TestEqual(TEXT("Full combat sequence stays visible while advancing"), Deck->GetRemainingDeckSnapshot().Num(), 4);
+		TestEqual(TEXT("Current index advances left to right"), Deck->GetCurrentIndex(), i + 1);
 	}
 
 	const FCombatCardResolveResult FinalResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("Fourth attack consumes the fourth card"), FinalResult.bHadCard);
-	TestTrue(TEXT("Fourth consumed card starts shuffle"), FinalResult.bStartedShuffle);
-	TestEqual(TEXT("Deck enters shuffling state"), Deck->GetDeckState(), EDeckState::EmptyShuffling);
+	TestTrue(TEXT("Fourth attack triggers the fourth card"), FinalResult.bHadCard);
+	TestFalse(TEXT("Final card no longer starts shuffle"), FinalResult.bStartedShuffle);
+	TestEqual(TEXT("Deck remains ready after the final visible card"), Deck->GetDeckState(), EDeckState::Ready);
+	TestEqual(TEXT("Full combat sequence remains visible after the final card"), Deck->GetRemainingDeckSnapshot().Num(), 4);
+	TestEqual(TEXT("Current index rests just past the last card until combo exit"), Deck->GetCurrentIndex(), 4);
 
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckShuffleWindowTest,
-	"DevKit.CombatDeck.ShuffleWindowReturnsNoCardThenRefills",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckComboExitResetsToFirstCardTest,
+	"DevKit.CombatDeck.ComboExitResetsToFirstCard",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckShuffleWindowTest::RunTest(const FString& Parameters)
+bool FCombatDeckComboExitResetsToFirstCardTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->SetShuffleCooldownDuration(1.0f);
-	Deck->SetDeckListForTest({
-		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light },
-	});
 
-	Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	FCombatCardConfig FirstCard{ ECombatCardType::Attack, ECardRequiredAction::Light };
+	FirstCard.DisplayName = FText::FromString(TEXT("First"));
+	FCombatCardConfig SecondCard{ ECombatCardType::Attack, ECardRequiredAction::Light };
+	SecondCard.DisplayName = FText::FromString(TEXT("Second"));
+	Deck->SetDeckListForTest({ FirstCard, SecondCard });
 
-	const FCombatCardResolveResult DuringShuffle = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestFalse(TEXT("Attacks during shuffle do not trigger cards"), DuringShuffle.bHadCard);
+	const FCombatCardResolveResult FirstResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("First attack triggers the first card"), FirstResult.bHadCard);
+	TestEqual(TEXT("Combo progress advances to the second card"), Deck->GetCurrentIndex(), 1);
 
-	Deck->AdvanceShuffleForTest(1.0f);
+	Deck->NotifyComboStateExited();
+	TestEqual(TEXT("Combo exit resets combat sequence progress"), Deck->GetCurrentIndex(), 0);
+	TestEqual(TEXT("Deck stays ready after combo exit"), Deck->GetDeckState(), EDeckState::Ready);
 
-	TestEqual(TEXT("Deck returns to ready after cooldown"), Deck->GetDeckState(), EDeckState::Ready);
-	TestEqual(TEXT("Deck refills active sequence in fixed order"), Deck->GetDeckSnapshot().Num(), 1);
-
-	const FCombatCardResolveResult AfterRefill = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("Next attack after refill can trigger a card"), AfterRefill.bHadCard);
+	const FCombatCardResolveResult RestartResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Next attack after combo exit triggers a card"), RestartResult.bHadCard);
+	TestEqual(TEXT("Restarted combo begins from the first card again"),
+		RestartResult.ConsumedCard.Config.DisplayName.ToString(),
+		FString(TEXT("First")));
 
 	return true;
 }
@@ -144,14 +152,14 @@ bool FCombatDeckFinisherRequirementTest::RunTest(const FString& Parameters)
 	Deck->SetDeckListForTest({ FinisherCard });
 
 	const FCombatCardResolveResult NormalAttack = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("Normal attack consumes the finisher card"), NormalAttack.bHadCard);
+	TestTrue(TEXT("Normal attack triggers the finisher card"), NormalAttack.bHadCard);
 	TestFalse(TEXT("Normal attack does not trigger finisher matched flow"), NormalAttack.bTriggeredMatchedFlow);
 	TestFalse(TEXT("Normal attack does not trigger finisher bonus"), NormalAttack.bTriggeredFinisher);
 
-	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
+	Deck->NotifyComboStateExited();
 
 	const FCombatCardResolveResult ComboFinisher = Deck->ResolveAttackCard(ECardRequiredAction::Light, true, false);
-	TestTrue(TEXT("Combo finisher consumes the finisher card"), ComboFinisher.bHadCard);
+	TestTrue(TEXT("Combo finisher triggers the finisher card"), ComboFinisher.bHadCard);
 	TestTrue(TEXT("Combo finisher triggers finisher matched flow"), ComboFinisher.bTriggeredMatchedFlow);
 	TestTrue(TEXT("Combo finisher triggers finisher bonus"), ComboFinisher.bTriggeredFinisher);
 
@@ -182,29 +190,19 @@ bool FCombatDeckTriggeredFinisherSkipsRefreshUntilEffectEndsTest::RunTest(const 
 		Deck->IsCardSuppressedFromActiveSequenceForTest(FinisherResult.ConsumedCard.InstanceGuid));
 
 	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("Consuming the remaining attack card starts shuffle"), AttackResult.bStartedShuffle);
-
-	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
-	const TArray<FCombatCardInstance> DuringEffectCards = Deck->GetDeckSnapshot();
-	TestEqual(TEXT("Refresh during finisher effect excludes the finisher"), DuringEffectCards.Num(), 1);
-	TestEqual(TEXT("Attack card fills the refreshed deck while finisher is held back"),
-		DuringEffectCards[0].Config.CardType, ECombatCardType::Attack);
+	TestTrue(TEXT("Next card in the same combo can still trigger"), AttackResult.bHadCard);
+	TestFalse(TEXT("Sequence no longer shuffles when it reaches the end"), AttackResult.bStartedShuffle);
+	TestEqual(TEXT("Active combat sequence stays visible while finisher effect is active"),
+		Deck->GetDeckSnapshot().Num(), 2);
 
 	Deck->StopCardFlow(FinisherResult.ConsumedCard);
 	TestFalse(TEXT("Finisher suppression is cleared when the card effect ends"),
 		Deck->IsCardSuppressedFromActiveSequenceForTest(FinisherResult.ConsumedCard.InstanceGuid));
-	TestEqual(TEXT("Ending the effect does not inject finisher into the current active deck"),
-		Deck->GetDeckSnapshot().Num(), 1);
-
-	const FCombatCardResolveResult NextAttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("The active attack card can be consumed after finisher effect ends"), NextAttackResult.bHadCard);
-	TestTrue(TEXT("Consuming the active attack starts the next shuffle"), NextAttackResult.bStartedShuffle);
-
-	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
-	const TArray<FCombatCardInstance> AfterEffectCards = Deck->GetDeckSnapshot();
-	TestEqual(TEXT("Next refresh after effect end restores the full deck"), AfterEffectCards.Num(), 2);
-	TestEqual(TEXT("Finisher returns on the refresh after its effect ended"),
-		AfterEffectCards[0].Config.CardType, ECombatCardType::Finisher);
+	Deck->NotifyComboStateExited();
+	TestEqual(TEXT("Combo exit returns the sequence pointer to the finisher slot"),
+		Deck->GetCurrentIndex(), 0);
+	TestEqual(TEXT("Full deck remains visible after the finisher effect ends"),
+		Deck->GetDeckSnapshot().Num(), 2);
 
 	return true;
 }
@@ -261,9 +259,8 @@ bool FCombatDeckRewardCardAutoReloadsIntoVisibleSequenceTest::RunTest(const FStr
 	TestEqual(TEXT("Initial active sequence is capped at two cards"), Deck->GetRemainingDeckSnapshot().Num(), 2);
 
 	TestTrue(TEXT("Reward rune enters combat deck"), Deck->AddCardFromRuneReward(RewardRune));
-	TestEqual(TEXT("Reward pickup starts one automatic reload shuffle"), Deck->GetDeckState(), EDeckState::EmptyShuffling);
+	TestEqual(TEXT("Reward pickup keeps deck ready instead of starting a reload shuffle"), Deck->GetDeckState(), EDeckState::Ready);
 
-	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
 	const TArray<FCombatCardInstance> VisibleCards = Deck->GetRemainingDeckSnapshot();
 	bool bRewardVisible = false;
 	for (const FCombatCardInstance& Card : VisibleCards)
@@ -271,12 +268,12 @@ bool FCombatDeckRewardCardAutoReloadsIntoVisibleSequenceTest::RunTest(const FStr
 		bRewardVisible |= Card.SourceData == RewardRune;
 	}
 
-	TestTrue(TEXT("Reward card is visible after the automatic reload"), bRewardVisible);
+	TestTrue(TEXT("Reward card is visible after the immediate sequence refresh"), bRewardVisible);
 	return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRemainingSnapshotTest,
-	"DevKit.CombatDeck.RemainingSnapshotDropsConsumedCards",
+	"DevKit.CombatDeck.VisibleSnapshotKeepsTriggeredCards",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FCombatDeckRemainingSnapshotTest::RunTest(const FString& Parameters)
@@ -287,16 +284,17 @@ bool FCombatDeckRemainingSnapshotTest::RunTest(const FString& Parameters)
 		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Heavy },
 	});
 
-	TestEqual(TEXT("Remaining snapshot starts with every active card"), Deck->GetRemainingDeckSnapshot().Num(), 2);
+	TestEqual(TEXT("Visible snapshot starts with every active card"), Deck->GetRemainingDeckSnapshot().Num(), 2);
 
 	Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
 
 	const TArray<FCombatCardInstance> RemainingSnapshot = Deck->GetRemainingDeckSnapshot();
-	TestEqual(TEXT("Consumed cards are removed from remaining snapshot"), RemainingSnapshot.Num(), 1);
+	TestEqual(TEXT("Triggered cards stay in the visible snapshot"), RemainingSnapshot.Num(), 2);
 	if (RemainingSnapshot.IsValidIndex(0))
 	{
-		TestEqual(TEXT("Next remaining card keeps fixed order"), RemainingSnapshot[0].Config.RequiredAction, ECardRequiredAction::Heavy);
+		TestEqual(TEXT("Visible snapshot keeps fixed left-to-right order"), RemainingSnapshot[0].Config.RequiredAction, ECardRequiredAction::Light);
 	}
+	TestEqual(TEXT("Sequence pointer advances without removing the first card"), Deck->GetCurrentIndex(), 1);
 
 	return true;
 }
@@ -989,7 +987,7 @@ bool FWeaponComboHintTextUnlimitedLinesTest::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckContextDedupesCommitAndHitTest,
-	"DevKit.CombatDeck.ContextDedupesCommitAndHitForSameAttack",
+	"DevKit.CombatDeck.ContextUsesOneCardPerAttackHit",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FCombatDeckContextDedupesCommitAndHitTest::RunTest(const FString& Parameters)
@@ -1006,12 +1004,17 @@ bool FCombatDeckContextDedupesCommitAndHitTest::RunTest(const FString& Parameter
 	Context.AttackInstanceGuid = FGuid::NewGuid();
 
 	const FCombatCardResolveResult CommitResult = Deck->ResolveAttackCardWithContext(Context);
-	TestTrue(TEXT("OnCommit consumes the first card"), CommitResult.bHadCard);
+	TestFalse(TEXT("OnCommit preview does not advance the visible card sequence"), CommitResult.bHadCard);
+	TestEqual(TEXT("Sequence still points at the first card after OnCommit preview"), Deck->GetCurrentIndex(), 0);
 
 	Context.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	const FCombatCardResolveResult HitResult = Deck->ResolveAttackCardWithContext(Context);
-	TestFalse(TEXT("OnHit for the same attack guid does not consume again"), HitResult.bHadCard);
-	TestEqual(TEXT("Only one card was consumed"), Deck->GetRemainingDeckSnapshot().Num(), 1);
+	TestTrue(TEXT("OnHit triggers one card for the attack"), HitResult.bHadCard);
+	TestEqual(TEXT("Sequence advances once for the attack hit"), Deck->GetCurrentIndex(), 1);
+
+	const FCombatCardResolveResult DuplicateHitResult = Deck->ResolveAttackCardWithContext(Context);
+	TestFalse(TEXT("Second OnHit for the same attack guid does not trigger another card"), DuplicateHitResult.bHadCard);
+	TestEqual(TEXT("Visible card sequence keeps every card after a trigger"), Deck->GetRemainingDeckSnapshot().Num(), 2);
 
 	return true;
 }
@@ -1039,8 +1042,9 @@ bool FCombatDeckOnHitCardIgnoresCommitTest::RunTest(const FString& Parameters)
 
 	Context.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	const FCombatCardResolveResult HitResult = Deck->ResolveAttackCardWithContext(Context);
-	TestTrue(TEXT("OnHit card is consumed by OnHit"), HitResult.bHadCard);
+	TestTrue(TEXT("OnHit card is triggered by OnHit"), HitResult.bHadCard);
 	TestTrue(TEXT("OnHit card triggers base release"), HitResult.bTriggeredBaseFlow);
+	TestEqual(TEXT("Visible card sequence keeps the triggered OnHit card"), Deck->GetRemainingDeckSnapshot().Num(), 1);
 
 	return true;
 }
@@ -1252,7 +1256,7 @@ bool FCombatDeckLinkConfigBackwardTest::RunTest(const FString& Parameters)
 
 	FCombatDeckActionContext MoonlightContext;
 	MoonlightContext.ActionType = ECardRequiredAction::Light;
-	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	MoonlightContext.bComboContinued = true;
 	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
@@ -1344,7 +1348,7 @@ bool FCombatDeckLinkConfigBackwardCanStartFromFirstAttackTest::RunTest(const FSt
 
 	FCombatDeckActionContext MoonlightContext;
 	MoonlightContext.ActionType = ECardRequiredAction::Light;
-	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	MoonlightContext.bComboContinued = false;
 	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
@@ -1502,7 +1506,7 @@ bool FCombatDeckRecipeReversedUsesEffectTagsTest::RunTest(const FString& Paramet
 
 	FCombatDeckActionContext MoonlightContext;
 	MoonlightContext.ActionType = ECardRequiredAction::Light;
-	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	MoonlightContext.bComboContinued = true;
 	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
@@ -1544,7 +1548,7 @@ bool FCombatDeckRecipeReversedCanStartFromFirstAttackTest::RunTest(const FString
 
 	FCombatDeckActionContext MoonlightContext;
 	MoonlightContext.ActionType = ECardRequiredAction::Light;
-	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	MoonlightContext.bComboContinued = false;
 	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
@@ -1623,7 +1627,7 @@ bool FCombatDeckMoonlightMultipleRecipesTest::RunTest(const FString& Parameters)
 
 	FCombatDeckActionContext ReversedMoonlightContext;
 	ReversedMoonlightContext.ActionType = ECardRequiredAction::Light;
-	ReversedMoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	ReversedMoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	ReversedMoonlightContext.bComboContinued = true;
 	ReversedMoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 
@@ -1666,7 +1670,7 @@ bool FCombatDeckRecipeReversedClearsOnComboExitTest::RunTest(const FString& Para
 
 	FCombatDeckActionContext MoonlightContext;
 	MoonlightContext.ActionType = ECardRequiredAction::Light;
-	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	MoonlightContext.bComboContinued = true;
 	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 
@@ -1676,9 +1680,11 @@ bool FCombatDeckRecipeReversedClearsOnComboExitTest::RunTest(const FString& Para
 	Deck->NotifyComboStateExited();
 
 	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("Next attack card is still consumed"), AttackResult.bHadCard);
+	TestTrue(TEXT("Next attack restarts from the first card"), AttackResult.bHadCard);
+	TestEqual(TEXT("Combo exit returns the sequence to Moonlight"), AttackResult.ConsumedCard.Config.CardType, ECombatCardType::Link);
 	TestFalse(TEXT("Pending reversed link is cleared after combo exit"), AttackResult.bTriggeredBackwardLink);
-	TestTrue(TEXT("Attack card falls back to its own base flow"), AttackResult.bTriggeredBaseFlow);
+	TestTrue(TEXT("Restarted first card opens its own pending reversed link"), AttackResult.bPendingBackwardLink);
+	TestEqual(TEXT("Restarted combo advances to the second card after using Moonlight"), Deck->GetCurrentIndex(), 1);
 
 	return true;
 }
@@ -1709,7 +1715,7 @@ bool FCombatDeckRecipeReversedRequiresComboContinuationTest::RunTest(const FStri
 
 	FCombatDeckActionContext MoonlightContext;
 	MoonlightContext.ActionType = ECardRequiredAction::Light;
-	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	MoonlightContext.bComboContinued = true;
 	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 
@@ -1721,9 +1727,11 @@ bool FCombatDeckRecipeReversedRequiresComboContinuationTest::RunTest(const FStri
 	RestartedAttackContext.bComboContinued = false;
 
 	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCardWithContext(RestartedAttackContext);
-	TestTrue(TEXT("Restarted attack card is still consumed"), AttackResult.bHadCard);
+	TestTrue(TEXT("Restarted attack starts again from the first card"), AttackResult.bHadCard);
+	TestEqual(TEXT("Non-continuation resets the sequence to Moonlight"), AttackResult.ConsumedCard.Config.CardType, ECombatCardType::Link);
 	TestFalse(TEXT("Pending reversed link is cleared when the next attack is not a combo continuation"), AttackResult.bTriggeredBackwardLink);
-	TestTrue(TEXT("Restarted attack falls back to its own base flow"), AttackResult.bTriggeredBaseFlow);
+	TestTrue(TEXT("Restarted first card opens a new pending reversed link"), AttackResult.bPendingBackwardLink);
+	TestEqual(TEXT("Restarted combo advances to the second card after using Moonlight"), Deck->GetCurrentIndex(), 1);
 
 	return true;
 }

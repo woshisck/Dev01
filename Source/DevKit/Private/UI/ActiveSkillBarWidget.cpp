@@ -15,8 +15,15 @@
 void UActiveSkillBarWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetVisibility(ESlateVisibility::HitTestInvisible);
 	BuildRuntimeLayout();
 	RefreshSkillSlots();
+}
+
+void UActiveSkillBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	TickSelectionRoll(InDeltaTime);
 }
 
 void UActiveSkillBarWidget::NativeDestruct()
@@ -75,13 +82,15 @@ void UActiveSkillBarWidget::BuildRuntimeLayout()
 		return;
 	}
 
-	RuntimeRoot = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ActiveSkillRuntimeRoot"));
+	RuntimeRoot = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ActiveSkillRuntimeRoot"));
 	WidgetTree->RootWidget = RuntimeRoot;
 
 	RuntimeSlotWidgets.Reset();
+	RuntimeSlotHasEntry.Reset();
 	for (int32 Index = 0; Index < 2; ++Index)
 	{
 		FRuntimeSkillSlotWidget& SlotWidget = RuntimeSlotWidgets.AddDefaulted_GetRef();
+		RuntimeSlotHasEntry.Add(false);
 
 		SlotWidget.RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), *FString::Printf(TEXT("ActiveSkillSlotBorder_%d"), Index));
 		SlotWidget.RootBorder->SetPadding(FMargin(6.0f));
@@ -97,6 +106,7 @@ void UActiveSkillBarWidget::BuildRuntimeLayout()
 		}
 
 		SlotWidget.IconImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), *FString::Printf(TEXT("ActiveSkillSlotIcon_%d"), Index));
+		SlotWidget.IconImage->SetDesiredSizeOverride(FVector2D(48.f, 48.f));
 		if (UVerticalBoxSlot* IconSlot = Vertical->AddChildToVerticalBox(SlotWidget.IconImage))
 		{
 			IconSlot->SetHorizontalAlignment(HAlign_Center);
@@ -144,9 +154,9 @@ void UActiveSkillBarWidget::BuildRuntimeLayout()
 			CooldownTextSlot->SetVerticalAlignment(VAlign_Center);
 		}
 
-		if (UHorizontalBoxSlot* RootSlot = RuntimeRoot->AddChildToHorizontalBox(SlotWidget.RootBorder))
+		if (UVerticalBoxSlot* RootSlot = RuntimeRoot->AddChildToVerticalBox(SlotWidget.RootBorder))
 		{
-			RootSlot->SetPadding(FMargin(4.0f));
+			RootSlot->SetPadding(FMargin(4.0f, 0.0f, 4.0f, 7.0f));
 			RootSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		}
 	}
@@ -154,12 +164,8 @@ void UActiveSkillBarWidget::BuildRuntimeLayout()
 
 void UActiveSkillBarWidget::UpdateSlotWidgets(const TArray<FActiveSkillSlotView>& Slots)
 {
-	bool bAnyUnlocked = false;
-	for (const FActiveSkillSlotView& SkillView : Slots)
-	{
-		bAnyUnlocked |= !SkillView.bLocked;
-	}
-	SetVisibility(bAnyUnlocked ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	int32 SelectedSlotIndex = INDEX_NONE;
+	SetVisibility(ESlateVisibility::HitTestInvisible);
 
 	for (int32 Index = 0; Index < RuntimeSlotWidgets.Num(); ++Index)
 	{
@@ -167,6 +173,15 @@ void UActiveSkillBarWidget::UpdateSlotWidgets(const TArray<FActiveSkillSlotView>
 		const bool bHasSlot = Slots.IsValidIndex(Index);
 		const FActiveSkillSlotView SkillSlot = bHasSlot ? Slots[Index] : FActiveSkillSlotView();
 		const bool bEquipped = bHasSlot && SkillSlot.SkillId != NAME_None;
+		const bool bCanPresentAsEntry = bHasSlot && !SkillSlot.bLocked;
+		if (RuntimeSlotHasEntry.IsValidIndex(Index))
+		{
+			RuntimeSlotHasEntry[Index] = bCanPresentAsEntry;
+		}
+		if (bCanPresentAsEntry && SkillSlot.bSelected)
+		{
+			SelectedSlotIndex = Index;
+		}
 
 		const FLinearColor BorderColor = SkillSlot.bLocked
 			? FLinearColor(0.02f, 0.02f, 0.02f, 0.45f)
@@ -195,9 +210,7 @@ void UActiveSkillBarWidget::UpdateSlotWidgets(const TArray<FActiveSkillSlotView>
 
 		if (SlotWidget.NameText)
 		{
-			SlotWidget.NameText->SetText(SkillSlot.bLocked
-				? FText::FromString(TEXT("Locked"))
-				: bEquipped ? GetShortDisplayName(SkillSlot) : FText::FromString(TEXT("Empty")));
+			SlotWidget.NameText->SetText(bEquipped ? GetShortDisplayName(SkillSlot) : FText::GetEmpty());
 		}
 		if (SlotWidget.KeyText)
 		{
@@ -218,6 +231,96 @@ void UActiveSkillBarWidget::UpdateSlotWidgets(const TArray<FActiveSkillSlotView>
 			SlotWidget.CooldownText->SetText(FText::AsNumber(FMath::CeilToInt(SkillSlot.CooldownRemaining)));
 		}
 	}
+
+	if (LastSelectedSlotIndex == INDEX_NONE)
+	{
+		LastSelectedSlotIndex = SelectedSlotIndex;
+		ApplySelectionPresentation();
+	}
+	else if (SelectedSlotIndex != INDEX_NONE && SelectedSlotIndex != LastSelectedSlotIndex)
+	{
+		StartSelectionRoll(LastSelectedSlotIndex, SelectedSlotIndex);
+		LastSelectedSlotIndex = SelectedSlotIndex;
+	}
+	else if (!bSelectionRollActive)
+	{
+		ApplySelectionPresentation();
+	}
+}
+
+void UActiveSkillBarWidget::StartSelectionRoll(int32 PreviousIndex, int32 NewIndex)
+{
+	RollPreviousSlotIndex = PreviousIndex;
+	RollNewSlotIndex = NewIndex;
+	RollTimer = 0.f;
+	bSelectionRollActive = true;
+	ApplySelectionPresentation(0.f);
+}
+
+void UActiveSkillBarWidget::TickSelectionRoll(float DeltaTime)
+{
+	if (!bSelectionRollActive)
+	{
+		return;
+	}
+
+	RollTimer += DeltaTime;
+	const float Alpha = FMath::Clamp(RollTimer / RollDurationSeconds, 0.f, 1.f);
+	ApplySelectionPresentation(Alpha);
+	if (Alpha >= 1.f)
+	{
+		bSelectionRollActive = false;
+		RollPreviousSlotIndex = INDEX_NONE;
+		RollNewSlotIndex = INDEX_NONE;
+		ApplySelectionPresentation();
+	}
+}
+
+void UActiveSkillBarWidget::ApplySelectionPresentation(float Alpha)
+{
+	for (int32 Index = 0; Index < RuntimeSlotWidgets.Num(); ++Index)
+	{
+		const bool bHasEntry = RuntimeSlotHasEntry.IsValidIndex(Index) && RuntimeSlotHasEntry[Index];
+		if (!bHasEntry)
+		{
+			ApplySlotPresentation(Index, 0.28f, 0.84f, 0.f);
+			continue;
+		}
+
+		if (bSelectionRollActive && Index == RollNewSlotIndex)
+		{
+			ApplySlotPresentation(Index, FMath::Lerp(0.52f, 1.f, Alpha), FMath::Lerp(0.84f, 1.f, Alpha), FMath::Lerp(-10.f, 0.f, Alpha));
+		}
+		else if (bSelectionRollActive && Index == RollPreviousSlotIndex)
+		{
+			ApplySlotPresentation(Index, FMath::Lerp(1.f, 0.52f, Alpha), FMath::Lerp(1.f, 0.84f, Alpha), FMath::Lerp(0.f, 10.f, Alpha));
+		}
+		else if (Index == LastSelectedSlotIndex)
+		{
+			ApplySlotPresentation(Index, 1.f, 1.f, 0.f);
+		}
+		else
+		{
+			ApplySlotPresentation(Index, 0.52f, 0.84f, 0.f);
+		}
+	}
+}
+
+void UActiveSkillBarWidget::ApplySlotPresentation(int32 SlotIndex, float Opacity, float Scale, float TranslationY)
+{
+	if (!RuntimeSlotWidgets.IsValidIndex(SlotIndex) || !RuntimeSlotWidgets[SlotIndex].RootBorder)
+	{
+		return;
+	}
+
+	UBorder* RootBorder = RuntimeSlotWidgets[SlotIndex].RootBorder;
+	RootBorder->SetRenderOpacity(Opacity);
+	RootBorder->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+
+	FWidgetTransform Transform;
+	Transform.Scale = FVector2D(Scale, Scale);
+	Transform.Translation = FVector2D(0.f, TranslationY);
+	RootBorder->SetRenderTransform(Transform);
 }
 
 FText UActiveSkillBarWidget::GetShortDisplayName(const FActiveSkillSlotView& SkillSlot) const

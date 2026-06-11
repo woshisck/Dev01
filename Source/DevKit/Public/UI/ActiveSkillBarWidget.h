@@ -6,10 +6,10 @@
 #include "ActiveSkillBarWidget.generated.h"
 
 class UBorder;
-class UHorizontalBox;
 class UImage;
 class UProgressBar;
 class UTextBlock;
+class UVerticalBox;
 
 UCLASS()
 class DEVKIT_API UActiveSkillBarWidget : public UUserWidget
@@ -37,6 +37,7 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual void NativeDestruct() override;
 
 private:
@@ -54,14 +55,27 @@ private:
 	TObjectPtr<UPlayerActiveSkillComponent> BoundActiveSkillComponent = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UHorizontalBox> RuntimeRoot = nullptr;
+	TObjectPtr<UVerticalBox> RuntimeRoot = nullptr;
 
 	TArray<FRuntimeSkillSlotWidget> RuntimeSlotWidgets;
+	TArray<bool> RuntimeSlotHasEntry;
 
 	void UnbindCurrentComponent();
 	void BuildRuntimeLayout();
 	void UpdateSlotWidgets(const TArray<FActiveSkillSlotView>& Slots);
+	void StartSelectionRoll(int32 PreviousIndex, int32 NewIndex);
+	void TickSelectionRoll(float DeltaTime);
+	void ApplySelectionPresentation(float Alpha = 1.f);
+	void ApplySlotPresentation(int32 SlotIndex, float Opacity, float Scale, float TranslationY);
 	FText GetShortDisplayName(const FActiveSkillSlotView& SkillSlot) const;
+
+	int32 LastSelectedSlotIndex = INDEX_NONE;
+	int32 RollPreviousSlotIndex = INDEX_NONE;
+	int32 RollNewSlotIndex = INDEX_NONE;
+	float RollTimer = 0.f;
+	bool bSelectionRollActive = false;
+
+	static constexpr float RollDurationSeconds = 0.32f;
 
 	UFUNCTION()
 	void HandleSkillSlotsChanged(const TArray<FActiveSkillSlotView>& Slots);

@@ -753,10 +753,10 @@ namespace BackpackDeckUIStyleSetup
 		UVerticalBox* CardStack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("CardStack"), false);
 		USizeBox* IconBox = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("IconBox"), false);
 		UImage* CardIcon = ConstructNamedWidget<UImage>(WidgetTree, TEXT("CardIcon"));
-		UTextBlock* StateText = MakeLabel(WidgetTree, TEXT("StateText"), TEXT("NEXT"), 12, AccentGold);
-		UTextBlock* CardNameText = MakeLabel(WidgetTree, TEXT("CardNameText"), TEXT("Card"), 13, BrightSilver);
-		UTextBlock* ActionText = MakeLabel(WidgetTree, TEXT("ActionText"), TEXT("Light"), 11, MutedSilver);
-		UTextBlock* TypeText = MakeLabel(WidgetTree, TEXT("TypeText"), TEXT("Attack"), 10, SilverLine);
+		UTextBlock* StateText = MakeLabel(WidgetTree, TEXT("StateText"), TEXT("NEXT"), 10, AccentGold);
+		UTextBlock* CardNameText = MakeLabel(WidgetTree, TEXT("CardNameText"), TEXT("Card"), 10, BrightSilver);
+		UTextBlock* ActionText = MakeLabel(WidgetTree, TEXT("ActionText"), TEXT("\u653b\u51fb"), 9, MutedSilver);
+		UTextBlock* TypeText = MakeLabel(WidgetTree, TEXT("TypeText"), TEXT("\u542f\u52a8"), 9, SilverLine);
 		UBorder* TopLine = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("TopSilverLine"), false);
 		USizeBox* TopLineSize = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("TopSilverLineSize"), false);
 		if (!RootSize || !Root || !CardFrame || !CardStack || !IconBox || !CardIcon || !StateText || !CardNameText || !ActionText || !TypeText || !TopLine || !TopLineSize)
@@ -764,31 +764,33 @@ namespace BackpackDeckUIStyleSetup
 			return;
 		}
 
-		RootSize->SetWidthOverride(72.0f);
-		RootSize->SetHeightOverride(86.0f);
+		RootSize->SetWidthOverride(56.0f);
+		RootSize->SetHeightOverride(64.0f);
 		RootSize->AddChild(Root);
 		WidgetTree->RootWidget = RootSize;
 
-		ConfigureBorder(CardFrame, CardFill, FMargin(5.0f, 6.0f, 5.0f, 5.0f));
+		ConfigureBorder(CardFrame, CardFill, FMargin(4.0f, 5.0f));
 		AddOverlayChild(Root, CardFrame, HAlign_Fill, VAlign_Fill, FMargin(2.0f));
 		CardFrame->SetContent(CardStack);
 
 		ConfigureBorder(TopLine, SilverLine, FMargin());
 		TopLineSize->SetHeightOverride(1.5f);
 		TopLineSize->AddChild(TopLine);
-		AddOverlayChild(Root, TopLineSize, HAlign_Fill, VAlign_Top, FMargin(10.0f, 6.0f, 10.0f, 0.0f));
+		AddOverlayChild(Root, TopLineSize, HAlign_Fill, VAlign_Top, FMargin(8.0f, 5.0f, 8.0f, 0.0f));
 
-		AddVerticalChild(CardStack, StateText, HAlign_Center, FMargin(0.0f, 0.0f, 0.0f, 1.0f));
-		IconBox->SetWidthOverride(36.0f);
-		IconBox->SetHeightOverride(28.0f);
+		AddVerticalChild(CardStack, StateText, HAlign_Center);
+		IconBox->SetWidthOverride(30.0f);
+		IconBox->SetHeightOverride(26.0f);
 		CardIcon->SetColorAndOpacity(FLinearColor::White);
 		IconBox->AddChild(CardIcon);
-		AddVerticalChild(CardStack, IconBox, HAlign_Center, FMargin(0.0f, 0.0f, 0.0f, 2.0f));
-		AddVerticalChild(CardStack, CardNameText, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 1.0f));
+		AddVerticalChild(CardStack, IconBox, HAlign_Center, FMargin(0.0f, 1.0f, 0.0f, 1.0f));
+		AddVerticalChild(CardStack, CardNameText, HAlign_Fill);
+		ActionText->SetVisibility(ESlateVisibility::Collapsed);
+		TypeText->SetVisibility(ESlateVisibility::Collapsed);
 		AddVerticalChild(CardStack, ActionText, HAlign_Fill);
 		AddVerticalChild(CardStack, TypeText, HAlign_Fill);
 
-		ReportLines.Add(TEXT("- Combat deck HUD card slot rebuilt in the tutorial-card silver style."));
+		ReportLines.Add(TEXT("- Combat deck HUD card slot rebuilt as a compact action-card placeholder."));
 	}
 
 	void BuildCombatDeckBarTree(UWidgetBlueprint* WidgetBlueprint, TArray<FString>& ReportLines)
@@ -802,26 +804,26 @@ namespace BackpackDeckUIStyleSetup
 		UBorder* DeckEntryHighlightPanel = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("DeckEntryHighlightPanel"), false);
 		UVerticalBox* Stack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("ConveyorStack"), false);
 		UHorizontalBox* HeaderRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("HeaderRow"), false);
-		UTextBlock* TitleText = MakeLabel(WidgetTree, TEXT("TitleText"), TEXT("1D DECK"), 16, BrightSilver, ETextJustify::Left);
-		UTextBlock* StatusText = MakeLabel(WidgetTree, TEXT("StatusText"), TEXT("Deck: 0"), 14, MutedSilver, ETextJustify::Right);
+		UTextBlock* TitleText = MakeLabel(WidgetTree, TEXT("TitleText"), TEXT("\u653b\u51fb\u5361\u7ec4"), 13, BrightSilver, ETextJustify::Left);
+		UTextBlock* StatusText = MakeLabel(WidgetTree, TEXT("StatusText"), TEXT("\u987a\u5e8f: 0"), 12, MutedSilver, ETextJustify::Right);
 		UHorizontalBox* CardRow = ConstructNamedWidget<UHorizontalBox>(WidgetTree, TEXT("CardRow"));
 		UOverlay* ShufflePanel = ConstructNamedWidget<UOverlay>(WidgetTree, TEXT("ShufflePanel"));
 		UBorder* ShuffleBack = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("ShuffleBack"), false);
 		UProgressBar* ShuffleProgressBar = ConstructNamedWidget<UProgressBar>(WidgetTree, TEXT("ShuffleProgressBar"));
-		UTextBlock* ShuffleText = MakeLabel(WidgetTree, TEXT("ShuffleText"), TEXT("Reloading"), 13, SilverText);
-		UTextBlock* ConsumedToastText = MakeLabel(WidgetTree, TEXT("ConsumedToastText"), TEXT("Consumed"), 14, AccentGold);
-		UTextBlock* RewardToastText = MakeLabel(WidgetTree, TEXT("RewardToastText"), TEXT("Added"), 14, BrightSilver);
+		UTextBlock* ShuffleText = MakeLabel(WidgetTree, TEXT("ShuffleText"), TEXT("\u56de\u586b\u4e2d"), 11, SilverText);
+		UTextBlock* ConsumedToastText = MakeLabel(WidgetTree, TEXT("ConsumedToastText"), TEXT("\u89e6\u53d1"), 12, AccentGold);
+		UTextBlock* RewardToastText = MakeLabel(WidgetTree, TEXT("RewardToastText"), TEXT("\u5165\u7ec4"), 12, BrightSilver);
 		if (!RootSize || !Root || !Back || !DeckEntryHighlightPanel || !Stack || !HeaderRow || !TitleText || !StatusText || !CardRow || !ShufflePanel || !ShuffleBack || !ShuffleProgressBar || !ShuffleText || !ConsumedToastText || !RewardToastText)
 		{
 			return;
 		}
 
-		RootSize->SetWidthOverride(900.0f);
-		RootSize->SetHeightOverride(112.0f);
+		RootSize->SetWidthOverride(520.0f);
+		RootSize->SetHeightOverride(96.0f);
 		RootSize->AddChild(Root);
 		WidgetTree->RootWidget = RootSize;
 
-		ConfigureBorder(Back, FLinearColor(0.012f, 0.014f, 0.018f, 0.78f), FMargin(16.0f, 8.0f));
+		ConfigureBorder(Back, FLinearColor(0.012f, 0.014f, 0.018f, 0.56f), FMargin(10.0f, 7.0f));
 		Back->SetContent(Stack);
 		AddOverlayChild(Root, Back, HAlign_Fill, VAlign_Fill);
 
@@ -832,7 +834,7 @@ namespace BackpackDeckUIStyleSetup
 
 		AddHorizontalChild(HeaderRow, TitleText, VAlign_Center, FMargin(), ESlateSizeRule::Fill);
 		AddHorizontalChild(HeaderRow, StatusText, VAlign_Center, FMargin(), ESlateSizeRule::Fill);
-		AddVerticalChild(Stack, HeaderRow, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+		AddVerticalChild(Stack, HeaderRow, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 3.0f));
 		AddVerticalChild(Stack, CardRow, HAlign_Left);
 
 		const FString SlotClassPath = ToClassPath(CombatDeckCardSlotPath);
@@ -840,24 +842,24 @@ namespace BackpackDeckUIStyleSetup
 		{
 			const FName SlotName(*FString::Printf(TEXT("CardSlot_%d"), Index));
 			UWidget* SlotWidget = ConstructWidgetFromClassPath(WidgetTree, SlotClassPath, SlotName, UCombatDeckCardSlotWidget::StaticClass(), ReportLines);
-			AddHorizontalChild(CardRow, SlotWidget, VAlign_Center, FMargin(2.0f, 0.0f));
+			AddHorizontalChild(CardRow, SlotWidget, VAlign_Center, FMargin(1.5f, 0.0f));
 		}
 
-		ConfigureBorder(ShuffleBack, FLinearColor(0.02f, 0.025f, 0.032f, 0.94f), FMargin(10.0f, 6.0f));
+		ConfigureBorder(ShuffleBack, FLinearColor(0.02f, 0.025f, 0.032f, 0.90f), FMargin(8.0f, 5.0f));
 		AddOverlayChild(ShufflePanel, ShuffleBack, HAlign_Fill, VAlign_Fill);
-		AddOverlayChild(ShufflePanel, ShuffleProgressBar, HAlign_Fill, VAlign_Bottom, FMargin(12.0f, 0.0f, 12.0f, 8.0f));
+		AddOverlayChild(ShufflePanel, ShuffleProgressBar, HAlign_Fill, VAlign_Bottom, FMargin(10.0f, 0.0f, 10.0f, 7.0f));
 		AddOverlayChild(ShufflePanel, ShuffleText, HAlign_Center, VAlign_Center);
 		ShufflePanel->SetVisibility(ESlateVisibility::Collapsed);
-		AddOverlayChild(Root, ShufflePanel, HAlign_Fill, VAlign_Bottom, FMargin(16.0f, 0.0f, 16.0f, 8.0f));
+		AddOverlayChild(Root, ShufflePanel, HAlign_Fill, VAlign_Bottom, FMargin(10.0f, 0.0f, 10.0f, 7.0f));
 
 		ConsumedToastText->SetRenderOpacity(0.0f);
 		ConsumedToastText->SetVisibility(ESlateVisibility::Collapsed);
 		RewardToastText->SetRenderOpacity(0.0f);
 		RewardToastText->SetVisibility(ESlateVisibility::Collapsed);
-		AddOverlayChild(Root, ConsumedToastText, HAlign_Left, VAlign_Top, FMargin(24.0f, 18.0f, 0.0f, 0.0f));
-		AddOverlayChild(Root, RewardToastText, HAlign_Right, VAlign_Top, FMargin(0.0f, 18.0f, 24.0f, 0.0f));
+		AddOverlayChild(Root, ConsumedToastText, HAlign_Left, VAlign_Top, FMargin(18.0f, 14.0f, 0.0f, 0.0f));
+		AddOverlayChild(Root, RewardToastText, HAlign_Right, VAlign_Top, FMargin(0.0f, 14.0f, 18.0f, 0.0f));
 
-		ReportLines.Add(TEXT("- Combat deck HUD conveyor rebuilt with 8 silver card slots, reload overlay, and code-driven entry highlight panel."));
+		ReportLines.Add(TEXT("- Combat deck HUD rebuilt as a compact top-left attack-card sequence strip."));
 	}
 
 	void BuildCombatDeckEditCardSlotTree(UWidgetBlueprint* WidgetBlueprint, TArray<FString>& ReportLines)
@@ -1210,27 +1212,33 @@ int32 UBackpackDeckUIStyleSetupCommandlet::Main(const FString& Params)
 	const bool bApply = Params.Contains(TEXT("Apply"), ESearchCase::IgnoreCase);
 	const bool bDryRun = !bApply;
 	const bool bBackpackGridOnly = Params.Contains(TEXT("BackpackGridOnly"), ESearchCase::IgnoreCase);
+	const bool bCombatHudOnly = Params.Contains(TEXT("CombatHudOnly"), ESearchCase::IgnoreCase);
 
 	TArray<FString> ReportLines;
 	TArray<UPackage*> DirtyPackages;
 	ReportLines.Add(TEXT("# Backpack Deck UI Style Setup Report"));
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
 	ReportLines.Add(FString::Printf(TEXT("- BackpackGridOnly: %s"), bBackpackGridOnly ? TEXT("true") : TEXT("false")));
+	ReportLines.Add(FString::Printf(TEXT("- CombatHudOnly: %s"), bCombatHudOnly ? TEXT("true") : TEXT("false")));
 	ReportLines.Add(TEXT("- Style target: bright silver gothic card UI, aligned with 512 tutorial illustrations."));
 	ReportLines.Add(TEXT(""));
 
-	if (!bDryRun && !bBackpackGridOnly)
+	if (!bDryRun && !bBackpackGridOnly && !bCombatHudOnly)
 	{
 		ImportBackpackInspectTextures(ReportLines, DirtyPackages);
 	}
-	if (!bBackpackGridOnly)
+	if (!bBackpackGridOnly && !bCombatHudOnly)
 	{
 		EnsureInputActionDecoratorMappings(bDryRun, ReportLines, DirtyPackages);
 	}
 
-	UBackpackStyleDataAsset* BackpackStyle = bBackpackGridOnly
-		? Cast<UBackpackStyleDataAsset>(LoadObjectByPackagePath(BackpackStylePath, UBackpackStyleDataAsset::StaticClass()))
-		: LoadOrCreateBackpackStyle(bDryRun, ReportLines, DirtyPackages);
+	UBackpackStyleDataAsset* BackpackStyle = nullptr;
+	if (!bCombatHudOnly)
+	{
+		BackpackStyle = bBackpackGridOnly
+			? Cast<UBackpackStyleDataAsset>(LoadObjectByPackagePath(BackpackStylePath, UBackpackStyleDataAsset::StaticClass()))
+			: LoadOrCreateBackpackStyle(bDryRun, ReportLines, DirtyPackages);
+	}
 	if (bBackpackGridOnly)
 	{
 		ReportLines.Add(FString::Printf(TEXT("- %s `%s` without rewriting style settings."), BackpackStyle ? TEXT("Found") : TEXT("Missing"), *BackpackStylePath));
@@ -1244,7 +1252,14 @@ int32 UBackpackDeckUIStyleSetupCommandlet::Main(const FString& Params)
 	};
 
 	TArray<FWidgetBuildSpec> Specs;
-	if (bBackpackGridOnly)
+	if (bCombatHudOnly)
+	{
+		Specs = {
+			{ CombatDeckCardSlotPath, UCombatDeckCardSlotWidget::StaticClass(), &BuildCombatDeckCardSlotTree },
+			{ CombatDeckBarPath, UCombatDeckBarWidget::StaticClass(), &BuildCombatDeckBarTree },
+		};
+	}
+	else if (bBackpackGridOnly)
 	{
 		Specs.Add({ BackpackGridPath, UBackpackGridWidget::StaticClass(), &BuildBackpackGridTree });
 	}
@@ -1281,7 +1296,7 @@ int32 UBackpackDeckUIStyleSetupCommandlet::Main(const FString& Params)
 		}
 	}
 
-	if (!bDryRun)
+	if (!bDryRun && !bCombatHudOnly)
 	{
 		UClass* RuneSlotClass = LoadClass<UUserWidget>(nullptr, *ToClassPath(RuneSlotPath));
 		UClass* EditCardSlotClass = LoadClass<UUserWidget>(nullptr, *ToClassPath(CombatDeckEditCardSlotPath));
@@ -1294,10 +1309,11 @@ int32 UBackpackDeckUIStyleSetupCommandlet::Main(const FString& Params)
 			}
 		}
 
-		if (DirtyPackages.Num() > 0)
-		{
-			UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
-		}
+	}
+
+	if (!bDryRun && DirtyPackages.Num() > 0)
+	{
+		UEditorLoadingAndSavingUtils::SavePackages(DirtyPackages, false);
 	}
 
 	FString ReportPath;

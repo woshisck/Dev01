@@ -118,14 +118,15 @@ private:
 
 	void UnbindFromCurrentDeck();
 	void CacheDesignerWidgets();
-	void UpdateDeckVisuals(const TArray<FCombatCardInstance>& RemainingCards, EDeckState DeckState);
-	void UpdateStatusText(int32 RemainingCount, EDeckState DeckState);
+	void UpdateDeckVisuals(const TArray<FCombatCardInstance>& VisibleCards, EDeckState DeckState, int32 CurrentIndex);
+	void UpdateStatusText(int32 VisibleCount, EDeckState DeckState, int32 CurrentIndex);
 	void UpdateShuffleVisuals(float NormalizedProgress, bool bIsShuffling);
 	void SetTextIfBound(class UWidget* TextWidget, const FText& Text);
 	void ShowToast(class UWidget* ToastWidget, float& ToastTimeRemaining);
 	void TickToast(class UWidget* ToastWidget, float& ToastTimeRemaining, float DeltaTime);
 	void TickDeckCardsEnteredHighlight(float DeltaTime);
 	float GetDeckEntryHighlightDuration() const;
+	int32 FindVisibleCardIndex(const FCombatCardInstance& Card) const;
 
 	static FText GetCardDisplayName(const FCombatCardInstance& Card);
 	static FText GetConsumedToastText(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);

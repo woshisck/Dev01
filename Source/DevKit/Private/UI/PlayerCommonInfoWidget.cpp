@@ -26,9 +26,20 @@ void UPlayerCommonInfoWidget::NativeConstruct()
 	{
 		GoldRow->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
-	if (MaterialRow)
+	RefreshMaterialRowVisibility();
+}
+
+void UPlayerCommonInfoWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (MaterialToastRemainingSeconds > 0.f)
 	{
-		MaterialRow->SetVisibility(ESlateVisibility::HitTestInvisible);
+		MaterialToastRemainingSeconds = FMath::Max(0.f, MaterialToastRemainingSeconds - InDeltaTime);
+		if (MaterialToastRemainingSeconds <= 0.f)
+		{
+			RefreshMaterialRowVisibility();
+		}
 	}
 }
 
@@ -37,6 +48,8 @@ void UPlayerCommonInfoWidget::NativeDestruct()
 	UnbindBackpack();
 	UnbindMetaProgression();
 	ClearCommonInfoEntries();
+	MaterialToastRemainingSeconds = 0.f;
+	bHasLastMaterialAmount = false;
 
 	Super::NativeDestruct();
 }
@@ -74,10 +87,15 @@ void UPlayerCommonInfoWidget::SetGold(int32 Gold)
 
 void UPlayerCommonInfoWidget::SetMaterial(int32 Material)
 {
+	const int32 ClampedMaterial = FMath::Max(0, Material);
 	if (MaterialText)
 	{
-		ConfigureCountText(MaterialText, FText::AsNumber(FMath::Max(0, Material)));
+		ConfigureCountText(MaterialText, FText::AsNumber(ClampedMaterial));
+		MaterialText->SetColorAndOpacity(FSlateColor(FLinearColor(0.78f, 0.90f, 1.0f, 1.0f)));
 	}
+
+	LastMaterialAmount = ClampedMaterial;
+	bHasLastMaterialAmount = true;
 }
 
 void UPlayerCommonInfoWidget::SetCommonInfoEntry(FName EntryId, FText Label, int32 Count, UTexture2D* IconTexture)
@@ -95,7 +113,17 @@ void UPlayerCommonInfoWidget::SetCommonInfoEntry(FName EntryId, FText Label, int
 
 	if (EntryId == TEXT("Material"))
 	{
+		const int32 PreviousMaterialAmount = LastMaterialAmount;
+		const bool bHadMaterialAmount = bHasLastMaterialAmount;
 		SetMaterial(Count);
+		if (bHadMaterialAmount && Count > PreviousMaterialAmount)
+		{
+			ShowMaterialRowForSeconds(8.f);
+		}
+		else if (bHadMaterialAmount && Count < PreviousMaterialAmount)
+		{
+			ShowMaterialRowForSeconds(3.f);
+		}
 		return;
 	}
 
@@ -167,7 +195,21 @@ void UPlayerCommonInfoWidget::HandleMetaCurrencyChanged(FGameplayTag CurrencyTag
 {
 	if (CurrencyTag == GetPrimaryMaterialCurrencyTag())
 	{
+		const int32 PreviousMaterialAmount = LastMaterialAmount;
+		const bool bHadMaterialAmount = bHasLastMaterialAmount;
 		SetMaterial(NewAmount);
+		if (bHadMaterialAmount && NewAmount > PreviousMaterialAmount)
+		{
+			ShowMaterialRowForSeconds(8.f);
+		}
+		else if (bHadMaterialAmount && NewAmount < PreviousMaterialAmount)
+		{
+			ShowMaterialRowForSeconds(3.f);
+		}
+		else
+		{
+			RefreshMaterialRowVisibility();
+		}
 	}
 }
 
@@ -188,13 +230,17 @@ void UPlayerCommonInfoWidget::BindToMetaProgression()
 	BoundMetaProgression = GameInstance ? GameInstance->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr;
 	if (!BoundMetaProgression)
 	{
+		MaterialToastRemainingSeconds = 0.f;
 		SetMaterial(0);
+		RefreshMaterialRowVisibility();
 		return;
 	}
 
 	BoundMetaProgression->OnCurrencyChanged.RemoveDynamic(this, &UPlayerCommonInfoWidget::HandleMetaCurrencyChanged);
 	BoundMetaProgression->OnCurrencyChanged.AddDynamic(this, &UPlayerCommonInfoWidget::HandleMetaCurrencyChanged);
+	MaterialToastRemainingSeconds = 0.f;
 	SetMaterial(BoundMetaProgression->GetCurrencyAmount(GetPrimaryMaterialCurrencyTag()));
+	RefreshMaterialRowVisibility();
 }
 
 void UPlayerCommonInfoWidget::UnbindMetaProgression()
@@ -219,6 +265,22 @@ void UPlayerCommonInfoWidget::ApplyMaterialIconBrush()
 FGameplayTag UPlayerCommonInfoWidget::GetPrimaryMaterialCurrencyTag() const
 {
 	return FGameplayTag::RequestGameplayTag(TEXT("Currency.Meta.Common.A"), false);
+}
+
+void UPlayerCommonInfoWidget::ShowMaterialRowForSeconds(float DurationSeconds)
+{
+	MaterialToastRemainingSeconds = FMath::Max(MaterialToastRemainingSeconds, DurationSeconds);
+	RefreshMaterialRowVisibility();
+}
+
+void UPlayerCommonInfoWidget::RefreshMaterialRowVisibility()
+{
+	if (MaterialRow)
+	{
+		MaterialRow->SetVisibility(MaterialToastRemainingSeconds > 0.f
+			? ESlateVisibility::HitTestInvisible
+			: ESlateVisibility::Collapsed);
+	}
 }
 
 void UPlayerCommonInfoWidget::ConfigureIcon(UImage* Icon, UTexture2D* Texture, const FVector2D& Size) const

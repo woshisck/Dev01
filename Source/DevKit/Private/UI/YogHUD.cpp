@@ -1254,7 +1254,7 @@ void AYogHUD::BindCombatDeckWidget(APawn* Pawn)
 
 void AYogHUD::EnsureCombatItemWidget()
 {
-	if (CombatItemBarWidget || !MainHUDWidget || !MainHUDWidget->BottomRightPlayerInfoRegion)
+	if (CombatItemBarWidget || !MainHUDWidget)
 	{
 		return;
 	}
@@ -1273,17 +1273,27 @@ void AYogHUD::EnsureCombatItemWidget()
 		return;
 	}
 
-	if (UOverlaySlot* ItemSlot = MainHUDWidget->BottomRightPlayerInfoRegion->AddChildToOverlay(CombatItemBarWidget))
+	UOverlay* TargetRegion = MainHUDWidget->TopRightPlayerInfoRegion
+		? MainHUDWidget->TopRightPlayerInfoRegion
+		: MainHUDWidget->BottomRightPlayerInfoRegion;
+	if (!TargetRegion)
+	{
+		CombatItemBarWidget = nullptr;
+		return;
+	}
+
+	CombatItemBarWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	if (UOverlaySlot* ItemSlot = TargetRegion->AddChildToOverlay(CombatItemBarWidget))
 	{
 		ItemSlot->SetHorizontalAlignment(HAlign_Right);
-		ItemSlot->SetVerticalAlignment(VAlign_Bottom);
-		ItemSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 8.0f));
+		ItemSlot->SetVerticalAlignment(VAlign_Top);
+		ItemSlot->SetPadding(FMargin(0.0f, 8.0f, 8.0f, 0.0f));
 	}
 }
 
 void AYogHUD::EnsureActiveSkillWidget()
 {
-	if (ActiveSkillBarWidget || !MainHUDWidget || !MainHUDWidget->BottomRightPlayerInfoRegion)
+	if (ActiveSkillBarWidget || !MainHUDWidget)
 	{
 		return;
 	}
@@ -1302,11 +1312,21 @@ void AYogHUD::EnsureActiveSkillWidget()
 		return;
 	}
 
-	if (UOverlaySlot* SkillSlot = MainHUDWidget->BottomRightPlayerInfoRegion->AddChildToOverlay(ActiveSkillBarWidget))
+	UOverlay* TargetRegion = MainHUDWidget->TopLeftPlayerInfoRegion
+		? MainHUDWidget->TopLeftPlayerInfoRegion
+		: MainHUDWidget->BottomRightPlayerInfoRegion;
+	if (!TargetRegion)
 	{
-		SkillSlot->SetHorizontalAlignment(HAlign_Right);
-		SkillSlot->SetVerticalAlignment(VAlign_Bottom);
-		SkillSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 92.0f));
+		ActiveSkillBarWidget = nullptr;
+		return;
+	}
+
+	ActiveSkillBarWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	if (UOverlaySlot* SkillSlot = TargetRegion->AddChildToOverlay(ActiveSkillBarWidget))
+	{
+		SkillSlot->SetHorizontalAlignment(HAlign_Left);
+		SkillSlot->SetVerticalAlignment(VAlign_Top);
+		SkillSlot->SetPadding(FMargin(8.0f, 112.0f, 0.0f, 0.0f));
 	}
 }
 

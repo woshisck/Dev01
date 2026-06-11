@@ -10,6 +10,7 @@ class UWeaponGlassIconWidget;
 class UInfoPopupWidget;
 class UCombatDeckBarWidget;
 class UPlayerCommonInfoWidget;
+class UPlayerBuffBarWidget;
 class UCurrentRoomBuffWidget;
 class UOverlay;
 class UWeaponDefinition;
@@ -60,6 +61,10 @@ public:
 	/** WBP control variable name: PlayerHealthBar */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<ULiquidHealthBarWidget> PlayerHealthBar;
+
+	/** Player buff/status strip shown above the health bar. WBP control variable name: PlayerBuffBar */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UPlayerBuffBarWidget> PlayerBuffBar;
 
 	/** WBP control variable name: EnemyArrow */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))

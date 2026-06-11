@@ -39,6 +39,7 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual void NativeDestruct() override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -75,6 +76,8 @@ private:
 	void ApplyGoldIconBrush();
 	void ApplyMaterialIconBrush();
 	FGameplayTag GetPrimaryMaterialCurrencyTag() const;
+	void ShowMaterialRowForSeconds(float DurationSeconds);
+	void RefreshMaterialRowVisibility();
 	void ConfigureIcon(UImage* Icon, UTexture2D* Texture, const FVector2D& Size) const;
 	void ConfigureCountText(UTextBlock* TextBlock, const FText& Text) const;
 	UHorizontalBox* CreateCommonInfoEntryRow(FName EntryId, UImage*& OutIcon, UTextBlock*& OutText);
@@ -96,4 +99,8 @@ private:
 
 	UPROPERTY(Transient)
 	TMap<FName, TObjectPtr<UTextBlock>> DynamicTexts;
+
+	float MaterialToastRemainingSeconds = 0.f;
+	int32 LastMaterialAmount = 0;
+	bool bHasLastMaterialAmount = false;
 };

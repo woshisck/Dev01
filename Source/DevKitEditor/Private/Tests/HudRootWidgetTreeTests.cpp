@@ -7,6 +7,9 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "UI/LiquidHealthBarWidget.h"
@@ -105,11 +108,11 @@ bool FHudRootPlayerHealthBarBlueprintBindingTest::RunTest(const FString& Paramet
 	return bLiquidFillImageIsImage && bUsesDesignerBlueprint;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHudRootWeaponComboListBlueprintBindingTest,
-	"DevKitEditor.UI.HUD.WeaponComboListRightAligned",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHudRootCombatDeckMountedTopLeftTest,
+	"DevKitEditor.UI.HUD.CombatDeckMountedTopLeft",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Parameters)
+bool FHudRootCombatDeckMountedTopLeftTest::RunTest(const FString& Parameters)
 {
 	const TCHAR* HudBlueprintPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_HUDRoot.WBP_HUDRoot");
 
@@ -125,72 +128,108 @@ bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Paramet
 		return false;
 	}
 
-	UWidget* TopRightRegion = WidgetTree->FindWidget(TEXT("TopRightPlayerInfoRegion"));
-	UWidget* RootCanvas = WidgetTree->FindWidget(TEXT("RootCanvas"));
+	UWidget* TopLeftRegion = WidgetTree->FindWidget(TEXT("TopLeftPlayerInfoRegion"));
+	UWidget* BottomCenterRegion = WidgetTree->FindWidget(TEXT("BottomCenterCombatRegion"));
+	UWidget* CombatDeckHost = WidgetTree->FindWidget(TEXT("CombatDeckHost"));
+	UWidget* CombatDeckBar = WidgetTree->FindWidget(TEXT("CombatDeckBar"));
 	UWidget* ComboPanel = WidgetTree->FindWidget(TEXT("WeaponComboListPanel"));
-	UWidget* ComboTitle = WidgetTree->FindWidget(TEXT("WeaponComboListTitle"));
-	UWidget* ComboText = WidgetTree->FindWidget(TEXT("WeaponComboListText"));
 
 	bool bValid = true;
-	bValid &= TestNotNull(TEXT("HUD root contains RootCanvas"), RootCanvas);
-	bValid &= TestNotNull(TEXT("HUD root contains TopRightPlayerInfoRegion"), TopRightRegion);
-	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListPanel"), ComboPanel);
-	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListTitle"), ComboTitle);
-	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListText"), ComboText);
+	bValid &= TestNotNull(TEXT("HUD root contains TopLeftPlayerInfoRegion"), TopLeftRegion);
+	bValid &= TestNotNull(TEXT("HUD root contains BottomCenterCombatRegion as an empty reserved region"), BottomCenterRegion);
+	bValid &= TestNotNull(TEXT("HUD root contains CombatDeckHost"), CombatDeckHost);
+	bValid &= TestNotNull(TEXT("HUD root contains CombatDeckBar"), CombatDeckBar);
+	bValid &= TestNull(TEXT("Legacy WeaponComboListPanel is not generated for the current no-combo combat design"), ComboPanel);
 
-	if (ComboTitle)
+	if (UOverlay* TopLeftOverlay = Cast<UOverlay>(TopLeftRegion))
 	{
-		bValid &= TestEqual(TEXT("WeaponComboListTitle text is right aligned"),
-			ReadTextJustification(ComboTitle).Get(ETextJustify::Left),
-			ETextJustify::Right);
+		bValid &= TestTrue(TEXT("CombatDeckHost is mounted in the top-left HUD region"),
+			CombatDeckHost && TopLeftOverlay->GetChildIndex(CombatDeckHost) != INDEX_NONE);
 	}
 
-	if (ComboText)
+	if (UOverlay* BottomCenterOverlay = Cast<UOverlay>(BottomCenterRegion))
 	{
-		bValid &= TestTrue(TEXT("WeaponComboListText uses rich text so input icons can render"),
-			ComboText->IsA<UYogCommonRichTextBlock>());
-		bValid &= TestNotEqual(TEXT("WeaponComboListText does not clip combo lines"),
-			ComboText->GetClipping(),
-			EWidgetClipping::ClipToBounds);
-		bValid &= TestEqual(TEXT("WeaponComboListText text is right aligned"),
-			ReadTextJustification(ComboText).Get(ETextJustify::Left),
-			ETextJustify::Right);
+		bValid &= TestEqual(TEXT("BottomCenterCombatRegion no longer hosts the combat deck during normal play"),
+			BottomCenterOverlay->GetChildIndex(CombatDeckHost),
+			INDEX_NONE);
 	}
 
-	if (UCanvasPanel* RootCanvasPanel = Cast<UCanvasPanel>(RootCanvas))
+	if (USizeBox* DeckHostSize = Cast<USizeBox>(CombatDeckHost))
 	{
-		bValid &= TestTrue(TEXT("WeaponComboListPanel is mounted directly on RootCanvas so it cannot resize or shift level float panels"),
-			ComboPanel && RootCanvasPanel->GetChildIndex(ComboPanel) != INDEX_NONE);
+		bValid &= TestEqual(TEXT("CombatDeckHost uses the compact top-left width"),
+			DeckHostSize->GetWidthOverride(),
+			520.0f,
+			0.001f);
+		bValid &= TestEqual(TEXT("CombatDeckHost uses the compact top-left height"),
+			DeckHostSize->GetHeightOverride(),
+			96.0f,
+			0.001f);
 	}
 
-	if (ComboPanel)
-	{
-		bValid &= TestNotEqual(TEXT("WeaponComboListPanel does not clip combo lines"),
-			ComboPanel->GetClipping(),
-			EWidgetClipping::ClipToBounds);
+	return bValid;
+}
 
-		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(ComboPanel->Slot))
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHudRootPlayerBuffBarPlacementTest,
+	"DevKitEditor.UI.HUD.PlayerBuffBarSitsAboveHealthBar",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHudRootPlayerBuffBarPlacementTest::RunTest(const FString& Parameters)
+{
+	const TCHAR* HudBlueprintPath = TEXT("/Game/UI/Playtest_UI/HUD/WBP_HUDRoot.WBP_HUDRoot");
+
+	UWidgetBlueprint* HudBlueprint = LoadObject<UWidgetBlueprint>(nullptr, HudBlueprintPath);
+	if (!TestNotNull(TEXT("HUD root widget blueprint loads"), HudBlueprint))
+	{
+		return false;
+	}
+
+	UWidgetTree* WidgetTree = HudBlueprint->WidgetTree;
+	if (!TestNotNull(TEXT("HUD root has a designer widget tree"), WidgetTree))
+	{
+		return false;
+	}
+
+	UWidget* BottomLeftRegion = WidgetTree->FindWidget(TEXT("BottomLeftPlayerInfoRegion"));
+	UWidget* PlayerHealthHost = WidgetTree->FindWidget(TEXT("PlayerHealthHost"));
+	UWidget* PlayerBuffBarHost = WidgetTree->FindWidget(TEXT("PlayerBuffBarHost"));
+	UWidget* PlayerBuffBar = WidgetTree->FindWidget(TEXT("PlayerBuffBar"));
+
+	bool bValid = true;
+	bValid &= TestNotNull(TEXT("HUD root contains BottomLeftPlayerInfoRegion"), BottomLeftRegion);
+	bValid &= TestNotNull(TEXT("HUD root contains PlayerHealthHost"), PlayerHealthHost);
+	bValid &= TestNotNull(TEXT("HUD root contains PlayerBuffBarHost"), PlayerBuffBarHost);
+	bValid &= TestNotNull(TEXT("HUD root contains PlayerBuffBar"), PlayerBuffBar);
+
+	if (PlayerBuffBarHost)
+	{
+		bValid &= TestTrue(TEXT("PlayerBuffBarHost uses a fixed size box so buff placeholders do not resize the health cluster"),
+			PlayerBuffBarHost->IsA<USizeBox>());
+
+		if (UOverlaySlot* BuffSlot = Cast<UOverlaySlot>(PlayerBuffBarHost->Slot))
 		{
-			const FAnchors Anchors = CanvasSlot->GetAnchors();
-			bValid &= TestEqual(TEXT("WeaponComboListPanel anchors to the top-right corner"),
-				Anchors.Minimum,
-				FVector2D(1.f, 0.f));
-			bValid &= TestEqual(TEXT("WeaponComboListPanel max anchor stays top-right"),
-				Anchors.Maximum,
-				FVector2D(1.f, 0.f));
-			bValid &= TestEqual(TEXT("WeaponComboListPanel aligns its right edge to the anchor"),
-				CanvasSlot->GetAlignment(),
-				FVector2D(1.f, 0.f));
-			bValid &= TestEqual(TEXT("WeaponComboListPanel right edge sits near the screen edge"),
-				CanvasSlot->GetPosition().X,
-				-16.0,
-				0.001);
-			bValid &= TestEqual(TEXT("WeaponComboListPanel uses the requested compact width"),
-				CanvasSlot->GetSize().X,
-				460.0,
-				0.001);
-			bValid &= TestTrue(TEXT("WeaponComboListPanel has enough vertical room for long weapon combo lists"),
-				CanvasSlot->GetSize().Y >= 300.f);
+			bValid &= TestEqual(TEXT("PlayerBuffBarHost aligns with the left edge of the bottom-left HUD region"),
+				BuffSlot->GetHorizontalAlignment(),
+				HAlign_Left);
+			bValid &= TestEqual(TEXT("PlayerBuffBarHost is anchored from the bottom near the health bar"),
+				BuffSlot->GetVerticalAlignment(),
+				VAlign_Bottom);
+			bValid &= TestTrue(TEXT("PlayerBuffBarHost sits above PlayerHealthHost with positive bottom padding"),
+				BuffSlot->GetPadding().Bottom >= 82.f);
+		}
+		else
+		{
+			AddError(TEXT("PlayerBuffBarHost must be mounted in BottomLeftPlayerInfoRegion as an overlay child."));
+			bValid = false;
+		}
+	}
+
+	if (PlayerHealthHost)
+	{
+		if (UOverlaySlot* HealthSlot = Cast<UOverlaySlot>(PlayerHealthHost->Slot))
+		{
+			bValid &= TestEqual(TEXT("PlayerHealthHost remains bottom aligned"),
+				HealthSlot->GetVerticalAlignment(),
+				VAlign_Bottom);
 		}
 	}
 

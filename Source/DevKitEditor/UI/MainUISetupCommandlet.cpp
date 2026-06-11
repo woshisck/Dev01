@@ -30,6 +30,7 @@
 #include "UI/CurrentRoomBuffWidget.h"
 #include "UI/LiquidHealthBarWidget.h"
 #include "UI/PauseMenuWidget.h"
+#include "UI/PlayerBuffBarWidget.h"
 #include "UI/PlayerCommonInfoWidget.h"
 #include "UI/InputActionRichTextDecorator.h"
 #include "UI/YogHUD.h"
@@ -300,7 +301,7 @@ namespace MainUISetup
 			TextSlot->SetVerticalAlignment(VAlign_Center);
 		}
 
-		MaterialRow->SetVisibility(ESlateVisibility::HitTestInvisible);
+		MaterialRow->SetVisibility(ESlateVisibility::Collapsed);
 		if (UVerticalBoxSlot* MaterialRowSlot = CommonInfoList->AddChildToVerticalBox(MaterialRow))
 		{
 			MaterialRowSlot->SetHorizontalAlignment(HAlign_Right);
@@ -362,12 +363,12 @@ namespace MainUISetup
 			ConfigureCanvasSlot(RootCanvas->AddChildToCanvas(EnemyArrow), FAnchors(0.f, 0.f, 1.f, 1.f), FVector2D::ZeroVector, FVector2D::ZeroVector, FVector2D::ZeroVector, 0);
 		}
 
-		UOverlay* TopLeft = AddHudRegion(WidgetTree, RootCanvas, TEXT("TopLeftPlayerInfoRegion"), FAnchors(0.f, 0.f), FVector2D(16.f, 16.f), FVector2D(380.f, 128.f), FVector2D(0.f, 0.f), 5);
+		UOverlay* TopLeft = AddHudRegion(WidgetTree, RootCanvas, TEXT("TopLeftPlayerInfoRegion"), FAnchors(0.f, 0.f), FVector2D(16.f, 16.f), FVector2D(560.f, 260.f), FVector2D(0.f, 0.f), 5);
 		UOverlay* TopRight = AddHudRegion(WidgetTree, RootCanvas, TEXT("TopRightPlayerInfoRegion"), FAnchors(1.f, 0.f), FVector2D(-16.f, 16.f), FVector2D(460.f, 132.f), FVector2D(1.f, 0.f), 5);
 		UOverlay* Boss = AddHudRegion(WidgetTree, RootCanvas, TEXT("BossInfoRegion"), FAnchors(0.5f, 0.f), FVector2D(0.f, 16.f), FVector2D(980.f, 118.f), FVector2D(0.5f, 0.f), 6);
 		UOverlay* LeftLevel = AddHudRegion(WidgetTree, RootCanvas, TEXT("LeftLevelInfoRegion"), FAnchors(0.f, 0.5f), FVector2D(24.f, 0.f), FVector2D(360.f, 560.f), FVector2D(0.f, 0.5f), 5);
 		UOverlay* RightLevel = AddHudRegion(WidgetTree, RootCanvas, TEXT("RightLevelInfoRegion"), FAnchors(1.f, 0.5f), FVector2D(-24.f, 0.f), FVector2D(360.f, 560.f), FVector2D(1.f, 0.5f), 5);
-		UOverlay* BottomLeft = AddHudRegion(WidgetTree, RootCanvas, TEXT("BottomLeftPlayerInfoRegion"), FAnchors(0.f, 1.f), FVector2D(24.f, -24.f), FVector2D(440.f, 150.f), FVector2D(0.f, 1.f), 8);
+		UOverlay* BottomLeft = AddHudRegion(WidgetTree, RootCanvas, TEXT("BottomLeftPlayerInfoRegion"), FAnchors(0.f, 1.f), FVector2D(24.f, -24.f), FVector2D(440.f, 184.f), FVector2D(0.f, 1.f), 8);
 		UOverlay* BottomCenter = AddHudRegion(WidgetTree, RootCanvas, TEXT("BottomCenterCombatRegion"), FAnchors(0.5f, 1.f), FVector2D(0.f, -24.f), FVector2D(900.f, 180.f), FVector2D(0.5f, 1.f), 8);
 		UOverlay* BottomRight = AddHudRegion(WidgetTree, RootCanvas, TEXT("BottomRightPlayerInfoRegion"), FAnchors(1.f, 1.f), FVector2D(-24.f, -24.f), FVector2D(420.f, 150.f), FVector2D(1.f, 1.f), 8);
 
@@ -391,56 +392,9 @@ namespace MainUISetup
 		{
 			BottomRight->SetVisibility(ESlateVisibility::HitTestInvisible);
 		}
-
-		USizeBox* WeaponComboListPanel = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("WeaponComboListPanel"));
-		UBorder* WeaponComboListFrame = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("WeaponComboListFrame"), false);
-		UVerticalBox* WeaponComboListStack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("WeaponComboListStack"), false);
-		UTextBlock* WeaponComboListTitle = ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("WeaponComboListTitle"), false);
-		UYogCommonRichTextBlock* WeaponComboListText = ConstructNamedWidget<UYogCommonRichTextBlock>(WidgetTree, TEXT("WeaponComboListText"));
-		if (WeaponComboListPanel && WeaponComboListFrame && WeaponComboListStack && WeaponComboListTitle && WeaponComboListText)
+		if (BottomCenter)
 		{
-			WeaponComboListPanel->SetWidthOverride(460.f);
-			WeaponComboListPanel->SetMinDesiredHeight(180.f);
-			WeaponComboListPanel->SetVisibility(ESlateVisibility::Collapsed);
-			WeaponComboListPanel->SetClipping(EWidgetClipping::Inherit);
-
-			WeaponComboListFrame->SetBrushColor(FLinearColor(0.025f, 0.028f, 0.034f, 0.78f));
-			WeaponComboListFrame->SetPadding(FMargin(14.f, 10.f));
-			WeaponComboListFrame->SetVisibility(ESlateVisibility::HitTestInvisible);
-			WeaponComboListPanel->AddChild(WeaponComboListFrame);
-			WeaponComboListFrame->SetContent(WeaponComboListStack);
-
-			ConfigureText(WeaponComboListTitle, TEXT("\u6b66\u5668\u8fde\u62db"), FLinearColor(0.96f, 0.91f, 0.78f, 1.f), 16, false);
-			WeaponComboListTitle->SetJustification(ETextJustify::Right);
-			WeaponComboListTitle->SetShadowOffset(FVector2D(1.0f, 1.0f));
-			WeaponComboListTitle->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.85f));
-			if (UVerticalBoxSlot* TitleSlot = WeaponComboListStack->AddChildToVerticalBox(WeaponComboListTitle))
-			{
-				TitleSlot->SetHorizontalAlignment(HAlign_Fill);
-				TitleSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
-			}
-
-			ConfigureComboRichText(
-				WeaponComboListText,
-				TEXT("\u8fde\u6bb5 01   <input action=\"LightAttack\"/> -> <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>\n\u8fde\u6bb5 02   <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"),
-				FLinearColor(0.88f, 0.91f, 0.96f, 1.f),
-				13);
-			WeaponComboListText->SetVisibility(ESlateVisibility::HitTestInvisible);
-			if (UVerticalBoxSlot* TextSlot = WeaponComboListStack->AddChildToVerticalBox(WeaponComboListText))
-			{
-				TextSlot->SetHorizontalAlignment(HAlign_Fill);
-				TextSlot->SetVerticalAlignment(VAlign_Fill);
-			}
-		}
-		if (WeaponComboListPanel)
-		{
-			ConfigureCanvasSlot(
-				RootCanvas->AddChildToCanvas(WeaponComboListPanel),
-				FAnchors(1.f, 0.f),
-				FVector2D(-16.f, 16.f),
-				FVector2D(460.f, 300.f),
-				FVector2D(1.f, 0.f),
-				7);
+			BottomCenter->SetVisibility(ESlateVisibility::Collapsed);
 		}
 
 		UWidget* PlayerCommonInfo = ConstructWidgetFromPath(
@@ -460,17 +414,27 @@ namespace MainUISetup
 		}
 		AddWidgetToOverlay(BottomLeft, PlayerHealthHost, HAlign_Left, VAlign_Bottom);
 
+		USizeBox* PlayerBuffBarHost = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("PlayerBuffBarHost"), false);
+		PlayerBuffBarHost->SetWidthOverride(420.f);
+		PlayerBuffBarHost->SetHeightOverride(34.f);
+		if (UPlayerBuffBarWidget* PlayerBuffBar = ConstructNamedWidget<UPlayerBuffBarWidget>(WidgetTree, TEXT("PlayerBuffBar")))
+		{
+			PlayerBuffBar->SetVisibility(ESlateVisibility::HitTestInvisible);
+			PlayerBuffBarHost->AddChild(PlayerBuffBar);
+		}
+		AddWidgetToOverlay(BottomLeft, PlayerBuffBarHost, HAlign_Left, VAlign_Bottom, FMargin(0.f, 0.f, 0.f, 88.f));
+
 		UWidget* WeaponGlass = ConstructWidgetFromPath(WidgetTree, WeaponGlassClassPath, TEXT("WeaponGlassIcon"), ReportLines);
 		AddWidgetToOverlay(BottomLeft, WeaponGlass, HAlign_Left, VAlign_Bottom, FMargin(0.f, 0.f, 0.f, 28.f));
 
 		USizeBox* CombatDeckHost = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("CombatDeckHost"), false);
-		CombatDeckHost->SetWidthOverride(900.f);
-		CombatDeckHost->SetHeightOverride(120.f);
+		CombatDeckHost->SetWidthOverride(520.f);
+		CombatDeckHost->SetHeightOverride(96.f);
 		if (UWidget* CombatDeck = ConstructWidgetFromPath(WidgetTree, CombatDeckClassPath, TEXT("CombatDeckBar"), ReportLines))
 		{
 			CombatDeckHost->AddChild(CombatDeck);
 		}
-		AddWidgetToOverlay(BottomCenter, CombatDeckHost, HAlign_Center, VAlign_Bottom);
+		AddWidgetToOverlay(TopLeft, CombatDeckHost, HAlign_Left, VAlign_Top, FMargin(8.f, 8.f, 0.f, 0.f));
 
 		USizeBox* CurrentRoomBuffHost = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("CurrentRoomBuffPanelHost"), false);
 		CurrentRoomBuffHost->SetWidthOverride(360.f);
@@ -711,11 +675,12 @@ namespace MainUISetup
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BottomCenterCombatRegion"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BottomRightPlayerInfoRegion"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("PlayerHealthBar"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("PlayerBuffBarHost"))
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("PlayerBuffBar"))
 			|| !WidgetUsesClassPath(WidgetBlueprint, TEXT("PlayerHealthBar"), PlayerHealthClassPath)
+			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CombatDeckHost"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CombatDeckBar"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("PlayerCommonInfoHud"))
-			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("WeaponComboListPanel"))
-			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("WeaponComboListText"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CurrentRoomBuffPanel"));
 	}
 
@@ -816,6 +781,43 @@ namespace MainUISetup
 			{
 				TEXT("T_GoldCoinIcon.png"),
 				TEXT("T_MaterialQuestionIcon.png")
+			},
+			bDryRun,
+			ReportLines,
+			DirtyPackages);
+
+		ImportTextures(
+			TEXT("## HUD buff placeholder texture import"),
+			TEXT("SourceArt/UI/HUD/Buff"),
+			HudTextureRoot + TEXT("/Buff"),
+			{
+				TEXT("T_HUD_BuffIconFrame_32.png"),
+				TEXT("T_HUD_BuffDurationMask_32.png")
+			},
+			bDryRun,
+			ReportLines,
+			DirtyPackages);
+
+		ImportTextures(
+			TEXT("## HUD resource texture import"),
+			TEXT("SourceArt/UI/HUD/Resource"),
+			HudTextureRoot + TEXT("/Resource"),
+			{
+				TEXT("T_HUD_ResourceToastFrame.png"),
+				TEXT("T_HUD_GoldCounterFrame.png")
+			},
+			bDryRun,
+			ReportLines,
+			DirtyPackages);
+
+		ImportTextures(
+			TEXT("## HUD switch roller texture import"),
+			TEXT("SourceArt/UI/HUD/SwitchRoller"),
+			HudTextureRoot + TEXT("/SwitchRoller"),
+			{
+				TEXT("T_HUD_SwitchRoller_FrontFrame.png"),
+				TEXT("T_HUD_SwitchRoller_BackFrame.png"),
+				TEXT("T_HUD_SwitchRoller_MotionStreak.png")
 			},
 			bDryRun,
 			ReportLines,

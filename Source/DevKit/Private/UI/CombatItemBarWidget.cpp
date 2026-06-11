@@ -15,8 +15,15 @@
 void UCombatItemBarWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetVisibility(ESlateVisibility::HitTestInvisible);
 	BuildRuntimeLayout();
 	RefreshItemSlots();
+}
+
+void UCombatItemBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	TickSelectionRoll(InDeltaTime);
 }
 
 void UCombatItemBarWidget::NativeDestruct()
@@ -79,9 +86,11 @@ void UCombatItemBarWidget::BuildRuntimeLayout()
 	WidgetTree->RootWidget = RuntimeRoot;
 
 	RuntimeSlotWidgets.Reset();
+	RuntimeSlotHasEntry.Reset();
 	for (int32 Index = 0; Index < 3; ++Index)
 	{
 		FRuntimeSlotWidget& SlotWidget = RuntimeSlotWidgets.AddDefaulted_GetRef();
+		RuntimeSlotHasEntry.Add(false);
 
 		SlotWidget.RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), *FString::Printf(TEXT("ItemSlotBorder_%d"), Index));
 		SlotWidget.RootBorder->SetPadding(FMargin(6.0f));
@@ -97,6 +106,7 @@ void UCombatItemBarWidget::BuildRuntimeLayout()
 		}
 
 		SlotWidget.IconImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), *FString::Printf(TEXT("ItemSlotIcon_%d"), Index));
+		SlotWidget.IconImage->SetDesiredSizeOverride(FVector2D(48.f, 48.f));
 		if (UVerticalBoxSlot* IconSlot = Vertical->AddChildToVerticalBox(SlotWidget.IconImage))
 		{
 			IconSlot->SetHorizontalAlignment(HAlign_Center);
@@ -154,11 +164,22 @@ void UCombatItemBarWidget::BuildRuntimeLayout()
 
 void UCombatItemBarWidget::UpdateSlotWidgets(const TArray<FCombatItemSlotView>& Slots)
 {
+	int32 SelectedSlotIndex = INDEX_NONE;
+	SetVisibility(ESlateVisibility::HitTestInvisible);
+
 	for (int32 Index = 0; Index < RuntimeSlotWidgets.Num(); ++Index)
 	{
 		FRuntimeSlotWidget& SlotWidget = RuntimeSlotWidgets[Index];
 		const bool bHasSlot = Slots.IsValidIndex(Index);
 		const FCombatItemSlotView ItemSlot = bHasSlot ? Slots[Index] : FCombatItemSlotView();
+		if (RuntimeSlotHasEntry.IsValidIndex(Index))
+		{
+			RuntimeSlotHasEntry[Index] = bHasSlot;
+		}
+		if (bHasSlot && ItemSlot.bSelected)
+		{
+			SelectedSlotIndex = Index;
+		}
 
 		const FLinearColor BorderColor = ItemSlot.bSelected
 			? FLinearColor(0.95f, 0.78f, 0.28f, 0.82f)
@@ -205,6 +226,96 @@ void UCombatItemBarWidget::UpdateSlotWidgets(const TArray<FCombatItemSlotView>& 
 			SlotWidget.CooldownText->SetText(FText::AsNumber(FMath::CeilToInt(ItemSlot.CooldownRemaining)));
 		}
 	}
+
+	if (LastSelectedSlotIndex == INDEX_NONE)
+	{
+		LastSelectedSlotIndex = SelectedSlotIndex;
+		ApplySelectionPresentation();
+	}
+	else if (SelectedSlotIndex != INDEX_NONE && SelectedSlotIndex != LastSelectedSlotIndex)
+	{
+		StartSelectionRoll(LastSelectedSlotIndex, SelectedSlotIndex);
+		LastSelectedSlotIndex = SelectedSlotIndex;
+	}
+	else if (!bSelectionRollActive)
+	{
+		ApplySelectionPresentation();
+	}
+}
+
+void UCombatItemBarWidget::StartSelectionRoll(int32 PreviousIndex, int32 NewIndex)
+{
+	RollPreviousSlotIndex = PreviousIndex;
+	RollNewSlotIndex = NewIndex;
+	RollTimer = 0.f;
+	bSelectionRollActive = true;
+	ApplySelectionPresentation(0.f);
+}
+
+void UCombatItemBarWidget::TickSelectionRoll(float DeltaTime)
+{
+	if (!bSelectionRollActive)
+	{
+		return;
+	}
+
+	RollTimer += DeltaTime;
+	const float Alpha = FMath::Clamp(RollTimer / RollDurationSeconds, 0.f, 1.f);
+	ApplySelectionPresentation(Alpha);
+	if (Alpha >= 1.f)
+	{
+		bSelectionRollActive = false;
+		RollPreviousSlotIndex = INDEX_NONE;
+		RollNewSlotIndex = INDEX_NONE;
+		ApplySelectionPresentation();
+	}
+}
+
+void UCombatItemBarWidget::ApplySelectionPresentation(float Alpha)
+{
+	for (int32 Index = 0; Index < RuntimeSlotWidgets.Num(); ++Index)
+	{
+		const bool bHasEntry = RuntimeSlotHasEntry.IsValidIndex(Index) && RuntimeSlotHasEntry[Index];
+		if (!bHasEntry)
+		{
+			ApplySlotPresentation(Index, 0.28f, 0.84f, 0.f);
+			continue;
+		}
+
+		if (bSelectionRollActive && Index == RollNewSlotIndex)
+		{
+			ApplySlotPresentation(Index, FMath::Lerp(0.52f, 1.f, Alpha), FMath::Lerp(0.84f, 1.f, Alpha), FMath::Lerp(-10.f, 0.f, Alpha));
+		}
+		else if (bSelectionRollActive && Index == RollPreviousSlotIndex)
+		{
+			ApplySlotPresentation(Index, FMath::Lerp(1.f, 0.52f, Alpha), FMath::Lerp(1.f, 0.84f, Alpha), FMath::Lerp(0.f, 10.f, Alpha));
+		}
+		else if (Index == LastSelectedSlotIndex)
+		{
+			ApplySlotPresentation(Index, 1.f, 1.f, 0.f);
+		}
+		else
+		{
+			ApplySlotPresentation(Index, 0.52f, 0.84f, 0.f);
+		}
+	}
+}
+
+void UCombatItemBarWidget::ApplySlotPresentation(int32 SlotIndex, float Opacity, float Scale, float TranslationY)
+{
+	if (!RuntimeSlotWidgets.IsValidIndex(SlotIndex) || !RuntimeSlotWidgets[SlotIndex].RootBorder)
+	{
+		return;
+	}
+
+	UBorder* RootBorder = RuntimeSlotWidgets[SlotIndex].RootBorder;
+	RootBorder->SetRenderOpacity(Opacity);
+	RootBorder->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+
+	FWidgetTransform Transform;
+	Transform.Scale = FVector2D(Scale, Scale);
+	Transform.Translation = FVector2D(0.f, TranslationY);
+	RootBorder->SetRenderTransform(Transform);
 }
 
 FText UCombatItemBarWidget::GetShortDisplayName(const FCombatItemSlotView& ItemSlot) const
