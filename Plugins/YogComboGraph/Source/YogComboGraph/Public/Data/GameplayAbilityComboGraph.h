@@ -47,7 +47,7 @@ public:
 
 	/** Player input that starts this node when it is a root node. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
-	EYogComboGraphInputAction RootInputAction = EYogComboGraphInputAction::Any;
+	EYogComboGraphInputAction RootInputAction = EYogComboGraphInputAction::Attack;
 
 	/** Melee → GA_MeleeAttack, Range → GA_RangeAttack. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
@@ -111,9 +111,9 @@ class YOGCOMBOGRAPH_API UGameplayAbilityComboGraphEdge : public UGenericGraphEdg
 public:
 	UGameplayAbilityComboGraphEdge();
 
-	/** Player input that traverses this edge. Any accepts any player combo input. */
+	/** Player input that traverses this edge. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
-	EYogComboGraphInputAction InputAction = EYogComboGraphInputAction::Any;
+	EYogComboGraphInputAction InputAction = EYogComboGraphInputAction::Attack;
 
 	/** Optional gate against the owner's owned gameplay tags. Empty = no gate. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")

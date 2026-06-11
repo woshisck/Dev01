@@ -9,6 +9,7 @@
 #include "Component/SkillChargeComponent.h"
 #include "Data/CharacterData.h"
 #include "Data/AbilityData.h"
+#include "Data/MontageConfigDA.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/BoxComponent.h"
@@ -233,19 +234,6 @@ bool UGA_PlayerDash::CanActivateAbility(
 	PendingSaveComboTags.Reset();
 	if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
 	{
-		// Dash is only permitted during the combo window when an attack is active.
-		static const FGameplayTag AttackActiveTag =
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false);
-		static const FGameplayTag CanComboTag =
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
-		if (AttackActiveTag.IsValid() && ASC->HasMatchingGameplayTag(AttackActiveTag))
-		{
-			if (!CanComboTag.IsValid() || !ASC->HasMatchingGameplayTag(CanComboTag))
-			{
-				return false;
-			}
-		}
-
 		static const FGameplayTag SavePoint =
 			FGameplayTag::RequestGameplayTag(TEXT("Action.Combo.DashSavePoint"), false);
 
@@ -309,24 +297,60 @@ void UGA_PlayerDash::ActivateAbility(
 	for (const FGameplayTag& Tag : AbilityTags) { FirstTag = Tag; break; }
 
 	UAnimMontage* DashMontage = nullptr;
+	const TCHAR* DashMontageSource = TEXT("None");
 	if (Player && Player->ComboRuntimeComponent)
 	{
+		FWeaponComboNodeConfig PendingComboNode;
+		if (Player->ComboRuntimeComponent->ConsumePendingAbilityNode(PendingComboNode))
+		{
+			DashMontage = PendingComboNode.Montage;
+			if (!DashMontage && PendingComboNode.MontageConfig)
+			{
+				DashMontage = PendingComboNode.MontageConfig->Montage;
+			}
+			if (DashMontage)
+			{
+				DashMontageSource = TEXT("PendingComboNode");
+			}
+		}
+
 		if (const FWeaponComboNodeConfig* ActiveComboNode = Player->ComboRuntimeComponent->GetActiveNode())
 		{
-			DashMontage = ActiveComboNode->Montage;
+			if (!DashMontage)
+			{
+				DashMontage = ActiveComboNode->Montage;
+				if (DashMontage)
+				{
+					DashMontageSource = TEXT("ActiveComboNode");
+				}
+			}
+			if (!DashMontage && ActiveComboNode->MontageConfig)
+			{
+				DashMontage = ActiveComboNode->MontageConfig->Montage;
+				if (DashMontage)
+				{
+					DashMontageSource = TEXT("ActiveComboNodeConfig");
+				}
+			}
 		}
 	}
 	if (!DashMontage)
 	{
 		DashMontage = ResolveDashMontage(Player, FirstTag);
+		if (DashMontage)
+		{
+			DashMontageSource = TEXT("AbilityData");
+		}
 	}
 
 	if (!DashMontage)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayerDash] No montage found in AbilityDA for %s — ended immediately."), *FirstTag.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayerDash] No dash montage found for %s from ComboGraph or AbilityDA; ended immediately."), *FirstTag.ToString());
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("[GA_PlayerDash] DashMontage=%s source=%s"), *GetNameSafe(DashMontage), DashMontageSource);
 
 	// ── 3. 确定冲刺方向（Controller 已在激活前旋转好角色，直接用 ForwardVector）─
 	const FVector DashDirection = Character->GetActorForwardVector();

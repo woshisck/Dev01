@@ -60,6 +60,9 @@ UGA_MeleeAttack::UGA_MeleeAttack()
 	bRetriggerInstancedAbility = true;
 
 	// Runtime guards that should not depend on Blueprint class defaults.
+	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"));
+	AbilityTags.AddTag(AttackTag);
+	ActivationOwnedTags.AddTag(AttackTag);
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Dead"));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.HitReact"));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Knockback"));

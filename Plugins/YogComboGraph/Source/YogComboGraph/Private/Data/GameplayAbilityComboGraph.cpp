@@ -34,11 +34,12 @@ namespace
 	{
 		Required = NormalizeInputAction(Required);
 		Input = NormalizeInputAction(Input);
-		if (!IsKnownInputAction(Required) || !IsKnownInputAction(Input))
+		if (!IsKnownInputAction(Required) || !IsKnownInputAction(Input) ||
+			Required == EYogComboGraphInputAction::Any || Input == EYogComboGraphInputAction::Any)
 		{
 			return false;
 		}
-		return Required == EYogComboGraphInputAction::Any || Required == Input;
+		return Required == Input;
 	}
 
 	bool DoesEdgeStateMatch(const FGameplayTagQuery& StateRequirement, const FGameplayTagContainer* OwnedTags)
@@ -286,7 +287,7 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 		if (ComboNode->ParentNodes.IsEmpty())
 		{
 			const EYogComboGraphInputAction RootInputAction = NormalizeInputAction(ComboNode->RootInputAction);
-			if (!IsKnownInputAction(RootInputAction))
+			if (!IsKnownInputAction(RootInputAction) || RootInputAction == EYogComboGraphInputAction::Any)
 			{
 				OutWarnings.Add(FText::FromString(FString::Printf(
 					TEXT("Root node %s has an invalid root input."),
@@ -318,7 +319,17 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 			}
 
 			const FName ChildNodeId = GetRuntimeNodeId(ChildComboNode);
-			const FString InputKeyPart = InputActionToString(ComboEdge->InputAction);
+			const EYogComboGraphInputAction EdgeInputAction = NormalizeInputAction(ComboEdge->InputAction);
+			if (!IsKnownInputAction(EdgeInputAction) || EdgeInputAction == EYogComboGraphInputAction::Any)
+			{
+				OutWarnings.Add(FText::FromString(FString::Printf(
+					TEXT("Edge from %s to %s has an invalid input."),
+					*RuntimeNodeId.ToString(),
+					*ChildNodeId.ToString())));
+				continue;
+			}
+
+			const FString InputKeyPart = InputActionToString(EdgeInputAction);
 			const FString ChildInputKey = FString::Printf(TEXT("%s:%s"), *RuntimeNodeId.ToString(), *InputKeyPart);
 			if (const FName* ExistingChild = ChildInputsByParent.Find(ChildInputKey))
 			{

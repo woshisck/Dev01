@@ -52,6 +52,24 @@ namespace
 		}
 	}
 
+	FGameplayTag GetActivationTagForInput(EYogComboGraphInputAction GraphInput)
+	{
+		switch (GraphInput)
+		{
+		case EYogComboGraphInputAction::Attack:
+			return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false);
+		case EYogComboGraphInputAction::Dash:
+			return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"), false);
+		case EYogComboGraphInputAction::Special:
+			return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special"), false);
+		case EYogComboGraphInputAction::WeaponSkill:
+		case EYogComboGraphInputAction::LegacyWeaponSkill:
+			return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false);
+		default:
+			return FGameplayTag();
+		}
+	}
+
 	void AddLegacyComboProgressTags(FGameplayTagContainer& OutTags)
 	{
 		static const FName KnownComboTagNames[] = {
@@ -399,7 +417,7 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 		FYogComboGraphNodeSelection Selection;
 		if (FindNextComboGraphNode(GraphInput, &OwnedTags, Selection))
 		{
-			if (bHasActiveAttackNode && !Selection.bFoundChildNode)
+			if (bHasActiveAttackNode && !Selection.bFoundChildNode && GraphInput != EYogComboGraphInputAction::Dash)
 			{
 				bBlockedRootFallbackDuringActiveNode = true;
 			}
@@ -442,7 +460,8 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 		return false;
 	}
 
-	if (bFoundChildNode)
+	const bool bDashInterruptInput = GraphInput == EYogComboGraphInputAction::Dash;
+	if (bFoundChildNode && !bDashInterruptInput)
 	{
 		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
 		if (CanComboTag.IsValid() && ASC->GetTagCount(CanComboTag) <= 0)
@@ -467,7 +486,7 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 		ClearComboWindowAndProgressLooseTags(ASC);
 	}
 
-	if (bFoundChildNode && ActiveAbilitySpecHandle.IsValid())
+	if (bFoundChildNode && !bDashInterruptInput && ActiveAbilitySpecHandle.IsValid())
 	{
 		ASC->CancelAbilityHandle(ActiveAbilitySpecHandle);
 	}
@@ -479,14 +498,50 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 			: GetDefaultAbilityForInput(GraphInput, NextNode->AttackType, WeaponSkillAbility).Get();
 
 	bool bActivated = false;
+	int32 CandidateAbilityCount = 0;
 	if (TargetClass)
 	{
 		for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
 		{
 			if (Spec.Ability && Spec.Ability->GetClass()->IsChildOf(TargetClass))
 			{
+				++CandidateAbilityCount;
+				if (GraphInput == EYogComboGraphInputAction::Dash)
+				{
+					PendingAbilityNode = *NextNode;
+					bPendingAbilityNodeValid = true;
+				}
 				bActivated = ASC->TryActivateAbility(Spec.Handle, true);
-				break;
+				if (bActivated)
+				{
+					break;
+				}
+				if (GraphInput == EYogComboGraphInputAction::Dash)
+				{
+					PendingAbilityNode = FWeaponComboNodeConfig();
+					bPendingAbilityNodeValid = false;
+				}
+			}
+		}
+	}
+
+	if (!bActivated)
+	{
+		const FGameplayTag ActivationTag = GetActivationTagForInput(GraphInput);
+		if (ActivationTag.IsValid())
+		{
+			FGameplayTagContainer ActivationTags;
+			ActivationTags.AddTag(ActivationTag);
+			if (GraphInput == EYogComboGraphInputAction::Dash)
+			{
+				PendingAbilityNode = *NextNode;
+				bPendingAbilityNodeValid = true;
+			}
+			bActivated = ASC->TryActivateAbilitiesByTag(ActivationTags, true);
+			if (!bActivated && GraphInput == EYogComboGraphInputAction::Dash)
+			{
+				PendingAbilityNode = FWeaponComboNodeConfig();
+				bPendingAbilityNodeValid = false;
 			}
 		}
 	}
@@ -494,30 +549,34 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 	if (!bActivated)
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("[ComboRuntime] Failed to activate node=%s input=%s current=%s montage=%s montageConfig=%s attackType=%s ability=%s"),
+			TEXT("[ComboRuntime] Failed to activate node=%s input=%s current=%s montage=%s montageConfig=%s attackType=%s ability=%s candidates=%d"),
 			*NextNode->NodeId.ToString(),
 			*StaticEnum<EYogComboGraphInputAction>()->GetNameStringByValue(static_cast<int64>(GraphInput)),
 			*GetCurrentNodeId().ToString(),
 			*GetNameSafe(NextNode->Montage.Get()),
 			*GetNameSafe(NextNode->MontageConfig.Get()),
 			*StaticEnum<EYogComboGraphAttackType>()->GetNameStringByValue(static_cast<int64>(NextNode->AttackType)),
-			TargetClass ? *TargetClass->GetName() : TEXT("None"));
+			TargetClass ? *TargetClass->GetName() : TEXT("None"),
+			CandidateAbilityCount);
 		ActiveNode = FWeaponComboNodeConfig();
 		ClearPreparedComboActivation();
 		return false;
 	}
 
+	UE_LOG(LogTemp, Verbose,
+		TEXT("[ComboRuntime] Activated node=%s input=%s previous=%s child=%d montage=%s ability=%s candidates=%d"),
+		*NextNode->NodeId.ToString(),
+		*StaticEnum<EYogComboGraphInputAction>()->GetNameStringByValue(static_cast<int64>(GraphInput)),
+		*StartNodeId.ToString(),
+		bFoundChildNode ? 1 : 0,
+		*GetNameSafe(NextNode->Montage.Get()),
+		TargetClass ? *TargetClass->GetName() : TEXT("None"),
+		CandidateAbilityCount);
+
 	CommitPreparedComboActivation();
 	// Do NOT clear ActiveAbilitySpecHandle here — RegisterActiveAttackAbility already set it
 	// to the new activation's handle during TryActivateAbility. Clearing it would
 	// prevent CancelAbilityHandle from cancelling the current ability on the next combo hit.
-
-	static const FGameplayTag ChainActiveTag = FGameplayTag::RequestGameplayTag(TEXT("State.Combo.ChainActive"), false);
-	if (ChainActiveTag.IsValid() && ASC->GetTagCount(ChainActiveTag) <= 0)
-	{
-		ASC->AddLooseGameplayTag(ChainActiveTag);
-		TrackRuntimeCombatLooseTag(ChainActiveTag);
-	}
 
 	return true;
 }
@@ -564,6 +623,19 @@ const FWeaponComboNodeConfig* UComboRuntimeComponent::GetActiveNode() const
 	return GetActiveGraphNodeId().IsNone() ? nullptr : &ActiveNode;
 }
 
+bool UComboRuntimeComponent::ConsumePendingAbilityNode(FWeaponComboNodeConfig& OutNode)
+{
+	if (!bPendingAbilityNodeValid)
+	{
+		return false;
+	}
+
+	OutNode = PendingAbilityNode;
+	PendingAbilityNode = FWeaponComboNodeConfig();
+	bPendingAbilityNodeValid = false;
+	return true;
+}
+
 bool UComboRuntimeComponent::IsActiveComboAbilityRunning(UAbilitySystemComponent* ASC) const
 {
 	if (!ASC)
@@ -580,6 +652,11 @@ bool UComboRuntimeComponent::IsActiveComboAbilityRunning(UAbilitySystemComponent
 				return true;
 			}
 		}
+	}
+
+	if (GetActiveAttackGuid().IsValid())
+	{
+		return true;
 	}
 
 	return false;
@@ -615,7 +692,7 @@ void UComboRuntimeComponent::EnsureAbilityGranted(UAbilitySystemComponent* ASC, 
 
 	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
 	{
-		if (Spec.Ability && Spec.Ability->GetClass() == AbilityClass)
+		if (Spec.Ability && Spec.Ability->GetClass()->IsChildOf(AbilityClass))
 		{
 			return;
 		}

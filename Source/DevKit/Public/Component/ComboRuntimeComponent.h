@@ -80,6 +80,7 @@ public:
 	void EnsureWeaponComboAbilitiesGranted(APlayerCharacterBase* PlayerOwner);
 
 	const FWeaponComboNodeConfig* GetActiveNode() const;
+	bool ConsumePendingAbilityNode(FWeaponComboNodeConfig& OutNode);
 	void RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle);
 	bool HandleAttackAbilityEnded(const FGuid& EndedAttackGuid);
 	FCombatDeckActionContext BuildAttackContext(ECombatCardTriggerTiming TriggerTiming, APlayerCharacterBase* PlayerOwner) const;
@@ -96,6 +97,11 @@ private:
 
 	UPROPERTY()
 	FWeaponComboNodeConfig ActiveNode;
+
+	UPROPERTY()
+	FWeaponComboNodeConfig PendingAbilityNode;
+
+	bool bPendingAbilityNodeValid = false;
 
 	FGameplayAbilitySpecHandle ActiveAbilitySpecHandle;
 

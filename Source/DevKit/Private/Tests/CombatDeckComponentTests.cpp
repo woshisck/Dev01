@@ -636,8 +636,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FComboGraphMeleeAbilityHasActionAndDeathGuardsT
 bool FComboGraphMeleeAbilityHasActionAndDeathGuardsTest::RunTest(const FString& Parameters)
 {
 	UGA_MeleeAttack* Ability = NewObject<UGA_MeleeAttack>();
+	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"));
 	const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"));
 
+	TestTrue(TEXT("Generic ComboGraph melee ability carries the attack action tag"),
+		Ability->GetAbilityTags().HasTagExact(AttackTag));
+	TestTrue(TEXT("Generic ComboGraph melee ability owns the attack action tag while active"),
+		Ability->GetActivationOwnedTags().HasTagExact(AttackTag));
 	TestTrue(TEXT("Generic ComboGraph melee ability is blocked while dead"),
 		Ability->GetActivationBlockedTags().HasTagExact(DeadTag));
 
