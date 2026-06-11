@@ -568,6 +568,9 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 	if (DefaultUnarmedWeaponDef)
 	{
 		DefaultUnarmedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
+		// SetupWeaponToCharacter sets EquippedWeaponDef = this, but unarmed state must keep
+		// EquippedWeaponDef null so TryPickupWeapon equips the next real weapon as primary.
+		EquippedWeaponDef = nullptr;
 	}
 	else
 	{

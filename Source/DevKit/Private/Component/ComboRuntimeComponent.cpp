@@ -472,12 +472,25 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 		ASC->CancelAbilityHandle(ActiveAbilitySpecHandle);
 	}
 
-	TSubclassOf<UGameplayAbility> AbilityClass = AbilityOverride
-		? TSubclassOf<UGameplayAbility>(AbilityOverride.Get())
+	const UClass* TargetClass = AbilityOverride
+		? AbilityOverride.Get()
 		: NextNode->GameplayAbilityClass
-			? NextNode->GameplayAbilityClass
-			: GetDefaultAbilityForInput(GraphInput, NextNode->AttackType, WeaponSkillAbility);
-	const bool bActivated = ASC->TryActivateAbilityByClass(AbilityClass, true);
+			? NextNode->GameplayAbilityClass.Get()
+			: GetDefaultAbilityForInput(GraphInput, NextNode->AttackType, WeaponSkillAbility).Get();
+
+	bool bActivated = false;
+	if (TargetClass)
+	{
+		for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+		{
+			if (Spec.Ability && Spec.Ability->GetClass()->IsChildOf(TargetClass))
+			{
+				bActivated = ASC->TryActivateAbility(Spec.Handle, true);
+				break;
+			}
+		}
+	}
+
 	if (!bActivated)
 	{
 		UE_LOG(LogTemp, Warning,
@@ -488,7 +501,7 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 			*GetNameSafe(NextNode->Montage.Get()),
 			*GetNameSafe(NextNode->MontageConfig.Get()),
 			*StaticEnum<EYogComboGraphAttackType>()->GetNameStringByValue(static_cast<int64>(NextNode->AttackType)),
-			*GetNameSafe(AbilityClass.Get()));
+			TargetClass ? *TargetClass->GetName() : TEXT("None"));
 		ActiveNode = FWeaponComboNodeConfig();
 		ClearPreparedComboActivation();
 		return false;
@@ -496,7 +509,7 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 
 	CommitPreparedComboActivation();
 	// Do NOT clear ActiveAbilitySpecHandle here — RegisterActiveAttackAbility already set it
-	// to the new activation's handle during TryActivateAbilityByClass. Clearing it would
+	// to the new activation's handle during TryActivateAbility. Clearing it would
 	// prevent CancelAbilityHandle from cancelling the current ability on the next combo hit.
 
 	static const FGameplayTag ChainActiveTag = FGameplayTag::RequestGameplayTag(TEXT("State.Combo.ChainActive"), false);
