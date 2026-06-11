@@ -1,11 +1,6 @@
 #include "Component/ComboRuntimeComponent.h"
 
 #include "AbilitySystemComponent.h"
-#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
-#include "AbilitySystem/Abilities/GA_PlayerDash.h"
-#include "AbilitySystem/Abilities/GA_RangeAttack.h"
-#include "AbilitySystem/Abilities/GA_Special.h"
-#include "AbilitySystem/Abilities/GA_WeaponSkill.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
 #include "Data/GameplayAbilityComboGraph.h"
@@ -15,41 +10,8 @@ namespace
 {
 	EYogComboGraphInputAction CardActionToComboGraphInput(ECardRequiredAction InputAction)
 	{
-		switch (InputAction)
-		{
-		case ECardRequiredAction::Light:
-			return EYogComboGraphInputAction::Attack;
-		case ECardRequiredAction::Heavy:
-			return EYogComboGraphInputAction::WeaponSkill;
-		case ECardRequiredAction::Any:
-		default:
-			return EYogComboGraphInputAction::Any;
-		}
-	}
-
-	TSubclassOf<UGameplayAbility> GetDefaultAbilityForInput(
-		EYogComboGraphInputAction GraphInput,
-		EYogComboGraphAttackType AttackType,
-		TSubclassOf<UYogGameplayAbility> WeaponSkillAbility)
-	{
-		switch (GraphInput)
-		{
-		case EYogComboGraphInputAction::Attack:
-			return AttackType == EYogComboGraphAttackType::Range
-				? TSubclassOf<UGameplayAbility>(UGA_RangeAttack::StaticClass())
-				: TSubclassOf<UGameplayAbility>(UGA_MeleeAttack::StaticClass());
-		case EYogComboGraphInputAction::Dash:
-			return TSubclassOf<UGameplayAbility>(UGA_PlayerDash::StaticClass());
-		case EYogComboGraphInputAction::Special:
-			return TSubclassOf<UGameplayAbility>(UGA_Special::StaticClass());
-		case EYogComboGraphInputAction::WeaponSkill:
-		case EYogComboGraphInputAction::LegacyWeaponSkill:
-			return WeaponSkillAbility
-				? TSubclassOf<UGameplayAbility>(WeaponSkillAbility.Get())
-				: TSubclassOf<UGameplayAbility>(UGA_WeaponSkill::StaticClass());
-		default:
-			return TSubclassOf<UGameplayAbility>(UGA_MeleeAttack::StaticClass());
-		}
+		// Only Attack and Dash are valid combo graph inputs; all card actions map to Attack.
+		return EYogComboGraphInputAction::Attack;
 	}
 
 	void AddLegacyComboProgressTags(FGameplayTagContainer& OutTags)
@@ -126,11 +88,6 @@ UComboRuntimeComponent::UComboRuntimeComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UComboRuntimeComponent::SetWeaponSkillAbility(TSubclassOf<UYogGameplayAbility> InAbility)
-{
-	WeaponSkillAbility = InAbility;
-}
-
 void UComboRuntimeComponent::LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph)
 {
 	LoadWeaponComboGraph(InComboGraph);
@@ -183,25 +140,6 @@ bool UComboRuntimeComponent::TryActivateAttack(APlayerCharacterBase* PlayerOwner
 		PlayerOwner);
 }
 
-bool UComboRuntimeComponent::TryActivateWeaponSkill(APlayerCharacterBase* PlayerOwner)
-{
-	const bool bActivated = TryActivateComboFromGraph(
-		WeaponComboGraph,
-		EYogComboGraphInputAction::WeaponSkill,
-		ECardRequiredAction::Any,
-		ECombatDeckActionSlot::WeaponSkill,
-		ECombatDeckFlowRole::Finisher,
-		PlayerOwner,
-		WeaponSkillAbility);
-
-	if (!bActivated)
-	{
-		ResetCombo();
-	}
-
-	return bActivated;
-}
-
 bool UComboRuntimeComponent::TryActivateDash(APlayerCharacterBase* PlayerOwner)
 {
 	return TryActivateComboFromGraph(
@@ -213,37 +151,13 @@ bool UComboRuntimeComponent::TryActivateDash(APlayerCharacterBase* PlayerOwner)
 		PlayerOwner);
 }
 
-bool UComboRuntimeComponent::TryActivateSpecial(APlayerCharacterBase* PlayerOwner)
-{
-	return TryActivateComboFromGraph(
-		WeaponComboGraph,
-		EYogComboGraphInputAction::Special,
-		ECardRequiredAction::Heavy,
-		ECombatDeckActionSlot::WeaponSkill,
-		ECombatDeckFlowRole::Finisher,
-		PlayerOwner);
-}
-
-bool UComboRuntimeComponent::TryActivateSpecialCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner)
-{
-	return TryActivateComboFromGraph(
-		SpecialAttackComboGraph,
-		EYogComboGraphInputAction::Special,
-		ECardRequiredAction::Heavy,
-		ECombatDeckActionSlot::WeaponSkill,
-		ECombatDeckFlowRole::Finisher,
-		PlayerOwner,
-		AbilityClass);
-}
-
 bool UComboRuntimeComponent::TryActivateComboFromGraph(
 	UGameplayAbilityComboGraph* SourceGraph,
 	EYogComboGraphInputAction GraphInput,
 	ECardRequiredAction RuntimeInputAction,
 	ECombatDeckActionSlot ActionSlot,
 	ECombatDeckFlowRole FlowRole,
-	APlayerCharacterBase* PlayerOwner,
-	TSubclassOf<UGameplayAbility> AbilityOverride)
+	APlayerCharacterBase* PlayerOwner)
 {
 	if (!SourceGraph || !PlayerOwner)
 	{
@@ -361,35 +275,50 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 		ASC->CancelAbilityHandle(ActiveAbilitySpecHandle);
 	}
 
-	TSubclassOf<UGameplayAbility> AbilityClass = AbilityOverride
-		? TSubclassOf<UGameplayAbility>(AbilityOverride.Get())
-		: NextNode->GameplayAbilityClass
-			? NextNode->GameplayAbilityClass
-			: GetDefaultAbilityForInput(GraphInput, NextNode->AttackType, WeaponSkillAbility);
-	/* start comment lazy grant ability for clear debug only*/
-	//EnsureAbilityGranted(ASC, AbilityClass);
-	/* end comment lazy grant ability for clear debug only*/
-	const bool bActivated = ASC->TryActivateAbilityByClass(AbilityClass, true);
+	// Resolve ability: designer-specified class on node takes priority; otherwise use tag-based
+	// activation so Blueprint subclasses of the default C++ abilities are found correctly.
+	bool bActivated = false;
+	if (NextNode->GameplayAbilityClass)
+	{
+		bActivated = ASC->TryActivateAbilityByClass(NextNode->GameplayAbilityClass, true);
+	}
+	else if (NextNode->AbilityTag.IsValid())
+	{
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(NextNode->AbilityTag);
+		bActivated = ASC->TryActivateAbilitiesByTag(TagContainer, true);
+	}
+	else
+	{
+		const FName DefaultTagName = (GraphInput == EYogComboGraphInputAction::Dash)
+			? FName(TEXT("PlayerState.AbilityCast.Dash"))
+			: FName(TEXT("PlayerState.AbilityCast.Attack"));
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(DefaultTagName, false));
+		bActivated = ASC->TryActivateAbilitiesByTag(TagContainer, true);
+	}
+
 	if (!bActivated)
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("[ComboRuntime] Failed to activate node=%s input=%s current=%s montage=%s montageConfig=%s attackType=%s ability=%s"),
+			TEXT("[ComboRuntime] Failed to activate node=%s input=%s current=%s montage=%s montageConfig=%s attackType=%s abilityClass=%s abilityTag=%s"),
 			*NextNode->NodeId.ToString(),
 			*StaticEnum<EYogComboGraphInputAction>()->GetNameStringByValue(static_cast<int64>(GraphInput)),
 			*GetCurrentNodeId().ToString(),
 			*GetNameSafe(NextNode->Montage.Get()),
 			*GetNameSafe(NextNode->MontageConfig.Get()),
 			*StaticEnum<EYogComboGraphAttackType>()->GetNameStringByValue(static_cast<int64>(NextNode->AttackType)),
-			*GetNameSafe(AbilityClass.Get()));
+			*GetNameSafe(NextNode->GameplayAbilityClass.Get()),
+			*NextNode->AbilityTag.ToString());
 		ActiveNode = FWeaponComboNodeConfig();
 		ClearPreparedComboActivation();
 		return false;
 	}
 
 	CommitPreparedComboActivation();
-	// Do NOT clear ActiveAbilitySpecHandle here — RegisterActiveAttackAbility already set it
-	// to the new activation's handle during TryActivateAbilityByClass. Clearing it would
-	// prevent CancelAbilityHandle from cancelling the current ability on the next combo hit.
+	// Do NOT clear ActiveAbilitySpecHandle here — RegisterActiveAttackAbility sets it during
+	// activation. Clearing it would prevent CancelAbilityHandle from cancelling the current
+	// ability on the next combo hit.
 
 	static const FGameplayTag ChainActiveTag = FGameplayTag::RequestGameplayTag(TEXT("State.Combo.ChainActive"), false);
 	if (ChainActiveTag.IsValid() && ASC->GetTagCount(ChainActiveTag) <= 0)

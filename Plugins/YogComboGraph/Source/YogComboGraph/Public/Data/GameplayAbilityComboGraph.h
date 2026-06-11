@@ -14,10 +14,10 @@ UENUM(BlueprintType)
 enum class EYogComboGraphInputAction : uint8
 {
 	Attack = 0 UMETA(DisplayName = "Attack"),
-	WeaponSkill = 1 UMETA(DisplayName = "WeaponSkill"),
+	WeaponSkill = 1 UMETA(Hidden, DisplayName = "WeaponSkill"),
 	Dash = 2 UMETA(DisplayName = "Dash"),
-	Any = 3 UMETA(DisplayName = "Any"),
-	Special = 4 UMETA(DisplayName = "Special"),
+	Any = 3 UMETA(Hidden, DisplayName = "Any"),
+	Special = 4 UMETA(Hidden, DisplayName = "Special"),
 	LegacyWeaponSkill = 5 UMETA(Hidden, DisplayName = "Legacy WeaponSkill")
 };
 

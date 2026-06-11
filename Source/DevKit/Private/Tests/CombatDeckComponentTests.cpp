@@ -754,17 +754,10 @@ bool FPlayerDefaultUnarmedComboGraphLoadsFallbackTest::RunTest(const FString& Pa
 		return false;
 	}
 
-	TestNotNull(TEXT("Player has a C++ default unarmed combo graph asset"),
-		Player->DefaultUnarmedComboGraph.Get());
-	if (Player->DefaultUnarmedComboGraph)
-	{
-		TestEqual(TEXT("Default unarmed combo graph points at the Disarm graph asset"),
-			Player->DefaultUnarmedComboGraph->GetPathName(),
-			FString(TEXT("/Game/Code/Weapon/Disarm/GA_ComboGraph_Disarm.GA_ComboGraph_Disarm")));
-	}
-
 	UGameplayAbilityComboGraph* DefaultGraph = NewObject<UGameplayAbilityComboGraph>(Player);
-	Player->DefaultUnarmedComboGraph = DefaultGraph;
+	UWeaponDefinition* UnarmedDef = NewObject<UWeaponDefinition>(Player);
+	UnarmedDef->GameplayAbilityComboGraph = DefaultGraph;
+	Player->DefaultUnarmedWeaponDef = UnarmedDef;
 	Player->ApplyDefaultUnarmedComboGraph();
 
 	TestTrue(TEXT("Default unarmed combo graph becomes the active combo graph"),
@@ -801,7 +794,9 @@ bool FPlayerWeaponComboGraphOverridesAndResetToUnarmedTest::RunTest(const FStrin
 	UWeaponDefinition* WeaponDef = NewObject<UWeaponDefinition>(Player);
 	WeaponDef->GameplayAbilityComboGraph = WeaponGraph;
 
-	Player->DefaultUnarmedComboGraph = DefaultGraph;
+	UWeaponDefinition* UnarmedDef = NewObject<UWeaponDefinition>(Player);
+	UnarmedDef->GameplayAbilityComboGraph = DefaultGraph;
+	Player->DefaultUnarmedWeaponDef = UnarmedDef;
 	Player->ApplyDefaultUnarmedComboGraph();
 	Player->ApplyComboGraphFromWeapon(WeaponDef);
 
@@ -826,7 +821,7 @@ bool FPlayerWeaponComboGraphOverridesAndResetToUnarmedTest::RunTest(const FStrin
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponSkillMissResetsComboRuntimeToRootTest,
-	"DevKit.CombatDeck.WeaponSkillMissResetsComboRuntimeToRoot",
+	"DevKit.CombatDeck.DashMissResetsComboRuntimeToRoot",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FWeaponSkillMissResetsComboRuntimeToRootTest::RunTest(const FString& Parameters)
@@ -866,20 +861,20 @@ bool FWeaponSkillMissResetsComboRuntimeToRootTest::RunTest(const FString& Parame
 	Graph->RootNodes = { Root };
 
 	Player->ComboRuntimeComponent->LoadComboGraph(Graph);
-	TestTrue(TEXT("Combo runtime can enter a normal attack node before weapon-skill miss"),
+	TestTrue(TEXT("Combo runtime can enter a normal attack node before dash miss"),
 		Player->ComboRuntimeComponent->TryActivateComboGraphNode(EYogComboGraphInputAction::Attack, FGameplayTagContainer()));
-	TestEqual(TEXT("Combo runtime stores current node before weapon-skill miss"),
+	TestEqual(TEXT("Combo runtime stores current node before dash miss"),
 		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(TEXT("L1")));
-	TestTrue(TEXT("Combo runtime stores active attack guid before weapon-skill miss"),
+	TestTrue(TEXT("Combo runtime stores active attack guid before dash miss"),
 		Player->ComboRuntimeComponent->GetActiveAttackGuid().IsValid());
 
-	TestFalse(TEXT("Weapon-skill input with no graph node fails activation"),
-		Player->ComboRuntimeComponent->TryActivateWeaponSkill(Player));
-	TestEqual(TEXT("Weapon-skill miss clears current combo node"),
+	TestFalse(TEXT("Dash input with no graph node fails activation"),
+		Player->ComboRuntimeComponent->TryActivateDash(Player));
+	TestEqual(TEXT("Dash miss clears current combo node"),
 		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(NAME_None));
-	TestEqual(TEXT("Weapon-skill miss clears active graph node"),
+	TestEqual(TEXT("Dash miss clears active graph node"),
 		Player->ComboRuntimeComponent->GetActiveGraphNodeId(), FName(NAME_None));
-	TestFalse(TEXT("Weapon-skill miss clears active attack guid"),
+	TestFalse(TEXT("Dash miss clears active attack guid"),
 		Player->ComboRuntimeComponent->GetActiveAttackGuid().IsValid());
 
 	Player->Destroy();
@@ -1503,67 +1498,6 @@ bool FGameplayAbilityComboGraphNodeExportsCombatDeckContextTagsTest::RunTest(con
 	TestFalse(TEXT("Catalyst dash override does not become a combo finisher"),
 		RuntimeConfig.bIsComboFinisher);
 
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponSkillComboGraphUsesFinisherDeckContextByDefaultTest,
-	"DevKit.CombatDeck.WeaponSkillComboGraphUsesFinisherDeckContextByDefault",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FWeaponSkillComboGraphUsesFinisherDeckContextByDefaultTest::RunTest(const FString& Parameters)
-{
-	UWorld* World = GWorld;
-	TestNotNull(TEXT("Automation world exists for weapon-skill deck context test"), World);
-	if (!World)
-	{
-		return false;
-	}
-
-	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
-	TestNotNull(TEXT("Player spawned for weapon-skill deck context test"), Player);
-	if (!Player)
-	{
-		return false;
-	}
-
-	UYogAbilitySystemComponent* ASC = Player->GetASC();
-	TestNotNull(TEXT("Player has Yog ASC"), ASC);
-	TestNotNull(TEXT("Player has ComboRuntimeComponent"), Player->ComboRuntimeComponent.Get());
-	if (!ASC || !Player->ComboRuntimeComponent)
-	{
-		Player->Destroy();
-		return false;
-	}
-
-	ASC->InitAbilityActorInfo(Player, Player);
-	Player->ComboRuntimeComponent->SetWeaponSkillAbility(UYogGameplayAbility::StaticClass());
-	ASC->GiveAbility(FGameplayAbilitySpec(UYogGameplayAbility::StaticClass(), 1));
-
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>(Player);
-	UGameplayAbilityComboGraphNode* WeaponSkillRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	WeaponSkillRoot->Graph = Graph;
-	WeaponSkillRoot->NodeId = TEXT("WeaponSkillRoot");
-	WeaponSkillRoot->RootInputAction = EYogComboGraphInputAction::WeaponSkill;
-	WeaponSkillRoot->Montage = NewObject<UAnimMontage>(Graph);
-	Graph->AllNodes = { WeaponSkillRoot };
-	Graph->RootNodes = { WeaponSkillRoot };
-
-	Player->ComboRuntimeComponent->LoadComboGraph(Graph);
-	TestTrue(TEXT("WeaponSkill graph root activates through ComboRuntime"),
-		Player->ComboRuntimeComponent->TryActivateWeaponSkill(Player));
-
-	const FCombatDeckActionContext Context =
-		Player->ComboRuntimeComponent->BuildAttackContext(ECombatCardTriggerTiming::OnCommit, Player);
-	TestEqual(TEXT("WeaponSkill default context uses weapon-skill slot"),
-		Context.ActionSlot, ECombatDeckActionSlot::WeaponSkill);
-	TestEqual(TEXT("WeaponSkill default context uses finisher flow role"),
-		Context.FlowRole, ECombatDeckFlowRole::Finisher);
-	TestTrue(TEXT("WeaponSkill default context is a combo finisher for deck release"),
-		Context.bIsComboFinisher);
-	TestEqual(TEXT("WeaponSkill default context releases finisher cards"),
-		Context.ReleaseMode, ECombatCardReleaseMode::Finisher);
-
-	Player->Destroy();
 	return true;
 }
 

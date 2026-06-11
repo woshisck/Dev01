@@ -428,21 +428,15 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 				case EInputCommandType::Attack:
 					bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateAttack(PlayerOwner);
 					break;
-				case EInputCommandType::WeaponSkill:
-					bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateWeaponSkill(PlayerOwner);
-					break;
 				case EInputCommandType::Dash:
 					bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateDash(PlayerOwner);
-					break;
-				case EInputCommandType::Special:
-					bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateSpecial(PlayerOwner);
 					break;
 				default:
 					break;
 				}
 			}
 		}
-		if (!bActivated && !bHasComboSource)
+		if (!bActivated)
 		{
 			const TCHAR* FallbackTagName = TEXT("PlayerState.AbilityCast.Attack");
 			switch (BufferedActionType)

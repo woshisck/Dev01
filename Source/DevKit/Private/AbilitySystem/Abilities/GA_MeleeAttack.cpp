@@ -65,13 +65,6 @@ UGA_MeleeAttack::UGA_MeleeAttack()
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Knockback"));
 }
 
-void UGA_MeleeAttack::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
-{
-	Super::OnGiveAbility(ActorInfo, Spec);
-	UE_LOG(LogTemp, Warning, TEXT("[GA_MeleeAttack] OnGiveAbility — granted to: %s"),
-		ActorInfo && ActorInfo->AvatarActor.IsValid() ? *ActorInfo->AvatarActor->GetName() : TEXT("unknown"));
-	FDebug::DumpStackTraceToLog(ELogVerbosity::Warning);
-}
 
 UAN_MeleeDamage* UGA_MeleeAttack::GetFirstDamageNotify(UAnimMontage* Montage)
 {
@@ -417,40 +410,37 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 		case EInputCommandType::Attack:
 			bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateAttack(PlayerOwner);
 			break;
-		case EInputCommandType::WeaponSkill:
-			bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateWeaponSkill(PlayerOwner);
-			break;
 		case EInputCommandType::Dash:
 			bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateDash(PlayerOwner);
-			break;
-		case EInputCommandType::Special:
-			bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateSpecial(PlayerOwner);
 			break;
 		default:
 			break;
 		}
 	}
-	else if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
+	if (!bActivated)
 	{
-		const TCHAR* FallbackTagName = TEXT("PlayerState.AbilityCast.Attack");
-		switch (BufferedActionType)
+		if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
 		{
-		case EInputCommandType::WeaponSkill:
-			FallbackTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
-			break;
-		case EInputCommandType::Dash:
-			FallbackTagName = TEXT("PlayerState.AbilityCast.Dash");
-			break;
-		case EInputCommandType::Special:
-			FallbackTagName = TEXT("PlayerState.AbilityCast.Special");
-			break;
-		default:
-			break;
-		}
+			const TCHAR* FallbackTagName = TEXT("PlayerState.AbilityCast.Attack");
+			switch (BufferedActionType)
+			{
+			case EInputCommandType::WeaponSkill:
+				FallbackTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
+				break;
+			case EInputCommandType::Dash:
+				FallbackTagName = TEXT("PlayerState.AbilityCast.Dash");
+				break;
+			case EInputCommandType::Special:
+				FallbackTagName = TEXT("PlayerState.AbilityCast.Special");
+				break;
+			default:
+				break;
+			}
 
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
-		bActivated = PlayerASC->TryActivateAbilitiesByTag(TagContainer, true);
+			FGameplayTagContainer TagContainer;
+			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
+			bActivated = PlayerASC->TryActivateAbilitiesByTag(TagContainer, true);
+		}
 	}
 
 	// === DIAG: attack-stuck repro (CL564) ===

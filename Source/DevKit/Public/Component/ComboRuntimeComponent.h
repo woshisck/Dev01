@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Components/YogComboGraphRuntimeComponent.h"
 #include "Data/WeaponComboNodeConfig.h"
 #include "GameplayAbilitySpec.h"
@@ -51,16 +50,7 @@ public:
 	bool TryActivateAttack(APlayerCharacterBase* PlayerOwner);
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
-	bool TryActivateWeaponSkill(APlayerCharacterBase* PlayerOwner);
-
-	UFUNCTION(BlueprintCallable, Category = "Combo")
 	bool TryActivateDash(APlayerCharacterBase* PlayerOwner);
-
-	UFUNCTION(BlueprintCallable, Category = "Combo")
-	bool TryActivateSpecial(APlayerCharacterBase* PlayerOwner);
-
-	bool TryActivateSpecialCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner);
-	bool TryActivateSpecialAttackCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner) { return TryActivateSpecialCombo(AbilityClass, PlayerOwner); }
 
 	virtual void ResetCombo() override;
 
@@ -69,13 +59,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Combo")
 	FName GetActiveNodeId() const { return ActiveNode.NodeId; }
-
-	UFUNCTION(BlueprintPure, Category = "Combo")
-	TSubclassOf<UYogGameplayAbility> GetWeaponSkillAbility() const { return WeaponSkillAbility; }
-
-	void SetWeaponSkillAbility(TSubclassOf<UYogGameplayAbility> InAbility);
-	TSubclassOf<UYogGameplayAbility> GetComboSpecialActionAbility() const { return GetWeaponSkillAbility(); }
-	void SetComboSpecialActionAbility(TSubclassOf<UYogGameplayAbility> InAbility) { SetWeaponSkillAbility(InAbility); }
 
 	const FWeaponComboNodeConfig* GetActiveNode() const;
 	void RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle);
@@ -88,9 +71,6 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UGameplayAbilityComboGraph> SpecialAttackComboGraph = nullptr;
-
-	UPROPERTY()
-	TSubclassOf<UYogGameplayAbility> WeaponSkillAbility;
 
 	UPROPERTY()
 	FWeaponComboNodeConfig ActiveNode;
@@ -111,6 +91,5 @@ private:
 		ECardRequiredAction RuntimeInputAction,
 		ECombatDeckActionSlot ActionSlot,
 		ECombatDeckFlowRole FlowRole,
-		APlayerCharacterBase* PlayerOwner,
-		TSubclassOf<UGameplayAbility> AbilityOverride = nullptr);
+		APlayerCharacterBase* PlayerOwner);
 };

@@ -75,19 +75,7 @@ bool UPlayerSpecialAttackComponent::UseSpecialAttack()
 	}
 
 	GrantSpecialAttackAbility();
-	bool bActivated = false;
-	if (RuntimeConfig.ComboGraph)
-	{
-		if (APlayerCharacterBase* PlayerOwner = GetPlayerOwner())
-		{
-			bActivated = PlayerOwner->ComboRuntimeComponent
-				&& PlayerOwner->ComboRuntimeComponent->TryActivateSpecialAttackCombo(RuntimeConfig.AbilityClass, PlayerOwner);
-		}
-	}
-	else
-	{
-		bActivated = ASC->TryActivateAbilityByClass(RuntimeConfig.AbilityClass, true);
-	}
+	const bool bActivated = ASC->TryActivateAbilityByClass(RuntimeConfig.AbilityClass, true);
 
 	if (!bActivated)
 	{

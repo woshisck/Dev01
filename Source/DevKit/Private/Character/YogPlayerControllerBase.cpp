@@ -492,10 +492,9 @@ void AYogPlayerControllerBase::WeaponSkill(const FInputActionValue& Value)
 			Buffer->RecordWeaponSkill();
 		}
 
-		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->TryActivateWeaponSkill(player))
-		{
-			return;
-		}
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.WeaponSkill")));
+		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
 	}
 }
 
@@ -539,11 +538,6 @@ void AYogPlayerControllerBase::Special(const FInputActionValue& Value)
 		if (player->SpecialAttackComponent && player->SpecialAttackComponent->HasSpecialAttack())
 		{
 			player->SpecialAttackComponent->UseSpecialAttack();
-			return;
-		}
-
-		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->TryActivateSpecial(player))
-		{
 			return;
 		}
 

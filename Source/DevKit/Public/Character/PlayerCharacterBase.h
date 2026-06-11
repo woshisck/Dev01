@@ -39,6 +39,7 @@ class USacrificeRuneComponent;
 class USkillChargeComponent;
 class UMontageVFXBindingComponent;
 class UWeaponDefinition;
+class UYogAbilitySet;
 class USacrificeGraceDA;
 class UYogAbilitySystemComponent;
 class UDamageEdgeFlashWidget;
@@ -46,7 +47,6 @@ class AYogCameraPawn;
 class UCameraComponent;
 class UYogSpringArmComponent;
 class UYogCameraOcclusionFadeComponent;
-class UGameplayAbilityComboGraph;
 struct FRunState;
 UENUM()
 enum class EPlayerState : uint8
@@ -168,13 +168,17 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UComboRuntimeComponent> ComboRuntimeComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
-	TObjectPtr<UGameplayAbilityComboGraph> DefaultUnarmedComboGraph;
-
 	// Equipped at BeginPlay when no weapon is carried (e.g. unarmed default loadout).
 	// SetupWeaponToCharacter is called on this if EquippedWeaponDef is still null after init.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UWeaponDefinition> DefaultUnarmedWeaponDef;
+
+	// Abilities granted once at BeginPlay that drive the combo graph regardless of which weapon
+	// is equipped: GA_MeleeAttack, GA_RangeAttack, GA_WeaponSkill, GA_PlayerDash, GA_Special.
+	// Set this on BP_PlayerCharacterBase. Never granted per-weapon — the combo graph only
+	// configures which montage each ability plays; the ability class itself is weapon-agnostic.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
+	TObjectPtr<UYogAbilitySet> DefaultCombatAbilitySet;
 
 	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
 	void ApplyDefaultUnarmedComboGraph();

@@ -1,12 +1,45 @@
 #include "Customization/GameplayAbilityComboGraphNodeDetails.h"
 
+#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
+#include "AbilitySystem/Abilities/GA_PlayerDash.h"
+#include "ClassViewerFilter.h"
+#include "ClassViewerModule.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Modules/ModuleManager.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "GameplayAbilityComboGraphNodeDetails"
+
+namespace
+{
+	// Restricts the GameplayAbilityClass picker to only GA_MeleeAttack and GA_PlayerDash (and their subclasses).
+	class FComboAbilityClassFilter : public IClassViewerFilter
+	{
+	public:
+		bool IsClassAllowed(
+			const FClassViewerInitializationOptions& InInitOptions,
+			const UClass* InClass,
+			TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override
+		{
+			return InClass
+				&& (InClass->IsChildOf<UGA_MeleeAttack>() || InClass->IsChildOf<UGA_PlayerDash>());
+		}
+
+		bool IsUnloadedClassAllowed(
+			const FClassViewerInitializationOptions& InInitOptions,
+			const TSharedRef<const IUnloadedBlueprintData> InUnloadedClassData,
+			TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override
+		{
+			return InUnloadedClassData->IsChildOf(UGA_MeleeAttack::StaticClass())
+				|| InUnloadedClassData->IsChildOf(UGA_PlayerDash::StaticClass());
+		}
+	};
+}
 
 TSharedRef<IDetailCustomization> FGameplayAbilityComboGraphNodeDetails::MakeInstance()
 {
@@ -18,6 +51,66 @@ void FGameplayAbilityComboGraphNodeDetails::CustomizeDetails(IDetailLayoutBuilde
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	DetailBuilder.GetObjectsBeingCustomized(Objects);
 	EditingNode = Objects.Num() > 0 ? Cast<UGameplayAbilityComboGraphNode>(Objects[0].Get()) : nullptr;
+
+	// Replace the GameplayAbilityClass picker with a filtered one that only shows
+	// GA_MeleeAttack, GA_PlayerDash, and their subclasses.
+	TSharedRef<IPropertyHandle> AbilityClassHandle = DetailBuilder.GetProperty(
+		GET_MEMBER_NAME_CHECKED(UGameplayAbilityComboGraphNode, GameplayAbilityClass),
+		UGameplayAbilityComboGraphNode::StaticClass());
+
+	if (AbilityClassHandle->IsValidHandle())
+	{
+		IDetailCategoryBuilder& AbilityCategory = DetailBuilder.EditCategory(TEXT("Ability"));
+		AbilityCategory.AddProperty(AbilityClassHandle)
+			.CustomWidget()
+			.NameContent()
+			[
+				AbilityClassHandle->CreatePropertyNameWidget()
+			]
+			.ValueContent()
+			.MinDesiredWidth(200.f)
+			[
+				SNew(SComboButton)
+				.OnGetMenuContent_Lambda([AbilityClassHandle]() -> TSharedRef<SWidget>
+				{
+					FClassViewerInitializationOptions Options;
+					Options.Mode = EClassViewerMode::ClassPicker;
+					Options.bShowUnloadedBlueprints = true;
+					Options.bShowNoneOption = true;
+					Options.ClassFilter = MakeShared<FComboAbilityClassFilter>();
+
+					return FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer")
+						.CreateClassViewer(Options,
+							FOnClassPicked::CreateLambda([AbilityClassHandle](UClass* PickedClass)
+							{
+								if (PickedClass)
+								{
+									AbilityClassHandle->SetValueFromFormattedString(PickedClass->GetPathName());
+								}
+								else
+								{
+									AbilityClassHandle->SetValueFromFormattedString(TEXT("None"));
+								}
+								FSlateApplication::Get().DismissAllMenus();
+							}));
+				})
+				.ContentPadding(FMargin(2.f, 2.f))
+				.ButtonContent()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([AbilityClassHandle]() -> FText
+					{
+						UObject* Val = nullptr;
+						AbilityClassHandle->GetValue(Val);
+						const UClass* Class = Cast<UClass>(Val);
+						return Class
+							? FText::FromString(Class->GetName())
+							: LOCTEXT("None", "None");
+					})
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+			];
+	}
 
 	IDetailCategoryBuilder& Category = DetailBuilder.EditCategory(TEXT("Combo Manager"));
 	Category.AddCustomRow(LOCTEXT("ComboManagerNodeClassFilter", "Node Class"))

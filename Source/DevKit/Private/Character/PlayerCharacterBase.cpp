@@ -16,7 +16,7 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Buff/Aura/AuraBase.h"
 #include "SaveGame/YogSaveGame.h"
-#include "UObject/ConstructorHelpers.h"
+#include "AbilitySystem/Abilities/YogAbilitySet.h"
 #include "Data/GASTemplate.h"
 #include "Item/ItemSpawner.h"
 #include "Component/BackpackGridComponent.h"
@@ -181,13 +181,6 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 
 	// 近战默认命中框：C++ 实现，无需在每个角色蓝图 Class Defaults 中单独配置
 	DefaultMeleeTargetType = UYogTargetType_Player::StaticClass();
-
-	static ConstructorHelpers::FObjectFinder<UGameplayAbilityComboGraph> DefaultUnarmedComboGraphAsset(
-		TEXT("/Game/Code/Weapon/Disarm/GA_ComboGraph_Disarm.GA_ComboGraph_Disarm"));
-	if (DefaultUnarmedComboGraphAsset.Succeeded())
-	{
-		DefaultUnarmedComboGraph = DefaultUnarmedComboGraphAsset.Object;
-	}
 }
 
 void APlayerCharacterBase::SetOwnCamera(AYogCameraPawn* cameraActor)
@@ -317,14 +310,10 @@ void APlayerCharacterBase::ApplyDefaultUnarmedComboGraph()
 		return;
 	}
 
-	if (DefaultUnarmedComboGraph)
-	{
-		ComboRuntimeComponent->LoadWeaponComboGraph(DefaultUnarmedComboGraph);
-	}
-	else
-	{
-		ComboRuntimeComponent->LoadWeaponComboGraph(nullptr);
-	}
+	UGameplayAbilityComboGraph* Graph = DefaultUnarmedWeaponDef
+		? DefaultUnarmedWeaponDef->GameplayAbilityComboGraph.Get()
+		: nullptr;
+	ComboRuntimeComponent->LoadWeaponComboGraph(Graph);
 	ComboRuntimeComponent->LoadSpecialAttackComboGraph(nullptr);
 }
 
@@ -335,7 +324,6 @@ void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDe
 		return;
 	}
 
-	TSubclassOf<UYogGameplayAbility> WeaponSkillAbility = nullptr;
 	USpecialAttackDataAsset* SpecialAttack = WeaponDefinition ? WeaponDefinition->DefaultSpecialAttack.Get() : nullptr;
 
 	if (!WeaponDefinition)
@@ -345,14 +333,12 @@ void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDe
 	else if (WeaponDefinition->GameplayAbilityComboGraph)
 	{
 		ComboRuntimeComponent->LoadComboGraph(WeaponDefinition->GameplayAbilityComboGraph);
-		WeaponSkillAbility = WeaponDefinition->WeaponSkillAbility;
 	}
 	else
 	{
 		ApplyDefaultUnarmedComboGraph();
 	}
 
-	ComboRuntimeComponent->SetWeaponSkillAbility(WeaponSkillAbility);
 	ComboRuntimeComponent->LoadSpecialAttackComboGraph(SpecialAttack ? SpecialAttack->Config.ComboGraph.Get() : nullptr);
 }
 
@@ -1197,14 +1183,44 @@ void APlayerCharacterBase::BeginPlay()
 		AcquireSacrificeGrace(ActiveSacrificeGrace);
 	}
 
+	// Grant the combat-driving abilities that power the combo graph (GA_MeleeAttack,
+	// GA_RangeAttack, GA_WeaponSkill, GA_PlayerDash, GA_Special). These are player-only
+	// and weapon-agnostic: the combo graph only controls which montage each plays.
+	// Granted once here so they are always available, regardless of which weapon is equipped.
+	if (DefaultCombatAbilitySet)
+	{
+		for (const FYogAbilitySet_GameplayAbility& Entry : DefaultCombatAbilitySet->GrantedGameplayAbilities)
+		{
+			if (Entry.Ability)
+			{
+				GrantGameplayAbility(Entry.Ability, Entry.AbilityLevel);
+			}
+		}
+	}
+
 	// GAS Template 授能（在 Super::BeginPlay 中完成）可能覆盖切关前 Link 的武器动画层；
 	// 在此重新 Link，确保武器层优先级高于默认层
 	ApplyCurrentEquipmentComboGraph();
 	RelinkWeaponAnimLayer();
 
+	// Initialize deck/special/weapon-type from the unarmed default without calling
+	// SetupWeaponToCharacter, which would set EquippedWeaponDef and cause TryPickupWeapon
+	// to route the first real weapon to the inactive slot instead of equipping it.
+	// The combo graph is already applied above by ApplyCurrentEquipmentComboGraph().
 	if (!EquippedWeaponDef && DefaultUnarmedWeaponDef)
 	{
-		DefaultUnarmedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
+		if (UCombatDeckComponent* CombatDeck = CombatDeckComponent.Get())
+		{
+			CombatDeck->LoadDeckFromWeapon(DefaultUnarmedWeaponDef);
+		}
+		if (SpecialAttackComponent)
+		{
+			SpecialAttackComponent->SetSpecialAttack(DefaultUnarmedWeaponDef->DefaultSpecialAttack);
+		}
+		if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
+		{
+			YogASC->ApplyWeaponTypeTag(DefaultUnarmedWeaponDef->WeaponType);
+		}
 	}
 
 	//GetASC()->InitAbilityActorInfo(this, this);
