@@ -1,6 +1,8 @@
 #include "Component/ComboRuntimeComponent.h"
 
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
+#include "AbilitySystem/Abilities/GA_PlayerDash.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
 #include "Data/GameplayAbilityComboGraph.h"
@@ -290,12 +292,21 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 	}
 	else
 	{
-		const FName DefaultTagName = (GraphInput == EYogComboGraphInputAction::Dash)
-			? FName(TEXT("PlayerState.AbilityCast.Dash"))
-			: FName(TEXT("PlayerState.AbilityCast.Attack"));
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(DefaultTagName, false));
-		bActivated = ASC->TryActivateAbilitiesByTag(TagContainer, true);
+		// Search by handle so Blueprint subclasses of the base C++ ability are found.
+		// (Tag-based activation is too broad and would fire every ability sharing the tag.)
+		const UClass* BaseClass = (GraphInput == EYogComboGraphInputAction::Dash)
+			? UGA_PlayerDash::StaticClass()
+			: UGA_MeleeAttack::StaticClass();
+
+		for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+		{
+			if (!Spec.Ability || !Spec.Ability->GetClass()->IsChildOf(BaseClass))
+			{
+				continue;
+			}
+			bActivated = ASC->TryActivateAbility(Spec.Handle, true);
+			break;
+		}
 	}
 
 	if (!bActivated)

@@ -233,6 +233,19 @@ bool UGA_PlayerDash::CanActivateAbility(
 	PendingSaveComboTags.Reset();
 	if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
 	{
+		// Dash is only permitted during the combo window when an attack is active.
+		static const FGameplayTag AttackActiveTag =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false);
+		static const FGameplayTag CanComboTag =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
+		if (AttackActiveTag.IsValid() && ASC->HasMatchingGameplayTag(AttackActiveTag))
+		{
+			if (!CanComboTag.IsValid() || !ASC->HasMatchingGameplayTag(CanComboTag))
+			{
+				return false;
+			}
+		}
+
 		static const FGameplayTag SavePoint =
 			FGameplayTag::RequestGameplayTag(TEXT("Action.Combo.DashSavePoint"), false);
 
@@ -478,6 +491,16 @@ void UGA_PlayerDash::EndAbility(
 			YASC->ApplyDashSave(PendingSaveComboTags);
 		}
 		PendingSaveComboTags.Reset();
+	}
+
+	// Reset the combo graph state so the next attack searches from root, not from
+	// the dash node that was set during TryActivateDash → TryActivateComboFromGraph.
+	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Character))
+	{
+		if (Player->ComboRuntimeComponent)
+		{
+			Player->ComboRuntimeComponent->ResetCombo();
+		}
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

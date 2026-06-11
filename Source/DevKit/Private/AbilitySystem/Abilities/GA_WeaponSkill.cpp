@@ -2,7 +2,9 @@
 
 #include "GameplayTagContainer.h"
 
-UGA_WeaponSkill::UGA_WeaponSkill()
+
+UGA_WeaponSkill::UGA_WeaponSkill(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer)
 {
 	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Ability.Player.WeaponSkill")));
 	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill")));
