@@ -136,7 +136,7 @@ private:
 	TObjectPtr<UGameplayAbilityComboGraph> WeaponSkillComboGraph = nullptr;
 
 	UPROPERTY()
-	TMap<TObjectKey<UGameplayAbilityComboGraph>, FComboGraphContext> GraphContexts;
+	TMap<TObjectPtr<UGameplayAbilityComboGraph>, FComboGraphContext> GraphContexts;
 
 	UPROPERTY()
 	TSubclassOf<UYogGameplayAbility> WeaponSkillAbility;
