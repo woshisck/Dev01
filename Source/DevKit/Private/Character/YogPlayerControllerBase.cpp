@@ -492,6 +492,12 @@ void AYogPlayerControllerBase::WeaponSkill(const FInputActionValue& Value)
 			Buffer->RecordWeaponSkill();
 		}
 
+		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasWeaponComboSource())
+		{
+			player->ComboRuntimeComponent->TryActivateWeaponSkill(player);
+			return;
+		}
+
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.WeaponSkill")));
 		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);

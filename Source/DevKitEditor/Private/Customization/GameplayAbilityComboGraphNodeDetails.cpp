@@ -2,6 +2,9 @@
 
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
+#include "AbilitySystem/Abilities/GA_RangeAttack.h"
+#include "AbilitySystem/Abilities/GA_Special.h"
+#include "AbilitySystem/Abilities/GA_WeaponSkill.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
 #include "Data/GameplayAbilityComboGraph.h"
@@ -17,7 +20,8 @@
 
 namespace
 {
-	// Restricts the GameplayAbilityClass picker to only GA_MeleeAttack and GA_PlayerDash (and their subclasses).
+	// Restricts the GameplayAbilityClass picker to the player ability families
+	// (GA_MeleeAttack, GA_RangeAttack, GA_WeaponSkill, GA_Special, GA_PlayerDash) and their subclasses.
 	class FComboAbilityClassFilter : public IClassViewerFilter
 	{
 	public:
@@ -27,7 +31,11 @@ namespace
 			TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override
 		{
 			return InClass
-				&& (InClass->IsChildOf<UGA_MeleeAttack>() || InClass->IsChildOf<UGA_PlayerDash>());
+				&& (InClass->IsChildOf<UGA_MeleeAttack>()
+					|| InClass->IsChildOf<UGA_RangeAttack>()
+					|| InClass->IsChildOf<UGA_WeaponSkill>()
+					|| InClass->IsChildOf<UGA_Special>()
+					|| InClass->IsChildOf<UGA_PlayerDash>());
 		}
 
 		bool IsUnloadedClassAllowed(
@@ -36,6 +44,9 @@ namespace
 			TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override
 		{
 			return InUnloadedClassData->IsChildOf(UGA_MeleeAttack::StaticClass())
+				|| InUnloadedClassData->IsChildOf(UGA_RangeAttack::StaticClass())
+				|| InUnloadedClassData->IsChildOf(UGA_WeaponSkill::StaticClass())
+				|| InUnloadedClassData->IsChildOf(UGA_Special::StaticClass())
 				|| InUnloadedClassData->IsChildOf(UGA_PlayerDash::StaticClass());
 		}
 	};
