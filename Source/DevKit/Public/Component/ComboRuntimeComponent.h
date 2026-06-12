@@ -11,7 +11,44 @@ class APlayerCharacterBase;
 class UGameplayAbility;
 class UGameplayAbilityComboGraph;
 class UAbilitySystemComponent;
+class UGameplayAbilityComboGraphNode;
 struct FCombatDeckActionContext;
+
+// Snapshot of one combo graph's cursor so multiple graphs (weapon vs weapon skill)
+// can be swapped in and out of the single shared base-component state without losing
+// where each was left off. Saved on switch-away, restored on switch-back.
+USTRUCT()
+struct FComboGraphContext
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName CurrentNodeId = NAME_None;
+
+	UPROPERTY()
+	FName ActiveNodeId = NAME_None;
+
+	UPROPERTY()
+	TObjectPtr<UGameplayAbilityComboGraphNode> ActiveGraphNode = nullptr;
+
+	UPROPERTY()
+	FGuid ActiveAttackGuid;
+
+	UPROPERTY()
+	int32 ComboIndex = 0;
+
+	UPROPERTY()
+	FGameplayTagContainer ComboTags;
+
+	UPROPERTY()
+	FWeaponComboNodeConfig ActiveNode;
+
+	bool bActiveNodeValid = false;
+	bool bComboContinued = true;
+	bool bExitedComboState = false;
+
+	FGameplayAbilitySpecHandle ActiveAbilitySpecHandle;
+};
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class DEVKIT_API UComboRuntimeComponent : public UYogComboGraphRuntimeComponent
@@ -28,6 +65,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	void LoadSpecialAttackComboGraph(UGameplayAbilityComboGraph* InComboGraph);
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	void LoadWeaponSkillComboGraph(UGameplayAbilityComboGraph* InComboGraph);
 
 	UFUNCTION(BlueprintPure, Category = "Combo")
 	bool HasComboSource() const { return HasWeaponComboSource(); }
@@ -93,6 +133,12 @@ private:
 	TObjectPtr<UGameplayAbilityComboGraph> SpecialAttackComboGraph = nullptr;
 
 	UPROPERTY()
+	TObjectPtr<UGameplayAbilityComboGraph> WeaponSkillComboGraph = nullptr;
+
+	UPROPERTY()
+	TMap<TObjectKey<UGameplayAbilityComboGraph>, FComboGraphContext> GraphContexts;
+
+	UPROPERTY()
 	TSubclassOf<UYogGameplayAbility> WeaponSkillAbility;
 
 	UPROPERTY()
@@ -103,6 +149,10 @@ private:
 
 	bool bPendingAbilityNodeValid = false;
 
+	// Set when a switch-back restores a non-empty cursor, so the next combo input does
+	// not treat the restored (but idle) cursor as stale and wipe it. Consumed once.
+	bool bSuppressStaleClearOnce = false;
+
 	FGameplayAbilitySpecHandle ActiveAbilitySpecHandle;
 
 	UPROPERTY()
@@ -112,6 +162,8 @@ private:
 	void ClearStaleActiveComboState(UAbilitySystemComponent* ASC, const TCHAR* Reason);
 	void TrackRuntimeCombatLooseTag(const FGameplayTag& Tag);
 	void SetActiveComboGraph(UGameplayAbilityComboGraph* InComboGraph);
+	void SaveActiveContext();
+	void RestoreContextFor(UGameplayAbilityComboGraph* Graph);
 	void EnsureAbilityGranted(UAbilitySystemComponent* ASC, TSubclassOf<UGameplayAbility> AbilityClass);
 	bool TryActivateComboFromGraph(
 		UGameplayAbilityComboGraph* SourceGraph,

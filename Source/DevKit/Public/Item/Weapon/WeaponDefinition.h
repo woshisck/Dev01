@@ -84,6 +84,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
 	TObjectPtr<UGameplayAbilityComboGraph> GameplayAbilityComboGraph;
 
+	// Independent combo graph driven only by the weapon-skill input. Runs in its own
+	// per-graph cursor so firing a weapon skill never disturbs the weapon attack/dash
+	// combo position (and vice versa). Leave null to fall back to the weapon combo graph.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
+	TObjectPtr<UGameplayAbilityComboGraph> WeaponSkillComboGraph;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Special Attack")
 	TObjectPtr<USpecialAttackDataAsset> DefaultSpecialAttack;
 

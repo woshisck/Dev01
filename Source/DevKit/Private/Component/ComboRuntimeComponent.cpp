@@ -138,6 +138,36 @@ namespace
 		return !CanComboTag.IsValid() || ASC->GetTagCount(CanComboTag) <= 0;
 	}
 
+	// Returns true if a granted ability of AbilityClass would pass its own
+	// activation conditions right now (charge, cooldown, blocked tags, etc.)
+	// without actually activating it. Mirrors GAS by preferring the live instance
+	// over the CDO when one exists.
+	bool CanActivateGrantedAbility(UAbilitySystemComponent* ASC, const UClass* AbilityClass)
+	{
+		if (!ASC || !AbilityClass)
+		{
+			return false;
+		}
+
+		const FGameplayAbilityActorInfo* ActorInfo = ASC->AbilityActorInfo.Get();
+		for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+		{
+			if (!Spec.Ability || !Spec.Ability->GetClass()->IsChildOf(AbilityClass))
+			{
+				continue;
+			}
+
+			const UGameplayAbility* AbilityToCheck =
+				Spec.GetPrimaryInstance() ? Spec.GetPrimaryInstance() : Spec.Ability.Get();
+			if (AbilityToCheck && AbilityToCheck->CanActivateAbility(Spec.Handle, ActorInfo))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	void AddUniqueAbilityClass(
 		TArray<TSubclassOf<UGameplayAbility>>& OutAbilityClasses,
 		TSubclassOf<UGameplayAbility> AbilityClass)
@@ -253,6 +283,7 @@ void UComboRuntimeComponent::EnsureWeaponComboAbilitiesGranted(APlayerCharacterB
 
 	TArray<TSubclassOf<UGameplayAbility>> AbilityClasses;
 	GatherWeaponComboAbilityClasses(WeaponComboGraph, WeaponSkillAbility, AbilityClasses);
+	GatherWeaponComboAbilityClasses(WeaponSkillComboGraph, WeaponSkillAbility, AbilityClasses);
 
 	for (const TSubclassOf<UGameplayAbility>& AbilityClass : AbilityClasses)
 	{
@@ -268,7 +299,12 @@ void UComboRuntimeComponent::LoadComboGraph(UGameplayAbilityComboGraph* InComboG
 void UComboRuntimeComponent::LoadWeaponComboGraph(UGameplayAbilityComboGraph* InComboGraph)
 {
 	WeaponComboGraph = InComboGraph;
-	SetActiveComboGraph(WeaponComboGraph);
+
+	// Equipping a weapon is a clean slate: drop every preserved per-graph cursor and
+	// let the base loader validate + reset the live state with the weapon graph active.
+	GraphContexts.Empty();
+	bSuppressStaleClearOnce = false;
+	Super::LoadComboGraph(WeaponComboGraph);
 }
 
 void UComboRuntimeComponent::LoadSpecialAttackComboGraph(UGameplayAbilityComboGraph* InComboGraph)
@@ -286,11 +322,101 @@ void UComboRuntimeComponent::LoadSpecialAttackComboGraph(UGameplayAbilityComboGr
 	}
 }
 
+void UComboRuntimeComponent::LoadWeaponSkillComboGraph(UGameplayAbilityComboGraph* InComboGraph)
+{
+	const bool bWasActiveSkillGraph = WeaponSkillComboGraph && GetComboGraph() == WeaponSkillComboGraph;
+
+	if (WeaponSkillComboGraph)
+	{
+		GraphContexts.Remove(WeaponSkillComboGraph);
+	}
+
+	WeaponSkillComboGraph = InComboGraph;
+
+	if (WeaponSkillComboGraph)
+	{
+		GraphContexts.Remove(WeaponSkillComboGraph);
+	}
+
+	if (bWasActiveSkillGraph)
+	{
+		SetActiveComboGraph(WeaponComboGraph ? WeaponComboGraph : WeaponSkillComboGraph);
+	}
+}
+
 void UComboRuntimeComponent::SetActiveComboGraph(UGameplayAbilityComboGraph* InComboGraph)
 {
-	if (GetComboGraph() != InComboGraph)
+	if (GetComboGraph() == InComboGraph)
 	{
-		Super::LoadComboGraph(InComboGraph);
+		return;
+	}
+
+	// Switch graphs without resetting: stash the outgoing graph's cursor and restore the
+	// incoming graph's, so weapon and weapon-skill combos keep independent positions.
+	SaveActiveContext();
+	ComboGraph = InComboGraph;
+	RestoreContextFor(InComboGraph);
+}
+
+void UComboRuntimeComponent::SaveActiveContext()
+{
+	UGameplayAbilityComboGraph* Active = GetComboGraph();
+	if (!Active)
+	{
+		return;
+	}
+
+	FComboGraphContext& Context = GraphContexts.FindOrAdd(Active);
+	Context.CurrentNodeId = CurrentNodeId;
+	Context.ActiveNodeId = ActiveNodeId;
+	Context.ActiveGraphNode = ActiveGraphNode;
+	Context.ActiveAttackGuid = ActiveAttackGuid;
+	Context.ComboIndex = ComboIndex;
+	Context.ComboTags = ComboTags;
+	Context.bActiveNodeValid = bActiveNodeValid;
+	Context.bComboContinued = bComboContinued;
+	Context.bExitedComboState = bExitedComboState;
+	Context.ActiveNode = ActiveNode;
+	Context.ActiveAbilitySpecHandle = ActiveAbilitySpecHandle;
+}
+
+void UComboRuntimeComponent::RestoreContextFor(UGameplayAbilityComboGraph* Graph)
+{
+	ClearPreparedComboActivation();
+	bSuppressStaleClearOnce = false;
+
+	if (const FComboGraphContext* Context = GraphContexts.Find(Graph))
+	{
+		CurrentNodeId = Context->CurrentNodeId;
+		ActiveNodeId = Context->ActiveNodeId;
+		ActiveGraphNode = Context->ActiveGraphNode;
+		ActiveAttackGuid = Context->ActiveAttackGuid;
+		ComboIndex = Context->ComboIndex;
+		ComboTags = Context->ComboTags;
+		bActiveNodeValid = Context->bActiveNodeValid;
+		bComboContinued = Context->bComboContinued;
+		bExitedComboState = Context->bExitedComboState;
+		ActiveNode = Context->ActiveNode;
+		ActiveAbilitySpecHandle = Context->ActiveAbilitySpecHandle;
+
+		// A restored mid-combo cursor has no live ability running, so shield it from the
+		// stale-state guard on the very next input (honours "preserve weapon cursor").
+		bSuppressStaleClearOnce = !CurrentNodeId.IsNone();
+	}
+	else
+	{
+		// No saved cursor for this graph: start fresh from root (matches ResetCombo).
+		CurrentNodeId = NAME_None;
+		ActiveNodeId = NAME_None;
+		ActiveGraphNode = nullptr;
+		ActiveAttackGuid.Invalidate();
+		ComboIndex = 0;
+		ComboTags.Reset();
+		bActiveNodeValid = false;
+		bComboContinued = false;
+		bExitedComboState = true;
+		ActiveNode = FWeaponComboNodeConfig();
+		ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
 	}
 }
 
@@ -314,8 +440,12 @@ bool UComboRuntimeComponent::TryActivateAttack(APlayerCharacterBase* PlayerOwner
 
 bool UComboRuntimeComponent::TryActivateWeaponSkill(APlayerCharacterBase* PlayerOwner)
 {
+	// Weapon skill runs on its own graph so it never disturbs the weapon attack/dash
+	// cursor. Fall back to the weapon graph for weapons that ship no dedicated skill graph.
+	UGameplayAbilityComboGraph* SkillGraph = WeaponSkillComboGraph ? WeaponSkillComboGraph : WeaponComboGraph;
+
 	const bool bActivated = TryActivateComboFromGraph(
-		WeaponComboGraph,
+		SkillGraph,
 		EYogComboGraphInputAction::WeaponSkill,
 		ECardRequiredAction::Any,
 		ECombatDeckActionSlot::WeaponSkill,
@@ -397,7 +527,19 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 
 	if (!GetComboStartNodeId().IsNone() && !IsActiveComboAbilityRunning(ASC))
 	{
-		ClearStaleActiveComboState(ASC, TEXT("AttackInput"));
+		if (bSuppressStaleClearOnce)
+		{
+			// Cursor was just restored from a saved context; it is intentionally idle.
+			bSuppressStaleClearOnce = false;
+		}
+		else
+		{
+			ClearStaleActiveComboState(ASC, TEXT("AttackInput"));
+		}
+	}
+	else
+	{
+		bSuppressStaleClearOnce = false;
 	}
 
 	const FName StartNodeId = GetComboStartNodeId();
@@ -476,6 +618,24 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 		}
 	}
 
+	const UClass* TargetClass = AbilityOverride
+		? AbilityOverride.Get()
+		: NextNode->GameplayAbilityClass
+			? NextNode->GameplayAbilityClass.Get()
+			: GetDefaultAbilityForInput(GraphInput, NextNode->AttackType, WeaponSkillAbility).Get();
+
+	// Dash is an interrupt input: it bypasses the combo window and tears down the
+	// in-progress attack (via the DidExitComboState cancel below and the dash GA's
+	// own CancelAbilitiesWithTag on activation). Only commit to that interrupt once
+	// we know the dash ability can actually activate. Otherwise an unavailable dash
+	// (no charge / on cooldown / blocked) would cancel the attack montage with
+	// nothing to replace it.
+	if (bDashInterruptInput && !CanActivateGrantedAbility(ASC, TargetClass))
+	{
+		ClearPreparedComboActivation();
+		return false;
+	}
+
 	ActiveNode = *NextNode;
 
 	if (DidExitComboState())
@@ -490,12 +650,6 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 	{
 		ASC->CancelAbilityHandle(ActiveAbilitySpecHandle);
 	}
-
-	const UClass* TargetClass = AbilityOverride
-		? AbilityOverride.Get()
-		: NextNode->GameplayAbilityClass
-			? NextNode->GameplayAbilityClass.Get()
-			: GetDefaultAbilityForInput(GraphInput, NextNode->AttackType, WeaponSkillAbility).Get();
 
 	bool bActivated = false;
 	int32 CandidateAbilityCount = 0;
@@ -583,6 +737,14 @@ bool UComboRuntimeComponent::TryActivateComboFromGraph(
 
 void UComboRuntimeComponent::ResetCombo()
 {
+	// Reset clears the live (active graph) state, so its preserved cursor is now moot;
+	// drop only that entry and leave other graphs' cursors intact.
+	if (UGameplayAbilityComboGraph* Active = GetComboGraph())
+	{
+		GraphContexts.Remove(Active);
+	}
+	bSuppressStaleClearOnce = false;
+
 	Super::ResetCombo();
 	ActiveNode = FWeaponComboNodeConfig();
 	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
@@ -675,6 +837,7 @@ void UComboRuntimeComponent::ClearStaleActiveComboState(UAbilitySystemComponent*
 	CurrentNodeId = NAME_None;
 	ActiveNode = FWeaponComboNodeConfig();
 	ActiveAbilitySpecHandle = FGameplayAbilitySpecHandle();
+	bSuppressStaleClearOnce = false;
 	ClearPreparedComboActivation();
 
 	if (ASC)

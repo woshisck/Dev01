@@ -315,6 +315,8 @@ void APlayerCharacterBase::ApplyDefaultUnarmedComboGraph()
 		: nullptr;
 	ComboRuntimeComponent->LoadWeaponComboGraph(Graph);
 	ComboRuntimeComponent->LoadSpecialAttackComboGraph(nullptr);
+	ComboRuntimeComponent->LoadWeaponSkillComboGraph(
+		DefaultUnarmedWeaponDef ? DefaultUnarmedWeaponDef->WeaponSkillComboGraph.Get() : nullptr);
 	ComboRuntimeComponent->SetWeaponSkillAbility(nullptr);
 	ComboRuntimeComponent->EnsureWeaponComboAbilitiesGranted(this);
 }
@@ -342,6 +344,7 @@ void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDe
 	}
 
 	ComboRuntimeComponent->LoadSpecialAttackComboGraph(SpecialAttack ? SpecialAttack->Config.ComboGraph.Get() : nullptr);
+	ComboRuntimeComponent->LoadWeaponSkillComboGraph(WeaponDefinition ? WeaponDefinition->WeaponSkillComboGraph.Get() : nullptr);
 	ComboRuntimeComponent->EnsureWeaponComboAbilitiesGranted(this);
 }
 
