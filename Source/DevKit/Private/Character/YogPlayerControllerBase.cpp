@@ -36,7 +36,7 @@
 #include "Component/CombatItemComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
 #include "Component/PlayerSpecialAttackComponent.h"
-#include "Component/ComboRuntimeComponent.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemComponent.h"
 
 #if !UE_BUILD_SHIPPING || DEVKIT_ENABLE_SHIPPING_CHEATS
@@ -437,6 +437,8 @@ void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)
 			Buffer->RecordAttack();
 		}
 
+		UYogAbilitySystemComponent* PlayerASC = Cast<UYogAbilitySystemComponent>(player->GetASC());
+
 		static const FGameplayTag SpecialTag =
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special"), false);
 		if (SpecialTag.IsValid())
@@ -449,9 +451,8 @@ void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)
 						FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
 					if (CanComboTag.IsValid() && ASC->GetTagCount(CanComboTag) > 0)
 					{
-						const bool bActivated = player->ComboRuntimeComponent
-							&& player->ComboRuntimeComponent->HasComboSource()
-							&& player->ComboRuntimeComponent->TryActivateAttack(player);
+						bool bActivated = PlayerASC
+							&& PlayerASC->TryActivateNextAttackComboAbility(true, true);
 						if (bActivated)
 						{
 							if (UBufferComponent* Buffer = player->GetInputBufferComponent())
@@ -470,10 +471,25 @@ void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)
 			}
 		}
 
-		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasComboSource())
+		if (PlayerASC && PlayerASC->IsPlayerActionMontageLocked())
 		{
-			player->ComboRuntimeComponent->TryActivateAttack(player);
 			return;
+		}
+
+		if (PlayerASC)
+		{
+			if (PlayerASC->TryActivateNextAttackComboAbility(true, true))
+			{
+				if (UBufferComponent* Buffer = player->GetInputBufferComponent())
+				{
+					Buffer->ClearBuffer();
+				}
+				return;
+			}
+			if (PlayerASC->HasActiveAttackComboAbilityTag())
+			{
+				return;
+			}
 		}
 
 		FGameplayTagContainer TagContainer;
@@ -492,10 +508,26 @@ void AYogPlayerControllerBase::WeaponSkill(const FInputActionValue& Value)
 			Buffer->RecordWeaponSkill();
 		}
 
-		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasWeaponComboSource())
+		if (UYogAbilitySystemComponent* PlayerASC = Cast<UYogAbilitySystemComponent>(player->GetASC()))
 		{
-			player->ComboRuntimeComponent->TryActivateWeaponSkill(player);
-			return;
+			if (PlayerASC->IsPlayerActionMontageLocked())
+			{
+				return;
+			}
+
+			if (PlayerASC->TryActivateNextWeaponSkillComboAbility(true, true))
+			{
+				if (UBufferComponent* Buffer = player->GetInputBufferComponent())
+				{
+					Buffer->ClearBuffer();
+				}
+				return;
+			}
+
+			if (PlayerASC->HasActiveWeaponSkillComboAbilityTag())
+			{
+				return;
+			}
 		}
 
 		FGameplayTagContainer TagContainer;
@@ -520,11 +552,6 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 			player->SetActorRotation(DashFacing);
 		}
 
-		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->TryActivateDash(player))
-		{
-			return;
-		}
-
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
 		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
@@ -539,6 +566,14 @@ void AYogPlayerControllerBase::Special(const FInputActionValue& Value)
 		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
 		{
 			Buffer->RecordSpecial();
+		}
+
+		if (UYogAbilitySystemComponent* PlayerASC = Cast<UYogAbilitySystemComponent>(player->GetASC()))
+		{
+			if (PlayerASC->IsPlayerActionMontageLocked())
+			{
+				return;
+			}
 		}
 
 		if (player->SpecialAttackComponent && player->SpecialAttackComponent->HasSpecialAttack())

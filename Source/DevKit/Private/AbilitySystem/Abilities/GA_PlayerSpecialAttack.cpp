@@ -1,6 +1,7 @@
 #include "AbilitySystem/Abilities/GA_PlayerSpecialAttack.h"
 
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystem/Abilities/YogAbilityTypes.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
@@ -12,7 +13,6 @@
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/BufferComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 #include "Component/CombatItemComponent.h"
 #include "Component/PlayerSpecialAttackComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -89,21 +89,6 @@ void UGA_PlayerSpecialAttack::ActivateAbility(
 
 	ActiveConfig = SpecialAttackComponent ? SpecialAttackComponent->GetSpecialAttackConfig() : FSpecialAttackConfig();
 	ActiveMontage = ActiveConfig.Montage;
-	if (PlayerOwner->ComboRuntimeComponent)
-	{
-		if (const FWeaponComboNodeConfig* ActiveComboNode = PlayerOwner->ComboRuntimeComponent->GetActiveNode())
-		{
-			if (ActiveComboNode->Montage)
-			{
-				ActiveMontage = ActiveComboNode->Montage;
-			}
-			if (ActiveComboNode->MontageConfig)
-			{
-				ActiveConfig.Montage = ActiveComboNode->MontageConfig->Montage;
-				ActiveMontage = ActiveMontage ? ActiveMontage : ActiveComboNode->MontageConfig->Montage;
-			}
-		}
-	}
 	if (!ActiveMontage)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayerSpecialAttack] Missing montage on special attack owner=%s."), *GetNameSafe(PlayerOwner));
@@ -117,11 +102,6 @@ void UGA_PlayerSpecialAttack::ActivateAbility(
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
-	}
-
-	if (PlayerOwner->ComboRuntimeComponent)
-	{
-		PlayerOwner->ComboRuntimeComponent->ResetCombo();
 	}
 
 	AbilityActivationTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
@@ -229,7 +209,7 @@ void UGA_PlayerSpecialAttack::EndAbility(
 
 void UGA_PlayerSpecialAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount)
 {
-	if (NewCount <= 0 || !PlayerOwner || !PlayerOwner->ComboRuntimeComponent)
+	if (NewCount <= 0 || !PlayerOwner)
 	{
 		return;
 	}
@@ -246,9 +226,11 @@ void UGA_PlayerSpecialAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32
 	}
 
 	Buffer->ClearBuffer();
-	const bool bActivated = PlayerOwner->ComboRuntimeComponent->HasComboSource()
-		&& PlayerOwner->ComboRuntimeComponent->TryActivateAttack(PlayerOwner);
-
+	bool bActivated = false;
+	if (UYogAbilitySystemComponent* PlayerASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo()))
+	{
+		bActivated = PlayerASC->TryActivateNextAttackComboAbility(true, true);
+	}
 	if (bActivated)
 	{
 		EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
@@ -299,19 +281,12 @@ void UGA_PlayerSpecialAttack::CaptureCombatDeckContext()
 		return;
 	}
 
-	if (PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->GetActiveNode())
-	{
-		ActiveCombatDeckContext = PlayerOwner->ComboRuntimeComponent->BuildAttackContext(ECombatCardTriggerTiming::OnHit, PlayerOwner);
-	}
-	else
-	{
-		ActiveCombatDeckContext = FCombatDeckActionContext();
-		ActiveCombatDeckContext.ActionType = ECardRequiredAction::Heavy;
-		ActiveCombatDeckContext.ActionSlot = ECombatDeckActionSlot::WeaponSkill;
-		ActiveCombatDeckContext.FlowRole = ECombatDeckFlowRole::Finisher;
-		ActiveCombatDeckContext.WeaponDef = PlayerOwner->EquippedWeaponDef;
-		ActiveCombatDeckContext.bIsComboFinisher = true;
-	}
+	ActiveCombatDeckContext = FCombatDeckActionContext();
+	ActiveCombatDeckContext.ActionType = ECardRequiredAction::Heavy;
+	ActiveCombatDeckContext.ActionSlot = ECombatDeckActionSlot::WeaponSkill;
+	ActiveCombatDeckContext.FlowRole = ECombatDeckFlowRole::Finisher;
+	ActiveCombatDeckContext.WeaponDef = PlayerOwner->EquippedWeaponDef;
+	ActiveCombatDeckContext.bIsComboFinisher = true;
 
 	ActiveCombatDeckContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	ActiveCombatDeckContext.ReleaseMode = ActiveCombatDeckContext.bIsComboFinisher

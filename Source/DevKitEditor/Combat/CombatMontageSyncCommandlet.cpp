@@ -20,7 +20,7 @@
 
 namespace CombatMontageSync
 {
-	const FString DefaultWeaponPath = TEXT("/Game/Code/Weapon/TwoHandedSword/DA_WPN_THSword");
+	const FString DefaultGraphPath = TEXT("/Game/Docs/Combat/TwoHandedSword/CG_THSword_Test");
 	const FString GeneratedMontageRoot = TEXT("/Game/Code/Weapon/TwoHandedSword/GeneratedMontages");
 	const FName ComboTrackName(TEXT("Combo"));
 
@@ -65,17 +65,6 @@ namespace CombatMontageSync
 	T* LoadAsset(const FString& Path)
 	{
 		return LoadObject<T>(nullptr, *ToObjectPath(Path));
-	}
-
-	UObject* GetObjectPropertyValue(UObject* Owner, const FName PropertyName)
-	{
-		if (!Owner)
-		{
-			return nullptr;
-		}
-
-		const FObjectPropertyBase* Property = FindFProperty<FObjectPropertyBase>(Owner->GetClass(), PropertyName);
-		return Property ? Property->GetObjectPropertyValue_InContainer(Owner) : nullptr;
 	}
 
 	bool SameWindow(const FWindowSpec& A, const FWindowSpec& B)
@@ -155,6 +144,91 @@ namespace CombatMontageSync
 		return Result;
 	}
 
+	ECombatCardTriggerTiming TriggerTimingTagToEnum(const FGameplayTag& Tag)
+	{
+		if (Tag.IsValid() && Tag.GetTagName() == TEXT("Combo.TriggerTiming.OnHit"))
+		{
+			return ECombatCardTriggerTiming::OnHit;
+		}
+		return ECombatCardTriggerTiming::OnCommit;
+	}
+
+	ECombatDeckActionSlot ActionSlotTagToEnum(const FGameplayTag& Tag, ECombatDeckActionSlot DefaultActionSlot)
+	{
+		if (!Tag.IsValid())
+		{
+			return DefaultActionSlot;
+		}
+
+		const FName TagName = Tag.GetTagName();
+		if (TagName == TEXT("Combo.CombatDeck.ActionSlot.Attack"))
+		{
+			return ECombatDeckActionSlot::Attack;
+		}
+		if (TagName == TEXT("Combo.CombatDeck.ActionSlot.Skill"))
+		{
+			return ECombatDeckActionSlot::Skill;
+		}
+		if (TagName == TEXT("Combo.CombatDeck.ActionSlot.WeaponSkill"))
+		{
+			return ECombatDeckActionSlot::WeaponSkill;
+		}
+		if (TagName == TEXT("Combo.CombatDeck.ActionSlot.Dash"))
+		{
+			return ECombatDeckActionSlot::Dash;
+		}
+		return DefaultActionSlot;
+	}
+
+	ECombatDeckFlowRole FlowRoleTagToEnum(const FGameplayTag& Tag, ECombatDeckFlowRole DefaultFlowRole)
+	{
+		if (!Tag.IsValid())
+		{
+			return DefaultFlowRole;
+		}
+
+		const FName TagName = Tag.GetTagName();
+		if (TagName == TEXT("Combo.CombatDeck.FlowRole.Starter"))
+		{
+			return ECombatDeckFlowRole::Starter;
+		}
+		if (TagName == TEXT("Combo.CombatDeck.FlowRole.Catalyst"))
+		{
+			return ECombatDeckFlowRole::Catalyst;
+		}
+		if (TagName == TEXT("Combo.CombatDeck.FlowRole.Finisher"))
+		{
+			return ECombatDeckFlowRole::Finisher;
+		}
+		return DefaultFlowRole;
+	}
+
+	FWeaponComboNodeConfig MakeNodeConfigFromComboGraphNode(const UGameplayAbilityComboGraphNode* Node, ECardRequiredAction InputAction)
+	{
+		FWeaponComboNodeConfig Config;
+		if (!Node)
+		{
+			return Config;
+		}
+
+		Config.NodeId = !Node->NodeId.IsNone() ? Node->NodeId : FName(*Node->GetName());
+		Config.InputAction = InputAction;
+		Config.GameplayAbilityClass = Node->GameplayAbilityClass;
+		Config.AbilityTag = Node->AbilityTag;
+		Config.Montage = Node->Montage;
+		Config.CombatDeckActionSlot = ActionSlotTagToEnum(Node->CombatDeckActionSlotTag, ECombatDeckActionSlot::Attack);
+		Config.CombatDeckFlowRole = FlowRoleTagToEnum(
+			Node->CombatDeckFlowRoleTag,
+			Node->bIsComboFinisher ? ECombatDeckFlowRole::Finisher : ECombatDeckFlowRole::Starter);
+		Config.bIsComboFinisher = Node->bIsComboFinisher || Config.CombatDeckFlowRole == ECombatDeckFlowRole::Finisher;
+		Config.bOverrideComboWindow = Node->bUseNodeComboWindow;
+		Config.ComboWindowStartFrame = Node->ComboWindowStartFrame;
+		Config.ComboWindowEndFrame = Node->ComboWindowEndFrame;
+		Config.ComboWindowTotalFrames = Node->TotalFrames > 0 ? Node->TotalFrames : 30;
+		Config.CardTriggerTiming = TriggerTimingTagToEnum(Node->TriggerTimingTag);
+		return Config;
+	}
+
 	void AddRequest(TMap<TObjectPtr<UAnimMontage>, FMontageRequest>& Requests, const FWeaponComboNodeConfig& Node)
 	{
 		const UMontageConfigDA* MontageConfig = Node.MontageConfig;
@@ -207,11 +281,7 @@ namespace CombatMontageSync
 				continue;
 			}
 
-			FWeaponComboNodeConfig Config = FWeaponComboNodeConfig::FromComboGraphNode(Node, ECardRequiredAction::Any);
-			Config.bOverrideComboWindow = Node->bUseNodeComboWindow;
-			Config.ComboWindowStartFrame = Node->ComboWindowStartFrame;
-			Config.ComboWindowEndFrame = Node->ComboWindowEndFrame;
-			Config.ComboWindowTotalFrames = Node->TotalFrames;
+			FWeaponComboNodeConfig Config = MakeNodeConfigFromComboGraphNode(Node, ECardRequiredAction::Any);
 			AddRequest(Requests, Config);
 		}
 	}
@@ -361,27 +431,27 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 	using namespace CombatMontageSync;
 
 	const bool bApply = FParse::Param(*Params, TEXT("Apply"));
-	FString WeaponPath;
-	if (!FParse::Value(*Params, TEXT("Weapon="), WeaponPath))
+	FString GraphPath;
+	if (!FParse::Value(*Params, TEXT("Graph="), GraphPath))
 	{
-		WeaponPath = DefaultWeaponPath;
+		GraphPath = DefaultGraphPath;
 	}
 
-	UObject* Weapon = LoadAsset<UObject>(WeaponPath);
-	if (!Weapon)
+	UGameplayAbilityComboGraph* Graph = LoadAsset<UGameplayAbilityComboGraph>(GraphPath);
+	if (!Graph)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[CombatMontageSync] Failed to load weapon: %s"), *WeaponPath);
+		UE_LOG(LogTemp, Error, TEXT("[CombatMontageSync] Failed to load combo graph: %s"), *GraphPath);
 		return 1;
 	}
 
 	TMap<TObjectPtr<UAnimMontage>, FMontageRequest> Requests;
-	GatherFromGraph(Cast<UGameplayAbilityComboGraph>(GetObjectPropertyValue(Weapon, TEXT("GameplayAbilityComboGraph"))), Requests);
+	GatherFromGraph(Graph, Requests);
 
 	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
 	TArray<UPackage*> PackagesToSave;
 	TArray<FString> ReportLines;
 	ReportLines.Add(TEXT("# Combat Montage Sync Report"));
-	ReportLines.Add(FString::Printf(TEXT("- Weapon: `%s`"), *WeaponPath));
+	ReportLines.Add(FString::Printf(TEXT("- Graph: `%s`"), *GraphPath));
 	ReportLines.Add(FString::Printf(TEXT("- Apply: `%s`"), bApply ? TEXT("true") : TEXT("false")));
 	ReportLines.Add(TEXT(""));
 
@@ -441,7 +511,7 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 	if (bApply && bHadWritableCopy)
 	{
 		Requests.Empty();
-		GatherFromGraph(Cast<UGameplayAbilityComboGraph>(GetObjectPropertyValue(Weapon, TEXT("GameplayAbilityComboGraph"))), Requests);
+		GatherFromGraph(Graph, Requests);
 	}
 
 	ReportLines.Add(TEXT("## Conflict Fixes"));

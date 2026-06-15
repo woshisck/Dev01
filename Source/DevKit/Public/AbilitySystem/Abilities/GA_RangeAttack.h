@@ -8,7 +8,7 @@
  * Stub远程攻击 GA。
  * 与 UGA_MeleeAttack 平级（同样继承自 UYogGameplayAbility）。
  *
- * 目前仅作为占位，使 ComboGraph 节点可以通过 AttackType 选择
+ * 目前仅作为占位，使武器类型/能力标签可以选择远程攻击路径
  * 触发近战 / 远程 GA。后续实现弹道、HitScan 或抛物线类技能时再补全。
  */
 UCLASS(BlueprintType, Blueprintable)

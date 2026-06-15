@@ -4,7 +4,9 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 ## Current Direction
 
-- Pending input naming change: rename input actions `lightattack`, `heavyattack`, and `dash` to `Attack`, `WeaponSkill`, and `dash`.
+- Player combat input is now four independent actions: Attack, Dash, WeaponSkill, and Special.
+- Attack and WeaponSkill combos use explicit ability tags (`PlayerState.AbilityCast.Attack.Combo1-4` and `PlayerState.AbilityCast.WeaponSkill.Combo1-4`) plus AbilityData montage maps.
+- ComboGraph is no longer part of the player runtime combat path. Keep old graph fields/classes only as asset-load compatibility until legacy assets are migrated and resaved.
 
 ## Attack / WeaponSkill Refactor Follow-ups
 
@@ -14,27 +16,29 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 - Asset migration/resave was not done. Existing input assets, combo graph assets, Blueprint GA assets, and UI data may still need editor-side validation after the C++ rename.
 - Some compatibility names/tags were intentionally left in code/config, including deprecated controller input fallbacks, legacy `LightAtk`/`HeavyAtk` gameplay tags, `SpecialAttack` compatibility tags, and `ComboSpecialActionAbility` wrapper redirects.
 - The old `Character/InputBufferComponent` legacy component still has `LightAttack`/`HeavyAttack` enum names; live player code uses `Component/BufferComponent`, but the old component was not removed.
-- `UGA_RangeAttack` remains a stub; combo graph routing can activate it for ranged attack nodes, but the projectile/hitscan implementation is still pending.
-- DevKit-only per-node fields such as `MontageConfig`, `AttackDataOverride`, and `NodeAttackConfig` were not exposed directly on `YogComboGraph` nodes because the plugin currently cannot depend on the `DevKit` module without creating a module-boundary problem.
+- `UGA_RangeAttack` remains a stub; projectile/hitscan implementation is still pending.
+- DevKit-only ComboGraph node fields are deprecated for player runtime combat. Prefer AbilityData montage rows and montage notifies for combo windows.
 
 ## Initial Data Assets
 
-- `DA_Base_AbilitySet_Initial` (`/Game/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial`): base `UGASTemplate` loaded by every character at `BeginPlay` via `YogCharacterBase`. Contains shared reactive GAs (`GA_Dead`, `GA_HitReaction`, `GA_Knockback`, etc.). Do **not** put weapon combat GAs here (`GA_MeleeAttack`, `GA_RangeAttack`, `GA_WeaponSkill`) — those are lazily granted by `ComboRuntimeComponent::EnsureAbilityGranted` when a combo node first fires.
+- Weapon combat AbilityData is merged onto runtime `CharacterData->AbilityData` in `APlayerCharacterBase::ApplyAbilityDataFromWeapon`. `WeaponDefinition.AttackAbilityData` owns attack + dash rows, `WeaponDefinition.WeaponSkillAbilityData` owns weapon skill rows, and `WeaponDefinition.SpecialAbilityData` owns special rows. The legacy `WeaponDefinition.AbilityData` field is only a compatibility bucket.
+
+- `DA_Base_AbilitySet_Initial` (`/Game/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial`): base `UGASTemplate` loaded by every character at `BeginPlay` via `YogCharacterBase`. Contains shared reactive GAs (`GA_Dead`, `GA_HitReaction`, `GA_Knockback`, etc.). Do **not** put weapon combat montage-routing GAs here; keep player combat grants on the player combat ability set.
 - `CharacterData` GAS template (`UGASTemplate::AbilityMap`): per-character ability grants applied during `InitializeComponentsWithStats`. Logged as `"Grant ability from GAS Template: <name>"` in the output log. Same rule: no weapon combat GAs here.
-- `DefaultUnarmedWeaponDef` (`APlayerCharacterBase::DefaultUnarmedWeaponDef`): a `UWeaponDefinition` asset assigned in the player character Blueprint. Auto-equipped at `BeginPlay` if `EquippedWeaponDef` is still null after all init (i.e. no weapon loaded from save). Replaces the old `DefaultUnarmedComboGraph` field for the unarmed default state — set `DefaultUnarmedWeaponDef` on the BP, not the raw combo graph, so the full weapon path (combo graph + deck + special attack + weapon type tag) is initialized consistently.
-- `DA_DefaultCombatAbility` (`UYogAbilitySet'/Game/Docs/GlobalSet/CharacterBaseSet/DA_DefaultCombatAbility.DA_DefaultCombatAbility'`): player-only `UYogAbilitySet` assigned to `APlayerCharacterBase::DefaultCombatAbilitySet`. Granted once at `BeginPlay` (after `Super::BeginPlay`). Contains the five combo-graph-driving abilities: `GA_MeleeAttack`, `GA_RangeAttack`, `GA_WeaponSkill`, `GA_PlayerDash`, `GA_Special`. These are weapon-agnostic — the combo graph only controls which montage each plays. Do **not** grant or revoke these per weapon switch; they live for the entire play session.
+- `DefaultUnarmedWeaponDef` (`APlayerCharacterBase::DefaultUnarmedWeaponDef`): a `UWeaponDefinition` asset assigned in the player character Blueprint. Auto-equipped at `BeginPlay` if `EquippedWeaponDef` is still null after all init (i.e. no weapon loaded from save). Set `DefaultUnarmedWeaponDef` on the BP so the full weapon path (ability data + deck + special attack + weapon type tag) is initialized consistently.
+- `DA_DefaultCombatAbility` (`UYogAbilitySet'/Game/Docs/GlobalSet/CharacterBaseSet/DA_DefaultCombatAbility.DA_DefaultCombatAbility'`): player-only `UYogAbilitySet` assigned to `APlayerCharacterBase::DefaultCombatAbilitySet`. Granted once at `BeginPlay` (after `Super::BeginPlay`). These abilities are weapon-agnostic; the equipped weapon's AbilityData controls which montage each action plays. Do **not** grant or revoke these per weapon switch; they live for the entire play session.
 
 ## Combat Architecture
 
-- Normal melee attacks use `ComboRuntimeComponent` and weapon combo graphs.
-- Weapon combo graph assets/configs are selected from `WeaponDefinition`.
+- Normal melee attacks use GAS ability tags and AbilityData montage maps.
+- Weapon AbilityData assets are selected from `WeaponDefinition`.
 - Player input routing starts in `YogPlayerControllerBase`.
 - GAS abilities, gameplay tags, montage notifies, and data assets are all part of combat behavior; inspect all relevant pieces before changing a flow.
 - Combat cards and runes use `CombatDeckComponent`, `RuneDataAsset`, and BuffFlow assets.
 - Active skills use `PlayerActiveSkillComponent` and `ActiveSkillDataAsset`; prefer reusing this shape for weapon skills when practical.
-- Heavy attack routes through `PlayerSpecialAttackComponent` when a complete `SpecialAttackDataAsset` is equipped; normal heavy combo is only the fallback with no equipped special attack.
-- Special attack montages can reuse `AN_MeleeDamage` with `GameplayEffect.DamageType.GeneralAttack`; `UGA_PlayerSpecialAttack` listens to that by default and applies the normal melee damage path without advancing the weapon combo graph.
-- To connect a special attack into the normal light combo before it finishes, add a montage combo window that grants `PlayerState.AbilityCast.CanCombo`; `UGA_PlayerSpecialAttack` consumes buffered light input during that window and starts the weapon combo graph light root.
+- WeaponSkill input is independent from Attack, Dash, and Special. The old heavy attack input path is now the WeaponSkill path.
+- Special attack montages can reuse `AN_MeleeDamage` with `GameplayEffect.DamageType.GeneralAttack`; `UGA_PlayerSpecialAttack` listens to that by default and applies the normal melee damage path.
+- To chain from an action montage into the next attack or weapon skill combo, add a montage combo window that grants `PlayerState.AbilityCast.CanCombo`; input routing only allows action montage interruption during that tag window.
 
 ## Future Cleanup Markers
 

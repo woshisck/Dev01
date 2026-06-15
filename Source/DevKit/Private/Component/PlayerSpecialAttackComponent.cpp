@@ -2,7 +2,6 @@
 
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Character/PlayerCharacterBase.h"
-#include "Component/ComboRuntimeComponent.h"
 
 UPlayerSpecialAttackComponent::UPlayerSpecialAttackComponent()
 {
@@ -37,20 +36,13 @@ void UPlayerSpecialAttackComponent::SetSpecialAttack(USpecialAttackDataAsset* In
 	SpecialAttackAsset = InSpecialAttack;
 	RuntimeConfig = InSpecialAttack ? InSpecialAttack->Config : FSpecialAttackConfig();
 	CooldownRemaining = 0.0f;
-	if (APlayerCharacterBase* PlayerOwner = GetPlayerOwner())
-	{
-		if (PlayerOwner->ComboRuntimeComponent)
-		{
-			PlayerOwner->ComboRuntimeComponent->LoadSpecialAttackComboGraph(RuntimeConfig.ComboGraph.Get());
-		}
-	}
 	GrantSpecialAttackAbility();
 	BroadcastSpecialAttackChanged();
 }
 
 bool UPlayerSpecialAttackComponent::HasSpecialAttack() const
 {
-	return SpecialAttackAsset && RuntimeConfig.AbilityClass && (RuntimeConfig.Montage || RuntimeConfig.ComboGraph);
+	return SpecialAttackAsset && RuntimeConfig.AbilityClass && RuntimeConfig.Montage;
 }
 
 bool UPlayerSpecialAttackComponent::UseSpecialAttack()
@@ -71,6 +63,12 @@ bool UPlayerSpecialAttackComponent::UseSpecialAttack()
 	if (!ASC)
 	{
 		OnSpecialAttackUseFailed.Broadcast(FText::FromString(TEXT("Missing ability system")));
+		return false;
+	}
+
+	if (ASC->IsPlayerActionMontageLocked())
+	{
+		OnSpecialAttackUseFailed.Broadcast(FText::FromString(TEXT("Special attack locked until combo window")));
 		return false;
 	}
 

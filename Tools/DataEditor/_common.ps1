@@ -10,6 +10,7 @@ if ($env:UE_EDITOR_CMD) {
     $EditorCmdCandidates += $env:UE_EDITOR_CMD
 }
 $EditorCmdCandidates += @(
+    "D:/Code/UE_Engine/UE_5.4/Engine/Binaries/Win64/UnrealEditor-Cmd.exe",
     "Z:/GZA_Software/RealityCapture/UE_5.4/Engine/Binaries/Win64/UnrealEditor-Cmd.exe",
     "D:/UE/UE_5.4/Engine/Binaries/Win64/UnrealEditor-Cmd.exe"
 )

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/RuneDataAsset.h"
 #include "GameplayTagContainer.h"
@@ -9,7 +8,6 @@
 
 class UAnimMontage;
 class UGameplayAbility;
-class UGameplayAbilityComboGraphNode;
 class UMontageConfigDA;
 
 USTRUCT(BlueprintType)
@@ -31,9 +29,6 @@ struct DEVKIT_API FWeaponComboNodeConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
 	ECombatDeckFlowRole CombatDeckFlowRole = ECombatDeckFlowRole::Starter;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
-	EYogComboGraphAttackType AttackType = EYogComboGraphAttackType::Melee;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
 	TSubclassOf<UGameplayAbility> GameplayAbilityClass;
@@ -70,10 +65,4 @@ struct DEVKIT_API FWeaponComboNodeConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card")
 	ECombatCardTriggerTiming CardTriggerTiming = ECombatCardTriggerTiming::OnCommit;
-
-	static FWeaponComboNodeConfig FromComboGraphNode(
-		const UGameplayAbilityComboGraphNode* Node,
-		ECardRequiredAction InputAction,
-		ECombatDeckActionSlot DefaultActionSlot = ECombatDeckActionSlot::Attack,
-		ECombatDeckFlowRole DefaultFlowRole = ECombatDeckFlowRole::Starter);
 };

@@ -14,9 +14,10 @@
 #include "Character/YogCharacterBase.h"
 #include "Component/BufferComponent.h"
 #include "Component/CombatItemComponent.h"
-#include "Component/ComboRuntimeComponent.h"
+#include "Component/CharacterDataComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Data/GameplayAbilityComboGraph.h"
+#include "Data/AbilityData.h"
+#include "Data/CharacterData.h"
 #include "Data/MontageConfigDA.h"
 #include "Engine/World.h"
 
@@ -39,15 +40,6 @@ namespace
 				}
 			}
 		}
-	}
-
-	float FrameToMontageTime(int32 Frame, int32 TotalFrames, const UAnimMontage* Montage)
-	{
-		const float Duration = Montage ? Montage->GetPlayLength() : 0.f;
-		const float Normalized = TotalFrames > 0
-			? FMath::Clamp(static_cast<float>(Frame) / static_cast<float>(TotalFrames), 0.f, 1.f)
-			: 0.f;
-		return Normalized * Duration;
 	}
 
 	UAN_MeleeDamage* FindFirstDamageNotify(UAnimMontage* Montage)
@@ -87,12 +79,6 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		ActivePlayMontageTask = nullptr;
 	}
 
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ComboWindowOpenHandle);
-		World->GetTimerManager().ClearTimer(ComboWindowCloseHandle);
-	}
-
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		return;
@@ -100,30 +86,49 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
-	APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner);
-	UComboRuntimeComponent* ComboRuntime = PlayerOwner ? PlayerOwner->ComboRuntimeComponent.Get() : nullptr;
-	const FWeaponComboNodeConfig* ActiveComboNode = ComboRuntime ? ComboRuntime->GetActiveNode() : nullptr;
 
 	UAnimMontage* MontageToPlay = nullptr;
-	if (ActiveComboNode)
+	FGameplayTag AbilityDataTag;
 	{
-		MontageToPlay = ActiveComboNode->Montage;
-		if (!MontageToPlay && ActiveComboNode->MontageConfig)
+		static const FGameplayTag PreferredAbilityTags[] = {
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo1"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo2"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo3"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo4"), false),
+		};
+		for (const FGameplayTag& PreferredTag : PreferredAbilityTags)
 		{
-			MontageToPlay = ActiveComboNode->MontageConfig->Montage;
+			if (PreferredTag.IsValid() && AbilityTags.HasTagExact(PreferredTag))
+			{
+				AbilityDataTag = PreferredTag;
+				break;
+			}
 		}
-	}
+		if (!AbilityDataTag.IsValid())
+		{
+			for (const FGameplayTag& Tag : AbilityTags)
+			{
+				AbilityDataTag = Tag;
+				break;
+			}
+		}
 
-	if (!ComboRuntime || !ActiveComboNode)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayMontage] No active combo node on owner=%s."), *GetNameSafe(Owner));
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
+		UCharacterDataComponent* CDC = Owner ? Owner->GetCharacterDataComponent() : nullptr;
+		UCharacterData* CharacterData = CDC ? CDC->GetCharacterData() : nullptr;
+		MontageToPlay = (CharacterData && CharacterData->AbilityData && AbilityDataTag.IsValid())
+			? CharacterData->AbilityData->GetMontage(AbilityDataTag)
+			: nullptr;
 	}
 
 	if (!MontageToPlay)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayMontage] Active combo node has no Montage on owner=%s."), *GetNameSafe(Owner));
+		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayMontage] No AbilityData montage on owner=%s Tag=%s."),
+			*GetNameSafe(Owner),
+			AbilityDataTag.IsValid() ? *AbilityDataTag.ToString() : TEXT("(none)"));
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
@@ -188,28 +193,12 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	ActivePlayMontageTask = PlayMontageTask;
 	PlayMontageTask->ReadyForActivation();
 
-	if (ActiveComboNode && ActiveComboNode->bOverrideComboWindow && ActiveComboNode->ComboWindowTotalFrames > 0)
-	{
-		const float StartTime = FrameToMontageTime(ActiveComboNode->ComboWindowStartFrame, ActiveComboNode->ComboWindowTotalFrames, MontageToPlay);
-		const float EndTime = FrameToMontageTime(ActiveComboNode->ComboWindowEndFrame, ActiveComboNode->ComboWindowTotalFrames, MontageToPlay);
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().SetTimer(ComboWindowOpenHandle, this, &UGA_PlayMontage::OnComboWindowOpen, FMath::Max(StartTime, 0.01f), false);
-			World->GetTimerManager().SetTimer(ComboWindowCloseHandle, this, &UGA_PlayMontage::OnComboWindowClose, FMath::Max(EndTime, 0.01f), false);
-		}
-	}
-
 }
 
 void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	ActivePlayMontageTask = nullptr;
 
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ComboWindowOpenHandle);
-		World->GetTimerManager().ClearTimer(ComboWindowCloseHandle);
-	}
 	ActiveMontage = nullptr;
 
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
@@ -240,37 +229,22 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 
 void UGA_PlayMontage::OnMontageCompleted()
 {
-	ResetComboToRoot();
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageBlendOut()
 {
-	ResetComboToRoot();
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageInterrupted()
 {
-	ResetComboToRoot();
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageCancelled()
 {
-	ResetComboToRoot();
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, true);
-}
-
-void UGA_PlayMontage::ResetComboToRoot()
-{
-	if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
-	{
-		if (PlayerOwner->ComboRuntimeComponent)
-		{
-			PlayerOwner->ComboRuntimeComponent->ResetCombo();
-		}
-	}
 }
 
 void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEventData& EventData)
@@ -374,22 +348,6 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 	}
 }
 
-void UGA_PlayMontage::OnComboWindowOpen()
-{
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{
-		ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")));
-	}
-}
-
-void UGA_PlayMontage::OnComboWindowClose()
-{
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{
-		ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")), 0);
-	}
-}
-
 void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount)
 {
 	if (NewCount <= 0)
@@ -417,23 +375,18 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	{
 		Buffer->ClearBuffer();
 		bool bActivated = false;
-		bool bHasComboSource = false;
-		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
+		if (ASC && (BufferedActionType == EInputCommandType::Attack || BufferedActionType == EInputCommandType::WeaponSkill))
 		{
-			bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
-			if (bHasComboSource)
+			const bool bHasActiveComboTag = BufferedActionType == EInputCommandType::Attack
+				? ASC->HasActiveAttackComboAbilityTag()
+				: ASC->HasActiveWeaponSkillComboAbilityTag();
+			bActivated = BufferedActionType == EInputCommandType::Attack
+				? ASC->TryActivateNextAttackComboAbility(true, true)
+				: ASC->TryActivateNextWeaponSkillComboAbility(true, true);
+			if (!bActivated && bHasActiveComboTag)
 			{
-				switch (BufferedActionType)
-				{
-				case EInputCommandType::Attack:
-					bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateAttack(PlayerOwner);
-					break;
-				case EInputCommandType::Dash:
-					bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateDash(PlayerOwner);
-					break;
-				default:
-					break;
-				}
+				ASC->SetLooseGameplayTagCount(CanComboTag, 0);
+				return;
 			}
 		}
 		if (!bActivated)

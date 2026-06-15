@@ -6,7 +6,6 @@
 #include "Component/CombatDeckComponent.h"
 #include "Data/EnemyData.h"
 #include "Data/RuneDataAsset.h"
-#include "Data/WeaponComboNodeConfig.h"
 #include "GA_MeleeAttack.generated.h"
 
 class UMontageConfigDA;
@@ -109,9 +108,6 @@ private:
 	TObjectPtr<UMontageConfigDA> ActiveMontageConfig;
 
 	UPROPERTY()
-	FWeaponComboNodeConfig ActiveComboNode;
-
-	UPROPERTY()
 	TObjectPtr<UMontageAttackDataAsset> ActiveComboAttackData;
 
 	UPROPERTY()
@@ -132,7 +128,6 @@ private:
 	bool bCombatDeckCardResolvedThisActivation = false;
 	bool bCombatDeckFromDashSave = false;
 	bool bNextActivationFromDashSave = false;
-	bool bActiveComboNodeValid = false;
 	bool bActiveComboAttackConfigValid = false;
 	bool bComboContinued = true;
 	bool bExitedComboState = false;
@@ -142,8 +137,6 @@ private:
 	float LocalPreStatBeforeAttackPower = 0.f;
 	float LocalStatBeforeAttackDelta = 0.f;
 	float LocalStatBeforeAttackPowerDelta = 0.f;
-	FTimerHandle ComboWindowOpenTimerHandle;
-	FTimerHandle ComboWindowCloseTimerHandle;
 	FDelegateHandle CanComboTagHandle;
 	float AbilityActivationTime = 0.f;
 
@@ -159,10 +152,7 @@ private:
 	/** Finds the first AN_MeleeDamage notify on the selected montage. */
 	static UAN_MeleeDamage* GetFirstDamageNotify(UAnimMontage* Montage);
 
-	void ScheduleNodeComboWindow(UAnimMontage* Montage, float PlayRate);
 	void TryStartEnemyRadialLunge();
-	void OpenNodeComboWindow();
-	void CloseNodeComboWindow();
 
 	AActor* PreviewFirstCombatDeckHitTarget(const FGameplayEventData& EventData) const;
 	void PrimeCombatDeckHitContext(const FGameplayEventData& EventData);

@@ -1,8 +1,8 @@
 #include "BuffFlow/Nodes/YogFlowNodes.h"
 
 #include "BuffFlow/BuffFlowComponent.h"
-#include "Character/PlayerCharacterBase.h"
-#include "Component/ComboRuntimeComponent.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 
 namespace
 {
@@ -18,6 +18,58 @@ namespace
 	const TCHAR* SpawnCategory = TEXT("Task|Spawn");
 	const TCHAR* ConditionCategory = TEXT("Condition");
 	const TCHAR* PresentationCategory = TEXT("Presentation");
+
+	int32 ResolvePlayerComboIndexFromTags(const AActor* Owner)
+	{
+		const UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
+		if (!ASC)
+		{
+			return 1;
+		}
+
+		static const FName ComboTagNames[] = {
+			TEXT("PlayerState.AbilityCast.Attack.Combo4"),
+			TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"),
+			TEXT("PlayerState.AbilityCast.Special.Combo4"),
+			TEXT("PlayerState.AbilityCast.Dash.Combo4"),
+			TEXT("PlayerState.AbilityCast.Attack.Combo3"),
+			TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"),
+			TEXT("PlayerState.AbilityCast.Special.Combo3"),
+			TEXT("PlayerState.AbilityCast.Dash.Combo3"),
+			TEXT("PlayerState.AbilityCast.Attack.Combo2"),
+			TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"),
+			TEXT("PlayerState.AbilityCast.Special.Combo2"),
+			TEXT("PlayerState.AbilityCast.Dash.Combo2"),
+			TEXT("PlayerState.AbilityCast.Attack.Combo1"),
+			TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"),
+			TEXT("PlayerState.AbilityCast.Special.Combo1"),
+			TEXT("PlayerState.AbilityCast.Dash.Combo1"),
+		};
+
+		for (const FName& TagName : ComboTagNames)
+		{
+			const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+			if (Tag.IsValid() && ASC->HasMatchingGameplayTag(Tag))
+			{
+				const FString TagText = Tag.ToString();
+				if (TagText.EndsWith(TEXT(".Combo4")))
+				{
+					return 4;
+				}
+				if (TagText.EndsWith(TEXT(".Combo3")))
+				{
+					return 3;
+				}
+				if (TagText.EndsWith(TEXT(".Combo2")))
+				{
+					return 2;
+				}
+				return 1;
+			}
+		}
+
+		return 1;
+	}
 }
 
 UYogFlowNode_SkillPass::UYogFlowNode_SkillPass(const FObjectInitializer& ObjectInitializer)
@@ -442,14 +494,7 @@ FFlowDataPinResult_Int UBFNode_Pure_ComboIndex::TrySupplyDataPinAsInt_Implementa
 {
 	if (PinName == FName("ComboIndex"))
 	{
-		if (APlayerCharacterBase* PC = Cast<APlayerCharacterBase>(GetBuffOwner()))
-		{
-			if (PC->ComboRuntimeComponent)
-			{
-				return FFlowDataPinResult_Int(PC->ComboRuntimeComponent->GetComboIndex());
-			}
-		}
-		return FFlowDataPinResult_Int(1);
+		return FFlowDataPinResult_Int(ResolvePlayerComboIndexFromTags(GetBuffOwner()));
 	}
 	return FFlowDataPinResult_Int();
 }

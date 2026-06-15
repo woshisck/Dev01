@@ -27,7 +27,6 @@
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
-#include "Data/GameplayAbilityComboGraph.h"
 #include "Data/RuneCardEffectProfileDA.h"
 #include "Data/RuneDataAsset.h"
 #include "EdGraph/EdGraph.h"
@@ -93,7 +92,6 @@ namespace Rune512Batch
 	const FString ProductionTHSwordWeapon = TEXT("/Game/Code/Weapon/TwoHandedSword/DA_WPN_THSword");
 	const FString ProductionRedSwordWeapon = TEXT("/Game/Code/Weapon/GreatSword/DA_WPN_RedSword");
 	const FString ProductionHarquebusWeapon = TEXT("/Game/Code/Weapon/Harquebus/DA_WPN_Harquebus");
-	const FString THSwordComboGraph = TEXT("/Game/Docs/Combat/TwoHandedSword/CG_THSword_Test");
 	const FString MusketBulletBlueprintPath = TEXT("/Game/Code/Weapon/BP_MusketBullet");
 	const FString DamageBasicSetByCallerPath = TEXT("/Game/Code/GAS/GameplayEffects/GE_Damage_Basic_SetByCaller");
 	const FString HeavyBonusDamageEffectPath = TEXT("/Game/Code/GAS/Abilities/Finisher/GE_FinisherDamage");
@@ -3818,59 +3816,11 @@ namespace Rune512Batch
 		ReportLines.Add(TEXT("- Configured `FA_Rune512_Splash_Base`: OnDamageDealt -> MathFloat(*0.2) -> ApplyGEInRadius radius=300, exclude main target."));
 	}
 
-	void ConfigureProductionWeaponComboAssets(
+	void ConfigureProductionWeaponCombatAssets(
 		bool bDryRun,
 		TArray<FString>& ReportLines,
 		TArray<UPackage*>& DirtyPackages)
 	{
-		ReportLines.Add(TEXT("## Production weapon combo config"));
-
-		UGameplayAbilityComboGraph* ComboGraph = LoadAssetByPackagePath<UGameplayAbilityComboGraph>(THSwordComboGraph);
-		if (!ComboGraph)
-		{
-			ReportLines.Add(FString::Printf(TEXT("- Missing combo graph `%s`; weapon DA was not changed."), *THSwordComboGraph));
-			return;
-		}
-
-		const TArray<FString> WeaponPaths = {
-			ProductionTHSwordWeapon,
-			ProductionRedSwordWeapon
-		};
-
-		for (const FString& WeaponPath : WeaponPaths)
-		{
-			UObject* Weapon = LoadAssetByPackagePath<UObject>(WeaponPath);
-			if (!Weapon)
-			{
-				ReportLines.Add(FString::Printf(TEXT("- Missing weapon DA `%s`."), *WeaponPath));
-				continue;
-			}
-
-			ReportLines.Add(FString::Printf(
-				TEXT("- %s `%s` -> GameplayAbilityComboGraph `%s`."),
-				bDryRun ? TEXT("Would assign") : TEXT("Assigned"),
-				*WeaponPath,
-				*THSwordComboGraph));
-
-			if (bDryRun)
-			{
-				continue;
-			}
-
-			Weapon->Modify();
-			if (FObjectPropertyBase* ComboGraphProperty = FindFProperty<FObjectPropertyBase>(Weapon->GetClass(), TEXT("GameplayAbilityComboGraph")))
-			{
-				ComboGraphProperty->SetObjectPropertyValue_InContainer(Weapon, ComboGraph);
-			}
-			else
-			{
-				ReportLines.Add(FString::Printf(TEXT("- `%s` has no GameplayAbilityComboGraph property."), *WeaponPath));
-			}
-
-			Weapon->MarkPackageDirty();
-			DirtyPackages.AddUnique(Weapon->GetPackage());
-		}
-
 		ReportLines.Add(TEXT("## Production weapon combat card pool config"));
 		URuneDataAsset* SplashCard = LoadAssetByPackagePath<URuneDataAsset>(GeneratedRoot + TEXT("/DA_Rune512_Splash"));
 		URuneDataAsset* SplitCard = LoadAssetByPackagePath<URuneDataAsset>(GeneratedRoot + TEXT("/DA_Rune512_Split"));
@@ -4309,7 +4259,7 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 		ReportLines.Add(TEXT(""));
 	}
 
-	ConfigureProductionWeaponComboAssets(bDryRun, ReportLines, DirtyPackages);
+	ConfigureProductionWeaponCombatAssets(bDryRun, ReportLines, DirtyPackages);
 	ReportLines.Add(TEXT(""));
 
 	ReportLines.Add(TEXT("## Generic Rune status card integration"));

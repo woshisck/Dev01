@@ -6,6 +6,7 @@
 #include "AbilitySystem/Abilities/YogAbilitySet.h"
 #include "Animation/YogAnimInstance.h"
 #include "Component/BackpackGridComponent.h"
+#include "Data/AbilityData.h"
 #include "GameplayTagContainer.h"
 #include "Item/Weapon/WeaponInfoDA.h"
 #include "Item/Weapon/WeaponTypes.h"
@@ -19,7 +20,6 @@ class AWeaponInstance;
 class APlayerCharacterBase;
 class UMaterialInterface;
 class URuneDataAsset;
-class UGameplayAbilityComboGraph;
 class USpecialAttackDataAsset;
 //class UYogAnimInstance;
 
@@ -81,14 +81,28 @@ public:
 	//TArray<TObjectPtr<UYogAbilitySet>> AbilitySetsToGrant;
 	UWeaponDefinition(){};
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
-	TObjectPtr<UGameplayAbilityComboGraph> GameplayAbilityComboGraph;
+	// Deprecated ComboGraph references. Transient so resaving migrated weapons drops
+	// serialized graph object refs; player combat uses the AbilityData fields below.
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> GameplayAbilityComboGraph;
 
-	// Independent combo graph driven only by the weapon-skill input. Runs in its own
-	// per-graph cursor so firing a weapon skill never disturbs the weapon attack/dash
-	// combo position (and vice versa). Leave null to fall back to the weapon combo graph.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
-	TObjectPtr<UGameplayAbilityComboGraph> WeaponSkillComboGraph;
+	// Deprecated ComboGraph reference. Kept as a native name only for old asset load.
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> WeaponSkillComboGraph;
+
+	// Optional compatibility bucket. Prefer the typed fields below for new weapons:
+	// AttackAbilityData (attack/dash), WeaponSkillAbilityData, and SpecialAbilityData.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data|Legacy")
+	TObjectPtr<UAbilityData> AbilityData;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
+	TObjectPtr<UAbilityData> AttackAbilityData;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
+	TObjectPtr<UAbilityData> WeaponSkillAbilityData;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
+	TObjectPtr<UAbilityData> SpecialAbilityData;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Special Attack")
 	TObjectPtr<USpecialAttackDataAsset> DefaultSpecialAttack;

@@ -48,9 +48,6 @@ public:
 
 private:
 	void OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount);
-	void OnComboWindowOpen();
-	void OnComboWindowClose();
-	void ResetComboToRoot();
 
 	FDelegateHandle CanComboTagHandle;
 	float AbilityActivationTime = 0.0f;

@@ -5,7 +5,6 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/BufferComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 
 UAnimNotifyState_PostAtkWindow::UAnimNotifyState_PostAtkWindow()
 {
@@ -76,14 +75,6 @@ void UAnimNotifyState_PostAtkWindow::NotifyTick(USkeletalMeshComponent* MeshComp
 
     if (bHasAtkInput)
     {
-        if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Character))
-        {
-            if (Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->HasComboSource())
-            {
-                return;
-            }
-        }
-
         if (TagToClearOnActionInput.IsValid())
         {
             UAbilitySystemComponent* ASC =

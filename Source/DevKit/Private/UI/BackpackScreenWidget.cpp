@@ -9,7 +9,6 @@
 #include "Component/BackpackGridComponent.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogPlayerControllerBase.h"
-#include "Data/GameplayAbilityComboGraph.h"
 #include "CommonInputSubsystem.h"
 #include "Input/CommonUIInputTypes.h"
 #include "GameFramework/Pawn.h"
@@ -23,6 +22,7 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "InputCoreTypes.h"
+#include "UI/WeaponComboTextUtils.h"
 #include "UI/YogHUD.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInfoDA.h"
@@ -32,152 +32,8 @@
 #include "SaveGame/YogSaveSubsystem.h"
 
 // ============================================================
-//  内部辅助
+//  鍐呴儴杈呭姪
 // ============================================================
-
-namespace
-{
-    FString ComboInputActionToMoveToken(EYogComboGraphInputAction Action)
-    {
-        switch (Action)
-        {
-        case EYogComboGraphInputAction::Attack:
-            return TEXT("L");
-        case EYogComboGraphInputAction::WeaponSkill:
-        case EYogComboGraphInputAction::LegacyWeaponSkill:
-            return TEXT("H");
-        case EYogComboGraphInputAction::Dash:
-            return TEXT("W");
-        case EYogComboGraphInputAction::Special:
-            return TEXT("S");
-        case EYogComboGraphInputAction::Any:
-        default:
-            return FString();
-        }
-    }
-
-    FString MoveTokenToInputActionMarkup(const FString& Token)
-    {
-        if (Token == TEXT("L"))
-        {
-            return TEXT("<input action=\"Attack\"/>");
-        }
-
-        if (Token == TEXT("H"))
-        {
-            return TEXT("<input action=\"WeaponSkill\"/>");
-        }
-
-        if (Token == TEXT("W"))
-        {
-            return TEXT("<input action=\"Dash\"/>");
-        }
-
-        if (Token == TEXT("S"))
-        {
-            return TEXT("<input action=\"Special\"/>");
-        }
-
-        return TEXT("[Input]");
-    }
-
-    FString FormatComboForCommonUI(const FString& Sequence)
-    {
-        TArray<FString> Tokens;
-        Sequence.ParseIntoArray(Tokens, TEXT(" - "), true);
-
-        TArray<FString> DisplayTokens;
-        DisplayTokens.Reserve(Tokens.Num());
-        for (const FString& Token : Tokens)
-        {
-            DisplayTokens.Add(MoveTokenToInputActionMarkup(Token));
-        }
-
-        return FString::Join(DisplayTokens, TEXT(" -> "));
-    }
-
-    void GatherComboMoveListsFromNode(
-        const UGameplayAbilityComboGraphNode* Node,
-        TArray<FString> CurrentTokens,
-        TSet<const UGameplayAbilityComboGraphNode*>& Visiting,
-        TArray<FString>& OutSequences)
-    {
-        if (!Node || CurrentTokens.IsEmpty() || Visiting.Contains(Node))
-        {
-            return;
-        }
-
-        Visiting.Add(Node);
-
-        bool bHasDisplayableChild = false;
-        for (UGenericGraphNode* ChildGenericNode : Node->ChildrenNodes)
-        {
-            const UGameplayAbilityComboGraphNode* ChildNode = Cast<UGameplayAbilityComboGraphNode>(ChildGenericNode);
-            UGenericGraphEdge* const* EdgePtr = Node->Edges.Find(ChildGenericNode);
-            const UGameplayAbilityComboGraphEdge* Edge = EdgePtr ? Cast<UGameplayAbilityComboGraphEdge>(*EdgePtr) : nullptr;
-            const FString Token = Edge ? ComboInputActionToMoveToken(Edge->InputAction) : FString();
-            if (!ChildNode || Token.IsEmpty())
-            {
-                continue;
-            }
-
-            bHasDisplayableChild = true;
-            TArray<FString> NextTokens = CurrentTokens;
-            NextTokens.Add(Token);
-            GatherComboMoveListsFromNode(ChildNode, MoveTemp(NextTokens), Visiting, OutSequences);
-        }
-
-        if (Node->bIsComboFinisher || !bHasDisplayableChild)
-        {
-            OutSequences.Add(FString::Join(CurrentTokens, TEXT(" - ")));
-        }
-
-        Visiting.Remove(Node);
-    }
-
-    void GatherComboMoveLists(const UGameplayAbilityComboGraph* ComboGraph, TArray<FString>& OutSequences)
-    {
-        if (!ComboGraph)
-        {
-            return;
-        }
-
-        TArray<const UGameplayAbilityComboGraphNode*> RootComboNodes;
-        for (const UGenericGraphNode* RootNode : ComboGraph->RootNodes)
-        {
-            if (const UGameplayAbilityComboGraphNode* ComboNode = Cast<UGameplayAbilityComboGraphNode>(RootNode))
-            {
-                RootComboNodes.Add(ComboNode);
-            }
-        }
-
-        if (RootComboNodes.IsEmpty())
-        {
-            for (const UGenericGraphNode* Node : ComboGraph->AllNodes)
-            {
-                const UGameplayAbilityComboGraphNode* ComboNode = Cast<UGameplayAbilityComboGraphNode>(Node);
-                if (ComboNode && ComboNode->ParentNodes.IsEmpty())
-                {
-                    RootComboNodes.Add(ComboNode);
-                }
-            }
-        }
-
-        for (const UGameplayAbilityComboGraphNode* RootNode : RootComboNodes)
-        {
-            const FString RootToken = RootNode ? ComboInputActionToMoveToken(RootNode->RootInputAction) : FString();
-            if (RootToken.IsEmpty())
-            {
-                continue;
-            }
-
-            TArray<FString> Tokens;
-            Tokens.Add(RootToken);
-            TSet<const UGameplayAbilityComboGraphNode*> Visiting;
-            GatherComboMoveListsFromNode(RootNode, MoveTemp(Tokens), Visiting, OutSequences);
-        }
-    }
-}
 
 UBackpackGridComponent* UBackpackScreenWidget::GetBackpack() const
 {
@@ -208,39 +64,39 @@ FText UBackpackScreenWidget::BuildOperationHintText() const
 {
     if (bIsPreviewMode)
     {
-        return FText::FromString(TEXT("预览模式：卡组只读"));
+        return FText::FromString(TEXT("棰勮妯″紡锛氬崱缁勫彧璇?));
     }
 
     if (bIsGamepadInputMode)
     {
-        return FText::FromString(TEXT("左右选择卡牌  <input action=\"Interact\"/> 拿起/放下排序  <input action=\"ReverseCard\"/> 反转 Link"));
+        return FText::FromString(TEXT("宸﹀彸閫夋嫨鍗＄墝  <input action=\"Interact\"/> 鎷胯捣/鏀句笅鎺掑簭  <input action=\"ReverseCard\"/> 鍙嶈浆 Link"));
     }
 
-    return FText::FromString(TEXT("<input action=\"MouseClick\"/> 拖拽卡牌调整顺序  <input action=\"ReverseCard\"/> 反转 Link"));
+    return FText::FromString(TEXT("<input action=\"MouseClick\"/> 鎷栨嫿鍗＄墝璋冩暣椤哄簭  <input action=\"ReverseCard\"/> 鍙嶈浆 Link"));
 }
 
 FText UBackpackScreenWidget::BuildConfirmButtonText() const
 {
     return bIsGamepadInputMode
-        ? FText::FromString(TEXT("<input action=\"Interact\"/> 选择"))
-        : FText::FromString(TEXT("<input action=\"MouseClick\"/> 选择"));
+        ? FText::FromString(TEXT("<input action=\"Interact\"/> 閫夋嫨"))
+        : FText::FromString(TEXT("<input action=\"MouseClick\"/> 閫夋嫨"));
 }
 
 FText UBackpackScreenWidget::BuildCancelButtonText() const
 {
     // Gamepad close uses B (Gamepad_FaceButton_Right). The "Back" decorator action resolves
     // to IA_WeaponSkill on gamepad (B icon); "Esc" resolves to IA_Esc which is mapped to the Start
-    // button glyph on gamepad — the wrong icon for this button.
+    // button glyph on gamepad 鈥?the wrong icon for this button.
     return bIsGamepadInputMode
-        ? FText::FromString(TEXT("<input action=\"Back\"/> 取消"))
-        : FText::FromString(TEXT("<input action=\"Esc\"/> 取消"));
+        ? FText::FromString(TEXT("<input action=\"Back\"/> 鍙栨秷"))
+        : FText::FromString(TEXT("<input action=\"Esc\"/> 鍙栨秷"));
 }
 
 FText UBackpackScreenWidget::BuildEndPreviewButtonText() const
 {
     return bIsGamepadInputMode
-        ? FText::FromString(TEXT("<input action=\"Back\"/> 结束预览"))
-        : FText::FromString(TEXT("<input action=\"Esc\"/> 结束预览"));
+        ? FText::FromString(TEXT("<input action=\"Back\"/> 缁撴潫棰勮"))
+        : FText::FromString(TEXT("<input action=\"Esc\"/> 缁撴潫棰勮"));
 }
 
 void UBackpackScreenWidget::SetButtonContentText(UButton* Button, const FText& Text) const
@@ -274,40 +130,7 @@ void UBackpackScreenWidget::RefreshActionButtonHints()
 
 FText UBackpackScreenWidget::BuildComboHintText(const UWeaponDefinition* WeaponDefinition) const
 {
-    if (!WeaponDefinition)
-    {
-        return FText::FromString(TEXT("拾取武器后显示出招表。"));
-    }
-
-    TArray<FString> Sequences;
-    GatherComboMoveLists(WeaponDefinition->GameplayAbilityComboGraph, Sequences);
-
-    TSet<FString> UniqueSequences;
-    TArray<FString> MoveListLines;
-    for (const FString& Sequence : Sequences)
-    {
-        if (Sequence.IsEmpty() || UniqueSequences.Contains(Sequence))
-        {
-            continue;
-        }
-
-        UniqueSequences.Add(Sequence);
-        MoveListLines.Add(FString::Printf(TEXT("连段 %02d   %s"),
-            MoveListLines.Num() + 1,
-            *FormatComboForCommonUI(Sequence)));
-        if (MoveListLines.Num() >= 4)
-        {
-            break;
-        }
-    }
-
-    if (MoveListLines.IsEmpty())
-    {
-        MoveListLines.Add(TEXT("连段 01   <input action=\"Attack\"/> -> <input action=\"Attack\"/> -> <input action=\"WeaponSkill\"/>"));
-        MoveListLines.Add(TEXT("连段 02   <input action=\"Attack\"/> -> <input action=\"WeaponSkill\"/>"));
-    }
-
-    return FText::FromString(FString::Join(MoveListLines, TEXT("\n\n")));
+    return WeaponComboTextUtils::BuildComboHintText(WeaponDefinition, 4, false);
 }
 
 void UBackpackScreenWidget::RefreshWeaponAndComboInfo()
@@ -316,8 +139,8 @@ void UBackpackScreenWidget::RefreshWeaponAndComboInfo()
     const UWeaponDefinition* WeaponDefinition = Player ? Player->EquippedWeaponDef.Get() : nullptr;
     const UWeaponInfoDA* WeaponInfo = WeaponDefinition ? WeaponDefinition->WeaponInfo.Get() : nullptr;
 
-    FText WeaponName = FText::FromString(TEXT("未装备武器"));
-    FText WeaponDesc = FText::FromString(TEXT("拾取武器后，这里会显示武器说明和初始卡组方向。"));
+    FText WeaponName = FText::FromString(TEXT("鏈澶囨鍣?));
+    FText WeaponDesc = FText::FromString(TEXT("鎷惧彇姝﹀櫒鍚庯紝杩欓噷浼氭樉绀烘鍣ㄨ鏄庡拰鍒濆鍗＄粍鏂瑰悜銆?));
     UTexture2D* Thumbnail = nullptr;
 
     if (WeaponDefinition)
@@ -366,7 +189,7 @@ void UBackpackScreenWidget::RefreshWeaponAndComboInfo()
 }
 
 // ============================================================
-//  生命周期
+//  鐢熷懡鍛ㄦ湡
 // ============================================================
 
 UBackpackScreenWidget::UBackpackScreenWidget(const FObjectInitializer& ObjectInitializer)
@@ -392,7 +215,7 @@ void UBackpackScreenWidget::NativeConstruct()
         Backpack->OnRuneActivationChanged.AddDynamic(this, &UBackpackScreenWidget::HandleRuneActivationChanged);
     }
 
-    // 子 Widget 初始化（NativeConstruct 时子 Widget 已构建完毕）
+    // 瀛?Widget 鍒濆鍖栵紙NativeConstruct 鏃跺瓙 Widget 宸叉瀯寤哄畬姣曪級
     if (BackpackGridWidget)
         BackpackGridWidget->BuildGrid(GetBackpack());
 
@@ -424,10 +247,10 @@ void UBackpackScreenWidget::NativeConstruct()
     if (EndPreviewButton)
     {
         EndPreviewButton->OnClicked.AddDynamic(this, &UBackpackScreenWidget::OnEndPreviewClicked);
-        EndPreviewButton->SetVisibility(ESlateVisibility::Collapsed);  // 默认隐藏，进入预览模式时由 SetPreviewMode 切到 Visible
+        EndPreviewButton->SetVisibility(ESlateVisibility::Collapsed);  // 榛樿闅愯棌锛岃繘鍏ラ瑙堟ā寮忔椂鐢?SetPreviewMode 鍒囧埌 Visible
     }
-    // CloseButton 默认让 WBP Designer 设的 Visibility 生效（通常是 Visible），
-    // SetPreviewMode 会在切换时强制覆盖为 Visible/Collapsed
+    // CloseButton 榛樿璁?WBP Designer 璁剧殑 Visibility 鐢熸晥锛堥€氬父鏄?Visible锛夛紝
+    // SetPreviewMode 浼氬湪鍒囨崲鏃跺己鍒惰鐩栦负 Visible/Collapsed
 
     if (HintText)
         HintText->SetVisibility(ESlateVisibility::Collapsed);
@@ -475,7 +298,7 @@ void UBackpackScreenWidget::HandleCommonInputMethodChanged(ECommonInputType NewI
 }
 
 // ============================================================
-//  委托处理
+//  濮旀墭澶勭悊
 // ============================================================
 
 void UBackpackScreenWidget::HandleRunePlaced(const FRuneInstance& Rune)
@@ -505,15 +328,15 @@ void UBackpackScreenWidget::HandleRuneActivationChanged(FGuid RuneGuid, bool bAc
 }
 
 // ============================================================
-//  格子刷新（委托给 BackpackGridWidget）
+//  鏍煎瓙鍒锋柊锛堝鎵樼粰 BackpackGridWidget锛?
 // ============================================================
 
 void UBackpackScreenWidget::OnGridNeedsRefresh_Implementation()
 {
     if (BackpackGridWidget)
     {
-        // 手柄模式下直接用 GamepadCursorCell 作为悬浮格，
-        // 不依赖 HoverCol/Row，防止合成鼠标事件将其清零后一帧内高亮消失。
+        // 鎵嬫焺妯″紡涓嬬洿鎺ョ敤 GamepadCursorCell 浣滀负鎮诞鏍硷紝
+        // 涓嶄緷璧?HoverCol/Row锛岄槻姝㈠悎鎴愰紶鏍囦簨浠跺皢鍏舵竻闆跺悗涓€甯у唴楂樹寒娑堝け銆?
         const FIntPoint EffectiveHover = (bIsGamepadInputMode && !bGrabbingRune)
             ? GamepadCursorCell
             : FIntPoint(HoverCol, HoverRow);
@@ -529,7 +352,7 @@ void UBackpackScreenWidget::OnGridNeedsRefresh_Implementation()
 }
 
 // ============================================================
-//  详情面板刷新
+//  璇︽儏闈㈡澘鍒锋柊
 // ============================================================
 
 void UBackpackScreenWidget::OnSelectionChanged_Implementation()
@@ -567,18 +390,18 @@ void UBackpackScreenWidget::OnSelectionChanged_Implementation()
         if (SelectedCell != FIntPoint(-1, -1))
         {
             HintText->SetText(FText::Format(
-                NSLOCTEXT("Backpack", "HintMove", "已选中：{0}\n拖拽格子 → 移动\n「移除选中」→ 移除"),
+                NSLOCTEXT("Backpack", "HintMove", "宸查€変腑锛歿0}\n鎷栨嫿鏍煎瓙 鈫?绉诲姩\n銆岀Щ闄ら€変腑銆嶁啋 绉婚櫎"),
                 FText::FromName(Info.RuneConfig.RuneName)));
         }
         else if (SelectedRuneIndex >= 0)
         {
             HintText->SetText(FText::Format(
-                NSLOCTEXT("Backpack", "HintPlace", "已选中：{0}\n点击背包格子 → 放置"),
+                NSLOCTEXT("Backpack", "HintPlace", "宸查€変腑锛歿0}\n鐐瑰嚮鑳屽寘鏍煎瓙 鈫?鏀剧疆"),
                 FText::FromName(Info.RuneConfig.RuneName)));
         }
         else
         {
-            HintText->SetText(NSLOCTEXT("Backpack", "HintIdle", "拖拽格子中的符文可移动位置\n点击左侧列表选择待放置符文"));
+            HintText->SetText(NSLOCTEXT("Backpack", "HintIdle", "鎷栨嫿鏍煎瓙涓殑绗︽枃鍙Щ鍔ㄤ綅缃甛n鐐瑰嚮宸︿晶鍒楄〃閫夋嫨寰呮斁缃鏂?));
         }
     }
 
@@ -603,7 +426,7 @@ void UBackpackScreenWidget::OnSelectionChanged_Implementation()
 }
 
 // ============================================================
-//  状态查询
+//  鐘舵€佹煡璇?
 // ============================================================
 
 bool UBackpackScreenWidget::IsCellInActivationZone(int32 Col, int32 Row) const
@@ -708,7 +531,7 @@ const TArray<FPlacedRune>& UBackpackScreenWidget::GetAllPlacedRunes() const
 }
 
 // ============================================================
-//  操作
+//  鎿嶄綔
 // ============================================================
 
 void UBackpackScreenWidget::SelectRuneFromList(int32 Index)
@@ -728,31 +551,31 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
 
     if (RuneIdx >= 0)
     {
-        // 预览模式 / 战斗阶段：与战斗一致 — shake + 闪红光，不允许选中
+        // 棰勮妯″紡 / 鎴樻枟闃舵锛氫笌鎴樻枟涓€鑷?鈥?shake + 闂孩鍏夛紝涓嶅厑璁搁€変腑
         if (IsInCombatPhase() || bIsPreviewMode)
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
             OnStatusMessage(bIsPreviewMode
-                ? NSLOCTEXT("Backpack", "PreviewLock", "预览模式：无法操作符文")
-                : NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
+                ? NSLOCTEXT("Backpack", "PreviewLock", "棰勮妯″紡锛氭棤娉曟搷浣滅鏂?)
+                : NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃"));
             return;
         }
         SelectedCell = Cell;
         SelectedRuneIndex = -1;
-        // 焦点彻底切到主背包：清 pending 黄框 + PendingSelectedIdx，避免 R 键仍旋转 pending
+        // 鐒︾偣褰诲簳鍒囧埌涓昏儗鍖咃細娓?pending 榛勬 + PendingSelectedIdx锛岄伩鍏?R 閿粛鏃嬭浆 pending
         ClearPendingFocus(true);
         OnSelectionChanged();
     }
     else if (bIsPreviewMode)
     {
-        // 预览模式：空格点击是"放置"操作（从 pending 放置 / 从列表放置），禁止
+        // 棰勮妯″紡锛氱┖鏍肩偣鍑绘槸"鏀剧疆"鎿嶄綔锛堜粠 pending 鏀剧疆 / 浠庡垪琛ㄦ斁缃級锛岀姝?
         return;
     }
     else if (PendingSelectedIdx >= 0
         && PendingGrid.IsValidIndex(PendingSelectedIdx)
         && PendingGrid[PendingSelectedIdx].RuneGuid.IsValid())
     {
-        // 点击主格子空格 → 从待放置区放置选中的符文
+        // 鐐瑰嚮涓绘牸瀛愮┖鏍?鈫?浠庡緟鏀剧疆鍖烘斁缃€変腑鐨勭鏂?
         const FRuneInstance Instance = PendingGrid[PendingSelectedIdx];
         if (Backpack->TryPlaceRune(Instance, Cell))
         {
@@ -764,13 +587,13 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
             RefreshPendingGrid();
             OnSelectionChanged();
             OnStatusMessage(FText::Format(
-                NSLOCTEXT("Backpack", "PlaceOK", "已放置：{0}"),
+                NSLOCTEXT("Backpack", "PlaceOK", "宸叉斁缃細{0}"),
                 FText::FromName(Instance.RuneConfig.RuneName)));
         }
         else
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
-            OnStatusMessage(NSLOCTEXT("Backpack", "PlaceFail", "无法放置：位置被占用"));
+            OnStatusMessage(NSLOCTEXT("Backpack", "PlaceFail", "鏃犳硶鏀剧疆锛氫綅缃鍗犵敤"));
         }
     }
     else if (SelectedRuneIndex >= 0)
@@ -801,25 +624,25 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
             SelectedRuneIndex = -1;
             SelectedCell = FIntPoint(-1, -1);
             OnSelectionChanged();
-            OnStatusMessage(FText::Format(NSLOCTEXT("Backpack","PlaceOK","已放置：{0}"), FText::FromName(Instance.RuneConfig.RuneName)));
+            OnStatusMessage(FText::Format(NSLOCTEXT("Backpack","PlaceOK","宸叉斁缃細{0}"), FText::FromName(Instance.RuneConfig.RuneName)));
         }
         else
         {
-            OnStatusMessage(NSLOCTEXT("Backpack","PlaceFail","无法放置：位置被占用"));
+            OnStatusMessage(NSLOCTEXT("Backpack","PlaceFail","鏃犳硶鏀剧疆锛氫綅缃鍗犵敤"));
         }
     }
 }
 
 void UBackpackScreenWidget::RemoveRuneAtSelectedCell()
 {
-    if (bIsPreviewMode) return;  // 只读预览模式：禁止删除符文
+    if (bIsPreviewMode) return;  // 鍙棰勮妯″紡锛氱姝㈠垹闄ょ鏂?
     if (SelectedCell == FIntPoint(-1, -1)) return;
 
     UBackpackGridComponent* Backpack = GetBackpack();
     if (!Backpack) return;
 
     int32 RuneIdx = Backpack->GetRuneIndexAtCell(SelectedCell);
-    if (RuneIdx < 0) { OnStatusMessage(NSLOCTEXT("Backpack","RemoveEmpty","该格子没有符文")); return; }
+    if (RuneIdx < 0) { OnStatusMessage(NSLOCTEXT("Backpack","RemoveEmpty","璇ユ牸瀛愭病鏈夌鏂?)); return; }
 
     const TArray<FPlacedRune>& Placed = Backpack->GetAllPlacedRunes();
     if (!Placed.IsValidIndex(RuneIdx)) return;
@@ -831,7 +654,7 @@ void UBackpackScreenWidget::RemoveRuneAtSelectedCell()
     {
         SelectedCell = FIntPoint(-1, -1);
         OnSelectionChanged();
-        OnStatusMessage(FText::Format(NSLOCTEXT("Backpack","RemoveOK","已移除：{0}"), FText::FromName(RuneName)));
+        OnStatusMessage(FText::Format(NSLOCTEXT("Backpack","RemoveOK","宸茬Щ闄わ細{0}"), FText::FromName(RuneName)));
     }
 }
 
@@ -843,7 +666,7 @@ void UBackpackScreenWidget::ClearSelection()
 }
 
 // ============================================================
-//  待放置区刷新（委托给 PendingGridWidget）
+//  寰呮斁缃尯鍒锋柊锛堝鎵樼粰 PendingGridWidget锛?
 // ============================================================
 
 void UBackpackScreenWidget::RefreshPendingRuneSlots()
@@ -851,7 +674,7 @@ void UBackpackScreenWidget::RefreshPendingRuneSlots()
     RefreshPendingGrid();
 }
 
-// ── 待放置区稀疏格子辅助 ─────────────────────────────────────────────────
+// 鈹€鈹€ 寰呮斁缃尯绋€鐤忔牸瀛愯緟鍔?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 void UBackpackScreenWidget::SyncPendingFromPlayer()
 {
@@ -906,7 +729,7 @@ void UBackpackScreenWidget::UpdateOperationHintVisibility()
 
     const bool bShow = CombatDeckEditWidget && (bIsPreviewMode || CombatDeckEditWidget->CanHandleDeckInput());
     SetTextIfSupported(OperationHintText, BuildOperationHintText());
-    if (bShow == bOperationHintVisible) return;  // 缓存：避免每帧重复 SetVisibility
+    if (bShow == bOperationHintVisible) return;  // 缂撳瓨锛氶伩鍏嶆瘡甯ч噸澶?SetVisibility
     bOperationHintVisible = bShow;
     OperationHintWidget->SetVisibility(bShow
         ? ESlateVisibility::SelfHitTestInvisible
@@ -914,7 +737,7 @@ void UBackpackScreenWidget::UpdateOperationHintVisibility()
 }
 
 // ============================================================
-//  CommonUI 生命周期
+//  CommonUI 鐢熷懡鍛ㄦ湡
 // ============================================================
 
 TOptional<FUIInputConfig> UBackpackScreenWidget::GetDesiredInputConfig() const
@@ -934,16 +757,16 @@ void UBackpackScreenWidget::NativeOnActivated()
 
     if (APlayerController* PC = GetOwningPlayer())
     {
-        // 记录当前光标位置，防止激活后合成鼠标事件被误判为真实移动而清除手柄高亮
+        // 璁板綍褰撳墠鍏夋爣浣嶇疆锛岄槻姝㈡縺娲诲悗鍚堟垚榧犳爣浜嬩欢琚鍒や负鐪熷疄绉诲姩鑰屾竻闄ゆ墜鏌勯珮浜?
         float MouseX = 0.f, MouseY = 0.f;
         PC->GetMousePosition(MouseX, MouseY);
         LastMouseAbsPos = FVector2D(MouseX, MouseY);
     }
 
-    // SetUserFocus(player) was targeting the wrong root — focus is routed via GetDesiredFocusTarget
+    // SetUserFocus(player) was targeting the wrong root 鈥?focus is routed via GetDesiredFocusTarget
     // and the explicit ReleaseMouseCapture().SetUserFocus(TakeWidget()) calls in NativeOnKeyDown.
 
-    // 每次打开时重建格子，确保武器切换后的 GridWidth/GridHeight 生效
+    // 姣忔鎵撳紑鏃堕噸寤烘牸瀛愶紝纭繚姝﹀櫒鍒囨崲鍚庣殑 GridWidth/GridHeight 鐢熸晥
     if (BackpackGridWidget)
     {
         UBackpackGridComponent* BG = GetBackpack();
@@ -974,9 +797,9 @@ void UBackpackScreenWidget::NativeOnActivated()
     OnGridNeedsRefresh();
     OnSelectionChanged();
 
-    // Tutorial ③：第一次打开背包时弹窗（state guard 内部去重）
-    // 下一帧广播 —— 避免在 backpack 自身 NativeOnActivated 调用栈里同步 push TutorialPopup，
-    // 触发 CommonUI activatable stack 排队，导致 popup 等到 backpack 关闭后才显示。
+    // Tutorial 鈶細绗竴娆℃墦寮€鑳屽寘鏃跺脊绐楋紙state guard 鍐呴儴鍘婚噸锛?
+    // 涓嬩竴甯у箍鎾?鈥斺€?閬垮厤鍦?backpack 鑷韩 NativeOnActivated 璋冪敤鏍堥噷鍚屾 push TutorialPopup锛?
+    // 瑙﹀彂 CommonUI activatable stack 鎺掗槦锛屽鑷?popup 绛夊埌 backpack 鍏抽棴鍚庢墠鏄剧ず銆?
     if (UWorld* World = GetWorld())
     {
         TWeakObjectPtr<UBackpackScreenWidget> WeakSelf(this);
@@ -1068,10 +891,10 @@ void UBackpackScreenWidget::NativeOnDeactivated()
 {
     SetVisibility(ESlateVisibility::Collapsed);
 
-    // 预览模式：跳过 SyncPendingToPlayer（背包只读，无需写回数据）
-    // 但 Pause/Input/PauseEffect 拆解必须执行：
-    //   - EndPauseEffect 必须配对 NativeOnActivated 里的 BeginPauseEffect，否则 PausePopupCount 泄漏
-    //   - SetPause(false) / SetInputMode(GameOnly) 由调用方（LootSelection.ReactivateAfterPreview）随后再恢复
+    // 棰勮妯″紡锛氳烦杩?SyncPendingToPlayer锛堣儗鍖呭彧璇伙紝鏃犻渶鍐欏洖鏁版嵁锛?
+    // 浣?Pause/Input/PauseEffect 鎷嗚В蹇呴』鎵ц锛?
+    //   - EndPauseEffect 蹇呴』閰嶅 NativeOnActivated 閲岀殑 BeginPauseEffect锛屽惁鍒?PausePopupCount 娉勬紡
+    //   - SetPause(false) / SetInputMode(GameOnly) 鐢辫皟鐢ㄦ柟锛圠ootSelection.ReactivateAfterPreview锛夐殢鍚庡啀鎭㈠
     const bool bSkipDataSync = bIsPreviewMode;
 
     if (!bSkipDataSync)
@@ -1101,7 +924,7 @@ void UBackpackScreenWidget::NativeOnDeactivated()
     {
         // Mouse cursor + InputMode are owned by UYogUIManagerSubsystem::ApplyInputModeForLayer.
         // UBackpackScreenWidget is a UCommonActivatableWidget opened via PushScreen, so the
-        // Subsystem hears OnDeactivated and recomputes the top layer → restores GameOnly itself.
+        // Subsystem hears OnDeactivated and recomputes the top layer 鈫?restores GameOnly itself.
         // Letting it run unimpeded also keeps focus correct when closing Backpack returns to
         // an active LootSelection (preview flow).
     }
@@ -1113,8 +936,8 @@ void UBackpackScreenWidget::NativeOnDeactivated()
 
     Super::NativeOnDeactivated();
 
-    // 统一走 SetPreviewMode(false) 触发 BP 事件 + 切换按钮显隐 + 清理状态
-    // 不再裸写 bIsPreviewMode = false（避免漏触发 OnPreviewModeChanged 和按钮复位）
+    // 缁熶竴璧?SetPreviewMode(false) 瑙﹀彂 BP 浜嬩欢 + 鍒囨崲鎸夐挳鏄鹃殣 + 娓呯悊鐘舵€?
+    // 涓嶅啀瑁稿啓 bIsPreviewMode = false锛堥伩鍏嶆紡瑙﹀彂 OnPreviewModeChanged 鍜屾寜閽浣嶏級
     SetPreviewMode(false);
 }
 
@@ -1122,12 +945,12 @@ void UBackpackScreenWidget::SetPreviewMode(bool bReadOnly)
 {
     if (bIsPreviewMode == bReadOnly && !bReadOnly)
     {
-        // 同状态切 false 时也允许执行（NativeOnDeactivated 兜底场景）
+        // 鍚岀姸鎬佸垏 false 鏃朵篃鍏佽鎵ц锛圢ativeOnDeactivated 鍏滃簳鍦烘櫙锛?
     }
     bIsPreviewMode = bReadOnly;
     UE_LOG(LogTemp, Log, TEXT("[Backpack] SetPreviewMode(%s)"), bReadOnly ? TEXT("true") : TEXT("false"));
 
-    // 进入预览模式时清理所有可能导致"卡在抓取/拖拽中"的中间状态
+    // 杩涘叆棰勮妯″紡鏃舵竻鐞嗘墍鏈夊彲鑳藉鑷?鍗″湪鎶撳彇/鎷栨嫿涓?鐨勪腑闂寸姸鎬?
     if (bIsPreviewMode)
     {
         bGrabbingRune        = false;
@@ -1145,8 +968,8 @@ void UBackpackScreenWidget::SetPreviewMode(bool bReadOnly)
         RefreshPendingGrid();
     }
 
-    // EndPreviewButton 与 CloseButton 互斥显隐 — 必须用 Visible 而非 SelfHitTestInvisible，
-    // 否则按钮本体不参与命中测试，OnClicked 不触发
+    // EndPreviewButton 涓?CloseButton 浜掓枼鏄鹃殣 鈥?蹇呴』鐢?Visible 鑰岄潪 SelfHitTestInvisible锛?
+    // 鍚﹀垯鎸夐挳鏈綋涓嶅弬涓庡懡涓祴璇曪紝OnClicked 涓嶈Е鍙?
     if (EndPreviewButton)
         EndPreviewButton->SetVisibility(bIsPreviewMode
             ? ESlateVisibility::Visible
@@ -1169,35 +992,35 @@ void UBackpackScreenWidget::SetPreviewMode(bool bReadOnly)
 void UBackpackScreenWidget::OnEndPreviewClicked()
 {
     if (!bIsPreviewMode) return;
-    UE_LOG(LogTemp, Log, TEXT("[Backpack] OnEndPreviewClicked → DeactivateWidget"));
-    // DeactivateWidget → NativeOnDeactivated → HUD 监听器回调 LootSelection.ReactivateAfterPreview
+    UE_LOG(LogTemp, Log, TEXT("[Backpack] OnEndPreviewClicked 鈫?DeactivateWidget"));
+    // DeactivateWidget 鈫?NativeOnDeactivated 鈫?HUD 鐩戝惉鍣ㄥ洖璋?LootSelection.ReactivateAfterPreview
     DeactivateWidget();
 }
 
 // ============================================================
-//  Shape 拖拽预览（Phase 2）
+//  Shape 鎷栨嫿棰勮锛圥hase 2锛?
 // ============================================================
 
 void UBackpackScreenWidget::ShowShapePreview(const FRuneInstance& Rune, FIntPoint AnchorCellInRotatedLocal,
                                               UTexture2D* IconTex, float CellPx)
 {
-    if (!ShapePreviewCanvas) return;  // BindWidgetOptional：未绑定就回退到 GrabbedRuneIcon
+    if (!ShapePreviewCanvas) return;  // BindWidgetOptional锛氭湭缁戝畾灏卞洖閫€鍒?GrabbedRuneIcon
 
     HideShapePreview();
 
-    // 计算 N 次旋转后的 Shape（同 BackpackGridWidget 的渲染规约）
+    // 璁＄畻 N 娆℃棆杞悗鐨?Shape锛堝悓 BackpackGridWidget 鐨勬覆鏌撹绾︼級
     FRuneShape RotShape = Rune.Shape;
     const int32 N = ((Rune.Rotation % 4) + 4) % 4;
     for (int32 i = 0; i < N; i++)
         RotShape = RotShape.Rotate90();
 
-    // 为每个 cell 创建 UImage
+    // 涓烘瘡涓?cell 鍒涘缓 UImage
     for (const FIntPoint& Cell : RotShape.Cells)
     {
         UImage* CellImg = NewObject<UImage>(this);
         if (IconTex)
             CellImg->SetBrushFromTexture(IconTex, false);
-        // pivot/anchor cell 不透明，其它 cell 半透明做视觉区分
+        // pivot/anchor cell 涓嶉€忔槑锛屽叾瀹?cell 鍗婇€忔槑鍋氳瑙夊尯鍒?
         const float Alpha = (Cell == AnchorCellInRotatedLocal) ? 1.0f : 0.65f;
         CellImg->SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, Alpha));
 
@@ -1221,7 +1044,7 @@ void UBackpackScreenWidget::UpdateShapePreviewPosition(const FGeometry& MyGeomet
 {
     if (!bShapePreviewActive || !ShapePreviewCanvas) return;
     const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(ScreenAbsPos);
-    // 让 anchor cell 的中心（不是左上角）对齐鼠标位置 — 视觉上 Pivot 跟手感觉更自然
+    // 璁?anchor cell 鐨勪腑蹇冿紙涓嶆槸宸︿笂瑙掞級瀵归綈榧犳爣浣嶇疆 鈥?瑙嗚涓?Pivot 璺熸墜鎰熻鏇磋嚜鐒?
     const FVector2D AnchorOffset(
         (ShapePreviewAnchorCell.X + 0.5f) * ShapePreviewCellPx,
         (ShapePreviewAnchorCell.Y + 0.5f) * ShapePreviewCellPx);
@@ -1243,12 +1066,12 @@ void UBackpackScreenWidget::HideShapePreview()
 }
 
 // ============================================================
-//  出售按钮
+//  鍑哄敭鎸夐挳
 // ============================================================
 
 void UBackpackScreenWidget::OnSellButtonClicked()
 {
-    if (bIsPreviewMode) return;  // 只读预览模式：禁止出售
+    if (bIsPreviewMode) return;  // 鍙棰勮妯″紡锛氱姝㈠嚭鍞?
     if (SelectedCell == FIntPoint(-1, -1)) return;
     if (UBackpackGridComponent* Backpack = GetBackpack())
     {
@@ -1288,7 +1111,7 @@ bool UBackpackScreenWidget::IsInCombatPhase() const
 }
 
 // ============================================================
-//  坐标辅助（委托给子 Widget）
+//  鍧愭爣杈呭姪锛堝鎵樼粰瀛?Widget锛?
 // ============================================================
 
 bool UBackpackScreenWidget::GetGridCellAtScreenPos(const FVector2D& AbsolutePos, int32& OutCol, int32& OutRow) const
@@ -1304,7 +1127,7 @@ bool UBackpackScreenWidget::GetPendingSlotAtScreenPos(const FVector2D& AbsPos, i
 }
 
 // ============================================================
-//  拖拽事件实现
+//  鎷栨嫿浜嬩欢瀹炵幇
 // ============================================================
 
 FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -1313,7 +1136,7 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         *InMouseEvent.GetEffectingButton().ToString(),
         InMouseEvent.GetScreenSpacePosition().X, InMouseEvent.GetScreenSpacePosition().Y);
 
-    // 右键 → 取消抓取
+    // 鍙抽敭 鈫?鍙栨秷鎶撳彇
     if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
     {
         if (bGrabbingRune || bGrabbingFromPending)
@@ -1365,7 +1188,7 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         // A is physically held AND NativeOnPreviewKeyDown already started the drag.
         // The LMB down here is the virtual click CommonUI generates from that same A press.
         // Calling HandleDeckSelectPressed again would immediately commit the drag (no-op at same
-        // position) before the user can move the card — skip this duplicate event entirely.
+        // position) before the user can move the card 鈥?skip this duplicate event entirely.
         if (bGamepadAIsDown && bDeckSelectButtonWasDown)
         {
             UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] SkipVirtualMouseDuplicate ADown=1 WasDown=1"));
@@ -1393,7 +1216,7 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         CombatDeckEditWidget->NotifyPointerNavigationInput();
     }
 
-    // 左侧待放置槽：优先于主格子
+    // 宸︿晶寰呮斁缃Ы锛氫紭鍏堜簬涓绘牸瀛?
     {
         int32 PendingIdx;
         if (GetPendingSlotAtScreenPos(InMouseEvent.GetScreenSpacePosition(), PendingIdx))
@@ -1412,12 +1235,12 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
                 RefreshPendingGrid();
                 OnSelectionChanged();
 
-                // 预览模式 / 战斗阶段：弹消息 + 禁止 DetectDrag（pending 无 shake，主格子有）
+                // 棰勮妯″紡 / 鎴樻枟闃舵锛氬脊娑堟伅 + 绂佹 DetectDrag锛坧ending 鏃?shake锛屼富鏍煎瓙鏈夛級
                 if (IsInCombatPhase() || bIsPreviewMode)
                 {
                     OnStatusMessage(bIsPreviewMode
-                        ? NSLOCTEXT("Backpack", "PreviewLock", "预览模式：无法操作符文")
-                        : NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
+                        ? NSLOCTEXT("Backpack", "PreviewLock", "棰勮妯″紡锛氭棤娉曟搷浣滅鏂?)
+                        : NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃"));
                     return FReply::Handled();
                 }
                 PendingDragIndex = PendingIdx;
@@ -1427,7 +1250,7 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
                 && PendingGrid.IsValidIndex(PendingSelectedIdx)
                 && PendingGrid[PendingSelectedIdx].RuneGuid.IsValid())
             {
-                if (bIsPreviewMode) return FReply::Handled();  // 预览模式：禁止 pending 内 swap
+                if (bIsPreviewMode) return FReply::Handled();  // 棰勮妯″紡锛氱姝?pending 鍐?swap
                 PendingGrid[PendingIdx]          = PendingGrid[PendingSelectedIdx];
                 PendingGrid[PendingSelectedIdx]  = FRuneInstance();
                 SyncPendingToPlayer();
@@ -1451,16 +1274,16 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
 
     const FIntPoint ClickCell(Col, Row);
 
-    // 焦点切到主背包：清 pending 黄框 + 待放置选择（鼠标路径不支持 click-to-place from pending）
+    // 鐒︾偣鍒囧埌涓昏儗鍖咃細娓?pending 榛勬 + 寰呮斁缃€夋嫨锛堥紶鏍囪矾寰勪笉鏀寔 click-to-place from pending锛?
     ClearPendingFocus(true);
 
-    // ── 已抓取状态下点击另一格：移动或互换 ──────────────────────────────────
+    // 鈹€鈹€ 宸叉姄鍙栫姸鎬佷笅鐐瑰嚮鍙︿竴鏍硷細绉诲姩鎴栦簰鎹?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     if (bGrabbingRune && ClickCell != GrabbedFromCell)
     {
         if (IsInCombatPhase())
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(GrabbedFromCell.X, GrabbedFromCell.Y);
-            OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
+            OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃"));
             return FReply::Handled();
         }
 
@@ -1484,7 +1307,7 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
 
         if (DstIdx >= 0)
         {
-            // 互换 → 自动抓取被替换的符文
+            // 浜掓崲 鈫?鑷姩鎶撳彇琚浛鎹㈢殑绗︽枃
             const FRuneInstance RuneB  = Placed[DstIdx].Rune;
             const FIntPoint     PivotB = Placed[DstIdx].Pivot;
 
@@ -1493,18 +1316,18 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
             Backpack->TryPlaceRune(RuneA, PivotB);
             Backpack->TryPlaceRune(RuneB, PivotA);
 
-            GrabbedFromCell = PivotA;   // RuneB 现在在 PivotA，自动抓取
+            GrabbedFromCell = PivotA;   // RuneB 鐜板湪鍦?PivotA锛岃嚜鍔ㄦ姄鍙?
             SelectedCell    = PivotA;
-            // bGrabbingRune 保持 true
+            // bGrabbingRune 淇濇寔 true
             OnSelectionChanged();
             OnStatusMessage(FText::Format(
-                NSLOCTEXT("Backpack", "SwapOK", "已互换：{0} ↔ {1}"),
+                NSLOCTEXT("Backpack", "SwapOK", "宸蹭簰鎹細{0} 鈫?{1}"),
                 FText::FromName(RuneA.RuneConfig.RuneName),
                 FText::FromName(RuneB.RuneConfig.RuneName)));
         }
         else
         {
-            // 移动到空格 → 结束抓取
+            // 绉诲姩鍒扮┖鏍?鈫?缁撴潫鎶撳彇
             const FIntPoint Offset   = GrabbedFromCell - PivotA;
             const FIntPoint NewPivot = ClickCell - Offset;
 
@@ -1515,19 +1338,19 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
                 SelectedCell    = FIntPoint(-1,-1);
                 OnSelectionChanged();
                 OnStatusMessage(FText::Format(
-                    NSLOCTEXT("Backpack", "MoveOK", "已移动：{0}"),
+                    NSLOCTEXT("Backpack", "MoveOK", "宸茬Щ鍔細{0}"),
                     FText::FromName(RuneA.RuneConfig.RuneName)));
             }
             else
             {
                 if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
-                OnStatusMessage(NSLOCTEXT("Backpack", "MoveFail", "无法放置：目标位置被占用"));
+                OnStatusMessage(NSLOCTEXT("Backpack", "MoveFail", "鏃犳硶鏀剧疆锛氱洰鏍囦綅缃鍗犵敤"));
             }
         }
         return FReply::Handled();
     }
 
-    // ── 点击已抓取符文自身 → 取消抓取 ───────────────────────────────────────
+    // 鈹€鈹€ 鐐瑰嚮宸叉姄鍙栫鏂囪嚜韬?鈫?鍙栨秷鎶撳彇 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     if (bGrabbingRune && ClickCell == GrabbedFromCell)
     {
         bGrabbingRune     = false;
@@ -1537,7 +1360,7 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         return FReply::Handled();
     }
 
-    // ── 非抓取：点击占用格 → 进入抓取/悬浮 ─────────────────────────────────
+    // 鈹€鈹€ 闈炴姄鍙栵細鐐瑰嚮鍗犵敤鏍?鈫?杩涘叆鎶撳彇/鎮诞 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     if (IsCellOccupied(Col, Row))
     {
         SelectedCell      = ClickCell;
@@ -1545,13 +1368,13 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         GamepadCursorCell = ClickCell;
         OnSelectionChanged();
 
-        // 预览模式 / 战斗阶段：与战斗一致 — shake + 闪红光 + 状态提示，禁止抓取
+        // 棰勮妯″紡 / 鎴樻枟闃舵锛氫笌鎴樻枟涓€鑷?鈥?shake + 闂孩鍏?+ 鐘舵€佹彁绀猴紝绂佹鎶撳彇
         if (IsInCombatPhase() || bIsPreviewMode)
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
             OnStatusMessage(bIsPreviewMode
-                ? NSLOCTEXT("Backpack", "PreviewLock", "预览模式：无法操作符文")
-                : NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
+                ? NSLOCTEXT("Backpack", "PreviewLock", "棰勮妯″紡锛氭棤娉曟搷浣滅鏂?)
+                : NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃"));
             return FReply::Handled();
         }
 
@@ -1623,9 +1446,9 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry,
 
 void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
-    if (bIsPreviewMode) return;  // 只读预览模式：禁止拖拽
+    if (bIsPreviewMode) return;  // 鍙棰勮妯″紡锛氱姝㈡嫋鎷?
 
-    // 拖拽接管：清除点击抓取状态
+    // 鎷栨嫿鎺ョ锛氭竻闄ょ偣鍑绘姄鍙栫姸鎬?
     bGrabbingRune     = false;
     GrabbedFromCell   = FIntPoint(-1,-1);
 
@@ -1653,7 +1476,7 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
             MouseDragTex    = PendingRune.RuneConfig.RuneIcon;
             LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
 
-            // Phase 2: 显示完整 Shape 跟随鼠标，AnchorCell = Pivot 在旋转后 Shape 的位置
+            // Phase 2: 鏄剧ず瀹屾暣 Shape 璺熼殢榧犳爣锛孉nchorCell = Pivot 鍦ㄦ棆杞悗 Shape 鐨勪綅缃?
             if (ShapePreviewCanvas && BackpackGridWidget)
             {
                 const FIntPoint AnchorCell = PendingRune.Shape.GetPivotOffset(PendingRune.Rotation);
@@ -1661,7 +1484,7 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
                 const int32 GW = (CachedBackpack.IsValid() && CachedBackpack->GridWidth > 0) ? CachedBackpack->GridWidth : 5;
                 const float CellPx = (GridSize.X > 0.f) ? (GridSize.X / GW) : 64.f;
                 ShowShapePreview(PendingRune, AnchorCell, MouseDragTex, CellPx);
-                // 首帧立即对位，避免出现在 (0,0) 一帧
+                // 棣栧抚绔嬪嵆瀵逛綅锛岄伩鍏嶅嚭鐜板湪 (0,0) 涓€甯?
                 UpdateShapePreviewPosition(InGeometry, InMouseEvent.GetScreenSpacePosition());
             }
 
@@ -1699,8 +1522,8 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
     MouseDragTex    = PR.Rune.RuneConfig.RuneIcon;
     LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
 
-    // Phase 2: 主格子拖拽也显完整 Shape，AnchorCell = Pivot 在旋转后 Shape 的位置
-    // （与 pending 路径一致 — 用户决策 Q5：Pivot 原点对齐鼠标）
+    // Phase 2: 涓绘牸瀛愭嫋鎷戒篃鏄惧畬鏁?Shape锛孉nchorCell = Pivot 鍦ㄦ棆杞悗 Shape 鐨勪綅缃?
+    // 锛堜笌 pending 璺緞涓€鑷?鈥?鐢ㄦ埛鍐崇瓥 Q5锛歅ivot 鍘熺偣瀵归綈榧犳爣锛?
     if (ShapePreviewCanvas && BackpackGridWidget)
     {
         const FIntPoint AnchorCell = PR.Rune.Shape.GetPivotOffset(PR.Rune.Rotation);
@@ -1708,7 +1531,7 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
         const int32 GW = (CachedBackpack.IsValid() && CachedBackpack->GridWidth > 0) ? CachedBackpack->GridWidth : 5;
         const float CellPx = (GridSize.X > 0.f) ? (GridSize.X / GW) : 64.f;
         ShowShapePreview(PR.Rune, AnchorCell, MouseDragTex, CellPx);
-        // 首帧立即对位，避免出现在 (0,0) 一帧
+        // 棣栧抚绔嬪嵆瀵逛綅锛岄伩鍏嶅嚭鐜板湪 (0,0) 涓€甯?
         UpdateShapePreviewPosition(InGeometry, InMouseEvent.GetScreenSpacePosition());
     }
 
@@ -1723,7 +1546,7 @@ bool UBackpackScreenWidget::NativeOnDragOver(const FGeometry& InGeometry, const 
 
     LastMouseAbsPos = InDragDropEvent.GetScreenSpacePosition();
 
-    // Phase 2: 让完整 Shape 预览跟随鼠标
+    // Phase 2: 璁╁畬鏁?Shape 棰勮璺熼殢榧犳爣
     UpdateShapePreviewPosition(InGeometry, InDragDropEvent.GetScreenSpacePosition());
 
     int32 Col, Row;
@@ -1749,14 +1572,14 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
 {
     if (bIsPreviewMode)
     {
-        HideShapePreview();  // 预览模式提早返回也要清理 Shape 预览
+        HideShapePreview();  // 棰勮妯″紡鎻愭棭杩斿洖涔熻娓呯悊 Shape 棰勮
         return false;
     }
 
     bMouseDragging = false;
     MouseDragTex   = nullptr;
     HoverCol = HoverRow = -1;
-    HideShapePreview();  // Phase 2: 所有 Drop 路径统一在入口清掉 Shape 预览
+    HideShapePreview();  // Phase 2: 鎵€鏈?Drop 璺緞缁熶竴鍦ㄥ叆鍙ｆ竻鎺?Shape 棰勮
 
     URuneDragDropOperation* RuneOp = Cast<URuneDragDropOperation>(InOperation);
     if (!RuneOp)
@@ -1765,17 +1588,17 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
         return false;
     }
 
-    // ── 主格子符文拖回待放置区（取回） ──────────────────────────────────────
-    // 只要落点在主格子面板左侧（含 Pending 区域和两者之间的空白），都触发取回
+    // 鈹€鈹€ 涓绘牸瀛愮鏂囨嫋鍥炲緟鏀剧疆鍖猴紙鍙栧洖锛?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // 鍙钀界偣鍦ㄤ富鏍煎瓙闈㈡澘宸︿晶锛堝惈 Pending 鍖哄煙鍜屼袱鑰呬箣闂寸殑绌虹櫧锛夛紝閮借Е鍙戝彇鍥?
     if (RuneOp->PendingSourceIndex < 0 && RuneOp->DraggedRune.RuneGuid.IsValid())
     {
         bool bShouldUnplace = false;
 
-        // 精确命中 Pending 面板
+        // 绮剧‘鍛戒腑 Pending 闈㈡澘
         int32 PendingTargetIdx;
         bShouldUnplace = GetPendingSlotAtScreenPos(InDragDropEvent.GetScreenSpacePosition(), PendingTargetIdx);
 
-        // 扩展：落点在主格子面板左侧也算取回
+        // 鎵╁睍锛氳惤鐐瑰湪涓绘牸瀛愰潰鏉垮乏渚т篃绠楀彇鍥?
         if (!bShouldUnplace && BackpackGridWidget)
         {
             const FGeometry GridGeo  = BackpackGridWidget->GetGridGeometry();
@@ -1788,7 +1611,7 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
             UBackpackGridComponent* Backpack = GetBackpack();
             if (Backpack)
             {
-                // 找目标格子：先尝试最近格，若已占用则找第一个空格
+                // 鎵剧洰鏍囨牸瀛愶細鍏堝皾璇曟渶杩戞牸锛岃嫢宸插崰鐢ㄥ垯鎵剧涓€涓┖鏍?
                 int32 TargetSlot = -1;
                 if (PendingGridWidget)
                 {
@@ -1808,7 +1631,7 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
                 }
                 if (TargetSlot < 0)
                 {
-                    OnStatusMessage(NSLOCTEXT("Backpack", "PendingFull", "待放置区已满"));
+                    OnStatusMessage(NSLOCTEXT("Backpack", "PendingFull", "寰呮斁缃尯宸叉弧"));
                     OnGridNeedsRefresh();
                     return false;
                 }
@@ -1821,7 +1644,7 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
                 SelectedCell = FIntPoint(-1, -1);
                 OnSelectionChanged();
                 OnStatusMessage(FText::Format(
-                    NSLOCTEXT("Backpack", "UnplaceOK", "已取回：{0}"),
+                    NSLOCTEXT("Backpack", "UnplaceOK", "宸插彇鍥烇細{0}"),
                     FText::FromName(RuneOp->DraggedRune.RuneConfig.RuneName)));
                 return true;
             }
@@ -1837,7 +1660,7 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
             return false;
         }
 
-        // ── 优先检测主格子落点（防止边界模糊误触 pending→pending 路径） ────
+        // 鈹€鈹€ 浼樺厛妫€娴嬩富鏍煎瓙钀界偣锛堥槻姝㈣竟鐣屾ā绯婅瑙?pending鈫抪ending 璺緞锛?鈹€鈹€鈹€鈹€
         int32 TargetCol, TargetRow;
         if (GetGridCellAtScreenPos(InDragDropEvent.GetScreenSpacePosition(), TargetCol, TargetRow))
         {
@@ -1854,17 +1677,17 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
                 SelectedCell = FIntPoint(-1, -1);
                 OnSelectionChanged();
                 OnStatusMessage(FText::Format(
-                    NSLOCTEXT("Backpack", "PendingPlaceOK", "已放置：{0}"),
+                    NSLOCTEXT("Backpack", "PendingPlaceOK", "宸叉斁缃細{0}"),
                     FText::FromName(PendingRune.RuneConfig.RuneName)));
                 return true;
             }
 
-            OnStatusMessage(NSLOCTEXT("Backpack", "PendingPlaceFail", "无法放置：位置被占用"));
+            OnStatusMessage(NSLOCTEXT("Backpack", "PendingPlaceFail", "鏃犳硶鏀剧疆锛氫綅缃鍗犵敤"));
             OnGridNeedsRefresh();
             return false;
         }
 
-        // ── 主格子未命中：检查是否落在待放置区内（pending → pending 交换）──
+        // 鈹€鈹€ 涓绘牸瀛愭湭鍛戒腑锛氭鏌ユ槸鍚﹁惤鍦ㄥ緟鏀剧疆鍖哄唴锛坧ending 鈫?pending 浜ゆ崲锛夆攢鈹€
         {
             int32 PendingTargetIdx;
             if (PendingGridWidget && PendingGridWidget->GetSlotAtScreenPos(
@@ -1919,7 +1742,7 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
         SelectedCell = FIntPoint(-1, -1);
         OnSelectionChanged();
         OnStatusMessage(FText::Format(
-            NSLOCTEXT("Backpack", "MoveOK", "已移动：{0}"),
+            NSLOCTEXT("Backpack", "MoveOK", "宸茬Щ鍔細{0}"),
             FText::FromName(RuneOp->DraggedRune.RuneConfig.RuneName)));
         return true;
     }
@@ -1942,13 +1765,13 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
 
             if (bPlaceA && bPlaceB)
             {
-                // 互换成功 → 自动抓取被替换的符文（RuneB 现在在 PivotA）
+                // 浜掓崲鎴愬姛 鈫?鑷姩鎶撳彇琚浛鎹㈢殑绗︽枃锛圧uneB 鐜板湪鍦?PivotA锛?
                 bGrabbingRune   = true;
                 GrabbedFromCell = PivotA;
                 SelectedCell    = PivotA;
                 OnSelectionChanged();
                 OnStatusMessage(FText::Format(
-                    NSLOCTEXT("Backpack", "SwapOK", "已互换：{0} ↔ {1}"),
+                    NSLOCTEXT("Backpack", "SwapOK", "宸蹭簰鎹細{0} 鈫?{1}"),
                     FText::FromName(RuneOp->DraggedRune.RuneConfig.RuneName),
                     FText::FromName(RuneB.RuneConfig.RuneName)));
                 return true;
@@ -1956,13 +1779,13 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
 
             Backpack->TryPlaceRune(RuneOp->DraggedRune, PivotA);
             Backpack->TryPlaceRune(RuneB, PivotB);
-            OnStatusMessage(NSLOCTEXT("Backpack", "SwapFail", "无法互换：形状冲突"));
+            OnStatusMessage(NSLOCTEXT("Backpack", "SwapFail", "鏃犳硶浜掓崲锛氬舰鐘跺啿绐?));
             OnGridNeedsRefresh();
             return false;
         }
     }
 
-    OnStatusMessage(NSLOCTEXT("Backpack", "MoveFail", "无法移动：目标位置被占用"));
+    OnStatusMessage(NSLOCTEXT("Backpack", "MoveFail", "鏃犳硶绉诲姩锛氱洰鏍囦綅缃鍗犵敤"));
     OnGridNeedsRefresh();
     return false;
 }
@@ -1973,19 +1796,19 @@ void UBackpackScreenWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDr
     MouseDragTex   = nullptr;
     HoverCol       = HoverRow       = -1;
     PendingDragCol = PendingDragRow = -1;
-    HideShapePreview();  // Phase 2: 拖拽取消（如 ESC / 右键）也清掉 Shape 预览
+    HideShapePreview();  // Phase 2: 鎷栨嫿鍙栨秷锛堝 ESC / 鍙抽敭锛変篃娓呮帀 Shape 棰勮
     OnGridNeedsRefresh();
 }
 
 // ============================================================
-//  手柄输入
+//  鎵嬫焺杈撳叆
 // ============================================================
 
 FReply UBackpackScreenWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
     const FVector2D NewPos = InMouseEvent.GetScreenSpacePosition();
-    // 只有光标真实移动超过 2px 才算"真实移动"；零位移或极小偏移视为合成事件，
-    // 保持手柄模式，防止多次合成事件反复将 HoverCol/Row 清零导致高亮闪烁。
+    // 鍙湁鍏夋爣鐪熷疄绉诲姩瓒呰繃 2px 鎵嶇畻"鐪熷疄绉诲姩"锛涢浂浣嶇Щ鎴栨瀬灏忓亸绉昏涓哄悎鎴愪簨浠讹紝
+    // 淇濇寔鎵嬫焺妯″紡锛岄槻姝㈠娆″悎鎴愪簨浠跺弽澶嶅皢 HoverCol/Row 娓呴浂瀵艰嚧楂樹寒闂儊銆?
     const bool bRealMove = (NewPos - LastMouseAbsPos).SizeSquared() > 4.f;
 
     if (bIsGamepadInputMode)
@@ -2008,7 +1831,7 @@ FReply UBackpackScreenWidget::NativeOnMouseMove(const FGeometry& InGeometry, con
         }
     }
 
-    // 无抓取/拖拽时追踪主格子悬浮格，驱动绿框高亮
+    // 鏃犳姄鍙?鎷栨嫿鏃惰拷韪富鏍煎瓙鎮诞鏍硷紝椹卞姩缁挎楂樹寒
     if (!bGrabbingRune && !bMouseDragging)
     {
         int32 NewHCol = -1, NewHRow = -1;
@@ -2092,8 +1915,8 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
         const float HalfPx  = CellPx * 0.5f;
         const float FloatY  = FMath::Sin(GetWorld()->GetTimeSeconds() * 3.f) * 5.f;
 
-        // Phase 2: 如果 ShapePreview 已激活（WBP 绑了 ShapePreviewCanvas），不再显示单图标 GrabbedRuneIcon，
-        // 避免拖拽时双图标叠加
+        // Phase 2: 濡傛灉 ShapePreview 宸叉縺娲伙紙WBP 缁戜簡 ShapePreviewCanvas锛夛紝涓嶅啀鏄剧ず鍗曞浘鏍?GrabbedRuneIcon锛?
+        // 閬垮厤鎷栨嫿鏃跺弻鍥炬爣鍙犲姞
         if (bShapePreviewActive)
         {
             GrabbedRuneIcon->SetVisibility(ESlateVisibility::Collapsed);
@@ -2121,7 +1944,7 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
                 if (bCursorInPendingArea
                     && PendingGridWidget && PendingGridWidget->PendingRuneGrid)
                 {
-                    // 手柄在待放置区抓起符文时：浮空图标跟随待放置区光标格
+                    // 鎵嬫焺鍦ㄥ緟鏀剧疆鍖烘姄璧风鏂囨椂锛氭诞绌哄浘鏍囪窡闅忓緟鏀剧疆鍖哄厜鏍囨牸
                     const FGeometry& PGeo  = PendingGridWidget->PendingRuneGrid->GetCachedGeometry();
                     const FVector2D  PSize = PGeo.GetLocalSize();
                     const int32 PCols = FMath::Max(1, PendingCols);
@@ -2141,7 +1964,7 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
                 }
                 else
                 {
-                    // 手柄在主格子时：浮空图标跟随主格子光标格
+                    // 鎵嬫焺鍦ㄤ富鏍煎瓙鏃讹細娴┖鍥炬爣璺熼殢涓绘牸瀛愬厜鏍囨牸
                     const FGeometry GridGeo  = BackpackGridWidget->GetGridGeometry();
                     const FVector2D GridSize = GridGeo.GetLocalSize();
                     if (GridSize.X > 0.f && GridSize.Y > 0.f)
@@ -2209,7 +2032,7 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
     }
     else if (bCursorInPendingArea)
     {
-        // Up/Down navigation is disabled in the backpack — only horizontal repeats are honored.
+        // Up/Down navigation is disabled in the backpack 鈥?only horizontal repeats are honored.
         if      (HeldDirKey == EKeys::Gamepad_DPad_Left)  MovePendingCursor(-1,  0);
         else if (HeldDirKey == EKeys::Gamepad_DPad_Right) MovePendingCursor( 1,  0);
     }
@@ -2301,14 +2124,14 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         CombatDeckEditWidget ? 1 : 0,
         (CombatDeckEditWidget && CombatDeckEditWidget->CanHandleDeckInput()) ? 1 : 0);
 
-    // 摇杆轴事件不触发输入模式切换，直接忽略
+    // 鎽囨潌杞翠簨浠朵笉瑙﹀彂杈撳叆妯″紡鍒囨崲锛岀洿鎺ュ拷鐣?
     if (Key == EKeys::Gamepad_RightStick_Up   || Key == EKeys::Gamepad_RightStick_Down  ||
         Key == EKeys::Gamepad_RightStick_Left  || Key == EKeys::Gamepad_RightStick_Right)
     {
         return FReply::Handled();
     }
 
-    // 首次切换到手柄模式时立刻显示操作提示
+    // 棣栨鍒囨崲鍒版墜鏌勬ā寮忔椂绔嬪埢鏄剧ず鎿嶄綔鎻愮ず
     bIsGamepadInputMode = true;
     if (Key == EKeys::Gamepad_Special_Left ||
         Key == EKeys::Gamepad_Special_Right ||
@@ -2406,7 +2229,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         return FReply::Handled();
     }
 
-    // ── Gamepad grid navigation ───────────────────────────────────────
+    // 鈹€鈹€ Gamepad grid navigation 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     auto StartDirRepeat = [&](int32 DC, int32 DR) -> FReply
     {
         if (bCursorInPendingArea) MovePendingCursor(DC, DR);
@@ -2418,7 +2241,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         return FReply::Handled();
     };
 
-    // DPad / left-stick up & down are intentionally inert in the backpack screen — swallow
+    // DPad / left-stick up & down are intentionally inert in the backpack screen 鈥?swallow
     // the event so it doesn't trigger CommonUI focus navigation, but don't move the cursor.
     if (Key == EKeys::Gamepad_DPad_Up   || Key == EKeys::Gamepad_LeftStick_Up   ||
         Key == EKeys::Gamepad_DPad_Down || Key == EKeys::Gamepad_LeftStick_Down)
@@ -2444,7 +2267,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         }
     }
 
-    // ── 符文旋转 ────────────────────────────────────────────────────────
+    // 鈹€鈹€ 绗︽枃鏃嬭浆 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     if (Key == EKeys::R)
     {
         if (bCursorInPendingArea || PendingSelectedIdx >= 0)
@@ -2453,7 +2276,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
             RotateSelectedRune();
         return FReply::Handled();
     }
-    if (Key == EKeys::Gamepad_FaceButton_Left) // X 键
+    if (Key == EKeys::Gamepad_FaceButton_Left) // X 閿?
     {
         if (bCursorInPendingArea)
             RotatePendingRune();
@@ -2484,7 +2307,7 @@ FReply UBackpackScreenWidget::HandleCombatDeckSelectButtonState(bool bPressed, c
     {
         if (bDeckSelectButtonWasDown)
         {
-            // 拖拽进行中时允许第二次 A 按下直接提交，否则必须等到松键才能放下卡牌
+            // 鎷栨嫿杩涜涓椂鍏佽绗簩娆?A 鎸変笅鐩存帴鎻愪氦锛屽惁鍒欏繀椤荤瓑鍒版澗閿墠鑳芥斁涓嬪崱鐗?
             if (CombatDeckEditWidget && CombatDeckEditWidget->IsGamepadDragActive())
             {
                 return CombatDeckEditWidget->HandleDeckSelectPressed() ? FReply::Handled() : FReply::Unhandled();
@@ -2538,7 +2361,7 @@ void UBackpackScreenWidget::MoveGamepadCursor(int32 DCol, int32 DRow)
     const int32 W = Backpack ? Backpack->GridWidth  : 5;
     const int32 H = Backpack ? Backpack->GridHeight : 5;
 
-    // DPad Left 从第 0 列出边界 → 进入待放置区
+    // DPad Left 浠庣 0 鍒楀嚭杈圭晫 鈫?杩涘叆寰呮斁缃尯
     if (DCol == -1 && GamepadCursorCell.X == 0)
     {
         bCursorInPendingArea = true;
@@ -2562,7 +2385,7 @@ void UBackpackScreenWidget::MoveGamepadCursor(int32 DCol, int32 DRow)
 
     if (!bGrabbingRune)
     {
-        // 仅悬浮高亮（绿框），不触发选中/信息卡
+        // 浠呮偓娴珮浜紙缁挎锛夛紝涓嶈Е鍙戦€変腑/淇℃伅鍗?
         HoverCol = GamepadCursorCell.X;
         HoverRow = GamepadCursorCell.Y;
         OnGridNeedsRefresh();
@@ -2577,9 +2400,9 @@ void UBackpackScreenWidget::MoveGamepadCursor(int32 DCol, int32 DRow)
 
 void UBackpackScreenWidget::GamepadConfirm()
 {
-    if (bIsPreviewMode) return;  // 只读预览模式：禁止抓取/放置
+    if (bIsPreviewMode) return;  // 鍙棰勮妯″紡锛氱姝㈡姄鍙?鏀剧疆
 
-    // 从待放置区抓起后，在主格子落点
+    // 浠庡緟鏀剧疆鍖烘姄璧峰悗锛屽湪涓绘牸瀛愯惤鐐?
     if (bGrabbingFromPending)
     {
         if (!PendingGrid.IsValidIndex(PendingGrabbedIdx) || !PendingGrid[PendingGrabbedIdx].RuneGuid.IsValid())
@@ -2601,13 +2424,13 @@ void UBackpackScreenWidget::GamepadConfirm()
             SelectedCell = FIntPoint(-1, -1);
             OnSelectionChanged();
             OnStatusMessage(FText::Format(
-                NSLOCTEXT("Backpack", "PendingPlaceOK", "已放置：{0}"),
+                NSLOCTEXT("Backpack", "PendingPlaceOK", "宸叉斁缃細{0}"),
                 FText::FromName(PendingRune.RuneConfig.RuneName)));
         }
         else
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(GamepadCursorCell.X, GamepadCursorCell.Y);
-            OnStatusMessage(NSLOCTEXT("Backpack", "PendingPlaceFail", "无法放置：位置被占用"));
+            OnStatusMessage(NSLOCTEXT("Backpack", "PendingPlaceFail", "鏃犳硶鏀剧疆锛氫綅缃鍗犵敤"));
         }
         return;
     }
@@ -2623,7 +2446,7 @@ void UBackpackScreenWidget::GamepadConfirm()
             if (IsInCombatPhase())
             {
                 if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(GamepadCursorCell.X, GamepadCursorCell.Y);
-                OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文"));
+                OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃"));
                 return;
             }
 
@@ -2632,11 +2455,11 @@ void UBackpackScreenWidget::GamepadConfirm()
             SelectedCell     = GamepadCursorCell;
             HoverCol = HoverRow = -1;
             OnSelectionChanged();
-            OnStatusMessage(NSLOCTEXT("Backpack", "GrabOK", "已抓取符文，移动光标后按确认放置"));
+            OnStatusMessage(NSLOCTEXT("Backpack", "GrabOK", "宸叉姄鍙栫鏂囷紝绉诲姩鍏夋爣鍚庢寜纭鏀剧疆"));
         }
         else
         {
-            OnStatusMessage(NSLOCTEXT("Backpack", "GrabEmpty", "该格子没有符文"));
+            OnStatusMessage(NSLOCTEXT("Backpack", "GrabEmpty", "璇ユ牸瀛愭病鏈夌鏂?));
         }
     }
     else
@@ -2663,7 +2486,7 @@ void UBackpackScreenWidget::GamepadConfirm()
 
         if (DstIdx >= 0)
         {
-            // 互换 → 自动抓取被替换符文（RuneB 现在在 PivotA）
+            // 浜掓崲 鈫?鑷姩鎶撳彇琚浛鎹㈢鏂囷紙RuneB 鐜板湪鍦?PivotA锛?
             const FRuneInstance RuneB  = Placed[DstIdx].Rune;
             const FIntPoint     PivotB = Placed[DstIdx].Pivot;
 
@@ -2675,17 +2498,17 @@ void UBackpackScreenWidget::GamepadConfirm()
             GrabbedFromCell   = PivotA;
             SelectedCell      = PivotA;
             GamepadCursorCell = PivotA;
-            // bGrabbingRune 保持 true
+            // bGrabbingRune 淇濇寔 true
             OnSelectionChanged();
             OnStatusMessage(FText::Format(
-                NSLOCTEXT("Backpack", "SwapOK", "已互换：{0} ↔ {1}"),
+                NSLOCTEXT("Backpack", "SwapOK", "宸蹭簰鎹細{0} 鈫?{1}"),
                 FText::FromName(RuneA.RuneConfig.RuneName),
                 FText::FromName(RuneB.RuneConfig.RuneName)));
             OnGridNeedsRefresh();
         }
         else
         {
-            // 移动到空格 → 放置成功后结束抓取
+            // 绉诲姩鍒扮┖鏍?鈫?鏀剧疆鎴愬姛鍚庣粨鏉熸姄鍙?
             const FIntPoint Offset   = GrabbedFromCell - PivotA;
             const FIntPoint NewPivot = GamepadCursorCell - Offset;
 
@@ -2696,13 +2519,13 @@ void UBackpackScreenWidget::GamepadConfirm()
                 SelectedCell    = FIntPoint(-1,-1);
                 OnSelectionChanged();
                 OnStatusMessage(FText::Format(
-                    NSLOCTEXT("Backpack", "MoveOK", "已移动：{0}"),
+                    NSLOCTEXT("Backpack", "MoveOK", "宸茬Щ鍔細{0}"),
                     FText::FromName(RuneA.RuneConfig.RuneName)));
             }
             else
             {
                 if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(GamepadCursorCell.X, GamepadCursorCell.Y);
-                OnStatusMessage(NSLOCTEXT("Backpack", "MoveFail", "无法放置：目标位置被占用"));
+                OnStatusMessage(NSLOCTEXT("Backpack", "MoveFail", "鏃犳硶鏀剧疆锛氱洰鏍囦綅缃鍗犵敤"));
                 OnGridNeedsRefresh();
             }
         }
@@ -2716,7 +2539,7 @@ void UBackpackScreenWidget::GamepadCancel()
         bGrabbingFromPending = false;
         PendingGrabbedIdx    = -1;
         RefreshPendingGrid();
-        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "已取消"));
+        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "宸插彇娑?));
         return;
     }
 
@@ -2726,15 +2549,15 @@ void UBackpackScreenWidget::GamepadCancel()
         GrabbedFromCell = FIntPoint(-1, -1);
         SelectedCell    = FIntPoint(-1, -1);
         OnSelectionChanged();
-        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "已取消"));
+        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "宸插彇娑?));
         return;
     }
 
-    // 未抓取时 B 键直接关闭背包
+    // 鏈姄鍙栨椂 B 閿洿鎺ュ叧闂儗鍖?
     DeactivateWidget();
 }
 
-// ── 待放置区手柄方法 ──────────────────────────────────────────────────────
+// 鈹€鈹€ 寰呮斁缃尯鎵嬫焺鏂规硶 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 void UBackpackScreenWidget::MovePendingCursor(int32 DCol, int32 DRow)
 {
@@ -2744,7 +2567,7 @@ void UBackpackScreenWidget::MovePendingCursor(int32 DCol, int32 DRow)
     int32 Col = PendingCursorIdx % PCols + DCol;
     int32 Row = PendingCursorIdx / PCols + DRow;
 
-    // 向右出边界 → 切换到主格子
+    // 鍚戝彸鍑鸿竟鐣?鈫?鍒囨崲鍒颁富鏍煎瓙
     if (DCol == 1 && Col >= PCols)
     {
         bCursorInPendingArea = false;
@@ -2773,12 +2596,12 @@ void UBackpackScreenWidget::MovePendingCursor(int32 DCol, int32 DRow)
 
 void UBackpackScreenWidget::PendingGamepadConfirm()
 {
-    if (bIsPreviewMode) return;  // 只读预览模式：禁止操作
+    if (bIsPreviewMode) return;  // 鍙棰勮妯″紡锛氱姝㈡搷浣?
 
-    // 主格子抓取状态下进入待放置区：A 键将符文送回待放置槽
+    // 涓绘牸瀛愭姄鍙栫姸鎬佷笅杩涘叆寰呮斁缃尯锛欰 閿皢绗︽枃閫佸洖寰呮斁缃Ы
     if (bGrabbingRune)
     {
-        if (IsInCombatPhase()) { OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文")); return; }
+        if (IsInCombatPhase()) { OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃")); return; }
 
         UBackpackGridComponent* Backpack = GetBackpack();
         if (!Backpack) return;
@@ -2786,7 +2609,7 @@ void UBackpackScreenWidget::PendingGamepadConfirm()
         FPlacedRune PR = GetRuneAtCell(GrabbedFromCell.X, GrabbedFromCell.Y);
         if (!PR.Rune.RuneGuid.IsValid()) { bGrabbingRune = false; return; }
 
-        // 优先放入光标格（若为空），否则找第一个空格
+        // 浼樺厛鏀惧叆鍏夋爣鏍硷紙鑻ヤ负绌猴級锛屽惁鍒欐壘绗竴涓┖鏍?
         int32 TargetSlot = -1;
         if (PendingGrid.IsValidIndex(PendingCursorIdx) && !PendingGrid[PendingCursorIdx].RuneGuid.IsValid())
             TargetSlot = PendingCursorIdx;
@@ -2794,7 +2617,7 @@ void UBackpackScreenWidget::PendingGamepadConfirm()
             for (int32 i = 0; i < PendingGrid.Num(); i++)
                 if (!PendingGrid[i].RuneGuid.IsValid()) { TargetSlot = i; break; }
 
-        if (TargetSlot < 0) { OnStatusMessage(NSLOCTEXT("Backpack", "PendingFull", "待放置区已满")); return; }
+        if (TargetSlot < 0) { OnStatusMessage(NSLOCTEXT("Backpack", "PendingFull", "寰呮斁缃尯宸叉弧")); return; }
 
         Backpack->RemoveRune(PR.Rune.RuneGuid);
         PendingGrid[TargetSlot] = PR.Rune;
@@ -2808,7 +2631,7 @@ void UBackpackScreenWidget::PendingGamepadConfirm()
         RefreshPendingGrid();
         OnSelectionChanged();
         OnStatusMessage(FText::Format(
-            NSLOCTEXT("Backpack", "UnplaceOK", "已取回：{0}"),
+            NSLOCTEXT("Backpack", "UnplaceOK", "宸插彇鍥烇細{0}"),
             FText::FromName(PR.Rune.RuneConfig.RuneName)));
         return;
     }
@@ -2818,20 +2641,20 @@ void UBackpackScreenWidget::PendingGamepadConfirm()
 
     if (!bGrabbingFromPending)
     {
-        if (!bHasRune) { OnStatusMessage(NSLOCTEXT("Backpack", "PendingGrabEmpty", "该格子没有符文")); return; }
-        if (IsInCombatPhase()) { OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "战斗阶段无法移动符文")); return; }
+        if (!bHasRune) { OnStatusMessage(NSLOCTEXT("Backpack", "PendingGrabEmpty", "璇ユ牸瀛愭病鏈夌鏂?)); return; }
+        if (IsInCombatPhase()) { OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃")); return; }
 
         bGrabbingFromPending = true;
         PendingGrabbedIdx    = PendingCursorIdx;
         PendingSelectedIdx   = PendingCursorIdx;
         RefreshPendingGrid();
-        OnStatusMessage(NSLOCTEXT("Backpack", "PendingGrabOK", "已抓取符文，移动光标后按确认放置，按返回取消"));
+        OnStatusMessage(NSLOCTEXT("Backpack", "PendingGrabOK", "宸叉姄鍙栫鏂囷紝绉诲姩鍏夋爣鍚庢寜纭鏀剧疆锛屾寜杩斿洖鍙栨秷"));
     }
     else
     {
         if (PendingCursorIdx == PendingGrabbedIdx) { PendingGamepadCancel(); return; }
 
-        // 在待放置区内交换
+        // 鍦ㄥ緟鏀剧疆鍖哄唴浜ゆ崲
         const FRuneInstance Src = PendingGrid[PendingGrabbedIdx];
         const FRuneInstance Dst = PendingGrid.IsValidIndex(PendingCursorIdx)
             ? PendingGrid[PendingCursorIdx] : FRuneInstance();
@@ -2843,7 +2666,7 @@ void UBackpackScreenWidget::PendingGamepadConfirm()
         PendingGrabbedIdx    = -1;
         PendingSelectedIdx   = PendingCursorIdx;
         RefreshPendingGrid();
-        OnStatusMessage(NSLOCTEXT("Backpack", "PendingMoved", "已移动符文"));
+        OnStatusMessage(NSLOCTEXT("Backpack", "PendingMoved", "宸茬Щ鍔ㄧ鏂?));
     }
 }
 
@@ -2854,10 +2677,10 @@ void UBackpackScreenWidget::PendingGamepadCancel()
         bGrabbingFromPending = false;
         PendingGrabbedIdx    = -1;
         RefreshPendingGrid();
-        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "已取消"));
+        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "宸插彇娑?));
         return;
     }
-    // 未抓取时 B 键退出待放置区，回到主格子最左列
+    // 鏈姄鍙栨椂 B 閿€€鍑哄緟鏀剧疆鍖猴紝鍥炲埌涓绘牸瀛愭渶宸﹀垪
     bCursorInPendingArea = false;
     PendingSelectedIdx   = -1;
     UBackpackGridComponent* Backpack = GetBackpack();
@@ -2870,12 +2693,12 @@ void UBackpackScreenWidget::PendingGamepadCancel()
 }
 
 // ============================================================
-//  符文旋转
+//  绗︽枃鏃嬭浆
 // ============================================================
 
 void UBackpackScreenWidget::RotateSelectedRune()
 {
-    if (bIsPreviewMode) return;  // 只读预览模式：禁止旋转
+    if (bIsPreviewMode) return;  // 鍙棰勮妯″紡锛氱姝㈡棆杞?
 
     UBackpackGridComponent* Backpack = GetBackpack();
     if (!Backpack) return;
@@ -2891,18 +2714,18 @@ void UBackpackScreenWidget::RotateSelectedRune()
     FRuneInstance NewRune = PR.Rune;
     NewRune.Rotation = (NewRune.Rotation + 1) % 4;
 
-    // 以符文 (0,0) 格为旋转中心：计算旋转后使 icon 格保持原位置的新 Pivot
+    // 浠ョ鏂?(0,0) 鏍间负鏃嬭浆涓績锛氳绠楁棆杞悗浣?icon 鏍间繚鎸佸師浣嶇疆鐨勬柊 Pivot
     const FIntPoint IconAbsCell = PR.Pivot + PR.Rune.Shape.GetPivotOffset(PR.Rune.Rotation);
     const FIntPoint NewPivot    = IconAbsCell - NewRune.Shape.GetPivotOffset(NewRune.Rotation);
 
     Backpack->RemoveRune(PR.Rune.RuneGuid);
     bool bSuccess = Backpack->TryPlaceRune(NewRune, NewPivot);
     if (!bSuccess)
-        bSuccess = Backpack->TryPlaceRune(NewRune, PR.Pivot);  // 退而求其次：原 Pivot
+        bSuccess = Backpack->TryPlaceRune(NewRune, PR.Pivot);  // 閫€鑰屾眰鍏舵锛氬師 Pivot
     if (!bSuccess)
-        Backpack->TryPlaceRune(PR.Rune, PR.Pivot);              // 还原
+        Backpack->TryPlaceRune(PR.Rune, PR.Pivot);              // 杩樺師
 
-    // icon 格保持在 IconAbsCell，将选中/抓取指针更新到该格
+    // icon 鏍间繚鎸佸湪 IconAbsCell锛屽皢閫変腑/鎶撳彇鎸囬拡鏇存柊鍒拌鏍?
     if (bSuccess)
     {
         SelectedCell = IconAbsCell;
@@ -2914,10 +2737,10 @@ void UBackpackScreenWidget::RotateSelectedRune()
 
 void UBackpackScreenWidget::RotatePendingRune()
 {
-    if (bIsPreviewMode) return;  // 只读预览模式：禁止旋转 pending 符文
+    if (bIsPreviewMode) return;  // 鍙棰勮妯″紡锛氱姝㈡棆杞?pending 绗︽枃
     const int32 Idx = bCursorInPendingArea ? PendingCursorIdx : PendingSelectedIdx;
     if (!PendingGrid.IsValidIndex(Idx)) return;
-    if (PendingGrid[Idx].RuneGuid == FGuid()) return; // 空格
+    if (PendingGrid[Idx].RuneGuid == FGuid()) return; // 绌烘牸
 
     PendingGrid[Idx].Rotation = (PendingGrid[Idx].Rotation + 1) % 4;
     SyncPendingToPlayer();

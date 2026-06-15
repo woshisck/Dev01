@@ -4,12 +4,12 @@
 #include "Misc/PackageName.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/BufferComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_ActiveSkill_ShieldBurst.h"
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Abilities/GA_WeaponSkill.h"
 #include "AbilitySystem/GameplayEffect/GE_RuneBurn.h"
@@ -39,13 +39,11 @@
 #include "Animation/AnimNotifyState_PostAtkWindow.h"
 #include "Data/AbilityData.h"
 #include "Data/ActiveSkillDataAsset.h"
-#include "Data/GameplayAbilityComboGraph.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/MontageConfigDA.h"
 #include "Data/RuneDataAsset.h"
 #include "Data/RuneCardEffectProfileDA.h"
 #include "Data/SpecialAttackDataAsset.h"
-#include "Data/WeaponComboNodeConfig.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/PlayerActiveSkillComponent.h"
@@ -629,21 +627,21 @@ bool FStateConflictHitReactBlocksMovementControlTest::RunTest(const FString& Par
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FComboGraphMeleeAbilityHasActionAndDeathGuardsTest,
-	"DevKit.CombatDeck.ComboGraphMeleeAbilityHasActionAndDeathGuards",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMeleeAbilityHasActionAndDeathGuardsTest,
+	"DevKit.CombatDeck.MeleeAbilityHasActionAndDeathGuards",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FComboGraphMeleeAbilityHasActionAndDeathGuardsTest::RunTest(const FString& Parameters)
+bool FMeleeAbilityHasActionAndDeathGuardsTest::RunTest(const FString& Parameters)
 {
 	UGA_MeleeAttack* Ability = NewObject<UGA_MeleeAttack>();
 	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"));
 	const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"));
 
-	TestTrue(TEXT("Generic ComboGraph melee ability carries the attack action tag"),
+	TestTrue(TEXT("Generic melee ability carries the attack action tag"),
 		Ability->GetAbilityTags().HasTagExact(AttackTag));
-	TestTrue(TEXT("Generic ComboGraph melee ability owns the attack action tag while active"),
+	TestTrue(TEXT("Generic melee ability owns the attack action tag while active"),
 		Ability->GetActivationOwnedTags().HasTagExact(AttackTag));
-	TestTrue(TEXT("Generic ComboGraph melee ability is blocked while dead"),
+	TestTrue(TEXT("Generic melee ability is blocked while dead"),
 		Ability->GetActivationBlockedTags().HasTagExact(DeadTag));
 
 	return true;
@@ -677,215 +675,6 @@ bool FPlayerDashHasDefaultInterruptAndDeathGuardsTest::RunTest(const FString& Pa
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerDeathClearsComboRuntimeStateTest,
-	"DevKit.CombatDeck.PlayerDeathClearsComboRuntimeState",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FPlayerDeathClearsComboRuntimeStateTest::RunTest(const FString& Parameters)
-{
-	UWorld* World = GWorld;
-	TestNotNull(TEXT("Automation world exists for player death combo runtime test"), World);
-	if (!World)
-	{
-		return false;
-	}
-
-	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
-	TestNotNull(TEXT("Player spawned for death combo runtime test"), Player);
-	if (!Player)
-	{
-		return false;
-	}
-
-	UYogAbilitySystemComponent* ASC = Player->GetASC();
-	TestNotNull(TEXT("Player has Yog ASC"), ASC);
-	TestNotNull(TEXT("Player has ComboRuntimeComponent"), Player->ComboRuntimeComponent.Get());
-	if (!ASC || !Player->ComboRuntimeComponent)
-	{
-		Player->Destroy();
-		return false;
-	}
-
-	ASC->InitAbilityActorInfo(Player, Player);
-
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>(Player);
-	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	Root->Graph = Graph;
-	Root->NodeId = TEXT("L1");
-	Root->RootInputAction = EYogComboGraphInputAction::Attack;
-	Root->Montage = NewObject<UAnimMontage>(Graph);
-	Graph->AllNodes = { Root };
-	Graph->RootNodes = { Root };
-
-	Player->ComboRuntimeComponent->LoadComboGraph(Graph);
-	TestTrue(TEXT("Combo runtime can enter an active graph node before death"),
-		Player->ComboRuntimeComponent->TryActivateComboGraphNode(EYogComboGraphInputAction::Attack, FGameplayTagContainer()));
-	TestEqual(TEXT("Combo runtime stores current node before death"),
-		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(TEXT("L1")));
-	TestTrue(TEXT("Combo runtime stores active attack guid before death"),
-		Player->ComboRuntimeComponent->GetActiveAttackGuid().IsValid());
-
-	Player->Die();
-
-	TestEqual(TEXT("Player death clears current combo node"),
-		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(NAME_None));
-	TestEqual(TEXT("Player death clears active graph node"),
-		Player->ComboRuntimeComponent->GetActiveGraphNodeId(), FName(NAME_None));
-	TestFalse(TEXT("Player death clears active attack guid"),
-		Player->ComboRuntimeComponent->GetActiveAttackGuid().IsValid());
-
-	Player->Destroy();
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerDefaultUnarmedComboGraphLoadsFallbackTest,
-	"DevKit.CombatDeck.PlayerDefaultUnarmedComboGraphLoadsFallback",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FPlayerDefaultUnarmedComboGraphLoadsFallbackTest::RunTest(const FString& Parameters)
-{
-	UWorld* World = GWorld;
-	TestNotNull(TEXT("Automation world exists for unarmed combo fallback test"), World);
-	if (!World)
-	{
-		return false;
-	}
-
-	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
-	TestNotNull(TEXT("Player spawned for unarmed combo fallback test"), Player);
-	if (!Player)
-	{
-		return false;
-	}
-
-	UGameplayAbilityComboGraph* DefaultGraph = NewObject<UGameplayAbilityComboGraph>(Player);
-	UWeaponDefinition* UnarmedDef = NewObject<UWeaponDefinition>(Player);
-	UnarmedDef->GameplayAbilityComboGraph = DefaultGraph;
-	Player->DefaultUnarmedWeaponDef = UnarmedDef;
-	Player->ApplyDefaultUnarmedComboGraph();
-
-	TestTrue(TEXT("Default unarmed combo graph becomes the active combo graph"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == DefaultGraph);
-	TestTrue(TEXT("Default unarmed combo graph counts as a combo source"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->HasComboSource());
-
-	Player->Destroy();
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerWeaponComboGraphOverridesAndResetToUnarmedTest,
-	"DevKit.CombatDeck.PlayerWeaponComboGraphOverridesAndResetToUnarmed",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FPlayerWeaponComboGraphOverridesAndResetToUnarmedTest::RunTest(const FString& Parameters)
-{
-	UWorld* World = GWorld;
-	TestNotNull(TEXT("Automation world exists for weapon combo override test"), World);
-	if (!World)
-	{
-		return false;
-	}
-
-	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
-	TestNotNull(TEXT("Player spawned for weapon combo override test"), Player);
-	if (!Player)
-	{
-		return false;
-	}
-
-	UGameplayAbilityComboGraph* DefaultGraph = NewObject<UGameplayAbilityComboGraph>(Player);
-	UGameplayAbilityComboGraph* WeaponGraph = NewObject<UGameplayAbilityComboGraph>(Player);
-	UWeaponDefinition* WeaponDef = NewObject<UWeaponDefinition>(Player);
-	WeaponDef->GameplayAbilityComboGraph = WeaponGraph;
-
-	UWeaponDefinition* UnarmedDef = NewObject<UWeaponDefinition>(Player);
-	UnarmedDef->GameplayAbilityComboGraph = DefaultGraph;
-	Player->DefaultUnarmedWeaponDef = UnarmedDef;
-	Player->ApplyDefaultUnarmedComboGraph();
-	Player->ApplyComboGraphFromWeapon(WeaponDef);
-
-	TestTrue(TEXT("Weapon combo graph overrides default unarmed graph"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == WeaponGraph);
-
-	Player->EquippedWeaponDef = WeaponDef;
-	Player->ApplyDefaultUnarmedComboGraph();
-	Player->ApplyCurrentEquipmentComboGraph();
-
-	TestTrue(TEXT("Current equipment combo graph refresh restores weapon graph over default"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == WeaponGraph);
-
-	Player->ResetToDefaultUnarmedCombatState();
-
-	TestNull(TEXT("Reset to unarmed clears equipped weapon definition"), Player->EquippedWeaponDef.Get());
-	TestTrue(TEXT("Reset to unarmed restores default combo graph"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == DefaultGraph);
-
-	Player->Destroy();
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponSkillMissResetsComboRuntimeToRootTest,
-	"DevKit.CombatDeck.DashMissResetsComboRuntimeToRoot",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FWeaponSkillMissResetsComboRuntimeToRootTest::RunTest(const FString& Parameters)
-{
-	UWorld* World = GWorld;
-	TestNotNull(TEXT("Automation world exists for weapon-skill miss reset test"), World);
-	if (!World)
-	{
-		return false;
-	}
-
-	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
-	TestNotNull(TEXT("Player spawned for weapon-skill miss reset test"), Player);
-	if (!Player)
-	{
-		return false;
-	}
-
-	UYogAbilitySystemComponent* ASC = Player->GetASC();
-	TestNotNull(TEXT("Player has Yog ASC"), ASC);
-	TestNotNull(TEXT("Player has ComboRuntimeComponent"), Player->ComboRuntimeComponent.Get());
-	if (!ASC || !Player->ComboRuntimeComponent)
-	{
-		Player->Destroy();
-		return false;
-	}
-
-	ASC->InitAbilityActorInfo(Player, Player);
-
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>(Player);
-	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	Root->Graph = Graph;
-	Root->NodeId = TEXT("L1");
-	Root->RootInputAction = EYogComboGraphInputAction::Attack;
-	Root->Montage = NewObject<UAnimMontage>(Graph);
-	Graph->AllNodes = { Root };
-	Graph->RootNodes = { Root };
-
-	Player->ComboRuntimeComponent->LoadComboGraph(Graph);
-	TestTrue(TEXT("Combo runtime can enter a normal attack node before dash miss"),
-		Player->ComboRuntimeComponent->TryActivateComboGraphNode(EYogComboGraphInputAction::Attack, FGameplayTagContainer()));
-	TestEqual(TEXT("Combo runtime stores current node before dash miss"),
-		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(TEXT("L1")));
-	TestTrue(TEXT("Combo runtime stores active attack guid before dash miss"),
-		Player->ComboRuntimeComponent->GetActiveAttackGuid().IsValid());
-
-	TestFalse(TEXT("Dash input with no graph node fails activation"),
-		Player->ComboRuntimeComponent->TryActivateDash(Player));
-	TestEqual(TEXT("Dash miss clears current combo node"),
-		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(NAME_None));
-	TestEqual(TEXT("Dash miss clears active graph node"),
-		Player->ComboRuntimeComponent->GetActiveGraphNodeId(), FName(NAME_None));
-	TestFalse(TEXT("Dash miss clears active attack guid"),
-		Player->ComboRuntimeComponent->GetActiveAttackGuid().IsValid());
-
-	Player->Destroy();
-	return true;
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerSwitchWeaponSwapsActiveAndInactiveSlotsTest,
 	"DevKit.CombatDeck.PlayerSwitchWeaponSwapsActiveAndInactiveSlots",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -906,12 +695,12 @@ bool FPlayerSwitchWeaponSwapsActiveAndInactiveSlotsTest::RunTest(const FString& 
 		return false;
 	}
 
-	UGameplayAbilityComboGraph* GraphA = NewObject<UGameplayAbilityComboGraph>(Player);
-	UGameplayAbilityComboGraph* GraphB = NewObject<UGameplayAbilityComboGraph>(Player);
 	UWeaponDefinition* WeaponA = NewObject<UWeaponDefinition>(Player);
 	UWeaponDefinition* WeaponB = NewObject<UWeaponDefinition>(Player);
-	WeaponA->GameplayAbilityComboGraph = GraphA;
-	WeaponB->GameplayAbilityComboGraph = GraphB;
+	UAbilityData* AbilityDataA = NewObject<UAbilityData>(WeaponA);
+	UAbilityData* AbilityDataB = NewObject<UAbilityData>(WeaponB);
+	WeaponA->AttackAbilityData = AbilityDataA;
+	WeaponB->AttackAbilityData = AbilityDataB;
 
 	AWeaponInstance* InstanceA = World->SpawnActor<AWeaponInstance>();
 	AWeaponInstance* InstanceB = World->SpawnActor<AWeaponInstance>();
@@ -938,7 +727,7 @@ bool FPlayerSwitchWeaponSwapsActiveAndInactiveSlotsTest::RunTest(const FString& 
 	InstanceA->SetActorHiddenInGame(false);
 	InstanceB->SetActorHiddenInGame(true);
 
-	Player->ApplyComboGraphFromWeapon(WeaponA);
+	Player->ApplyAbilityDataFromWeapon(WeaponA);
 	TestTrue(TEXT("Player reports a second weapon can be switched to"), Player->CanSwitchWeapon());
 
 	Player->SwitchWeapon();
@@ -953,8 +742,12 @@ bool FPlayerSwitchWeaponSwapsActiveAndInactiveSlotsTest::RunTest(const FString& 
 		Player->InactiveWeaponInstance.Get(), InstanceA);
 	TestFalse(TEXT("Promoted weapon instance is visible"), InstanceB->IsHidden());
 	TestTrue(TEXT("Demoted weapon instance is hidden"), InstanceA->IsHidden());
-	TestTrue(TEXT("Promoted weapon combo graph is active"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetWeaponComboGraph() == GraphB);
+	UCharacterData* CharacterData = Player->GetCharacterDataComponent()
+		? Player->GetCharacterDataComponent()->GetCharacterData()
+		: nullptr;
+	TestNotNull(TEXT("Player keeps runtime character data after switch"), CharacterData);
+	TestTrue(TEXT("Promoted weapon ability data is merged after switch"),
+		CharacterData && CharacterData->AbilityData && CharacterData->AbilityData != AbilityDataA);
 
 	Player->EquippedWeaponInstance = nullptr;
 	Player->InactiveWeaponInstance = nullptr;
@@ -1288,43 +1081,6 @@ bool FPlayerRestoreRunStateRestoresInactiveWeaponDeckTest::RunTest(const FString
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMeleeActionMappingTest,
-	"DevKit.CombatDeck.MeleeAbilitiesMapToCombatDeckActionContext",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FCombatDeckMeleeActionMappingTest::RunTest(const FString& Parameters)
-{
-	UGameplayAbilityComboGraphNode* AttackNode = NewObject<UGameplayAbilityComboGraphNode>();
-	AttackNode->NodeId = TEXT("AttackRoot");
-	AttackNode->GameplayAbilityClass = UGA_MeleeAttack::StaticClass();
-	const FWeaponComboNodeConfig AttackConfig = FWeaponComboNodeConfig::FromComboGraphNode(
-		AttackNode,
-		ECardRequiredAction::Light);
-
-	TestEqual(TEXT("Attack graph node maps to Light card action"), AttackConfig.InputAction, ECardRequiredAction::Light);
-	TestEqual(TEXT("Attack graph node defaults to attack slot"), AttackConfig.CombatDeckActionSlot, ECombatDeckActionSlot::Attack);
-	TestFalse(TEXT("Attack graph node is not a combo finisher by default"), AttackConfig.bIsComboFinisher);
-	TestEqual(TEXT("Attack graph node exposes melee ability class"), AttackConfig.GameplayAbilityClass.Get(), UGA_MeleeAttack::StaticClass());
-
-	UGameplayAbilityComboGraphNode* WeaponSkillNode = NewObject<UGameplayAbilityComboGraphNode>();
-	WeaponSkillNode->NodeId = TEXT("WeaponSkillRoot");
-	WeaponSkillNode->GameplayAbilityClass = UGA_WeaponSkill::StaticClass();
-	WeaponSkillNode->bIsComboFinisher = true;
-	const FWeaponComboNodeConfig WeaponSkillConfig = FWeaponComboNodeConfig::FromComboGraphNode(
-		WeaponSkillNode,
-		ECardRequiredAction::Any,
-		ECombatDeckActionSlot::WeaponSkill,
-		ECombatDeckFlowRole::Finisher);
-
-	TestEqual(TEXT("WeaponSkill graph node maps to Any card action"), WeaponSkillConfig.InputAction, ECardRequiredAction::Any);
-	TestEqual(TEXT("WeaponSkill graph node uses weapon-skill slot"), WeaponSkillConfig.CombatDeckActionSlot, ECombatDeckActionSlot::WeaponSkill);
-	TestEqual(TEXT("WeaponSkill graph node uses finisher flow role"), WeaponSkillConfig.CombatDeckFlowRole, ECombatDeckFlowRole::Finisher);
-	TestTrue(TEXT("WeaponSkill graph node can be a combo finisher"), WeaponSkillConfig.bIsComboFinisher);
-	TestEqual(TEXT("WeaponSkill graph node exposes weapon-skill ability class"), WeaponSkillConfig.GameplayAbilityClass.Get(), UGA_WeaponSkill::StaticClass());
-
-	return true;
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputBufferConsumesLatestAttackInputTest,
 	"DevKit.CombatDeck.InputBufferConsumesLatestAttackInput",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -1416,6 +1172,78 @@ bool FCombatDeckMontageConfigSelectionTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerAbilityMontageDataSeedsExplicitActionComboTagsTest,
+	"DevKit.CombatDeck.PlayerAbilityMontageDataSeedsExplicitActionComboTags",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerAbilityMontageDataSeedsExplicitActionComboTagsTest::RunTest(const FString& Parameters)
+{
+	UPlayerAbilityMontageData* AbilityData = NewObject<UPlayerAbilityMontageData>();
+
+	static const TCHAR* ActionNames[] = {
+		TEXT("Attack"),
+		TEXT("WeaponSkill"),
+		TEXT("Dash"),
+		TEXT("Special"),
+	};
+
+	for (const TCHAR* ActionName : ActionNames)
+	{
+		for (int32 ComboIndex = 1; ComboIndex <= 4; ++ComboIndex)
+		{
+			const FString TagName = FString::Printf(
+				TEXT("PlayerState.AbilityCast.%s.Combo%d"),
+				ActionName,
+				ComboIndex);
+			const FGameplayTag ComboTag = FGameplayTag::RequestGameplayTag(FName(*TagName));
+			TestTrue(
+				FString::Printf(TEXT("Player ability montage data has %s"), *TagName),
+				AbilityData->MontageMap.Contains(ComboTag));
+		}
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSplitAbilityMontageDataSeedsScopedComboTagsTest,
+	"DevKit.CombatDeck.SplitAbilityMontageDataSeedsScopedComboTags",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FSplitAbilityMontageDataSeedsScopedComboTagsTest::RunTest(const FString& Parameters)
+{
+	UWeaponAttackAbilityMontageData* WeaponAttackData = NewObject<UWeaponAttackAbilityMontageData>();
+	UWeaponSkillAbilityMontageData* WeaponSkillData = NewObject<UWeaponSkillAbilityMontageData>();
+	USpecialAbilityMontageData* SpecialData = NewObject<USpecialAbilityMontageData>();
+
+	auto HasKey = [](const UAbilityData* AbilityData, const TCHAR* TagName)
+	{
+		return AbilityData && AbilityData->MontageMap.Contains(FGameplayTag::RequestGameplayTag(FName(TagName)));
+	};
+
+	TestTrue(TEXT("WeaponAttack data has Attack combo keys"),
+		HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.Attack.Combo1"))
+		&& HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.Attack.Combo4")));
+	TestTrue(TEXT("WeaponAttack data has Dash combo keys"),
+		HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.Dash.Combo1"))
+		&& HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.Dash.Combo4")));
+	TestFalse(TEXT("WeaponAttack data does not seed WeaponSkill combo keys"),
+		HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1")));
+
+	TestTrue(TEXT("WeaponSkill data has WeaponSkill combo keys"),
+		HasKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"))
+		&& HasKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4")));
+	TestFalse(TEXT("WeaponSkill data does not seed Attack combo keys"),
+		HasKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.Attack.Combo1")));
+
+	TestTrue(TEXT("Special data has Special combo keys"),
+		HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Special.Combo1"))
+		&& HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Special.Combo4")));
+	TestFalse(TEXT("Special data does not seed Dash combo keys"),
+		HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Dash.Combo1")));
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMontageAttackDataSelectionTest,
 	"DevKit.CombatDeck.MontageHitWindowSelectsAttackDataByTags",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -1455,310 +1283,43 @@ bool FCombatDeckMontageAttackDataSelectionTest::RunTest(const FString& Parameter
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphBuildsRuntimeWindowTest,
-	"DevKit.CombatDeck.ComboGraphBuildsRuntimeWindowConfig",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& Parameters)
-{
-	UGameplayAbilityComboGraphNode* Node = NewObject<UGameplayAbilityComboGraphNode>();
-	Node->NodeId = TEXT("L2H");
-	Node->bUseNodeComboWindow = true;
-	Node->ComboWindowStartFrame = 12;
-	Node->ComboWindowEndFrame = 20;
-	Node->TotalFrames = 30;
-
-	const FWeaponComboNodeConfig RuntimeConfig = FWeaponComboNodeConfig::FromComboGraphNode(Node, ECardRequiredAction::Heavy);
-
-	TestEqual(TEXT("Graph node exports its NodeId"), RuntimeConfig.NodeId, FName(TEXT("L2H")));
-	TestEqual(TEXT("Graph edge input becomes runtime input"), RuntimeConfig.InputAction, ECardRequiredAction::Heavy);
-	TestTrue(TEXT("Graph node frame window drives runtime combo windows"), RuntimeConfig.bOverrideComboWindow);
-	TestEqual(TEXT("Combo window start frame is exported"), RuntimeConfig.ComboWindowStartFrame, 12);
-	TestEqual(TEXT("Combo window end frame is exported"), RuntimeConfig.ComboWindowEndFrame, 20);
-	TestEqual(TEXT("Combo window total frames is exported"), RuntimeConfig.ComboWindowTotalFrames, 30);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphNodeExportsCombatDeckContextTagsTest,
-	"DevKit.CombatDeck.ComboGraphNodeExportsCombatDeckContextTags",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FGameplayAbilityComboGraphNodeExportsCombatDeckContextTagsTest::RunTest(const FString& Parameters)
-{
-	UGameplayAbilityComboGraphNode* Node = NewObject<UGameplayAbilityComboGraphNode>();
-	Node->NodeId = TEXT("DashStep");
-	Node->CombatDeckActionSlotTag = FGameplayTag::RequestGameplayTag(TEXT("Combo.CombatDeck.ActionSlot.Dash"), false);
-	Node->CombatDeckFlowRoleTag = FGameplayTag::RequestGameplayTag(TEXT("Combo.CombatDeck.FlowRole.Catalyst"), false);
-
-	TestTrue(TEXT("Dash action-slot tag is registered"), Node->CombatDeckActionSlotTag.IsValid());
-	TestTrue(TEXT("Catalyst flow-role tag is registered"), Node->CombatDeckFlowRoleTag.IsValid());
-
-	const FWeaponComboNodeConfig RuntimeConfig = FWeaponComboNodeConfig::FromComboGraphNode(Node, ECardRequiredAction::Any);
-
-	TestEqual(TEXT("Graph node action-slot tag exports to runtime config"),
-		RuntimeConfig.CombatDeckActionSlot, ECombatDeckActionSlot::Dash);
-	TestEqual(TEXT("Graph node flow-role tag exports to runtime config"),
-		RuntimeConfig.CombatDeckFlowRole, ECombatDeckFlowRole::Catalyst);
-	TestFalse(TEXT("Catalyst dash override does not become a combo finisher"),
-		RuntimeConfig.bIsComboFinisher);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphSupportsNamedInputsTest,
-	"DevKit.CombatDeck.ComboGraphSupportsNamedInputs",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FGameplayAbilityComboGraphSupportsNamedInputsTest::RunTest(const FString& Parameters)
-{
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
-	UGameplayAbilityComboGraphNode* WeaponSkillRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	WeaponSkillRoot->Graph = Graph;
-	WeaponSkillRoot->NodeId = TEXT("WeaponSkillRoot");
-	WeaponSkillRoot->RootInputAction = EYogComboGraphInputAction::WeaponSkill;
-	WeaponSkillRoot->Montage = NewObject<UAnimMontage>(Graph);
-
-	Graph->RootNodes = { WeaponSkillRoot };
-	Graph->AllNodes = { WeaponSkillRoot };
-
-	TestTrue(TEXT("WeaponSkill can be used as a combo graph root input"),
-		Graph->FindRootComboNode(EYogComboGraphInputAction::WeaponSkill) == WeaponSkillRoot);
-	TestNull(TEXT("WeaponSkill roots are not selected by Attack input"),
-		Graph->FindRootComboNode(EYogComboGraphInputAction::Attack));
-
-	const TArray<TSubclassOf<UGameplayAbilityComboGraphNode>> NodeClasses = Graph->GetSupportedNodeClasses();
-	TestTrue(TEXT("Combo graph exposes its configured node class set"),
-		NodeClasses.Contains(UGameplayAbilityComboGraphNode::StaticClass()));
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphLegacyWeaponSkillInputRoutesToWeaponSkillTest,
-	"DevKit.CombatDeck.ComboGraphLegacyWeaponSkillInputRoutesToWeaponSkill",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FGameplayAbilityComboGraphLegacyWeaponSkillInputRoutesToWeaponSkillTest::RunTest(const FString& Parameters)
-{
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
-	const EYogComboGraphInputAction LegacyWeaponSkillInput = EYogComboGraphInputAction::LegacyWeaponSkill;
-
-	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	Root->Graph = Graph;
-	Root->NodeId = TEXT("DisarmDashRoot");
-	Root->RootInputAction = LegacyWeaponSkillInput;
-	Root->Montage = NewObject<UAnimMontage>(Graph);
-
-	UGameplayAbilityComboGraphNode* Child = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	Child->Graph = Graph;
-	Child->NodeId = TEXT("DisarmDashFollowup");
-	Child->Montage = NewObject<UAnimMontage>(Graph);
-
-	UGameplayAbilityComboGraphEdge* Edge = NewObject<UGameplayAbilityComboGraphEdge>(Graph);
-	Edge->InputAction = LegacyWeaponSkillInput;
-	Root->ChildrenNodes = { Child };
-	Child->ParentNodes = { Root };
-	Root->Edges.Add(Child, Edge);
-	Graph->RootNodes = { Root };
-	Graph->AllNodes = { Root, Child };
-
-	TestTrue(TEXT("Legacy WeaponSkill root input routes to WeaponSkill"),
-		Graph->FindRootComboNode(EYogComboGraphInputAction::WeaponSkill) == Root);
-	TestNull(TEXT("Legacy WeaponSkill root input is not selected by Attack"),
-		Graph->FindRootComboNode(EYogComboGraphInputAction::Attack));
-	TestTrue(TEXT("Legacy WeaponSkill edge input routes to WeaponSkill"),
-		Graph->FindChildComboNode(TEXT("DisarmDashRoot"), EYogComboGraphInputAction::WeaponSkill) == Child);
-	TestNull(TEXT("Legacy WeaponSkill edge input is not selected by Attack"),
-		Graph->FindChildComboNode(TEXT("DisarmDashRoot"), EYogComboGraphInputAction::Attack));
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphInvalidInputDoesNotMatchAttackTest,
-	"DevKit.CombatDeck.ComboGraphInvalidInputDoesNotMatchAttack",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FGameplayAbilityComboGraphInvalidInputDoesNotMatchAttackTest::RunTest(const FString& Parameters)
-{
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
-	const EYogComboGraphInputAction InvalidInput = static_cast<EYogComboGraphInputAction>(255);
-
-	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	Root->Graph = Graph;
-	Root->NodeId = TEXT("InvalidRoot");
-	Root->RootInputAction = InvalidInput;
-	Root->Montage = NewObject<UAnimMontage>(Graph);
-
-	Graph->RootNodes = { Root };
-	Graph->AllNodes = { Root };
-
-	TestNull(TEXT("Invalid root input is not selected by Attack"),
-		Graph->FindRootComboNode(EYogComboGraphInputAction::Attack));
-	TestNull(TEXT("Invalid root input is not selected by WeaponSkill"),
-		Graph->FindRootComboNode(EYogComboGraphInputAction::WeaponSkill));
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSpecialAttackDataAssetCarriesComboGraphTest,
-	"DevKit.CombatDeck.SpecialAttackDataAssetCarriesComboGraph",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FSpecialAttackDataAssetCarriesComboGraphTest::RunTest(const FString& Parameters)
-{
-	USpecialAttackDataAsset* SpecialAttack = NewObject<USpecialAttackDataAsset>();
-	UGameplayAbilityComboGraph* SpecialAttackGraph = NewObject<UGameplayAbilityComboGraph>(SpecialAttack);
-	SpecialAttack->Config.ComboGraph = SpecialAttackGraph;
-
-	TestEqual(TEXT("Special attack data asset owns its combo graph reference"),
-		SpecialAttack->Config.ComboGraph.Get(), SpecialAttackGraph);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerLoadsWeaponAndSpecialAttackComboGraphsTest,
-	"DevKit.CombatDeck.PlayerLoadsWeaponAndSpecialAttackComboGraphs",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FPlayerLoadsWeaponAndSpecialAttackComboGraphsTest::RunTest(const FString& Parameters)
-{
-	UWorld* World = GWorld;
-	TestNotNull(TEXT("Automation world exists for dual combo graph load test"), World);
-	if (!World)
-	{
-		return false;
-	}
-
-	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
-	TestNotNull(TEXT("Player spawned for dual combo graph load test"), Player);
-	if (!Player)
-	{
-		return false;
-	}
-
-	UGameplayAbilityComboGraph* WeaponGraph = NewObject<UGameplayAbilityComboGraph>(Player);
-	UGameplayAbilityComboGraph* SpecialAttackGraph = NewObject<UGameplayAbilityComboGraph>(Player);
-	USpecialAttackDataAsset* SpecialAttack = NewObject<USpecialAttackDataAsset>(Player);
-	SpecialAttack->Config.ComboGraph = SpecialAttackGraph;
-
-	UWeaponDefinition* WeaponDef = NewObject<UWeaponDefinition>(Player);
-	WeaponDef->GameplayAbilityComboGraph = WeaponGraph;
-	WeaponDef->DefaultSpecialAttack = SpecialAttack;
-
-	Player->ApplyComboGraphFromWeapon(WeaponDef);
-
-	TestTrue(TEXT("Weapon combo graph is loaded as the normal weapon graph"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetWeaponComboGraph() == WeaponGraph);
-	TestTrue(TEXT("Special attack combo graph is loaded separately from the weapon graph"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetSpecialAttackComboGraph() == SpecialAttackGraph);
-	TestTrue(TEXT("The weapon graph remains the active runtime graph after equipment load"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == WeaponGraph);
-
-	Player->ResetToDefaultUnarmedCombatState();
-	TestNull(TEXT("Reset to unarmed clears the equipped special attack graph"),
-		Player->ComboRuntimeComponent ? Player->ComboRuntimeComponent->GetSpecialAttackComboGraph() : nullptr);
-
-	Player->Destroy();
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphWarnsDuplicateChildInputTest,
-	"DevKit.CombatDeck.ComboGraphWarnsDuplicateChildInput",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FGameplayAbilityComboGraphWarnsDuplicateChildInputTest::RunTest(const FString& Parameters)
-{
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
-	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	UGameplayAbilityComboGraphNode* FirstChild = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	UGameplayAbilityComboGraphNode* SecondChild = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	UGameplayAbilityComboGraphEdge* FirstEdge = NewObject<UGameplayAbilityComboGraphEdge>(Graph);
-	UGameplayAbilityComboGraphEdge* SecondEdge = NewObject<UGameplayAbilityComboGraphEdge>(Graph);
-
-	Root->Graph = Graph;
-	Root->NodeId = TEXT("Root");
-	Root->Montage = NewObject<UAnimMontage>(Graph);
-
-	FirstChild->Graph = Graph;
-	FirstChild->NodeId = TEXT("LightA");
-	FirstChild->Montage = NewObject<UAnimMontage>(Graph);
-
-	SecondChild->Graph = Graph;
-	SecondChild->NodeId = TEXT("LightB");
-	SecondChild->Montage = NewObject<UAnimMontage>(Graph);
-
-	FirstEdge->InputAction = EYogComboGraphInputAction::Attack;
-	SecondEdge->InputAction = EYogComboGraphInputAction::Attack;
-	Root->ChildrenNodes = { FirstChild, SecondChild };
-	FirstChild->ParentNodes = { Root };
-	SecondChild->ParentNodes = { Root };
-	Root->Edges.Add(FirstChild, FirstEdge);
-	Root->Edges.Add(SecondChild, SecondEdge);
-	Graph->AllNodes = { Root, FirstChild, SecondChild };
-	Graph->RootNodes = { Root };
-
-	TArray<FText> Warnings;
-	Graph->ValidateComboGraph(Warnings);
-
-	const bool bHasDuplicateInputWarning = Warnings.ContainsByPredicate([](const FText& Warning)
-	{
-		return Warning.ToString().Contains(TEXT("multiple children for input"));
-	});
-	TestTrue(TEXT("Graph validation reports duplicate child input under the same parent"), bHasDuplicateInputWarning);
-
-	return true;
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponComboHintTextUnlimitedLinesTest,
 	"DevKit.CombatDeck.WeaponComboHintTextUnlimitedLines",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FWeaponComboHintTextUnlimitedLinesTest::RunTest(const FString& Parameters)
 {
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
 	UWeaponDefinition* Weapon = NewObject<UWeaponDefinition>();
-	Weapon->GameplayAbilityComboGraph = Graph;
+	UAbilityData* AttackData = NewObject<UAbilityData>(Weapon);
+	UAbilityData* WeaponSkillData = NewObject<UAbilityData>(Weapon);
+	UAbilityData* SpecialData = NewObject<UAbilityData>(Weapon);
+	Weapon->AttackAbilityData = AttackData;
+	Weapon->WeaponSkillAbilityData = WeaponSkillData;
+	Weapon->SpecialAbilityData = SpecialData;
 
-	UGameplayAbilityComboGraphNode* AttackRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	UGameplayAbilityComboGraphNode* WeaponSkillRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	AttackRoot->Graph = Graph;
-	AttackRoot->NodeId = TEXT("AttackRoot");
-	AttackRoot->RootInputAction = EYogComboGraphInputAction::Attack;
-	WeaponSkillRoot->Graph = Graph;
-	WeaponSkillRoot->NodeId = TEXT("WeaponSkillRoot");
-	WeaponSkillRoot->RootInputAction = EYogComboGraphInputAction::WeaponSkill;
-
-	auto AddChild = [Graph](UGameplayAbilityComboGraphNode* Parent, const TCHAR* NodeId, EYogComboGraphInputAction InputAction)
+	auto AddMontageKey = [](UAbilityData* AbilityData, const TCHAR* TagName)
 	{
-		UGameplayAbilityComboGraphNode* Child = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-		UGameplayAbilityComboGraphEdge* Edge = NewObject<UGameplayAbilityComboGraphEdge>(Graph);
-		Child->Graph = Graph;
-		Child->NodeId = NodeId;
-		Edge->InputAction = InputAction;
-		Parent->ChildrenNodes.Add(Child);
-		Child->ParentNodes.Add(Parent);
-		Parent->Edges.Add(Child, Edge);
-		Graph->AllNodes.Add(Child);
-		return Child;
+		const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(FName(TagName));
+		AbilityData->MontageMap.Add(AbilityTag, NewObject<UAnimMontage>(AbilityData));
 	};
 
-	Graph->RootNodes = { AttackRoot, WeaponSkillRoot };
-	Graph->AllNodes = { AttackRoot, WeaponSkillRoot };
-	AddChild(AttackRoot, TEXT("AA"), EYogComboGraphInputAction::Attack);
-	AddChild(AttackRoot, TEXT("AW"), EYogComboGraphInputAction::WeaponSkill);
-	AddChild(AddChild(WeaponSkillRoot, TEXT("WA"), EYogComboGraphInputAction::Attack), TEXT("WAW"), EYogComboGraphInputAction::WeaponSkill);
-	AddChild(AddChild(WeaponSkillRoot, TEXT("WW"), EYogComboGraphInputAction::WeaponSkill), TEXT("WWA"), EYogComboGraphInputAction::Attack);
-	AddChild(AddChild(AddChild(WeaponSkillRoot, TEXT("WAA"), EYogComboGraphInputAction::Attack), TEXT("WAAA"), EYogComboGraphInputAction::Attack), TEXT("WAAAW"), EYogComboGraphInputAction::WeaponSkill);
+	AddMontageKey(AttackData, TEXT("PlayerState.AbilityCast.Attack.Combo1"));
+	AddMontageKey(AttackData, TEXT("PlayerState.AbilityCast.Attack.Combo2"));
+	AddMontageKey(AttackData, TEXT("PlayerState.AbilityCast.Dash.Combo1"));
+	AddMontageKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"));
+	AddMontageKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"));
+	AddMontageKey(SpecialData, TEXT("PlayerState.AbilityCast.Special.Combo1"));
 
-	const FString LimitedText = WeaponComboTextUtils::BuildComboHintText(Weapon, 4, true).ToString();
-	TestFalse(TEXT("Explicit line limit still truncates combo hint text"), LimitedText.Contains(TEXT("连段 05")));
+	const FString LimitedText = WeaponComboTextUtils::BuildComboHintText(Weapon, 2, true).ToString();
+	TestTrue(TEXT("Explicit line limit includes configured attack combo"), LimitedText.Contains(TEXT("Attack")));
+	TestFalse(TEXT("Explicit line limit truncates later ability-data lines"), LimitedText.Contains(TEXT("WeaponSkill")));
 
 	const FString UnlimitedText = WeaponComboTextUtils::BuildComboHintText(Weapon, 0, true).ToString();
-	TestTrue(TEXT("Zero line limit means show every combo sequence"), UnlimitedText.Contains(TEXT("连段 05")));
+	TestTrue(TEXT("Zero line limit shows weapon skill combo line"), UnlimitedText.Contains(TEXT("WeaponSkill")));
+	TestTrue(TEXT("Zero line limit shows special combo line"), UnlimitedText.Contains(TEXT("Special")));
 
 	return true;
 }
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckContextDedupesCommitAndHitTest,
 	"DevKit.CombatDeck.ContextDedupesCommitAndHitForSameAttack",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -3311,10 +2872,10 @@ bool FCombatDeckGeneratedHeavyCardBonusConfiguredTest::RunTest(const FString& Pa
 	bAllValid &= TestTrue(TEXT("Heavy card has Heavy effect tag"), HeavyCard.CardEffectTags.HasTagExact(HeavyEffectTag));
 	bAllValid &= TestTrue(TEXT("Heavy card has Knockback effect tag"), HeavyCard.CardEffectTags.HasTagExact(KnockbackEffectTag));
 	const FString HeavyDescription = HeavyDA->RuneInfo.RuneConfig.RuneDescription.ToString();
-	bAllValid &= TestTrue(TEXT("Heavy description explains light attacks can play it"), HeavyDescription.Contains(TEXT("轻攻击")));
-	bAllValid &= TestTrue(TEXT("Heavy description explains base extra damage and knockback"), HeavyDescription.Contains(TEXT("额外伤害")) && HeavyDescription.Contains(TEXT("击退")));
-	bAllValid &= TestTrue(TEXT("Heavy description explains coordination requirement"), HeavyDescription.Contains(TEXT("协调需求")));
-	bAllValid &= TestTrue(TEXT("Heavy description explains heavy attack bonus"), HeavyDescription.Contains(TEXT("重攻击")) && HeavyDescription.Contains(TEXT("大幅提升")));
+	bAllValid &= TestTrue(TEXT("Heavy description explains light attacks can play it"), HeavyDescription.Contains(TEXT("杞绘敾鍑?)));
+	bAllValid &= TestTrue(TEXT("Heavy description explains base extra damage and knockback"), HeavyDescription.Contains(TEXT("棰濆浼ゅ")) && HeavyDescription.Contains(TEXT("鍑婚€€")));
+	bAllValid &= TestTrue(TEXT("Heavy description explains coordination requirement"), HeavyDescription.Contains(TEXT("鍗忚皟闇€姹?)));
+	bAllValid &= TestTrue(TEXT("Heavy description explains heavy attack bonus"), HeavyDescription.Contains(TEXT("閲嶆敾鍑?)) && HeavyDescription.Contains(TEXT("澶у箙鎻愬崌")));
 
 	UFlowAsset* HeavyFlow = LoadObject<UFlowAsset>(
 		nullptr,

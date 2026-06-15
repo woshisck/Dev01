@@ -6,7 +6,6 @@
 #include "Data/GameplayAbilityComboGraph.h"
 #include "Editor.h"
 #include "IDetailsView.h"
-#include "Item/Weapon/WeaponDefinition.h"
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -290,9 +289,7 @@ void SComboGraphManagerWidget::Construct(const FArguments& InArgs)
 void SComboGraphManagerWidget::RefreshData(const FText& NewStatus)
 {
 	Rows.Reset();
-	TSet<TObjectPtr<UGameplayAbilityComboGraph>> WeaponGraphs;
-
-	auto AddGraphRows = [this](UWeaponDefinition* Weapon, UGameplayAbilityComboGraph* Graph, const FString& OwnerType, const FString& OwnerName)
+	auto AddGraphRows = [this](UGameplayAbilityComboGraph* Graph, const FString& OwnerType, const FString& OwnerName)
 	{
 		if (!Graph)
 		{
@@ -309,7 +306,6 @@ void SComboGraphManagerWidget::RefreshData(const FText& NewStatus)
 			UAN_MeleeDamage* DamageNotify = FindFirstDamageNotify(Montage);
 
 			TSharedRef<FComboGraphManagerRow> Row = MakeShared<FComboGraphManagerRow>();
-			Row->Weapon = Weapon;
 			Row->Graph = Graph;
 			Row->Node = Node;
 			Row->Montage = Montage;
@@ -322,7 +318,6 @@ void SComboGraphManagerWidget::RefreshData(const FText& NewStatus)
 		if (Graph->AllNodes.IsEmpty())
 		{
 			TSharedRef<FComboGraphManagerRow> Row = MakeShared<FComboGraphManagerRow>();
-			Row->Weapon = Weapon;
 			Row->Graph = Graph;
 			Row->OwnerType = OwnerType;
 			Row->OwnerName = OwnerName;
@@ -331,24 +326,13 @@ void SComboGraphManagerWidget::RefreshData(const FText& NewStatus)
 		}
 	};
 
-	TArray<UWeaponDefinition*> Weapons = CollectAssetsOfClass<UWeaponDefinition>();
-	Weapons.Sort([](const UWeaponDefinition& A, const UWeaponDefinition& B) { return A.GetName() < B.GetName(); });
-	for (UWeaponDefinition* Weapon : Weapons)
-	{
-		if (Weapon && Weapon->GameplayAbilityComboGraph)
-		{
-			WeaponGraphs.Add(Weapon->GameplayAbilityComboGraph);
-			AddGraphRows(Weapon, Weapon->GameplayAbilityComboGraph, TEXT("Player Weapon"), Weapon->GetName());
-		}
-	}
-
 	TArray<UGameplayAbilityComboGraph*> Graphs = CollectAssetsOfClass<UGameplayAbilityComboGraph>();
 	Graphs.Sort([](const UGameplayAbilityComboGraph& A, const UGameplayAbilityComboGraph& B) { return A.GetName() < B.GetName(); });
 	for (UGameplayAbilityComboGraph* Graph : Graphs)
 	{
-		if (Graph && !WeaponGraphs.Contains(Graph))
+		if (Graph)
 		{
-			AddGraphRows(nullptr, Graph, TEXT("Independent / Enemy"), Graph->GetName());
+			AddGraphRows(Graph, TEXT("ComboGraph Asset"), Graph->GetName());
 		}
 	}
 
@@ -461,10 +445,6 @@ void SComboGraphManagerWidget::OpenPrimaryAsset(TSharedPtr<FComboGraphManagerRow
 		return;
 	}
 	UObject* Object = Row->Graph.Get();
-	if (!Object)
-	{
-		Object = Row->Weapon.Get();
-	}
 	if (GEditor && Object)
 	{
 		if (UAssetEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())

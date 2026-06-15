@@ -11,6 +11,8 @@
 #include "Item/ItemInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "AbilitySystem/Abilities/GA_PlayerAttackCombos.h"
+#include "AbilitySystem/Abilities/GA_WeaponSkill.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Camera/YogCameraPawn.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
@@ -25,16 +27,17 @@
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
+#include "Component/CharacterDataComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
 #include "Component/PlayerSpecialAttackComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "Combat/FinisherDeprecation.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/SkillChargeComponent.h"
 #include "Component/MontageVFXBindingComponent.h"
 #include "Component/YogCameraOcclusionFadeComponent.h"
-#include "Data/GameplayAbilityComboGraph.h"
+#include "Data/AbilityData.h"
+#include "Data/CharacterData.h"
 #include "Data/SacrificeGraceDA.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "AbilitySystem/Abilities/YogTargetType_Melee.h"
@@ -143,6 +146,53 @@ void RestoreDeckRuntimeStateFromRunStateFields(
 	DeckState.MaxActiveSequenceSize = MaxActiveSequenceSize;
 	DeckState.bInitialized = true;
 }
+
+bool HasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
+{
+	for (const FTaggedMontageConfig& Config : ConfigList.Configs)
+	{
+		if (Config.MontageConfig)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool HasUsablePassiveActionData(const FPassiveActionData& PassiveData)
+{
+	return PassiveData.Montage != nullptr
+		|| !PassiveData.UniqueEffects.IsEmpty()
+		|| PassiveData.DissolveGameplayCueTag.IsValid();
+}
+
+void MergeAbilityDataInto(UAbilityData& Target, const UAbilityData& Source)
+{
+	for (const TPair<FGameplayTag, TObjectPtr<UAnimMontage>>& Pair : Source.MontageMap)
+	{
+		if (Pair.Key.IsValid() && Pair.Value)
+		{
+			Target.MontageMap.Add(Pair.Key, Pair.Value);
+		}
+	}
+
+	for (const TPair<FGameplayTag, FAbilityMontageConfigList>& Pair : Source.MontageConfigMap)
+	{
+		if (Pair.Key.IsValid() && HasUsableMontageConfigList(Pair.Value))
+		{
+			Target.MontageConfigMap.Add(Pair.Key, Pair.Value);
+		}
+	}
+
+	for (const TPair<FGameplayTag, FPassiveActionData>& Pair : Source.PassiveMap)
+	{
+		if (Pair.Key.IsValid() && HasUsablePassiveActionData(Pair.Value))
+		{
+			Target.PassiveMap.Add(Pair.Key, Pair.Value);
+		}
+	}
+}
 }
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
@@ -172,7 +222,6 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	CombatItemComponent = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
 	ActiveSkillComponent = CreateDefaultSubobject<UPlayerActiveSkillComponent>(TEXT("ActiveSkillComponent"));
 	SpecialAttackComponent = CreateDefaultSubobject<UPlayerSpecialAttackComponent>(TEXT("SpecialAttackComponent"));
-	ComboRuntimeComponent = CreateDefaultSubobject<UComboRuntimeComponent>(TEXT("ComboRuntimeComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
 	SacrificeRuneComponent = CreateDefaultSubobject<USacrificeRuneComponent>(TEXT("SacrificeRuneComponent"));
@@ -198,11 +247,6 @@ AYogCameraPawn* APlayerCharacterBase::GetOwnCamera()
 
 void APlayerCharacterBase::Die()
 {
-	if (ComboRuntimeComponent)
-	{
-		ComboRuntimeComponent->ResetCombo();
-	}
-
 	Super::Die();
 
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
@@ -303,60 +347,94 @@ void APlayerCharacterBase::EndReviveProtection()
 	}
 }
 
-void APlayerCharacterBase::ApplyDefaultUnarmedComboGraph()
+void APlayerCharacterBase::ApplyAbilityDataFromWeapon(UWeaponDefinition* WeaponDefinition)
 {
-	if (!ComboRuntimeComponent)
+	UCharacterDataComponent* CDC = GetCharacterDataComponent();
+	UCharacterData* CharacterData = CDC ? CDC->GetCharacterData() : nullptr;
+	if (!CharacterData)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponAbilityData] Skip: no runtime CharacterData on %s for weapon %s"),
+			*GetNameSafe(this), *GetNameSafe(WeaponDefinition));
 		return;
 	}
 
-	UGameplayAbilityComboGraph* Graph = DefaultUnarmedWeaponDef
-		? DefaultUnarmedWeaponDef->GameplayAbilityComboGraph.Get()
-		: nullptr;
-	ComboRuntimeComponent->LoadWeaponComboGraph(Graph);
-	ComboRuntimeComponent->LoadSpecialAttackComboGraph(nullptr);
-	ComboRuntimeComponent->LoadWeaponSkillComboGraph(
-		DefaultUnarmedWeaponDef ? DefaultUnarmedWeaponDef->WeaponSkillComboGraph.Get() : nullptr);
-	ComboRuntimeComponent->SetWeaponSkillAbility(nullptr);
-	ComboRuntimeComponent->EnsureWeaponComboAbilitiesGranted(this);
-}
-
-void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDefinition)
-{
-	if (!ComboRuntimeComponent)
+	TArray<UAbilityData*> SourceData;
+	UAbilityData* BaseAbilityData = CDC ? CDC->GetBaseAbilityData() : CharacterData->AbilityData.Get();
+	if (BaseAbilityData)
 	{
+		SourceData.Add(BaseAbilityData);
+	}
+	int32 WeaponSourceCount = 0;
+	if (WeaponDefinition)
+	{
+		if (WeaponDefinition->AbilityData)
+		{
+			SourceData.Add(WeaponDefinition->AbilityData);
+			++WeaponSourceCount;
+		}
+		if (WeaponDefinition->AttackAbilityData)
+		{
+			SourceData.Add(WeaponDefinition->AttackAbilityData);
+			++WeaponSourceCount;
+		}
+		if (WeaponDefinition->WeaponSkillAbilityData)
+		{
+			SourceData.Add(WeaponDefinition->WeaponSkillAbilityData);
+			++WeaponSourceCount;
+		}
+		if (WeaponDefinition->SpecialAbilityData)
+		{
+			SourceData.Add(WeaponDefinition->SpecialAbilityData);
+			++WeaponSourceCount;
+		}
+	}
+
+	if (SourceData.IsEmpty())
+	{
+		CharacterData->AbilityData = nullptr;
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponAbilityData] Cleared: no base or weapon AbilityData on %s for weapon %s"),
+			*GetNameSafe(this),
+			*GetNameSafe(WeaponDefinition));
 		return;
 	}
 
-	USpecialAttackDataAsset* SpecialAttack = WeaponDefinition ? WeaponDefinition->DefaultSpecialAttack.Get() : nullptr;
-
-	if (!WeaponDefinition)
+	if (SourceData.Num() == 1)
 	{
-		ApplyDefaultUnarmedComboGraph();
-	}
-	else if (WeaponDefinition->GameplayAbilityComboGraph)
-	{
-		ComboRuntimeComponent->LoadComboGraph(WeaponDefinition->GameplayAbilityComboGraph);
+		CharacterData->AbilityData = SourceData[0];
 	}
 	else
 	{
-		ApplyDefaultUnarmedComboGraph();
+		UAbilityData* RuntimeAbilityData = NewObject<UAbilityData>(this);
+		RuntimeAbilityData->SetFlags(RF_Transient);
+		for (const UAbilityData* Source : SourceData)
+		{
+			if (!Source)
+			{
+				continue;
+			}
+
+			MergeAbilityDataInto(*RuntimeAbilityData, *Source);
+		}
+		CharacterData->AbilityData = RuntimeAbilityData;
 	}
 
-	ComboRuntimeComponent->LoadSpecialAttackComboGraph(SpecialAttack ? SpecialAttack->Config.ComboGraph.Get() : nullptr);
-	ComboRuntimeComponent->LoadWeaponSkillComboGraph(WeaponDefinition ? WeaponDefinition->WeaponSkillComboGraph.Get() : nullptr);
-	ComboRuntimeComponent->EnsureWeaponComboAbilitiesGranted(this);
+	UE_LOG(LogTemp, Log, TEXT("[WeaponAbilityData] Applied Base=%s WeaponSources=%d Weapon=%s Character=%s Runtime=%s"),
+		*GetNameSafe(BaseAbilityData),
+		WeaponSourceCount,
+		*GetNameSafe(WeaponDefinition),
+		*GetNameSafe(this),
+		*GetNameSafe(CharacterData->AbilityData));
 }
 
-void APlayerCharacterBase::ApplyCurrentEquipmentComboGraph()
+void APlayerCharacterBase::ApplyCurrentEquipmentAbilityData()
 {
 	if (EquippedWeaponDef)
 	{
-		ApplyComboGraphFromWeapon(EquippedWeaponDef);
+		ApplyAbilityDataFromWeapon(EquippedWeaponDef);
 	}
 	else
 	{
-		ApplyDefaultUnarmedComboGraph();
+		ApplyAbilityDataFromWeapon(nullptr);
 	}
 }
 
@@ -577,7 +655,7 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 	}
 	else
 	{
-		ApplyDefaultUnarmedComboGraph();
+		ApplyAbilityDataFromWeapon(nullptr);
 	}
 }
 
@@ -606,11 +684,6 @@ void APlayerCharacterBase::SwitchWeapon()
 	if (!InactiveWeaponDeckState.bInitialized)
 	{
 		InitializeInactiveWeaponDeckStateFromDefinition();
-	}
-
-	if (ComboRuntimeComponent)
-	{
-		ComboRuntimeComponent->ResetCombo();
 	}
 
 	if (bRecoveryCancelSwitch)
@@ -643,7 +716,7 @@ void APlayerCharacterBase::SwitchWeapon()
 		}
 	}
 
-	ApplyComboGraphFromWeapon(EquippedWeaponDef);
+	ApplyAbilityDataFromWeapon(EquippedWeaponDef);
 
 	if (SpecialAttackComponent)
 	{
@@ -1199,9 +1272,8 @@ void APlayerCharacterBase::BeginPlay()
 		AcquireSacrificeGrace(ActiveSacrificeGrace);
 	}
 
-	// Grant the combat-driving abilities that power the combo graph (GA_MeleeAttack,
-	// GA_RangeAttack, GA_WeaponSkill, GA_PlayerDash, GA_Special). These are player-only
-	// and weapon-agnostic: the combo graph only controls which montage each plays.
+	// Grant the combat-driving abilities (attack, weapon skill, dash, special). These
+	// are player-only and weapon-agnostic; the current weapon supplies the montage data.
 	// Granted once here so they are always available, regardless of which weapon is equipped.
 	if (DefaultCombatAbilitySet)
 	{
@@ -1216,15 +1288,46 @@ void APlayerCharacterBase::BeginPlay()
 
 	// GAS Template 授能（在 Super::BeginPlay 中完成）可能覆盖切关前 Link 的武器动画层；
 	// 在此重新 Link，确保武器层优先级高于默认层
-	ApplyCurrentEquipmentComboGraph();
+	if (UYogAbilitySystemComponent* ASC = GetASC())
+	{
+		auto GrantIfMissing = [this, ASC](TSubclassOf<UYogGameplayAbility> AbilityClass)
+		{
+			if (!AbilityClass)
+			{
+				return;
+			}
+
+			for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+			{
+				if (Spec.Ability && Spec.Ability->GetClass() == AbilityClass)
+				{
+					return;
+				}
+			}
+
+			GrantGameplayAbility(AbilityClass, 1);
+		};
+
+		GrantIfMissing(UGA_PlayerAttack_Combo1::StaticClass());
+		GrantIfMissing(UGA_PlayerAttack_Combo2::StaticClass());
+		GrantIfMissing(UGA_PlayerAttack_Combo3::StaticClass());
+		GrantIfMissing(UGA_PlayerAttack_Combo4::StaticClass());
+		GrantIfMissing(UGA_WeaponSkill_Combo1::StaticClass());
+		GrantIfMissing(UGA_WeaponSkill_Combo2::StaticClass());
+		GrantIfMissing(UGA_WeaponSkill_Combo3::StaticClass());
+		GrantIfMissing(UGA_WeaponSkill_Combo4::StaticClass());
+	}
+
+	ApplyCurrentEquipmentAbilityData();
 	RelinkWeaponAnimLayer();
 
 	// Initialize deck/special/weapon-type from the unarmed default without calling
 	// SetupWeaponToCharacter, which would set EquippedWeaponDef and cause TryPickupWeapon
 	// to route the first real weapon to the inactive slot instead of equipping it.
-	// The combo graph is already applied above by ApplyCurrentEquipmentComboGraph().
 	if (!EquippedWeaponDef && DefaultUnarmedWeaponDef)
 	{
+		ApplyAbilityDataFromWeapon(DefaultUnarmedWeaponDef);
+
 		if (UCombatDeckComponent* CombatDeck = CombatDeckComponent.Get())
 		{
 			CombatDeck->LoadDeckFromWeapon(DefaultUnarmedWeaponDef);

@@ -34,6 +34,7 @@ public:
 	UCharacterData* GetCharacterData() const;
 	void SetCharacterData(UCharacterData* NewCharacterData);
 	const UCharacterData* InitializeCharacterData();
+	UAbilityData* GetBaseAbilityData() const;
 
 
 

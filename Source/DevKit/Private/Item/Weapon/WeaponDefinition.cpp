@@ -4,7 +4,6 @@
 #include "Component/CharacterDataComponent.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 #include "Component/PlayerSpecialAttackComponent.h"
 #include "Engine/AssetManager.h"
 #include "AbilitySystemComponent.h"
@@ -78,6 +77,7 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 
 	// 记录当前装备的武器 DA，供切关时写入 RunState
 	ReceivingChar->EquippedWeaponDef = this;
+	ReceivingChar->ApplyAbilityDataFromWeapon(this);
 
 	// ── 注入背包配置（格子尺寸 + 激活区） ───────────────────────────────
 	UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] SetupWeaponToCharacter reached end. BackpackConfig W=%d H=%d, Char=%s"),
@@ -102,11 +102,6 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	{
 		CombatDeck->LoadDeckFromWeapon(this);
 		ReceivingChar->CaptureEquippedWeaponDeckState();
-	}
-
-	if (ReceivingChar && ReceivingChar->ComboRuntimeComponent)
-	{
-		ReceivingChar->ApplyComboGraphFromWeapon(this);
 	}
 
 	if (ReceivingChar && ReceivingChar->SpecialAttackComponent)

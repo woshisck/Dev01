@@ -89,6 +89,88 @@ namespace
 		return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.RecentlyDamaged"), false);
 	}
 
+	TConstArrayView<FGameplayTag> GetPlayerAttackComboTags()
+	{
+		static const FGameplayTag AttackComboTags[] = {
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo1"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo2"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo3"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo4"), false),
+		};
+		return MakeArrayView(AttackComboTags, UE_ARRAY_COUNT(AttackComboTags));
+	}
+
+	TConstArrayView<FGameplayTag> GetPlayerWeaponSkillComboTags()
+	{
+		static const FGameplayTag WeaponSkillComboTags[] = {
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"), false),
+		};
+		return MakeArrayView(WeaponSkillComboTags, UE_ARRAY_COUNT(WeaponSkillComboTags));
+	}
+
+	bool TryActivateNextComboAbilityFromTags(
+		UYogAbilitySystemComponent* ASC,
+		TConstArrayView<FGameplayTag> ComboTags,
+		bool bRequireComboWindow,
+		bool bAllowRemoteActivation)
+	{
+		if (!ASC || ComboTags.Num() <= 0)
+		{
+			return false;
+		}
+
+		static const FGameplayTag CanComboTag =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
+
+		int32 ActiveComboIndex = INDEX_NONE;
+		for (int32 Index = ComboTags.Num() - 1; Index >= 0; --Index)
+		{
+			if (ComboTags[Index].IsValid() && ASC->GetTagCount(ComboTags[Index]) > 0)
+			{
+				ActiveComboIndex = Index;
+				break;
+			}
+		}
+
+		if (ActiveComboIndex != INDEX_NONE)
+		{
+			if (bRequireComboWindow && (!CanComboTag.IsValid() || ASC->GetTagCount(CanComboTag) <= 0))
+			{
+				return false;
+			}
+
+			const int32 NextComboIndex = ActiveComboIndex + 1;
+			if (NextComboIndex >= ComboTags.Num())
+			{
+				return false;
+			}
+
+			return ASC->TryActivateAbilityByExactTag(ComboTags[NextComboIndex], bAllowRemoteActivation);
+		}
+
+		return ASC->TryActivateAbilityByExactTag(ComboTags[0], bAllowRemoteActivation);
+	}
+
+	bool HasActiveComboAbilityTag(UYogAbilitySystemComponent* ASC, TConstArrayView<FGameplayTag> ComboTags)
+	{
+		if (!ASC)
+		{
+			return false;
+		}
+
+		for (const FGameplayTag& ComboTag : ComboTags)
+		{
+			if (ComboTag.IsValid() && ASC->GetTagCount(ComboTag) > 0)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
 }
 
 // Sets default values
@@ -984,6 +1066,71 @@ bool UYogAbilitySystemComponent::TryActivateRandomAbilitiesByTag(const FGameplay
 
 	const int32 RandomIndex = FMath::RandRange(0, AbilitiesToActivate.Num() - 1);
 	return TryActivateAbility(AbilitiesToActivate[RandomIndex].Handle, bAllowRemoteActivation);
+}
+
+bool UYogAbilitySystemComponent::TryActivateAbilityByExactTag(const FGameplayTag& ExactTag, bool bAllowRemoteActivation)
+{
+	if (!ExactTag.IsValid())
+	{
+		return false;
+	}
+
+	for (FGameplayAbilitySpec& Spec : GetActivatableAbilities())
+	{
+		if (Spec.Ability && Spec.Ability->AbilityTags.HasTagExact(ExactTag))
+		{
+			return TryActivateAbility(Spec.Handle, bAllowRemoteActivation);
+		}
+	}
+
+	return false;
+}
+
+bool UYogAbilitySystemComponent::TryActivateNextAttackComboAbility(bool bRequireComboWindow, bool bAllowRemoteActivation)
+{
+	return TryActivateNextComboAbilityFromTags(this, GetPlayerAttackComboTags(), bRequireComboWindow, bAllowRemoteActivation);
+}
+
+bool UYogAbilitySystemComponent::TryActivateNextWeaponSkillComboAbility(bool bRequireComboWindow, bool bAllowRemoteActivation)
+{
+	return TryActivateNextComboAbilityFromTags(this, GetPlayerWeaponSkillComboTags(), bRequireComboWindow, bAllowRemoteActivation);
+}
+
+bool UYogAbilitySystemComponent::HasActiveAttackComboAbilityTag()
+{
+	return HasActiveComboAbilityTag(this, GetPlayerAttackComboTags());
+}
+
+bool UYogAbilitySystemComponent::HasActiveWeaponSkillComboAbilityTag()
+{
+	return HasActiveComboAbilityTag(this, GetPlayerWeaponSkillComboTags());
+}
+
+bool UYogAbilitySystemComponent::IsPlayerActionMontageLocked() const
+{
+	static const FGameplayTag CanComboTag =
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
+	static const FGameplayTag ActionTags[] = {
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SpecialAttack"), false),
+	};
+
+	if (CanComboTag.IsValid() && HasMatchingGameplayTag(CanComboTag))
+	{
+		return false;
+	}
+
+	for (const FGameplayTag& ActionTag : ActionTags)
+	{
+		if (ActionTag.IsValid() && HasMatchingGameplayTag(ActionTag))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool UYogAbilitySystemComponent::DebugHasAbilityClass(AActor* Actor, TSubclassOf<UGameplayAbility> AbilityClass)

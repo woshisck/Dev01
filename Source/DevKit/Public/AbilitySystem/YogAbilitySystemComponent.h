@@ -386,6 +386,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Abilities")
 	bool TryActivateRandomAbilitiesByTag(const FGameplayTagContainer& GameplayTagContainer, bool bAllowRemoteActivation = true);
 
+	UFUNCTION(BlueprintCallable, Category = "Abilities")
+	bool TryActivateAbilityByExactTag(const FGameplayTag& ExactTag, bool bAllowRemoteActivation = true);
+
+	UFUNCTION(BlueprintCallable, Category = "Abilities")
+	bool TryActivateNextAttackComboAbility(bool bRequireComboWindow = true, bool bAllowRemoteActivation = true);
+
+	UFUNCTION(BlueprintPure, Category = "Abilities")
+	bool HasActiveAttackComboAbilityTag();
+
+	UFUNCTION(BlueprintCallable, Category = "Abilities")
+	bool TryActivateNextWeaponSkillComboAbility(bool bRequireComboWindow = true, bool bAllowRemoteActivation = true);
+
+	UFUNCTION(BlueprintPure, Category = "Abilities")
+	bool HasActiveWeaponSkillComboAbilityTag();
+
+	UFUNCTION(BlueprintPure, Category = "Abilities")
+	bool IsPlayerActionMontageLocked() const;
+
 
 
 	/**

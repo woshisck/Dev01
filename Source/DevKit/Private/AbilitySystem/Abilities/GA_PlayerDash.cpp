@@ -4,7 +4,6 @@
 #include "Camera/YogPlayerCameraManager.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "Component/SkillChargeComponent.h"
 #include "Data/CharacterData.h"
@@ -244,6 +243,22 @@ bool UGA_PlayerDash::CanActivateAbility(
 
 			// 所有已知连招进度 Tag（ActivationOwnedTags 已注入到 ASC，直接查）
 			static const FName KnownComboTagNames[] = {
+				TEXT("PlayerState.AbilityCast.Attack.Combo1"),
+				TEXT("PlayerState.AbilityCast.Attack.Combo2"),
+				TEXT("PlayerState.AbilityCast.Attack.Combo3"),
+				TEXT("PlayerState.AbilityCast.Attack.Combo4"),
+				TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"),
+				TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"),
+				TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"),
+				TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"),
+				TEXT("PlayerState.AbilityCast.Dash.Combo1"),
+				TEXT("PlayerState.AbilityCast.Dash.Combo2"),
+				TEXT("PlayerState.AbilityCast.Dash.Combo3"),
+				TEXT("PlayerState.AbilityCast.Dash.Combo4"),
+				TEXT("PlayerState.AbilityCast.Special.Combo1"),
+				TEXT("PlayerState.AbilityCast.Special.Combo2"),
+				TEXT("PlayerState.AbilityCast.Special.Combo3"),
+				TEXT("PlayerState.AbilityCast.Special.Combo4"),
 				TEXT("PlayerState.AbilityCast.LightAtk.Combo1"),
 				TEXT("PlayerState.AbilityCast.LightAtk.Combo2"),
 				TEXT("PlayerState.AbilityCast.LightAtk.Combo3"),
@@ -296,56 +311,16 @@ void UGA_PlayerDash::ActivateAbility(
 	FGameplayTag FirstTag;
 	for (const FGameplayTag& Tag : AbilityTags) { FirstTag = Tag; break; }
 
-	UAnimMontage* DashMontage = nullptr;
+	UAnimMontage* DashMontage = ResolveDashMontage(Player, FirstTag);
 	const TCHAR* DashMontageSource = TEXT("None");
-	if (Player && Player->ComboRuntimeComponent)
+	if (DashMontage)
 	{
-		FWeaponComboNodeConfig PendingComboNode;
-		if (Player->ComboRuntimeComponent->ConsumePendingAbilityNode(PendingComboNode))
-		{
-			DashMontage = PendingComboNode.Montage;
-			if (!DashMontage && PendingComboNode.MontageConfig)
-			{
-				DashMontage = PendingComboNode.MontageConfig->Montage;
-			}
-			if (DashMontage)
-			{
-				DashMontageSource = TEXT("PendingComboNode");
-			}
-		}
-
-		if (const FWeaponComboNodeConfig* ActiveComboNode = Player->ComboRuntimeComponent->GetActiveNode())
-		{
-			if (!DashMontage)
-			{
-				DashMontage = ActiveComboNode->Montage;
-				if (DashMontage)
-				{
-					DashMontageSource = TEXT("ActiveComboNode");
-				}
-			}
-			if (!DashMontage && ActiveComboNode->MontageConfig)
-			{
-				DashMontage = ActiveComboNode->MontageConfig->Montage;
-				if (DashMontage)
-				{
-					DashMontageSource = TEXT("ActiveComboNodeConfig");
-				}
-			}
-		}
-	}
-	if (!DashMontage)
-	{
-		DashMontage = ResolveDashMontage(Player, FirstTag);
-		if (DashMontage)
-		{
-			DashMontageSource = TEXT("AbilityData");
-		}
+		DashMontageSource = TEXT("AbilityData");
 	}
 
 	if (!DashMontage)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayerDash] No dash montage found for %s from ComboGraph or AbilityDA; ended immediately."), *FirstTag.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayerDash] No dash montage found for %s from AbilityData; ended immediately."), *FirstTag.ToString());
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
@@ -519,14 +494,6 @@ void UGA_PlayerDash::EndAbility(
 
 	// Reset the combo graph state so the next attack searches from root, not from
 	// the dash node that was set during TryActivateDash → TryActivateComboFromGraph.
-	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Character))
-	{
-		if (Player->ComboRuntimeComponent)
-		{
-			Player->ComboRuntimeComponent->ResetCombo();
-		}
-	}
-
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 

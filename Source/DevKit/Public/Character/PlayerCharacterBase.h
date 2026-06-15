@@ -33,7 +33,6 @@ class UCombatDeckComponent;
 class UCombatItemComponent;
 class UPlayerActiveSkillComponent;
 class UPlayerSpecialAttackComponent;
-class UComboRuntimeComponent;
 class UBuffFlowComponent;
 class USacrificeRuneComponent;
 class USkillChargeComponent;
@@ -165,31 +164,23 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Special Attack")
 	TObjectPtr<UPlayerSpecialAttackComponent> SpecialAttackComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat Combo")
-	TObjectPtr<UComboRuntimeComponent> ComboRuntimeComponent;
-
 	// Equipped at BeginPlay when no weapon is carried (e.g. unarmed default loadout).
 	// SetupWeaponToCharacter is called on this if EquippedWeaponDef is still null after init.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
 	TObjectPtr<UWeaponDefinition> DefaultUnarmedWeaponDef;
 
-	// Abilities granted once at BeginPlay that drive the combo graph regardless of which weapon
-	// is equipped: GA_MeleeAttack, GA_RangeAttack, GA_WeaponSkill, GA_PlayerDash, GA_Special.
-	// Set this on BP_PlayerCharacterBase. Never granted per-weapon — the combo graph only
-	// configures which montage each ability plays; the ability class itself is weapon-agnostic.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
+	// Combat abilities granted once at BeginPlay regardless of which weapon is equipped.
+	// WeaponDefinition ability data supplies the attack, weapon skill, dash, and special montages.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
 	TObjectPtr<UYogAbilitySet> DefaultCombatAbilitySet;
 
-	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
-	void ApplyDefaultUnarmedComboGraph();
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void ApplyAbilityDataFromWeapon(UWeaponDefinition* WeaponDefinition);
 
-	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
-	void ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDefinition);
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void ApplyCurrentEquipmentAbilityData();
 
-	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
-	void ApplyCurrentEquipmentComboGraph();
-
-	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
+	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void ResetToDefaultUnarmedCombatState();
 
 	UFUNCTION(BlueprintCallable, Category = "Run State")

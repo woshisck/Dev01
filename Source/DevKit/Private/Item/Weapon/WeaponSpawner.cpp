@@ -24,7 +24,6 @@
 #include "Component/CharacterDataComponent.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 #include "Component/PlayerSpecialAttackComponent.h"
 #include "Map/TutorialMobSpawner.h"
 #include "Tutorial/TutorialManager.h"
@@ -546,17 +545,14 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	// ── 5.25 注入战斗卡组与连招配置 ─────────────────────────────────
 	// TryPickupWeapon 自己实现了装备流程，不走 WeaponDefinition::SetupWeaponToCharacter。
-	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes / GameplayAbilityComboGraph / DefaultSpecialAttack。
+	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes / AbilityData / DefaultSpecialAttack。
 	if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent.Get())
 	{
 		CombatDeck->LoadDeckFromWeapon(WeaponDefinition);
 		Player->CaptureEquippedWeaponDeckState();
 	}
 
-	if (Player->ComboRuntimeComponent)
-	{
-		Player->ApplyComboGraphFromWeapon(WeaponDefinition);
-	}
+	Player->ApplyAbilityDataFromWeapon(WeaponDefinition);
 
 	if (Player->SpecialAttackComponent)
 	{
