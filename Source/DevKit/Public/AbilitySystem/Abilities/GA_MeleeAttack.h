@@ -5,6 +5,7 @@
 #include "Animation/AN_MeleeDamage.h"
 #include "Component/CombatDeckComponent.h"
 #include "Data/EnemyData.h"
+#include "Data/MontageAttackDataAsset.h"
 #include "Data/RuneDataAsset.h"
 #include "GA_MeleeAttack.generated.h"
 

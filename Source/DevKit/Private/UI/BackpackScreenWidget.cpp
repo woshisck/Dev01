@@ -64,22 +64,22 @@ FText UBackpackScreenWidget::BuildOperationHintText() const
 {
     if (bIsPreviewMode)
     {
-        return FText::FromString(TEXT("棰勮妯″紡锛氬崱缁勫彧璇?));
+        return FText::FromString(TEXT("Preview mode: backpack editing is locked."));
     }
 
     if (bIsGamepadInputMode)
     {
-        return FText::FromString(TEXT("宸﹀彸閫夋嫨鍗＄墝  <input action=\"Interact\"/> 鎷胯捣/鏀句笅鎺掑簭  <input action=\"ReverseCard\"/> 鍙嶈浆 Link"));
+        return FText::FromString(TEXT("Use <input action=\"Interact\"/> to confirm, <input action=\"ReverseCard\"/> to rotate/link."));
     }
 
-    return FText::FromString(TEXT("<input action=\"MouseClick\"/> 鎷栨嫿鍗＄墝璋冩暣椤哄簭  <input action=\"ReverseCard\"/> 鍙嶈浆 Link"));
+    return FText::FromString(TEXT("<input action=\"MouseClick\"/> select/place  <input action=\"ReverseCard\"/> rotate/link"));
 }
 
 FText UBackpackScreenWidget::BuildConfirmButtonText() const
 {
     return bIsGamepadInputMode
-        ? FText::FromString(TEXT("<input action=\"Interact\"/> 閫夋嫨"))
-        : FText::FromString(TEXT("<input action=\"MouseClick\"/> 閫夋嫨"));
+        ? FText::FromString(TEXT("<input action=\"Interact\"/> Confirm"))
+        : FText::FromString(TEXT("<input action=\"MouseClick\"/> Confirm"));
 }
 
 FText UBackpackScreenWidget::BuildCancelButtonText() const
@@ -88,8 +88,8 @@ FText UBackpackScreenWidget::BuildCancelButtonText() const
     // to IA_WeaponSkill on gamepad (B icon); "Esc" resolves to IA_Esc which is mapped to the Start
     // button glyph on gamepad 鈥?the wrong icon for this button.
     return bIsGamepadInputMode
-        ? FText::FromString(TEXT("<input action=\"Back\"/> 鍙栨秷"))
-        : FText::FromString(TEXT("<input action=\"Esc\"/> 鍙栨秷"));
+        ? FText::FromString(TEXT("<input action=\"Back\"/> Cancel"))
+        : FText::FromString(TEXT("<input action=\"Esc\"/> Cancel"));
 }
 
 FText UBackpackScreenWidget::BuildEndPreviewButtonText() const
@@ -139,8 +139,8 @@ void UBackpackScreenWidget::RefreshWeaponAndComboInfo()
     const UWeaponDefinition* WeaponDefinition = Player ? Player->EquippedWeaponDef.Get() : nullptr;
     const UWeaponInfoDA* WeaponInfo = WeaponDefinition ? WeaponDefinition->WeaponInfo.Get() : nullptr;
 
-    FText WeaponName = FText::FromString(TEXT("鏈澶囨鍣?));
-    FText WeaponDesc = FText::FromString(TEXT("鎷惧彇姝﹀櫒鍚庯紝杩欓噷浼氭樉绀烘鍣ㄨ鏄庡拰鍒濆鍗＄粍鏂瑰悜銆?));
+    FText WeaponName = FText::FromString(TEXT("No Weapon"));
+    FText WeaponDesc = FText::FromString(TEXT("Equip a weapon to view its description and combo hints."));
     UTexture2D* Thumbnail = nullptr;
 
     if (WeaponDefinition)
@@ -390,18 +390,18 @@ void UBackpackScreenWidget::OnSelectionChanged_Implementation()
         if (SelectedCell != FIntPoint(-1, -1))
         {
             HintText->SetText(FText::Format(
-                NSLOCTEXT("Backpack", "HintMove", "宸查€変腑锛歿0}\n鎷栨嫿鏍煎瓙 鈫?绉诲姩\n銆岀Щ闄ら€変腑銆嶁啋 绉婚櫎"),
+                NSLOCTEXT("Backpack", "HintMove", "Move {0}\nClick a destination cell to place it."),
                 FText::FromName(Info.RuneConfig.RuneName)));
         }
         else if (SelectedRuneIndex >= 0)
         {
             HintText->SetText(FText::Format(
-                NSLOCTEXT("Backpack", "HintPlace", "宸查€変腑锛歿0}\n鐐瑰嚮鑳屽寘鏍煎瓙 鈫?鏀剧疆"),
+                NSLOCTEXT("Backpack", "HintPlace", "Place {0}\nChoose an empty grid cell."),
                 FText::FromName(Info.RuneConfig.RuneName)));
         }
         else
         {
-            HintText->SetText(NSLOCTEXT("Backpack", "HintIdle", "鎷栨嫿鏍煎瓙涓殑绗︽枃鍙Щ鍔ㄤ綅缃甛n鐐瑰嚮宸︿晶鍒楄〃閫夋嫨寰呮斁缃鏂?));
+            HintText->SetText(NSLOCTEXT("Backpack", "HintIdle", "Select a rune or grid cell to edit your backpack."));
         }
     }
 
@@ -556,8 +556,8 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
             OnStatusMessage(bIsPreviewMode
-                ? NSLOCTEXT("Backpack", "PreviewLock", "棰勮妯″紡锛氭棤娉曟搷浣滅鏂?)
-                : NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃"));
+                ? NSLOCTEXT("Backpack", "PreviewLock", "Preview mode: backpack editing is locked.")
+                : NSLOCTEXT("Backpack", "CombatLock", "Backpack editing is locked during combat."));
             return;
         }
         SelectedCell = Cell;
@@ -593,7 +593,7 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
         else
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
-            OnStatusMessage(NSLOCTEXT("Backpack", "PlaceFail", "鏃犳硶鏀剧疆锛氫綅缃鍗犵敤"));
+            OnStatusMessage(NSLOCTEXT("Backpack", "PlaceFail", "Could not place rune here."));
         }
     }
     else if (SelectedRuneIndex >= 0)
@@ -628,7 +628,7 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
         }
         else
         {
-            OnStatusMessage(NSLOCTEXT("Backpack","PlaceFail","鏃犳硶鏀剧疆锛氫綅缃鍗犵敤"));
+            OnStatusMessage(NSLOCTEXT("Backpack","PlaceFail","Could not place rune here."));
         }
     }
 }
@@ -642,7 +642,7 @@ void UBackpackScreenWidget::RemoveRuneAtSelectedCell()
     if (!Backpack) return;
 
     int32 RuneIdx = Backpack->GetRuneIndexAtCell(SelectedCell);
-    if (RuneIdx < 0) { OnStatusMessage(NSLOCTEXT("Backpack","RemoveEmpty","璇ユ牸瀛愭病鏈夌鏂?)); return; }
+    if (RuneIdx < 0) { OnStatusMessage(NSLOCTEXT("Backpack","RemoveEmpty","No rune in this cell.")); return; }
 
     const TArray<FPlacedRune>& Placed = Backpack->GetAllPlacedRunes();
     if (!Placed.IsValidIndex(RuneIdx)) return;
@@ -1239,8 +1239,8 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
                 if (IsInCombatPhase() || bIsPreviewMode)
                 {
                     OnStatusMessage(bIsPreviewMode
-                        ? NSLOCTEXT("Backpack", "PreviewLock", "棰勮妯″紡锛氭棤娉曟搷浣滅鏂?)
-                        : NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃"));
+                        ? NSLOCTEXT("Backpack", "PreviewLock", "Preview mode: backpack editing is locked.")
+                        : NSLOCTEXT("Backpack", "CombatLock", "Backpack editing is locked during combat."));
                     return FReply::Handled();
                 }
                 PendingDragIndex = PendingIdx;
@@ -1283,7 +1283,7 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         if (IsInCombatPhase())
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(GrabbedFromCell.X, GrabbedFromCell.Y);
-            OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃"));
+            OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "Backpack editing is locked during combat."));
             return FReply::Handled();
         }
 
@@ -1373,8 +1373,8 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
             OnStatusMessage(bIsPreviewMode
-                ? NSLOCTEXT("Backpack", "PreviewLock", "棰勮妯″紡锛氭棤娉曟搷浣滅鏂?)
-                : NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃"));
+                ? NSLOCTEXT("Backpack", "PreviewLock", "Preview mode: backpack editing is locked.")
+                : NSLOCTEXT("Backpack", "CombatLock", "Backpack editing is locked during combat."));
             return FReply::Handled();
         }
 
@@ -1631,7 +1631,7 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
                 }
                 if (TargetSlot < 0)
                 {
-                    OnStatusMessage(NSLOCTEXT("Backpack", "PendingFull", "寰呮斁缃尯宸叉弧"));
+                    OnStatusMessage(NSLOCTEXT("Backpack", "PendingFull", "Pending rune list is full."));
                     OnGridNeedsRefresh();
                     return false;
                 }
@@ -1682,7 +1682,7 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
                 return true;
             }
 
-            OnStatusMessage(NSLOCTEXT("Backpack", "PendingPlaceFail", "鏃犳硶鏀剧疆锛氫綅缃鍗犵敤"));
+            OnStatusMessage(NSLOCTEXT("Backpack", "PendingPlaceFail", "Could not place rune here."));
             OnGridNeedsRefresh();
             return false;
         }
@@ -1779,7 +1779,7 @@ bool UBackpackScreenWidget::NativeOnDrop(const FGeometry& InGeometry, const FDra
 
             Backpack->TryPlaceRune(RuneOp->DraggedRune, PivotA);
             Backpack->TryPlaceRune(RuneB, PivotB);
-            OnStatusMessage(NSLOCTEXT("Backpack", "SwapFail", "鏃犳硶浜掓崲锛氬舰鐘跺啿绐?));
+            OnStatusMessage(NSLOCTEXT("Backpack", "SwapFail", "Could not swap these runes."));
             OnGridNeedsRefresh();
             return false;
         }
@@ -2430,7 +2430,7 @@ void UBackpackScreenWidget::GamepadConfirm()
         else
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(GamepadCursorCell.X, GamepadCursorCell.Y);
-            OnStatusMessage(NSLOCTEXT("Backpack", "PendingPlaceFail", "鏃犳硶鏀剧疆锛氫綅缃鍗犵敤"));
+            OnStatusMessage(NSLOCTEXT("Backpack", "PendingPlaceFail", "Could not place rune here."));
         }
         return;
     }
@@ -2446,7 +2446,7 @@ void UBackpackScreenWidget::GamepadConfirm()
             if (IsInCombatPhase())
             {
                 if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(GamepadCursorCell.X, GamepadCursorCell.Y);
-                OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃"));
+                OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "Backpack editing is locked during combat."));
                 return;
             }
 
@@ -2459,7 +2459,7 @@ void UBackpackScreenWidget::GamepadConfirm()
         }
         else
         {
-            OnStatusMessage(NSLOCTEXT("Backpack", "GrabEmpty", "璇ユ牸瀛愭病鏈夌鏂?));
+            OnStatusMessage(NSLOCTEXT("Backpack", "GrabEmpty", "No rune in this cell."));
         }
     }
     else
@@ -2539,7 +2539,7 @@ void UBackpackScreenWidget::GamepadCancel()
         bGrabbingFromPending = false;
         PendingGrabbedIdx    = -1;
         RefreshPendingGrid();
-        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "宸插彇娑?));
+        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "Grab cancelled."));
         return;
     }
 
@@ -2549,7 +2549,7 @@ void UBackpackScreenWidget::GamepadCancel()
         GrabbedFromCell = FIntPoint(-1, -1);
         SelectedCell    = FIntPoint(-1, -1);
         OnSelectionChanged();
-        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "宸插彇娑?));
+        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "Grab cancelled."));
         return;
     }
 
@@ -2601,7 +2601,7 @@ void UBackpackScreenWidget::PendingGamepadConfirm()
     // 涓绘牸瀛愭姄鍙栫姸鎬佷笅杩涘叆寰呮斁缃尯锛欰 閿皢绗︽枃閫佸洖寰呮斁缃Ы
     if (bGrabbingRune)
     {
-        if (IsInCombatPhase()) { OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃")); return; }
+        if (IsInCombatPhase()) { OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "Backpack editing is locked during combat.")); return; }
 
         UBackpackGridComponent* Backpack = GetBackpack();
         if (!Backpack) return;
@@ -2617,7 +2617,7 @@ void UBackpackScreenWidget::PendingGamepadConfirm()
             for (int32 i = 0; i < PendingGrid.Num(); i++)
                 if (!PendingGrid[i].RuneGuid.IsValid()) { TargetSlot = i; break; }
 
-        if (TargetSlot < 0) { OnStatusMessage(NSLOCTEXT("Backpack", "PendingFull", "寰呮斁缃尯宸叉弧")); return; }
+        if (TargetSlot < 0) { OnStatusMessage(NSLOCTEXT("Backpack", "PendingFull", "Pending rune list is full.")); return; }
 
         Backpack->RemoveRune(PR.Rune.RuneGuid);
         PendingGrid[TargetSlot] = PR.Rune;
@@ -2641,14 +2641,14 @@ void UBackpackScreenWidget::PendingGamepadConfirm()
 
     if (!bGrabbingFromPending)
     {
-        if (!bHasRune) { OnStatusMessage(NSLOCTEXT("Backpack", "PendingGrabEmpty", "璇ユ牸瀛愭病鏈夌鏂?)); return; }
-        if (IsInCombatPhase()) { OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "鎴樻枟闃舵鏃犳硶绉诲姩绗︽枃")); return; }
+        if (!bHasRune) { OnStatusMessage(NSLOCTEXT("Backpack", "PendingGrabEmpty", "No rune in this pending slot.")); return; }
+        if (IsInCombatPhase()) { OnStatusMessage(NSLOCTEXT("Backpack", "CombatLock", "Backpack editing is locked during combat.")); return; }
 
         bGrabbingFromPending = true;
         PendingGrabbedIdx    = PendingCursorIdx;
         PendingSelectedIdx   = PendingCursorIdx;
         RefreshPendingGrid();
-        OnStatusMessage(NSLOCTEXT("Backpack", "PendingGrabOK", "宸叉姄鍙栫鏂囷紝绉诲姩鍏夋爣鍚庢寜纭鏀剧疆锛屾寜杩斿洖鍙栨秷"));
+        OnStatusMessage(NSLOCTEXT("Backpack", "PendingGrabOK", "Pending rune grabbed."));
     }
     else
     {
@@ -2666,7 +2666,7 @@ void UBackpackScreenWidget::PendingGamepadConfirm()
         PendingGrabbedIdx    = -1;
         PendingSelectedIdx   = PendingCursorIdx;
         RefreshPendingGrid();
-        OnStatusMessage(NSLOCTEXT("Backpack", "PendingMoved", "宸茬Щ鍔ㄧ鏂?));
+        OnStatusMessage(NSLOCTEXT("Backpack", "PendingMoved", "Pending rune moved."));
     }
 }
 
@@ -2677,7 +2677,7 @@ void UBackpackScreenWidget::PendingGamepadCancel()
         bGrabbingFromPending = false;
         PendingGrabbedIdx    = -1;
         RefreshPendingGrid();
-        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "宸插彇娑?));
+        OnStatusMessage(NSLOCTEXT("Backpack", "GrabCancelled", "Grab cancelled."));
         return;
     }
     // 鏈姄鍙栨椂 B 閿€€鍑哄緟鏀剧疆鍖猴紝鍥炲埌涓绘牸瀛愭渶宸﹀垪

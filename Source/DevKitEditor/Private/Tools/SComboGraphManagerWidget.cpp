@@ -487,7 +487,7 @@ UObject* SComboGraphManagerWidget::GetDetailsObject(const FComboGraphManagerRow&
 {
 	if (Row.Node.IsValid()) return Row.Node.Get();
 	if (Row.Graph.IsValid()) return Row.Graph.Get();
-	return Row.Weapon.Get();
+	return nullptr;
 }
 
 bool SComboGraphManagerWidget::CanEditFloat(const FComboGraphManagerRow& Row, FName ColumnName) const

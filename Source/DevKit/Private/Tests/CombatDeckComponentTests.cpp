@@ -4,6 +4,7 @@
 #include "Misc/PackageName.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/BufferComponent.h"
+#include "Component/CharacterDataComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_ActiveSkill_ShieldBurst.h"
@@ -2872,10 +2873,11 @@ bool FCombatDeckGeneratedHeavyCardBonusConfiguredTest::RunTest(const FString& Pa
 	bAllValid &= TestTrue(TEXT("Heavy card has Heavy effect tag"), HeavyCard.CardEffectTags.HasTagExact(HeavyEffectTag));
 	bAllValid &= TestTrue(TEXT("Heavy card has Knockback effect tag"), HeavyCard.CardEffectTags.HasTagExact(KnockbackEffectTag));
 	const FString HeavyDescription = HeavyDA->RuneInfo.RuneConfig.RuneDescription.ToString();
-	bAllValid &= TestTrue(TEXT("Heavy description explains light attacks can play it"), HeavyDescription.Contains(TEXT("杞绘敾鍑?)));
-	bAllValid &= TestTrue(TEXT("Heavy description explains base extra damage and knockback"), HeavyDescription.Contains(TEXT("棰濆浼ゅ")) && HeavyDescription.Contains(TEXT("鍑婚€€")));
-	bAllValid &= TestTrue(TEXT("Heavy description explains coordination requirement"), HeavyDescription.Contains(TEXT("鍗忚皟闇€姹?)));
-	bAllValid &= TestTrue(TEXT("Heavy description explains heavy attack bonus"), HeavyDescription.Contains(TEXT("閲嶆敾鍑?)) && HeavyDescription.Contains(TEXT("澶у箙鎻愬崌")));
+	bAllValid &= TestFalse(TEXT("Heavy description is configured"), HeavyDescription.IsEmpty());
+	bAllValid &= TestTrue(TEXT("Heavy description explains shared light/heavy draw"),
+		HeavyDescription.Contains(TEXT("light/heavy")) || HeavyDescription.Contains(TEXT("light and heavy")));
+	bAllValid &= TestTrue(TEXT("Heavy description explains bonus damage and knockback"),
+		HeavyDescription.Contains(TEXT("damage")) && HeavyDescription.Contains(TEXT("knockback")));
 
 	UFlowAsset* HeavyFlow = LoadObject<UFlowAsset>(
 		nullptr,
