@@ -35,7 +35,6 @@
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
-#include "Component/PlayerSpecialAttackComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemComponent.h"
 
@@ -574,12 +573,6 @@ void AYogPlayerControllerBase::Special(const FInputActionValue& Value)
 			{
 				return;
 			}
-		}
-
-		if (player->SpecialAttackComponent && player->SpecialAttackComponent->HasSpecialAttack())
-		{
-			player->SpecialAttackComponent->UseSpecialAttack();
-			return;
 		}
 
 		FGameplayTagContainer TagContainer;

@@ -29,7 +29,6 @@
 #include "Component/CombatItemComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
-#include "Component/PlayerSpecialAttackComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "Combat/FinisherDeprecation.h"
 #include "BuffFlow/BuffFlowComponent.h"
@@ -221,7 +220,6 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	CombatDeckComponent = CreateDefaultSubobject<UCombatDeckComponent>(TEXT("CombatDeckComponent"));
 	CombatItemComponent = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
 	ActiveSkillComponent = CreateDefaultSubobject<UPlayerActiveSkillComponent>(TEXT("ActiveSkillComponent"));
-	SpecialAttackComponent = CreateDefaultSubobject<UPlayerSpecialAttackComponent>(TEXT("SpecialAttackComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
 	SacrificeRuneComponent = CreateDefaultSubobject<USacrificeRuneComponent>(TEXT("SacrificeRuneComponent"));
@@ -641,11 +639,6 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 		YogASC->ClearWeaponTypeTags();
 	}
 
-	if (SpecialAttackComponent)
-	{
-		SpecialAttackComponent->SetSpecialAttack(nullptr);
-	}
-
 	if (DefaultUnarmedWeaponDef)
 	{
 		DefaultUnarmedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
@@ -718,11 +711,6 @@ void APlayerCharacterBase::SwitchWeapon()
 
 	ApplyAbilityDataFromWeapon(EquippedWeaponDef);
 
-	if (SpecialAttackComponent)
-	{
-		SpecialAttackComponent->SetSpecialAttack(EquippedWeaponDef ? EquippedWeaponDef->DefaultSpecialAttack.Get() : nullptr);
-	}
-
 	LoadCombatDeckFromWeaponDeckState(EquippedWeaponDeckState, EquippedWeaponDef);
 
 	if (EquippedWeaponInstance)
@@ -740,11 +728,6 @@ void APlayerCharacterBase::ApplyRecoveryCancelWeaponSwitchBonus()
 	if (ActiveSkillComponent)
 	{
 		ActiveSkillComponent->ClearCooldowns();
-	}
-
-	if (SpecialAttackComponent)
-	{
-		SpecialAttackComponent->ClearCooldown();
 	}
 
 	const FGameplayTag BonusTag = GetRecoveryCancelBonusTag();
@@ -1331,10 +1314,6 @@ void APlayerCharacterBase::BeginPlay()
 		if (UCombatDeckComponent* CombatDeck = CombatDeckComponent.Get())
 		{
 			CombatDeck->LoadDeckFromWeapon(DefaultUnarmedWeaponDef);
-		}
-		if (SpecialAttackComponent)
-		{
-			SpecialAttackComponent->SetSpecialAttack(DefaultUnarmedWeaponDef->DefaultSpecialAttack);
 		}
 		if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 		{

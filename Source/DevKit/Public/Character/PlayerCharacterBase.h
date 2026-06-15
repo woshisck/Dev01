@@ -32,7 +32,6 @@ class UBackpackGridComponent;
 class UCombatDeckComponent;
 class UCombatItemComponent;
 class UPlayerActiveSkillComponent;
-class UPlayerSpecialAttackComponent;
 class UBuffFlowComponent;
 class USacrificeRuneComponent;
 class USkillChargeComponent;
@@ -160,9 +159,6 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Active Skill")
 	TObjectPtr<UPlayerActiveSkillComponent> ActiveSkillComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Special Attack")
-	TObjectPtr<UPlayerSpecialAttackComponent> SpecialAttackComponent;
 
 	// Equipped at BeginPlay when no weapon is carried (e.g. unarmed default loadout).
 	// SetupWeaponToCharacter is called on this if EquippedWeaponDef is still null after init.

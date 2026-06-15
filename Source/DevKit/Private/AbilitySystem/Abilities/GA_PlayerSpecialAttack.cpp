@@ -75,7 +75,10 @@ void UGA_PlayerSpecialAttack::ActivateAbility(
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	PlayerOwner = ActorInfo ? Cast<APlayerCharacterBase>(ActorInfo->AvatarActor.Get()) : nullptr;
-	SpecialAttackComponent = PlayerOwner ? PlayerOwner->SpecialAttackComponent.Get() : nullptr;
+	// TODO: SpecialAttackComponent was unhooked from PlayerCharacter; rewire the special-attack
+	// config source when this GA becomes the standalone Special() ability. Until then this GA
+	// has no montage source and will early-out below.
+	SpecialAttackComponent = nullptr;
 	if (!PlayerOwner)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);

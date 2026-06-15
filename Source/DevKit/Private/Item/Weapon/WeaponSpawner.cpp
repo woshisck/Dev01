@@ -24,7 +24,6 @@
 #include "Component/CharacterDataComponent.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
-#include "Component/PlayerSpecialAttackComponent.h"
 #include "Map/TutorialMobSpawner.h"
 #include "Tutorial/TutorialManager.h"
 #include "Character/YogPlayerControllerBase.h"
@@ -545,7 +544,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	// ── 5.25 注入战斗卡组与连招配置 ─────────────────────────────────
 	// TryPickupWeapon 自己实现了装备流程，不走 WeaponDefinition::SetupWeaponToCharacter。
-	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes / AbilityData / DefaultSpecialAttack。
+	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes / AbilityData。
 	if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent.Get())
 	{
 		CombatDeck->LoadDeckFromWeapon(WeaponDefinition);
@@ -553,11 +552,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	}
 
 	Player->ApplyAbilityDataFromWeapon(WeaponDefinition);
-
-	if (Player->SpecialAttackComponent)
-	{
-		Player->SpecialAttackComponent->SetSpecialAttack(WeaponDefinition->DefaultSpecialAttack);
-	}
 
 	// ── 5.5 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────
 	// 让玩家专属攻击 GA 的 ActivationRequiredTags 能匹配通过；
