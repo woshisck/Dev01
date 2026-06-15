@@ -12,7 +12,6 @@
 #include "Item/Weapon/WeaponDefinition.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Component/CharacterDataComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
 #include "Data/ActiveSkillDataAsset.h"
 #include "Kismet/GameplayStatics.h"
@@ -705,8 +704,6 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 	if (!Player) return;
 
 	SaveGame->PlayerStateData.SetupAttribute(*Player->BaseAttributeSet);
-	SaveGame->PlayerStateData.WeaponAbilities =
-		Player->GetCharacterDataComponent()->GetCharacterData()->AbilityData;
 
 	TMap<FGameplayTag, int32> Container = Player->GetASC()->GetPlayerOwnedTagsWithCounts();
 	for (const auto& Pair : Container)
@@ -788,9 +785,6 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 			LoadData(WeaponActor, WeaponData.ByteData);
 		}
 	}
-
-	Player->GetCharacterDataComponent()->GetCharacterData()->AbilityData =
-		SaveGame->PlayerStateData.WeaponAbilities;
 
 	for (const auto& Pair : SaveGame->PlayerStateData.PlayerOwnedTags)
 	{

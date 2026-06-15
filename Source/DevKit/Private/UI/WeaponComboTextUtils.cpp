@@ -86,19 +86,15 @@ FText WeaponComboTextUtils::BuildComboHintText(
 	TArray<FString> MoveListLines;
 	const bool bLimitLines = MaxLines > 0;
 	const int32 EffectiveMaxLines = bLimitLines ? FMath::Max(1, MaxLines) : 0;
-	const UAbilityData* LegacyAbilityData = WeaponDefinition->AbilityData.Get();
 
 	const UAbilityData* AttackSources[] = {
 		WeaponDefinition->AttackAbilityData.Get(),
-		LegacyAbilityData,
 	};
 	const UAbilityData* WeaponSkillSources[] = {
 		WeaponDefinition->WeaponSkillAbilityData.Get(),
-		LegacyAbilityData,
 	};
 	const UAbilityData* SpecialSources[] = {
 		WeaponDefinition->SpecialAbilityData.Get(),
-		LegacyAbilityData,
 	};
 
 	AddComboLine(MoveListLines, MakeArrayView(AttackSources), TEXT("PlayerState.AbilityCast.Attack"), TEXT("Attack"), EffectiveMaxLines);

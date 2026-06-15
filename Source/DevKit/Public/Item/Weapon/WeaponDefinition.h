@@ -81,18 +81,13 @@ public:
 	UWeaponDefinition(){};
 
 	// Deprecated ComboGraph references. Transient so resaving migrated weapons drops
-	// serialized graph object refs; player combat uses the AbilityData fields below.
+	// serialized graph object refs; player combat uses the typed AbilityData fields below.
 	UPROPERTY(Transient)
 	TObjectPtr<UObject> GameplayAbilityComboGraph;
 
 	// Deprecated ComboGraph reference. Kept as a native name only for old asset load.
 	UPROPERTY(Transient)
 	TObjectPtr<UObject> WeaponSkillComboGraph;
-
-	// Optional compatibility bucket. Prefer the typed fields below for new weapons:
-	// AttackAbilityData (attack/dash), WeaponSkillAbilityData, and SpecialAbilityData.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data|Legacy")
-	TObjectPtr<UAbilityData> AbilityData;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
 	TObjectPtr<UAbilityData> AttackAbilityData;

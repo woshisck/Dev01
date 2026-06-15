@@ -365,11 +365,6 @@ void APlayerCharacterBase::ApplyAbilityDataFromWeapon(UWeaponDefinition* WeaponD
 	int32 WeaponSourceCount = 0;
 	if (WeaponDefinition)
 	{
-		if (WeaponDefinition->AbilityData)
-		{
-			SourceData.Add(WeaponDefinition->AbilityData);
-			++WeaponSourceCount;
-		}
 		if (WeaponDefinition->AttackAbilityData)
 		{
 			SourceData.Add(WeaponDefinition->AttackAbilityData);

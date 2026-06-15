@@ -248,9 +248,6 @@ public:
 
 
 	UPROPERTY()
-	UAbilityData* WeaponAbilities = nullptr;
-
-	UPROPERTY()
 	TArray<uint8> CharacterByteData;
 
 	void SetupAttribute(UBaseAttributeSet& playerAttribute)

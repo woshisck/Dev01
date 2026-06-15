@@ -21,7 +21,7 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 ## Initial Data Assets
 
-- Weapon combat AbilityData is merged onto runtime `CharacterData->AbilityData` in `APlayerCharacterBase::ApplyAbilityDataFromWeapon`. `WeaponDefinition.AttackAbilityData` owns attack + dash rows, `WeaponDefinition.WeaponSkillAbilityData` owns weapon skill rows, and `WeaponDefinition.SpecialAbilityData` owns special rows. The legacy `WeaponDefinition.AbilityData` field is only a compatibility bucket.
+- Weapon combat AbilityData is merged onto runtime `CharacterData->AbilityData` in `APlayerCharacterBase::ApplyAbilityDataFromWeapon`. `WeaponDefinition.AttackAbilityData` owns attack + dash rows, `WeaponDefinition.WeaponSkillAbilityData` owns weapon skill rows, and `WeaponDefinition.SpecialAbilityData` owns special rows. The legacy all-in-one `WeaponDefinition.AbilityData` slot has been removed.
 
 - `DA_Base_AbilitySet_Initial` (`/Game/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial`): base `UGASTemplate` loaded by every character at `BeginPlay` via `YogCharacterBase`. Contains shared reactive GAs (`GA_Dead`, `GA_HitReaction`, `GA_Knockback`, etc.). Do **not** put weapon combat montage-routing GAs here; keep player combat grants on the player combat ability set.
 - `CharacterData` GAS template (`UGASTemplate::AbilityMap`): per-character ability grants applied during `InitializeComponentsWithStats`. Logged as `"Grant ability from GAS Template: <name>"` in the output log. Same rule: no weapon combat GAs here.
