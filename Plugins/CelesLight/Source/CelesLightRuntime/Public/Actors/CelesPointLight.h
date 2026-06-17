@@ -6,7 +6,6 @@
 #include "CelesPointLight.generated.h"
 
 class UCelesLightReceiveComponent;
-class UBillboardComponent;
 class UPointLightComponent;
 class USphereComponent;
 
@@ -39,11 +38,6 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Celes Light")
 	TObjectPtr<USphereComponent> SphereVolume = nullptr;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Celes Light")
-	TObjectPtr<UBillboardComponent> Billboard = nullptr;
-#endif
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Celes Light")
 	bool bEnableOriginLight = true;

@@ -2,7 +2,6 @@
 
 #include "CelesLightBlueprintLibrary.h"
 #include "Components/CelesLightReceiveComponent.h"
-#include "Components/BillboardComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
@@ -69,21 +68,6 @@ ACelesPointLight::ACelesPointLight(const FObjectInitializer& ObjectInitializer)
 		SphereVolume->SetGenerateOverlapEvents(true);
 		SphereVolume->SetHiddenInGame(true);
 	}
-
-#if WITH_EDITORONLY_DATA
-	Billboard = CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("Billboard"));
-	if (Billboard)
-	{
-		Billboard->SetupAttachment(SceneRoot);
-		Billboard->SetRelativeLocation(FVector(0.0f, 0.0f, 80.0f));
-		Billboard->bIsScreenSizeScaled = true;
-		Billboard->ScreenSize = 0.0025f;
-		if (CelesLightIcon)
-		{
-			Billboard->SetSprite(CelesLightIcon);
-		}
-	}
-#endif
 
 	PrimaryActorTick.bCanEverTick = false;
 }

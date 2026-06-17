@@ -1,5 +1,7 @@
 #include "Misc/AutomationTest.h"
 
+#include "Actors/CelesPointLight.h"
+#include "Components/PointLightComponent.h"
 #include "GameFramework/Actor.h"
 #include "UObject/UnrealType.h"
 
@@ -40,11 +42,11 @@ bool FCelesLightCaptureBoxExposesRenderTargetWorkflowTest::RunTest(const FString
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FCelesLightPointLightExposesEditorBillboardTest,
-	"CelesLight.PointLight.ExposesEditorBillboard",
+	FCelesLightPointLightUsesSingleEditorIconTest,
+	"CelesLight.PointLight.UsesSingleEditorIcon",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCelesLightPointLightExposesEditorBillboardTest::RunTest(const FString& Parameters)
+bool FCelesLightPointLightUsesSingleEditorIconTest::RunTest(const FString& Parameters)
 {
 	const UClass* PointLightClass = StaticLoadClass(AActor::StaticClass(), nullptr, TEXT("/Script/CelesLightRuntime.CelesPointLight"));
 
@@ -54,7 +56,20 @@ bool FCelesLightPointLightExposesEditorBillboardTest::RunTest(const FString& Par
 		return false;
 	}
 
-	TestNotNull(TEXT("Celes point light exposes its own editor billboard"), FindFProperty<FObjectPropertyBase>(PointLightClass, TEXT("Billboard")));
+	TestTrue(TEXT("Celes point light does not add a duplicate billboard icon"), FindFProperty<FObjectPropertyBase>(PointLightClass, TEXT("Billboard")) == nullptr);
+
+	const ACelesPointLight* Defaults = Cast<ACelesPointLight>(PointLightClass->GetDefaultObject());
+	TestNotNull(TEXT("Celes point light default object is available"), Defaults);
+	if (Defaults)
+	{
+		TestNotNull(TEXT("Celes point light owns a point light component"), Defaults->PointLightComponent.Get());
+#if WITH_EDITORONLY_DATA
+		if (Defaults->PointLightComponent)
+		{
+			TestNotNull(TEXT("Celes point light uses a custom editor icon on the light component"), Defaults->PointLightComponent->DynamicEditorTexture.Get());
+		}
+#endif
+	}
 
 	if (const UClass* EditorLibraryClass = StaticLoadClass(UObject::StaticClass(), nullptr, TEXT("/Script/CelesLightEditor.CelesLightEditorLibrary")))
 	{
