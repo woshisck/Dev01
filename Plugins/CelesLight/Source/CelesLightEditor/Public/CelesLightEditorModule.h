@@ -14,5 +14,6 @@ private:
 	void RegisterMenus();
 	void FillCelesLightMenu(UToolMenu* Menu);
 	void CreateCaptureBox();
+	void CreatePointLight();
 	void ManualUpdateCelesLights();
 };

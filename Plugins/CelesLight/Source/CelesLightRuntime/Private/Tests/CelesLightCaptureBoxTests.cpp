@@ -39,4 +39,29 @@ bool FCelesLightCaptureBoxExposesRenderTargetWorkflowTest::RunTest(const FString
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FCelesLightPointLightExposesEditorBillboardTest,
+	"CelesLight.PointLight.ExposesEditorBillboard",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCelesLightPointLightExposesEditorBillboardTest::RunTest(const FString& Parameters)
+{
+	const UClass* PointLightClass = StaticLoadClass(AActor::StaticClass(), nullptr, TEXT("/Script/CelesLightRuntime.CelesPointLight"));
+
+	TestNotNull(TEXT("Celes point light actor is available"), PointLightClass);
+	if (!PointLightClass)
+	{
+		return false;
+	}
+
+	TestNotNull(TEXT("Celes point light exposes its own editor billboard"), FindFProperty<FObjectPropertyBase>(PointLightClass, TEXT("Billboard")));
+
+	if (const UClass* EditorLibraryClass = StaticLoadClass(UObject::StaticClass(), nullptr, TEXT("/Script/CelesLightEditor.CelesLightEditorLibrary")))
+	{
+		TestNotNull(TEXT("Editor library exposes Celes point light creation"), EditorLibraryClass->FindFunctionByName(TEXT("CreateCelesPointLight")));
+	}
+
+	return true;
+}
+
 #endif

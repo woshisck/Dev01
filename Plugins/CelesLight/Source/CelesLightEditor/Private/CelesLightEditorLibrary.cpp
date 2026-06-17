@@ -1,11 +1,11 @@
 #include "CelesLightEditorLibrary.h"
 
 #include "Actors/CelesLightCaptureBox.h"
+#include "Actors/CelesPointLight.h"
 #include "Editor.h"
 #include "EditorViewportClient.h"
 #include "EngineUtils.h"
 #include "ScopedTransaction.h"
-#include "Selection.h"
 #include "UnrealClient.h"
 
 namespace
@@ -18,6 +18,53 @@ namespace
 		}
 
 		return GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	}
+
+	FTransform GetViewportSpawnTransform()
+	{
+		FVector SpawnLocation = FVector::ZeroVector;
+		if (GEditor)
+		{
+			if (const FViewport* Viewport = GEditor->GetActiveViewport())
+			{
+				if (const FViewportClient* ViewportClient = Viewport->GetClient())
+				{
+					if (const FEditorViewportClient* EditorViewportClient = static_cast<const FEditorViewportClient*>(ViewportClient))
+					{
+						SpawnLocation = EditorViewportClient->GetViewLocation() + EditorViewportClient->GetViewRotation().Vector() * 500.0f;
+					}
+				}
+			}
+		}
+
+		return FTransform(FRotator::ZeroRotator, SpawnLocation);
+	}
+
+	template <typename ActorT>
+	ActorT* SpawnCelesActor(UWorld* TargetWorld, const TCHAR* BaseName)
+	{
+		if (!TargetWorld)
+		{
+			return nullptr;
+		}
+
+		TargetWorld->Modify();
+
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.Name = MakeUniqueObjectName(TargetWorld->PersistentLevel, ActorT::StaticClass(), BaseName);
+		SpawnParameters.OverrideLevel = TargetWorld->PersistentLevel;
+		SpawnParameters.ObjectFlags = RF_Transactional;
+
+		ActorT* Actor = TargetWorld->SpawnActor<ActorT>(ActorT::StaticClass(), GetViewportSpawnTransform(), SpawnParameters);
+		if (Actor && GEditor)
+		{
+			Actor->Modify();
+			GEditor->SelectNone(false, true);
+			GEditor->SelectActor(Actor, true, true);
+			GEditor->NoteSelectionChange();
+		}
+
+		return Actor;
 	}
 }
 
@@ -53,39 +100,18 @@ ACelesLightCaptureBox* UCelesLightEditorLibrary::CreateCelesLightCaptureBox(UWor
 		return nullptr;
 	}
 
-	const FScopedTransaction Transaction(NSLOCTEXT("CelesLightEditor", "CreateCaptureBoxTransaction", "创建 Celes Light 采集盒体"));
-	TargetWorld->Modify();
+	const FScopedTransaction Transaction(NSLOCTEXT("CelesLightEditor", "CreateCaptureBoxTransaction", "Create Celes Light Capture Box"));
+	return SpawnCelesActor<ACelesLightCaptureBox>(TargetWorld, TEXT("CelesLightCaptureBox"));
+}
 
-	FVector SpawnLocation = FVector::ZeroVector;
-	FRotator SpawnRotation = FRotator::ZeroRotator;
-	if (GEditor)
+ACelesPointLight* UCelesLightEditorLibrary::CreateCelesPointLight(UWorld* World)
+{
+	UWorld* TargetWorld = ResolveEditorWorld(World);
+	if (!TargetWorld)
 	{
-		if (const FViewport* Viewport = GEditor->GetActiveViewport())
-		{
-			if (const FViewportClient* ViewportClient = Viewport->GetClient())
-			{
-				if (const FEditorViewportClient* EditorViewportClient = static_cast<const FEditorViewportClient*>(ViewportClient))
-				{
-					SpawnLocation = EditorViewportClient->GetViewLocation() + EditorViewportClient->GetViewRotation().Vector() * 500.0f;
-					SpawnRotation = FRotator::ZeroRotator;
-				}
-			}
-		}
+		return nullptr;
 	}
 
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.Name = MakeUniqueObjectName(TargetWorld->PersistentLevel, ACelesLightCaptureBox::StaticClass(), TEXT("CelesLightCaptureBox"));
-	SpawnParameters.OverrideLevel = TargetWorld->PersistentLevel;
-	SpawnParameters.ObjectFlags = RF_Transactional;
-
-	ACelesLightCaptureBox* CaptureBox = TargetWorld->SpawnActor<ACelesLightCaptureBox>(SpawnLocation, SpawnRotation, SpawnParameters);
-	if (CaptureBox && GEditor)
-	{
-		CaptureBox->Modify();
-		GEditor->SelectNone(false, true);
-		GEditor->SelectActor(CaptureBox, true, true);
-		GEditor->NoteSelectionChange();
-	}
-
-	return CaptureBox;
+	const FScopedTransaction Transaction(NSLOCTEXT("CelesLightEditor", "CreatePointLightTransaction", "Create Celes Light"));
+	return SpawnCelesActor<ACelesPointLight>(TargetWorld, TEXT("CelesPointLight"));
 }

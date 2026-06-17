@@ -2,9 +2,36 @@
 
 #include "CelesLightBlueprintLibrary.h"
 #include "Components/CelesLightReceiveComponent.h"
+#include "Components/BillboardComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
+#include "Engine/Texture2D.h"
+#include "ImageUtils.h"
+#include "Interfaces/IPluginManager.h"
+#include "Misc/Paths.h"
+
+namespace
+{
+#if WITH_EDITORONLY_DATA
+	UTexture2D* LoadPointLightBillboardTexture()
+	{
+		const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("CelesLight"));
+		if (!Plugin.IsValid())
+		{
+			return nullptr;
+		}
+
+		const FString IconPath = FPaths::Combine(Plugin->GetBaseDir(), TEXT("Resources"), TEXT("CelesPointLightBillboard.png"));
+		if (!FPaths::FileExists(IconPath))
+		{
+			return nullptr;
+		}
+
+		return FImageUtils::ImportFileAsTexture2D(IconPath);
+	}
+#endif
+}
 
 ACelesPointLight::ACelesPointLight(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -22,6 +49,17 @@ ACelesPointLight::ACelesPointLight(const FObjectInitializer& ObjectInitializer)
 		PointLightComponent->SetLightColor(FLinearColor::White);
 	}
 
+#if WITH_EDITORONLY_DATA
+	UTexture2D* CelesLightIcon = LoadPointLightBillboardTexture();
+	if (PointLightComponent && CelesLightIcon)
+	{
+		PointLightComponent->StaticEditorTexture = CelesLightIcon;
+		PointLightComponent->DynamicEditorTexture = CelesLightIcon;
+		PointLightComponent->StaticEditorTextureScale = 0.75f;
+		PointLightComponent->DynamicEditorTextureScale = 0.75f;
+	}
+#endif
+
 	SphereVolume = CreateDefaultSubobject<USphereComponent>(TEXT("SphereVolume"));
 	if (SphereVolume)
 	{
@@ -31,6 +69,21 @@ ACelesPointLight::ACelesPointLight(const FObjectInitializer& ObjectInitializer)
 		SphereVolume->SetGenerateOverlapEvents(true);
 		SphereVolume->SetHiddenInGame(true);
 	}
+
+#if WITH_EDITORONLY_DATA
+	Billboard = CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("Billboard"));
+	if (Billboard)
+	{
+		Billboard->SetupAttachment(SceneRoot);
+		Billboard->SetRelativeLocation(FVector(0.0f, 0.0f, 80.0f));
+		Billboard->bIsScreenSizeScaled = true;
+		Billboard->ScreenSize = 0.0025f;
+		if (CelesLightIcon)
+		{
+			Billboard->SetSprite(CelesLightIcon);
+		}
+	}
+#endif
 
 	PrimaryActorTick.bCanEverTick = false;
 }

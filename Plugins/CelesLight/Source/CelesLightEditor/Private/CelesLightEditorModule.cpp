@@ -42,7 +42,7 @@ void FCelesLightEditorModule::RegisterMenus()
 	Section.AddSubMenu(
 		TEXT("CelesLightCaptureTools"),
 		LOCTEXT("CelesLightCaptureToolsLabel", "Celes Light 灯光采集"),
-		LOCTEXT("CelesLightCaptureToolsTooltip", "创建采集盒体、创建 RT，并把盒体范围内灯光写入 RT。插件不会创建动态材质。"),
+		LOCTEXT("CelesLightCaptureToolsTooltip", "创建采集盒体、创建 Celes 灯光，并把盒体范围内灯光写入 RT。插件不会创建动态材质。"),
 		FNewToolMenuDelegate::CreateRaw(this, &FCelesLightEditorModule::FillCelesLightMenu),
 		false,
 		FSlateIcon());
@@ -59,6 +59,13 @@ void FCelesLightEditorModule::FillCelesLightMenu(UToolMenu* Menu)
 		FUIAction(FExecuteAction::CreateRaw(this, &FCelesLightEditorModule::CreateCaptureBox)));
 
 	Section.AddMenuEntry(
+		TEXT("CelesLightCreatePointLight"),
+		LOCTEXT("CelesLightCreatePointLightLabel", "创建 Celes 灯光"),
+		LOCTEXT("CelesLightCreatePointLightTooltip", "在当前关卡中创建可被采集盒体记录的 Celes Point Light。"),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FCelesLightEditorModule::CreatePointLight)));
+
+	Section.AddMenuEntry(
 		TEXT("CelesLightManualUpdate"),
 		LOCTEXT("CelesLightManualUpdateLabel", "更新全部采集盒体"),
 		LOCTEXT("CelesLightManualUpdateTooltip", "手动更新当前关卡中所有 Celes Light Capture Box 的 Light Info RT。"),
@@ -69,6 +76,11 @@ void FCelesLightEditorModule::FillCelesLightMenu(UToolMenu* Menu)
 void FCelesLightEditorModule::CreateCaptureBox()
 {
 	UCelesLightEditorLibrary::CreateCelesLightCaptureBox(nullptr);
+}
+
+void FCelesLightEditorModule::CreatePointLight()
+{
+	UCelesLightEditorLibrary::CreateCelesPointLight(nullptr);
 }
 
 void FCelesLightEditorModule::ManualUpdateCelesLights()

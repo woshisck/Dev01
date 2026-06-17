@@ -5,6 +5,7 @@
 #include "CelesLightEditorLibrary.generated.h"
 
 class ACelesLightCaptureBox;
+class ACelesPointLight;
 
 UCLASS()
 class CELESLIGHTEDITOR_API UCelesLightEditorLibrary : public UBlueprintFunctionLibrary
@@ -12,9 +13,12 @@ class CELESLIGHTEDITOR_API UCelesLightEditorLibrary : public UBlueprintFunctionL
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Celes Light|赛璐璐灯光")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Celes Light|Tools")
 	static int32 ManualUpdateCelesLights(UWorld* World = nullptr);
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Celes Light|赛璐璐灯光")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Celes Light|Tools")
 	static ACelesLightCaptureBox* CreateCelesLightCaptureBox(UWorld* World = nullptr);
+
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Celes Light|Tools")
+	static ACelesPointLight* CreateCelesPointLight(UWorld* World = nullptr);
 };
