@@ -13,6 +13,7 @@
 
 class UBuffFlowComponent;
 class UEnemyHealthDisplayComponent;
+class UEnemyWeaponDefinition;
 class UMontageVFXBindingComponent;
 class UYogAbilitySystemComponent;
 
@@ -55,6 +56,15 @@ public:
 
 	void PostInitializeComponents() override;
 
+	UFUNCTION(BlueprintCallable, Category = "Enemy|Weapon")
+	void SetPendingEnemyWeaponDefinition(UEnemyWeaponDefinition* WeaponDefinition);
+
+	UFUNCTION(BlueprintCallable, Category = "Enemy|Weapon")
+	void ApplyEnemyWeaponDefinition(UEnemyWeaponDefinition* WeaponDefinition);
+
+	UFUNCTION(BlueprintPure, Category = "Enemy|Weapon")
+	UEnemyWeaponDefinition* GetEquippedEnemyWeaponDefinition() const { return EquippedEnemyWeaponDefinition.Get(); }
+
 	void SetAIAttackRuntimeContext(const FEnemyAIAttackOption& AttackOption, AActor* TargetActor, float DistanceToTarget);
 	bool ConsumeAIAttackRuntimeContext(FEnemyAIAttackRuntimeContext& OutContext);
 	void ClearAIAttackRuntimeContext();
@@ -71,6 +81,15 @@ protected:
 
 	UPROPERTY(Transient)
 	FEnemyAIAttackRuntimeContext PendingAIAttackContext;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UEnemyWeaponDefinition> PendingEnemyWeaponDefinition;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UEnemyWeaponDefinition> EquippedEnemyWeaponDefinition;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<AActor>> SpawnedEnemyWeaponActors;
 
 
 	friend UEnemyAttributeSet;

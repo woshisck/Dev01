@@ -9,6 +9,7 @@
 
 class AEnemyCharacterBase;
 class AYogCharacterBase;
+class UEnemyWeaponDefinition;
 class UStoryEncounterPointDA;
 struct FBuffFlowLifecycleContext;
 
@@ -20,6 +21,9 @@ struct DEVKIT_API FStoryMobSpawnOptions
 	/** 为空时使用 Spawner 的 EnemySpawnClassis[0]。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
 	TSubclassOf<AEnemyCharacterBase> EnemyClassOverride;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
+	TObjectPtr<UEnemyWeaponDefinition> EnemyWeaponDefinitionOverride;
 
 	/** true 时在 Spawner 位置生成；false 时走普通 PrepareSpawnLocation 随机点。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
@@ -74,6 +78,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	AEnemyCharacterBase* SpawnMob(TSubclassOf<AActor> spawn_actor_class);
 
+	UFUNCTION(BlueprintCallable, Category = "Spawning")
+	AEnemyCharacterBase* SpawnMobWithWeapon(TSubclassOf<AActor> SpawnActorClass, UEnemyWeaponDefinition* EnemyWeaponDefinition);
+
 	// 仅计算随机可达位置，不 SpawnActor（供延迟刷出路径使用）
 	UFUNCTION(BlueprintCallable)
 	FVector PrepareSpawnLocation();
@@ -81,6 +88,9 @@ public:
 	// 在指定位置刷出敌人（跳过位置随机化）
 	UFUNCTION(BlueprintCallable)
 	AEnemyCharacterBase* SpawnMobAtLocation(TSubclassOf<AActor> EnemyClass, FVector Location);
+
+	UFUNCTION(BlueprintCallable, Category = "Spawning")
+	AEnemyCharacterBase* SpawnMobAtLocationWithWeapon(TSubclassOf<AActor> EnemyClass, FVector Location, UEnemyWeaponDefinition* EnemyWeaponDefinition);
 
 	/** Story/教程使用的通用控制生成接口。仍复用普通 MobSpawner 的生成 FX、AI Controller、生成点逻辑。 */
 	UFUNCTION(BlueprintCallable, Category = "Story")

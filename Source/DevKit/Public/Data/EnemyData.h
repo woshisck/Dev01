@@ -13,6 +13,7 @@
 
 class AEnemyCharacterBase;
 class AActor;
+class UEnemyWeaponDefinition;
 class URuneDataAsset;
 class USpawnLifecycleFlowAsset;
 
@@ -281,6 +282,12 @@ public:
 	// 若为空，则不选取敌人专属 Buff
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Buff")
 	TArray<FBuffEntry> EnemyBuffPool;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Weapon")
+	TObjectPtr<UEnemyWeaponDefinition> DefaultWeaponDefinition;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Weapon")
+	TArray<TObjectPtr<UEnemyWeaponDefinition>> AllowedWeaponDefinitions;
 
 	// 此敌人使用的行为树（留空则使用 AIController 默认行为树）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
