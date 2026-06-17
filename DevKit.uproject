@@ -164,6 +164,10 @@
 			]
 		},
 		{
+			"Name": "CelesLight",
+			"Enabled": true
+		},
+		{
 			"Name": "YogComboGraph",
 			"Enabled": true
 		}
