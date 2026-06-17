@@ -46,6 +46,8 @@ private:
     UPROPERTY()
     TObjectPtr<UAbilityTask_PlayMontageAndWait> MontageTask;
 
+    FGameplayTag ResolveLookupTag(AYogCharacterBase* Character, const FGameplayEventData* TriggerEventData) const;
+
     UFUNCTION()
     void OnMontageCompleted();
 

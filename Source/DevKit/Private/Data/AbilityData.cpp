@@ -105,6 +105,7 @@ void UEnemyAbilityMontageData::PostInitProperties()
 	};
 	static const FName PassiveKeys[] = {
 		"Action.HitReact.Front", "Action.Dead", "Action.HitReact.Back",
+		"Action.HitReact.Blocked", "Action.HitReact.Parried",
 	};
 
 	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, PassiveKeys);
@@ -140,6 +141,7 @@ void UPlayerAbilityMontageData::PostInitProperties()
 	};
 	static const FName PassiveKeys[] = {
 		"Action.HitReact.Front", "Action.Dead", "Action.HitReact.Back",
+		"Action.HitReact.Blocked", "Action.HitReact.Parried",
 	};
 
 	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, PassiveKeys);
@@ -178,7 +180,10 @@ void UWeaponSkillAbilityMontageData::PostInitProperties()
 		"PlayerState.AbilityCast.WeaponSkill.Combo1", "PlayerState.AbilityCast.WeaponSkill.Combo2",
 		"PlayerState.AbilityCast.WeaponSkill.Combo3", "PlayerState.AbilityCast.WeaponSkill.Combo4",
 	};
-	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, TArrayView<const FName>());
+	static const FName PassiveKeys[] = {
+		"Action.HitReact.Blocked",
+	};
+	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, PassiveKeys);
 }
 
 // ---------------------------------------------------------------

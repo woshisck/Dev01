@@ -27,6 +27,7 @@ namespace PlayerAbilityMontageDataSetup
 		const TCHAR* AssetName;
 		UClass* AssetClass;
 		TArray<FMontageKeySpec> MontageKeys;
+		TArray<const TCHAR*> PassiveKeys;
 	};
 
 	FString ToObjectPath(const FString& PackagePath)
@@ -157,21 +158,48 @@ namespace PlayerAbilityMontageDataSetup
 		return bOutAddedKey || bOutAssignedMontage;
 	}
 
+	bool EnsurePassiveEntry(
+		UAbilityData* AbilityData,
+		const TCHAR* TagName,
+		bool& bOutAddedKey,
+		FString& OutFailure)
+	{
+		bOutAddedKey = false;
+		OutFailure.Reset();
+
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+		if (!AbilityData || !Tag.IsValid())
+		{
+			OutFailure = FString::Printf(TEXT("invalid passive tag `%s`"), TagName ? TagName : TEXT("(null)"));
+			return false;
+		}
+
+		if (!AbilityData->PassiveMap.Contains(Tag))
+		{
+			AbilityData->PassiveMap.Add(Tag, FPassiveActionData());
+			bOutAddedKey = true;
+		}
+
+		return bOutAddedKey;
+	}
+
 	void AddAssetSpecReport(
 		TArray<FString>& ReportLines,
 		const FString& PackagePath,
 		UAbilityData* AbilityData,
 		bool bCreated,
 		int32 AddedKeys,
-		int32 AssignedMontages)
+		int32 AssignedMontages,
+		int32 AddedPassiveKeys)
 	{
 		ReportLines.Add(FString::Printf(
-			TEXT("- `%s`: %s `%s`, added missing keys: `%d`, assigned montages: `%d`"),
+			TEXT("- `%s`: %s `%s`, added missing montage keys: `%d`, assigned montages: `%d`, added missing passive keys: `%d`"),
 			*PackagePath,
 			bCreated ? TEXT("created") : TEXT("loaded"),
 			*GetNameSafe(AbilityData),
 			AddedKeys,
-			AssignedMontages));
+			AssignedMontages,
+			AddedPassiveKeys));
 	}
 
 	bool AssignWeaponAbilityData(
@@ -262,15 +290,19 @@ int32 UPlayerAbilityMontageDataSetupCommandlet::Main(const FString& Params)
 				{ TEXT("PlayerState.AbilityCast.Dash.DashATK1"), TEXT("/YogAnimSource/ElianAnim/Common/AM_Common_Dash_Seq_01") },
 				{ TEXT("PlayerState.AbilityCast.DashAtk"), TEXT("/YogAnimSource/ElianAnim/Common/AM_Common_Dash_Seq_01") },
 			},
+			{},
 		},
 		{
 			TEXT("DA_WeaponSkill"),
 			UWeaponSkillAbilityMontageData::StaticClass(),
 			{
-				{ TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"), TEXT("/Game/Animation/1H-2HSword/Montage/1H_Attack_05_Seq_Montage") },
+				{ TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"), TEXT("/Game/Animation/1H-2HSword/Montage/1H_Guard_01_Seq_Montage") },
 				{ TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"), TEXT("/Game/Animation/1H-2HSword/Montage/1H_Attack_06_Seq_Montage") },
 				{ TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"), TEXT("/Game/Animation/1H-2HSword/Montage/1H_Attack_07_Seq_Montage") },
 				{ TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"), TEXT("/Game/Animation/1H-2HSword/Montage/1H_Attack_08_Seq_Montage") },
+			},
+			{
+				TEXT("Action.HitReact.Blocked"),
 			},
 		},
 		{
@@ -282,6 +314,7 @@ int32 UPlayerAbilityMontageDataSetupCommandlet::Main(const FString& Params)
 				{ TEXT("PlayerState.AbilityCast.Special.Combo3"), TEXT("/Game/Animation/1H-2HSword/Montage/1H_Attack_11_Seq_Montage") },
 				{ TEXT("PlayerState.AbilityCast.Special.Combo4"), TEXT("/Game/Animation/1H-2HSword/Montage/1H_Attack_12_Seq_Montage") },
 			},
+			{},
 		},
 	};
 
@@ -325,6 +358,7 @@ int32 UPlayerAbilityMontageDataSetupCommandlet::Main(const FString& Params)
 
 		int32 AddedKeys = 0;
 		int32 AssignedMontages = 0;
+		int32 AddedPassiveKeys = 0;
 		bool bAbilityDataChanged = bCreated;
 		for (const FMontageKeySpec& KeySpec : Spec.MontageKeys)
 		{
@@ -344,6 +378,22 @@ int32 UPlayerAbilityMontageDataSetupCommandlet::Main(const FString& Params)
 				bHadFailure = true;
 			}
 		}
+		for (const TCHAR* PassiveKey : Spec.PassiveKeys)
+		{
+			bool bAddedPassiveKey = false;
+			FString Failure;
+			if (EnsurePassiveEntry(AbilityData, PassiveKey, bAddedPassiveKey, Failure))
+			{
+				bAbilityDataChanged = true;
+			}
+
+			AddedPassiveKeys += bAddedPassiveKey ? 1 : 0;
+			if (!Failure.IsEmpty())
+			{
+				ReportLines.Add(FString::Printf(TEXT("  - `%s`: %s"), PassiveKey ? PassiveKey : TEXT("(null)"), *Failure));
+				bHadFailure = true;
+			}
+		}
 
 		if (bAbilityDataChanged)
 		{
@@ -352,7 +402,7 @@ int32 UPlayerAbilityMontageDataSetupCommandlet::Main(const FString& Params)
 		}
 
 		AbilityDataByName.Add(Spec.AssetName, AbilityData);
-		AddAssetSpecReport(ReportLines, PackagePath, AbilityData, bCreated, AddedKeys, AssignedMontages);
+		AddAssetSpecReport(ReportLines, PackagePath, AbilityData, bCreated, AddedKeys, AssignedMontages, AddedPassiveKeys);
 	}
 
 	if (!bSkipWeaponDefinition)

@@ -65,6 +65,7 @@ UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	bRetriggerInstancedAbility = true;
+	HoldReleaseEventTag = FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.Release"), false);
 }
 
 void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -72,6 +73,8 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	ActiveMontage = nullptr;
+	bActiveHoldMontage = false;
+	bHoldReleaseReceived = false;
 
 	if (ActivePlayMontageTask)
 	{
@@ -171,13 +174,27 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		}
 	}
 
+	FGameplayTagContainer MontageEventTags;
+	FName MontageStartSection = NAME_None;
+	if (IsHoldMontageConfigured(MontageToPlay))
+	{
+		bActiveHoldMontage = true;
+		MontageEventTags.AddTag(HoldReleaseEventTag);
+		MontageEventTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.Blocked"), false));
+		MontageEventTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.JustBlocked"), false));
+		if (HasMontageSection(MontageToPlay, HoldStartSection))
+		{
+			MontageStartSection = HoldStartSection;
+		}
+	}
+
 	UYogTask_PlayMontageAbility* PlayMontageTask = UYogTask_PlayMontageAbility::YogPlayMontageAbility(
 		this,
 		NAME_None,
 		MontageToPlay,
-		FGameplayTagContainer(),
+		MontageEventTags,
 		1.0f,
-		NAME_None);
+		MontageStartSection);
 	if (!PlayMontageTask)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
@@ -192,14 +209,19 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 	ActivePlayMontageTask = PlayMontageTask;
 	PlayMontageTask->ReadyForActivation();
+	ConfigureHoldMontageSections();
+	ScheduleBlockStartWindow();
 
 }
 
 void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	ActivePlayMontageTask = nullptr;
+	ClearBlockStateTags();
 
 	ActiveMontage = nullptr;
+	bActiveHoldMontage = false;
+	bHoldReleaseReceived = false;
 
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
@@ -249,6 +271,21 @@ void UGA_PlayMontage::OnMontageCancelled()
 
 void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEventData& EventData)
 {
+	if (bActiveHoldMontage && HoldReleaseEventTag.IsValid() && EventTag.MatchesTagExact(HoldReleaseEventTag))
+	{
+		HandleHoldInputReleased();
+		return;
+	}
+	if (bActiveHoldMontage && EventTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.JustBlocked"), false)))
+	{
+		ApplyJustBlockReward();
+		return;
+	}
+	if (bActiveHoldMontage && EventTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.Blocked"), false)))
+	{
+		return;
+	}
+
 	// Re-entry guard: downstream broadcasts (Ability.Event.Attack.Hit / CritHit, DamageExecution events)
 	// can be caught by this same task if the BP's EventTags filter is too broad, causing infinite recursion.
 	if (bIsHandlingMeleeEvent) return;
@@ -345,6 +382,185 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 		Owner->PendingAdditionalHitRunes.Empty();
 		Owner->PendingOnHitEventTags.Empty();
 		Owner->PendingHitStopOverride = AYogCharacterBase::FPendingHitStopOverride();
+	}
+}
+
+bool UGA_PlayMontage::HasMontageSection(const UAnimMontage* Montage, FName SectionName) const
+{
+	return Montage && !SectionName.IsNone() && Montage->GetSectionIndex(SectionName) != INDEX_NONE;
+}
+
+bool UGA_PlayMontage::IsHoldMontageConfigured(const UAnimMontage* Montage) const
+{
+	return bHoldMontageUntilInputRelease
+		&& HoldReleaseEventTag.IsValid()
+		&& HasMontageSection(Montage, HoldLoopSection)
+		&& HasMontageSection(Montage, HoldEndSection);
+}
+
+void UGA_PlayMontage::ConfigureHoldMontageSections()
+{
+	if (!bActiveHoldMontage || !ActiveMontage)
+	{
+		return;
+	}
+
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	if (HasMontageSection(ActiveMontage, HoldStartSection))
+	{
+		AnimInstance->Montage_SetNextSection(HoldStartSection, HoldLoopSection, ActiveMontage);
+	}
+	AnimInstance->Montage_SetNextSection(HoldLoopSection, HoldLoopSection, ActiveMontage);
+}
+
+void UGA_PlayMontage::HandleHoldInputReleased()
+{
+	if (!bActiveHoldMontage || bHoldReleaseReceived || !ActiveMontage)
+	{
+		return;
+	}
+	bHoldReleaseReceived = true;
+
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	if (HasMontageSection(ActiveMontage, HoldStartSection))
+	{
+		AnimInstance->Montage_SetNextSection(HoldStartSection, HoldEndSection, ActiveMontage);
+	}
+	AnimInstance->Montage_SetNextSection(HoldLoopSection, HoldEndSection, ActiveMontage);
+
+	if (bJumpToHoldEndSectionOnRelease)
+	{
+		AnimInstance->Montage_JumpToSection(HoldEndSection, ActiveMontage);
+	}
+
+	ClearBlockStateTags();
+}
+
+void UGA_PlayMontage::SetBlockStateTag(const FGameplayTag& Tag, int32 Count)
+{
+	if (!Tag.IsValid())
+	{
+		return;
+	}
+
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		ASC->SetLooseGameplayTagCount(Tag, Count);
+	}
+}
+
+void UGA_PlayMontage::ClearBlockStateTags()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BlockStartWindowHandle);
+	}
+
+	SetBlockStateTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Start"), false), 0);
+	SetBlockStateTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Idle"), false), 0);
+}
+
+void UGA_PlayMontage::ScheduleBlockStartWindow()
+{
+	if (!bActiveHoldMontage || !ActiveMontage)
+	{
+		return;
+	}
+
+	SetBlockStateTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Start"), false), 1);
+	SetBlockStateTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Idle"), false), 0);
+
+	const int32 StartSectionIndex = HasMontageSection(ActiveMontage, HoldStartSection)
+		? ActiveMontage->GetSectionIndex(HoldStartSection)
+		: INDEX_NONE;
+	const float StartWindowDuration = StartSectionIndex != INDEX_NONE
+		? FMath::Max(ActiveMontage->GetSectionLength(StartSectionIndex), 0.01f)
+		: 0.01f;
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			BlockStartWindowHandle,
+			this,
+			&UGA_PlayMontage::FinishBlockStartWindow,
+			StartWindowDuration,
+			false);
+	}
+}
+
+void UGA_PlayMontage::FinishBlockStartWindow()
+{
+	if (!bActiveHoldMontage || bHoldReleaseReceived)
+	{
+		ClearBlockStateTags();
+		return;
+	}
+
+	SetBlockStateTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Start"), false), 0);
+	SetBlockStateTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Idle"), false), 1);
+}
+
+void UGA_PlayMontage::ApplyJustBlockReward()
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!ASC)
+	{
+		return;
+	}
+
+	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo());
+	UCharacterDataComponent* CDC = Owner ? Owner->GetCharacterDataComponent() : nullptr;
+	UCharacterData* CharacterData = CDC ? CDC->GetCharacterData() : nullptr;
+	const UAbilityData* AbilityData = CharacterData ? CharacterData->AbilityData.Get() : nullptr;
+	if (!AbilityData)
+	{
+		return;
+	}
+
+	const FGameplayTag BlockedTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Blocked"), false);
+	const FGameplayTag JustBlockedTag = FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.JustBlocked"), false);
+	const FPassiveActionData BlockedData = BlockedTag.IsValid() ? AbilityData->GetPassiveAbility(BlockedTag) : FPassiveActionData();
+	bool bAppliedReward = false;
+	for (const FYogApplyEffect& Effect : BlockedData.UniqueEffects)
+	{
+		if (!Effect.GameplayEffect)
+		{
+			continue;
+		}
+		if (Effect.TriggerTag.IsValid() && JustBlockedTag.IsValid() && !Effect.TriggerTag.MatchesTagExact(JustBlockedTag))
+		{
+			continue;
+		}
+
+		FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+		Context.AddSourceObject(this);
+		FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(
+			Effect.GameplayEffect,
+			Effect.level > 0 ? Effect.level : GetAbilityLevel(),
+			Context);
+		if (SpecHandle.IsValid() && SpecHandle.Data.IsValid())
+		{
+			SpecHandle.Data->SetDuration(FMath::Max(JustBlockRewardDuration, 0.01f), true);
+			ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+			bAppliedReward = true;
+		}
+	}
+
+	if (!bAppliedReward)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[Block] No JustBlock reward effect configured in AbilityData PassiveMap[%s]."), *BlockedTag.ToString());
 	}
 }
 

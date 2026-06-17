@@ -186,6 +186,7 @@ void AYogPlayerControllerBase::SetupInputComponent()
 		{
 			const FEnhancedInputActionEventBinding& weaponSkillBinding = EnhancedInputComp->BindAction(WeaponSkillAction, ETriggerEvent::Started, this, &AYogPlayerControllerBase::WeaponSkill);
 			WeaponSkillInputHandle = weaponSkillBinding.GetHandle();
+			EnhancedInputComp->BindAction(WeaponSkillAction, ETriggerEvent::Completed, this, &AYogPlayerControllerBase::WeaponSkillReleased);
 		}
 		if (Input_Reload)
 		{
@@ -532,6 +533,22 @@ void AYogPlayerControllerBase::WeaponSkill(const FInputActionValue& Value)
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.WeaponSkill")));
 		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+	}
+}
+
+void AYogPlayerControllerBase::WeaponSkillReleased(const FInputActionValue& Value)
+{
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		UAbilitySystemComponent* ASC = player->GetASC();
+		if (!ASC) return;
+
+		FGameplayEventData EventData;
+		EventData.Instigator = player;
+		EventData.Target = player;
+		ASC->HandleGameplayEvent(
+			FGameplayTag::RequestGameplayTag(FName("GameplayEvent.WeaponSkill.Release")),
+			&EventData);
 	}
 }
 

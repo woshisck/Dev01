@@ -430,6 +430,70 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 		const float LocalDamageDone = GetDamagePhysical();
 		SetDamagePhysical(0.f);
 
+		UAbilitySystemComponent* TargetASCForBlock =
+			Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
+		static const FGameplayTag TAG_BlockStart =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Start"), false);
+		static const FGameplayTag TAG_BlockIdle =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Idle"), false);
+		const bool bJustBlocked = TargetASCForBlock && TAG_BlockStart.IsValid() && TargetASCForBlock->HasMatchingGameplayTag(TAG_BlockStart);
+		const bool bBlocked = bJustBlocked || (TargetASCForBlock && TAG_BlockIdle.IsValid() && TargetASCForBlock->HasMatchingGameplayTag(TAG_BlockIdle));
+		if (LocalDamageDone > 0.f && bBlocked)
+		{
+			static const FGameplayTag BlockedReactTag =
+				FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Blocked"), false);
+			static const FGameplayTag ParriedReactTag =
+				FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Parried"), false);
+			static const FGameplayTag BlockedEventTag =
+				FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.Blocked"), false);
+			static const FGameplayTag JustBlockedEventTag =
+				FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.JustBlocked"), false);
+
+			if (TargetActor && BlockedReactTag.IsValid())
+			{
+				FGameplayEventData BlockPayload;
+				BlockPayload.EventTag = BlockedReactTag;
+				BlockPayload.Instigator = SourceActor;
+				BlockPayload.Target = TargetCharacter;
+				BlockPayload.EventMagnitude = LocalDamageDone;
+				BlockPayload.ContextHandle = Context;
+				UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetActor, BlockedReactTag, BlockPayload);
+			}
+
+			if (TargetActor)
+			{
+				const FGameplayTag NotifyTag = bJustBlocked ? JustBlockedEventTag : BlockedEventTag;
+				if (NotifyTag.IsValid())
+				{
+					FGameplayEventData NotifyPayload;
+					NotifyPayload.EventTag = NotifyTag;
+					NotifyPayload.Instigator = SourceActor;
+					NotifyPayload.Target = TargetCharacter;
+					NotifyPayload.EventMagnitude = LocalDamageDone;
+					NotifyPayload.ContextHandle = Context;
+					UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetActor, NotifyTag, NotifyPayload);
+				}
+			}
+
+			if (bJustBlocked && SourceActor && ParriedReactTag.IsValid())
+			{
+				FGameplayEventData ParryPayload;
+				ParryPayload.EventTag = ParriedReactTag;
+				ParryPayload.Instigator = TargetActor;
+				ParryPayload.Target = SourceActor;
+				ParryPayload.EventMagnitude = LocalDamageDone;
+				ParryPayload.ContextHandle = Context;
+				UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(SourceActor, ParriedReactTag, ParryPayload);
+			}
+
+			UE_LOG(LogTemp, Warning, TEXT("[Block] %s Target=%s Source=%s Damage=%.1f"),
+				bJustBlocked ? TEXT("JustBlock") : TEXT("Block"),
+				*GetNameSafe(TargetActor),
+				*GetNameSafe(SourceActor),
+				LocalDamageDone);
+			return;
+		}
+
 		// 无敌帧：目标冲刺期间持有 Buff.Status.DashInvincible，跳过所有伤害
 		{
 			static const FGameplayTag TAG_DashInvincible =

@@ -45,6 +45,7 @@ public:
 
 	void Attack(const FInputActionValue& Value);
 	void WeaponSkill(const FInputActionValue& Value);
+	void WeaponSkillReleased(const FInputActionValue& Value);
 	void Dash(const FInputActionValue& Value);
 	void Special(const FInputActionValue& Value);
 	void SpecialReleased(const FInputActionValue& Value);
