@@ -11,6 +11,7 @@
 
 class UMontageConfigDA;
 class UMontageAttackDataAsset;
+class UYogAnimNotifyState_Damage;
 class UAbilityTask_ApplyRootMotionMoveToForce;
 class AYogCharacterBase;
 
@@ -125,6 +126,7 @@ private:
 	 * EventData.OptionalObject 鏄?const UObject*锛屾晠鐢ㄥ師濮?const 鎸囬拡锛汚nimNotify 涓嶅弬涓?GC銆?
 	 */
 	const UAN_MeleeDamage* LastFiredDamageNotify = nullptr;
+	const UYogAnimNotifyState_Damage* LastFiredDamageWindow = nullptr;
 
 	bool bCombatDeckCardResolvedThisActivation = false;
 	bool bCombatDeckFromDashSave = false;

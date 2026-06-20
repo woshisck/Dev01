@@ -365,21 +365,19 @@ void APlayerCharacterBase::ApplyAbilityDataFromWeapon(UWeaponDefinition* WeaponD
 	int32 WeaponSourceCount = 0;
 	if (WeaponDefinition)
 	{
-		if (WeaponDefinition->AttackAbilityData)
+		auto AddWeaponAbilityDataSource = [&SourceData, &WeaponSourceCount](UAbilityData* AbilityData)
 		{
-			SourceData.Add(WeaponDefinition->AttackAbilityData);
-			++WeaponSourceCount;
-		}
-		if (WeaponDefinition->WeaponSkillAbilityData)
-		{
-			SourceData.Add(WeaponDefinition->WeaponSkillAbilityData);
-			++WeaponSourceCount;
-		}
-		if (WeaponDefinition->SpecialAbilityData)
-		{
-			SourceData.Add(WeaponDefinition->SpecialAbilityData);
-			++WeaponSourceCount;
-		}
+			if (AbilityData)
+			{
+				SourceData.Add(AbilityData);
+				++WeaponSourceCount;
+			}
+		};
+
+		AddWeaponAbilityDataSource(WeaponDefinition->AttackAbilityData);
+		AddWeaponAbilityDataSource(WeaponDefinition->WeaponSkillAbilityData);
+		AddWeaponAbilityDataSource(WeaponDefinition->SpecialAbilityData);
+		AddWeaponAbilityDataSource(WeaponDefinition->PassiveAbilityData);
 	}
 
 	if (SourceData.IsEmpty())
@@ -1409,7 +1407,7 @@ void APlayerCharacterBase::HandleDamageReceivedFeedback(UYogAbilitySystemCompone
 		}
 	}
 
-	StartDamageTimeDilation();
+	// StartDamageTimeDilation();
 }
 
 void APlayerCharacterBase::PlayDamageScreenFlash()

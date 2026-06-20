@@ -21,7 +21,7 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 ## Initial Data Assets
 
-- Weapon combat AbilityData is merged onto runtime `CharacterData->AbilityData` in `APlayerCharacterBase::ApplyAbilityDataFromWeapon`. `WeaponDefinition.AttackAbilityData` owns attack + dash rows, `WeaponDefinition.WeaponSkillAbilityData` owns weapon skill rows, and `WeaponDefinition.SpecialAbilityData` owns special rows. The legacy all-in-one `WeaponDefinition.AbilityData` slot has been removed.
+- Weapon combat AbilityData is merged onto runtime `CharacterData->AbilityData` in `APlayerCharacterBase::ApplyAbilityDataFromWeapon`. `WeaponDefinition.AttackAbilityData` owns attack + dash rows, `WeaponDefinition.WeaponSkillAbilityData` owns weapon skill rows, `WeaponDefinition.SpecialAbilityData` owns special rows, and `WeaponDefinition.PassiveAbilityData` owns weapon-specific reaction/death passive rows such as `Action.HitReact.Front`, `Action.HitReact.Back`, and `Action.Dead`. The legacy all-in-one `WeaponDefinition.AbilityData` slot has been removed.
 
 - `DA_Base_AbilitySet_Initial` (`/Game/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial`): base `UGASTemplate` loaded by every character at `BeginPlay` via `YogCharacterBase`. Contains shared reactive GAs (`GA_Dead`, `GA_HitReaction`, `GA_Knockback`, etc.). Do **not** put weapon combat montage-routing GAs here; keep player combat grants on the player combat ability set.
 - `CharacterData` GAS template (`UGASTemplate::AbilityMap`): per-character ability grants applied during `InitializeComponentsWithStats`. Logged as `"Grant ability from GAS Template: <name>"` in the output log. Same rule: no weapon combat GAs here.
@@ -32,6 +32,8 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 - Normal melee attacks use GAS ability tags and AbilityData montage maps.
 - Weapon AbilityData assets are selected from `WeaponDefinition`.
+- Enemy weapon attacks/skills use `EnemyWeaponDefinition`, not player `WeaponDefinition`: set `EnemyData.DefaultWeaponDefinition` or `AllowedWeaponDefinitions`, assign the enemy weapon `AbilityData`, and configure montage rows keyed by `Enemy.Melee.*` and `Enemy.Skill.Skill1-4`.
+- For enemy weapon skills, also grant the matching `GA_Enemy_Skill1-4` classes in the enemy `GASTemplate.AbilityMap`; `EnemyWeaponDefinition.AttackProfile` must include entries with matching `AbilityTags` and `AttackRole = Skill` so `BTTask_EnemyAttackByProfile` can choose and activate them.
 - Player input routing starts in `YogPlayerControllerBase`.
 - GAS abilities, gameplay tags, montage notifies, and data assets are all part of combat behavior; inspect all relevant pieces before changing a flow.
 - Combat cards and runes use `CombatDeckComponent`, `RuneDataAsset`, and BuffFlow assets.

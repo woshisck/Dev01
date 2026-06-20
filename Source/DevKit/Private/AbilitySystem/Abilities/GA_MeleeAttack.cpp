@@ -8,6 +8,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
 #include "Animation/AN_MeleeDamage.h"
+#include "Animation/YogAnimNotifyState_Damage.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/HitStopManager.h"
 #include "BuffFlow/BuffFlowComponent.h"
@@ -591,6 +592,26 @@ void UGA_MeleeAttack::ActivateAbility(
 
 	FGameplayTag FirstTag;
 	static const FGameplayTag PreferredAbilityTags[] = {
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.LAtk1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.LAtk2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.LAtk3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.LAtk4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.HAtk1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.HAtk2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.HAtk3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.HAtk4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Skill.Skill1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Skill.Skill2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Skill.Skill3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Skill.Skill4"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo1"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo2"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo3"), false),
@@ -735,7 +756,18 @@ void UGA_MeleeAttack::ActivateAbility(
 
 	if (!Montage)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GA_MeleeAttack] No Montage found for %s 鈥?ability ended immediately."), *GetName());
+		const UAbilityData* ActiveAbilityData = CD ? CD->AbilityData.Get() : nullptr;
+		const bool bMontageMapHasKey = ActiveAbilityData && FirstTag.IsValid() && ActiveAbilityData->MontageMap.Contains(FirstTag);
+		const bool bHasConfiguredAbility = ActiveAbilityData && FirstTag.IsValid() && ActiveAbilityData->HasAbility(FirstTag);
+		UE_LOG(LogTemp, Warning,
+			TEXT("[GA_MeleeAttack] No Montage found for %s. Owner=%s LookupTag=%s CharacterData=%s AbilityData=%s MontageMapHasKey=%d HasAbility=%d - ability ended immediately."),
+			*GetName(),
+			*GetNameSafe(ActivateOwner),
+			FirstTag.IsValid() ? *FirstTag.ToString() : TEXT("(none)"),
+			*GetNameSafe(CD),
+			*GetNameSafe(ActiveAbilityData),
+			bMontageMapHasKey ? 1 : 0,
+			bHasConfiguredAbility ? 1 : 0);
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
@@ -890,6 +922,8 @@ void UGA_MeleeAttack::EndAbility(
 				? ActiveComboAttackData->BuildActionData()
 				: LastFiredDamageNotify
 				? LastFiredDamageNotify->BuildActionData()
+				: LastFiredDamageWindow
+				? LastFiredDamageWindow->ResolveActionData(Cast<AYogCharacterBase>(GetOwningActorFromActorInfo()))
 				: GetAbilityActionData();
 			Spec.Data->SetSetByCallerMagnitude(TAG_ActDamage,    ActionData.ActDamage);
 			Spec.Data->SetSetByCallerMagnitude(TAG_ActRange,     ActionData.ActRange);
@@ -949,6 +983,7 @@ void UGA_MeleeAttack::EndAbility(
 
 	CachedDamageNotify    = nullptr;
 	LastFiredDamageNotify = nullptr;
+	LastFiredDamageWindow = nullptr;
 	ActiveMontageConfig = nullptr;
 	ActiveComboAttackData = nullptr;
 	ActiveComboAttackConfig = FComboAttackConfig();
@@ -1287,6 +1322,37 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 		if (UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo()))
 		{
 			SourceASC->CurrentActionPoiseBonus = GetAbilityActionData().ActResilience;
+		}
+	}
+
+	if (const UYogAnimNotifyState_Damage* FiredDamageWindow = Cast<const UYogAnimNotifyState_Damage>(EventData.OptionalObject))
+	{
+		AYogCharacterBase* OwnerCharacter = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo());
+		const UYogTargetType* TargetTypeCDO = OwnerCharacter && OwnerCharacter->DefaultMeleeTargetType
+			? OwnerCharacter->DefaultMeleeTargetType.GetDefaultObject()
+			: nullptr;
+		TArray<FHitResult> WindowHitResults;
+		TArray<AActor*> WindowTargetActors;
+		if (TargetTypeCDO)
+		{
+			TargetTypeCDO->GetTargets(OwnerCharacter, GetAvatarActorFromActorInfo(), EventData, WindowHitResults, WindowTargetActors);
+		}
+		if (WindowHitResults.IsEmpty() && WindowTargetActors.IsEmpty())
+		{
+			if (OwnerCharacter)
+			{
+				OwnerCharacter->PendingAdditionalHitRunes.Empty();
+				OwnerCharacter->PendingOnHitEventTags.Empty();
+				OwnerCharacter->PendingHitStopOverride = AYogCharacterBase::FPendingHitStopOverride();
+				OwnerCharacter->PendingHitImpactCueTag = FGameplayTag();
+			}
+			return;
+		}
+
+		LastFiredDamageWindow = FiredDamageWindow;
+		if (UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo()))
+		{
+			SourceASC->CurrentActionPoiseBonus = FiredDamageWindow->ResolveActionData(OwnerCharacter).ActResilience;
 		}
 	}
 

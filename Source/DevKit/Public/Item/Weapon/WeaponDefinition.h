@@ -98,6 +98,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
 	TObjectPtr<UAbilityData> SpecialAbilityData;
 
+	// Optional weapon-specific reaction/passive data. Merged after action data so
+	// hit react/death passive rows can override the character's base fallbacks.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
+	TObjectPtr<UAbilityData> PassiveAbilityData;
+
 	// 武器类型：决定装备时挂在 ASC 上的 Weapon.Type.* LooseTag。
 	// 玩家专属攻击 GA 通过 ActivationRequiredTags 持有该 Tag → 自动隔离近战/远程激活路径。
 	// 默认 Melee 保持向后兼容（旧武器 DA 不需要重新配）。

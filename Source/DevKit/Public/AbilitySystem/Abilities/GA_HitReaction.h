@@ -43,10 +43,15 @@ public:
         bool bWasCancelled) override;
 
 private:
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitReact|Parry", meta = (AllowPrivateAccess = "true", ClampMin = "0.0", ForceUnits = "s"))
+    float ParriedMontageInterruptBlendOutTime = 0.05f;
+
     UPROPERTY()
     TObjectPtr<UAbilityTask_PlayMontageAndWait> MontageTask;
 
     FGameplayTag ResolveLookupTag(AYogCharacterBase* Character, const FGameplayEventData* TriggerEventData) const;
+    bool IsParriedReaction(const FGameplayEventData* TriggerEventData) const;
+    void InterruptForParriedReaction(AYogCharacterBase* Character) const;
 
     UFUNCTION()
     void OnMontageCompleted();

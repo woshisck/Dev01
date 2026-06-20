@@ -1215,10 +1215,15 @@ bool FSplitAbilityMontageDataSeedsScopedComboTagsTest::RunTest(const FString& Pa
 	UWeaponAttackAbilityMontageData* WeaponAttackData = NewObject<UWeaponAttackAbilityMontageData>();
 	UWeaponSkillAbilityMontageData* WeaponSkillData = NewObject<UWeaponSkillAbilityMontageData>();
 	USpecialAbilityMontageData* SpecialData = NewObject<USpecialAbilityMontageData>();
+	UWeaponPassiveAbilityMontageData* PassiveData = NewObject<UWeaponPassiveAbilityMontageData>();
 
 	auto HasKey = [](const UAbilityData* AbilityData, const TCHAR* TagName)
 	{
 		return AbilityData && AbilityData->MontageMap.Contains(FGameplayTag::RequestGameplayTag(FName(TagName)));
+	};
+	auto HasPassiveKey = [](const UAbilityData* AbilityData, const TCHAR* TagName)
+	{
+		return AbilityData && AbilityData->PassiveMap.Contains(FGameplayTag::RequestGameplayTag(FName(TagName)));
 	};
 
 	TestTrue(TEXT("WeaponAttack data has Attack combo keys"),
@@ -1229,19 +1234,101 @@ bool FSplitAbilityMontageDataSeedsScopedComboTagsTest::RunTest(const FString& Pa
 		&& HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.Dash.Combo4")));
 	TestFalse(TEXT("WeaponAttack data does not seed WeaponSkill combo keys"),
 		HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1")));
+	TestTrue(TEXT("WeaponAttack data has no passive rows"),
+		WeaponAttackData->PassiveMap.IsEmpty());
 
 	TestTrue(TEXT("WeaponSkill data has WeaponSkill combo keys"),
 		HasKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"))
 		&& HasKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4")));
 	TestFalse(TEXT("WeaponSkill data does not seed Attack combo keys"),
 		HasKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.Attack.Combo1")));
+	TestTrue(TEXT("WeaponSkill data has no passive rows"),
+		WeaponSkillData->PassiveMap.IsEmpty());
 
 	TestTrue(TEXT("Special data has Special combo keys"),
 		HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Special.Combo1"))
 		&& HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Special.Combo4")));
 	TestFalse(TEXT("Special data does not seed Dash combo keys"),
 		HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Dash.Combo1")));
+	TestTrue(TEXT("Special data has no passive rows"),
+		SpecialData->PassiveMap.IsEmpty());
+	TestTrue(TEXT("WeaponPassive data has hit/death passive keys"),
+		HasPassiveKey(PassiveData, TEXT("Action.HitReact.Front"))
+		&& HasPassiveKey(PassiveData, TEXT("Action.HitReact.Back"))
+		&& HasPassiveKey(PassiveData, TEXT("Action.HitReact.Blocked"))
+		&& HasPassiveKey(PassiveData, TEXT("Action.HitReact.Parried"))
+		&& HasPassiveKey(PassiveData, TEXT("Action.Dead")));
+	TestFalse(TEXT("WeaponPassive data does not seed Attack combo keys"),
+		HasKey(PassiveData, TEXT("PlayerState.AbilityCast.Attack.Combo1")));
+	TestTrue(TEXT("WeaponPassive data has no montage config rows"),
+		PassiveData->MontageConfigMap.IsEmpty());
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerWeaponPassiveAbilityDataOverridesBaseReactionTest,
+	"DevKit.CombatDeck.PlayerWeaponPassiveAbilityDataOverridesBaseReaction",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerWeaponPassiveAbilityDataOverridesBaseReactionTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for weapon passive ability data test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for weapon passive ability data test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	UAbilityData* BaseAbilityData = NewObject<UAbilityData>(Player);
+	UCharacterData* RuntimeCharacterData = NewObject<UCharacterData>(Player);
+	RuntimeCharacterData->AbilityData = BaseAbilityData;
+	Player->GetCharacterDataComponent()->SetCharacterData(RuntimeCharacterData);
+
+	UWeaponDefinition* Weapon = NewObject<UWeaponDefinition>(Player);
+	UWeaponPassiveAbilityMontageData* WeaponPassiveData = NewObject<UWeaponPassiveAbilityMontageData>(Weapon);
+	Weapon->PassiveAbilityData = WeaponPassiveData;
+
+	const FGameplayTag HitReactFrontTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Front"));
+	const FGameplayTag HitReactBackTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Back"));
+
+	UAnimMontage* BaseFrontMontage = NewObject<UAnimMontage>(BaseAbilityData);
+	UAnimMontage* BaseBackMontage = NewObject<UAnimMontage>(BaseAbilityData);
+	UAnimMontage* WeaponFrontMontage = NewObject<UAnimMontage>(WeaponPassiveData);
+
+	FPassiveActionData BaseFrontReaction;
+	BaseFrontReaction.Montage = BaseFrontMontage;
+	BaseAbilityData->PassiveMap.Add(HitReactFrontTag, BaseFrontReaction);
+
+	FPassiveActionData BaseBackReaction;
+	BaseBackReaction.Montage = BaseBackMontage;
+	BaseAbilityData->PassiveMap.Add(HitReactBackTag, BaseBackReaction);
+
+	FPassiveActionData WeaponFrontReaction;
+	WeaponFrontReaction.Montage = WeaponFrontMontage;
+	WeaponPassiveData->PassiveMap.Add(HitReactFrontTag, WeaponFrontReaction);
+
+	Player->ApplyAbilityDataFromWeapon(Weapon);
+
+	UCharacterData* CharacterData = Player->GetCharacterDataComponent()->GetCharacterData();
+	TestNotNull(TEXT("Player has runtime character data"), CharacterData);
+	TestNotNull(TEXT("Player has merged runtime ability data"), CharacterData ? CharacterData->AbilityData.Get() : nullptr);
+
+	if (CharacterData && CharacterData->AbilityData)
+	{
+		TestEqual(TEXT("Weapon passive reaction overrides base hit react front"),
+			CharacterData->AbilityData->GetPassiveAbility(HitReactFrontTag).Montage.Get(), WeaponFrontMontage);
+		TestEqual(TEXT("Base passive reaction remains as fallback when weapon has no row"),
+			CharacterData->AbilityData->GetPassiveAbility(HitReactBackTag).Montage.Get(), BaseBackMontage);
+	}
+
+	Player->Destroy();
 	return true;
 }
 

@@ -3,11 +3,32 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AbilitySystemComponent.h"
 #include "AIController.h"
+#include "Animation/AnimInstance.h"
 #include "Character/YogCharacterBase.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Data/AbilityData.h"
 #include "Data/CharacterData.h"
 #include "GameplayTagsManager.h"
+
+namespace
+{
+    void CancelAbilitiesWithTagIfValid(UAbilitySystemComponent* ASC, const TCHAR* TagName)
+    {
+        if (!ASC)
+        {
+            return;
+        }
+
+        const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+        if (Tag.IsValid())
+        {
+            FGameplayTagContainer Tags;
+            Tags.AddTag(Tag);
+            ASC->CancelAbilities(&Tags);
+        }
+    }
+}
 
 UGA_HitReaction::UGA_HitReaction(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -53,6 +74,7 @@ void UGA_HitReaction::ActivateAbility(
 
     UAnimMontage* HitMontage = nullptr;
     const FGameplayTag LookupTag = ResolveLookupTag(Character, TriggerEventData);
+    const bool bParriedReaction = IsParriedReaction(TriggerEventData);
 
     UCharacterData* CharData = Character->CharacterDataComponent->GetCharacterData();
     if (CharData && LookupTag.IsValid())
@@ -65,15 +87,20 @@ void UGA_HitReaction::ActivateAbility(
         }
     }
 
-    if (!HitMontage)
+    if (bParriedReaction)
     {
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
-        return;
+        InterruptForParriedReaction(Character);
     }
 
     if (AAIController* AIController = Cast<AAIController>(Character->GetController()))
     {
         AIController->StopMovement();
+    }
+
+    if (!HitMontage)
+    {
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+        return;
     }
 
     MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
@@ -119,6 +146,59 @@ FGameplayTag UGA_HitReaction::ResolveLookupTag(AYogCharacterBase* Character, con
     }
 
     return LookupTag;
+}
+
+bool UGA_HitReaction::IsParriedReaction(const FGameplayEventData* TriggerEventData) const
+{
+    if (!TriggerEventData)
+    {
+        return false;
+    }
+
+    static const FGameplayTag ParriedTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Parried"), false);
+    return ParriedTag.IsValid() && TriggerEventData->EventTag.MatchesTagExact(ParriedTag);
+}
+
+void UGA_HitReaction::InterruptForParriedReaction(AYogCharacterBase* Character) const
+{
+    if (!Character)
+    {
+        return;
+    }
+
+    if (UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent())
+    {
+        static const TCHAR* ActionTagNames[] = {
+            TEXT("PlayerState.AbilityCast.Attack"),
+            TEXT("PlayerState.AbilityCast.WeaponSkill"),
+            TEXT("PlayerState.AbilityCast.Special"),
+            TEXT("Enemy.Melee.LAtk1"),
+            TEXT("Enemy.Melee.LAtk2"),
+            TEXT("Enemy.Melee.LAtk3"),
+            TEXT("Enemy.Melee.LAtk4"),
+            TEXT("Enemy.Melee.HAtk1"),
+            TEXT("Enemy.Melee.HAtk2"),
+            TEXT("Enemy.Melee.HAtk3"),
+            TEXT("Enemy.Melee.HAtk4"),
+            TEXT("Enemy.Skill.Skill1"),
+            TEXT("Enemy.Skill.Skill2"),
+            TEXT("Enemy.Skill.Skill3"),
+            TEXT("Enemy.Skill.Skill4"),
+        };
+
+        for (const TCHAR* TagName : ActionTagNames)
+        {
+            CancelAbilitiesWithTagIfValid(ASC, TagName);
+        }
+    }
+
+    if (UAnimInstance* AnimInstance = Character->GetMesh() ? Character->GetMesh()->GetAnimInstance() : nullptr)
+    {
+        if (UAnimMontage* ActiveMontage = AnimInstance->GetCurrentActiveMontage())
+        {
+            AnimInstance->Montage_Stop(ParriedMontageInterruptBlendOutTime, ActiveMontage);
+        }
+    }
 }
 
 void UGA_HitReaction::OnMontageCompleted()

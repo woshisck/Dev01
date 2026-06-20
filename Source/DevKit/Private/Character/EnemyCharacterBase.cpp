@@ -249,6 +249,19 @@ void AEnemyCharacterBase::ClearAIAttackRuntimeContext()
 	PendingAIAttackContext = FEnemyAIAttackRuntimeContext();
 }
 
+void AEnemyCharacterBase::DestroySpawnedEnemyWeaponActors()
+{
+	for (TObjectPtr<AActor>& SpawnedActor : SpawnedEnemyWeaponActors)
+	{
+		if (SpawnedActor && IsValid(SpawnedActor))
+		{
+			SpawnedActor->Destroy();
+		}
+	}
+
+	SpawnedEnemyWeaponActors.Reset();
+}
+
 void AEnemyCharacterBase::SetPendingEnemyWeaponDefinition(UEnemyWeaponDefinition* WeaponDefinition)
 {
 	PendingEnemyWeaponDefinition = WeaponDefinition;
@@ -285,14 +298,7 @@ void AEnemyCharacterBase::ApplyEnemyWeaponDefinition(UEnemyWeaponDefinition* Wea
 		RuntimeEnemyData->AttackProfile = WeaponDefinition->AttackProfile;
 	}
 
-	for (TObjectPtr<AActor>& SpawnedActor : SpawnedEnemyWeaponActors)
-	{
-		if (SpawnedActor)
-		{
-			SpawnedActor->Destroy();
-		}
-	}
-	SpawnedEnemyWeaponActors.Reset();
+	DestroySpawnedEnemyWeaponActors();
 
 	for (const FWeaponSpawnData& SpawnData : WeaponDefinition->ActorsToSpawn)
 	{
@@ -467,6 +473,18 @@ void AEnemyCharacterBase::Die()
 	// Fallback only: the normal path is GA_Dead -> montage/dissolve -> FinishDying().
 	// Keep this short enough that a missing cooked death ability cannot leave dead enemies in the room.
 	SetLifeSpan(8.0f);
+}
+
+void AEnemyCharacterBase::FinishDying()
+{
+	DestroySpawnedEnemyWeaponActors();
+	Super::FinishDying();
+}
+
+void AEnemyCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	DestroySpawnedEnemyWeaponActors();
+	Super::EndPlay(EndPlayReason);
 }
 
 void AEnemyCharacterBase::PostInitializeComponents()

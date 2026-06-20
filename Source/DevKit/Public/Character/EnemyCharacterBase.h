@@ -50,6 +50,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void Die() override;
+	virtual void FinishDying() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	virtual bool IsAlive() const override;
 	virtual float GetDeathDisappearDelayAfterAnimation(bool bHasDissolveCue) const override;
@@ -75,6 +77,8 @@ protected:
 
 	UFUNCTION()
 	void OnReceivedDamageForAI(UYogAbilitySystemComponent* SourceASC, float Damage);
+
+	void DestroySpawnedEnemyWeaponActors();
 	
 	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;

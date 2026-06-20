@@ -475,15 +475,16 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				}
 			}
 
-			if (bJustBlocked && SourceActor && ParriedReactTag.IsValid())
+			AActor* ParriedActor = SourceCharacter ? Cast<AActor>(SourceCharacter) : SourceActor;
+			if (bJustBlocked && ParriedActor && ParriedReactTag.IsValid())
 			{
 				FGameplayEventData ParryPayload;
 				ParryPayload.EventTag = ParriedReactTag;
 				ParryPayload.Instigator = TargetActor;
-				ParryPayload.Target = SourceActor;
+				ParryPayload.Target = ParriedActor;
 				ParryPayload.EventMagnitude = LocalDamageDone;
 				ParryPayload.ContextHandle = Context;
-				UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(SourceActor, ParriedReactTag, ParryPayload);
+				UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(ParriedActor, ParriedReactTag, ParryPayload);
 			}
 
 			UE_LOG(LogTemp, Warning, TEXT("[Block] %s Target=%s Source=%s Damage=%.1f"),

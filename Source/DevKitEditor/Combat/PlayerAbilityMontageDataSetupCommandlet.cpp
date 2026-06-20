@@ -242,6 +242,7 @@ namespace PlayerAbilityMontageDataSetup
 		AssignField(WeaponDefinition->AttackAbilityData, TEXT("AttackAbilityData"), AbilityDataByName.FindRef(TEXT("DA_WeaponAttack")));
 		AssignField(WeaponDefinition->WeaponSkillAbilityData, TEXT("WeaponSkillAbilityData"), AbilityDataByName.FindRef(TEXT("DA_WeaponSkill")));
 		AssignField(WeaponDefinition->SpecialAbilityData, TEXT("SpecialAbilityData"), AbilityDataByName.FindRef(TEXT("DA_Special")));
+		AssignField(WeaponDefinition->PassiveAbilityData, TEXT("PassiveAbilityData"), AbilityDataByName.FindRef(TEXT("DA_WeaponPassive")));
 
 		if (bChanged)
 		{
@@ -315,6 +316,18 @@ int32 UPlayerAbilityMontageDataSetupCommandlet::Main(const FString& Params)
 				{ TEXT("PlayerState.AbilityCast.Special.Combo4"), TEXT("/Game/Animation/1H-2HSword/Montage/1H_Attack_12_Seq_Montage") },
 			},
 			{},
+		},
+		{
+			TEXT("DA_WeaponPassive"),
+			UWeaponPassiveAbilityMontageData::StaticClass(),
+			{},
+			{
+				TEXT("Action.HitReact.Front"),
+				TEXT("Action.HitReact.Back"),
+				TEXT("Action.HitReact.Blocked"),
+				TEXT("Action.HitReact.Parried"),
+				TEXT("Action.Dead"),
+			},
 		},
 	};
 
