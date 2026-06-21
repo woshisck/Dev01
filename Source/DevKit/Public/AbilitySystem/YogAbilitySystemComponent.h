@@ -386,6 +386,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Abilities")
 	bool TryActivateRandomAbilitiesByTag(const FGameplayTagContainer& GameplayTagContainer, bool bAllowRemoteActivation = true);
 
+	UFUNCTION(BlueprintCallable, Category = "Abilities")
+	bool TryActivateAbilityByExactTag(const FGameplayTag& ExactTag, bool bAllowRemoteActivation = true);
+
+	UFUNCTION(BlueprintCallable, Category = "Abilities")
+	bool TryActivateNextAttackComboAbility(bool bRequireComboWindow = true, bool bAllowRemoteActivation = true);
+
+	UFUNCTION(BlueprintPure, Category = "Abilities")
+	bool HasActiveAttackComboAbilityTag();
+
+	UFUNCTION(BlueprintCallable, Category = "Abilities")
+	bool TryActivateNextWeaponSkillComboAbility(bool bRequireComboWindow = true, bool bAllowRemoteActivation = true);
+
+	UFUNCTION(BlueprintPure, Category = "Abilities")
+	bool HasActiveWeaponSkillComboAbilityTag();
+
+	UFUNCTION(BlueprintPure, Category = "Abilities")
+	bool IsPlayerActionMontageLocked() const;
+
 
 
 	/**
@@ -444,7 +462,7 @@ public:
 
 	/**
 	 * 消费（移除）之前注入的连招 Tag，并清除过期计时器。
-	 * LightAtk4 / HeavyAtk4 在 ActivateAbility 时调用。
+	 * Attack / WeaponSkill combo finishers call this from ActivateAbility.
 	 */
 	bool ConsumeDashSave();
 

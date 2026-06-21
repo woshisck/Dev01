@@ -14,15 +14,16 @@
 #include "Character/YogCharacterBase.h"
 #include "Component/BufferComponent.h"
 #include "Component/CombatItemComponent.h"
-#include "Component/ComboRuntimeComponent.h"
+#include "Component/CharacterDataComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Data/GameplayAbilityComboGraph.h"
+#include "Data/AbilityData.h"
+#include "Data/CharacterData.h"
 #include "Data/MontageConfigDA.h"
 #include "Engine/World.h"
 
 namespace
 {
-	void CollectHitActors(const FYogGameplayEffectContainerSpec& ContainerSpec, TArray<AActor*>& OutHitActors)
+	void GA_PlayMontage_CollectHitActors(const FYogGameplayEffectContainerSpec& ContainerSpec, TArray<AActor*>& OutHitActors)
 	{
 		for (const TSharedPtr<FGameplayAbilityTargetData>& Data : ContainerSpec.TargetData.Data)
 		{
@@ -39,15 +40,6 @@ namespace
 				}
 			}
 		}
-	}
-
-	float FrameToMontageTime(int32 Frame, int32 TotalFrames, const UAnimMontage* Montage)
-	{
-		const float Duration = Montage ? Montage->GetPlayLength() : 0.f;
-		const float Normalized = TotalFrames > 0
-			? FMath::Clamp(static_cast<float>(Frame) / static_cast<float>(TotalFrames), 0.f, 1.f)
-			: 0.f;
-		return Normalized * Duration;
 	}
 
 	UAN_MeleeDamage* FindFirstDamageNotify(UAnimMontage* Montage)
@@ -73,6 +65,7 @@ UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	bRetriggerInstancedAbility = true;
+	HoldReleaseEventTag = FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.Release"), false);
 }
 
 void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -80,17 +73,13 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	ActiveMontage = nullptr;
+	bActiveHoldMontage = false;
+	bHoldReleaseReceived = false;
 
 	if (ActivePlayMontageTask)
 	{
 		ActivePlayMontageTask->EndTask();
 		ActivePlayMontageTask = nullptr;
-	}
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ComboWindowOpenHandle);
-		World->GetTimerManager().ClearTimer(ComboWindowCloseHandle);
 	}
 
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
@@ -100,30 +89,49 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
-	APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner);
-	UComboRuntimeComponent* ComboRuntime = PlayerOwner ? PlayerOwner->ComboRuntimeComponent.Get() : nullptr;
-	const FWeaponComboNodeConfig* ActiveComboNode = ComboRuntime ? ComboRuntime->GetActiveNode() : nullptr;
 
 	UAnimMontage* MontageToPlay = nullptr;
-	if (ActiveComboNode)
+	FGameplayTag AbilityDataTag;
 	{
-		MontageToPlay = ActiveComboNode->Montage;
-		if (!MontageToPlay && ActiveComboNode->MontageConfig)
+		static const FGameplayTag PreferredAbilityTags[] = {
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo1"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo2"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo3"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo4"), false),
+		};
+		for (const FGameplayTag& PreferredTag : PreferredAbilityTags)
 		{
-			MontageToPlay = ActiveComboNode->MontageConfig->Montage;
+			if (PreferredTag.IsValid() && AbilityTags.HasTagExact(PreferredTag))
+			{
+				AbilityDataTag = PreferredTag;
+				break;
+			}
 		}
-	}
+		if (!AbilityDataTag.IsValid())
+		{
+			for (const FGameplayTag& Tag : AbilityTags)
+			{
+				AbilityDataTag = Tag;
+				break;
+			}
+		}
 
-	if (!ComboRuntime || !ActiveComboNode)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayMontage] No active combo node on owner=%s."), *GetNameSafe(Owner));
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
+		UCharacterDataComponent* CDC = Owner ? Owner->GetCharacterDataComponent() : nullptr;
+		UCharacterData* CharacterData = CDC ? CDC->GetCharacterData() : nullptr;
+		MontageToPlay = (CharacterData && CharacterData->AbilityData && AbilityDataTag.IsValid())
+			? CharacterData->AbilityData->GetMontage(AbilityDataTag)
+			: nullptr;
 	}
 
 	if (!MontageToPlay)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayMontage] Active combo node has no Montage on owner=%s."), *GetNameSafe(Owner));
+		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayMontage] No AbilityData montage on owner=%s Tag=%s."),
+			*GetNameSafe(Owner),
+			AbilityDataTag.IsValid() ? *AbilityDataTag.ToString() : TEXT("(none)"));
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
@@ -166,13 +174,27 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		}
 	}
 
+	FGameplayTagContainer MontageEventTags;
+	FName MontageStartSection = NAME_None;
+	if (IsHoldMontageConfigured(MontageToPlay))
+	{
+		bActiveHoldMontage = true;
+		MontageEventTags.AddTag(HoldReleaseEventTag);
+		MontageEventTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.Blocked"), false));
+		MontageEventTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.JustBlocked"), false));
+		if (HasMontageSection(MontageToPlay, HoldStartSection))
+		{
+			MontageStartSection = HoldStartSection;
+		}
+	}
+
 	UYogTask_PlayMontageAbility* PlayMontageTask = UYogTask_PlayMontageAbility::YogPlayMontageAbility(
 		this,
 		NAME_None,
 		MontageToPlay,
-		FGameplayTagContainer(),
+		MontageEventTags,
 		1.0f,
-		NAME_None);
+		MontageStartSection);
 	if (!PlayMontageTask)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
@@ -187,30 +209,19 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 	ActivePlayMontageTask = PlayMontageTask;
 	PlayMontageTask->ReadyForActivation();
-
-	if (ActiveComboNode && ActiveComboNode->bOverrideComboWindow && ActiveComboNode->ComboWindowTotalFrames > 0)
-	{
-		const float StartTime = FrameToMontageTime(ActiveComboNode->ComboWindowStartFrame, ActiveComboNode->ComboWindowTotalFrames, MontageToPlay);
-		const float EndTime = FrameToMontageTime(ActiveComboNode->ComboWindowEndFrame, ActiveComboNode->ComboWindowTotalFrames, MontageToPlay);
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().SetTimer(ComboWindowOpenHandle, this, &UGA_PlayMontage::OnComboWindowOpen, FMath::Max(StartTime, 0.01f), false);
-			World->GetTimerManager().SetTimer(ComboWindowCloseHandle, this, &UGA_PlayMontage::OnComboWindowClose, FMath::Max(EndTime, 0.01f), false);
-		}
-	}
+	ConfigureHoldMontageSections();
+	ScheduleBlockStartWindow();
 
 }
 
 void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	ActivePlayMontageTask = nullptr;
+	ClearBlockStateTags();
 
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ComboWindowOpenHandle);
-		World->GetTimerManager().ClearTimer(ComboWindowCloseHandle);
-	}
 	ActiveMontage = nullptr;
+	bActiveHoldMontage = false;
+	bHoldReleaseReceived = false;
 
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
@@ -240,41 +251,41 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 
 void UGA_PlayMontage::OnMontageCompleted()
 {
-	ResetComboToRoot();
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageBlendOut()
 {
-	ResetComboToRoot();
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageInterrupted()
 {
-	ResetComboToRoot();
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageCancelled()
 {
-	ResetComboToRoot();
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, true);
-}
-
-void UGA_PlayMontage::ResetComboToRoot()
-{
-	if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
-	{
-		if (PlayerOwner->ComboRuntimeComponent)
-		{
-			PlayerOwner->ComboRuntimeComponent->ResetCombo();
-		}
-	}
 }
 
 void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEventData& EventData)
 {
+	if (bActiveHoldMontage && HoldReleaseEventTag.IsValid() && EventTag.MatchesTagExact(HoldReleaseEventTag))
+	{
+		HandleHoldInputReleased();
+		return;
+	}
+	if (bActiveHoldMontage && EventTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.JustBlocked"), false)))
+	{
+		ApplyJustBlockReward();
+		return;
+	}
+	if (bActiveHoldMontage && EventTag.MatchesTagExact(FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.Blocked"), false)))
+	{
+		return;
+	}
+
 	// Re-entry guard: downstream broadcasts (Ability.Event.Attack.Hit / CritHit, DamageExecution events)
 	// can be caught by this same task if the BP's EventTags filter is too broad, causing infinite recursion.
 	if (bIsHandlingMeleeEvent) return;
@@ -290,7 +301,7 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 		Owner->bComboHitConnected = true;
 
 		TArray<AActor*> HitActors;
-		CollectHitActors(ContainerSpec, HitActors);
+		GA_PlayMontage_CollectHitActors(ContainerSpec, HitActors);
 
 		// AN_MeleeDamage 配置的 HitStop：命中至少一个目标时直接对攻击者蒙太奇生效
 		if (HitActors.Num() > 0)
@@ -374,19 +385,182 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 	}
 }
 
-void UGA_PlayMontage::OnComboWindowOpen()
+bool UGA_PlayMontage::HasMontageSection(const UAnimMontage* Montage, FName SectionName) const
 {
+	return Montage && !SectionName.IsNone() && Montage->GetSectionIndex(SectionName) != INDEX_NONE;
+}
+
+bool UGA_PlayMontage::IsHoldMontageConfigured(const UAnimMontage* Montage) const
+{
+	return bHoldMontageUntilInputRelease
+		&& HoldReleaseEventTag.IsValid()
+		&& HasMontageSection(Montage, HoldLoopSection)
+		&& HasMontageSection(Montage, HoldEndSection);
+}
+
+void UGA_PlayMontage::ConfigureHoldMontageSections()
+{
+	if (!bActiveHoldMontage || !ActiveMontage)
+	{
+		return;
+	}
+
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	if (HasMontageSection(ActiveMontage, HoldStartSection))
+	{
+		AnimInstance->Montage_SetNextSection(HoldStartSection, HoldLoopSection, ActiveMontage);
+	}
+	AnimInstance->Montage_SetNextSection(HoldLoopSection, HoldLoopSection, ActiveMontage);
+}
+
+void UGA_PlayMontage::HandleHoldInputReleased()
+{
+	if (!bActiveHoldMontage || bHoldReleaseReceived || !ActiveMontage)
+	{
+		return;
+	}
+	bHoldReleaseReceived = true;
+
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	if (HasMontageSection(ActiveMontage, HoldStartSection))
+	{
+		AnimInstance->Montage_SetNextSection(HoldStartSection, HoldEndSection, ActiveMontage);
+	}
+	AnimInstance->Montage_SetNextSection(HoldLoopSection, HoldEndSection, ActiveMontage);
+
+	if (bJumpToHoldEndSectionOnRelease)
+	{
+		AnimInstance->Montage_JumpToSection(HoldEndSection, ActiveMontage);
+	}
+
+	ClearBlockStateTags();
+}
+
+void UGA_PlayMontage::SetBlockStateTag(const FGameplayTag& Tag, int32 Count)
+{
+	if (!Tag.IsValid())
+	{
+		return;
+	}
+
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
-		ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")));
+		ASC->SetLooseGameplayTagCount(Tag, Count);
 	}
 }
 
-void UGA_PlayMontage::OnComboWindowClose()
+void UGA_PlayMontage::ClearBlockStateTags()
 {
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	if (UWorld* World = GetWorld())
 	{
-		ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")), 0);
+		World->GetTimerManager().ClearTimer(BlockStartWindowHandle);
+	}
+
+	SetBlockStateTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Start"), false), 0);
+	SetBlockStateTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Idle"), false), 0);
+}
+
+void UGA_PlayMontage::ScheduleBlockStartWindow()
+{
+	if (!bActiveHoldMontage || !ActiveMontage)
+	{
+		return;
+	}
+
+	SetBlockStateTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Start"), false), 1);
+	SetBlockStateTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Idle"), false), 0);
+
+	const int32 StartSectionIndex = HasMontageSection(ActiveMontage, HoldStartSection)
+		? ActiveMontage->GetSectionIndex(HoldStartSection)
+		: INDEX_NONE;
+	const float StartWindowDuration = StartSectionIndex != INDEX_NONE
+		? FMath::Max(ActiveMontage->GetSectionLength(StartSectionIndex), 0.01f)
+		: 0.01f;
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			BlockStartWindowHandle,
+			this,
+			&UGA_PlayMontage::FinishBlockStartWindow,
+			StartWindowDuration,
+			false);
+	}
+}
+
+void UGA_PlayMontage::FinishBlockStartWindow()
+{
+	if (!bActiveHoldMontage || bHoldReleaseReceived)
+	{
+		ClearBlockStateTags();
+		return;
+	}
+
+	SetBlockStateTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Start"), false), 0);
+	SetBlockStateTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Idle"), false), 1);
+}
+
+void UGA_PlayMontage::ApplyJustBlockReward()
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!ASC)
+	{
+		return;
+	}
+
+	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo());
+	UCharacterDataComponent* CDC = Owner ? Owner->GetCharacterDataComponent() : nullptr;
+	UCharacterData* CharacterData = CDC ? CDC->GetCharacterData() : nullptr;
+	const UAbilityData* AbilityData = CharacterData ? CharacterData->AbilityData.Get() : nullptr;
+	if (!AbilityData)
+	{
+		return;
+	}
+
+	const FGameplayTag BlockedTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Blocked"), false);
+	const FGameplayTag JustBlockedTag = FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.JustBlocked"), false);
+	const FPassiveActionData BlockedData = BlockedTag.IsValid() ? AbilityData->GetPassiveAbility(BlockedTag) : FPassiveActionData();
+	bool bAppliedReward = false;
+	for (const FYogApplyEffect& Effect : BlockedData.UniqueEffects)
+	{
+		if (!Effect.GameplayEffect)
+		{
+			continue;
+		}
+		if (Effect.TriggerTag.IsValid() && JustBlockedTag.IsValid() && !Effect.TriggerTag.MatchesTagExact(JustBlockedTag))
+		{
+			continue;
+		}
+
+		FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+		Context.AddSourceObject(this);
+		FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(
+			Effect.GameplayEffect,
+			Effect.level > 0 ? Effect.level : GetAbilityLevel(),
+			Context);
+		if (SpecHandle.IsValid() && SpecHandle.Data.IsValid())
+		{
+			SpecHandle.Data->SetDuration(FMath::Max(JustBlockRewardDuration, 0.01f), true);
+			ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+			bAppliedReward = true;
+		}
+	}
+
+	if (!bAppliedReward)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[Block] No JustBlock reward effect configured in AbilityData PassiveMap[%s]."), *BlockedTag.ToString());
 	}
 }
 
@@ -412,26 +586,43 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
 	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
 
-	EInputCommandType BufferedAttackType = EInputCommandType::LightAttack;
-	if (Buffer->ConsumeLatestAttackInputSince(AbilityActivationTime, BufferedAttackType))
+	EInputCommandType BufferedActionType = EInputCommandType::Attack;
+	if (Buffer->ConsumeLatestActionInputSince(AbilityActivationTime, BufferedActionType))
 	{
 		Buffer->ClearBuffer();
 		bool bActivated = false;
-		bool bHasComboSource = false;
-		const ECardRequiredAction ActionType = BufferedAttackType == EInputCommandType::HeavyAttack
-			? ECardRequiredAction::Heavy
-			: ECardRequiredAction::Light;
-		const TCHAR* FallbackTagName = BufferedAttackType == EInputCommandType::HeavyAttack
-			? TEXT("PlayerState.AbilityCast.HeavyAtk")
-			: TEXT("PlayerState.AbilityCast.LightAtk");
-		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
+		if (ASC && (BufferedActionType == EInputCommandType::Attack || BufferedActionType == EInputCommandType::WeaponSkill))
 		{
-			bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
-			bActivated = bHasComboSource
-				&& PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ActionType, PlayerOwner);
+			const bool bHasActiveComboTag = BufferedActionType == EInputCommandType::Attack
+				? ASC->HasActiveAttackComboAbilityTag()
+				: ASC->HasActiveWeaponSkillComboAbilityTag();
+			bActivated = BufferedActionType == EInputCommandType::Attack
+				? ASC->TryActivateNextAttackComboAbility(true, true)
+				: ASC->TryActivateNextWeaponSkillComboAbility(true, true);
+			if (!bActivated && bHasActiveComboTag)
+			{
+				ASC->SetLooseGameplayTagCount(CanComboTag, 0);
+				return;
+			}
 		}
-		if (!bActivated && !bHasComboSource)
+		if (!bActivated)
 		{
+			const TCHAR* FallbackTagName = TEXT("PlayerState.AbilityCast.Attack");
+			switch (BufferedActionType)
+			{
+			case EInputCommandType::WeaponSkill:
+				FallbackTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
+				break;
+			case EInputCommandType::Dash:
+				FallbackTagName = TEXT("PlayerState.AbilityCast.Dash");
+				break;
+			case EInputCommandType::Special:
+				FallbackTagName = TEXT("PlayerState.AbilityCast.Special");
+				break;
+			default:
+				break;
+			}
+
 			FGameplayTagContainer TagContainer;
 			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
 			bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
@@ -441,21 +632,5 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 			ASC->SetLooseGameplayTagCount(CanComboTag, 0);
 		}
 		return;
-	}
-
-	if (Buffer->HasBufferedInputSince(EInputCommandType::Dash, AbilityActivationTime))
-	{
-		Buffer->ClearBuffer();
-		bool bActivated = false;
-		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
-		{
-			bActivated = PlayerOwner->ComboRuntimeComponent
-				&& PlayerOwner->ComboRuntimeComponent->HasComboSource()
-				&& PlayerOwner->ComboRuntimeComponent->TryActivateDash(PlayerOwner);
-		}
-		if (!bActivated && ASC)
-		{
-			ASC->SetLooseGameplayTagCount(CanComboTag, 0);
-		}
 	}
 }

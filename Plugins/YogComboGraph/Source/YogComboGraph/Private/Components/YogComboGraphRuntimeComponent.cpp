@@ -55,10 +55,7 @@ bool UYogComboGraphRuntimeComponent::FindNextComboGraphNode(EYogComboGraphInputA
 		return false;
 	}
 
-	const bool bUseDashSavedNode = !SavedDashNodeId.IsNone();
-	const FName StartNodeId = bUseDashSavedNode ? SavedDashNodeId : CurrentNodeId;
-
-	const UGameplayAbilityComboGraphNode* NextGraphNode = ComboGraph->FindChildComboNode(StartNodeId, InputAction, OwnedTags);
+	const UGameplayAbilityComboGraphNode* NextGraphNode = ComboGraph->FindChildComboNode(CurrentNodeId, InputAction, OwnedTags);
 	OutSelection.bFoundChildNode = NextGraphNode != nullptr;
 	if (!NextGraphNode)
 	{
@@ -71,7 +68,6 @@ bool UYogComboGraphRuntimeComponent::FindNextComboGraphNode(EYogComboGraphInputA
 	}
 
 	OutSelection.Node = NextGraphNode;
-	OutSelection.bFromDashSave = bUseDashSavedNode;
 	return true;
 }
 
@@ -80,20 +76,17 @@ void UYogComboGraphRuntimeComponent::PrepareComboGraphNodeActivation(const FYogC
 	ActiveGraphNode = const_cast<UGameplayAbilityComboGraphNode*>(Selection.Node);
 	PrepareComboNodeActivation(
 		GetRuntimeComponentNodeId(Selection.Node),
-		Selection.bFoundChildNode,
-		Selection.bFromDashSave);
+		Selection.bFoundChildNode);
 }
 
-void UYogComboGraphRuntimeComponent::PrepareComboNodeActivation(FName NodeId, bool bFoundChildNode, bool bFromDashSave)
+void UYogComboGraphRuntimeComponent::PrepareComboNodeActivation(FName NodeId, bool bFoundChildNode)
 {
 	ActiveNodeId = NodeId;
 	bActiveNodeValid = !NodeId.IsNone();
-	bActivationFromDashSave = bFromDashSave;
-	bComboContinued = bFoundChildNode || bFromDashSave;
-	bExitedComboState = !CurrentNodeId.IsNone() && !bFoundChildNode && !bFromDashSave;
+	bComboContinued = bFoundChildNode;
+	bExitedComboState = !CurrentNodeId.IsNone() && !bFoundChildNode;
 	ActiveAttackGuid = FGuid::NewGuid();
 	bPreparedFoundChildNode = bFoundChildNode;
-	bPreparedFromDashSave = bFromDashSave;
 }
 
 void UYogComboGraphRuntimeComponent::CommitPreparedComboActivation()
@@ -103,13 +96,12 @@ void UYogComboGraphRuntimeComponent::CommitPreparedComboActivation()
 		return;
 	}
 
-	ComboIndex = bPreparedFoundChildNode || bPreparedFromDashSave
+	ComboIndex = bPreparedFoundChildNode
 		? FMath::Max(1, ComboIndex + 1)
 		: 1;
 	ComboTags.Reset();
 
 	CurrentNodeId = ActiveNodeId;
-	SavedDashNodeId = NAME_None;
 }
 
 void UYogComboGraphRuntimeComponent::ClearPreparedComboActivation()
@@ -118,10 +110,8 @@ void UYogComboGraphRuntimeComponent::ClearPreparedComboActivation()
 	ActiveNodeId = NAME_None;
 	ActiveAttackGuid.Invalidate();
 	bActiveNodeValid = false;
-	bActivationFromDashSave = false;
 	bComboContinued = false;
 	bPreparedFoundChildNode = false;
-	bPreparedFromDashSave = false;
 }
 
 void UYogComboGraphRuntimeComponent::MarkComboActivationMiss()
@@ -137,31 +127,8 @@ void UYogComboGraphRuntimeComponent::MarkComboActivationMiss()
 void UYogComboGraphRuntimeComponent::ResetCombo()
 {
 	CurrentNodeId = NAME_None;
-	SavedDashNodeId = NAME_None;
 	ComboIndex = 0;
 	ComboTags.Reset();
 	bExitedComboState = true;
 	ClearPreparedComboActivation();
-}
-
-bool UYogComboGraphRuntimeComponent::SaveCurrentNodeForDash()
-{
-	if (bActiveNodeValid)
-	{
-		SaveComboNodeForDash(ActiveNodeId);
-		return true;
-	}
-	return false;
-}
-
-void UYogComboGraphRuntimeComponent::SaveComboNodeForDash(FName NodeId)
-{
-	SavedDashNodeId = NodeId;
-}
-
-bool UYogComboGraphRuntimeComponent::ConsumeActivationFromDashSave()
-{
-	const bool bResult = bActivationFromDashSave;
-	bActivationFromDashSave = false;
-	return bResult;
 }

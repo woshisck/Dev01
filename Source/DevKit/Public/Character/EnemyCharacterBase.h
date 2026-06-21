@@ -13,6 +13,7 @@
 
 class UBuffFlowComponent;
 class UEnemyHealthDisplayComponent;
+class UEnemyWeaponDefinition;
 class UMontageVFXBindingComponent;
 class UYogAbilitySystemComponent;
 
@@ -49,11 +50,22 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void Die() override;
+	virtual void FinishDying() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	virtual bool IsAlive() const override;
 	virtual float GetDeathDisappearDelayAfterAnimation(bool bHasDissolveCue) const override;
 
 	void PostInitializeComponents() override;
+
+	UFUNCTION(BlueprintCallable, Category = "Enemy|Weapon")
+	void SetPendingEnemyWeaponDefinition(UEnemyWeaponDefinition* WeaponDefinition);
+
+	UFUNCTION(BlueprintCallable, Category = "Enemy|Weapon")
+	void ApplyEnemyWeaponDefinition(UEnemyWeaponDefinition* WeaponDefinition);
+
+	UFUNCTION(BlueprintPure, Category = "Enemy|Weapon")
+	UEnemyWeaponDefinition* GetEquippedEnemyWeaponDefinition() const { return EquippedEnemyWeaponDefinition.Get(); }
 
 	void SetAIAttackRuntimeContext(const FEnemyAIAttackOption& AttackOption, AActor* TargetActor, float DistanceToTarget);
 	bool ConsumeAIAttackRuntimeContext(FEnemyAIAttackRuntimeContext& OutContext);
@@ -65,12 +77,23 @@ protected:
 
 	UFUNCTION()
 	void OnReceivedDamageForAI(UYogAbilitySystemComponent* SourceASC, float Damage);
+
+	void DestroySpawnedEnemyWeaponActors();
 	
 	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
 
 	UPROPERTY(Transient)
 	FEnemyAIAttackRuntimeContext PendingAIAttackContext;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UEnemyWeaponDefinition> PendingEnemyWeaponDefinition;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UEnemyWeaponDefinition> EquippedEnemyWeaponDefinition;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<AActor>> SpawnedEnemyWeaponActors;
 
 
 	friend UEnemyAttributeSet;

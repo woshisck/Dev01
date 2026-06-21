@@ -30,8 +30,6 @@ int32 UAssetGraphSchema_GameplayAbilityComboGraph::CurrentCacheRefreshID = 0;
 
 namespace
 {
-	const FName DodgeActionRootNodeId(TEXT("DodgeActionRoot"));
-
 	class FYogComboGraphCycleChecker
 	{
 	public:
@@ -227,30 +225,6 @@ namespace
 		return ComboNode;
 	}
 
-	void ConfigureDodgeActionRootNode(UGameplayAbilityComboGraphNode* ComboNode)
-	{
-		if (!ComboNode)
-		{
-			return;
-		}
-
-		ComboNode->NodeId = DodgeActionRootNodeId;
-		ComboNode->NodeTitle = FText::FromName(DodgeActionRootNodeId);
-		ComboNode->RootInputAction = EYogComboGraphInputAction::Dash;
-		ComboNode->Montage = nullptr;
-		ComboNode->TotalFrames = 1;
-		ComboNode->bIsComboFinisher = false;
-		ComboNode->bAllowDashSave = true;
-		ComboNode->DashSaveMode = EYogComboGraphDashSaveMode::PreserveIfSourceAllows;
-		ComboNode->DashSaveExpireSeconds = 2.0f;
-		ComboNode->bSavePendingLinkContext = true;
-		ComboNode->bClearCombatTagsOnDashEnd = true;
-		ComboNode->bBreakComboOnDashCancel = true;
-		ComboNode->bUseNodeComboWindow = false;
-		ComboNode->ComboWindowStartFrame = 0;
-		ComboNode->ComboWindowEndFrame = 0;
-	}
-
 	UGameplayAbilityComboGraphNode* CreateRuntimeNodeForMontage(UEdNode_GenericGraphNode* EdNode, UGameplayAbilityComboGraph* ComboGraph, UAnimMontage* Montage)
 	{
 		if (!Montage)
@@ -349,6 +323,51 @@ namespace
 		}
 
 		return Cast<UEdNode_GenericGraphNode>(OutputPin->LinkedTo[0]->GetOwningNode());
+	}
+
+	bool DoesOutputReachNode(const UEdNode_GenericGraphNode* Start, const UEdNode_GenericGraphNode* End)
+	{
+		const UEdGraphPin* StartOutputPin = GetOutputPin(Start);
+		if (!StartOutputPin || !End)
+		{
+			return false;
+		}
+
+		for (const UEdGraphPin* LinkedPin : StartOutputPin->LinkedTo)
+		{
+			UEdGraphNode* LinkedNode = LinkedPin ? LinkedPin->GetOwningNode() : nullptr;
+			if (const UEdNode_GenericGraphEdge* EdgeNode = Cast<UEdNode_GenericGraphEdge>(LinkedNode))
+			{
+				LinkedNode = GetEndNodeFromEdge(EdgeNode);
+			}
+
+			if (LinkedNode == End)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool DoesOutputReachNodeThroughEdge(const UEdNode_GenericGraphNode* Start, const UEdNode_GenericGraphNode* End)
+	{
+		const UEdGraphPin* StartOutputPin = GetOutputPin(Start);
+		if (!StartOutputPin || !End)
+		{
+			return false;
+		}
+
+		for (const UEdGraphPin* LinkedPin : StartOutputPin->LinkedTo)
+		{
+			const UEdNode_GenericGraphEdge* EdgeNode = LinkedPin ? Cast<UEdNode_GenericGraphEdge>(LinkedPin->GetOwningNode()) : nullptr;
+			if (EdgeNode && GetEndNodeFromEdge(EdgeNode) == End)
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	void CreateEdgeConnections(UEdNode_GenericGraphEdge* EdgeNode, UEdNode_GenericGraphNode* Start, UEdNode_GenericGraphNode* End)
@@ -491,6 +510,80 @@ void UAssetGraphSchema_GameplayAbilityComboGraph::CreateDefaultNodesForGraph(UEd
 	RootEdNode->SetFlags(RF_Transactional);
 }
 
+bool UAssetGraphSchema_GameplayAbilityComboGraph::EnsureRootConnectionEdges(UEdGraph& Graph)
+{
+	UGameplayAbilityComboGraph* ComboGraph = GetGameplayAbilityComboGraph(&Graph);
+	if (!ComboGraph || !ComboGraph->EdgeType)
+	{
+		return false;
+	}
+
+	TArray<TPair<UEdNode_ComboGraphRoot*, UEdNode_GenericGraphNode*>> DirectRootConnections;
+	for (UEdGraphNode* Node : Graph.Nodes)
+	{
+		UEdNode_ComboGraphRoot* RootNode = Cast<UEdNode_ComboGraphRoot>(Node);
+		UEdGraphPin* RootOutputPin = GetOutputPin(RootNode);
+		if (!RootNode || !RootOutputPin)
+		{
+			continue;
+		}
+
+		for (UEdGraphPin* LinkedPin : RootOutputPin->LinkedTo)
+		{
+			UEdGraphNode* LinkedNode = LinkedPin ? LinkedPin->GetOwningNode() : nullptr;
+			if (Cast<UEdNode_GenericGraphEdge>(LinkedNode))
+			{
+				continue;
+			}
+
+			UEdNode_GenericGraphNode* ChildNode = Cast<UEdNode_GenericGraphNode>(LinkedNode);
+			if (!ChildNode || !ChildNode->GenericGraphNode)
+			{
+				continue;
+			}
+
+			const bool bAlreadyQueued = DirectRootConnections.ContainsByPredicate(
+				[RootNode, ChildNode](const TPair<UEdNode_ComboGraphRoot*, UEdNode_GenericGraphNode*>& Pair)
+				{
+					return Pair.Key == RootNode && Pair.Value == ChildNode;
+				});
+			if (!bAlreadyQueued)
+			{
+				DirectRootConnections.Emplace(RootNode, ChildNode);
+			}
+		}
+	}
+
+	bool bChanged = false;
+	for (const TPair<UEdNode_ComboGraphRoot*, UEdNode_GenericGraphNode*>& DirectRootConnection : DirectRootConnections)
+	{
+		UEdNode_ComboGraphRoot* RootNode = DirectRootConnection.Key;
+		UEdNode_GenericGraphNode* ChildNode = DirectRootConnection.Value;
+		UEdGraphPin* RootOutputPin = GetOutputPin(RootNode);
+		UEdGraphPin* ChildInputPin = GetInputPin(ChildNode);
+		if (!RootOutputPin || !ChildInputPin)
+		{
+			continue;
+		}
+
+		if (!DoesOutputReachNodeThroughEdge(RootNode, ChildNode))
+		{
+			const FVector2D InitPos((RootNode->NodePosX + ChildNode->NodePosX) / 2, (RootNode->NodePosY + ChildNode->NodePosY) / 2);
+			bChanged |= CreateEdgeNode(&Graph, ComboGraph, RootNode, ChildNode, InitPos) != nullptr;
+		}
+
+		if (RootOutputPin->LinkedTo.Contains(ChildInputPin))
+		{
+			RootOutputPin->Modify();
+			ChildInputPin->Modify();
+			RootOutputPin->BreakLinkTo(ChildInputPin);
+			bChanged = true;
+		}
+	}
+
+	return bChanged;
+}
+
 EGraphType UAssetGraphSchema_GameplayAbilityComboGraph::GetGraphType(const UEdGraph* TestEdGraph) const
 {
 	return GT_StateMachine;
@@ -520,15 +613,6 @@ void UAssetGraphSchema_GameplayAbilityComboGraph::GetGraphContextActions(FGraphC
 	Action->NodeTemplate = NewObject<UEdNode_GenericGraphNode>(ContextMenuBuilder.OwnerOfTemporaries);
 	CreateRuntimeComboNode(Action->NodeTemplate, Graph);
 	ContextMenuBuilder.AddAction(Action);
-
-	TSharedPtr<FYogComboGraphSchemaAction_NewNode> DodgeAction(new FYogComboGraphSchemaAction_NewNode(
-		LOCTEXT("YogComboGraphNodeAction", "Combo Graph Node"),
-		LOCTEXT("YogComboGraphDodgeActionRootNode", "Dodge Action Root Node"),
-		LOCTEXT("YogComboGraphDodgeActionRootNodeTooltip", "Add a root node that starts the combo graph Dodge/Dash action."),
-		1));
-	DodgeAction->NodeTemplate = NewObject<UEdNode_GenericGraphNode>(ContextMenuBuilder.OwnerOfTemporaries);
-	ConfigureDodgeActionRootNode(CreateRuntimeComboNode(DodgeAction->NodeTemplate, Graph));
-	ContextMenuBuilder.AddAction(DodgeAction);
 }
 
 void UAssetGraphSchema_GameplayAbilityComboGraph::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
@@ -592,8 +676,15 @@ const FPinConnectionResponse UAssetGraphSchema_GameplayAbilityComboGraph::CanCre
 		{
 			return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("PinErrorInvalidTarget", "Target is not a valid combo node"));
 		}
-		// Direct connection (no edge node) so the child stays parentless in the runtime graph.
-		return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, LOCTEXT("PinConnectFromRoot", "Connect from Root"));
+		if (DoesOutputReachNode(OutNode, InNode))
+		{
+			return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("PinErrorAlreadyConnected", "Nodes are already connected"));
+		}
+
+		const UGenericGraph* GenericGraph = InNode->GenericGraphNode->GetGraph();
+		return GenericGraph && GenericGraph->EdgeType
+			? FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, LOCTEXT("PinConnectFromRootWithEdge", "Connect from Root with visual edge"))
+			: FPinConnectionResponse(CONNECT_RESPONSE_MAKE, LOCTEXT("PinConnectFromRoot", "Connect from Root"));
 	}
 
 	if (!NodeA->GenericGraphNode || !NodeB->GenericGraphNode)
@@ -647,23 +738,18 @@ bool UAssetGraphSchema_GameplayAbilityComboGraph::TryCreateConnection(UEdGraphPi
 	UEdNode_GenericGraphNode* NodeB = Cast<UEdNode_GenericGraphNode>(B->GetOwningNode());
 	UEdNode_GenericGraphNode* OutNode = A->Direction == EGPD_Output ? NodeA : NodeB;
 	UEdNode_GenericGraphNode* InNode  = A->Direction == EGPD_Output ? NodeB : NodeA;
+	if (!OutNode || !InNode || Cast<UEdNode_ComboGraphRoot>(InNode))
+	{
+		return false;
+	}
 
-	// Root→child: create a direct pin-to-pin link (no edge node) so the child
-	// remains parentless in RebuildGenericGraph and becomes a runtime RootNode.
 	if (Cast<UEdNode_ComboGraphRoot>(OutNode))
 	{
-		UEdGraphPin* RootOutPin = GetOutputPin(OutNode);
-		UEdGraphPin* ChildInPin = GetInputPin(InNode);
-		if (!RootOutPin || !ChildInPin || !InNode || !InNode->GenericGraphNode)
-		{
-			return false;
-		}
-		UEdGraphSchema::TryCreateConnection(RootOutPin, ChildInPin);
-		return true;
+		return CreateAutomaticConversionNodeAndConnections(A, B);
 	}
 	UEdGraphPin* OutPin = GetOutputPin(OutNode);
 	UEdGraphPin* InPin = GetInputPin(InNode);
-	if (!OutNode || !InNode || !OutPin || !InPin)
+	if (!OutPin || !InPin || !OutNode->GenericGraphNode || !InNode->GenericGraphNode)
 	{
 		return false;
 	}
@@ -697,6 +783,24 @@ bool UAssetGraphSchema_GameplayAbilityComboGraph::CreateAutomaticConversionNodeA
 	UEdNode_GenericGraphNode* NodeB = Cast<UEdNode_GenericGraphNode>(B->GetOwningNode());
 	UEdNode_GenericGraphNode* OutNode = A->Direction == EGPD_Output ? NodeA : NodeB;
 	UEdNode_GenericGraphNode* InNode = A->Direction == EGPD_Output ? NodeB : NodeA;
+	if (Cast<UEdNode_ComboGraphRoot>(OutNode))
+	{
+		if (!OutNode || !InNode || !InNode->GenericGraphNode || DoesOutputReachNode(OutNode, InNode))
+		{
+			return false;
+		}
+
+		UGenericGraph* GenericGraph = InNode->GenericGraphNode->GetGraph();
+		if (!GenericGraph || !GenericGraph->EdgeType)
+		{
+			return false;
+		}
+
+		const FVector2D InitPos((OutNode->NodePosX + InNode->NodePosX) / 2, (OutNode->NodePosY + InNode->NodePosY) / 2);
+		UEdNode_GenericGraphEdge* EdgeNode = CreateEdgeNode(OutNode->GetGraph(), GenericGraph, OutNode, InNode, InitPos);
+		return EdgeNode != nullptr;
+	}
+
 	if (!OutNode || !InNode || !OutNode->GenericGraphNode || !OutNode->GenericGraphNode->GetGraph() || !OutNode->GenericGraphNode->GetGraph()->EdgeType)
 	{
 		return false;

@@ -4,7 +4,6 @@
 #include "UI/CombatItemBarWidget.h"
 #include "UI/ActiveSkillBarWidget.h"
 #include "UI/CurrentRoomBuffWidget.h"
-#include "UI/FinisherQTEWidget.h"
 #include "UI/YogRunSummaryWidgetBase.h"
 #include "UI/PlayerCommonInfoWidget.h"
 #include "UI/PauseMenuWidget.h"
@@ -237,7 +236,6 @@ void AYogHUD::BeginPlay()
 		EnsureActiveSkillWidget();
 	}
 
-	EnsureFinisherQTEWidget();
 	EnsureCurrentRoomBuffWidget();
 	RefreshCurrentRoomBuffsFromGameMode();
 
@@ -1307,67 +1305,6 @@ void AYogHUD::EnsureActiveSkillWidget()
 		SkillSlot->SetHorizontalAlignment(HAlign_Right);
 		SkillSlot->SetVerticalAlignment(VAlign_Bottom);
 		SkillSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 92.0f));
-	}
-}
-
-bool AYogHUD::EnsureFinisherQTEWidget()
-{
-	if (FinisherQTEWidget)
-	{
-		return true;
-	}
-
-	APlayerController* PC = GetOwningPlayerController();
-	if (!PC)
-	{
-		return false;
-	}
-
-	TSubclassOf<UFinisherQTEWidget> WidgetClass =
-		ResolveManagedWidgetClass(EYogUIScreenId::FinisherQTE, FinisherQTEWidgetClass);
-	if (!WidgetClass)
-	{
-		WidgetClass = LoadClass<UFinisherQTEWidget>(
-			nullptr,
-			TEXT("/Game/UI/Playtest_UI/HUD/WBP_FinisherQTEPrompt.WBP_FinisherQTEPrompt_C"));
-	}
-	if (!WidgetClass)
-	{
-		WidgetClass = UFinisherQTEWidget::StaticClass();
-	}
-
-	FinisherQTEWidget = CreateWidget<UFinisherQTEWidget>(PC, WidgetClass);
-	if (!FinisherQTEWidget)
-	{
-		return false;
-	}
-
-	FinisherQTEWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::FinisherQTE, 30));
-	FinisherQTEWidget->HidePrompt();
-	return true;
-}
-
-void AYogHUD::ShowFinisherQTEPrompt(float WindowDuration)
-{
-	if (EnsureFinisherQTEWidget() && FinisherQTEWidget)
-	{
-		FinisherQTEWidget->ShowPrompt(WindowDuration);
-	}
-}
-
-void AYogHUD::HideFinisherQTEPrompt()
-{
-	if (FinisherQTEWidget)
-	{
-		FinisherQTEWidget->HidePrompt();
-	}
-}
-
-void AYogHUD::MarkFinisherQTEConfirmed()
-{
-	if (EnsureFinisherQTEWidget() && FinisherQTEWidget)
-	{
-		FinisherQTEWidget->MarkConfirmed();
 	}
 }
 

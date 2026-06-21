@@ -3,10 +3,14 @@
 
 #include "Character/EnemyCharacterBase.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
 #include "AbilitySystem/Abilities/YogTargetType_Melee.h"
 #include "Character/YogCharacterMovementComponent.h"
+#include "Data/AbilityData.h"
 #include "Data/EnemyData.h"
+#include "Data/EnemyWeaponDefinition.h"
+#include "Component/AttributeStatComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Controller/YogAIController.h"
 #include "Data/GASTemplate.h"
@@ -15,8 +19,95 @@
 #include "Component/EnemyHealthDisplayComponent.h"
 #include "Component/MontageVFXBindingComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Item/Weapon/WeaponInstance.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BrainComponent.h"
+
+namespace
+{
+	bool EnemyWeaponHasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
+	{
+		for (const FTaggedMontageConfig& Config : ConfigList.Configs)
+		{
+			if (Config.MontageConfig)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool EnemyWeaponHasUsablePassiveActionData(const FPassiveActionData& PassiveData)
+	{
+		return PassiveData.Montage != nullptr
+			|| !PassiveData.UniqueEffects.IsEmpty()
+			|| PassiveData.DissolveGameplayCueTag.IsValid();
+	}
+
+	void MergeEnemyWeaponAbilityDataInto(UAbilityData& Target, const UAbilityData& Source)
+	{
+		for (const TPair<FGameplayTag, TObjectPtr<UAnimMontage>>& Pair : Source.MontageMap)
+		{
+			if (Pair.Key.IsValid() && Pair.Value)
+			{
+				Target.MontageMap.Add(Pair.Key, Pair.Value);
+			}
+		}
+
+		for (const TPair<FGameplayTag, FAbilityMontageConfigList>& Pair : Source.MontageConfigMap)
+		{
+			if (Pair.Key.IsValid() && EnemyWeaponHasUsableMontageConfigList(Pair.Value))
+			{
+				Target.MontageConfigMap.Add(Pair.Key, Pair.Value);
+			}
+		}
+
+		for (const TPair<FGameplayTag, FPassiveActionData>& Pair : Source.PassiveMap)
+		{
+			if (Pair.Key.IsValid() && EnemyWeaponHasUsablePassiveActionData(Pair.Value))
+			{
+				Target.PassiveMap.Add(Pair.Key, Pair.Value);
+			}
+		}
+	}
+
+	bool EnemyWeaponHasAttributeAdd(const FYogBaseAttributeData& Add)
+	{
+		return !FMath::IsNearlyZero(Add.Attack)
+			|| !FMath::IsNearlyZero(Add.AttackPower)
+			|| !FMath::IsNearlyZero(Add.MaxHealth)
+			|| !FMath::IsNearlyZero(Add.MaxHeat)
+			|| !FMath::IsNearlyZero(Add.Shield)
+			|| !FMath::IsNearlyZero(Add.AttackSpeed)
+			|| !FMath::IsNearlyZero(Add.AttackRange)
+			|| !FMath::IsNearlyZero(Add.Sanity)
+			|| !FMath::IsNearlyZero(Add.MoveSpeed)
+			|| !FMath::IsNearlyZero(Add.Dodge)
+			|| !FMath::IsNearlyZero(Add.Resilience)
+			|| !FMath::IsNearlyZero(Add.Resist)
+			|| !FMath::IsNearlyZero(Add.DmgTaken)
+			|| !FMath::IsNearlyZero(Add.Crit_Rate)
+			|| !FMath::IsNearlyZero(Add.Crit_Damage)
+			|| !FMath::IsNearlyZero(Add.MaxArmorHP);
+	}
+
+	void AddEnemyWeaponAttribute(UAttributeStatComponent* Stats, const FGameplayAttribute& Attribute, float Delta)
+	{
+		if (Stats && !FMath::IsNearlyZero(Delta))
+		{
+			Stats->AddAttribute(Attribute, Delta);
+		}
+	}
+
+	void MultiplyEnemyWeaponAttribute(UAttributeStatComponent* Stats, const FGameplayAttribute& Attribute, float Multiplier)
+	{
+		if (Stats && !FMath::IsNearlyEqual(Multiplier, 1.0f))
+		{
+			Stats->MultiplyAttribute(Attribute, Multiplier);
+		}
+	}
+}
 
 AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UYogCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -53,6 +144,29 @@ void AEnemyCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	UEnemyData* RuntimeEnemyData = CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
+	UEnemyWeaponDefinition* WeaponToApply = PendingEnemyWeaponDefinition.Get();
+	if (!WeaponToApply && RuntimeEnemyData)
+	{
+		WeaponToApply = RuntimeEnemyData->DefaultWeaponDefinition.Get();
+		if (!WeaponToApply && !RuntimeEnemyData->AllowedWeaponDefinitions.IsEmpty())
+		{
+			TArray<UEnemyWeaponDefinition*> ValidWeapons;
+			for (UEnemyWeaponDefinition* Candidate : RuntimeEnemyData->AllowedWeaponDefinitions)
+			{
+				if (Candidate)
+				{
+					ValidWeapons.Add(Candidate);
+				}
+			}
+			if (!ValidWeapons.IsEmpty())
+			{
+				WeaponToApply = ValidWeapons[FMath::RandRange(0, ValidWeapons.Num() - 1)];
+			}
+		}
+	}
+	ApplyEnemyWeaponDefinition(WeaponToApply);
+
 	// 注册死亡判断：不依赖 PossessedBy 的时序，BeginPlay 里直接绑定
 	if (AttributeStatsComponent)
 	{
@@ -71,6 +185,14 @@ void AEnemyCharacterBase::BeginPlay()
 			{
 				GetCharacterMovement()->MaxWalkSpeed = ED->MovementTuning.MaxWalkSpeedOverride;
 			}
+		}
+	}
+
+	if (EquippedEnemyWeaponDefinition && AttributeStatsComponent)
+	{
+		if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+		{
+			MoveComp->MaxWalkSpeed = AttributeStatsComponent->GetStat_MoveSpeed();
 		}
 	}
 
@@ -125,6 +247,161 @@ bool AEnemyCharacterBase::ConsumeAIAttackRuntimeContext(FEnemyAIAttackRuntimeCon
 void AEnemyCharacterBase::ClearAIAttackRuntimeContext()
 {
 	PendingAIAttackContext = FEnemyAIAttackRuntimeContext();
+}
+
+void AEnemyCharacterBase::DestroySpawnedEnemyWeaponActors()
+{
+	for (TObjectPtr<AActor>& SpawnedActor : SpawnedEnemyWeaponActors)
+	{
+		if (SpawnedActor && IsValid(SpawnedActor))
+		{
+			SpawnedActor->Destroy();
+		}
+	}
+
+	SpawnedEnemyWeaponActors.Reset();
+}
+
+void AEnemyCharacterBase::SetPendingEnemyWeaponDefinition(UEnemyWeaponDefinition* WeaponDefinition)
+{
+	PendingEnemyWeaponDefinition = WeaponDefinition;
+}
+
+void AEnemyCharacterBase::ApplyEnemyWeaponDefinition(UEnemyWeaponDefinition* WeaponDefinition)
+{
+	if (!WeaponDefinition || EquippedEnemyWeaponDefinition == WeaponDefinition)
+	{
+		return;
+	}
+
+	UEnemyData* RuntimeEnemyData = CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
+	if (!RuntimeEnemyData)
+	{
+		return;
+	}
+
+	if (WeaponDefinition->AbilityData)
+	{
+		UAbilityData* RuntimeAbilityData = NewObject<UAbilityData>(this);
+		RuntimeAbilityData->SetFlags(RF_Transient);
+
+		if (UAbilityData* BaseAbilityData = CharacterDataComponent ? CharacterDataComponent->GetBaseAbilityData() : RuntimeEnemyData->AbilityData.Get())
+		{
+			MergeEnemyWeaponAbilityDataInto(*RuntimeAbilityData, *BaseAbilityData);
+		}
+		MergeEnemyWeaponAbilityDataInto(*RuntimeAbilityData, *WeaponDefinition->AbilityData);
+		RuntimeEnemyData->AbilityData = RuntimeAbilityData;
+	}
+
+	if (WeaponDefinition->bOverrideAttackProfile)
+	{
+		RuntimeEnemyData->AttackProfile = WeaponDefinition->AttackProfile;
+	}
+
+	DestroySpawnedEnemyWeaponActors();
+
+	for (const FWeaponSpawnData& SpawnData : WeaponDefinition->ActorsToSpawn)
+	{
+		if (!SpawnData.ActorToSpawn || !GetWorld() || !GetMesh())
+		{
+			continue;
+		}
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		AWeaponInstance* WeaponActor = GetWorld()->SpawnActor<AWeaponInstance>(
+			SpawnData.ActorToSpawn,
+			FTransform::Identity,
+			SpawnParams);
+		if (!WeaponActor)
+		{
+			continue;
+		}
+
+		WeaponActor->AttachSocket = SpawnData.AttachSocket;
+		WeaponActor->AttachTransform = SpawnData.AttachTransform;
+		WeaponActor->WeaponLayer = SpawnData.WeaponLayer;
+		WeaponActor->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, SpawnData.AttachSocket);
+		WeaponActor->SetActorRelativeTransform(SpawnData.AttachTransform);
+		SpawnedEnemyWeaponActors.Add(WeaponActor);
+	}
+
+	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
+	{
+		for (const TSubclassOf<UAnimInstance>& AnimLayer : WeaponDefinition->AnimLayers)
+		{
+			if (AnimLayer)
+			{
+				AnimInstance->LinkAnimClassLayers(AnimLayer);
+			}
+		}
+		for (const FWeaponSpawnData& SpawnData : WeaponDefinition->ActorsToSpawn)
+		{
+			if (SpawnData.WeaponLayer)
+			{
+				AnimInstance->LinkAnimClassLayers(SpawnData.WeaponLayer);
+			}
+		}
+	}
+
+	if (AttributeStatsComponent)
+	{
+		const FYogBaseAttributeData& Add = WeaponDefinition->AttributeModifiers.Add;
+		if (EnemyWeaponHasAttributeAdd(Add))
+		{
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetAttackAttribute(), Add.Attack);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetAttackPowerAttribute(), Add.AttackPower);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetMaxHealthAttribute(), Add.MaxHealth);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetHealthAttribute(), Add.MaxHealth);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetMaxHeatAttribute(), Add.MaxHeat);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetShieldAttribute(), Add.Shield);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetAttackSpeedAttribute(), Add.AttackSpeed);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetAttackRangeAttribute(), Add.AttackRange);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetSanityAttribute(), Add.Sanity);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetMoveSpeedAttribute(), Add.MoveSpeed);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetDodgeAttribute(), Add.Dodge);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetResilienceAttribute(), Add.Resilience);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetResistAttribute(), Add.Resist);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetDmgTakenAttribute(), Add.DmgTaken);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetCrit_RateAttribute(), Add.Crit_Rate);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetCrit_DamageAttribute(), Add.Crit_Damage);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetMaxArmorHPAttribute(), Add.MaxArmorHP);
+			AddEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetArmorHPAttribute(), Add.MaxArmorHP);
+		}
+
+		MultiplyEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetAttackPowerAttribute(), WeaponDefinition->AttributeModifiers.AttackPowerMultiplier);
+		MultiplyEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetAttackSpeedAttribute(), WeaponDefinition->AttributeModifiers.AttackSpeedMultiplier);
+		MultiplyEnemyWeaponAttribute(AttributeStatsComponent, UBaseAttributeSet::GetMoveSpeedAttribute(), WeaponDefinition->AttributeModifiers.MoveSpeedMultiplier);
+	}
+
+	if (AbilitySystemComponent)
+	{
+		for (const TSubclassOf<UGameplayEffect>& PassiveEffect : WeaponDefinition->PassiveEffects)
+		{
+			if (!PassiveEffect)
+			{
+				continue;
+			}
+
+			FGameplayEffectContextHandle Context = AbilitySystemComponent->MakeEffectContext();
+			Context.AddSourceObject(WeaponDefinition);
+			FGameplayEffectSpecHandle Spec = AbilitySystemComponent->MakeOutgoingSpec(PassiveEffect, 1, Context);
+			if (Spec.IsValid())
+			{
+				AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+			}
+		}
+	}
+
+	EquippedEnemyWeaponDefinition = WeaponDefinition;
+	PendingEnemyWeaponDefinition = nullptr;
+
+	UE_LOG(LogTemp, Log, TEXT("[EnemyWeapon] Applied Weapon=%s Enemy=%s AbilityData=%s AttackProfileAttacks=%d"),
+		*GetNameSafe(WeaponDefinition),
+		*GetNameSafe(this),
+		*GetNameSafe(RuntimeEnemyData->AbilityData.Get()),
+		RuntimeEnemyData->AttackProfile.Attacks.Num());
 }
 
 void AEnemyCharacterBase::OnHealthChangedForDeath(float NewHealth)
@@ -196,6 +473,18 @@ void AEnemyCharacterBase::Die()
 	// Fallback only: the normal path is GA_Dead -> montage/dissolve -> FinishDying().
 	// Keep this short enough that a missing cooked death ability cannot leave dead enemies in the room.
 	SetLifeSpan(8.0f);
+}
+
+void AEnemyCharacterBase::FinishDying()
+{
+	DestroySpawnedEnemyWeaponActors();
+	Super::FinishDying();
+}
+
+void AEnemyCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	DestroySpawnedEnemyWeaponActors();
+	Super::EndPlay(EndPlayReason);
 }
 
 void AEnemyCharacterBase::PostInitializeComponents()

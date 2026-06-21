@@ -6,9 +6,40 @@
 
 namespace
 {
+	EYogComboGraphInputAction NormalizeInputAction(EYogComboGraphInputAction InputAction)
+	{
+		if (InputAction == EYogComboGraphInputAction::LegacyWeaponSkill)
+		{
+			return EYogComboGraphInputAction::WeaponSkill;
+		}
+		return InputAction;
+	}
+
+	bool IsKnownInputAction(EYogComboGraphInputAction InputAction)
+	{
+		switch (NormalizeInputAction(InputAction))
+		{
+		case EYogComboGraphInputAction::Attack:
+		case EYogComboGraphInputAction::WeaponSkill:
+		case EYogComboGraphInputAction::Dash:
+		case EYogComboGraphInputAction::Special:
+		case EYogComboGraphInputAction::Any:
+			return true;
+		default:
+			return false;
+		}
+	}
+
 	bool DoesInputMatch(EYogComboGraphInputAction Required, EYogComboGraphInputAction Input)
 	{
-		return Required == EYogComboGraphInputAction::Any || Required == Input;
+		Required = NormalizeInputAction(Required);
+		Input = NormalizeInputAction(Input);
+		if (!IsKnownInputAction(Required) || !IsKnownInputAction(Input) ||
+			Required == EYogComboGraphInputAction::Any || Input == EYogComboGraphInputAction::Any)
+		{
+			return false;
+		}
+		return Required == Input;
 	}
 
 	bool DoesEdgeStateMatch(const FGameplayTagQuery& StateRequirement, const FGameplayTagContainer* OwnedTags)
@@ -34,9 +65,15 @@ namespace
 
 	FString InputActionToString(EYogComboGraphInputAction InputAction)
 	{
+		InputAction = NormalizeInputAction(InputAction);
+		if (!IsKnownInputAction(InputAction))
+		{
+			return FString(TEXT("Invalid"));
+		}
+
 		const UEnum* Enum = StaticEnum<EYogComboGraphInputAction>();
 		return Enum
-			? Enum->GetNameStringByValue(static_cast<int64>(InputAction))
+			? Enum->GetDisplayNameTextByValue(static_cast<int64>(InputAction)).ToString()
 			: FString(TEXT("Any"));
 	}
 }
@@ -55,14 +92,16 @@ FText UGameplayAbilityComboGraphNode::GetDescription_Implementation() const
 	const FName RuntimeNodeId = GetRuntimeNodeId(this);
 	const FString MontageName = GetNameSafe(Montage);
 	return FText::FromString(FString::Printf(
-		TEXT("Node=%s\nRootInput=%s\nMontage=%s\nComboWindow=%s [%d-%d / %d]"),
+		TEXT("Node=%s\nRootInput=%s\nMontage=%s\nComboWindow=%s [%d-%d / %d]\nCardSlot=%s\nCardRole=%s"),
 		*RuntimeNodeId.ToString(),
 		*InputActionToString(RootInputAction),
 		Montage ? *MontageName : TEXT("None"),
 		bUseNodeComboWindow ? TEXT("Node") : TEXT("Montage Notify"),
 		ComboWindowStartFrame,
 		ComboWindowEndFrame,
-		TotalFrames));
+		TotalFrames,
+		CombatDeckActionSlotTag.IsValid() ? *CombatDeckActionSlotTag.ToString() : TEXT("RuntimeDefault"),
+		CombatDeckFlowRoleTag.IsValid() ? *CombatDeckFlowRoleTag.ToString() : TEXT("RuntimeDefault")));
 }
 
 #if WITH_EDITOR
@@ -113,9 +152,7 @@ UGameplayAbilityComboGraphEdge::UGameplayAbilityComboGraphEdge()
 #if WITH_EDITOR
 FText UGameplayAbilityComboGraphEdge::GetNodeTitle() const
 {
-	return StaticEnum<EYogComboGraphInputAction>()
-		? StaticEnum<EYogComboGraphInputAction>()->GetDisplayNameTextByValue(static_cast<int64>(InputAction))
-		: LOCTEXT("AnyInputEdge", "Any");
+	return FText::FromString(InputActionToString(InputAction));
 }
 #endif
 
@@ -194,6 +231,16 @@ const UGameplayAbilityComboGraphNode* UGameplayAbilityComboGraph::FindChildCombo
 	return nullptr;
 }
 
+TArray<TSubclassOf<UGameplayAbilityComboGraphNode>> UGameplayAbilityComboGraph::GetSupportedNodeClasses() const
+{
+	TArray<TSubclassOf<UGameplayAbilityComboGraphNode>> NodeClasses;
+	if (NodeType && NodeType->IsChildOf(UGameplayAbilityComboGraphNode::StaticClass()))
+	{
+		NodeClasses.Add(TSubclassOf<UGameplayAbilityComboGraphNode>(NodeType.Get()));
+	}
+	return NodeClasses;
+}
+
 void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) const
 {
 	OutWarnings.Reset();
@@ -239,17 +286,24 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 
 		if (ComboNode->ParentNodes.IsEmpty())
 		{
-			if (const FName* ExistingRoot = RootInputs.Find(ComboNode->RootInputAction))
+			const EYogComboGraphInputAction RootInputAction = NormalizeInputAction(ComboNode->RootInputAction);
+			if (!IsKnownInputAction(RootInputAction) || RootInputAction == EYogComboGraphInputAction::Any)
+			{
+				OutWarnings.Add(FText::FromString(FString::Printf(
+					TEXT("Root node %s has an invalid root input."),
+					*RuntimeNodeId.ToString())));
+			}
+			else if (const FName* ExistingRoot = RootInputs.Find(RootInputAction))
 			{
 				OutWarnings.Add(FText::FromString(FString::Printf(
 					TEXT("Root nodes %s and %s use the same root input %s."),
 					*ExistingRoot->ToString(),
 					*RuntimeNodeId.ToString(),
-					*InputActionToString(ComboNode->RootInputAction))));
+					*InputActionToString(RootInputAction))));
 			}
 			else
 			{
-				RootInputs.Add(ComboNode->RootInputAction, RuntimeNodeId);
+				RootInputs.Add(RootInputAction, RuntimeNodeId);
 			}
 		}
 
@@ -265,7 +319,17 @@ void UGameplayAbilityComboGraph::ValidateComboGraph(TArray<FText>& OutWarnings) 
 			}
 
 			const FName ChildNodeId = GetRuntimeNodeId(ChildComboNode);
-			const FString InputKeyPart = InputActionToString(ComboEdge->InputAction);
+			const EYogComboGraphInputAction EdgeInputAction = NormalizeInputAction(ComboEdge->InputAction);
+			if (!IsKnownInputAction(EdgeInputAction) || EdgeInputAction == EYogComboGraphInputAction::Any)
+			{
+				OutWarnings.Add(FText::FromString(FString::Printf(
+					TEXT("Edge from %s to %s has an invalid input."),
+					*RuntimeNodeId.ToString(),
+					*ChildNodeId.ToString())));
+				continue;
+			}
+
+			const FString InputKeyPart = InputActionToString(EdgeInputAction);
 			const FString ChildInputKey = FString::Printf(TEXT("%s:%s"), *RuntimeNodeId.ToString(), *InputKeyPart);
 			if (const FName* ExistingChild = ChildInputsByParent.Find(ChildInputKey))
 			{

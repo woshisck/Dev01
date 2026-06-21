@@ -12,8 +12,8 @@
 UENUM(BlueprintType)
 enum class EPlayerActionInput : uint8
 {
-	HeavyAttack,
-	LightAttack,
+	WeaponSkill,
+	Attack,
 	Dash,
 	Projectile,
 	None

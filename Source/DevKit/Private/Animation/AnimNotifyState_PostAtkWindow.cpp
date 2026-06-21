@@ -5,11 +5,11 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/BufferComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 
 UAnimNotifyState_PostAtkWindow::UAnimNotifyState_PostAtkWindow()
 {
     TagToClearOnActionInput = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+    RecoveryWindowTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
 }
 
 void UAnimNotifyState_PostAtkWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
@@ -22,11 +22,31 @@ void UAnimNotifyState_PostAtkWindow::NotifyBegin(USkeletalMeshComponent* MeshCom
         BeginTime = World->GetTimeSeconds();
     }
     bStopRequested = false;
+
+    if (RecoveryWindowTag.IsValid())
+    {
+        UAbilitySystemComponent* ASC =
+            UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MeshComp ? MeshComp->GetOwner() : nullptr);
+        if (ASC)
+        {
+            ASC->SetLooseGameplayTagCount(RecoveryWindowTag, 1);
+        }
+    }
 }
 
 void UAnimNotifyState_PostAtkWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
     const FAnimNotifyEventReference& EventReference)
 {
+    if (RecoveryWindowTag.IsValid())
+    {
+        UAbilitySystemComponent* ASC =
+            UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MeshComp ? MeshComp->GetOwner() : nullptr);
+        if (ASC)
+        {
+            ASC->SetLooseGameplayTagCount(RecoveryWindowTag, 0);
+        }
+    }
+
     Super::NotifyEnd(MeshComp, Animation, EventReference);
 }
 
@@ -49,19 +69,12 @@ void UAnimNotifyState_PostAtkWindow::NotifyTick(USkeletalMeshComponent* MeshComp
 
     // ── 攻击输入：清 CanCombo tag，新 GA 激活后通过 GAS 流程停止蒙太奇，此处不干预 ──
     const bool bHasAtkInput =
-        Buffer->HasBufferedInputSince(EInputCommandType::LightAttack, BeginTime) ||
-        Buffer->HasBufferedInputSince(EInputCommandType::HeavyAttack, BeginTime);
+        Buffer->HasBufferedInputSince(EInputCommandType::Attack, BeginTime) ||
+        Buffer->HasBufferedInputSince(EInputCommandType::WeaponSkill, BeginTime) ||
+        Buffer->HasBufferedInputSince(EInputCommandType::Special, BeginTime);
 
     if (bHasAtkInput)
     {
-        if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Character))
-        {
-            if (Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->HasComboSource())
-            {
-                return;
-            }
-        }
-
         if (TagToClearOnActionInput.IsValid())
         {
             UAbilitySystemComponent* ASC =

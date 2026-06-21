@@ -59,6 +59,10 @@ struct FRunState
 	UPROPERTY()
 	TObjectPtr<UWeaponDefinition> EquippedWeaponDef;
 
+	// 切关前备用槽武器 DA（新关卡恢复后保持隐藏备用）
+	UPROPERTY()
+	TObjectPtr<UWeaponDefinition> InactiveWeaponDef;
+
 	// 整理阶段已选但尚未放入格子的符文（新关卡恢复后放回 PendingRunes）
 	UPROPERTY()
 	TArray<FRuneInstance> PendingRunes;
@@ -76,6 +80,19 @@ struct FRunState
 
 	UPROPERTY()
 	int32 CombatDeckMaxActiveSequenceSize = 0;
+
+	// 备用武器卡组源资产顺序：切关/读档后恢复 inactive weapon slot
+	UPROPERTY()
+	TArray<TObjectPtr<URuneDataAsset>> InactiveCombatDeckCards;
+
+	UPROPERTY()
+	TArray<ECombatCardLinkOrientation> InactiveCombatDeckCardOrientations;
+
+	UPROPERTY()
+	float InactiveCombatDeckShuffleCooldownDuration = 1.0f;
+
+	UPROPERTY()
+	int32 InactiveCombatDeckMaxActiveSequenceSize = 0;
 
 	UPROPERTY()
 	int32 CompletedCombatBattleCount = 0;

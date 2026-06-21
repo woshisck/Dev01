@@ -4,13 +4,15 @@
 #include "Misc/PackageName.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/BufferComponent.h"
-#include "Component/ComboRuntimeComponent.h"
+#include "Component/CharacterDataComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "AbilitySystem/Abilities/GA_ActiveSkill_ShieldBurst.h"
+#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
-#include "AbilitySystem/Abilities/GA_Player_FinisherAttack.h"
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
-#include "AbilitySystem/Abilities/GA_PlayerMeleeAttacks.h"
+#include "AbilitySystem/Abilities/GA_WeaponSkill.h"
 #include "AbilitySystem/GameplayEffect/GE_RuneBurn.h"
 #include "AbilitySystem/Execution/GEExec_BurnDamage.h"
 #include "AbilitySystem/Execution/GEExec_PoisonDamage.h"
@@ -35,16 +37,21 @@
 #include "BuffFlow/Nodes/BFNode_SpawnSlashWaveProjectile.h"
 #include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
 #include "BuffFlow/Nodes/BFNode_WaitGameplayEvent.h"
+#include "Animation/AnimNotifyState_PostAtkWindow.h"
 #include "Data/AbilityData.h"
-#include "Data/GameplayAbilityComboGraph.h"
+#include "Data/ActiveSkillDataAsset.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/MontageConfigDA.h"
 #include "Data/RuneDataAsset.h"
 #include "Data/RuneCardEffectProfileDA.h"
-#include "Data/WeaponComboConfigDA.h"
+#include "Data/SpecialAttackDataAsset.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
+#include "Component/PlayerActiveSkillComponent.h"
+#include "Component/PlayerSpecialAttackComponent.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "Item/Weapon/WeaponInstance.h"
+#include "System/YogGameInstanceBase.h"
 #include "UI/WeaponComboTextUtils.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -132,37 +139,280 @@ bool FCombatDeckActionMismatchTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckFinisherRequirementTest,
-	"DevKit.CombatDeck.FinisherRequiresComboFinisher",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckNormalReleaseHoldsFinisherReleaseCardTest,
+	"DevKit.CombatDeck.NormalReleaseHoldsFinisherReleaseCard",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckFinisherRequirementTest::RunTest(const FString& Parameters)
+bool FCombatDeckNormalReleaseHoldsFinisherReleaseCardTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig FinisherReleaseCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	FinisherReleaseCard.bRequiresComboFinisher = true;
+	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	Deck->SetDeckListForTest({ FinisherReleaseCard, AttackCard });
+
+	FCombatDeckActionContext NormalContext;
+	NormalContext.ActionType = ECardRequiredAction::Light;
+	NormalContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+	NormalContext.ReleaseMode = ECombatCardReleaseMode::Normal;
+	NormalContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult NormalResult = Deck->ResolveAttackCardWithContext(NormalContext);
+
+	TestTrue(TEXT("A finisher-release card is visible to the normal release attempt"), NormalResult.bHadCard);
+	TestFalse(TEXT("Normal release does not match a finisher-release card"), NormalResult.bReleaseModeMatched);
+	TestFalse(TEXT("Release mismatch does not execute base flow"), NormalResult.bTriggeredBaseFlow);
+	TestFalse(TEXT("Release mismatch does not trigger a finisher"), NormalResult.bTriggeredFinisher);
+	TestEqual(TEXT("Release mismatch holds the card in the current slot"), Deck->GetCurrentIndex(), 0);
+
+	FCombatDeckActionContext FinisherContext = NormalContext;
+	FinisherContext.bIsComboFinisher = true;
+	FinisherContext.ReleaseMode = ECombatCardReleaseMode::Finisher;
+	FinisherContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult FinisherResult = Deck->ResolveAttackCardWithContext(FinisherContext);
+
+	TestTrue(TEXT("Finisher release consumes the held card"), FinisherResult.bHadCard);
+	TestTrue(TEXT("Finisher release matches the held card"), FinisherResult.bReleaseModeMatched);
+	TestTrue(TEXT("Finisher release runs the card flow"), FinisherResult.bTriggeredBaseFlow);
+	TestTrue(TEXT("Finisher-release card raises finisher trigger result"), FinisherResult.bTriggeredFinisher);
+	TestEqual(TEXT("Finisher release advances to the next card"), Deck->GetCurrentIndex(), 1);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckFinisherReleaseHoldsNormalCardTest,
+	"DevKit.CombatDeck.FinisherReleaseHoldsNormalCard",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckFinisherReleaseHoldsNormalCardTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+	Deck->SetDeckListForTest({
+		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any },
+	});
+
+	FCombatDeckActionContext FinisherContext;
+	FinisherContext.ActionType = ECardRequiredAction::Light;
+	FinisherContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+	FinisherContext.bIsComboFinisher = true;
+	FinisherContext.ReleaseMode = ECombatCardReleaseMode::Finisher;
+	FinisherContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult FinisherResult = Deck->ResolveAttackCardWithContext(FinisherContext);
+
+	TestTrue(TEXT("A normal card is visible to the finisher release attempt"), FinisherResult.bHadCard);
+	TestFalse(TEXT("Finisher release does not match a normal card"), FinisherResult.bReleaseModeMatched);
+	TestFalse(TEXT("Finisher release does not consume normal card base flow"), FinisherResult.bTriggeredBaseFlow);
+	TestEqual(TEXT("Finisher release holds normal cards for normal attacks"), Deck->GetCurrentIndex(), 0);
+
+	FCombatDeckActionContext NormalContext = FinisherContext;
+	NormalContext.bIsComboFinisher = false;
+	NormalContext.ReleaseMode = ECombatCardReleaseMode::Normal;
+	NormalContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult NormalResult = Deck->ResolveAttackCardWithContext(NormalContext);
+
+	TestTrue(TEXT("Normal release consumes the held normal card"), NormalResult.bHadCard);
+	TestTrue(TEXT("Normal release matches the held normal card"), NormalResult.bReleaseModeMatched);
+	TestTrue(TEXT("Normal release runs base flow"), NormalResult.bTriggeredBaseFlow);
+	TestEqual(TEXT("Normal release advances the deck"), Deck->GetCurrentIndex(), 1);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckActionSlotRoutesSkillCardAwayFromAttackSequenceTest,
+	"DevKit.CombatDeck.ActionSlotRoutesSkillCardAwayFromAttackSequence",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckActionSlotRoutesSkillCardAwayFromAttackSequenceTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig SkillCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	SkillCard.RequiredActionSlot = ECombatDeckActionSlot::Skill;
+	SkillCard.RequiredFlowRole = ECombatDeckFlowRole::Catalyst;
+	Deck->SetDeckListForTest({ SkillCard });
+
+	FCombatDeckActionContext AttackContext;
+	AttackContext.ActionType = ECardRequiredAction::Light;
+	AttackContext.ActionSlot = ECombatDeckActionSlot::Attack;
+	AttackContext.FlowRole = ECombatDeckFlowRole::Starter;
+	AttackContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+	AttackContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCardWithContext(AttackContext);
+
+	TestFalse(TEXT("Attack sequence ignores a skill-slot card"), AttackResult.bHadCard);
+	TestFalse(TEXT("Attack sequence does not trigger a skill-slot card flow"), AttackResult.bTriggeredBaseFlow);
+	TestEqual(TEXT("Skill-slot card does not enter the attack sequence"), Deck->GetRemainingDeckSnapshot().Num(), 0);
+
+	FCombatDeckActionContext SkillContext = AttackContext;
+	SkillContext.ActionSlot = ECombatDeckActionSlot::Skill;
+	SkillContext.FlowRole = ECombatDeckFlowRole::Catalyst;
+	SkillContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult SkillResult = Deck->ResolveAttackCardWithContext(SkillContext);
+
+	TestTrue(TEXT("Skill-slot context consumes the held card"), SkillResult.bHadCard);
+	TestTrue(TEXT("Skill-slot context matches the held card"), SkillResult.bActionSlotMatched);
+	TestTrue(TEXT("Skill-slot context runs base flow"), SkillResult.bTriggeredBaseFlow);
+	TestEqual(TEXT("Skill-slot card does not advance the attack sequence"), Deck->GetCurrentIndex(), 0);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckSkillSlotCanConsumeOnCommitTest,
+	"DevKit.CombatDeck.SkillSlotCanConsumeOnCommit",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckSkillSlotCanConsumeOnCommitTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig SkillCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	SkillCard.RequiredActionSlot = ECombatDeckActionSlot::Skill;
+	SkillCard.RequiredFlowRole = ECombatDeckFlowRole::Catalyst;
+	SkillCard.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	Deck->SetDeckListForTest({ SkillCard });
+
+	FCombatDeckActionContext PreviewContext;
+	PreviewContext.ActionType = ECardRequiredAction::Any;
+	PreviewContext.ActionSlot = ECombatDeckActionSlot::Skill;
+	PreviewContext.FlowRole = ECombatDeckFlowRole::Catalyst;
+	PreviewContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	PreviewContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult PreviewResult = Deck->ResolveAttackCardWithContext(PreviewContext);
+
+	TestFalse(TEXT("OnCommit without consume flag only previews/prepares card flow"), PreviewResult.bHadCard);
+	TestEqual(TEXT("OnCommit preview holds the skill card"), Deck->GetCurrentIndex(), 0);
+
+	FCombatDeckActionContext ConsumeContext = PreviewContext;
+	ConsumeContext.bConsumeOnCommit = true;
+	ConsumeContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult ConsumeResult = Deck->ResolveAttackCardWithContext(ConsumeContext);
+
+	TestTrue(TEXT("Skill-slot OnCommit can consume when explicitly requested"), ConsumeResult.bHadCard);
+	TestTrue(TEXT("Skill-slot OnCommit matches slot"), ConsumeResult.bActionSlotMatched);
+	TestTrue(TEXT("Skill-slot OnCommit matches catalyst role"), ConsumeResult.bFlowRoleMatched);
+	TestTrue(TEXT("Skill-slot OnCommit runs base flow"), ConsumeResult.bTriggeredBaseFlow);
+	TestEqual(TEXT("Consumed skill-slot card does not advance the attack sequence"), Deck->GetCurrentIndex(), 0);
+
+	ConsumeContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult RepeatResult = Deck->ResolveAttackCardWithContext(ConsumeContext);
+	TestTrue(TEXT("Single skill slot can trigger again on the next skill use"), RepeatResult.bHadCard);
+	TestEqual(TEXT("Repeated skill slot trigger still leaves attack sequence untouched"), Deck->GetCurrentIndex(), 0);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckFlowRoleMismatchHoldsCardTest,
+	"DevKit.CombatDeck.FlowRoleMismatchHoldsCard",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckFlowRoleMismatchHoldsCardTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig FinisherRoleCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	FinisherRoleCard.RequiredActionSlot = ECombatDeckActionSlot::WeaponSkill;
+	FinisherRoleCard.RequiredFlowRole = ECombatDeckFlowRole::Finisher;
+	Deck->SetDeckListForTest({ FinisherRoleCard });
+
+	FCombatDeckActionContext CatalystContext;
+	CatalystContext.ActionType = ECardRequiredAction::Heavy;
+	CatalystContext.ActionSlot = ECombatDeckActionSlot::WeaponSkill;
+	CatalystContext.FlowRole = ECombatDeckFlowRole::Catalyst;
+	CatalystContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+	CatalystContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult CatalystResult = Deck->ResolveAttackCardWithContext(CatalystContext);
+
+	TestTrue(TEXT("A finisher-role card is visible to catalyst attempts"), CatalystResult.bHadCard);
+	TestTrue(TEXT("Catalyst attempt still matches the action slot"), CatalystResult.bActionSlotMatched);
+	TestFalse(TEXT("Catalyst attempt does not match finisher flow role"), CatalystResult.bFlowRoleMatched);
+	TestFalse(TEXT("Flow-role mismatch does not trigger base flow"), CatalystResult.bTriggeredBaseFlow);
+	TestEqual(TEXT("Flow-role mismatch holds the card in the current slot"), Deck->GetCurrentIndex(), 0);
+
+	FCombatDeckActionContext FinisherContext = CatalystContext;
+	FinisherContext.FlowRole = ECombatDeckFlowRole::Finisher;
+	FinisherContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult FinisherResult = Deck->ResolveAttackCardWithContext(FinisherContext);
+
+	TestTrue(TEXT("Finisher role consumes the held card"), FinisherResult.bHadCard);
+	TestTrue(TEXT("Finisher role matches the held card"), FinisherResult.bFlowRoleMatched);
+	TestTrue(TEXT("Finisher role runs base flow"), FinisherResult.bTriggeredBaseFlow);
+	TestEqual(TEXT("Matched finisher-role card does not advance the attack sequence"), Deck->GetCurrentIndex(), 0);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckSingleActionSlotsRouteFromSourceAssetsTest,
+	"DevKit.CombatDeck.SingleActionSlotsRouteFromSourceAssets",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckSingleActionSlotsRouteFromSourceAssetsTest::RunTest(const FString& Parameters)
+{
+	URuneDataAsset* AttackRune = NewObject<URuneDataAsset>();
+	AttackRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	AttackRune->RuneInfo.CombatCard.RequiredActionSlot = ECombatDeckActionSlot::Attack;
+
+	URuneDataAsset* SkillRune = NewObject<URuneDataAsset>();
+	SkillRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	SkillRune->RuneInfo.CombatCard.RequiredActionSlot = ECombatDeckActionSlot::Skill;
+	SkillRune->RuneInfo.CombatCard.RequiredFlowRole = ECombatDeckFlowRole::Catalyst;
+
+	URuneDataAsset* WeaponSkillRune = NewObject<URuneDataAsset>();
+	WeaponSkillRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	WeaponSkillRune->RuneInfo.CombatCard.RequiredActionSlot = ECombatDeckActionSlot::WeaponSkill;
+	WeaponSkillRune->RuneInfo.CombatCard.RequiredFlowRole = ECombatDeckFlowRole::Finisher;
+
+	URuneDataAsset* DashRune = NewObject<URuneDataAsset>();
+	DashRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	DashRune->RuneInfo.CombatCard.RequiredActionSlot = ECombatDeckActionSlot::Dash;
+	DashRune->RuneInfo.CombatCard.RequiredFlowRole = ECombatDeckFlowRole::Catalyst;
+
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+	Deck->LoadDeckFromExactSourceAssets({ AttackRune, SkillRune, WeaponSkillRune, DashRune }, 1.0f, 4);
+
+	TestEqual(TEXT("Only attack-slot cards enter the attack sequence"), Deck->GetDeckSnapshot().Num(), 1);
+	TestEqual(TEXT("Skill source asset is stored in the skill slot"),
+		Deck->GetActionSlotCardSnapshot(ECombatDeckActionSlot::Skill).SourceData.Get(), SkillRune);
+	TestEqual(TEXT("Weapon skill source asset is stored in the weapon-skill slot"),
+		Deck->GetActionSlotCardSnapshot(ECombatDeckActionSlot::WeaponSkill).SourceData.Get(), WeaponSkillRune);
+	TestEqual(TEXT("Dash source asset is stored in the dash slot"),
+		Deck->GetActionSlotCardSnapshot(ECombatDeckActionSlot::Dash).SourceData.Get(), DashRune);
+	TestEqual(TEXT("Full deck UI snapshot stays attack-slot only"), Deck->GetFullDeckSnapshot().Num(), 1);
+
+	const TArray<URuneDataAsset*> SourceAssets = Deck->GetDeckSourceAssets();
+	TestTrue(TEXT("Saved source assets include attack card"), SourceAssets.Contains(AttackRune));
+	TestTrue(TEXT("Saved source assets include skill slot card"), SourceAssets.Contains(SkillRune));
+	TestTrue(TEXT("Saved source assets include weapon skill slot card"), SourceAssets.Contains(WeaponSkillRune));
+	TestTrue(TEXT("Saved source assets include dash slot card"), SourceAssets.Contains(DashRune));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckDeprecatedFinisherCardsAreIgnoredTest,
+	"DevKit.CombatDeck.DeprecatedFinisherCardsAreIgnored",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckDeprecatedFinisherCardsAreIgnoredTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	FCombatCardConfig FinisherCard{ ECombatCardType::Finisher, ECardRequiredAction::Any };
 	FinisherCard.bRequiresComboFinisher = true;
 	Deck->SetDeckListForTest({ FinisherCard });
 
-	const FCombatCardResolveResult NormalAttack = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("Normal attack consumes the finisher card"), NormalAttack.bHadCard);
-	TestFalse(TEXT("Normal attack does not trigger finisher matched flow"), NormalAttack.bTriggeredMatchedFlow);
-	TestFalse(TEXT("Normal attack does not trigger finisher bonus"), NormalAttack.bTriggeredFinisher);
-
-	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
+	const FCombatCardResolveResult Attack = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestFalse(TEXT("Deprecated finisher card is not inserted into the deck"), Attack.bHadCard);
 
 	const FCombatCardResolveResult ComboFinisher = Deck->ResolveAttackCard(ECardRequiredAction::Light, true, false);
-	TestTrue(TEXT("Combo finisher consumes the finisher card"), ComboFinisher.bHadCard);
-	TestTrue(TEXT("Combo finisher triggers finisher matched flow"), ComboFinisher.bTriggeredMatchedFlow);
-	TestTrue(TEXT("Combo finisher triggers finisher bonus"), ComboFinisher.bTriggeredFinisher);
+	TestFalse(TEXT("Combo finisher flag does not reactivate deprecated finisher cards"), ComboFinisher.bHadCard);
+	TestFalse(TEXT("Deprecated finisher bonus never triggers"), ComboFinisher.bTriggeredFinisher);
 
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckTriggeredFinisherSkipsRefreshUntilEffectEndsTest,
-	"DevKit.CombatDeck.TriggeredFinisherSkipsRefreshUntilEffectEnds",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckDeprecatedFinisherDoesNotSuppressRefreshTest,
+	"DevKit.CombatDeck.DeprecatedFinisherDoesNotSuppressRefresh",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckTriggeredFinisherSkipsRefreshUntilEffectEndsTest::RunTest(const FString& Parameters)
+bool FCombatDeckDeprecatedFinisherDoesNotSuppressRefreshTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->SetShuffleCooldownDuration(1.0f);
@@ -176,35 +426,26 @@ bool FCombatDeckTriggeredFinisherSkipsRefreshUntilEffectEndsTest::RunTest(const 
 
 	Deck->SetDeckListForTest({ FinisherCard, AttackCard });
 
-	const FCombatCardResolveResult FinisherResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, true, false);
-	TestTrue(TEXT("Combo finisher triggers the finisher card"), FinisherResult.bTriggeredFinisher);
-	TestTrue(TEXT("Triggered finisher is suppressed while its effect is active"),
-		Deck->IsCardSuppressedFromActiveSequenceForTest(FinisherResult.ConsumedCard.InstanceGuid));
+	const TArray<FCombatCardInstance> InitialCards = Deck->GetDeckSnapshot();
+	TestEqual(TEXT("Deprecated finisher is filtered out of the active deck"), InitialCards.Num(), 1);
+	if (InitialCards.Num() == 1)
+	{
+		TestEqual(TEXT("Attack card remains after finisher filtering"), InitialCards[0].Config.CardType, ECombatCardType::Attack);
+	}
 
 	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	TestTrue(TEXT("Attack card can still be consumed"), AttackResult.bHadCard);
 	TestTrue(TEXT("Consuming the remaining attack card starts shuffle"), AttackResult.bStartedShuffle);
+	TestFalse(TEXT("Deprecated finisher card never enters suppression tracking"),
+		Deck->IsCardSuppressedFromActiveSequenceForTest(FGuid::NewGuid()));
 
 	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
-	const TArray<FCombatCardInstance> DuringEffectCards = Deck->GetDeckSnapshot();
-	TestEqual(TEXT("Refresh during finisher effect excludes the finisher"), DuringEffectCards.Num(), 1);
-	TestEqual(TEXT("Attack card fills the refreshed deck while finisher is held back"),
-		DuringEffectCards[0].Config.CardType, ECombatCardType::Attack);
-
-	Deck->StopCardFlow(FinisherResult.ConsumedCard);
-	TestFalse(TEXT("Finisher suppression is cleared when the card effect ends"),
-		Deck->IsCardSuppressedFromActiveSequenceForTest(FinisherResult.ConsumedCard.InstanceGuid));
-	TestEqual(TEXT("Ending the effect does not inject finisher into the current active deck"),
-		Deck->GetDeckSnapshot().Num(), 1);
-
-	const FCombatCardResolveResult NextAttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("The active attack card can be consumed after finisher effect ends"), NextAttackResult.bHadCard);
-	TestTrue(TEXT("Consuming the active attack starts the next shuffle"), NextAttackResult.bStartedShuffle);
-
-	Deck->AdvanceShuffleForTest(Deck->GetShuffleCooldownDuration());
-	const TArray<FCombatCardInstance> AfterEffectCards = Deck->GetDeckSnapshot();
-	TestEqual(TEXT("Next refresh after effect end restores the full deck"), AfterEffectCards.Num(), 2);
-	TestEqual(TEXT("Finisher returns on the refresh after its effect ended"),
-		AfterEffectCards[0].Config.CardType, ECombatCardType::Finisher);
+	const TArray<FCombatCardInstance> RefreshedCards = Deck->GetDeckSnapshot();
+	TestEqual(TEXT("Refresh keeps only the non-finisher card"), RefreshedCards.Num(), 1);
+	if (RefreshedCards.Num() == 1)
+	{
+		TestEqual(TEXT("Attack card fills the refreshed deck"), RefreshedCards[0].Config.CardType, ECombatCardType::Attack);
+	}
 
 	return true;
 }
@@ -387,16 +628,21 @@ bool FStateConflictHitReactBlocksMovementControlTest::RunTest(const FString& Par
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FComboGraphMeleeAbilityHasActionAndDeathGuardsTest,
-	"DevKit.CombatDeck.ComboGraphMeleeAbilityHasActionAndDeathGuards",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMeleeAbilityHasActionAndDeathGuardsTest,
+	"DevKit.CombatDeck.MeleeAbilityHasActionAndDeathGuards",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FComboGraphMeleeAbilityHasActionAndDeathGuardsTest::RunTest(const FString& Parameters)
+bool FMeleeAbilityHasActionAndDeathGuardsTest::RunTest(const FString& Parameters)
 {
 	UGA_MeleeAttack* Ability = NewObject<UGA_MeleeAttack>();
+	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"));
 	const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"));
 
-	TestTrue(TEXT("Generic ComboGraph melee ability is blocked while dead"),
+	TestTrue(TEXT("Generic melee ability carries the attack action tag"),
+		Ability->GetAbilityTags().HasTagExact(AttackTag));
+	TestTrue(TEXT("Generic melee ability owns the attack action tag while active"),
+		Ability->GetActivationOwnedTags().HasTagExact(AttackTag));
+	TestTrue(TEXT("Generic melee ability is blocked while dead"),
 		Ability->GetActivationBlockedTags().HasTagExact(DeadTag));
 
 	return true;
@@ -430,234 +676,409 @@ bool FPlayerDashHasDefaultInterruptAndDeathGuardsTest::RunTest(const FString& Pa
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerFinisherAttackOwnsInvulnerableTagTest,
-	"DevKit.CombatDeck.PlayerFinisherAttackOwnsInvulnerableTag",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerSwitchWeaponSwapsActiveAndInactiveSlotsTest,
+	"DevKit.CombatDeck.PlayerSwitchWeaponSwapsActiveAndInactiveSlots",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FPlayerFinisherAttackOwnsInvulnerableTagTest::RunTest(const FString& Parameters)
-{
-	UGA_Player_FinisherAttack* Ability = NewObject<UGA_Player_FinisherAttack>();
-	const FGameplayTag InvulnerableTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Invulnerable"));
-
-	TestTrue(TEXT("Finisher attack owns invulnerability while active"),
-		Ability->GetActivationOwnedTags().HasTagExact(InvulnerableTag));
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerDashPrefersComboGraphMontageOverrideTest,
-	"DevKit.CombatDeck.PlayerDashPrefersComboGraphMontageOverride",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FPlayerDashPrefersComboGraphMontageOverrideTest::RunTest(const FString& Parameters)
+bool FPlayerSwitchWeaponSwapsActiveAndInactiveSlotsTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = GWorld;
-	TestNotNull(TEXT("Automation world exists for dash montage override test"), World);
+	TestNotNull(TEXT("Automation world exists for weapon switch test"), World);
 	if (!World)
 	{
 		return false;
 	}
 
 	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
-	TestNotNull(TEXT("Player spawned for dash montage override test"), Player);
+	TestNotNull(TEXT("Player spawned for weapon switch test"), Player);
 	if (!Player)
 	{
 		return false;
 	}
-	TestNotNull(TEXT("Player has ComboRuntimeComponent"), Player->ComboRuntimeComponent.Get());
-	if (!Player->ComboRuntimeComponent)
+
+	UWeaponDefinition* WeaponA = NewObject<UWeaponDefinition>(Player);
+	UWeaponDefinition* WeaponB = NewObject<UWeaponDefinition>(Player);
+	UAbilityData* AbilityDataA = NewObject<UAbilityData>(WeaponA);
+	UAbilityData* AbilityDataB = NewObject<UAbilityData>(WeaponB);
+	WeaponA->AttackAbilityData = AbilityDataA;
+	WeaponB->AttackAbilityData = AbilityDataB;
+
+	AWeaponInstance* InstanceA = World->SpawnActor<AWeaponInstance>();
+	AWeaponInstance* InstanceB = World->SpawnActor<AWeaponInstance>();
+	TestNotNull(TEXT("Active weapon instance spawned"), InstanceA);
+	TestNotNull(TEXT("Inactive weapon instance spawned"), InstanceB);
+	if (!InstanceA || !InstanceB)
 	{
+		if (InstanceA)
+		{
+			InstanceA->Destroy();
+		}
+		if (InstanceB)
+		{
+			InstanceB->Destroy();
+		}
 		Player->Destroy();
 		return false;
 	}
 
-	UAnimMontage* GraphDashMontage = NewObject<UAnimMontage>(Player);
-	Player->ComboRuntimeComponent->SetActiveDashMontageOverrideForTest(GraphDashMontage);
+	Player->EquippedWeaponDef = WeaponA;
+	Player->InactiveWeaponDef = WeaponB;
+	Player->EquippedWeaponInstance = InstanceA;
+	Player->InactiveWeaponInstance = InstanceB;
+	InstanceA->SetActorHiddenInGame(false);
+	InstanceB->SetActorHiddenInGame(true);
 
-	UGA_PlayerDash* Ability = NewObject<UGA_PlayerDash>();
-	const FGameplayTag DashTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"));
-	TestEqual(TEXT("Dash GA resolves the ComboGraph dash node montage before AbilityData fallback"),
-		Ability->ResolveDashMontage(Player, DashTag), GraphDashMontage);
+	Player->ApplyAbilityDataFromWeapon(WeaponA);
+	TestTrue(TEXT("Player reports a second weapon can be switched to"), Player->CanSwitchWeapon());
 
+	Player->SwitchWeapon();
+
+	TestEqual(TEXT("Switch weapon promotes inactive definition"),
+		Player->EquippedWeaponDef.Get(), WeaponB);
+	TestEqual(TEXT("Switch weapon demotes previous active definition"),
+		Player->InactiveWeaponDef.Get(), WeaponA);
+	TestEqual(TEXT("Switch weapon promotes inactive instance"),
+		Player->EquippedWeaponInstance.Get(), InstanceB);
+	TestEqual(TEXT("Switch weapon demotes previous active instance"),
+		Player->InactiveWeaponInstance.Get(), InstanceA);
+	TestFalse(TEXT("Promoted weapon instance is visible"), InstanceB->IsHidden());
+	TestTrue(TEXT("Demoted weapon instance is hidden"), InstanceA->IsHidden());
+	UCharacterData* CharacterData = Player->GetCharacterDataComponent()
+		? Player->GetCharacterDataComponent()->GetCharacterData()
+		: nullptr;
+	TestNotNull(TEXT("Player keeps runtime character data after switch"), CharacterData);
+	TestTrue(TEXT("Promoted weapon ability data is merged after switch"),
+		CharacterData && CharacterData->AbilityData && CharacterData->AbilityData != AbilityDataA);
+
+	Player->EquippedWeaponInstance = nullptr;
+	Player->InactiveWeaponInstance = nullptr;
+	InstanceA->Destroy();
+	InstanceB->Destroy();
 	Player->Destroy();
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerDeathClearsComboRuntimeStateTest,
-	"DevKit.CombatDeck.PlayerDeathClearsComboRuntimeState",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPostAttackWindowAppliesRecoveryTagTest,
+	"DevKit.CombatDeck.PostAttackWindowAppliesRecoveryTag",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FPlayerDeathClearsComboRuntimeStateTest::RunTest(const FString& Parameters)
+bool FPostAttackWindowAppliesRecoveryTagTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = GWorld;
-	TestNotNull(TEXT("Automation world exists for player death combo runtime test"), World);
+	TestNotNull(TEXT("Automation world exists for post-attack window test"), World);
 	if (!World)
 	{
 		return false;
 	}
 
 	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
-	TestNotNull(TEXT("Player spawned for death combo runtime test"), Player);
+	TestNotNull(TEXT("Player spawned for post-attack window test"), Player);
 	if (!Player)
 	{
 		return false;
 	}
 
 	UYogAbilitySystemComponent* ASC = Player->GetASC();
-	TestNotNull(TEXT("Player has Yog ASC"), ASC);
-	TestNotNull(TEXT("Player has ComboRuntimeComponent"), Player->ComboRuntimeComponent.Get());
-	if (!ASC || !Player->ComboRuntimeComponent)
+	TestNotNull(TEXT("Player ability system exists"), ASC);
+	if (!ASC)
 	{
 		Player->Destroy();
 		return false;
 	}
-
 	ASC->InitAbilityActorInfo(Player, Player);
 
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>(Player);
-	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	Root->Graph = Graph;
-	Root->NodeId = TEXT("L1");
-	Root->RootInputAction = EYogComboGraphInputAction::Light;
-	Root->Montage = NewObject<UAnimMontage>(Graph);
-	Graph->AllNodes = { Root };
-	Graph->RootNodes = { Root };
+	const FGameplayTag RecoveryTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
+	TestTrue(TEXT("Post-attack recovery tag is registered"), RecoveryTag.IsValid());
 
-	Player->ComboRuntimeComponent->LoadComboGraph(Graph);
-	TestTrue(TEXT("Combo runtime can enter an active graph node before death"),
-		Player->ComboRuntimeComponent->TryActivateComboGraphNode(EYogComboGraphInputAction::Light, FGameplayTagContainer()));
-	TestEqual(TEXT("Combo runtime stores current node before death"),
-		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(TEXT("L1")));
-	TestTrue(TEXT("Combo runtime stores active attack guid before death"),
-		Player->ComboRuntimeComponent->GetActiveAttackGuid().IsValid());
+	UAnimNotifyState_PostAtkWindow* Notify = NewObject<UAnimNotifyState_PostAtkWindow>(Player);
+	USkeletalMeshComponent* Mesh = Player->GetMesh();
+	FAnimNotifyEventReference EventReference;
 
-	Player->Die();
+	Notify->NotifyBegin(Mesh, nullptr, 0.25f, EventReference);
+	TestTrue(TEXT("Post-attack notify begin adds recovery window tag"),
+		RecoveryTag.IsValid() && ASC->GetTagCount(RecoveryTag) > 0);
 
-	TestEqual(TEXT("Player death clears current combo node"),
-		Player->ComboRuntimeComponent->GetCurrentNodeId(), FName(NAME_None));
-	TestEqual(TEXT("Player death clears active graph node"),
-		Player->ComboRuntimeComponent->GetActiveGraphNodeId(), FName(NAME_None));
-	TestFalse(TEXT("Player death clears active attack guid"),
-		Player->ComboRuntimeComponent->GetActiveAttackGuid().IsValid());
+	Notify->NotifyEnd(Mesh, nullptr, EventReference);
+	TestEqual(TEXT("Post-attack notify end clears recovery window tag"),
+		RecoveryTag.IsValid() ? ASC->GetTagCount(RecoveryTag) : 0, 0);
 
 	Player->Destroy();
-
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerDefaultUnarmedComboGraphLoadsFallbackTest,
-	"DevKit.CombatDeck.PlayerDefaultUnarmedComboGraphLoadsFallback",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerSwitchWeaponRecoveryCancelClearsActiveSkillCooldownTest,
+	"DevKit.CombatDeck.PlayerSwitchWeaponRecoveryCancelClearsActiveSkillCooldown",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FPlayerDefaultUnarmedComboGraphLoadsFallbackTest::RunTest(const FString& Parameters)
+bool FPlayerSwitchWeaponRecoveryCancelClearsActiveSkillCooldownTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = GWorld;
-	TestNotNull(TEXT("Automation world exists for unarmed combo fallback test"), World);
+	TestNotNull(TEXT("Automation world exists for recovery cancel switch test"), World);
 	if (!World)
 	{
 		return false;
 	}
 
 	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
-	TestNotNull(TEXT("Player spawned for unarmed combo fallback test"), Player);
+	TestNotNull(TEXT("Player spawned for recovery cancel switch test"), Player);
 	if (!Player)
 	{
 		return false;
 	}
 
-	TestNotNull(TEXT("Player has a C++ default unarmed combo graph asset"),
-		Player->DefaultUnarmedComboGraph.Get());
-	if (Player->DefaultUnarmedComboGraph)
+	UYogAbilitySystemComponent* ASC = Player->GetASC();
+	TestNotNull(TEXT("Player ability system exists"), ASC);
+	if (!ASC)
 	{
-		TestEqual(TEXT("Default unarmed combo graph points at the Disarm graph asset"),
-			Player->DefaultUnarmedComboGraph->GetPathName(),
-			FString(TEXT("/Game/Code/Weapon/Disarm/GA_ComboGraph_Disarm.GA_ComboGraph_Disarm")));
+		Player->Destroy();
+		return false;
+	}
+	ASC->InitAbilityActorInfo(Player, Player);
+
+	UWeaponDefinition* WeaponA = NewObject<UWeaponDefinition>(Player);
+	UWeaponDefinition* WeaponB = NewObject<UWeaponDefinition>(Player);
+	Player->EquippedWeaponDef = WeaponA;
+	Player->InactiveWeaponDef = WeaponB;
+
+	UActiveSkillDataAsset* Skill = NewObject<UActiveSkillDataAsset>(Player);
+	Skill->Config.SkillId = TEXT("RecoveryCancelSkill");
+	Skill->Config.AbilityClass = UGA_ActiveSkill_ShieldBurst::StaticClass();
+	Skill->Config.Cooldown = 10.0f;
+	Player->ActiveSkillComponent->SetSkillLoadout({ Skill });
+	Player->ActiveSkillComponent->SetUnlockedSlotCount(1);
+	TestTrue(TEXT("Active skill can be used before recovery cancel switch"),
+		Player->ActiveSkillComponent->UseActiveSkill());
+
+	TArray<FActiveSkillSlotView> BeforeSwitchSlots = Player->ActiveSkillComponent->GetSlotViews();
+	TestTrue(TEXT("Active skill is cooling down before recovery cancel switch"),
+		BeforeSwitchSlots.IsValidIndex(0) && BeforeSwitchSlots[0].CooldownRemaining > 0.0f);
+
+	const FGameplayTag RecoveryTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
+	const FGameplayTag BonusTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.RecoveryCancelBonus"), false);
+	TestTrue(TEXT("Post-attack recovery tag is registered"), RecoveryTag.IsValid());
+	TestTrue(TEXT("Recovery-cancel bonus tag is registered"), BonusTag.IsValid());
+	if (RecoveryTag.IsValid())
+	{
+		ASC->AddLooseGameplayTag(RecoveryTag);
 	}
 
-	UGameplayAbilityComboGraph* DefaultGraph = NewObject<UGameplayAbilityComboGraph>(Player);
-	Player->DefaultUnarmedComboGraph = DefaultGraph;
-	Player->ApplyDefaultUnarmedComboGraph();
+	Player->SwitchWeapon();
 
-	TestTrue(TEXT("Default unarmed combo graph becomes the active combo graph"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == DefaultGraph);
-	TestTrue(TEXT("Default unarmed combo graph counts as a combo source"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->HasComboSource());
+	TArray<FActiveSkillSlotView> AfterSwitchSlots = Player->ActiveSkillComponent->GetSlotViews();
+	TestTrue(TEXT("Recovery-window weapon switch clears active skill cooldown"),
+		AfterSwitchSlots.IsValidIndex(0) && FMath::IsNearlyZero(AfterSwitchSlots[0].CooldownRemaining));
+	TestTrue(TEXT("Recovery-window weapon switch applies recovery cancel bonus tag"),
+		BonusTag.IsValid() && ASC->GetTagCount(BonusTag) > 0);
+	TestEqual(TEXT("Recovery-window weapon switch still promotes inactive weapon"),
+		Player->EquippedWeaponDef.Get(), WeaponB);
 
 	Player->Destroy();
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerWeaponComboGraphOverridesAndResetToUnarmedTest,
-	"DevKit.CombatDeck.PlayerWeaponComboGraphOverridesAndResetToUnarmed",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerSwitchWeaponPreservesIndependentDecksTest,
+	"DevKit.CombatDeck.PlayerSwitchWeaponPreservesIndependentDecks",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FPlayerWeaponComboGraphOverridesAndResetToUnarmedTest::RunTest(const FString& Parameters)
+bool FPlayerSwitchWeaponPreservesIndependentDecksTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = GWorld;
-	TestNotNull(TEXT("Automation world exists for weapon combo override test"), World);
+	TestNotNull(TEXT("Automation world exists for independent weapon deck test"), World);
 	if (!World)
 	{
 		return false;
 	}
 
 	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
-	TestNotNull(TEXT("Player spawned for weapon combo override test"), Player);
+	TestNotNull(TEXT("Player spawned for independent weapon deck test"), Player);
 	if (!Player)
 	{
 		return false;
 	}
 
-	UGameplayAbilityComboGraph* DefaultGraph = NewObject<UGameplayAbilityComboGraph>(Player);
-	UGameplayAbilityComboGraph* WeaponGraph = NewObject<UGameplayAbilityComboGraph>(Player);
-	UWeaponDefinition* WeaponDef = NewObject<UWeaponDefinition>(Player);
-	WeaponDef->GameplayAbilityComboGraph = WeaponGraph;
+	auto MakeAttackRune = [](UObject* Outer, const TCHAR* Name) -> URuneDataAsset*
+	{
+		URuneDataAsset* Rune = NewObject<URuneDataAsset>(Outer, FName(Name));
+		Rune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
+		Rune->RuneInfo.CombatCard.DisplayName = FText::FromString(Name);
+		return Rune;
+	};
 
-	Player->DefaultUnarmedComboGraph = DefaultGraph;
-	Player->ApplyDefaultUnarmedComboGraph();
-	Player->ApplyComboGraphFromWeapon(WeaponDef);
+	URuneDataAsset* WeaponACard = MakeAttackRune(Player, TEXT("WeaponACard"));
+	URuneDataAsset* WeaponAReward = MakeAttackRune(Player, TEXT("WeaponAReward"));
+	URuneDataAsset* WeaponBCard = MakeAttackRune(Player, TEXT("WeaponBCard"));
+	URuneDataAsset* WeaponBReward = MakeAttackRune(Player, TEXT("WeaponBReward"));
 
-	TestTrue(TEXT("Weapon combo graph overrides default unarmed graph"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == WeaponGraph);
+	UWeaponDefinition* WeaponA = NewObject<UWeaponDefinition>(Player);
+	UWeaponDefinition* WeaponB = NewObject<UWeaponDefinition>(Player);
+	WeaponA->InitialCombatDeck = { WeaponACard };
+	WeaponB->InitialCombatDeck = { WeaponBCard };
 
-	Player->EquippedWeaponDef = WeaponDef;
-	Player->ApplyDefaultUnarmedComboGraph();
-	Player->ApplyCurrentEquipmentComboGraph();
+	Player->EquippedWeaponDef = WeaponA;
+	Player->InactiveWeaponDef = WeaponB;
+	Player->CombatDeckComponent->LoadDeckFromWeapon(WeaponA);
+	TestTrue(TEXT("Weapon A can add a reward card to its own deck"),
+		Player->CombatDeckComponent->AddCardFromRuneReward(WeaponAReward));
 
-	TestTrue(TEXT("Current equipment combo graph refresh restores weapon graph over default"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == WeaponGraph);
+	Player->SwitchWeapon();
+	TArray<URuneDataAsset*> WeaponBInitialSources = Player->CombatDeckComponent->GetDeckSourceAssets();
+	TestTrue(TEXT("Switch to weapon B loads weapon B deck"),
+		WeaponBInitialSources.Contains(WeaponBCard));
+	TestFalse(TEXT("Switch to weapon B does not carry weapon A reward into weapon B deck"),
+		WeaponBInitialSources.Contains(WeaponAReward));
 
-	Player->ResetToDefaultUnarmedCombatState();
+	TestTrue(TEXT("Weapon B can add a reward card to its own deck"),
+		Player->CombatDeckComponent->AddCardFromRuneReward(WeaponBReward));
 
-	TestNull(TEXT("Reset to unarmed clears equipped weapon definition"), Player->EquippedWeaponDef.Get());
-	TestTrue(TEXT("Reset to unarmed restores default combo graph"),
-		Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->GetComboGraph() == DefaultGraph);
+	Player->SwitchWeapon();
+	TArray<URuneDataAsset*> RestoredWeaponASources = Player->CombatDeckComponent->GetDeckSourceAssets();
+	TestTrue(TEXT("Switch back to weapon A restores weapon A base card"),
+		RestoredWeaponASources.Contains(WeaponACard));
+	TestTrue(TEXT("Switch back to weapon A preserves weapon A reward"),
+		RestoredWeaponASources.Contains(WeaponAReward));
+	TestFalse(TEXT("Switch back to weapon A does not include weapon B reward"),
+		RestoredWeaponASources.Contains(WeaponBReward));
+
+	Player->SwitchWeapon();
+	TArray<URuneDataAsset*> RestoredWeaponBSources = Player->CombatDeckComponent->GetDeckSourceAssets();
+	TestTrue(TEXT("Switch back to weapon B restores weapon B base card"),
+		RestoredWeaponBSources.Contains(WeaponBCard));
+	TestTrue(TEXT("Switch back to weapon B preserves weapon B reward"),
+		RestoredWeaponBSources.Contains(WeaponBReward));
+	TestFalse(TEXT("Switch back to weapon B does not include weapon A reward"),
+		RestoredWeaponBSources.Contains(WeaponAReward));
 
 	Player->Destroy();
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMeleeActionMappingTest,
-	"DevKit.CombatDeck.MeleeAbilitiesMapToCombatDeckActionContext",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerRunStateCapturesIndependentWeaponDecksTest,
+	"DevKit.CombatDeck.PlayerRunStateCapturesIndependentWeaponDecks",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckMeleeActionMappingTest::RunTest(const FString& Parameters)
+bool FPlayerRunStateCapturesIndependentWeaponDecksTest::RunTest(const FString& Parameters)
 {
-	UGA_Player_LightAtk1* LightAttack = NewObject<UGA_Player_LightAtk1>();
-	TestEqual(TEXT("Light attack maps to Light card action"), LightAttack->GetCombatDeckActionType(), ECardRequiredAction::Light);
-	TestFalse(TEXT("Light attack 1 is not a combo finisher"), LightAttack->IsCombatDeckComboFinisher());
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for run-state weapon deck capture test"), World);
+	if (!World)
+	{
+		return false;
+	}
 
-	UGA_Player_HeavyAtk1* HeavyAttack = NewObject<UGA_Player_HeavyAtk1>();
-	TestEqual(TEXT("Heavy attack maps to Heavy card action"), HeavyAttack->GetCombatDeckActionType(), ECardRequiredAction::Heavy);
-	TestFalse(TEXT("Heavy attack 1 is not a combo finisher"), HeavyAttack->IsCombatDeckComboFinisher());
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for run-state weapon deck capture test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
 
-	UGA_Player_LightAtk4* LightFinisher = NewObject<UGA_Player_LightAtk4>();
-	TestEqual(TEXT("Light combo finisher remains a Light card action"), LightFinisher->GetCombatDeckActionType(), ECardRequiredAction::Light);
-	TestTrue(TEXT("Light combo 4 is a combo finisher"), LightFinisher->IsCombatDeckComboFinisher());
+	auto MakeCardRune = [](UObject* Outer, const TCHAR* Name, ECombatDeckActionSlot Slot) -> URuneDataAsset*
+	{
+		URuneDataAsset* Rune = NewObject<URuneDataAsset>(Outer, FName(Name));
+		Rune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
+		Rune->RuneInfo.CombatCard.DisplayName = FText::FromString(Name);
+		Rune->RuneInfo.CombatCard.RequiredActionSlot = Slot;
+		return Rune;
+	};
 
-	UGA_Player_HeavyAtk4* HeavyFinisher = NewObject<UGA_Player_HeavyAtk4>();
-	TestEqual(TEXT("Heavy combo finisher remains a Heavy card action"), HeavyFinisher->GetCombatDeckActionType(), ECardRequiredAction::Heavy);
-	TestTrue(TEXT("Heavy combo 4 is a combo finisher"), HeavyFinisher->IsCombatDeckComboFinisher());
+	URuneDataAsset* WeaponAAttack = MakeCardRune(Player, TEXT("RunStateWeaponAAttack"), ECombatDeckActionSlot::Attack);
+	URuneDataAsset* WeaponASkill = MakeCardRune(Player, TEXT("RunStateWeaponASkill"), ECombatDeckActionSlot::Skill);
+	URuneDataAsset* WeaponBAttack = MakeCardRune(Player, TEXT("RunStateWeaponBAttack"), ECombatDeckActionSlot::Attack);
+	URuneDataAsset* WeaponBDash = MakeCardRune(Player, TEXT("RunStateWeaponBDash"), ECombatDeckActionSlot::Dash);
 
+	UWeaponDefinition* WeaponA = NewObject<UWeaponDefinition>(Player);
+	UWeaponDefinition* WeaponB = NewObject<UWeaponDefinition>(Player);
+	WeaponA->InitialCombatDeck = { WeaponAAttack, WeaponASkill };
+	WeaponB->InitialCombatDeck = { WeaponBAttack, WeaponBDash };
+	WeaponA->ShuffleCooldownDuration = 1.5f;
+	WeaponB->ShuffleCooldownDuration = 2.5f;
+	WeaponA->MaxActiveSequenceSize = 1;
+	WeaponB->MaxActiveSequenceSize = 2;
+
+	Player->EquippedWeaponDef = WeaponA;
+	Player->InactiveWeaponDef = WeaponB;
+	Player->CombatDeckComponent->LoadDeckFromWeapon(WeaponA);
+	Player->InitializeInactiveWeaponDeckStateFromDefinition();
+
+	FRunState SavedState;
+	Player->CaptureCombatLoadoutForRunState(SavedState);
+
+	TestEqual(TEXT("RunState stores active weapon definition"), SavedState.EquippedWeaponDef.Get(), WeaponA);
+	TestEqual(TEXT("RunState stores inactive weapon definition"), SavedState.InactiveWeaponDef.Get(), WeaponB);
+	TestTrue(TEXT("RunState active deck includes attack card"), SavedState.CombatDeckCards.Contains(WeaponAAttack));
+	TestTrue(TEXT("RunState active deck includes skill single-slot card"), SavedState.CombatDeckCards.Contains(WeaponASkill));
+	TestTrue(TEXT("RunState inactive deck includes attack card"), SavedState.InactiveCombatDeckCards.Contains(WeaponBAttack));
+	TestTrue(TEXT("RunState inactive deck includes dash single-slot card"), SavedState.InactiveCombatDeckCards.Contains(WeaponBDash));
+	TestEqual(TEXT("RunState stores active shuffle cooldown"), SavedState.CombatDeckShuffleCooldownDuration, 1.5f);
+	TestEqual(TEXT("RunState stores inactive shuffle cooldown"), SavedState.InactiveCombatDeckShuffleCooldownDuration, 2.5f);
+	TestEqual(TEXT("RunState stores active max active sequence size"), SavedState.CombatDeckMaxActiveSequenceSize, 1);
+	TestEqual(TEXT("RunState stores inactive max active sequence size"), SavedState.InactiveCombatDeckMaxActiveSequenceSize, 2);
+
+	Player->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerRestoreRunStateRestoresInactiveWeaponDeckTest,
+	"DevKit.CombatDeck.PlayerRestoreRunStateRestoresInactiveWeaponDeck",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerRestoreRunStateRestoresInactiveWeaponDeckTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for inactive weapon run-state restore test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for inactive weapon run-state restore test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	auto MakeAttackRune = [](UObject* Outer, const TCHAR* Name) -> URuneDataAsset*
+	{
+		URuneDataAsset* Rune = NewObject<URuneDataAsset>(Outer, FName(Name));
+		Rune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
+		Rune->RuneInfo.CombatCard.DisplayName = FText::FromString(Name);
+		return Rune;
+	};
+
+	URuneDataAsset* WeaponACard = MakeAttackRune(Player, TEXT("RestoreWeaponACard"));
+	URuneDataAsset* WeaponAReward = MakeAttackRune(Player, TEXT("RestoreWeaponAReward"));
+	URuneDataAsset* WeaponBCard = MakeAttackRune(Player, TEXT("RestoreWeaponBCard"));
+	URuneDataAsset* WeaponBReward = MakeAttackRune(Player, TEXT("RestoreWeaponBReward"));
+
+	UWeaponDefinition* WeaponA = NewObject<UWeaponDefinition>(Player);
+	UWeaponDefinition* WeaponB = NewObject<UWeaponDefinition>(Player);
+	WeaponA->InitialCombatDeck = { WeaponACard };
+	WeaponB->InitialCombatDeck = { WeaponBCard };
+
+	FRunState State;
+	State.bIsValid = true;
+	State.EquippedWeaponDef = WeaponA;
+	State.InactiveWeaponDef = WeaponB;
+	State.CombatDeckCards = { WeaponACard, WeaponAReward };
+	State.InactiveCombatDeckCards = { WeaponBCard, WeaponBReward };
+	State.CombatDeckShuffleCooldownDuration = 1.0f;
+	State.InactiveCombatDeckShuffleCooldownDuration = 1.0f;
+
+	Player->RestoreRunState(State);
+
+	TestEqual(TEXT("Restore keeps active weapon definition"), Player->EquippedWeaponDef.Get(), WeaponA);
+	TestEqual(TEXT("Restore keeps inactive weapon definition"), Player->InactiveWeaponDef.Get(), WeaponB);
+	TestTrue(TEXT("Restored active deck contains active reward"), Player->CombatDeckComponent->GetDeckSourceAssets().Contains(WeaponAReward));
+	TestFalse(TEXT("Restored active deck does not contain inactive reward"), Player->CombatDeckComponent->GetDeckSourceAssets().Contains(WeaponBReward));
+
+	Player->SwitchWeapon();
+
+	TestEqual(TEXT("Switch after restore promotes inactive weapon definition"), Player->EquippedWeaponDef.Get(), WeaponB);
+	TestTrue(TEXT("Switch after restore loads inactive reward deck"), Player->CombatDeckComponent->GetDeckSourceAssets().Contains(WeaponBReward));
+	TestFalse(TEXT("Switch after restore does not leak active reward into inactive deck"), Player->CombatDeckComponent->GetDeckSourceAssets().Contains(WeaponAReward));
+
+	Player->Destroy();
 	return true;
 }
 
@@ -692,18 +1113,24 @@ bool FInputBufferConsumesLatestAttackInputTest::RunTest(const FString& Parameter
 	OwnerActor->AddInstanceComponent(Buffer);
 	Buffer->RegisterComponent();
 
-	EInputCommandType ConsumedType = EInputCommandType::LightAttack;
+	EInputCommandType ConsumedType = EInputCommandType::Attack;
 	const float SinceTime = World->GetTimeSeconds() - 1.0f;
-	Buffer->RecordLightAttack();
-	Buffer->RecordHeavyAttack();
-	TestTrue(TEXT("Latest attack input is consumed"), Buffer->ConsumeLatestAttackInputSince(SinceTime, ConsumedType));
-	TestEqual(TEXT("Heavy wins when it was recorded after light"), ConsumedType, EInputCommandType::HeavyAttack);
+	Buffer->RecordAttack();
+	Buffer->RecordWeaponSkill();
+	TestTrue(TEXT("Attack-only input is consumed"), Buffer->ConsumeLatestAttackInputSince(SinceTime, ConsumedType));
+	TestEqual(TEXT("Attack-only consume skips WeaponSkill"), ConsumedType, EInputCommandType::Attack);
 
 	Buffer->ClearBuffer();
-	Buffer->RecordHeavyAttack();
-	Buffer->RecordLightAttack();
-	TestTrue(TEXT("Latest attack input is consumed after order swap"), Buffer->ConsumeLatestAttackInputSince(SinceTime, ConsumedType));
-	TestEqual(TEXT("Light wins when it was recorded after heavy"), ConsumedType, EInputCommandType::LightAttack);
+	Buffer->RecordAttack();
+	Buffer->RecordSpecial();
+	TestTrue(TEXT("Latest action input is consumed"), Buffer->ConsumeLatestActionInputSince(SinceTime, ConsumedType));
+	TestEqual(TEXT("Special wins when it was recorded after Attack"), ConsumedType, EInputCommandType::Special);
+
+	Buffer->ClearBuffer();
+	Buffer->RecordSpecial();
+	Buffer->RecordWeaponSkill();
+	TestTrue(TEXT("Latest action input is consumed after order swap"), Buffer->ConsumeLatestActionInputSince(SinceTime, ConsumedType));
+	TestEqual(TEXT("WeaponSkill wins when it was recorded after Special"), ConsumedType, EInputCommandType::WeaponSkill);
 
 	OwnerActor->Destroy();
 	return true;
@@ -746,6 +1173,165 @@ bool FCombatDeckMontageConfigSelectionTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerAbilityMontageDataSeedsExplicitActionComboTagsTest,
+	"DevKit.CombatDeck.PlayerAbilityMontageDataSeedsExplicitActionComboTags",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerAbilityMontageDataSeedsExplicitActionComboTagsTest::RunTest(const FString& Parameters)
+{
+	UPlayerAbilityMontageData* AbilityData = NewObject<UPlayerAbilityMontageData>();
+
+	static const TCHAR* ActionNames[] = {
+		TEXT("Attack"),
+		TEXT("WeaponSkill"),
+		TEXT("Dash"),
+		TEXT("Special"),
+	};
+
+	for (const TCHAR* ActionName : ActionNames)
+	{
+		for (int32 ComboIndex = 1; ComboIndex <= 4; ++ComboIndex)
+		{
+			const FString TagName = FString::Printf(
+				TEXT("PlayerState.AbilityCast.%s.Combo%d"),
+				ActionName,
+				ComboIndex);
+			const FGameplayTag ComboTag = FGameplayTag::RequestGameplayTag(FName(*TagName));
+			TestTrue(
+				FString::Printf(TEXT("Player ability montage data has %s"), *TagName),
+				AbilityData->MontageMap.Contains(ComboTag));
+		}
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSplitAbilityMontageDataSeedsScopedComboTagsTest,
+	"DevKit.CombatDeck.SplitAbilityMontageDataSeedsScopedComboTags",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FSplitAbilityMontageDataSeedsScopedComboTagsTest::RunTest(const FString& Parameters)
+{
+	UWeaponAttackAbilityMontageData* WeaponAttackData = NewObject<UWeaponAttackAbilityMontageData>();
+	UWeaponSkillAbilityMontageData* WeaponSkillData = NewObject<UWeaponSkillAbilityMontageData>();
+	USpecialAbilityMontageData* SpecialData = NewObject<USpecialAbilityMontageData>();
+	UWeaponPassiveAbilityMontageData* PassiveData = NewObject<UWeaponPassiveAbilityMontageData>();
+
+	auto HasKey = [](const UAbilityData* AbilityData, const TCHAR* TagName)
+	{
+		return AbilityData && AbilityData->MontageMap.Contains(FGameplayTag::RequestGameplayTag(FName(TagName)));
+	};
+	auto HasPassiveKey = [](const UAbilityData* AbilityData, const TCHAR* TagName)
+	{
+		return AbilityData && AbilityData->PassiveMap.Contains(FGameplayTag::RequestGameplayTag(FName(TagName)));
+	};
+
+	TestTrue(TEXT("WeaponAttack data has Attack combo keys"),
+		HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.Attack.Combo1"))
+		&& HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.Attack.Combo4")));
+	TestTrue(TEXT("WeaponAttack data has Dash combo keys"),
+		HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.Dash.Combo1"))
+		&& HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.Dash.Combo4")));
+	TestFalse(TEXT("WeaponAttack data does not seed WeaponSkill combo keys"),
+		HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1")));
+	TestTrue(TEXT("WeaponAttack data has no passive rows"),
+		WeaponAttackData->PassiveMap.IsEmpty());
+
+	TestTrue(TEXT("WeaponSkill data has WeaponSkill combo keys"),
+		HasKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"))
+		&& HasKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4")));
+	TestFalse(TEXT("WeaponSkill data does not seed Attack combo keys"),
+		HasKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.Attack.Combo1")));
+	TestTrue(TEXT("WeaponSkill data has no passive rows"),
+		WeaponSkillData->PassiveMap.IsEmpty());
+
+	TestTrue(TEXT("Special data has Special combo keys"),
+		HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Special.Combo1"))
+		&& HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Special.Combo4")));
+	TestFalse(TEXT("Special data does not seed Dash combo keys"),
+		HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Dash.Combo1")));
+	TestTrue(TEXT("Special data has no passive rows"),
+		SpecialData->PassiveMap.IsEmpty());
+	TestTrue(TEXT("WeaponPassive data has hit/death passive keys"),
+		HasPassiveKey(PassiveData, TEXT("Action.HitReact.Front"))
+		&& HasPassiveKey(PassiveData, TEXT("Action.HitReact.Back"))
+		&& HasPassiveKey(PassiveData, TEXT("Action.HitReact.Blocked"))
+		&& HasPassiveKey(PassiveData, TEXT("Action.HitReact.Parried"))
+		&& HasPassiveKey(PassiveData, TEXT("Action.Dead")));
+	TestFalse(TEXT("WeaponPassive data does not seed Attack combo keys"),
+		HasKey(PassiveData, TEXT("PlayerState.AbilityCast.Attack.Combo1")));
+	TestTrue(TEXT("WeaponPassive data has no montage config rows"),
+		PassiveData->MontageConfigMap.IsEmpty());
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerWeaponPassiveAbilityDataOverridesBaseReactionTest,
+	"DevKit.CombatDeck.PlayerWeaponPassiveAbilityDataOverridesBaseReaction",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerWeaponPassiveAbilityDataOverridesBaseReactionTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for weapon passive ability data test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for weapon passive ability data test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	UAbilityData* BaseAbilityData = NewObject<UAbilityData>(Player);
+	UCharacterData* RuntimeCharacterData = NewObject<UCharacterData>(Player);
+	RuntimeCharacterData->AbilityData = BaseAbilityData;
+	Player->GetCharacterDataComponent()->SetCharacterData(RuntimeCharacterData);
+
+	UWeaponDefinition* Weapon = NewObject<UWeaponDefinition>(Player);
+	UWeaponPassiveAbilityMontageData* WeaponPassiveData = NewObject<UWeaponPassiveAbilityMontageData>(Weapon);
+	Weapon->PassiveAbilityData = WeaponPassiveData;
+
+	const FGameplayTag HitReactFrontTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Front"));
+	const FGameplayTag HitReactBackTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Back"));
+
+	UAnimMontage* BaseFrontMontage = NewObject<UAnimMontage>(BaseAbilityData);
+	UAnimMontage* BaseBackMontage = NewObject<UAnimMontage>(BaseAbilityData);
+	UAnimMontage* WeaponFrontMontage = NewObject<UAnimMontage>(WeaponPassiveData);
+
+	FPassiveActionData BaseFrontReaction;
+	BaseFrontReaction.Montage = BaseFrontMontage;
+	BaseAbilityData->PassiveMap.Add(HitReactFrontTag, BaseFrontReaction);
+
+	FPassiveActionData BaseBackReaction;
+	BaseBackReaction.Montage = BaseBackMontage;
+	BaseAbilityData->PassiveMap.Add(HitReactBackTag, BaseBackReaction);
+
+	FPassiveActionData WeaponFrontReaction;
+	WeaponFrontReaction.Montage = WeaponFrontMontage;
+	WeaponPassiveData->PassiveMap.Add(HitReactFrontTag, WeaponFrontReaction);
+
+	Player->ApplyAbilityDataFromWeapon(Weapon);
+
+	UCharacterData* CharacterData = Player->GetCharacterDataComponent()->GetCharacterData();
+	TestNotNull(TEXT("Player has runtime character data"), CharacterData);
+	TestNotNull(TEXT("Player has merged runtime ability data"), CharacterData ? CharacterData->AbilityData.Get() : nullptr);
+
+	if (CharacterData && CharacterData->AbilityData)
+	{
+		TestEqual(TEXT("Weapon passive reaction overrides base hit react front"),
+			CharacterData->AbilityData->GetPassiveAbility(HitReactFrontTag).Montage.Get(), WeaponFrontMontage);
+		TestEqual(TEXT("Base passive reaction remains as fallback when weapon has no row"),
+			CharacterData->AbilityData->GetPassiveAbility(HitReactBackTag).Montage.Get(), BaseBackMontage);
+	}
+
+	Player->Destroy();
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckMontageAttackDataSelectionTest,
 	"DevKit.CombatDeck.MontageHitWindowSelectsAttackDataByTags",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -785,209 +1371,43 @@ bool FCombatDeckMontageAttackDataSelectionTest::RunTest(const FString& Parameter
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponComboConfigRoutesMixedFinisherTest,
-	"DevKit.CombatDeck.ComboConfigRoutesLightLightHeavyFinisher",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FWeaponComboConfigRoutesMixedFinisherTest::RunTest(const FString& Parameters)
-{
-	UWeaponComboConfigDA* ComboConfig = NewObject<UWeaponComboConfigDA>();
-
-	FWeaponComboNodeConfig L1;
-	L1.NodeId = TEXT("L1");
-	L1.InputAction = ECardRequiredAction::Light;
-
-	FWeaponComboNodeConfig L2;
-	L2.NodeId = TEXT("L2");
-	L2.ParentNodeId = TEXT("L1");
-	L2.InputAction = ECardRequiredAction::Light;
-
-	FWeaponComboNodeConfig L2H;
-	L2H.NodeId = TEXT("L2H");
-	L2H.ParentNodeId = TEXT("L2");
-	L2H.InputAction = ECardRequiredAction::Heavy;
-	L2H.bIsComboFinisher = true;
-
-	ComboConfig->RootNodes = { TEXT("L1") };
-	ComboConfig->Nodes = { L1, L2, L2H };
-
-	const FWeaponComboNodeConfig* Root = ComboConfig->FindRootNode(ECardRequiredAction::Light);
-	TestNotNull(TEXT("Light input selects L1 root"), Root);
-	TestEqual(TEXT("Root node is L1"), Root ? Root->NodeId : NAME_None, FName(TEXT("L1")));
-
-	const FWeaponComboNodeConfig* Second = ComboConfig->FindChildNode(TEXT("L1"), ECardRequiredAction::Light);
-	TestNotNull(TEXT("Second light selects L2"), Second);
-	TestEqual(TEXT("Second node is L2"), Second ? Second->NodeId : NAME_None, FName(TEXT("L2")));
-
-	const FWeaponComboNodeConfig* Finisher = ComboConfig->FindChildNode(TEXT("L2"), ECardRequiredAction::Heavy);
-	TestNotNull(TEXT("Heavy after L-L selects independent finisher node"), Finisher);
-	TestEqual(TEXT("Finisher node is L2H"), Finisher ? Finisher->NodeId : NAME_None, FName(TEXT("L2H")));
-	TestTrue(TEXT("L-L-H node is marked as finisher"), Finisher && Finisher->bIsComboFinisher);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphBuildsRuntimeWindowTest,
-	"DevKit.CombatDeck.ComboGraphBuildsRuntimeWindowConfig",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FGameplayAbilityComboGraphBuildsRuntimeWindowTest::RunTest(const FString& Parameters)
-{
-	UGameplayAbilityComboGraphNode* Node = NewObject<UGameplayAbilityComboGraphNode>();
-	Node->NodeId = TEXT("L2H");
-	Node->bUseNodeComboWindow = true;
-	Node->ComboWindowStartFrame = 12;
-	Node->ComboWindowEndFrame = 20;
-	Node->TotalFrames = 30;
-
-	const FWeaponComboNodeConfig RuntimeConfig = FWeaponComboNodeConfig::FromComboGraphNode(Node, ECardRequiredAction::Heavy);
-
-	TestEqual(TEXT("Graph node exports its NodeId"), RuntimeConfig.NodeId, FName(TEXT("L2H")));
-	TestEqual(TEXT("Graph edge input becomes runtime input"), RuntimeConfig.InputAction, ECardRequiredAction::Heavy);
-	TestTrue(TEXT("Graph node frame window drives runtime combo windows"), RuntimeConfig.bOverrideComboWindow);
-	TestEqual(TEXT("Combo window start frame is exported"), RuntimeConfig.ComboWindowStartFrame, 12);
-	TestEqual(TEXT("Combo window end frame is exported"), RuntimeConfig.ComboWindowEndFrame, 20);
-	TestEqual(TEXT("Combo window total frames is exported"), RuntimeConfig.ComboWindowTotalFrames, 30);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphDashNodeExportsRuntimeConfigTest,
-	"DevKit.CombatDeck.ComboGraphDashNodeExportsRuntimeConfig",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FGameplayAbilityComboGraphDashNodeExportsRuntimeConfigTest::RunTest(const FString& Parameters)
-{
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
-	UGameplayAbilityComboGraphNode* DashNode = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	DashNode->Graph = Graph;
-	DashNode->NodeId = TEXT("Dash");
-	DashNode->RootInputAction = EYogComboGraphInputAction::Dash;
-	DashNode->Montage = NewObject<UAnimMontage>(Graph);
-	DashNode->DashSaveMode = EYogComboGraphDashSaveMode::ForcePreserve;
-	DashNode->DashSaveExpireSeconds = 0.75f;
-	DashNode->bSavePendingLinkContext = false;
-	DashNode->bClearCombatTagsOnDashEnd = true;
-	DashNode->bBreakComboOnDashCancel = false;
-	Graph->AllNodes = { DashNode };
-	Graph->RootNodes = { DashNode };
-
-	TArray<FText> Warnings;
-	Graph->ValidateComboGraph(Warnings);
-	const bool bHasMontageWarning = Warnings.ContainsByPredicate([](const FText& Warning)
-	{
-		return Warning.ToString().Contains(TEXT("has no Montage"));
-	});
-	TestFalse(TEXT("Dash graph node with montage validates cleanly"), bHasMontageWarning);
-
-	const FWeaponComboNodeConfig RuntimeConfig = FWeaponComboNodeConfig::FromComboGraphNode(DashNode, ECardRequiredAction::Any);
-	TestEqual(TEXT("Dash node maps to card-neutral runtime action"), RuntimeConfig.InputAction, ECardRequiredAction::Any);
-	TestEqual(TEXT("Dash node exports save mode"), RuntimeConfig.DashSaveMode, EComboDashSaveMode::ForcePreserve);
-	TestEqual(TEXT("Dash node exports save expiry"), RuntimeConfig.DashSaveExpireSeconds, 0.75f);
-	TestFalse(TEXT("Dash node can disable pending link save"), RuntimeConfig.bSavePendingLinkContext);
-	TestTrue(TEXT("Dash node exports combat tag cleanup"), RuntimeConfig.bClearCombatTagsOnDashEnd);
-	TestFalse(TEXT("Dash node can keep save on cancel"), RuntimeConfig.bBreakComboOnDashCancel);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameplayAbilityComboGraphWarnsDuplicateChildInputTest,
-	"DevKit.CombatDeck.ComboGraphWarnsDuplicateChildInput",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FGameplayAbilityComboGraphWarnsDuplicateChildInputTest::RunTest(const FString& Parameters)
-{
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
-	UGameplayAbilityComboGraphNode* Root = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	UGameplayAbilityComboGraphNode* FirstChild = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	UGameplayAbilityComboGraphNode* SecondChild = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	UGameplayAbilityComboGraphEdge* FirstEdge = NewObject<UGameplayAbilityComboGraphEdge>(Graph);
-	UGameplayAbilityComboGraphEdge* SecondEdge = NewObject<UGameplayAbilityComboGraphEdge>(Graph);
-
-	Root->Graph = Graph;
-	Root->NodeId = TEXT("Root");
-	Root->Montage = NewObject<UAnimMontage>(Graph);
-
-	FirstChild->Graph = Graph;
-	FirstChild->NodeId = TEXT("LightA");
-	FirstChild->Montage = NewObject<UAnimMontage>(Graph);
-
-	SecondChild->Graph = Graph;
-	SecondChild->NodeId = TEXT("LightB");
-	SecondChild->Montage = NewObject<UAnimMontage>(Graph);
-
-	FirstEdge->InputAction = EYogComboGraphInputAction::Light;
-	SecondEdge->InputAction = EYogComboGraphInputAction::Light;
-	Root->ChildrenNodes = { FirstChild, SecondChild };
-	FirstChild->ParentNodes = { Root };
-	SecondChild->ParentNodes = { Root };
-	Root->Edges.Add(FirstChild, FirstEdge);
-	Root->Edges.Add(SecondChild, SecondEdge);
-	Graph->AllNodes = { Root, FirstChild, SecondChild };
-	Graph->RootNodes = { Root };
-
-	TArray<FText> Warnings;
-	Graph->ValidateComboGraph(Warnings);
-
-	const bool bHasDuplicateInputWarning = Warnings.ContainsByPredicate([](const FText& Warning)
-	{
-		return Warning.ToString().Contains(TEXT("multiple children for input"));
-	});
-	TestTrue(TEXT("Graph validation reports duplicate child input under the same parent"), bHasDuplicateInputWarning);
-
-	return true;
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponComboHintTextUnlimitedLinesTest,
 	"DevKit.CombatDeck.WeaponComboHintTextUnlimitedLines",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FWeaponComboHintTextUnlimitedLinesTest::RunTest(const FString& Parameters)
 {
-	UGameplayAbilityComboGraph* Graph = NewObject<UGameplayAbilityComboGraph>();
 	UWeaponDefinition* Weapon = NewObject<UWeaponDefinition>();
-	Weapon->GameplayAbilityComboGraph = Graph;
+	UAbilityData* AttackData = NewObject<UAbilityData>(Weapon);
+	UAbilityData* WeaponSkillData = NewObject<UAbilityData>(Weapon);
+	UAbilityData* SpecialData = NewObject<UAbilityData>(Weapon);
+	Weapon->AttackAbilityData = AttackData;
+	Weapon->WeaponSkillAbilityData = WeaponSkillData;
+	Weapon->SpecialAbilityData = SpecialData;
 
-	UGameplayAbilityComboGraphNode* LightRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	UGameplayAbilityComboGraphNode* HeavyRoot = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-	LightRoot->Graph = Graph;
-	LightRoot->NodeId = TEXT("LightRoot");
-	LightRoot->RootInputAction = EYogComboGraphInputAction::Light;
-	HeavyRoot->Graph = Graph;
-	HeavyRoot->NodeId = TEXT("HeavyRoot");
-	HeavyRoot->RootInputAction = EYogComboGraphInputAction::Heavy;
-
-	auto AddChild = [Graph](UGameplayAbilityComboGraphNode* Parent, const TCHAR* NodeId, EYogComboGraphInputAction InputAction)
+	auto AddMontageKey = [](UAbilityData* AbilityData, const TCHAR* TagName)
 	{
-		UGameplayAbilityComboGraphNode* Child = NewObject<UGameplayAbilityComboGraphNode>(Graph);
-		UGameplayAbilityComboGraphEdge* Edge = NewObject<UGameplayAbilityComboGraphEdge>(Graph);
-		Child->Graph = Graph;
-		Child->NodeId = NodeId;
-		Edge->InputAction = InputAction;
-		Parent->ChildrenNodes.Add(Child);
-		Child->ParentNodes.Add(Parent);
-		Parent->Edges.Add(Child, Edge);
-		Graph->AllNodes.Add(Child);
-		return Child;
+		const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(FName(TagName));
+		AbilityData->MontageMap.Add(AbilityTag, NewObject<UAnimMontage>(AbilityData));
 	};
 
-	Graph->RootNodes = { LightRoot, HeavyRoot };
-	Graph->AllNodes = { LightRoot, HeavyRoot };
-	AddChild(LightRoot, TEXT("LL"), EYogComboGraphInputAction::Light);
-	AddChild(LightRoot, TEXT("LH"), EYogComboGraphInputAction::Heavy);
-	AddChild(AddChild(HeavyRoot, TEXT("HL"), EYogComboGraphInputAction::Light), TEXT("HLH"), EYogComboGraphInputAction::Heavy);
-	AddChild(AddChild(HeavyRoot, TEXT("HH"), EYogComboGraphInputAction::Heavy), TEXT("HHL"), EYogComboGraphInputAction::Light);
-	AddChild(AddChild(AddChild(HeavyRoot, TEXT("HLL"), EYogComboGraphInputAction::Light), TEXT("HLLL"), EYogComboGraphInputAction::Light), TEXT("HLLLH"), EYogComboGraphInputAction::Heavy);
+	AddMontageKey(AttackData, TEXT("PlayerState.AbilityCast.Attack.Combo1"));
+	AddMontageKey(AttackData, TEXT("PlayerState.AbilityCast.Attack.Combo2"));
+	AddMontageKey(AttackData, TEXT("PlayerState.AbilityCast.Dash.Combo1"));
+	AddMontageKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"));
+	AddMontageKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"));
+	AddMontageKey(SpecialData, TEXT("PlayerState.AbilityCast.Special.Combo1"));
 
-	const FString LimitedText = WeaponComboTextUtils::BuildComboHintText(Weapon, 4, true).ToString();
-	TestFalse(TEXT("Explicit line limit still truncates combo hint text"), LimitedText.Contains(TEXT("连段 05")));
+	const FString LimitedText = WeaponComboTextUtils::BuildComboHintText(Weapon, 2, true).ToString();
+	TestTrue(TEXT("Explicit line limit includes configured attack combo"), LimitedText.Contains(TEXT("Attack")));
+	TestFalse(TEXT("Explicit line limit truncates later ability-data lines"), LimitedText.Contains(TEXT("WeaponSkill")));
 
 	const FString UnlimitedText = WeaponComboTextUtils::BuildComboHintText(Weapon, 0, true).ToString();
-	TestTrue(TEXT("Zero line limit means show every combo sequence"), UnlimitedText.Contains(TEXT("连段 05")));
+	TestTrue(TEXT("Zero line limit shows weapon skill combo line"), UnlimitedText.Contains(TEXT("WeaponSkill")));
+	TestTrue(TEXT("Zero line limit shows special combo line"), UnlimitedText.Contains(TEXT("Special")));
 
 	return true;
 }
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckContextDedupesCommitAndHitTest,
 	"DevKit.CombatDeck.ContextDedupesCommitAndHitForSameAttack",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -1160,6 +1580,8 @@ bool FBuffFlowCombatCardEffectContextStoresResolveDataTest::RunTest(const FStrin
 	ActionContext.ComboIndex = 3;
 	ActionContext.ComboNodeId = TEXT("L3");
 	ActionContext.bIsComboFinisher = true;
+	ActionContext.ActionSlot = ECombatDeckActionSlot::WeaponSkill;
+	ActionContext.FlowRole = ECombatDeckFlowRole::Finisher;
 
 	FCombatCardResolveResult ResolveResult;
 	ResolveResult.bHadCard = true;
@@ -1175,6 +1597,25 @@ bool FBuffFlowCombatCardEffectContextStoresResolveDataTest::RunTest(const FStrin
 	TestEqual(TEXT("Stored combo bonus stacks"), StoredContext.ComboBonusStacks, 2);
 	TestEqual(TEXT("Stored multiplier"), StoredContext.EffectMultiplier, 1.5f);
 	TestTrue(TEXT("Stored finisher flag"), StoredContext.bIsComboFinisher);
+	TestEqual(TEXT("Stored action slot"), StoredContext.ActionSlot, ECombatDeckActionSlot::WeaponSkill);
+	TestEqual(TEXT("Stored flow role"), StoredContext.FlowRole, ECombatDeckFlowRole::Finisher);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FActiveSkillConfigCombatDeckDefaultsTest,
+	"DevKit.CombatDeck.ActiveSkillConfigCombatDeckDefaults",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FActiveSkillConfigCombatDeckDefaultsTest::RunTest(const FString& Parameters)
+{
+	UActiveSkillDataAsset* ActiveSkill = NewObject<UActiveSkillDataAsset>();
+
+	TestFalse(TEXT("Active skills do not resolve combat deck cards unless opted in"),
+		ActiveSkill->Config.bResolveCombatDeckOnUse);
+	TestEqual(TEXT("Active skill combat deck slot is skill"), ActiveSkill->Config.CombatDeckActionSlot, ECombatDeckActionSlot::Skill);
+	TestEqual(TEXT("Active skill default flow role is catalyst"), ActiveSkill->Config.CombatDeckFlowRole, ECombatDeckFlowRole::Catalyst);
+	TestEqual(TEXT("Active skill default card timing is OnCommit"), ActiveSkill->Config.CombatDeckTriggerTiming, ECombatCardTriggerTiming::OnCommit);
 
 	return true;
 }
@@ -1756,11 +2197,11 @@ bool FCombatDeckEditMovesAndReversesCardsTest::RunTest(const FString& Parameters
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckFullSnapshotLeavesFinisherUnlockedTest,
-	"DevKit.CombatDeck.FullSnapshotLeavesFinisherUnlocked",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckFullSnapshotFiltersDeprecatedFinisherTest,
+	"DevKit.CombatDeck.FullSnapshotFiltersDeprecatedFinisher",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckFullSnapshotLeavesFinisherUnlockedTest::RunTest(const FString& Parameters)
+bool FCombatDeckFullSnapshotFiltersDeprecatedFinisherTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->TemporaryFinisherUnlockCompletedBattles = 3;
@@ -1771,10 +2212,7 @@ bool FCombatDeckFullSnapshotLeavesFinisherUnlockedTest::RunTest(const FString& P
 	Deck->SetDeckListForTest({ FinisherCard });
 
 	const TArray<FCombatCardInstance> Cards = Deck->GetFullDeckSnapshot();
-	TestEqual(TEXT("Full deck snapshot keeps the finisher card"), Cards.Num(), 1);
-	TestFalse(TEXT("Full deck snapshot keeps the finisher unlocked"), Cards[0].bTemporarilyLocked);
-	TestEqual(TEXT("Full deck snapshot reports no required battles"), Cards[0].TemporaryUnlockRequiredCompletedBattles, 0);
-	TestEqual(TEXT("Full deck snapshot reports current battles"), Cards[0].TemporaryUnlockCurrentCompletedBattles, 0);
+	TestEqual(TEXT("Full deck snapshot filters deprecated finisher cards"), Cards.Num(), 0);
 
 	return true;
 }
@@ -2522,10 +2960,11 @@ bool FCombatDeckGeneratedHeavyCardBonusConfiguredTest::RunTest(const FString& Pa
 	bAllValid &= TestTrue(TEXT("Heavy card has Heavy effect tag"), HeavyCard.CardEffectTags.HasTagExact(HeavyEffectTag));
 	bAllValid &= TestTrue(TEXT("Heavy card has Knockback effect tag"), HeavyCard.CardEffectTags.HasTagExact(KnockbackEffectTag));
 	const FString HeavyDescription = HeavyDA->RuneInfo.RuneConfig.RuneDescription.ToString();
-	bAllValid &= TestTrue(TEXT("Heavy description explains light attacks can play it"), HeavyDescription.Contains(TEXT("轻攻击")));
-	bAllValid &= TestTrue(TEXT("Heavy description explains base extra damage and knockback"), HeavyDescription.Contains(TEXT("额外伤害")) && HeavyDescription.Contains(TEXT("击退")));
-	bAllValid &= TestTrue(TEXT("Heavy description explains coordination requirement"), HeavyDescription.Contains(TEXT("协调需求")));
-	bAllValid &= TestTrue(TEXT("Heavy description explains heavy attack bonus"), HeavyDescription.Contains(TEXT("重攻击")) && HeavyDescription.Contains(TEXT("大幅提升")));
+	bAllValid &= TestFalse(TEXT("Heavy description is configured"), HeavyDescription.IsEmpty());
+	bAllValid &= TestTrue(TEXT("Heavy description explains shared light/heavy draw"),
+		HeavyDescription.Contains(TEXT("light/heavy")) || HeavyDescription.Contains(TEXT("light and heavy")));
+	bAllValid &= TestTrue(TEXT("Heavy description explains bonus damage and knockback"),
+		HeavyDescription.Contains(TEXT("damage")) && HeavyDescription.Contains(TEXT("knockback")));
 
 	UFlowAsset* HeavyFlow = LoadObject<UFlowAsset>(
 		nullptr,

@@ -1,135 +1,75 @@
 #include "UI/WeaponComboTextUtils.h"
 
-#include "Data/GameplayAbilityComboGraph.h"
+#include "Data/AbilityData.h"
 #include "Item/Weapon/WeaponDefinition.h"
 
 namespace
 {
-	FString ComboInputActionToMoveToken(EYogComboGraphInputAction Action)
+	FString InputActionMarkup(const TCHAR* InputActionName)
 	{
-		switch (Action)
-		{
-		case EYogComboGraphInputAction::Light:
-			return TEXT("L");
-		case EYogComboGraphInputAction::Heavy:
-			return TEXT("H");
-		case EYogComboGraphInputAction::Dash:
-		case EYogComboGraphInputAction::Any:
-		default:
-			return FString();
-		}
+		return FString::Printf(TEXT("<input action=\"%s\"/>"), InputActionName);
 	}
 
-	FString MoveTokenToInputActionMarkup(const FString& Token)
+	bool HasAbilityInAnyData(TConstArrayView<const UAbilityData*> AbilityDataSources, const FGameplayTag& AbilityTag)
 	{
-		if (Token == TEXT("L"))
+		if (!AbilityTag.IsValid())
 		{
-			return TEXT("<input action=\"LightAttack\"/>");
+			return false;
 		}
 
-		if (Token == TEXT("H"))
+		for (const UAbilityData* AbilityData : AbilityDataSources)
 		{
-			return TEXT("<input action=\"HeavyAttack\"/>");
+			if (AbilityData && AbilityData->HasAbility(AbilityTag))
+			{
+				return true;
+			}
 		}
-
-		return TEXT("[Input]");
+		return false;
 	}
 
-	FString FormatComboForCommonUI(const FString& Sequence)
+	int32 CountConfiguredComboSteps(TConstArrayView<const UAbilityData*> AbilityDataSources, const TCHAR* TagPrefix)
+	{
+		int32 Count = 0;
+		for (int32 ComboIndex = 1; ComboIndex <= 4; ++ComboIndex)
+		{
+			const FString TagName = FString::Printf(TEXT("%s.Combo%d"), TagPrefix, ComboIndex);
+			const FGameplayTag ComboTag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
+			if (HasAbilityInAnyData(AbilityDataSources, ComboTag))
+			{
+				Count = ComboIndex;
+			}
+		}
+		return Count;
+	}
+
+	FString BuildRepeatedInputSequence(const TCHAR* InputActionName, int32 Count)
 	{
 		TArray<FString> Tokens;
-		Sequence.ParseIntoArray(Tokens, TEXT(" - "), true);
-
-		TArray<FString> DisplayTokens;
-		DisplayTokens.Reserve(Tokens.Num());
-		for (const FString& Token : Tokens)
+		Tokens.Reserve(Count);
+		for (int32 Index = 0; Index < Count; ++Index)
 		{
-			DisplayTokens.Add(MoveTokenToInputActionMarkup(Token));
+			Tokens.Add(InputActionMarkup(InputActionName));
 		}
-
-		return FString::Join(DisplayTokens, TEXT(" -> "));
+		return FString::Join(Tokens, TEXT(" -> "));
 	}
 
-	void GatherComboMoveListsFromNode(
-		const UGameplayAbilityComboGraphNode* Node,
-		TArray<FString> CurrentTokens,
-		TSet<const UGameplayAbilityComboGraphNode*>& Visiting,
-		TArray<FString>& OutSequences)
+	void AddComboLine(
+		TArray<FString>& MoveListLines,
+		TConstArrayView<const UAbilityData*> AbilityDataSources,
+		const TCHAR* TagPrefix,
+		const TCHAR* InputActionName,
+		int32 MaxLines)
 	{
-		if (!Node || CurrentTokens.IsEmpty() || Visiting.Contains(Node))
+		const int32 ComboStepCount = CountConfiguredComboSteps(AbilityDataSources, TagPrefix);
+		if (ComboStepCount <= 0 || (MaxLines > 0 && MoveListLines.Num() >= MaxLines))
 		{
 			return;
 		}
 
-		Visiting.Add(Node);
-
-		bool bHasDisplayableChild = false;
-		for (UGenericGraphNode* ChildGenericNode : Node->ChildrenNodes)
-		{
-			const UGameplayAbilityComboGraphNode* ChildNode = Cast<UGameplayAbilityComboGraphNode>(ChildGenericNode);
-			UGenericGraphEdge* const* EdgePtr = Node->Edges.Find(ChildGenericNode);
-			const UGameplayAbilityComboGraphEdge* Edge = EdgePtr ? Cast<UGameplayAbilityComboGraphEdge>(*EdgePtr) : nullptr;
-			const FString Token = Edge ? ComboInputActionToMoveToken(Edge->InputAction) : FString();
-			if (!ChildNode || Token.IsEmpty())
-			{
-				continue;
-			}
-
-			bHasDisplayableChild = true;
-			TArray<FString> NextTokens = CurrentTokens;
-			NextTokens.Add(Token);
-			GatherComboMoveListsFromNode(ChildNode, MoveTemp(NextTokens), Visiting, OutSequences);
-		}
-
-		if (Node->bIsComboFinisher || !bHasDisplayableChild)
-		{
-			OutSequences.Add(FString::Join(CurrentTokens, TEXT(" - ")));
-		}
-
-		Visiting.Remove(Node);
-	}
-
-	void GatherComboMoveLists(const UGameplayAbilityComboGraph* ComboGraph, TArray<FString>& OutSequences)
-	{
-		if (!ComboGraph)
-		{
-			return;
-		}
-
-		TArray<const UGameplayAbilityComboGraphNode*> RootComboNodes;
-		for (const UGenericGraphNode* RootNode : ComboGraph->RootNodes)
-		{
-			if (const UGameplayAbilityComboGraphNode* ComboNode = Cast<UGameplayAbilityComboGraphNode>(RootNode))
-			{
-				RootComboNodes.Add(ComboNode);
-			}
-		}
-
-		if (RootComboNodes.IsEmpty())
-		{
-			for (const UGenericGraphNode* Node : ComboGraph->AllNodes)
-			{
-				const UGameplayAbilityComboGraphNode* ComboNode = Cast<UGameplayAbilityComboGraphNode>(Node);
-				if (ComboNode && ComboNode->ParentNodes.IsEmpty())
-				{
-					RootComboNodes.Add(ComboNode);
-				}
-			}
-		}
-
-		for (const UGameplayAbilityComboGraphNode* RootNode : RootComboNodes)
-		{
-			const FString RootToken = RootNode ? ComboInputActionToMoveToken(RootNode->RootInputAction) : FString();
-			if (RootToken.IsEmpty())
-			{
-				continue;
-			}
-
-			TArray<FString> Tokens;
-			Tokens.Add(RootToken);
-			TSet<const UGameplayAbilityComboGraphNode*> Visiting;
-			GatherComboMoveListsFromNode(RootNode, MoveTemp(Tokens), Visiting, OutSequences);
-		}
+		MoveListLines.Add(FString::Printf(
+			TEXT("\u8fde\u6bb5 %02d   %s"),
+			MoveListLines.Num() + 1,
+			*BuildRepeatedInputSequence(InputActionName, ComboStepCount)));
 	}
 }
 
@@ -143,37 +83,28 @@ FText WeaponComboTextUtils::BuildComboHintText(
 		return FText::FromString(TEXT("\u62fe\u53d6\u6b66\u5668\u540e\u663e\u793a\u51fa\u62db\u8868\u3002"));
 	}
 
-	TArray<FString> Sequences;
-	GatherComboMoveLists(WeaponDefinition->GameplayAbilityComboGraph, Sequences);
-
-	TSet<FString> UniqueSequences;
 	TArray<FString> MoveListLines;
 	const bool bLimitLines = MaxLines > 0;
-	const int32 ClampedMaxLines = FMath::Max(1, MaxLines);
-	for (const FString& Sequence : Sequences)
-	{
-		if (Sequence.IsEmpty() || UniqueSequences.Contains(Sequence))
-		{
-			continue;
-		}
+	const int32 EffectiveMaxLines = bLimitLines ? FMath::Max(1, MaxLines) : 0;
 
-		UniqueSequences.Add(Sequence);
-		MoveListLines.Add(FString::Printf(TEXT("\u8fde\u6bb5 %02d   %s"),
-			MoveListLines.Num() + 1,
-			*FormatComboForCommonUI(Sequence)));
-		if (bLimitLines && MoveListLines.Num() >= ClampedMaxLines)
-		{
-			break;
-		}
-	}
+	const UAbilityData* AttackSources[] = {
+		WeaponDefinition->AttackAbilityData.Get(),
+	};
+	const UAbilityData* WeaponSkillSources[] = {
+		WeaponDefinition->WeaponSkillAbilityData.Get(),
+	};
+	const UAbilityData* SpecialSources[] = {
+		WeaponDefinition->SpecialAbilityData.Get(),
+	};
+
+	AddComboLine(MoveListLines, MakeArrayView(AttackSources), TEXT("PlayerState.AbilityCast.Attack"), TEXT("Attack"), EffectiveMaxLines);
+	AddComboLine(MoveListLines, MakeArrayView(AttackSources), TEXT("PlayerState.AbilityCast.Dash"), TEXT("Dash"), EffectiveMaxLines);
+	AddComboLine(MoveListLines, MakeArrayView(WeaponSkillSources), TEXT("PlayerState.AbilityCast.WeaponSkill"), TEXT("WeaponSkill"), EffectiveMaxLines);
+	AddComboLine(MoveListLines, MakeArrayView(SpecialSources), TEXT("PlayerState.AbilityCast.Special"), TEXT("Special"), EffectiveMaxLines);
 
 	if (MoveListLines.IsEmpty())
 	{
-		MoveListLines.Add(TEXT("\u8fde\u6bb5 01   <input action=\"LightAttack\"/> -> <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"));
-		if (!bLimitLines || ClampedMaxLines > 1)
-		{
-			MoveListLines.Add(TEXT("\u8fde\u6bb5 02   <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"));
-		}
+		MoveListLines.Add(TEXT("\u672a\u914d\u7f6e\u62db\u5f0f\u6570\u636e\u3002"));
 	}
 
 	return FText::FromString(FString::Join(MoveListLines, bCompactSpacing ? TEXT("\n") : TEXT("\n\n")));

@@ -8,15 +8,16 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
 #include "Animation/AN_MeleeDamage.h"
+#include "Animation/YogAnimNotifyState_Damage.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/HitStopManager.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Character/EnemyCharacterBase.h"
+#include "Controller/YogAIController.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 #include "Component/MontageVFXBindingComponent.h"
 #include "Component/BufferComponent.h"
 #include "Component/CharacterDataComponent.h"
@@ -40,14 +41,6 @@ namespace
 
 	TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
 
-	float MeleeAttack_FrameToMontageTime(int32 Frame, int32 TotalFrames, const UAnimMontage* Montage)
-	{
-		const float Duration = Montage ? Montage->GetPlayLength() : 0.f;
-		const float Normalized = TotalFrames > 0
-			? FMath::Clamp(static_cast<float>(Frame) / static_cast<float>(TotalFrames), 0.f, 1.f)
-			: 0.f;
-		return Normalized * Duration;
-	}
 }
 
 UGA_MeleeAttack::UGA_MeleeAttack()
@@ -60,10 +53,14 @@ UGA_MeleeAttack::UGA_MeleeAttack()
 	bRetriggerInstancedAbility = true;
 
 	// Runtime guards that should not depend on Blueprint class defaults.
+	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"));
+	AbilityTags.AddTag(AttackTag);
+	ActivationOwnedTags.AddTag(AttackTag);
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Dead"));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.HitReact"));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Knockback"));
 }
+
 
 UAN_MeleeDamage* UGA_MeleeAttack::GetFirstDamageNotify(UAnimMontage* Montage)
 {
@@ -112,22 +109,24 @@ FActionData UGA_MeleeAttack::GetAbilityActionData_Implementation() const
 
 ECardRequiredAction UGA_MeleeAttack::GetCombatDeckActionType() const
 {
-	if (bActiveComboNodeValid)
-	{
-		return ActiveComboNode.InputAction;
-	}
-
 	const FGameplayTag HeavyAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk"));
 	const FGameplayTag LightAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk"));
+	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"));
+	const FGameplayTag WeaponSkillTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"));
 
 	if (AbilityTags.HasTag(HeavyAttackTag))
 	{
 		return ECardRequiredAction::Heavy;
 	}
 
-	if (AbilityTags.HasTag(LightAttackTag))
+	if (AbilityTags.HasTag(LightAttackTag) || AbilityTags.HasTag(AttackTag))
 	{
 		return ECardRequiredAction::Light;
+	}
+
+	if (AbilityTags.HasTag(WeaponSkillTag))
+	{
+		return ECardRequiredAction::Heavy;
 	}
 
 	return ECardRequiredAction::Any;
@@ -135,15 +134,19 @@ ECardRequiredAction UGA_MeleeAttack::GetCombatDeckActionType() const
 
 bool UGA_MeleeAttack::IsCombatDeckComboFinisher() const
 {
-	if (bActiveComboNodeValid)
-	{
-		return ActiveComboNode.bIsComboFinisher;
-	}
-
 	const FGameplayTag LightFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo4"));
 	const FGameplayTag HeavyFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"));
+	const FGameplayTag AttackFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo4"));
+	const FGameplayTag WeaponSkillFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"));
+	const FGameplayTag DashFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash.Combo4"));
+	const FGameplayTag SpecialFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo4"));
 
-	return AbilityTags.HasTagExact(LightFinisherTag) || AbilityTags.HasTagExact(HeavyFinisherTag);
+	return AbilityTags.HasTagExact(LightFinisherTag)
+		|| AbilityTags.HasTagExact(HeavyFinisherTag)
+		|| AbilityTags.HasTagExact(AttackFinisherTag)
+		|| AbilityTags.HasTagExact(WeaponSkillFinisherTag)
+		|| AbilityTags.HasTagExact(DashFinisherTag)
+		|| AbilityTags.HasTagExact(SpecialFinisherTag);
 }
 
 bool UGA_MeleeAttack::HasConfiguredAttackData() const
@@ -286,26 +289,21 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 	}
 
 	FCombatDeckActionContext Context;
-	bool bUsedComboRuntimeContext = false;
-	if (PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->GetActiveNode())
-	{
-		Context = PlayerOwner->ComboRuntimeComponent->BuildAttackContext(TriggerTiming, PlayerOwner);
-		bUsedComboRuntimeContext = Context.ComboNodeId != NAME_None || Context.AbilityTag.IsValid();
-	}
-
-	if (!bUsedComboRuntimeContext)
-	{
-		Context.ActionType = GetCombatDeckActionType();
-		Context.ComboIndex = ActiveComboIndex;
-		Context.ComboNodeId = bActiveComboNodeValid ? ActiveComboNode.NodeId : NAME_None;
-		Context.ComboTags = ActiveComboTags;
-		Context.AbilityTag = bActiveComboNodeValid ? ActiveComboNode.AbilityTag : FGameplayTag();
-		Context.WeaponDef = PlayerOwner->EquippedWeaponDef;
-		Context.bIsComboFinisher = IsCombatDeckComboFinisher();
-		Context.bComboContinued = bComboContinued;
-		Context.bExitedComboState = bExitedComboState;
-		Context.bFromDashSave = bCombatDeckFromDashSave;
-	}
+	Context.ActionType = GetCombatDeckActionType();
+	Context.ActionSlot = AbilityTags.HasTagExact(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false))
+		? ECombatDeckActionSlot::WeaponSkill
+		: ECombatDeckActionSlot::Attack;
+	Context.ComboIndex = ActiveComboIndex;
+	Context.ComboNodeId = NAME_None;
+	Context.ComboTags = ActiveComboTags;
+	Context.AbilityTag = FGameplayTag();
+	Context.WeaponDef = PlayerOwner->EquippedWeaponDef;
+	Context.bIsComboFinisher = IsCombatDeckComboFinisher();
+	Context.FlowRole = Context.bIsComboFinisher ? ECombatDeckFlowRole::Finisher : ECombatDeckFlowRole::Starter;
+	Context.ReleaseMode = Context.bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
+	Context.bComboContinued = bComboContinued;
+	Context.bExitedComboState = bExitedComboState;
+	Context.bFromDashSave = bCombatDeckFromDashSave;
 	Context.TriggerTiming = TriggerTiming;
 	Context.AttackInstanceGuid = bResolveFromHitNotify
 		? FGuid::NewGuid()
@@ -322,9 +320,11 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 	}
 
 	UE_LOG(LogTemp, Warning,
-		TEXT("[CombatDeckContext] Runtime=%d Action=%s ComboIndex=%d Node=%s Continued=%d Exited=%d Trigger=%d Ability=%s Guid=%s"),
-		bUsedComboRuntimeContext ? 1 : 0,
+		TEXT("[CombatDeckContext] Runtime=%d Action=%s Slot=%s Role=%s ComboIndex=%d Node=%s Continued=%d Exited=%d Trigger=%d Ability=%s Guid=%s"),
+		0,
 		*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(Context.ActionType)),
+		*StaticEnum<ECombatDeckActionSlot>()->GetNameStringByValue(static_cast<int64>(Context.ActionSlot)),
+		*StaticEnum<ECombatDeckFlowRole>()->GetNameStringByValue(static_cast<int64>(Context.FlowRole)),
 		Context.ComboIndex,
 		*Context.ComboNodeId.ToString(),
 		Context.bComboContinued ? 1 : 0,
@@ -367,15 +367,6 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 		return;
 	}
 
-	if (PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource())
-	{
-		const FGuid RuntimeAttackGuid = PlayerOwner->ComboRuntimeComponent->GetActiveAttackGuid();
-		if (RuntimeAttackGuid.IsValid() && ActiveAttackGuid.IsValid() && RuntimeAttackGuid != ActiveAttackGuid)
-		{
-			return;
-		}
-	}
-
 	UBufferComponent* Buffer = PlayerOwner->GetInputBufferComponent();
 	if (!Buffer)
 	{
@@ -383,43 +374,71 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	}
 
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	EInputCommandType BufferedAttackType = EInputCommandType::LightAttack;
-	if (!Buffer->ConsumeLatestAttackInputSince(AbilityActivationTime, BufferedAttackType))
+	EInputCommandType BufferedActionType = EInputCommandType::Attack;
+	if (!Buffer->ConsumeLatestActionInputSince(AbilityActivationTime, BufferedActionType))
 	{
 		// === DIAG: attack-stuck repro (CL564) ===
-		// 旧版会两次独立尝试 Light/Heavy；新版只看最近一次 attack。
+		// 旧版会两次独立尝试 Light/Heavy；新版只看最近一次 action。
 		// 若卡攻击是因为此处早退而 CanCombo tag 未清，这条会出现并跟随玩家"卡住"。
 		UE_LOG(LogTemp, Warning,
-			TEXT("[Melee][DIAG564] OnCanComboTagChanged EARLY-RETURN — no buffered attack since AbilityActivationTime=%.3f Tag=%s NewCount=%d"),
+			TEXT("[Melee][DIAG564] OnCanComboTagChanged EARLY-RETURN — no buffered action since AbilityActivationTime=%.3f Tag=%s NewCount=%d"),
 			AbilityActivationTime, *Tag.ToString(), NewCount);
 		return;
 	}
 
-	const ECardRequiredAction ActionType = BufferedAttackType == EInputCommandType::HeavyAttack
-		? ECardRequiredAction::Heavy
-		: ECardRequiredAction::Light;
-	const TCHAR* FallbackTagName = BufferedAttackType == EInputCommandType::HeavyAttack
-		? TEXT("PlayerState.AbilityCast.HeavyAtk")
-		: TEXT("PlayerState.AbilityCast.LightAtk");
-
 	bool bActivated = false;
-	const bool bHasComboSource = PlayerOwner->ComboRuntimeComponent && PlayerOwner->ComboRuntimeComponent->HasComboSource();
-	if (bHasComboSource)
+	if (BufferedActionType == EInputCommandType::Attack || BufferedActionType == EInputCommandType::WeaponSkill)
 	{
-		bActivated = PlayerOwner->ComboRuntimeComponent->TryActivateCombo(ActionType, PlayerOwner);
+		if (UYogAbilitySystemComponent* PlayerASC = Cast<UYogAbilitySystemComponent>(PlayerOwner->GetASC()))
+		{
+			const bool bHasActiveComboTag = BufferedActionType == EInputCommandType::Attack
+				? PlayerASC->HasActiveAttackComboAbilityTag()
+				: PlayerASC->HasActiveWeaponSkillComboAbilityTag();
+			bActivated = BufferedActionType == EInputCommandType::Attack
+				? PlayerASC->TryActivateNextAttackComboAbility(true, true)
+				: PlayerASC->TryActivateNextWeaponSkillComboAbility(true, true);
+			if (!bActivated && bHasActiveComboTag)
+			{
+				ASC = PlayerASC;
+				if (Tag.IsValid())
+				{
+					PlayerASC->SetLooseGameplayTagCount(Tag, 0);
+				}
+				return;
+			}
+		}
 	}
-	else if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
+	if (!bActivated)
 	{
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
-		bActivated = PlayerASC->TryActivateAbilitiesByTag(TagContainer, true);
+		if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
+		{
+			const TCHAR* FallbackTagName = TEXT("PlayerState.AbilityCast.Attack");
+			switch (BufferedActionType)
+			{
+			case EInputCommandType::WeaponSkill:
+				FallbackTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
+				break;
+			case EInputCommandType::Dash:
+				FallbackTagName = TEXT("PlayerState.AbilityCast.Dash");
+				break;
+			case EInputCommandType::Special:
+				FallbackTagName = TEXT("PlayerState.AbilityCast.Special");
+				break;
+			default:
+				break;
+			}
+
+			FGameplayTagContainer TagContainer;
+			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
+			bActivated = PlayerASC->TryActivateAbilitiesByTag(TagContainer, true);
+		}
 	}
 
 	// === DIAG: attack-stuck repro (CL564) ===
 	UE_LOG(LogTemp, Verbose,
 		TEXT("[Melee][DIAG564] OnCanComboTagChanged consumed=%s HasComboSource=%d Activated=%d Tag=%s"),
-		BufferedAttackType == EInputCommandType::HeavyAttack ? TEXT("Heavy") : TEXT("Light"),
-		bHasComboSource ? 1 : 0, bActivated ? 1 : 0, *Tag.ToString());
+		*StaticEnum<EInputCommandType>()->GetNameStringByValue(static_cast<int64>(BufferedActionType)),
+		0, bActivated ? 1 : 0, *Tag.ToString());
 
 	if (!bActivated && ASC && Tag.IsValid())
 	{
@@ -430,42 +449,18 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	}
 }
 
-void UGA_MeleeAttack::ScheduleNodeComboWindow(UAnimMontage* Montage, float PlayRate)
-{
-	// Drives PlayerState.AbilityCast.CanCombo via timers based on the active
-	// ComboGraph node's frame window. Ported from GA_PlayMontage so combo
-	// chaining works without requiring ANS_AddGameplayTag on every montage.
-	if (!bActiveComboNodeValid || !ActiveComboNode.bOverrideComboWindow
-		|| ActiveComboNode.ComboWindowTotalFrames <= 0 || !Montage)
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	const float Rate = (PlayRate > KINDA_SMALL_NUMBER) ? PlayRate : 1.0f;
-	const float StartTime = MeleeAttack_FrameToMontageTime(ActiveComboNode.ComboWindowStartFrame,
-		ActiveComboNode.ComboWindowTotalFrames, Montage) / Rate;
-	const float EndTime = MeleeAttack_FrameToMontageTime(ActiveComboNode.ComboWindowEndFrame,
-		ActiveComboNode.ComboWindowTotalFrames, Montage) / Rate;
-
-	World->GetTimerManager().ClearTimer(ComboWindowOpenTimerHandle);
-	World->GetTimerManager().ClearTimer(ComboWindowCloseTimerHandle);
-
-	World->GetTimerManager().SetTimer(ComboWindowOpenTimerHandle, this,
-		&UGA_MeleeAttack::OpenNodeComboWindow, FMath::Max(StartTime, 0.01f), false);
-	World->GetTimerManager().SetTimer(ComboWindowCloseTimerHandle, this,
-		&UGA_MeleeAttack::CloseNodeComboWindow, FMath::Max(EndTime, 0.01f), false);
-}
-
 void UGA_MeleeAttack::TryStartEnemyRadialLunge()
 {
-	if (!ActiveEnemyAttackContext.bValid
-		|| ActiveEnemyAttackContext.AttackOption.AttackMovementMode != EEnemyAIAttackMovementMode::RadialLunge)
+	if (!ActiveEnemyAttackContext.bValid)
+	{
+		return;
+	}
+
+	const FEnemyAIAttackOption& AttackOption = ActiveEnemyAttackContext.AttackOption;
+	const bool bReposition = AttackOption.AttackRole == EEnemyAIAttackRole::Reposition;
+	// Reposition options drive the dash through their role rather than a movement mode,
+	// so they bypass the BT movement-attack cooldown machinery.
+	if (!bReposition && AttackOption.AttackMovementMode != EEnemyAIAttackMovementMode::RadialLunge)
 	{
 		return;
 	}
@@ -477,38 +472,61 @@ void UGA_MeleeAttack::TryStartEnemyRadialLunge()
 		return;
 	}
 
-	const FEnemyAIAttackOption& AttackOption = ActiveEnemyAttackContext.AttackOption;
 	const float CurrentDistance = FVector::Dist2D(Character->GetActorLocation(), TargetActor->GetActorLocation());
-	if (CurrentDistance < AttackOption.LungeStartRange
+	// LungeStartRange is a gap-close gate for toward-target lunges; a reposition dash can
+	// fire at any range (it usually triggers point-blank after a whiff).
+	if ((!bReposition && CurrentDistance < AttackOption.LungeStartRange)
 		|| AttackOption.LungeDistance <= 0.0f
 		|| AttackOption.LungeDuration <= 0.0f)
 	{
 		return;
 	}
 
-	FVector Direction = TargetActor->GetActorLocation() - Character->GetActorLocation();
-	Direction.Z = 0.0f;
-	if (Direction.IsNearlyZero())
+	FVector ToTarget = TargetActor->GetActorLocation() - Character->GetActorLocation();
+	ToTarget.Z = 0.0f;
+	if (ToTarget.IsNearlyZero())
 	{
 		return;
 	}
+	ToTarget = ToTarget.GetSafeNormal();
 
-	Direction = Direction.GetSafeNormal();
-	const FRotator FaceTargetRotation(0.0f, Direction.Rotation().Yaw, 0.0f);
+	FVector DashDirection;
+	if (bReposition)
+	{
+		const float Angle = FMath::FRandRange(AttackOption.RepositionAngleMin, AttackOption.RepositionAngleMax);
+		const float Sign = FMath::RandBool() ? 1.0f : -1.0f;
+		DashDirection = (-ToTarget).RotateAngleAxis(Sign * Angle, FVector::UpVector);
+	}
+	else
+	{
+		DashDirection = ToTarget;
+	}
+
+	// Always face the target so a follow-up attack is aimed correctly, even when the dash
+	// itself travels sideways.
+	const FRotator FaceTargetRotation(0.0f, ToTarget.Rotation().Yaw, 0.0f);
 	Character->SetActorRotation(FaceTargetRotation);
 	if (AController* Controller = Character->GetController())
 	{
 		Controller->SetControlRotation(FaceTargetRotation);
 	}
 
-	const float MaxUsefulDistance = FMath::Max(CurrentDistance - AttackOption.LungeStopDistance, 0.0f);
-	const float MoveDistance = FMath::Min(AttackOption.LungeDistance, MaxUsefulDistance);
+	float MoveDistance;
+	if (bReposition)
+	{
+		MoveDistance = AttackOption.LungeDistance;
+	}
+	else
+	{
+		const float MaxUsefulDistance = FMath::Max(CurrentDistance - AttackOption.LungeStopDistance, 0.0f);
+		MoveDistance = FMath::Min(AttackOption.LungeDistance, MaxUsefulDistance);
+	}
 	if (MoveDistance <= 0.0f)
 	{
 		return;
 	}
 
-	const FVector TargetLocation = Character->GetActorLocation() + Direction * MoveDistance;
+	const FVector TargetLocation = Character->GetActorLocation() + DashDirection * MoveDistance;
 	EnemyLungeTask = UAbilityTask_ApplyRootMotionMoveToForce::ApplyRootMotionMoveToForce(
 		this,
 		FName(TEXT("EnemyRadialLunge")),
@@ -528,22 +546,6 @@ void UGA_MeleeAttack::TryStartEnemyRadialLunge()
 	}
 }
 
-void UGA_MeleeAttack::OpenNodeComboWindow()
-{
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{
-		ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")));
-	}
-}
-
-void UGA_MeleeAttack::CloseNodeComboWindow()
-{
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{
-		ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")), 0);
-	}
-}
-
 void UGA_MeleeAttack::ActivateAbility(
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
@@ -553,7 +555,6 @@ void UGA_MeleeAttack::ActivateAbility(
 	bCombatDeckCardResolvedThisActivation = false;
 	bCombatDeckFromDashSave = bNextActivationFromDashSave;
 	bNextActivationFromDashSave = false;
-	bActiveComboNodeValid = false;
 	bComboContinued = false;
 	bExitedComboState = false;
 	CombatDeckHitResolveCounter = 0;
@@ -563,7 +564,6 @@ void UGA_MeleeAttack::ActivateAbility(
 	LocalStatBeforeAttackDelta = 0.f;
 	LocalStatBeforeAttackPowerDelta = 0.f;
 	ActiveCombatCardResult = FCombatCardResolveResult();
-	ActiveComboNode = FWeaponComboNodeConfig();
 	ActiveComboAttackData = nullptr;
 	ActiveComboAttackConfig = FComboAttackConfig();
 	bActiveComboAttackConfigValid = false;
@@ -602,7 +602,7 @@ void UGA_MeleeAttack::ActivateAbility(
 		return;
 	}
 
-	// Read montage from combo config first, then fall back to the legacy MontageMap.
+	// Read montage from AbilityData using this GA's combo tag.
 	AYogCharacterBase* ActivateOwner = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo());
 	if (AEnemyCharacterBase* EnemyOwner = Cast<AEnemyCharacterBase>(ActivateOwner))
 	{
@@ -614,24 +614,6 @@ void UGA_MeleeAttack::ActivateAbility(
 	{
 		PlayerOwner = Cast<APlayerCharacterBase>(GetOwningActorFromActorInfo());
 	}
-	if (PlayerOwner && PlayerOwner->ComboRuntimeComponent)
-	{
-		if (const FWeaponComboNodeConfig* RuntimeNode = PlayerOwner->ComboRuntimeComponent->GetActiveNode())
-		{
-			ActiveComboNode = *RuntimeNode;
-			ActiveComboAttackData = RuntimeNode->AttackDataOverride;
-			ActiveComboAttackConfig = RuntimeNode->NodeAttackConfig;
-			bActiveComboAttackConfigValid = ActiveComboAttackConfig.bEnabled;
-			ActiveAttackGuid = PlayerOwner->ComboRuntimeComponent->GetActiveAttackGuid();
-			ActiveComboIndex = PlayerOwner->ComboRuntimeComponent->GetComboIndex();
-			ActiveComboTags = PlayerOwner->ComboRuntimeComponent->GetComboTags();
-			bComboContinued = PlayerOwner->ComboRuntimeComponent->DidComboContinue();
-			bExitedComboState = PlayerOwner->ComboRuntimeComponent->DidExitComboState();
-			bCombatDeckFromDashSave = bCombatDeckFromDashSave || PlayerOwner->ComboRuntimeComponent->ConsumeActivationFromDashSave();
-			bActiveComboNodeValid = true;
-			PlayerOwner->ComboRuntimeComponent->RegisterActiveAttackAbility(ActiveAttackGuid, Handle);
-		}
-	}
 	if (!ActiveAttackGuid.IsValid())
 	{
 		ActiveAttackGuid = FGuid::NewGuid();
@@ -641,34 +623,93 @@ void UGA_MeleeAttack::ActivateAbility(
 	UCharacterData* CD = CDC ? CDC->GetCharacterData() : nullptr;
 
 	FGameplayTag FirstTag;
-	for (const FGameplayTag& Tag : AbilityTags) { FirstTag = Tag; break; }
+	static const FGameplayTag PreferredAbilityTags[] = {
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.LAtk1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.LAtk2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.LAtk3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.LAtk4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.HAtk1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.HAtk2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.HAtk3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Range.HAtk4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Skill.Skill1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Skill.Skill2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Skill.Skill3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Skill.Skill4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash.Combo4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"), false),
+	};
+	for (const FGameplayTag& PreferredTag : PreferredAbilityTags)
+	{
+		if (PreferredTag.IsValid() && AbilityTags.HasTagExact(PreferredTag))
+		{
+			FirstTag = PreferredTag;
+			const FString TagText = PreferredTag.ToString();
+			if (TagText.EndsWith(TEXT(".Combo1")))
+			{
+				ActiveComboIndex = 1;
+			}
+			else if (TagText.EndsWith(TEXT(".Combo2")))
+			{
+				ActiveComboIndex = 2;
+			}
+			else if (TagText.EndsWith(TEXT(".Combo3")))
+			{
+				ActiveComboIndex = 3;
+			}
+			else if (TagText.EndsWith(TEXT(".Combo4")))
+			{
+				ActiveComboIndex = 4;
+			}
+			ActiveComboTags.AddTag(PreferredTag);
+			break;
+		}
+	}
+	if (!FirstTag.IsValid())
+	{
+		for (const FGameplayTag& Tag : AbilityTags) { FirstTag = Tag; break; }
+	}
 
 	UAnimMontage* Montage = (CD && CD->AbilityData && FirstTag.IsValid())
 		? CD->AbilityData->GetMontage(FirstTag) : nullptr;
 
 	ActiveMontageConfig = nullptr;
-	if (bActiveComboNodeValid && ActiveComboNode.MontageConfig)
-	{
-		ActiveMontageConfig = ActiveComboNode.MontageConfig;
-		if (ActiveMontageConfig->Montage)
-		{
-			Montage = ActiveMontageConfig->Montage;
-		}
-	}
-	else if (bActiveComboNodeValid && ActiveComboNode.Montage)
-	{
-		Montage = ActiveComboNode.Montage;
-	}
-	else if (CD && CD->AbilityData && FirstTag.IsValid())
+	if (CD && CD->AbilityData && FirstTag.IsValid())
 	{
 		FGameplayTagContainer ContextTags;
 		if (UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr)
 		{
 			ASC->GetOwnedGameplayTags(ContextTags);
-		}
-		if (bActiveComboNodeValid && ActiveComboNode.AbilityTag.IsValid())
-		{
-			ContextTags.AddTag(ActiveComboNode.AbilityTag);
 		}
 
 		ActiveMontageConfig = CD->AbilityData->GetMontageConfig(FirstTag, ContextTags);
@@ -747,7 +788,18 @@ void UGA_MeleeAttack::ActivateAbility(
 
 	if (!Montage)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GA_MeleeAttack] No Montage found for %s 鈥?ability ended immediately."), *GetName());
+		const UAbilityData* ActiveAbilityData = CD ? CD->AbilityData.Get() : nullptr;
+		const bool bMontageMapHasKey = ActiveAbilityData && FirstTag.IsValid() && ActiveAbilityData->MontageMap.Contains(FirstTag);
+		const bool bHasConfiguredAbility = ActiveAbilityData && FirstTag.IsValid() && ActiveAbilityData->HasAbility(FirstTag);
+		UE_LOG(LogTemp, Warning,
+			TEXT("[GA_MeleeAttack] No Montage found for %s. Owner=%s LookupTag=%s CharacterData=%s AbilityData=%s MontageMapHasKey=%d HasAbility=%d - ability ended immediately."),
+			*GetName(),
+			*GetNameSafe(ActivateOwner),
+			FirstTag.IsValid() ? *FirstTag.ToString() : TEXT("(none)"),
+			*GetNameSafe(CD),
+			*GetNameSafe(ActiveAbilityData),
+			bMontageMapHasKey ? 1 : 0,
+			bHasConfiguredAbility ? 1 : 0);
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
@@ -797,10 +849,6 @@ void UGA_MeleeAttack::ActivateAbility(
 	ResolveCombatDeck(ECombatCardTriggerTiming::OnCommit);
 
 	Task->ReadyForActivation();
-
-	// Drive the combo window from the ComboGraph node's frame config (when set).
-	// Falls back to montage-authored ANS_AddGameplayTag notifies if bOverrideComboWindow is false.
-	ScheduleNodeComboWindow(Montage, AttackSpeedRate);
 }
 
 void UGA_MeleeAttack::EndAbility(
@@ -818,11 +866,6 @@ void UGA_MeleeAttack::EndAbility(
 		CanComboTagHandle.Reset();
 	}
 
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ComboWindowOpenTimerHandle);
-		World->GetTimerManager().ClearTimer(ComboWindowCloseTimerHandle);
-	}
 	if (ASC)
 	{
 		ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")), 0);
@@ -911,6 +954,8 @@ void UGA_MeleeAttack::EndAbility(
 				? ActiveComboAttackData->BuildActionData()
 				: LastFiredDamageNotify
 				? LastFiredDamageNotify->BuildActionData()
+				: LastFiredDamageWindow
+				? LastFiredDamageWindow->ResolveActionData(Cast<AYogCharacterBase>(GetOwningActorFromActorInfo()))
 				: GetAbilityActionData();
 			Spec.Data->SetSetByCallerMagnitude(TAG_ActDamage,    ActionData.ActDamage);
 			Spec.Data->SetSetByCallerMagnitude(TAG_ActRange,     ActionData.ActRange);
@@ -945,19 +990,7 @@ void UGA_MeleeAttack::EndAbility(
 
 	if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
 	{
-		bool bComboRuntimeAdvanced = false;
-		bool bComboRuntimeEndedActiveNode = false;
-		if (PlayerOwner->ComboRuntimeComponent && ActiveAttackGuid.IsValid())
-		{
-			const FGuid RuntimeAttackGuid = PlayerOwner->ComboRuntimeComponent->GetActiveAttackGuid();
-			bComboRuntimeAdvanced = RuntimeAttackGuid.IsValid() && RuntimeAttackGuid != ActiveAttackGuid;
-			if (!bComboRuntimeAdvanced)
-			{
-				bComboRuntimeEndedActiveNode = PlayerOwner->ComboRuntimeComponent->HandleAttackAbilityEnded(ActiveAttackGuid);
-			}
-		}
-
-		if (!bComboRuntimeAdvanced && !bComboRuntimeEndedActiveNode && !bComboContinued && !bCombatDeckFromDashSave && PlayerOwner->CombatDeckComponent)
+		if (!bComboContinued && !bCombatDeckFromDashSave && PlayerOwner->CombatDeckComponent)
 		{
 			PlayerOwner->CombatDeckComponent->NotifyComboStateExited();
 			UE_LOG(LogTemp, Warning, TEXT("[CombatDeck] Combo ended without continuation; pending link cleared by %s"), *GetName());
@@ -980,15 +1013,33 @@ void UGA_MeleeAttack::EndAbility(
 		}
 	}
 
+	// Report whiff/connect outcome for enemy AI profile attacks so the BT can react
+	// (e.g. reposition on a miss). ActiveEnemyAttackContext is only valid for AI-driven
+	// attacks; bComboHitConnected is reset on activation and set true on any landed hit.
+	if (!bWasCancelled && ActiveEnemyAttackContext.bValid)
+	{
+		if (AEnemyCharacterBase* EnemyOwner = Cast<AEnemyCharacterBase>(GetOwningActorFromActorInfo()))
+		{
+			if (AYogAIController* YogAI = Cast<AYogAIController>(EnemyOwner->GetController()))
+			{
+				// A reposition move deals no damage by design; treat it as resolved (not a
+				// whiff) so it clears the flag instead of re-triggering itself endlessly.
+				const bool bRepositionMove =
+					ActiveEnemyAttackContext.AttackOption.AttackRole == EEnemyAIAttackRole::Reposition;
+				const bool bWhiffed = !bRepositionMove && !EnemyOwner->bComboHitConnected;
+				YogAI->NotifyAttackResolved(bWhiffed);
+			}
+		}
+	}
+
 	CachedDamageNotify    = nullptr;
 	LastFiredDamageNotify = nullptr;
+	LastFiredDamageWindow = nullptr;
 	ActiveMontageConfig = nullptr;
-	ActiveComboNode = FWeaponComboNodeConfig();
 	ActiveComboAttackData = nullptr;
 	ActiveComboAttackConfig = FComboAttackConfig();
 	bActiveComboAttackConfigValid = false;
 	ActiveEnemyAttackContext = FEnemyAIAttackRuntimeContext();
-	bActiveComboNodeValid = false;
 	bComboContinued = true;
 	bExitedComboState = false;
 	CombatDeckHitResolveCounter = 0;
@@ -1322,6 +1373,37 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 		if (UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo()))
 		{
 			SourceASC->CurrentActionPoiseBonus = GetAbilityActionData().ActResilience;
+		}
+	}
+
+	if (const UYogAnimNotifyState_Damage* FiredDamageWindow = Cast<const UYogAnimNotifyState_Damage>(EventData.OptionalObject))
+	{
+		AYogCharacterBase* OwnerCharacter = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo());
+		const UYogTargetType* TargetTypeCDO = OwnerCharacter && OwnerCharacter->DefaultMeleeTargetType
+			? OwnerCharacter->DefaultMeleeTargetType.GetDefaultObject()
+			: nullptr;
+		TArray<FHitResult> WindowHitResults;
+		TArray<AActor*> WindowTargetActors;
+		if (TargetTypeCDO)
+		{
+			TargetTypeCDO->GetTargets(OwnerCharacter, GetAvatarActorFromActorInfo(), EventData, WindowHitResults, WindowTargetActors);
+		}
+		if (WindowHitResults.IsEmpty() && WindowTargetActors.IsEmpty())
+		{
+			if (OwnerCharacter)
+			{
+				OwnerCharacter->PendingAdditionalHitRunes.Empty();
+				OwnerCharacter->PendingOnHitEventTags.Empty();
+				OwnerCharacter->PendingHitStopOverride = AYogCharacterBase::FPendingHitStopOverride();
+				OwnerCharacter->PendingHitImpactCueTag = FGameplayTag();
+			}
+			return;
+		}
+
+		LastFiredDamageWindow = FiredDamageWindow;
+		if (UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo()))
+		{
+			SourceASC->CurrentActionPoiseBonus = FiredDamageWindow->ResolveActionData(OwnerCharacter).ActResilience;
 		}
 	}
 

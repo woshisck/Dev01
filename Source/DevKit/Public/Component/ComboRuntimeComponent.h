@@ -1,91 +1,76 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/YogComboGraphRuntimeComponent.h"
-#include "Data/WeaponComboConfigDA.h"
-#include "GameplayAbilitySpec.h"
+#include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "Components/ActorComponent.h"
+#include "Data/RuneDataAsset.h"
 #include "ComboRuntimeComponent.generated.h"
 
 class APlayerCharacterBase;
-class UGameplayAbilityComboGraph;
-class UAnimMontage;
 class UAbilitySystemComponent;
 struct FCombatDeckActionContext;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class DEVKIT_API UComboRuntimeComponent : public UYogComboGraphRuntimeComponent
+class DEVKIT_API UComboRuntimeComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 	UComboRuntimeComponent();
 
-	UFUNCTION(BlueprintCallable, Category = "Combo")
-	void LoadComboConfig(UWeaponComboConfigDA* InComboConfig);
-
-	virtual void LoadComboGraph(UGameplayAbilityComboGraph* InComboGraph) override;
+	UFUNCTION(BlueprintPure, Category = "Combo")
+	bool HasComboSource() const { return false; }
 
 	UFUNCTION(BlueprintPure, Category = "Combo")
-	bool HasComboSource() const { return ComboConfig != nullptr || HasComboGraph(); }
+	bool HasWeaponComboSource() const { return false; }
+
+	UFUNCTION(BlueprintPure, Category = "Combo")
+	bool HasSpecialAttackComboSource() const { return false; }
+
+	UFUNCTION(BlueprintPure, Category = "Combo")
+	bool HasWeaponSkillComboSource() const { return false; }
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	bool TryActivateCombo(ECardRequiredAction InputAction, APlayerCharacterBase* PlayerOwner);
 
-	bool TryActivateCombo(ECombatGraphInputAction InputAction, APlayerCharacterBase* PlayerOwner);
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	bool TryActivateAttack(APlayerCharacterBase* PlayerOwner);
 
-	UFUNCTION(BlueprintPure, Category = "Combo")
-	bool HasDashInputNode() const;
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	bool TryActivateWeaponSkill(APlayerCharacterBase* PlayerOwner);
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	bool TryActivateDash(APlayerCharacterBase* PlayerOwner);
 
-	virtual void ResetCombo() override;
-	virtual bool SaveCurrentNodeForDash() override;
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	bool TryActivateSpecial(APlayerCharacterBase* PlayerOwner);
 
-	bool SaveCurrentNodeForDashWithPolicy(EComboDashSaveMode SaveMode = EComboDashSaveMode::PreserveIfSourceAllows, float ExpireSeconds = 2.0f);
+	bool TryActivateSpecialCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner);
+	bool TryActivateSpecialAttackCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner) { return TryActivateSpecialCombo(AbilityClass, PlayerOwner); }
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
-	void ClearSavedDashNode();
-
-	UFUNCTION(BlueprintCallable, Category = "Combo")
-	void NotifyDashEnded(bool bWasCancelled);
+	void ResetCombo();
 
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	void ClearRuntimeCombatLooseTags();
 
 	UFUNCTION(BlueprintPure, Category = "Combo")
-	FName GetActiveNodeId() const { return ActiveNode.NodeId; }
+	FName GetActiveNodeId() const { return NAME_None; }
 
 	UFUNCTION(BlueprintPure, Category = "Combo")
-	UAnimMontage* GetActiveDashMontageOverride() const { return ActiveDashMontageOverride; }
+	TSubclassOf<UYogGameplayAbility> GetWeaponSkillAbility() const { return WeaponSkillAbility; }
 
-	const FWeaponComboNodeConfig* GetActiveNode() const;
-	void RegisterActiveAttackAbility(const FGuid& AttackGuid, const FGameplayAbilitySpecHandle& AbilityHandle);
+	void SetWeaponSkillAbility(TSubclassOf<UYogGameplayAbility> InAbility);
+	TSubclassOf<UYogGameplayAbility> GetComboSpecialActionAbility() const { return GetWeaponSkillAbility(); }
+	void SetComboSpecialActionAbility(TSubclassOf<UYogGameplayAbility> InAbility) { SetWeaponSkillAbility(InAbility); }
+
+	void EnsureWeaponComboAbilitiesGranted(APlayerCharacterBase* PlayerOwner);
+
+	void RegisterActiveAttackAbility(const FGuid& AttackGuid);
 	bool HandleAttackAbilityEnded(const FGuid& EndedAttackGuid);
 	FCombatDeckActionContext BuildAttackContext(ECombatCardTriggerTiming TriggerTiming, APlayerCharacterBase* PlayerOwner) const;
 
-#if WITH_DEV_AUTOMATION_TESTS
-	void SetActiveDashMontageOverrideForTest(UAnimMontage* Montage) { ActiveDashMontageOverride = Montage; }
-#endif
-
 private:
 	UPROPERTY()
-	TObjectPtr<UWeaponComboConfigDA> ComboConfig = nullptr;
-
-	UPROPERTY()
-	FWeaponComboNodeConfig ActiveNode;
-
-	UPROPERTY()
-	TObjectPtr<UAnimMontage> ActiveDashMontageOverride = nullptr;
-
-	FGameplayAbilitySpecHandle ActiveAbilitySpecHandle;
-	FTimerHandle DashSaveExpireTimerHandle;
-
-	UPROPERTY()
-	FGameplayTagContainer RuntimeCombatLooseTags;
-
-	bool IsActiveComboAbilityRunning(UAbilitySystemComponent* ASC) const;
-	void ClearStaleActiveComboState(UAbilitySystemComponent* ASC, const TCHAR* Reason);
-	void TrackRuntimeCombatLooseTag(const FGameplayTag& Tag);
-	void ExpireSavedDashNode();
+	TSubclassOf<UYogGameplayAbility> WeaponSkillAbility;
 };

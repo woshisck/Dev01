@@ -24,6 +24,8 @@ namespace
 	const FName PinAbilityTag(TEXT("AbilityTag"));
 	const FName PinComboTags(TEXT("ComboTags"));
 	const FName PinActionType(TEXT("ActionType"));
+	const FName PinActionSlot(TEXT("ActionSlot"));
+	const FName PinFlowRole(TEXT("FlowRole"));
 	const FName PinCardType(TEXT("CardType"));
 
 	bool MatchesBoolRequirement(const bool bValue, const EBFCombatCardBoolRequirement Requirement)
@@ -101,6 +103,8 @@ UBFNode_Pure_CombatCardContext::UBFNode_Pure_CombatCardContext(const FObjectInit
 		FFlowPin(PinAbilityTag, EFlowPinType::GameplayTag),
 		FFlowPin(PinComboTags, EFlowPinType::GameplayTagContainer),
 		FFlowPin(PinActionType, EFlowPinType::Enum, StaticEnum<ECardRequiredAction>()),
+		FFlowPin(PinActionSlot, EFlowPinType::Enum, StaticEnum<ECombatDeckActionSlot>()),
+		FFlowPin(PinFlowRole, EFlowPinType::Enum, StaticEnum<ECombatDeckFlowRole>()),
 		FFlowPin(PinCardType, EFlowPinType::Enum, StaticEnum<ECombatCardType>()),
 	};
 }
@@ -270,6 +274,14 @@ FFlowDataPinResult_Enum UBFNode_Pure_CombatCardContext::TrySupplyDataPinAsEnum_I
 	{
 		return FFlowDataPinResult_Enum::BuildResultFromNativeEnumValue(Context.ActionContext.ActionType);
 	}
+	if (PinName == PinActionSlot)
+	{
+		return FFlowDataPinResult_Enum::BuildResultFromNativeEnumValue(Context.ActionSlot);
+	}
+	if (PinName == PinFlowRole)
+	{
+		return FFlowDataPinResult_Enum::BuildResultFromNativeEnumValue(Context.FlowRole);
+	}
 	if (PinName == PinCardType)
 	{
 		return FFlowDataPinResult_Enum::BuildResultFromNativeEnumValue(Context.SourceCard.Config.CardType);
@@ -343,6 +355,14 @@ bool UBFNode_CombatCardContextBranch::MatchesContext(const FCombatCardEffectCont
 		return false;
 	}
 	if (RequiredAction != ECardRequiredAction::Any && Context.ActionContext.ActionType != RequiredAction)
+	{
+		return false;
+	}
+	if (RequiredActionSlot != ECombatDeckActionSlot::Any && Context.ActionSlot != RequiredActionSlot)
+	{
+		return false;
+	}
+	if (RequiredFlowRole != ECombatDeckFlowRole::Any && Context.FlowRole != RequiredFlowRole)
 	{
 		return false;
 	}

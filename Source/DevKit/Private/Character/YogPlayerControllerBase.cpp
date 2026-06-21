@@ -35,7 +35,7 @@
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
-#include "Component/ComboRuntimeComponent.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemComponent.h"
 
 #if !UE_BUILD_SHIPPING || DEVKIT_ENABLE_SHIPPING_CHEATS
@@ -175,17 +175,18 @@ void AYogPlayerControllerBase::SetupInputComponent()
 			const FEnhancedInputActionEventBinding& moveBinding = EnhancedInputComp->BindAction(Input_MoveAction, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::Move);
 			MoveInputHandle = moveBinding.GetHandle();
 		}
-		if (Input_LightAttack)
+		UInputAction* AttackAction = Input_Attack ? Input_Attack.Get() : Input_LightAttack.Get();
+		if (AttackAction)
 		{
-			const FEnhancedInputActionEventBinding& lightAttackBinding = EnhancedInputComp->BindAction(Input_LightAttack, ETriggerEvent::Started, this, &AYogPlayerControllerBase::LightAtack);
-			LightAttackInputHandle = lightAttackBinding.GetHandle();
+			const FEnhancedInputActionEventBinding& attackBinding = EnhancedInputComp->BindAction(AttackAction, ETriggerEvent::Started, this, &AYogPlayerControllerBase::Attack);
+			AttackInputHandle = attackBinding.GetHandle();
 		}
-		if (Input_HeavyAttack)
+		UInputAction* WeaponSkillAction = Input_WeaponSkill ? Input_WeaponSkill.Get() : Input_HeavyAttack.Get();
+		if (WeaponSkillAction)
 		{
-			const FEnhancedInputActionEventBinding& heavyAttackBinding = EnhancedInputComp->BindAction(Input_HeavyAttack, ETriggerEvent::Started, this, &AYogPlayerControllerBase::HeavyAtack);
-			HeavyAttackInputHandle = heavyAttackBinding.GetHandle();
-			// Completed fires when the key is released — sends GameplayEvent so WaitGameplayEvent in GA can fire
-			EnhancedInputComp->BindAction(Input_HeavyAttack, ETriggerEvent::Completed, this, &AYogPlayerControllerBase::HeavyAttackReleased);
+			const FEnhancedInputActionEventBinding& weaponSkillBinding = EnhancedInputComp->BindAction(WeaponSkillAction, ETriggerEvent::Started, this, &AYogPlayerControllerBase::WeaponSkill);
+			WeaponSkillInputHandle = weaponSkillBinding.GetHandle();
+			EnhancedInputComp->BindAction(WeaponSkillAction, ETriggerEvent::Completed, this, &AYogPlayerControllerBase::WeaponSkillReleased);
 		}
 		if (Input_Reload)
 		{
@@ -217,10 +218,21 @@ void AYogPlayerControllerBase::SetupInputComponent()
 			const FEnhancedInputActionEventBinding& switchActiveSkillBinding = EnhancedInputComp->BindAction(Input_SwitchActiveSkill, ETriggerEvent::Started, this, &AYogPlayerControllerBase::SwitchActiveSkill);
 			SwitchActiveSkillInputHandle = switchActiveSkillBinding.GetHandle();
 		}
+		if (Input_SwitchWeapon)
+		{
+			const FEnhancedInputActionEventBinding& switchWeaponBinding = EnhancedInputComp->BindAction(Input_SwitchWeapon, ETriggerEvent::Started, this, &AYogPlayerControllerBase::SwitchWeapon);
+			SwitchWeaponInputHandle = switchWeaponBinding.GetHandle();
+		}
 		if (Input_Dash)
 		{
-			const FEnhancedInputActionEventBinding& dashBinding = EnhancedInputComp->BindAction(Input_Dash, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::Dash);
+			const FEnhancedInputActionEventBinding& dashBinding = EnhancedInputComp->BindAction(Input_Dash, ETriggerEvent::Started, this, &AYogPlayerControllerBase::Dash);
 			DashInputHandle = dashBinding.GetHandle();
+		}
+		if (Input_Special)
+		{
+			const FEnhancedInputActionEventBinding& specialBinding = EnhancedInputComp->BindAction(Input_Special, ETriggerEvent::Started, this, &AYogPlayerControllerBase::Special);
+			SpecialInputHandle = specialBinding.GetHandle();
+			EnhancedInputComp->BindAction(Input_Special, ETriggerEvent::Completed, this, &AYogPlayerControllerBase::SpecialReleased);
 		}
 		if (Input_Interact)
 		{
@@ -415,74 +427,178 @@ void AYogPlayerControllerBase::SetBlockGameInput(bool bBlock, bool bUIOnly)
 	}
 }
 
-void AYogPlayerControllerBase::LightAtack(const FInputActionValue& Value)
+void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)
 {
 	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
 		{
-			Buffer->RecordLightAttack();
+			Buffer->RecordAttack();
 		}
 
-		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasComboSource())
+		UYogAbilitySystemComponent* PlayerASC = Cast<UYogAbilitySystemComponent>(player->GetASC());
+
+		static const FGameplayTag SpecialTag =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special"), false);
+		if (SpecialTag.IsValid())
 		{
-			player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Light, player);
+			if (UAbilitySystemComponent* ASC = player->GetASC())
+			{
+				if (ASC->HasMatchingGameplayTag(SpecialTag))
+				{
+					const FGameplayTag CanComboTag =
+						FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
+					if (CanComboTag.IsValid() && ASC->GetTagCount(CanComboTag) > 0)
+					{
+						bool bActivated = PlayerASC
+							&& PlayerASC->TryActivateNextAttackComboAbility(true, true);
+						if (bActivated)
+						{
+							if (UBufferComponent* Buffer = player->GetInputBufferComponent())
+							{
+								Buffer->ClearBuffer();
+							}
+
+							FGameplayTagContainer SpecialTags;
+							SpecialTags.AddTag(SpecialTag);
+							SpecialTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Ability.Player.Special"), false));
+							ASC->CancelAbilities(&SpecialTags);
+						}
+					}
+					return;
+				}
+			}
+		}
+
+		if (PlayerASC && PlayerASC->IsPlayerActionMontageLocked())
+		{
 			return;
 		}
 
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.LightAtk")));
-		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
-	}
-	//UE_LOG(LogTemp, Log, TEXT("LightAtack"));
-}
-void AYogPlayerControllerBase::HeavyAtack(const FInputActionValue& Value)
-{
-	if (IsGameplayInputBlocked()) return;
-	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
-	{
-		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
+		if (PlayerASC)
 		{
-			Buffer->RecordHeavyAttack();
-		}
-
-		// 终结技执行期间：将重攻击路由到确认事件，不驱动 ComboRuntime
-		static const FGameplayTag TAG_FinisherExecuting =
-			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherExecuting"));
-		static const FGameplayTag TAG_FinisherQTEOpen =
-			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.FinisherQTEOpen"));
-		if (UAbilitySystemComponent* ASC = player->GetASC())
-		{
-			if (ASC->HasMatchingGameplayTag(TAG_FinisherExecuting))
+			if (PlayerASC->TryActivateNextAttackComboAbility(true, true))
 			{
-				if (ASC->HasMatchingGameplayTag(TAG_FinisherQTEOpen))
+				if (UBufferComponent* Buffer = player->GetInputBufferComponent())
 				{
-					FGameplayEventData EventData;
-					EventData.Instigator = player;
-					ASC->HandleGameplayEvent(
-						FGameplayTag::RequestGameplayTag(TEXT("Action.Finisher.Confirm")),
-						&EventData);
+					Buffer->ClearBuffer();
 				}
+				return;
+			}
+			if (PlayerASC->HasActiveAttackComboAbilityTag())
+			{
 				return;
 			}
 		}
 
-		if (player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasComboSource())
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Attack")));
+		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+	}
+}
+
+void AYogPlayerControllerBase::WeaponSkill(const FInputActionValue& Value)
+{
+	if (IsGameplayInputBlocked()) return;
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
 		{
-			player->ComboRuntimeComponent->TryActivateCombo(ECardRequiredAction::Heavy, player);
-			return;
+			Buffer->RecordWeaponSkill();
+		}
+
+		if (UYogAbilitySystemComponent* PlayerASC = Cast<UYogAbilitySystemComponent>(player->GetASC()))
+		{
+			if (PlayerASC->IsPlayerActionMontageLocked())
+			{
+				return;
+			}
+
+			if (PlayerASC->TryActivateNextWeaponSkillComboAbility(true, true))
+			{
+				if (UBufferComponent* Buffer = player->GetInputBufferComponent())
+				{
+					Buffer->ClearBuffer();
+				}
+				return;
+			}
+
+			if (PlayerASC->HasActiveWeaponSkillComboAbilityTag())
+			{
+				return;
+			}
 		}
 
 		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.HeavyAtk")));
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.WeaponSkill")));
 		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
 	}
-	//UE_LOG(LogTemp, Log, TEXT("HeavyAtack"));
 }
 
+void AYogPlayerControllerBase::WeaponSkillReleased(const FInputActionValue& Value)
+{
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		UAbilitySystemComponent* ASC = player->GetASC();
+		if (!ASC) return;
 
-void AYogPlayerControllerBase::HeavyAttackReleased(const FInputActionValue& Value)
+		FGameplayEventData EventData;
+		EventData.Instigator = player;
+		EventData.Target = player;
+		ASC->HandleGameplayEvent(
+			FGameplayTag::RequestGameplayTag(FName("GameplayEvent.WeaponSkill.Release")),
+			&EventData);
+	}
+}
+
+void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
+{
+	if (IsGameplayInputBlocked()) return;
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
+		{
+			Buffer->RecordDash();
+		}
+
+		if (!player->LastInputDirection.IsNearlyZero())
+		{
+			const FRotator DashFacing(0.f, player->LastInputDirection.Rotation().Yaw, 0.f);
+			player->SetActorRotation(DashFacing);
+		}
+
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
+		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+	}
+}
+
+void AYogPlayerControllerBase::Special(const FInputActionValue& Value)
+{
+	if (IsGameplayInputBlocked()) return;
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
+		{
+			Buffer->RecordSpecial();
+		}
+
+		if (UYogAbilitySystemComponent* PlayerASC = Cast<UYogAbilitySystemComponent>(player->GetASC()))
+		{
+			if (PlayerASC->IsPlayerActionMontageLocked())
+			{
+				return;
+			}
+		}
+
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Special")));
+		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+	}
+}
+
+void AYogPlayerControllerBase::SpecialReleased(const FInputActionValue& Value)
 {
 	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
@@ -567,66 +683,18 @@ void AYogPlayerControllerBase::SwitchActiveSkill(const FInputActionValue& Value)
 	}
 }
 
+void AYogPlayerControllerBase::SwitchWeapon(const FInputActionValue& Value)
+{
+	if (IsGameplayInputBlocked()) return;
+	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
+	{
+		PlayerCharacter->SwitchWeapon();
+	}
+}
+
 void AYogPlayerControllerBase::HandlePauseInput(const FInputActionValue& Value)
 {
 	HandleMenuBackInput(EKeys::Gamepad_Special_Right);
-}
-
-void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
-{
-	if (IsGameplayInputBlocked()) return;
-	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
-	{
-		// 冲刺前先将角色朝向对齐最后一次移动输入方向
-		// 放在 TryActivateAbilitiesByTag 之前，确保 GA 激活时朝向已经正确
-		if (!player->LastInputDirection.IsNearlyZero())
-		{
-			const FRotator DashFacing(0.f, player->LastInputDirection.Rotation().Yaw, 0.f);
-			player->SetActorRotation(DashFacing);
-		}
-
-		bool bActivated = false;
-		const bool bHasGraphDash = player->ComboRuntimeComponent && player->ComboRuntimeComponent->HasDashInputNode();
-		if (bHasGraphDash)
-		{
-			bActivated = player->ComboRuntimeComponent->TryActivateDash(player);
-		}
-		else
-		{
-			bool bSavedDashCombo = false;
-			if (player->ComboRuntimeComponent)
-			{
-				bSavedDashCombo = player->ComboRuntimeComponent->SaveCurrentNodeForDash();
-			}
-			if (bSavedDashCombo && player->CombatDeckComponent)
-			{
-				player->CombatDeckComponent->SavePendingLinkContextForDash();
-			}
-
-			FGameplayTagContainer TagContainer;
-			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
-			bActivated = player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
-			if (!bActivated)
-			{
-				if (player->ComboRuntimeComponent)
-				{
-					player->ComboRuntimeComponent->ClearSavedDashNode();
-				}
-				if (player->CombatDeckComponent)
-				{
-					player->CombatDeckComponent->ClearDashSavedLinkContext();
-				}
-			}
-		}
-
-		player->GetInputBufferComponent()->RecordDash();
-
-		if (bActivated)
-		{
-			player->GetASC()->OnDashExecuted.Broadcast();
-		}
-	}
-	//UE_LOG(LogTemp, Log, TEXT("Dash"));
 }
 
 void AYogPlayerControllerBase::Move(const FInputActionValue& Value)

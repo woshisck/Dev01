@@ -359,9 +359,9 @@ void AYogCharacterBase::GrantGameplayAbility(TSubclassOf<UYogGameplayAbility> Ab
 
 	if (AbilitySystemComponent && AbilityToGrant)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[GrantGameplayAbility] Granting: %s on %s"), *AbilityToGrant->GetName(), *GetName());
 		FGameplayAbilitySpec AbilitySpec(AbilityToGrant, AbilityLevel);
 		AbilitySystemComponent->GiveAbility(AbilitySpec);
-
 	}
 
 }

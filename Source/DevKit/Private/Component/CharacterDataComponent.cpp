@@ -53,6 +53,11 @@ UCharacterData* UCharacterDataComponent::GetCharacterData() const
 	return CharacterData;
 }
 
+UAbilityData* UCharacterDataComponent::GetBaseAbilityData() const
+{
+	return OriginalAbilityData ? OriginalAbilityData.Get() : (CharacterData ? CharacterData->AbilityData.Get() : nullptr);
+}
+
 void UCharacterDataComponent::SetCharacterData(UCharacterData* NewCharacterData)
 {
 	CharacterData = NewCharacterData;
@@ -67,6 +72,8 @@ const UCharacterData* UCharacterDataComponent::InitializeCharacterData()
 		if (CharacterDataClassObject)
 		{
 			UCharacterData* CDO = CharacterDataClassObject->GetDefaultObject<UCharacterData>();
+			OriginalCharacterDataRef = CDO;
+			OriginalAbilityData = CDO ? CDO->AbilityData : nullptr;
 			UCharacterData* RuntimeCopy = DuplicateObject<UCharacterData>(CDO, this);
 			if (RuntimeCopy)
 			{

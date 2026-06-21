@@ -4,11 +4,11 @@
 #include "Camera/YogPlayerCameraManager.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 #include "Component/SacrificeRuneComponent.h"
 #include "Component/SkillChargeComponent.h"
 #include "Data/CharacterData.h"
 #include "Data/AbilityData.h"
+#include "Data/MontageConfigDA.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/BoxComponent.h"
@@ -136,14 +136,6 @@ UGA_PlayerDash::UGA_PlayerDash()
 
 UAnimMontage* UGA_PlayerDash::ResolveDashMontage(APlayerCharacterBase* Player, const FGameplayTag& AbilityTag) const
 {
-	if (Player && Player->ComboRuntimeComponent)
-	{
-		if (UAnimMontage* ComboGraphDashMontage = Player->ComboRuntimeComponent->GetActiveDashMontageOverride())
-		{
-			return ComboGraphDashMontage;
-		}
-	}
-
 	UCharacterDataComponent* CDC = Player ? Player->GetCharacterDataComponent() : nullptr;
 	UCharacterData* CD = CDC ? CDC->GetCharacterData() : nullptr;
 	return (CD && CD->AbilityData && AbilityTag.IsValid())
@@ -176,7 +168,7 @@ void UGA_PlayerDash::PreActivate(
 	// 精细取消：手动遍历，同时检查 AbilityTags 与 ActivationOwnedTags。
 	// 注：GAS 的 CancelAbilities(WithTags, WithoutTags) 只对 AbilityTags 做 WithoutTags
 	// 过滤，不检查 ActivationOwnedTags，因此需要自行迭代来保护通过
-	// ActivationOwnedTags 提供持续 buff 的 GA（例如 GA_FinisherCharge）。
+	// ActivationOwnedTags 提供持续 buff 的 GA。
 	UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	if (!ASC || SavedCancelTags.IsEmpty())
 	{
@@ -239,14 +231,6 @@ bool UGA_PlayerDash::CanActivateAbility(
 	// 此时 CancelAbilitiesWithTag 尚未执行，ActivationOwnedTags 仍在 ASC 上，
 	// 直接收集当前所有连招进度 Tag 写入 PendingSaveComboTags。
 	PendingSaveComboTags.Reset();
-	if (const APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ActorInfo->AvatarActor.Get()))
-	{
-		if (Player->ComboRuntimeComponent && Player->ComboRuntimeComponent->HasComboSource())
-		{
-			return true;
-		}
-	}
-
 	if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
 	{
 		static const FGameplayTag SavePoint =
@@ -259,6 +243,22 @@ bool UGA_PlayerDash::CanActivateAbility(
 
 			// 所有已知连招进度 Tag（ActivationOwnedTags 已注入到 ASC，直接查）
 			static const FName KnownComboTagNames[] = {
+				TEXT("PlayerState.AbilityCast.Attack.Combo1"),
+				TEXT("PlayerState.AbilityCast.Attack.Combo2"),
+				TEXT("PlayerState.AbilityCast.Attack.Combo3"),
+				TEXT("PlayerState.AbilityCast.Attack.Combo4"),
+				TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"),
+				TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"),
+				TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"),
+				TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"),
+				TEXT("PlayerState.AbilityCast.Dash.Combo1"),
+				TEXT("PlayerState.AbilityCast.Dash.Combo2"),
+				TEXT("PlayerState.AbilityCast.Dash.Combo3"),
+				TEXT("PlayerState.AbilityCast.Dash.Combo4"),
+				TEXT("PlayerState.AbilityCast.Special.Combo1"),
+				TEXT("PlayerState.AbilityCast.Special.Combo2"),
+				TEXT("PlayerState.AbilityCast.Special.Combo3"),
+				TEXT("PlayerState.AbilityCast.Special.Combo4"),
 				TEXT("PlayerState.AbilityCast.LightAtk.Combo1"),
 				TEXT("PlayerState.AbilityCast.LightAtk.Combo2"),
 				TEXT("PlayerState.AbilityCast.LightAtk.Combo3"),
@@ -312,13 +312,20 @@ void UGA_PlayerDash::ActivateAbility(
 	for (const FGameplayTag& Tag : AbilityTags) { FirstTag = Tag; break; }
 
 	UAnimMontage* DashMontage = ResolveDashMontage(Player, FirstTag);
+	const TCHAR* DashMontageSource = TEXT("None");
+	if (DashMontage)
+	{
+		DashMontageSource = TEXT("AbilityData");
+	}
 
 	if (!DashMontage)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayerDash] No montage found in AbilityDA for %s — ended immediately."), *FirstTag.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[GA_PlayerDash] No dash montage found for %s from AbilityData; ended immediately."), *FirstTag.ToString());
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("[GA_PlayerDash] DashMontage=%s source=%s"), *GetNameSafe(DashMontage), DashMontageSource);
 
 	// ── 3. 确定冲刺方向（Controller 已在激活前旋转好角色，直接用 ForwardVector）─
 	const FVector DashDirection = Character->GetActorForwardVector();
@@ -485,14 +492,8 @@ void UGA_PlayerDash::EndAbility(
 		PendingSaveComboTags.Reset();
 	}
 
-	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Character))
-	{
-		if (Player->ComboRuntimeComponent)
-		{
-			Player->ComboRuntimeComponent->NotifyDashEnded(bWasCancelled);
-		}
-	}
-
+	// Reset the combo graph state so the next attack searches from root, not from
+	// the dash node that was set during TryActivateDash → TryActivateComboFromGraph.
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 

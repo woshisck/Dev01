@@ -219,7 +219,7 @@ bool FStoryEncounterConvertsTutorialAreaHintTest::RunTest(const FString& Paramet
 {
 	FStoryEncounterAction EncounterAction;
 	EncounterAction.Kind = EStoryEncounterActionKind::TutorialAreaHint;
-	EncounterAction.Body = FText::FromString(TEXT("<input action=\"Dash\"/>"));
+	EncounterAction.Body = FText::FromString(TEXT("<input action=\"WeaponSkill\"/>"));
 
 	FStoryAction StoryAction;
 	const bool bConverted = UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(

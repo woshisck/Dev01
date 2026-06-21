@@ -9,11 +9,9 @@ class UAN_MeleeDamage;
 class UAnimMontage;
 class UGameplayAbilityComboGraph;
 class UGameplayAbilityComboGraphNode;
-class UWeaponDefinition;
 
 struct FComboGraphManagerRow
 {
-	TWeakObjectPtr<UWeaponDefinition> Weapon;
 	TWeakObjectPtr<UGameplayAbilityComboGraph> Graph;
 	TWeakObjectPtr<UGameplayAbilityComboGraphNode> Node;
 	TWeakObjectPtr<UAnimMontage> Montage;

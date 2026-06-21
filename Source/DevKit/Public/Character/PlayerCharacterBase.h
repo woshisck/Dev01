@@ -32,21 +32,20 @@ class UBackpackGridComponent;
 class UCombatDeckComponent;
 class UCombatItemComponent;
 class UPlayerActiveSkillComponent;
-class UComboRuntimeComponent;
 class UBuffFlowComponent;
 class USacrificeRuneComponent;
 class USkillChargeComponent;
 class UMontageVFXBindingComponent;
 class UWeaponDefinition;
+class UYogAbilitySet;
 class USacrificeGraceDA;
 class UYogAbilitySystemComponent;
 class UDamageEdgeFlashWidget;
 class AYogCameraPawn;
 class UCameraComponent;
 class UYogSpringArmComponent;
-class UWeaponAbilityData;
 class UYogCameraOcclusionFadeComponent;
-class UGameplayAbilityComboGraph;
+struct FRunState;
 UENUM()
 enum class EPlayerState : uint8
 {
@@ -63,6 +62,38 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHeatUpdateDelegate, const float, He
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMaxHeatUpdateDelegate, const float, MaxHeatValue);
 // 热度阶段变化（0=无热度, 1=白光, 2=绿光, 3=橙黄, 4=过热红光）
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHeatPhaseDelegate, int32, Phase);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FWeaponSwitchedDelegate);
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FWeaponCombatDeckRuntimeState
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<TObjectPtr<URuneDataAsset>> SourceAssets;
+
+	UPROPERTY()
+	TArray<ECombatCardLinkOrientation> AttackCardOrientations;
+
+	UPROPERTY()
+	float ShuffleCooldownDuration = 1.0f;
+
+	UPROPERTY()
+	int32 MaxActiveSequenceSize = 0;
+
+	UPROPERTY()
+	bool bInitialized = false;
+
+	void Reset()
+	{
+		SourceAssets.Reset();
+		AttackCardOrientations.Reset();
+		ShuffleCooldownDuration = 1.0f;
+		MaxActiveSequenceSize = 0;
+		bInitialized = false;
+	}
+};
 
 UCLASS()
 class DEVKIT_API APlayerCharacterBase : public AYogCharacterBase
@@ -129,22 +160,23 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Active Skill")
 	TObjectPtr<UPlayerActiveSkillComponent> ActiveSkillComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat Combo")
-	TObjectPtr<UComboRuntimeComponent> ComboRuntimeComponent;
+	// Equipped at BeginPlay when no weapon is carried (e.g. unarmed default loadout).
+	// SetupWeaponToCharacter is called on this if EquippedWeaponDef is still null after init.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
+	TObjectPtr<UWeaponDefinition> DefaultUnarmedWeaponDef;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
-	TObjectPtr<UGameplayAbilityComboGraph> DefaultUnarmedComboGraph;
+	// Combat abilities granted once at BeginPlay regardless of which weapon is equipped.
+	// WeaponDefinition ability data supplies the attack, weapon skill, dash, and special montages.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
+	TObjectPtr<UYogAbilitySet> DefaultCombatAbilitySet;
 
-	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
-	void ApplyDefaultUnarmedComboGraph();
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void ApplyAbilityDataFromWeapon(UWeaponDefinition* WeaponDefinition);
 
-	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
-	void ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDefinition);
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void ApplyCurrentEquipmentAbilityData();
 
-	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
-	void ApplyCurrentEquipmentComboGraph();
-
-	UFUNCTION(BlueprintCallable, Category = "Combat Combo")
+	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void ResetToDefaultUnarmedCombatState();
 
 	UFUNCTION(BlueprintCallable, Category = "Run State")
@@ -292,12 +324,6 @@ public:
 	UPROPERTY()
 	TObjectPtr<AWeaponSpawner> EquippedFromSpawner;
 
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void ClearWeaponGrantedAbilities();
-
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void GrantWeaponAbilities(UWeaponAbilityData* WeaponAbilityData);
-
 	UFUNCTION(BlueprintPure, Category = "Backpack")
 	UBackpackGridComponent* GetBackpackGridComponent();
 
@@ -311,6 +337,7 @@ public:
 
 	// 切关后从 GameInstance.PendingRunState 恢复 HP / 金币 / 符文 / 热度阶段
 	void RestoreRunStateFromGI();
+	void RestoreRunState(const FRunState& State);
 
 	// BeginPlay 时异步加载局外打造的起始符文并作为隐藏被动授予（新局/续局均执行）
 	void GrantCraftedStarterRunesAsync();
@@ -323,7 +350,39 @@ public:
 	TObjectPtr<UWeaponDefinition> EquippedWeaponDef;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
-	TArray<FGameplayAbilitySpecHandle> GrantedWeaponAbilityHandles;
+	TObjectPtr<UWeaponDefinition> InactiveWeaponDef;
+
+	UPROPERTY()
+	FWeaponCombatDeckRuntimeState EquippedWeaponDeckState;
+
+	UPROPERTY()
+	FWeaponCombatDeckRuntimeState InactiveWeaponDeckState;
+
+	UPROPERTY()
+	TObjectPtr<AWeaponInstance> InactiveWeaponInstance;
+
+	UPROPERTY()
+	TObjectPtr<AWeaponSpawner> InactiveWeaponFromSpawner;
+
+	UPROPERTY(BlueprintAssignable, Category = "Weapon")
+	FWeaponSwitchedDelegate OnWeaponSwitched;
+
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	bool CanSwitchWeapon() const;
+
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	bool IsInPostAttackRecoveryWindow() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void SwitchWeapon();
+
+	void CaptureEquippedWeaponDeckState();
+	void InitializeEquippedWeaponDeckStateFromDefinition();
+	void InitializeInactiveWeaponDeckStateFromDefinition();
+	void InitializeWeaponDeckStateFromDefinition(FWeaponCombatDeckRuntimeState& DeckState, const UWeaponDefinition* WeaponDefinition) const;
+	void LoadCombatDeckFromWeaponDeckState(FWeaponCombatDeckRuntimeState& DeckState, const UWeaponDefinition* WeaponDefinition);
+	void CaptureCombatLoadoutForRunState(FRunState& OutState);
+	void RestoreInactiveWeaponFromDefinition(UWeaponDefinition* WeaponDefinition);
 
 	// ─── 献祭恩赐（全局 Run Buff）────────────────────────────────────
 
@@ -393,6 +452,8 @@ private:
 	void StartDamageTimeDilation();
 	void RestoreDamageTimeDilation();
 	void EndReviveProtection();
+	void ApplyRecoveryCancelWeaponSwitchBonus();
+	void ClearRecoveryCancelBonus();
 
 	int32 CurrentHeatPhase = 0;
 	UPROPERTY()
@@ -405,8 +466,12 @@ private:
 	bool bWaitingForDeathReviveChoice = false;
 	bool bRunStateRestoredFromGI = false;
 	FTimerHandle ReviveProtectionTimerHandle;
+	FTimerHandle RecoveryCancelBonusTimerHandle;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> PlayerOverlayDynMat;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> DamageOverlayDynMat;
 	UPROPERTY() TObjectPtr<UDamageEdgeFlashWidget> DamageEdgeFlashWidget;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon|Recovery Cancel", meta = (ClampMin = "0.0"))
+	float RecoveryCancelBonusDuration = 1.5f;
 
 };

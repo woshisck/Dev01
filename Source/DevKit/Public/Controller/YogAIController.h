@@ -74,6 +74,11 @@ public:
 	bool CanUseMovementAttack(const FEnemyAIAttackOption& Attack, float DistanceToTarget, float* OutRemainingCooldown = nullptr) const;
 	void NotifyMovementAttackActivated(const FEnemyAIAttackOption& Attack);
 	void RefreshMovementAttackCooldownReset(float DistanceToTarget);
+
+	// Records the outcome of the most recently completed enemy profile attack on the
+	// blackboard: bLastAttackWhiffed reflects whether it missed, and LastWhiffTime is
+	// stamped on a whiff so the BT can gate a reposition response. Connecting clears the flag.
+	void NotifyAttackResolved(bool bWhiffed);
 	void ResetCombatMoveSmoothingAfterAttack();
 	void SetCombatAttackInProgress(bool bInProgress);
 	bool IsCombatAttackInProgress() const { return bCombatAttackInProgress; }

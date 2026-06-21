@@ -12,9 +12,10 @@ class UYogGameplayEffect;
 UENUM(BlueprintType)
 enum class EInputCommandType : uint8
 {
-	LightAttack,
-	HeavyAttack,
+	Attack,
+	WeaponSkill,
 	Dash,
+	Special,
 	Move
 };
 
@@ -35,7 +36,7 @@ struct FInputCommand
 	float Timestamp = 0.0f;
 
 	FInputCommand()
-		: CommandType(EInputCommandType::LightAttack), MoveDirection(FVector2D::ZeroVector), Timestamp(0.0f)
+		: CommandType(EInputCommandType::Attack), MoveDirection(FVector2D::ZeroVector), Timestamp(0.0f)
 	{
 	}
 
@@ -53,12 +54,14 @@ struct FInputCommand
 	{
 		switch (CommandType)
 		{
-		case EInputCommandType::LightAttack:
-			return TEXT("LightAttack");
-		case EInputCommandType::HeavyAttack:
-			return TEXT("HeavyAttack");
+		case EInputCommandType::Attack:
+			return TEXT("Attack");
+		case EInputCommandType::WeaponSkill:
+			return TEXT("WeaponSkill");
 		case EInputCommandType::Dash:
 			return TEXT("Dash");
+		case EInputCommandType::Special:
+			return TEXT("Special");
 		case EInputCommandType::Move:
 			return FString::Printf(TEXT("Move: X=%f, Y=%f"), MoveDirection.X, MoveDirection.Y);
 		default:
@@ -77,9 +80,10 @@ public:
 	// Sets default values for this component's properties
 	UBufferComponent();
 
-	void RecordLightAttack();
-	void RecordHeavyAttack();
+	void RecordAttack();
+	void RecordWeaponSkill();
 	void RecordDash();
+	void RecordSpecial();
 	void RecordMove(const FVector2D& Direction);
 
 	/**
@@ -113,6 +117,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "InputBuffer")
 	bool ConsumeLatestAttackInputSince(float SinceTime, EInputCommandType& OutType);
+
+	UFUNCTION(BlueprintCallable, Category = "InputBuffer")
+	bool ConsumeLatestActionInputSince(float SinceTime, EInputCommandType& OutType);
 
 	/** 清空所有缓存输入（整理阶段开始时调用，避免残留输入） */
 	UFUNCTION(BlueprintCallable, Category = "InputBuffer")

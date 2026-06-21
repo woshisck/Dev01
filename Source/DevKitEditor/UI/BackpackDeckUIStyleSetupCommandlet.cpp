@@ -75,6 +75,10 @@ namespace BackpackDeckUIStyleSetup
 	const FString EscInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_Esc.IA_Esc");
 	const FString MouseClickInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_MouseClick.IA_MouseClick");
 	const FString ReverseCardInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_ReverseCard.IA_ReverseCard");
+	const FString AttackInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_Attack.IA_Attack");
+	const FString WeaponSkillInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_WeaponSkill.IA_WeaponSkill");
+	const FString DashInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_Dash.IA_Dash");
+	const FString SpecialInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_Special.IA_Special");
 
 	const FLinearColor SilverText(0.86f, 0.88f, 0.90f, 1.0f);
 	const FLinearColor MutedSilver(0.58f, 0.62f, 0.66f, 1.0f);
@@ -223,6 +227,13 @@ namespace BackpackDeckUIStyleSetup
 			bChanged |= EnsureActionMapping(TEXT("Esc"), EscInputActionObjectPath);
 			bChanged |= EnsureActionMapping(TEXT("MouseClick"), MouseClickInputActionObjectPath);
 			bChanged |= EnsureActionMapping(TEXT("ReverseCard"), ReverseCardInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("Attack"), AttackInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("WeaponSkill"), WeaponSkillInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("Dash"), DashInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("Special"), SpecialInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("NormalAttack"), AttackInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("SpecialAttack"), WeaponSkillInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("Back"), DashInputActionObjectPath);
 			if (DecoratorCDO->AutoResolvePath != TEXT("/Game/Code/Core/Input/Actions/"))
 			{
 				DecoratorCDO->AutoResolvePath = TEXT("/Game/Code/Core/Input/Actions/");
@@ -245,7 +256,7 @@ namespace BackpackDeckUIStyleSetup
 			}
 		}
 
-		ReportLines.Add(FString::Printf(TEXT("- BP_InputActionDecorator ActionMap includes Interact, Esc, MouseClick, and ReverseCard mappings%s."),
+		ReportLines.Add(FString::Printf(TEXT("- BP_InputActionDecorator ActionMap includes Interact, Esc, MouseClick, ReverseCard, Attack, WeaponSkill, Dash, Special, and Back mappings%s."),
 			bChanged ? TEXT(" (updated)") : TEXT("")));
 	}
 
@@ -1021,7 +1032,7 @@ namespace BackpackDeckUIStyleSetup
 		UYogCommonRichTextBlock* ComboHintText = MakeComboRichLabel(
 			WidgetTree,
 			TEXT("ComboHintText"),
-			TEXT("连段 01   <input action=\"LightAttack\"/> -> <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"),
+			TEXT("连段 01   <input action=\"Attack\"/> -> <input action=\"Attack\"/> -> <input action=\"WeaponSkill\"/>"),
 			13,
 			SilverText);
 		UImage* GrabbedRuneIcon = ConstructNamedWidget<UImage>(WidgetTree, TEXT("GrabbedRuneIcon"));
@@ -1064,7 +1075,7 @@ namespace BackpackDeckUIStyleSetup
 		ComboHintTitle->SetText(FText::FromString(TEXT("出招表")));
 		ConfigureComboRichText(
 			ComboHintText,
-			TEXT("连段 01   <input action=\"LightAttack\"/> -> <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>\n连段 02   <input action=\"LightAttack\"/> -> <input action=\"HeavyAttack\"/>"),
+			TEXT("连段 01   <input action=\"Attack\"/> -> <input action=\"Attack\"/> -> <input action=\"WeaponSkill\"/>\n连段 02   <input action=\"Attack\"/> -> <input action=\"WeaponSkill\"/>"),
 			SilverText,
 			13);
 		ConfigureBorder(ComboHintWidget, FLinearColor(0.038f, 0.050f, 0.075f, 0.90f), FMargin(10.0f, 8.0f));

@@ -14,7 +14,6 @@ struct YOGCOMBOGRAPH_API FYogComboGraphNodeSelection
 {
 	const UGameplayAbilityComboGraphNode* Node = nullptr;
 	bool bFoundChildNode = false;
-	bool bFromDashSave = false;
 };
 
 /**
@@ -22,7 +21,7 @@ struct YOGCOMBOGRAPH_API FYogComboGraphNodeSelection
  *
  * Projects can subclass this to map their own input/action types to the graph input
  * enum and trigger their own abilities, while the plugin owns graph traversal, active
- * node state, debug exposure, and dash-save state.
+ * node state and debug exposure.
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class YOGCOMBOGRAPH_API UYogComboGraphRuntimeComponent : public UActorComponent, public IYogComboGraphActiveInstance
@@ -50,9 +49,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combo")
 	virtual void ResetCombo();
 
-	UFUNCTION(BlueprintCallable, Category = "Combo")
-	virtual bool SaveCurrentNodeForDash();
-
 	UFUNCTION(BlueprintPure, Category = "Combo")
 	FName GetCurrentNodeId() const { return CurrentNodeId; }
 
@@ -65,21 +61,17 @@ public:
 	const FGameplayTagContainer& GetComboTags() const { return ComboTags; }
 	bool DidComboContinue() const { return bComboContinued; }
 	bool DidExitComboState() const { return bExitedComboState; }
-	bool WasActivationFromDashSave() const { return bActivationFromDashSave; }
-	bool ConsumeActivationFromDashSave();
 
 	bool FindNextComboGraphNode(EYogComboGraphInputAction InputAction, const FGameplayTagContainer* OwnedTags, FYogComboGraphNodeSelection& OutSelection) const;
 
 protected:
-	bool HasSavedDashNode() const { return !SavedDashNodeId.IsNone(); }
-	FName GetComboStartNodeId() const { return HasSavedDashNode() ? SavedDashNodeId : CurrentNodeId; }
+	FName GetComboStartNodeId() const { return CurrentNodeId; }
 
 	void PrepareComboGraphNodeActivation(const FYogComboGraphNodeSelection& Selection);
-	void PrepareComboNodeActivation(FName NodeId, bool bFoundChildNode, bool bFromDashSave);
+	void PrepareComboNodeActivation(FName NodeId, bool bFoundChildNode);
 	void CommitPreparedComboActivation();
 	void ClearPreparedComboActivation();
 	void MarkComboActivationMiss();
-	void SaveComboNodeForDash(FName NodeId);
 
 	UPROPERTY()
 	TObjectPtr<UGameplayAbilityComboGraph> ComboGraph = nullptr;
@@ -94,9 +86,6 @@ protected:
 	FName ActiveNodeId = NAME_None;
 
 	UPROPERTY()
-	FName SavedDashNodeId = NAME_None;
-
-	UPROPERTY()
 	FGuid ActiveAttackGuid;
 
 	UPROPERTY()
@@ -106,11 +95,9 @@ protected:
 	FGameplayTagContainer ComboTags;
 
 	bool bActiveNodeValid = false;
-	bool bActivationFromDashSave = false;
 	bool bComboContinued = true;
 	bool bExitedComboState = false;
 
 private:
 	bool bPreparedFoundChildNode = false;
-	bool bPreparedFromDashSave = false;
 };

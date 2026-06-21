@@ -20,13 +20,6 @@ void UPassiveAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 
-	//AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
-	//FGameplayTag ability_tag = this->GetFirstTagFromContainer(GetAbilityTags());
-	//if (Owner->WeaponAbilityData)
-	//{
-	//	PassiveData_cache = Owner->WeaponAbilityData->GetPassiveAbility(ability_tag);
-	//}
-
 	//Owner->UpdateCharacterState(EYogCharacterState::Action, FVector(0, 0, 0));
 }
 

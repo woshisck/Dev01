@@ -13,6 +13,7 @@
 #include "Data/LevelInfoPopupDA.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/EnemyData.h"
+#include "Data/EnemyWeaponDefinition.h"
 #include "Data/ShopDataAsset.h"
 #include <Kismet/GameplayStatics.h>
 #include "SaveGame/YogSaveSubsystem.h"
@@ -924,6 +925,7 @@ void AYogGameMode::EnterArrangementPhase()
 				NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
 				NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
 			}
+			Player->CaptureCombatLoadoutForRunState(NewState);
 			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
 			NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
@@ -1331,6 +1333,7 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 					NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
 					NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
 				}
+				Player->CaptureCombatLoadoutForRunState(NewState);
 				NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 
 				NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
@@ -2307,6 +2310,32 @@ static int32 CollectEnemyBuffs(UEnemyData* EnemyData, TArray<TObjectPtr<URuneDat
 	return TotalCost;
 }
 
+static UEnemyWeaponDefinition* RollEnemyWeaponDefinition(UEnemyData* EnemyData)
+{
+	if (!EnemyData)
+	{
+		return nullptr;
+	}
+
+	if (EnemyData->DefaultWeaponDefinition)
+	{
+		return EnemyData->DefaultWeaponDefinition.Get();
+	}
+
+	TArray<UEnemyWeaponDefinition*> ValidWeapons;
+	for (UEnemyWeaponDefinition* Candidate : EnemyData->AllowedWeaponDefinitions)
+	{
+		if (Candidate)
+		{
+			ValidWeapons.Add(Candidate);
+		}
+	}
+
+	return ValidWeapons.IsEmpty()
+		? nullptr
+		: ValidWeapons[FMath::RandRange(0, ValidWeapons.Num() - 1)];
+}
+
 static FGameplayTag GetEnemyRuneEventTagForTriggerType(ERuneTriggerType Type)
 {
 	switch (Type)
@@ -2698,6 +2727,7 @@ AYogGameMode::FWavePlan AYogGameMode::BuildWavePlan(int32 Budget, URoomDataAsset
 
 		OutPlanned.EnemyClass         = Chosen.EnemyData->EnemyClass;
 		OutPlanned.EnemyData          = Chosen.EnemyData;
+		OutPlanned.EnemyWeaponDefinition = RollEnemyWeaponDefinition(Chosen.EnemyData);
 		OutPlanned.EnemyBuffs         = SelectedEnemyBuffs;
 		OutPlanned.PreSpawnFX         = Chosen.EnemyData->PreSpawnFX;
 		OutPlanned.PreSpawnFXDuration = Chosen.EnemyData->PreSpawnFXDuration;
@@ -3068,7 +3098,7 @@ bool AYogGameMode::SpawnEnemyFromPool(const FPlannedEnemy& Planned)
 	AMobSpawner* Spawner = ValidSpawners[FMath::RandRange(0, ValidSpawners.Num() - 1)];
 	if (Spawner)
 	{
-		AEnemyCharacterBase* SpawnedEnemy = Spawner->SpawnMob(Planned.EnemyClass);
+		AEnemyCharacterBase* SpawnedEnemy = Spawner->SpawnMobWithWeapon(Planned.EnemyClass, Planned.EnemyWeaponDefinition.Get());
 		if (SpawnedEnemy)
 		{
 			// 施加关卡 Buff（进关时选好的，对所有怪生效）
@@ -3172,6 +3202,7 @@ bool AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 		Context.LifecycleTarget = Proxy;
 		Context.Spawner = Spawner;
 		Context.EnemyData = Planned.EnemyData;
+		Context.EnemyWeaponDefinition = Planned.EnemyWeaponDefinition;
 		Context.EnemyClass = Planned.EnemyClass;
 		Context.SpawnTransform = FTransform(Spawner->GetActorRotation(), Location);
 		Context.EnemyBuffs = Planned.EnemyBuffs;
@@ -3223,7 +3254,10 @@ void AYogGameMode::FinishSpawnFromPool(FPlannedEnemy Planned,
 		return;
 	}
 
-	AEnemyCharacterBase* SpawnedEnemy = WeakSpawner->SpawnMobAtLocation(Planned.EnemyClass, Location);
+	AEnemyCharacterBase* SpawnedEnemy = WeakSpawner->SpawnMobAtLocationWithWeapon(
+		Planned.EnemyClass,
+		Location,
+		Planned.EnemyWeaponDefinition.Get());
 	if (SpawnedEnemy)
 	{
 		for (const FBuffEntry& Entry : ActiveRoomBuffs)
@@ -3368,6 +3402,7 @@ void AYogGameMode::SpawnForcedSurvivalEnemy()
 		{
 			Planned.EnemyClass = Entry.EnemyData->EnemyClass;
 			Planned.EnemyData = Entry.EnemyData;
+			Planned.EnemyWeaponDefinition = RollEnemyWeaponDefinition(Entry.EnemyData);
 			Planned.EnemyBuffs.Reset();
 			CollectEnemyBuffs(Entry.EnemyData, Planned.EnemyBuffs);
 			Planned.PreSpawnFX = Entry.EnemyData->PreSpawnFX;
@@ -3397,6 +3432,7 @@ void AYogGameMode::SpawnForcedSurvivalEnemy()
 		{
 			Planned.EnemyClass = FallbackEnemyData->EnemyClass;
 			Planned.EnemyData = FallbackEnemyData;
+			Planned.EnemyWeaponDefinition = RollEnemyWeaponDefinition(FallbackEnemyData);
 			Planned.EnemyBuffs.Reset();
 			CollectEnemyBuffs(FallbackEnemyData, Planned.EnemyBuffs);
 			Planned.PreSpawnFX = FallbackEnemyData->PreSpawnFX;
@@ -3438,13 +3474,12 @@ bool AYogGameMode::SpawnForcedSurvivalEnemyWithoutSpawner(const FPlannedEnemy& P
 		+ Right.GetSafeNormal() * FMath::FRandRange(-350.f, 350.f)
 		+ FVector(0.f, 0.f, 120.f);
 
-	FActorSpawnParameters Params;
-	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-	AEnemyCharacterBase* SpawnedEnemy = GetWorld()->SpawnActor<AEnemyCharacterBase>(
+	AEnemyCharacterBase* SpawnedEnemy = GetWorld()->SpawnActorDeferred<AEnemyCharacterBase>(
 		Planned.EnemyClass,
-		SpawnLocation,
-		FRotator::ZeroRotator,
-		Params);
+		FTransform(FRotator::ZeroRotator, SpawnLocation),
+		nullptr,
+		nullptr,
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
 	if (!SpawnedEnemy)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Forced survival fallback spawn failed. Class=%s Location=%s"),
@@ -3452,6 +3487,9 @@ bool AYogGameMode::SpawnForcedSurvivalEnemyWithoutSpawner(const FPlannedEnemy& P
 			*SpawnLocation.ToCompactString());
 		return false;
 	}
+
+	SpawnedEnemy->SetPendingEnemyWeaponDefinition(Planned.EnemyWeaponDefinition.Get());
+	SpawnedEnemy->FinishSpawning(FTransform(FRotator::ZeroRotator, SpawnLocation));
 
 	if (!SpawnedEnemy->GetController())
 	{
@@ -3847,6 +3885,7 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 				NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
 				NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
 			}
+			Player->CaptureCombatLoadoutForRunState(NewState);
 			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 
 			// 保存运行时隐藏被动符文（无形状、不进格子）

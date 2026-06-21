@@ -103,6 +103,7 @@ public class DevKitEditor : ModuleRules
 				"DesktopPlatform",
 				"Json",
 				"JsonUtilities",
+				"ClassViewer",
 			}
         );
 

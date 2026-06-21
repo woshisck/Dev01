@@ -42,9 +42,10 @@ void UBFNode_SpawnEnemyFromContext::ExecuteBuffFlowInput(const FName& PinName)
 		return;
 	}
 
-	AEnemyCharacterBase* SpawnedEnemy = Context.Spawner->SpawnMobAtLocation(
+	AEnemyCharacterBase* SpawnedEnemy = Context.Spawner->SpawnMobAtLocationWithWeapon(
 		Context.EnemyClass,
-		Context.SpawnTransform.GetLocation());
+		Context.SpawnTransform.GetLocation(),
+		Context.EnemyWeaponDefinition.Get());
 	if (!SpawnedEnemy)
 	{
 		if (Context.bStorySpawn)

@@ -105,6 +105,7 @@ void UEnemyAbilityMontageData::PostInitProperties()
 	};
 	static const FName PassiveKeys[] = {
 		"Action.HitReact.Front", "Action.Dead", "Action.HitReact.Back",
+		"Action.HitReact.Blocked", "Action.HitReact.Parried",
 	};
 
 	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, PassiveKeys);
@@ -119,6 +120,14 @@ void UPlayerAbilityMontageData::PostInitProperties()
 	if (HasAnyFlags(RF_ClassDefaultObject)) return;
 
 	static const FName MontageKeys[] = {
+		"PlayerState.AbilityCast.Attack.Combo1", "PlayerState.AbilityCast.Attack.Combo2",
+		"PlayerState.AbilityCast.Attack.Combo3", "PlayerState.AbilityCast.Attack.Combo4",
+		"PlayerState.AbilityCast.WeaponSkill.Combo1", "PlayerState.AbilityCast.WeaponSkill.Combo2",
+		"PlayerState.AbilityCast.WeaponSkill.Combo3", "PlayerState.AbilityCast.WeaponSkill.Combo4",
+		"PlayerState.AbilityCast.Dash.Combo1", "PlayerState.AbilityCast.Dash.Combo2",
+		"PlayerState.AbilityCast.Dash.Combo3", "PlayerState.AbilityCast.Dash.Combo4",
+		"PlayerState.AbilityCast.Special.Combo1", "PlayerState.AbilityCast.Special.Combo2",
+		"PlayerState.AbilityCast.Special.Combo3", "PlayerState.AbilityCast.Special.Combo4",
 		"PlayerState.AbilityCast.LightAtk.Combo1", "PlayerState.AbilityCast.LightAtk.Combo2",
 		"PlayerState.AbilityCast.LightAtk.Combo3", "PlayerState.AbilityCast.LightAtk.Combo4",
 		"PlayerState.AbilityCast.HeavyAtk.Combo1", "PlayerState.AbilityCast.HeavyAtk.Combo2",
@@ -132,9 +141,77 @@ void UPlayerAbilityMontageData::PostInitProperties()
 	};
 	static const FName PassiveKeys[] = {
 		"Action.HitReact.Front", "Action.Dead", "Action.HitReact.Back",
+		"Action.HitReact.Blocked", "Action.HitReact.Parried",
 	};
 
 	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, PassiveKeys);
+}
+
+// ---------------------------------------------------------------
+// UWeaponAttackAbilityMontageData
+// ---------------------------------------------------------------
+void UWeaponAttackAbilityMontageData::PostInitProperties()
+{
+	Super::PostInitProperties();
+	if (HasAnyFlags(RF_ClassDefaultObject)) return;
+
+	static const FName MontageKeys[] = {
+		"PlayerState.AbilityCast.Attack.Combo1", "PlayerState.AbilityCast.Attack.Combo2",
+		"PlayerState.AbilityCast.Attack.Combo3", "PlayerState.AbilityCast.Attack.Combo4",
+		"PlayerState.AbilityCast.Dash.Combo1", "PlayerState.AbilityCast.Dash.Combo2",
+		"PlayerState.AbilityCast.Dash.Combo3", "PlayerState.AbilityCast.Dash.Combo4",
+		"PlayerState.AbilityCast.Dash",
+		"PlayerState.AbilityCast.Dash.Dash1",
+		"PlayerState.AbilityCast.Dash.DashATK1",
+		"PlayerState.AbilityCast.DashAtk",
+	};
+	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, TArrayView<const FName>());
+}
+
+// ---------------------------------------------------------------
+// UWeaponSkillAbilityMontageData
+// ---------------------------------------------------------------
+void UWeaponSkillAbilityMontageData::PostInitProperties()
+{
+	Super::PostInitProperties();
+	if (HasAnyFlags(RF_ClassDefaultObject)) return;
+
+	static const FName MontageKeys[] = {
+		"PlayerState.AbilityCast.WeaponSkill.Combo1", "PlayerState.AbilityCast.WeaponSkill.Combo2",
+		"PlayerState.AbilityCast.WeaponSkill.Combo3", "PlayerState.AbilityCast.WeaponSkill.Combo4",
+	};
+	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, TArrayView<const FName>());
+}
+
+// ---------------------------------------------------------------
+// USpecialAbilityMontageData
+// ---------------------------------------------------------------
+void USpecialAbilityMontageData::PostInitProperties()
+{
+	Super::PostInitProperties();
+	if (HasAnyFlags(RF_ClassDefaultObject)) return;
+
+	static const FName MontageKeys[] = {
+		"PlayerState.AbilityCast.Special.Combo1", "PlayerState.AbilityCast.Special.Combo2",
+		"PlayerState.AbilityCast.Special.Combo3", "PlayerState.AbilityCast.Special.Combo4",
+	};
+	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, TArrayView<const FName>());
+}
+
+// ---------------------------------------------------------------
+// UWeaponPassiveAbilityMontageData
+// ---------------------------------------------------------------
+void UWeaponPassiveAbilityMontageData::PostInitProperties()
+{
+	Super::PostInitProperties();
+	if (HasAnyFlags(RF_ClassDefaultObject)) return;
+
+	static const FName PassiveKeys[] = {
+		"Action.HitReact.Front", "Action.HitReact.Back",
+		"Action.HitReact.Blocked", "Action.HitReact.Parried",
+		"Action.Dead",
+	};
+	AddDefaultKeys(MontageMap, PassiveMap, TArrayView<const FName>(), PassiveKeys);
 }
 
 //const FActionData& FAbilityType::GetAction() const

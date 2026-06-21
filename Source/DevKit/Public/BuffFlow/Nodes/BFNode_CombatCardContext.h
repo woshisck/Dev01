@@ -95,6 +95,12 @@ class DEVKIT_API UBFNode_CombatCardContextBranch : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Combat Card|Action")
 	ECardRequiredAction RequiredAction = ECardRequiredAction::Any;
 
+	UPROPERTY(EditAnywhere, Category = "Combat Card|Action")
+	ECombatDeckActionSlot RequiredActionSlot = ECombatDeckActionSlot::Any;
+
+	UPROPERTY(EditAnywhere, Category = "Combat Card|Action")
+	ECombatDeckFlowRole RequiredFlowRole = ECombatDeckFlowRole::Any;
+
 protected:
 	virtual void ExecuteBuffFlowInput(const FName& PinName) override;
 

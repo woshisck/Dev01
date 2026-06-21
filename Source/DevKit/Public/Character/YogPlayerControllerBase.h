@@ -43,17 +43,20 @@ public:
 	TSubclassOf<AYogCameraPawn> CameraPawnClass;
 
 
-	void LightAtack(const FInputActionValue& Value);
-	void HeavyAtack(const FInputActionValue& Value);
-	void HeavyAttackReleased(const FInputActionValue& Value);
+	void Attack(const FInputActionValue& Value);
+	void WeaponSkill(const FInputActionValue& Value);
+	void WeaponSkillReleased(const FInputActionValue& Value);
+	void Dash(const FInputActionValue& Value);
+	void Special(const FInputActionValue& Value);
+	void SpecialReleased(const FInputActionValue& Value);
 	void MusketReload(const FInputActionValue& Value);
 	void UseCombatItem(const FInputActionValue& Value);
 	void SwitchCombatItem(const FInputActionValue& Value);
 	void SwitchCombatItemPrevious(const FInputActionValue& Value);
 	void UseActiveSkill(const FInputActionValue& Value);
 	void SwitchActiveSkill(const FInputActionValue& Value);
+	void SwitchWeapon(const FInputActionValue& Value);
 	void HandlePauseInput(const FInputActionValue& Value);
-	void Dash(const FInputActionValue& Value);
 	void Move(const FInputActionValue& Value);
 	void Interact(const FInputActionValue& Value);
 
@@ -64,13 +67,22 @@ public:
 	TObjectPtr<UInputAction> Input_MoveAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-	TObjectPtr<UInputAction> Input_LightAttack;
+	TObjectPtr<UInputAction> Input_Attack;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-	TObjectPtr<UInputAction> Input_HeavyAttack;
+	TObjectPtr<UInputAction> Input_WeaponSkill;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_Dash;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_Special;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input|Deprecated", meta = (DeprecatedProperty, DeprecationMessage = "Use Input_Attack."))
+	TObjectPtr<UInputAction> Input_LightAttack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input|Deprecated", meta = (DeprecatedProperty, DeprecationMessage = "Use Input_WeaponSkill."))
+	TObjectPtr<UInputAction> Input_HeavyAttack;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_Interact;
@@ -98,6 +110,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_SwitchActiveSkill;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> Input_SwitchWeapon;
 
 	/** 手柄右摇杆 — 驱动相机微偏移（Vector2D InputAction） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
@@ -186,16 +201,18 @@ private:
 	TObjectPtr<class ULootSelectionWidget> LootSelectionWidget;
 
 	uint32 MoveInputHandle = INDEX_NONE;
-	uint32 LightAttackInputHandle = INDEX_NONE;
-	uint32 HeavyAttackInputHandle = INDEX_NONE;
+	uint32 AttackInputHandle = INDEX_NONE;
 	uint32 ReloadInputHandle = INDEX_NONE;
 	uint32 UseCombatItemInputHandle = INDEX_NONE;
 	uint32 SwitchCombatItemInputHandle = INDEX_NONE;
 	uint32 SwitchCombatItemPreviousInputHandle = INDEX_NONE;
 	uint32 UseActiveSkillInputHandle = INDEX_NONE;
 	uint32 SwitchActiveSkillInputHandle = INDEX_NONE;
+	uint32 SwitchWeaponInputHandle = INDEX_NONE;
 	uint32 PauseInputHandle = INDEX_NONE;
+	uint32 WeaponSkillInputHandle = INDEX_NONE;
 	uint32 DashInputHandle = INDEX_NONE;
+	uint32 SpecialInputHandle = INDEX_NONE;
 	uint32 InteractInputHandle = INDEX_NONE;
 	uint32 OpenBackpackInputHandle = INDEX_NONE;
 	uint32 CameraLookInputHandle = INDEX_NONE;

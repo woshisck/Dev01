@@ -149,7 +149,9 @@ void UBFNode_SpawnRangedProjectiles::ExecuteBuffFlowInput(const FName& PinName)
 			ActionContext.bIsComboFinisher,
 			ActionContext.bFromDashSave,
 			SharedGuid,
-			ResolvedDamage);
+			ResolvedDamage,
+			ActionContext.ActionSlot,
+			ActionContext.FlowRole);
 		Bullet->SetHitGameplayEvent(
 			HitGameplayEventTag,
 			bSendHitGameplayEventToSourceASC,

@@ -11,6 +11,7 @@
 #include "Character/EnemyCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
+#include "Data/EnemyWeaponDefinition.h"
 #include "Components/SceneComponent.h"
 #include "Controller/YogAIController.h"
 #include "GameModes/YogGameMode.h"
@@ -56,15 +57,24 @@ FVector AMobSpawner::PrepareSpawnLocation()
 
 AEnemyCharacterBase* AMobSpawner::SpawnMobAtLocation(TSubclassOf<AActor> EnemyClass, FVector Location)
 {
+    return SpawnMobAtLocationWithWeapon(EnemyClass, Location, nullptr);
+}
+
+AEnemyCharacterBase* AMobSpawner::SpawnMobAtLocationWithWeapon(TSubclassOf<AActor> EnemyClass, FVector Location, UEnemyWeaponDefinition* EnemyWeaponDefinition)
+{
     UWorld* World = GetWorld();
     if (!World || Location == FVector::ZeroVector) return nullptr;
 
-    FActorSpawnParameters Params;
-    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-    AEnemyCharacterBase* Spawned = World->SpawnActor<AEnemyCharacterBase>(EnemyClass, Location, FRotator::ZeroRotator, Params);
+    AEnemyCharacterBase* Spawned = World->SpawnActorDeferred<AEnemyCharacterBase>(
+        EnemyClass,
+        FTransform(FRotator::ZeroRotator, Location),
+        this,
+        nullptr,
+        ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
     if (Spawned)
     {
+        Spawned->SetPendingEnemyWeaponDefinition(EnemyWeaponDefinition);
+        Spawned->FinishSpawning(FTransform(FRotator::ZeroRotator, Location));
         if (!Spawned->GetController())
             Spawned->SpawnDefaultController();
         if (AYogGameMode* GM = World->GetAuthGameMode<AYogGameMode>())
@@ -130,6 +140,35 @@ namespace
 		const AEnemyCharacterBase* EnemyCDO = EnemyClass ? EnemyClass->GetDefaultObject<AEnemyCharacterBase>() : nullptr;
 		const UCharacterDataComponent* CharacterDataComponent = EnemyCDO ? EnemyCDO->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 		return CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
+	}
+
+	UEnemyWeaponDefinition* ResolveEnemyWeaponForStorySpawn(UEnemyData* EnemyData, UEnemyWeaponDefinition* OverrideWeapon)
+	{
+		if (OverrideWeapon)
+		{
+			return OverrideWeapon;
+		}
+		if (!EnemyData)
+		{
+			return nullptr;
+		}
+		if (EnemyData->DefaultWeaponDefinition)
+		{
+			return EnemyData->DefaultWeaponDefinition.Get();
+		}
+
+		TArray<UEnemyWeaponDefinition*> ValidWeapons;
+		for (UEnemyWeaponDefinition* Candidate : EnemyData->AllowedWeaponDefinitions)
+		{
+			if (Candidate)
+			{
+				ValidWeapons.Add(Candidate);
+			}
+		}
+
+		return ValidWeapons.IsEmpty()
+			? nullptr
+			: ValidWeapons[FMath::RandRange(0, ValidWeapons.Num() - 1)];
 	}
 }
 
@@ -204,8 +243,11 @@ AEnemyCharacterBase* AMobSpawner::SpawnMobForStory(const FStoryMobSpawnOptions& 
         return nullptr;
     }
 
-    UEnemyData* EnemyData = ResolveEnemyDataFromClass(EnemyClass);
-    if (EnemyData && EnemyData->SpawnLifecycleFlow)
+	UEnemyData* EnemyData = ResolveEnemyDataFromClass(EnemyClass);
+	UEnemyWeaponDefinition* StoryWeaponDefinition = ResolveEnemyWeaponForStorySpawn(
+		EnemyData,
+		Options.EnemyWeaponDefinitionOverride.Get());
+	if (EnemyData && EnemyData->SpawnLifecycleFlow)
     {
         ActiveStorySpawnOptions = Options;
         bStoryKillEncounterTriggered = false;
@@ -236,6 +278,7 @@ AEnemyCharacterBase* AMobSpawner::SpawnMobForStory(const FStoryMobSpawnOptions& 
         Context.LifecycleTarget = Proxy;
         Context.Spawner = this;
         Context.EnemyData = EnemyData;
+        Context.EnemyWeaponDefinition = StoryWeaponDefinition;
         Context.EnemyClass = EnemyClass;
         Context.SpawnTransform = FTransform(GetActorRotation(), SpawnLocation);
         Context.bStorySpawn = true;
@@ -245,7 +288,10 @@ AEnemyCharacterBase* AMobSpawner::SpawnMobForStory(const FStoryMobSpawnOptions& 
         return StorySpawnedMob.Get();
     }
 
-    AEnemyCharacterBase* Spawned = SpawnMobAtLocation(EnemyClass, SpawnLocation);
+    AEnemyCharacterBase* Spawned = SpawnMobAtLocationWithWeapon(
+        EnemyClass,
+        SpawnLocation,
+        StoryWeaponDefinition);
     if (!Spawned)
     {
         UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][StorySpawn] %s failed to spawn %s at %s."),
@@ -368,7 +414,12 @@ void AMobSpawner::RespawnStoryMob()
 
 AEnemyCharacterBase* AMobSpawner::SpawnMob(TSubclassOf<AActor> spawn_actor_class)
 {
-    return SpawnMobAtLocation(spawn_actor_class, PrepareSpawnLocation());
+    return SpawnMobWithWeapon(spawn_actor_class, nullptr);
+}
+
+AEnemyCharacterBase* AMobSpawner::SpawnMobWithWeapon(TSubclassOf<AActor> SpawnActorClass, UEnemyWeaponDefinition* EnemyWeaponDefinition)
+{
+    return SpawnMobAtLocationWithWeapon(SpawnActorClass, PrepareSpawnLocation(), EnemyWeaponDefinition);
 }
 
 FVector AMobSpawner::GetRandomReachablePoint()
