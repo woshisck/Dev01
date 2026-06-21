@@ -14,6 +14,7 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Character/EnemyCharacterBase.h"
+#include "Controller/YogAIController.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
@@ -450,8 +451,16 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 
 void UGA_MeleeAttack::TryStartEnemyRadialLunge()
 {
-	if (!ActiveEnemyAttackContext.bValid
-		|| ActiveEnemyAttackContext.AttackOption.AttackMovementMode != EEnemyAIAttackMovementMode::RadialLunge)
+	if (!ActiveEnemyAttackContext.bValid)
+	{
+		return;
+	}
+
+	const FEnemyAIAttackOption& AttackOption = ActiveEnemyAttackContext.AttackOption;
+	const bool bReposition = AttackOption.AttackRole == EEnemyAIAttackRole::Reposition;
+	// Reposition options drive the dash through their role rather than a movement mode,
+	// so they bypass the BT movement-attack cooldown machinery.
+	if (!bReposition && AttackOption.AttackMovementMode != EEnemyAIAttackMovementMode::RadialLunge)
 	{
 		return;
 	}
@@ -463,38 +472,61 @@ void UGA_MeleeAttack::TryStartEnemyRadialLunge()
 		return;
 	}
 
-	const FEnemyAIAttackOption& AttackOption = ActiveEnemyAttackContext.AttackOption;
 	const float CurrentDistance = FVector::Dist2D(Character->GetActorLocation(), TargetActor->GetActorLocation());
-	if (CurrentDistance < AttackOption.LungeStartRange
+	// LungeStartRange is a gap-close gate for toward-target lunges; a reposition dash can
+	// fire at any range (it usually triggers point-blank after a whiff).
+	if ((!bReposition && CurrentDistance < AttackOption.LungeStartRange)
 		|| AttackOption.LungeDistance <= 0.0f
 		|| AttackOption.LungeDuration <= 0.0f)
 	{
 		return;
 	}
 
-	FVector Direction = TargetActor->GetActorLocation() - Character->GetActorLocation();
-	Direction.Z = 0.0f;
-	if (Direction.IsNearlyZero())
+	FVector ToTarget = TargetActor->GetActorLocation() - Character->GetActorLocation();
+	ToTarget.Z = 0.0f;
+	if (ToTarget.IsNearlyZero())
 	{
 		return;
 	}
+	ToTarget = ToTarget.GetSafeNormal();
 
-	Direction = Direction.GetSafeNormal();
-	const FRotator FaceTargetRotation(0.0f, Direction.Rotation().Yaw, 0.0f);
+	FVector DashDirection;
+	if (bReposition)
+	{
+		const float Angle = FMath::FRandRange(AttackOption.RepositionAngleMin, AttackOption.RepositionAngleMax);
+		const float Sign = FMath::RandBool() ? 1.0f : -1.0f;
+		DashDirection = (-ToTarget).RotateAngleAxis(Sign * Angle, FVector::UpVector);
+	}
+	else
+	{
+		DashDirection = ToTarget;
+	}
+
+	// Always face the target so a follow-up attack is aimed correctly, even when the dash
+	// itself travels sideways.
+	const FRotator FaceTargetRotation(0.0f, ToTarget.Rotation().Yaw, 0.0f);
 	Character->SetActorRotation(FaceTargetRotation);
 	if (AController* Controller = Character->GetController())
 	{
 		Controller->SetControlRotation(FaceTargetRotation);
 	}
 
-	const float MaxUsefulDistance = FMath::Max(CurrentDistance - AttackOption.LungeStopDistance, 0.0f);
-	const float MoveDistance = FMath::Min(AttackOption.LungeDistance, MaxUsefulDistance);
+	float MoveDistance;
+	if (bReposition)
+	{
+		MoveDistance = AttackOption.LungeDistance;
+	}
+	else
+	{
+		const float MaxUsefulDistance = FMath::Max(CurrentDistance - AttackOption.LungeStopDistance, 0.0f);
+		MoveDistance = FMath::Min(AttackOption.LungeDistance, MaxUsefulDistance);
+	}
 	if (MoveDistance <= 0.0f)
 	{
 		return;
 	}
 
-	const FVector TargetLocation = Character->GetActorLocation() + Direction * MoveDistance;
+	const FVector TargetLocation = Character->GetActorLocation() + DashDirection * MoveDistance;
 	EnemyLungeTask = UAbilityTask_ApplyRootMotionMoveToForce::ApplyRootMotionMoveToForce(
 		this,
 		FName(TEXT("EnemyRadialLunge")),
@@ -978,6 +1010,25 @@ void UGA_MeleeAttack::EndAbility(
 			AvatarCharacter->FindComponentByClass<UMontageVFXBindingComponent>())
 		{
 			VFXBindingComponent->ClearAllBindings();
+		}
+	}
+
+	// Report whiff/connect outcome for enemy AI profile attacks so the BT can react
+	// (e.g. reposition on a miss). ActiveEnemyAttackContext is only valid for AI-driven
+	// attacks; bComboHitConnected is reset on activation and set true on any landed hit.
+	if (!bWasCancelled && ActiveEnemyAttackContext.bValid)
+	{
+		if (AEnemyCharacterBase* EnemyOwner = Cast<AEnemyCharacterBase>(GetOwningActorFromActorInfo()))
+		{
+			if (AYogAIController* YogAI = Cast<AYogAIController>(EnemyOwner->GetController()))
+			{
+				// A reposition move deals no damage by design; treat it as resolved (not a
+				// whiff) so it clears the flag instead of re-triggering itself endlessly.
+				const bool bRepositionMove =
+					ActiveEnemyAttackContext.AttackOption.AttackRole == EEnemyAIAttackRole::Reposition;
+				const bool bWhiffed = !bRepositionMove && !EnemyOwner->bComboHitConnected;
+				YogAI->NotifyAttackResolved(bWhiffed);
+			}
 		}
 	}
 

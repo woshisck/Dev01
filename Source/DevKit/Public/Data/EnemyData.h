@@ -73,6 +73,10 @@ enum class EEnemyAIAttackRole : uint8
 	CloseMelee      UMETA(DisplayName = "Close Melee"),
 	SpecialMovement UMETA(DisplayName = "Special Movement"),
 	Skill           UMETA(DisplayName = "Skill"),
+	// No-damage movement option (e.g. a whiff reposition feint): dashes to a flank
+	// instead of toward the target, never reports a whiff, and clears the whiff flag
+	// when used. Selected by a dedicated BTTask_EnemyAttackByProfile branch.
+	Reposition      UMETA(DisplayName = "Reposition"),
 };
 
 USTRUCT(BlueprintType)
@@ -146,6 +150,12 @@ struct DEVKIT_API FEnemyAIAwarenessTuning
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
 	float LoseTargetDelay = 2.0f;
 
+	// When true, once this enemy enters Combat it keeps its target until death:
+	// the Combat -> Alert de-aggro path is skipped regardless of line-of-sight,
+	// exit radius, or LoseTargetDelay. Used by relentless pursuers like Nemesis.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness")
+	bool bNeverLoseTargetOnceAcquired = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
 	float AlertDuration = 4.0f;
 
@@ -212,6 +222,15 @@ struct DEVKIT_API FEnemyAIAttackOption
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
 	float MovementAttackCooldown = 10.0f;
+
+	// Reposition role only: the dash direction is the away-from-target vector rotated by
+	// a random angle (degrees) in [Min, Max] with a random left/right sign. Measured from
+	// "directly away": 0 = straight back, 90 = sideways strafe, 180 = straight toward target.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Reposition", meta = (ClampMin = "0.0", ClampMax = "180.0"))
+	float RepositionAngleMin = 60.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Reposition", meta = (ClampMin = "0.0", ClampMax = "180.0"))
+	float RepositionAngleMax = 120.f;
 };
 
 USTRUCT(BlueprintType)
@@ -227,6 +246,12 @@ struct DEVKIT_API FEnemyAIAttackProfile
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Selection", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float RepeatAttackWeightMultiplier = 0.25f;
+
+	// Probability that a whiffed (missed) damaging attack flags a reposition response on
+	// the blackboard. 1 = always reposition on a miss, 0 = never. The BT reads
+	// bLastAttackWhiffed; this keeps the randomness designer-tunable without a BT node.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Selection", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float WhiffRepositionChance = 1.0f;
 };
 
 USTRUCT(BlueprintType)
