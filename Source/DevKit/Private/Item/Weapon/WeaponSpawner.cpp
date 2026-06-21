@@ -281,7 +281,7 @@ void AWeaponSpawner::OnPlayerEnterRange(APlayerCharacterBase* Player)
 	{
 		return;
 	}
-	if (!Player || !WeaponDefinition) return;
+	if (!Player || !WeaponDefinition || bPickedUp) return;
 
 	Player->PendingWeaponSpawner = this;
 	NearbyPlayer = Player;
@@ -403,6 +403,8 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	// Route to inactive slot when player already carries a weapon.
 	if (Player->EquippedWeaponDef != nullptr)
 	{
+		Player->CaptureEquippedWeaponDeckState();
+
 		if (Player->InactiveWeaponInstance)
 		{
 			if (Player->InactiveWeaponFromSpawner && Player->InactiveWeaponFromSpawner != this)
@@ -423,11 +425,12 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 			SpawnData.AttachTransform = WeaponSpawnData.AttachTransform;
 			SpawnData.WeaponLayer     = WeaponSpawnData.WeaponLayer;
 			SpawnData.bShouldSaveToGame = true;
-			NewInactiveWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
+			NewInactiveWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData, false);
 			if (NewInactiveWeapon)
 			{
 				NewInactiveWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
 				NewInactiveWeapon->SetActorHiddenInGame(true);
+				NewInactiveWeapon->SetActorEnableCollision(false);
 			}
 		}
 
@@ -436,6 +439,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		Player->InactiveWeaponFromSpawner  = this;
 		Player->PendingWeaponSpawner       = nullptr;
 		Player->InitializeInactiveWeaponDeckStateFromDefinition();
+		Player->RelinkWeaponAnimLayer();
 
 		UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已存入备用槽 [%s]"), *WeaponDefinition->GetName());
 		return;

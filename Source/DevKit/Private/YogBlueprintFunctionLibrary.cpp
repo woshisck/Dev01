@@ -157,7 +157,7 @@ void UYogBlueprintFunctionLibrary::FindAllCharacters(UObject* WorldContextObject
 	}
 }
 
-AWeaponInstance* UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(AYogCharacterBase* character, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)
+AWeaponInstance* UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(AYogCharacterBase* character, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData, bool bLinkAnimLayer)
 {
 
 
@@ -176,7 +176,10 @@ AWeaponInstance* UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(AYogCharac
 	WeaponActor->FinishSpawning(SpawnTransform);
 
 
-	character->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
+	if (bLinkAnimLayer && SpawnData.WeaponLayer && character->GetMesh() && character->GetMesh()->GetAnimInstance())
+	{
+		character->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(SpawnData.WeaponLayer);
+	}
 
 
 	return WeaponActor;

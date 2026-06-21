@@ -592,16 +592,18 @@ void APlayerCharacterBase::RestoreInactiveWeaponFromDefinition(UWeaponDefinition
 	{
 		FWeaponSpawnData SpawnData = WeaponSpawnData;
 		SpawnData.bShouldSaveToGame = true;
-		AWeaponInstance* NewInactiveWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(this, GetTransform(), SpawnData);
+		AWeaponInstance* NewInactiveWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(this, GetTransform(), SpawnData, false);
 		if (NewInactiveWeapon)
 		{
 			NewInactiveWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
 			NewInactiveWeapon->SetActorHiddenInGame(true);
+			NewInactiveWeapon->SetActorEnableCollision(false);
 			LastSpawnedWeapon = NewInactiveWeapon;
 		}
 	}
 
 	InactiveWeaponInstance = LastSpawnedWeapon;
+	RelinkWeaponAnimLayer();
 }
 
 void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
@@ -647,7 +649,13 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 
 bool APlayerCharacterBase::CanSwitchWeapon() const
 {
-	return InactiveWeaponDef != nullptr;
+	if (!InactiveWeaponDef)
+	{
+		return false;
+	}
+
+	const UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent());
+	return !YogASC || !YogASC->IsPlayerActionMontageLocked() || IsInPostAttackRecoveryWindow();
 }
 
 bool APlayerCharacterBase::IsInPostAttackRecoveryWindow() const
@@ -681,11 +689,13 @@ void APlayerCharacterBase::SwitchWeapon()
 	{
 		OnHeatPhaseChanged.RemoveDynamic(EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
 		EquippedWeaponInstance->SetActorHiddenInGame(true);
+		EquippedWeaponInstance->SetActorEnableCollision(false);
 	}
 
 	if (InactiveWeaponInstance)
 	{
 		InactiveWeaponInstance->SetActorHiddenInGame(false);
+		InactiveWeaponInstance->SetActorEnableCollision(true);
 	}
 
 	Swap(EquippedWeaponDef, InactiveWeaponDef);
