@@ -27,6 +27,7 @@
 #include "Data/MontageConfigDA.h"
 #include "Data/RuneDataAsset.h"
 #include "GameFramework/Controller.h"
+#include "GameFramework/PlayerController.h"
 #include "TimerManager.h"
 #include "UObject/ObjectKey.h"
 
@@ -40,6 +41,37 @@ namespace
 	};
 
 	TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
+
+	bool TryFacePlayerAttackTowardCursor(APlayerCharacterBase* Player)
+	{
+		if (!Player)
+		{
+			return false;
+		}
+
+		APlayerController* PC = Cast<APlayerController>(Player->GetController());
+		if (!PC)
+		{
+			return false;
+		}
+
+		FHitResult CursorHit;
+		const ETraceTypeQuery VisibilityTraceType = UEngineTypes::ConvertToTraceType(ECC_Visibility);
+		if (!PC->GetHitResultUnderCursorByChannel(VisibilityTraceType, false, CursorHit))
+		{
+			return false;
+		}
+
+		FVector AttackDirection = CursorHit.ImpactPoint - Player->GetActorLocation();
+		AttackDirection.Z = 0.f;
+		if (!AttackDirection.Normalize())
+		{
+			return false;
+		}
+
+		Player->SetActorRotation(FRotator(0.f, AttackDirection.Rotation().Yaw, 0.f));
+		return true;
+	}
 
 }
 
@@ -847,6 +879,8 @@ void UGA_MeleeAttack::ActivateAbility(
 	// (e.g. weapon trail setup) can execute before the first animation frame.
 	// OnHit cards are unaffected: they still fire from OnEventReceived via AN_MeleeDamage.
 	ResolveCombatDeck(ECombatCardTriggerTiming::OnCommit);
+
+	TryFacePlayerAttackTowardCursor(PlayerOwner);
 
 	Task->ReadyForActivation();
 }

@@ -13,6 +13,7 @@
 #include "GameFramework/PlayerController.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveSubsystem.h"
+#include "Character/YogPlayerControllerBase.h"
 #include "UI/YogHUD.h"
 
 namespace
@@ -786,13 +787,25 @@ void UYogUIManagerSubsystem::ApplyInputModeForLayer(EYogUILayer NewLayer)
 	if (NewLayer == EYogUILayer::Game)
 	{
 		ApplyPauseAndMajorUIState(FYogUIScreenInputPolicy());
-		FInputModeGameOnly Mode;
-		PC->SetInputMode(Mode);
-		PC->bShowMouseCursor = false;
+		if (AYogPlayerControllerBase* YogPC = Cast<AYogPlayerControllerBase>(PC))
+		{
+			YogPC->SetGameplayCursorControlActive(true);
+		}
+		else
+		{
+			FInputModeGameOnly Mode;
+			PC->SetInputMode(Mode);
+			PC->bShowMouseCursor = false;
+		}
 		return;
 	}
 
 	// Menu / Modal：找当前最高 Layer 中的一个 widget 作为焦点目标。
+	if (AYogPlayerControllerBase* YogPC = Cast<AYogPlayerControllerBase>(PC))
+	{
+		YogPC->SetGameplayCursorControlActive(false);
+	}
+
 	const EYogUIScreenId TopScreenId = FindTopActiveScreen(NewLayer);
 	const FYogUIScreenInputPolicy Policy = GetInputPolicyForScreen(TopScreenId);
 	ApplyPauseAndMajorUIState(Policy);

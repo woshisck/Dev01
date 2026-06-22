@@ -3,6 +3,7 @@
 
 #include "Character/YogPlayerControllerBase.h"
 #include <AbilitySystemGlobals.h>
+#include "CommonInputSubsystem.h"
 #include "Character/YogCharacterBase.h"
 #include "UI/BackpackScreenWidget.h"
 #include "UI/LootSelectionWidget.h"
@@ -157,12 +158,31 @@ void AYogPlayerControllerBase::BeginPlay()
 	}
 
 	// UI widget creation is owned by AYogHUD and UYogUIManagerSubsystem.
+
+	if (UCommonInputSubsystem* CommonInput = ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(GetLocalPlayer()))
+	{
+		bGameplayCursorUsesMouse = CommonInput->GetCurrentInputType() != ECommonInputType::Gamepad;
+		CommonInput->OnInputMethodChangedNative.AddUObject(
+			this, &AYogPlayerControllerBase::HandleCommonInputMethodChanged);
+	}
+
+	SetGameplayCursorControlActive(true);
 	
 	//AYogCharacterBase* TargetCharacter = Cast<AYogCharacterBase>(UGameplayStatics::GetPlayerCharacter(this, 0));
 	
 	// 相机已切换为 AYogPlayerCameraManager + SpringArm + CameraComponent 方案
 	// SpawnCameraPawn 已废弃，PlayerCameraManagerClass 在构造函数中设置
 
+}
+
+void AYogPlayerControllerBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UCommonInputSubsystem* CommonInput = ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(GetLocalPlayer()))
+	{
+		CommonInput->OnInputMethodChangedNative.RemoveAll(this);
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void AYogPlayerControllerBase::SetupInputComponent()
@@ -280,6 +300,17 @@ void AYogPlayerControllerBase::SetupInputComponent()
 
 bool AYogPlayerControllerBase::InputKey(const FInputKeyParams& Params)
 {
+	if (Params.Key.IsGamepadKey())
+	{
+		SetGameplayCursorUsesMouse(false);
+	}
+	else if (Params.Key.IsMouseButton() || Params.Key == EKeys::MouseX || Params.Key == EKeys::MouseY
+		|| Params.Key == EKeys::Mouse2D || Params.Key == EKeys::MouseWheelAxis
+		|| Params.Key == EKeys::MouseScrollUp || Params.Key == EKeys::MouseScrollDown)
+	{
+		SetGameplayCursorUsesMouse(true);
+	}
+
 	if (Params.Event == IE_Pressed && HandleMenuBackInput(Params.Key))
 	{
 		return true;
@@ -338,6 +369,20 @@ bool AYogPlayerControllerBase::InputKey(const FInputKeyParams& Params)
 	}
 
 	return Super::InputKey(Params);
+}
+
+bool AYogPlayerControllerBase::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
+{
+	if (bGamepad || Key.IsGamepadKey())
+	{
+		SetGameplayCursorUsesMouse(false);
+	}
+	else if (!FMath::IsNearlyZero(Delta) && (Key == EKeys::MouseX || Key == EKeys::MouseY || Key == EKeys::Mouse2D))
+	{
+		SetGameplayCursorUsesMouse(true);
+	}
+
+	return Super::InputAxis(Key, Delta, DeltaTime, NumSamples, bGamepad);
 }
 
 bool AYogPlayerControllerBase::HandleMenuBackInput(const FKey& Key)
@@ -412,6 +457,7 @@ void AYogPlayerControllerBase::SetBlockGameInput(bool bBlock, bool bUIOnly)
 	bBlockGameInput = bBlock;
 	if (bBlock)
 	{
+		SetGameplayCursorControlActive(false);
 		SetShowMouseCursor(true);
 		// Always use GameAndUI for in-game UI. UIOnly broke D-pad navigation by killing
 		// CommonUI's focus routing. Attacks are blocked by widget-side DisableInput, not by mode.
@@ -421,10 +467,60 @@ void AYogPlayerControllerBase::SetBlockGameInput(bool bBlock, bool bUIOnly)
 	}
 	else
 	{
+		SetGameplayCursorControlActive(true);
+	}
+}
+
+void AYogPlayerControllerBase::SetGameplayCursorControlActive(bool bActive)
+{
+	bGameplayCursorControlActive = bActive && !bBlockGameInput;
+	if (bGameplayCursorControlActive)
+	{
+		ApplyGameplayInputModeForCurrentInputType();
+	}
+}
+
+void AYogPlayerControllerBase::ApplyGameplayInputModeForCurrentInputType()
+{
+	if (!bGameplayCursorControlActive)
+	{
+		return;
+	}
+
+	if (bGameplayCursorUsesMouse)
+	{
+		FInputModeGameAndUI InputMode;
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		InputMode.SetHideCursorDuringCapture(false);
+		SetInputMode(InputMode);
+		SetShowMouseCursor(true);
+		bEnableClickEvents = true;
+		bEnableMouseOverEvents = true;
+	}
+	else
+	{
 		FInputModeGameOnly InputMode;
 		SetInputMode(InputMode);
 		SetShowMouseCursor(false);
+		bEnableClickEvents = false;
+		bEnableMouseOverEvents = false;
 	}
+}
+
+void AYogPlayerControllerBase::HandleCommonInputMethodChanged(ECommonInputType NewInputType)
+{
+	SetGameplayCursorUsesMouse(NewInputType != ECommonInputType::Gamepad);
+}
+
+void AYogPlayerControllerBase::SetGameplayCursorUsesMouse(bool bUsesMouse)
+{
+	if (bGameplayCursorUsesMouse == bUsesMouse)
+	{
+		return;
+	}
+
+	bGameplayCursorUsesMouse = bUsesMouse;
+	ApplyGameplayInputModeForCurrentInputType();
 }
 
 void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)

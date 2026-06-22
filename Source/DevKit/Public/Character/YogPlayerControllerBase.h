@@ -6,6 +6,7 @@
 #include "ModularPlayerController.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 
+#include "CommonInputTypeEnum.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
 
@@ -32,8 +33,10 @@ public:
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 	virtual bool InputKey(const FInputKeyParams& Params) override;
+	virtual bool InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad) override;
 
 
 	//UFUNCTION(BlueprintCallable)
@@ -180,6 +183,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void SetBlockGameInput(bool bBlock, bool bUIOnly = false);
 
+	void SetGameplayCursorControlActive(bool bActive);
+	void ApplyGameplayInputModeForCurrentInputType();
+
 	// ── Push/Pull 菜单计数 ──────────────────────────────────────────
 	/** 当前有几个菜单层 widget 处于激活状态；归零时显示 CombatHUDWidget */
 	void OnMenuWidgetActivated();
@@ -189,8 +195,12 @@ private:
 	/** UI 打开期间为 true，屏蔽移动/攻击/冲刺输入 */
 	bool HandleMenuBackInput(const FKey& Key);
 	bool IsGameplayInputBlocked() const;
+	void HandleCommonInputMethodChanged(ECommonInputType NewInputType);
+	void SetGameplayCursorUsesMouse(bool bUsesMouse);
 
 	bool bBlockGameInput = false;
+	bool bGameplayCursorControlActive = false;
+	bool bGameplayCursorUsesMouse = true;
 
 	int32 ActiveMenuCount = 0;
 
