@@ -12,6 +12,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Abilities/GA_PlayerAttackCombos.h"
+#include "AbilitySystem/Abilities/GA_SwitchWeapon.h"
 #include "AbilitySystem/Abilities/GA_WeaponSkill.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Camera/YogCameraPawn.h"
@@ -665,14 +666,14 @@ bool APlayerCharacterBase::IsInPostAttackRecoveryWindow() const
 	return RecoveryTag.IsValid() && ASC && ASC->GetTagCount(RecoveryTag) > 0;
 }
 
-void APlayerCharacterBase::SwitchWeapon()
+void APlayerCharacterBase::SwitchWeapon(bool bForceRecoveryCancel)
 {
 	if (!CanSwitchWeapon())
 	{
 		return;
 	}
 
-	const bool bRecoveryCancelSwitch = IsInPostAttackRecoveryWindow();
+	const bool bRecoveryCancelSwitch = bForceRecoveryCancel || IsInPostAttackRecoveryWindow();
 
 	CaptureEquippedWeaponDeckState();
 	if (!InactiveWeaponDeckState.bInitialized)
@@ -1302,6 +1303,7 @@ void APlayerCharacterBase::BeginPlay()
 		GrantIfMissing(UGA_WeaponSkill_Combo2::StaticClass());
 		GrantIfMissing(UGA_WeaponSkill_Combo3::StaticClass());
 		GrantIfMissing(UGA_WeaponSkill_Combo4::StaticClass());
+		GrantIfMissing(UGA_SwitchWeapon::StaticClass());
 	}
 
 	ApplyCurrentEquipmentAbilityData();

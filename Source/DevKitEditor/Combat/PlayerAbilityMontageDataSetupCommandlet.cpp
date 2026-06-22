@@ -290,6 +290,7 @@ int32 UPlayerAbilityMontageDataSetupCommandlet::Main(const FString& Params)
 				{ TEXT("PlayerState.AbilityCast.Dash.Dash1"), TEXT("/YogAnimSource/ElianAnim/Common/AM_Common_Dash_Seq_01") },
 				{ TEXT("PlayerState.AbilityCast.Dash.DashATK1"), TEXT("/YogAnimSource/ElianAnim/Common/AM_Common_Dash_Seq_01") },
 				{ TEXT("PlayerState.AbilityCast.DashAtk"), TEXT("/YogAnimSource/ElianAnim/Common/AM_Common_Dash_Seq_01") },
+				{ TEXT("PlayerState.AbilityCast.SwitchWeapon"), TEXT("") },
 			},
 			{},
 		},

@@ -88,6 +88,24 @@ static void AddDefaultKeys(
 	}
 }
 
+static void AddWeaponAttackDefaultKeys(
+	TMap<FGameplayTag, TObjectPtr<UAnimMontage>>& MontageMap,
+	TMap<FGameplayTag, FPassiveActionData>& PassiveMap)
+{
+	static const FName MontageKeys[] = {
+		"PlayerState.AbilityCast.Attack.Combo1", "PlayerState.AbilityCast.Attack.Combo2",
+		"PlayerState.AbilityCast.Attack.Combo3", "PlayerState.AbilityCast.Attack.Combo4",
+		"PlayerState.AbilityCast.Dash.Combo1", "PlayerState.AbilityCast.Dash.Combo2",
+		"PlayerState.AbilityCast.Dash.Combo3", "PlayerState.AbilityCast.Dash.Combo4",
+		"PlayerState.AbilityCast.Dash",
+		"PlayerState.AbilityCast.Dash.Dash1",
+		"PlayerState.AbilityCast.Dash.DashATK1",
+		"PlayerState.AbilityCast.DashAtk",
+		"PlayerState.AbilityCast.SwitchWeapon",
+	};
+	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, TArrayView<const FName>());
+}
+
 // ---------------------------------------------------------------
 // UEnemyAbilityMontageData
 // ---------------------------------------------------------------
@@ -155,17 +173,15 @@ void UWeaponAttackAbilityMontageData::PostInitProperties()
 	Super::PostInitProperties();
 	if (HasAnyFlags(RF_ClassDefaultObject)) return;
 
-	static const FName MontageKeys[] = {
-		"PlayerState.AbilityCast.Attack.Combo1", "PlayerState.AbilityCast.Attack.Combo2",
-		"PlayerState.AbilityCast.Attack.Combo3", "PlayerState.AbilityCast.Attack.Combo4",
-		"PlayerState.AbilityCast.Dash.Combo1", "PlayerState.AbilityCast.Dash.Combo2",
-		"PlayerState.AbilityCast.Dash.Combo3", "PlayerState.AbilityCast.Dash.Combo4",
-		"PlayerState.AbilityCast.Dash",
-		"PlayerState.AbilityCast.Dash.Dash1",
-		"PlayerState.AbilityCast.Dash.DashATK1",
-		"PlayerState.AbilityCast.DashAtk",
-	};
-	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, TArrayView<const FName>());
+	AddWeaponAttackDefaultKeys(MontageMap, PassiveMap);
+}
+
+void UWeaponAttackAbilityMontageData::PostLoad()
+{
+	Super::PostLoad();
+	if (HasAnyFlags(RF_ClassDefaultObject)) return;
+
+	AddWeaponAttackDefaultKeys(MontageMap, PassiveMap);
 }
 
 // ---------------------------------------------------------------

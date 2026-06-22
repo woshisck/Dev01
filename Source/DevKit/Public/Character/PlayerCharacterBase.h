@@ -374,7 +374,7 @@ public:
 	bool IsInPostAttackRecoveryWindow() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void SwitchWeapon();
+	void SwitchWeapon(bool bForceRecoveryCancel = false);
 
 	void CaptureEquippedWeaponDeckState();
 	void InitializeEquippedWeaponDeckStateFromDefinition();

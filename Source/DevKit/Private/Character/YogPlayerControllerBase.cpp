@@ -688,7 +688,17 @@ void AYogPlayerControllerBase::SwitchWeapon(const FInputActionValue& Value)
 	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
 	{
-		PlayerCharacter->SwitchWeapon();
+		if (!PlayerCharacter->CanSwitchWeapon())
+		{
+			return;
+		}
+
+		if (UAbilitySystemComponent* ASC = PlayerCharacter->GetASC())
+		{
+			FGameplayTagContainer TagContainer;
+			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SwitchWeapon")));
+			ASC->TryActivateAbilitiesByTag(TagContainer, true);
+		}
 	}
 }
 

@@ -452,6 +452,7 @@ class DEVKIT_API UWeaponAttackAbilityMontageData : public UAbilityData
 	GENERATED_BODY()
 
 	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
 };
 
 UCLASS(BlueprintType, Blueprintable, DisplayName = "Weapon Skill Ability Montage Data", HideCategories = ("Passive"))

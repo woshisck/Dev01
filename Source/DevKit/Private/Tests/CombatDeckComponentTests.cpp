@@ -10,6 +10,7 @@
 #include "AbilitySystem/Abilities/GA_ActiveSkill_ShieldBurst.h"
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
+#include "AbilitySystem/Abilities/GA_SwitchWeapon.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Abilities/GA_WeaponSkill.h"
@@ -676,6 +677,31 @@ bool FPlayerDashHasDefaultInterruptAndDeathGuardsTest::RunTest(const FString& Pa
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSwitchWeaponAbilityHasDefaultTagsAndGuardsTest,
+	"DevKit.CombatDeck.SwitchWeaponAbilityHasDefaultTagsAndGuards",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FSwitchWeaponAbilityHasDefaultTagsAndGuardsTest::RunTest(const FString& Parameters)
+{
+	UGA_SwitchWeapon* Ability = NewObject<UGA_SwitchWeapon>();
+	const FGameplayTag SwitchWeaponTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SwitchWeapon"));
+	const FGameplayTag ActionTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast"));
+	const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"));
+
+	TestTrue(TEXT("SwitchWeapon ability carries the switch action tag"),
+		Ability->GetAbilityTags().HasTagExact(SwitchWeaponTag));
+	TestTrue(TEXT("SwitchWeapon ability owns the switch action tag while active"),
+		Ability->GetActivationOwnedTags().HasTagExact(SwitchWeaponTag));
+	TestTrue(TEXT("SwitchWeapon cancels current player action abilities"),
+		Ability->GetCancelAbilitiesWithTag().HasTagExact(ActionTag));
+	TestTrue(TEXT("SwitchWeapon cannot activate while dead"),
+		Ability->GetActivationBlockedTags().HasTagExact(DeadTag));
+	TestTrue(TEXT("SwitchWeapon cannot retrigger while a switch montage is active"),
+		Ability->GetActivationBlockedTags().HasTagExact(SwitchWeaponTag));
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerSwitchWeaponSwapsActiveAndInactiveSlotsTest,
 	"DevKit.CombatDeck.PlayerSwitchWeaponSwapsActiveAndInactiveSlots",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -1232,6 +1258,8 @@ bool FSplitAbilityMontageDataSeedsScopedComboTagsTest::RunTest(const FString& Pa
 	TestTrue(TEXT("WeaponAttack data has Dash combo keys"),
 		HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.Dash.Combo1"))
 		&& HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.Dash.Combo4")));
+	TestTrue(TEXT("WeaponAttack data has SwitchWeapon key"),
+		HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.SwitchWeapon")));
 	TestFalse(TEXT("WeaponAttack data does not seed WeaponSkill combo keys"),
 		HasKey(WeaponAttackData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1")));
 	TestTrue(TEXT("WeaponAttack data has no passive rows"),

@@ -47,6 +47,11 @@ public:
 	TObjectPtr<UYogTask_PlayMontageAbility> ActivePlayMontageTask;
 
 protected:
+	virtual void HandleMontageEnded(bool bWasCancelled);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Montage|Combo")
+	bool bListenForComboWindow = true;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Montage|Hold")
 	bool bHoldMontageUntilInputRelease = false;
 

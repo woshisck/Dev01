@@ -141,7 +141,7 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 	AbilityActivationTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 
-	if (ASC)
+	if (ASC && bListenForComboWindow)
 	{
 		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
 		ASC->SetLooseGameplayTagCount(CanComboTag, 0);
@@ -243,7 +243,10 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 			ASCLocal->UnregisterGameplayTagEvent(CanComboTagHandle, CanComboTag, EGameplayTagEventType::NewOrRemoved);
 			CanComboTagHandle.Reset();
 		}
-		ASCLocal->SetLooseGameplayTagCount(CanComboTag, 0);
+		if (bListenForComboWindow)
+		{
+			ASCLocal->SetLooseGameplayTagCount(CanComboTag, 0);
+		}
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -251,22 +254,30 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 
 void UGA_PlayMontage::OnMontageCompleted()
 {
+	HandleMontageEnded(false);
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageBlendOut()
 {
+	HandleMontageEnded(false);
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageInterrupted()
 {
+	HandleMontageEnded(true);
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGA_PlayMontage::OnMontageCancelled()
 {
+	HandleMontageEnded(true);
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, true);
+}
+
+void UGA_PlayMontage::HandleMontageEnded(bool bWasCancelled)
+{
 }
 
 void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEventData& EventData)
