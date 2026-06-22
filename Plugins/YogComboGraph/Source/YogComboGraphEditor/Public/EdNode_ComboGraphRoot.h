@@ -6,9 +6,10 @@
 
 /**
  * Purely visual entry-point node shown at the top of every combo graph editor.
- * It is always present, non-deletable, and has no backing UGenericGraphNode,
- * so RebuildGenericGraph skips it — combo nodes wired from its output pin have
- * no recorded parent and are correctly treated as runtime RootNodes.
+ * It is always present, non-deletable, and has no backing UGenericGraphNode.
+ * The editor may draw a visual edge from this node to combo root nodes, but
+ * that edge is ignored when rebuilding runtime graph data so combo roots stay
+ * parentless and are correctly treated as runtime RootNodes.
  */
 UCLASS()
 class YOGCOMBOGRAPHEDITOR_API UEdNode_ComboGraphRoot : public UEdNode_GenericGraphNode

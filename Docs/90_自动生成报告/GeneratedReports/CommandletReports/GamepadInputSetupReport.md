@@ -1,15 +1,21 @@
 ﻿# Gamepad Input Setup Report
 - Mode: Apply
-- Layout: A=Interact/Accept, B=Dash/Back, X=Light/Secondary/ReverseCard, Y=Heavy/Details, LB=Use item, RB=Use active skill, RS=Switch active skill, Menu=Pause, View=Backpack.
+- Layout: A=Interact/Accept, B=WeaponSkill/Back, X=NormalAttack/Secondary/ReverseCard, Y=SpecialAttack/Details, LB=Use item, RB=Use active skill, L3=Switch weapon, RS=Switch active skill, Menu=Pause, View=Backpack.
 
+- Found input action `/Game/Code/Core/Input/Actions/IA_NormalAttack`.
+- Found input action `/Game/Code/Core/Input/Actions/IA_SpecialAttack`.
+- Found input action `/Game/Code/Core/Input/Actions/IA_WeaponSkill`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_UseCombatItem`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_SwitchCombatItemNext`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_SwitchCombatItemPrevious`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_UseActiveSkill`.
 - Found input action `/Game/Code/Core/Input/Actions/IA_SwitchActiveSkill`.
-- Created input action `/Game/Code/Core/Input/Actions/IA_ReverseCard`.
+- Created input action `/Game/Code/Core/Input/Actions/IA_SwitchWeapon`.
+- Found input action `/Game/Code/Core/Input/Actions/IA_ReverseCard`.
 - `IA_Interact` maps to E, Gamepad_FaceButton_Bottom.
-- `IA_Dash` maps to SpaceBar, Gamepad_FaceButton_Right.
+- `IA_NormalAttack` maps to LeftMouseButton, Gamepad_FaceButton_Left.
+- `IA_SpecialAttack` maps to RightMouseButton, Gamepad_FaceButton_Top.
+- `IA_WeaponSkill` maps to SpaceBar, Gamepad_FaceButton_Right.
 - `IA_Esc` maps to Escape, Gamepad_Special_Right.
 - `IA_OpenBackback` maps to Tab, Gamepad_Special_Left.
 - `IA_Reload` maps to no default keys.
@@ -19,6 +25,7 @@
 - `IA_SwitchCombatItemPrevious` maps to Z, Gamepad_DPad_Left.
 - `IA_UseActiveSkill` maps to R, Gamepad_RightShoulder.
 - `IA_SwitchActiveSkill` maps to T, Gamepad_RightThumbstick.
-- `IA_ReverseCard` maps to R, Gamepad_FaceButton_Left (updated).
-- Controller input defaults already match target actions.
-- BP_InputActionDecorator has 20 required action mappings (updated).
+- `IA_SwitchWeapon` maps to V, Gamepad_LeftThumbstick (updated).
+- `IA_ReverseCard` maps to R, Gamepad_FaceButton_Left.
+- Controller default `Input_SwitchWeapon` -> `/Game/Code/Core/Input/Actions/IA_SwitchWeapon.IA_SwitchWeapon`.
+- BP_InputActionDecorator has 21 required action mappings (updated).

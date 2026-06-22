@@ -8,6 +8,7 @@ class AEnemyCharacterBase;
 class AMobSpawner;
 class AYogCharacterBase;
 class UEnemyData;
+class UEnemyWeaponDefinition;
 class URuneDataAsset;
 
 /**
@@ -68,6 +69,9 @@ struct DEVKIT_API FBuffFlowLifecycleContext
 	TWeakObjectPtr<UEnemyData> EnemyData;
 
 	UPROPERTY()
+	TWeakObjectPtr<UEnemyWeaponDefinition> EnemyWeaponDefinition;
+
+	UPROPERTY()
 	TSubclassOf<AEnemyCharacterBase> EnemyClass;
 
 	UPROPERTY()
@@ -109,6 +113,7 @@ struct DEVKIT_API FBuffFlowLifecycleContext
 		LifecycleTarget.Reset();
 		Spawner.Reset();
 		EnemyData.Reset();
+		EnemyWeaponDefinition.Reset();
 		EnemyClass = nullptr;
 		SpawnTransform = FTransform::Identity;
 		EnemyBuffs.Reset();

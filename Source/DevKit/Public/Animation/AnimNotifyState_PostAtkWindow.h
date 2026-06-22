@@ -10,7 +10,7 @@
  *
  * 放在蒙太奇的 Recovery 区段（或整个后摇段），每 Tick 检测两类输入：
  *
- *   1. 攻击输入（LightAtk / HeavyAtk）：
+ *   1. 攻击输入（Attack / WeaponSkill / Special）：
  *      清除 TagToClearOnActionInput（默认 CanCombo），蒙太奇本身由
  *      新激活的 GA 通过 GAS EndAbility 流程停止，无需此处强制打断。
  *
@@ -35,12 +35,15 @@ public:
     float MoveBlendOutTime = 0.15f;
 
     /**
-     * 检测到攻击输入（LightAtk/HeavyAtk）时要清零的 Loose Tag。
+     * 检测到攻击输入（Attack/WeaponSkill/Special）时要清零的 Loose Tag。
      * 默认填写 PlayerState.AbilityCast.CanCombo。
      * 清空后新 Ability 激活，由其内部 EndAbility 流程停止蒙太奇。
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostAtkWindow")
     FGameplayTag TagToClearOnActionInput;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostAtkWindow")
+    FGameplayTag RecoveryWindowTag;
 
     virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
         float TotalDuration, const FAnimNotifyEventReference& EventReference) override;

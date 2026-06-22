@@ -894,6 +894,30 @@ void AYogAIController::NotifyMovementAttackActivated(const FEnemyAIAttackOption&
 	}
 }
 
+void AYogAIController::NotifyAttackResolved(bool bWhiffed)
+{
+	UBlackboardComponent* BB = ResolveBlackboardComponent();
+	if (!BB)
+	{
+		return;
+	}
+
+	bool bFlagReposition = bWhiffed;
+	if (bWhiffed)
+	{
+		const UEnemyData* EnemyData = GetPossessedEnemyData();
+		const float Chance = EnemyData ? EnemyData->AttackProfile.WhiffRepositionChance : 1.0f;
+		bFlagReposition = FMath::FRand() <= Chance;
+	}
+
+	BB->SetValueAsBool(TEXT("bLastAttackWhiffed"), bFlagReposition);
+	if (bFlagReposition)
+	{
+		const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+		BB->SetValueAsFloat(TEXT("LastWhiffTime"), CurrentTime);
+	}
+}
+
 void AYogAIController::RefreshMovementAttackCooldownReset(float DistanceToTarget)
 {
 	const UEnemyData* EnemyData = GetPossessedEnemyData();
@@ -1160,6 +1184,15 @@ bool AYogAIController::UpdateAwarenessBlackboard(
 	{
 		const float LastSeenTargetTime = InBlackboard->GetValueAsFloat(LastSeenTargetTimeKeyName);
 		AActor* TargetActor = Cast<AActor>(InBlackboard->GetValueAsObject(TargetActorKeyName));
+
+		// Relentless pursuers keep their target until death: refresh the last-known
+		// location toward the target and never fall back to Alert.
+		if (Tuning.bNeverLoseTargetOnceAcquired && TargetActor)
+		{
+			InBlackboard->SetValueAsVector(LastKnownTargetLocationKeyName, TargetActor->GetActorLocation());
+			return true;
+		}
+
 		const float DistanceToTarget = TargetActor
 			? FVector::Dist2D(ControlledPawn->GetActorLocation(), TargetActor->GetActorLocation())
 			: TNumericLimits<float>::Max();

@@ -24,7 +24,6 @@
 #include "Component/CharacterDataComponent.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 #include "Map/TutorialMobSpawner.h"
 #include "Tutorial/TutorialManager.h"
 #include "Character/YogPlayerControllerBase.h"
@@ -282,7 +281,7 @@ void AWeaponSpawner::OnPlayerEnterRange(APlayerCharacterBase* Player)
 	{
 		return;
 	}
-	if (!Player || !WeaponDefinition) return;
+	if (!Player || !WeaponDefinition || bPickedUp) return;
 
 	Player->PendingWeaponSpawner = this;
 	NearbyPlayer = Player;
@@ -401,6 +400,51 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
 		if (TM->IsPopupShowing()) TM->ForceClosePopup();
 
+	// Route to inactive slot when player already carries a weapon.
+	if (Player->EquippedWeaponDef != nullptr)
+	{
+		Player->CaptureEquippedWeaponDeckState();
+
+		if (Player->InactiveWeaponInstance)
+		{
+			if (Player->InactiveWeaponFromSpawner && Player->InactiveWeaponFromSpawner != this)
+			{
+				Player->InactiveWeaponFromSpawner->ResetToAvailable();
+			}
+			Player->OnHeatPhaseChanged.RemoveDynamic(Player->InactiveWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
+			Player->InactiveWeaponInstance->Destroy();
+			Player->InactiveWeaponInstance = nullptr;
+		}
+
+		AWeaponInstance* NewInactiveWeapon = nullptr;
+		for (const FWeaponSpawnData& WeaponSpawnData : WeaponDefinition->ActorsToSpawn)
+		{
+			FWeaponSpawnData SpawnData;
+			SpawnData.ActorToSpawn    = WeaponSpawnData.ActorToSpawn;
+			SpawnData.AttachSocket    = WeaponSpawnData.AttachSocket;
+			SpawnData.AttachTransform = WeaponSpawnData.AttachTransform;
+			SpawnData.WeaponLayer     = WeaponSpawnData.WeaponLayer;
+			SpawnData.bShouldSaveToGame = true;
+			NewInactiveWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData, false);
+			if (NewInactiveWeapon)
+			{
+				NewInactiveWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
+				NewInactiveWeapon->SetActorHiddenInGame(true);
+				NewInactiveWeapon->SetActorEnableCollision(false);
+			}
+		}
+
+		Player->InactiveWeaponDef          = WeaponDefinition;
+		Player->InactiveWeaponInstance     = NewInactiveWeapon;
+		Player->InactiveWeaponFromSpawner  = this;
+		Player->PendingWeaponSpawner       = nullptr;
+		Player->InitializeInactiveWeaponDeckStateFromDefinition();
+		Player->RelinkWeaponAnimLayer();
+
+		UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已存入备用槽 [%s]"), *WeaponDefinition->GetName());
+		return;
+	}
+
 	// ── 1. 处理旧武器 ────────────────────────────────────────────────
 	if (Player->EquippedWeaponInstance)
 	{
@@ -420,8 +464,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		YogASC->ClearWeaponTypeTags();
 	}
 
-	Player->ClearWeaponGrantedAbilities();
-
 	// ── 2. 生成并装备新武器 ──────────────────────────────────────────
 	AWeaponInstance* NewWeapon = nullptr;
 	for (const FWeaponSpawnData& WeaponSpawnData : WeaponDefinition->ActorsToSpawn)
@@ -435,8 +477,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 		NewWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
 	}
-
-	Player->GrantWeaponAbilities(WeaponDefinition->WeaponAbilityData);
 
 	// ── 3. 传入热度材质 + 绑定热度委托 ──────────────────────────────
 	if (NewWeapon && !bDisableLegacyHeatBackpackRuneForCardTestSpawner)
@@ -508,16 +548,14 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	// ── 5.25 注入战斗卡组与连招配置 ─────────────────────────────────
 	// TryPickupWeapon 自己实现了装备流程，不走 WeaponDefinition::SetupWeaponToCharacter。
-	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes 和 WeaponComboConfig。
+	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes / typed AbilityData。
 	if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent.Get())
 	{
 		CombatDeck->LoadDeckFromWeapon(WeaponDefinition);
+		Player->CaptureEquippedWeaponDeckState();
 	}
 
-	if (Player->ComboRuntimeComponent)
-	{
-		Player->ApplyComboGraphFromWeapon(WeaponDefinition);
-	}
+	Player->ApplyAbilityDataFromWeapon(WeaponDefinition);
 
 	// ── 5.5 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────
 	// 让玩家专属攻击 GA 的 ActivationRequiredTags 能匹配通过；

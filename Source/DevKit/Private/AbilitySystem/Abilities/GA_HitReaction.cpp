@@ -2,34 +2,59 @@
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AbilitySystemComponent.h"
-#include "GameplayTagsManager.h"
-#include "Character/YogCharacterBase.h"
-#include "Component/CharacterDataComponent.h"
-#include "Data/CharacterData.h"
-#include "Data/AbilityData.h"
 #include "AIController.h"
+#include "Animation/AnimInstance.h"
+#include "Character/YogCharacterBase.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Component/CharacterDataComponent.h"
+#include "Data/AbilityData.h"
+#include "Data/CharacterData.h"
+#include "GameplayTagsManager.h"
+
+namespace
+{
+    void CancelAbilitiesWithTagIfValid(UAbilitySystemComponent* ASC, const TCHAR* TagName)
+    {
+        if (!ASC)
+        {
+            return;
+        }
+
+        const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+        if (Tag.IsValid())
+        {
+            FGameplayTagContainer Tags;
+            Tags.AddTag(Tag);
+            ASC->CancelAbilities(&Tags);
+        }
+    }
+}
 
 UGA_HitReaction::UGA_HitReaction(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
-    // GA 身份标签，同时作为 AbilityData.PassiveMap 的 lookup key
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact")));
 
-    // 受击硬直中，StateConflict 系统可据此 Tag 阻断低优先级技能
     ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HitReact")));
-
-    // 击退中不重复激活受击 GA（击退有自己的受击动画 + Root Motion）
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Knockback")));
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
 
-    // 每次受击独立实例，并发受击各自播放各自的动画
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 
-    // 监听 Action.HitReact 事件自动激活（FA/C++ 通过 HandleGameplayEvent 发出此 Tag）
     FAbilityTriggerData TriggerData;
-    TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact"));
+    TriggerData.TriggerTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact"));
     TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
     AbilityTriggers.Add(TriggerData);
+
+    FAbilityTriggerData BlockedTriggerData;
+    BlockedTriggerData.TriggerTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Blocked"));
+    BlockedTriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+    AbilityTriggers.Add(BlockedTriggerData);
+
+    FAbilityTriggerData ParriedTriggerData;
+    ParriedTriggerData.TriggerTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Parried"));
+    ParriedTriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+    AbilityTriggers.Add(ParriedTriggerData);
 }
 
 void UGA_HitReaction::ActivateAbility(
@@ -40,7 +65,6 @@ void UGA_HitReaction::ActivateAbility(
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-    // ---- 获取动画来源 ----
     AYogCharacterBase* Character = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
     if (!Character)
     {
@@ -49,25 +73,8 @@ void UGA_HitReaction::ActivateAbility(
     }
 
     UAnimMontage* HitMontage = nullptr;
-
-    // 根据攻击者相对位置判断受击方向，选择对应的 PassiveMap lookup key
-    // 攻击者在目标正面（Dot >= 0）→ Front；攻击者在背面 → Back
-    FGameplayTag LookupTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Front")); // 默认正面
-    if (TriggerEventData && TriggerEventData->Instigator != nullptr)
-    {
-        FVector ToInstigator = TriggerEventData->Instigator->GetActorLocation()
-            - Character->GetActorLocation();
-        ToInstigator.Z = 0.f;
-        if (!ToInstigator.IsNearlyZero())
-        {
-            const float Dot = FVector::DotProduct(
-                Character->GetActorForwardVector(), ToInstigator.GetSafeNormal());
-            if (Dot < 0.f)
-            {
-                LookupTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Back"));
-            }
-        }
-    }
+    const FGameplayTag LookupTag = ResolveLookupTag(Character, TriggerEventData);
+    const bool bParriedReaction = IsParriedReaction(TriggerEventData);
 
     UCharacterData* CharData = Character->CharacterDataComponent->GetCharacterData();
     if (CharData && LookupTag.IsValid())
@@ -80,27 +87,118 @@ void UGA_HitReaction::ActivateAbility(
         }
     }
 
-    if (!HitMontage)
+    if (bParriedReaction)
     {
-        // 未配置蒙太奇时直接结束（不是错误，视觉上无硬直）
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
-        return;
+        InterruptForParriedReaction(Character);
     }
 
-    // ---- 播放受击蒙太奇 ----
     if (AAIController* AIController = Cast<AAIController>(Character->GetController()))
     {
         AIController->StopMovement();
     }
 
+    if (!HitMontage)
+    {
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+        return;
+    }
+
     MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
         this, NAME_None, HitMontage, 1.0f);
 
-    MontageTask->OnCompleted.AddDynamic(this,  &UGA_HitReaction::OnMontageCompleted);
-    MontageTask->OnBlendOut.AddDynamic(this,   &UGA_HitReaction::OnMontageBlendOut);
-    MontageTask->OnCancelled.AddDynamic(this,  &UGA_HitReaction::OnMontageCancelled);
+    MontageTask->OnCompleted.AddDynamic(this, &UGA_HitReaction::OnMontageCompleted);
+    MontageTask->OnBlendOut.AddDynamic(this, &UGA_HitReaction::OnMontageBlendOut);
+    MontageTask->OnCancelled.AddDynamic(this, &UGA_HitReaction::OnMontageCancelled);
     MontageTask->OnInterrupted.AddDynamic(this, &UGA_HitReaction::OnMontageInterrupted);
     MontageTask->ReadyForActivation();
+}
+
+FGameplayTag UGA_HitReaction::ResolveLookupTag(AYogCharacterBase* Character, const FGameplayEventData* TriggerEventData) const
+{
+    if (TriggerEventData)
+    {
+        static const FGameplayTag BlockedTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Blocked"), false);
+        static const FGameplayTag ParriedTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Parried"), false);
+
+        if (BlockedTag.IsValid() && TriggerEventData->EventTag.MatchesTagExact(BlockedTag))
+        {
+            return BlockedTag;
+        }
+        if (ParriedTag.IsValid() && TriggerEventData->EventTag.MatchesTagExact(ParriedTag))
+        {
+            return ParriedTag;
+        }
+    }
+
+    FGameplayTag LookupTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Front"));
+    if (Character && TriggerEventData && TriggerEventData->Instigator != nullptr)
+    {
+        FVector ToInstigator = TriggerEventData->Instigator->GetActorLocation() - Character->GetActorLocation();
+        ToInstigator.Z = 0.f;
+        if (!ToInstigator.IsNearlyZero())
+        {
+            const float Dot = FVector::DotProduct(Character->GetActorForwardVector(), ToInstigator.GetSafeNormal());
+            if (Dot < 0.f)
+            {
+                LookupTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Back"));
+            }
+        }
+    }
+
+    return LookupTag;
+}
+
+bool UGA_HitReaction::IsParriedReaction(const FGameplayEventData* TriggerEventData) const
+{
+    if (!TriggerEventData)
+    {
+        return false;
+    }
+
+    static const FGameplayTag ParriedTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact.Parried"), false);
+    return ParriedTag.IsValid() && TriggerEventData->EventTag.MatchesTagExact(ParriedTag);
+}
+
+void UGA_HitReaction::InterruptForParriedReaction(AYogCharacterBase* Character) const
+{
+    if (!Character)
+    {
+        return;
+    }
+
+    if (UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent())
+    {
+        static const TCHAR* ActionTagNames[] = {
+            TEXT("PlayerState.AbilityCast.Attack"),
+            TEXT("PlayerState.AbilityCast.WeaponSkill"),
+            TEXT("PlayerState.AbilityCast.Special"),
+            TEXT("Enemy.Melee.LAtk1"),
+            TEXT("Enemy.Melee.LAtk2"),
+            TEXT("Enemy.Melee.LAtk3"),
+            TEXT("Enemy.Melee.LAtk4"),
+            TEXT("Enemy.Melee.HAtk1"),
+            TEXT("Enemy.Melee.HAtk2"),
+            TEXT("Enemy.Melee.HAtk3"),
+            TEXT("Enemy.Melee.HAtk4"),
+            TEXT("Enemy.Skill.Skill1"),
+            TEXT("Enemy.Skill.Skill2"),
+            TEXT("Enemy.Skill.Skill3"),
+            TEXT("Enemy.Skill.Skill4"),
+        };
+
+        for (const TCHAR* TagName : ActionTagNames)
+        {
+            CancelAbilitiesWithTagIfValid(ASC, TagName);
+        }
+    }
+
+    if (UAnimInstance* AnimInstance = Character->GetMesh() ? Character->GetMesh()->GetAnimInstance() : nullptr)
+    {
+        if (UAnimMontage* ActiveMontage = AnimInstance->GetCurrentActiveMontage())
+        {
+            AnimInstance->Montage_Stop(ParriedMontageInterruptBlendOutTime, ActiveMontage);
+        }
+    }
 }
 
 void UGA_HitReaction::OnMontageCompleted()

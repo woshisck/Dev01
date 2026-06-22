@@ -5,12 +5,13 @@
 #include "Animation/AN_MeleeDamage.h"
 #include "Component/CombatDeckComponent.h"
 #include "Data/EnemyData.h"
+#include "Data/MontageAttackDataAsset.h"
 #include "Data/RuneDataAsset.h"
-#include "Data/WeaponComboConfigDA.h"
 #include "GA_MeleeAttack.generated.h"
 
 class UMontageConfigDA;
 class UMontageAttackDataAsset;
+class UYogAnimNotifyState_Damage;
 class UAbilityTask_ApplyRootMotionMoveToForce;
 class AYogCharacterBase;
 
@@ -109,9 +110,6 @@ private:
 	TObjectPtr<UMontageConfigDA> ActiveMontageConfig;
 
 	UPROPERTY()
-	FWeaponComboNodeConfig ActiveComboNode;
-
-	UPROPERTY()
 	TObjectPtr<UMontageAttackDataAsset> ActiveComboAttackData;
 
 	UPROPERTY()
@@ -128,11 +126,11 @@ private:
 	 * EventData.OptionalObject 鏄?const UObject*锛屾晠鐢ㄥ師濮?const 鎸囬拡锛汚nimNotify 涓嶅弬涓?GC銆?
 	 */
 	const UAN_MeleeDamage* LastFiredDamageNotify = nullptr;
+	const UYogAnimNotifyState_Damage* LastFiredDamageWindow = nullptr;
 
 	bool bCombatDeckCardResolvedThisActivation = false;
 	bool bCombatDeckFromDashSave = false;
 	bool bNextActivationFromDashSave = false;
-	bool bActiveComboNodeValid = false;
 	bool bActiveComboAttackConfigValid = false;
 	bool bComboContinued = true;
 	bool bExitedComboState = false;
@@ -142,8 +140,6 @@ private:
 	float LocalPreStatBeforeAttackPower = 0.f;
 	float LocalStatBeforeAttackDelta = 0.f;
 	float LocalStatBeforeAttackPowerDelta = 0.f;
-	FTimerHandle ComboWindowOpenTimerHandle;
-	FTimerHandle ComboWindowCloseTimerHandle;
 	FDelegateHandle CanComboTagHandle;
 	float AbilityActivationTime = 0.f;
 
@@ -159,10 +155,7 @@ private:
 	/** Finds the first AN_MeleeDamage notify on the selected montage. */
 	static UAN_MeleeDamage* GetFirstDamageNotify(UAnimMontage* Montage);
 
-	void ScheduleNodeComboWindow(UAnimMontage* Montage, float PlayRate);
 	void TryStartEnemyRadialLunge();
-	void OpenNodeComboWindow();
-	void CloseNodeComboWindow();
 
 	AActor* PreviewFirstCombatDeckHitTarget(const FGameplayEventData& EventData) const;
 	void PrimeCombatDeckHitContext(const FGameplayEventData& EventData);

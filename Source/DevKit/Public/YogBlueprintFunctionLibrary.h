@@ -139,7 +139,7 @@ public:
 
 
 	UFUNCTION(BlueprintCallable)
-	static AWeaponInstance* SpawnWeaponOnCharacter(AYogCharacterBase* character, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData);
+	static AWeaponInstance* SpawnWeaponOnCharacter(AYogCharacterBase* character, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData, bool bLinkAnimLayer = true);
 
 
 	UFUNCTION()

@@ -617,12 +617,26 @@ bool USacrificeRuneComponent::IsPlayerInAttackState() const
 		return false;
 	}
 
-	static const FGameplayTag LightAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk"), false);
-	static const FGameplayTag HeavyAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk"), false);
-	static const FGameplayTag DashAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.DashAtk"), false);
-	return (LightAttackTag.IsValid() && ASC->HasMatchingGameplayTag(LightAttackTag))
-		|| (HeavyAttackTag.IsValid() && ASC->HasMatchingGameplayTag(HeavyAttackTag))
-		|| (DashAttackTag.IsValid() && ASC->HasMatchingGameplayTag(DashAttackTag));
+	static const FName AttackStateTagNames[] = {
+		TEXT("PlayerState.AbilityCast.Attack"),
+		TEXT("PlayerState.AbilityCast.WeaponSkill"),
+		TEXT("PlayerState.AbilityCast.Dash"),
+		TEXT("PlayerState.AbilityCast.Special"),
+		TEXT("PlayerState.AbilityCast.LightAtk"),
+		TEXT("PlayerState.AbilityCast.HeavyAtk"),
+		TEXT("PlayerState.AbilityCast.DashAtk"),
+		TEXT("PlayerState.AbilityCast.SpecialAttack"),
+	};
+
+	for (const FName& TagName : AttackStateTagNames)
+	{
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+		if (Tag.IsValid() && ASC->HasMatchingGameplayTag(Tag))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 bool USacrificeRuneComponent::FlowHasOffensiveSpawnNode(const UFlowAsset* FlowAsset)

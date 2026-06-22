@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "Data/RuneDataAsset.h"
 #include "Engine/DataAsset.h"
 #include "ActiveSkillDataAsset.generated.h"
 
@@ -26,6 +27,18 @@ struct DEVKIT_API FActiveSkillConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Active Skill", meta = (ClampMin = "0.0"))
 	float Cooldown = 120.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Active Skill|Combat Deck")
+	bool bResolveCombatDeckOnUse = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Active Skill|Combat Deck", meta = (EditCondition = "bResolveCombatDeckOnUse"))
+	ECombatDeckActionSlot CombatDeckActionSlot = ECombatDeckActionSlot::Skill;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Active Skill|Combat Deck", meta = (EditCondition = "bResolveCombatDeckOnUse"))
+	ECombatDeckFlowRole CombatDeckFlowRole = ECombatDeckFlowRole::Catalyst;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Active Skill|Combat Deck", meta = (EditCondition = "bResolveCombatDeckOnUse"))
+	ECombatCardTriggerTiming CombatDeckTriggerTiming = ECombatCardTriggerTiming::OnCommit;
 };
 
 UCLASS(BlueprintType)

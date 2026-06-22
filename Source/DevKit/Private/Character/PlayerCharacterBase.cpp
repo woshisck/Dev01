@@ -11,12 +11,14 @@
 #include "Item/ItemInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "AbilitySystem/Abilities/GA_PlayerAttackCombos.h"
+#include "AbilitySystem/Abilities/GA_WeaponSkill.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Camera/YogCameraPawn.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Buff/Aura/AuraBase.h"
 #include "SaveGame/YogSaveGame.h"
-#include "UObject/ConstructorHelpers.h"
+#include "AbilitySystem/Abilities/YogAbilitySet.h"
 #include "Data/GASTemplate.h"
 #include "Item/ItemSpawner.h"
 #include "Component/BackpackGridComponent.h"
@@ -25,21 +27,22 @@
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
+#include "Component/CharacterDataComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
-#include "Component/ComboRuntimeComponent.h"
 #include "Component/SacrificeRuneComponent.h"
+#include "Combat/FinisherDeprecation.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/SkillChargeComponent.h"
 #include "Component/MontageVFXBindingComponent.h"
 #include "Component/YogCameraOcclusionFadeComponent.h"
-#include "Data/GameplayAbilityComboGraph.h"
+#include "Data/AbilityData.h"
+#include "Data/CharacterData.h"
 #include "Data/SacrificeGraceDA.h"
 #include "AbilitySystem/Attribute/PlayerAttributeSet.h"
 #include "AbilitySystem/Abilities/YogTargetType_Melee.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "System/YogGameInstanceBase.h"
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Item/Weapon/WeaponAbilityData.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "GameFramework/PlayerController.h"
@@ -50,9 +53,20 @@
 #include "Story/StoryEngineSubsystem.h"
 #include "Tutorial/TutorialManager.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
+#include "YogBlueprintFunctionLibrary.h"
 
 namespace
 {
+FGameplayTag GetPostAttackRecoveryTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
+}
+
+FGameplayTag GetRecoveryCancelBonusTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.RecoveryCancelBonus"), false);
+}
+
 void AddSacrificeCostModifier(UGameplayEffect* Effect, const FGameplayAttribute& Attribute, float Delta)
 {
 	if (!Effect || FMath::IsNearlyZero(Delta))
@@ -95,6 +109,89 @@ bool ApplySacrificeCostStateToASC(UAbilitySystemComponent* ASC, const FSacrifice
 	FGameplayEffectSpec Spec(Effect, Context, 1.0f);
 	return ASC->ApplyGameplayEffectSpecToSelf(Spec).IsValid();
 }
+
+void CopyDeckRuntimeStateToRunStateFields(
+	const FWeaponCombatDeckRuntimeState& DeckState,
+	TArray<TObjectPtr<URuneDataAsset>>& OutCards,
+	TArray<ECombatCardLinkOrientation>& OutOrientations,
+	float& OutShuffleCooldownDuration,
+	int32& OutMaxActiveSequenceSize)
+{
+	OutCards.Reset(DeckState.SourceAssets.Num());
+	for (const TObjectPtr<URuneDataAsset>& SourceAsset : DeckState.SourceAssets)
+	{
+		if (SourceAsset)
+		{
+			OutCards.Add(SourceAsset);
+		}
+	}
+
+	OutOrientations = DeckState.AttackCardOrientations;
+	OutShuffleCooldownDuration = DeckState.ShuffleCooldownDuration;
+	OutMaxActiveSequenceSize = DeckState.MaxActiveSequenceSize;
+}
+
+void RestoreDeckRuntimeStateFromRunStateFields(
+	FWeaponCombatDeckRuntimeState& DeckState,
+	const TArray<TObjectPtr<URuneDataAsset>>& SourceAssets,
+	const TArray<ECombatCardLinkOrientation>& Orientations,
+	float ShuffleCooldownDuration,
+	int32 MaxActiveSequenceSize)
+{
+	DeckState.Reset();
+	DeckState.SourceAssets = SourceAssets;
+	DeckState.AttackCardOrientations = Orientations;
+	DeckState.ShuffleCooldownDuration = ShuffleCooldownDuration;
+	DeckState.MaxActiveSequenceSize = MaxActiveSequenceSize;
+	DeckState.bInitialized = true;
+}
+
+bool HasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
+{
+	for (const FTaggedMontageConfig& Config : ConfigList.Configs)
+	{
+		if (Config.MontageConfig)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool HasUsablePassiveActionData(const FPassiveActionData& PassiveData)
+{
+	return PassiveData.Montage != nullptr
+		|| !PassiveData.UniqueEffects.IsEmpty()
+		|| PassiveData.DissolveGameplayCueTag.IsValid();
+}
+
+void MergeAbilityDataInto(UAbilityData& Target, const UAbilityData& Source)
+{
+	for (const TPair<FGameplayTag, TObjectPtr<UAnimMontage>>& Pair : Source.MontageMap)
+	{
+		if (Pair.Key.IsValid() && Pair.Value)
+		{
+			Target.MontageMap.Add(Pair.Key, Pair.Value);
+		}
+	}
+
+	for (const TPair<FGameplayTag, FAbilityMontageConfigList>& Pair : Source.MontageConfigMap)
+	{
+		if (Pair.Key.IsValid() && HasUsableMontageConfigList(Pair.Value))
+		{
+			Target.MontageConfigMap.Add(Pair.Key, Pair.Value);
+		}
+	}
+
+	for (const TPair<FGameplayTag, FPassiveActionData>& Pair : Source.PassiveMap)
+	{
+		if (Pair.Key.IsValid() && HasUsablePassiveActionData(Pair.Value))
+		{
+			Target.PassiveMap.Add(Pair.Key, Pair.Value);
+		}
+	}
+}
 }
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)
@@ -123,7 +220,6 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	CombatDeckComponent = CreateDefaultSubobject<UCombatDeckComponent>(TEXT("CombatDeckComponent"));
 	CombatItemComponent = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
 	ActiveSkillComponent = CreateDefaultSubobject<UPlayerActiveSkillComponent>(TEXT("ActiveSkillComponent"));
-	ComboRuntimeComponent = CreateDefaultSubobject<UComboRuntimeComponent>(TEXT("ComboRuntimeComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
 	SacrificeRuneComponent = CreateDefaultSubobject<USacrificeRuneComponent>(TEXT("SacrificeRuneComponent"));
@@ -132,13 +228,6 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 
 	// 近战默认命中框：C++ 实现，无需在每个角色蓝图 Class Defaults 中单独配置
 	DefaultMeleeTargetType = UYogTargetType_Player::StaticClass();
-
-	static ConstructorHelpers::FObjectFinder<UGameplayAbilityComboGraph> DefaultUnarmedComboGraphAsset(
-		TEXT("/Game/Code/Weapon/Disarm/GA_ComboGraph_Disarm.GA_ComboGraph_Disarm"));
-	if (DefaultUnarmedComboGraphAsset.Succeeded())
-	{
-		DefaultUnarmedComboGraph = DefaultUnarmedComboGraphAsset.Object;
-	}
 }
 
 void APlayerCharacterBase::SetOwnCamera(AYogCameraPawn* cameraActor)
@@ -156,11 +245,6 @@ AYogCameraPawn* APlayerCharacterBase::GetOwnCamera()
 
 void APlayerCharacterBase::Die()
 {
-	if (ComboRuntimeComponent)
-	{
-		ComboRuntimeComponent->ResetCombo();
-	}
-
 	Super::Die();
 
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
@@ -261,60 +345,265 @@ void APlayerCharacterBase::EndReviveProtection()
 	}
 }
 
-void APlayerCharacterBase::ApplyDefaultUnarmedComboGraph()
+void APlayerCharacterBase::ApplyAbilityDataFromWeapon(UWeaponDefinition* WeaponDefinition)
 {
-	if (!ComboRuntimeComponent)
+	UCharacterDataComponent* CDC = GetCharacterDataComponent();
+	UCharacterData* CharacterData = CDC ? CDC->GetCharacterData() : nullptr;
+	if (!CharacterData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponAbilityData] Skip: no runtime CharacterData on %s for weapon %s"),
+			*GetNameSafe(this), *GetNameSafe(WeaponDefinition));
+		return;
+	}
+
+	TArray<UAbilityData*> SourceData;
+	UAbilityData* BaseAbilityData = CDC ? CDC->GetBaseAbilityData() : CharacterData->AbilityData.Get();
+	if (BaseAbilityData)
+	{
+		SourceData.Add(BaseAbilityData);
+	}
+	int32 WeaponSourceCount = 0;
+	if (WeaponDefinition)
+	{
+		auto AddWeaponAbilityDataSource = [&SourceData, &WeaponSourceCount](UAbilityData* AbilityData)
+		{
+			if (AbilityData)
+			{
+				SourceData.Add(AbilityData);
+				++WeaponSourceCount;
+			}
+		};
+
+		AddWeaponAbilityDataSource(WeaponDefinition->AttackAbilityData);
+		AddWeaponAbilityDataSource(WeaponDefinition->WeaponSkillAbilityData);
+		AddWeaponAbilityDataSource(WeaponDefinition->SpecialAbilityData);
+		AddWeaponAbilityDataSource(WeaponDefinition->PassiveAbilityData);
+	}
+
+	if (SourceData.IsEmpty())
+	{
+		CharacterData->AbilityData = nullptr;
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponAbilityData] Cleared: no base or weapon AbilityData on %s for weapon %s"),
+			*GetNameSafe(this),
+			*GetNameSafe(WeaponDefinition));
+		return;
+	}
+
+	if (SourceData.Num() == 1)
+	{
+		CharacterData->AbilityData = SourceData[0];
+	}
+	else
+	{
+		UAbilityData* RuntimeAbilityData = NewObject<UAbilityData>(this);
+		RuntimeAbilityData->SetFlags(RF_Transient);
+		for (const UAbilityData* Source : SourceData)
+		{
+			if (!Source)
+			{
+				continue;
+			}
+
+			MergeAbilityDataInto(*RuntimeAbilityData, *Source);
+		}
+		CharacterData->AbilityData = RuntimeAbilityData;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[WeaponAbilityData] Applied Base=%s WeaponSources=%d Weapon=%s Character=%s Runtime=%s"),
+		*GetNameSafe(BaseAbilityData),
+		WeaponSourceCount,
+		*GetNameSafe(WeaponDefinition),
+		*GetNameSafe(this),
+		*GetNameSafe(CharacterData->AbilityData));
+}
+
+void APlayerCharacterBase::ApplyCurrentEquipmentAbilityData()
+{
+	if (EquippedWeaponDef)
+	{
+		ApplyAbilityDataFromWeapon(EquippedWeaponDef);
+	}
+	else
+	{
+		ApplyAbilityDataFromWeapon(nullptr);
+	}
+}
+
+void APlayerCharacterBase::CaptureEquippedWeaponDeckState()
+{
+	if (!EquippedWeaponDef)
+	{
+		EquippedWeaponDeckState.Reset();
+		return;
+	}
+
+	if (!CombatDeckComponent)
+	{
+		InitializeWeaponDeckStateFromDefinition(EquippedWeaponDeckState, EquippedWeaponDef);
+		return;
+	}
+
+	EquippedWeaponDeckState.Reset();
+
+	const TArray<URuneDataAsset*> SourceAssets = CombatDeckComponent->GetDeckSourceAssets();
+	EquippedWeaponDeckState.SourceAssets.Reserve(SourceAssets.Num());
+	for (URuneDataAsset* SourceAsset : SourceAssets)
+	{
+		if (SourceAsset)
+		{
+			EquippedWeaponDeckState.SourceAssets.Add(SourceAsset);
+		}
+	}
+
+	const TArray<FCombatCardInstance> AttackCards = CombatDeckComponent->GetFullDeckSnapshot();
+	EquippedWeaponDeckState.AttackCardOrientations.Reserve(AttackCards.Num());
+	for (const FCombatCardInstance& Card : AttackCards)
+	{
+		EquippedWeaponDeckState.AttackCardOrientations.Add(Card.LinkOrientation);
+	}
+
+	EquippedWeaponDeckState.ShuffleCooldownDuration = CombatDeckComponent->GetShuffleCooldownDuration();
+	EquippedWeaponDeckState.MaxActiveSequenceSize = CombatDeckComponent->GetMaxActiveSequenceSize();
+	EquippedWeaponDeckState.bInitialized = true;
+}
+
+void APlayerCharacterBase::InitializeEquippedWeaponDeckStateFromDefinition()
+{
+	InitializeWeaponDeckStateFromDefinition(EquippedWeaponDeckState, EquippedWeaponDef);
+}
+
+void APlayerCharacterBase::InitializeInactiveWeaponDeckStateFromDefinition()
+{
+	InitializeWeaponDeckStateFromDefinition(InactiveWeaponDeckState, InactiveWeaponDef);
+}
+
+void APlayerCharacterBase::InitializeWeaponDeckStateFromDefinition(FWeaponCombatDeckRuntimeState& DeckState, const UWeaponDefinition* WeaponDefinition) const
+{
+	DeckState.Reset();
+	if (!WeaponDefinition)
 	{
 		return;
 	}
 
-	if (DefaultUnarmedComboGraph)
+	TArray<URuneDataAsset*> SourceAssets;
+	if (CombatDeckComponent)
 	{
-		ComboRuntimeComponent->LoadComboGraph(DefaultUnarmedComboGraph);
+		CombatDeckComponent->BuildDefaultWeaponDeckSourceAssets(WeaponDefinition, SourceAssets);
 	}
-	else
+
+	DeckState.SourceAssets.Reserve(SourceAssets.Num());
+	for (URuneDataAsset* SourceAsset : SourceAssets)
 	{
-		ComboRuntimeComponent->LoadComboConfig(nullptr);
+		if (SourceAsset)
+		{
+			DeckState.SourceAssets.Add(SourceAsset);
+		}
 	}
+
+	DeckState.ShuffleCooldownDuration = WeaponDefinition->ShuffleCooldownDuration;
+	DeckState.MaxActiveSequenceSize = WeaponDefinition->MaxActiveSequenceSize;
+	DeckState.bInitialized = true;
 }
 
-void APlayerCharacterBase::ApplyComboGraphFromWeapon(UWeaponDefinition* WeaponDefinition)
+void APlayerCharacterBase::LoadCombatDeckFromWeaponDeckState(FWeaponCombatDeckRuntimeState& DeckState, const UWeaponDefinition* WeaponDefinition)
 {
-	if (!ComboRuntimeComponent)
+	if (!CombatDeckComponent)
 	{
 		return;
 	}
 
 	if (!WeaponDefinition)
 	{
-		ApplyDefaultUnarmedComboGraph();
+		DeckState.Reset();
+		TArray<URuneDataAsset*> EmptyDeck;
+		CombatDeckComponent->LoadDeckFromExactSourceAssets(EmptyDeck, 0.0f, 0);
 		return;
 	}
 
-	if (WeaponDefinition->GameplayAbilityComboGraph)
+	if (!DeckState.bInitialized)
 	{
-		ComboRuntimeComponent->LoadComboGraph(WeaponDefinition->GameplayAbilityComboGraph);
+		InitializeWeaponDeckStateFromDefinition(DeckState, WeaponDefinition);
 	}
-	else if (WeaponDefinition->WeaponComboConfig)
+
+	TArray<URuneDataAsset*> SourceAssets;
+	SourceAssets.Reserve(DeckState.SourceAssets.Num());
+	for (const TObjectPtr<URuneDataAsset>& SourceAsset : DeckState.SourceAssets)
 	{
-		ComboRuntimeComponent->LoadComboConfig(WeaponDefinition->WeaponComboConfig);
+		if (SourceAsset)
+		{
+			SourceAssets.Add(SourceAsset.Get());
+		}
 	}
-	else
+
+	CombatDeckComponent->LoadDeckFromExactSourceAssets(
+		SourceAssets,
+		DeckState.ShuffleCooldownDuration,
+		DeckState.MaxActiveSequenceSize);
+
+	if (!DeckState.AttackCardOrientations.IsEmpty())
 	{
-		ApplyDefaultUnarmedComboGraph();
+		CombatDeckComponent->ApplyDeckOrientations(DeckState.AttackCardOrientations);
 	}
 }
 
-void APlayerCharacterBase::ApplyCurrentEquipmentComboGraph()
+void APlayerCharacterBase::CaptureCombatLoadoutForRunState(FRunState& OutState)
 {
-	if (EquippedWeaponDef)
+	CaptureEquippedWeaponDeckState();
+	if (InactiveWeaponDef && !InactiveWeaponDeckState.bInitialized)
 	{
-		ApplyComboGraphFromWeapon(EquippedWeaponDef);
+		InitializeInactiveWeaponDeckStateFromDefinition();
 	}
-	else
+
+	OutState.EquippedWeaponDef = EquippedWeaponDef;
+	OutState.InactiveWeaponDef = InactiveWeaponDef;
+	CopyDeckRuntimeStateToRunStateFields(
+		EquippedWeaponDeckState,
+		OutState.CombatDeckCards,
+		OutState.CombatDeckCardOrientations,
+		OutState.CombatDeckShuffleCooldownDuration,
+		OutState.CombatDeckMaxActiveSequenceSize);
+	CopyDeckRuntimeStateToRunStateFields(
+		InactiveWeaponDeckState,
+		OutState.InactiveCombatDeckCards,
+		OutState.InactiveCombatDeckCardOrientations,
+		OutState.InactiveCombatDeckShuffleCooldownDuration,
+		OutState.InactiveCombatDeckMaxActiveSequenceSize);
+}
+
+void APlayerCharacterBase::RestoreInactiveWeaponFromDefinition(UWeaponDefinition* WeaponDefinition)
+{
+	if (InactiveWeaponInstance)
 	{
-		ApplyDefaultUnarmedComboGraph();
+		OnHeatPhaseChanged.RemoveDynamic(InactiveWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
+		InactiveWeaponInstance->Destroy();
+		InactiveWeaponInstance = nullptr;
 	}
+
+	InactiveWeaponDef = WeaponDefinition;
+	InactiveWeaponFromSpawner = nullptr;
+	InactiveWeaponDeckState.Reset();
+	if (!WeaponDefinition || !GetWorld())
+	{
+		return;
+	}
+
+	AWeaponInstance* LastSpawnedWeapon = nullptr;
+	for (const FWeaponSpawnData& WeaponSpawnData : WeaponDefinition->ActorsToSpawn)
+	{
+		FWeaponSpawnData SpawnData = WeaponSpawnData;
+		SpawnData.bShouldSaveToGame = true;
+		AWeaponInstance* NewInactiveWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(this, GetTransform(), SpawnData, false);
+		if (NewInactiveWeapon)
+		{
+			NewInactiveWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
+			NewInactiveWeapon->SetActorHiddenInGame(true);
+			NewInactiveWeapon->SetActorEnableCollision(false);
+			LastSpawnedWeapon = NewInactiveWeapon;
+		}
+	}
+
+	InactiveWeaponInstance = LastSpawnedWeapon;
+	RelinkWeaponAnimLayer();
 }
 
 void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
@@ -326,16 +615,164 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 		EquippedWeaponInstance = nullptr;
 	}
 
+	if (InactiveWeaponInstance)
+	{
+		OnHeatPhaseChanged.RemoveDynamic(InactiveWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
+		InactiveWeaponInstance->Destroy();
+		InactiveWeaponInstance = nullptr;
+	}
+
 	EquippedWeaponDef = nullptr;
 	EquippedFromSpawner = nullptr;
-	ClearWeaponGrantedAbilities();
+	InactiveWeaponDef = nullptr;
+	InactiveWeaponFromSpawner = nullptr;
+	EquippedWeaponDeckState.Reset();
+	InactiveWeaponDeckState.Reset();
 
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 	{
 		YogASC->ClearWeaponTypeTags();
 	}
 
-	ApplyDefaultUnarmedComboGraph();
+	if (DefaultUnarmedWeaponDef)
+	{
+		DefaultUnarmedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
+		// SetupWeaponToCharacter sets EquippedWeaponDef = this, but unarmed state must keep
+		// EquippedWeaponDef null so TryPickupWeapon equips the next real weapon as primary.
+		EquippedWeaponDef = nullptr;
+	}
+	else
+	{
+		ApplyAbilityDataFromWeapon(nullptr);
+	}
+}
+
+bool APlayerCharacterBase::CanSwitchWeapon() const
+{
+	if (!InactiveWeaponDef)
+	{
+		return false;
+	}
+
+	const UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent());
+	return !YogASC || !YogASC->IsPlayerActionMontageLocked() || IsInPostAttackRecoveryWindow();
+}
+
+bool APlayerCharacterBase::IsInPostAttackRecoveryWindow() const
+{
+	const FGameplayTag RecoveryTag = GetPostAttackRecoveryTag();
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	return RecoveryTag.IsValid() && ASC && ASC->GetTagCount(RecoveryTag) > 0;
+}
+
+void APlayerCharacterBase::SwitchWeapon()
+{
+	if (!CanSwitchWeapon())
+	{
+		return;
+	}
+
+	const bool bRecoveryCancelSwitch = IsInPostAttackRecoveryWindow();
+
+	CaptureEquippedWeaponDeckState();
+	if (!InactiveWeaponDeckState.bInitialized)
+	{
+		InitializeInactiveWeaponDeckStateFromDefinition();
+	}
+
+	if (bRecoveryCancelSwitch)
+	{
+		ApplyRecoveryCancelWeaponSwitchBonus();
+	}
+
+	if (EquippedWeaponInstance)
+	{
+		OnHeatPhaseChanged.RemoveDynamic(EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
+		EquippedWeaponInstance->SetActorHiddenInGame(true);
+		EquippedWeaponInstance->SetActorEnableCollision(false);
+	}
+
+	if (InactiveWeaponInstance)
+	{
+		InactiveWeaponInstance->SetActorHiddenInGame(false);
+		InactiveWeaponInstance->SetActorEnableCollision(true);
+	}
+
+	Swap(EquippedWeaponDef, InactiveWeaponDef);
+	Swap(EquippedWeaponInstance, InactiveWeaponInstance);
+	Swap(EquippedFromSpawner, InactiveWeaponFromSpawner);
+	Swap(EquippedWeaponDeckState, InactiveWeaponDeckState);
+
+	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
+	{
+		YogASC->ClearWeaponTypeTags();
+		if (EquippedWeaponDef)
+		{
+			YogASC->ApplyWeaponTypeTag(EquippedWeaponDef->WeaponType);
+		}
+	}
+
+	ApplyAbilityDataFromWeapon(EquippedWeaponDef);
+
+	LoadCombatDeckFromWeaponDeckState(EquippedWeaponDeckState, EquippedWeaponDef);
+
+	if (EquippedWeaponInstance)
+	{
+		OnHeatPhaseChanged.AddDynamic(EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
+		OnHeatPhaseChanged.Broadcast(CurrentHeatPhase);
+	}
+
+	RelinkWeaponAnimLayer();
+	OnWeaponSwitched.Broadcast();
+}
+
+void APlayerCharacterBase::ApplyRecoveryCancelWeaponSwitchBonus()
+{
+	if (ActiveSkillComponent)
+	{
+		ActiveSkillComponent->ClearCooldowns();
+	}
+
+	const FGameplayTag BonusTag = GetRecoveryCancelBonusTag();
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!BonusTag.IsValid() || !ASC)
+	{
+		return;
+	}
+
+	ASC->SetLooseGameplayTagCount(BonusTag, 1);
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(RecoveryCancelBonusTimerHandle);
+		if (RecoveryCancelBonusDuration <= 0.0f)
+		{
+			ClearRecoveryCancelBonus();
+		}
+		else
+		{
+			World->GetTimerManager().SetTimer(
+				RecoveryCancelBonusTimerHandle,
+				this,
+				&APlayerCharacterBase::ClearRecoveryCancelBonus,
+				RecoveryCancelBonusDuration,
+				false);
+		}
+	}
+}
+
+void APlayerCharacterBase::ClearRecoveryCancelBonus()
+{
+	const FGameplayTag BonusTag = GetRecoveryCancelBonusTag();
+	if (!BonusTag.IsValid())
+	{
+		return;
+	}
+
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+	{
+		ASC->SetLooseGameplayTagCount(BonusTag, 0);
+	}
 }
 
 void APlayerCharacterBase::ClearRunCarriedStateForHub()
@@ -382,66 +819,6 @@ void APlayerCharacterBase::ClearRunCarriedStateForHub()
 	UE_LOG(LogTemp, Log, TEXT("[RunState] Cleared carried player state for hub. Player=%s"), *GetNameSafe(this));
 }
 
-void APlayerCharacterBase::ClearWeaponGrantedAbilities()
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (!ASC)
-	{
-		GrantedWeaponAbilityHandles.Reset();
-		return;
-	}
-
-	for (const FGameplayAbilitySpecHandle& AbilityHandle : GrantedWeaponAbilityHandles)
-	{
-		if (AbilityHandle.IsValid())
-		{
-			ASC->ClearAbility(AbilityHandle);
-		}
-	}
-	GrantedWeaponAbilityHandles.Reset();
-}
-
-void APlayerCharacterBase::GrantWeaponAbilities(UWeaponAbilityData* WeaponAbilityData)
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	ClearWeaponGrantedAbilities();
-
-	if (!WeaponAbilityData)
-	{
-		return;
-	}
-
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (!ASC)
-	{
-		return;
-	}
-
-	for (const TSubclassOf<UYogGameplayAbility>& AbilityClass : WeaponAbilityData->WeaponAbilities)
-	{
-		if (!AbilityClass)
-		{
-			continue;
-		}
-
-		FGameplayAbilitySpec AbilitySpec(AbilityClass, 0, INDEX_NONE, WeaponAbilityData);
-		const FGameplayAbilitySpecHandle AbilityHandle = ASC->GiveAbility(AbilitySpec);
-		if (AbilityHandle.IsValid())
-		{
-			GrantedWeaponAbilityHandles.Add(AbilityHandle);
-		}
-	}
-}
-
 void APlayerCharacterBase::RestoreRunStateFromGI()
 {
 	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
@@ -462,6 +839,11 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		GI->PendingRunState.CurrentPhase, GI->PendingRunState.PlacedRunes.Num());
 
 	const FRunState State = GI->PendingRunState;
+	RestoreRunState(State);
+}
+
+void APlayerCharacterBase::RestoreRunState(const FRunState& State)
+{
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 
 	// 恢复 HP
@@ -510,6 +892,30 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		{
 			CombatDeckComponent->ApplyDeckOrientations(State.CombatDeckCardOrientations);
 		}
+
+		CaptureEquippedWeaponDeckState();
+	}
+	else
+	{
+		InitializeEquippedWeaponDeckStateFromDefinition();
+	}
+
+	RestoreInactiveWeaponFromDefinition(State.InactiveWeaponDef);
+	if (State.InactiveWeaponDef)
+	{
+		if (!State.InactiveCombatDeckCards.IsEmpty())
+		{
+			RestoreDeckRuntimeStateFromRunStateFields(
+				InactiveWeaponDeckState,
+				State.InactiveCombatDeckCards,
+				State.InactiveCombatDeckCardOrientations,
+				State.InactiveCombatDeckShuffleCooldownDuration,
+				State.InactiveCombatDeckMaxActiveSequenceSize);
+		}
+		else
+		{
+			InitializeInactiveWeaponDeckStateFromDefinition();
+		}
 	}
 
 	if (BackpackGridComponent)
@@ -517,7 +923,10 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 		BackpackGridComponent->RestorePlacedRunes(State.PlacedRunes);
 		BackpackGridComponent->RestorePhase(State.CurrentPhase);
 
-		if (UAbilitySystemComponent* HeatASC = GetAbilitySystemComponent())
+		if (UAbilitySystemComponent* HeatASC = GetAbilitySystemComponent();
+			HeatASC
+			&& HeatASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetHeatAttribute())
+			&& HeatASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetMaxHeatAttribute()))
 		{
 			const float MaxHeat = HeatASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
 			float HeatToSet = State.CurrentHeat;
@@ -849,10 +1258,71 @@ void APlayerCharacterBase::BeginPlay()
 		AcquireSacrificeGrace(ActiveSacrificeGrace);
 	}
 
+	// Grant the combat-driving abilities (attack, weapon skill, dash, special). These
+	// are player-only and weapon-agnostic; the current weapon supplies the montage data.
+	// Granted once here so they are always available, regardless of which weapon is equipped.
+	if (DefaultCombatAbilitySet)
+	{
+		for (const FYogAbilitySet_GameplayAbility& Entry : DefaultCombatAbilitySet->GrantedGameplayAbilities)
+		{
+			if (Entry.Ability)
+			{
+				GrantGameplayAbility(Entry.Ability, Entry.AbilityLevel);
+			}
+		}
+	}
+
 	// GAS Template 授能（在 Super::BeginPlay 中完成）可能覆盖切关前 Link 的武器动画层；
 	// 在此重新 Link，确保武器层优先级高于默认层
-	ApplyCurrentEquipmentComboGraph();
+	if (UYogAbilitySystemComponent* ASC = GetASC())
+	{
+		auto GrantIfMissing = [this, ASC](TSubclassOf<UYogGameplayAbility> AbilityClass)
+		{
+			if (!AbilityClass)
+			{
+				return;
+			}
+
+			for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+			{
+				if (Spec.Ability && Spec.Ability->GetClass() == AbilityClass)
+				{
+					return;
+				}
+			}
+
+			GrantGameplayAbility(AbilityClass, 1);
+		};
+
+		GrantIfMissing(UGA_PlayerAttack_Combo1::StaticClass());
+		GrantIfMissing(UGA_PlayerAttack_Combo2::StaticClass());
+		GrantIfMissing(UGA_PlayerAttack_Combo3::StaticClass());
+		GrantIfMissing(UGA_PlayerAttack_Combo4::StaticClass());
+		GrantIfMissing(UGA_WeaponSkill_Combo1::StaticClass());
+		GrantIfMissing(UGA_WeaponSkill_Combo2::StaticClass());
+		GrantIfMissing(UGA_WeaponSkill_Combo3::StaticClass());
+		GrantIfMissing(UGA_WeaponSkill_Combo4::StaticClass());
+	}
+
+	ApplyCurrentEquipmentAbilityData();
 	RelinkWeaponAnimLayer();
+
+	// Initialize deck/special/weapon-type from the unarmed default without calling
+	// SetupWeaponToCharacter, which would set EquippedWeaponDef and cause TryPickupWeapon
+	// to route the first real weapon to the inactive slot instead of equipping it.
+	if (!EquippedWeaponDef && DefaultUnarmedWeaponDef)
+	{
+		ApplyAbilityDataFromWeapon(DefaultUnarmedWeaponDef);
+
+		if (UCombatDeckComponent* CombatDeck = CombatDeckComponent.Get())
+		{
+			CombatDeck->LoadDeckFromWeapon(DefaultUnarmedWeaponDef);
+		}
+		if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
+		{
+			YogASC->ApplyWeaponTypeTag(DefaultUnarmedWeaponDef->WeaponType);
+		}
+	}
 
 	//GetASC()->InitAbilityActorInfo(this, this);
 	//if (GasTemplate != nullptr)
@@ -884,6 +1354,12 @@ void APlayerCharacterBase::BeginPlay()
 
 void APlayerCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(RecoveryCancelBonusTimerHandle);
+	}
+	ClearRecoveryCancelBonus();
+
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 	{
 		YogASC->ReceivedDamage.RemoveDynamic(this, &APlayerCharacterBase::HandleDamageReceivedFeedback);
@@ -941,7 +1417,7 @@ void APlayerCharacterBase::HandleDamageReceivedFeedback(UYogAbilitySystemCompone
 		}
 	}
 
-	StartDamageTimeDilation();
+	// StartDamageTimeDilation();
 }
 
 void APlayerCharacterBase::PlayDamageScreenFlash()
@@ -1340,7 +1816,8 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 			TM->TryShowHintOnce(LinkHintTag, TEXT("tutorial_card_link"), PC);
 		}
 		// 终结技卡
-		else if (Card.Config.CardType == ECombatCardType::Finisher)
+		else if (!DevKit::Combat::IsFinisherAbilityDeprecated()
+			&& Card.Config.CardType == ECombatCardType::Finisher)
 		{
 			TM->TryShowHintOnce(FinisherHintTag, TEXT("tutorial_finisher"), PC);
 		}

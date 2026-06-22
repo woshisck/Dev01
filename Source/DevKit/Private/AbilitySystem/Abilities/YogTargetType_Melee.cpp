@@ -5,6 +5,7 @@
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Animation/AN_MeleeDamage.h"
+#include "Animation/YogAnimNotifyState_Damage.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
@@ -133,6 +134,11 @@ FActionData UYogTargetType_MeleeBase::GetActionData(AYogCharacterBase* Targeting
 		return Data;
 	}
 
+	if (const UYogAnimNotifyState_Damage* DamageWindow = Cast<UYogAnimNotifyState_Damage>(EventData.OptionalObject))
+	{
+		return DamageWindow->ResolveActionData(TargetingCharacter);
+	}
+
 	if (const UMontageAttackDataAsset* AttackData = Cast<UMontageAttackDataAsset>(EventData.OptionalObject))
 	{
 		return AttackData->BuildActionData();
@@ -163,6 +169,11 @@ bool UYogTargetType_MeleeBase::ShouldDrawDebugHitbox(const FGameplayEventData& E
 	if (const UAN_MeleeDamage* DmgNotify = Cast<UAN_MeleeDamage>(EventData.OptionalObject))
 	{
 		return DmgNotify->bDrawDebugHitbox;
+	}
+
+	if (const UYogAnimNotifyState_Damage* DamageWindow = Cast<UYogAnimNotifyState_Damage>(EventData.OptionalObject))
+	{
+		return DamageWindow->bDrawDebugHitbox;
 	}
 
 	return false;
@@ -344,6 +355,11 @@ void UYogTargetType_Enemy::GetTargets_Implementation(
 		}
 	}
 
+	if (const UYogAnimNotifyState_Damage* DamageWindow = Cast<UYogAnimNotifyState_Damage>(EventData.OptionalObject))
+	{
+		DamageWindow->FilterHitActorsForEvent(TargetingCharacter, EventData, OutActors);
+	}
+
 	if (OutActors.IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning,
@@ -396,6 +412,11 @@ void UYogTargetType_Player::GetTargets_Implementation(
 		{
 			OutActors.Add(Enemy);
 		}
+	}
+
+	if (const UYogAnimNotifyState_Damage* DamageWindow = Cast<UYogAnimNotifyState_Damage>(EventData.OptionalObject))
+	{
+		DamageWindow->FilterHitActorsForEvent(TargetingCharacter, EventData, OutActors);
 	}
 
 #if ENABLE_DRAW_DEBUG

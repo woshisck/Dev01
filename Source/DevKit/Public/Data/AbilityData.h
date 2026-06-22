@@ -385,7 +385,7 @@ public:
 	 * 攻击参数（伤害、范围、命中框等）已迁移至蒙太奇内的 AN_MeleeDamage Notify 上配置。
 	 * ForceInlineRow：每条记录 Key/Value 平铺在同一行，不展开。
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action", meta = (ForceInlineRow))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Montage", meta = (ForceInlineRow))
 	TMap<FGameplayTag, TObjectPtr<UAnimMontage>> MontageMap;
 
 	/**
@@ -398,7 +398,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Montage Config")
 	TMap<FGameplayTag, FAbilityMontageConfigList> MontageConfigMap;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow), Category = "Action|General")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow), Category = "Passive")
 	TMap<FGameplayTag, FPassiveActionData> PassiveMap;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
@@ -440,6 +440,38 @@ class DEVKIT_API UEnemyAbilityMontageData : public UAbilityData
 // ---------------------------------------------------------------
 UCLASS(BlueprintType, Blueprintable, DisplayName = "Player Ability Montage Data")
 class DEVKIT_API UPlayerAbilityMontageData : public UAbilityData
+{
+	GENERATED_BODY()
+
+	virtual void PostInitProperties() override;
+};
+
+UCLASS(BlueprintType, Blueprintable, DisplayName = "Weapon Attack Ability Montage Data", HideCategories = ("Passive"))
+class DEVKIT_API UWeaponAttackAbilityMontageData : public UAbilityData
+{
+	GENERATED_BODY()
+
+	virtual void PostInitProperties() override;
+};
+
+UCLASS(BlueprintType, Blueprintable, DisplayName = "Weapon Skill Ability Montage Data", HideCategories = ("Passive"))
+class DEVKIT_API UWeaponSkillAbilityMontageData : public UAbilityData
+{
+	GENERATED_BODY()
+
+	virtual void PostInitProperties() override;
+};
+
+UCLASS(BlueprintType, Blueprintable, DisplayName = "Special Ability Montage Data", HideCategories = ("Passive"))
+class DEVKIT_API USpecialAbilityMontageData : public UAbilityData
+{
+	GENERATED_BODY()
+
+	virtual void PostInitProperties() override;
+};
+
+UCLASS(BlueprintType, Blueprintable, DisplayName = "Weapon Passive Ability Montage Data", HideCategories = ("Action|Montage", "Action|Montage Config"))
+class DEVKIT_API UWeaponPassiveAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()
 

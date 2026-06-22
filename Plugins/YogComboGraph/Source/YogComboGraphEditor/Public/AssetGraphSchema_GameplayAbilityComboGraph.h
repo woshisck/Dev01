@@ -14,6 +14,7 @@ class YOGCOMBOGRAPHEDITOR_API UAssetGraphSchema_GameplayAbilityComboGraph : publ
 
 public:
 	virtual void CreateDefaultNodesForGraph(UEdGraph& Graph) const override;
+	static bool EnsureRootConnectionEdges(UEdGraph& Graph);
 	virtual EGraphType GetGraphType(const UEdGraph* TestEdGraph) const override;
 	virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const override;
 	virtual void GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;

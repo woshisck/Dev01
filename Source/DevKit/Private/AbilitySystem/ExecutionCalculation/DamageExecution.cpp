@@ -216,6 +216,26 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 		// 从 SourceTags 识别当前动作名称（源自 GA 的 AbilityTags 在 GE Spec 快照中）
 		static const struct { const TCHAR* Tag; const TCHAR* Name; } ActionMap[] =
 		{
+			{ TEXT("PlayerState.AbilityCast.Attack.Combo1"), TEXT("Attack 1") },
+			{ TEXT("PlayerState.AbilityCast.Attack.Combo2"), TEXT("Attack 2") },
+			{ TEXT("PlayerState.AbilityCast.Attack.Combo3"), TEXT("Attack 3") },
+			{ TEXT("PlayerState.AbilityCast.Attack.Combo4"), TEXT("Attack 4") },
+			{ TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"), TEXT("Weapon Skill 1") },
+			{ TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"), TEXT("Weapon Skill 2") },
+			{ TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"), TEXT("Weapon Skill 3") },
+			{ TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"), TEXT("Weapon Skill 4") },
+			{ TEXT("PlayerState.AbilityCast.Dash.Combo1"), TEXT("Dash 1") },
+			{ TEXT("PlayerState.AbilityCast.Dash.Combo2"), TEXT("Dash 2") },
+			{ TEXT("PlayerState.AbilityCast.Dash.Combo3"), TEXT("Dash 3") },
+			{ TEXT("PlayerState.AbilityCast.Dash.Combo4"), TEXT("Dash 4") },
+			{ TEXT("PlayerState.AbilityCast.Special.Combo1"), TEXT("Special 1") },
+			{ TEXT("PlayerState.AbilityCast.Special.Combo2"), TEXT("Special 2") },
+			{ TEXT("PlayerState.AbilityCast.Special.Combo3"), TEXT("Special 3") },
+			{ TEXT("PlayerState.AbilityCast.Special.Combo4"), TEXT("Special 4") },
+			{ TEXT("PlayerState.AbilityCast.Attack"), TEXT("Attack") },
+			{ TEXT("PlayerState.AbilityCast.WeaponSkill"), TEXT("Weapon Skill") },
+			{ TEXT("PlayerState.AbilityCast.Dash"), TEXT("Dash") },
+			{ TEXT("PlayerState.AbilityCast.Special"), TEXT("Special") },
 			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo1"), TEXT("轻击1") },
 			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo2"), TEXT("轻击2") },
 			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo3"), TEXT("轻击3") },
@@ -224,6 +244,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"), TEXT("重击2") },
 			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3"), TEXT("重击3") },
 			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"), TEXT("重击4") },
+			{ TEXT("PlayerState.AbilityCast.SpecialAttack"), TEXT("Special Attack") },
 		};
 
 		FName ActionName = FName("Attack");

@@ -56,7 +56,9 @@ public:
         bool bInComboFinisher,
         bool bInFromDashSave,
         const FGuid& InAttackInstanceGuid,
-        float InAttackDamage);
+        float InAttackDamage,
+        ECombatDeckActionSlot InActionSlot = ECombatDeckActionSlot::Attack,
+        ECombatDeckFlowRole InFlowRole = ECombatDeckFlowRole::Starter);
 
     void SetHitGameplayEvent(
         FGameplayTag InEventTag,
@@ -111,6 +113,8 @@ private:
     bool  bCombatDeckComboFinisher = false;
     bool  bCombatDeckFromDashSave = false;
     ECardRequiredAction CombatDeckActionType = ECardRequiredAction::Any;
+    ECombatDeckActionSlot CombatDeckActionSlot = ECombatDeckActionSlot::Attack;
+    ECombatDeckFlowRole CombatDeckFlowRole = ECombatDeckFlowRole::Starter;
     FGuid CombatDeckAttackInstanceGuid;
     float CombatDeckAttackDamage = 0.f;
     FGameplayTag HitGameplayEventTag;

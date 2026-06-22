@@ -275,18 +275,6 @@ void UYogGameInstanceBase::OnPostLoadMap(UWorld* World)
 
 void UYogGameInstanceBase::OnPreLoadMap(const FString& MapName)
 {
-	// === DIAG: shop-door → main-menu repro (CL564) ===
-	// 任何加载流程到 FrontendMap (L_EntryMenu) 都打堆栈，捕获绕过 ReturnToMainMenu 的 BP/cheat 直调。
-	const FString FrontendShort = FPackageName::GetShortName(FrontendMap.GetLongPackageName());
-	const FString LoadingShort = FPackageName::GetShortName(MapName);
-	if (!FrontendShort.IsEmpty() && LoadingShort.Equals(FrontendShort, ESearchCase::IgnoreCase))
-	{
-		UE_LOG(LogTemp, Warning,
-			TEXT("[Frontend][DIAG564] OnPreLoadMap loading FrontendMap (%s) — investigating caller"),
-			*MapName);
-		FDebug::DumpStackTraceToLog(TEXT("[Frontend][DIAG564] PreLoadMap FrontendMap native callstack"), ELogVerbosity::Warning);
-	}
-
 	if (bFrontendLoadingGameplayMap)
 	{
 		ShowLoadingScreen(
@@ -769,20 +757,6 @@ void UYogGameInstanceBase::ShowGameOverScreen(bool bCanRevive, bool bScriptedDef
 
 void UYogGameInstanceBase::ReturnToMainMenu()
 {
-	// === DIAG: shop-door → main-menu repro (CL564) ===
-	// 仅记录现场状态供事后回查；保留原有行为。
-	const FString CurMap = GetWorld() ? UGameplayStatics::GetCurrentLevelName(GetWorld(), true) : TEXT("none");
-	UE_LOG(LogTemp, Warning,
-		TEXT("[Frontend][DIAG564] ReturnToMainMenu entry — Map=%s PendingRoomData=%s PendingNextFloor=%d PendingRunState.bIsValid=%d"),
-		*CurMap,
-		*GetNameSafe(PendingRoomData),
-		PendingNextFloor,
-		PendingRunState.bIsValid ? 1 : 0);
-	UE_LOG(LogTemp, Warning, TEXT("[Frontend] ReturnToMainMenu called. ScriptCallstack:\n%s"),
-		*FFrame::GetScriptCallstack());
-	// 原生 C++ 堆栈（脚本堆栈空 = 调用方是 C++/BP-native 而非 BP 脚本）
-	FDebug::DumpStackTraceToLog(TEXT("[Frontend][DIAG564] Native callstack"), ELogVerbosity::Warning);
-
 	// 先清过渡字段，避免 QuickSave 之外的派生（如 PendingRoomData）继续指向上一关 → 后续 Continue 误用
 	ClearPendingTransitionFields();
 	if (UYogSaveSubsystem* SaveSys = GetSubsystem<UYogSaveSubsystem>())

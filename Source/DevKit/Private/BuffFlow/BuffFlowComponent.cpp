@@ -132,6 +132,8 @@ void UBuffFlowComponent::StartCombatCardFlow(
 	LastCombatCardEffectContext.ComboNodeId = ActionContext.ComboNodeId;
 	LastCombatCardEffectContext.ComboTags = ActionContext.ComboTags;
 	LastCombatCardEffectContext.AbilityTag = ActionContext.AbilityTag;
+	LastCombatCardEffectContext.ActionSlot = ActionContext.ActionSlot;
+	LastCombatCardEffectContext.FlowRole = ActionContext.FlowRole;
 	LastCombatCardEffectContext.EffectMultiplier = ResolveResult.AppliedMultiplier;
 	LastCombatCardEffectContext.ComboBonusStacks = FMath::Max(0, ActionContext.ComboIndex - 1);
 	LastCombatCardEffectContext.bFromLink = ResolveResult.bTriggeredLink || ResolveResult.bTriggeredForwardLink || ResolveResult.bTriggeredBackwardLink;
@@ -163,6 +165,8 @@ void UBuffFlowComponent::StartCombatCardFlowWithSourceTransform(
 	LastCombatCardEffectContext.ComboNodeId = ActionContext.ComboNodeId;
 	LastCombatCardEffectContext.ComboTags = ActionContext.ComboTags;
 	LastCombatCardEffectContext.AbilityTag = ActionContext.AbilityTag;
+	LastCombatCardEffectContext.ActionSlot = ActionContext.ActionSlot;
+	LastCombatCardEffectContext.FlowRole = ActionContext.FlowRole;
 	LastCombatCardEffectContext.EffectMultiplier = ResolveResult.AppliedMultiplier;
 	LastCombatCardEffectContext.ComboBonusStacks = FMath::Max(0, ActionContext.ComboIndex - 1);
 	LastCombatCardEffectContext.bFromLink = ResolveResult.bTriggeredLink || ResolveResult.bTriggeredForwardLink || ResolveResult.bTriggeredBackwardLink;

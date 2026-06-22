@@ -6,6 +6,7 @@
 #include "AbilitySystem/Abilities/YogAbilitySet.h"
 #include "Animation/YogAnimInstance.h"
 #include "Component/BackpackGridComponent.h"
+#include "Data/AbilityData.h"
 #include "GameplayTagContainer.h"
 #include "Item/Weapon/WeaponInfoDA.h"
 #include "Item/Weapon/WeaponTypes.h"
@@ -19,9 +20,6 @@ class AWeaponInstance;
 class APlayerCharacterBase;
 class UMaterialInterface;
 class URuneDataAsset;
-class UWeaponComboConfigDA;
-class UWeaponAbilityData;
-class UGameplayAbilityComboGraph;
 //class UYogAnimInstance;
 
 
@@ -82,14 +80,28 @@ public:
 	//TArray<TObjectPtr<UYogAbilitySet>> AbilitySetsToGrant;
 	UWeaponDefinition(){};
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Ability")
-	TObjectPtr<UWeaponAbilityData> WeaponAbilityData;
+	// Deprecated ComboGraph references. Transient so resaving migrated weapons drops
+	// serialized graph object refs; player combat uses the typed AbilityData fields below.
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> GameplayAbilityComboGraph;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
-	TObjectPtr<UWeaponComboConfigDA> WeaponComboConfig;
+	// Deprecated ComboGraph reference. Kept as a native name only for old asset load.
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> WeaponSkillComboGraph;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Combo")
-	TObjectPtr<UGameplayAbilityComboGraph> GameplayAbilityComboGraph;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
+	TObjectPtr<UAbilityData> AttackAbilityData;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
+	TObjectPtr<UAbilityData> WeaponSkillAbilityData;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
+	TObjectPtr<UAbilityData> SpecialAbilityData;
+
+	// Optional weapon-specific reaction/passive data. Merged after action data so
+	// hit react/death passive rows can override the character's base fallbacks.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
+	TObjectPtr<UAbilityData> PassiveAbilityData;
 
 	// 武器类型：决定装备时挂在 ASC 上的 Weapon.Type.* LooseTag。
 	// 玩家专属攻击 GA 通过 ActivationRequiredTags 持有该 Tag → 自动隔离近战/远程激活路径。

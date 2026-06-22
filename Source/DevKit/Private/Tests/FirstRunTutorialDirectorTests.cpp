@@ -120,24 +120,23 @@ bool FFirstRunTutorialDirectorBuildsPostTutorialDeckTest::RunTest(const FString&
 	TArray<URuneDataAsset*> DeckAssets;
 	UFirstRunTutorialDirectorSubsystem::BuildDefaultPostTutorialDeck(DeckAssets);
 
-	TestEqual(TEXT("Post tutorial deck has four cards"), DeckAssets.Num(), 4);
-	if (DeckAssets.Num() == 4)
+	TestEqual(TEXT("Post tutorial deck has three non-finisher cards"), DeckAssets.Num(), 3);
+	if (DeckAssets.Num() == 3)
 	{
 		TestNotNull(TEXT("Burn card exists"), DeckAssets[0]);
 		TestNotNull(TEXT("Knockback card exists"), DeckAssets[1]);
 		TestNotNull(TEXT("Moonlight card exists"), DeckAssets[2]);
-		TestNotNull(TEXT("Finisher card exists"), DeckAssets[3]);
 		TestNotEqual(TEXT("Burn and knockback use separate card assets"), DeckAssets[0], DeckAssets[1]);
 	}
 
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstRunTutorialDirectorPrayerSacrificeOverridesToFinisherTest,
-	"DevKit.FirstRunTutorialDirector.PrayerSacrificeOverridesToFinisher",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFirstRunTutorialDirectorPrayerSacrificeKeepsDefaultWhenFinisherDeprecatedTest,
+	"DevKit.FirstRunTutorialDirector.PrayerSacrificeKeepsDefaultWhenFinisherDeprecated",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FFirstRunTutorialDirectorPrayerSacrificeOverridesToFinisherTest::RunTest(const FString& Parameters)
+bool FFirstRunTutorialDirectorPrayerSacrificeKeepsDefaultWhenFinisherDeprecatedTest::RunTest(const FString& Parameters)
 {
 	URuneDataAsset* MoonlightShadow = LoadObject<URuneDataAsset>(
 		nullptr,
@@ -145,19 +144,19 @@ bool FFirstRunTutorialDirectorPrayerSacrificeOverridesToFinisherTest::RunTest(co
 	URuneDataAsset* Finisher = UFirstRunTutorialDirectorSubsystem::LoadFirstRunFinisherRune();
 
 	TestNotNull(TEXT("Moonlight shadow sacrifice rune exists"), MoonlightShadow);
-	TestNotNull(TEXT("First-run finisher rune exists"), Finisher);
-	if (!MoonlightShadow || !Finisher)
+	TestNull(TEXT("First-run finisher rune is deprecated"), Finisher);
+	if (!MoonlightShadow)
 	{
 		return false;
 	}
 
 	TestEqual(
-		TEXT("Active prayer stage overrides altar reward to finisher"),
+		TEXT("Active prayer stage keeps altar reward while finisher is deprecated"),
 		UFirstRunTutorialDirectorSubsystem::ResolveSacrificeRewardForStage(
 			EFirstRunTutorialStage::PrayerRoom,
 			true,
 			MoonlightShadow),
-		Finisher);
+		MoonlightShadow);
 
 	TestEqual(
 		TEXT("Inactive tutorial keeps altar reward"),

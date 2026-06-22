@@ -2,6 +2,7 @@
 
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
+#include "Combat/FinisherDeprecation.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/RuneDataAsset.h"
 #include "Engine/Texture2D.h"
@@ -178,6 +179,11 @@ void UFirstRunTutorialDirectorSubsystem::HandleRewardRuneAdded(URuneDataAsset* R
 
 void UFirstRunTutorialDirectorSubsystem::HandleSacrificeConfirmed(URuneDataAsset* GrantedRune, APlayerCharacterBase* Player)
 {
+	if (DevKit::Combat::IsFinisherAbilityDeprecated())
+	{
+		return;
+	}
+
 	RestoreStageFromSave();
 	URuneDataAsset* EffectiveRune = ResolveSacrificeRewardOverride(GrantedRune);
 	if (!Player || !EffectiveRune || !IsFirstRunTutorialActive())
@@ -215,6 +221,7 @@ bool UFirstRunTutorialDirectorSubsystem::IsPrayerSacrificeOverrideActive() const
 	const EFirstRunTutorialStage EffectiveStage = Stage != EFirstRunTutorialStage::None ? Stage : GetPersistedStage();
 	return IsFirstRunTutorialActive()
 		&& EffectiveStage == EFirstRunTutorialStage::PrayerRoom
+		&& !DevKit::Combat::IsFinisherAbilityDeprecated()
 		&& LoadFirstRunFinisherRune() != nullptr;
 }
 
@@ -298,11 +305,19 @@ void UFirstRunTutorialDirectorSubsystem::BuildDefaultPostTutorialDeck(TArray<URu
 	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(BurnRunePath));
 	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(KnockbackRunePath));
 	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(MoonlightRunePath));
-	OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(FinisherRunePath));
+	if (!DevKit::Combat::IsFinisherAbilityDeprecated())
+	{
+		OutDeck.Add(LoadTutorialAsset<URuneDataAsset>(FinisherRunePath));
+	}
 }
 
 URuneDataAsset* UFirstRunTutorialDirectorSubsystem::LoadFirstRunFinisherRune()
 {
+	if (DevKit::Combat::IsFinisherAbilityDeprecated())
+	{
+		return nullptr;
+	}
+
 	return LoadTutorialAsset<URuneDataAsset>(FinisherRunePath);
 }
 
@@ -313,9 +328,12 @@ URuneDataAsset* UFirstRunTutorialDirectorSubsystem::ResolveSacrificeRewardForSta
 {
 	if (bFirstRunTutorialActive && InStage == EFirstRunTutorialStage::PrayerRoom)
 	{
-		if (URuneDataAsset* FinisherRune = LoadFirstRunFinisherRune())
+		if (!DevKit::Combat::IsFinisherAbilityDeprecated())
 		{
-			return FinisherRune;
+			if (URuneDataAsset* FinisherRune = LoadFirstRunFinisherRune())
+			{
+				return FinisherRune;
+			}
 		}
 	}
 

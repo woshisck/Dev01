@@ -46,11 +46,39 @@ public:
 	UPROPERTY()
 	TObjectPtr<UYogTask_PlayMontageAbility> ActivePlayMontageTask;
 
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Montage|Hold")
+	bool bHoldMontageUntilInputRelease = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Montage|Hold", meta = (EditCondition = "bHoldMontageUntilInputRelease"))
+	FGameplayTag HoldReleaseEventTag;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Montage|Hold", meta = (EditCondition = "bHoldMontageUntilInputRelease"))
+	FName HoldStartSection = TEXT("BlockStart");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Montage|Hold", meta = (EditCondition = "bHoldMontageUntilInputRelease"))
+	FName HoldLoopSection = TEXT("BlockIdle");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Montage|Hold", meta = (EditCondition = "bHoldMontageUntilInputRelease"))
+	FName HoldEndSection = TEXT("BlockEnd");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Montage|Hold", meta = (EditCondition = "bHoldMontageUntilInputRelease"))
+	bool bJumpToHoldEndSectionOnRelease = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Montage|Block", meta = (EditCondition = "bHoldMontageUntilInputRelease", ClampMin = "0.0"))
+	float JustBlockRewardDuration = 3.0f;
+
 private:
 	void OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCount);
-	void OnComboWindowOpen();
-	void OnComboWindowClose();
-	void ResetComboToRoot();
+	bool IsHoldMontageConfigured(const UAnimMontage* Montage) const;
+	bool HasMontageSection(const UAnimMontage* Montage, FName SectionName) const;
+	void ConfigureHoldMontageSections();
+	void HandleHoldInputReleased();
+	void ClearBlockStateTags();
+	void SetBlockStateTag(const FGameplayTag& Tag, int32 Count);
+	void ScheduleBlockStartWindow();
+	void FinishBlockStartWindow();
+	void ApplyJustBlockReward();
 
 	FDelegateHandle CanComboTagHandle;
 	float AbilityActivationTime = 0.0f;
@@ -60,6 +88,9 @@ private:
 
 	FTimerHandle ComboWindowOpenHandle;
 	FTimerHandle ComboWindowCloseHandle;
+	FTimerHandle BlockStartWindowHandle;
 
 	bool bIsHandlingMeleeEvent = false;
+	bool bActiveHoldMontage = false;
+	bool bHoldReleaseReceived = false;
 };

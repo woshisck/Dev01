@@ -4,14 +4,16 @@
 
 #include "AssetGraphSchema_GameplayAbilityComboGraph.h"
 #include "Data/GameplayAbilityComboGraph.h"
+#include "EdNode_ComboGraphRoot.h"
 #include "GenericGraphAssetEditor/EdGraph_GenericGraph.h"
+#include "GenericGraphAssetEditor/EdNode_GenericGraphEdge.h"
 #include "GenericGraphAssetEditor/EdNode_GenericGraphNode.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FComboGraphEditorSchemaAddsDodgeRootPresetTest,
-	"DevKit.ComboGraphEditor.SchemaAddsDodgeRootPreset",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FComboGraphEditorSchemaOmitsDodgeRootPresetTest,
+	"DevKit.ComboGraphEditor.SchemaOmitsDodgeRootPreset",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FComboGraphEditorSchemaAddsDodgeRootPresetTest::RunTest(const FString& Parameters)
+bool FComboGraphEditorSchemaOmitsDodgeRootPresetTest::RunTest(const FString& Parameters)
 {
 	UGameplayAbilityComboGraph* ComboGraph = NewObject<UGameplayAbilityComboGraph>();
 	UEdGraph_GenericGraph* EditorGraph = NewObject<UEdGraph_GenericGraph>(ComboGraph);
@@ -21,7 +23,7 @@ bool FComboGraphEditorSchemaAddsDodgeRootPresetTest::RunTest(const FString& Para
 	FGraphContextMenuBuilder ContextMenuBuilder(EditorGraph);
 	GetDefault<UAssetGraphSchema_GameplayAbilityComboGraph>()->GetGraphContextActions(ContextMenuBuilder);
 
-	TSharedPtr<FEdGraphSchemaAction> DodgeRootAction;
+	bool bFoundDodgeRootAction = false;
 	for (int32 ActionIndex = 0; ActionIndex < ContextMenuBuilder.GetNumActions(); ++ActionIndex)
 	{
 		FGraphActionListBuilderBase::ActionGroup& ActionGroup = ContextMenuBuilder.GetAction(ActionIndex);
@@ -29,41 +31,81 @@ bool FComboGraphEditorSchemaAddsDodgeRootPresetTest::RunTest(const FString& Para
 		{
 			if (Action.IsValid() && Action->GetMenuDescription().ToString() == TEXT("Dodge Action Root Node"))
 			{
-				DodgeRootAction = Action;
+				bFoundDodgeRootAction = true;
 				break;
 			}
 		}
 	}
 
-	TestTrue(TEXT("Context menu exposes a Dodge Action Root Node preset"), DodgeRootAction.IsValid());
-	if (!DodgeRootAction.IsValid())
+	TestFalse(TEXT("Context menu omits Dodge/Dash root preset"), bFoundDodgeRootAction);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FComboGraphEditorSchemaRootConnectionUsesVisualEdgeTest,
+	"DevKit.ComboGraphEditor.RootConnectionUsesVisualEdge",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FComboGraphEditorSchemaRootConnectionUsesVisualEdgeTest::RunTest(const FString& Parameters)
+{
+	UGameplayAbilityComboGraph* ComboGraph = NewObject<UGameplayAbilityComboGraph>();
+	UEdGraph_GenericGraph* EditorGraph = NewObject<UEdGraph_GenericGraph>(ComboGraph);
+	EditorGraph->Schema = UAssetGraphSchema_GameplayAbilityComboGraph::StaticClass();
+	ComboGraph->EdGraph = EditorGraph;
+
+	const UAssetGraphSchema_GameplayAbilityComboGraph* Schema = GetDefault<UAssetGraphSchema_GameplayAbilityComboGraph>();
+	Schema->CreateDefaultNodesForGraph(*EditorGraph);
+
+	UEdNode_ComboGraphRoot* RootEdNode = nullptr;
+	for (UEdGraphNode* Node : EditorGraph->Nodes)
+	{
+		RootEdNode = Cast<UEdNode_ComboGraphRoot>(Node);
+		if (RootEdNode)
+		{
+			break;
+		}
+	}
+	TestNotNull(TEXT("Schema creates visual root node"), RootEdNode);
+	if (!RootEdNode)
 	{
 		return false;
 	}
 
-	UEdGraphNode* CreatedEditorNode = DodgeRootAction->PerformAction(EditorGraph, nullptr, FVector2D::ZeroVector, false);
-	UEdNode_GenericGraphNode* CreatedGenericNode = Cast<UEdNode_GenericGraphNode>(CreatedEditorNode);
-	UGameplayAbilityComboGraphNode* CreatedComboNode = CreatedGenericNode ? Cast<UGameplayAbilityComboGraphNode>(CreatedGenericNode->GenericGraphNode) : nullptr;
+	UEdNode_GenericGraphNode* ComboEdNode = NewObject<UEdNode_GenericGraphNode>(EditorGraph);
+	UGameplayAbilityComboGraphNode* ComboNode = NewObject<UGameplayAbilityComboGraphNode>(ComboEdNode, ComboGraph->NodeType);
+	ComboNode->Graph = ComboGraph;
+	ComboNode->NodeId = TEXT("ComboRoot");
+	ComboEdNode->GenericGraphNode = ComboNode;
+	EditorGraph->AddNode(ComboEdNode, true, false);
+	ComboEdNode->CreateNewGuid();
+	ComboEdNode->PostPlacedNewNode();
+	ComboEdNode->AllocateDefaultPins();
+	ComboEdNode->NodePosX = 100;
 
-	TestNotNull(TEXT("Preset creates a combo graph editor node"), CreatedGenericNode);
-	TestNotNull(TEXT("Preset creates a gameplay ability combo node"), CreatedComboNode);
-	if (!CreatedComboNode)
+	TestTrue(TEXT("Root connection succeeds"), Schema->TryCreateConnection(RootEdNode->GetOutputPin(), ComboEdNode->GetInputPin()));
+
+	UEdNode_GenericGraphEdge* VisualEdge = nullptr;
+	for (UEdGraphNode* Node : EditorGraph->Nodes)
 	{
-		return false;
+		if (UEdNode_GenericGraphEdge* EdgeNode = Cast<UEdNode_GenericGraphEdge>(Node))
+		{
+			VisualEdge = EdgeNode;
+			break;
+		}
 	}
-
-	TestEqual(TEXT("Preset node id"), CreatedComboNode->NodeId, FName(TEXT("DodgeActionRoot")));
-	TestEqual(TEXT("Preset root input"), CreatedComboNode->RootInputAction, EYogComboGraphInputAction::Dash);
-	TestNull(TEXT("Dodge preset does not require a montage"), CreatedComboNode->Montage.Get());
-	TestFalse(TEXT("Dodge preset does not use attack combo windows"), CreatedComboNode->bUseNodeComboWindow);
-	TestEqual(TEXT("Dodge preset total frames"), CreatedComboNode->TotalFrames, 1);
-	TestEqual(TEXT("Dodge preset dash save mode"), CreatedComboNode->DashSaveMode, EYogComboGraphDashSaveMode::PreserveIfSourceAllows);
-	TestTrue(TEXT("Dodge preset keeps pending link context"), CreatedComboNode->bSavePendingLinkContext);
-	TestTrue(TEXT("Dodge preset clears combat tags on dash end"), CreatedComboNode->bClearCombatTagsOnDashEnd);
-	TestTrue(TEXT("Dodge preset breaks combo on dash cancel"), CreatedComboNode->bBreakComboOnDashCancel);
+	TestNotNull(TEXT("Root connection creates a visual edge node"), VisualEdge);
+	TestTrue(TEXT("Root output points at the visual edge"), RootEdNode->GetOutputPin()->LinkedTo.Num() == 1 && VisualEdge && RootEdNode->GetOutputPin()->LinkedTo[0]->GetOwningNode() == VisualEdge);
+	TestTrue(TEXT("Visual edge points at combo root node"),
+		VisualEdge && VisualEdge->Pins.Num() > 1 && VisualEdge->Pins[1]->LinkedTo.Num() == 1 && VisualEdge->Pins[1]->LinkedTo[0]->GetOwningNode() == ComboEdNode);
+	TestFalse(TEXT("Root visual edge does not show combo input label"), VisualEdge && VisualEdge->GenericGraphEdge && VisualEdge->GenericGraphEdge->bShouldDrawTitle);
+	TestFalse(TEXT("Duplicate root connection is rejected"), Schema->TryCreateConnection(RootEdNode->GetOutputPin(), ComboEdNode->GetInputPin()));
+	TestFalse(TEXT("Connections into Root are rejected"), Schema->TryCreateConnection(ComboEdNode->GetOutputPin(), RootEdNode->GetInputPin()));
 
 	EditorGraph->RebuildGenericGraph();
-	TestNotNull(TEXT("Rebuilt graph finds Dodge root through Dash input"), ComboGraph->FindRootComboNode(EYogComboGraphInputAction::Dash));
+
+	TestTrue(TEXT("Combo root remains runtime root"), ComboGraph->RootNodes.Contains(ComboNode));
+	TestEqual(TEXT("Combo root has no runtime parent"), ComboNode->ParentNodes.Num(), 0);
+	TestEqual(TEXT("Root visual edge is not a runtime edge"), EditorGraph->EdgeMap.Num(), 0);
 
 	return true;
 }

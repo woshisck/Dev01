@@ -248,9 +248,6 @@ public:
 
 
 	UPROPERTY()
-	UAbilityData* WeaponAbilities = nullptr;
-
-	UPROPERTY()
 	TArray<uint8> CharacterByteData;
 
 	void SetupAttribute(UBaseAttributeSet& playerAttribute)
@@ -367,11 +364,16 @@ struct DEVKIT_API FRunCheckpointData
 
 	// ── 软引用（明确控制加载时机）──────────────────────────────
 	UPROPERTY() TSoftObjectPtr<UWeaponDefinition> EquippedWeaponDef;
+	UPROPERTY() TSoftObjectPtr<UWeaponDefinition> InactiveWeaponDef;
 	UPROPERTY() TSoftObjectPtr<USacrificeGraceDA> ActiveSacrificeGrace;
 
 	// 战斗卡组顺序（软引用列表，切关时保存玩家改动）
 	UPROPERTY() TArray<TSoftObjectPtr<URuneDataAsset>> CombatDeckCards;
 	UPROPERTY() TArray<ECombatCardLinkOrientation>     CombatDeckCardOrientations;
+	UPROPERTY() TArray<TSoftObjectPtr<URuneDataAsset>> InactiveCombatDeckCards;
+	UPROPERTY() TArray<ECombatCardLinkOrientation>     InactiveCombatDeckCardOrientations;
+	UPROPERTY() float InactiveCombatDeckShuffleCooldownDuration = 1.f;
+	UPROPERTY() int32 InactiveCombatDeckMaxActiveSequenceSize = 0;
 	UPROPERTY() TArray<TSoftObjectPtr<UActiveSkillDataAsset>> SelectedSkillLoadout;
 };
 

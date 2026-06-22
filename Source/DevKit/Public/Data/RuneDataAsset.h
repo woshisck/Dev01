@@ -151,6 +151,25 @@ enum class ECardRequiredAction : uint8
 };
 
 UENUM(BlueprintType)
+enum class ECombatDeckActionSlot : uint8
+{
+    Any         UMETA(DisplayName = "Any"),
+    Attack      UMETA(DisplayName = "Attack"),
+    Skill       UMETA(DisplayName = "Skill"),
+    WeaponSkill UMETA(DisplayName = "Weapon Skill"),
+    Dash        UMETA(DisplayName = "Dash"),
+};
+
+UENUM(BlueprintType)
+enum class ECombatDeckFlowRole : uint8
+{
+    Any      UMETA(DisplayName = "Any"),
+    Starter  UMETA(DisplayName = "Starter"),
+    Catalyst UMETA(DisplayName = "Catalyst"),
+    Finisher UMETA(DisplayName = "Finisher"),
+};
+
+UENUM(BlueprintType)
 enum class ECombatCardTriggerTiming : uint8
 {
     OnHit    UMETA(DisplayName = "On Hit"),
@@ -223,6 +242,12 @@ struct DEVKIT_API FCombatCardLinkCondition
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Condition", meta = (AdvancedDisplay))
     ECardRequiredAction RequiredAction = ECardRequiredAction::Any;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Condition", meta = (AdvancedDisplay))
+    ECombatDeckActionSlot RequiredActionSlot = ECombatDeckActionSlot::Any;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Condition", meta = (AdvancedDisplay))
+    ECombatDeckFlowRole RequiredFlowRole = ECombatDeckFlowRole::Any;
 };
 
 USTRUCT(BlueprintType)
@@ -317,6 +342,12 @@ struct DEVKIT_API FCombatCardConfig
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic", meta = (AdvancedDisplay))
     ECardRequiredAction RequiredAction = ECardRequiredAction::Any;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Trigger")
+    ECombatDeckActionSlot RequiredActionSlot = ECombatDeckActionSlot::Attack;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Trigger")
+    ECombatDeckFlowRole RequiredFlowRole = ECombatDeckFlowRole::Any;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic", meta = (AdvancedDisplay))
     ECombatCardTriggerTiming TriggerTiming = ECombatCardTriggerTiming::OnCommit;

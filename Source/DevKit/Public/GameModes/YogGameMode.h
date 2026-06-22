@@ -32,6 +32,7 @@ class AMobSpawner;
 class UNiagaraSystem;
 class URuneDataAsset;
 class UEnemyData;
+class UEnemyWeaponDefinition;
 class USpawnLifecycleFlowAsset;
 class UStoryEventRegistryDA;
 struct FBuffFlowLifecycleContext;
@@ -439,6 +440,7 @@ protected:
 	{
 		TSubclassOf<AEnemyCharacterBase> EnemyClass;
 		TObjectPtr<UEnemyData> EnemyData;
+		TObjectPtr<UEnemyWeaponDefinition> EnemyWeaponDefinition;
 		// Rolled from EnemyData.EnemyBuffPool. Only entries that pass ApplyChance are granted.
 		TArray<TObjectPtr<URuneDataAsset>> EnemyBuffs;
 		// 从 EnemyData 复制，运行时只读

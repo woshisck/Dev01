@@ -88,6 +88,9 @@ public:
 	bool UseActiveSkill();
 
 	UFUNCTION(BlueprintCallable, Category = "Active Skill")
+	void ClearCooldowns();
+
+	UFUNCTION(BlueprintCallable, Category = "Active Skill")
 	void SelectNextSkill();
 
 	UFUNCTION(BlueprintCallable, Category = "Active Skill")

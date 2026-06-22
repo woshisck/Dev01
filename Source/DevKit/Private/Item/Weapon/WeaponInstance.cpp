@@ -91,7 +91,6 @@ void AWeaponInstance::InitializeWeapon()
 		//AttachSocket = 
 		//AttachTransform
 		//WeaponLayer
-		//WeaponAbilities
 	}
 
 

@@ -83,12 +83,19 @@ void UEdGraph_GenericGraph::RebuildGenericGraph()
 				continue;
 			}
 
+			UGenericGraphNode* StartGenericNode = StartNode->GenericGraphNode;
+			UGenericGraphNode* EndGenericNode = EndNode->GenericGraphNode;
+			if (StartGenericNode == nullptr || EndGenericNode == nullptr)
+			{
+				continue;
+			}
+
 			EdgeMap.Add(Edge, EdgeNode);
 
 			Edge->Graph = Graph;
 			Edge->Rename(nullptr, Graph, REN_DontCreateRedirectors | REN_DoNotDirty);
-			Edge->StartNode = StartNode->GenericGraphNode;
-			Edge->EndNode = EndNode->GenericGraphNode;
+			Edge->StartNode = StartGenericNode;
+			Edge->EndNode = EndGenericNode;
 			Edge->StartNode->Edges.Add(Edge->EndNode, Edge);
 		}
 	}
