@@ -9,6 +9,8 @@
 class UUserWidget;
 class UCommonActivatableWidget;
 class UYogUIRegistry;
+class UPlayerUIStyleDataAsset;
+class UTexture2D;
 
 USTRUCT(BlueprintType)
 struct DEVKIT_API FYogUIScreenInputPolicy
@@ -42,6 +44,18 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "UI")
 	UYogUIRegistry* GetRegistry() const;
+
+	/** Player-interface texture theme (DA_PlayerUIStyle), loaded from DefaultGame.ini. */
+	UFUNCTION(BlueprintPure, Category = "UI|Style")
+	UPlayerUIStyleDataAsset* GetUIStyle() const;
+
+	/**
+	 * Returns StyleTexture if valid; otherwise logs a warning and returns DefaultTexture.
+	 * Widgets pass their own editor-default brush texture as DefaultTexture so an
+	 * unassigned style slot falls back to the widget's built-in look.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "UI|Style")
+	UTexture2D* ResolveStyleTexture(UTexture2D* StyleTexture, UTexture2D* DefaultTexture, FName Context) const;
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	TSubclassOf<UUserWidget> GetWidgetClass(EYogUIScreenId ScreenId) const;
@@ -185,6 +199,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UYogUIRegistry> CachedRegistry;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPlayerUIStyleDataAsset> CachedUIStyle;
 
 	mutable TMap<EYogUIScreenId, TSubclassOf<UUserWidget>> LoadedWidgetClasses;
 

@@ -9,6 +9,7 @@
 #include "CommonInputTypeEnum.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
+#include "UI/YogCursorWidget.h"
 
 #include "YogPlayerControllerBase.generated.h"
 
@@ -134,7 +135,11 @@ public:
 
 	/** Custom software mouse cursor (UMG). Bound to EMouseCursor::Default at BeginPlay. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI|Cursor")
-	TSubclassOf<UUserWidget> MouseCursorWidgetClass;
+	TSubclassOf<class UYogCursorWidget> MouseCursorWidgetClass;
+
+	/** Swap the custom cursor image to match a game state. */
+	UFUNCTION(BlueprintCallable, Category = "UI|Cursor")
+	void SetCursorState(EYogCursorState NewState);
 
 	UFUNCTION(BlueprintCallable)
 	void OnInteractTriggered(const AItemSpawner* item);
@@ -213,7 +218,7 @@ private:
 	TObjectPtr<UUserWidget> CombatHUDWidget;
 
 	UPROPERTY()
-	TObjectPtr<UUserWidget> MouseCursorWidget;
+	TObjectPtr<UYogCursorWidget> MouseCursorWidget;
 
 	UPROPERTY()
 	TObjectPtr<class ULootSelectionWidget> LootSelectionWidget;

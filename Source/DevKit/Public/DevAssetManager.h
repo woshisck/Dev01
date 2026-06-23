@@ -20,6 +20,7 @@ class UGameplayTagRelation;
 class UPrimaryDataAsset;
 class UStateConflictDataAsset;
 class UYogUIRegistry;
+class UPlayerUIStyleDataAsset;
 
 
 UCLASS(Config = Game)
@@ -48,6 +49,9 @@ public:
 	UStateConflictDataAsset* GetStateConflictData();
 
 	UYogUIRegistry* GetUIRegistry();
+
+	/** Player-interface texture theme (path set in DefaultGame.ini). */
+	UPlayerUIStyleDataAsset* GetUIStyle();
 
 	//	TSoftObjectPtr<UGameplayTagRelation> GameplayTagRelation;
 
@@ -117,6 +121,9 @@ protected:
 
 	UPROPERTY(Config)
 	TSoftObjectPtr<UYogUIRegistry> UIRegistry;
+
+	UPROPERTY(Config)
+	TSoftObjectPtr<UPlayerUIStyleDataAsset> UIStyle;
 
 
 

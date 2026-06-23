@@ -15,6 +15,9 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "UI/YogHUD.h"
+#include "UI/PlayerUIStyleDataAsset.h"
+#include "Engine/Texture2D.h"
+#include "DevKit.h"
 
 namespace
 {
@@ -49,6 +52,11 @@ void UYogUIManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	CachedRegistry = UDevAssetManager::Get().GetUIRegistry();
+	CachedUIStyle = UDevAssetManager::Get().GetUIStyle();
+	if (!CachedUIStyle)
+	{
+		UE_LOG(DevKitUI, Warning, TEXT("UIStyle data asset failed to load (check UIStyle= path in DefaultGame.ini). Widgets will use their default textures."));
+	}
 }
 
 void UYogUIManagerSubsystem::Deinitialize()
@@ -61,6 +69,7 @@ void UYogUIManagerSubsystem::Deinitialize()
 		}
 	}
 	Instances.Reset();
+	CachedUIStyle = nullptr;
 	LoadedWidgetClasses.Reset();
 	WidgetClassOverrides.Reset();
 	InputPolicyOverrides.Reset();
@@ -82,6 +91,22 @@ void UYogUIManagerSubsystem::Deinitialize()
 UYogUIRegistry* UYogUIManagerSubsystem::GetRegistry() const
 {
 	return CachedRegistry;
+}
+
+UPlayerUIStyleDataAsset* UYogUIManagerSubsystem::GetUIStyle() const
+{
+	return CachedUIStyle;
+}
+
+UTexture2D* UYogUIManagerSubsystem::ResolveStyleTexture(UTexture2D* StyleTexture, UTexture2D* DefaultTexture, FName Context) const
+{
+	if (StyleTexture)
+	{
+		return StyleTexture;
+	}
+
+	UE_LOG(DevKitUI, Warning, TEXT("style texture for '%s' is null; using widget default."), *Context.ToString());
+	return DefaultTexture;
 }
 
 TSubclassOf<UUserWidget> UYogUIManagerSubsystem::GetWidgetClass(EYogUIScreenId ScreenId) const

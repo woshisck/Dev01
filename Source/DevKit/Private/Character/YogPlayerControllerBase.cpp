@@ -523,12 +523,21 @@ void AYogPlayerControllerBase::InitMouseCursorWidget()
 
 	if (!IsValid(MouseCursorWidget))
 	{
-		MouseCursorWidget = CreateWidget<UUserWidget>(this, MouseCursorWidgetClass);
+		MouseCursorWidget = CreateWidget<UYogCursorWidget>(this, MouseCursorWidgetClass);
 	}
 
 	if (IsValid(MouseCursorWidget))
 	{
 		SetMouseCursorWidget(EMouseCursor::Default, MouseCursorWidget);
+		SetCursorState(EYogCursorState::Default);
+	}
+}
+
+void AYogPlayerControllerBase::SetCursorState(EYogCursorState NewState)
+{
+	if (IsValid(MouseCursorWidget))
+	{
+		MouseCursorWidget->OnCursorStateChanged(NewState);
 	}
 }
 

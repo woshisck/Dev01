@@ -6,6 +6,7 @@
 #include "Data/GameplayTagRelation.h"
 #include "Data/StateConflictDataAsset.h"
 #include "UI/YogUIRegistry.h"
+#include "UI/PlayerUIStyleDataAsset.h"
 
 UDevAssetManager::UDevAssetManager()
 {
@@ -42,6 +43,11 @@ UStateConflictDataAsset* UDevAssetManager::GetStateConflictData()
 UYogUIRegistry* UDevAssetManager::GetUIRegistry()
 {
 	return GetAsset<UYogUIRegistry>(UIRegistry);
+}
+
+UPlayerUIStyleDataAsset* UDevAssetManager::GetUIStyle()
+{
+	return GetAsset<UPlayerUIStyleDataAsset>(UIStyle);
 }
 
 void UDevAssetManager::AsyncLoadAsset(FSoftObjectPath Path, FOnAsyncLoadFinished OnPackageLoaded) {
