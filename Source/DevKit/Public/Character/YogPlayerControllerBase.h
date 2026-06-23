@@ -132,6 +132,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<UUserWidget> CombatHUDClass;
 
+	/** Custom software mouse cursor (UMG). Bound to EMouseCursor::Default at BeginPlay. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI|Cursor")
+	TSubclassOf<UUserWidget> MouseCursorWidgetClass;
+
 	UFUNCTION(BlueprintCallable)
 	void OnInteractTriggered(const AItemSpawner* item);
 
@@ -197,6 +201,7 @@ private:
 	bool IsGameplayInputBlocked() const;
 	void HandleCommonInputMethodChanged(ECommonInputType NewInputType);
 	void SetGameplayCursorUsesMouse(bool bUsesMouse);
+	void InitMouseCursorWidget();
 
 	bool bBlockGameInput = false;
 	bool bGameplayCursorControlActive = false;
@@ -206,6 +211,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UUserWidget> CombatHUDWidget;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> MouseCursorWidget;
 
 	UPROPERTY()
 	TObjectPtr<class ULootSelectionWidget> LootSelectionWidget;

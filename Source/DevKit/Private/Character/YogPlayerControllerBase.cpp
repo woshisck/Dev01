@@ -167,7 +167,9 @@ void AYogPlayerControllerBase::BeginPlay()
 	}
 
 	SetGameplayCursorControlActive(true);
-	
+
+	InitMouseCursorWidget();
+
 	//AYogCharacterBase* TargetCharacter = Cast<AYogCharacterBase>(UGameplayStatics::GetPlayerCharacter(this, 0));
 	
 	// 相机已切换为 AYogPlayerCameraManager + SpringArm + CameraComponent 方案
@@ -510,6 +512,24 @@ void AYogPlayerControllerBase::ApplyGameplayInputModeForCurrentInputType()
 void AYogPlayerControllerBase::HandleCommonInputMethodChanged(ECommonInputType NewInputType)
 {
 	SetGameplayCursorUsesMouse(NewInputType != ECommonInputType::Gamepad);
+}
+
+void AYogPlayerControllerBase::InitMouseCursorWidget()
+{
+	if (!IsLocalController() || MouseCursorWidgetClass == nullptr)
+	{
+		return;
+	}
+
+	if (!IsValid(MouseCursorWidget))
+	{
+		MouseCursorWidget = CreateWidget<UUserWidget>(this, MouseCursorWidgetClass);
+	}
+
+	if (IsValid(MouseCursorWidget))
+	{
+		SetMouseCursorWidget(EMouseCursor::Default, MouseCursorWidget);
+	}
 }
 
 void AYogPlayerControllerBase::SetGameplayCursorUsesMouse(bool bUsesMouse)
