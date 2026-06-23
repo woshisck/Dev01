@@ -15,6 +15,7 @@
 #include "Data/RoomDataAsset.h"
 #include "Data/RuneDataAsset.h"
 #include "RuneHudTextUtils.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 
 namespace
 {
@@ -137,7 +138,7 @@ void UCurrentRoomBuffWidget::ShowRoomBuffs(URoomDataAsset* RoomData, const TArra
 		RoomNameText->SetText(RoomDisplayName);
 		RoomNameText->SetVisibility(RoomDisplayName.IsEmptyOrWhitespace()
 			? ESlateVisibility::Collapsed
-			: ESlateVisibility::HitTestInvisible);
+			: YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	}
 
 	int32 ValidBuffCount = 0;
@@ -156,11 +157,12 @@ void UCurrentRoomBuffWidget::ShowRoomBuffs(URoomDataAsset* RoomData, const TArra
 		EmptyText->SetText(EmptyTextValue);
 		EmptyText->SetVisibility(ValidBuffCount > 0
 			? ESlateVisibility::Collapsed
-			: ESlateVisibility::HitTestInvisible);
+			: YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	}
 
 	const bool bShouldShow = ValidBuffCount > 0 || !bCollapseWhenEmpty;
-	SetVisibility(bShouldShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
+		bShouldShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
 }
 
 void UCurrentRoomBuffWidget::HideRoomBuffs()

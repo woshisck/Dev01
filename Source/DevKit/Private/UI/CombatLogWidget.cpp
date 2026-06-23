@@ -37,7 +37,7 @@ FLinearColor GetFilterTint(ECombatLogFilter Filter)
 	}
 }
 
-bool IsCardResolveEventDamageType(const FName DamageType)
+bool IsCombatLogWidgetCardResolveEventDamageType(const FName DamageType)
 {
 	return DamageType == FName("Card_Resolve")
 		|| DamageType == FName("Card_Consume")
@@ -570,7 +570,7 @@ void UCombatLogWidget::RebuildLog()
 	{
 		const FString TypeStr = E.DamageType.ToString();
 
-		if (IsCardResolveEventDamageType(E.DamageType))
+		if (IsCombatLogWidgetCardResolveEventDamageType(E.DamageType))
 		{
 			HitCardResolve++;
 			if (E.bStartedShuffle) HitCardShuffle++;

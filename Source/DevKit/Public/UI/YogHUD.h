@@ -434,6 +434,7 @@ private:
 
 	void EnsureCurrentRoomBuffWidget();
 	void RefreshCurrentRoomBuffsFromGameMode();
+	void ApplyWidgetReflectorDebugVisibility();
 
 	UPROPERTY()
 	TObjectPtr<UWeaponTrailWidget> ActiveTrailWidget;

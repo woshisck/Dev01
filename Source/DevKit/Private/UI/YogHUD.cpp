@@ -19,6 +19,7 @@
 #include "UI/WeaponFloatWidget.h"
 #include "UI/WeaponGlassAnimDA.h"
 #include "UI/WeaponTrailWidget.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/BackpackGridComponent.h"
@@ -981,19 +982,66 @@ FVector2D AYogHUD::GetWeaponGlassIconScreenCenter() const
 		GetWorld()->GetGameViewport()->GetViewportSize(ViewSize);
 	const float DPI = UWidgetLayoutLibrary::GetViewportScale(GetWorld());
 	if (DPI > 0.f) ViewSize /= DPI;
-	if (!WeaponGlassAnimDA) return ViewSize * FVector2D(0.1f, 0.8f);
-	const FVector2D& Off  = WeaponGlassAnimDA->HUDOffsetFromBottomLeft;
-	const FVector2D  Size = WeaponGlassAnimDA->GlassIconSize;
-	return FVector2D(Off.X + Size.X * 0.5f, ViewSize.Y - Off.Y - Size.Y * 0.5f);
+
+	FVector2D WidgetCenter;
+	if (MainHUDWidget && MainHUDWidget->GetActiveWeaponSlotScreenCenter(WidgetCenter))
+	{
+		return WidgetCenter;
+	}
+
+	const FVector2D Size = WeaponGlassAnimDA ? WeaponGlassAnimDA->GlassIconSize : FVector2D(64.f, 64.f);
+	return FVector2D(24.f + Size.X * 0.5f, 24.f + Size.Y * 0.5f);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  暂停遮罩 Tick
 // ─────────────────────────────────────────────────────────────────────────────
 
+void AYogHUD::ApplyWidgetReflectorDebugVisibility()
+{
+	if (!YogWidgetReflectorDebug::ShouldMakeWidgetsPickable())
+	{
+		return;
+	}
+
+	if (MainHUDWidget)
+	{
+		MainHUDWidget->ApplyWidgetReflectorDebugVisibility();
+	}
+	if (WeaponFloatWidget)
+	{
+		YogWidgetReflectorDebug::ApplyToWidgetTree(WeaponFloatWidget);
+	}
+	if (LootSelectionWidget)
+	{
+		YogWidgetReflectorDebug::ApplyToWidgetTree(LootSelectionWidget);
+	}
+	if (CurrentRoomBuffWidget)
+	{
+		YogWidgetReflectorDebug::ApplyToWidgetTree(CurrentRoomBuffWidget);
+	}
+	if (PortalPreviewWidget)
+	{
+		YogWidgetReflectorDebug::ApplyToWidgetTree(PortalPreviewWidget);
+	}
+	if (PortalDirectionWidget)
+	{
+		YogWidgetReflectorDebug::ApplyToWidgetTree(PortalDirectionWidget);
+	}
+	if (ActiveTrailWidget)
+	{
+		YogWidgetReflectorDebug::ApplyToWidgetTree(ActiveTrailWidget);
+	}
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
+	{
+		UIManager->ApplyWidgetReflectorDebugVisibility();
+	}
+}
+
 void AYogHUD::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	ApplyWidgetReflectorDebugVisibility();
 
 	// Portal 引导 + Blackout 独立 Tick — 必须在所有早返回之前调用，
 	// 否则常规情况下（PauseEffectAlpha 已稳定 / LevelEndEffect 期间）不会更新
@@ -1252,7 +1300,7 @@ void AYogHUD::BindCombatDeckWidget(APawn* Pawn)
 
 void AYogHUD::EnsureCombatItemWidget()
 {
-	if (CombatItemBarWidget || !MainHUDWidget || !MainHUDWidget->BottomRightPlayerInfoRegion)
+	if (CombatItemBarWidget || !MainHUDWidget || !MainHUDWidget->TopRightPlayerInfoRegion)
 	{
 		return;
 	}
@@ -1271,17 +1319,19 @@ void AYogHUD::EnsureCombatItemWidget()
 		return;
 	}
 
-	if (UOverlaySlot* ItemSlot = MainHUDWidget->BottomRightPlayerInfoRegion->AddChildToOverlay(CombatItemBarWidget))
+	if (UOverlaySlot* ItemSlot = MainHUDWidget->TopRightPlayerInfoRegion->AddChildToOverlay(CombatItemBarWidget))
 	{
 		ItemSlot->SetHorizontalAlignment(HAlign_Right);
-		ItemSlot->SetVerticalAlignment(VAlign_Bottom);
-		ItemSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 8.0f));
+		ItemSlot->SetVerticalAlignment(VAlign_Top);
+		ItemSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
 	}
+
+	MainHUDWidget->ApplyWidgetReflectorDebugVisibility();
 }
 
 void AYogHUD::EnsureActiveSkillWidget()
 {
-	if (ActiveSkillBarWidget || !MainHUDWidget || !MainHUDWidget->BottomRightPlayerInfoRegion)
+	if (ActiveSkillBarWidget || !MainHUDWidget || !MainHUDWidget->TopRightPlayerInfoRegion)
 	{
 		return;
 	}
@@ -1300,12 +1350,14 @@ void AYogHUD::EnsureActiveSkillWidget()
 		return;
 	}
 
-	if (UOverlaySlot* SkillSlot = MainHUDWidget->BottomRightPlayerInfoRegion->AddChildToOverlay(ActiveSkillBarWidget))
+	if (UOverlaySlot* SkillSlot = MainHUDWidget->TopRightPlayerInfoRegion->AddChildToOverlay(ActiveSkillBarWidget))
 	{
 		SkillSlot->SetHorizontalAlignment(HAlign_Right);
-		SkillSlot->SetVerticalAlignment(VAlign_Bottom);
-		SkillSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 92.0f));
+		SkillSlot->SetVerticalAlignment(VAlign_Top);
+		SkillSlot->SetPadding(FMargin(0.0f, 82.0f, 8.0f, 0.0f));
 	}
+
+	MainHUDWidget->ApplyWidgetReflectorDebugVisibility();
 }
 
 void AYogHUD::BindCombatItemWidget(APawn* Pawn)
@@ -1635,7 +1687,7 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 			*GetNameSafe(Player->PendingPortal),
 			*DescribeHUDLootOptionsForRewardDebug(Target->CachedPreviewInfo.RewardPreviewOptions));
 		PortalPreviewWidget->SetPreviewInfo(Target->CachedPreviewInfo);
-		PortalPreviewWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+		PortalPreviewWidget->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	}
 
 	// 每帧位置跟随：投影 + 相机右侧避让（投影到屏幕右半→向左偏，反之向右）
@@ -1710,14 +1762,14 @@ void AYogHUD::PopMajorUI()
 	{
 		if (bHasWeapon)
 		{
-			GlassIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+			GlassIcon->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 			GlassIcon->SetRenderOpacity(MajorUIFadeAlpha);
 		}
 	}
 
 	if (PortalDirectionWidget && bShowPortalGuidance)
 	{
-		PortalDirectionWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+		PortalDirectionWidget->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 		PortalDirectionWidget->SetRenderOpacity(MajorUIFadeAlpha);
 	}
 

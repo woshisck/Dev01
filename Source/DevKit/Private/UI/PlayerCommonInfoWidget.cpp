@@ -12,6 +12,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/GameInstance.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 
 void UPlayerCommonInfoWidget::NativeConstruct()
 {
@@ -21,14 +22,14 @@ void UPlayerCommonInfoWidget::NativeConstruct()
 	ApplyMaterialIconBrush();
 	SetGold(BoundBackpack ? BoundBackpack->Gold : 0);
 	BindToMetaProgression();
-	SetVisibility(ESlateVisibility::HitTestInvisible);
+	SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	if (GoldRow)
 	{
-		GoldRow->SetVisibility(ESlateVisibility::HitTestInvisible);
+		GoldRow->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	}
 	if (MaterialRow)
 	{
-		MaterialRow->SetVisibility(ESlateVisibility::HitTestInvisible);
+		MaterialRow->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	}
 }
 
@@ -130,7 +131,7 @@ void UPlayerCommonInfoWidget::SetCommonInfoEntry(FName EntryId, FText Label, int
 		ConfigureIcon(Icon, IconTexture, FVector2D(22.0f, 22.0f));
 	}
 
-	Row->SetVisibility(ESlateVisibility::HitTestInvisible);
+	Row->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 }
 
 void UPlayerCommonInfoWidget::RemoveCommonInfoEntry(FName EntryId)
@@ -233,7 +234,7 @@ void UPlayerCommonInfoWidget::ConfigureIcon(UImage* Icon, UTexture2D* Texture, c
 		Icon->SetBrushFromTexture(Texture, false);
 		Icon->SetDesiredSizeOverride(Size);
 		Icon->SetColorAndOpacity(FLinearColor::White);
-		Icon->SetVisibility(ESlateVisibility::HitTestInvisible);
+		Icon->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	}
 	else
 	{
@@ -286,7 +287,7 @@ UHorizontalBox* UPlayerCommonInfoWidget::CreateCommonInfoEntryRow(FName EntryId,
 		return nullptr;
 	}
 
-	Row->SetVisibility(ESlateVisibility::HitTestInvisible);
+	Row->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	IconBox->SetWidthOverride(22.0f);
 	IconBox->SetHeightOverride(22.0f);
 	IconBox->AddChild(OutIcon);

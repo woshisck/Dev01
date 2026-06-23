@@ -140,6 +140,34 @@ namespace MainUISetup
 		return Widget && ExpectedClass && Widget->GetClass()->IsChildOf(ExpectedClass);
 	}
 
+	bool WidgetHasCanvasLayout(
+		UWidgetBlueprint* WidgetBlueprint,
+		const FName WidgetName,
+		const FAnchors& ExpectedAnchors,
+		const FVector2D& ExpectedPosition,
+		const FVector2D& ExpectedSize,
+		const FVector2D& ExpectedAlignment)
+	{
+		if (!WidgetBlueprint || !WidgetBlueprint->WidgetTree)
+		{
+			return false;
+		}
+
+		const UWidget* Widget = WidgetBlueprint->WidgetTree->FindWidget(WidgetName);
+		const UCanvasPanelSlot* CanvasSlot = Widget ? Cast<UCanvasPanelSlot>(Widget->Slot) : nullptr;
+		if (!CanvasSlot)
+		{
+			return false;
+		}
+
+		const FAnchors Anchors = CanvasSlot->GetAnchors();
+		return Anchors.Minimum.Equals(ExpectedAnchors.Minimum, 0.001f)
+			&& Anchors.Maximum.Equals(ExpectedAnchors.Maximum, 0.001f)
+			&& CanvasSlot->GetPosition().Equals(ExpectedPosition, 0.001f)
+			&& CanvasSlot->GetSize().Equals(ExpectedSize, 0.001f)
+			&& CanvasSlot->GetAlignment().Equals(ExpectedAlignment, 0.001f);
+	}
+
 	void ConfigureCanvasSlot(UCanvasPanelSlot* Slot, const FAnchors& Anchors, const FVector2D& Position, const FVector2D& Size, const FVector2D& Alignment, int32 ZOrder)
 	{
 		if (!Slot)
@@ -362,14 +390,14 @@ namespace MainUISetup
 			ConfigureCanvasSlot(RootCanvas->AddChildToCanvas(EnemyArrow), FAnchors(0.f, 0.f, 1.f, 1.f), FVector2D::ZeroVector, FVector2D::ZeroVector, FVector2D::ZeroVector, 0);
 		}
 
-		UOverlay* TopLeft = AddHudRegion(WidgetTree, RootCanvas, TEXT("TopLeftPlayerInfoRegion"), FAnchors(0.f, 0.f), FVector2D(16.f, 16.f), FVector2D(380.f, 128.f), FVector2D(0.f, 0.f), 5);
-		UOverlay* TopRight = AddHudRegion(WidgetTree, RootCanvas, TEXT("TopRightPlayerInfoRegion"), FAnchors(1.f, 0.f), FVector2D(-16.f, 16.f), FVector2D(460.f, 132.f), FVector2D(1.f, 0.f), 5);
+		UOverlay* TopLeft = AddHudRegion(WidgetTree, RootCanvas, TEXT("TopLeftPlayerInfoRegion"), FAnchors(0.f, 0.f), FVector2D(24.f, 24.f), FVector2D(560.f, 220.f), FVector2D(0.f, 0.f), 5);
+		UOverlay* TopRight = AddHudRegion(WidgetTree, RootCanvas, TEXT("TopRightPlayerInfoRegion"), FAnchors(1.f, 0.f), FVector2D(-24.f, 24.f), FVector2D(420.f, 160.f), FVector2D(1.f, 0.f), 5);
 		UOverlay* Boss = AddHudRegion(WidgetTree, RootCanvas, TEXT("BossInfoRegion"), FAnchors(0.5f, 0.f), FVector2D(0.f, 16.f), FVector2D(980.f, 118.f), FVector2D(0.5f, 0.f), 6);
 		UOverlay* LeftLevel = AddHudRegion(WidgetTree, RootCanvas, TEXT("LeftLevelInfoRegion"), FAnchors(0.f, 0.5f), FVector2D(24.f, 0.f), FVector2D(360.f, 560.f), FVector2D(0.f, 0.5f), 5);
 		UOverlay* RightLevel = AddHudRegion(WidgetTree, RootCanvas, TEXT("RightLevelInfoRegion"), FAnchors(1.f, 0.5f), FVector2D(-24.f, 0.f), FVector2D(360.f, 560.f), FVector2D(1.f, 0.5f), 5);
 		UOverlay* BottomLeft = AddHudRegion(WidgetTree, RootCanvas, TEXT("BottomLeftPlayerInfoRegion"), FAnchors(0.f, 1.f), FVector2D(24.f, -24.f), FVector2D(440.f, 150.f), FVector2D(0.f, 1.f), 8);
 		UOverlay* BottomCenter = AddHudRegion(WidgetTree, RootCanvas, TEXT("BottomCenterCombatRegion"), FAnchors(0.5f, 1.f), FVector2D(0.f, -24.f), FVector2D(900.f, 180.f), FVector2D(0.5f, 1.f), 8);
-		UOverlay* BottomRight = AddHudRegion(WidgetTree, RootCanvas, TEXT("BottomRightPlayerInfoRegion"), FAnchors(1.f, 1.f), FVector2D(-24.f, -24.f), FVector2D(420.f, 150.f), FVector2D(1.f, 1.f), 8);
+		UOverlay* BottomRight = AddHudRegion(WidgetTree, RootCanvas, TEXT("BottomRightPlayerInfoRegion"), FAnchors(1.f, 1.f), FVector2D(-24.f, -24.f), FVector2D(360.f, 112.f), FVector2D(1.f, 1.f), 8);
 
 		if (Boss)
 		{
@@ -399,7 +427,7 @@ namespace MainUISetup
 		UYogCommonRichTextBlock* WeaponComboListText = ConstructNamedWidget<UYogCommonRichTextBlock>(WidgetTree, TEXT("WeaponComboListText"));
 		if (WeaponComboListPanel && WeaponComboListFrame && WeaponComboListStack && WeaponComboListTitle && WeaponComboListText)
 		{
-			WeaponComboListPanel->SetWidthOverride(460.f);
+			WeaponComboListPanel->SetWidthOverride(320.f);
 			WeaponComboListPanel->SetMinDesiredHeight(180.f);
 			WeaponComboListPanel->SetVisibility(ESlateVisibility::Collapsed);
 			WeaponComboListPanel->SetClipping(EWidgetClipping::Inherit);
@@ -434,13 +462,7 @@ namespace MainUISetup
 		}
 		if (WeaponComboListPanel)
 		{
-			ConfigureCanvasSlot(
-				RootCanvas->AddChildToCanvas(WeaponComboListPanel),
-				FAnchors(1.f, 0.f),
-				FVector2D(-16.f, 16.f),
-				FVector2D(460.f, 300.f),
-				FVector2D(1.f, 0.f),
-				7);
+			AddWidgetToOverlay(TopLeft, WeaponComboListPanel, HAlign_Left, VAlign_Top, FMargin(216.f, 8.f, 0.f, 0.f));
 		}
 
 		UWidget* PlayerCommonInfo = ConstructWidgetFromPath(
@@ -449,7 +471,7 @@ namespace MainUISetup
 			TEXT("PlayerCommonInfoHud"),
 			ReportLines,
 			UPlayerCommonInfoWidget::StaticClass());
-		AddWidgetToOverlay(BottomRight, PlayerCommonInfo, HAlign_Right, VAlign_Top, FMargin(0.0f, 8.0f, 8.0f, 0.0f));
+		AddWidgetToOverlay(BottomRight, PlayerCommonInfo, HAlign_Right, VAlign_Bottom, FMargin(0.0f, 0.0f, 8.0f, 8.0f));
 
 		USizeBox* PlayerHealthHost = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("PlayerHealthHost"), false);
 		PlayerHealthHost->SetWidthOverride(420.f);
@@ -461,7 +483,7 @@ namespace MainUISetup
 		AddWidgetToOverlay(BottomLeft, PlayerHealthHost, HAlign_Left, VAlign_Bottom);
 
 		UWidget* WeaponGlass = ConstructWidgetFromPath(WidgetTree, WeaponGlassClassPath, TEXT("WeaponGlassIcon"), ReportLines);
-		AddWidgetToOverlay(BottomLeft, WeaponGlass, HAlign_Left, VAlign_Bottom, FMargin(0.f, 0.f, 0.f, 28.f));
+		AddWidgetToOverlay(TopLeft, WeaponGlass, HAlign_Left, VAlign_Top, FMargin(156.f, 40.f, 0.f, 0.f));
 
 		USizeBox* CombatDeckHost = ConstructNamedWidget<USizeBox>(WidgetTree, TEXT("CombatDeckHost"), false);
 		CombatDeckHost->SetWidthOverride(900.f);
@@ -703,13 +725,16 @@ namespace MainUISetup
 	{
 		return !WidgetBlueprint || !WidgetBlueprint->WidgetTree
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("TopLeftPlayerInfoRegion"))
+			|| !WidgetHasCanvasLayout(WidgetBlueprint, TEXT("TopLeftPlayerInfoRegion"), FAnchors(0.f, 0.f), FVector2D(24.f, 24.f), FVector2D(560.f, 220.f), FVector2D(0.f, 0.f))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("TopRightPlayerInfoRegion"))
+			|| !WidgetHasCanvasLayout(WidgetBlueprint, TEXT("TopRightPlayerInfoRegion"), FAnchors(1.f, 0.f), FVector2D(-24.f, 24.f), FVector2D(420.f, 160.f), FVector2D(1.f, 0.f))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BossInfoRegion"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("LeftLevelInfoRegion"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("RightLevelInfoRegion"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BottomLeftPlayerInfoRegion"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BottomCenterCombatRegion"))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("BottomRightPlayerInfoRegion"))
+			|| !WidgetHasCanvasLayout(WidgetBlueprint, TEXT("BottomRightPlayerInfoRegion"), FAnchors(1.f, 1.f), FVector2D(-24.f, -24.f), FVector2D(360.f, 112.f), FVector2D(1.f, 1.f))
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("PlayerHealthBar"))
 			|| !WidgetUsesClassPath(WidgetBlueprint, TEXT("PlayerHealthBar"), PlayerHealthClassPath)
 			|| !WidgetBlueprint->WidgetTree->FindWidget(TEXT("CombatDeckBar"))

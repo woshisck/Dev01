@@ -4,6 +4,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "UI/CombatDeckCardSlotWidget.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 #include "UI/YogCommonRichTextBlock.h"
 
 void UCombatDeckBarWidget::NativeConstruct()
@@ -91,7 +92,7 @@ void UCombatDeckBarWidget::PlayDeckCardsEnteredHighlight()
 
 	if (DeckEntryHighlightPanel)
 	{
-		DeckEntryHighlightPanel->SetVisibility(ESlateVisibility::HitTestInvisible);
+		DeckEntryHighlightPanel->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 		DeckEntryHighlightPanel->SetRenderOpacity(0.0f);
 	}
 
@@ -227,7 +228,7 @@ void UCombatDeckBarWidget::ShowToast(UWidget* ToastWidget, float& ToastTimeRemai
 	}
 
 	ToastTimeRemaining = FMath::Max(0.0f, ToastVisibleDuration) + FMath::Max(0.01f, ToastFadeDuration);
-	ToastWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	ToastWidget->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	ToastWidget->SetRenderOpacity(1.0f);
 }
 

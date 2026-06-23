@@ -11,6 +11,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 
 void UActiveSkillBarWidget::NativeConstruct()
 {
@@ -159,7 +160,8 @@ void UActiveSkillBarWidget::UpdateSlotWidgets(const TArray<FActiveSkillSlotView>
 	{
 		bAnyUnlocked |= !SkillView.bLocked;
 	}
-	SetVisibility(bAnyUnlocked ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
+		bAnyUnlocked ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
 
 	for (int32 Index = 0; Index < RuntimeSlotWidgets.Num(); ++Index)
 	{
@@ -209,12 +211,14 @@ void UActiveSkillBarWidget::UpdateSlotWidgets(const TArray<FActiveSkillSlotView>
 		const bool bCoolingDown = bHasSlot && SkillSlot.CooldownRemaining > 0.0f && SkillSlot.CooldownDuration > 0.0f;
 		if (SlotWidget.CooldownBar)
 		{
-			SlotWidget.CooldownBar->SetVisibility(bCoolingDown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+			SlotWidget.CooldownBar->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
+				bCoolingDown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
 			SlotWidget.CooldownBar->SetPercent(bCoolingDown ? SkillSlot.CooldownRemaining / SkillSlot.CooldownDuration : 0.0f);
 		}
 		if (SlotWidget.CooldownText)
 		{
-			SlotWidget.CooldownText->SetVisibility(bCoolingDown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+			SlotWidget.CooldownText->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
+				bCoolingDown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
 			SlotWidget.CooldownText->SetText(FText::AsNumber(FMath::CeilToInt(SkillSlot.CooldownRemaining)));
 		}
 	}

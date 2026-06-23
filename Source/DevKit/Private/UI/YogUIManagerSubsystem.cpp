@@ -16,6 +16,7 @@
 #include "Character/YogPlayerControllerBase.h"
 #include "UI/YogHUD.h"
 #include "UI/PlayerUIStyleDataAsset.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 #include "Engine/Texture2D.h"
 #include "DevKit.h"
 
@@ -281,6 +282,7 @@ UUserWidget* UYogUIManagerSubsystem::EnsureWidget(EYogUIScreenId ScreenId)
 	{
 		if (*Existing && (*Existing)->IsInViewport())
 		{
+			YogWidgetReflectorDebug::ApplyToWidgetTree(Existing->Get());
 			return *Existing;
 		}
 		Instances.Remove(ScreenId);
@@ -312,6 +314,7 @@ UUserWidget* UYogUIManagerSubsystem::EnsureWidget(EYogUIScreenId ScreenId)
 		: GetZOrder(ScreenId, 0);
 	W->AddToViewport(ZOrder);
 	Instances.Add(ScreenId, W);
+	YogWidgetReflectorDebug::ApplyToWidgetTree(W);
 
 	if (UCommonActivatableWidget* Activatable = Cast<UCommonActivatableWidget>(W))
 	{
@@ -668,6 +671,25 @@ void UYogUIManagerSubsystem::CreateAutoStartWidgets()
 			continue;
 		}
 		EnsureWidget(Entry.ScreenId);
+	}
+}
+
+void UYogUIManagerSubsystem::ApplyWidgetReflectorDebugVisibility()
+{
+	if (!YogWidgetReflectorDebug::ShouldMakeWidgetsPickable())
+	{
+		return;
+	}
+
+	for (const TPair<EYogUIScreenId, TObjectPtr<UUserWidget>>& Pair : Instances)
+	{
+		if (UUserWidget* Widget = Pair.Value.Get())
+		{
+			if (Widget->IsInViewport())
+			{
+				YogWidgetReflectorDebug::ApplyToWidgetTree(Widget);
+			}
+		}
 	}
 }
 

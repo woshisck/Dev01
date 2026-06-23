@@ -160,6 +160,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void CreateAutoStartWidgets();
 
+	void ApplyWidgetReflectorDebugVisibility();
+
 	// ─── Layer / Input ───────────────────────────────────────
 	//
 	// 当 ActivatedScreens 集合发生变化时，Subsystem 会重新计算当前的 Top Layer：

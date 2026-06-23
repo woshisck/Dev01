@@ -11,6 +11,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 
 void UCombatItemBarWidget::NativeConstruct()
 {
@@ -196,12 +197,14 @@ void UCombatItemBarWidget::UpdateSlotWidgets(const TArray<FCombatItemSlotView>& 
 		const bool bCoolingDown = bHasSlot && ItemSlot.CooldownRemaining > 0.0f && ItemSlot.CooldownDuration > 0.0f;
 		if (SlotWidget.CooldownBar)
 		{
-			SlotWidget.CooldownBar->SetVisibility(bCoolingDown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+			SlotWidget.CooldownBar->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
+				bCoolingDown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
 			SlotWidget.CooldownBar->SetPercent(bCoolingDown ? ItemSlot.CooldownRemaining / ItemSlot.CooldownDuration : 0.0f);
 		}
 		if (SlotWidget.CooldownText)
 		{
-			SlotWidget.CooldownText->SetVisibility(bCoolingDown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+			SlotWidget.CooldownText->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
+				bCoolingDown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
 			SlotWidget.CooldownText->SetText(FText::AsNumber(FMath::CeilToInt(ItemSlot.CooldownRemaining)));
 		}
 	}

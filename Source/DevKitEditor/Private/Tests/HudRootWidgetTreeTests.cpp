@@ -3,10 +3,10 @@
 #include "Misc/AutomationTest.h"
 
 #include "Blueprint/WidgetTree.h"
-#include "Components/CanvasPanel.h"
-#include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "UI/LiquidHealthBarWidget.h"
@@ -125,7 +125,7 @@ bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Paramet
 		return false;
 	}
 
-	UWidget* TopRightRegion = WidgetTree->FindWidget(TEXT("TopRightPlayerInfoRegion"));
+	UWidget* TopLeftRegion = WidgetTree->FindWidget(TEXT("TopLeftPlayerInfoRegion"));
 	UWidget* RootCanvas = WidgetTree->FindWidget(TEXT("RootCanvas"));
 	UWidget* ComboPanel = WidgetTree->FindWidget(TEXT("WeaponComboListPanel"));
 	UWidget* ComboTitle = WidgetTree->FindWidget(TEXT("WeaponComboListTitle"));
@@ -133,7 +133,7 @@ bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Paramet
 
 	bool bValid = true;
 	bValid &= TestNotNull(TEXT("HUD root contains RootCanvas"), RootCanvas);
-	bValid &= TestNotNull(TEXT("HUD root contains TopRightPlayerInfoRegion"), TopRightRegion);
+	bValid &= TestNotNull(TEXT("HUD root contains TopLeftPlayerInfoRegion"), TopLeftRegion);
 	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListPanel"), ComboPanel);
 	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListTitle"), ComboTitle);
 	bValid &= TestNotNull(TEXT("HUD root contains WeaponComboListText"), ComboText);
@@ -157,10 +157,10 @@ bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Paramet
 			ETextJustify::Right);
 	}
 
-	if (UCanvasPanel* RootCanvasPanel = Cast<UCanvasPanel>(RootCanvas))
+	if (UOverlay* TopLeftOverlay = Cast<UOverlay>(TopLeftRegion))
 	{
-		bValid &= TestTrue(TEXT("WeaponComboListPanel is mounted directly on RootCanvas so it cannot resize or shift level float panels"),
-			ComboPanel && RootCanvasPanel->GetChildIndex(ComboPanel) != INDEX_NONE);
+		bValid &= TestTrue(TEXT("WeaponComboListPanel is mounted in the top-left weapon cluster"),
+			ComboPanel && TopLeftOverlay->GetChildIndex(ComboPanel) != INDEX_NONE);
 	}
 
 	if (ComboPanel)
@@ -169,28 +169,18 @@ bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Paramet
 			ComboPanel->GetClipping(),
 			EWidgetClipping::ClipToBounds);
 
-		if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(ComboPanel->Slot))
+		if (UOverlaySlot* OverlaySlot = Cast<UOverlaySlot>(ComboPanel->Slot))
 		{
-			const FAnchors Anchors = CanvasSlot->GetAnchors();
-			bValid &= TestEqual(TEXT("WeaponComboListPanel anchors to the top-right corner"),
-				Anchors.Minimum,
-				FVector2D(1.f, 0.f));
-			bValid &= TestEqual(TEXT("WeaponComboListPanel max anchor stays top-right"),
-				Anchors.Maximum,
-				FVector2D(1.f, 0.f));
-			bValid &= TestEqual(TEXT("WeaponComboListPanel aligns its right edge to the anchor"),
-				CanvasSlot->GetAlignment(),
-				FVector2D(1.f, 0.f));
-			bValid &= TestEqual(TEXT("WeaponComboListPanel right edge sits near the screen edge"),
-				CanvasSlot->GetPosition().X,
-				-16.0,
-				0.001);
-			bValid &= TestEqual(TEXT("WeaponComboListPanel uses the requested compact width"),
-				CanvasSlot->GetSize().X,
-				460.0,
-				0.001);
-			bValid &= TestTrue(TEXT("WeaponComboListPanel has enough vertical room for long weapon combo lists"),
-				CanvasSlot->GetSize().Y >= 300.f);
+			bValid &= TestEqual(TEXT("WeaponComboListPanel aligns with the top-left weapon cluster"),
+				OverlaySlot->GetHorizontalAlignment(),
+				HAlign_Left);
+			bValid &= TestEqual(TEXT("WeaponComboListPanel sits near the top of the weapon cluster"),
+				OverlaySlot->GetVerticalAlignment(),
+				VAlign_Top);
+			bValid &= TestEqual(TEXT("WeaponComboListPanel leaves room for weapon slots"),
+				OverlaySlot->GetPadding().Left,
+				216.0f,
+				0.001f);
 		}
 	}
 

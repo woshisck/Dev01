@@ -11,7 +11,10 @@ class UInfoPopupWidget;
 class UCombatDeckBarWidget;
 class UPlayerCommonInfoWidget;
 class UCurrentRoomBuffWidget;
+class APlayerCharacterBase;
+class UImage;
 class UOverlay;
+class UTextBlock;
 class UWeaponDefinition;
 class UWidget;
 class UYogCommonRichTextBlock;
@@ -29,7 +32,11 @@ class DEVKIT_API UYogHUDRootWidget : public UUserWidget
 
 public:
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
+	bool GetActiveWeaponSlotScreenCenter(FVector2D& OutScreenCenter) const;
+	void ApplyWidgetReflectorDebugVisibility();
 
 	// Stable layout regions used by WBP_HUDRoot. These are optional so older
 	// HUD blueprints keep loading while generated layouts catch up.
@@ -93,8 +100,37 @@ public:
 	TObjectPtr<UYogCommonRichTextBlock> WeaponComboListText;
 
 private:
-	void RefreshWeaponComboList(bool bForce = false);
+	void ApplyExampleHudLayout();
+	void EnsureWeaponLoadoutPanel();
+	void RebindWeaponPanelPlayer();
+	void RefreshWeaponPanel(bool bForce = false);
 
+	UFUNCTION()
+	void HandleWeaponSwitched();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> WeaponLoadoutPanel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> ActiveWeaponSlot;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> InactiveWeaponSlot;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> ActiveWeaponIcon;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> InactiveWeaponIcon;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> ActiveWeaponNameText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> InactiveWeaponNameText;
+
+	TWeakObjectPtr<APlayerCharacterBase> BoundWeaponPanelPlayer;
 	TWeakObjectPtr<UWeaponDefinition> CachedComboWeaponDefinition;
+	TWeakObjectPtr<UWeaponDefinition> CachedInactiveWeaponDefinition;
 	float ComboListRefreshAccumulator = 0.f;
 };

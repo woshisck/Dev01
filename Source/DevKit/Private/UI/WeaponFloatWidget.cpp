@@ -22,6 +22,7 @@
 #include "CommonRichTextBlock.h"
 #include "Input/Reply.h"
 #include "InputCoreTypes.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 
 namespace WeaponZoneColors
 {
@@ -208,7 +209,7 @@ namespace WeaponZoneColors
 		TextBlock->SetText(Text);
 		TextBlock->SetVisibility(Text.IsEmpty()
 			? ESlateVisibility::Collapsed
-			: ESlateVisibility::SelfHitTestInvisible);
+			: YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::SelfHitTestInvisible));
 	}
 }
 
@@ -233,7 +234,7 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 	if (InfoContainer)
 	{
 		InfoContainer->SetRenderOpacity(1.f);
-		InfoContainer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		InfoContainer->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::SelfHitTestInvisible));
 	}
 
 	const UWeaponInfoDA* Info = Def->WeaponInfo;
@@ -245,7 +246,7 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 		if (Info && Info->Thumbnail)
 		{
 			WeaponThumbnail->SetBrushFromTexture(Info->Thumbnail, true);
-			WeaponThumbnail->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+			WeaponThumbnail->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::SelfHitTestInvisible));
 			CachedThumbnail = Info->Thumbnail;
 		}
 		else
@@ -262,7 +263,8 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 	if (WeaponDescText)
 	{
 		const bool bHas = Info && !Info->WeaponDescription.IsEmpty();
-		WeaponDescText->SetVisibility(bHas ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		WeaponDescText->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
+			bHas ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed));
 		if (bHas)
 		{
 			WeaponDescText->SetText(Info->WeaponDescription);
@@ -274,7 +276,8 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 	if (WeaponSubDescText)
 	{
 		const bool bHas = Info && !Info->WeaponSubDescription.IsEmpty();
-		WeaponSubDescText->SetVisibility(bHas ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		WeaponSubDescText->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
+			bHas ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed));
 		if (bHas)
 		{
 			WeaponSubDescText->SetText(Info->WeaponSubDescription);
@@ -323,7 +326,7 @@ void UWeaponFloatWidget::BuildZonePanel(UCanvasPanel* GridPanel, UImage* ImgWidg
 	if (ZoneTexture && ImgWidget)
 	{
 		ImgWidget->SetBrushFromTexture(ZoneTexture, true);
-		ImgWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		ImgWidget->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::SelfHitTestInvisible));
 		if (GridPanel) GridPanel->SetVisibility(ESlateVisibility::Collapsed);
 		return;
 	}
@@ -331,7 +334,7 @@ void UWeaponFloatWidget::BuildZonePanel(UCanvasPanel* GridPanel, UImage* ImgWidg
 	if (ImgWidget) ImgWidget->SetVisibility(ESlateVisibility::Collapsed);
 	if (!GridPanel) return;
 
-	GridPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	GridPanel->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::SelfHitTestInvisible));
 	GridPanel->ClearChildren();
 
 	TSet<FIntPoint> ActiveCells;

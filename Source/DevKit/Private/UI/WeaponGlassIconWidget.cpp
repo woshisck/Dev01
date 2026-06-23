@@ -3,11 +3,12 @@
 #include "Components/Image.h"
 #include "Character/PlayerCharacterBase.h"
 #include "UI/BackpackStyleDataAsset.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 
 void UWeaponGlassIconWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	SetVisibility(ESlateVisibility::HitTestInvisible);
+	SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 
 	// 订阅热度阶段变化，并立即同步当前相位
 	if (APlayerCharacterBase* PC = Cast<APlayerCharacterBase>(GetOwningPlayerPawn()))
@@ -28,7 +29,7 @@ void UWeaponGlassIconWidget::Show(const UWeaponGlassAnimDA* InAnimDA)
 	bExpanding     = false;
 	ExpandTimer    = 0.f;
 	bWeaponShowing = true;
-	SetVisibility(ESlateVisibility::HitTestInvisible);
+	SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	SetRenderOpacity(1.f);
 	{ FWidgetTransform T; T.Scale = FVector2D::UnitVector; SetRenderTransform(T); }
 
@@ -72,7 +73,7 @@ void UWeaponGlassIconWidget::RefreshHeatOverlay(int32 Phase)
 	}
 
 	HeatColorOverlay->SetColorAndOpacity(Color);
-	HeatColorOverlay->SetVisibility(ESlateVisibility::HitTestInvisible);
+	HeatColorOverlay->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 }
 
 void UWeaponGlassIconWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)

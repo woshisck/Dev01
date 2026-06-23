@@ -10,6 +10,7 @@
 #include "Components/TextBlock.h"
 #include "Engine/GameViewportClient.h"
 #include "GameFramework/Pawn.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 
 namespace
 {
@@ -43,7 +44,8 @@ void UPortalDirectionWidget::SetActive(bool bInActive, const TArray<APortal*>& O
         RebuildArrowUnits();
     }
 
-    SetVisibility(bActive ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+    SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
+        bActive ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
 }
 
 void UPortalDirectionWidget::ClearArrowUnits()
@@ -145,7 +147,7 @@ void UPortalDirectionWidget::NativeTick(const FGeometry& MyGeometry, float InDel
             continue;
         }
 
-        U.Container->SetVisibility(ESlateVisibility::HitTestInvisible);
+        U.Container->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 
         const FVector2D EdgePos = ClampToScreenEdge(SP, Center, ViewportSize);
         if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(U.Container->Slot))

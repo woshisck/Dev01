@@ -5,6 +5,7 @@
 #include "Components/Image.h"
 #include "Components/BackgroundBlur.h"
 #include "Components/Button.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 
 void UInfoPopupWidget::NativeConstruct()
 {
@@ -28,11 +29,12 @@ void UInfoPopupWidget::Show(const ULevelInfoPopupDA* DA)
 	if (TitleText)
 	{
 		const bool bHasTitle = !DA->Title.IsEmpty();
-		TitleText->SetVisibility(bHasTitle ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		TitleText->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
+			bHasTitle ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
 		if (bHasTitle) TitleText->SetText(DA->Title);
 	}
 
-	SetVisibility(ESlateVisibility::HitTestInvisible);
+	SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	FadeAlpha = 0.f;
 	FadeDirection = 1.f;
 	ActiveFadeDuration = FMath::Max(DA->FadeDuration, 0.01f);

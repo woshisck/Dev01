@@ -15,6 +15,7 @@
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "Blueprint/WidgetTree.h"
 #include "Engine/Texture2D.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 
 namespace
 {
@@ -570,7 +571,7 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
             }
         }
 
-        LootIconBox->SetVisibility(ESlateVisibility::HitTestInvisible);
+        LootIconBox->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
         if (LootSummaryText)
         {
             LootSummaryText->SetVisibility(ESlateVisibility::Collapsed);
@@ -591,7 +592,8 @@ void UPortalPreviewWidget::SetInteractHintVisible(bool bVisible)
 {
     if (InteractHintRoot)
     {
-        InteractHintRoot->SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+        InteractHintRoot->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
+            bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
     }
     if (bVisible && !bInteractHintVisible)
     {

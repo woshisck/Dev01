@@ -9,6 +9,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Styling/SlateBrush.h"
+#include "UI/WidgetReflectorDebugUtils.h"
 
 void UWBP_AmmoCounter::NativeConstruct()
 {
@@ -182,7 +183,8 @@ void UWBP_AmmoCounter::RefreshVisibility()
 {
 	const bool bHasAmmoCapacity = CachedMax > 0;
 	const bool bShouldShow = bHasAmmoCapacity && (!bOnlyShowWithRangedWeaponTag || bHasRangedWeaponTag);
-	SetVisibility(bShouldShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
+		bShouldShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
 }
 
 FGameplayTag UWBP_AmmoCounter::GetRangedWeaponTag() const
